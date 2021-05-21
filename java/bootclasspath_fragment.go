@@ -555,12 +555,12 @@ func (b *BootclasspathFragmentModule) generateHiddenAPIBuildActions(ctx android.
 
 	hiddenAPIModules := gatherHiddenAPIModuleFromContents(ctx, contents)
 
-	// Delegate the production of the hidden API all flags file to a module type specific method.
+	// Delegate the production of the hidden API all-flags.csv file to a module type specific method.
 	common := ctx.Module().(commonBootclasspathFragment)
 	output := common.produceHiddenAPIAllFlagsFile(ctx, hiddenAPIModules, input)
 
-	// Initialize a hiddenAPIFlagFileInfo structure and provide it for use by other modules.
-	flagFileInfo := hiddenAPIFlagFileInfo{
+	// Initialize a HiddenAPIInfo structure and provide it for use by other modules.
+	hiddenAPIInfo := HiddenAPIInfo{
 		// The monolithic hidden API processing needs access to the flag files from all the fragments.
 		FlagFilesByCategory: input.FlagFilesByCategory,
 
@@ -568,7 +568,7 @@ func (b *BootclasspathFragmentModule) generateHiddenAPIBuildActions(ctx android.
 		// hidden API processing of this fragment.
 		HiddenAPIFlagOutput: *output,
 	}
-	ctx.SetProvider(hiddenAPIFlagFileInfoProvider, flagFileInfo)
+	ctx.SetProvider(HiddenAPIInfoProvider, hiddenAPIInfo)
 
 	return output
 }
@@ -696,17 +696,17 @@ func (b *bootclasspathFragmentSdkMemberProperties) PopulateFromVariant(ctx andro
 	b.Image_name = module.properties.Image_name
 	b.Contents = module.properties.Contents
 
-	// Get the flag file information from the module.
+	// Get the hidden API information from the module.
 	mctx := ctx.SdkModuleContext()
-	flagFileInfo := mctx.OtherModuleProvider(module, hiddenAPIFlagFileInfoProvider).(hiddenAPIFlagFileInfo)
-	b.Flag_files_by_category = flagFileInfo.FlagFilesByCategory
+	hiddenAPIInfo := mctx.OtherModuleProvider(module, HiddenAPIInfoProvider).(HiddenAPIInfo)
+	b.Flag_files_by_category = hiddenAPIInfo.FlagFilesByCategory
 
 	// Copy all the generated file paths.
-	b.Stub_flags_path = android.OptionalPathForPath(flagFileInfo.StubFlagsPath)
-	b.Annotation_flags_path = android.OptionalPathForPath(flagFileInfo.AnnotationFlagsPath)
-	b.Metadata_path = android.OptionalPathForPath(flagFileInfo.MetadataPath)
-	b.Index_path = android.OptionalPathForPath(flagFileInfo.IndexPath)
-	b.All_flags_path = android.OptionalPathForPath(flagFileInfo.AllFlagsPath)
+	b.Stub_flags_path = android.OptionalPathForPath(hiddenAPIInfo.StubFlagsPath)
+	b.Annotation_flags_path = android.OptionalPathForPath(hiddenAPIInfo.AnnotationFlagsPath)
+	b.Metadata_path = android.OptionalPathForPath(hiddenAPIInfo.MetadataPath)
+	b.Index_path = android.OptionalPathForPath(hiddenAPIInfo.IndexPath)
+	b.All_flags_path = android.OptionalPathForPath(hiddenAPIInfo.AllFlagsPath)
 
 	// Copy stub_libs properties.
 	b.Stub_libs = module.properties.Api.Stub_libs
