@@ -173,6 +173,11 @@ func enabledString(enabled bool) string {
 }
 
 func TestDex2oatToolDeps(t *testing.T) {
+	if android.BuildOs != android.Linux {
+		// The host binary paths checked below are build OS dependent.
+		t.Skipf("Unsupported build OS %s", android.BuildOs)
+	}
+
 	preparers := android.GroupFixturePreparers(
 		cc.PrepareForTestWithCcDefaultModules,
 		PrepareForTestWithJavaDefaultModulesWithoutFakeDex2oatd,
