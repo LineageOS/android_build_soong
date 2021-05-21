@@ -281,14 +281,22 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 
 	monolithicInfo := b.createAndProvideMonolithicHiddenAPIInfo(ctx, fragments)
 
-	sdkKindToStubPaths := hiddenAPIGatherStubLibDexJarPaths(ctx, nil)
+	// Create the input to pass to ruleToGenerateHiddenAPIStubFlagsFile
+	input := newHiddenAPIFlagInput()
+
+	// Gather stub library information from the dependencies on modules provided by
+	// hiddenAPIComputeMonolithicStubLibModules.
+	input.gatherStubLibInfo(ctx, nil)
+
+	// Use the flag files from this module and all the fragments.
+	input.FlagFilesByCategory = monolithicInfo.FlagsFilesByCategory
 
 	hiddenAPIModules := gatherHiddenAPIModuleFromContents(ctx, modules)
 
 	// Generate the monolithic stub-flags.csv file.
 	bootDexJars := extractBootDexJarsFromHiddenAPIModules(ctx, hiddenAPIModules)
 	stubFlags := hiddenAPISingletonPaths(ctx).stubFlags
-	rule := ruleToGenerateHiddenAPIStubFlagsFile(ctx, stubFlags, bootDexJars, sdkKindToStubPaths)
+	rule := ruleToGenerateHiddenAPIStubFlagsFile(ctx, stubFlags, bootDexJars, input)
 	rule.Build("platform-bootclasspath-monolithic-hiddenapi-stub-flags", "monolithic hidden API stub flags")
 
 	// Extract the classes jars from the contents.
@@ -322,8 +330,16 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 // createAndProvideMonolithicHiddenAPIInfo creates a MonolithicHiddenAPIInfo and provides it for
 // testing.
 func (b *platformBootclasspathModule) createAndProvideMonolithicHiddenAPIInfo(ctx android.ModuleContext, fragments []android.Module) MonolithicHiddenAPIInfo {
-	flagFileInfo := b.properties.Hidden_api.hiddenAPIFlagFileInfo(ctx)
-	monolithicInfo := newMonolithicHiddenAPIInfo(ctx, flagFileInfo.FlagFilesByCategory, fragments)
+	// Create a temporary input structure in which to collate information provided directly by this
+	// module, either through properties or direct dependencies.
+	temporaryInput := newHiddenAPIFlagInput()
+
+	// Create paths to the flag files specified in the properties.
+	temporaryInput.extractFlagFilesFromProperties(ctx, &b.properties.Hidden_api)
+
+	// Create the monolithic info, by starting with the flag files specified on this and then merging
+	// in information from all the fragment dependencies of this.
+	monolithicInfo := newMonolithicHiddenAPIInfo(ctx, temporaryInput.FlagFilesByCategory, fragments)
 
 	// Store the information for testing.
 	ctx.SetProvider(monolithicHiddenAPIInfoProvider, monolithicInfo)
