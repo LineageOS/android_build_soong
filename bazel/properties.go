@@ -19,7 +19,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
-	"strings"
 )
 
 // BazelTargetModuleProperties contain properties and metadata used for
@@ -65,6 +64,10 @@ type LabelList struct {
 	Excludes []Label
 }
 
+func (ll *LabelList) IsNil() bool {
+	return ll.Includes == nil && ll.Excludes == nil
+}
+
 // uniqueParentDirectories returns a list of the unique parent directories for
 // all files in ll.Includes.
 func (ll *LabelList) uniqueParentDirectories() []string {
@@ -106,7 +109,27 @@ func UniqueSortedBazelLabels(originalLabels []Label) []Label {
 	return uniqueLabels
 }
 
-func UniqueBazelLabelList(originalLabelList LabelList) LabelList {
+func FirstUniqueBazelLabels(originalLabels []Label) []Label {
+	var labels []Label
+	found := make(map[Label]bool, len(originalLabels))
+	for _, l := range originalLabels {
+		if _, ok := found[l]; ok {
+			continue
+		}
+		labels = append(labels, l)
+		found[l] = true
+	}
+	return labels
+}
+
+func FirstUniqueBazelLabelList(originalLabelList LabelList) LabelList {
+	var uniqueLabelList LabelList
+	uniqueLabelList.Includes = FirstUniqueBazelLabels(originalLabelList.Includes)
+	uniqueLabelList.Excludes = FirstUniqueBazelLabels(originalLabelList.Excludes)
+	return uniqueLabelList
+}
+
+func UniqueSortedBazelLabelList(originalLabelList LabelList) LabelList {
 	var uniqueLabelList LabelList
 	uniqueLabelList.Includes = UniqueSortedBazelLabels(originalLabelList.Includes)
 	uniqueLabelList.Excludes = UniqueSortedBazelLabels(originalLabelList.Excludes)
@@ -154,16 +177,9 @@ func MapLabelListAttribute(mapOver LabelListAttribute, mapFn func(string) string
 
 	result.Value = MapLabelList(mapOver.Value, mapFn)
 
-	for arch := range PlatformArchMap {
-		result.SetValueForArch(arch, MapLabelList(mapOver.GetValueForArch(arch), mapFn))
-	}
-
-	for os := range PlatformOsMap {
-		result.SetOsValueForTarget(os, MapLabelList(mapOver.GetOsValueForTarget(os), mapFn))
-
-		// TODO(b/187530594): Should we handle arch=CONDITIONS_DEFAULT here? (not in ArchValues)
-		for _, arch := range AllArches {
-			result.SetOsArchValueForTarget(os, arch, MapLabelList(mapOver.GetOsArchValueForTarget(os, arch), mapFn))
+	for axis, configToLabels := range mapOver.ConfigurableValues {
+		for config, value := range configToLabels {
+			result.SetSelectValue(axis, config, MapLabelList(value, mapFn))
 		}
 	}
 
@@ -184,21 +200,14 @@ func FilterLabelList(haystack LabelList, needleFn func(string) bool) LabelList {
 
 // Return all needles in a given haystack, where needleFn is true for needles.
 func FilterLabelListAttribute(haystack LabelListAttribute, needleFn func(string) bool) LabelListAttribute {
-	var result LabelListAttribute
+	result := MakeLabelListAttribute(FilterLabelList(haystack.Value, needleFn))
 
-	result.Value = FilterLabelList(haystack.Value, needleFn)
-
-	for arch := range PlatformArchMap {
-		result.SetValueForArch(arch, FilterLabelList(haystack.GetValueForArch(arch), needleFn))
-	}
-
-	for os := range PlatformOsMap {
-		result.SetOsValueForTarget(os, FilterLabelList(haystack.GetOsValueForTarget(os), needleFn))
-
-		// TODO(b/187530594): Should we handle arch=CONDITIONS_DEFAULT here? (not in ArchValues)
-		for _, arch := range AllArches {
-			result.SetOsArchValueForTarget(os, arch, FilterLabelList(haystack.GetOsArchValueForTarget(os, arch), needleFn))
+	for config, selects := range haystack.ConfigurableValues {
+		newSelects := make(labelListSelectValues, len(selects))
+		for k, v := range selects {
+			newSelects[k] = FilterLabelList(v, needleFn)
 		}
+		result.ConfigurableValues[config] = newSelects
 	}
 
 	return result
@@ -206,23 +215,17 @@ func FilterLabelListAttribute(haystack LabelListAttribute, needleFn func(string)
 
 // Subtract needle from haystack
 func SubtractBazelLabelListAttribute(haystack LabelListAttribute, needle LabelListAttribute) LabelListAttribute {
-	var result LabelListAttribute
+	result := MakeLabelListAttribute(SubtractBazelLabelList(haystack.Value, needle.Value))
 
-	for arch := range PlatformArchMap {
-		result.SetValueForArch(arch,
-			SubtractBazelLabelList(haystack.GetValueForArch(arch), needle.GetValueForArch(arch)))
-	}
+	for config, selects := range haystack.ConfigurableValues {
+		newSelects := make(labelListSelectValues, len(selects))
+		needleSelects := needle.ConfigurableValues[config]
 
-	for os := range PlatformOsMap {
-		result.SetOsValueForTarget(os, SubtractBazelLabelList(haystack.GetOsValueForTarget(os), needle.GetOsValueForTarget(os)))
-
-		// TODO(b/187530594): Should we handle arch=CONDITIONS_DEFAULT here? (not in ArchValues)
-		for _, arch := range AllArches {
-			result.SetOsArchValueForTarget(os, arch, SubtractBazelLabelList(haystack.GetOsArchValueForTarget(os, arch), needle.GetOsArchValueForTarget(os, arch)))
+		for k, v := range selects {
+			newSelects[k] = SubtractBazelLabelList(v, needleSelects[k])
 		}
+		result.ConfigurableValues[config] = newSelects
 	}
-
-	result.Value = SubtractBazelLabelList(haystack.Value, needle.Value)
 
 	return result
 }
@@ -268,489 +271,202 @@ func SubtractBazelLabelList(haystack LabelList, needle LabelList) LabelList {
 	return result
 }
 
-const (
-	// ArchType names in arch.go
-	ARCH_ARM    = "arm"
-	ARCH_ARM64  = "arm64"
-	ARCH_X86    = "x86"
-	ARCH_X86_64 = "x86_64"
-
-	// OsType names in arch.go
-	OS_ANDROID      = "android"
-	OS_DARWIN       = "darwin"
-	OS_FUCHSIA      = "fuchsia"
-	OS_LINUX        = "linux_glibc"
-	OS_LINUX_BIONIC = "linux_bionic"
-	OS_WINDOWS      = "windows"
-
-	// Targets in arch.go
-	TARGET_ANDROID_ARM         = "android_arm"
-	TARGET_ANDROID_ARM64       = "android_arm64"
-	TARGET_ANDROID_X86         = "android_x86"
-	TARGET_ANDROID_X86_64      = "android_x86_64"
-	TARGET_DARWIN_X86_64       = "darwin_x86_64"
-	TARGET_FUCHSIA_ARM64       = "fuchsia_arm64"
-	TARGET_FUCHSIA_X86_64      = "fuchsia_x86_64"
-	TARGET_LINUX_X86           = "linux_glibc_x86"
-	TARGET_LINUX_x86_64        = "linux_glibc_x86_64"
-	TARGET_LINUX_BIONIC_ARM64  = "linux_bionic_arm64"
-	TARGET_LINUX_BIONIC_X86_64 = "linux_bionic_x86_64"
-	TARGET_WINDOWS_X86         = "windows_x86"
-	TARGET_WINDOWS_X86_64      = "windows_x86_64"
-
-	// This is the string representation of the default condition wherever a
-	// configurable attribute is used in a select statement, i.e.
-	// //conditions:default for Bazel.
-	//
-	// This is consistently named "conditions_default" to mirror the Soong
-	// config variable default key in an Android.bp file, although there's no
-	// integration with Soong config variables (yet).
-	CONDITIONS_DEFAULT = "conditions_default"
-
-	ConditionsDefaultSelectKey = "//conditions:default"
-
-	productVariableBazelPackage = "//build/bazel/product_variables"
-)
-
-var (
-	// These are the list of OSes and architectures with a Bazel config_setting
-	// and constraint value equivalent. These exist in arch.go, but the android
-	// package depends on the bazel package, so a cyclic dependency prevents
-	// using those variables here.
-
-	// A map of architectures to the Bazel label of the constraint_value
-	// for the @platforms//cpu:cpu constraint_setting
-	PlatformArchMap = map[string]string{
-		ARCH_ARM:           "//build/bazel/platforms/arch:arm",
-		ARCH_ARM64:         "//build/bazel/platforms/arch:arm64",
-		ARCH_X86:           "//build/bazel/platforms/arch:x86",
-		ARCH_X86_64:        "//build/bazel/platforms/arch:x86_64",
-		CONDITIONS_DEFAULT: ConditionsDefaultSelectKey, // The default condition of as arch select map.
-	}
-
-	// A map of target operating systems to the Bazel label of the
-	// constraint_value for the @platforms//os:os constraint_setting
-	PlatformOsMap = map[string]string{
-		OS_ANDROID:         "//build/bazel/platforms/os:android",
-		OS_DARWIN:          "//build/bazel/platforms/os:darwin",
-		OS_FUCHSIA:         "//build/bazel/platforms/os:fuchsia",
-		OS_LINUX:           "//build/bazel/platforms/os:linux",
-		OS_LINUX_BIONIC:    "//build/bazel/platforms/os:linux_bionic",
-		OS_WINDOWS:         "//build/bazel/platforms/os:windows",
-		CONDITIONS_DEFAULT: ConditionsDefaultSelectKey, // The default condition of an os select map.
-	}
-
-	PlatformTargetMap = map[string]string{
-		TARGET_ANDROID_ARM:         "//build/bazel/platforms/os_arch:android_arm",
-		TARGET_ANDROID_ARM64:       "//build/bazel/platforms/os_arch:android_arm64",
-		TARGET_ANDROID_X86:         "//build/bazel/platforms/os_arch:android_x86",
-		TARGET_ANDROID_X86_64:      "//build/bazel/platforms/os_arch:android_x86_64",
-		TARGET_DARWIN_X86_64:       "//build/bazel/platforms/os_arch:darwin_x86_64",
-		TARGET_FUCHSIA_ARM64:       "//build/bazel/platforms/os_arch:fuchsia_arm64",
-		TARGET_FUCHSIA_X86_64:      "//build/bazel/platforms/os_arch:fuchsia_x86_64",
-		TARGET_LINUX_X86:           "//build/bazel/platforms/os_arch:linux_glibc_x86",
-		TARGET_LINUX_x86_64:        "//build/bazel/platforms/os_arch:linux_glibc_x86_64",
-		TARGET_LINUX_BIONIC_ARM64:  "//build/bazel/platforms/os_arch:linux_bionic_arm64",
-		TARGET_LINUX_BIONIC_X86_64: "//build/bazel/platforms/os_arch:linux_bionic_x86_64",
-		TARGET_WINDOWS_X86:         "//build/bazel/platforms/os_arch:windows_x86",
-		TARGET_WINDOWS_X86_64:      "//build/bazel/platforms/os_arch:windows_x86_64",
-		CONDITIONS_DEFAULT:         ConditionsDefaultSelectKey, // The default condition of an os select map.
-	}
-
-	// TODO(b/187530594): Should we add CONDITIONS_DEFAULT here?
-	AllArches = []string{ARCH_ARM, ARCH_ARM64, ARCH_X86, ARCH_X86_64}
-)
-
 type Attribute interface {
 	HasConfigurableValues() bool
 }
 
-type labelArchValues struct {
-	X86    Label
-	X86_64 Label
-	Arm    Label
-	Arm64  Label
+type labelSelectValues map[string]*Label
 
-	ConditionsDefault Label
-}
+type configurableLabels map[ConfigurationAxis]labelSelectValues
 
-type labelTargetValue struct {
-	// E.g. for android
-	OsValue Label
-
-	// E.g. for android_arm, android_arm64, ...
-	ArchValues labelArchValues
-}
-
-type labelTargetValues struct {
-	Android     labelTargetValue
-	Darwin      labelTargetValue
-	Fuchsia     labelTargetValue
-	Linux       labelTargetValue
-	LinuxBionic labelTargetValue
-	Windows     labelTargetValue
-
-	ConditionsDefault labelTargetValue
+func (cl configurableLabels) setValueForAxis(axis ConfigurationAxis, config string, value *Label) {
+	if cl[axis] == nil {
+		cl[axis] = make(labelSelectValues)
+	}
+	cl[axis][config] = value
 }
 
 // Represents an attribute whose value is a single label
 type LabelAttribute struct {
-	Value Label
+	Value *Label
 
-	ArchValues labelArchValues
-
-	TargetValues labelTargetValues
+	ConfigurableValues configurableLabels
 }
 
-func (attr *LabelAttribute) GetValueForArch(arch string) Label {
-	var v *Label
-	if v = attr.archValuePtrs()[arch]; v == nil {
-		panic(fmt.Errorf("Unknown arch: %s", arch))
-	}
-	return *v
+// HasConfigurableValues returns whether there are configurable values set for this label.
+func (la LabelAttribute) HasConfigurableValues() bool {
+	return len(la.ConfigurableValues) > 0
 }
 
-func (attr *LabelAttribute) SetValueForArch(arch string, value Label) {
-	var v *Label
-	if v = attr.archValuePtrs()[arch]; v == nil {
-		panic(fmt.Errorf("Unknown arch: %s", arch))
-	}
-	*v = value
+// SetValue sets the base, non-configured value for the Label
+func (la *LabelAttribute) SetValue(value Label) {
+	la.SetSelectValue(NoConfigAxis, "", value)
 }
 
-func (attr *LabelAttribute) archValuePtrs() map[string]*Label {
-	return map[string]*Label{
-		ARCH_X86:           &attr.ArchValues.X86,
-		ARCH_X86_64:        &attr.ArchValues.X86_64,
-		ARCH_ARM:           &attr.ArchValues.Arm,
-		ARCH_ARM64:         &attr.ArchValues.Arm64,
-		CONDITIONS_DEFAULT: &attr.ArchValues.ConditionsDefault,
-	}
-}
-
-func (attr LabelAttribute) HasConfigurableValues() bool {
-	for arch := range PlatformArchMap {
-		if attr.GetValueForArch(arch).Label != "" {
-			return true
+// SetSelectValue set a value for a bazel select for the given axis, config and value.
+func (la *LabelAttribute) SetSelectValue(axis ConfigurationAxis, config string, value Label) {
+	axis.validateConfig(config)
+	switch axis.configurationType {
+	case noConfig:
+		la.Value = &value
+	case arch, os, osArch, productVariables:
+		if la.ConfigurableValues == nil {
+			la.ConfigurableValues = make(configurableLabels)
 		}
+		la.ConfigurableValues.setValueForAxis(axis, config, &value)
+	default:
+		panic(fmt.Errorf("Unrecognized ConfigurationAxis %s", axis))
+	}
+}
+
+// SelectValue gets a value for a bazel select for the given axis and config.
+func (la *LabelAttribute) SelectValue(axis ConfigurationAxis, config string) Label {
+	axis.validateConfig(config)
+	switch axis.configurationType {
+	case noConfig:
+		return *la.Value
+	case arch, os, osArch, productVariables:
+		return *la.ConfigurableValues[axis][config]
+	default:
+		panic(fmt.Errorf("Unrecognized ConfigurationAxis %s", axis))
+	}
+}
+
+// SortedConfigurationAxes returns all the used ConfigurationAxis in sorted order.
+func (la *LabelAttribute) SortedConfigurationAxes() []ConfigurationAxis {
+	keys := make([]ConfigurationAxis, 0, len(la.ConfigurableValues))
+	for k := range la.ConfigurableValues {
+		keys = append(keys, k)
 	}
 
-	for os := range PlatformOsMap {
-		if attr.GetOsValueForTarget(os).Label != "" {
+	sort.Slice(keys, func(i, j int) bool { return keys[i].less(keys[j]) })
+	return keys
+}
+
+// labelListSelectValues supports config-specific label_list typed Bazel attribute values.
+type labelListSelectValues map[string]LabelList
+
+func (ll labelListSelectValues) appendSelects(other labelListSelectValues) {
+	for k, v := range other {
+		l := ll[k]
+		(&l).Append(v)
+		ll[k] = l
+	}
+}
+
+// HasConfigurableValues returns whether there are configurable values within this set of selects.
+func (ll labelListSelectValues) HasConfigurableValues() bool {
+	for _, v := range ll {
+		if len(v.Includes) > 0 {
 			return true
-		}
-		// TODO(b/187530594): Should we also check arch=CONDITIONS_DEFAULT (not in AllArches)
-		for _, arch := range AllArches {
-			if attr.GetOsArchValueForTarget(os, arch).Label != "" {
-				return true
-			}
 		}
 	}
 	return false
-}
-
-func (attr *LabelAttribute) getValueForTarget(os string) labelTargetValue {
-	var v *labelTargetValue
-	if v = attr.targetValuePtrs()[os]; v == nil {
-		panic(fmt.Errorf("Unknown os: %s", os))
-	}
-	return *v
-}
-
-func (attr *LabelAttribute) GetOsValueForTarget(os string) Label {
-	var v *labelTargetValue
-	if v = attr.targetValuePtrs()[os]; v == nil {
-		panic(fmt.Errorf("Unknown os: %s", os))
-	}
-	return v.OsValue
-}
-
-func (attr *LabelAttribute) GetOsArchValueForTarget(os string, arch string) Label {
-	var v *labelTargetValue
-	if v = attr.targetValuePtrs()[os]; v == nil {
-		panic(fmt.Errorf("Unknown os: %s", os))
-	}
-	switch arch {
-	case ARCH_X86:
-		return v.ArchValues.X86
-	case ARCH_X86_64:
-		return v.ArchValues.X86_64
-	case ARCH_ARM:
-		return v.ArchValues.Arm
-	case ARCH_ARM64:
-		return v.ArchValues.Arm64
-	case CONDITIONS_DEFAULT:
-		return v.ArchValues.ConditionsDefault
-	default:
-		panic(fmt.Errorf("Unknown arch: %s\n", arch))
-	}
-}
-
-func (attr *LabelAttribute) setValueForTarget(os string, value labelTargetValue) {
-	var v *labelTargetValue
-	if v = attr.targetValuePtrs()[os]; v == nil {
-		panic(fmt.Errorf("Unknown os: %s", os))
-	}
-	*v = value
-}
-
-func (attr *LabelAttribute) SetOsValueForTarget(os string, value Label) {
-	var v *labelTargetValue
-	if v = attr.targetValuePtrs()[os]; v == nil {
-		panic(fmt.Errorf("Unknown os: %s", os))
-	}
-	v.OsValue = value
-}
-
-func (attr *LabelAttribute) SetOsArchValueForTarget(os string, arch string, value Label) {
-	var v *labelTargetValue
-	if v = attr.targetValuePtrs()[os]; v == nil {
-		panic(fmt.Errorf("Unknown os: %s", os))
-	}
-	switch arch {
-	case ARCH_X86:
-		v.ArchValues.X86 = value
-	case ARCH_X86_64:
-		v.ArchValues.X86_64 = value
-	case ARCH_ARM:
-		v.ArchValues.Arm = value
-	case ARCH_ARM64:
-		v.ArchValues.Arm64 = value
-	case CONDITIONS_DEFAULT:
-		v.ArchValues.ConditionsDefault = value
-	default:
-		panic(fmt.Errorf("Unknown arch: %s\n", arch))
-	}
-}
-
-func (attr *LabelAttribute) targetValuePtrs() map[string]*labelTargetValue {
-	return map[string]*labelTargetValue{
-		OS_ANDROID:         &attr.TargetValues.Android,
-		OS_DARWIN:          &attr.TargetValues.Darwin,
-		OS_FUCHSIA:         &attr.TargetValues.Fuchsia,
-		OS_LINUX:           &attr.TargetValues.Linux,
-		OS_LINUX_BIONIC:    &attr.TargetValues.LinuxBionic,
-		OS_WINDOWS:         &attr.TargetValues.Windows,
-		CONDITIONS_DEFAULT: &attr.TargetValues.ConditionsDefault,
-	}
-}
-
-// Arch-specific label_list typed Bazel attribute values. This should correspond
-// to the types of architectures supported for compilation in arch.go.
-type labelListArchValues struct {
-	X86    LabelList
-	X86_64 LabelList
-	Arm    LabelList
-	Arm64  LabelList
-
-	ConditionsDefault LabelList
-}
-
-type labelListTargetValue struct {
-	// E.g. for android
-	OsValue LabelList
-
-	// E.g. for android_arm, android_arm64, ...
-	ArchValues labelListArchValues
-}
-
-func (target *labelListTargetValue) Append(other labelListTargetValue) {
-	target.OsValue.Append(other.OsValue)
-	target.ArchValues.X86.Append(other.ArchValues.X86)
-	target.ArchValues.X86_64.Append(other.ArchValues.X86_64)
-	target.ArchValues.Arm.Append(other.ArchValues.Arm)
-	target.ArchValues.Arm64.Append(other.ArchValues.Arm64)
-	target.ArchValues.ConditionsDefault.Append(other.ArchValues.ConditionsDefault)
-}
-
-type labelListTargetValues struct {
-	Android     labelListTargetValue
-	Darwin      labelListTargetValue
-	Fuchsia     labelListTargetValue
-	Linux       labelListTargetValue
-	LinuxBionic labelListTargetValue
-	Windows     labelListTargetValue
-
-	ConditionsDefault labelListTargetValue
 }
 
 // LabelListAttribute is used to represent a list of Bazel labels as an
 // attribute.
 type LabelListAttribute struct {
-	// The non-arch specific attribute label list Value. Required.
+	// The non-configured attribute label list Value. Required.
 	Value LabelList
 
-	// The arch-specific attribute label list values. Optional. If used, these
-	// are generated in a select statement and appended to the non-arch specific
-	// label list Value.
-	ArchValues labelListArchValues
+	// The configured attribute label list Values. Optional
+	// a map of independent configurability axes
+	ConfigurableValues configurableLabelLists
+}
 
-	// The os-specific attribute label list values. Optional. If used, these
-	// are generated in a select statement and appended to the non-os specific
-	// label list Value.
-	TargetValues labelListTargetValues
+type configurableLabelLists map[ConfigurationAxis]labelListSelectValues
+
+func (cll configurableLabelLists) setValueForAxis(axis ConfigurationAxis, config string, list LabelList) {
+	if list.IsNil() {
+		if _, ok := cll[axis][config]; ok {
+			delete(cll[axis], config)
+		}
+		return
+	}
+	if cll[axis] == nil {
+		cll[axis] = make(labelListSelectValues)
+	}
+
+	cll[axis][config] = list
+}
+
+func (cll configurableLabelLists) Append(other configurableLabelLists) {
+	for axis, otherSelects := range other {
+		selects := cll[axis]
+		if selects == nil {
+			selects = make(labelListSelectValues, len(otherSelects))
+		}
+		selects.appendSelects(otherSelects)
+		cll[axis] = selects
+	}
 }
 
 // MakeLabelListAttribute initializes a LabelListAttribute with the non-arch specific value.
 func MakeLabelListAttribute(value LabelList) LabelListAttribute {
-	return LabelListAttribute{Value: UniqueBazelLabelList(value)}
+	return LabelListAttribute{
+		Value:              value,
+		ConfigurableValues: make(configurableLabelLists),
+	}
+}
+
+func (lla *LabelListAttribute) SetValue(list LabelList) {
+	lla.SetSelectValue(NoConfigAxis, "", list)
+}
+
+// SetSelectValue set a value for a bazel select for the given axis, config and value.
+func (lla *LabelListAttribute) SetSelectValue(axis ConfigurationAxis, config string, list LabelList) {
+	axis.validateConfig(config)
+	switch axis.configurationType {
+	case noConfig:
+		lla.Value = list
+	case arch, os, osArch, productVariables:
+		if lla.ConfigurableValues == nil {
+			lla.ConfigurableValues = make(configurableLabelLists)
+		}
+		lla.ConfigurableValues.setValueForAxis(axis, config, list)
+	default:
+		panic(fmt.Errorf("Unrecognized ConfigurationAxis %s", axis))
+	}
+}
+
+// SelectValue gets a value for a bazel select for the given axis and config.
+func (lla *LabelListAttribute) SelectValue(axis ConfigurationAxis, config string) LabelList {
+	axis.validateConfig(config)
+	switch axis.configurationType {
+	case noConfig:
+		return lla.Value
+	case arch, os, osArch, productVariables:
+		return lla.ConfigurableValues[axis][config]
+	default:
+		panic(fmt.Errorf("Unrecognized ConfigurationAxis %s", axis))
+	}
+}
+
+// SortedConfigurationAxes returns all the used ConfigurationAxis in sorted order.
+func (lla *LabelListAttribute) SortedConfigurationAxes() []ConfigurationAxis {
+	keys := make([]ConfigurationAxis, 0, len(lla.ConfigurableValues))
+	for k := range lla.ConfigurableValues {
+		keys = append(keys, k)
+	}
+
+	sort.Slice(keys, func(i, j int) bool { return keys[i].less(keys[j]) })
+	return keys
 }
 
 // Append all values, including os and arch specific ones, from another
 // LabelListAttribute to this LabelListAttribute.
-func (attrs *LabelListAttribute) Append(other LabelListAttribute) {
-	for arch := range PlatformArchMap {
-		this := attrs.GetValueForArch(arch)
-		that := other.GetValueForArch(arch)
-		this.Append(that)
-		attrs.SetValueForArch(arch, this)
+func (lla *LabelListAttribute) Append(other LabelListAttribute) {
+	lla.Value.Append(other.Value)
+	if lla.ConfigurableValues == nil {
+		lla.ConfigurableValues = make(configurableLabelLists)
 	}
-
-	for os := range PlatformOsMap {
-		this := attrs.getValueForTarget(os)
-		that := other.getValueForTarget(os)
-		this.Append(that)
-		attrs.setValueForTarget(os, this)
-	}
-
-	attrs.Value.Append(other.Value)
+	lla.ConfigurableValues.Append(other.ConfigurableValues)
 }
 
-// HasArchSpecificValues returns true if the attribute contains
-// architecture-specific label_list values.
-func (attrs LabelListAttribute) HasConfigurableValues() bool {
-	for arch := range PlatformArchMap {
-		if len(attrs.GetValueForArch(arch).Includes) > 0 {
-			return true
-		}
-	}
-
-	for os := range PlatformOsMap {
-		if len(attrs.GetOsValueForTarget(os).Includes) > 0 {
-			return true
-		}
-		// TODO(b/187530594): Should we also check arch=CONDITIONS_DEFAULT (not in AllArches)
-		for _, arch := range AllArches {
-			if len(attrs.GetOsArchValueForTarget(os, arch).Includes) > 0 {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func (attrs *LabelListAttribute) archValuePtrs() map[string]*LabelList {
-	return map[string]*LabelList{
-		ARCH_X86:           &attrs.ArchValues.X86,
-		ARCH_X86_64:        &attrs.ArchValues.X86_64,
-		ARCH_ARM:           &attrs.ArchValues.Arm,
-		ARCH_ARM64:         &attrs.ArchValues.Arm64,
-		CONDITIONS_DEFAULT: &attrs.ArchValues.ConditionsDefault,
-	}
-}
-
-// GetValueForArch returns the label_list attribute value for an architecture.
-func (attrs *LabelListAttribute) GetValueForArch(arch string) LabelList {
-	var v *LabelList
-	if v = attrs.archValuePtrs()[arch]; v == nil {
-		panic(fmt.Errorf("Unknown arch: %s", arch))
-	}
-	return *v
-}
-
-// SetValueForArch sets the label_list attribute value for an architecture.
-func (attrs *LabelListAttribute) SetValueForArch(arch string, value LabelList) {
-	var v *LabelList
-	if v = attrs.archValuePtrs()[arch]; v == nil {
-		panic(fmt.Errorf("Unknown arch: %s", arch))
-	}
-	*v = value
-}
-
-func (attrs *LabelListAttribute) targetValuePtrs() map[string]*labelListTargetValue {
-	return map[string]*labelListTargetValue{
-		OS_ANDROID:         &attrs.TargetValues.Android,
-		OS_DARWIN:          &attrs.TargetValues.Darwin,
-		OS_FUCHSIA:         &attrs.TargetValues.Fuchsia,
-		OS_LINUX:           &attrs.TargetValues.Linux,
-		OS_LINUX_BIONIC:    &attrs.TargetValues.LinuxBionic,
-		OS_WINDOWS:         &attrs.TargetValues.Windows,
-		CONDITIONS_DEFAULT: &attrs.TargetValues.ConditionsDefault,
-	}
-}
-
-func (attrs *LabelListAttribute) getValueForTarget(os string) labelListTargetValue {
-	var v *labelListTargetValue
-	if v = attrs.targetValuePtrs()[os]; v == nil {
-		panic(fmt.Errorf("Unknown os: %s", os))
-	}
-	return *v
-}
-
-func (attrs *LabelListAttribute) GetOsValueForTarget(os string) LabelList {
-	var v *labelListTargetValue
-	if v = attrs.targetValuePtrs()[os]; v == nil {
-		panic(fmt.Errorf("Unknown os: %s", os))
-	}
-	return v.OsValue
-}
-
-func (attrs *LabelListAttribute) GetOsArchValueForTarget(os string, arch string) LabelList {
-	var v *labelListTargetValue
-	if v = attrs.targetValuePtrs()[os]; v == nil {
-		panic(fmt.Errorf("Unknown os: %s", os))
-	}
-	switch arch {
-	case ARCH_X86:
-		return v.ArchValues.X86
-	case ARCH_X86_64:
-		return v.ArchValues.X86_64
-	case ARCH_ARM:
-		return v.ArchValues.Arm
-	case ARCH_ARM64:
-		return v.ArchValues.Arm64
-	case CONDITIONS_DEFAULT:
-		return v.ArchValues.ConditionsDefault
-	default:
-		panic(fmt.Errorf("Unknown arch: %s\n", arch))
-	}
-}
-
-func (attrs *LabelListAttribute) setValueForTarget(os string, value labelListTargetValue) {
-	var v *labelListTargetValue
-	if v = attrs.targetValuePtrs()[os]; v == nil {
-		panic(fmt.Errorf("Unknown os: %s", os))
-	}
-	*v = value
-}
-
-func (attrs *LabelListAttribute) SetOsValueForTarget(os string, value LabelList) {
-	var v *labelListTargetValue
-	if v = attrs.targetValuePtrs()[os]; v == nil {
-		panic(fmt.Errorf("Unknown os: %s", os))
-	}
-	v.OsValue = value
-}
-
-func (attrs *LabelListAttribute) SetOsArchValueForTarget(os string, arch string, value LabelList) {
-	var v *labelListTargetValue
-	if v = attrs.targetValuePtrs()[os]; v == nil {
-		panic(fmt.Errorf("Unknown os: %s", os))
-	}
-	switch arch {
-	case ARCH_X86:
-		v.ArchValues.X86 = value
-	case ARCH_X86_64:
-		v.ArchValues.X86_64 = value
-	case ARCH_ARM:
-		v.ArchValues.Arm = value
-	case ARCH_ARM64:
-		v.ArchValues.Arm64 = value
-	case CONDITIONS_DEFAULT:
-		v.ArchValues.ConditionsDefault = value
-	default:
-		panic(fmt.Errorf("Unknown arch: %s\n", arch))
-	}
+// HasConfigurableValues returns true if the attribute contains axis-specific label list values.
+func (lla LabelListAttribute) HasConfigurableValues() bool {
+	return len(lla.ConfigurableValues) > 0
 }
 
 // StringListAttribute corresponds to the string_list Bazel attribute type with
@@ -759,256 +475,110 @@ type StringListAttribute struct {
 	// The base value of the string list attribute.
 	Value []string
 
-	// The arch-specific attribute string list values. Optional. If used, these
-	// are generated in a select statement and appended to the non-arch specific
-	// label list Value.
-	ArchValues stringListArchValues
+	// The configured attribute label list Values. Optional
+	// a map of independent configurability axes
+	ConfigurableValues configurableStringLists
+}
 
-	// The os-specific attribute string list values. Optional. If used, these
-	// are generated in a select statement and appended to the non-os specific
-	// label list Value.
-	TargetValues stringListTargetValues
+type configurableStringLists map[ConfigurationAxis]stringListSelectValues
 
-	// list of product-variable string list values. Optional. if used, each will generate a select
-	// statement appended to the label list Value.
-	ProductValues []ProductVariableValues
+func (csl configurableStringLists) Append(other configurableStringLists) {
+	for axis, otherSelects := range other {
+		selects := csl[axis]
+		if selects == nil {
+			selects = make(stringListSelectValues, len(otherSelects))
+		}
+		selects.appendSelects(otherSelects)
+		csl[axis] = selects
+	}
+}
+
+func (csl configurableStringLists) setValueForAxis(axis ConfigurationAxis, config string, list []string) {
+	if csl[axis] == nil {
+		csl[axis] = make(stringListSelectValues)
+	}
+	csl[axis][config] = list
+}
+
+type stringListSelectValues map[string][]string
+
+func (sl stringListSelectValues) appendSelects(other stringListSelectValues) {
+	for k, v := range other {
+		sl[k] = append(sl[k], v...)
+	}
+}
+
+func (sl stringListSelectValues) hasConfigurableValues(other stringListSelectValues) bool {
+	for _, val := range sl {
+		if len(val) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // MakeStringListAttribute initializes a StringListAttribute with the non-arch specific value.
 func MakeStringListAttribute(value []string) StringListAttribute {
 	// NOTE: These strings are not necessarily unique or sorted.
-	return StringListAttribute{Value: value}
-}
-
-// Arch-specific string_list typed Bazel attribute values. This should correspond
-// to the types of architectures supported for compilation in arch.go.
-type stringListArchValues struct {
-	X86    []string
-	X86_64 []string
-	Arm    []string
-	Arm64  []string
-
-	ConditionsDefault []string
-}
-
-type stringListTargetValue struct {
-	// E.g. for android
-	OsValue []string
-
-	// E.g. for android_arm, android_arm64, ...
-	ArchValues stringListArchValues
-}
-
-func (target *stringListTargetValue) Append(other stringListTargetValue) {
-	target.OsValue = append(target.OsValue, other.OsValue...)
-	target.ArchValues.X86 = append(target.ArchValues.X86, other.ArchValues.X86...)
-	target.ArchValues.X86_64 = append(target.ArchValues.X86_64, other.ArchValues.X86_64...)
-	target.ArchValues.Arm = append(target.ArchValues.Arm, other.ArchValues.Arm...)
-	target.ArchValues.Arm64 = append(target.ArchValues.Arm64, other.ArchValues.Arm64...)
-	target.ArchValues.ConditionsDefault = append(target.ArchValues.ConditionsDefault, other.ArchValues.ConditionsDefault...)
-}
-
-type stringListTargetValues struct {
-	Android     stringListTargetValue
-	Darwin      stringListTargetValue
-	Fuchsia     stringListTargetValue
-	Linux       stringListTargetValue
-	LinuxBionic stringListTargetValue
-	Windows     stringListTargetValue
-
-	ConditionsDefault stringListTargetValue
-}
-
-// Product Variable values for StringListAttribute
-type ProductVariableValues struct {
-	ProductVariable string
-
-	Values []string
-}
-
-// SelectKey returns the appropriate select key for the receiving ProductVariableValues.
-func (p ProductVariableValues) SelectKey() string {
-	return fmt.Sprintf("%s:%s", productVariableBazelPackage, strings.ToLower(p.ProductVariable))
-}
-
-// HasConfigurableValues returns true if the attribute contains
-// architecture-specific string_list values.
-func (attrs StringListAttribute) HasConfigurableValues() bool {
-	for arch := range PlatformArchMap {
-		if len(attrs.GetValueForArch(arch)) > 0 {
-			return true
-		}
-	}
-
-	for os := range PlatformOsMap {
-		if len(attrs.GetOsValueForTarget(os)) > 0 {
-			return true
-		}
-		// TODO(b/187530594): Should we also check arch=CONDITIONS_DEFAULT? (Not in AllArches)
-		for _, arch := range AllArches {
-			if len(attrs.GetOsArchValueForTarget(os, arch)) > 0 {
-				return true
-			}
-
-		}
-	}
-
-	return len(attrs.ProductValues) > 0
-}
-
-func (attrs *StringListAttribute) archValuePtrs() map[string]*[]string {
-	return map[string]*[]string{
-		ARCH_X86:           &attrs.ArchValues.X86,
-		ARCH_X86_64:        &attrs.ArchValues.X86_64,
-		ARCH_ARM:           &attrs.ArchValues.Arm,
-		ARCH_ARM64:         &attrs.ArchValues.Arm64,
-		CONDITIONS_DEFAULT: &attrs.ArchValues.ConditionsDefault,
+	return StringListAttribute{
+		Value:              value,
+		ConfigurableValues: make(configurableStringLists),
 	}
 }
 
-// GetValueForArch returns the string_list attribute value for an architecture.
-func (attrs *StringListAttribute) GetValueForArch(arch string) []string {
-	var v *[]string
-	if v = attrs.archValuePtrs()[arch]; v == nil {
-		panic(fmt.Errorf("Unknown arch: %s", arch))
-	}
-	return *v
-}
-
-// SetValueForArch sets the string_list attribute value for an architecture.
-func (attrs *StringListAttribute) SetValueForArch(arch string, value []string) {
-	var v *[]string
-	if v = attrs.archValuePtrs()[arch]; v == nil {
-		panic(fmt.Errorf("Unknown arch: %s", arch))
-	}
-	*v = value
-}
-
-func (attrs *StringListAttribute) targetValuePtrs() map[string]*stringListTargetValue {
-	return map[string]*stringListTargetValue{
-		OS_ANDROID:         &attrs.TargetValues.Android,
-		OS_DARWIN:          &attrs.TargetValues.Darwin,
-		OS_FUCHSIA:         &attrs.TargetValues.Fuchsia,
-		OS_LINUX:           &attrs.TargetValues.Linux,
-		OS_LINUX_BIONIC:    &attrs.TargetValues.LinuxBionic,
-		OS_WINDOWS:         &attrs.TargetValues.Windows,
-		CONDITIONS_DEFAULT: &attrs.TargetValues.ConditionsDefault,
-	}
-}
-
-func (attrs *StringListAttribute) getValueForTarget(os string) stringListTargetValue {
-	var v *stringListTargetValue
-	if v = attrs.targetValuePtrs()[os]; v == nil {
-		panic(fmt.Errorf("Unknown os: %s", os))
-	}
-	return *v
-}
-
-func (attrs *StringListAttribute) GetOsValueForTarget(os string) []string {
-	var v *stringListTargetValue
-	if v = attrs.targetValuePtrs()[os]; v == nil {
-		panic(fmt.Errorf("Unknown os: %s", os))
-	}
-	return v.OsValue
-}
-
-func (attrs *StringListAttribute) GetOsArchValueForTarget(os string, arch string) []string {
-	var v *stringListTargetValue
-	if v = attrs.targetValuePtrs()[os]; v == nil {
-		panic(fmt.Errorf("Unknown os: %s", os))
-	}
-	switch arch {
-	case ARCH_X86:
-		return v.ArchValues.X86
-	case ARCH_X86_64:
-		return v.ArchValues.X86_64
-	case ARCH_ARM:
-		return v.ArchValues.Arm
-	case ARCH_ARM64:
-		return v.ArchValues.Arm64
-	case CONDITIONS_DEFAULT:
-		return v.ArchValues.ConditionsDefault
-	default:
-		panic(fmt.Errorf("Unknown arch: %s\n", arch))
-	}
-}
-
-func (attrs *StringListAttribute) setValueForTarget(os string, value stringListTargetValue) {
-	var v *stringListTargetValue
-	if v = attrs.targetValuePtrs()[os]; v == nil {
-		panic(fmt.Errorf("Unknown os: %s", os))
-	}
-	*v = value
-}
-
-func (attrs *StringListAttribute) SortedProductVariables() []ProductVariableValues {
-	vals := attrs.ProductValues[:]
-	sort.Slice(vals, func(i, j int) bool { return vals[i].ProductVariable < vals[j].ProductVariable })
-	return vals
-}
-
-func (attrs *StringListAttribute) SetOsValueForTarget(os string, value []string) {
-	var v *stringListTargetValue
-	if v = attrs.targetValuePtrs()[os]; v == nil {
-		panic(fmt.Errorf("Unknown os: %s", os))
-	}
-	v.OsValue = value
-}
-
-func (attrs *StringListAttribute) SetOsArchValueForTarget(os string, arch string, value []string) {
-	var v *stringListTargetValue
-	if v = attrs.targetValuePtrs()[os]; v == nil {
-		panic(fmt.Errorf("Unknown os: %s", os))
-	}
-	switch arch {
-	case ARCH_X86:
-		v.ArchValues.X86 = value
-	case ARCH_X86_64:
-		v.ArchValues.X86_64 = value
-	case ARCH_ARM:
-		v.ArchValues.Arm = value
-	case ARCH_ARM64:
-		v.ArchValues.Arm64 = value
-	case CONDITIONS_DEFAULT:
-		v.ArchValues.ConditionsDefault = value
-	default:
-		panic(fmt.Errorf("Unknown arch: %s\n", arch))
-	}
+// HasConfigurableValues returns true if the attribute contains axis-specific string_list values.
+func (sla StringListAttribute) HasConfigurableValues() bool {
+	return len(sla.ConfigurableValues) > 0
 }
 
 // Append appends all values, including os and arch specific ones, from another
 // StringListAttribute to this StringListAttribute
-func (attrs *StringListAttribute) Append(other StringListAttribute) {
-	for arch := range PlatformArchMap {
-		this := attrs.GetValueForArch(arch)
-		that := other.GetValueForArch(arch)
-		this = append(this, that...)
-		attrs.SetValueForArch(arch, this)
+func (sla *StringListAttribute) Append(other StringListAttribute) {
+	sla.Value = append(sla.Value, other.Value...)
+	if sla.ConfigurableValues == nil {
+		sla.ConfigurableValues = make(configurableStringLists)
+	}
+	sla.ConfigurableValues.Append(other.ConfigurableValues)
+}
+
+// SetSelectValue set a value for a bazel select for the given axis, config and value.
+func (sla *StringListAttribute) SetSelectValue(axis ConfigurationAxis, config string, list []string) {
+	axis.validateConfig(config)
+	switch axis.configurationType {
+	case noConfig:
+		sla.Value = list
+	case arch, os, osArch, productVariables:
+		if sla.ConfigurableValues == nil {
+			sla.ConfigurableValues = make(configurableStringLists)
+		}
+		sla.ConfigurableValues.setValueForAxis(axis, config, list)
+	default:
+		panic(fmt.Errorf("Unrecognized ConfigurationAxis %s", axis))
+	}
+}
+
+// SelectValue gets a value for a bazel select for the given axis and config.
+func (sla *StringListAttribute) SelectValue(axis ConfigurationAxis, config string) []string {
+	axis.validateConfig(config)
+	switch axis.configurationType {
+	case noConfig:
+		return sla.Value
+	case arch, os, osArch, productVariables:
+		return sla.ConfigurableValues[axis][config]
+	default:
+		panic(fmt.Errorf("Unrecognized ConfigurationAxis %s", axis))
+	}
+}
+
+// SortedConfigurationAxes returns all the used ConfigurationAxis in sorted order.
+func (sla *StringListAttribute) SortedConfigurationAxes() []ConfigurationAxis {
+	keys := make([]ConfigurationAxis, 0, len(sla.ConfigurableValues))
+	for k := range sla.ConfigurableValues {
+		keys = append(keys, k)
 	}
 
-	for os := range PlatformOsMap {
-		this := attrs.getValueForTarget(os)
-		that := other.getValueForTarget(os)
-		this.Append(that)
-		attrs.setValueForTarget(os, this)
-	}
-
-	productValues := make(map[string][]string, 0)
-	for _, pv := range attrs.ProductValues {
-		productValues[pv.ProductVariable] = pv.Values
-	}
-	for _, pv := range other.ProductValues {
-		productValues[pv.ProductVariable] = append(productValues[pv.ProductVariable], pv.Values...)
-	}
-	attrs.ProductValues = make([]ProductVariableValues, 0, len(productValues))
-	for pv, vals := range productValues {
-		attrs.ProductValues = append(attrs.ProductValues, ProductVariableValues{
-			ProductVariable: pv,
-			Values:          vals,
-		})
-	}
-
-	attrs.Value = append(attrs.Value, other.Value...)
+	sort.Slice(keys, func(i, j int) bool { return keys[i].less(keys[j]) })
+	return keys
 }
 
 // TryVariableSubstitution, replace string substitution formatting within each string in slice with
