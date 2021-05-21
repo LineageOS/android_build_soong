@@ -113,6 +113,7 @@ cc_library {
     copts = [
         "-Wall",
         "-I.",
+        "-I$(BINDIR)/.",
     ],
     deps = [":some-headers"],
     includes = ["foo-dir"],
@@ -183,6 +184,7 @@ cc_library {
         "-Wunused",
         "-Werror",
         "-I.",
+        "-I$(BINDIR)/.",
     ],
     deps = [":libc_headers"],
     linkopts = [
@@ -242,7 +244,10 @@ cc_library {
 			bp: soongCcLibraryPreamble,
 			expectedBazelTargets: []string{`cc_library(
     name = "fake-libarm-optimized-routines-math",
-    copts = ["-Iexternal"] + select({
+    copts = [
+        "-Iexternal",
+        "-I$(BINDIR)/external",
+    ] + select({
         "//build/bazel/platforms/arch:arm64": ["-DHAVE_FAST_FMA=1"],
         "//conditions:default": [],
     }),
@@ -310,6 +315,7 @@ cc_library { name: "shared_dep_for_both" }
     copts = [
         "bothflag",
         "-Ifoo/bar",
+        "-I$(BINDIR)/foo/bar",
     ],
     deps = [":static_dep_for_both"],
     dynamic_deps = [":shared_dep_for_both"],
@@ -347,7 +353,10 @@ cc_library {
 			bp: soongCcLibraryPreamble,
 			expectedBazelTargets: []string{`cc_library(
     name = "a",
-    copts = ["-Ifoo/bar"],
+    copts = [
+        "-Ifoo/bar",
+        "-I$(BINDIR)/foo/bar",
+    ],
     srcs = ["a.cpp"],
     version_script = "v.map",
 )`},
@@ -380,7 +389,10 @@ cc_library {
 			bp: soongCcLibraryPreamble,
 			expectedBazelTargets: []string{`cc_library(
     name = "a",
-    copts = ["-Ifoo/bar"],
+    copts = [
+        "-Ifoo/bar",
+        "-I$(BINDIR)/foo/bar",
+    ],
     srcs = ["a.cpp"],
     version_script = select({
         "//build/bazel/platforms/arch:arm": "arm.map",
@@ -413,11 +425,17 @@ cc_library {
 			bp: soongCcLibraryPreamble,
 			expectedBazelTargets: []string{`cc_library(
     name = "a",
-    copts = ["-Ifoo/bar"],
+    copts = [
+        "-Ifoo/bar",
+        "-I$(BINDIR)/foo/bar",
+    ],
     dynamic_deps = [":mylib"],
 )`, `cc_library(
     name = "mylib",
-    copts = ["-Ifoo/bar"],
+    copts = [
+        "-Ifoo/bar",
+        "-I$(BINDIR)/foo/bar",
+    ],
 )`},
 		},
 		{
@@ -461,12 +479,18 @@ cc_library {
 			bp: soongCcLibraryPreamble,
 			expectedBazelTargets: []string{`cc_library(
     name = "a",
-    copts = ["-Ifoo/bar"],
+    copts = [
+        "-Ifoo/bar",
+        "-I$(BINDIR)/foo/bar",
+    ],
     linkopts = ["-Wl,--pack-dyn-relocs=none"],
     srcs = ["a.cpp"],
 )`, `cc_library(
     name = "b",
-    copts = ["-Ifoo/bar"],
+    copts = [
+        "-Ifoo/bar",
+        "-I$(BINDIR)/foo/bar",
+    ],
     linkopts = select({
         "//build/bazel/platforms/arch:x86_64": ["-Wl,--pack-dyn-relocs=none"],
         "//conditions:default": [],
@@ -474,7 +498,10 @@ cc_library {
     srcs = ["b.cpp"],
 )`, `cc_library(
     name = "c",
-    copts = ["-Ifoo/bar"],
+    copts = [
+        "-Ifoo/bar",
+        "-I$(BINDIR)/foo/bar",
+    ],
     linkopts = select({
         "//build/bazel/platforms/os:darwin": ["-Wl,--pack-dyn-relocs=none"],
         "//conditions:default": [],
@@ -505,6 +532,7 @@ cc_library {
         "-include",
         "header.h",
         "-Ifoo/bar",
+        "-I$(BINDIR)/foo/bar",
     ],
 )`},
 		},
@@ -548,6 +576,7 @@ cc_library {
         "-fsigned-char",
         "-pedantic",
         "-Ifoo/bar",
+        "-I$(BINDIR)/foo/bar",
     ] + select({
         "//build/bazel/platforms/arch:arm64": ["-DARM64=1"],
         "//conditions:default": [],
@@ -588,11 +617,11 @@ cc_library {
 		ctx.RegisterForBazelConversion()
 
 		_, errs := ctx.ParseFileList(dir, toParse)
-		if Errored(t, testCase.description, errs) {
+		if errored(t, testCase.description, errs) {
 			continue
 		}
 		_, errs = ctx.ResolveDependencies(config)
-		if Errored(t, testCase.description, errs) {
+		if errored(t, testCase.description, errs) {
 			continue
 		}
 

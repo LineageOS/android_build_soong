@@ -225,7 +225,7 @@ func (b *platformBootclasspathModule) checkNonUpdatableModules(ctx android.Modul
 		fromUpdatableApex := apexInfo.Updatable
 		if fromUpdatableApex {
 			// error: this jar is part of an updatable apex
-			ctx.ModuleErrorf("module %q from updatable apexes %q is not allowed in the framework boot image", ctx.OtherModuleName(m), apexInfo.InApexes)
+			ctx.ModuleErrorf("module %q from updatable apexes %q is not allowed in the framework boot image", ctx.OtherModuleName(m), apexInfo.InApexVariants)
 		} else {
 			// ok: this jar is part of the platform or a non-updatable apex
 		}
@@ -242,8 +242,15 @@ func (b *platformBootclasspathModule) checkUpdatableModules(ctx android.ModuleCo
 		} else {
 			name := ctx.OtherModuleName(m)
 			if apexInfo.IsForPlatform() {
-				// error: this jar is part of the platform
-				ctx.ModuleErrorf("module %q from platform is not allowed in the updatable boot jars list", name)
+				// If AlwaysUsePrebuiltSdks() returns true then it is possible that the updatable list will
+				// include platform variants of a prebuilt module due to workarounds elsewhere. In that case
+				// do not treat this as an error.
+				// TODO(b/179354495): Always treat this as an error when migration to bootclasspath_fragment
+				//  modules is complete.
+				if !ctx.Config().AlwaysUsePrebuiltSdks() {
+					// error: this jar is part of the platform
+					ctx.ModuleErrorf("module %q from platform is not allowed in the updatable boot jars list", name)
+				}
 			} else {
 				// TODO(b/177892522): Treat this as an error.
 				// Cannot do that at the moment because framework-wifi and framework-tethering are in the

@@ -433,6 +433,14 @@ func TestBootclasspathFragmentContentsNoName(t *testing.T) {
 	result := android.GroupFixturePreparers(
 		prepareForTestWithBootclasspathFragment,
 		prepareForTestWithMyapex,
+		// Configure bootclasspath jars to ensure that hidden API encoding is performed on them.
+		java.FixtureConfigureBootJars("myapex:foo", "myapex:bar"),
+		// Make sure that the frameworks/base/Android.bp file exists as otherwise hidden API encoding
+		// is disabled.
+		android.FixtureAddTextFile("frameworks/base/Android.bp", ""),
+
+		java.PrepareForTestWithJavaSdkLibraryFiles,
+		java.FixtureWithLastReleaseApis("foo"),
 	).RunTestWithBp(t, `
 		apex {
 			name: "myapex",
@@ -449,10 +457,11 @@ func TestBootclasspathFragmentContentsNoName(t *testing.T) {
 			private_key: "testkey.pem",
 		}
 
-		java_library {
+		java_sdk_library {
 			name: "foo",
 			srcs: ["b.java"],
-			installable: true,
+			shared_library: false,
+			public: {enabled: true},
 			apex_available: [
 				"myapex",
 			],
@@ -491,6 +500,30 @@ func TestBootclasspathFragmentContentsNoName(t *testing.T) {
 		`myapex.key`,
 		`mybootclasspathfragment`,
 	})
+
+	apex := result.ModuleForTests("myapex", "android_common_myapex_image")
+	apexRule := apex.Rule("apexRule")
+	copyCommands := apexRule.Args["copy_commands"]
+
+	// Make sure that the fragment provides the hidden API encoded dex jars to the APEX.
+	fragment := result.Module("mybootclasspathfragment", "android_common_apex10000")
+
+	info := result.ModuleProvider(fragment, java.BootclasspathFragmentApexContentInfoProvider).(java.BootclasspathFragmentApexContentInfo)
+
+	checkFragmentExportedDexJar := func(name string, expectedDexJar string) {
+		module := result.Module(name, "android_common_apex10000")
+		dexJar, err := info.DexBootJarPathForContentModule(module)
+		if err != nil {
+			t.Error(err)
+		}
+		android.AssertPathRelativeToTopEquals(t, name+" dex", expectedDexJar, dexJar)
+
+		expectedCopyCommand := fmt.Sprintf("&& cp -f %s out/soong/.intermediates/myapex/android_common_myapex_image/image.apex/javalib/%s.jar", expectedDexJar, name)
+		android.AssertStringDoesContain(t, name+" apex copy command", copyCommands, expectedCopyCommand)
+	}
+
+	checkFragmentExportedDexJar("foo", "out/soong/.intermediates/foo/android_common_apex10000/hiddenapi/foo.jar")
+	checkFragmentExportedDexJar("bar", "out/soong/.intermediates/bar/android_common_apex10000/hiddenapi/bar.jar")
 }
 
 // TODO(b/177892522) - add test for host apex.
