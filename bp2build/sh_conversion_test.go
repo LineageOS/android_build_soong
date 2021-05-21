@@ -15,10 +15,10 @@
 package bp2build
 
 import (
+	"testing"
+
 	"android/soong/android"
 	"android/soong/sh"
-	"strings"
-	"testing"
 )
 
 func TestShBinaryLoadStatement(t *testing.T) {
@@ -46,88 +46,26 @@ func TestShBinaryLoadStatement(t *testing.T) {
 			t.Fatalf("Expected load statements to be %s, got %s", expected, actual)
 		}
 	}
-
 }
 
-func TestShBinaryBp2Build(t *testing.T) {
-	testCases := []struct {
-		description                        string
-		moduleTypeUnderTest                string
-		moduleTypeUnderTestFactory         android.ModuleFactory
-		moduleTypeUnderTestBp2BuildMutator func(android.TopDownMutatorContext)
-		preArchMutators                    []android.RegisterMutatorFunc
-		depsMutators                       []android.RegisterMutatorFunc
-		bp                                 string
-		expectedBazelTargets               []string
-		filesystem                         map[string]string
-		dir                                string
-	}{
-		{
-			description:                        "sh_binary test",
-			moduleTypeUnderTest:                "sh_binary",
-			moduleTypeUnderTestFactory:         sh.ShBinaryFactory,
-			moduleTypeUnderTestBp2BuildMutator: sh.ShBinaryBp2Build,
-			bp: `sh_binary {
+func runShBinaryTestCase(t *testing.T, tc bp2buildTestCase) {
+	runBp2BuildTestCase(t, func(ctx android.RegistrationContext) {}, tc)
+}
+
+func TestShBinarySimple(t *testing.T) {
+	runShBinaryTestCase(t, bp2buildTestCase{
+		description:                        "sh_binary test",
+		moduleTypeUnderTest:                "sh_binary",
+		moduleTypeUnderTestFactory:         sh.ShBinaryFactory,
+		moduleTypeUnderTestBp2BuildMutator: sh.ShBinaryBp2Build,
+		blueprint: `sh_binary {
     name: "foo",
     src: "foo.sh",
     bazel_module: { bp2build_available: true },
 }`,
-			expectedBazelTargets: []string{`sh_binary(
+		expectedBazelTargets: []string{`sh_binary(
     name = "foo",
     srcs = ["foo.sh"],
 )`},
-		},
-	}
-
-	dir := "."
-	for _, testCase := range testCases {
-		filesystem := make(map[string][]byte)
-		toParse := []string{
-			"Android.bp",
-		}
-		for f, content := range testCase.filesystem {
-			if strings.HasSuffix(f, "Android.bp") {
-				toParse = append(toParse, f)
-			}
-			filesystem[f] = []byte(content)
-		}
-		config := android.TestConfig(buildDir, nil, testCase.bp, filesystem)
-		ctx := android.NewTestContext(config)
-		ctx.RegisterModuleType(testCase.moduleTypeUnderTest, testCase.moduleTypeUnderTestFactory)
-		for _, m := range testCase.depsMutators {
-			ctx.DepsBp2BuildMutators(m)
-		}
-		ctx.RegisterBp2BuildMutator(testCase.moduleTypeUnderTest, testCase.moduleTypeUnderTestBp2BuildMutator)
-		ctx.RegisterForBazelConversion()
-
-		_, errs := ctx.ParseFileList(dir, toParse)
-		if errored(t, testCase.description, errs) {
-			continue
-		}
-		_, errs = ctx.ResolveDependencies(config)
-		if errored(t, testCase.description, errs) {
-			continue
-		}
-
-		checkDir := dir
-		if testCase.dir != "" {
-			checkDir = testCase.dir
-		}
-		codegenCtx := NewCodegenContext(config, *ctx.Context, Bp2Build)
-		bazelTargets := generateBazelTargetsForDir(codegenCtx, checkDir)
-		if actualCount, expectedCount := len(bazelTargets), len(testCase.expectedBazelTargets); actualCount != expectedCount {
-			t.Errorf("%s: Expected %d bazel target, got %d", testCase.description, expectedCount, actualCount)
-		} else {
-			for i, target := range bazelTargets {
-				if w, g := testCase.expectedBazelTargets[i], target.content; w != g {
-					t.Errorf(
-						"%s: Expected generated Bazel target to be '%s', got '%s'",
-						testCase.description,
-						w,
-						g,
-					)
-				}
-			}
-		}
-	}
+	})
 }
