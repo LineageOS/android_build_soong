@@ -104,6 +104,7 @@ type DefaultableHookContext interface {
 	EarlyModuleContext
 
 	CreateModule(ModuleFactory, ...interface{}) Module
+	AddMissingDependencies(missingDeps []string)
 }
 
 type DefaultableHook func(ctx DefaultableHookContext)
