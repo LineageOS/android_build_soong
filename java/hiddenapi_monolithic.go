@@ -70,11 +70,11 @@ func newMonolithicHiddenAPIInfo(ctx android.ModuleContext, flagFilesByCategory F
 // append appends all the files from the supplied info to the corresponding files in this struct.
 func (i *MonolithicHiddenAPIInfo) append(other *hiddenAPIFlagFileInfo) {
 	i.FlagsFilesByCategory.append(other.FlagFilesByCategory)
-	i.StubFlagsPaths = append(i.StubFlagsPaths, other.StubFlagsPaths...)
-	i.AnnotationFlagsPaths = append(i.AnnotationFlagsPaths, other.AnnotationFlagsPaths...)
-	i.MetadataPaths = append(i.MetadataPaths, other.MetadataPaths...)
-	i.IndexPaths = append(i.IndexPaths, other.IndexPaths...)
-	i.AllFlagsPaths = append(i.AllFlagsPaths, other.AllFlagsPaths...)
+	i.StubFlagsPaths = append(i.StubFlagsPaths, other.StubFlagsPath)
+	i.AnnotationFlagsPaths = append(i.AnnotationFlagsPaths, other.AnnotationFlagsPath)
+	i.MetadataPaths = append(i.MetadataPaths, other.MetadataPath)
+	i.IndexPaths = append(i.IndexPaths, other.IndexPath)
+	i.AllFlagsPaths = append(i.AllFlagsPaths, other.AllFlagsPath)
 }
 
 // dedup removes duplicates in all the paths, while maintaining the order in which they were

@@ -394,23 +394,30 @@ type hiddenAPIFlagFileInfo struct {
 	// that category.
 	FlagFilesByCategory FlagFilesByCategory
 
-	// The paths to the generated stub-flags.csv files.
-	StubFlagsPaths android.Paths
-
-	// The paths to the generated annotation-flags.csv files.
-	AnnotationFlagsPaths android.Paths
-
-	// The paths to the generated metadata.csv files.
-	MetadataPaths android.Paths
-
-	// The paths to the generated index.csv files.
-	IndexPaths android.Paths
-
-	// The paths to the generated all-flags.csv files.
-	AllFlagsPaths android.Paths
+	// The output from the hidden API processing needs to be made available to other modules.
+	HiddenAPIFlagOutput
 }
 
 var hiddenAPIFlagFileInfoProvider = blueprint.NewProvider(hiddenAPIFlagFileInfo{})
+
+// HiddenAPIFlagOutput contains paths to output files from the hidden API flag generation for a
+// bootclasspath_fragment module.
+type HiddenAPIFlagOutput struct {
+	// The path to the generated stub-flags.csv file.
+	StubFlagsPath android.Path
+
+	// The path to the generated annotation-flags.csv file.
+	AnnotationFlagsPath android.Path
+
+	// The path to the generated metadata.csv file.
+	MetadataPath android.Path
+
+	// The path to the generated index.csv file.
+	IndexPath android.Path
+
+	// The path to the generated all-flags.csv file.
+	AllFlagsPath android.Path
+}
 
 // pathForValidation creates a path of the same type as the supplied type but with a name of
 // <path>.valid.
@@ -503,7 +510,7 @@ func buildRuleToGenerateHiddenApiFlags(ctx android.BuilderContext, name, desc st
 // * metadata.csv
 // * index.csv
 // * all-flags.csv
-func hiddenAPIGenerateAllFlagsForBootclasspathFragment(ctx android.ModuleContext, contents []hiddenAPIModule, stubJarsByKind map[android.SdkKind]android.Paths, flagFileInfo *hiddenAPIFlagFileInfo) {
+func hiddenAPIGenerateAllFlagsForBootclasspathFragment(ctx android.ModuleContext, contents []hiddenAPIModule, stubJarsByKind map[android.SdkKind]android.Paths, flagFileInfo *hiddenAPIFlagFileInfo) *HiddenAPIFlagOutput {
 	hiddenApiSubDir := "modular-hiddenapi"
 
 	// Generate the stub-flags.csv.
@@ -540,11 +547,14 @@ func hiddenAPIGenerateAllFlagsForBootclasspathFragment(ctx android.ModuleContext
 	buildRuleToGenerateHiddenApiFlags(ctx, "modularHiddenApiAllFlags", "modular hiddenapi all flags", outputPath, stubFlagsCSV, annotationFlagsCSV, flagFileInfo.FlagFilesByCategory, nil)
 
 	// Store the paths in the info for use by other modules and sdk snapshot generation.
-	flagFileInfo.StubFlagsPaths = android.Paths{stubFlagsCSV}
-	flagFileInfo.AnnotationFlagsPaths = android.Paths{annotationFlagsCSV}
-	flagFileInfo.MetadataPaths = android.Paths{metadataCSV}
-	flagFileInfo.IndexPaths = android.Paths{indexCSV}
-	flagFileInfo.AllFlagsPaths = android.Paths{outputPath}
+	output := HiddenAPIFlagOutput{
+		StubFlagsPath:       stubFlagsCSV,
+		AnnotationFlagsPath: annotationFlagsCSV,
+		MetadataPath:        metadataCSV,
+		IndexPath:           indexCSV,
+		AllFlagsPath:        outputPath,
+	}
+	return &output
 }
 
 // gatherHiddenAPIModuleFromContents gathers the hiddenAPIModule from the supplied contents.
