@@ -507,10 +507,6 @@ func (b *BootclasspathFragmentModule) generateHiddenAPIBuildActions(ctx android.
 	// Create hidden API input structure.
 	input := b.createHiddenAPIFlagInput(ctx, contents)
 
-	// Store the information for use by other modules.
-	bootclasspathApiInfo := bootclasspathApiInfo{stubJarsByKind: input.StubDexJarsByKind}
-	ctx.SetProvider(bootclasspathApiInfoProvider, bootclasspathApiInfo)
-
 	var output *HiddenAPIFlagOutput
 
 	// Hidden API processing is conditional as a temporary workaround as not all
@@ -534,6 +530,9 @@ func (b *BootclasspathFragmentModule) generateHiddenAPIBuildActions(ctx android.
 		// generation. That is because the monolithic hidden API processing uses those flag files to
 		// perform its own flag generation.
 		FlagFilesByCategory: input.FlagFilesByCategory,
+
+		// Make these available for tests.
+		StubDexJarsByKind: input.StubDexJarsByKind,
 	}
 
 	if output != nil {

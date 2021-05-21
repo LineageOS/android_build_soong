@@ -348,6 +348,9 @@ type HiddenAPIInfo struct {
 	// that category.
 	FlagFilesByCategory FlagFilesByCategory
 
+	// The paths to the stub dex jars for each of the android.SdkKind in hiddenAPIRelevantSdkKinds.
+	StubDexJarsByKind StubDexJarsByKind
+
 	// The output from the hidden API processing needs to be made available to other modules.
 	HiddenAPIFlagOutput
 }
