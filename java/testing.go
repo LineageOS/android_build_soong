@@ -378,7 +378,7 @@ func apexNamePairFromModule(ctx *android.TestContext, module android.Module) str
 	if apexInfo.IsForPlatform() {
 		apex = "platform"
 	} else {
-		apex = apexInfo.InApexes[0]
+		apex = apexInfo.InApexVariants[0]
 	}
 
 	return fmt.Sprintf("%s:%s", apex, name)
