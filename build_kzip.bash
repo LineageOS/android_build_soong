@@ -18,7 +18,7 @@
 
 # If the SUPERPROJECT_REVISION is defined as a sha, use this as the default value if no
 # SUPERPROJECT_SHA is specified.
-if [[ $SUPERPROJECT_REVISION =~ [0-9a-f]{40} ]]; then
+if [[ ${SUPERPROJECT_REVISION:-} =~ [0-9a-f]{40} ]]; then
   : ${KZIP_NAME:=${SUPERPROJECT_REVISION:-}}
 fi
 
