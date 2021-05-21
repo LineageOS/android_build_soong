@@ -136,7 +136,7 @@ func writeClasspathsJson(ctx android.ModuleContext, output android.WritablePath,
 	for idx, jar := range jars {
 		fmt.Fprintf(&content, "{\n")
 
-		fmt.Fprintf(&content, "\"relativePath\": \"%s\",\n", jar.path)
+		fmt.Fprintf(&content, "\"path\": \"%s\",\n", jar.path)
 		fmt.Fprintf(&content, "\"classpath\": \"%s\"\n", jar.classpath)
 
 		if idx < len(jars)-1 {
