@@ -273,6 +273,10 @@ type BootclasspathFragmentApexContentInfo struct {
 	// Will be nil if the BootclasspathFragmentApexContentInfo has not been provided for a specific module. That can occur
 	// when SkipDexpreoptBootJars(ctx) returns true.
 	imageConfig *bootImageConfig
+
+	// Map from the name of the context module (as returned by Name()) to the hidden API encoded dex
+	// jar path.
+	contentModuleDexJarPaths map[string]android.Path
 }
 
 func (i BootclasspathFragmentApexContentInfo) Modules() android.ConfiguredJarList {
@@ -299,10 +303,14 @@ func (i BootclasspathFragmentApexContentInfo) AndroidBootImageFilesByArchType() 
 // DexBootJarPathForContentModule returns the path to the dex boot jar for specified module.
 //
 // The dex boot jar is one which has had hidden API encoding performed on it.
-func (i BootclasspathFragmentApexContentInfo) DexBootJarPathForContentModule(module android.Module) android.Path {
-	j := module.(UsesLibraryDependency)
-	dexJar := j.DexJarBuildPath()
-	return dexJar
+func (i BootclasspathFragmentApexContentInfo) DexBootJarPathForContentModule(module android.Module) (android.Path, error) {
+	name := module.Name()
+	if dexJar, ok := i.contentModuleDexJarPaths[name]; ok {
+		return dexJar, nil
+	} else {
+		return nil, fmt.Errorf("unknown bootclasspath_fragment content module %s, expected one of %s",
+			name, strings.Join(android.SortedStringKeys(i.contentModuleDexJarPaths), ", "))
+	}
 }
 
 func (b *BootclasspathFragmentModule) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Module) bool {
@@ -380,6 +388,28 @@ func (b *BootclasspathFragmentModule) GenerateAndroidBuildActions(ctx android.Mo
 	// Perform hidden API processing.
 	b.generateHiddenAPIBuildActions(ctx, contents)
 
+	// Verify that the image_name specified on a bootclasspath_fragment is valid even if this is a
+	// prebuilt which will not use the image config.
+	imageConfig := b.getImageConfig(ctx)
+
+	// A prebuilt fragment cannot contribute to the apex.
+	if !android.IsModulePrebuilt(ctx.Module()) {
+		// Provide the apex content info.
+		b.provideApexContentInfo(ctx, imageConfig, contents)
+	}
+}
+
+// provideApexContentInfo creates, initializes and stores the apex content info for use by other
+// modules.
+func (b *BootclasspathFragmentModule) provideApexContentInfo(ctx android.ModuleContext, imageConfig *bootImageConfig, contents []android.Module) {
+	// Construct the apex content info from the config.
+	info := BootclasspathFragmentApexContentInfo{
+		imageConfig: imageConfig,
+	}
+
+	// Populate the apex content info with paths to the dex jars.
+	b.populateApexContentInfoDexJars(ctx, &info, contents)
+
 	if !SkipDexpreoptBootJars(ctx) {
 		// Force the GlobalSoongConfig to be created and cached for use by the dex_bootjars
 		// GenerateSingletonBuildActions method as it cannot create it for itself.
@@ -387,11 +417,20 @@ func (b *BootclasspathFragmentModule) GenerateAndroidBuildActions(ctx android.Mo
 
 		// Only generate the boot image if the configuration does not skip it.
 		b.generateBootImageBuildActions(ctx, contents)
+	}
 
-		// Make the boot image info available for other modules
-		ctx.SetProvider(BootclasspathFragmentApexContentInfoProvider, BootclasspathFragmentApexContentInfo{
-			imageConfig: b.getImageConfig(ctx),
-		})
+	// Make the apex content info available for other modules.
+	ctx.SetProvider(BootclasspathFragmentApexContentInfoProvider, info)
+}
+
+// populateApexContentInfoDexJars adds paths to the dex jars provided by this fragment to the
+// apex content info.
+func (b *BootclasspathFragmentModule) populateApexContentInfoDexJars(ctx android.ModuleContext, info *BootclasspathFragmentApexContentInfo, contents []android.Module) {
+	info.contentModuleDexJarPaths = map[string]android.Path{}
+	for _, m := range contents {
+		j := m.(UsesLibraryDependency)
+		dexJar := j.DexJarBuildPath()
+		info.contentModuleDexJarPaths[m.Name()] = dexJar
 	}
 }
 
@@ -408,8 +447,16 @@ func (b *BootclasspathFragmentModule) generateClasspathProtoBuildActions(ctx and
 }
 
 func (b *BootclasspathFragmentModule) ClasspathFragmentToConfiguredJarList(ctx android.ModuleContext) android.ConfiguredJarList {
-	// TODO(satayev): populate with actual content
-	return android.EmptyConfiguredJarList()
+	if "art" == proptools.String(b.properties.Image_name) {
+		return b.getImageConfig(ctx).modules
+	}
+
+	global := dexpreopt.GetGlobalConfig(ctx)
+
+	// Only create configs for updatable boot jars. Non-updatable boot jars must be part of the
+	// platform_bootclasspath's classpath proto config to guarantee that they come before any
+	// updatable jars at runtime.
+	return global.UpdatableBootJars.Filter(b.properties.Contents)
 }
 
 func (b *BootclasspathFragmentModule) getImageConfig(ctx android.EarlyModuleContext) *bootImageConfig {

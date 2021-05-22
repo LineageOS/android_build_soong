@@ -15,7 +15,12 @@
 package java
 
 import (
+	"fmt"
 	"testing"
+
+	"android/soong/android"
+	"android/soong/cc"
+	"android/soong/dexpreopt"
 )
 
 func TestDexpreoptEnabled(t *testing.T) {
@@ -165,4 +170,52 @@ func enabledString(enabled bool) string {
 	} else {
 		return "disabled"
 	}
+}
+
+func TestDex2oatToolDeps(t *testing.T) {
+	if android.BuildOs != android.Linux {
+		// The host binary paths checked below are build OS dependent.
+		t.Skipf("Unsupported build OS %s", android.BuildOs)
+	}
+
+	preparers := android.GroupFixturePreparers(
+		cc.PrepareForTestWithCcDefaultModules,
+		PrepareForTestWithJavaDefaultModulesWithoutFakeDex2oatd,
+		dexpreopt.PrepareForTestByEnablingDexpreopt)
+
+	testDex2oatToolDep := func(sourceEnabled, prebuiltEnabled, prebuiltPreferred bool,
+		expectedDex2oatPath string) {
+		name := fmt.Sprintf("sourceEnabled:%t,prebuiltEnabled:%t,prebuiltPreferred:%t",
+			sourceEnabled, prebuiltEnabled, prebuiltPreferred)
+		t.Run(name, func(t *testing.T) {
+			result := preparers.RunTestWithBp(t, fmt.Sprintf(`
+					cc_binary {
+						name: "dex2oatd",
+						enabled: %t,
+						host_supported: true,
+					}
+					cc_prebuilt_binary {
+						name: "dex2oatd",
+						enabled: %t,
+						prefer: %t,
+						host_supported: true,
+						srcs: ["x86_64/bin/dex2oatd"],
+					}
+					java_library {
+						name: "myjavalib",
+					}
+				`, sourceEnabled, prebuiltEnabled, prebuiltPreferred))
+			pathContext := android.PathContextForTesting(result.Config)
+			dex2oatPath := dexpreopt.GetCachedGlobalSoongConfig(pathContext).Dex2oat
+			android.AssertStringEquals(t, "Testing "+name, expectedDex2oatPath, android.NormalizePathForTesting(dex2oatPath))
+		})
+	}
+
+	sourceDex2oatPath := "host/linux-x86/bin/dex2oatd"
+	prebuiltDex2oatPath := ".intermediates/prebuilt_dex2oatd/linux_glibc_x86_64/dex2oatd"
+
+	testDex2oatToolDep(true, false, false, sourceDex2oatPath)
+	testDex2oatToolDep(true, true, false, sourceDex2oatPath)
+	testDex2oatToolDep(true, true, true, prebuiltDex2oatPath)
+	testDex2oatToolDep(false, true, false, prebuiltDex2oatPath)
 }

@@ -803,8 +803,7 @@ func dumpOatRules(ctx android.ModuleContext, image *bootImageConfig) {
 		rule := android.NewRuleBuilder(pctx, ctx)
 		imageLocationsOnHost, _ := image.imageLocations()
 		rule.Command().
-			// TODO: for now, use the debug version for better error reporting
-			BuiltTool("oatdumpd").
+			BuiltTool("oatdump").
 			FlagWithInputList("--runtime-arg -Xbootclasspath:", image.dexPathsDeps.Paths(), ":").
 			FlagWithList("--runtime-arg -Xbootclasspath-locations:", image.dexLocationsDeps, ":").
 			FlagWithArg("--image=", strings.Join(imageLocationsOnHost, ":")).Implicits(image.imagesDeps.Paths()).
