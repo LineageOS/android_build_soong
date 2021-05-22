@@ -15,39 +15,12 @@
 package java
 
 import (
-	"fmt"
 	"path/filepath"
 	"strings"
 
 	"android/soong/android"
 	"android/soong/dexpreopt"
 )
-
-// systemServerClasspath returns the on-device locations of the modules in the system server classpath.  It is computed
-// once the first time it is called for any ctx.Config(), and returns the same slice for all future calls with the same
-// ctx.Config().
-func systemServerClasspath(ctx android.PathContext) []string {
-	return ctx.Config().OnceStringSlice(systemServerClasspathKey, func() []string {
-		global := dexpreopt.GetGlobalConfig(ctx)
-		var systemServerClasspathLocations []string
-		nonUpdatable := dexpreopt.NonUpdatableSystemServerJars(ctx, global)
-		// 1) Non-updatable jars.
-		for _, m := range nonUpdatable {
-			systemServerClasspathLocations = append(systemServerClasspathLocations,
-				filepath.Join("/system/framework", m+".jar"))
-		}
-		// 2) The jars that are from an updatable apex.
-		systemServerClasspathLocations = append(systemServerClasspathLocations,
-			global.UpdatableSystemServerJars.DevicePaths(ctx.Config(), android.Android)...)
-
-		if expectedLen := global.SystemServerJars.Len() + global.UpdatableSystemServerJars.Len(); expectedLen != len(systemServerClasspathLocations) {
-			panic(fmt.Errorf("wrong number of system server jars, got %d, expected %d", len(systemServerClasspathLocations), expectedLen))
-		}
-		return systemServerClasspathLocations
-	})
-}
-
-var systemServerClasspathKey = android.NewOnceKey("systemServerClasspath")
 
 // dexpreoptTargets returns the list of targets that are relevant to dexpreopting, which excludes architectures
 // supported through native bridge.
