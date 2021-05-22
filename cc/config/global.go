@@ -165,13 +165,13 @@ func init() {
 		commonGlobalCflags = append(commonGlobalCflags, "-fdebug-prefix-map=/proc/self/cwd=")
 	}
 
-	staticVariableExportedToBazel("CommonGlobalConlyflags", commonGlobalConlyflags)
-	staticVariableExportedToBazel("DeviceGlobalCppflags", deviceGlobalCppflags)
-	staticVariableExportedToBazel("DeviceGlobalLdflags", deviceGlobalLdflags)
-	staticVariableExportedToBazel("DeviceGlobalLldflags", deviceGlobalLldflags)
-	staticVariableExportedToBazel("HostGlobalCppflags", hostGlobalCppflags)
-	staticVariableExportedToBazel("HostGlobalLdflags", hostGlobalLdflags)
-	staticVariableExportedToBazel("HostGlobalLldflags", hostGlobalLldflags)
+	exportStringListStaticVariable("CommonGlobalConlyflags", commonGlobalConlyflags)
+	exportStringListStaticVariable("DeviceGlobalCppflags", deviceGlobalCppflags)
+	exportStringListStaticVariable("DeviceGlobalLdflags", deviceGlobalLdflags)
+	exportStringListStaticVariable("DeviceGlobalLldflags", deviceGlobalLldflags)
+	exportStringListStaticVariable("HostGlobalCppflags", hostGlobalCppflags)
+	exportStringListStaticVariable("HostGlobalLdflags", hostGlobalLdflags)
+	exportStringListStaticVariable("HostGlobalLldflags", hostGlobalLldflags)
 
 	// Export the static default CommonClangGlobalCflags to Bazel.
 	// TODO(187086342): handle cflags that are set in VariableFuncs.
@@ -183,7 +183,7 @@ func init() {
 			"-ftrivial-auto-var-init=zero",
 			"-enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clang",
 		}...)
-	exportedVars.Set("CommonClangGlobalCflags", variableValue(commonClangGlobalCFlags))
+	exportedStringListVars.Set("CommonClangGlobalCflags", commonClangGlobalCFlags)
 
 	pctx.VariableFunc("CommonClangGlobalCflags", func(ctx android.PackageVarContext) string {
 		flags := ClangFilterUnknownCflags(commonGlobalCflags)
@@ -208,7 +208,7 @@ func init() {
 	// Export the static default DeviceClangGlobalCflags to Bazel.
 	// TODO(187086342): handle cflags that are set in VariableFuncs.
 	deviceClangGlobalCflags := append(ClangFilterUnknownCflags(deviceGlobalCflags), "${ClangExtraTargetCflags}")
-	exportedVars.Set("DeviceClangGlobalCflags", variableValue(deviceClangGlobalCflags))
+	exportedStringListVars.Set("DeviceClangGlobalCflags", deviceClangGlobalCflags)
 
 	pctx.VariableFunc("DeviceClangGlobalCflags", func(ctx android.PackageVarContext) string {
 		if ctx.Config().Fuchsia() {
@@ -218,10 +218,10 @@ func init() {
 		}
 	})
 
-	staticVariableExportedToBazel("HostClangGlobalCflags", ClangFilterUnknownCflags(hostGlobalCflags))
-	staticVariableExportedToBazel("NoOverrideClangGlobalCflags", append(ClangFilterUnknownCflags(noOverrideGlobalCflags), "${ClangExtraNoOverrideCflags}"))
-	staticVariableExportedToBazel("CommonClangGlobalCppflags", append(ClangFilterUnknownCflags(commonGlobalCppflags), "${ClangExtraCppflags}"))
-	staticVariableExportedToBazel("ClangExternalCflags", []string{"${ClangExtraExternalCflags}"})
+	exportStringListStaticVariable("HostClangGlobalCflags", ClangFilterUnknownCflags(hostGlobalCflags))
+	exportStringListStaticVariable("NoOverrideClangGlobalCflags", append(ClangFilterUnknownCflags(noOverrideGlobalCflags), "${ClangExtraNoOverrideCflags}"))
+	exportStringListStaticVariable("CommonClangGlobalCppflags", append(ClangFilterUnknownCflags(commonGlobalCppflags), "${ClangExtraCppflags}"))
+	exportStringListStaticVariable("ClangExternalCflags", []string{"${ClangExtraExternalCflags}"})
 
 	// Everything in these lists is a crime against abstraction and dependency tracking.
 	// Do not add anything to this list.
@@ -236,7 +236,7 @@ func init() {
 		"frameworks/native/opengl/include",
 		"frameworks/av/include",
 	}
-	exportedVars.Set("CommonGlobalIncludes", commonGlobalIncludes)
+	exportedStringListVars.Set("CommonGlobalIncludes", commonGlobalIncludes)
 	pctx.PrefixedExistentPathsForSourcesVariable("CommonGlobalIncludes", "-I", commonGlobalIncludes)
 
 	pctx.SourcePathVariable("ClangDefaultBase", ClangDefaultBase)

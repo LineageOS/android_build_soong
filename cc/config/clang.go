@@ -98,7 +98,7 @@ var ClangTidyDisableChecks = []string{
 }
 
 func init() {
-	staticVariableExportedToBazel("ClangExtraCflags", []string{
+	exportStringListStaticVariable("ClangExtraCflags", []string{
 		"-D__compiler_offsetof=__builtin_offsetof",
 
 		// Emit address-significance table which allows linker to perform safe ICF. Clang does
@@ -153,7 +153,7 @@ func init() {
 		"-D__ANDROID_UNAVAILABLE_SYMBOLS_ARE_WEAK__",
 	})
 
-	staticVariableExportedToBazel("ClangExtraCppflags", []string{
+	exportStringListStaticVariable("ClangExtraCppflags", []string{
 		// -Wimplicit-fallthrough is not enabled by -Wall.
 		"-Wimplicit-fallthrough",
 
@@ -164,9 +164,9 @@ func init() {
 		"-Wno-gnu-include-next",
 	})
 
-	staticVariableExportedToBazel("ClangExtraTargetCflags", []string{"-nostdlibinc"})
+	exportStringListStaticVariable("ClangExtraTargetCflags", []string{"-nostdlibinc"})
 
-	staticVariableExportedToBazel("ClangExtraNoOverrideCflags", []string{
+	exportStringListStaticVariable("ClangExtraNoOverrideCflags", []string{
 		"-Werror=address-of-temporary",
 		// Bug: http://b/29823425 Disable -Wnull-dereference until the
 		// new cases detected by this warning in Clang r271374 are
@@ -205,7 +205,7 @@ func init() {
 
 	// Extra cflags for external third-party projects to disable warnings that
 	// are infeasible to fix in all the external projects and their upstream repos.
-	staticVariableExportedToBazel("ClangExtraExternalCflags", []string{
+	exportStringListStaticVariable("ClangExtraExternalCflags", []string{
 		"-Wno-enum-compare",
 		"-Wno-enum-compare-switch",
 
