@@ -99,6 +99,9 @@ type AndroidAppImportProperties struct {
 	// If set, create package-export.apk, which other packages can
 	// use to get PRODUCT-agnostic resource data like IDs and type definitions.
 	Export_package_resources *bool
+
+	// Optional. Install to a subdirectory of the default install path for the module
+	Relative_install_path *string
 }
 
 func (a *AndroidAppImport) IsInstallable() bool {
@@ -263,20 +266,25 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 	jnisUncompressed := android.PathForModuleOut(ctx, "jnis-uncompressed", ctx.ModuleName()+".apk")
 	a.uncompressEmbeddedJniLibs(ctx, srcApk, jnisUncompressed.OutputPath)
 
-	var installDir android.InstallPath
+	var pathFragments []string
+	relInstallPath := String(a.properties.Relative_install_path)
 
 	if a.isPrebuiltFrameworkRes() {
 		// framework-res.apk is installed as system/framework/framework-res.apk
-		installDir = android.PathForModuleInstall(ctx, "framework")
+		if relInstallPath != "" {
+			ctx.PropertyErrorf("relative_install_path", "Relative_install_path cannot be set for framework-res")
+		}
+		pathFragments = []string{"framework"}
 		a.preprocessed = true
 	} else if Bool(a.properties.Privileged) {
-		installDir = android.PathForModuleInstall(ctx, "priv-app", a.BaseModuleName())
+		pathFragments = []string{"priv-app", relInstallPath, a.BaseModuleName()}
 	} else if ctx.InstallInTestcases() {
-		installDir = android.PathForModuleInstall(ctx, a.BaseModuleName(), ctx.DeviceConfig().DeviceArch())
+		pathFragments = []string{relInstallPath, a.BaseModuleName(), ctx.DeviceConfig().DeviceArch()}
 	} else {
-		installDir = android.PathForModuleInstall(ctx, "app", a.BaseModuleName())
+		pathFragments = []string{"app", relInstallPath, a.BaseModuleName()}
 	}
 
+	installDir := android.PathForModuleInstall(ctx, pathFragments...)
 	a.dexpreopter.isApp = true
 	a.dexpreopter.installPath = installDir.Join(ctx, a.BaseModuleName()+".apk")
 	a.dexpreopter.isPresignedPrebuilt = Bool(a.properties.Presigned)

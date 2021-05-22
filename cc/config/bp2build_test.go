@@ -20,54 +20,80 @@ import (
 
 func TestExpandVars(t *testing.T) {
 	testCases := []struct {
-		description    string
-		exportedVars   map[string]variableValue
-		toExpand       string
-		expectedValues []string
+		description     string
+		stringScope     exportedStringVariables
+		stringListScope exportedStringListVariables
+		toExpand        string
+		expectedValues  []string
 	}{
 		{
-			description: "single level expansion",
-			exportedVars: map[string]variableValue{
-				"foo": variableValue([]string{"bar"}),
+			description:    "no expansion for non-interpolated value",
+			toExpand:       "foo",
+			expectedValues: []string{"foo"},
+		},
+		{
+			description: "single level expansion for string var",
+			stringScope: exportedStringVariables{
+				"foo": "bar",
 			},
 			toExpand:       "${foo}",
 			expectedValues: []string{"bar"},
 		},
 		{
+			description: "single level expansion string list var",
+			stringListScope: exportedStringListVariables{
+				"foo": []string{"bar"},
+			},
+			toExpand:       "${foo}",
+			expectedValues: []string{"bar"},
+		},
+		{
+			description: "mixed level expansion for string list var",
+			stringScope: exportedStringVariables{
+				"foo": "${bar}",
+				"qux": "hello",
+			},
+			stringListScope: exportedStringListVariables{
+				"bar": []string{"baz", "${qux}"},
+			},
+			toExpand:       "${foo}",
+			expectedValues: []string{"baz", "hello"},
+		},
+		{
 			description: "double level expansion",
-			exportedVars: map[string]variableValue{
-				"foo": variableValue([]string{"${bar}"}),
-				"bar": variableValue([]string{"baz"}),
+			stringListScope: exportedStringListVariables{
+				"foo": []string{"${bar}"},
+				"bar": []string{"baz"},
 			},
 			toExpand:       "${foo}",
 			expectedValues: []string{"baz"},
 		},
 		{
 			description: "double level expansion with a literal",
-			exportedVars: map[string]variableValue{
-				"a": variableValue([]string{"${b}", "c"}),
-				"b": variableValue([]string{"d"}),
+			stringListScope: exportedStringListVariables{
+				"a": []string{"${b}", "c"},
+				"b": []string{"d"},
 			},
 			toExpand:       "${a}",
 			expectedValues: []string{"d", "c"},
 		},
 		{
 			description: "double level expansion, with two variables in a string",
-			exportedVars: map[string]variableValue{
-				"a": variableValue([]string{"${b} ${c}"}),
-				"b": variableValue([]string{"d"}),
-				"c": variableValue([]string{"e"}),
+			stringListScope: exportedStringListVariables{
+				"a": []string{"${b} ${c}"},
+				"b": []string{"d"},
+				"c": []string{"e"},
 			},
 			toExpand:       "${a}",
 			expectedValues: []string{"d", "e"},
 		},
 		{
 			description: "triple level expansion with two variables in a string",
-			exportedVars: map[string]variableValue{
-				"a": variableValue([]string{"${b} ${c}"}),
-				"b": variableValue([]string{"${c}", "${d}"}),
-				"c": variableValue([]string{"${d}"}),
-				"d": variableValue([]string{"foo"}),
+			stringListScope: exportedStringListVariables{
+				"a": []string{"${b} ${c}"},
+				"b": []string{"${c}", "${d}"},
+				"c": []string{"${d}"},
+				"d": []string{"foo"},
 			},
 			toExpand:       "${a}",
 			expectedValues: []string{"foo", "foo", "foo"},
@@ -76,7 +102,7 @@ func TestExpandVars(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.description, func(t *testing.T) {
-			output := expandVar(testCase.toExpand, testCase.exportedVars)
+			output := expandVar(testCase.toExpand, testCase.stringScope, testCase.stringListScope)
 			if len(output) != len(testCase.expectedValues) {
 				t.Errorf("Expected %d values, got %d", len(testCase.expectedValues), len(output))
 			}

@@ -22,29 +22,34 @@ import (
 )
 
 // Helpers for exporting cc configuration information to Bazel.
-
 var (
 	// Map containing toolchain variables that are independent of the
 	// environment variables of the build.
-	exportedVars = exportedVariablesMap{}
+	exportedStringListVars = exportedStringListVariables{}
+	exportedStringVars     = exportedStringVariables{}
 )
 
-// variableValue is a string slice because the exported variables are all lists
-// of string, and it's simpler to manipulate string lists before joining them
-// into their final string representation.
-type variableValue []string
+type exportedStringVariables map[string]string
+type exportedStringListVariables map[string][]string
 
-// envDependentVariable is a toolchain variable computed based on an environment variable.
-type exportedVariablesMap map[string]variableValue
-
-func (m exportedVariablesMap) Set(k string, v variableValue) {
+func (m exportedStringVariables) Set(k string, v string) {
 	m[k] = v
 }
 
 // Convenience function to declare a static variable and export it to Bazel's cc_toolchain.
-func staticVariableExportedToBazel(name string, value []string) {
+func exportStringStaticVariable(name string, value string) {
+	pctx.StaticVariable(name, value)
+	exportedStringVars.Set(name, value)
+}
+
+func (m exportedStringListVariables) Set(k string, v []string) {
+	m[k] = v
+}
+
+// Convenience function to declare a static variable and export it to Bazel's cc_toolchain.
+func exportStringListStaticVariable(name string, value []string) {
 	pctx.StaticVariable(name, strings.Join(value, " "))
-	exportedVars.Set(name, variableValue(value))
+	exportedStringListVars.Set(name, value)
 }
 
 // BazelCcToolchainVars generates bzl file content containing variables for
@@ -64,12 +69,12 @@ func BazelCcToolchainVars() string {
 
 	// For each exported variable, recursively expand elements in the variableValue
 	// list to ensure that interpolated variables are expanded according to their values
-	// in the exportedVars scope.
-	for _, k := range android.SortedStringKeys(exportedVars) {
-		variableValue := exportedVars[k]
+	// in the variable scope.
+	for _, k := range android.SortedStringKeys(exportedStringListVars) {
+		variableValue := exportedStringListVars[k]
 		var expandedVars []string
 		for _, v := range variableValue {
-			expandedVars = append(expandedVars, expandVar(v, exportedVars)...)
+			expandedVars = append(expandedVars, expandVar(v, exportedStringVars, exportedStringListVars)...)
 		}
 		// Build the list for this variable.
 		list := "["
@@ -83,9 +88,22 @@ func BazelCcToolchainVars() string {
 		ret += "\n"
 	}
 
+	for _, k := range android.SortedStringKeys(exportedStringVars) {
+		variableValue := exportedStringVars[k]
+		expandedVar := expandVar(variableValue, exportedStringVars, exportedStringListVars)
+		if len(expandedVar) > 1 {
+			panic(fmt.Errorf("%s expands to more than one string value: %s", variableValue, expandedVar))
+		}
+		ret += fmt.Sprintf("_%s = \"%s\"\n", k, validateCharacters(expandedVar[0]))
+		ret += "\n"
+	}
+
 	// Build the exported constants struct.
 	ret += "constants = struct(\n"
-	for _, k := range android.SortedStringKeys(exportedVars) {
+	for _, k := range android.SortedStringKeys(exportedStringVars) {
+		ret += fmt.Sprintf("    %s = _%s,\n", k, k)
+	}
+	for _, k := range android.SortedStringKeys(exportedStringListVars) {
 		ret += fmt.Sprintf("    %s = _%s,\n", k, k)
 	}
 	ret += ")"
@@ -99,7 +117,7 @@ func BazelCcToolchainVars() string {
 // string slice than to handle a pass-by-referenced map, which would make it
 // quite complex to track depth-first interpolations. It's also unlikely the
 // interpolation stacks are deep (n > 1).
-func expandVar(toExpand string, exportedVars map[string]variableValue) []string {
+func expandVar(toExpand string, stringScope exportedStringVariables, stringListScope exportedStringListVariables) []string {
 	// e.g. "${ClangExternalCflags}"
 	r := regexp.MustCompile(`\${([a-zA-Z0-9_]+)}`)
 
@@ -136,8 +154,11 @@ func expandVar(toExpand string, exportedVars map[string]variableValue) []string 
 				newSeenVars[k] = true
 			}
 			newSeenVars[variable] = true
-			unexpandedVars := exportedVars[variable]
-			for _, unexpandedVar := range unexpandedVars {
+			if unexpandedVars, ok := stringListScope[variable]; ok {
+				for _, unexpandedVar := range unexpandedVars {
+					ret = append(ret, expandVarInternal(unexpandedVar, newSeenVars)...)
+				}
+			} else if unexpandedVar, ok := stringScope[variable]; ok {
 				ret = append(ret, expandVarInternal(unexpandedVar, newSeenVars)...)
 			}
 		}
