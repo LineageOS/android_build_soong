@@ -83,7 +83,7 @@ func TestCcLibraryStaticBp2Build(t *testing.T) {
 		dir                                string
 	}{
 		{
-			description:                        "cc_library_static test",
+			description:                        "cc_library_static simple test",
 			moduleTypeUnderTest:                "cc_library_static",
 			moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
 			moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
@@ -165,8 +165,8 @@ cc_library_static {
         "local_include_dir_2",
     ],
     export_include_dirs: [
-    "export_include_dir_1",
-    "export_include_dir_2"
+        "export_include_dir_1",
+        "export_include_dir_2"
     ],
     header_libs: [
         "header_lib_1",
@@ -191,7 +191,7 @@ cc_library_static {
         "-I.",
         "-I$(BINDIR)/.",
     ],
-    deps = [
+    implementation_deps = [
         ":header_lib_1",
         ":header_lib_2",
         ":static_lib_1",
@@ -464,7 +464,7 @@ cc_library_static {
         "-I.",
         "-I$(BINDIR)/.",
     ],
-    deps = select({
+    implementation_deps = select({
         "//build/bazel/platforms/arch:arm64": [":static_dep"],
         "//conditions:default": [],
     }),
@@ -509,7 +509,7 @@ cc_library_static {
         "-I.",
         "-I$(BINDIR)/.",
     ],
-    deps = select({
+    implementation_deps = select({
         "//build/bazel/platforms/os:android": [":static_dep"],
         "//conditions:default": [],
     }),
@@ -559,7 +559,7 @@ cc_library_static {
         "-I.",
         "-I$(BINDIR)/.",
     ],
-    deps = [":static_dep"] + select({
+    implementation_deps = [":static_dep"] + select({
         "//build/bazel/platforms/arch:arm64": [":static_dep4"],
         "//conditions:default": [],
     }) + select({
@@ -827,7 +827,7 @@ cc_library_static {
         "-I.",
         "-I$(BINDIR)/.",
     ],
-    deps = [":static_dep"],
+    implementation_deps = [":static_dep"],
     linkstatic = True,
 )`, `cc_library_static(
     name = "static_dep",
