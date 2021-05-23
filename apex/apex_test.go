@@ -7439,6 +7439,28 @@ func TestPrebuiltStubLibDep(t *testing.T) {
 	}
 }
 
+func TestHostApexInHostOnlyBuild(t *testing.T) {
+	testApex(t, `
+		apex {
+			name: "myapex",
+			host_supported: true,
+			key: "myapex.key",
+			updatable: false,
+			payload_type: "zip",
+		}
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+	`,
+		android.FixtureModifyConfig(func(config android.Config) {
+			// We may not have device targets in all builds, e.g. in
+			// prebuilts/build-tools/build-prebuilts.sh
+			config.Targets[android.Android] = []android.Target{}
+		}))
+}
+
 func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }

@@ -221,17 +221,19 @@ func RegisterLibraryBuildComponents(ctx android.RegistrationContext) {
 // For bp2build conversion.
 type bazelCcLibraryAttributes struct {
 	// Attributes pertaining to both static and shared variants.
-	Srcs               bazel.LabelListAttribute
-	Hdrs               bazel.LabelListAttribute
-	Deps               bazel.LabelListAttribute
-	Dynamic_deps       bazel.LabelListAttribute
-	Whole_archive_deps bazel.LabelListAttribute
-	Copts              bazel.StringListAttribute
-	Includes           bazel.StringListAttribute
-	Linkopts           bazel.StringListAttribute
+	Srcs                bazel.LabelListAttribute
+	Hdrs                bazel.LabelListAttribute
+	Deps                bazel.LabelListAttribute
+	Implementation_deps bazel.LabelListAttribute
+	Dynamic_deps        bazel.LabelListAttribute
+	Whole_archive_deps  bazel.LabelListAttribute
+	Copts               bazel.StringListAttribute
+	Includes            bazel.StringListAttribute
+	Linkopts            bazel.StringListAttribute
 	// Attributes pertaining to shared variant.
 	Shared_copts                  bazel.StringListAttribute
 	Shared_srcs                   bazel.LabelListAttribute
+	Exported_deps_for_shared      bazel.LabelListAttribute
 	Static_deps_for_shared        bazel.LabelListAttribute
 	Dynamic_deps_for_shared       bazel.LabelListAttribute
 	Whole_archive_deps_for_shared bazel.LabelListAttribute
@@ -240,6 +242,7 @@ type bazelCcLibraryAttributes struct {
 	// Attributes pertaining to static variant.
 	Static_copts                  bazel.StringListAttribute
 	Static_srcs                   bazel.LabelListAttribute
+	Exported_deps_for_static      bazel.LabelListAttribute
 	Static_deps_for_static        bazel.LabelListAttribute
 	Dynamic_deps_for_static       bazel.LabelListAttribute
 	Whole_archive_deps_for_static bazel.LabelListAttribute
@@ -292,7 +295,8 @@ func CcLibraryBp2Build(ctx android.TopDownMutatorContext) {
 
 	attrs := &bazelCcLibraryAttributes{
 		Srcs:                          srcs,
-		Deps:                          linkerAttrs.deps,
+		Implementation_deps:           linkerAttrs.deps,
+		Deps:                          linkerAttrs.exportedDeps,
 		Dynamic_deps:                  linkerAttrs.dynamicDeps,
 		Whole_archive_deps:            linkerAttrs.wholeArchiveDeps,
 		Copts:                         compilerAttrs.copts,
@@ -2217,14 +2221,15 @@ func maybeInjectBoringSSLHash(ctx android.ModuleContext, outputFile android.Modu
 }
 
 type bazelCcLibraryStaticAttributes struct {
-	Copts              bazel.StringListAttribute
-	Srcs               bazel.LabelListAttribute
-	Deps               bazel.LabelListAttribute
-	Whole_archive_deps bazel.LabelListAttribute
-	Linkopts           bazel.StringListAttribute
-	Linkstatic         bool
-	Includes           bazel.StringListAttribute
-	Hdrs               bazel.LabelListAttribute
+	Copts               bazel.StringListAttribute
+	Srcs                bazel.LabelListAttribute
+	Implementation_deps bazel.LabelListAttribute
+	Deps                bazel.LabelListAttribute
+	Whole_archive_deps  bazel.LabelListAttribute
+	Linkopts            bazel.StringListAttribute
+	Linkstatic          bool
+	Includes            bazel.StringListAttribute
+	Hdrs                bazel.LabelListAttribute
 }
 
 type bazelCcLibraryStatic struct {
@@ -2245,10 +2250,11 @@ func ccLibraryStaticBp2BuildInternal(ctx android.TopDownMutatorContext, module *
 	exportedIncludes := bp2BuildParseExportedIncludes(ctx, module)
 
 	attrs := &bazelCcLibraryStaticAttributes{
-		Copts:              compilerAttrs.copts,
-		Srcs:               compilerAttrs.srcs,
-		Deps:               linkerAttrs.deps,
-		Whole_archive_deps: linkerAttrs.wholeArchiveDeps,
+		Copts:               compilerAttrs.copts,
+		Srcs:                compilerAttrs.srcs,
+		Implementation_deps: linkerAttrs.deps,
+		Deps:                linkerAttrs.exportedDeps,
+		Whole_archive_deps:  linkerAttrs.wholeArchiveDeps,
 
 		Linkopts:   linkerAttrs.linkopts,
 		Linkstatic: true,

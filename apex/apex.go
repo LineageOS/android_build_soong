@@ -730,20 +730,22 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 		}
 	}
 
-	// For prebuilt_etc, use the first variant (64 on 64/32bit device, 32 on 32bit device)
-	// regardless of the TARGET_PREFER_* setting. See b/144532908
-	archForPrebuiltEtc := config.Arches()[0]
-	for _, arch := range config.Arches() {
-		// Prefer 64-bit arch if there is any
-		if arch.ArchType.Multilib == "lib64" {
-			archForPrebuiltEtc = arch
-			break
+	if prebuilts := a.properties.Prebuilts; len(prebuilts) > 0 {
+		// For prebuilt_etc, use the first variant (64 on 64/32bit device, 32 on 32bit device)
+		// regardless of the TARGET_PREFER_* setting. See b/144532908
+		archForPrebuiltEtc := config.Arches()[0]
+		for _, arch := range config.Arches() {
+			// Prefer 64-bit arch if there is any
+			if arch.ArchType.Multilib == "lib64" {
+				archForPrebuiltEtc = arch
+				break
+			}
 		}
+		ctx.AddFarVariationDependencies([]blueprint.Variation{
+			{Mutator: "os", Variation: ctx.Os().String()},
+			{Mutator: "arch", Variation: archForPrebuiltEtc.String()},
+		}, prebuiltTag, prebuilts...)
 	}
-	ctx.AddFarVariationDependencies([]blueprint.Variation{
-		{Mutator: "os", Variation: ctx.Os().String()},
-		{Mutator: "arch", Variation: archForPrebuiltEtc.String()},
-	}, prebuiltTag, a.properties.Prebuilts...)
 
 	// Common-arch dependencies come next
 	commonVariation := ctx.Config().AndroidCommonTarget.Variations()
