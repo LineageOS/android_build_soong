@@ -70,11 +70,22 @@ func newMonolithicHiddenAPIInfo(ctx android.ModuleContext, flagFilesByCategory F
 // append appends all the files from the supplied info to the corresponding files in this struct.
 func (i *MonolithicHiddenAPIInfo) append(other *HiddenAPIInfo) {
 	i.FlagsFilesByCategory.append(other.FlagFilesByCategory)
-	i.StubFlagsPaths = append(i.StubFlagsPaths, other.StubFlagsPath)
-	i.AnnotationFlagsPaths = append(i.AnnotationFlagsPaths, other.AnnotationFlagsPath)
-	i.MetadataPaths = append(i.MetadataPaths, other.MetadataPath)
-	i.IndexPaths = append(i.IndexPaths, other.IndexPath)
-	i.AllFlagsPaths = append(i.AllFlagsPaths, other.AllFlagsPath)
+
+	// The output may not be set if the bootclasspath_fragment has not yet been updated to support
+	// hidden API processing.
+	// TODO(b/179354495): Switch back to append once all bootclasspath_fragment modules have been
+	//  updated to support hidden API processing properly.
+	appendIfNotNil := func(paths android.Paths, path android.Path) android.Paths {
+		if path == nil {
+			return paths
+		}
+		return append(paths, path)
+	}
+	i.StubFlagsPaths = appendIfNotNil(i.StubFlagsPaths, other.StubFlagsPath)
+	i.AnnotationFlagsPaths = appendIfNotNil(i.AnnotationFlagsPaths, other.AnnotationFlagsPath)
+	i.MetadataPaths = appendIfNotNil(i.MetadataPaths, other.MetadataPath)
+	i.IndexPaths = appendIfNotNil(i.IndexPaths, other.IndexPath)
+	i.AllFlagsPaths = appendIfNotNil(i.AllFlagsPaths, other.AllFlagsPath)
 }
 
 // dedup removes duplicates in all the paths, while maintaining the order in which they were
