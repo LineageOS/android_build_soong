@@ -145,15 +145,13 @@ func (h *hiddenAPI) hiddenAPIEncodeDex(ctx android.ModuleContext, dexJar android
 	}
 	uncompressDex := *h.uncompressDexState
 
-	hiddenAPIJar := android.PathForModuleOut(ctx, "hiddenapi", dexJar.Base()).OutputPath
-
 	// Create a copy of the dex jar which has been encoded with hiddenapi flags.
-	hiddenAPIEncodeDex(ctx, hiddenAPIJar, dexJar, uncompressDex)
+	flagsCSV := hiddenAPISingletonPaths(ctx).flags
+	outputDir := android.PathForModuleOut(ctx, "hiddenapi").OutputPath
+	encodedDex := hiddenAPIEncodeDex(ctx, dexJar, flagsCSV, uncompressDex, outputDir)
 
 	// Use the encoded dex jar from here onwards.
-	dexJar = hiddenAPIJar
-
-	return dexJar
+	return encodedDex
 }
 
 // buildRuleToGenerateAnnotationFlags builds a ninja rule to generate the annotation-flags.csv file
@@ -243,35 +241,37 @@ var hiddenAPIEncodeDexRule = pctx.AndroidStaticRule("hiddenAPIEncodeDex", bluepr
 	},
 }, "flagsCsv", "hiddenapiFlags", "tmpDir", "soongZipFlags")
 
-func hiddenAPIEncodeDex(ctx android.ModuleContext, output android.WritablePath, dexInput android.Path,
-	uncompressDex bool) {
+// hiddenAPIEncodeDex generates the build rule that will encode the supplied dex jar and place the
+// encoded dex jar in a file of the same name in the output directory.
+//
+// The encode dex rule requires unzipping, encoding and rezipping the classes.dex files along with
+// all the resources from the input jar. It also ensures that if it was uncompressed in the input
+// it stays uncompressed in the output.
+func hiddenAPIEncodeDex(ctx android.ModuleContext, dexInput, flagsCSV android.Path, uncompressDex bool, outputDir android.OutputPath) android.OutputPath {
 
-	flagsCSV := hiddenAPISingletonPaths(ctx).flags
+	// The output file has the same name as the input file and is in the output directory.
+	output := outputDir.Join(ctx, dexInput.Base())
 
-	// The encode dex rule requires unzipping and rezipping the classes.dex files, ensure that if it was uncompressed
-	// in the input it stays uncompressed in the output.
+	// Create a jar specific temporary directory in which to do the work just in case this is called
+	// with the same output directory for multiple modules.
+	tmpDir := outputDir.Join(ctx, dexInput.Base()+"-tmp")
+
+	// If the input is uncompressed then generate the output of the encode rule to an intermediate
+	// file as the final output will need further processing after encoding.
 	soongZipFlags := ""
-	hiddenapiFlags := ""
-	tmpOutput := output
-	tmpDir := android.PathForModuleOut(ctx, "hiddenapi", "dex")
+	encodeRuleOutput := output
 	if uncompressDex {
 		soongZipFlags = "-L 0"
-		tmpOutput = android.PathForModuleOut(ctx, "hiddenapi", "unaligned", "unaligned.jar")
-		tmpDir = android.PathForModuleOut(ctx, "hiddenapi", "unaligned")
+		encodeRuleOutput = outputDir.Join(ctx, "unaligned", dexInput.Base())
 	}
-
-	enforceHiddenApiFlagsToAllMembers := true
 
 	// b/149353192: when a module is instrumented, jacoco adds synthetic members
 	// $jacocoData and $jacocoInit. Since they don't exist when building the hidden API flags,
 	// don't complain when we don't find hidden API flags for the synthetic members.
+	hiddenapiFlags := ""
 	if j, ok := ctx.Module().(interface {
 		shouldInstrument(android.BaseModuleContext) bool
 	}); ok && j.shouldInstrument(ctx) {
-		enforceHiddenApiFlagsToAllMembers = false
-	}
-
-	if !enforceHiddenApiFlagsToAllMembers {
 		hiddenapiFlags = "--no-force-assign-all"
 	}
 
@@ -279,7 +279,7 @@ func hiddenAPIEncodeDex(ctx android.ModuleContext, output android.WritablePath, 
 		Rule:        hiddenAPIEncodeDexRule,
 		Description: "hiddenapi encode dex",
 		Input:       dexInput,
-		Output:      tmpOutput,
+		Output:      encodeRuleOutput,
 		Implicit:    flagsCSV,
 		Args: map[string]string{
 			"flagsCsv":       flagsCSV.String(),
@@ -290,8 +290,10 @@ func hiddenAPIEncodeDex(ctx android.ModuleContext, output android.WritablePath, 
 	})
 
 	if uncompressDex {
-		TransformZipAlign(ctx, output, tmpOutput)
+		TransformZipAlign(ctx, output, encodeRuleOutput)
 	}
+
+	return output
 }
 
 type hiddenApiAnnotationsDependencyTag struct {
