@@ -55,8 +55,8 @@ func newMonolithicHiddenAPIInfo(ctx android.ModuleContext, flagFilesByCategory F
 	// Merge all the information from the fragments. The fragments form a DAG so it is possible that
 	// this will introduce duplicates so they will be resolved after processing all the fragments.
 	for _, fragment := range fragments {
-		if ctx.OtherModuleHasProvider(fragment, hiddenAPIFlagFileInfoProvider) {
-			info := ctx.OtherModuleProvider(fragment, hiddenAPIFlagFileInfoProvider).(hiddenAPIFlagFileInfo)
+		if ctx.OtherModuleHasProvider(fragment, HiddenAPIInfoProvider) {
+			info := ctx.OtherModuleProvider(fragment, HiddenAPIInfoProvider).(HiddenAPIInfo)
 			monolithicInfo.append(&info)
 		}
 	}
@@ -68,7 +68,7 @@ func newMonolithicHiddenAPIInfo(ctx android.ModuleContext, flagFilesByCategory F
 }
 
 // append appends all the files from the supplied info to the corresponding files in this struct.
-func (i *MonolithicHiddenAPIInfo) append(other *hiddenAPIFlagFileInfo) {
+func (i *MonolithicHiddenAPIInfo) append(other *HiddenAPIInfo) {
 	i.FlagsFilesByCategory.append(other.FlagFilesByCategory)
 	i.StubFlagsPaths = append(i.StubFlagsPaths, other.StubFlagsPath)
 	i.AnnotationFlagsPaths = append(i.AnnotationFlagsPaths, other.AnnotationFlagsPath)
