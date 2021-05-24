@@ -133,8 +133,8 @@ type BootclasspathFragmentModule struct {
 type commonBootclasspathFragment interface {
 	// produceHiddenAPIAllFlagsFile produces the all-flags.csv and intermediate files.
 	//
-	// Updates the supplied flagFileInfo with the paths to the generated files set.
-	produceHiddenAPIAllFlagsFile(ctx android.ModuleContext, contents []hiddenAPIModule, stubJarsByKind map[android.SdkKind]android.Paths, flagFileInfo *hiddenAPIFlagFileInfo) *HiddenAPIFlagOutput
+	// Updates the supplied hiddenAPIInfo with the paths to the generated files set.
+	produceHiddenAPIAllFlagsFile(ctx android.ModuleContext, contents []hiddenAPIModule, input HiddenAPIFlagInput) *HiddenAPIFlagOutput
 }
 
 var _ commonBootclasspathFragment = (*BootclasspathFragmentModule)(nil)
@@ -538,45 +538,61 @@ func (b *BootclasspathFragmentModule) generateHiddenAPIBuildActions(ctx android.
 		return nil
 	}
 
-	// Convert the kind specific lists of modules into kind specific lists of jars.
-	stubJarsByKind := hiddenAPIGatherStubLibDexJarPaths(ctx, contents)
+	// Create hidden API input structure.
+	input := b.createHiddenAPIFlagInput(ctx, contents)
 
 	// Performing hidden API processing without stubs is not supported and it is unlikely to ever be
 	// required as the whole point of adding something to the bootclasspath fragment is to add it to
 	// the bootclasspath in order to be used by something else in the system. Without any stubs it
 	// cannot do that.
-	if len(stubJarsByKind) == 0 {
+	if len(input.StubDexJarsByKind) == 0 {
 		return nil
 	}
 
 	// Store the information for use by other modules.
-	bootclasspathApiInfo := bootclasspathApiInfo{stubJarsByKind: stubJarsByKind}
+	bootclasspathApiInfo := bootclasspathApiInfo{stubJarsByKind: input.StubDexJarsByKind}
 	ctx.SetProvider(bootclasspathApiInfoProvider, bootclasspathApiInfo)
-
-	// Resolve the properties to paths.
-	flagFileInfo := b.properties.Hidden_api.hiddenAPIFlagFileInfo(ctx)
 
 	hiddenAPIModules := gatherHiddenAPIModuleFromContents(ctx, contents)
 
 	// Delegate the production of the hidden API all flags file to a module type specific method.
 	common := ctx.Module().(commonBootclasspathFragment)
-	output := common.produceHiddenAPIAllFlagsFile(ctx, hiddenAPIModules, stubJarsByKind, &flagFileInfo)
+	output := common.produceHiddenAPIAllFlagsFile(ctx, hiddenAPIModules, input)
 
-	// Copy the output into the flagFileInfo
-	flagFileInfo.HiddenAPIFlagOutput = *output
+	// Initialize a hiddenAPIFlagFileInfo structure and provide it for use by other modules.
+	flagFileInfo := hiddenAPIFlagFileInfo{
+		// The monolithic hidden API processing needs access to the flag files from all the fragments.
+		FlagFilesByCategory: input.FlagFilesByCategory,
 
-	// Store the information for use by platform_bootclasspath.
+		// The monolithic hidden API processing also needs access to all the output files produced by
+		// hidden API processing of this fragment.
+		HiddenAPIFlagOutput: *output,
+	}
 	ctx.SetProvider(hiddenAPIFlagFileInfoProvider, flagFileInfo)
 
 	return output
 }
 
+// createHiddenAPIFlagInput creates a HiddenAPIFlagInput struct and initializes it with information derived
+// from the properties on this module and its dependencies.
+func (b *BootclasspathFragmentModule) createHiddenAPIFlagInput(ctx android.ModuleContext, contents []android.Module) HiddenAPIFlagInput {
+	input := newHiddenAPIFlagInput()
+
+	// Update the input structure with information obtained from the stub libraries.
+	input.gatherStubLibInfo(ctx, contents)
+
+	// Populate with flag file paths from the properties.
+	input.extractFlagFilesFromProperties(ctx, &b.properties.Hidden_api)
+
+	return input
+}
+
 // produceHiddenAPIAllFlagsFile produces the hidden API all-flags.csv file (and supporting files)
 // for the fragment.
-func (b *BootclasspathFragmentModule) produceHiddenAPIAllFlagsFile(ctx android.ModuleContext, contents []hiddenAPIModule, stubJarsByKind map[android.SdkKind]android.Paths, flagFileInfo *hiddenAPIFlagFileInfo) *HiddenAPIFlagOutput {
-	// Generate the rules to create the hidden API flags and update the supplied flagFileInfo with the
+func (b *BootclasspathFragmentModule) produceHiddenAPIAllFlagsFile(ctx android.ModuleContext, contents []hiddenAPIModule, input HiddenAPIFlagInput) *HiddenAPIFlagOutput {
+	// Generate the rules to create the hidden API flags and update the supplied hiddenAPIInfo with the
 	// paths to the created files.
-	return hiddenAPIGenerateAllFlagsForBootclasspathFragment(ctx, contents, stubJarsByKind, flagFileInfo)
+	return hiddenAPIGenerateAllFlagsForBootclasspathFragment(ctx, contents, input)
 }
 
 // generateBootImageBuildActions generates ninja rules to create the boot image if required for this
@@ -800,7 +816,7 @@ func (module *prebuiltBootclasspathFragmentModule) Name() string {
 
 // produceHiddenAPIAllFlagsFile returns a path to the prebuilt all-flags.csv or nil if none is
 // specified.
-func (module *prebuiltBootclasspathFragmentModule) produceHiddenAPIAllFlagsFile(ctx android.ModuleContext, contents []hiddenAPIModule, stubJarsByKind map[android.SdkKind]android.Paths, flagFileInfo *hiddenAPIFlagFileInfo) *HiddenAPIFlagOutput {
+func (module *prebuiltBootclasspathFragmentModule) produceHiddenAPIAllFlagsFile(ctx android.ModuleContext, contents []hiddenAPIModule, _ HiddenAPIFlagInput) *HiddenAPIFlagOutput {
 	pathForOptionalSrc := func(src *string) android.Path {
 		if src == nil {
 			// TODO(b/179354495): Fail if this is not provided once prebuilts have been updated.
