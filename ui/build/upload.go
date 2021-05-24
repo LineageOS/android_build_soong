@@ -24,7 +24,8 @@ import (
 	"time"
 
 	"android/soong/ui/metrics"
-	"github.com/golang/protobuf/proto"
+
+	"google.golang.org/protobuf/proto"
 
 	upload_proto "android/soong/ui/metrics/upload_proto"
 )

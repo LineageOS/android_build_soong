@@ -20,18 +20,18 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"android/soong/shared"
-	"github.com/google/blueprint/deptools"
-
+	"android/soong/ui/metrics"
 	soong_metrics_proto "android/soong/ui/metrics/metrics_proto"
+	"android/soong/ui/status"
+
+	"android/soong/shared"
+
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/bootstrap"
-
-	"github.com/golang/protobuf/proto"
+	"github.com/google/blueprint/deptools"
 	"github.com/google/blueprint/microfactory"
 
-	"android/soong/ui/metrics"
-	"android/soong/ui/status"
+	"google.golang.org/protobuf/proto"
 )
 
 const (

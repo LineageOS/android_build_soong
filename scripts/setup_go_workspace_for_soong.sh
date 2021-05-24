@@ -346,7 +346,7 @@ readonly BIND_PATHS=(
   "${ANDROID_PATH}/build/blueprint|${OUTPUT_PATH}/src/github.com/google/blueprint"
   "${ANDROID_PATH}/build/soong|${OUTPUT_PATH}/src/android/soong"
   "${ANDROID_PATH}/art/build|${OUTPUT_PATH}/src/android/soong/art"
-  "${ANDROID_PATH}/external/golang-protobuf|${OUTPUT_PATH}/src/github.com/golang/protobuf"
+  "${ANDROID_PATH}/external/golang-protobuf|${OUTPUT_PATH}/src/google.golang.org/protobuf"
   "${ANDROID_PATH}/external/llvm/soong|${OUTPUT_PATH}/src/android/soong/llvm"
   "${ANDROID_PATH}/external/clang/soong|${OUTPUT_PATH}/src/android/soong/clang"
   "${ANDROID_PATH}/external/robolectric-shadows/soong|${OUTPUT_PATH}/src/android/soong/robolectric"

@@ -27,9 +27,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 
-	"android/soong/cmd/extract_apks/bundle_proto"
+	android_bundle_proto "android/soong/cmd/extract_apks/bundle_proto"
 	"android/soong/third_party/zip"
 )
 

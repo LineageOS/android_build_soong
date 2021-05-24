@@ -15,7 +15,7 @@
 syntax = "proto2";
 
 package soong_metrics_upload;
-option go_package = "soong_metrics_upload_proto";
+option go_package = "android/soong/ui/metrics/upload_proto";
 
 message Upload {
   // The timestamp in milliseconds that the build was created.
