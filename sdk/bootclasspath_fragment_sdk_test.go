@@ -424,6 +424,7 @@ func TestBasicSdkWithBootclasspathFragment(t *testing.T) {
 	android.GroupFixturePreparers(
 		prepareForSdkTestWithApex,
 		prepareForSdkTestWithJava,
+		android.FixtureAddFile("java/mybootlib.jar", nil),
 		android.FixtureWithRootAndroidBp(`
 		sdk {
 			name: "mysdk",
@@ -433,16 +434,27 @@ func TestBasicSdkWithBootclasspathFragment(t *testing.T) {
 		bootclasspath_fragment {
 			name: "mybootclasspathfragment",
 			image_name: "art",
+			contents: ["mybootlib"],
 			apex_available: ["myapex"],
+		}
+
+		java_library {
+			name: "mybootlib",
+			apex_available: ["myapex"],
+			srcs: ["Test.java"],
+			system_modules: "none",
+			sdk_version: "none",
+			min_sdk_version: "1",
+			compile_dex: true,
 		}
 
 		sdk_snapshot {
 			name: "mysdk@1",
-			bootclasspath_fragments: ["mybootclasspathfragment_mysdk_1"],
+			bootclasspath_fragments: ["mysdk_mybootclasspathfragment@1"],
 		}
 
 		prebuilt_bootclasspath_fragment {
-			name: "mybootclasspathfragment_mysdk_1",
+			name: "mysdk_mybootclasspathfragment@1",
 			sdk_member_name: "mybootclasspathfragment",
 			prefer: false,
 			visibility: ["//visibility:public"],
@@ -450,6 +462,15 @@ func TestBasicSdkWithBootclasspathFragment(t *testing.T) {
 				"myapex",
 			],
 			image_name: "art",
+			contents: ["mysdk_mybootlib@1"],
+		}
+
+		java_import {
+			name: "mysdk_mybootlib@1",
+			sdk_member_name: "mybootlib",
+			visibility: ["//visibility:public"],
+			apex_available: ["com.android.art"],
+			jars: ["java/mybootlib.jar"],
 		}
 	`),
 	).RunTest(t)
