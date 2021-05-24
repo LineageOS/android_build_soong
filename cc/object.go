@@ -116,7 +116,7 @@ type bazelObjectAttributes struct {
 	Hdrs    bazel.LabelListAttribute
 	Deps    bazel.LabelListAttribute
 	Copts   bazel.StringListAttribute
-	Asflags []string
+	Asflags bazel.StringListAttribute
 }
 
 type bazelObject struct {
@@ -157,7 +157,7 @@ func ObjectBp2Build(ctx android.TopDownMutatorContext) {
 
 	// Set arch-specific configurable attributes
 	compilerAttrs := bp2BuildParseCompilerProps(ctx, m)
-	var asFlags []string
+	var asFlags bazel.StringListAttribute
 
 	var deps bazel.LabelListAttribute
 	for _, props := range m.linker.linkerProps() {
@@ -176,10 +176,11 @@ func ObjectBp2Build(ctx android.TopDownMutatorContext) {
 				ctx.ModuleErrorf("Could not convert product variable asflag property")
 				return
 			}
-			// TODO(b/183595873) handle other product variable usages -- as selects?
-			if newFlags, subbed := bazel.TryVariableSubstitutions(flags, prop.ProductConfigVariable); subbed {
-				asFlags = append(asFlags, newFlags...)
-			}
+			newFlags, _ := bazel.TryVariableSubstitutions(flags, prop.ProductConfigVariable)
+			asFlags.ProductValues = append(asFlags.ProductValues, bazel.ProductVariableValues{
+				ProductVariable: prop.ProductConfigVariable,
+				Values:          newFlags,
+			})
 		}
 	}
 	// TODO(b/183595872) warn/error if we're not handling product variables

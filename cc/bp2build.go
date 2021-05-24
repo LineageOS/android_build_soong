@@ -318,6 +318,21 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 		}
 	}
 
+	productVariableProps := android.ProductVariableProperties(ctx)
+	if props, exists := productVariableProps["Cflags"]; exists {
+		for _, prop := range props {
+			flags, ok := prop.Property.([]string)
+			if !ok {
+				ctx.ModuleErrorf("Could not convert product variable cflag property")
+			}
+			newFlags, _ := bazel.TryVariableSubstitutions(flags, prop.ProductConfigVariable)
+			copts.ProductValues = append(copts.ProductValues, bazel.ProductVariableValues{
+				ProductVariable: prop.ProductConfigVariable,
+				Values:          newFlags,
+			})
+		}
+	}
+
 	return compilerAttributes{
 		srcs:  srcs,
 		copts: copts,
