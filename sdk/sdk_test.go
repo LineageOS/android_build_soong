@@ -564,4 +564,101 @@ sdk_snapshot {
 			`),
 		)
 	})
+
+	t.Run("SOONG_SDK_SNAPSHOT_VERSION=unversioned", func(t *testing.T) {
+		result := android.GroupFixturePreparers(
+			preparer,
+			android.FixtureMergeEnv(map[string]string{
+				"SOONG_SDK_SNAPSHOT_VERSION": "unversioned",
+			}),
+		).RunTest(t)
+
+		checkZipFile(t, result, "out/soong/.intermediates/mysdk/common_os/mysdk.zip")
+
+		CheckSnapshot(t, result, "mysdk", "",
+			checkAndroidBpContents(`
+// This is auto-generated. DO NOT EDIT.
+
+java_import {
+    name: "myjavalib",
+    prefer: false,
+    visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
+    jars: ["java/myjavalib.jar"],
+}
+			`),
+		)
+	})
+
+	t.Run("SOONG_SDK_SNAPSHOT_VERSION=current", func(t *testing.T) {
+		result := android.GroupFixturePreparers(
+			preparer,
+			android.FixtureMergeEnv(map[string]string{
+				"SOONG_SDK_SNAPSHOT_VERSION": "current",
+			}),
+		).RunTest(t)
+
+		checkZipFile(t, result, "out/soong/.intermediates/mysdk/common_os/mysdk-current.zip")
+
+		CheckSnapshot(t, result, "mysdk", "",
+			checkAndroidBpContents(`
+// This is auto-generated. DO NOT EDIT.
+
+java_import {
+    name: "mysdk_myjavalib@current",
+    sdk_member_name: "myjavalib",
+    visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
+    jars: ["java/myjavalib.jar"],
+}
+
+java_import {
+    name: "myjavalib",
+    prefer: false,
+    visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
+    jars: ["java/myjavalib.jar"],
+}
+
+sdk_snapshot {
+    name: "mysdk@current",
+    visibility: ["//visibility:public"],
+    java_header_libs: ["mysdk_myjavalib@current"],
+}
+			`),
+		)
+	})
+
+	t.Run("SOONG_SDK_SNAPSHOT_VERSION=2", func(t *testing.T) {
+		result := android.GroupFixturePreparers(
+			preparer,
+			android.FixtureMergeEnv(map[string]string{
+				"SOONG_SDK_SNAPSHOT_VERSION": "2",
+			}),
+		).RunTest(t)
+
+		checkZipFile(t, result, "out/soong/.intermediates/mysdk/common_os/mysdk-2.zip")
+
+		CheckSnapshot(t, result, "mysdk", "",
+			checkAndroidBpContents(`
+// This is auto-generated. DO NOT EDIT.
+
+java_import {
+    name: "mysdk_myjavalib@2",
+    sdk_member_name: "myjavalib",
+    visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
+    jars: ["java/myjavalib.jar"],
+}
+
+sdk_snapshot {
+    name: "mysdk@2",
+    visibility: ["//visibility:public"],
+    java_header_libs: ["mysdk_myjavalib@2"],
+}
+			`),
+			// A versioned snapshot cannot be used on its own so add the source back in.
+			snapshotTestPreparer(checkSnapshotWithoutSource, android.FixtureWithRootAndroidBp(bp)),
+		)
+	})
 }
