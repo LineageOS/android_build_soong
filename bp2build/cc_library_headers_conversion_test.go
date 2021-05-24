@@ -15,10 +15,10 @@
 package bp2build
 
 import (
+	"testing"
+
 	"android/soong/android"
 	"android/soong/cc"
-	"strings"
-	"testing"
 )
 
 const (
@@ -39,6 +39,18 @@ toolchain_library {
 	src: "",
 }`
 )
+
+type bp2buildTestCase struct {
+	description                        string
+	moduleTypeUnderTest                string
+	moduleTypeUnderTestFactory         android.ModuleFactory
+	moduleTypeUnderTestBp2BuildMutator func(android.TopDownMutatorContext)
+	depsMutators                       []android.RegisterMutatorFunc
+	blueprint                          string
+	expectedBazelTargets               []string
+	filesystem                         map[string]string
+	dir                                string
+}
 
 func TestCcLibraryHeadersLoadStatement(t *testing.T) {
 	testCases := []struct {
@@ -64,41 +76,37 @@ func TestCcLibraryHeadersLoadStatement(t *testing.T) {
 			t.Fatalf("Expected load statements to be %s, got %s", expected, actual)
 		}
 	}
-
 }
 
-func TestCcLibraryHeadersBp2Build(t *testing.T) {
-	testCases := []struct {
-		description                        string
-		moduleTypeUnderTest                string
-		moduleTypeUnderTestFactory         android.ModuleFactory
-		moduleTypeUnderTestBp2BuildMutator func(android.TopDownMutatorContext)
-		preArchMutators                    []android.RegisterMutatorFunc
-		depsMutators                       []android.RegisterMutatorFunc
-		bp                                 string
-		expectedBazelTargets               []string
-		filesystem                         map[string]string
-		dir                                string
-	}{
-		{
-			description:                        "cc_library_headers test",
-			moduleTypeUnderTest:                "cc_library_headers",
-			moduleTypeUnderTestFactory:         cc.LibraryHeaderFactory,
-			moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryHeadersBp2Build,
-			filesystem: map[string]string{
-				"lib-1/lib1a.h":                        "",
-				"lib-1/lib1b.h":                        "",
-				"lib-2/lib2a.h":                        "",
-				"lib-2/lib2b.h":                        "",
-				"dir-1/dir1a.h":                        "",
-				"dir-1/dir1b.h":                        "",
-				"dir-2/dir2a.h":                        "",
-				"dir-2/dir2b.h":                        "",
-				"arch_arm64_exported_include_dir/a.h":  "",
-				"arch_x86_exported_include_dir/b.h":    "",
-				"arch_x86_64_exported_include_dir/c.h": "",
-			},
-			bp: soongCcLibraryHeadersPreamble + `
+func registerCcLibraryHeadersModuleTypes(ctx android.RegistrationContext) {
+	cc.RegisterCCBuildComponents(ctx)
+	ctx.RegisterModuleType("toolchain_library", cc.ToolchainLibraryFactory)
+}
+
+func runCcLibraryHeadersTestCase(t *testing.T, tc bp2buildTestCase) {
+	runBp2BuildTestCase(t, registerCcLibraryHeadersModuleTypes, tc)
+}
+
+func TestCcLibraryHeadersSimple(t *testing.T) {
+	runCcLibraryHeadersTestCase(t, bp2buildTestCase{
+		description:                        "cc_library_headers test",
+		moduleTypeUnderTest:                "cc_library_headers",
+		moduleTypeUnderTestFactory:         cc.LibraryHeaderFactory,
+		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryHeadersBp2Build,
+		filesystem: map[string]string{
+			"lib-1/lib1a.h":                        "",
+			"lib-1/lib1b.h":                        "",
+			"lib-2/lib2a.h":                        "",
+			"lib-2/lib2b.h":                        "",
+			"dir-1/dir1a.h":                        "",
+			"dir-1/dir1b.h":                        "",
+			"dir-2/dir2a.h":                        "",
+			"dir-2/dir2b.h":                        "",
+			"arch_arm64_exported_include_dir/a.h":  "",
+			"arch_x86_exported_include_dir/b.h":    "",
+			"arch_x86_64_exported_include_dir/c.h": "",
+		},
+		blueprint: soongCcLibraryHeadersPreamble + `
 cc_library_headers {
     name: "lib-1",
     export_include_dirs: ["lib-1"],
@@ -129,7 +137,7 @@ cc_library_headers {
 
     // TODO: Also support export_header_lib_headers
 }`,
-			expectedBazelTargets: []string{`cc_library_headers(
+		expectedBazelTargets: []string{`cc_library_headers(
     name = "foo_headers",
     copts = [
         "-I.",
@@ -163,15 +171,18 @@ cc_library_headers {
     ],
     includes = ["lib-2"],
 )`},
-		},
-		{
-			description:                        "cc_library_headers test with os-specific header_libs props",
-			moduleTypeUnderTest:                "cc_library_headers",
-			moduleTypeUnderTestFactory:         cc.LibraryHeaderFactory,
-			moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryHeadersBp2Build,
-			depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
-			filesystem:                         map[string]string{},
-			bp: soongCcLibraryPreamble + `
+	})
+}
+
+func TestCcLibraryHeadersOSSpecificHeader(t *testing.T) {
+	runCcLibraryHeadersTestCase(t, bp2buildTestCase{
+		description:                        "cc_library_headers test with os-specific header_libs props",
+		moduleTypeUnderTest:                "cc_library_headers",
+		moduleTypeUnderTestFactory:         cc.LibraryHeaderFactory,
+		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryHeadersBp2Build,
+		depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
+		filesystem:                         map[string]string{},
+		blueprint: soongCcLibraryPreamble + `
 cc_library_headers { name: "android-lib" }
 cc_library_headers { name: "base-lib" }
 cc_library_headers { name: "darwin-lib" }
@@ -192,7 +203,7 @@ cc_library_headers {
     },
     bazel_module: { bp2build_available: true },
 }`,
-			expectedBazelTargets: []string{`cc_library_headers(
+		expectedBazelTargets: []string{`cc_library_headers(
     name = "android-lib",
     copts = [
         "-I.",
@@ -250,15 +261,18 @@ cc_library_headers {
         "-I$(BINDIR)/.",
     ],
 )`},
-		},
-		{
-			description:                        "cc_library_headers test with os-specific header_libs and export_header_lib_headers props",
-			moduleTypeUnderTest:                "cc_library_headers",
-			moduleTypeUnderTestFactory:         cc.LibraryHeaderFactory,
-			moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryHeadersBp2Build,
-			depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
-			filesystem:                         map[string]string{},
-			bp: soongCcLibraryPreamble + `
+	})
+}
+
+func TestCcLibraryHeadersOsSpecficHeaderLibsExportHeaderLibHeaders(t *testing.T) {
+	runCcLibraryHeadersTestCase(t, bp2buildTestCase{
+		description:                        "cc_library_headers test with os-specific header_libs and export_header_lib_headers props",
+		moduleTypeUnderTest:                "cc_library_headers",
+		moduleTypeUnderTestFactory:         cc.LibraryHeaderFactory,
+		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryHeadersBp2Build,
+		depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
+		filesystem:                         map[string]string{},
+		blueprint: soongCcLibraryPreamble + `
 cc_library_headers { name: "android-lib" }
 cc_library_headers { name: "exported-lib" }
 cc_library_headers {
@@ -267,7 +281,7 @@ cc_library_headers {
         android: { header_libs: ["android-lib"], export_header_lib_headers: ["exported-lib"] },
     },
 }`,
-			expectedBazelTargets: []string{`cc_library_headers(
+		expectedBazelTargets: []string{`cc_library_headers(
     name = "android-lib",
     copts = [
         "-I.",
@@ -294,15 +308,18 @@ cc_library_headers {
         "//conditions:default": [],
     }),
 )`},
-		},
-		{
-			description:                        "cc_library_headers test with arch-specific and target-specific export_system_include_dirs props",
-			moduleTypeUnderTest:                "cc_library_headers",
-			moduleTypeUnderTestFactory:         cc.LibraryHeaderFactory,
-			moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryHeadersBp2Build,
-			depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
-			filesystem:                         map[string]string{},
-			bp: soongCcLibraryPreamble + `cc_library_headers {
+	})
+}
+
+func TestCcLibraryHeadersArchAndTargetExportSystemIncludes(t *testing.T) {
+	runCcLibraryHeadersTestCase(t, bp2buildTestCase{
+		description:                        "cc_library_headers test with arch-specific and target-specific export_system_include_dirs props",
+		moduleTypeUnderTest:                "cc_library_headers",
+		moduleTypeUnderTestFactory:         cc.LibraryHeaderFactory,
+		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryHeadersBp2Build,
+		depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
+		filesystem:                         map[string]string{},
+		blueprint: soongCcLibraryPreamble + `cc_library_headers {
     name: "foo_headers",
     export_system_include_dirs: [
 	"shared_include_dir",
@@ -337,7 +354,7 @@ cc_library_headers {
         },
     },
 }`,
-			expectedBazelTargets: []string{`cc_library_headers(
+		expectedBazelTargets: []string{`cc_library_headers(
     name = "foo_headers",
     copts = [
         "-I.",
@@ -354,65 +371,5 @@ cc_library_headers {
         "//conditions:default": [],
     }),
 )`},
-		},
-	}
-
-	dir := "."
-	for _, testCase := range testCases {
-		filesystem := make(map[string][]byte)
-		toParse := []string{
-			"Android.bp",
-		}
-		for f, content := range testCase.filesystem {
-			if strings.HasSuffix(f, "Android.bp") {
-				toParse = append(toParse, f)
-			}
-			filesystem[f] = []byte(content)
-		}
-		config := android.TestConfig(buildDir, nil, testCase.bp, filesystem)
-		ctx := android.NewTestContext(config)
-
-		// TODO(jingwen): make this default for all bp2build tests
-		ctx.RegisterBp2BuildConfig(bp2buildConfig)
-
-		cc.RegisterCCBuildComponents(ctx)
-		ctx.RegisterModuleType("toolchain_library", cc.ToolchainLibraryFactory)
-
-		ctx.RegisterModuleType(testCase.moduleTypeUnderTest, testCase.moduleTypeUnderTestFactory)
-		for _, m := range testCase.depsMutators {
-			ctx.DepsBp2BuildMutators(m)
-		}
-		ctx.RegisterBp2BuildMutator(testCase.moduleTypeUnderTest, testCase.moduleTypeUnderTestBp2BuildMutator)
-		ctx.RegisterForBazelConversion()
-
-		_, errs := ctx.ParseFileList(dir, toParse)
-		if errored(t, testCase.description, errs) {
-			continue
-		}
-		_, errs = ctx.ResolveDependencies(config)
-		if errored(t, testCase.description, errs) {
-			continue
-		}
-
-		checkDir := dir
-		if testCase.dir != "" {
-			checkDir = testCase.dir
-		}
-		codegenCtx := NewCodegenContext(config, *ctx.Context, Bp2Build)
-		bazelTargets := generateBazelTargetsForDir(codegenCtx, checkDir)
-		if actualCount, expectedCount := len(bazelTargets), len(testCase.expectedBazelTargets); actualCount != expectedCount {
-			t.Errorf("%s: Expected %d bazel target, got %d", testCase.description, expectedCount, actualCount)
-		} else {
-			for i, target := range bazelTargets {
-				if w, g := testCase.expectedBazelTargets[i], target.content; w != g {
-					t.Errorf(
-						"%s: Expected generated Bazel target to be '%s', got '%s'",
-						testCase.description,
-						w,
-						g,
-					)
-				}
-			}
-		}
-	}
+	})
 }
