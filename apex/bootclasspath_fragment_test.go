@@ -522,8 +522,8 @@ func TestBootclasspathFragmentContentsNoName(t *testing.T) {
 		android.AssertStringDoesContain(t, name+" apex copy command", copyCommands, expectedCopyCommand)
 	}
 
-	checkFragmentExportedDexJar("foo", "out/soong/.intermediates/foo/android_common_apex10000/hiddenapi/foo.jar")
-	checkFragmentExportedDexJar("bar", "out/soong/.intermediates/bar/android_common_apex10000/hiddenapi/bar.jar")
+	checkFragmentExportedDexJar("foo", "out/soong/.intermediates/mybootclasspathfragment/android_common_apex10000/hiddenapi-modular/encoded/foo.jar")
+	checkFragmentExportedDexJar("bar", "out/soong/.intermediates/mybootclasspathfragment/android_common_apex10000/hiddenapi-modular/encoded/bar.jar")
 }
 
 // TODO(b/177892522) - add test for host apex.
