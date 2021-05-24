@@ -651,7 +651,7 @@ type bootclasspathFragmentSdkMemberProperties struct {
 	Core_platform_stub_libs []string
 
 	// Flag files by *hiddenAPIFlagFileCategory
-	Flag_files_by_category map[*hiddenAPIFlagFileCategory]android.Paths
+	Flag_files_by_category FlagFilesByCategory
 
 	// The path to the generated stub-flags.csv file.
 	Stub_flags_path android.OptionalPath
@@ -689,7 +689,7 @@ func (b *bootclasspathFragmentSdkMemberProperties) PopulateFromVariant(ctx andro
 	// Get the flag file information from the module.
 	mctx := ctx.SdkModuleContext()
 	flagFileInfo := mctx.OtherModuleProvider(module, hiddenAPIFlagFileInfoProvider).(hiddenAPIFlagFileInfo)
-	b.Flag_files_by_category = flagFileInfo.categoryToPaths
+	b.Flag_files_by_category = flagFileInfo.FlagFilesByCategory
 
 	// Copy all the generated file paths.
 	b.Stub_flags_path = pathsToOptionalPath(flagFileInfo.StubFlagsPaths)
