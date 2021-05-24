@@ -245,14 +245,14 @@ func TestPlatformBootclasspath_Fragments(t *testing.T) {
 	).RunTest(t)
 
 	pbcp := result.Module("platform-bootclasspath", "android_common")
-	info := result.ModuleProvider(pbcp, hiddenAPIFlagFileInfoProvider).(hiddenAPIFlagFileInfo)
+	info := result.ModuleProvider(pbcp, monolithicHiddenAPIInfoProvider).(MonolithicHiddenAPIInfo)
 
 	for _, category := range hiddenAPIFlagFileCategories {
 		name := category.propertyName
 		message := fmt.Sprintf("category %s", name)
 		filename := strings.ReplaceAll(name, "_", "-")
 		expected := []string{fmt.Sprintf("%s.txt", filename), fmt.Sprintf("bar-%s.txt", filename)}
-		android.AssertPathsRelativeToTopEquals(t, message, expected, info.categoryToPaths[category])
+		android.AssertPathsRelativeToTopEquals(t, message, expected, info.FlagsFilesByCategory[category])
 	}
 
 	android.AssertPathsRelativeToTopEquals(t, "stub flags", []string{"out/soong/.intermediates/bar-fragment/android_common/modular-hiddenapi/stub-flags.csv"}, info.StubFlagsPaths)
