@@ -20,6 +20,7 @@ import (
 
 	"android/soong/android"
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
 )
 
 // Contains support for processing hiddenAPI in a modular fashion.
@@ -393,6 +394,42 @@ func newHiddenAPIFlagInput() HiddenAPIFlagInput {
 	}
 
 	return input
+}
+
+// canPerformHiddenAPIProcessing determines whether hidden API processing should be performed.
+//
+// A temporary workaround to avoid existing bootclasspath_fragments that do not provide the
+// appropriate information needed for hidden API processing breaking the build.
+// TODO(b/179354495): Remove this workaround.
+func (i *HiddenAPIFlagInput) canPerformHiddenAPIProcessing(ctx android.ModuleContext, properties bootclasspathFragmentProperties) bool {
+	// Performing hidden API processing without stubs is not supported and it is unlikely to ever be
+	// required as the whole point of adding something to the bootclasspath fragment is to add it to
+	// the bootclasspath in order to be used by something else in the system. Without any stubs it
+	// cannot do that.
+	if len(i.StubDexJarsByKind) == 0 {
+		return false
+	}
+
+	// Hidden API processing is always enabled in tests.
+	if ctx.Config().TestProductVariables != nil {
+		return true
+	}
+
+	// A module that has fragments should have access to the information it needs in order to perform
+	// hidden API processing.
+	if len(properties.Fragments) != 0 {
+		return true
+	}
+
+	// The art bootclasspath fragment does not depend on any other fragments but already supports
+	// hidden API processing.
+	imageName := proptools.String(properties.Image_name)
+	if imageName == "art" {
+		return true
+	}
+
+	// Disable it for everything else.
+	return false
 }
 
 // gatherStubLibInfo gathers information from the stub libs needed by hidden API processing from the
