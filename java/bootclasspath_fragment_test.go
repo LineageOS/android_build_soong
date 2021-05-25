@@ -29,38 +29,28 @@ var prepareForTestWithBootclasspathFragment = android.GroupFixturePreparers(
 	dexpreopt.PrepareForTestByEnablingDexpreopt,
 )
 
-func TestUnknownBootclasspathFragment(t *testing.T) {
+func TestBootclasspathFragment_UnknownImageName(t *testing.T) {
 	prepareForTestWithBootclasspathFragment.
 		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(
-			`\Qimage_name: Unknown image name "unknown", expected one of art, boot\E`)).
+			`\Qimage_name: unknown image name "unknown", expected "art"\E`)).
 		RunTestWithBp(t, `
 			bootclasspath_fragment {
 				name: "unknown-bootclasspath-fragment",
 				image_name: "unknown",
+				contents: ["foo"],
 			}
 		`)
 }
 
-func TestUnknownBootclasspathFragmentImageName(t *testing.T) {
+func TestPrebuiltBootclasspathFragment_UnknownImageName(t *testing.T) {
 	prepareForTestWithBootclasspathFragment.
 		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(
-			`\Qimage_name: Unknown image name "unknown", expected one of art, boot\E`)).
-		RunTestWithBp(t, `
-			bootclasspath_fragment {
-				name: "unknown-bootclasspath-fragment",
-				image_name: "unknown",
-			}
-		`)
-}
-
-func TestUnknownPrebuiltBootclasspathFragment(t *testing.T) {
-	prepareForTestWithBootclasspathFragment.
-		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(
-			`\Qimage_name: Unknown image name "unknown", expected one of art, boot\E`)).
+			`\Qimage_name: unknown image name "unknown", expected "art"\E`)).
 		RunTestWithBp(t, `
 			prebuilt_bootclasspath_fragment {
 				name: "unknown-bootclasspath-fragment",
 				image_name: "unknown",
+				contents: ["foo"],
 			}
 		`)
 }
@@ -76,6 +66,7 @@ func TestBootclasspathFragmentInconsistentArtConfiguration_Platform(t *testing.T
 			bootclasspath_fragment {
 				name: "bootclasspath-fragment",
 				image_name: "art",
+				contents: ["foo", "bar"],
 				apex_available: [
 					"apex",
 				],
@@ -94,21 +85,11 @@ func TestBootclasspathFragmentInconsistentArtConfiguration_ApexMixture(t *testin
 			bootclasspath_fragment {
 				name: "bootclasspath-fragment",
 				image_name: "art",
+				contents: ["foo", "bar"],
 				apex_available: [
 					"apex1",
 					"apex2",
 				],
-			}
-		`)
-}
-
-func TestBootclasspathFragmentWithoutImageNameOrContents(t *testing.T) {
-	prepareForTestWithBootclasspathFragment.
-		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(
-			`\Qneither of the "image_name" and "contents" properties\E`)).
-		RunTestWithBp(t, `
-			bootclasspath_fragment {
-				name: "bootclasspath-fragment",
 			}
 		`)
 }
