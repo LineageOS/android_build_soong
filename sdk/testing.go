@@ -131,6 +131,7 @@ func getSdkSnapshotBuildInfo(t *testing.T, result *android.TestResult, sdk *sdk)
 	info := &snapshotBuildInfo{
 		t:                            t,
 		r:                            result,
+		version:                      sdk.builderForTests.version,
 		androidBpContents:            sdk.GetAndroidBpContentsForTests(),
 		androidUnversionedBpContents: sdk.GetUnversionedAndroidBpContentsForTests(),
 		androidVersionedBpContents:   sdk.GetVersionedAndroidBpContentsForTests(),
@@ -236,8 +237,13 @@ func CheckSnapshot(t *testing.T, result *android.TestResult, name string, dir st
 	if dir != "" {
 		dir = filepath.Clean(dir) + "/"
 	}
-	android.AssertStringEquals(t, "Snapshot zip file in wrong place",
-		fmt.Sprintf(".intermediates/%s%s/%s/%s-current.zip", dir, name, variant, name), actual)
+	suffix := ""
+	if snapshotBuildInfo.version != soongSdkSnapshotVersionUnversioned {
+		suffix = "-" + snapshotBuildInfo.version
+	}
+
+	expectedZipPath := fmt.Sprintf(".intermediates/%s%s/%s/%s%s.zip", dir, name, variant, name, suffix)
+	android.AssertStringEquals(t, "Snapshot zip file in wrong place", expectedZipPath, actual)
 
 	// Populate a mock filesystem with the files that would have been copied by
 	// the rules.
@@ -431,6 +437,11 @@ type snapshotBuildInfo struct {
 
 	// The result from RunTest()
 	r *android.TestResult
+
+	// The version of the generated snapshot.
+	//
+	// See snapshotBuilder.version for more information about this field.
+	version string
 
 	// The contents of the generated Android.bp file
 	androidBpContents string
