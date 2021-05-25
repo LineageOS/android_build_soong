@@ -138,7 +138,6 @@ var (
 		// e.g. ERROR: Analysis of target '@soong_injection//mixed_builds:buildroot' failed
 		"external/bazelbuild-rules_android":/* recursive = */ true,
 
-		"prebuilts/clang/host/linux-x86":/* recursive = */ false,
 		"prebuilts/sdk":/* recursive = */ false,
 		"prebuilts/sdk/tools":/* recursive = */ false,
 	}
@@ -155,6 +154,7 @@ var (
 		"external/fmtlib":                 Bp2BuildDefaultTrueRecursively,
 		"external/arm-optimized-routines": Bp2BuildDefaultTrueRecursively,
 		"external/scudo":                  Bp2BuildDefaultTrueRecursively,
+		"prebuilts/clang/host/linux-x86":  Bp2BuildDefaultTrueRecursively,
 	}
 
 	// Per-module denylist to always opt modules out of both bp2build and mixed builds.
