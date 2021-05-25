@@ -185,8 +185,14 @@ func ObjectBp2Build(ctx android.TopDownMutatorContext) {
 	}
 	// TODO(b/183595872) warn/error if we're not handling product variables
 
+	// Don't split cc_object srcs across languages. Doing so would add complexity,
+	// and this isn't typically done for cc_object.
+	srcs := compilerAttrs.srcs
+	srcs.Append(compilerAttrs.cSrcs)
+	srcs.Append(compilerAttrs.asSrcs)
+
 	attrs := &bazelObjectAttributes{
-		Srcs:    compilerAttrs.srcs,
+		Srcs:    srcs,
 		Deps:    deps,
 		Copts:   compilerAttrs.copts,
 		Asflags: asFlags,
