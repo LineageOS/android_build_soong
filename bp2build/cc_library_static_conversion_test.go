@@ -76,6 +76,7 @@ func registerCcLibraryStaticModuleTypes(ctx android.RegistrationContext) {
 }
 
 func runCcLibraryStaticTestCase(t *testing.T, tc bp2buildTestCase) {
+	t.Helper()
 	runBp2BuildTestCase(t, registerCcLibraryStaticModuleTypes, tc)
 }
 

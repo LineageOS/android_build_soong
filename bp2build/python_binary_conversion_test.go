@@ -8,6 +8,7 @@ import (
 )
 
 func runPythonTestCase(t *testing.T, tc bp2buildTestCase) {
+	t.Helper()
 	runBp2BuildTestCase(t, func(ctx android.RegistrationContext) {}, tc)
 }
 
