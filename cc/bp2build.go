@@ -105,7 +105,9 @@ func depsBp2BuildMutator(ctx android.BottomUpMutatorContext) {
 	ctx.AddDependency(module, nil, android.SortedUniqueStrings(allDeps)...)
 }
 
-type sharedAttributes struct {
+// staticOrSharedAttributes are the Bazel-ified versions of StaticOrSharedProperties --
+// properities which apply to either the shared or static version of a cc_library module.
+type staticOrSharedAttributes struct {
 	copts            bazel.StringListAttribute
 	srcs             bazel.LabelListAttribute
 	staticDeps       bazel.LabelListAttribute
@@ -114,65 +116,41 @@ type sharedAttributes struct {
 }
 
 // bp2buildParseSharedProps returns the attributes for the shared variant of a cc_library.
-func bp2BuildParseSharedProps(ctx android.TopDownMutatorContext, module *Module) sharedAttributes {
+func bp2BuildParseSharedProps(ctx android.TopDownMutatorContext, module *Module) staticOrSharedAttributes {
 	lib, ok := module.compiler.(*libraryDecorator)
 	if !ok {
-		return sharedAttributes{}
+		return staticOrSharedAttributes{}
 	}
 
-	copts := bazel.StringListAttribute{Value: lib.SharedProperties.Shared.Cflags}
-
-	srcs := bazel.LabelListAttribute{
-		Value: android.BazelLabelForModuleSrc(ctx, lib.SharedProperties.Shared.Srcs)}
-
-	staticDeps := bazel.LabelListAttribute{
-		Value: android.BazelLabelForModuleDeps(ctx, lib.SharedProperties.Shared.Static_libs)}
-
-	dynamicDeps := bazel.LabelListAttribute{
-		Value: android.BazelLabelForModuleDeps(ctx, lib.SharedProperties.Shared.Shared_libs)}
-
-	wholeArchiveDeps := bazel.LabelListAttribute{
-		Value: android.BazelLabelForModuleDeps(ctx, lib.SharedProperties.Shared.Whole_static_libs)}
-
-	return sharedAttributes{
-		copts:            copts,
-		srcs:             srcs,
-		staticDeps:       staticDeps,
-		dynamicDeps:      dynamicDeps,
-		wholeArchiveDeps: wholeArchiveDeps,
-	}
-}
-
-type staticAttributes struct {
-	copts            bazel.StringListAttribute
-	srcs             bazel.LabelListAttribute
-	staticDeps       bazel.LabelListAttribute
-	dynamicDeps      bazel.LabelListAttribute
-	wholeArchiveDeps bazel.LabelListAttribute
+	return bp2buildParseStaticOrSharedProps(ctx, lib.SharedProperties.Shared)
 }
 
 // bp2buildParseStaticProps returns the attributes for the static variant of a cc_library.
-func bp2BuildParseStaticProps(ctx android.TopDownMutatorContext, module *Module) staticAttributes {
+func bp2BuildParseStaticProps(ctx android.TopDownMutatorContext, module *Module) staticOrSharedAttributes {
 	lib, ok := module.compiler.(*libraryDecorator)
 	if !ok {
-		return staticAttributes{}
+		return staticOrSharedAttributes{}
 	}
 
-	copts := bazel.StringListAttribute{Value: lib.StaticProperties.Static.Cflags}
+	return bp2buildParseStaticOrSharedProps(ctx, lib.StaticProperties.Static)
+}
+
+func bp2buildParseStaticOrSharedProps(ctx android.TopDownMutatorContext, props StaticOrSharedProperties) staticOrSharedAttributes {
+	copts := bazel.StringListAttribute{Value: props.Cflags}
 
 	srcs := bazel.LabelListAttribute{
-		Value: android.BazelLabelForModuleSrc(ctx, lib.StaticProperties.Static.Srcs)}
+		Value: android.BazelLabelForModuleSrc(ctx, props.Srcs)}
 
 	staticDeps := bazel.LabelListAttribute{
-		Value: android.BazelLabelForModuleDeps(ctx, lib.StaticProperties.Static.Static_libs)}
+		Value: android.BazelLabelForModuleDeps(ctx, props.Static_libs)}
 
 	dynamicDeps := bazel.LabelListAttribute{
-		Value: android.BazelLabelForModuleDeps(ctx, lib.StaticProperties.Static.Shared_libs)}
+		Value: android.BazelLabelForModuleDeps(ctx, props.Shared_libs)}
 
 	wholeArchiveDeps := bazel.LabelListAttribute{
-		Value: android.BazelLabelForModuleDeps(ctx, lib.StaticProperties.Static.Whole_static_libs)}
+		Value: android.BazelLabelForModuleDeps(ctx, props.Whole_static_libs)}
 
-	return staticAttributes{
+	return staticOrSharedAttributes{
 		copts:            copts,
 		srcs:             srcs,
 		staticDeps:       staticDeps,
