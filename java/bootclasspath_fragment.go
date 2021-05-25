@@ -501,73 +501,47 @@ func (b *BootclasspathFragmentModule) getImageConfig(ctx android.EarlyModuleCont
 	return imageConfig
 }
 
-// canPerformHiddenAPIProcessing determines whether hidden API processing should be performed.
-//
-// A temporary workaround to avoid existing bootclasspath_fragments that do not provide the
-// appropriate information needed for hidden API processing breaking the build.
-// TODO(b/179354495): Remove this workaround.
-func (b *BootclasspathFragmentModule) canPerformHiddenAPIProcessing(ctx android.ModuleContext) bool {
-	// Hidden API processing is always enabled in tests.
-	if ctx.Config().TestProductVariables != nil {
-		return true
-	}
-	// A module that has fragments should have access to the information it needs in order to perform
-	// hidden API processing.
-	if len(b.properties.Fragments) != 0 {
-		return true
-	}
-
-	// The art bootclasspath fragment does not depend on any other fragments but already supports
-	// hidden API processing.
-	imageName := proptools.String(b.properties.Image_name)
-	if imageName == "art" {
-		return true
-	}
-
-	// Disable it for everything else.
-	return false
-}
-
 // generateHiddenAPIBuildActions generates all the hidden API related build rules.
 func (b *BootclasspathFragmentModule) generateHiddenAPIBuildActions(ctx android.ModuleContext, contents []android.Module) *HiddenAPIFlagOutput {
-
-	// A temporary workaround to avoid existing bootclasspath_fragments that do not provide the
-	// appropriate information needed for hidden API processing breaking the build.
-	if !b.canPerformHiddenAPIProcessing(ctx) {
-		// Nothing to do.
-		return nil
-	}
 
 	// Create hidden API input structure.
 	input := b.createHiddenAPIFlagInput(ctx, contents)
 
-	// Performing hidden API processing without stubs is not supported and it is unlikely to ever be
-	// required as the whole point of adding something to the bootclasspath fragment is to add it to
-	// the bootclasspath in order to be used by something else in the system. Without any stubs it
-	// cannot do that.
-	if len(input.StubDexJarsByKind) == 0 {
-		return nil
+	var output *HiddenAPIFlagOutput
+
+	// Hidden API processing is conditional as a temporary workaround as not all
+	// bootclasspath_fragments provide the appropriate information needed for hidden API processing
+	// which leads to breakages of the build.
+	// TODO(b/179354495): Stop hidden API processing being conditional once all bootclasspath_fragment
+	//  modules have been updated to support it.
+	if input.canPerformHiddenAPIProcessing(ctx, b.properties) {
+		// Get the content modules that contribute to the hidden API processing.
+		hiddenAPIModules := gatherHiddenAPIModuleFromContents(ctx, contents)
+
+		// Delegate the production of the hidden API all-flags.csv file to a module type specific method.
+		common := ctx.Module().(commonBootclasspathFragment)
+		output = common.produceHiddenAPIAllFlagsFile(ctx, hiddenAPIModules, input)
 	}
 
-	// Store the information for use by other modules.
-	bootclasspathApiInfo := bootclasspathApiInfo{stubJarsByKind: input.StubDexJarsByKind}
-	ctx.SetProvider(bootclasspathApiInfoProvider, bootclasspathApiInfo)
-
-	hiddenAPIModules := gatherHiddenAPIModuleFromContents(ctx, contents)
-
-	// Delegate the production of the hidden API all-flags.csv file to a module type specific method.
-	common := ctx.Module().(commonBootclasspathFragment)
-	output := common.produceHiddenAPIAllFlagsFile(ctx, hiddenAPIModules, input)
-
-	// Initialize a HiddenAPIInfo structure and provide it for use by other modules.
+	// Initialize a HiddenAPIInfo structure.
 	hiddenAPIInfo := HiddenAPIInfo{
-		// The monolithic hidden API processing needs access to the flag files from all the fragments.
+		// The monolithic hidden API processing needs access to the flag files that override the default
+		// flags from all the fragments whether or not they actually perform their own hidden API flag
+		// generation. That is because the monolithic hidden API processing uses those flag files to
+		// perform its own flag generation.
 		FlagFilesByCategory: input.FlagFilesByCategory,
 
+		// Make these available for tests.
+		StubDexJarsByKind: input.StubDexJarsByKind,
+	}
+
+	if output != nil {
 		// The monolithic hidden API processing also needs access to all the output files produced by
 		// hidden API processing of this fragment.
-		HiddenAPIFlagOutput: *output,
+		hiddenAPIInfo.HiddenAPIFlagOutput = *output
 	}
+
+	//  Provide it for use by other modules.
 	ctx.SetProvider(HiddenAPIInfoProvider, hiddenAPIInfo)
 
 	return output
