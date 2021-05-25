@@ -845,19 +845,7 @@ func (c *commonToSdkLibraryAndImport) selectHeaderJarsForSdkVersion(ctx android.
 // closest kind which is a subset of the requested kind. e.g. if requesting android.SdkModule then
 // it will return *scopePaths for android.SdkSystem if available or android.SdkPublic of not.
 func (c *commonToSdkLibraryAndImport) selectScopePaths(ctx android.BaseModuleContext, kind android.SdkKind) *scopePaths {
-	var apiScope *apiScope
-	switch kind {
-	case android.SdkSystem:
-		apiScope = apiScopeSystem
-	case android.SdkModule:
-		apiScope = apiScopeModuleLib
-	case android.SdkTest:
-		apiScope = apiScopeTest
-	case android.SdkSystemServer:
-		apiScope = apiScopeSystemServer
-	default:
-		apiScope = apiScopePublic
-	}
+	apiScope := sdkKindToApiScope(kind)
 
 	paths := c.findClosestScopePath(apiScope)
 	if paths == nil {
@@ -874,6 +862,24 @@ func (c *commonToSdkLibraryAndImport) selectScopePaths(ctx android.BaseModuleCon
 	return paths
 }
 
+// sdkKindToApiScope maps from android.SdkKind to apiScope.
+func sdkKindToApiScope(kind android.SdkKind) *apiScope {
+	var apiScope *apiScope
+	switch kind {
+	case android.SdkSystem:
+		apiScope = apiScopeSystem
+	case android.SdkModule:
+		apiScope = apiScopeModuleLib
+	case android.SdkTest:
+		apiScope = apiScopeTest
+	case android.SdkSystemServer:
+		apiScope = apiScopeSystemServer
+	default:
+		apiScope = apiScopePublic
+	}
+	return apiScope
+}
+
 // to satisfy SdkLibraryDependency interface
 func (c *commonToSdkLibraryAndImport) SdkApiStubDexJar(ctx android.BaseModuleContext, kind android.SdkKind) android.Path {
 	paths := c.selectScopePaths(ctx, kind)
@@ -882,6 +888,17 @@ func (c *commonToSdkLibraryAndImport) SdkApiStubDexJar(ctx android.BaseModuleCon
 	}
 
 	return paths.stubsDexJarPath
+}
+
+// to satisfy SdkLibraryDependency interface
+func (c *commonToSdkLibraryAndImport) SdkRemovedTxtFile(ctx android.BaseModuleContext, kind android.SdkKind) android.OptionalPath {
+	apiScope := sdkKindToApiScope(kind)
+	paths := c.findScopePaths(apiScope)
+	if paths == nil {
+		return android.OptionalPath{}
+	}
+
+	return paths.removedApiFilePath
 }
 
 func (c *commonToSdkLibraryAndImport) sdkComponentPropertiesForChildLibrary() interface{} {
@@ -964,7 +981,7 @@ var _ SdkLibraryComponentDependency = (*Import)(nil)
 var _ SdkLibraryComponentDependency = (*SdkLibrary)(nil)
 var _ SdkLibraryComponentDependency = (*SdkLibraryImport)(nil)
 
-// Provides access to sdk_version related header and implentation jars.
+// Provides access to sdk_version related files, e.g. header and implementation jars.
 type SdkLibraryDependency interface {
 	SdkLibraryComponentDependency
 
@@ -984,6 +1001,9 @@ type SdkLibraryDependency interface {
 	// SdkApiStubDexJar returns the dex jar for the stubs. It is needed by the hiddenapi processing
 	// tool which processes dex files.
 	SdkApiStubDexJar(ctx android.BaseModuleContext, kind android.SdkKind) android.Path
+
+	// SdkRemovedTxtFile returns the optional path to the removed.txt file for the specified sdk kind.
+	SdkRemovedTxtFile(ctx android.BaseModuleContext, kind android.SdkKind) android.OptionalPath
 
 	// sharedLibrary returns true if this can be used as a shared library.
 	sharedLibrary() bool
