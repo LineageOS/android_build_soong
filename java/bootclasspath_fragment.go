@@ -496,10 +496,21 @@ func (b *BootclasspathFragmentModule) ClasspathFragmentToConfiguredJarList(ctx a
 
 	global := dexpreopt.GetGlobalConfig(ctx)
 
+	// Convert content names to their appropriate stems, in case a test library is overriding an actual boot jar
+	var stems []string
+	for _, name := range b.properties.Contents {
+		dep := ctx.GetDirectDepWithTag(name, bootclasspathFragmentContentDepTag)
+		if m, ok := dep.(ModuleWithStem); ok {
+			stems = append(stems, m.Stem())
+		} else {
+			ctx.PropertyErrorf("contents", "%v is not a ModuleWithStem", name)
+		}
+	}
+
 	// Only create configs for updatable boot jars. Non-updatable boot jars must be part of the
 	// platform_bootclasspath's classpath proto config to guarantee that they come before any
 	// updatable jars at runtime.
-	return global.UpdatableBootJars.Filter(b.properties.Contents)
+	return global.UpdatableBootJars.Filter(stems)
 }
 
 func (b *BootclasspathFragmentModule) getImageConfig(ctx android.EarlyModuleContext) *bootImageConfig {
