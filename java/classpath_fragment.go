@@ -105,7 +105,7 @@ func configuredJarListToClasspathJars(ctx android.ModuleContext, configuredJars 
 }
 
 func (c *ClasspathFragmentBase) generateClasspathProtoBuildActions(ctx android.ModuleContext, jars []classpathJar) {
-	outputFilename := ctx.ModuleName() + ".pb"
+	outputFilename := strings.ToLower(c.classpathType.String()) + ".pb"
 	c.outputFilepath = android.PathForModuleOut(ctx, outputFilename).OutputPath
 	c.installDirPath = android.PathForModuleInstall(ctx, "etc", "classpaths")
 
