@@ -313,7 +313,7 @@ cc_library {
         "//build/bazel/platforms/arch:arm64": ["-DHAVE_FAST_FMA=1"],
         "//conditions:default": [],
     }),
-    srcs = ["math/cosf.c"],
+    srcs_c = ["math/cosf.c"],
 )`},
 	})
 }
@@ -620,7 +620,7 @@ cc_library {
 
 func TestCcLibraryCppFlagsGoesIntoCopts(t *testing.T) {
 	runCcLibraryTestCase(t, bp2buildTestCase{
-		description:                        "cc_library cppflags goes into copts",
+		description:                        "cc_library cppflags usage",
 		moduleTypeUnderTest:                "cc_library",
 		moduleTypeUnderTestFactory:         cc.LibraryFactory,
 		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryBp2Build,
@@ -656,10 +656,12 @@ func TestCcLibraryCppFlagsGoesIntoCopts(t *testing.T) {
     name = "a",
     copts = [
         "-Wall",
-        "-fsigned-char",
-        "-pedantic",
         "-Ifoo/bar",
         "-I$(BINDIR)/foo/bar",
+    ],
+    cppflags = [
+        "-fsigned-char",
+        "-pedantic",
     ] + select({
         "//build/bazel/platforms/arch:arm64": ["-DARM64=1"],
         "//conditions:default": [],
