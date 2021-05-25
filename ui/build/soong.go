@@ -155,9 +155,9 @@ func bootstrapBlueprint(ctx Context, config Config, integratedBp2Build bool) {
 			Outputs: []string{bp2BuildMarkerFile},
 			Args:    bp2buildArgs,
 		}
-		args.PrimaryBuilderInvocations = []bootstrap.PrimaryBuilderInvocation{
-			bp2buildInvocation,
-			mainSoongBuildInvocation,
+		args.PrimaryBuilderInvocations = []bootstrap.PrimaryBuilderInvocation{bp2buildInvocation}
+		if config.bazelBuildMode() == mixedBuild {
+			args.PrimaryBuilderInvocations = append(args.PrimaryBuilderInvocations, mainSoongBuildInvocation)
 		}
 	} else {
 		args.PrimaryBuilderInvocations = []bootstrap.PrimaryBuilderInvocation{mainSoongBuildInvocation}
