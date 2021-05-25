@@ -468,16 +468,8 @@ func (b *BootclasspathFragmentModule) generateClasspathProtoBuildActions(ctx and
 }
 
 func (b *BootclasspathFragmentModule) ClasspathFragmentToConfiguredJarList(ctx android.ModuleContext) android.ConfiguredJarList {
-	if "art" == proptools.String(b.properties.Image_name) {
-		return b.getImageConfig(ctx).modules
-	}
-
-	global := dexpreopt.GetGlobalConfig(ctx)
-
-	// Only create configs for updatable boot jars. Non-updatable boot jars must be part of the
-	// platform_bootclasspath's classpath proto config to guarantee that they come before any
-	// updatable jars at runtime.
-	return global.UpdatableBootJars.Filter(b.properties.Contents)
+	// TODO(satayev): populate with actual content
+	return android.EmptyConfiguredJarList()
 }
 
 func (b *BootclasspathFragmentModule) getImageConfig(ctx android.EarlyModuleContext) *bootImageConfig {
