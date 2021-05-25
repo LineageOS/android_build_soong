@@ -84,6 +84,7 @@ func registerCcLibraryHeadersModuleTypes(ctx android.RegistrationContext) {
 }
 
 func runCcLibraryHeadersTestCase(t *testing.T, tc bp2buildTestCase) {
+	t.Helper()
 	runBp2BuildTestCase(t, registerCcLibraryHeadersModuleTypes, tc)
 }
 
