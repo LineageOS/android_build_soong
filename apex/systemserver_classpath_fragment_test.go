@@ -67,7 +67,7 @@ func TestSystemserverclasspathFragmentContents(t *testing.T) {
 	`)
 
 	ensureExactContents(t, result.TestContext, "myapex", "android_common_myapex_image", []string{
-		"etc/classpaths/mysystemserverclasspathfragment.pb",
+		"etc/classpaths/systemserverclasspath.pb",
 		"javalib/foo.jar",
 	})
 
