@@ -168,61 +168,70 @@ func bootclasspathFragmentFactory() android.Module {
 // necessary.
 func bootclasspathFragmentInitContentsFromImage(ctx android.EarlyModuleContext, m *BootclasspathFragmentModule) {
 	contents := m.properties.Contents
-	if m.properties.Image_name == nil && len(contents) == 0 {
-		ctx.ModuleErrorf(`neither of the "image_name" and "contents" properties have been supplied, please supply exactly one`)
+	if len(contents) == 0 {
+		ctx.PropertyErrorf("contents", "required property is missing")
+		return
+	}
+
+	if m.properties.Image_name == nil {
+		// Nothing to do.
+		return
 	}
 
 	imageName := proptools.String(m.properties.Image_name)
-	if imageName == "art" {
-		// TODO(b/177892522): Prebuilts (versioned or not) should not use the image_name property.
-		if android.IsModuleInVersionedSdk(m) {
-			// The module is a versioned prebuilt so ignore it. This is done for a couple of reasons:
-			// 1. There is no way to use this at the moment so ignoring it is safe.
-			// 2. Attempting to initialize the contents property from the configuration will end up having
-			//    the versioned prebuilt depending on the unversioned prebuilt. That will cause problems
-			//    as the unversioned prebuilt could end up with an APEX variant created for the source
-			//    APEX which will prevent it from having an APEX variant for the prebuilt APEX which in
-			//    turn will prevent it from accessing the dex implementation jar from that which will
-			//    break hidden API processing, amongst others.
-			return
-		}
-
-		// Get the configuration for the art apex jars. Do not use getImageConfig(ctx) here as this is
-		// too early in the Soong processing for that to work.
-		global := dexpreopt.GetGlobalConfig(ctx)
-		modules := global.ArtApexJars
-
-		// Make sure that the apex specified in the configuration is consistent and is one for which
-		// this boot image is available.
-		commonApex := ""
-		for i := 0; i < modules.Len(); i++ {
-			apex := modules.Apex(i)
-			jar := modules.Jar(i)
-			if apex == "platform" {
-				ctx.ModuleErrorf("ArtApexJars is invalid as it requests a platform variant of %q", jar)
-				continue
-			}
-			if !m.AvailableFor(apex) {
-				ctx.ModuleErrorf("ArtApexJars configuration incompatible with this module, ArtApexJars expects this to be in apex %q but this is only in apexes %q",
-					apex, m.ApexAvailable())
-				continue
-			}
-			if commonApex == "" {
-				commonApex = apex
-			} else if commonApex != apex {
-				ctx.ModuleErrorf("ArtApexJars configuration is inconsistent, expected all jars to be in the same apex but it specifies apex %q and %q",
-					commonApex, apex)
-			}
-		}
-
-		if len(contents) != 0 {
-			// Nothing to do.
-			return
-		}
-
-		// Store the jars in the Contents property so that they can be used to add dependencies.
-		m.properties.Contents = modules.CopyOfJars()
+	if imageName != "art" {
+		ctx.PropertyErrorf("image_name", `unknown image name %q, expected "art"`, imageName)
+		return
 	}
+
+	// TODO(b/177892522): Prebuilts (versioned or not) should not use the image_name property.
+	if android.IsModuleInVersionedSdk(m) {
+		// The module is a versioned prebuilt so ignore it. This is done for a couple of reasons:
+		// 1. There is no way to use this at the moment so ignoring it is safe.
+		// 2. Attempting to initialize the contents property from the configuration will end up having
+		//    the versioned prebuilt depending on the unversioned prebuilt. That will cause problems
+		//    as the unversioned prebuilt could end up with an APEX variant created for the source
+		//    APEX which will prevent it from having an APEX variant for the prebuilt APEX which in
+		//    turn will prevent it from accessing the dex implementation jar from that which will
+		//    break hidden API processing, amongst others.
+		return
+	}
+
+	// Get the configuration for the art apex jars. Do not use getImageConfig(ctx) here as this is
+	// too early in the Soong processing for that to work.
+	global := dexpreopt.GetGlobalConfig(ctx)
+	modules := global.ArtApexJars
+
+	// Make sure that the apex specified in the configuration is consistent and is one for which
+	// this boot image is available.
+	commonApex := ""
+	for i := 0; i < modules.Len(); i++ {
+		apex := modules.Apex(i)
+		jar := modules.Jar(i)
+		if apex == "platform" {
+			ctx.ModuleErrorf("ArtApexJars is invalid as it requests a platform variant of %q", jar)
+			continue
+		}
+		if !m.AvailableFor(apex) {
+			ctx.ModuleErrorf("ArtApexJars configuration incompatible with this module, ArtApexJars expects this to be in apex %q but this is only in apexes %q",
+				apex, m.ApexAvailable())
+			continue
+		}
+		if commonApex == "" {
+			commonApex = apex
+		} else if commonApex != apex {
+			ctx.ModuleErrorf("ArtApexJars configuration is inconsistent, expected all jars to be in the same apex but it specifies apex %q and %q",
+				commonApex, apex)
+		}
+	}
+
+	if len(contents) != 0 {
+		// Nothing to do.
+		return
+	}
+
+	// Store the jars in the Contents property so that they can be used to add dependencies.
+	m.properties.Contents = modules.CopyOfJars()
 }
 
 // bootclasspathImageNameContentsConsistencyCheck checks that the configuration that applies to this
