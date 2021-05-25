@@ -36,6 +36,20 @@ import (
 //     By default every unversioned module in the generated snapshot has prefer: false. Building it
 //     with SOONG_SDK_SNAPSHOT_PREFER=true will force them to use prefer: true.
 //
+// SOONG_SDK_SNAPSHOT_VERSION
+//     This provides control over the version of the generated snapshot.
+//
+//     SOONG_SDK_SNAPSHOT_VERSION=current will generate unversioned and versioned prebuilts and a
+//     versioned snapshot module. This is the default behavior. The zip file containing the
+//     generated snapshot will be <sdk-name>-current.zip.
+//
+//     SOONG_SDK_SNAPSHOT_VERSION=unversioned will generate unversioned prebuilts only and the zip
+//     file containing the generated snapshot will be <sdk-name>.zip.
+//
+//     SOONG_SDK_SNAPSHOT_VERSION=<number> will generate versioned prebuilts and a versioned
+//     snapshot module only. The zip file containing the generated snapshot will be
+//     <sdk-name>-<number>.zip.
+//
 
 var pctx = android.NewPackageContext("android/soong/sdk")
 
@@ -67,6 +81,11 @@ var (
 				"${config.MergeZipsCmd}",
 			},
 		})
+)
+
+const (
+	soongSdkSnapshotVersionUnversioned = "unversioned"
+	soongSdkSnapshotVersionCurrent     = "current"
 )
 
 type generatedContents struct {
@@ -257,10 +276,26 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) andro
 		modules: make(map[string]*bpModule),
 	}
 
+	config := ctx.Config()
+	version := config.GetenvWithDefault("SOONG_SDK_SNAPSHOT_VERSION", "current")
+
+	// Generate versioned modules in the snapshot unless an unversioned snapshot has been requested.
+	generateVersioned := version != soongSdkSnapshotVersionUnversioned
+
+	// Generate unversioned modules in the snapshot unless a numbered snapshot has been requested.
+	//
+	// Unversioned modules are not required in that case because the numbered version will be a
+	// finalized version of the snapshot that is intended to be kept separate from the
+	generateUnversioned := version == soongSdkSnapshotVersionUnversioned || version == soongSdkSnapshotVersionCurrent
+	snapshotZipFileSuffix := ""
+	if generateVersioned {
+		snapshotZipFileSuffix = "-" + version
+	}
+
 	builder := &snapshotBuilder{
 		ctx:                   ctx,
 		sdk:                   s,
-		version:               "current",
+		version:               version,
 		snapshotDir:           snapshotDir.OutputPath,
 		copies:                make(map[string]string),
 		filesToZip:            []android.Path{bp.path},
@@ -314,20 +349,26 @@ be unnecessary as every module in the sdk already has its own licenses property.
 		// Prune any empty property sets.
 		unversioned = unversioned.transform(pruneEmptySetTransformer{})
 
-		// Copy the unversioned module so it can be modified to make it versioned.
-		versioned := unversioned.deepCopy()
+		if generateVersioned {
+			// Copy the unversioned module so it can be modified to make it versioned.
+			versioned := unversioned.deepCopy()
 
-		// Transform the unversioned module into a versioned one.
-		versioned.transform(unversionedToVersionedTransformer)
-		bpFile.AddModule(versioned)
+			// Transform the unversioned module into a versioned one.
+			versioned.transform(unversionedToVersionedTransformer)
+			bpFile.AddModule(versioned)
+		}
 
-		// Transform the unversioned module to make it suitable for use in the snapshot.
-		unversioned.transform(unversionedTransformer)
-		bpFile.AddModule(unversioned)
+		if generateUnversioned {
+			// Transform the unversioned module to make it suitable for use in the snapshot.
+			unversioned.transform(unversionedTransformer)
+			bpFile.AddModule(unversioned)
+		}
 	}
 
-	// Add the sdk/module_exports_snapshot module to the bp file.
-	s.addSnapshotModule(ctx, builder, sdkVariants, memberVariantDeps)
+	if generateVersioned {
+		// Add the sdk/module_exports_snapshot module to the bp file.
+		s.addSnapshotModule(ctx, builder, sdkVariants, memberVariantDeps)
+	}
 
 	// generate Android.bp
 	bp = newGeneratedFile(ctx, "snapshot", "Android.bp")
@@ -341,7 +382,8 @@ be unnecessary as every module in the sdk already has its own licenses property.
 	filesToZip := builder.filesToZip
 
 	// zip them all
-	outputZipFile := android.PathForModuleOut(ctx, ctx.ModuleName()+"-current.zip").OutputPath
+	zipPath := fmt.Sprintf("%s%s.zip", ctx.ModuleName(), snapshotZipFileSuffix)
+	outputZipFile := android.PathForModuleOut(ctx, zipPath).OutputPath
 	outputDesc := "Building snapshot for " + ctx.ModuleName()
 
 	// If there are no zips to merge then generate the output zip directly.
@@ -353,7 +395,8 @@ be unnecessary as every module in the sdk already has its own licenses property.
 		zipFile = outputZipFile
 		desc = outputDesc
 	} else {
-		zipFile = android.PathForModuleOut(ctx, ctx.ModuleName()+"-current.unmerged.zip").OutputPath
+		intermediatePath := fmt.Sprintf("%s%s.unmerged.zip", ctx.ModuleName(), snapshotZipFileSuffix)
+		zipFile = android.PathForModuleOut(ctx, intermediatePath).OutputPath
 		desc = "Building intermediate snapshot for " + ctx.ModuleName()
 	}
 
@@ -801,9 +844,15 @@ func (s *sdk) GetVersionedAndroidBpContentsForTests() string {
 }
 
 type snapshotBuilder struct {
-	ctx         android.ModuleContext
-	sdk         *sdk
-	version     string
+	ctx android.ModuleContext
+	sdk *sdk
+
+	// The version of the generated snapshot.
+	//
+	// See the documentation of SOONG_SDK_SNAPSHOT_VERSION above for details of the valid values of
+	// this field.
+	version string
+
 	snapshotDir android.OutputPath
 	bpFile      *bpFile
 
