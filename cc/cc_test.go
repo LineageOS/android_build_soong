@@ -554,6 +554,13 @@ func TestVndk(t *testing.T) {
 			}
 		}
 
+		cc_library {
+			name: "libclang_rt.hwasan-llndk",
+			llndk: {
+				symbol_file: "libclang_rt.hwasan.map.txt",
+			}
+		}
+
 		cc_library_headers {
 			name: "libllndk_headers",
 			llndk: {
@@ -661,7 +668,7 @@ func TestVndk(t *testing.T) {
 		"VNDK-product: libvndk_product.so",
 		"VNDK-product: libvndk_sp_product_private-x.so",
 	})
-	checkVndkLibrariesOutput(t, ctx, "llndk.libraries.txt", []string{"libc.so", "libdl.so", "libft2.so", "libllndk.so", "libm.so"})
+	checkVndkLibrariesOutput(t, ctx, "llndk.libraries.txt", []string{"libc.so", "libclang_rt.hwasan-llndk.so", "libdl.so", "libft2.so", "libllndk.so", "libm.so"})
 	checkVndkLibrariesOutput(t, ctx, "vndkcore.libraries.txt", []string{"libvndk-private.so", "libvndk.so", "libvndk_product.so"})
 	checkVndkLibrariesOutput(t, ctx, "vndksp.libraries.txt", []string{"libc++.so", "libvndk_sp-x.so", "libvndk_sp_private-x.so", "libvndk_sp_product_private-x.so"})
 	checkVndkLibrariesOutput(t, ctx, "vndkprivate.libraries.txt", []string{"libft2.so", "libvndk-private.so", "libvndk_sp_private-x.so", "libvndk_sp_product_private-x.so"})
