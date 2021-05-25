@@ -19,6 +19,7 @@ import (
 	"android/soong/bazel"
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 
 	"github.com/google/blueprint"
@@ -34,6 +35,7 @@ type BazelTarget struct {
 	content         string
 	ruleClass       string
 	bzlLoadLocation string
+	handcrafted     bool
 }
 
 // IsLoadedFromStarlark determines if the BazelTarget's rule class is loaded from a .bzl file,
@@ -45,12 +47,47 @@ func (t BazelTarget) IsLoadedFromStarlark() bool {
 // BazelTargets is a typedef for a slice of BazelTarget objects.
 type BazelTargets []BazelTarget
 
+// HasHandcraftedTargetsreturns true if a set of bazel targets contain
+// handcrafted ones.
+func (targets BazelTargets) hasHandcraftedTargets() bool {
+	for _, target := range targets {
+		if target.handcrafted {
+			return true
+		}
+	}
+	return false
+}
+
+// sort a list of BazelTargets in-place, by name, and by generated/handcrafted types.
+func (targets BazelTargets) sort() {
+	sort.Slice(targets, func(i, j int) bool {
+		if targets[i].handcrafted != targets[j].handcrafted {
+			// Handcrafted targets will be generated after the bp2build generated targets.
+			return targets[j].handcrafted
+		}
+		// This will cover all bp2build generated targets.
+		return targets[i].name < targets[j].name
+	})
+}
+
 // String returns the string representation of BazelTargets, without load
 // statements (use LoadStatements for that), since the targets are usually not
 // adjacent to the load statements at the top of the BUILD file.
 func (targets BazelTargets) String() string {
 	var res string
 	for i, target := range targets {
+		// There is only at most 1 handcrafted "target", because its contents
+		// represent the entire BUILD file content from the tree. See
+		// build_conversion.go#getHandcraftedBuildContent for more information.
+		//
+		// Add a header to make it easy to debug where the handcrafted targets
+		// are in a generated BUILD file.
+		if target.handcrafted {
+			res += "# -----------------------------\n"
+			res += "# Section: Handcrafted targets. \n"
+			res += "# -----------------------------\n\n"
+		}
+
 		res += target.content
 		if i != len(targets)-1 {
 			res += "\n\n"
@@ -267,7 +304,8 @@ func getHandcraftedBuildContent(ctx *CodegenContext, b android.Bazelable, pathTo
 	}
 	// TODO(b/181575318): once this is more targeted, we need to include name, rule class, etc
 	return BazelTarget{
-		content: c,
+		content:     c,
+		handcrafted: true,
 	}, nil
 }
 
@@ -294,6 +332,7 @@ func generateBazelTarget(ctx bpToBuildContext, m blueprint.Module, btm android.B
 			targetName,
 			attributes,
 		),
+		handcrafted: false,
 	}
 }
 
