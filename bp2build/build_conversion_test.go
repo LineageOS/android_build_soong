@@ -1452,53 +1452,61 @@ filegroup {
 
 	dir := "."
 	for _, testCase := range testCases {
-		fs := make(map[string][]byte)
-		toParse := []string{
-			"Android.bp",
-		}
-		for f, content := range testCase.fs {
-			if strings.HasSuffix(f, "Android.bp") {
-				toParse = append(toParse, f)
+		t.Run(testCase.description, func(t *testing.T) {
+			fs := make(map[string][]byte)
+			toParse := []string{
+				"Android.bp",
 			}
-			fs[f] = []byte(content)
-		}
-		config := android.TestConfig(buildDir, nil, testCase.bp, fs)
-		ctx := android.NewTestContext(config)
-		ctx.RegisterModuleType(testCase.moduleTypeUnderTest, testCase.moduleTypeUnderTestFactory)
-		for _, m := range testCase.depsMutators {
-			ctx.DepsBp2BuildMutators(m)
-		}
-		ctx.RegisterBp2BuildMutator(testCase.moduleTypeUnderTest, testCase.moduleTypeUnderTestBp2BuildMutator)
-		ctx.RegisterForBazelConversion()
+			for f, content := range testCase.fs {
+				if strings.HasSuffix(f, "Android.bp") {
+					toParse = append(toParse, f)
+				}
+				fs[f] = []byte(content)
+			}
+			config := android.TestConfig(buildDir, nil, testCase.bp, fs)
+			ctx := android.NewTestContext(config)
+			ctx.RegisterModuleType(testCase.moduleTypeUnderTest, testCase.moduleTypeUnderTestFactory)
+			for _, m := range testCase.depsMutators {
+				ctx.DepsBp2BuildMutators(m)
+			}
+			ctx.RegisterBp2BuildMutator(testCase.moduleTypeUnderTest, testCase.moduleTypeUnderTestBp2BuildMutator)
+			ctx.RegisterForBazelConversion()
 
-		_, errs := ctx.ParseFileList(dir, toParse)
-		if errored(t, testCase.description, errs) {
-			continue
-		}
-		_, errs = ctx.ResolveDependencies(config)
-		if errored(t, testCase.description, errs) {
-			continue
-		}
+			_, errs := ctx.ParseFileList(dir, toParse)
+			if errored(t, testCase.description, errs) {
+				return
+			}
+			_, errs = ctx.ResolveDependencies(config)
+			if errored(t, testCase.description, errs) {
+				return
+			}
 
-		checkDir := dir
-		if testCase.dir != "" {
-			checkDir = testCase.dir
-		}
-		bazelTargets := generateBazelTargetsForDir(NewCodegenContext(config, *ctx.Context, Bp2Build), checkDir)
-		if actualCount, expectedCount := len(bazelTargets), len(testCase.expectedBazelTargets); actualCount != expectedCount {
-			t.Errorf("%s: Expected %d bazel target, got %d\n%s", testCase.description, expectedCount, actualCount, bazelTargets)
-		} else {
+			checkDir := dir
+			if testCase.dir != "" {
+				checkDir = testCase.dir
+			}
+			bazelTargets := generateBazelTargetsForDir(NewCodegenContext(config, *ctx.Context, Bp2Build), checkDir)
+			bazelTargets.sort()
+			actualCount := len(bazelTargets)
+			expectedCount := len(testCase.expectedBazelTargets)
+			if actualCount != expectedCount {
+				t.Errorf("Expected %d bazel target, got %d\n%s", expectedCount, actualCount, bazelTargets)
+			}
+			if !strings.Contains(bazelTargets.String(), "Section: Handcrafted targets. ") {
+				t.Errorf("Expected string representation of bazelTargets to contain handcrafted section header.")
+			}
 			for i, target := range bazelTargets {
-				if w, g := testCase.expectedBazelTargets[i], target.content; w != g {
+				actualContent := target.content
+				expectedContent := testCase.expectedBazelTargets[i]
+				if expectedContent != actualContent {
 					t.Errorf(
-						"%s: Expected generated Bazel target to be '%s', got '%s'",
-						testCase.description,
-						w,
-						g,
+						"Expected generated Bazel target to be '%s', got '%s'",
+						expectedContent,
+						actualContent,
 					)
 				}
 			}
-		}
+		})
 	}
 }
 
