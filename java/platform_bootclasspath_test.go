@@ -287,7 +287,7 @@ func TestPlatformBootclasspath_ClasspathFragmentPaths(t *testing.T) {
 	).RunTest(t)
 
 	p := result.Module("platform-bootclasspath", "android_common").(*platformBootclasspathModule)
-	android.AssertStringEquals(t, "output filepath", p.Name()+".pb", p.ClasspathFragmentBase.outputFilepath.Base())
+	android.AssertStringEquals(t, "output filepath", "bootclasspath.pb", p.ClasspathFragmentBase.outputFilepath.Base())
 	android.AssertPathRelativeToTopEquals(t, "install filepath", "out/soong/target/product/test_device/system/etc/classpaths", p.ClasspathFragmentBase.installDirPath)
 }
 
@@ -327,7 +327,7 @@ func TestPlatformBootclasspathModule_AndroidMkEntries(t *testing.T) {
 		want := map[string][]string{
 			"LOCAL_MODULE":                {"platform-bootclasspath"},
 			"LOCAL_MODULE_CLASS":          {"ETC"},
-			"LOCAL_INSTALLED_MODULE_STEM": {"platform-bootclasspath.pb"},
+			"LOCAL_INSTALLED_MODULE_STEM": {"bootclasspath.pb"},
 			// Output and Install paths are tested separately in TestPlatformBootclasspath_ClasspathFragmentPaths
 		}
 
