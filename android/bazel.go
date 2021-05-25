@@ -220,7 +220,15 @@ var (
 	// Per-module denylist to opt modules out of mixed builds. Such modules will
 	// still be generated via bp2build.
 	mixedBuildsDisabledList = []string{
-		"libc_common_shared", // cparsons@ cc_library_static, version script assignment of 'LIBC' to symbol '__cxa_atexit' failed: symbol not defined
+		"libc_common",                      // cparsons@ cc_library_static, depends on //bionic/libc:libc_nopthread
+		"libc_common_static",               // cparsons@ cc_library_static, depends on //bionic/libc:libc_common
+		"libc_common_shared",               // cparsons@ cc_library_static, depends on //bionic/libc:libc_common
+		"libc_netbsd",                      // lberki@, cc_library_static, version script assignment of 'LIBC_PRIVATE' to symbol 'SHA1Final' failed: symbol not defined
+		"libc_nopthread",                   // cparsons@ cc_library_static, version script assignment of 'LIBC' to symbol 'memcmp' failed: symbol not defined
+		"libc_openbsd",                     // ruperts@, cc_library_static, OK for bp2build but error: duplicate symbol: strcpy for mixed builds
+		"libarm-optimized-routines-string", // jingwen@, cc_library_static, OK for bp2build but b/186615213 (asflags not handled in  bp2build), version script assignment of 'LIBC' to symbol 'memcmp' failed: symbol not defined (also for memrchr, strnlen)
+		"fmtlib_ndk",                       // http://b/187040371, cc_library_static, OK for bp2build but format-inl.h:11:10: fatal error: 'cassert' file not found for mixed builds
+		"libc_nomalloc",                    // cc_library_static, OK for bp2build but ld.lld: error: undefined symbol: pthread_mutex_lock (and others)
 	}
 
 	// Used for quicker lookups
