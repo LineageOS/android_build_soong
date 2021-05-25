@@ -563,6 +563,12 @@ func (attrs *StringListAttribute) SetValueForOS(os string, value []string) {
 	*v = value
 }
 
+func (attrs *StringListAttribute) SortedProductVariables() []ProductVariableValues {
+	vals := attrs.ProductValues[:]
+	sort.Slice(vals, func(i, j int) bool { return vals[i].ProductVariable < vals[j].ProductVariable })
+	return vals
+}
+
 // Append appends all values, including os and arch specific ones, from another
 // StringListAttribute to this StringListAttribute
 func (attrs *StringListAttribute) Append(other StringListAttribute) {
