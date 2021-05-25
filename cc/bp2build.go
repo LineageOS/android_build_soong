@@ -183,26 +183,15 @@ func bp2BuildParseStaticProps(ctx android.TopDownMutatorContext, module *Module)
 
 // Convenience struct to hold all attributes parsed from compiler properties.
 type compilerAttributes struct {
-	// Options for all languages
-	copts bazel.StringListAttribute
-	// Assembly options and sources
-	asFlags bazel.StringListAttribute
-	asSrcs  bazel.LabelListAttribute
-	// C options and sources
-	conlyFlags bazel.StringListAttribute
-	cSrcs      bazel.LabelListAttribute
-	// C++ options and sources
-	cppFlags bazel.StringListAttribute
+	copts    bazel.StringListAttribute
 	srcs     bazel.LabelListAttribute
+	includes bazel.StringListAttribute
 }
 
 // bp2BuildParseCompilerProps returns copts, srcs and hdrs and other attributes.
 func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Module) compilerAttributes {
 	var srcs bazel.LabelListAttribute
 	var copts bazel.StringListAttribute
-	var asFlags bazel.StringListAttribute
-	var conlyFlags bazel.StringListAttribute
-	var cppFlags bazel.StringListAttribute
 
 	// Creates the -I flags for a directory, while making the directory relative
 	// to the exec root for Bazel to work.
@@ -226,21 +215,15 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 		return append(includeDirs, baseCompilerProps.Local_include_dirs...)
 	}
 
-	parseCommandLineFlags := func(soongFlags []string) []string {
-		var result []string
-		for _, flag := range soongFlags {
-			// Soong's cflags can contain spaces, like `-include header.h`. For
-			// Bazel's copts, split them up to be compatible with the
-			// no_copts_tokenization feature.
-			result = append(result, strings.Split(flag, " ")...)
-		}
-		return result
-	}
-
 	// Parse the list of copts.
 	parseCopts := func(baseCompilerProps *BaseCompilerProperties) []string {
 		var copts []string
-		copts = append(copts, parseCommandLineFlags(baseCompilerProps.Cflags)...)
+		for _, flag := range append(baseCompilerProps.Cflags, baseCompilerProps.Cppflags...) {
+			// Soong's cflags can contain spaces, like `-include header.h`. For
+			// Bazel's copts, split them up to be compatible with the
+			// no_copts_tokenization feature.
+			copts = append(copts, strings.Split(flag, " ")...)
+		}
 		for _, dir := range parseLocalIncludeDirs(baseCompilerProps) {
 			copts = append(copts, includeFlags(dir)...)
 		}
@@ -277,9 +260,6 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 		if baseCompilerProps, ok := props.(*BaseCompilerProperties); ok {
 			srcs.Value = parseSrcs(baseCompilerProps)
 			copts.Value = parseCopts(baseCompilerProps)
-			asFlags.Value = parseCommandLineFlags(baseCompilerProps.Asflags)
-			conlyFlags.Value = parseCommandLineFlags(baseCompilerProps.Conlyflags)
-			cppFlags.Value = parseCommandLineFlags(baseCompilerProps.Cppflags)
 
 			// Used for arch-specific srcs later.
 			baseSrcs = baseCompilerProps.Srcs
@@ -310,9 +290,6 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 			}
 
 			copts.SetValueForArch(arch.Name, parseCopts(baseCompilerProps))
-			asFlags.SetValueForArch(arch.Name, parseCommandLineFlags(baseCompilerProps.Asflags))
-			conlyFlags.SetValueForArch(arch.Name, parseCommandLineFlags(baseCompilerProps.Conlyflags))
-			cppFlags.SetValueForArch(arch.Name, parseCommandLineFlags(baseCompilerProps.Cppflags))
 		}
 	}
 
@@ -338,9 +315,6 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 			// TODO(b/186153868): add support for os-specific srcs and exclude_srcs
 			srcs.SetValueForOS(os.Name, bazel.SubtractBazelLabelList(srcsList, baseSrcsLabelList))
 			copts.SetValueForOS(os.Name, parseCopts(baseCompilerProps))
-			asFlags.SetValueForOS(os.Name, parseCommandLineFlags(baseCompilerProps.Asflags))
-			conlyFlags.SetValueForOS(os.Name, parseCommandLineFlags(baseCompilerProps.Conlyflags))
-			cppFlags.SetValueForOS(os.Name, parseCommandLineFlags(baseCompilerProps.Cppflags))
 		}
 	}
 
@@ -359,28 +333,9 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 		}
 	}
 
-	// Branch srcs into three language-specific groups.
-	// C++ is the "catch-all" group, and comprises generated sources because we don't
-	// know the language of these sources until the genrule is executed.
-	// TODO(b/): Handle language detection of sources in a Bazel rule.
-	isCSrc := func(s string) bool {
-		return strings.HasSuffix(s, ".c")
-	}
-	isAsmSrc := func(s string) bool {
-		return strings.HasSuffix(s, ".S") || strings.HasSuffix(s, ".s")
-	}
-	cSrcs := bazel.FilterLabelListAttribute(srcs, isCSrc)
-	asSrcs := bazel.FilterLabelListAttribute(srcs, isAsmSrc)
-	srcs = bazel.SubtractBazelLabelListAttribute(srcs, cSrcs)
-	srcs = bazel.SubtractBazelLabelListAttribute(srcs, asSrcs)
 	return compilerAttributes{
-		copts:      copts,
-		srcs:       srcs,
-		asFlags:    asFlags,
-		asSrcs:     asSrcs,
-		cSrcs:      cSrcs,
-		conlyFlags: conlyFlags,
-		cppFlags:   cppFlags,
+		srcs:  srcs,
+		copts: copts,
 	}
 }
 

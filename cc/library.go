@@ -230,13 +230,6 @@ type bazelCcLibraryAttributes struct {
 	Copts               bazel.StringListAttribute
 	Includes            bazel.StringListAttribute
 	Linkopts            bazel.StringListAttribute
-
-	Cppflags   bazel.StringListAttribute
-	Srcs_c     bazel.LabelListAttribute
-	Conlyflags bazel.StringListAttribute
-	Srcs_as    bazel.LabelListAttribute
-	Asflags    bazel.StringListAttribute
-
 	// Attributes pertaining to shared variant.
 	Shared_copts                  bazel.StringListAttribute
 	Shared_srcs                   bazel.LabelListAttribute
@@ -246,7 +239,6 @@ type bazelCcLibraryAttributes struct {
 	Whole_archive_deps_for_shared bazel.LabelListAttribute
 	User_link_flags               bazel.StringListAttribute
 	Version_script                bazel.LabelAttribute
-
 	// Attributes pertaining to static variant.
 	Static_copts                  bazel.StringListAttribute
 	Static_srcs                   bazel.LabelListAttribute
@@ -302,27 +294,20 @@ func CcLibraryBp2Build(ctx android.TopDownMutatorContext) {
 	srcs.Append(compilerAttrs.srcs)
 
 	attrs := &bazelCcLibraryAttributes{
-		Srcs:                srcs,
-		Implementation_deps: linkerAttrs.deps,
-		Deps:                linkerAttrs.exportedDeps,
-		Dynamic_deps:        linkerAttrs.dynamicDeps,
-		Whole_archive_deps:  linkerAttrs.wholeArchiveDeps,
-		Copts:               compilerAttrs.copts,
-		Includes:            exportedIncludes,
-		Linkopts:            linkerAttrs.linkopts,
-		Cppflags:            compilerAttrs.cppFlags,
-		Srcs_c:              compilerAttrs.cSrcs,
-		Conlyflags:          compilerAttrs.conlyFlags,
-		Srcs_as:             compilerAttrs.asSrcs,
-		Asflags:             compilerAttrs.asFlags,
-
+		Srcs:                          srcs,
+		Implementation_deps:           linkerAttrs.deps,
+		Deps:                          linkerAttrs.exportedDeps,
+		Dynamic_deps:                  linkerAttrs.dynamicDeps,
+		Whole_archive_deps:            linkerAttrs.wholeArchiveDeps,
+		Copts:                         compilerAttrs.copts,
+		Includes:                      exportedIncludes,
+		Linkopts:                      linkerAttrs.linkopts,
 		Shared_copts:                  sharedAttrs.copts,
 		Shared_srcs:                   sharedAttrs.srcs,
 		Static_deps_for_shared:        sharedAttrs.staticDeps,
 		Whole_archive_deps_for_shared: sharedAttrs.wholeArchiveDeps,
 		Dynamic_deps_for_shared:       sharedAttrs.dynamicDeps,
 		Version_script:                linkerAttrs.versionScript,
-
 		Static_copts:                  staticAttrs.copts,
 		Static_srcs:                   staticAttrs.srcs,
 		Static_deps_for_static:        staticAttrs.staticDeps,
@@ -2245,12 +2230,6 @@ type bazelCcLibraryStaticAttributes struct {
 	Linkstatic          bool
 	Includes            bazel.StringListAttribute
 	Hdrs                bazel.LabelListAttribute
-
-	Cppflags   bazel.StringListAttribute
-	Srcs_c     bazel.LabelListAttribute
-	Conlyflags bazel.StringListAttribute
-	Srcs_as    bazel.LabelListAttribute
-	Asflags    bazel.StringListAttribute
 }
 
 type bazelCcLibraryStatic struct {
@@ -2280,12 +2259,6 @@ func ccLibraryStaticBp2BuildInternal(ctx android.TopDownMutatorContext, module *
 		Linkopts:   linkerAttrs.linkopts,
 		Linkstatic: true,
 		Includes:   exportedIncludes,
-
-		Cppflags:   compilerAttrs.cppFlags,
-		Srcs_c:     compilerAttrs.cSrcs,
-		Conlyflags: compilerAttrs.conlyFlags,
-		Srcs_as:    compilerAttrs.asSrcs,
-		Asflags:    compilerAttrs.asFlags,
 	}
 
 	props := bazel.BazelTargetModuleProperties{
