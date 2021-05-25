@@ -546,7 +546,8 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			`\n` +
 			`If it is not possible to do so, there are workarounds:\n` +
 			`\n` +
-			`1. You can suppress the errors with @SuppressLint("<id>")\n`
+			`1. You can suppress the errors with @SuppressLint("<id>")\n` +
+			`   where the <id> is given in brackets in the error message above.\n`
 
 		if baselineFile.Valid() {
 			cmd.FlagWithInput("--baseline:api-lint ", baselineFile.Path())
