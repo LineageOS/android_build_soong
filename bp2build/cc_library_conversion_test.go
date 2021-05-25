@@ -41,6 +41,7 @@ toolchain_library {
 )
 
 func runCcLibraryTestCase(t *testing.T, tc bp2buildTestCase) {
+	t.Helper()
 	runBp2BuildTestCase(t, registerCcLibraryModuleTypes, tc)
 }
 
@@ -52,6 +53,7 @@ func registerCcLibraryModuleTypes(ctx android.RegistrationContext) {
 }
 
 func runBp2BuildTestCase(t *testing.T, registerModuleTypes func(ctx android.RegistrationContext), tc bp2buildTestCase) {
+	t.Helper()
 	dir := "."
 	filesystem := make(map[string][]byte)
 	toParse := []string{
