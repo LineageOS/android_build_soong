@@ -34,7 +34,7 @@ func getStringListValues(list bazel.StringListAttribute) (reflect.Value, []selec
 		selectValues = append(selectValues, osSelects)
 	}
 
-	for _, pv := range list.ProductValues {
+	for _, pv := range list.SortedProductVariables() {
 		s := make(selects)
 		if len(pv.Values) > 0 {
 			s[pv.SelectKey()] = reflect.ValueOf(pv.Values)

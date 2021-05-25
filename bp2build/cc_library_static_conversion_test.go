@@ -1187,13 +1187,85 @@ cc_library_static {
         "-I.",
         "-I$(BINDIR)/.",
     ] + select({
+        "//build/bazel/product_variables:binder32bit": ["-Wbinder32bit"],
+        "//conditions:default": [],
+    }) + select({
         "//build/bazel/product_variables:malloc_not_svelte": ["-Wmalloc_not_svelte"],
         "//conditions:default": [],
     }) + select({
         "//build/bazel/product_variables:malloc_zero_contents": ["-Wmalloc_zero_contents"],
         "//conditions:default": [],
+    }),
+    linkstatic = True,
+    srcs = ["common.c"],
+)`},
+	})
+}
+
+func TestCcLibraryStaticProductVariableArchSpecificSelects(t *testing.T) {
+	runCcLibraryStaticTestCase(t, bp2buildTestCase{
+		description:                        "cc_library_static arch-specific product variable selects",
+		moduleTypeUnderTest:                "cc_library_static",
+		moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
+		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
+		depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
+		filesystem:                         map[string]string{},
+		blueprint: soongCcLibraryStaticPreamble + `
+cc_library_static {
+    name: "foo_static",
+    srcs: ["common.c"],
+    product_variables: {
+      malloc_not_svelte: {
+        cflags: ["-Wmalloc_not_svelte"],
+      },
+    },
+		arch: {
+				arm64: {
+						product_variables: {
+								malloc_not_svelte: {
+										cflags: ["-Warm64_malloc_not_svelte"],
+								},
+						},
+				},
+		},
+		multilib: {
+				lib32: {
+						product_variables: {
+								malloc_not_svelte: {
+										cflags: ["-Wlib32_malloc_not_svelte"],
+								},
+						},
+				},
+		},
+		target: {
+				android: {
+						product_variables: {
+								malloc_not_svelte: {
+										cflags: ["-Wandroid_malloc_not_svelte"],
+								},
+						},
+				}
+		},
+} `,
+		expectedBazelTargets: []string{`cc_library_static(
+    name = "foo_static",
+    copts = [
+        "-I.",
+        "-I$(BINDIR)/.",
+    ] + select({
+        "//build/bazel/product_variables:malloc_not_svelte": ["-Wmalloc_not_svelte"],
+        "//conditions:default": [],
     }) + select({
-        "//build/bazel/product_variables:binder32bit": ["-Wbinder32bit"],
+        "//build/bazel/product_variables:malloc_not_svelte-android": ["-Wandroid_malloc_not_svelte"],
+        "//conditions:default": [],
+    }) + select({
+        "//build/bazel/product_variables:malloc_not_svelte-arm": ["-Wlib32_malloc_not_svelte"],
+        "//conditions:default": [],
+    }) + select({
+        "//build/bazel/product_variables:malloc_not_svelte-arm64": ["-Warm64_malloc_not_svelte"],
+        "//conditions:default": [],
+    }) + select({
+        "//build/bazel/product_variables:malloc_not_svelte-x86": ["-Wlib32_malloc_not_svelte"],
         "//conditions:default": [],
     }),
     linkstatic = True,
