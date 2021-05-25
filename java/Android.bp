@@ -45,6 +45,7 @@ bootstrap_go_package {
         "genrule.go",
         "hiddenapi.go",
         "hiddenapi_modular.go",
+        "hiddenapi_monolithic.go",
         "hiddenapi_singleton.go",
         "jacoco.go",
         "java.go",
