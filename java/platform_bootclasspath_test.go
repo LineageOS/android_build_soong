@@ -245,14 +245,14 @@ func TestPlatformBootclasspath_Fragments(t *testing.T) {
 	).RunTest(t)
 
 	pbcp := result.Module("platform-bootclasspath", "android_common")
-	info := result.ModuleProvider(pbcp, hiddenAPIFlagFileInfoProvider).(hiddenAPIFlagFileInfo)
+	info := result.ModuleProvider(pbcp, monolithicHiddenAPIInfoProvider).(MonolithicHiddenAPIInfo)
 
 	for _, category := range hiddenAPIFlagFileCategories {
 		name := category.propertyName
 		message := fmt.Sprintf("category %s", name)
 		filename := strings.ReplaceAll(name, "_", "-")
 		expected := []string{fmt.Sprintf("%s.txt", filename), fmt.Sprintf("bar-%s.txt", filename)}
-		android.AssertPathsRelativeToTopEquals(t, message, expected, info.categoryToPaths[category])
+		android.AssertPathsRelativeToTopEquals(t, message, expected, info.FlagsFilesByCategory[category])
 	}
 
 	android.AssertPathsRelativeToTopEquals(t, "stub flags", []string{"out/soong/.intermediates/bar-fragment/android_common/modular-hiddenapi/stub-flags.csv"}, info.StubFlagsPaths)
@@ -287,7 +287,7 @@ func TestPlatformBootclasspath_ClasspathFragmentPaths(t *testing.T) {
 	).RunTest(t)
 
 	p := result.Module("platform-bootclasspath", "android_common").(*platformBootclasspathModule)
-	android.AssertStringEquals(t, "output filepath", p.Name()+".pb", p.ClasspathFragmentBase.outputFilepath.Base())
+	android.AssertStringEquals(t, "output filepath", "bootclasspath.pb", p.ClasspathFragmentBase.outputFilepath.Base())
 	android.AssertPathRelativeToTopEquals(t, "install filepath", "out/soong/target/product/test_device/system/etc/classpaths", p.ClasspathFragmentBase.installDirPath)
 }
 
@@ -327,7 +327,7 @@ func TestPlatformBootclasspathModule_AndroidMkEntries(t *testing.T) {
 		want := map[string][]string{
 			"LOCAL_MODULE":                {"platform-bootclasspath"},
 			"LOCAL_MODULE_CLASS":          {"ETC"},
-			"LOCAL_INSTALLED_MODULE_STEM": {"platform-bootclasspath.pb"},
+			"LOCAL_INSTALLED_MODULE_STEM": {"bootclasspath.pb"},
 			// Output and Install paths are tested separately in TestPlatformBootclasspath_ClasspathFragmentPaths
 		}
 

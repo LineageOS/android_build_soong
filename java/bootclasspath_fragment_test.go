@@ -29,38 +29,28 @@ var prepareForTestWithBootclasspathFragment = android.GroupFixturePreparers(
 	dexpreopt.PrepareForTestByEnablingDexpreopt,
 )
 
-func TestUnknownBootclasspathFragment(t *testing.T) {
+func TestBootclasspathFragment_UnknownImageName(t *testing.T) {
 	prepareForTestWithBootclasspathFragment.
 		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(
-			`\Qimage_name: Unknown image name "unknown", expected one of art, boot\E`)).
+			`\Qimage_name: unknown image name "unknown", expected "art"\E`)).
 		RunTestWithBp(t, `
 			bootclasspath_fragment {
 				name: "unknown-bootclasspath-fragment",
 				image_name: "unknown",
+				contents: ["foo"],
 			}
 		`)
 }
 
-func TestUnknownBootclasspathFragmentImageName(t *testing.T) {
+func TestPrebuiltBootclasspathFragment_UnknownImageName(t *testing.T) {
 	prepareForTestWithBootclasspathFragment.
 		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(
-			`\Qimage_name: Unknown image name "unknown", expected one of art, boot\E`)).
-		RunTestWithBp(t, `
-			bootclasspath_fragment {
-				name: "unknown-bootclasspath-fragment",
-				image_name: "unknown",
-			}
-		`)
-}
-
-func TestUnknownPrebuiltBootclasspathFragment(t *testing.T) {
-	prepareForTestWithBootclasspathFragment.
-		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(
-			`\Qimage_name: Unknown image name "unknown", expected one of art, boot\E`)).
+			`\Qimage_name: unknown image name "unknown", expected "art"\E`)).
 		RunTestWithBp(t, `
 			prebuilt_bootclasspath_fragment {
 				name: "unknown-bootclasspath-fragment",
 				image_name: "unknown",
+				contents: ["foo"],
 			}
 		`)
 }
@@ -76,6 +66,7 @@ func TestBootclasspathFragmentInconsistentArtConfiguration_Platform(t *testing.T
 			bootclasspath_fragment {
 				name: "bootclasspath-fragment",
 				image_name: "art",
+				contents: ["foo", "bar"],
 				apex_available: [
 					"apex",
 				],
@@ -94,21 +85,11 @@ func TestBootclasspathFragmentInconsistentArtConfiguration_ApexMixture(t *testin
 			bootclasspath_fragment {
 				name: "bootclasspath-fragment",
 				image_name: "art",
+				contents: ["foo", "bar"],
 				apex_available: [
 					"apex1",
 					"apex2",
 				],
-			}
-		`)
-}
-
-func TestBootclasspathFragmentWithoutImageNameOrContents(t *testing.T) {
-	prepareForTestWithBootclasspathFragment.
-		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(
-			`\Qneither of the "image_name" and "contents" properties\E`)).
-		RunTestWithBp(t, `
-			bootclasspath_fragment {
-				name: "bootclasspath-fragment",
 			}
 		`)
 }
@@ -252,7 +233,7 @@ func TestBootclasspathFragment_StubLibs(t *testing.T) {
 	`)
 
 	fragment := result.Module("myfragment", "android_common")
-	info := result.ModuleProvider(fragment, bootclasspathApiInfoProvider).(bootclasspathApiInfo)
+	info := result.ModuleProvider(fragment, HiddenAPIInfoProvider).(HiddenAPIInfo)
 
 	stubsJar := "out/soong/.intermediates/mystublib/android_common/dex/mystublib.jar"
 
@@ -264,17 +245,17 @@ func TestBootclasspathFragment_StubLibs(t *testing.T) {
 	otherPublicStubsJar := "out/soong/.intermediates/myothersdklibrary.stubs/android_common/dex/myothersdklibrary.stubs.jar"
 
 	// Check that SdkPublic uses public stubs for all sdk libraries.
-	android.AssertPathsRelativeToTopEquals(t, "public dex stubs jar", []string{otherPublicStubsJar, publicStubsJar, stubsJar}, info.stubJarsByKind[android.SdkPublic])
+	android.AssertPathsRelativeToTopEquals(t, "public dex stubs jar", []string{otherPublicStubsJar, publicStubsJar, stubsJar}, info.TransitiveStubDexJarsByKind[android.SdkPublic])
 
 	// Check that SdkSystem uses system stubs for mysdklibrary and public stubs for myothersdklibrary
 	// as it does not provide system stubs.
-	android.AssertPathsRelativeToTopEquals(t, "system dex stubs jar", []string{otherPublicStubsJar, systemStubsJar, stubsJar}, info.stubJarsByKind[android.SdkSystem])
+	android.AssertPathsRelativeToTopEquals(t, "system dex stubs jar", []string{otherPublicStubsJar, systemStubsJar, stubsJar}, info.TransitiveStubDexJarsByKind[android.SdkSystem])
 
 	// Check that SdkTest also uses system stubs for mysdklibrary as it does not provide test stubs
 	// and public stubs for myothersdklibrary as it does not provide test stubs either.
-	android.AssertPathsRelativeToTopEquals(t, "test dex stubs jar", []string{otherPublicStubsJar, systemStubsJar, stubsJar}, info.stubJarsByKind[android.SdkTest])
+	android.AssertPathsRelativeToTopEquals(t, "test dex stubs jar", []string{otherPublicStubsJar, systemStubsJar, stubsJar}, info.TransitiveStubDexJarsByKind[android.SdkTest])
 
 	// Check that SdkCorePlatform uses public stubs from the mycoreplatform library.
 	corePlatformStubsJar := "out/soong/.intermediates/mycoreplatform.stubs/android_common/dex/mycoreplatform.stubs.jar"
-	android.AssertPathsRelativeToTopEquals(t, "core platform dex stubs jar", []string{corePlatformStubsJar}, info.stubJarsByKind[android.SdkCorePlatform])
+	android.AssertPathsRelativeToTopEquals(t, "core platform dex stubs jar", []string{corePlatformStubsJar}, info.TransitiveStubDexJarsByKind[android.SdkCorePlatform])
 }
