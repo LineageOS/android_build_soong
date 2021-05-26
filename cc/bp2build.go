@@ -104,25 +104,63 @@ func depsBp2BuildMutator(ctx android.BottomUpMutatorContext) {
 
 	// Deps in the static: { .. } and shared: { .. } props of a cc_library.
 	if lib, ok := module.compiler.(*libraryDecorator); ok {
-		allDeps = append(allDeps, lib.SharedProperties.Shared.Static_libs...)
-		allDeps = append(allDeps, lib.SharedProperties.Shared.Whole_static_libs...)
-		allDeps = append(allDeps, lib.SharedProperties.Shared.Shared_libs...)
+		appendDeps := func(deps []string, p StaticOrSharedProperties) []string {
+			deps = append(deps, p.Static_libs...)
+			deps = append(deps, p.Whole_static_libs...)
+			deps = append(deps, p.Shared_libs...)
+			return deps
+		}
 
-		allDeps = append(allDeps, lib.StaticProperties.Static.Static_libs...)
-		allDeps = append(allDeps, lib.StaticProperties.Static.Whole_static_libs...)
-		allDeps = append(allDeps, lib.StaticProperties.Static.Shared_libs...)
+		allDeps = appendDeps(allDeps, lib.SharedProperties.Shared)
+		allDeps = appendDeps(allDeps, lib.StaticProperties.Static)
 
 		// TODO(b/186024507, b/186489250): Temporarily exclude adding
 		// system_shared_libs deps until libc and libm builds.
 		// allDeps = append(allDeps, lib.SharedProperties.Shared.System_shared_libs...)
 		// allDeps = append(allDeps, lib.StaticProperties.Static.System_shared_libs...)
+
+		// Deps in the target/arch nested static: { .. } and shared: { .. } props of a cc_library.
+		// target: { <target>: shared: { ... } }
+		for _, targetProps := range module.GetTargetProperties(ctx, &SharedProperties{}) {
+			if p, ok := targetProps.Properties.(*SharedProperties); ok {
+				allDeps = appendDeps(allDeps, p.Shared)
+			}
+			for _, archProperties := range targetProps.ArchProperties {
+				if p, ok := archProperties.(*SharedProperties); ok {
+					allDeps = appendDeps(allDeps, p.Shared)
+				}
+			}
+		}
+		// target: { <target>: static: { ... } }
+		for _, targetProps := range module.GetTargetProperties(ctx, &StaticProperties{}) {
+			if p, ok := targetProps.Properties.(*StaticProperties); ok {
+				allDeps = appendDeps(allDeps, p.Static)
+			}
+			for _, archProperties := range targetProps.ArchProperties {
+				if p, ok := archProperties.(*StaticProperties); ok {
+					allDeps = appendDeps(allDeps, p.Static)
+				}
+			}
+		}
+		// arch: { <arch>: shared: { ... } }
+		for _, properties := range module.GetArchProperties(ctx, &SharedProperties{}) {
+			if p, ok := properties.(*SharedProperties); ok {
+				allDeps = appendDeps(allDeps, p.Shared)
+			}
+		}
+		// arch: { <arch>: static: { ... } }
+		for _, properties := range module.GetArchProperties(ctx, &StaticProperties{}) {
+			if p, ok := properties.(*StaticProperties); ok {
+				allDeps = appendDeps(allDeps, p.Static)
+			}
+		}
 	}
 
 	ctx.AddDependency(module, nil, android.SortedUniqueStrings(allDeps)...)
 }
 
 // staticOrSharedAttributes are the Bazel-ified versions of StaticOrSharedProperties --
-// properities which apply to either the shared or static version of a cc_library module.
+// properties which apply to either the shared or static version of a cc_library module.
 type staticOrSharedAttributes struct {
 	copts            bazel.StringListAttribute
 	srcs             bazel.LabelListAttribute
@@ -138,7 +176,7 @@ func bp2BuildParseSharedProps(ctx android.TopDownMutatorContext, module *Module)
 		return staticOrSharedAttributes{}
 	}
 
-	return bp2buildParseStaticOrSharedProps(ctx, lib.SharedProperties.Shared)
+	return bp2buildParseStaticOrSharedProps(ctx, module, lib, false)
 }
 
 // bp2buildParseStaticProps returns the attributes for the static variant of a cc_library.
@@ -148,31 +186,84 @@ func bp2BuildParseStaticProps(ctx android.TopDownMutatorContext, module *Module)
 		return staticOrSharedAttributes{}
 	}
 
-	return bp2buildParseStaticOrSharedProps(ctx, lib.StaticProperties.Static)
+	return bp2buildParseStaticOrSharedProps(ctx, module, lib, true)
 }
 
-func bp2buildParseStaticOrSharedProps(ctx android.TopDownMutatorContext, props StaticOrSharedProperties) staticOrSharedAttributes {
-	copts := bazel.StringListAttribute{Value: props.Cflags}
-
-	srcs := bazel.LabelListAttribute{
-		Value: android.BazelLabelForModuleSrc(ctx, props.Srcs)}
-
-	staticDeps := bazel.LabelListAttribute{
-		Value: android.BazelLabelForModuleDeps(ctx, props.Static_libs)}
-
-	dynamicDeps := bazel.LabelListAttribute{
-		Value: android.BazelLabelForModuleDeps(ctx, props.Shared_libs)}
-
-	wholeArchiveDeps := bazel.LabelListAttribute{
-		Value: android.BazelLabelForModuleDeps(ctx, props.Whole_static_libs)}
-
-	return staticOrSharedAttributes{
-		copts:            copts,
-		srcs:             srcs,
-		staticDeps:       staticDeps,
-		dynamicDeps:      dynamicDeps,
-		wholeArchiveDeps: wholeArchiveDeps,
+func bp2buildParseStaticOrSharedProps(ctx android.TopDownMutatorContext, module *Module, lib *libraryDecorator, isStatic bool) staticOrSharedAttributes {
+	var props StaticOrSharedProperties
+	if isStatic {
+		props = lib.StaticProperties.Static
+	} else {
+		props = lib.SharedProperties.Shared
 	}
+
+	attrs := staticOrSharedAttributes{
+		copts:            bazel.StringListAttribute{Value: props.Cflags},
+		srcs:             bazel.LabelListAttribute{Value: android.BazelLabelForModuleSrc(ctx, props.Srcs)},
+		staticDeps:       bazel.LabelListAttribute{Value: android.BazelLabelForModuleDeps(ctx, props.Static_libs)},
+		dynamicDeps:      bazel.LabelListAttribute{Value: android.BazelLabelForModuleDeps(ctx, props.Shared_libs)},
+		wholeArchiveDeps: bazel.LabelListAttribute{Value: android.BazelLabelForModuleDeps(ctx, props.Whole_static_libs)},
+	}
+
+	setArchAttrs := func(arch string, props StaticOrSharedProperties) {
+		attrs.copts.SetValueForArch(arch, props.Cflags)
+		attrs.srcs.SetValueForArch(arch, android.BazelLabelForModuleSrc(ctx, props.Srcs))
+		attrs.staticDeps.SetValueForArch(arch, android.BazelLabelForModuleDeps(ctx, props.Static_libs))
+		attrs.dynamicDeps.SetValueForArch(arch, android.BazelLabelForModuleDeps(ctx, props.Shared_libs))
+		attrs.wholeArchiveDeps.SetValueForArch(arch, android.BazelLabelForModuleDeps(ctx, props.Whole_static_libs))
+	}
+
+	setTargetAttrs := func(target string, props StaticOrSharedProperties) {
+		attrs.copts.SetOsValueForTarget(target, props.Cflags)
+		attrs.srcs.SetOsValueForTarget(target, android.BazelLabelForModuleSrc(ctx, props.Srcs))
+		attrs.staticDeps.SetOsValueForTarget(target, android.BazelLabelForModuleDeps(ctx, props.Static_libs))
+		attrs.dynamicDeps.SetOsValueForTarget(target, android.BazelLabelForModuleDeps(ctx, props.Shared_libs))
+		attrs.wholeArchiveDeps.SetOsValueForTarget(target, android.BazelLabelForModuleDeps(ctx, props.Whole_static_libs))
+	}
+
+	setTargetArchAttrs := func(target, arch string, props StaticOrSharedProperties) {
+		attrs.copts.SetOsArchValueForTarget(target, arch, props.Cflags)
+		attrs.srcs.SetOsArchValueForTarget(target, arch, android.BazelLabelForModuleSrc(ctx, props.Srcs))
+		attrs.staticDeps.SetOsArchValueForTarget(target, arch, android.BazelLabelForModuleDeps(ctx, props.Static_libs))
+		attrs.dynamicDeps.SetOsArchValueForTarget(target, arch, android.BazelLabelForModuleDeps(ctx, props.Shared_libs))
+		attrs.wholeArchiveDeps.SetOsArchValueForTarget(target, arch, android.BazelLabelForModuleDeps(ctx, props.Whole_static_libs))
+	}
+
+	if isStatic {
+		for arch, properties := range module.GetArchProperties(ctx, &StaticProperties{}) {
+			if staticOrSharedProps, ok := properties.(*StaticProperties); ok {
+				setArchAttrs(arch.Name, staticOrSharedProps.Static)
+			}
+		}
+		for target, p := range module.GetTargetProperties(ctx, &StaticProperties{}) {
+			if staticOrSharedProps, ok := p.Properties.(*StaticProperties); ok {
+				setTargetAttrs(target.Name, staticOrSharedProps.Static)
+			}
+			for arch, archProperties := range p.ArchProperties {
+				if staticOrSharedProps, ok := archProperties.(*StaticProperties); ok {
+					setTargetArchAttrs(target.Name, arch.Name, staticOrSharedProps.Static)
+				}
+			}
+		}
+	} else {
+		for arch, p := range module.GetArchProperties(ctx, &SharedProperties{}) {
+			if staticOrSharedProps, ok := p.(*SharedProperties); ok {
+				setArchAttrs(arch.Name, staticOrSharedProps.Shared)
+			}
+		}
+		for target, p := range module.GetTargetProperties(ctx, &SharedProperties{}) {
+			if staticOrSharedProps, ok := p.Properties.(*SharedProperties); ok {
+				setTargetAttrs(target.Name, staticOrSharedProps.Shared)
+			}
+			for arch, archProperties := range p.ArchProperties {
+				if staticOrSharedProps, ok := archProperties.(*SharedProperties); ok {
+					setTargetArchAttrs(target.Name, arch.Name, staticOrSharedProps.Shared)
+				}
+			}
+		}
+	}
+
+	return attrs
 }
 
 // Convenience struct to hold all attributes parsed from compiler properties.
