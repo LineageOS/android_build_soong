@@ -82,7 +82,7 @@ type snapshotSingleton struct {
 	// Implementation of the image interface specific to the image
 	// associated with this snapshot (e.g., specific to the vendor image,
 	// recovery image, etc.).
-	image snapshotImage
+	image SnapshotImage
 
 	// Whether this singleton is for fake snapshot or not.
 	// Fake snapshot is a snapshot whose prebuilt binaries and headers are empty.
@@ -147,7 +147,7 @@ func isRecoveryProprietaryModule(ctx android.BaseModuleContext) bool {
 }
 
 // Determines if the module is a candidate for snapshot.
-func isSnapshotAware(cfg android.DeviceConfig, m LinkableInterface, inProprietaryPath bool, apexInfo android.ApexInfo, image snapshotImage) bool {
+func isSnapshotAware(cfg android.DeviceConfig, m LinkableInterface, inProprietaryPath bool, apexInfo android.ApexInfo, image SnapshotImage) bool {
 	if !m.Enabled() || m.HiddenFromMake() {
 		return false
 	}

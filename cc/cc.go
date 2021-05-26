@@ -1267,8 +1267,8 @@ func (c *Module) nativeCoverage() bool {
 }
 
 func (c *Module) IsSnapshotPrebuilt() bool {
-	if p, ok := c.linker.(snapshotInterface); ok {
-		return p.isSnapshotPrebuilt()
+	if p, ok := c.linker.(SnapshotInterface); ok {
+		return p.IsSnapshotPrebuilt()
 	}
 	return false
 }
@@ -2946,10 +2946,10 @@ func MakeLibName(ctx android.ModuleContext, c LinkableInterface, ccDep LinkableI
 	if ccDepModule != nil {
 		// TODO(ivanlozano) Support snapshots for Rust-produced C library variants.
 		// Use base module name for snapshots when exporting to Makefile.
-		if snapshotPrebuilt, ok := ccDepModule.linker.(snapshotInterface); ok {
+		if snapshotPrebuilt, ok := ccDepModule.linker.(SnapshotInterface); ok {
 			baseName := ccDepModule.BaseModuleName()
 
-			return baseName + snapshotPrebuilt.snapshotAndroidMkSuffix()
+			return baseName + snapshotPrebuilt.SnapshotAndroidMkSuffix()
 		}
 	}
 
