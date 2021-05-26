@@ -1778,3 +1778,9 @@ type ProvidesUsesLib interface {
 func (j *Module) ProvidesUsesLib() *string {
 	return j.usesLibraryProperties.Provides_uses_lib
 }
+
+type ModuleWithStem interface {
+	Stem() string
+}
+
+var _ ModuleWithStem = (*Module)(nil)
