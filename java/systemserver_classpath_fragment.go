@@ -17,6 +17,7 @@ package java
 import (
 	"android/soong/android"
 	"android/soong/dexpreopt"
+
 	"github.com/google/blueprint"
 )
 
@@ -106,6 +107,12 @@ func (s *SystemServerClasspathModule) ClasspathFragmentToConfiguredJarList(ctx a
 type systemServerClasspathFragmentContentDependencyTag struct {
 	blueprint.BaseDependencyTag
 }
+
+// Contents of system server fragments in an apex are considered to be directly in the apex, as if
+// they were listed in java_libs.
+func (systemServerClasspathFragmentContentDependencyTag) CopyDirectlyInAnyApex() {}
+
+var _ android.CopyDirectlyInAnyApexTag = systemServerClasspathFragmentContentDepTag
 
 // The tag used for the dependency between the systemserverclasspath_fragment module and its contents.
 var systemServerClasspathFragmentContentDepTag = systemServerClasspathFragmentContentDependencyTag{}
