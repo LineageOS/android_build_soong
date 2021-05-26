@@ -22,6 +22,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/dexpreopt"
+
 	"github.com/google/blueprint/proptools"
 
 	"github.com/google/blueprint"
@@ -76,12 +77,17 @@ func (b bootclasspathFragmentContentDependencyTag) ExportMember() bool {
 	return true
 }
 
+// Contents of bootclasspath fragments in an apex are considered to be directly in the apex, as if
+// they were listed in java_libs.
+func (b bootclasspathFragmentContentDependencyTag) CopyDirectlyInAnyApex() {}
+
 // The tag used for the dependency between the bootclasspath_fragment module and its contents.
 var bootclasspathFragmentContentDepTag = bootclasspathFragmentContentDependencyTag{}
 
 var _ android.ExcludeFromVisibilityEnforcementTag = bootclasspathFragmentContentDepTag
 var _ android.ReplaceSourceWithPrebuilt = bootclasspathFragmentContentDepTag
 var _ android.SdkMemberTypeDependencyTag = bootclasspathFragmentContentDepTag
+var _ android.CopyDirectlyInAnyApexTag = bootclasspathFragmentContentDepTag
 
 func IsBootclasspathFragmentContentDepTag(tag blueprint.DependencyTag) bool {
 	return tag == bootclasspathFragmentContentDepTag
