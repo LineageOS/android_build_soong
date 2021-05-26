@@ -421,7 +421,9 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 		if baseCompilerProps, ok := osProps.Properties.(*BaseCompilerProperties); ok {
 			srcsList := parseSrcs(baseCompilerProps)
 			// TODO(b/186153868): add support for os-specific srcs and exclude_srcs
-			srcs.SetOsValueForTarget(os.Name, bazel.SubtractBazelLabelList(srcsList, baseSrcsLabelList))
+			if len(baseCompilerProps.Srcs) > 0 || len(baseCompilerProps.Exclude_srcs) > 0 {
+				srcs.SetOsValueForTarget(os.Name, bazel.SubtractBazelLabelList(srcsList, baseSrcsLabelList))
+			}
 			copts.SetOsValueForTarget(os.Name, parseCopts(baseCompilerProps))
 			asFlags.SetOsValueForTarget(os.Name, parseCommandLineFlags(baseCompilerProps.Asflags))
 			conlyFlags.SetOsValueForTarget(os.Name, parseCommandLineFlags(baseCompilerProps.Conlyflags))
@@ -431,7 +433,9 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 			if baseCompilerProps, ok := archProps.(*BaseCompilerProperties); ok {
 				srcsList := parseSrcs(baseCompilerProps)
 				// TODO(b/186153868): add support for os-specific srcs and exclude_srcs
-				srcs.SetOsArchValueForTarget(os.Name, arch.Name, bazel.SubtractBazelLabelList(srcsList, baseSrcsLabelList))
+				if len(baseCompilerProps.Srcs) > 0 || len(baseCompilerProps.Exclude_srcs) > 0 {
+					srcs.SetOsArchValueForTarget(os.Name, arch.Name, bazel.SubtractBazelLabelList(srcsList, baseSrcsLabelList))
+				}
 				copts.SetOsArchValueForTarget(os.Name, arch.Name, parseCopts(baseCompilerProps))
 				asFlags.SetOsArchValueForTarget(os.Name, arch.Name, parseCommandLineFlags(baseCompilerProps.Asflags))
 				conlyFlags.SetOsArchValueForTarget(os.Name, arch.Name, parseCommandLineFlags(baseCompilerProps.Conlyflags))

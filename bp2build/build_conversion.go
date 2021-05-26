@@ -445,7 +445,7 @@ func prettyPrint(propertyValue reflect.Value, indent int) (string, error) {
 		return prettyPrint(propertyValue.Elem(), indent)
 	case reflect.Slice:
 		if propertyValue.Len() == 0 {
-			return "", nil
+			return "[]", nil
 		}
 
 		if propertyValue.Len() == 1 {
