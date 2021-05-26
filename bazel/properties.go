@@ -993,6 +993,6 @@ func TryVariableSubstitutions(slice []string, productVariable string) ([]string,
 // TryVariableSubstitution, replace string substitution formatting within s with Starlark
 // string.format compatible tag for productVariable.
 func TryVariableSubstitution(s string, productVariable string) (string, bool) {
-	sub := productVariableSubstitutionPattern.ReplaceAllString(s, "{"+productVariable+"}")
+	sub := productVariableSubstitutionPattern.ReplaceAllString(s, "$("+productVariable+")")
 	return sub, s != sub
 }

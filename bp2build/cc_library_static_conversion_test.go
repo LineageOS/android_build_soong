@@ -1412,3 +1412,37 @@ cc_library_static {
 )`},
 	})
 }
+
+func TestCcLibraryStaticProductVariableStringReplacement(t *testing.T) {
+	runCcLibraryStaticTestCase(t, bp2buildTestCase{
+		description:                        "cc_library_static product variable selects",
+		moduleTypeUnderTest:                "cc_library_static",
+		moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
+		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
+		depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
+		filesystem:                         map[string]string{},
+		blueprint: soongCcLibraryStaticPreamble + `
+cc_library_static {
+    name: "foo_static",
+    srcs: ["common.c"],
+    product_variables: {
+      platform_sdk_version: {
+          asflags: ["-DPLATFORM_SDK_VERSION=%d"],
+      },
+    },
+} `,
+		expectedBazelTargets: []string{`cc_library_static(
+    name = "foo_static",
+    asflags = select({
+        "//build/bazel/product_variables:platform_sdk_version": ["-DPLATFORM_SDK_VERSION=$(Platform_sdk_version)"],
+        "//conditions:default": [],
+    }),
+    copts = [
+        "-I.",
+        "-I$(BINDIR)/.",
+    ],
+    linkstatic = True,
+    srcs_c = ["common.c"],
+)`},
+	})
+}
