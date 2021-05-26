@@ -171,7 +171,7 @@ func isModuleInConfiguredList(ctx android.BaseModuleContext, module android.Modu
 			// A platform variant is required but this is for an apex so ignore it.
 			return false
 		}
-	} else if !apexInfo.InApexVariantByBaseName(requiredApex) {
+	} else if !apexInfo.InApexVariant(requiredApex) {
 		// An apex variant for a specific apex is required but this is the wrong apex.
 		return false
 	}
