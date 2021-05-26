@@ -579,7 +579,7 @@ func MutateImage(mctx android.BaseModuleContext, m ImageMutatableModule) {
 
 	// If using a snapshot, the recovery variant under AOSP directories is not needed,
 	// except for kernel headers, which needs all variants.
-	if m.KernelHeadersDecorator() &&
+	if !m.KernelHeadersDecorator() &&
 		!m.IsSnapshotPrebuilt() &&
 		usingRecoverySnapshot &&
 		!isRecoveryProprietaryModule(mctx) {
