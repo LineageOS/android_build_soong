@@ -27,11 +27,24 @@ func getStringListValues(list bazel.StringListAttribute) (reflect.Value, []selec
 	}
 
 	osSelects := map[string]reflect.Value{}
-	for os, selectKey := range bazel.PlatformOsMap {
-		osSelects[selectKey] = reflect.ValueOf(list.GetValueForOS(os))
+	osArchSelects := make([]selects, 0)
+	for _, os := range android.SortedStringKeys(bazel.PlatformOsMap) {
+		selectKey := bazel.PlatformOsMap[os]
+		osSelects[selectKey] = reflect.ValueOf(list.GetOsValueForTarget(os))
+		archSelects := make(map[string]reflect.Value)
+		// TODO(b/187530594): Should we also check arch=CONDITIONS_DEFAULT? (not in AllArches)
+		for _, arch := range bazel.AllArches {
+			target := os + "_" + arch
+			selectKey := bazel.PlatformTargetMap[target]
+			archSelects[selectKey] = reflect.ValueOf(list.GetOsArchValueForTarget(os, arch))
+		}
+		osArchSelects = append(osArchSelects, archSelects)
 	}
 	if len(osSelects) > 0 {
 		selectValues = append(selectValues, osSelects)
+	}
+	if len(osArchSelects) > 0 {
+		selectValues = append(selectValues, osArchSelects...)
 	}
 
 	for _, pv := range list.SortedProductVariables() {
@@ -74,11 +87,25 @@ func getLabelListValues(list bazel.LabelListAttribute) (reflect.Value, []selects
 	}
 
 	osSelects := map[string]reflect.Value{}
-	for os, selectKey := range bazel.PlatformOsMap {
-		osSelects[selectKey] = reflect.ValueOf(list.GetValueForOS(os).Includes)
+	osArchSelects := make([]selects, 0)
+	for _, os := range android.SortedStringKeys(bazel.PlatformOsMap) {
+		selectKey := bazel.PlatformOsMap[os]
+		osSelects[selectKey] = reflect.ValueOf(list.GetOsValueForTarget(os).Includes)
+		archSelects := make(map[string]reflect.Value)
+		// TODO(b/187530594): Should we also check arch=CONDITIOSN_DEFAULT? (not in AllArches)
+		for _, arch := range bazel.AllArches {
+			target := os + "_" + arch
+			selectKey := bazel.PlatformTargetMap[target]
+			archSelects[selectKey] = reflect.ValueOf(list.GetOsArchValueForTarget(os, arch).Includes)
+		}
+		osArchSelects = append(osArchSelects, archSelects)
 	}
 
-	return value, []selects{archSelects, osSelects}
+	var selects []selects
+	selects = append(selects, archSelects)
+	selects = append(selects, osSelects)
+	selects = append(selects, osArchSelects...)
+	return value, selects
 }
 
 // prettyPrintAttribute converts an Attribute to its Bazel syntax. May contain
