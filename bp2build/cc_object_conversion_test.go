@@ -27,6 +27,7 @@ func registerCcObjectModuleTypes(ctx android.RegistrationContext) {
 }
 
 func runCcObjectTestCase(t *testing.T, tc bp2buildTestCase) {
+	t.Helper()
 	runBp2BuildTestCase(t, registerCcObjectModuleTypes, tc)
 }
 

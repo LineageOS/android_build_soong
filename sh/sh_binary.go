@@ -104,6 +104,12 @@ type shBinaryProperties struct {
 	Recovery_available *bool
 }
 
+// Test option struct.
+type TestOptions struct {
+	// If the test is a hostside(no device required) unittest that shall be run during presubmit check.
+	Unit_test *bool
+}
+
 type TestProperties struct {
 	// list of compatibility suites (for example "cts", "vts") that the module should be
 	// installed into.
@@ -143,6 +149,9 @@ type TestProperties struct {
 	// list of device library modules that should be installed alongside the test.
 	// Only available for host sh_test modules.
 	Data_device_libs []string `android:"path,arch_variant"`
+
+	// Test options.
+	Test_options TestOptions
 }
 
 type ShBinary struct {
@@ -439,6 +448,9 @@ func (s *ShTest) AndroidMkEntries() []android.AndroidMkEntries {
 				for _, relPath := range relPaths {
 					dir := strings.TrimSuffix(s.dataModules[relPath].String(), relPath)
 					entries.AddStrings("LOCAL_TEST_DATA", dir+":"+relPath)
+				}
+				if Bool(s.testProperties.Test_options.Unit_test) {
+					entries.SetBool("LOCAL_IS_UNIT_TEST", true)
 				}
 			},
 		},

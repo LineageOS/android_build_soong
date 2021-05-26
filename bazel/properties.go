@@ -137,6 +137,54 @@ func SubtractStrings(haystack []string, needle []string) []string {
 	return strings
 }
 
+// Return all needles in a given haystack, where needleFn is true for needles.
+func FilterLabelList(haystack LabelList, needleFn func(string) bool) LabelList {
+	var includes []Label
+
+	for _, inc := range haystack.Includes {
+		if needleFn(inc.Label) {
+			includes = append(includes, inc)
+		}
+	}
+	return LabelList{Includes: includes, Excludes: haystack.Excludes}
+}
+
+// Return all needles in a given haystack, where needleFn is true for needles.
+func FilterLabelListAttribute(haystack LabelListAttribute, needleFn func(string) bool) LabelListAttribute {
+	var result LabelListAttribute
+
+	result.Value = FilterLabelList(haystack.Value, needleFn)
+
+	for arch := range PlatformArchMap {
+		result.SetValueForArch(arch, FilterLabelList(haystack.GetValueForArch(arch), needleFn))
+	}
+
+	for os := range PlatformOsMap {
+		result.SetValueForOS(os, FilterLabelList(haystack.GetValueForOS(os), needleFn))
+	}
+
+	return result
+}
+
+// Subtract needle from haystack
+func SubtractBazelLabelListAttribute(haystack LabelListAttribute, needle LabelListAttribute) LabelListAttribute {
+	var result LabelListAttribute
+
+	for arch := range PlatformArchMap {
+		result.SetValueForArch(arch,
+			SubtractBazelLabelList(haystack.GetValueForArch(arch), needle.GetValueForArch(arch)))
+	}
+
+	for os := range PlatformOsMap {
+		result.SetValueForOS(os,
+			SubtractBazelLabelList(haystack.GetValueForOS(os), needle.GetValueForOS(os)))
+	}
+
+	result.Value = SubtractBazelLabelList(haystack.Value, needle.Value)
+
+	return result
+}
+
 // Subtract needle from haystack
 func SubtractBazelLabels(haystack []Label, needle []Label) []Label {
 	// This is really a set
@@ -561,6 +609,12 @@ func (attrs *StringListAttribute) SetValueForOS(os string, value []string) {
 		panic(fmt.Errorf("Unknown os: %s", os))
 	}
 	*v = value
+}
+
+func (attrs *StringListAttribute) SortedProductVariables() []ProductVariableValues {
+	vals := attrs.ProductValues[:]
+	sort.Slice(vals, func(i, j int) bool { return vals[i].ProductVariable < vals[j].ProductVariable })
+	return vals
 }
 
 // Append appends all values, including os and arch specific ones, from another

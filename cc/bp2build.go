@@ -105,7 +105,9 @@ func depsBp2BuildMutator(ctx android.BottomUpMutatorContext) {
 	ctx.AddDependency(module, nil, android.SortedUniqueStrings(allDeps)...)
 }
 
-type sharedAttributes struct {
+// staticOrSharedAttributes are the Bazel-ified versions of StaticOrSharedProperties --
+// properities which apply to either the shared or static version of a cc_library module.
+type staticOrSharedAttributes struct {
 	copts            bazel.StringListAttribute
 	srcs             bazel.LabelListAttribute
 	staticDeps       bazel.LabelListAttribute
@@ -114,65 +116,41 @@ type sharedAttributes struct {
 }
 
 // bp2buildParseSharedProps returns the attributes for the shared variant of a cc_library.
-func bp2BuildParseSharedProps(ctx android.TopDownMutatorContext, module *Module) sharedAttributes {
+func bp2BuildParseSharedProps(ctx android.TopDownMutatorContext, module *Module) staticOrSharedAttributes {
 	lib, ok := module.compiler.(*libraryDecorator)
 	if !ok {
-		return sharedAttributes{}
+		return staticOrSharedAttributes{}
 	}
 
-	copts := bazel.StringListAttribute{Value: lib.SharedProperties.Shared.Cflags}
-
-	srcs := bazel.LabelListAttribute{
-		Value: android.BazelLabelForModuleSrc(ctx, lib.SharedProperties.Shared.Srcs)}
-
-	staticDeps := bazel.LabelListAttribute{
-		Value: android.BazelLabelForModuleDeps(ctx, lib.SharedProperties.Shared.Static_libs)}
-
-	dynamicDeps := bazel.LabelListAttribute{
-		Value: android.BazelLabelForModuleDeps(ctx, lib.SharedProperties.Shared.Shared_libs)}
-
-	wholeArchiveDeps := bazel.LabelListAttribute{
-		Value: android.BazelLabelForModuleDeps(ctx, lib.SharedProperties.Shared.Whole_static_libs)}
-
-	return sharedAttributes{
-		copts:            copts,
-		srcs:             srcs,
-		staticDeps:       staticDeps,
-		dynamicDeps:      dynamicDeps,
-		wholeArchiveDeps: wholeArchiveDeps,
-	}
-}
-
-type staticAttributes struct {
-	copts            bazel.StringListAttribute
-	srcs             bazel.LabelListAttribute
-	staticDeps       bazel.LabelListAttribute
-	dynamicDeps      bazel.LabelListAttribute
-	wholeArchiveDeps bazel.LabelListAttribute
+	return bp2buildParseStaticOrSharedProps(ctx, lib.SharedProperties.Shared)
 }
 
 // bp2buildParseStaticProps returns the attributes for the static variant of a cc_library.
-func bp2BuildParseStaticProps(ctx android.TopDownMutatorContext, module *Module) staticAttributes {
+func bp2BuildParseStaticProps(ctx android.TopDownMutatorContext, module *Module) staticOrSharedAttributes {
 	lib, ok := module.compiler.(*libraryDecorator)
 	if !ok {
-		return staticAttributes{}
+		return staticOrSharedAttributes{}
 	}
 
-	copts := bazel.StringListAttribute{Value: lib.StaticProperties.Static.Cflags}
+	return bp2buildParseStaticOrSharedProps(ctx, lib.StaticProperties.Static)
+}
+
+func bp2buildParseStaticOrSharedProps(ctx android.TopDownMutatorContext, props StaticOrSharedProperties) staticOrSharedAttributes {
+	copts := bazel.StringListAttribute{Value: props.Cflags}
 
 	srcs := bazel.LabelListAttribute{
-		Value: android.BazelLabelForModuleSrc(ctx, lib.StaticProperties.Static.Srcs)}
+		Value: android.BazelLabelForModuleSrc(ctx, props.Srcs)}
 
 	staticDeps := bazel.LabelListAttribute{
-		Value: android.BazelLabelForModuleDeps(ctx, lib.StaticProperties.Static.Static_libs)}
+		Value: android.BazelLabelForModuleDeps(ctx, props.Static_libs)}
 
 	dynamicDeps := bazel.LabelListAttribute{
-		Value: android.BazelLabelForModuleDeps(ctx, lib.StaticProperties.Static.Shared_libs)}
+		Value: android.BazelLabelForModuleDeps(ctx, props.Shared_libs)}
 
 	wholeArchiveDeps := bazel.LabelListAttribute{
-		Value: android.BazelLabelForModuleDeps(ctx, lib.StaticProperties.Static.Whole_static_libs)}
+		Value: android.BazelLabelForModuleDeps(ctx, props.Whole_static_libs)}
 
-	return staticAttributes{
+	return staticOrSharedAttributes{
 		copts:            copts,
 		srcs:             srcs,
 		staticDeps:       staticDeps,
@@ -183,15 +161,26 @@ func bp2BuildParseStaticProps(ctx android.TopDownMutatorContext, module *Module)
 
 // Convenience struct to hold all attributes parsed from compiler properties.
 type compilerAttributes struct {
-	copts    bazel.StringListAttribute
+	// Options for all languages
+	copts bazel.StringListAttribute
+	// Assembly options and sources
+	asFlags bazel.StringListAttribute
+	asSrcs  bazel.LabelListAttribute
+	// C options and sources
+	conlyFlags bazel.StringListAttribute
+	cSrcs      bazel.LabelListAttribute
+	// C++ options and sources
+	cppFlags bazel.StringListAttribute
 	srcs     bazel.LabelListAttribute
-	includes bazel.StringListAttribute
 }
 
 // bp2BuildParseCompilerProps returns copts, srcs and hdrs and other attributes.
 func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Module) compilerAttributes {
 	var srcs bazel.LabelListAttribute
 	var copts bazel.StringListAttribute
+	var asFlags bazel.StringListAttribute
+	var conlyFlags bazel.StringListAttribute
+	var cppFlags bazel.StringListAttribute
 
 	// Creates the -I flags for a directory, while making the directory relative
 	// to the exec root for Bazel to work.
@@ -215,15 +204,21 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 		return append(includeDirs, baseCompilerProps.Local_include_dirs...)
 	}
 
-	// Parse the list of copts.
-	parseCopts := func(baseCompilerProps *BaseCompilerProperties) []string {
-		var copts []string
-		for _, flag := range append(baseCompilerProps.Cflags, baseCompilerProps.Cppflags...) {
+	parseCommandLineFlags := func(soongFlags []string) []string {
+		var result []string
+		for _, flag := range soongFlags {
 			// Soong's cflags can contain spaces, like `-include header.h`. For
 			// Bazel's copts, split them up to be compatible with the
 			// no_copts_tokenization feature.
-			copts = append(copts, strings.Split(flag, " ")...)
+			result = append(result, strings.Split(flag, " ")...)
 		}
+		return result
+	}
+
+	// Parse the list of copts.
+	parseCopts := func(baseCompilerProps *BaseCompilerProperties) []string {
+		var copts []string
+		copts = append(copts, parseCommandLineFlags(baseCompilerProps.Cflags)...)
 		for _, dir := range parseLocalIncludeDirs(baseCompilerProps) {
 			copts = append(copts, includeFlags(dir)...)
 		}
@@ -260,6 +255,9 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 		if baseCompilerProps, ok := props.(*BaseCompilerProperties); ok {
 			srcs.Value = parseSrcs(baseCompilerProps)
 			copts.Value = parseCopts(baseCompilerProps)
+			asFlags.Value = parseCommandLineFlags(baseCompilerProps.Asflags)
+			conlyFlags.Value = parseCommandLineFlags(baseCompilerProps.Conlyflags)
+			cppFlags.Value = parseCommandLineFlags(baseCompilerProps.Cppflags)
 
 			// Used for arch-specific srcs later.
 			baseSrcs = baseCompilerProps.Srcs
@@ -290,6 +288,9 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 			}
 
 			copts.SetValueForArch(arch.Name, parseCopts(baseCompilerProps))
+			asFlags.SetValueForArch(arch.Name, parseCommandLineFlags(baseCompilerProps.Asflags))
+			conlyFlags.SetValueForArch(arch.Name, parseCommandLineFlags(baseCompilerProps.Conlyflags))
+			cppFlags.SetValueForArch(arch.Name, parseCommandLineFlags(baseCompilerProps.Cppflags))
 		}
 	}
 
@@ -315,6 +316,9 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 			// TODO(b/186153868): add support for os-specific srcs and exclude_srcs
 			srcs.SetValueForOS(os.Name, bazel.SubtractBazelLabelList(srcsList, baseSrcsLabelList))
 			copts.SetValueForOS(os.Name, parseCopts(baseCompilerProps))
+			asFlags.SetValueForOS(os.Name, parseCommandLineFlags(baseCompilerProps.Asflags))
+			conlyFlags.SetValueForOS(os.Name, parseCommandLineFlags(baseCompilerProps.Conlyflags))
+			cppFlags.SetValueForOS(os.Name, parseCommandLineFlags(baseCompilerProps.Cppflags))
 		}
 	}
 
@@ -333,9 +337,28 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 		}
 	}
 
+	// Branch srcs into three language-specific groups.
+	// C++ is the "catch-all" group, and comprises generated sources because we don't
+	// know the language of these sources until the genrule is executed.
+	// TODO(b/): Handle language detection of sources in a Bazel rule.
+	isCSrc := func(s string) bool {
+		return strings.HasSuffix(s, ".c")
+	}
+	isAsmSrc := func(s string) bool {
+		return strings.HasSuffix(s, ".S") || strings.HasSuffix(s, ".s")
+	}
+	cSrcs := bazel.FilterLabelListAttribute(srcs, isCSrc)
+	asSrcs := bazel.FilterLabelListAttribute(srcs, isAsmSrc)
+	srcs = bazel.SubtractBazelLabelListAttribute(srcs, cSrcs)
+	srcs = bazel.SubtractBazelLabelListAttribute(srcs, asSrcs)
 	return compilerAttributes{
-		srcs:  srcs,
-		copts: copts,
+		copts:      copts,
+		srcs:       srcs,
+		asFlags:    asFlags,
+		asSrcs:     asSrcs,
+		cSrcs:      cSrcs,
+		conlyFlags: conlyFlags,
+		cppFlags:   cppFlags,
 	}
 }
 
