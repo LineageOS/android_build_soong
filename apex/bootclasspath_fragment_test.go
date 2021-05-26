@@ -62,6 +62,7 @@ func TestBootclasspathFragments(t *testing.T) {
 		apex {
 			name: "com.android.art",
 			key: "com.android.art.key",
+			bootclasspath_fragments: ["art-bootclasspath-fragment"],
  			java_libs: [
 				"baz",
 				"quuz",
@@ -100,32 +101,12 @@ func TestBootclasspathFragments(t *testing.T) {
 				"com.android.art",
 			],
 		}
-
-		bootclasspath_fragment {
-			name: "framework-bootclasspath-fragment",
-			image_name: "boot",
-		}
 `,
 	)
 
-	// Make sure that the framework-bootclasspath-fragment is using the correct configuration.
-	checkBootclasspathFragment(t, result, "framework-bootclasspath-fragment", "platform:foo,platform:bar", `
-test_device/dex_bootjars/android/system/framework/arm/boot-foo.art
-test_device/dex_bootjars/android/system/framework/arm/boot-foo.oat
-test_device/dex_bootjars/android/system/framework/arm/boot-foo.vdex
-test_device/dex_bootjars/android/system/framework/arm/boot-bar.art
-test_device/dex_bootjars/android/system/framework/arm/boot-bar.oat
-test_device/dex_bootjars/android/system/framework/arm/boot-bar.vdex
-test_device/dex_bootjars/android/system/framework/arm64/boot-foo.art
-test_device/dex_bootjars/android/system/framework/arm64/boot-foo.oat
-test_device/dex_bootjars/android/system/framework/arm64/boot-foo.vdex
-test_device/dex_bootjars/android/system/framework/arm64/boot-bar.art
-test_device/dex_bootjars/android/system/framework/arm64/boot-bar.oat
-test_device/dex_bootjars/android/system/framework/arm64/boot-bar.vdex
-`)
-
 	// Make sure that the art-bootclasspath-fragment is using the correct configuration.
-	checkBootclasspathFragment(t, result, "art-bootclasspath-fragment", "com.android.art:baz,com.android.art:quuz", `
+	checkBootclasspathFragment(t, result, "art-bootclasspath-fragment", "android_common_apex10000",
+		"com.android.art:baz,com.android.art:quuz", `
 test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.art
 test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.oat
 test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.vdex
@@ -263,10 +244,10 @@ func TestBootclasspathFragments_FragmentDependency(t *testing.T) {
 	checkSdkKindStubs("other", otherInfo, android.SdkCorePlatform)
 }
 
-func checkBootclasspathFragment(t *testing.T, result *android.TestResult, moduleName string, expectedConfiguredModules string, expectedBootclasspathFragmentFiles string) {
+func checkBootclasspathFragment(t *testing.T, result *android.TestResult, moduleName, variantName string, expectedConfiguredModules string, expectedBootclasspathFragmentFiles string) {
 	t.Helper()
 
-	bootclasspathFragment := result.ModuleForTests(moduleName, "android_common").Module().(*java.BootclasspathFragmentModule)
+	bootclasspathFragment := result.ModuleForTests(moduleName, variantName).Module().(*java.BootclasspathFragmentModule)
 
 	bootclasspathFragmentInfo := result.ModuleProvider(bootclasspathFragment, java.BootclasspathFragmentApexContentInfoProvider).(java.BootclasspathFragmentApexContentInfo)
 	modules := bootclasspathFragmentInfo.Modules()
@@ -401,7 +382,7 @@ func TestBootclasspathFragmentInArtApex(t *testing.T) {
 		).RunTest(t)
 
 		ensureExactContents(t, result.TestContext, "com.android.art", "android_common_com.android.art_image", []string{
-			"etc/classpaths/mybootclasspathfragment.pb",
+			"etc/classpaths/bootclasspath.pb",
 			"javalib/arm/boot.art",
 			"javalib/arm/boot.oat",
 			"javalib/arm/boot.vdex",
@@ -613,7 +594,7 @@ func TestBootclasspathFragmentContentsNoName(t *testing.T) {
 	ensureExactContents(t, result.TestContext, "myapex", "android_common_myapex_image", []string{
 		// This does not include art, oat or vdex files as they are only included for the art boot
 		// image.
-		"etc/classpaths/mybootclasspathfragment.pb",
+		"etc/classpaths/bootclasspath.pb",
 		"javalib/bar.jar",
 		"javalib/foo.jar",
 	})

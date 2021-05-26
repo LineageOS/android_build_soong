@@ -468,7 +468,7 @@ type ProductConfigProperties map[string][]ProductConfigProperty
 
 // ProductVariableProperties returns a ProductConfigProperties containing only the properties which
 // have been set for the module in the given context.
-func ProductVariableProperties(ctx ProductConfigContext) ProductConfigProperties {
+func ProductVariableProperties(ctx BaseMutatorContext) ProductConfigProperties {
 	module := ctx.Module()
 	moduleBase := module.base()
 
@@ -478,7 +478,28 @@ func ProductVariableProperties(ctx ProductConfigContext) ProductConfigProperties
 		return productConfigProperties
 	}
 
-	variableValues := reflect.ValueOf(moduleBase.variableProperties).Elem().FieldByName("Product_variables")
+	productVariableValues(moduleBase.variableProperties, "", &productConfigProperties)
+
+	for arch, targetProps := range moduleBase.GetArchProperties(ctx, moduleBase.variableProperties) {
+		// GetArchProperties is creating an instance of the requested type
+		// and productVariablesValues expects an interface, so no need to cast
+		productVariableValues(targetProps, arch.Name, &productConfigProperties)
+	}
+
+	for os, targetProps := range moduleBase.GetTargetProperties(ctx, moduleBase.variableProperties) {
+		// GetTargetProperties is creating an instance of the requested type
+		// and productVariablesValues expects an interface, so no need to cast
+		productVariableValues(targetProps, os.Name, &productConfigProperties)
+	}
+
+	return productConfigProperties
+}
+
+func productVariableValues(variableProps interface{}, suffix string, productConfigProperties *ProductConfigProperties) {
+	if suffix != "" {
+		suffix = "-" + suffix
+	}
+	variableValues := reflect.ValueOf(variableProps).Elem().FieldByName("Product_variables")
 	for i := 0; i < variableValues.NumField(); i++ {
 		variableValue := variableValues.Field(i)
 		// Check if any properties were set for the module
@@ -496,15 +517,13 @@ func ProductVariableProperties(ctx ProductConfigContext) ProductConfigProperties
 
 			// e.g. Asflags, Cflags, Enabled, etc.
 			propertyName := variableValue.Type().Field(j).Name
-			productConfigProperties[propertyName] = append(productConfigProperties[propertyName],
+			(*productConfigProperties)[propertyName] = append((*productConfigProperties)[propertyName],
 				ProductConfigProperty{
-					ProductConfigVariable: productVariableName,
+					ProductConfigVariable: productVariableName + suffix,
 					Property:              property.Interface(),
 				})
 		}
 	}
-
-	return productConfigProperties
 }
 
 func VariableMutator(mctx BottomUpMutatorContext) {

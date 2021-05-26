@@ -76,6 +76,7 @@ func registerCcLibraryStaticModuleTypes(ctx android.RegistrationContext) {
 }
 
 func runCcLibraryStaticTestCase(t *testing.T, tc bp2buildTestCase) {
+	t.Helper()
 	runBp2BuildTestCase(t, registerCcLibraryStaticModuleTypes, tc)
 }
 
@@ -650,7 +651,7 @@ cc_library_static {
         "-I$(BINDIR)/.",
     ],
     linkstatic = True,
-    srcs = [
+    srcs_c = [
         "common.c",
         "foo-a.c",
     ],
@@ -682,7 +683,7 @@ cc_library_static {
         "-I$(BINDIR)/.",
     ],
     linkstatic = True,
-    srcs = ["common.c"] + select({
+    srcs_c = ["common.c"] + select({
         "//build/bazel/platforms/arch:arm": ["foo-arm.c"],
         "//conditions:default": [],
     }),
@@ -719,7 +720,7 @@ cc_library_static {
         "-I$(BINDIR)/.",
     ],
     linkstatic = True,
-    srcs = ["common.c"] + select({
+    srcs_c = ["common.c"] + select({
         "//build/bazel/platforms/arch:arm": ["for-arm.c"],
         "//conditions:default": ["not-for-arm.c"],
     }),
@@ -758,7 +759,7 @@ cc_library_static {
         "-I$(BINDIR)/.",
     ],
     linkstatic = True,
-    srcs = ["common.c"] + select({
+    srcs_c = ["common.c"] + select({
         "//build/bazel/platforms/arch:arm": [
             "for-arm.c",
             "not-for-x86.c",
@@ -813,7 +814,7 @@ cc_library_static {
         "-I$(BINDIR)/.",
     ],
     linkstatic = True,
-    srcs = ["common.c"] + select({
+    srcs_c = ["common.c"] + select({
         "//build/bazel/platforms/arch:arm": [
             "for-arm.c",
             "not-for-arm64.c",
@@ -909,7 +910,7 @@ cc_library_static {
         "-I$(BINDIR)/.",
     ],
     linkstatic = True,
-    srcs = ["common.c"] + select({
+    srcs_c = ["common.c"] + select({
         "//build/bazel/platforms/arch:arm": ["for-lib32.c"],
         "//build/bazel/platforms/arch:x86": ["for-lib32.c"],
         "//conditions:default": ["not-for-lib32.c"],
@@ -948,7 +949,7 @@ cc_library_static {
         "-I$(BINDIR)/.",
     ],
     linkstatic = True,
-    srcs = ["common.c"] + select({
+    srcs_c = ["common.c"] + select({
         "//build/bazel/platforms/arch:arm": [
             "for-lib32.c",
             "not-for-lib64.c",
@@ -1020,7 +1021,7 @@ cc_library_static {
         "-I$(BINDIR)/.",
     ],
     linkstatic = True,
-    srcs = ["common.c"] + select({
+    srcs_c = ["common.c"] + select({
         "//build/bazel/platforms/arch:arm": [
             "for-arm.c",
             "for-lib32.c",
@@ -1074,10 +1075,10 @@ func TestCcLibraryStaticArchSrcsExcludeSrcsGeneratedFiles(t *testing.T) {
 		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
 		depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
 		filesystem: map[string]string{
-			"common.c":             "",
-			"for-x86.c":            "",
-			"not-for-x86.c":        "",
-			"not-for-everything.c": "",
+			"common.cpp":             "",
+			"for-x86.cpp":            "",
+			"not-for-x86.cpp":        "",
+			"not-for-everything.cpp": "",
 			"dep/Android.bp": `
 genrule {
 	name: "generated_src_other_pkg",
@@ -1118,14 +1119,14 @@ genrule {
 
 cc_library_static {
    name: "foo_static3",
-   srcs: ["common.c", "not-for-*.c"],
-   exclude_srcs: ["not-for-everything.c"],
+   srcs: ["common.cpp", "not-for-*.cpp"],
+   exclude_srcs: ["not-for-everything.cpp"],
    generated_sources: ["generated_src", "generated_src_other_pkg"],
    generated_headers: ["generated_hdr", "generated_hdr_other_pkg"],
    arch: {
        x86: {
-           srcs: ["for-x86.c"],
-           exclude_srcs: ["not-for-x86.c"],
+           srcs: ["for-x86.cpp"],
+           exclude_srcs: ["not-for-x86.cpp"],
            generated_sources: ["generated_src_x86"],
            generated_headers: ["generated_hdr_other_pkg_x86"],
        },
@@ -1144,15 +1145,132 @@ cc_library_static {
         "//dep:generated_src_other_pkg",
         ":generated_hdr",
         ":generated_src",
-        "common.c",
+        "common.cpp",
     ] + select({
         "//build/bazel/platforms/arch:x86": [
             "//dep:generated_hdr_other_pkg_x86",
             ":generated_src_x86",
-            "for-x86.c",
+            "for-x86.cpp",
         ],
-        "//conditions:default": ["not-for-x86.c"],
+        "//conditions:default": ["not-for-x86.cpp"],
     }),
+)`},
+	})
+}
+
+func TestCcLibraryStaticProductVariableSelects(t *testing.T) {
+	runCcLibraryStaticTestCase(t, bp2buildTestCase{
+		description:                        "cc_library_static product variable selects",
+		moduleTypeUnderTest:                "cc_library_static",
+		moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
+		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
+		depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
+		filesystem:                         map[string]string{},
+		blueprint: soongCcLibraryStaticPreamble + `
+cc_library_static {
+    name: "foo_static",
+    srcs: ["common.c"],
+    product_variables: {
+      malloc_not_svelte: {
+        cflags: ["-Wmalloc_not_svelte"],
+      },
+      malloc_zero_contents: {
+        cflags: ["-Wmalloc_zero_contents"],
+      },
+      binder32bit: {
+        cflags: ["-Wbinder32bit"],
+      },
+    },
+} `,
+		expectedBazelTargets: []string{`cc_library_static(
+    name = "foo_static",
+    copts = [
+        "-I.",
+        "-I$(BINDIR)/.",
+    ] + select({
+        "//build/bazel/product_variables:binder32bit": ["-Wbinder32bit"],
+        "//conditions:default": [],
+    }) + select({
+        "//build/bazel/product_variables:malloc_not_svelte": ["-Wmalloc_not_svelte"],
+        "//conditions:default": [],
+    }) + select({
+        "//build/bazel/product_variables:malloc_zero_contents": ["-Wmalloc_zero_contents"],
+        "//conditions:default": [],
+    }),
+    linkstatic = True,
+    srcs_c = ["common.c"],
+)`},
+	})
+}
+
+func TestCcLibraryStaticProductVariableArchSpecificSelects(t *testing.T) {
+	runCcLibraryStaticTestCase(t, bp2buildTestCase{
+		description:                        "cc_library_static arch-specific product variable selects",
+		moduleTypeUnderTest:                "cc_library_static",
+		moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
+		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
+		depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
+		filesystem:                         map[string]string{},
+		blueprint: soongCcLibraryStaticPreamble + `
+cc_library_static {
+    name: "foo_static",
+    srcs: ["common.c"],
+    product_variables: {
+      malloc_not_svelte: {
+        cflags: ["-Wmalloc_not_svelte"],
+      },
+    },
+		arch: {
+				arm64: {
+						product_variables: {
+								malloc_not_svelte: {
+										cflags: ["-Warm64_malloc_not_svelte"],
+								},
+						},
+				},
+		},
+		multilib: {
+				lib32: {
+						product_variables: {
+								malloc_not_svelte: {
+										cflags: ["-Wlib32_malloc_not_svelte"],
+								},
+						},
+				},
+		},
+		target: {
+				android: {
+						product_variables: {
+								malloc_not_svelte: {
+										cflags: ["-Wandroid_malloc_not_svelte"],
+								},
+						},
+				}
+		},
+} `,
+		expectedBazelTargets: []string{`cc_library_static(
+    name = "foo_static",
+    copts = [
+        "-I.",
+        "-I$(BINDIR)/.",
+    ] + select({
+        "//build/bazel/product_variables:malloc_not_svelte": ["-Wmalloc_not_svelte"],
+        "//conditions:default": [],
+    }) + select({
+        "//build/bazel/product_variables:malloc_not_svelte-android": ["-Wandroid_malloc_not_svelte"],
+        "//conditions:default": [],
+    }) + select({
+        "//build/bazel/product_variables:malloc_not_svelte-arm": ["-Wlib32_malloc_not_svelte"],
+        "//conditions:default": [],
+    }) + select({
+        "//build/bazel/product_variables:malloc_not_svelte-arm64": ["-Warm64_malloc_not_svelte"],
+        "//conditions:default": [],
+    }) + select({
+        "//build/bazel/product_variables:malloc_not_svelte-x86": ["-Wlib32_malloc_not_svelte"],
+        "//conditions:default": [],
+    }),
+    linkstatic = True,
+    srcs_c = ["common.c"],
 )`},
 	})
 }

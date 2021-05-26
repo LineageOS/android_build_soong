@@ -3,6 +3,7 @@ package sh
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	"android/soong/android"
@@ -148,6 +149,9 @@ func TestShTestHost(t *testing.T) {
 				"testdata/data1",
 				"testdata/sub/data2",
 			],
+			test_options: {
+				unit_test: true,
+			},
 		}
 	`)
 
@@ -156,6 +160,9 @@ func TestShTestHost(t *testing.T) {
 	if !mod.Host() {
 		t.Errorf("host bit is not set for a sh_test_host module.")
 	}
+	entries := android.AndroidMkEntriesForTest(t, ctx, mod)[0]
+	actualData, _ := strconv.ParseBool(entries.EntryMap["LOCAL_IS_UNIT_TEST"][0])
+	android.AssertBoolEquals(t, "LOCAL_IS_UNIT_TEST", true, actualData)
 }
 
 func TestShTestHost_dataDeviceModules(t *testing.T) {

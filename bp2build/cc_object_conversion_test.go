@@ -27,6 +27,7 @@ func registerCcObjectModuleTypes(ctx android.RegistrationContext) {
 }
 
 func runCcObjectTestCase(t *testing.T, tc bp2buildTestCase) {
+	t.Helper()
 	runBp2BuildTestCase(t, registerCcObjectModuleTypes, tc)
 }
 
@@ -208,7 +209,10 @@ func TestCcObjectProductVariable(t *testing.T) {
 `,
 		expectedBazelTargets: []string{`cc_object(
     name = "foo",
-    asflags = ["-DPLATFORM_SDK_VERSION={Platform_sdk_version}"],
+    asflags = select({
+        "//build/bazel/product_variables:platform_sdk_version": ["-DPLATFORM_SDK_VERSION={Platform_sdk_version}"],
+        "//conditions:default": [],
+    }),
     copts = ["-fno-addrsig"],
 )`,
 		},
