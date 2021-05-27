@@ -568,6 +568,10 @@ func bp2BuildParseLinkerProps(ctx android.TopDownMutatorContext, module *Module)
 
 			linkopts.SetOsValueForTarget(os.Name, getBp2BuildLinkerFlags(baseLinkerProps))
 
+			if baseLinkerProps.Version_script != nil {
+				versionScript.SetOsValueForTarget(os.Name, android.BazelLabelForModuleSrcSingle(ctx, *baseLinkerProps.Version_script))
+			}
+
 			sharedLibs := baseLinkerProps.Shared_libs
 			dynamicDeps.SetOsValueForTarget(os.Name, android.BazelLabelForModuleDeps(ctx, sharedLibs))
 		}
@@ -581,6 +585,10 @@ func bp2BuildParseLinkerProps(ctx android.TopDownMutatorContext, module *Module)
 				exportedDeps.SetOsArchValueForTarget(os.Name, arch.Name, android.BazelLabelForModuleDeps(ctx, exportedLibs))
 
 				linkopts.SetOsArchValueForTarget(os.Name, arch.Name, getBp2BuildLinkerFlags(baseLinkerProps))
+
+				if baseLinkerProps.Version_script != nil {
+					versionScript.SetOsArchValueForTarget(os.Name, arch.Name, android.BazelLabelForModuleSrcSingle(ctx, *baseLinkerProps.Version_script))
+				}
 
 				sharedLibs := baseLinkerProps.Shared_libs
 				dynamicDeps.SetOsArchValueForTarget(os.Name, arch.Name, android.BazelLabelForModuleDeps(ctx, sharedLibs))

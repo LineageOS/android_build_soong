@@ -808,3 +808,46 @@ func TestCcLibraryCppFlagsGoesIntoCopts(t *testing.T) {
 )`},
 	})
 }
+
+func TestCcLibraryLabelAttributeGetTargetProperties(t *testing.T) {
+	runCcLibraryTestCase(t, bp2buildTestCase{
+		description:                        "cc_library GetTargetProperties on a LabelAttribute",
+		moduleTypeUnderTest:                "cc_library",
+		moduleTypeUnderTestFactory:         cc.LibraryFactory,
+		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryBp2Build,
+		depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
+		dir:                                "foo/bar",
+		filesystem: map[string]string{
+			"foo/bar/Android.bp": `
+		cc_library {
+		   name: "a",
+		   srcs: ["a.cpp"],
+		   target: {
+		     android_arm: {
+		       version_script: "android_arm.map",
+		     },
+		     linux_bionic_arm64: {
+		       version_script: "linux_bionic_arm64.map",
+		     },
+		   },
+
+		   bazel_module: { bp2build_available: true },
+		}
+		`,
+		},
+		blueprint: soongCcLibraryPreamble,
+		expectedBazelTargets: []string{`cc_library(
+    name = "a",
+    copts = [
+        "-Ifoo/bar",
+        "-I$(BINDIR)/foo/bar",
+    ],
+    srcs = ["a.cpp"],
+    version_script = select({
+        "//build/bazel/platforms:android_arm": "android_arm.map",
+        "//build/bazel/platforms:linux_bionic_arm64": "linux_bionic_arm64.map",
+        "//conditions:default": None,
+    }),
+)`},
+	})
+}
