@@ -307,19 +307,19 @@ var (
 	}
 
 	PlatformTargetMap = map[string]string{
-		TARGET_ANDROID_ARM:         "//build/bazel/platforms:android_arm",
-		TARGET_ANDROID_ARM64:       "//build/bazel/platforms:android_arm64",
-		TARGET_ANDROID_X86:         "//build/bazel/platforms:android_x86",
-		TARGET_ANDROID_X86_64:      "//build/bazel/platforms:android_x86_64",
-		TARGET_DARWIN_X86_64:       "//build/bazel/platforms:darwin_x86_64",
-		TARGET_FUCHSIA_ARM64:       "//build/bazel/platforms:fuchsia_arm64",
-		TARGET_FUCHSIA_X86_64:      "//build/bazel/platforms:fuchsia_x86_64",
-		TARGET_LINUX_X86:           "//build/bazel/platforms:linux_glibc_x86",
-		TARGET_LINUX_x86_64:        "//build/bazel/platforms:linux_glibc_x86_64",
-		TARGET_LINUX_BIONIC_ARM64:  "//build/bazel/platforms:linux_bionic_arm64",
-		TARGET_LINUX_BIONIC_X86_64: "//build/bazel/platforms:linux_bionic_x86_64",
-		TARGET_WINDOWS_X86:         "//build/bazel/platforms:windows_x86",
-		TARGET_WINDOWS_X86_64:      "//build/bazel/platforms:windows_x86_64",
+		TARGET_ANDROID_ARM:         "//build/bazel/platforms/os_arch:android_arm",
+		TARGET_ANDROID_ARM64:       "//build/bazel/platforms/os_arch:android_arm64",
+		TARGET_ANDROID_X86:         "//build/bazel/platforms/os_arch:android_x86",
+		TARGET_ANDROID_X86_64:      "//build/bazel/platforms/os_arch:android_x86_64",
+		TARGET_DARWIN_X86_64:       "//build/bazel/platforms/os_arch:darwin_x86_64",
+		TARGET_FUCHSIA_ARM64:       "//build/bazel/platforms/os_arch:fuchsia_arm64",
+		TARGET_FUCHSIA_X86_64:      "//build/bazel/platforms/os_arch:fuchsia_x86_64",
+		TARGET_LINUX_X86:           "//build/bazel/platforms/os_arch:linux_glibc_x86",
+		TARGET_LINUX_x86_64:        "//build/bazel/platforms/os_arch:linux_glibc_x86_64",
+		TARGET_LINUX_BIONIC_ARM64:  "//build/bazel/platforms/os_arch:linux_bionic_arm64",
+		TARGET_LINUX_BIONIC_X86_64: "//build/bazel/platforms/os_arch:linux_bionic_x86_64",
+		TARGET_WINDOWS_X86:         "//build/bazel/platforms/os_arch:windows_x86",
+		TARGET_WINDOWS_X86_64:      "//build/bazel/platforms/os_arch:windows_x86_64",
 		CONDITIONS_DEFAULT:         ConditionsDefaultSelectKey, // The default condition of an os select map.
 	}
 

@@ -266,6 +266,66 @@ func bp2buildParseStaticOrSharedProps(ctx android.TopDownMutatorContext, module 
 	return attrs
 }
 
+// Convenience struct to hold all attributes parsed from prebuilt properties.
+type prebuiltAttributes struct {
+	Src bazel.LabelAttribute
+}
+
+func Bp2BuildParsePrebuiltLibraryProps(ctx android.TopDownMutatorContext, module *Module) prebuiltAttributes {
+	prebuiltLibraryLinker := module.linker.(*prebuiltLibraryLinker)
+	prebuiltLinker := prebuiltLibraryLinker.prebuiltLinker
+
+	var srcLabelAttribute bazel.LabelAttribute
+
+	if len(prebuiltLinker.properties.Srcs) > 1 {
+		ctx.ModuleErrorf("Bp2BuildParsePrebuiltLibraryProps: Expected at most once source file\n")
+	}
+
+	if len(prebuiltLinker.properties.Srcs) == 1 {
+		srcLabelAttribute.Value = android.BazelLabelForModuleSrcSingle(ctx, prebuiltLinker.properties.Srcs[0])
+		for arch, props := range module.GetArchProperties(ctx, &prebuiltLinkerProperties{}) {
+			if prebuiltLinkerProperties, ok := props.(*prebuiltLinkerProperties); ok {
+				if len(prebuiltLinkerProperties.Srcs) > 1 {
+					ctx.ModuleErrorf("Bp2BuildParsePrebuiltLibraryProps: Expected at most once source file for arch %s\n", arch.Name)
+				}
+				if len(prebuiltLinkerProperties.Srcs) == 1 {
+					srcLabelAttribute.SetValueForArch(arch.Name, android.BazelLabelForModuleSrcSingle(ctx, prebuiltLinkerProperties.Srcs[0]))
+				}
+			}
+		}
+	}
+
+	for os, targetProperties := range module.GetTargetProperties(ctx, &prebuiltLinkerProperties{}) {
+		if prebuiltLinkerProperties, ok := targetProperties.Properties.(*prebuiltLinkerProperties); ok {
+			if len(prebuiltLinkerProperties.Srcs) > 1 {
+				ctx.ModuleErrorf("Bp2BuildParsePrebuiltLibraryProps: Expected at most once source file for os %s\n", os.Name)
+
+			}
+
+			if len(prebuiltLinkerProperties.Srcs) == 1 {
+				srcLabelAttribute.SetOsValueForTarget(os.Name, android.BazelLabelForModuleSrcSingle(ctx, prebuiltLinkerProperties.Srcs[0]))
+			}
+		}
+		for arch, archProperties := range targetProperties.ArchProperties {
+			if prebuiltLinkerProperties, ok := archProperties.(*prebuiltLinkerProperties); ok {
+				if len(prebuiltLinkerProperties.Srcs) > 1 {
+					ctx.ModuleErrorf("Bp2BuildParsePrebuiltLibraryProps: Expected at most once source file for os_arch %s_%s\n", os.Name, arch.Name)
+
+				}
+
+				if len(prebuiltLinkerProperties.Srcs) == 1 {
+					srcLabelAttribute.SetOsArchValueForTarget(os.Name, arch.Name, android.BazelLabelForModuleSrcSingle(ctx, prebuiltLinkerProperties.Srcs[0]))
+				}
+			}
+
+		}
+	}
+
+	return prebuiltAttributes{
+		Src: srcLabelAttribute,
+	}
+}
+
 // Convenience struct to hold all attributes parsed from compiler properties.
 type compilerAttributes struct {
 	// Options for all languages
@@ -633,11 +693,20 @@ func bp2BuildMakePathsRelativeToModule(ctx android.BazelConversionPathContext, p
 	return relativePaths
 }
 
-// bp2BuildParseExportedIncludes creates a string list attribute contains the
-// exported included directories of a module.
 func bp2BuildParseExportedIncludes(ctx android.TopDownMutatorContext, module *Module) bazel.StringListAttribute {
 	libraryDecorator := module.linker.(*libraryDecorator)
+	return bp2BuildParseExportedIncludesHelper(ctx, module, libraryDecorator)
+}
 
+func Bp2BuildParseExportedIncludesForPrebuiltLibrary(ctx android.TopDownMutatorContext, module *Module) bazel.StringListAttribute {
+	prebuiltLibraryLinker := module.linker.(*prebuiltLibraryLinker)
+	libraryDecorator := prebuiltLibraryLinker.libraryDecorator
+	return bp2BuildParseExportedIncludesHelper(ctx, module, libraryDecorator)
+}
+
+// bp2BuildParseExportedIncludes creates a string list attribute contains the
+// exported included directories of a module.
+func bp2BuildParseExportedIncludesHelper(ctx android.TopDownMutatorContext, module *Module, libraryDecorator *libraryDecorator) bazel.StringListAttribute {
 	// Export_system_include_dirs and export_include_dirs are already module dir
 	// relative, so they don't need to be relativized like include_dirs, which
 	// are root-relative.
