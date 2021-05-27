@@ -497,7 +497,7 @@ cc_library_static { name: "android_dep_for_shared" }
         "//build/bazel/platforms/os:android": ["-DANDROID_SHARED"],
         "//conditions:default": [],
     }) + select({
-        "//build/bazel/platforms:android_arm": ["-DANDROID_ARM_SHARED"],
+        "//build/bazel/platforms/os_arch:android_arm": ["-DANDROID_ARM_SHARED"],
         "//conditions:default": [],
     }),
     shared_srcs = ["sharedonly.cpp"] + select({
@@ -844,8 +844,8 @@ func TestCcLibraryLabelAttributeGetTargetProperties(t *testing.T) {
     ],
     srcs = ["a.cpp"],
     version_script = select({
-        "//build/bazel/platforms:android_arm": "android_arm.map",
-        "//build/bazel/platforms:linux_bionic_arm64": "linux_bionic_arm64.map",
+        "//build/bazel/platforms/os_arch:android_arm": "android_arm.map",
+        "//build/bazel/platforms/os_arch:linux_bionic_arm64": "linux_bionic_arm64.map",
         "//conditions:default": None,
     }),
 )`},
