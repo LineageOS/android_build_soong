@@ -1967,7 +1967,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.filesInfo = filesInfo
 
 	// Set suffix and primaryApexType depending on the ApexType
-	buildFlattenedAsDefault := ctx.Config().FlattenApex() && !ctx.Config().UnbundledBuildApps()
+	buildFlattenedAsDefault := ctx.Config().FlattenApex()
 	switch a.properties.ApexType {
 	case imageApex:
 		if buildFlattenedAsDefault {

@@ -1158,6 +1158,66 @@ cc_library_static {
 	})
 }
 
+func TestCcLibraryStaticGetTargetProperties(t *testing.T) {
+	runCcLibraryStaticTestCase(t, bp2buildTestCase{
+
+		description:                        "cc_library_static complex GetTargetProperties",
+		moduleTypeUnderTest:                "cc_library_static",
+		moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
+		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
+		depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
+		blueprint: soongCcLibraryStaticPreamble + `
+cc_library_static {
+    name: "foo_static",
+    target: {
+        android: {
+            srcs: ["android_src.c"],
+        },
+        android_arm: {
+            srcs: ["android_arm_src.c"],
+        },
+        android_arm64: {
+            srcs: ["android_arm64_src.c"],
+        },
+        android_x86: {
+            srcs: ["android_x86_src.c"],
+        },
+        android_x86_64: {
+            srcs: ["android_x86_64_src.c"],
+        },
+        linux_bionic_arm64: {
+            srcs: ["linux_bionic_arm64_src.c"],
+        },
+        linux_bionic_x86_64: {
+            srcs: ["linux_bionic_x86_64_src.c"],
+        },
+    },
+}`,
+		expectedBazelTargets: []string{`cc_library_static(
+    name = "foo_static",
+    copts = [
+        "-I.",
+        "-I$(BINDIR)/.",
+    ],
+    linkstatic = True,
+    srcs_c = select({
+        "//build/bazel/platforms/os:android": ["android_src.c"],
+        "//conditions:default": [],
+    }) + select({
+        "//build/bazel/platforms:android_arm": ["android_arm_src.c"],
+        "//build/bazel/platforms:android_arm64": ["android_arm64_src.c"],
+        "//build/bazel/platforms:android_x86": ["android_x86_src.c"],
+        "//build/bazel/platforms:android_x86_64": ["android_x86_64_src.c"],
+        "//conditions:default": [],
+    }) + select({
+        "//build/bazel/platforms:linux_bionic_arm64": ["linux_bionic_arm64_src.c"],
+        "//build/bazel/platforms:linux_bionic_x86_64": ["linux_bionic_x86_64_src.c"],
+        "//conditions:default": [],
+    }),
+)`},
+	})
+}
+
 func TestCcLibraryStaticProductVariableSelects(t *testing.T) {
 	runCcLibraryStaticTestCase(t, bp2buildTestCase{
 		description:                        "cc_library_static product variable selects",
