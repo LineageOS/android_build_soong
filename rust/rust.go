@@ -808,7 +808,11 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 
 	// Differentiate static libraries that are vendor available
 	if mod.UseVndk() {
-		mod.Properties.SubName += cc.VendorSuffix
+		if mod.InProduct() && !mod.OnlyInProduct() {
+			mod.Properties.SubName += cc.ProductSuffix
+		} else {
+			mod.Properties.SubName += cc.VendorSuffix
+		}
 	} else if mod.InVendorRamdisk() && !mod.OnlyInVendorRamdisk() {
 		mod.Properties.SubName += cc.VendorRamdiskSuffix
 	} else if mod.InRecovery() && !mod.OnlyInRecovery() {

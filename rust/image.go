@@ -34,7 +34,7 @@ func (mod *Module) OdmAvailable() bool {
 }
 
 func (mod *Module) ProductAvailable() bool {
-	return false
+	return Bool(mod.VendorProperties.Product_available)
 }
 
 func (mod *Module) RamdiskAvailable() bool {
@@ -163,6 +163,11 @@ func (mod *Module) OnlyInVendorRamdisk() bool {
 	return false
 }
 
+func (mod *Module) OnlyInProduct() bool {
+	//TODO(b/165791368)
+	return false
+}
+
 // Returns true when this module is configured to have core and vendor variants.
 func (mod *Module) HasVendorVariant() bool {
 	return Bool(mod.VendorProperties.Vendor_available) || Bool(mod.VendorProperties.Odm_available)
@@ -178,7 +183,7 @@ func (mod *Module) HasNonSystemVariants() bool {
 }
 
 func (mod *Module) InProduct() bool {
-	return false
+	return mod.Properties.ImageVariationPrefix == cc.ProductVariationPrefix
 }
 
 // Returns true if the module is "vendor" variant. Usually these modules are installed in /vendor
@@ -203,6 +208,9 @@ func (mod *Module) SetImageVariation(ctx android.BaseModuleContext, variant stri
 			m.Properties.HideFromMake = true
 			m.HideFromMake()
 		}
+	} else if strings.HasPrefix(variant, cc.ProductVariationPrefix) {
+		m.Properties.ImageVariationPrefix = cc.ProductVariationPrefix
+		m.Properties.VndkVersion = strings.TrimPrefix(variant, cc.ProductVariationPrefix)
 	}
 }
 
@@ -210,10 +218,7 @@ func (mod *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 	// Rust does not support installing to the product image yet.
 	vendorSpecific := mctx.SocSpecific() || mctx.DeviceSpecific()
 
-	if Bool(mod.VendorProperties.Product_available) {
-		mctx.PropertyErrorf("product_available",
-			"Rust modules do not yet support being available to the product image")
-	} else if mctx.ProductSpecific() {
+	if mctx.ProductSpecific() {
 		mctx.PropertyErrorf("product_specific",
 			"Rust modules do not yet support installing to the product image.")
 	} else if Bool(mod.VendorProperties.Double_loadable) {
