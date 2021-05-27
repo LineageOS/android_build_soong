@@ -117,19 +117,6 @@ func (i ApexInfo) InApexVariant(apexVariant string) bool {
 	return false
 }
 
-// InApexByBaseName tells whether this apex variant of the module is part of the given apexVariant
-// or not, where the APEX is specified by its canonical base name, i.e. typically beginning with
-// "com.android.". In particular this function doesn't differentiate between source and prebuilt
-// APEXes, where the latter may have "prebuilt_" prefixes.
-func (i ApexInfo) InApexVariantByBaseName(apexVariant string) bool {
-	for _, a := range i.InApexVariants {
-		if RemoveOptionalPrebuiltPrefix(a) == apexVariant {
-			return true
-		}
-	}
-	return false
-}
-
 func (i ApexInfo) InApexModule(apexModuleName string) bool {
 	for _, a := range i.InApexModules {
 		if a == apexModuleName {
