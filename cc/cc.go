@@ -729,12 +729,6 @@ var (
 	llndkStubDepTag       = dependencyTag{name: "llndk stub"}
 )
 
-type copyDirectlyInAnyApexDependencyTag dependencyTag
-
-func (copyDirectlyInAnyApexDependencyTag) CopyDirectlyInAnyApex() {}
-
-var _ android.CopyDirectlyInAnyApexTag = copyDirectlyInAnyApexDependencyTag{}
-
 func IsSharedDepTag(depTag blueprint.DependencyTag) bool {
 	ccLibDepTag, ok := depTag.(libraryDependencyTag)
 	return ok && ccLibDepTag.shared()
