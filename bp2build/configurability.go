@@ -60,19 +60,67 @@ func getStringListValues(list bazel.StringListAttribute) (reflect.Value, []selec
 }
 
 func getLabelValue(label bazel.LabelAttribute) (reflect.Value, []selects) {
-	var value reflect.Value
-	var archSelects selects
-
-	if label.HasConfigurableValues() {
-		archSelects = map[string]reflect.Value{}
-		for arch, selectKey := range bazel.PlatformArchMap {
-			archSelects[selectKey] = reflect.ValueOf(label.GetValueForArch(arch))
-		}
-	} else {
-		value = reflect.ValueOf(label.Value)
+	value := reflect.ValueOf(label.Value)
+	if !label.HasConfigurableValues() {
+		return value, []selects{}
 	}
 
-	return value, []selects{archSelects}
+	// Keep track of which arches and oses have been used in case we need to raise a warning
+	usedArches := make(map[string]bool)
+	usedOses := make(map[string]bool)
+
+	archSelects := map[string]reflect.Value{}
+	for arch, selectKey := range bazel.PlatformArchMap {
+		archSelects[selectKey] = reflect.ValueOf(label.GetValueForArch(arch))
+		if archSelects[selectKey].IsValid() && !isZero(archSelects[selectKey]) {
+			usedArches[arch] = true
+		}
+	}
+
+	osSelects := map[string]reflect.Value{}
+	for _, os := range android.SortedStringKeys(bazel.PlatformOsMap) {
+		selectKey := bazel.PlatformOsMap[os]
+		osSelects[selectKey] = reflect.ValueOf(label.GetOsValueForTarget(os))
+		if osSelects[selectKey].IsValid() && !isZero(osSelects[selectKey]) {
+			usedOses[os] = true
+		}
+	}
+
+	osArchSelects := make([]selects, 0)
+	for _, os := range android.SortedStringKeys(bazel.PlatformOsMap) {
+		archSelects := make(map[string]reflect.Value)
+		// TODO(b/187530594): Should we also check arch=CONDITIONS_DEFAULT? (not in AllArches)
+		for _, arch := range bazel.AllArches {
+			target := os + "_" + arch
+			selectKey := bazel.PlatformTargetMap[target]
+			archSelects[selectKey] = reflect.ValueOf(label.GetOsArchValueForTarget(os, arch))
+			if archSelects[selectKey].IsValid() && !isZero(archSelects[selectKey]) {
+				if _, ok := usedArches[arch]; ok {
+					fmt.Printf("WARNING: Same arch used twice in LabelAttribute select: arch '%s'\n", arch)
+				}
+				if _, ok := usedOses[os]; ok {
+					fmt.Printf("WARNING: Same os used twice in LabelAttribute select: os '%s'\n", os)
+				}
+			}
+		}
+		osArchSelects = append(osArchSelects, archSelects)
+	}
+
+	// Because we have to return a single Label, we can only use one select statement
+	combinedSelects := map[string]reflect.Value{}
+	for k, v := range archSelects {
+		combinedSelects[k] = v
+	}
+	for k, v := range osSelects {
+		combinedSelects[k] = v
+	}
+	for _, osArchSelect := range osArchSelects {
+		for k, v := range osArchSelect {
+			combinedSelects[k] = v
+		}
+	}
+
+	return value, []selects{combinedSelects}
 }
 
 func getLabelListValues(list bazel.LabelListAttribute) (reflect.Value, []selects) {
