@@ -384,7 +384,6 @@ type labelListArchValues struct {
 	X86_64 LabelList
 	Arm    LabelList
 	Arm64  LabelList
-	Common LabelList
 
 	ConditionsDefault LabelList
 }
@@ -630,7 +629,6 @@ type stringListArchValues struct {
 	X86_64 []string
 	Arm    []string
 	Arm64  []string
-	Common []string
 
 	ConditionsDefault []string
 }
