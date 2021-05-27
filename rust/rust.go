@@ -766,6 +766,10 @@ func (ctx *baseModuleContext) toolchain() config.Toolchain {
 }
 
 func (mod *Module) nativeCoverage() bool {
+	// Bug: http://b/137883967 - native-bridge modules do not currently work with coverage
+	if mod.Target().NativeBridge == android.NativeBridgeEnabled {
+		return false
+	}
 	return mod.compiler != nil && mod.compiler.nativeCoverage()
 }
 
@@ -817,6 +821,10 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		mod.Properties.SubName += cc.VendorRamdiskSuffix
 	} else if mod.InRecovery() && !mod.OnlyInRecovery() {
 		mod.Properties.SubName += cc.RecoverySuffix
+	}
+
+	if mod.Target().NativeBridge == android.NativeBridgeEnabled {
+		mod.Properties.SubName += cc.NativeBridgeSuffix
 	}
 
 	if !toolchain.Supported() {

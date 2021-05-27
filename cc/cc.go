@@ -1652,7 +1652,7 @@ func (c *Module) setSubnameProperty(actx android.ModuleContext) {
 	c.Properties.SubName = ""
 
 	if c.Target().NativeBridge == android.NativeBridgeEnabled {
-		c.Properties.SubName += nativeBridgeSuffix
+		c.Properties.SubName += NativeBridgeSuffix
 	}
 
 	llndk := c.IsLlndk()
@@ -3035,7 +3035,7 @@ func MakeLibName(ctx android.ModuleContext, c LinkableInterface, ccDep LinkableI
 	} else if ccDep.InRecovery() && !ccDep.OnlyInRecovery() {
 		return libName + RecoverySuffix
 	} else if ccDep.Target().NativeBridge == android.NativeBridgeEnabled {
-		return libName + nativeBridgeSuffix
+		return libName + NativeBridgeSuffix
 	} else {
 		return libName
 	}
