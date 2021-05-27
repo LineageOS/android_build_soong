@@ -140,7 +140,6 @@ func SubtractStrings(haystack []string, needle []string) []string {
 // Return all needles in a given haystack, where needleFn is true for needles.
 func FilterLabelList(haystack LabelList, needleFn func(string) bool) LabelList {
 	var includes []Label
-
 	for _, inc := range haystack.Includes {
 		if needleFn(inc.Label) {
 			includes = append(includes, inc)
