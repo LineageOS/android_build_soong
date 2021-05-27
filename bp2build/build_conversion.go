@@ -568,6 +568,9 @@ func isZero(value reflect.Value) bool {
 			return true
 		}
 	default:
+		if !value.IsValid() {
+			return true
+		}
 		zeroValue := reflect.Zero(value.Type())
 		result := value.Interface() == zeroValue.Interface()
 		return result
