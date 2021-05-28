@@ -140,7 +140,6 @@ func SubtractStrings(haystack []string, needle []string) []string {
 // Return all needles in a given haystack, where needleFn is true for needles.
 func FilterLabelList(haystack LabelList, needleFn func(string) bool) LabelList {
 	var includes []Label
-
 	for _, inc := range haystack.Includes {
 		if needleFn(inc.Label) {
 			includes = append(includes, inc)
@@ -332,49 +331,174 @@ type Attribute interface {
 	HasConfigurableValues() bool
 }
 
-// Represents an attribute whose value is a single label
-type LabelAttribute struct {
-	Value  Label
+type labelArchValues struct {
 	X86    Label
 	X86_64 Label
 	Arm    Label
 	Arm64  Label
+
+	ConditionsDefault Label
+}
+
+type labelTargetValue struct {
+	// E.g. for android
+	OsValue Label
+
+	// E.g. for android_arm, android_arm64, ...
+	ArchValues labelArchValues
+}
+
+type labelTargetValues struct {
+	Android     labelTargetValue
+	Darwin      labelTargetValue
+	Fuchsia     labelTargetValue
+	Linux       labelTargetValue
+	LinuxBionic labelTargetValue
+	Windows     labelTargetValue
+
+	ConditionsDefault labelTargetValue
+}
+
+// Represents an attribute whose value is a single label
+type LabelAttribute struct {
+	Value Label
+
+	ArchValues labelArchValues
+
+	TargetValues labelTargetValues
 }
 
 func (attr *LabelAttribute) GetValueForArch(arch string) Label {
-	switch arch {
-	case ARCH_ARM:
-		return attr.Arm
-	case ARCH_ARM64:
-		return attr.Arm64
-	case ARCH_X86:
-		return attr.X86
-	case ARCH_X86_64:
-		return attr.X86_64
-	case CONDITIONS_DEFAULT:
-		return attr.Value
-	default:
-		panic("Invalid arch type")
+	var v *Label
+	if v = attr.archValuePtrs()[arch]; v == nil {
+		panic(fmt.Errorf("Unknown arch: %s", arch))
 	}
+	return *v
 }
 
 func (attr *LabelAttribute) SetValueForArch(arch string, value Label) {
-	switch arch {
-	case ARCH_ARM:
-		attr.Arm = value
-	case ARCH_ARM64:
-		attr.Arm64 = value
-	case ARCH_X86:
-		attr.X86 = value
-	case ARCH_X86_64:
-		attr.X86_64 = value
-	default:
-		panic("Invalid arch type")
+	var v *Label
+	if v = attr.archValuePtrs()[arch]; v == nil {
+		panic(fmt.Errorf("Unknown arch: %s", arch))
+	}
+	*v = value
+}
+
+func (attr *LabelAttribute) archValuePtrs() map[string]*Label {
+	return map[string]*Label{
+		ARCH_X86:           &attr.ArchValues.X86,
+		ARCH_X86_64:        &attr.ArchValues.X86_64,
+		ARCH_ARM:           &attr.ArchValues.Arm,
+		ARCH_ARM64:         &attr.ArchValues.Arm64,
+		CONDITIONS_DEFAULT: &attr.ArchValues.ConditionsDefault,
 	}
 }
 
 func (attr LabelAttribute) HasConfigurableValues() bool {
-	return attr.Arm.Label != "" || attr.Arm64.Label != "" || attr.X86.Label != "" || attr.X86_64.Label != ""
+	for arch := range PlatformArchMap {
+		if attr.GetValueForArch(arch).Label != "" {
+			return true
+		}
+	}
+
+	for os := range PlatformOsMap {
+		if attr.GetOsValueForTarget(os).Label != "" {
+			return true
+		}
+		// TODO(b/187530594): Should we also check arch=CONDITIONS_DEFAULT (not in AllArches)
+		for _, arch := range AllArches {
+			if attr.GetOsArchValueForTarget(os, arch).Label != "" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (attr *LabelAttribute) getValueForTarget(os string) labelTargetValue {
+	var v *labelTargetValue
+	if v = attr.targetValuePtrs()[os]; v == nil {
+		panic(fmt.Errorf("Unknown os: %s", os))
+	}
+	return *v
+}
+
+func (attr *LabelAttribute) GetOsValueForTarget(os string) Label {
+	var v *labelTargetValue
+	if v = attr.targetValuePtrs()[os]; v == nil {
+		panic(fmt.Errorf("Unknown os: %s", os))
+	}
+	return v.OsValue
+}
+
+func (attr *LabelAttribute) GetOsArchValueForTarget(os string, arch string) Label {
+	var v *labelTargetValue
+	if v = attr.targetValuePtrs()[os]; v == nil {
+		panic(fmt.Errorf("Unknown os: %s", os))
+	}
+	switch arch {
+	case ARCH_X86:
+		return v.ArchValues.X86
+	case ARCH_X86_64:
+		return v.ArchValues.X86_64
+	case ARCH_ARM:
+		return v.ArchValues.Arm
+	case ARCH_ARM64:
+		return v.ArchValues.Arm64
+	case CONDITIONS_DEFAULT:
+		return v.ArchValues.ConditionsDefault
+	default:
+		panic(fmt.Errorf("Unknown arch: %s\n", arch))
+	}
+}
+
+func (attr *LabelAttribute) setValueForTarget(os string, value labelTargetValue) {
+	var v *labelTargetValue
+	if v = attr.targetValuePtrs()[os]; v == nil {
+		panic(fmt.Errorf("Unknown os: %s", os))
+	}
+	*v = value
+}
+
+func (attr *LabelAttribute) SetOsValueForTarget(os string, value Label) {
+	var v *labelTargetValue
+	if v = attr.targetValuePtrs()[os]; v == nil {
+		panic(fmt.Errorf("Unknown os: %s", os))
+	}
+	v.OsValue = value
+}
+
+func (attr *LabelAttribute) SetOsArchValueForTarget(os string, arch string, value Label) {
+	var v *labelTargetValue
+	if v = attr.targetValuePtrs()[os]; v == nil {
+		panic(fmt.Errorf("Unknown os: %s", os))
+	}
+	switch arch {
+	case ARCH_X86:
+		v.ArchValues.X86 = value
+	case ARCH_X86_64:
+		v.ArchValues.X86_64 = value
+	case ARCH_ARM:
+		v.ArchValues.Arm = value
+	case ARCH_ARM64:
+		v.ArchValues.Arm64 = value
+	case CONDITIONS_DEFAULT:
+		v.ArchValues.ConditionsDefault = value
+	default:
+		panic(fmt.Errorf("Unknown arch: %s\n", arch))
+	}
+}
+
+func (attr *LabelAttribute) targetValuePtrs() map[string]*labelTargetValue {
+	return map[string]*labelTargetValue{
+		OS_ANDROID:         &attr.TargetValues.Android,
+		OS_DARWIN:          &attr.TargetValues.Darwin,
+		OS_FUCHSIA:         &attr.TargetValues.Fuchsia,
+		OS_LINUX:           &attr.TargetValues.Linux,
+		OS_LINUX_BIONIC:    &attr.TargetValues.LinuxBionic,
+		OS_WINDOWS:         &attr.TargetValues.Windows,
+		CONDITIONS_DEFAULT: &attr.TargetValues.ConditionsDefault,
+	}
 }
 
 // Arch-specific label_list typed Bazel attribute values. This should correspond
@@ -384,7 +508,6 @@ type labelListArchValues struct {
 	X86_64 LabelList
 	Arm    LabelList
 	Arm64  LabelList
-	Common LabelList
 
 	ConditionsDefault LabelList
 }
@@ -630,7 +753,6 @@ type stringListArchValues struct {
 	X86_64 []string
 	Arm    []string
 	Arm64  []string
-	Common []string
 
 	ConditionsDefault []string
 }
