@@ -20,12 +20,12 @@ import (
 
 func (mod *Module) ExcludeFromVendorSnapshot() bool {
 	// TODO Rust does not yet support snapshotting
-	return true
+	return false
 }
 
 func (mod *Module) ExcludeFromRecoverySnapshot() bool {
 	// TODO Rust does not yet support snapshotting
-	return true
+	return false
 }
 
 func (mod *Module) IsSnapshotLibrary() bool {
