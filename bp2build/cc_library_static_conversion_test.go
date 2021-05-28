@@ -850,6 +850,84 @@ cc_library_static {
 	})
 }
 
+func TestCcLibraryStaticOneArchEmpty(t *testing.T) {
+	runCcLibraryStaticTestCase(t, bp2buildTestCase{
+		description:                        "cc_library_static one arch empty",
+		moduleTypeUnderTest:                "cc_library_static",
+		moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
+		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
+		depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
+		filesystem: map[string]string{
+			"common.cc":       "",
+			"foo-no-arm.cc":   "",
+			"foo-excluded.cc": "",
+		},
+		blueprint: soongCcLibraryStaticPreamble + `
+cc_library_static {
+    name: "foo_static",
+    srcs: ["common.cc", "foo-*.cc"],
+    exclude_srcs: ["foo-excluded.cc"],
+    arch: {
+        arm: { exclude_srcs: ["foo-no-arm.cc"] },
+    },
+}`,
+		expectedBazelTargets: []string{`cc_library_static(
+    name = "foo_static",
+    copts = [
+        "-I.",
+        "-I$(BINDIR)/.",
+    ],
+    linkstatic = True,
+    srcs = ["common.cc"] + select({
+        "//build/bazel/platforms/arch:arm": [],
+        "//conditions:default": ["foo-no-arm.cc"],
+    }),
+)`},
+	})
+}
+
+func TestCcLibraryStaticOneArchEmptyOtherSet(t *testing.T) {
+	runCcLibraryStaticTestCase(t, bp2buildTestCase{
+		description:                        "cc_library_static one arch empty other set",
+		moduleTypeUnderTest:                "cc_library_static",
+		moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
+		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
+		depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
+		filesystem: map[string]string{
+			"common.cc":       "",
+			"foo-no-arm.cc":   "",
+			"x86-only.cc":     "",
+			"foo-excluded.cc": "",
+		},
+		blueprint: soongCcLibraryStaticPreamble + `
+cc_library_static {
+    name: "foo_static",
+    srcs: ["common.cc", "foo-*.cc"],
+    exclude_srcs: ["foo-excluded.cc"],
+    arch: {
+        arm: { exclude_srcs: ["foo-no-arm.cc"] },
+        x86: { srcs: ["x86-only.cc"] },
+    },
+}`,
+		expectedBazelTargets: []string{`cc_library_static(
+    name = "foo_static",
+    copts = [
+        "-I.",
+        "-I$(BINDIR)/.",
+    ],
+    linkstatic = True,
+    srcs = ["common.cc"] + select({
+        "//build/bazel/platforms/arch:arm": [],
+        "//build/bazel/platforms/arch:x86": [
+            "foo-no-arm.cc",
+            "x86-only.cc",
+        ],
+        "//conditions:default": ["foo-no-arm.cc"],
+    }),
+)`},
+	})
+}
+
 func TestCcLibraryStaticMultipleDepSameName(t *testing.T) {
 	runCcLibraryStaticTestCase(t, bp2buildTestCase{
 		description:                        "cc_library_static multiple dep same name panic",
@@ -1204,14 +1282,14 @@ cc_library_static {
         "//build/bazel/platforms/os:android": ["android_src.c"],
         "//conditions:default": [],
     }) + select({
-        "//build/bazel/platforms:android_arm": ["android_arm_src.c"],
-        "//build/bazel/platforms:android_arm64": ["android_arm64_src.c"],
-        "//build/bazel/platforms:android_x86": ["android_x86_src.c"],
-        "//build/bazel/platforms:android_x86_64": ["android_x86_64_src.c"],
+        "//build/bazel/platforms/os_arch:android_arm": ["android_arm_src.c"],
+        "//build/bazel/platforms/os_arch:android_arm64": ["android_arm64_src.c"],
+        "//build/bazel/platforms/os_arch:android_x86": ["android_x86_src.c"],
+        "//build/bazel/platforms/os_arch:android_x86_64": ["android_x86_64_src.c"],
         "//conditions:default": [],
     }) + select({
-        "//build/bazel/platforms:linux_bionic_arm64": ["linux_bionic_arm64_src.c"],
-        "//build/bazel/platforms:linux_bionic_x86_64": ["linux_bionic_x86_64_src.c"],
+        "//build/bazel/platforms/os_arch:linux_bionic_arm64": ["linux_bionic_arm64_src.c"],
+        "//build/bazel/platforms/os_arch:linux_bionic_x86_64": ["linux_bionic_x86_64_src.c"],
         "//conditions:default": [],
     }),
 )`},
