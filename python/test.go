@@ -15,6 +15,8 @@
 package python
 
 import (
+	"github.com/google/blueprint/proptools"
+
 	"android/soong/android"
 	"android/soong/tradefed"
 )
@@ -102,6 +104,9 @@ func NewTest(hod android.HostOrDeviceSupported) *Module {
 	binary.pythonInstaller = NewPythonInstaller("nativetest", "nativetest64")
 
 	test := &testDecorator{binaryDecorator: binary}
+	if hod == android.HostSupportedNoCross && test.testProperties.Test_options.Unit_test == nil {
+		test.testProperties.Test_options.Unit_test = proptools.BoolPtr(true)
+	}
 
 	module.bootstrapper = test
 	module.installer = test
