@@ -227,10 +227,11 @@ func (p *prebuiltCommon) apexInfoMutator(mctx android.TopDownMutatorContext) {
 	})
 
 	// Create an ApexInfo for the prebuilt_apex.
+	apexVariationName := android.RemoveOptionalPrebuiltPrefix(mctx.ModuleName())
 	apexInfo := android.ApexInfo{
-		ApexVariationName: android.RemoveOptionalPrebuiltPrefix(mctx.ModuleName()),
-		InApexVariants:    []string{mctx.ModuleName()},
-		InApexModules:     []string{mctx.ModuleName()},
+		ApexVariationName: apexVariationName,
+		InApexVariants:    []string{apexVariationName},
+		InApexModules:     []string{apexVariationName},
 		ApexContents:      []*android.ApexContents{apexContents},
 		ForPrebuiltApex:   true,
 	}
