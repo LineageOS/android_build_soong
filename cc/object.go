@@ -157,8 +157,6 @@ func ObjectBp2Build(ctx android.TopDownMutatorContext) {
 
 	// Set arch-specific configurable attributes
 	compilerAttrs := bp2BuildParseCompilerProps(ctx, m)
-	var asFlags bazel.StringListAttribute
-
 	var deps bazel.LabelListAttribute
 	for _, props := range m.linker.linkerProps() {
 		if objectLinkerProps, ok := props.(*ObjectLinkerProperties); ok {
@@ -166,24 +164,6 @@ func ObjectBp2Build(ctx android.TopDownMutatorContext) {
 				android.BazelLabelForModuleDeps(ctx, objectLinkerProps.Objs))
 		}
 	}
-
-	productVariableProps := android.ProductVariableProperties(ctx)
-	if props, exists := productVariableProps["Asflags"]; exists {
-		// TODO(b/183595873): consider deduplicating handling of product variable properties
-		for _, prop := range props {
-			flags, ok := prop.Property.([]string)
-			if !ok {
-				ctx.ModuleErrorf("Could not convert product variable asflag property")
-				return
-			}
-			newFlags, _ := bazel.TryVariableSubstitutions(flags, prop.ProductConfigVariable)
-			asFlags.ProductValues = append(asFlags.ProductValues, bazel.ProductVariableValues{
-				ProductVariable: prop.ProductConfigVariable,
-				Values:          newFlags,
-			})
-		}
-	}
-	// TODO(b/183595872) warn/error if we're not handling product variables
 
 	// Don't split cc_object srcs across languages. Doing so would add complexity,
 	// and this isn't typically done for cc_object.
@@ -195,7 +175,7 @@ func ObjectBp2Build(ctx android.TopDownMutatorContext) {
 		Srcs:    srcs,
 		Deps:    deps,
 		Copts:   compilerAttrs.copts,
-		Asflags: asFlags,
+		Asflags: compilerAttrs.asFlags,
 	}
 
 	props := bazel.BazelTargetModuleProperties{
