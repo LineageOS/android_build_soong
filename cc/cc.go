@@ -726,7 +726,6 @@ var (
 	runtimeDepTag         = installDependencyTag{name: "runtime lib"}
 	testPerSrcDepTag      = dependencyTag{name: "test_per_src"}
 	stubImplDepTag        = dependencyTag{name: "stub_impl"}
-	llndkStubDepTag       = dependencyTag{name: "llndk stub"}
 )
 
 func IsSharedDepTag(depTag blueprint.DependencyTag) bool {
@@ -3238,8 +3237,8 @@ func (c *Module) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Modu
 			return false
 		}
 	}
-	if depTag == stubImplDepTag || depTag == llndkStubDepTag {
-		// We don't track beyond LLNDK or from an implementation library to its stubs.
+	if depTag == stubImplDepTag {
+		// We don't track from an implementation library to its stubs.
 		return false
 	}
 	if depTag == staticVariantTag {
