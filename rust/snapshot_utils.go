@@ -42,9 +42,8 @@ func (mod *Module) ExcludeFromRecoverySnapshot() bool {
 
 func (mod *Module) IsSnapshotLibrary() bool {
 	if lib, ok := mod.compiler.(libraryInterface); ok {
-		// Rust-native dylibs and rlibs are not snapshot supported yet, so only
-		// return true if this module produces a C shared or static library.
-		return lib.shared() || lib.static()
+		// Rust-native dylibs are not snapshot supported yet. Only snapshot the rlib-std variants of rlibs.
+		return lib.shared() || lib.static() || (lib.rlib() && lib.rlibStd())
 	}
 	return false
 }

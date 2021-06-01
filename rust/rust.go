@@ -1209,10 +1209,14 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	}
 
 	// rlibs
-	actx.AddVariationDependencies(
-		append(rlibDepVariations, []blueprint.Variation{
-			{Mutator: "rust_libraries", Variation: rlibVariation}}...),
-		rlibDepTag, deps.Rlibs...)
+	for _, lib := range deps.Rlibs {
+		depTag := rlibDepTag
+		lib = cc.RewriteSnapshotLib(lib, cc.GetSnapshot(mod, &snapshotInfo, actx).Rlibs)
+
+		actx.AddVariationDependencies(append(rlibDepVariations, []blueprint.Variation{
+			{Mutator: "rust_libraries", Variation: rlibVariation},
+		}...), depTag, lib)
+	}
 
 	// dylibs
 	actx.AddVariationDependencies(
@@ -1224,9 +1228,13 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	if deps.Rustlibs != nil && !mod.compiler.Disabled() {
 		autoDep := mod.compiler.(autoDeppable).autoDep(ctx)
 		if autoDep.depTag == rlibDepTag {
-			actx.AddVariationDependencies(
-				append(rlibDepVariations, blueprint.Variation{Mutator: "rust_libraries", Variation: autoDep.variation}),
-				autoDep.depTag, deps.Rustlibs...)
+			for _, lib := range deps.Rustlibs {
+				depTag := autoDep.depTag
+				lib = cc.RewriteSnapshotLib(lib, cc.GetSnapshot(mod, &snapshotInfo, actx).Rlibs)
+				actx.AddVariationDependencies(append(rlibDepVariations, []blueprint.Variation{
+					{Mutator: "rust_libraries", Variation: autoDep.variation},
+				}...), depTag, lib)
+			}
 		} else {
 			actx.AddVariationDependencies(
 				append(commonDepVariations, blueprint.Variation{Mutator: "rust_libraries", Variation: autoDep.variation}),
@@ -1237,9 +1245,13 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	// stdlibs
 	if deps.Stdlibs != nil {
 		if mod.compiler.stdLinkage(ctx) == RlibLinkage {
-			actx.AddVariationDependencies(
-				append(commonDepVariations, []blueprint.Variation{{Mutator: "rust_libraries", Variation: "rlib"}}...),
-				rlibDepTag, deps.Stdlibs...)
+			for _, lib := range deps.Stdlibs {
+				depTag := rlibDepTag
+				lib = cc.RewriteSnapshotLib(lib, cc.GetSnapshot(mod, &snapshotInfo, actx).Rlibs)
+
+				actx.AddVariationDependencies(append(commonDepVariations, []blueprint.Variation{{Mutator: "rust_libraries", Variation: "rlib"}}...),
+					depTag, lib)
+			}
 		} else {
 			actx.AddVariationDependencies(
 				append(commonDepVariations, blueprint.Variation{Mutator: "rust_libraries", Variation: "dylib"}),

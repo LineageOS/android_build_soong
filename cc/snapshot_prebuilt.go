@@ -120,6 +120,10 @@ func (vendorSnapshotImage) Init(ctx android.RegistrationContext) {
 	ctx.RegisterSingletonType("vendor-fake-snapshot", VendorFakeSnapshotSingleton)
 }
 
+func (vendorSnapshotImage) RegisterAdditionalModule(ctx android.RegistrationContext, name string, factory android.ModuleFactory) {
+	ctx.RegisterModuleType(name, factory)
+}
+
 func (vendorSnapshotImage) shouldGenerateSnapshot(ctx android.SingletonContext) bool {
 	// BOARD_VNDK_VERSION must be set to 'current' in order to generate a snapshot.
 	return ctx.DeviceConfig().VndkVersion() == "current"
@@ -268,12 +272,14 @@ const (
 	SnapshotStaticSuffix = "_static."
 	snapshotBinarySuffix = "_binary."
 	snapshotObjectSuffix = "_object."
+	SnapshotRlibSuffix   = "_rlib."
 )
 
 type SnapshotProperties struct {
 	Header_libs []string `android:"arch_variant"`
 	Static_libs []string `android:"arch_variant"`
 	Shared_libs []string `android:"arch_variant"`
+	Rlibs       []string `android:"arch_variant"`
 	Vndk_libs   []string `android:"arch_variant"`
 	Binaries    []string `android:"arch_variant"`
 	Objects     []string `android:"arch_variant"`
@@ -353,6 +359,7 @@ func (s *snapshot) DepsMutator(ctx android.BottomUpMutatorContext) {
 	objects := collectSnapshotMap(s.properties.Objects, snapshotSuffix, snapshotObjectSuffix)
 	staticLibs := collectSnapshotMap(s.properties.Static_libs, snapshotSuffix, SnapshotStaticSuffix)
 	sharedLibs := collectSnapshotMap(s.properties.Shared_libs, snapshotSuffix, SnapshotSharedSuffix)
+	rlibs := collectSnapshotMap(s.properties.Rlibs, snapshotSuffix, SnapshotRlibSuffix)
 	vndkLibs := collectSnapshotMap(s.properties.Vndk_libs, "", vndkSuffix)
 	for k, v := range vndkLibs {
 		sharedLibs[k] = v
@@ -364,11 +371,12 @@ func (s *snapshot) DepsMutator(ctx android.BottomUpMutatorContext) {
 		Objects:    objects,
 		StaticLibs: staticLibs,
 		SharedLibs: sharedLibs,
+		Rlibs:      rlibs,
 	})
 }
 
 type SnapshotInfo struct {
-	HeaderLibs, Binaries, Objects, StaticLibs, SharedLibs map[string]string
+	HeaderLibs, Binaries, Objects, StaticLibs, SharedLibs, Rlibs map[string]string
 }
 
 var SnapshotInfoProvider = blueprint.NewMutatorProvider(SnapshotInfo{}, "deps")

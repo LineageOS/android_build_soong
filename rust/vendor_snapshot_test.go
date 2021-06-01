@@ -17,6 +17,7 @@ package rust
 import (
 	"fmt"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -27,10 +28,34 @@ import (
 func TestVendorSnapshotCapture(t *testing.T) {
 	bp := `
 	rust_ffi {
+		name: "libffivendor_available",
+		crate_name: "ffivendor_available",
+		srcs: ["lib.rs"],
+		vendor_available: true,
+		include_dirs: ["rust_headers/"],
+	}
+
+	rust_ffi {
+		name: "libffivendor",
+		crate_name: "ffivendor",
+		srcs: ["lib.rs"],
+		vendor: true,
+		include_dirs: ["rust_headers/"],
+	}
+
+	rust_library {
 		name: "librustvendor_available",
 		crate_name: "rustvendor_available",
 		srcs: ["lib.rs"],
 		vendor_available: true,
+		include_dirs: ["rust_headers/"],
+	}
+
+	rust_library_rlib {
+		name: "librustvendor",
+		crate_name: "rustvendor",
+		srcs: ["lib.rs"],
+		vendor: true,
 		include_dirs: ["rust_headers/"],
 	}
 
@@ -40,7 +65,12 @@ func TestVendorSnapshotCapture(t *testing.T) {
 		srcs: ["srcs/lib.rs"],
 	}
 
-`
+	rust_binary {
+		name: "vendor_bin",
+		vendor: true,
+		srcs: ["srcs/lib.rs"],
+	}
+    `
 	skipTestIfOsNotSupported(t)
 	result := android.GroupFixturePreparers(
 		prepareForRustTest,
@@ -71,24 +101,40 @@ func TestVendorSnapshotCapture(t *testing.T) {
 		// For shared libraries, only non-VNDK vendor_available modules are captured
 		sharedVariant := fmt.Sprintf("android_vendor.29_%s_%s_shared", archType, archVariant)
 		sharedDir := filepath.Join(snapshotVariantPath, archDir, "shared")
-		cc.CheckSnapshot(t, ctx, snapshotSingleton, "librustvendor_available", "librustvendor_available.so", sharedDir, sharedVariant)
+		cc.CheckSnapshot(t, ctx, snapshotSingleton, "libffivendor_available", "libffivendor_available.so", sharedDir, sharedVariant)
 		jsonFiles = append(jsonFiles,
-			filepath.Join(sharedDir, "librustvendor_available.so.json"))
+			filepath.Join(sharedDir, "libffivendor_available.so.json"))
 
 		// For static libraries, all vendor:true and vendor_available modules (including VNDK) are captured.
 		staticVariant := fmt.Sprintf("android_vendor.29_%s_%s_static", archType, archVariant)
 		staticDir := filepath.Join(snapshotVariantPath, archDir, "static")
-		cc.CheckSnapshot(t, ctx, snapshotSingleton, "librustvendor_available", "librustvendor_available.a", staticDir, staticVariant)
+		cc.CheckSnapshot(t, ctx, snapshotSingleton, "libffivendor_available", "libffivendor_available.a", staticDir, staticVariant)
+		cc.CheckSnapshot(t, ctx, snapshotSingleton, "libffivendor", "libffivendor.a", staticDir, staticVariant)
 		jsonFiles = append(jsonFiles,
-			filepath.Join(staticDir, "librustvendor_available.a.json"))
+			filepath.Join(staticDir, "libffivendor_available.a.json"))
+		jsonFiles = append(jsonFiles,
+			filepath.Join(staticDir, "libffivendor.a.json"))
 
-		// For binary executables, all vendor_available modules are captured.
+		// For rlib libraries, all vendor:true and vendor_available modules (including VNDK) are captured.
+		rlibVariant := fmt.Sprintf("android_vendor.29_%s_%s_rlib_rlib-std", archType, archVariant)
+		rlibDir := filepath.Join(snapshotVariantPath, archDir, "rlib")
+		cc.CheckSnapshot(t, ctx, snapshotSingleton, "librustvendor_available", "librustvendor_available.rlib", rlibDir, rlibVariant)
+		cc.CheckSnapshot(t, ctx, snapshotSingleton, "librustvendor", "librustvendor.rlib", rlibDir, rlibVariant)
+		jsonFiles = append(jsonFiles,
+			filepath.Join(rlibDir, "librustvendor_available.rlib.json"))
+		jsonFiles = append(jsonFiles,
+			filepath.Join(rlibDir, "librustvendor.rlib.json"))
+
+		// For binary executables, all vendor:true and vendor_available modules are captured.
 		if archType == "arm64" {
 			binaryVariant := fmt.Sprintf("android_vendor.29_%s_%s", archType, archVariant)
 			binaryDir := filepath.Join(snapshotVariantPath, archDir, "binary")
 			cc.CheckSnapshot(t, ctx, snapshotSingleton, "vendor_available_bin", "vendor_available_bin", binaryDir, binaryVariant)
+			cc.CheckSnapshot(t, ctx, snapshotSingleton, "vendor_bin", "vendor_bin", binaryDir, binaryVariant)
 			jsonFiles = append(jsonFiles,
 				filepath.Join(binaryDir, "vendor_available_bin.json"))
+			jsonFiles = append(jsonFiles,
+				filepath.Join(binaryDir, "vendor_bin.json"))
 		}
 	}
 
@@ -113,6 +159,13 @@ func TestVendorSnapshotCapture(t *testing.T) {
 func TestVendorSnapshotDirected(t *testing.T) {
 	bp := `
 	rust_ffi_shared {
+		name: "libffivendor_available",
+		crate_name: "ffivendor_available",
+		srcs: ["lib.rs"],
+		vendor_available: true,
+	}
+
+	rust_library {
 		name: "librustvendor_available",
 		crate_name: "rustvendor_available",
 		srcs: ["lib.rs"],
@@ -120,6 +173,13 @@ func TestVendorSnapshotDirected(t *testing.T) {
 	}
 
 	rust_ffi_shared {
+		name: "libffivendor_exclude",
+		crate_name: "ffivendor_exclude",
+		srcs: ["lib.rs"],
+		vendor_available: true,
+	}
+
+	rust_library {
 		name: "librustvendor_exclude",
 		crate_name: "rustvendor_exclude",
 		srcs: ["lib.rs"],
@@ -129,6 +189,7 @@ func TestVendorSnapshotDirected(t *testing.T) {
 	ctx := testRustVndk(t, bp)
 	ctx.Config().TestProductVariables.VendorSnapshotModules = make(map[string]bool)
 	ctx.Config().TestProductVariables.VendorSnapshotModules["librustvendor_available"] = true
+	ctx.Config().TestProductVariables.VendorSnapshotModules["libffivendor_available"] = true
 	ctx.Config().TestProductVariables.DirectedVendorSnapshot = true
 
 	// Check Vendor snapshot output.
@@ -148,16 +209,22 @@ func TestVendorSnapshotDirected(t *testing.T) {
 		archDir := fmt.Sprintf("arch-%s-%s", archType, archVariant)
 
 		sharedVariant := fmt.Sprintf("android_vendor.29_%s_%s_shared", archType, archVariant)
+		rlibVariant := fmt.Sprintf("android_vendor.29_%s_%s_rlib_rlib-std", archType, archVariant)
 		sharedDir := filepath.Join(snapshotVariantPath, archDir, "shared")
+		rlibDir := filepath.Join(snapshotVariantPath, archDir, "rlib")
 
 		// Included modules
-		cc.CheckSnapshot(t, ctx, snapshotSingleton, "librustvendor_available", "librustvendor_available.so", sharedDir, sharedVariant)
-		includeJsonFiles = append(includeJsonFiles, filepath.Join(sharedDir, "librustvendor_available.so.json"))
+		cc.CheckSnapshot(t, ctx, snapshotSingleton, "librustvendor_available", "librustvendor_available.rlib", rlibDir, rlibVariant)
+		cc.CheckSnapshot(t, ctx, snapshotSingleton, "libffivendor_available", "libffivendor_available.so", sharedDir, sharedVariant)
+		includeJsonFiles = append(includeJsonFiles, filepath.Join(rlibDir, "librustvendor_available.rlib.json"))
+		includeJsonFiles = append(includeJsonFiles, filepath.Join(sharedDir, "libffivendor_available.so.json"))
 
 		// Excluded modules. Modules not included in the directed vendor snapshot
 		// are still include as fake modules.
-		cc.CheckSnapshotRule(t, ctx, snapshotSingleton, "librustvendor_exclude", "librustvendor_exclude.so", sharedDir, sharedVariant)
-		includeJsonFiles = append(includeJsonFiles, filepath.Join(sharedDir, "librustvendor_exclude.so.json"))
+		cc.CheckSnapshotRule(t, ctx, snapshotSingleton, "librustvendor_exclude", "librustvendor_exclude.rlib", rlibDir, rlibVariant)
+		cc.CheckSnapshotRule(t, ctx, snapshotSingleton, "libffivendor_exclude", "libffivendor_exclude.so", sharedDir, sharedVariant)
+		includeJsonFiles = append(includeJsonFiles, filepath.Join(rlibDir, "librustvendor_exclude.rlib.json"))
+		includeJsonFiles = append(includeJsonFiles, filepath.Join(sharedDir, "libffivendor_exclude.so.json"))
 	}
 
 	// Verify that each json file for an included module has a rule.
@@ -176,10 +243,6 @@ func TestVendorSnapshotExclude(t *testing.T) {
 	// excluded in the vendor snapshot based on their path (framework or
 	// vendor) and the exclude_from_vendor_snapshot property.
 
-	// When vendor-specific Rust modules are available, make sure to test
-	// that they're excluded by path here. See cc.TestVendorSnapshotExclude
-	// for an example.
-
 	frameworkBp := `
 		rust_ffi_shared {
 			name: "libinclude",
@@ -192,13 +255,36 @@ func TestVendorSnapshotExclude(t *testing.T) {
 			name: "libexclude",
 			crate_name: "exclude",
 			srcs: ["exclude.rs"],
-			vendor_available: true,
+			vendor: true,
 			exclude_from_vendor_snapshot: true,
 		}
 
 		rust_ffi_shared {
 			name: "libavailable_exclude",
 			crate_name: "available_exclude",
+			srcs: ["lib.rs"],
+			vendor_available: true,
+			exclude_from_vendor_snapshot: true,
+		}
+
+		rust_library {
+			name: "librust_include",
+			crate_name: "rust_include",
+			srcs: ["include.rs"],
+			vendor_available: true,
+		}
+
+		rust_library_rlib {
+			name: "librust_exclude",
+			crate_name: "rust_exclude",
+			srcs: ["exclude.rs"],
+			vendor: true,
+			exclude_from_vendor_snapshot: true,
+		}
+
+		rust_library {
+			name: "librust_available_exclude",
+			crate_name: "rust_available_exclude",
 			srcs: ["lib.rs"],
 			vendor_available: true,
 			exclude_from_vendor_snapshot: true,
@@ -214,9 +300,13 @@ func TestVendorSnapshotExclude(t *testing.T) {
 	ctx := testRustVndkFs(t, "", mockFS)
 
 	// Test an include and exclude framework module.
-	cc.AssertExcludeFromVendorSnapshotIs(t, ctx, "libinclude", false, vendorVariant)
-	cc.AssertExcludeFromVendorSnapshotIs(t, ctx, "libexclude", true, vendorVariant)
-	cc.AssertExcludeFromVendorSnapshotIs(t, ctx, "libavailable_exclude", true, vendorVariant)
+	cc.AssertExcludeFromVendorSnapshotIs(t, ctx, "libinclude", false, sharedVendorVariant)
+	cc.AssertExcludeFromVendorSnapshotIs(t, ctx, "libexclude", true, sharedVendorVariant)
+	cc.AssertExcludeFromVendorSnapshotIs(t, ctx, "libavailable_exclude", true, sharedVendorVariant)
+
+	cc.AssertExcludeFromVendorSnapshotIs(t, ctx, "librust_include", false, rlibVendorVariant)
+	cc.AssertExcludeFromVendorSnapshotIs(t, ctx, "librust_exclude", true, rlibVendorVariant)
+	cc.AssertExcludeFromVendorSnapshotIs(t, ctx, "librust_available_exclude", true, rlibVendorVariant)
 
 	// Verify the content of the vendor snapshot.
 
@@ -237,16 +327,24 @@ func TestVendorSnapshotExclude(t *testing.T) {
 
 		sharedVariant := fmt.Sprintf("android_vendor.29_%s_%s_shared", archType, archVariant)
 		sharedDir := filepath.Join(snapshotVariantPath, archDir, "shared")
+		rlibVariant := fmt.Sprintf("android_vendor.29_%s_%s_rlib_rlib-std", archType, archVariant)
+		rlibDir := filepath.Join(snapshotVariantPath, archDir, "rlib")
 
 		// Included modules
 		cc.CheckSnapshot(t, ctx, snapshotSingleton, "libinclude", "libinclude.so", sharedDir, sharedVariant)
 		includeJsonFiles = append(includeJsonFiles, filepath.Join(sharedDir, "libinclude.so.json"))
+		cc.CheckSnapshot(t, ctx, snapshotSingleton, "librust_include", "librust_include.rlib", rlibDir, rlibVariant)
+		includeJsonFiles = append(includeJsonFiles, filepath.Join(rlibDir, "librust_include.rlib.json"))
 
 		// Excluded modules
 		cc.CheckSnapshotExclude(t, ctx, snapshotSingleton, "libexclude", "libexclude.so", sharedDir, sharedVariant)
 		excludeJsonFiles = append(excludeJsonFiles, filepath.Join(sharedDir, "libexclude.so.json"))
 		cc.CheckSnapshotExclude(t, ctx, snapshotSingleton, "libavailable_exclude", "libavailable_exclude.so", sharedDir, sharedVariant)
 		excludeJsonFiles = append(excludeJsonFiles, filepath.Join(sharedDir, "libavailable_exclude.so.json"))
+		cc.CheckSnapshotExclude(t, ctx, snapshotSingleton, "librust_exclude", "librust_exclude.rlib", rlibDir, rlibVariant)
+		excludeJsonFiles = append(excludeJsonFiles, filepath.Join(rlibDir, "librust_exclude.rlib.json"))
+		cc.CheckSnapshotExclude(t, ctx, snapshotSingleton, "librust_available_exclude", "librust_available_exclude.rlib", rlibDir, rlibVariant)
+		excludeJsonFiles = append(excludeJsonFiles, filepath.Join(rlibDir, "librust_available_exclude.rlib.json"))
 	}
 
 	// Verify that each json file for an included module has a rule.
@@ -261,5 +359,657 @@ func TestVendorSnapshotExclude(t *testing.T) {
 		if snapshotSingleton.MaybeOutput(jsonFile).Rule != nil {
 			t.Errorf("exclude json file %q found", jsonFile)
 		}
+	}
+}
+
+func TestVendorSnapshotUse(t *testing.T) {
+	frameworkBp := `
+	cc_library {
+		name: "libvndk",
+		vendor_available: true,
+		product_available: true,
+		vndk: {
+			enabled: true,
+		},
+		nocrt: true,
+	}
+
+	cc_library {
+		name: "libvendor",
+		vendor: true,
+		nocrt: true,
+		no_libcrt: true,
+		stl: "none",
+		system_shared_libs: [],
+	}
+
+	cc_library {
+		name: "libvendor_available",
+		vendor_available: true,
+		nocrt: true,
+		no_libcrt: true,
+		stl: "none",
+		system_shared_libs: [],
+	}
+
+	cc_library {
+		name: "lib32",
+		vendor: true,
+		nocrt: true,
+		no_libcrt: true,
+		stl: "none",
+		system_shared_libs: [],
+		compile_multilib: "32",
+	}
+
+	cc_library {
+		name: "lib64",
+		vendor: true,
+		nocrt: true,
+		no_libcrt: true,
+		stl: "none",
+		system_shared_libs: [],
+		compile_multilib: "64",
+	}
+
+	rust_binary {
+		name: "bin",
+		vendor: true,
+		srcs: ["bin.rs"],
+	}
+
+	rust_binary {
+		name: "bin32",
+		vendor: true,
+		compile_multilib: "32",
+		srcs: ["bin.rs"],
+	}
+`
+
+	vndkBp := `
+	vndk_prebuilt_shared {
+		name: "libvndk",
+		version: "30",
+		target_arch: "arm64",
+		vendor_available: true,
+		product_available: true,
+		vndk: {
+			enabled: true,
+		},
+		arch: {
+			arm64: {
+				srcs: ["libvndk.so"],
+				export_include_dirs: ["include/libvndk"],
+			},
+			arm: {
+				srcs: ["libvndk.so"],
+				export_include_dirs: ["include/libvndk"],
+			},
+		},
+	}
+
+	// old snapshot module which has to be ignored
+	vndk_prebuilt_shared {
+		name: "libvndk",
+		version: "26",
+		target_arch: "arm64",
+		vendor_available: true,
+		product_available: true,
+		vndk: {
+			enabled: true,
+		},
+		arch: {
+			arm64: {
+				srcs: ["libvndk.so"],
+				export_include_dirs: ["include/libvndk"],
+			},
+			arm: {
+				srcs: ["libvndk.so"],
+				export_include_dirs: ["include/libvndk"],
+			},
+		},
+	}
+
+	// different arch snapshot which has to be ignored
+	vndk_prebuilt_shared {
+		name: "libvndk",
+		version: "30",
+		target_arch: "arm",
+		vendor_available: true,
+		product_available: true,
+		vndk: {
+			enabled: true,
+		},
+		arch: {
+			arm: {
+				srcs: ["libvndk.so"],
+				export_include_dirs: ["include/libvndk"],
+			},
+		},
+	}
+`
+
+	vendorProprietaryBp := `
+	cc_library {
+		name: "libvendor_without_snapshot",
+		vendor: true,
+		nocrt: true,
+		no_libcrt: true,
+		stl: "none",
+		system_shared_libs: [],
+	}
+
+	rust_library {
+		name: "librust_vendor_available",
+		crate_name: "rust_vendor",
+		vendor_available: true,
+		srcs: ["client.rs"],
+	}
+
+	rust_ffi_shared {
+		name: "libclient",
+		crate_name: "client",
+		vendor: true,
+		shared_libs: ["libvndk", "libvendor_available"],
+		static_libs: ["libvendor", "libvendor_without_snapshot"],
+		rustlibs: ["librust_vendor_available"],
+		arch: {
+			arm64: {
+				shared_libs: ["lib64"],
+			},
+			arm: {
+				shared_libs: ["lib32"],
+			},
+		},
+		srcs: ["client.rs"],
+	}
+
+	rust_library_rlib {
+		name: "libclient_rust",
+		crate_name: "client_rust",
+		vendor: true,
+		shared_libs: ["libvndk", "libvendor_available"],
+		static_libs: ["libvendor", "libvendor_without_snapshot"],
+		rustlibs: ["librust_vendor_available"],
+		arch: {
+			arm64: {
+				shared_libs: ["lib64"],
+			},
+			arm: {
+				shared_libs: ["lib32"],
+			},
+		},
+		srcs: ["client.rs"],
+	}
+
+	rust_binary {
+		name: "bin_without_snapshot",
+		vendor: true,
+		static_libs: ["libvndk"],
+		srcs: ["bin.rs"],
+		rustlibs: ["librust_vendor_available"],
+	}
+
+	vendor_snapshot {
+		name: "vendor_snapshot",
+		version: "30",
+		arch: {
+			arm64: {
+				vndk_libs: [
+					"libvndk",
+				],
+				static_libs: [
+					"libvendor",
+					"libvndk",
+					"libclang_rt.builtins-aarch64-android",
+				],
+				shared_libs: [
+					"libvendor_available",
+					"lib64",
+				],
+				rlibs: [
+					"libstd",
+					"libtest",
+					"librust_vendor_available",
+				],
+				binaries: [
+					"bin",
+				],
+                objects: [
+				    "crtend_so",
+					"crtbegin_so",
+					"crtbegin_dynamic",
+					"crtend_android"
+				],
+			},
+			arm: {
+				vndk_libs: [
+					"libvndk",
+				],
+				static_libs: [
+					"libvendor",
+					"libvndk",
+					"libclang_rt.builtins-arm-android",
+				],
+				shared_libs: [
+					"libvendor_available",
+					"lib32",
+				],
+				rlibs: [
+					"libstd",
+					"libtest",
+					"librust_vendor_available",
+				],
+				binaries: [
+					"bin32",
+				],
+                objects: [
+				    "crtend_so",
+					"crtbegin_so",
+					"crtbegin_dynamic",
+					"crtend_android"
+				],
+
+			},
+		}
+	}
+
+	vendor_snapshot_object {
+		name: "crtend_so",
+		version: "30",
+		target_arch: "arm64",
+		vendor: true,
+		stl: "none",
+		crt: true,
+		arch: {
+			arm64: {
+				src: "crtend_so.o",
+			},
+			arm: {
+				src: "crtend_so.o",
+			},
+		},
+	}
+
+	vendor_snapshot_object {
+		name: "crtbegin_so",
+		version: "30",
+		target_arch: "arm64",
+		vendor: true,
+		stl: "none",
+		crt: true,
+		arch: {
+			arm64: {
+				src: "crtbegin_so.o",
+			},
+			arm: {
+				src: "crtbegin_so.o",
+			},
+		},
+	}
+
+	vendor_snapshot_rlib {
+		name: "libstd",
+		version: "30",
+		target_arch: "arm64",
+		vendor: true,
+		sysroot: true,
+		arch: {
+			arm64: {
+				src: "libstd.rlib",
+			},
+			arm: {
+				src: "libstd.rlib",
+			},
+		},
+	}
+
+	vendor_snapshot_rlib {
+		name: "libtest",
+		version: "30",
+		target_arch: "arm64",
+		vendor: true,
+		sysroot: true,
+		arch: {
+			arm64: {
+				src: "libtest.rlib",
+			},
+			arm: {
+				src: "libtest.rlib",
+			},
+		},
+	}
+
+	vendor_snapshot_rlib {
+		name: "librust_vendor_available",
+		version: "30",
+		target_arch: "arm64",
+		vendor: true,
+		arch: {
+			arm64: {
+				src: "librust_vendor_available.rlib",
+			},
+			arm: {
+				src: "librust_vendor_available.rlib",
+			},
+		},
+	}
+
+	vendor_snapshot_object {
+		name: "crtend_android",
+		version: "30",
+		target_arch: "arm64",
+		vendor: true,
+		stl: "none",
+		crt: true,
+		arch: {
+			arm64: {
+				src: "crtend_so.o",
+			},
+			arm: {
+				src: "crtend_so.o",
+			},
+		},
+	}
+
+	vendor_snapshot_object {
+		name: "crtbegin_dynamic",
+		version: "30",
+		target_arch: "arm64",
+		vendor: true,
+		stl: "none",
+		crt: true,
+		arch: {
+			arm64: {
+				src: "crtbegin_so.o",
+			},
+			arm: {
+				src: "crtbegin_so.o",
+			},
+		},
+	}
+
+	vendor_snapshot_static {
+		name: "libvndk",
+		version: "30",
+		target_arch: "arm64",
+		compile_multilib: "both",
+		vendor: true,
+		arch: {
+			arm64: {
+				src: "libvndk.a",
+			},
+			arm: {
+				src: "libvndk.a",
+			},
+		},
+		shared_libs: ["libvndk"],
+		export_shared_lib_headers: ["libvndk"],
+	}
+
+	vendor_snapshot_static {
+		name: "libclang_rt.builtins-aarch64-android",
+		version: "30",
+		target_arch: "arm64",
+		vendor: true,
+		arch: {
+			arm64: {
+				src: "libclang_rt.builtins-aarch64-android.a",
+			},
+		},
+    }
+
+    vendor_snapshot_static {
+		name: "libclang_rt.builtins-arm-android",
+		version: "30",
+		target_arch: "arm64",
+		vendor: true,
+		arch: {
+			arm: {
+				src: "libclang_rt.builtins-arm-android.a",
+			},
+		},
+    }
+
+	vendor_snapshot_shared {
+		name: "lib32",
+		version: "30",
+		target_arch: "arm64",
+		compile_multilib: "32",
+		vendor: true,
+		arch: {
+			arm: {
+				src: "lib32.so",
+			},
+		},
+	}
+
+	vendor_snapshot_shared {
+		name: "lib64",
+		version: "30",
+		target_arch: "arm64",
+		compile_multilib: "64",
+		vendor: true,
+		arch: {
+			arm64: {
+				src: "lib64.so",
+			},
+		},
+	}
+	vendor_snapshot_shared {
+		name: "liblog",
+		version: "30",
+		target_arch: "arm64",
+		compile_multilib: "64",
+		vendor: true,
+		arch: {
+			arm64: {
+				src: "liblog.so",
+			},
+		},
+	}
+
+	vendor_snapshot_static {
+		name: "libvendor",
+		version: "30",
+		target_arch: "arm64",
+		compile_multilib: "both",
+		vendor: true,
+		arch: {
+			arm64: {
+				src: "libvendor.a",
+				export_include_dirs: ["include/libvendor"],
+			},
+			arm: {
+				src: "libvendor.a",
+				export_include_dirs: ["include/libvendor"],
+			},
+		},
+	}
+
+	vendor_snapshot_shared {
+		name: "libvendor_available",
+		version: "30",
+		target_arch: "arm64",
+		compile_multilib: "both",
+		vendor: true,
+		arch: {
+			arm64: {
+				src: "libvendor_available.so",
+				export_include_dirs: ["include/libvendor"],
+			},
+			arm: {
+				src: "libvendor_available.so",
+				export_include_dirs: ["include/libvendor"],
+			},
+		},
+	}
+
+	vendor_snapshot_binary {
+		name: "bin",
+		version: "30",
+		target_arch: "arm64",
+		compile_multilib: "64",
+		vendor: true,
+		arch: {
+			arm64: {
+				src: "bin",
+			},
+		},
+	}
+
+	vendor_snapshot_binary {
+		name: "bin32",
+		version: "30",
+		target_arch: "arm64",
+		compile_multilib: "32",
+		vendor: true,
+		arch: {
+			arm: {
+				src: "bin32",
+			},
+		},
+	}
+
+	// old snapshot module which has to be ignored
+	vendor_snapshot_binary {
+		name: "bin",
+		version: "26",
+		target_arch: "arm64",
+		compile_multilib: "first",
+		vendor: true,
+		arch: {
+			arm64: {
+				src: "bin",
+			},
+		},
+	}
+
+	// different arch snapshot which has to be ignored
+	vendor_snapshot_binary {
+		name: "bin",
+		version: "30",
+		target_arch: "arm",
+		compile_multilib: "first",
+		vendor: true,
+		arch: {
+			arm64: {
+				src: "bin",
+			},
+		},
+	}
+`
+
+	mockFS := android.MockFS{
+		"framework/Android.bp":                          []byte(frameworkBp),
+		"framework/bin.rs":                              nil,
+		"vendor/Android.bp":                             []byte(vendorProprietaryBp),
+		"vendor/bin":                                    nil,
+		"vendor/bin32":                                  nil,
+		"vendor/bin.rs":                                 nil,
+		"vendor/client.rs":                              nil,
+		"vendor/include/libvndk/a.h":                    nil,
+		"vendor/include/libvendor/b.h":                  nil,
+		"vendor/libvndk.a":                              nil,
+		"vendor/libvendor.a":                            nil,
+		"vendor/libvendor.so":                           nil,
+		"vendor/lib32.so":                               nil,
+		"vendor/lib64.so":                               nil,
+		"vendor/liblog.so":                              nil,
+		"vendor/libstd.rlib":                            nil,
+		"vendor/libtest.rlib":                           nil,
+		"vendor/librust_vendor_available.rlib":          nil,
+		"vendor/crtbegin_so.o":                          nil,
+		"vendor/crtend_so.o":                            nil,
+		"vendor/libclang_rt.builtins-aarch64-android.a": nil,
+		"vendor/libclang_rt.builtins-arm-android.a":     nil,
+		"vndk/Android.bp":                               []byte(vndkBp),
+		"vndk/include/libvndk/a.h":                      nil,
+		"vndk/libvndk.so":                               nil,
+	}
+
+	sharedVariant := "android_vendor.30_arm64_armv8-a_shared"
+	rlibVariant := "android_vendor.30_arm64_armv8-a_rlib_rlib-std"
+	staticVariant := "android_vendor.30_arm64_armv8-a_static"
+	binaryVariant := "android_vendor.30_arm64_armv8-a"
+
+	shared32Variant := "android_vendor.30_arm_armv7-a-neon_shared"
+	binary32Variant := "android_vendor.30_arm_armv7-a-neon"
+
+	ctx := testRustVndkFsVersions(t, "", mockFS, "30", "current", "31")
+
+	// libclient uses libvndk.vndk.30.arm64, libvendor.vendor_static.30.arm64, libvendor_without_snapshot
+	libclientLdFlags := ctx.ModuleForTests("libclient", sharedVariant).Rule("rustc").Args["linkFlags"]
+	for _, input := range [][]string{
+		[]string{sharedVariant, "libvndk.vndk.30.arm64"},
+		[]string{staticVariant, "libvendor.vendor_static.30.arm64"},
+		[]string{staticVariant, "libvendor_without_snapshot"},
+	} {
+		outputPaths := cc.GetOutputPaths(ctx, input[0] /* variant */, []string{input[1]} /* module name */)
+		if !strings.Contains(libclientLdFlags, outputPaths[0].String()) {
+			t.Errorf("libflags for libclient must contain %#v, but was %#v", outputPaths[0], libclientLdFlags)
+		}
+	}
+
+	libclientAndroidMkSharedLibs := ctx.ModuleForTests("libclient", sharedVariant).Module().(*Module).Properties.AndroidMkSharedLibs
+	if g, w := libclientAndroidMkSharedLibs, []string{"libvndk.vendor", "libvendor_available.vendor", "lib64", "liblog.vendor", "libc.vendor", "libm.vendor", "libdl.vendor"}; !reflect.DeepEqual(g, w) {
+		t.Errorf("wanted libclient AndroidMkSharedLibs %q, got %q", w, g)
+	}
+
+	libclientAndroidMkStaticLibs := ctx.ModuleForTests("libclient", sharedVariant).Module().(*Module).Properties.AndroidMkStaticLibs
+	if g, w := libclientAndroidMkStaticLibs, []string{"libvendor", "libvendor_without_snapshot", "libclang_rt.builtins-aarch64-android.vendor"}; !reflect.DeepEqual(g, w) {
+		t.Errorf("wanted libclient AndroidMkStaticLibs %q, got %q", w, g)
+	}
+
+	libclientAndroidMkRlibs := ctx.ModuleForTests("libclient", sharedVariant).Module().(*Module).Properties.AndroidMkRlibs
+	if g, w := libclientAndroidMkRlibs, []string{"librust_vendor_available.vendor_rlib.30.arm64.rlib-std", "libstd.vendor_rlib.30.arm64", "libtest.vendor_rlib.30.arm64"}; !reflect.DeepEqual(g, w) {
+		t.Errorf("wanted libclient libclientAndroidMkRlibs %q, got %q", w, g)
+	}
+
+	libclientAndroidMkDylibs := ctx.ModuleForTests("libclient", sharedVariant).Module().(*Module).Properties.AndroidMkDylibs
+	if len(libclientAndroidMkDylibs) > 0 {
+		t.Errorf("wanted libclient libclientAndroidMkDylibs [], got %q", libclientAndroidMkDylibs)
+	}
+
+	libclient32AndroidMkSharedLibs := ctx.ModuleForTests("libclient", shared32Variant).Module().(*Module).Properties.AndroidMkSharedLibs
+	if g, w := libclient32AndroidMkSharedLibs, []string{"libvndk.vendor", "libvendor_available.vendor", "lib32", "liblog.vendor", "libc.vendor", "libm.vendor", "libdl.vendor"}; !reflect.DeepEqual(g, w) {
+		t.Errorf("wanted libclient32 AndroidMkSharedLibs %q, got %q", w, g)
+	}
+
+	libclientRustAndroidMkRlibs := ctx.ModuleForTests("libclient_rust", rlibVariant).Module().(*Module).Properties.AndroidMkRlibs
+	if g, w := libclientRustAndroidMkRlibs, []string{"librust_vendor_available.vendor_rlib.30.arm64.rlib-std", "libstd.vendor_rlib.30.arm64", "libtest.vendor_rlib.30.arm64"}; !reflect.DeepEqual(g, w) {
+		t.Errorf("wanted libclient libclientAndroidMkRlibs %q, got %q", w, g)
+	}
+
+	binWithoutSnapshotLdFlags := ctx.ModuleForTests("bin_without_snapshot", binaryVariant).Rule("rustc").Args["linkFlags"]
+	libVndkStaticOutputPaths := cc.GetOutputPaths(ctx, staticVariant, []string{"libvndk.vendor_static.30.arm64"})
+	if !strings.Contains(binWithoutSnapshotLdFlags, libVndkStaticOutputPaths[0].String()) {
+		t.Errorf("libflags for bin_without_snapshot must contain %#v, but was %#v",
+			libVndkStaticOutputPaths[0], binWithoutSnapshotLdFlags)
+	}
+
+	// bin is installed by bin.vendor_binary.30.arm64
+	ctx.ModuleForTests("bin.vendor_binary.30.arm64", binaryVariant).Output("bin")
+
+	// bin32 is installed by bin32.vendor_binary.30.arm64
+	ctx.ModuleForTests("bin32.vendor_binary.30.arm64", binary32Variant).Output("bin32")
+
+	// bin_without_snapshot is installed by bin_without_snapshot
+	ctx.ModuleForTests("bin_without_snapshot", binaryVariant).Output("bin_without_snapshot")
+
+	// libvendor, libvendor_available and bin don't have vendor.30 variant
+	libvendorVariants := ctx.ModuleVariantsForTests("libvendor")
+	if android.InList(sharedVariant, libvendorVariants) {
+		t.Errorf("libvendor must not have variant %#v, but it does", sharedVariant)
+	}
+
+	libvendorAvailableVariants := ctx.ModuleVariantsForTests("libvendor_available")
+	if android.InList(sharedVariant, libvendorAvailableVariants) {
+		t.Errorf("libvendor_available must not have variant %#v, but it does", sharedVariant)
+	}
+
+	binVariants := ctx.ModuleVariantsForTests("bin")
+	if android.InList(binaryVariant, binVariants) {
+		t.Errorf("bin must not have variant %#v, but it does", sharedVariant)
 	}
 }

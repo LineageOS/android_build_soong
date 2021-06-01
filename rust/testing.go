@@ -135,6 +135,9 @@ func GatherRequiredDepsForTest() string {
 			apex_available: ["//apex_available:platform", "//apex_available:anyapex"],
 			min_sdk_version: "29",
 			vendor_available: true,
+			llndk: {
+				symbol_file: "liblog.map.txt",
+			},
 		}
 		cc_library {
 			name: "libprotobuf-cpp-full",
@@ -245,4 +248,5 @@ func registerRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
 		ctx.BottomUp("rust_begin", BeginMutator).Parallel()
 	})
 	ctx.RegisterSingletonType("rust_project_generator", rustProjectGeneratorSingleton)
+	registerRustSnapshotModules(ctx)
 }

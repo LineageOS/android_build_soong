@@ -82,7 +82,12 @@ func (mod *Module) SetCoreVariantNeeded(b bool) {
 }
 
 func (mod *Module) SnapshotVersion(mctx android.BaseModuleContext) string {
-	panic("Rust modules do not support snapshotting: " + mod.BaseModuleName())
+	if snapshot, ok := mod.compiler.(cc.SnapshotInterface); ok {
+		return snapshot.Version()
+	} else {
+		mctx.ModuleErrorf("version is unknown for snapshot prebuilt")
+		return ""
+	}
 }
 
 func (mod *Module) VendorRamdiskVariantNeeded(ctx android.BaseModuleContext) bool {
@@ -110,7 +115,9 @@ func (mod *Module) ExtraImageVariations(android.BaseModuleContext) []string {
 }
 
 func (mod *Module) IsSnapshotPrebuilt() bool {
-	// Rust does not support prebuilts in its snapshots
+	if p, ok := mod.compiler.(cc.SnapshotInterface); ok {
+		return p.IsSnapshotPrebuilt()
+	}
 	return false
 }
 
@@ -220,7 +227,9 @@ func (mod *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 		}
 	}
 	if vendorSpecific {
-		mctx.PropertyErrorf("vendor", "Vendor-only non-rust_ffi Rust modules are not supported.")
+		if lib, ok := mod.compiler.(libraryInterface); ok && lib.buildDylib() {
+			mctx.PropertyErrorf("vendor", "Vendor-only dylibs are not yet supported, use rust_library_rlib.")
+		}
 	}
 
 	cc.MutateImage(mctx, mod)

@@ -124,7 +124,8 @@ type libraryInterface interface {
 	setStatic()
 	setSource()
 
-	// Set libstd linkage
+	// libstd linkage functions
+	rlibStd() bool
 	setRlibStd()
 	setDylibStd()
 
@@ -193,6 +194,10 @@ func (library *libraryDecorator) setDylib() {
 	library.MutatedProperties.VariantIsDylib = true
 	library.MutatedProperties.VariantIsStatic = false
 	library.MutatedProperties.VariantIsShared = false
+}
+
+func (library *libraryDecorator) rlibStd() bool {
+	return library.MutatedProperties.VariantIsStaticStd
 }
 
 func (library *libraryDecorator) setRlibStd() {
@@ -680,9 +685,10 @@ func LibstdMutator(mctx android.BottomUpMutatorContext) {
 				dylib := modules[1].(*Module)
 				rlib.compiler.(libraryInterface).setRlibStd()
 				dylib.compiler.(libraryInterface).setDylibStd()
-				if dylib.ModuleBase.ImageVariation().Variation == android.VendorRamdiskVariation {
+				if dylib.ModuleBase.ImageVariation().Variation == android.VendorRamdiskVariation ||
+					strings.HasPrefix(dylib.ModuleBase.ImageVariation().Variation, cc.VendorVariationPrefix) {
 					// TODO(b/165791368)
-					// Disable rlibs that link against dylib-std on vendor ramdisk variations until those dylib
+					// Disable rlibs that link against dylib-std on vendor and vendor ramdisk variations until those dylib
 					// variants are properly supported.
 					dylib.Disable()
 				}
