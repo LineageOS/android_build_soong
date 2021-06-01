@@ -838,3 +838,82 @@ func TestJavaSdkLibraryEnforce(t *testing.T) {
 		enforceJavaSdkLibraryCheck: true,
 	}, "")
 }
+
+func TestJavaSdkLibraryDist(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		PrepareForTestWithJavaBuildComponents,
+		PrepareForTestWithJavaDefaultModules,
+		PrepareForTestWithJavaSdkLibraryFiles,
+	).RunTestWithBp(t, `
+		java_sdk_library {
+			name: "sdklib_no_owner",
+			unsafe_ignore_missing_latest_api: true,
+			srcs: ["foo.java"],
+		}
+
+		java_sdk_library {
+			name: "sdklib_owner_foo",
+			unsafe_ignore_missing_latest_api: true,
+			srcs: ["foo.java"],
+			owner: "foo",
+		}
+
+		java_sdk_library {
+			name: "sdklib_stem_foo",
+			unsafe_ignore_missing_latest_api: true,
+			srcs: ["foo.java"],
+			dist_stem: "foo",
+		}
+
+		java_sdk_library {
+			name: "sdklib_core_lib",
+			unsafe_ignore_missing_latest_api: true,
+			srcs: ["foo.java"],
+			core_lib: true,
+		}
+	`)
+
+	type testCase struct {
+		module   string
+		distDir  string
+		distStem string
+	}
+	testCases := []testCase{
+		{
+			module:   "sdklib_no_owner",
+			distDir:  "apistubs/android/public",
+			distStem: "sdklib_no_owner.jar",
+		},
+		{
+			module:   "sdklib_owner_foo",
+			distDir:  "apistubs/foo/public",
+			distStem: "sdklib_owner_foo.jar",
+		},
+		{
+			module:   "sdklib_stem_foo",
+			distDir:  "apistubs/android/public",
+			distStem: "foo.jar",
+		},
+		{
+			module:   "sdklib_core_lib",
+			distDir:  "apistubs/core/public",
+			distStem: "sdklib_core_lib.jar",
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.module, func(t *testing.T) {
+			m := result.ModuleForTests(tt.module+".stubs", "android_common").Module().(*Library)
+			dists := m.Dists()
+			if len(dists) != 1 {
+				t.Fatalf("expected exactly 1 dist entry, got %d", len(dists))
+			}
+			if g, w := String(dists[0].Dir), tt.distDir; g != w {
+				t.Errorf("expected dist dir %q, got %q", w, g)
+			}
+			if g, w := String(dists[0].Dest), tt.distStem; g != w {
+				t.Errorf("expected dist stem %q, got %q", w, g)
+			}
+		})
+	}
+}
