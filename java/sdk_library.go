@@ -458,7 +458,7 @@ type sdkLibraryProperties struct {
 	Dist_stem *string
 
 	// The subdirectory for the artifacts that are copied to the dist directory.  If not specified
-	// then defaults to "android".  Should be set to "android" for anything that should be published
+	// then defaults to "unknown".  Should be set to "android" for anything that should be published
 	// in the public Android SDK.
 	Dist_group *string
 
@@ -1240,8 +1240,7 @@ func (module *SdkLibrary) distGroup() string {
 	if owner := module.ModuleBase.Owner(); owner != "" {
 		return owner
 	}
-	// TODO(b/186723288): Make this "unknown".
-	return "android"
+	return "unknown"
 }
 
 func (module *SdkLibrary) latestApiFilegroupName(apiScope *apiScope) string {

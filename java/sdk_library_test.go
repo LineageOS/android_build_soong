@@ -888,7 +888,7 @@ func TestJavaSdkLibraryDist(t *testing.T) {
 	testCases := []testCase{
 		{
 			module:   "sdklib_no_owner",
-			distDir:  "apistubs/android/public",
+			distDir:  "apistubs/unknown/public",
 			distStem: "sdklib_no_owner.jar",
 		},
 		{
@@ -903,7 +903,7 @@ func TestJavaSdkLibraryDist(t *testing.T) {
 		},
 		{
 			module:   "sdklib_stem_foo",
-			distDir:  "apistubs/android/public",
+			distDir:  "apistubs/unknown/public",
 			distStem: "foo.jar",
 		},
 		{
