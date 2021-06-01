@@ -204,7 +204,7 @@ func genWinMsg(ctx android.ModuleContext, srcFile android.Path, flags builderFla
 	headerFile := android.GenPathWithExt(ctx, "windmc", srcFile, "h")
 	rcFile := android.GenPathWithExt(ctx, "windmc", srcFile, "rc")
 
-	windmcCmd := gccCmd(flags.toolchain, "windmc")
+	windmcCmd := mingwCmd(flags.toolchain, "windmc")
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:           windmc,
