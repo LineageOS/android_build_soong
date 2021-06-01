@@ -709,6 +709,79 @@ func TestApexManifest(t *testing.T) {
 	}
 }
 
+func TestApexManifestMinSdkVersion(t *testing.T) {
+	ctx := testApex(t, `
+		apex_defaults {
+			name: "my_defaults",
+			key: "myapex.key",
+			product_specific: true,
+			file_contexts: ":my-file-contexts",
+			updatable: false,
+		}
+		apex {
+			name: "myapex_30",
+			min_sdk_version: "30",
+			defaults: ["my_defaults"],
+		}
+
+		apex {
+			name: "myapex_current",
+			min_sdk_version: "current",
+			defaults: ["my_defaults"],
+		}
+
+		apex {
+			name: "myapex_none",
+			defaults: ["my_defaults"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		filegroup {
+			name: "my-file-contexts",
+			srcs: ["product_specific_file_contexts"],
+		}
+	`, withFiles(map[string][]byte{
+		"product_specific_file_contexts": nil,
+	}), android.FixtureModifyProductVariables(
+		func(variables android.FixtureProductVariables) {
+			variables.Unbundled_build = proptools.BoolPtr(true)
+			variables.Always_use_prebuilt_sdks = proptools.BoolPtr(false)
+		}), android.FixtureMergeEnv(map[string]string{
+		"UNBUNDLED_BUILD_TARGET_SDK_WITH_API_FINGERPRINT": "true",
+	}))
+
+	testCases := []struct {
+		module        string
+		minSdkVersion string
+	}{
+		{
+			module:        "myapex_30",
+			minSdkVersion: "30",
+		},
+		{
+			module:        "myapex_current",
+			minSdkVersion: "Q.$$(cat out/soong/api_fingerprint.txt)",
+		},
+		{
+			module:        "myapex_none",
+			minSdkVersion: "Q.$$(cat out/soong/api_fingerprint.txt)",
+		},
+	}
+	for _, tc := range testCases {
+		module := ctx.ModuleForTests(tc.module, "android_common_"+tc.module+"_image")
+		args := module.Rule("apexRule").Args
+		optFlags := args["opt_flags"]
+		if !strings.Contains(optFlags, "--min_sdk_version "+tc.minSdkVersion) {
+			t.Errorf("%s: Expected min_sdk_version=%s, got: %s", tc.module, tc.minSdkVersion, optFlags)
+		}
+	}
+}
+
 func TestBasicZipApex(t *testing.T) {
 	ctx := testApex(t, `
 		apex {
