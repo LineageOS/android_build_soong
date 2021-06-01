@@ -602,6 +602,11 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 		// codename
 		if moduleMinSdkVersion.IsCurrent() || moduleMinSdkVersion.IsNone() {
 			minSdkVersion = ctx.Config().DefaultAppTargetSdk(ctx).String()
+
+			if java.UseApiFingerprint(ctx) {
+				minSdkVersion = ctx.Config().PlatformSdkCodename() + fmt.Sprintf(".$$(cat %s)", java.ApiFingerprintPath(ctx).String())
+				implicitInputs = append(implicitInputs, java.ApiFingerprintPath(ctx))
+			}
 		}
 		// apex module doesn't have a concept of target_sdk_version, hence for the time
 		// being targetSdkVersion == default targetSdkVersion of the branch.
@@ -609,10 +614,6 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 
 		if java.UseApiFingerprint(ctx) {
 			targetSdkVersion = ctx.Config().PlatformSdkCodename() + fmt.Sprintf(".$$(cat %s)", java.ApiFingerprintPath(ctx).String())
-			implicitInputs = append(implicitInputs, java.ApiFingerprintPath(ctx))
-		}
-		if java.UseApiFingerprint(ctx) {
-			minSdkVersion = ctx.Config().PlatformSdkCodename() + fmt.Sprintf(".$$(cat %s)", java.ApiFingerprintPath(ctx).String())
 			implicitInputs = append(implicitInputs, java.ApiFingerprintPath(ctx))
 		}
 		optFlags = append(optFlags, "--target_sdk_version "+targetSdkVersion)
