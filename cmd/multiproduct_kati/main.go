@@ -433,7 +433,7 @@ func buildProduct(mpctx *mpContext, product string) {
 	config := build.NewConfig(ctx, args...)
 	config.Environment().Set("OUT_DIR", outDir)
 	if !*keepArtifacts {
-		config.Environment().Set("EMPTY_NINJA_FILE", "true")
+		config.SetEmptyNinjaFile(true)
 	}
 	build.FindSources(ctx, config, mpctx.Finder)
 	config.Lunch(ctx, product, *buildVariant)
