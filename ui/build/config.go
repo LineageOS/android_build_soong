@@ -72,6 +72,9 @@ type configImpl struct {
 	// During Bazel execution, Bazel cannot write outside OUT_DIR.
 	// So if DIST_DIR is set to an external dir (outside of OUT_DIR), we need to rig it temporarily and then migrate files at the end of the build.
 	riggedDistDirForBazel string
+
+	// Set by multiproduct_kati
+	emptyNinjaFile bool
 }
 
 const srcDirFileCheck = "build/soong/root.bp"
@@ -203,9 +206,6 @@ func NewConfig(ctx Context, args ...string) Config {
 		"ANDROID_DEV_SCRIPTS",
 		"ANDROID_EMULATOR_PREBUILTS",
 		"ANDROID_PRE_BUILD_PATHS",
-
-		// Only set in multiproduct_kati after config generation
-		"EMPTY_NINJA_FILE",
 	)
 
 	if ret.UseGoma() || ret.ForceUseGoma() {
@@ -1188,4 +1188,12 @@ func (c *configImpl) LogsDir() string {
 // where the bazel profiles are located.
 func (c *configImpl) BazelMetricsDir() string {
 	return filepath.Join(c.LogsDir(), "bazel_metrics")
+}
+
+func (c *configImpl) SetEmptyNinjaFile(v bool) {
+	c.emptyNinjaFile = v
+}
+
+func (c *configImpl) EmptyNinjaFile() bool {
+	return c.emptyNinjaFile
 }
