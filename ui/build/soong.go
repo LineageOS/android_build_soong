@@ -119,6 +119,7 @@ func bootstrapBlueprint(ctx Context, config Config, integratedBp2Build bool) {
 	args.OutFile = shared.JoinPath(config.SoongOutDir(), ".bootstrap/build.ninja")
 	args.GlobFile = globFile
 	args.GeneratingPrimaryBuilder = true
+	args.EmptyNinjaFile = config.EmptyNinjaFile()
 
 	args.DelveListen = os.Getenv("SOONG_DELVE")
 	if args.DelveListen != "" {
