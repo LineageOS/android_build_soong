@@ -2799,12 +2799,8 @@ func TestLlndkLibrary(t *testing.T) {
 		}
 	}
 	expected := []string{
-		"android_vendor.29_arm64_armv8-a_shared_1",
-		"android_vendor.29_arm64_armv8-a_shared_2",
 		"android_vendor.29_arm64_armv8-a_shared_current",
 		"android_vendor.29_arm64_armv8-a_shared",
-		"android_vendor.29_arm_armv7-a-neon_shared_1",
-		"android_vendor.29_arm_armv7-a-neon_shared_2",
 		"android_vendor.29_arm_armv7-a-neon_shared_current",
 		"android_vendor.29_arm_armv7-a-neon_shared",
 	}
@@ -2812,9 +2808,6 @@ func TestLlndkLibrary(t *testing.T) {
 
 	params := result.ModuleForTests("libllndk", "android_vendor.29_arm_armv7-a-neon_shared").Description("generate stub")
 	android.AssertSame(t, "use VNDK version for default stubs", "current", params.Args["apiLevel"])
-
-	params = result.ModuleForTests("libllndk", "android_vendor.29_arm_armv7-a-neon_shared_1").Description("generate stub")
-	android.AssertSame(t, "override apiLevel for versioned stubs", "1", params.Args["apiLevel"])
 
 	checkExportedIncludeDirs := func(module, variant string, expectedDirs ...string) {
 		t.Helper()
