@@ -19,6 +19,8 @@ import (
 
 	"android/soong/android"
 	"android/soong/bazel"
+
+	"github.com/google/blueprint/proptools"
 )
 
 // bp2build functions and helpers for converting cc_* modules to Bazel.
@@ -504,18 +506,25 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 		}
 	}
 
+	productVarPropNameToAttribute := map[string]*bazel.StringListAttribute{
+		"Cflags":   &copts,
+		"Asflags":  &asFlags,
+		"CppFlags": &cppFlags,
+	}
 	productVariableProps := android.ProductVariableProperties(ctx)
-	if props, exists := productVariableProps["Cflags"]; exists {
-		for _, prop := range props {
-			flags, ok := prop.Property.([]string)
-			if !ok {
-				ctx.ModuleErrorf("Could not convert product variable cflag property")
+	for propName, attr := range productVarPropNameToAttribute {
+		if props, exists := productVariableProps[propName]; exists {
+			for _, prop := range props {
+				flags, ok := prop.Property.([]string)
+				if !ok {
+					ctx.ModuleErrorf("Could not convert product variable %s property", proptools.PropertyNameForField(propName))
+				}
+				newFlags, _ := bazel.TryVariableSubstitutions(flags, prop.ProductConfigVariable)
+				attr.ProductValues = append(attr.ProductValues, bazel.ProductVariableValues{
+					ProductVariable: prop.ProductConfigVariable,
+					Values:          newFlags,
+				})
 			}
-			newFlags, _ := bazel.TryVariableSubstitutions(flags, prop.ProductConfigVariable)
-			copts.ProductValues = append(copts.ProductValues, bazel.ProductVariableValues{
-				ProductVariable: prop.ProductConfigVariable,
-				Values:          newFlags,
-			})
 		}
 	}
 
