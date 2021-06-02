@@ -656,8 +656,8 @@ func UpdateDirectlyInAnyApex(mctx BottomUpMutatorContext, am ApexModule) {
 	mctx.VisitDirectDeps(func(dep Module) {
 		if _, ok := mctx.OtherModuleDependencyTag(dep).(CopyDirectlyInAnyApexTag); ok {
 			depBase := dep.(ApexModule).apexModuleBase()
-			base.ApexProperties.DirectlyInAnyApex = depBase.ApexProperties.DirectlyInAnyApex
-			base.ApexProperties.InAnyApex = depBase.ApexProperties.InAnyApex
+			depBase.ApexProperties.DirectlyInAnyApex = base.ApexProperties.DirectlyInAnyApex
+			depBase.ApexProperties.InAnyApex = base.ApexProperties.InAnyApex
 		}
 	})
 
