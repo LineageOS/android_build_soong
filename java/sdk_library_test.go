@@ -852,6 +852,13 @@ func TestJavaSdkLibraryDist(t *testing.T) {
 		}
 
 		java_sdk_library {
+			name: "sdklib_group_foo",
+			unsafe_ignore_missing_latest_api: true,
+			srcs: ["foo.java"],
+			dist_group: "foo",
+		}
+
+		java_sdk_library {
 			name: "sdklib_owner_foo",
 			unsafe_ignore_missing_latest_api: true,
 			srcs: ["foo.java"],
@@ -883,6 +890,11 @@ func TestJavaSdkLibraryDist(t *testing.T) {
 			module:   "sdklib_no_owner",
 			distDir:  "apistubs/android/public",
 			distStem: "sdklib_no_owner.jar",
+		},
+		{
+			module:   "sdklib_group_foo",
+			distDir:  "apistubs/foo/public",
+			distStem: "sdklib_group_foo.jar",
 		},
 		{
 			module:   "sdklib_owner_foo",
