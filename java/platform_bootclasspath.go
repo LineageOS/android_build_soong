@@ -389,11 +389,13 @@ func (b *platformBootclasspathModule) generateBootImageBuildActions(ctx android.
 	generateUpdatableBcpPackagesRule(ctx, imageConfig, updatableModules)
 
 	// Copy non-updatable module dex jars to their predefined locations.
-	copyBootJarsToPredefinedLocations(ctx, nonUpdatableModules, imageConfig.modules, imageConfig.dexPaths)
+	nonUpdatableBootDexJarsByModule := extractEncodedDexJarsFromModules(ctx, nonUpdatableModules)
+	copyBootJarsToPredefinedLocations(ctx, nonUpdatableBootDexJarsByModule, imageConfig.dexPathsByModule)
 
 	// Copy updatable module dex jars to their predefined locations.
 	config := GetUpdatableBootConfig(ctx)
-	copyBootJarsToPredefinedLocations(ctx, updatableModules, config.modules, config.dexPaths)
+	updatableBootDexJarsByModule := extractEncodedDexJarsFromModules(ctx, updatableModules)
+	copyBootJarsToPredefinedLocations(ctx, updatableBootDexJarsByModule, config.dexPathsByModule)
 
 	// Build a profile for the image config and then use that to build the boot image.
 	profile := bootImageProfileRule(ctx, imageConfig)

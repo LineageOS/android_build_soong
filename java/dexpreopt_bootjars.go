@@ -15,7 +15,6 @@
 package java
 
 import (
-	"fmt"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -254,6 +253,9 @@ type bootImageConfig struct {
 	dexPaths     android.WritablePaths // for this image
 	dexPathsDeps android.WritablePaths // for the dependency images and in this image
 
+	// Map from module name (without prebuilt_ prefix) to the predefined build path.
+	dexPathsByModule map[string]android.WritablePath
+
 	// File path to a zip archive with all image files (or nil, if not needed).
 	zip android.WritablePath
 
@@ -461,53 +463,27 @@ func shouldBuildBootImages(config android.Config, global *dexpreopt.GlobalConfig
 	return true
 }
 
-// copyBootJarsToPredefinedLocations generates commands that will copy boot jars to
-// predefined paths in the global config.
-func copyBootJarsToPredefinedLocations(ctx android.ModuleContext, bootModules []android.Module, bootjars android.ConfiguredJarList, jarPathsPredefined android.WritablePaths) {
-	jarPaths := make(android.Paths, bootjars.Len())
-	for i, module := range bootModules {
-		if module != nil {
-			bootDexJar := module.(interface{ DexJarBuildPath() android.Path }).DexJarBuildPath()
-			jarPaths[i] = bootDexJar
+// copyBootJarsToPredefinedLocations generates commands that will copy boot jars to predefined
+// paths in the global config.
+func copyBootJarsToPredefinedLocations(ctx android.ModuleContext, srcBootDexJarsByModule bootDexJarByModule, dstBootJarsByModule map[string]android.WritablePath) {
+	// Create the super set of module names.
+	names := []string{}
+	names = append(names, android.SortedStringKeys(srcBootDexJarsByModule)...)
+	names = append(names, android.SortedStringKeys(dstBootJarsByModule)...)
+	names = android.SortedUniqueStrings(names)
+	for _, name := range names {
+		src := srcBootDexJarsByModule[name]
+		dst := dstBootJarsByModule[name]
 
-			name := android.RemoveOptionalPrebuiltPrefix(ctx.OtherModuleName(module))
-			if bootjars.Jar(i) != name {
-				ctx.ModuleErrorf("expected module %s at position %d but found %s", bootjars.Jar(i), i, name)
-			}
-		}
-	}
-
-	// The paths to bootclasspath DEX files need to be known at module GenerateAndroidBuildAction
-	// time, before the boot images are built (these paths are used in dexpreopt rule generation for
-	// Java libraries and apps). Generate rules that copy bootclasspath DEX jars to the predefined
-	// paths.
-	for i := range jarPaths {
-		input := jarPaths[i]
-		output := jarPathsPredefined[i]
-		module := bootjars.Jar(i)
-		if input == nil {
-			if ctx.Config().AllowMissingDependencies() {
-				apex := bootjars.Apex(i)
-
-				// Create an error rule that pretends to create the output file but will actually fail if it
-				// is run.
-				ctx.Build(pctx, android.BuildParams{
-					Rule:   android.ErrorRule,
-					Output: output,
-					Args: map[string]string{
-						"error": fmt.Sprintf("missing dependencies: dex jar for %s:%s", module, apex),
-					},
-				})
-			} else {
-				ctx.ModuleErrorf("failed to find a dex jar path for module '%s'"+
-					", note that some jars may be filtered out by module constraints", module)
-			}
-
+		if src == nil {
+			ctx.ModuleErrorf("module %s does not provide a dex boot jar", name)
+		} else if dst == nil {
+			ctx.ModuleErrorf("module %s is not part of the boot configuration", name)
 		} else {
 			ctx.Build(pctx, android.BuildParams{
 				Rule:   android.Cp,
-				Input:  input,
-				Output: output,
+				Input:  src,
+				Output: dst,
 			})
 		}
 	}

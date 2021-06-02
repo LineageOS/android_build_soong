@@ -571,6 +571,15 @@ type HiddenAPIFlagOutput struct {
 	AllFlagsPath android.Path
 }
 
+// bootDexJarByModule is a map from base module name (without prebuilt_ prefix) to the boot dex
+// path.
+type bootDexJarByModule map[string]android.Path
+
+// addPath adds the path for a module to the map.
+func (b bootDexJarByModule) addPath(module android.Module, path android.Path) {
+	b[android.RemoveOptionalPrebuiltPrefix(module.Name())] = path
+}
+
 // pathForValidation creates a path of the same type as the supplied type but with a name of
 // <path>.valid.
 //
@@ -759,7 +768,7 @@ func extractBootDexJarsFromHiddenAPIModules(ctx android.ModuleContext, contents 
 		bootDexJar := module.bootDexJar()
 		if bootDexJar == nil {
 			if ctx.Config().AlwaysUsePrebuiltSdks() {
-				// TODO(b/179354495): Remove this work around when it is unnecessary.
+				// TODO(b/179354495): Remove this workaround when it is unnecessary.
 				// Prebuilt modules like framework-wifi do not yet provide dex implementation jars. So,
 				// create a fake one that will cause a build error only if it is used.
 				fake := android.PathForModuleOut(ctx, "fake/boot-dex/%s.jar", module.Name())
@@ -791,4 +800,114 @@ func extractClassJarsFromHiddenAPIModules(ctx android.ModuleContext, contents []
 		classesJars = append(classesJars, module.classesJars()...)
 	}
 	return classesJars
+}
+
+// deferReportingMissingBootDexJar returns true if a missing boot dex jar should not be reported by
+// Soong but should instead only be reported in ninja if the file is actually built.
+func deferReportingMissingBootDexJar(ctx android.ModuleContext, module android.Module) bool {
+	// TODO(b/179354495): Remove this workaround when it is unnecessary.
+	// Prebuilt modules like framework-wifi do not yet provide dex implementation jars. So,
+	// create a fake one that will cause a build error only if it is used.
+	if ctx.Config().AlwaysUsePrebuiltSdks() {
+		return true
+	}
+
+	// This is called for both platform_bootclasspath and bootclasspath_fragment modules.
+	//
+	// A bootclasspath_fragment module should only use the APEX variant of source or prebuilt modules.
+	// Ideally, a bootclasspath_fragment module should never have a platform variant created for it
+	// but unfortunately, due to b/187910671 it does.
+	//
+	// That causes issues when obtaining a boot dex jar for a prebuilt module as a prebuilt module
+	// used by a bootclasspath_fragment can only provide a boot dex jar when it is part of APEX, i.e.
+	// has an APEX variant not a platform variant.
+	//
+	// There are some other situations when a prebuilt module used by a bootclasspath_fragment cannot
+	// provide a boot dex jar:
+	// 1. If the bootclasspath_fragment is not exported by the prebuilt_apex/apex_set module then it
+	//    does not have an APEX variant and only has a platform variant and neither do its content
+	//    modules.
+	// 2. Some build configurations, e.g. setting TARGET_BUILD_USE_PREBUILT_SDKS causes all
+	//    java_sdk_library_import modules to be treated as preferred and as many of them are not part
+	//    of an apex they cannot provide a boot dex jar.
+	//
+	// The first case causes problems when the affected prebuilt modules are preferred but that is an
+	// invalid configuration and it is ok for it to fail as the work to enable that is not yet
+	// complete. The second case is used for building targets that do not use boot dex jars and so
+	// deferring error reporting to ninja is fine as the affected ninja targets should never be built.
+	// That is handled above.
+	//
+	// A platform_bootclasspath module can use libraries from both platform and APEX variants. Unlike
+	// the bootclasspath_fragment it supports dex_import modules which provides the dex file. So, it
+	// can obtain a boot dex jar from a prebuilt that is not part of an APEX. However, it is assumed
+	// that if the library can be part of an APEX then it is the APEX variant that is used.
+	//
+	// This check handles the slightly different requirements of the bootclasspath_fragment and
+	// platform_bootclasspath modules by only deferring error reporting for the platform variant of
+	// a prebuilt modules that has other variants which are part of an APEX.
+	//
+	// TODO(b/187910671): Remove this once platform variants are no longer created unnecessarily.
+	if android.IsModulePrebuilt(module) {
+		if am, ok := module.(android.ApexModule); ok && am.InAnyApex() {
+			apexInfo := ctx.OtherModuleProvider(module, android.ApexInfoProvider).(android.ApexInfo)
+			if apexInfo.IsForPlatform() {
+				return true
+			}
+		}
+	}
+
+	// A bootclasspath module that is part of a versioned sdk never provides a boot dex jar as there
+	// is no equivalently versioned prebuilt APEX file from which it can be obtained. However,
+	// versioned bootclasspath modules are processed by Soong so in order to avoid them causing build
+	// failures missing boot dex jars need to be deferred.
+	if android.IsModuleInVersionedSdk(ctx.Module()) {
+		return true
+	}
+
+	return false
+}
+
+// handleMissingDexBootFile will either log a warning or create an error rule to create the fake
+// file depending on the value returned from deferReportingMissingBootDexJar.
+func handleMissingDexBootFile(ctx android.ModuleContext, module android.Module, fake android.WritablePath) {
+	if deferReportingMissingBootDexJar(ctx, module) {
+		// Create an error rule that pretends to create the output file but will actually fail if it
+		// is run.
+		ctx.Build(pctx, android.BuildParams{
+			Rule:   android.ErrorRule,
+			Output: fake,
+			Args: map[string]string{
+				"error": fmt.Sprintf("missing dependencies: boot dex jar for %s", module),
+			},
+		})
+	} else {
+		ctx.ModuleErrorf("module %s does not provide a dex jar", module)
+	}
+}
+
+// retrieveEncodedBootDexJarFromModule returns a path to the boot dex jar from the supplied module's
+// DexJarBuildPath() method.
+//
+// The returned path will usually be to a dex jar file that has been encoded with hidden API flags.
+// However, under certain conditions, e.g. errors, or special build configurations it will return
+// a path to a fake file.
+func retrieveEncodedBootDexJarFromModule(ctx android.ModuleContext, module android.Module) android.Path {
+	bootDexJar := module.(interface{ DexJarBuildPath() android.Path }).DexJarBuildPath()
+	if bootDexJar == nil {
+		fake := android.PathForModuleOut(ctx, fmt.Sprintf("fake/encoded-dex/%s.jar", module.Name()))
+		bootDexJar = fake
+
+		handleMissingDexBootFile(ctx, module, fake)
+	}
+	return bootDexJar
+}
+
+// extractEncodedDexJarsFromModules extracts the encoded dex jars from the supplied modules.
+func extractEncodedDexJarsFromModules(ctx android.ModuleContext, contents []android.Module) bootDexJarByModule {
+	encodedDexJarsByModuleName := bootDexJarByModule{}
+	for _, module := range contents {
+		path := retrieveEncodedBootDexJarFromModule(ctx, module)
+		encodedDexJarsByModuleName.addPath(module, path)
+	}
+	return encodedDexJarsByModuleName
 }
