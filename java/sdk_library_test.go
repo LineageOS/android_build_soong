@@ -844,30 +844,31 @@ func TestJavaSdkLibraryDist(t *testing.T) {
 		PrepareForTestWithJavaBuildComponents,
 		PrepareForTestWithJavaDefaultModules,
 		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithLastReleaseApis(
+			"sdklib_no_group",
+			"sdklib_group_foo",
+			"sdklib_owner_foo",
+			"foo"),
 	).RunTestWithBp(t, `
 		java_sdk_library {
 			name: "sdklib_no_group",
-			unsafe_ignore_missing_latest_api: true,
 			srcs: ["foo.java"],
 		}
 
 		java_sdk_library {
 			name: "sdklib_group_foo",
-			unsafe_ignore_missing_latest_api: true,
 			srcs: ["foo.java"],
 			dist_group: "foo",
 		}
 
 		java_sdk_library {
 			name: "sdklib_owner_foo",
-			unsafe_ignore_missing_latest_api: true,
 			srcs: ["foo.java"],
 			owner: "foo",
 		}
 
 		java_sdk_library {
 			name: "sdklib_stem_foo",
-			unsafe_ignore_missing_latest_api: true,
 			srcs: ["foo.java"],
 			dist_stem: "foo",
 		}
