@@ -7439,6 +7439,80 @@ func TestPrebuiltStubLibDep(t *testing.T) {
 	}
 }
 
+func TestApexJavaCoverage(t *testing.T) {
+	bp := `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			java_libs: ["mylib"],
+			bootclasspath_fragments: ["mybootclasspathfragment"],
+			systemserverclasspath_fragments: ["mysystemserverclasspathfragment"],
+			updatable: false,
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		java_library {
+			name: "mylib",
+			srcs: ["mylib.java"],
+			apex_available: ["myapex"],
+			compile_dex: true,
+		}
+
+		bootclasspath_fragment {
+			name: "mybootclasspathfragment",
+			contents: ["mybootclasspathlib"],
+			apex_available: ["myapex"],
+		}
+
+		java_library {
+			name: "mybootclasspathlib",
+			srcs: ["mybootclasspathlib.java"],
+			apex_available: ["myapex"],
+			compile_dex: true,
+		}
+
+		systemserverclasspath_fragment {
+			name: "mysystemserverclasspathfragment",
+			contents: ["mysystemserverclasspathlib"],
+			apex_available: ["myapex"],
+		}
+
+		java_library {
+			name: "mysystemserverclasspathlib",
+			srcs: ["mysystemserverclasspathlib.java"],
+			apex_available: ["myapex"],
+			compile_dex: true,
+		}
+	`
+
+	result := android.GroupFixturePreparers(
+		PrepareForTestWithApexBuildComponents,
+		prepareForTestWithMyapex,
+		java.PrepareForTestWithJavaDefaultModules,
+		android.PrepareForTestWithAndroidBuildComponents,
+		android.FixtureWithRootAndroidBp(bp),
+		android.FixtureMergeEnv(map[string]string{
+			"EMMA_INSTRUMENT": "true",
+		}),
+	).RunTest(t)
+
+	// Make sure jacoco ran on both mylib and mybootclasspathlib
+	if result.ModuleForTests("mylib", "android_common_apex10000").MaybeRule("jacoco").Rule == nil {
+		t.Errorf("Failed to find jacoco rule for mylib")
+	}
+	if result.ModuleForTests("mybootclasspathlib", "android_common_apex10000").MaybeRule("jacoco").Rule == nil {
+		t.Errorf("Failed to find jacoco rule for mybootclasspathlib")
+	}
+	if result.ModuleForTests("mysystemserverclasspathlib", "android_common_apex10000").MaybeRule("jacoco").Rule == nil {
+		t.Errorf("Failed to find jacoco rule for mysystemserverclasspathlib")
+	}
+}
+
 func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
