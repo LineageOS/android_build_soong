@@ -225,6 +225,10 @@ func runMakeProductConfig(ctx Context, config Config) {
 		// Extra environment variables to be exported to ninja
 		"BUILD_BROKEN_NINJA_USES_ENV_VARS",
 
+		// Used to restrict write access to source tree
+		"BUILD_BROKEN_SRC_DIR_IS_WRITABLE",
+		"BUILD_BROKEN_SRC_DIR_RW_ALLOWLIST",
+
 		// Not used, but useful to be in the soong.log
 		"BOARD_VNDK_VERSION",
 
@@ -280,6 +284,8 @@ func runMakeProductConfig(ctx Context, config Config) {
 	config.SetNinjaArgs(strings.Fields(makeVars["NINJA_GOALS"]))
 	config.SetTargetDevice(makeVars["TARGET_DEVICE"])
 	config.SetTargetDeviceDir(makeVars["TARGET_DEVICE_DIR"])
+	config.sandboxConfig.SetSrcDirIsRO(makeVars["BUILD_BROKEN_SRC_DIR_IS_WRITABLE"] == "false")
+	config.sandboxConfig.SetSrcDirRWAllowlist(strings.Fields(makeVars["BUILD_BROKEN_SRC_DIR_RW_ALLOWLIST"]))
 
 	config.SetBuildBrokenDupRules(makeVars["BUILD_BROKEN_DUP_RULES"] == "true")
 	config.SetBuildBrokenUsesNetwork(makeVars["BUILD_BROKEN_USES_NETWORK"] == "true")

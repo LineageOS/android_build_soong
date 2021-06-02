@@ -57,6 +57,7 @@ type configImpl struct {
 	katiSuffix      string
 	targetDevice    string
 	targetDeviceDir string
+	sandboxConfig   *SandboxConfig
 
 	// Autodetected
 	totalRAM uint64
@@ -123,7 +124,8 @@ func checkTopDir(ctx Context) {
 
 func NewConfig(ctx Context, args ...string) Config {
 	ret := &configImpl{
-		environ: OsEnvironment(),
+		environ:       OsEnvironment(),
+		sandboxConfig: &SandboxConfig{},
 	}
 
 	// Default matching ninja
