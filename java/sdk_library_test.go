@@ -871,13 +871,6 @@ func TestJavaSdkLibraryDist(t *testing.T) {
 			srcs: ["foo.java"],
 			dist_stem: "foo",
 		}
-
-		java_sdk_library {
-			name: "sdklib_core_lib",
-			unsafe_ignore_missing_latest_api: true,
-			srcs: ["foo.java"],
-			core_lib: true,
-		}
 	`)
 
 	type testCase struct {
@@ -906,11 +899,6 @@ func TestJavaSdkLibraryDist(t *testing.T) {
 			module:   "sdklib_stem_foo",
 			distDir:  "apistubs/unknown/public",
 			distStem: "foo.jar",
-		},
-		{
-			module:   "sdklib_core_lib",
-			distDir:  "apistubs/core/public",
-			distStem: "sdklib_core_lib.jar",
 		},
 	}
 
