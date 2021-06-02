@@ -63,7 +63,10 @@ func FilegroupBp2Build(ctx TopDownMutatorContext) {
 		Srcs: srcs,
 	}
 
-	props := bazel.BazelTargetModuleProperties{Rule_class: "filegroup"}
+	props := bazel.BazelTargetModuleProperties{
+		Rule_class:        "filegroup",
+		Bzl_load_location: "//build/bazel/rules:filegroup.bzl",
+	}
 
 	ctx.CreateBazelTargetModule(BazelFileGroupFactory, fg.Name(), props, attrs)
 }
