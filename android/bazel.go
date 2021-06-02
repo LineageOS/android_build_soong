@@ -220,8 +220,7 @@ var (
 	// Per-module denylist to opt modules out of mixed builds. Such modules will
 	// still be generated via bp2build.
 	mixedBuildsDisabledList = []string{
-		"libc_common_shared", // cparsons@ cc_library_static, breaks module `libc`.
-		"libc_nomalloc",      // cparsons@ cc_library_static, breaks module `linker`
+		// Currently empty, though should remain present to facilitate granular bp2build migration.
 	}
 
 	// Used for quicker lookups
