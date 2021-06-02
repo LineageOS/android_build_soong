@@ -435,9 +435,6 @@ type sdkLibraryProperties struct {
 	// a list of top-level directories containing Java stub files to merge show/hide annotations from.
 	Merge_inclusion_annotations_dirs []string
 
-	// If set to true, the path of dist files is apistubs/core. Defaults to false.
-	Core_lib *bool
-
 	// If set to true then don't create dist rules.
 	No_dist *bool
 
@@ -1203,11 +1200,7 @@ func (module *SdkLibrary) AndroidMkEntries() []android.AndroidMkEntries {
 
 // The dist path of the stub artifacts
 func (module *SdkLibrary) apiDistPath(apiScope *apiScope) string {
-	if Bool(module.sdkLibraryProperties.Core_lib) {
-		return path.Join("apistubs", "core", apiScope.name)
-	} else {
-		return path.Join("apistubs", module.distGroup(), apiScope.name)
-	}
+	return path.Join("apistubs", module.distGroup(), apiScope.name)
 }
 
 // Get the sdk version for use when compiling the stubs library.
