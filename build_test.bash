@@ -54,7 +54,7 @@ df -h
 
 echo
 echo "Running Bazel smoke test..."
-"${TOP}/tools/bazel" --batch --max_idle_secs=1 info
+STANDALONE_BAZEL=true "${TOP}/tools/bazel" --batch --max_idle_secs=1 info
 
 echo
 echo "Running Soong test..."

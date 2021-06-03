@@ -457,6 +457,11 @@ type sdkLibraryProperties struct {
 	// * API incompatibilities baseline filegroup -> <dist-stem>-incompatibilities.api.<scope>.latest
 	Dist_stem *string
 
+	// The subdirectory for the artifacts that are copied to the dist directory.  If not specified
+	// then defaults to "android".  Should be set to "android" for anything that should be published
+	// in the public Android SDK.
+	Dist_group *string
+
 	// A compatibility mode that allows historical API-tracking files to not exist.
 	// Do not use.
 	Unsafe_ignore_missing_latest_api bool
@@ -1198,12 +1203,10 @@ func (module *SdkLibrary) AndroidMkEntries() []android.AndroidMkEntries {
 
 // The dist path of the stub artifacts
 func (module *SdkLibrary) apiDistPath(apiScope *apiScope) string {
-	if module.ModuleBase.Owner() != "" {
-		return path.Join("apistubs", module.ModuleBase.Owner(), apiScope.name)
-	} else if Bool(module.sdkLibraryProperties.Core_lib) {
+	if Bool(module.sdkLibraryProperties.Core_lib) {
 		return path.Join("apistubs", "core", apiScope.name)
 	} else {
-		return path.Join("apistubs", "android", apiScope.name)
+		return path.Join("apistubs", module.distGroup(), apiScope.name)
 	}
 }
 
@@ -1226,6 +1229,19 @@ func (module *SdkLibrary) sdkVersionForStubsLibrary(mctx android.EarlyModuleCont
 
 func (module *SdkLibrary) distStem() string {
 	return proptools.StringDefault(module.sdkLibraryProperties.Dist_stem, module.BaseModuleName())
+}
+
+// distGroup returns the subdirectory of the dist path of the stub artifacts.
+func (module *SdkLibrary) distGroup() string {
+	if group := proptools.String(module.sdkLibraryProperties.Dist_group); group != "" {
+		return group
+	}
+	// TODO(b/186723288): Remove this once everything uses dist_group.
+	if owner := module.ModuleBase.Owner(); owner != "" {
+		return owner
+	}
+	// TODO(b/186723288): Make this "unknown".
+	return "android"
 }
 
 func (module *SdkLibrary) latestApiFilegroupName(apiScope *apiScope) string {
