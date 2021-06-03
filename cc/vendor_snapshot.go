@@ -31,7 +31,7 @@ var vendorSnapshotSingleton = snapshotSingleton{
 	"SOONG_VENDOR_SNAPSHOT_ZIP",
 	android.OptionalPath{},
 	true,
-	vendorSnapshotImageSingleton,
+	VendorSnapshotImageSingleton,
 	false, /* fake */
 }
 
@@ -40,7 +40,7 @@ var vendorFakeSnapshotSingleton = snapshotSingleton{
 	"SOONG_VENDOR_FAKE_SNAPSHOT_ZIP",
 	android.OptionalPath{},
 	true,
-	vendorSnapshotImageSingleton,
+	VendorSnapshotImageSingleton,
 	true, /* fake */
 }
 
@@ -104,7 +104,7 @@ func isRecoveryProprietaryPath(dir string, deviceConfig android.DeviceConfig) bo
 	return RecoverySnapshotSingleton().(*snapshotSingleton).image.isProprietaryPath(dir, deviceConfig)
 }
 
-func isVendorProprietaryModule(ctx android.BaseModuleContext) bool {
+func IsVendorProprietaryModule(ctx android.BaseModuleContext) bool {
 	// Any module in a vendor proprietary path is a vendor proprietary
 	// module.
 	if isVendorProprietaryPath(ctx.ModuleDir(), ctx.DeviceConfig()) {
