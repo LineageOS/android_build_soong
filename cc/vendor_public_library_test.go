@@ -79,7 +79,7 @@ func TestVendorPublicLibraries(t *testing.T) {
 	// test if libsystem is linked to the stub
 	ld := ctx.ModuleForTests("libsystem", coreVariant).Rule("ld")
 	libflags := ld.Args["libFlags"]
-	stubPaths := getOutputPaths(ctx, coreVariant, []string{"libvendorpublic"})
+	stubPaths := GetOutputPaths(ctx, coreVariant, []string{"libvendorpublic"})
 	if !strings.Contains(libflags, stubPaths[0].String()) {
 		t.Errorf("libflags for libsystem must contain %#v, but was %#v", stubPaths[0], libflags)
 	}
@@ -87,7 +87,7 @@ func TestVendorPublicLibraries(t *testing.T) {
 	// test if libsystem is linked to the stub
 	ld = ctx.ModuleForTests("libproduct", productVariant).Rule("ld")
 	libflags = ld.Args["libFlags"]
-	stubPaths = getOutputPaths(ctx, productVariant, []string{"libvendorpublic"})
+	stubPaths = GetOutputPaths(ctx, productVariant, []string{"libvendorpublic"})
 	if !strings.Contains(libflags, stubPaths[0].String()) {
 		t.Errorf("libflags for libproduct must contain %#v, but was %#v", stubPaths[0], libflags)
 	}
@@ -95,7 +95,8 @@ func TestVendorPublicLibraries(t *testing.T) {
 	// test if libvendor is linked to the real shared lib
 	ld = ctx.ModuleForTests("libvendor", vendorVariant).Rule("ld")
 	libflags = ld.Args["libFlags"]
-	stubPaths = getOutputPaths(ctx, vendorVariant, []string{"libvendorpublic"})
+	stubPaths = GetOutputPaths(ctx, vendorVariant, []string{"libvendorpublic"})
+
 	if !strings.Contains(libflags, stubPaths[0].String()) {
 		t.Errorf("libflags for libvendor must contain %#v, but was %#v", stubPaths[0], libflags)
 	}
