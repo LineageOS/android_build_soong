@@ -137,6 +137,9 @@ func (binary *binaryDecorator) autoDep(ctx android.BottomUpMutatorContext) autoD
 	// Binaries default to dylib dependencies for device, rlib for host.
 	if binary.preferRlib() {
 		return rlibAutoDep
+	} else if mod, ok := ctx.Module().(*Module); ok && mod.InVendor() {
+		// Vendor Rust binaries should prefer rlibs.
+		return rlibAutoDep
 	} else if ctx.Device() {
 		return dylibAutoDep
 	} else {
@@ -146,6 +149,8 @@ func (binary *binaryDecorator) autoDep(ctx android.BottomUpMutatorContext) autoD
 
 func (binary *binaryDecorator) stdLinkage(ctx *depsContext) RustLinkage {
 	if binary.preferRlib() {
+		return RlibLinkage
+	} else if ctx.RustModule().InVendor() {
 		return RlibLinkage
 	}
 	return binary.baseCompiler.stdLinkage(ctx)

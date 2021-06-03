@@ -85,12 +85,29 @@ type BaseProperties struct {
 	VendorRamdiskVariantNeeded bool     `blueprint:"mutated"`
 	ExtraVariants              []string `blueprint:"mutated"`
 
+	// Used by vendor snapshot to record dependencies from snapshot modules.
+	SnapshotSharedLibs []string `blueprint:"mutated"`
+
 	// Make this module available when building for vendor ramdisk.
 	// On device without a dedicated recovery partition, the module is only
 	// available after switching root into
 	// /first_stage_ramdisk. To expose the module before switching root, install
 	// the recovery variant instead (TODO(b/165791368) recovery not yet supported)
 	Vendor_ramdisk_available *bool
+
+	// Normally Soong uses the directory structure to decide which modules
+	// should be included (framework) or excluded (non-framework) from the
+	// different snapshots (vendor, recovery, etc.), but this property
+	// allows a partner to exclude a module normally thought of as a
+	// framework module from the vendor snapshot.
+	Exclude_from_vendor_snapshot *bool
+
+	// Normally Soong uses the directory structure to decide which modules
+	// should be included (framework) or excluded (non-framework) from the
+	// different snapshots (vendor, recovery, etc.), but this property
+	// allows a partner to exclude a module normally thought of as a
+	// framework module from the recovery snapshot.
+	Exclude_from_recovery_snapshot *bool
 
 	// Minimum sdk version that the artifact should support when it runs as part of mainline modules(APEX).
 	Min_sdk_version *string
@@ -826,6 +843,14 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 
 		mod.docTimestampFile = mod.compiler.rustdoc(ctx, flags, deps)
 
+		// glob exported headers for snapshot, if BOARD_VNDK_VERSION is current or
+		// RECOVERY_SNAPSHOT_VERSION is current.
+		if lib, ok := mod.compiler.(snapshotLibraryInterface); ok {
+			if cc.ShouldCollectHeadersForSnapshot(ctx, mod, apexInfo) {
+				lib.collectHeadersForSnapshot(ctx, deps)
+			}
+		}
+
 		apexInfo := actx.Provider(android.ApexInfoProvider).(android.ApexInfo)
 		if mod.installable(apexInfo) {
 			mod.compiler.install(ctx)
@@ -1056,6 +1081,10 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				depPaths.depClangFlags = append(depPaths.depClangFlags, exportedInfo.Flags...)
 				depPaths.depGeneratedHeaders = append(depPaths.depGeneratedHeaders, exportedInfo.GeneratedHeaders...)
 				directSharedLibDeps = append(directSharedLibDeps, ccDep)
+
+				// Record baseLibName for snapshots.
+				mod.Properties.SnapshotSharedLibs = append(mod.Properties.SnapshotSharedLibs, cc.BaseLibName(depName))
+
 				mod.Properties.AndroidMkSharedLibs = append(mod.Properties.AndroidMkSharedLibs, makeLibName)
 				exportDep = true
 			case cc.IsHeaderDepTag(depTag):
@@ -1161,6 +1190,11 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 
 	deps := mod.deps(ctx)
 	var commonDepVariations []blueprint.Variation
+	var snapshotInfo *cc.SnapshotInfo
+
+	if ctx.Os() == android.Android {
+		deps.SharedLibs, _ = cc.RewriteLibs(mod, &snapshotInfo, actx, ctx.Config(), deps.SharedLibs)
+	}
 
 	stdLinkage := "dylib-std"
 	if mod.compiler.stdLinkage(ctx) == RlibLinkage {
@@ -1168,61 +1202,101 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	}
 
 	rlibDepVariations := commonDepVariations
+
 	if lib, ok := mod.compiler.(libraryInterface); !ok || !lib.sysroot() {
 		rlibDepVariations = append(rlibDepVariations,
 			blueprint.Variation{Mutator: "rust_stdlinkage", Variation: stdLinkage})
 	}
 
-	actx.AddVariationDependencies(
-		append(rlibDepVariations, []blueprint.Variation{
-			{Mutator: "rust_libraries", Variation: rlibVariation}}...),
-		rlibDepTag, deps.Rlibs...)
+	// rlibs
+	for _, lib := range deps.Rlibs {
+		depTag := rlibDepTag
+		lib = cc.RewriteSnapshotLib(lib, cc.GetSnapshot(mod, &snapshotInfo, actx).Rlibs)
+
+		actx.AddVariationDependencies(append(rlibDepVariations, []blueprint.Variation{
+			{Mutator: "rust_libraries", Variation: rlibVariation},
+		}...), depTag, lib)
+	}
+
+	// dylibs
 	actx.AddVariationDependencies(
 		append(commonDepVariations, []blueprint.Variation{
 			{Mutator: "rust_libraries", Variation: dylibVariation}}...),
 		dylibDepTag, deps.Dylibs...)
 
+	// rustlibs
 	if deps.Rustlibs != nil && !mod.compiler.Disabled() {
 		autoDep := mod.compiler.(autoDeppable).autoDep(ctx)
 		if autoDep.depTag == rlibDepTag {
-			actx.AddVariationDependencies(
-				append(rlibDepVariations, blueprint.Variation{Mutator: "rust_libraries", Variation: autoDep.variation}),
-				autoDep.depTag, deps.Rustlibs...)
+			for _, lib := range deps.Rustlibs {
+				depTag := autoDep.depTag
+				lib = cc.RewriteSnapshotLib(lib, cc.GetSnapshot(mod, &snapshotInfo, actx).Rlibs)
+				actx.AddVariationDependencies(append(rlibDepVariations, []blueprint.Variation{
+					{Mutator: "rust_libraries", Variation: autoDep.variation},
+				}...), depTag, lib)
+			}
 		} else {
 			actx.AddVariationDependencies(
 				append(commonDepVariations, blueprint.Variation{Mutator: "rust_libraries", Variation: autoDep.variation}),
 				autoDep.depTag, deps.Rustlibs...)
 		}
 	}
+
+	// stdlibs
 	if deps.Stdlibs != nil {
 		if mod.compiler.stdLinkage(ctx) == RlibLinkage {
-			actx.AddVariationDependencies(
-				append(commonDepVariations, blueprint.Variation{Mutator: "rust_libraries", Variation: "rlib"}),
-				rlibDepTag, deps.Stdlibs...)
+			for _, lib := range deps.Stdlibs {
+				depTag := rlibDepTag
+				lib = cc.RewriteSnapshotLib(lib, cc.GetSnapshot(mod, &snapshotInfo, actx).Rlibs)
+
+				actx.AddVariationDependencies(append(commonDepVariations, []blueprint.Variation{{Mutator: "rust_libraries", Variation: "rlib"}}...),
+					depTag, lib)
+			}
 		} else {
 			actx.AddVariationDependencies(
 				append(commonDepVariations, blueprint.Variation{Mutator: "rust_libraries", Variation: "dylib"}),
 				dylibDepTag, deps.Stdlibs...)
 		}
 	}
-	actx.AddVariationDependencies(append(commonDepVariations,
-		blueprint.Variation{Mutator: "link", Variation: "shared"}),
-		cc.SharedDepTag(), deps.SharedLibs...)
-	actx.AddVariationDependencies(append(commonDepVariations,
-		blueprint.Variation{Mutator: "link", Variation: "static"}),
-		cc.StaticDepTag(false), deps.StaticLibs...)
-	actx.AddVariationDependencies(append(commonDepVariations,
-		blueprint.Variation{Mutator: "link", Variation: "static"}),
-		cc.StaticDepTag(true), deps.WholeStaticLibs...)
+
+	for _, lib := range deps.SharedLibs {
+		depTag := cc.SharedDepTag()
+		name, version := cc.StubsLibNameAndVersion(lib)
+
+		variations := []blueprint.Variation{
+			{Mutator: "link", Variation: "shared"},
+		}
+		cc.AddSharedLibDependenciesWithVersions(ctx, mod, variations, depTag, name, version, false)
+	}
+
+	for _, lib := range deps.WholeStaticLibs {
+		depTag := cc.StaticDepTag(true)
+		lib = cc.RewriteSnapshotLib(lib, cc.GetSnapshot(mod, &snapshotInfo, actx).StaticLibs)
+
+		actx.AddVariationDependencies([]blueprint.Variation{
+			{Mutator: "link", Variation: "static"},
+		}, depTag, lib)
+	}
+
+	for _, lib := range deps.StaticLibs {
+		depTag := cc.StaticDepTag(false)
+		lib = cc.RewriteSnapshotLib(lib, cc.GetSnapshot(mod, &snapshotInfo, actx).StaticLibs)
+
+		actx.AddVariationDependencies([]blueprint.Variation{
+			{Mutator: "link", Variation: "static"},
+		}, depTag, lib)
+	}
 
 	actx.AddVariationDependencies(nil, cc.HeaderDepTag(), deps.HeaderLibs...)
 
 	crtVariations := cc.GetCrtVariations(ctx, mod)
 	if deps.CrtBegin != "" {
-		actx.AddVariationDependencies(crtVariations, cc.CrtBeginDepTag, deps.CrtBegin)
+		actx.AddVariationDependencies(crtVariations, cc.CrtBeginDepTag,
+			cc.RewriteSnapshotLib(deps.CrtBegin, cc.GetSnapshot(mod, &snapshotInfo, actx).Objects))
 	}
 	if deps.CrtEnd != "" {
-		actx.AddVariationDependencies(crtVariations, cc.CrtEndDepTag, deps.CrtEnd)
+		actx.AddVariationDependencies(crtVariations, cc.CrtEndDepTag,
+			cc.RewriteSnapshotLib(deps.CrtEnd, cc.GetSnapshot(mod, &snapshotInfo, actx).Objects))
 	}
 
 	if mod.sourceProvider != nil {
@@ -1232,6 +1306,7 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 				bindgen.Properties.Custom_bindgen)
 		}
 	}
+
 	// proc_macros are compiler plugins, and so we need the host arch variant as a dependendcy.
 	actx.AddFarVariationDependencies(ctx.Config().BuildOSTarget.Variations(), procMacroDepTag, deps.ProcMacros...)
 }
