@@ -221,25 +221,29 @@ func RegisterLibraryBuildComponents(ctx android.RegistrationContext) {
 // For bp2build conversion.
 type bazelCcLibraryAttributes struct {
 	// Attributes pertaining to both static and shared variants.
-	Srcs                bazel.LabelListAttribute
+	Srcs    bazel.LabelListAttribute
+	Srcs_c  bazel.LabelListAttribute
+	Srcs_as bazel.LabelListAttribute
+
+	Copts      bazel.StringListAttribute
+	Cppflags   bazel.StringListAttribute
+	Conlyflags bazel.StringListAttribute
+	Asflags    bazel.StringListAttribute
+
 	Hdrs                bazel.LabelListAttribute
 	Deps                bazel.LabelListAttribute
 	Implementation_deps bazel.LabelListAttribute
 	Dynamic_deps        bazel.LabelListAttribute
 	Whole_archive_deps  bazel.LabelListAttribute
-	Copts               bazel.StringListAttribute
 	Includes            bazel.StringListAttribute
 	Linkopts            bazel.StringListAttribute
 
-	Cppflags   bazel.StringListAttribute
-	Srcs_c     bazel.LabelListAttribute
-	Conlyflags bazel.StringListAttribute
-	Srcs_as    bazel.LabelListAttribute
-	Asflags    bazel.StringListAttribute
-
 	// Attributes pertaining to shared variant.
-	Shared_copts                  bazel.StringListAttribute
-	Shared_srcs                   bazel.LabelListAttribute
+	Shared_srcs    bazel.LabelListAttribute
+	Shared_srcs_c  bazel.LabelListAttribute
+	Shared_srcs_as bazel.LabelListAttribute
+	Shared_copts   bazel.StringListAttribute
+
 	Exported_deps_for_shared      bazel.LabelListAttribute
 	Static_deps_for_shared        bazel.LabelListAttribute
 	Dynamic_deps_for_shared       bazel.LabelListAttribute
@@ -248,8 +252,11 @@ type bazelCcLibraryAttributes struct {
 	Version_script                bazel.LabelAttribute
 
 	// Attributes pertaining to static variant.
-	Static_copts                  bazel.StringListAttribute
-	Static_srcs                   bazel.LabelListAttribute
+	Static_srcs    bazel.LabelListAttribute
+	Static_srcs_c  bazel.LabelListAttribute
+	Static_srcs_as bazel.LabelListAttribute
+	Static_copts   bazel.StringListAttribute
+
 	Exported_deps_for_static      bazel.LabelListAttribute
 	Static_deps_for_static        bazel.LabelListAttribute
 	Dynamic_deps_for_static       bazel.LabelListAttribute
@@ -302,29 +309,35 @@ func CcLibraryBp2Build(ctx android.TopDownMutatorContext) {
 	srcs.Append(compilerAttrs.srcs)
 
 	attrs := &bazelCcLibraryAttributes{
-		Srcs:                srcs,
+		Srcs:    srcs,
+		Srcs_c:  compilerAttrs.cSrcs,
+		Srcs_as: compilerAttrs.asSrcs,
+
+		Copts:      compilerAttrs.copts,
+		Cppflags:   compilerAttrs.cppFlags,
+		Conlyflags: compilerAttrs.conlyFlags,
+		Asflags:    compilerAttrs.asFlags,
+
 		Implementation_deps: linkerAttrs.deps,
 		Deps:                linkerAttrs.exportedDeps,
 		Dynamic_deps:        linkerAttrs.dynamicDeps,
 		Whole_archive_deps:  linkerAttrs.wholeArchiveDeps,
-		Copts:               compilerAttrs.copts,
 		Includes:            exportedIncludes,
 		Linkopts:            linkerAttrs.linkopts,
-		Cppflags:            compilerAttrs.cppFlags,
-		Srcs_c:              compilerAttrs.cSrcs,
-		Conlyflags:          compilerAttrs.conlyFlags,
-		Srcs_as:             compilerAttrs.asSrcs,
-		Asflags:             compilerAttrs.asFlags,
 
-		Shared_copts:                  sharedAttrs.copts,
 		Shared_srcs:                   sharedAttrs.srcs,
+		Shared_srcs_c:                 sharedAttrs.srcs_c,
+		Shared_srcs_as:                sharedAttrs.srcs_as,
+		Shared_copts:                  sharedAttrs.copts,
 		Static_deps_for_shared:        sharedAttrs.staticDeps,
 		Whole_archive_deps_for_shared: sharedAttrs.wholeArchiveDeps,
 		Dynamic_deps_for_shared:       sharedAttrs.dynamicDeps,
 		Version_script:                linkerAttrs.versionScript,
 
-		Static_copts:                  staticAttrs.copts,
 		Static_srcs:                   staticAttrs.srcs,
+		Static_srcs_c:                 staticAttrs.srcs_c,
+		Static_srcs_as:                staticAttrs.srcs_as,
+		Static_copts:                  staticAttrs.copts,
 		Static_deps_for_static:        staticAttrs.staticDeps,
 		Whole_archive_deps_for_static: staticAttrs.wholeArchiveDeps,
 		Dynamic_deps_for_static:       staticAttrs.dynamicDeps,
