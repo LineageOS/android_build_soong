@@ -365,8 +365,8 @@ func (m *Module) SetCoreVariantNeeded(b bool) {
 }
 
 func (m *Module) SnapshotVersion(mctx android.BaseModuleContext) string {
-	if snapshot, ok := m.linker.(snapshotInterface); ok {
-		return snapshot.version()
+	if snapshot, ok := m.linker.(SnapshotInterface); ok {
+		return snapshot.Version()
 	} else {
 		mctx.ModuleErrorf("version is unknown for snapshot prebuilt")
 		// Should we be panicking here instead?
