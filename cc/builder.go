@@ -534,7 +534,7 @@ func transformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 				Implicits:   cFlagsDeps,
 				OrderOnly:   pathDeps,
 				Args: map[string]string{
-					"windresCmd": gccCmd(flags.toolchain, "windres"),
+					"windresCmd": mingwCmd(flags.toolchain, "windres"),
 					"flags":      flags.toolchain.WindresFlags(),
 				},
 			})
@@ -1069,6 +1069,6 @@ func transformArchiveRepack(ctx android.ModuleContext, inputFile android.Path,
 	})
 }
 
-func gccCmd(toolchain config.Toolchain, cmd string) string {
+func mingwCmd(toolchain config.Toolchain, cmd string) string {
 	return filepath.Join(toolchain.GccRoot(), "bin", toolchain.GccTriple()+"-"+cmd)
 }

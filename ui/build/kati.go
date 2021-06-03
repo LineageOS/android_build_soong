@@ -136,7 +136,7 @@ func runKati(ctx Context, config Config, extraSuffix string, args []string, envF
 	// information out with --empty_ninja_file.
 	//
 	// From https://github.com/google/kati/commit/87b8da7af2c8bea28b1d8ab17679453d859f96e5
-	if config.Environment().IsEnvTrue("EMPTY_NINJA_FILE") {
+	if config.EmptyNinjaFile() {
 		args = append(args, "--empty_ninja_file")
 	}
 
