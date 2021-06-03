@@ -37,21 +37,29 @@ var prepareForRustTest = android.GroupFixturePreparers(
 
 	genrule.PrepareForTestWithGenRuleBuildComponents,
 
-	PrepareForIntegrationTestWithRust,
+	PrepareForTestWithRustIncludeVndk,
+	android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+		variables.DeviceVndkVersion = StringPtr("current")
+		variables.ProductVndkVersion = StringPtr("current")
+		variables.Platform_vndk_version = StringPtr("29")
+	}),
 )
 
 var rustMockedFiles = android.MockFS{
-	"foo.rs":          nil,
-	"foo.c":           nil,
-	"src/bar.rs":      nil,
-	"src/any.h":       nil,
-	"proto.proto":     nil,
-	"proto/buf.proto": nil,
-	"buf.proto":       nil,
-	"foo.proto":       nil,
-	"liby.so":         nil,
-	"libz.so":         nil,
-	"data.txt":        nil,
+	"foo.rs":                       nil,
+	"foo.c":                        nil,
+	"src/bar.rs":                   nil,
+	"src/any.h":                    nil,
+	"c_includes/c_header.h":        nil,
+	"rust_includes/rust_headers.h": nil,
+	"proto.proto":                  nil,
+	"proto/buf.proto":              nil,
+	"buf.proto":                    nil,
+	"foo.proto":                    nil,
+	"liby.so":                      nil,
+	"libz.so":                      nil,
+	"data.txt":                     nil,
+	"liblog.map.txt":               nil,
 }
 
 // testRust returns a TestContext in which a basic environment has been setup.
@@ -67,19 +75,33 @@ func testRust(t *testing.T, bp string) *android.TestContext {
 }
 
 func testRustVndk(t *testing.T, bp string) *android.TestContext {
+	return testRustVndkFs(t, bp, rustMockedFiles)
+}
+
+const (
+	sharedVendorVariant = "android_vendor.29_arm64_armv8-a_shared"
+	rlibVendorVariant   = "android_vendor.29_arm64_armv8-a_rlib_rlib-std"
+)
+
+func testRustVndkFs(t *testing.T, bp string, fs android.MockFS) *android.TestContext {
+	return testRustVndkFsVersions(t, bp, fs, "current", "current", "29")
+}
+
+func testRustVndkFsVersions(t *testing.T, bp string, fs android.MockFS, device_version, product_version, vndk_version string) *android.TestContext {
 	skipTestIfOsNotSupported(t)
 	result := android.GroupFixturePreparers(
 		prepareForRustTest,
-		rustMockedFiles.AddToFixture(),
+		fs.AddToFixture(),
 		android.FixtureModifyProductVariables(
 			func(variables android.FixtureProductVariables) {
-				variables.DeviceVndkVersion = StringPtr("current")
-				variables.ProductVndkVersion = StringPtr("current")
-				variables.Platform_vndk_version = StringPtr("29")
+				variables.DeviceVndkVersion = StringPtr(device_version)
+				variables.ProductVndkVersion = StringPtr(product_version)
+				variables.Platform_vndk_version = StringPtr(vndk_version)
 			},
 		),
 	).RunTestWithBp(t, bp)
 	return result.TestContext
+
 }
 
 // testRustCov returns a TestContext in which a basic environment has been
@@ -115,10 +137,14 @@ func testRustError(t *testing.T, pattern string, bp string) {
 
 // testRustVndkError is similar to testRustError, but can be used to test VNDK-related errors.
 func testRustVndkError(t *testing.T, pattern string, bp string) {
+	testRustVndkFsError(t, pattern, bp, rustMockedFiles)
+}
+
+func testRustVndkFsError(t *testing.T, pattern string, bp string, fs android.MockFS) {
 	skipTestIfOsNotSupported(t)
 	android.GroupFixturePreparers(
 		prepareForRustTest,
-		rustMockedFiles.AddToFixture(),
+		fs.AddToFixture(),
 		android.FixtureModifyProductVariables(
 			func(variables android.FixtureProductVariables) {
 				variables.DeviceVndkVersion = StringPtr("current")

@@ -82,7 +82,7 @@ type snapshotSingleton struct {
 	// Implementation of the image interface specific to the image
 	// associated with this snapshot (e.g., specific to the vendor image,
 	// recovery image, etc.).
-	image snapshotImage
+	image SnapshotImage
 
 	// Whether this singleton is for fake snapshot or not.
 	// Fake snapshot is a snapshot whose prebuilt binaries and headers are empty.
@@ -147,7 +147,7 @@ func isRecoveryProprietaryModule(ctx android.BaseModuleContext) bool {
 }
 
 // Determines if the module is a candidate for snapshot.
-func isSnapshotAware(cfg android.DeviceConfig, m LinkableInterface, inProprietaryPath bool, apexInfo android.ApexInfo, image snapshotImage) bool {
+func isSnapshotAware(cfg android.DeviceConfig, m LinkableInterface, inProprietaryPath bool, apexInfo android.ApexInfo, image SnapshotImage) bool {
 	if !m.Enabled() || m.HiddenFromMake() {
 		return false
 	}
@@ -205,7 +205,7 @@ func isSnapshotAware(cfg android.DeviceConfig, m LinkableInterface, inProprietar
 		if sanitizable.Static() {
 			return sanitizable.OutputFile().Valid() && !image.private(m)
 		}
-		if sanitizable.Shared() {
+		if sanitizable.Shared() || sanitizable.Rlib() {
 			if !sanitizable.OutputFile().Valid() {
 				return false
 			}
@@ -393,6 +393,8 @@ func (c *snapshotSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 				libType = "static"
 			} else if m.Shared() {
 				libType = "shared"
+			} else if m.Rlib() {
+				libType = "rlib"
 			} else {
 				libType = "header"
 			}
@@ -404,7 +406,7 @@ func (c *snapshotSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 				libPath := m.OutputFile().Path()
 				stem = libPath.Base()
 				if sanitizable, ok := m.(PlatformSanitizeable); ok {
-					if sanitizable.Static() && sanitizable.SanitizePropDefined() && sanitizable.IsSanitizerEnabled(cfi) {
+					if (sanitizable.Static() || sanitizable.Rlib()) && sanitizable.SanitizePropDefined() && sanitizable.IsSanitizerEnabled(cfi) {
 						// both cfi and non-cfi variant for static libraries can exist.
 						// attach .cfi to distinguish between cfi and non-cfi.
 						// e.g. libbase.a -> libbase.cfi.a
