@@ -82,7 +82,12 @@ func (mod *Module) SetCoreVariantNeeded(b bool) {
 }
 
 func (mod *Module) SnapshotVersion(mctx android.BaseModuleContext) string {
-	panic("Rust modules do not support snapshotting: " + mod.BaseModuleName())
+	if snapshot, ok := mod.compiler.(cc.SnapshotInterface); ok {
+		return snapshot.Version()
+	} else {
+		mctx.ModuleErrorf("version is unknown for snapshot prebuilt")
+		return ""
+	}
 }
 
 func (mod *Module) VendorRamdiskVariantNeeded(ctx android.BaseModuleContext) bool {
@@ -110,7 +115,9 @@ func (mod *Module) ExtraImageVariations(android.BaseModuleContext) []string {
 }
 
 func (mod *Module) IsSnapshotPrebuilt() bool {
-	// Rust does not support prebuilts in its snapshots
+	if p, ok := mod.compiler.(cc.SnapshotInterface); ok {
+		return p.IsSnapshotPrebuilt()
+	}
 	return false
 }
 
@@ -202,6 +209,8 @@ func (mod *Module) SetImageVariation(ctx android.BaseModuleContext, variant stri
 
 func (mod *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 	// Rust does not support installing to the product image yet.
+	vendorSpecific := mctx.SocSpecific() || mctx.DeviceSpecific()
+
 	if Bool(mod.VendorProperties.Product_available) {
 		mctx.PropertyErrorf("product_available",
 			"Rust modules do not yet support being available to the product image")
@@ -215,6 +224,11 @@ func (mod *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 	if Bool(mod.Properties.Vendor_ramdisk_available) {
 		if lib, ok := mod.compiler.(libraryInterface); !ok || (ok && lib.buildShared()) {
 			mctx.PropertyErrorf("vendor_ramdisk_available", "cannot be set for rust_ffi or rust_ffi_shared modules.")
+		}
+	}
+	if vendorSpecific {
+		if lib, ok := mod.compiler.(libraryInterface); ok && lib.buildDylib() {
+			mctx.PropertyErrorf("vendor", "Vendor-only dylibs are not yet supported, use rust_library_rlib.")
 		}
 	}
 
