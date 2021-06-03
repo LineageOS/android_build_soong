@@ -496,7 +496,7 @@ func MutateImage(mctx android.BaseModuleContext, m ImageMutatableModule) {
 		// BOARD_VNDK_VERSION. The other modules are regarded as AOSP, or
 		// PLATFORM_VNDK_VERSION.
 		if m.HasVendorVariant() {
-			if isVendorProprietaryModule(mctx) {
+			if IsVendorProprietaryModule(mctx) {
 				vendorVariants = append(vendorVariants, boardVndkVersion)
 			} else {
 				vendorVariants = append(vendorVariants, platformVndkVersion)
@@ -525,7 +525,7 @@ func MutateImage(mctx android.BaseModuleContext, m ImageMutatableModule) {
 				platformVndkVersion,
 				boardVndkVersion,
 			)
-		} else if isVendorProprietaryModule(mctx) {
+		} else if IsVendorProprietaryModule(mctx) {
 			vendorVariants = append(vendorVariants, boardVndkVersion)
 		} else {
 			vendorVariants = append(vendorVariants, platformVndkVersion)

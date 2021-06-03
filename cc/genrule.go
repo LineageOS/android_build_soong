@@ -103,7 +103,7 @@ func (g *GenruleExtraProperties) ExtraImageVariations(ctx android.BaseModuleCont
 		// If not, we assume modules under proprietary paths are compatible for
 		// BOARD_VNDK_VERSION. The other modules are regarded as AOSP, that is
 		// PLATFORM_VNDK_VERSION.
-		if vndkVersion == "current" || !isVendorProprietaryModule(ctx) {
+		if vndkVersion == "current" || !IsVendorProprietaryModule(ctx) {
 			variants = append(variants, VendorVariationPrefix+ctx.DeviceConfig().PlatformVndkVersion())
 		} else {
 			variants = append(variants, VendorVariationPrefix+vndkVersion)
