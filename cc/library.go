@@ -363,6 +363,7 @@ func LibraryFactory() android.Module {
 		staticLibrarySdkMemberType,
 		staticAndSharedLibrarySdkMemberType,
 	}
+	module.bazelHandler = &ccLibraryBazelHandler{module: module}
 	return module.Init()
 }
 
@@ -371,7 +372,7 @@ func LibraryStaticFactory() android.Module {
 	module, library := NewLibrary(android.HostAndDeviceSupported)
 	library.BuildOnlyStatic()
 	module.sdkMemberTypes = []android.SdkMemberType{staticLibrarySdkMemberType}
-	module.bazelHandler = &staticLibraryBazelHandler{module: module}
+	module.bazelHandler = &ccLibraryBazelHandler{module: module}
 	return module.Init()
 }
 
@@ -556,13 +557,17 @@ type libraryDecorator struct {
 	collectedSnapshotHeaders android.Paths
 }
 
-type staticLibraryBazelHandler struct {
+type ccLibraryBazelHandler struct {
 	bazelHandler
 
 	module *Module
 }
 
-func (handler *staticLibraryBazelHandler) generateBazelBuildActions(ctx android.ModuleContext, label string) bool {
+func (handler *ccLibraryBazelHandler) generateBazelBuildActions(ctx android.ModuleContext, label string) bool {
+	if !handler.module.static() {
+		// TODO(cparsons): Support shared libraries.
+		return false
+	}
 	bazelCtx := ctx.Config().BazelContext
 	ccInfo, ok, err := bazelCtx.GetCcInfo(label, ctx.Arch().ArchType)
 	if err != nil {
@@ -572,18 +577,13 @@ func (handler *staticLibraryBazelHandler) generateBazelBuildActions(ctx android.
 	if !ok {
 		return ok
 	}
-	outputPaths := ccInfo.OutputFiles
+	rootStaticArchives := ccInfo.RootStaticArchives
 	objPaths := ccInfo.CcObjectFiles
-	if len(outputPaths) > 1 {
-		// TODO(cparsons): This is actually expected behavior for static libraries with no srcs.
-		// We should support this.
-		ctx.ModuleErrorf("expected at most one output file for '%s', but got %s", label, objPaths)
+	if len(rootStaticArchives) != 1 {
+		ctx.ModuleErrorf("expected exactly one root archive file for '%s', but got %s", label, rootStaticArchives)
 		return false
-	} else if len(outputPaths) == 0 {
-		handler.module.outputFile = android.OptionalPath{}
-		return true
 	}
-	outputFilePath := android.PathForBazelOut(ctx, outputPaths[0])
+	outputFilePath := android.PathForBazelOut(ctx, rootStaticArchives[0])
 	handler.module.outputFile = android.OptionalPathForPath(outputFilePath)
 
 	objFiles := make(android.Paths, len(objPaths))
