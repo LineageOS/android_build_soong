@@ -137,6 +137,39 @@ func SubtractStrings(haystack []string, needle []string) []string {
 	return strings
 }
 
+// Map a function over all labels in a LabelList.
+func MapLabelList(mapOver LabelList, mapFn func(string) string) LabelList {
+	var includes []Label
+	for _, inc := range mapOver.Includes {
+		mappedLabel := Label{Label: mapFn(inc.Label), OriginalModuleName: inc.OriginalModuleName}
+		includes = append(includes, mappedLabel)
+	}
+	// mapFn is not applied over excludes, but they are propagated as-is.
+	return LabelList{Includes: includes, Excludes: mapOver.Excludes}
+}
+
+// Map a function over all Labels in a LabelListAttribute
+func MapLabelListAttribute(mapOver LabelListAttribute, mapFn func(string) string) LabelListAttribute {
+	var result LabelListAttribute
+
+	result.Value = MapLabelList(mapOver.Value, mapFn)
+
+	for arch := range PlatformArchMap {
+		result.SetValueForArch(arch, MapLabelList(mapOver.GetValueForArch(arch), mapFn))
+	}
+
+	for os := range PlatformOsMap {
+		result.SetOsValueForTarget(os, MapLabelList(mapOver.GetOsValueForTarget(os), mapFn))
+
+		// TODO(b/187530594): Should we handle arch=CONDITIONS_DEFAULT here? (not in ArchValues)
+		for _, arch := range AllArches {
+			result.SetOsArchValueForTarget(os, arch, MapLabelList(mapOver.GetOsArchValueForTarget(os, arch), mapFn))
+		}
+	}
+
+	return result
+}
+
 // Return all needles in a given haystack, where needleFn is true for needles.
 func FilterLabelList(haystack LabelList, needleFn func(string) bool) LabelList {
 	var includes []Label
@@ -145,6 +178,7 @@ func FilterLabelList(haystack LabelList, needleFn func(string) bool) LabelList {
 			includes = append(includes, inc)
 		}
 	}
+	// needleFn is not applied over excludes, but they are propagated as-is.
 	return LabelList{Includes: includes, Excludes: haystack.Excludes}
 }
 

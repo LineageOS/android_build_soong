@@ -47,6 +47,7 @@ func runCcLibraryTestCase(t *testing.T, tc bp2buildTestCase) {
 
 func registerCcLibraryModuleTypes(ctx android.RegistrationContext) {
 	cc.RegisterCCBuildComponents(ctx)
+	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
 	ctx.RegisterModuleType("cc_library_static", cc.LibraryStaticFactory)
 	ctx.RegisterModuleType("toolchain_library", cc.ToolchainLibraryFactory)
 	ctx.RegisterModuleType("cc_library_headers", cc.LibraryHeaderFactory)
@@ -531,6 +532,139 @@ cc_library_static { name: "android_dep_for_shared" }
         "//build/bazel/platforms/arch:arm": [":arm_whole_static_dep_for_shared"],
         "//conditions:default": [],
     }),
+)`},
+	})
+}
+
+func TestCcLibrarySharedStaticPropsWithMixedSources(t *testing.T) {
+	runCcLibraryTestCase(t, bp2buildTestCase{
+		description:                        "cc_library shared/static props with c/cpp/s mixed sources",
+		moduleTypeUnderTest:                "cc_library",
+		moduleTypeUnderTestFactory:         cc.LibraryFactory,
+		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryBp2Build,
+		depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
+		dir:                                "foo/bar",
+		filesystem: map[string]string{
+			"foo/bar/both_source.cpp":   "",
+			"foo/bar/both_source.cc":    "",
+			"foo/bar/both_source.c":     "",
+			"foo/bar/both_source.s":     "",
+			"foo/bar/both_source.S":     "",
+			"foo/bar/shared_source.cpp": "",
+			"foo/bar/shared_source.cc":  "",
+			"foo/bar/shared_source.c":   "",
+			"foo/bar/shared_source.s":   "",
+			"foo/bar/shared_source.S":   "",
+			"foo/bar/static_source.cpp": "",
+			"foo/bar/static_source.cc":  "",
+			"foo/bar/static_source.c":   "",
+			"foo/bar/static_source.s":   "",
+			"foo/bar/static_source.S":   "",
+			"foo/bar/Android.bp": `
+cc_library {
+    name: "a",
+    srcs: [
+		"both_source.cpp",
+		"both_source.cc",
+		"both_source.c",
+		"both_source.s",
+		"both_source.S",
+        ":both_filegroup",
+	],
+    static: {
+		srcs: [
+			"static_source.cpp",
+			"static_source.cc",
+			"static_source.c",
+			"static_source.s",
+			"static_source.S",
+			":static_filegroup",
+		],
+    },
+    shared: {
+		srcs: [
+			"shared_source.cpp",
+			"shared_source.cc",
+			"shared_source.c",
+			"shared_source.s",
+			"shared_source.S",
+			":shared_filegroup",
+		],
+    },
+    bazel_module: { bp2build_available: true },
+}
+
+filegroup {
+    name: "both_filegroup",
+    srcs: [
+        // Not relevant, handled by filegroup macro
+	],
+}
+
+filegroup {
+    name: "shared_filegroup",
+    srcs: [
+        // Not relevant, handled by filegroup macro
+	],
+}
+
+filegroup {
+    name: "static_filegroup",
+    srcs: [
+        // Not relevant, handled by filegroup macro
+	],
+}
+`,
+		},
+		blueprint: soongCcLibraryPreamble,
+		expectedBazelTargets: []string{`cc_library(
+    name = "a",
+    copts = [
+        "-Ifoo/bar",
+        "-I$(BINDIR)/foo/bar",
+    ],
+    shared_srcs = [
+        ":shared_filegroup_cpp_srcs",
+        "shared_source.cc",
+        "shared_source.cpp",
+    ],
+    shared_srcs_as = [
+        "shared_source.s",
+        "shared_source.S",
+        ":shared_filegroup_as_srcs",
+    ],
+    shared_srcs_c = [
+        "shared_source.c",
+        ":shared_filegroup_c_srcs",
+    ],
+    srcs = [
+        ":both_filegroup_cpp_srcs",
+        "both_source.cc",
+        "both_source.cpp",
+    ],
+    srcs_as = [
+        "both_source.s",
+        "both_source.S",
+        ":both_filegroup_as_srcs",
+    ],
+    srcs_c = [
+        "both_source.c",
+        ":both_filegroup_c_srcs",
+    ],
+    static_srcs = [
+        ":static_filegroup_cpp_srcs",
+        "static_source.cc",
+        "static_source.cpp",
+    ],
+    static_srcs_as = [
+        "static_source.s",
+        "static_source.S",
+        ":static_filegroup_as_srcs",
+    ],
+    static_srcs_c = [
+        "static_source.c",
+        ":static_filegroup_c_srcs",
+    ],
 )`},
 	})
 }
