@@ -14,6 +14,7 @@
 package cc
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -164,11 +165,84 @@ func depsBp2BuildMutator(ctx android.BottomUpMutatorContext) {
 // staticOrSharedAttributes are the Bazel-ified versions of StaticOrSharedProperties --
 // properties which apply to either the shared or static version of a cc_library module.
 type staticOrSharedAttributes struct {
-	copts            bazel.StringListAttribute
-	srcs             bazel.LabelListAttribute
+	srcs    bazel.LabelListAttribute
+	srcs_c  bazel.LabelListAttribute
+	srcs_as bazel.LabelListAttribute
+
+	copts bazel.StringListAttribute
+
 	staticDeps       bazel.LabelListAttribute
 	dynamicDeps      bazel.LabelListAttribute
 	wholeArchiveDeps bazel.LabelListAttribute
+}
+
+func groupSrcsByExtension(ctx android.TopDownMutatorContext, srcs bazel.LabelListAttribute) (cppSrcs, cSrcs, asSrcs bazel.LabelListAttribute) {
+	// Branch srcs into three language-specific groups.
+	// C++ is the "catch-all" group, and comprises generated sources because we don't
+	// know the language of these sources until the genrule is executed.
+	// TODO(b/190006308): Handle language detection of sources in a Bazel rule.
+	isCSrcOrFilegroup := func(s string) bool {
+		return strings.HasSuffix(s, ".c") || strings.HasSuffix(s, "_c_srcs")
+	}
+
+	isAsmSrcOrFilegroup := func(s string) bool {
+		return strings.HasSuffix(s, ".S") || strings.HasSuffix(s, ".s") || strings.HasSuffix(s, "_as_srcs")
+	}
+
+	// Check that a module is a filegroup type named <label>.
+	isFilegroupNamed := func(m android.Module, fullLabel string) bool {
+		if ctx.OtherModuleType(m) != "filegroup" {
+			return false
+		}
+		labelParts := strings.Split(fullLabel, ":")
+		if len(labelParts) > 2 {
+			// There should not be more than one colon in a label.
+			panic(fmt.Errorf("%s is not a valid Bazel label for a filegroup", fullLabel))
+		} else {
+			return m.Name() == labelParts[len(labelParts)-1]
+		}
+	}
+
+	// Convert the filegroup dependencies into the extension-specific filegroups
+	// filtered in the filegroup.bzl macro.
+	cppFilegroup := func(label string) string {
+		ctx.VisitDirectDeps(func(m android.Module) {
+			if isFilegroupNamed(m, label) {
+				label = label + "_cpp_srcs"
+				return
+			}
+		})
+		return label
+	}
+	cFilegroup := func(label string) string {
+		ctx.VisitDirectDeps(func(m android.Module) {
+			if isFilegroupNamed(m, label) {
+				label = label + "_c_srcs"
+				return
+			}
+		})
+		return label
+	}
+	asFilegroup := func(label string) string {
+		ctx.VisitDirectDeps(func(m android.Module) {
+			if isFilegroupNamed(m, label) {
+				label = label + "_as_srcs"
+				return
+			}
+		})
+		return label
+	}
+
+	cSrcs = bazel.MapLabelListAttribute(srcs, cFilegroup)
+	cSrcs = bazel.FilterLabelListAttribute(cSrcs, isCSrcOrFilegroup)
+
+	asSrcs = bazel.MapLabelListAttribute(srcs, asFilegroup)
+	asSrcs = bazel.FilterLabelListAttribute(asSrcs, isAsmSrcOrFilegroup)
+
+	cppSrcs = bazel.MapLabelListAttribute(srcs, cppFilegroup)
+	cppSrcs = bazel.SubtractBazelLabelListAttribute(cppSrcs, cSrcs)
+	cppSrcs = bazel.SubtractBazelLabelListAttribute(cppSrcs, asSrcs)
+	return
 }
 
 // bp2buildParseSharedProps returns the attributes for the shared variant of a cc_library.
@@ -264,6 +338,11 @@ func bp2buildParseStaticOrSharedProps(ctx android.TopDownMutatorContext, module 
 			}
 		}
 	}
+
+	cppSrcs, cSrcs, asSrcs := groupSrcsByExtension(ctx, attrs.srcs)
+	attrs.srcs = cppSrcs
+	attrs.srcs_c = cSrcs
+	attrs.srcs_as = asSrcs
 
 	return attrs
 }
@@ -528,20 +607,8 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 		}
 	}
 
-	// Branch srcs into three language-specific groups.
-	// C++ is the "catch-all" group, and comprises generated sources because we don't
-	// know the language of these sources until the genrule is executed.
-	// TODO(b/): Handle language detection of sources in a Bazel rule.
-	isCSrc := func(s string) bool {
-		return strings.HasSuffix(s, ".c")
-	}
-	isAsmSrc := func(s string) bool {
-		return strings.HasSuffix(s, ".S") || strings.HasSuffix(s, ".s")
-	}
-	cSrcs := bazel.FilterLabelListAttribute(srcs, isCSrc)
-	asSrcs := bazel.FilterLabelListAttribute(srcs, isAsmSrc)
-	srcs = bazel.SubtractBazelLabelListAttribute(srcs, cSrcs)
-	srcs = bazel.SubtractBazelLabelListAttribute(srcs, asSrcs)
+	srcs, cSrcs, asSrcs := groupSrcsByExtension(ctx, srcs)
+
 	return compilerAttributes{
 		copts:      copts,
 		srcs:       srcs,
