@@ -276,12 +276,23 @@ type bootImageVariant struct {
 	dexLocationsDeps []string // for the dependency images and in this image
 
 	// Paths to image files.
-	imagePathOnHost   android.OutputPath  // first image file path on host
-	imagePathOnDevice string              // first image file path on device
-	imagesDeps        android.OutputPaths // all files
+	imagePathOnHost   android.OutputPath // first image file path on host
+	imagePathOnDevice string             // first image file path on device
 
-	// Only for extensions, paths to the primary boot images.
+	// All the files that constitute this image variant, i.e. .art, .oat and .vdex files.
+	imagesDeps android.OutputPaths
+
+	// The path to the primary image variant's imagePathOnHost field, where primary image variant
+	// means the image variant that this extends.
+	//
+	// This is only set for a variant of an image that extends another image.
 	primaryImages android.OutputPath
+
+	// The paths to the primary image variant's imagesDeps field, where primary image variant
+	// means the image variant that this extends.
+	//
+	// This is only set for a variant of an image that extends another image.
+	primaryImagesDeps android.Paths
 
 	// Rules which should be used in make to install the outputs.
 	installs           android.RuleBuilderInstalls
@@ -588,7 +599,15 @@ func buildBootImageVariant(ctx android.ModuleContext, image *bootImageVariant, p
 		cmd.
 			Flag("--runtime-arg").FlagWithInputList("-Xbootclasspath:", image.dexPathsDeps.Paths(), ":").
 			Flag("--runtime-arg").FlagWithList("-Xbootclasspath-locations:", image.dexLocationsDeps, ":").
-			FlagWithArg("--boot-image=", dexpreopt.PathToLocation(artImage, arch)).Implicit(artImage)
+			// Add the path to the first file in the boot image with the arch specific directory removed,
+			// dex2oat will reconstruct the path to the actual file when it needs it. As the actual path
+			// to the file cannot be passed to the command make sure to add the actual path as an Implicit
+			// dependency to ensure that it is built before the command runs.
+			FlagWithArg("--boot-image=", dexpreopt.PathToLocation(artImage, arch)).Implicit(artImage).
+			// Similarly, the dex2oat tool will automatically find the paths to other files in the base
+			// boot image so make sure to add them as implicit dependencies to ensure that they are built
+			// before this command is run.
+			Implicits(image.primaryImagesDeps)
 	} else {
 		// It is a primary image, so it needs a base address.
 		cmd.FlagWithArg("--base=", ctx.Config().LibartImgDeviceBaseAddress())
