@@ -188,3 +188,21 @@ func TestImportSoongDexJar(t *testing.T) {
 
 	android.AssertStringPathsRelativeToTopEquals(t, "LOCAL_SOONG_DEX_JAR", result.Config, []string{expectedSoongDexJar}, actualSoongDexJar)
 }
+
+func TestAndroidTestHelperApp_LocalDisableTestConfig(t *testing.T) {
+	ctx, _ := testJava(t, `
+		android_test_helper_app {
+			name: "foo",
+			srcs: ["a.java"],
+		}
+	`)
+
+	mod := ctx.ModuleForTests("foo", "android_common").Module()
+	entries := android.AndroidMkEntriesForTest(t, ctx, mod)[0]
+
+	expected := []string{"true"}
+	actual := entries.EntryMap["LOCAL_DISABLE_TEST_CONFIG"]
+	if !reflect.DeepEqual(expected, actual) {
+		t.Errorf("Unexpected flag value - expected: %q, actual: %q", expected, actual)
+	}
+}
