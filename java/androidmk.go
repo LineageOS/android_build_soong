@@ -460,6 +460,8 @@ func (a *AndroidTestHelperApp) AndroidMkEntries() []android.AndroidMkEntries {
 	entries := &entriesList[0]
 	entries.ExtraEntries = append(entries.ExtraEntries, func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
 		testSuiteComponent(entries, a.appTestHelperAppProperties.Test_suites)
+		// introduce a flag variable to control the generation of the .config file
+		entries.SetString("LOCAL_DISABLE_TEST_CONFIG", "true")
 	})
 
 	return entriesList
