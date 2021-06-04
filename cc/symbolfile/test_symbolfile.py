@@ -253,6 +253,21 @@ class OmitVersionTest(unittest.TestCase):
                 symbolfile.Version('foo', None, Tags.from_strs(['apex']), []),
                 Arch('arm'), 9, False, True))
 
+    def test_omit_systemapi(self) -> None:
+        self.assertTrue(
+            symbolfile.should_omit_version(
+                symbolfile.Version('foo', None, Tags.from_strs(['systemapi']),
+                                   []), Arch('arm'), 9, False, False))
+
+        self.assertFalse(
+            symbolfile.should_omit_version(
+                symbolfile.Version('foo', None, Tags(), []), Arch('arm'), 9,
+                False, True))
+        self.assertFalse(
+            symbolfile.should_omit_version(
+                symbolfile.Version('foo', None, Tags.from_strs(['systemapi']),
+                                   []), Arch('arm'), 9, False, True))
+
     def test_omit_arch(self) -> None:
         self.assertFalse(
             symbolfile.should_omit_version(
@@ -313,6 +328,20 @@ class OmitSymbolTest(unittest.TestCase):
         self.assertFalse(
             symbolfile.should_omit_symbol(
                 symbolfile.Symbol('foo', Tags.from_strs(['apex'])),
+                Arch('arm'), 9, False, True))
+
+    def test_omit_systemapi(self) -> None:
+        self.assertTrue(
+            symbolfile.should_omit_symbol(
+                symbolfile.Symbol('foo', Tags.from_strs(['systemapi'])),
+                Arch('arm'), 9, False, False))
+
+        self.assertFalse(
+            symbolfile.should_omit_symbol(symbolfile.Symbol('foo', Tags()),
+                                          Arch('arm'), 9, False, True))
+        self.assertFalse(
+            symbolfile.should_omit_symbol(
+                symbolfile.Symbol('foo', Tags.from_strs(['systemapi'])),
                 Arch('arm'), 9, False, True))
 
     def test_omit_arch(self) -> None:

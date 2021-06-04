@@ -83,7 +83,7 @@ class Tags:
     @property
     def has_apex_tags(self) -> bool:
         """Returns True if any APEX tags are set."""
-        return 'apex' in self.tags
+        return 'apex' in self.tags or 'systemapi' in self.tags
 
     @property
     def has_llndk_tags(self) -> bool:
