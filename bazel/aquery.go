@@ -247,7 +247,7 @@ func AqueryBuildStatements(aqueryJsonProto []byte) ([]BuildStatement, error) {
 
 func shouldSkipAction(a action) bool {
 	// TODO(b/180945121): Handle symlink actions.
-	if a.Mnemonic == "Symlink" || a.Mnemonic == "SourceSymlinkManifest" || a.Mnemonic == "SymlinkTree" {
+	if a.Mnemonic == "Symlink" || a.Mnemonic == "SourceSymlinkManifest" || a.Mnemonic == "SymlinkTree" || a.Mnemonic == "SolibSymlink" {
 		return true
 	}
 	// Middleman actions are not handled like other actions; they are handled separately as a
