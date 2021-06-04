@@ -1286,8 +1286,6 @@ cc_library_static {
         "//build/bazel/platforms/os_arch:android_arm64": ["android_arm64_src.c"],
         "//build/bazel/platforms/os_arch:android_x86": ["android_x86_src.c"],
         "//build/bazel/platforms/os_arch:android_x86_64": ["android_x86_64_src.c"],
-        "//conditions:default": [],
-    }) + select({
         "//build/bazel/platforms/os_arch:linux_bionic_arm64": ["linux_bionic_arm64_src.c"],
         "//build/bazel/platforms/os_arch:linux_bionic_x86_64": ["linux_bionic_x86_64_src.c"],
         "//conditions:default": [],

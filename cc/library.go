@@ -305,8 +305,7 @@ func CcLibraryBp2Build(ctx android.TopDownMutatorContext) {
 	linkerAttrs := bp2BuildParseLinkerProps(ctx, m)
 	exportedIncludes := bp2BuildParseExportedIncludes(ctx, m)
 
-	var srcs bazel.LabelListAttribute
-	srcs.Append(compilerAttrs.srcs)
+	srcs := compilerAttrs.srcs
 
 	attrs := &bazelCcLibraryAttributes{
 		Srcs:    srcs,
