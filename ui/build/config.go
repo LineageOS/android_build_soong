@@ -567,8 +567,7 @@ func getTargetsFromDirs(ctx Context, relDir string, dirs []string, targetNamePre
 func (c *configImpl) parseArgs(ctx Context, args []string) {
 	for i := 0; i < len(args); i++ {
 		arg := strings.TrimSpace(args[i])
-		if arg == "--make-mode" {
-		} else if arg == "showcommands" {
+		if arg == "showcommands" {
 			c.verbose = true
 		} else if arg == "--skip-ninja" {
 			c.skipNinja = true
@@ -794,6 +793,10 @@ func (c *configImpl) SkipKati() bool {
 
 func (c *configImpl) SkipNinja() bool {
 	return c.skipNinja
+}
+
+func (c *configImpl) SetSkipNinja(v bool) {
+	c.skipNinja = v
 }
 
 func (c *configImpl) SkipConfig() bool {
