@@ -221,25 +221,29 @@ func RegisterLibraryBuildComponents(ctx android.RegistrationContext) {
 // For bp2build conversion.
 type bazelCcLibraryAttributes struct {
 	// Attributes pertaining to both static and shared variants.
-	Srcs                bazel.LabelListAttribute
+	Srcs    bazel.LabelListAttribute
+	Srcs_c  bazel.LabelListAttribute
+	Srcs_as bazel.LabelListAttribute
+
+	Copts      bazel.StringListAttribute
+	Cppflags   bazel.StringListAttribute
+	Conlyflags bazel.StringListAttribute
+	Asflags    bazel.StringListAttribute
+
 	Hdrs                bazel.LabelListAttribute
 	Deps                bazel.LabelListAttribute
 	Implementation_deps bazel.LabelListAttribute
 	Dynamic_deps        bazel.LabelListAttribute
 	Whole_archive_deps  bazel.LabelListAttribute
-	Copts               bazel.StringListAttribute
 	Includes            bazel.StringListAttribute
 	Linkopts            bazel.StringListAttribute
 
-	Cppflags   bazel.StringListAttribute
-	Srcs_c     bazel.LabelListAttribute
-	Conlyflags bazel.StringListAttribute
-	Srcs_as    bazel.LabelListAttribute
-	Asflags    bazel.StringListAttribute
-
 	// Attributes pertaining to shared variant.
-	Shared_copts                  bazel.StringListAttribute
-	Shared_srcs                   bazel.LabelListAttribute
+	Shared_srcs    bazel.LabelListAttribute
+	Shared_srcs_c  bazel.LabelListAttribute
+	Shared_srcs_as bazel.LabelListAttribute
+	Shared_copts   bazel.StringListAttribute
+
 	Exported_deps_for_shared      bazel.LabelListAttribute
 	Static_deps_for_shared        bazel.LabelListAttribute
 	Dynamic_deps_for_shared       bazel.LabelListAttribute
@@ -248,8 +252,11 @@ type bazelCcLibraryAttributes struct {
 	Version_script                bazel.LabelAttribute
 
 	// Attributes pertaining to static variant.
-	Static_copts                  bazel.StringListAttribute
-	Static_srcs                   bazel.LabelListAttribute
+	Static_srcs    bazel.LabelListAttribute
+	Static_srcs_c  bazel.LabelListAttribute
+	Static_srcs_as bazel.LabelListAttribute
+	Static_copts   bazel.StringListAttribute
+
 	Exported_deps_for_static      bazel.LabelListAttribute
 	Static_deps_for_static        bazel.LabelListAttribute
 	Dynamic_deps_for_static       bazel.LabelListAttribute
@@ -302,29 +309,35 @@ func CcLibraryBp2Build(ctx android.TopDownMutatorContext) {
 	srcs.Append(compilerAttrs.srcs)
 
 	attrs := &bazelCcLibraryAttributes{
-		Srcs:                srcs,
+		Srcs:    srcs,
+		Srcs_c:  compilerAttrs.cSrcs,
+		Srcs_as: compilerAttrs.asSrcs,
+
+		Copts:      compilerAttrs.copts,
+		Cppflags:   compilerAttrs.cppFlags,
+		Conlyflags: compilerAttrs.conlyFlags,
+		Asflags:    compilerAttrs.asFlags,
+
 		Implementation_deps: linkerAttrs.deps,
 		Deps:                linkerAttrs.exportedDeps,
 		Dynamic_deps:        linkerAttrs.dynamicDeps,
 		Whole_archive_deps:  linkerAttrs.wholeArchiveDeps,
-		Copts:               compilerAttrs.copts,
 		Includes:            exportedIncludes,
 		Linkopts:            linkerAttrs.linkopts,
-		Cppflags:            compilerAttrs.cppFlags,
-		Srcs_c:              compilerAttrs.cSrcs,
-		Conlyflags:          compilerAttrs.conlyFlags,
-		Srcs_as:             compilerAttrs.asSrcs,
-		Asflags:             compilerAttrs.asFlags,
 
-		Shared_copts:                  sharedAttrs.copts,
 		Shared_srcs:                   sharedAttrs.srcs,
+		Shared_srcs_c:                 sharedAttrs.srcs_c,
+		Shared_srcs_as:                sharedAttrs.srcs_as,
+		Shared_copts:                  sharedAttrs.copts,
 		Static_deps_for_shared:        sharedAttrs.staticDeps,
 		Whole_archive_deps_for_shared: sharedAttrs.wholeArchiveDeps,
 		Dynamic_deps_for_shared:       sharedAttrs.dynamicDeps,
 		Version_script:                linkerAttrs.versionScript,
 
-		Static_copts:                  staticAttrs.copts,
 		Static_srcs:                   staticAttrs.srcs,
+		Static_srcs_c:                 staticAttrs.srcs_c,
+		Static_srcs_as:                staticAttrs.srcs_as,
+		Static_copts:                  staticAttrs.copts,
 		Static_deps_for_static:        staticAttrs.staticDeps,
 		Whole_archive_deps_for_static: staticAttrs.wholeArchiveDeps,
 		Dynamic_deps_for_static:       staticAttrs.dynamicDeps,
@@ -606,20 +619,14 @@ func (handler *staticLibraryBazelHandler) generateBazelBuildActions(ctx android.
 	return ok
 }
 
-// collectHeadersForSnapshot collects all exported headers from library.
-// It globs header files in the source tree for exported include directories,
-// and tracks generated header files separately.
-//
-// This is to be called from GenerateAndroidBuildActions, and then collected
-// header files can be retrieved by snapshotHeaders().
-func (l *libraryDecorator) collectHeadersForSnapshot(ctx android.ModuleContext) {
+func GlobHeadersForSnapshot(ctx android.ModuleContext, paths android.Paths) android.Paths {
 	ret := android.Paths{}
 
 	// Headers in the source tree should be globbed. On the contrast, generated headers
 	// can't be globbed, and they should be manually collected.
 	// So, we first filter out intermediate directories (which contains generated headers)
 	// from exported directories, and then glob headers under remaining directories.
-	for _, path := range append(android.CopyOfPaths(l.flagExporter.dirs), l.flagExporter.systemDirs...) {
+	for _, path := range paths {
 		dir := path.String()
 		// Skip if dir is for generated headers
 		if strings.HasPrefix(dir, android.PathForOutput(ctx).String()) {
@@ -635,7 +642,7 @@ func (l *libraryDecorator) collectHeadersForSnapshot(ctx android.ModuleContext) 
 				glob, err := ctx.GlobWithDeps("external/eigen/"+subdir+"/**/*", nil)
 				if err != nil {
 					ctx.ModuleErrorf("glob failed: %#v", err)
-					return
+					return nil
 				}
 				for _, header := range glob {
 					if strings.HasSuffix(header, "/") {
@@ -653,7 +660,7 @@ func (l *libraryDecorator) collectHeadersForSnapshot(ctx android.ModuleContext) 
 		glob, err := ctx.GlobWithDeps(dir+"/**/*", nil)
 		if err != nil {
 			ctx.ModuleErrorf("glob failed: %#v", err)
-			return
+			return nil
 		}
 		isLibcxx := strings.HasPrefix(dir, "external/libcxx/include")
 		for _, header := range glob {
@@ -666,7 +673,7 @@ func (l *libraryDecorator) collectHeadersForSnapshot(ctx android.ModuleContext) 
 			} else {
 				// Filter out only the files with extensions that are headers.
 				found := false
-				for _, ext := range headerExts {
+				for _, ext := range HeaderExts {
 					if strings.HasSuffix(header, ext) {
 						found = true
 						break
@@ -679,15 +686,38 @@ func (l *libraryDecorator) collectHeadersForSnapshot(ctx android.ModuleContext) 
 			ret = append(ret, android.PathForSource(ctx, header))
 		}
 	}
+	return ret
+}
 
-	// Collect generated headers
-	for _, header := range append(android.CopyOfPaths(l.flagExporter.headers), l.flagExporter.deps...) {
+func GlobGeneratedHeadersForSnapshot(ctx android.ModuleContext, paths android.Paths) android.Paths {
+	ret := android.Paths{}
+	for _, header := range paths {
 		// TODO(b/148123511): remove exportedDeps after cleaning up genrule
 		if strings.HasSuffix(header.Base(), "-phony") {
 			continue
 		}
 		ret = append(ret, header)
 	}
+	return ret
+}
+
+// collectHeadersForSnapshot collects all exported headers from library.
+// It globs header files in the source tree for exported include directories,
+// and tracks generated header files separately.
+//
+// This is to be called from GenerateAndroidBuildActions, and then collected
+// header files can be retrieved by snapshotHeaders().
+func (l *libraryDecorator) collectHeadersForSnapshot(ctx android.ModuleContext) {
+	ret := android.Paths{}
+
+	// Headers in the source tree should be globbed. On the contrast, generated headers
+	// can't be globbed, and they should be manually collected.
+	// So, we first filter out intermediate directories (which contains generated headers)
+	// from exported directories, and then glob headers under remaining directories.
+	ret = append(ret, GlobHeadersForSnapshot(ctx, append(android.CopyOfPaths(l.flagExporter.dirs), l.flagExporter.systemDirs...))...)
+
+	// Collect generated headers
+	ret = append(ret, GlobGeneratedHeadersForSnapshot(ctx, append(android.CopyOfPaths(l.flagExporter.headers), l.flagExporter.deps...))...)
 
 	l.collectedSnapshotHeaders = ret
 }
