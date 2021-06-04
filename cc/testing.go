@@ -15,6 +15,9 @@
 package cc
 
 import (
+	"path/filepath"
+	"testing"
+
 	"android/soong/android"
 	"android/soong/genrule"
 )
@@ -625,7 +628,7 @@ var PrepareForTestOnFuchsia = android.GroupFixturePreparers(
 var PrepareForTestWithCcIncludeVndk = android.GroupFixturePreparers(
 	PrepareForIntegrationTestWithCc,
 	android.FixtureRegisterWithContext(func(ctx android.RegistrationContext) {
-		vendorSnapshotImageSingleton.init(ctx)
+		VendorSnapshotImageSingleton.Init(ctx)
 		recoverySnapshotImageSingleton.init(ctx)
 		ctx.RegisterSingletonType("vndk-snapshot", VndkSnapshotSingleton)
 	}),
@@ -674,7 +677,7 @@ func CreateTestContext(config android.Config) *android.TestContext {
 	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
 	ctx.RegisterModuleType("vndk_prebuilt_shared", VndkPrebuiltSharedFactory)
 
-	vendorSnapshotImageSingleton.init(ctx)
+	VendorSnapshotImageSingleton.Init(ctx)
 	recoverySnapshotImageSingleton.init(ctx)
 	ctx.RegisterSingletonType("vndk-snapshot", VndkSnapshotSingleton)
 	RegisterVndkLibraryTxtTypes(ctx)
@@ -684,4 +687,65 @@ func CreateTestContext(config android.Config) *android.TestContext {
 	RegisterRequiredBuildComponentsForTest(ctx)
 
 	return ctx
+}
+
+func checkSnapshotIncludeExclude(t *testing.T, ctx *android.TestContext, singleton android.TestingSingleton, moduleName, snapshotFilename, subDir, variant string, include bool, fake bool) {
+	t.Helper()
+	mod := ctx.ModuleForTests(moduleName, variant)
+	outputFiles := mod.OutputFiles(t, "")
+	if len(outputFiles) != 1 {
+		t.Errorf("%q must have single output\n", moduleName)
+		return
+	}
+	snapshotPath := filepath.Join(subDir, snapshotFilename)
+
+	if include {
+		out := singleton.Output(snapshotPath)
+		if fake {
+			if out.Rule == nil {
+				t.Errorf("Missing rule for module %q output file %q", moduleName, outputFiles[0])
+			}
+		} else {
+			if out.Input.String() != outputFiles[0].String() {
+				t.Errorf("The input of snapshot %q must be %q, but %q", moduleName, out.Input.String(), outputFiles[0])
+			}
+		}
+	} else {
+		out := singleton.MaybeOutput(snapshotPath)
+		if out.Rule != nil {
+			t.Errorf("There must be no rule for module %q output file %q", moduleName, outputFiles[0])
+		}
+	}
+}
+
+func CheckSnapshot(t *testing.T, ctx *android.TestContext, singleton android.TestingSingleton, moduleName, snapshotFilename, subDir, variant string) {
+	t.Helper()
+	checkSnapshotIncludeExclude(t, ctx, singleton, moduleName, snapshotFilename, subDir, variant, true, false)
+}
+
+func CheckSnapshotExclude(t *testing.T, ctx *android.TestContext, singleton android.TestingSingleton, moduleName, snapshotFilename, subDir, variant string) {
+	t.Helper()
+	checkSnapshotIncludeExclude(t, ctx, singleton, moduleName, snapshotFilename, subDir, variant, false, false)
+}
+
+func CheckSnapshotRule(t *testing.T, ctx *android.TestContext, singleton android.TestingSingleton, moduleName, snapshotFilename, subDir, variant string) {
+	t.Helper()
+	checkSnapshotIncludeExclude(t, ctx, singleton, moduleName, snapshotFilename, subDir, variant, true, true)
+}
+
+func AssertExcludeFromVendorSnapshotIs(t *testing.T, ctx *android.TestContext, name string, expected bool, variant string) {
+	t.Helper()
+	m := ctx.ModuleForTests(name, variant).Module().(LinkableInterface)
+	if m.ExcludeFromVendorSnapshot() != expected {
+		t.Errorf("expected %q ExcludeFromVendorSnapshot to be %t", m.String(), expected)
+	}
+}
+
+func GetOutputPaths(ctx *android.TestContext, variant string, moduleNames []string) (paths android.Paths) {
+	for _, moduleName := range moduleNames {
+		module := ctx.ModuleForTests(moduleName, variant).Module().(*Module)
+		output := module.outputFile.Path().RelativeToTop()
+		paths = append(paths, output)
+	}
+	return paths
 }
