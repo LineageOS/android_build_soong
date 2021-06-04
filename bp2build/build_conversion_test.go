@@ -1109,8 +1109,8 @@ genrule {
         "out",
     ],
     srcs = [
-        "in1",
         "srcs-from-3",
+        "in1",
     ],
 )`,
 			description: "genrule applies properties from genrule_defaults transitively",
@@ -1535,10 +1535,10 @@ func TestGlobExcludeSrcs(t *testing.T) {
 			expectedBazelTargets: []string{`filegroup(
     name = "fg_foo",
     srcs = [
-        "//dir:e.txt",
-        "//dir:f.txt",
         "a.txt",
         "b.txt",
+        "//dir:e.txt",
+        "//dir:f.txt",
     ],
 )`,
 			},
@@ -1575,9 +1575,9 @@ func TestGlobExcludeSrcs(t *testing.T) {
 			expectedBazelTargets: []string{`filegroup(
     name = "fg_foo",
     srcs = [
+        "a.txt",
         "//dir/subdir:e.txt",
         "//dir/subdir:f.txt",
-        "a.txt",
     ],
 )`,
 			},
