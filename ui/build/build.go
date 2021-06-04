@@ -87,15 +87,20 @@ func createCombinedBuildNinjaFile(ctx Context, config Config) {
 
 // These are bitmasks which can be used to check whether various flags are set e.g. whether to use Bazel.
 const (
-	BuildNone          = iota
-	BuildProductConfig = 1 << iota
-	BuildSoong         = 1 << iota
-	BuildKati          = 1 << iota
-	BuildNinja         = 1 << iota
-	BuildBazel         = 1 << iota
-	RunBuildTests      = 1 << iota
-	BuildAll           = BuildProductConfig | BuildSoong | BuildKati | BuildNinja
-	BuildAllWithBazel  = BuildProductConfig | BuildSoong | BuildKati | BuildBazel
+	_ = iota
+	// Whether to run the kati config step.
+	RunProductConfig = 1 << iota
+	// Whether to run soong to generate a ninja file.
+	RunSoong = 1 << iota
+	// Whether to run kati to generate a ninja file.
+	RunKati = 1 << iota
+	// Whether to run ninja on the combined ninja.
+	RunNinja = 1 << iota
+	// Whether to run bazel on the combined ninja.
+	RunBazel        = 1 << iota
+	RunBuildTests   = 1 << iota
+	RunAll          = RunProductConfig | RunSoong | RunKati | RunNinja
+	RunAllWithBazel = RunProductConfig | RunSoong | RunKati | RunBazel
 )
 
 // checkProblematicFiles fails the build if existing Android.mk or CleanSpec.mk files are found at the root of the tree.
@@ -173,7 +178,7 @@ func checkRAM(ctx Context, config Config) {
 
 // Build the tree. The 'what' argument can be used to chose which components of
 // the build to run, via checking various bitmasks.
-func Build(ctx Context, config Config, what int) {
+func Build(ctx Context, config Config) {
 	ctx.Verboseln("Starting build with args:", config.Arguments())
 	ctx.Verboseln("Environment:", config.Environment().Environ())
 
@@ -208,33 +213,35 @@ func Build(ctx Context, config Config, what int) {
 
 	SetupPath(ctx, config)
 
+	what := RunAll
+	if config.UseBazel() {
+		what = RunAllWithBazel
+	}
+	if config.Checkbuild() {
+		what |= RunBuildTests
+	}
 	if config.SkipConfig() {
 		ctx.Verboseln("Skipping Config as requested")
-		what = what &^ BuildProductConfig
+		what = what &^ RunProductConfig
 	}
-
 	if config.SkipKati() {
 		ctx.Verboseln("Skipping Kati as requested")
-		what = what &^ BuildKati
+		what = what &^ RunKati
 	}
-
 	if config.SkipNinja() {
 		ctx.Verboseln("Skipping Ninja as requested")
-		what = what &^ BuildNinja
+		what = what &^ RunNinja
 	}
 
 	if config.StartGoma() {
-		// Ensure start Goma compiler_proxy
 		startGoma(ctx, config)
 	}
 
 	if config.StartRBE() {
-		// Ensure RBE proxy is started
 		startRBE(ctx, config)
 	}
 
-	if what&BuildProductConfig != 0 {
-		// Run make for product config
+	if what&RunProductConfig != 0 {
 		runMakeProductConfig(ctx, config)
 	}
 
@@ -254,8 +261,7 @@ func Build(ctx Context, config Config, what int) {
 		return
 	}
 
-	if what&BuildSoong != 0 {
-		// Run Soong
+	if what&RunSoong != 0 {
 		runSoong(ctx, config)
 
 		if config.bazelBuildMode() == generateBuildFiles {
@@ -264,8 +270,7 @@ func Build(ctx Context, config Config, what int) {
 		}
 	}
 
-	if what&BuildKati != 0 {
-		// Run ckati
+	if what&RunKati != 0 {
 		genKatiSuffix(ctx, config)
 		runKatiCleanSpec(ctx, config)
 		runKatiBuild(ctx, config)
@@ -289,17 +294,16 @@ func Build(ctx Context, config Config, what int) {
 		testForDanglingRules(ctx, config)
 	}
 
-	if what&BuildNinja != 0 {
-		if what&BuildKati != 0 {
+	if what&RunNinja != 0 {
+		if what&RunKati != 0 {
 			installCleanIfNecessary(ctx, config)
 		}
 
-		// Run ninja
 		runNinjaForBuild(ctx, config)
 	}
 
 	// Currently, using Bazel requires Kati and Soong to run first, so check whether to run Bazel last.
-	if what&BuildBazel != 0 {
+	if what&RunBazel != 0 {
 		runBazel(ctx, config)
 	}
 }
