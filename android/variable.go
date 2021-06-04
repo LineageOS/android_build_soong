@@ -479,18 +479,11 @@ func ProductVariableProperties(ctx BaseMutatorContext) ProductConfigProperties {
 
 	productVariableValues(moduleBase.variableProperties, "", &productConfigProperties)
 
-	for arch, targetProps := range moduleBase.GetArchProperties(ctx, moduleBase.variableProperties) {
-		// GetArchProperties is creating an instance of the requested type
-		// and productVariablesValues expects an interface, so no need to cast
-		productVariableValues(targetProps, arch.Name, &productConfigProperties)
-	}
-
-	for os, targetProps := range moduleBase.GetTargetProperties(ctx, moduleBase.variableProperties) {
-		// GetTargetProperties is creating an instance of the requested type
-		// and productVariablesValues expects an interface, so no need to cast
-		productVariableValues(targetProps.Properties, os.Name, &productConfigProperties)
-		for arch, archProperties := range targetProps.ArchProperties {
-			productVariableValues(archProperties, os.Name+"_"+arch.Name, &productConfigProperties)
+	for _, configToProps := range moduleBase.GetArchVariantProperties(ctx, moduleBase.variableProperties) {
+		for config, props := range configToProps {
+			// GetArchVariantProperties is creating an instance of the requested type
+			// and productVariablesValues expects an interface, so no need to cast
+			productVariableValues(props, config, &productConfigProperties)
 		}
 	}
 

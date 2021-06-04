@@ -17,46 +17,20 @@ func getStringListValues(list bazel.StringListAttribute) (reflect.Value, []selec
 		return value, []selects{}
 	}
 
-	selectValues := make([]selects, 0)
-	archSelects := map[string]reflect.Value{}
-	for arch, selectKey := range bazel.PlatformArchMap {
-		archSelects[selectKey] = reflect.ValueOf(list.GetValueForArch(arch))
-	}
-	if len(archSelects) > 0 {
-		selectValues = append(selectValues, archSelects)
-	}
-
-	osSelects := map[string]reflect.Value{}
-	osArchSelects := make([]selects, 0)
-	for _, os := range android.SortedStringKeys(bazel.PlatformOsMap) {
-		selectKey := bazel.PlatformOsMap[os]
-		osSelects[selectKey] = reflect.ValueOf(list.GetOsValueForTarget(os))
-		archSelects := make(map[string]reflect.Value)
-		// TODO(b/187530594): Should we also check arch=CONDITIONS_DEFAULT? (not in AllArches)
-		for _, arch := range bazel.AllArches {
-			target := os + "_" + arch
-			selectKey := bazel.PlatformTargetMap[target]
-			archSelects[selectKey] = reflect.ValueOf(list.GetOsArchValueForTarget(os, arch))
+	var ret []selects
+	for _, axis := range list.SortedConfigurationAxes() {
+		configToLists := list.ConfigurableValues[axis]
+		archSelects := map[string]reflect.Value{}
+		for config, labels := range configToLists {
+			selectKey := axis.SelectKey(config)
+			archSelects[selectKey] = reflect.ValueOf(labels)
 		}
-		osArchSelects = append(osArchSelects, archSelects)
-	}
-	if len(osSelects) > 0 {
-		selectValues = append(selectValues, osSelects)
-	}
-	if len(osArchSelects) > 0 {
-		selectValues = append(selectValues, osArchSelects...)
-	}
-
-	for _, pv := range list.SortedProductVariables() {
-		s := make(selects)
-		if len(pv.Values) > 0 {
-			s[pv.SelectKey()] = reflect.ValueOf(pv.Values)
-			s[bazel.ConditionsDefaultSelectKey] = reflect.ValueOf([]string{})
-			selectValues = append(selectValues, s)
+		if len(archSelects) > 0 {
+			ret = append(ret, archSelects)
 		}
 	}
 
-	return value, selectValues
+	return value, ret
 }
 
 func getLabelValue(label bazel.LabelAttribute) (reflect.Value, []selects) {
@@ -65,105 +39,37 @@ func getLabelValue(label bazel.LabelAttribute) (reflect.Value, []selects) {
 		return value, []selects{}
 	}
 
-	// Keep track of which arches and oses have been used in case we need to raise a warning
-	usedArches := make(map[string]bool)
-	usedOses := make(map[string]bool)
-
-	archSelects := map[string]reflect.Value{}
-	for arch, selectKey := range bazel.PlatformArchMap {
-		archSelects[selectKey] = reflect.ValueOf(label.GetValueForArch(arch))
-		if archSelects[selectKey].IsValid() && !isZero(archSelects[selectKey]) {
-			usedArches[arch] = true
+	ret := selects{}
+	for _, axis := range label.SortedConfigurationAxes() {
+		configToLabels := label.ConfigurableValues[axis]
+		for config, labels := range configToLabels {
+			selectKey := axis.SelectKey(config)
+			ret[selectKey] = reflect.ValueOf(labels)
 		}
 	}
 
-	osSelects := map[string]reflect.Value{}
-	for _, os := range android.SortedStringKeys(bazel.PlatformOsMap) {
-		selectKey := bazel.PlatformOsMap[os]
-		osSelects[selectKey] = reflect.ValueOf(label.GetOsValueForTarget(os))
-		if osSelects[selectKey].IsValid() && !isZero(osSelects[selectKey]) {
-			usedOses[os] = true
-		}
-	}
-
-	osArchSelects := make([]selects, 0)
-	for _, os := range android.SortedStringKeys(bazel.PlatformOsMap) {
-		archSelects := make(map[string]reflect.Value)
-		// TODO(b/187530594): Should we also check arch=CONDITIONS_DEFAULT? (not in AllArches)
-		for _, arch := range bazel.AllArches {
-			target := os + "_" + arch
-			selectKey := bazel.PlatformTargetMap[target]
-			archSelects[selectKey] = reflect.ValueOf(label.GetOsArchValueForTarget(os, arch))
-			if archSelects[selectKey].IsValid() && !isZero(archSelects[selectKey]) {
-				if _, ok := usedArches[arch]; ok {
-					fmt.Printf("WARNING: Same arch used twice in LabelAttribute select: arch '%s'\n", arch)
-				}
-				if _, ok := usedOses[os]; ok {
-					fmt.Printf("WARNING: Same os used twice in LabelAttribute select: os '%s'\n", os)
-				}
-			}
-		}
-		osArchSelects = append(osArchSelects, archSelects)
-	}
-
-	// Because we have to return a single Label, we can only use one select statement
-	combinedSelects := map[string]reflect.Value{}
-	for k, v := range archSelects {
-		combinedSelects[k] = v
-	}
-	for k, v := range osSelects {
-		combinedSelects[k] = v
-	}
-	for _, osArchSelect := range osArchSelects {
-		for k, v := range osArchSelect {
-			combinedSelects[k] = v
-		}
-	}
-
-	return value, []selects{combinedSelects}
+	return value, []selects{ret}
 }
 
 func getLabelListValues(list bazel.LabelListAttribute) (reflect.Value, []selects) {
 	value := reflect.ValueOf(list.Value.Includes)
-	if !list.HasConfigurableValues() {
-		return value, []selects{}
-	}
 	var ret []selects
-
-	archSelects := map[string]reflect.Value{}
-	for arch, selectKey := range bazel.PlatformArchMap {
-		if use, value := labelListSelectValue(selectKey, list.GetValueForArch(arch)); use {
-			archSelects[selectKey] = value
+	for _, axis := range list.SortedConfigurationAxes() {
+		configToLabels := list.ConfigurableValues[axis]
+		if !configToLabels.HasConfigurableValues() {
+			continue
 		}
-	}
-	if len(archSelects) > 0 {
-		ret = append(ret, archSelects)
-	}
-
-	osSelects := map[string]reflect.Value{}
-	osArchSelects := []selects{}
-	for _, os := range android.SortedStringKeys(bazel.PlatformOsMap) {
-		selectKey := bazel.PlatformOsMap[os]
-		if use, value := labelListSelectValue(selectKey, list.GetOsValueForTarget(os)); use {
-			osSelects[selectKey] = value
-		}
-		selects := make(map[string]reflect.Value)
-		// TODO(b/187530594): Should we also check arch=CONDITIOSN_DEFAULT? (not in AllArches)
-		for _, arch := range bazel.AllArches {
-			target := os + "_" + arch
-			selectKey := bazel.PlatformTargetMap[target]
-			if use, value := labelListSelectValue(selectKey, list.GetOsArchValueForTarget(os, arch)); use {
-				selects[selectKey] = value
+		archSelects := map[string]reflect.Value{}
+		for config, labels := range configToLabels {
+			selectKey := axis.SelectKey(config)
+			if use, value := labelListSelectValue(selectKey, labels); use {
+				archSelects[selectKey] = value
 			}
 		}
-		if len(selects) > 0 {
-			osArchSelects = append(osArchSelects, selects)
+		if len(archSelects) > 0 {
+			ret = append(ret, archSelects)
 		}
 	}
-	if len(osSelects) > 0 {
-		ret = append(ret, osSelects)
-	}
-	ret = append(ret, osArchSelects...)
 
 	return value, ret
 }
