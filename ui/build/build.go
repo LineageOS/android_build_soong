@@ -60,15 +60,15 @@ builddir = {{.OutDir}}
 {{end -}}
 pool highmem_pool
  depth = {{.HighmemParallel}}
-{{if .HasKatiSuffix}}subninja {{.KatiBuildNinjaFile}}
+{{if and (not .SkipKatiNinja) .HasKatiSuffix}}subninja {{.KatiBuildNinjaFile}}
 subninja {{.KatiPackageNinjaFile}}
 {{end -}}
 subninja {{.SoongNinjaFile}}
 `))
 
 func createCombinedBuildNinjaFile(ctx Context, config Config) {
-	// If we're in SkipKati mode, skip creating this file if it already exists
-	if config.SkipKati() {
+	// If we're in SkipKati mode but want to run kati ninja, skip creating this file if it already exists
+	if config.SkipKati() && !config.SkipKatiNinja() {
 		if _, err := os.Stat(config.CombinedNinjaFile()); err == nil || !os.IsNotExist(err) {
 			return
 		}
@@ -94,13 +94,15 @@ const (
 	RunSoong = 1 << iota
 	// Whether to run kati to generate a ninja file.
 	RunKati = 1 << iota
+	// Whether to include the kati-generated ninja file in the combined ninja.
+	RunKatiNinja = 1 << iota
 	// Whether to run ninja on the combined ninja.
 	RunNinja = 1 << iota
 	// Whether to run bazel on the combined ninja.
 	RunBazel        = 1 << iota
 	RunBuildTests   = 1 << iota
-	RunAll          = RunProductConfig | RunSoong | RunKati | RunNinja
-	RunAllWithBazel = RunProductConfig | RunSoong | RunKati | RunBazel
+	RunAll          = RunProductConfig | RunSoong | RunKati | RunKatiNinja | RunNinja
+	RunAllWithBazel = RunProductConfig | RunSoong | RunKati | RunKatiNinja | RunBazel
 )
 
 // checkProblematicFiles fails the build if existing Android.mk or CleanSpec.mk files are found at the root of the tree.
@@ -228,6 +230,10 @@ func Build(ctx Context, config Config) {
 		ctx.Verboseln("Skipping Kati as requested")
 		what = what &^ RunKati
 	}
+	if config.SkipKatiNinja() {
+		ctx.Verboseln("Skipping use of Kati ninja as requested")
+		what = what &^ RunKatiNinja
+	}
 	if config.SkipNinja() {
 		ctx.Verboseln("Skipping Ninja as requested")
 		what = what &^ RunNinja
@@ -277,7 +283,7 @@ func Build(ctx Context, config Config) {
 		runKatiPackage(ctx, config)
 
 		ioutil.WriteFile(config.LastKatiSuffixFile(), []byte(config.KatiSuffix()), 0666) // a+rw
-	} else {
+	} else if what&RunKatiNinja != 0 {
 		// Load last Kati Suffix if it exists
 		if katiSuffix, err := ioutil.ReadFile(config.LastKatiSuffixFile()); err == nil {
 			ctx.Verboseln("Loaded previous kati config:", string(katiSuffix))
