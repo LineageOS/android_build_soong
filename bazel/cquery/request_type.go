@@ -20,6 +20,10 @@ type CcInfo struct {
 	// be a subset of OutputFiles. (or static libraries, this will be equal to OutputFiles,
 	// but general cc_library will also have dynamic libraries in output files).
 	RootStaticArchives []string
+	// Dynamic libraries (.so files) created by the current target. These will
+	// be a subset of OutputFiles. (or shared libraries, this will be equal to OutputFiles,
+	// but general cc_library will also have dynamic libraries in output files).
+	RootDynamicLibraries []string
 }
 
 type getOutputFilesRequestType struct{}
@@ -86,13 +90,21 @@ for linker_input in linker_inputs:
       if linker_input.owner == target.label:
         rootStaticArchives.append(library.static_library.path)
 
+rootDynamicLibraries = []
+
+if "@rules_cc//examples:experimental_cc_shared_library.bzl%CcSharedLibraryInfo" in providers(target):
+  shared_info = providers(target)["@rules_cc//examples:experimental_cc_shared_library.bzl%CcSharedLibraryInfo"]
+  for lib in shared_info.linker_input.libraries:
+    rootDynamicLibraries += [lib.dynamic_library.path]
+
 returns = [
   outputFiles,
   staticLibraries,
   ccObjectFiles,
   includes,
   system_includes,
-  rootStaticArchives
+  rootStaticArchives,
+  rootDynamicLibraries
 ]
 
 return "|".join([", ".join(r) for r in returns])`
@@ -106,7 +118,7 @@ func (g getCcInfoType) ParseResult(rawString string) (CcInfo, error) {
 	var ccObjects []string
 
 	splitString := strings.Split(rawString, "|")
-	if expectedLen := 6; len(splitString) != expectedLen {
+	if expectedLen := 7; len(splitString) != expectedLen {
 		return CcInfo{}, fmt.Errorf("Expected %d items, got %q", expectedLen, splitString)
 	}
 	outputFilesString := splitString[0]
@@ -118,6 +130,7 @@ func (g getCcInfoType) ParseResult(rawString string) (CcInfo, error) {
 	includes := splitOrEmpty(splitString[3], ", ")
 	systemIncludes := splitOrEmpty(splitString[4], ", ")
 	rootStaticArchives := splitOrEmpty(splitString[5], ", ")
+	rootDynamicLibraries := splitOrEmpty(splitString[6], ", ")
 	return CcInfo{
 		OutputFiles:          outputFiles,
 		CcObjectFiles:        ccObjects,
@@ -125,6 +138,7 @@ func (g getCcInfoType) ParseResult(rawString string) (CcInfo, error) {
 		Includes:             includes,
 		SystemIncludes:       systemIncludes,
 		RootStaticArchives:   rootStaticArchives,
+		RootDynamicLibraries: rootDynamicLibraries,
 	}, nil
 }
 

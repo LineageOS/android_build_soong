@@ -542,10 +542,13 @@ def get_arch(target):
   platform_name = build_options(target)["//command_line_option:platforms"][0].name
   if platform_name == "host":
     return "HOST"
-  elif not platform_name.startswith("android_"):
-    fail("expected platform name of the form 'android_<arch>', but was " + str(platforms))
+  elif platform_name.startswith("android_"):
+    return platform_name[len("android_"):]
+  elif platform_name.startswith("linux_"):
+    return platform_name[len("linux_"):]
+  else:
+    fail("expected platform name of the form 'android_<arch>' or 'linux_<arch>', but was " + str(platforms))
     return "UNKNOWN"
-  return platform_name[len("android_"):]
 
 def format(target):
   id_string = str(target.label) + "|" + get_arch(target)
@@ -742,8 +745,17 @@ func (c *bazelSingleton) GenerateBuildActions(ctx SingletonContext) {
 		}
 		rule := NewRuleBuilder(pctx, ctx)
 		cmd := rule.Command()
-		cmd.Text(fmt.Sprintf("cd %s/execroot/__main__ && %s",
-			ctx.Config().BazelContext.OutputBase(), buildStatement.Command))
+
+		// cd into Bazel's execution root, which is the action cwd.
+		cmd.Text(fmt.Sprintf("cd %s/execroot/__main__ && ", ctx.Config().BazelContext.OutputBase()))
+
+		for _, pair := range buildStatement.Env {
+			// Set per-action env variables, if any.
+			cmd.Flag(pair.Key + "=" + pair.Value)
+		}
+
+		// The actual Bazel action.
+		cmd.Text(" " + buildStatement.Command)
 
 		for _, outputPath := range buildStatement.OutputPaths {
 			cmd.ImplicitOutput(PathForBazelOut(ctx, outputPath))
