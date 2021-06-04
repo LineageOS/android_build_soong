@@ -398,7 +398,17 @@ func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, javaVersi
 	rule.Command().Text("rm -rf").Flag(homeDir.String())
 	rule.Command().Text("mkdir -p").Flag(homeDir.String())
 
-	cmd := rule.Command()
+	var cmd *android.RuleBuilderCommand
+	if len(sourcepaths) > 0 {
+		// We are passing the sourcepaths as an argument to metalava below, but the directories may
+		// not exist already (if they do not contain any listed inputs for metalava). Note that this
+		// is in a rule.SboxInputs()rule, so we are not modifying the actual source tree by creating
+		// these directories.
+		cmd = rule.Command()
+		cmd.Text("mkdir -p").Flags(cmd.PathsForInputs(sourcepaths))
+	}
+
+	cmd = rule.Command()
 	cmd.FlagWithArg("ANDROID_PREFS_ROOT=", homeDir.String())
 
 	if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_METALAVA") {
@@ -432,6 +442,7 @@ func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, javaVersi
 	}
 
 	if len(sourcepaths) > 0 {
+		// TODO(b/153703940): Pass .html files to metalava and remove this argument.
 		cmd.FlagWithList("-sourcepath ", sourcepaths.Strings(), ":")
 	} else {
 		cmd.FlagWithArg("-sourcepath ", `""`)
