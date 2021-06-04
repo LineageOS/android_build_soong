@@ -294,12 +294,3 @@ func init() {
 }
 
 var HostPrebuiltTag = pctx.VariableConfigMethod("HostPrebuiltTag", android.Config.PrebuiltOS)
-
-func envOverrideFunc(envVar, defaultVal string) func(ctx android.PackageVarContext) string {
-	return func(ctx android.PackageVarContext) string {
-		if override := ctx.Config().Getenv(envVar); override != "" {
-			return override
-		}
-		return defaultVal
-	}
-}
