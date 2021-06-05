@@ -48,6 +48,7 @@ type configImpl struct {
 	dist           bool
 	skipConfig     bool
 	skipKati       bool
+	skipKatiNinja  bool
 	skipNinja      bool
 	skipSoongTests bool
 
@@ -567,8 +568,7 @@ func getTargetsFromDirs(ctx Context, relDir string, dirs []string, targetNamePre
 func (c *configImpl) parseArgs(ctx Context, args []string) {
 	for i := 0; i < len(args); i++ {
 		arg := strings.TrimSpace(args[i])
-		if arg == "--make-mode" {
-		} else if arg == "showcommands" {
+		if arg == "showcommands" {
 			c.verbose = true
 		} else if arg == "--skip-ninja" {
 			c.skipNinja = true
@@ -576,7 +576,11 @@ func (c *configImpl) parseArgs(ctx Context, args []string) {
 			c.skipConfig = true
 			c.skipKati = true
 		} else if arg == "--skip-kati" {
+			// TODO: remove --skip-kati once module builds have been migrated to --song-only
 			c.skipKati = true
+		} else if arg == "--soong-only" {
+			c.skipKati = true
+			c.skipKatiNinja = true
 		} else if arg == "--skip-soong-tests" {
 			c.skipSoongTests = true
 		} else if len(arg) > 0 && arg[0] == '-' {
@@ -792,8 +796,16 @@ func (c *configImpl) SkipKati() bool {
 	return c.skipKati
 }
 
+func (c *configImpl) SkipKatiNinja() bool {
+	return c.skipKatiNinja
+}
+
 func (c *configImpl) SkipNinja() bool {
 	return c.skipNinja
+}
+
+func (c *configImpl) SetSkipNinja(v bool) {
+	c.skipNinja = v
 }
 
 func (c *configImpl) SkipConfig() bool {
