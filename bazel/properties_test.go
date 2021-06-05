@@ -122,7 +122,7 @@ func TestSubtractBazelLabelList(t *testing.T) {
 		}
 	}
 }
-func TestUniqueBazelLabelList(t *testing.T) {
+func TestFirstUniqueBazelLabelList(t *testing.T) {
 	testCases := []struct {
 		originalLabelList       LabelList
 		expectedUniqueLabelList LabelList
@@ -157,7 +157,49 @@ func TestUniqueBazelLabelList(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		actualUniqueLabelList := UniqueBazelLabelList(tc.originalLabelList)
+		actualUniqueLabelList := FirstUniqueBazelLabelList(tc.originalLabelList)
+		if !reflect.DeepEqual(tc.expectedUniqueLabelList, actualUniqueLabelList) {
+			t.Fatalf("Expected %v, got %v", tc.expectedUniqueLabelList, actualUniqueLabelList)
+		}
+	}
+}
+
+func TestUniqueSortedBazelLabelList(t *testing.T) {
+	testCases := []struct {
+		originalLabelList       LabelList
+		expectedUniqueLabelList LabelList
+	}{
+		{
+			originalLabelList: LabelList{
+				Includes: []Label{
+					{Label: "c"},
+					{Label: "a"},
+					{Label: "a"},
+					{Label: "b"},
+				},
+				Excludes: []Label{
+					{Label: "y"},
+					{Label: "z"},
+					{Label: "x"},
+					{Label: "x"},
+				},
+			},
+			expectedUniqueLabelList: LabelList{
+				Includes: []Label{
+					{Label: "a"},
+					{Label: "b"},
+					{Label: "c"},
+				},
+				Excludes: []Label{
+					{Label: "x"},
+					{Label: "y"},
+					{Label: "z"},
+				},
+			},
+		},
+	}
+	for _, tc := range testCases {
+		actualUniqueLabelList := UniqueSortedBazelLabelList(tc.originalLabelList)
 		if !reflect.DeepEqual(tc.expectedUniqueLabelList, actualUniqueLabelList) {
 			t.Fatalf("Expected %v, got %v", tc.expectedUniqueLabelList, actualUniqueLabelList)
 		}
