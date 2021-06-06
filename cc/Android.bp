@@ -65,9 +65,10 @@ bootstrap_go_package {
         "test.go",
         "toolchain_library.go",
 
-        "ndk_prebuilt.go",
+        "ndk_abi.go",
         "ndk_headers.go",
         "ndk_library.go",
+        "ndk_prebuilt.go",
         "ndk_sysroot.go",
 
         "llndk_library.go",
