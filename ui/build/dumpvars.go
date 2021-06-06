@@ -171,6 +171,7 @@ var BannerVars = []string{
 	"WITH_GMS_TV",
 	"GMS_MAKEFILE",
 	"MAINLINE_MODULES_MAKEFILE",
+	"WITH_EXYNOS_BSP",
 }
 
 func Banner(make_vars map[string]string) string {
