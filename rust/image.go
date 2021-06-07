@@ -217,6 +217,12 @@ func (mod *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 			mctx.PropertyErrorf("vendor_ramdisk_available", "cannot be set for rust_ffi or rust_ffi_shared modules.")
 		}
 	}
+	vendorSpecific := mctx.SocSpecific() || mctx.DeviceSpecific()
+	if vendorSpecific {
+		mctx.PropertyErrorf("vendor or soc_specific",
+			"Rust modules do not yet support soc-specific modules")
+
+	}
 
 	cc.MutateImage(mctx, mod)
 
