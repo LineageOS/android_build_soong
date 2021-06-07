@@ -132,6 +132,9 @@ type BootclasspathFragmentModule struct {
 	ClasspathFragmentBase
 
 	properties bootclasspathFragmentProperties
+
+	// Collect the module directory for IDE info in java/jdeps.go.
+	modulePaths []string
 }
 
 // commonBootclasspathFragment defines the methods that are implemented by both source and prebuilt
@@ -388,6 +391,9 @@ func (b *BootclasspathFragmentModule) GenerateAndroidBuildActions(ctx android.Mo
 
 	// Generate classpaths.proto config
 	b.generateClasspathProtoBuildActions(ctx)
+
+	// Collect the module directory for IDE info in java/jdeps.go.
+	b.modulePaths = append(b.modulePaths, ctx.ModuleDir())
 
 	// Gather the bootclasspath fragment's contents.
 	var contents []android.Module
@@ -646,6 +652,12 @@ func (b *BootclasspathFragmentModule) generateBootImageBuildActions(ctx android.
 	buildBootImage(ctx, imageConfig, profile)
 
 	return true
+}
+
+// Collect information for opening IDE project files in java/jdeps.go.
+func (b *BootclasspathFragmentModule) IDEInfo(dpInfo *android.IdeInfo) {
+	dpInfo.Deps = append(dpInfo.Deps, b.properties.Contents...)
+	dpInfo.Paths = append(dpInfo.Paths, b.modulePaths...)
 }
 
 type bootclasspathFragmentMemberType struct {
