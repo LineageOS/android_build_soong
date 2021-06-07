@@ -68,6 +68,13 @@ func (ll *LabelList) IsNil() bool {
 	return ll.Includes == nil && ll.Excludes == nil
 }
 
+func (ll *LabelList) deepCopy() LabelList {
+	return LabelList{
+		Includes: ll.Includes[:],
+		Excludes: ll.Excludes[:],
+	}
+}
+
 // uniqueParentDirectories returns a list of the unique parent directories for
 // all files in ll.Includes.
 func (ll *LabelList) uniqueParentDirectories() []string {
@@ -467,6 +474,39 @@ func (lla *LabelListAttribute) Append(other LabelListAttribute) {
 // HasConfigurableValues returns true if the attribute contains axis-specific label list values.
 func (lla LabelListAttribute) HasConfigurableValues() bool {
 	return len(lla.ConfigurableValues) > 0
+}
+
+// ResolveExcludes handles excludes across the various axes, ensuring that items are removed from
+// the base value and included in default values as appropriate.
+func (lla *LabelListAttribute) ResolveExcludes() {
+	for axis, configToLabels := range lla.ConfigurableValues {
+		baseLabels := lla.Value.deepCopy()
+		for config, val := range configToLabels {
+			// Exclude config-specific excludes from base value
+			lla.Value = SubtractBazelLabelList(lla.Value, LabelList{Includes: val.Excludes})
+
+			// add base values to config specific to add labels excluded by others in this axis
+			// then remove all config-specific excludes
+			allLabels := baseLabels.deepCopy()
+			allLabels.Append(val)
+			lla.ConfigurableValues[axis][config] = SubtractBazelLabelList(allLabels, LabelList{Includes: val.Excludes})
+		}
+
+		// After going through all configs, delete the duplicates in the config
+		// values that are already in the base Value.
+		for config, val := range configToLabels {
+			lla.ConfigurableValues[axis][config] = SubtractBazelLabelList(val, lla.Value)
+		}
+
+		// Now that the Value list is finalized for this axis, compare it with the original
+		// list, and put the difference into the default condition for the axis.
+		lla.ConfigurableValues[axis][conditionsDefault] = SubtractBazelLabelList(baseLabels, lla.Value)
+
+		// if everything ends up without includes, just delete the axis
+		if !lla.ConfigurableValues[axis].HasConfigurableValues() {
+			delete(lla.ConfigurableValues, axis)
+		}
+	}
 }
 
 // StringListAttribute corresponds to the string_list Bazel attribute type with
