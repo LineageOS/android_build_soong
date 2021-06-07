@@ -17,6 +17,7 @@ package cc
 import (
 	"fmt"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 
@@ -332,12 +333,12 @@ func (this *stubDecorator) findPrebuiltAbiDump(ctx ModuleContext,
 }
 
 // Feature flag.
-func canDumpAbi(module android.Module) bool {
-	return true
+func canDumpAbi() bool {
+	return runtime.GOOS != "darwin"
 }
 
 // Feature flag to disable diffing against prebuilts.
-func canDiffAbi(module android.Module) bool {
+func canDiffAbi() bool {
 	return false
 }
 
@@ -452,9 +453,9 @@ func (c *stubDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) O
 	nativeAbiResult := parseNativeAbiDefinition(ctx, symbolFile, c.apiLevel, "")
 	objs := compileStubLibrary(ctx, flags, nativeAbiResult.stubSrc)
 	c.versionScriptPath = nativeAbiResult.versionScript
-	if canDumpAbi(ctx.Module()) {
+	if canDumpAbi() {
 		c.dumpAbi(ctx, nativeAbiResult.symbolList)
-		if canDiffAbi(ctx.Module()) {
+		if canDiffAbi() {
 			c.diffAbi(ctx)
 		}
 	}
