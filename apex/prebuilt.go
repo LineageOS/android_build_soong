@@ -549,21 +549,36 @@ func createDeapexerModuleIfNeeded(ctx android.TopDownMutatorContext, deapexerNam
 	}
 
 	// Compute the deapexer properties from the transitive dependencies of this module.
-	javaModules := []string{}
-	exportedFiles := map[string]string{}
+	commonModules := []string{}
+	exportedFilesByKey := map[string]string{}
+	requiringModulesByKey := map[string]android.Module{}
 	ctx.WalkDeps(func(child, parent android.Module) bool {
 		tag := ctx.OtherModuleDependencyTag(child)
 
 		name := android.RemoveOptionalPrebuiltPrefix(ctx.OtherModuleName(child))
 		if java.IsBootclasspathFragmentContentDepTag(tag) || tag == exportedJavaLibTag {
-			javaModules = append(javaModules, name)
+			commonModules = append(commonModules, name)
 
 			// Add the dex implementation jar to the set of exported files. The path here must match the
 			// path of the file in the APEX created by apexFileForJavaModule(...).
-			exportedFiles[name+"{.dexjar}"] = filepath.Join("javalib", name+".jar")
+			exportedFilesByKey[name+"{.dexjar}"] = filepath.Join("javalib", name+".jar")
 
 		} else if tag == exportedBootclasspathFragmentTag {
-			// Only visit the children of the bootclasspath_fragment for now.
+			commonModules = append(commonModules, name)
+
+			requiredFiles := child.(android.RequiredFilesFromPrebuiltApex).RequiredFilesFromPrebuiltApex(ctx)
+			for k, v := range requiredFiles {
+				if f, ok := exportedFilesByKey[k]; ok && f != v {
+					otherModule := requiringModulesByKey[k]
+					ctx.ModuleErrorf("inconsistent paths have been requested for key %q, %s requires path %s while %s requires path %s",
+						k, child, v, otherModule, f)
+					continue
+				}
+				exportedFilesByKey[k] = v
+				requiringModulesByKey[k] = child
+			}
+
+			// Make sure to visit the children of the bootclasspath_fragment.
 			return true
 		}
 
@@ -572,16 +587,16 @@ func createDeapexerModuleIfNeeded(ctx android.TopDownMutatorContext, deapexerNam
 
 	// Create properties for deapexer module.
 	deapexerProperties := &DeapexerProperties{
-		// Remove any duplicates from the java modules lists as a module may be included via a direct
+		// Remove any duplicates from the common modules lists as a module may be included via a direct
 		// dependency as well as transitive ones.
-		CommonModules: android.SortedUniqueStrings(javaModules),
+		CommonModules: android.SortedUniqueStrings(commonModules),
 	}
 
 	// Populate the exported files property in a fixed order.
-	for _, tag := range android.SortedStringKeys(exportedFiles) {
+	for _, tag := range android.SortedStringKeys(exportedFilesByKey) {
 		deapexerProperties.ExportedFiles = append(deapexerProperties.ExportedFiles, DeapexerExportedFile{
 			Tag:  tag,
-			Path: exportedFiles[tag],
+			Path: exportedFilesByKey[tag],
 		})
 	}
 
