@@ -56,7 +56,7 @@ const (
 	// This is consistently named "conditions_default" to mirror the Soong
 	// config variable default key in an Android.bp file, although there's no
 	// integration with Soong config variables (yet).
-	ConditionsDefault = "conditions_default"
+	conditionsDefault = "conditions_default"
 
 	ConditionsDefaultSelectKey = "//conditions:default"
 
@@ -76,7 +76,7 @@ var (
 		archArm64:         "//build/bazel/platforms/arch:arm64",
 		archX86:           "//build/bazel/platforms/arch:x86",
 		archX86_64:        "//build/bazel/platforms/arch:x86_64",
-		ConditionsDefault: ConditionsDefaultSelectKey, // The default condition of as arch select map.
+		conditionsDefault: ConditionsDefaultSelectKey, // The default condition of as arch select map.
 	}
 
 	// A map of target operating systems to the Bazel label of the
@@ -88,7 +88,7 @@ var (
 		osLinux:           "//build/bazel/platforms/os:linux",
 		osLinuxBionic:     "//build/bazel/platforms/os:linux_bionic",
 		osWindows:         "//build/bazel/platforms/os:windows",
-		ConditionsDefault: ConditionsDefaultSelectKey, // The default condition of an os select map.
+		conditionsDefault: ConditionsDefaultSelectKey, // The default condition of an os select map.
 	}
 
 	platformOsArchMap = map[string]string{
@@ -105,7 +105,7 @@ var (
 		osArchLinuxBionicX86_64: "//build/bazel/platforms/os_arch:linux_bionic_x86_64",
 		osArchWindowsX86:        "//build/bazel/platforms/os_arch:windows_x86",
 		osArchWindowsX86_64:     "//build/bazel/platforms/os_arch:windows_x86_64",
-		ConditionsDefault:       ConditionsDefaultSelectKey, // The default condition of an os select map.
+		conditionsDefault:       ConditionsDefaultSelectKey, // The default condition of an os select map.
 	}
 )
 
@@ -168,7 +168,7 @@ func (ct configurationType) SelectKey(config string) string {
 	case osArch:
 		return platformOsArchMap[config]
 	case productVariables:
-		if config == ConditionsDefault {
+		if config == conditionsDefault {
 			return ConditionsDefaultSelectKey
 		}
 		return fmt.Sprintf("%s:%s", productVariableBazelPackage, strings.ToLower(config))
