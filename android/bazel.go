@@ -221,6 +221,8 @@ var (
 	// still be generated via bp2build.
 	mixedBuildsDisabledList = []string{
 		// Currently empty, though should remain present to facilitate granular bp2build migration.
+		"libdl",         // missing libbionic_Slinker_Slibld-android_Ubp2build_Ucc_Ulibrary_Ushared.so
+		"libdl_android", // missing libbionic_Slinker_Slibld-android_Ubp2build_Ucc_Ulibrary_Ushared.so
 	}
 
 	// Used for quicker lookups
