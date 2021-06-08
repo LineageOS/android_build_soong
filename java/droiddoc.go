@@ -425,23 +425,6 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 	}
 	srcFiles = filterByPackage(srcFiles, j.properties.Filter_packages)
 
-	// While metalava needs package html files, it does not need them to be explicit on the command
-	// line. javadoc complains if it receives html files on the command line. The filter
-	// below excludes html files from the rsp file metalava. Note that the html
-	// files are still included as implicit inputs for successful remote execution and correct
-	// incremental builds.
-	filterHtml := func(srcs []android.Path) []android.Path {
-		filtered := []android.Path{}
-		for _, src := range srcs {
-			if src.Ext() == ".html" {
-				continue
-			}
-			filtered = append(filtered, src)
-		}
-		return filtered
-	}
-	srcFiles = filterHtml(srcFiles)
-
 	aidlFlags := j.collectAidlFlags(ctx, deps)
 	srcFiles = j.genSources(ctx, srcFiles, aidlFlags)
 
