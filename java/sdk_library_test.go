@@ -846,7 +846,7 @@ func TestJavaSdkLibraryDist(t *testing.T) {
 		PrepareForTestWithJavaSdkLibraryFiles,
 	).RunTestWithBp(t, `
 		java_sdk_library {
-			name: "sdklib_no_owner",
+			name: "sdklib_no_group",
 			unsafe_ignore_missing_latest_api: true,
 			srcs: ["foo.java"],
 		}
@@ -887,9 +887,9 @@ func TestJavaSdkLibraryDist(t *testing.T) {
 	}
 	testCases := []testCase{
 		{
-			module:   "sdklib_no_owner",
+			module:   "sdklib_no_group",
 			distDir:  "apistubs/unknown/public",
-			distStem: "sdklib_no_owner.jar",
+			distStem: "sdklib_no_group.jar",
 		},
 		{
 			module:   "sdklib_group_foo",
@@ -897,8 +897,9 @@ func TestJavaSdkLibraryDist(t *testing.T) {
 			distStem: "sdklib_group_foo.jar",
 		},
 		{
+			// Owner doesn't affect distDir after b/186723288.
 			module:   "sdklib_owner_foo",
-			distDir:  "apistubs/foo/public",
+			distDir:  "apistubs/unknown/public",
 			distStem: "sdklib_owner_foo.jar",
 		},
 		{
