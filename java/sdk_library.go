@@ -1233,14 +1233,7 @@ func (module *SdkLibrary) distStem() string {
 
 // distGroup returns the subdirectory of the dist path of the stub artifacts.
 func (module *SdkLibrary) distGroup() string {
-	if group := proptools.String(module.sdkLibraryProperties.Dist_group); group != "" {
-		return group
-	}
-	// TODO(b/186723288): Remove this once everything uses dist_group.
-	if owner := module.ModuleBase.Owner(); owner != "" {
-		return owner
-	}
-	return "unknown"
+	return proptools.StringDefault(module.sdkLibraryProperties.Dist_group, "unknown")
 }
 
 func (module *SdkLibrary) latestApiFilegroupName(apiScope *apiScope) string {
