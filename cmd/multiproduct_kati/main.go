@@ -460,19 +460,21 @@ func buildProduct(mpctx *mpContext, product string) {
 		}
 	}()
 
-	buildWhat := build.BuildProductConfig
+	config.SetSkipNinja(true)
+
+	buildWhat := build.RunProductConfig
 	if !*onlyConfig {
-		buildWhat |= build.BuildSoong
+		buildWhat |= build.RunSoong
 		if !*onlySoong {
-			buildWhat |= build.BuildKati
+			buildWhat |= build.RunKati
 		}
 	}
 
 	before := time.Now()
-	build.Build(ctx, config, buildWhat)
+	build.Build(ctx, config)
 
 	// Save std_full.log if Kati re-read the makefiles
-	if buildWhat&build.BuildKati != 0 {
+	if buildWhat&build.RunKati != 0 {
 		if after, err := os.Stat(config.KatiBuildNinjaFile()); err == nil && after.ModTime().After(before) {
 			err := copyFile(stdLog, filepath.Join(filepath.Dir(stdLog), "std_full.log"))
 			if err != nil {
