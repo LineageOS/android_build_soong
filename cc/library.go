@@ -111,9 +111,6 @@ type LibraryProperties struct {
 		Check_all_apis *bool
 	}
 
-	// Order symbols in .bss section by their sizes.  Only useful for shared libraries.
-	Sort_bss_symbols_by_size *bool
-
 	// Inject boringssl hash into the shared library.  This is only intended for use by external/boringssl.
 	Inject_bssl_hash *bool `android:"arch_variant"`
 
@@ -1342,19 +1339,6 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 	linkerDeps = append(linkerDeps, deps.SharedLibsDeps...)
 	linkerDeps = append(linkerDeps, deps.LateSharedLibsDeps...)
 	linkerDeps = append(linkerDeps, objs.tidyFiles...)
-
-	if Bool(library.Properties.Sort_bss_symbols_by_size) && !library.buildStubs() {
-		unsortedOutputFile := android.PathForModuleOut(ctx, "unsorted", fileName)
-		transformObjToDynamicBinary(ctx, objs.objFiles, sharedLibs,
-			deps.StaticLibs, deps.LateStaticLibs, deps.WholeStaticLibs,
-			linkerDeps, deps.CrtBegin, deps.CrtEnd, false, builderFlags, unsortedOutputFile, implicitOutputs)
-
-		symbolOrderingFile := android.PathForModuleOut(ctx, "unsorted", fileName+".symbol_order")
-		symbolOrderingFlag := library.baseLinker.sortBssSymbolsBySize(ctx, unsortedOutputFile, symbolOrderingFile, builderFlags)
-		builderFlags.localLdFlags += " " + symbolOrderingFlag
-		linkerDeps = append(linkerDeps, symbolOrderingFile)
-	}
-
 	transformObjToDynamicBinary(ctx, objs.objFiles, sharedLibs,
 		deps.StaticLibs, deps.LateStaticLibs, deps.WholeStaticLibs,
 		linkerDeps, deps.CrtBegin, deps.CrtEnd, false, builderFlags, outputFile, implicitOutputs)
