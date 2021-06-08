@@ -219,7 +219,6 @@ func buildRuleToGenerateIndex(ctx android.ModuleContext, desc string, classesJar
 		BuiltTool("merge_csv").
 		Flag("--zip_input").
 		Flag("--key_field signature").
-		FlagWithArg("--header=", "signature,file,startline,startcol,endline,endcol,properties").
 		FlagWithOutput("--output=", indexCSV).
 		Inputs(classesJars)
 	rule.Build(desc, desc)
