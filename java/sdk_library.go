@@ -435,9 +435,6 @@ type sdkLibraryProperties struct {
 	// a list of top-level directories containing Java stub files to merge show/hide annotations from.
 	Merge_inclusion_annotations_dirs []string
 
-	// If set to true, the path of dist files is apistubs/core. Defaults to false.
-	Core_lib *bool
-
 	// If set to true then don't create dist rules.
 	No_dist *bool
 
@@ -458,7 +455,7 @@ type sdkLibraryProperties struct {
 	Dist_stem *string
 
 	// The subdirectory for the artifacts that are copied to the dist directory.  If not specified
-	// then defaults to "android".  Should be set to "android" for anything that should be published
+	// then defaults to "unknown".  Should be set to "android" for anything that should be published
 	// in the public Android SDK.
 	Dist_group *string
 
@@ -1203,11 +1200,7 @@ func (module *SdkLibrary) AndroidMkEntries() []android.AndroidMkEntries {
 
 // The dist path of the stub artifacts
 func (module *SdkLibrary) apiDistPath(apiScope *apiScope) string {
-	if Bool(module.sdkLibraryProperties.Core_lib) {
-		return path.Join("apistubs", "core", apiScope.name)
-	} else {
-		return path.Join("apistubs", module.distGroup(), apiScope.name)
-	}
+	return path.Join("apistubs", module.distGroup(), apiScope.name)
 }
 
 // Get the sdk version for use when compiling the stubs library.
@@ -1233,15 +1226,7 @@ func (module *SdkLibrary) distStem() string {
 
 // distGroup returns the subdirectory of the dist path of the stub artifacts.
 func (module *SdkLibrary) distGroup() string {
-	if group := proptools.String(module.sdkLibraryProperties.Dist_group); group != "" {
-		return group
-	}
-	// TODO(b/186723288): Remove this once everything uses dist_group.
-	if owner := module.ModuleBase.Owner(); owner != "" {
-		return owner
-	}
-	// TODO(b/186723288): Make this "unknown".
-	return "android"
+	return proptools.StringDefault(module.sdkLibraryProperties.Dist_group, "unknown")
 }
 
 func (module *SdkLibrary) latestApiFilegroupName(apiScope *apiScope) string {
