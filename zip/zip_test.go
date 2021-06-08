@@ -62,7 +62,7 @@ func fh(name string, contents []byte, method uint16) zip.FileHeader {
 		Method:             method,
 		CRC32:              crc32.ChecksumIEEE(contents),
 		UncompressedSize64: uint64(len(contents)),
-		ExternalAttrs:      (syscall.S_IFREG | 0600) << 16,
+		ExternalAttrs:      (syscall.S_IFREG | 0644) << 16,
 	}
 }
 
@@ -72,7 +72,7 @@ func fhManifest(contents []byte) zip.FileHeader {
 		Method:             zip.Store,
 		CRC32:              crc32.ChecksumIEEE(contents),
 		UncompressedSize64: uint64(len(contents)),
-		ExternalAttrs:      (syscall.S_IFREG | 0700) << 16,
+		ExternalAttrs:      (syscall.S_IFREG | 0644) << 16,
 	}
 }
 
@@ -92,7 +92,7 @@ func fhDir(name string) zip.FileHeader {
 		Method:             zip.Store,
 		CRC32:              crc32.ChecksumIEEE(nil),
 		UncompressedSize64: 0,
-		ExternalAttrs:      (syscall.S_IFDIR|0700)<<16 | 0x10,
+		ExternalAttrs:      (syscall.S_IFDIR|0755)<<16 | 0x10,
 	}
 }
 

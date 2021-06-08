@@ -77,7 +77,7 @@ func MetaDirFileHeader() *zip.FileHeader {
 		Name:  MetaDir,
 		Extra: []byte{MetaDirExtra[1], MetaDirExtra[0], 0, 0},
 	}
-	dirHeader.SetMode(0700 | os.ModeDir)
+	dirHeader.SetMode(0755 | os.ModeDir)
 	dirHeader.SetModTime(DefaultTime)
 
 	return dirHeader
@@ -95,7 +95,7 @@ func ManifestFileContents(contents []byte) (*zip.FileHeader, []byte, error) {
 		Method:             zip.Store,
 		UncompressedSize64: uint64(len(b)),
 	}
-	fh.SetMode(0700)
+	fh.SetMode(0644)
 	fh.SetModTime(DefaultTime)
 
 	return fh, b, nil
