@@ -200,6 +200,18 @@ type BaseLinkerProperties struct {
 	Exclude_shared_libs []string `android:"arch_variant"`
 }
 
+func invertBoolPtr(value *bool) *bool {
+	if value == nil {
+		return nil
+	}
+	ret := !(*value)
+	return &ret
+}
+
+func (blp *BaseLinkerProperties) libCrt() *bool {
+	return invertBoolPtr(blp.No_libcrt)
+}
+
 func NewBaseLinker(sanitize *sanitize) *baseLinker {
 	return &baseLinker{sanitize: sanitize}
 }
