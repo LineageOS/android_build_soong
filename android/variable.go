@@ -459,12 +459,13 @@ type ProductConfigContext interface {
 // with the appropriate ProductConfigVariable.
 type ProductConfigProperty struct {
 	ProductConfigVariable string
+	FullConfig            string
 	Property              interface{}
 }
 
 // ProductConfigProperties is a map of property name to a slice of ProductConfigProperty such that
 // all it all product variable-specific versions of a property are easily accessed together
-type ProductConfigProperties map[string][]ProductConfigProperty
+type ProductConfigProperties map[string]map[string]ProductConfigProperty
 
 // ProductVariableProperties returns a ProductConfigProperties containing only the properties which
 // have been set for the module in the given context.
@@ -513,11 +514,15 @@ func productVariableValues(variableProps interface{}, suffix string, productConf
 
 			// e.g. Asflags, Cflags, Enabled, etc.
 			propertyName := variableValue.Type().Field(j).Name
-			(*productConfigProperties)[propertyName] = append((*productConfigProperties)[propertyName],
-				ProductConfigProperty{
-					ProductConfigVariable: productVariableName + suffix,
-					Property:              property.Interface(),
-				})
+			if (*productConfigProperties)[propertyName] == nil {
+				(*productConfigProperties)[propertyName] = make(map[string]ProductConfigProperty)
+			}
+			config := productVariableName + suffix
+			(*productConfigProperties)[propertyName][config] = ProductConfigProperty{
+				ProductConfigVariable: productVariableName,
+				FullConfig:            config,
+				Property:              property.Interface(),
+			}
 		}
 	}
 }
