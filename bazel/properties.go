@@ -350,6 +350,83 @@ func (la *LabelAttribute) SortedConfigurationAxes() []ConfigurationAxis {
 	return keys
 }
 
+type configToBools map[string]bool
+
+func (ctb configToBools) setValue(config string, value *bool) {
+	if value == nil {
+		if _, ok := ctb[config]; ok {
+			delete(ctb, config)
+		}
+		return
+	}
+	ctb[config] = *value
+}
+
+type configurableBools map[ConfigurationAxis]configToBools
+
+func (cb configurableBools) setValueForAxis(axis ConfigurationAxis, config string, value *bool) {
+	if cb[axis] == nil {
+		cb[axis] = make(configToBools)
+	}
+	cb[axis].setValue(config, value)
+}
+
+// BoolAttribute represents an attribute whose value is a single bool but may be configurable..
+type BoolAttribute struct {
+	Value *bool
+
+	ConfigurableValues configurableBools
+}
+
+// HasConfigurableValues returns whether there are configurable values for this attribute.
+func (ba BoolAttribute) HasConfigurableValues() bool {
+	return len(ba.ConfigurableValues) > 0
+}
+
+// SetSelectValue sets value for the given axis/config.
+func (ba *BoolAttribute) SetSelectValue(axis ConfigurationAxis, config string, value *bool) {
+	axis.validateConfig(config)
+	switch axis.configurationType {
+	case noConfig:
+		ba.Value = value
+	case arch, os, osArch, productVariables:
+		if ba.ConfigurableValues == nil {
+			ba.ConfigurableValues = make(configurableBools)
+		}
+		ba.ConfigurableValues.setValueForAxis(axis, config, value)
+	default:
+		panic(fmt.Errorf("Unrecognized ConfigurationAxis %s", axis))
+	}
+}
+
+// SelectValue gets the value for the given axis/config.
+func (ba BoolAttribute) SelectValue(axis ConfigurationAxis, config string) *bool {
+	axis.validateConfig(config)
+	switch axis.configurationType {
+	case noConfig:
+		return ba.Value
+	case arch, os, osArch, productVariables:
+		if v, ok := ba.ConfigurableValues[axis][config]; ok {
+			return &v
+		} else {
+			return nil
+		}
+	default:
+		panic(fmt.Errorf("Unrecognized ConfigurationAxis %s", axis))
+	}
+}
+
+// SortedConfigurationAxes returns all the used ConfigurationAxis in sorted order.
+func (ba *BoolAttribute) SortedConfigurationAxes() []ConfigurationAxis {
+	keys := make([]ConfigurationAxis, 0, len(ba.ConfigurableValues))
+	for k := range ba.ConfigurableValues {
+		keys = append(keys, k)
+	}
+
+	sort.Slice(keys, func(i, j int) bool { return keys[i].less(keys[j]) })
+	return keys
+}
+
 // labelListSelectValues supports config-specific label_list typed Bazel attribute values.
 type labelListSelectValues map[string]LabelList
 

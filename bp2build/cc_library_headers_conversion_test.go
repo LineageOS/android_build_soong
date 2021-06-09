@@ -374,3 +374,39 @@ func TestCcLibraryHeadersArchAndTargetExportSystemIncludes(t *testing.T) {
 )`},
 	})
 }
+
+func TestCcLibraryHeadersNoCrtIgnored(t *testing.T) {
+	runCcLibraryHeadersTestCase(t, bp2buildTestCase{
+		description:                        "cc_library_headers test",
+		moduleTypeUnderTest:                "cc_library_headers",
+		moduleTypeUnderTestFactory:         cc.LibraryHeaderFactory,
+		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryHeadersBp2Build,
+		filesystem: map[string]string{
+			"lib-1/lib1a.h":                        "",
+			"lib-1/lib1b.h":                        "",
+			"lib-2/lib2a.h":                        "",
+			"lib-2/lib2b.h":                        "",
+			"dir-1/dir1a.h":                        "",
+			"dir-1/dir1b.h":                        "",
+			"dir-2/dir2a.h":                        "",
+			"dir-2/dir2b.h":                        "",
+			"arch_arm64_exported_include_dir/a.h":  "",
+			"arch_x86_exported_include_dir/b.h":    "",
+			"arch_x86_64_exported_include_dir/c.h": "",
+		},
+		blueprint: soongCcLibraryHeadersPreamble + `
+cc_library_headers {
+    name: "lib-1",
+    export_include_dirs: ["lib-1"],
+    no_libcrt: true,
+}`,
+		expectedBazelTargets: []string{`cc_library_headers(
+    name = "lib-1",
+    copts = [
+        "-I.",
+        "-I$(BINDIR)/.",
+    ],
+    includes = ["lib-1"],
+)`},
+	})
+}
