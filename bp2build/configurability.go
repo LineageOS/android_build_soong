@@ -51,6 +51,28 @@ func getLabelValue(label bazel.LabelAttribute) (reflect.Value, []selects) {
 	return value, []selects{ret}
 }
 
+func getBoolValue(boolAttr bazel.BoolAttribute) (reflect.Value, []selects) {
+	value := reflect.ValueOf(boolAttr.Value)
+	if !boolAttr.HasConfigurableValues() {
+		return value, []selects{}
+	}
+
+	ret := selects{}
+	for _, axis := range boolAttr.SortedConfigurationAxes() {
+		configToBools := boolAttr.ConfigurableValues[axis]
+		for config, bools := range configToBools {
+			selectKey := axis.SelectKey(config)
+			ret[selectKey] = reflect.ValueOf(bools)
+		}
+	}
+	// if there is a select, use the base value as the conditions default value
+	if len(ret) > 0 {
+		ret[bazel.ConditionsDefaultSelectKey] = value
+		value = reflect.Zero(value.Type())
+	}
+
+	return value, []selects{ret}
+}
 func getLabelListValues(list bazel.LabelListAttribute) (reflect.Value, []selects) {
 	value := reflect.ValueOf(list.Value.Includes)
 	var ret []selects
@@ -85,22 +107,30 @@ func labelListSelectValue(selectKey string, list bazel.LabelList) (bool, reflect
 	return false, reflect.Zero(reflect.TypeOf([]string{}))
 }
 
+var (
+	emptyBazelList = "[]"
+	bazelNone      = "None"
+)
+
 // prettyPrintAttribute converts an Attribute to its Bazel syntax. May contain
 // select statements.
 func prettyPrintAttribute(v bazel.Attribute, indent int) (string, error) {
 	var value reflect.Value
 	var configurableAttrs []selects
-	var defaultSelectValue string
+	var defaultSelectValue *string
 	switch list := v.(type) {
 	case bazel.StringListAttribute:
 		value, configurableAttrs = getStringListValues(list)
-		defaultSelectValue = "[]"
+		defaultSelectValue = &emptyBazelList
 	case bazel.LabelListAttribute:
 		value, configurableAttrs = getLabelListValues(list)
-		defaultSelectValue = "[]"
+		defaultSelectValue = &emptyBazelList
 	case bazel.LabelAttribute:
 		value, configurableAttrs = getLabelValue(list)
-		defaultSelectValue = "None"
+		defaultSelectValue = &bazelNone
+	case bazel.BoolAttribute:
+		value, configurableAttrs = getBoolValue(list)
+		defaultSelectValue = &bazelNone
 	default:
 		return "", fmt.Errorf("Not a supported Bazel attribute type: %s", v)
 	}
@@ -116,7 +146,7 @@ func prettyPrintAttribute(v bazel.Attribute, indent int) (string, error) {
 		ret += s
 	}
 	// Convenience function to append selects components to an attribute value.
-	appendSelects := func(selectsData selects, defaultValue, s string) (string, error) {
+	appendSelects := func(selectsData selects, defaultValue *string, s string) (string, error) {
 		selectMap, err := prettyPrintSelectMap(selectsData, defaultValue, indent)
 		if err != nil {
 			return "", err
@@ -141,12 +171,10 @@ func prettyPrintAttribute(v bazel.Attribute, indent int) (string, error) {
 
 // prettyPrintSelectMap converts a map of select keys to reflected Values as a generic way
 // to construct a select map for any kind of attribute type.
-func prettyPrintSelectMap(selectMap map[string]reflect.Value, defaultValue string, indent int) (string, error) {
+func prettyPrintSelectMap(selectMap map[string]reflect.Value, defaultValue *string, indent int) (string, error) {
 	if selectMap == nil {
 		return "", nil
 	}
-
-	// addConditionsDefault := false
 
 	var selects string
 	for _, selectKey := range android.SortedStringKeys(selectMap) {
@@ -184,14 +212,14 @@ func prettyPrintSelectMap(selectMap map[string]reflect.Value, defaultValue strin
 	if err != nil {
 		return "", err
 	}
-	if s == "" {
-		// Print an explicit empty list (the default value) even if the value is
-		// empty, to avoid errors about not finding a configuration that matches.
-		ret += fmt.Sprintf("%s\"%s\": %s,\n", makeIndent(indent+1), bazel.ConditionsDefaultSelectKey, defaultValue)
-	} else {
+	if s != "" {
 		// Print the custom default value.
 		ret += s
 		ret += ",\n"
+	} else if defaultValue != nil {
+		// Print an explicit empty list (the default value) even if the value is
+		// empty, to avoid errors about not finding a configuration that matches.
+		ret += fmt.Sprintf("%s\"%s\": %s,\n", makeIndent(indent+1), bazel.ConditionsDefaultSelectKey, *defaultValue)
 	}
 
 	ret += makeIndent(indent)
