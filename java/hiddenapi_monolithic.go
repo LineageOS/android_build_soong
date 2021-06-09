@@ -99,4 +99,4 @@ func (i *MonolithicHiddenAPIInfo) dedup() {
 	i.AllFlagsPaths = android.FirstUniquePaths(i.AllFlagsPaths)
 }
 
-var monolithicHiddenAPIInfoProvider = blueprint.NewProvider(MonolithicHiddenAPIInfo{})
+var MonolithicHiddenAPIInfoProvider = blueprint.NewProvider(MonolithicHiddenAPIInfo{})

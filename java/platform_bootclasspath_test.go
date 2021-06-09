@@ -245,10 +245,10 @@ func TestPlatformBootclasspath_Fragments(t *testing.T) {
 	).RunTest(t)
 
 	pbcp := result.Module("platform-bootclasspath", "android_common")
-	info := result.ModuleProvider(pbcp, monolithicHiddenAPIInfoProvider).(MonolithicHiddenAPIInfo)
+	info := result.ModuleProvider(pbcp, MonolithicHiddenAPIInfoProvider).(MonolithicHiddenAPIInfo)
 
-	for _, category := range hiddenAPIFlagFileCategories {
-		name := category.propertyName
+	for _, category := range HiddenAPIFlagFileCategories {
+		name := category.PropertyName
 		message := fmt.Sprintf("category %s", name)
 		filename := strings.ReplaceAll(name, "_", "-")
 		expected := []string{fmt.Sprintf("%s.txt", filename), fmt.Sprintf("bar-%s.txt", filename)}
