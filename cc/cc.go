@@ -2922,8 +2922,8 @@ func orderStaticModuleDeps(staticDeps []StaticLibraryInfo, sharedDeps []SharedLi
 		transitiveStaticLibsBuilder.Transitive(staticDep.TransitiveStaticLibrariesForOrdering)
 	}
 	for _, sharedDep := range sharedDeps {
-		if sharedDep.StaticAnalogue != nil {
-			transitiveStaticLibsBuilder.Transitive(sharedDep.StaticAnalogue.TransitiveStaticLibrariesForOrdering)
+		if sharedDep.TransitiveStaticLibrariesForOrdering != nil {
+			transitiveStaticLibsBuilder.Transitive(sharedDep.TransitiveStaticLibrariesForOrdering)
 		}
 	}
 	transitiveStaticLibs := transitiveStaticLibsBuilder.Build()
