@@ -36,13 +36,18 @@ var prepareForTestWithPlatformBootclasspath = android.GroupFixturePreparers(
 func TestPlatformBootclasspath_Fragments(t *testing.T) {
 	result := android.GroupFixturePreparers(
 		prepareForTestWithPlatformBootclasspath,
+		prepareForTestWithMyapex,
 		java.PrepareForTestWithJavaSdkLibraryFiles,
 		java.FixtureWithLastReleaseApis("foo"),
+		java.FixtureConfigureBootJars("myapex:bar"),
 		android.FixtureWithRootAndroidBp(`
 			platform_bootclasspath {
 				name: "platform-bootclasspath",
 				fragments: [
-					{module:"bar-fragment"},
+					{
+						apex: "myapex",
+						module:"bar-fragment",
+					},
 				],
 				hidden_api: {
 					unsupported: [
@@ -72,9 +77,25 @@ func TestPlatformBootclasspath_Fragments(t *testing.T) {
 				},
 			}
 
+			apex {
+				name: "myapex",
+				key: "myapex.key",
+				bootclasspath_fragments: [
+					"bar-fragment",
+				],
+				updatable: false,
+			}
+
+			apex_key {
+				name: "myapex.key",
+				public_key: "testkey.avbpubkey",
+				private_key: "testkey.pem",
+			}
+
 			bootclasspath_fragment {
 				name: "bar-fragment",
 				contents: ["bar"],
+				apex_available: ["myapex"],
 				api: {
 					stub_libs: ["foo"],
 				},
@@ -108,10 +129,12 @@ func TestPlatformBootclasspath_Fragments(t *testing.T) {
 
 			java_library {
 				name: "bar",
+				apex_available: ["myapex"],
 				srcs: ["a.java"],
 				system_modules: "none",
 				sdk_version: "none",
 				compile_dex: true,
+				permitted_packages: ["bar"],
 			}
 
 			java_sdk_library {
@@ -136,11 +159,11 @@ func TestPlatformBootclasspath_Fragments(t *testing.T) {
 		android.AssertPathsRelativeToTopEquals(t, message, expected, info.FlagsFilesByCategory[category])
 	}
 
-	android.AssertPathsRelativeToTopEquals(t, "stub flags", []string{"out/soong/.intermediates/bar-fragment/android_common/modular-hiddenapi/stub-flags.csv"}, info.StubFlagsPaths)
-	android.AssertPathsRelativeToTopEquals(t, "annotation flags", []string{"out/soong/.intermediates/bar-fragment/android_common/modular-hiddenapi/annotation-flags.csv"}, info.AnnotationFlagsPaths)
-	android.AssertPathsRelativeToTopEquals(t, "metadata flags", []string{"out/soong/.intermediates/bar-fragment/android_common/modular-hiddenapi/metadata.csv"}, info.MetadataPaths)
-	android.AssertPathsRelativeToTopEquals(t, "index flags", []string{"out/soong/.intermediates/bar-fragment/android_common/modular-hiddenapi/index.csv"}, info.IndexPaths)
-	android.AssertPathsRelativeToTopEquals(t, "all flags", []string{"out/soong/.intermediates/bar-fragment/android_common/modular-hiddenapi/all-flags.csv"}, info.AllFlagsPaths)
+	android.AssertPathsRelativeToTopEquals(t, "stub flags", []string{"out/soong/.intermediates/bar-fragment/android_common_apex10000/modular-hiddenapi/stub-flags.csv"}, info.StubFlagsPaths)
+	android.AssertPathsRelativeToTopEquals(t, "annotation flags", []string{"out/soong/.intermediates/bar-fragment/android_common_apex10000/modular-hiddenapi/annotation-flags.csv"}, info.AnnotationFlagsPaths)
+	android.AssertPathsRelativeToTopEquals(t, "metadata flags", []string{"out/soong/.intermediates/bar-fragment/android_common_apex10000/modular-hiddenapi/metadata.csv"}, info.MetadataPaths)
+	android.AssertPathsRelativeToTopEquals(t, "index flags", []string{"out/soong/.intermediates/bar-fragment/android_common_apex10000/modular-hiddenapi/index.csv"}, info.IndexPaths)
+	android.AssertPathsRelativeToTopEquals(t, "all flags", []string{"out/soong/.intermediates/bar-fragment/android_common_apex10000/modular-hiddenapi/all-flags.csv"}, info.AllFlagsPaths)
 }
 
 func TestPlatformBootclasspathDependencies(t *testing.T) {
