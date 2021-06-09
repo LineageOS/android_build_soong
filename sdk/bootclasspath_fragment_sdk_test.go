@@ -15,11 +15,52 @@
 package sdk
 
 import (
+	"fmt"
+	"path/filepath"
 	"testing"
 
 	"android/soong/android"
 	"android/soong/java"
 )
+
+// fixtureAddPlatformBootclasspathForBootclasspathFragment adds a platform_bootclasspath module that
+// references the bootclasspath fragment.
+func fixtureAddPlatformBootclasspathForBootclasspathFragment(apex, fragment string) android.FixturePreparer {
+	return android.GroupFixturePreparers(
+		// Add a platform_bootclasspath module.
+		android.FixtureAddTextFile("frameworks/base/boot/Android.bp", fmt.Sprintf(`
+			platform_bootclasspath {
+				name: "platform-bootclasspath",
+				fragments: [
+					{
+						apex: "%s",
+						module: "%s",
+					},
+				],
+			}
+		`, apex, fragment)),
+		android.FixtureAddFile("frameworks/base/config/boot-profile.txt", nil),
+	)
+}
+
+// fixtureAddPrebuiltApexForBootclasspathFragment adds a prebuilt_apex that exports the fragment.
+func fixtureAddPrebuiltApexForBootclasspathFragment(apex, fragment string) android.FixturePreparer {
+	apexFile := fmt.Sprintf("%s.apex", apex)
+	dir := "prebuilts/apex"
+	return android.GroupFixturePreparers(
+		// A preparer to add a prebuilt apex to the test fixture.
+		android.FixtureAddTextFile(filepath.Join(dir, "Android.bp"), fmt.Sprintf(`
+			prebuilt_apex {
+				name: "%s",
+				src: "%s",
+				exported_bootclasspath_fragments: [
+					"%s",
+				],
+			}
+		`, apex, apexFile, fragment)),
+		android.FixtureAddFile(filepath.Join(dir, apexFile), nil),
+	)
+}
 
 func TestSnapshotWithBootclasspathFragment_ImageName(t *testing.T) {
 	result := android.GroupFixturePreparers(
@@ -34,20 +75,8 @@ func TestSnapshotWithBootclasspathFragment_ImageName(t *testing.T) {
 			"system/sepolicy/apex/com.android.art-file_contexts": nil,
 		}),
 
-		// platform_bootclasspath that depends on the fragment.
-		android.FixtureAddTextFile("frameworks/base/boot/Android.bp", `
-			platform_bootclasspath {
-				name: "platform-bootclasspath",
-				fragments: [
-					{
-						apex: "com.android.art",
-						module: "mybootclasspathfragment",
-					},
-				],
-			}
-		`),
-		// Needed for platform_bootclasspath
-		android.FixtureAddFile("frameworks/base/config/boot-profile.txt", nil),
+		// Add a platform_bootclasspath that depends on the fragment.
+		fixtureAddPlatformBootclasspathForBootclasspathFragment("com.android.art", "mybootclasspathfragment"),
 
 		java.FixtureConfigureBootJars("com.android.art:mybootlib"),
 		android.FixtureWithRootAndroidBp(`
@@ -89,19 +118,8 @@ func TestSnapshotWithBootclasspathFragment_ImageName(t *testing.T) {
 		`),
 	).RunTest(t)
 
-	// A preparer to add a prebuilt apex to the test fixture.
-	prepareWithPrebuiltApex := android.GroupFixturePreparers(
-		android.FixtureAddTextFile("prebuilts/apex/Android.bp", `
-				prebuilt_apex {
-					name: "com.android.art",
-					src: "art.apex",
-					exported_bootclasspath_fragments: [
-						"mybootclasspathfragment",
-					],
-				}
-			`),
-		android.FixtureAddFile("prebuilts/apex/art.apex", nil),
-	)
+	// A preparer to update the test fixture used when processing an unpackage snapshot.
+	preparerForSnapshot := fixtureAddPrebuiltApexForBootclasspathFragment("com.android.art", "mybootclasspathfragment")
 
 	CheckSnapshot(t, result, "mysdk", "",
 		checkUnversionedAndroidBpContents(`
@@ -154,9 +172,9 @@ sdk_snapshot {
 		checkAllCopyRules(`
 .intermediates/mybootlib/android_common/javac/mybootlib.jar -> java/mybootlib.jar
 `),
-		snapshotTestPreparer(checkSnapshotWithoutSource, prepareWithPrebuiltApex),
-		snapshotTestPreparer(checkSnapshotWithSourcePreferred, prepareWithPrebuiltApex),
-		snapshotTestPreparer(checkSnapshotPreferredWithSource, prepareWithPrebuiltApex),
+		snapshotTestPreparer(checkSnapshotWithoutSource, preparerForSnapshot),
+		snapshotTestPreparer(checkSnapshotWithSourcePreferred, preparerForSnapshot),
+		snapshotTestPreparer(checkSnapshotPreferredWithSource, preparerForSnapshot),
 	)
 }
 
@@ -166,6 +184,12 @@ func TestSnapshotWithBootClasspathFragment_Contents(t *testing.T) {
 		java.PrepareForTestWithJavaDefaultModules,
 		java.PrepareForTestWithJavaSdkLibraryFiles,
 		java.FixtureWithLastReleaseApis("mysdklibrary", "myothersdklibrary", "mycoreplatform"),
+		java.FixtureConfigureUpdatableBootJars("myapex:mybootlib", "myapex:myothersdklibrary"),
+		prepareForSdkTestWithApex,
+
+		// Add a platform_bootclasspath that depends on the fragment.
+		fixtureAddPlatformBootclasspathForBootclasspathFragment("myapex", "mybootclasspathfragment"),
+
 		android.FixtureWithRootAndroidBp(`
 			sdk {
 				name: "mysdk",
@@ -179,8 +203,16 @@ func TestSnapshotWithBootClasspathFragment_Contents(t *testing.T) {
 				],
 			}
 
+			apex {
+				name: "myapex",
+				key: "myapex.key",
+				min_sdk_version: "2",
+				bootclasspath_fragments: ["mybootclasspathfragment"],
+			}
+
 			bootclasspath_fragment {
 				name: "mybootclasspathfragment",
+				apex_available: ["myapex"],
 				contents: [
 					// This should be automatically added to the sdk_snapshot as a java_boot_libs module.
 					"mybootlib",
@@ -198,34 +230,47 @@ func TestSnapshotWithBootClasspathFragment_Contents(t *testing.T) {
 
 			java_library {
 				name: "mybootlib",
+				apex_available: ["myapex"],
 				srcs: ["Test.java"],
 				system_modules: "none",
 				sdk_version: "none",
+				min_sdk_version: "2",
 				compile_dex: true,
+				permitted_packages: ["mybootlib"],
 			}
 
 			java_sdk_library {
 				name: "mysdklibrary",
+				apex_available: ["myapex"],
 				srcs: ["Test.java"],
 				shared_library: false,
 				public: {enabled: true},
+				min_sdk_version: "2",
 			}
 
 			java_sdk_library {
 				name: "myothersdklibrary",
+				apex_available: ["myapex"],
 				srcs: ["Test.java"],
 				shared_library: false,
 				public: {enabled: true},
+				min_sdk_version: "2",
+				permitted_packages: ["myothersdklibrary"],
 			}
 
 			java_sdk_library {
 				name: "mycoreplatform",
+				apex_available: ["myapex"],
 				srcs: ["Test.java"],
 				shared_library: false,
 				public: {enabled: true},
+				min_sdk_version: "2",
 			}
 		`),
 	).RunTest(t)
+
+	// A preparer to update the test fixture used when processing an unpackage snapshot.
+	preparerForSnapshot := fixtureAddPrebuiltApexForBootclasspathFragment("myapex", "mybootclasspathfragment")
 
 	CheckSnapshot(t, result, "mysdk", "",
 		checkUnversionedAndroidBpContents(`
@@ -235,7 +280,7 @@ prebuilt_bootclasspath_fragment {
     name: "mybootclasspathfragment",
     prefer: false,
     visibility: ["//visibility:public"],
-    apex_available: ["//apex_available:platform"],
+    apex_available: ["myapex"],
     contents: [
         "mybootlib",
         "myothersdklibrary",
@@ -259,7 +304,7 @@ java_import {
     name: "mybootlib",
     prefer: false,
     visibility: ["//visibility:public"],
-    apex_available: ["//apex_available:platform"],
+    apex_available: ["myapex"],
     jars: ["java/mybootlib.jar"],
 }
 
@@ -267,7 +312,7 @@ java_sdk_library_import {
     name: "myothersdklibrary",
     prefer: false,
     visibility: ["//visibility:public"],
-    apex_available: ["//apex_available:platform"],
+    apex_available: ["myapex"],
     shared_library: false,
     public: {
         jars: ["sdk_library/public/myothersdklibrary-stubs.jar"],
@@ -282,7 +327,7 @@ java_sdk_library_import {
     name: "mysdklibrary",
     prefer: false,
     visibility: ["//visibility:public"],
-    apex_available: ["//apex_available:platform"],
+    apex_available: ["myapex"],
     shared_library: false,
     public: {
         jars: ["sdk_library/public/mysdklibrary-stubs.jar"],
@@ -297,7 +342,7 @@ java_sdk_library_import {
     name: "mycoreplatform",
     prefer: false,
     visibility: ["//visibility:public"],
-    apex_available: ["//apex_available:platform"],
+    apex_available: ["myapex"],
     shared_library: false,
     public: {
         jars: ["sdk_library/public/mycoreplatform-stubs.jar"],
@@ -315,7 +360,7 @@ prebuilt_bootclasspath_fragment {
     name: "mysdk_mybootclasspathfragment@current",
     sdk_member_name: "mybootclasspathfragment",
     visibility: ["//visibility:public"],
-    apex_available: ["//apex_available:platform"],
+    apex_available: ["myapex"],
     contents: [
         "mysdk_mybootlib@current",
         "mysdk_myothersdklibrary@current",
@@ -339,7 +384,7 @@ java_import {
     name: "mysdk_mybootlib@current",
     sdk_member_name: "mybootlib",
     visibility: ["//visibility:public"],
-    apex_available: ["//apex_available:platform"],
+    apex_available: ["myapex"],
     jars: ["java/mybootlib.jar"],
 }
 
@@ -347,7 +392,7 @@ java_sdk_library_import {
     name: "mysdk_myothersdklibrary@current",
     sdk_member_name: "myothersdklibrary",
     visibility: ["//visibility:public"],
-    apex_available: ["//apex_available:platform"],
+    apex_available: ["myapex"],
     shared_library: false,
     public: {
         jars: ["sdk_library/public/myothersdklibrary-stubs.jar"],
@@ -362,7 +407,7 @@ java_sdk_library_import {
     name: "mysdk_mysdklibrary@current",
     sdk_member_name: "mysdklibrary",
     visibility: ["//visibility:public"],
-    apex_available: ["//apex_available:platform"],
+    apex_available: ["myapex"],
     shared_library: false,
     public: {
         jars: ["sdk_library/public/mysdklibrary-stubs.jar"],
@@ -377,7 +422,7 @@ java_sdk_library_import {
     name: "mysdk_mycoreplatform@current",
     sdk_member_name: "mycoreplatform",
     visibility: ["//visibility:public"],
-    apex_available: ["//apex_available:platform"],
+    apex_available: ["myapex"],
     shared_library: false,
     public: {
         jars: ["sdk_library/public/mycoreplatform-stubs.jar"],
@@ -416,7 +461,11 @@ sdk_snapshot {
 .intermediates/mycoreplatform.stubs/android_common/javac/mycoreplatform.stubs.jar -> sdk_library/public/mycoreplatform-stubs.jar
 .intermediates/mycoreplatform.stubs.source/android_common/metalava/mycoreplatform.stubs.source_api.txt -> sdk_library/public/mycoreplatform.txt
 .intermediates/mycoreplatform.stubs.source/android_common/metalava/mycoreplatform.stubs.source_removed.txt -> sdk_library/public/mycoreplatform-removed.txt
-`))
+`),
+		snapshotTestPreparer(checkSnapshotWithoutSource, preparerForSnapshot),
+		snapshotTestPreparer(checkSnapshotWithSourcePreferred, preparerForSnapshot),
+		snapshotTestPreparer(checkSnapshotPreferredWithSource, preparerForSnapshot),
+	)
 }
 
 // Test that bootclasspath_fragment works with sdk.
@@ -482,7 +531,12 @@ func TestSnapshotWithBootclasspathFragment_HiddenAPI(t *testing.T) {
 		java.PrepareForTestWithJavaDefaultModules,
 		java.PrepareForTestWithJavaSdkLibraryFiles,
 		java.FixtureWithLastReleaseApis("mysdklibrary"),
+		java.FixtureConfigureUpdatableBootJars("myapex:mybootlib"),
 		prepareForSdkTestWithApex,
+
+		// Add a platform_bootclasspath that depends on the fragment.
+		fixtureAddPlatformBootclasspathForBootclasspathFragment("myapex", "mybootclasspathfragment"),
+
 		android.MockFS{
 			"my-blocked.txt":                   nil,
 			"my-max-target-o-low-priority.txt": nil,
@@ -549,6 +603,7 @@ func TestSnapshotWithBootclasspathFragment_HiddenAPI(t *testing.T) {
 				sdk_version: "none",
 				min_sdk_version: "1",
 				compile_dex: true,
+				permitted_packages: ["mybootlib"],
 			}
 
 			java_sdk_library {
@@ -559,6 +614,9 @@ func TestSnapshotWithBootclasspathFragment_HiddenAPI(t *testing.T) {
 			}
 		`),
 	).RunTest(t)
+
+	// A preparer to update the test fixture used when processing an unpackage snapshot.
+	preparerForSnapshot := fixtureAddPrebuiltApexForBootclasspathFragment("myapex", "mybootclasspathfragment")
 
 	CheckSnapshot(t, result, "mysdk", "",
 		checkUnversionedAndroidBpContents(`
@@ -633,5 +691,8 @@ my-unsupported-packages.txt -> hiddenapi/my-unsupported-packages.txt
 .intermediates/mysdklibrary.stubs.source/android_common/metalava/mysdklibrary.stubs.source_api.txt -> sdk_library/public/mysdklibrary.txt
 .intermediates/mysdklibrary.stubs.source/android_common/metalava/mysdklibrary.stubs.source_removed.txt -> sdk_library/public/mysdklibrary-removed.txt
 `),
+		snapshotTestPreparer(checkSnapshotWithoutSource, preparerForSnapshot),
+		snapshotTestPreparer(checkSnapshotWithSourcePreferred, preparerForSnapshot),
+		snapshotTestPreparer(checkSnapshotPreferredWithSource, preparerForSnapshot),
 	)
 }
