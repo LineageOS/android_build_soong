@@ -248,8 +248,8 @@ type HiddenAPIFlagFileProperties struct {
 }
 
 type hiddenAPIFlagFileCategory struct {
-	// propertyName is the name of the property for this category.
-	propertyName string
+	// PropertyName is the name of the property for this category.
+	PropertyName string
 
 	// propertyValueReader retrieves the value of the property for this category from the set of
 	// properties.
@@ -262,12 +262,12 @@ type hiddenAPIFlagFileCategory struct {
 
 // The flag file category for removed members of the API.
 //
-// This is extracted from hiddenAPIFlagFileCategories as it is needed to add the dex signatures
+// This is extracted from HiddenAPIFlagFileCategories as it is needed to add the dex signatures
 // list of removed API members that are generated automatically from the removed.txt files provided
 // by API stubs.
 var hiddenAPIRemovedFlagFileCategory = &hiddenAPIFlagFileCategory{
 	// See HiddenAPIFlagFileProperties.Removed
-	propertyName: "removed",
+	PropertyName: "removed",
 	propertyValueReader: func(properties *HiddenAPIFlagFileProperties) []string {
 		return properties.Removed
 	},
@@ -276,10 +276,10 @@ var hiddenAPIRemovedFlagFileCategory = &hiddenAPIFlagFileCategory{
 	},
 }
 
-var hiddenAPIFlagFileCategories = []*hiddenAPIFlagFileCategory{
+var HiddenAPIFlagFileCategories = []*hiddenAPIFlagFileCategory{
 	// See HiddenAPIFlagFileProperties.Unsupported
 	{
-		propertyName: "unsupported",
+		PropertyName: "unsupported",
 		propertyValueReader: func(properties *HiddenAPIFlagFileProperties) []string {
 			return properties.Unsupported
 		},
@@ -290,7 +290,7 @@ var hiddenAPIFlagFileCategories = []*hiddenAPIFlagFileCategory{
 	hiddenAPIRemovedFlagFileCategory,
 	// See HiddenAPIFlagFileProperties.Max_target_r_low_priority
 	{
-		propertyName: "max_target_r_low_priority",
+		PropertyName: "max_target_r_low_priority",
 		propertyValueReader: func(properties *HiddenAPIFlagFileProperties) []string {
 			return properties.Max_target_r_low_priority
 		},
@@ -300,7 +300,7 @@ var hiddenAPIFlagFileCategories = []*hiddenAPIFlagFileCategory{
 	},
 	// See HiddenAPIFlagFileProperties.Max_target_q
 	{
-		propertyName: "max_target_q",
+		PropertyName: "max_target_q",
 		propertyValueReader: func(properties *HiddenAPIFlagFileProperties) []string {
 			return properties.Max_target_q
 		},
@@ -310,7 +310,7 @@ var hiddenAPIFlagFileCategories = []*hiddenAPIFlagFileCategory{
 	},
 	// See HiddenAPIFlagFileProperties.Max_target_p
 	{
-		propertyName: "max_target_p",
+		PropertyName: "max_target_p",
 		propertyValueReader: func(properties *HiddenAPIFlagFileProperties) []string {
 			return properties.Max_target_p
 		},
@@ -320,7 +320,7 @@ var hiddenAPIFlagFileCategories = []*hiddenAPIFlagFileCategory{
 	},
 	// See HiddenAPIFlagFileProperties.Max_target_o_low_priority
 	{
-		propertyName: "max_target_o_low_priority",
+		PropertyName: "max_target_o_low_priority",
 		propertyValueReader: func(properties *HiddenAPIFlagFileProperties) []string {
 			return properties.Max_target_o_low_priority
 		},
@@ -330,7 +330,7 @@ var hiddenAPIFlagFileCategories = []*hiddenAPIFlagFileCategory{
 	},
 	// See HiddenAPIFlagFileProperties.Blocked
 	{
-		propertyName: "blocked",
+		PropertyName: "blocked",
 		propertyValueReader: func(properties *HiddenAPIFlagFileProperties) []string {
 			return properties.Blocked
 		},
@@ -340,7 +340,7 @@ var hiddenAPIFlagFileCategories = []*hiddenAPIFlagFileCategory{
 	},
 	// See HiddenAPIFlagFileProperties.Unsupported_packages
 	{
-		propertyName: "unsupported_packages",
+		PropertyName: "unsupported_packages",
 		propertyValueReader: func(properties *HiddenAPIFlagFileProperties) []string {
 			return properties.Unsupported_packages
 		},
@@ -355,7 +355,7 @@ type FlagFilesByCategory map[*hiddenAPIFlagFileCategory]android.Paths
 
 // append appends the supplied flags files to the corresponding category in this map.
 func (s FlagFilesByCategory) append(other FlagFilesByCategory) {
-	for _, category := range hiddenAPIFlagFileCategories {
+	for _, category := range HiddenAPIFlagFileCategories {
 		s[category] = append(s[category], other[category]...)
 	}
 }
@@ -540,7 +540,7 @@ func (i *HiddenAPIFlagInput) gatherStubLibInfo(ctx android.ModuleContext, conten
 // extractFlagFilesFromProperties extracts the paths to flag files that are specified in the
 // supplied properties and stores them in this struct.
 func (i *HiddenAPIFlagInput) extractFlagFilesFromProperties(ctx android.ModuleContext, p *HiddenAPIFlagFileProperties) {
-	for _, category := range hiddenAPIFlagFileCategories {
+	for _, category := range HiddenAPIFlagFileCategories {
 		paths := android.PathsForModuleSrc(ctx, category.propertyValueReader(p))
 		i.FlagFilesByCategory[category] = paths
 	}
@@ -630,7 +630,7 @@ func buildRuleToGenerateHiddenApiFlags(ctx android.BuilderContext, name, desc st
 		FlagWithOutput("--output ", tempPath)
 
 	// Add the options for the different categories of flag files.
-	for _, category := range hiddenAPIFlagFileCategories {
+	for _, category := range HiddenAPIFlagFileCategories {
 		paths := flagFilesByCategory[category]
 		for _, path := range paths {
 			category.commandMutator(command, path)
