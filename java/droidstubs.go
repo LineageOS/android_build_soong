@@ -393,22 +393,11 @@ func (d *Droidstubs) apiLevelsAnnotationsFlags(ctx android.ModuleContext, cmd *a
 }
 
 func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, javaVersion javaVersion, srcs android.Paths,
-	srcJarList android.Path, bootclasspath, classpath classpath, sourcepaths android.Paths,
-	homeDir android.WritablePath) *android.RuleBuilderCommand {
+	srcJarList android.Path, bootclasspath, classpath classpath, homeDir android.WritablePath) *android.RuleBuilderCommand {
 	rule.Command().Text("rm -rf").Flag(homeDir.String())
 	rule.Command().Text("mkdir -p").Flag(homeDir.String())
 
-	var cmd *android.RuleBuilderCommand
-	if len(sourcepaths) > 0 {
-		// We are passing the sourcepaths as an argument to metalava below, but the directories may
-		// not exist already (if they do not contain any listed inputs for metalava). Note that this
-		// is in a rule.SboxInputs()rule, so we are not modifying the actual source tree by creating
-		// these directories.
-		cmd = rule.Command()
-		cmd.Text("mkdir -p").Flags(cmd.PathsForInputs(sourcepaths))
-	}
-
-	cmd = rule.Command()
+	cmd := rule.Command()
 	cmd.FlagWithArg("ANDROID_PREFS_ROOT=", homeDir.String())
 
 	if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_METALAVA") {
@@ -439,13 +428,6 @@ func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, javaVersi
 
 	if len(classpath) > 0 {
 		cmd.FlagWithInputList("-classpath ", classpath.Paths(), ":")
-	}
-
-	if len(sourcepaths) > 0 {
-		// TODO(b/153703940): Pass .html files to metalava and remove this argument.
-		cmd.FlagWithList("-sourcepath ", sourcepaths.Strings(), ":")
-	} else {
-		cmd.FlagWithArg("-sourcepath ", `""`)
 	}
 
 	cmd.Flag("--no-banner").
@@ -491,7 +473,7 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	homeDir := android.PathForModuleOut(ctx, "metalava", "home")
 	cmd := metalavaCmd(ctx, rule, javaVersion, d.Javadoc.srcFiles, srcJarList,
-		deps.bootClasspath, deps.classpath, d.Javadoc.sourcepaths, homeDir)
+		deps.bootClasspath, deps.classpath, homeDir)
 	cmd.Implicits(d.Javadoc.implicits)
 
 	d.stubsFlags(ctx, cmd, stubsDir)
