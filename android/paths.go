@@ -1591,6 +1591,18 @@ func (p InstallPath) ToMakePath() InstallPath {
 // PathForModuleInstall returns a Path representing the install path for the
 // module appended with paths...
 func PathForModuleInstall(ctx ModuleInstallPathContext, pathComponents ...string) InstallPath {
+	os, arch := osAndArch(ctx)
+	partition := modulePartition(ctx, os)
+	return makePathForInstall(ctx, os, arch, partition, ctx.Debug(), pathComponents...)
+}
+
+// PathForModuleInPartitionInstall is similar to PathForModuleInstall but partition is provided by the caller
+func PathForModuleInPartitionInstall(ctx ModuleInstallPathContext, partition string, pathComponents ...string) InstallPath {
+	os, arch := osAndArch(ctx)
+	return makePathForInstall(ctx, os, arch, partition, ctx.Debug(), pathComponents...)
+}
+
+func osAndArch(ctx ModuleInstallPathContext) (OsType, ArchType) {
 	os := ctx.Os()
 	arch := ctx.Arch().ArchType
 	forceOS, forceArch := ctx.InstallForceOS()
@@ -1600,14 +1612,14 @@ func PathForModuleInstall(ctx ModuleInstallPathContext, pathComponents ...string
 	if forceArch != nil {
 		arch = *forceArch
 	}
-	partition := modulePartition(ctx, os)
+	return os, arch
+}
 
-	ret := pathForInstall(ctx, os, arch, partition, ctx.Debug(), pathComponents...)
-
+func makePathForInstall(ctx ModuleInstallPathContext, os OsType, arch ArchType, partition string, debug bool, pathComponents ...string) InstallPath {
+	ret := pathForInstall(ctx, os, arch, partition, debug, pathComponents...)
 	if ctx.InstallBypassMake() && ctx.Config().KatiEnabled() {
 		ret = ret.ToMakePath()
 	}
-
 	return ret
 }
 

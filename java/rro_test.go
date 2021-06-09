@@ -177,7 +177,7 @@ func TestRuntimeResourceOverlay_JavaDefaults(t *testing.T) {
 
 	// Check device location.
 	path = android.AndroidMkEntriesForTest(t, ctx, m.Module())[0].EntryMap["LOCAL_MODULE_PATH"]
-	expectedPath = []string{shared.JoinPath("out/target/product/test_device/system/overlay")}
+	expectedPath = []string{shared.JoinPath("out/target/product/test_device/product/overlay")}
 	android.AssertStringPathsRelativeToTopEquals(t, "LOCAL_MODULE_PATH", config, expectedPath, path)
 }
 
@@ -341,5 +341,59 @@ func TestEnforceRRO_propagatesToDependencies(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestRuntimeResourceOverlayPartition(t *testing.T) {
+	bp := `
+		runtime_resource_overlay {
+			name: "device_specific",
+			device_specific: true,
+		}
+		runtime_resource_overlay {
+			name: "soc_specific",
+			soc_specific: true,
+		}
+		runtime_resource_overlay {
+			name: "system_ext_specific",
+			system_ext_specific: true,
+		}
+		runtime_resource_overlay {
+			name: "product_specific",
+			product_specific: true,
+		}
+		runtime_resource_overlay {
+			name: "default"
+		}
+	`
+	testCases := []struct {
+		name         string
+		expectedPath string
+	}{
+		{
+			name:         "device_specific",
+			expectedPath: "out/soong/target/product/test_device/odm/overlay",
+		},
+		{
+			name:         "soc_specific",
+			expectedPath: "out/soong/target/product/test_device/vendor/overlay",
+		},
+		{
+			name:         "system_ext_specific",
+			expectedPath: "out/soong/target/product/test_device/system_ext/overlay",
+		},
+		{
+			name:         "product_specific",
+			expectedPath: "out/soong/target/product/test_device/product/overlay",
+		},
+		{
+			name:         "default",
+			expectedPath: "out/soong/target/product/test_device/product/overlay",
+		},
+	}
+	for _, testCase := range testCases {
+		ctx, _ := testJava(t, bp)
+		mod := ctx.ModuleForTests(testCase.name, "android_common").Module().(*RuntimeResourceOverlay)
+		android.AssertPathRelativeToTopEquals(t, "Install dir is not correct for "+testCase.name, testCase.expectedPath, mod.installDir)
 	}
 }
