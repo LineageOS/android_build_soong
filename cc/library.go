@@ -1354,19 +1354,17 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 	library.coverageOutputFile = transformCoverageFilesToZip(ctx, objs, library.getLibName(ctx))
 	library.linkSAbiDumpFiles(ctx, objs, fileName, unstrippedOutputFile)
 
-	var staticAnalogue *StaticLibraryInfo
+	var transitiveStaticLibrariesForOrdering *android.DepSet
 	if static := ctx.GetDirectDepsWithTag(staticVariantTag); len(static) > 0 {
 		s := ctx.OtherModuleProvider(static[0], StaticLibraryInfoProvider).(StaticLibraryInfo)
-		staticAnalogue = &s
+		transitiveStaticLibrariesForOrdering = s.TransitiveStaticLibrariesForOrdering
 	}
 
 	ctx.SetProvider(SharedLibraryInfoProvider, SharedLibraryInfo{
-		TableOfContents:         android.OptionalPathForPath(tocFile),
-		SharedLibrary:           unstrippedOutputFile,
-		UnstrippedSharedLibrary: library.unstrippedOutputFile,
-		CoverageSharedLibrary:   library.coverageOutputFile,
-		StaticAnalogue:          staticAnalogue,
-		Target:                  ctx.Target(),
+		TableOfContents:                      android.OptionalPathForPath(tocFile),
+		SharedLibrary:                        unstrippedOutputFile,
+		TransitiveStaticLibrariesForOrdering: transitiveStaticLibrariesForOrdering,
+		Target:                               ctx.Target(),
 	})
 
 	stubs := ctx.GetDirectDepsWithTag(stubImplDepTag)
