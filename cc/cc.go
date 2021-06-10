@@ -1970,9 +1970,13 @@ func GetCrtVariations(ctx android.BottomUpMutatorContext,
 		if minSdkVersion == "" || minSdkVersion == "apex_inherit" {
 			minSdkVersion = m.SdkVersion()
 		}
+		apiLevel, err := android.ApiLevelFromUser(ctx, minSdkVersion)
+		if err != nil {
+			ctx.PropertyErrorf("min_sdk_version", err.Error())
+		}
 		return []blueprint.Variation{
 			{Mutator: "sdk", Variation: "sdk"},
-			{Mutator: "version", Variation: minSdkVersion},
+			{Mutator: "version", Variation: apiLevel.String()},
 		}
 	}
 	return []blueprint.Variation{
@@ -2916,8 +2920,8 @@ func orderStaticModuleDeps(staticDeps []StaticLibraryInfo, sharedDeps []SharedLi
 		transitiveStaticLibsBuilder.Transitive(staticDep.TransitiveStaticLibrariesForOrdering)
 	}
 	for _, sharedDep := range sharedDeps {
-		if sharedDep.StaticAnalogue != nil {
-			transitiveStaticLibsBuilder.Transitive(sharedDep.StaticAnalogue.TransitiveStaticLibrariesForOrdering)
+		if sharedDep.TransitiveStaticLibrariesForOrdering != nil {
+			transitiveStaticLibsBuilder.Transitive(sharedDep.TransitiveStaticLibrariesForOrdering)
 		}
 	}
 	transitiveStaticLibs := transitiveStaticLibsBuilder.Build()

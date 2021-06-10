@@ -642,9 +642,8 @@ func (p *snapshotLibraryDecorator) link(ctx ModuleContext, flags Flags, deps Pat
 		transformSharedObjectToToc(ctx, in, tocFile, builderFlags)
 
 		ctx.SetProvider(SharedLibraryInfoProvider, SharedLibraryInfo{
-			SharedLibrary:           in,
-			UnstrippedSharedLibrary: p.unstrippedOutputFile,
-			Target:                  ctx.Target(),
+			SharedLibrary: in,
+			Target:        ctx.Target(),
 
 			TableOfContents: p.tocFile,
 		})

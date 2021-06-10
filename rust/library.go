@@ -503,9 +503,8 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 
 	if library.shared() {
 		ctx.SetProvider(cc.SharedLibraryInfoProvider, cc.SharedLibraryInfo{
-			SharedLibrary:           outputFile,
-			UnstrippedSharedLibrary: outputFile,
-			Target:                  ctx.Target(),
+			SharedLibrary: outputFile,
+			Target:        ctx.Target(),
 		})
 	}
 
