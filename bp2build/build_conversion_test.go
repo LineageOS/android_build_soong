@@ -23,12 +23,14 @@ import (
 
 func TestGenerateSoongModuleTargets(t *testing.T) {
 	testCases := []struct {
+		description         string
 		bp                  string
 		expectedBazelTarget string
 	}{
 		{
+			description: "only name",
 			bp: `custom { name: "foo" }
-		`,
+    `,
 			expectedBazelTarget: `soong_module(
     name = "foo",
     soong_module_name = "foo",
@@ -36,14 +38,16 @@ func TestGenerateSoongModuleTargets(t *testing.T) {
     soong_module_variant = "",
     soong_module_deps = [
     ],
+    bool_prop = False,
 )`,
 		},
 		{
+			description: "handles bool",
 			bp: `custom {
-	name: "foo",
-	ramdisk: true,
+  name: "foo",
+  bool_prop: true,
 }
-		`,
+    `,
 			expectedBazelTarget: `soong_module(
     name = "foo",
     soong_module_name = "foo",
@@ -51,15 +55,16 @@ func TestGenerateSoongModuleTargets(t *testing.T) {
     soong_module_variant = "",
     soong_module_deps = [
     ],
-    ramdisk = True,
+    bool_prop = True,
 )`,
 		},
 		{
+			description: "string escaping",
 			bp: `custom {
-	name: "foo",
-	owner: "a_string_with\"quotes\"_and_\\backslashes\\\\",
+  name: "foo",
+  owner: "a_string_with\"quotes\"_and_\\backslashes\\\\",
 }
-		`,
+    `,
 			expectedBazelTarget: `soong_module(
     name = "foo",
     soong_module_name = "foo",
@@ -67,15 +72,17 @@ func TestGenerateSoongModuleTargets(t *testing.T) {
     soong_module_variant = "",
     soong_module_deps = [
     ],
+    bool_prop = False,
     owner = "a_string_with\"quotes\"_and_\\backslashes\\\\",
 )`,
 		},
 		{
+			description: "single item string list",
 			bp: `custom {
-	name: "foo",
-	required: ["bar"],
+  name: "foo",
+  required: ["bar"],
 }
-		`,
+    `,
 			expectedBazelTarget: `soong_module(
     name = "foo",
     soong_module_name = "foo",
@@ -83,15 +90,17 @@ func TestGenerateSoongModuleTargets(t *testing.T) {
     soong_module_variant = "",
     soong_module_deps = [
     ],
+    bool_prop = False,
     required = ["bar"],
 )`,
 		},
 		{
+			description: "list of strings",
 			bp: `custom {
-	name: "foo",
-	target_required: ["qux", "bazqux"],
+  name: "foo",
+  target_required: ["qux", "bazqux"],
 }
-		`,
+    `,
 			expectedBazelTarget: `soong_module(
     name = "foo",
     soong_module_name = "foo",
@@ -99,6 +108,7 @@ func TestGenerateSoongModuleTargets(t *testing.T) {
     soong_module_variant = "",
     soong_module_deps = [
     ],
+    bool_prop = False,
     target_required = [
         "qux",
         "bazqux",
@@ -106,18 +116,19 @@ func TestGenerateSoongModuleTargets(t *testing.T) {
 )`,
 		},
 		{
+			description: "dist/dists",
 			bp: `custom {
-	name: "foo",
-	dist: {
-		targets: ["goal_foo"],
-		tag: ".foo",
-	},
-	dists: [{
-		targets: ["goal_bar"],
-		tag: ".bar",
-	}],
+  name: "foo",
+  dist: {
+    targets: ["goal_foo"],
+    tag: ".foo",
+  },
+  dists: [{
+    targets: ["goal_bar"],
+    tag: ".bar",
+  }],
 }
-		`,
+    `,
 			expectedBazelTarget: `soong_module(
     name = "foo",
     soong_module_name = "foo",
@@ -125,6 +136,7 @@ func TestGenerateSoongModuleTargets(t *testing.T) {
     soong_module_variant = "",
     soong_module_deps = [
     ],
+    bool_prop = False,
     dist = {
         "tag": ".foo",
         "targets": ["goal_foo"],
@@ -136,20 +148,21 @@ func TestGenerateSoongModuleTargets(t *testing.T) {
 )`,
 		},
 		{
+			description: "put it together",
 			bp: `custom {
-	name: "foo",
-	required: ["bar"],
-	target_required: ["qux", "bazqux"],
-	ramdisk: true,
-	owner: "custom_owner",
-	dists: [
-		{
-			tag: ".tag",
-			targets: ["my_goal"],
-		},
-	],
+  name: "foo",
+  required: ["bar"],
+  target_required: ["qux", "bazqux"],
+  bool_prop: true,
+  owner: "custom_owner",
+  dists: [
+    {
+      tag: ".tag",
+      targets: ["my_goal"],
+    },
+  ],
 }
-		`,
+    `,
 			expectedBazelTarget: `soong_module(
     name = "foo",
     soong_module_name = "foo",
@@ -157,12 +170,12 @@ func TestGenerateSoongModuleTargets(t *testing.T) {
     soong_module_variant = "",
     soong_module_deps = [
     ],
+    bool_prop = True,
     dists = [{
         "tag": ".tag",
         "targets": ["my_goal"],
     }],
     owner = "custom_owner",
-    ramdisk = True,
     required = ["bar"],
     target_required = [
         "qux",
@@ -174,31 +187,33 @@ func TestGenerateSoongModuleTargets(t *testing.T) {
 
 	dir := "."
 	for _, testCase := range testCases {
-		config := android.TestConfig(buildDir, nil, testCase.bp, nil)
-		ctx := android.NewTestContext(config)
+		t.Run(testCase.description, func(t *testing.T) {
+			config := android.TestConfig(buildDir, nil, testCase.bp, nil)
+			ctx := android.NewTestContext(config)
 
-		ctx.RegisterModuleType("custom", customModuleFactory)
-		ctx.Register()
+			ctx.RegisterModuleType("custom", customModuleFactory)
+			ctx.Register()
 
-		_, errs := ctx.ParseFileList(dir, []string{"Android.bp"})
-		android.FailIfErrored(t, errs)
-		_, errs = ctx.PrepareBuildActions(config)
-		android.FailIfErrored(t, errs)
+			_, errs := ctx.ParseFileList(dir, []string{"Android.bp"})
+			android.FailIfErrored(t, errs)
+			_, errs = ctx.PrepareBuildActions(config)
+			android.FailIfErrored(t, errs)
 
-		codegenCtx := NewCodegenContext(config, *ctx.Context, QueryView)
-		bazelTargets := generateBazelTargetsForDir(codegenCtx, dir)
-		if actualCount, expectedCount := len(bazelTargets), 1; actualCount != expectedCount {
-			t.Fatalf("Expected %d bazel target, got %d", expectedCount, actualCount)
-		}
+			codegenCtx := NewCodegenContext(config, *ctx.Context, QueryView)
+			bazelTargets := generateBazelTargetsForDir(codegenCtx, dir)
+			if actualCount, expectedCount := len(bazelTargets), 1; actualCount != expectedCount {
+				t.Fatalf("Expected %d bazel target, got %d", expectedCount, actualCount)
+			}
 
-		actualBazelTarget := bazelTargets[0]
-		if actualBazelTarget.content != testCase.expectedBazelTarget {
-			t.Errorf(
-				"Expected generated Bazel target to be '%s', got '%s'",
-				testCase.expectedBazelTarget,
-				actualBazelTarget.content,
-			)
-		}
+			actualBazelTarget := bazelTargets[0]
+			if actualBazelTarget.content != testCase.expectedBazelTarget {
+				t.Errorf(
+					"Expected generated Bazel target to be '%s', got '%s'",
+					testCase.expectedBazelTarget,
+					actualBazelTarget.content,
+				)
+			}
+		})
 	}
 }
 

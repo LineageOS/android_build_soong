@@ -234,6 +234,7 @@ type bazelCcLibraryAttributes struct {
 	Whole_archive_deps  bazel.LabelListAttribute
 	Includes            bazel.StringListAttribute
 	Linkopts            bazel.StringListAttribute
+	Use_libcrt          bazel.BoolAttribute
 
 	// Attributes pertaining to shared variant.
 	Shared_srcs    bazel.LabelListAttribute
@@ -320,6 +321,7 @@ func CcLibraryBp2Build(ctx android.TopDownMutatorContext) {
 		Whole_archive_deps:  linkerAttrs.wholeArchiveDeps,
 		Includes:            exportedIncludes,
 		Linkopts:            linkerAttrs.linkopts,
+		Use_libcrt:          linkerAttrs.useLibcrt,
 
 		Shared_srcs:                   sharedAttrs.srcs,
 		Shared_srcs_c:                 sharedAttrs.srcs_c,
@@ -1352,19 +1354,17 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 	library.coverageOutputFile = transformCoverageFilesToZip(ctx, objs, library.getLibName(ctx))
 	library.linkSAbiDumpFiles(ctx, objs, fileName, unstrippedOutputFile)
 
-	var staticAnalogue *StaticLibraryInfo
+	var transitiveStaticLibrariesForOrdering *android.DepSet
 	if static := ctx.GetDirectDepsWithTag(staticVariantTag); len(static) > 0 {
 		s := ctx.OtherModuleProvider(static[0], StaticLibraryInfoProvider).(StaticLibraryInfo)
-		staticAnalogue = &s
+		transitiveStaticLibrariesForOrdering = s.TransitiveStaticLibrariesForOrdering
 	}
 
 	ctx.SetProvider(SharedLibraryInfoProvider, SharedLibraryInfo{
-		TableOfContents:         android.OptionalPathForPath(tocFile),
-		SharedLibrary:           unstrippedOutputFile,
-		UnstrippedSharedLibrary: library.unstrippedOutputFile,
-		CoverageSharedLibrary:   library.coverageOutputFile,
-		StaticAnalogue:          staticAnalogue,
-		Target:                  ctx.Target(),
+		TableOfContents:                      android.OptionalPathForPath(tocFile),
+		SharedLibrary:                        unstrippedOutputFile,
+		TransitiveStaticLibrariesForOrdering: transitiveStaticLibrariesForOrdering,
+		Target:                               ctx.Target(),
 	})
 
 	stubs := ctx.GetDirectDepsWithTag(stubImplDepTag)
@@ -2262,6 +2262,7 @@ type bazelCcLibraryStaticAttributes struct {
 	Whole_archive_deps  bazel.LabelListAttribute
 	Linkopts            bazel.StringListAttribute
 	Linkstatic          bool
+	Use_libcrt          bazel.BoolAttribute
 	Includes            bazel.StringListAttribute
 	Hdrs                bazel.LabelListAttribute
 
@@ -2298,6 +2299,7 @@ func ccLibraryStaticBp2BuildInternal(ctx android.TopDownMutatorContext, module *
 
 		Linkopts:   linkerAttrs.linkopts,
 		Linkstatic: true,
+		Use_libcrt: linkerAttrs.useLibcrt,
 		Includes:   exportedIncludes,
 
 		Cppflags:   compilerAttrs.cppFlags,
