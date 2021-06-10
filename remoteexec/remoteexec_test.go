@@ -36,7 +36,7 @@ func TestTemplate(t *testing.T) {
 					PoolKey:           "default",
 				},
 			},
-			want: fmt.Sprintf("${android.RBEWrapper} --labels=compiler=clang,lang=cpp,type=compile --platform=\"Pool=default,container-image=%s\" --exec_strategy=local --inputs=$in --output_files=$out -- ", DefaultImage),
+			want: fmt.Sprintf("${android.RBEWrapper} --labels=compiler=clang,lang=cpp,type=compile --platform=\"Pool=default,container-image=%s\" --exec_strategy=local --inputs=$in --output_files=$out --env_var_allowlist=LANG,LC_MESSAGES,PYTHONDONTWRITEBYTECODE -- ", DefaultImage),
 		},
 		{
 			name: "all params",
@@ -52,7 +52,7 @@ func TestTemplate(t *testing.T) {
 					PoolKey:           "default",
 				},
 			},
-			want: fmt.Sprintf("${android.RBEWrapper} --labels=compiler=clang,lang=cpp,type=compile --platform=\"Pool=default,container-image=%s\" --exec_strategy=remote --inputs=$in --input_list_paths=$out.rsp,out2.rsp --output_files=$out --toolchain_inputs=clang++ -- ", DefaultImage),
+			want: fmt.Sprintf("${android.RBEWrapper} --labels=compiler=clang,lang=cpp,type=compile --platform=\"Pool=default,container-image=%s\" --exec_strategy=remote --inputs=$in --input_list_paths=$out.rsp,out2.rsp --output_files=$out --toolchain_inputs=clang++ --env_var_allowlist=LANG,LC_MESSAGES,PYTHONDONTWRITEBYTECODE -- ", DefaultImage),
 		},
 	}
 	for _, test := range tests {
@@ -74,7 +74,7 @@ func TestNoVarTemplate(t *testing.T) {
 			PoolKey:           "default",
 		},
 	}
-	want := fmt.Sprintf("prebuilts/remoteexecution-client/live/rewrapper --labels=compiler=clang,lang=cpp,type=compile --platform=\"Pool=default,container-image=%s\" --exec_strategy=local --inputs=$in --output_files=$out -- ", DefaultImage)
+	want := fmt.Sprintf("prebuilts/remoteexecution-client/live/rewrapper --labels=compiler=clang,lang=cpp,type=compile --platform=\"Pool=default,container-image=%s\" --exec_strategy=local --inputs=$in --output_files=$out --env_var_allowlist=LANG,LC_MESSAGES,PYTHONDONTWRITEBYTECODE -- ", DefaultImage)
 	if got := params.NoVarTemplate(DefaultWrapperPath); got != want {
 		t.Errorf("NoVarTemplate() returned\n%s\nwant\n%s", got, want)
 	}
@@ -90,7 +90,7 @@ func TestTemplateDeterminism(t *testing.T) {
 			PoolKey:           "default",
 		},
 	}
-	want := fmt.Sprintf("${android.RBEWrapper} --labels=compiler=clang,lang=cpp,type=compile --platform=\"Pool=default,container-image=%s\" --exec_strategy=local --inputs=$in --output_files=$out -- ", DefaultImage)
+	want := fmt.Sprintf("${android.RBEWrapper} --labels=compiler=clang,lang=cpp,type=compile --platform=\"Pool=default,container-image=%s\" --exec_strategy=local --inputs=$in --output_files=$out --env_var_allowlist=LANG,LC_MESSAGES,PYTHONDONTWRITEBYTECODE -- ", DefaultImage)
 	for i := 0; i < 1000; i++ {
 		if got := r.Template(); got != want {
 			t.Fatalf("Template() returned\n%s\nwant\n%s", got, want)
