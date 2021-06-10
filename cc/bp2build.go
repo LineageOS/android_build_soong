@@ -485,13 +485,18 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 
 // Convenience struct to hold all attributes parsed from linker properties.
 type linkerAttributes struct {
-	deps             bazel.LabelListAttribute
-	dynamicDeps      bazel.LabelListAttribute
-	wholeArchiveDeps bazel.LabelListAttribute
-	exportedDeps     bazel.LabelListAttribute
-	useLibcrt        bazel.BoolAttribute
-	linkopts         bazel.StringListAttribute
-	versionScript    bazel.LabelAttribute
+	deps                          bazel.LabelListAttribute
+	dynamicDeps                   bazel.LabelListAttribute
+	wholeArchiveDeps              bazel.LabelListAttribute
+	exportedDeps                  bazel.LabelListAttribute
+	useLibcrt                     bazel.BoolAttribute
+	linkopts                      bazel.StringListAttribute
+	versionScript                 bazel.LabelAttribute
+	stripKeepSymbols              bazel.BoolAttribute
+	stripKeepSymbolsAndDebugFrame bazel.BoolAttribute
+	stripKeepSymbolsList          bazel.StringListAttribute
+	stripAll                      bazel.BoolAttribute
+	stripNone                     bazel.BoolAttribute
 }
 
 // FIXME(b/187655838): Use the existing linkerFlags() function instead of duplicating logic here
@@ -514,6 +519,33 @@ func bp2BuildParseLinkerProps(ctx android.TopDownMutatorContext, module *Module)
 	var linkopts bazel.StringListAttribute
 	var versionScript bazel.LabelAttribute
 	var useLibcrt bazel.BoolAttribute
+
+	var stripKeepSymbols bazel.BoolAttribute
+	var stripKeepSymbolsAndDebugFrame bazel.BoolAttribute
+	var stripKeepSymbolsList bazel.StringListAttribute
+	var stripAll bazel.BoolAttribute
+	var stripNone bazel.BoolAttribute
+
+	if libraryDecorator, ok := module.linker.(*libraryDecorator); ok {
+		stripProperties := libraryDecorator.stripper.StripProperties
+		stripKeepSymbols.Value = stripProperties.Strip.Keep_symbols
+		stripKeepSymbolsList.Value = stripProperties.Strip.Keep_symbols_list
+		stripKeepSymbolsAndDebugFrame.Value = stripProperties.Strip.Keep_symbols_and_debug_frame
+		stripAll.Value = stripProperties.Strip.All
+		stripNone.Value = stripProperties.Strip.None
+	}
+
+	for axis, configToProps := range module.GetArchVariantProperties(ctx, &StripProperties{}) {
+		for config, props := range configToProps {
+			if stripProperties, ok := props.(*StripProperties); ok {
+				stripKeepSymbols.SetSelectValue(axis, config, stripProperties.Strip.Keep_symbols)
+				stripKeepSymbolsList.SetSelectValue(axis, config, stripProperties.Strip.Keep_symbols_list)
+				stripKeepSymbolsAndDebugFrame.SetSelectValue(axis, config, stripProperties.Strip.Keep_symbols_and_debug_frame)
+				stripAll.SetSelectValue(axis, config, stripProperties.Strip.All)
+				stripNone.SetSelectValue(axis, config, stripProperties.Strip.None)
+			}
+		}
+	}
 
 	for _, linkerProps := range module.linker.linkerProps() {
 		if baseLinkerProps, ok := linkerProps.(*BaseLinkerProperties); ok {
@@ -630,6 +662,13 @@ func bp2BuildParseLinkerProps(ctx android.TopDownMutatorContext, module *Module)
 		linkopts:         linkopts,
 		useLibcrt:        useLibcrt,
 		versionScript:    versionScript,
+
+		// Strip properties
+		stripKeepSymbols:              stripKeepSymbols,
+		stripKeepSymbolsAndDebugFrame: stripKeepSymbolsAndDebugFrame,
+		stripKeepSymbolsList:          stripKeepSymbolsList,
+		stripAll:                      stripAll,
+		stripNone:                     stripNone,
 	}
 }
 
