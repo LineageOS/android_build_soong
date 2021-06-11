@@ -165,9 +165,10 @@ type apexBundleProperties struct {
 	// Default is false.
 	Ignore_system_library_special_case *bool
 
-	// Whenever apex_payload.img of the APEX should include dm-verity hashtree. Should be only
-	// used in tests.
-	Test_only_no_hashtree *bool
+	// Whenever apex_payload.img of the APEX should include dm-verity hashtree.
+	// Default value is false.
+	// TODO(b/190621617): change default value to true.
+	Generate_hashtree *bool
 
 	// Whenever apex_payload.img of the APEX should not be dm-verity signed. Should be only
 	// used in tests.
@@ -1268,9 +1269,9 @@ func (a *apexBundle) installable() bool {
 	return !a.properties.PreventInstall && (a.properties.Installable == nil || proptools.Bool(a.properties.Installable))
 }
 
-// See the test_only_no_hashtree property
-func (a *apexBundle) testOnlyShouldSkipHashtreeGeneration() bool {
-	return proptools.Bool(a.properties.Test_only_no_hashtree)
+// See the generate_hashtree property
+func (a *apexBundle) shouldGenerateHashtree() bool {
+	return proptools.BoolDefault(a.properties.Generate_hashtree, false)
 }
 
 // See the test_only_unsigned_payload property
