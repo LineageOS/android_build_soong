@@ -55,14 +55,15 @@ else:
                 if entry.endswith('.uau'):
                     csv_readers.append(dict_reader(io.TextIOWrapper(zip.open(entry, 'r'))))
 
-headers = set()
 if args.header:
     fieldnames = args.header.split(',')
 else:
+    headers = {}
     # Build union of all columns from source files:
     for reader in csv_readers:
-        headers = headers.union(reader.fieldnames)
-    fieldnames = sorted(headers)
+        for fieldname in reader.fieldnames:
+            headers[fieldname] = ""
+    fieldnames = list(headers.keys())
 
 # By default chain the csv readers together so that the resulting output is
 # the concatenation of the rows from each of them:
