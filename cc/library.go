@@ -1343,7 +1343,7 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 	linkerDeps = append(linkerDeps, objs.tidyFiles...)
 	transformObjToDynamicBinary(ctx, objs.objFiles, sharedLibs,
 		deps.StaticLibs, deps.LateStaticLibs, deps.WholeStaticLibs,
-		linkerDeps, deps.CrtBegin, deps.CrtEnd, false, builderFlags, outputFile, implicitOutputs)
+		linkerDeps, deps.CrtBegin, deps.CrtEnd, false, builderFlags, outputFile, implicitOutputs, nil)
 
 	objs.coverageFiles = append(objs.coverageFiles, deps.StaticLibObjs.coverageFiles...)
 	objs.coverageFiles = append(objs.coverageFiles, deps.WholeStaticLibObjs.coverageFiles...)
