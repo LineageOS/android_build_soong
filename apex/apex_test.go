@@ -839,6 +839,7 @@ func TestApexWithStubs(t *testing.T) {
 			name: "myapex",
 			key: "myapex.key",
 			native_shared_libs: ["mylib", "mylib3"],
+			binaries: ["foo.rust"],
 			updatable: false,
 		}
 
@@ -887,6 +888,25 @@ func TestApexWithStubs(t *testing.T) {
 			stl: "none",
 			apex_available: [ "myapex" ],
 		}
+
+		rust_binary {
+			name: "foo.rust",
+			srcs: ["foo.rs"],
+			shared_libs: ["libfoo.shared_from_rust"],
+			prefer_rlib: true,
+			apex_available: ["myapex"],
+		}
+
+		cc_library_shared {
+			name: "libfoo.shared_from_rust",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+			stubs: {
+				versions: ["10", "11", "12"],
+			},
+		}
+
 	`)
 
 	apexRule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("apexRule")
@@ -924,7 +944,17 @@ func TestApexWithStubs(t *testing.T) {
 		"lib64/mylib.so",
 		"lib64/mylib3.so",
 		"lib64/mylib4.so",
+		"bin/foo.rust",
+		"lib64/libc++.so", // by the implicit dependency from foo.rust
+		"lib64/liblog.so", // by the implicit dependency from foo.rust
 	})
+
+	// Ensure that stub dependency from a rust module is not included
+	ensureNotContains(t, copyCmds, "image.apex/lib64/libfoo.shared_from_rust.so")
+	// The rust module is linked to the stub cc library
+	rustDeps := ctx.ModuleForTests("foo.rust", "android_arm64_armv8-a_apex10000").Rule("rustc").Args["linkFlags"]
+	ensureContains(t, rustDeps, "libfoo.shared_from_rust/android_arm64_armv8-a_shared_current/libfoo.shared_from_rust.so")
+	ensureNotContains(t, rustDeps, "libfoo.shared_from_rust/android_arm64_armv8-a_shared/libfoo.shared_from_rust.so")
 }
 
 func TestApexWithStubsWithMinSdkVersion(t *testing.T) {
