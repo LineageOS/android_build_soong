@@ -516,7 +516,16 @@ func (b *BootclasspathFragmentModule) ClasspathFragmentToConfiguredJarList(ctx a
 	// Only create configs for updatable boot jars. Non-updatable boot jars must be part of the
 	// platform_bootclasspath's classpath proto config to guarantee that they come before any
 	// updatable jars at runtime.
-	return global.UpdatableBootJars.Filter(stems)
+	jars := global.UpdatableBootJars.Filter(stems)
+
+	// TODO(satayev): for apex_test we want to include all contents unconditionally to classpaths
+	// config. However, any test specific jars would not be present in UpdatableBootJars. Instead,
+	// we should check if we are creating a config for apex_test via ApexInfo and amend the values.
+	// This is an exception to support end-to-end test for SdkExtensions, until such support exists.
+	if android.InList("test_framework-sdkextensions", stems) {
+		jars = jars.Append("com.android.sdkext", "test_framework-sdkextensions")
+	}
+	return jars
 }
 
 func (b *BootclasspathFragmentModule) getImageConfig(ctx android.EarlyModuleContext) *bootImageConfig {
