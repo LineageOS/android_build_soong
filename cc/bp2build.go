@@ -255,7 +255,7 @@ func bp2buildParseStaticOrSharedProps(ctx android.TopDownMutatorContext, module 
 		srcs:             bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrc(ctx, props.Srcs)),
 		staticDeps:       bazel.MakeLabelListAttribute(android.BazelLabelForModuleDeps(ctx, props.Static_libs)),
 		dynamicDeps:      bazel.MakeLabelListAttribute(android.BazelLabelForModuleDeps(ctx, props.Shared_libs)),
-		wholeArchiveDeps: bazel.MakeLabelListAttribute(android.BazelLabelForModuleDeps(ctx, props.Whole_static_libs)),
+		wholeArchiveDeps: bazel.MakeLabelListAttribute(android.BazelLabelForModuleWholeDeps(ctx, props.Whole_static_libs)),
 	}
 
 	setAttrs := func(axis bazel.ConfigurationAxis, config string, props StaticOrSharedProperties) {
@@ -263,7 +263,7 @@ func bp2buildParseStaticOrSharedProps(ctx android.TopDownMutatorContext, module 
 		attrs.srcs.SetSelectValue(axis, config, android.BazelLabelForModuleSrc(ctx, props.Srcs))
 		attrs.staticDeps.SetSelectValue(axis, config, android.BazelLabelForModuleDeps(ctx, props.Static_libs))
 		attrs.dynamicDeps.SetSelectValue(axis, config, android.BazelLabelForModuleDeps(ctx, props.Shared_libs))
-		attrs.wholeArchiveDeps.SetSelectValue(axis, config, android.BazelLabelForModuleDeps(ctx, props.Whole_static_libs))
+		attrs.wholeArchiveDeps.SetSelectValue(axis, config, android.BazelLabelForModuleWholeDeps(ctx, props.Whole_static_libs))
 	}
 
 	if isStatic {
@@ -554,7 +554,7 @@ func bp2BuildParseLinkerProps(ctx android.TopDownMutatorContext, module *Module)
 			staticLibs := android.FirstUniqueStrings(baseLinkerProps.Static_libs)
 			staticDeps.Value = android.BazelLabelForModuleDepsExcludes(ctx, staticLibs, baseLinkerProps.Exclude_static_libs)
 			wholeArchiveLibs := android.FirstUniqueStrings(baseLinkerProps.Whole_static_libs)
-			wholeArchiveDeps = bazel.MakeLabelListAttribute(android.BazelLabelForModuleDepsExcludes(ctx, wholeArchiveLibs, baseLinkerProps.Exclude_static_libs))
+			wholeArchiveDeps = bazel.MakeLabelListAttribute(android.BazelLabelForModuleWholeDepsExcludes(ctx, wholeArchiveLibs, baseLinkerProps.Exclude_static_libs))
 			sharedLibs := android.FirstUniqueStrings(baseLinkerProps.Shared_libs)
 			dynamicDeps = bazel.MakeLabelListAttribute(android.BazelLabelForModuleDepsExcludes(ctx, sharedLibs, baseLinkerProps.Exclude_shared_libs))
 
@@ -581,7 +581,7 @@ func bp2BuildParseLinkerProps(ctx android.TopDownMutatorContext, module *Module)
 				staticLibs := android.FirstUniqueStrings(baseLinkerProps.Static_libs)
 				staticDeps.SetSelectValue(axis, config, android.BazelLabelForModuleDepsExcludes(ctx, staticLibs, baseLinkerProps.Exclude_static_libs))
 				wholeArchiveLibs := android.FirstUniqueStrings(baseLinkerProps.Whole_static_libs)
-				wholeArchiveDeps.SetSelectValue(axis, config, android.BazelLabelForModuleDepsExcludes(ctx, wholeArchiveLibs, baseLinkerProps.Exclude_static_libs))
+				wholeArchiveDeps.SetSelectValue(axis, config, android.BazelLabelForModuleWholeDepsExcludes(ctx, wholeArchiveLibs, baseLinkerProps.Exclude_static_libs))
 				sharedLibs := android.FirstUniqueStrings(baseLinkerProps.Shared_libs)
 				dynamicDeps.SetSelectValue(axis, config, android.BazelLabelForModuleDepsExcludes(ctx, sharedLibs, baseLinkerProps.Exclude_shared_libs))
 
@@ -604,13 +604,15 @@ func bp2BuildParseLinkerProps(ctx android.TopDownMutatorContext, module *Module)
 		excludesField string
 		// reference to the bazel attribute that should be set for the given product variable config
 		attribute *bazel.LabelListAttribute
+
+		depResolutionFunc func(ctx android.BazelConversionPathContext, modules, excludes []string) bazel.LabelList
 	}
 
 	productVarToDepFields := map[string]productVarDep{
 		// product variables do not support exclude_shared_libs
-		"Shared_libs":       productVarDep{attribute: &dynamicDeps},
-		"Static_libs":       productVarDep{"Exclude_static_libs", &staticDeps},
-		"Whole_static_libs": productVarDep{"Exclude_static_libs", &wholeArchiveDeps},
+		"Shared_libs":       productVarDep{attribute: &dynamicDeps, depResolutionFunc: android.BazelLabelForModuleDepsExcludes},
+		"Static_libs":       productVarDep{"Exclude_static_libs", &staticDeps, android.BazelLabelForModuleDepsExcludes},
+		"Whole_static_libs": productVarDep{"Exclude_static_libs", &wholeArchiveDeps, android.BazelLabelForModuleWholeDepsExcludes},
 	}
 
 	productVariableProps := android.ProductVariableProperties(ctx)
@@ -644,7 +646,8 @@ func bp2BuildParseLinkerProps(ctx android.TopDownMutatorContext, module *Module)
 			if excludes, ok = excludesProp.Property.([]string); excludesExists && !ok {
 				ctx.ModuleErrorf("Could not convert product variable %s property", dep.excludesField)
 			}
-			dep.attribute.SetSelectValue(bazel.ProductVariableConfigurationAxis(config), config, android.BazelLabelForModuleDepsExcludes(ctx, android.FirstUniqueStrings(includes), excludes))
+
+			dep.attribute.SetSelectValue(bazel.ProductVariableConfigurationAxis(config), config, dep.depResolutionFunc(ctx, android.FirstUniqueStrings(includes), excludes))
 		}
 	}
 
