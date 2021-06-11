@@ -49,6 +49,7 @@ func registerCcLibraryModuleTypes(ctx android.RegistrationContext) {
 	cc.RegisterCCBuildComponents(ctx)
 	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
 	ctx.RegisterModuleType("cc_library_static", cc.LibraryStaticFactory)
+	ctx.RegisterModuleType("cc_prebuilt_library_static", cc.PrebuiltStaticLibraryFactory)
 	ctx.RegisterModuleType("toolchain_library", cc.ToolchainLibraryFactory)
 	ctx.RegisterModuleType("cc_library_headers", cc.LibraryHeaderFactory)
 }
@@ -397,6 +398,48 @@ cc_library { name: "shared_dep_for_both" }
     whole_archive_deps = [":whole_static_lib_for_both"],
     whole_archive_deps_for_shared = [":whole_static_lib_for_shared"],
     whole_archive_deps_for_static = [":whole_static_lib_for_static"],
+)`},
+	})
+}
+
+func TestCcLibraryWholeStaticLibsAlwaysLink(t *testing.T) {
+	runCcLibraryTestCase(t, bp2buildTestCase{
+		moduleTypeUnderTest:                "cc_library",
+		moduleTypeUnderTestFactory:         cc.LibraryFactory,
+		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryBp2Build,
+		depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
+		dir:                                "foo/bar",
+		filesystem: map[string]string{
+			"foo/bar/Android.bp": `
+cc_library {
+    name: "a",
+    whole_static_libs: ["whole_static_lib_for_both"],
+    static: {
+        whole_static_libs: ["whole_static_lib_for_static"],
+    },
+    shared: {
+        whole_static_libs: ["whole_static_lib_for_shared"],
+    },
+    bazel_module: { bp2build_available: true },
+}
+
+cc_prebuilt_library_static { name: "whole_static_lib_for_shared" }
+
+cc_prebuilt_library_static { name: "whole_static_lib_for_static" }
+
+cc_prebuilt_library_static { name: "whole_static_lib_for_both" }
+`,
+		},
+		blueprint: soongCcLibraryPreamble,
+		expectedBazelTargets: []string{`cc_library(
+    name = "a",
+    copts = [
+        "-Ifoo/bar",
+        "-I$(BINDIR)/foo/bar",
+    ],
+    whole_archive_deps = [":whole_static_lib_for_both_alwayslink"],
+    whole_archive_deps_for_shared = [":whole_static_lib_for_shared_alwayslink"],
+    whole_archive_deps_for_static = [":whole_static_lib_for_static_alwayslink"],
 )`},
 	})
 }
