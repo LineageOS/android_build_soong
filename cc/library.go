@@ -237,29 +237,12 @@ type bazelCcLibraryAttributes struct {
 	Linkopts            bazel.StringListAttribute
 	Use_libcrt          bazel.BoolAttribute
 
-	// Attributes pertaining to shared variant.
-	Shared_srcs    bazel.LabelListAttribute
-	Shared_srcs_c  bazel.LabelListAttribute
-	Shared_srcs_as bazel.LabelListAttribute
-	Shared_copts   bazel.StringListAttribute
+	// This is shared only.
+	Version_script bazel.LabelAttribute
 
-	Exported_deps_for_shared      bazel.LabelListAttribute
-	Static_deps_for_shared        bazel.LabelListAttribute
-	Dynamic_deps_for_shared       bazel.LabelListAttribute
-	Whole_archive_deps_for_shared bazel.LabelListAttribute
-	User_link_flags               bazel.StringListAttribute
-	Version_script                bazel.LabelAttribute
-
-	// Attributes pertaining to static variant.
-	Static_srcs    bazel.LabelListAttribute
-	Static_srcs_c  bazel.LabelListAttribute
-	Static_srcs_as bazel.LabelListAttribute
-	Static_copts   bazel.StringListAttribute
-
-	Exported_deps_for_static      bazel.LabelListAttribute
-	Static_deps_for_static        bazel.LabelListAttribute
-	Dynamic_deps_for_static       bazel.LabelListAttribute
-	Whole_archive_deps_for_static bazel.LabelListAttribute
+	// Common properties shared between both shared and static variants.
+	Shared staticOrSharedAttributes
+	Static staticOrSharedAttributes
 
 	Strip stripAttributes
 }
@@ -334,6 +317,8 @@ func CcLibraryBp2Build(ctx android.TopDownMutatorContext) {
 		Linkopts:            linkerAttrs.linkopts,
 		Use_libcrt:          linkerAttrs.useLibcrt,
 
+		Version_script: linkerAttrs.versionScript,
+
 		Strip: stripAttributes{
 			Keep_symbols:                 linkerAttrs.stripKeepSymbols,
 			Keep_symbols_and_debug_frame: linkerAttrs.stripKeepSymbolsAndDebugFrame,
@@ -342,22 +327,9 @@ func CcLibraryBp2Build(ctx android.TopDownMutatorContext) {
 			None:                         linkerAttrs.stripNone,
 		},
 
-		Shared_srcs:                   sharedAttrs.srcs,
-		Shared_srcs_c:                 sharedAttrs.srcs_c,
-		Shared_srcs_as:                sharedAttrs.srcs_as,
-		Shared_copts:                  sharedAttrs.copts,
-		Static_deps_for_shared:        sharedAttrs.staticDeps,
-		Whole_archive_deps_for_shared: sharedAttrs.wholeArchiveDeps,
-		Dynamic_deps_for_shared:       sharedAttrs.dynamicDeps,
-		Version_script:                linkerAttrs.versionScript,
+		Shared: sharedAttrs,
 
-		Static_srcs:                   staticAttrs.srcs,
-		Static_srcs_c:                 staticAttrs.srcs_c,
-		Static_srcs_as:                staticAttrs.srcs_as,
-		Static_copts:                  staticAttrs.copts,
-		Static_deps_for_static:        staticAttrs.staticDeps,
-		Whole_archive_deps_for_static: staticAttrs.wholeArchiveDeps,
-		Dynamic_deps_for_static:       staticAttrs.dynamicDeps,
+		Static: staticAttrs,
 	}
 
 	props := bazel.BazelTargetModuleProperties{

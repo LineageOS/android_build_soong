@@ -142,15 +142,14 @@ func depsBp2BuildMutator(ctx android.BottomUpMutatorContext) {
 // staticOrSharedAttributes are the Bazel-ified versions of StaticOrSharedProperties --
 // properties which apply to either the shared or static version of a cc_library module.
 type staticOrSharedAttributes struct {
-	srcs    bazel.LabelListAttribute
-	srcs_c  bazel.LabelListAttribute
-	srcs_as bazel.LabelListAttribute
+	Srcs    bazel.LabelListAttribute
+	Srcs_c  bazel.LabelListAttribute
+	Srcs_as bazel.LabelListAttribute
+	Copts   bazel.StringListAttribute
 
-	copts bazel.StringListAttribute
-
-	staticDeps       bazel.LabelListAttribute
-	dynamicDeps      bazel.LabelListAttribute
-	wholeArchiveDeps bazel.LabelListAttribute
+	Static_deps        bazel.LabelListAttribute
+	Dynamic_deps       bazel.LabelListAttribute
+	Whole_archive_deps bazel.LabelListAttribute
 }
 
 func groupSrcsByExtension(ctx android.TopDownMutatorContext, srcs bazel.LabelListAttribute) (cppSrcs, cSrcs, asSrcs bazel.LabelListAttribute) {
@@ -251,19 +250,19 @@ func bp2buildParseStaticOrSharedProps(ctx android.TopDownMutatorContext, module 
 	}
 
 	attrs := staticOrSharedAttributes{
-		copts:            bazel.StringListAttribute{Value: props.Cflags},
-		srcs:             bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrc(ctx, props.Srcs)),
-		staticDeps:       bazel.MakeLabelListAttribute(android.BazelLabelForModuleDeps(ctx, props.Static_libs)),
-		dynamicDeps:      bazel.MakeLabelListAttribute(android.BazelLabelForModuleDeps(ctx, props.Shared_libs)),
-		wholeArchiveDeps: bazel.MakeLabelListAttribute(android.BazelLabelForModuleWholeDeps(ctx, props.Whole_static_libs)),
+		Copts:              bazel.StringListAttribute{Value: props.Cflags},
+		Srcs:               bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrc(ctx, props.Srcs)),
+		Static_deps:        bazel.MakeLabelListAttribute(android.BazelLabelForModuleDeps(ctx, props.Static_libs)),
+		Dynamic_deps:       bazel.MakeLabelListAttribute(android.BazelLabelForModuleDeps(ctx, props.Shared_libs)),
+		Whole_archive_deps: bazel.MakeLabelListAttribute(android.BazelLabelForModuleWholeDeps(ctx, props.Whole_static_libs)),
 	}
 
 	setAttrs := func(axis bazel.ConfigurationAxis, config string, props StaticOrSharedProperties) {
-		attrs.copts.SetSelectValue(axis, config, props.Cflags)
-		attrs.srcs.SetSelectValue(axis, config, android.BazelLabelForModuleSrc(ctx, props.Srcs))
-		attrs.staticDeps.SetSelectValue(axis, config, android.BazelLabelForModuleDeps(ctx, props.Static_libs))
-		attrs.dynamicDeps.SetSelectValue(axis, config, android.BazelLabelForModuleDeps(ctx, props.Shared_libs))
-		attrs.wholeArchiveDeps.SetSelectValue(axis, config, android.BazelLabelForModuleWholeDeps(ctx, props.Whole_static_libs))
+		attrs.Copts.SetSelectValue(axis, config, props.Cflags)
+		attrs.Srcs.SetSelectValue(axis, config, android.BazelLabelForModuleSrc(ctx, props.Srcs))
+		attrs.Static_deps.SetSelectValue(axis, config, android.BazelLabelForModuleDeps(ctx, props.Static_libs))
+		attrs.Dynamic_deps.SetSelectValue(axis, config, android.BazelLabelForModuleDeps(ctx, props.Shared_libs))
+		attrs.Whole_archive_deps.SetSelectValue(axis, config, android.BazelLabelForModuleWholeDeps(ctx, props.Whole_static_libs))
 	}
 
 	if isStatic {
@@ -284,10 +283,10 @@ func bp2buildParseStaticOrSharedProps(ctx android.TopDownMutatorContext, module 
 		}
 	}
 
-	cppSrcs, cSrcs, asSrcs := groupSrcsByExtension(ctx, attrs.srcs)
-	attrs.srcs = cppSrcs
-	attrs.srcs_c = cSrcs
-	attrs.srcs_as = asSrcs
+	cppSrcs, cSrcs, asSrcs := groupSrcsByExtension(ctx, attrs.Srcs)
+	attrs.Srcs = cppSrcs
+	attrs.Srcs_c = cSrcs
+	attrs.Srcs_as = asSrcs
 
 	return attrs
 }
