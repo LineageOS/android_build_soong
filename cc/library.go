@@ -1112,8 +1112,8 @@ func (library *libraryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 		deps.ReexportStaticLibHeaders = append(deps.ReexportStaticLibHeaders, library.StaticProperties.Static.Export_static_lib_headers...)
 	} else if library.shared() {
 		if ctx.toolchain().Bionic() && !Bool(library.baseLinker.Properties.Nocrt) {
-			deps.CrtBegin = "crtbegin_so"
-			deps.CrtEnd = "crtend_so"
+			deps.CrtBegin = []string{"crtbegin_so"}
+			deps.CrtEnd = []string{"crtend_so"}
 		}
 		deps.WholeStaticLibs = append(deps.WholeStaticLibs, library.SharedProperties.Shared.Whole_static_libs...)
 		deps.StaticLibs = append(deps.StaticLibs, library.SharedProperties.Shared.Static_libs...)
