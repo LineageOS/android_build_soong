@@ -488,6 +488,9 @@ func prettyPrint(propertyValue reflect.Value, indent int) (string, error) {
 		ret = "{\n"
 		// Sort and print the struct props by the key.
 		structProps := extractStructProperties(propertyValue, indent)
+		if len(structProps) == 0 {
+			return "", nil
+		}
 		for _, k := range android.SortedStringKeys(structProps) {
 			ret += makeIndent(indent + 1)
 			ret += fmt.Sprintf("%q: %s,\n", k, structProps[k])

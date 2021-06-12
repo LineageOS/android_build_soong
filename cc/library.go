@@ -259,6 +259,16 @@ type bazelCcLibraryAttributes struct {
 	Static_deps_for_static        bazel.LabelListAttribute
 	Dynamic_deps_for_static       bazel.LabelListAttribute
 	Whole_archive_deps_for_static bazel.LabelListAttribute
+
+	Strip stripAttributes
+}
+
+type stripAttributes struct {
+	Keep_symbols                 bazel.BoolAttribute
+	Keep_symbols_and_debug_frame bazel.BoolAttribute
+	Keep_symbols_list            bazel.StringListAttribute
+	All                          bazel.BoolAttribute
+	None                         bazel.BoolAttribute
 }
 
 type bazelCcLibrary struct {
@@ -322,6 +332,14 @@ func CcLibraryBp2Build(ctx android.TopDownMutatorContext) {
 		Includes:            exportedIncludes,
 		Linkopts:            linkerAttrs.linkopts,
 		Use_libcrt:          linkerAttrs.useLibcrt,
+
+		Strip: stripAttributes{
+			Keep_symbols:                 linkerAttrs.stripKeepSymbols,
+			Keep_symbols_and_debug_frame: linkerAttrs.stripKeepSymbolsAndDebugFrame,
+			Keep_symbols_list:            linkerAttrs.stripKeepSymbolsList,
+			All:                          linkerAttrs.stripAll,
+			None:                         linkerAttrs.stripNone,
+		},
 
 		Shared_srcs:                   sharedAttrs.srcs,
 		Shared_srcs_c:                 sharedAttrs.srcs_c,

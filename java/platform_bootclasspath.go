@@ -280,7 +280,6 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 	}
 
 	monolithicInfo := b.createAndProvideMonolithicHiddenAPIInfo(ctx, fragments)
-
 	// Create the input to pass to ruleToGenerateHiddenAPIStubFlagsFile
 	input := newHiddenAPIFlagInput()
 
@@ -342,7 +341,7 @@ func (b *platformBootclasspathModule) createAndProvideMonolithicHiddenAPIInfo(ct
 	monolithicInfo := newMonolithicHiddenAPIInfo(ctx, temporaryInput.FlagFilesByCategory, fragments)
 
 	// Store the information for testing.
-	ctx.SetProvider(monolithicHiddenAPIInfoProvider, monolithicInfo)
+	ctx.SetProvider(MonolithicHiddenAPIInfoProvider, monolithicInfo)
 	return monolithicInfo
 }
 

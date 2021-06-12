@@ -83,6 +83,36 @@ type BazelConversionPathContext interface {
 // or ":<module>") and returns a Bazel-compatible label which corresponds to dependencies on the
 // module within the given ctx.
 func BazelLabelForModuleDeps(ctx BazelConversionPathContext, modules []string) bazel.LabelList {
+	return bazelLabelForModuleDeps(ctx, modules, false)
+}
+
+// BazelLabelForModuleWholeDeps expects a list of references to other modules, ("<module>"
+// or ":<module>") and returns a Bazel-compatible label which corresponds to dependencies on the
+// module within the given ctx, where prebuilt dependencies will be appended with _alwayslink so
+// they can be handled as whole static libraries.
+func BazelLabelForModuleWholeDeps(ctx BazelConversionPathContext, modules []string) bazel.LabelList {
+	return bazelLabelForModuleDeps(ctx, modules, true)
+}
+
+// BazelLabelForModuleDepsExcludes expects two lists: modules (containing modules to include in the
+// list), and excludes (modules to exclude from the list). Both of these should contain references
+// to other modules, ("<module>" or ":<module>"). It returns a Bazel-compatible label list which
+// corresponds to dependencies on the module within the given ctx, and the excluded dependencies.
+func BazelLabelForModuleDepsExcludes(ctx BazelConversionPathContext, modules, excludes []string) bazel.LabelList {
+	return bazelLabelForModuleDepsExcludes(ctx, modules, excludes, false)
+}
+
+// BazelLabelForModuleWholeDepsExcludes expects two lists: modules (containing modules to include in
+// the list), and excludes (modules to exclude from the list). Both of these should contain
+// references to other modules, ("<module>" or ":<module>"). It returns a Bazel-compatible label
+// list which corresponds to dependencies on the module within the given ctx, and the excluded
+// dependencies.  Prebuilt dependencies will be appended with _alwayslink so they can be handled as
+// whole static libraries.
+func BazelLabelForModuleWholeDepsExcludes(ctx BazelConversionPathContext, modules, excludes []string) bazel.LabelList {
+	return bazelLabelForModuleDepsExcludes(ctx, modules, excludes, true)
+}
+
+func bazelLabelForModuleDeps(ctx BazelConversionPathContext, modules []string, isWholeLibs bool) bazel.LabelList {
 	var labels bazel.LabelList
 	for _, module := range modules {
 		bpText := module
@@ -90,7 +120,7 @@ func BazelLabelForModuleDeps(ctx BazelConversionPathContext, modules []string) b
 			module = ":" + module
 		}
 		if m, t := SrcIsModuleWithTag(module); m != "" {
-			l := getOtherModuleLabel(ctx, m, t)
+			l := getOtherModuleLabel(ctx, m, t, isWholeLibs)
 			l.OriginalModuleName = bpText
 			labels.Includes = append(labels.Includes, l)
 		} else {
@@ -100,16 +130,12 @@ func BazelLabelForModuleDeps(ctx BazelConversionPathContext, modules []string) b
 	return labels
 }
 
-// BazelLabelForModuleDeps expects two lists: modules (containing modules to include in the list),
-// and excludes (modules to exclude from the list). Both of these should contain references to other
-// modules, ("<module>" or ":<module>"). It returns a Bazel-compatible label list which corresponds
-// to dependencies on the module within the given ctx, and the excluded dependencies.
-func BazelLabelForModuleDepsExcludes(ctx BazelConversionPathContext, modules, excludes []string) bazel.LabelList {
-	moduleLabels := BazelLabelForModuleDeps(ctx, RemoveListFromList(modules, excludes))
+func bazelLabelForModuleDepsExcludes(ctx BazelConversionPathContext, modules, excludes []string, isWholeLibs bool) bazel.LabelList {
+	moduleLabels := bazelLabelForModuleDeps(ctx, RemoveListFromList(modules, excludes), isWholeLibs)
 	if len(excludes) == 0 {
 		return moduleLabels
 	}
-	excludeLabels := BazelLabelForModuleDeps(ctx, excludes)
+	excludeLabels := bazelLabelForModuleDeps(ctx, excludes, isWholeLibs)
 	return bazel.LabelList{
 		Includes: moduleLabels.Includes,
 		Excludes: excludeLabels.Includes,
@@ -273,7 +299,7 @@ func expandSrcsForBazel(ctx BazelConversionPathContext, paths, expandedExcludes 
 
 	for _, p := range paths {
 		if m, tag := SrcIsModuleWithTag(p); m != "" {
-			l := getOtherModuleLabel(ctx, m, tag)
+			l := getOtherModuleLabel(ctx, m, tag, false)
 			if !InList(l.Label, expandedExcludes) {
 				l.OriginalModuleName = fmt.Sprintf(":%s", m)
 				labels.Includes = append(labels.Includes, l)
@@ -304,7 +330,7 @@ func expandSrcsForBazel(ctx BazelConversionPathContext, paths, expandedExcludes 
 // getOtherModuleLabel returns a bazel.Label for the given dependency/tag combination for the
 // module. The label will be relative to the current directory if appropriate. The dependency must
 // already be resolved by either deps mutator or path deps mutator.
-func getOtherModuleLabel(ctx BazelConversionPathContext, dep, tag string) bazel.Label {
+func getOtherModuleLabel(ctx BazelConversionPathContext, dep, tag string, isWholeLibs bool) bazel.Label {
 	m, _ := ctx.GetDirectDep(dep)
 	if m == nil {
 		panic(fmt.Errorf(`Cannot get direct dep %q of %q.
@@ -313,6 +339,11 @@ func getOtherModuleLabel(ctx BazelConversionPathContext, dep, tag string) bazel.
 	}
 	otherLabel := bazelModuleLabel(ctx, m, tag)
 	label := bazelModuleLabel(ctx, ctx.Module(), "")
+	if isWholeLibs {
+		if m, ok := m.(Module); ok && IsModulePrebuilt(m) {
+			otherLabel += "_alwayslink"
+		}
+	}
 	if samePackage(label, otherLabel) {
 		otherLabel = bazelShortLabel(otherLabel)
 	}
