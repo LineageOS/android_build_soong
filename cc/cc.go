@@ -129,8 +129,7 @@ type Deps struct {
 	CrtBegin, CrtEnd []string
 
 	// Used for host bionic
-	LinkerFlagsFile string
-	DynamicLinker   string
+	DynamicLinker string
 
 	// List of libs that need to be excluded for APEX variant
 	ExcludeLibsForApex []string
@@ -178,9 +177,6 @@ type PathDeps struct {
 
 	// Paths to crt*.o files
 	CrtBegin, CrtEnd android.Paths
-
-	// Path to the file container flags to use with the linker
-	LinkerFlagsFile android.OptionalPath
 
 	// Path to the dynamic linker binary
 	DynamicLinker android.OptionalPath
@@ -717,7 +713,6 @@ var (
 	genHeaderDepTag       = dependencyTag{name: "gen header"}
 	genHeaderExportDepTag = dependencyTag{name: "gen header export"}
 	objDepTag             = dependencyTag{name: "obj"}
-	linkerFlagsDepTag     = dependencyTag{name: "linker flags file"}
 	dynamicLinkerDepTag   = installDependencyTag{name: "dynamic linker"}
 	reuseObjTag           = dependencyTag{name: "reuse objects"}
 	staticVariantTag      = dependencyTag{name: "static variant"}
@@ -2254,9 +2249,6 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		actx.AddVariationDependencies(crtVariations, CrtEndDepTag,
 			RewriteSnapshotLib(crt, GetSnapshot(c, &snapshotInfo, actx).Objects))
 	}
-	if deps.LinkerFlagsFile != "" {
-		actx.AddDependency(c, linkerFlagsDepTag, deps.LinkerFlagsFile)
-	}
 	if deps.DynamicLinker != "" {
 		actx.AddDependency(c, dynamicLinkerDepTag, deps.DynamicLinker)
 	}
@@ -2551,17 +2543,6 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 						// Add these re-exported flags to help header-abi-dumper to infer the abi exported by a library.
 						c.sabi.Properties.ReexportedIncludes = append(c.sabi.Properties.ReexportedIncludes, dirs.Strings()...)
 
-					}
-				} else {
-					ctx.ModuleErrorf("module %q is not a genrule", depName)
-				}
-			case linkerFlagsDepTag:
-				if genRule, ok := dep.(genrule.SourceFileGenerator); ok {
-					files := genRule.GeneratedSourceFiles()
-					if len(files) == 1 {
-						depPaths.LinkerFlagsFile = android.OptionalPathForPath(files[0])
-					} else if len(files) > 1 {
-						ctx.ModuleErrorf("module %q can only generate a single file if used for a linker flag file", depName)
 					}
 				} else {
 					ctx.ModuleErrorf("module %q is not a genrule", depName)
