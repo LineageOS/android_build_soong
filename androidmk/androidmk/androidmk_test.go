@@ -1463,6 +1463,22 @@ android_app {
 }
 `,
 	},
+	{
+		desc: "LOCAL_CERTIFICATE_LINEAGE",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := foo
+LOCAL_MODULE_TAGS := tests
+LOCAL_CERTIFICATE_LINEAGE := lineage
+include $(BUILD_PACKAGE)
+`,
+		expected: `
+android_test {
+    name: "foo",
+    lineage: "lineage",
+}
+`,
+	},
 }
 
 func TestEndToEnd(t *testing.T) {

@@ -763,7 +763,7 @@ func (b *bootclasspathFragmentSdkMemberProperties) AddToPropertySet(ctx android.
 
 	// Copy manually curated flag files specified on the bootclasspath_fragment.
 	if b.Flag_files_by_category != nil {
-		for _, category := range hiddenAPIFlagFileCategories {
+		for _, category := range HiddenAPIFlagFileCategories {
 			paths := b.Flag_files_by_category[category]
 			if len(paths) > 0 {
 				dests := []string{}
@@ -772,7 +772,7 @@ func (b *bootclasspathFragmentSdkMemberProperties) AddToPropertySet(ctx android.
 					builder.CopyToSnapshot(p, dest)
 					dests = append(dests, dest)
 				}
-				hiddenAPISet.AddProperty(category.propertyName, dests)
+				hiddenAPISet.AddProperty(category.PropertyName, dests)
 			}
 		}
 	}

@@ -73,12 +73,13 @@ type actionGraphContainer struct {
 // BuildStatement contains information to register a build statement corresponding (one to one)
 // with a Bazel action from Bazel's action graph.
 type BuildStatement struct {
-	Command     string
-	Depfile     *string
-	OutputPaths []string
-	InputPaths  []string
-	Env         []KeyValuePair
-	Mnemonic    string
+	Command      string
+	Depfile      *string
+	OutputPaths  []string
+	InputPaths   []string
+	SymlinkPaths []string
+	Env          []KeyValuePair
+	Mnemonic     string
 }
 
 // A helper type for aquery processing which facilitates retrieval of path IDs from their
@@ -234,10 +235,21 @@ func AqueryBuildStatements(aqueryJsonProto []byte) ([]BuildStatement, error) {
 			OutputPaths: outputPaths,
 			InputPaths:  inputPaths,
 			Env:         actionEntry.EnvironmentVariables,
-			Mnemonic:    actionEntry.Mnemonic}
-		if len(actionEntry.Arguments) < 1 {
+			Mnemonic:    actionEntry.Mnemonic,
+		}
+
+		if isSymlinkAction(actionEntry) {
+			if len(inputPaths) != 1 || len(outputPaths) != 1 {
+				return nil, fmt.Errorf("Expect 1 input and 1 output to symlink action, got: input %q, output %q", inputPaths, outputPaths)
+			}
+			out := outputPaths[0]
+			outDir := proptools.ShellEscapeIncludingSpaces(filepath.Dir(out))
+			out = proptools.ShellEscapeIncludingSpaces(out)
+			in := proptools.ShellEscapeIncludingSpaces(inputPaths[0])
+			buildStatement.Command = fmt.Sprintf("mkdir -p %[1]s && rm -f %[2]s && ln -rsf %[3]s %[2]s", outDir, out, in)
+			buildStatement.SymlinkPaths = outputPaths[:]
+		} else if len(actionEntry.Arguments) < 1 {
 			return nil, fmt.Errorf("received action with no command: [%v]", buildStatement)
-			continue
 		}
 		buildStatements = append(buildStatements, buildStatement)
 	}
@@ -245,9 +257,13 @@ func AqueryBuildStatements(aqueryJsonProto []byte) ([]BuildStatement, error) {
 	return buildStatements, nil
 }
 
+func isSymlinkAction(a action) bool {
+	return a.Mnemonic == "Symlink" || a.Mnemonic == "SolibSymlink"
+}
+
 func shouldSkipAction(a action) bool {
-	// TODO(b/180945121): Handle symlink actions.
-	if a.Mnemonic == "Symlink" || a.Mnemonic == "SourceSymlinkManifest" || a.Mnemonic == "SymlinkTree" || a.Mnemonic == "SolibSymlink" {
+	// TODO(b/180945121): Handle complex symlink actions.
+	if a.Mnemonic == "SymlinkTree" || a.Mnemonic == "SourceSymlinkManifest" {
 		return true
 	}
 	// Middleman actions are not handled like other actions; they are handled separately as a
@@ -278,6 +294,9 @@ func expandPathFragment(id int, pathFragmentsMap map[int]pathFragment) (string, 
 			return "", fmt.Errorf("undefined path fragment id %d", currId)
 		}
 		labels = append([]string{currFragment.Label}, labels...)
+		if currId == currFragment.ParentId {
+			return "", fmt.Errorf("Fragment cannot refer to itself as parent %#v", currFragment)
+		}
 		currId = currFragment.ParentId
 	}
 	return filepath.Join(labels...), nil
