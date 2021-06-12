@@ -61,8 +61,15 @@ func main() {
 			continue
 		}
 
-		sectionName := fmt.Sprintf(".linker.sect%d", load)
-		symName := fmt.Sprintf("__dlwrap_linker_sect%d", load)
+		var progName string
+		progSection := progToFirstSection(prog, ef.Sections)
+		if progSection != nil {
+			progName = progSection.Name
+		} else {
+			progName = fmt.Sprintf(".sect%d", load)
+		}
+		sectionName := ".linker" + progName
+		symName := "__dlwrap_linker" + strings.ReplaceAll(progName, ".", "_")
 
 		flags := ""
 		if prog.Flags&elf.PF_W != 0 {
@@ -124,4 +131,13 @@ func bytesToAsm(asm io.Writer, buf []byte) {
 		fmt.Fprintf(asm, "%d", b)
 	}
 	fmt.Fprintln(asm)
+}
+
+func progToFirstSection(prog *elf.Prog, sections []*elf.Section) *elf.Section {
+	for _, section := range sections {
+		if section.Addr == prog.Vaddr {
+			return section
+		}
+	}
+	return nil
 }
