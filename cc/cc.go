@@ -2180,13 +2180,6 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		}, depTag, RewriteSnapshotLib(staticUnwinder(actx), GetSnapshot(c, &snapshotInfo, actx).StaticLibs))
 	}
 
-	for _, lib := range deps.LateStaticLibs {
-		depTag := libraryDependencyTag{Kind: staticLibraryDependency, Order: lateLibraryDependency}
-		actx.AddVariationDependencies([]blueprint.Variation{
-			{Mutator: "link", Variation: "static"},
-		}, depTag, RewriteSnapshotLib(lib, GetSnapshot(c, &snapshotInfo, actx).StaticLibs))
-	}
-
 	// shared lib names without the #version suffix
 	var sharedLibNames []string
 
@@ -2210,6 +2203,13 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 			{Mutator: "link", Variation: "shared"},
 		}
 		AddSharedLibDependenciesWithVersions(ctx, c, variations, depTag, name, version, false)
+	}
+
+	for _, lib := range deps.LateStaticLibs {
+		depTag := libraryDependencyTag{Kind: staticLibraryDependency, Order: lateLibraryDependency}
+		actx.AddVariationDependencies([]blueprint.Variation{
+			{Mutator: "link", Variation: "static"},
+		}, depTag, RewriteSnapshotLib(lib, GetSnapshot(c, &snapshotInfo, actx).StaticLibs))
 	}
 
 	for _, lib := range deps.LateSharedLibs {
