@@ -679,11 +679,11 @@ func buildRuleToGenerateHiddenApiFlags(ctx android.BuilderContext, name, desc st
 // * metadata.csv
 // * index.csv
 // * all-flags.csv
-func hiddenAPIGenerateAllFlagsForBootclasspathFragment(ctx android.ModuleContext, contents []hiddenAPIModule, input HiddenAPIFlagInput) *HiddenAPIFlagOutput {
+func hiddenAPIGenerateAllFlagsForBootclasspathFragment(ctx android.ModuleContext, contents []android.Module, input HiddenAPIFlagInput) *HiddenAPIFlagOutput {
 	hiddenApiSubDir := "modular-hiddenapi"
 
 	// Gather the dex files for the boot libraries provided by this fragment.
-	bootDexJars := extractBootDexJarsFromHiddenAPIModules(ctx, contents)
+	bootDexJars := extractBootDexJarsFromModules(ctx, contents)
 
 	// Generate the stub-flags.csv.
 	stubFlagsCSV := android.PathForModuleOut(ctx, hiddenApiSubDir, "stub-flags.csv")
@@ -691,7 +691,7 @@ func hiddenAPIGenerateAllFlagsForBootclasspathFragment(ctx android.ModuleContext
 	rule.Build("modularHiddenAPIStubFlagsFile", "modular hiddenapi stub flags")
 
 	// Extract the classes jars from the contents.
-	classesJars := extractClassJarsFromHiddenAPIModules(ctx, contents)
+	classesJars := extractClassesJarsFromModules(contents)
 
 	// Generate the set of flags from the annotations in the source code.
 	annotationFlagsCSV := android.PathForModuleOut(ctx, hiddenApiSubDir, "annotation-flags.csv")
@@ -746,26 +746,15 @@ func buildRuleToGenerateRemovedDexSignatures(ctx android.ModuleContext, removedT
 	return android.OptionalPathForPath(output)
 }
 
-// gatherHiddenAPIModuleFromContents gathers the hiddenAPIModule from the supplied contents.
-func gatherHiddenAPIModuleFromContents(ctx android.ModuleContext, contents []android.Module) []hiddenAPIModule {
-	hiddenAPIModules := []hiddenAPIModule{}
-	for _, module := range contents {
-		if hiddenAPI, ok := module.(hiddenAPIModule); ok {
-			hiddenAPIModules = append(hiddenAPIModules, hiddenAPI)
-		} else if _, ok := module.(*DexImport); ok {
-			// Ignore this for the purposes of hidden API processing
-		} else {
-			ctx.ModuleErrorf("module %s does not implement hiddenAPIModule", module)
-		}
-	}
-	return hiddenAPIModules
-}
-
-// extractBootDexJarsFromHiddenAPIModules extracts the boot dex jars from the supplied modules.
-func extractBootDexJarsFromHiddenAPIModules(ctx android.ModuleContext, contents []hiddenAPIModule) android.Paths {
+// extractBootDexJarsFromModules extracts the boot dex jars from the supplied modules.
+func extractBootDexJarsFromModules(ctx android.ModuleContext, contents []android.Module) android.Paths {
 	bootDexJars := android.Paths{}
 	for _, module := range contents {
-		bootDexJar := module.bootDexJar()
+		hiddenAPIModule := hiddenAPIModuleFromModule(ctx, module)
+		if hiddenAPIModule == nil {
+			continue
+		}
+		bootDexJar := hiddenAPIModule.bootDexJar()
 		if bootDexJar == nil {
 			if ctx.Config().AlwaysUsePrebuiltSdks() {
 				// TODO(b/179354495): Remove this workaround when it is unnecessary.
@@ -793,13 +782,34 @@ func extractBootDexJarsFromHiddenAPIModules(ctx android.ModuleContext, contents 
 	return bootDexJars
 }
 
-// extractClassJarsFromHiddenAPIModules extracts the class jars from the supplied modules.
-func extractClassJarsFromHiddenAPIModules(ctx android.ModuleContext, contents []hiddenAPIModule) android.Paths {
+func hiddenAPIModuleFromModule(ctx android.BaseModuleContext, module android.Module) hiddenAPIModule {
+	if hiddenAPIModule, ok := module.(hiddenAPIModule); ok {
+		return hiddenAPIModule
+	} else if _, ok := module.(*DexImport); ok {
+		// Ignore this for the purposes of hidden API processing
+	} else {
+		ctx.ModuleErrorf("module %s does not implement hiddenAPIModule", module)
+	}
+
+	return nil
+}
+
+// extractClassesJarsFromModules extracts the class jars from the supplied modules.
+func extractClassesJarsFromModules(contents []android.Module) android.Paths {
 	classesJars := android.Paths{}
 	for _, module := range contents {
-		classesJars = append(classesJars, module.classesJars()...)
+		classesJars = append(classesJars, retrieveClassesJarsFromModule(module)...)
 	}
 	return classesJars
+}
+
+// retrieveClassesJarsFromModule retrieves the classes jars from the supplied module.
+func retrieveClassesJarsFromModule(module android.Module) android.Paths {
+	if hiddenAPIModule, ok := module.(hiddenAPIModule); ok {
+		return hiddenAPIModule.classesJars()
+	}
+
+	return nil
 }
 
 // deferReportingMissingBootDexJar returns true if a missing boot dex jar should not be reported by
