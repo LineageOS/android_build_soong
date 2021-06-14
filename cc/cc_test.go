@@ -4231,3 +4231,152 @@ func TestIncludeDirsExporting(t *testing.T) {
 		)
 	})
 }
+
+func TestIncludeDirectoryOrdering(t *testing.T) {
+	bp := `
+		cc_library {
+			name: "libfoo",
+			srcs: ["foo.c"],
+			local_include_dirs: ["local_include_dirs"],
+			export_include_dirs: ["export_include_dirs"],
+			export_system_include_dirs: ["export_system_include_dirs"],
+			static_libs: ["libstatic1", "libstatic2"],
+			whole_static_libs: ["libwhole1", "libwhole2"],
+			shared_libs: ["libshared1", "libshared2"],
+			header_libs: ["libheader1", "libheader2"],
+			target: {
+				android: {
+					shared_libs: ["libandroid"],
+					local_include_dirs: ["android_local_include_dirs"],
+					export_include_dirs: ["android_export_include_dirs"],
+				},
+				android_arm: {
+					shared_libs: ["libandroid_arm"],
+					local_include_dirs: ["android_arm_local_include_dirs"],
+					export_include_dirs: ["android_arm_export_include_dirs"],
+				},
+				linux: {
+					shared_libs: ["liblinux"],
+					local_include_dirs: ["linux_local_include_dirs"],
+					export_include_dirs: ["linux_export_include_dirs"],
+				},
+			},
+			multilib: {
+				lib32: {
+					shared_libs: ["lib32"],
+					local_include_dirs: ["lib32_local_include_dirs"],
+					export_include_dirs: ["lib32_export_include_dirs"],
+				},
+			},
+			arch: {
+				arm: {
+					shared_libs: ["libarm"],
+					local_include_dirs: ["arm_local_include_dirs"],
+					export_include_dirs: ["arm_export_include_dirs"],
+				},
+			},
+			stl: "libc++",
+			sdk_version: "20",
+		}
+
+		cc_library_headers {
+			name: "libheader1",
+			export_include_dirs: ["libheader1"],
+			sdk_version: "20",
+			stl: "none",
+		}
+
+		cc_library_headers {
+			name: "libheader2",
+			export_include_dirs: ["libheader2"],
+			sdk_version: "20",
+			stl: "none",
+		}
+	`
+
+	libs := []string{
+		"libstatic1",
+		"libstatic2",
+		"libwhole1",
+		"libwhole2",
+		"libshared1",
+		"libshared2",
+		"libandroid",
+		"libandroid_arm",
+		"liblinux",
+		"lib32",
+		"libarm",
+	}
+
+	for _, lib := range libs {
+		bp += fmt.Sprintf(`
+			cc_library {
+				name: "%s",
+				export_include_dirs: ["%s"],
+				sdk_version: "20",
+				stl: "none",
+			}
+		`, lib, lib)
+	}
+
+	ctx := PrepareForIntegrationTestWithCc.RunTestWithBp(t, bp)
+	// Use the arm variant instead of the arm64 variant so that it gets headers from
+	// ndk_libandroid_support to test LateStaticLibs.
+	cflags := ctx.ModuleForTests("libfoo", "android_arm_armv7-a-neon_sdk_static").Output("obj/foo.o").Args["cFlags"]
+
+	var includes []string
+	flags := strings.Split(cflags, " ")
+	for i, flag := range flags {
+		if strings.Contains(flag, "Cflags") {
+			includes = append(includes, flag)
+		} else if strings.HasPrefix(flag, "-I") {
+			includes = append(includes, strings.TrimPrefix(flag, "-I"))
+		} else if flag == "-isystem" {
+			includes = append(includes, flags[i+1])
+		}
+	}
+
+	want := []string{
+		"${config.ArmClangThumbCflags}",
+		"${config.ArmClangCflags}",
+		"${config.CommonClangGlobalCflags}",
+		"${config.DeviceClangGlobalCflags}",
+		"${config.ClangExternalCflags}",
+		"${config.ArmToolchainClangCflags}",
+		"${config.ArmClangArmv7ANeonCflags}",
+		"${config.ArmClangGenericCflags}",
+		"export_include_dirs",
+		"linux_export_include_dirs",
+		"android_export_include_dirs",
+		"arm_export_include_dirs",
+		"lib32_export_include_dirs",
+		"android_arm_export_include_dirs",
+		"android_arm_local_include_dirs",
+		"lib32_local_include_dirs",
+		"arm_local_include_dirs",
+		"android_local_include_dirs",
+		"linux_local_include_dirs",
+		"local_include_dirs",
+		".",
+		"libheader1",
+		"libheader2",
+		"libwhole1",
+		"libwhole2",
+		"libstatic1",
+		"libstatic2",
+		"libshared1",
+		"libshared2",
+		"liblinux",
+		"libandroid",
+		"libarm",
+		"lib32",
+		"libandroid_arm",
+		"defaults/cc/common/ndk_libandroid_support",
+		"defaults/cc/common/ndk_libc++_shared",
+		"out/soong/ndk/sysroot/usr/include",
+		"out/soong/ndk/sysroot/usr/include/arm-linux-androideabi",
+		"${config.NoOverrideClangGlobalCflags}",
+	}
+
+	android.AssertArrayString(t, "includes", want, includes)
+}
