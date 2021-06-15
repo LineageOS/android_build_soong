@@ -41,6 +41,8 @@ toolchain_library {
 )
 
 func TestCcLibraryBp2Build(t *testing.T) {
+	// b/191166471 disabled in sc-dev
+	t.Skip()
 	testCases := []struct {
 		description                        string
 		moduleTypeUnderTest                string
