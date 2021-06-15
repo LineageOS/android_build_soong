@@ -50,8 +50,14 @@ const (
 )
 
 var (
-	defaultLabels       = map[string]string{"type": "tool"}
-	defaultExecStrategy = LocalExecStrategy
+	defaultLabels               = map[string]string{"type": "tool"}
+	defaultExecStrategy         = LocalExecStrategy
+	defaultEnvironmentVariables = []string{
+		// This is a subset of the allowlist in ui/build/ninja.go that makes sense remotely.
+		"LANG",
+		"LC_MESSAGES",
+		"PYTHONDONTWRITEBYTECODE",
+	}
 )
 
 // REParams holds information pertinent to the remote execution of a rule.
@@ -149,8 +155,10 @@ func (r *REParams) wrapperArgs() string {
 		args += " --toolchain_inputs=" + strings.Join(r.ToolchainInputs, ",")
 	}
 
-	if len(r.EnvironmentVariables) > 0 {
-		args += " --env_var_allowlist=" + strings.Join(r.EnvironmentVariables, ",")
+	envVarAllowlist := append(r.EnvironmentVariables, defaultEnvironmentVariables...)
+
+	if len(envVarAllowlist) > 0 {
+		args += " --env_var_allowlist=" + strings.Join(envVarAllowlist, ",")
 	}
 
 	return args + " -- "
