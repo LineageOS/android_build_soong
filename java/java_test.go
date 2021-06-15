@@ -1392,3 +1392,31 @@ func TestDefaultInstallable(t *testing.T) {
 	assertDeepEquals(t, "Default installable value should be true.", proptools.BoolPtr(true),
 		module.properties.Installable)
 }
+
+func TestErrorproneEnabled(t *testing.T) {
+	ctx, _ := testJava(t, `
+		java_library {
+			name: "foo",
+			srcs: ["a.java"],
+			errorprone: {
+				enabled: true,
+			},
+		}
+	`)
+
+	javac := ctx.ModuleForTests("foo", "android_common").Description("javac")
+
+	// Test that the errorprone plugins are passed to javac
+	expectedSubstring := "-Xplugin:ErrorProne"
+	if !strings.Contains(javac.Args["javacFlags"], expectedSubstring) {
+		t.Errorf("expected javacFlags to conain %q, got %q", expectedSubstring, javac.Args["javacFlags"])
+	}
+
+	// Modules with errorprone { enabled: true } will include errorprone checks
+	// in the main javac build rule. Only when RUN_ERROR_PRONE is true will
+	// the explicit errorprone build rule be created.
+	errorprone := ctx.ModuleForTests("foo", "android_common").MaybeDescription("errorprone")
+	if errorprone.RuleParams.Description != "" {
+		t.Errorf("expected errorprone build rule to not exist, but it did")
+	}
+}
