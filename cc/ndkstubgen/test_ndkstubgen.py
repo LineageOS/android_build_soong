@@ -19,9 +19,10 @@ import io
 import textwrap
 import unittest
 
-import ndkstubgen
 import symbolfile
-from symbolfile import Arch, Tag
+from symbolfile import Arch, Tags
+
+import ndkstubgen
 
 
 # pylint: disable=missing-docstring
@@ -38,23 +39,25 @@ class GeneratorTest(unittest.TestCase):
                                          version_file, symbol_list_file,
                                          Arch('arm'), 9, False, False)
 
-        version = symbolfile.Version('VERSION_PRIVATE', None, [], [
-            symbolfile.Symbol('foo', []),
+        version = symbolfile.Version('VERSION_PRIVATE', None, Tags(), [
+            symbolfile.Symbol('foo', Tags()),
         ])
         generator.write_version(version)
         self.assertEqual('', src_file.getvalue())
         self.assertEqual('', version_file.getvalue())
 
-        version = symbolfile.Version('VERSION', None, [Tag('x86')], [
-            symbolfile.Symbol('foo', []),
-        ])
+        version = symbolfile.Version('VERSION', None, Tags.from_strs(['x86']),
+                                     [
+                                         symbolfile.Symbol('foo', Tags()),
+                                     ])
         generator.write_version(version)
         self.assertEqual('', src_file.getvalue())
         self.assertEqual('', version_file.getvalue())
 
-        version = symbolfile.Version('VERSION', None, [Tag('introduced=14')], [
-            symbolfile.Symbol('foo', []),
-        ])
+        version = symbolfile.Version('VERSION', None,
+                                     Tags.from_strs(['introduced=14']), [
+                                         symbolfile.Symbol('foo', Tags()),
+                                     ])
         generator.write_version(version)
         self.assertEqual('', src_file.getvalue())
         self.assertEqual('', version_file.getvalue())
@@ -69,29 +72,29 @@ class GeneratorTest(unittest.TestCase):
                                          version_file, symbol_list_file,
                                          Arch('arm'), 9, False, False)
 
-        version = symbolfile.Version('VERSION_1', None, [], [
-            symbolfile.Symbol('foo', [Tag('x86')]),
+        version = symbolfile.Version('VERSION_1', None, Tags(), [
+            symbolfile.Symbol('foo', Tags.from_strs(['x86'])),
         ])
         generator.write_version(version)
         self.assertEqual('', src_file.getvalue())
         self.assertEqual('', version_file.getvalue())
 
-        version = symbolfile.Version('VERSION_1', None, [], [
-            symbolfile.Symbol('foo', [Tag('introduced=14')]),
+        version = symbolfile.Version('VERSION_1', None, Tags(), [
+            symbolfile.Symbol('foo', Tags.from_strs(['introduced=14'])),
         ])
         generator.write_version(version)
         self.assertEqual('', src_file.getvalue())
         self.assertEqual('', version_file.getvalue())
 
-        version = symbolfile.Version('VERSION_1', None, [], [
-            symbolfile.Symbol('foo', [Tag('llndk')]),
+        version = symbolfile.Version('VERSION_1', None, Tags(), [
+            symbolfile.Symbol('foo', Tags.from_strs(['llndk'])),
         ])
         generator.write_version(version)
         self.assertEqual('', src_file.getvalue())
         self.assertEqual('', version_file.getvalue())
 
-        version = symbolfile.Version('VERSION_1', None, [], [
-            symbolfile.Symbol('foo', [Tag('apex')]),
+        version = symbolfile.Version('VERSION_1', None, Tags(), [
+            symbolfile.Symbol('foo', Tags.from_strs(['apex'])),
         ])
         generator.write_version(version)
         self.assertEqual('', src_file.getvalue())
@@ -106,18 +109,17 @@ class GeneratorTest(unittest.TestCase):
                                          Arch('arm'), 9, False, False)
 
         versions = [
-            symbolfile.Version('VERSION_1', None, [], [
-                symbolfile.Symbol('foo', []),
-                symbolfile.Symbol('bar', [Tag('var')]),
-                symbolfile.Symbol('woodly', [Tag('weak')]),
-                symbolfile.Symbol('doodly',
-                                  [Tag('weak'), Tag('var')]),
+            symbolfile.Version('VERSION_1', None, Tags(), [
+                symbolfile.Symbol('foo', Tags()),
+                symbolfile.Symbol('bar', Tags.from_strs(['var'])),
+                symbolfile.Symbol('woodly', Tags.from_strs(['weak'])),
+                symbolfile.Symbol('doodly', Tags.from_strs(['weak', 'var'])),
             ]),
-            symbolfile.Version('VERSION_2', 'VERSION_1', [], [
-                symbolfile.Symbol('baz', []),
+            symbolfile.Version('VERSION_2', 'VERSION_1', Tags(), [
+                symbolfile.Symbol('baz', Tags()),
             ]),
-            symbolfile.Version('VERSION_3', 'VERSION_1', [], [
-                symbolfile.Symbol('qux', [Tag('versioned=14')]),
+            symbolfile.Version('VERSION_3', 'VERSION_1', Tags(), [
+                symbolfile.Symbol('qux', Tags.from_strs(['versioned=14'])),
             ]),
         ]
 
