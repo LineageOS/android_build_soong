@@ -122,7 +122,7 @@ type BaseLinkerProperties struct {
 
 			// version script for vendor or product variant
 			Version_script *string `android:"arch_variant"`
-		}
+		} `android:"arch_variant"`
 		Recovery struct {
 			// list of shared libs that only should be used to build the recovery
 			// variant of the C/C++ module.
@@ -182,7 +182,7 @@ type BaseLinkerProperties struct {
 			// variant of the C/C++ module.
 			Exclude_static_libs []string
 		}
-	}
+	} `android:"arch_variant"`
 
 	// make android::build:GetBuildNumber() available containing the build ID.
 	Use_version_lib *bool `android:"arch_variant"`
