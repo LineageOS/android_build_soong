@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"android/soong/android"
+	"android/soong/bazel/cquery"
 )
 
 func TestLibraryReuse(t *testing.T) {
@@ -239,4 +240,49 @@ func TestStubsVersions_ParseError(t *testing.T) {
 	`
 
 	testCcError(t, `"libfoo" .*: versions: "X" could not be parsed as an integer and is not a recognized codename`, bp)
+}
+
+func TestCcLibraryWithBazel(t *testing.T) {
+	bp := `
+cc_library {
+	name: "foo",
+	srcs: ["foo.cc"],
+	bazel_module: { label: "//foo/bar:bar" },
+}`
+	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
+	config.BazelContext = android.MockBazelContext{
+		OutputBaseDir: "outputbase",
+		LabelToCcInfo: map[string]cquery.CcInfo{
+			"//foo/bar:bar": cquery.CcInfo{
+				CcObjectFiles:        []string{"foo.o"},
+				Includes:             []string{"include"},
+				SystemIncludes:       []string{"system_include"},
+				RootStaticArchives:   []string{"foo.a"},
+				RootDynamicLibraries: []string{"foo.so"},
+			},
+		},
+	}
+	ctx := testCcWithConfig(t, config)
+
+	staticFoo := ctx.ModuleForTests("foo", "android_arm_armv7-a-neon_static").Module()
+	outputFiles, err := staticFoo.(android.OutputFileProducer).OutputFiles("")
+	if err != nil {
+		t.Errorf("Unexpected error getting cc_object outputfiles %s", err)
+	}
+
+	expectedOutputFiles := []string{"outputbase/execroot/__main__/foo.a"}
+	android.AssertDeepEquals(t, "output files", expectedOutputFiles, outputFiles.Strings())
+
+	sharedFoo := ctx.ModuleForTests("foo", "android_arm_armv7-a-neon_shared").Module()
+	outputFiles, err = sharedFoo.(android.OutputFileProducer).OutputFiles("")
+	if err != nil {
+		t.Errorf("Unexpected error getting cc_object outputfiles %s", err)
+	}
+	expectedOutputFiles = []string{"outputbase/execroot/__main__/foo.so"}
+	android.AssertDeepEquals(t, "output files", expectedOutputFiles, outputFiles.Strings())
+
+	entries := android.AndroidMkEntriesForTest(t, ctx, sharedFoo)[0]
+	expectedFlags := []string{"-Ioutputbase/execroot/__main__/include", "-isystem outputbase/execroot/__main__/system_include"}
+	gotFlags := entries.EntryMap["LOCAL_EXPORT_CFLAGS"]
+	android.AssertDeepEquals(t, "androidmk exported cflags", expectedFlags, gotFlags)
 }

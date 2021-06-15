@@ -73,13 +73,7 @@ func (h *libraryHeaderBazelHander) generateBazelBuildActions(ctx android.ModuleC
 	// HeaderLibraryInfo is an empty struct to indicate to dependencies that this is a header library
 	ctx.SetProvider(HeaderLibraryInfoProvider, HeaderLibraryInfo{})
 
-	flagExporterInfo := flagExporterInfoFromCcInfo(ctx, ccInfo)
-	// Store flag info to be passed along to androimk
-	// TODO(b/184387147): Androidmk should be done in Bazel, not Soong.
-	h.library.flagExporterInfo = &flagExporterInfo
-	// flag exporters consolidates properties like includes, flags, dependencies that should be
-	// exported from this module to other modules
-	ctx.SetProvider(FlagExporterInfoProvider, flagExporterInfo)
+	h.library.setFlagExporterInfoFromCcInfo(ctx, ccInfo)
 
 	// Dependencies on this library will expect collectedSnapshotHeaders to be set, otherwise
 	// validation will fail. For now, set this to an empty list.
