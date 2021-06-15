@@ -1714,7 +1714,9 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 						ctx.PropertyErrorf("systemserverclasspath_fragments", "%q is not a systemserverclasspath_fragment module", depName)
 						return false
 					}
-					filesInfo = append(filesInfo, apexClasspathFragmentProtoFile(ctx, child))
+					if af := apexClasspathFragmentProtoFile(ctx, child); af != nil {
+						filesInfo = append(filesInfo, *af)
+					}
 					return true
 				}
 			case javaLibTag:
@@ -2111,17 +2113,23 @@ func apexBootclasspathFragmentFiles(ctx android.ModuleContext, module blueprint.
 	}
 
 	// Add classpaths.proto config.
-	filesToAdd = append(filesToAdd, apexClasspathFragmentProtoFile(ctx, module))
+	if af := apexClasspathFragmentProtoFile(ctx, module); af != nil {
+		filesToAdd = append(filesToAdd, *af)
+	}
 
 	return filesToAdd
 }
 
-// apexClasspathFragmentProtoFile returns apexFile structure defining the classpath.proto config that
-// the module contributes to the apex.
-func apexClasspathFragmentProtoFile(ctx android.ModuleContext, module blueprint.Module) apexFile {
-	fragmentInfo := ctx.OtherModuleProvider(module, java.ClasspathFragmentProtoContentInfoProvider).(java.ClasspathFragmentProtoContentInfo)
-	classpathProtoOutput := fragmentInfo.ClasspathFragmentProtoOutput
-	return newApexFile(ctx, classpathProtoOutput, classpathProtoOutput.Base(), fragmentInfo.ClasspathFragmentProtoInstallDir.Rel(), etc, nil)
+// apexClasspathFragmentProtoFile returns *apexFile structure defining the classpath.proto config that
+// the module contributes to the apex; or nil if the proto config was not generated.
+func apexClasspathFragmentProtoFile(ctx android.ModuleContext, module blueprint.Module) *apexFile {
+	info := ctx.OtherModuleProvider(module, java.ClasspathFragmentProtoContentInfoProvider).(java.ClasspathFragmentProtoContentInfo)
+	if !info.ClasspathFragmentProtoGenerated {
+		return nil
+	}
+	classpathProtoOutput := info.ClasspathFragmentProtoOutput
+	af := newApexFile(ctx, classpathProtoOutput, classpathProtoOutput.Base(), info.ClasspathFragmentProtoInstallDir.Rel(), etc, nil)
+	return &af
 }
 
 // apexFileForBootclasspathFragmentContentModule creates an apexFile for a bootclasspath_fragment
@@ -2303,16 +2311,30 @@ func (a *apexBundle) checkStaticLinkingToStubLibraries(ctx android.ModuleContext
 	})
 }
 
-// Enforce that Java deps of the apex are using stable SDKs to compile
+// checkUpdatable enforces APEX and its transitive dep properties to have desired values for updatable APEXes.
 func (a *apexBundle) checkUpdatable(ctx android.ModuleContext) {
 	if a.Updatable() {
 		if String(a.properties.Min_sdk_version) == "" {
 			ctx.PropertyErrorf("updatable", "updatable APEXes should set min_sdk_version as well")
 		}
 		a.checkJavaStableSdkVersion(ctx)
+		a.checkClasspathFragments(ctx)
 	}
 }
 
+// checkClasspathFragments enforces that all classpath fragments in deps generate classpaths.proto config.
+func (a *apexBundle) checkClasspathFragments(ctx android.ModuleContext) {
+	ctx.VisitDirectDeps(func(module android.Module) {
+		if tag := ctx.OtherModuleDependencyTag(module); tag == bcpfTag || tag == sscpfTag {
+			info := ctx.OtherModuleProvider(module, java.ClasspathFragmentProtoContentInfoProvider).(java.ClasspathFragmentProtoContentInfo)
+			if !info.ClasspathFragmentProtoGenerated {
+				ctx.OtherModuleErrorf(module, "is included in updatable apex %v, it must not set generate_classpaths_proto to false", ctx.ModuleName())
+			}
+		}
+	})
+}
+
+// checkJavaStableSdkVersion enforces that all Java deps are using stable SDKs to compile.
 func (a *apexBundle) checkJavaStableSdkVersion(ctx android.ModuleContext) {
 	// Visit direct deps only. As long as we guarantee top-level deps are using stable SDKs,
 	// java's checkLinkType guarantees correct usage for transitive deps
@@ -2331,7 +2353,7 @@ func (a *apexBundle) checkJavaStableSdkVersion(ctx android.ModuleContext) {
 	})
 }
 
-// Ensures that the all the dependencies are marked as available for this APEX
+// checkApexAvailability ensures that the all the dependencies are marked as available for this APEX.
 func (a *apexBundle) checkApexAvailability(ctx android.ModuleContext) {
 	// Let's be practical. Availability for test, host, and the VNDK apex isn't important
 	if ctx.Host() || a.testApex || a.vndkApex {
