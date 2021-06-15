@@ -1673,10 +1673,6 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 
 	c.makeLinkType = GetMakeLinkType(actx, c)
 
-	if c.maybeGenerateBazelActions(actx) {
-		return
-	}
-
 	ctx := &moduleContext{
 		ModuleContext: actx,
 		moduleContextImpl: moduleContextImpl{
@@ -1684,6 +1680,11 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		},
 	}
 	ctx.ctx = ctx
+
+	if c.maybeGenerateBazelActions(actx) {
+		c.maybeInstall(ctx, apexInfo)
+		return
+	}
 
 	deps := c.depsToPaths(ctx)
 	if ctx.Failed() {
@@ -1772,19 +1773,7 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		}
 		c.outputFile = android.OptionalPathForPath(outputFile)
 
-		// If a lib is directly included in any of the APEXes or is not available to the
-		// platform (which is often the case when the stub is provided as a prebuilt),
-		// unhide the stubs variant having the latest version gets visible to make. In
-		// addition, the non-stubs variant is renamed to <libname>.bootstrap. This is to
-		// force anything in the make world to link against the stubs library.  (unless it
-		// is explicitly referenced via .bootstrap suffix or the module is marked with
-		// 'bootstrap: true').
-		if c.HasStubsVariants() && c.NotInPlatform() && !c.InRamdisk() &&
-			!c.InRecovery() && !c.UseVndk() && !c.static() && !c.isCoverageVariant() &&
-			c.IsStubs() && !c.InVendorRamdisk() {
-			c.Properties.HideFromMake = false // unhide
-			// Note: this is still non-installable
-		}
+		c.maybeUnhideFromMake()
 
 		// glob exported headers for snapshot, if BOARD_VNDK_VERSION is current or
 		// RECOVERY_SNAPSHOT_VERSION is current.
@@ -1795,6 +1784,26 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		}
 	}
 
+	c.maybeInstall(ctx, apexInfo)
+}
+
+func (c *Module) maybeUnhideFromMake() {
+	// If a lib is directly included in any of the APEXes or is not available to the
+	// platform (which is often the case when the stub is provided as a prebuilt),
+	// unhide the stubs variant having the latest version gets visible to make. In
+	// addition, the non-stubs variant is renamed to <libname>.bootstrap. This is to
+	// force anything in the make world to link against the stubs library.  (unless it
+	// is explicitly referenced via .bootstrap suffix or the module is marked with
+	// 'bootstrap: true').
+	if c.HasStubsVariants() && c.NotInPlatform() && !c.InRamdisk() &&
+		!c.InRecovery() && !c.UseVndk() && !c.static() && !c.isCoverageVariant() &&
+		c.IsStubs() && !c.InVendorRamdisk() {
+		c.Properties.HideFromMake = false // unhide
+		// Note: this is still non-installable
+	}
+}
+
+func (c *Module) maybeInstall(ctx ModuleContext, apexInfo android.ApexInfo) {
 	if !proptools.BoolDefault(c.Properties.Installable, true) {
 		// If the module has been specifically configure to not be installed then
 		// hide from make as otherwise it will break when running inside make
