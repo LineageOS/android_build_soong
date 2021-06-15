@@ -635,10 +635,9 @@ func (handler *ccLibraryBazelHandler) generateSharedBazelBuildActions(ctx androi
 	ctx.SetProvider(SharedLibraryInfoProvider, SharedLibraryInfo{
 		TableOfContents: tocFile,
 		SharedLibrary:   outputFilePath,
+		Target:          ctx.Target(),
 		// TODO(b/190524881): Include transitive static libraries in this provider to support
-		// static libraries with deps.
-		//TransitiveStaticLibrariesForOrdering
-		Target: ctx.Target(),
+		// static libraries with deps. The provider key for this is TransitiveStaticLibrariesForOrdering.
 	})
 	return true
 }
