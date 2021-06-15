@@ -185,7 +185,6 @@ func TestKapt(t *testing.T) {
 		buildOS := android.BuildOs.String()
 
 		kapt := result.ModuleForTests("foo", "android_common").Rule("kapt")
-		//kotlinc := ctx.ModuleForTests("foo", "android_common").Rule("kotlinc")
 		javac := result.ModuleForTests("foo", "android_common").Description("javac")
 		errorprone := result.ModuleForTests("foo", "android_common").Description("errorprone")
 
