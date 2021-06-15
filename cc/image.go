@@ -341,11 +341,11 @@ func (m *Module) RecoveryAvailable() bool {
 }
 
 func (m *Module) ExtraVariants() []string {
-	return m.Properties.ExtraVariants
+	return m.Properties.ExtraVersionedImageVariations
 }
 
 func (m *Module) AppendExtraVariant(extraVariant string) {
-	m.Properties.ExtraVariants = append(m.Properties.ExtraVariants, extraVariant)
+	m.Properties.ExtraVersionedImageVariations = append(m.Properties.ExtraVersionedImageVariations, extraVariant)
 }
 
 func (m *Module) SetRamdiskVariantNeeded(b bool) {
@@ -629,7 +629,7 @@ func (c *Module) RecoveryVariantNeeded(ctx android.BaseModuleContext) bool {
 }
 
 func (c *Module) ExtraImageVariations(ctx android.BaseModuleContext) []string {
-	return c.Properties.ExtraVariants
+	return c.Properties.ExtraVersionedImageVariations
 }
 
 func squashVendorSrcs(m *Module) {

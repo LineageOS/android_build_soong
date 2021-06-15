@@ -43,10 +43,9 @@ type ImageInterface interface {
 	// its variation.
 	ExtraImageVariations(ctx BaseModuleContext) []string
 
-	// SetImageVariation will be passed a newly created recovery variant of the module.  ModuleBase implements
-	// SetImageVariation, most module types will not need to override it, and those that do must call the
-	// overridden method.  Implementors of SetImageVariation must be careful to modify the module argument
-	// and not the receiver.
+	// SetImageVariation is called for each newly created image variant. The receiver is the original
+	// module, "variation" is the name of the newly created variant and "module" is the newly created
+	// variant itself.
 	SetImageVariation(ctx BaseModuleContext, variation string, module Module)
 }
 
