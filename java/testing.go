@@ -364,6 +364,17 @@ func CheckPlatformBootclasspathModules(t *testing.T, result *android.TestResult,
 	android.AssertDeepEquals(t, fmt.Sprintf("%s modules", "platform-bootclasspath"), expected, pairs)
 }
 
+func CheckClasspathFragmentProtoContentInfoProvider(t *testing.T, result *android.TestResult, generated bool, contents, outputFilename, installDir string) {
+	t.Helper()
+	p := result.Module("platform-bootclasspath", "android_common").(*platformBootclasspathModule)
+	info := result.ModuleProvider(p, ClasspathFragmentProtoContentInfoProvider).(ClasspathFragmentProtoContentInfo)
+
+	android.AssertBoolEquals(t, "classpath proto generated", generated, info.ClasspathFragmentProtoGenerated)
+	android.AssertStringEquals(t, "classpath proto contents", contents, info.ClasspathFragmentProtoContents.String())
+	android.AssertStringEquals(t, "output filepath", outputFilename, info.ClasspathFragmentProtoOutput.Base())
+	android.AssertPathRelativeToTopEquals(t, "install filepath", installDir, info.ClasspathFragmentProtoInstallDir)
+}
+
 // ApexNamePairsFromModules returns the apex:module pair for the supplied modules.
 func ApexNamePairsFromModules(ctx *android.TestContext, modules []android.Module) []string {
 	pairs := []string{}
