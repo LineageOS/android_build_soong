@@ -52,10 +52,6 @@ type classpathFragment interface {
 	android.Module
 
 	classpathFragmentBase() *ClasspathFragmentBase
-
-	// ClasspathFragmentToConfiguredJarList returns android.ConfiguredJarList representation of all
-	// the jars in this classpath fragment.
-	ClasspathFragmentToConfiguredJarList(ctx android.ModuleContext) android.ConfiguredJarList
 }
 
 // ClasspathFragmentBase is meant to be embedded in any module types that implement classpathFragment;

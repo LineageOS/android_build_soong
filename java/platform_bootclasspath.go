@@ -199,11 +199,11 @@ func (b *platformBootclasspathModule) GenerateAndroidBuildActions(ctx android.Mo
 // Generate classpaths.proto config
 func (b *platformBootclasspathModule) generateClasspathProtoBuildActions(ctx android.ModuleContext) {
 	// ART and platform boot jars must have a corresponding entry in DEX2OATBOOTCLASSPATH
-	classpathJars := configuredJarListToClasspathJars(ctx, b.ClasspathFragmentToConfiguredJarList(ctx), BOOTCLASSPATH, DEX2OATBOOTCLASSPATH)
+	classpathJars := configuredJarListToClasspathJars(ctx, b.configuredJars(ctx), BOOTCLASSPATH, DEX2OATBOOTCLASSPATH)
 	b.classpathFragmentBase().generateClasspathProtoBuildActions(ctx, classpathJars)
 }
 
-func (b *platformBootclasspathModule) ClasspathFragmentToConfiguredJarList(ctx android.ModuleContext) android.ConfiguredJarList {
+func (b *platformBootclasspathModule) configuredJars(ctx android.ModuleContext) android.ConfiguredJarList {
 	return b.getImageConfig(ctx).modules
 }
 
