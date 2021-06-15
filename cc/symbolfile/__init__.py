@@ -14,18 +14,22 @@
 # limitations under the License.
 #
 """Parser for Android's version script information."""
-from dataclasses import dataclass
+from __future__ import annotations
+
+from dataclasses import dataclass, field
 import logging
 import re
 from typing import (
     Dict,
     Iterable,
+    Iterator,
     List,
     Mapping,
     NewType,
     Optional,
     TextIO,
     Tuple,
+    Union,
 )
 
 
@@ -52,11 +56,52 @@ def logger() -> logging.Logger:
 
 
 @dataclass
+class Tags:
+    """Container class for the tags attached to a symbol or version."""
+
+    tags: tuple[Tag, ...] = field(default_factory=tuple)
+
+    @classmethod
+    def from_strs(cls, strs: Iterable[str]) -> Tags:
+        """Constructs tags from a collection of strings.
+
+        Does not decode API levels.
+        """
+        return Tags(tuple(Tag(s) for s in strs))
+
+    def __contains__(self, tag: Union[Tag, str]) -> bool:
+        return tag in self.tags
+
+    def __iter__(self) -> Iterator[Tag]:
+        yield from self.tags
+
+    @property
+    def has_mode_tags(self) -> bool:
+        """Returns True if any mode tags (apex, llndk, etc) are set."""
+        return self.has_apex_tags or self.has_llndk_tags
+
+    @property
+    def has_apex_tags(self) -> bool:
+        """Returns True if any APEX tags are set."""
+        return 'apex' in self.tags or 'systemapi' in self.tags
+
+    @property
+    def has_llndk_tags(self) -> bool:
+        """Returns True if any LL-NDK tags are set."""
+        return 'llndk' in self.tags
+
+    @property
+    def has_platform_only_tags(self) -> bool:
+        """Returns True if any platform-only tags are set."""
+        return 'platform-only' in self.tags
+
+
+@dataclass
 class Symbol:
     """A symbol definition from a symbol file."""
 
     name: str
-    tags: List[Tag]
+    tags: Tags
 
 
 @dataclass
@@ -65,14 +110,22 @@ class Version:
 
     name: str
     base: Optional[str]
-    tags: List[Tag]
+    tags: Tags
     symbols: List[Symbol]
 
+    @property
+    def is_private(self) -> bool:
+        """Returns True if this version block is private (platform only)."""
+        return self.name.endswith('_PRIVATE') or self.name.endswith('_PLATFORM')
 
-def get_tags(line: str) -> List[Tag]:
+
+def get_tags(line: str, api_map: ApiMap) -> Tags:
     """Returns a list of all tags on this line."""
     _, _, all_tags = line.strip().partition('#')
-    return [Tag(e) for e in re.split(r'\s+', all_tags) if e.strip()]
+    return Tags(tuple(
+        decode_api_level_tag(Tag(e), api_map)
+        for e in re.split(r'\s+', all_tags) if e.strip()
+    ))
 
 
 def is_api_level_tag(tag: Tag) -> bool:
@@ -104,24 +157,21 @@ def decode_api_level(api: str, api_map: ApiMap) -> int:
     return api_map[api]
 
 
-def decode_api_level_tags(tags: Iterable[Tag], api_map: ApiMap) -> List[Tag]:
-    """Decodes API level code names in a list of tags.
+def decode_api_level_tag(tag: Tag, api_map: ApiMap) -> Tag:
+    """Decodes API level code name in a tag.
 
     Raises:
         ParseError: An unknown version name was found in a tag.
     """
-    decoded_tags = list(tags)
-    for idx, tag in enumerate(tags):
-        if not is_api_level_tag(tag):
-            continue
-        name, value = split_tag(tag)
+    if not is_api_level_tag(tag):
+        return tag
 
-        try:
-            decoded = str(decode_api_level(value, api_map))
-            decoded_tags[idx] = Tag('='.join([name, decoded]))
-        except KeyError:
-            raise ParseError(f'Unknown version name in tag: {tag}')
-    return decoded_tags
+    name, value = split_tag(tag)
+    try:
+        decoded = str(decode_api_level(value, api_map))
+        return Tag(f'{name}={decoded}')
+    except KeyError as ex:
+        raise ParseError(f'Unknown version name in tag: {tag}') from ex
 
 
 def split_tag(tag: Tag) -> Tuple[str, str]:
@@ -149,55 +199,52 @@ def get_tag_value(tag: Tag) -> str:
     return split_tag(tag)[1]
 
 
-def version_is_private(version: str) -> bool:
-    """Returns True if the version name should be treated as private."""
-    return version.endswith('_PRIVATE') or version.endswith('_PLATFORM')
+def _should_omit_tags(tags: Tags, arch: Arch, api: int, llndk: bool,
+                      apex: bool) -> bool:
+    """Returns True if the tagged object should be omitted.
+
+    This defines the rules shared between version tagging and symbol tagging.
+    """
+    # The apex and llndk tags will only exclude APIs from other modes. If in
+    # APEX or LLNDK mode and neither tag is provided, we fall back to the
+    # default behavior because all NDK symbols are implicitly available to APEX
+    # and LLNDK.
+    if tags.has_mode_tags:
+        if not apex and not llndk:
+            return True
+        if apex and not tags.has_apex_tags:
+            return True
+        if llndk and not tags.has_llndk_tags:
+            return True
+    if not symbol_in_arch(tags, arch):
+        return True
+    if not symbol_in_api(tags, arch, api):
+        return True
+    return False
 
 
 def should_omit_version(version: Version, arch: Arch, api: int, llndk: bool,
                         apex: bool) -> bool:
-    """Returns True if the version section should be ommitted.
+    """Returns True if the version section should be omitted.
 
     We want to omit any sections that do not have any symbols we'll have in the
     stub library. Sections that contain entirely future symbols or only symbols
     for certain architectures.
     """
-    if version_is_private(version.name):
+    if version.is_private:
         return True
-    if 'platform-only' in version.tags:
+    if version.tags.has_platform_only_tags:
         return True
-
-    no_llndk_no_apex = ('llndk' not in version.tags
-                        and 'apex' not in version.tags)
-    keep = no_llndk_no_apex or \
-           ('llndk' in version.tags and llndk) or \
-           ('apex' in version.tags and apex)
-    if not keep:
-        return True
-    if not symbol_in_arch(version.tags, arch):
-        return True
-    if not symbol_in_api(version.tags, arch, api):
-        return True
-    return False
+    return _should_omit_tags(version.tags, arch, api, llndk, apex)
 
 
 def should_omit_symbol(symbol: Symbol, arch: Arch, api: int, llndk: bool,
                        apex: bool) -> bool:
     """Returns True if the symbol should be omitted."""
-    no_llndk_no_apex = 'llndk' not in symbol.tags and 'apex' not in symbol.tags
-    keep = no_llndk_no_apex or \
-           ('llndk' in symbol.tags and llndk) or \
-           ('apex' in symbol.tags and apex)
-    if not keep:
-        return True
-    if not symbol_in_arch(symbol.tags, arch):
-        return True
-    if not symbol_in_api(symbol.tags, arch, api):
-        return True
-    return False
+    return _should_omit_tags(symbol.tags, arch, api, llndk, apex)
 
 
-def symbol_in_arch(tags: Iterable[Tag], arch: Arch) -> bool:
+def symbol_in_arch(tags: Tags, arch: Arch) -> bool:
     """Returns true if the symbol is present for the given architecture."""
     has_arch_tags = False
     for tag in tags:
@@ -325,8 +372,7 @@ class SymbolFileParser:
         """Parses a single version section and returns a Version object."""
         assert self.current_line is not None
         name = self.current_line.split('{')[0].strip()
-        tags = get_tags(self.current_line)
-        tags = decode_api_level_tags(tags, self.api_map)
+        tags = get_tags(self.current_line, self.api_map)
         symbols: List[Symbol] = []
         global_scope = True
         cpp_symbols = False
@@ -373,8 +419,7 @@ class SymbolFileParser:
                 'Wildcard global symbols are not permitted.')
         # Line is now in the format "<symbol-name>; # tags"
         name, _, _ = self.current_line.strip().partition(';')
-        tags = get_tags(self.current_line)
-        tags = decode_api_level_tags(tags, self.api_map)
+        tags = get_tags(self.current_line, self.api_map)
         return Symbol(name, tags)
 
     def next_line(self) -> str:
