@@ -46,7 +46,7 @@ func TestGetCcInfoParseResults(t *testing.T) {
 	}{
 		{
 			description: "no result",
-			input:       "|||||",
+			input:       "||||||",
 			expectedOutput: CcInfo{
 				OutputFiles:          []string{},
 				CcObjectFiles:        []string{},
@@ -54,11 +54,12 @@ func TestGetCcInfoParseResults(t *testing.T) {
 				Includes:             []string{},
 				SystemIncludes:       []string{},
 				RootStaticArchives:   []string{},
+				RootDynamicLibraries: []string{},
 			},
 		},
 		{
 			description: "only output",
-			input:       "test|||||",
+			input:       "test||||||",
 			expectedOutput: CcInfo{
 				OutputFiles:          []string{"test"},
 				CcObjectFiles:        []string{},
@@ -66,11 +67,12 @@ func TestGetCcInfoParseResults(t *testing.T) {
 				Includes:             []string{},
 				SystemIncludes:       []string{},
 				RootStaticArchives:   []string{},
+				RootDynamicLibraries: []string{},
 			},
 		},
 		{
 			description: "all items set",
-			input:       "out1, out2|static_lib1, static_lib2|object1, object2|., dir/subdir|system/dir, system/other/dir|rootstaticarchive1",
+			input:       "out1, out2|static_lib1, static_lib2|object1, object2|., dir/subdir|system/dir, system/other/dir|rootstaticarchive1|rootdynamiclibrary1",
 			expectedOutput: CcInfo{
 				OutputFiles:          []string{"out1", "out2"},
 				CcObjectFiles:        []string{"object1", "object2"},
@@ -78,19 +80,20 @@ func TestGetCcInfoParseResults(t *testing.T) {
 				Includes:             []string{".", "dir/subdir"},
 				SystemIncludes:       []string{"system/dir", "system/other/dir"},
 				RootStaticArchives:   []string{"rootstaticarchive1"},
+				RootDynamicLibraries: []string{"rootdynamiclibrary1"},
 			},
 		},
 		{
 			description:          "too few result splits",
 			input:                "|",
 			expectedOutput:       CcInfo{},
-			expectedErrorMessage: fmt.Sprintf("Expected %d items, got %q", 6, []string{"", ""}),
+			expectedErrorMessage: fmt.Sprintf("Expected %d items, got %q", 7, []string{"", ""}),
 		},
 		{
 			description:          "too many result splits",
 			input:                strings.Repeat("|", 8),
 			expectedOutput:       CcInfo{},
-			expectedErrorMessage: fmt.Sprintf("Expected %d items, got %q", 6, make([]string, 9)),
+			expectedErrorMessage: fmt.Sprintf("Expected %d items, got %q", 7, make([]string, 9)),
 		},
 	}
 	for _, tc := range testCases {
