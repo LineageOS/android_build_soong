@@ -144,13 +144,13 @@ func (n *ndkSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 		Inputs:      licensePaths,
 	})
 
-	baseDepPaths := append(installPaths, combinedLicense,
-		getNdkAbiDiffTimestampFile(ctx))
+	baseDepPaths := append(installPaths, combinedLicense)
 
 	ctx.Build(pctx, android.BuildParams{
-		Rule:      android.Touch,
-		Output:    getNdkBaseTimestampFile(ctx),
-		Implicits: baseDepPaths,
+		Rule:       android.Touch,
+		Output:     getNdkBaseTimestampFile(ctx),
+		Implicits:  baseDepPaths,
+		Validation: getNdkAbiDiffTimestampFile(ctx),
 	})
 
 	fullDepPaths := append(staticLibInstallPaths, getNdkBaseTimestampFile(ctx))
