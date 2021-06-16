@@ -46,20 +46,46 @@ type prebuilt interface {
 }
 
 type prebuiltCommon struct {
+	android.ModuleBase
 	prebuilt android.Prebuilt
 
 	// Properties common to both prebuilt_apex and apex_set.
-	prebuiltCommonProperties prebuiltCommonProperties
+	prebuiltCommonProperties *PrebuiltCommonProperties
+
+	installDir      android.InstallPath
+	installFilename string
+	outputApex      android.WritablePath
+
+	// list of commands to create symlinks for backward compatibility.
+	// these commands will be attached as LOCAL_POST_INSTALL_CMD
+	compatSymlinks []string
+
+	hostRequired        []string
+	postInstallCommands []string
 }
 
 type sanitizedPrebuilt interface {
 	hasSanitizedSource(sanitizer string) bool
 }
 
-type prebuiltCommonProperties struct {
+type PrebuiltCommonProperties struct {
 	SelectedApexProperties
 
 	ForceDisable bool `blueprint:"mutated"`
+
+	// whether the extracted apex file is installable.
+	Installable *bool
+
+	// optional name for the installed apex. If unspecified, name of the
+	// module is used as the file name
+	Filename *string
+
+	// names of modules to be overridden. Listed modules can only be other binaries
+	// (in Make or Soong).
+	// This does not completely prevent installation of the overridden binaries, but if both
+	// binaries would be installed by default (in PRODUCT_PACKAGES) the other binary will be removed
+	// from PRODUCT_PACKAGES.
+	Overrides []string
 
 	// List of java libraries that are embedded inside this prebuilt APEX bundle and for which this
 	// APEX bundle will create an APEX variant and provide dex implementation jars for use by
@@ -69,6 +95,14 @@ type prebuiltCommonProperties struct {
 	// List of bootclasspath fragments inside this prebuilt APEX bundle and for which this APEX
 	// bundle will create an APEX variant.
 	Exported_bootclasspath_fragments []string
+}
+
+// initPrebuiltCommon initializes the prebuiltCommon structure and performs initialization of the
+// module that is common to Prebuilt and ApexSet.
+func (p *prebuiltCommon) initPrebuiltCommon(module android.Module, properties *PrebuiltCommonProperties) {
+	p.prebuiltCommonProperties = properties
+	android.InitSingleSourcePrebuiltModule(module.(android.PrebuiltInterface), properties, "Selected_apex")
+	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
 }
 
 func (p *prebuiltCommon) Prebuilt() *android.Prebuilt {
@@ -102,6 +136,46 @@ func (p *prebuiltCommon) checkForceDisable(ctx android.ModuleContext) bool {
 		return true
 	}
 	return false
+}
+
+func (p *prebuiltCommon) InstallFilename() string {
+	return proptools.StringDefault(p.prebuiltCommonProperties.Filename, p.BaseModuleName()+imageApexSuffix)
+}
+
+func (p *prebuiltCommon) Name() string {
+	return p.prebuilt.Name(p.ModuleBase.Name())
+}
+
+func (p *prebuiltCommon) Overrides() []string {
+	return p.prebuiltCommonProperties.Overrides
+}
+
+func (p *prebuiltCommon) installable() bool {
+	return proptools.BoolDefault(p.prebuiltCommonProperties.Installable, true)
+}
+
+func (p *prebuiltCommon) AndroidMkEntries() []android.AndroidMkEntries {
+	return []android.AndroidMkEntries{
+		{
+			Class:         "ETC",
+			OutputFile:    android.OptionalPathForPath(p.outputApex),
+			Include:       "$(BUILD_PREBUILT)",
+			Host_required: p.hostRequired,
+			ExtraEntries: []android.AndroidMkExtraEntriesFunc{
+				func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
+					entries.SetString("LOCAL_MODULE_PATH", p.installDir.ToMakePath().String())
+					entries.SetString("LOCAL_MODULE_STEM", p.installFilename)
+					entries.SetBoolIfTrue("LOCAL_UNINSTALLABLE_MODULE", !p.installable())
+					entries.AddStrings("LOCAL_OVERRIDES_MODULES", p.prebuiltCommonProperties.Overrides...)
+					postInstallCommands := append([]string{}, p.postInstallCommands...)
+					postInstallCommands = append(postInstallCommands, p.compatSymlinks...)
+					if len(postInstallCommands) > 0 {
+						entries.SetString("LOCAL_POST_INSTALL_CMD", strings.Join(postInstallCommands, " && "))
+					}
+				},
+			},
+		},
+	}
 }
 
 // prebuiltApexModuleCreator defines the methods that need to be implemented by prebuilt_apex and
@@ -271,19 +345,11 @@ func (p *prebuiltApexSelectorModule) GenerateAndroidBuildActions(ctx android.Mod
 }
 
 type Prebuilt struct {
-	android.ModuleBase
 	prebuiltCommon
 
 	properties PrebuiltProperties
 
-	inputApex       android.Path
-	installDir      android.InstallPath
-	installFilename string
-	outputApex      android.WritablePath
-
-	// list of commands to create symlinks for backward compatibility.
-	// these commands will be attached as LOCAL_POST_INSTALL_CMD
-	compatSymlinks []string
+	inputApex android.Path
 }
 
 type ApexFileProperties struct {
@@ -348,25 +414,11 @@ func (p *ApexFileProperties) prebuiltApexSelector(ctx android.BaseModuleContext,
 type PrebuiltProperties struct {
 	ApexFileProperties
 
-	Installable *bool
-	// Optional name for the installed apex. If unspecified, name of the
-	// module is used as the file name
-	Filename *string
-
-	// Names of modules to be overridden. Listed modules can only be other binaries
-	// (in Make or Soong).
-	// This does not completely prevent installation of the overridden binaries, but if both
-	// binaries would be installed by default (in PRODUCT_PACKAGES) the other binary will be removed
-	// from PRODUCT_PACKAGES.
-	Overrides []string
+	PrebuiltCommonProperties
 }
 
 func (a *Prebuilt) hasSanitizedSource(sanitizer string) bool {
 	return false
-}
-
-func (p *Prebuilt) installable() bool {
-	return p.properties.Installable == nil || proptools.Bool(p.properties.Installable)
 }
 
 func (p *Prebuilt) OutputFiles(tag string) (android.Paths, error) {
@@ -378,20 +430,11 @@ func (p *Prebuilt) OutputFiles(tag string) (android.Paths, error) {
 	}
 }
 
-func (p *Prebuilt) InstallFilename() string {
-	return proptools.StringDefault(p.properties.Filename, p.BaseModuleName()+imageApexSuffix)
-}
-
-func (p *Prebuilt) Name() string {
-	return p.prebuiltCommon.prebuilt.Name(p.ModuleBase.Name())
-}
-
 // prebuilt_apex imports an `.apex` file into the build graph as if it was built with apex.
 func PrebuiltFactory() android.Module {
 	module := &Prebuilt{}
-	module.AddProperties(&module.properties, &module.prebuiltCommonProperties)
-	android.InitSingleSourcePrebuiltModule(module, &module.prebuiltCommonProperties, "Selected_apex")
-	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
+	module.AddProperties(&module.properties)
+	module.initPrebuiltCommon(module, &module.properties.PrebuiltCommonProperties)
 
 	return module
 }
@@ -414,7 +457,7 @@ func createApexSelectorModule(ctx android.TopDownMutatorContext, name string, ap
 // A deapexer module is only needed when the prebuilt apex specifies one or more modules in either
 // the `exported_java_libs` or `exported_bootclasspath_fragments` properties as that indicates that
 // the listed modules need access to files from within the prebuilt .apex file.
-func createDeapexerModuleIfNeeded(ctx android.TopDownMutatorContext, deapexerName string, apexFileSource string, properties *prebuiltCommonProperties) {
+func createDeapexerModuleIfNeeded(ctx android.TopDownMutatorContext, deapexerName string, apexFileSource string, properties *PrebuiltCommonProperties) {
 	// Only create the deapexer module if it is needed.
 	if len(properties.Exported_java_libs)+len(properties.Exported_bootclasspath_fragments) == 0 {
 		return
@@ -555,7 +598,7 @@ func (p *Prebuilt) createPrebuiltApexModules(ctx android.TopDownMutatorContext) 
 	createApexSelectorModule(ctx, apexSelectorModuleName, &p.properties.ApexFileProperties)
 
 	apexFileSource := ":" + apexSelectorModuleName
-	createDeapexerModuleIfNeeded(ctx, deapexerModuleName(baseModuleName), apexFileSource, &p.prebuiltCommonProperties)
+	createDeapexerModuleIfNeeded(ctx, deapexerModuleName(baseModuleName), apexFileSource, p.prebuiltCommonProperties)
 
 	// Add a source reference to retrieve the selected apex from the selector module.
 	p.prebuiltCommonProperties.Selected_apex = proptools.StringPtr(apexFileSource)
@@ -598,28 +641,9 @@ func (p *Prebuilt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// in case that prebuilt_apex replaces source apex (using prefer: prop)
 	p.compatSymlinks = makeCompatSymlinks(p.BaseModuleName(), ctx)
 	// or that prebuilt_apex overrides other apexes (using overrides: prop)
-	for _, overridden := range p.properties.Overrides {
+	for _, overridden := range p.prebuiltCommonProperties.Overrides {
 		p.compatSymlinks = append(p.compatSymlinks, makeCompatSymlinks(overridden, ctx)...)
 	}
-}
-
-func (p *Prebuilt) AndroidMkEntries() []android.AndroidMkEntries {
-	return []android.AndroidMkEntries{android.AndroidMkEntries{
-		Class:      "ETC",
-		OutputFile: android.OptionalPathForPath(p.inputApex),
-		Include:    "$(BUILD_PREBUILT)",
-		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
-			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
-				entries.SetString("LOCAL_MODULE_PATH", p.installDir.ToMakePath().String())
-				entries.SetString("LOCAL_MODULE_STEM", p.installFilename)
-				entries.SetBoolIfTrue("LOCAL_UNINSTALLABLE_MODULE", !p.installable())
-				entries.AddStrings("LOCAL_OVERRIDES_MODULES", p.properties.Overrides...)
-				if len(p.compatSymlinks) > 0 {
-					entries.SetString("LOCAL_POST_INSTALL_CMD", strings.Join(p.compatSymlinks, " && "))
-				}
-			},
-		},
-	}}
 }
 
 // prebuiltApexExtractorModule is a private module type that is only created by the prebuilt_apex
@@ -666,18 +690,9 @@ func (p *prebuiltApexExtractorModule) GenerateAndroidBuildActions(ctx android.Mo
 }
 
 type ApexSet struct {
-	android.ModuleBase
 	prebuiltCommon
 
 	properties ApexSetProperties
-
-	installDir      android.InstallPath
-	installFilename string
-	outputApex      android.WritablePath
-
-	// list of commands to create symlinks for backward compatibility.
-	// these commands will be attached as LOCAL_POST_INSTALL_CMD
-	compatSymlinks []string
 }
 
 type ApexExtractorProperties struct {
@@ -727,19 +742,7 @@ func (e *ApexExtractorProperties) prebuiltSrcs(ctx android.BaseModuleContext) []
 type ApexSetProperties struct {
 	ApexExtractorProperties
 
-	// whether the extracted apex file installable.
-	Installable *bool
-
-	// optional name for the installed apex. If unspecified, name of the
-	// module is used as the file name
-	Filename *string
-
-	// names of modules to be overridden. Listed modules can only be other binaries
-	// (in Make or Soong).
-	// This does not completely prevent installation of the overridden binaries, but if both
-	// binaries would be installed by default (in PRODUCT_PACKAGES) the other binary will be removed
-	// from PRODUCT_PACKAGES.
-	Overrides []string
+	PrebuiltCommonProperties
 }
 
 func (a *ApexSet) hasSanitizedSource(sanitizer string) bool {
@@ -753,29 +756,11 @@ func (a *ApexSet) hasSanitizedSource(sanitizer string) bool {
 	return false
 }
 
-func (a *ApexSet) installable() bool {
-	return a.properties.Installable == nil || proptools.Bool(a.properties.Installable)
-}
-
-func (a *ApexSet) InstallFilename() string {
-	return proptools.StringDefault(a.properties.Filename, a.BaseModuleName()+imageApexSuffix)
-}
-
-func (a *ApexSet) Name() string {
-	return a.prebuiltCommon.prebuilt.Name(a.ModuleBase.Name())
-}
-
-func (a *ApexSet) Overrides() []string {
-	return a.properties.Overrides
-}
-
 // prebuilt_apex imports an `.apex` file into the build graph as if it was built with apex.
 func apexSetFactory() android.Module {
 	module := &ApexSet{}
-	module.AddProperties(&module.properties, &module.prebuiltCommonProperties)
-
-	android.InitSingleSourcePrebuiltModule(module, &module.prebuiltCommonProperties, "Selected_apex")
-	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
+	module.AddProperties(&module.properties)
+	module.initPrebuiltCommon(module, &module.properties.PrebuiltCommonProperties)
 
 	return module
 }
@@ -813,7 +798,7 @@ func (a *ApexSet) createPrebuiltApexModules(ctx android.TopDownMutatorContext) {
 	createApexExtractorModule(ctx, apexExtractorModuleName, &a.properties.ApexExtractorProperties)
 
 	apexFileSource := ":" + apexExtractorModuleName
-	createDeapexerModuleIfNeeded(ctx, deapexerModuleName(baseModuleName), apexFileSource, &a.prebuiltCommonProperties)
+	createDeapexerModuleIfNeeded(ctx, deapexerModuleName(baseModuleName), apexFileSource, a.prebuiltCommonProperties)
 
 	// After passing the arch specific src properties to the creating the apex selector module
 	a.prebuiltCommonProperties.Selected_apex = proptools.StringPtr(apexFileSource)
@@ -856,26 +841,15 @@ func (a *ApexSet) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// in case that apex_set replaces source apex (using prefer: prop)
 	a.compatSymlinks = makeCompatSymlinks(a.BaseModuleName(), ctx)
 	// or that apex_set overrides other apexes (using overrides: prop)
-	for _, overridden := range a.properties.Overrides {
+	for _, overridden := range a.prebuiltCommonProperties.Overrides {
 		a.compatSymlinks = append(a.compatSymlinks, makeCompatSymlinks(overridden, ctx)...)
 	}
 }
 
-func (a *ApexSet) AndroidMkEntries() []android.AndroidMkEntries {
-	return []android.AndroidMkEntries{android.AndroidMkEntries{
-		Class:      "ETC",
-		OutputFile: android.OptionalPathForPath(a.outputApex),
-		Include:    "$(BUILD_PREBUILT)",
-		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
-			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
-				entries.SetString("LOCAL_MODULE_PATH", a.installDir.ToMakePath().String())
-				entries.SetString("LOCAL_MODULE_STEM", a.installFilename)
-				entries.SetBoolIfTrue("LOCAL_UNINSTALLABLE_MODULE", !a.installable())
-				entries.AddStrings("LOCAL_OVERRIDES_MODULES", a.properties.Overrides...)
-				if len(a.compatSymlinks) > 0 {
-					entries.SetString("LOCAL_POST_INSTALL_CMD", strings.Join(a.compatSymlinks, " && "))
-				}
-			},
-		},
-	}}
+type systemExtContext struct {
+	android.ModuleContext
+}
+
+func (*systemExtContext) SystemExtSpecific() bool {
+	return true
 }
