@@ -70,9 +70,11 @@ the same line. The supported tags are:
 
 ### apex
 
-Indicates that the version or symbol is to be exposed in the APEX stubs rather
-than the NDK. May be used in combination with `llndk` if the symbol is exposed
-to both APEX and the LL-NDK.
+Indicates that the version or symbol is to be exposed by an APEX rather than the
+NDK. For APIs exposed by the platform *for* APEX, use `systemapi`.
+
+May be used in combination with `llndk` if the symbol is exposed to both APEX
+and the LL-NDK.
 
 ### future
 
@@ -143,6 +145,12 @@ The typical use for this tag is for exposing an API to the platform that is not
 for use by the NDK, LL-NDK, or APEX (similar to Java's `@SystemAPI`). It is
 preferable to keep such APIs in an entirely separate library to protect them
 from access via `dlsym`, but this is not always possible.
+
+### systemapi
+
+This is a synonym of the `apex` tag. It should be used to clarify that the API
+is an API exposed by the system for an APEX, whereas `apex` should be used for
+APIs exposed by an APEX to the platform or another APEX.
 
 ### var
 

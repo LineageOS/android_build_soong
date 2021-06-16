@@ -108,7 +108,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         '--llndk', action='store_true', help='Use the LLNDK variant.')
     parser.add_argument(
-        '--apex', action='store_true', help='Use the APEX variant.')
+        '--apex',
+        action='store_true',
+        help='Use the APEX variant. Note: equivalent to --system-api.')
+    parser.add_argument(
+        '--system-api',
+        action='store_true',
+        dest='apex',
+        help='Use the SystemAPI variant. Note: equivalent to --apex.')
 
     parser.add_argument('--api-map',
                         type=resolved_path,
