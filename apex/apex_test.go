@@ -4546,7 +4546,7 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 		// prebuilt_apex module always depends on the prebuilt, and so it doesn't
 		// find the dex boot jar in it. We either need to disable the source libfoo
 		// or make the prebuilt libfoo preferred.
-		testDexpreoptWithApexes(t, bp, "failed to find a dex jar path for module 'libfoo'", preparer)
+		testDexpreoptWithApexes(t, bp, "module libfoo does not provide a dex boot jar", preparer)
 	})
 
 	t.Run("prebuilt library preferred with source", func(t *testing.T) {
