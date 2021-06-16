@@ -92,7 +92,7 @@ cc_genrule {
 }
 
 cc_genrule {
-    name: "host_bionic_linker_flags",
+    name: "host_bionic_linker_script",
     host_supported: true,
     device_supported: false,
     target: {
@@ -107,9 +107,9 @@ cc_genrule {
         },
     },
     tools: ["extract_linker"],
-    cmd: "$(location) -f $(out) $(in)",
+    cmd: "$(location) -T $(out) $(in)",
     srcs: [":linker"],
-    out: ["linker.flags"],
+    out: ["linker.script"],
 }
 
 // Instantiate the dex_bootjars singleton module.

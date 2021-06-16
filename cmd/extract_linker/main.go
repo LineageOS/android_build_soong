@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // This tool extracts ELF LOAD segments from our linker binary, and produces an
-// assembly file and linker flags which will embed those segments as sections
+// assembly file and linker script which will embed those segments as sections
 // in another binary.
 package main
 
@@ -31,10 +31,10 @@ import (
 
 func main() {
 	var asmPath string
-	var flagsPath string
+	var scriptPath string
 
 	flag.StringVar(&asmPath, "s", "", "Path to save the assembly file")
-	flag.StringVar(&flagsPath, "f", "", "Path to save the linker flags")
+	flag.StringVar(&scriptPath, "T", "", "Path to save the linker script")
 	flag.Parse()
 
 	f, err := os.Open(flag.Arg(0))
@@ -49,12 +49,15 @@ func main() {
 	}
 
 	asm := &bytes.Buffer{}
+	script := &bytes.Buffer{}
 	baseLoadAddr := uint64(0x1000)
 	load := 0
-	linkFlags := []string{}
 
 	fmt.Fprintln(asm, ".globl __dlwrap_linker_offset")
 	fmt.Fprintf(asm, ".set __dlwrap_linker_offset, 0x%x\n", baseLoadAddr)
+
+	fmt.Fprintln(script, "ENTRY(__dlwrap__start)")
+	fmt.Fprintln(script, "SECTIONS {")
 
 	for _, prog := range ef.Progs {
 		if prog.Type != elf.PT_LOAD {
@@ -82,10 +85,9 @@ func main() {
 
 		fmt.Fprintf(asm, ".globl %s\n%s:\n\n", symName, symName)
 
-		linkFlags = append(linkFlags,
-			fmt.Sprintf("-Wl,--undefined=%s", symName),
-			fmt.Sprintf("-Wl,--section-start=%s=0x%x",
-				sectionName, baseLoadAddr+prog.Vaddr))
+		fmt.Fprintf(script, "  %s %d : {\n", sectionName, baseLoadAddr+prog.Vaddr)
+		fmt.Fprintf(script, "    KEEP(*(%s));\n", sectionName)
+		fmt.Fprintln(script, "  }")
 
 		buffer, _ := ioutil.ReadAll(prog.Open())
 		bytesToAsm(asm, buffer)
@@ -104,16 +106,18 @@ func main() {
 		load += 1
 	}
 
+	fmt.Fprintln(script, "}")
+	fmt.Fprintln(script, "INSERT BEFORE .note.android.ident;")
+
 	if asmPath != "" {
 		if err := ioutil.WriteFile(asmPath, asm.Bytes(), 0777); err != nil {
 			log.Fatalf("Unable to write %q: %v", asmPath, err)
 		}
 	}
 
-	if flagsPath != "" {
-		flags := strings.Join(linkFlags, " ")
-		if err := ioutil.WriteFile(flagsPath, []byte(flags), 0777); err != nil {
-			log.Fatalf("Unable to write %q: %v", flagsPath, err)
+	if scriptPath != "" {
+		if err := ioutil.WriteFile(scriptPath, script.Bytes(), 0777); err != nil {
+			log.Fatalf("Unable to write %q: %v", scriptPath, err)
 		}
 	}
 }
