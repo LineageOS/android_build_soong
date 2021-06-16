@@ -17,6 +17,7 @@ package java
 import (
 	"fmt"
 	"reflect"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -393,12 +394,20 @@ func CheckPlatformBootclasspathFragments(t *testing.T, result *android.TestResul
 	android.AssertDeepEquals(t, fmt.Sprintf("%s fragments", "platform-bootclasspath"), expected, pairs)
 }
 
-func CheckHiddenAPIRuleInputs(t *testing.T, expected string, hiddenAPIRule android.TestingBuildParams) {
+func CheckHiddenAPIRuleInputs(t *testing.T, message string, expected string, hiddenAPIRule android.TestingBuildParams) {
 	t.Helper()
-	actual := strings.TrimSpace(strings.Join(android.NormalizePathsForTesting(hiddenAPIRule.Implicits), "\n"))
-	expected = strings.TrimSpace(expected)
+	inputs := android.Paths{}
+	if hiddenAPIRule.Input != nil {
+		inputs = append(inputs, hiddenAPIRule.Input)
+	}
+	inputs = append(inputs, hiddenAPIRule.Inputs...)
+	inputs = append(inputs, hiddenAPIRule.Implicits...)
+	inputs = android.SortedUniquePaths(inputs)
+	actual := strings.TrimSpace(strings.Join(inputs.RelativeToTop().Strings(), "\n"))
+	re := regexp.MustCompile(`\n\s+`)
+	expected = strings.TrimSpace(re.ReplaceAllString(expected, "\n"))
 	if actual != expected {
-		t.Errorf("Expected hiddenapi rule inputs:\n%s\nactual inputs:\n%s", expected, actual)
+		t.Errorf("Expected hiddenapi rule inputs - %s:\n%s\nactual inputs:\n%s", message, expected, actual)
 	}
 }
 
