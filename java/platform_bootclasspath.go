@@ -290,16 +290,14 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 	// Use the flag files from this module and all the fragments.
 	input.FlagFilesByCategory = monolithicInfo.FlagsFilesByCategory
 
-	hiddenAPIModules := gatherHiddenAPIModuleFromContents(ctx, modules)
-
 	// Generate the monolithic stub-flags.csv file.
-	bootDexJars := extractBootDexJarsFromHiddenAPIModules(ctx, hiddenAPIModules)
+	bootDexJars := extractBootDexJarsFromModules(ctx, modules)
 	stubFlags := hiddenAPISingletonPaths(ctx).stubFlags
 	rule := ruleToGenerateHiddenAPIStubFlagsFile(ctx, stubFlags, bootDexJars, input)
 	rule.Build("platform-bootclasspath-monolithic-hiddenapi-stub-flags", "monolithic hidden API stub flags")
 
 	// Extract the classes jars from the contents.
-	classesJars := extractClassJarsFromHiddenAPIModules(ctx, hiddenAPIModules)
+	classesJars := extractClassesJarsFromModules(modules)
 
 	// Generate the annotation-flags.csv file from all the module annotations.
 	annotationFlags := android.PathForModuleOut(ctx, "hiddenapi-monolithic", "annotation-flags.csv")

@@ -279,23 +279,6 @@ func TransformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 	transformJavaToClasses(ctx, outputFile, shardIdx, srcFiles, srcJars, flags, deps, "javac", desc)
 }
 
-func RunErrorProne(ctx android.ModuleContext, outputFile android.WritablePath,
-	srcFiles, srcJars android.Paths, flags javaBuilderFlags) {
-
-	flags.processorPath = append(flags.errorProneProcessorPath, flags.processorPath...)
-
-	if len(flags.errorProneExtraJavacFlags) > 0 {
-		if len(flags.javacFlags) > 0 {
-			flags.javacFlags += " " + flags.errorProneExtraJavacFlags
-		} else {
-			flags.javacFlags = flags.errorProneExtraJavacFlags
-		}
-	}
-
-	transformJavaToClasses(ctx, outputFile, -1, srcFiles, srcJars, flags, nil,
-		"errorprone", "errorprone")
-}
-
 // Emits the rule to generate Xref input file (.kzip file) for the given set of source files and source jars
 // to compile with given set of builder flags, etc.
 func emitXrefRule(ctx android.ModuleContext, xrefFile android.WritablePath, idx int,

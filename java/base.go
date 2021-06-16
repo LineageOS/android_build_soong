@@ -155,6 +155,11 @@ type CommonProperties struct {
 
 		// List of java_plugin modules that provide extra errorprone checks.
 		Extra_check_modules []string
+
+		// Whether to run errorprone on a normal build. If this is false, errorprone
+		// will still be run if the RUN_ERROR_PRONE environment variable is true.
+		// Default false.
+		Enabled *bool
 	}
 
 	Proto struct {
@@ -701,7 +706,7 @@ func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaB
 	// javaVersion flag.
 	flags.javaVersion = getJavaVersion(ctx, String(j.properties.Java_version), android.SdkContext(j))
 
-	if ctx.Config().RunErrorProne() {
+	if ctx.Config().RunErrorProne() || Bool(j.properties.Errorprone.Enabled) {
 		if config.ErrorProneClasspath == nil && ctx.Config().TestProductVariables == nil {
 			ctx.ModuleErrorf("cannot build with Error Prone, missing external/error_prone?")
 		}
@@ -972,14 +977,23 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 	}
 	if len(uniqueSrcFiles) > 0 || len(srcJars) > 0 {
 		var extraJarDeps android.Paths
-		if ctx.Config().RunErrorProne() {
-			// If error-prone is enabled, add an additional rule to compile the java files into
-			// a separate set of classes (so that they don't overwrite the normal ones and require
-			// a rebuild when error-prone is turned off).
-			// TODO(ccross): Once we always compile with javac9 we may be able to conditionally
-			//    enable error-prone without affecting the output class files.
+		if Bool(j.properties.Errorprone.Enabled) {
+			// If error-prone is enabled, enable errorprone flags on the regular
+			// build.
+			flags = enableErrorproneFlags(flags)
+		} else if ctx.Config().RunErrorProne() {
+			// Otherwise, if the RUN_ERROR_PRONE environment variable is set, create
+			// a new jar file just for compiling with the errorprone compiler to.
+			// This is because we don't want to cause the java files to get completely
+			// rebuilt every time the state of the RUN_ERROR_PRONE variable changes.
+			// We also don't want to run this if errorprone is enabled by default for
+			// this module, or else we could have duplicated errorprone messages.
+			errorproneFlags := enableErrorproneFlags(flags)
 			errorprone := android.PathForModuleOut(ctx, "errorprone", jarName)
-			RunErrorProne(ctx, errorprone, uniqueSrcFiles, srcJars, flags)
+
+			transformJavaToClasses(ctx, errorprone, -1, uniqueSrcFiles, srcJars, errorproneFlags, nil,
+				"errorprone", "errorprone")
+
 			extraJarDeps = append(extraJarDeps, errorprone)
 		}
 
@@ -1301,6 +1315,21 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 
 	// Save the output file with no relative path so that it doesn't end up in a subdirectory when used as a resource
 	j.outputFile = outputFile.WithoutRel()
+}
+
+// Returns a copy of the supplied flags, but with all the errorprone-related
+// fields copied to the regular build's fields.
+func enableErrorproneFlags(flags javaBuilderFlags) javaBuilderFlags {
+	flags.processorPath = append(flags.errorProneProcessorPath, flags.processorPath...)
+
+	if len(flags.errorProneExtraJavacFlags) > 0 {
+		if len(flags.javacFlags) > 0 {
+			flags.javacFlags += " " + flags.errorProneExtraJavacFlags
+		} else {
+			flags.javacFlags = flags.errorProneExtraJavacFlags
+		}
+	}
+	return flags
 }
 
 func (j *Module) compileJavaClasses(ctx android.ModuleContext, jarName string, idx int,
