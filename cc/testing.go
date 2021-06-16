@@ -490,7 +490,7 @@ func withLinuxBionic() string {
 				}
 
 				cc_genrule {
-					name: "host_bionic_linker_flags",
+					name: "host_bionic_linker_script",
 					host_supported: true,
 					device_supported: false,
 					target: {
@@ -501,7 +501,7 @@ func withLinuxBionic() string {
 							enabled: true,
 						},
 					},
-					out: ["linker.flags"],
+					out: ["linker.script"],
 				}
 
 				cc_defaults {
