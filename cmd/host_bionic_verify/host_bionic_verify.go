@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Verifies a host bionic executable with an embedded linker, then injects
-// the address of the _start function for the linker_wrapper to use.
+// Verifies a host bionic executable with an embedded linker.
 package main
 
 import (
@@ -22,19 +21,16 @@ import (
 	"fmt"
 	"io"
 	"os"
-
-	"android/soong/symbol_inject"
 )
 
 func main() {
-	var inputFile, linkerFile, outputFile string
+	var inputFile, linkerFile string
 
 	flag.StringVar(&inputFile, "i", "", "Input file")
 	flag.StringVar(&linkerFile, "l", "", "Linker file")
-	flag.StringVar(&outputFile, "o", "", "Output file")
 	flag.Parse()
 
-	if inputFile == "" || linkerFile == "" || outputFile == "" || flag.NArg() != 0 {
+	if inputFile == "" || linkerFile == "" || flag.NArg() != 0 {
 		flag.Usage()
 		os.Exit(1)
 	}
@@ -46,75 +42,52 @@ func main() {
 	}
 	defer r.Close()
 
-	file, err := symbol_inject.OpenFile(r)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
-		os.Exit(3)
-	}
-
 	linker, err := elf.Open(linkerFile)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(4)
 	}
 
-	startAddr, err := parseElf(r, linker)
+	err = checkElf(r, linker)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(5)
 	}
-
-	w, err := os.OpenFile(outputFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0777)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
-		os.Exit(6)
-	}
-	defer w.Close()
-
-	err = symbol_inject.InjectUint64Symbol(file, w, "__dlwrap_original_start", startAddr)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
-		os.Exit(7)
-	}
 }
 
 // Check the ELF file, and return the address to the _start function
-func parseElf(r io.ReaderAt, linker *elf.File) (uint64, error) {
+func checkElf(r io.ReaderAt, linker *elf.File) error {
 	file, err := elf.NewFile(r)
 	if err != nil {
-		return 0, err
+		return err
 	}
 
 	symbols, err := file.Symbols()
 	if err != nil {
-		return 0, err
+		return err
 	}
 
 	for _, prog := range file.Progs {
 		if prog.Type == elf.PT_INTERP {
-			return 0, fmt.Errorf("File should not have a PT_INTERP header")
+			return fmt.Errorf("File should not have a PT_INTERP header")
 		}
 	}
 
 	if dlwrap_start, err := findSymbol(symbols, "__dlwrap__start"); err != nil {
-		return 0, err
+		return err
 	} else if dlwrap_start.Value != file.Entry {
-		return 0, fmt.Errorf("Expected file entry(0x%x) to point to __dlwrap_start(0x%x)",
+		return fmt.Errorf("Expected file entry(0x%x) to point to __dlwrap_start(0x%x)",
 			file.Entry, dlwrap_start.Value)
 	}
 
 	err = checkLinker(file, linker, symbols)
 	if err != nil {
-		return 0, fmt.Errorf("Linker executable failed verification against app embedded linker: %s\n"+
+		return fmt.Errorf("Linker executable failed verification against app embedded linker: %s\n"+
 			"linker might not be in sync with crtbegin_dynamic.o.",
 			err)
 	}
 
-	start, err := findSymbol(symbols, "_start")
-	if err != nil {
-		return 0, fmt.Errorf("Failed to find _start symbol")
-	}
-	return start.Value, nil
+	return nil
 }
 
 func findSymbol(symbols []elf.Symbol, name string) (elf.Symbol, error) {

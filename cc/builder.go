@@ -731,7 +731,8 @@ func transformObjToStaticLib(ctx android.ModuleContext,
 // and shared libraries, to a shared library (.so) or dynamic executable
 func transformObjToDynamicBinary(ctx android.ModuleContext,
 	objFiles, sharedLibs, staticLibs, lateStaticLibs, wholeStaticLibs, deps android.Paths,
-	crtBegin, crtEnd android.OptionalPath, groupLate bool, flags builderFlags, outputFile android.WritablePath, implicitOutputs android.WritablePaths) {
+	crtBegin, crtEnd android.OptionalPath, groupLate bool, flags builderFlags,
+	outputFile android.WritablePath, implicitOutputs android.WritablePaths, validations android.WritablePaths) {
 
 	ldCmd := "${config.ClangBin}/clang++"
 
@@ -805,6 +806,7 @@ func transformObjToDynamicBinary(ctx android.ModuleContext,
 		Inputs:          objFiles,
 		Implicits:       deps,
 		OrderOnly:       sharedLibs,
+		Validations:     validations.Paths(),
 		Args:            args,
 	})
 }
