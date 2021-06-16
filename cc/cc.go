@@ -126,7 +126,7 @@ type Deps struct {
 
 	ReexportGeneratedHeaders []string
 
-	CrtBegin, CrtEnd string
+	CrtBegin, CrtEnd []string
 
 	// Used for host bionic
 	LinkerFlagsFile string
@@ -177,7 +177,7 @@ type PathDeps struct {
 	ReexportedDeps             android.Paths
 
 	// Paths to crt*.o files
-	CrtBegin, CrtEnd android.OptionalPath
+	CrtBegin, CrtEnd android.Paths
 
 	// Path to the file container flags to use with the linker
 	LinkerFlagsFile android.OptionalPath
@@ -2264,13 +2264,13 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 
 	crtVariations := GetCrtVariations(ctx, c)
 	actx.AddVariationDependencies(crtVariations, objDepTag, deps.ObjFiles...)
-	if deps.CrtBegin != "" {
+	for _, crt := range deps.CrtBegin {
 		actx.AddVariationDependencies(crtVariations, CrtBeginDepTag,
-			RewriteSnapshotLib(deps.CrtBegin, GetSnapshot(c, &snapshotInfo, actx).Objects))
+			RewriteSnapshotLib(crt, GetSnapshot(c, &snapshotInfo, actx).Objects))
 	}
-	if deps.CrtEnd != "" {
+	for _, crt := range deps.CrtEnd {
 		actx.AddVariationDependencies(crtVariations, CrtEndDepTag,
-			RewriteSnapshotLib(deps.CrtEnd, GetSnapshot(c, &snapshotInfo, actx).Objects))
+			RewriteSnapshotLib(crt, GetSnapshot(c, &snapshotInfo, actx).Objects))
 	}
 	if deps.LinkerFlagsFile != "" {
 		actx.AddDependency(c, linkerFlagsDepTag, deps.LinkerFlagsFile)
@@ -2584,6 +2584,10 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				} else {
 					ctx.ModuleErrorf("module %q is not a genrule", depName)
 				}
+			case CrtBeginDepTag:
+				depPaths.CrtBegin = append(depPaths.CrtBegin, android.OutputFileForModule(ctx, dep, ""))
+			case CrtEndDepTag:
+				depPaths.CrtEnd = append(depPaths.CrtEnd, android.OutputFileForModule(ctx, dep, ""))
 			}
 			return
 		}
@@ -2896,9 +2900,9 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			case objDepTag:
 				depPaths.Objs.objFiles = append(depPaths.Objs.objFiles, linkFile.Path())
 			case CrtBeginDepTag:
-				depPaths.CrtBegin = linkFile
+				depPaths.CrtBegin = append(depPaths.CrtBegin, linkFile.Path())
 			case CrtEndDepTag:
-				depPaths.CrtEnd = linkFile
+				depPaths.CrtEnd = append(depPaths.CrtEnd, linkFile.Path())
 			case dynamicLinkerDepTag:
 				depPaths.DynamicLinker = linkFile
 			}
