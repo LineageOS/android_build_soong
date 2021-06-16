@@ -178,7 +178,7 @@ func (binary *binaryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 		// the kernel before jumping to the embedded linker.
 		if ctx.Os() == android.LinuxBionic && !binary.static() {
 			deps.DynamicLinker = "linker"
-			deps.LinkerFlagsFile = "host_bionic_linker_flags"
+			deps.CrtBegin = append(deps.CrtBegin, "host_bionic_linker_script")
 		}
 	}
 
@@ -344,12 +344,6 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 	ret := outputFile
 
 	var linkerDeps android.Paths
-
-	// Add flags from linker flags file.
-	if deps.LinkerFlagsFile.Valid() {
-		flags.Local.LdFlags = append(flags.Local.LdFlags, "$$(cat "+deps.LinkerFlagsFile.String()+")")
-		linkerDeps = append(linkerDeps, deps.LinkerFlagsFile.Path())
-	}
 
 	if flags.DynamicLinker != "" {
 		flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,-dynamic-linker,"+flags.DynamicLinker)
