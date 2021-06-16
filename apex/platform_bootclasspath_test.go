@@ -234,10 +234,16 @@ func TestPlatformBootclasspathDependencies(t *testing.T) {
 		apex {
 			name: "myapex",
 			key: "myapex.key",
-			java_libs: [
-				"bar",
+			bootclasspath_fragments: [
+				"my-bootclasspath-fragment",
 			],
 			updatable: false,
+		}
+
+		bootclasspath_fragment {
+			name: "my-bootclasspath-fragment",
+			contents: ["bar"],
+			apex_available: ["myapex"],
 		}
 
 		apex_key {
@@ -267,6 +273,10 @@ func TestPlatformBootclasspathDependencies(t *testing.T) {
 					apex: "com.android.art",
 					module: "art-bootclasspath-fragment",
 				},
+				{
+					apex: "myapex",
+					module: "my-bootclasspath-fragment",
+				},
 			],
 		}
 `,
@@ -283,7 +293,8 @@ func TestPlatformBootclasspathDependencies(t *testing.T) {
 	})
 
 	java.CheckPlatformBootclasspathFragments(t, result, "myplatform-bootclasspath", []string{
-		`com.android.art:art-bootclasspath-fragment`,
+		"com.android.art:art-bootclasspath-fragment",
+		"myapex:my-bootclasspath-fragment",
 	})
 
 	// Make sure that the myplatform-bootclasspath has the correct dependencies.
@@ -307,6 +318,7 @@ func TestPlatformBootclasspathDependencies(t *testing.T) {
 
 		// The fragments.
 		`com.android.art:art-bootclasspath-fragment`,
+		`myapex:my-bootclasspath-fragment`,
 	})
 }
 
@@ -410,6 +422,12 @@ func TestPlatformBootclasspath_AlwaysUsePrebuiltSdks(t *testing.T) {
 
 		platform_bootclasspath {
 			name: "myplatform-bootclasspath",
+			fragments: [
+				{
+					apex: "myapex",
+					module:"mybootclasspath-fragment",
+				},
+			],
 		}
 `,
 	)
@@ -431,7 +449,7 @@ func TestPlatformBootclasspath_AlwaysUsePrebuiltSdks(t *testing.T) {
 		"platform:legacy.core.platform.api.stubs",
 
 		// Needed for generating the boot image.
-		`platform:dex2oatd`,
+		"platform:dex2oatd",
 
 		// The platform_bootclasspath intentionally adds dependencies on both source and prebuilt
 		// modules when available as it does not know which one will be preferred.
@@ -442,6 +460,9 @@ func TestPlatformBootclasspath_AlwaysUsePrebuiltSdks(t *testing.T) {
 
 		// Only a source module exists.
 		"myapex:bar",
+
+		// The fragments.
+		"myapex:mybootclasspath-fragment",
 	})
 }
 
