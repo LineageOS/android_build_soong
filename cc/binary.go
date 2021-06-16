@@ -149,11 +149,11 @@ func (binary *binaryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	if ctx.toolchain().Bionic() {
 		if !Bool(binary.baseLinker.Properties.Nocrt) {
 			if binary.static() {
-				deps.CrtBegin = "crtbegin_static"
+				deps.CrtBegin = []string{"crtbegin_static"}
 			} else {
-				deps.CrtBegin = "crtbegin_dynamic"
+				deps.CrtBegin = []string{"crtbegin_dynamic"}
 			}
-			deps.CrtEnd = "crtend_android"
+			deps.CrtEnd = []string{"crtend_android"}
 		}
 
 		if binary.static() {
