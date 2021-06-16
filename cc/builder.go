@@ -730,9 +730,9 @@ func transformObjToStaticLib(ctx android.ModuleContext,
 // Generate a rule for compiling multiple .o files, plus static libraries, whole static libraries,
 // and shared libraries, to a shared library (.so) or dynamic executable
 func transformObjToDynamicBinary(ctx android.ModuleContext,
-	objFiles, sharedLibs, staticLibs, lateStaticLibs, wholeStaticLibs, deps android.Paths,
-	crtBegin, crtEnd android.OptionalPath, groupLate bool, flags builderFlags,
-	outputFile android.WritablePath, implicitOutputs android.WritablePaths, validations android.WritablePaths) {
+	objFiles, sharedLibs, staticLibs, lateStaticLibs, wholeStaticLibs, deps, crtBegin, crtEnd android.Paths,
+	groupLate bool, flags builderFlags, outputFile android.WritablePath,
+	implicitOutputs android.WritablePaths, validations android.WritablePaths) {
 
 	ldCmd := "${config.ClangBin}/clang++"
 
@@ -779,18 +779,17 @@ func transformObjToDynamicBinary(ctx android.ModuleContext,
 	deps = append(deps, staticLibs...)
 	deps = append(deps, lateStaticLibs...)
 	deps = append(deps, wholeStaticLibs...)
-	if crtBegin.Valid() {
-		deps = append(deps, crtBegin.Path(), crtEnd.Path())
-	}
+	deps = append(deps, crtBegin...)
+	deps = append(deps, crtEnd...)
 
 	rule := ld
 	args := map[string]string{
 		"ldCmd":         ldCmd,
-		"crtBegin":      crtBegin.String(),
+		"crtBegin":      strings.Join(crtBegin.Strings(), " "),
 		"libFlags":      strings.Join(libFlagsList, " "),
 		"extraLibFlags": flags.extraLibFlags,
 		"ldFlags":       flags.globalLdFlags + " " + flags.localLdFlags,
-		"crtEnd":        crtEnd.String(),
+		"crtEnd":        strings.Join(crtEnd.Strings(), " "),
 	}
 	if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_CXX_LINKS") {
 		rule = ldRE
