@@ -280,7 +280,6 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 	}
 
 	monolithicInfo := b.createAndProvideMonolithicHiddenAPIInfo(ctx, fragments)
-
 	// Create the input to pass to ruleToGenerateHiddenAPIStubFlagsFile
 	input := newHiddenAPIFlagInput()
 
@@ -291,16 +290,14 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 	// Use the flag files from this module and all the fragments.
 	input.FlagFilesByCategory = monolithicInfo.FlagsFilesByCategory
 
-	hiddenAPIModules := gatherHiddenAPIModuleFromContents(ctx, modules)
-
 	// Generate the monolithic stub-flags.csv file.
-	bootDexJars := extractBootDexJarsFromHiddenAPIModules(ctx, hiddenAPIModules)
+	bootDexJars := extractBootDexJarsFromModules(ctx, modules)
 	stubFlags := hiddenAPISingletonPaths(ctx).stubFlags
 	rule := ruleToGenerateHiddenAPIStubFlagsFile(ctx, stubFlags, bootDexJars, input)
 	rule.Build("platform-bootclasspath-monolithic-hiddenapi-stub-flags", "monolithic hidden API stub flags")
 
 	// Extract the classes jars from the contents.
-	classesJars := extractClassJarsFromHiddenAPIModules(ctx, hiddenAPIModules)
+	classesJars := extractClassesJarsFromModules(modules)
 
 	// Generate the annotation-flags.csv file from all the module annotations.
 	annotationFlags := android.PathForModuleOut(ctx, "hiddenapi-monolithic", "annotation-flags.csv")
@@ -342,7 +339,7 @@ func (b *platformBootclasspathModule) createAndProvideMonolithicHiddenAPIInfo(ct
 	monolithicInfo := newMonolithicHiddenAPIInfo(ctx, temporaryInput.FlagFilesByCategory, fragments)
 
 	// Store the information for testing.
-	ctx.SetProvider(monolithicHiddenAPIInfoProvider, monolithicInfo)
+	ctx.SetProvider(MonolithicHiddenAPIInfoProvider, monolithicInfo)
 	return monolithicInfo
 }
 
@@ -390,11 +387,13 @@ func (b *platformBootclasspathModule) generateBootImageBuildActions(ctx android.
 	generateUpdatableBcpPackagesRule(ctx, imageConfig, updatableModules)
 
 	// Copy non-updatable module dex jars to their predefined locations.
-	copyBootJarsToPredefinedLocations(ctx, nonUpdatableModules, imageConfig.modules, imageConfig.dexPaths)
+	nonUpdatableBootDexJarsByModule := extractEncodedDexJarsFromModules(ctx, nonUpdatableModules)
+	copyBootJarsToPredefinedLocations(ctx, nonUpdatableBootDexJarsByModule, imageConfig.dexPathsByModule)
 
 	// Copy updatable module dex jars to their predefined locations.
 	config := GetUpdatableBootConfig(ctx)
-	copyBootJarsToPredefinedLocations(ctx, updatableModules, config.modules, config.dexPaths)
+	updatableBootDexJarsByModule := extractEncodedDexJarsFromModules(ctx, updatableModules)
+	copyBootJarsToPredefinedLocations(ctx, updatableBootDexJarsByModule, config.dexPathsByModule)
 
 	// Build a profile for the image config and then use that to build the boot image.
 	profile := bootImageProfileRule(ctx, imageConfig)
