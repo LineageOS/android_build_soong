@@ -519,7 +519,7 @@ func TestBootclasspathFragmentInPrebuiltArtApex(t *testing.T) {
 		}
 	`)
 
-	java.CheckModuleDependencies(t, result.TestContext, "com.android.art", "android_common", []string{
+	java.CheckModuleDependencies(t, result.TestContext, "com.android.art", "android_common_com.android.art", []string{
 		`com.android.art.apex.selector`,
 		`prebuilt_bar`,
 		`prebuilt_foo`,
