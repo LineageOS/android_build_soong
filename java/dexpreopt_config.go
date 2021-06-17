@@ -100,6 +100,7 @@ func genBootImageConfigs(ctx android.PathContext) map[string]*bootImageConfig {
 			// TODO(b/143682396): use module dependencies instead
 			inputDir := deviceDir.Join(ctx, "dex_"+c.name+"jars_input")
 			c.dexPaths = c.modules.BuildPaths(ctx, inputDir)
+			c.dexPathsByModule = c.modules.BuildPathsByModule(ctx, inputDir)
 			c.dexPathsDeps = c.dexPaths
 
 			// Create target-specific variants.
@@ -125,6 +126,7 @@ func genBootImageConfigs(ctx android.PathContext) map[string]*bootImageConfig {
 		frameworkCfg.dexPathsDeps = append(artCfg.dexPathsDeps, frameworkCfg.dexPathsDeps...)
 		for i := range targets {
 			frameworkCfg.variants[i].primaryImages = artCfg.variants[i].imagePathOnHost
+			frameworkCfg.variants[i].primaryImagesDeps = artCfg.variants[i].imagesDeps.Paths()
 			frameworkCfg.variants[i].dexLocationsDeps = append(artCfg.variants[i].dexLocations, frameworkCfg.variants[i].dexLocationsDeps...)
 		}
 
@@ -152,6 +154,9 @@ type updatableBootConfig struct {
 	// later on a singleton adds commands to copy actual jars to the predefined paths.
 	dexPaths android.WritablePaths
 
+	// Map from module name (without prebuilt_ prefix) to the predefined build path.
+	dexPathsByModule map[string]android.WritablePath
+
 	// A list of dex locations (a.k.a. on-device paths) to the boot jars.
 	dexLocations []string
 }
@@ -165,10 +170,11 @@ func GetUpdatableBootConfig(ctx android.PathContext) updatableBootConfig {
 
 		dir := android.PathForOutput(ctx, ctx.Config().DeviceName(), "updatable_bootjars")
 		dexPaths := updatableBootJars.BuildPaths(ctx, dir)
+		dexPathsByModuleName := updatableBootJars.BuildPathsByModule(ctx, dir)
 
 		dexLocations := updatableBootJars.DevicePaths(ctx.Config(), android.Android)
 
-		return updatableBootConfig{updatableBootJars, dexPaths, dexLocations}
+		return updatableBootConfig{updatableBootJars, dexPaths, dexPathsByModuleName, dexLocations}
 	}).(updatableBootConfig)
 }
 
