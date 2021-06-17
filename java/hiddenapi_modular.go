@@ -589,6 +589,19 @@ func (b bootDexJarByModule) bootDexJars() android.Paths {
 	return paths
 }
 
+// bootDexJarsWithoutCoverage returns the boot dex jar paths sorted by their keys without coverage
+// libraries if present.
+func (b bootDexJarByModule) bootDexJarsWithoutCoverage() android.Paths {
+	paths := android.Paths{}
+	for _, k := range android.SortedStringKeys(b) {
+		if k == "jacocoagent" {
+			continue
+		}
+		paths = append(paths, b[k])
+	}
+	return paths
+}
+
 // HiddenAPIOutput encapsulates the output from the hidden API processing.
 type HiddenAPIOutput struct {
 	HiddenAPIFlagOutput
