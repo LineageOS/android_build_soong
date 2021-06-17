@@ -32,6 +32,7 @@ type BazelAttributes struct {
 
 type BazelTarget struct {
 	name            string
+	packageName     string
 	content         string
 	ruleClass       string
 	bzlLoadLocation string
@@ -42,6 +43,16 @@ type BazelTarget struct {
 // as opposed to a native rule built into Bazel.
 func (t BazelTarget) IsLoadedFromStarlark() bool {
 	return t.bzlLoadLocation != ""
+}
+
+// Label is the fully qualified Bazel label constructed from the BazelTarget's
+// package name and target name.
+func (t BazelTarget) Label() string {
+	if t.packageName == "." {
+		return "//:" + t.name
+	} else {
+		return "//" + t.packageName + ":" + t.name
+	}
 }
 
 // BazelTargets is a typedef for a slice of BazelTarget objects.
@@ -213,13 +224,17 @@ func propsToAttributes(props map[string]string) string {
 	return attributes
 }
 
-func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (map[string]BazelTargets, CodegenMetrics) {
+func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (map[string]BazelTargets, CodegenMetrics, CodegenCompatLayer) {
 	buildFileToTargets := make(map[string]BazelTargets)
 	buildFileToAppend := make(map[string]bool)
 
 	// Simple metrics tracking for bp2build
 	metrics := CodegenMetrics{
 		RuleClassCount: make(map[string]int),
+	}
+
+	compatLayer := CodegenCompatLayer{
+		NameToLabelMap: make(map[string]string),
 	}
 
 	dirs := make(map[string]bool)
@@ -236,6 +251,7 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (map[str
 			if b, ok := m.(android.Bazelable); ok && b.HasHandcraftedLabel() {
 				metrics.handCraftedTargetCount += 1
 				metrics.TotalModuleCount += 1
+				compatLayer.AddNameToLabelEntry(m.Name(), b.HandcraftedLabel())
 				pathToBuildFile := getBazelPackagePath(b)
 				// We are using the entire contents of handcrafted build file, so if multiple targets within
 				// a package have handcrafted targets, we only want to include the contents one time.
@@ -253,6 +269,7 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (map[str
 			} else if btm, ok := m.(android.BazelTargetModule); ok {
 				t = generateBazelTarget(bpCtx, m, btm)
 				metrics.RuleClassCount[t.ruleClass] += 1
+				compatLayer.AddNameToLabelEntry(m.Name(), t.Label())
 			} else {
 				metrics.TotalModuleCount += 1
 				return
@@ -283,7 +300,7 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (map[str
 		}
 	}
 
-	return buildFileToTargets, metrics
+	return buildFileToTargets, metrics, compatLayer
 }
 
 func getBazelPackagePath(b android.Bazelable) string {
@@ -324,6 +341,7 @@ func generateBazelTarget(ctx bpToBuildContext, m blueprint.Module, btm android.B
 	targetName := targetNameForBp2Build(ctx, m)
 	return BazelTarget{
 		name:            targetName,
+		packageName:     ctx.ModuleDir(m),
 		ruleClass:       ruleClass,
 		bzlLoadLocation: bzlLoadLocation,
 		content: fmt.Sprintf(
