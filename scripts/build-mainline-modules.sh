@@ -28,7 +28,6 @@ MODULES_SDK_AND_EXPORTS=(
   runtime-module-host-exports
   runtime-module-sdk
   statsd-module-sdk
-  statsd-module-sdk-for-art
   tzdata-module-test-exports
 )
 
