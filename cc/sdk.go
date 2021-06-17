@@ -35,7 +35,8 @@ func sdkMutator(ctx android.BottomUpMutatorContext) {
 			if !m.UseSdk() && !m.SplitPerApiLevel() {
 				ctx.ModuleErrorf("UseSdk() must return true when AlwaysSdk is set, did the factory forget to set Sdk_version?")
 			}
-			ctx.CreateVariations("sdk")
+			modules := ctx.CreateVariations("sdk")
+			modules[0].(*Module).Properties.IsSdkVariant = true
 		} else if m.UseSdk() || m.SplitPerApiLevel() {
 			modules := ctx.CreateVariations("", "sdk")
 
