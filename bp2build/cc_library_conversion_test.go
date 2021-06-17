@@ -385,19 +385,23 @@ cc_library { name: "shared_dep_for_both" }
         "-I$(BINDIR)/foo/bar",
     ],
     dynamic_deps = [":shared_dep_for_both"],
-    dynamic_deps_for_shared = [":shared_dep_for_shared"],
-    dynamic_deps_for_static = [":shared_dep_for_static"],
     implementation_deps = [":static_dep_for_both"],
-    shared_copts = ["sharedflag"],
-    shared_srcs = ["sharedonly.cpp"],
+    shared = {
+        "copts": ["sharedflag"],
+        "dynamic_deps": [":shared_dep_for_shared"],
+        "srcs": ["sharedonly.cpp"],
+        "static_deps": [":static_dep_for_shared"],
+        "whole_archive_deps": [":whole_static_lib_for_shared"],
+    },
     srcs = ["both.cpp"],
-    static_copts = ["staticflag"],
-    static_deps_for_shared = [":static_dep_for_shared"],
-    static_deps_for_static = [":static_dep_for_static"],
-    static_srcs = ["staticonly.cpp"],
+    static = {
+        "copts": ["staticflag"],
+        "dynamic_deps": [":shared_dep_for_static"],
+        "srcs": ["staticonly.cpp"],
+        "static_deps": [":static_dep_for_static"],
+        "whole_archive_deps": [":whole_static_lib_for_static"],
+    },
     whole_archive_deps = [":whole_static_lib_for_both"],
-    whole_archive_deps_for_shared = [":whole_static_lib_for_shared"],
-    whole_archive_deps_for_static = [":whole_static_lib_for_static"],
 )`},
 	})
 }
@@ -437,9 +441,13 @@ cc_prebuilt_library_static { name: "whole_static_lib_for_both" }
         "-Ifoo/bar",
         "-I$(BINDIR)/foo/bar",
     ],
+    shared = {
+        "whole_archive_deps": [":whole_static_lib_for_shared_alwayslink"],
+    },
+    static = {
+        "whole_archive_deps": [":whole_static_lib_for_static_alwayslink"],
+    },
     whole_archive_deps = [":whole_static_lib_for_both_alwayslink"],
-    whole_archive_deps_for_shared = [":whole_static_lib_for_shared_alwayslink"],
-    whole_archive_deps_for_static = [":whole_static_lib_for_static_alwayslink"],
 )`},
 	})
 }
@@ -529,52 +537,56 @@ cc_library_static { name: "android_dep_for_shared" }
         "-Ifoo/bar",
         "-I$(BINDIR)/foo/bar",
     ],
-    dynamic_deps_for_shared = select({
-        "//build/bazel/platforms/arch:arm": [":arm_shared_dep_for_shared"],
-        "//conditions:default": [],
-    }),
     implementation_deps = [":static_dep_for_both"],
-    shared_copts = ["sharedflag"] + select({
-        "//build/bazel/platforms/arch:arm": ["-DARM_SHARED"],
-        "//conditions:default": [],
-    }) + select({
-        "//build/bazel/platforms/os:android": ["-DANDROID_SHARED"],
-        "//conditions:default": [],
-    }) + select({
-        "//build/bazel/platforms/os_arch:android_arm": ["-DANDROID_ARM_SHARED"],
-        "//conditions:default": [],
-    }),
-    shared_srcs = ["sharedonly.cpp"] + select({
-        "//build/bazel/platforms/arch:arm": ["arm_shared.cpp"],
-        "//conditions:default": [],
-    }) + select({
-        "//build/bazel/platforms/os:android": ["android_shared.cpp"],
-        "//conditions:default": [],
-    }),
+    shared = {
+        "copts": ["sharedflag"] + select({
+            "//build/bazel/platforms/arch:arm": ["-DARM_SHARED"],
+            "//conditions:default": [],
+        }) + select({
+            "//build/bazel/platforms/os:android": ["-DANDROID_SHARED"],
+            "//conditions:default": [],
+        }) + select({
+            "//build/bazel/platforms/os_arch:android_arm": ["-DANDROID_ARM_SHARED"],
+            "//conditions:default": [],
+        }),
+        "dynamic_deps": select({
+            "//build/bazel/platforms/arch:arm": [":arm_shared_dep_for_shared"],
+            "//conditions:default": [],
+        }),
+        "srcs": ["sharedonly.cpp"] + select({
+            "//build/bazel/platforms/arch:arm": ["arm_shared.cpp"],
+            "//conditions:default": [],
+        }) + select({
+            "//build/bazel/platforms/os:android": ["android_shared.cpp"],
+            "//conditions:default": [],
+        }),
+        "static_deps": [":static_dep_for_shared"] + select({
+            "//build/bazel/platforms/arch:arm": [":arm_static_dep_for_shared"],
+            "//conditions:default": [],
+        }) + select({
+            "//build/bazel/platforms/os:android": [":android_dep_for_shared"],
+            "//conditions:default": [],
+        }),
+        "whole_archive_deps": select({
+            "//build/bazel/platforms/arch:arm": [":arm_whole_static_dep_for_shared"],
+            "//conditions:default": [],
+        }),
+    },
     srcs = ["both.cpp"],
-    static_copts = ["staticflag"] + select({
-        "//build/bazel/platforms/arch:x86": ["-DX86_STATIC"],
-        "//conditions:default": [],
-    }),
-    static_deps_for_shared = [":static_dep_for_shared"] + select({
-        "//build/bazel/platforms/arch:arm": [":arm_static_dep_for_shared"],
-        "//conditions:default": [],
-    }) + select({
-        "//build/bazel/platforms/os:android": [":android_dep_for_shared"],
-        "//conditions:default": [],
-    }),
-    static_deps_for_static = [":static_dep_for_static"] + select({
-        "//build/bazel/platforms/arch:x86": [":x86_dep_for_static"],
-        "//conditions:default": [],
-    }),
-    static_srcs = ["staticonly.cpp"] + select({
-        "//build/bazel/platforms/arch:x86": ["x86_static.cpp"],
-        "//conditions:default": [],
-    }),
-    whole_archive_deps_for_shared = select({
-        "//build/bazel/platforms/arch:arm": [":arm_whole_static_dep_for_shared"],
-        "//conditions:default": [],
-    }),
+    static = {
+        "copts": ["staticflag"] + select({
+            "//build/bazel/platforms/arch:x86": ["-DX86_STATIC"],
+            "//conditions:default": [],
+        }),
+        "srcs": ["staticonly.cpp"] + select({
+            "//build/bazel/platforms/arch:x86": ["x86_static.cpp"],
+            "//conditions:default": [],
+        }),
+        "static_deps": [":static_dep_for_static"] + select({
+            "//build/bazel/platforms/arch:x86": [":x86_dep_for_static"],
+            "//conditions:default": [],
+        }),
+    },
 )`},
 	})
 }
@@ -666,20 +678,22 @@ filegroup {
         "-Ifoo/bar",
         "-I$(BINDIR)/foo/bar",
     ],
-    shared_srcs = [
-        ":shared_filegroup_cpp_srcs",
-        "shared_source.cc",
-        "shared_source.cpp",
-    ],
-    shared_srcs_as = [
-        "shared_source.s",
-        "shared_source.S",
-        ":shared_filegroup_as_srcs",
-    ],
-    shared_srcs_c = [
-        "shared_source.c",
-        ":shared_filegroup_c_srcs",
-    ],
+    shared = {
+        "srcs": [
+            ":shared_filegroup_cpp_srcs",
+            "shared_source.cc",
+            "shared_source.cpp",
+        ],
+        "srcs_as": [
+            "shared_source.s",
+            "shared_source.S",
+            ":shared_filegroup_as_srcs",
+        ],
+        "srcs_c": [
+            "shared_source.c",
+            ":shared_filegroup_c_srcs",
+        ],
+    },
     srcs = [
         ":both_filegroup_cpp_srcs",
         "both_source.cc",
@@ -694,20 +708,22 @@ filegroup {
         "both_source.c",
         ":both_filegroup_c_srcs",
     ],
-    static_srcs = [
-        ":static_filegroup_cpp_srcs",
-        "static_source.cc",
-        "static_source.cpp",
-    ],
-    static_srcs_as = [
-        "static_source.s",
-        "static_source.S",
-        ":static_filegroup_as_srcs",
-    ],
-    static_srcs_c = [
-        "static_source.c",
-        ":static_filegroup_c_srcs",
-    ],
+    static = {
+        "srcs": [
+            ":static_filegroup_cpp_srcs",
+            "static_source.cc",
+            "static_source.cpp",
+        ],
+        "srcs_as": [
+            "static_source.s",
+            "static_source.S",
+            ":static_filegroup_as_srcs",
+        ],
+        "srcs_c": [
+            "static_source.c",
+            ":static_filegroup_c_srcs",
+        ],
+    },
 )`},
 	})
 }
