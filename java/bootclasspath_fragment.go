@@ -233,14 +233,6 @@ func bootclasspathFragmentInitContentsFromImage(ctx android.EarlyModuleContext, 
 				commonApex, apex)
 		}
 	}
-
-	if len(contents) != 0 {
-		// Nothing to do.
-		return
-	}
-
-	// Store the jars in the Contents property so that they can be used to add dependencies.
-	m.properties.Contents = modules.CopyOfJars()
 }
 
 // bootclasspathImageNameContentsConsistencyCheck checks that the configuration that applies to this
