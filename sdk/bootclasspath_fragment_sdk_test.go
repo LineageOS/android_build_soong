@@ -40,6 +40,7 @@ func fixtureAddPlatformBootclasspathForBootclasspathFragment(apex, fragment stri
 			}
 		`, apex, fragment)),
 		android.FixtureAddFile("frameworks/base/config/boot-profile.txt", nil),
+		android.FixtureAddFile("build/soong/scripts/check_boot_jars/package_allowed_list.txt", nil),
 	)
 }
 
@@ -173,9 +174,29 @@ sdk_snapshot {
 .intermediates/mybootlib/android_common/javac/mybootlib.jar -> java/mybootlib.jar
 `),
 		snapshotTestPreparer(checkSnapshotWithoutSource, preparerForSnapshot),
+
+		// Check the behavior of the snapshot without the source.
+		snapshotTestChecker(checkSnapshotWithoutSource, func(t *testing.T, result *android.TestResult) {
+			// Make sure that the boot jars package check rule includes the dex jar retrieved from the prebuilt apex.
+			checkBootJarsPackageCheckRule(t, result, "out/soong/.intermediates/prebuilts/apex/com.android.art.deapexer/android_common/deapexer/javalib/mybootlib.jar")
+		}),
+
 		snapshotTestPreparer(checkSnapshotWithSourcePreferred, preparerForSnapshot),
 		snapshotTestPreparer(checkSnapshotPreferredWithSource, preparerForSnapshot),
 	)
+
+	// Make sure that the boot jars package check rule includes the dex jar created from the source.
+	checkBootJarsPackageCheckRule(t, result, "out/soong/.intermediates/mybootlib/android_common_apex10000/aligned/mybootlib.jar")
+}
+
+// checkBootJarsPackageCheckRule checks that the supplied module is an input to the boot jars
+// package check rule.
+func checkBootJarsPackageCheckRule(t *testing.T, result *android.TestResult, expectedModule string) {
+	platformBcp := result.ModuleForTests("platform-bootclasspath", "android_common")
+	bootJarsCheckRule := platformBcp.Rule("boot_jars_package_check")
+	command := bootJarsCheckRule.RuleParams.Command
+	expectedCommandArgs := " out/soong/host/linux-x86/bin/dexdump build/soong/scripts/check_boot_jars/package_allowed_list.txt " + expectedModule + " &&"
+	android.AssertStringDoesContain(t, "boot jars package check", command, expectedCommandArgs)
 }
 
 func TestSnapshotWithBootClasspathFragment_Contents(t *testing.T) {
