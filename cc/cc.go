@@ -3381,7 +3381,7 @@ func DefaultsFactory(props ...interface{}) android.Module {
 }
 
 func (c *Module) IsSdkVariant() bool {
-	return c.Properties.IsSdkVariant || c.AlwaysSdk()
+	return c.Properties.IsSdkVariant
 }
 
 func kytheExtractAllFactory() android.Singleton {
