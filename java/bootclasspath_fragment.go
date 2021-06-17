@@ -488,14 +488,14 @@ func (b *BootclasspathFragmentModule) generateClasspathProtoBuildActions(ctx and
 	var classpathJars []classpathJar
 	if "art" == proptools.String(b.properties.Image_name) {
 		// ART and platform boot jars must have a corresponding entry in DEX2OATBOOTCLASSPATH
-		classpathJars = configuredJarListToClasspathJars(ctx, b.ClasspathFragmentToConfiguredJarList(ctx), BOOTCLASSPATH, DEX2OATBOOTCLASSPATH)
+		classpathJars = configuredJarListToClasspathJars(ctx, b.configuredJars(ctx), BOOTCLASSPATH, DEX2OATBOOTCLASSPATH)
 	} else {
-		classpathJars = configuredJarListToClasspathJars(ctx, b.ClasspathFragmentToConfiguredJarList(ctx), b.classpathType)
+		classpathJars = configuredJarListToClasspathJars(ctx, b.configuredJars(ctx), b.classpathType)
 	}
 	b.classpathFragmentBase().generateClasspathProtoBuildActions(ctx, classpathJars)
 }
 
-func (b *BootclasspathFragmentModule) ClasspathFragmentToConfiguredJarList(ctx android.ModuleContext) android.ConfiguredJarList {
+func (b *BootclasspathFragmentModule) configuredJars(ctx android.ModuleContext) android.ConfiguredJarList {
 	if "art" == proptools.String(b.properties.Image_name) {
 		return b.getImageConfig(ctx).modules
 	}
