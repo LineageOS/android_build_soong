@@ -205,7 +205,7 @@ func (m noopBazelContext) BuildStatementsToRegister() []bazel.BuildStatement {
 func NewBazelContext(c *config) (BazelContext, error) {
 	// TODO(cparsons): Assess USE_BAZEL=1 instead once "mixed Soong/Bazel builds"
 	// are production ready.
-	if c.Getenv("USE_BAZEL_ANALYSIS") != "1" {
+	if !c.IsEnvTrue("USE_BAZEL_ANALYSIS") {
 		return noopBazelContext{}, nil
 	}
 
