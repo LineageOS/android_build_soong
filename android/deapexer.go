@@ -55,9 +55,9 @@ import (
 //
 // The files that are passed to `deapexer` and those that are passed back have a unique identifier
 // that links them together. e.g. If the `deapexer` is passed something like this:
-//     core-libart{.dexjar} -> javalib/core-libart.jar
+//     javalib/core-libart.jar -> javalib/core-libart.jar
 // it will return something like this:
-//     core-libart{.dexjar} -> out/soong/.....deapexer.../javalib/core-libart.jar
+//     javalib/core-libart.jar -> out/soong/.....deapexer.../javalib/core-libart.jar
 //
 // The reason why the `deapexer` module is separate from the prebuilt_apex/apex_set is to avoid
 // cycles. e.g.
@@ -70,7 +70,7 @@ import (
 // The information exported by the `deapexer` module, access it using `DeapxerInfoProvider`.
 type DeapexerInfo struct {
 	// map from the name of an exported file from a prebuilt_apex to the path to that file. The
-	// exported file name is of the form <module>{<tag>}.
+	// exported file name is the apex relative path, e.g. javalib/core-libart.jar.
 	//
 	// See Prebuilt.ApexInfoMutator for more information.
 	exports map[string]Path
@@ -79,15 +79,11 @@ type DeapexerInfo struct {
 // PrebuiltExportPath provides the path, or nil if not available, of a file exported from the
 // prebuilt_apex that created this ApexInfo.
 //
-// The exported file is identified by the module name and the tag:
-// * The module name is the name of the module that contributed the file when the .apex file
-//   referenced by the prebuilt_apex was built. It must be specified in one of the exported_...
-//   properties on the prebuilt_apex module.
-// * The tag identifies the type of file and is dependent on the module type.
+// The exported file is identified by the apex relative path, e.g. "javalib/core-libart.jar".
 //
 // See apex/deapexer.go for more information.
-func (i DeapexerInfo) PrebuiltExportPath(name, tag string) Path {
-	path := i.exports[name+"{"+tag+"}"]
+func (i DeapexerInfo) PrebuiltExportPath(apexRelativePath string) Path {
+	path := i.exports[apexRelativePath]
 	return path
 }
 
@@ -120,13 +116,13 @@ var DeapexerTag = deapexerTagStruct{}
 // RequiredFilesFromPrebuiltApex must be implemented by modules that require files to be exported
 // from a prebuilt_apex/apex_set.
 type RequiredFilesFromPrebuiltApex interface {
-	// RequiredFilesFromPrebuiltApex returns a map from the key (module name plus tag) to the required
-	// path of the file within the prebuilt .apex file.
+	// RequiredFilesFromPrebuiltApex returns a list of the file paths (relative to the root of the
+	// APEX's contents) that the implementing module requires from within a prebuilt .apex file.
 	//
-	// For each key/file pair this will cause the file to be extracted out of the prebuilt .apex file,
-	// and the path to the extracted file will be stored in the DeapexerInfo using that key, The path
-	// can then be retrieved using the PrebuiltExportPath(name, tag) method.
-	RequiredFilesFromPrebuiltApex(ctx BaseModuleContext) map[string]string
+	// For each file path this will cause the file to be extracted out of the prebuilt .apex file, and
+	// the path to the extracted file will be stored in the DeapexerInfo using the APEX relative file
+	// path as the key, The path can then be retrieved using the PrebuiltExportPath(key) method.
+	RequiredFilesFromPrebuiltApex(ctx BaseModuleContext) []string
 }
 
 // Marker interface that identifies dependencies on modules that may require files from a prebuilt
