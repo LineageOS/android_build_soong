@@ -6564,6 +6564,7 @@ func testNoUpdatableJarsInBootImage(t *testing.T, errmsg string, preparer androi
 				"com.android.art.debug",
 			],
 			hostdex: true,
+			compile_dex: true,
 		}
 
 		apex {
