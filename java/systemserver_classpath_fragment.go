@@ -48,11 +48,11 @@ func (p *platformSystemServerClasspathModule) AndroidMkEntries() (entries []andr
 }
 
 func (p *platformSystemServerClasspathModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	classpathJars := configuredJarListToClasspathJars(ctx, p.ClasspathFragmentToConfiguredJarList(ctx), p.classpathType)
+	classpathJars := configuredJarListToClasspathJars(ctx, p.configuredJars(ctx), p.classpathType)
 	p.classpathFragmentBase().generateClasspathProtoBuildActions(ctx, classpathJars)
 }
 
-func (p *platformSystemServerClasspathModule) ClasspathFragmentToConfiguredJarList(ctx android.ModuleContext) android.ConfiguredJarList {
+func (p *platformSystemServerClasspathModule) configuredJars(ctx android.ModuleContext) android.ConfiguredJarList {
 	global := dexpreopt.GetGlobalConfig(ctx)
 	return global.SystemServerJars
 }
@@ -91,11 +91,11 @@ func (s *SystemServerClasspathModule) GenerateAndroidBuildActions(ctx android.Mo
 		ctx.PropertyErrorf("contents", "empty contents are not allowed")
 	}
 
-	classpathJars := configuredJarListToClasspathJars(ctx, s.ClasspathFragmentToConfiguredJarList(ctx), s.classpathType)
+	classpathJars := configuredJarListToClasspathJars(ctx, s.configuredJars(ctx), s.classpathType)
 	s.classpathFragmentBase().generateClasspathProtoBuildActions(ctx, classpathJars)
 }
 
-func (s *SystemServerClasspathModule) ClasspathFragmentToConfiguredJarList(ctx android.ModuleContext) android.ConfiguredJarList {
+func (s *SystemServerClasspathModule) configuredJars(ctx android.ModuleContext) android.ConfiguredJarList {
 	global := dexpreopt.GetGlobalConfig(ctx)
 
 	// Convert content names to their appropriate stems, in case a test library is overriding an actual boot jar
