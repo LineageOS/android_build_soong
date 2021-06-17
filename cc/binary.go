@@ -149,11 +149,11 @@ func (binary *binaryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	if ctx.toolchain().Bionic() {
 		if !Bool(binary.baseLinker.Properties.Nocrt) {
 			if binary.static() {
-				deps.CrtBegin = "crtbegin_static"
+				deps.CrtBegin = []string{"crtbegin_static"}
 			} else {
-				deps.CrtBegin = "crtbegin_dynamic"
+				deps.CrtBegin = []string{"crtbegin_dynamic"}
 			}
-			deps.CrtEnd = "crtend_android"
+			deps.CrtEnd = []string{"crtend_android"}
 		}
 
 		if binary.static() {
@@ -178,7 +178,7 @@ func (binary *binaryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 		// the kernel before jumping to the embedded linker.
 		if ctx.Os() == android.LinuxBionic && !binary.static() {
 			deps.DynamicLinker = "linker"
-			deps.LinkerFlagsFile = "host_bionic_linker_flags"
+			deps.CrtBegin = append(deps.CrtBegin, "host_bionic_linker_script")
 		}
 	}
 
@@ -345,12 +345,6 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 
 	var linkerDeps android.Paths
 
-	// Add flags from linker flags file.
-	if deps.LinkerFlagsFile.Valid() {
-		flags.Local.LdFlags = append(flags.Local.LdFlags, "$$(cat "+deps.LinkerFlagsFile.String()+")")
-		linkerDeps = append(linkerDeps, deps.LinkerFlagsFile.Path())
-	}
-
 	if flags.DynamicLinker != "" {
 		flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,-dynamic-linker,"+flags.DynamicLinker)
 	} else if ctx.toolchain().Bionic() && !binary.static() {
@@ -401,16 +395,18 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 		}
 	}
 
+	var validations android.WritablePaths
+
 	// Handle host bionic linker symbols.
 	if ctx.Os() == android.LinuxBionic && !binary.static() {
-		injectedOutputFile := outputFile
-		outputFile = android.PathForModuleOut(ctx, "prelinker", fileName)
+		verifyFile := android.PathForModuleOut(ctx, "host_bionic_verify.stamp")
 
 		if !deps.DynamicLinker.Valid() {
 			panic("Non-static host bionic modules must have a dynamic linker")
 		}
 
-		binary.injectHostBionicLinkerSymbols(ctx, outputFile, deps.DynamicLinker.Path(), injectedOutputFile)
+		binary.verifyHostBionicLinker(ctx, outputFile, deps.DynamicLinker.Path(), verifyFile)
+		validations = append(validations, verifyFile)
 	}
 
 	var sharedLibs android.Paths
@@ -430,7 +426,7 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 	// Register link action.
 	transformObjToDynamicBinary(ctx, objs.objFiles, sharedLibs, deps.StaticLibs,
 		deps.LateStaticLibs, deps.WholeStaticLibs, linkerDeps, deps.CrtBegin, deps.CrtEnd, true,
-		builderFlags, outputFile, nil)
+		builderFlags, outputFile, nil, validations)
 
 	objs.coverageFiles = append(objs.coverageFiles, deps.StaticLibObjs.coverageFiles...)
 	objs.coverageFiles = append(objs.coverageFiles, deps.WholeStaticLibObjs.coverageFiles...)
@@ -532,19 +528,19 @@ func (binary *binaryDecorator) hostToolPath() android.OptionalPath {
 }
 
 func init() {
-	pctx.HostBinToolVariable("hostBionicSymbolsInjectCmd", "host_bionic_inject")
+	pctx.HostBinToolVariable("verifyHostBionicCmd", "host_bionic_verify")
 }
 
-var injectHostBionicSymbols = pctx.AndroidStaticRule("injectHostBionicSymbols",
+var verifyHostBionic = pctx.AndroidStaticRule("verifyHostBionic",
 	blueprint.RuleParams{
-		Command:     "$hostBionicSymbolsInjectCmd -i $in -l $linker -o $out",
-		CommandDeps: []string{"$hostBionicSymbolsInjectCmd"},
+		Command:     "$verifyHostBionicCmd -i $in -l $linker && touch $out",
+		CommandDeps: []string{"$verifyHostBionicCmd"},
 	}, "linker")
 
-func (binary *binaryDecorator) injectHostBionicLinkerSymbols(ctx ModuleContext, in, linker android.Path, out android.WritablePath) {
+func (binary *binaryDecorator) verifyHostBionicLinker(ctx ModuleContext, in, linker android.Path, out android.WritablePath) {
 	ctx.Build(pctx, android.BuildParams{
-		Rule:        injectHostBionicSymbols,
-		Description: "inject host bionic symbols",
+		Rule:        verifyHostBionic,
+		Description: "verify host bionic",
 		Input:       in,
 		Implicit:    linker,
 		Output:      out,
