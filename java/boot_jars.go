@@ -37,7 +37,7 @@ func buildRuleForBootJarsPackageCheck(ctx android.ModuleContext, bootDexJarByMod
 	rule.Command().BuiltTool("check_boot_jars").
 		Input(ctx.Config().HostToolPath(ctx, "dexdump")).
 		Input(android.PathForSource(ctx, "build/soong/scripts/check_boot_jars/package_allowed_list.txt")).
-		Inputs(bootDexJarByModule.bootDexJars()).
+		Inputs(bootDexJarByModule.bootDexJarsWithoutCoverage()).
 		Text("&& touch").Output(timestamp)
 	rule.Build("boot_jars_package_check", "check boot jar packages")
 
