@@ -409,12 +409,42 @@ func (b *BootclasspathFragmentModule) GenerateAndroidBuildActions(ctx android.Mo
 		// Perform hidden API processing.
 		hiddenAPIOutput := b.generateHiddenAPIBuildActions(ctx, contents, fragments)
 
+		if imageConfig != nil {
+			if shouldCopyBootFilesToPredefinedLocations(ctx, imageConfig) {
+				// Copy the dex jars of this fragment's content modules to their predefined locations.
+				copyBootJarsToPredefinedLocations(ctx, hiddenAPIOutput.EncodedBootDexFilesByModule, imageConfig.dexPathsByModule)
+			}
+		}
+
 		// A prebuilt fragment cannot contribute to an apex.
 		if !android.IsModulePrebuilt(ctx.Module()) {
 			// Provide the apex content info.
 			b.provideApexContentInfo(ctx, imageConfig, contents, hiddenAPIOutput)
 		}
 	}
+}
+
+// shouldCopyBootFilesToPredefinedLocations determines whether the current module should copy boot
+// files, e.g. boot dex jars or boot image files, to the predefined location expected by the rest
+// of the build.
+//
+// This ensures that only a single module will copy its files to the image configuration.
+func shouldCopyBootFilesToPredefinedLocations(ctx android.ModuleContext, imageConfig *bootImageConfig) bool {
+	// Bootclasspath fragment modules that are for the platform do not produce boot related files.
+	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
+	if apexInfo.IsForPlatform() {
+		return false
+	}
+
+	// If the image configuration has no modules specified then it means that the build has been
+	// configured to build something other than a boot image, e.g. an sdk, so do not try and copy the
+	// files.
+	if imageConfig.modules.Len() == 0 {
+		return false
+	}
+
+	// Only copy files from the module that is preferred.
+	return isActiveModule(ctx.Module())
 }
 
 // provideApexContentInfo creates, initializes and stores the apex content info for use by other
@@ -634,10 +664,6 @@ func (b *BootclasspathFragmentModule) generateBootImageBuildActions(ctx android.
 	if android.IsModuleInVersionedSdk(ctx.Module()) {
 		return false
 	}
-
-	// Copy the dex jars of this fragment's content modules to their predefined locations.
-	bootDexJarByModule := extractEncodedDexJarsFromModules(ctx, contents)
-	copyBootJarsToPredefinedLocations(ctx, bootDexJarByModule, imageConfig.dexPathsByModule)
 
 	// Build a profile for the image config and then use that to build the boot image.
 	profile := bootImageProfileRule(ctx, imageConfig)
