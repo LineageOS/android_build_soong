@@ -56,7 +56,7 @@ func recordMissingProfileFile(ctx BaseModuleContext, missing string) {
 type PgoProperties struct {
 	Pgo struct {
 		Instrumentation    *bool
-		Sampling           *bool
+		Sampling           *bool   `android:"arch_variant"`
 		Profile_file       *string `android:"arch_variant"`
 		Benchmarks         []string
 		Enable_profile_use *bool `android:"arch_variant"`
