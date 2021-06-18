@@ -19,6 +19,7 @@ package java
 import (
 	"fmt"
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
 	"strings"
 
 	"android/soong/android"
@@ -44,6 +45,11 @@ func (c classpathType) String() string {
 }
 
 type classpathFragmentProperties struct {
+	// Whether to generated classpaths.proto config instance for the fragment. If the config is not
+	// generated, then relevant boot jars are added to platform classpath, i.e. platform_bootclasspath
+	// or platform_systemserverclasspath. This is useful for non-updatable APEX boot jars, to keep
+	// them as part of dexopt on device. Defaults to true.
+	Generate_classpaths_proto *bool
 }
 
 // classpathFragment interface is implemented by a module that contributes jars to a *CLASSPATH
@@ -101,24 +107,28 @@ func configuredJarListToClasspathJars(ctx android.ModuleContext, configuredJars 
 }
 
 func (c *ClasspathFragmentBase) generateClasspathProtoBuildActions(ctx android.ModuleContext, jars []classpathJar) {
-	outputFilename := strings.ToLower(c.classpathType.String()) + ".pb"
-	c.outputFilepath = android.PathForModuleOut(ctx, outputFilename).OutputPath
-	c.installDirPath = android.PathForModuleInstall(ctx, "etc", "classpaths")
+	generateProto := proptools.BoolDefault(c.properties.Generate_classpaths_proto, true)
+	if generateProto {
+		outputFilename := strings.ToLower(c.classpathType.String()) + ".pb"
+		c.outputFilepath = android.PathForModuleOut(ctx, outputFilename).OutputPath
+		c.installDirPath = android.PathForModuleInstall(ctx, "etc", "classpaths")
 
-	generatedJson := android.PathForModuleOut(ctx, outputFilename+".json")
-	writeClasspathsJson(ctx, generatedJson, jars)
+		generatedJson := android.PathForModuleOut(ctx, outputFilename+".json")
+		writeClasspathsJson(ctx, generatedJson, jars)
 
-	rule := android.NewRuleBuilder(pctx, ctx)
-	rule.Command().
-		BuiltTool("conv_classpaths_proto").
-		Flag("encode").
-		Flag("--format=json").
-		FlagWithInput("--input=", generatedJson).
-		FlagWithOutput("--output=", c.outputFilepath)
+		rule := android.NewRuleBuilder(pctx, ctx)
+		rule.Command().
+			BuiltTool("conv_classpaths_proto").
+			Flag("encode").
+			Flag("--format=json").
+			FlagWithInput("--input=", generatedJson).
+			FlagWithOutput("--output=", c.outputFilepath)
 
-	rule.Build("classpath_fragment", "Compiling "+c.outputFilepath.String())
+		rule.Build("classpath_fragment", "Compiling "+c.outputFilepath.String())
+	}
 
 	classpathProtoInfo := ClasspathFragmentProtoContentInfo{
+		ClasspathFragmentProtoGenerated:  generateProto,
 		ClasspathFragmentProtoInstallDir: c.installDirPath,
 		ClasspathFragmentProtoOutput:     c.outputFilepath,
 	}
@@ -164,6 +174,9 @@ func (c *ClasspathFragmentBase) androidMkEntries() []android.AndroidMkEntries {
 var ClasspathFragmentProtoContentInfoProvider = blueprint.NewProvider(ClasspathFragmentProtoContentInfo{})
 
 type ClasspathFragmentProtoContentInfo struct {
+	// Whether the classpaths.proto config is generated for the fragment.
+	ClasspathFragmentProtoGenerated bool
+
 	// ClasspathFragmentProtoOutput is an output path for the generated classpaths.proto config of this module.
 	//
 	// The file should be copied to a relevant place on device, see ClasspathFragmentProtoInstallDir
