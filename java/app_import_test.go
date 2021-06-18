@@ -222,31 +222,31 @@ func TestAndroidAppImport_DpiVariants(t *testing.T) {
 			name:                "no preferred",
 			aaptPreferredConfig: nil,
 			aaptPrebuiltDPI:     []string{},
-			expected:            "verify_uses_libraries/apk/app.apk",
+			expected:            "prebuilts/apk/app.apk",
 		},
 		{
 			name:                "AAPTPreferredConfig matches",
 			aaptPreferredConfig: proptools.StringPtr("xhdpi"),
 			aaptPrebuiltDPI:     []string{"xxhdpi", "ldpi"},
-			expected:            "verify_uses_libraries/apk/app_xhdpi.apk",
+			expected:            "prebuilts/apk/app_xhdpi.apk",
 		},
 		{
 			name:                "AAPTPrebuiltDPI matches",
 			aaptPreferredConfig: proptools.StringPtr("mdpi"),
 			aaptPrebuiltDPI:     []string{"xxhdpi", "xhdpi"},
-			expected:            "verify_uses_libraries/apk/app_xxhdpi.apk",
+			expected:            "prebuilts/apk/app_xxhdpi.apk",
 		},
 		{
 			name:                "non-first AAPTPrebuiltDPI matches",
 			aaptPreferredConfig: proptools.StringPtr("mdpi"),
 			aaptPrebuiltDPI:     []string{"ldpi", "xhdpi"},
-			expected:            "verify_uses_libraries/apk/app_xhdpi.apk",
+			expected:            "prebuilts/apk/app_xhdpi.apk",
 		},
 		{
 			name:                "no matches",
 			aaptPreferredConfig: proptools.StringPtr("mdpi"),
 			aaptPrebuiltDPI:     []string{"ldpi", "xxxhdpi"},
-			expected:            "verify_uses_libraries/apk/app.apk",
+			expected:            "prebuilts/apk/app.apk",
 		},
 	}
 
@@ -266,7 +266,7 @@ func TestAndroidAppImport_DpiVariants(t *testing.T) {
 		if len(matches) != 2 {
 			t.Errorf("failed to extract the src apk path from %q", jniRuleCommand)
 		}
-		if strings.HasSuffix(matches[1], test.expected) {
+		if test.expected != matches[1] {
 			t.Errorf("wrong src apk, expected: %q got: %q", test.expected, matches[1])
 		}
 	}
@@ -342,7 +342,7 @@ func TestAndroidAppImport_ArchVariants(t *testing.T) {
 					},
 				}
 			`,
-			expected: "verify_uses_libraries/apk/app_arm64.apk",
+			expected: "prebuilts/apk/app_arm64.apk",
 		},
 		{
 			name: "no matching arch",
@@ -361,7 +361,7 @@ func TestAndroidAppImport_ArchVariants(t *testing.T) {
 					},
 				}
 			`,
-			expected: "verify_uses_libraries/apk/app.apk",
+			expected: "prebuilts/apk/app.apk",
 		},
 		{
 			name: "no matching arch without default",
@@ -399,7 +399,7 @@ func TestAndroidAppImport_ArchVariants(t *testing.T) {
 		if len(matches) != 2 {
 			t.Errorf("failed to extract the src apk path from %q", jniRuleCommand)
 		}
-		if strings.HasSuffix(matches[1], test.expected) {
+		if test.expected != matches[1] {
 			t.Errorf("wrong src apk, expected: %q got: %q", test.expected, matches[1])
 		}
 	}

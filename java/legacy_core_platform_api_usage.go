@@ -20,6 +20,7 @@ import (
 )
 
 var legacyCorePlatformApiModules = []string{
+	"ArcSettings",
 	"ahat-test-dump",
 	"android.car",
 	"android.test.mock",
@@ -42,6 +43,7 @@ var legacyCorePlatformApiModules = []string{
 	"car-service-test-lib",
 	"car-service-test-static-lib",
 	"CertInstaller",
+	"com.qti.media.secureprocessor",
 	"ConnectivityManagerTest",
 	"ContactsProvider",
 	"CorePerfTests",
@@ -120,6 +122,7 @@ var legacyCorePlatformApiModules = []string{
 	"services.usage",
 	"services.usb",
 	"Settings-core",
+	"SettingsGoogle",
 	"SettingsLib",
 	"SettingsProvider",
 	"SettingsProviderTest",
