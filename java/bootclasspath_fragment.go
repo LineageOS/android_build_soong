@@ -137,10 +137,13 @@ type BootclasspathFragmentModule struct {
 // commonBootclasspathFragment defines the methods that are implemented by both source and prebuilt
 // bootclasspath fragment modules.
 type commonBootclasspathFragment interface {
-	// produceHiddenAPIAllFlagsFile produces the all-flags.csv and intermediate files.
+	// produceHiddenAPIOutput produces the all-flags.csv and intermediate files and encodes the flags
+	// into dex files.
 	//
-	// Updates the supplied hiddenAPIInfo with the paths to the generated files set.
-	produceHiddenAPIAllFlagsFile(ctx android.ModuleContext, contents []android.Module, input HiddenAPIFlagInput) *HiddenAPIFlagOutput
+	// Returns a *HiddenAPIOutput containing the paths for the generated files. Returns nil if the
+	// module cannot contribute to hidden API processing, e.g. because it is a prebuilt module in a
+	// versioned sdk.
+	produceHiddenAPIOutput(ctx android.ModuleContext, contents []android.Module, input HiddenAPIFlagInput) *HiddenAPIOutput
 }
 
 var _ commonBootclasspathFragment = (*BootclasspathFragmentModule)(nil)
@@ -230,14 +233,6 @@ func bootclasspathFragmentInitContentsFromImage(ctx android.EarlyModuleContext, 
 				commonApex, apex)
 		}
 	}
-
-	if len(contents) != 0 {
-		// Nothing to do.
-		return
-	}
-
-	// Store the jars in the Contents property so that they can be used to add dependencies.
-	m.properties.Contents = modules.CopyOfJars()
 }
 
 // bootclasspathImageNameContentsConsistencyCheck checks that the configuration that applies to this
@@ -292,9 +287,9 @@ type BootclasspathFragmentApexContentInfo struct {
 	// Map from arch type to the boot image files.
 	bootImageFilesByArch map[android.ArchType]android.OutputPaths
 
-	// Map from the name of the context module (as returned by Name()) to the hidden API encoded dex
-	// jar path.
-	contentModuleDexJarPaths map[string]android.Path
+	// Map from the base module name (without prebuilt_ prefix) of a fragment's contents module to the
+	// hidden API encoded dex jar path.
+	contentModuleDexJarPaths bootDexJarByModule
 }
 
 func (i BootclasspathFragmentApexContentInfo) Modules() android.ConfiguredJarList {
@@ -312,6 +307,8 @@ func (i BootclasspathFragmentApexContentInfo) AndroidBootImageFilesByArchType() 
 //
 // The dex boot jar is one which has had hidden API encoding performed on it.
 func (i BootclasspathFragmentApexContentInfo) DexBootJarPathForContentModule(module android.Module) (android.Path, error) {
+	// A bootclasspath_fragment cannot use a prebuilt library so Name() will return the base name
+	// without a prebuilt_ prefix so is safe to use as the key for the contentModuleDexJarPaths.
 	name := module.Name()
 	if dexJar, ok := i.contentModuleDexJarPaths[name]; ok {
 		return dexJar, nil
@@ -400,28 +397,34 @@ func (b *BootclasspathFragmentModule) GenerateAndroidBuildActions(ctx android.Mo
 
 	fragments := gatherApexModulePairDepsWithTag(ctx, bootclasspathFragmentDepTag)
 
-	// Perform hidden API processing.
-	hiddenAPIFlagOutput := b.generateHiddenAPIBuildActions(ctx, contents, fragments)
-
 	// Verify that the image_name specified on a bootclasspath_fragment is valid even if this is a
 	// prebuilt which will not use the image config.
 	imageConfig := b.getImageConfig(ctx)
 
-	// A prebuilt fragment cannot contribute to the apex.
-	if !android.IsModulePrebuilt(ctx.Module()) {
-		// Provide the apex content info.
-		b.provideApexContentInfo(ctx, imageConfig, contents, hiddenAPIFlagOutput)
+	// A versioned prebuilt_bootclasspath_fragment cannot and does not need to perform hidden API
+	// processing. It cannot do it because it is not part of a prebuilt_apex and so has no access to
+	// the correct dex implementation jar. It does not need to because the platform-bootclasspath
+	// always references the latest bootclasspath_fragments.
+	if !android.IsModuleInVersionedSdk(ctx.Module()) {
+		// Perform hidden API processing.
+		hiddenAPIOutput := b.generateHiddenAPIBuildActions(ctx, contents, fragments)
+
+		// A prebuilt fragment cannot contribute to an apex.
+		if !android.IsModulePrebuilt(ctx.Module()) {
+			// Provide the apex content info.
+			b.provideApexContentInfo(ctx, imageConfig, contents, hiddenAPIOutput)
+		}
 	}
 }
 
 // provideApexContentInfo creates, initializes and stores the apex content info for use by other
 // modules.
-func (b *BootclasspathFragmentModule) provideApexContentInfo(ctx android.ModuleContext, imageConfig *bootImageConfig, contents []android.Module, hiddenAPIFlagOutput *HiddenAPIFlagOutput) {
+func (b *BootclasspathFragmentModule) provideApexContentInfo(ctx android.ModuleContext, imageConfig *bootImageConfig, contents []android.Module, hiddenAPIOutput *HiddenAPIOutput) {
 	// Construct the apex content info from the config.
-	info := BootclasspathFragmentApexContentInfo{}
-
-	// Populate the apex content info with paths to the dex jars.
-	b.populateApexContentInfoDexJars(ctx, &info, contents, hiddenAPIFlagOutput)
+	info := BootclasspathFragmentApexContentInfo{
+		// Populate the apex content info with paths to the dex jars.
+		contentModuleDexJarPaths: hiddenAPIOutput.EncodedBootDexFilesByModule,
+	}
 
 	if imageConfig != nil {
 		info.modules = imageConfig.modules
@@ -451,51 +454,19 @@ func (b *BootclasspathFragmentModule) provideApexContentInfo(ctx android.ModuleC
 	ctx.SetProvider(BootclasspathFragmentApexContentInfoProvider, info)
 }
 
-// populateApexContentInfoDexJars adds paths to the dex jars provided by this fragment to the
-// apex content info.
-func (b *BootclasspathFragmentModule) populateApexContentInfoDexJars(ctx android.ModuleContext, info *BootclasspathFragmentApexContentInfo, contents []android.Module, hiddenAPIFlagOutput *HiddenAPIFlagOutput) {
-
-	info.contentModuleDexJarPaths = map[string]android.Path{}
-	if hiddenAPIFlagOutput != nil {
-		// Hidden API encoding has been performed.
-		flags := hiddenAPIFlagOutput.AllFlagsPath
-		for _, m := range contents {
-			h := m.(hiddenAPIModule)
-			unencodedDex := h.bootDexJar()
-			if unencodedDex == nil {
-				// This is an error. Sometimes Soong will report the error directly, other times it will
-				// defer the error reporting to happen only when trying to use the missing file in ninja.
-				// Either way it is handled by extractBootDexJarsFromModules which must have been
-				// called before this as it generates the flags that are used to encode these files.
-				continue
-			}
-
-			outputDir := android.PathForModuleOut(ctx, "hiddenapi-modular/encoded").OutputPath
-			encodedDex := hiddenAPIEncodeDex(ctx, unencodedDex, flags, *h.uncompressDex(), outputDir)
-			info.contentModuleDexJarPaths[m.Name()] = encodedDex
-		}
-	} else {
-		for _, m := range contents {
-			j := m.(UsesLibraryDependency)
-			dexJar := j.DexJarBuildPath()
-			info.contentModuleDexJarPaths[m.Name()] = dexJar
-		}
-	}
-}
-
 // generateClasspathProtoBuildActions generates all required build actions for classpath.proto config
 func (b *BootclasspathFragmentModule) generateClasspathProtoBuildActions(ctx android.ModuleContext) {
 	var classpathJars []classpathJar
 	if "art" == proptools.String(b.properties.Image_name) {
 		// ART and platform boot jars must have a corresponding entry in DEX2OATBOOTCLASSPATH
-		classpathJars = configuredJarListToClasspathJars(ctx, b.ClasspathFragmentToConfiguredJarList(ctx), BOOTCLASSPATH, DEX2OATBOOTCLASSPATH)
+		classpathJars = configuredJarListToClasspathJars(ctx, b.configuredJars(ctx), BOOTCLASSPATH, DEX2OATBOOTCLASSPATH)
 	} else {
-		classpathJars = configuredJarListToClasspathJars(ctx, b.ClasspathFragmentToConfiguredJarList(ctx), b.classpathType)
+		classpathJars = configuredJarListToClasspathJars(ctx, b.configuredJars(ctx), b.classpathType)
 	}
 	b.classpathFragmentBase().generateClasspathProtoBuildActions(ctx, classpathJars)
 }
 
-func (b *BootclasspathFragmentModule) ClasspathFragmentToConfiguredJarList(ctx android.ModuleContext) android.ConfiguredJarList {
+func (b *BootclasspathFragmentModule) configuredJars(ctx android.ModuleContext) android.ConfiguredJarList {
 	if "art" == proptools.String(b.properties.Image_name) {
 		return b.getImageConfig(ctx).modules
 	}
@@ -548,12 +519,12 @@ func (b *BootclasspathFragmentModule) getImageConfig(ctx android.EarlyModuleCont
 }
 
 // generateHiddenAPIBuildActions generates all the hidden API related build rules.
-func (b *BootclasspathFragmentModule) generateHiddenAPIBuildActions(ctx android.ModuleContext, contents []android.Module, fragments []android.Module) *HiddenAPIFlagOutput {
+func (b *BootclasspathFragmentModule) generateHiddenAPIBuildActions(ctx android.ModuleContext, contents []android.Module, fragments []android.Module) *HiddenAPIOutput {
 
 	// Create hidden API input structure.
 	input := b.createHiddenAPIFlagInput(ctx, contents, fragments)
 
-	var output *HiddenAPIFlagOutput
+	var output *HiddenAPIOutput
 
 	// Hidden API processing is conditional as a temporary workaround as not all
 	// bootclasspath_fragments provide the appropriate information needed for hidden API processing
@@ -563,7 +534,14 @@ func (b *BootclasspathFragmentModule) generateHiddenAPIBuildActions(ctx android.
 	if input.canPerformHiddenAPIProcessing(ctx, b.properties) {
 		// Delegate the production of the hidden API all-flags.csv file to a module type specific method.
 		common := ctx.Module().(commonBootclasspathFragment)
-		output = common.produceHiddenAPIAllFlagsFile(ctx, contents, input)
+		output = common.produceHiddenAPIOutput(ctx, contents, input)
+	} else {
+		// As hidden API processing cannot be performed fall back to trying to retrieve the legacy
+		// encoded boot dex files, i.e. those files encoded by the individual libraries and returned
+		// from the DexJarBuildPath() method.
+		output = &HiddenAPIOutput{
+			EncodedBootDexFilesByModule: retrieveLegacyEncodedBootDexFiles(ctx, contents),
+		}
 	}
 
 	// Initialize a HiddenAPIInfo structure.
@@ -580,16 +558,29 @@ func (b *BootclasspathFragmentModule) generateHiddenAPIBuildActions(ctx android.
 		TransitiveStubDexJarsByKind: input.transitiveStubDexJarsByKind(),
 	}
 
-	if output != nil {
-		// The monolithic hidden API processing also needs access to all the output files produced by
-		// hidden API processing of this fragment.
-		hiddenAPIInfo.HiddenAPIFlagOutput = *output
-	}
+	// The monolithic hidden API processing also needs access to all the output files produced by
+	// hidden API processing of this fragment.
+	hiddenAPIInfo.HiddenAPIFlagOutput = (*output).HiddenAPIFlagOutput
 
 	//  Provide it for use by other modules.
 	ctx.SetProvider(HiddenAPIInfoProvider, hiddenAPIInfo)
 
 	return output
+}
+
+// retrieveLegacyEncodedBootDexFiles attempts to retrieve the legacy encoded boot dex jar files.
+func retrieveLegacyEncodedBootDexFiles(ctx android.ModuleContext, contents []android.Module) bootDexJarByModule {
+	// If the current bootclasspath_fragment is the active module or a source module then retrieve the
+	// encoded dex files, otherwise return an empty map.
+	//
+	// An inactive (i.e. not preferred) bootclasspath_fragment needs to retrieve the encoded dex jars
+	// as they are still needed by an apex. An inactive prebuilt_bootclasspath_fragment does not need
+	// to do so and may not yet have access to dex boot jars from a prebuilt_apex/apex_set.
+	if isActiveModule(ctx.Module()) || !android.IsModulePrebuilt(ctx.Module()) {
+		return extractEncodedDexJarsFromModules(ctx, contents)
+	} else {
+		return nil
+	}
 }
 
 // createHiddenAPIFlagInput creates a HiddenAPIFlagInput struct and initializes it with information derived
@@ -615,12 +606,12 @@ func (b *BootclasspathFragmentModule) createHiddenAPIFlagInput(ctx android.Modul
 	return input
 }
 
-// produceHiddenAPIAllFlagsFile produces the hidden API all-flags.csv file (and supporting files)
-// for the fragment.
-func (b *BootclasspathFragmentModule) produceHiddenAPIAllFlagsFile(ctx android.ModuleContext, contents []android.Module, input HiddenAPIFlagInput) *HiddenAPIFlagOutput {
+// produceHiddenAPIOutput produces the hidden API all-flags.csv file (and supporting files)
+// for the fragment as well as encoding the flags in the boot dex jars.
+func (b *BootclasspathFragmentModule) produceHiddenAPIOutput(ctx android.ModuleContext, contents []android.Module, input HiddenAPIFlagInput) *HiddenAPIOutput {
 	// Generate the rules to create the hidden API flags and update the supplied hiddenAPIInfo with the
 	// paths to the created files.
-	return hiddenAPIGenerateAllFlagsForBootclasspathFragment(ctx, contents, input)
+	return hiddenAPIRulesForBootclasspathFragment(ctx, contents, input)
 }
 
 // generateBootImageBuildActions generates ninja rules to create the boot image if required for this
@@ -836,9 +827,8 @@ func (module *prebuiltBootclasspathFragmentModule) Name() string {
 	return module.prebuilt.Name(module.ModuleBase.Name())
 }
 
-// produceHiddenAPIAllFlagsFile returns a path to the prebuilt all-flags.csv or nil if none is
-// specified.
-func (module *prebuiltBootclasspathFragmentModule) produceHiddenAPIAllFlagsFile(ctx android.ModuleContext, contents []android.Module, _ HiddenAPIFlagInput) *HiddenAPIFlagOutput {
+// produceHiddenAPIOutput returns a path to the prebuilt all-flags.csv or nil if none is specified.
+func (module *prebuiltBootclasspathFragmentModule) produceHiddenAPIOutput(ctx android.ModuleContext, contents []android.Module, input HiddenAPIFlagInput) *HiddenAPIOutput {
 	pathForOptionalSrc := func(src *string) android.Path {
 		if src == nil {
 			// TODO(b/179354495): Fail if this is not provided once prebuilts have been updated.
@@ -847,12 +837,19 @@ func (module *prebuiltBootclasspathFragmentModule) produceHiddenAPIAllFlagsFile(
 		return android.PathForModuleSrc(ctx, *src)
 	}
 
-	output := HiddenAPIFlagOutput{
-		StubFlagsPath:       pathForOptionalSrc(module.prebuiltProperties.Hidden_api.Stub_flags),
-		AnnotationFlagsPath: pathForOptionalSrc(module.prebuiltProperties.Hidden_api.Annotation_flags),
-		MetadataPath:        pathForOptionalSrc(module.prebuiltProperties.Hidden_api.Metadata),
-		IndexPath:           pathForOptionalSrc(module.prebuiltProperties.Hidden_api.Index),
-		AllFlagsPath:        pathForOptionalSrc(module.prebuiltProperties.Hidden_api.All_flags),
+	// Retrieve the dex files directly from the content modules. They in turn should retrieve the
+	// encoded dex jars from the prebuilt .apex files.
+	encodedBootDexJarsByModule := extractEncodedDexJarsFromModules(ctx, contents)
+
+	output := HiddenAPIOutput{
+		HiddenAPIFlagOutput: HiddenAPIFlagOutput{
+			StubFlagsPath:       pathForOptionalSrc(module.prebuiltProperties.Hidden_api.Stub_flags),
+			AnnotationFlagsPath: pathForOptionalSrc(module.prebuiltProperties.Hidden_api.Annotation_flags),
+			MetadataPath:        pathForOptionalSrc(module.prebuiltProperties.Hidden_api.Metadata),
+			IndexPath:           pathForOptionalSrc(module.prebuiltProperties.Hidden_api.Index),
+			AllFlagsPath:        pathForOptionalSrc(module.prebuiltProperties.Hidden_api.All_flags),
+		},
+		EncodedBootDexFilesByModule: encodedBootDexJarsByModule,
 	}
 
 	return &output

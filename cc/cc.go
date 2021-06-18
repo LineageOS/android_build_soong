@@ -2193,13 +2193,6 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		}, depTag, RewriteSnapshotLib(staticUnwinder(actx), GetSnapshot(c, &snapshotInfo, actx).StaticLibs))
 	}
 
-	for _, lib := range deps.LateStaticLibs {
-		depTag := libraryDependencyTag{Kind: staticLibraryDependency, Order: lateLibraryDependency}
-		actx.AddVariationDependencies([]blueprint.Variation{
-			{Mutator: "link", Variation: "static"},
-		}, depTag, RewriteSnapshotLib(lib, GetSnapshot(c, &snapshotInfo, actx).StaticLibs))
-	}
-
 	// shared lib names without the #version suffix
 	var sharedLibNames []string
 
@@ -2223,6 +2216,13 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 			{Mutator: "link", Variation: "shared"},
 		}
 		AddSharedLibDependenciesWithVersions(ctx, c, variations, depTag, name, version, false)
+	}
+
+	for _, lib := range deps.LateStaticLibs {
+		depTag := libraryDependencyTag{Kind: staticLibraryDependency, Order: lateLibraryDependency}
+		actx.AddVariationDependencies([]blueprint.Variation{
+			{Mutator: "link", Variation: "static"},
+		}, depTag, RewriteSnapshotLib(lib, GetSnapshot(c, &snapshotInfo, actx).StaticLibs))
 	}
 
 	for _, lib := range deps.LateSharedLibs {
@@ -3381,7 +3381,7 @@ func DefaultsFactory(props ...interface{}) android.Module {
 }
 
 func (c *Module) IsSdkVariant() bool {
-	return c.Properties.IsSdkVariant || c.AlwaysSdk()
+	return c.Properties.IsSdkVariant
 }
 
 func kytheExtractAllFactory() android.Singleton {
