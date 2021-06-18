@@ -358,6 +358,19 @@ func (image bootImageConfig) moduleFiles(ctx android.PathContext, dir android.Ou
 	return ret
 }
 
+// apexVariants returns a list of all *bootImageVariant that could be included in an apex.
+func (image *bootImageConfig) apexVariants() []*bootImageVariant {
+	variants := []*bootImageVariant{}
+	for _, variant := range image.variants {
+		// We also generate boot images for host (for testing), but we don't need those in the apex.
+		// TODO(b/177892522) - consider changing this to check Os.OsClass = android.Device
+		if variant.target.Os == android.Android {
+			variants = append(variants, variant)
+		}
+	}
+	return variants
+}
+
 // Return boot image locations (as a list of symbolic paths).
 //
 // The image "location" is a symbolic path that, with multiarchitecture support, doesn't really
@@ -489,7 +502,7 @@ func copyBootJarsToPredefinedLocations(ctx android.ModuleContext, srcBootDexJars
 	}
 }
 
-// buildBootImage takes a bootImageConfig, creates rules to build it, and returns the image.
+// buildBootImage takes a bootImageConfig, and creates rules to build it.
 func buildBootImage(ctx android.ModuleContext, image *bootImageConfig, profile android.WritablePath) {
 	var zipFiles android.Paths
 	for _, variant := range image.variants {
