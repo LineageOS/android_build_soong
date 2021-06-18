@@ -1572,20 +1572,20 @@ type archConfig struct {
 // with Neon will break those users.
 func getNdkAbisConfig() []archConfig {
 	return []archConfig{
-		{"arm", "armv7-a", "", []string{"armeabi-v7a"}},
 		{"arm64", "armv8-a-branchprot", "", []string{"arm64-v8a"}},
-		{"x86", "", "", []string{"x86"}},
+		{"arm", "armv7-a", "", []string{"armeabi-v7a"}},
 		{"x86_64", "", "", []string{"x86_64"}},
+		{"x86", "", "", []string{"x86"}},
 	}
 }
 
 // getAmlAbisConfig returns a list of archConfigs for the ABIs supported by mainline modules.
 func getAmlAbisConfig() []archConfig {
 	return []archConfig{
-		{"arm", "armv7-a-neon", "", []string{"armeabi-v7a"}},
 		{"arm64", "armv8-a", "", []string{"arm64-v8a"}},
-		{"x86", "", "", []string{"x86"}},
+		{"arm", "armv7-a-neon", "", []string{"armeabi-v7a"}},
 		{"x86_64", "", "", []string{"x86_64"}},
+		{"x86", "", "", []string{"x86"}},
 	}
 }
 
