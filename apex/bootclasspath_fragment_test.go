@@ -82,6 +82,7 @@ func TestBootclasspathFragments(t *testing.T) {
 				"com.android.art",
 			],
 			srcs: ["b.java"],
+			compile_dex: true,
 		}
 
 		java_library {
@@ -90,6 +91,7 @@ func TestBootclasspathFragments(t *testing.T) {
 				"com.android.art",
 			],
 			srcs: ["b.java"],
+			compile_dex: true,
 		}
 
 		bootclasspath_fragment {
@@ -318,6 +320,7 @@ func TestBootclasspathFragmentInArtApex(t *testing.T) {
 			apex_available: [
 				"com.android.art",
 			],
+			compile_dex: true,
 		}
 
 		java_import {
@@ -326,6 +329,7 @@ func TestBootclasspathFragmentInArtApex(t *testing.T) {
 			apex_available: [
 				"com.android.art",
 			],
+			compile_dex: true,
 		}
 	`),
 	)
@@ -489,7 +493,7 @@ func TestBootclasspathFragmentInPrebuiltArtApex(t *testing.T) {
 					src: "com.android.art-arm.apex",
 				},
 			},
-			exported_java_libs: ["foo", "bar"],
+			exported_bootclasspath_fragments: ["mybootclasspathfragment"],
 		}
 
 		java_import {
@@ -521,8 +525,7 @@ func TestBootclasspathFragmentInPrebuiltArtApex(t *testing.T) {
 
 	java.CheckModuleDependencies(t, result.TestContext, "com.android.art", "android_common_com.android.art", []string{
 		`com.android.art.apex.selector`,
-		`prebuilt_bar`,
-		`prebuilt_foo`,
+		`prebuilt_mybootclasspathfragment`,
 	})
 
 	java.CheckModuleDependencies(t, result.TestContext, "mybootclasspathfragment", "android_common", []string{
