@@ -156,9 +156,11 @@ type CommonProperties struct {
 		// List of java_plugin modules that provide extra errorprone checks.
 		Extra_check_modules []string
 
-		// Whether to run errorprone on a normal build. If this is false, errorprone
-		// will still be run if the RUN_ERROR_PRONE environment variable is true.
-		// Default false.
+		// This property can be in 3 states. When set to true, errorprone will
+		// be run during the regular build. When set to false, errorprone will
+		// never be run. When unset, errorprone will be run when the RUN_ERROR_PRONE
+		// environment variable is true. Setting this to false will improve build
+		// performance more than adding -XepDisableAllChecks in javacflags.
 		Enabled *bool
 	}
 
@@ -706,7 +708,8 @@ func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaB
 	// javaVersion flag.
 	flags.javaVersion = getJavaVersion(ctx, String(j.properties.Java_version), android.SdkContext(j))
 
-	if ctx.Config().RunErrorProne() || Bool(j.properties.Errorprone.Enabled) {
+	epEnabled := j.properties.Errorprone.Enabled
+	if (ctx.Config().RunErrorProne() && epEnabled == nil) || Bool(epEnabled) {
 		if config.ErrorProneClasspath == nil && ctx.Config().TestProductVariables == nil {
 			ctx.ModuleErrorf("cannot build with Error Prone, missing external/error_prone?")
 		}
@@ -981,7 +984,7 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 			// If error-prone is enabled, enable errorprone flags on the regular
 			// build.
 			flags = enableErrorproneFlags(flags)
-		} else if ctx.Config().RunErrorProne() {
+		} else if ctx.Config().RunErrorProne() && j.properties.Errorprone.Enabled == nil {
 			// Otherwise, if the RUN_ERROR_PRONE environment variable is set, create
 			// a new jar file just for compiling with the errorprone compiler to.
 			// This is because we don't want to cause the java files to get completely
