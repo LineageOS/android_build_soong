@@ -76,3 +76,54 @@ func TestSystemserverclasspathFragmentContents(t *testing.T) {
 		`mysystemserverclasspathfragment`,
 	})
 }
+
+func TestSystemserverclasspathFragmentNoGeneratedProto(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		prepareForTestWithSystemserverclasspathFragment,
+		prepareForTestWithMyapex,
+	).RunTestWithBp(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			systemserverclasspath_fragments: [
+				"mysystemserverclasspathfragment",
+			],
+			updatable: false,
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		java_library {
+			name: "foo",
+			srcs: ["b.java"],
+			installable: true,
+			apex_available: [
+				"myapex",
+			],
+		}
+
+		systemserverclasspath_fragment {
+			name: "mysystemserverclasspathfragment",
+			generate_classpaths_proto: false,
+			contents: [
+				"foo",
+			],
+			apex_available: [
+				"myapex",
+			],
+		}
+	`)
+
+	ensureExactContents(t, result.TestContext, "myapex", "android_common_myapex_image", []string{
+		"javalib/foo.jar",
+	})
+
+	java.CheckModuleDependencies(t, result.TestContext, "myapex", "android_common_myapex_image", []string{
+		`myapex.key`,
+		`mysystemserverclasspathfragment`,
+	})
+}
