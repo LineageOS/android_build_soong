@@ -137,13 +137,28 @@ type BootclasspathFragmentModule struct {
 // commonBootclasspathFragment defines the methods that are implemented by both source and prebuilt
 // bootclasspath fragment modules.
 type commonBootclasspathFragment interface {
-	// produceHiddenAPIAllFlagsFile produces the all-flags.csv and intermediate files.
+	// produceHiddenAPIOutput produces the all-flags.csv and intermediate files and encodes the flags
+	// into dex files.
 	//
-	// Updates the supplied hiddenAPIInfo with the paths to the generated files set.
-	produceHiddenAPIAllFlagsFile(ctx android.ModuleContext, contents []android.Module, input HiddenAPIFlagInput) *HiddenAPIFlagOutput
+	// Returns a *HiddenAPIOutput containing the paths for the generated files. Returns nil if the
+	// module cannot contribute to hidden API processing, e.g. because it is a prebuilt module in a
+	// versioned sdk.
+	produceHiddenAPIOutput(ctx android.ModuleContext, contents []android.Module, input HiddenAPIFlagInput) *HiddenAPIOutput
+
+	// produceBootImageFiles produces the boot image (i.e. .art, .oat and .vdex) files for each of the
+	// required android.ArchType values in the returned map.
+	//
+	// It must return nil if the boot image files cannot be produced for whatever reason.
+	produceBootImageFiles(ctx android.ModuleContext, imageConfig *bootImageConfig, contents []android.Module) bootImageFilesByArch
 }
 
 var _ commonBootclasspathFragment = (*BootclasspathFragmentModule)(nil)
+
+// bootImageFilesByArch is a map from android.ArchType to the paths to the boot image files.
+//
+// The paths include the .art, .oat and .vdex files, one for each of the modules from which the boot
+// image is created.
+type bootImageFilesByArch map[android.ArchType]android.Paths
 
 func bootclasspathFragmentFactory() android.Module {
 	m := &BootclasspathFragmentModule{}
@@ -230,14 +245,6 @@ func bootclasspathFragmentInitContentsFromImage(ctx android.EarlyModuleContext, 
 				commonApex, apex)
 		}
 	}
-
-	if len(contents) != 0 {
-		// Nothing to do.
-		return
-	}
-
-	// Store the jars in the Contents property so that they can be used to add dependencies.
-	m.properties.Contents = modules.CopyOfJars()
 }
 
 // bootclasspathImageNameContentsConsistencyCheck checks that the configuration that applies to this
@@ -290,11 +297,11 @@ type BootclasspathFragmentApexContentInfo struct {
 	modules android.ConfiguredJarList
 
 	// Map from arch type to the boot image files.
-	bootImageFilesByArch map[android.ArchType]android.OutputPaths
+	bootImageFilesByArch bootImageFilesByArch
 
-	// Map from the name of the context module (as returned by Name()) to the hidden API encoded dex
-	// jar path.
-	contentModuleDexJarPaths map[string]android.Path
+	// Map from the base module name (without prebuilt_ prefix) of a fragment's contents module to the
+	// hidden API encoded dex jar path.
+	contentModuleDexJarPaths bootDexJarByModule
 }
 
 func (i BootclasspathFragmentApexContentInfo) Modules() android.ConfiguredJarList {
@@ -304,7 +311,7 @@ func (i BootclasspathFragmentApexContentInfo) Modules() android.ConfiguredJarLis
 // Get a map from ArchType to the associated boot image's contents for Android.
 //
 // Extension boot images only return their own files, not the files of the boot images they extend.
-func (i BootclasspathFragmentApexContentInfo) AndroidBootImageFilesByArchType() map[android.ArchType]android.OutputPaths {
+func (i BootclasspathFragmentApexContentInfo) AndroidBootImageFilesByArchType() bootImageFilesByArch {
 	return i.bootImageFilesByArch
 }
 
@@ -312,6 +319,8 @@ func (i BootclasspathFragmentApexContentInfo) AndroidBootImageFilesByArchType() 
 //
 // The dex boot jar is one which has had hidden API encoding performed on it.
 func (i BootclasspathFragmentApexContentInfo) DexBootJarPathForContentModule(module android.Module) (android.Path, error) {
+	// A bootclasspath_fragment cannot use a prebuilt library so Name() will return the base name
+	// without a prebuilt_ prefix so is safe to use as the key for the contentModuleDexJarPaths.
 	name := module.Name()
 	if dexJar, ok := i.contentModuleDexJarPaths[name]; ok {
 		return dexJar, nil
@@ -400,87 +409,78 @@ func (b *BootclasspathFragmentModule) GenerateAndroidBuildActions(ctx android.Mo
 
 	fragments := gatherApexModulePairDepsWithTag(ctx, bootclasspathFragmentDepTag)
 
-	// Perform hidden API processing.
-	hiddenAPIFlagOutput := b.generateHiddenAPIBuildActions(ctx, contents, fragments)
-
 	// Verify that the image_name specified on a bootclasspath_fragment is valid even if this is a
 	// prebuilt which will not use the image config.
 	imageConfig := b.getImageConfig(ctx)
 
-	// A prebuilt fragment cannot contribute to the apex.
-	if !android.IsModulePrebuilt(ctx.Module()) {
-		// Provide the apex content info.
-		b.provideApexContentInfo(ctx, imageConfig, contents, hiddenAPIFlagOutput)
+	// A versioned prebuilt_bootclasspath_fragment cannot and does not need to perform hidden API
+	// processing. It cannot do it because it is not part of a prebuilt_apex and so has no access to
+	// the correct dex implementation jar. It does not need to because the platform-bootclasspath
+	// always references the latest bootclasspath_fragments.
+	if !android.IsModuleInVersionedSdk(ctx.Module()) {
+		// Perform hidden API processing.
+		hiddenAPIOutput := b.generateHiddenAPIBuildActions(ctx, contents, fragments)
+
+		var bootImageFilesByArch bootImageFilesByArch
+		if imageConfig != nil {
+			// Delegate the production of the boot image files to a module type specific method.
+			common := ctx.Module().(commonBootclasspathFragment)
+			bootImageFilesByArch = common.produceBootImageFiles(ctx, imageConfig, contents)
+
+			if shouldCopyBootFilesToPredefinedLocations(ctx, imageConfig) {
+				// Copy the dex jars of this fragment's content modules to their predefined locations.
+				copyBootJarsToPredefinedLocations(ctx, hiddenAPIOutput.EncodedBootDexFilesByModule, imageConfig.dexPathsByModule)
+			}
+		}
+
+		// A prebuilt fragment cannot contribute to an apex.
+		if !android.IsModulePrebuilt(ctx.Module()) {
+			// Provide the apex content info.
+			b.provideApexContentInfo(ctx, imageConfig, hiddenAPIOutput, bootImageFilesByArch)
+		}
 	}
+}
+
+// shouldCopyBootFilesToPredefinedLocations determines whether the current module should copy boot
+// files, e.g. boot dex jars or boot image files, to the predefined location expected by the rest
+// of the build.
+//
+// This ensures that only a single module will copy its files to the image configuration.
+func shouldCopyBootFilesToPredefinedLocations(ctx android.ModuleContext, imageConfig *bootImageConfig) bool {
+	// Bootclasspath fragment modules that are for the platform do not produce boot related files.
+	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
+	if apexInfo.IsForPlatform() {
+		return false
+	}
+
+	// If the image configuration has no modules specified then it means that the build has been
+	// configured to build something other than a boot image, e.g. an sdk, so do not try and copy the
+	// files.
+	if imageConfig.modules.Len() == 0 {
+		return false
+	}
+
+	// Only copy files from the module that is preferred.
+	return isActiveModule(ctx.Module())
 }
 
 // provideApexContentInfo creates, initializes and stores the apex content info for use by other
 // modules.
-func (b *BootclasspathFragmentModule) provideApexContentInfo(ctx android.ModuleContext, imageConfig *bootImageConfig, contents []android.Module, hiddenAPIFlagOutput *HiddenAPIFlagOutput) {
+func (b *BootclasspathFragmentModule) provideApexContentInfo(ctx android.ModuleContext, imageConfig *bootImageConfig, hiddenAPIOutput *HiddenAPIOutput, bootImageFilesByArch bootImageFilesByArch) {
 	// Construct the apex content info from the config.
-	info := BootclasspathFragmentApexContentInfo{}
-
-	// Populate the apex content info with paths to the dex jars.
-	b.populateApexContentInfoDexJars(ctx, &info, contents, hiddenAPIFlagOutput)
+	info := BootclasspathFragmentApexContentInfo{
+		// Populate the apex content info with paths to the dex jars.
+		contentModuleDexJarPaths: hiddenAPIOutput.EncodedBootDexFilesByModule,
+	}
 
 	if imageConfig != nil {
 		info.modules = imageConfig.modules
-
-		if !SkipDexpreoptBootJars(ctx) {
-			// Force the GlobalSoongConfig to be created and cached for use by the dex_bootjars
-			// GenerateSingletonBuildActions method as it cannot create it for itself.
-			dexpreopt.GetGlobalSoongConfig(ctx)
-
-			// Only generate the boot image if the configuration does not skip it.
-			if b.generateBootImageBuildActions(ctx, contents, imageConfig) {
-				// Allow the apex to access the boot image files.
-				files := map[android.ArchType]android.OutputPaths{}
-				for _, variant := range imageConfig.variants {
-					// We also generate boot images for host (for testing), but we don't need those in the apex.
-					// TODO(b/177892522) - consider changing this to check Os.OsClass = android.Device
-					if variant.target.Os == android.Android {
-						files[variant.target.Arch.ArchType] = variant.imagesDeps
-					}
-				}
-				info.bootImageFilesByArch = files
-			}
-		}
 	}
+
+	info.bootImageFilesByArch = bootImageFilesByArch
 
 	// Make the apex content info available for other modules.
 	ctx.SetProvider(BootclasspathFragmentApexContentInfoProvider, info)
-}
-
-// populateApexContentInfoDexJars adds paths to the dex jars provided by this fragment to the
-// apex content info.
-func (b *BootclasspathFragmentModule) populateApexContentInfoDexJars(ctx android.ModuleContext, info *BootclasspathFragmentApexContentInfo, contents []android.Module, hiddenAPIFlagOutput *HiddenAPIFlagOutput) {
-
-	info.contentModuleDexJarPaths = map[string]android.Path{}
-	if hiddenAPIFlagOutput != nil {
-		// Hidden API encoding has been performed.
-		flags := hiddenAPIFlagOutput.AllFlagsPath
-		for _, m := range contents {
-			h := m.(hiddenAPIModule)
-			unencodedDex := h.bootDexJar()
-			if unencodedDex == nil {
-				// This is an error. Sometimes Soong will report the error directly, other times it will
-				// defer the error reporting to happen only when trying to use the missing file in ninja.
-				// Either way it is handled by extractBootDexJarsFromModules which must have been
-				// called before this as it generates the flags that are used to encode these files.
-				continue
-			}
-
-			outputDir := android.PathForModuleOut(ctx, "hiddenapi-modular/encoded").OutputPath
-			encodedDex := hiddenAPIEncodeDex(ctx, unencodedDex, flags, *h.uncompressDex(), outputDir)
-			info.contentModuleDexJarPaths[m.Name()] = encodedDex
-		}
-	} else {
-		for _, m := range contents {
-			j := m.(UsesLibraryDependency)
-			dexJar := j.DexJarBuildPath()
-			info.contentModuleDexJarPaths[m.Name()] = dexJar
-		}
-	}
 }
 
 // generateClasspathProtoBuildActions generates all required build actions for classpath.proto config
@@ -548,12 +548,12 @@ func (b *BootclasspathFragmentModule) getImageConfig(ctx android.EarlyModuleCont
 }
 
 // generateHiddenAPIBuildActions generates all the hidden API related build rules.
-func (b *BootclasspathFragmentModule) generateHiddenAPIBuildActions(ctx android.ModuleContext, contents []android.Module, fragments []android.Module) *HiddenAPIFlagOutput {
+func (b *BootclasspathFragmentModule) generateHiddenAPIBuildActions(ctx android.ModuleContext, contents []android.Module, fragments []android.Module) *HiddenAPIOutput {
 
 	// Create hidden API input structure.
 	input := b.createHiddenAPIFlagInput(ctx, contents, fragments)
 
-	var output *HiddenAPIFlagOutput
+	var output *HiddenAPIOutput
 
 	// Hidden API processing is conditional as a temporary workaround as not all
 	// bootclasspath_fragments provide the appropriate information needed for hidden API processing
@@ -563,7 +563,14 @@ func (b *BootclasspathFragmentModule) generateHiddenAPIBuildActions(ctx android.
 	if input.canPerformHiddenAPIProcessing(ctx, b.properties) {
 		// Delegate the production of the hidden API all-flags.csv file to a module type specific method.
 		common := ctx.Module().(commonBootclasspathFragment)
-		output = common.produceHiddenAPIAllFlagsFile(ctx, contents, input)
+		output = common.produceHiddenAPIOutput(ctx, contents, input)
+	} else {
+		// As hidden API processing cannot be performed fall back to trying to retrieve the legacy
+		// encoded boot dex files, i.e. those files encoded by the individual libraries and returned
+		// from the DexJarBuildPath() method.
+		output = &HiddenAPIOutput{
+			EncodedBootDexFilesByModule: retrieveLegacyEncodedBootDexFiles(ctx, contents),
+		}
 	}
 
 	// Initialize a HiddenAPIInfo structure.
@@ -580,11 +587,9 @@ func (b *BootclasspathFragmentModule) generateHiddenAPIBuildActions(ctx android.
 		TransitiveStubDexJarsByKind: input.transitiveStubDexJarsByKind(),
 	}
 
-	if output != nil {
-		// The monolithic hidden API processing also needs access to all the output files produced by
-		// hidden API processing of this fragment.
-		hiddenAPIInfo.HiddenAPIFlagOutput = *output
-	}
+	// The monolithic hidden API processing also needs access to all the output files produced by
+	// hidden API processing of this fragment.
+	hiddenAPIInfo.HiddenAPIFlagOutput = (*output).HiddenAPIFlagOutput
 
 	//  Provide it for use by other modules.
 	ctx.SetProvider(HiddenAPIInfoProvider, hiddenAPIInfo)
@@ -592,10 +597,24 @@ func (b *BootclasspathFragmentModule) generateHiddenAPIBuildActions(ctx android.
 	return output
 }
 
+// retrieveLegacyEncodedBootDexFiles attempts to retrieve the legacy encoded boot dex jar files.
+func retrieveLegacyEncodedBootDexFiles(ctx android.ModuleContext, contents []android.Module) bootDexJarByModule {
+	// If the current bootclasspath_fragment is the active module or a source module then retrieve the
+	// encoded dex files, otherwise return an empty map.
+	//
+	// An inactive (i.e. not preferred) bootclasspath_fragment needs to retrieve the encoded dex jars
+	// as they are still needed by an apex. An inactive prebuilt_bootclasspath_fragment does not need
+	// to do so and may not yet have access to dex boot jars from a prebuilt_apex/apex_set.
+	if isActiveModule(ctx.Module()) || !android.IsModulePrebuilt(ctx.Module()) {
+		return extractEncodedDexJarsFromModules(ctx, contents)
+	} else {
+		return nil
+	}
+}
+
 // createHiddenAPIFlagInput creates a HiddenAPIFlagInput struct and initializes it with information derived
 // from the properties on this module and its dependencies.
 func (b *BootclasspathFragmentModule) createHiddenAPIFlagInput(ctx android.ModuleContext, contents []android.Module, fragments []android.Module) HiddenAPIFlagInput {
-
 	// Merge the HiddenAPIInfo from all the fragment dependencies.
 	dependencyHiddenApiInfo := newHiddenAPIInfo()
 	dependencyHiddenApiInfo.mergeFromFragmentDeps(ctx, fragments)
@@ -615,12 +634,36 @@ func (b *BootclasspathFragmentModule) createHiddenAPIFlagInput(ctx android.Modul
 	return input
 }
 
-// produceHiddenAPIAllFlagsFile produces the hidden API all-flags.csv file (and supporting files)
-// for the fragment.
-func (b *BootclasspathFragmentModule) produceHiddenAPIAllFlagsFile(ctx android.ModuleContext, contents []android.Module, input HiddenAPIFlagInput) *HiddenAPIFlagOutput {
+// produceHiddenAPIOutput produces the hidden API all-flags.csv file (and supporting files)
+// for the fragment as well as encoding the flags in the boot dex jars.
+func (b *BootclasspathFragmentModule) produceHiddenAPIOutput(ctx android.ModuleContext, contents []android.Module, input HiddenAPIFlagInput) *HiddenAPIOutput {
 	// Generate the rules to create the hidden API flags and update the supplied hiddenAPIInfo with the
 	// paths to the created files.
-	return hiddenAPIGenerateAllFlagsForBootclasspathFragment(ctx, contents, input)
+	return hiddenAPIRulesForBootclasspathFragment(ctx, contents, input)
+}
+
+// produceBootImageFiles builds the boot image files from the source if it is required.
+func (b *BootclasspathFragmentModule) produceBootImageFiles(ctx android.ModuleContext, imageConfig *bootImageConfig, contents []android.Module) bootImageFilesByArch {
+	if SkipDexpreoptBootJars(ctx) {
+		return nil
+	}
+
+	// Force the GlobalSoongConfig to be created and cached for use by the dex_bootjars
+	// GenerateSingletonBuildActions method as it cannot create it for itself.
+	dexpreopt.GetGlobalSoongConfig(ctx)
+
+	// Only generate the boot image if the configuration does not skip it.
+	if !b.generateBootImageBuildActions(ctx, contents, imageConfig) {
+		return nil
+	}
+
+	// Only make the files available to an apex if they were actually generated.
+	files := bootImageFilesByArch{}
+	for _, variant := range imageConfig.apexVariants() {
+		files[variant.target.Arch.ArchType] = variant.imagesDeps.Paths()
+	}
+
+	return files
 }
 
 // generateBootImageBuildActions generates ninja rules to create the boot image if required for this
@@ -643,10 +686,6 @@ func (b *BootclasspathFragmentModule) generateBootImageBuildActions(ctx android.
 	if android.IsModuleInVersionedSdk(ctx.Module()) {
 		return false
 	}
-
-	// Copy the dex jars of this fragment's content modules to their predefined locations.
-	bootDexJarByModule := extractEncodedDexJarsFromModules(ctx, contents)
-	copyBootJarsToPredefinedLocations(ctx, bootDexJarByModule, imageConfig.dexPathsByModule)
 
 	// Build a profile for the image config and then use that to build the boot image.
 	profile := bootImageProfileRule(ctx, imageConfig)
@@ -836,9 +875,8 @@ func (module *prebuiltBootclasspathFragmentModule) Name() string {
 	return module.prebuilt.Name(module.ModuleBase.Name())
 }
 
-// produceHiddenAPIAllFlagsFile returns a path to the prebuilt all-flags.csv or nil if none is
-// specified.
-func (module *prebuiltBootclasspathFragmentModule) produceHiddenAPIAllFlagsFile(ctx android.ModuleContext, contents []android.Module, _ HiddenAPIFlagInput) *HiddenAPIFlagOutput {
+// produceHiddenAPIOutput returns a path to the prebuilt all-flags.csv or nil if none is specified.
+func (module *prebuiltBootclasspathFragmentModule) produceHiddenAPIOutput(ctx android.ModuleContext, contents []android.Module, input HiddenAPIFlagInput) *HiddenAPIOutput {
 	pathForOptionalSrc := func(src *string) android.Path {
 		if src == nil {
 			// TODO(b/179354495): Fail if this is not provided once prebuilts have been updated.
@@ -847,18 +885,105 @@ func (module *prebuiltBootclasspathFragmentModule) produceHiddenAPIAllFlagsFile(
 		return android.PathForModuleSrc(ctx, *src)
 	}
 
-	output := HiddenAPIFlagOutput{
-		StubFlagsPath:       pathForOptionalSrc(module.prebuiltProperties.Hidden_api.Stub_flags),
-		AnnotationFlagsPath: pathForOptionalSrc(module.prebuiltProperties.Hidden_api.Annotation_flags),
-		MetadataPath:        pathForOptionalSrc(module.prebuiltProperties.Hidden_api.Metadata),
-		IndexPath:           pathForOptionalSrc(module.prebuiltProperties.Hidden_api.Index),
-		AllFlagsPath:        pathForOptionalSrc(module.prebuiltProperties.Hidden_api.All_flags),
+	// Retrieve the dex files directly from the content modules. They in turn should retrieve the
+	// encoded dex jars from the prebuilt .apex files.
+	encodedBootDexJarsByModule := extractEncodedDexJarsFromModules(ctx, contents)
+
+	output := HiddenAPIOutput{
+		HiddenAPIFlagOutput: HiddenAPIFlagOutput{
+			StubFlagsPath:       pathForOptionalSrc(module.prebuiltProperties.Hidden_api.Stub_flags),
+			AnnotationFlagsPath: pathForOptionalSrc(module.prebuiltProperties.Hidden_api.Annotation_flags),
+			MetadataPath:        pathForOptionalSrc(module.prebuiltProperties.Hidden_api.Metadata),
+			IndexPath:           pathForOptionalSrc(module.prebuiltProperties.Hidden_api.Index),
+			AllFlagsPath:        pathForOptionalSrc(module.prebuiltProperties.Hidden_api.All_flags),
+		},
+		EncodedBootDexFilesByModule: encodedBootDexJarsByModule,
 	}
 
 	return &output
 }
 
+// produceBootImageFiles extracts the boot image files from the APEX if available.
+func (module *prebuiltBootclasspathFragmentModule) produceBootImageFiles(ctx android.ModuleContext, imageConfig *bootImageConfig, contents []android.Module) bootImageFilesByArch {
+	if !shouldCopyBootFilesToPredefinedLocations(ctx, imageConfig) {
+		return nil
+	}
+
+	var deapexerModule android.Module
+	ctx.VisitDirectDeps(func(module android.Module) {
+		tag := ctx.OtherModuleDependencyTag(module)
+		// Save away the `deapexer` module on which this depends, if any.
+		if tag == android.DeapexerTag {
+			deapexerModule = module
+		}
+	})
+
+	if deapexerModule == nil {
+		// This should never happen as a variant for a prebuilt_apex is only created if the
+		// deapexer module has been configured to export the dex implementation jar for this module.
+		ctx.ModuleErrorf("internal error: module does not depend on a `deapexer` module")
+		return nil
+	}
+
+	di := ctx.OtherModuleProvider(deapexerModule, android.DeapexerProvider).(android.DeapexerInfo)
+	name := module.BaseModuleName()
+	for _, variant := range imageConfig.apexVariants() {
+		arch := variant.target.Arch.ArchType
+		for _, toPath := range variant.imagesDeps {
+			// Get the path to the file that the deapexer extracted from the prebuilt apex file.
+			tag := createBootImageTag(arch, toPath.Base())
+			fromPath := di.PrebuiltExportPath(name, tag)
+
+			// Copy the file to the predefined location.
+			ctx.Build(pctx, android.BuildParams{
+				Rule:   android.Cp,
+				Input:  fromPath,
+				Output: toPath,
+			})
+		}
+	}
+
+	// The returned files will be made available to APEXes that include a bootclasspath_fragment.
+	// However, as a prebuilt_bootclasspath_fragment can never contribute to an APEX there is no point
+	// in returning any files.
+	return nil
+}
+
 var _ commonBootclasspathFragment = (*prebuiltBootclasspathFragmentModule)(nil)
+
+// createBootImageTag creates the tag to uniquely identify the boot image file among all of the
+// files that a module requires from the prebuilt .apex file.
+func createBootImageTag(arch android.ArchType, baseName string) string {
+	tag := fmt.Sprintf(".bootimage-%s-%s", arch, baseName)
+	return tag
+}
+
+// RequiredFilesFromPrebuiltApex returns the list of all files the prebuilt_bootclasspath_fragment
+// requires from a prebuilt .apex file.
+//
+// If there is no image config associated with this fragment then it returns nil. Otherwise, it
+// returns the files that are listed in the image config.
+func (module *prebuiltBootclasspathFragmentModule) RequiredFilesFromPrebuiltApex(ctx android.BaseModuleContext) map[string]string {
+	imageConfig := module.getImageConfig(ctx)
+	if imageConfig != nil {
+		// Add the boot image files, e.g. .art, .oat and .vdex files.
+		files := map[string]string{}
+		name := module.BaseModuleName()
+		for _, variant := range imageConfig.apexVariants() {
+			arch := variant.target.Arch.ArchType
+			for _, path := range variant.imagesDeps.Paths() {
+				base := path.Base()
+				tag := createBootImageTag(arch, base)
+				key := fmt.Sprintf("%s{%s}", name, tag)
+				files[key] = filepath.Join("javalib", arch.String(), base)
+			}
+		}
+		return files
+	}
+	return nil
+}
+
+var _ android.RequiredFilesFromPrebuiltApex = (*prebuiltBootclasspathFragmentModule)(nil)
 
 func prebuiltBootclasspathFragmentFactory() android.Module {
 	m := &prebuiltBootclasspathFragmentModule{}
