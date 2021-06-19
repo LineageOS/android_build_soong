@@ -580,6 +580,36 @@ func (b bootDexJarByModule) addPath(module android.Module, path android.Path) {
 	b[android.RemoveOptionalPrebuiltPrefix(module.Name())] = path
 }
 
+// bootDexJars returns the boot dex jar paths sorted by their keys.
+func (b bootDexJarByModule) bootDexJars() android.Paths {
+	paths := android.Paths{}
+	for _, k := range android.SortedStringKeys(b) {
+		paths = append(paths, b[k])
+	}
+	return paths
+}
+
+// bootDexJarsWithoutCoverage returns the boot dex jar paths sorted by their keys without coverage
+// libraries if present.
+func (b bootDexJarByModule) bootDexJarsWithoutCoverage() android.Paths {
+	paths := android.Paths{}
+	for _, k := range android.SortedStringKeys(b) {
+		if k == "jacocoagent" {
+			continue
+		}
+		paths = append(paths, b[k])
+	}
+	return paths
+}
+
+// HiddenAPIOutput encapsulates the output from the hidden API processing.
+type HiddenAPIOutput struct {
+	HiddenAPIFlagOutput
+
+	// The map from base module name to the path to the encoded boot dex file.
+	EncodedBootDexFilesByModule bootDexJarByModule
+}
+
 // pathForValidation creates a path of the same type as the supplied type but with a name of
 // <path>.valid.
 //
@@ -665,8 +695,8 @@ func buildRuleToGenerateHiddenApiFlags(ctx android.BuilderContext, name, desc st
 	rule.Build(name, desc)
 }
 
-// hiddenAPIGenerateAllFlagsForBootclasspathFragment will generate all the flags for a fragment
-// of the bootclasspath.
+// hiddenAPIRulesForBootclasspathFragment will generate all the flags for a fragment of the
+// bootclasspath and then encode the flags into the boot dex files.
 //
 // It takes:
 // * Map from android.SdkKind to stub dex jar paths defining the API for that sdk kind.
@@ -679,15 +709,16 @@ func buildRuleToGenerateHiddenApiFlags(ctx android.BuilderContext, name, desc st
 // * metadata.csv
 // * index.csv
 // * all-flags.csv
-func hiddenAPIGenerateAllFlagsForBootclasspathFragment(ctx android.ModuleContext, contents []android.Module, input HiddenAPIFlagInput) *HiddenAPIFlagOutput {
+// * encoded boot dex files
+func hiddenAPIRulesForBootclasspathFragment(ctx android.ModuleContext, contents []android.Module, input HiddenAPIFlagInput) *HiddenAPIOutput {
 	hiddenApiSubDir := "modular-hiddenapi"
 
-	// Gather the dex files for the boot libraries provided by this fragment.
-	bootDexJars := extractBootDexJarsFromModules(ctx, contents)
+	// Gather information about the boot dex files for the boot libraries provided by this fragment.
+	bootDexInfoByModule := extractBootDexInfoFromModules(ctx, contents)
 
 	// Generate the stub-flags.csv.
 	stubFlagsCSV := android.PathForModuleOut(ctx, hiddenApiSubDir, "stub-flags.csv")
-	rule := ruleToGenerateHiddenAPIStubFlagsFile(ctx, stubFlagsCSV, bootDexJars, input)
+	rule := ruleToGenerateHiddenAPIStubFlagsFile(ctx, stubFlagsCSV, bootDexInfoByModule.bootDexJars(), input)
 	rule.Build("modularHiddenAPIStubFlagsFile", "modular hiddenapi stub flags")
 
 	// Extract the classes jars from the contents.
@@ -715,16 +746,29 @@ func hiddenAPIGenerateAllFlagsForBootclasspathFragment(ctx android.ModuleContext
 
 	// Generate the all-flags.csv which are the flags that will, in future, be encoded into the dex
 	// files.
-	outputPath := android.PathForModuleOut(ctx, hiddenApiSubDir, "all-flags.csv")
-	buildRuleToGenerateHiddenApiFlags(ctx, "modularHiddenApiAllFlags", "modular hiddenapi all flags", outputPath, stubFlagsCSV, annotationFlagsCSV, input.FlagFilesByCategory, nil, removedDexSignatures)
+	allFlagsCSV := android.PathForModuleOut(ctx, hiddenApiSubDir, "all-flags.csv")
+	buildRuleToGenerateHiddenApiFlags(ctx, "modularHiddenApiAllFlags", "modular hiddenapi all flags", allFlagsCSV, stubFlagsCSV, annotationFlagsCSV, input.FlagFilesByCategory, nil, removedDexSignatures)
+
+	// Encode the flags into the boot dex files.
+	encodedBootDexJarsByModule := map[string]android.Path{}
+	outputDir := android.PathForModuleOut(ctx, "hiddenapi-modular/encoded").OutputPath
+	for _, name := range android.SortedStringKeys(bootDexInfoByModule) {
+		bootDexInfo := bootDexInfoByModule[name]
+		unencodedDex := bootDexInfo.path
+		encodedDex := hiddenAPIEncodeDex(ctx, unencodedDex, allFlagsCSV, bootDexInfo.uncompressDex, outputDir)
+		encodedBootDexJarsByModule[name] = encodedDex
+	}
 
 	// Store the paths in the info for use by other modules and sdk snapshot generation.
-	output := HiddenAPIFlagOutput{
-		StubFlagsPath:       stubFlagsCSV,
-		AnnotationFlagsPath: annotationFlagsCSV,
-		MetadataPath:        metadataCSV,
-		IndexPath:           indexCSV,
-		AllFlagsPath:        outputPath,
+	output := HiddenAPIOutput{
+		HiddenAPIFlagOutput: HiddenAPIFlagOutput{
+			StubFlagsPath:       stubFlagsCSV,
+			AnnotationFlagsPath: annotationFlagsCSV,
+			MetadataPath:        metadataCSV,
+			IndexPath:           indexCSV,
+			AllFlagsPath:        allFlagsCSV,
+		},
+		EncodedBootDexFilesByModule: encodedBootDexJarsByModule,
 	}
 	return &output
 }
@@ -747,37 +791,15 @@ func buildRuleToGenerateRemovedDexSignatures(ctx android.ModuleContext, removedT
 }
 
 // extractBootDexJarsFromModules extracts the boot dex jars from the supplied modules.
-func extractBootDexJarsFromModules(ctx android.ModuleContext, contents []android.Module) android.Paths {
-	bootDexJars := android.Paths{}
+func extractBootDexJarsFromModules(ctx android.ModuleContext, contents []android.Module) bootDexJarByModule {
+	bootDexJars := bootDexJarByModule{}
 	for _, module := range contents {
 		hiddenAPIModule := hiddenAPIModuleFromModule(ctx, module)
 		if hiddenAPIModule == nil {
 			continue
 		}
-		bootDexJar := hiddenAPIModule.bootDexJar()
-		if bootDexJar == nil {
-			if ctx.Config().AlwaysUsePrebuiltSdks() {
-				// TODO(b/179354495): Remove this workaround when it is unnecessary.
-				// Prebuilt modules like framework-wifi do not yet provide dex implementation jars. So,
-				// create a fake one that will cause a build error only if it is used.
-				fake := android.PathForModuleOut(ctx, "fake/boot-dex/%s.jar", module.Name())
-
-				// Create an error rule that pretends to create the output file but will actually fail if it
-				// is run.
-				ctx.Build(pctx, android.BuildParams{
-					Rule:   android.ErrorRule,
-					Output: fake,
-					Args: map[string]string{
-						"error": fmt.Sprintf("missing dependencies: boot dex jar for %s", module),
-					},
-				})
-				bootDexJars = append(bootDexJars, fake)
-			} else {
-				ctx.ModuleErrorf("module %s does not provide a dex jar", module)
-			}
-		} else {
-			bootDexJars = append(bootDexJars, bootDexJar)
-		}
+		bootDexJar := retrieveBootDexJarFromHiddenAPIModule(ctx, hiddenAPIModule)
+		bootDexJars.addPath(module, bootDexJar)
 	}
 	return bootDexJars
 }
@@ -792,6 +814,60 @@ func hiddenAPIModuleFromModule(ctx android.BaseModuleContext, module android.Mod
 	}
 
 	return nil
+}
+
+// bootDexInfo encapsulates both the path and uncompressDex status retrieved from a hiddenAPIModule.
+type bootDexInfo struct {
+	// The path to the dex jar that has not had hidden API flags encoded into it.
+	path android.Path
+
+	// Indicates whether the dex jar needs uncompressing before encoding.
+	uncompressDex bool
+}
+
+// bootDexInfoByModule is a map from module name (as returned by module.Name()) to the boot dex
+// path (as returned by hiddenAPIModule.bootDexJar()) and the uncompressDex flag.
+type bootDexInfoByModule map[string]bootDexInfo
+
+// bootDexJars returns the boot dex jar paths sorted by their keys.
+func (b bootDexInfoByModule) bootDexJars() android.Paths {
+	paths := android.Paths{}
+	for _, m := range android.SortedStringKeys(b) {
+		paths = append(paths, b[m].path)
+	}
+	return paths
+}
+
+// extractBootDexInfoFromModules extracts the boot dex jar and uncompress dex state from
+// each of the supplied modules which must implement hiddenAPIModule.
+func extractBootDexInfoFromModules(ctx android.ModuleContext, contents []android.Module) bootDexInfoByModule {
+	bootDexJarsByModule := bootDexInfoByModule{}
+	for _, module := range contents {
+		hiddenAPIModule := module.(hiddenAPIModule)
+		bootDexJar := retrieveBootDexJarFromHiddenAPIModule(ctx, hiddenAPIModule)
+		bootDexJarsByModule[module.Name()] = bootDexInfo{
+			path:          bootDexJar,
+			uncompressDex: *hiddenAPIModule.uncompressDex(),
+		}
+	}
+
+	return bootDexJarsByModule
+}
+
+// retrieveBootDexJarFromHiddenAPIModule retrieves the boot dex jar from the hiddenAPIModule.
+//
+// If the module does not provide a boot dex jar, i.e. the returned boot dex jar is nil, then  that
+// create a fake path and either report an error immediately or defer reporting of the error until
+// the path is actually used.
+func retrieveBootDexJarFromHiddenAPIModule(ctx android.ModuleContext, module hiddenAPIModule) android.Path {
+	bootDexJar := module.bootDexJar()
+	if bootDexJar == nil {
+		fake := android.PathForModuleOut(ctx, fmt.Sprintf("fake/boot-dex/%s.jar", module.Name()))
+		bootDexJar = fake
+
+		handleMissingDexBootFile(ctx, module, fake)
+	}
+	return bootDexJar
 }
 
 // extractClassesJarsFromModules extracts the class jars from the supplied modules.
@@ -819,6 +895,11 @@ func deferReportingMissingBootDexJar(ctx android.ModuleContext, module android.M
 	// Prebuilt modules like framework-wifi do not yet provide dex implementation jars. So,
 	// create a fake one that will cause a build error only if it is used.
 	if ctx.Config().AlwaysUsePrebuiltSdks() {
+		return true
+	}
+
+	// Any missing dependency should be allowed.
+	if ctx.Config().AllowMissingDependencies() {
 		return true
 	}
 

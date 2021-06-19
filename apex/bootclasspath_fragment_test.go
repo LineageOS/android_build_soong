@@ -16,6 +16,7 @@ package apex
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"testing"
 
@@ -82,6 +83,7 @@ func TestBootclasspathFragments(t *testing.T) {
 				"com.android.art",
 			],
 			srcs: ["b.java"],
+			compile_dex: true,
 		}
 
 		java_library {
@@ -90,6 +92,7 @@ func TestBootclasspathFragments(t *testing.T) {
 				"com.android.art",
 			],
 			srcs: ["b.java"],
+			compile_dex: true,
 		}
 
 		bootclasspath_fragment {
@@ -318,6 +321,7 @@ func TestBootclasspathFragmentInArtApex(t *testing.T) {
 			apex_available: [
 				"com.android.art",
 			],
+			compile_dex: true,
 		}
 
 		java_import {
@@ -326,6 +330,7 @@ func TestBootclasspathFragmentInArtApex(t *testing.T) {
 			apex_available: [
 				"com.android.art",
 			],
+			compile_dex: true,
 		}
 	`),
 	)
@@ -355,6 +360,19 @@ func TestBootclasspathFragmentInArtApex(t *testing.T) {
 
 	addPrebuilt := func(prefer bool, contents ...string) android.FixturePreparer {
 		text := fmt.Sprintf(`
+			prebuilt_apex {
+				name: "com.android.art",
+				arch: {
+					arm64: {
+						src: "com.android.art-arm64.apex",
+					},
+					arm: {
+						src: "com.android.art-arm.apex",
+					},
+				},
+				exported_bootclasspath_fragments: ["mybootclasspathfragment"],
+			}
+
 			prebuilt_bootclasspath_fragment {
 				name: "mybootclasspathfragment",
 				image_name: "art",
@@ -368,7 +386,47 @@ func TestBootclasspathFragmentInArtApex(t *testing.T) {
 		return android.FixtureAddTextFile("prebuilts/module_sdk/art/Android.bp", text)
 	}
 
-	t.Run("boot image files", func(t *testing.T) {
+	t.Run("boot image files from source", func(t *testing.T) {
+		result := android.GroupFixturePreparers(
+			commonPreparer,
+
+			// Configure some libraries in the art bootclasspath_fragment that match the source
+			// bootclasspath_fragment's contents property.
+			java.FixtureConfigureBootJars("com.android.art:foo", "com.android.art:bar"),
+			addSource("foo", "bar"),
+		).RunTest(t)
+
+		ensureExactContents(t, result.TestContext, "com.android.art", "android_common_com.android.art_image", []string{
+			"etc/classpaths/bootclasspath.pb",
+			"javalib/arm/boot.art",
+			"javalib/arm/boot.oat",
+			"javalib/arm/boot.vdex",
+			"javalib/arm/boot-bar.art",
+			"javalib/arm/boot-bar.oat",
+			"javalib/arm/boot-bar.vdex",
+			"javalib/arm64/boot.art",
+			"javalib/arm64/boot.oat",
+			"javalib/arm64/boot.vdex",
+			"javalib/arm64/boot-bar.art",
+			"javalib/arm64/boot-bar.oat",
+			"javalib/arm64/boot-bar.vdex",
+			"javalib/bar.jar",
+			"javalib/foo.jar",
+		})
+
+		java.CheckModuleDependencies(t, result.TestContext, "com.android.art", "android_common_com.android.art_image", []string{
+			`bar`,
+			`com.android.art.key`,
+			`mybootclasspathfragment`,
+		})
+
+		// Make sure that the source bootclasspath_fragment copies its dex files to the predefined
+		// locations for the art image.
+		module := result.ModuleForTests("mybootclasspathfragment", "android_common_apex10000")
+		checkCopiesToPredefinedLocationForArt(t, result.Config, module, "bar", "foo")
+	})
+
+	t.Run("boot image files with preferred prebuilt", func(t *testing.T) {
 		result := android.GroupFixturePreparers(
 			commonPreparer,
 
@@ -403,7 +461,13 @@ func TestBootclasspathFragmentInArtApex(t *testing.T) {
 			`bar`,
 			`com.android.art.key`,
 			`mybootclasspathfragment`,
+			`prebuilt_com.android.art`,
 		})
+
+		// Make sure that the prebuilt bootclasspath_fragment copies its dex files to the predefined
+		// locations for the art image.
+		module := result.ModuleForTests("prebuilt_mybootclasspathfragment", "android_common_com.android.art")
+		checkCopiesToPredefinedLocationForArt(t, result.Config, module, "bar", "foo")
 	})
 
 	t.Run("source with inconsistency between config and contents", func(t *testing.T) {
@@ -489,7 +553,7 @@ func TestBootclasspathFragmentInPrebuiltArtApex(t *testing.T) {
 					src: "com.android.art-arm.apex",
 				},
 			},
-			exported_java_libs: ["foo", "bar"],
+			exported_bootclasspath_fragments: ["mybootclasspathfragment"],
 		}
 
 		java_import {
@@ -519,17 +583,42 @@ func TestBootclasspathFragmentInPrebuiltArtApex(t *testing.T) {
 		}
 	`)
 
-	java.CheckModuleDependencies(t, result.TestContext, "com.android.art", "android_common", []string{
+	java.CheckModuleDependencies(t, result.TestContext, "com.android.art", "android_common_com.android.art", []string{
 		`com.android.art.apex.selector`,
-		`prebuilt_bar`,
-		`prebuilt_foo`,
+		`prebuilt_mybootclasspathfragment`,
 	})
 
-	java.CheckModuleDependencies(t, result.TestContext, "mybootclasspathfragment", "android_common", []string{
+	java.CheckModuleDependencies(t, result.TestContext, "mybootclasspathfragment", "android_common_com.android.art", []string{
+		`com.android.art.deapexer`,
 		`dex2oatd`,
 		`prebuilt_bar`,
 		`prebuilt_foo`,
 	})
+
+	module := result.ModuleForTests("mybootclasspathfragment", "android_common_com.android.art")
+	checkCopiesToPredefinedLocationForArt(t, result.Config, module, "bar", "foo")
+}
+
+// checkCopiesToPredefinedLocationForArt checks that the supplied modules are copied to the
+// predefined locations of boot dex jars used as inputs for the ART boot image.
+func checkCopiesToPredefinedLocationForArt(t *testing.T, config android.Config, module android.TestingModule, modules ...string) {
+	t.Helper()
+	bootJarLocations := []string{}
+	for _, output := range module.AllOutputs() {
+		output = android.StringRelativeToTop(config, output)
+		if strings.HasPrefix(output, "out/soong/test_device/dex_artjars_input/") {
+			bootJarLocations = append(bootJarLocations, output)
+		}
+	}
+
+	sort.Strings(bootJarLocations)
+	expected := []string{}
+	for _, m := range modules {
+		expected = append(expected, fmt.Sprintf("out/soong/test_device/dex_artjars_input/%s.jar", m))
+	}
+	sort.Strings(expected)
+
+	android.AssertArrayString(t, "copies to predefined locations for art", expected, bootJarLocations)
 }
 
 func TestBootclasspathFragmentContentsNoName(t *testing.T) {

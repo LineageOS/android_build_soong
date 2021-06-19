@@ -42,8 +42,8 @@ import (
 
 // DeapexerExportedFile defines the properties needed to expose a file from the deapexer module.
 type DeapexerExportedFile struct {
-	// The tag parameter which must be passed to android.OutputFileProducer OutputFiles(tag) method
-	// to retrieve the path to the unpacked file.
+	// The tag parameter which must be passed to android.DeapexerInfo's PrebuiltExportPath(name, tag)
+	// method to retrieve the path to the unpacked file.
 	Tag string
 
 	// The path within the APEX that needs to be exported.

@@ -189,7 +189,8 @@ func (b *platformBootclasspathModule) GenerateAndroidBuildActions(ctx android.Mo
 
 	b.generateClasspathProtoBuildActions(ctx)
 
-	b.generateHiddenAPIBuildActions(ctx, b.configuredModules, b.fragments)
+	bootDexJarByModule := b.generateHiddenAPIBuildActions(ctx, b.configuredModules, b.fragments)
+	buildRuleForBootJarsPackageCheck(ctx, bootDexJarByModule)
 
 	// Nothing to do if skipping the dexpreopt of boot image jars.
 	if SkipDexpreoptBootJars(ctx) {
@@ -258,7 +259,7 @@ func (b *platformBootclasspathModule) getImageConfig(ctx android.EarlyModuleCont
 }
 
 // generateHiddenAPIBuildActions generates all the hidden API related build rules.
-func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.ModuleContext, modules []android.Module, fragments []android.Module) {
+func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.ModuleContext, modules []android.Module, fragments []android.Module) bootDexJarByModule {
 
 	// Save the paths to the monolithic files for retrieval via OutputFiles().
 	b.hiddenAPIFlagsCSV = hiddenAPISingletonPaths(ctx).flags
@@ -276,7 +277,7 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 				Output: path,
 			})
 		}
-		return
+		return nil
 	}
 
 	monolithicInfo := b.createAndProvideMonolithicHiddenAPIInfo(ctx, fragments)
@@ -291,9 +292,9 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 	input.FlagFilesByCategory = monolithicInfo.FlagsFilesByCategory
 
 	// Generate the monolithic stub-flags.csv file.
-	bootDexJars := extractBootDexJarsFromModules(ctx, modules)
+	bootDexJarByModule := extractBootDexJarsFromModules(ctx, modules)
 	stubFlags := hiddenAPISingletonPaths(ctx).stubFlags
-	rule := ruleToGenerateHiddenAPIStubFlagsFile(ctx, stubFlags, bootDexJars, input)
+	rule := ruleToGenerateHiddenAPIStubFlagsFile(ctx, stubFlags, bootDexJarByModule.bootDexJars(), input)
 	rule.Build("platform-bootclasspath-monolithic-hiddenapi-stub-flags", "monolithic hidden API stub flags")
 
 	// Extract the classes jars from the contents.
@@ -322,6 +323,8 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 	// jars.
 	indexCSV := hiddenAPISingletonPaths(ctx).index
 	buildRuleToGenerateIndex(ctx, "monolithic hidden API index", classesJars, indexCSV)
+
+	return bootDexJarByModule
 }
 
 // createAndProvideMonolithicHiddenAPIInfo creates a MonolithicHiddenAPIInfo and provides it for

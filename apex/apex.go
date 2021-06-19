@@ -166,8 +166,7 @@ type apexBundleProperties struct {
 	Ignore_system_library_special_case *bool
 
 	// Whenever apex_payload.img of the APEX should include dm-verity hashtree.
-	// Default value is false.
-	// TODO(b/190621617): change default value to true.
+	// Default value is true.
 	Generate_hashtree *bool
 
 	// Whenever apex_payload.img of the APEX should not be dm-verity signed. Should be only
@@ -1044,8 +1043,9 @@ func apexMutator(mctx android.BottomUpMutatorContext) {
 
 	// apexBundle itself is mutated so that it and its dependencies have the same apex variant.
 	// TODO(jiyong): document the reason why the VNDK APEX is an exception here.
-	if a, ok := mctx.Module().(*apexBundle); ok && !a.vndkApex {
-		apexBundleName := mctx.ModuleName()
+	unprefixedModuleName := android.RemoveOptionalPrebuiltPrefix(mctx.ModuleName())
+	if apexModuleTypeRequiresVariant(mctx.Module()) {
+		apexBundleName := unprefixedModuleName
 		mctx.CreateVariations(apexBundleName)
 		if strings.HasPrefix(apexBundleName, "com.android.art") {
 			// Create an alias from the platform variant. This is done to make
@@ -1063,12 +1063,34 @@ func apexMutator(mctx android.BottomUpMutatorContext) {
 			mctx.ModuleErrorf("base property is not set")
 			return
 		}
+		// Workaround the issue reported in b/191269918 by using the unprefixed module name of this
+		// module as the default variation to use if dependencies of this module do not have the correct
+		// apex variant name. This name matches the name used to create the variations of modules for
+		// which apexModuleTypeRequiresVariant return true.
+		// TODO(b/191269918): Remove this workaround.
+		mctx.SetDefaultDependencyVariation(&unprefixedModuleName)
 		mctx.CreateVariations(apexBundleName)
 		if strings.HasPrefix(apexBundleName, "com.android.art") {
 			// TODO(b/183882457): See note for CreateAliasVariation above.
 			mctx.CreateAliasVariation("", apexBundleName)
 		}
 	}
+}
+
+// apexModuleTypeRequiresVariant determines whether the module supplied requires an apex specific
+// variant.
+func apexModuleTypeRequiresVariant(module android.Module) bool {
+	if a, ok := module.(*apexBundle); ok {
+		return !a.vndkApex
+	}
+
+	// Match apex_set and prebuilt_apex. Would also match apexBundle but that is handled specially
+	// above.
+	if _, ok := module.(ApexInfoMutator); ok {
+		return true
+	}
+
+	return false
 }
 
 // See android.UpdateDirectlyInAnyApex
@@ -1271,7 +1293,7 @@ func (a *apexBundle) installable() bool {
 
 // See the generate_hashtree property
 func (a *apexBundle) shouldGenerateHashtree() bool {
-	return proptools.BoolDefault(a.properties.Generate_hashtree, false)
+	return proptools.BoolDefault(a.properties.Generate_hashtree, true)
 }
 
 // See the test_only_unsigned_payload property
