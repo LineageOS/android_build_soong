@@ -930,13 +930,12 @@ func (module *prebuiltBootclasspathFragmentModule) produceBootImageFiles(ctx and
 	}
 
 	di := ctx.OtherModuleProvider(deapexerModule, android.DeapexerProvider).(android.DeapexerInfo)
-	name := module.BaseModuleName()
 	for _, variant := range imageConfig.apexVariants() {
 		arch := variant.target.Arch.ArchType
 		for _, toPath := range variant.imagesDeps {
+			apexRelativePath := apexRootRelativePathToBootImageFile(arch, toPath.Base())
 			// Get the path to the file that the deapexer extracted from the prebuilt apex file.
-			tag := createBootImageTag(arch, toPath.Base())
-			fromPath := di.PrebuiltExportPath(name, tag)
+			fromPath := di.PrebuiltExportPath(apexRelativePath)
 
 			// Copy the file to the predefined location.
 			ctx.Build(pctx, android.BuildParams{
@@ -967,24 +966,25 @@ func createBootImageTag(arch android.ArchType, baseName string) string {
 //
 // If there is no image config associated with this fragment then it returns nil. Otherwise, it
 // returns the files that are listed in the image config.
-func (module *prebuiltBootclasspathFragmentModule) RequiredFilesFromPrebuiltApex(ctx android.BaseModuleContext) map[string]string {
+func (module *prebuiltBootclasspathFragmentModule) RequiredFilesFromPrebuiltApex(ctx android.BaseModuleContext) []string {
 	imageConfig := module.getImageConfig(ctx)
 	if imageConfig != nil {
 		// Add the boot image files, e.g. .art, .oat and .vdex files.
-		files := map[string]string{}
-		name := module.BaseModuleName()
+		files := []string{}
 		for _, variant := range imageConfig.apexVariants() {
 			arch := variant.target.Arch.ArchType
 			for _, path := range variant.imagesDeps.Paths() {
 				base := path.Base()
-				tag := createBootImageTag(arch, base)
-				key := fmt.Sprintf("%s{%s}", name, tag)
-				files[key] = filepath.Join("javalib", arch.String(), base)
+				files = append(files, apexRootRelativePathToBootImageFile(arch, base))
 			}
 		}
 		return files
 	}
 	return nil
+}
+
+func apexRootRelativePathToBootImageFile(arch android.ArchType, base string) string {
+	return filepath.Join("javalib", arch.String(), base)
 }
 
 var _ android.RequiredFilesFromPrebuiltApex = (*prebuiltBootclasspathFragmentModule)(nil)
