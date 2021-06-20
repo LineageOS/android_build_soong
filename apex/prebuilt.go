@@ -216,50 +216,55 @@ func (p *prebuiltCommon) AndroidMkEntries() []android.AndroidMkEntries {
 	// apex specific variants of the exported java modules available for use from within make.
 	apexName := p.BaseModuleName()
 	for _, fi := range p.apexFilesForAndroidMk {
-		moduleName := fi.androidMkModuleName + "." + apexName
-		entries := android.AndroidMkEntries{
-			Class:        fi.class.nameInMake(),
-			OverrideName: moduleName,
-			OutputFile:   android.OptionalPathForPath(fi.builtFile),
-			Include:      "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
-			ExtraEntries: []android.AndroidMkExtraEntriesFunc{
-				func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
-					entries.SetString("LOCAL_MODULE_PATH", p.installDir.ToMakePath().String())
-
-					// soong_java_prebuilt.mk sets LOCAL_MODULE_SUFFIX := .jar  Therefore
-					// we need to remove the suffix from LOCAL_MODULE_STEM, otherwise
-					// we will have foo.jar.jar
-					entries.SetString("LOCAL_MODULE_STEM", strings.TrimSuffix(fi.stem(), ".jar"))
-					var classesJar android.Path
-					var headerJar android.Path
-					if javaModule, ok := fi.module.(java.ApexDependency); ok {
-						classesJar = javaModule.ImplementationAndResourcesJars()[0]
-						headerJar = javaModule.HeaderJars()[0]
-					} else {
-						classesJar = fi.builtFile
-						headerJar = fi.builtFile
-					}
-					entries.SetString("LOCAL_SOONG_CLASSES_JAR", classesJar.String())
-					entries.SetString("LOCAL_SOONG_HEADER_JAR", headerJar.String())
-					entries.SetString("LOCAL_SOONG_DEX_JAR", fi.builtFile.String())
-					entries.SetString("LOCAL_DEX_PREOPT", "false")
-				},
-			},
-			ExtraFooters: []android.AndroidMkExtraFootersFunc{
-				func(w io.Writer, name, prefix, moduleDir string) {
-					// m <module_name> will build <module_name>.<apex_name> as well.
-					if fi.androidMkModuleName != moduleName {
-						fmt.Fprintf(w, ".PHONY: %s\n", fi.androidMkModuleName)
-						fmt.Fprintf(w, "%s: %s\n", fi.androidMkModuleName, moduleName)
-					}
-				},
-			},
-		}
-
+		entries := p.createEntriesForApexFile(fi, apexName)
 		entriesList = append(entriesList, entries)
 	}
 
 	return entriesList
+}
+
+// createEntriesForApexFile creates an AndroidMkEntries for the supplied apexFile
+func (p *prebuiltCommon) createEntriesForApexFile(fi apexFile, apexName string) android.AndroidMkEntries {
+	moduleName := fi.androidMkModuleName + "." + apexName
+	entries := android.AndroidMkEntries{
+		Class:        fi.class.nameInMake(),
+		OverrideName: moduleName,
+		OutputFile:   android.OptionalPathForPath(fi.builtFile),
+		Include:      "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
+		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
+			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
+				entries.SetString("LOCAL_MODULE_PATH", p.installDir.ToMakePath().String())
+
+				// soong_java_prebuilt.mk sets LOCAL_MODULE_SUFFIX := .jar  Therefore
+				// we need to remove the suffix from LOCAL_MODULE_STEM, otherwise
+				// we will have foo.jar.jar
+				entries.SetString("LOCAL_MODULE_STEM", strings.TrimSuffix(fi.stem(), ".jar"))
+				var classesJar android.Path
+				var headerJar android.Path
+				if javaModule, ok := fi.module.(java.ApexDependency); ok {
+					classesJar = javaModule.ImplementationAndResourcesJars()[0]
+					headerJar = javaModule.HeaderJars()[0]
+				} else {
+					classesJar = fi.builtFile
+					headerJar = fi.builtFile
+				}
+				entries.SetString("LOCAL_SOONG_CLASSES_JAR", classesJar.String())
+				entries.SetString("LOCAL_SOONG_HEADER_JAR", headerJar.String())
+				entries.SetString("LOCAL_SOONG_DEX_JAR", fi.builtFile.String())
+				entries.SetString("LOCAL_DEX_PREOPT", "false")
+			},
+		},
+		ExtraFooters: []android.AndroidMkExtraFootersFunc{
+			func(w io.Writer, name, prefix, moduleDir string) {
+				// m <module_name> will build <module_name>.<apex_name> as well.
+				if fi.androidMkModuleName != moduleName {
+					fmt.Fprintf(w, ".PHONY: %s\n", fi.androidMkModuleName)
+					fmt.Fprintf(w, "%s: %s\n", fi.androidMkModuleName, moduleName)
+				}
+			},
+		},
+	}
+	return entries
 }
 
 // prebuiltApexModuleCreator defines the methods that need to be implemented by prebuilt_apex and
