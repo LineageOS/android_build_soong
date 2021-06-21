@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strings"
 )
 
 // BazelTargetModuleProperties contain properties and metadata used for
@@ -32,6 +33,10 @@ type BazelTargetModuleProperties struct {
 }
 
 const BazelTargetModuleNamePrefix = "__bp2build__"
+
+func StripNamePrefix(moduleName string) string {
+	return strings.TrimPrefix(moduleName, BazelTargetModuleNamePrefix)
+}
 
 var productVariableSubstitutionPattern = regexp.MustCompile("%(d|s)")
 
