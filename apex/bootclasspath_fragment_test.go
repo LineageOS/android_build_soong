@@ -848,6 +848,7 @@ func TestBootclasspathFragment_HiddenAPIList(t *testing.T) {
 	quuzPublicStubs := getDexJarPath(result, "quuz.stubs")
 	quuzSystemStubs := getDexJarPath(result, "quuz.stubs.system")
 	quuzTestStubs := getDexJarPath(result, "quuz.stubs.test")
+	quuzModuleLibStubs := getDexJarPath(result, "quuz.stubs.module_lib")
 
 	// Make sure that the fragment uses the quuz stub dex jars when generating the hidden API flags.
 	fragment := result.ModuleForTests("mybootclasspathfragment", "android_common_apex10000")
@@ -858,7 +859,7 @@ func TestBootclasspathFragment_HiddenAPIList(t *testing.T) {
 
 	// Make sure that the quuz stubs are available for resolving references from the implementation
 	// boot dex jars provided by this module.
-	android.AssertStringDoesContain(t, "quuz widest", command, "--dependency-stub-dex="+quuzTestStubs)
+	android.AssertStringDoesContain(t, "quuz widest", command, "--dependency-stub-dex="+quuzModuleLibStubs)
 
 	// Make sure that the quuz stubs are available for resolving references from the different API
 	// stubs provided by this module.
