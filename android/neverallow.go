@@ -175,6 +175,7 @@ func createCcSdkVariantRules() []Rule {
 		"tools/test/graphicsbenchmark/apps/sample_app",
 		"tools/test/graphicsbenchmark/functional_tests/java",
 		"vendor/xts/gts-tests/hostsidetests/gamedevicecert/apps/javatests",
+		"external/libtextclassifier/native",
 	}
 
 	platformVariantPropertiesAllowedList := []string{
