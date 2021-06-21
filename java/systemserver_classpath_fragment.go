@@ -64,6 +64,9 @@ type SystemServerClasspathModule struct {
 	ClasspathFragmentBase
 
 	properties systemServerClasspathFragmentProperties
+
+	// Collect the module directory for IDE info in java/jdeps.go.
+	modulePaths []string
 }
 
 func (s *SystemServerClasspathModule) ShouldSupportSdkVersion(ctx android.BaseModuleContext, sdkVersion android.ApiLevel) error {
@@ -93,6 +96,9 @@ func (s *SystemServerClasspathModule) GenerateAndroidBuildActions(ctx android.Mo
 
 	classpathJars := configuredJarListToClasspathJars(ctx, s.configuredJars(ctx), s.classpathType)
 	s.classpathFragmentBase().generateClasspathProtoBuildActions(ctx, classpathJars)
+
+	// Collect the module directory for IDE info in java/jdeps.go.
+	s.modulePaths = append(s.modulePaths, ctx.ModuleDir())
 }
 
 func (s *SystemServerClasspathModule) configuredJars(ctx android.ModuleContext) android.ConfiguredJarList {
@@ -138,4 +144,10 @@ func (s *SystemServerClasspathModule) ComponentDepsMutator(ctx android.BottomUpM
 	for _, name := range s.properties.Contents {
 		ctx.AddDependency(module, systemServerClasspathFragmentContentDepTag, name)
 	}
+}
+
+// Collect information for opening IDE project files in java/jdeps.go.
+func (s *SystemServerClasspathModule) IDEInfo(dpInfo *android.IdeInfo) {
+	dpInfo.Deps = append(dpInfo.Deps, s.properties.Contents...)
+	dpInfo.Paths = append(dpInfo.Paths, s.modulePaths...)
 }
