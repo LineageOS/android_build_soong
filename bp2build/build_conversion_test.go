@@ -1398,14 +1398,14 @@ func TestCombineBuildFilesBp2buildTargets(t *testing.T) {
 			moduleTypeUnderTestFactory:         android.FileGroupFactory,
 			moduleTypeUnderTestBp2BuildMutator: android.FilegroupBp2Build,
 			bp: `filegroup {
-    name: "fg_foo",
-    bazel_module: { label: "//other:fg_foo" },
-}
+		    name: "fg_foo",
+		    bazel_module: { label: "//other:fg_foo" },
+		}
 
-filegroup {
-    name: "foo",
-    bazel_module: { label: "//other:foo" },
-}`,
+		filegroup {
+		    name: "foo",
+		    bazel_module: { label: "//other:foo" },
+		}`,
 			expectedBazelTargets: []string{
 				`// BUILD file`,
 			},
@@ -1414,25 +1414,31 @@ filegroup {
 			},
 		},
 		{
-			description:                        "filegroup bazel_module.label and bp2build",
+			description:                        "filegroup bazel_module.label and bp2build in subdir",
 			moduleTypeUnderTest:                "filegroup",
 			moduleTypeUnderTestFactory:         android.FileGroupFactory,
 			moduleTypeUnderTestBp2BuildMutator: android.FilegroupBp2Build,
-			bp: `filegroup {
-    name: "fg_foo",
-    bazel_module: {
-      label: "//other:fg_foo",
-      bp2build_available: true,
-    },
-}`,
+			dir:                                "other",
+			bp:                                 ``,
+			fs: map[string]string{
+				"other/Android.bp": `filegroup {
+				name: "fg_foo",
+				bazel_module: {
+					bp2build_available: true,
+				},
+			}
+			filegroup {
+				name: "fg_bar",
+				bazel_module: {
+					label: "//other:fg_bar"
+				},
+			}`,
+				"other/BUILD.bazel": `// definition for fg_bar`,
+			},
 			expectedBazelTargets: []string{
 				`filegroup(
     name = "fg_foo",
-)`,
-				`// BUILD file`,
-			},
-			fs: map[string]string{
-				"other/BUILD.bazel": `// BUILD file`,
+)`, `// definition for fg_bar`,
 			},
 		},
 		{
@@ -1441,18 +1447,18 @@ filegroup {
 			moduleTypeUnderTestFactory:         android.FileGroupFactory,
 			moduleTypeUnderTestBp2BuildMutator: android.FilegroupBp2Build,
 			bp: `filegroup {
-    name: "fg_foo",
-    bazel_module: {
-      label: "//other:fg_foo",
-    },
-}
+		    name: "fg_foo",
+		    bazel_module: {
+		      label: "//other:fg_foo",
+		    },
+		}
 
-filegroup {
-    name: "fg_bar",
-    bazel_module: {
-      bp2build_available: true,
-    },
-}`,
+		filegroup {
+		    name: "fg_bar",
+		    bazel_module: {
+		      bp2build_available: true,
+		    },
+		}`,
 			expectedBazelTargets: []string{
 				`filegroup(
     name = "fg_bar",
