@@ -2144,7 +2144,7 @@ func (module *SdkLibraryImport) GenerateAndroidBuildActions(ctx android.ModuleCo
 
 			// Get the path of the dex implementation jar from the `deapexer` module.
 			di := ctx.OtherModuleProvider(deapexerModule, android.DeapexerProvider).(android.DeapexerInfo)
-			if dexOutputPath := di.PrebuiltExportPath(module.BaseModuleName(), ".dexjar"); dexOutputPath != nil {
+			if dexOutputPath := di.PrebuiltExportPath(apexRootRelativePathToJavaLib(module.BaseModuleName())); dexOutputPath != nil {
 				module.dexJarFile = dexOutputPath
 				module.initHiddenAPI(ctx, dexOutputPath, module.findScopePaths(apiScopePublic).stubsImplPath[0], nil)
 			} else {
@@ -2267,6 +2267,13 @@ func (module *SdkLibraryImport) ImplementationAndResourcesJars() android.Paths {
 	} else {
 		return module.implLibraryModule.ImplementationAndResourcesJars()
 	}
+}
+
+var _ android.RequiredFilesFromPrebuiltApex = (*SdkLibraryImport)(nil)
+
+func (module *SdkLibraryImport) RequiredFilesFromPrebuiltApex(ctx android.BaseModuleContext) []string {
+	name := module.BaseModuleName()
+	return requiredFilesFromPrebuiltApexForImport(name)
 }
 
 //
