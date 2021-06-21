@@ -46,6 +46,7 @@ func TestCcObjectSimple(t *testing.T) {
 		blueprint: `cc_object {
     name: "foo",
     local_include_dirs: ["include"],
+    default_shared_libs: [],
     cflags: [
         "-Wno-gcc-compat",
         "-Wall",
@@ -83,6 +84,7 @@ func TestCcObjectDefaults(t *testing.T) {
 		moduleTypeUnderTestBp2BuildMutator: cc.ObjectBp2Build,
 		blueprint: `cc_object {
     name: "foo",
+    default_shared_libs: [],
     local_include_dirs: ["include"],
     srcs: [
         "a/b/*.h",
@@ -135,12 +137,14 @@ func TestCcObjectCcObjetDepsInObjs(t *testing.T) {
 		},
 		blueprint: `cc_object {
     name: "foo",
+    default_shared_libs: [],
     srcs: ["a/b/c.c"],
     objs: ["bar"],
 }
 
 cc_object {
     name: "bar",
+    default_shared_libs: [],
     srcs: ["x/y/z.c"],
 }
 `,
@@ -178,6 +182,7 @@ func TestCcObjectIncludeBuildDirFalse(t *testing.T) {
 		},
 		blueprint: `cc_object {
     name: "foo",
+    default_shared_libs: [],
     srcs: ["a/b/c.c"],
     include_build_directory: false,
 }
@@ -199,6 +204,7 @@ func TestCcObjectProductVariable(t *testing.T) {
 		moduleTypeUnderTestBp2BuildMutator: cc.ObjectBp2Build,
 		blueprint: `cc_object {
     name: "foo",
+    default_shared_libs: [],
     include_build_directory: false,
     product_variables: {
         platform_sdk_version: {
@@ -227,6 +233,7 @@ func TestCcObjectCflagsOneArch(t *testing.T) {
 		moduleTypeUnderTestBp2BuildMutator: cc.ObjectBp2Build,
 		blueprint: `cc_object {
     name: "foo",
+    default_shared_libs: [],
     srcs: ["a.cpp"],
     arch: {
         x86: {
@@ -266,6 +273,7 @@ func TestCcObjectCflagsFourArch(t *testing.T) {
 		moduleTypeUnderTestBp2BuildMutator: cc.ObjectBp2Build,
 		blueprint: `cc_object {
     name: "foo",
+    default_shared_libs: [],
     srcs: ["base.cpp"],
     arch: {
         x86: {
@@ -321,6 +329,7 @@ func TestCcObjectCflagsMultiOs(t *testing.T) {
 		moduleTypeUnderTestBp2BuildMutator: cc.ObjectBp2Build,
 		blueprint: `cc_object {
     name: "foo",
+    default_shared_libs: [],
     srcs: ["base.cpp"],
     target: {
         android: {
