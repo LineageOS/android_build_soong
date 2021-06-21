@@ -414,6 +414,9 @@ type apexBundle struct {
 	// Path of API coverage generate file
 	apisUsedByModuleFile   android.ModuleOutPath
 	apisBackedByModuleFile android.ModuleOutPath
+
+	// Collect the module directory for IDE info in java/jdeps.go.
+	modulePaths []string
 }
 
 // apexFileClass represents a type of file that can be included in APEX.
@@ -1689,6 +1692,9 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	handleSpecialLibs := !android.Bool(a.properties.Ignore_system_library_special_case)
 
+	// Collect the module directory for IDE info in java/jdeps.go.
+	a.modulePaths = append(a.modulePaths, ctx.ModuleDir())
+
 	// TODO(jiyong): do this using WalkPayloadDeps
 	// TODO(jiyong): make this clean!!!
 	ctx.WalkDepsBlueprint(func(child, parent blueprint.Module) bool {
@@ -2454,6 +2460,14 @@ func (a *apexBundle) checkApexAvailability(ctx android.ModuleContext) {
 		// Visit this module's dependencies to check and report any issues with their availability.
 		return true
 	})
+}
+
+// Collect information for opening IDE project files in java/jdeps.go.
+func (a *apexBundle) IDEInfo(dpInfo *android.IdeInfo) {
+	dpInfo.Deps = append(dpInfo.Deps, a.properties.Java_libs...)
+	dpInfo.Deps = append(dpInfo.Deps, a.properties.Bootclasspath_fragments...)
+	dpInfo.Deps = append(dpInfo.Deps, a.properties.Systemserverclasspath_fragments...)
+	dpInfo.Paths = append(dpInfo.Paths, a.modulePaths...)
 }
 
 var (
