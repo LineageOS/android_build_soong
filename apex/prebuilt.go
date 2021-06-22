@@ -17,7 +17,6 @@ package apex
 import (
 	"fmt"
 	"io"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -559,15 +558,13 @@ func createDeapexerModuleIfNeeded(ctx android.TopDownMutatorContext, deapexerNam
 	ctx.WalkDeps(func(child, parent android.Module) bool {
 		tag := ctx.OtherModuleDependencyTag(child)
 
+		// If the child is not in the same apex as the parent then ignore it and all its children.
+		if !android.IsDepInSameApex(ctx, parent, child) {
+			return false
+		}
+
 		name := android.RemoveOptionalPrebuiltPrefix(ctx.OtherModuleName(child))
-		if java.IsBootclasspathFragmentContentDepTag(tag) || tag == exportedJavaLibTag {
-			commonModules = append(commonModules, name)
-
-			// Add the dex implementation jar to the set of exported files. The path here must match the
-			// path of the file in the APEX created by apexFileForJavaModule(...).
-			exportedFilesByKey[name+"{.dexjar}"] = filepath.Join("javalib", name+".jar")
-
-		} else if tag == exportedBootclasspathFragmentTag {
+		if _, ok := tag.(android.RequiresFilesFromPrebuiltApexTag); ok {
 			commonModules = append(commonModules, name)
 
 			requiredFiles := child.(android.RequiredFilesFromPrebuiltApex).RequiredFilesFromPrebuiltApex(ctx)
@@ -582,7 +579,8 @@ func createDeapexerModuleIfNeeded(ctx android.TopDownMutatorContext, deapexerNam
 				requiringModulesByKey[k] = child
 			}
 
-			// Make sure to visit the children of the bootclasspath_fragment.
+			// Visit the dependencies of this module just in case they also require files from the
+			// prebuilt apex.
 			return true
 		}
 
@@ -658,6 +656,10 @@ type exportedDependencyTag struct {
 // That makes it highly unlikely that a prebuilt_apex would reference a restricted module
 // incorrectly.
 func (t exportedDependencyTag) ExcludeFromVisibilityEnforcement() {}
+
+func (t exportedDependencyTag) RequiresFilesFromPrebuiltApex() {}
+
+var _ android.RequiresFilesFromPrebuiltApexTag = exportedDependencyTag{}
 
 var (
 	exportedJavaLibTag               = exportedDependencyTag{name: "exported_java_libs"}
