@@ -17,4 +17,10 @@ package config
 type toolchainBionic struct {
 }
 
+var (
+	bionicDefaultSharedLibraries = []string{"libc", "libm", "libdl"}
+)
+
 func (toolchainBionic) Bionic() bool { return true }
+
+func (toolchainBionic) DefaultSharedLibraries() []string { return bionicDefaultSharedLibraries }

@@ -106,6 +106,10 @@ type Toolchain interface {
 
 	AvailableLibraries() []string
 
+	// DefaultSharedLibraries returns the list of shared libraries that will be added to all
+	// targets unless they explicitly specify system_shared_libs.
+	DefaultSharedLibraries() []string
+
 	Bionic() bool
 }
 
@@ -165,7 +169,11 @@ func (toolchainBase) LibclangRuntimeLibraryArch() string {
 }
 
 func (toolchainBase) AvailableLibraries() []string {
-	return []string{}
+	return nil
+}
+
+func (toolchainBase) DefaultSharedLibraries() []string {
+	return nil
 }
 
 func (toolchainBase) Bionic() bool {
