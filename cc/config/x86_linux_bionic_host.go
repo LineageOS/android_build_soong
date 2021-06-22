@@ -76,6 +76,7 @@ func init() {
 
 type toolchainLinuxBionic struct {
 	toolchain64Bit
+	toolchainBionic
 }
 
 func (t *toolchainLinuxBionic) Name() string {
@@ -131,10 +132,6 @@ func (t *toolchainLinuxBionic) ToolchainClangLdflags() string {
 
 func (t *toolchainLinuxBionic) AvailableLibraries() []string {
 	return nil
-}
-
-func (t *toolchainLinuxBionic) Bionic() bool {
-	return true
 }
 
 func (toolchainLinuxBionic) LibclangRuntimeLibraryArch() string {

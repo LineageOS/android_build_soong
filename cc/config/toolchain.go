@@ -169,7 +169,7 @@ func (toolchainBase) AvailableLibraries() []string {
 }
 
 func (toolchainBase) Bionic() bool {
-	return true
+	return false
 }
 
 func (t toolchainBase) ToolPath() string {
