@@ -1426,6 +1426,24 @@ func (j *Import) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
 	return nil
 }
 
+// requiredFilesFromPrebuiltApexForImport returns information about the files that a java_import or
+// java_sdk_library_import with the specified base module name requires to be exported from a
+// prebuilt_apex/apex_set.
+func requiredFilesFromPrebuiltApexForImport(name string) map[string]string {
+	// Add the dex implementation jar to the set of exported files. The path here must match the
+	// path of the file in the APEX created by apexFileForJavaModule(...).
+	return map[string]string{
+		name + "{.dexjar}": filepath.Join("javalib", name+".jar"),
+	}
+}
+
+var _ android.RequiredFilesFromPrebuiltApex = (*Import)(nil)
+
+func (j *Import) RequiredFilesFromPrebuiltApex(ctx android.BaseModuleContext) map[string]string {
+	name := j.BaseModuleName()
+	return requiredFilesFromPrebuiltApexForImport(name)
+}
+
 // Add compile time check for interface implementation
 var _ android.IDEInfo = (*Import)(nil)
 var _ android.IDECustomizedModuleName = (*Import)(nil)

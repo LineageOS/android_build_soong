@@ -2265,6 +2265,13 @@ func (module *SdkLibraryImport) ImplementationAndResourcesJars() android.Paths {
 	}
 }
 
+var _ android.RequiredFilesFromPrebuiltApex = (*SdkLibraryImport)(nil)
+
+func (module *SdkLibraryImport) RequiredFilesFromPrebuiltApex(ctx android.BaseModuleContext) map[string]string {
+	name := module.BaseModuleName()
+	return requiredFilesFromPrebuiltApexForImport(name)
+}
+
 //
 // java_sdk_library_xml
 //
