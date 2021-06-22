@@ -293,9 +293,13 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 	}
 
 	// cc_test targets default to SYNC MemTag unless explicitly set to ASYNC (via diag: {memtag_heap}).
-	if ctx.testBinary() && s.Memtag_heap == nil {
-		s.Memtag_heap = proptools.BoolPtr(true)
-		s.Diag.Memtag_heap = proptools.BoolPtr(true)
+	if ctx.testBinary() {
+		if s.Memtag_heap == nil {
+			s.Memtag_heap = proptools.BoolPtr(true)
+		}
+		if s.Diag.Memtag_heap == nil {
+			s.Diag.Memtag_heap = proptools.BoolPtr(true)
+		}
 	}
 
 	var globalSanitizers []string
