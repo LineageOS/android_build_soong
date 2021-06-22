@@ -701,12 +701,6 @@ func (c *commonToSdkLibraryAndImport) stubsSourceModuleName(apiScope *apiScope) 
 	return c.namingScheme.stubsSourceModuleName(apiScope, c.moduleBase.BaseModuleName())
 }
 
-// Name of the droidstubs module that generates/checks the API. Only used if it
-// requires different arts to the stubs source generating module.
-func (c *commonToSdkLibraryAndImport) apiModuleName(apiScope *apiScope) string {
-	return c.namingScheme.apiModuleName(apiScope, c.moduleBase.BaseModuleName())
-}
-
 // The component names for different outputs of the java_sdk_library.
 //
 // They are similar to the names used for the child modules it creates
@@ -1732,8 +1726,6 @@ type sdkLibraryComponentNamingScheme interface {
 	stubsLibraryModuleName(scope *apiScope, baseName string) string
 
 	stubsSourceModuleName(scope *apiScope, baseName string) string
-
-	apiModuleName(scope *apiScope, baseName string) string
 }
 
 type defaultNamingScheme struct {
@@ -1745,10 +1737,6 @@ func (s *defaultNamingScheme) stubsLibraryModuleName(scope *apiScope, baseName s
 
 func (s *defaultNamingScheme) stubsSourceModuleName(scope *apiScope, baseName string) string {
 	return scope.stubsSourceModuleName(baseName)
-}
-
-func (s *defaultNamingScheme) apiModuleName(scope *apiScope, baseName string) string {
-	return scope.apiModuleName(baseName)
 }
 
 var _ sdkLibraryComponentNamingScheme = (*defaultNamingScheme)(nil)
