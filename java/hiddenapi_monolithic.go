@@ -68,6 +68,14 @@ func newMonolithicHiddenAPIInfo(ctx android.ModuleContext, flagFilesByCategory F
 			if ctx.OtherModuleHasProvider(fragment, HiddenAPIInfoProvider) {
 				info := ctx.OtherModuleProvider(fragment, HiddenAPIInfoProvider).(HiddenAPIInfo)
 				monolithicInfo.append(&info)
+
+				// If the bootclasspath fragment actually perform hidden API processing itself then use the
+				// CSV files it provides and do not bother processing the classesJars files. This ensures
+				// consistent behavior between source and prebuilt as prebuilt modules do not provide
+				// classesJars.
+				if info.AllFlagsPath != nil {
+					continue
+				}
 			}
 
 			classesJars = extractClassesJarsFromModules(e.Contents)
