@@ -484,6 +484,28 @@ sdk_snapshot {
 .intermediates/mycoreplatform.stubs.source/android_common/metalava/mycoreplatform.stubs.source_removed.txt -> sdk_library/public/mycoreplatform-removed.txt
 `),
 		snapshotTestPreparer(checkSnapshotWithoutSource, preparerForSnapshot),
+		snapshotTestChecker(checkSnapshotWithoutSource, func(t *testing.T, result *android.TestResult) {
+			module := result.ModuleForTests("platform-bootclasspath", "android_common")
+			var rule android.TestingBuildParams
+			rule = module.Output("out/soong/hiddenapi/hiddenapi-flags.csv")
+			java.CheckHiddenAPIRuleInputs(t, "monolithic flags", `
+				out/soong/.intermediates/frameworks/base/boot/platform-bootclasspath/android_common/hiddenapi-monolithic/annotation-flags-from-classes.csv
+        out/soong/hiddenapi/hiddenapi-stub-flags.txt
+        snapshot/hiddenapi/annotation-flags.csv
+			`, rule)
+
+			rule = module.Output("out/soong/hiddenapi/hiddenapi-unsupported.csv")
+			java.CheckHiddenAPIRuleInputs(t, "monolithic metadata", `
+				out/soong/.intermediates/frameworks/base/boot/platform-bootclasspath/android_common/hiddenapi-monolithic/metadata-from-classes.csv
+        snapshot/hiddenapi/metadata.csv
+			`, rule)
+
+			rule = module.Output("out/soong/hiddenapi/hiddenapi-index.csv")
+			java.CheckHiddenAPIRuleInputs(t, "monolithic index", `
+				out/soong/.intermediates/frameworks/base/boot/platform-bootclasspath/android_common/hiddenapi-monolithic/index-from-classes.csv
+        snapshot/hiddenapi/index.csv
+			`, rule)
+		}),
 		snapshotTestPreparer(checkSnapshotWithSourcePreferred, preparerForSnapshot),
 		snapshotTestPreparer(checkSnapshotPreferredWithSource, preparerForSnapshot),
 	)
