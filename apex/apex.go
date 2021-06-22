@@ -130,6 +130,10 @@ type apexBundleProperties struct {
 	// symlinking to the system libs. Default is true.
 	Updatable *bool
 
+	// Whether this APEX can use platform APIs or not. Can be set to true only when `updatable:
+	// false`. Default is false.
+	Platform_apis *bool
+
 	// Whether this APEX is installable to one of the partitions like system, vendor, etc.
 	// Default: true.
 	Installable *bool
@@ -905,6 +909,7 @@ func (a *apexBundle) ApexInfoMutator(mctx android.TopDownMutatorContext) {
 		MinSdkVersion:     minSdkVersion,
 		RequiredSdks:      a.RequiredSdks(),
 		Updatable:         a.Updatable(),
+		UsePlatformApis:   a.UsePlatformApis(),
 		InApexVariants:    []string{mctx.ModuleName()}, // could be com.android.foo
 		InApexModules:     []string{a.Name()},          // could be com.mycompany.android.foo
 		ApexContents:      []*android.ApexContents{apexContents},
@@ -1269,6 +1274,10 @@ var _ android.ApexBundleDepsInfoIntf = (*apexBundle)(nil)
 // Implements android.ApexBudleDepsInfoIntf
 func (a *apexBundle) Updatable() bool {
 	return proptools.BoolDefault(a.properties.Updatable, true)
+}
+
+func (a *apexBundle) UsePlatformApis() bool {
+	return proptools.BoolDefault(a.properties.Platform_apis, false)
 }
 
 // getCertString returns the name of the cert that should be used to sign this APEX. This is
@@ -2310,6 +2319,9 @@ func (a *apexBundle) checkUpdatable(ctx android.ModuleContext) {
 	if a.Updatable() {
 		if String(a.properties.Min_sdk_version) == "" {
 			ctx.PropertyErrorf("updatable", "updatable APEXes should set min_sdk_version as well")
+		}
+		if a.UsePlatformApis() {
+			ctx.PropertyErrorf("updatable", "updatable APEXes can't use platform APIs")
 		}
 		a.checkJavaStableSdkVersion(ctx)
 		a.checkClasspathFragments(ctx)

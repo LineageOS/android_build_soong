@@ -54,6 +54,10 @@ type ApexInfo struct {
 	// True if this module comes from an updatable apexBundle.
 	Updatable bool
 
+	// True if this module can use private platform APIs. Only non-updatable APEX can set this
+	// to true.
+	UsePlatformApis bool
+
 	// The list of SDK modules that the containing apexBundle depends on.
 	RequiredSdks SdkRefs
 
@@ -91,11 +95,16 @@ var ApexInfoProvider = blueprint.NewMutatorProvider(ApexInfo{}, "apex")
 // of a module can be deduped into one variation. For example, if libfoo is included in both apex.a
 // and apex.b, and if the two APEXes have the same min_sdk_version (say 29), then libfoo doesn't
 // have to be built twice, but only once. In that case, the two apex variations apex.a and apex.b
-// are configured to have the same alias variation named apex29.
+// are configured to have the same alias variation named apex29. Whether platform APIs is allowed
+// or not also matters; if two APEXes don't have the same allowance, they get different names and
+// thus wouldn't be merged.
 func (i ApexInfo) mergedName(ctx PathContext) string {
 	name := "apex" + strconv.Itoa(i.MinSdkVersion.FinalOrFutureInt())
 	for _, sdk := range i.RequiredSdks {
 		name += "_" + sdk.Name + "_" + sdk.Version
+	}
+	if i.UsePlatformApis {
+		name += "_private"
 	}
 	return name
 }
@@ -527,6 +536,10 @@ func mergeApexVariations(ctx PathContext, apexInfos []ApexInfo) (merged []ApexIn
 			merged[index].InApexModules = append(merged[index].InApexModules, apexInfo.InApexModules...)
 			merged[index].ApexContents = append(merged[index].ApexContents, apexInfo.ApexContents...)
 			merged[index].Updatable = merged[index].Updatable || apexInfo.Updatable
+			if merged[index].UsePlatformApis != apexInfo.UsePlatformApis {
+				panic(fmt.Errorf("variants having different UsePlatformApis can't be merged"))
+			}
+			merged[index].UsePlatformApis = apexInfo.UsePlatformApis
 		} else {
 			seen[mergedName] = len(merged)
 			apexInfo.ApexVariationName = mergedName
