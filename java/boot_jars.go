@@ -31,13 +31,18 @@ func isActiveModule(module android.Module) bool {
 // buildRuleForBootJarsPackageCheck generates the build rule to perform the boot jars package
 // check.
 func buildRuleForBootJarsPackageCheck(ctx android.ModuleContext, bootDexJarByModule bootDexJarByModule) {
+	bootDexJars := bootDexJarByModule.bootDexJarsWithoutCoverage()
+	if len(bootDexJars) == 0 {
+		return
+	}
+
 	timestamp := android.PathForOutput(ctx, "boot-jars-package-check/stamp")
 
 	rule := android.NewRuleBuilder(pctx, ctx)
 	rule.Command().BuiltTool("check_boot_jars").
 		Input(ctx.Config().HostToolPath(ctx, "dexdump")).
 		Input(android.PathForSource(ctx, "build/soong/scripts/check_boot_jars/package_allowed_list.txt")).
-		Inputs(bootDexJarByModule.bootDexJarsWithoutCoverage()).
+		Inputs(bootDexJars).
 		Text("&& touch").Output(timestamp)
 	rule.Build("boot_jars_package_check", "check boot jar packages")
 
