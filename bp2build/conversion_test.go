@@ -80,16 +80,20 @@ func TestCreateBazelFiles_QueryView_AddsTopLevelFiles(t *testing.T) {
 }
 
 func TestCreateBazelFiles_Bp2Build_CreatesDefaultFiles(t *testing.T) {
-	files := CreateSoongInjectionFiles()
+	files := CreateSoongInjectionFiles(CodegenCompatLayer{})
 
 	expectedFilePaths := []bazelFilepath{
 		{
 			dir:      "cc_toolchain",
-			basename: "BUILD",
+			basename: GeneratedBuildFileName,
 		},
 		{
 			dir:      "cc_toolchain",
 			basename: "constants.bzl",
+		},
+		{
+			dir:      "module_name_to_label",
+			basename: GeneratedBuildFileName,
 		},
 	}
 
@@ -104,7 +108,7 @@ func TestCreateBazelFiles_Bp2Build_CreatesDefaultFiles(t *testing.T) {
 			t.Errorf("Did not find expected file %s/%s", actualFile.Dir, actualFile.Basename)
 		}
 
-		if expectedFile.basename != "BUILD" && actualFile.Contents == "" {
+		if expectedFile.basename != GeneratedBuildFileName && actualFile.Contents == "" {
 			t.Errorf("Contents of %s unexpected empty.", actualFile)
 		}
 	}
