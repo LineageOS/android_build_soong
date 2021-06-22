@@ -40,16 +40,6 @@ import (
 // This is intentionally not registered by name as it is not intended to be used from within an
 // `Android.bp` file.
 
-// DeapexerExportedFile defines the properties needed to expose a file from the deapexer module.
-type DeapexerExportedFile struct {
-	// The tag parameter which must be passed to android.DeapexerInfo's PrebuiltExportPath(name, tag)
-	// method to retrieve the path to the unpacked file.
-	Tag string
-
-	// The path within the APEX that needs to be exported.
-	Path string `android:"path"`
-}
-
 // DeapexerProperties specifies the properties supported by the deapexer module.
 //
 // As these are never intended to be supplied in a .bp file they use a different naming convention
@@ -62,7 +52,9 @@ type DeapexerProperties struct {
 	CommonModules []string
 
 	// List of files exported from the .apex file by this module
-	ExportedFiles []DeapexerExportedFile
+	//
+	// Each entry is a path from the apex root, e.g. javalib/core-libart.jar.
+	ExportedFiles []string
 }
 
 type SelectedApexProperties struct {
@@ -107,27 +99,23 @@ func (p *Deapexer) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	exports := make(map[string]android.Path)
 
-	// Create mappings from name+tag to all the required exported paths.
-	for _, e := range p.properties.ExportedFiles {
-		tag := e.Tag
-		path := e.Path
-
+	// Create mappings from apex relative path to the extracted file's path.
+	exportedPaths := make(android.Paths, 0, len(exports))
+	for _, path := range p.properties.ExportedFiles {
 		// Populate the exports that this makes available.
-		exports[tag] = deapexerOutput.Join(ctx, path)
+		extractedPath := deapexerOutput.Join(ctx, path)
+		exports[path] = extractedPath
+		exportedPaths = append(exportedPaths, extractedPath)
 	}
 
 	// If the prebuilt_apex exports any files then create a build rule that unpacks the apex using
 	// deapexer and verifies that all the required files were created. Also, make the mapping from
-	// name+tag to path available for other modules.
+	// apex relative path to extracted file path available for other modules.
 	if len(exports) > 0 {
 		// Make the information available for other modules.
 		ctx.SetProvider(android.DeapexerProvider, android.NewDeapexerInfo(exports))
 
 		// Create a sorted list of the files that this exports.
-		exportedPaths := make(android.Paths, 0, len(exports))
-		for _, p := range exports {
-			exportedPaths = append(exportedPaths, p)
-		}
 		exportedPaths = android.SortedUniquePaths(exportedPaths)
 
 		// The apex needs to export some files so create a ninja rule to unpack the apex and check that
