@@ -262,6 +262,8 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 	b.hiddenAPIIndexCSV = hiddenAPISingletonPaths(ctx).index
 	b.hiddenAPIMetadataCSV = hiddenAPISingletonPaths(ctx).metadata
 
+	bootDexJarByModule := extractBootDexJarsFromModules(ctx, modules)
+
 	// Don't run any hiddenapi rules if UNSAFE_DISABLE_HIDDENAPI_FLAGS=true. This is a performance
 	// optimization that can be used to reduce the incremental build time but as its name suggests it
 	// can be unsafe to use, e.g. when the changes affect anything that goes on the bootclasspath.
@@ -273,7 +275,7 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 				Output: path,
 			})
 		}
-		return nil
+		return bootDexJarByModule
 	}
 
 	// Construct a list of ClasspathElement objects from the modules and fragments.
@@ -296,7 +298,6 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 	input.FlagFilesByCategory = monolithicInfo.FlagsFilesByCategory
 
 	// Generate the monolithic stub-flags.csv file.
-	bootDexJarByModule := extractBootDexJarsFromModules(ctx, modules)
 	stubFlags := hiddenAPISingletonPaths(ctx).stubFlags
 	rule := ruleToGenerateHiddenAPIStubFlagsFile(ctx, stubFlags, bootDexJarByModule.bootDexJars(), input)
 	rule.Build("platform-bootclasspath-monolithic-hiddenapi-stub-flags", "monolithic hidden API stub flags")
