@@ -106,6 +106,13 @@ type Toolchain interface {
 
 	AvailableLibraries() []string
 
+	CrtBeginStaticBinary() []string
+	CrtBeginSharedBinary() []string
+	CrtBeginSharedLibrary() []string
+	CrtEndStaticBinary() []string
+	CrtEndSharedBinary() []string
+	CrtEndSharedLibrary() []string
+
 	// DefaultSharedLibraries returns the list of shared libraries that will be added to all
 	// targets unless they explicitly specify system_shared_libs.
 	DefaultSharedLibraries() []string
@@ -171,6 +178,13 @@ func (toolchainBase) LibclangRuntimeLibraryArch() string {
 func (toolchainBase) AvailableLibraries() []string {
 	return nil
 }
+
+func (toolchainBase) CrtBeginStaticBinary() []string  { return nil }
+func (toolchainBase) CrtBeginSharedBinary() []string  { return nil }
+func (toolchainBase) CrtBeginSharedLibrary() []string { return nil }
+func (toolchainBase) CrtEndStaticBinary() []string    { return nil }
+func (toolchainBase) CrtEndSharedBinary() []string    { return nil }
+func (toolchainBase) CrtEndSharedLibrary() []string   { return nil }
 
 func (toolchainBase) DefaultSharedLibraries() []string {
 	return nil
