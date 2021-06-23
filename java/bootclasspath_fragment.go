@@ -496,13 +496,14 @@ func (b *BootclasspathFragmentModule) provideApexContentInfo(ctx android.ModuleC
 // generateClasspathProtoBuildActions generates all required build actions for classpath.proto config
 func (b *BootclasspathFragmentModule) generateClasspathProtoBuildActions(ctx android.ModuleContext) {
 	var classpathJars []classpathJar
+	configuredJars := b.configuredJars(ctx)
 	if "art" == proptools.String(b.properties.Image_name) {
 		// ART and platform boot jars must have a corresponding entry in DEX2OATBOOTCLASSPATH
-		classpathJars = configuredJarListToClasspathJars(ctx, b.configuredJars(ctx), BOOTCLASSPATH, DEX2OATBOOTCLASSPATH)
+		classpathJars = configuredJarListToClasspathJars(ctx, configuredJars, BOOTCLASSPATH, DEX2OATBOOTCLASSPATH)
 	} else {
-		classpathJars = configuredJarListToClasspathJars(ctx, b.configuredJars(ctx), b.classpathType)
+		classpathJars = configuredJarListToClasspathJars(ctx, configuredJars, b.classpathType)
 	}
-	b.classpathFragmentBase().generateClasspathProtoBuildActions(ctx, classpathJars)
+	b.classpathFragmentBase().generateClasspathProtoBuildActions(ctx, configuredJars, classpathJars)
 }
 
 func (b *BootclasspathFragmentModule) configuredJars(ctx android.ModuleContext) android.ConfiguredJarList {
