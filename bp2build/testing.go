@@ -213,6 +213,6 @@ func customBp2BuildMutatorFromStarlark(ctx android.TopDownMutatorContext) {
 // Helper method for tests to easily access the targets in a dir.
 func generateBazelTargetsForDir(codegenCtx *CodegenContext, dir string) BazelTargets {
 	// TODO: Set generateFilegroups to true and/or remove the generateFilegroups argument completely
-	buildFileToTargets, _ := GenerateBazelTargets(codegenCtx, false)
+	buildFileToTargets, _, _ := GenerateBazelTargets(codegenCtx, false)
 	return buildFileToTargets[dir]
 }
