@@ -260,8 +260,8 @@ type embeddableInModuleAndImport struct {
 	EmbeddableSdkLibraryComponent
 }
 
-func (e *embeddableInModuleAndImport) initModuleAndImport(moduleBase *android.ModuleBase) {
-	e.initSdkLibraryComponent(moduleBase)
+func (e *embeddableInModuleAndImport) initModuleAndImport(module android.Module) {
+	e.initSdkLibraryComponent(module)
 }
 
 // Module/Import's DepIsInSameApex(...) delegates to this method.
