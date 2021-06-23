@@ -371,7 +371,7 @@ func IsForVndkApex(mctx android.BottomUpMutatorContext, m *Module) bool {
 			if mctx.ModuleName() == "libz" {
 				return false
 			}
-			return m.ImageVariation().Variation == android.CoreVariation && lib.shared() && m.IsVndkSp()
+			return m.ImageVariation().Variation == android.CoreVariation && lib.shared() && m.IsVndkSp() && !m.IsVndkExt()
 		}
 
 		useCoreVariant := m.VndkVersion() == mctx.DeviceConfig().PlatformVndkVersion() &&
