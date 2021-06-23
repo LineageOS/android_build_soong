@@ -44,13 +44,9 @@ type platformBootclasspathModule struct {
 	properties platformBootclasspathProperties
 
 	// The apex:module pairs obtained from the configured modules.
-	//
-	// Currently only for testing.
 	configuredModules []android.Module
 
 	// The apex:module pairs obtained from the fragments.
-	//
-	// Currently only for testing.
 	fragments []android.Module
 
 	// Path to the monolithic hiddenapi-flags.csv file.
@@ -282,7 +278,15 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 		return bootDexJarByModule
 	}
 
-	monolithicInfo := b.createAndProvideMonolithicHiddenAPIInfo(ctx, fragments)
+	// Construct a list of ClasspathElement objects from the modules and fragments.
+	classpathElements := CreateClasspathElements(ctx, modules, fragments)
+
+	monolithicInfo := b.createAndProvideMonolithicHiddenAPIInfo(ctx, classpathElements)
+
+	// Extract the classes jars only from those libraries that do not have corresponding fragments as
+	// the fragments will have already provided the flags that are needed.
+	classesJars := monolithicInfo.ClassesJars
+
 	// Create the input to pass to ruleToGenerateHiddenAPIStubFlagsFile
 	input := newHiddenAPIFlagInput()
 
@@ -297,9 +301,6 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 	stubFlags := hiddenAPISingletonPaths(ctx).stubFlags
 	rule := ruleToGenerateHiddenAPIStubFlagsFile(ctx, stubFlags, bootDexJarByModule.bootDexJars(), input)
 	rule.Build("platform-bootclasspath-monolithic-hiddenapi-stub-flags", "monolithic hidden API stub flags")
-
-	// Extract the classes jars from the contents.
-	classesJars := extractClassesJarsFromModules(modules)
 
 	// Generate the annotation-flags.csv file from all the module annotations.
 	annotationFlags := android.PathForModuleOut(ctx, "hiddenapi-monolithic", "annotation-flags.csv")
@@ -330,7 +331,7 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 
 // createAndProvideMonolithicHiddenAPIInfo creates a MonolithicHiddenAPIInfo and provides it for
 // testing.
-func (b *platformBootclasspathModule) createAndProvideMonolithicHiddenAPIInfo(ctx android.ModuleContext, fragments []android.Module) MonolithicHiddenAPIInfo {
+func (b *platformBootclasspathModule) createAndProvideMonolithicHiddenAPIInfo(ctx android.ModuleContext, classpathElements ClasspathElements) MonolithicHiddenAPIInfo {
 	// Create a temporary input structure in which to collate information provided directly by this
 	// module, either through properties or direct dependencies.
 	temporaryInput := newHiddenAPIFlagInput()
@@ -340,7 +341,7 @@ func (b *platformBootclasspathModule) createAndProvideMonolithicHiddenAPIInfo(ct
 
 	// Create the monolithic info, by starting with the flag files specified on this and then merging
 	// in information from all the fragment dependencies of this.
-	monolithicInfo := newMonolithicHiddenAPIInfo(ctx, temporaryInput.FlagFilesByCategory, fragments)
+	monolithicInfo := newMonolithicHiddenAPIInfo(ctx, temporaryInput.FlagFilesByCategory, classpathElements)
 
 	// Store the information for testing.
 	ctx.SetProvider(MonolithicHiddenAPIInfoProvider, monolithicInfo)
