@@ -47,9 +47,9 @@ for subsetPath in args.subsets:
             if signature in allFlagsBySignature:
                 allFlags = allFlagsBySignature.get(signature)
                 if allFlags != row:
-                    mismatchingSignatures.append((signature, row[None], allFlags[None]))
+                    mismatchingSignatures.append((signature, row.get(None, []), allFlags.get(None, [])))
             else:
-                mismatchingSignatures.append((signature, row[None], []))
+                mismatchingSignatures.append((signature, row.get(None, []), []))
 
 
     if mismatchingSignatures:
@@ -60,7 +60,7 @@ for subsetPath in args.subsets:
         for mismatch in mismatchingSignatures:
             print()
             print("< " + mismatch[0] + "," + ",".join(mismatch[1]))
-            if mismatch[2] != None:
+            if mismatch[2] != []:
                 print("> " + mismatch[0] + "," + ",".join(mismatch[2]))
             else:
                 print("> " + mismatch[0] + " - missing")
