@@ -300,6 +300,22 @@ type BpModule interface {
 	Name() string
 }
 
+// BpPrintable is a marker interface that must be implemented by any struct that is added as a
+// property value.
+type BpPrintable interface {
+	bpPrintable()
+}
+
+// BpPrintableBase must be embedded within any struct that is added as a
+// property value.
+type BpPrintableBase struct {
+}
+
+func (b BpPrintableBase) bpPrintable() {
+}
+
+var _ BpPrintable = BpPrintableBase{}
+
 // An individual member of the SDK, includes all of the variants that the SDK
 // requires.
 type SdkMember interface {

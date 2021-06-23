@@ -824,30 +824,63 @@ func outputUnnamedValue(contents *generatedContents, value reflect.Value) {
 	case reflect.String:
 		contents.UnindentedPrintf("%q", value)
 
+	case reflect.Ptr:
+		outputUnnamedValue(contents, value.Elem())
+
 	case reflect.Slice:
 		length := value.Len()
 		if length == 0 {
 			contents.UnindentedPrintf("[]")
-		} else if length == 1 {
-			contents.UnindentedPrintf("[")
-			outputUnnamedValue(contents, value.Index(0))
-			contents.UnindentedPrintf("]")
 		} else {
-			contents.UnindentedPrintf("[\n")
-			contents.Indent()
-			for i := 0; i < length; i++ {
-				itemValue := value.Index(i)
-				contents.IndentedPrintf("")
-				outputUnnamedValue(contents, itemValue)
-				contents.UnindentedPrintf(",\n")
+			firstValue := value.Index(0)
+			if length == 1 && !multiLineValue(firstValue) {
+				contents.UnindentedPrintf("[")
+				outputUnnamedValue(contents, firstValue)
+				contents.UnindentedPrintf("]")
+			} else {
+				contents.UnindentedPrintf("[\n")
+				contents.Indent()
+				for i := 0; i < length; i++ {
+					itemValue := value.Index(i)
+					contents.IndentedPrintf("")
+					outputUnnamedValue(contents, itemValue)
+					contents.UnindentedPrintf(",\n")
+				}
+				contents.Dedent()
+				contents.IndentedPrintf("]")
 			}
-			contents.Dedent()
-			contents.IndentedPrintf("]")
 		}
+
+	case reflect.Struct:
+		// Avoid unlimited recursion by requiring every structure to implement android.BpPrintable.
+		v := value.Interface()
+		if _, ok := v.(android.BpPrintable); !ok {
+			panic(fmt.Errorf("property value %#v of type %T does not implement android.BpPrintable", v, v))
+		}
+		contents.UnindentedPrintf("{\n")
+		contents.Indent()
+		for f := 0; f < valueType.NumField(); f++ {
+			fieldType := valueType.Field(f)
+			if fieldType.Anonymous {
+				continue
+			}
+			fieldValue := value.Field(f)
+			fieldName := fieldType.Name
+			propertyName := proptools.PropertyNameForField(fieldName)
+			outputNamedValue(contents, propertyName, fieldValue)
+		}
+		contents.Dedent()
+		contents.IndentedPrintf("}")
 
 	default:
 		panic(fmt.Errorf("Unknown type: %T of value %#v", value, value))
 	}
+}
+
+// multiLineValue returns true if the supplied value may require multiple lines in the output.
+func multiLineValue(value reflect.Value) bool {
+	kind := value.Kind()
+	return kind == reflect.Slice || kind == reflect.Struct
 }
 
 func (s *sdk) GetAndroidBpContentsForTests() string {
