@@ -634,7 +634,7 @@ type commonToSdkLibraryAndImportProperties struct {
 // commonSdkLibraryAndImportModule defines the interface that must be provided by a module that
 // embeds the commonToSdkLibraryAndImport struct.
 type commonSdkLibraryAndImportModule interface {
-	android.Module
+	android.SdkAware
 
 	BaseModuleName() string
 }
@@ -700,13 +700,19 @@ func (c *commonToSdkLibraryAndImport) xmlPermissionsModuleName() string {
 
 // Name of the java_library module that compiles the stubs source.
 func (c *commonToSdkLibraryAndImport) stubsLibraryModuleName(apiScope *apiScope) string {
-	return c.namingScheme.stubsLibraryModuleName(apiScope, c.module.BaseModuleName())
+	baseName := c.module.BaseModuleName()
+	return c.module.SdkMemberComponentName(baseName, func(name string) string {
+		return c.namingScheme.stubsLibraryModuleName(apiScope, name)
+	})
 }
 
 // Name of the droidstubs module that generates the stubs source and may also
 // generate/check the API.
 func (c *commonToSdkLibraryAndImport) stubsSourceModuleName(apiScope *apiScope) string {
-	return c.namingScheme.stubsSourceModuleName(apiScope, c.module.BaseModuleName())
+	baseName := c.module.BaseModuleName()
+	return c.module.SdkMemberComponentName(baseName, func(name string) string {
+		return c.namingScheme.stubsSourceModuleName(apiScope, name)
+	})
 }
 
 // The component names for different outputs of the java_sdk_library.
@@ -1170,6 +1176,10 @@ func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext)
 		module.Library.GenerateAndroidBuildActions(ctx)
 	}
 
+	// Collate the components exported by this module. All scope specific modules are exported but
+	// the impl and xml component modules are not.
+	exportedComponents := map[string]struct{}{}
+
 	// Record the paths to the header jars of the library (stubs and impl).
 	// When this java_sdk_library is depended upon from others via "libs" property,
 	// the recorded paths will be returned depending on the link type of the caller.
@@ -1184,8 +1194,14 @@ func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext)
 			// Extract information from the dependency. The exact information extracted
 			// is determined by the nature of the dependency which is determined by the tag.
 			scopeTag.extractDepInfo(ctx, to, scopePaths)
+
+			exportedComponents[ctx.OtherModuleName(to)] = struct{}{}
 		}
 	})
+
+	// Make the set of components exported by this module available for use elsewhere.
+	exportedComponentInfo := android.ExportedComponentsInfo{Components: android.SortedStringKeys(exportedComponents)}
+	ctx.SetProvider(android.ExportedComponentsInfoProvider, exportedComponentInfo)
 }
 
 func (module *SdkLibrary) AndroidMkEntries() []android.AndroidMkEntries {
