@@ -4416,11 +4416,13 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 		}
 	}
 
-	checkHiddenAPIIndexInputs := func(t *testing.T, ctx *android.TestContext, expectedInputs string) {
+	checkHiddenAPIIndexInputs := func(t *testing.T, ctx *android.TestContext, expectedIntermediateInputs string) {
 		t.Helper()
 		platformBootclasspath := ctx.ModuleForTests("platform-bootclasspath", "android_common")
-		indexRule := platformBootclasspath.Rule("monolithic_hidden_API_index")
-		java.CheckHiddenAPIRuleInputs(t, "index", expectedInputs, indexRule)
+		var rule android.TestingBuildParams
+
+		rule = platformBootclasspath.Output("hiddenapi-monolithic/index-from-classes.csv")
+		java.CheckHiddenAPIRuleInputs(t, "intermediate index", expectedIntermediateInputs, rule)
 	}
 
 	fragment := java.ApexVariantReference{

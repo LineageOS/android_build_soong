@@ -524,7 +524,7 @@ func (i *HiddenAPIFlagInput) gatherStubLibInfo(ctx android.ModuleContext, conten
 		}
 	}
 
-	ctx.VisitDirectDepsIf(isActiveModule, func(module android.Module) {
+	ctx.VisitDirectDeps(func(module android.Module) {
 		tag := ctx.OtherModuleDependencyTag(module)
 		if hiddenAPIStubsTag, ok := tag.(hiddenAPIStubsDependencyTag); ok {
 			kind := hiddenAPIStubsTag.sdkKind
@@ -634,7 +634,7 @@ func pathForValidation(ctx android.PathContext, path android.WritablePath) andro
 // hiddenAPIInfo is a struct containing paths to files that augment the information provided by
 // the annotationFlags.
 func buildRuleToGenerateHiddenApiFlags(ctx android.BuilderContext, name, desc string,
-	outputPath android.WritablePath, baseFlagsPath android.Path, annotationFlags android.Path,
+	outputPath android.WritablePath, baseFlagsPath android.Path, annotationFlagPaths android.Paths,
 	flagFilesByCategory FlagFilesByCategory, allFlagsPaths android.Paths, generatedRemovedDexSignatures android.OptionalPath) {
 
 	// The file which is used to record that the flags file is valid.
@@ -665,7 +665,7 @@ func buildRuleToGenerateHiddenApiFlags(ctx android.BuilderContext, name, desc st
 	command := rule.Command().
 		BuiltTool("generate_hiddenapi_lists").
 		FlagWithInput("--csv ", baseFlagsPath).
-		Input(annotationFlags).
+		Inputs(annotationFlagPaths).
 		FlagWithOutput("--output ", tempPath)
 
 	// Add the options for the different categories of flag files.
@@ -747,7 +747,7 @@ func hiddenAPIRulesForBootclasspathFragment(ctx android.ModuleContext, contents 
 	// Generate the all-flags.csv which are the flags that will, in future, be encoded into the dex
 	// files.
 	allFlagsCSV := android.PathForModuleOut(ctx, hiddenApiSubDir, "all-flags.csv")
-	buildRuleToGenerateHiddenApiFlags(ctx, "modularHiddenApiAllFlags", "modular hiddenapi all flags", allFlagsCSV, stubFlagsCSV, annotationFlagsCSV, input.FlagFilesByCategory, nil, removedDexSignatures)
+	buildRuleToGenerateHiddenApiFlags(ctx, "modularHiddenApiAllFlags", "modular hiddenapi all flags", allFlagsCSV, stubFlagsCSV, android.Paths{annotationFlagsCSV}, input.FlagFilesByCategory, nil, removedDexSignatures)
 
 	// Encode the flags into the boot dex files.
 	encodedBootDexJarsByModule := map[string]android.Path{}
