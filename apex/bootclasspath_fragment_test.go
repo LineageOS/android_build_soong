@@ -718,4 +718,153 @@ func TestBootclasspathFragmentContentsNoName(t *testing.T) {
 	checkFragmentExportedDexJar("bar", "out/soong/.intermediates/mybootclasspathfragment/android_common_apex10000/hiddenapi-modular/encoded/bar.jar")
 }
 
+func getDexJarPath(result *android.TestResult, name string) string {
+	module := result.Module(name, "android_common")
+	return module.(java.UsesLibraryDependency).DexJarBuildPath().RelativeToTop().String()
+}
+
+// TestBootclasspathFragment_HiddenAPIList checks to make sure that the correct parameters are
+// passed to the hiddenapi list tool.
+func TestBootclasspathFragment_HiddenAPIList(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		prepareForTestWithBootclasspathFragment,
+		prepareForTestWithArtApex,
+		prepareForTestWithMyapex,
+		// Configure bootclasspath jars to ensure that hidden API encoding is performed on them.
+		java.FixtureConfigureBootJars("com.android.art:baz", "com.android.art:quuz"),
+		java.FixtureConfigureUpdatableBootJars("myapex:foo", "myapex:bar"),
+		// Make sure that the frameworks/base/Android.bp file exists as otherwise hidden API encoding
+		// is disabled.
+		android.FixtureAddTextFile("frameworks/base/Android.bp", ""),
+
+		java.PrepareForTestWithJavaSdkLibraryFiles,
+		java.FixtureWithLastReleaseApis("foo", "quuz"),
+	).RunTestWithBp(t, `
+		apex {
+			name: "com.android.art",
+			key: "com.android.art.key",
+			bootclasspath_fragments: ["art-bootclasspath-fragment"],
+			updatable: false,
+		}
+
+		apex_key {
+			name: "com.android.art.key",
+			public_key: "com.android.art.avbpubkey",
+			private_key: "com.android.art.pem",
+		}
+
+		java_library {
+			name: "baz",
+			apex_available: [
+				"com.android.art",
+			],
+			srcs: ["b.java"],
+			compile_dex: true,
+		}
+
+		java_sdk_library {
+			name: "quuz",
+			apex_available: [
+				"com.android.art",
+			],
+			srcs: ["b.java"],
+			compile_dex: true,
+			public: {enabled: true},
+			system: {enabled: true},
+			test: {enabled: true},
+			module_lib: {enabled: true},
+		}
+
+		bootclasspath_fragment {
+			name: "art-bootclasspath-fragment",
+			image_name: "art",
+			// Must match the "com.android.art:" entries passed to FixtureConfigureBootJars above.
+			contents: ["baz", "quuz"],
+			apex_available: [
+				"com.android.art",
+			],
+		}
+
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			bootclasspath_fragments: [
+				"mybootclasspathfragment",
+			],
+			updatable: false,
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		java_sdk_library {
+			name: "foo",
+			srcs: ["b.java"],
+			shared_library: false,
+			public: {enabled: true},
+			apex_available: [
+				"myapex",
+			],
+		}
+
+		java_library {
+			name: "bar",
+			srcs: ["b.java"],
+			installable: true,
+			apex_available: [
+				"myapex",
+			],
+		}
+
+		bootclasspath_fragment {
+			name: "mybootclasspathfragment",
+			contents: [
+				"foo",
+				"bar",
+			],
+			apex_available: [
+				"myapex",
+			],
+			fragments: [
+				{
+					apex: "com.android.art",
+					module: "art-bootclasspath-fragment",
+				},
+			],
+		}
+	`)
+
+	java.CheckModuleDependencies(t, result.TestContext, "mybootclasspathfragment", "android_common_apex10000", []string{
+		"art-bootclasspath-fragment",
+		"bar",
+		"dex2oatd",
+		"foo",
+	})
+
+	fooStubs := getDexJarPath(result, "foo.stubs")
+	quuzPublicStubs := getDexJarPath(result, "quuz.stubs")
+	quuzSystemStubs := getDexJarPath(result, "quuz.stubs.system")
+	quuzTestStubs := getDexJarPath(result, "quuz.stubs.test")
+
+	// Make sure that the fragment uses the quuz stub dex jars when generating the hidden API flags.
+	fragment := result.ModuleForTests("mybootclasspathfragment", "android_common_apex10000")
+
+	rule := fragment.Rule("modularHiddenAPIStubFlagsFile")
+	command := rule.RuleParams.Command
+	android.AssertStringDoesContain(t, "check correct rule", command, "hiddenapi list")
+
+	// Make sure that the quuz stubs are available for resolving references from the implementation
+	// boot dex jars provided by this module.
+	android.AssertStringDoesContain(t, "quuz widest", command, "--dependency-stub-dex="+quuzTestStubs)
+
+	// Make sure that the quuz stubs are available for resolving references from the different API
+	// stubs provided by this module.
+	android.AssertStringDoesContain(t, "public", command, "--public-stub-classpath="+quuzPublicStubs+":"+fooStubs)
+	android.AssertStringDoesContain(t, "system", command, "--system-stub-classpath="+quuzSystemStubs+":"+fooStubs)
+	android.AssertStringDoesContain(t, "test", command, "--test-stub-classpath="+quuzTestStubs+":"+fooStubs)
+}
+
 // TODO(b/177892522) - add test for host apex.
