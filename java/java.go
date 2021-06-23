@@ -643,7 +643,7 @@ func LibraryFactory() android.Module {
 
 	module.addHostAndDeviceProperties()
 
-	module.initModuleAndImport(&module.ModuleBase)
+	module.initModuleAndImport(module)
 
 	android.InitApexModule(module)
 	android.InitSdkAwareModule(module)
@@ -1496,7 +1496,7 @@ func ImportFactory() android.Module {
 		&module.dexer.dexProperties,
 	)
 
-	module.initModuleAndImport(&module.ModuleBase)
+	module.initModuleAndImport(module)
 
 	module.dexProperties.Optimize.EnabledByDefault = false
 
