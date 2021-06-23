@@ -1695,6 +1695,36 @@ func TestApexMinSdkVersion_SupportsCodeNames(t *testing.T) {
 	expectNoLink("libx", "shared_apex10000", "libz", "shared")
 }
 
+func TestApexMinSdkVersion_SupportsCodeNames_JavaLibs(t *testing.T) {
+	testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			java_libs: ["libx"],
+			min_sdk_version: "S",
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		java_library {
+			name: "libx",
+			srcs: ["a.java"],
+			apex_available: [ "myapex" ],
+			sdk_version: "current",
+			min_sdk_version: "S", // should be okay
+		}
+	`,
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			variables.Platform_version_active_codenames = []string{"S"}
+			variables.Platform_sdk_codename = proptools.StringPtr("S")
+		}),
+	)
+}
+
 func TestApexMinSdkVersion_DefaultsToLatest(t *testing.T) {
 	ctx := testApex(t, `
 		apex {

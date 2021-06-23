@@ -1416,12 +1416,8 @@ func (j *Import) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
 	if sdkSpec.Kind == android.SdkCore {
 		return nil
 	}
-	ver, err := sdkSpec.EffectiveVersion(ctx)
-	if err != nil {
-		return err
-	}
-	if ver.GreaterThan(sdkVersion) {
-		return fmt.Errorf("newer SDK(%v)", ver)
+	if sdkSpec.ApiLevel.GreaterThan(sdkVersion) {
+		return fmt.Errorf("newer SDK(%v)", sdkSpec.ApiLevel)
 	}
 	return nil
 }
