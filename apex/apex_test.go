@@ -3368,60 +3368,109 @@ func ensureExactContents(t *testing.T, ctx *android.TestContext, moduleName, var
 }
 
 func TestVndkApexCurrent(t *testing.T) {
-	ctx := testApex(t, `
-		apex_vndk {
-			name: "com.android.vndk.current",
-			key: "com.android.vndk.current.key",
-			updatable: false,
-		}
-
-		apex_key {
-			name: "com.android.vndk.current.key",
-			public_key: "testkey.avbpubkey",
-			private_key: "testkey.pem",
-		}
-
-		cc_library {
-			name: "libvndk",
-			srcs: ["mylib.cpp"],
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-			},
-			system_shared_libs: [],
-			stl: "none",
-			apex_available: [ "com.android.vndk.current" ],
-		}
-
-		cc_library {
-			name: "libvndksp",
-			srcs: ["mylib.cpp"],
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-				support_system_process: true,
-			},
-			system_shared_libs: [],
-			stl: "none",
-			apex_available: [ "com.android.vndk.current" ],
-		}
-	`+vndkLibrariesTxtFiles("current"))
-
-	ensureExactContents(t, ctx, "com.android.vndk.current", "android_common_image", []string{
-		"lib/libvndk.so",
-		"lib/libvndksp.so",
+	commonFiles := []string{
 		"lib/libc++.so",
-		"lib64/libvndk.so",
-		"lib64/libvndksp.so",
 		"lib64/libc++.so",
 		"etc/llndk.libraries.29.txt",
 		"etc/vndkcore.libraries.29.txt",
 		"etc/vndksp.libraries.29.txt",
 		"etc/vndkprivate.libraries.29.txt",
 		"etc/vndkproduct.libraries.29.txt",
-	})
+	}
+	testCases := []struct {
+		vndkVersion   string
+		expectedFiles []string
+	}{
+		{
+			vndkVersion: "current",
+			expectedFiles: append(commonFiles,
+				"lib/libvndk.so",
+				"lib/libvndksp.so",
+				"lib64/libvndk.so",
+				"lib64/libvndksp.so"),
+		},
+		{
+			vndkVersion: "",
+			expectedFiles: append(commonFiles,
+				// Legacy VNDK APEX contains only VNDK-SP files (of core variant)
+				"lib/libvndksp.so",
+				"lib64/libvndksp.so"),
+		},
+	}
+	for _, tc := range testCases {
+		t.Run("VNDK.current with DeviceVndkVersion="+tc.vndkVersion, func(t *testing.T) {
+			ctx := testApex(t, `
+			apex_vndk {
+				name: "com.android.vndk.current",
+				key: "com.android.vndk.current.key",
+				updatable: false,
+			}
+
+			apex_key {
+				name: "com.android.vndk.current.key",
+				public_key: "testkey.avbpubkey",
+				private_key: "testkey.pem",
+			}
+
+			cc_library {
+				name: "libvndk",
+				srcs: ["mylib.cpp"],
+				vendor_available: true,
+				product_available: true,
+				vndk: {
+					enabled: true,
+				},
+				system_shared_libs: [],
+				stl: "none",
+				apex_available: [ "com.android.vndk.current" ],
+			}
+
+			cc_library {
+				name: "libvndksp",
+				srcs: ["mylib.cpp"],
+				vendor_available: true,
+				product_available: true,
+				vndk: {
+					enabled: true,
+					support_system_process: true,
+				},
+				system_shared_libs: [],
+				stl: "none",
+				apex_available: [ "com.android.vndk.current" ],
+			}
+
+			// VNDK-Ext should not cause any problems
+
+			cc_library {
+				name: "libvndk.ext",
+				srcs: ["mylib2.cpp"],
+				vendor: true,
+				vndk: {
+					enabled: true,
+					extends: "libvndk",
+				},
+				system_shared_libs: [],
+				stl: "none",
+			}
+
+			cc_library {
+				name: "libvndksp.ext",
+				srcs: ["mylib2.cpp"],
+				vendor: true,
+				vndk: {
+					enabled: true,
+					support_system_process: true,
+					extends: "libvndksp",
+				},
+				system_shared_libs: [],
+				stl: "none",
+			}
+		`+vndkLibrariesTxtFiles("current"), android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+				variables.DeviceVndkVersion = proptools.StringPtr(tc.vndkVersion)
+			}))
+			ensureExactContents(t, ctx, "com.android.vndk.current", "android_common_image", tc.expectedFiles)
+		})
+	}
 }
 
 func TestVndkApexWithPrebuilt(t *testing.T) {
