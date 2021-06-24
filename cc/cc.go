@@ -580,6 +580,7 @@ type installer interface {
 	hostToolPath() android.OptionalPath
 	relativeInstallPath() string
 	makeUninstallable(mod *Module)
+	installInRoot() bool
 }
 
 // bazelHandler is the interface for a helper object related to deferring to Bazel for
@@ -1304,6 +1305,10 @@ func (c *Module) XrefCcFiles() android.Paths {
 func (c *Module) isCfiAssemblySupportEnabled() bool {
 	return c.sanitize != nil &&
 		Bool(c.sanitize.Properties.Sanitize.Config.Cfi_assembly_support)
+}
+
+func (c *Module) InstallInRoot() bool {
+	return c.installer != nil && c.installer.installInRoot()
 }
 
 type baseModuleContext struct {
