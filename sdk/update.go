@@ -114,8 +114,16 @@ func (gc *generatedContents) Dedent() {
 	gc.indentLevel--
 }
 
-func (gc *generatedContents) Printfln(format string, args ...interface{}) {
-	fmt.Fprintf(&(gc.content), strings.Repeat("    ", gc.indentLevel)+format+"\n", args...)
+// IndentedPrintf will add spaces to indent the line to the appropriate level before printing the
+// arguments.
+func (gc *generatedContents) IndentedPrintf(format string, args ...interface{}) {
+	fmt.Fprintf(&(gc.content), strings.Repeat("    ", gc.indentLevel)+format, args...)
+}
+
+// UnindentedPrintf does not add spaces to indent the line to the appropriate level before printing
+// the arguments.
+func (gc *generatedContents) UnindentedPrintf(format string, args ...interface{}) {
+	fmt.Fprintf(&(gc.content), format, args...)
 }
 
 func (gf *generatedFile) build(pctx android.PackageContext, ctx android.BuilderContext, implicits android.Paths) {
@@ -742,13 +750,13 @@ func generateBpContents(contents *generatedContents, bpFile *bpFile) {
 }
 
 func generateFilteredBpContents(contents *generatedContents, bpFile *bpFile, moduleFilter func(module *bpModule) bool) {
-	contents.Printfln("// This is auto-generated. DO NOT EDIT.")
+	contents.IndentedPrintf("// This is auto-generated. DO NOT EDIT.\n")
 	for _, bpModule := range bpFile.order {
 		if moduleFilter(bpModule) {
-			contents.Printfln("")
-			contents.Printfln("%s {", bpModule.moduleType)
+			contents.IndentedPrintf("\n")
+			contents.IndentedPrintf("%s {\n", bpModule.moduleType)
 			outputPropertySet(contents, bpModule.bpPropertySet)
-			contents.Printfln("}")
+			contents.IndentedPrintf("}\n")
 		}
 	}
 }
@@ -759,7 +767,7 @@ func outputPropertySet(contents *generatedContents, set *bpPropertySet) {
 	addComment := func(name string) {
 		if text, ok := set.comments[name]; ok {
 			for _, line := range strings.Split(text, "\n") {
-				contents.Printfln("// %s", line)
+				contents.IndentedPrintf("// %s\n", line)
 			}
 		}
 	}
@@ -776,29 +784,8 @@ func outputPropertySet(contents *generatedContents, set *bpPropertySet) {
 		}
 
 		addComment(name)
-		switch v := value.(type) {
-		case []string:
-			length := len(v)
-			if length > 1 {
-				contents.Printfln("%s: [", name)
-				contents.Indent()
-				for i := 0; i < length; i = i + 1 {
-					contents.Printfln("%q,", v[i])
-				}
-				contents.Dedent()
-				contents.Printfln("],")
-			} else if length == 0 {
-				contents.Printfln("%s: [],", name)
-			} else {
-				contents.Printfln("%s: [%q],", name, v[0])
-			}
-
-		case bool:
-			contents.Printfln("%s: %t,", name, v)
-
-		default:
-			contents.Printfln("%s: %q,", name, value)
-		}
+		reflectValue := reflect.ValueOf(value)
+		outputNamedValue(contents, name, reflectValue)
 	}
 
 	for _, name := range set.order {
@@ -808,13 +795,59 @@ func outputPropertySet(contents *generatedContents, set *bpPropertySet) {
 		switch v := value.(type) {
 		case *bpPropertySet:
 			addComment(name)
-			contents.Printfln("%s: {", name)
+			contents.IndentedPrintf("%s: {\n", name)
 			outputPropertySet(contents, v)
-			contents.Printfln("},")
+			contents.IndentedPrintf("},\n")
 		}
 	}
 
 	contents.Dedent()
+}
+
+// outputNamedValue outputs a value that has an associated name. The name will be indented, followed
+// by the value and then followed by a , and a newline.
+func outputNamedValue(contents *generatedContents, name string, value reflect.Value) {
+	contents.IndentedPrintf("%s: ", name)
+	outputUnnamedValue(contents, value)
+	contents.UnindentedPrintf(",\n")
+}
+
+// outputUnnamedValue outputs a single value. The value is not indented and is not followed by
+// either a , or a newline. With multi-line values, e.g. slices, all but the first line will be
+// indented and all but the last line will end with a newline.
+func outputUnnamedValue(contents *generatedContents, value reflect.Value) {
+	valueType := value.Type()
+	switch valueType.Kind() {
+	case reflect.Bool:
+		contents.UnindentedPrintf("%t", value.Bool())
+
+	case reflect.String:
+		contents.UnindentedPrintf("%q", value)
+
+	case reflect.Slice:
+		length := value.Len()
+		if length == 0 {
+			contents.UnindentedPrintf("[]")
+		} else if length == 1 {
+			contents.UnindentedPrintf("[")
+			outputUnnamedValue(contents, value.Index(0))
+			contents.UnindentedPrintf("]")
+		} else {
+			contents.UnindentedPrintf("[\n")
+			contents.Indent()
+			for i := 0; i < length; i++ {
+				itemValue := value.Index(i)
+				contents.IndentedPrintf("")
+				outputUnnamedValue(contents, itemValue)
+				contents.UnindentedPrintf(",\n")
+			}
+			contents.Dedent()
+			contents.IndentedPrintf("]")
+		}
+
+	default:
+		panic(fmt.Errorf("Unknown type: %T of value %#v", value, value))
+	}
 }
 
 func (s *sdk) GetAndroidBpContentsForTests() string {

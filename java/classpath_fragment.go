@@ -106,7 +106,7 @@ func configuredJarListToClasspathJars(ctx android.ModuleContext, configuredJars 
 	return jars
 }
 
-func (c *ClasspathFragmentBase) generateClasspathProtoBuildActions(ctx android.ModuleContext, jars []classpathJar) {
+func (c *ClasspathFragmentBase) generateClasspathProtoBuildActions(ctx android.ModuleContext, configuredJars android.ConfiguredJarList, jars []classpathJar) {
 	generateProto := proptools.BoolDefault(c.properties.Generate_classpaths_proto, true)
 	if generateProto {
 		outputFilename := strings.ToLower(c.classpathType.String()) + ".pb"
@@ -129,6 +129,7 @@ func (c *ClasspathFragmentBase) generateClasspathProtoBuildActions(ctx android.M
 
 	classpathProtoInfo := ClasspathFragmentProtoContentInfo{
 		ClasspathFragmentProtoGenerated:  generateProto,
+		ClasspathFragmentProtoContents:   configuredJars,
 		ClasspathFragmentProtoInstallDir: c.installDirPath,
 		ClasspathFragmentProtoOutput:     c.outputFilepath,
 	}
@@ -176,6 +177,9 @@ var ClasspathFragmentProtoContentInfoProvider = blueprint.NewProvider(ClasspathF
 type ClasspathFragmentProtoContentInfo struct {
 	// Whether the classpaths.proto config is generated for the fragment.
 	ClasspathFragmentProtoGenerated bool
+
+	// ClasspathFragmentProtoContents contains a list of jars that are part of this classpath fragment.
+	ClasspathFragmentProtoContents android.ConfiguredJarList
 
 	// ClasspathFragmentProtoOutput is an output path for the generated classpaths.proto config of this module.
 	//
