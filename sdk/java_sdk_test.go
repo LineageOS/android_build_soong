@@ -722,14 +722,6 @@ java_import {
     jars: ["java/system-module.jar"],
 }
 
-java_import {
-    name: "mysdk_myjavalib.stubs",
-    prefer: false,
-    visibility: ["//visibility:private"],
-    apex_available: ["//apex_available:platform"],
-    jars: ["java/myjavalib.stubs.jar"],
-}
-
 java_sdk_library_import {
     name: "myjavalib",
     prefer: false,
@@ -752,7 +744,7 @@ java_system_modules_import {
     libs: [
         "mysdk_system-module",
         "exported-system-module",
-        "mysdk_myjavalib.stubs",
+        "myjavalib.stubs",
     ],
 }
 `),
@@ -773,14 +765,6 @@ java_import {
     visibility: ["//visibility:private"],
     apex_available: ["//apex_available:platform"],
     jars: ["java/system-module.jar"],
-}
-
-java_import {
-    name: "mysdk_myjavalib.stubs@current",
-    sdk_member_name: "myjavalib.stubs",
-    visibility: ["//visibility:private"],
-    apex_available: ["//apex_available:platform"],
-    jars: ["java/myjavalib.stubs.jar"],
 }
 
 java_sdk_library_import {
@@ -820,7 +804,6 @@ sdk_snapshot {
 		checkAllCopyRules(`
 .intermediates/exported-system-module/android_common/turbine-combined/exported-system-module.jar -> java/exported-system-module.jar
 .intermediates/system-module/android_common/turbine-combined/system-module.jar -> java/system-module.jar
-.intermediates/myjavalib.stubs/android_common/turbine-combined/myjavalib.stubs.jar -> java/myjavalib.stubs.jar
 .intermediates/myjavalib.stubs/android_common/javac/myjavalib.stubs.jar -> sdk_library/public/myjavalib-stubs.jar
 .intermediates/myjavalib.stubs.source/android_common/metalava/myjavalib.stubs.source_api.txt -> sdk_library/public/myjavalib.txt
 .intermediates/myjavalib.stubs.source/android_common/metalava/myjavalib.stubs.source_removed.txt -> sdk_library/public/myjavalib-removed.txt
@@ -1153,10 +1136,10 @@ sdk_snapshot {
 			".intermediates/mysdk/common_os/tmp/sdk_library/test/myjavalib_stub_sources.zip",
 		),
 		snapshotTestChecker(checkSnapshotWithoutSource, func(t *testing.T, result *android.TestResult) {
-			// Show that the existing behavior is incorrect as the suffix for the child modules is added
-			// to the version not before it.
-			result.Module("mysdk_myjavalib@current.stubs", "android_common")
-			result.Module("mysdk_myjavalib@current.stubs.source", "android_common")
+			// Make sure that the name of the child modules created by a versioned java_sdk_library_import
+			// module is correct, i.e. the suffix is added before the version and not after.
+			result.Module("mysdk_myjavalib.stubs@current", "android_common")
+			result.Module("mysdk_myjavalib.stubs.source@current", "android_common")
 		}),
 	)
 }
