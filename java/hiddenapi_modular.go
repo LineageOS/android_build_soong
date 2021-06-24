@@ -316,6 +316,13 @@ func buildRuleToGenerateHiddenAPIStubFlagsFile(ctx android.BuilderContext, name,
 		FlagForEachInput("--dependency-stub-dex=", dependencyStubDexJars).
 		FlagForEachInput("--boot-dex=", bootDexJars)
 
+	// If no module stub flags paths are provided then this must be being called for a
+	// bootclasspath_fragment and not the whole platform_bootclasspath.
+	if moduleStubFlagsPaths == nil {
+		// This is being run on a fragment of the bootclasspath.
+		command.Flag("--fragment")
+	}
+
 	// Iterate over the api scopes in a fixed order.
 	for _, apiScope := range hiddenAPIFlagScopes {
 		// Merge in the stub dex jar paths for this api scope from the fragments on which it depends.
