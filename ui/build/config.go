@@ -108,6 +108,9 @@ const (
 	// Only generate build files (in a subdirectory of the out directory) and exit.
 	generateBuildFiles
 
+	// Only generate the Soong json module graph for use with jq, and exit.
+	generateJsonModuleGraph
+
 	// Generate synthetic build files and incorporate these files into a build which
 	// partially uses Bazel. Build metadata may come from Android.bp or BUILD files.
 	mixedBuild
@@ -936,6 +939,8 @@ func (c *configImpl) bazelBuildMode() bazelBuildMode {
 		return mixedBuild
 	} else if c.Environment().IsEnvTrue("GENERATE_BAZEL_FILES") {
 		return generateBuildFiles
+	} else if v, ok := c.Environment().Get("SOONG_DUMP_JSON_MODULE_GRAPH"); ok && v != "" {
+		return generateJsonModuleGraph
 	} else {
 		return noBazel
 	}
