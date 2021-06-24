@@ -274,6 +274,11 @@ func Build(ctx Context, config Config) {
 			// Return early, if we're using Soong as solely the generator of BUILD files.
 			return
 		}
+
+		if config.bazelBuildMode() == generateJsonModuleGraph {
+			// Return early, if we're using Soong as solely the generator of the JSON module graph
+			return
+		}
 	}
 
 	if what&RunKati != 0 {
