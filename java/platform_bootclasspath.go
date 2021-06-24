@@ -44,13 +44,9 @@ type platformBootclasspathModule struct {
 	properties platformBootclasspathProperties
 
 	// The apex:module pairs obtained from the configured modules.
-	//
-	// Currently only for testing.
 	configuredModules []android.Module
 
 	// The apex:module pairs obtained from the fragments.
-	//
-	// Currently only for testing.
 	fragments []android.Module
 
 	// Path to the monolithic hiddenapi-flags.csv file.
@@ -282,7 +278,15 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 		return bootDexJarByModule
 	}
 
-	monolithicInfo := b.createAndProvideMonolithicHiddenAPIInfo(ctx, fragments)
+	// Construct a list of ClasspathElement objects from the modules and fragments.
+	classpathElements := CreateClasspathElements(ctx, modules, fragments)
+
+	monolithicInfo := b.createAndProvideMonolithicHiddenAPIInfo(ctx, classpathElements)
+
+	// Extract the classes jars only from those libraries that do not have corresponding fragments as
+	// the fragments will have already provided the flags that are needed.
+	classesJars := monolithicInfo.ClassesJars
+
 	// Create the input to pass to ruleToGenerateHiddenAPIStubFlagsFile
 	input := newHiddenAPIFlagInput()
 
@@ -298,39 +302,56 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 	rule := ruleToGenerateHiddenAPIStubFlagsFile(ctx, stubFlags, bootDexJarByModule.bootDexJars(), input)
 	rule.Build("platform-bootclasspath-monolithic-hiddenapi-stub-flags", "monolithic hidden API stub flags")
 
-	// Extract the classes jars from the contents.
-	classesJars := extractClassesJarsFromModules(modules)
-
 	// Generate the annotation-flags.csv file from all the module annotations.
-	annotationFlags := android.PathForModuleOut(ctx, "hiddenapi-monolithic", "annotation-flags.csv")
-	buildRuleToGenerateAnnotationFlags(ctx, "monolithic hiddenapi flags", classesJars, stubFlags, annotationFlags)
+	annotationFlags := android.PathForModuleOut(ctx, "hiddenapi-monolithic", "annotation-flags-from-classes.csv")
+	buildRuleToGenerateAnnotationFlags(ctx, "intermediate hidden API flags", classesJars, stubFlags, annotationFlags)
 
-	// Generate the monotlithic hiddenapi-flags.csv file.
+	// Generate the monolithic hiddenapi-flags.csv file.
+	//
+	// Use annotation flags generated directly from the classes jars as well as annotation flag files
+	// provided by prebuilts.
+	allAnnotationFlagFiles := android.Paths{annotationFlags}
+	allAnnotationFlagFiles = append(allAnnotationFlagFiles, monolithicInfo.AnnotationFlagsPaths...)
 	allFlags := hiddenAPISingletonPaths(ctx).flags
-	buildRuleToGenerateHiddenApiFlags(ctx, "hiddenAPIFlagsFile", "hiddenapi flags", allFlags, stubFlags, annotationFlags, monolithicInfo.FlagsFilesByCategory, monolithicInfo.AllFlagsPaths, android.OptionalPath{})
+	buildRuleToGenerateHiddenApiFlags(ctx, "hiddenAPIFlagsFile", "monolithic hidden API flags", allFlags, stubFlags, allAnnotationFlagFiles, monolithicInfo.FlagsFilesByCategory, monolithicInfo.AllFlagsPaths, android.OptionalPath{})
 
 	// Generate an intermediate monolithic hiddenapi-metadata.csv file directly from the annotations
 	// in the source code.
-	intermediateMetadataCSV := android.PathForModuleOut(ctx, "hiddenapi-monolithic", "intermediate-metadata.csv")
-	buildRuleToGenerateMetadata(ctx, "monolithic hidden API metadata", classesJars, stubFlags, intermediateMetadataCSV)
+	intermediateMetadataCSV := android.PathForModuleOut(ctx, "hiddenapi-monolithic", "metadata-from-classes.csv")
+	buildRuleToGenerateMetadata(ctx, "intermediate hidden API metadata", classesJars, stubFlags, intermediateMetadataCSV)
 
-	// Reformat the intermediate file to add | quotes just in case that is important for the tools
-	// that consume the metadata file.
-	// TODO(b/179354495): Investigate whether it is possible to remove this reformatting step.
+	// Generate the monolithic hiddenapi-metadata.csv file.
+	//
+	// Use metadata files generated directly from the classes jars as well as metadata files provided
+	// by prebuilts.
+	//
+	// This has the side effect of ensuring that the output file uses | quotes just in case that is
+	// important for the tools that consume the metadata file.
+	allMetadataFlagFiles := android.Paths{intermediateMetadataCSV}
+	allMetadataFlagFiles = append(allMetadataFlagFiles, monolithicInfo.MetadataPaths...)
 	metadataCSV := hiddenAPISingletonPaths(ctx).metadata
-	b.buildRuleMergeCSV(ctx, "reformat monolithic hidden API metadata", android.Paths{intermediateMetadataCSV}, metadataCSV)
+	b.buildRuleMergeCSV(ctx, "monolithic hidden API metadata", allMetadataFlagFiles, metadataCSV)
 
-	// Generate the monolithic hiddenapi-index.csv file directly from the CSV files in the classes
-	// jars.
+	// Generate an intermediate monolithic hiddenapi-index.csv file directly from the CSV files in the
+	// classes jars.
+	intermediateIndexCSV := android.PathForModuleOut(ctx, "hiddenapi-monolithic", "index-from-classes.csv")
+	buildRuleToGenerateIndex(ctx, "intermediate hidden API index", classesJars, intermediateIndexCSV)
+
+	// Generate the monolithic hiddenapi-index.csv file.
+	//
+	// Use index files generated directly from the classes jars as well as index files provided
+	// by prebuilts.
+	allIndexFlagFiles := android.Paths{intermediateIndexCSV}
+	allIndexFlagFiles = append(allIndexFlagFiles, monolithicInfo.IndexPaths...)
 	indexCSV := hiddenAPISingletonPaths(ctx).index
-	buildRuleToGenerateIndex(ctx, "monolithic hidden API index", classesJars, indexCSV)
+	b.buildRuleMergeCSV(ctx, "monolithic hidden API index", allIndexFlagFiles, indexCSV)
 
 	return bootDexJarByModule
 }
 
 // createAndProvideMonolithicHiddenAPIInfo creates a MonolithicHiddenAPIInfo and provides it for
 // testing.
-func (b *platformBootclasspathModule) createAndProvideMonolithicHiddenAPIInfo(ctx android.ModuleContext, fragments []android.Module) MonolithicHiddenAPIInfo {
+func (b *platformBootclasspathModule) createAndProvideMonolithicHiddenAPIInfo(ctx android.ModuleContext, classpathElements ClasspathElements) MonolithicHiddenAPIInfo {
 	// Create a temporary input structure in which to collate information provided directly by this
 	// module, either through properties or direct dependencies.
 	temporaryInput := newHiddenAPIFlagInput()
@@ -340,7 +361,7 @@ func (b *platformBootclasspathModule) createAndProvideMonolithicHiddenAPIInfo(ct
 
 	// Create the monolithic info, by starting with the flag files specified on this and then merging
 	// in information from all the fragment dependencies of this.
-	monolithicInfo := newMonolithicHiddenAPIInfo(ctx, temporaryInput.FlagFilesByCategory, fragments)
+	monolithicInfo := newMonolithicHiddenAPIInfo(ctx, temporaryInput.FlagFilesByCategory, classpathElements)
 
 	// Store the information for testing.
 	ctx.SetProvider(MonolithicHiddenAPIInfoProvider, monolithicInfo)
