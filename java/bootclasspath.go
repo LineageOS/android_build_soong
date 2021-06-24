@@ -144,6 +144,8 @@ func gatherApexModulePairDepsWithTag(ctx android.BaseModuleContext, tag blueprin
 
 // ApexVariantReference specifies a particular apex variant of a module.
 type ApexVariantReference struct {
+	android.BpPrintableBase
+
 	// The name of the module apex variant, i.e. the apex containing the module variant.
 	//
 	// If this is not specified then it defaults to "platform" which will cause a dependency to be

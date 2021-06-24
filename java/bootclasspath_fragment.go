@@ -496,13 +496,14 @@ func (b *BootclasspathFragmentModule) provideApexContentInfo(ctx android.ModuleC
 // generateClasspathProtoBuildActions generates all required build actions for classpath.proto config
 func (b *BootclasspathFragmentModule) generateClasspathProtoBuildActions(ctx android.ModuleContext) {
 	var classpathJars []classpathJar
+	configuredJars := b.configuredJars(ctx)
 	if "art" == proptools.String(b.properties.Image_name) {
 		// ART and platform boot jars must have a corresponding entry in DEX2OATBOOTCLASSPATH
-		classpathJars = configuredJarListToClasspathJars(ctx, b.configuredJars(ctx), BOOTCLASSPATH, DEX2OATBOOTCLASSPATH)
+		classpathJars = configuredJarListToClasspathJars(ctx, configuredJars, BOOTCLASSPATH, DEX2OATBOOTCLASSPATH)
 	} else {
-		classpathJars = configuredJarListToClasspathJars(ctx, b.configuredJars(ctx), b.classpathType)
+		classpathJars = configuredJarListToClasspathJars(ctx, configuredJars, b.classpathType)
 	}
-	b.classpathFragmentBase().generateClasspathProtoBuildActions(ctx, classpathJars)
+	b.classpathFragmentBase().generateClasspathProtoBuildActions(ctx, configuredJars, classpathJars)
 }
 
 func (b *BootclasspathFragmentModule) configuredJars(ctx android.ModuleContext) android.ConfiguredJarList {
@@ -748,6 +749,9 @@ type bootclasspathFragmentSdkMemberProperties struct {
 	Stub_libs               []string
 	Core_platform_stub_libs []string
 
+	// Fragment properties
+	Fragments []ApexVariantReference
+
 	// Flag files by *hiddenAPIFlagFileCategory
 	Flag_files_by_category FlagFilesByCategory
 
@@ -788,6 +792,9 @@ func (b *bootclasspathFragmentSdkMemberProperties) PopulateFromVariant(ctx andro
 	// Copy stub_libs properties.
 	b.Stub_libs = module.properties.Api.Stub_libs
 	b.Core_platform_stub_libs = module.properties.Core_platform_api.Stub_libs
+
+	// Copy fragment properties.
+	b.Fragments = module.properties.Fragments
 }
 
 func (b *bootclasspathFragmentSdkMemberProperties) AddToPropertySet(ctx android.SdkMemberContext, propertySet android.BpPropertySet) {
@@ -809,6 +816,9 @@ func (b *bootclasspathFragmentSdkMemberProperties) AddToPropertySet(ctx android.
 	if len(b.Core_platform_stub_libs) > 0 {
 		corePlatformApiPropertySet := propertySet.AddPropertySet("core_platform_api")
 		corePlatformApiPropertySet.AddPropertyWithTag("stub_libs", b.Core_platform_stub_libs, requiredMemberDependency)
+	}
+	if len(b.Fragments) > 0 {
+		propertySet.AddProperty("fragments", b.Fragments)
 	}
 
 	hiddenAPISet := propertySet.AddPropertySet("hidden_api")
