@@ -1751,7 +1751,7 @@ func (library *libraryDecorator) install(ctx ModuleContext, file android.Path) {
 					mayUseCoreVariant = false
 				}
 
-				if ctx.Config().CFIEnabledForPath(ctx.ModuleDir()) && ctx.Arch().ArchType == android.Arm64 {
+				if ctx.Config().CFIEnabledForPath(ctx.ModuleDir()) {
 					mayUseCoreVariant = false
 				}
 
