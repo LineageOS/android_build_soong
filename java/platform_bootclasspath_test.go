@@ -318,11 +318,41 @@ func TestPlatformBootclasspath_HiddenAPIMonolithicFiles(t *testing.T) {
 	// Make sure that the foo-hiddenapi-annotations.jar is included in the inputs to the rules that
 	// creates the index.csv file.
 	platformBootclasspath := result.ModuleForTests("myplatform-bootclasspath", "android_common")
-	indexRule := platformBootclasspath.Rule("monolithic_hidden_API_index")
-	CheckHiddenAPIRuleInputs(t, `
-.intermediates/bar/android_common/javac/bar.jar
-.intermediates/foo-hiddenapi-annotations/android_common/javac/foo-hiddenapi-annotations.jar
-.intermediates/foo/android_common/javac/foo.jar
-`,
-		indexRule)
+
+	var rule android.TestingBuildParams
+
+	// All the intermediate rules use the same inputs.
+	expectedIntermediateInputs := `
+		out/soong/.intermediates/bar/android_common/javac/bar.jar
+		out/soong/.intermediates/foo-hiddenapi-annotations/android_common/javac/foo-hiddenapi-annotations.jar
+		out/soong/.intermediates/foo/android_common/javac/foo.jar
+	`
+
+	// Check flags output.
+	rule = platformBootclasspath.Output("hiddenapi-monolithic/annotation-flags-from-classes.csv")
+	CheckHiddenAPIRuleInputs(t, "intermediate flags", expectedIntermediateInputs, rule)
+
+	rule = platformBootclasspath.Output("out/soong/hiddenapi/hiddenapi-flags.csv")
+	CheckHiddenAPIRuleInputs(t, "monolithic flags", `
+		out/soong/.intermediates/myplatform-bootclasspath/android_common/hiddenapi-monolithic/annotation-flags-from-classes.csv
+		out/soong/hiddenapi/hiddenapi-stub-flags.txt
+	`, rule)
+
+	// Check metadata output.
+	rule = platformBootclasspath.Output("hiddenapi-monolithic/metadata-from-classes.csv")
+	CheckHiddenAPIRuleInputs(t, "intermediate metadata", expectedIntermediateInputs, rule)
+
+	rule = platformBootclasspath.Output("out/soong/hiddenapi/hiddenapi-unsupported.csv")
+	CheckHiddenAPIRuleInputs(t, "monolithic metadata", `
+		out/soong/.intermediates/myplatform-bootclasspath/android_common/hiddenapi-monolithic/metadata-from-classes.csv
+	`, rule)
+
+	// Check index output.
+	rule = platformBootclasspath.Output("hiddenapi-monolithic/index-from-classes.csv")
+	CheckHiddenAPIRuleInputs(t, "intermediate index", expectedIntermediateInputs, rule)
+
+	rule = platformBootclasspath.Output("out/soong/hiddenapi/hiddenapi-index.csv")
+	CheckHiddenAPIRuleInputs(t, "monolithic index", `
+		out/soong/.intermediates/myplatform-bootclasspath/android_common/hiddenapi-monolithic/index-from-classes.csv
+	`, rule)
 }

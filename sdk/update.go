@@ -22,7 +22,6 @@ import (
 
 	"android/soong/apex"
 	"android/soong/cc"
-
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
@@ -140,8 +139,8 @@ func (gf *generatedFile) build(pctx android.PackageContext, ctx android.BuilderC
 
 // Collect all the members.
 //
-// Updates the sdk module with a list of sdkMemberVariantDeps and details as to which multilibs
-// (32/64/both) are used by this sdk variant.
+// Updates the sdk module with a list of sdkMemberVariantDep instances and details as to which
+// multilibs (32/64/both) are used by this sdk variant.
 func (s *sdk) collectMembers(ctx android.ModuleContext) {
 	s.multilibUsages = multilibNone
 	ctx.WalkDeps(func(child android.Module, parent android.Module) bool {
@@ -157,8 +156,15 @@ func (s *sdk) collectMembers(ctx android.ModuleContext) {
 			// Keep track of which multilib variants are used by the sdk.
 			s.multilibUsages = s.multilibUsages.addArchType(child.Target().Arch.ArchType)
 
+			var exportedComponentsInfo android.ExportedComponentsInfo
+			if ctx.OtherModuleHasProvider(child, android.ExportedComponentsInfoProvider) {
+				exportedComponentsInfo = ctx.OtherModuleProvider(child, android.ExportedComponentsInfoProvider).(android.ExportedComponentsInfo)
+			}
+
 			export := memberTag.ExportMember()
-			s.memberVariantDeps = append(s.memberVariantDeps, sdkMemberVariantDep{s, memberType, child.(android.SdkAware), export})
+			s.memberVariantDeps = append(s.memberVariantDeps, sdkMemberVariantDep{
+				s, memberType, child.(android.SdkAware), export, exportedComponentsInfo,
+			})
 
 			// Recurse down into the member's dependencies as it may have dependencies that need to be
 			// automatically added to the sdk.
@@ -245,26 +251,41 @@ func versionedSdkMemberName(ctx android.ModuleContext, memberName string, versio
 // the contents (header files, stub libraries, etc) into the zip file.
 func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) android.OutputPath {
 
-	allMembersByName := make(map[string]struct{})
-	exportedMembersByName := make(map[string]struct{})
+	// Aggregate all the sdkMemberVariantDep instances from all the sdk variants.
 	hasLicenses := false
 	var memberVariantDeps []sdkMemberVariantDep
 	for _, sdkVariant := range sdkVariants {
 		memberVariantDeps = append(memberVariantDeps, sdkVariant.memberVariantDeps...)
+	}
 
-		// Record the names of all the members, both explicitly specified and implicitly
-		// included.
-		for _, memberVariantDep := range sdkVariant.memberVariantDeps {
-			name := memberVariantDep.variant.Name()
-			allMembersByName[name] = struct{}{}
+	// Filter out any sdkMemberVariantDep that is a component of another.
+	memberVariantDeps = filterOutComponents(ctx, memberVariantDeps)
 
-			if memberVariantDep.export {
-				exportedMembersByName[name] = struct{}{}
-			}
+	// Record the names of all the members, both explicitly specified and implicitly
+	// included.
+	allMembersByName := make(map[string]struct{})
+	exportedMembersByName := make(map[string]struct{})
 
-			if memberVariantDep.memberType == android.LicenseModuleSdkMemberType {
-				hasLicenses = true
-			}
+	addMember := func(name string, export bool) {
+		allMembersByName[name] = struct{}{}
+		if export {
+			exportedMembersByName[name] = struct{}{}
+		}
+	}
+
+	for _, memberVariantDep := range memberVariantDeps {
+		name := memberVariantDep.variant.Name()
+		export := memberVariantDep.export
+
+		addMember(name, export)
+
+		// Add any components provided by the module.
+		for _, component := range memberVariantDep.exportedComponentsInfo.Components {
+			addMember(component, export)
+		}
+
+		if memberVariantDep.memberType == android.LicenseModuleSdkMemberType {
+			hasLicenses = true
 		}
 	}
 
@@ -421,6 +442,47 @@ be unnecessary as every module in the sdk already has its own licenses property.
 	}
 
 	return outputZipFile
+}
+
+// filterOutComponents removes any item from the deps list that is a component of another item in
+// the deps list, e.g. if the deps list contains "foo" and "foo.stubs" which is component of "foo"
+// then it will remove "foo.stubs" from the deps.
+func filterOutComponents(ctx android.ModuleContext, deps []sdkMemberVariantDep) []sdkMemberVariantDep {
+	// Collate the set of components that all the modules added to the sdk provide.
+	components := map[string]*sdkMemberVariantDep{}
+	for i, _ := range deps {
+		dep := &deps[i]
+		for _, c := range dep.exportedComponentsInfo.Components {
+			components[c] = dep
+		}
+	}
+
+	// If no module provides components then return the input deps unfiltered.
+	if len(components) == 0 {
+		return deps
+	}
+
+	filtered := make([]sdkMemberVariantDep, 0, len(deps))
+	for _, dep := range deps {
+		name := android.RemoveOptionalPrebuiltPrefix(ctx.OtherModuleName(dep.variant))
+		if owner, ok := components[name]; ok {
+			// This is a component of another module that is a member of the sdk.
+
+			// If the component is exported but the owning module is not then the configuration is not
+			// supported.
+			if dep.export && !owner.export {
+				ctx.ModuleErrorf("Module %s is internal to the SDK but provides component %s which is used outside the SDK")
+				continue
+			}
+
+			// This module must not be added to the list of members of the sdk as that would result in a
+			// duplicate module in the sdk snapshot.
+			continue
+		}
+
+		filtered = append(filtered, dep)
+	}
+	return filtered
 }
 
 // addSnapshotModule adds the sdk_snapshot/module_exports_snapshot module to the builder.
@@ -1086,9 +1148,18 @@ func addSdkMemberPropertiesToSet(ctx *memberContext, memberProperties android.Sd
 type sdkMemberVariantDep struct {
 	// The sdk variant that depends (possibly indirectly) on the member variant.
 	sdkVariant *sdk
+
+	// The type of sdk member the variant is to be treated as.
 	memberType android.SdkMemberType
-	variant    android.SdkAware
-	export     bool
+
+	// The variant that is added to the sdk.
+	variant android.SdkAware
+
+	// True if the member should be exported, i.e. accessible, from outside the sdk.
+	export bool
+
+	// The names of additional component modules provided by the variant.
+	exportedComponentsInfo android.ExportedComponentsInfo
 }
 
 var _ android.SdkMember = (*sdkMember)(nil)
