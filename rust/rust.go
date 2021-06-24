@@ -288,6 +288,10 @@ func (mod *Module) UseVndk() bool {
 	return mod.Properties.VndkVersion != ""
 }
 
+func (mod *Module) Bootstrap() bool {
+	return false
+}
+
 func (mod *Module) MustUseVendorVariant() bool {
 	return true
 }
@@ -952,7 +956,7 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 	directRlibDeps := []*Module{}
 	directDylibDeps := []*Module{}
 	directProcMacroDeps := []*Module{}
-	directSharedLibDeps := [](cc.LinkableInterface){}
+	directSharedLibDeps := []cc.SharedLibraryInfo{}
 	directStaticLibDeps := [](cc.LinkableInterface){}
 	directSrcProvidersDeps := []*Module{}
 	directSrcDeps := [](android.SourceFileProducer){}
@@ -1073,14 +1077,23 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				directStaticLibDeps = append(directStaticLibDeps, ccDep)
 				mod.Properties.AndroidMkStaticLibs = append(mod.Properties.AndroidMkStaticLibs, makeLibName)
 			case cc.IsSharedDepTag(depTag):
+				// For the shared lib dependencies, we may link to the stub variant
+				// of the dependency depending on the context (e.g. if this
+				// dependency crosses the APEX boundaries).
+				sharedLibraryInfo, exportedInfo := cc.ChooseStubOrImpl(ctx, dep)
+
+				// Re-get linkObject as ChooseStubOrImpl actually tells us which
+				// object (either from stub or non-stub) to use.
+				linkObject = android.OptionalPathForPath(sharedLibraryInfo.SharedLibrary)
+				linkPath = linkPathFromFilePath(linkObject.Path())
+
 				depPaths.linkDirs = append(depPaths.linkDirs, linkPath)
 				depPaths.linkObjects = append(depPaths.linkObjects, linkObject.String())
-				exportedInfo := ctx.OtherModuleProvider(dep, cc.FlagExporterInfoProvider).(cc.FlagExporterInfo)
 				depPaths.depIncludePaths = append(depPaths.depIncludePaths, exportedInfo.IncludeDirs...)
 				depPaths.depSystemIncludePaths = append(depPaths.depSystemIncludePaths, exportedInfo.SystemIncludeDirs...)
 				depPaths.depClangFlags = append(depPaths.depClangFlags, exportedInfo.Flags...)
 				depPaths.depGeneratedHeaders = append(depPaths.depGeneratedHeaders, exportedInfo.GeneratedHeaders...)
-				directSharedLibDeps = append(directSharedLibDeps, ccDep)
+				directSharedLibDeps = append(directSharedLibDeps, sharedLibraryInfo)
 
 				// Record baseLibName for snapshots.
 				mod.Properties.SnapshotSharedLibs = append(mod.Properties.SnapshotSharedLibs, cc.BaseLibName(depName))
@@ -1135,11 +1148,11 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 	var sharedLibFiles android.Paths
 	var sharedLibDepFiles android.Paths
 	for _, dep := range directSharedLibDeps {
-		sharedLibFiles = append(sharedLibFiles, dep.OutputFile().Path())
-		if dep.Toc().Valid() {
-			sharedLibDepFiles = append(sharedLibDepFiles, dep.Toc().Path())
+		sharedLibFiles = append(sharedLibFiles, dep.SharedLibrary)
+		if dep.TableOfContents.Valid() {
+			sharedLibDepFiles = append(sharedLibDepFiles, dep.TableOfContents.Path())
 		} else {
-			sharedLibDepFiles = append(sharedLibDepFiles, dep.OutputFile().Path())
+			sharedLibDepFiles = append(sharedLibDepFiles, dep.SharedLibrary)
 		}
 	}
 
