@@ -1299,7 +1299,7 @@ func (c *Module) ImplementationModuleNameForMake(ctx android.BaseModuleContext) 
 	return name
 }
 
-func (c *Module) bootstrap() bool {
+func (c *Module) Bootstrap() bool {
 	return Bool(c.Properties.Bootstrap)
 }
 
@@ -1544,7 +1544,7 @@ func (ctx *moduleContextImpl) apexSdkVersion() android.ApiLevel {
 }
 
 func (ctx *moduleContextImpl) bootstrap() bool {
-	return ctx.mod.bootstrap()
+	return ctx.mod.Bootstrap()
 }
 
 func (ctx *moduleContextImpl) nativeCoverage() bool {
@@ -2686,66 +2686,8 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 					return
 				}
 
-				sharedLibraryInfo := ctx.OtherModuleProvider(dep, SharedLibraryInfoProvider).(SharedLibraryInfo)
-				sharedLibraryStubsInfo := ctx.OtherModuleProvider(dep, SharedLibraryStubsProvider).(SharedLibraryStubsInfo)
-
-				if !libDepTag.explicitlyVersioned && len(sharedLibraryStubsInfo.SharedStubLibraries) > 0 {
-					useStubs := false
-
-					if lib := moduleLibraryInterface(dep); lib.buildStubs() && c.UseVndk() { // LLNDK
-						if !apexInfo.IsForPlatform() {
-							// For platform libraries, use current version of LLNDK
-							// If this is for use_vendor apex we will apply the same rules
-							// of apex sdk enforcement below to choose right version.
-							useStubs = true
-						}
-					} else if apexInfo.IsForPlatform() {
-						// If not building for APEX, use stubs only when it is from
-						// an APEX (and not from platform)
-						// However, for host, ramdisk, vendor_ramdisk, recovery or bootstrap modules,
-						// always link to non-stub variant
-						useStubs = dep.(android.ApexModule).NotInPlatform() && !c.bootstrap()
-						if useStubs {
-							// Another exception: if this module is a test for an APEX, then
-							// it is linked with the non-stub variant of a module in the APEX
-							// as if this is part of the APEX.
-							testFor := ctx.Provider(android.ApexTestForInfoProvider).(android.ApexTestForInfo)
-							for _, apexContents := range testFor.ApexContents {
-								if apexContents.DirectlyInApex(depName) {
-									useStubs = false
-									break
-								}
-							}
-						}
-						if useStubs {
-							// Yet another exception: If this module and the dependency are
-							// available to the same APEXes then skip stubs between their
-							// platform variants. This complements the test_for case above,
-							// which avoids the stubs on a direct APEX library dependency, by
-							// avoiding stubs for indirect test dependencies as well.
-							//
-							// TODO(b/183882457): This doesn't work if the two libraries have
-							// only partially overlapping apex_available. For that test_for
-							// modules would need to be split into APEX variants and resolved
-							// separately for each APEX they have access to.
-							if android.AvailableToSameApexes(c, dep.(android.ApexModule)) {
-								useStubs = false
-							}
-						}
-					} else {
-						// If building for APEX, use stubs when the parent is in any APEX that
-						// the child is not in.
-						useStubs = !android.DirectlyInAllApexes(apexInfo, depName)
-					}
-
-					// when to use (unspecified) stubs, use the latest one.
-					if useStubs {
-						stubs := sharedLibraryStubsInfo.SharedStubLibraries
-						toUse := stubs[len(stubs)-1]
-						sharedLibraryInfo = toUse.SharedLibraryInfo
-						depExporterInfo = toUse.FlagExporterInfo
-					}
-				}
+				sharedLibraryInfo, returnedDepExporterInfo := ChooseStubOrImpl(ctx, dep)
+				depExporterInfo = returnedDepExporterInfo
 
 				// Stubs lib doesn't link to the shared lib dependencies. Don't set
 				// linkFile, depFile, and ptr.
@@ -2956,6 +2898,100 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 	}
 
 	return depPaths
+}
+
+// ChooseStubOrImpl determines whether a given dependency should be redirected to the stub variant
+// of the dependency or not, and returns the SharedLibraryInfo and FlagExporterInfo for the right
+// dependency. The stub variant is selected when the dependency crosses a boundary where each side
+// has different level of updatability. For example, if a library foo in an APEX depends on a
+// library bar which provides stable interface and exists in the platform, foo uses the stub variant
+// of bar. If bar doesn't provide a stable interface (i.e. buildStubs() == false) or is in the
+// same APEX as foo, the non-stub variant of bar is used.
+func ChooseStubOrImpl(ctx android.ModuleContext, dep android.Module) (SharedLibraryInfo, FlagExporterInfo) {
+	depName := ctx.OtherModuleName(dep)
+	depTag := ctx.OtherModuleDependencyTag(dep)
+	libDepTag, ok := depTag.(libraryDependencyTag)
+	if !ok || !libDepTag.shared() {
+		panic(fmt.Errorf("Unexpected dependency tag: %T", depTag))
+	}
+
+	thisModule, ok := ctx.Module().(android.ApexModule)
+	if !ok {
+		panic(fmt.Errorf("Not an APEX module: %q", ctx.ModuleName()))
+	}
+
+	useVndk := false
+	bootstrap := false
+	if linkable, ok := ctx.Module().(LinkableInterface); !ok {
+		panic(fmt.Errorf("Not a Linkable module: %q", ctx.ModuleName()))
+	} else {
+		useVndk = linkable.UseVndk()
+		bootstrap = linkable.Bootstrap()
+	}
+
+	sharedLibraryInfo := ctx.OtherModuleProvider(dep, SharedLibraryInfoProvider).(SharedLibraryInfo)
+	depExporterInfo := ctx.OtherModuleProvider(dep, FlagExporterInfoProvider).(FlagExporterInfo)
+	sharedLibraryStubsInfo := ctx.OtherModuleProvider(dep, SharedLibraryStubsProvider).(SharedLibraryStubsInfo)
+	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
+
+	if !libDepTag.explicitlyVersioned && len(sharedLibraryStubsInfo.SharedStubLibraries) > 0 {
+		useStubs := false
+
+		if lib := moduleLibraryInterface(dep); lib.buildStubs() && useVndk { // LLNDK
+			if !apexInfo.IsForPlatform() {
+				// For platform libraries, use current version of LLNDK
+				// If this is for use_vendor apex we will apply the same rules
+				// of apex sdk enforcement below to choose right version.
+				useStubs = true
+			}
+		} else if apexInfo.IsForPlatform() || apexInfo.UsePlatformApis {
+			// If not building for APEX or the containing APEX allows the use of
+			// platform APIs, use stubs only when it is from an APEX (and not from
+			// platform) However, for host, ramdisk, vendor_ramdisk, recovery or
+			// bootstrap modules, always link to non-stub variant
+			useStubs = dep.(android.ApexModule).NotInPlatform() && !bootstrap
+			if useStubs {
+				// Another exception: if this module is a test for an APEX, then
+				// it is linked with the non-stub variant of a module in the APEX
+				// as if this is part of the APEX.
+				testFor := ctx.Provider(android.ApexTestForInfoProvider).(android.ApexTestForInfo)
+				for _, apexContents := range testFor.ApexContents {
+					if apexContents.DirectlyInApex(depName) {
+						useStubs = false
+						break
+					}
+				}
+			}
+			if useStubs {
+				// Yet another exception: If this module and the dependency are
+				// available to the same APEXes then skip stubs between their
+				// platform variants. This complements the test_for case above,
+				// which avoids the stubs on a direct APEX library dependency, by
+				// avoiding stubs for indirect test dependencies as well.
+				//
+				// TODO(b/183882457): This doesn't work if the two libraries have
+				// only partially overlapping apex_available. For that test_for
+				// modules would need to be split into APEX variants and resolved
+				// separately for each APEX they have access to.
+				if android.AvailableToSameApexes(thisModule, dep.(android.ApexModule)) {
+					useStubs = false
+				}
+			}
+		} else {
+			// If building for APEX, use stubs when the parent is in any APEX that
+			// the child is not in.
+			useStubs = !android.DirectlyInAllApexes(apexInfo, depName)
+		}
+
+		// when to use (unspecified) stubs, use the latest one.
+		if useStubs {
+			stubs := sharedLibraryStubsInfo.SharedStubLibraries
+			toUse := stubs[len(stubs)-1]
+			sharedLibraryInfo = toUse.SharedLibraryInfo
+			depExporterInfo = toUse.FlagExporterInfo
+		}
+	}
+	return sharedLibraryInfo, depExporterInfo
 }
 
 // orderStaticModuleDeps rearranges the order of the static library dependencies of the module
