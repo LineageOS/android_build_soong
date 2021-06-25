@@ -64,6 +64,10 @@ var (
 		sdkKind:             android.SdkTest,
 		hiddenAPIListOption: "--test-stub-classpath",
 	})
+	ModuleLibHiddenAPIScope = initHiddenAPIScope(&HiddenAPIScope{
+		name:    "module-lib",
+		sdkKind: android.SdkModule,
+	})
 	CorePlatformHiddenAPIScope = initHiddenAPIScope(&HiddenAPIScope{
 		name:                "core-platform",
 		sdkKind:             android.SdkCorePlatform,
@@ -76,19 +80,20 @@ var (
 	// These are roughly in order from narrowest API surface to widest. Widest means the API stubs
 	// with the biggest API surface, e.g. test is wider than system is wider than public.
 	//
-	// Core platform is considered wider than system because those modules that provide core platform
-	// APIs either do not have any system APIs at all, or if they do it is because the core platform
-	// API is being converted to system APIs. In either case the system API is a subset of core
-	// platform API.
+	// Core platform is considered wider than system/module-lib because those modules that provide
+	// core platform APIs either do not have any system/module-lib APIs at all, or if they do it is
+	// because the core platform API is being converted to system/module-lib APIs. In either case the
+	// system/module-lib APIs are subsets of the core platform API.
 	//
 	// This is not strictly in order from narrowest to widest as the Test API is wider than system but
-	// is neither wider or narrower than the core platform API. However, this works well enough at the
-	// moment.
+	// is neither wider or narrower than the module-lib or core platform APIs. However, this works
+	// well enough at the moment.
 	// TODO(b/191644675): Correctly reflect the sub/superset relationships between APIs.
 	hiddenAPIScopes = []*HiddenAPIScope{
 		PublicHiddenAPIScope,
 		SystemHiddenAPIScope,
 		TestHiddenAPIScope,
+		ModuleLibHiddenAPIScope,
 		CorePlatformHiddenAPIScope,
 	}
 
@@ -100,6 +105,7 @@ var (
 		PublicHiddenAPIScope,
 		SystemHiddenAPIScope,
 		TestHiddenAPIScope,
+		ModuleLibHiddenAPIScope,
 	}
 
 	// The HiddenAPIScope instances that are supported by the `hiddenapi list`.
