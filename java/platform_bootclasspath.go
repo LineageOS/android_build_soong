@@ -119,8 +119,8 @@ func (b *platformBootclasspathModule) hiddenAPIDepsMutator(ctx android.BottomUpM
 	}
 
 	// Add dependencies onto the stub lib modules.
-	sdkKindToStubLibModules := hiddenAPIComputeMonolithicStubLibModules(ctx.Config())
-	hiddenAPIAddStubLibDependencies(ctx, sdkKindToStubLibModules)
+	apiLevelToStubLibModules := hiddenAPIComputeMonolithicStubLibModules(ctx.Config())
+	hiddenAPIAddStubLibDependencies(ctx, apiLevelToStubLibModules)
 }
 
 func (b *platformBootclasspathModule) BootclasspathDepsMutator(ctx android.BottomUpMutatorContext) {
