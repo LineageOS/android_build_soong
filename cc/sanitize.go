@@ -21,6 +21,7 @@ import (
 	"sync"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
 	"android/soong/cc/config"
@@ -72,14 +73,6 @@ var (
 )
 
 type SanitizerType int
-
-func boolPtr(v bool) *bool {
-	if v {
-		return &v
-	} else {
-		return nil
-	}
-}
 
 const (
 	Asan SanitizerType = iota + 1
@@ -269,8 +262,8 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 
 	// cc_test targets default to SYNC MemTag unless explicitly set to ASYNC (via diag: {memtag_heap}).
 	if ctx.testBinary() && s.Memtag_heap == nil {
-		s.Memtag_heap = boolPtr(true)
-		s.Diag.Memtag_heap = boolPtr(true)
+		s.Memtag_heap = proptools.BoolPtr(true)
+		s.Diag.Memtag_heap = proptools.BoolPtr(true)
 	}
 
 	var globalSanitizers []string
@@ -291,48 +284,48 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 	if len(globalSanitizers) > 0 {
 		var found bool
 		if found, globalSanitizers = removeFromList("undefined", globalSanitizers); found && s.All_undefined == nil {
-			s.All_undefined = boolPtr(true)
+			s.All_undefined = proptools.BoolPtr(true)
 		}
 
 		if found, globalSanitizers = removeFromList("default-ub", globalSanitizers); found && s.Undefined == nil {
-			s.Undefined = boolPtr(true)
+			s.Undefined = proptools.BoolPtr(true)
 		}
 
 		if found, globalSanitizers = removeFromList("address", globalSanitizers); found && s.Address == nil {
-			s.Address = boolPtr(true)
+			s.Address = proptools.BoolPtr(true)
 		}
 
 		if found, globalSanitizers = removeFromList("thread", globalSanitizers); found && s.Thread == nil {
-			s.Thread = boolPtr(true)
+			s.Thread = proptools.BoolPtr(true)
 		}
 
 		if found, globalSanitizers = removeFromList("fuzzer", globalSanitizers); found && s.Fuzzer == nil {
-			s.Fuzzer = boolPtr(true)
+			s.Fuzzer = proptools.BoolPtr(true)
 		}
 
 		if found, globalSanitizers = removeFromList("safe-stack", globalSanitizers); found && s.Safestack == nil {
-			s.Safestack = boolPtr(true)
+			s.Safestack = proptools.BoolPtr(true)
 		}
 
 		if found, globalSanitizers = removeFromList("cfi", globalSanitizers); found && s.Cfi == nil {
 			if !ctx.Config().CFIDisabledForPath(ctx.ModuleDir()) {
-				s.Cfi = boolPtr(true)
+				s.Cfi = proptools.BoolPtr(true)
 			}
 		}
 
 		// Global integer_overflow builds do not support static libraries.
 		if found, globalSanitizers = removeFromList("integer_overflow", globalSanitizers); found && s.Integer_overflow == nil {
 			if !ctx.Config().IntegerOverflowDisabledForPath(ctx.ModuleDir()) && !ctx.static() {
-				s.Integer_overflow = boolPtr(true)
+				s.Integer_overflow = proptools.BoolPtr(true)
 			}
 		}
 
 		if found, globalSanitizers = removeFromList("scudo", globalSanitizers); found && s.Scudo == nil {
-			s.Scudo = boolPtr(true)
+			s.Scudo = proptools.BoolPtr(true)
 		}
 
 		if found, globalSanitizers = removeFromList("hwaddress", globalSanitizers); found && s.Hwaddress == nil {
-			s.Hwaddress = boolPtr(true)
+			s.Hwaddress = proptools.BoolPtr(true)
 		}
 
 		if found, globalSanitizers = removeFromList("writeonly", globalSanitizers); found && s.Writeonly == nil {
@@ -341,11 +334,11 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 			if s.Address == nil && s.Hwaddress == nil {
 				ctx.ModuleErrorf("writeonly modifier cannot be used without 'address' or 'hwaddress'")
 			}
-			s.Writeonly = boolPtr(true)
+			s.Writeonly = proptools.BoolPtr(true)
 		}
 		if found, globalSanitizers = removeFromList("memtag_heap", globalSanitizers); found && s.Memtag_heap == nil {
 			if !ctx.Config().MemtagHeapDisabledForPath(ctx.ModuleDir()) {
-				s.Memtag_heap = boolPtr(true)
+				s.Memtag_heap = proptools.BoolPtr(true)
 			}
 		}
 
@@ -356,17 +349,17 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 		// Global integer_overflow builds do not support static library diagnostics.
 		if found, globalSanitizersDiag = removeFromList("integer_overflow", globalSanitizersDiag); found &&
 			s.Diag.Integer_overflow == nil && Bool(s.Integer_overflow) && !ctx.static() {
-			s.Diag.Integer_overflow = boolPtr(true)
+			s.Diag.Integer_overflow = proptools.BoolPtr(true)
 		}
 
 		if found, globalSanitizersDiag = removeFromList("cfi", globalSanitizersDiag); found &&
 			s.Diag.Cfi == nil && Bool(s.Cfi) {
-			s.Diag.Cfi = boolPtr(true)
+			s.Diag.Cfi = proptools.BoolPtr(true)
 		}
 
 		if found, globalSanitizersDiag = removeFromList("memtag_heap", globalSanitizersDiag); found &&
 			s.Diag.Memtag_heap == nil && Bool(s.Memtag_heap) {
-			s.Diag.Memtag_heap = boolPtr(true)
+			s.Diag.Memtag_heap = proptools.BoolPtr(true)
 		}
 
 		if len(globalSanitizersDiag) > 0 {
@@ -378,30 +371,30 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 	if ctx.Arch().ArchType == android.Arm64 {
 		if ctx.Config().MemtagHeapSyncEnabledForPath(ctx.ModuleDir()) {
 			if s.Memtag_heap == nil {
-				s.Memtag_heap = boolPtr(true)
+				s.Memtag_heap = proptools.BoolPtr(true)
 			}
 			if s.Diag.Memtag_heap == nil {
-				s.Diag.Memtag_heap = boolPtr(true)
+				s.Diag.Memtag_heap = proptools.BoolPtr(true)
 			}
 		} else if ctx.Config().MemtagHeapAsyncEnabledForPath(ctx.ModuleDir()) {
 			if s.Memtag_heap == nil {
-				s.Memtag_heap = boolPtr(true)
+				s.Memtag_heap = proptools.BoolPtr(true)
 			}
 		}
 	}
 
 	// Enable CFI for all components in the include paths (for Aarch64 only)
 	if s.Cfi == nil && ctx.Config().CFIEnabledForPath(ctx.ModuleDir()) && ctx.Arch().ArchType == android.Arm64 {
-		s.Cfi = boolPtr(true)
+		s.Cfi = proptools.BoolPtr(true)
 		if inList("cfi", ctx.Config().SanitizeDeviceDiag()) {
-			s.Diag.Cfi = boolPtr(true)
+			s.Diag.Cfi = proptools.BoolPtr(true)
 		}
 	}
 
 	// Is CFI actually enabled?
 	if !ctx.Config().EnableCFI() {
-		s.Cfi = boolPtr(false)
-		s.Diag.Cfi = boolPtr(false)
+		s.Cfi = nil
+		s.Diag.Cfi = nil
 	}
 
 	// HWASan requires AArch64 hardware feature (top-byte-ignore).
@@ -421,14 +414,14 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 
 	// Also disable CFI if ASAN is enabled.
 	if Bool(s.Address) || Bool(s.Hwaddress) {
-		s.Cfi = boolPtr(false)
-		s.Diag.Cfi = boolPtr(false)
+		s.Cfi = nil
+		s.Diag.Cfi = nil
 	}
 
 	// Disable sanitizers that depend on the UBSan runtime for windows/darwin builds.
 	if !ctx.Os().Linux() {
-		s.Cfi = boolPtr(false)
-		s.Diag.Cfi = boolPtr(false)
+		s.Cfi = nil
+		s.Diag.Cfi = nil
 		s.Misc_undefined = nil
 		s.Undefined = nil
 		s.All_undefined = nil
@@ -443,8 +436,8 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 			s.Cfi = nil
 			s.Diag.Cfi = nil
 		} else {
-			s.Cfi = boolPtr(false)
-			s.Diag.Cfi = boolPtr(false)
+			s.Cfi = nil
+			s.Diag.Cfi = nil
 		}
 	}
 
@@ -495,7 +488,7 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 	// TODO(b/131771163): CFI transiently depends on LTO, and thus Fuzzer is
 	// mutually incompatible.
 	if Bool(s.Fuzzer) {
-		s.Cfi = boolPtr(false)
+		s.Cfi = nil
 	}
 }
 
@@ -781,23 +774,27 @@ func (sanitize *sanitize) isVariantOnProductionDevice() bool {
 }
 
 func (sanitize *sanitize) SetSanitizer(t SanitizerType, b bool) {
+	bPtr := proptools.BoolPtr(b)
+	if !b {
+		bPtr = nil
+	}
 	switch t {
 	case Asan:
-		sanitize.Properties.Sanitize.Address = boolPtr(b)
+		sanitize.Properties.Sanitize.Address = bPtr
 	case Hwasan:
-		sanitize.Properties.Sanitize.Hwaddress = boolPtr(b)
+		sanitize.Properties.Sanitize.Hwaddress = bPtr
 	case tsan:
-		sanitize.Properties.Sanitize.Thread = boolPtr(b)
+		sanitize.Properties.Sanitize.Thread = bPtr
 	case intOverflow:
-		sanitize.Properties.Sanitize.Integer_overflow = boolPtr(b)
+		sanitize.Properties.Sanitize.Integer_overflow = bPtr
 	case cfi:
-		sanitize.Properties.Sanitize.Cfi = boolPtr(b)
+		sanitize.Properties.Sanitize.Cfi = bPtr
 	case scs:
-		sanitize.Properties.Sanitize.Scs = boolPtr(b)
+		sanitize.Properties.Sanitize.Scs = bPtr
 	case memtag_heap:
-		sanitize.Properties.Sanitize.Memtag_heap = boolPtr(b)
+		sanitize.Properties.Sanitize.Memtag_heap = bPtr
 	case Fuzzer:
-		sanitize.Properties.Sanitize.Fuzzer = boolPtr(b)
+		sanitize.Properties.Sanitize.Fuzzer = bPtr
 	default:
 		panic(fmt.Errorf("unknown SanitizerType %d", t))
 	}
