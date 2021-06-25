@@ -2944,11 +2944,11 @@ func ChooseStubOrImpl(ctx android.ModuleContext, dep android.Module) (SharedLibr
 				// of apex sdk enforcement below to choose right version.
 				useStubs = true
 			}
-		} else if apexInfo.IsForPlatform() {
-			// If not building for APEX, use stubs only when it is from
-			// an APEX (and not from platform)
-			// However, for host, ramdisk, vendor_ramdisk, recovery or bootstrap modules,
-			// always link to non-stub variant
+		} else if apexInfo.IsForPlatform() || apexInfo.UsePlatformApis {
+			// If not building for APEX or the containing APEX allows the use of
+			// platform APIs, use stubs only when it is from an APEX (and not from
+			// platform) However, for host, ramdisk, vendor_ramdisk, recovery or
+			// bootstrap modules, always link to non-stub variant
 			useStubs = dep.(android.ApexModule).NotInPlatform() && !bootstrap
 			if useStubs {
 				// Another exception: if this module is a test for an APEX, then
