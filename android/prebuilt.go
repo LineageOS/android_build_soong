@@ -166,6 +166,7 @@ type PrebuiltSrcsSupplier func(ctx BaseModuleContext, prebuilt Module) []string
 func InitPrebuiltModuleWithSrcSupplier(module PrebuiltInterface, srcsSupplier PrebuiltSrcsSupplier, srcsPropertyName string) {
 	p := module.Prebuilt()
 	module.AddProperties(&p.properties)
+	module.base().customizableProperties = module.GetProperties()
 
 	if srcsSupplier == nil {
 		panic(fmt.Errorf("srcsSupplier must not be nil"))

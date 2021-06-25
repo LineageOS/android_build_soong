@@ -259,6 +259,38 @@ var prebuiltsTests = []struct {
 			}`,
 		prebuilt: []OsType{Android, BuildOs},
 	},
+	{
+		name:      "prebuilt properties customizable",
+		replaceBp: true,
+		modules: `
+			source {
+				name: "foo",
+				deps: [":bar"],
+			}
+
+			soong_config_module_type {
+				name: "prebuilt_with_config",
+				module_type: "prebuilt",
+				config_namespace: "any_namespace",
+				bool_variables: ["bool_var"],
+				properties: ["prefer"],
+			}
+
+			prebuilt_with_config {
+				name: "bar",
+				prefer: true,
+				srcs: ["prebuilt_file"],
+				soong_config_variables: {
+					bool_var: {
+						prefer: false,
+						conditions_default: {
+							prefer: true,
+						},
+					},
+				},
+			}`,
+		prebuilt: []OsType{Android, BuildOs},
+	},
 }
 
 func TestPrebuilts(t *testing.T) {
@@ -394,6 +426,9 @@ func registerTestPrebuiltModules(ctx RegistrationContext) {
 	ctx.RegisterModuleType("prebuilt", newPrebuiltModule)
 	ctx.RegisterModuleType("source", newSourceModule)
 	ctx.RegisterModuleType("override_source", newOverrideSourceModule)
+	ctx.RegisterModuleType("soong_config_module_type", soongConfigModuleTypeFactory)
+	ctx.RegisterModuleType("soong_config_string_variable", soongConfigStringVariableDummyFactory)
+	ctx.RegisterModuleType("soong_config_bool_variable", soongConfigBoolVariableDummyFactory)
 }
 
 type prebuiltModule struct {
