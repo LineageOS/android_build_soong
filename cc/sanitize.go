@@ -160,24 +160,46 @@ func (t SanitizerType) incompatibleWithCfi() bool {
 }
 
 type SanitizeUserProps struct {
+	// Prevent use of any sanitizers on this module
 	Never *bool `android:"arch_variant"`
 
-	// main sanitizers
-	Address   *bool `android:"arch_variant"`
-	Thread    *bool `android:"arch_variant"`
+	// ASan (Address sanitizer), incompatible with static binaries.
+	// Always runs in a diagnostic mode.
+	// Use of address sanitizer disables cfi sanitizer.
+	// Hwaddress sanitizer takes precedence over this sanitizer.
+	Address *bool `android:"arch_variant"`
+	// TSan (Thread sanitizer), incompatible with static binaries and 32 bit architectures.
+	// Always runs in a diagnostic mode.
+	// Use of thread sanitizer disables cfi and scudo sanitizers.
+	// Hwaddress sanitizer takes precedence over this sanitizer.
+	Thread *bool `android:"arch_variant"`
+	// HWASan (Hardware Address sanitizer).
+	// Use of hwasan sanitizer disables cfi, address, thread, and scudo sanitizers.
 	Hwaddress *bool `android:"arch_variant"`
 
-	// local sanitizers
-	Undefined        *bool    `android:"arch_variant"`
-	All_undefined    *bool    `android:"arch_variant"`
-	Misc_undefined   []string `android:"arch_variant"`
-	Fuzzer           *bool    `android:"arch_variant"`
-	Safestack        *bool    `android:"arch_variant"`
-	Cfi              *bool    `android:"arch_variant"`
-	Integer_overflow *bool    `android:"arch_variant"`
-	Scudo            *bool    `android:"arch_variant"`
-	Scs              *bool    `android:"arch_variant"`
-	Memtag_heap      *bool    `android:"arch_variant"`
+	// Undefined behavior sanitizer
+	All_undefined *bool `android:"arch_variant"`
+	// Subset of undefined behavior sanitizer
+	Undefined *bool `android:"arch_variant"`
+	// List of specific undefined behavior sanitizers to enable
+	Misc_undefined []string `android:"arch_variant"`
+	// Fuzzer, incompatible with static binaries.
+	Fuzzer *bool `android:"arch_variant"`
+	// safe-stack sanitizer, incompatible with 32-bit architectures.
+	Safestack *bool `android:"arch_variant"`
+	// cfi sanitizer, incompatible with asan, hwasan, fuzzer, or Darwin
+	Cfi *bool `android:"arch_variant"`
+	// signed/unsigned integer overflow sanitizer, incompatible with Darwin.
+	Integer_overflow *bool `android:"arch_variant"`
+	// scudo sanitizer, incompatible with asan, hwasan, tsan
+	// This should not be used in Android 11+ : https://source.android.com/devices/tech/debug/scudo
+	// deprecated
+	Scudo *bool `android:"arch_variant"`
+	// shadow-call-stack sanitizer, only available on arm64
+	Scs *bool `android:"arch_variant"`
+	// Memory-tagging, only available on arm64
+	// if diag.memtag unset or false, enables async memory tagging
+	Memtag_heap *bool `android:"arch_variant"`
 
 	// A modifier for ASAN and HWASAN for write only instrumentation
 	Writeonly *bool `android:"arch_variant"`
@@ -186,12 +208,22 @@ type SanitizeUserProps struct {
 	// Replaces abort() on error with a human-readable error message.
 	// Address and Thread sanitizers always run in diagnostic mode.
 	Diag struct {
-		Undefined        *bool    `android:"arch_variant"`
-		Cfi              *bool    `android:"arch_variant"`
-		Integer_overflow *bool    `android:"arch_variant"`
-		Memtag_heap      *bool    `android:"arch_variant"`
-		Misc_undefined   []string `android:"arch_variant"`
-		No_recover       []string `android:"arch_variant"`
+		// Undefined behavior sanitizer, diagnostic mode
+		Undefined *bool `android:"arch_variant"`
+		// cfi sanitizer, diagnostic mode, incompatible with asan, hwasan, fuzzer, or Darwin
+		Cfi *bool `android:"arch_variant"`
+		// signed/unsigned integer overflow sanitizer, diagnostic mode, incompatible with Darwin.
+		Integer_overflow *bool `android:"arch_variant"`
+		// Memory-tagging, only available on arm64
+		// requires sanitizer.memtag: true
+		// if set, enables sync memory tagging
+		Memtag_heap *bool `android:"arch_variant"`
+		// List of specific undefined behavior sanitizers to enable in diagnostic mode
+		Misc_undefined []string `android:"arch_variant"`
+		// List of sanitizers to pass to -fno-sanitize-recover
+		// results in only the first detected error for these sanitizers being reported and program then
+		// exits with a non-zero exit code.
+		No_recover []string `android:"arch_variant"`
 	} `android:"arch_variant"`
 
 	// Sanitizers to run with flag configuration specified
@@ -200,7 +232,9 @@ type SanitizeUserProps struct {
 		Cfi_assembly_support *bool `android:"arch_variant"`
 	} `android:"arch_variant"`
 
-	// value to pass to -fsanitize-recover=
+	// List of sanitizers to pass to -fsanitize-recover
+	// allows execution to continue for these sanitizers to detect multiple errors rather than only
+	// the first one
 	Recover []string
 
 	// value to pass to -fsanitize-blacklist
@@ -208,9 +242,7 @@ type SanitizeUserProps struct {
 }
 
 type SanitizeProperties struct {
-	// Enable AddressSanitizer, ThreadSanitizer, UndefinedBehaviorSanitizer, and
-	// others. Please see SanitizerUserProps in build/soong/cc/sanitize.go for
-	// details.
+	// Sanitizers are not supported for Fuchsia.
 	Sanitize          SanitizeUserProps `android:"arch_variant"`
 	SanitizerEnabled  bool              `blueprint:"mutated"`
 	SanitizeDep       bool              `blueprint:"mutated"`
