@@ -121,6 +121,7 @@ type bootclasspathFragmentProperties struct {
 	BootclasspathFragmentCoverageAffectedProperties
 	Coverage BootclasspathFragmentCoverageAffectedProperties
 
+	// Hidden API related properties.
 	Hidden_api HiddenAPIFlagFileProperties
 
 	// Properties that allow a fragment to depend on other fragments. This is needed for hidden API
@@ -378,7 +379,7 @@ func (b *BootclasspathFragmentModule) ComponentDepsMutator(ctx android.BottomUpM
 func (b *BootclasspathFragmentModule) DepsMutator(ctx android.BottomUpMutatorContext) {
 	// Add dependencies onto all the modules that provide the API stubs for classes on this
 	// bootclasspath fragment.
-	hiddenAPIAddStubLibDependencies(ctx, b.properties.sdkKindToStubLibs())
+	hiddenAPIAddStubLibDependencies(ctx, b.properties.apiScopeToStubLibs())
 
 	if SkipDexpreoptBootJars(ctx) {
 		return
@@ -595,7 +596,7 @@ func (b *BootclasspathFragmentModule) generateHiddenAPIBuildActions(ctx android.
 		// Other bootclasspath_fragments that depend on this need the transitive set of stub dex jars
 		// from this to resolve any references from their code to classes provided by this fragment
 		// and the fragments this depends upon.
-		TransitiveStubDexJarsByKind: input.transitiveStubDexJarsByKind(),
+		TransitiveStubDexJarsByScope: input.transitiveStubDexJarsByScope(),
 	}
 
 	// The monolithic hidden API processing also needs access to all the output files produced by
@@ -640,7 +641,7 @@ func (b *BootclasspathFragmentModule) createHiddenAPIFlagInput(ctx android.Modul
 	input.extractFlagFilesFromProperties(ctx, &b.properties.Hidden_api)
 
 	// Store the stub dex jars from this module's fragment dependencies.
-	input.DependencyStubDexJarsByKind = dependencyHiddenApiInfo.TransitiveStubDexJarsByKind
+	input.DependencyStubDexJarsByScope = dependencyHiddenApiInfo.TransitiveStubDexJarsByScope
 
 	return input
 }
