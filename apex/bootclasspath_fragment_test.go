@@ -216,9 +216,9 @@ func TestBootclasspathFragments_FragmentDependency(t *testing.T) {
 `,
 	)
 
-	checkSdkKindStubs := func(message string, info java.HiddenAPIInfo, kind android.SdkKind, expectedPaths ...string) {
+	checkAPIScopeStubs := func(message string, info java.HiddenAPIInfo, apiScope *java.HiddenAPIScope, expectedPaths ...string) {
 		t.Helper()
-		android.AssertPathsRelativeToTopEquals(t, fmt.Sprintf("%s %s", message, kind), expectedPaths, info.TransitiveStubDexJarsByKind[kind])
+		android.AssertPathsRelativeToTopEquals(t, fmt.Sprintf("%s %s", message, apiScope), expectedPaths, info.TransitiveStubDexJarsByScope[apiScope])
 	}
 
 	// Check stub dex paths exported by art.
@@ -229,10 +229,10 @@ func TestBootclasspathFragments_FragmentDependency(t *testing.T) {
 	bazSystemStubs := "out/soong/.intermediates/baz.stubs.system/android_common/dex/baz.stubs.system.jar"
 	bazTestStubs := "out/soong/.intermediates/baz.stubs.test/android_common/dex/baz.stubs.test.jar"
 
-	checkSdkKindStubs("art", artInfo, android.SdkPublic, bazPublicStubs)
-	checkSdkKindStubs("art", artInfo, android.SdkSystem, bazSystemStubs)
-	checkSdkKindStubs("art", artInfo, android.SdkTest, bazTestStubs)
-	checkSdkKindStubs("art", artInfo, android.SdkCorePlatform)
+	checkAPIScopeStubs("art", artInfo, java.PublicHiddenAPIScope, bazPublicStubs)
+	checkAPIScopeStubs("art", artInfo, java.SystemHiddenAPIScope, bazSystemStubs)
+	checkAPIScopeStubs("art", artInfo, java.TestHiddenAPIScope, bazTestStubs)
+	checkAPIScopeStubs("art", artInfo, java.CorePlatformHiddenAPIScope)
 
 	// Check stub dex paths exported by other.
 	otherFragment := result.Module("other-bootclasspath-fragment", "android_common")
@@ -241,10 +241,10 @@ func TestBootclasspathFragments_FragmentDependency(t *testing.T) {
 	fooPublicStubs := "out/soong/.intermediates/foo.stubs/android_common/dex/foo.stubs.jar"
 	fooSystemStubs := "out/soong/.intermediates/foo.stubs.system/android_common/dex/foo.stubs.system.jar"
 
-	checkSdkKindStubs("other", otherInfo, android.SdkPublic, bazPublicStubs, fooPublicStubs)
-	checkSdkKindStubs("other", otherInfo, android.SdkSystem, bazSystemStubs, fooSystemStubs)
-	checkSdkKindStubs("other", otherInfo, android.SdkTest, bazTestStubs, fooSystemStubs)
-	checkSdkKindStubs("other", otherInfo, android.SdkCorePlatform)
+	checkAPIScopeStubs("other", otherInfo, java.PublicHiddenAPIScope, bazPublicStubs, fooPublicStubs)
+	checkAPIScopeStubs("other", otherInfo, java.SystemHiddenAPIScope, bazSystemStubs, fooSystemStubs)
+	checkAPIScopeStubs("other", otherInfo, java.TestHiddenAPIScope, bazTestStubs, fooSystemStubs)
+	checkAPIScopeStubs("other", otherInfo, java.CorePlatformHiddenAPIScope)
 }
 
 func checkBootclasspathFragment(t *testing.T, result *android.TestResult, moduleName, variantName string, expectedConfiguredModules string, expectedBootclasspathFragmentFiles string) {
