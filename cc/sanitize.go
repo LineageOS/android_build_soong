@@ -1250,7 +1250,7 @@ var _ PlatformSanitizeable = (*Module)(nil)
 func sanitizerMutator(t SanitizerType) func(android.BottomUpMutatorContext) {
 	return func(mctx android.BottomUpMutatorContext) {
 		if c, ok := mctx.Module().(PlatformSanitizeable); ok && c.SanitizePropDefined() {
-			if c.IsDependencyRoot() && c.IsSanitizerEnabled(t) {
+			if c.Binary() && c.IsSanitizerEnabled(t) {
 				modules := mctx.CreateVariations(t.variationName())
 				modules[0].(PlatformSanitizeable).SetSanitizer(t, true)
 			} else if c.IsSanitizerEnabled(t) || c.SanitizeDep() {
