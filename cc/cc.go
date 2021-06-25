@@ -525,8 +525,6 @@ type DepsContext interface {
 // feature represents additional (optional) steps to building cc-related modules, such as invocation
 // of clang-tidy.
 type feature interface {
-	begin(ctx BaseModuleContext)
-	deps(ctx DepsContext, deps Deps) Deps
 	flags(ctx ModuleContext, flags Flags) Flags
 	props() []interface{}
 }
@@ -1897,20 +1895,11 @@ func (c *Module) begin(ctx BaseModuleContext) {
 	if c.coverage != nil {
 		c.coverage.begin(ctx)
 	}
-	if c.sabi != nil {
-		c.sabi.begin(ctx)
-	}
-	if c.vndkdep != nil {
-		c.vndkdep.begin(ctx)
-	}
 	if c.lto != nil {
 		c.lto.begin(ctx)
 	}
 	if c.pgo != nil {
 		c.pgo.begin(ctx)
-	}
-	for _, feature := range c.features {
-		feature.begin(ctx)
 	}
 	if ctx.useSdk() && c.IsSdkVariant() {
 		version, err := nativeApiLevelFromUser(ctx, ctx.sdkVersion())
@@ -1935,23 +1924,8 @@ func (c *Module) deps(ctx DepsContext) Deps {
 	if c.stl != nil {
 		deps = c.stl.deps(ctx, deps)
 	}
-	if c.sanitize != nil {
-		deps = c.sanitize.deps(ctx, deps)
-	}
 	if c.coverage != nil {
 		deps = c.coverage.deps(ctx, deps)
-	}
-	if c.sabi != nil {
-		deps = c.sabi.deps(ctx, deps)
-	}
-	if c.vndkdep != nil {
-		deps = c.vndkdep.deps(ctx, deps)
-	}
-	if c.lto != nil {
-		deps = c.lto.deps(ctx, deps)
-	}
-	for _, feature := range c.features {
-		deps = feature.deps(ctx, deps)
 	}
 
 	deps.WholeStaticLibs = android.LastUniqueStrings(deps.WholeStaticLibs)
