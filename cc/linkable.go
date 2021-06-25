@@ -165,6 +165,9 @@ type LinkableInterface interface {
 	// "product_specific: true" modules are included here.
 	UseVndk() bool
 
+	// Bootstrap tests if this module is allowed to use non-APEX version of libraries.
+	Bootstrap() bool
+
 	// IsVndkSp returns true if this is a VNDK-SP module.
 	IsVndkSp() bool
 
