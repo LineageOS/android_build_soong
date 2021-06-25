@@ -839,6 +839,7 @@ func TestApexWithStubs(t *testing.T) {
 			name: "myapex",
 			key: "myapex.key",
 			native_shared_libs: ["mylib", "mylib3"],
+			binaries: ["foo.rust"],
 			updatable: false,
 		}
 
@@ -887,6 +888,25 @@ func TestApexWithStubs(t *testing.T) {
 			stl: "none",
 			apex_available: [ "myapex" ],
 		}
+
+		rust_binary {
+			name: "foo.rust",
+			srcs: ["foo.rs"],
+			shared_libs: ["libfoo.shared_from_rust"],
+			prefer_rlib: true,
+			apex_available: ["myapex"],
+		}
+
+		cc_library_shared {
+			name: "libfoo.shared_from_rust",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+			stubs: {
+				versions: ["10", "11", "12"],
+			},
+		}
+
 	`)
 
 	apexRule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("apexRule")
@@ -924,7 +944,90 @@ func TestApexWithStubs(t *testing.T) {
 		"lib64/mylib.so",
 		"lib64/mylib3.so",
 		"lib64/mylib4.so",
+		"bin/foo.rust",
+		"lib64/libc++.so", // by the implicit dependency from foo.rust
+		"lib64/liblog.so", // by the implicit dependency from foo.rust
 	})
+
+	// Ensure that stub dependency from a rust module is not included
+	ensureNotContains(t, copyCmds, "image.apex/lib64/libfoo.shared_from_rust.so")
+	// The rust module is linked to the stub cc library
+	rustDeps := ctx.ModuleForTests("foo.rust", "android_arm64_armv8-a_apex10000").Rule("rustc").Args["linkFlags"]
+	ensureContains(t, rustDeps, "libfoo.shared_from_rust/android_arm64_armv8-a_shared_current/libfoo.shared_from_rust.so")
+	ensureNotContains(t, rustDeps, "libfoo.shared_from_rust/android_arm64_armv8-a_shared/libfoo.shared_from_rust.so")
+}
+
+func TestApexCanUsePrivateApis(t *testing.T) {
+	ctx := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			native_shared_libs: ["mylib"],
+			binaries: ["foo.rust"],
+			updatable: false,
+			platform_apis: true,
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "mylib",
+			srcs: ["mylib.cpp"],
+			shared_libs: ["mylib2"],
+			system_shared_libs: [],
+			stl: "none",
+			apex_available: [ "myapex" ],
+		}
+
+		cc_library {
+			name: "mylib2",
+			srcs: ["mylib.cpp"],
+			cflags: ["-include mylib.h"],
+			system_shared_libs: [],
+			stl: "none",
+			stubs: {
+				versions: ["1", "2", "3"],
+			},
+		}
+
+		rust_binary {
+			name: "foo.rust",
+			srcs: ["foo.rs"],
+			shared_libs: ["libfoo.shared_from_rust"],
+			prefer_rlib: true,
+			apex_available: ["myapex"],
+		}
+
+		cc_library_shared {
+			name: "libfoo.shared_from_rust",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+			stubs: {
+				versions: ["10", "11", "12"],
+			},
+		}
+	`)
+
+	apexRule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("apexRule")
+	copyCmds := apexRule.Args["copy_commands"]
+
+	// Ensure that indirect stubs dep is not included
+	ensureNotContains(t, copyCmds, "image.apex/lib64/mylib2.so")
+	ensureNotContains(t, copyCmds, "image.apex/lib64/libfoo.shared_from_rust.so")
+
+	// Ensure that we are using non-stub variants of mylib2 and libfoo.shared_from_rust (because
+	// of the platform_apis: true)
+	mylibLdFlags := ctx.ModuleForTests("mylib", "android_arm64_armv8-a_shared_apex10000_private").Rule("ld").Args["libFlags"]
+	ensureNotContains(t, mylibLdFlags, "mylib2/android_arm64_armv8-a_shared_current/mylib2.so")
+	ensureContains(t, mylibLdFlags, "mylib2/android_arm64_armv8-a_shared/mylib2.so")
+	rustDeps := ctx.ModuleForTests("foo.rust", "android_arm64_armv8-a_apex10000_private").Rule("rustc").Args["linkFlags"]
+	ensureNotContains(t, rustDeps, "libfoo.shared_from_rust/android_arm64_armv8-a_shared_current/libfoo.shared_from_rust.so")
+	ensureContains(t, rustDeps, "libfoo.shared_from_rust/android_arm64_armv8-a_shared/libfoo.shared_from_rust.so")
 }
 
 func TestApexWithStubsWithMinSdkVersion(t *testing.T) {
@@ -1691,6 +1794,36 @@ func TestApexMinSdkVersion_SupportsCodeNames(t *testing.T) {
 	expectNoLink("libx", "shared_apex10000", "libz", "shared_R")
 	expectNoLink("libx", "shared_apex10000", "libz", "shared_29")
 	expectNoLink("libx", "shared_apex10000", "libz", "shared")
+}
+
+func TestApexMinSdkVersion_SupportsCodeNames_JavaLibs(t *testing.T) {
+	testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			java_libs: ["libx"],
+			min_sdk_version: "S",
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		java_library {
+			name: "libx",
+			srcs: ["a.java"],
+			apex_available: [ "myapex" ],
+			sdk_version: "current",
+			min_sdk_version: "S", // should be okay
+		}
+	`,
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			variables.Platform_version_active_codenames = []string{"S"}
+			variables.Platform_sdk_codename = proptools.StringPtr("S")
+		}),
+	)
 }
 
 func TestApexMinSdkVersion_DefaultsToLatest(t *testing.T) {
@@ -3188,60 +3321,109 @@ func ensureExactContents(t *testing.T, ctx *android.TestContext, moduleName, var
 }
 
 func TestVndkApexCurrent(t *testing.T) {
-	ctx := testApex(t, `
-		apex_vndk {
-			name: "com.android.vndk.current",
-			key: "com.android.vndk.current.key",
-			updatable: false,
-		}
-
-		apex_key {
-			name: "com.android.vndk.current.key",
-			public_key: "testkey.avbpubkey",
-			private_key: "testkey.pem",
-		}
-
-		cc_library {
-			name: "libvndk",
-			srcs: ["mylib.cpp"],
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-			},
-			system_shared_libs: [],
-			stl: "none",
-			apex_available: [ "com.android.vndk.current" ],
-		}
-
-		cc_library {
-			name: "libvndksp",
-			srcs: ["mylib.cpp"],
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-				support_system_process: true,
-			},
-			system_shared_libs: [],
-			stl: "none",
-			apex_available: [ "com.android.vndk.current" ],
-		}
-	`+vndkLibrariesTxtFiles("current"))
-
-	ensureExactContents(t, ctx, "com.android.vndk.current", "android_common_image", []string{
-		"lib/libvndk.so",
-		"lib/libvndksp.so",
+	commonFiles := []string{
 		"lib/libc++.so",
-		"lib64/libvndk.so",
-		"lib64/libvndksp.so",
 		"lib64/libc++.so",
 		"etc/llndk.libraries.29.txt",
 		"etc/vndkcore.libraries.29.txt",
 		"etc/vndksp.libraries.29.txt",
 		"etc/vndkprivate.libraries.29.txt",
 		"etc/vndkproduct.libraries.29.txt",
-	})
+	}
+	testCases := []struct {
+		vndkVersion   string
+		expectedFiles []string
+	}{
+		{
+			vndkVersion: "current",
+			expectedFiles: append(commonFiles,
+				"lib/libvndk.so",
+				"lib/libvndksp.so",
+				"lib64/libvndk.so",
+				"lib64/libvndksp.so"),
+		},
+		{
+			vndkVersion: "",
+			expectedFiles: append(commonFiles,
+				// Legacy VNDK APEX contains only VNDK-SP files (of core variant)
+				"lib/libvndksp.so",
+				"lib64/libvndksp.so"),
+		},
+	}
+	for _, tc := range testCases {
+		t.Run("VNDK.current with DeviceVndkVersion="+tc.vndkVersion, func(t *testing.T) {
+			ctx := testApex(t, `
+			apex_vndk {
+				name: "com.android.vndk.current",
+				key: "com.android.vndk.current.key",
+				updatable: false,
+			}
+
+			apex_key {
+				name: "com.android.vndk.current.key",
+				public_key: "testkey.avbpubkey",
+				private_key: "testkey.pem",
+			}
+
+			cc_library {
+				name: "libvndk",
+				srcs: ["mylib.cpp"],
+				vendor_available: true,
+				product_available: true,
+				vndk: {
+					enabled: true,
+				},
+				system_shared_libs: [],
+				stl: "none",
+				apex_available: [ "com.android.vndk.current" ],
+			}
+
+			cc_library {
+				name: "libvndksp",
+				srcs: ["mylib.cpp"],
+				vendor_available: true,
+				product_available: true,
+				vndk: {
+					enabled: true,
+					support_system_process: true,
+				},
+				system_shared_libs: [],
+				stl: "none",
+				apex_available: [ "com.android.vndk.current" ],
+			}
+
+			// VNDK-Ext should not cause any problems
+
+			cc_library {
+				name: "libvndk.ext",
+				srcs: ["mylib2.cpp"],
+				vendor: true,
+				vndk: {
+					enabled: true,
+					extends: "libvndk",
+				},
+				system_shared_libs: [],
+				stl: "none",
+			}
+
+			cc_library {
+				name: "libvndksp.ext",
+				srcs: ["mylib2.cpp"],
+				vendor: true,
+				vndk: {
+					enabled: true,
+					support_system_process: true,
+					extends: "libvndksp",
+				},
+				system_shared_libs: [],
+				stl: "none",
+			}
+		`+vndkLibrariesTxtFiles("current"), android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+				variables.DeviceVndkVersion = proptools.StringPtr(tc.vndkVersion)
+			}))
+			ensureExactContents(t, ctx, "com.android.vndk.current", "android_common_image", tc.expectedFiles)
+		})
+	}
 }
 
 func TestVndkApexWithPrebuilt(t *testing.T) {

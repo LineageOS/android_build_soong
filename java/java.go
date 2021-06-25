@@ -643,7 +643,7 @@ func LibraryFactory() android.Module {
 
 	module.addHostAndDeviceProperties()
 
-	module.initModuleAndImport(&module.ModuleBase)
+	module.initModuleAndImport(module)
 
 	android.InitApexModule(module)
 	android.InitSdkAwareModule(module)
@@ -1416,12 +1416,8 @@ func (j *Import) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
 	if sdkSpec.Kind == android.SdkCore {
 		return nil
 	}
-	ver, err := sdkSpec.EffectiveVersion(ctx)
-	if err != nil {
-		return err
-	}
-	if ver.GreaterThan(sdkVersion) {
-		return fmt.Errorf("newer SDK(%v)", ver)
+	if sdkSpec.ApiLevel.GreaterThan(sdkVersion) {
+		return fmt.Errorf("newer SDK(%v)", sdkSpec.ApiLevel)
 	}
 	return nil
 }
@@ -1496,7 +1492,7 @@ func ImportFactory() android.Module {
 		&module.dexer.dexProperties,
 	)
 
-	module.initModuleAndImport(&module.ModuleBase)
+	module.initModuleAndImport(module)
 
 	module.dexProperties.Optimize.EnabledByDefault = false
 
