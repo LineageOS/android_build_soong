@@ -831,6 +831,46 @@ type Module struct {
 	hideApexVariantFromMake bool
 }
 
+func (c *Module) AddJSONData(d *map[string]interface{}) {
+	c.AndroidModuleBase().AddJSONData(d)
+	(*d)["Cc"] = map[string]interface{}{
+		"SdkVersion":             c.SdkVersion(),
+		"MinSdkVersion":          c.MinSdkVersion(),
+		"VndkVersion":            c.VndkVersion(),
+		"ProductSpecific":        c.ProductSpecific(),
+		"SocSpecific":            c.SocSpecific(),
+		"DeviceSpecific":         c.DeviceSpecific(),
+		"InProduct":              c.InProduct(),
+		"InVendor":               c.InVendor(),
+		"InRamdisk":              c.InRamdisk(),
+		"InVendorRamdisk":        c.InVendorRamdisk(),
+		"InRecovery":             c.InRecovery(),
+		"VendorAvailable":        c.VendorAvailable(),
+		"ProductAvailable":       c.ProductAvailable(),
+		"RamdiskAvailable":       c.RamdiskAvailable(),
+		"VendorRamdiskAvailable": c.VendorRamdiskAvailable(),
+		"RecoveryAvailable":      c.RecoveryAvailable(),
+		"OdmAvailable":           c.OdmAvailable(),
+		"InstallInData":          c.InstallInData(),
+		"InstallInRamdisk":       c.InstallInRamdisk(),
+		"InstallInSanitizerDir":  c.InstallInSanitizerDir(),
+		"InstallInVendorRamdisk": c.InstallInVendorRamdisk(),
+		"InstallInRecovery":      c.InstallInRecovery(),
+		"InstallInRoot":          c.InstallInRoot(),
+		"IsVndk":                 c.IsVndk(),
+		"IsVndkExt":              c.IsVndkExt(),
+		"IsVndkPrivate":          c.IsVndkPrivate(),
+		"IsVndkSp":               c.IsVndkSp(),
+		"IsLlndk":                c.IsLlndk(),
+		"IsLlndkPublic":          c.IsLlndkPublic(),
+		"IsSnapshotLibrary":      c.IsSnapshotLibrary(),
+		"IsSnapshotPrebuilt":     c.IsSnapshotPrebuilt(),
+		"IsVendorPublicLibrary":  c.IsVendorPublicLibrary(),
+		"ApexSdkVersion":         c.apexSdkVersion,
+		"TestFor":                c.TestFor(),
+	}
+}
+
 func (c *Module) SetPreventInstall() {
 	c.Properties.PreventInstall = true
 }
