@@ -273,7 +273,7 @@ func TestSnapshotWithBootClasspathFragment_Contents(t *testing.T) {
 				name: "myothersdklibrary",
 				apex_available: ["myapex"],
 				srcs: ["Test.java"],
-				shared_library: false,
+				compile_dex: true,
 				public: {enabled: true},
 				min_sdk_version: "2",
 				permitted_packages: ["myothersdklibrary"],
@@ -283,7 +283,7 @@ func TestSnapshotWithBootClasspathFragment_Contents(t *testing.T) {
 				name: "mycoreplatform",
 				apex_available: ["myapex"],
 				srcs: ["Test.java"],
-				shared_library: false,
+				compile_dex: true,
 				public: {enabled: true},
 				min_sdk_version: "2",
 			}
@@ -334,7 +334,8 @@ java_sdk_library_import {
     prefer: false,
     visibility: ["//visibility:public"],
     apex_available: ["myapex"],
-    shared_library: false,
+    shared_library: true,
+    compile_dex: true,
     public: {
         jars: ["sdk_library/public/myothersdklibrary-stubs.jar"],
         stub_srcs: ["sdk_library/public/myothersdklibrary_stub_sources"],
@@ -364,7 +365,8 @@ java_sdk_library_import {
     prefer: false,
     visibility: ["//visibility:public"],
     apex_available: ["myapex"],
-    shared_library: false,
+    shared_library: true,
+    compile_dex: true,
     public: {
         jars: ["sdk_library/public/mycoreplatform-stubs.jar"],
         stub_srcs: ["sdk_library/public/mycoreplatform_stub_sources"],
@@ -414,7 +416,8 @@ java_sdk_library_import {
     sdk_member_name: "myothersdklibrary",
     visibility: ["//visibility:public"],
     apex_available: ["myapex"],
-    shared_library: false,
+    shared_library: true,
+    compile_dex: true,
     public: {
         jars: ["sdk_library/public/myothersdklibrary-stubs.jar"],
         stub_srcs: ["sdk_library/public/myothersdklibrary_stub_sources"],
@@ -444,7 +447,8 @@ java_sdk_library_import {
     sdk_member_name: "mycoreplatform",
     visibility: ["//visibility:public"],
     apex_available: ["myapex"],
-    shared_library: false,
+    shared_library: true,
+    compile_dex: true,
     public: {
         jars: ["sdk_library/public/mycoreplatform-stubs.jar"],
         stub_srcs: ["sdk_library/public/mycoreplatform_stub_sources"],
