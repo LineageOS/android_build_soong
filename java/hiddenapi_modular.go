@@ -232,11 +232,11 @@ func hiddenAPIRetrieveDexJarBuildPath(ctx android.ModuleContext, module android.
 	return dexJar
 }
 
-// ruleToGenerateHiddenAPIStubFlagsFile creates a rule to create a hidden API stub flags file.
+// buildRuleToGenerateHiddenAPIStubFlagsFile creates a rule to create a hidden API stub flags file.
 //
 // The rule is initialized but not built so that the caller can modify it and select an appropriate
 // name.
-func ruleToGenerateHiddenAPIStubFlagsFile(ctx android.BuilderContext, outputPath android.WritablePath, bootDexJars android.Paths, input HiddenAPIFlagInput) *android.RuleBuilder {
+func buildRuleToGenerateHiddenAPIStubFlagsFile(ctx android.BuilderContext, name, desc string, outputPath android.WritablePath, bootDexJars android.Paths, input HiddenAPIFlagInput) {
 	// Singleton rule which applies hiddenapi on all boot class path dex files.
 	rule := android.NewRuleBuilder(pctx, ctx)
 
@@ -277,7 +277,8 @@ func ruleToGenerateHiddenAPIStubFlagsFile(ctx android.BuilderContext, outputPath
 	command.FlagWithOutput("--out-api-flags=", tempPath)
 
 	commitChangeForRestat(rule, tempPath, outputPath)
-	return rule
+
+	rule.Build(name, desc)
 }
 
 // HiddenAPIFlagFileProperties contains paths to the flag files that can be used to augment the
@@ -792,8 +793,7 @@ func hiddenAPIRulesForBootclasspathFragment(ctx android.ModuleContext, contents 
 
 	// Generate the stub-flags.csv.
 	stubFlagsCSV := android.PathForModuleOut(ctx, hiddenApiSubDir, "stub-flags.csv")
-	rule := ruleToGenerateHiddenAPIStubFlagsFile(ctx, stubFlagsCSV, bootDexInfoByModule.bootDexJars(), input)
-	rule.Build("modularHiddenAPIStubFlagsFile", "modular hiddenapi stub flags")
+	buildRuleToGenerateHiddenAPIStubFlagsFile(ctx, "modularHiddenAPIStubFlagsFile", "modular hiddenapi stub flags", stubFlagsCSV, bootDexInfoByModule.bootDexJars(), input)
 
 	// Extract the classes jars from the contents.
 	classesJars := extractClassesJarsFromModules(contents)
