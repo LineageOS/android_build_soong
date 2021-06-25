@@ -1190,6 +1190,10 @@ type ModuleBase struct {
 	vintfFragmentsPaths Paths
 }
 
+func (m *ModuleBase) AddJSONData(d *map[string]interface{}) {
+	(*d)["Android"] = map[string]interface{}{}
+}
+
 func (m *ModuleBase) ComponentDepsMutator(BottomUpMutatorContext) {}
 
 func (m *ModuleBase) DepsMutator(BottomUpMutatorContext) {}
