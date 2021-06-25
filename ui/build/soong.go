@@ -333,8 +333,9 @@ func runSoong(ctx Context, config Config) {
 }
 
 func shouldCollectBuildSoongMetrics(config Config) bool {
-	// Do not collect metrics protobuf if the soong_build binary ran as the bp2build converter.
-	return config.bazelBuildMode() != generateBuildFiles
+	// Do not collect metrics protobuf if the soong_build binary ran as the
+	// bp2build converter or the JSON graph dump.
+	return config.bazelBuildMode() != generateBuildFiles && config.bazelBuildMode() != generateJsonModuleGraph
 }
 
 func loadSoongBuildMetrics(ctx Context, config Config) *soong_metrics_proto.SoongBuildMetrics {
