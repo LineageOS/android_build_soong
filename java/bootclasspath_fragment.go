@@ -121,7 +121,17 @@ type bootclasspathFragmentProperties struct {
 	BootclasspathFragmentCoverageAffectedProperties
 	Coverage BootclasspathFragmentCoverageAffectedProperties
 
+	// Hidden API related properties.
 	Hidden_api HiddenAPIFlagFileProperties
+
+	// The list of additional stub libraries which this fragment's contents use but which are not
+	// provided by another bootclasspath_fragment.
+	//
+	// Note, "android-non-updatable" is treated specially. While no such module exists it is treated
+	// as if it was a java_sdk_library. So, when public API stubs are needed then it will be replaced
+	// with "android-non-updatable.stubs", with "androidn-non-updatable.system.stubs" when the system
+	// stubs are needed and so on.
+	Additional_stubs []string
 
 	// Properties that allow a fragment to depend on other fragments. This is needed for hidden API
 	// processing as it needs access to all the classes used by a fragment including those provided
@@ -375,7 +385,16 @@ func (b *BootclasspathFragmentModule) ComponentDepsMutator(ctx android.BottomUpM
 func (b *BootclasspathFragmentModule) DepsMutator(ctx android.BottomUpMutatorContext) {
 	// Add dependencies onto all the modules that provide the API stubs for classes on this
 	// bootclasspath fragment.
-	hiddenAPIAddStubLibDependencies(ctx, b.properties.sdkKindToStubLibs())
+	hiddenAPIAddStubLibDependencies(ctx, b.properties.apiScopeToStubLibs())
+
+	for _, additionalStubModule := range b.properties.Additional_stubs {
+		for _, apiScope := range hiddenAPISdkLibrarySupportedScopes {
+			// Add a dependency onto a possibly scope specific stub library.
+			scopeSpecificDependency := apiScope.scopeSpecificStubModule(ctx, additionalStubModule)
+			tag := hiddenAPIStubsDependencyTag{apiScope: apiScope, fromAdditionalDependency: true}
+			ctx.AddVariationDependencies(nil, tag, scopeSpecificDependency)
+		}
+	}
 
 	if SkipDexpreoptBootJars(ctx) {
 		return
@@ -588,7 +607,7 @@ func (b *BootclasspathFragmentModule) generateHiddenAPIBuildActions(ctx android.
 		// Other bootclasspath_fragments that depend on this need the transitive set of stub dex jars
 		// from this to resolve any references from their code to classes provided by this fragment
 		// and the fragments this depends upon.
-		TransitiveStubDexJarsByKind: input.transitiveStubDexJarsByKind(),
+		TransitiveStubDexJarsByScope: input.transitiveStubDexJarsByScope(),
 	}
 
 	// The monolithic hidden API processing also needs access to all the output files produced by
@@ -632,8 +651,8 @@ func (b *BootclasspathFragmentModule) createHiddenAPIFlagInput(ctx android.Modul
 	// Populate with flag file paths from the properties.
 	input.extractFlagFilesFromProperties(ctx, &b.properties.Hidden_api)
 
-	// Store the stub dex jars from this module's fragment dependencies.
-	input.DependencyStubDexJarsByKind = dependencyHiddenApiInfo.TransitiveStubDexJarsByKind
+	// Add the stub dex jars from this module's fragment dependencies.
+	input.DependencyStubDexJarsByScope.append(dependencyHiddenApiInfo.TransitiveStubDexJarsByScope)
 
 	return input
 }

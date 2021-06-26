@@ -119,8 +119,8 @@ func (b *platformBootclasspathModule) hiddenAPIDepsMutator(ctx android.BottomUpM
 	}
 
 	// Add dependencies onto the stub lib modules.
-	sdkKindToStubLibModules := hiddenAPIComputeMonolithicStubLibModules(ctx.Config())
-	hiddenAPIAddStubLibDependencies(ctx, sdkKindToStubLibModules)
+	apiLevelToStubLibModules := hiddenAPIComputeMonolithicStubLibModules(ctx.Config())
+	hiddenAPIAddStubLibDependencies(ctx, apiLevelToStubLibModules)
 }
 
 func (b *platformBootclasspathModule) BootclasspathDepsMutator(ctx android.BottomUpMutatorContext) {
@@ -287,7 +287,7 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 	// the fragments will have already provided the flags that are needed.
 	classesJars := monolithicInfo.ClassesJars
 
-	// Create the input to pass to ruleToGenerateHiddenAPIStubFlagsFile
+	// Create the input to pass to buildRuleToGenerateHiddenAPIStubFlagsFile
 	input := newHiddenAPIFlagInput()
 
 	// Gather stub library information from the dependencies on modules provided by
@@ -299,8 +299,7 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 
 	// Generate the monolithic stub-flags.csv file.
 	stubFlags := hiddenAPISingletonPaths(ctx).stubFlags
-	rule := ruleToGenerateHiddenAPIStubFlagsFile(ctx, stubFlags, bootDexJarByModule.bootDexJars(), input)
-	rule.Build("platform-bootclasspath-monolithic-hiddenapi-stub-flags", "monolithic hidden API stub flags")
+	buildRuleToGenerateHiddenAPIStubFlagsFile(ctx, "platform-bootclasspath-monolithic-hiddenapi-stub-flags", "monolithic hidden API stub flags", stubFlags, bootDexJarByModule.bootDexJars(), input, monolithicInfo.StubFlagsPaths)
 
 	// Generate the annotation-flags.csv file from all the module annotations.
 	annotationFlags := android.PathForModuleOut(ctx, "hiddenapi-monolithic", "annotation-flags-from-classes.csv")
