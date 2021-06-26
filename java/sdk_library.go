@@ -684,6 +684,15 @@ func (c *commonToSdkLibraryAndImport) initCommonAfterDefaultsApplied(ctx android
 	return true
 }
 
+// uniqueApexVariations provides common implementation of the ApexModule.UniqueApexVariations
+// method.
+func (c *commonToSdkLibraryAndImport) uniqueApexVariations() bool {
+	// A java_sdk_library that is a shared library produces an XML file that makes the shared library
+	// usable from an AndroidManifest.xml's <uses-library> entry. That XML file contains the name of
+	// the APEX and so it needs a unique variation per APEX.
+	return c.sharedLibrary()
+}
+
 func (c *commonToSdkLibraryAndImport) generateCommonBuildActions(ctx android.ModuleContext) {
 	c.doctagPaths = android.PathsForModuleSrc(ctx, c.commonSdkLibraryProperties.Doctag_files)
 }
@@ -1528,12 +1537,18 @@ func (module *SdkLibrary) createStubsSourcesAndApi(mctx android.DefaultableHookC
 	mctx.CreateModule(DroidstubsFactory, &props)
 }
 
+// Implements android.ApexModule
 func (module *SdkLibrary) DepIsInSameApex(mctx android.BaseModuleContext, dep android.Module) bool {
 	depTag := mctx.OtherModuleDependencyTag(dep)
 	if depTag == xmlPermissionsFileTag {
 		return true
 	}
 	return module.Library.DepIsInSameApex(mctx, dep)
+}
+
+// Implements android.ApexModule
+func (module *SdkLibrary) UniqueApexVariations() bool {
+	return module.uniqueApexVariations()
 }
 
 // Creates the xml file that publicizes the runtime library
@@ -2084,6 +2099,11 @@ func (module *SdkLibraryImport) ShouldSupportSdkVersion(ctx android.BaseModuleCo
 	sdkVersion android.ApiLevel) error {
 	// we don't check prebuilt modules for sdk_version
 	return nil
+}
+
+// Implements android.ApexModule
+func (module *SdkLibraryImport) UniqueApexVariations() bool {
+	return module.uniqueApexVariations()
 }
 
 func (module *SdkLibraryImport) OutputFiles(tag string) (android.Paths, error) {

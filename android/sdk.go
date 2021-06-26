@@ -359,6 +359,8 @@ type SdkMemberTypeDependencyTag interface {
 
 	// SdkMemberType returns the SdkMemberType that will be used to automatically add the child module
 	// to the sdk.
+	//
+	// Returning nil will prevent the module being added to the sdk.
 	SdkMemberType(child Module) SdkMemberType
 
 	// ExportMember determines whether a module added to the sdk through this tag will be exported

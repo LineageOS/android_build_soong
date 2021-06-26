@@ -148,6 +148,11 @@ func (s *sdk) collectMembers(ctx android.ModuleContext) {
 		if memberTag, ok := tag.(android.SdkMemberTypeDependencyTag); ok {
 			memberType := memberTag.SdkMemberType(child)
 
+			// If a nil SdkMemberType was returned then this module should not be added to the sdk.
+			if memberType == nil {
+				return false
+			}
+
 			// Make sure that the resolved module is allowed in the member list property.
 			if !memberType.IsInstance(child) {
 				ctx.ModuleErrorf("module %q is not valid in property %s", ctx.OtherModuleName(child), memberType.SdkPropertyName())
