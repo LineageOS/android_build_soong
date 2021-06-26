@@ -46,6 +46,7 @@ var (
 
 		"-O2",
 		"-g",
+		"-fdebug-default-version=5",
 		"-fdebug-info-for-profiling",
 
 		"-fno-strict-aliasing",
@@ -145,8 +146,8 @@ var (
 
 	// prebuilts/clang default settings.
 	ClangDefaultBase         = "prebuilts/clang/host"
-	ClangDefaultVersion      = "clang-r416183b"
-	ClangDefaultShortVersion = "12.0.5"
+	ClangDefaultVersion      = "clang-r416183b1"
+	ClangDefaultShortVersion = "12.0.7"
 
 	// Directories with warnings from Android.bp files.
 	WarningAllowedProjects = []string{

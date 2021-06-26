@@ -636,7 +636,7 @@ func TestRewriteCtsModuleTypes(t *testing.T) {
 				}
 			`,
 			out: `
-				android_test {
+				android_test_helper_app {
 					name: "foo",
 					defaults: ["cts_support_defaults"],
 				}

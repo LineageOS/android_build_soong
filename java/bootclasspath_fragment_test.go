@@ -245,17 +245,17 @@ func TestBootclasspathFragment_StubLibs(t *testing.T) {
 	otherPublicStubsJar := "out/soong/.intermediates/myothersdklibrary.stubs/android_common/dex/myothersdklibrary.stubs.jar"
 
 	// Check that SdkPublic uses public stubs for all sdk libraries.
-	android.AssertPathsRelativeToTopEquals(t, "public dex stubs jar", []string{otherPublicStubsJar, publicStubsJar, stubsJar}, info.TransitiveStubDexJarsByKind[android.SdkPublic])
+	android.AssertPathsRelativeToTopEquals(t, "public dex stubs jar", []string{otherPublicStubsJar, publicStubsJar, stubsJar}, info.TransitiveStubDexJarsByScope[PublicHiddenAPIScope])
 
 	// Check that SdkSystem uses system stubs for mysdklibrary and public stubs for myothersdklibrary
 	// as it does not provide system stubs.
-	android.AssertPathsRelativeToTopEquals(t, "system dex stubs jar", []string{otherPublicStubsJar, systemStubsJar, stubsJar}, info.TransitiveStubDexJarsByKind[android.SdkSystem])
+	android.AssertPathsRelativeToTopEquals(t, "system dex stubs jar", []string{otherPublicStubsJar, systemStubsJar, stubsJar}, info.TransitiveStubDexJarsByScope[SystemHiddenAPIScope])
 
 	// Check that SdkTest also uses system stubs for mysdklibrary as it does not provide test stubs
 	// and public stubs for myothersdklibrary as it does not provide test stubs either.
-	android.AssertPathsRelativeToTopEquals(t, "test dex stubs jar", []string{otherPublicStubsJar, systemStubsJar, stubsJar}, info.TransitiveStubDexJarsByKind[android.SdkTest])
+	android.AssertPathsRelativeToTopEquals(t, "test dex stubs jar", []string{otherPublicStubsJar, systemStubsJar, stubsJar}, info.TransitiveStubDexJarsByScope[TestHiddenAPIScope])
 
 	// Check that SdkCorePlatform uses public stubs from the mycoreplatform library.
 	corePlatformStubsJar := "out/soong/.intermediates/mycoreplatform.stubs/android_common/dex/mycoreplatform.stubs.jar"
-	android.AssertPathsRelativeToTopEquals(t, "core platform dex stubs jar", []string{corePlatformStubsJar}, info.TransitiveStubDexJarsByKind[android.SdkCorePlatform])
+	android.AssertPathsRelativeToTopEquals(t, "core platform dex stubs jar", []string{corePlatformStubsJar}, info.TransitiveStubDexJarsByScope[CorePlatformHiddenAPIScope])
 }

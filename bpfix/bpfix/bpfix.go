@@ -319,7 +319,7 @@ func rewriteCtsModuleTypes(f *Fixer) error {
 		var defStr string
 		switch mod.Type {
 		case "cts_support_package":
-			mod.Type = "android_test"
+			mod.Type = "android_test_helper_app"
 			defStr = "cts_support_defaults"
 		case "cts_package":
 			mod.Type = "android_test"
@@ -622,12 +622,20 @@ func rewriteAndroidmkPrebuiltEtc(f *Fixer) error {
 func rewriteAndroidTest(f *Fixer) error {
 	for _, def := range f.tree.Defs {
 		mod, ok := def.(*parser.Module)
-		if !(ok && mod.Type == "android_test") {
+		if !ok {
+			// The definition is not a module.
+			continue
+		}
+		if mod.Type != "android_test" && mod.Type != "android_test_helper_app" {
+			// The module is not an android_test or android_test_helper_app.
 			continue
 		}
 		// The rewriter converts LOCAL_MODULE_PATH attribute into a struct attribute
 		// 'local_module_path'. For the android_test module, it should be  $(TARGET_OUT_DATA_APPS),
 		// that is, `local_module_path: { var: "TARGET_OUT_DATA_APPS"}`
+		// 1. if the `key: val` pair matches, (key is `local_module_path`,
+		//    and val is `{ var: "TARGET_OUT_DATA_APPS"}`), this property is removed;
+		// 2. o/w, an error msg is thrown.
 		const local_module_path = "local_module_path"
 		if prop_local_module_path, ok := mod.GetProperty(local_module_path); ok {
 			removeProperty(mod, local_module_path)
@@ -637,7 +645,7 @@ func rewriteAndroidTest(f *Fixer) error {
 				continue
 			}
 			return indicateAttributeError(mod, "filename",
-				"Only LOCAL_MODULE_PATH := $(TARGET_OUT_DATA_APPS) is allowed for the android_test")
+				"Only LOCAL_MODULE_PATH := $(TARGET_OUT_DATA_APPS) is allowed for the %s", mod.Type)
 		}
 	}
 	return nil
