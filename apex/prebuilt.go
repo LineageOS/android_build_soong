@@ -23,7 +23,6 @@ import (
 	"android/soong/android"
 	"android/soong/java"
 	"github.com/google/blueprint"
-
 	"github.com/google/blueprint/proptools"
 )
 
@@ -75,6 +74,10 @@ type sanitizedPrebuilt interface {
 type PrebuiltCommonProperties struct {
 	SelectedApexProperties
 
+	// Canonical name of this APEX. Used to determine the path to the activated APEX on
+	// device (/apex/<apex_name>). If unspecified, follows the name property.
+	Apex_name *string
+
 	ForceDisable bool `blueprint:"mutated"`
 
 	// whether the extracted apex file is installable.
@@ -107,6 +110,10 @@ func (p *prebuiltCommon) initPrebuiltCommon(module android.Module, properties *P
 	p.prebuiltCommonProperties = properties
 	android.InitSingleSourcePrebuiltModule(module.(android.PrebuiltInterface), properties, "Selected_apex")
 	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
+}
+
+func (p *prebuiltCommon) ApexVariationName() string {
+	return proptools.StringDefault(p.prebuiltCommonProperties.Apex_name, p.ModuleBase.BaseModuleName())
 }
 
 func (p *prebuiltCommon) Prebuilt() *android.Prebuilt {
@@ -389,11 +396,11 @@ func (p *prebuiltCommon) apexInfoMutator(mctx android.TopDownMutatorContext) {
 	})
 
 	// Create an ApexInfo for the prebuilt_apex.
-	apexVariationName := android.RemoveOptionalPrebuiltPrefix(mctx.ModuleName())
+	apexVariationName := p.ApexVariationName()
 	apexInfo := android.ApexInfo{
 		ApexVariationName: apexVariationName,
 		InApexVariants:    []string{apexVariationName},
-		InApexModules:     []string{apexVariationName},
+		InApexModules:     []string{p.ModuleBase.BaseModuleName()}, // BaseModuleName() to avoid the prebuilt_ prefix.
 		ApexContents:      []*android.ApexContents{apexContents},
 		ForPrebuiltApex:   true,
 	}
