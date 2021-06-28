@@ -241,10 +241,6 @@ func (t *toolchainDarwin) AvailableLibraries() []string {
 	return darwinAvailableLibraries
 }
 
-func (t *toolchainDarwin) Bionic() bool {
-	return false
-}
-
 func (t *toolchainDarwin) ToolPath() string {
 	return "${config.MacToolPath}"
 }
