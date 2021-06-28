@@ -1100,13 +1100,6 @@ func apexMutator(mctx android.BottomUpMutatorContext) {
 			mctx.ModuleErrorf("base property is not set")
 			return
 		}
-		// Workaround the issue reported in b/191269918 by using the unprefixed module name of this
-		// module as the default variation to use if dependencies of this module do not have the correct
-		// apex variant name. This name matches the name used to create the variations of modules for
-		// which apexModuleTypeRequiresVariant return true.
-		// TODO(b/191269918): Remove this workaround.
-		unprefixedModuleName := android.RemoveOptionalPrebuiltPrefix(mctx.ModuleName())
-		mctx.SetDefaultDependencyVariation(&unprefixedModuleName)
 		mctx.CreateVariations(apexBundleName)
 		if strings.HasPrefix(apexBundleName, "com.android.art") {
 			// TODO(b/183882457): See note for CreateAliasVariation above.
