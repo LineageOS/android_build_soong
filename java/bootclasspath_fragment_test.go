@@ -258,4 +258,8 @@ func TestBootclasspathFragment_StubLibs(t *testing.T) {
 	// Check that SdkCorePlatform uses public stubs from the mycoreplatform library.
 	corePlatformStubsJar := "out/soong/.intermediates/mycoreplatform.stubs/android_common/dex/mycoreplatform.stubs.jar"
 	android.AssertPathsRelativeToTopEquals(t, "core platform dex stubs jar", []string{corePlatformStubsJar}, info.TransitiveStubDexJarsByScope[CorePlatformHiddenAPIScope])
+
+	// Check the widest stubs. This should list the widest stub dex jar provided by each module.
+	// TODO(b/179354495): Fix this.
+	android.AssertPathsRelativeToTopEquals(t, "widest dex stubs jar", []string{corePlatformStubsJar}, info.TransitiveStubDexJarsByScope.StubDexJarsForWidestAPIScope())
 }
