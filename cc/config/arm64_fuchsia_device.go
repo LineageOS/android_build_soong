@@ -82,10 +82,6 @@ func (t *toolchainFuchsiaArm64) ClangCflags() string {
 	return "--target=arm64-fuchsia --sysroot=" + fuchsiaArm64SysRoot + " -I" + fuchsiaArm64SysRoot + "/include"
 }
 
-func (t *toolchainFuchsiaArm64) Bionic() bool {
-	return false
-}
-
 func (t *toolchainFuchsiaArm64) ToolchainClangCflags() string {
 	return "-march=armv8-a"
 }
