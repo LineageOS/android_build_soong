@@ -134,6 +134,7 @@ func init() {
 }
 
 type toolchainX86 struct {
+	toolchainBionic
 	toolchain32Bit
 	toolchainClangCflags string
 }

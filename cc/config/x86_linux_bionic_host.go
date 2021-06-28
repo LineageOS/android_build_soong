@@ -63,6 +63,16 @@ var (
 	})
 
 	linuxBionicLldflags = ClangFilterUnknownLldflags(linuxBionicLdflags)
+
+	// Embed the linker into host bionic binaries. This is needed to support host bionic,
+	// as the linux kernel requires that the ELF interpreter referenced by PT_INTERP be
+	// either an absolute path, or relative from CWD. To work around this, we extract
+	// the load sections from the runtime linker ELF binary and embed them into each host
+	// bionic binary, omitting the PT_INTERP declaration. The kernel will treat it as a static
+	// binary, and then we use a special entry point to fix up the arguments passed by
+	// the kernel before jumping to the embedded linker.
+	linuxBionicCrtBeginSharedBinary = append(android.CopyOf(bionicCrtBeginSharedBinary),
+		"host_bionic_linker_script")
 )
 
 func init() {
@@ -76,6 +86,7 @@ func init() {
 
 type toolchainLinuxBionic struct {
 	toolchain64Bit
+	toolchainBionic
 }
 
 func (t *toolchainLinuxBionic) Name() string {
@@ -133,12 +144,12 @@ func (t *toolchainLinuxBionic) AvailableLibraries() []string {
 	return nil
 }
 
-func (t *toolchainLinuxBionic) Bionic() bool {
-	return true
-}
-
 func (toolchainLinuxBionic) LibclangRuntimeLibraryArch() string {
 	return "x86_64"
+}
+
+func (toolchainLinuxBionic) CrtBeginSharedBinary() []string {
+	return linuxBionicCrtBeginSharedBinary
 }
 
 var toolchainLinuxBionicSingleton Toolchain = &toolchainLinuxBionic{}

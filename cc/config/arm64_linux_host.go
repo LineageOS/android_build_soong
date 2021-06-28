@@ -45,6 +45,16 @@ var (
 		"-Wl,--hash-style=gnu",
 		"-Wl,--no-undefined-version",
 	})
+
+	// Embed the linker into host bionic binaries. This is needed to support host bionic,
+	// as the linux kernel requires that the ELF interpreter referenced by PT_INTERP be
+	// either an absolute path, or relative from CWD. To work around this, we extract
+	// the load sections from the runtime linker ELF binary and embed them into each host
+	// bionic binary, omitting the PT_INTERP declaration. The kernel will treat it as a static
+	// binary, and then we use a special entry point to fix up the arguments passed by
+	// the kernel before jumping to the embedded linker.
+	linuxArm64CrtBeginSharedBinary = append(android.CopyOf(bionicCrtBeginSharedBinary),
+		"host_bionic_linker_script")
 )
 
 func init() {
@@ -66,6 +76,10 @@ func (toolchainLinuxArm64) ClangTriple() string {
 func (toolchainLinuxArm64) ClangCflags() string {
 	// The inherited flags + extra flags
 	return "${config.Arm64ClangCflags} ${config.LinuxBionicArm64Cflags}"
+}
+
+func (toolchainLinuxArm64) CrtBeginSharedBinary() []string {
+	return linuxArm64CrtBeginSharedBinary
 }
 
 func linuxArm64ToolchainFactory(arch android.Arch) Toolchain {

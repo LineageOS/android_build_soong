@@ -83,10 +83,6 @@ func (t *toolchainFuchsiaX8664) ClangCflags() string {
 	return "--target=x86_64-fuchsia --sysroot=" + fuchsiaSysRoot + " -I" + fuchsiaSysRoot + "/include"
 }
 
-func (t *toolchainFuchsiaX8664) Bionic() bool {
-	return false
-}
-
 func (t *toolchainFuchsiaX8664) YasmFlags() string {
 	return "-f elf64 -m amd64"
 }
