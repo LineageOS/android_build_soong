@@ -31,12 +31,12 @@ func TestMain(m *testing.M) {
 var prepareForGenRuleTest = android.GroupFixturePreparers(
 	android.PrepareForTestWithArchMutator,
 	android.PrepareForTestWithDefaults,
-
 	android.PrepareForTestWithFilegroup,
 	PrepareForTestWithGenRuleBuildComponents,
 	android.FixtureRegisterWithContext(func(ctx android.RegistrationContext) {
 		ctx.RegisterModuleType("tool", toolFactory)
 		ctx.RegisterModuleType("output", outputProducerFactory)
+		ctx.RegisterModuleType("use_source", useSourceFactory)
 	}),
 	android.FixtureMergeMockFs(android.MockFS{
 		"tool":       nil,
@@ -684,6 +684,42 @@ func TestGenruleAllowMissingDependencies(t *testing.T) {
 	}
 }
 
+func TestGenruleOutputFiles(t *testing.T) {
+	bp := `
+				genrule {
+					name: "gen",
+					out: ["foo", "sub/bar"],
+					cmd: "echo foo > $(location foo) && echo bar > $(location sub/bar)",
+				}
+				use_source {
+					name: "gen_foo",
+					srcs: [":gen{foo}"],
+				}
+				use_source {
+					name: "gen_bar",
+					srcs: [":gen{sub/bar}"],
+				}
+				use_source {
+					name: "gen_all",
+					srcs: [":gen"],
+				}
+			`
+
+	result := prepareForGenRuleTest.RunTestWithBp(t, testGenruleBp()+bp)
+	android.AssertPathsRelativeToTopEquals(t,
+		"genrule.tag with output",
+		[]string{"out/soong/.intermediates/gen/gen/foo"},
+		result.ModuleForTests("gen_foo", "").Module().(*useSource).srcs)
+	android.AssertPathsRelativeToTopEquals(t,
+		"genrule.tag with output in subdir",
+		[]string{"out/soong/.intermediates/gen/gen/sub/bar"},
+		result.ModuleForTests("gen_bar", "").Module().(*useSource).srcs)
+	android.AssertPathsRelativeToTopEquals(t,
+		"genrule.tag with all",
+		[]string{"out/soong/.intermediates/gen/gen/foo", "out/soong/.intermediates/gen/gen/sub/bar"},
+		result.ModuleForTests("gen_all", "").Module().(*useSource).srcs)
+}
+
 func TestGenruleWithBazel(t *testing.T) {
 	bp := `
 		genrule {
@@ -750,3 +786,22 @@ func (t *testOutputProducer) OutputFiles(tag string) (android.Paths, error) {
 }
 
 var _ android.OutputFileProducer = (*testOutputProducer)(nil)
+
+type useSource struct {
+	android.ModuleBase
+	props struct {
+		Srcs []string `android:"path"`
+	}
+	srcs android.Paths
+}
+
+func (s *useSource) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	s.srcs = android.PathsForModuleSrc(ctx, s.props.Srcs)
+}
+
+func useSourceFactory() android.Module {
+	module := &useSource{}
+	module.AddProperties(&module.props)
+	android.InitAndroidModule(module)
+	return module
+}
