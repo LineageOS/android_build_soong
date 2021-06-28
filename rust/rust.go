@@ -35,7 +35,7 @@ func init() {
 
 	android.AddNeverAllowRules(
 		android.NeverAllow().
-			NotIn(config.RustAllowedPaths...).
+			NotIn(append(config.RustAllowedPaths, config.DownstreamRustAllowedPaths...)...).
 			ModuleType(config.RustModuleTypes...))
 
 	android.RegisterModuleType("rust_defaults", defaultsFactory)
