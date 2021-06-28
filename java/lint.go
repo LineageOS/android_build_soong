@@ -78,6 +78,7 @@ type linter struct {
 	minSdkVersion           string
 	targetSdkVersion        string
 	compileSdkVersion       string
+	compileSdkKind          android.SdkKind
 	javaLanguageLevel       string
 	kotlinLanguageLevel     string
 	outputs                 lintOutputs
@@ -389,13 +390,25 @@ func (l *linter) lint(ctx android.ModuleContext) {
 	rule.Command().Text("mkdir -p").Flag(lintPaths.cacheDir.String()).Flag(lintPaths.homeDir.String())
 	rule.Command().Text("rm -f").Output(html).Output(text).Output(xml)
 
+	var apiVersionsName, apiVersionsPrebuilt string
+	if l.compileSdkKind == android.SdkModule {
+		// When compiling an SDK module we use the filtered database because otherwise lint's
+		// NewApi check produces too many false positives; This database excludes information
+		// about classes created in mainline modules hence removing those false positives.
+		apiVersionsName = "api_versions_public_filtered.xml"
+		apiVersionsPrebuilt = "prebuilts/sdk/current/public/data/api-versions-filtered.xml"
+	} else {
+		apiVersionsName = "api_versions.xml"
+		apiVersionsPrebuilt = "prebuilts/sdk/current/public/data/api-versions.xml"
+	}
+
 	var annotationsZipPath, apiVersionsXMLPath android.Path
 	if ctx.Config().AlwaysUsePrebuiltSdks() {
 		annotationsZipPath = android.PathForSource(ctx, "prebuilts/sdk/current/public/data/annotations.zip")
-		apiVersionsXMLPath = android.PathForSource(ctx, "prebuilts/sdk/current/public/data/api-versions.xml")
+		apiVersionsXMLPath = android.PathForSource(ctx, apiVersionsPrebuilt)
 	} else {
 		annotationsZipPath = copiedAnnotationsZipPath(ctx)
-		apiVersionsXMLPath = copiedAPIVersionsXmlPath(ctx)
+		apiVersionsXMLPath = copiedAPIVersionsXmlPath(ctx, apiVersionsName)
 	}
 
 	cmd := rule.Command()
@@ -487,26 +500,38 @@ func (l *lintSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 	l.copyLintDependencies(ctx)
 }
 
+func findModuleOrErr(ctx android.SingletonContext, moduleName string) android.Module {
+	var res android.Module
+	ctx.VisitAllModules(func(m android.Module) {
+		if ctx.ModuleName(m) == moduleName {
+			if res == nil {
+				res = m
+			} else {
+				ctx.Errorf("lint: multiple %s modules found: %s and %s", moduleName,
+					ctx.ModuleSubDir(m), ctx.ModuleSubDir(res))
+			}
+		}
+	})
+	return res
+}
+
 func (l *lintSingleton) copyLintDependencies(ctx android.SingletonContext) {
 	if ctx.Config().AlwaysUsePrebuiltSdks() {
 		return
 	}
 
-	var frameworkDocStubs android.Module
-	ctx.VisitAllModules(func(m android.Module) {
-		if ctx.ModuleName(m) == "framework-doc-stubs" {
-			if frameworkDocStubs == nil {
-				frameworkDocStubs = m
-			} else {
-				ctx.Errorf("lint: multiple framework-doc-stubs modules found: %s and %s",
-					ctx.ModuleSubDir(m), ctx.ModuleSubDir(frameworkDocStubs))
-			}
-		}
-	})
-
+	frameworkDocStubs := findModuleOrErr(ctx, "framework-doc-stubs")
 	if frameworkDocStubs == nil {
 		if !ctx.Config().AllowMissingDependencies() {
 			ctx.Errorf("lint: missing framework-doc-stubs")
+		}
+		return
+	}
+
+	filteredDb := findModuleOrErr(ctx, "api-versions-xml-public-filtered")
+	if filteredDb == nil {
+		if !ctx.Config().AllowMissingDependencies() {
+			ctx.Errorf("lint: missing api-versions-xml-public-filtered")
 		}
 		return
 	}
@@ -520,7 +545,13 @@ func (l *lintSingleton) copyLintDependencies(ctx android.SingletonContext) {
 	ctx.Build(pctx, android.BuildParams{
 		Rule:   android.CpIfChanged,
 		Input:  android.OutputFileForModule(ctx, frameworkDocStubs, ".api_versions.xml"),
-		Output: copiedAPIVersionsXmlPath(ctx),
+		Output: copiedAPIVersionsXmlPath(ctx, "api_versions.xml"),
+	})
+
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   android.CpIfChanged,
+		Input:  android.OutputFileForModule(ctx, filteredDb, ""),
+		Output: copiedAPIVersionsXmlPath(ctx, "api_versions_public_filtered.xml"),
 	})
 }
 
@@ -528,8 +559,8 @@ func copiedAnnotationsZipPath(ctx android.PathContext) android.WritablePath {
 	return android.PathForOutput(ctx, "lint", "annotations.zip")
 }
 
-func copiedAPIVersionsXmlPath(ctx android.PathContext) android.WritablePath {
-	return android.PathForOutput(ctx, "lint", "api_versions.xml")
+func copiedAPIVersionsXmlPath(ctx android.PathContext, name string) android.WritablePath {
+	return android.PathForOutput(ctx, "lint", name)
 }
 
 func (l *lintSingleton) generateLintReportZips(ctx android.SingletonContext) {
