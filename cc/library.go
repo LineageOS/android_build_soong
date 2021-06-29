@@ -184,11 +184,11 @@ type FlagExporterProperties struct {
 	// be added to the include path (using -I) for this module and any module that links
 	// against this module.  Directories listed in export_include_dirs do not need to be
 	// listed in local_include_dirs.
-	Export_include_dirs []string `android:"arch_variant,variant_prepend"`
+	Export_include_dirs []string `android:"arch_variant"`
 
 	// list of directories that will be added to the system include path
 	// using -isystem for this module and any module that links against this module.
-	Export_system_include_dirs []string `android:"arch_variant,variant_prepend"`
+	Export_system_include_dirs []string `android:"arch_variant"`
 
 	Target struct {
 		Vendor, Product struct {
