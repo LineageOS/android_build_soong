@@ -133,6 +133,13 @@ prebuilt_bootclasspath_fragment {
     apex_available: ["com.android.art"],
     image_name: "art",
     contents: ["mybootlib"],
+    hidden_api: {
+        stub_flags: "hiddenapi/stub-flags.csv",
+        annotation_flags: "hiddenapi/annotation-flags.csv",
+        metadata: "hiddenapi/metadata.csv",
+        index: "hiddenapi/index.csv",
+        all_flags: "hiddenapi/all-flags.csv",
+    },
 }
 
 java_import {
@@ -153,6 +160,13 @@ prebuilt_bootclasspath_fragment {
     apex_available: ["com.android.art"],
     image_name: "art",
     contents: ["mysdk_mybootlib@current"],
+    hidden_api: {
+        stub_flags: "hiddenapi/stub-flags.csv",
+        annotation_flags: "hiddenapi/annotation-flags.csv",
+        metadata: "hiddenapi/metadata.csv",
+        index: "hiddenapi/index.csv",
+        all_flags: "hiddenapi/all-flags.csv",
+    },
 }
 
 java_import {
@@ -171,8 +185,13 @@ sdk_snapshot {
 }
 `),
 		checkAllCopyRules(`
+.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/stub-flags.csv -> hiddenapi/stub-flags.csv
+.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/annotation-flags.csv -> hiddenapi/annotation-flags.csv
+.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/metadata.csv -> hiddenapi/metadata.csv
+.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/index.csv -> hiddenapi/index.csv
+.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/all-flags.csv -> hiddenapi/all-flags.csv
 .intermediates/mybootlib/android_common/javac/mybootlib.jar -> java/mybootlib.jar
-`),
+		`),
 		snapshotTestPreparer(checkSnapshotWithoutSource, preparerForSnapshot),
 
 		// Check the behavior of the snapshot without the source.
