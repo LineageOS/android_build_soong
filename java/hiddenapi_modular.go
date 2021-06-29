@@ -305,16 +305,23 @@ func buildRuleToGenerateHiddenAPIStubFlagsFile(ctx android.BuilderContext, name,
 	tempPath := tempPathForRestat(ctx, outputPath)
 
 	// Find the widest API stubs provided by the fragments on which this depends, if any.
-	dependencyStubDexJars := input.DependencyStubDexJarsByScope.stubDexJarsForWidestAPIScope()
+	dependencyStubDexJars := input.DependencyStubDexJarsByScope.StubDexJarsForWidestAPIScope()
 
 	// Add widest API stubs from the additional dependencies of this, if any.
-	dependencyStubDexJars = append(dependencyStubDexJars, input.AdditionalStubDexJarsByScope.stubDexJarsForWidestAPIScope()...)
+	dependencyStubDexJars = append(dependencyStubDexJars, input.AdditionalStubDexJarsByScope.StubDexJarsForWidestAPIScope()...)
 
 	command := rule.Command().
 		Tool(ctx.Config().HostToolPath(ctx, "hiddenapi")).
 		Text("list").
 		FlagForEachInput("--dependency-stub-dex=", dependencyStubDexJars).
 		FlagForEachInput("--boot-dex=", bootDexJars)
+
+	// If no module stub flags paths are provided then this must be being called for a
+	// bootclasspath_fragment and not the whole platform_bootclasspath.
+	if moduleStubFlagsPaths == nil {
+		// This is being run on a fragment of the bootclasspath.
+		command.Flag("--fragment")
+	}
 
 	// Iterate over the api scopes in a fixed order.
 	for _, apiScope := range hiddenAPIFlagScopes {
@@ -572,9 +579,9 @@ func (s StubDexJarsByScope) dedupAndSort() {
 	}
 }
 
-// stubDexJarsForWidestAPIScope returns the stub dex jars for the widest API scope provided by this
+// StubDexJarsForWidestAPIScope returns the stub dex jars for the widest API scope provided by this
 // map. The relative width of APIs is determined by their order in hiddenAPIScopes.
-func (s StubDexJarsByScope) stubDexJarsForWidestAPIScope() android.Paths {
+func (s StubDexJarsByScope) StubDexJarsForWidestAPIScope() android.Paths {
 	for i := len(hiddenAPIScopes) - 1; i >= 0; i-- {
 		apiScope := hiddenAPIScopes[i]
 		stubsForAPIScope := s[apiScope]
