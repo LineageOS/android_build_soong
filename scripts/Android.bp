@@ -265,3 +265,19 @@ python_binary_host {
         "linker_config_proto",
     ],
 }
+
+python_binary_host {
+    name: "get_clang_version",
+    main: "get_clang_version.py",
+    srcs: [
+        "get_clang_version.py",
+    ],
+    version: {
+        py2: {
+            enabled: false,
+        },
+        py3: {
+            enabled: true,
+        },
+    },
+}
