@@ -344,7 +344,7 @@ func (linker *baseLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 			// Provide a default system_shared_libs if it is unspecified. Note: If an
 			// empty list [] is specified, it implies that the module declines the
 			// default system_shared_libs.
-			deps.SystemSharedLibs = []string{"libc", "libm", "libdl"}
+			deps.SystemSharedLibs = append(deps.SystemSharedLibs, ctx.toolchain().DefaultSharedLibraries()...)
 		}
 
 		if inList("libdl", deps.SharedLibs) {
@@ -365,9 +365,9 @@ func (linker *baseLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 			indexList("libdl", deps.SystemSharedLibs) < indexList("libc", deps.SystemSharedLibs) {
 			ctx.PropertyErrorf("system_shared_libs", "libdl must be after libc")
 		}
-
-		deps.LateSharedLibs = append(deps.LateSharedLibs, deps.SystemSharedLibs...)
 	}
+
+	deps.LateSharedLibs = append(deps.LateSharedLibs, deps.SystemSharedLibs...)
 
 	if ctx.Fuchsia() {
 		if ctx.ModuleName() != "libbioniccompat" &&
