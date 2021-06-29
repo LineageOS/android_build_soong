@@ -146,16 +146,17 @@ func (binary *binaryDecorator) getStem(ctx BaseModuleContext) string {
 // modules common to most binaries, such as bionic libraries.
 func (binary *binaryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	deps = binary.baseLinker.linkerDeps(ctx, deps)
-	if ctx.toolchain().Bionic() {
-		if !Bool(binary.baseLinker.Properties.Nocrt) {
-			if binary.static() {
-				deps.CrtBegin = []string{"crtbegin_static"}
-			} else {
-				deps.CrtBegin = []string{"crtbegin_dynamic"}
-			}
-			deps.CrtEnd = []string{"crtend_android"}
+	if !Bool(binary.baseLinker.Properties.Nocrt) {
+		if binary.static() {
+			deps.CrtBegin = ctx.toolchain().CrtBeginStaticBinary()
+			deps.CrtEnd = ctx.toolchain().CrtEndStaticBinary()
+		} else {
+			deps.CrtBegin = ctx.toolchain().CrtBeginSharedBinary()
+			deps.CrtEnd = ctx.toolchain().CrtEndSharedBinary()
 		}
+	}
 
+	if ctx.toolchain().Bionic() {
 		if binary.static() {
 			if ctx.selectedStl() == "libc++_static" {
 				deps.StaticLibs = append(deps.StaticLibs, "libm", "libc")
@@ -169,16 +170,8 @@ func (binary *binaryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 			deps.LateStaticLibs = append(groupLibs, deps.LateStaticLibs...)
 		}
 
-		// Embed the linker into host bionic binaries. This is needed to support host bionic,
-		// as the linux kernel requires that the ELF interpreter referenced by PT_INTERP be
-		// either an absolute path, or relative from CWD. To work around this, we extract
-		// the load sections from the runtime linker ELF binary and embed them into each host
-		// bionic binary, omitting the PT_INTERP declaration. The kernel will treat it as a static
-		// binary, and then we use a special entry point to fix up the arguments passed by
-		// the kernel before jumping to the embedded linker.
 		if ctx.Os() == android.LinuxBionic && !binary.static() {
 			deps.DynamicLinker = "linker"
-			deps.CrtBegin = append(deps.CrtBegin, "host_bionic_linker_script")
 		}
 	}
 

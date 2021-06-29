@@ -123,6 +123,7 @@ func init() {
 }
 
 type toolchainX86_64 struct {
+	toolchainBionic
 	toolchain64Bit
 	toolchainClangCflags string
 }

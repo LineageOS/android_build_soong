@@ -211,6 +211,22 @@ func (g *Module) GeneratedDeps() android.Paths {
 	return g.outputDeps
 }
 
+func (g *Module) OutputFiles(tag string) (android.Paths, error) {
+	if tag == "" {
+		return append(android.Paths{}, g.outputFiles...), nil
+	}
+	// otherwise, tag should match one of outputs
+	for _, outputFile := range g.outputFiles {
+		if outputFile.Rel() == tag {
+			return android.Paths{outputFile}, nil
+		}
+	}
+	return nil, fmt.Errorf("unsupported module reference tag %q", tag)
+}
+
+var _ android.SourceFileProducer = (*Module)(nil)
+var _ android.OutputFileProducer = (*Module)(nil)
+
 func toolDepsMutator(ctx android.BottomUpMutatorContext) {
 	if g, ok := ctx.Module().(*Module); ok {
 		for _, tool := range g.properties.Tools {

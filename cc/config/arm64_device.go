@@ -149,6 +149,7 @@ var (
 )
 
 type toolchainArm64 struct {
+	toolchainBionic
 	toolchain64Bit
 
 	ldflags              string

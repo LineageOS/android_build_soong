@@ -237,6 +237,7 @@ var (
 )
 
 type toolchainArm struct {
+	toolchainBionic
 	toolchain32Bit
 	ldflags              string
 	lldflags             string
