@@ -175,10 +175,24 @@ func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext android.SdkContext)
 		}
 	case android.SdkModule:
 		// TODO(146757305): provide .apk and .aidl that have more APIs for modules
-		return toModule([]string{"android_module_lib_stubs_current"}, "framework-res", nonUpdatableFrameworkAidlPath(ctx))
+		return sdkDep{
+			useModule:          true,
+			bootclasspath:      []string{"android_module_lib_stubs_current", config.DefaultLambdaStubsLibrary},
+			systemModules:      "core-module-lib-stubs-system-modules",
+			java9Classpath:     []string{"android_module_lib_stubs_current"},
+			frameworkResModule: "framework-res",
+			aidl:               android.OptionalPathForPath(nonUpdatableFrameworkAidlPath(ctx)),
+		}
 	case android.SdkSystemServer:
 		// TODO(146757305): provide .apk and .aidl that have more APIs for modules
-		return toModule([]string{"android_system_server_stubs_current"}, "framework-res", sdkFrameworkAidlPath(ctx))
+		return sdkDep{
+			useModule:          true,
+			bootclasspath:      []string{"android_system_server_stubs_current", config.DefaultLambdaStubsLibrary},
+			systemModules:      "core-module-lib-stubs-system-modules",
+			java9Classpath:     []string{"android_system_server_stubs_current"},
+			frameworkResModule: "framework-res",
+			aidl:               android.OptionalPathForPath(sdkFrameworkAidlPath(ctx)),
+		}
 	default:
 		panic(fmt.Errorf("invalid sdk %q", sdkVersion.Raw))
 	}
