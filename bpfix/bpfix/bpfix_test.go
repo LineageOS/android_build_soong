@@ -1336,3 +1336,275 @@ func TestRewriteTestModuleTypes(t *testing.T) {
 		})
 	}
 }
+
+func TestFormatFlagProperty(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		out  string
+	}{
+		{
+			name: "group options and values for apptflags, dxflags, javacflags, and kotlincflags",
+			in: `
+				android_test {
+					name: "foo",
+					aaptflags: [
+						// comment1_1
+						"--flag1",
+						// comment1_2
+						"1",
+						// comment2_1
+						// comment2_2
+						"--flag2",
+						// comment3_1
+						// comment3_2
+						// comment3_3
+						"--flag3",
+						// comment3_4
+						// comment3_5
+						// comment3_6
+						"3",
+						// other comment1_1
+						// other comment1_2
+					],
+					dxflags: [
+						"--flag1",
+						// comment1_1
+						"1",
+						// comment2_1
+						"--flag2",
+						// comment3_1
+						"--flag3",
+						// comment3_2
+						"3",
+					],
+					javacflags: [
+						"--flag1",
+
+						"1",
+						"--flag2",
+						"--flag3",
+						"3",
+					],
+					kotlincflags: [
+
+						"--flag1",
+						"1",
+
+						"--flag2",
+						"--flag3",
+						"3",
+
+					],
+				}
+			`,
+			out: `
+				android_test {
+					name: "foo",
+					aaptflags: [
+						// comment1_1
+						// comment1_2
+						"--flag1 1",
+						// comment2_1
+						// comment2_2
+						"--flag2",
+						// comment3_1
+						// comment3_2
+						// comment3_3
+						// comment3_4
+						// comment3_5
+						// comment3_6
+						"--flag3 3",
+						// other comment1_1
+						// other comment1_2
+					],
+					dxflags: [
+						// comment1_1
+						"--flag1 1",
+						// comment2_1
+						"--flag2",
+						// comment3_1
+						// comment3_2
+						"--flag3 3",
+					],
+					javacflags: [
+
+						"--flag1 1",
+						"--flag2",
+						"--flag3 3",
+					],
+					kotlincflags: [
+
+						"--flag1 1",
+
+						"--flag2",
+						"--flag3 3",
+
+					],
+				}
+			`,
+		},
+		{
+			name: "group options and values for asflags, cflags, clang_asflags, clang_cflags, conlyflags, cppflags, ldflags, and tidy_flags",
+			in: `
+				cc_test {
+					name: "foo",
+					asflags: [
+						// comment1_1
+						"--flag1",
+						"1",
+						// comment2_1
+						// comment2_2
+						"--flag2",
+						// comment2_3
+						"2",
+						// comment3_1
+						// comment3_2
+						"--flag3",
+						// comment3_3
+						// comment3_4
+						// comment3_4
+						"3",
+						// comment4_1
+						// comment4_2
+						// comment4_3
+						"--flag4",
+					],
+					cflags: [
+						"--flag1",
+						"1",
+						"--flag2",
+						"2",
+						"--flag3",
+						"3",
+						"--flag4",
+					],
+					clang_asflags: [
+						"--flag1",
+						"1",
+						"--flag2",
+						"2",
+						"--flag3",
+						"3",
+						"--flag4",
+					],
+					clang_cflags: [
+						"--flag1",
+						"1",
+						"--flag2",
+						"2",
+						"--flag3",
+						"3",
+						"--flag4",
+					],
+					conlyflags: [
+						"--flag1",
+						"1",
+						"--flag2",
+						"2",
+						"--flag3",
+						"3",
+						"--flag4",
+					],
+					cppflags: [
+						"--flag1",
+						"1",
+						"--flag2",
+						"2",
+						"--flag3",
+						"3",
+						"--flag4",
+					],
+					ldflags: [
+						"--flag1",
+						"1",
+						"--flag2",
+						"2",
+						"--flag3",
+						"3",
+						"--flag4",
+					],
+					tidy_flags: [
+						"--flag1",
+						"1",
+						"--flag2",
+						"2",
+						"--flag3",
+						"3",
+						"--flag4",
+					],
+				}
+			`,
+			out: `
+				cc_test {
+					name: "foo",
+					asflags: [
+						// comment1_1
+						"--flag1 1",
+						// comment2_1
+						// comment2_2
+						// comment2_3
+						"--flag2 2",
+						// comment3_1
+						// comment3_2
+						// comment3_3
+						// comment3_4
+						// comment3_4
+						"--flag3 3",
+						// comment4_1
+						// comment4_2
+						// comment4_3
+						"--flag4",
+					],
+					cflags: [
+						"--flag1 1",
+						"--flag2 2",
+						"--flag3 3",
+						"--flag4",
+					],
+					clang_asflags: [
+						"--flag1 1",
+						"--flag2 2",
+						"--flag3 3",
+						"--flag4",
+					],
+					clang_cflags: [
+						"--flag1 1",
+						"--flag2 2",
+						"--flag3 3",
+						"--flag4",
+					],
+					conlyflags: [
+						"--flag1 1",
+						"--flag2 2",
+						"--flag3 3",
+						"--flag4",
+					],
+					cppflags: [
+						"--flag1 1",
+						"--flag2 2",
+						"--flag3 3",
+						"--flag4",
+					],
+					ldflags: [
+						"--flag1 1",
+						"--flag2 2",
+						"--flag3 3",
+						"--flag4",
+					],
+					tidy_flags: [
+						"--flag1 1",
+						"--flag2 2",
+						"--flag3 3",
+						"--flag4",
+					],
+				}
+			`,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			runPass(t, test.in, test.out, runPatchListMod(formatFlagProperties))
+		})
+	}
+}
