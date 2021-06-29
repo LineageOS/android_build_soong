@@ -413,6 +413,40 @@ class IntegrationTest(unittest.TestCase):
         """)
         self.assertEqual(expected_version, version_file.getvalue())
 
+    def test_empty_stub(self) -> None:
+        """Tests that empty stubs can be generated.
+
+        This is not a common case, but libraries whose only behavior is to
+        interpose symbols to alter existing behavior do not need to expose
+        their interposing symbols as API, so it's possible for the stub to be
+        empty while still needing a stub to link against. libsigchain is an
+        example of this.
+        """
+        input_file = io.StringIO(textwrap.dedent("""\
+            VERSION_1 {
+                local:
+                    *;
+            };
+        """))
+        parser = symbolfile.SymbolFileParser(input_file, {}, Arch('arm'),
+                                             9, llndk=False, apex=True)
+        versions = parser.parse()
+
+        src_file = io.StringIO()
+        version_file = io.StringIO()
+        symbol_list_file = io.StringIO()
+        generator = ndkstubgen.Generator(src_file,
+                                         version_file,
+                                         symbol_list_file,
+                                         Arch('arm'),
+                                         9,
+                                         llndk=False,
+                                         apex=True)
+        generator.write(versions)
+
+        self.assertEqual('', src_file.getvalue())
+        self.assertEqual('', version_file.getvalue())
+
 
 def main() -> None:
     suite = unittest.TestLoader().loadTestsFromName(__name__)
