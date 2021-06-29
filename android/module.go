@@ -473,6 +473,7 @@ type Module interface {
 	InitRc() Paths
 	VintfFragments() Paths
 	NoticeFiles() Paths
+	EffectiveLicenseFiles() Paths
 
 	AddProperties(props ...interface{})
 	GetProperties() []interface{}
@@ -1503,6 +1504,10 @@ func (m *ModuleBase) IsReplacedByPrebuilt() bool {
 
 func (m *ModuleBase) ExportedToMake() bool {
 	return m.commonProperties.NamespaceExportedToMake
+}
+
+func (m *ModuleBase) EffectiveLicenseFiles() Paths {
+	return m.commonProperties.Effective_license_text
 }
 
 // computeInstallDeps finds the installed paths of all dependencies that have a dependency
