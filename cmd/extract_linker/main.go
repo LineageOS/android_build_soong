@@ -85,7 +85,7 @@ func main() {
 
 		fmt.Fprintf(asm, ".globl %s\n%s:\n\n", symName, symName)
 
-		fmt.Fprintf(script, "  %s %d : {\n", sectionName, baseLoadAddr+prog.Vaddr)
+		fmt.Fprintf(script, "  %s 0x%x : {\n", sectionName, baseLoadAddr+prog.Vaddr)
 		fmt.Fprintf(script, "    KEEP(*(%s));\n", sectionName)
 		fmt.Fprintln(script, "  }")
 
@@ -106,8 +106,10 @@ func main() {
 		load += 1
 	}
 
+	fmt.Fprintln(asm, `.section .note.android.embedded_linker,"a",%note`)
+
 	fmt.Fprintln(script, "}")
-	fmt.Fprintln(script, "INSERT BEFORE .note.android.ident;")
+	fmt.Fprintln(script, "INSERT BEFORE .note.android.embedded_linker;")
 
 	if asmPath != "" {
 		if err := ioutil.WriteFile(asmPath, asm.Bytes(), 0777); err != nil {
