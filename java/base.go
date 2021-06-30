@@ -870,6 +870,7 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 	if aaptSrcJar != nil {
 		srcJars = append(srcJars, aaptSrcJar)
 	}
+	srcFiles = srcFiles.FilterOutByExt(".srcjar")
 
 	if j.properties.Jarjar_rules != nil {
 		j.expandJarjarRules = android.PathForModuleSrc(ctx, *j.properties.Jarjar_rules)
