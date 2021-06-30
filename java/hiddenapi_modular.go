@@ -329,9 +329,9 @@ func buildRuleToGenerateHiddenAPIStubFlagsFile(ctx android.BuilderContext, name,
 		// They will be needed to resolve dependencies from this fragment's stubs to classes in the
 		// other fragment's APIs.
 		var paths android.Paths
-		paths = append(paths, input.DependencyStubDexJarsByScope[apiScope]...)
-		paths = append(paths, input.AdditionalStubDexJarsByScope[apiScope]...)
-		paths = append(paths, input.StubDexJarsByScope[apiScope]...)
+		paths = append(paths, input.DependencyStubDexJarsByScope.StubDexJarsForScope(apiScope)...)
+		paths = append(paths, input.AdditionalStubDexJarsByScope.StubDexJarsForScope(apiScope)...)
+		paths = append(paths, input.StubDexJarsByScope.StubDexJarsForScope(apiScope)...)
 		if len(paths) > 0 {
 			option := apiScope.hiddenAPIListOption
 			command.FlagWithInputList(option+"=", paths, ":")
@@ -528,8 +528,9 @@ type HiddenAPIInfo struct {
 	// that category.
 	FlagFilesByCategory FlagFilesByCategory
 
-	// The paths to the stub dex jars for each of the *HiddenAPIScope in hiddenAPIScopes.
-	TransitiveStubDexJarsByScope StubDexJarsByScope
+	// The paths to the stub dex jars for each of the *HiddenAPIScope in hiddenAPIScopes provided by
+	// this fragment and the fragments on which this depends.
+	TransitiveStubDexJarsByScope StubDexJarsByModule
 
 	// The output from the hidden API processing needs to be made available to other modules.
 	HiddenAPIFlagOutput
@@ -538,7 +539,7 @@ type HiddenAPIInfo struct {
 func newHiddenAPIInfo() *HiddenAPIInfo {
 	info := HiddenAPIInfo{
 		FlagFilesByCategory:          FlagFilesByCategory{},
-		TransitiveStubDexJarsByScope: StubDexJarsByScope{},
+		TransitiveStubDexJarsByScope: StubDexJarsByModule{},
 	}
 	return &info
 }
@@ -549,48 +550,111 @@ func (i *HiddenAPIInfo) mergeFromFragmentDeps(ctx android.ModuleContext, fragmen
 	for _, fragment := range fragments {
 		if ctx.OtherModuleHasProvider(fragment, HiddenAPIInfoProvider) {
 			info := ctx.OtherModuleProvider(fragment, HiddenAPIInfoProvider).(HiddenAPIInfo)
-			i.TransitiveStubDexJarsByScope.append(info.TransitiveStubDexJarsByScope)
+			i.TransitiveStubDexJarsByScope.addStubDexJarsByModule(info.TransitiveStubDexJarsByScope)
 		}
 	}
-
-	// Dedup and sort paths.
-	i.TransitiveStubDexJarsByScope.dedupAndSort()
 }
 
 var HiddenAPIInfoProvider = blueprint.NewProvider(HiddenAPIInfo{})
 
-// StubDexJarsByScope maps a *HiddenAPIScope to the paths to stub dex jars appropriate for that
-// scope. See hiddenAPIScopes for a list of the acceptable *HiddenAPIScope values.
-type StubDexJarsByScope map[*HiddenAPIScope]android.Paths
+// ModuleStubDexJars contains the stub dex jars provided by a single module.
+//
+// It maps a *HiddenAPIScope to the path to stub dex jars appropriate for that scope. See
+// hiddenAPIScopes for a list of the acceptable *HiddenAPIScope values.
+type ModuleStubDexJars map[*HiddenAPIScope]android.Path
 
-// append appends the API scope specific stub dex jar args to the corresponding scope in this
+// stubDexJarForWidestAPIScope returns the stub dex jars for the widest API scope provided by this
 // map.
-func (s StubDexJarsByScope) append(other StubDexJarsByScope) {
-	for _, scope := range hiddenAPIScopes {
-		s[scope] = append(s[scope], other[scope]...)
-	}
-}
-
-// dedupAndSort removes duplicates in the stub dex jar paths and sorts them into a consistent and
-// deterministic order.
-func (s StubDexJarsByScope) dedupAndSort() {
-	for apiScope, paths := range s {
-		s[apiScope] = android.SortedUniquePaths(paths)
-	}
-}
-
-// StubDexJarsForWidestAPIScope returns the stub dex jars for the widest API scope provided by this
-// map. The relative width of APIs is determined by their order in hiddenAPIScopes.
-func (s StubDexJarsByScope) StubDexJarsForWidestAPIScope() android.Paths {
+//
+// The relative width of APIs is determined by their order in hiddenAPIScopes.
+func (s ModuleStubDexJars) stubDexJarForWidestAPIScope() android.Path {
 	for i := len(hiddenAPIScopes) - 1; i >= 0; i-- {
 		apiScope := hiddenAPIScopes[i]
-		stubsForAPIScope := s[apiScope]
-		if len(stubsForAPIScope) != 0 {
+		if stubsForAPIScope, ok := s[apiScope]; ok {
 			return stubsForAPIScope
 		}
 	}
 
 	return nil
+}
+
+// StubDexJarsByModule contains the stub dex jars provided by a set of modules.
+//
+// It maps a module name to the path to the stub dex jars provided by that module.
+type StubDexJarsByModule map[string]ModuleStubDexJars
+
+// addStubDexJar adds a stub dex jar path provided by the specified module for the specified scope.
+func (s StubDexJarsByModule) addStubDexJar(ctx android.ModuleContext, module android.Module, scope *HiddenAPIScope, stubDexJar android.Path) {
+	name := android.RemoveOptionalPrebuiltPrefix(module.Name())
+	if name == scope.nonUpdatablePrebuiltModule || name == scope.nonUpdatableSourceModule {
+		// Treat all *android-non-updatable* modules as if they were part of an android-non-updatable
+		// java_sdk_library.
+		// TODO(b/192067200): Remove once android-non-updatable is a java_sdk_library or equivalent.
+		name = "android-non-updatable"
+	} else if name == "legacy.art.module.platform.api" {
+		// Treat legacy.art.module.platform.api as if it was an API scope provided by the
+		// art.module.public.api java_sdk_library which will be the case once the former has been
+		// migrated to a module_lib API.
+		name = "art.module.public.api"
+	} else if name == "legacy.i18n.module.platform.api" {
+		// Treat legacy.i18n.module.platform.api as if it was an API scope provided by the
+		// i18n.module.public.api java_sdk_library which will be the case once the former has been
+		// migrated to a module_lib API.
+		name = "i18n.module.public.api"
+	} else if name == "conscrypt.module.platform.api" {
+		// Treat conscrypt.module.platform.api as if it was an API scope provided by the
+		// conscrypt.module.public.api java_sdk_library which will be the case once the former has been
+		// migrated to a module_lib API.
+		name = "conscrypt.module.public.api"
+	}
+	stubDexJarsByScope := s[name]
+	if stubDexJarsByScope == nil {
+		stubDexJarsByScope = ModuleStubDexJars{}
+		s[name] = stubDexJarsByScope
+	}
+	stubDexJarsByScope[scope] = stubDexJar
+}
+
+// addStubDexJarsByModule adds the stub dex jars in the supplied StubDexJarsByModule to this map.
+func (s StubDexJarsByModule) addStubDexJarsByModule(other StubDexJarsByModule) {
+	for module, stubDexJarsByScope := range other {
+		s[module] = stubDexJarsByScope
+	}
+}
+
+// StubDexJarsForWidestAPIScope returns a list of stub dex jars containing the widest API scope
+// provided by each module.
+//
+// The relative width of APIs is determined by their order in hiddenAPIScopes.
+func (s StubDexJarsByModule) StubDexJarsForWidestAPIScope() android.Paths {
+	stubDexJars := android.Paths{}
+	modules := android.SortedStringKeys(s)
+	for _, module := range modules {
+		stubDexJarsByScope := s[module]
+
+		stubDexJars = append(stubDexJars, stubDexJarsByScope.stubDexJarForWidestAPIScope())
+	}
+
+	return stubDexJars
+}
+
+// StubDexJarsForScope returns a list of stub dex jars containing the stub dex jars provided by each
+// module for the specified scope.
+//
+// If a module does not provide a stub dex jar for the supplied scope then it does not contribute to
+// the returned list.
+func (s StubDexJarsByModule) StubDexJarsForScope(scope *HiddenAPIScope) android.Paths {
+	stubDexJars := android.Paths{}
+	modules := android.SortedStringKeys(s)
+	for _, module := range modules {
+		stubDexJarsByScope := s[module]
+		// Not every module will have the same set of
+		if jars, ok := stubDexJarsByScope[scope]; ok {
+			stubDexJars = append(stubDexJars, jars)
+		}
+	}
+
+	return stubDexJars
 }
 
 // HiddenAPIFlagInput encapsulates information obtained from a module and its dependencies that are
@@ -602,19 +666,19 @@ type HiddenAPIFlagInput struct {
 
 	// StubDexJarsByScope contains the stub dex jars for different *HiddenAPIScope and which determine
 	// the initial flags for each dex member.
-	StubDexJarsByScope StubDexJarsByScope
+	StubDexJarsByScope StubDexJarsByModule
 
 	// DependencyStubDexJarsByScope contains the stub dex jars provided by the fragments on which this
 	// depends. It is the result of merging HiddenAPIInfo.TransitiveStubDexJarsByScope from each
 	// fragment on which this depends.
-	DependencyStubDexJarsByScope StubDexJarsByScope
+	DependencyStubDexJarsByScope StubDexJarsByModule
 
 	// AdditionalStubDexJarsByScope contains stub dex jars provided by other modules in addition to
 	// the ones that are obtained from fragments on which this depends.
 	//
 	// These are kept separate from stub dex jars in HiddenAPIFlagInput.DependencyStubDexJarsByScope
 	// as there are not propagated transitively to other fragments that depend on this.
-	AdditionalStubDexJarsByScope StubDexJarsByScope
+	AdditionalStubDexJarsByScope StubDexJarsByModule
 
 	// RemovedTxtFiles is the list of removed.txt files provided by java_sdk_library modules that are
 	// specified in the bootclasspath_fragment's stub_libs and contents properties.
@@ -625,9 +689,9 @@ type HiddenAPIFlagInput struct {
 func newHiddenAPIFlagInput() HiddenAPIFlagInput {
 	input := HiddenAPIFlagInput{
 		FlagFilesByCategory:          FlagFilesByCategory{},
-		StubDexJarsByScope:           StubDexJarsByScope{},
-		DependencyStubDexJarsByScope: StubDexJarsByScope{},
-		AdditionalStubDexJarsByScope: StubDexJarsByScope{},
+		StubDexJarsByScope:           StubDexJarsByModule{},
+		DependencyStubDexJarsByScope: StubDexJarsByModule{},
+		AdditionalStubDexJarsByScope: StubDexJarsByModule{},
 	}
 
 	return input
@@ -678,7 +742,7 @@ func (i *HiddenAPIFlagInput) gatherStubLibInfo(ctx android.ModuleContext, conten
 		sdkKind := apiScope.sdkKind
 		dexJar := hiddenAPIRetrieveDexJarBuildPath(ctx, module, sdkKind)
 		if dexJar != nil {
-			i.StubDexJarsByScope[apiScope] = append(i.StubDexJarsByScope[apiScope], dexJar)
+			i.StubDexJarsByScope.addStubDexJar(ctx, module, apiScope, dexJar)
 		}
 
 		if sdkLibrary, ok := module.(SdkLibraryDependency); ok {
@@ -704,7 +768,7 @@ func (i *HiddenAPIFlagInput) gatherStubLibInfo(ctx android.ModuleContext, conten
 			if hiddenAPIStubsTag.fromAdditionalDependency {
 				dexJar := hiddenAPIRetrieveDexJarBuildPath(ctx, module, apiScope.sdkKind)
 				if dexJar != nil {
-					i.AdditionalStubDexJarsByScope[apiScope] = append(i.AdditionalStubDexJarsByScope[apiScope], dexJar)
+					i.AdditionalStubDexJarsByScope.addStubDexJar(ctx, module, apiScope, dexJar)
 				}
 			} else {
 				addFromModule(ctx, module, apiScope)
@@ -713,8 +777,6 @@ func (i *HiddenAPIFlagInput) gatherStubLibInfo(ctx android.ModuleContext, conten
 	})
 
 	// Normalize the paths, i.e. remove duplicates and sort.
-	i.StubDexJarsByScope.dedupAndSort()
-	i.DependencyStubDexJarsByScope.dedupAndSort()
 	i.RemovedTxtFiles = android.SortedUniquePaths(i.RemovedTxtFiles)
 }
 
@@ -727,9 +789,9 @@ func (i *HiddenAPIFlagInput) extractFlagFilesFromProperties(ctx android.ModuleCo
 	}
 }
 
-func (i *HiddenAPIFlagInput) transitiveStubDexJarsByScope() StubDexJarsByScope {
+func (i *HiddenAPIFlagInput) transitiveStubDexJarsByScope() StubDexJarsByModule {
 	transitive := i.DependencyStubDexJarsByScope
-	transitive.append(i.StubDexJarsByScope)
+	transitive.addStubDexJarsByModule(i.StubDexJarsByScope)
 	return transitive
 }
 
