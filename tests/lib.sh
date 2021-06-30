@@ -126,6 +126,10 @@ run_bp2build() {
   GENERATE_BAZEL_FILES=true build/soong/soong_ui.bash --make-mode --skip-ninja --skip-make --skip-soong-tests nothing
 }
 
+run_ninja() {
+  build/soong/soong_ui.bash --make-mode --skip-make --skip-soong-tests "$@"
+}
+
 info "Starting Soong integration test suite $(basename $0)"
 info "Mock top: $MOCK_TOP"
 
