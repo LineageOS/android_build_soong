@@ -94,7 +94,7 @@ func jacocoFiltersToZipCommand(includes, excludes []string) string {
 	if len(includes) > 0 {
 		specs += strings.Join(includes, " ")
 	} else {
-		specs += "**/*.class"
+		specs += "'**/*.class'"
 	}
 	return specs
 }
