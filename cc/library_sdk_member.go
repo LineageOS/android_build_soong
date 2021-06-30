@@ -258,6 +258,12 @@ func addPossiblyArchSpecificProperties(sdkModuleContext android.ModuleContext, b
 		outputProperties.AddPropertyWithTag("system_shared_libs", libInfo.SystemSharedLibs, builder.SdkMemberReferencePropertyTag(false))
 	}
 
+	// SystemSharedLibs needs to be propagated if it's a list, even if it's empty,
+	// so check for non-nil instead of nonzero length.
+	if libInfo.DefaultSharedLibs != nil {
+		outputProperties.AddPropertyWithTag("default_shared_libs", libInfo.DefaultSharedLibs, builder.SdkMemberReferencePropertyTag(false))
+	}
+
 	// Map from property name to the include dirs to add to the prebuilt module in the snapshot.
 	includeDirs := make(map[string][]string)
 
@@ -387,6 +393,12 @@ type nativeLibInfoProperties struct {
 	// This field is exported as its contents may not be arch specific.
 	SystemSharedLibs []string `android:"arch_variant"`
 
+	// The set of default shared libraries. Note nil and [] are semantically
+	// distinct - see BaseLinkerProperties.Default_shared_libs.
+	//
+	// This field is exported as its contents may not be arch specific.
+	DefaultSharedLibs []string `android:"arch_variant"`
+
 	// The specific stubs version for the lib variant, or empty string if stubs
 	// are not in use.
 	//
@@ -462,6 +474,7 @@ func (p *nativeLibInfoProperties) PopulateFromVariant(ctx android.SdkMemberConte
 			}
 		}
 		p.SystemSharedLibs = specifiedDeps.systemSharedLibs
+		p.DefaultSharedLibs = specifiedDeps.defaultSharedLibs
 	}
 	p.ExportedGeneratedHeaders = exportedInfo.GeneratedHeaders
 
