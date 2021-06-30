@@ -92,7 +92,7 @@ type BaseCompilerProperties struct {
 
 	// list of generated headers to add to the include path. These are the names
 	// of genrule modules.
-	Generated_headers []string `android:"arch_variant"`
+	Generated_headers []string `android:"arch_variant,variant_prepend"`
 
 	// pass -frtti instead of -fno-rtti
 	Rtti *bool
