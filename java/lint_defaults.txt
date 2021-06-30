@@ -78,3 +78,7 @@
 --disable_check HardcodedDebugMode
 
 --warning_check QueryAllPackagesPermission
+
+--warning_check CoarseFineLocation
+--warning_check IntentFilterExportedReceiver
+--warning_check RemoteViewLayout
