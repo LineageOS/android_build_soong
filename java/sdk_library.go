@@ -2160,6 +2160,10 @@ func (module *SdkLibraryImport) GenerateAndroidBuildActions(ctx android.ModuleCo
 
 		// Save away the `deapexer` module on which this depends, if any.
 		if tag == android.DeapexerTag {
+			if deapexerModule != nil {
+				ctx.ModuleErrorf("Ambiguous duplicate deapexer module dependencies %q and %q",
+					deapexerModule.Name(), to.Name())
+			}
 			deapexerModule = to
 		}
 	})
