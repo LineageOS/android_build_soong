@@ -197,7 +197,7 @@ func TestBootclasspathFragment_StubLibs(t *testing.T) {
 				],
 			},
 			core_platform_api: {
-				stub_libs: ["mycoreplatform"],
+				stub_libs: ["mycoreplatform.stubs"],
 			},
 		}
 
