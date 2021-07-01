@@ -375,6 +375,12 @@ func (p *prebuiltCommon) apexInfoMutator(mctx android.TopDownMutatorContext) {
 			}
 		}
 
+		// Ignore any modules that do not implement ApexModule as they cannot have an APEX specific
+		// variant.
+		if _, ok := child.(android.ApexModule); !ok {
+			return false
+		}
+
 		// Strip off the prebuilt_ prefix if present before storing content to ensure consistent
 		// behavior whether there is a corresponding source module present or not.
 		depName = android.RemoveOptionalPrebuiltPrefix(depName)
