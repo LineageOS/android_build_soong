@@ -367,6 +367,7 @@ func commonDefaultModules() string {
 			stl: "none",
 			min_sdk_version: "16",
 			crt: true,
+			default_shared_libs: [],
 			apex_available: [
 				"//apex_available:platform",
 				"//apex_available:anyapex",
