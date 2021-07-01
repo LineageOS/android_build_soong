@@ -161,6 +161,10 @@ func NewConfig(ctx Context, args ...string) Config {
 		ret.distDir = filepath.Join(ret.OutDir(), "dist")
 	}
 
+	if srcDirIsWritable, ok := ret.environ.Get("BUILD_BROKEN_SRC_DIR_IS_WRITABLE"); ok {
+		ret.sandboxConfig.SetSrcDirIsRO(srcDirIsWritable == "false")
+	}
+
 	ret.environ.Unset(
 		// We're already using it
 		"USE_SOONG_UI",
