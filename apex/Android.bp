@@ -9,7 +9,6 @@ bootstrap_go_package {
         "blueprint",
         "soong",
         "soong-android",
-        "soong-bazel",
         "soong-bpf",
         "soong-cc",
         "soong-filesystem",
