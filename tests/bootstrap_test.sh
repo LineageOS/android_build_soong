@@ -486,6 +486,39 @@ function test_null_build_after_docs {
   fi
 }
 
+function test_write_to_source_tree {
+  setup
+  mkdir -p a
+  cat > a/Android.bp <<EOF
+genrule {
+  name: "write_to_source_tree",
+  out: ["write_to_source_tree"],
+  cmd: "touch file_in_source_tree && touch \$(out)",
+}
+EOF
+  readonly EXPECTED_OUT=out/soong/.intermediates/a/write_to_source_tree/gen/write_to_source_tree
+  readonly ERROR_LOG=${MOCK_TOP}/out/error.log
+  readonly ERROR_MSG="Read-only file system"
+  readonly ERROR_HINT_PATTERN="BUILD_BROKEN_SRC_DIR"
+  # Test in ReadOnly source tree
+  run_ninja BUILD_BROKEN_SRC_DIR_IS_WRITABLE=false ${EXPECTED_OUT} &> /dev/null && \
+    fail "Write to source tree should not work in a ReadOnly source tree"
+
+  if grep -q "${ERROR_MSG}" ${ERROR_LOG} && grep -q "${ERROR_HINT_PATTERN}" ${ERROR_LOG} ; then
+    echo Error message and error hint found in logs >/dev/null
+  else
+    fail "Did not find Read-only error AND error hint in error.log"
+  fi
+
+  # Test in ReadWrite source tree
+  run_ninja BUILD_BROKEN_SRC_DIR_IS_WRITABLE=true ${EXPECTED_OUT} &> /dev/null || \
+    fail "Write to source tree did not succeed in a ReadWrite source tree"
+
+  if  grep -q "${ERROR_MSG}\|${ERROR_HINT_PATTERN}" ${ERROR_LOG} ; then
+    fail "Found read-only error OR error hint in error.log"
+  fi
+}
+
 function test_bp2build_smoke {
   setup
   GENERATE_BAZEL_FILES=1 run_soong
@@ -692,6 +725,7 @@ test_add_file_to_soong_build
 test_glob_during_bootstrapping
 test_soong_build_rerun_iff_environment_changes
 test_dump_json_module_graph
+test_write_to_source_tree
 test_bp2build_smoke
 test_bp2build_generates_fake_ninja_file
 test_bp2build_null_build
