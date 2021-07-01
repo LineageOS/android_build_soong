@@ -94,6 +94,9 @@ type Snapshottable interface {
 	// SnapshotSharedLibs returns the list of shared library dependencies for this module.
 	SnapshotSharedLibs() []string
 
+	// SnapshotStaticLibs returns the list of static library dependencies for this module.
+	SnapshotStaticLibs() []string
+
 	// IsSnapshotPrebuilt returns true if this module is a snapshot prebuilt.
 	IsSnapshotPrebuilt() bool
 }
@@ -225,6 +228,9 @@ type LinkableInterface interface {
 
 	// Header returns true if this is a library headers module.
 	Header() bool
+
+	// StaticExecutable returns true if this is a binary module with "static_executable: true".
+	StaticExecutable() bool
 
 	// EverInstallable returns true if the module is ever installable
 	EverInstallable() bool

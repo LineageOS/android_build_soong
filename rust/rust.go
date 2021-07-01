@@ -87,6 +87,7 @@ type BaseProperties struct {
 
 	// Used by vendor snapshot to record dependencies from snapshot modules.
 	SnapshotSharedLibs []string `blueprint:"mutated"`
+	SnapshotStaticLibs []string `blueprint:"mutated"`
 
 	// Make this module available when building for vendor ramdisk.
 	// On device without a dedicated recovery partition, the module is only
@@ -257,6 +258,13 @@ func (mod *Module) Binary() bool {
 		}
 	}
 	return false
+}
+
+func (mod *Module) StaticExecutable() bool {
+	if !mod.Binary() {
+		return false
+	}
+	return Bool(mod.compiler.(*binaryDecorator).Properties.Static_executable)
 }
 
 func (mod *Module) Object() bool {
@@ -1097,6 +1105,7 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 
 				// Record baseLibName for snapshots.
 				mod.Properties.SnapshotSharedLibs = append(mod.Properties.SnapshotSharedLibs, cc.BaseLibName(depName))
+				mod.Properties.SnapshotStaticLibs = append(mod.Properties.SnapshotStaticLibs, cc.BaseLibName(depName))
 
 				mod.Properties.AndroidMkSharedLibs = append(mod.Properties.AndroidMkSharedLibs, makeLibName)
 				exportDep = true
