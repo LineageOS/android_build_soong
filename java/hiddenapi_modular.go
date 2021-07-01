@@ -1161,6 +1161,14 @@ func deferReportingMissingBootDexJar(ctx android.ModuleContext, module android.M
 		return true
 	}
 
+	// A bootclasspath module that is part of a versioned sdk never provides a boot dex jar as there
+	// is no equivalently versioned prebuilt APEX file from which it can be obtained. However,
+	// versioned bootclasspath modules are processed by Soong so in order to avoid them causing build
+	// failures missing boot dex jars need to be deferred.
+	if android.IsModuleInVersionedSdk(ctx.Module()) {
+		return true
+	}
+
 	// This is called for both platform_bootclasspath and bootclasspath_fragment modules.
 	//
 	// A bootclasspath_fragment module should only use the APEX variant of source or prebuilt modules.
@@ -1197,20 +1205,20 @@ func deferReportingMissingBootDexJar(ctx android.ModuleContext, module android.M
 	//
 	// TODO(b/187910671): Remove this once platform variants are no longer created unnecessarily.
 	if android.IsModulePrebuilt(module) {
+		// An inactive source module can still contribute to the APEX but an inactive prebuilt module
+		// should not contribute to anything. So, rather than have a missing dex jar cause a Soong
+		// failure defer the error reporting to Ninja. Unless the prebuilt build target is explicitly
+		// built Ninja should never use the dex jar file.
+		if !isActiveModule(module) {
+			return true
+		}
+
 		if am, ok := module.(android.ApexModule); ok && am.InAnyApex() {
 			apexInfo := ctx.OtherModuleProvider(module, android.ApexInfoProvider).(android.ApexInfo)
 			if apexInfo.IsForPlatform() {
 				return true
 			}
 		}
-	}
-
-	// A bootclasspath module that is part of a versioned sdk never provides a boot dex jar as there
-	// is no equivalently versioned prebuilt APEX file from which it can be obtained. However,
-	// versioned bootclasspath modules are processed by Soong so in order to avoid them causing build
-	// failures missing boot dex jars need to be deferred.
-	if android.IsModuleInVersionedSdk(ctx.Module()) {
-		return true
 	}
 
 	return false
