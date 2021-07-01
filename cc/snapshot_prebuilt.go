@@ -931,7 +931,7 @@ func (p *snapshotObjectLinker) nativeCoverage() bool {
 // development/vendor_snapshot/update.py. As a part of vendor snapshot, vendor_snapshot_object
 // overrides the vendor variant of the cc object with the same name, if BOARD_VNDK_VERSION is set.
 func VendorSnapshotObjectFactory() android.Module {
-	module := newObject()
+	module := newObject(android.DeviceSupported)
 
 	prebuilt := &snapshotObjectLinker{
 		objectLinker: objectLinker{
@@ -949,7 +949,7 @@ func VendorSnapshotObjectFactory() android.Module {
 // development/vendor_snapshot/update.py. As a part of recovery snapshot, recovery_snapshot_object
 // overrides the recovery variant of the cc object with the same name, if BOARD_VNDK_VERSION is set.
 func RecoverySnapshotObjectFactory() android.Module {
-	module := newObject()
+	module := newObject(android.DeviceSupported)
 
 	prebuilt := &snapshotObjectLinker{
 		objectLinker: objectLinker{
