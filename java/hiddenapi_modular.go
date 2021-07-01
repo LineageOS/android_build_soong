@@ -586,6 +586,13 @@ type StubDexJarsByModule map[string]ModuleStubDexJars
 // addStubDexJar adds a stub dex jar path provided by the specified module for the specified scope.
 func (s StubDexJarsByModule) addStubDexJar(ctx android.ModuleContext, module android.Module, scope *HiddenAPIScope, stubDexJar android.Path) {
 	name := android.RemoveOptionalPrebuiltPrefix(module.Name())
+
+	// Each named module provides one dex jar for each scope. However, in some cases different API
+	// versions of a single classes are provided by separate modules. e.g. the core platform
+	// version of java.lang.Object is provided by the legacy.art.module.platform.api module but the
+	// public version is provided by the art.module.public.api module. In those cases it is necessary
+	// to treat all those modules as they were the same name, otherwise it will result in multiple
+	// definitions of a single class being passed to hidden API processing which will cause an error.
 	if name == scope.nonUpdatablePrebuiltModule || name == scope.nonUpdatableSourceModule {
 		// Treat all *android-non-updatable* modules as if they were part of an android-non-updatable
 		// java_sdk_library.
@@ -606,6 +613,14 @@ func (s StubDexJarsByModule) addStubDexJar(ctx android.ModuleContext, module and
 		// conscrypt.module.public.api java_sdk_library which will be the case once the former has been
 		// migrated to a module_lib API.
 		name = "conscrypt.module.public.api"
+	} else if d, ok := module.(SdkLibraryComponentDependency); ok {
+		sdkLibraryName := d.SdkLibraryName()
+		if sdkLibraryName != nil {
+			// The module is a component of a java_sdk_library so use the name of the java_sdk_library.
+			// e.g. if this module is `foo.system.stubs` and is part of the `foo` java_sdk_library then
+			// use `foo` as the name.
+			name = *sdkLibraryName
+		}
 	}
 	stubDexJarsByScope := s[name]
 	if stubDexJarsByScope == nil {
