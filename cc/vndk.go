@@ -100,12 +100,6 @@ func (vndk *vndkdep) props() []interface{} {
 	return []interface{}{&vndk.Properties}
 }
 
-func (vndk *vndkdep) begin(ctx BaseModuleContext) {}
-
-func (vndk *vndkdep) deps(ctx BaseModuleContext, deps Deps) Deps {
-	return deps
-}
-
 func (vndk *vndkdep) isVndk() bool {
 	return Bool(vndk.Properties.Vndk.Enabled)
 }
