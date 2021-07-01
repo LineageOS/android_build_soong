@@ -213,8 +213,8 @@ has empty name.
 
 A module name's **scope** is the smallest namespace containing it. Suppose a
 source tree has `device/my` and `device/my/display` namespaces. If `libfoo`
-module is defined in `device/co/display/lib/Android.bp`, its namespace is
-`device/co/display`.
+module is defined in `device/my/display/lib/Android.bp`, its namespace is
+`device/my/display`.
 
 The name uniqueness thus means that module's name is unique within its scope. In
 other words, "//_scope_:_name_" is globally unique module reference, e.g,

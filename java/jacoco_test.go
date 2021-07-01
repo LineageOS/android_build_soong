@@ -74,7 +74,7 @@ func TestJacocoFiltersToZipCommand(t *testing.T) {
 		{
 			name:     "implicit wildcard",
 			includes: []string{},
-			out:      "**/*.class",
+			out:      "'**/*.class'",
 		},
 		{
 			name:     "only include",
