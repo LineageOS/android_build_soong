@@ -421,7 +421,10 @@ func (b *platformBootclasspathModule) generateBootImageBuildActions(ctx android.
 
 	// Build a profile for the image config and then use that to build the boot image.
 	profile := bootImageProfileRule(ctx, imageConfig)
-	buildBootImage(ctx, imageConfig, profile)
+	bootImageFilesByArch := buildBootImage(ctx, imageConfig, profile)
+
+	// Zip the boot image files up.
+	buildBootImageZipInPredefinedLocation(ctx, imageConfig, bootImageFilesByArch)
 
 	dumpOatRules(ctx, imageConfig)
 }
