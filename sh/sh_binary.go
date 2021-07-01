@@ -495,6 +495,10 @@ func ShTestHostFactory() android.Module {
 	module := &ShTest{}
 	InitShBinaryModule(&module.ShBinary)
 	module.AddProperties(&module.testProperties)
+	// Default sh_test_host to unit_tests = true
+	if module.testProperties.Test_options.Unit_test == nil {
+		module.testProperties.Test_options.Unit_test = proptools.BoolPtr(true)
+	}
 
 	android.InitAndroidArchModule(module, android.HostSupported, android.MultilibFirst)
 	return module
