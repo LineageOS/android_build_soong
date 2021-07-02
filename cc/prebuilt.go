@@ -388,8 +388,8 @@ func (p *prebuiltObjectLinker) object() bool {
 	return true
 }
 
-func newPrebuiltObject() *Module {
-	module := newObject()
+func NewPrebuiltObject(hod android.HostOrDeviceSupported) *Module {
+	module := newObject(hod)
 	prebuilt := &prebuiltObjectLinker{
 		objectLinker: objectLinker{
 			baseLinker: NewBaseLinker(nil),
@@ -403,7 +403,7 @@ func newPrebuiltObject() *Module {
 }
 
 func prebuiltObjectFactory() android.Module {
-	module := newPrebuiltObject()
+	module := NewPrebuiltObject(android.HostAndDeviceSupported)
 	return module.Init()
 }
 

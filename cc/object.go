@@ -94,8 +94,8 @@ type ObjectLinkerProperties struct {
 	Crt *bool
 }
 
-func newObject() *Module {
-	module := newBaseModule(android.HostAndDeviceSupported, android.MultilibBoth)
+func newObject(hod android.HostOrDeviceSupported) *Module {
+	module := newBaseModule(hod, android.MultilibBoth)
 	module.sanitize = &sanitize{}
 	module.stl = &stl{}
 	return module
@@ -105,7 +105,7 @@ func newObject() *Module {
 // necessary, but sometimes used to generate .s files from .c files to use as
 // input to a cc_genrule module.
 func ObjectFactory() android.Module {
-	module := newObject()
+	module := newObject(android.HostAndDeviceSupported)
 	module.linker = &objectLinker{
 		baseLinker: NewBaseLinker(module.sanitize),
 	}
