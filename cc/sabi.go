@@ -45,12 +45,6 @@ func (sabi *sabi) props() []interface{} {
 	return []interface{}{&sabi.Properties}
 }
 
-func (sabi *sabi) begin(ctx BaseModuleContext) {}
-
-func (sabi *sabi) deps(ctx BaseModuleContext, deps Deps) Deps {
-	return deps
-}
-
 func (sabi *sabi) flags(ctx ModuleContext, flags Flags) Flags {
 	// Filter out flags which libTooling don't understand.
 	// This is here for legacy reasons and future-proof, in case the version of libTooling and clang
