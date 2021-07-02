@@ -53,6 +53,10 @@ func (m *Module) SnapshotSharedLibs() []string {
 	return m.Properties.SnapshotSharedLibs
 }
 
+func (m *Module) SnapshotStaticLibs() []string {
+	return m.Properties.SnapshotStaticLibs
+}
+
 // snapshotLibraryInterface is an interface for libraries captured to VNDK / vendor snapshots.
 type snapshotLibraryInterface interface {
 	libraryInterface

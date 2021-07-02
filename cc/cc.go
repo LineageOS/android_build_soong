@@ -337,6 +337,7 @@ type BaseProperties struct {
 
 	// Used by vendor snapshot to record dependencies from snapshot modules.
 	SnapshotSharedLibs  []string `blueprint:"mutated"`
+	SnapshotStaticLibs  []string `blueprint:"mutated"`
 	SnapshotRuntimeLibs []string `blueprint:"mutated"`
 
 	Installable *bool
@@ -2830,6 +2831,8 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 					c.Properties.AndroidMkStaticLibs = append(
 						c.Properties.AndroidMkStaticLibs, makeLibName)
 				}
+				// Record BaseLibName for snapshots.
+				c.Properties.SnapshotStaticLibs = append(c.Properties.SnapshotStaticLibs, BaseLibName(depName))
 			}
 		} else if !c.IsStubs() {
 			// Stubs lib doesn't link to the runtime lib, object, crt, etc. dependencies.
@@ -3149,6 +3152,13 @@ func (c *Module) Binary() bool {
 		binary() bool
 	}); ok {
 		return b.binary()
+	}
+	return false
+}
+
+func (c *Module) StaticExecutable() bool {
+	if b, ok := c.linker.(*binaryDecorator); ok {
+		return b.static()
 	}
 	return false
 }
