@@ -675,10 +675,13 @@ func (c *commonToSdkLibraryAndImport) initCommonAfterDefaultsApplied(ctx android
 		return false
 	}
 
+	namePtr := proptools.StringPtr(c.module.BaseModuleName())
+	c.sdkLibraryComponentProperties.SdkLibraryName = namePtr
+
 	// Only track this sdk library if this can be used as a shared library.
 	if c.sharedLibrary() {
 		// Use the name specified in the module definition as the owner.
-		c.sdkLibraryComponentProperties.SdkLibraryToImplicitlyTrack = proptools.StringPtr(c.module.BaseModuleName())
+		c.sdkLibraryComponentProperties.SdkLibraryToImplicitlyTrack = namePtr
 	}
 
 	return true
@@ -922,15 +925,19 @@ func (c *commonToSdkLibraryAndImport) SdkRemovedTxtFile(ctx android.BaseModuleCo
 
 func (c *commonToSdkLibraryAndImport) sdkComponentPropertiesForChildLibrary() interface{} {
 	componentProps := &struct {
+		SdkLibraryName              *string
 		SdkLibraryToImplicitlyTrack *string
 	}{}
+
+	namePtr := proptools.StringPtr(c.module.BaseModuleName())
+	componentProps.SdkLibraryName = namePtr
 
 	if c.sharedLibrary() {
 		// Mark the stubs library as being components of this java_sdk_library so that
 		// any app that includes code which depends (directly or indirectly) on the stubs
 		// library will have the appropriate <uses-library> invocation inserted into its
 		// manifest if necessary.
-		componentProps.SdkLibraryToImplicitlyTrack = proptools.StringPtr(c.module.BaseModuleName())
+		componentProps.SdkLibraryToImplicitlyTrack = namePtr
 	}
 
 	return componentProps
@@ -949,6 +956,8 @@ func (c *commonToSdkLibraryAndImport) stubLibrariesCompiledForDex() bool {
 
 // Properties related to the use of a module as an component of a java_sdk_library.
 type SdkLibraryComponentProperties struct {
+	// The name of the java_sdk_library/_import module.
+	SdkLibraryName *string `blueprint:"mutated"`
 
 	// The name of the java_sdk_library/_import to add to a <uses-library> entry
 	// in the AndroidManifest.xml of any Android app that includes code that references
@@ -967,6 +976,11 @@ func (e *EmbeddableSdkLibraryComponent) initSdkLibraryComponent(module android.M
 }
 
 // to satisfy SdkLibraryComponentDependency
+func (e *EmbeddableSdkLibraryComponent) SdkLibraryName() *string {
+	return e.sdkLibraryComponentProperties.SdkLibraryName
+}
+
+// to satisfy SdkLibraryComponentDependency
 func (e *EmbeddableSdkLibraryComponent) OptionalImplicitSdkLibrary() *string {
 	return e.sdkLibraryComponentProperties.SdkLibraryToImplicitlyTrack
 }
@@ -981,6 +995,9 @@ func (e *EmbeddableSdkLibraryComponent) OptionalSdkLibraryImplementation() *stri
 // (including the java_sdk_library) itself.
 type SdkLibraryComponentDependency interface {
 	UsesLibraryDependency
+
+	// SdkLibraryName returns the name of the java_sdk_library/_import module.
+	SdkLibraryName() *string
 
 	// The optional name of the sdk library that should be implicitly added to the
 	// AndroidManifest of an app that contains code which references the sdk library.
