@@ -80,10 +80,6 @@ func (lto *lto) begin(ctx BaseModuleContext) {
 	}
 }
 
-func (lto *lto) deps(ctx BaseModuleContext, deps Deps) Deps {
-	return deps
-}
-
 func (lto *lto) useClangLld(ctx BaseModuleContext) bool {
 	if lto.Properties.Use_clang_lld != nil {
 		return Bool(lto.Properties.Use_clang_lld)

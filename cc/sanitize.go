@@ -499,14 +499,6 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 	}
 }
 
-func (sanitize *sanitize) deps(ctx BaseModuleContext, deps Deps) Deps {
-	if !sanitize.Properties.SanitizerEnabled { // || c.static() {
-		return deps
-	}
-
-	return deps
-}
-
 func toDisableImplicitIntegerChange(flags []string) bool {
 	// Returns true if any flag is fsanitize*integer, and there is
 	// no explicit flag about sanitize=implicit-integer-sign-change.
