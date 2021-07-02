@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"sync"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
@@ -229,6 +230,9 @@ var bp2buildPreArchMutators = []RegisterMutatorFunc{}
 var bp2buildDepsMutators = []RegisterMutatorFunc{}
 var bp2buildMutators = map[string]RegisterMutatorFunc{}
 
+// See http://b/192523357
+var bp2buildLock sync.Mutex
+
 // RegisterBp2BuildMutator registers specially crafted mutators for
 // converting Blueprint/Android modules into special modules that can
 // be code-generated into Bazel BUILD targets.
@@ -238,6 +242,9 @@ func RegisterBp2BuildMutator(moduleType string, m func(TopDownMutatorContext)) {
 	f := func(ctx RegisterMutatorsContext) {
 		ctx.TopDown(moduleType, m)
 	}
+	// Use a lock to avoid a concurrent map write if RegisterBp2BuildMutator is called in parallel
+	bp2buildLock.Lock()
+	defer bp2buildLock.Unlock()
 	bp2buildMutators[moduleType] = f
 }
 
