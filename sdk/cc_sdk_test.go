@@ -347,6 +347,7 @@ func TestSnapshotWithObject(t *testing.T) {
 		cc_object {
 			name: "crtobj",
 			stl: "none",
+			default_shared_libs: [],
 			sanitize: {
 				never: true,
 			},
@@ -364,6 +365,7 @@ cc_prebuilt_object {
     apex_available: ["//apex_available:platform"],
     stl: "none",
     compile_multilib: "both",
+    default_shared_libs: [],
     sanitize: {
         never: true,
     },
@@ -388,6 +390,7 @@ cc_prebuilt_object {
     apex_available: ["//apex_available:platform"],
     stl: "none",
     compile_multilib: "both",
+    default_shared_libs: [],
     sanitize: {
         never: true,
     },

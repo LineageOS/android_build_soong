@@ -16,6 +16,7 @@ package java
 
 import (
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -79,6 +80,46 @@ func TestDroidstubs(t *testing.T) {
 			t.Errorf("Expected %q high_mem to be %v, was %v", c.moduleName, c.high_mem, actual)
 		}
 	}
+}
+
+func TestSystemDroidstubs(t *testing.T) {
+	ctx, _ := testJavaWithFS(t, `
+		droiddoc_exported_dir {
+			name: "some-exported-dir",
+			path: "somedir",
+		}
+
+		droiddoc_exported_dir {
+			name: "some-other-exported-dir",
+			path: "someotherdir",
+		}
+
+		droidstubs {
+			name: "foo-stubs",
+			srcs: ["foo-doc/a.java"],
+			api_levels_annotations_dirs: [
+				"some-exported-dir",
+				"some-other-exported-dir",
+			],
+			api_levels_annotations_enabled: true,
+            api_levels_sdk_type: "system",
+		}
+		`,
+		map[string][]byte{
+			"foo-doc/a.java": nil,
+		})
+
+	m := ctx.ModuleForTests("foo-stubs", "android_common")
+	manifest := m.Output("metalava.sbox.textproto")
+	cmd := String(android.RuleBuilderSboxProtoForTests(t, manifest).Commands[0].Command)
+	r := regexp.MustCompile(`--android-jar-pattern [^ ]+/android.jar`)
+	matches := r.FindAllString(cmd, -1)
+	android.AssertArrayString(t, "order of patterns", []string{
+		"--android-jar-pattern somedir/%/system/android.jar",
+		"--android-jar-pattern someotherdir/%/system/android.jar",
+		"--android-jar-pattern somedir/%/public/android.jar",
+		"--android-jar-pattern someotherdir/%/public/android.jar",
+	}, matches)
 }
 
 func TestDroidstubsSandbox(t *testing.T) {

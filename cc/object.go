@@ -67,8 +67,18 @@ func (handler *objectBazelHandler) generateBazelBuildActions(ctx android.ModuleC
 }
 
 type ObjectLinkerProperties struct {
+	// list of static library modules that should only provide headers for this module.
+	Static_libs []string `android:"arch_variant,variant_prepend"`
+
+	// list of shared library modules should only provide headers for this module.
+	Shared_libs []string `android:"arch_variant"`
+
 	// list of modules that should only provide headers for this module.
 	Header_libs []string `android:"arch_variant,variant_prepend"`
+
+	// list of default libraries that will provide headers for this module.  If unset, generally
+	// defaults to libc, libm, and libdl.  Set to [] to prevent using headers from the defaults.
+	Default_shared_libs []string `android:"arch_variant"`
 
 	// names of other cc_object modules to link into this module using partial linking
 	Objs []string `android:"arch_variant"`
@@ -84,8 +94,8 @@ type ObjectLinkerProperties struct {
 	Crt *bool
 }
 
-func newObject() *Module {
-	module := newBaseModule(android.HostAndDeviceSupported, android.MultilibBoth)
+func newObject(hod android.HostOrDeviceSupported) *Module {
+	module := newBaseModule(hod, android.MultilibBoth)
 	module.sanitize = &sanitize{}
 	module.stl = &stl{}
 	return module
@@ -95,7 +105,7 @@ func newObject() *Module {
 // necessary, but sometimes used to generate .s files from .c files to use as
 // input to a cc_genrule module.
 func ObjectFactory() android.Module {
-	module := newObject()
+	module := newObject(android.HostAndDeviceSupported)
 	module.linker = &objectLinker{
 		baseLinker: NewBaseLinker(module.sanitize),
 	}
@@ -198,7 +208,18 @@ func (*objectLinker) linkerInit(ctx BaseModuleContext) {}
 
 func (object *objectLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	deps.HeaderLibs = append(deps.HeaderLibs, object.Properties.Header_libs...)
+	deps.SharedLibs = append(deps.SharedLibs, object.Properties.Shared_libs...)
+	deps.StaticLibs = append(deps.StaticLibs, object.Properties.Static_libs...)
 	deps.ObjFiles = append(deps.ObjFiles, object.Properties.Objs...)
+
+	deps.SystemSharedLibs = object.Properties.Default_shared_libs
+	if deps.SystemSharedLibs == nil {
+		// Provide a default set of shared libraries if default_shared_libs is unspecified.
+		// Note: If an empty list [] is specified, it implies that the module declines the
+		// default shared libraries.
+		deps.SystemSharedLibs = append(deps.SystemSharedLibs, ctx.toolchain().DefaultSharedLibraries()...)
+	}
+	deps.LateSharedLibs = append(deps.LateSharedLibs, deps.SystemSharedLibs...)
 	return deps
 }
 
@@ -245,6 +266,20 @@ func (object *objectLinker) link(ctx ModuleContext,
 
 	ctx.CheckbuildFile(outputFile)
 	return outputFile
+}
+
+func (object *objectLinker) linkerSpecifiedDeps(specifiedDeps specifiedDeps) specifiedDeps {
+	specifiedDeps.sharedLibs = append(specifiedDeps.sharedLibs, object.Properties.Shared_libs...)
+
+	// Must distinguish nil and [] in default_shared_libs - ensure that [] in
+	// either input list doesn't come out as nil.
+	if specifiedDeps.defaultSharedLibs == nil {
+		specifiedDeps.defaultSharedLibs = object.Properties.Default_shared_libs
+	} else {
+		specifiedDeps.defaultSharedLibs = append(specifiedDeps.defaultSharedLibs, object.Properties.Default_shared_libs...)
+	}
+
+	return specifiedDeps
 }
 
 func (object *objectLinker) unstrippedOutputFilePath() android.Path {

@@ -93,6 +93,10 @@ type sdkProperties struct {
 	//   dropped. Adding a rule to members that have //visibility:private will
 	//   cause the //visibility:private to be discarded.
 	Prebuilt_visibility []string
+
+	// Specifying whether the generated prebuilt SDK build rule should have the
+	// prefer flag set or not.
+	Prebuilts_prefer *bool // default: false
 }
 
 // Contains information about the sdk properties that list sdk members, e.g.
@@ -290,6 +294,10 @@ func (s *sdk) memberListProperty(memberType android.SdkMemberType) *sdkMemberLis
 
 func (s *sdk) snapshot() bool {
 	return s.properties.Snapshot
+}
+
+func (s *sdk) PreferPrebuilts() bool {
+	return proptools.BoolDefault(s.properties.Prebuilts_prefer, false)
 }
 
 func (s *sdk) GenerateAndroidBuildActions(ctx android.ModuleContext) {
