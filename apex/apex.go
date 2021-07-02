@@ -27,6 +27,7 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
+	"android/soong/bazel"
 	"android/soong/bpf"
 	"android/soong/cc"
 	prebuilt_etc "android/soong/etc"
@@ -53,6 +54,8 @@ func registerApexBuildComponents(ctx android.RegistrationContext) {
 	ctx.PreArchMutators(registerPreArchMutators)
 	ctx.PreDepsMutators(RegisterPreDepsMutators)
 	ctx.PostDepsMutators(RegisterPostDepsMutators)
+
+	android.RegisterBp2BuildMutator("apex", ApexBundleBp2Build)
 }
 
 func registerPreArchMutators(ctx android.RegisterMutatorsContext) {
@@ -327,6 +330,7 @@ type apexBundle struct {
 	android.DefaultableModuleBase
 	android.OverridableModuleBase
 	android.SdkBase
+	android.BazelModuleBase
 
 	// Properties
 	properties            apexBundleProperties
@@ -3178,3 +3182,63 @@ func rModulesPackages() map[string][]string {
 		},
 	}
 }
+
+// For Bazel / bp2build
+
+type bazelApexBundleAttributes struct {
+	Manifest bazel.LabelAttribute
+}
+
+type bazelApexBundle struct {
+	android.BazelTargetModuleBase
+	bazelApexBundleAttributes
+}
+
+func BazelApexBundleFactory() android.Module {
+	module := &bazelApexBundle{}
+	module.AddProperties(&module.bazelApexBundleAttributes)
+	android.InitBazelTargetModule(module)
+	return module
+}
+
+func ApexBundleBp2Build(ctx android.TopDownMutatorContext) {
+	module, ok := ctx.Module().(*apexBundle)
+	if !ok {
+		// Not an APEX bundle
+		return
+	}
+	if !module.ConvertWithBp2build(ctx) {
+		return
+	}
+	if ctx.ModuleType() != "apex" {
+		return
+	}
+
+	apexBundleBp2BuildInternal(ctx, module)
+}
+
+func apexBundleBp2BuildInternal(ctx android.TopDownMutatorContext, module *apexBundle) {
+	var manifestLabelAttribute bazel.LabelAttribute
+
+	manifestStringPtr := module.properties.Manifest
+	if module.properties.Manifest != nil {
+		manifestLabelAttribute.SetValue(android.BazelLabelForModuleSrcSingle(ctx, *manifestStringPtr))
+	}
+
+	attrs := &bazelApexBundleAttributes{
+		Manifest: manifestLabelAttribute,
+	}
+
+	props := bazel.BazelTargetModuleProperties{
+		Rule_class:        "apex",
+		Bzl_load_location: "//build/bazel/rules:apex.bzl",
+	}
+
+	ctx.CreateBazelTargetModule(BazelApexBundleFactory, module.Name(), props, attrs)
+}
+
+func (m *bazelApexBundle) Name() string {
+	return m.BaseModuleName()
+}
+
+func (m *bazelApexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {}
