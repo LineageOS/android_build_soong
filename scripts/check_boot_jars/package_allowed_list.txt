@@ -258,3 +258,12 @@ com\.google\.i18n\.phonenumbers
 # Packages used for Android in Chrome OS
 org\.chromium\.arc
 org\.chromium\.arc\..*
+
+# QC adds
+com.qualcomm.qti
+com.quicinc.tcmiface
+com.qualcomm.wfd
+com.qualcomm.wfd.service
+org.codeaurora.ims
+org.codeaurora.internal
+qcom.fmradio
