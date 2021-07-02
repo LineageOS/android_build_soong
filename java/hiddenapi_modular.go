@@ -586,6 +586,13 @@ type StubDexJarsByModule map[string]ModuleStubDexJars
 // addStubDexJar adds a stub dex jar path provided by the specified module for the specified scope.
 func (s StubDexJarsByModule) addStubDexJar(ctx android.ModuleContext, module android.Module, scope *HiddenAPIScope, stubDexJar android.Path) {
 	name := android.RemoveOptionalPrebuiltPrefix(module.Name())
+
+	// Each named module provides one dex jar for each scope. However, in some cases different API
+	// versions of a single classes are provided by separate modules. e.g. the core platform
+	// version of java.lang.Object is provided by the legacy.art.module.platform.api module but the
+	// public version is provided by the art.module.public.api module. In those cases it is necessary
+	// to treat all those modules as they were the same name, otherwise it will result in multiple
+	// definitions of a single class being passed to hidden API processing which will cause an error.
 	if name == scope.nonUpdatablePrebuiltModule || name == scope.nonUpdatableSourceModule {
 		// Treat all *android-non-updatable* modules as if they were part of an android-non-updatable
 		// java_sdk_library.
@@ -606,6 +613,14 @@ func (s StubDexJarsByModule) addStubDexJar(ctx android.ModuleContext, module and
 		// conscrypt.module.public.api java_sdk_library which will be the case once the former has been
 		// migrated to a module_lib API.
 		name = "conscrypt.module.public.api"
+	} else if d, ok := module.(SdkLibraryComponentDependency); ok {
+		sdkLibraryName := d.SdkLibraryName()
+		if sdkLibraryName != nil {
+			// The module is a component of a java_sdk_library so use the name of the java_sdk_library.
+			// e.g. if this module is `foo.system.stubs` and is part of the `foo` java_sdk_library then
+			// use `foo` as the name.
+			name = *sdkLibraryName
+		}
 	}
 	stubDexJarsByScope := s[name]
 	if stubDexJarsByScope == nil {
@@ -1146,6 +1161,14 @@ func deferReportingMissingBootDexJar(ctx android.ModuleContext, module android.M
 		return true
 	}
 
+	// A bootclasspath module that is part of a versioned sdk never provides a boot dex jar as there
+	// is no equivalently versioned prebuilt APEX file from which it can be obtained. However,
+	// versioned bootclasspath modules are processed by Soong so in order to avoid them causing build
+	// failures missing boot dex jars need to be deferred.
+	if android.IsModuleInVersionedSdk(ctx.Module()) {
+		return true
+	}
+
 	// This is called for both platform_bootclasspath and bootclasspath_fragment modules.
 	//
 	// A bootclasspath_fragment module should only use the APEX variant of source or prebuilt modules.
@@ -1182,20 +1205,20 @@ func deferReportingMissingBootDexJar(ctx android.ModuleContext, module android.M
 	//
 	// TODO(b/187910671): Remove this once platform variants are no longer created unnecessarily.
 	if android.IsModulePrebuilt(module) {
+		// An inactive source module can still contribute to the APEX but an inactive prebuilt module
+		// should not contribute to anything. So, rather than have a missing dex jar cause a Soong
+		// failure defer the error reporting to Ninja. Unless the prebuilt build target is explicitly
+		// built Ninja should never use the dex jar file.
+		if !isActiveModule(module) {
+			return true
+		}
+
 		if am, ok := module.(android.ApexModule); ok && am.InAnyApex() {
 			apexInfo := ctx.OtherModuleProvider(module, android.ApexInfoProvider).(android.ApexInfo)
 			if apexInfo.IsForPlatform() {
 				return true
 			}
 		}
-	}
-
-	// A bootclasspath module that is part of a versioned sdk never provides a boot dex jar as there
-	// is no equivalently versioned prebuilt APEX file from which it can be obtained. However,
-	// versioned bootclasspath modules are processed by Soong so in order to avoid them causing build
-	// failures missing boot dex jars need to be deferred.
-	if android.IsModuleInVersionedSdk(ctx.Module()) {
-		return true
 	}
 
 	return false
