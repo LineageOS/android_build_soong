@@ -576,25 +576,9 @@ func (b *BootclasspathFragmentModule) generateHiddenAPIBuildActions(ctx android.
 	// Create hidden API input structure.
 	input := b.createHiddenAPIFlagInput(ctx, contents, fragments)
 
-	var output *HiddenAPIOutput
-
-	// Hidden API processing is conditional as a temporary workaround as not all
-	// bootclasspath_fragments provide the appropriate information needed for hidden API processing
-	// which leads to breakages of the build.
-	// TODO(b/179354495): Stop hidden API processing being conditional once all bootclasspath_fragment
-	//  modules have been updated to support it.
-	if input.canPerformHiddenAPIProcessing(ctx, b.properties) {
-		// Delegate the production of the hidden API all-flags.csv file to a module type specific method.
-		common := ctx.Module().(commonBootclasspathFragment)
-		output = common.produceHiddenAPIOutput(ctx, contents, input)
-	} else {
-		// As hidden API processing cannot be performed fall back to trying to retrieve the legacy
-		// encoded boot dex files, i.e. those files encoded by the individual libraries and returned
-		// from the DexJarBuildPath() method.
-		output = &HiddenAPIOutput{
-			EncodedBootDexFilesByModule: retrieveLegacyEncodedBootDexFiles(ctx, contents),
-		}
-	}
+	// Delegate the production of the hidden API all-flags.csv file to a module type specific method.
+	common := ctx.Module().(commonBootclasspathFragment)
+	output := common.produceHiddenAPIOutput(ctx, contents, input)
 
 	// Initialize a HiddenAPIInfo structure.
 	hiddenAPIInfo := HiddenAPIInfo{
