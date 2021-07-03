@@ -20,7 +20,6 @@ import (
 
 	"android/soong/android"
 	"github.com/google/blueprint"
-	"github.com/google/blueprint/proptools"
 )
 
 // Contains support for processing hiddenAPI in a modular fashion.
@@ -712,42 +711,6 @@ func newHiddenAPIFlagInput() HiddenAPIFlagInput {
 	return input
 }
 
-// canPerformHiddenAPIProcessing determines whether hidden API processing should be performed.
-//
-// A temporary workaround to avoid existing bootclasspath_fragments that do not provide the
-// appropriate information needed for hidden API processing breaking the build.
-// TODO(b/179354495): Remove this workaround.
-func (i *HiddenAPIFlagInput) canPerformHiddenAPIProcessing(ctx android.ModuleContext, properties bootclasspathFragmentProperties) bool {
-	// Performing hidden API processing without stubs is not supported and it is unlikely to ever be
-	// required as the whole point of adding something to the bootclasspath fragment is to add it to
-	// the bootclasspath in order to be used by something else in the system. Without any stubs it
-	// cannot do that.
-	if len(i.StubDexJarsByScope) == 0 {
-		return false
-	}
-
-	// Hidden API processing is always enabled in tests.
-	if ctx.Config().TestProductVariables != nil {
-		return true
-	}
-
-	// A module that has fragments should have access to the information it needs in order to perform
-	// hidden API processing.
-	if len(properties.Fragments) != 0 {
-		return true
-	}
-
-	// The art bootclasspath fragment does not depend on any other fragments but already supports
-	// hidden API processing.
-	imageName := proptools.String(properties.Image_name)
-	if imageName == "art" {
-		return true
-	}
-
-	// Disable it for everything else.
-	return false
-}
-
 // gatherStubLibInfo gathers information from the stub libs needed by hidden API processing from the
 // dependencies added in hiddenAPIAddStubLibDependencies.
 //
@@ -1161,6 +1124,14 @@ func deferReportingMissingBootDexJar(ctx android.ModuleContext, module android.M
 		return true
 	}
 
+	// A bootclasspath module that is part of a versioned sdk never provides a boot dex jar as there
+	// is no equivalently versioned prebuilt APEX file from which it can be obtained. However,
+	// versioned bootclasspath modules are processed by Soong so in order to avoid them causing build
+	// failures missing boot dex jars need to be deferred.
+	if android.IsModuleInVersionedSdk(ctx.Module()) {
+		return true
+	}
+
 	// This is called for both platform_bootclasspath and bootclasspath_fragment modules.
 	//
 	// A bootclasspath_fragment module should only use the APEX variant of source or prebuilt modules.
@@ -1197,20 +1168,20 @@ func deferReportingMissingBootDexJar(ctx android.ModuleContext, module android.M
 	//
 	// TODO(b/187910671): Remove this once platform variants are no longer created unnecessarily.
 	if android.IsModulePrebuilt(module) {
+		// An inactive source module can still contribute to the APEX but an inactive prebuilt module
+		// should not contribute to anything. So, rather than have a missing dex jar cause a Soong
+		// failure defer the error reporting to Ninja. Unless the prebuilt build target is explicitly
+		// built Ninja should never use the dex jar file.
+		if !isActiveModule(module) {
+			return true
+		}
+
 		if am, ok := module.(android.ApexModule); ok && am.InAnyApex() {
 			apexInfo := ctx.OtherModuleProvider(module, android.ApexInfoProvider).(android.ApexInfo)
 			if apexInfo.IsForPlatform() {
 				return true
 			}
 		}
-	}
-
-	// A bootclasspath module that is part of a versioned sdk never provides a boot dex jar as there
-	// is no equivalently versioned prebuilt APEX file from which it can be obtained. However,
-	// versioned bootclasspath modules are processed by Soong so in order to avoid them causing build
-	// failures missing boot dex jars need to be deferred.
-	if android.IsModuleInVersionedSdk(ctx.Module()) {
-		return true
 	}
 
 	return false
