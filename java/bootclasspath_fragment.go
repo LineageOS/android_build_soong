@@ -532,27 +532,18 @@ func (b *BootclasspathFragmentModule) configuredJars(ctx android.ModuleContext) 
 
 	global := dexpreopt.GetGlobalConfig(ctx)
 
-	// Convert content names to their appropriate stems, in case a test library is overriding an actual boot jar
-	var stems []string
-	for _, name := range b.properties.Contents {
-		dep := ctx.GetDirectDepWithTag(name, bootclasspathFragmentContentDepTag)
-		if m, ok := dep.(ModuleWithStem); ok {
-			stems = append(stems, m.Stem())
-		} else {
-			ctx.PropertyErrorf("contents", "%v is not a ModuleWithStem", name)
-		}
-	}
+	possibleUpdatableModules := gatherPossibleUpdatableModuleNamesAndStems(ctx, b.properties.Contents, bootclasspathFragmentContentDepTag)
 
 	// Only create configs for updatable boot jars. Non-updatable boot jars must be part of the
 	// platform_bootclasspath's classpath proto config to guarantee that they come before any
 	// updatable jars at runtime.
-	jars := global.UpdatableBootJars.Filter(stems)
+	jars := global.UpdatableBootJars.Filter(possibleUpdatableModules)
 
 	// TODO(satayev): for apex_test we want to include all contents unconditionally to classpaths
 	// config. However, any test specific jars would not be present in UpdatableBootJars. Instead,
 	// we should check if we are creating a config for apex_test via ApexInfo and amend the values.
 	// This is an exception to support end-to-end test for SdkExtensions, until such support exists.
-	if android.InList("test_framework-sdkextensions", stems) {
+	if android.InList("test_framework-sdkextensions", possibleUpdatableModules) {
 		jars = jars.Append("com.android.sdkext", "test_framework-sdkextensions")
 	}
 	return jars
@@ -583,25 +574,9 @@ func (b *BootclasspathFragmentModule) generateHiddenAPIBuildActions(ctx android.
 	// Create hidden API input structure.
 	input := b.createHiddenAPIFlagInput(ctx, contents, fragments)
 
-	var output *HiddenAPIOutput
-
-	// Hidden API processing is conditional as a temporary workaround as not all
-	// bootclasspath_fragments provide the appropriate information needed for hidden API processing
-	// which leads to breakages of the build.
-	// TODO(b/179354495): Stop hidden API processing being conditional once all bootclasspath_fragment
-	//  modules have been updated to support it.
-	if input.canPerformHiddenAPIProcessing(ctx, b.properties) {
-		// Delegate the production of the hidden API all-flags.csv file to a module type specific method.
-		common := ctx.Module().(commonBootclasspathFragment)
-		output = common.produceHiddenAPIOutput(ctx, contents, input)
-	} else {
-		// As hidden API processing cannot be performed fall back to trying to retrieve the legacy
-		// encoded boot dex files, i.e. those files encoded by the individual libraries and returned
-		// from the DexJarBuildPath() method.
-		output = &HiddenAPIOutput{
-			EncodedBootDexFilesByModule: retrieveLegacyEncodedBootDexFiles(ctx, contents),
-		}
-	}
+	// Delegate the production of the hidden API all-flags.csv file to a module type specific method.
+	common := ctx.Module().(commonBootclasspathFragment)
+	output := common.produceHiddenAPIOutput(ctx, contents, input)
 
 	// Initialize a HiddenAPIInfo structure.
 	hiddenAPIInfo := HiddenAPIInfo{

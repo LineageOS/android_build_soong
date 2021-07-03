@@ -57,6 +57,10 @@ func (mod *Module) SnapshotSharedLibs() []string {
 	return mod.Properties.SnapshotSharedLibs
 }
 
+func (mod *Module) SnapshotStaticLibs() []string {
+	return mod.Properties.SnapshotStaticLibs
+}
+
 func (mod *Module) Symlinks() []string {
 	// TODO update this to return the list of symlinks when Rust supports defining symlinks
 	return nil
