@@ -391,8 +391,9 @@ func (l *linter) lint(ctx android.ModuleContext) {
 	rule.Command().Text("rm -f").Output(html).Output(text).Output(xml)
 
 	var apiVersionsName, apiVersionsPrebuilt string
-	if l.compileSdkKind == android.SdkModule {
-		// When compiling an SDK module we use the filtered database because otherwise lint's
+	if l.compileSdkKind == android.SdkModule || l.compileSdkKind == android.SdkSystemServer {
+		// When compiling an SDK module (or system server) we use the filtered
+		// database because otherwise lint's
 		// NewApi check produces too many false positives; This database excludes information
 		// about classes created in mainline modules hence removing those false positives.
 		apiVersionsName = "api_versions_public_filtered.xml"
