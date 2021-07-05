@@ -503,29 +503,47 @@ func copyBootJarsToPredefinedLocations(ctx android.ModuleContext, srcBootDexJars
 }
 
 // buildBootImage takes a bootImageConfig, and creates rules to build it.
-func buildBootImage(ctx android.ModuleContext, image *bootImageConfig, profile android.WritablePath) {
-	var zipFiles android.Paths
+//
+// It returns a map from android.ArchType to the predefined paths of the boot image files.
+func buildBootImage(ctx android.ModuleContext, image *bootImageConfig, profile android.WritablePath) bootImageFilesByArch {
+	filesByArch := bootImageFilesByArch{}
 	for _, variant := range image.variants {
-		files := buildBootImageVariant(ctx, variant, profile)
+		buildBootImageVariant(ctx, variant, profile)
 		if variant.target.Os == android.Android {
-			zipFiles = append(zipFiles, files.Paths()...)
+			filesByArch[variant.target.Arch.ArchType] = variant.imagesDeps.Paths()
 		}
 	}
 
-	if image.zip != nil {
-		rule := android.NewRuleBuilder(pctx, ctx)
-		rule.Command().
-			BuiltTool("soong_zip").
-			FlagWithOutput("-o ", image.zip).
-			FlagWithArg("-C ", image.dir.Join(ctx, android.Android.String()).String()).
-			FlagWithInputList("-f ", zipFiles, " -f ")
+	return filesByArch
+}
 
-		rule.Build("zip_"+image.name, "zip "+image.name+" image")
+// buildBootImageZipInPredefinedLocation generates a zip file containing all the boot image files.
+//
+// The supplied filesByArch is nil when the boot image files have not been generated. Otherwise, it
+// is a map from android.ArchType to the predefined locations.
+func buildBootImageZipInPredefinedLocation(ctx android.ModuleContext, image *bootImageConfig, filesByArch bootImageFilesByArch) {
+	if filesByArch == nil {
+		return
 	}
+
+	// Compute the list of files from all the architectures.
+	zipFiles := android.Paths{}
+	for _, archType := range android.ArchTypeList() {
+		zipFiles = append(zipFiles, filesByArch[archType]...)
+	}
+
+	rule := android.NewRuleBuilder(pctx, ctx)
+	rule.Command().
+		BuiltTool("soong_zip").
+		FlagWithOutput("-o ", image.zip).
+		FlagWithArg("-C ", image.dir.Join(ctx, android.Android.String()).String()).
+		FlagWithInputList("-f ", zipFiles, " -f ")
+
+	rule.Build("zip_"+image.name, "zip "+image.name+" image")
 }
 
 // Generate boot image build rules for a specific target.
-func buildBootImageVariant(ctx android.ModuleContext, image *bootImageVariant, profile android.Path) android.WritablePaths {
+func buildBootImageVariant(ctx android.ModuleContext, image *bootImageVariant, profile android.Path) {
 
 	globalSoong := dexpreopt.GetCachedGlobalSoongConfig(ctx)
 	global := dexpreopt.GetGlobalConfig(ctx)
@@ -641,11 +659,8 @@ func buildBootImageVariant(ctx android.ModuleContext, image *bootImageVariant, p
 	var vdexInstalls android.RuleBuilderInstalls
 	var unstrippedInstalls android.RuleBuilderInstalls
 
-	var zipFiles android.WritablePaths
-
 	for _, artOrOat := range image.moduleFiles(ctx, outputDir, ".art", ".oat") {
 		cmd.ImplicitOutput(artOrOat)
-		zipFiles = append(zipFiles, artOrOat)
 
 		// Install the .oat and .art files
 		rule.Install(artOrOat, filepath.Join(installDir, artOrOat.Base()))
@@ -653,7 +668,6 @@ func buildBootImageVariant(ctx android.ModuleContext, image *bootImageVariant, p
 
 	for _, vdex := range image.moduleFiles(ctx, outputDir, ".vdex") {
 		cmd.ImplicitOutput(vdex)
-		zipFiles = append(zipFiles, vdex)
 
 		// Note that the vdex files are identical between architectures.
 		// Make rules will create symlinks to share them between architectures.
@@ -675,8 +689,6 @@ func buildBootImageVariant(ctx android.ModuleContext, image *bootImageVariant, p
 	image.installs = rule.Installs()
 	image.vdexInstalls = vdexInstalls
 	image.unstrippedInstalls = unstrippedInstalls
-
-	return zipFiles
 }
 
 const failureMessage = `ERROR: Dex2oat failed to compile a boot image.
