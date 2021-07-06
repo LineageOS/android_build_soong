@@ -261,6 +261,9 @@ func TestJavaLintDatabaseSelectionFull(t *testing.T) {
 }
 
 func TestJavaLintDatabaseSelectionPublicFiltered(t *testing.T) {
+	testCases := []string{
+		"module_current", "system_server_current",
+	}
 	bp := `
 		java_library {
 			name: "foo",
@@ -274,17 +277,20 @@ func TestJavaLintDatabaseSelectionPublicFiltered(t *testing.T) {
 			},
 		}
 `
-	result := android.GroupFixturePreparers(PrepareForTestWithJavaDefaultModules).
-		RunTestWithBp(t, bp)
+	for _, testCase := range testCases {
+		thisBp := strings.Replace(bp, "XXX", testCase, 1)
+		result := android.GroupFixturePreparers(PrepareForTestWithJavaDefaultModules).
+			RunTestWithBp(t, thisBp)
 
-	foo := result.ModuleForTests("foo", "android_common")
-	sboxProto := android.RuleBuilderSboxProtoForTests(t, foo.Output("lint.sbox.textproto"))
-	if !strings.Contains(*sboxProto.Commands[0].Command,
-		"/api_versions_public_filtered.xml") {
-		t.Error("did not use public-filtered lint api database", *sboxProto.Commands[0].Command)
-	}
-	if strings.Contains(*sboxProto.Commands[0].Command,
-		"/api_versions.xml") {
-		t.Error("used full api database")
+		foo := result.ModuleForTests("foo", "android_common")
+		sboxProto := android.RuleBuilderSboxProtoForTests(t, foo.Output("lint.sbox.textproto"))
+		if !strings.Contains(*sboxProto.Commands[0].Command,
+			"/api_versions_public_filtered.xml") {
+			t.Error("did not use public-filtered lint api database for case", testCase)
+		}
+		if strings.Contains(*sboxProto.Commands[0].Command,
+			"/api_versions.xml") {
+			t.Error("used full api database for case", testCase)
+		}
 	}
 }
