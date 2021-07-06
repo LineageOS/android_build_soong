@@ -61,11 +61,37 @@ type PrebuiltProperties struct {
 	// a matching name.
 	Prefer *bool `android:"arch_variant"`
 
+	// When specified this names a Soong config variable that controls the prefer property.
+	//
+	// If the value of the named Soong config variable is true then prefer is set to false and vice
+	// versa. If the Soong config variable is not set then it defaults to false, so prefer defaults
+	// to true.
+	//
+	// If specified then the prefer property is ignored in favor of the value of the Soong config
+	// variable.
+	Use_source_config_var *ConfigVarProperties
+
 	SourceExists bool `blueprint:"mutated"`
 	UsePrebuilt  bool `blueprint:"mutated"`
 
 	// Set if the module has been renamed to remove the "prebuilt_" prefix.
 	PrebuiltRenamedToSource bool `blueprint:"mutated"`
+}
+
+// Properties that can be used to select a Soong config variable.
+type ConfigVarProperties struct {
+	// Allow instances of this struct to be used as a property value in a BpPropertySet.
+	BpPrintableBase
+
+	// The name of the configuration namespace.
+	//
+	// As passed to add_soong_config_namespace in Make.
+	Config_namespace *string
+
+	// The name of the configuration variable.
+	//
+	// As passed to add_soong_config_var_value in Make.
+	Var_name *string
 }
 
 type Prebuilt struct {
@@ -364,12 +390,18 @@ func (p *Prebuilt) usePrebuilt(ctx TopDownMutatorContext, source Module, prebuil
 		return false
 	}
 
-	// TODO: use p.Properties.Name and ctx.ModuleDir to override preference
-	if Bool(p.properties.Prefer) {
+	// If source is not available or is disabled then always use the prebuilt.
+	if source == nil || !source.Enabled() {
 		return true
 	}
 
-	return source == nil || !source.Enabled()
+	// If the use_source_config_var property is set then it overrides the prefer property setting.
+	if configVar := p.properties.Use_source_config_var; configVar != nil {
+		return !ctx.Config().VendorConfig(proptools.String(configVar.Config_namespace)).Bool(proptools.String(configVar.Var_name))
+	}
+
+	// TODO: use p.Properties.Name and ctx.ModuleDir to override preference
+	return Bool(p.properties.Prefer)
 }
 
 func (p *Prebuilt) SourceExists() bool {
