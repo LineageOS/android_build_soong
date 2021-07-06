@@ -658,10 +658,6 @@ func (b *BootclasspathFragmentModule) produceBootImageFiles(ctx android.ModuleCo
 		return nil
 	}
 
-	// Force the GlobalSoongConfig to be created and cached for use by the dex_bootjars
-	// GenerateSingletonBuildActions method as it cannot create it for itself.
-	dexpreopt.GetGlobalSoongConfig(ctx)
-
 	// Only generate the boot image if the configuration does not skip it.
 	return b.generateBootImageBuildActions(ctx, imageConfig)
 }
