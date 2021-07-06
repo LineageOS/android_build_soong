@@ -89,6 +89,29 @@ type classpathJar struct {
 	maxSdkVersion int32
 }
 
+// gatherPossibleUpdatableModuleNamesAndStems returns a set of module and stem names from the
+// supplied contents that may be in the updatable boot jars.
+//
+// The module names are included because sometimes the stem is set to just change the name of
+// the installed file and it expects the configuration to still use the actual module name.
+//
+// The stem names are included because sometimes the stem is set to change the effective name of the
+// module that is used in the configuration as well,e .g. when a test library is overriding an
+// actual boot jar
+func gatherPossibleUpdatableModuleNamesAndStems(ctx android.ModuleContext, contents []string, tag blueprint.DependencyTag) []string {
+	set := map[string]struct{}{}
+	for _, name := range contents {
+		dep := ctx.GetDirectDepWithTag(name, tag)
+		set[name] = struct{}{}
+		if m, ok := dep.(ModuleWithStem); ok {
+			set[m.Stem()] = struct{}{}
+		} else {
+			ctx.PropertyErrorf("contents", "%v is not a ModuleWithStem", name)
+		}
+	}
+	return android.SortedStringKeys(set)
+}
+
 // Converts android.ConfiguredJarList into a list of classpathJars for each given classpathType.
 func configuredJarListToClasspathJars(ctx android.ModuleContext, configuredJars android.ConfiguredJarList, classpaths ...classpathType) []classpathJar {
 	paths := configuredJars.DevicePaths(ctx.Config(), android.Android)

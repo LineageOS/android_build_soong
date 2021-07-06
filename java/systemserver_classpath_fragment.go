@@ -98,21 +98,12 @@ func (s *SystemServerClasspathModule) GenerateAndroidBuildActions(ctx android.Mo
 func (s *SystemServerClasspathModule) ClasspathFragmentToConfiguredJarList(ctx android.ModuleContext) android.ConfiguredJarList {
 	global := dexpreopt.GetGlobalConfig(ctx)
 
-	// Convert content names to their appropriate stems, in case a test library is overriding an actual boot jar
-	var stems []string
-	for _, name := range s.properties.Contents {
-		dep := ctx.GetDirectDepWithTag(name, systemServerClasspathFragmentContentDepTag)
-		if m, ok := dep.(ModuleWithStem); ok {
-			stems = append(stems, m.Stem())
-		} else {
-			ctx.PropertyErrorf("contents", "%v is not a ModuleWithStem", name)
-		}
-	}
+	possibleUpdatableModules := gatherPossibleUpdatableModuleNamesAndStems(ctx, s.properties.Contents, systemServerClasspathFragmentContentDepTag)
 
 	// Only create configs for updatable boot jars. Non-updatable system server jars must be part of the
 	// platform_systemserverclasspath's classpath proto config to guarantee that they come before any
 	// updatable jars at runtime.
-	return global.UpdatableSystemServerJars.Filter(stems)
+	return global.UpdatableSystemServerJars.Filter(possibleUpdatableModules)
 }
 
 type systemServerClasspathFragmentContentDependencyTag struct {
