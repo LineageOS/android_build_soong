@@ -14,6 +14,7 @@ bootstrap_go_package {
         "soong-cc-config",
         "soong-etc",
         "soong-genrule",
+        "soong-snapshot",
         "soong-tradefed",
     ],
     srcs: [
