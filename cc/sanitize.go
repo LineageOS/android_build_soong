@@ -79,11 +79,22 @@ const (
 	Hwasan
 	tsan
 	intOverflow
-	cfi
 	scs
 	Fuzzer
 	memtag_heap
+	cfi // cfi is last to prevent it running before incompatible mutators
 )
+
+var Sanitizers = []SanitizerType{
+	Asan,
+	Hwasan,
+	tsan,
+	intOverflow,
+	scs,
+	Fuzzer,
+	memtag_heap,
+	cfi, // cfi is last to prevent it running before incompatible mutators
+}
 
 // Name of the sanitizer variation for this sanitizer type
 func (t SanitizerType) variationName() string {
@@ -128,6 +139,18 @@ func (t SanitizerType) name() string {
 		return "shadow-call-stack"
 	case Fuzzer:
 		return "fuzzer"
+	default:
+		panic(fmt.Errorf("unknown SanitizerType %d", t))
+	}
+}
+
+func (t SanitizerType) registerMutators(ctx android.RegisterMutatorsContext) {
+	switch t {
+	case Asan, Hwasan, Fuzzer, scs, tsan, cfi:
+		ctx.TopDown(t.variationName()+"_deps", sanitizerDepsMutator(t))
+		ctx.BottomUp(t.variationName(), sanitizerMutator(t))
+	case memtag_heap, intOverflow:
+		// do nothing
 	default:
 		panic(fmt.Errorf("unknown SanitizerType %d", t))
 	}
