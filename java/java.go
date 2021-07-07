@@ -1166,7 +1166,8 @@ type Import struct {
 	properties ImportProperties
 
 	// output file containing classes.dex and resources
-	dexJarFile android.Path
+	dexJarFile        android.Path
+	dexJarInstallFile android.Path
 
 	combinedClasspathFile android.Path
 	classLoaderContexts   dexpreopt.ClassLoaderContextMap
@@ -1311,6 +1312,7 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			di := ctx.OtherModuleProvider(deapexerModule, android.DeapexerProvider).(android.DeapexerInfo)
 			if dexOutputPath := di.PrebuiltExportPath(apexRootRelativePathToJavaLib(j.BaseModuleName())); dexOutputPath != nil {
 				j.dexJarFile = dexOutputPath
+				j.dexJarInstallFile = android.PathForModuleInPartitionInstall(ctx, "apex", ai.ApexVariationName, apexRootRelativePathToJavaLib(j.BaseModuleName()))
 
 				// Initialize the hiddenapi structure.
 				j.initHiddenAPI(ctx, dexOutputPath, outputFile, nil)
@@ -1351,6 +1353,7 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			dexOutputFile = j.hiddenAPIEncodeDex(ctx, dexOutputFile)
 
 			j.dexJarFile = dexOutputFile
+			j.dexJarInstallFile = android.PathForModuleInstall(ctx, "framework", jarName)
 		}
 	}
 
@@ -1392,7 +1395,7 @@ func (j *Import) DexJarBuildPath() android.Path {
 }
 
 func (j *Import) DexJarInstallPath() android.Path {
-	return nil
+	return j.dexJarInstallFile
 }
 
 func (j *Import) ClassLoaderContexts() dexpreopt.ClassLoaderContextMap {

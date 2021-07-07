@@ -1923,8 +1923,12 @@ type SdkLibraryImport struct {
 	// Is nil if the source module does not exist.
 	xmlPermissionsFileModule *sdkLibraryXml
 
-	// Path to the dex implementation jar obtained from the prebuilt_apex, if any.
+	// Build path to the dex implementation jar obtained from the prebuilt_apex, if any.
 	dexJarFile android.Path
+
+	// Expected install file path of the source module(sdk_library)
+	// or dex implementation jar obtained from the prebuilt_apex, if any.
+	installFile android.Path
 }
 
 var _ SdkLibraryDependency = (*SdkLibraryImport)(nil)
@@ -2136,6 +2140,9 @@ func (module *SdkLibraryImport) GenerateAndroidBuildActions(ctx android.ModuleCo
 
 	var deapexerModule android.Module
 
+	// Assume that source module(sdk_library) is installed in /<sdk_library partition>/framework
+	module.installFile = android.PathForModuleInstall(ctx, "framework", module.Stem()+".jar")
+
 	// Record the paths to the prebuilt stubs library and stubs source.
 	ctx.VisitDirectDeps(func(to android.Module) {
 		tag := ctx.OtherModuleDependencyTag(to)
@@ -2195,6 +2202,7 @@ func (module *SdkLibraryImport) GenerateAndroidBuildActions(ctx android.ModuleCo
 			di := ctx.OtherModuleProvider(deapexerModule, android.DeapexerProvider).(android.DeapexerInfo)
 			if dexOutputPath := di.PrebuiltExportPath(apexRootRelativePathToJavaLib(module.BaseModuleName())); dexOutputPath != nil {
 				module.dexJarFile = dexOutputPath
+				module.installFile = android.PathForModuleInPartitionInstall(ctx, "apex", ai.ApexVariationName, apexRootRelativePathToJavaLib(module.BaseModuleName()))
 				module.initHiddenAPI(ctx, dexOutputPath, module.findScopePaths(apiScopePublic).stubsImplPath[0], nil)
 			} else {
 				// This should never happen as a variant for a prebuilt_apex is only created if the
@@ -2249,11 +2257,7 @@ func (module *SdkLibraryImport) DexJarBuildPath() android.Path {
 
 // to satisfy UsesLibraryDependency interface
 func (module *SdkLibraryImport) DexJarInstallPath() android.Path {
-	if module.implLibraryModule == nil {
-		return nil
-	} else {
-		return module.implLibraryModule.DexJarInstallPath()
-	}
+	return module.installFile
 }
 
 // to satisfy UsesLibraryDependency interface
