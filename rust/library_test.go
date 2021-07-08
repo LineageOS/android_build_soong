@@ -85,6 +85,22 @@ func TestDylibPreferDynamic(t *testing.T) {
 	}
 }
 
+// Check that we are passing the android_dylib config flag
+func TestAndroidDylib(t *testing.T) {
+	ctx := testRust(t, `
+		rust_library_host_dylib {
+			name: "libfoo",
+			srcs: ["foo.rs"],
+			crate_name: "foo",
+		}`)
+
+	libfooDylib := ctx.ModuleForTests("libfoo", "linux_glibc_x86_64_dylib").Output("libfoo.dylib.so")
+
+	if !strings.Contains(libfooDylib.Args["rustcFlags"], "--cfg 'android_dylib'") {
+		t.Errorf("missing android_dylib cfg flag for libfoo dylib, rustcFlags: %#v", libfooDylib.Args["rustcFlags"])
+	}
+}
+
 func TestValidateLibraryStem(t *testing.T) {
 	testRustError(t, "crate_name must be defined.", `
 			rust_library_host {
