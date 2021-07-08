@@ -183,11 +183,6 @@ func (binary *binaryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	return deps
 }
 
-func (binary *binaryDecorator) isDependencyRoot() bool {
-	// Binaries are always the dependency root.
-	return true
-}
-
 // NewBinary builds and returns a new Module corresponding to a C++ binary.
 // Individual module implementations which comprise a C++ binary should call this function,
 // set some fields on the result, and then call the Init function.

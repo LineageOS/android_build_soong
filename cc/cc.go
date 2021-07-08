@@ -1119,17 +1119,6 @@ func (c *Module) Init() android.Module {
 	return c
 }
 
-// Returns true for dependency roots (binaries)
-// TODO(ccross): also handle dlopenable libraries
-func (c *Module) IsDependencyRoot() bool {
-	if root, ok := c.linker.(interface {
-		isDependencyRoot() bool
-	}); ok {
-		return root.isDependencyRoot()
-	}
-	return false
-}
-
 func (c *Module) UseVndk() bool {
 	return c.Properties.VndkVersion != ""
 }
