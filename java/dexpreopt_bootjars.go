@@ -502,14 +502,36 @@ func copyBootJarsToPredefinedLocations(ctx android.ModuleContext, srcBootDexJars
 	}
 }
 
-// buildBootImage takes a bootImageConfig, and creates rules to build it.
+// buildBootImageVariantsForAndroidOs generates rules to build the boot image variants for the
+// android.Android OsType and returns a map from the architectures to the paths of the generated
+// boot image files.
+//
+// The paths are returned because they are needed elsewhere in Soong, e.g. for populating an APEX.
+func buildBootImageVariantsForAndroidOs(ctx android.ModuleContext, image *bootImageConfig, profile android.WritablePath) bootImageFilesByArch {
+	return buildBootImageForOsType(ctx, image, profile, android.Android)
+}
+
+// buildBootImageVariantsForBuildOs generates rules to build the boot image variants for the
+// android.BuildOs OsType, i.e. the type of OS on which the build is being running.
+//
+// The files need to be generated into their predefined location because they are used from there
+// both within Soong and outside, e.g. for ART based host side testing and also for use by some
+// cloud based tools. However, they are not needed by callers of this function and so the paths do
+// not need to be returned from this func, unlike the buildBootImageVariantsForAndroidOs func.
+func buildBootImageVariantsForBuildOs(ctx android.ModuleContext, image *bootImageConfig, profile android.WritablePath) {
+	buildBootImageForOsType(ctx, image, profile, android.BuildOs)
+}
+
+// buildBootImageForOsType takes a bootImageConfig, a profile file and an android.OsType
+// boot image files are required for and it creates rules to build the boot image
+// files for all the required architectures for them.
 //
 // It returns a map from android.ArchType to the predefined paths of the boot image files.
-func buildBootImage(ctx android.ModuleContext, image *bootImageConfig, profile android.WritablePath) bootImageFilesByArch {
+func buildBootImageForOsType(ctx android.ModuleContext, image *bootImageConfig, profile android.WritablePath, requiredOsType android.OsType) bootImageFilesByArch {
 	filesByArch := bootImageFilesByArch{}
 	for _, variant := range image.variants {
-		buildBootImageVariant(ctx, variant, profile)
-		if variant.target.Os == android.Android {
+		if variant.target.Os == requiredOsType {
+			buildBootImageVariant(ctx, variant, profile)
 			filesByArch[variant.target.Arch.ArchType] = variant.imagesDeps.Paths()
 		}
 	}
@@ -545,7 +567,7 @@ func buildBootImageZipInPredefinedLocation(ctx android.ModuleContext, image *boo
 // Generate boot image build rules for a specific target.
 func buildBootImageVariant(ctx android.ModuleContext, image *bootImageVariant, profile android.Path) {
 
-	globalSoong := dexpreopt.GetCachedGlobalSoongConfig(ctx)
+	globalSoong := dexpreopt.GetGlobalSoongConfig(ctx)
 	global := dexpreopt.GetGlobalConfig(ctx)
 
 	arch := image.target.Arch.ArchType
@@ -696,7 +718,7 @@ It is likely that the boot classpath is inconsistent.
 Rebuild with ART_BOOT_IMAGE_EXTRA_ARGS="--runtime-arg -verbose:verifier" to see verification errors.`
 
 func bootImageProfileRule(ctx android.ModuleContext, image *bootImageConfig) android.WritablePath {
-	globalSoong := dexpreopt.GetCachedGlobalSoongConfig(ctx)
+	globalSoong := dexpreopt.GetGlobalSoongConfig(ctx)
 	global := dexpreopt.GetGlobalConfig(ctx)
 
 	if global.DisableGenerateProfile {
