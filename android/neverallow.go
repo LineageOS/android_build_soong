@@ -55,7 +55,6 @@ func init() {
 	AddNeverAllowRules(createCcSdkVariantRules()...)
 	AddNeverAllowRules(createUncompressDexRules()...)
 	AddNeverAllowRules(createMakefileGoalRules()...)
-	AddNeverAllowRules(createInitFirstStageRules()...)
 }
 
 // Add a NeverAllow rule to the set of rules to apply.
@@ -214,15 +213,6 @@ func createMakefileGoalRules() []Rule {
 			ModuleType("makefile_goal").
 			WithoutMatcher("product_out_path", Regexp("^boot[0-9a-zA-Z.-]*[.]img$")).
 			Because("Only boot images may be imported as a makefile goal."),
-	}
-}
-
-func createInitFirstStageRules() []Rule {
-	return []Rule{
-		NeverAllow().
-			Without("name", "init_first_stage").
-			With("install_in_root", "true").
-			Because("install_in_root is only for init_first_stage."),
 	}
 }
 

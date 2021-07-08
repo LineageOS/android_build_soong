@@ -651,10 +651,6 @@ func (b *BootclasspathFragmentModule) produceBootImageFiles(ctx android.ModuleCo
 		return nil
 	}
 
-	// Force the GlobalSoongConfig to be created and cached for use by the dex_bootjars
-	// GenerateSingletonBuildActions method as it cannot create it for itself.
-	dexpreopt.GetGlobalSoongConfig(ctx)
-
 	// Only generate the boot image if the configuration does not skip it.
 	return b.generateBootImageBuildActions(ctx, imageConfig)
 }
@@ -683,7 +679,16 @@ func (b *BootclasspathFragmentModule) generateBootImageBuildActions(ctx android.
 
 	// Build a profile for the image config and then use that to build the boot image.
 	profile := bootImageProfileRule(ctx, imageConfig)
-	return buildBootImage(ctx, imageConfig, profile)
+
+	// Build boot image files for the host variants.
+	buildBootImageVariantsForBuildOs(ctx, imageConfig, profile)
+
+	// Build boot image files for the android variants.
+	androidBootImageFilesByArch := buildBootImageVariantsForAndroidOs(ctx, imageConfig, profile)
+
+	// Return the boot image files for the android variants for inclusion in an APEX and to be zipped
+	// up for the dist.
+	return androidBootImageFilesByArch
 }
 
 type bootclasspathFragmentMemberType struct {
@@ -938,6 +943,12 @@ func (module *prebuiltBootclasspathFragmentModule) produceBootImageFiles(ctx and
 			})
 		}
 	}
+
+	// Build the boot image files for the host variants. These are built from the dex files provided
+	// by the contents of this module as prebuilt versions of the host boot image files are not
+	// available, i.e. there is no host specific prebuilt apex containing them. This has to be built
+	// without a profile as the prebuilt modules do not provide a profile.
+	buildBootImageVariantsForBuildOs(ctx, imageConfig, nil)
 
 	return files
 }
