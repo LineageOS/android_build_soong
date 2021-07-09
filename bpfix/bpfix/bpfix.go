@@ -392,7 +392,7 @@ func rewriteTestModuleTypes(f *Fixer) error {
 			continue
 		}
 
-		if !strings.HasPrefix(mod.Type, "java_") && !strings.HasPrefix(mod.Type, "android_") {
+		if !strings.HasPrefix(mod.Type, "java_") && !strings.HasPrefix(mod.Type, "android_") && mod.Type != "cc_binary" {
 			continue
 		}
 
@@ -418,6 +418,14 @@ func rewriteTestModuleTypes(f *Fixer) error {
 				mod.Type = "java_test"
 			case "java_library_host":
 				mod.Type = "java_test_host"
+			}
+		}
+
+		// when a cc_binary module has a nonempty test_suites field, modify the type to cc_test
+		if mod.Type == "cc_binary" {
+			hasTestSuites := hasNonEmptyLiteralListProperty(mod, "test_suites")
+			if hasTestSuites {
+				mod.Type = "cc_test"
 			}
 		}
 	}

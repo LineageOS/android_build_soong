@@ -1124,3 +1124,51 @@ func TestRewriteRuntimeResourceOverlay(t *testing.T) {
 		})
 	}
 }
+
+func TestRewriteTestModuleTypes(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		out  string
+	}{
+		{
+			name: "cc_binary with test_suites",
+			in: `
+				cc_binary {
+					name: "foo",
+					srcs: ["srcs"],
+					test_suites: ["test_suite1"],
+				}
+			`,
+			out: `
+				cc_test {
+					name: "foo",
+					srcs: ["srcs"],
+					test_suites: ["test_suite1"],
+				}
+			`,
+		},
+		{
+			name: "cc_binary without test_suites",
+			in: `
+				cc_binary {
+					name: "foo",
+					srcs: ["srcs"],
+				}
+			`,
+			out: `
+				cc_binary {
+					name: "foo",
+					srcs: ["srcs"],
+				}
+			`,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			runPass(t, test.in, test.out, func(fixer *Fixer) error {
+				return rewriteTestModuleTypes(fixer)
+			})
+		})
+	}
+}
