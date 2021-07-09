@@ -51,7 +51,7 @@ func addPathDepsForProps(ctx BottomUpMutatorContext, props []interface{}) {
 	// Add dependencies to anything that is a module reference.
 	for _, s := range pathProperties {
 		if m, t := SrcIsModuleWithTag(s); m != "" {
-			ctx.AddDependency(ctx.Module(), sourceOrOutputDepTag(t), m)
+			ctx.AddDependency(ctx.Module(), sourceOrOutputDepTag(m, t), m)
 		}
 	}
 }
