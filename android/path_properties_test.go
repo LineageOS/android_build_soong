@@ -63,7 +63,8 @@ func (p *pathDepsMutatorTestModule) GenerateAndroidBuildActions(ctx ModuleContex
 
 	if p.props.Foo != "" {
 		// Make sure there is only one dependency on a module listed in a property present in multiple property structs
-		if ctx.GetDirectDepWithTag(SrcIsModule(p.props.Foo), sourceOrOutputDepTag("")) == nil {
+		m := SrcIsModule(p.props.Foo)
+		if GetModuleFromPathDep(ctx, m, "") == nil {
 			ctx.ModuleErrorf("GetDirectDepWithTag failed")
 		}
 	}
