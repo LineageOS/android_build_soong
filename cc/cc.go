@@ -53,25 +53,9 @@ func RegisterCCBuildComponents(ctx android.RegistrationContext) {
 	})
 
 	ctx.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.TopDown("asan_deps", sanitizerDepsMutator(Asan))
-		ctx.BottomUp("asan", sanitizerMutator(Asan)).Parallel()
-
-		ctx.TopDown("hwasan_deps", sanitizerDepsMutator(Hwasan))
-		ctx.BottomUp("hwasan", sanitizerMutator(Hwasan)).Parallel()
-
-		ctx.TopDown("fuzzer_deps", sanitizerDepsMutator(Fuzzer))
-		ctx.BottomUp("fuzzer", sanitizerMutator(Fuzzer)).Parallel()
-
-		// cfi mutator shouldn't run before sanitizers that return true for
-		// incompatibleWithCfi()
-		ctx.TopDown("cfi_deps", sanitizerDepsMutator(cfi))
-		ctx.BottomUp("cfi", sanitizerMutator(cfi)).Parallel()
-
-		ctx.TopDown("scs_deps", sanitizerDepsMutator(scs))
-		ctx.BottomUp("scs", sanitizerMutator(scs)).Parallel()
-
-		ctx.TopDown("tsan_deps", sanitizerDepsMutator(tsan))
-		ctx.BottomUp("tsan", sanitizerMutator(tsan)).Parallel()
+		for _, san := range Sanitizers {
+			san.registerMutators(ctx)
+		}
 
 		ctx.TopDown("sanitize_runtime_deps", sanitizerRuntimeDepsMutator).Parallel()
 		ctx.BottomUp("sanitize_runtime", sanitizerRuntimeMutator).Parallel()
