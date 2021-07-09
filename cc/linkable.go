@@ -14,11 +14,6 @@ type PlatformSanitizeable interface {
 	// SanitizePropDefined returns whether the Sanitizer properties struct for this module is defined.
 	SanitizePropDefined() bool
 
-	// IsDependencyRoot returns whether a module is of a type which cannot be a linkage dependency
-	// of another module. For example, cc_binary and rust_binary represent dependency roots as other
-	// modules cannot have linkage dependencies against these types.
-	IsDependencyRoot() bool
-
 	// IsSanitizerEnabled returns whether a sanitizer is enabled.
 	IsSanitizerEnabled(t SanitizerType) bool
 

@@ -172,13 +172,6 @@ func (mod *Module) SanitizePropDefined() bool {
 	return mod.sanitize != nil && mod.compiler != nil
 }
 
-func (mod *Module) IsDependencyRoot() bool {
-	if mod.compiler != nil {
-		return mod.compiler.isDependencyRoot()
-	}
-	panic("IsDependencyRoot called on a non-compiler Rust module")
-}
-
 func (mod *Module) IsPrebuilt() bool {
 	if _, ok := mod.compiler.(*prebuiltLibraryDecorator); ok {
 		return true
@@ -449,7 +442,6 @@ type compiler interface {
 	SetDisabled()
 
 	stdLinkage(ctx *depsContext) RustLinkage
-	isDependencyRoot() bool
 
 	strippedOutputFilePath() android.OptionalPath
 }
