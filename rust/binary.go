@@ -155,7 +155,3 @@ func (binary *binaryDecorator) stdLinkage(ctx *depsContext) RustLinkage {
 	}
 	return binary.baseCompiler.stdLinkage(ctx)
 }
-
-func (binary *binaryDecorator) isDependencyRoot() bool {
-	return true
-}

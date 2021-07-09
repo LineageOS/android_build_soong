@@ -15,6 +15,8 @@
 package cc
 
 import (
+	"github.com/google/blueprint/proptools"
+
 	"android/soong/android"
 )
 
@@ -67,14 +69,14 @@ func (lto *lto) props() []interface{} {
 
 func (lto *lto) begin(ctx BaseModuleContext) {
 	if ctx.Config().IsEnvTrue("DISABLE_LTO") {
-		lto.Properties.Lto.Never = boolPtr(true)
+		lto.Properties.Lto.Never = proptools.BoolPtr(true)
 	} else if ctx.Config().IsEnvTrue("GLOBAL_THINLTO") {
 		staticLib := ctx.static() && !ctx.staticBinary()
 		hostBin := ctx.Host()
 		vndk := ctx.isVndk() // b/169217596
 		if !staticLib && !hostBin && !vndk {
 			if !lto.Never() && !lto.FullLTO() {
-				lto.Properties.Lto.Thin = boolPtr(true)
+				lto.Properties.Lto.Thin = proptools.BoolPtr(true)
 			}
 		}
 	}
@@ -229,12 +231,12 @@ func ltoMutator(mctx android.BottomUpMutatorContext) {
 
 				// LTO properties for dependencies
 				if name == "lto-full" {
-					variation.lto.Properties.Lto.Full = boolPtr(true)
-					variation.lto.Properties.Lto.Thin = boolPtr(false)
+					variation.lto.Properties.Lto.Full = proptools.BoolPtr(true)
+					variation.lto.Properties.Lto.Thin = proptools.BoolPtr(false)
 				}
 				if name == "lto-thin" {
-					variation.lto.Properties.Lto.Full = boolPtr(false)
-					variation.lto.Properties.Lto.Thin = boolPtr(true)
+					variation.lto.Properties.Lto.Full = proptools.BoolPtr(false)
+					variation.lto.Properties.Lto.Thin = proptools.BoolPtr(true)
 				}
 				variation.Properties.PreventInstall = true
 				variation.Properties.HideFromMake = true
