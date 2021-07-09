@@ -99,7 +99,7 @@ var knownFunctions = map[string]struct {
 	// TODO(asmundak): remove it once all calls are removed from configuration makefiles. see b/183161002
 	"shell":    {baseName + ".shell", starlarkTypeString},
 	"strip":    {baseName + ".mkstrip", starlarkTypeString},
-	"subst":    {baseName + ".subst", starlarkTypeString},
+	"subst":    {baseName + ".mksubst", starlarkTypeString},
 	"warning":  {baseName + ".mkwarning", starlarkTypeVoid},
 	"word":     {baseName + "!word", starlarkTypeString},
 	"wildcard": {baseName + ".expand_wildcard", starlarkTypeList},
@@ -509,13 +509,7 @@ func (ctx *parseContext) handleAssignment(a *mkparser.Assignment) {
 		}
 		inferred_type := asgn.value.typ()
 		if inferred_type != starlarkTypeUnknown {
-			if ogv, ok := lhs.(*otherGlobalVariable); ok {
-				ogv.typ = inferred_type
-			} else if pcv, ok := lhs.(*productConfigVariable); ok {
-				pcv.typ = inferred_type
-			} else {
-				panic(fmt.Errorf("cannot assign new type to a variable %s, its flavor is %T", lhs.name(), lhs))
-			}
+			lhs.setValueType(inferred_type)
 		}
 	}
 	if lhs.valueType() == starlarkTypeList {
@@ -1114,11 +1108,19 @@ func (ctx *parseContext) parseSubstFunc(node mkparser.Node, args *mkparser.MakeS
 	words[2].TrimLeftSpaces()
 	words[2].TrimRightSpaces()
 	obj := ctx.parseMakeString(node, words[2])
+	typ := obj.typ()
+	if typ == starlarkTypeString {
+		return &callExpr{
+			object:     obj,
+			name:       "replace",
+			args:       []starlarkExpr{&stringLiteralExpr{from}, &stringLiteralExpr{to}},
+			returnType: typ,
+		}
+	}
 	return &callExpr{
-		object:     obj,
-		name:       "replace",
-		args:       []starlarkExpr{&stringLiteralExpr{from}, &stringLiteralExpr{to}},
-		returnType: starlarkTypeString,
+		name:       "subst",
+		args:       []starlarkExpr{&stringLiteralExpr{from}, &stringLiteralExpr{to}, obj},
+		returnType: obj.typ(),
 	}
 }
 

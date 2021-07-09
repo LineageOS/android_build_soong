@@ -640,6 +640,22 @@ def init(g, handle):
 `,
 	},
 	{
+		desc:   "subst in list",
+		mkname: "product.mk",
+		in: `
+files = $(call find-copy-subdir-files,*,from,to)
+PRODUCT_COPY_FILES += $(subst foo,bar,$(files))
+`,
+		expected: `load("//build/make/core:product_config.rbc", "rblf")
+
+def init(g, handle):
+  cfg = rblf.cfg(handle)
+  _files = rblf.find_and_copy("*", "from", "to")
+  rblf.setdefault(handle, "PRODUCT_COPY_FILES")
+  cfg["PRODUCT_COPY_FILES"] += rblf.mksubst("foo", "bar", _files)
+`,
+	},
+	{
 		desc:   "assignment flavors",
 		mkname: "product.mk",
 		in: `
