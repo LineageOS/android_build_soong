@@ -27,7 +27,11 @@ import (
 )
 
 func init() {
-	RegisterModuleType("soong_namespace", NamespaceFactory)
+	registerNamespaceBuildComponents(InitRegistrationContext)
+}
+
+func registerNamespaceBuildComponents(ctx RegistrationContext) {
+	ctx.RegisterModuleType("soong_namespace", NamespaceFactory)
 }
 
 // threadsafe sorted list
