@@ -2807,30 +2807,57 @@ func (m *moduleContext) blueprintModuleContext() blueprint.ModuleContext {
 	return m.bp
 }
 
-// SrcIsModule decodes module references in the format ":name" into the module name, or empty string if the input
-// was not a module reference.
+// SrcIsModule decodes module references in the format ":unqualified-name" or "//namespace:name"
+// into the module name, or empty string if the input was not a module reference.
 func SrcIsModule(s string) (module string) {
-	if len(s) > 1 && s[0] == ':' {
-		return s[1:]
+	if len(s) > 1 {
+		if s[0] == ':' {
+			module = s[1:]
+			if !isUnqualifiedModuleName(module) {
+				// The module name should be unqualified but is not so do not treat it as a module.
+				module = ""
+			}
+		} else if s[0] == '/' && s[1] == '/' {
+			module = s
+		}
 	}
-	return ""
+	return module
 }
 
-// SrcIsModule decodes module references in the format ":name{.tag}" into the module name and tag, ":name" into the
-// module name and an empty string for the tag, or empty strings if the input was not a module reference.
+// SrcIsModule decodes module references in the format ":unqualified-name{.tag}" or
+// "//namespace:name{.tag}" into the module name and an empty string for the tag, or empty strings
+// if the input was not a module reference.
 func SrcIsModuleWithTag(s string) (module, tag string) {
-	if len(s) > 1 && s[0] == ':' {
-		module = s[1:]
-		if tagStart := strings.IndexByte(module, '{'); tagStart > 0 {
-			if module[len(module)-1] == '}' {
-				tag = module[tagStart+1 : len(module)-1]
-				module = module[:tagStart]
-				return module, tag
+	if len(s) > 1 {
+		if s[0] == ':' {
+			module = s[1:]
+		} else if s[0] == '/' && s[1] == '/' {
+			module = s
+		}
+
+		if module != "" {
+			if tagStart := strings.IndexByte(module, '{'); tagStart > 0 {
+				if module[len(module)-1] == '}' {
+					tag = module[tagStart+1 : len(module)-1]
+					module = module[:tagStart]
+				}
+			}
+
+			if s[0] == ':' && !isUnqualifiedModuleName(module) {
+				// The module name should be unqualified but is not so do not treat it as a module.
+				module = ""
+				tag = ""
 			}
 		}
-		return module, ""
 	}
-	return "", ""
+
+	return module, tag
+}
+
+// isUnqualifiedModuleName makes sure that the supplied module is an unqualified module name, i.e.
+// does not contain any /.
+func isUnqualifiedModuleName(module string) bool {
+	return strings.IndexByte(module, '/') == -1
 }
 
 type sourceOrOutputDependencyTag struct {
