@@ -110,6 +110,11 @@ var PrepareForTestWithLicenseDefaultModules = GroupFixturePreparers(
 	FixtureAddFile("build/soong/licenses/LICENSE", nil),
 )
 
+var PrepareForTestWithNamespace = FixtureRegisterWithContext(func(ctx RegistrationContext) {
+	registerNamespaceBuildComponents(ctx)
+	ctx.PreArchMutators(RegisterNamespaceMutator)
+})
+
 // Test fixture preparer that will register most java build components.
 //
 // Singletons and mutators should only be added here if they are needed for a majority of java

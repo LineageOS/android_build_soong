@@ -636,13 +636,12 @@ func setupTestFromFiles(t *testing.T, bps MockFS) (ctx *TestContext, errs []erro
 	result := GroupFixturePreparers(
 		FixtureModifyContext(func(ctx *TestContext) {
 			ctx.RegisterModuleType("test_module", newTestModule)
-			ctx.RegisterModuleType("soong_namespace", NamespaceFactory)
 			ctx.Context.RegisterModuleType("blueprint_test_module", newBlueprintTestModule)
-			ctx.PreArchMutators(RegisterNamespaceMutator)
 			ctx.PreDepsMutators(func(ctx RegisterMutatorsContext) {
 				ctx.BottomUp("rename", renameMutator)
 			})
 		}),
+		PrepareForTestWithNamespace,
 		bps.AddToFixture(),
 	).
 		// Ignore errors for now so tests can check them later.
