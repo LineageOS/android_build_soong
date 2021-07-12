@@ -446,7 +446,7 @@ func (p OutputPaths) Strings() []string {
 // If the dependency is not found, a missingErrorDependency is returned.
 // If the module dependency is not a SourceFileProducer or OutputFileProducer, appropriate errors will be returned.
 func getPathsFromModuleDep(ctx ModuleWithDepsPathContext, path, moduleName, tag string) (Paths, error) {
-	module := ctx.GetDirectDepWithTag(moduleName, sourceOrOutputDepTag(tag))
+	module := GetModuleFromPathDep(ctx, moduleName, tag)
 	if module == nil {
 		return nil, missingDependencyError{[]string{moduleName}}
 	}
@@ -472,6 +472,22 @@ func getPathsFromModuleDep(ctx ModuleWithDepsPathContext, path, moduleName, tag 
 	} else {
 		return nil, fmt.Errorf("path dependency %q is not a source file producing module", path)
 	}
+}
+
+// GetModuleFromPathDep will return the module that was added as a dependency automatically for
+// properties tagged with `android:"path"` or manually using ExtractSourceDeps or
+// ExtractSourcesDeps.
+//
+// The moduleName and tag supplied to this should be the values returned from SrcIsModuleWithTag.
+// Or, if no tag is expected then the moduleName should be the value returned by  SrcIsModule and
+// the tag must be "".
+//
+// If tag is "" then the returned module will be the dependency that was added for ":moduleName".
+// Otherwise, it is the dependency that was added for ":moduleName{tag}".
+//
+// TODO(b/193228441) Make this handle fully qualified names, e.g. //namespace:moduleName.
+func GetModuleFromPathDep(ctx ModuleWithDepsPathContext, moduleName, tag string) blueprint.Module {
+	return ctx.GetDirectDepWithTag(moduleName, sourceOrOutputDepTag(tag))
 }
 
 // PathsAndMissingDepsForModuleSrcExcludes returns a Paths{} containing the resolved references in

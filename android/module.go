@@ -344,8 +344,18 @@ type ModuleContext interface {
 	// Deprecated: use ModuleContext.Build instead.
 	ModuleBuild(pctx PackageContext, params ModuleBuildParams)
 
+	// Returns a list of paths expanded from globs and modules referenced using ":module" syntax.  The property must
+	// be tagged with `android:"path" to support automatic source module dependency resolution.
+	//
+	// Deprecated: use PathsForModuleSrc or PathsForModuleSrcExcludes instead.
 	ExpandSources(srcFiles, excludes []string) Paths
+
+	// Returns a single path expanded from globs and modules referenced using ":module" syntax.  The property must
+	// be tagged with `android:"path" to support automatic source module dependency resolution.
+	//
+	// Deprecated: use PathForModuleSrc instead.
 	ExpandSource(srcFile, prop string) Path
+
 	ExpandOptionalSource(srcFile *string, prop string) OptionalPath
 
 	// InstallExecutable creates a rule to copy srcPath to name in the installPath directory,
@@ -2832,7 +2842,25 @@ func sourceOrOutputDepTag(tag string) blueprint.DependencyTag {
 	return sourceOrOutputDependencyTag{tag: tag}
 }
 
+// Deprecated, use IsSourceDepTagWithOutputTag(tag, "") instead.
 var SourceDepTag = sourceOrOutputDepTag("")
+
+// IsSourceDepTag returns true if the supplied blueprint.DependencyTag is one that was used to add
+// dependencies by either ExtractSourceDeps, ExtractSourcesDeps or automatically for properties
+// tagged with `android:"path"`.
+func IsSourceDepTag(depTag blueprint.DependencyTag) bool {
+	_, ok := depTag.(sourceOrOutputDependencyTag)
+	return ok
+}
+
+// IsSourceDepTagWithOutputTag returns true if the supplied blueprint.DependencyTag is one that was
+// used to add dependencies by either ExtractSourceDeps, ExtractSourcesDeps or automatically for
+// properties tagged with `android:"path"` AND it was added using a module reference of
+// :moduleName{outputTag}.
+func IsSourceDepTagWithOutputTag(depTag blueprint.DependencyTag, outputTag string) bool {
+	t, ok := depTag.(sourceOrOutputDependencyTag)
+	return ok && t.tag == outputTag
+}
 
 // Adds necessary dependencies to satisfy filegroup or generated sources modules listed in srcFiles
 // using ":module" syntax, if any.
