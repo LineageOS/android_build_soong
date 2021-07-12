@@ -990,7 +990,9 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			case procMacroDepTag:
 				directProcMacroDeps = append(directProcMacroDeps, rustDep)
 				mod.Properties.AndroidMkProcMacroLibs = append(mod.Properties.AndroidMkProcMacroLibs, makeLibName)
-			case android.SourceDepTag:
+			}
+
+			if android.IsSourceDepTagWithOutputTag(depTag, "") {
 				// Since these deps are added in path_properties.go via AddDependencies, we need to ensure the correct
 				// OS/Arch variant is used.
 				var helper string
@@ -1120,8 +1122,7 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 		}
 
 		if srcDep, ok := dep.(android.SourceFileProducer); ok {
-			switch depTag {
-			case android.SourceDepTag:
+			if android.IsSourceDepTagWithOutputTag(depTag, "") {
 				// These are usually genrules which don't have per-target variants.
 				directSrcDeps = append(directSrcDeps, srcDep)
 			}
