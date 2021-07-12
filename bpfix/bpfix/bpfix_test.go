@@ -999,7 +999,171 @@ func TestRemoveSoongConfigBoolVariable(t *testing.T) {
 	}
 }
 
-func TestRemovePdkProperty(t *testing.T) {
+func TestRemoveNestedProperty(t *testing.T) {
+	tests := []struct {
+		name         string
+		in           string
+		out          string
+		propertyName string
+	}{
+		{
+			name: "remove no nesting",
+			in: `
+cc_library {
+	name: "foo",
+	foo: true,
+}`,
+			out: `
+cc_library {
+	name: "foo",
+}
+`,
+			propertyName: "foo",
+		},
+		{
+			name: "remove one nest",
+			in: `
+cc_library {
+	name: "foo",
+	foo: {
+		bar: true,
+	},
+}`,
+			out: `
+cc_library {
+	name: "foo",
+}
+`,
+			propertyName: "foo.bar",
+		},
+		{
+			name: "remove one nest, multiple props",
+			in: `
+cc_library {
+	name: "foo",
+	foo: {
+		bar: true,
+		baz: false,
+	},
+}`,
+			out: `
+cc_library {
+	name: "foo",
+	foo: {
+		baz: false,
+	},
+}
+`,
+			propertyName: "foo.bar",
+		},
+		{
+			name: "remove multiple nest",
+			in: `
+cc_library {
+	name: "foo",
+	foo: {
+		bar: {
+			baz: {
+				a: true,
+			}
+		},
+	},
+}`,
+			out: `
+cc_library {
+	name: "foo",
+}
+`,
+			propertyName: "foo.bar.baz.a",
+		},
+		{
+			name: "remove multiple nest, outer non-empty",
+			in: `
+cc_library {
+	name: "foo",
+	foo: {
+		bar: {
+			baz: {
+				a: true,
+			}
+		},
+		other: true,
+	},
+}`,
+			out: `
+cc_library {
+	name: "foo",
+	foo: {
+		other: true,
+	},
+}
+`,
+			propertyName: "foo.bar.baz.a",
+		},
+		{
+			name: "remove multiple nest, inner non-empty",
+			in: `
+cc_library {
+	name: "foo",
+	foo: {
+		bar: {
+			baz: {
+				a: true,
+			},
+			other: true,
+		},
+	},
+}`,
+			out: `
+cc_library {
+	name: "foo",
+	foo: {
+		bar: {
+			other: true,
+		},
+	},
+}
+`,
+			propertyName: "foo.bar.baz.a",
+		},
+		{
+			name: "remove multiple nest, inner-most non-empty",
+			in: `
+cc_library {
+	name: "foo",
+	foo: {
+		bar: {
+			baz: {
+				a: true,
+				other: true,
+			},
+		},
+	},
+}`,
+			out: `
+cc_library {
+	name: "foo",
+	foo: {
+		bar: {
+			baz: {
+				other: true,
+			},
+		},
+	},
+}
+`,
+			propertyName: "foo.bar.baz.a",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			runPass(t, test.in, test.out, runPatchListMod(removeObsoleteProperty(test.propertyName)))
+		})
+	}
+}
+
+func TestRemoveObsoleteProperties(t *testing.T) {
 	tests := []struct {
 		name string
 		in   string
@@ -1052,7 +1216,7 @@ func TestRemovePdkProperty(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			runPass(t, test.in, test.out, runPatchListMod(removePdkProperty))
+			runPass(t, test.in, test.out, runPatchListMod(removeObsoleteProperty("product_variables.pdk")))
 		})
 	}
 }
