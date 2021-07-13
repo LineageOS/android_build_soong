@@ -83,6 +83,9 @@ type Snapshottable interface {
 	// SnapshotLibrary returns true if this module is a snapshot library.
 	IsSnapshotLibrary() bool
 
+	// EffectiveLicenseFiles returns the list of License files for this module.
+	EffectiveLicenseFiles() android.Paths
+
 	// SnapshotRuntimeLibs returns a list of libraries needed by this module at runtime but which aren't build dependencies.
 	SnapshotRuntimeLibs() []string
 
@@ -122,6 +125,7 @@ type LinkableInterface interface {
 	IsPrebuilt() bool
 	Toc() android.OptionalPath
 
+	Device() bool
 	Host() bool
 
 	InRamdisk() bool
