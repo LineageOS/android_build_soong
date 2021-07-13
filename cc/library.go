@@ -300,6 +300,12 @@ func CcLibraryBp2Build(ctx android.TopDownMutatorContext) {
 
 	srcs := compilerAttrs.srcs
 
+	asFlags := compilerAttrs.asFlags
+	if compilerAttrs.asSrcs.IsEmpty() && sharedAttrs.Srcs_as.IsEmpty() && staticAttrs.Srcs_as.IsEmpty() {
+		// Skip asflags for BUILD file simplicity if there are no assembly sources.
+		asFlags = bazel.MakeStringListAttribute(nil)
+	}
+
 	attrs := &bazelCcLibraryAttributes{
 		Srcs:    srcs,
 		Srcs_c:  compilerAttrs.cSrcs,
@@ -308,7 +314,7 @@ func CcLibraryBp2Build(ctx android.TopDownMutatorContext) {
 		Copts:      compilerAttrs.copts,
 		Cppflags:   compilerAttrs.cppFlags,
 		Conlyflags: compilerAttrs.conlyFlags,
-		Asflags:    compilerAttrs.asFlags,
+		Asflags:    asFlags,
 
 		Implementation_deps: linkerAttrs.deps,
 		Deps:                linkerAttrs.exportedDeps,
@@ -2370,6 +2376,12 @@ func ccLibraryStaticBp2BuildInternal(ctx android.TopDownMutatorContext, module *
 	linkerAttrs := bp2BuildParseLinkerProps(ctx, module)
 	exportedIncludes := bp2BuildParseExportedIncludes(ctx, module)
 
+	asFlags := compilerAttrs.asFlags
+	if compilerAttrs.asSrcs.IsEmpty() {
+		// Skip asflags for BUILD file simplicity if there are no assembly sources.
+		asFlags = bazel.MakeStringListAttribute(nil)
+	}
+
 	attrs := &bazelCcLibraryStaticAttributes{
 		Copts:               compilerAttrs.copts,
 		Srcs:                compilerAttrs.srcs,
@@ -2386,7 +2398,7 @@ func ccLibraryStaticBp2BuildInternal(ctx android.TopDownMutatorContext, module *
 		Srcs_c:     compilerAttrs.cSrcs,
 		Conlyflags: compilerAttrs.conlyFlags,
 		Srcs_as:    compilerAttrs.asSrcs,
-		Asflags:    compilerAttrs.asFlags,
+		Asflags:    asFlags,
 	}
 
 	props := bazel.BazelTargetModuleProperties{

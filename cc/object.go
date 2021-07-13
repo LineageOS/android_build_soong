@@ -123,6 +123,7 @@ func ObjectFactory() android.Module {
 // For bp2build conversion.
 type bazelObjectAttributes struct {
 	Srcs    bazel.LabelListAttribute
+	Srcs_as bazel.LabelListAttribute
 	Hdrs    bazel.LabelListAttribute
 	Deps    bazel.LabelListAttribute
 	Copts   bazel.StringListAttribute
@@ -179,13 +180,19 @@ func ObjectBp2Build(ctx android.TopDownMutatorContext) {
 	// and this isn't typically done for cc_object.
 	srcs := compilerAttrs.srcs
 	srcs.Append(compilerAttrs.cSrcs)
-	srcs.Append(compilerAttrs.asSrcs)
+
+	asFlags := compilerAttrs.asFlags
+	if compilerAttrs.asSrcs.IsEmpty() {
+		// Skip asflags for BUILD file simplicity if there are no assembly sources.
+		asFlags = bazel.MakeStringListAttribute(nil)
+	}
 
 	attrs := &bazelObjectAttributes{
 		Srcs:    srcs,
+		Srcs_as: compilerAttrs.asSrcs,
 		Deps:    deps,
 		Copts:   compilerAttrs.copts,
-		Asflags: compilerAttrs.asFlags,
+		Asflags: asFlags,
 	}
 
 	props := bazel.BazelTargetModuleProperties{

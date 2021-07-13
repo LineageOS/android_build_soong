@@ -558,6 +558,19 @@ func (lla LabelListAttribute) HasConfigurableValues() bool {
 	return len(lla.ConfigurableValues) > 0
 }
 
+// IsEmpty returns true if the attribute has no values under any configuration.
+func (lla LabelListAttribute) IsEmpty() bool {
+	if len(lla.Value.Includes) > 0 {
+		return false
+	}
+	for axis, _ := range lla.ConfigurableValues {
+		if lla.ConfigurableValues[axis].HasConfigurableValues() {
+			return false
+		}
+	}
+	return true
+}
+
 // ResolveExcludes handles excludes across the various axes, ensuring that items are removed from
 // the base value and included in default values as appropriate.
 func (lla *LabelListAttribute) ResolveExcludes() {
