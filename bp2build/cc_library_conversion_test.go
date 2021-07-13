@@ -674,6 +674,10 @@ filegroup {
 		blueprint: soongCcLibraryPreamble,
 		expectedBazelTargets: []string{`cc_library(
     name = "a",
+    asflags = [
+        "-Ifoo/bar",
+        "-I$(BINDIR)/foo/bar",
+    ],
     copts = [
         "-Ifoo/bar",
         "-I$(BINDIR)/foo/bar",

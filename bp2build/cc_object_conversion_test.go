@@ -211,6 +211,7 @@ func TestCcObjectProductVariable(t *testing.T) {
             asflags: ["-DPLATFORM_SDK_VERSION=%d"],
         },
     },
+    srcs: ["src.S"],
 }
 `,
 		expectedBazelTargets: []string{`cc_object(
@@ -220,6 +221,7 @@ func TestCcObjectProductVariable(t *testing.T) {
         "//conditions:default": [],
     }),
     copts = ["-fno-addrsig"],
+    srcs_as = ["src.S"],
 )`,
 		},
 	})
@@ -240,7 +242,7 @@ func TestCcObjectCflagsOneArch(t *testing.T) {
             cflags: ["-fPIC"], // string list
         },
         arm: {
-            srcs: ["arch/arm/file.S"], // label list
+            srcs: ["arch/arm/file.cpp"], // label list
         },
     },
 }
@@ -257,7 +259,7 @@ func TestCcObjectCflagsOneArch(t *testing.T) {
         "//conditions:default": [],
     }),
     srcs = ["a.cpp"] + select({
-        "//build/bazel/platforms/arch:arm": ["arch/arm/file.S"],
+        "//build/bazel/platforms/arch:arm": ["arch/arm/file.cpp"],
         "//conditions:default": [],
     }),
 )`,
