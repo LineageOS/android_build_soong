@@ -136,6 +136,10 @@ var fixSteps = []FixStep{
 		Name: "removeScudoProperty",
 		Fix:  runPatchListMod(removeObsoleteProperty("sanitize.scudo")),
 	},
+	{
+		Name: "formatFlagProperties",
+		Fix:  runPatchListMod(formatFlagProperties),
+	},
 }
 
 func NewFixRequest() FixRequest {
@@ -1342,4 +1346,70 @@ func inList(s string, list []string) bool {
 		}
 	}
 	return false
+}
+
+func formatFlagProperty(mod *parser.Module, field string, buf []byte, patchlist *parser.PatchList) error {
+	// the comment or empty lines in the value of the field are skipped
+	listValue, ok := getLiteralListProperty(mod, field)
+	if !ok {
+		// if do not find
+		return nil
+	}
+	for i := 0; i < len(listValue.Values); i++ {
+		curValue, ok := listValue.Values[i].(*parser.String)
+		if !ok {
+			return fmt.Errorf("Expecting string for %s.%s fields", mod.Type, field)
+		}
+		if !strings.HasPrefix(curValue.Value, "-") {
+			return fmt.Errorf("Expecting the string `%s` starting with '-'", curValue.Value)
+		}
+		if i+1 < len(listValue.Values) {
+			nextValue, ok := listValue.Values[i+1].(*parser.String)
+			if !ok {
+				return fmt.Errorf("Expecting string for %s.%s fields", mod.Type, field)
+			}
+			if !strings.HasPrefix(nextValue.Value, "-") {
+				// delete the line
+				err := patchlist.Add(curValue.Pos().Offset, curValue.End().Offset+2, "")
+				if err != nil {
+					return err
+				}
+				// replace the line
+				value := "\"" + curValue.Value + " " + nextValue.Value + "\","
+				err = patchlist.Add(nextValue.Pos().Offset, nextValue.End().Offset+1, value)
+				if err != nil {
+					return err
+				}
+				// combined two lines to one
+				i++
+			}
+		}
+	}
+	return nil
+}
+
+func formatFlagProperties(mod *parser.Module, buf []byte, patchlist *parser.PatchList) error {
+	relevantFields := []string{
+		// cc flags
+		"asflags",
+		"cflags",
+		"clang_asflags",
+		"clang_cflags",
+		"conlyflags",
+		"cppflags",
+		"ldflags",
+		"tidy_flags",
+		// java flags
+		"aaptflags",
+		"dxflags",
+		"javacflags",
+		"kotlincflags",
+	}
+	for _, field := range relevantFields {
+		err := formatFlagProperty(mod, field, buf, patchlist)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
