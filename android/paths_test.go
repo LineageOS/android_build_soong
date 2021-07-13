@@ -1373,8 +1373,7 @@ func TestPathForModuleSrc(t *testing.T) {
 				}
 			`),
 			errorHandler: FixtureExpectsAllErrorsToMatchAPattern([]string{
-				// The message is broken because PathForModuleSrc corrupts the name during validation.
-				`"foo": missing dependencies: /other:b, is the property annotated with android:"path"`,
+				`"foo": missing dependencies: //other:b, is the property annotated with android:"path"`,
 				`"foo": missing dependency on "//other:c", is the property annotated with android:"path"`,
 			}),
 		},
