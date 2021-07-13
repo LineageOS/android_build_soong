@@ -27,7 +27,7 @@ var (
 	NativeBridgeSuffix  = ".native_bridge"
 	ProductSuffix       = ".product"
 	VendorSuffix        = ".vendor"
-	ramdiskSuffix       = ".ramdisk"
+	RamdiskSuffix       = ".ramdisk"
 	VendorRamdiskSuffix = ".vendor_ramdisk"
 	RecoverySuffix      = ".recovery"
 	sdkSuffix           = ".sdk"

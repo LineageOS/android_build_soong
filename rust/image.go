@@ -38,7 +38,7 @@ func (mod *Module) ProductAvailable() bool {
 }
 
 func (mod *Module) RamdiskAvailable() bool {
-	return false
+	return Bool(mod.Properties.Ramdisk_available)
 }
 
 func (mod *Module) VendorRamdiskAvailable() bool {
@@ -62,9 +62,7 @@ func (mod *Module) AppendExtraVariant(extraVariant string) {
 }
 
 func (mod *Module) SetRamdiskVariantNeeded(b bool) {
-	if b {
-		panic("Setting ramdisk variant needed for Rust module is unsupported: " + mod.BaseModuleName())
-	}
+	mod.Properties.RamdiskVariantNeeded = b
 }
 
 func (mod *Module) SetVendorRamdiskVariantNeeded(b bool) {
@@ -97,7 +95,7 @@ func (mod *Module) CoreVariantNeeded(ctx android.BaseModuleContext) bool {
 }
 
 func (mod *Module) RamdiskVariantNeeded(android.BaseModuleContext) bool {
-	return mod.InRamdisk()
+	return mod.Properties.RamdiskVariantNeeded
 }
 
 func (mod *Module) DebugRamdiskVariantNeeded(ctx android.BaseModuleContext) bool {

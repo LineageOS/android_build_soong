@@ -84,6 +84,7 @@ type BaseProperties struct {
 	// Set by imageMutator
 	CoreVariantNeeded          bool     `blueprint:"mutated"`
 	VendorRamdiskVariantNeeded bool     `blueprint:"mutated"`
+	RamdiskVariantNeeded       bool     `blueprint:"mutated"`
 	RecoveryVariantNeeded      bool     `blueprint:"mutated"`
 	ExtraVariants              []string `blueprint:"mutated"`
 
@@ -94,6 +95,13 @@ type BaseProperties struct {
 	// Used by vendor snapshot to record dependencies from snapshot modules.
 	SnapshotSharedLibs []string `blueprint:"mutated"`
 	SnapshotStaticLibs []string `blueprint:"mutated"`
+
+	// Make this module available when building for ramdisk.
+	// On device without a dedicated recovery partition, the module is only
+	// available after switching root into
+	// /first_stage_ramdisk. To expose the module before switching root, install
+	// the recovery variant instead.
+	Ramdisk_available *bool
 
 	// Make this module available when building for vendor ramdisk.
 	// On device without a dedicated recovery partition, the module is only
@@ -817,6 +825,8 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		} else {
 			mod.Properties.SubName += cc.VendorSuffix
 		}
+	} else if mod.InRamdisk() && !mod.OnlyInRamdisk() {
+		mod.Properties.SubName += cc.RamdiskSuffix
 	} else if mod.InVendorRamdisk() && !mod.OnlyInVendorRamdisk() {
 		mod.Properties.SubName += cc.VendorRamdiskSuffix
 	} else if mod.InRecovery() && !mod.OnlyInRecovery() {
