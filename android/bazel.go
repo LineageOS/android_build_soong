@@ -180,7 +180,6 @@ var (
 		//                                                       also depends on //system/logging/liblog:liblog (http://b/186822772)
 		"libc_ndk",          // http://b/187013218, cc_library_static, depends on //bionic/libm:libm (http://b/183064661)
 		"libc_malloc_hooks", // http://b/187016307, cc_library, ld.lld: error: undefined symbol: __malloc_hook
-		"libm",              // http://b/183064661, cc_library, math.h:25:16: error: unexpected token in argument list
 
 		// http://b/186823769: Needs C++ STL support, includes from unconverted standard libraries in //external/libcxx
 		// c++_static
@@ -189,7 +188,7 @@ var (
 		"libBionicBenchmarksUtils", // cc_library_static, fatal error: 'map' file not found, from libcxx
 		"fmtlib",                   // cc_library_static, fatal error: 'cassert' file not found, from libcxx
 		"fmtlib_ndk",               // cc_library_static, fatal error: 'cassert' file not found
-		"libbase",                  // http://b/186826479, cc_library, fatal error: 'memory' file not found, from libcxx
+		"libbase",                  // Requires liblog. http://b/186826479, cc_library, fatal error: 'memory' file not found, from libcxx.
 
 		// http://b/186024507: Includes errors because of the system_shared_libs default value.
 		// Missing -isystem bionic/libc/include through the libc/libm/libdl
