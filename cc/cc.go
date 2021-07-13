@@ -2014,9 +2014,9 @@ func AddSharedLibDependenciesWithVersions(ctx android.BottomUpMutatorContext, mo
 }
 
 func GetSnapshot(c LinkableInterface, snapshotInfo **SnapshotInfo, actx android.BottomUpMutatorContext) SnapshotInfo {
-	// Only modules with BOARD_VNDK_VERSION uses snapshot.  Others use the zero value of
+	// Only device modules with BOARD_VNDK_VERSION uses snapshot.  Others use the zero value of
 	// SnapshotInfo, which provides no mappings.
-	if *snapshotInfo == nil {
+	if *snapshotInfo == nil && c.Device() {
 		// Only retrieve the snapshot on demand in order to avoid circular dependencies
 		// between the modules in the snapshot and the snapshot itself.
 		var snapshotModule []blueprint.Module
@@ -2025,16 +2025,16 @@ func GetSnapshot(c LinkableInterface, snapshotInfo **SnapshotInfo, actx android.
 		} else if recoverySnapshotVersion := actx.DeviceConfig().RecoverySnapshotVersion(); recoverySnapshotVersion != "current" && recoverySnapshotVersion != "" && c.InRecovery() {
 			snapshotModule = actx.AddVariationDependencies(nil, nil, "recovery_snapshot")
 		}
-		if len(snapshotModule) > 0 {
+		if len(snapshotModule) > 0 && snapshotModule[0] != nil {
 			snapshot := actx.OtherModuleProvider(snapshotModule[0], SnapshotInfoProvider).(SnapshotInfo)
 			*snapshotInfo = &snapshot
 			// republish the snapshot for use in later mutators on this module
 			actx.SetProvider(SnapshotInfoProvider, snapshot)
-		} else {
-			*snapshotInfo = &SnapshotInfo{}
 		}
 	}
-
+	if *snapshotInfo == nil {
+		*snapshotInfo = &SnapshotInfo{}
+	}
 	return **snapshotInfo
 }
 
