@@ -55,6 +55,27 @@ func TestSrcIsModule(t *testing.T) {
 			},
 			wantModule: "foo:bar",
 		},
+		{
+			name: "fully qualified",
+			args: args{
+				s: "//foo:bar",
+			},
+			wantModule: "//foo:bar",
+		},
+		{
+			name: "fully qualified with tag",
+			args: args{
+				s: "//foo:bar{.tag}",
+			},
+			wantModule: "//foo:bar{.tag}",
+		},
+		{
+			name: "invalid unqualified name",
+			args: args{
+				s: ":foo/bar",
+			},
+			wantModule: "",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -127,6 +148,35 @@ func TestSrcIsModuleWithTag(t *testing.T) {
 				s: ":foo.bar}",
 			},
 			wantModule: "foo.bar}",
+		},
+		{
+			name: "fully qualified",
+			args: args{
+				s: "//foo:bar",
+			},
+			wantModule: "//foo:bar",
+		},
+		{
+			name: "fully qualified with tag",
+			args: args{
+				s: "//foo:bar{.tag}",
+			},
+			wantModule: "//foo:bar",
+			wantTag:    ".tag",
+		},
+		{
+			name: "invalid unqualified name",
+			args: args{
+				s: ":foo/bar",
+			},
+			wantModule: "",
+		},
+		{
+			name: "invalid unqualified name with tag",
+			args: args{
+				s: ":foo/bar{.tag}",
+			},
+			wantModule: "",
 		},
 	}
 	for _, tt := range tests {

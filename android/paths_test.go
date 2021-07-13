@@ -1351,7 +1351,6 @@ func TestPathForModuleSrc(t *testing.T) {
 		{
 			// This test makes sure that an unqualified module name cannot contain characters that make
 			// it appear as a qualified module name.
-			// TODO(b/193228441): Fix broken test.
 			name: "output file provider, invalid fully qualified name",
 			bp: `
 			test {
@@ -1372,13 +1371,12 @@ func TestPathForModuleSrc(t *testing.T) {
 					outs: ["gen/c"],
 				}
 			`),
-			errorHandler: FixtureExpectsAllErrorsToMatchAPattern([]string{
-				`"foo": missing dependencies: //other:b, is the property annotated with android:"path"`,
-				`"foo": missing dependency on "//other:c", is the property annotated with android:"path"`,
-			}),
+			src:  "foo/:/other:b",
+			rel:  ":/other:b",
+			srcs: []string{"foo/:/other:c"},
+			rels: []string{":/other:c"},
 		},
 		{
-			// TODO(b/193228441): Fix broken test.
 			name: "output file provider, missing fully qualified name",
 			bp: `
 			test {
@@ -1386,13 +1384,9 @@ func TestPathForModuleSrc(t *testing.T) {
 				src: "//other:b",
 				srcs: ["//other:c"],
 			}`,
-			src:  "foo",
-			rel:  "foo",
-			srcs: []string{"foo"},
-			rels: []string{"foo"},
 			errorHandler: FixtureExpectsAllErrorsToMatchAPattern([]string{
-				`"foo": Path is outside directory: /other:b`,
-				`"foo": Path is outside directory: /other:c`,
+				`"foo" depends on undefined module "//other:b"`,
+				`"foo" depends on undefined module "//other:c"`,
 			}),
 		},
 		{
@@ -1417,13 +1411,9 @@ func TestPathForModuleSrc(t *testing.T) {
 					outs: ["gen/c"],
 				}
 			`),
-			src:  "foo",
-			rel:  "foo",
-			srcs: []string{"foo"},
-			rels: []string{"foo"},
 			errorHandler: FixtureExpectsAllErrorsToMatchAPattern([]string{
-				`"foo": Path is outside directory: /other:b`,
-				`"foo": Path is outside directory: /other:c`,
+				`"foo": missing dependencies: //other:b, is the property annotated with android:"path"`,
+				`"foo": missing dependency on "//other:c", is the property annotated with android:"path"`,
 			}),
 		},
 	}
