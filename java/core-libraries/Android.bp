@@ -1,0 +1,194 @@
+// Copyright (C) 2021 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+//
+// Definitions for building the Android core libraries, i.e. ART, I18n and
+// Conscrypt.
+//
+// These are here as the definitions are used by the build itself and include
+// parts from all three of those modules.
+//
+
+// A stubs target containing the parts of the public SDK API provided by the
+// core libraries.
+//
+// Don't use this directly, use "sdk_version: core_current".
+java_library {
+    name: "core.current.stubs",
+    visibility: ["//visibility:public"],
+    static_libs: [
+        "art.module.public.api.stubs",
+        "conscrypt.module.public.api.stubs",
+        "i18n.module.public.api.stubs",
+    ],
+    sdk_version: "none",
+    system_modules: "none",
+
+    dist: {
+        targets: [
+            "sdk",
+            "win_sdk",
+        ],
+    },
+}
+
+// Distributed with the SDK for turning into system modules to compile apps
+// against.
+java_library {
+    name: "core-current-stubs-for-system-modules",
+    visibility: ["//development/sdk"],
+    static_libs: [
+        "core.current.stubs",
+        // This one is not on device but it's needed when javac compiles code
+        // containing lambdas.
+        "core-lambda-stubs-for-system-modules",
+        // This one is not on device but it's needed when javac compiles code
+        // containing @Generated annotations produced by some code generation
+        // tools.
+        // See http://b/123891440.
+        "core-generated-annotation-stubs",
+    ],
+    sdk_version: "none",
+    system_modules: "none",
+    dist: {
+        dest: "core-for-system-modules.jar",
+        targets: [
+            "sdk",
+            "win_sdk",
+        ],
+    },
+}
+
+// Used when compiling higher-level code against core.current.stubs.
+java_system_modules {
+    name: "core-current-stubs-system-modules",
+    visibility: ["//visibility:public"],
+    libs: [
+        "core-current-stubs-for-system-modules",
+    ],
+}
+
+// A stubs target containing the parts of the public SDK & @SystemApi(MODULE_LIBRARIES) API
+// provided by the core libraries.
+//
+// Don't use this directly, use "sdk_version: module_current".
+java_library {
+    name: "core.module_lib.stubs",
+    static_libs: [
+        "art.module.public.api.stubs.module_lib",
+
+        // Replace the following with the module-lib correspondence when Conscrypt or i18N module
+        // provides @SystemApi(MODULE_LIBRARIES). Currently, assume that only ART module provides
+        // @SystemApi(MODULE_LIBRARIES).
+        "conscrypt.module.public.api.stubs",
+        "i18n.module.public.api.stubs",
+    ],
+    sdk_version: "none",
+    system_modules: "none",
+    visibility: ["//visibility:private"],
+}
+
+// Used when compiling higher-level code with sdk_version "module_current"
+java_system_modules {
+    name: "core-module-lib-stubs-system-modules",
+    libs: [
+        "core.module_lib.stubs",
+        // This one is not on device but it's needed when javac compiles code
+        // containing lambdas.
+        "core-lambda-stubs-for-system-modules",
+        // This one is not on device but it's needed when javac compiles code
+        // containing @Generated annotations produced by some code generation
+        // tools.
+        // See http://b/123891440.
+        "core-generated-annotation-stubs",
+    ],
+    visibility: ["//visibility:public"],
+}
+
+// Ideally this should be a restricted allowlist but there are hundreds of modules that depend on
+// this.
+// TODO(http://b/134561230) - limit the number of dependents on this.
+core_platform_visibility = ["//visibility:public"]
+
+// Libraries containing the core platform API stubs for the core libraries.
+//
+// Although this stubs library is primarily used by the Java compiler / build to indicate
+// the core platform API surface area, compile_dex: true is used so that the Core Platform
+// API annotations are available to the dex tools that enable enforcement of runtime
+// accessibility. b/119068555
+java_library {
+    name: "legacy.core.platform.api.stubs",
+    visibility: core_platform_visibility,
+    hostdex: true,
+    compile_dex: true,
+
+    sdk_version: "none",
+    system_modules: "none",
+    static_libs: [
+        "art.module.public.api.stubs.module_lib",
+        "conscrypt.module.platform.api.stubs",
+        "legacy.i18n.module.platform.api.stubs",
+    ],
+    patch_module: "java.base",
+}
+
+java_library {
+    name: "stable.core.platform.api.stubs",
+    visibility: core_platform_visibility,
+    hostdex: true,
+    compile_dex: true,
+
+    sdk_version: "none",
+    system_modules: "none",
+    static_libs: [
+        "art.module.public.api.stubs.module_lib",
+        // conscrypt only has a stable version, so it is okay to depend on it here:
+        "conscrypt.module.platform.api.stubs",
+        "stable.i18n.module.platform.api.stubs",
+    ],
+    patch_module: "java.base",
+}
+
+// Used when compiling higher-level code against *.core.platform.api.stubs.
+java_system_modules {
+    name: "legacy-core-platform-api-stubs-system-modules",
+    visibility: core_platform_visibility,
+    libs: [
+        "legacy.core.platform.api.stubs",
+        // This one is not on device but it's needed when javac compiles code
+        // containing lambdas.
+        "core-lambda-stubs-for-system-modules",
+        // This one is not on device but it's needed when javac compiles code
+        // containing @Generated annotations produced by some code generation
+        // tools.
+        // See http://b/123891440.
+        "core-generated-annotation-stubs",
+    ],
+}
+
+java_system_modules {
+    name: "stable-core-platform-api-stubs-system-modules",
+    visibility: core_platform_visibility,
+    libs: [
+        "stable.core.platform.api.stubs",
+        // This one is not on device but it's needed when javac compiles code
+        // containing lambdas.
+        "core-lambda-stubs-for-system-modules",
+        // This one is not on device but it's needed when javac compiles code
+        // containing @Generated annotations produced by some code generation
+        // tools.
+        // See http://b/123891440.
+        "core-generated-annotation-stubs",
+    ],
+}
