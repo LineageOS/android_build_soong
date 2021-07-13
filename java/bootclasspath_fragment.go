@@ -907,11 +907,15 @@ func (module *prebuiltBootclasspathFragmentModule) produceBootImageFiles(ctx and
 	}
 
 	var deapexerModule android.Module
-	ctx.VisitDirectDeps(func(module android.Module) {
-		tag := ctx.OtherModuleDependencyTag(module)
+	ctx.VisitDirectDeps(func(to android.Module) {
+		tag := ctx.OtherModuleDependencyTag(to)
 		// Save away the `deapexer` module on which this depends, if any.
 		if tag == android.DeapexerTag {
-			deapexerModule = module
+			if deapexerModule != nil {
+				ctx.ModuleErrorf("Ambiguous duplicate deapexer module dependencies %q and %q",
+					deapexerModule.Name(), to.Name())
+			}
+			deapexerModule = to
 		}
 	})
 
