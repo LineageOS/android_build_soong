@@ -264,6 +264,7 @@ var recoverySnapshotImageSingleton recoverySnapshotImage
 func init() {
 	VendorSnapshotImageSingleton.Init(android.InitRegistrationContext)
 	recoverySnapshotImageSingleton.init(android.InitRegistrationContext)
+	android.RegisterMakeVarsProvider(pctx, snapshotMakeVarsProvider)
 }
 
 const (
@@ -382,6 +383,24 @@ type SnapshotInfo struct {
 var SnapshotInfoProvider = blueprint.NewMutatorProvider(SnapshotInfo{}, "deps")
 
 var _ android.ImageInterface = (*snapshot)(nil)
+
+func snapshotMakeVarsProvider(ctx android.MakeVarsContext) {
+	snapshotSet := map[string]struct{}{}
+	ctx.VisitAllModules(func(m android.Module) {
+		if s, ok := m.(*snapshot); ok {
+			if _, ok := snapshotSet[s.Name()]; ok {
+				// arch variant generates duplicated modules
+				// skip this as we only need to know the path of the module.
+				return
+			}
+			snapshotSet[s.Name()] = struct{}{}
+			imageNameVersion := strings.Split(s.image.imageVariantName(ctx.DeviceConfig()), ".")
+			ctx.Strict(
+				strings.Join([]string{strings.ToUpper(imageNameVersion[0]), s.baseSnapshot.Version(), "SNAPSHOT_DIR"}, "_"),
+				ctx.ModuleDir(s))
+		}
+	})
+}
 
 func vendorSnapshotFactory() android.Module {
 	return snapshotFactory(VendorSnapshotImageSingleton)
