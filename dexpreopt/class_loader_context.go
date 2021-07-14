@@ -257,6 +257,9 @@ const AnySdkVersion int = android.FutureApiLevelInt
 func (clcMap ClassLoaderContextMap) addContext(ctx android.ModuleInstallPathContext, sdkVer int, lib string,
 	hostPath, installPath android.Path, nestedClcMap ClassLoaderContextMap) error {
 
+	// For prebuilts, library should have the same name as the source module.
+	lib = android.RemoveOptionalPrebuiltPrefix(lib)
+
 	devicePath := UnknownInstallLibraryPath
 	if installPath == nil {
 		if android.InList(lib, CompatUsesLibs) || android.InList(lib, OptionalCompatUsesLibs) {
