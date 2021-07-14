@@ -1268,10 +1268,11 @@ var _ resPathProvider = SourcePath{}
 // PathForModuleSrc returns a Path representing the paths... under the
 // module's local source directory.
 func PathForModuleSrc(ctx ModuleMissingDepsPathContext, pathComponents ...string) Path {
-	p, err := validatePath(pathComponents...)
-	if err != nil {
-		reportPathError(ctx, err)
-	}
+	// Just join the components textually just to make sure that it does not corrupt a fully qualified
+	// module reference, e.g. if the pathComponents is "://other:foo" then using filepath.Join() or
+	// validatePath() will corrupt it, e.g. replace "//" with "/". If the path is not a module
+	// reference then it will be validated by expandOneSrcPath anyway when it calls expandOneSrcPath.
+	p := strings.Join(pathComponents, string(filepath.Separator))
 	paths, err := expandOneSrcPath(ctx, p, nil)
 	if err != nil {
 		if depErr, ok := err.(missingDependencyError); ok {
