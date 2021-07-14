@@ -15,6 +15,7 @@
 package dexpreopt
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strconv"
@@ -358,6 +359,15 @@ func (clcMap ClassLoaderContextMap) UsesLibs() (ulibs []string) {
 		}
 	}
 	return ulibs
+}
+
+func (clcMap ClassLoaderContextMap) Dump() string {
+	jsonCLC := toJsonClassLoaderContext(clcMap)
+	bytes, err := json.MarshalIndent(jsonCLC, "", "  ")
+	if err != nil {
+		panic(err)
+	}
+	return string(bytes)
 }
 
 // Now that the full unconditional context is known, reconstruct conditional context.
