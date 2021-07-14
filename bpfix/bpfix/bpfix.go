@@ -130,7 +130,15 @@ var fixSteps = []FixStep{
 	},
 	{
 		Name: "removePdkProperty",
-		Fix:  runPatchListMod(removePdkProperty),
+		Fix:  runPatchListMod(removeObsoleteProperty("product_variables.pdk")),
+	},
+	{
+		Name: "removeScudoProperty",
+		Fix:  runPatchListMod(removeObsoleteProperty("sanitize.scudo")),
+	},
+	{
+		Name: "formatFlagProperties",
+		Fix:  runPatchListMod(formatFlagProperties),
 	},
 }
 
@@ -863,7 +871,9 @@ func convertToSingleSource(mod *parser.Module, srcPropertyName string) {
 	}
 }
 
-func runPatchListMod(modFunc func(mod *parser.Module, buf []byte, patchlist *parser.PatchList) error) func(*Fixer) error {
+type patchListModFunction func(*parser.Module, []byte, *parser.PatchList) error
+
+func runPatchListMod(modFunc patchListModFunction) func(*Fixer) error {
 	return func(f *Fixer) error {
 		// Make sure all the offsets are accurate
 		buf, err := f.reparse()
@@ -1033,23 +1043,63 @@ func removeTags(mod *parser.Module, buf []byte, patchlist *parser.PatchList) err
 	return patchlist.Add(prop.Pos().Offset, prop.End().Offset+2, replaceStr)
 }
 
-func removePdkProperty(mod *parser.Module, buf []byte, patchlist *parser.PatchList) error {
-	prop, ok := mod.GetProperty("product_variables")
-	if !ok {
-		return nil
+type propertyProvider interface {
+	GetProperty(string) (*parser.Property, bool)
+	RemoveProperty(string) bool
+}
+
+func removeNestedProperty(mod *parser.Module, patchList *parser.PatchList, propName string) error {
+	propNames := strings.Split(propName, ".")
+
+	var propProvider, toRemoveFrom propertyProvider
+	propProvider = mod
+
+	var propToRemove *parser.Property
+	for i, name := range propNames {
+		p, ok := propProvider.GetProperty(name)
+		if !ok {
+			return nil
+		}
+		// if this is the inner most element, it's time to delete
+		if i == len(propNames)-1 {
+			if propToRemove == nil {
+				// if we cannot remove the properties that the current property is nested in,
+				// remove only the current property
+				propToRemove = p
+				toRemoveFrom = propProvider
+			}
+
+			// remove the property from the list, in case we remove other properties in this list
+			toRemoveFrom.RemoveProperty(propToRemove.Name)
+			// only removing the property would leave blank line(s), remove with a patch
+			if err := patchList.Add(propToRemove.Pos().Offset, propToRemove.End().Offset+2, ""); err != nil {
+				return err
+			}
+		} else {
+			propMap, ok := p.Value.(*parser.Map)
+			if !ok {
+				return nil
+			}
+			if len(propMap.Properties) > 1 {
+				// if there are other properties in this struct, we need to keep this struct
+				toRemoveFrom = nil
+				propToRemove = nil
+			} else if propToRemove == nil {
+				// otherwise, we can remove the empty struct entirely
+				toRemoveFrom = propProvider
+				propToRemove = p
+			}
+			propProvider = propMap
+		}
 	}
-	propMap, ok := prop.Value.(*parser.Map)
-	if !ok {
-		return nil
+
+	return nil
+}
+
+func removeObsoleteProperty(propName string) patchListModFunction {
+	return func(mod *parser.Module, buf []byte, patchList *parser.PatchList) error {
+		return removeNestedProperty(mod, patchList, propName)
 	}
-	pdkProp, ok := propMap.GetProperty("pdk")
-	if !ok {
-		return nil
-	}
-	if len(propMap.Properties) > 1 {
-		return patchlist.Add(pdkProp.Pos().Offset, pdkProp.End().Offset+2, "")
-	}
-	return patchlist.Add(prop.Pos().Offset, prop.End().Offset+2, "")
 }
 
 func mergeMatchingModuleProperties(mod *parser.Module, buf []byte, patchlist *parser.PatchList) error {
@@ -1296,4 +1346,70 @@ func inList(s string, list []string) bool {
 		}
 	}
 	return false
+}
+
+func formatFlagProperty(mod *parser.Module, field string, buf []byte, patchlist *parser.PatchList) error {
+	// the comment or empty lines in the value of the field are skipped
+	listValue, ok := getLiteralListProperty(mod, field)
+	if !ok {
+		// if do not find
+		return nil
+	}
+	for i := 0; i < len(listValue.Values); i++ {
+		curValue, ok := listValue.Values[i].(*parser.String)
+		if !ok {
+			return fmt.Errorf("Expecting string for %s.%s fields", mod.Type, field)
+		}
+		if !strings.HasPrefix(curValue.Value, "-") {
+			return fmt.Errorf("Expecting the string `%s` starting with '-'", curValue.Value)
+		}
+		if i+1 < len(listValue.Values) {
+			nextValue, ok := listValue.Values[i+1].(*parser.String)
+			if !ok {
+				return fmt.Errorf("Expecting string for %s.%s fields", mod.Type, field)
+			}
+			if !strings.HasPrefix(nextValue.Value, "-") {
+				// delete the line
+				err := patchlist.Add(curValue.Pos().Offset, curValue.End().Offset+2, "")
+				if err != nil {
+					return err
+				}
+				// replace the line
+				value := "\"" + curValue.Value + " " + nextValue.Value + "\","
+				err = patchlist.Add(nextValue.Pos().Offset, nextValue.End().Offset+1, value)
+				if err != nil {
+					return err
+				}
+				// combined two lines to one
+				i++
+			}
+		}
+	}
+	return nil
+}
+
+func formatFlagProperties(mod *parser.Module, buf []byte, patchlist *parser.PatchList) error {
+	relevantFields := []string{
+		// cc flags
+		"asflags",
+		"cflags",
+		"clang_asflags",
+		"clang_cflags",
+		"conlyflags",
+		"cppflags",
+		"ldflags",
+		"tidy_flags",
+		// java flags
+		"aaptflags",
+		"dxflags",
+		"javacflags",
+		"kotlincflags",
+	}
+	for _, field := range relevantFields {
+		err := formatFlagProperty(mod, field, buf, patchlist)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

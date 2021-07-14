@@ -1125,6 +1125,12 @@ type pathForModuleSrcTestCase struct {
 	rels []string
 	src  string
 	rel  string
+
+	// Make test specific preparations to the test fixture.
+	preparer FixturePreparer
+
+	// A test specific error handler.
+	errorHandler FixtureErrorHandler
 }
 
 func testPathForModuleSrc(t *testing.T, tests []pathForModuleSrcTestCase) {
@@ -1157,14 +1163,23 @@ func testPathForModuleSrc(t *testing.T, tests []pathForModuleSrcTestCase) {
 				"foo/src_special/$": nil,
 			}
 
+			errorHandler := test.errorHandler
+			if errorHandler == nil {
+				errorHandler = FixtureExpectsNoErrors
+			}
+
 			result := GroupFixturePreparers(
 				FixtureRegisterWithContext(func(ctx RegistrationContext) {
 					ctx.RegisterModuleType("test", pathForModuleSrcTestModuleFactory)
 					ctx.RegisterModuleType("output_file_provider", pathForModuleSrcOutputFileProviderModuleFactory)
-					ctx.RegisterModuleType("filegroup", FileGroupFactory)
 				}),
+				PrepareForTestWithFilegroup,
+				PrepareForTestWithNamespace,
 				mockFS.AddToFixture(),
-			).RunTest(t)
+				OptionalFixturePreparer(test.preparer),
+			).
+				ExtendWithErrorHandler(errorHandler).
+				RunTest(t)
 
 			m := result.ModuleForTests("foo", "").Module().(*pathForModuleSrcTestModule)
 
@@ -1332,6 +1347,74 @@ func TestPathForModuleSrc(t *testing.T) {
 			}`,
 			src: "foo/src_special/$",
 			rel: "src_special/$",
+		},
+		{
+			// This test makes sure that an unqualified module name cannot contain characters that make
+			// it appear as a qualified module name.
+			name: "output file provider, invalid fully qualified name",
+			bp: `
+			test {
+				name: "foo",
+				src: "://other:b",
+				srcs: ["://other:c"],
+			}`,
+			preparer: FixtureAddTextFile("other/Android.bp", `
+				soong_namespace {}
+
+				output_file_provider {
+					name: "b",
+					outs: ["gen/b"],
+				}
+
+				output_file_provider {
+					name: "c",
+					outs: ["gen/c"],
+				}
+			`),
+			src:  "foo/:/other:b",
+			rel:  ":/other:b",
+			srcs: []string{"foo/:/other:c"},
+			rels: []string{":/other:c"},
+		},
+		{
+			name: "output file provider, missing fully qualified name",
+			bp: `
+			test {
+				name: "foo",
+				src: "//other:b",
+				srcs: ["//other:c"],
+			}`,
+			errorHandler: FixtureExpectsAllErrorsToMatchAPattern([]string{
+				`"foo" depends on undefined module "//other:b"`,
+				`"foo" depends on undefined module "//other:c"`,
+			}),
+		},
+		{
+			// TODO(b/193228441): Fix broken test.
+			name: "output file provider, fully qualified name",
+			bp: `
+			test {
+				name: "foo",
+				src: "//other:b",
+				srcs: ["//other:c"],
+			}`,
+			preparer: FixtureAddTextFile("other/Android.bp", `
+				soong_namespace {}
+
+				output_file_provider {
+					name: "b",
+					outs: ["gen/b"],
+				}
+
+				output_file_provider {
+					name: "c",
+					outs: ["gen/c"],
+				}
+			`),
+			errorHandler: FixtureExpectsAllErrorsToMatchAPattern([]string{
+				`"foo": missing dependencies: //other:b, is the property annotated with android:"path"`,
+				`"foo": missing dependency on "//other:c", is the property annotated with android:"path"`,
+			}),
 		},
 	}
 

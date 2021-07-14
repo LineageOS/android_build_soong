@@ -344,8 +344,18 @@ type ModuleContext interface {
 	// Deprecated: use ModuleContext.Build instead.
 	ModuleBuild(pctx PackageContext, params ModuleBuildParams)
 
+	// Returns a list of paths expanded from globs and modules referenced using ":module" syntax.  The property must
+	// be tagged with `android:"path" to support automatic source module dependency resolution.
+	//
+	// Deprecated: use PathsForModuleSrc or PathsForModuleSrcExcludes instead.
 	ExpandSources(srcFiles, excludes []string) Paths
+
+	// Returns a single path expanded from globs and modules referenced using ":module" syntax.  The property must
+	// be tagged with `android:"path" to support automatic source module dependency resolution.
+	//
+	// Deprecated: use PathForModuleSrc instead.
 	ExpandSource(srcFile, prop string) Path
+
 	ExpandOptionalSource(srcFile *string, prop string) OptionalPath
 
 	// InstallExecutable creates a rule to copy srcPath to name in the installPath directory,
@@ -473,6 +483,7 @@ type Module interface {
 	InitRc() Paths
 	VintfFragments() Paths
 	NoticeFiles() Paths
+	EffectiveLicenseFiles() Paths
 
 	AddProperties(props ...interface{})
 	GetProperties() []interface{}
@@ -1503,6 +1514,10 @@ func (m *ModuleBase) IsReplacedByPrebuilt() bool {
 
 func (m *ModuleBase) ExportedToMake() bool {
 	return m.commonProperties.NamespaceExportedToMake
+}
+
+func (m *ModuleBase) EffectiveLicenseFiles() Paths {
+	return m.commonProperties.Effective_license_text
 }
 
 // computeInstallDeps finds the installed paths of all dependencies that have a dependency
@@ -2797,30 +2812,57 @@ func (m *moduleContext) blueprintModuleContext() blueprint.ModuleContext {
 	return m.bp
 }
 
-// SrcIsModule decodes module references in the format ":name" into the module name, or empty string if the input
-// was not a module reference.
+// SrcIsModule decodes module references in the format ":unqualified-name" or "//namespace:name"
+// into the module name, or empty string if the input was not a module reference.
 func SrcIsModule(s string) (module string) {
-	if len(s) > 1 && s[0] == ':' {
-		return s[1:]
+	if len(s) > 1 {
+		if s[0] == ':' {
+			module = s[1:]
+			if !isUnqualifiedModuleName(module) {
+				// The module name should be unqualified but is not so do not treat it as a module.
+				module = ""
+			}
+		} else if s[0] == '/' && s[1] == '/' {
+			module = s
+		}
 	}
-	return ""
+	return module
 }
 
-// SrcIsModule decodes module references in the format ":name{.tag}" into the module name and tag, ":name" into the
-// module name and an empty string for the tag, or empty strings if the input was not a module reference.
+// SrcIsModule decodes module references in the format ":unqualified-name{.tag}" or
+// "//namespace:name{.tag}" into the module name and an empty string for the tag, or empty strings
+// if the input was not a module reference.
 func SrcIsModuleWithTag(s string) (module, tag string) {
-	if len(s) > 1 && s[0] == ':' {
-		module = s[1:]
-		if tagStart := strings.IndexByte(module, '{'); tagStart > 0 {
-			if module[len(module)-1] == '}' {
-				tag = module[tagStart+1 : len(module)-1]
-				module = module[:tagStart]
-				return module, tag
+	if len(s) > 1 {
+		if s[0] == ':' {
+			module = s[1:]
+		} else if s[0] == '/' && s[1] == '/' {
+			module = s
+		}
+
+		if module != "" {
+			if tagStart := strings.IndexByte(module, '{'); tagStart > 0 {
+				if module[len(module)-1] == '}' {
+					tag = module[tagStart+1 : len(module)-1]
+					module = module[:tagStart]
+				}
+			}
+
+			if s[0] == ':' && !isUnqualifiedModuleName(module) {
+				// The module name should be unqualified but is not so do not treat it as a module.
+				module = ""
+				tag = ""
 			}
 		}
-		return module, ""
 	}
-	return "", ""
+
+	return module, tag
+}
+
+// isUnqualifiedModuleName makes sure that the supplied module is an unqualified module name, i.e.
+// does not contain any /.
+func isUnqualifiedModuleName(module string) bool {
+	return strings.IndexByte(module, '/') == -1
 }
 
 type sourceOrOutputDependencyTag struct {
@@ -2832,7 +2874,25 @@ func sourceOrOutputDepTag(tag string) blueprint.DependencyTag {
 	return sourceOrOutputDependencyTag{tag: tag}
 }
 
+// Deprecated, use IsSourceDepTagWithOutputTag(tag, "") instead.
 var SourceDepTag = sourceOrOutputDepTag("")
+
+// IsSourceDepTag returns true if the supplied blueprint.DependencyTag is one that was used to add
+// dependencies by either ExtractSourceDeps, ExtractSourcesDeps or automatically for properties
+// tagged with `android:"path"`.
+func IsSourceDepTag(depTag blueprint.DependencyTag) bool {
+	_, ok := depTag.(sourceOrOutputDependencyTag)
+	return ok
+}
+
+// IsSourceDepTagWithOutputTag returns true if the supplied blueprint.DependencyTag is one that was
+// used to add dependencies by either ExtractSourceDeps, ExtractSourcesDeps or automatically for
+// properties tagged with `android:"path"` AND it was added using a module reference of
+// :moduleName{outputTag}.
+func IsSourceDepTagWithOutputTag(depTag blueprint.DependencyTag, outputTag string) bool {
+	t, ok := depTag.(sourceOrOutputDependencyTag)
+	return ok && t.tag == outputTag
+}
 
 // Adds necessary dependencies to satisfy filegroup or generated sources modules listed in srcFiles
 // using ":module" syntax, if any.
