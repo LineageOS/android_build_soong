@@ -26,6 +26,7 @@ var prebuiltsTests = []struct {
 	replaceBp bool // modules is added to default bp boilerplate if false.
 	modules   string
 	prebuilt  []OsType
+	preparer  FixturePreparer
 }{
 	{
 		name: "no prebuilt",
@@ -291,6 +292,86 @@ var prebuiltsTests = []struct {
 			}`,
 		prebuilt: []OsType{Android, BuildOs},
 	},
+	{
+		name: "prebuilt use_source_config_var={acme, use_source} - no var specified",
+		modules: `
+			source {
+				name: "bar",
+			}
+
+			prebuilt {
+				name: "bar",
+				use_source_config_var: {config_namespace: "acme", var_name: "use_source"},
+				srcs: ["prebuilt_file"],
+			}`,
+		// When use_source_env is specified then it will use the prebuilt by default if the environment
+		// variable is not set.
+		prebuilt: []OsType{Android, BuildOs},
+	},
+	{
+		name: "prebuilt use_source_config_var={acme, use_source} - acme_use_source=false",
+		modules: `
+			source {
+				name: "bar",
+			}
+
+			prebuilt {
+				name: "bar",
+				use_source_config_var: {config_namespace: "acme", var_name: "use_source"},
+				srcs: ["prebuilt_file"],
+			}`,
+		preparer: FixtureModifyProductVariables(func(variables FixtureProductVariables) {
+			variables.VendorVars = map[string]map[string]string{
+				"acme": {
+					"use_source": "false",
+				},
+			}
+		}),
+		// Setting the environment variable named in use_source_env to false will cause the prebuilt to
+		// be used.
+		prebuilt: []OsType{Android, BuildOs},
+	},
+	{
+		name: "prebuilt use_source_config_var={acme, use_source} - acme_use_source=true",
+		modules: `
+			source {
+				name: "bar",
+			}
+
+			prebuilt {
+				name: "bar",
+				use_source_config_var: {config_namespace: "acme", var_name: "use_source"},
+				srcs: ["prebuilt_file"],
+			}`,
+		preparer: FixtureModifyProductVariables(func(variables FixtureProductVariables) {
+			variables.VendorVars = map[string]map[string]string{
+				"acme": {
+					"use_source": "true",
+				},
+			}
+		}),
+		// Setting the environment variable named in use_source_env to true will cause the source to be
+		// used.
+		prebuilt: nil,
+	},
+	{
+		name: "prebuilt use_source_config_var={acme, use_source} - acme_use_source=true, no source",
+		modules: `
+			prebuilt {
+				name: "bar",
+				use_source_config_var: {config_namespace: "acme", var_name: "use_source"},
+				srcs: ["prebuilt_file"],
+			}`,
+		preparer: FixtureModifyProductVariables(func(variables FixtureProductVariables) {
+			variables.VendorVars = map[string]map[string]string{
+				"acme": {
+					"use_source": "true",
+				},
+			}
+		}),
+		// Although the environment variable says to use source there is no source available.
+		prebuilt: []OsType{Android, BuildOs},
+	},
 }
 
 func TestPrebuilts(t *testing.T) {
@@ -329,6 +410,7 @@ func TestPrebuilts(t *testing.T) {
 				}),
 				fs.AddToFixture(),
 				FixtureRegisterWithContext(registerTestPrebuiltModules),
+				OptionalFixturePreparer(test.preparer),
 			).RunTestWithBp(t, bp)
 
 			for _, variant := range result.ModuleVariantsForTests("foo") {
