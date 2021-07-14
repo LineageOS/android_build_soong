@@ -74,8 +74,8 @@ type librarySdkMemberType struct {
 	linkTypes []string
 }
 
-func (mt *librarySdkMemberType) AddDependencies(mctx android.BottomUpMutatorContext, dependencyTag blueprint.DependencyTag, names []string) {
-	targets := mctx.MultiTargets()
+func (mt *librarySdkMemberType) AddDependencies(ctx android.SdkDependencyContext, dependencyTag blueprint.DependencyTag, names []string) {
+	targets := ctx.MultiTargets()
 	for _, lib := range names {
 		for _, target := range targets {
 			name, version := StubsLibNameAndVersion(lib)
@@ -83,21 +83,21 @@ func (mt *librarySdkMemberType) AddDependencies(mctx android.BottomUpMutatorCont
 				version = "latest"
 			}
 			variations := target.Variations()
-			if mctx.Device() {
+			if ctx.Device() {
 				variations = append(variations,
 					blueprint.Variation{Mutator: "image", Variation: android.CoreVariation})
 			}
 			if mt.linkTypes == nil {
-				mctx.AddFarVariationDependencies(variations, dependencyTag, name)
+				ctx.AddFarVariationDependencies(variations, dependencyTag, name)
 			} else {
 				for _, linkType := range mt.linkTypes {
 					libVariations := append(variations,
 						blueprint.Variation{Mutator: "link", Variation: linkType})
-					if mctx.Device() && linkType == "shared" {
+					if ctx.Device() && linkType == "shared" {
 						libVariations = append(libVariations,
 							blueprint.Variation{Mutator: "version", Variation: version})
 					}
-					mctx.AddFarVariationDependencies(libVariations, dependencyTag, name)
+					ctx.AddFarVariationDependencies(libVariations, dependencyTag, name)
 				}
 			}
 		}

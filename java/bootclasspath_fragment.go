@@ -718,8 +718,8 @@ type bootclasspathFragmentMemberType struct {
 	android.SdkMemberTypeBase
 }
 
-func (b *bootclasspathFragmentMemberType) AddDependencies(mctx android.BottomUpMutatorContext, dependencyTag blueprint.DependencyTag, names []string) {
-	mctx.AddVariationDependencies(nil, dependencyTag, names...)
+func (b *bootclasspathFragmentMemberType) AddDependencies(ctx android.SdkDependencyContext, dependencyTag blueprint.DependencyTag, names []string) {
+	ctx.AddVariationDependencies(nil, dependencyTag, names...)
 }
 
 func (b *bootclasspathFragmentMemberType) IsInstance(module android.Module) bool {

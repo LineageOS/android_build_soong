@@ -475,7 +475,7 @@ type SdkMemberType interface {
 	// properties. The dependencies must be added with the supplied tag.
 	//
 	// The BottomUpMutatorContext provided is for the SDK module.
-	AddDependencies(mctx BottomUpMutatorContext, dependencyTag blueprint.DependencyTag, names []string)
+	AddDependencies(ctx SdkDependencyContext, dependencyTag blueprint.DependencyTag, names []string)
 
 	// Return true if the supplied module is an instance of this member type.
 	//
@@ -527,6 +527,12 @@ type SdkMemberType interface {
 
 	// Create a structure into which variant specific properties can be added.
 	CreateVariantPropertiesStruct() SdkMemberProperties
+}
+
+// SdkDependencyContext provides access to information needed by the SdkMemberType.AddDependencies()
+// implementations.
+type SdkDependencyContext interface {
+	BottomUpMutatorContext
 }
 
 // Base type for SdkMemberType implementations.
