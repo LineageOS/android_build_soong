@@ -26,7 +26,10 @@ import (
 	"testing"
 
 	"android/soong/ui/logger"
+	smpb "android/soong/ui/metrics/metrics_proto"
 	"android/soong/ui/status"
+
+	"github.com/golang/protobuf/proto"
 )
 
 func testContext() Context {
@@ -992,6 +995,114 @@ func TestGetConfigArgsBuildModulesInDirectories(t *testing.T) {
 	for _, tt := range tests {
 		t.Run("build action BUILD_MODULES_IN_DIRS, "+tt.description, func(t *testing.T) {
 			testGetConfigArgs(t, tt, BUILD_MODULES_IN_DIRECTORIES)
+		})
+	}
+}
+
+func TestBuildConfig(t *testing.T) {
+	tests := []struct {
+		name                string
+		environ             Environment
+		useBazel            bool
+		expectedBuildConfig *smpb.BuildConfig
+	}{
+		{
+			name:    "none set",
+			environ: Environment{},
+			expectedBuildConfig: &smpb.BuildConfig{
+				ForceUseGoma:    proto.Bool(false),
+				UseGoma:         proto.Bool(false),
+				UseRbe:          proto.Bool(false),
+				BazelAsNinja:    proto.Bool(false),
+				BazelMixedBuild: proto.Bool(false),
+			},
+		},
+		{
+			name:    "force use goma",
+			environ: Environment{"FORCE_USE_GOMA=1"},
+			expectedBuildConfig: &smpb.BuildConfig{
+				ForceUseGoma:    proto.Bool(true),
+				UseGoma:         proto.Bool(false),
+				UseRbe:          proto.Bool(false),
+				BazelAsNinja:    proto.Bool(false),
+				BazelMixedBuild: proto.Bool(false),
+			},
+		},
+		{
+			name:    "use goma",
+			environ: Environment{"USE_GOMA=1"},
+			expectedBuildConfig: &smpb.BuildConfig{
+				ForceUseGoma:    proto.Bool(false),
+				UseGoma:         proto.Bool(true),
+				UseRbe:          proto.Bool(false),
+				BazelAsNinja:    proto.Bool(false),
+				BazelMixedBuild: proto.Bool(false),
+			},
+		},
+		{
+			name:    "use rbe",
+			environ: Environment{"USE_RBE=1"},
+			expectedBuildConfig: &smpb.BuildConfig{
+				ForceUseGoma:    proto.Bool(false),
+				UseGoma:         proto.Bool(false),
+				UseRbe:          proto.Bool(true),
+				BazelAsNinja:    proto.Bool(false),
+				BazelMixedBuild: proto.Bool(false),
+			},
+		},
+		{
+			name:     "use bazel as ninja",
+			environ:  Environment{},
+			useBazel: true,
+			expectedBuildConfig: &smpb.BuildConfig{
+				ForceUseGoma:    proto.Bool(false),
+				UseGoma:         proto.Bool(false),
+				UseRbe:          proto.Bool(false),
+				BazelAsNinja:    proto.Bool(true),
+				BazelMixedBuild: proto.Bool(false),
+			},
+		},
+		{
+			name:    "bazel mixed build",
+			environ: Environment{"USE_BAZEL_ANALYSIS=1"},
+			expectedBuildConfig: &smpb.BuildConfig{
+				ForceUseGoma:    proto.Bool(false),
+				UseGoma:         proto.Bool(false),
+				UseRbe:          proto.Bool(false),
+				BazelAsNinja:    proto.Bool(false),
+				BazelMixedBuild: proto.Bool(true),
+			},
+		},
+		{
+			name: "all set",
+			environ: Environment{
+				"FORCE_USE_GOMA=1",
+				"USE_GOMA=1",
+				"USE_RBE=1",
+				"USE_BAZEL_ANALYSIS=1",
+			},
+			useBazel: true,
+			expectedBuildConfig: &smpb.BuildConfig{
+				ForceUseGoma:    proto.Bool(true),
+				UseGoma:         proto.Bool(true),
+				UseRbe:          proto.Bool(true),
+				BazelAsNinja:    proto.Bool(true),
+				BazelMixedBuild: proto.Bool(true),
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			c := &configImpl{
+				environ:  &tc.environ,
+				useBazel: tc.useBazel,
+			}
+			config := Config{c}
+			actualBuildConfig := buildConfig(config)
+			if expected := tc.expectedBuildConfig; !proto.Equal(expected, actualBuildConfig) {
+				t.Errorf("Expected build config != actual build config: %#v != %#v", *expected, *actualBuildConfig)
+			}
 		})
 	}
 }
