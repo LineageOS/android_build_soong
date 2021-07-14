@@ -113,6 +113,10 @@ func init() {
 	pctx.StaticVariable("DarwinYasmFlags", "-f macho -m amd64")
 }
 
+func MacStripPath(ctx android.PathContext) string {
+	return getMacTools(ctx).stripPath
+}
+
 type macPlatformTools struct {
 	once sync.Once
 	err  error
@@ -125,7 +129,7 @@ type macPlatformTools struct {
 
 var macTools = &macPlatformTools{}
 
-func getMacTools(ctx android.PackageVarContext) *macPlatformTools {
+func getMacTools(ctx android.PathContext) *macPlatformTools {
 	macTools.once.Do(func() {
 		xcrunTool := "/usr/bin/xcrun"
 
@@ -170,7 +174,7 @@ func getMacTools(ctx android.PackageVarContext) *macPlatformTools {
 		macTools.toolPath = filepath.Dir(xcrun("--find", "ld"))
 	})
 	if macTools.err != nil {
-		ctx.Errorf("%q", macTools.err)
+		android.ReportPathErrorf(ctx, "%q", macTools.err)
 	}
 	return macTools
 }
