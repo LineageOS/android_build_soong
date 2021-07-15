@@ -2829,9 +2829,10 @@ func SrcIsModule(s string) (module string) {
 	return module
 }
 
-// SrcIsModule decodes module references in the format ":unqualified-name{.tag}" or
-// "//namespace:name{.tag}" into the module name and an empty string for the tag, or empty strings
-// if the input was not a module reference.
+// SrcIsModuleWithTag decodes module references in the format ":unqualified-name{.tag}" or
+// "//namespace:name{.tag}" into the module name and tag, ":unqualified-name" or "//namespace:name"
+// into the module name and an empty string for the tag, or empty strings if the input was not a
+// module reference.
 func SrcIsModuleWithTag(s string) (module, tag string) {
 	if len(s) > 1 {
 		if s[0] == ':' {
