@@ -154,9 +154,18 @@ import (
 // PRODUCT_BOOT_JARS_EXTRA variables. The AOSP makefiles specify some common Framework libraries,
 // but more product-specific libraries can be added in the product makefiles.
 //
-// Each component of the PRODUCT_BOOT_JARS and PRODUCT_BOOT_JARS_EXTRA variables is either a simple
-// name (if the library is a part of the Platform), or a colon-separated pair <apex, name> (if the
-// library is a part of a non-updatable APEX).
+// Each component of the PRODUCT_BOOT_JARS and PRODUCT_BOOT_JARS_EXTRA variables is a
+// colon-separated pair <apex>:<library>, where <apex> is the variant name of a non-updatable APEX,
+// "platform" if the library is a part of the platform in the system partition, or "system_ext" if
+// it's in the system_ext partition.
+//
+// In these variables APEXes are identified by their "variant names", i.e. the names they get
+// mounted as in /apex on device. In Soong modules that is the name set in the "apex_name"
+// properties, which default to the "name" values. For example, many APEXes have both
+// com.android.xxx and com.google.android.xxx modules in Soong, but take the same place
+// /apex/com.android.xxx at runtime. In these cases the variant name is always com.android.xxx,
+// regardless which APEX goes into the product. See also android.ApexInfo.ApexVariationName and
+// apex.apexBundleProperties.Apex_name.
 //
 // A related variable PRODUCT_UPDATABLE_BOOT_JARS contains bootclasspath libraries that are in
 // APEXes. They are not included in the boot image. The only exception here is core-icu4j.jar that
