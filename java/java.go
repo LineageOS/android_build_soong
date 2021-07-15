@@ -1192,6 +1192,12 @@ type Import struct {
 	minSdkVersion android.SdkSpec
 }
 
+var _ PermittedPackagesForUpdatableBootJars = (*Import)(nil)
+
+func (j *Import) PermittedPackagesForUpdatableBootJars() []string {
+	return j.properties.Permitted_packages
+}
+
 func (j *Import) SdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
 	return android.SdkSpecFrom(ctx, String(j.properties.Sdk_version))
 }
