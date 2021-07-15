@@ -1262,12 +1262,12 @@ func (u *usesLibrary) classLoaderContextForUsesLibDeps(ctx android.ModuleContext
 			return
 		}
 
-		dep := ctx.OtherModuleName(m)
+		dep := android.RemoveOptionalPrebuiltPrefix(ctx.OtherModuleName(m))
 
 		if lib, ok := m.(UsesLibraryDependency); ok {
-			libName := android.RemoveOptionalPrebuiltPrefix(dep)
+			libName := dep
 			if ulib, ok := m.(ProvidesUsesLib); ok && ulib.ProvidesUsesLib() != nil {
-				libName = android.RemoveOptionalPrebuiltPrefix(*ulib.ProvidesUsesLib())
+				libName = *ulib.ProvidesUsesLib()
 				// Replace module name with library name in `uses_libs`/`optional_uses_libs` in
 				// order to pass verify_uses_libraries check (which compares these properties
 				// against library names written in the manifest).
