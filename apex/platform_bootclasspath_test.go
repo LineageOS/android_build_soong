@@ -398,6 +398,7 @@ func TestPlatformBootclasspath_AlwaysUsePrebuiltSdks(t *testing.T) {
 			name: "foo",
 			prefer: false,
 			shared_library: false,
+			permitted_packages: ["foo"],
 			public: {
 				jars: ["sdk_library/public/foo-stubs.jar"],
 				stub_srcs: ["sdk_library/public/foo_stub_sources"],
