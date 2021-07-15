@@ -225,6 +225,7 @@ type productVariables struct {
 	Allow_missing_dependencies   *bool `json:",omitempty"`
 	Unbundled_build              *bool `json:",omitempty"`
 	Unbundled_build_apps         *bool `json:",omitempty"`
+	Unbundled_build_image        *bool `json:",omitempty"`
 	Always_use_prebuilt_sdks     *bool `json:",omitempty"`
 	Skip_boot_jars_check         *bool `json:",omitempty"`
 	Malloc_not_svelte            *bool `json:",omitempty"`
