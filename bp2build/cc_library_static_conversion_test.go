@@ -1413,7 +1413,7 @@ cc_library_static {
 
 func TestCcLibraryStaticProductVariableStringReplacement(t *testing.T) {
 	runCcLibraryStaticTestCase(t, bp2buildTestCase{
-		description:                        "cc_library_static product variable selects",
+		description:                        "cc_library_static product variable string replacement",
 		moduleTypeUnderTest:                "cc_library_static",
 		moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
 		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
@@ -1422,7 +1422,7 @@ func TestCcLibraryStaticProductVariableStringReplacement(t *testing.T) {
 		blueprint: soongCcLibraryStaticPreamble + `
 cc_library_static {
     name: "foo_static",
-    srcs: ["common.c"],
+    srcs: ["common.S"],
     product_variables: {
       platform_sdk_version: {
           asflags: ["-DPLATFORM_SDK_VERSION=%d"],
@@ -1431,7 +1431,10 @@ cc_library_static {
 } `,
 		expectedBazelTargets: []string{`cc_library_static(
     name = "foo_static",
-    asflags = select({
+    asflags = [
+        "-I.",
+        "-I$(BINDIR)/.",
+    ] + select({
         "//build/bazel/product_variables:platform_sdk_version": ["-DPLATFORM_SDK_VERSION=$(Platform_sdk_version)"],
         "//conditions:default": [],
     }),
@@ -1440,7 +1443,7 @@ cc_library_static {
         "-I$(BINDIR)/.",
     ],
     linkstatic = True,
-    srcs_c = ["common.c"],
+    srcs_as = ["common.S"],
 )`},
 	})
 }
