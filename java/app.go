@@ -1213,7 +1213,7 @@ func (u *usesLibrary) addLib(lib string, optional bool) {
 }
 
 func (u *usesLibrary) deps(ctx android.BottomUpMutatorContext, hasFrameworkLibs bool) {
-	if !ctx.Config().UnbundledBuild() {
+	if !ctx.Config().UnbundledBuild() || ctx.Config().UnbundledBuildImage() {
 		ctx.AddVariationDependencies(nil, usesLibTag, u.usesLibraryProperties.Uses_libs...)
 		ctx.AddVariationDependencies(nil, usesLibTag, u.presentOptionalUsesLibs(ctx)...)
 		// Only add these extra dependencies if the module depends on framework libs. This avoids
@@ -1249,15 +1249,16 @@ func replaceInList(list []string, oldstr, newstr string) {
 // to their dex jars on host and on device.
 func (u *usesLibrary) classLoaderContextForUsesLibDeps(ctx android.ModuleContext) dexpreopt.ClassLoaderContextMap {
 	clcMap := make(dexpreopt.ClassLoaderContextMap)
-
-	if !ctx.Config().UnbundledBuild() {
+	// Skip when UnbundledBuild() is true, but UnbundledBuildImage() is false.
+	// Added UnbundledBuildImage() condition to generate dexpreopt.config even though unbundled image is built.
+	if !ctx.Config().UnbundledBuild() || ctx.Config().UnbundledBuildImage() {
 		ctx.VisitDirectDeps(func(m android.Module) {
 			if tag, ok := ctx.OtherModuleDependencyTag(m).(usesLibraryDependencyTag); ok {
 				dep := ctx.OtherModuleName(m)
 				if lib, ok := m.(UsesLibraryDependency); ok {
-					libName := dep
+					libName := android.RemoveOptionalPrebuiltPrefix(dep)
 					if ulib, ok := m.(ProvidesUsesLib); ok && ulib.ProvidesUsesLib() != nil {
-						libName = *ulib.ProvidesUsesLib()
+						libName = android.RemoveOptionalPrebuiltPrefix(*ulib.ProvidesUsesLib())
 						// Replace module name with library name in `uses_libs`/`optional_uses_libs`
 						// in order to pass verify_uses_libraries check (which compares these
 						// properties against library names written in the manifest).
