@@ -479,9 +479,9 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 	}
 
 	if linker.useClangLld(ctx) {
-		flags.Global.LdFlags = append(flags.Global.LdFlags, toolchain.ClangLldflags())
+		flags.Global.LdFlags = append(flags.Global.LdFlags, toolchain.Lldflags())
 	} else {
-		flags.Global.LdFlags = append(flags.Global.LdFlags, toolchain.ClangLdflags())
+		flags.Global.LdFlags = append(flags.Global.LdFlags, toolchain.Ldflags())
 	}
 
 	if !ctx.toolchain().Bionic() && !ctx.Fuchsia() {
@@ -535,7 +535,7 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 		flags.Global.LdFlags = append(flags.Global.LdFlags, "-Wl,--hash-style=both")
 	}
 
-	flags.Global.LdFlags = append(flags.Global.LdFlags, toolchain.ToolchainClangLdflags())
+	flags.Global.LdFlags = append(flags.Global.LdFlags, toolchain.ToolchainLdflags())
 
 	if Bool(linker.Properties.Group_static_libs) {
 		flags.GroupStaticLibs = true

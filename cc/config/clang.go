@@ -80,12 +80,6 @@ var ClangUnknownCflags = sorted([]string{
 	"--enable-stdcall-fixup",
 })
 
-// Ldflags that should be filtered out when linking with clang lld
-var ClangUnknownLldflags = sorted([]string{
-	"-Wl,--fix-cortex-a8",
-	"-Wl,--no-fix-cortex-a8",
-})
-
 var ClangLibToolingUnknownCflags = sorted([]string{})
 
 // List of tidy checks that should be disabled globally. When the compiler is
@@ -255,24 +249,8 @@ func ClangRewriteTidyChecks(checks []string) []string {
 	return result
 }
 
-func ClangFilterUnknownLldflags(lldflags []string) []string {
-	result, _ := android.FilterList(lldflags, ClangUnknownLldflags)
-	return result
-}
-
 func ClangLibToolingFilterUnknownCflags(libToolingFlags []string) []string {
 	return android.RemoveListFromList(libToolingFlags, ClangLibToolingUnknownCflags)
-}
-
-func inListSorted(s string, list []string) bool {
-	for _, l := range list {
-		if s == l {
-			return true
-		} else if s < l {
-			return false
-		}
-	}
-	return false
 }
 
 func sorted(list []string) []string {

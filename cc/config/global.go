@@ -36,7 +36,6 @@ var (
 
 		// Make paths in deps files relative
 		"-no-canonical-prefixes",
-		"-fno-canonical-system-headers",
 
 		"-DNDEBUG",
 		"-UDEBUG",
@@ -61,8 +60,6 @@ var (
 	commonGlobalConlyflags = []string{}
 
 	deviceGlobalCflags = []string{
-		"-fdiagnostics-color",
-
 		"-ffunction-sections",
 		"-fdata-sections",
 		"-fno-short-enums",
@@ -101,7 +98,7 @@ var (
 		"-Wl,--icf=safe",
 	}
 
-	deviceGlobalLldflags = append(ClangFilterUnknownLldflags(deviceGlobalLdflags),
+	deviceGlobalLldflags = append(deviceGlobalLdflags,
 		[]string{
 			"-fuse-ld=lld",
 		}...)
@@ -177,7 +174,7 @@ func init() {
 	// Export the static default CommonClangGlobalCflags to Bazel.
 	// TODO(187086342): handle cflags that are set in VariableFuncs.
 	commonClangGlobalCFlags := append(
-		ClangFilterUnknownCflags(commonGlobalCflags),
+		commonGlobalCflags,
 		[]string{
 			"${ClangExtraCflags}",
 			// Default to zero initialization.
@@ -187,7 +184,7 @@ func init() {
 	exportedStringListVars.Set("CommonClangGlobalCflags", commonClangGlobalCFlags)
 
 	pctx.VariableFunc("CommonClangGlobalCflags", func(ctx android.PackageVarContext) string {
-		flags := ClangFilterUnknownCflags(commonGlobalCflags)
+		flags := commonGlobalCflags
 		flags = append(flags, "${ClangExtraCflags}")
 
 		// http://b/131390872
@@ -208,20 +205,20 @@ func init() {
 
 	// Export the static default DeviceClangGlobalCflags to Bazel.
 	// TODO(187086342): handle cflags that are set in VariableFuncs.
-	deviceClangGlobalCflags := append(ClangFilterUnknownCflags(deviceGlobalCflags), "${ClangExtraTargetCflags}")
+	deviceClangGlobalCflags := append(deviceGlobalCflags, "${ClangExtraTargetCflags}")
 	exportedStringListVars.Set("DeviceClangGlobalCflags", deviceClangGlobalCflags)
 
 	pctx.VariableFunc("DeviceClangGlobalCflags", func(ctx android.PackageVarContext) string {
 		if ctx.Config().Fuchsia() {
-			return strings.Join(ClangFilterUnknownCflags(deviceGlobalCflags), " ")
+			return strings.Join(deviceGlobalCflags, " ")
 		} else {
 			return strings.Join(deviceClangGlobalCflags, " ")
 		}
 	})
 
-	exportStringListStaticVariable("HostClangGlobalCflags", ClangFilterUnknownCflags(hostGlobalCflags))
-	exportStringListStaticVariable("NoOverrideClangGlobalCflags", append(ClangFilterUnknownCflags(noOverrideGlobalCflags), "${ClangExtraNoOverrideCflags}"))
-	exportStringListStaticVariable("CommonClangGlobalCppflags", append(ClangFilterUnknownCflags(commonGlobalCppflags), "${ClangExtraCppflags}"))
+	exportStringListStaticVariable("HostClangGlobalCflags", hostGlobalCflags)
+	exportStringListStaticVariable("NoOverrideClangGlobalCflags", append(noOverrideGlobalCflags, "${ClangExtraNoOverrideCflags}"))
+	exportStringListStaticVariable("CommonClangGlobalCppflags", append(commonGlobalCppflags, "${ClangExtraCppflags}"))
 	exportStringListStaticVariable("ClangExternalCflags", []string{"${ClangExtraExternalCflags}"})
 
 	// Everything in these lists is a crime against abstraction and dependency tracking.
