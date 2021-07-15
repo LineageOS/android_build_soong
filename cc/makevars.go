@@ -92,8 +92,8 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	ctx.Strict("RS_LLVM_AS", "${config.RSLLVMPrebuiltsPath}/llvm-as")
 	ctx.Strict("RS_LLVM_LINK", "${config.RSLLVMPrebuiltsPath}/llvm-link")
 
-	ctx.Strict("CLANG_EXTERNAL_CFLAGS", "${config.ClangExternalCflags}")
-	ctx.Strict("GLOBAL_CLANG_CFLAGS_NO_OVERRIDE", "${config.NoOverrideClangGlobalCflags}")
+	ctx.Strict("CLANG_EXTERNAL_CFLAGS", "${config.ExternalCflags}")
+	ctx.Strict("GLOBAL_CLANG_CFLAGS_NO_OVERRIDE", "${config.NoOverrideGlobalCflags}")
 	ctx.Strict("GLOBAL_CLANG_CPPFLAGS_NO_OVERRIDE", "")
 
 	ctx.Strict("BOARD_VNDK_VERSION", ctx.DeviceConfig().VndkVersion())
@@ -231,14 +231,14 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 	ctx.Strict(clangPrefix+"TRIPLE", toolchain.ClangTriple())
 	ctx.Strict(clangPrefix+"GLOBAL_CFLAGS", strings.Join([]string{
 		toolchain.Cflags(),
-		"${config.CommonClangGlobalCflags}",
-		fmt.Sprintf("${config.%sClangGlobalCflags}", hod),
+		"${config.CommonGlobalCflags}",
+		fmt.Sprintf("${config.%sGlobalCflags}", hod),
 		toolchain.ToolchainCflags(),
 		clangExtras,
 		productExtraCflags,
 	}, " "))
 	ctx.Strict(clangPrefix+"GLOBAL_CPPFLAGS", strings.Join([]string{
-		"${config.CommonClangGlobalCppflags}",
+		"${config.CommonGlobalCppflags}",
 		fmt.Sprintf("${config.%sGlobalCppflags}", hod),
 		toolchain.Cppflags(),
 	}, " "))

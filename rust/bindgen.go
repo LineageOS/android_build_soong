@@ -137,9 +137,9 @@ func (b *bindgenDecorator) GenerateSource(ctx ModuleContext, deps PathDeps) andr
 	implicits = append(implicits, deps.depGeneratedHeaders...)
 
 	// Default clang flags
-	cflags = append(cflags, "${cc_config.CommonClangGlobalCflags}")
+	cflags = append(cflags, "${cc_config.CommonGlobalCflags}")
 	if ctx.Device() {
-		cflags = append(cflags, "${cc_config.DeviceClangGlobalCflags}")
+		cflags = append(cflags, "${cc_config.DeviceGlobalCflags}")
 	}
 
 	// Toolchain clang flags

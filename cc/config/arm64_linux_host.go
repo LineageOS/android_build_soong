@@ -76,7 +76,7 @@ func (toolchainLinuxArm64) ClangTriple() string {
 
 func (toolchainLinuxArm64) Cflags() string {
 	// The inherited flags + extra flags
-	return "${config.Arm64ClangCflags} ${config.LinuxBionicArm64Cflags}"
+	return "${config.Arm64Cflags} ${config.LinuxBionicArm64Cflags}"
 }
 
 func (toolchainLinuxArm64) CrtBeginSharedBinary() []string {
