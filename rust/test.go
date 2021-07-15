@@ -169,3 +169,11 @@ func RustTestHostFactory() android.Module {
 func (test *testDecorator) stdLinkage(ctx *depsContext) RustLinkage {
 	return RlibLinkage
 }
+
+func (test *testDecorator) compilerDeps(ctx DepsContext, deps Deps) Deps {
+	deps = test.binaryDecorator.compilerDeps(ctx, deps)
+
+	deps.Rustlibs = append(deps.Rustlibs, "libtest")
+
+	return deps
+}
