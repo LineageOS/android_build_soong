@@ -327,6 +327,7 @@ java_import {
     visibility: ["//visibility:public"],
     apex_available: ["myapex"],
     jars: ["java/mybootlib.jar"],
+    permitted_packages: ["mybootlib"],
 }
 
 java_sdk_library_import {
@@ -336,6 +337,7 @@ java_sdk_library_import {
     apex_available: ["myapex"],
     shared_library: true,
     compile_dex: true,
+    permitted_packages: ["myothersdklibrary"],
     public: {
         jars: ["sdk_library/public/myothersdklibrary-stubs.jar"],
         stub_srcs: ["sdk_library/public/myothersdklibrary_stub_sources"],
@@ -409,6 +411,7 @@ java_import {
     visibility: ["//visibility:public"],
     apex_available: ["myapex"],
     jars: ["java/mybootlib.jar"],
+    permitted_packages: ["mybootlib"],
 }
 
 java_sdk_library_import {
@@ -418,6 +421,7 @@ java_sdk_library_import {
     apex_available: ["myapex"],
     shared_library: true,
     compile_dex: true,
+    permitted_packages: ["myothersdklibrary"],
     public: {
         jars: ["sdk_library/public/myothersdklibrary-stubs.jar"],
         stub_srcs: ["sdk_library/public/myothersdklibrary_stub_sources"],
@@ -779,6 +783,7 @@ func TestSnapshotWithBootclasspathFragment_HiddenAPI(t *testing.T) {
 				srcs: ["Test.java"],
 				compile_dex: true,
 				public: {enabled: true},
+				permitted_packages: ["mysdklibrary"],
 			}
 		`),
 	).RunTest(t)
@@ -822,6 +827,7 @@ java_import {
     visibility: ["//visibility:public"],
     apex_available: ["myapex"],
     jars: ["java/mybootlib.jar"],
+    permitted_packages: ["mybootlib"],
 }
 
 java_sdk_library_import {
@@ -831,6 +837,7 @@ java_sdk_library_import {
     apex_available: ["//apex_available:platform"],
     shared_library: true,
     compile_dex: true,
+    permitted_packages: ["mysdklibrary"],
     public: {
         jars: ["sdk_library/public/mysdklibrary-stubs.jar"],
         stub_srcs: ["sdk_library/public/mysdklibrary_stub_sources"],
