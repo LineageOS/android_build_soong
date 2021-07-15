@@ -513,6 +513,12 @@ sdk_snapshot {
 				out/soong/.intermediates/frameworks/base/boot/platform-bootclasspath/android_common/hiddenapi-monolithic/index-from-classes.csv
         snapshot/hiddenapi/index.csv
 			`, rule)
+
+			// Make sure that the permitted packages from the prebuilts end up in the
+			// updatable-bcp-packages.txt file.
+			rule = module.Output("updatable-bcp-packages.txt")
+			expectedContents := `'mybootlib\nmyothersdklibrary\n'`
+			android.AssertStringEquals(t, "updatable-bcp-packages.txt", expectedContents, rule.Args["content"])
 		}),
 		snapshotTestPreparer(checkSnapshotWithSourcePreferred, preparerForSnapshot),
 		snapshotTestPreparer(checkSnapshotPreferredWithSource, preparerForSnapshot),
