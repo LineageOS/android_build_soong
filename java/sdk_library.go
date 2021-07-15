@@ -1897,6 +1897,10 @@ type sdkLibraryImportProperties struct {
 
 	// If set to true, compile dex files for the stubs. Defaults to false.
 	Compile_dex *bool
+
+	// If not empty, classes are restricted to the specified packages and their sub-packages.
+	// This information is used to generate the updatable-bcp-packages.txt file.
+	Permitted_packages []string
 }
 
 type SdkLibraryImport struct {
@@ -2510,6 +2514,8 @@ type sdkLibrarySdkMemberProperties struct {
 
 	// The paths to the doctag files to add to the prebuilt.
 	Doctag_paths android.Paths
+
+	Permitted_packages []string
 }
 
 type scopeProperties struct {
@@ -2550,6 +2556,7 @@ func (s *sdkLibrarySdkMemberProperties) PopulateFromVariant(ctx android.SdkMembe
 	s.Shared_library = proptools.BoolPtr(sdk.sharedLibrary())
 	s.Compile_dex = sdk.dexProperties.Compile_dex
 	s.Doctag_paths = sdk.doctagPaths
+	s.Permitted_packages = sdk.PermittedPackagesForUpdatableBootJars()
 }
 
 func (s *sdkLibrarySdkMemberProperties) AddToPropertySet(ctx android.SdkMemberContext, propertySet android.BpPropertySet) {
@@ -2561,6 +2568,9 @@ func (s *sdkLibrarySdkMemberProperties) AddToPropertySet(ctx android.SdkMemberCo
 	}
 	if s.Compile_dex != nil {
 		propertySet.AddProperty("compile_dex", *s.Compile_dex)
+	}
+	if len(s.Permitted_packages) > 0 {
+		propertySet.AddProperty("permitted_packages", s.Permitted_packages)
 	}
 
 	for _, apiScope := range allApiScopes {
