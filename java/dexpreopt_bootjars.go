@@ -159,7 +159,9 @@ import (
 // library is a part of a non-updatable APEX).
 //
 // A related variable PRODUCT_UPDATABLE_BOOT_JARS contains bootclasspath libraries that are in
-// updatable APEXes. They are not included in the boot image.
+// APEXes. They are not included in the boot image. The only exception here is core-icu4j.jar that
+// has been historically part of the boot image and is now in a non updatable apex; it is treated
+// as being part of PRODUCT_BOOT_JARS and is in the boot image.
 //
 // One exception to the above rules are "coverage" builds (a special build flavor which requires
 // setting environment variable EMMA_INSTRUMENT_FRAMEWORK=true). In coverage builds the Java code in
