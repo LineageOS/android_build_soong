@@ -107,9 +107,9 @@ func init() {
 
 	pctx.StaticVariable("DarwinGccTriple", "i686-apple-darwin11")
 
-	pctx.StaticVariable("DarwinClangCflags", strings.Join(darwinCflags, " "))
-	pctx.StaticVariable("DarwinClangLdflags", strings.Join(darwinLdflags, " "))
-	pctx.StaticVariable("DarwinClangLldflags", strings.Join(darwinLdflags, " "))
+	pctx.StaticVariable("DarwinCflags", strings.Join(darwinCflags, " "))
+	pctx.StaticVariable("DarwinLdflags", strings.Join(darwinLdflags, " "))
+	pctx.StaticVariable("DarwinLldflags", strings.Join(darwinLdflags, " "))
 
 	pctx.StaticVariable("DarwinYasmFlags", "-f macho -m amd64")
 }
@@ -206,7 +206,7 @@ func (t *toolchainDarwin) ClangTriple() string {
 }
 
 func (t *toolchainDarwin) Cflags() string {
-	return "${config.DarwinClangCflags}"
+	return "${config.DarwinCflags}"
 }
 
 func (t *toolchainDarwin) Cppflags() string {
@@ -214,11 +214,11 @@ func (t *toolchainDarwin) Cppflags() string {
 }
 
 func (t *toolchainDarwin) Ldflags() string {
-	return "${config.DarwinClangLdflags}"
+	return "${config.DarwinLdflags}"
 }
 
 func (t *toolchainDarwin) Lldflags() string {
-	return "${config.DarwinClangLldflags}"
+	return "${config.DarwinLldflags}"
 }
 
 func (t *toolchainDarwin) YasmFlags() string {
