@@ -423,8 +423,13 @@ func (b *platformBootclasspathModule) generateBootImageBuildActions(ctx android.
 	// Generate the framework profile rule
 	bootFrameworkProfileRule(ctx, imageConfig)
 
-	// Generate the updatable bootclasspath packages rule.
-	generateUpdatableBcpPackagesRule(ctx, imageConfig, updatableModules)
+	// If always using prebuilt sdks then do not generate the updatable-bcp-packages.txt file as it
+	// will break because the prebuilts do not yet specify a permitted_packages property.
+	// TODO(b/193889859): Remove when the prebuilts have been updated.
+	if !ctx.Config().AlwaysUsePrebuiltSdks() {
+		// Generate the updatable bootclasspath packages rule.
+		generateUpdatableBcpPackagesRule(ctx, imageConfig, updatableModules)
+	}
 
 	// Copy non-updatable module dex jars to their predefined locations.
 	nonUpdatableBootDexJarsByModule := extractEncodedDexJarsFromModules(ctx, nonUpdatableModules)
