@@ -500,10 +500,10 @@ func transformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 		sAbiDumpFiles = make(android.Paths, 0, len(srcFiles))
 	}
 
-	cflags += " ${config.NoOverrideClangGlobalCflags}"
-	toolingCflags += " ${config.NoOverrideClangGlobalCflags}"
-	cppflags += " ${config.NoOverrideClangGlobalCflags}"
-	toolingCppflags += " ${config.NoOverrideClangGlobalCflags}"
+	cflags += " ${config.NoOverrideGlobalCflags}"
+	toolingCflags += " ${config.NoOverrideGlobalCflags}"
+	cppflags += " ${config.NoOverrideGlobalCflags}"
+	toolingCppflags += " ${config.NoOverrideGlobalCflags}"
 
 	for i, srcFile := range srcFiles {
 		objFile := android.ObjPathWithExt(ctx, subdir, srcFile, "o")
