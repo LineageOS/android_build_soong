@@ -130,19 +130,19 @@ func init() {
 
 	pctx.StaticVariable("WindowsGccTriple", "x86_64-w64-mingw32")
 
-	pctx.StaticVariable("WindowsClangCflags", strings.Join(windowsCflags, " "))
-	pctx.StaticVariable("WindowsClangLdflags", strings.Join(windowsLdflags, " "))
-	pctx.StaticVariable("WindowsClangLldflags", strings.Join(windowsLldflags, " "))
-	pctx.StaticVariable("WindowsClangCppflags", strings.Join(windowsCppflags, " "))
+	pctx.StaticVariable("WindowsCflags", strings.Join(windowsCflags, " "))
+	pctx.StaticVariable("WindowsLdflags", strings.Join(windowsLdflags, " "))
+	pctx.StaticVariable("WindowsLldflags", strings.Join(windowsLldflags, " "))
+	pctx.StaticVariable("WindowsCppflags", strings.Join(windowsCppflags, " "))
 
-	pctx.StaticVariable("WindowsX86ClangCflags", strings.Join(windowsX86Cflags, " "))
-	pctx.StaticVariable("WindowsX8664ClangCflags", strings.Join(windowsX8664Cflags, " "))
-	pctx.StaticVariable("WindowsX86ClangLdflags", strings.Join(windowsX86Ldflags, " "))
-	pctx.StaticVariable("WindowsX86ClangLldflags", strings.Join(windowsX86Ldflags, " "))
-	pctx.StaticVariable("WindowsX8664ClangLdflags", strings.Join(windowsX8664Ldflags, " "))
-	pctx.StaticVariable("WindowsX8664ClangLldflags", strings.Join(windowsX8664Ldflags, " "))
-	pctx.StaticVariable("WindowsX86ClangCppflags", strings.Join(windowsX86Cppflags, " "))
-	pctx.StaticVariable("WindowsX8664ClangCppflags", strings.Join(windowsX8664Cppflags, " "))
+	pctx.StaticVariable("WindowsX86Cflags", strings.Join(windowsX86Cflags, " "))
+	pctx.StaticVariable("WindowsX8664Cflags", strings.Join(windowsX8664Cflags, " "))
+	pctx.StaticVariable("WindowsX86Ldflags", strings.Join(windowsX86Ldflags, " "))
+	pctx.StaticVariable("WindowsX86Lldflags", strings.Join(windowsX86Ldflags, " "))
+	pctx.StaticVariable("WindowsX8664Ldflags", strings.Join(windowsX8664Ldflags, " "))
+	pctx.StaticVariable("WindowsX8664Lldflags", strings.Join(windowsX8664Ldflags, " "))
+	pctx.StaticVariable("WindowsX86Cppflags", strings.Join(windowsX86Cppflags, " "))
+	pctx.StaticVariable("WindowsX8664Cppflags", strings.Join(windowsX8664Cppflags, " "))
 
 	pctx.StaticVariable("WindowsIncludeFlags", strings.Join(windowsIncludeFlags, " "))
 	// Yasm flags
@@ -205,35 +205,35 @@ func (t *toolchainWindowsX8664) ClangTriple() string {
 }
 
 func (t *toolchainWindowsX86) Cflags() string {
-	return "${config.WindowsClangCflags} ${config.WindowsX86ClangCflags}"
+	return "${config.WindowsCflags} ${config.WindowsX86Cflags}"
 }
 
 func (t *toolchainWindowsX8664) Cflags() string {
-	return "${config.WindowsClangCflags} ${config.WindowsX8664ClangCflags}"
+	return "${config.WindowsCflags} ${config.WindowsX8664Cflags}"
 }
 
 func (t *toolchainWindowsX86) Cppflags() string {
-	return "${config.WindowsClangCppflags} ${config.WindowsX86ClangCppflags}"
+	return "${config.WindowsCppflags} ${config.WindowsX86Cppflags}"
 }
 
 func (t *toolchainWindowsX8664) Cppflags() string {
-	return "${config.WindowsClangCppflags} ${config.WindowsX8664ClangCppflags}"
+	return "${config.WindowsCppflags} ${config.WindowsX8664Cppflags}"
 }
 
 func (t *toolchainWindowsX86) Ldflags() string {
-	return "${config.WindowsClangLdflags} ${config.WindowsX86ClangLdflags}"
+	return "${config.WindowsLdflags} ${config.WindowsX86Ldflags}"
 }
 
 func (t *toolchainWindowsX86) Lldflags() string {
-	return "${config.WindowsClangLldflags} ${config.WindowsX86ClangLldflags}"
+	return "${config.WindowsLldflags} ${config.WindowsX86Lldflags}"
 }
 
 func (t *toolchainWindowsX8664) Ldflags() string {
-	return "${config.WindowsClangLdflags} ${config.WindowsX8664ClangLdflags}"
+	return "${config.WindowsLdflags} ${config.WindowsX8664Ldflags}"
 }
 
 func (t *toolchainWindowsX8664) Lldflags() string {
-	return "${config.WindowsClangLldflags} ${config.WindowsX8664ClangLldflags}"
+	return "${config.WindowsLldflags} ${config.WindowsX8664Lldflags}"
 }
 
 func (t *toolchainWindowsX86) YasmFlags() string {

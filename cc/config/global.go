@@ -241,9 +241,9 @@ func init() {
 	exportStringListStaticVariable("HostGlobalLdflags", hostGlobalLdflags)
 	exportStringListStaticVariable("HostGlobalLldflags", hostGlobalLldflags)
 
-	// Export the static default CommonClangGlobalCflags to Bazel.
+	// Export the static default CommonGlobalCflags to Bazel.
 	// TODO(187086342): handle cflags that are set in VariableFuncs.
-	commonClangGlobalCFlags := append(
+	bazelCommonGlobalCflags := append(
 		commonGlobalCflags,
 		[]string{
 			"${ClangExtraCflags}",
@@ -251,9 +251,9 @@ func init() {
 			"-ftrivial-auto-var-init=zero",
 			"-enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clang",
 		}...)
-	exportedStringListVars.Set("CommonClangGlobalCflags", commonClangGlobalCFlags)
+	exportedStringListVars.Set("CommonGlobalCflags", bazelCommonGlobalCflags)
 
-	pctx.VariableFunc("CommonClangGlobalCflags", func(ctx android.PackageVarContext) string {
+	pctx.VariableFunc("CommonGlobalCflags", func(ctx android.PackageVarContext) string {
 		flags := commonGlobalCflags
 		flags = append(flags, "${ClangExtraCflags}")
 
@@ -273,18 +273,18 @@ func init() {
 		return strings.Join(flags, " ")
 	})
 
-	// Export the static default DeviceClangGlobalCflags to Bazel.
+	// Export the static default DeviceGlobalCflags to Bazel.
 	// TODO(187086342): handle cflags that are set in VariableFuncs.
-	exportedStringListVars.Set("DeviceClangGlobalCflags", deviceGlobalCflags)
+	exportedStringListVars.Set("DeviceGlobalCflags", deviceGlobalCflags)
 
-	pctx.VariableFunc("DeviceClangGlobalCflags", func(ctx android.PackageVarContext) string {
+	pctx.VariableFunc("DeviceGlobalCflags", func(ctx android.PackageVarContext) string {
 		return strings.Join(deviceGlobalCflags, " ")
 	})
 
-	exportStringListStaticVariable("HostClangGlobalCflags", hostGlobalCflags)
-	exportStringListStaticVariable("NoOverrideClangGlobalCflags", noOverrideGlobalCflags)
-	exportStringListStaticVariable("CommonClangGlobalCppflags", commonGlobalCppflags)
-	exportStringListStaticVariable("ClangExternalCflags", extraExternalCflags)
+	exportStringListStaticVariable("HostGlobalCflags", hostGlobalCflags)
+	exportStringListStaticVariable("NoOverrideGlobalCflags", noOverrideGlobalCflags)
+	exportStringListStaticVariable("CommonGlobalCppflags", commonGlobalCppflags)
+	exportStringListStaticVariable("ExternalCflags", extraExternalCflags)
 
 	// Everything in these lists is a crime against abstraction and dependency tracking.
 	// Do not add anything to this list.
