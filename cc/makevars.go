@@ -212,13 +212,13 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 	ctx.StrictRaw(makePrefix+"C_SYSTEM_INCLUDES", strings.Join(systemIncludes, " "))
 
 	if target.Arch.ArchType == android.Arm {
-		flags, err := toolchain.ClangInstructionSetFlags("arm")
+		flags, err := toolchain.InstructionSetFlags("arm")
 		if err != nil {
 			panic(err)
 		}
 		ctx.Strict(makePrefix+"arm_CFLAGS", flags)
 
-		flags, err = toolchain.ClangInstructionSetFlags("thumb")
+		flags, err = toolchain.InstructionSetFlags("thumb")
 		if err != nil {
 			panic(err)
 		}
@@ -230,29 +230,29 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 
 	ctx.Strict(clangPrefix+"TRIPLE", toolchain.ClangTriple())
 	ctx.Strict(clangPrefix+"GLOBAL_CFLAGS", strings.Join([]string{
-		toolchain.ClangCflags(),
+		toolchain.Cflags(),
 		"${config.CommonClangGlobalCflags}",
 		fmt.Sprintf("${config.%sClangGlobalCflags}", hod),
-		toolchain.ToolchainClangCflags(),
+		toolchain.ToolchainCflags(),
 		clangExtras,
 		productExtraCflags,
 	}, " "))
 	ctx.Strict(clangPrefix+"GLOBAL_CPPFLAGS", strings.Join([]string{
 		"${config.CommonClangGlobalCppflags}",
 		fmt.Sprintf("${config.%sGlobalCppflags}", hod),
-		toolchain.ClangCppflags(),
+		toolchain.Cppflags(),
 	}, " "))
 	ctx.Strict(clangPrefix+"GLOBAL_LDFLAGS", strings.Join([]string{
 		fmt.Sprintf("${config.%sGlobalLdflags}", hod),
-		toolchain.ClangLdflags(),
-		toolchain.ToolchainClangLdflags(),
+		toolchain.Ldflags(),
+		toolchain.ToolchainLdflags(),
 		productExtraLdflags,
 		clangExtras,
 	}, " "))
 	ctx.Strict(clangPrefix+"GLOBAL_LLDFLAGS", strings.Join([]string{
 		fmt.Sprintf("${config.%sGlobalLldflags}", hod),
-		toolchain.ClangLldflags(),
-		toolchain.ToolchainClangLdflags(),
+		toolchain.Lldflags(),
+		toolchain.ToolchainLdflags(),
 		productExtraLdflags,
 		clangExtras,
 	}, " "))

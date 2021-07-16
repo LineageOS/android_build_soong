@@ -42,47 +42,31 @@ func (t *toolchainFuchsiaArm64) GccVersion() string {
 	return arm64GccVersion
 }
 
-func (t *toolchainFuchsiaArm64) Cflags() string {
-	return ""
-}
-
-func (t *toolchainFuchsiaArm64) Cppflags() string {
-	return ""
-}
-
-func (t *toolchainFuchsiaArm64) Ldflags() string {
-	return "-Wl,--fix-cortex-a53-843419"
-}
-
 func (t *toolchainFuchsiaArm64) IncludeFlags() string {
 	return ""
-}
-
-func (t *toolchainFuchsiaArm64) ToolchainCflags() string {
-	return "-mcpu=cortex-a53"
 }
 
 func (t *toolchainFuchsiaArm64) ClangTriple() string {
 	return "arm64-fuchsia-android"
 }
 
-func (t *toolchainFuchsiaArm64) ClangCppflags() string {
+func (t *toolchainFuchsiaArm64) Cppflags() string {
 	return "-Wno-error=deprecated-declarations"
 }
 
-func (t *toolchainFuchsiaArm64) ClangLdflags() string {
+func (t *toolchainFuchsiaArm64) Ldflags() string {
 	return "--target=arm64-fuchsia --sysroot=" + fuchsiaArm64SysRoot + " -L" + fuchsiaArm64PrebuiltLibsRoot + "/aarch64-fuchsia/lib " + "-Lprebuilts/fuchsia_sdk/arch/arm64/dist/"
 }
 
-func (t *toolchainFuchsiaArm64) ClangLldflags() string {
+func (t *toolchainFuchsiaArm64) Lldflags() string {
 	return "--target=arm64-fuchsia --sysroot=" + fuchsiaArm64SysRoot + " -L" + fuchsiaArm64PrebuiltLibsRoot + "/aarch64-fuchsia/lib " + "-Lprebuilts/fuchsia_sdk/arch/arm64/dist/"
 }
 
-func (t *toolchainFuchsiaArm64) ClangCflags() string {
+func (t *toolchainFuchsiaArm64) Cflags() string {
 	return "--target=arm64-fuchsia --sysroot=" + fuchsiaArm64SysRoot + " -I" + fuchsiaArm64SysRoot + "/include"
 }
 
-func (t *toolchainFuchsiaArm64) ToolchainClangCflags() string {
+func (t *toolchainFuchsiaArm64) ToolchainCflags() string {
 	return "-march=armv8-a"
 }
 
