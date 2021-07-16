@@ -19,23 +19,24 @@ import (
 )
 
 func TestIsThirdParty(t *testing.T) {
-	shouldFail := []string{
+	thirdPartyPaths := []string{
 		"external/foo/",
 		"vendor/bar/",
 		"hardware/underwater_jaguar/",
 	}
-	shouldPass := []string{
+	nonThirdPartyPaths := []string{
 		"vendor/google/cts/",
 		"hardware/google/pixel",
 		"hardware/interfaces/camera",
 		"hardware/ril/supa_ril",
+		"bionic/libc",
 	}
-	for _, path := range shouldFail {
+	for _, path := range thirdPartyPaths {
 		if !isThirdParty(path) {
 			t.Errorf("Expected %s to be considered third party", path)
 		}
 	}
-	for _, path := range shouldPass {
+	for _, path := range nonThirdPartyPaths {
 		if isThirdParty(path) {
 			t.Errorf("Expected %s to *not* be considered third party", path)
 		}
