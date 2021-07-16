@@ -1245,37 +1245,43 @@ func replaceInList(list []string, oldstr, newstr string) {
 	}
 }
 
-// Returns a map of module names of shared library dependencies to the paths
-// to their dex jars on host and on device.
+// Returns a map of module names of shared library dependencies to the paths to their dex jars on
+// host and on device.
 func (u *usesLibrary) classLoaderContextForUsesLibDeps(ctx android.ModuleContext) dexpreopt.ClassLoaderContextMap {
 	clcMap := make(dexpreopt.ClassLoaderContextMap)
-	// Skip when UnbundledBuild() is true, but UnbundledBuildImage() is false.
-	// Added UnbundledBuildImage() condition to generate dexpreopt.config even though unbundled image is built.
-	if !ctx.Config().UnbundledBuild() || ctx.Config().UnbundledBuildImage() {
-		ctx.VisitDirectDeps(func(m android.Module) {
-			if tag, ok := ctx.OtherModuleDependencyTag(m).(usesLibraryDependencyTag); ok {
-				dep := ctx.OtherModuleName(m)
-				if lib, ok := m.(UsesLibraryDependency); ok {
-					libName := android.RemoveOptionalPrebuiltPrefix(dep)
-					if ulib, ok := m.(ProvidesUsesLib); ok && ulib.ProvidesUsesLib() != nil {
-						libName = android.RemoveOptionalPrebuiltPrefix(*ulib.ProvidesUsesLib())
-						// Replace module name with library name in `uses_libs`/`optional_uses_libs`
-						// in order to pass verify_uses_libraries check (which compares these
-						// properties against library names written in the manifest).
-						replaceInList(u.usesLibraryProperties.Uses_libs, dep, libName)
-						replaceInList(u.usesLibraryProperties.Optional_uses_libs, dep, libName)
-					}
-					clcMap.AddContext(ctx, tag.sdkVersion, libName,
-						lib.DexJarBuildPath(), lib.DexJarInstallPath(), lib.ClassLoaderContexts())
-				} else if ctx.Config().AllowMissingDependencies() {
-					ctx.AddMissingDependencies([]string{dep})
-				} else {
-					ctx.ModuleErrorf("module %q in uses_libs or optional_uses_libs must be a java library", dep)
-				}
-			}
-		})
+
+	// Skip when UnbundledBuild() is true, but UnbundledBuildImage() is false. With
+	// UnbundledBuildImage() it is necessary to generate dexpreopt.config for post-dexpreopting.
+	if ctx.Config().UnbundledBuild() && !ctx.Config().UnbundledBuildImage() {
+		return clcMap
 	}
 
+	ctx.VisitDirectDeps(func(m android.Module) {
+		tag, isUsesLibTag := ctx.OtherModuleDependencyTag(m).(usesLibraryDependencyTag)
+		if !isUsesLibTag {
+			return
+		}
+
+		dep := ctx.OtherModuleName(m)
+
+		if lib, ok := m.(UsesLibraryDependency); ok {
+			libName := android.RemoveOptionalPrebuiltPrefix(dep)
+			if ulib, ok := m.(ProvidesUsesLib); ok && ulib.ProvidesUsesLib() != nil {
+				libName = android.RemoveOptionalPrebuiltPrefix(*ulib.ProvidesUsesLib())
+				// Replace module name with library name in `uses_libs`/`optional_uses_libs` in
+				// order to pass verify_uses_libraries check (which compares these properties
+				// against library names written in the manifest).
+				replaceInList(u.usesLibraryProperties.Uses_libs, dep, libName)
+				replaceInList(u.usesLibraryProperties.Optional_uses_libs, dep, libName)
+			}
+			clcMap.AddContext(ctx, tag.sdkVersion, libName,
+				lib.DexJarBuildPath(), lib.DexJarInstallPath(), lib.ClassLoaderContexts())
+		} else if ctx.Config().AllowMissingDependencies() {
+			ctx.AddMissingDependencies([]string{dep})
+		} else {
+			ctx.ModuleErrorf("module %q in uses_libs or optional_uses_libs must be a java library", dep)
+		}
+	})
 	return clcMap
 }
 
