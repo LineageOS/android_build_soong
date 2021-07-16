@@ -1264,6 +1264,15 @@ func (u *usesLibrary) classLoaderContextForUsesLibDeps(ctx android.ModuleContext
 
 		dep := android.RemoveOptionalPrebuiltPrefix(ctx.OtherModuleName(m))
 
+		// Skip stub libraries. A dependency on the implementation library has been added earlier,
+		// so it will be added to CLC, but the stub shouldn't be. Stub libraries can be distingushed
+		// from implementation libraries by their name, which is different as it has a suffix.
+		if comp, ok := m.(SdkLibraryComponentDependency); ok {
+			if impl := comp.OptionalSdkLibraryImplementation(); impl != nil && *impl != dep {
+				return
+			}
+		}
+
 		if lib, ok := m.(UsesLibraryDependency); ok {
 			libName := dep
 			if ulib, ok := m.(ProvidesUsesLib); ok && ulib.ProvidesUsesLib() != nil {
