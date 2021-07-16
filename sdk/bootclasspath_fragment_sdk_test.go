@@ -346,6 +346,7 @@ java_import {
     visibility: ["//visibility:public"],
     apex_available: ["myapex"],
     jars: ["java/mybootlib.jar"],
+    permitted_packages: ["mybootlib"],
 }
 
 java_sdk_library_import {
@@ -355,6 +356,7 @@ java_sdk_library_import {
     apex_available: ["myapex"],
     shared_library: true,
     compile_dex: true,
+    permitted_packages: ["myothersdklibrary"],
     public: {
         jars: ["sdk_library/public/myothersdklibrary-stubs.jar"],
         stub_srcs: ["sdk_library/public/myothersdklibrary_stub_sources"],
@@ -428,6 +430,7 @@ java_import {
     visibility: ["//visibility:public"],
     apex_available: ["myapex"],
     jars: ["java/mybootlib.jar"],
+    permitted_packages: ["mybootlib"],
 }
 
 java_sdk_library_import {
@@ -437,6 +440,7 @@ java_sdk_library_import {
     apex_available: ["myapex"],
     shared_library: true,
     compile_dex: true,
+    permitted_packages: ["myothersdklibrary"],
     public: {
         jars: ["sdk_library/public/myothersdklibrary-stubs.jar"],
         stub_srcs: ["sdk_library/public/myothersdklibrary_stub_sources"],
@@ -528,6 +532,12 @@ sdk_snapshot {
 				out/soong/.intermediates/frameworks/base/boot/platform-bootclasspath/android_common/hiddenapi-monolithic/index-from-classes.csv
         snapshot/hiddenapi/index.csv
 			`, rule)
+
+			// Make sure that the permitted packages from the prebuilts end up in the
+			// updatable-bcp-packages.txt file.
+			rule = module.Output("updatable-bcp-packages.txt")
+			expectedContents := `'mybootlib\nmyothersdklibrary\n'`
+			android.AssertStringEquals(t, "updatable-bcp-packages.txt", expectedContents, rule.Args["content"])
 		}),
 		snapshotTestPreparer(checkSnapshotWithSourcePreferred, preparerForSnapshot),
 		snapshotTestPreparer(checkSnapshotPreferredWithSource, preparerForSnapshot),
@@ -798,6 +808,7 @@ func TestSnapshotWithBootclasspathFragment_HiddenAPI(t *testing.T) {
 				srcs: ["Test.java"],
 				compile_dex: true,
 				public: {enabled: true},
+				permitted_packages: ["mysdklibrary"],
 			}
 		`),
 	).RunTest(t)
@@ -841,6 +852,7 @@ java_import {
     visibility: ["//visibility:public"],
     apex_available: ["myapex"],
     jars: ["java/mybootlib.jar"],
+    permitted_packages: ["mybootlib"],
 }
 
 java_sdk_library_import {
@@ -850,6 +862,7 @@ java_sdk_library_import {
     apex_available: ["//apex_available:platform"],
     shared_library: true,
     compile_dex: true,
+    permitted_packages: ["mysdklibrary"],
     public: {
         jars: ["sdk_library/public/mysdklibrary-stubs.jar"],
         stub_srcs: ["sdk_library/public/mysdklibrary_stub_sources"],

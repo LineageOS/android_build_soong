@@ -179,7 +179,7 @@ func (r *robolectricTest) GenerateAndroidBuildActions(ctx android.ModuleContext)
 			continue
 		} else if strings.HasSuffix(s, "/BaseRobolectricTest.java") {
 			continue
-		} else if strings.HasPrefix(s, "src/") {
+		} else {
 			s = strings.TrimPrefix(s, "src/")
 		}
 		r.tests = append(r.tests, s)

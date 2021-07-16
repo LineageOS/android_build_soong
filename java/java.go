@@ -21,7 +21,6 @@ package java
 import (
 	"fmt"
 	"path/filepath"
-	"strings"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
@@ -581,6 +580,10 @@ type librarySdkMemberProperties struct {
 
 	JarToExport     android.Path `android:"arch_variant"`
 	AidlIncludeDirs android.Paths
+
+	// The list of permitted packages that need to be passed to the prebuilts as they are used to
+	// create the updatable-bcp-packages.txt file.
+	PermittedPackages []string
 }
 
 func (p *librarySdkMemberProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.Module) {
@@ -589,6 +592,8 @@ func (p *librarySdkMemberProperties) PopulateFromVariant(ctx android.SdkMemberCo
 	p.JarToExport = ctx.MemberType().(*librarySdkMemberType).jarToExportGetter(ctx, j)
 
 	p.AidlIncludeDirs = j.AidlIncludeDirs()
+
+	p.PermittedPackages = j.PermittedPackagesForUpdatableBootJars()
 }
 
 func (p *librarySdkMemberProperties) AddToPropertySet(ctx android.SdkMemberContext, propertySet android.BpPropertySet) {
@@ -605,6 +610,10 @@ func (p *librarySdkMemberProperties) AddToPropertySet(ctx android.SdkMemberConte
 		builder.CopyToSnapshot(exportedJar, snapshotRelativeJavaLibPath)
 
 		propertySet.AddProperty("jars", []string{snapshotRelativeJavaLibPath})
+	}
+
+	if len(p.PermittedPackages) > 0 {
+		propertySet.AddProperty("permitted_packages", p.PermittedPackages)
 	}
 
 	// Do not copy anything else to the snapshot.
@@ -1127,6 +1136,10 @@ type ImportProperties struct {
 
 	Installable *bool
 
+	// If not empty, classes are restricted to the specified packages and their sub-packages.
+	// This information is used to generate the updatable-bcp-packages.txt file.
+	Permitted_packages []string
+
 	// List of shared java libs that this module has dependencies to
 	Libs []string
 
@@ -1177,6 +1190,12 @@ type Import struct {
 
 	sdkVersion    android.SdkSpec
 	minSdkVersion android.SdkSpec
+}
+
+var _ PermittedPackagesForUpdatableBootJars = (*Import)(nil)
+
+func (j *Import) PermittedPackagesForUpdatableBootJars() []string {
+	return j.properties.Permitted_packages
 }
 
 func (j *Import) SdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
@@ -1465,11 +1484,7 @@ func (j *Import) IDECustomizedModuleName() string {
 	// TODO(b/113562217): Extract the base module name from the Import name, often the Import name
 	// has a prefix "prebuilt_". Remove the prefix explicitly if needed until we find a better
 	// solution to get the Import name.
-	name := j.Name()
-	if strings.HasPrefix(name, removedPrefix) {
-		name = strings.TrimPrefix(name, removedPrefix)
-	}
-	return name
+	return android.RemoveOptionalPrebuiltPrefix(j.Name())
 }
 
 var _ android.PrebuiltInterface = (*Import)(nil)
