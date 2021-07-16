@@ -82,14 +82,14 @@ type Toolchain interface {
 	IncludeFlags() string
 
 	ClangTriple() string
-	ToolchainClangCflags() string
-	ToolchainClangLdflags() string
-	ClangAsflags() string
-	ClangCflags() string
-	ClangCppflags() string
-	ClangLdflags() string
-	ClangLldflags() string
-	ClangInstructionSetFlags(string) (string, error)
+	ToolchainCflags() string
+	ToolchainLdflags() string
+	Asflags() string
+	Cflags() string
+	Cppflags() string
+	Ldflags() string
+	Lldflags() string
+	InstructionSetFlags(string) (string, error)
 
 	ndkTriple() string
 
@@ -136,18 +136,18 @@ func NDKTriple(toolchain Toolchain) string {
 	return triple
 }
 
-func (toolchainBase) ClangInstructionSetFlags(s string) (string, error) {
+func (toolchainBase) InstructionSetFlags(s string) (string, error) {
 	if s != "" {
 		return "", fmt.Errorf("instruction_set: %s is not a supported instruction set", s)
 	}
 	return "", nil
 }
 
-func (toolchainBase) ToolchainClangCflags() string {
+func (toolchainBase) ToolchainCflags() string {
 	return ""
 }
 
-func (toolchainBase) ToolchainClangLdflags() string {
+func (toolchainBase) ToolchainLdflags() string {
 	return ""
 }
 
@@ -159,7 +159,7 @@ func (toolchainBase) ExecutableSuffix() string {
 	return ""
 }
 
-func (toolchainBase) ClangAsflags() string {
+func (toolchainBase) Asflags() string {
 	return ""
 }
 

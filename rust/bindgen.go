@@ -144,8 +144,8 @@ func (b *bindgenDecorator) GenerateSource(ctx ModuleContext, deps PathDeps) andr
 
 	// Toolchain clang flags
 	cflags = append(cflags, "-target "+ccToolchain.ClangTriple())
-	cflags = append(cflags, strings.ReplaceAll(ccToolchain.ClangCflags(), "${config.", "${cc_config."))
-	cflags = append(cflags, strings.ReplaceAll(ccToolchain.ToolchainClangCflags(), "${config.", "${cc_config."))
+	cflags = append(cflags, strings.ReplaceAll(ccToolchain.Cflags(), "${config.", "${cc_config."))
+	cflags = append(cflags, strings.ReplaceAll(ccToolchain.ToolchainCflags(), "${config.", "${cc_config."))
 
 	// Dependency clang flags and include paths
 	cflags = append(cflags, deps.depClangFlags...)

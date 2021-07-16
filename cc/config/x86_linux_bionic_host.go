@@ -21,9 +21,7 @@ import (
 )
 
 var (
-	linuxBionicCflags = ClangFilterUnknownCflags([]string{
-		"-fdiagnostics-color",
-
+	linuxBionicCflags = []string{
 		"-Wa,--noexecstack",
 
 		"-fPIC",
@@ -34,21 +32,17 @@ var (
 
 		// From x86_64_device
 		"-ffunction-sections",
-		"-finline-functions",
-		"-finline-limit=300",
 		"-fno-short-enums",
-		"-funswitch-loops",
 		"-funwind-tables",
-		"-fno-canonical-system-headers",
 
 		// Tell clang where the gcc toolchain is
 		"--gcc-toolchain=${LinuxBionicGccRoot}",
 
 		// This is normally in ClangExtraTargetCflags, but this is considered host
 		"-nostdlibinc",
-	})
+	}
 
-	linuxBionicLdflags = ClangFilterUnknownCflags([]string{
+	linuxBionicLdflags = []string{
 		"-Wl,-z,noexecstack",
 		"-Wl,-z,relro",
 		"-Wl,-z,now",
@@ -60,9 +54,7 @@ var (
 
 		// Use the device gcc toolchain
 		"--gcc-toolchain=${LinuxBionicGccRoot}",
-	})
-
-	linuxBionicLldflags = ClangFilterUnknownLldflags(linuxBionicLdflags)
+	}
 
 	// Embed the linker into host bionic binaries. This is needed to support host bionic,
 	// as the linux kernel requires that the ELF interpreter referenced by PT_INTERP be
@@ -78,7 +70,7 @@ var (
 func init() {
 	pctx.StaticVariable("LinuxBionicCflags", strings.Join(linuxBionicCflags, " "))
 	pctx.StaticVariable("LinuxBionicLdflags", strings.Join(linuxBionicLdflags, " "))
-	pctx.StaticVariable("LinuxBionicLldflags", strings.Join(linuxBionicLldflags, " "))
+	pctx.StaticVariable("LinuxBionicLldflags", strings.Join(linuxBionicLdflags, " "))
 
 	// Use the device gcc toolchain for now
 	pctx.StaticVariable("LinuxBionicGccRoot", "${X86_64GccRoot}")
@@ -114,29 +106,29 @@ func (t *toolchainLinuxBionic) ClangTriple() string {
 	return "x86_64-linux-android"
 }
 
-func (t *toolchainLinuxBionic) ClangCflags() string {
+func (t *toolchainLinuxBionic) Cflags() string {
 	return "${config.LinuxBionicCflags}"
 }
 
-func (t *toolchainLinuxBionic) ClangCppflags() string {
+func (t *toolchainLinuxBionic) Cppflags() string {
 	return ""
 }
 
-func (t *toolchainLinuxBionic) ClangLdflags() string {
+func (t *toolchainLinuxBionic) Ldflags() string {
 	return "${config.LinuxBionicLdflags}"
 }
 
-func (t *toolchainLinuxBionic) ClangLldflags() string {
+func (t *toolchainLinuxBionic) Lldflags() string {
 	return "${config.LinuxBionicLldflags}"
 }
 
-func (t *toolchainLinuxBionic) ToolchainClangCflags() string {
+func (t *toolchainLinuxBionic) ToolchainCflags() string {
 	return "-m64 -march=x86-64" +
 		// TODO: We're not really android, but we don't have a triple yet b/31393676
 		" -U__ANDROID__"
 }
 
-func (t *toolchainLinuxBionic) ToolchainClangLdflags() string {
+func (t *toolchainLinuxBionic) ToolchainLdflags() string {
 	return "-m64"
 }
 

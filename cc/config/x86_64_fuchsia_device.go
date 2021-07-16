@@ -46,18 +46,6 @@ func (t *toolchainFuchsiaX8664) GccVersion() string {
 	return x86_64GccVersion
 }
 
-func (t *toolchainFuchsiaX8664) Cflags() string {
-	return ""
-}
-
-func (t *toolchainFuchsiaX8664) Cppflags() string {
-	return ""
-}
-
-func (t *toolchainFuchsiaX8664) Ldflags() string {
-	return ""
-}
-
 func (t *toolchainFuchsiaX8664) IncludeFlags() string {
 	return ""
 }
@@ -66,20 +54,20 @@ func (t *toolchainFuchsiaX8664) ClangTriple() string {
 	return "x86_64-fuchsia-android"
 }
 
-func (t *toolchainFuchsiaX8664) ClangCppflags() string {
+func (t *toolchainFuchsiaX8664) Cppflags() string {
 	return "-Wno-error=deprecated-declarations"
 }
 
-func (t *toolchainFuchsiaX8664) ClangLdflags() string {
+func (t *toolchainFuchsiaX8664) Ldflags() string {
 	return "--target=x86_64-fuchsia --sysroot=" + fuchsiaSysRoot + " -L" + fuchsiaPrebuiltLibsRoot + "/x86_64-fuchsia/lib " + "-Lprebuilts/fuchsia_sdk/arch/x64/dist/"
 
 }
 
-func (t *toolchainFuchsiaX8664) ClangLldflags() string {
+func (t *toolchainFuchsiaX8664) Lldflags() string {
 	return "--target=x86_64-fuchsia --sysroot=" + fuchsiaSysRoot + " -L" + fuchsiaPrebuiltLibsRoot + "/x86_64-fuchsia/lib " + "-Lprebuilts/fuchsia_sdk/arch/x64/dist/"
 }
 
-func (t *toolchainFuchsiaX8664) ClangCflags() string {
+func (t *toolchainFuchsiaX8664) Cflags() string {
 	return "--target=x86_64-fuchsia --sysroot=" + fuchsiaSysRoot + " -I" + fuchsiaSysRoot + "/include"
 }
 
@@ -87,7 +75,7 @@ func (t *toolchainFuchsiaX8664) YasmFlags() string {
 	return "-f elf64 -m amd64"
 }
 
-func (t *toolchainFuchsiaX8664) ToolchainClangCflags() string {
+func (t *toolchainFuchsiaX8664) ToolchainCflags() string {
 	return "-mssse3"
 }
 
