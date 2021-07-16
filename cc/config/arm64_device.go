@@ -99,50 +99,50 @@ func init() {
 	pctx.StaticVariable("Arm64Ldflags", strings.Join(arm64Ldflags, " "))
 	pctx.StaticVariable("Arm64Lldflags", strings.Join(arm64Lldflags, " "))
 
-	pctx.StaticVariable("Arm64ClangCflags", strings.Join(arm64Cflags, " "))
-	pctx.StaticVariable("Arm64ClangCppflags", strings.Join(arm64Cppflags, " "))
+	pctx.StaticVariable("Arm64Cflags", strings.Join(arm64Cflags, " "))
+	pctx.StaticVariable("Arm64Cppflags", strings.Join(arm64Cppflags, " "))
 
-	pctx.StaticVariable("Arm64ClangArmv8ACflags", strings.Join(arm64ArchVariantCflags["armv8-a"], " "))
-	pctx.StaticVariable("Arm64ClangArmv8ABranchProtCflags", strings.Join(arm64ArchVariantCflags["armv8-a-branchprot"], " "))
-	pctx.StaticVariable("Arm64ClangArmv82ACflags", strings.Join(arm64ArchVariantCflags["armv8-2a"], " "))
-	pctx.StaticVariable("Arm64ClangArmv82ADotprodCflags", strings.Join(arm64ArchVariantCflags["armv8-2a-dotprod"], " "))
+	pctx.StaticVariable("Arm64Armv8ACflags", strings.Join(arm64ArchVariantCflags["armv8-a"], " "))
+	pctx.StaticVariable("Arm64Armv8ABranchProtCflags", strings.Join(arm64ArchVariantCflags["armv8-a-branchprot"], " "))
+	pctx.StaticVariable("Arm64Armv82ACflags", strings.Join(arm64ArchVariantCflags["armv8-2a"], " "))
+	pctx.StaticVariable("Arm64Armv82ADotprodCflags", strings.Join(arm64ArchVariantCflags["armv8-2a-dotprod"], " "))
 
-	pctx.StaticVariable("Arm64ClangCortexA53Cflags",
+	pctx.StaticVariable("Arm64CortexA53Cflags",
 		strings.Join(arm64CpuVariantCflags["cortex-a53"], " "))
 
-	pctx.StaticVariable("Arm64ClangCortexA55Cflags",
+	pctx.StaticVariable("Arm64CortexA55Cflags",
 		strings.Join(arm64CpuVariantCflags["cortex-a55"], " "))
 
-	pctx.StaticVariable("Arm64ClangKryoCflags",
+	pctx.StaticVariable("Arm64KryoCflags",
 		strings.Join(arm64CpuVariantCflags["kryo"], " "))
 
-	pctx.StaticVariable("Arm64ClangExynosM1Cflags",
+	pctx.StaticVariable("Arm64ExynosM1Cflags",
 		strings.Join(arm64CpuVariantCflags["exynos-m1"], " "))
 
-	pctx.StaticVariable("Arm64ClangExynosM2Cflags",
+	pctx.StaticVariable("Arm64ExynosM2Cflags",
 		strings.Join(arm64CpuVariantCflags["exynos-m2"], " "))
 }
 
 var (
 	arm64ArchVariantCflagsVar = map[string]string{
-		"armv8-a":            "${config.Arm64ClangArmv8ACflags}",
-		"armv8-a-branchprot": "${config.Arm64ClangArmv8ABranchProtCflags}",
-		"armv8-2a":           "${config.Arm64ClangArmv82ACflags}",
-		"armv8-2a-dotprod":   "${config.Arm64ClangArmv82ADotprodCflags}",
+		"armv8-a":            "${config.Arm64Armv8ACflags}",
+		"armv8-a-branchprot": "${config.Arm64Armv8ABranchProtCflags}",
+		"armv8-2a":           "${config.Arm64Armv82ACflags}",
+		"armv8-2a-dotprod":   "${config.Arm64Armv82ADotprodCflags}",
 	}
 
 	arm64CpuVariantCflagsVar = map[string]string{
 		"":           "",
-		"cortex-a53": "${config.Arm64ClangCortexA53Cflags}",
-		"cortex-a55": "${config.Arm64ClangCortexA55Cflags}",
-		"cortex-a72": "${config.Arm64ClangCortexA53Cflags}",
-		"cortex-a73": "${config.Arm64ClangCortexA53Cflags}",
-		"cortex-a75": "${config.Arm64ClangCortexA55Cflags}",
-		"cortex-a76": "${config.Arm64ClangCortexA55Cflags}",
-		"kryo":       "${config.Arm64ClangKryoCflags}",
-		"kryo385":    "${config.Arm64ClangCortexA53Cflags}",
-		"exynos-m1":  "${config.Arm64ClangExynosM1Cflags}",
-		"exynos-m2":  "${config.Arm64ClangExynosM2Cflags}",
+		"cortex-a53": "${config.Arm64CortexA53Cflags}",
+		"cortex-a55": "${config.Arm64CortexA55Cflags}",
+		"cortex-a72": "${config.Arm64CortexA53Cflags}",
+		"cortex-a73": "${config.Arm64CortexA53Cflags}",
+		"cortex-a75": "${config.Arm64CortexA55Cflags}",
+		"cortex-a76": "${config.Arm64CortexA55Cflags}",
+		"kryo":       "${config.Arm64KryoCflags}",
+		"kryo385":    "${config.Arm64CortexA53Cflags}",
+		"exynos-m1":  "${config.Arm64ExynosM1Cflags}",
+		"exynos-m2":  "${config.Arm64ExynosM2Cflags}",
 	}
 )
 
@@ -180,11 +180,11 @@ func (t *toolchainArm64) ClangTriple() string {
 }
 
 func (t *toolchainArm64) Cflags() string {
-	return "${config.Arm64ClangCflags}"
+	return "${config.Arm64Cflags}"
 }
 
 func (t *toolchainArm64) Cppflags() string {
-	return "${config.Arm64ClangCppflags}"
+	return "${config.Arm64Cppflags}"
 }
 
 func (t *toolchainArm64) Ldflags() string {

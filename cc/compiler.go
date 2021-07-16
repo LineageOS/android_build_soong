@@ -438,14 +438,14 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 	flags.Global.CppFlags = append([]string{fmt.Sprintf("${config.%sGlobalCppflags}", hod)}, flags.Global.CppFlags...)
 
 	flags.Global.AsFlags = append(flags.Global.AsFlags, tc.Asflags())
-	flags.Global.CppFlags = append([]string{"${config.CommonClangGlobalCppflags}"}, flags.Global.CppFlags...)
+	flags.Global.CppFlags = append([]string{"${config.CommonGlobalCppflags}"}, flags.Global.CppFlags...)
 	flags.Global.CommonFlags = append(flags.Global.CommonFlags,
 		tc.Cflags(),
-		"${config.CommonClangGlobalCflags}",
-		fmt.Sprintf("${config.%sClangGlobalCflags}", hod))
+		"${config.CommonGlobalCflags}",
+		fmt.Sprintf("${config.%sGlobalCflags}", hod))
 
 	if isThirdParty(modulePath) {
-		flags.Global.CommonFlags = append(flags.Global.CommonFlags, "${config.ClangExternalCflags}")
+		flags.Global.CommonFlags = append(flags.Global.CommonFlags, "${config.ExternalCflags}")
 	}
 
 	if tc.Bionic() {

@@ -103,8 +103,8 @@ func init() {
 	pctx.StaticVariable("X86_64Lldflags", strings.Join(x86_64Ldflags, " "))
 
 	// Clang cflags
-	pctx.StaticVariable("X86_64ClangCflags", strings.Join(x86_64Cflags, " "))
-	pctx.StaticVariable("X86_64ClangCppflags", strings.Join(x86_64Cppflags, " "))
+	pctx.StaticVariable("X86_64Cflags", strings.Join(x86_64Cflags, " "))
+	pctx.StaticVariable("X86_64Cppflags", strings.Join(x86_64Cppflags, " "))
 
 	// Yasm flags
 	pctx.StaticVariable("X86_64YasmFlags", "-f elf64 -m amd64")
@@ -113,7 +113,7 @@ func init() {
 
 	// Architecture variant cflags
 	for variant, cflags := range x86_64ArchVariantCflags {
-		pctx.StaticVariable("X86_64"+variant+"VariantClangCflags",
+		pctx.StaticVariable("X86_64"+variant+"VariantCflags",
 			strings.Join(cflags, " "))
 	}
 }
@@ -157,11 +157,11 @@ func (t *toolchainX86_64) ToolchainCflags() string {
 }
 
 func (t *toolchainX86_64) Cflags() string {
-	return "${config.X86_64ClangCflags}"
+	return "${config.X86_64Cflags}"
 }
 
 func (t *toolchainX86_64) Cppflags() string {
-	return "${config.X86_64ClangCppflags}"
+	return "${config.X86_64Cppflags}"
 }
 
 func (t *toolchainX86_64) Ldflags() string {
@@ -183,7 +183,7 @@ func (toolchainX86_64) LibclangRuntimeLibraryArch() string {
 func x86_64ToolchainFactory(arch android.Arch) Toolchain {
 	toolchainCflags := []string{
 		"${config.X86_64ToolchainCflags}",
-		"${config.X86_64" + arch.ArchVariant + "VariantClangCflags}",
+		"${config.X86_64" + arch.ArchVariant + "VariantCflags}",
 	}
 
 	for _, feature := range arch.ArchFeatures {
