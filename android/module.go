@@ -2829,9 +2829,10 @@ func SrcIsModule(s string) (module string) {
 	return module
 }
 
-// SrcIsModule decodes module references in the format ":unqualified-name{.tag}" or
-// "//namespace:name{.tag}" into the module name and an empty string for the tag, or empty strings
-// if the input was not a module reference.
+// SrcIsModuleWithTag decodes module references in the format ":unqualified-name{.tag}" or
+// "//namespace:name{.tag}" into the module name and tag, ":unqualified-name" or "//namespace:name"
+// into the module name and an empty string for the tag, or empty strings if the input was not a
+// module reference.
 func SrcIsModuleWithTag(s string) (module, tag string) {
 	if len(s) > 1 {
 		if s[0] == ':' {
@@ -2865,17 +2866,30 @@ func isUnqualifiedModuleName(module string) bool {
 	return strings.IndexByte(module, '/') == -1
 }
 
+// sourceOrOutputDependencyTag is the dependency tag added automatically by pathDepsMutator for any
+// module reference in a property annotated with `android:"path"` or passed to ExtractSourceDeps
+// or ExtractSourcesDeps.
+//
+// If uniquely identifies the dependency that was added as it contains both the module name used to
+// add the dependency as well as the tag. That makes it very simple to find the matching dependency
+// in GetModuleFromPathDep as all it needs to do is find the dependency whose tag matches the tag
+// used to add it. It does not need to check that the module name as returned by one of
+// Module.Name(), BaseModuleContext.OtherModuleName() or ModuleBase.BaseModuleName() matches the
+// name supplied in the tag. That means it does not need to handle differences in module names
+// caused by prebuilt_ prefix, or fully qualified module names.
 type sourceOrOutputDependencyTag struct {
 	blueprint.BaseDependencyTag
+
+	// The name of the module.
+	moduleName string
+
+	// The tag that will be passed to the module's OutputFileProducer.OutputFiles(tag) method.
 	tag string
 }
 
-func sourceOrOutputDepTag(tag string) blueprint.DependencyTag {
-	return sourceOrOutputDependencyTag{tag: tag}
+func sourceOrOutputDepTag(moduleName, tag string) blueprint.DependencyTag {
+	return sourceOrOutputDependencyTag{moduleName: moduleName, tag: tag}
 }
-
-// Deprecated, use IsSourceDepTagWithOutputTag(tag, "") instead.
-var SourceDepTag = sourceOrOutputDepTag("")
 
 // IsSourceDepTag returns true if the supplied blueprint.DependencyTag is one that was used to add
 // dependencies by either ExtractSourceDeps, ExtractSourcesDeps or automatically for properties
@@ -2907,7 +2921,7 @@ func ExtractSourcesDeps(ctx BottomUpMutatorContext, srcFiles []string) {
 				ctx.ModuleErrorf("found source dependency duplicate: %q!", s)
 			} else {
 				set[s] = true
-				ctx.AddDependency(ctx.Module(), sourceOrOutputDepTag(t), m)
+				ctx.AddDependency(ctx.Module(), sourceOrOutputDepTag(m, t), m)
 			}
 		}
 	}
@@ -2920,7 +2934,7 @@ func ExtractSourcesDeps(ctx BottomUpMutatorContext, srcFiles []string) {
 func ExtractSourceDeps(ctx BottomUpMutatorContext, s *string) {
 	if s != nil {
 		if m, t := SrcIsModuleWithTag(*s); m != "" {
-			ctx.AddDependency(ctx.Module(), sourceOrOutputDepTag(t), m)
+			ctx.AddDependency(ctx.Module(), sourceOrOutputDepTag(m, t), m)
 		}
 	}
 }
