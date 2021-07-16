@@ -231,7 +231,7 @@ func (object *objectLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 }
 
 func (object *objectLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
-	flags.Global.LdFlags = append(flags.Global.LdFlags, ctx.toolchain().ToolchainClangLdflags())
+	flags.Global.LdFlags = append(flags.Global.LdFlags, ctx.toolchain().ToolchainLdflags())
 
 	if lds := android.OptionalPathForModuleSrc(ctx, object.Properties.Linker_script); lds.Valid() {
 		flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,-T,"+lds.String())

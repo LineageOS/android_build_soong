@@ -15,9 +15,10 @@
 package config
 
 import (
-	"android/soong/android"
 	"sort"
 	"strings"
+
+	"android/soong/android"
 )
 
 // Cflags that should be filtered out when compiling with clang
@@ -78,12 +79,6 @@ var ClangUnknownCflags = sorted([]string{
 
 	// windows
 	"--enable-stdcall-fixup",
-})
-
-// Ldflags that should be filtered out when linking with clang lld
-var ClangUnknownLldflags = sorted([]string{
-	"-Wl,--fix-cortex-a8",
-	"-Wl,--no-fix-cortex-a8",
 })
 
 var ClangLibToolingUnknownCflags = sorted([]string{})
@@ -153,80 +148,6 @@ func init() {
 		"-D__ANDROID_UNAVAILABLE_SYMBOLS_ARE_WEAK__",
 	})
 
-	exportStringListStaticVariable("ClangExtraCppflags", []string{
-		// -Wimplicit-fallthrough is not enabled by -Wall.
-		"-Wimplicit-fallthrough",
-
-		// Enable clang's thread-safety annotations in libcxx.
-		"-D_LIBCPP_ENABLE_THREAD_SAFETY_ANNOTATIONS",
-
-		// libc++'s math.h has an #include_next outside of system_headers.
-		"-Wno-gnu-include-next",
-	})
-
-	exportStringListStaticVariable("ClangExtraTargetCflags", []string{"-nostdlibinc"})
-
-	exportStringListStaticVariable("ClangExtraNoOverrideCflags", []string{
-		"-Werror=address-of-temporary",
-		// Bug: http://b/29823425 Disable -Wnull-dereference until the
-		// new cases detected by this warning in Clang r271374 are
-		// fixed.
-		//"-Werror=null-dereference",
-		"-Werror=return-type",
-
-		// http://b/72331526 Disable -Wtautological-* until the instances detected by these
-		// new warnings are fixed.
-		"-Wno-tautological-constant-compare",
-		"-Wno-tautological-type-limit-compare",
-		// http://b/145210666
-		"-Wno-reorder-init-list",
-		// http://b/145211066
-		"-Wno-implicit-int-float-conversion",
-		// New warnings to be fixed after clang-r377782.
-		"-Wno-int-in-bool-context",          // http://b/148287349
-		"-Wno-sizeof-array-div",             // http://b/148815709
-		"-Wno-tautological-overlap-compare", // http://b/148815696
-		// New warnings to be fixed after clang-r383902.
-		"-Wno-deprecated-copy",                      // http://b/153746672
-		"-Wno-range-loop-construct",                 // http://b/153747076
-		"-Wno-misleading-indentation",               // http://b/153746954
-		"-Wno-zero-as-null-pointer-constant",        // http://b/68236239
-		"-Wno-deprecated-anon-enum-enum-conversion", // http://b/153746485
-		"-Wno-deprecated-enum-enum-conversion",      // http://b/153746563
-		"-Wno-string-compare",                       // http://b/153764102
-		"-Wno-enum-enum-conversion",                 // http://b/154138986
-		"-Wno-enum-float-conversion",                // http://b/154255917
-		"-Wno-pessimizing-move",                     // http://b/154270751
-		// New warnings to be fixed after clang-r399163
-		"-Wno-non-c-typedef-for-linkage", // http://b/161304145
-		// New warnings to be fixed after clang-r407598
-		"-Wno-string-concatenation", // http://b/175068488
-	})
-
-	// Extra cflags for external third-party projects to disable warnings that
-	// are infeasible to fix in all the external projects and their upstream repos.
-	exportStringListStaticVariable("ClangExtraExternalCflags", []string{
-		"-Wno-enum-compare",
-		"-Wno-enum-compare-switch",
-
-		// http://b/72331524 Allow null pointer arithmetic until the instances detected by
-		// this new warning are fixed.
-		"-Wno-null-pointer-arithmetic",
-
-		// Bug: http://b/29823425 Disable -Wnull-dereference until the
-		// new instances detected by this warning are fixed.
-		"-Wno-null-dereference",
-
-		// http://b/145211477
-		"-Wno-pointer-compare",
-		// http://b/145211022
-		"-Wno-xor-used-as-pow",
-		// http://b/145211022
-		"-Wno-final-dtor-non-final-class",
-
-		// http://b/165945989
-		"-Wno-psabi",
-	})
 }
 
 func ClangFilterUnknownCflags(cflags []string) []string {
@@ -255,24 +176,8 @@ func ClangRewriteTidyChecks(checks []string) []string {
 	return result
 }
 
-func ClangFilterUnknownLldflags(lldflags []string) []string {
-	result, _ := android.FilterList(lldflags, ClangUnknownLldflags)
-	return result
-}
-
 func ClangLibToolingFilterUnknownCflags(libToolingFlags []string) []string {
 	return android.RemoveListFromList(libToolingFlags, ClangLibToolingUnknownCflags)
-}
-
-func inListSorted(s string, list []string) bool {
-	for _, l := range list {
-		if s == l {
-			return true
-		} else if s < l {
-			return false
-		}
-	}
-	return false
 }
 
 func sorted(list []string) []string {
