@@ -569,7 +569,6 @@ func TestVendorSnapshotUse(t *testing.T) {
 				],
 				rlibs: [
 					"libstd",
-					"libtest",
 					"librust_vendor_available",
 				],
 				binaries: [
@@ -597,7 +596,6 @@ func TestVendorSnapshotUse(t *testing.T) {
 				],
 				rlibs: [
 					"libstd",
-					"libtest",
 					"librust_vendor_available",
 				],
 				binaries: [
@@ -660,22 +658,6 @@ func TestVendorSnapshotUse(t *testing.T) {
 			},
 			arm: {
 				src: "libstd.rlib",
-			},
-		},
-	}
-
-	vendor_snapshot_rlib {
-		name: "libtest",
-		version: "30",
-		target_arch: "arm64",
-		vendor: true,
-		sysroot: true,
-		arch: {
-			arm64: {
-				src: "libtest.rlib",
-			},
-			arm: {
-				src: "libtest.rlib",
 			},
 		},
 	}
@@ -917,7 +899,6 @@ func TestVendorSnapshotUse(t *testing.T) {
 		"vendor/lib64.so":                               nil,
 		"vendor/liblog.so":                              nil,
 		"vendor/libstd.rlib":                            nil,
-		"vendor/libtest.rlib":                           nil,
 		"vendor/librust_vendor_available.rlib":          nil,
 		"vendor/crtbegin_so.o":                          nil,
 		"vendor/crtend_so.o":                            nil,
@@ -962,7 +943,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 	}
 
 	libclientAndroidMkRlibs := ctx.ModuleForTests("libclient", sharedVariant).Module().(*Module).Properties.AndroidMkRlibs
-	if g, w := libclientAndroidMkRlibs, []string{"librust_vendor_available.vendor_rlib.30.arm64.rlib-std", "libstd.vendor_rlib.30.arm64", "libtest.vendor_rlib.30.arm64"}; !reflect.DeepEqual(g, w) {
+	if g, w := libclientAndroidMkRlibs, []string{"librust_vendor_available.vendor_rlib.30.arm64.rlib-std", "libstd.vendor_rlib.30.arm64"}; !reflect.DeepEqual(g, w) {
 		t.Errorf("wanted libclient libclientAndroidMkRlibs %q, got %q", w, g)
 	}
 
@@ -977,7 +958,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 	}
 
 	libclientRustAndroidMkRlibs := ctx.ModuleForTests("libclient_rust", rlibVariant).Module().(*Module).Properties.AndroidMkRlibs
-	if g, w := libclientRustAndroidMkRlibs, []string{"librust_vendor_available.vendor_rlib.30.arm64.rlib-std", "libstd.vendor_rlib.30.arm64", "libtest.vendor_rlib.30.arm64"}; !reflect.DeepEqual(g, w) {
+	if g, w := libclientRustAndroidMkRlibs, []string{"librust_vendor_available.vendor_rlib.30.arm64.rlib-std", "libstd.vendor_rlib.30.arm64"}; !reflect.DeepEqual(g, w) {
 		t.Errorf("wanted libclient libclientAndroidMkRlibs %q, got %q", w, g)
 	}
 
