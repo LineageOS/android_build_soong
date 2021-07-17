@@ -137,15 +137,15 @@ func (b *bindgenDecorator) GenerateSource(ctx ModuleContext, deps PathDeps) andr
 	implicits = append(implicits, deps.depGeneratedHeaders...)
 
 	// Default clang flags
-	cflags = append(cflags, "${cc_config.CommonClangGlobalCflags}")
+	cflags = append(cflags, "${cc_config.CommonGlobalCflags}")
 	if ctx.Device() {
-		cflags = append(cflags, "${cc_config.DeviceClangGlobalCflags}")
+		cflags = append(cflags, "${cc_config.DeviceGlobalCflags}")
 	}
 
 	// Toolchain clang flags
 	cflags = append(cflags, "-target "+ccToolchain.ClangTriple())
-	cflags = append(cflags, strings.ReplaceAll(ccToolchain.ClangCflags(), "${config.", "${cc_config."))
-	cflags = append(cflags, strings.ReplaceAll(ccToolchain.ToolchainClangCflags(), "${config.", "${cc_config."))
+	cflags = append(cflags, strings.ReplaceAll(ccToolchain.Cflags(), "${config.", "${cc_config."))
+	cflags = append(cflags, strings.ReplaceAll(ccToolchain.ToolchainCflags(), "${config.", "${cc_config."))
 
 	// Dependency clang flags and include paths
 	cflags = append(cflags, deps.depClangFlags...)

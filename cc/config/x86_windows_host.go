@@ -44,32 +44,28 @@ var (
 
 		"--sysroot ${WindowsGccRoot}/${WindowsGccTriple}",
 	}
-	windowsClangCflags = append(ClangFilterUnknownCflags(windowsCflags), []string{}...)
 
 	windowsIncludeFlags = []string{
 		"-isystem ${WindowsGccRoot}/${WindowsGccTriple}/include",
 	}
 
-	windowsClangCppflags = []string{}
+	windowsCppflags = []string{}
 
-	windowsX86ClangCppflags = []string{
+	windowsX86Cppflags = []string{
 		// Use SjLj exceptions for 32-bit.  libgcc_eh implements SjLj
 		// exception model for 32-bit.
 		"-fsjlj-exceptions",
 	}
 
-	windowsX8664ClangCppflags = []string{}
+	windowsX8664Cppflags = []string{}
 
 	windowsLdflags = []string{
-		"--enable-stdcall-fixup",
 		"-Wl,--dynamicbase",
 		"-Wl,--nxcompat",
 	}
-	windowsLldflags = []string{
+	windowsLldflags = append(windowsLdflags, []string{
 		"-Wl,--Xlink=-Brepro", // Enable deterministic build
-	}
-	windowsClangLdflags  = append(ClangFilterUnknownCflags(windowsLdflags), []string{}...)
-	windowsClangLldflags = append(ClangFilterUnknownLldflags(windowsClangLdflags), windowsLldflags...)
+	}...)
 
 	windowsX86Cflags = []string{
 		"-m32",
@@ -84,28 +80,24 @@ var (
 		"-Wl,--large-address-aware",
 		"-L${WindowsGccRoot}/${WindowsGccTriple}/lib32",
 		"-static-libgcc",
-	}
-	windowsX86ClangLdflags = append(ClangFilterUnknownCflags(windowsX86Ldflags), []string{
+
 		"-B${WindowsGccRoot}/${WindowsGccTriple}/bin",
 		"-B${WindowsGccRoot}/lib/gcc/${WindowsGccTriple}/4.8.3/32",
 		"-L${WindowsGccRoot}/lib/gcc/${WindowsGccTriple}/4.8.3/32",
 		"-B${WindowsGccRoot}/${WindowsGccTriple}/lib32",
-	}...)
-	windowsX86ClangLldflags = ClangFilterUnknownLldflags(windowsX86ClangLdflags)
+	}
 
 	windowsX8664Ldflags = []string{
 		"-m64",
 		"-L${WindowsGccRoot}/${WindowsGccTriple}/lib64",
 		"-Wl,--high-entropy-va",
 		"-static-libgcc",
-	}
-	windowsX8664ClangLdflags = append(ClangFilterUnknownCflags(windowsX8664Ldflags), []string{
+
 		"-B${WindowsGccRoot}/${WindowsGccTriple}/bin",
 		"-B${WindowsGccRoot}/lib/gcc/${WindowsGccTriple}/4.8.3",
 		"-L${WindowsGccRoot}/lib/gcc/${WindowsGccTriple}/4.8.3",
 		"-B${WindowsGccRoot}/${WindowsGccTriple}/lib64",
-	}...)
-	windowsX8664ClangLldflags = ClangFilterUnknownLldflags(windowsX8664ClangLdflags)
+	}
 
 	windowsAvailableLibraries = addPrefix([]string{
 		"gdi32",
@@ -138,21 +130,19 @@ func init() {
 
 	pctx.StaticVariable("WindowsGccTriple", "x86_64-w64-mingw32")
 
-	pctx.StaticVariable("WindowsClangCflags", strings.Join(windowsClangCflags, " "))
-	pctx.StaticVariable("WindowsClangLdflags", strings.Join(windowsClangLdflags, " "))
-	pctx.StaticVariable("WindowsClangLldflags", strings.Join(windowsClangLldflags, " "))
-	pctx.StaticVariable("WindowsClangCppflags", strings.Join(windowsClangCppflags, " "))
+	pctx.StaticVariable("WindowsCflags", strings.Join(windowsCflags, " "))
+	pctx.StaticVariable("WindowsLdflags", strings.Join(windowsLdflags, " "))
+	pctx.StaticVariable("WindowsLldflags", strings.Join(windowsLldflags, " "))
+	pctx.StaticVariable("WindowsCppflags", strings.Join(windowsCppflags, " "))
 
-	pctx.StaticVariable("WindowsX86ClangCflags",
-		strings.Join(ClangFilterUnknownCflags(windowsX86Cflags), " "))
-	pctx.StaticVariable("WindowsX8664ClangCflags",
-		strings.Join(ClangFilterUnknownCflags(windowsX8664Cflags), " "))
-	pctx.StaticVariable("WindowsX86ClangLdflags", strings.Join(windowsX86ClangLdflags, " "))
-	pctx.StaticVariable("WindowsX86ClangLldflags", strings.Join(windowsX86ClangLldflags, " "))
-	pctx.StaticVariable("WindowsX8664ClangLdflags", strings.Join(windowsX8664ClangLdflags, " "))
-	pctx.StaticVariable("WindowsX8664ClangLldflags", strings.Join(windowsX8664ClangLldflags, " "))
-	pctx.StaticVariable("WindowsX86ClangCppflags", strings.Join(windowsX86ClangCppflags, " "))
-	pctx.StaticVariable("WindowsX8664ClangCppflags", strings.Join(windowsX8664ClangCppflags, " "))
+	pctx.StaticVariable("WindowsX86Cflags", strings.Join(windowsX86Cflags, " "))
+	pctx.StaticVariable("WindowsX8664Cflags", strings.Join(windowsX8664Cflags, " "))
+	pctx.StaticVariable("WindowsX86Ldflags", strings.Join(windowsX86Ldflags, " "))
+	pctx.StaticVariable("WindowsX86Lldflags", strings.Join(windowsX86Ldflags, " "))
+	pctx.StaticVariable("WindowsX8664Ldflags", strings.Join(windowsX8664Ldflags, " "))
+	pctx.StaticVariable("WindowsX8664Lldflags", strings.Join(windowsX8664Ldflags, " "))
+	pctx.StaticVariable("WindowsX86Cppflags", strings.Join(windowsX86Cppflags, " "))
+	pctx.StaticVariable("WindowsX8664Cppflags", strings.Join(windowsX8664Cppflags, " "))
 
 	pctx.StaticVariable("WindowsIncludeFlags", strings.Join(windowsIncludeFlags, " "))
 	// Yasm flags
@@ -214,36 +204,36 @@ func (t *toolchainWindowsX8664) ClangTriple() string {
 	return "x86_64-pc-windows-gnu"
 }
 
-func (t *toolchainWindowsX86) ClangCflags() string {
-	return "${config.WindowsClangCflags} ${config.WindowsX86ClangCflags}"
+func (t *toolchainWindowsX86) Cflags() string {
+	return "${config.WindowsCflags} ${config.WindowsX86Cflags}"
 }
 
-func (t *toolchainWindowsX8664) ClangCflags() string {
-	return "${config.WindowsClangCflags} ${config.WindowsX8664ClangCflags}"
+func (t *toolchainWindowsX8664) Cflags() string {
+	return "${config.WindowsCflags} ${config.WindowsX8664Cflags}"
 }
 
-func (t *toolchainWindowsX86) ClangCppflags() string {
-	return "${config.WindowsClangCppflags} ${config.WindowsX86ClangCppflags}"
+func (t *toolchainWindowsX86) Cppflags() string {
+	return "${config.WindowsCppflags} ${config.WindowsX86Cppflags}"
 }
 
-func (t *toolchainWindowsX8664) ClangCppflags() string {
-	return "${config.WindowsClangCppflags} ${config.WindowsX8664ClangCppflags}"
+func (t *toolchainWindowsX8664) Cppflags() string {
+	return "${config.WindowsCppflags} ${config.WindowsX8664Cppflags}"
 }
 
-func (t *toolchainWindowsX86) ClangLdflags() string {
-	return "${config.WindowsClangLdflags} ${config.WindowsX86ClangLdflags}"
+func (t *toolchainWindowsX86) Ldflags() string {
+	return "${config.WindowsLdflags} ${config.WindowsX86Ldflags}"
 }
 
-func (t *toolchainWindowsX86) ClangLldflags() string {
-	return "${config.WindowsClangLldflags} ${config.WindowsX86ClangLldflags}"
+func (t *toolchainWindowsX86) Lldflags() string {
+	return "${config.WindowsLldflags} ${config.WindowsX86Lldflags}"
 }
 
-func (t *toolchainWindowsX8664) ClangLdflags() string {
-	return "${config.WindowsClangLdflags} ${config.WindowsX8664ClangLdflags}"
+func (t *toolchainWindowsX8664) Ldflags() string {
+	return "${config.WindowsLdflags} ${config.WindowsX8664Ldflags}"
 }
 
-func (t *toolchainWindowsX8664) ClangLldflags() string {
-	return "${config.WindowsClangLldflags} ${config.WindowsX8664ClangLldflags}"
+func (t *toolchainWindowsX8664) Lldflags() string {
+	return "${config.WindowsLldflags} ${config.WindowsX8664Lldflags}"
 }
 
 func (t *toolchainWindowsX86) YasmFlags() string {

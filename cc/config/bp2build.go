@@ -118,7 +118,7 @@ func BazelCcToolchainVars() string {
 // quite complex to track depth-first interpolations. It's also unlikely the
 // interpolation stacks are deep (n > 1).
 func expandVar(toExpand string, stringScope exportedStringVariables, stringListScope exportedStringListVariables) []string {
-	// e.g. "${ClangExternalCflags}"
+	// e.g. "${ExternalCflags}"
 	r := regexp.MustCompile(`\${([a-zA-Z0-9_]+)}`)
 
 	// Internal recursive function.
