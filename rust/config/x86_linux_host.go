@@ -79,7 +79,7 @@ func (t *toolchainLinuxX8664) RustTriple() string {
 
 func (t *toolchainLinuxX8664) ToolchainLinkFlags() string {
 	// Prepend the lld flags from cc_config so we stay in sync with cc
-	return "${cc_config.LinuxClangLldflags} ${cc_config.LinuxX8664ClangLldflags} " +
+	return "${cc_config.LinuxLldflags} ${cc_config.LinuxX8664Lldflags} " +
 		"${config.LinuxToolchainLinkFlags} ${config.LinuxToolchainX8664LinkFlags}"
 }
 
@@ -117,7 +117,7 @@ func (t *toolchainLinuxX86) RustTriple() string {
 
 func (t *toolchainLinuxX86) ToolchainLinkFlags() string {
 	// Prepend the lld flags from cc_config so we stay in sync with cc
-	return "${cc_config.LinuxClangLldflags} ${cc_config.LinuxX86ClangLldflags} " +
+	return "${cc_config.LinuxLldflags} ${cc_config.LinuxX86Lldflags} " +
 		"${config.LinuxToolchainLinkFlags} ${config.LinuxToolchainX86LinkFlags}"
 }
 

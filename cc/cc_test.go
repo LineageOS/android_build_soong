@@ -4038,14 +4038,14 @@ func TestIncludeDirectoryOrdering(t *testing.T) {
 	}
 
 	want := []string{
-		"${config.ArmClangThumbCflags}",
-		"${config.ArmClangCflags}",
-		"${config.CommonClangGlobalCflags}",
-		"${config.DeviceClangGlobalCflags}",
-		"${config.ClangExternalCflags}",
-		"${config.ArmToolchainClangCflags}",
-		"${config.ArmClangArmv7ANeonCflags}",
-		"${config.ArmClangGenericCflags}",
+		"${config.ArmThumbCflags}",
+		"${config.ArmCflags}",
+		"${config.CommonGlobalCflags}",
+		"${config.DeviceGlobalCflags}",
+		"${config.ExternalCflags}",
+		"${config.ArmToolchainCflags}",
+		"${config.ArmArmv7ANeonCflags}",
+		"${config.ArmGenericCflags}",
 		"android_arm_export_include_dirs",
 		"lib32_export_include_dirs",
 		"arm_export_include_dirs",
@@ -4076,7 +4076,7 @@ func TestIncludeDirectoryOrdering(t *testing.T) {
 		"defaults/cc/common/ndk_libandroid_support",
 		"out/soong/ndk/sysroot/usr/include",
 		"out/soong/ndk/sysroot/usr/include/arm-linux-androideabi",
-		"${config.NoOverrideClangGlobalCflags}",
+		"${config.NoOverrideGlobalCflags}",
 	}
 
 	android.AssertArrayString(t, "includes", want, includes)

@@ -26,8 +26,6 @@ import (
 
 var (
 	darwinCflags = []string{
-		"-fdiagnostics-color",
-
 		"-fPIC",
 		"-funwind-tables",
 
@@ -41,6 +39,9 @@ var (
 		"-DMACOSX_DEPLOYMENT_TARGET=${macMinVersion}",
 
 		"-m64",
+
+		"-integrated-as",
+		"-fstack-protector-strong",
 	}
 
 	darwinLdflags = []string{
@@ -49,15 +50,6 @@ var (
 		"-mmacosx-version-min=${macMinVersion}",
 		"-m64",
 	}
-
-	darwinClangCflags = append(ClangFilterUnknownCflags(darwinCflags), []string{
-		"-integrated-as",
-		"-fstack-protector-strong",
-	}...)
-
-	darwinClangLdflags = ClangFilterUnknownCflags(darwinLdflags)
-
-	darwinClangLldflags = ClangFilterUnknownLldflags(darwinClangLdflags)
 
 	darwinSupportedSdkVersions = []string{
 		"10.10",
@@ -115,9 +107,9 @@ func init() {
 
 	pctx.StaticVariable("DarwinGccTriple", "i686-apple-darwin11")
 
-	pctx.StaticVariable("DarwinClangCflags", strings.Join(darwinClangCflags, " "))
-	pctx.StaticVariable("DarwinClangLdflags", strings.Join(darwinClangLdflags, " "))
-	pctx.StaticVariable("DarwinClangLldflags", strings.Join(darwinClangLldflags, " "))
+	pctx.StaticVariable("DarwinCflags", strings.Join(darwinCflags, " "))
+	pctx.StaticVariable("DarwinLdflags", strings.Join(darwinLdflags, " "))
+	pctx.StaticVariable("DarwinLldflags", strings.Join(darwinLdflags, " "))
 
 	pctx.StaticVariable("DarwinYasmFlags", "-f macho -m amd64")
 }
@@ -213,20 +205,20 @@ func (t *toolchainDarwin) ClangTriple() string {
 	return "x86_64-apple-darwin"
 }
 
-func (t *toolchainDarwin) ClangCflags() string {
-	return "${config.DarwinClangCflags}"
+func (t *toolchainDarwin) Cflags() string {
+	return "${config.DarwinCflags}"
 }
 
-func (t *toolchainDarwin) ClangCppflags() string {
+func (t *toolchainDarwin) Cppflags() string {
 	return ""
 }
 
-func (t *toolchainDarwin) ClangLdflags() string {
-	return "${config.DarwinClangLdflags}"
+func (t *toolchainDarwin) Ldflags() string {
+	return "${config.DarwinLdflags}"
 }
 
-func (t *toolchainDarwin) ClangLldflags() string {
-	return "${config.DarwinClangLldflags}"
+func (t *toolchainDarwin) Lldflags() string {
+	return "${config.DarwinLldflags}"
 }
 
 func (t *toolchainDarwin) YasmFlags() string {

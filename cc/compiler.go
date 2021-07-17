@@ -189,6 +189,11 @@ type BaseCompilerProperties struct {
 			// variant of the C/C++ module.
 			Cflags []string
 		}
+		Platform struct {
+			// List of additional cflags that should be used to build the platform
+			// variant of the C/C++ module.
+			Cflags []string
+		}
 	}
 
 	Proto struct {
@@ -310,6 +315,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 	CheckBadCompilerFlags(ctx, "product.cflags", compiler.Properties.Target.Product.Cflags)
 	CheckBadCompilerFlags(ctx, "recovery.cflags", compiler.Properties.Target.Recovery.Cflags)
 	CheckBadCompilerFlags(ctx, "vendor_ramdisk.cflags", compiler.Properties.Target.Vendor_ramdisk.Cflags)
+	CheckBadCompilerFlags(ctx, "platform.cflags", compiler.Properties.Target.Platform.Cflags)
 
 	esc := proptools.NinjaAndShellEscapeList
 
@@ -392,7 +398,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 	if flags.RequiredInstructionSet != "" {
 		instructionSet = flags.RequiredInstructionSet
 	}
-	instructionSetFlags, err := tc.ClangInstructionSetFlags(instructionSet)
+	instructionSetFlags, err := tc.InstructionSetFlags(instructionSet)
 	if err != nil {
 		ctx.ModuleErrorf("%s", err)
 	}
@@ -437,15 +443,15 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 	flags.Global.ConlyFlags = append([]string{"${config.CommonGlobalConlyflags}"}, flags.Global.ConlyFlags...)
 	flags.Global.CppFlags = append([]string{fmt.Sprintf("${config.%sGlobalCppflags}", hod)}, flags.Global.CppFlags...)
 
-	flags.Global.AsFlags = append(flags.Global.AsFlags, tc.ClangAsflags())
-	flags.Global.CppFlags = append([]string{"${config.CommonClangGlobalCppflags}"}, flags.Global.CppFlags...)
+	flags.Global.AsFlags = append(flags.Global.AsFlags, tc.Asflags())
+	flags.Global.CppFlags = append([]string{"${config.CommonGlobalCppflags}"}, flags.Global.CppFlags...)
 	flags.Global.CommonFlags = append(flags.Global.CommonFlags,
-		tc.ClangCflags(),
-		"${config.CommonClangGlobalCflags}",
-		fmt.Sprintf("${config.%sClangGlobalCflags}", hod))
+		tc.Cflags(),
+		"${config.CommonGlobalCflags}",
+		fmt.Sprintf("${config.%sGlobalCflags}", hod))
 
 	if isThirdParty(modulePath) {
-		flags.Global.CommonFlags = append(flags.Global.CommonFlags, "${config.ClangExternalCflags}")
+		flags.Global.CommonFlags = append(flags.Global.CommonFlags, "${config.ExternalCflags}")
 	}
 
 	if tc.Bionic() {
@@ -458,11 +464,11 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 
 	flags.Global.AsFlags = append(flags.Global.AsFlags, "-D__ASSEMBLY__")
 
-	flags.Global.CppFlags = append(flags.Global.CppFlags, tc.ClangCppflags())
+	flags.Global.CppFlags = append(flags.Global.CppFlags, tc.Cppflags())
 
 	flags.Global.YasmFlags = append(flags.Global.YasmFlags, tc.YasmFlags())
 
-	flags.Global.CommonFlags = append(flags.Global.CommonFlags, tc.ToolchainClangCflags())
+	flags.Global.CommonFlags = append(flags.Global.CommonFlags, tc.ToolchainCflags())
 
 	cStd := config.CStdVersion
 	if String(compiler.Properties.C_std) == "experimental" {
@@ -501,6 +507,9 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 
 	if ctx.inVendorRamdisk() {
 		flags.Local.CFlags = append(flags.Local.CFlags, esc(compiler.Properties.Target.Vendor_ramdisk.Cflags)...)
+	}
+	if !ctx.useSdk() {
+		flags.Local.CFlags = append(flags.Local.CFlags, esc(compiler.Properties.Target.Platform.Cflags)...)
 	}
 
 	// We can enforce some rules more strictly in the code we own. strict

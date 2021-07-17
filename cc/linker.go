@@ -111,6 +111,10 @@ type BaseLinkerProperties struct {
 			// product variant of the C/C++ module.
 			Static_libs []string
 
+			// list of ehader libs that only should be used to build vendor or product
+			// variant of the C/C++ module.
+			Header_libs []string
+
 			// list of shared libs that should not be used to build vendor or
 			// product variant of the C/C++ module.
 			Exclude_shared_libs []string
@@ -179,6 +183,14 @@ type BaseLinkerProperties struct {
 			// in most cases the same libraries are available for the SDK and platform
 			// variants.
 			Shared_libs []string
+
+			// list of ehader libs that only should be used to build platform variant of
+			// the C/C++ module.
+			Header_libs []string
+
+			// list of shared libs that should not be used to build the platform variant
+			// of the C/C++ module.
+			Exclude_shared_libs []string
 		}
 		Apex struct {
 			// list of shared libs that should not be used to build the apex variant of
@@ -300,6 +312,7 @@ func (linker *baseLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 		deps.ReexportSharedLibHeaders = removeListFromList(deps.ReexportSharedLibHeaders, linker.Properties.Target.Vendor.Exclude_shared_libs)
 		deps.StaticLibs = append(deps.StaticLibs, linker.Properties.Target.Vendor.Static_libs...)
 		deps.StaticLibs = removeListFromList(deps.StaticLibs, linker.Properties.Target.Vendor.Exclude_static_libs)
+		deps.HeaderLibs = append(deps.HeaderLibs, linker.Properties.Target.Vendor.Header_libs...)
 		deps.HeaderLibs = removeListFromList(deps.HeaderLibs, linker.Properties.Target.Vendor.Exclude_header_libs)
 		deps.ReexportStaticLibHeaders = removeListFromList(deps.ReexportStaticLibHeaders, linker.Properties.Target.Vendor.Exclude_static_libs)
 		deps.WholeStaticLibs = removeListFromList(deps.WholeStaticLibs, linker.Properties.Target.Vendor.Exclude_static_libs)
@@ -349,6 +362,8 @@ func (linker *baseLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 
 	if !ctx.useSdk() {
 		deps.SharedLibs = append(deps.SharedLibs, linker.Properties.Target.Platform.Shared_libs...)
+		deps.SharedLibs = removeListFromList(deps.SharedLibs, linker.Properties.Target.Platform.Exclude_shared_libs)
+		deps.HeaderLibs = append(deps.HeaderLibs, linker.Properties.Target.Platform.Header_libs...)
 	}
 
 	deps.SystemSharedLibs = linker.overrideDefaultSharedLibraries(ctx)
@@ -479,9 +494,9 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 	}
 
 	if linker.useClangLld(ctx) {
-		flags.Global.LdFlags = append(flags.Global.LdFlags, toolchain.ClangLldflags())
+		flags.Global.LdFlags = append(flags.Global.LdFlags, toolchain.Lldflags())
 	} else {
-		flags.Global.LdFlags = append(flags.Global.LdFlags, toolchain.ClangLdflags())
+		flags.Global.LdFlags = append(flags.Global.LdFlags, toolchain.Ldflags())
 	}
 
 	if !ctx.toolchain().Bionic() && !ctx.Fuchsia() {
@@ -535,7 +550,7 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 		flags.Global.LdFlags = append(flags.Global.LdFlags, "-Wl,--hash-style=both")
 	}
 
-	flags.Global.LdFlags = append(flags.Global.LdFlags, toolchain.ToolchainClangLdflags())
+	flags.Global.LdFlags = append(flags.Global.LdFlags, toolchain.ToolchainLdflags())
 
 	if Bool(linker.Properties.Group_static_libs) {
 		flags.GroupStaticLibs = true
