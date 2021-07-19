@@ -210,9 +210,9 @@ var ccSnapshotAction snapshot.GenerateSnapshotAction = func(s snapshot.SnapshotS
 		if fake {
 			// All prebuilt binaries and headers are installed by copyFile function. This makes a fake
 			// snapshot just touch prebuilts and headers, rather than installing real files.
-			return writeStringToFileRule(ctx, "", out)
+			return snapshot.WriteStringToFileRule(ctx, "", out)
 		} else {
-			return copyFileRule(ctx, path, out)
+			return snapshot.CopyFileRule(pctx, ctx, path, out)
 		}
 	}
 
@@ -350,7 +350,7 @@ var ccSnapshotAction snapshot.GenerateSnapshotAction = func(s snapshot.SnapshotS
 			ctx.Errorf("json marshal to %q failed: %#v", propOut, err)
 			return nil
 		}
-		ret = append(ret, writeStringToFileRule(ctx, string(j), propOut))
+		ret = append(ret, snapshot.WriteStringToFileRule(ctx, string(j), propOut))
 
 		return ret
 	}
