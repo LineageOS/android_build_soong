@@ -74,9 +74,6 @@ func newMonolithicHiddenAPIInfo(ctx android.ModuleContext, flagFilesByCategory F
 		}
 	}
 
-	// Dedup paths.
-	monolithicInfo.dedup()
-
 	return monolithicInfo
 }
 
@@ -88,17 +85,6 @@ func (i *MonolithicHiddenAPIInfo) append(other *HiddenAPIInfo) {
 	i.MetadataPaths = append(i.MetadataPaths, other.MetadataPath)
 	i.IndexPaths = append(i.IndexPaths, other.IndexPath)
 	i.AllFlagsPaths = append(i.AllFlagsPaths, other.AllFlagsPath)
-}
-
-// dedup removes duplicates in all the paths, while maintaining the order in which they were
-// appended.
-func (i *MonolithicHiddenAPIInfo) dedup() {
-	i.FlagsFilesByCategory.dedup()
-	i.StubFlagsPaths = android.FirstUniquePaths(i.StubFlagsPaths)
-	i.AnnotationFlagsPaths = android.FirstUniquePaths(i.AnnotationFlagsPaths)
-	i.MetadataPaths = android.FirstUniquePaths(i.MetadataPaths)
-	i.IndexPaths = android.FirstUniquePaths(i.IndexPaths)
-	i.AllFlagsPaths = android.FirstUniquePaths(i.AllFlagsPaths)
 }
 
 var MonolithicHiddenAPIInfoProvider = blueprint.NewProvider(MonolithicHiddenAPIInfo{})
