@@ -1987,6 +1987,10 @@ func (m *ModuleBase) GetArchVariantProperties(ctx ArchVariantContext, propertySe
 	axisToProps[bazel.OsConfigurationAxis] = osToProp
 	axisToProps[bazel.OsArchConfigurationAxis] = archOsToProp
 
+	axisToProps[bazel.BionicConfigurationAxis] = map[string]interface{}{
+		"bionic": getTargetStruct(ctx, propertySet, archProperties, "Bionic"),
+	}
+
 	return axisToProps
 }
 

@@ -118,6 +118,7 @@ func TestCcLibrarySimple(t *testing.T) {
 		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryBp2Build,
 		filesystem: map[string]string{
 			"android.cpp": "",
+			"bionic.cpp":  "",
 			"darwin.cpp":  "",
 			// Refer to cc.headerExts for the supported header extensions in Soong.
 			"header.h":         "",
@@ -164,6 +165,9 @@ cc_library {
         darwin: {
             srcs: ["darwin.cpp"],
         },
+        bionic: {
+          srcs: ["bionic.cpp"]
+        },
     },
 }
 `,
@@ -189,6 +193,9 @@ cc_library {
         "//build/bazel/platforms/os:android": ["android.cpp"],
         "//build/bazel/platforms/os:darwin": ["darwin.cpp"],
         "//build/bazel/platforms/os:linux": ["linux.cpp"],
+        "//conditions:default": [],
+    }) + select({
+        "//build/bazel/platforms/os:bionic": ["bionic.cpp"],
         "//conditions:default": [],
     }),
 )`}})
