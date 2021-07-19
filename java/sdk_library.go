@@ -981,13 +981,15 @@ func (e *EmbeddableSdkLibraryComponent) SdkLibraryName() *string {
 }
 
 // to satisfy SdkLibraryComponentDependency
-func (e *EmbeddableSdkLibraryComponent) OptionalImplicitSdkLibrary() *string {
-	return e.sdkLibraryComponentProperties.SdkLibraryToImplicitlyTrack
-}
-
-// to satisfy SdkLibraryComponentDependency
 func (e *EmbeddableSdkLibraryComponent) OptionalSdkLibraryImplementation() *string {
-	// Currently implementation library name is the same as the SDK library name.
+	// For shared libraries, this is the same as the SDK library name. If a Java library or app
+	// depends on a component library (e.g. a stub library) it still needs to know the name of the
+	// run-time library and the corresponding module that provides the implementation. This name is
+	// passed to manifest_fixer (to be added to AndroidManifest.xml) and added to CLC (to be used
+	// in dexpreopt).
+	//
+	// For non-shared SDK (component or not) libraries this returns `nil`, as they are not
+	// <uses-library> and should not be added to the manifest or to CLC.
 	return e.sdkLibraryComponentProperties.SdkLibraryToImplicitlyTrack
 }
 
@@ -998,12 +1000,6 @@ type SdkLibraryComponentDependency interface {
 
 	// SdkLibraryName returns the name of the java_sdk_library/_import module.
 	SdkLibraryName() *string
-
-	// The optional name of the sdk library that should be implicitly added to the
-	// AndroidManifest of an app that contains code which references the sdk library.
-	//
-	// Returns the name of the optional implicit SDK library or nil, if there isn't one.
-	OptionalImplicitSdkLibrary() *string
 
 	// The name of the implementation library for the optional SDK library or nil, if there isn't one.
 	OptionalSdkLibraryImplementation() *string
