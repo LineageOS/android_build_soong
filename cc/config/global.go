@@ -55,6 +55,59 @@ var (
 		"-Werror=pragma-pack-suspicious-include",
 		"-Werror=string-plus-int",
 		"-Werror=unreachable-code-loop-increment",
+
+		"-D__compiler_offsetof=__builtin_offsetof",
+
+		// Emit address-significance table which allows linker to perform safe ICF. Clang does
+		// not emit the table by default on Android since NDK still uses GNU binutils.
+		"-faddrsig",
+
+		// Turn on -fcommon explicitly, since Clang now defaults to -fno-common. The cleanup bug
+		// tracking this is http://b/151457797.
+		"-fcommon",
+
+		// Help catch common 32/64-bit errors.
+		"-Werror=int-conversion",
+
+		// Enable the new pass manager.
+		"-fexperimental-new-pass-manager",
+
+		// Disable overly aggressive warning for macros defined with a leading underscore
+		// This happens in AndroidConfig.h, which is included nearly everywhere.
+		// TODO: can we remove this now?
+		"-Wno-reserved-id-macro",
+
+		// Workaround for ccache with clang.
+		// See http://petereisentraut.blogspot.com/2011/05/ccache-and-clang.html.
+		"-Wno-unused-command-line-argument",
+
+		// Force clang to always output color diagnostics. Ninja will strip the ANSI
+		// color codes if it is not running in a terminal.
+		"-fcolor-diagnostics",
+
+		// Warnings from clang-7.0
+		"-Wno-sign-compare",
+
+		// Warnings from clang-8.0
+		"-Wno-defaulted-function-deleted",
+
+		// Disable -Winconsistent-missing-override until we can clean up the existing
+		// codebase for it.
+		"-Wno-inconsistent-missing-override",
+
+		// Warnings from clang-10
+		// Nested and array designated initialization is nice to have.
+		"-Wno-c99-designator",
+
+		// Warnings from clang-12
+		"-Wno-gnu-folding-constant",
+
+		// Calls to the APIs that are newer than the min sdk version of the caller should be
+		// guarded with __builtin_available.
+		"-Wunguarded-availability",
+		// This macro allows the bionic versioning.h to indirectly determine whether the
+		// option -Wunguarded-availability is on or not.
+		"-D__ANDROID_UNAVAILABLE_SYMBOLS_ARE_WEAK__",
 	}
 
 	commonGlobalConlyflags = []string{}
@@ -246,7 +299,6 @@ func init() {
 	bazelCommonGlobalCflags := append(
 		commonGlobalCflags,
 		[]string{
-			"${ClangExtraCflags}",
 			// Default to zero initialization.
 			"-ftrivial-auto-var-init=zero",
 			"-enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clang",
@@ -255,7 +307,6 @@ func init() {
 
 	pctx.VariableFunc("CommonGlobalCflags", func(ctx android.PackageVarContext) string {
 		flags := commonGlobalCflags
-		flags = append(flags, "${ClangExtraCflags}")
 
 		// http://b/131390872
 		// Automatically initialize any uninitialized stack variables.
