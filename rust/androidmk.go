@@ -205,24 +205,24 @@ func (fuzz *fuzzDecorator) AndroidMkEntries(ctx AndroidMkContext, entries *andro
 	ctx.SubAndroidMk(entries, fuzz.binaryDecorator)
 
 	var fuzzFiles []string
-	for _, d := range fuzz.corpus {
+	for _, d := range fuzz.fuzzPackagedModule.Corpus {
 		fuzzFiles = append(fuzzFiles,
-			filepath.Dir(fuzz.corpusIntermediateDir.String())+":corpus/"+d.Base())
+			filepath.Dir(fuzz.fuzzPackagedModule.CorpusIntermediateDir.String())+":corpus/"+d.Base())
 	}
 
-	for _, d := range fuzz.data {
+	for _, d := range fuzz.fuzzPackagedModule.Data {
 		fuzzFiles = append(fuzzFiles,
-			filepath.Dir(fuzz.dataIntermediateDir.String())+":data/"+d.Rel())
+			filepath.Dir(fuzz.fuzzPackagedModule.DataIntermediateDir.String())+":data/"+d.Rel())
 	}
 
-	if fuzz.dictionary != nil {
+	if fuzz.fuzzPackagedModule.Dictionary != nil {
 		fuzzFiles = append(fuzzFiles,
-			filepath.Dir(fuzz.dictionary.String())+":"+fuzz.dictionary.Base())
+			filepath.Dir(fuzz.fuzzPackagedModule.Dictionary.String())+":"+fuzz.fuzzPackagedModule.Dictionary.Base())
 	}
 
-	if fuzz.config != nil {
+	if fuzz.fuzzPackagedModule.Config != nil {
 		fuzzFiles = append(fuzzFiles,
-			filepath.Dir(fuzz.config.String())+":config.json")
+			filepath.Dir(fuzz.fuzzPackagedModule.Config.String())+":config.json")
 	}
 
 	entries.ExtraEntries = append(entries.ExtraEntries, func(ctx android.AndroidMkExtraEntriesContext,
