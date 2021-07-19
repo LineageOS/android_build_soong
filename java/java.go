@@ -130,11 +130,19 @@ var (
 			PropertyName: "java_boot_libs",
 			SupportsSdk:  true,
 		},
-		// Temporarily export implementation classes jar for java_boot_libs as it is required for the
-		// hiddenapi processing.
-		// TODO(b/179354495): Revert once hiddenapi processing has been modularized.
-		exportImplementationClassesJar,
-		sdkSnapshotFilePathForJar,
+		func(ctx android.SdkMemberContext, j *Library) android.Path {
+			// Java boot libs are only provided in the SDK to provide access to their dex implementation
+			// jar for use by dexpreopting and boot jars package check. They do not need to provide an
+			// actual implementation jar but the java_import will need a file that exists so just copy an
+			// empty file. Any attempt to use that file as a jar will cause a build error.
+			return ctx.SnapshotBuilder().EmptyFile()
+		},
+		func(osPrefix, name string) string {
+			// Create a special name for the implementation jar to try and provide some useful information
+			// to a developer that attempts to compile against this.
+			// TODO(b/175714559): Provide a proper error message in Soong not ninja.
+			return filepath.Join(osPrefix, "java_boot_libs", "snapshot", "jars", "are", "invalid", name+jarFileSuffix)
+		},
 		onlyCopyJarToSnapshot,
 	}
 
