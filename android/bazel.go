@@ -129,7 +129,7 @@ var (
 	// Keep any existing BUILD files (and do not generate new BUILD files) for these directories
 	bp2buildKeepExistingBuildFile = map[string]bool{
 		// This is actually build/bazel/build.BAZEL symlinked to ./BUILD
-		".":/*recrusive = */ false,
+		".":/*recursive = */ false,
 
 		"build/bazel":/* recursive = */ true,
 		"build/pesto":/* recursive = */ true,
@@ -144,9 +144,10 @@ var (
 
 	// Configure modules in these directories to enable bp2build_available: true or false by default.
 	bp2buildDefaultConfig = Bp2BuildConfig{
-		"bionic":                Bp2BuildDefaultTrueRecursively,
-		"external/gwp_asan":     Bp2BuildDefaultTrueRecursively,
-		"system/core/libcutils": Bp2BuildDefaultTrueRecursively,
+		"bionic":                            Bp2BuildDefaultTrueRecursively,
+		"build/bazel/examples/apex/minimal": Bp2BuildDefaultTrueRecursively,
+		"external/gwp_asan":                 Bp2BuildDefaultTrueRecursively,
+		"system/core/libcutils":             Bp2BuildDefaultTrueRecursively,
 		"system/core/property_service/libpropertyinfoparser": Bp2BuildDefaultTrueRecursively,
 		"system/libbase":                  Bp2BuildDefaultTrueRecursively,
 		"system/logging/liblog":           Bp2BuildDefaultTrueRecursively,
