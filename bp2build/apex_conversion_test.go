@@ -46,3 +46,23 @@ apex {
     manifest = "manifest.json",
 )`}})
 }
+
+func TestApexBundleHasBazelModuleProps(t *testing.T) {
+	runApexTestCase(t, bp2buildTestCase{
+		description:                        "apex - has bazel module props",
+		moduleTypeUnderTest:                "apex",
+		moduleTypeUnderTestFactory:         apex.BundleFactory,
+		moduleTypeUnderTestBp2BuildMutator: apex.ApexBundleBp2Build,
+		filesystem:                         map[string]string{},
+		blueprint: `
+apex {
+	name: "apogee",
+	manifest: "manifest.json",
+	bazel_module: { bp2build_available: true },
+}
+`,
+		expectedBazelTargets: []string{`apex(
+    name = "apogee",
+    manifest = "manifest.json",
+)`}})
+}
