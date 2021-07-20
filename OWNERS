@@ -1,17 +1,22 @@
 # This file is included by several other projects as the list of people
 # approving build related projects.
 
+# AMER
 ahumesky@google.com
 asmundak@google.com
 ccross@android.com
 cparsons@google.com
 dwillemsen@google.com
 eakammer@google.com
-jingwen@google.com
 joeo@google.com
-lberki@google.com
+spandandas@google.com
+yuntaoxu@google.com
+
+# APAC
+jingwen@google.com
 ruperts@google.com
 
-# To expedite LON reviews
+# EMEA
 hansson@google.com
+lberki@google.com
 paulduffin@google.com

@@ -2187,6 +2187,7 @@ func newApexBundle() *apexBundle {
 	android.InitDefaultableModule(module)
 	android.InitSdkAwareModule(module)
 	android.InitOverridableModule(module, &module.overridableProperties.Overrides)
+	android.InitBazelModule(module)
 	return module
 }
 
