@@ -4517,6 +4517,13 @@ func TestPrebuiltApexNameWithPlatformBootclasspath(t *testing.T) {
 			prebuilt_bootclasspath_fragment {
 				name: "art-bootclasspath-fragment",
 				contents: ["core-oj"],
+				hidden_api: {
+					annotation_flags: "my-bootclasspath-fragment/annotation-flags.csv",
+					metadata: "my-bootclasspath-fragment/metadata.csv",
+					index: "my-bootclasspath-fragment/index.csv",
+					stub_flags: "my-bootclasspath-fragment/stub-flags.csv",
+					all_flags: "my-bootclasspath-fragment/all-flags.csv",
+				},
 			}
 
 			java_import {
@@ -4782,6 +4789,13 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 			name: "my-bootclasspath-fragment",
 			contents: ["libfoo", "libbar"],
 			apex_available: ["myapex"],
+			hidden_api: {
+				annotation_flags: "my-bootclasspath-fragment/annotation-flags.csv",
+				metadata: "my-bootclasspath-fragment/metadata.csv",
+				index: "my-bootclasspath-fragment/index.csv",
+				stub_flags: "my-bootclasspath-fragment/stub-flags.csv",
+				all_flags: "my-bootclasspath-fragment/all-flags.csv",
+			},
 		}
 
 		java_import {
@@ -4805,11 +4819,9 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 		checkBootDexJarPath(t, ctx, "libbar", "out/soong/.intermediates/myapex.deapexer/android_common/deapexer/javalib/libbar.jar")
 
 		// Verify the correct module jars contribute to the hiddenapi index file.
-		checkHiddenAPIIndexFromClassesInputs(t, ctx, `
-			out/soong/.intermediates/libbar.stubs/android_common/combined/libbar.stubs.jar
-			out/soong/.intermediates/libfoo/android_common_myapex/combined/libfoo.jar
-		`)
+		checkHiddenAPIIndexFromClassesInputs(t, ctx, ``)
 		checkHiddenAPIIndexFromFlagsInputs(t, ctx, `
+			my-bootclasspath-fragment/index.csv
 			out/soong/.intermediates/frameworks/base/boot/platform-bootclasspath/android_common/hiddenapi-monolithic/index-from-classes.csv
 		`)
 	})
@@ -4826,6 +4838,13 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 			name: "my-bootclasspath-fragment",
 			contents: ["libfoo", "libbar"],
 			apex_available: ["myapex"],
+			hidden_api: {
+				annotation_flags: "my-bootclasspath-fragment/annotation-flags.csv",
+				metadata: "my-bootclasspath-fragment/metadata.csv",
+				index: "my-bootclasspath-fragment/index.csv",
+				stub_flags: "my-bootclasspath-fragment/stub-flags.csv",
+				all_flags: "my-bootclasspath-fragment/all-flags.csv",
+			},
 		}
 
 		java_import {
@@ -4849,11 +4868,9 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 		checkBootDexJarPath(t, ctx, "libbar", "out/soong/.intermediates/myapex.deapexer/android_common/deapexer/javalib/libbar.jar")
 
 		// Verify the correct module jars contribute to the hiddenapi index file.
-		checkHiddenAPIIndexFromClassesInputs(t, ctx, `
-			out/soong/.intermediates/libbar.stubs/android_common/combined/libbar.stubs.jar
-			out/soong/.intermediates/libfoo/android_common_myapex/combined/libfoo.jar
-		`)
+		checkHiddenAPIIndexFromClassesInputs(t, ctx, ``)
 		checkHiddenAPIIndexFromFlagsInputs(t, ctx, `
+			my-bootclasspath-fragment/index.csv
 			out/soong/.intermediates/frameworks/base/boot/platform-bootclasspath/android_common/hiddenapi-monolithic/index-from-classes.csv
 		`)
 	})
@@ -4877,6 +4894,13 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 			name: "my-bootclasspath-fragment",
 			contents: ["libfoo", "libbar"],
 			apex_available: ["myapex"],
+			hidden_api: {
+				annotation_flags: "my-bootclasspath-fragment/annotation-flags.csv",
+				metadata: "my-bootclasspath-fragment/metadata.csv",
+				index: "my-bootclasspath-fragment/index.csv",
+				stub_flags: "my-bootclasspath-fragment/stub-flags.csv",
+				all_flags: "my-bootclasspath-fragment/all-flags.csv",
+			},
 		}
 
 		java_import {
@@ -4935,6 +4959,13 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 			name: "my-bootclasspath-fragment",
 			contents: ["libfoo", "libbar"],
 			apex_available: ["myapex"],
+			hidden_api: {
+				annotation_flags: "my-bootclasspath-fragment/annotation-flags.csv",
+				metadata: "my-bootclasspath-fragment/metadata.csv",
+				index: "my-bootclasspath-fragment/index.csv",
+				stub_flags: "my-bootclasspath-fragment/stub-flags.csv",
+				all_flags: "my-bootclasspath-fragment/all-flags.csv",
+			},
 		}
 
 		java_import {
@@ -4973,11 +5004,9 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 		checkBootDexJarPath(t, ctx, "libbar", "out/soong/.intermediates/myapex.deapexer/android_common/deapexer/javalib/libbar.jar")
 
 		// Verify the correct module jars contribute to the hiddenapi index file.
-		checkHiddenAPIIndexFromClassesInputs(t, ctx, `
-			out/soong/.intermediates/prebuilt_libbar.stubs/android_common/combined/libbar.stubs.jar
-			out/soong/.intermediates/prebuilt_libfoo/android_common_myapex/combined/libfoo.jar
-		`)
+		checkHiddenAPIIndexFromClassesInputs(t, ctx, ``)
 		checkHiddenAPIIndexFromFlagsInputs(t, ctx, `
+			my-bootclasspath-fragment/index.csv
 			out/soong/.intermediates/frameworks/base/boot/platform-bootclasspath/android_common/hiddenapi-monolithic/index-from-classes.csv
 		`)
 	})
@@ -5014,6 +5043,13 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 			name: "my-bootclasspath-fragment",
 			contents: ["libfoo", "libbar"],
 			apex_available: ["myapex"],
+			hidden_api: {
+				annotation_flags: "my-bootclasspath-fragment/annotation-flags.csv",
+				metadata: "my-bootclasspath-fragment/metadata.csv",
+				index: "my-bootclasspath-fragment/index.csv",
+				stub_flags: "my-bootclasspath-fragment/stub-flags.csv",
+				all_flags: "my-bootclasspath-fragment/all-flags.csv",
+			},
 		}
 
 		java_import {
@@ -5050,11 +5086,9 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 		checkBootDexJarPath(t, ctx, "libbar", "out/soong/.intermediates/libbar/android_common_myapex/hiddenapi/libbar.jar")
 
 		// Verify the correct module jars contribute to the hiddenapi index file.
-		checkHiddenAPIIndexFromClassesInputs(t, ctx, `
-			out/soong/.intermediates/libbar/android_common_myapex/javac/libbar.jar
-			out/soong/.intermediates/libfoo/android_common_apex10000/javac/libfoo.jar
-		`)
+		checkHiddenAPIIndexFromClassesInputs(t, ctx, ``)
 		checkHiddenAPIIndexFromFlagsInputs(t, ctx, `
+			my-bootclasspath-fragment/index.csv
 			out/soong/.intermediates/frameworks/base/boot/platform-bootclasspath/android_common/hiddenapi-monolithic/index-from-classes.csv
 		`)
 	})
@@ -5091,6 +5125,13 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 			name: "my-bootclasspath-fragment",
 			contents: ["libfoo", "libbar"],
 			apex_available: ["myapex"],
+			hidden_api: {
+				annotation_flags: "my-bootclasspath-fragment/annotation-flags.csv",
+				metadata: "my-bootclasspath-fragment/metadata.csv",
+				index: "my-bootclasspath-fragment/index.csv",
+				stub_flags: "my-bootclasspath-fragment/stub-flags.csv",
+				all_flags: "my-bootclasspath-fragment/all-flags.csv",
+			},
 		}
 
 		java_import {
@@ -5129,11 +5170,9 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 		checkBootDexJarPath(t, ctx, "libbar", "out/soong/.intermediates/myapex.deapexer/android_common/deapexer/javalib/libbar.jar")
 
 		// Verify the correct module jars contribute to the hiddenapi index file.
-		checkHiddenAPIIndexFromClassesInputs(t, ctx, `
-			out/soong/.intermediates/prebuilt_libbar.stubs/android_common/combined/libbar.stubs.jar
-			out/soong/.intermediates/prebuilt_libfoo/android_common_myapex/combined/libfoo.jar
-		`)
+		checkHiddenAPIIndexFromClassesInputs(t, ctx, ``)
 		checkHiddenAPIIndexFromFlagsInputs(t, ctx, `
+			my-bootclasspath-fragment/index.csv
 			out/soong/.intermediates/frameworks/base/boot/platform-bootclasspath/android_common/hiddenapi-monolithic/index-from-classes.csv
 		`)
 	})
@@ -7057,6 +7096,13 @@ func TestDexpreoptAccessDexFilesFromPrebuiltApex(t *testing.T) {
 				name: "my-bootclasspath-fragment",
 				contents: ["libfoo"],
 				apex_available: ["myapex"],
+				hidden_api: {
+					annotation_flags: "my-bootclasspath-fragment/annotation-flags.csv",
+					metadata: "my-bootclasspath-fragment/metadata.csv",
+					index: "my-bootclasspath-fragment/index.csv",
+					stub_flags: "my-bootclasspath-fragment/stub-flags.csv",
+					all_flags: "my-bootclasspath-fragment/all-flags.csv",
+				},
 			}
 
 			java_import {
