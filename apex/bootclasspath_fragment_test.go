@@ -383,6 +383,13 @@ func TestBootclasspathFragmentInArtApex(t *testing.T) {
 				apex_available: [
 					"com.android.art",
 				],
+				hidden_api: {
+					annotation_flags: "mybootclasspathfragment/annotation-flags.csv",
+					metadata: "mybootclasspathfragment/metadata.csv",
+					index: "mybootclasspathfragment/index.csv",
+					stub_flags: "mybootclasspathfragment/stub-flags.csv",
+					all_flags: "mybootclasspathfragment/all-flags.csv",
+				},
 			}
 		`, contentsInsert(contents), prefer)
 		return android.FixtureAddTextFile("prebuilts/module_sdk/art/Android.bp", text)
@@ -582,6 +589,13 @@ func TestBootclasspathFragmentInPrebuiltArtApex(t *testing.T) {
 			apex_available: [
 				"com.android.art",
 			],
+			hidden_api: {
+				annotation_flags: "mybootclasspathfragment/annotation-flags.csv",
+				metadata: "mybootclasspathfragment/metadata.csv",
+				index: "mybootclasspathfragment/index.csv",
+				stub_flags: "mybootclasspathfragment/stub-flags.csv",
+				all_flags: "mybootclasspathfragment/all-flags.csv",
+			},
 		}
 	`)
 
