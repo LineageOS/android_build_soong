@@ -107,6 +107,7 @@ func installClean(ctx Context, config Config, what int) {
 		productOut("android-info.txt"),
 		productOut("apex"),
 		productOut("kernel"),
+		productOut("recovery_kernel"),
 		productOut("data"),
 		productOut("skin"),
 		productOut("obj/NOTICE_FILES"),
