@@ -15,6 +15,7 @@
 package config
 
 import (
+	"runtime"
 	"strings"
 
 	"android/soong/android"
@@ -282,7 +283,7 @@ var (
 var pctx = android.NewPackageContext("android/soong/cc/config")
 
 func init() {
-	if android.BuildOs == android.Linux {
+	if runtime.GOOS == "linux" {
 		commonGlobalCflags = append(commonGlobalCflags, "-fdebug-prefix-map=/proc/self/cwd=")
 	}
 

@@ -108,6 +108,12 @@ type config struct {
 
 	ProductVariablesFileName string
 
+	// BuildOS stores the OsType for the OS that the build is running on.
+	BuildOS OsType
+
+	// BuildArch stores the ArchType for the CPU that the build is running on.
+	BuildArch ArchType
+
 	Targets                  map[OsType][]Target
 	BuildOSTarget            Target // the Target for tools run on the build machine
 	BuildOSCommonTarget      Target // the Target for common (java) tools run on the build machine
@@ -326,41 +332,43 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 	return Config{config}
 }
 
-func fuchsiaTargets() map[OsType][]Target {
+func fuchsiaTargets(config Config) map[OsType][]Target {
 	return map[OsType][]Target{
 		Fuchsia: {
 			{Fuchsia, Arch{ArchType: Arm64, ArchVariant: "", Abi: []string{"arm64-v8a"}}, NativeBridgeDisabled, "", "", false},
 		},
-		BuildOs: {
-			{BuildOs, Arch{ArchType: X86_64}, NativeBridgeDisabled, "", "", false},
+		config.BuildOS: {
+			{config.BuildOS, Arch{ArchType: X86_64}, NativeBridgeDisabled, "", "", false},
 		},
 	}
 }
 
 var PrepareForTestSetDeviceToFuchsia = FixtureModifyConfig(func(config Config) {
-	config.Targets = fuchsiaTargets()
+	config.Targets = fuchsiaTargets(config)
 })
 
 func modifyTestConfigToSupportArchMutator(testConfig Config) {
 	config := testConfig.config
+
+	determineBuildOS(config)
 
 	config.Targets = map[OsType][]Target{
 		Android: []Target{
 			{Android, Arch{ArchType: Arm64, ArchVariant: "armv8-a", Abi: []string{"arm64-v8a"}}, NativeBridgeDisabled, "", "", false},
 			{Android, Arch{ArchType: Arm, ArchVariant: "armv7-a-neon", Abi: []string{"armeabi-v7a"}}, NativeBridgeDisabled, "", "", false},
 		},
-		BuildOs: []Target{
-			{BuildOs, Arch{ArchType: X86_64}, NativeBridgeDisabled, "", "", false},
-			{BuildOs, Arch{ArchType: X86}, NativeBridgeDisabled, "", "", false},
+		config.BuildOS: []Target{
+			{config.BuildOS, Arch{ArchType: X86_64}, NativeBridgeDisabled, "", "", false},
+			{config.BuildOS, Arch{ArchType: X86}, NativeBridgeDisabled, "", "", false},
 		},
 	}
 
 	if runtime.GOOS == "darwin" {
-		config.Targets[BuildOs] = config.Targets[BuildOs][:1]
+		config.Targets[config.BuildOS] = config.Targets[config.BuildOS][:1]
 	}
 
-	config.BuildOSTarget = config.Targets[BuildOs][0]
-	config.BuildOSCommonTarget = getCommonTargets(config.Targets[BuildOs])[0]
+	config.BuildOSTarget = config.Targets[config.BuildOS][0]
+	config.BuildOSCommonTarget = getCommonTargets(config.Targets[config.BuildOS])[0]
 	config.AndroidCommonTarget = getCommonTargets(config.Targets[Android])[0]
 	config.AndroidFirstDeviceTarget = firstTarget(config.Targets[Android], "lib64", "lib32")[0]
 	config.TestProductVariables.DeviceArch = proptools.StringPtr("arm64")
@@ -439,6 +447,8 @@ func NewConfig(srcDir, buildDir string, moduleListFile string, availableEnv map[
 		config.katiEnabled = true
 	}
 
+	determineBuildOS(config)
+
 	// Sets up the map of target OSes to the finer grained compilation targets
 	// that are configured from the product variables.
 	targets, err := decodeTargetProductVariables(config)
@@ -476,8 +486,8 @@ func NewConfig(srcDir, buildDir string, moduleListFile string, availableEnv map[
 	config.Targets = targets
 
 	// Compilation targets for host tools.
-	config.BuildOSTarget = config.Targets[BuildOs][0]
-	config.BuildOSCommonTarget = getCommonTargets(config.Targets[BuildOs])[0]
+	config.BuildOSTarget = config.Targets[config.BuildOS][0]
+	config.BuildOSCommonTarget = getCommonTargets(config.Targets[config.BuildOS])[0]
 
 	// Compilation targets for Android.
 	if len(config.Targets[Android]) > 0 {

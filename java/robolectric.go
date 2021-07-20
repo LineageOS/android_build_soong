@@ -83,6 +83,9 @@ type robolectricTest struct {
 
 	testConfig android.Path
 	data       android.Paths
+
+	forceOSType   android.OsType
+	forceArchType android.ArchType
 }
 
 func (r *robolectricTest) TestSuites() []string {
@@ -115,6 +118,9 @@ func (r *robolectricTest) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
 func (r *robolectricTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	r.forceOSType = ctx.Config().BuildOS
+	r.forceArchType = ctx.Config().BuildArch
+
 	r.testConfig = tradefed.AutoGenRobolectricTestConfig(ctx, r.testProperties.Test_config,
 		r.testProperties.Test_config_template, r.testProperties.Test_suites,
 		r.testProperties.Auto_gen_config)
@@ -345,7 +351,7 @@ func RobolectricTestFactory() android.Module {
 func (r *robolectricTest) InstallBypassMake() bool  { return true }
 func (r *robolectricTest) InstallInTestcases() bool { return true }
 func (r *robolectricTest) InstallForceOS() (*android.OsType, *android.ArchType) {
-	return &android.BuildOs, &android.BuildArch
+	return &r.forceOSType, &r.forceArchType
 }
 
 func robolectricRuntimesFactory() android.Module {
@@ -366,6 +372,9 @@ type robolectricRuntimes struct {
 	props robolectricRuntimesProperties
 
 	runtimes []android.InstallPath
+
+	forceOSType   android.OsType
+	forceArchType android.ArchType
 }
 
 func (r *robolectricRuntimes) TestSuites() []string {
@@ -384,6 +393,9 @@ func (r *robolectricRuntimes) GenerateAndroidBuildActions(ctx android.ModuleCont
 	if ctx.Target().Os != ctx.Config().BuildOSCommonTarget.Os {
 		return
 	}
+
+	r.forceOSType = ctx.Config().BuildOS
+	r.forceArchType = ctx.Config().BuildArch
 
 	files := android.PathsForModuleSrc(ctx, r.props.Jars)
 
@@ -417,5 +429,5 @@ func (r *robolectricRuntimes) GenerateAndroidBuildActions(ctx android.ModuleCont
 func (r *robolectricRuntimes) InstallBypassMake() bool  { return true }
 func (r *robolectricRuntimes) InstallInTestcases() bool { return true }
 func (r *robolectricRuntimes) InstallForceOS() (*android.OsType, *android.ArchType) {
-	return &android.BuildOs, &android.BuildArch
+	return &r.forceOSType, &r.forceArchType
 }

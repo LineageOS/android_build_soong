@@ -21,360 +21,362 @@ import (
 	"github.com/google/blueprint"
 )
 
-var prebuiltsTests = []struct {
-	name      string
-	replaceBp bool // modules is added to default bp boilerplate if false.
-	modules   string
-	prebuilt  []OsType
-	preparer  FixturePreparer
-}{
-	{
-		name: "no prebuilt",
-		modules: `
-			source {
-				name: "bar",
-			}`,
-		prebuilt: nil,
-	},
-	{
-		name: "no source prebuilt not preferred",
-		modules: `
-			prebuilt {
-				name: "bar",
-				prefer: false,
-				srcs: ["prebuilt_file"],
-			}`,
-		prebuilt: []OsType{Android, BuildOs},
-	},
-	{
-		name: "no source prebuilt preferred",
-		modules: `
-			prebuilt {
-				name: "bar",
-				prefer: true,
-				srcs: ["prebuilt_file"],
-			}`,
-		prebuilt: []OsType{Android, BuildOs},
-	},
-	{
-		name: "prebuilt not preferred",
-		modules: `
-			source {
-				name: "bar",
-			}
+func TestPrebuilts(t *testing.T) {
+	buildOS := TestArchConfig(t.TempDir(), nil, "", nil).BuildOS
 
-			prebuilt {
-				name: "bar",
-				prefer: false,
-				srcs: ["prebuilt_file"],
-			}`,
-		prebuilt: nil,
-	},
-	{
-		name: "prebuilt preferred",
-		modules: `
-			source {
-				name: "bar",
-			}
+	var prebuiltsTests = []struct {
+		name      string
+		replaceBp bool // modules is added to default bp boilerplate if false.
+		modules   string
+		prebuilt  []OsType
+		preparer  FixturePreparer
+	}{
+		{
+			name: "no prebuilt",
+			modules: `
+				source {
+					name: "bar",
+				}`,
+			prebuilt: nil,
+		},
+		{
+			name: "no source prebuilt not preferred",
+			modules: `
+				prebuilt {
+					name: "bar",
+					prefer: false,
+					srcs: ["prebuilt_file"],
+				}`,
+			prebuilt: []OsType{Android, buildOS},
+		},
+		{
+			name: "no source prebuilt preferred",
+			modules: `
+				prebuilt {
+					name: "bar",
+					prefer: true,
+					srcs: ["prebuilt_file"],
+				}`,
+			prebuilt: []OsType{Android, buildOS},
+		},
+		{
+			name: "prebuilt not preferred",
+			modules: `
+				source {
+					name: "bar",
+				}
 
-			prebuilt {
-				name: "bar",
-				prefer: true,
-				srcs: ["prebuilt_file"],
-			}`,
-		prebuilt: []OsType{Android, BuildOs},
-	},
-	{
-		name: "prebuilt no file not preferred",
-		modules: `
-			source {
-				name: "bar",
-			}
+				prebuilt {
+					name: "bar",
+					prefer: false,
+					srcs: ["prebuilt_file"],
+				}`,
+			prebuilt: nil,
+		},
+		{
+			name: "prebuilt preferred",
+			modules: `
+				source {
+					name: "bar",
+				}
 
-			prebuilt {
-				name: "bar",
-				prefer: false,
-			}`,
-		prebuilt: nil,
-	},
-	{
-		name: "prebuilt no file preferred",
-		modules: `
-			source {
-				name: "bar",
-			}
+				prebuilt {
+					name: "bar",
+					prefer: true,
+					srcs: ["prebuilt_file"],
+				}`,
+			prebuilt: []OsType{Android, buildOS},
+		},
+		{
+			name: "prebuilt no file not preferred",
+			modules: `
+				source {
+					name: "bar",
+				}
 
-			prebuilt {
-				name: "bar",
-				prefer: true,
-			}`,
-		prebuilt: nil,
-	},
-	{
-		name: "prebuilt file from filegroup preferred",
-		modules: `
-			filegroup {
-				name: "fg",
-				srcs: ["prebuilt_file"],
-			}
-			prebuilt {
-				name: "bar",
-				prefer: true,
-				srcs: [":fg"],
-			}`,
-		prebuilt: []OsType{Android, BuildOs},
-	},
-	{
-		name: "prebuilt module for device only",
-		modules: `
-			source {
-				name: "bar",
-			}
+				prebuilt {
+					name: "bar",
+					prefer: false,
+				}`,
+			prebuilt: nil,
+		},
+		{
+			name: "prebuilt no file preferred",
+			modules: `
+				source {
+					name: "bar",
+				}
 
-			prebuilt {
-				name: "bar",
-				host_supported: false,
-				prefer: true,
-				srcs: ["prebuilt_file"],
-			}`,
-		prebuilt: []OsType{Android},
-	},
-	{
-		name: "prebuilt file for host only",
-		modules: `
-			source {
-				name: "bar",
-			}
+				prebuilt {
+					name: "bar",
+					prefer: true,
+				}`,
+			prebuilt: nil,
+		},
+		{
+			name: "prebuilt file from filegroup preferred",
+			modules: `
+				filegroup {
+					name: "fg",
+					srcs: ["prebuilt_file"],
+				}
+				prebuilt {
+					name: "bar",
+					prefer: true,
+					srcs: [":fg"],
+				}`,
+			prebuilt: []OsType{Android, buildOS},
+		},
+		{
+			name: "prebuilt module for device only",
+			modules: `
+				source {
+					name: "bar",
+				}
 
-			prebuilt {
-				name: "bar",
-				prefer: true,
-				target: {
-					host: {
-						srcs: ["prebuilt_file"],
-					},
-				},
-			}`,
-		prebuilt: []OsType{BuildOs},
-	},
-	{
-		name: "prebuilt override not preferred",
-		modules: `
-			source {
-				name: "baz",
-			}
+				prebuilt {
+					name: "bar",
+					host_supported: false,
+					prefer: true,
+					srcs: ["prebuilt_file"],
+				}`,
+			prebuilt: []OsType{Android},
+		},
+		{
+			name: "prebuilt file for host only",
+			modules: `
+				source {
+					name: "bar",
+				}
 
-			override_source {
-				name: "bar",
-				base: "baz",
-			}
-
-			prebuilt {
-				name: "bar",
-				prefer: false,
-				srcs: ["prebuilt_file"],
-			}`,
-		prebuilt: nil,
-	},
-	{
-		name: "prebuilt override preferred",
-		modules: `
-			source {
-				name: "baz",
-			}
-
-			override_source {
-				name: "bar",
-				base: "baz",
-			}
-
-			prebuilt {
-				name: "bar",
-				prefer: true,
-				srcs: ["prebuilt_file"],
-			}`,
-		prebuilt: []OsType{Android, BuildOs},
-	},
-	{
-		name:      "prebuilt including default-disabled OS",
-		replaceBp: true,
-		modules: `
-			source {
-				name: "foo",
-				deps: [":bar"],
-				target: {
-					windows: {
-						enabled: true,
-					},
-				},
-			}
-
-			source {
-				name: "bar",
-				target: {
-					windows: {
-						enabled: true,
-					},
-				},
-			}
-
-			prebuilt {
-				name: "bar",
-				prefer: true,
-				srcs: ["prebuilt_file"],
-				target: {
-					windows: {
-						enabled: true,
-					},
-				},
-			}`,
-		prebuilt: []OsType{Android, BuildOs, Windows},
-	},
-	{
-		name:      "fall back to source for default-disabled OS",
-		replaceBp: true,
-		modules: `
-			source {
-				name: "foo",
-				deps: [":bar"],
-				target: {
-					windows: {
-						enabled: true,
-					},
-				},
-			}
-
-			source {
-				name: "bar",
-				target: {
-					windows: {
-						enabled: true,
-					},
-				},
-			}
-
-			prebuilt {
-				name: "bar",
-				prefer: true,
-				srcs: ["prebuilt_file"],
-			}`,
-		prebuilt: []OsType{Android, BuildOs},
-	},
-	{
-		name:      "prebuilt properties customizable",
-		replaceBp: true,
-		modules: `
-			source {
-				name: "foo",
-				deps: [":bar"],
-			}
-
-			soong_config_module_type {
-				name: "prebuilt_with_config",
-				module_type: "prebuilt",
-				config_namespace: "any_namespace",
-				bool_variables: ["bool_var"],
-				properties: ["prefer"],
-			}
-
-			prebuilt_with_config {
-				name: "bar",
-				prefer: true,
-				srcs: ["prebuilt_file"],
-				soong_config_variables: {
-					bool_var: {
-						prefer: false,
-						conditions_default: {
-							prefer: true,
+				prebuilt {
+					name: "bar",
+					prefer: true,
+					target: {
+						host: {
+							srcs: ["prebuilt_file"],
 						},
 					},
-				},
-			}`,
-		prebuilt: []OsType{Android, BuildOs},
-	},
-	{
-		name: "prebuilt use_source_config_var={acme, use_source} - no var specified",
-		modules: `
-			source {
-				name: "bar",
-			}
+				}`,
+			prebuilt: []OsType{buildOS},
+		},
+		{
+			name: "prebuilt override not preferred",
+			modules: `
+				source {
+					name: "baz",
+				}
 
-			prebuilt {
-				name: "bar",
-				use_source_config_var: {config_namespace: "acme", var_name: "use_source"},
-				srcs: ["prebuilt_file"],
-			}`,
-		// When use_source_env is specified then it will use the prebuilt by default if the environment
-		// variable is not set.
-		prebuilt: []OsType{Android, BuildOs},
-	},
-	{
-		name: "prebuilt use_source_config_var={acme, use_source} - acme_use_source=false",
-		modules: `
-			source {
-				name: "bar",
-			}
+				override_source {
+					name: "bar",
+					base: "baz",
+				}
 
-			prebuilt {
-				name: "bar",
-				use_source_config_var: {config_namespace: "acme", var_name: "use_source"},
-				srcs: ["prebuilt_file"],
-			}`,
-		preparer: FixtureModifyProductVariables(func(variables FixtureProductVariables) {
-			variables.VendorVars = map[string]map[string]string{
-				"acme": {
-					"use_source": "false",
-				},
-			}
-		}),
-		// Setting the environment variable named in use_source_env to false will cause the prebuilt to
-		// be used.
-		prebuilt: []OsType{Android, BuildOs},
-	},
-	{
-		name: "prebuilt use_source_config_var={acme, use_source} - acme_use_source=true",
-		modules: `
-			source {
-				name: "bar",
-			}
+				prebuilt {
+					name: "bar",
+					prefer: false,
+					srcs: ["prebuilt_file"],
+				}`,
+			prebuilt: nil,
+		},
+		{
+			name: "prebuilt override preferred",
+			modules: `
+				source {
+					name: "baz",
+				}
 
-			prebuilt {
-				name: "bar",
-				use_source_config_var: {config_namespace: "acme", var_name: "use_source"},
-				srcs: ["prebuilt_file"],
-			}`,
-		preparer: FixtureModifyProductVariables(func(variables FixtureProductVariables) {
-			variables.VendorVars = map[string]map[string]string{
-				"acme": {
-					"use_source": "true",
-				},
-			}
-		}),
-		// Setting the environment variable named in use_source_env to true will cause the source to be
-		// used.
-		prebuilt: nil,
-	},
-	{
-		name: "prebuilt use_source_config_var={acme, use_source} - acme_use_source=true, no source",
-		modules: `
-			prebuilt {
-				name: "bar",
-				use_source_config_var: {config_namespace: "acme", var_name: "use_source"},
-				srcs: ["prebuilt_file"],
-			}`,
-		preparer: FixtureModifyProductVariables(func(variables FixtureProductVariables) {
-			variables.VendorVars = map[string]map[string]string{
-				"acme": {
-					"use_source": "true",
-				},
-			}
-		}),
-		// Although the environment variable says to use source there is no source available.
-		prebuilt: []OsType{Android, BuildOs},
-	},
-}
+				override_source {
+					name: "bar",
+					base: "baz",
+				}
 
-func TestPrebuilts(t *testing.T) {
+				prebuilt {
+					name: "bar",
+					prefer: true,
+					srcs: ["prebuilt_file"],
+				}`,
+			prebuilt: []OsType{Android, buildOS},
+		},
+		{
+			name:      "prebuilt including default-disabled OS",
+			replaceBp: true,
+			modules: `
+				source {
+					name: "foo",
+					deps: [":bar"],
+					target: {
+						windows: {
+							enabled: true,
+						},
+					},
+				}
+
+				source {
+					name: "bar",
+					target: {
+						windows: {
+							enabled: true,
+						},
+					},
+				}
+
+				prebuilt {
+					name: "bar",
+					prefer: true,
+					srcs: ["prebuilt_file"],
+					target: {
+						windows: {
+							enabled: true,
+						},
+					},
+				}`,
+			prebuilt: []OsType{Android, buildOS, Windows},
+		},
+		{
+			name:      "fall back to source for default-disabled OS",
+			replaceBp: true,
+			modules: `
+				source {
+					name: "foo",
+					deps: [":bar"],
+					target: {
+						windows: {
+							enabled: true,
+						},
+					},
+				}
+
+				source {
+					name: "bar",
+					target: {
+						windows: {
+							enabled: true,
+						},
+					},
+				}
+
+				prebuilt {
+					name: "bar",
+					prefer: true,
+					srcs: ["prebuilt_file"],
+				}`,
+			prebuilt: []OsType{Android, buildOS},
+		},
+		{
+			name:      "prebuilt properties customizable",
+			replaceBp: true,
+			modules: `
+				source {
+					name: "foo",
+					deps: [":bar"],
+				}
+
+				soong_config_module_type {
+					name: "prebuilt_with_config",
+					module_type: "prebuilt",
+					config_namespace: "any_namespace",
+					bool_variables: ["bool_var"],
+					properties: ["prefer"],
+				}
+
+				prebuilt_with_config {
+					name: "bar",
+					prefer: true,
+					srcs: ["prebuilt_file"],
+					soong_config_variables: {
+						bool_var: {
+							prefer: false,
+							conditions_default: {
+								prefer: true,
+							},
+						},
+					},
+				}`,
+			prebuilt: []OsType{Android, buildOS},
+		},
+		{
+			name: "prebuilt use_source_config_var={acme, use_source} - no var specified",
+			modules: `
+				source {
+					name: "bar",
+				}
+
+				prebuilt {
+					name: "bar",
+					use_source_config_var: {config_namespace: "acme", var_name: "use_source"},
+					srcs: ["prebuilt_file"],
+				}`,
+			// When use_source_env is specified then it will use the prebuilt by default if the environment
+			// variable is not set.
+			prebuilt: []OsType{Android, buildOS},
+		},
+		{
+			name: "prebuilt use_source_config_var={acme, use_source} - acme_use_source=false",
+			modules: `
+				source {
+					name: "bar",
+				}
+
+				prebuilt {
+					name: "bar",
+					use_source_config_var: {config_namespace: "acme", var_name: "use_source"},
+					srcs: ["prebuilt_file"],
+				}`,
+			preparer: FixtureModifyProductVariables(func(variables FixtureProductVariables) {
+				variables.VendorVars = map[string]map[string]string{
+					"acme": {
+						"use_source": "false",
+					},
+				}
+			}),
+			// Setting the environment variable named in use_source_env to false will cause the prebuilt to
+			// be used.
+			prebuilt: []OsType{Android, buildOS},
+		},
+		{
+			name: "prebuilt use_source_config_var={acme, use_source} - acme_use_source=true",
+			modules: `
+				source {
+					name: "bar",
+				}
+
+				prebuilt {
+					name: "bar",
+					use_source_config_var: {config_namespace: "acme", var_name: "use_source"},
+					srcs: ["prebuilt_file"],
+				}`,
+			preparer: FixtureModifyProductVariables(func(variables FixtureProductVariables) {
+				variables.VendorVars = map[string]map[string]string{
+					"acme": {
+						"use_source": "true",
+					},
+				}
+			}),
+			// Setting the environment variable named in use_source_env to true will cause the source to be
+			// used.
+			prebuilt: nil,
+		},
+		{
+			name: "prebuilt use_source_config_var={acme, use_source} - acme_use_source=true, no source",
+			modules: `
+				prebuilt {
+					name: "bar",
+					use_source_config_var: {config_namespace: "acme", var_name: "use_source"},
+					srcs: ["prebuilt_file"],
+				}`,
+			preparer: FixtureModifyProductVariables(func(variables FixtureProductVariables) {
+				variables.VendorVars = map[string]map[string]string{
+					"acme": {
+						"use_source": "true",
+					},
+				}
+			}),
+			// Although the environment variable says to use source there is no source available.
+			prebuilt: []OsType{Android, buildOS},
+		},
+	}
+
 	fs := MockFS{
 		"prebuilt_file": nil,
 		"source_file":   nil,
