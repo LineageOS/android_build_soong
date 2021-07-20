@@ -101,6 +101,7 @@ func installClean(ctx Context, config Config, what int) {
 		productOut("*.zip.md5sum"),
 		productOut("android-info.txt"),
 		productOut("kernel"),
+		productOut("recovery_kernel"),
 		productOut("data"),
 		productOut("skin"),
 		productOut("obj/NOTICE_FILES"),
