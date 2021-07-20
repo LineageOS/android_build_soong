@@ -163,8 +163,8 @@ func TestPlatformBootclasspath_Fragments(t *testing.T) {
 	android.AssertPathsRelativeToTopEquals(t, "metadata flags", []string{"out/soong/.intermediates/bar-fragment/android_common_apex10000/modular-hiddenapi/metadata.csv"}, info.MetadataPaths)
 	android.AssertPathsRelativeToTopEquals(t, "index flags", []string{"out/soong/.intermediates/bar-fragment/android_common_apex10000/modular-hiddenapi/index.csv"}, info.IndexPaths)
 
-	android.AssertArrayString(t, "stub flags", []string{"out/soong/.intermediates/bar-fragment/android_common_apex10000/modular-hiddenapi/stub-flags.csv:out/soong/.intermediates/bar-fragment/android_common_apex10000/modular-hiddenapi/signature-patterns.csv"}, info.StubFlagSubsets.RelativeToTop())
-	android.AssertArrayString(t, "all flags", []string{"out/soong/.intermediates/bar-fragment/android_common_apex10000/modular-hiddenapi/all-flags.csv:out/soong/.intermediates/bar-fragment/android_common_apex10000/modular-hiddenapi/signature-patterns.csv"}, info.FlagSubsets.RelativeToTop())
+	android.AssertArrayString(t, "stub flags", []string{"out/soong/.intermediates/bar-fragment/android_common_apex10000/modular-hiddenapi/filtered-stub-flags.csv:out/soong/.intermediates/bar-fragment/android_common_apex10000/modular-hiddenapi/signature-patterns.csv"}, info.StubFlagSubsets.RelativeToTop())
+	android.AssertArrayString(t, "all flags", []string{"out/soong/.intermediates/bar-fragment/android_common_apex10000/modular-hiddenapi/filtered-flags.csv:out/soong/.intermediates/bar-fragment/android_common_apex10000/modular-hiddenapi/signature-patterns.csv"}, info.FlagSubsets.RelativeToTop())
 }
 
 func TestPlatformBootclasspathDependencies(t *testing.T) {
