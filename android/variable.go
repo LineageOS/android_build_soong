@@ -299,8 +299,6 @@ type productVariables struct {
 
 	Override_rs_driver *string `json:",omitempty"`
 
-	Fuchsia *bool `json:",omitempty"`
-
 	DeviceKernelHeaders []string `json:",omitempty"`
 
 	ExtraVndkVersions []string `json:",omitempty"`

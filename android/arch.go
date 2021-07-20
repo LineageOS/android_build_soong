@@ -15,12 +15,13 @@
 package android
 
 import (
-	"android/soong/bazel"
 	"encoding"
 	"fmt"
 	"reflect"
 	"runtime"
 	"strings"
+
+	"android/soong/bazel"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/bootstrap"
@@ -314,8 +315,6 @@ var (
 	// Android is the OS for target devices that run all of Android, including the Linux kernel
 	// and the Bionic libc runtime.
 	Android = newOsType("android", Device, false, Arm, Arm64, X86, X86_64)
-	// Fuchsia is the OS for target devices that run Fuchsia.
-	Fuchsia = newOsType("fuchsia", Device, false, Arm64, X86_64)
 
 	// CommonOS is a pseudo OSType for a common OS variant, which is OsType agnostic and which
 	// has dependencies on all the OS variants.
@@ -1502,13 +1501,8 @@ func decodeTargetProductVariables(config *config) (map[OsType][]Target, error) {
 
 	// Optional device targets
 	if variables.DeviceArch != nil && *variables.DeviceArch != "" {
-		var target = Android
-		if Bool(variables.Fuchsia) {
-			target = Fuchsia
-		}
-
 		// The primary device target.
-		addTarget(target, *variables.DeviceArch, variables.DeviceArchVariant,
+		addTarget(Android, *variables.DeviceArch, variables.DeviceArchVariant,
 			variables.DeviceCpuVariant, variables.DeviceAbi, NativeBridgeDisabled, nil, nil)
 
 		// An optional secondary device target.

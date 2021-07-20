@@ -29,7 +29,6 @@ const (
 	// OsType names in arch.go
 	osAndroid     = "android"
 	osDarwin      = "darwin"
-	osFuchsia     = "fuchsia"
 	osLinux       = "linux_glibc"
 	osLinuxBionic = "linux_bionic"
 	osWindows     = "windows"
@@ -40,8 +39,6 @@ const (
 	osArchAndroidX86        = "android_x86"
 	osArchAndroidX86_64     = "android_x86_64"
 	osArchDarwinX86_64      = "darwin_x86_64"
-	osArchFuchsiaArm64      = "fuchsia_arm64"
-	osArchFuchsiaX86_64     = "fuchsia_x86_64"
 	osArchLinuxX86          = "linux_glibc_x86"
 	osArchLinuxX86_64       = "linux_glibc_x86_64"
 	osArchLinuxBionicArm64  = "linux_bionic_arm64"
@@ -84,7 +81,6 @@ var (
 	platformOsMap = map[string]string{
 		osAndroid:         "//build/bazel/platforms/os:android",
 		osDarwin:          "//build/bazel/platforms/os:darwin",
-		osFuchsia:         "//build/bazel/platforms/os:fuchsia",
 		osLinux:           "//build/bazel/platforms/os:linux",
 		osLinuxBionic:     "//build/bazel/platforms/os:linux_bionic",
 		osWindows:         "//build/bazel/platforms/os:windows",
@@ -102,8 +98,6 @@ var (
 		osArchAndroidX86:        "//build/bazel/platforms/os_arch:android_x86",
 		osArchAndroidX86_64:     "//build/bazel/platforms/os_arch:android_x86_64",
 		osArchDarwinX86_64:      "//build/bazel/platforms/os_arch:darwin_x86_64",
-		osArchFuchsiaArm64:      "//build/bazel/platforms/os_arch:fuchsia_arm64",
-		osArchFuchsiaX86_64:     "//build/bazel/platforms/os_arch:fuchsia_x86_64",
 		osArchLinuxX86:          "//build/bazel/platforms/os_arch:linux_glibc_x86",
 		osArchLinuxX86_64:       "//build/bazel/platforms/os_arch:linux_glibc_x86_64",
 		osArchLinuxBionicArm64:  "//build/bazel/platforms/os_arch:linux_bionic_arm64",

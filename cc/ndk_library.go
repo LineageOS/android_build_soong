@@ -150,12 +150,6 @@ func (this *stubDecorator) stubsVersions(ctx android.BaseMutatorContext) []strin
 	if !ctx.Module().Enabled() {
 		return nil
 	}
-	if ctx.Os() != android.Android {
-		// These modules are always android.DeviceEnabled only, but
-		// those include Fuchsia devices, which we don't support.
-		ctx.Module().Disable()
-		return nil
-	}
 	if ctx.Target().NativeBridge == android.NativeBridgeEnabled {
 		ctx.Module().Disable()
 		return nil

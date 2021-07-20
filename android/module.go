@@ -325,7 +325,6 @@ type BaseModuleContext interface {
 	Host() bool
 	Device() bool
 	Darwin() bool
-	Fuchsia() bool
 	Windows() bool
 	Debug() bool
 	PrimaryArch() bool
@@ -2561,10 +2560,6 @@ func (b *baseModuleContext) Device() bool {
 
 func (b *baseModuleContext) Darwin() bool {
 	return b.os == Darwin
-}
-
-func (b *baseModuleContext) Fuchsia() bool {
-	return b.os == Fuchsia
 }
 
 func (b *baseModuleContext) Windows() bool {

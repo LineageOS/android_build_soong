@@ -15,8 +15,9 @@
 package cc
 
 import (
-	"android/soong/android"
 	"fmt"
+
+	"android/soong/android"
 )
 
 func getNdkStlFamily(m LinkableInterface) string {
@@ -90,26 +91,6 @@ func (stl *stl) begin(ctx BaseModuleContext) {
 				return ""
 			default:
 				ctx.ModuleErrorf("stl: %q is not a supported STL for windows", s)
-				return ""
-			}
-		} else if ctx.Fuchsia() {
-			switch s {
-			case "c++_static":
-				return "libc++_static"
-			case "c++_shared":
-				return "libc++"
-			case "libc++", "libc++_static":
-				return s
-			case "none":
-				return ""
-			case "":
-				if ctx.static() {
-					return "libc++_static"
-				} else {
-					return "libc++"
-				}
-			default:
-				ctx.ModuleErrorf("stl: %q is not a supported STL on Fuchsia", s)
 				return ""
 			}
 		} else {
