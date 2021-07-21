@@ -48,6 +48,27 @@ python_binary_host {
     },
 }
 
+python_test_host {
+    name: "generate_hiddenapi_lists_test",
+    main: "generate_hiddenapi_lists_test.py",
+    srcs: [
+        "generate_hiddenapi_lists.py",
+        "generate_hiddenapi_lists_test.py",
+    ],
+    version: {
+        py2: {
+            enabled: false,
+        },
+        py3: {
+            enabled: true,
+            embedded_launcher: true,
+        },
+    },
+    test_options: {
+        unit_test: true,
+    },
+}
+
 python_binary_host {
     name: "verify_overlaps",
     main: "verify_overlaps.py",

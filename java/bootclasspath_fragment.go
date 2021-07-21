@@ -599,7 +599,7 @@ func (b *BootclasspathFragmentModule) generateHiddenAPIBuildActions(ctx android.
 
 	// The monolithic hidden API processing also needs access to all the output files produced by
 	// hidden API processing of this fragment.
-	hiddenAPIInfo.HiddenAPIFlagOutput = (*output).HiddenAPIFlagOutput
+	hiddenAPIInfo.HiddenAPIFlagOutput = output.HiddenAPIFlagOutput
 
 	//  Provide it for use by other modules.
 	ctx.SetProvider(HiddenAPIInfoProvider, hiddenAPIInfo)
@@ -896,10 +896,10 @@ func (module *prebuiltBootclasspathFragmentModule) Name() string {
 
 // produceHiddenAPIOutput returns a path to the prebuilt all-flags.csv or nil if none is specified.
 func (module *prebuiltBootclasspathFragmentModule) produceHiddenAPIOutput(ctx android.ModuleContext, contents []android.Module, input HiddenAPIFlagInput) *HiddenAPIOutput {
-	pathForOptionalSrc := func(src *string) android.Path {
+	pathForSrc := func(property string, src *string) android.Path {
 		if src == nil {
-			// TODO(b/179354495): Fail if this is not provided once prebuilts have been updated.
-			return nil
+			ctx.PropertyErrorf(property, "is required but was not specified")
+			return android.PathForModuleSrc(ctx, "missing", property)
 		}
 		return android.PathForModuleSrc(ctx, *src)
 	}
@@ -910,11 +910,11 @@ func (module *prebuiltBootclasspathFragmentModule) produceHiddenAPIOutput(ctx an
 
 	output := HiddenAPIOutput{
 		HiddenAPIFlagOutput: HiddenAPIFlagOutput{
-			StubFlagsPath:       pathForOptionalSrc(module.prebuiltProperties.Hidden_api.Stub_flags),
-			AnnotationFlagsPath: pathForOptionalSrc(module.prebuiltProperties.Hidden_api.Annotation_flags),
-			MetadataPath:        pathForOptionalSrc(module.prebuiltProperties.Hidden_api.Metadata),
-			IndexPath:           pathForOptionalSrc(module.prebuiltProperties.Hidden_api.Index),
-			AllFlagsPath:        pathForOptionalSrc(module.prebuiltProperties.Hidden_api.All_flags),
+			AnnotationFlagsPath: pathForSrc("hidden_api.annotation_flags", module.prebuiltProperties.Hidden_api.Annotation_flags),
+			MetadataPath:        pathForSrc("hidden_api.metadata", module.prebuiltProperties.Hidden_api.Metadata),
+			IndexPath:           pathForSrc("hidden_api.index", module.prebuiltProperties.Hidden_api.Index),
+			StubFlagsPath:       pathForSrc("hidden_api.stub_flags", module.prebuiltProperties.Hidden_api.Stub_flags),
+			AllFlagsPath:        pathForSrc("hidden_api.all_flags", module.prebuiltProperties.Hidden_api.All_flags),
 		},
 		EncodedBootDexFilesByModule: encodedBootDexJarsByModule,
 	}
