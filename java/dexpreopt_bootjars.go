@@ -158,10 +158,10 @@ import (
 // name (if the library is a part of the Platform), or a colon-separated pair <apex, name> (if the
 // library is a part of a non-updatable APEX).
 //
-// A related variable PRODUCT_UPDATABLE_BOOT_JARS contains bootclasspath libraries that are in
-// APEXes. They are not included in the boot image. The only exception here is core-icu4j.jar that
-// has been historically part of the boot image and is now in a non updatable apex; it is treated
-// as being part of PRODUCT_BOOT_JARS and is in the boot image.
+// A related variable PRODUCT_APEX_BOOT_JARS contains bootclasspath libraries that are in APEXes.
+// They are not included in the boot image. The only exception here are ART jars and core-icu4j.jar
+// that have been historically part of the boot image and are now in apexes; they are in boot images
+// and core-icu4j.jar is generally treated as being part of PRODUCT_BOOT_JARS.
 //
 // One exception to the above rules are "coverage" builds (a special build flavor which requires
 // setting environment variable EMMA_INSTRUMENT_FRAMEWORK=true). In coverage builds the Java code in
@@ -801,10 +801,10 @@ func bootFrameworkProfileRule(ctx android.ModuleContext, image *bootImageConfig)
 
 // generateUpdatableBcpPackagesRule generates the rule to create the updatable-bcp-packages.txt file
 // and returns a path to the generated file.
-func generateUpdatableBcpPackagesRule(ctx android.ModuleContext, image *bootImageConfig, updatableModules []android.Module) android.WritablePath {
+func generateUpdatableBcpPackagesRule(ctx android.ModuleContext, image *bootImageConfig, apexModules []android.Module) android.WritablePath {
 	// Collect `permitted_packages` for updatable boot jars.
 	var updatablePackages []string
-	for _, module := range updatableModules {
+	for _, module := range apexModules {
 		if j, ok := module.(PermittedPackagesForUpdatableBootJars); ok {
 			pp := j.PermittedPackagesForUpdatableBootJars()
 			if len(pp) > 0 {

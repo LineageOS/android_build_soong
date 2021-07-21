@@ -1812,16 +1812,16 @@ var earlyBootJarsKey = NewOnceKey("earlyBootJars")
 func (c *config) BootJars() []string {
 	return c.Once(earlyBootJarsKey, func() interface{} {
 		list := c.productVariables.BootJars.CopyOfJars()
-		return append(list, c.productVariables.UpdatableBootJars.CopyOfJars()...)
+		return append(list, c.productVariables.ApexBootJars.CopyOfJars()...)
 	}).([]string)
 }
 
-func (c *config) NonUpdatableBootJars() ConfiguredJarList {
+func (c *config) NonApexBootJars() ConfiguredJarList {
 	return c.productVariables.BootJars
 }
 
-func (c *config) UpdatableBootJars() ConfiguredJarList {
-	return c.productVariables.UpdatableBootJars
+func (c *config) ApexBootJars() ConfiguredJarList {
+	return c.productVariables.ApexBootJars
 }
 
 func (c *config) RBEWrapper() string {
