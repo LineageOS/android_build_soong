@@ -19,9 +19,23 @@ Verify that one set of hidden API flags is a subset of another.
 
 import argparse
 import csv
+from itertools import chain
 
 def dict_reader(input):
     return csv.DictReader(input, delimiter=',', quotechar='|', fieldnames=['signature'])
+
+def extract_subset_from_monolithic_flags_as_dict(monolithicFlagsDict, signatures):
+    """
+    Extract a subset of flags from the dict containing all the monolithic flags.
+
+    :param monolithicFlagsDict: the dict containing all the monolithic flags.
+    :param signatures: a list of signature that define the subset.
+    :return: the dict from signature to row.
+    """
+    dict = {}
+    for signature in signatures:
+        dict[signature] = monolithicFlagsDict.get(signature, {})
+    return dict
 
 def read_signature_csv_from_stream_as_dict(stream):
     """
@@ -62,10 +76,14 @@ def compare_signature_flags(monolithicFlagsDict, modularFlagsDict):
     modular dict, and monolithic dict respectively.
     """
     mismatchingSignatures = []
-    for signature, modularRow in modularFlagsDict.items():
-        modularFlags = modularRow.get(None, [])
+    # Create a sorted set of all the signatures from both the monolithic and
+    # modular dicts.
+    allSignatures = sorted(set(chain(monolithicFlagsDict.keys(), modularFlagsDict.keys())))
+    for signature in allSignatures:
         monolithicRow = monolithicFlagsDict.get(signature, {})
         monolithicFlags = monolithicRow.get(None, [])
+        modularRow = modularFlagsDict.get(signature, {})
+        modularFlags = modularRow.get(None, [])
         if monolithicFlags != modularFlags:
             mismatchingSignatures.append((signature, modularFlags, monolithicFlags))
     return mismatchingSignatures
@@ -80,10 +98,14 @@ def main(argv):
     monolithicFlagsPath = args.monolithicFlags
     monolithicFlagsDict = read_signature_csv_from_file_as_dict(monolithicFlagsPath)
 
+    # For each subset specified on the command line, create dicts for the flags
+    # provided by the subset and the corresponding flags from the complete set of
+    # flags and compare them.
     failed = False
     for modularFlagsPath in args.modularFlags:
         modularFlagsDict = read_signature_csv_from_file_as_dict(modularFlagsPath)
-        mismatchingSignatures = compare_signature_flags(monolithicFlagsDict, modularFlagsDict)
+        monolithicFlagsSubsetDict = extract_subset_from_monolithic_flags_as_dict(monolithicFlagsDict, modularFlagsDict.keys())
+        mismatchingSignatures = compare_signature_flags(monolithicFlagsSubsetDict, modularFlagsDict)
         if mismatchingSignatures:
             failed = True
             print("ERROR: Hidden API flags are inconsistent:")

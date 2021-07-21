@@ -26,10 +26,28 @@ class TestDetectOverlaps(unittest.TestCase):
         with io.StringIO(csv) as f:
             return read_signature_csv_from_stream_as_dict(f)
 
+    extractInput = '''
+Ljava/lang/Object;->hashCode()I,public-api,system-api,test-api
+Ljava/lang/Object;->toString()Ljava/lang/String;,blocked
+'''
+
+    def test_extract_subset(self):
+        monolithic = self.read_signature_csv_from_string_as_dict(TestDetectOverlaps.extractInput)
+        modular = self.read_signature_csv_from_string_as_dict('''
+Ljava/lang/Object;->hashCode()I,public-api,system-api,test-api
+''')
+        subset = extract_subset_from_monolithic_flags_as_dict(monolithic, modular.keys())
+        expected = {
+            'Ljava/lang/Object;->hashCode()I': {
+                None: ['public-api', 'system-api', 'test-api'],
+                'signature': 'Ljava/lang/Object;->hashCode()I',
+            },
+        }
+        self.assertEqual(expected, subset)
+
     def test_match(self):
         monolithic = self.read_signature_csv_from_string_as_dict('''
 Ljava/lang/Object;->hashCode()I,public-api,system-api,test-api
-Ljava/lang/Object;->toString()Ljava/lang/String;,blocked
 ''')
         modular = self.read_signature_csv_from_string_as_dict('''
 Ljava/lang/Object;->hashCode()I,public-api,system-api,test-api
@@ -58,7 +76,6 @@ Ljava/lang/Object;->toString()Ljava/lang/String;,public-api,system-api,test-api
 
     def test_mismatch_monolithic_blocked(self):
         monolithic = self.read_signature_csv_from_string_as_dict('''
-Ljava/lang/Object;->hashCode()I,public-api,system-api,test-api
 Ljava/lang/Object;->toString()Ljava/lang/String;,blocked
 ''')
         modular = self.read_signature_csv_from_string_as_dict('''
@@ -76,7 +93,6 @@ Ljava/lang/Object;->toString()Ljava/lang/String;,public-api,system-api,test-api
 
     def test_mismatch_modular_blocked(self):
         monolithic = self.read_signature_csv_from_string_as_dict('''
-Ljava/lang/Object;->hashCode()I,public-api,system-api,test-api
 Ljava/lang/Object;->toString()Ljava/lang/String;,public-api,system-api,test-api
 ''')
         modular = self.read_signature_csv_from_string_as_dict('''
@@ -93,9 +109,7 @@ Ljava/lang/Object;->toString()Ljava/lang/String;,blocked
         self.assertEqual(expected, mismatches)
 
     def test_missing_from_monolithic(self):
-        monolithic = self.read_signature_csv_from_string_as_dict('''
-Ljava/lang/Object;->hashCode()I,public-api,system-api,test-api
-''')
+        monolithic = self.read_signature_csv_from_string_as_dict('')
         modular = self.read_signature_csv_from_string_as_dict('''
 Ljava/lang/Object;->toString()Ljava/lang/String;,public-api,system-api,test-api
 ''')
@@ -110,27 +124,33 @@ Ljava/lang/Object;->toString()Ljava/lang/String;,public-api,system-api,test-api
         self.assertEqual(expected, mismatches)
 
     def test_missing_from_modular(self):
-        # The modular dict defines the set of signatures to compare so an entry
-        # in the monolithic dict that does not have a corresponding entry in the
-        # modular dict is ignored.
         monolithic = self.read_signature_csv_from_string_as_dict('''
 Ljava/lang/Object;->hashCode()I,public-api,system-api,test-api
 ''')
         modular = {}
         mismatches = compare_signature_flags(monolithic, modular)
-        expected = []
+        expected = [
+            (
+                'Ljava/lang/Object;->hashCode()I',
+                [],
+                ['public-api', 'system-api', 'test-api'],
+            ),
+        ]
         self.assertEqual(expected, mismatches)
 
     def test_blocked_missing_from_modular(self):
-        # The modular dict defines the set of signatures to compare so an entry
-        # in the monolithic dict that does not have a corresponding entry in the
-        # modular dict is ignored.
         monolithic = self.read_signature_csv_from_string_as_dict('''
 Ljava/lang/Object;->hashCode()I,blocked
 ''')
         modular = {}
         mismatches = compare_signature_flags(monolithic, modular)
-        expected = []
+        expected = [
+            (
+                'Ljava/lang/Object;->hashCode()I',
+                [],
+                ['blocked'],
+            ),
+        ]
         self.assertEqual(expected, mismatches)
 
 if __name__ == '__main__':
