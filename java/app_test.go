@@ -2471,7 +2471,7 @@ func TestDexpreoptBcp(t *testing.T) {
 				PrepareForTestWithJavaSdkLibraryFiles,
 				FixtureWithLastReleaseApis("runtime-library", "foo", "bar"),
 				dexpreopt.FixtureSetBootJars("platform:foo"),
-				dexpreopt.FixtureSetUpdatableBootJars("platform:bar"),
+				dexpreopt.FixtureSetApexBootJars("platform:bar"),
 				dexpreopt.FixtureSetPreoptWithUpdatableBcp(test.with),
 			).RunTestWithBp(t, bp)
 
