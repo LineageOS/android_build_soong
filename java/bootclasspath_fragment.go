@@ -579,6 +579,14 @@ func (b *BootclasspathFragmentModule) generateHiddenAPIBuildActions(ctx android.
 	common := ctx.Module().(commonBootclasspathFragment)
 	output := common.produceHiddenAPIOutput(ctx, contents, input)
 
+	// If the source or prebuilts module does not provide a signature patterns file then generate one
+	// from the flags.
+	// TODO(b/192868581): Remove once the source and prebuilts provide a signature patterns file of
+	//  their own.
+	if output.SignaturePatternsPath == nil {
+		output.SignaturePatternsPath = buildRuleSignaturePatternsFile(ctx, output.AllFlagsPath)
+	}
+
 	// Initialize a HiddenAPIInfo structure.
 	hiddenAPIInfo := HiddenAPIInfo{
 		// The monolithic hidden API processing needs access to the flag files that override the default
@@ -744,9 +752,6 @@ type bootclasspathFragmentSdkMemberProperties struct {
 	// Flag files by *hiddenAPIFlagFileCategory
 	Flag_files_by_category FlagFilesByCategory
 
-	// The path to the generated stub-flags.csv file.
-	Stub_flags_path android.OptionalPath
-
 	// The path to the generated annotation-flags.csv file.
 	Annotation_flags_path android.OptionalPath
 
@@ -755,6 +760,9 @@ type bootclasspathFragmentSdkMemberProperties struct {
 
 	// The path to the generated index.csv file.
 	Index_path android.OptionalPath
+
+	// The path to the generated stub-flags.csv file.
+	Stub_flags_path android.OptionalPath
 
 	// The path to the generated all-flags.csv file.
 	All_flags_path android.OptionalPath
@@ -772,10 +780,11 @@ func (b *bootclasspathFragmentSdkMemberProperties) PopulateFromVariant(ctx andro
 	b.Flag_files_by_category = hiddenAPIInfo.FlagFilesByCategory
 
 	// Copy all the generated file paths.
-	b.Stub_flags_path = android.OptionalPathForPath(hiddenAPIInfo.StubFlagsPath)
 	b.Annotation_flags_path = android.OptionalPathForPath(hiddenAPIInfo.AnnotationFlagsPath)
 	b.Metadata_path = android.OptionalPathForPath(hiddenAPIInfo.MetadataPath)
 	b.Index_path = android.OptionalPathForPath(hiddenAPIInfo.IndexPath)
+
+	b.Stub_flags_path = android.OptionalPathForPath(hiddenAPIInfo.StubFlagsPath)
 	b.All_flags_path = android.OptionalPathForPath(hiddenAPIInfo.AllFlagsPath)
 
 	// Copy stub_libs properties.
@@ -839,10 +848,10 @@ func (b *bootclasspathFragmentSdkMemberProperties) AddToPropertySet(ctx android.
 	}
 
 	// Copy all the generated files, if available.
-	copyOptionalPath(b.Stub_flags_path, "stub_flags")
 	copyOptionalPath(b.Annotation_flags_path, "annotation_flags")
 	copyOptionalPath(b.Metadata_path, "metadata")
 	copyOptionalPath(b.Index_path, "index")
+	copyOptionalPath(b.Stub_flags_path, "stub_flags")
 	copyOptionalPath(b.All_flags_path, "all_flags")
 }
 
@@ -852,9 +861,6 @@ var _ android.SdkMemberType = (*bootclasspathFragmentMemberType)(nil)
 // specific properties.
 type prebuiltBootclasspathFragmentProperties struct {
 	Hidden_api struct {
-		// The path to the stub-flags.csv file created by the bootclasspath_fragment.
-		Stub_flags *string `android:"path"`
-
 		// The path to the annotation-flags.csv file created by the bootclasspath_fragment.
 		Annotation_flags *string `android:"path"`
 
@@ -863,6 +869,9 @@ type prebuiltBootclasspathFragmentProperties struct {
 
 		// The path to the index.csv file created by the bootclasspath_fragment.
 		Index *string `android:"path"`
+
+		// The path to the stub-flags.csv file created by the bootclasspath_fragment.
+		Stub_flags *string `android:"path"`
 
 		// The path to the all-flags.csv file created by the bootclasspath_fragment.
 		All_flags *string `android:"path"`
