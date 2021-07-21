@@ -72,36 +72,34 @@ func depsBp2BuildMutator(ctx android.BottomUpMutatorContext) {
 				allDeps = append(allDeps, baseLinkerProps.Whole_static_libs...)
 				allDeps = append(allDeps, baseLinkerProps.Shared_libs...)
 				allDeps = append(allDeps, baseLinkerProps.Exclude_shared_libs...)
+				allDeps = append(allDeps, baseLinkerProps.System_shared_libs...)
 			}
 		}
 	}
 
 	// Deps in the static: { .. } and shared: { .. } props of a cc_library.
 	if lib, ok := module.compiler.(*libraryDecorator); ok {
-		appendDeps := func(deps []string, p StaticOrSharedProperties) []string {
+		appendDeps := func(deps []string, p StaticOrSharedProperties, system bool) []string {
 			deps = append(deps, p.Static_libs...)
 			deps = append(deps, p.Whole_static_libs...)
 			deps = append(deps, p.Shared_libs...)
+			// TODO(b/186024507, b/186489250): Temporarily exclude adding
+			// system_shared_libs deps until libc and libm builds.
+			if system {
+				allDeps = append(allDeps, p.System_shared_libs...)
+			}
 			return deps
 		}
 
-		allDeps = appendDeps(allDeps, lib.SharedProperties.Shared)
-		allDeps = appendDeps(allDeps, lib.StaticProperties.Static)
-
-		// TODO(b/186024507, b/186489250): Temporarily exclude adding
-		// system_shared_libs deps until libc and libm builds.
-		if lib.static() {
-			allDeps = append(allDeps, lib.StaticProperties.Static.System_shared_libs...)
-		} else if lib.shared() {
-			allDeps = append(allDeps, lib.SharedProperties.Shared.System_shared_libs...)
-		}
+		allDeps = appendDeps(allDeps, lib.SharedProperties.Shared, lib.shared())
+		allDeps = appendDeps(allDeps, lib.StaticProperties.Static, lib.static())
 
 		// Deps in the target/arch nested static: { .. } and shared: { .. } props of a cc_library.
 		// target: { <target>: shared: { ... } }
 		for _, configToProps := range module.GetArchVariantProperties(ctx, &SharedProperties{}) {
 			for _, props := range configToProps {
 				if p, ok := props.(*SharedProperties); ok {
-					allDeps = appendDeps(allDeps, p.Shared)
+					allDeps = appendDeps(allDeps, p.Shared, lib.shared())
 				}
 			}
 		}
@@ -109,7 +107,7 @@ func depsBp2BuildMutator(ctx android.BottomUpMutatorContext) {
 		for _, configToProps := range module.GetArchVariantProperties(ctx, &StaticProperties{}) {
 			for _, props := range configToProps {
 				if p, ok := props.(*StaticProperties); ok {
-					allDeps = appendDeps(allDeps, p.Static)
+					allDeps = appendDeps(allDeps, p.Static, lib.static())
 				}
 			}
 		}
