@@ -68,7 +68,6 @@ func RegisterGenruleBuildComponents(ctx android.RegistrationContext) {
 		ctx.BottomUp("genrule_tool_deps", toolDepsMutator).Parallel()
 	})
 
-	android.DepsBp2BuildMutators(RegisterGenruleBp2BuildDeps)
 	android.RegisterBp2BuildMutator("genrule", GenruleBp2Build)
 }
 

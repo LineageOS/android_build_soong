@@ -223,6 +223,8 @@ type BaseModuleContext interface {
 	// the first DependencyTag.
 	GetDirectDep(name string) (blueprint.Module, blueprint.DependencyTag)
 
+	ModuleFromName(name string) (blueprint.Module, bool)
+
 	// VisitDirectDepsBlueprint calls visit for each direct dependency.  If there are multiple
 	// direct dependencies on the same module visit will be called multiple times on that module
 	// and OtherModuleDependencyTag will return a different tag for each.
@@ -2032,8 +2034,13 @@ type baseModuleContext struct {
 	tagPath  []blueprint.DependencyTag
 
 	strictVisitDeps bool // If true, enforce that all dependencies are enabled
+
+	bazelConversionMode bool
 }
 
+func (b *baseModuleContext) BazelConversionMode() bool {
+	return b.bazelConversionMode
+}
 func (b *baseModuleContext) OtherModuleName(m blueprint.Module) string {
 	return b.bp.OtherModuleName(m)
 }
@@ -2371,6 +2378,18 @@ func (m *moduleContext) GetDirectDepWithTag(name string, tag blueprint.Dependenc
 // first DependencyTag.
 func (b *baseModuleContext) GetDirectDep(name string) (blueprint.Module, blueprint.DependencyTag) {
 	return b.getDirectDepFirstTag(name)
+}
+
+func (b *baseModuleContext) ModuleFromName(name string) (blueprint.Module, bool) {
+	if !b.BazelConversionMode() {
+		panic("cannot call ModuleFromName if not in bazel conversion mode")
+	}
+	if len(name) > 1 && (name[0] == ':' || (name[0] == '/' && name[1] == '/')) {
+		moduleName, _ := SrcIsModuleWithTag(name)
+		return b.bp.ModuleFromName(moduleName)
+	} else {
+		return b.bp.ModuleFromName(name)
+	}
 }
 
 func (b *baseModuleContext) VisitDirectDepsBlueprint(visit func(blueprint.Module)) {
