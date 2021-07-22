@@ -201,6 +201,9 @@ type BaseLinkerProperties struct {
 	// local file name to pass to the linker as --version_script
 	Version_script *string `android:"path,arch_variant"`
 
+	// local file name to pass to the linker as --dynamic-list
+	Dynamic_list *string `android:"path,arch_variant"`
+
 	// list of static libs that should not be used to build this module
 	Exclude_static_libs []string `android:"arch_variant"`
 
@@ -559,6 +562,17 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 						"-Wl,--version-script,"+cfiExportsMap.String())
 					flags.LdFlagsDeps = append(flags.LdFlagsDeps, cfiExportsMap)
 				}
+			}
+		}
+
+		dynamicList := android.OptionalPathForModuleSrc(ctx, linker.Properties.Dynamic_list)
+		if dynamicList.Valid() {
+			if ctx.Darwin() {
+				ctx.PropertyErrorf("dynamic_list", "Not supported on Darwin")
+			} else {
+				flags.Local.LdFlags = append(flags.Local.LdFlags,
+					"-Wl,--dynamic-list,"+dynamicList.String())
+				flags.LdFlagsDeps = append(flags.LdFlagsDeps, dynamicList.Path())
 			}
 		}
 	}
