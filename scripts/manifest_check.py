@@ -90,6 +90,15 @@ def enforce_uses_libraries(manifest, required, optional, relax, is_apk, path):
   else:
     manifest_required, manifest_optional, tags = extract_uses_libs_xml(manifest)
 
+  # Trim namespace component. Normally Soong does that automatically when it
+  # handles module names specified in Android.bp properties. However not all
+  # <uses-library> entries in the manifest correspond to real modules: some of
+  # the optional libraries may be missing at build time. Therefor this script
+  # accepts raw module names as spelled in Android.bp/Amdroid.mk and trims the
+  # optional namespace part manually.
+  required = trim_namespace_parts(required)
+  optional = trim_namespace_parts(optional)
+
   if manifest_required == required and manifest_optional == optional:
     return None
 
@@ -116,6 +125,17 @@ def enforce_uses_libraries(manifest, required, optional, relax, is_apk, path):
     raise ManifestMismatchError(errmsg)
 
   return errmsg
+
+
+MODULE_NAMESPACE = re.compile("^//[^:]+:")
+
+def trim_namespace_parts(modules):
+  """Trim the namespace part of each module, if present. Leave only the name."""
+
+  trimmed = []
+  for module in modules:
+    trimmed.append(MODULE_NAMESPACE.sub('', module))
+  return trimmed
 
 
 def extract_uses_libs_apk(badging):
