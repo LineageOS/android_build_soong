@@ -3,6 +3,7 @@ package cc
 import (
 	"android/soong/android"
 	"android/soong/bazel/cquery"
+	"android/soong/snapshot"
 
 	"github.com/google/blueprint"
 )
@@ -71,14 +72,11 @@ type SantizableDependencyTagChecker func(tag blueprint.DependencyTag) bool
 
 // Snapshottable defines those functions necessary for handling module snapshots.
 type Snapshottable interface {
+	snapshot.VendorSnapshotModuleInterface
+	snapshot.RecoverySnapshotModuleInterface
+
 	// SnapshotHeaders returns a list of header paths provided by this module.
 	SnapshotHeaders() android.Paths
-
-	// ExcludeFromVendorSnapshot returns true if this module should be otherwise excluded from the vendor snapshot.
-	ExcludeFromVendorSnapshot() bool
-
-	// ExcludeFromRecoverySnapshot returns true if this module should be otherwise excluded from the recovery snapshot.
-	ExcludeFromRecoverySnapshot() bool
 
 	// SnapshotLibrary returns true if this module is a snapshot library.
 	IsSnapshotLibrary() bool

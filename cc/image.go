@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"android/soong/android"
+	"android/soong/snapshot"
 )
 
 var _ android.ImageInterface = (*Module)(nil)
@@ -496,7 +497,7 @@ func MutateImage(mctx android.BaseModuleContext, m ImageMutatableModule) {
 		// BOARD_VNDK_VERSION. The other modules are regarded as AOSP, or
 		// PLATFORM_VNDK_VERSION.
 		if m.HasVendorVariant() {
-			if IsVendorProprietaryModule(mctx) {
+			if snapshot.IsVendorProprietaryModule(mctx) {
 				vendorVariants = append(vendorVariants, boardVndkVersion)
 			} else {
 				vendorVariants = append(vendorVariants, platformVndkVersion)
@@ -525,7 +526,7 @@ func MutateImage(mctx android.BaseModuleContext, m ImageMutatableModule) {
 				platformVndkVersion,
 				boardVndkVersion,
 			)
-		} else if IsVendorProprietaryModule(mctx) {
+		} else if snapshot.IsVendorProprietaryModule(mctx) {
 			vendorVariants = append(vendorVariants, boardVndkVersion)
 		} else {
 			vendorVariants = append(vendorVariants, platformVndkVersion)
@@ -582,7 +583,7 @@ func MutateImage(mctx android.BaseModuleContext, m ImageMutatableModule) {
 	if !m.KernelHeadersDecorator() &&
 		!m.IsSnapshotPrebuilt() &&
 		usingRecoverySnapshot &&
-		!isRecoveryProprietaryModule(mctx) {
+		!snapshot.IsRecoveryProprietaryModule(mctx) {
 		recoveryVariantNeeded = false
 	}
 

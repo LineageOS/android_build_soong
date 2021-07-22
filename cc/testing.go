@@ -20,6 +20,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/genrule"
+	"android/soong/snapshot"
 )
 
 func RegisterRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
@@ -638,8 +639,10 @@ var PrepareForTestOnFuchsia = android.GroupFixturePreparers(
 var PrepareForTestWithCcIncludeVndk = android.GroupFixturePreparers(
 	PrepareForIntegrationTestWithCc,
 	android.FixtureRegisterWithContext(func(ctx android.RegistrationContext) {
-		VendorSnapshotImageSingleton.Init(ctx)
-		recoverySnapshotImageSingleton.init(ctx)
+		snapshot.VendorSnapshotImageSingleton.Init(ctx)
+		snapshot.RecoverySnapshotImageSingleton.Init(ctx)
+		RegisterVendorSnapshotModules(ctx)
+		RegisterRecoverySnapshotModules(ctx)
 		ctx.RegisterSingletonType("vndk-snapshot", VndkSnapshotSingleton)
 	}),
 )
@@ -687,8 +690,10 @@ func CreateTestContext(config android.Config) *android.TestContext {
 	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
 	ctx.RegisterModuleType("vndk_prebuilt_shared", VndkPrebuiltSharedFactory)
 
-	VendorSnapshotImageSingleton.Init(ctx)
-	recoverySnapshotImageSingleton.init(ctx)
+	snapshot.VendorSnapshotImageSingleton.Init(ctx)
+	snapshot.RecoverySnapshotImageSingleton.Init(ctx)
+	RegisterVendorSnapshotModules(ctx)
+	RegisterRecoverySnapshotModules(ctx)
 	ctx.RegisterSingletonType("vndk-snapshot", VndkSnapshotSingleton)
 	RegisterVndkLibraryTxtTypes(ctx)
 

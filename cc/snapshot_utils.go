@@ -114,7 +114,7 @@ func ShouldCollectHeadersForSnapshot(ctx android.ModuleContext, m LinkableInterf
 	}
 
 	for _, image := range []SnapshotImage{VendorSnapshotImageSingleton, recoverySnapshotImageSingleton} {
-		if isSnapshotAware(ctx.DeviceConfig(), m, image.isProprietaryPath(ctx.ModuleDir(), ctx.DeviceConfig()), apexInfo, image) {
+		if isSnapshotAware(ctx.DeviceConfig(), m, image.IsProprietaryPath(ctx.ModuleDir(), ctx.DeviceConfig()), apexInfo, image) {
 			return true
 		}
 	}

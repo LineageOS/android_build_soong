@@ -28,12 +28,15 @@ package etc
 // various `prebuilt_*` mutators.
 
 import (
+	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
+	"android/soong/snapshot"
 )
 
 var pctx = android.NewPackageContext("android/soong/etc")
@@ -43,6 +46,7 @@ var pctx = android.NewPackageContext("android/soong/etc")
 func init() {
 	pctx.Import("android/soong/android")
 	RegisterPrebuiltEtcBuildComponents(android.InitRegistrationContext)
+	snapshot.RegisterSnapshotAction(generatePrebuiltSnapshot)
 }
 
 func RegisterPrebuiltEtcBuildComponents(ctx android.RegistrationContext) {
@@ -128,6 +132,9 @@ type PrebuiltEtc struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
 
+	snapshot.VendorSnapshotModuleInterface
+	snapshot.RecoverySnapshotModuleInterface
+
 	properties       prebuiltEtcProperties
 	subdirProperties prebuiltSubdirProperties
 
@@ -183,7 +190,7 @@ func (p *PrebuiltEtc) InstallInDebugRamdisk() bool {
 	return p.inDebugRamdisk()
 }
 
-func (p *PrebuiltEtc) inRecovery() bool {
+func (p *PrebuiltEtc) InRecovery() bool {
 	return p.ModuleBase.InRecovery() || p.ModuleBase.InstallInRecovery()
 }
 
@@ -192,7 +199,7 @@ func (p *PrebuiltEtc) onlyInRecovery() bool {
 }
 
 func (p *PrebuiltEtc) InstallInRecovery() bool {
-	return p.inRecovery()
+	return p.InRecovery()
 }
 
 var _ android.ImageInterface = (*PrebuiltEtc)(nil)
@@ -271,6 +278,18 @@ func (p *PrebuiltEtc) Installable() bool {
 	return p.properties.Installable == nil || proptools.Bool(p.properties.Installable)
 }
 
+func (p *PrebuiltEtc) InVendor() bool {
+	return p.ModuleBase.InstallInVendor()
+}
+
+func (p *PrebuiltEtc) ExcludeFromVendorSnapshot() bool {
+	return false
+}
+
+func (p *PrebuiltEtc) ExcludeFromRecoverySnapshot() bool {
+	return false
+}
+
 func (p *PrebuiltEtc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	if p.properties.Src == nil {
 		ctx.PropertyErrorf("src", "missing prebuilt source file")
@@ -344,7 +363,7 @@ func (p *PrebuiltEtc) AndroidMkEntries() []android.AndroidMkEntries {
 	if p.inDebugRamdisk() && !p.onlyInDebugRamdisk() {
 		nameSuffix = ".debug_ramdisk"
 	}
-	if p.inRecovery() && !p.onlyInRecovery() {
+	if p.InRecovery() && !p.onlyInRecovery() {
 		nameSuffix = ".recovery"
 	}
 	return []android.AndroidMkEntries{android.AndroidMkEntries{
@@ -493,4 +512,138 @@ func PrebuiltRFSAFactory() android.Module {
 	// This module is device-only
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
 	return module
+}
+
+// Flags to be included in the snapshot
+type snapshotJsonFlags struct {
+	ModuleName          string `json:",omitempty"`
+	Filename            string `json:",omitempty"`
+	RelativeInstallPath string `json:",omitempty"`
+}
+
+// Copy file into the snapshot
+func copyFile(ctx android.SingletonContext, path android.Path, out string, fake bool) android.OutputPath {
+	if fake {
+		// Create empty file instead for the fake snapshot
+		return snapshot.WriteStringToFileRule(ctx, "", out)
+	} else {
+		return snapshot.CopyFileRule(pctx, ctx, path, out)
+	}
+}
+
+// Check if the module is target of the snapshot
+func isSnapshotAware(ctx android.SingletonContext, m *PrebuiltEtc, image snapshot.SnapshotImage) bool {
+	if !m.Enabled() {
+		return false
+	}
+
+	// Skip if the module is not included in the image
+	if !image.InImage(m)() {
+		return false
+	}
+
+	// When android/prebuilt.go selects between source and prebuilt, it sets
+	// HideFromMake on the other one to avoid duplicate install rules in make.
+	if m.IsHideFromMake() {
+		return false
+	}
+
+	// There are some prebuilt_etc module with multiple definition of same name.
+	// Check if the target would be included from the build
+	if !m.ExportedToMake() {
+		return false
+	}
+
+	// Skip if the module is in the predefined path list to skip
+	if image.IsProprietaryPath(ctx.ModuleDir(m), ctx.DeviceConfig()) {
+		return false
+	}
+
+	// Skip if the module should be excluded
+	if image.ExcludeFromSnapshot(m) || image.ExcludeFromDirectedSnapshot(ctx.DeviceConfig(), m.BaseModuleName()) {
+		return false
+	}
+
+	// Skip from other exceptional cases
+	if m.Target().Os.Class != android.Device {
+		return false
+	}
+	if m.Target().NativeBridge == android.NativeBridgeEnabled {
+		return false
+	}
+
+	return true
+}
+
+func generatePrebuiltSnapshot(s snapshot.SnapshotSingleton, ctx android.SingletonContext, snapshotArchDir string) android.Paths {
+	/*
+		Snapshot zipped artifacts directory structure for etc modules:
+		{SNAPSHOT_ARCH}/
+			arch-{TARGET_ARCH}-{TARGET_ARCH_VARIANT}/
+				etc/
+					(prebuilt etc files)
+			arch-{TARGET_2ND_ARCH}-{TARGET_2ND_ARCH_VARIANT}/
+				etc/
+					(prebuilt etc files)
+			NOTICE_FILES/
+				(notice files)
+	*/
+	var snapshotOutputs android.Paths
+	noticeDir := filepath.Join(snapshotArchDir, "NOTICE_FILES")
+	installedNotices := make(map[string]bool)
+
+	ctx.VisitAllModules(func(module android.Module) {
+		m, ok := module.(*PrebuiltEtc)
+		if !ok {
+			return
+		}
+
+		if !isSnapshotAware(ctx, m, s.Image) {
+			return
+		}
+
+		targetArch := "arch-" + m.Target().Arch.ArchType.String()
+
+		snapshotLibOut := filepath.Join(snapshotArchDir, targetArch, "etc", m.BaseModuleName())
+		snapshotOutputs = append(snapshotOutputs, copyFile(ctx, m.OutputFile(), snapshotLibOut, s.Fake))
+
+		prop := snapshotJsonFlags{}
+		propOut := snapshotLibOut + ".json"
+		prop.ModuleName = m.BaseModuleName()
+		if m.subdirProperties.Relative_install_path != nil {
+			prop.RelativeInstallPath = *m.subdirProperties.Relative_install_path
+		}
+
+		if m.properties.Filename != nil {
+			prop.Filename = *m.properties.Filename
+		}
+
+		j, err := json.Marshal(prop)
+		if err != nil {
+			ctx.Errorf("json marshal to %q failed: %#v", propOut, err)
+			return
+		}
+		snapshotOutputs = append(snapshotOutputs, snapshot.WriteStringToFileRule(ctx, string(j), propOut))
+
+		if len(m.EffectiveLicenseFiles()) > 0 {
+			noticeName := ctx.ModuleName(m) + ".txt"
+			noticeOut := filepath.Join(noticeDir, noticeName)
+			// skip already copied notice file
+			if !installedNotices[noticeOut] {
+				installedNotices[noticeOut] = true
+
+				noticeOutPath := android.PathForOutput(ctx, noticeOut)
+				ctx.Build(pctx, android.BuildParams{
+					Rule:        android.Cat,
+					Inputs:      m.EffectiveLicenseFiles(),
+					Output:      noticeOutPath,
+					Description: "combine notices for " + noticeOut,
+				})
+				snapshotOutputs = append(snapshotOutputs, noticeOutPath)
+			}
+		}
+
+	})
+
+	return snapshotOutputs
 }
