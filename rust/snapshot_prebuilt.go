@@ -17,6 +17,7 @@ package rust
 import (
 	"android/soong/android"
 	"android/soong/cc"
+
 	"github.com/google/blueprint/proptools"
 )
 
