@@ -183,6 +183,15 @@ class EnforceUsesLibrariesTest(unittest.TestCase):
                             optional_uses_libraries=['bar'])
     self.assertTrue(matches)
 
+  def test_mixed_with_namespace(self):
+    xml = self.xml_tmpl % ('\n'.join([uses_library_xml('foo'),
+                                      uses_library_xml('bar', required_xml(False))]))
+    apk = self.apk_tmpl % ('\n'.join([uses_library_apk('foo'),
+                                      uses_library_apk('bar', required_apk(False))]))
+    matches = self.run_test(xml, apk, uses_libraries=['//x/y/z:foo'],
+                            optional_uses_libraries=['//x/y/z:bar'])
+    self.assertTrue(matches)
+
 
 class ExtractTargetSdkVersionTest(unittest.TestCase):
   def run_test(self, xml, apk, version):
