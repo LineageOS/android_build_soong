@@ -25,6 +25,7 @@ import (
 	"android/soong/android"
 	"android/soong/cc/config"
 	"android/soong/etc"
+	"android/soong/snapshot"
 
 	"github.com/google/blueprint"
 )
@@ -698,7 +699,7 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 
 		libPath := m.outputFile.Path()
 		snapshotLibOut := filepath.Join(snapshotArchDir, targetArch, "shared", vndkType, libPath.Base())
-		ret = append(ret, copyFileRule(ctx, libPath, snapshotLibOut))
+		ret = append(ret, snapshot.CopyFileRule(pctx, ctx, libPath, snapshotLibOut))
 
 		if ctx.Config().VndkSnapshotBuildArtifacts() {
 			prop := struct {
@@ -720,7 +721,7 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 				ctx.Errorf("json marshal to %q failed: %#v", propOut, err)
 				return nil, false
 			}
-			ret = append(ret, writeStringToFileRule(ctx, string(j), propOut))
+			ret = append(ret, snapshot.WriteStringToFileRule(ctx, string(j), propOut))
 		}
 		return ret, true
 	}
@@ -778,8 +779,8 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 
 	// install all headers after removing duplicates
 	for _, header := range android.FirstUniquePaths(headers) {
-		snapshotOutputs = append(snapshotOutputs, copyFileRule(
-			ctx, header, filepath.Join(includeDir, header.String())))
+		snapshotOutputs = append(snapshotOutputs, snapshot.CopyFileRule(
+			pctx, ctx, header, filepath.Join(includeDir, header.String())))
 	}
 
 	// install *.libraries.txt except vndkcorevariant.libraries.txt
@@ -788,8 +789,8 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 		if !ok || !m.Enabled() || m.Name() == vndkUsingCoreVariantLibrariesTxt {
 			return
 		}
-		snapshotOutputs = append(snapshotOutputs, copyFileRule(
-			ctx, m.OutputFile(), filepath.Join(configsDir, m.Name())))
+		snapshotOutputs = append(snapshotOutputs, snapshot.CopyFileRule(
+			pctx, ctx, m.OutputFile(), filepath.Join(configsDir, m.Name())))
 	})
 
 	/*
