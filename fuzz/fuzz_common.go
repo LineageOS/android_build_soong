@@ -12,13 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cc
+package fuzz
 
 // This file contains the common code for compiling C/C++ and Rust fuzzers for Android.
 
 import (
+	"encoding/json"
 	"sort"
 	"strings"
+
+	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
 )
@@ -29,6 +32,8 @@ const (
 	Cc   Lang = ""
 	Rust Lang = "rust"
 )
+
+var BoolDefault = proptools.BoolDefault
 
 type FuzzModule struct {
 	android.ModuleBase
@@ -50,6 +55,44 @@ type ArchOs struct {
 	HostOrTarget string
 	Arch         string
 	Dir          string
+}
+
+type FuzzConfig struct {
+	// Email address of people to CC on bugs or contact about this fuzz target.
+	Cc []string `json:"cc,omitempty"`
+	// Specify whether to enable continuous fuzzing on devices. Defaults to true.
+	Fuzz_on_haiku_device *bool `json:"fuzz_on_haiku_device,omitempty"`
+	// Specify whether to enable continuous fuzzing on host. Defaults to true.
+	Fuzz_on_haiku_host *bool `json:"fuzz_on_haiku_host,omitempty"`
+	// Component in Google's bug tracking system that bugs should be filed to.
+	Componentid *int64 `json:"componentid,omitempty"`
+	// Hotlists in Google's bug tracking system that bugs should be marked with.
+	Hotlists []string `json:"hotlists,omitempty"`
+	// Specify whether this fuzz target was submitted by a researcher. Defaults
+	// to false.
+	Researcher_submitted *bool `json:"researcher_submitted,omitempty"`
+	// Specify who should be acknowledged for CVEs in the Android Security
+	// Bulletin.
+	Acknowledgement []string `json:"acknowledgement,omitempty"`
+	// Additional options to be passed to libfuzzer when run in Haiku.
+	Libfuzzer_options []string `json:"libfuzzer_options,omitempty"`
+	// Additional options to be passed to HWASAN when running on-device in Haiku.
+	Hwasan_options []string `json:"hwasan_options,omitempty"`
+	// Additional options to be passed to HWASAN when running on host in Haiku.
+	Asan_options []string `json:"asan_options,omitempty"`
+}
+
+type FuzzProperties struct {
+	// Optional list of seed files to be installed to the fuzz target's output
+	// directory.
+	Corpus []string `android:"path"`
+	// Optional list of data files to be installed to the fuzz target's output
+	// directory. Directory structure relative to the module is preserved.
+	Data []string `android:"path"`
+	// Optional dictionary to be installed to the fuzz target's output directory.
+	Dictionary *string `android:"path"`
+	// Config for running the target on fuzzing infrastructure.
+	Fuzz_config *FuzzConfig
 }
 
 type FuzzPackagedModule struct {
@@ -151,7 +194,16 @@ func (s *FuzzPackager) BuildZipFile(ctx android.SingletonContext, module android
 	return archDirs[archOs], true
 }
 
-func (s *FuzzPackager) CreateFuzzPackage(ctx android.SingletonContext, archDirs map[ArchOs][]FileToZip, lang Lang) {
+func (f *FuzzConfig) String() string {
+	b, err := json.Marshal(f)
+	if err != nil {
+		panic(err)
+	}
+
+	return string(b)
+}
+
+func (s *FuzzPackager) CreateFuzzPackage(ctx android.SingletonContext, archDirs map[ArchOs][]FileToZip, lang Lang, pctx android.PackageContext) {
 	var archOsList []ArchOs
 	for archOs := range archDirs {
 		archOsList = append(archOsList, archOs)
