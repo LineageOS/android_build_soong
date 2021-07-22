@@ -58,34 +58,21 @@ func newMonolithicHiddenAPIInfo(ctx android.ModuleContext, flagFilesByCategory F
 	// Merge all the information from the classpathElements. The fragments form a DAG so it is possible that
 	// this will introduce duplicates so they will be resolved after processing all the classpathElements.
 	for _, element := range classpathElements {
-		var classesJars android.Paths
 		switch e := element.(type) {
 		case *ClasspathLibraryElement:
-			classesJars = retrieveClassesJarsFromModule(e.Module())
+			classesJars := retrieveClassesJarsFromModule(e.Module())
+			monolithicInfo.ClassesJars = append(monolithicInfo.ClassesJars, classesJars...)
 
 		case *ClasspathFragmentElement:
 			fragment := e.Module()
 			if ctx.OtherModuleHasProvider(fragment, HiddenAPIInfoProvider) {
 				info := ctx.OtherModuleProvider(fragment, HiddenAPIInfoProvider).(HiddenAPIInfo)
 				monolithicInfo.append(&info)
-
-				// If the bootclasspath fragment actually perform hidden API processing itself then use the
-				// CSV files it provides and do not bother processing the classesJars files. This ensures
-				// consistent behavior between source and prebuilt as prebuilt modules do not provide
-				// classesJars.
-				if info.AllFlagsPath != nil {
-					continue
-				}
+			} else {
+				ctx.ModuleErrorf("%s does not provide hidden API information", fragment)
 			}
-
-			classesJars = extractClassesJarsFromModules(e.Contents)
 		}
-
-		monolithicInfo.ClassesJars = append(monolithicInfo.ClassesJars, classesJars...)
 	}
-
-	// Dedup paths.
-	monolithicInfo.dedup()
 
 	return monolithicInfo
 }
@@ -93,33 +80,11 @@ func newMonolithicHiddenAPIInfo(ctx android.ModuleContext, flagFilesByCategory F
 // append appends all the files from the supplied info to the corresponding files in this struct.
 func (i *MonolithicHiddenAPIInfo) append(other *HiddenAPIInfo) {
 	i.FlagsFilesByCategory.append(other.FlagFilesByCategory)
-
-	// The output may not be set if the bootclasspath_fragment has not yet been updated to support
-	// hidden API processing.
-	// TODO(b/179354495): Switch back to append once all bootclasspath_fragment modules have been
-	//  updated to support hidden API processing properly.
-	appendIfNotNil := func(paths android.Paths, path android.Path) android.Paths {
-		if path == nil {
-			return paths
-		}
-		return append(paths, path)
-	}
-	i.StubFlagsPaths = appendIfNotNil(i.StubFlagsPaths, other.StubFlagsPath)
-	i.AnnotationFlagsPaths = appendIfNotNil(i.AnnotationFlagsPaths, other.AnnotationFlagsPath)
-	i.MetadataPaths = appendIfNotNil(i.MetadataPaths, other.MetadataPath)
-	i.IndexPaths = appendIfNotNil(i.IndexPaths, other.IndexPath)
-	i.AllFlagsPaths = appendIfNotNil(i.AllFlagsPaths, other.AllFlagsPath)
-}
-
-// dedup removes duplicates in all the paths, while maintaining the order in which they were
-// appended.
-func (i *MonolithicHiddenAPIInfo) dedup() {
-	i.FlagsFilesByCategory.dedup()
-	i.StubFlagsPaths = android.FirstUniquePaths(i.StubFlagsPaths)
-	i.AnnotationFlagsPaths = android.FirstUniquePaths(i.AnnotationFlagsPaths)
-	i.MetadataPaths = android.FirstUniquePaths(i.MetadataPaths)
-	i.IndexPaths = android.FirstUniquePaths(i.IndexPaths)
-	i.AllFlagsPaths = android.FirstUniquePaths(i.AllFlagsPaths)
+	i.StubFlagsPaths = append(i.StubFlagsPaths, other.StubFlagsPath)
+	i.AnnotationFlagsPaths = append(i.AnnotationFlagsPaths, other.AnnotationFlagsPath)
+	i.MetadataPaths = append(i.MetadataPaths, other.MetadataPath)
+	i.IndexPaths = append(i.IndexPaths, other.IndexPath)
+	i.AllFlagsPaths = append(i.AllFlagsPaths, other.AllFlagsPath)
 }
 
 var MonolithicHiddenAPIInfoProvider = blueprint.NewProvider(MonolithicHiddenAPIInfo{})
