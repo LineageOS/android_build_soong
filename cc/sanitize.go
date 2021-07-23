@@ -472,8 +472,8 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 		s.Diag.Cfi = nil
 	}
 
-	// Disable sanitizers that depend on the UBSan runtime for windows/darwin/musl builds.
-	if !ctx.Os().Linux() || ctx.Os() == android.LinuxMusl {
+	// Disable sanitizers that depend on the UBSan runtime for windows/darwin builds.
+	if !ctx.Os().Linux() {
 		s.Cfi = nil
 		s.Diag.Cfi = nil
 		s.Misc_undefined = nil
