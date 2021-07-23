@@ -203,6 +203,7 @@ type productVariables struct {
 
 	HostArch          *string `json:",omitempty"`
 	HostSecondaryArch *string `json:",omitempty"`
+	HostMusl          *bool   `json:",omitempty"`
 
 	CrossHost              *string `json:",omitempty"`
 	CrossHostArch          *string `json:",omitempty"`
