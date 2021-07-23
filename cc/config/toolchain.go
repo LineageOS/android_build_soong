@@ -118,8 +118,6 @@ type Toolchain interface {
 	DefaultSharedLibraries() []string
 
 	Bionic() bool
-	Glibc() bool
-	Musl() bool
 }
 
 type toolchainBase struct {
@@ -193,14 +191,6 @@ func (toolchainBase) DefaultSharedLibraries() []string {
 }
 
 func (toolchainBase) Bionic() bool {
-	return false
-}
-
-func (toolchainBase) Glibc() bool {
-	return false
-}
-
-func (toolchainBase) Musl() bool {
 	return false
 }
 

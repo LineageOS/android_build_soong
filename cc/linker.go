@@ -385,10 +385,6 @@ func (linker *baseLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 			indexList("libdl", deps.SystemSharedLibs) < indexList("libc", deps.SystemSharedLibs) {
 			ctx.PropertyErrorf("system_shared_libs", "libdl must be after libc")
 		}
-	} else if ctx.toolchain().Musl() {
-		if !Bool(linker.Properties.No_libcrt) && !ctx.header() {
-			deps.LateStaticLibs = append(deps.LateStaticLibs, config.BuiltinsRuntimeLibrary(ctx.toolchain()))
-		}
 	}
 
 	deps.LateSharedLibs = append(deps.LateSharedLibs, deps.SystemSharedLibs...)
@@ -476,7 +472,7 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 		flags.Global.LdFlags = append(flags.Global.LdFlags, toolchain.Ldflags())
 	}
 
-	if !ctx.toolchain().Bionic() && ctx.Os() != android.LinuxMusl {
+	if !ctx.toolchain().Bionic() {
 		CheckBadHostLdlibs(ctx, "host_ldlibs", linker.Properties.Host_ldlibs)
 
 		flags.Local.LdFlags = append(flags.Local.LdFlags, linker.Properties.Host_ldlibs...)
