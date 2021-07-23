@@ -441,7 +441,7 @@ func TestBinary(t *testing.T) {
 		}
 	`)
 
-	buildOS := android.BuildOs.String()
+	buildOS := ctx.Config().BuildOS.String()
 
 	bar := ctx.ModuleForTests("bar", buildOS+"_common")
 	barJar := bar.Output("bar.jar").Output.String()
@@ -478,7 +478,7 @@ func TestTest(t *testing.T) {
 		}
 	`)
 
-	buildOS := android.BuildOs.String()
+	buildOS := ctx.Config().BuildOS.String()
 
 	foo := ctx.ModuleForTests("foo", buildOS+"_common").Module().(*TestHost)
 
@@ -523,7 +523,7 @@ func TestHostBinaryNoJavaDebugInfoOverride(t *testing.T) {
 	}
 
 	// check that -g is not overridden for host modules
-	buildOS := android.BuildOs.String()
+	buildOS := result.Config.BuildOS.String()
 	hostBinary := result.ModuleForTests("host_binary", buildOS+"_common")
 	hostJavaFlags := hostBinary.Module().VariablesForTests()["javacFlags"]
 	if strings.Contains(hostJavaFlags, "-g:source,lines") {
@@ -1371,7 +1371,7 @@ func TestDataNativeBinaries(t *testing.T) {
 		}
 	`)
 
-	buildOS := android.BuildOs.String()
+	buildOS := ctx.Config().BuildOS.String()
 
 	test := ctx.ModuleForTests("foo", buildOS+"_common").Module().(*TestHost)
 	entries := android.AndroidMkEntriesForTest(t, ctx, test)[0]
@@ -1387,7 +1387,7 @@ func TestDefaultInstallable(t *testing.T) {
 		}
 	`)
 
-	buildOS := android.BuildOs.String()
+	buildOS := ctx.Config().BuildOS.String()
 	module := ctx.ModuleForTests("foo", buildOS+"_common").Module().(*TestHost)
 	assertDeepEquals(t, "Default installable value should be true.", proptools.BoolPtr(true),
 		module.properties.Installable)

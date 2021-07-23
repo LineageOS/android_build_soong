@@ -188,7 +188,7 @@ func TestPrebuiltEtcHost(t *testing.T) {
 		}
 	`)
 
-	buildOS := android.BuildOs.String()
+	buildOS := result.Config.BuildOS.String()
 	p := result.Module("foo.conf", buildOS+"_common").(*PrebuiltEtc)
 	if !p.Host() {
 		t.Errorf("host bit is not set for a prebuilt_etc_host module.")
@@ -242,7 +242,7 @@ func TestPrebuiltUserShareHostInstallDirPath(t *testing.T) {
 		}
 	`)
 
-	buildOS := android.BuildOs.String()
+	buildOS := result.Config.BuildOS.String()
 	p := result.Module("foo.conf", buildOS+"_common").(*PrebuiltEtc)
 	expected := filepath.Join("out/soong/host", result.Config.PrebuiltOS(), "usr", "share", "bar")
 	android.AssertPathRelativeToTopEquals(t, "install dir", expected, p.installDirPath)
