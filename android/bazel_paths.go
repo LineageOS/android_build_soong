@@ -73,6 +73,7 @@ type BazelConversionPathContext interface {
 	EarlyModulePathContext
 
 	GetDirectDep(name string) (blueprint.Module, blueprint.DependencyTag)
+	ModuleFromName(name string) (blueprint.Module, bool)
 	Module() Module
 	ModuleType() string
 	OtherModuleName(m blueprint.Module) string
@@ -331,11 +332,9 @@ func expandSrcsForBazel(ctx BazelConversionPathContext, paths, expandedExcludes 
 // module. The label will be relative to the current directory if appropriate. The dependency must
 // already be resolved by either deps mutator or path deps mutator.
 func getOtherModuleLabel(ctx BazelConversionPathContext, dep, tag string, isWholeLibs bool) bazel.Label {
-	m, _ := ctx.GetDirectDep(dep)
+	m, _ := ctx.ModuleFromName(dep)
 	if m == nil {
-		panic(fmt.Errorf(`Cannot get direct dep %q of %q.
-		This is likely because it was not added via AddDependency().
-		This may be due a mutator skipped during bp2build.`, dep, ctx.Module().Name()))
+		panic(fmt.Errorf("No module named %q found, but was a direct dep of %q", dep, ctx.Module().Name()))
 	}
 	otherLabel := bazelModuleLabel(ctx, m, tag)
 	label := bazelModuleLabel(ctx, ctx.Module(), "")

@@ -180,7 +180,7 @@ func (ctx *Context) RegisterForBazelConversion() {
 		bp2buildMutatorList = append(bp2buildMutatorList, f)
 	}
 
-	RegisterMutatorsForBazelConversion(ctx, bp2buildPreArchMutators, bp2buildDepsMutators, bp2buildMutatorList)
+	RegisterMutatorsForBazelConversion(ctx, bp2buildPreArchMutators, bp2buildMutatorList)
 }
 
 // Register the pipeline of singletons, module types, and mutators for
