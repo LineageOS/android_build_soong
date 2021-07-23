@@ -266,7 +266,6 @@ type SanitizeUserProps struct {
 }
 
 type SanitizeProperties struct {
-	// Sanitizers are not supported for Fuchsia.
 	Sanitize          SanitizeUserProps `android:"arch_variant"`
 	SanitizerEnabled  bool              `blueprint:"mutated"`
 	SanitizeDep       bool              `blueprint:"mutated"`
@@ -303,11 +302,6 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 
 	// Don't apply sanitizers to NDK code.
 	if ctx.useSdk() {
-		s.Never = BoolPtr(true)
-	}
-
-	// Sanitizers do not work on Fuchsia yet.
-	if ctx.Fuchsia() {
 		s.Never = BoolPtr(true)
 	}
 
