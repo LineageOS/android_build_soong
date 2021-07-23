@@ -45,7 +45,6 @@ type bp2buildTestCase struct {
 	moduleTypeUnderTest                string
 	moduleTypeUnderTestFactory         android.ModuleFactory
 	moduleTypeUnderTestBp2BuildMutator func(android.TopDownMutatorContext)
-	depsMutators                       []android.RegisterMutatorFunc
 	blueprint                          string
 	expectedBazelTargets               []string
 	filesystem                         map[string]string
@@ -181,7 +180,6 @@ func TestCcLibraryHeadersOSSpecificHeader(t *testing.T) {
 		moduleTypeUnderTest:                "cc_library_headers",
 		moduleTypeUnderTestFactory:         cc.LibraryHeaderFactory,
 		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryHeadersBp2Build,
-		depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
 		filesystem:                         map[string]string{},
 		blueprint: soongCcLibraryPreamble + `
 cc_library_headers { name: "android-lib" }
@@ -262,7 +260,6 @@ func TestCcLibraryHeadersOsSpecficHeaderLibsExportHeaderLibHeaders(t *testing.T)
 		moduleTypeUnderTest:                "cc_library_headers",
 		moduleTypeUnderTestFactory:         cc.LibraryHeaderFactory,
 		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryHeadersBp2Build,
-		depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
 		filesystem:                         map[string]string{},
 		blueprint: soongCcLibraryPreamble + `
 cc_library_headers { name: "android-lib" }
@@ -309,7 +306,6 @@ func TestCcLibraryHeadersArchAndTargetExportSystemIncludes(t *testing.T) {
 		moduleTypeUnderTest:                "cc_library_headers",
 		moduleTypeUnderTestFactory:         cc.LibraryHeaderFactory,
 		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryHeadersBp2Build,
-		depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
 		filesystem:                         map[string]string{},
 		blueprint: soongCcLibraryPreamble + `cc_library_headers {
     name: "foo_headers",
