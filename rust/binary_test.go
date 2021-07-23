@@ -114,6 +114,23 @@ func TestBinaryFlags(t *testing.T) {
 	}
 }
 
+// Test that the bootstrap property sets the appropriate linker
+func TestBootstrap(t *testing.T) {
+	ctx := testRust(t, `
+		rust_binary {
+			name: "foo",
+			srcs: ["foo.rs"],
+			bootstrap: true,
+		}`)
+
+	foo := ctx.ModuleForTests("foo", "android_arm64_armv8-a").Rule("rustc")
+
+	flag := "-Wl,-dynamic-linker,/system/bin/bootstrap/linker64"
+	if !strings.Contains(foo.Args["linkFlags"], flag) {
+		t.Errorf("missing link flag to use bootstrap linker, expecting %#v, linkFlags: %#v", flag, foo.Args["linkFlags"])
+	}
+}
+
 func TestStaticBinaryFlags(t *testing.T) {
 	ctx := testRust(t, `
 		rust_binary {
