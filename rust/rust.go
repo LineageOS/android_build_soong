@@ -85,6 +85,10 @@ type BaseProperties struct {
 	VendorRamdiskVariantNeeded bool     `blueprint:"mutated"`
 	ExtraVariants              []string `blueprint:"mutated"`
 
+	// Allows this module to use non-APEX version of libraries. Useful
+	// for building binaries that are started before APEXes are activated.
+	Bootstrap *bool
+
 	// Used by vendor snapshot to record dependencies from snapshot modules.
 	SnapshotSharedLibs []string `blueprint:"mutated"`
 	SnapshotStaticLibs []string `blueprint:"mutated"`
@@ -288,7 +292,7 @@ func (mod *Module) UseVndk() bool {
 }
 
 func (mod *Module) Bootstrap() bool {
-	return false
+	return Bool(mod.Properties.Bootstrap)
 }
 
 func (mod *Module) MustUseVendorVariant() bool {
