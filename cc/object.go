@@ -78,7 +78,7 @@ type ObjectLinkerProperties struct {
 
 	// list of default libraries that will provide headers for this module.  If unset, generally
 	// defaults to libc, libm, and libdl.  Set to [] to prevent using headers from the defaults.
-	Default_shared_libs []string `android:"arch_variant"`
+	System_shared_libs []string `android:"arch_variant"`
 
 	// names of other cc_object modules to link into this module using partial linking
 	Objs []string `android:"arch_variant"`
@@ -219,9 +219,9 @@ func (object *objectLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	deps.StaticLibs = append(deps.StaticLibs, object.Properties.Static_libs...)
 	deps.ObjFiles = append(deps.ObjFiles, object.Properties.Objs...)
 
-	deps.SystemSharedLibs = object.Properties.Default_shared_libs
+	deps.SystemSharedLibs = object.Properties.System_shared_libs
 	if deps.SystemSharedLibs == nil {
-		// Provide a default set of shared libraries if default_shared_libs is unspecified.
+		// Provide a default set of shared libraries if system_shared_libs is unspecified.
 		// Note: If an empty list [] is specified, it implies that the module declines the
 		// default shared libraries.
 		deps.SystemSharedLibs = append(deps.SystemSharedLibs, ctx.toolchain().DefaultSharedLibraries()...)
@@ -278,12 +278,12 @@ func (object *objectLinker) link(ctx ModuleContext,
 func (object *objectLinker) linkerSpecifiedDeps(specifiedDeps specifiedDeps) specifiedDeps {
 	specifiedDeps.sharedLibs = append(specifiedDeps.sharedLibs, object.Properties.Shared_libs...)
 
-	// Must distinguish nil and [] in default_shared_libs - ensure that [] in
+	// Must distinguish nil and [] in system_shared_libs - ensure that [] in
 	// either input list doesn't come out as nil.
-	if specifiedDeps.defaultSharedLibs == nil {
-		specifiedDeps.defaultSharedLibs = object.Properties.Default_shared_libs
+	if specifiedDeps.systemSharedLibs == nil {
+		specifiedDeps.systemSharedLibs = object.Properties.System_shared_libs
 	} else {
-		specifiedDeps.defaultSharedLibs = append(specifiedDeps.defaultSharedLibs, object.Properties.Default_shared_libs...)
+		specifiedDeps.systemSharedLibs = append(specifiedDeps.systemSharedLibs, object.Properties.System_shared_libs...)
 	}
 
 	return specifiedDeps
