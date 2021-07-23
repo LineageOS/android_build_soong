@@ -389,18 +389,6 @@ func (linker *baseLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 
 	deps.LateSharedLibs = append(deps.LateSharedLibs, deps.SystemSharedLibs...)
 
-	if ctx.Fuchsia() {
-		if ctx.ModuleName() != "libbioniccompat" &&
-			ctx.ModuleName() != "libcompiler_rt-extras" &&
-			ctx.ModuleName() != "libcompiler_rt" {
-			deps.StaticLibs = append(deps.StaticLibs, "libbioniccompat")
-		}
-		if ctx.ModuleName() != "libcompiler_rt" && ctx.ModuleName() != "libcompiler_rt-extras" {
-			deps.LateStaticLibs = append(deps.LateStaticLibs, "libcompiler_rt")
-		}
-
-	}
-
 	if ctx.Windows() {
 		deps.LateStaticLibs = append(deps.LateStaticLibs, "libwinpthread")
 	}
@@ -484,7 +472,7 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 		flags.Global.LdFlags = append(flags.Global.LdFlags, toolchain.Ldflags())
 	}
 
-	if !ctx.toolchain().Bionic() && !ctx.Fuchsia() {
+	if !ctx.toolchain().Bionic() {
 		CheckBadHostLdlibs(ctx, "host_ldlibs", linker.Properties.Host_ldlibs)
 
 		flags.Local.LdFlags = append(flags.Local.LdFlags, linker.Properties.Host_ldlibs...)
@@ -501,10 +489,6 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 				flags.Global.LdFlags = append(flags.Global.LdFlags, "-lrt")
 			}
 		}
-	}
-
-	if ctx.Fuchsia() {
-		flags.Global.LdFlags = append(flags.Global.LdFlags, "-lfdio", "-lzircon")
 	}
 
 	if ctx.toolchain().LibclangRuntimeLibraryArch() != "" {
