@@ -1,0 +1,14 @@
+* Checking filter/filter-out results is incorrect if pattern contains '%'
+* Need heuristics to recognize that a variable is local. Propose to use lowercase.
+* Need heuristics for the local variable type. Propose '_list' suffix
+* Internal source tree has variables in the inherit-product macro argument. Handle it
+* Enumerate all environment variables that configuration files use.
+* Break mk2rbc.go into multiple files.
+* If variable's type is not yet known, try to divine it from the value assigned to it
+  (it may be a variable of the known type, or a function result)
+* ifneq (,$(VAR)) should translate to
+    if getattr(<>, "VAR", <default>):
+* Launcher file needs to have same suffix as the rest of the generated files
+* Implement $(shell) function
+* Write execution tests
+* Review all TODOs in mk2rbc.go
