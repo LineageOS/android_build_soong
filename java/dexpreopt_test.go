@@ -16,6 +16,7 @@ package java
 
 import (
 	"fmt"
+	"runtime"
 	"testing"
 
 	"android/soong/android"
@@ -173,9 +174,9 @@ func enabledString(enabled bool) string {
 }
 
 func TestDex2oatToolDeps(t *testing.T) {
-	if android.BuildOs != android.Linux {
+	if runtime.GOOS != "linux" {
 		// The host binary paths checked below are build OS dependent.
-		t.Skipf("Unsupported build OS %s", android.BuildOs)
+		t.Skipf("Unsupported build OS %s", runtime.GOOS)
 	}
 
 	preparers := android.GroupFixturePreparers(
