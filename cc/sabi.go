@@ -101,10 +101,6 @@ func classifySourceAbiDump(ctx android.BaseModuleContext) string {
 // Called from sabiDepsMutator to check whether ABI dumps should be created for this module.
 // ctx should be wrapping a native library type module.
 func shouldCreateSourceAbiDumpForLibrary(ctx android.BaseModuleContext) bool {
-	if ctx.Fuchsia() {
-		return false
-	}
-
 	// Only generate ABI dump for device modules.
 	if !ctx.Device() {
 		return false

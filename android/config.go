@@ -332,21 +332,6 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 	return Config{config}
 }
 
-func fuchsiaTargets(config Config) map[OsType][]Target {
-	return map[OsType][]Target{
-		Fuchsia: {
-			{Fuchsia, Arch{ArchType: Arm64, ArchVariant: "", Abi: []string{"arm64-v8a"}}, NativeBridgeDisabled, "", "", false},
-		},
-		config.BuildOS: {
-			{config.BuildOS, Arch{ArchType: X86_64}, NativeBridgeDisabled, "", "", false},
-		},
-	}
-}
-
-var PrepareForTestSetDeviceToFuchsia = FixtureModifyConfig(func(config Config) {
-	config.Targets = fuchsiaTargets(config)
-})
-
 func modifyTestConfigToSupportArchMutator(testConfig Config) {
 	config := testConfig.config
 
@@ -845,10 +830,6 @@ func (c *config) AlwaysUsePrebuiltSdks() bool {
 // Returns true if the boot jars check should be skipped.
 func (c *config) SkipBootJarsCheck() bool {
 	return Bool(c.productVariables.Skip_boot_jars_check)
-}
-
-func (c *config) Fuchsia() bool {
-	return Bool(c.productVariables.Fuchsia)
 }
 
 func (c *config) MinimizeJavaDebugInfo() bool {

@@ -45,9 +45,6 @@ func GatherRequiredDepsForTest(oses ...android.OsType) string {
 
 	supportLinuxBionic := false
 	for _, os := range oses {
-		if os == android.Fuchsia {
-			ret += withFuchsiaModules()
-		}
 		if os == android.Windows {
 			ret += withWindowsModules()
 		}
@@ -472,19 +469,6 @@ func withWindowsModules() string {
 		`
 }
 
-func withFuchsiaModules() string {
-	return `
-		cc_library {
-			name: "libbioniccompat",
-			stl: "none",
-		}
-		cc_library {
-			name: "libcompiler_rt",
-			stl: "none",
-		}
-		`
-}
-
 func withLinuxBionic() string {
 	return `
 				cc_binary {
@@ -626,14 +610,6 @@ var PrepareForTestOnLinuxBionic = android.GroupFixturePreparers(
 	android.FixtureOverrideTextFile(linuxBionicDefaultsPath, withLinuxBionic()),
 )
 
-// The preparer to include if running a cc related test for fuchsia.
-var PrepareForTestOnFuchsia = android.GroupFixturePreparers(
-	// Place the default cc test modules for fuschia in a location that will not conflict with default
-	// test modules defined by other packages.
-	android.FixtureAddTextFile("defaults/cc/fuschia/Android.bp", withFuchsiaModules()),
-	android.PrepareForTestSetDeviceToFuchsia,
-)
-
 // This adds some additional modules and singletons which might negatively impact the performance
 // of tests so they are not included in the PrepareForIntegrationTestWithCc.
 var PrepareForTestWithCcIncludeVndk = android.GroupFixturePreparers(
@@ -666,14 +642,7 @@ func TestConfig(buildDir string, os android.OsType, env map[string]string,
 		mockFS[k] = v
 	}
 
-	var config android.Config
-	if os == android.Fuchsia {
-		panic("Fuchsia not supported use test fixture instead")
-	} else {
-		config = android.TestArchConfig(buildDir, env, bp, mockFS)
-	}
-
-	return config
+	return android.TestArchConfig(buildDir, env, bp, mockFS)
 }
 
 // CreateTestContext is the legacy way of creating a TestContext for testing cc modules.

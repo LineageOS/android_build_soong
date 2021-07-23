@@ -22,6 +22,7 @@ import (
 
 	"android/soong/apex"
 	"android/soong/cc"
+
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
@@ -1774,7 +1775,7 @@ func (s *sdk) getPossibleOsTypes() []android.OsType {
 	var osTypes []android.OsType
 	for _, osType := range android.OsTypeList() {
 		if s.DeviceSupported() {
-			if osType.Class == android.Device && osType != android.Fuchsia {
+			if osType.Class == android.Device {
 				osTypes = append(osTypes, osType)
 			}
 		}
