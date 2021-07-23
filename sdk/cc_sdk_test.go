@@ -347,7 +347,7 @@ func TestSnapshotWithObject(t *testing.T) {
 		cc_object {
 			name: "crtobj",
 			stl: "none",
-			default_shared_libs: [],
+			system_shared_libs: [],
 			sanitize: {
 				never: true,
 			},
@@ -365,7 +365,7 @@ cc_prebuilt_object {
     apex_available: ["//apex_available:platform"],
     stl: "none",
     compile_multilib: "both",
-    default_shared_libs: [],
+    system_shared_libs: [],
     sanitize: {
         never: true,
     },
@@ -390,7 +390,7 @@ cc_prebuilt_object {
     apex_available: ["//apex_available:platform"],
     stl: "none",
     compile_multilib: "both",
-    default_shared_libs: [],
+    system_shared_libs: [],
     sanitize: {
         never: true,
     },
@@ -2192,7 +2192,7 @@ func TestSystemSharedLibPropagation(t *testing.T) {
 	result := testSdkWithCc(t, `
 		sdk {
 			name: "mysdk",
-			native_shared_libs: ["sslnil", "sslempty", "sslnonempty", "dslnil", "dslempty", "dslnonempty"],
+			native_shared_libs: ["sslnil", "sslempty", "sslnonempty"],
 		}
 
 		cc_library {
@@ -2208,21 +2208,6 @@ func TestSystemSharedLibPropagation(t *testing.T) {
 		cc_library {
 			name: "sslnonempty",
 			system_shared_libs: ["sslnil"],
-		}
-
-		cc_library {
-			name: "dslnil",
-			host_supported: true,
-		}
-
-		cc_library {
-			name: "dslempty",
-			default_shared_libs: [],
-		}
-
-		cc_library {
-			name: "dslnonempty",
-			default_shared_libs: ["sslnil"],
 		}
 	`)
 
@@ -2279,62 +2264,13 @@ cc_prebuilt_library_shared {
         },
     },
 }
-
-cc_prebuilt_library_shared {
-    name: "dslnil",
-    prefer: false,
-    visibility: ["//visibility:public"],
-    apex_available: ["//apex_available:platform"],
-    compile_multilib: "both",
-    arch: {
-        arm64: {
-            srcs: ["arm64/lib/dslnil.so"],
-        },
-        arm: {
-            srcs: ["arm/lib/dslnil.so"],
-        },
-    },
-}
-
-cc_prebuilt_library_shared {
-    name: "dslempty",
-    prefer: false,
-    visibility: ["//visibility:public"],
-    apex_available: ["//apex_available:platform"],
-    compile_multilib: "both",
-    default_shared_libs: [],
-    arch: {
-        arm64: {
-            srcs: ["arm64/lib/dslempty.so"],
-        },
-        arm: {
-            srcs: ["arm/lib/dslempty.so"],
-        },
-    },
-}
-
-cc_prebuilt_library_shared {
-    name: "dslnonempty",
-    prefer: false,
-    visibility: ["//visibility:public"],
-    apex_available: ["//apex_available:platform"],
-    compile_multilib: "both",
-    default_shared_libs: ["sslnil"],
-    arch: {
-        arm64: {
-            srcs: ["arm64/lib/dslnonempty.so"],
-        },
-        arm: {
-            srcs: ["arm/lib/dslnonempty.so"],
-        },
-    },
-}`))
+`))
 
 	result = testSdkWithCc(t, `
 		sdk {
 			name: "mysdk",
 			host_supported: true,
-			native_shared_libs: ["sslvariants", "dslvariants"],
+			native_shared_libs: ["sslvariants"],
 		}
 
 		cc_library {
@@ -2343,16 +2279,6 @@ cc_prebuilt_library_shared {
 			target: {
 				android: {
 					system_shared_libs: [],
-				},
-			},
-		}
-
-		cc_library {
-			name: "dslvariants",
-			host_supported: true,
-			target: {
-				android: {
-					default_shared_libs: [],
 				},
 			},
 		}
@@ -2392,37 +2318,6 @@ cc_prebuilt_library_shared {
         },
     },
 }
-
-cc_prebuilt_library_shared {
-    name: "dslvariants",
-    prefer: false,
-    visibility: ["//visibility:public"],
-    apex_available: ["//apex_available:platform"],
-    host_supported: true,
-    compile_multilib: "both",
-    target: {
-        host: {
-            enabled: false,
-        },
-        android: {
-            default_shared_libs: [],
-        },
-        android_arm64: {
-            srcs: ["android/arm64/lib/dslvariants.so"],
-        },
-        android_arm: {
-            srcs: ["android/arm/lib/dslvariants.so"],
-        },
-        linux_glibc_x86_64: {
-            enabled: true,
-            srcs: ["linux_glibc/x86_64/lib/dslvariants.so"],
-        },
-        linux_glibc_x86: {
-            enabled: true,
-            srcs: ["linux_glibc/x86/lib/dslvariants.so"],
-        },
-    },
-}
 `),
 		checkVersionedAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
@@ -2459,46 +2354,11 @@ cc_prebuilt_library_shared {
     },
 }
 
-cc_prebuilt_library_shared {
-    name: "mysdk_dslvariants@current",
-    sdk_member_name: "dslvariants",
-    visibility: ["//visibility:public"],
-    apex_available: ["//apex_available:platform"],
-    host_supported: true,
-    installable: false,
-    compile_multilib: "both",
-    target: {
-        host: {
-            enabled: false,
-        },
-        android: {
-            default_shared_libs: [],
-        },
-        android_arm64: {
-            srcs: ["android/arm64/lib/dslvariants.so"],
-        },
-        android_arm: {
-            srcs: ["android/arm/lib/dslvariants.so"],
-        },
-        linux_glibc_x86_64: {
-            enabled: true,
-            srcs: ["linux_glibc/x86_64/lib/dslvariants.so"],
-        },
-        linux_glibc_x86: {
-            enabled: true,
-            srcs: ["linux_glibc/x86/lib/dslvariants.so"],
-        },
-    },
-}
-
 sdk_snapshot {
     name: "mysdk@current",
     visibility: ["//visibility:public"],
     host_supported: true,
-    native_shared_libs: [
-        "mysdk_sslvariants@current",
-        "mysdk_dslvariants@current",
-    ],
+    native_shared_libs: ["mysdk_sslvariants@current"],
     target: {
         host: {
             enabled: false,
