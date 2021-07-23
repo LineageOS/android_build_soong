@@ -187,7 +187,6 @@ func TestCcLibraryHeadersOSSpecificHeader(t *testing.T) {
 cc_library_headers { name: "android-lib" }
 cc_library_headers { name: "base-lib" }
 cc_library_headers { name: "darwin-lib" }
-cc_library_headers { name: "fuchsia-lib" }
 cc_library_headers { name: "linux-lib" }
 cc_library_headers { name: "linux_bionic-lib" }
 cc_library_headers { name: "windows-lib" }
@@ -197,7 +196,6 @@ cc_library_headers {
     target: {
         android: { header_libs: ["android-lib"] },
         darwin: { header_libs: ["darwin-lib"] },
-        fuchsia: { header_libs: ["fuchsia-lib"] },
         linux_bionic: { header_libs: ["linux_bionic-lib"] },
         linux_glibc: { header_libs: ["linux-lib"] },
         windows: { header_libs: ["windows-lib"] },
@@ -231,18 +229,11 @@ cc_library_headers {
     implementation_deps = [":base-lib"] + select({
         "//build/bazel/platforms/os:android": [":android-lib"],
         "//build/bazel/platforms/os:darwin": [":darwin-lib"],
-        "//build/bazel/platforms/os:fuchsia": [":fuchsia-lib"],
         "//build/bazel/platforms/os:linux": [":linux-lib"],
         "//build/bazel/platforms/os:linux_bionic": [":linux_bionic-lib"],
         "//build/bazel/platforms/os:windows": [":windows-lib"],
         "//conditions:default": [],
     }),
-)`, `cc_library_headers(
-    name = "fuchsia-lib",
-    copts = [
-        "-I.",
-        "-I$(BINDIR)/.",
-    ],
 )`, `cc_library_headers(
     name = "linux-lib",
     copts = [
