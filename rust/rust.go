@@ -861,6 +861,8 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		if mod.installable(apexInfo) {
 			mod.compiler.install(ctx)
 		}
+
+		ctx.Phony("rust", ctx.RustModule().OutputFile().Path())
 	}
 }
 
