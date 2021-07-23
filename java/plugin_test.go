@@ -15,7 +15,6 @@
 package java
 
 import (
-	"android/soong/android"
 	"testing"
 )
 
@@ -58,7 +57,7 @@ func TestPlugin(t *testing.T) {
 		}
 	`)
 
-	buildOS := android.BuildOs.String()
+	buildOS := ctx.Config().BuildOS.String()
 
 	javac := ctx.ModuleForTests("foo", "android_common").Rule("javac")
 	turbine := ctx.ModuleForTests("foo", "android_common").MaybeRule("turbine")
@@ -98,7 +97,7 @@ func TestPluginGeneratesApi(t *testing.T) {
 		}
 	`)
 
-	buildOS := android.BuildOs.String()
+	buildOS := ctx.Config().BuildOS.String()
 
 	javac := ctx.ModuleForTests("foo", "android_common").Rule("javac")
 	turbine := ctx.ModuleForTests("foo", "android_common").MaybeRule("turbine")

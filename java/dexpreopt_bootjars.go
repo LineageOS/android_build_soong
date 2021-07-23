@@ -523,14 +523,14 @@ func buildBootImageVariantsForAndroidOs(ctx android.ModuleContext, image *bootIm
 }
 
 // buildBootImageVariantsForBuildOs generates rules to build the boot image variants for the
-// android.BuildOs OsType, i.e. the type of OS on which the build is being running.
+// config.BuildOS OsType, i.e. the type of OS on which the build is being running.
 //
 // The files need to be generated into their predefined location because they are used from there
 // both within Soong and outside, e.g. for ART based host side testing and also for use by some
 // cloud based tools. However, they are not needed by callers of this function and so the paths do
 // not need to be returned from this func, unlike the buildBootImageVariantsForAndroidOs func.
 func buildBootImageVariantsForBuildOs(ctx android.ModuleContext, image *bootImageConfig, profile android.WritablePath) {
-	buildBootImageForOsType(ctx, image, profile, android.BuildOs)
+	buildBootImageForOsType(ctx, image, profile, ctx.Config().BuildOS)
 }
 
 // buildBootImageForOsType takes a bootImageConfig, a profile file and an android.OsType
