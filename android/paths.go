@@ -1667,7 +1667,7 @@ func pathForInstall(ctx PathContext, os OsType, arch ArchType, partition string,
 		partionPaths = []string{"target", "product", ctx.Config().DeviceName(), partition}
 	} else {
 		osName := os.String()
-		if os == Linux || os == LinuxMusl {
+		if os == Linux {
 			// instead of linux_glibc
 			osName = "linux"
 		}

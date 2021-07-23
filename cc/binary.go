@@ -335,7 +335,7 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 
 	if flags.DynamicLinker != "" {
 		flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,-dynamic-linker,"+flags.DynamicLinker)
-	} else if (ctx.toolchain().Bionic() || ctx.toolchain().Musl()) && !binary.static() {
+	} else if ctx.toolchain().Bionic() && !binary.static() {
 		flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,--no-dynamic-linker")
 	}
 
