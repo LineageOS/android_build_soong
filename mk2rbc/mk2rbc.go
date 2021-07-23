@@ -76,11 +76,13 @@ var knownFunctions = map[string]struct {
 	runtimeName string
 	returnType  starlarkType
 }{
+	"abspath":                             {baseName + ".abspath", starlarkTypeString},
 	fileExistsPhony:                       {baseName + ".file_exists", starlarkTypeBool},
 	wildcardExistsPhony:                   {baseName + ".file_wildcard_exists", starlarkTypeBool},
 	"add-to-product-copy-files-if-exists": {baseName + ".copy_if_exists", starlarkTypeList},
 	"addprefix":                           {baseName + ".addprefix", starlarkTypeList},
 	"addsuffix":                           {baseName + ".addsuffix", starlarkTypeList},
+	"dir":                                 {baseName + ".dir", starlarkTypeList},
 	"enforce-product-packages-exist":      {baseName + ".enforce_product_packages_exist", starlarkTypeVoid},
 	"error":                               {baseName + ".mkerror", starlarkTypeVoid},
 	"findstring":                          {"!findstring", starlarkTypeInt},
@@ -88,6 +90,7 @@ var knownFunctions = map[string]struct {
 	"find-word-in-list":                   {"!find-word-in-list", starlarkTypeUnknown}, // internal macro
 	"filter":                              {baseName + ".filter", starlarkTypeList},
 	"filter-out":                          {baseName + ".filter_out", starlarkTypeList},
+	"firstword":                           {"!firstword", starlarkTypeString},
 	"get-vendor-board-platforms":          {"!get-vendor-board-platforms", starlarkTypeList}, // internal macro, used by is-board-platform, etc.
 	"info":                                {baseName + ".mkinfo", starlarkTypeVoid},
 	"is-android-codename":                 {"!is-android-codename", starlarkTypeBool},         // unused by product config
@@ -102,9 +105,11 @@ var knownFunctions = map[string]struct {
 	"is-vendor-board-platform":            {"!is-vendor-board-platform", starlarkTypeBool},
 	callLoadAlways:                        {"!inherit-product", starlarkTypeVoid},
 	callLoadIf:                            {"!inherit-product-if-exists", starlarkTypeVoid},
+	"lastword":                            {"!lastword", starlarkTypeString},
 	"match-prefix":                        {"!match-prefix", starlarkTypeUnknown},       // internal macro
 	"match-word":                          {"!match-word", starlarkTypeUnknown},         // internal macro
 	"match-word-in-list":                  {"!match-word-in-list", starlarkTypeUnknown}, // internal macro
+	"notdir":                              {baseName + ".notdir", starlarkTypeString},
 	"my-dir":                              {"!my-dir", starlarkTypeString},
 	"patsubst":                            {baseName + ".mkpatsubst", starlarkTypeString},
 	"produce_copy_files":                  {baseName + ".produce_copy_files", starlarkTypeList},
@@ -1207,6 +1212,8 @@ func (ctx *parseContext) parseReference(node mkparser.Node, ref *mkparser.MakeSt
 	switch expr.name {
 	case "word":
 		return ctx.parseWordFunc(node, args)
+	case "firstword", "lastword":
+		return ctx.parseFirstOrLastwordFunc(node, expr.name, args)
 	case "my-dir":
 		return &variableRefExpr{ctx.addVariable("LOCAL_PATH"), true}
 	case "subst", "patsubst":
@@ -1277,6 +1284,24 @@ func (ctx *parseContext) parseWordFunc(node mkparser.Node, args *mkparser.MakeSt
 		array = &callExpr{object: array, name: "split", returnType: starlarkTypeList}
 	}
 	return indexExpr{array, &intLiteralExpr{int(index - 1)}}
+}
+
+func (ctx *parseContext) parseFirstOrLastwordFunc(node mkparser.Node, name string, args *mkparser.MakeString) starlarkExpr {
+	arg := ctx.parseMakeString(node, args)
+	if bad, ok := arg.(*badExpr); ok {
+		return bad
+	}
+	index := &intLiteralExpr{0}
+	if name == "lastword" {
+		if v, ok := arg.(*variableRefExpr); ok && v.ref.name() == "MAKEFILE_LIST" {
+			return &stringLiteralExpr{ctx.script.mkFile}
+		}
+		index.literal = -1
+	}
+	if arg.typ() == starlarkTypeList {
+		return &indexExpr{arg, index}
+	}
+	return &indexExpr{&callExpr{object: arg, name: "split", returnType: starlarkTypeList}, index}
 }
 
 func (ctx *parseContext) parseMakeString(node mkparser.Node, mk *mkparser.MakeString) starlarkExpr {
