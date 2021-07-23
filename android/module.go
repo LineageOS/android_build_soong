@@ -2389,8 +2389,7 @@ func (b *baseModuleContext) ModuleFromName(name string) (blueprint.Module, bool)
 	if !b.BazelConversionMode() {
 		panic("cannot call ModuleFromName if not in bazel conversion mode")
 	}
-	if len(name) > 1 && (name[0] == ':' || (name[0] == '/' && name[1] == '/')) {
-		moduleName, _ := SrcIsModuleWithTag(name)
+	if moduleName, _ := SrcIsModuleWithTag(name); moduleName != "" {
 		return b.bp.ModuleFromName(moduleName)
 	} else {
 		return b.bp.ModuleFromName(name)
