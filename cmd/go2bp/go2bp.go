@@ -88,11 +88,24 @@ var excludes = make(Exclude)
 var excludeDeps = make(Exclude)
 var excludeSrcs = make(Exclude)
 
+type StringList []string
+
+func (l *StringList) String() string {
+	return strings.Join(*l, " ")
+}
+
+func (l *StringList) Set(v string) error {
+	*l = append(*l, strings.Fields(v)...)
+	return nil
+}
+
 type GoModule struct {
 	Dir string
 }
 
 type GoPackage struct {
+	ExportToAndroid bool
+
 	Dir         string
 	ImportPath  string
 	Name        string
@@ -117,7 +130,7 @@ func (g GoPackage) BpModuleType() string {
 
 func (g GoPackage) BpName() string {
 	if g.IsCommand() {
-		return filepath.Base(g.ImportPath)
+		return rewriteNames.GoToBp(filepath.Base(g.ImportPath))
 	}
 	return rewriteNames.GoToBp(g.ImportPath)
 }
@@ -279,6 +292,10 @@ Usage: %s [--rewrite <pkg-prefix>=<replace>] [-exclude <package>] [-regen <file>
      Don't put the specified go package in the dependency lists.
   -exclude-srcs <module>
      Don't put the specified source files in srcs or testSrcs lists.
+  -limit <package>
+     If set, limit the output to the specified packages and their dependencies.
+  -skip-tests
+     If passed, don't write out any test srcs or dependencies to the Android.bp output.
   -regen <file>
      Read arguments from <file> and overwrite it.
 
@@ -286,11 +303,15 @@ Usage: %s [--rewrite <pkg-prefix>=<replace>] [-exclude <package>] [-regen <file>
 	}
 
 	var regen string
+	var skipTests bool
+	limit := StringList{}
 
 	flag.Var(&excludes, "exclude", "Exclude go package")
 	flag.Var(&excludeDeps, "exclude-dep", "Exclude go package from deps")
 	flag.Var(&excludeSrcs, "exclude-src", "Exclude go file from source lists")
 	flag.Var(&rewriteNames, "rewrite", "Regex(es) to rewrite artifact names")
+	flag.Var(&limit, "limit", "If set, only includes the dependencies of the listed packages")
+	flag.BoolVar(&skipTests, "skip-tests", false, "Whether to skip test sources")
 	flag.StringVar(&regen, "regen", "", "Rewrite specified file")
 	flag.Parse()
 
@@ -321,7 +342,8 @@ Usage: %s [--rewrite <pkg-prefix>=<replace>] [-exclude <package>] [-regen <file>
 	}
 	decoder := json.NewDecoder(bytes.NewReader(output))
 
-	pkgs := []GoPackage{}
+	pkgs := []*GoPackage{}
+	pkgMap := map[string]*GoPackage{}
 	for decoder.More() {
 		pkg := GoPackage{}
 		err := decoder.Decode(&pkg)
@@ -329,7 +351,15 @@ Usage: %s [--rewrite <pkg-prefix>=<replace>] [-exclude <package>] [-regen <file>
 			fmt.Fprintf(os.Stderr, "Failed to parse json: %v\n", err)
 			os.Exit(1)
 		}
-		pkgs = append(pkgs, pkg)
+		if len(limit) == 0 {
+			pkg.ExportToAndroid = true
+		}
+		if skipTests {
+			pkg.TestGoFiles = nil
+			pkg.TestImports = nil
+		}
+		pkgs = append(pkgs, &pkg)
+		pkgMap[pkg.ImportPath] = &pkg
 	}
 
 	buf := &bytes.Buffer{}
@@ -337,8 +367,27 @@ Usage: %s [--rewrite <pkg-prefix>=<replace>] [-exclude <package>] [-regen <file>
 	fmt.Fprintln(buf, "// Automatically generated with:")
 	fmt.Fprintln(buf, "// go2bp", strings.Join(proptools.ShellEscapeList(os.Args[1:]), " "))
 
+	var mark func(string)
+	mark = func(pkgName string) {
+		if excludes[pkgName] {
+			return
+		}
+		if pkg, ok := pkgMap[pkgName]; ok && !pkg.ExportToAndroid {
+			pkg.ExportToAndroid = true
+			for _, dep := range pkg.AllImports() {
+				if !excludeDeps[dep] {
+					mark(dep)
+				}
+			}
+		}
+	}
+
+	for _, pkgName := range limit {
+		mark(pkgName)
+	}
+
 	for _, pkg := range pkgs {
-		if excludes[pkg.ImportPath] {
+		if !pkg.ExportToAndroid || excludes[pkg.ImportPath] {
 			continue
 		}
 		if len(pkg.BpSrcs(pkg.GoFiles)) == 0 && len(pkg.BpSrcs(pkg.TestGoFiles)) == 0 {
