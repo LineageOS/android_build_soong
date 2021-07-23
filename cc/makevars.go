@@ -165,7 +165,7 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	sort.Strings(ndkKnownLibs)
 	ctx.Strict("NDK_KNOWN_LIBS", strings.Join(ndkKnownLibs, " "))
 
-	hostTargets := ctx.Config().Targets[android.BuildOs]
+	hostTargets := ctx.Config().Targets[ctx.Config().BuildOS]
 	makeVarsToolchain(ctx, "", hostTargets[0])
 	if len(hostTargets) > 1 {
 		makeVarsToolchain(ctx, "2ND_", hostTargets[1])

@@ -15,6 +15,7 @@
 package cc
 
 import (
+	"runtime"
 	"testing"
 
 	"android/soong/android"
@@ -271,8 +272,8 @@ func TestPrebuiltLibrarySharedStem(t *testing.T) {
 }
 
 func TestPrebuiltSymlinkedHostBinary(t *testing.T) {
-	if android.BuildOs != android.Linux {
-		t.Skipf("Skipping host prebuilt testing that is only supported on %s not %s", android.Linux, android.BuildOs)
+	if runtime.GOOS != "linux" {
+		t.Skipf("Skipping host prebuilt testing that is only supported on linux not %s", runtime.GOOS)
 	}
 
 	ctx := testPrebuilt(t, `

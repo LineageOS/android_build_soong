@@ -176,6 +176,8 @@ func TestProjectJsonBinary(t *testing.T) {
 }
 
 func TestProjectJsonBindGen(t *testing.T) {
+	buildOS := android.TestConfig(t.TempDir(), nil, "", nil).BuildOS
+
 	bp := `
 	rust_library {
 		name: "libd",
@@ -214,9 +216,9 @@ func TestProjectJsonBindGen(t *testing.T) {
 		if strings.Contains(rootModule, "libbindings1") && !strings.Contains(rootModule, "android_arm64") {
 			t.Errorf("The source path for libbindings1 does not contain android_arm64, got %v", rootModule)
 		}
-		if strings.Contains(rootModule, "libbindings2") && !strings.Contains(rootModule, android.BuildOs.String()) {
+		if strings.Contains(rootModule, "libbindings2") && !strings.Contains(rootModule, buildOS.String()) {
 			t.Errorf("The source path for libbindings2 does not contain the BuildOs, got %v; want %v",
-				rootModule, android.BuildOs.String())
+				rootModule, buildOS.String())
 		}
 		// Check that libbindings1 does not depend on itself.
 		if strings.Contains(rootModule, "libbindings1") {

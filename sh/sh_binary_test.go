@@ -115,7 +115,7 @@ func TestShTest_dataModules(t *testing.T) {
 		}
 	`)
 
-	buildOS := android.BuildOs.String()
+	buildOS := config.BuildOS.String()
 	arches := []string{"android_arm64_armv8-a", buildOS + "_x86_64"}
 	for _, arch := range arches {
 		variant := ctx.ModuleForTests("foo", arch)
@@ -155,7 +155,7 @@ func TestShTestHost(t *testing.T) {
 		}
 	`)
 
-	buildOS := android.BuildOs.String()
+	buildOS := ctx.Config().BuildOS.String()
 	mod := ctx.ModuleForTests("foo", buildOS+"_x86_64").Module().(*ShTest)
 	if !mod.Host() {
 		t.Errorf("host bit is not set for a sh_test_host module.")
@@ -192,7 +192,7 @@ func TestShTestHost_dataDeviceModules(t *testing.T) {
 		}
 	`)
 
-	buildOS := android.BuildOs.String()
+	buildOS := config.BuildOS.String()
 	variant := ctx.ModuleForTests("foo", buildOS+"_x86_64")
 
 	relocated := variant.Output("relocated/lib64/libbar.so")
