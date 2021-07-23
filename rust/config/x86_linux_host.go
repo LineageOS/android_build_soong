@@ -37,6 +37,10 @@ func init() {
 	registerToolchainFactory(android.Linux, android.X86_64, linuxX8664ToolchainFactory)
 	registerToolchainFactory(android.Linux, android.X86, linuxX86ToolchainFactory)
 
+	// TODO: musl rust support
+	registerToolchainFactory(android.LinuxMusl, android.X86_64, linuxX8664ToolchainFactory)
+	registerToolchainFactory(android.LinuxMusl, android.X86, linuxX86ToolchainFactory)
+
 	pctx.StaticVariable("LinuxToolchainRustFlags", strings.Join(LinuxRustFlags, " "))
 	pctx.StaticVariable("LinuxToolchainLinkFlags", strings.Join(LinuxRustLinkFlags, " "))
 	pctx.StaticVariable("LinuxToolchainX86RustFlags", strings.Join(linuxX86Rustflags, " "))
