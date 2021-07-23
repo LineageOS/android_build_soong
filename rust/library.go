@@ -21,6 +21,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/cc"
+	"android/soong/snapshot"
 )
 
 var (
@@ -645,7 +646,7 @@ func LibraryMutator(mctx android.BottomUpMutatorContext) {
 			variation := v.(*Module).ModuleBase.ImageVariation().Variation
 			if strings.HasPrefix(variation, cc.VendorVariationPrefix) &&
 				m.HasVendorVariant() &&
-				!cc.IsVendorProprietaryModule(mctx) &&
+				!snapshot.IsVendorProprietaryModule(mctx) &&
 				strings.TrimPrefix(variation, cc.VendorVariationPrefix) == mctx.DeviceConfig().VndkVersion() {
 
 				// cc.MutateImage runs before LibraryMutator, so vendor variations which are meant for rlibs only are

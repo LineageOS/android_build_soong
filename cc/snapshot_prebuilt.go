@@ -18,57 +18,17 @@ package cc
 // snapshot mutators and snapshot information maps which are also defined in this file.
 
 import (
-	"path/filepath"
 	"strings"
 
 	"android/soong/android"
+	"android/soong/snapshot"
 
 	"github.com/google/blueprint"
 )
 
-// Defines the specifics of different images to which the snapshot process is applicable, e.g.,
-// vendor, recovery, ramdisk.
+// This interface overrides snapshot.SnapshotImage to implement cc module specific functions
 type SnapshotImage interface {
-	// Returns true if a snapshot should be generated for this image.
-	shouldGenerateSnapshot(ctx android.SingletonContext) bool
-
-	// Function that returns true if the module is included in this image.
-	// Using a function return instead of a value to prevent early
-	// evalution of a function that may be not be defined.
-	inImage(m LinkableInterface) func() bool
-
-	// Returns true if the module is private and must not be included in the
-	// snapshot. For example VNDK-private modules must return true for the
-	// vendor snapshots. But false for the recovery snapshots.
-	private(m LinkableInterface) bool
-
-	// Returns true if a dir under source tree is an SoC-owned proprietary
-	// directory, such as device/, vendor/, etc.
-	//
-	// For a given snapshot (e.g., vendor, recovery, etc.) if
-	// isProprietaryPath(dir, deviceConfig) returns true, then the module in dir
-	// will be built from sources.
-	isProprietaryPath(dir string, deviceConfig android.DeviceConfig) bool
-
-	// Whether to include VNDK in the snapshot for this image.
-	includeVndk() bool
-
-	// Whether a given module has been explicitly excluded from the
-	// snapshot, e.g., using the exclude_from_vendor_snapshot or
-	// exclude_from_recovery_snapshot properties.
-	excludeFromSnapshot(m LinkableInterface) bool
-
-	// Returns true if the build is using a snapshot for this image.
-	isUsingSnapshot(cfg android.DeviceConfig) bool
-
-	// Returns a version of which the snapshot should be used in this target.
-	// This will only be meaningful when isUsingSnapshot is true.
-	targetSnapshotVersion(cfg android.DeviceConfig) string
-
-	// Whether to exclude a given module from the directed snapshot or not.
-	// If the makefile variable DIRECTED_{IMAGE}_SNAPSHOT is true, directed snapshot is turned on,
-	// and only modules listed in {IMAGE}_SNAPSHOT_MODULES will be captured.
-	excludeFromDirectedSnapshot(cfg android.DeviceConfig, name string) bool
+	snapshot.SnapshotImage
 
 	// The image variant name for this snapshot image.
 	// For example, recovery snapshot image will return "recovery", and vendor snapshot image will
@@ -80,110 +40,12 @@ type SnapshotImage interface {
 	moduleNameSuffix() string
 }
 
-type vendorSnapshotImage struct{}
-type recoverySnapshotImage struct{}
-
-type directoryMap map[string]bool
-
-var (
-	// Modules under following directories are ignored. They are OEM's and vendor's
-	// proprietary modules(device/, kernel/, vendor/, and hardware/).
-	defaultDirectoryExcludedMap = directoryMap{
-		"device":   true,
-		"hardware": true,
-		"kernel":   true,
-		"vendor":   true,
-	}
-
-	// Modules under following directories are included as they are in AOSP,
-	// although hardware/ and kernel/ are normally for vendor's own.
-	defaultDirectoryIncludedMap = directoryMap{
-		"kernel/configs":              true,
-		"kernel/prebuilts":            true,
-		"kernel/tests":                true,
-		"hardware/interfaces":         true,
-		"hardware/libhardware":        true,
-		"hardware/libhardware_legacy": true,
-		"hardware/ril":                true,
-	}
-)
-
-func (vendorSnapshotImage) Init(ctx android.RegistrationContext) {
-	ctx.RegisterSingletonType("vendor-snapshot", VendorSnapshotSingleton)
-	ctx.RegisterModuleType("vendor_snapshot", vendorSnapshotFactory)
-	ctx.RegisterModuleType("vendor_snapshot_shared", VendorSnapshotSharedFactory)
-	ctx.RegisterModuleType("vendor_snapshot_static", VendorSnapshotStaticFactory)
-	ctx.RegisterModuleType("vendor_snapshot_header", VendorSnapshotHeaderFactory)
-	ctx.RegisterModuleType("vendor_snapshot_binary", VendorSnapshotBinaryFactory)
-	ctx.RegisterModuleType("vendor_snapshot_object", VendorSnapshotObjectFactory)
-
-	ctx.RegisterSingletonType("vendor-fake-snapshot", VendorFakeSnapshotSingleton)
+type vendorSnapshotImage struct {
+	*snapshot.VendorSnapshotImage
 }
 
-func (vendorSnapshotImage) RegisterAdditionalModule(ctx android.RegistrationContext, name string, factory android.ModuleFactory) {
-	ctx.RegisterModuleType(name, factory)
-}
-
-func (vendorSnapshotImage) shouldGenerateSnapshot(ctx android.SingletonContext) bool {
-	// BOARD_VNDK_VERSION must be set to 'current' in order to generate a snapshot.
-	return ctx.DeviceConfig().VndkVersion() == "current"
-}
-
-func (vendorSnapshotImage) inImage(m LinkableInterface) func() bool {
-	return m.InVendor
-}
-
-func (vendorSnapshotImage) private(m LinkableInterface) bool {
-	return m.IsVndkPrivate()
-}
-
-func isDirectoryExcluded(dir string, excludedMap directoryMap, includedMap directoryMap) bool {
-	if dir == "." || dir == "/" {
-		return false
-	}
-	if includedMap[dir] {
-		return false
-	} else if excludedMap[dir] {
-		return true
-	} else if defaultDirectoryIncludedMap[dir] {
-		return false
-	} else if defaultDirectoryExcludedMap[dir] {
-		return true
-	} else {
-		return isDirectoryExcluded(filepath.Dir(dir), excludedMap, includedMap)
-	}
-}
-
-func (vendorSnapshotImage) isProprietaryPath(dir string, deviceConfig android.DeviceConfig) bool {
-	return isDirectoryExcluded(dir, deviceConfig.VendorSnapshotDirsExcludedMap(), deviceConfig.VendorSnapshotDirsIncludedMap())
-}
-
-// vendor snapshot includes static/header libraries with vndk: {enabled: true}.
-func (vendorSnapshotImage) includeVndk() bool {
-	return true
-}
-
-func (vendorSnapshotImage) excludeFromSnapshot(m LinkableInterface) bool {
-	return m.ExcludeFromVendorSnapshot()
-}
-
-func (vendorSnapshotImage) isUsingSnapshot(cfg android.DeviceConfig) bool {
-	vndkVersion := cfg.VndkVersion()
-	return vndkVersion != "current" && vndkVersion != ""
-}
-
-func (vendorSnapshotImage) targetSnapshotVersion(cfg android.DeviceConfig) string {
-	return cfg.VndkVersion()
-}
-
-// returns true iff a given module SHOULD BE EXCLUDED, false if included
-func (vendorSnapshotImage) excludeFromDirectedSnapshot(cfg android.DeviceConfig, name string) bool {
-	// If we're using full snapshot, not directed snapshot, capture every module
-	if !cfg.DirectedVendorSnapshot() {
-		return false
-	}
-	// Else, checks if name is in VENDOR_SNAPSHOT_MODULES.
-	return !cfg.VendorSnapshotModules()[name]
+type recoverySnapshotImage struct {
+	*snapshot.RecoverySnapshotImage
 }
 
 func (vendorSnapshotImage) imageVariantName(cfg android.DeviceConfig) string {
@@ -194,62 +56,6 @@ func (vendorSnapshotImage) moduleNameSuffix() string {
 	return VendorSuffix
 }
 
-func (recoverySnapshotImage) init(ctx android.RegistrationContext) {
-	ctx.RegisterSingletonType("recovery-snapshot", RecoverySnapshotSingleton)
-	ctx.RegisterModuleType("recovery_snapshot", recoverySnapshotFactory)
-	ctx.RegisterModuleType("recovery_snapshot_shared", RecoverySnapshotSharedFactory)
-	ctx.RegisterModuleType("recovery_snapshot_static", RecoverySnapshotStaticFactory)
-	ctx.RegisterModuleType("recovery_snapshot_header", RecoverySnapshotHeaderFactory)
-	ctx.RegisterModuleType("recovery_snapshot_binary", RecoverySnapshotBinaryFactory)
-	ctx.RegisterModuleType("recovery_snapshot_object", RecoverySnapshotObjectFactory)
-}
-
-func (recoverySnapshotImage) shouldGenerateSnapshot(ctx android.SingletonContext) bool {
-	// RECOVERY_SNAPSHOT_VERSION must be set to 'current' in order to generate a
-	// snapshot.
-	return ctx.DeviceConfig().RecoverySnapshotVersion() == "current"
-}
-
-func (recoverySnapshotImage) inImage(m LinkableInterface) func() bool {
-	return m.InRecovery
-}
-
-// recovery snapshot does not have private libraries.
-func (recoverySnapshotImage) private(m LinkableInterface) bool {
-	return false
-}
-
-func (recoverySnapshotImage) isProprietaryPath(dir string, deviceConfig android.DeviceConfig) bool {
-	return isDirectoryExcluded(dir, deviceConfig.RecoverySnapshotDirsExcludedMap(), deviceConfig.RecoverySnapshotDirsIncludedMap())
-}
-
-// recovery snapshot does NOT treat vndk specially.
-func (recoverySnapshotImage) includeVndk() bool {
-	return false
-}
-
-func (recoverySnapshotImage) excludeFromSnapshot(m LinkableInterface) bool {
-	return m.ExcludeFromRecoverySnapshot()
-}
-
-func (recoverySnapshotImage) isUsingSnapshot(cfg android.DeviceConfig) bool {
-	recoverySnapshotVersion := cfg.RecoverySnapshotVersion()
-	return recoverySnapshotVersion != "current" && recoverySnapshotVersion != ""
-}
-
-func (recoverySnapshotImage) targetSnapshotVersion(cfg android.DeviceConfig) string {
-	return cfg.RecoverySnapshotVersion()
-}
-
-func (recoverySnapshotImage) excludeFromDirectedSnapshot(cfg android.DeviceConfig, name string) bool {
-	// If we're using full snapshot, not directed snapshot, capture every module
-	if !cfg.DirectedRecoverySnapshot() {
-		return false
-	}
-	// Else, checks if name is in RECOVERY_SNAPSHOT_MODULES.
-	return !cfg.RecoverySnapshotModules()[name]
-}
-
 func (recoverySnapshotImage) imageVariantName(cfg android.DeviceConfig) string {
 	return android.RecoveryVariation
 }
@@ -258,12 +64,31 @@ func (recoverySnapshotImage) moduleNameSuffix() string {
 	return recoverySuffix
 }
 
-var VendorSnapshotImageSingleton vendorSnapshotImage
-var recoverySnapshotImageSingleton recoverySnapshotImage
+// Override existing vendor and recovery snapshot for cc module specific extra functions
+var VendorSnapshotImageSingleton vendorSnapshotImage = vendorSnapshotImage{&snapshot.VendorSnapshotImageSingleton}
+var recoverySnapshotImageSingleton recoverySnapshotImage = recoverySnapshotImage{&snapshot.RecoverySnapshotImageSingleton}
+
+func RegisterVendorSnapshotModules(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("vendor_snapshot", vendorSnapshotFactory)
+	ctx.RegisterModuleType("vendor_snapshot_shared", VendorSnapshotSharedFactory)
+	ctx.RegisterModuleType("vendor_snapshot_static", VendorSnapshotStaticFactory)
+	ctx.RegisterModuleType("vendor_snapshot_header", VendorSnapshotHeaderFactory)
+	ctx.RegisterModuleType("vendor_snapshot_binary", VendorSnapshotBinaryFactory)
+	ctx.RegisterModuleType("vendor_snapshot_object", VendorSnapshotObjectFactory)
+}
+
+func RegisterRecoverySnapshotModules(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("recovery_snapshot", recoverySnapshotFactory)
+	ctx.RegisterModuleType("recovery_snapshot_shared", RecoverySnapshotSharedFactory)
+	ctx.RegisterModuleType("recovery_snapshot_static", RecoverySnapshotStaticFactory)
+	ctx.RegisterModuleType("recovery_snapshot_header", RecoverySnapshotHeaderFactory)
+	ctx.RegisterModuleType("recovery_snapshot_binary", RecoverySnapshotBinaryFactory)
+	ctx.RegisterModuleType("recovery_snapshot_object", RecoverySnapshotObjectFactory)
+}
 
 func init() {
-	VendorSnapshotImageSingleton.Init(android.InitRegistrationContext)
-	recoverySnapshotImageSingleton.init(android.InitRegistrationContext)
+	RegisterVendorSnapshotModules(android.InitRegistrationContext)
+	RegisterRecoverySnapshotModules(android.InitRegistrationContext)
 	android.RegisterMakeVarsProvider(pctx, snapshotMakeVarsProvider)
 }
 
@@ -285,8 +110,7 @@ type SnapshotProperties struct {
 	Binaries    []string `android:"arch_variant"`
 	Objects     []string `android:"arch_variant"`
 }
-
-type snapshot struct {
+type snapshotModule struct {
 	android.ModuleBase
 
 	properties SnapshotProperties
@@ -296,41 +120,41 @@ type snapshot struct {
 	image SnapshotImage
 }
 
-func (s *snapshot) ImageMutatorBegin(ctx android.BaseModuleContext) {
+func (s *snapshotModule) ImageMutatorBegin(ctx android.BaseModuleContext) {
 	cfg := ctx.DeviceConfig()
-	if !s.image.isUsingSnapshot(cfg) || s.image.targetSnapshotVersion(cfg) != s.baseSnapshot.Version() {
+	if !s.image.IsUsingSnapshot(cfg) || s.image.TargetSnapshotVersion(cfg) != s.baseSnapshot.Version() {
 		s.Disable()
 	}
 }
 
-func (s *snapshot) CoreVariantNeeded(ctx android.BaseModuleContext) bool {
+func (s *snapshotModule) CoreVariantNeeded(ctx android.BaseModuleContext) bool {
 	return false
 }
 
-func (s *snapshot) RamdiskVariantNeeded(ctx android.BaseModuleContext) bool {
+func (s *snapshotModule) RamdiskVariantNeeded(ctx android.BaseModuleContext) bool {
 	return false
 }
 
-func (s *snapshot) VendorRamdiskVariantNeeded(ctx android.BaseModuleContext) bool {
+func (s *snapshotModule) VendorRamdiskVariantNeeded(ctx android.BaseModuleContext) bool {
 	return false
 }
 
-func (s *snapshot) DebugRamdiskVariantNeeded(ctx android.BaseModuleContext) bool {
+func (s *snapshotModule) DebugRamdiskVariantNeeded(ctx android.BaseModuleContext) bool {
 	return false
 }
 
-func (s *snapshot) RecoveryVariantNeeded(ctx android.BaseModuleContext) bool {
+func (s *snapshotModule) RecoveryVariantNeeded(ctx android.BaseModuleContext) bool {
 	return false
 }
 
-func (s *snapshot) ExtraImageVariations(ctx android.BaseModuleContext) []string {
+func (s *snapshotModule) ExtraImageVariations(ctx android.BaseModuleContext) []string {
 	return []string{s.image.imageVariantName(ctx.DeviceConfig())}
 }
 
-func (s *snapshot) SetImageVariation(ctx android.BaseModuleContext, variation string, module android.Module) {
+func (s *snapshotModule) SetImageVariation(ctx android.BaseModuleContext, variation string, module android.Module) {
 }
 
-func (s *snapshot) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+func (s *snapshotModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// Nothing, the snapshot module is only used to forward dependency information in DepsMutator.
 }
 
@@ -342,7 +166,7 @@ func getSnapshotNameSuffix(moduleSuffix, version, arch string) string {
 	return moduleSuffix + versionSuffix
 }
 
-func (s *snapshot) DepsMutator(ctx android.BottomUpMutatorContext) {
+func (s *snapshotModule) DepsMutator(ctx android.BottomUpMutatorContext) {
 	collectSnapshotMap := func(names []string, snapshotSuffix, moduleSuffix string) map[string]string {
 		snapshotMap := make(map[string]string)
 		for _, name := range names {
@@ -382,12 +206,12 @@ type SnapshotInfo struct {
 
 var SnapshotInfoProvider = blueprint.NewMutatorProvider(SnapshotInfo{}, "deps")
 
-var _ android.ImageInterface = (*snapshot)(nil)
+var _ android.ImageInterface = (*snapshotModule)(nil)
 
 func snapshotMakeVarsProvider(ctx android.MakeVarsContext) {
 	snapshotSet := map[string]struct{}{}
 	ctx.VisitAllModules(func(m android.Module) {
-		if s, ok := m.(*snapshot); ok {
+		if s, ok := m.(*snapshotModule); ok {
 			if _, ok := snapshotSet[s.Name()]; ok {
 				// arch variant generates duplicated modules
 				// skip this as we only need to know the path of the module.
@@ -411,13 +235,13 @@ func recoverySnapshotFactory() android.Module {
 }
 
 func snapshotFactory(image SnapshotImage) android.Module {
-	snapshot := &snapshot{}
-	snapshot.image = image
-	snapshot.AddProperties(
-		&snapshot.properties,
-		&snapshot.baseSnapshot.baseProperties)
-	android.InitAndroidArchModule(snapshot, android.DeviceSupported, android.MultilibBoth)
-	return snapshot
+	snapshotModule := &snapshotModule{}
+	snapshotModule.image = image
+	snapshotModule.AddProperties(
+		&snapshotModule.properties,
+		&snapshotModule.baseSnapshot.baseProperties)
+	android.InitAndroidArchModule(snapshotModule, android.DeviceSupported, android.MultilibBoth)
+	return snapshotModule
 }
 
 type BaseSnapshotDecoratorProperties struct {
@@ -449,7 +273,7 @@ type BaseSnapshotDecoratorProperties struct {
 // will be seen as "libbase.vendor_static.30.arm64" by Soong.
 type BaseSnapshotDecorator struct {
 	baseProperties BaseSnapshotDecoratorProperties
-	image          SnapshotImage
+	Image          SnapshotImage
 }
 
 func (p *BaseSnapshotDecorator) Name(name string) string {
@@ -489,7 +313,7 @@ func (p *BaseSnapshotDecorator) SetSnapshotAndroidMkSuffix(ctx android.ModuleCon
 		Variation: android.CoreVariation})
 
 	if ctx.OtherModuleFarDependencyVariantExists(variations, ctx.Module().(LinkableInterface).BaseModuleName()) {
-		p.baseProperties.Androidmk_suffix = p.image.moduleNameSuffix()
+		p.baseProperties.Androidmk_suffix = p.Image.moduleNameSuffix()
 		return
 	}
 
@@ -498,14 +322,14 @@ func (p *BaseSnapshotDecorator) SetSnapshotAndroidMkSuffix(ctx android.ModuleCon
 		Variation: ProductVariationPrefix + ctx.DeviceConfig().PlatformVndkVersion()})
 
 	if ctx.OtherModuleFarDependencyVariantExists(variations, ctx.Module().(LinkableInterface).BaseModuleName()) {
-		p.baseProperties.Androidmk_suffix = p.image.moduleNameSuffix()
+		p.baseProperties.Androidmk_suffix = p.Image.moduleNameSuffix()
 		return
 	}
 
 	images := []SnapshotImage{VendorSnapshotImageSingleton, recoverySnapshotImageSingleton}
 
 	for _, image := range images {
-		if p.image == image {
+		if p.Image == image {
 			continue
 		}
 		variations = append(ctx.Target().Variations(), blueprint.Variation{
@@ -518,7 +342,7 @@ func (p *BaseSnapshotDecorator) SetSnapshotAndroidMkSuffix(ctx android.ModuleCon
 					image.moduleNameSuffix()+variant,
 					p.Version(),
 					ctx.DeviceConfig().Arches()[0].ArchType.String())) {
-			p.baseProperties.Androidmk_suffix = p.image.moduleNameSuffix()
+			p.baseProperties.Androidmk_suffix = p.Image.moduleNameSuffix()
 			return
 		}
 	}
@@ -529,7 +353,7 @@ func (p *BaseSnapshotDecorator) SetSnapshotAndroidMkSuffix(ctx android.ModuleCon
 // Call this with a module suffix after creating a snapshot module, such as
 // vendorSnapshotSharedSuffix, recoverySnapshotBinarySuffix, etc.
 func (p *BaseSnapshotDecorator) Init(m LinkableInterface, image SnapshotImage, moduleSuffix string) {
-	p.image = image
+	p.Image = image
 	p.baseProperties.ModuleSuffix = image.moduleNameSuffix() + moduleSuffix
 	m.AddProperties(&p.baseProperties)
 	android.AddLoadHook(m, func(ctx android.LoadHookContext) {

@@ -15,9 +15,10 @@
 package cc
 
 import (
+	"fmt"
+
 	"android/soong/android"
 	"android/soong/cc/config"
-	"fmt"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
@@ -244,8 +245,7 @@ func (linker *baseLinker) overrideDefaultSharedLibraries(ctx BaseModuleContext) 
 	if linker.Properties.System_shared_libs != nil && linker.Properties.Default_shared_libs != nil {
 		ctx.PropertyErrorf("system_shared_libs", "cannot be specified if default_shared_libs is also specified")
 	}
-	if ctx.toolchain().Bionic() && linker.Properties.System_shared_libs != nil {
-		// system_shared_libs is only honored when building against bionic.
+	if linker.Properties.System_shared_libs != nil {
 		return linker.Properties.System_shared_libs
 	}
 	return linker.Properties.Default_shared_libs

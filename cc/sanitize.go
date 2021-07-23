@@ -25,6 +25,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/cc/config"
+	"android/soong/snapshot"
 )
 
 var (
@@ -907,7 +908,7 @@ func (m *Module) SanitizableDepTagChecker() SantizableDependencyTagChecker {
 // as vendor snapshot. Such modules must create both cfi and non-cfi variants,
 // except for ones which explicitly disable cfi.
 func needsCfiForVendorSnapshot(mctx android.TopDownMutatorContext) bool {
-	if IsVendorProprietaryModule(mctx) {
+	if snapshot.IsVendorProprietaryModule(mctx) {
 		return false
 	}
 

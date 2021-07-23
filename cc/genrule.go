@@ -17,6 +17,7 @@ package cc
 import (
 	"android/soong/android"
 	"android/soong/genrule"
+	"android/soong/snapshot"
 )
 
 func init() {
@@ -84,7 +85,7 @@ func (g *GenruleExtraProperties) RecoveryVariantNeeded(ctx android.BaseModuleCon
 	// is not needed.
 	recoverySnapshotVersion := ctx.DeviceConfig().RecoverySnapshotVersion()
 	if recoverySnapshotVersion != "current" && recoverySnapshotVersion != "" &&
-		!isRecoveryProprietaryModule(ctx) {
+		!snapshot.IsRecoveryProprietaryModule(ctx) {
 		return false
 	} else {
 		return Bool(g.Recovery_available)
@@ -103,7 +104,7 @@ func (g *GenruleExtraProperties) ExtraImageVariations(ctx android.BaseModuleCont
 		// If not, we assume modules under proprietary paths are compatible for
 		// BOARD_VNDK_VERSION. The other modules are regarded as AOSP, that is
 		// PLATFORM_VNDK_VERSION.
-		if vndkVersion == "current" || !IsVendorProprietaryModule(ctx) {
+		if vndkVersion == "current" || !snapshot.IsVendorProprietaryModule(ctx) {
 			variants = append(variants, VendorVariationPrefix+ctx.DeviceConfig().PlatformVndkVersion())
 		} else {
 			variants = append(variants, VendorVariationPrefix+vndkVersion)

@@ -11,6 +11,7 @@ bootstrap_go_package {
         "soong-bloaty",
         "soong-cc",
         "soong-rust-config",
+        "soong-snapshot",
     ],
     srcs: [
         "androidmk.go",

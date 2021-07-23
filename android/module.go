@@ -413,6 +413,7 @@ type ModuleContext interface {
 	InstallInDebugRamdisk() bool
 	InstallInRecovery() bool
 	InstallInRoot() bool
+	InstallInVendor() bool
 	InstallBypassMake() bool
 	InstallForceOS() (*OsType, *ArchType)
 
@@ -471,6 +472,7 @@ type Module interface {
 	InstallInDebugRamdisk() bool
 	InstallInRecovery() bool
 	InstallInRoot() bool
+	InstallInVendor() bool
 	InstallBypassMake() bool
 	InstallForceOS() (*OsType, *ArchType)
 	HideFromMake()
@@ -1579,6 +1581,10 @@ func (m *ModuleBase) InstallInRecovery() bool {
 	return Bool(m.commonProperties.Recovery)
 }
 
+func (m *ModuleBase) InstallInVendor() bool {
+	return Bool(m.commonProperties.Vendor)
+}
+
 func (m *ModuleBase) InstallInRoot() bool {
 	return false
 }
@@ -2643,6 +2649,10 @@ func (m *moduleContext) InstallBypassMake() bool {
 
 func (m *moduleContext) InstallForceOS() (*OsType, *ArchType) {
 	return m.module.InstallForceOS()
+}
+
+func (m *moduleContext) InstallInVendor() bool {
+	return m.module.InstallInVendor()
 }
 
 func (m *moduleContext) skipInstall() bool {
