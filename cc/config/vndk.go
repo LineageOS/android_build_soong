@@ -68,6 +68,7 @@ var VndkMustUseVendorVariantList = []string{
 	"android.system.keystore2-V1-ndk_platform",
 	"android.system.keystore2-ndk_platform",
 	"android.system.keystore2-unstable-ndk_platform",
+	"android.system.suspend-V1-ndk_platform",
 	"libbinder",
 	"libcrypto",
 	"libexpat",
