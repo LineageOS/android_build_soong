@@ -15,9 +15,10 @@
 package cc
 
 import (
+	"fmt"
+
 	"android/soong/android"
 	"android/soong/cc/config"
-	"fmt"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
@@ -111,6 +112,10 @@ type BaseLinkerProperties struct {
 			// product variant of the C/C++ module.
 			Static_libs []string
 
+			// list of ehader libs that only should be used to build vendor or product
+			// variant of the C/C++ module.
+			Header_libs []string
+
 			// list of shared libs that should not be used to build vendor or
 			// product variant of the C/C++ module.
 			Exclude_shared_libs []string
@@ -179,6 +184,14 @@ type BaseLinkerProperties struct {
 			// in most cases the same libraries are available for the SDK and platform
 			// variants.
 			Shared_libs []string
+
+			// list of ehader libs that only should be used to build platform variant of
+			// the C/C++ module.
+			Header_libs []string
+
+			// list of shared libs that should not be used to build the platform variant
+			// of the C/C++ module.
+			Exclude_shared_libs []string
 		}
 		Apex struct {
 			// list of shared libs that should not be used to build the apex variant of
@@ -244,8 +257,7 @@ func (linker *baseLinker) overrideDefaultSharedLibraries(ctx BaseModuleContext) 
 	if linker.Properties.System_shared_libs != nil && linker.Properties.Default_shared_libs != nil {
 		ctx.PropertyErrorf("system_shared_libs", "cannot be specified if default_shared_libs is also specified")
 	}
-	if ctx.toolchain().Bionic() && linker.Properties.System_shared_libs != nil {
-		// system_shared_libs is only honored when building against bionic.
+	if linker.Properties.System_shared_libs != nil {
 		return linker.Properties.System_shared_libs
 	}
 	return linker.Properties.Default_shared_libs
@@ -300,6 +312,7 @@ func (linker *baseLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 		deps.ReexportSharedLibHeaders = removeListFromList(deps.ReexportSharedLibHeaders, linker.Properties.Target.Vendor.Exclude_shared_libs)
 		deps.StaticLibs = append(deps.StaticLibs, linker.Properties.Target.Vendor.Static_libs...)
 		deps.StaticLibs = removeListFromList(deps.StaticLibs, linker.Properties.Target.Vendor.Exclude_static_libs)
+		deps.HeaderLibs = append(deps.HeaderLibs, linker.Properties.Target.Vendor.Header_libs...)
 		deps.HeaderLibs = removeListFromList(deps.HeaderLibs, linker.Properties.Target.Vendor.Exclude_header_libs)
 		deps.ReexportStaticLibHeaders = removeListFromList(deps.ReexportStaticLibHeaders, linker.Properties.Target.Vendor.Exclude_static_libs)
 		deps.WholeStaticLibs = removeListFromList(deps.WholeStaticLibs, linker.Properties.Target.Vendor.Exclude_static_libs)
@@ -349,6 +362,8 @@ func (linker *baseLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 
 	if !ctx.useSdk() {
 		deps.SharedLibs = append(deps.SharedLibs, linker.Properties.Target.Platform.Shared_libs...)
+		deps.SharedLibs = removeListFromList(deps.SharedLibs, linker.Properties.Target.Platform.Exclude_shared_libs)
+		deps.HeaderLibs = append(deps.HeaderLibs, linker.Properties.Target.Platform.Header_libs...)
 	}
 
 	deps.SystemSharedLibs = linker.overrideDefaultSharedLibraries(ctx)
@@ -388,18 +403,6 @@ func (linker *baseLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	}
 
 	deps.LateSharedLibs = append(deps.LateSharedLibs, deps.SystemSharedLibs...)
-
-	if ctx.Fuchsia() {
-		if ctx.ModuleName() != "libbioniccompat" &&
-			ctx.ModuleName() != "libcompiler_rt-extras" &&
-			ctx.ModuleName() != "libcompiler_rt" {
-			deps.StaticLibs = append(deps.StaticLibs, "libbioniccompat")
-		}
-		if ctx.ModuleName() != "libcompiler_rt" && ctx.ModuleName() != "libcompiler_rt-extras" {
-			deps.LateStaticLibs = append(deps.LateStaticLibs, "libcompiler_rt")
-		}
-
-	}
 
 	if ctx.Windows() {
 		deps.LateStaticLibs = append(deps.LateStaticLibs, "libwinpthread")
@@ -484,7 +487,7 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 		flags.Global.LdFlags = append(flags.Global.LdFlags, toolchain.Ldflags())
 	}
 
-	if !ctx.toolchain().Bionic() && !ctx.Fuchsia() {
+	if !ctx.toolchain().Bionic() {
 		CheckBadHostLdlibs(ctx, "host_ldlibs", linker.Properties.Host_ldlibs)
 
 		flags.Local.LdFlags = append(flags.Local.LdFlags, linker.Properties.Host_ldlibs...)
@@ -501,10 +504,6 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 				flags.Global.LdFlags = append(flags.Global.LdFlags, "-lrt")
 			}
 		}
-	}
-
-	if ctx.Fuchsia() {
-		flags.Global.LdFlags = append(flags.Global.LdFlags, "-lfdio", "-lzircon")
 	}
 
 	if ctx.toolchain().LibclangRuntimeLibraryArch() != "" {
