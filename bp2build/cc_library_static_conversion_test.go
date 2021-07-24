@@ -469,7 +469,6 @@ func TestCcLibraryStaticArchSpecificStaticLib(t *testing.T) {
 		moduleTypeUnderTest:                "cc_library_static",
 		moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
 		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
-		depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
 		filesystem:                         map[string]string{},
 		blueprint: soongCcLibraryStaticPreamble + `
 cc_library_static { name: "static_dep" }
@@ -517,7 +516,6 @@ func TestCcLibraryStaticOsSpecificStaticLib(t *testing.T) {
 		moduleTypeUnderTest:                "cc_library_static",
 		moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
 		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
-		depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
 		filesystem:                         map[string]string{},
 		blueprint: soongCcLibraryStaticPreamble + `
 cc_library_static { name: "static_dep" }
@@ -565,7 +563,6 @@ func TestCcLibraryStaticBaseArchOsSpecificStaticLib(t *testing.T) {
 		moduleTypeUnderTest:                "cc_library_static",
 		moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
 		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
-		depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
 		filesystem:                         map[string]string{},
 		blueprint: soongCcLibraryStaticPreamble + `
 cc_library_static { name: "static_dep" }
@@ -632,7 +629,6 @@ func TestCcLibraryStaticSimpleExcludeSrcs(t *testing.T) {
 		moduleTypeUnderTest:                "cc_library_static",
 		moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
 		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
-		depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
 		filesystem: map[string]string{
 			"common.c":       "",
 			"foo-a.c":        "",
@@ -665,7 +661,6 @@ func TestCcLibraryStaticOneArchSrcs(t *testing.T) {
 		moduleTypeUnderTest:                "cc_library_static",
 		moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
 		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
-		depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
 		filesystem: map[string]string{
 			"common.c":  "",
 			"foo-arm.c": "",
@@ -697,7 +692,6 @@ func TestCcLibraryStaticOneArchSrcsExcludeSrcs(t *testing.T) {
 		moduleTypeUnderTest:                "cc_library_static",
 		moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
 		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
-		depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
 		filesystem: map[string]string{
 			"common.c":           "",
 			"for-arm.c":          "",
@@ -734,7 +728,6 @@ func TestCcLibraryStaticTwoArchExcludeSrcs(t *testing.T) {
 		moduleTypeUnderTest:                "cc_library_static",
 		moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
 		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
-		depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
 		filesystem: map[string]string{
 			"common.c":      "",
 			"for-arm.c":     "",
@@ -782,7 +775,6 @@ func TestCcLibraryStaticFourArchExcludeSrcs(t *testing.T) {
 		moduleTypeUnderTest:                "cc_library_static",
 		moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
 		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
-		depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
 		filesystem: map[string]string{
 			"common.c":             "",
 			"for-arm.c":            "",
@@ -856,7 +848,6 @@ func TestCcLibraryStaticOneArchEmpty(t *testing.T) {
 		moduleTypeUnderTest:                "cc_library_static",
 		moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
 		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
-		depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
 		filesystem: map[string]string{
 			"common.cc":       "",
 			"foo-no-arm.cc":   "",
@@ -892,7 +883,6 @@ func TestCcLibraryStaticOneArchEmptyOtherSet(t *testing.T) {
 		moduleTypeUnderTest:                "cc_library_static",
 		moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
 		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
-		depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
 		filesystem: map[string]string{
 			"common.cc":       "",
 			"foo-no-arm.cc":   "",
@@ -934,7 +924,6 @@ func TestCcLibraryStaticMultipleDepSameName(t *testing.T) {
 		moduleTypeUnderTest:                "cc_library_static",
 		moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
 		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
-		depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
 		filesystem:                         map[string]string{},
 		blueprint: soongCcLibraryStaticPreamble + `
 cc_library_static { name: "static_dep" }
@@ -967,7 +956,6 @@ func TestCcLibraryStaticOneMultilibSrcsExcludeSrcs(t *testing.T) {
 		moduleTypeUnderTest:                "cc_library_static",
 		moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
 		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
-		depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
 		filesystem: map[string]string{
 			"common.c":        "",
 			"for-lib32.c":     "",
@@ -1003,7 +991,6 @@ func TestCcLibraryStaticTwoMultilibSrcsExcludeSrcs(t *testing.T) {
 		moduleTypeUnderTest:                "cc_library_static",
 		moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
 		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
-		depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
 		filesystem: map[string]string{
 			"common.c":        "",
 			"for-lib32.c":     "",
@@ -1059,7 +1046,6 @@ func TestCcLibrarySTaticArchMultilibSrcsExcludeSrcs(t *testing.T) {
 		moduleTypeUnderTest:                "cc_library_static",
 		moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
 		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
-		depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
 		filesystem: map[string]string{
 			"common.c":             "",
 			"for-arm.c":            "",
@@ -1151,7 +1137,6 @@ func TestCcLibraryStaticArchSrcsExcludeSrcsGeneratedFiles(t *testing.T) {
 		moduleTypeUnderTest:                "cc_library_static",
 		moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
 		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
-		depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
 		filesystem: map[string]string{
 			"common.cpp":             "",
 			"for-x86.cpp":            "",
@@ -1243,7 +1228,6 @@ func TestCcLibraryStaticGetTargetProperties(t *testing.T) {
 		moduleTypeUnderTest:                "cc_library_static",
 		moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
 		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
-		depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
 		blueprint: soongCcLibraryStaticPreamble + `
 cc_library_static {
     name: "foo_static",
@@ -1300,8 +1284,6 @@ func TestCcLibraryStaticProductVariableSelects(t *testing.T) {
 		moduleTypeUnderTest:                "cc_library_static",
 		moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
 		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
-		depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
-		filesystem:                         map[string]string{},
 		blueprint: soongCcLibraryStaticPreamble + `
 cc_library_static {
     name: "foo_static",
@@ -1345,7 +1327,6 @@ func TestCcLibraryStaticProductVariableArchSpecificSelects(t *testing.T) {
 		moduleTypeUnderTest:                "cc_library_static",
 		moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
 		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
-		depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
 		filesystem:                         map[string]string{},
 		blueprint: soongCcLibraryStaticPreamble + `
 cc_library_static {
@@ -1417,7 +1398,6 @@ func TestCcLibraryStaticProductVariableStringReplacement(t *testing.T) {
 		moduleTypeUnderTest:                "cc_library_static",
 		moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
 		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
-		depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
 		filesystem:                         map[string]string{},
 		blueprint: soongCcLibraryStaticPreamble + `
 cc_library_static {

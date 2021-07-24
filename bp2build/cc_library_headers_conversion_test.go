@@ -45,7 +45,6 @@ type bp2buildTestCase struct {
 	moduleTypeUnderTest                string
 	moduleTypeUnderTestFactory         android.ModuleFactory
 	moduleTypeUnderTestBp2BuildMutator func(android.TopDownMutatorContext)
-	depsMutators                       []android.RegisterMutatorFunc
 	blueprint                          string
 	expectedBazelTargets               []string
 	filesystem                         map[string]string
@@ -181,13 +180,11 @@ func TestCcLibraryHeadersOSSpecificHeader(t *testing.T) {
 		moduleTypeUnderTest:                "cc_library_headers",
 		moduleTypeUnderTestFactory:         cc.LibraryHeaderFactory,
 		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryHeadersBp2Build,
-		depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
 		filesystem:                         map[string]string{},
 		blueprint: soongCcLibraryPreamble + `
 cc_library_headers { name: "android-lib" }
 cc_library_headers { name: "base-lib" }
 cc_library_headers { name: "darwin-lib" }
-cc_library_headers { name: "fuchsia-lib" }
 cc_library_headers { name: "linux-lib" }
 cc_library_headers { name: "linux_bionic-lib" }
 cc_library_headers { name: "windows-lib" }
@@ -197,7 +194,6 @@ cc_library_headers {
     target: {
         android: { header_libs: ["android-lib"] },
         darwin: { header_libs: ["darwin-lib"] },
-        fuchsia: { header_libs: ["fuchsia-lib"] },
         linux_bionic: { header_libs: ["linux_bionic-lib"] },
         linux_glibc: { header_libs: ["linux-lib"] },
         windows: { header_libs: ["windows-lib"] },
@@ -231,18 +227,11 @@ cc_library_headers {
     implementation_deps = [":base-lib"] + select({
         "//build/bazel/platforms/os:android": [":android-lib"],
         "//build/bazel/platforms/os:darwin": [":darwin-lib"],
-        "//build/bazel/platforms/os:fuchsia": [":fuchsia-lib"],
         "//build/bazel/platforms/os:linux": [":linux-lib"],
         "//build/bazel/platforms/os:linux_bionic": [":linux_bionic-lib"],
         "//build/bazel/platforms/os:windows": [":windows-lib"],
         "//conditions:default": [],
     }),
-)`, `cc_library_headers(
-    name = "fuchsia-lib",
-    copts = [
-        "-I.",
-        "-I$(BINDIR)/.",
-    ],
 )`, `cc_library_headers(
     name = "linux-lib",
     copts = [
@@ -271,7 +260,6 @@ func TestCcLibraryHeadersOsSpecficHeaderLibsExportHeaderLibHeaders(t *testing.T)
 		moduleTypeUnderTest:                "cc_library_headers",
 		moduleTypeUnderTestFactory:         cc.LibraryHeaderFactory,
 		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryHeadersBp2Build,
-		depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
 		filesystem:                         map[string]string{},
 		blueprint: soongCcLibraryPreamble + `
 cc_library_headers { name: "android-lib" }
@@ -318,7 +306,6 @@ func TestCcLibraryHeadersArchAndTargetExportSystemIncludes(t *testing.T) {
 		moduleTypeUnderTest:                "cc_library_headers",
 		moduleTypeUnderTestFactory:         cc.LibraryHeaderFactory,
 		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryHeadersBp2Build,
-		depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
 		filesystem:                         map[string]string{},
 		blueprint: soongCcLibraryPreamble + `cc_library_headers {
     name: "foo_headers",

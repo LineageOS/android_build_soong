@@ -24,122 +24,6 @@ import (
 	"github.com/google/blueprint/proptools"
 )
 
-// bp2build functions and helpers for converting cc_* modules to Bazel.
-
-func init() {
-	android.DepsBp2BuildMutators(RegisterDepsBp2Build)
-}
-
-func RegisterDepsBp2Build(ctx android.RegisterMutatorsContext) {
-	ctx.BottomUp("cc_bp2build_deps", depsBp2BuildMutator)
-}
-
-// A naive deps mutator to add deps on all modules across all combinations of
-// target props for cc modules. This is needed to make module -> bazel label
-// resolution work in the bp2build mutator later. This is probably
-// the wrong way to do it, but it works.
-//
-// TODO(jingwen): can we create a custom os mutator in depsBp2BuildMutator to do this?
-func depsBp2BuildMutator(ctx android.BottomUpMutatorContext) {
-	module, ok := ctx.Module().(*Module)
-	if !ok {
-		// Not a cc module
-		return
-	}
-
-	if !module.ConvertWithBp2build(ctx) {
-		return
-	}
-
-	var allDeps []string
-
-	for _, configToProps := range module.GetArchVariantProperties(ctx, &BaseCompilerProperties{}) {
-		for _, props := range configToProps {
-			if baseCompilerProps, ok := props.(*BaseCompilerProperties); ok {
-				allDeps = append(allDeps, baseCompilerProps.Generated_headers...)
-				allDeps = append(allDeps, baseCompilerProps.Generated_sources...)
-			}
-		}
-	}
-
-	for _, configToProps := range module.GetArchVariantProperties(ctx, &BaseLinkerProperties{}) {
-		for _, props := range configToProps {
-			if baseLinkerProps, ok := props.(*BaseLinkerProperties); ok {
-				allDeps = append(allDeps, baseLinkerProps.Header_libs...)
-				allDeps = append(allDeps, baseLinkerProps.Export_header_lib_headers...)
-				allDeps = append(allDeps, baseLinkerProps.Static_libs...)
-				allDeps = append(allDeps, baseLinkerProps.Exclude_static_libs...)
-				allDeps = append(allDeps, baseLinkerProps.Whole_static_libs...)
-				allDeps = append(allDeps, baseLinkerProps.Shared_libs...)
-				allDeps = append(allDeps, baseLinkerProps.Exclude_shared_libs...)
-				allDeps = append(allDeps, baseLinkerProps.System_shared_libs...)
-			}
-		}
-	}
-
-	// Deps in the static: { .. } and shared: { .. } props of a cc_library.
-	if lib, ok := module.compiler.(*libraryDecorator); ok {
-		appendDeps := func(deps []string, p StaticOrSharedProperties, system bool) []string {
-			deps = append(deps, p.Static_libs...)
-			deps = append(deps, p.Whole_static_libs...)
-			deps = append(deps, p.Shared_libs...)
-			// TODO(b/186024507, b/186489250): Temporarily exclude adding
-			// system_shared_libs deps until libc and libm builds.
-			if system {
-				allDeps = append(allDeps, p.System_shared_libs...)
-			}
-			return deps
-		}
-
-		allDeps = appendDeps(allDeps, lib.SharedProperties.Shared, lib.shared())
-		allDeps = appendDeps(allDeps, lib.StaticProperties.Static, lib.static())
-
-		// Deps in the target/arch nested static: { .. } and shared: { .. } props of a cc_library.
-		// target: { <target>: shared: { ... } }
-		for _, configToProps := range module.GetArchVariantProperties(ctx, &SharedProperties{}) {
-			for _, props := range configToProps {
-				if p, ok := props.(*SharedProperties); ok {
-					allDeps = appendDeps(allDeps, p.Shared, lib.shared())
-				}
-			}
-		}
-
-		for _, configToProps := range module.GetArchVariantProperties(ctx, &StaticProperties{}) {
-			for _, props := range configToProps {
-				if p, ok := props.(*StaticProperties); ok {
-					allDeps = appendDeps(allDeps, p.Static, lib.static())
-				}
-			}
-		}
-	}
-
-	// product variables only support a limited set of fields, this is the full list of field names
-	// related to cc module dependency management that are supported.
-	productVariableDepFields := [4]string{
-		"Shared_libs",
-		"Static_libs",
-		"Exclude_static_libs",
-		"Whole_static_libs",
-	}
-
-	productVariableProps := android.ProductVariableProperties(ctx)
-	for _, name := range productVariableDepFields {
-		props, exists := productVariableProps[name]
-		if !exists {
-			continue
-		}
-		for _, prop := range props {
-			if p, ok := prop.Property.([]string); !ok {
-				ctx.ModuleErrorf("Could not convert product variable %s property", name)
-			} else {
-				allDeps = append(allDeps, p...)
-			}
-		}
-	}
-
-	ctx.AddDependency(module, nil, android.SortedUniqueStrings(allDeps)...)
-}
-
 // staticOrSharedAttributes are the Bazel-ified versions of StaticOrSharedProperties --
 // properties which apply to either the shared or static version of a cc_library module.
 type staticOrSharedAttributes struct {
@@ -183,30 +67,33 @@ func groupSrcsByExtension(ctx android.TopDownMutatorContext, srcs bazel.LabelLis
 	// Convert the filegroup dependencies into the extension-specific filegroups
 	// filtered in the filegroup.bzl macro.
 	cppFilegroup := func(label string) string {
-		ctx.VisitDirectDeps(func(m android.Module) {
-			if isFilegroupNamed(m, label) {
+		m, exists := ctx.ModuleFromName(label)
+		if exists {
+			aModule, _ := m.(android.Module)
+			if isFilegroupNamed(aModule, label) {
 				label = label + "_cpp_srcs"
-				return
 			}
-		})
+		}
 		return label
 	}
 	cFilegroup := func(label string) string {
-		ctx.VisitDirectDeps(func(m android.Module) {
-			if isFilegroupNamed(m, label) {
+		m, exists := ctx.ModuleFromName(label)
+		if exists {
+			aModule, _ := m.(android.Module)
+			if isFilegroupNamed(aModule, label) {
 				label = label + "_c_srcs"
-				return
 			}
-		})
+		}
 		return label
 	}
 	asFilegroup := func(label string) string {
-		ctx.VisitDirectDeps(func(m android.Module) {
-			if isFilegroupNamed(m, label) {
+		m, exists := ctx.ModuleFromName(label)
+		if exists {
+			aModule, _ := m.(android.Module)
+			if isFilegroupNamed(aModule, label) {
 				label = label + "_as_srcs"
-				return
 			}
-		})
+		}
 		return label
 	}
 

@@ -15,12 +15,13 @@
 package android
 
 import (
-	"android/soong/bazel"
 	"encoding"
 	"fmt"
 	"reflect"
 	"runtime"
 	"strings"
+
+	"android/soong/bazel"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/bootstrap"
@@ -290,28 +291,6 @@ func osByName(name string) OsType {
 	return NoOsType
 }
 
-// BuildOs returns the OsType for the OS that the build is running on.
-var BuildOs = func() OsType {
-	switch runtime.GOOS {
-	case "linux":
-		return Linux
-	case "darwin":
-		return Darwin
-	default:
-		panic(fmt.Sprintf("unsupported OS: %s", runtime.GOOS))
-	}
-}()
-
-// BuildArch returns the ArchType for the CPU that the build is running on.
-var BuildArch = func() ArchType {
-	switch runtime.GOARCH {
-	case "amd64":
-		return X86_64
-	default:
-		panic(fmt.Sprintf("unsupported Arch: %s", runtime.GOARCH))
-	}
-}()
-
 var (
 	// osTypeList contains a list of all the supported OsTypes, including ones not supported
 	// by the current build host or the target device.
@@ -336,8 +315,6 @@ var (
 	// Android is the OS for target devices that run all of Android, including the Linux kernel
 	// and the Bionic libc runtime.
 	Android = newOsType("android", Device, false, Arm, Arm64, X86, X86_64)
-	// Fuchsia is the OS for target devices that run Fuchsia.
-	Fuchsia = newOsType("fuchsia", Device, false, Arm64, X86_64)
 
 	// CommonOS is a pseudo OSType for a common OS variant, which is OsType agnostic and which
 	// has dependencies on all the OS variants.
@@ -1397,6 +1374,31 @@ func (m *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 	}
 }
 
+// determineBuildOS stores the OS and architecture used for host targets used during the build into
+// config based on the runtime OS and architecture determined by Go.
+func determineBuildOS(config *config) {
+	config.BuildOS = func() OsType {
+		switch runtime.GOOS {
+		case "linux":
+			return Linux
+		case "darwin":
+			return Darwin
+		default:
+			panic(fmt.Sprintf("unsupported OS: %s", runtime.GOOS))
+		}
+	}()
+
+	config.BuildArch = func() ArchType {
+		switch runtime.GOARCH {
+		case "amd64":
+			return X86_64
+		default:
+			panic(fmt.Sprintf("unsupported Arch: %s", runtime.GOARCH))
+		}
+	}()
+
+}
+
 // Convert the arch product variables into a list of targets for each OsType.
 func decodeTargetProductVariables(config *config) (map[OsType][]Target, error) {
 	variables := config.productVariables
@@ -1430,9 +1432,9 @@ func decodeTargetProductVariables(config *config) (map[OsType][]Target, error) {
 		hostCross := false
 		if os.Class == Host {
 			var osSupported bool
-			if os == BuildOs {
+			if os == config.BuildOS {
 				osSupported = true
-			} else if BuildOs.Linux() && os.Linux() {
+			} else if config.BuildOS.Linux() && os.Linux() {
 				// LinuxBionic and Linux are compatible
 				osSupported = true
 			} else {
@@ -1470,11 +1472,11 @@ func decodeTargetProductVariables(config *config) (map[OsType][]Target, error) {
 	}
 
 	// The primary host target, which must always exist.
-	addTarget(BuildOs, *variables.HostArch, nil, nil, nil, NativeBridgeDisabled, nil, nil)
+	addTarget(config.BuildOS, *variables.HostArch, nil, nil, nil, NativeBridgeDisabled, nil, nil)
 
 	// An optional secondary host target.
 	if variables.HostSecondaryArch != nil && *variables.HostSecondaryArch != "" {
-		addTarget(BuildOs, *variables.HostSecondaryArch, nil, nil, nil, NativeBridgeDisabled, nil, nil)
+		addTarget(config.BuildOS, *variables.HostSecondaryArch, nil, nil, nil, NativeBridgeDisabled, nil, nil)
 	}
 
 	// Optional cross-compiled host targets, generally Windows.
@@ -1499,13 +1501,8 @@ func decodeTargetProductVariables(config *config) (map[OsType][]Target, error) {
 
 	// Optional device targets
 	if variables.DeviceArch != nil && *variables.DeviceArch != "" {
-		var target = Android
-		if Bool(variables.Fuchsia) {
-			target = Fuchsia
-		}
-
 		// The primary device target.
-		addTarget(target, *variables.DeviceArch, variables.DeviceArchVariant,
+		addTarget(Android, *variables.DeviceArch, variables.DeviceArchVariant,
 			variables.DeviceCpuVariant, variables.DeviceAbi, NativeBridgeDisabled, nil, nil)
 
 		// An optional secondary device target.

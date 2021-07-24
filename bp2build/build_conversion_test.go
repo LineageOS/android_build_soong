@@ -556,7 +556,6 @@ genrule {
 		moduleTypeUnderTestFactory         android.ModuleFactory
 		moduleTypeUnderTestBp2BuildMutator func(android.TopDownMutatorContext)
 		preArchMutators                    []android.RegisterMutatorFunc
-		depsMutators                       []android.RegisterMutatorFunc
 		bp                                 string
 		expectedBazelTargets               []string
 		fs                                 map[string]string
@@ -720,7 +719,6 @@ genrule {
 			moduleTypeUnderTest:                "genrule",
 			moduleTypeUnderTestFactory:         genrule.GenRuleFactory,
 			moduleTypeUnderTestBp2BuildMutator: genrule.GenruleBp2Build,
-			depsMutators:                       []android.RegisterMutatorFunc{genrule.RegisterGenruleBp2BuildDeps},
 			bp: `genrule {
     name: "foo.tool",
     out: ["foo_tool.out"],
@@ -758,7 +756,6 @@ genrule {
 			moduleTypeUnderTest:                "genrule",
 			moduleTypeUnderTestFactory:         genrule.GenRuleFactory,
 			moduleTypeUnderTestBp2BuildMutator: genrule.GenruleBp2Build,
-			depsMutators:                       []android.RegisterMutatorFunc{genrule.RegisterGenruleBp2BuildDeps},
 			bp: `genrule {
     name: "foo.tools",
     out: ["foo_tool.out", "foo_tool2.out"],
@@ -798,7 +795,6 @@ genrule {
 			moduleTypeUnderTest:                "genrule",
 			moduleTypeUnderTestFactory:         genrule.GenRuleFactory,
 			moduleTypeUnderTestBp2BuildMutator: genrule.GenruleBp2Build,
-			depsMutators:                       []android.RegisterMutatorFunc{genrule.RegisterGenruleBp2BuildDeps},
 			bp: `genrule {
     name: "foo",
     out: ["foo.out"],
@@ -822,7 +818,6 @@ genrule {
 			moduleTypeUnderTest:                "genrule",
 			moduleTypeUnderTestFactory:         genrule.GenRuleFactory,
 			moduleTypeUnderTestBp2BuildMutator: genrule.GenruleBp2Build,
-			depsMutators:                       []android.RegisterMutatorFunc{genrule.RegisterGenruleBp2BuildDeps},
 			bp: `genrule {
     name: "foo",
     out: ["foo.out"],
@@ -846,7 +841,6 @@ genrule {
 			moduleTypeUnderTest:                "genrule",
 			moduleTypeUnderTestFactory:         genrule.GenRuleFactory,
 			moduleTypeUnderTestBp2BuildMutator: genrule.GenruleBp2Build,
-			depsMutators:                       []android.RegisterMutatorFunc{genrule.RegisterGenruleBp2BuildDeps},
 			bp: `genrule {
     name: "foo",
     out: ["foo.out"],
@@ -873,7 +867,6 @@ genrule {
 			moduleTypeUnderTest:                "genrule",
 			moduleTypeUnderTestFactory:         genrule.GenRuleFactory,
 			moduleTypeUnderTestBp2BuildMutator: genrule.GenruleBp2Build,
-			depsMutators:                       []android.RegisterMutatorFunc{genrule.RegisterGenruleBp2BuildDeps},
 			bp: `genrule {
     name: "foo",
     out: ["foo.out"],
@@ -900,7 +893,6 @@ genrule {
 			moduleTypeUnderTest:                "genrule",
 			moduleTypeUnderTestFactory:         genrule.GenRuleFactory,
 			moduleTypeUnderTestBp2BuildMutator: genrule.GenruleBp2Build,
-			depsMutators:                       []android.RegisterMutatorFunc{genrule.RegisterGenruleBp2BuildDeps},
 			bp: `genrule {
     name: "foo",
     out: ["foo.out"],
@@ -933,9 +925,6 @@ genrule {
 		config := android.TestConfig(buildDir, nil, testCase.bp, fs)
 		ctx := android.NewTestContext(config)
 		ctx.RegisterModuleType(testCase.moduleTypeUnderTest, testCase.moduleTypeUnderTestFactory)
-		for _, m := range testCase.depsMutators {
-			ctx.DepsBp2BuildMutators(m)
-		}
 		ctx.RegisterBp2BuildMutator(testCase.moduleTypeUnderTest, testCase.moduleTypeUnderTestBp2BuildMutator)
 		ctx.RegisterForBazelConversion()
 
@@ -1370,7 +1359,6 @@ func TestCombineBuildFilesBp2buildTargets(t *testing.T) {
 		moduleTypeUnderTestFactory         android.ModuleFactory
 		moduleTypeUnderTestBp2BuildMutator func(android.TopDownMutatorContext)
 		preArchMutators                    []android.RegisterMutatorFunc
-		depsMutators                       []android.RegisterMutatorFunc
 		bp                                 string
 		expectedBazelTargets               []string
 		fs                                 map[string]string
@@ -1487,9 +1475,6 @@ func TestCombineBuildFilesBp2buildTargets(t *testing.T) {
 			config := android.TestConfig(buildDir, nil, testCase.bp, fs)
 			ctx := android.NewTestContext(config)
 			ctx.RegisterModuleType(testCase.moduleTypeUnderTest, testCase.moduleTypeUnderTestFactory)
-			for _, m := range testCase.depsMutators {
-				ctx.DepsBp2BuildMutators(m)
-			}
 			ctx.RegisterBp2BuildMutator(testCase.moduleTypeUnderTest, testCase.moduleTypeUnderTestBp2BuildMutator)
 			ctx.RegisterForBazelConversion()
 
