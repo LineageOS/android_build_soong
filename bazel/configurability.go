@@ -30,6 +30,7 @@ const (
 	osAndroid     = "android"
 	osDarwin      = "darwin"
 	osLinux       = "linux_glibc"
+	osLinuxMusl   = "linux_musl"
 	osLinuxBionic = "linux_bionic"
 	osWindows     = "windows"
 
@@ -41,6 +42,8 @@ const (
 	osArchDarwinX86_64      = "darwin_x86_64"
 	osArchLinuxX86          = "linux_glibc_x86"
 	osArchLinuxX86_64       = "linux_glibc_x86_64"
+	osArchLinuxMuslX86      = "linux_musl_x86"
+	osArchLinuxMuslX86_64   = "linux_musl_x86_64"
 	osArchLinuxBionicArm64  = "linux_bionic_arm64"
 	osArchLinuxBionicX86_64 = "linux_bionic_x86_64"
 	osArchWindowsX86        = "windows_x86"
@@ -82,6 +85,7 @@ var (
 		osAndroid:         "//build/bazel/platforms/os:android",
 		osDarwin:          "//build/bazel/platforms/os:darwin",
 		osLinux:           "//build/bazel/platforms/os:linux",
+		osLinuxMusl:       "//build/bazel/platforms/os:linux_musl",
 		osLinuxBionic:     "//build/bazel/platforms/os:linux_bionic",
 		osWindows:         "//build/bazel/platforms/os:windows",
 		conditionsDefault: ConditionsDefaultSelectKey, // The default condition of an os select map.
@@ -100,6 +104,8 @@ var (
 		osArchDarwinX86_64:      "//build/bazel/platforms/os_arch:darwin_x86_64",
 		osArchLinuxX86:          "//build/bazel/platforms/os_arch:linux_glibc_x86",
 		osArchLinuxX86_64:       "//build/bazel/platforms/os_arch:linux_glibc_x86_64",
+		osArchLinuxMuslX86:      "//build/bazel/platforms/os_arch:linux_musl_x86",
+		osArchLinuxMuslX86_64:   "//build/bazel/platforms/os_arch:linux_musl_x86_64",
 		osArchLinuxBionicArm64:  "//build/bazel/platforms/os_arch:linux_bionic_arm64",
 		osArchLinuxBionicX86_64: "//build/bazel/platforms/os_arch:linux_bionic_x86_64",
 		osArchWindowsX86:        "//build/bazel/platforms/os_arch:windows_x86",
