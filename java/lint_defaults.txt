@@ -1,10 +1,37 @@
 # Treat LintError as fatal to catch invocation errors
 --fatal_check LintError
 
+# Checks which do not apply to the platform (implementation
+# in lint assumes that it's running on app code)
+
+--disable_check AnimatorKeep
+--disable_check AppBundleLocaleChanges
+--disable_check BlockedPrivateApi
+--disable_check CustomSplashScreen
+--disable_check CustomX509TrustManager
+--disable_check Deprecated
+--disable_check ExifInterface
+--disable_check HardwareIds
+--disable_check InvalidWakeLockTag
+--disable_check LibraryCustomView
+--disable_check MissingPermission
+--disable_check NonConstantResourceId
+--disable_check OldTargetApi
+--disable_check Override
+--disable_check PackageManagerGetSignatures
+--disable_check PrivateApi
+--disable_check ProtectedPermissions
+--disable_check QueryPermissionsNeeded
+--disable_check ScopedStorage
+--disable_check ServiceCast
+--disable_check SoonBlockedPrivateApi
+--disable_check SuspiciousImport
+--disable_check UnusedResources
+--disable_check ViewConstructor
+
 # Downgrade existing errors to warnings
 --warning_check AppCompatResource                  # 55 occurences in 10 modules
 --warning_check AppLinkUrlError                    # 111 occurences in 53 modules
---warning_check BlockedPrivateApi                  # 2 occurences in 2 modules
 --warning_check ByteOrderMark                      # 2 occurences in 2 modules
 --warning_check DuplicateActivity                  # 3 occurences in 3 modules
 --warning_check DuplicateDefinition                # 3623 occurences in 48 modules
@@ -22,9 +49,7 @@
 --warning_check Instantiatable                     # 145 occurences in 19 modules
 --warning_check InvalidPermission                  # 6 occurences in 4 modules
 --warning_check InvalidUsesTagAttribute            # 6 occurences in 2 modules
---warning_check InvalidWakeLockTag                 # 111 occurences in 37 modules
 --warning_check JavascriptInterface                # 3 occurences in 2 modules
---warning_check LibraryCustomView                  # 9 occurences in 4 modules
 --warning_check LogTagMismatch                     # 81 occurences in 13 modules
 --warning_check LongLogTag                         # 249 occurences in 12 modules
 --warning_check MenuTitle                          # 5 occurences in 4 modules
@@ -35,7 +60,6 @@
 --warning_check MissingLeanbackLauncher            # 3 occurences in 3 modules
 --warning_check MissingLeanbackSupport             # 2 occurences in 2 modules
 --warning_check MissingOnPlayFromSearch            # 1 occurences in 1 modules
---warning_check MissingPermission                  # 2071 occurences in 150 modules
 --warning_check MissingPrefix                      # 46 occurences in 41 modules
 --warning_check MissingQuantity                    # 100 occurences in 1 modules
 --warning_check MissingSuperCall                   # 121 occurences in 36 modules
@@ -47,9 +71,7 @@
 --warning_check ObjectAnimatorBinding              # 14 occurences in 5 modules
 --warning_check OnClick                            # 49 occurences in 21 modules
 --warning_check Orientation                        # 77 occurences in 19 modules
---warning_check Override                           # 385 occurences in 36 modules
 --warning_check ParcelCreator                      # 23 occurences in 2 modules
---warning_check ProtectedPermissions               # 2413 occurences in 381 modules
 --warning_check Range                              # 80 occurences in 28 modules
 --warning_check RecyclerView                       # 1 occurences in 1 modules
 --warning_check ReferenceType                      # 4 occurences in 1 modules
@@ -60,8 +82,6 @@
 --warning_check ResourceType                       # 137 occurences in 36 modules
 --warning_check RestrictedApi                      # 28 occurences in 5 modules
 --warning_check RtlCompat                          # 9 occurences in 6 modules
---warning_check ServiceCast                        # 3 occurences in 1 modules
---warning_check SoonBlockedPrivateApi              # 5 occurences in 3 modules
 --warning_check StringFormatInvalid                # 148 occurences in 11 modules
 --warning_check StringFormatMatches                # 4800 occurences in 30 modules
 --warning_check UnknownId                          # 8 occurences in 7 modules
@@ -74,11 +94,9 @@
 --warning_check WrongThread                        # 14 occurences in 6 modules
 --warning_check WrongViewCast                      # 1 occurences in 1 modules
 
-# TODO(b/158390965): remove this when lint doesn't crash
---disable_check HardcodedDebugMode
-
---warning_check QueryAllPackagesPermission
-
 --warning_check CoarseFineLocation
 --warning_check IntentFilterExportedReceiver
+--warning_check QueryAllPackagesPermission
 --warning_check RemoteViewLayout
+--warning_check SupportAnnotationUsage
+--warning_check UniqueConstants
