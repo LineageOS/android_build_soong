@@ -214,15 +214,15 @@ func FixtureConfigureBootJars(bootJars ...string) android.FixturePreparer {
 	)
 }
 
-// FixtureConfigureUpdatableBootJars configures the updatable boot jars in both the
+// FixtureConfigureApexBootJars configures the apex boot jars in both the
 // dexpreopt.GlobalConfig and Config.productVariables structs. As a side effect that enables
 // dexpreopt.
-func FixtureConfigureUpdatableBootJars(bootJars ...string) android.FixturePreparer {
+func FixtureConfigureApexBootJars(bootJars ...string) android.FixturePreparer {
 	return android.GroupFixturePreparers(
 		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
-			variables.UpdatableBootJars = android.CreateTestConfiguredJarList(bootJars)
+			variables.ApexBootJars = android.CreateTestConfiguredJarList(bootJars)
 		}),
-		dexpreopt.FixtureSetUpdatableBootJars(bootJars...),
+		dexpreopt.FixtureSetApexBootJars(bootJars...),
 
 		// Add a fake dex2oatd module.
 		dexpreopt.PrepareForTestWithFakeDex2oatd,
