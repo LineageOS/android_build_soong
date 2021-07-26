@@ -224,7 +224,7 @@ func TestSnapshotWithBootClasspathFragment_Contents(t *testing.T) {
 		java.PrepareForTestWithJavaDefaultModules,
 		java.PrepareForTestWithJavaSdkLibraryFiles,
 		java.FixtureWithLastReleaseApis("mysdklibrary", "myothersdklibrary", "mycoreplatform"),
-		java.FixtureConfigureUpdatableBootJars("myapex:mybootlib", "myapex:myothersdklibrary"),
+		java.FixtureConfigureApexBootJars("myapex:mybootlib", "myapex:myothersdklibrary"),
 		prepareForSdkTestWithApex,
 
 		// Add a platform_bootclasspath that depends on the fragment.
@@ -728,7 +728,7 @@ func TestSnapshotWithBootclasspathFragment_HiddenAPI(t *testing.T) {
 		java.PrepareForTestWithJavaDefaultModules,
 		java.PrepareForTestWithJavaSdkLibraryFiles,
 		java.FixtureWithLastReleaseApis("mysdklibrary"),
-		java.FixtureConfigureUpdatableBootJars("myapex:mybootlib"),
+		java.FixtureConfigureApexBootJars("myapex:mybootlib"),
 		prepareForSdkTestWithApex,
 
 		// Add a platform_bootclasspath that depends on the fragment.

@@ -253,8 +253,8 @@ type productVariables struct {
 	UncompressPrivAppDex             *bool    `json:",omitempty"`
 	ModulesLoadedByPrivilegedModules []string `json:",omitempty"`
 
-	BootJars          ConfiguredJarList `json:",omitempty"`
-	UpdatableBootJars ConfiguredJarList `json:",omitempty"`
+	BootJars     ConfiguredJarList `json:",omitempty"`
+	ApexBootJars ConfiguredJarList `json:",omitempty"`
 
 	IntegerOverflowExcludePaths []string `json:",omitempty"`
 
@@ -441,8 +441,8 @@ func (v *productVariables) SetDefaultConfig() {
 		Malloc_pattern_fill_contents: boolPtr(false),
 		Safestack:                    boolPtr(false),
 
-		BootJars:          ConfiguredJarList{apexes: []string{}, jars: []string{}},
-		UpdatableBootJars: ConfiguredJarList{apexes: []string{}, jars: []string{}},
+		BootJars:     ConfiguredJarList{apexes: []string{}, jars: []string{}},
+		ApexBootJars: ConfiguredJarList{apexes: []string{}, jars: []string{}},
 	}
 
 	if runtime.GOOS == "linux" {
