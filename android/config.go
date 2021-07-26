@@ -362,6 +362,19 @@ func modifyTestConfigToSupportArchMutator(testConfig Config) {
 	config.TestProductVariables.DeviceSecondaryArchVariant = proptools.StringPtr("armv7-a-neon")
 }
 
+func modifyTestConfigForMusl(config Config) {
+	delete(config.Targets, config.BuildOS)
+	config.productVariables.HostMusl = boolPtr(true)
+	determineBuildOS(config.config)
+	config.Targets[config.BuildOS] = []Target{
+		{config.BuildOS, Arch{ArchType: X86_64}, NativeBridgeDisabled, "", "", false},
+		{config.BuildOS, Arch{ArchType: X86}, NativeBridgeDisabled, "", "", false},
+	}
+
+	config.BuildOSTarget = config.Targets[config.BuildOS][0]
+	config.BuildOSCommonTarget = getCommonTargets(config.Targets[config.BuildOS])[0]
+}
+
 // TestArchConfig returns a Config object suitable for using for tests that
 // need to run the arch mutator.
 func TestArchConfig(buildDir string, env map[string]string, bp string, fs map[string][]byte) Config {

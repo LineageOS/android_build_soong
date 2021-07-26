@@ -36,8 +36,16 @@ var (
 		"-D__STDC_CONSTANT_MACROS",
 
 		"--gcc-toolchain=${LinuxGccRoot}",
-		"--sysroot ${LinuxGccRoot}/sysroot",
 		"-fstack-protector-strong",
+	}
+
+	linuxGlibcCflags = []string{
+		"--sysroot ${LinuxGccRoot}/sysroot",
+	}
+
+	linuxMuslCflags = []string{
+		"-D_LIBCPP_HAS_MUSL_LIBC",
+		"-nostdlibinc",
 	}
 
 	linuxLdflags = []string{
@@ -47,7 +55,15 @@ var (
 		"-Wl,--no-undefined-version",
 
 		"--gcc-toolchain=${LinuxGccRoot}",
+	}
+
+	linuxGlibcLdflags = []string{
 		"--sysroot ${LinuxGccRoot}/sysroot",
+	}
+
+	linuxMuslLdflags = []string{
+		"-nostdlib",
+		"-lgcc", "-lgcc_eh",
 	}
 
 	// Extended cflags
@@ -89,6 +105,12 @@ var (
 		"rt",
 		"util",
 	}, "-l")
+
+	muslCrtBeginStaticBinary, muslCrtEndStaticBinary   = []string{"libc_musl_crtbegin_static"}, []string{"crtend_android"}
+	muslCrtBeginSharedBinary, muslCrtEndSharedBinary   = []string{"libc_musl_crtbegin_dynamic", "musl_linker_script"}, []string{"libc_musl_crtend"}
+	muslCrtBeginSharedLibrary, muslCrtEndSharedLibrary = []string{"libc_musl_crtbegin_so"}, []string{"libc_musl_crtend_so"}
+
+	muslDefaultSharedLibraries = []string{"libjemalloc5", "libc_musl"}
 )
 
 const (
@@ -124,6 +146,13 @@ func init() {
 	// Yasm flags
 	pctx.StaticVariable("LinuxX86YasmFlags", "-f elf32 -m x86")
 	pctx.StaticVariable("LinuxX8664YasmFlags", "-f elf64 -m amd64")
+
+	pctx.StaticVariable("LinuxGlibcCflags", strings.Join(linuxGlibcCflags, " "))
+	pctx.StaticVariable("LinuxGlibcLdflags", strings.Join(linuxGlibcLdflags, " "))
+	pctx.StaticVariable("LinuxGlibcLldflags", strings.Join(linuxGlibcLdflags, " "))
+	pctx.StaticVariable("LinuxMuslCflags", strings.Join(linuxMuslCflags, " "))
+	pctx.StaticVariable("LinuxMuslLdflags", strings.Join(linuxMuslLdflags, " "))
+	pctx.StaticVariable("LinuxMuslLldflags", strings.Join(linuxMuslLdflags, " "))
 }
 
 type toolchainLinux struct {
@@ -224,18 +253,146 @@ func (t *toolchainLinux) AvailableLibraries() []string {
 	return linuxAvailableLibraries
 }
 
-var toolchainLinuxX86Singleton Toolchain = &toolchainLinuxX86{}
-var toolchainLinuxX8664Singleton Toolchain = &toolchainLinuxX8664{}
+// glibc specialization of the linux toolchain
 
-func linuxX86ToolchainFactory(arch android.Arch) Toolchain {
-	return toolchainLinuxX86Singleton
+type toolchainGlibc struct {
 }
 
-func linuxX8664ToolchainFactory(arch android.Arch) Toolchain {
-	return toolchainLinuxX8664Singleton
+func (toolchainGlibc) Glibc() bool { return true }
+
+func (toolchainGlibc) Cflags() string {
+	return "${config.LinuxGlibcCflags}"
+}
+
+func (toolchainGlibc) Ldflags() string {
+	return "${config.LinuxGlibcLdflags}"
+}
+
+func (toolchainGlibc) Lldflags() string {
+	return "${config.LinuxGlibcLldflags}"
+}
+
+type toolchainLinuxGlibcX86 struct {
+	toolchainLinuxX86
+	toolchainGlibc
+}
+
+type toolchainLinuxGlibcX8664 struct {
+	toolchainLinuxX8664
+	toolchainGlibc
+}
+
+func (t *toolchainLinuxGlibcX86) Cflags() string {
+	return t.toolchainLinuxX86.Cflags() + " " + t.toolchainGlibc.Cflags()
+}
+
+func (t *toolchainLinuxGlibcX86) Ldflags() string {
+	return t.toolchainLinuxX86.Ldflags() + " " + t.toolchainGlibc.Ldflags()
+}
+
+func (t *toolchainLinuxGlibcX86) Lldflags() string {
+	return t.toolchainLinuxX86.Lldflags() + " " + t.toolchainGlibc.Lldflags()
+}
+
+func (t *toolchainLinuxGlibcX8664) Cflags() string {
+	return t.toolchainLinuxX8664.Cflags() + " " + t.toolchainGlibc.Cflags()
+}
+
+func (t *toolchainLinuxGlibcX8664) Ldflags() string {
+	return t.toolchainLinuxX8664.Ldflags() + " " + t.toolchainGlibc.Ldflags()
+}
+
+func (t *toolchainLinuxGlibcX8664) Lldflags() string {
+	return t.toolchainLinuxX8664.Lldflags() + " " + t.toolchainGlibc.Lldflags()
+}
+
+var toolchainLinuxGlibcX86Singleton Toolchain = &toolchainLinuxGlibcX86{}
+var toolchainLinuxGlibcX8664Singleton Toolchain = &toolchainLinuxGlibcX8664{}
+
+func linuxGlibcX86ToolchainFactory(arch android.Arch) Toolchain {
+	return toolchainLinuxGlibcX86Singleton
+}
+
+func linuxGlibcX8664ToolchainFactory(arch android.Arch) Toolchain {
+	return toolchainLinuxGlibcX8664Singleton
+}
+
+// musl specialization of the linux toolchain
+
+type toolchainMusl struct {
+}
+
+func (toolchainMusl) Musl() bool { return true }
+
+func (toolchainMusl) CrtBeginStaticBinary() []string  { return muslCrtBeginStaticBinary }
+func (toolchainMusl) CrtBeginSharedBinary() []string  { return muslCrtBeginSharedBinary }
+func (toolchainMusl) CrtBeginSharedLibrary() []string { return muslCrtBeginSharedLibrary }
+func (toolchainMusl) CrtEndStaticBinary() []string    { return muslCrtEndStaticBinary }
+func (toolchainMusl) CrtEndSharedBinary() []string    { return muslCrtEndSharedBinary }
+func (toolchainMusl) CrtEndSharedLibrary() []string   { return muslCrtEndSharedLibrary }
+
+func (toolchainMusl) DefaultSharedLibraries() []string { return muslDefaultSharedLibraries }
+
+func (toolchainMusl) Cflags() string {
+	return "${config.LinuxMuslCflags}"
+}
+
+func (toolchainMusl) Ldflags() string {
+	return "${config.LinuxMuslLdflags}"
+}
+
+func (toolchainMusl) Lldflags() string {
+	return "${config.LinuxMuslLldflags}"
+}
+
+type toolchainLinuxMuslX86 struct {
+	toolchainLinuxX86
+	toolchainMusl
+}
+
+type toolchainLinuxMuslX8664 struct {
+	toolchainLinuxX8664
+	toolchainMusl
+}
+
+func (t *toolchainLinuxMuslX86) Cflags() string {
+	return t.toolchainLinuxX86.Cflags() + " " + t.toolchainMusl.Cflags()
+}
+
+func (t *toolchainLinuxMuslX86) Ldflags() string {
+	return t.toolchainLinuxX86.Ldflags() + " " + t.toolchainMusl.Ldflags()
+}
+
+func (t *toolchainLinuxMuslX86) Lldflags() string {
+	return t.toolchainLinuxX86.Lldflags() + " " + t.toolchainMusl.Lldflags()
+}
+
+func (t *toolchainLinuxMuslX8664) Cflags() string {
+	return t.toolchainLinuxX8664.Cflags() + " " + t.toolchainMusl.Cflags()
+}
+
+func (t *toolchainLinuxMuslX8664) Ldflags() string {
+	return t.toolchainLinuxX8664.Ldflags() + " " + t.toolchainMusl.Ldflags()
+}
+
+func (t *toolchainLinuxMuslX8664) Lldflags() string {
+	return t.toolchainLinuxX8664.Lldflags() + " " + t.toolchainMusl.Lldflags()
+}
+
+var toolchainLinuxMuslX86Singleton Toolchain = &toolchainLinuxMuslX86{}
+var toolchainLinuxMuslX8664Singleton Toolchain = &toolchainLinuxMuslX8664{}
+
+func linuxMuslX86ToolchainFactory(arch android.Arch) Toolchain {
+	return toolchainLinuxMuslX86Singleton
+}
+
+func linuxMuslX8664ToolchainFactory(arch android.Arch) Toolchain {
+	return toolchainLinuxMuslX8664Singleton
 }
 
 func init() {
-	registerToolchainFactory(android.Linux, android.X86, linuxX86ToolchainFactory)
-	registerToolchainFactory(android.Linux, android.X86_64, linuxX8664ToolchainFactory)
+	registerToolchainFactory(android.Linux, android.X86, linuxGlibcX86ToolchainFactory)
+	registerToolchainFactory(android.Linux, android.X86_64, linuxGlibcX8664ToolchainFactory)
+	registerToolchainFactory(android.LinuxMusl, android.X86, linuxMuslX86ToolchainFactory)
+	registerToolchainFactory(android.LinuxMusl, android.X86_64, linuxMuslX8664ToolchainFactory)
 }
