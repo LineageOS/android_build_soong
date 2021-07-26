@@ -278,6 +278,15 @@ func (ms *MakeString) ReplaceLiteral(input string, output string) {
 	}
 }
 
+// If MakeString is $(var) after trimming, returns var
+func (ms *MakeString) SingleVariable() (*MakeString, bool) {
+	if len(ms.Strings) != 2 || strings.TrimSpace(ms.Strings[0]) != "" ||
+		strings.TrimSpace(ms.Strings[1]) != "" {
+		return nil, false
+	}
+	return ms.Variables[0].Name, true
+}
+
 func splitAnyN(s, sep string, n int) []string {
 	ret := []string{}
 	for n == -1 || n > 1 {
