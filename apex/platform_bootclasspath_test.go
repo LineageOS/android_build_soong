@@ -173,7 +173,7 @@ func TestPlatformBootclasspathDependencies(t *testing.T) {
 		prepareForTestWithMyapex,
 		// Configure some libraries in the art and framework boot images.
 		java.FixtureConfigureBootJars("com.android.art:baz", "com.android.art:quuz", "platform:foo"),
-		java.FixtureConfigureUpdatableBootJars("myapex:bar"),
+		java.FixtureConfigureApexBootJars("myapex:bar"),
 		java.PrepareForTestWithJavaSdkLibraryFiles,
 		java.FixtureWithLastReleaseApis("foo"),
 	).RunTestWithBp(t, `
@@ -288,7 +288,7 @@ func TestPlatformBootclasspathDependencies(t *testing.T) {
 		"com.android.art:quuz",
 		"platform:foo",
 
-		// The configured contents of UpdatableBootJars.
+		// The configured contents of ApexBootJars.
 		"myapex:bar",
 	})
 
@@ -313,7 +313,7 @@ func TestPlatformBootclasspathDependencies(t *testing.T) {
 		`com.android.art:quuz`,
 		`platform:foo`,
 
-		// The configured contents of UpdatableBootJars.
+		// The configured contents of ApexBootJars.
 		`myapex:bar`,
 
 		// The fragments.
@@ -348,7 +348,7 @@ func TestPlatformBootclasspath_AlwaysUsePrebuiltSdks(t *testing.T) {
 		// if the dependency on myapex:foo is filtered out because of either of those conditions then
 		// the dependencies resolved by the platform_bootclasspath will not match the configured list
 		// and so will fail the test.
-		java.FixtureConfigureUpdatableBootJars("myapex:foo", "myapex:bar"),
+		java.FixtureConfigureApexBootJars("myapex:foo", "myapex:bar"),
 		java.PrepareForTestWithJavaSdkLibraryFiles,
 		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
 			variables.Always_use_prebuilt_sdks = proptools.BoolPtr(true)
@@ -490,7 +490,7 @@ func TestPlatformBootclasspath_IncludesRemainingApexJars(t *testing.T) {
 	result := android.GroupFixturePreparers(
 		prepareForTestWithPlatformBootclasspath,
 		prepareForTestWithMyapex,
-		java.FixtureConfigureUpdatableBootJars("myapex:foo"),
+		java.FixtureConfigureApexBootJars("myapex:foo"),
 		android.FixtureWithRootAndroidBp(`
 			platform_bootclasspath {
 				name: "platform-bootclasspath",
