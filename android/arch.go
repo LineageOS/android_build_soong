@@ -255,7 +255,7 @@ func (os OsType) Bionic() bool {
 // Linux returns true if the OS uses the Linux kernel, i.e. if the OS is Android or is Linux
 // with or without the Bionic libc runtime.
 func (os OsType) Linux() bool {
-	return os == Android || os == Linux || os == LinuxBionic || os == LinuxMusl
+	return os == Android || os == Linux || os == LinuxBionic
 }
 
 // newOsType constructs an OsType and adds it to the global lists.
@@ -305,8 +305,6 @@ var (
 	NoOsType OsType
 	// Linux is the OS for the Linux kernel plus the glibc runtime.
 	Linux = newOsType("linux_glibc", Host, false, X86, X86_64)
-	// LinuxMusl is the OS for the Linux kernel plus the musl runtime.
-	LinuxMusl = newOsType("linux_musl", Host, false, X86, X86_64)
 	// Darwin is the OS for MacOS/Darwin host machines.
 	Darwin = newOsType("darwin", Host, false, X86_64)
 	// LinuxBionic is the OS for the Linux kernel plus the Bionic libc runtime, but without the
@@ -865,8 +863,6 @@ func createArchPropTypeDesc(props reflect.Type) []archPropTypeDesc {
 			"Android64",
 			"Android32",
 			"Bionic",
-			"Glibc",
-			"Musl",
 			"Linux",
 			"Not_windows",
 			"Arm_on_x86",
@@ -1112,30 +1108,6 @@ func (m *ModuleBase) setOSProperties(ctx BottomUpMutatorContext) {
 				}
 			}
 
-			if os == Linux {
-				field := "Glibc"
-				prefix := "target.glibc"
-				if bionicProperties, ok := getChildPropertyStruct(ctx, targetProp, field, prefix); ok {
-					mergePropertyStruct(ctx, genProps, bionicProperties)
-				}
-			}
-
-			if os == LinuxMusl {
-				field := "Musl"
-				prefix := "target.musl"
-				if bionicProperties, ok := getChildPropertyStruct(ctx, targetProp, field, prefix); ok {
-					mergePropertyStruct(ctx, genProps, bionicProperties)
-				}
-
-				// Special case:  to ease the transition from glibc to musl, apply linux_glibc
-				// properties (which has historically mean host linux) to musl variants.
-				field = "Linux_glibc"
-				prefix = "target.linux_glibc"
-				if bionicProperties, ok := getChildPropertyStruct(ctx, targetProp, field, prefix); ok {
-					mergePropertyStruct(ctx, genProps, bionicProperties)
-				}
-			}
-
 			// Handle target OS properties in the form:
 			// target: {
 			//     linux_glibc: {
@@ -1338,16 +1310,6 @@ func getArchProperties(ctx BaseMutatorContext, archProperties interface{}, arch 
 		if osArchProperties, ok := getChildPropertyStruct(ctx, targetProp, field, userFriendlyField); ok {
 			result = append(result, osArchProperties)
 		}
-
-		if os == LinuxMusl {
-			// Special case:  to ease the transition from glibc to musl, apply linux_glibc
-			// properties (which has historically mean host linux) to musl variants.
-			field := "Linux_glibc_" + archType.Name
-			userFriendlyField := "target.linux_glibc_" + archType.Name
-			if osArchProperties, ok := getChildPropertyStruct(ctx, targetProp, field, userFriendlyField); ok {
-				result = append(result, osArchProperties)
-			}
-		}
 	}
 
 	// Handle arm on x86 properties in the form:
@@ -1413,14 +1375,11 @@ func (m *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 }
 
 // determineBuildOS stores the OS and architecture used for host targets used during the build into
-// config based on the runtime OS and architecture determined by Go and the product configuration.
+// config based on the runtime OS and architecture determined by Go.
 func determineBuildOS(config *config) {
 	config.BuildOS = func() OsType {
 		switch runtime.GOOS {
 		case "linux":
-			if Bool(config.productVariables.HostMusl) {
-				return LinuxMusl
-			}
 			return Linux
 		case "darwin":
 			return Darwin
