@@ -1991,6 +1991,12 @@ func sdkLibraryImportFactory() android.Module {
 	return module
 }
 
+var _ PermittedPackagesForUpdatableBootJars = (*SdkLibraryImport)(nil)
+
+func (module *SdkLibraryImport) PermittedPackagesForUpdatableBootJars() []string {
+	return module.properties.Permitted_packages
+}
+
 func (module *SdkLibraryImport) Prebuilt() *android.Prebuilt {
 	return &module.prebuilt
 }
