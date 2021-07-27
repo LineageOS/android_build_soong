@@ -37,7 +37,6 @@ func registerApexKeyBuildComponents(ctx android.RegistrationContext) {
 
 type apexKey struct {
 	android.ModuleBase
-	android.BazelModuleBase
 
 	properties apexKeyProperties
 
@@ -62,7 +61,6 @@ func ApexKeyFactory() android.Module {
 	module := &apexKey{}
 	module.AddProperties(&module.properties)
 	android.InitAndroidArchModule(module, android.HostAndDeviceDefault, android.MultilibCommon)
-	android.InitBazelModule(module)
 	return module
 }
 
