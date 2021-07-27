@@ -106,11 +106,7 @@ func (s *SystemServerClasspathModule) GenerateAndroidBuildActions(ctx android.Mo
 func (s *SystemServerClasspathModule) configuredJars(ctx android.ModuleContext) android.ConfiguredJarList {
 	global := dexpreopt.GetGlobalConfig(ctx)
 
-	possibleUpdatableModules := gatherPossibleUpdatableModuleNamesAndStems(ctx, s.properties.Contents, systemServerClasspathFragmentContentDepTag)
-
-	// Only create configs for updatable boot jars. Non-updatable system server jars must be part of the
-	// platform_systemserverclasspath's classpath proto config to guarantee that they come before any
-	// updatable jars at runtime.
+	possibleUpdatableModules := gatherPossibleApexModuleNamesAndStems(ctx, s.properties.Contents, systemServerClasspathFragmentContentDepTag)
 	return global.UpdatableSystemServerJars.Filter(possibleUpdatableModules)
 }
 
