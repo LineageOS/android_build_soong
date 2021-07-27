@@ -554,8 +554,7 @@ type specifiedDeps struct {
 	sharedLibs []string
 	// Note nil and [] are semantically distinct. [] prevents linking against the defaults (usually
 	// libc, libm, etc.)
-	systemSharedLibs  []string
-	defaultSharedLibs []string
+	systemSharedLibs []string
 }
 
 // installer is the interface for an installer helper object. This helper is responsible for
