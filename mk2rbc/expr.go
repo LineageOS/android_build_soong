@@ -516,6 +516,7 @@ func (cx *callExpr) eval(valueMap map[string]starlarkExpr) (res starlarkExpr, sa
 }
 
 func (cx *callExpr) emit(gctx *generationContext) {
+	sep := ""
 	if cx.object != nil {
 		gctx.write("(")
 		cx.object.emit(gctx)
@@ -530,8 +531,14 @@ func (cx *callExpr) emit(gctx *generationContext) {
 			panic(fmt.Errorf("callExpr for %q should not be there", cx.name))
 		}
 		gctx.write(kf.runtimeName, "(")
+		if kf.hiddenArg == hiddenArgGlobal {
+			gctx.write("g")
+			sep = ", "
+		} else if kf.hiddenArg == hiddenArgConfig {
+			gctx.write("cfg")
+			sep = ", "
+		}
 	}
-	sep := ""
 	for _, arg := range cx.args {
 		gctx.write(sep)
 		arg.emit(gctx)
