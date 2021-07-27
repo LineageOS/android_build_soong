@@ -27,6 +27,7 @@ var (
 		"system/security",
 		"system/tools/aidl",
 		"tools/security/fuzzing/example_rust_fuzzer",
+		"vendor/",
 	}
 
 	DownstreamRustAllowedPaths = []string{
