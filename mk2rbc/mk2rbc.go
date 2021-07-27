@@ -93,13 +93,14 @@ var knownFunctions = map[string]struct {
 	"is-vendor-board-platform":            {"!is-vendor-board-platform", starlarkTypeBool},
 	callLoadAlways:                        {"!inherit-product", starlarkTypeVoid},
 	callLoadIf:                            {"!inherit-product-if-exists", starlarkTypeVoid},
+	"patsubst":                            {baseName + ".mkpatsubst", starlarkTypeString},
 	"produce_copy_files":                  {baseName + ".produce_copy_files", starlarkTypeList},
 	"require-artifacts-in-path":           {baseName + ".require_artifacts_in_path", starlarkTypeVoid},
 	"require-artifacts-in-path-relaxed":   {baseName + ".require_artifacts_in_path_relaxed", starlarkTypeVoid},
 	// TODO(asmundak): remove it once all calls are removed from configuration makefiles. see b/183161002
 	"shell":    {baseName + ".shell", starlarkTypeString},
 	"strip":    {baseName + ".mkstrip", starlarkTypeString},
-	"subst":    {baseName + ".subst", starlarkTypeString},
+	"subst":    {baseName + ".mksubst", starlarkTypeString},
 	"warning":  {baseName + ".mkwarning", starlarkTypeVoid},
 	"word":     {baseName + "!word", starlarkTypeString},
 	"wildcard": {baseName + ".expand_wildcard", starlarkTypeList},
@@ -509,13 +510,7 @@ func (ctx *parseContext) handleAssignment(a *mkparser.Assignment) {
 		}
 		inferred_type := asgn.value.typ()
 		if inferred_type != starlarkTypeUnknown {
-			if ogv, ok := lhs.(*otherGlobalVariable); ok {
-				ogv.typ = inferred_type
-			} else if pcv, ok := lhs.(*productConfigVariable); ok {
-				pcv.typ = inferred_type
-			} else {
-				panic(fmt.Errorf("cannot assign new type to a variable %s, its flavor is %T", lhs.name(), lhs))
-			}
+			lhs.setValueType(inferred_type)
 		}
 	}
 	if lhs.valueType() == starlarkTypeList {
@@ -1085,8 +1080,8 @@ func (ctx *parseContext) parseReference(node mkparser.Node, ref *mkparser.MakeSt
 	switch expr.name {
 	case "word":
 		return ctx.parseWordFunc(node, args)
-	case "subst":
-		return ctx.parseSubstFunc(node, args)
+	case "subst", "patsubst":
+		return ctx.parseSubstFunc(node, expr.name, args)
 	default:
 		for _, arg := range args.Split(",") {
 			arg.TrimLeftSpaces()
@@ -1101,24 +1096,33 @@ func (ctx *parseContext) parseReference(node mkparser.Node, ref *mkparser.MakeSt
 	return expr
 }
 
-func (ctx *parseContext) parseSubstFunc(node mkparser.Node, args *mkparser.MakeString) starlarkExpr {
+func (ctx *parseContext) parseSubstFunc(node mkparser.Node, fname string, args *mkparser.MakeString) starlarkExpr {
 	words := args.Split(",")
 	if len(words) != 3 {
-		return ctx.newBadExpr(node, "subst function should have 3 arguments")
+		return ctx.newBadExpr(node, "%s function should have 3 arguments", fname)
 	}
 	if !words[0].Const() || !words[1].Const() {
-		return ctx.newBadExpr(node, "subst function's from and to arguments should be constant")
+		return ctx.newBadExpr(node, "%s function's from and to arguments should be constant", fname)
 	}
 	from := words[0].Strings[0]
 	to := words[1].Strings[0]
 	words[2].TrimLeftSpaces()
 	words[2].TrimRightSpaces()
 	obj := ctx.parseMakeString(node, words[2])
+	typ := obj.typ()
+	if typ == starlarkTypeString && fname == "subst" {
+		// Optimization: if it's $(subst from, to, string), emit string.replace(from, to)
+		return &callExpr{
+			object:     obj,
+			name:       "replace",
+			args:       []starlarkExpr{&stringLiteralExpr{from}, &stringLiteralExpr{to}},
+			returnType: typ,
+		}
+	}
 	return &callExpr{
-		object:     obj,
-		name:       "replace",
-		args:       []starlarkExpr{&stringLiteralExpr{from}, &stringLiteralExpr{to}},
-		returnType: starlarkTypeString,
+		name:       fname,
+		args:       []starlarkExpr{&stringLiteralExpr{from}, &stringLiteralExpr{to}, obj},
+		returnType: obj.typ(),
 	}
 }
 

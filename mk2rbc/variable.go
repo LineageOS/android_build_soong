@@ -26,6 +26,7 @@ type variable interface {
 	emitSet(gctx *generationContext, asgn *assignmentNode)
 	emitDefined(gctx *generationContext)
 	valueType() starlarkType
+	setValueType(t starlarkType)
 	defaultValueString() string
 	isPreset() bool
 }
@@ -42,6 +43,10 @@ func (v baseVariable) name() string {
 
 func (v baseVariable) valueType() starlarkType {
 	return v.typ
+}
+
+func (v *baseVariable) setValueType(t starlarkType) {
+	v.typ = t
 }
 
 func (v baseVariable) isPreset() bool {
@@ -279,7 +284,7 @@ func (ctx *parseContext) addVariable(name string) variable {
 		} else if name == strings.ToLower(name) {
 			// Heuristics: if variable's name is all lowercase, consider it local
 			// string variable.
-			v = &localVariable{baseVariable{nam: name, typ: starlarkTypeString}}
+			v = &localVariable{baseVariable{nam: name, typ: starlarkTypeUnknown}}
 		} else {
 			vt := starlarkTypeUnknown
 			if strings.HasPrefix(name, "LOCAL_") {
