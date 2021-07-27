@@ -1122,3 +1122,65 @@ func TestBuildConfig(t *testing.T) {
 		})
 	}
 }
+
+func TestGetMetricsUploaderApp(t *testing.T) {
+
+	metricsUploaderDir := "metrics_uploader_dir"
+	metricsUploaderBinary := "metrics_uploader_binary"
+	metricsUploaderPath := filepath.Join(metricsUploaderDir, metricsUploaderBinary)
+	tests := []struct {
+		description string
+		environ     Environment
+		createFiles bool
+		expected    string
+	}{{
+		description: "Uploader binary exist",
+		environ:     Environment{"METRICS_UPLOADER=" + metricsUploaderPath},
+		createFiles: true,
+		expected:    metricsUploaderPath,
+	}, {
+		description: "Uploader binary not exist",
+		environ:     Environment{"METRICS_UPLOADER=" + metricsUploaderPath},
+		createFiles: false,
+		expected:    "",
+	}, {
+		description: "Uploader binary variable not set",
+		createFiles: true,
+		expected:    "",
+	}}
+
+	for _, tt := range tests {
+		t.Run(tt.description, func(t *testing.T) {
+			defer logger.Recover(func(err error) {
+				t.Fatalf("got unexpected error: %v", err)
+			})
+
+			// Create the root source tree.
+			topDir, err := ioutil.TempDir("", "")
+			if err != nil {
+				t.Fatalf("failed to create temp dir: %v", err)
+			}
+			defer os.RemoveAll(topDir)
+
+			expected := tt.expected
+			if len(expected) > 0 {
+				expected = filepath.Join(topDir, expected)
+			}
+
+			if tt.createFiles {
+				if err := os.MkdirAll(filepath.Join(topDir, metricsUploaderDir), 0755); err != nil {
+					t.Errorf("failed to create %s directory: %v", metricsUploaderDir, err)
+				}
+				if err := ioutil.WriteFile(filepath.Join(topDir, metricsUploaderPath), []byte{}, 0644); err != nil {
+					t.Errorf("failed to create file %s: %v", expected, err)
+				}
+			}
+
+			actual := GetMetricsUploader(topDir, &tt.environ)
+
+			if actual != expected {
+				t.Errorf("expecting: %s, actual: %s", expected, actual)
+			}
+		})
+	}
+}
