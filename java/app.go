@@ -1104,8 +1104,6 @@ func AndroidTestHelperAppFactory() android.Module {
 
 type AndroidAppCertificate struct {
 	android.ModuleBase
-	android.BazelModuleBase
-
 	properties  AndroidAppCertificateProperties
 	Certificate Certificate
 }
@@ -1121,7 +1119,6 @@ func AndroidAppCertificateFactory() android.Module {
 	module := &AndroidAppCertificate{}
 	module.AddProperties(&module.properties)
 	android.InitAndroidModule(module)
-	android.InitBazelModule(module)
 	return module
 }
 
