@@ -84,26 +84,38 @@ var knownFunctions = map[string]struct {
 	"error":                               {baseName + ".mkerror", starlarkTypeVoid},
 	"findstring":                          {"!findstring", starlarkTypeInt},
 	"find-copy-subdir-files":              {baseName + ".find_and_copy", starlarkTypeList},
+	"find-word-in-list":                   {"!find-word-in-list", starlarkTypeUnknown}, // internal macro
 	"filter":                              {baseName + ".filter", starlarkTypeList},
 	"filter-out":                          {baseName + ".filter_out", starlarkTypeList},
+	"get-vendor-board-platforms":          {"!get-vendor-board-platforms", starlarkTypeList}, // internal macro, used by is-board-platform, etc.
 	"info":                                {baseName + ".mkinfo", starlarkTypeVoid},
+	"is-android-codename":                 {"!is-android-codename", starlarkTypeBool},         // unused by product config
+	"is-android-codename-in-list":         {"!is-android-codename-in-list", starlarkTypeBool}, // unused by product config
 	"is-board-platform":                   {"!is-board-platform", starlarkTypeBool},
 	"is-board-platform-in-list":           {"!is-board-platform-in-list", starlarkTypeBool},
+	"is-chipset-in-board-platform":        {"!is-chipset-in-board-platform", starlarkTypeUnknown},     // unused by product config
+	"is-chipset-prefix-in-board-platform": {"!is-chipset-prefix-in-board-platform", starlarkTypeBool}, // unused by product config
+	"is-not-board-platform":               {"!is-not-board-platform", starlarkTypeBool},               // defined but never used
+	"is-platform-sdk-version-at-least":    {"!is-platform-sdk-version-at-least", starlarkTypeBool},    // unused by product config
 	"is-product-in-list":                  {"!is-product-in-list", starlarkTypeBool},
 	"is-vendor-board-platform":            {"!is-vendor-board-platform", starlarkTypeBool},
 	callLoadAlways:                        {"!inherit-product", starlarkTypeVoid},
 	callLoadIf:                            {"!inherit-product-if-exists", starlarkTypeVoid},
+	"match-prefix":                        {"!match-prefix", starlarkTypeUnknown},       // internal macro
+	"match-word":                          {"!match-word", starlarkTypeUnknown},         // internal macro
+	"match-word-in-list":                  {"!match-word-in-list", starlarkTypeUnknown}, // internal macro
 	"patsubst":                            {baseName + ".mkpatsubst", starlarkTypeString},
 	"produce_copy_files":                  {baseName + ".produce_copy_files", starlarkTypeList},
 	"require-artifacts-in-path":           {baseName + ".require_artifacts_in_path", starlarkTypeVoid},
 	"require-artifacts-in-path-relaxed":   {baseName + ".require_artifacts_in_path_relaxed", starlarkTypeVoid},
 	// TODO(asmundak): remove it once all calls are removed from configuration makefiles. see b/183161002
-	"shell":    {baseName + ".shell", starlarkTypeString},
-	"strip":    {baseName + ".mkstrip", starlarkTypeString},
-	"subst":    {baseName + ".mksubst", starlarkTypeString},
-	"warning":  {baseName + ".mkwarning", starlarkTypeVoid},
-	"word":     {baseName + "!word", starlarkTypeString},
-	"wildcard": {baseName + ".expand_wildcard", starlarkTypeList},
+	"shell":      {baseName + ".shell", starlarkTypeString},
+	"strip":      {baseName + ".mkstrip", starlarkTypeString},
+	"tb-modules": {"!tb-modules", starlarkTypeUnknown}, // defined in hardware/amlogic/tb_modules/tb_detect.mk, unused
+	"subst":      {baseName + ".mksubst", starlarkTypeString},
+	"warning":    {baseName + ".mkwarning", starlarkTypeVoid},
+	"word":       {baseName + "!word", starlarkTypeString},
+	"wildcard":   {baseName + ".expand_wildcard", starlarkTypeList},
 }
 
 var builtinFuncRex = regexp.MustCompile(
@@ -681,8 +693,11 @@ func (ctx *parseContext) handleVariable(v *mkparser.Variable) {
 }
 
 func (ctx *parseContext) handleDefine(directive *mkparser.Directive) {
-	tokens := strings.Fields(directive.Args.Strings[0])
-	ctx.errorf(directive, "define is not supported: %s", tokens[0])
+	macro_name := strings.Fields(directive.Args.Strings[0])[0]
+	// Ignore the macros that we handle
+	if _, ok := knownFunctions[macro_name]; !ok {
+		ctx.errorf(directive, "define is not supported: %s", macro_name)
+	}
 }
 
 func (ctx *parseContext) handleIfBlock(ifDirective *mkparser.Directive) {
