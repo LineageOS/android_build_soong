@@ -17,6 +17,9 @@ package bp2build
 import (
 	"android/soong/android"
 	"android/soong/apex"
+	"android/soong/cc"
+	"android/soong/java"
+
 	"testing"
 )
 
@@ -26,6 +29,13 @@ func runApexTestCase(t *testing.T, tc bp2buildTestCase) {
 }
 
 func registerApexModuleTypes(ctx android.RegistrationContext) {
+	// CC module types needed as they can be APEX dependencies viathe  native_shared_libs property
+	cc.RegisterCCBuildComponents(ctx)
+	ctx.RegisterModuleType("cc_library", cc.LibraryFactory)
+
+	ctx.RegisterModuleType("apex_key", apex.ApexKeyFactory)
+
+	ctx.RegisterModuleType("android_app_certificate", java.AndroidAppCertificateFactory)
 }
 
 func TestApexBundleSimple(t *testing.T) {
@@ -36,14 +46,67 @@ func TestApexBundleSimple(t *testing.T) {
 		moduleTypeUnderTestBp2BuildMutator: apex.ApexBundleBp2Build,
 		filesystem:                         map[string]string{},
 		blueprint: `
+apex_key {
+        name: "com.android.apogee.key",
+        public_key: "com.android.apogee.avbpubkey",
+        private_key: "com.android.apogee.pem",
+	bazel_module: { bp2build_available: false },
+}
+
+android_app_certificate {
+        name: "com.android.apogee.certificate",
+        certificate: "com.android.apogee",
+        bazel_module: { bp2build_available: false },
+}
+
+cc_library {
+        name: "native_shared_lib_1",
+	bazel_module: { bp2build_available: false },
+}
+
+cc_library {
+        name: "native_shared_lib_2",
+	bazel_module: { bp2build_available: false },
+}
+
 apex {
-	name: "apogee",
-	manifest: "manifest.json",
+	name: "com.android.apogee",
+	manifest: "apogee_manifest.json",
+	androidManifest: "ApogeeAndroidManifest.xml",
+        file_contexts: "com.android.apogee-file_contexts",
+	min_sdk_version: "29",
+	key: "com.android.apogee.key",
+	certificate: "com.android.apogee.certificate",
+	updatable: false,
+	installable: false,
+	native_shared_libs: [
+	    "native_shared_lib_1",
+	    "native_shared_lib_2",
+	],
+	binaries: [
+            "binary_1",
+	    "binary_2",
+	],
 }
 `,
 		expectedBazelTargets: []string{`apex(
-    name = "apogee",
-    manifest = "manifest.json",
+    name = "com.android.apogee",
+    android_manifest = "ApogeeAndroidManifest.xml",
+    binaries = [
+        "binary_1",
+        "binary_2",
+    ],
+    certificate = ":com.android.apogee.certificate",
+    file_contexts = "com.android.apogee-file_contexts",
+    installable = False,
+    key = ":com.android.apogee.key",
+    manifest = "apogee_manifest.json",
+    min_sdk_version = "29",
+    native_shared_libs = [
+        ":native_shared_lib_1",
+        ":native_shared_lib_2",
+    ],
+    updatable = False,
 )`}})
 }
 
