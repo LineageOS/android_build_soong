@@ -3187,7 +3187,16 @@ func rModulesPackages() map[string][]string {
 // For Bazel / bp2build
 
 type bazelApexBundleAttributes struct {
-	Manifest bazel.LabelAttribute
+	Manifest           bazel.LabelAttribute
+	Android_manifest   bazel.LabelAttribute
+	File_contexts      string
+	Key                bazel.LabelAttribute
+	Certificate        bazel.LabelAttribute
+	Min_sdk_version    string
+	Updatable          bazel.BoolAttribute
+	Installable        bazel.BoolAttribute
+	Native_shared_libs bazel.LabelListAttribute
+	Binaries           bazel.StringListAttribute
 }
 
 type bazelApexBundle struct {
@@ -3220,14 +3229,63 @@ func ApexBundleBp2Build(ctx android.TopDownMutatorContext) {
 
 func apexBundleBp2BuildInternal(ctx android.TopDownMutatorContext, module *apexBundle) {
 	var manifestLabelAttribute bazel.LabelAttribute
-
-	manifestStringPtr := module.properties.Manifest
 	if module.properties.Manifest != nil {
-		manifestLabelAttribute.SetValue(android.BazelLabelForModuleSrcSingle(ctx, *manifestStringPtr))
+		manifestLabelAttribute.SetValue(android.BazelLabelForModuleSrcSingle(ctx, *module.properties.Manifest))
+	}
+
+	var androidManifestLabelAttribute bazel.LabelAttribute
+	if module.properties.AndroidManifest != nil {
+		androidManifestLabelAttribute.SetValue(android.BazelLabelForModuleSrcSingle(ctx, *module.properties.AndroidManifest))
+	}
+
+	var fileContexts string
+	if module.properties.File_contexts != nil {
+		fileContexts = *module.properties.File_contexts
+	}
+
+	var minSdkVersion string
+	if module.properties.Min_sdk_version != nil {
+		minSdkVersion = *module.properties.Min_sdk_version
+	}
+
+	var keyLabelAttribute bazel.LabelAttribute
+	if module.overridableProperties.Key != nil {
+		keyLabelAttribute.SetValue(android.BazelLabelForModuleDepSingle(ctx, *module.overridableProperties.Key))
+	}
+
+	var certificateLabelAttribute bazel.LabelAttribute
+	if module.overridableProperties.Certificate != nil {
+		certificateLabelAttribute.SetValue(android.BazelLabelForModuleDepSingle(ctx, *module.overridableProperties.Certificate))
+	}
+
+	nativeSharedLibs := module.properties.ApexNativeDependencies.Native_shared_libs
+	nativeSharedLibsLabelList := android.BazelLabelForModuleDeps(ctx, nativeSharedLibs)
+	nativeSharedLibsLabelListAttribute := bazel.MakeLabelListAttribute(nativeSharedLibsLabelList)
+
+	binaries := module.properties.ApexNativeDependencies.Binaries
+	binariesStringListAttribute := bazel.MakeStringListAttribute(binaries)
+
+	var updatableAttribute bazel.BoolAttribute
+	if module.properties.Updatable != nil {
+		updatableAttribute.Value = module.properties.Updatable
+	}
+
+	var installableAttribute bazel.BoolAttribute
+	if module.properties.Installable != nil {
+		installableAttribute.Value = module.properties.Installable
 	}
 
 	attrs := &bazelApexBundleAttributes{
-		Manifest: manifestLabelAttribute,
+		Manifest:           manifestLabelAttribute,
+		Android_manifest:   androidManifestLabelAttribute,
+		File_contexts:      fileContexts,
+		Min_sdk_version:    minSdkVersion,
+		Key:                keyLabelAttribute,
+		Certificate:        certificateLabelAttribute,
+		Updatable:          updatableAttribute,
+		Installable:        installableAttribute,
+		Native_shared_libs: nativeSharedLibsLabelListAttribute,
+		Binaries:           binariesStringListAttribute,
 	}
 
 	props := bazel.BazelTargetModuleProperties{
