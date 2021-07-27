@@ -286,3 +286,37 @@ cc_library {
 	gotFlags := entries.EntryMap["LOCAL_EXPORT_CFLAGS"]
 	android.AssertDeepEquals(t, "androidmk exported cflags", expectedFlags, gotFlags)
 }
+
+func TestLibraryVersionScript(t *testing.T) {
+	result := PrepareForIntegrationTestWithCc.RunTestWithBp(t, `
+		cc_library {
+			name: "libfoo",
+			srcs: ["foo.c"],
+			version_script: "foo.map.txt",
+		}`)
+
+	libfoo := result.ModuleForTests("libfoo", "android_arm64_armv8-a_shared").Rule("ld")
+
+	android.AssertStringListContains(t, "missing dependency on version_script",
+		libfoo.Implicits.Strings(), "foo.map.txt")
+	android.AssertStringDoesContain(t, "missing flag for version_script",
+		libfoo.Args["ldFlags"], "-Wl,--version-script,foo.map.txt")
+
+}
+
+func TestLibraryDynamicList(t *testing.T) {
+	result := PrepareForIntegrationTestWithCc.RunTestWithBp(t, `
+		cc_library {
+			name: "libfoo",
+			srcs: ["foo.c"],
+			dynamic_list: "foo.dynamic.txt",
+		}`)
+
+	libfoo := result.ModuleForTests("libfoo", "android_arm64_armv8-a_shared").Rule("ld")
+
+	android.AssertStringListContains(t, "missing dependency on dynamic_list",
+		libfoo.Implicits.Strings(), "foo.dynamic.txt")
+	android.AssertStringDoesContain(t, "missing flag for dynamic_list",
+		libfoo.Args["ldFlags"], "-Wl,--dynamic-list,foo.dynamic.txt")
+
+}

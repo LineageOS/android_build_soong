@@ -127,11 +127,22 @@ const (
 
 var (
 	// Keep any existing BUILD files (and do not generate new BUILD files) for these directories
+	// in the synthetic Bazel workspace.
 	bp2buildKeepExistingBuildFile = map[string]bool{
 		// This is actually build/bazel/build.BAZEL symlinked to ./BUILD
 		".":/*recursive = */ false,
 
-		"build/bazel":/* recursive = */ true,
+		// build/bazel/examples/apex/... BUILD files should be generated, so
+		// build/bazel is not recursive. Instead list each subdirectory under
+		// build/bazel explicitly.
+		"build/bazel":/* recursive = */ false,
+		"build/bazel/examples/android_app":/* recursive = */ true,
+		"build/bazel/bazel_skylib":/* recursive = */ true,
+		"build/bazel/rules":/* recursive = */ true,
+		"build/bazel/rules_cc":/* recursive = */ true,
+		"build/bazel/tests":/* recursive = */ true,
+		"build/bazel/platforms":/* recursive = */ true,
+		"build/bazel/product_variables":/* recursive = */ true,
 		"build/pesto":/* recursive = */ true,
 
 		// external/bazelbuild-rules_android/... is needed by mixed builds, otherwise mixed builds analysis fails
