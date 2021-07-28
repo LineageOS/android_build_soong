@@ -118,10 +118,10 @@ func FixtureSetBootJars(bootJars ...string) android.FixturePreparer {
 	})
 }
 
-// FixtureSetUpdatableBootJars sets the UpdatableBootJars property in the global config.
-func FixtureSetUpdatableBootJars(bootJars ...string) android.FixturePreparer {
+// FixtureSetApexBootJars sets the ApexBootJars property in the global config.
+func FixtureSetApexBootJars(bootJars ...string) android.FixturePreparer {
 	return FixtureModifyGlobalConfig(func(dexpreoptConfig *GlobalConfig) {
-		dexpreoptConfig.UpdatableBootJars = android.CreateTestConfiguredJarList(bootJars)
+		dexpreoptConfig.ApexBootJars = android.CreateTestConfiguredJarList(bootJars)
 	})
 }
 

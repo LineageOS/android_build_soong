@@ -457,7 +457,7 @@ type Library struct {
 
 var _ android.ApexModule = (*Library)(nil)
 
-// Provides access to the list of permitted packages from updatable boot jars.
+// Provides access to the list of permitted packages from apex boot jars.
 type PermittedPackagesForUpdatableBootJars interface {
 	PermittedPackagesForUpdatableBootJars() []string
 }
