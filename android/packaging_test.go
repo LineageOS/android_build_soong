@@ -18,13 +18,15 @@ import (
 	"testing"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
 )
 
 // Module to be packaged
 type componentTestModule struct {
 	ModuleBase
 	props struct {
-		Deps []string
+		Deps         []string
+		Skip_install *bool
 	}
 }
 
@@ -49,6 +51,9 @@ func (m *componentTestModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 	builtFile := PathForModuleOut(ctx, m.Name())
 	dir := ctx.Target().Arch.ArchType.Multilib
 	installDir := PathForModuleInstall(ctx, dir)
+	if proptools.Bool(m.props.Skip_install) {
+		m.SkipInstall()
+	}
 	ctx.InstallFile(installDir, m.Name(), builtFile)
 }
 
@@ -362,6 +367,34 @@ func TestPackagingBaseSingleTarget(t *testing.T) {
 			name: "package",
 			deps: ["foo"],
 			install_deps: ["bar"],
+		}
+		`, []string{"lib64/foo"})
+}
+
+func TestPackagingWithSkipInstallDeps(t *testing.T) {
+	// package -[dep]-> foo -[dep]-> bar      -[dep]-> baz
+	//                  OK           SKIPPED
+	multiTarget := false
+	runPackagingTest(t, multiTarget,
+		`
+		component {
+			name: "foo",
+			deps: ["bar"],
+		}
+
+		component {
+			name: "bar",
+			deps: ["baz"],
+			skip_install: true,
+		}
+
+		component {
+			name: "baz",
+		}
+
+		package_module {
+			name: "package",
+			deps: ["foo"],
 		}
 		`, []string{"lib64/foo"})
 }

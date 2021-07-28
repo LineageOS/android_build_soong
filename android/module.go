@@ -1529,7 +1529,7 @@ func (m *ModuleBase) computeInstallDeps(ctx ModuleContext) ([]*installPathsDepSe
 	var installDeps []*installPathsDepSet
 	var packagingSpecs []*packagingSpecsDepSet
 	ctx.VisitDirectDeps(func(dep Module) {
-		if IsInstallDepNeeded(ctx.OtherModuleDependencyTag(dep)) && !dep.IsHideFromMake() {
+		if IsInstallDepNeeded(ctx.OtherModuleDependencyTag(dep)) && !dep.IsHideFromMake() && !dep.IsSkipInstall() {
 			installDeps = append(installDeps, dep.base().installFilesDepSet)
 			packagingSpecs = append(packagingSpecs, dep.base().packagingSpecsDepSet)
 		}
