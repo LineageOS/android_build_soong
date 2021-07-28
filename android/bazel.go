@@ -219,6 +219,9 @@ var (
 		"libjemalloc5_integrationtest",
 		"libjemalloc5_stresstestlib",
 		"libjemalloc5_unittest",
+
+		// APEX support
+		"com.android.runtime", // http://b/194746715, apex, depends on 'libc_malloc_debug' and 'libc_malloc_hooks'
 	}
 
 	// Per-module denylist of cc_library modules to only generate the static

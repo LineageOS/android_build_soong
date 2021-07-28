@@ -44,8 +44,8 @@ type GlobalConfig struct {
 	DisableGenerateProfile bool   // don't generate profiles
 	ProfileDir             string // directory to find profiles in
 
-	BootJars          android.ConfiguredJarList // modules for jars that form the boot class path
-	UpdatableBootJars android.ConfiguredJarList // jars within apex that form the boot class path
+	BootJars     android.ConfiguredJarList // modules for jars that form the boot class path
+	ApexBootJars android.ConfiguredJarList // jars within apex that form the boot class path
 
 	ArtApexJars android.ConfiguredJarList // modules for jars that are in the ART APEX
 
@@ -531,7 +531,7 @@ func ParseGlobalSoongConfig(ctx android.PathContext, data []byte) (*GlobalSoongC
 	return config, nil
 }
 
-// checkBootJarsConfigConsistency checks the consistency of BootJars and UpdatableBootJars fields in
+// checkBootJarsConfigConsistency checks the consistency of BootJars and ApexBootJars fields in
 // DexpreoptGlobalConfig and Config.productVariables.
 func checkBootJarsConfigConsistency(ctx android.SingletonContext, dexpreoptConfig *GlobalConfig, config android.Config) {
 	compareBootJars := func(property string, dexpreoptJars, variableJars android.ConfiguredJarList) {
@@ -545,8 +545,8 @@ func checkBootJarsConfigConsistency(ctx android.SingletonContext, dexpreoptConfi
 		}
 	}
 
-	compareBootJars("BootJars", dexpreoptConfig.BootJars, config.NonUpdatableBootJars())
-	compareBootJars("UpdatableBootJars", dexpreoptConfig.UpdatableBootJars, config.UpdatableBootJars())
+	compareBootJars("BootJars", dexpreoptConfig.BootJars, config.NonApexBootJars())
+	compareBootJars("ApexBootJars", dexpreoptConfig.ApexBootJars, config.ApexBootJars())
 }
 
 func (s *globalSoongConfigSingleton) GenerateBuildActions(ctx android.SingletonContext) {
@@ -614,7 +614,7 @@ func GlobalConfigForTests(ctx android.PathContext) *GlobalConfig {
 		DisableGenerateProfile:             false,
 		ProfileDir:                         "",
 		BootJars:                           android.EmptyConfiguredJarList(),
-		UpdatableBootJars:                  android.EmptyConfiguredJarList(),
+		ApexBootJars:                       android.EmptyConfiguredJarList(),
 		ArtApexJars:                        android.EmptyConfiguredJarList(),
 		SystemServerJars:                   android.EmptyConfiguredJarList(),
 		SystemServerApps:                   nil,

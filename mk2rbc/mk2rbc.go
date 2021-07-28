@@ -84,25 +84,38 @@ var knownFunctions = map[string]struct {
 	"error":                               {baseName + ".mkerror", starlarkTypeVoid},
 	"findstring":                          {"!findstring", starlarkTypeInt},
 	"find-copy-subdir-files":              {baseName + ".find_and_copy", starlarkTypeList},
+	"find-word-in-list":                   {"!find-word-in-list", starlarkTypeUnknown}, // internal macro
 	"filter":                              {baseName + ".filter", starlarkTypeList},
 	"filter-out":                          {baseName + ".filter_out", starlarkTypeList},
+	"get-vendor-board-platforms":          {"!get-vendor-board-platforms", starlarkTypeList}, // internal macro, used by is-board-platform, etc.
 	"info":                                {baseName + ".mkinfo", starlarkTypeVoid},
+	"is-android-codename":                 {"!is-android-codename", starlarkTypeBool},         // unused by product config
+	"is-android-codename-in-list":         {"!is-android-codename-in-list", starlarkTypeBool}, // unused by product config
 	"is-board-platform":                   {"!is-board-platform", starlarkTypeBool},
 	"is-board-platform-in-list":           {"!is-board-platform-in-list", starlarkTypeBool},
+	"is-chipset-in-board-platform":        {"!is-chipset-in-board-platform", starlarkTypeUnknown},     // unused by product config
+	"is-chipset-prefix-in-board-platform": {"!is-chipset-prefix-in-board-platform", starlarkTypeBool}, // unused by product config
+	"is-not-board-platform":               {"!is-not-board-platform", starlarkTypeBool},               // defined but never used
+	"is-platform-sdk-version-at-least":    {"!is-platform-sdk-version-at-least", starlarkTypeBool},    // unused by product config
 	"is-product-in-list":                  {"!is-product-in-list", starlarkTypeBool},
 	"is-vendor-board-platform":            {"!is-vendor-board-platform", starlarkTypeBool},
 	callLoadAlways:                        {"!inherit-product", starlarkTypeVoid},
 	callLoadIf:                            {"!inherit-product-if-exists", starlarkTypeVoid},
+	"match-prefix":                        {"!match-prefix", starlarkTypeUnknown},       // internal macro
+	"match-word":                          {"!match-word", starlarkTypeUnknown},         // internal macro
+	"match-word-in-list":                  {"!match-word-in-list", starlarkTypeUnknown}, // internal macro
+	"patsubst":                            {baseName + ".mkpatsubst", starlarkTypeString},
 	"produce_copy_files":                  {baseName + ".produce_copy_files", starlarkTypeList},
 	"require-artifacts-in-path":           {baseName + ".require_artifacts_in_path", starlarkTypeVoid},
 	"require-artifacts-in-path-relaxed":   {baseName + ".require_artifacts_in_path_relaxed", starlarkTypeVoid},
 	// TODO(asmundak): remove it once all calls are removed from configuration makefiles. see b/183161002
-	"shell":    {baseName + ".shell", starlarkTypeString},
-	"strip":    {baseName + ".mkstrip", starlarkTypeString},
-	"subst":    {baseName + ".subst", starlarkTypeString},
-	"warning":  {baseName + ".mkwarning", starlarkTypeVoid},
-	"word":     {baseName + "!word", starlarkTypeString},
-	"wildcard": {baseName + ".expand_wildcard", starlarkTypeList},
+	"shell":      {baseName + ".shell", starlarkTypeString},
+	"strip":      {baseName + ".mkstrip", starlarkTypeString},
+	"tb-modules": {"!tb-modules", starlarkTypeUnknown}, // defined in hardware/amlogic/tb_modules/tb_detect.mk, unused
+	"subst":      {baseName + ".mksubst", starlarkTypeString},
+	"warning":    {baseName + ".mkwarning", starlarkTypeVoid},
+	"word":       {baseName + "!word", starlarkTypeString},
+	"wildcard":   {baseName + ".expand_wildcard", starlarkTypeList},
 }
 
 var builtinFuncRex = regexp.MustCompile(
@@ -509,13 +522,7 @@ func (ctx *parseContext) handleAssignment(a *mkparser.Assignment) {
 		}
 		inferred_type := asgn.value.typ()
 		if inferred_type != starlarkTypeUnknown {
-			if ogv, ok := lhs.(*otherGlobalVariable); ok {
-				ogv.typ = inferred_type
-			} else if pcv, ok := lhs.(*productConfigVariable); ok {
-				pcv.typ = inferred_type
-			} else {
-				panic(fmt.Errorf("cannot assign new type to a variable %s, its flavor is %T", lhs.name(), lhs))
-			}
+			lhs.setValueType(inferred_type)
 		}
 	}
 	if lhs.valueType() == starlarkTypeList {
@@ -686,8 +693,11 @@ func (ctx *parseContext) handleVariable(v *mkparser.Variable) {
 }
 
 func (ctx *parseContext) handleDefine(directive *mkparser.Directive) {
-	tokens := strings.Fields(directive.Args.Strings[0])
-	ctx.errorf(directive, "define is not supported: %s", tokens[0])
+	macro_name := strings.Fields(directive.Args.Strings[0])[0]
+	// Ignore the macros that we handle
+	if _, ok := knownFunctions[macro_name]; !ok {
+		ctx.errorf(directive, "define is not supported: %s", macro_name)
+	}
 }
 
 func (ctx *parseContext) handleIfBlock(ifDirective *mkparser.Directive) {
@@ -1085,8 +1095,8 @@ func (ctx *parseContext) parseReference(node mkparser.Node, ref *mkparser.MakeSt
 	switch expr.name {
 	case "word":
 		return ctx.parseWordFunc(node, args)
-	case "subst":
-		return ctx.parseSubstFunc(node, args)
+	case "subst", "patsubst":
+		return ctx.parseSubstFunc(node, expr.name, args)
 	default:
 		for _, arg := range args.Split(",") {
 			arg.TrimLeftSpaces()
@@ -1101,24 +1111,33 @@ func (ctx *parseContext) parseReference(node mkparser.Node, ref *mkparser.MakeSt
 	return expr
 }
 
-func (ctx *parseContext) parseSubstFunc(node mkparser.Node, args *mkparser.MakeString) starlarkExpr {
+func (ctx *parseContext) parseSubstFunc(node mkparser.Node, fname string, args *mkparser.MakeString) starlarkExpr {
 	words := args.Split(",")
 	if len(words) != 3 {
-		return ctx.newBadExpr(node, "subst function should have 3 arguments")
+		return ctx.newBadExpr(node, "%s function should have 3 arguments", fname)
 	}
 	if !words[0].Const() || !words[1].Const() {
-		return ctx.newBadExpr(node, "subst function's from and to arguments should be constant")
+		return ctx.newBadExpr(node, "%s function's from and to arguments should be constant", fname)
 	}
 	from := words[0].Strings[0]
 	to := words[1].Strings[0]
 	words[2].TrimLeftSpaces()
 	words[2].TrimRightSpaces()
 	obj := ctx.parseMakeString(node, words[2])
+	typ := obj.typ()
+	if typ == starlarkTypeString && fname == "subst" {
+		// Optimization: if it's $(subst from, to, string), emit string.replace(from, to)
+		return &callExpr{
+			object:     obj,
+			name:       "replace",
+			args:       []starlarkExpr{&stringLiteralExpr{from}, &stringLiteralExpr{to}},
+			returnType: typ,
+		}
+	}
 	return &callExpr{
-		object:     obj,
-		name:       "replace",
-		args:       []starlarkExpr{&stringLiteralExpr{from}, &stringLiteralExpr{to}},
-		returnType: starlarkTypeString,
+		name:       fname,
+		args:       []starlarkExpr{&stringLiteralExpr{from}, &stringLiteralExpr{to}, obj},
+		returnType: obj.typ(),
 	}
 }
 

@@ -138,9 +138,7 @@ func main() {
 		}
 		os.Exit(0)
 	}
-	if len(flag.Args()) == 0 {
-		flag.Usage()
-	}
+
 	// Convert!
 	ok := true
 	if *launcher != "" {
