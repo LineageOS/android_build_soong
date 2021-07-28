@@ -36,6 +36,7 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
+	"android/soong/bazel"
 	"android/soong/snapshot"
 )
 
@@ -61,6 +62,8 @@ func RegisterPrebuiltEtcBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("prebuilt_rfsa", PrebuiltRFSAFactory)
 
 	ctx.RegisterModuleType("prebuilt_defaults", defaultsFactory)
+
+	android.RegisterBp2BuildMutator("prebuilt_etc", PrebuiltEtcBp2Build)
 }
 
 var PrepareForTestWithPrebuiltEtc = android.FixtureRegisterWithContext(RegisterPrebuiltEtcBuildComponents)
@@ -131,6 +134,7 @@ type PrebuiltEtcModule interface {
 type PrebuiltEtc struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
+	android.BazelModuleBase
 
 	snapshot.VendorSnapshotModuleInterface
 	snapshot.RecoverySnapshotModuleInterface
@@ -406,6 +410,7 @@ func PrebuiltEtcFactory() android.Module {
 	// This module is device-only
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
 	android.InitDefaultableModule(module)
+	android.InitBazelModule(module)
 	return module
 }
 
@@ -647,3 +652,82 @@ func generatePrebuiltSnapshot(s snapshot.SnapshotSingleton, ctx android.Singleto
 
 	return snapshotOutputs
 }
+
+// For Bazel / bp2build
+
+type bazelPrebuiltEtcAttributes struct {
+	Src         bazel.LabelAttribute
+	Filename    string
+	Sub_dir     string
+	Installable bazel.BoolAttribute
+}
+
+type bazelPrebuiltEtc struct {
+	android.BazelTargetModuleBase
+	bazelPrebuiltEtcAttributes
+}
+
+func BazelPrebuiltEtcFactory() android.Module {
+	module := &bazelPrebuiltEtc{}
+	module.AddProperties(&module.bazelPrebuiltEtcAttributes)
+	android.InitBazelTargetModule(module)
+	return module
+}
+
+func PrebuiltEtcBp2Build(ctx android.TopDownMutatorContext) {
+	module, ok := ctx.Module().(*PrebuiltEtc)
+	if !ok {
+		// Not an prebuilt_etc
+		return
+	}
+	if !module.ConvertWithBp2build(ctx) {
+		return
+	}
+	if ctx.ModuleType() != "prebuilt_etc" {
+		return
+	}
+
+	prebuiltEtcBp2BuildInternal(ctx, module)
+}
+
+func prebuiltEtcBp2BuildInternal(ctx android.TopDownMutatorContext, module *PrebuiltEtc) {
+	var srcLabelAttribute bazel.LabelAttribute
+	if module.properties.Src != nil {
+		srcLabelAttribute.SetValue(android.BazelLabelForModuleSrcSingle(ctx, *module.properties.Src))
+	}
+
+	var filename string
+	if module.properties.Filename != nil {
+		filename = *module.properties.Filename
+	}
+
+	var subDir string
+	if module.subdirProperties.Sub_dir != nil {
+		subDir = *module.subdirProperties.Sub_dir
+	}
+
+	var installableBoolAttribute bazel.BoolAttribute
+	if module.properties.Installable != nil {
+		installableBoolAttribute.Value = module.properties.Installable
+	}
+
+	attrs := &bazelPrebuiltEtcAttributes{
+		Src:         srcLabelAttribute,
+		Filename:    filename,
+		Sub_dir:     subDir,
+		Installable: installableBoolAttribute,
+	}
+
+	props := bazel.BazelTargetModuleProperties{
+		Rule_class:        "prebuilt_etc",
+		Bzl_load_location: "//build/bazel/rules:prebuilt_etc.bzl",
+	}
+
+	ctx.CreateBazelTargetModule(BazelPrebuiltEtcFactory, module.Name(), props, attrs)
+}
+
+func (m *bazelPrebuiltEtc) Name() string {
+	return m.BaseModuleName()
+}
+
+func (m *bazelPrebuiltEtc) GenerateAndroidBuildActions(ctx android.ModuleContext) {}
