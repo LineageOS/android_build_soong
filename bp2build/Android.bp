@@ -29,6 +29,7 @@ bootstrap_go_package {
     ],
     testSrcs: [
         "apex_conversion_test.go",
+        "apex_key_conversion_test.go",
         "build_conversion_test.go",
         "bzl_conversion_test.go",
         "cc_library_conversion_test.go",
