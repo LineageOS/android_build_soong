@@ -111,7 +111,7 @@ func dexpreoptDisabled(ctx android.PathContext, global *GlobalConfig, module *Mo
 	}
 
 	// Don't preopt system server jars that are updatable.
-	if global.UpdatableSystemServerJars.ContainsJar(module.Name) {
+	if global.ApexSystemServerJars.ContainsJar(module.Name) {
 		return true
 	}
 
@@ -234,7 +234,7 @@ func dexpreoptCommand(ctx android.PathContext, globalSoong *GlobalSoongConfig, g
 
 	invocationPath := odexPath.ReplaceExtension(ctx, "invocation")
 
-	systemServerJars := NonUpdatableSystemServerJars(ctx, global)
+	systemServerJars := NonApexSystemServerJars(ctx, global)
 
 	rule.Command().FlagWithArg("mkdir -p ", filepath.Dir(odexPath.String()))
 	rule.Command().FlagWithOutput("rm -f ", odexPath)
@@ -523,13 +523,13 @@ func makefileMatch(pattern, s string) bool {
 	}
 }
 
-var nonUpdatableSystemServerJarsKey = android.NewOnceKey("nonUpdatableSystemServerJars")
+var nonApexSystemServerJarsKey = android.NewOnceKey("nonApexSystemServerJars")
 
 // TODO: eliminate the superficial global config parameter by moving global config definition
 // from java subpackage to dexpreopt.
-func NonUpdatableSystemServerJars(ctx android.PathContext, global *GlobalConfig) []string {
-	return ctx.Config().Once(nonUpdatableSystemServerJarsKey, func() interface{} {
-		return android.RemoveListFromList(global.SystemServerJars.CopyOfJars(), global.UpdatableSystemServerJars.CopyOfJars())
+func NonApexSystemServerJars(ctx android.PathContext, global *GlobalConfig) []string {
+	return ctx.Config().Once(nonApexSystemServerJarsKey, func() interface{} {
+		return android.RemoveListFromList(global.SystemServerJars.CopyOfJars(), global.ApexSystemServerJars.CopyOfJars())
 	}).([]string)
 }
 
@@ -556,7 +556,7 @@ func checkSystemServerOrder(ctx android.PathContext, jarIndex int) {
 	mctx, isModule := ctx.(android.ModuleContext)
 	if isModule {
 		config := GetGlobalConfig(ctx)
-		jars := NonUpdatableSystemServerJars(ctx, config)
+		jars := NonApexSystemServerJars(ctx, config)
 		mctx.WalkDeps(func(dep android.Module, parent android.Module) bool {
 			depIndex := android.IndexList(dep.Name(), jars)
 			if jarIndex < depIndex && !config.BrokenSuboptimalOrderOfSystemServerJars {
