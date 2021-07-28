@@ -28,6 +28,7 @@ bootstrap_go_package {
         "soong-sh",
     ],
     testSrcs: [
+        "android_app_certificate_conversion_test.go",
         "apex_conversion_test.go",
         "apex_key_conversion_test.go",
         "build_conversion_test.go",
