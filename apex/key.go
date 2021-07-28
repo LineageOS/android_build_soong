@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"android/soong/android"
+	"android/soong/bazel"
 
 	"github.com/google/blueprint/proptools"
 )
@@ -33,6 +34,8 @@ func init() {
 func registerApexKeyBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("apex_key", ApexKeyFactory)
 	ctx.RegisterSingletonType("apex_keys_text", apexKeysTextFactory)
+
+	android.RegisterBp2BuildMutator("apex_key", ApexKeyBp2Build)
 }
 
 type apexKey struct {
@@ -192,3 +195,68 @@ func apexKeysTextFactory() android.Singleton {
 func (s *apexKeysText) MakeVars(ctx android.MakeVarsContext) {
 	ctx.Strict("SOONG_APEX_KEYS_FILE", s.output.String())
 }
+
+// For Bazel / bp2build
+
+type bazelApexKeyAttributes struct {
+	Public_key  bazel.LabelAttribute
+	Private_key bazel.LabelAttribute
+}
+
+type bazelApexKey struct {
+	android.BazelTargetModuleBase
+	bazelApexKeyAttributes
+}
+
+func BazelApexKeyFactory() android.Module {
+	module := &bazelApexKey{}
+	module.AddProperties(&module.bazelApexKeyAttributes)
+	android.InitBazelTargetModule(module)
+	return module
+}
+
+func ApexKeyBp2Build(ctx android.TopDownMutatorContext) {
+	module, ok := ctx.Module().(*apexKey)
+	if !ok {
+		// Not an APEX key
+		return
+	}
+	if !module.ConvertWithBp2build(ctx) {
+		return
+	}
+	if ctx.ModuleType() != "apex_key" {
+		return
+	}
+
+	apexKeyBp2BuildInternal(ctx, module)
+}
+
+func apexKeyBp2BuildInternal(ctx android.TopDownMutatorContext, module *apexKey) {
+	var privateKeyLabelAttribute bazel.LabelAttribute
+	if module.properties.Private_key != nil {
+		privateKeyLabelAttribute.SetValue(android.BazelLabelForModuleSrcSingle(ctx, *module.properties.Private_key))
+	}
+
+	var publicKeyLabelAttribute bazel.LabelAttribute
+	if module.properties.Public_key != nil {
+		publicKeyLabelAttribute.SetValue(android.BazelLabelForModuleSrcSingle(ctx, *module.properties.Public_key))
+	}
+
+	attrs := &bazelApexKeyAttributes{
+		Private_key: privateKeyLabelAttribute,
+		Public_key:  publicKeyLabelAttribute,
+	}
+
+	props := bazel.BazelTargetModuleProperties{
+		Rule_class:        "apex_key",
+		Bzl_load_location: "//build/bazel/rules:apex_key.bzl",
+	}
+
+	ctx.CreateBazelTargetModule(BazelApexKeyFactory, module.Name(), props, attrs)
+}
+
+func (m *bazelApexKey) Name() string {
+	return m.BaseModuleName()
+}
+
+func (m *bazelApexKey) GenerateAndroidBuildActions(ctx android.ModuleContext) {}
