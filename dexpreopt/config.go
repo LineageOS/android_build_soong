@@ -49,10 +49,10 @@ type GlobalConfig struct {
 
 	ArtApexJars android.ConfiguredJarList // modules for jars that are in the ART APEX
 
-	SystemServerJars          android.ConfiguredJarList // jars that form the system server
-	SystemServerApps          []string                  // apps that are loaded into system server
-	UpdatableSystemServerJars android.ConfiguredJarList // jars within apex that are loaded into system server
-	SpeedApps                 []string                  // apps that should be speed optimized
+	SystemServerJars     android.ConfiguredJarList // jars that form the system server
+	SystemServerApps     []string                  // apps that are loaded into system server
+	ApexSystemServerJars android.ConfiguredJarList // jars within apex that are loaded into system server
+	SpeedApps            []string                  // apps that should be speed optimized
 
 	BrokenSuboptimalOrderOfSystemServerJars bool // if true, sub-optimal order does not cause a build error
 
@@ -618,7 +618,7 @@ func GlobalConfigForTests(ctx android.PathContext) *GlobalConfig {
 		ArtApexJars:                        android.EmptyConfiguredJarList(),
 		SystemServerJars:                   android.EmptyConfiguredJarList(),
 		SystemServerApps:                   nil,
-		UpdatableSystemServerJars:          android.EmptyConfiguredJarList(),
+		ApexSystemServerJars:               android.EmptyConfiguredJarList(),
 		SpeedApps:                          nil,
 		PreoptFlags:                        nil,
 		DefaultCompilerFilter:              "",
