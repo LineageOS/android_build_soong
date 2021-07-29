@@ -19,7 +19,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/encoding/prototext"
 
 	bp "android/soong/cmd/extract_apks/bundle_proto"
 	"android/soong/third_party/zip"
@@ -253,7 +253,7 @@ variant {
 	}
 	for _, testCase := range testCases {
 		var toc bp.BuildApksResult
-		if err := proto.UnmarshalText(testCase.protoText, &toc); err != nil {
+		if err := prototext.Unmarshal([]byte(testCase.protoText), &toc); err != nil {
 			t.Fatal(err)
 		}
 		for _, config := range testCase.configs {
@@ -407,7 +407,7 @@ bundletool {
 	}
 	for _, testCase := range testCases {
 		var toc bp.BuildApksResult
-		if err := proto.UnmarshalText(testCase.protoText, &toc); err != nil {
+		if err := prototext.Unmarshal([]byte(testCase.protoText), &toc); err != nil {
 			t.Fatal(err)
 		}
 		for _, config := range testCase.configs {

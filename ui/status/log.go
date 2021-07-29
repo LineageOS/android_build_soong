@@ -23,11 +23,11 @@ import (
 	"os"
 	"strings"
 
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 
 	"android/soong/ui/logger"
-	"android/soong/ui/status/build_error_proto"
-	"android/soong/ui/status/build_progress_proto"
+	soong_build_error_proto "android/soong/ui/status/build_error_proto"
+	soong_build_progress_proto "android/soong/ui/status/build_progress_proto"
 )
 
 type verboseLog struct {

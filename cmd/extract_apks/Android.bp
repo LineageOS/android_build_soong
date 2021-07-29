@@ -8,6 +8,7 @@ blueprint_go_binary {
     deps: [
         "android-archive-zip",
         "golang-protobuf-proto",
+        "golang-protobuf-encoding-prototext",
         "soong-cmd-extract_apks-proto",
     ],
     testSrcs: ["main_test.go"],
@@ -16,7 +17,10 @@ blueprint_go_binary {
 bootstrap_go_package {
     name: "soong-cmd-extract_apks-proto",
     pkgPath: "android/soong/cmd/extract_apks/bundle_proto",
-    deps: ["golang-protobuf-proto"],
+    deps: [
+        "golang-protobuf-reflect-protoreflect",
+        "golang-protobuf-runtime-protoimpl",
+    ],
     srcs: [
         "bundle_proto/commands.pb.go",
         "bundle_proto/config.pb.go",

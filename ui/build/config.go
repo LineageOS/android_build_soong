@@ -25,7 +25,7 @@ import (
 
 	"android/soong/shared"
 
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 
 	smpb "android/soong/ui/metrics/metrics_proto"
 )

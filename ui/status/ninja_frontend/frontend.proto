@@ -17,7 +17,7 @@ syntax = "proto2";
 option optimize_for = LITE_RUNTIME;
 
 package ninja;
-option go_package = "ninja_frontend";
+option go_package = "android/soong/ui/status/ninja_frontend";
 
 message Status {
   message TotalEdges {
