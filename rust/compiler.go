@@ -17,6 +17,7 @@ package rust
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/google/blueprint/proptools"
 
@@ -235,6 +236,25 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 	if err != nil {
 		ctx.PropertyErrorf("lints", err.Error())
 	}
+
+	// linkage-related flags are disallowed.
+	for _, s := range compiler.Properties.Ld_flags {
+		if strings.HasPrefix(s, "-Wl,-l") || strings.HasPrefix(s, "-Wl,-L") {
+			ctx.PropertyErrorf("ld_flags", "'-Wl,-l' and '-Wl,-L' flags cannot be manually specified")
+		}
+	}
+	for _, s := range compiler.Properties.Flags {
+		if strings.HasPrefix(s, "-l") || strings.HasPrefix(s, "-L") {
+			ctx.PropertyErrorf("flags", "'-l' and '-L' flags cannot be manually specified")
+		}
+		if strings.HasPrefix(s, "--extern") {
+			ctx.PropertyErrorf("flags", "'--extern' flag cannot be manually specified")
+		}
+		if strings.HasPrefix(s, "-Clink-args=") || strings.HasPrefix(s, "-C link-args=") {
+			ctx.PropertyErrorf("flags", "'-C link-args' flag cannot be manually specified")
+		}
+	}
+
 	flags.RustFlags = append(flags.RustFlags, lintFlags)
 	flags.RustFlags = append(flags.RustFlags, compiler.Properties.Flags...)
 	flags.RustFlags = append(flags.RustFlags, compiler.cfgsToFlags()...)
