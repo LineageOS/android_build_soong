@@ -49,6 +49,7 @@ var (
 		"-Wl,-syslibroot,${macSdkRoot}",
 		"-mmacosx-version-min=${macMinVersion}",
 		"-m64",
+		"-mlinker-version=305",
 	}
 
 	darwinSupportedSdkVersions = []string{

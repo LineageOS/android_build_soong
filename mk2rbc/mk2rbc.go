@@ -1079,7 +1079,7 @@ func (ctx *parseContext) parseReference(node mkparser.Node, ref *mkparser.MakeSt
 	if expr.name == "call" {
 		words = args.SplitN(",", 2)
 		if words[0].Empty() || !words[0].Const() {
-			return ctx.newBadExpr(nil, "cannot handle %s", refDump)
+			return ctx.newBadExpr(node, "cannot handle %s", refDump)
 		}
 		expr.name = words[0].Dump()
 		if len(words) < 2 {
