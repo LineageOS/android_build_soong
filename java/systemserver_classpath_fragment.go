@@ -107,7 +107,7 @@ func (s *SystemServerClasspathModule) configuredJars(ctx android.ModuleContext) 
 	global := dexpreopt.GetGlobalConfig(ctx)
 
 	possibleUpdatableModules := gatherPossibleApexModuleNamesAndStems(ctx, s.properties.Contents, systemServerClasspathFragmentContentDepTag)
-	return global.UpdatableSystemServerJars.Filter(possibleUpdatableModules)
+	return global.ApexSystemServerJars.Filter(possibleUpdatableModules)
 }
 
 type systemServerClasspathFragmentContentDependencyTag struct {
