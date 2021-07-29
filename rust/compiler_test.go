@@ -208,3 +208,73 @@ func TestStdDeviceLinkage(t *testing.T) {
 		t.Errorf("libstd is not linked dynamically for dylibs")
 	}
 }
+
+// Ensure that manual link flags are disallowed.
+func TestManualLinkageRejection(t *testing.T) {
+	// rustc flags
+	testRustError(t, ".* cannot be manually specified", `
+		rust_binary {
+			name: "foo",
+			srcs: [
+				"foo.rs",
+			],
+			flags: ["-lbar"],
+		}
+	`)
+	testRustError(t, ".* cannot be manually specified", `
+		rust_binary {
+			name: "foo",
+			srcs: [
+				"foo.rs",
+			],
+			flags: ["--extern=foo"],
+		}
+	`)
+	testRustError(t, ".* cannot be manually specified", `
+		rust_binary {
+			name: "foo",
+			srcs: [
+				"foo.rs",
+			],
+			flags: ["-Clink-args=foo"],
+		}
+	`)
+	testRustError(t, ".* cannot be manually specified", `
+		rust_binary {
+			name: "foo",
+			srcs: [
+				"foo.rs",
+			],
+			flags: ["-C link-args=foo"],
+		}
+	`)
+	testRustError(t, ".* cannot be manually specified", `
+		rust_binary {
+			name: "foo",
+			srcs: [
+				"foo.rs",
+			],
+			flags: ["-L foo/"],
+		}
+	`)
+
+	// lld flags
+	testRustError(t, ".* cannot be manually specified", `
+		rust_binary {
+			name: "foo",
+			srcs: [
+				"foo.rs",
+			],
+			ld_flags: ["-Wl,-L bar/"],
+		}
+	`)
+	testRustError(t, ".* cannot be manually specified", `
+		rust_binary {
+			name: "foo",
+			srcs: [
+				"foo.rs",
+			],
+			ld_flags: ["-Wl,-lbar"],
+		}
+	`)
+}
