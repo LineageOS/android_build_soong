@@ -26,6 +26,7 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
+	"android/soong/bazel"
 	"android/soong/cc"
 	"android/soong/dexpreopt"
 	"android/soong/tradefed"
@@ -42,6 +43,8 @@ func RegisterAppBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("android_app_certificate", AndroidAppCertificateFactory)
 	ctx.RegisterModuleType("override_android_app", OverrideAndroidAppModuleFactory)
 	ctx.RegisterModuleType("override_android_test", OverrideAndroidTestModuleFactory)
+
+	android.RegisterBp2BuildMutator("android_app_certificate", AndroidAppCertificateBp2Build)
 }
 
 // AndroidManifest.xml merging
@@ -1371,3 +1374,61 @@ func (u *usesLibrary) verifyUsesLibrariesAPK(ctx android.ModuleContext, apk andr
 	outputFile := android.PathForModuleOut(ctx, "verify_uses_libraries", apk.Base())
 	return outputFile
 }
+
+// For Bazel / bp2build
+
+type bazelAndroidAppCertificateAttributes struct {
+	Certificate string
+}
+
+type bazelAndroidAppCertificate struct {
+	android.BazelTargetModuleBase
+	bazelAndroidAppCertificateAttributes
+}
+
+func BazelAndroidAppCertificateFactory() android.Module {
+	module := &bazelAndroidAppCertificate{}
+	module.AddProperties(&module.bazelAndroidAppCertificateAttributes)
+	android.InitBazelTargetModule(module)
+	return module
+}
+
+func AndroidAppCertificateBp2Build(ctx android.TopDownMutatorContext) {
+	module, ok := ctx.Module().(*AndroidAppCertificate)
+	if !ok {
+		// Not an Android app certificate
+		return
+	}
+	if !module.ConvertWithBp2build(ctx) {
+		return
+	}
+	if ctx.ModuleType() != "android_app_certificate" {
+		return
+	}
+
+	androidAppCertificateBp2BuildInternal(ctx, module)
+}
+
+func androidAppCertificateBp2BuildInternal(ctx android.TopDownMutatorContext, module *AndroidAppCertificate) {
+	var certificate string
+	if module.properties.Certificate != nil {
+		certificate = *module.properties.Certificate
+	}
+
+	attrs := &bazelAndroidAppCertificateAttributes{
+		Certificate: certificate,
+	}
+
+	props := bazel.BazelTargetModuleProperties{
+		Rule_class:        "android_app_certificate",
+		Bzl_load_location: "//build/bazel/rules:android_app_certificate.bzl",
+	}
+
+	ctx.CreateBazelTargetModule(BazelAndroidAppCertificateFactory, module.Name(), props, attrs)
+}
+
+func (m *bazelAndroidAppCertificate) Name() string {
+	return m.BaseModuleName()
+}
+
+func (m *bazelAndroidAppCertificate) GenerateAndroidBuildActions(ctx android.ModuleContext) {}
