@@ -44,7 +44,10 @@ bootstrap_go_package {
 bootstrap_go_package {
     name: "soong-ui-status-ninja_frontend",
     pkgPath: "android/soong/ui/status/ninja_frontend",
-    deps: ["golang-protobuf-proto"],
+    deps: [
+        "golang-protobuf-reflect-protoreflect",
+        "golang-protobuf-runtime-protoimpl",
+    ],
     srcs: [
         "ninja_frontend/frontend.pb.go",
     ],
@@ -53,7 +56,10 @@ bootstrap_go_package {
 bootstrap_go_package {
     name: "soong-ui-status-build_error_proto",
     pkgPath: "android/soong/ui/status/build_error_proto",
-    deps: ["golang-protobuf-proto"],
+    deps: [
+        "golang-protobuf-reflect-protoreflect",
+        "golang-protobuf-runtime-protoimpl",
+    ],
     srcs: [
         "build_error_proto/build_error.pb.go",
     ],
@@ -62,7 +68,10 @@ bootstrap_go_package {
 bootstrap_go_package {
     name: "soong-ui-status-build_progress_proto",
     pkgPath: "android/soong/ui/status/build_progress_proto",
-    deps: ["golang-protobuf-proto"],
+    deps: [
+        "golang-protobuf-reflect-protoreflect",
+        "golang-protobuf-runtime-protoimpl",
+    ],
     srcs: [
         "build_progress_proto/build_progress.pb.go",
     ],
