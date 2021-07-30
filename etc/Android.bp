@@ -13,9 +13,11 @@ bootstrap_go_package {
     ],
     srcs: [
         "prebuilt_etc.go",
+        "snapshot_etc.go",
     ],
     testSrcs: [
         "prebuilt_etc_test.go",
+        "snapshot_etc_test.go",
     ],
     pluginFor: ["soong_build"],
 }
