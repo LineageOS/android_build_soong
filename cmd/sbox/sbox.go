@@ -34,7 +34,7 @@ import (
 	"android/soong/makedeps"
 	"android/soong/response"
 
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/encoding/prototext"
 )
 
 var (
@@ -203,7 +203,7 @@ func readManifest(file string) (*sbox_proto.Manifest, error) {
 
 	manifest := sbox_proto.Manifest{}
 
-	err = proto.UnmarshalText(string(manifestData), &manifest)
+	err = prototext.Unmarshal(manifestData, &manifest)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing manifest %q: %w", file, err)
 	}

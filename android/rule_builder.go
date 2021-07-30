@@ -22,9 +22,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
+	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/proto"
 
 	"android/soong/cmd/sbox/sbox_proto"
 	"android/soong/remoteexec"
@@ -621,7 +622,11 @@ func (r *RuleBuilder) Build(name string, desc string) {
 		}
 
 		// Create a rule to write the manifest as a the textproto.
-		WriteFileRule(r.ctx, r.sboxManifestPath, proto.MarshalTextString(&manifest))
+		pbText, err := prototext.Marshal(&manifest)
+		if err != nil {
+			ReportPathErrorf(r.ctx, "sbox manifest failed to marshal: %q", err)
+		}
+		WriteFileRule(r.ctx, r.sboxManifestPath, string(pbText))
 
 		// Generate a new string to use as the command line of the sbox rule.  This uses
 		// a RuleBuilderCommand as a convenience method of building the command line, then
@@ -1266,7 +1271,7 @@ func RuleBuilderSboxProtoForTests(t *testing.T, params TestingBuildParams) *sbox
 	t.Helper()
 	content := ContentFromFileRuleForTests(t, params)
 	manifest := sbox_proto.Manifest{}
-	err := proto.UnmarshalText(content, &manifest)
+	err := prototext.Unmarshal([]byte(content), &manifest)
 	if err != nil {
 		t.Fatalf("failed to unmarshal manifest: %s", err.Error())
 	}

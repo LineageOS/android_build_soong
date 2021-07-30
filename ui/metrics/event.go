@@ -30,10 +30,10 @@ import (
 	"syscall"
 	"time"
 
-	"android/soong/ui/metrics/metrics_proto"
+	soong_metrics_proto "android/soong/ui/metrics/metrics_proto"
 	"android/soong/ui/tracer"
 
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 )
 
 // _now wraps the time.Now() function. _now is declared for unit testing purpose.
