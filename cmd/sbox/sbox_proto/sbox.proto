@@ -15,7 +15,7 @@
 syntax = "proto2";
 
 package sbox;
-option go_package = "sbox_proto";
+option go_package = "android/soong/cmd/sbox/sbox_proto";
 
 // A set of commands to run in a sandbox.
 message Manifest {

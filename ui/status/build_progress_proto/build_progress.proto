@@ -15,7 +15,7 @@
 syntax = "proto2";
 
 package soong_build_progress;
-option go_package = "soong_build_progress_proto";
+option go_package = "android/soong/ui/status/build_progress_proto";
 
 message BuildProgress {
   // Total number of actions in a build. The total actions will increase

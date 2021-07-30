@@ -24,7 +24,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 
 	"android/soong/ui/logger"
 	"android/soong/ui/status/ninja_frontend"
