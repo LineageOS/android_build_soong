@@ -53,14 +53,12 @@ var (
 	}
 
 	darwinSupportedSdkVersions = []string{
-		"10.10",
-		"10.11",
-		"10.12",
 		"10.13",
 		"10.14",
 		"10.15",
 		"11.0",
 		"11.1",
+		"11.3",
 	}
 
 	darwinAvailableLibraries = append(
@@ -89,7 +87,7 @@ func init() {
 	pctx.VariableFunc("macSdkRoot", func(ctx android.PackageVarContext) string {
 		return getMacTools(ctx).sdkRoot
 	})
-	pctx.StaticVariable("macMinVersion", "10.10")
+	pctx.StaticVariable("macMinVersion", "10.13")
 	pctx.VariableFunc("MacArPath", func(ctx android.PackageVarContext) string {
 		return getMacTools(ctx).arPath
 	})
