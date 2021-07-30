@@ -459,6 +459,19 @@ func TestVendorSnapshotUse(t *testing.T) {
 		srcs: ["client.cpp"],
 	}
 
+	cc_library_shared {
+		name: "libvndkext",
+		vendor: true,
+		nocrt: true,
+		no_libcrt: true,
+		stl: "none",
+		system_shared_libs: [],
+		vndk: {
+			extends: "libvndk",
+			enabled: true,
+		}
+	}
+
 	cc_binary {
 		name: "bin_without_snapshot",
 		vendor: true,
