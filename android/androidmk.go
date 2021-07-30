@@ -486,9 +486,9 @@ func (a *AndroidMkEntries) fillInEntries(ctx fillInEntriesContext, mod blueprint
 	if a.Include == "" {
 		a.Include = "$(BUILD_PREBUILT)"
 	}
-	a.Required = append(a.Required, amod.commonProperties.Required...)
-	a.Host_required = append(a.Host_required, amod.commonProperties.Host_required...)
-	a.Target_required = append(a.Target_required, amod.commonProperties.Target_required...)
+	a.Required = append(a.Required, mod.(Module).RequiredModuleNames()...)
+	a.Host_required = append(a.Host_required, mod.(Module).HostRequiredModuleNames()...)
+	a.Target_required = append(a.Target_required, mod.(Module).TargetRequiredModuleNames()...)
 
 	for _, distString := range a.GetDistForGoals(mod) {
 		fmt.Fprintf(&a.header, distString)
