@@ -9,7 +9,7 @@ package android.bundle;
 import "config.proto";
 import "targeting.proto";
 
-option go_package = "android_bundle_proto";
+option go_package = "android/soong/cmd/extract_apks/bundle_proto";
 option java_package = "com.android.bundle";
 
 // Describes the output of the "build-apks" command.

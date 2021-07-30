@@ -6,7 +6,7 @@ syntax = "proto3";
 
 package android.bundle;
 
-option go_package = "android_bundle_proto";
+option go_package = "android/soong/cmd/extract_apks/bundle_proto";
 option java_package = "com.android.bundle";
 
 // Targeting on the level of variants.

@@ -29,7 +29,7 @@ import (
 	smpb "android/soong/ui/metrics/metrics_proto"
 	"android/soong/ui/status"
 
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 )
 
 func testContext() Context {
