@@ -43,9 +43,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 
-	"android/soong/ui/metrics/metrics_proto"
+	soong_metrics_proto "android/soong/ui/metrics/metrics_proto"
 )
 
 const (

@@ -354,6 +354,24 @@ type BaseProperties struct {
 	// can depend on libraries that are not exported by the APEXes and use private symbols
 	// from the exported libraries.
 	Test_for []string `android:"arch_variant"`
+
+	Target struct {
+		Platform struct {
+			// List of modules required by the core variant.
+			Required []string `android:"arch_variant"`
+
+			// List of modules not required by the core variant.
+			Exclude_required []string `android:"arch_variant"`
+		} `android:"arch_variant"`
+
+		Recovery struct {
+			// List of modules required by the recovery variant.
+			Required []string `android:"arch_variant"`
+
+			// List of modules not required by the recovery variant.
+			Exclude_required []string `android:"arch_variant"`
+		} `android:"arch_variant"`
+	} `android:"arch_variant"`
 }
 
 type VendorProperties struct {
@@ -863,6 +881,18 @@ func (c *Module) SetHideFromMake() {
 
 func (c *Module) HiddenFromMake() bool {
 	return c.Properties.HideFromMake
+}
+
+func (c *Module) RequiredModuleNames() []string {
+	required := android.CopyOf(c.ModuleBase.RequiredModuleNames())
+	if c.ImageVariation().Variation == android.CoreVariation {
+		required = append(required, c.Properties.Target.Platform.Required...)
+		required = removeListFromList(required, c.Properties.Target.Platform.Exclude_required)
+	} else if c.InRecovery() {
+		required = append(required, c.Properties.Target.Recovery.Required...)
+		required = removeListFromList(required, c.Properties.Target.Recovery.Exclude_required)
+	}
+	return android.FirstUniqueStrings(required)
 }
 
 func (c *Module) Toc() android.OptionalPath {
@@ -2282,7 +2312,7 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 			actx.AddVariationDependencies([]blueprint.Variation{
 				c.ImageVariation(),
 				{Mutator: "link", Variation: "shared"},
-			}, vndkExtDepTag, vndkdep.getVndkExtendsModuleName())
+			}, vndkExtDepTag, RewriteSnapshotLib(vndkdep.getVndkExtendsModuleName(), GetSnapshot(c, &snapshotInfo, actx).SharedLibs))
 		}
 	}
 }

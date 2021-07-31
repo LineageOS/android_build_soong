@@ -20,7 +20,7 @@ import (
 
 	"android/soong/ui/logger"
 	"android/soong/ui/metrics"
-	"android/soong/ui/metrics/metrics_proto"
+	soong_metrics_proto "android/soong/ui/metrics/metrics_proto"
 	"android/soong/ui/status"
 	"android/soong/ui/tracer"
 )
