@@ -15,7 +15,7 @@
 syntax = "proto2";
 
 package soong_build_error;
-option go_package = "soong_build_error_proto";
+option go_package = "android/soong/ui/status/build_error_proto";
 
 message BuildError {
   // List of error messages of the overall build. The error messages
