@@ -28,6 +28,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime/debug"
+	"runtime/pprof"
 	"sort"
 	"strings"
 	"time"
@@ -52,6 +53,7 @@ var (
 	outputTop             = flag.String("outdir", "", "write output files into this directory hierarchy")
 	launcher              = flag.String("launcher", "", "generated launcher path. If set, the non-flag argument is _product_name_")
 	printProductConfigMap = flag.Bool("print_product_config_map", false, "print product config map and exit")
+	cpuProfile            = flag.String("cpu_profile", "", "write cpu profile to file")
 	traceCalls            = flag.Bool("trace_calls", false, "trace function calls")
 )
 
@@ -122,6 +124,14 @@ func main() {
 		tracedVariables = strings.Split(*traceVar, ",")
 	}
 
+	if *cpuProfile != "" {
+		f, err := os.Create(*cpuProfile)
+		if err != nil {
+			quit(err)
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
 	// Find out global variables
 	getConfigVariables()
 	getSoongVariables()
