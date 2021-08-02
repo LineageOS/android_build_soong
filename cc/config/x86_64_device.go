@@ -77,6 +77,14 @@ var (
 		"popcnt": []string{"-mpopcnt"},
 		"aes_ni": []string{"-maes"},
 	}
+
+	x86_64DefaultArchVariantFeatures = []string{
+		"ssse3",
+		"sse4",
+		"sse4_1",
+		"sse4_2",
+		"popcnt",
+	}
 )
 
 const (
@@ -84,37 +92,38 @@ const (
 )
 
 func init() {
-	android.RegisterDefaultArchVariantFeatures(android.Android, android.X86_64,
-		"ssse3",
-		"sse4",
-		"sse4_1",
-		"sse4_2",
-		"popcnt")
+	android.RegisterDefaultArchVariantFeatures(android.Android, android.X86_64, x86_64DefaultArchVariantFeatures...)
+	exportedStringListVars.Set("X86_64DefaultArchVariantFeatures", x86_64DefaultArchVariantFeatures)
 
 	pctx.StaticVariable("x86_64GccVersion", x86_64GccVersion)
 
 	pctx.SourcePathVariable("X86_64GccRoot",
 		"prebuilts/gcc/${HostPrebuiltTag}/x86/x86_64-linux-android-${x86_64GccVersion}")
 
-	pctx.StaticVariable("X86_64ToolchainCflags", "-m64")
-	pctx.StaticVariable("X86_64ToolchainLdflags", "-m64")
+	exportStringListStaticVariable("X86_64ToolchainCflags", []string{"-m64"})
+	exportStringListStaticVariable("X86_64ToolchainLdflags", []string{"-m64"})
 
-	pctx.StaticVariable("X86_64Ldflags", strings.Join(x86_64Ldflags, " "))
-	pctx.StaticVariable("X86_64Lldflags", strings.Join(x86_64Ldflags, " "))
+	exportStringListStaticVariable("X86_64Ldflags", x86_64Ldflags)
+	exportStringListStaticVariable("X86_64Lldflags", x86_64Ldflags)
 
 	// Clang cflags
-	pctx.StaticVariable("X86_64Cflags", strings.Join(x86_64Cflags, " "))
-	pctx.StaticVariable("X86_64Cppflags", strings.Join(x86_64Cppflags, " "))
+	exportStringListStaticVariable("X86_64Cflags", x86_64Cflags)
+	exportStringListStaticVariable("X86_64Cppflags", x86_64Cppflags)
 
 	// Yasm flags
-	pctx.StaticVariable("X86_64YasmFlags", "-f elf64 -m amd64")
+	exportStringListStaticVariable("X86_64YasmFlags", []string{
+		"-f elf64",
+		"-m amd64",
+	})
 
 	// Extended cflags
 
+	exportedStringListDictVars.Set("X86_64ArchVariantCflags", x86_64ArchVariantCflags)
+	exportedStringListDictVars.Set("X86_64ArchFeatureCflags", x86_64ArchFeatureCflags)
+
 	// Architecture variant cflags
 	for variant, cflags := range x86_64ArchVariantCflags {
-		pctx.StaticVariable("X86_64"+variant+"VariantCflags",
-			strings.Join(cflags, " "))
+		pctx.StaticVariable("X86_64"+variant+"VariantCflags", strings.Join(cflags, " "))
 	}
 }
 
