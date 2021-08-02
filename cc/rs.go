@@ -36,7 +36,8 @@ func init() {
 
 var rsCppCmdLine = strings.Replace(`
 ${rsCmd} -o ${outDir} -d ${outDir} -a ${out} -MD -reflect-c++ ${rsFlags} $in &&
-(echo '${out}: \' && cat ${depFiles} | awk 'start { sub(/( \\)?$$/, " \\"); print } /:/ { start=1 }') > ${out}.d &&
+echo '${out}: \' > ${out}.d &&
+for f in ${depFiles}; do cat $${f} | awk 'start { sub(/( \\)?$$/, " \\"); print } /:/ { start=1 }' >> ${out}.d; done &&
 touch $out
 `, "\n", "", -1)
 
