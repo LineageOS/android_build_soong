@@ -938,14 +938,14 @@ func (ctx *parseContext) parseCheckFunctionCallResult(directive *mkparser.Direct
 func (ctx *parseContext) parseCompareFilterFuncResult(cond *mkparser.Directive,
 	filterFuncCall *callExpr, xValue starlarkExpr, negate bool) starlarkExpr {
 	// We handle:
-	// *  ifeq/ifneq (,$(filter v1 v2 ..., $(VAR)) becomes if VAR not in/in ["v1", "v2", ...]
-	// *  ifeq/ifneq (,$(filter $(VAR), v1 v2 ...) becomes if VAR not in/in ["v1", "v2", ...]
+	// *  ifeq/ifneq (,$(filter v1 v2 ..., EXPR) becomes if EXPR not in/in ["v1", "v2", ...]
+	// *  ifeq/ifneq (,$(filter EXPR, v1 v2 ...) becomes if EXPR not in/in ["v1", "v2", ...]
 	// *  ifeq/ifneq ($(VAR),$(filter $(VAR), v1 v2 ...) becomes if VAR in/not in ["v1", "v2"]
 	// TODO(Asmundak): check the last case works for filter-out, too.
 	xPattern := filterFuncCall.args[0]
 	xText := filterFuncCall.args[1]
 	var xInList *stringLiteralExpr
-	var xVar starlarkExpr
+	var expr starlarkExpr
 	var ok bool
 	switch x := xValue.(type) {
 	case *stringLiteralExpr:
@@ -955,34 +955,42 @@ func (ctx *parseContext) parseCompareFilterFuncResult(cond *mkparser.Directive,
 		// Either pattern or text should be const, and the
 		// non-const one should be varRefExpr
 		if xInList, ok = xPattern.(*stringLiteralExpr); ok {
-			xVar = xText
+			expr = xText
 		} else if xInList, ok = xText.(*stringLiteralExpr); ok {
-			xVar = xPattern
+			expr = xPattern
+		} else {
+			return &callExpr{
+				object:     nil,
+				name:       filterFuncCall.name,
+				args:       filterFuncCall.args,
+				returnType: starlarkTypeBool,
+			}
 		}
 	case *variableRefExpr:
 		if v, ok := xPattern.(*variableRefExpr); ok {
 			if xInList, ok = xText.(*stringLiteralExpr); ok && v.ref.name() == x.ref.name() {
 				// ifeq/ifneq ($(VAR),$(filter $(VAR), v1 v2 ...), flip negate,
 				// it's the opposite to what is done when comparing to empty.
-				xVar = xPattern
+				expr = xPattern
 				negate = !negate
 			}
 		}
 	}
-	if xVar != nil && xInList != nil {
-		if _, ok := xVar.(*variableRefExpr); ok {
-			slExpr := newStringListExpr(strings.Fields(xInList.literal))
-			// Generate simpler code for the common cases:
-			if xVar.typ() == starlarkTypeList {
-				if len(slExpr.items) == 1 {
-					// Checking that a string belongs to list
-					return &inExpr{isNot: negate, list: xVar, expr: slExpr.items[0]}
-				} else {
-					// TODO(asmundak):
-					panic("TBD")
-				}
+	if expr != nil && xInList != nil {
+		slExpr := newStringListExpr(strings.Fields(xInList.literal))
+		// Generate simpler code for the common cases:
+		if expr.typ() == starlarkTypeList {
+			if len(slExpr.items) == 1 {
+				// Checking that a string belongs to list
+				return &inExpr{isNot: negate, list: expr, expr: slExpr.items[0]}
+			} else {
+				// TODO(asmundak):
+				panic("TBD")
 			}
-			return &inExpr{isNot: negate, list: newStringListExpr(strings.Fields(xInList.literal)), expr: xVar}
+		} else if len(slExpr.items) == 1 {
+			return &eqExpr{left: expr, right: slExpr.items[0], isEq: !negate}
+		} else {
+			return &inExpr{isNot: negate, list: newStringListExpr(strings.Fields(xInList.literal)), expr: expr}
 		}
 	}
 	return ctx.newBadExpr(cond, "filter arguments are too complex: %s", cond.Dump())
@@ -990,7 +998,7 @@ func (ctx *parseContext) parseCompareFilterFuncResult(cond *mkparser.Directive,
 
 func (ctx *parseContext) parseCompareWildcardFuncResult(directive *mkparser.Directive,
 	xCall *callExpr, xValue starlarkExpr, negate bool) starlarkExpr {
-	if x, ok := xValue.(*stringLiteralExpr); !ok || x.literal != "" {
+	if !isEmptyString(xValue) {
 		return ctx.newBadExpr(directive, "wildcard result can be compared only to empty: %s", xValue)
 	}
 	callFunc := wildcardExistsPhony
@@ -1006,19 +1014,19 @@ func (ctx *parseContext) parseCompareWildcardFuncResult(directive *mkparser.Dire
 
 func (ctx *parseContext) parseCheckFindstringFuncResult(directive *mkparser.Directive,
 	xCall *callExpr, xValue starlarkExpr, negate bool) starlarkExpr {
-	if x, ok := xValue.(*stringLiteralExpr); !ok || x.literal != "" {
-		return ctx.newBadExpr(directive, "findstring result can be compared only to empty: %s", xValue)
+	if isEmptyString(xValue) {
+		return &eqExpr{
+			left: &callExpr{
+				object:     xCall.args[1],
+				name:       "find",
+				args:       []starlarkExpr{xCall.args[0]},
+				returnType: starlarkTypeInt,
+			},
+			right: &intLiteralExpr{-1},
+			isEq:  !negate,
+		}
 	}
-	return &eqExpr{
-		left: &callExpr{
-			object:     xCall.args[1],
-			name:       "find",
-			args:       []starlarkExpr{xCall.args[0]},
-			returnType: starlarkTypeInt,
-		},
-		right: &intLiteralExpr{-1},
-		isEq:  !negate,
-	}
+	return ctx.newBadExpr(directive, "findstring result can be compared only to empty: %s", xValue)
 }
 
 func (ctx *parseContext) parseCompareStripFuncResult(directive *mkparser.Directive,

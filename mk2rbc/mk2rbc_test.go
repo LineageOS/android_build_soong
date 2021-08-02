@@ -342,6 +342,8 @@ ifneq (,$(filter plaf,$(PLATFORM_LIST)))
 endif
 ifeq ($(TARGET_BUILD_VARIANT), $(filter $(TARGET_BUILD_VARIANT), userdebug eng))
 endif
+ifneq (,$(filter true, $(v1)$(v2)))
+endif
 `,
 		expected: `load("//build/make/core:product_config.rbc", "rblf")
 
@@ -349,11 +351,13 @@ def init(g, handle):
   cfg = rblf.cfg(handle)
   if g["TARGET_BUILD_VARIANT"] not in ["userdebug", "eng"]:
     pass
-  if g["TARGET_BUILD_VARIANT"] in ["userdebug"]:
+  if g["TARGET_BUILD_VARIANT"] == "userdebug":
     pass
   if "plaf" in g.get("PLATFORM_LIST", []):
     pass
   if g["TARGET_BUILD_VARIANT"] in ["userdebug", "eng"]:
+    pass
+  if "%s%s" % (_v1, _v2) == "true":
     pass
 `,
 	},
@@ -385,8 +389,23 @@ endif
 def init(g, handle):
   cfg = rblf.cfg(handle)
   if g["TARGET_PRODUCT"] not in ["yukawa_gms", "yukawa_sei510_gms"]:
-    if g["TARGET_PRODUCT"] in ["yukawa_gms"]:
+    if g["TARGET_PRODUCT"] == "yukawa_gms":
       pass
+`,
+	},
+	{
+		desc:   "filter $(V1), $(V2)",
+		mkname: "product.mk",
+		in: `
+ifneq (, $(filter $(PRODUCT_LIST), $(TARGET_PRODUCT)))
+endif
+`,
+		expected: `load("//build/make/core:product_config.rbc", "rblf")
+
+def init(g, handle):
+  cfg = rblf.cfg(handle)
+  if rblf.filter(g.get("PRODUCT_LIST", ""), g["TARGET_PRODUCT"]):
+    pass
 `,
 	},
 	{
@@ -779,7 +798,7 @@ endif
 
 def init(g, handle):
   cfg = rblf.cfg(handle)
-  if rblf.mkstrip(g.get("TARGET_VENDOR", "")) != "":
+  if rblf.mkstrip(g.get("TARGET_VENDOR", "")):
     pass
 `,
 	},
