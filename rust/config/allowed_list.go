@@ -6,7 +6,6 @@ var (
 	// for an example.
 	// TODO(b/160223496): enable rustfmt globally.
 	RustAllowedPaths = []string{
-		"bionic/libc",
 		"device/google/cuttlefish",
 		"external/adhd",
 		"external/crosvm",
@@ -24,6 +23,7 @@ var (
 		"system/extras/profcollectd",
 		"system/extras/simpleperf",
 		"system/hardware/interfaces/keystore2",
+		"system/librustutils",
 		"system/logging/rust",
 		"system/security",
 		"system/tools/aidl",
