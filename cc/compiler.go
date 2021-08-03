@@ -692,8 +692,9 @@ func isThirdParty(path string) bool {
 				return false
 			}
 		}
+		return true
 	}
-	return true
+	return false
 }
 
 // Properties for rust_bindgen related to generating rust bindings.
