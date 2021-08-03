@@ -805,14 +805,20 @@ func (ctx *parseContext) handleSubConfig(
 		matchingPaths = ctx.findMatchingPaths(pathPattern)
 	} else {
 		// Heuristics -- if pattern starts from top, restrict it to the directories where
-		// we know inherit-product uses dynamically calculated path.
-		for _, t := range []string{"vendor/qcom", "vendor/google_devices"} {
-			pathPattern[0] = t
-			matchingPaths = append(matchingPaths, ctx.findMatchingPaths(pathPattern)...)
+		// we know inherit-product uses dynamically calculated path. Restrict it even further
+		// for certain path which would yield too many useless matches
+		if len(varPath.chunks) == 2 && varPath.chunks[1] == "/BoardConfigVendor.mk" {
+			pathPattern[0] = "vendor/google_devices"
+			matchingPaths = ctx.findMatchingPaths(pathPattern)
+		} else {
+			for _, t := range []string{"vendor/qcom", "vendor/google_devices"} {
+				pathPattern[0] = t
+				matchingPaths = append(matchingPaths, ctx.findMatchingPaths(pathPattern)...)
+			}
 		}
 	}
 	// Safeguard against $(call inherit-product,$(PRODUCT_PATH))
-	const maxMatchingFiles = 100
+	const maxMatchingFiles = 150
 	if len(matchingPaths) > maxMatchingFiles {
 		ctx.errorf(v, "there are >%d files matching the pattern, please rewrite it", maxMatchingFiles)
 		return
