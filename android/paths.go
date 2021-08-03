@@ -20,6 +20,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -2093,4 +2094,26 @@ func PathsIfNonNil(paths ...Path) Paths {
 		return nil
 	}
 	return ret
+}
+
+var thirdPartyDirPrefixExceptions = []*regexp.Regexp{
+	regexp.MustCompile("^vendor/[^/]*google[^/]*/"),
+	regexp.MustCompile("^hardware/google/"),
+	regexp.MustCompile("^hardware/interfaces/"),
+	regexp.MustCompile("^hardware/libhardware[^/]*/"),
+	regexp.MustCompile("^hardware/ril/"),
+}
+
+func IsThirdPartyPath(path string) bool {
+	thirdPartyDirPrefixes := []string{"external/", "vendor/", "hardware/"}
+
+	if HasAnyPrefix(path, thirdPartyDirPrefixes) {
+		for _, prefix := range thirdPartyDirPrefixExceptions {
+			if prefix.MatchString(path) {
+				return false
+			}
+		}
+		return true
+	}
+	return false
 }
