@@ -31,6 +31,16 @@ const (
 	starlarkTypeVoid    starlarkType = iota
 )
 
+type hiddenArgType int
+
+const (
+	// Some functions have an implicitly emitted first argument, which may be
+	// a global ('g') or configuration ('cfg') variable.
+	hiddenArgNone   hiddenArgType = iota
+	hiddenArgGlobal hiddenArgType = iota
+	hiddenArgConfig hiddenArgType = iota
+)
+
 type varClass int
 
 const (
