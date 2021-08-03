@@ -151,6 +151,7 @@ var (
 
 		"prebuilts/sdk":/* recursive = */ false,
 		"prebuilts/sdk/tools":/* recursive = */ false,
+		"prebuilts/r8":/* recursive = */ false,
 		"packages/apps/Music":/* recursive = */ false,
 	}
 
