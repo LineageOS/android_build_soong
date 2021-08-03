@@ -60,8 +60,10 @@ const (
 const (
 	// Phony makefile functions, they are eventually rewritten
 	// according to knownFunctions map
-	fileExistsPhony     = "$file_exists"
-	wildcardExistsPhony = "$wildcard_exists"
+	addSoongNamespace      = "add_soong_config_namespace"
+	addSoongConfigVarValue = "add_soong_config_var_value"
+	fileExistsPhony        = "$file_exists"
+	wildcardExistsPhony    = "$wildcard_exists"
 )
 
 const (
@@ -75,54 +77,58 @@ var knownFunctions = map[string]struct {
 	// something else.
 	runtimeName string
 	returnType  starlarkType
+	hiddenArg   hiddenArgType
 }{
-	"abspath":                             {baseName + ".abspath", starlarkTypeString},
-	fileExistsPhony:                       {baseName + ".file_exists", starlarkTypeBool},
-	wildcardExistsPhony:                   {baseName + ".file_wildcard_exists", starlarkTypeBool},
-	"add-to-product-copy-files-if-exists": {baseName + ".copy_if_exists", starlarkTypeList},
-	"addprefix":                           {baseName + ".addprefix", starlarkTypeList},
-	"addsuffix":                           {baseName + ".addsuffix", starlarkTypeList},
-	"dir":                                 {baseName + ".dir", starlarkTypeList},
-	"enforce-product-packages-exist":      {baseName + ".enforce_product_packages_exist", starlarkTypeVoid},
-	"error":                               {baseName + ".mkerror", starlarkTypeVoid},
-	"findstring":                          {"!findstring", starlarkTypeInt},
-	"find-copy-subdir-files":              {baseName + ".find_and_copy", starlarkTypeList},
-	"find-word-in-list":                   {"!find-word-in-list", starlarkTypeUnknown}, // internal macro
-	"filter":                              {baseName + ".filter", starlarkTypeList},
-	"filter-out":                          {baseName + ".filter_out", starlarkTypeList},
-	"firstword":                           {"!firstword", starlarkTypeString},
-	"get-vendor-board-platforms":          {"!get-vendor-board-platforms", starlarkTypeList}, // internal macro, used by is-board-platform, etc.
-	"info":                                {baseName + ".mkinfo", starlarkTypeVoid},
-	"is-android-codename":                 {"!is-android-codename", starlarkTypeBool},         // unused by product config
-	"is-android-codename-in-list":         {"!is-android-codename-in-list", starlarkTypeBool}, // unused by product config
-	"is-board-platform":                   {"!is-board-platform", starlarkTypeBool},
-	"is-board-platform-in-list":           {"!is-board-platform-in-list", starlarkTypeBool},
-	"is-chipset-in-board-platform":        {"!is-chipset-in-board-platform", starlarkTypeUnknown},     // unused by product config
-	"is-chipset-prefix-in-board-platform": {"!is-chipset-prefix-in-board-platform", starlarkTypeBool}, // unused by product config
-	"is-not-board-platform":               {"!is-not-board-platform", starlarkTypeBool},               // defined but never used
-	"is-platform-sdk-version-at-least":    {"!is-platform-sdk-version-at-least", starlarkTypeBool},    // unused by product config
-	"is-product-in-list":                  {"!is-product-in-list", starlarkTypeBool},
-	"is-vendor-board-platform":            {"!is-vendor-board-platform", starlarkTypeBool},
-	callLoadAlways:                        {"!inherit-product", starlarkTypeVoid},
-	callLoadIf:                            {"!inherit-product-if-exists", starlarkTypeVoid},
-	"lastword":                            {"!lastword", starlarkTypeString},
-	"match-prefix":                        {"!match-prefix", starlarkTypeUnknown},       // internal macro
-	"match-word":                          {"!match-word", starlarkTypeUnknown},         // internal macro
-	"match-word-in-list":                  {"!match-word-in-list", starlarkTypeUnknown}, // internal macro
-	"notdir":                              {baseName + ".notdir", starlarkTypeString},
-	"my-dir":                              {"!my-dir", starlarkTypeString},
-	"patsubst":                            {baseName + ".mkpatsubst", starlarkTypeString},
-	"produce_copy_files":                  {baseName + ".produce_copy_files", starlarkTypeList},
-	"require-artifacts-in-path":           {baseName + ".require_artifacts_in_path", starlarkTypeVoid},
-	"require-artifacts-in-path-relaxed":   {baseName + ".require_artifacts_in_path_relaxed", starlarkTypeVoid},
+	"abspath":                             {baseName + ".abspath", starlarkTypeString, hiddenArgNone},
+	fileExistsPhony:                       {baseName + ".file_exists", starlarkTypeBool, hiddenArgNone},
+	wildcardExistsPhony:                   {baseName + ".file_wildcard_exists", starlarkTypeBool, hiddenArgNone},
+	addSoongNamespace:                     {baseName + ".add_soong_config_namespace", starlarkTypeVoid, hiddenArgGlobal},
+	addSoongConfigVarValue:                {baseName + ".add_soong_config_var_value", starlarkTypeVoid, hiddenArgGlobal},
+	"add-to-product-copy-files-if-exists": {baseName + ".copy_if_exists", starlarkTypeList, hiddenArgNone},
+	"addprefix":                           {baseName + ".addprefix", starlarkTypeList, hiddenArgNone},
+	"addsuffix":                           {baseName + ".addsuffix", starlarkTypeList, hiddenArgNone},
+	"copy-files":                          {baseName + ".copy_files", starlarkTypeList, hiddenArgNone},
+	"dir":                                 {baseName + ".dir", starlarkTypeList, hiddenArgNone},
+	"enforce-product-packages-exist":      {baseName + ".enforce_product_packages_exist", starlarkTypeVoid, hiddenArgNone},
+	"error":                               {baseName + ".mkerror", starlarkTypeVoid, hiddenArgNone},
+	"findstring":                          {"!findstring", starlarkTypeInt, hiddenArgNone},
+	"find-copy-subdir-files":              {baseName + ".find_and_copy", starlarkTypeList, hiddenArgNone},
+	"find-word-in-list":                   {"!find-word-in-list", starlarkTypeUnknown, hiddenArgNone}, // internal macro
+	"filter":                              {baseName + ".filter", starlarkTypeList, hiddenArgNone},
+	"filter-out":                          {baseName + ".filter_out", starlarkTypeList, hiddenArgNone},
+	"firstword":                           {"!firstword", starlarkTypeString, hiddenArgNone},
+	"get-vendor-board-platforms":          {"!get-vendor-board-platforms", starlarkTypeList, hiddenArgNone}, // internal macro, used by is-board-platform, etc.
+	"info":                                {baseName + ".mkinfo", starlarkTypeVoid, hiddenArgNone},
+	"is-android-codename":                 {"!is-android-codename", starlarkTypeBool, hiddenArgNone},         // unused by product config
+	"is-android-codename-in-list":         {"!is-android-codename-in-list", starlarkTypeBool, hiddenArgNone}, // unused by product config
+	"is-board-platform":                   {"!is-board-platform", starlarkTypeBool, hiddenArgNone},
+	"is-board-platform-in-list":           {"!is-board-platform-in-list", starlarkTypeBool, hiddenArgNone},
+	"is-chipset-in-board-platform":        {"!is-chipset-in-board-platform", starlarkTypeUnknown, hiddenArgNone},     // unused by product config
+	"is-chipset-prefix-in-board-platform": {"!is-chipset-prefix-in-board-platform", starlarkTypeBool, hiddenArgNone}, // unused by product config
+	"is-not-board-platform":               {"!is-not-board-platform", starlarkTypeBool, hiddenArgNone},               // defined but never used
+	"is-platform-sdk-version-at-least":    {"!is-platform-sdk-version-at-least", starlarkTypeBool, hiddenArgNone},    // unused by product config
+	"is-product-in-list":                  {"!is-product-in-list", starlarkTypeBool, hiddenArgNone},
+	"is-vendor-board-platform":            {"!is-vendor-board-platform", starlarkTypeBool, hiddenArgNone},
+	callLoadAlways:                        {"!inherit-product", starlarkTypeVoid, hiddenArgNone},
+	callLoadIf:                            {"!inherit-product-if-exists", starlarkTypeVoid, hiddenArgNone},
+	"lastword":                            {"!lastword", starlarkTypeString, hiddenArgNone},
+	"match-prefix":                        {"!match-prefix", starlarkTypeUnknown, hiddenArgNone},       // internal macro
+	"match-word":                          {"!match-word", starlarkTypeUnknown, hiddenArgNone},         // internal macro
+	"match-word-in-list":                  {"!match-word-in-list", starlarkTypeUnknown, hiddenArgNone}, // internal macro
+	"notdir":                              {baseName + ".notdir", starlarkTypeString, hiddenArgNone},
+	"my-dir":                              {"!my-dir", starlarkTypeString, hiddenArgNone},
+	"patsubst":                            {baseName + ".mkpatsubst", starlarkTypeString, hiddenArgNone},
+	"produce_copy_files":                  {baseName + ".produce_copy_files", starlarkTypeList, hiddenArgNone},
+	"require-artifacts-in-path":           {baseName + ".require_artifacts_in_path", starlarkTypeVoid, hiddenArgNone},
+	"require-artifacts-in-path-relaxed":   {baseName + ".require_artifacts_in_path_relaxed", starlarkTypeVoid, hiddenArgNone},
 	// TODO(asmundak): remove it once all calls are removed from configuration makefiles. see b/183161002
-	"shell":      {baseName + ".shell", starlarkTypeString},
-	"strip":      {baseName + ".mkstrip", starlarkTypeString},
-	"tb-modules": {"!tb-modules", starlarkTypeUnknown}, // defined in hardware/amlogic/tb_modules/tb_detect.mk, unused
-	"subst":      {baseName + ".mksubst", starlarkTypeString},
-	"warning":    {baseName + ".mkwarning", starlarkTypeVoid},
-	"word":       {baseName + "!word", starlarkTypeString},
-	"wildcard":   {baseName + ".expand_wildcard", starlarkTypeList},
+	"shell":      {baseName + ".shell", starlarkTypeString, hiddenArgNone},
+	"strip":      {baseName + ".mkstrip", starlarkTypeString, hiddenArgNone},
+	"tb-modules": {"!tb-modules", starlarkTypeUnknown, hiddenArgNone}, // defined in hardware/amlogic/tb_modules/tb_detect.mk, unused
+	"subst":      {baseName + ".mksubst", starlarkTypeString, hiddenArgNone},
+	"warning":    {baseName + ".mkwarning", starlarkTypeVoid, hiddenArgNone},
+	"word":       {baseName + "!word", starlarkTypeString, hiddenArgNone},
+	"wildcard":   {baseName + ".expand_wildcard", starlarkTypeList, hiddenArgNone},
 }
 
 var builtinFuncRex = regexp.MustCompile(
@@ -392,6 +398,7 @@ type parseContext struct {
 	receiverStack    []nodeReceiver
 	outputDir        string
 	dependentModules map[string]*moduleInfo
+	soongNamespaces  map[string]map[string]bool
 }
 
 func newParseContext(ss *StarlarkScript, nodes []mkparser.Node) *parseContext {
@@ -443,6 +450,7 @@ func newParseContext(ss *StarlarkScript, nodes []mkparser.Node) *parseContext {
 		builtinMakeVars:  map[string]starlarkExpr{},
 		variables:        make(map[string]variable),
 		dependentModules: make(map[string]*moduleInfo),
+		soongNamespaces:  make(map[string]map[string]bool),
 	}
 	ctx.pushVarAssignments()
 	for _, item := range predefined {
@@ -521,6 +529,12 @@ func (ctx *parseContext) handleAssignment(a *mkparser.Assignment) {
 		return
 	}
 	name := a.Name.Strings[0]
+	const soongNsPrefix = "SOONG_CONFIG_"
+	// Soong confuguration
+	if strings.HasPrefix(name, soongNsPrefix) {
+		ctx.handleSoongNsAssignment(strings.TrimPrefix(name, soongNsPrefix), a)
+		return
+	}
 	lhs := ctx.addVariable(name)
 	if lhs == nil {
 		ctx.errorf(a, "unknown variable %s", name)
@@ -582,6 +596,88 @@ func (ctx *parseContext) handleAssignment(a *mkparser.Assignment) {
 	}
 
 	ctx.receiver.newNode(asgn)
+}
+
+func (ctx *parseContext) handleSoongNsAssignment(name string, asgn *mkparser.Assignment) {
+	val := ctx.parseMakeString(asgn, asgn.Value)
+	if xBad, ok := val.(*badExpr); ok {
+		ctx.wrapBadExpr(xBad)
+		return
+	}
+	val, _ = val.eval(ctx.builtinMakeVars)
+
+	// Unfortunately, Soong namespaces can be set up by directly setting corresponding Make
+	// variables instead of via add_soong_config_namespace + add_soong_config_var_value.
+	// Try to divine the call from the assignment as follows:
+	if name == "NAMESPACES" {
+		// Upon seeng
+		//      SOONG_CONFIG_NAMESPACES += foo
+		//    remember that there is a namespace `foo` and act as we saw
+		//      $(call add_soong_config_namespace,foo)
+		s, ok := maybeString(val)
+		if !ok {
+			ctx.errorf(asgn, "cannot handle variables in SOONG_CONFIG_NAMESPACES assignment, please use add_soong_config_namespace instead")
+			return
+		}
+		for _, ns := range strings.Fields(s) {
+			ctx.addSoongNamespace(ns)
+			ctx.receiver.newNode(&exprNode{&callExpr{
+				name:       addSoongNamespace,
+				args:       []starlarkExpr{&stringLiteralExpr{ns}},
+				returnType: starlarkTypeVoid,
+			}})
+		}
+	} else {
+		// Upon seeing
+		//      SOONG_CONFIG_x_y = v
+		// find a namespace called `x` and act as if we encountered
+		//      $(call add_config_var_value(x,y,v)
+		// or check that `x_y` is a namespace, and then add the RHS of this assignment as variables in
+		// it.
+		// Emit an error in the ambiguous situation (namespaces `foo_bar` with a variable `baz`
+		// and `foo` with a variable `bar_baz`.
+		namespaceName := ""
+		if ctx.hasSoongNamespace(name) {
+			namespaceName = name
+		}
+		var varName string
+		for pos, ch := range name {
+			if !(ch == '_' && ctx.hasSoongNamespace(name[0:pos])) {
+				continue
+			}
+			if namespaceName != "" {
+				ctx.errorf(asgn, "ambiguous soong namespace (may be either `%s` or  `%s`)", namespaceName, name[0:pos])
+				return
+			}
+			namespaceName = name[0:pos]
+			varName = name[pos+1:]
+		}
+		if namespaceName == "" {
+			ctx.errorf(asgn, "cannot figure out Soong namespace, please use add_soong_config_var_value macro instead")
+			return
+		}
+		if varName == "" {
+			// Remember variables in this namespace
+			s, ok := maybeString(val)
+			if !ok {
+				ctx.errorf(asgn, "cannot handle variables in SOONG_CONFIG_ assignment, please use add_soong_config_var_value instead")
+				return
+			}
+			ctx.updateSoongNamespace(asgn.Type != "+=", namespaceName, strings.Fields(s))
+			return
+		}
+
+		// Finally, handle assignment to a namespace variable
+		if !ctx.hasNamespaceVar(namespaceName, varName) {
+			ctx.errorf(asgn, "no %s variable in %s namespace, please use add_soong_config_var_value instead", varName, namespaceName)
+			return
+		}
+		ctx.receiver.newNode(&exprNode{&callExpr{
+			name:       addSoongConfigVarValue,
+			args:       []starlarkExpr{&stringLiteralExpr{namespaceName}, &stringLiteralExpr{varName}, val},
+			returnType: starlarkTypeVoid,
+		}})
+	}
 }
 
 func (ctx *parseContext) buildConcatExpr(a *mkparser.Assignment) *concatExpr {
@@ -1409,6 +1505,38 @@ func (ctx *parseContext) loadedModulePath(path string) string {
 		return fmt.Sprintf("//%s:%s", loadedModuleDir, loadedModuleName)
 	}
 	return filepath.Join(ctx.outputDir, loadedModuleDir, loadedModuleName)
+}
+
+func (ctx *parseContext) addSoongNamespace(ns string) {
+	if _, ok := ctx.soongNamespaces[ns]; ok {
+		return
+	}
+	ctx.soongNamespaces[ns] = make(map[string]bool)
+}
+
+func (ctx *parseContext) hasSoongNamespace(name string) bool {
+	_, ok := ctx.soongNamespaces[name]
+	return ok
+}
+
+func (ctx *parseContext) updateSoongNamespace(replace bool, namespaceName string, varNames []string) {
+	ctx.addSoongNamespace(namespaceName)
+	vars := ctx.soongNamespaces[namespaceName]
+	if replace {
+		vars = make(map[string]bool)
+		ctx.soongNamespaces[namespaceName] = vars
+	}
+	for _, v := range varNames {
+		vars[v] = true
+	}
+}
+
+func (ctx *parseContext) hasNamespaceVar(namespaceName string, varName string) bool {
+	vars, ok := ctx.soongNamespaces[namespaceName]
+	if ok {
+		_, ok = vars[varName]
+	}
+	return ok
 }
 
 func (ss *StarlarkScript) String() string {
