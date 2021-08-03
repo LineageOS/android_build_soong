@@ -16,7 +16,6 @@ package mk2rbc
 
 import (
 	"fmt"
-	"os"
 	"strings"
 )
 
@@ -222,15 +221,18 @@ func (pv predefinedVariable) emitGet(gctx *generationContext, _ bool) {
 	pv.value.emit(gctx)
 }
 
-func (pv predefinedVariable) emitSet(_ *generationContext, asgn *assignmentNode) {
+func (pv predefinedVariable) emitSet(gctx *generationContext, asgn *assignmentNode) {
 	if expectedValue, ok1 := maybeString(pv.value); ok1 {
 		actualValue, ok2 := maybeString(asgn.value)
 		if ok2 {
 			if actualValue == expectedValue {
 				return
 			}
-			fmt.Fprintf(os.Stderr, "cannot set predefined variable %s to %q, its value should be %q",
+			gctx.writef("# MK2RBC TRANSLATION ERROR: cannot set predefined variable %s to %q, its value should be %q",
 				pv.name(), actualValue, expectedValue)
+			gctx.newLine()
+			gctx.write("pass")
+			gctx.starScript.hasErrors = true
 			return
 		}
 	}
