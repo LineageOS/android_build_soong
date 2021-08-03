@@ -58,3 +58,8 @@ func (s ScopeBase) Call(_ string, _ []string) []string {
 func (s ScopeBase) SetFunc(_ string, _ func([]string) []string) {
 	panic("implement me")
 }
+
+// Used to find all makefiles in the source tree
+type MakefileFinder interface {
+	Find(root string) []string
+}
