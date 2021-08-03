@@ -21,10 +21,12 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime/debug"
@@ -78,6 +80,7 @@ func init() {
 var backupSuffix string
 var tracedVariables []string
 var errorLogger = errorsByType{data: make(map[string]datum)}
+var makefileFinder = &LinuxMakefileFinder{}
 
 func main() {
 	flag.Usage = func() {
@@ -302,6 +305,8 @@ func convertOne(mkFile string) (ok bool) {
 		TracedVariables:    tracedVariables,
 		TraceCalls:         *traceCalls,
 		WarnPartialSuccess: *warn,
+		SourceFS:           os.DirFS(*rootDir),
+		MakefileFinder:     makefileFinder,
 	}
 	if *errstat {
 		mk2starRequest.ErrorLogger = errorLogger
@@ -503,4 +508,40 @@ func stringsWithFreq(items []string, topN int) (string, int) {
 		sep = ", "
 	}
 	return res, len(sorted)
+}
+
+type LinuxMakefileFinder struct {
+	cachedRoot      string
+	cachedMakefiles []string
+}
+
+func (l *LinuxMakefileFinder) Find(root string) []string {
+	if l.cachedMakefiles != nil && l.cachedRoot == root {
+		return l.cachedMakefiles
+	}
+	l.cachedRoot = root
+	l.cachedMakefiles = make([]string, 0)
+
+	// Return all *.mk files but not in hidden directories.
+
+	// NOTE(asmundak): as it turns out, even the WalkDir (which is an _optimized_ directory tree walker)
+	// is about twice slower than running `find` command (14s vs 6s on the internal Android source tree).
+	common_args := []string{"!", "-type", "d", "-name", "*.mk", "!", "-path", "*/.*/*"}
+	if root != "" {
+		common_args = append([]string{root}, common_args...)
+	}
+	cmd := exec.Command("/usr/bin/find", common_args...)
+	stdout, err := cmd.StdoutPipe()
+	if err == nil {
+		err = cmd.Start()
+	}
+	if err != nil {
+		panic(fmt.Errorf("cannot get the output from %s: %s", cmd, err))
+	}
+	scanner := bufio.NewScanner(stdout)
+	for scanner.Scan() {
+		l.cachedMakefiles = append(l.cachedMakefiles, strings.TrimPrefix(scanner.Text(), "./"))
+	}
+	stdout.Close()
+	return l.cachedMakefiles
 }
