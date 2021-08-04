@@ -47,6 +47,9 @@ var fuzzerFlags = []string{
 	"-C llvm-args=-sanitizer-coverage-trace-geps",
 	"-C llvm-args=-sanitizer-coverage-prune-blocks=0",
 
+	// See https://github.com/rust-fuzz/cargo-fuzz/pull/193
+	"-C link-dead-code",
+
 	// Sancov breaks with lto
 	// TODO: Remove when https://bugs.llvm.org/show_bug.cgi?id=41734 is resolved and sancov works with LTO
 	"-C lto=no",

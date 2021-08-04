@@ -31,6 +31,16 @@ const (
 	starlarkTypeVoid    starlarkType = iota
 )
 
+type hiddenArgType int
+
+const (
+	// Some functions have an implicitly emitted first argument, which may be
+	// a global ('g') or configuration ('cfg') variable.
+	hiddenArgNone   hiddenArgType = iota
+	hiddenArgGlobal hiddenArgType = iota
+	hiddenArgConfig hiddenArgType = iota
+)
+
 type varClass int
 
 const (
@@ -57,4 +67,9 @@ func (s ScopeBase) Call(_ string, _ []string) []string {
 
 func (s ScopeBase) SetFunc(_ string, _ func([]string) []string) {
 	panic("implement me")
+}
+
+// Used to find all makefiles in the source tree
+type MakefileFinder interface {
+	Find(root string) []string
 }
