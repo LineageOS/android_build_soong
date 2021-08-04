@@ -42,24 +42,85 @@ func (c *commentNode) emit(gctx *generationContext) {
 	}
 }
 
-type inheritedModule struct {
+type moduleInfo struct {
 	path            string // Converted Starlark file path
 	originalPath    string // Makefile file path
-	moduleName      string
 	moduleLocalName string
-	loadAlways      bool
+	optional        bool
 }
 
-func (im inheritedModule) name() string {
-	return MakePath2ModuleName(im.originalPath)
-}
-
-func (im inheritedModule) entryName() string {
+func (im moduleInfo) entryName() string {
 	return im.moduleLocalName + "_init"
 }
 
+type inheritedModule interface {
+	name() string
+	entryName() string
+	emitSelect(gctx *generationContext)
+	isLoadAlways() bool
+}
+
+type inheritedStaticModule struct {
+	*moduleInfo
+	loadAlways bool
+}
+
+func (im inheritedStaticModule) name() string {
+	return fmt.Sprintf("%q", MakePath2ModuleName(im.originalPath))
+}
+
+func (im inheritedStaticModule) emitSelect(_ *generationContext) {
+}
+
+func (im inheritedStaticModule) isLoadAlways() bool {
+	return im.loadAlways
+}
+
+type inheritedDynamicModule struct {
+	path             interpolateExpr
+	candidateModules []*moduleInfo
+	loadAlways       bool
+}
+
+func (i inheritedDynamicModule) name() string {
+	return "_varmod"
+}
+
+func (i inheritedDynamicModule) entryName() string {
+	return i.name() + "_init"
+}
+
+func (i inheritedDynamicModule) emitSelect(gctx *generationContext) {
+	gctx.newLine()
+	gctx.writef("_entry = {")
+	gctx.indentLevel++
+	for _, mi := range i.candidateModules {
+		gctx.newLine()
+		gctx.writef(`"%s": (%q, %s),`, mi.originalPath, mi.moduleLocalName, mi.entryName())
+	}
+	gctx.indentLevel--
+	gctx.newLine()
+	gctx.write("}.get(")
+	i.path.emit(gctx)
+	gctx.write(")")
+	gctx.newLine()
+	gctx.writef("(%s, %s) = _entry if _entry else (None, None)", i.name(), i.entryName())
+	if i.loadAlways {
+		gctx.newLine()
+		gctx.writef("if not %s:", i.entryName())
+		gctx.indentLevel++
+		gctx.newLine()
+		gctx.write(`rblf.mkerror("cannot")`)
+		gctx.indentLevel--
+	}
+}
+
+func (i inheritedDynamicModule) isLoadAlways() bool {
+	return i.loadAlways
+}
+
 type inheritNode struct {
-	*inheritedModule
+	module inheritedModule
 }
 
 func (inn *inheritNode) emit(gctx *generationContext) {
@@ -68,32 +129,40 @@ func (inn *inheritNode) emit(gctx *generationContext) {
 	// Conditional case:
 	//    if <module>_init != None:
 	//      same as above
+	inn.module.emitSelect(gctx)
+
+	name := inn.module.name()
+	entry := inn.module.entryName()
 	gctx.newLine()
-	if inn.loadAlways {
-		gctx.writef("%s(handle, %q, %s)", cfnInherit, inn.name(), inn.entryName())
+	if inn.module.isLoadAlways() {
+		gctx.writef("%s(handle, %s, %s)", cfnInherit, name, entry)
 		return
 	}
-	gctx.writef("if %s != None:", inn.entryName())
+
+	gctx.writef("if %s:", entry)
 	gctx.indentLevel++
 	gctx.newLine()
-	gctx.writef("%s(handle, %q, %s)", cfnInherit, inn.name(), inn.entryName())
+	gctx.writef("%s(handle, %s, %s)", cfnInherit, name, entry)
 	gctx.indentLevel--
 }
 
 type includeNode struct {
-	*inheritedModule
+	module inheritedModule
 }
 
 func (inn *includeNode) emit(gctx *generationContext) {
+	inn.module.emitSelect(gctx)
+	entry := inn.module.entryName()
 	gctx.newLine()
-	if inn.loadAlways {
-		gctx.writef("%s(g, handle)", inn.entryName())
+	if inn.module.isLoadAlways() {
+		gctx.writef("%s(g, handle)", entry)
 		return
 	}
-	gctx.writef("if %s != None:", inn.entryName())
+
+	gctx.writef("if %s != None:", entry)
 	gctx.indentLevel++
 	gctx.newLine()
-	gctx.writef("%s(g, handle)", inn.entryName())
+	gctx.writef("%s(g, handle)", entry)
 	gctx.indentLevel--
 }
 

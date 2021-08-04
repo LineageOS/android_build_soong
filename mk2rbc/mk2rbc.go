@@ -27,6 +27,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -75,11 +76,13 @@ var knownFunctions = map[string]struct {
 	runtimeName string
 	returnType  starlarkType
 }{
+	"abspath":                             {baseName + ".abspath", starlarkTypeString},
 	fileExistsPhony:                       {baseName + ".file_exists", starlarkTypeBool},
 	wildcardExistsPhony:                   {baseName + ".file_wildcard_exists", starlarkTypeBool},
 	"add-to-product-copy-files-if-exists": {baseName + ".copy_if_exists", starlarkTypeList},
 	"addprefix":                           {baseName + ".addprefix", starlarkTypeList},
 	"addsuffix":                           {baseName + ".addsuffix", starlarkTypeList},
+	"dir":                                 {baseName + ".dir", starlarkTypeList},
 	"enforce-product-packages-exist":      {baseName + ".enforce_product_packages_exist", starlarkTypeVoid},
 	"error":                               {baseName + ".mkerror", starlarkTypeVoid},
 	"findstring":                          {"!findstring", starlarkTypeInt},
@@ -87,6 +90,7 @@ var knownFunctions = map[string]struct {
 	"find-word-in-list":                   {"!find-word-in-list", starlarkTypeUnknown}, // internal macro
 	"filter":                              {baseName + ".filter", starlarkTypeList},
 	"filter-out":                          {baseName + ".filter_out", starlarkTypeList},
+	"firstword":                           {"!firstword", starlarkTypeString},
 	"get-vendor-board-platforms":          {"!get-vendor-board-platforms", starlarkTypeList}, // internal macro, used by is-board-platform, etc.
 	"info":                                {baseName + ".mkinfo", starlarkTypeVoid},
 	"is-android-codename":                 {"!is-android-codename", starlarkTypeBool},         // unused by product config
@@ -101,9 +105,12 @@ var knownFunctions = map[string]struct {
 	"is-vendor-board-platform":            {"!is-vendor-board-platform", starlarkTypeBool},
 	callLoadAlways:                        {"!inherit-product", starlarkTypeVoid},
 	callLoadIf:                            {"!inherit-product-if-exists", starlarkTypeVoid},
+	"lastword":                            {"!lastword", starlarkTypeString},
 	"match-prefix":                        {"!match-prefix", starlarkTypeUnknown},       // internal macro
 	"match-word":                          {"!match-word", starlarkTypeUnknown},         // internal macro
 	"match-word-in-list":                  {"!match-word-in-list", starlarkTypeUnknown}, // internal macro
+	"notdir":                              {baseName + ".notdir", starlarkTypeString},
+	"my-dir":                              {"!my-dir", starlarkTypeString},
 	"patsubst":                            {baseName + ".mkpatsubst", starlarkTypeString},
 	"produce_copy_files":                  {baseName + ".produce_copy_files", starlarkTypeList},
 	"require-artifacts-in-path":           {baseName + ".require_artifacts_in_path", starlarkTypeVoid},
@@ -136,6 +143,8 @@ type Request struct {
 	TracedVariables    []string // trace assignment to these variables
 	TraceCalls         bool
 	WarnPartialSuccess bool
+	SourceFS           fs.FS
+	MakefileFinder     MakefileFinder
 }
 
 // An error sink allowing to gather error statistics.
@@ -149,7 +158,8 @@ type ErrorMonitorCB interface {
 func moduleNameForFile(mkFile string) string {
 	base := strings.TrimSuffix(filepath.Base(mkFile), filepath.Ext(mkFile))
 	// TODO(asmundak): what else can be in the product file names?
-	return strings.ReplaceAll(base, "-", "_")
+	return strings.NewReplacer("-", "_", ".", "_").Replace(base)
+
 }
 
 func cloneMakeString(mkString *mkparser.MakeString) *mkparser.MakeString {
@@ -241,7 +251,7 @@ func (gctx *generationContext) emitPreamble() {
 			sc.moduleLocalName = m
 			continue
 		}
-		if !sc.loadAlways {
+		if sc.optional {
 			uri += "|init"
 		}
 		gctx.newLine()
@@ -342,11 +352,13 @@ type StarlarkScript struct {
 	moduleName         string
 	mkPos              scanner.Position
 	nodes              []starlarkNode
-	inherited          []*inheritedModule
+	inherited          []*moduleInfo
 	hasErrors          bool
 	topDir             string
 	traceCalls         bool // print enter/exit each init function
 	warnPartialSuccess bool
+	sourceFS           fs.FS
+	makefileFinder     MakefileFinder
 }
 
 func (ss *StarlarkScript) newNode(node starlarkNode) {
@@ -379,13 +391,15 @@ type parseContext struct {
 	receiver         nodeReceiver // receptacle for the generated starlarkNode's
 	receiverStack    []nodeReceiver
 	outputDir        string
+	dependentModules map[string]*moduleInfo
 }
 
 func newParseContext(ss *StarlarkScript, nodes []mkparser.Node) *parseContext {
+	topdir, _ := filepath.Split(filepath.Join(ss.topDir, "foo"))
 	predefined := []struct{ name, value string }{
 		{"SRC_TARGET_DIR", filepath.Join("build", "make", "target")},
 		{"LOCAL_PATH", filepath.Dir(ss.mkFile)},
-		{"TOPDIR", ss.topDir},
+		{"TOPDIR", topdir},
 		// TODO(asmundak): maybe read it from build/make/core/envsetup.mk?
 		{"TARGET_COPY_OUT_SYSTEM", "system"},
 		{"TARGET_COPY_OUT_SYSTEM_OTHER", "system_other"},
@@ -428,6 +442,7 @@ func newParseContext(ss *StarlarkScript, nodes []mkparser.Node) *parseContext {
 		moduleNameCount:  make(map[string]int),
 		builtinMakeVars:  map[string]starlarkExpr{},
 		variables:        make(map[string]variable),
+		dependentModules: make(map[string]*moduleInfo),
 	}
 	ctx.pushVarAssignments()
 	for _, item := range predefined {
@@ -619,16 +634,12 @@ func (ctx *parseContext) buildConcatExpr(a *mkparser.Assignment) *concatExpr {
 	return xConcat
 }
 
-func (ctx *parseContext) newInheritedModule(v mkparser.Node, pathExpr starlarkExpr, loadAlways bool) *inheritedModule {
-	var path string
-	x, _ := pathExpr.eval(ctx.builtinMakeVars)
-	s, ok := x.(*stringLiteralExpr)
-	if !ok {
-		ctx.errorf(v, "inherit-product/include argument is too complex")
-		return nil
+func (ctx *parseContext) newDependentModule(path string, optional bool) *moduleInfo {
+	modulePath := ctx.loadedModulePath(path)
+	if mi, ok := ctx.dependentModules[modulePath]; ok {
+		mi.optional = mi.optional || optional
+		return mi
 	}
-
-	path = s.literal
 	moduleName := moduleNameForFile(path)
 	moduleLocalName := "_" + moduleName
 	n, found := ctx.moduleNameCount[moduleName]
@@ -636,27 +647,124 @@ func (ctx *parseContext) newInheritedModule(v mkparser.Node, pathExpr starlarkEx
 		moduleLocalName += fmt.Sprintf("%d", n)
 	}
 	ctx.moduleNameCount[moduleName] = n + 1
-	ln := &inheritedModule{
-		path:            ctx.loadedModulePath(path),
+	mi := &moduleInfo{
+		path:            modulePath,
 		originalPath:    path,
-		moduleName:      moduleName,
 		moduleLocalName: moduleLocalName,
-		loadAlways:      loadAlways,
+		optional:        optional,
 	}
-	ctx.script.inherited = append(ctx.script.inherited, ln)
-	return ln
+	ctx.dependentModules[modulePath] = mi
+	ctx.script.inherited = append(ctx.script.inherited, mi)
+	return mi
+}
+
+func (ctx *parseContext) handleSubConfig(
+	v mkparser.Node, pathExpr starlarkExpr, loadAlways bool, processModule func(inheritedModule)) {
+	pathExpr, _ = pathExpr.eval(ctx.builtinMakeVars)
+
+	// In a simple case, the name of a module to inherit/include is known statically.
+	if path, ok := maybeString(pathExpr); ok {
+		if strings.Contains(path, "*") {
+			if paths, err := fs.Glob(ctx.script.sourceFS, path); err == nil {
+				for _, p := range paths {
+					processModule(inheritedStaticModule{ctx.newDependentModule(p, !loadAlways), loadAlways})
+				}
+			} else {
+				ctx.errorf(v, "cannot glob wildcard argument")
+			}
+		} else {
+			processModule(inheritedStaticModule{ctx.newDependentModule(path, !loadAlways), loadAlways})
+		}
+		return
+	}
+
+	// If module path references variables (e.g., $(v1)/foo/$(v2)/device-config.mk), find all the paths in the
+	// source tree that may be a match and the corresponding variable values. For instance, if the source tree
+	// contains vendor1/foo/abc/dev.mk and vendor2/foo/def/dev.mk, the first one will be inherited when
+	// (v1, v2) == ('vendor1', 'abc'), and the second one when (v1, v2) == ('vendor2', 'def').
+	// We then emit the code that loads all of them, e.g.:
+	//    load("//vendor1/foo/abc:dev.rbc", _dev1_init="init")
+	//    load("//vendor2/foo/def/dev.rbc", _dev2_init="init")
+	// And then inherit it as follows:
+	//    _e = {
+	//       "vendor1/foo/abc/dev.mk": ("vendor1/foo/abc/dev", _dev1_init),
+	//       "vendor2/foo/def/dev.mk": ("vendor2/foo/def/dev", _dev_init2) }.get("%s/foo/%s/dev.mk" % (v1, v2))
+	//    if _e:
+	//       rblf.inherit(handle, _e[0], _e[1])
+	//
+	var matchingPaths []string
+	varPath, ok := pathExpr.(*interpolateExpr)
+	if !ok {
+		ctx.errorf(v, "inherit-product/include argument is too complex")
+		return
+	}
+
+	pathPattern := []string{varPath.chunks[0]}
+	for _, chunk := range varPath.chunks[1:] {
+		if chunk != "" {
+			pathPattern = append(pathPattern, chunk)
+		}
+	}
+	if pathPattern[0] != "" {
+		matchingPaths = ctx.findMatchingPaths(pathPattern)
+	} else {
+		// Heuristics -- if pattern starts from top, restrict it to the directories where
+		// we know inherit-product uses dynamically calculated path.
+		for _, t := range []string{"vendor/qcom", "vendor/google_devices"} {
+			pathPattern[0] = t
+			matchingPaths = append(matchingPaths, ctx.findMatchingPaths(pathPattern)...)
+		}
+	}
+	// Safeguard against $(call inherit-product,$(PRODUCT_PATH))
+	const maxMatchingFiles = 100
+	if len(matchingPaths) > maxMatchingFiles {
+		ctx.errorf(v, "there are >%d files matching the pattern, please rewrite it", maxMatchingFiles)
+		return
+	}
+	res := inheritedDynamicModule{*varPath, []*moduleInfo{}, loadAlways}
+	for _, p := range matchingPaths {
+		// A product configuration files discovered dynamically may attempt to inherit
+		// from another one which does not exist in this source tree. Prevent load errors
+		// by always loading the dynamic files as optional.
+		res.candidateModules = append(res.candidateModules, ctx.newDependentModule(p, true))
+	}
+	processModule(res)
+}
+
+func (ctx *parseContext) findMatchingPaths(pattern []string) []string {
+	files := ctx.script.makefileFinder.Find(ctx.script.topDir)
+	if len(pattern) == 0 {
+		return files
+	}
+
+	// Create regular expression from the pattern
+	s_regexp := "^" + regexp.QuoteMeta(pattern[0])
+	for _, s := range pattern[1:] {
+		s_regexp += ".*" + regexp.QuoteMeta(s)
+	}
+	s_regexp += "$"
+	rex := regexp.MustCompile(s_regexp)
+
+	// Now match
+	var res []string
+	for _, p := range files {
+		if rex.MatchString(p) {
+			res = append(res, p)
+		}
+	}
+	return res
 }
 
 func (ctx *parseContext) handleInheritModule(v mkparser.Node, pathExpr starlarkExpr, loadAlways bool) {
-	if im := ctx.newInheritedModule(v, pathExpr, loadAlways); im != nil {
+	ctx.handleSubConfig(v, pathExpr, loadAlways, func(im inheritedModule) {
 		ctx.receiver.newNode(&inheritNode{im})
-	}
+	})
 }
 
 func (ctx *parseContext) handleInclude(v mkparser.Node, pathExpr starlarkExpr, loadAlways bool) {
-	if ln := ctx.newInheritedModule(v, pathExpr, loadAlways); ln != nil {
-		ctx.receiver.newNode(&includeNode{ln})
-	}
+	ctx.handleSubConfig(v, pathExpr, loadAlways, func(im inheritedModule) {
+		ctx.receiver.newNode(&includeNode{im})
+	})
 }
 
 func (ctx *parseContext) handleVariable(v *mkparser.Variable) {
@@ -1091,9 +1199,10 @@ func (ctx *parseContext) parseReference(node mkparser.Node, ref *mkparser.MakeSt
 		}
 		expr.name = words[0].Dump()
 		if len(words) < 2 {
-			return expr
+			args = &mkparser.MakeString{}
+		} else {
+			args = words[1]
 		}
-		args = words[1]
 	}
 	if kf, found := knownFunctions[expr.name]; found {
 		expr.returnType = kf.returnType
@@ -1103,6 +1212,10 @@ func (ctx *parseContext) parseReference(node mkparser.Node, ref *mkparser.MakeSt
 	switch expr.name {
 	case "word":
 		return ctx.parseWordFunc(node, args)
+	case "firstword", "lastword":
+		return ctx.parseFirstOrLastwordFunc(node, expr.name, args)
+	case "my-dir":
+		return &variableRefExpr{ctx.addVariable("LOCAL_PATH"), true}
 	case "subst", "patsubst":
 		return ctx.parseSubstFunc(node, expr.name, args)
 	default:
@@ -1171,6 +1284,24 @@ func (ctx *parseContext) parseWordFunc(node mkparser.Node, args *mkparser.MakeSt
 		array = &callExpr{object: array, name: "split", returnType: starlarkTypeList}
 	}
 	return indexExpr{array, &intLiteralExpr{int(index - 1)}}
+}
+
+func (ctx *parseContext) parseFirstOrLastwordFunc(node mkparser.Node, name string, args *mkparser.MakeString) starlarkExpr {
+	arg := ctx.parseMakeString(node, args)
+	if bad, ok := arg.(*badExpr); ok {
+		return bad
+	}
+	index := &intLiteralExpr{0}
+	if name == "lastword" {
+		if v, ok := arg.(*variableRefExpr); ok && v.ref.name() == "MAKEFILE_LIST" {
+			return &stringLiteralExpr{ctx.script.mkFile}
+		}
+		index.literal = -1
+	}
+	if arg.typ() == starlarkTypeList {
+		return &indexExpr{arg, index}
+	}
+	return &indexExpr{&callExpr{object: arg, name: "split", returnType: starlarkTypeList}, index}
 }
 
 func (ctx *parseContext) parseMakeString(node mkparser.Node, mk *mkparser.MakeString) starlarkExpr {
@@ -1285,6 +1416,7 @@ func (ss *StarlarkScript) String() string {
 }
 
 func (ss *StarlarkScript) SubConfigFiles() []string {
+
 	var subs []string
 	for _, src := range ss.inherited {
 		subs = append(subs, src.originalPath)
@@ -1322,6 +1454,8 @@ func Convert(req Request) (*StarlarkScript, error) {
 		topDir:             req.RootDir,
 		traceCalls:         req.TraceCalls,
 		warnPartialSuccess: req.WarnPartialSuccess,
+		sourceFS:           req.SourceFS,
+		makefileFinder:     req.MakefileFinder,
 	}
 	ctx := newParseContext(starScript, nodes)
 	ctx.outputSuffix = req.OutputSuffix
