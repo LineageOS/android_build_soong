@@ -419,7 +419,7 @@ type sdkLibraryProperties struct {
 	// local files that are used within user customized droiddoc options.
 	Droiddoc_option_files []string
 
-	// additional droiddoc options
+	// additional droiddoc options.
 	// Available variables for substitution:
 	//
 	//  $(location <label>): the path to the droiddoc_option_files with name <label>
