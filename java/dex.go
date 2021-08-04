@@ -87,11 +87,14 @@ func (d *dexer) effectiveOptimizeEnabled() bool {
 var d8, d8RE = pctx.MultiCommandRemoteStaticRules("d8",
 	blueprint.RuleParams{
 		Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
-			`$d8Template${config.D8Cmd} ${config.DexFlags} --output $outDir $d8Flags $in && ` +
+			`mkdir -p $$(dirname $tmpJar) && ` +
+			`${config.Zip2ZipCmd} -i $in -o $tmpJar -x '**/*.dex' && ` +
+			`$d8Template${config.D8Cmd} ${config.DexFlags} --output $outDir $d8Flags $tmpJar && ` +
 			`$zipTemplate${config.SoongZipCmd} $zipFlags -o $outDir/classes.dex.jar -C $outDir -f "$outDir/classes*.dex" && ` +
 			`${config.MergeZipsCmd} -D -stripFile "**/*.class" $out $outDir/classes.dex.jar $in`,
 		CommandDeps: []string{
 			"${config.D8Cmd}",
+			"${config.Zip2ZipCmd}",
 			"${config.SoongZipCmd}",
 			"${config.MergeZipsCmd}",
 		},
@@ -110,14 +113,16 @@ var d8, d8RE = pctx.MultiCommandRemoteStaticRules("d8",
 			ExecStrategy: "${config.RED8ExecStrategy}",
 			Platform:     map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
 		},
-	}, []string{"outDir", "d8Flags", "zipFlags"}, nil)
+	}, []string{"outDir", "d8Flags", "zipFlags", "tmpJar"}, nil)
 
 var r8, r8RE = pctx.MultiCommandRemoteStaticRules("r8",
 	blueprint.RuleParams{
 		Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
 			`rm -f "$outDict" && rm -rf "${outUsageDir}" && ` +
 			`mkdir -p $$(dirname ${outUsage}) && ` +
-			`$r8Template${config.R8Cmd} ${config.DexFlags} -injars $in --output $outDir ` +
+			`mkdir -p $$(dirname $tmpJar) && ` +
+			`${config.Zip2ZipCmd} -i $in -o $tmpJar -x '**/*.dex' && ` +
+			`$r8Template${config.R8Cmd} ${config.DexFlags} -injars $tmpJar --output $outDir ` +
 			`--no-data-resources ` +
 			`-printmapping ${outDict} ` +
 			`-printusage ${outUsage} ` +
@@ -129,6 +134,7 @@ var r8, r8RE = pctx.MultiCommandRemoteStaticRules("r8",
 			`${config.MergeZipsCmd} -D -stripFile "**/*.class" $out $outDir/classes.dex.jar $in`,
 		CommandDeps: []string{
 			"${config.R8Cmd}",
+			"${config.Zip2ZipCmd}",
 			"${config.SoongZipCmd}",
 			"${config.MergeZipsCmd}",
 		},
@@ -156,7 +162,7 @@ var r8, r8RE = pctx.MultiCommandRemoteStaticRules("r8",
 			Platform:     map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
 		},
 	}, []string{"outDir", "outDict", "outUsage", "outUsageZip", "outUsageDir",
-		"r8Flags", "zipFlags"}, []string{"implicits"})
+		"r8Flags", "zipFlags", "tmpJar"}, []string{"implicits"})
 
 func (d *dexer) dexCommonFlags(ctx android.ModuleContext, minSdkVersion android.SdkSpec) []string {
 	flags := d.dexProperties.Dxflags
@@ -273,6 +279,7 @@ func (d *dexer) compileDex(ctx android.ModuleContext, flags javaBuilderFlags, mi
 	// Compile classes.jar into classes.dex and then javalib.jar
 	javalibJar := android.PathForModuleOut(ctx, "dex", jarName).OutputPath
 	outDir := android.PathForModuleOut(ctx, "dex")
+	tmpJar := android.PathForModuleOut(ctx, "withres-withoutdex", jarName)
 
 	zipFlags := "--ignore_missing_files"
 	if proptools.Bool(d.dexProperties.Uncompress_dex) {
@@ -300,6 +307,7 @@ func (d *dexer) compileDex(ctx android.ModuleContext, flags javaBuilderFlags, mi
 			"outUsage":    proguardUsage.String(),
 			"outUsageZip": proguardUsageZip.String(),
 			"outDir":      outDir.String(),
+			"tmpJar":      tmpJar.String(),
 		}
 		if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_R8") {
 			rule = r8RE
@@ -330,6 +338,7 @@ func (d *dexer) compileDex(ctx android.ModuleContext, flags javaBuilderFlags, mi
 				"d8Flags":  strings.Join(append(commonFlags, d8Flags...), " "),
 				"zipFlags": zipFlags,
 				"outDir":   outDir.String(),
+				"tmpJar":   tmpJar.String(),
 			},
 		})
 	}
