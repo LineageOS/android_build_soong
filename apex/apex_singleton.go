@@ -59,8 +59,15 @@ var (
 				echo "******************************";
 				echo "Detected changes to allowed dependencies in updatable modules.";
 				echo "To fix and update packages/modules/common/build/allowed_deps.txt, please run:";
-				echo "$$ (croot && packages/modules/common/build/update-apex-allowed-deps.sh)";
-				echo "Members of mainline-modularization@google.com will review the changes.";
+				echo -e "$$ (croot && packages/modules/common/build/update-apex-allowed-deps.sh)\n";
+				echo "When submitting the generated CL, you must include the following information";
+				echo "in the commit message if you are adding a new dependency:";
+				echo "Apex-Size-Increase:";
+				echo "Previous-Platform-Support:";
+				echo "Aosp-First:";
+				echo "Test-Info:";
+				echo "You do not need OWNERS approval to submit the change, but mainline-modularization@";
+				echo "will periodically review additions and may require changes.";
 				echo -e "******************************\n";
 				exit 1;
 			fi;
