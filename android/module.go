@@ -233,8 +233,8 @@ type BaseModuleContext interface {
 
 	// VisitDirectDeps calls visit for each direct dependency.  If there are multiple
 	// direct dependencies on the same module visit will be called multiple times on that module
-	// and OtherModuleDependencyTag will return a different tag for each.  It skips any
-	// dependencies that are not an android.Module.
+	// and OtherModuleDependencyTag will return a different tag for each.  It raises an error if any of the
+	// dependencies are not an android.Module.
 	//
 	// The Module passed to the visit function should not be retained outside of the visit
 	// function, it may be invalidated by future mutators.
