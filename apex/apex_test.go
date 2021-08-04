@@ -374,7 +374,6 @@ func TestBasicApex(t *testing.T) {
 			symlinks: ["foo_link_"],
 			symlink_preferred_arch: true,
 			system_shared_libs: [],
-			static_executable: true,
 			stl: "none",
 			apex_available: [ "myapex", "com.android.gki.*" ],
 		}
@@ -2494,7 +2493,6 @@ func TestFilesInSubDir(t *testing.T) {
 			srcs: ["mylib.cpp"],
 			relative_install_path: "foo/bar",
 			system_shared_libs: [],
-			static_executable: true,
 			stl: "none",
 			apex_available: [ "myapex" ],
 		}
@@ -2554,7 +2552,6 @@ func TestFilesInSubDirWhenNativeBridgeEnabled(t *testing.T) {
 			name: "mybin",
 			relative_install_path: "foo/bar",
 			system_shared_libs: [],
-			static_executable: true,
 			stl: "none",
 			apex_available: [ "myapex" ],
 			native_bridge_supported: true,
@@ -8186,6 +8183,57 @@ func TestApexJavaCoverage(t *testing.T) {
 	if result.ModuleForTests("mysystemserverclasspathlib", "android_common_apex10000").MaybeRule("jacoco").Rule == nil {
 		t.Errorf("Failed to find jacoco rule for mysystemserverclasspathlib")
 	}
+}
+
+func TestProhibitStaticExecutable(t *testing.T) {
+	testApexError(t, `executable mybin is static`, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			binaries: ["mybin"],
+			min_sdk_version: "29",
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_binary {
+			name: "mybin",
+			srcs: ["mylib.cpp"],
+			relative_install_path: "foo/bar",
+			static_executable: true,
+			system_shared_libs: [],
+			stl: "none",
+			apex_available: [ "myapex" ],
+			min_sdk_version: "29",
+		}
+	`)
+
+	testApexError(t, `executable mybin.rust is static`, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			binaries: ["mybin.rust"],
+			min_sdk_version: "29",
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		rust_binary {
+			name: "mybin.rust",
+			srcs: ["foo.rs"],
+			static_executable: true,
+			apex_available: ["myapex"],
+			min_sdk_version: "29",
+		}
+	`)
 }
 
 func TestMain(m *testing.M) {

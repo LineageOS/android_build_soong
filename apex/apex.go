@@ -1696,6 +1696,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.checkUpdatable(ctx)
 	a.checkMinSdkVersion(ctx)
 	a.checkStaticLinkingToStubLibraries(ctx)
+	a.checkStaticExecutables(ctx)
 	if len(a.properties.Tests) > 0 && !a.testApex {
 		ctx.PropertyErrorf("tests", "property allowed only in apex_test module type")
 		return
@@ -2485,6 +2486,41 @@ func (a *apexBundle) checkApexAvailability(ctx android.ModuleContext) {
 		// Visit this module's dependencies to check and report any issues with their availability.
 		return true
 	})
+}
+
+// checkStaticExecutable ensures that executables in an APEX are not static.
+func (a *apexBundle) checkStaticExecutables(ctx android.ModuleContext) {
+	// No need to run this for host APEXes
+	if ctx.Host() {
+		return
+	}
+
+	ctx.VisitDirectDepsBlueprint(func(module blueprint.Module) {
+		if ctx.OtherModuleDependencyTag(module) != executableTag {
+			return
+		}
+
+		if l, ok := module.(cc.LinkableInterface); ok && l.StaticExecutable() {
+			apex := a.ApexVariationName()
+			exec := ctx.OtherModuleName(module)
+			if isStaticExecutableAllowed(apex, exec) {
+				return
+			}
+			ctx.ModuleErrorf("executable %s is static", ctx.OtherModuleName(module))
+		}
+	})
+}
+
+// A small list of exceptions where static executables are allowed in APEXes.
+func isStaticExecutableAllowed(apex string, exec string) bool {
+	m := map[string][]string{
+		"com.android.runtime": []string{
+			"linker",
+			"linkerconfig",
+		},
+	}
+	execNames, ok := m[apex]
+	return ok && android.InList(exec, execNames)
 }
 
 // Collect information for opening IDE project files in java/jdeps.go.
