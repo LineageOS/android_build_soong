@@ -201,16 +201,11 @@ var (
 		"libBionicBenchmarksUtils", // cc_library_static, fatal error: 'map' file not found, from libcxx
 		"fmtlib",                   // cc_library_static, fatal error: 'cassert' file not found, from libcxx
 		"fmtlib_ndk",               // cc_library_static, fatal error: 'cassert' file not found
+		"liblog",                   // http://b/186822772: cc_library, 'sys/cdefs.h' file not found
 		"libbase",                  // Requires liblog. http://b/186826479, cc_library, fatal error: 'memory' file not found, from libcxx.
+		// Also depends on fmtlib.
 
-		// http://b/186024507: Includes errors because of the system_shared_libs default value.
-		// Missing -isystem bionic/libc/include through the libc/libm/libdl
-		// default dependencies if system_shared_libs is unset.
-		"liblog",                 // http://b/186822772: cc_library, 'sys/cdefs.h' file not found
-		"libjemalloc5_jet",       // cc_library, 'sys/cdefs.h' file not found
-		"libseccomp_policy",      // http://b/186476753: cc_library, 'linux/filter.h' not found
-		"note_memtag_heap_async", // http://b/185127353: cc_library_static, error: feature.h not found
-		"note_memtag_heap_sync",  // http://b/185127353: cc_library_static, error: feature.h not found
+		"libseccomp_policy", // depends on libbase
 
 		"gwp_asan_crash_handler", // cc_library, ld.lld: error: undefined symbol: memset
 

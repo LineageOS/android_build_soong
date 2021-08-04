@@ -115,6 +115,11 @@ func BazelLabelForModuleWholeDepsExcludes(ctx BazelConversionPathContext, module
 
 func bazelLabelForModuleDeps(ctx BazelConversionPathContext, modules []string, isWholeLibs bool) bazel.LabelList {
 	var labels bazel.LabelList
+	// In some cases, a nil string list is different than an explicitly empty list.
+	if len(modules) == 0 && modules != nil {
+		labels.Includes = []bazel.Label{}
+		return labels
+	}
 	for _, module := range modules {
 		bpText := module
 		if m := SrcIsModule(module); m == "" {
