@@ -112,16 +112,17 @@ type hostToolDependencyTag struct {
 	label string
 }
 type generatorProperties struct {
-	// The command to run on one or more input files. Cmd supports substitution of a few variables
+	// The command to run on one or more input files. Cmd supports substitution of a few variables.
 	//
 	// Available variables for substitution:
 	//
-	//  $(location): the path to the first entry in tools or tool_files
-	//  $(location <label>): the path to the tool, tool_file, input or output with name <label>
-	//  $(in): one or more input files
-	//  $(out): a single output file
-	//  $(depfile): a file to which dependencies will be written, if the depfile property is set to true
-	//  $(genDir): the sandbox directory for this tool; contains $(out)
+	//  $(location): the path to the first entry in tools or tool_files.
+	//  $(location <label>): the path to the tool, tool_file, input or output with name <label>. Use $(location) if <label> refers to a rule that outputs exactly one file.
+	//  $(locations <label>): the paths to the tools, tool_files, inputs or outputs with name <label>. Use $(locations) if <label> refers to a rule that outputs two or more files.
+	//  $(in): one or more input files.
+	//  $(out): a single output file.
+	//  $(depfile): a file to which dependencies will be written, if the depfile property is set to true.
+	//  $(genDir): the sandbox directory for this tool; contains $(out).
 	//  $$: a literal $
 	Cmd *string
 
