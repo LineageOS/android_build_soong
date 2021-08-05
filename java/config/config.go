@@ -69,8 +69,6 @@ func init() {
 	pctx.StaticVariable("JavacHeapSize", "2048M")
 	pctx.StaticVariable("JavacHeapFlags", "-J-Xmx${JavacHeapSize}")
 	pctx.StaticVariable("DexFlags", "-JXX:OnError='cat hs_err_pid%p.log' -JXX:CICompilerCount=6 -JXX:+UseDynamicNumberOfGCThreads")
-	// TODO(b/181095653): remove duplicated flags.
-	pctx.StaticVariable("DexJavaFlags", "-XX:OnError='cat hs_err_pid%p.log' -XX:CICompilerCount=6 -XX:+UseDynamicNumberOfGCThreads -Xmx2G")
 
 	pctx.StaticVariable("CommonJdkFlags", strings.Join([]string{
 		`-Xmaxerrs 9999999`,
