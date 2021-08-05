@@ -92,13 +92,11 @@ func init() {
 var d8, d8RE = pctx.MultiCommandRemoteStaticRules("d8",
 	blueprint.RuleParams{
 		Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
-			`${config.Zip2ZipCmd} -i $in -o $outDir/in.jar -x '**/*.dex' &&` +
-			`$d8Template${config.D8Cmd} ${config.DexFlags} --output $outDir $d8Flags $outDir/in.jar && ` +
+			`$d8Template${config.D8Cmd} ${config.DexFlags} --output $outDir $d8Flags $in && ` +
 			`$zipTemplate${config.SoongZipCmd} $zipFlags -o $outDir/classes.dex.jar -C $outDir -f "$outDir/classes*.dex" && ` +
 			`${config.MergeZipsCmd} -D -stripFile "**/*.class" $out $outDir/classes.dex.jar $in`,
 		CommandDeps: []string{
 			"${config.D8Cmd}",
-			"${config.Zip2ZipCmd}",
 			"${config.SoongZipCmd}",
 			"${config.MergeZipsCmd}",
 		},
@@ -124,11 +122,10 @@ var r8, r8RE = pctx.MultiCommandRemoteStaticRules("r8",
 		Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
 			`rm -f "$outDict" && rm -rf "${outUsageDir}" && ` +
 			`mkdir -p $$(dirname ${outUsage}) && ` +
-			`${config.Zip2ZipCmd} -i $in -o $outDir/in.jar -x '**/*.dex' &&` +
 			// TODO(b/181095653): remove R8 timeout and go back to config.R8Cmd.
 			`${runWithTimeoutCmd} -timeout 30m -on_timeout '${jstackCmd} $$PID' -- ` +
 			`$r8Template${config.JavaCmd} ${config.DexJavaFlags} -cp ${config.R8Jar} ` +
-			`com.android.tools.r8.compatproguard.CompatProguard -injars $outDir/in.jar --output $outDir ` +
+			`com.android.tools.r8.compatproguard.CompatProguard -injars $in --output $outDir ` +
 			`--no-data-resources ` +
 			`-printmapping ${outDict} ` +
 			`-printusage ${outUsage} ` +
@@ -140,7 +137,6 @@ var r8, r8RE = pctx.MultiCommandRemoteStaticRules("r8",
 			`${config.MergeZipsCmd} -D -stripFile "**/*.class" $out $outDir/classes.dex.jar $in`,
 		CommandDeps: []string{
 			"${config.R8Jar}",
-			"${config.Zip2ZipCmd}",
 			"${config.SoongZipCmd}",
 			"${config.MergeZipsCmd}",
 			"${runWithTimeoutCmd}",
