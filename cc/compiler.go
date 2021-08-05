@@ -450,7 +450,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 		"${config.CommonGlobalCflags}",
 		fmt.Sprintf("${config.%sGlobalCflags}", hod))
 
-	if isThirdParty(modulePath) {
+	if android.IsThirdPartyPath(modulePath) {
 		flags.Global.CommonFlags = append(flags.Global.CommonFlags, "${config.ExternalCflags}")
 	}
 
@@ -673,27 +673,6 @@ func compileObjs(ctx android.ModuleContext, flags builderFlags,
 	subdir string, srcFiles, pathDeps android.Paths, cFlagsDeps android.Paths) Objects {
 
 	return transformSourceToObj(ctx, subdir, srcFiles, flags, pathDeps, cFlagsDeps)
-}
-
-var thirdPartyDirPrefixExceptions = []*regexp.Regexp{
-	regexp.MustCompile("^vendor/[^/]*google[^/]*/"),
-	regexp.MustCompile("^hardware/google/"),
-	regexp.MustCompile("^hardware/interfaces/"),
-	regexp.MustCompile("^hardware/libhardware[^/]*/"),
-	regexp.MustCompile("^hardware/ril/"),
-}
-
-func isThirdParty(path string) bool {
-	thirdPartyDirPrefixes := []string{"external/", "vendor/", "hardware/"}
-
-	if android.HasAnyPrefix(path, thirdPartyDirPrefixes) {
-		for _, prefix := range thirdPartyDirPrefixExceptions {
-			if prefix.MatchString(path) {
-				return false
-			}
-		}
-	}
-	return true
 }
 
 // Properties for rust_bindgen related to generating rust bindings.
