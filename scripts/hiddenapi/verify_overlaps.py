@@ -24,16 +24,30 @@ from itertools import chain
 def dict_reader(input):
     return csv.DictReader(input, delimiter=',', quotechar='|', fieldnames=['signature'])
 
-def extract_subset_from_monolithic_flags_as_dict(monolithicFlagsDict, signatures):
+def extract_subset_from_monolithic_flags_as_dict_from_file(monolithicFlagsDict, patternsFile):
     """
     Extract a subset of flags from the dict containing all the monolithic flags.
 
     :param monolithicFlagsDict: the dict containing all the monolithic flags.
-    :param signatures: a list of signature that define the subset.
+    :param patternsFile: a file containing a list of signature patterns that
+    define the subset.
+    :return: the dict from signature to row.
+    """
+    with open(patternsFile, 'r') as stream:
+        return extract_subset_from_monolithic_flags_as_dict_from_stream(monolithicFlagsDict, stream)
+
+def extract_subset_from_monolithic_flags_as_dict_from_stream(monolithicFlagsDict, stream):
+    """
+    Extract a subset of flags from the dict containing all the monolithic flags.
+
+    :param monolithicFlagsDict: the dict containing all the monolithic flags.
+    :param stream: a stream containing a list of signature patterns that define
+    the subset.
     :return: the dict from signature to row.
     """
     dict = {}
-    for signature in signatures:
+    for signature in stream:
+        signature = signature.rstrip()
         dict[signature] = monolithicFlagsDict.get(signature, {})
     return dict
 
@@ -102,9 +116,12 @@ def main(argv):
     # provided by the subset and the corresponding flags from the complete set of
     # flags and compare them.
     failed = False
-    for modularFlagsPath in args.modularFlags:
+    for modularPair in args.modularFlags:
+        parts = modularPair.split(":")
+        modularFlagsPath = parts[0]
+        modularPatternsPath = parts[1]
         modularFlagsDict = read_signature_csv_from_file_as_dict(modularFlagsPath)
-        monolithicFlagsSubsetDict = extract_subset_from_monolithic_flags_as_dict(monolithicFlagsDict, modularFlagsDict.keys())
+        monolithicFlagsSubsetDict = extract_subset_from_monolithic_flags_as_dict_from_file(monolithicFlagsDict, modularPatternsPath)
         mismatchingSignatures = compare_signature_flags(monolithicFlagsSubsetDict, modularFlagsDict)
         if mismatchingSignatures:
             failed = True

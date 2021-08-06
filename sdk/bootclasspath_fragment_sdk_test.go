@@ -134,10 +134,10 @@ prebuilt_bootclasspath_fragment {
     image_name: "art",
     contents: ["mybootlib"],
     hidden_api: {
-        stub_flags: "hiddenapi/stub-flags.csv",
         annotation_flags: "hiddenapi/annotation-flags.csv",
         metadata: "hiddenapi/metadata.csv",
         index: "hiddenapi/index.csv",
+        stub_flags: "hiddenapi/stub-flags.csv",
         all_flags: "hiddenapi/all-flags.csv",
     },
 }
@@ -161,10 +161,10 @@ prebuilt_bootclasspath_fragment {
     image_name: "art",
     contents: ["mysdk_mybootlib@current"],
     hidden_api: {
-        stub_flags: "hiddenapi/stub-flags.csv",
         annotation_flags: "hiddenapi/annotation-flags.csv",
         metadata: "hiddenapi/metadata.csv",
         index: "hiddenapi/index.csv",
+        stub_flags: "hiddenapi/stub-flags.csv",
         all_flags: "hiddenapi/all-flags.csv",
     },
 }
@@ -185,10 +185,10 @@ sdk_snapshot {
 }
 `),
 		checkAllCopyRules(`
-.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/stub-flags.csv -> hiddenapi/stub-flags.csv
 .intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/annotation-flags.csv -> hiddenapi/annotation-flags.csv
 .intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/metadata.csv -> hiddenapi/metadata.csv
 .intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/index.csv -> hiddenapi/index.csv
+.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/stub-flags.csv -> hiddenapi/stub-flags.csv
 .intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/all-flags.csv -> hiddenapi/all-flags.csv
 .intermediates/mysdk/common_os/empty -> java_boot_libs/snapshot/jars/are/invalid/mybootlib.jar
 		`),
@@ -332,10 +332,10 @@ prebuilt_bootclasspath_fragment {
         stub_libs: ["mycoreplatform"],
     },
     hidden_api: {
-        stub_flags: "hiddenapi/stub-flags.csv",
         annotation_flags: "hiddenapi/annotation-flags.csv",
         metadata: "hiddenapi/metadata.csv",
         index: "hiddenapi/index.csv",
+        stub_flags: "hiddenapi/stub-flags.csv",
         all_flags: "hiddenapi/all-flags.csv",
     },
 }
@@ -416,10 +416,10 @@ prebuilt_bootclasspath_fragment {
         stub_libs: ["mysdk_mycoreplatform@current"],
     },
     hidden_api: {
-        stub_flags: "hiddenapi/stub-flags.csv",
         annotation_flags: "hiddenapi/annotation-flags.csv",
         metadata: "hiddenapi/metadata.csv",
         index: "hiddenapi/index.csv",
+        stub_flags: "hiddenapi/stub-flags.csv",
         all_flags: "hiddenapi/all-flags.csv",
     },
 }
@@ -494,10 +494,10 @@ sdk_snapshot {
 }
 		`),
 		checkAllCopyRules(`
-.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/stub-flags.csv -> hiddenapi/stub-flags.csv
 .intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/annotation-flags.csv -> hiddenapi/annotation-flags.csv
 .intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/metadata.csv -> hiddenapi/metadata.csv
 .intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/index.csv -> hiddenapi/index.csv
+.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/stub-flags.csv -> hiddenapi/stub-flags.csv
 .intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/all-flags.csv -> hiddenapi/all-flags.csv
 .intermediates/mysdk/common_os/empty -> java_boot_libs/snapshot/jars/are/invalid/mybootlib.jar
 .intermediates/myothersdklibrary.stubs/android_common/javac/myothersdklibrary.stubs.jar -> sdk_library/public/myothersdklibrary-stubs.jar
@@ -636,10 +636,10 @@ prebuilt_bootclasspath_fragment {
         },
     ],
     hidden_api: {
-        stub_flags: "hiddenapi/stub-flags.csv",
         annotation_flags: "hiddenapi/annotation-flags.csv",
         metadata: "hiddenapi/metadata.csv",
         index: "hiddenapi/index.csv",
+        stub_flags: "hiddenapi/stub-flags.csv",
         all_flags: "hiddenapi/all-flags.csv",
     },
 }
@@ -838,10 +838,10 @@ prebuilt_bootclasspath_fragment {
         max_target_o_low_priority: ["hiddenapi/my-max-target-o-low-priority.txt"],
         blocked: ["hiddenapi/my-blocked.txt"],
         unsupported_packages: ["hiddenapi/my-unsupported-packages.txt"],
-        stub_flags: "hiddenapi/stub-flags.csv",
         annotation_flags: "hiddenapi/annotation-flags.csv",
         metadata: "hiddenapi/metadata.csv",
         index: "hiddenapi/index.csv",
+        stub_flags: "hiddenapi/stub-flags.csv",
         all_flags: "hiddenapi/all-flags.csv",
     },
 }
@@ -881,10 +881,10 @@ my-max-target-p.txt -> hiddenapi/my-max-target-p.txt
 my-max-target-o-low-priority.txt -> hiddenapi/my-max-target-o-low-priority.txt
 my-blocked.txt -> hiddenapi/my-blocked.txt
 my-unsupported-packages.txt -> hiddenapi/my-unsupported-packages.txt
-.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/stub-flags.csv -> hiddenapi/stub-flags.csv
 .intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/annotation-flags.csv -> hiddenapi/annotation-flags.csv
 .intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/metadata.csv -> hiddenapi/metadata.csv
 .intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/index.csv -> hiddenapi/index.csv
+.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/stub-flags.csv -> hiddenapi/stub-flags.csv
 .intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/all-flags.csv -> hiddenapi/all-flags.csv
 .intermediates/mysdk/common_os/empty -> java_boot_libs/snapshot/jars/are/invalid/mybootlib.jar
 .intermediates/mysdklibrary.stubs/android_common/javac/mysdklibrary.stubs.jar -> sdk_library/public/mysdklibrary-stubs.jar
