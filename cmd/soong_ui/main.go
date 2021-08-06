@@ -16,6 +16,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -32,6 +33,11 @@ import (
 	"android/soong/ui/status"
 	"android/soong/ui/terminal"
 	"android/soong/ui/tracer"
+)
+
+const (
+	configDir  = "vendor/google/tools/soong_config"
+	jsonSuffix = "json"
 )
 
 // A command represents an operation to be executed in the soong build
@@ -110,6 +116,34 @@ func inList(s string, list []string) bool {
 	return indexList(s, list) != -1
 }
 
+func loadEnvConfig() error {
+	bc := os.Getenv("ANDROID_BUILD_ENVIRONMENT_CONFIG")
+	if bc == "" {
+		return nil
+	}
+	cfgFile := filepath.Join(os.Getenv("TOP"), configDir, fmt.Sprintf("%s.%s", bc, jsonSuffix))
+
+	envVarsJSON, err := ioutil.ReadFile(cfgFile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "\033[33mWARNING:\033[0m failed to open config file %s: %s\n", cfgFile, err.Error())
+		return nil
+	}
+
+	var envVars map[string]map[string]string
+	if err := json.Unmarshal(envVarsJSON, &envVars); err != nil {
+		return fmt.Errorf("env vars config file: %s did not parse correctly: %s", cfgFile, err.Error())
+	}
+	for k, v := range envVars["env"] {
+		if os.Getenv(k) != "" {
+			continue
+		}
+		if err := os.Setenv(k, v); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Main execution of soong_ui. The command format is as follows:
 //
 //    soong_ui <command> [<arg 1> <arg 2> ... <arg n>]
@@ -172,6 +206,12 @@ func main() {
 	}}
 
 	config := c.config(buildCtx, args...)
+
+	if err := loadEnvConfig(); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to parse env config files: %v", err)
+		os.Exit(1)
+	}
+
 
 	build.SetupOutDir(buildCtx, config)
 
