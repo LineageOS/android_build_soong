@@ -29,9 +29,6 @@ type MonolithicHiddenAPIInfo struct {
 	// that category.
 	FlagsFilesByCategory FlagFilesByCategory
 
-	// The paths to the generated stub-flags.csv files.
-	StubFlagsPaths android.Paths
-
 	// The paths to the generated annotation-flags.csv files.
 	AnnotationFlagsPaths android.Paths
 
@@ -41,8 +38,13 @@ type MonolithicHiddenAPIInfo struct {
 	// The paths to the generated index.csv files.
 	IndexPaths android.Paths
 
-	// The paths to the generated all-flags.csv files.
-	AllFlagsPaths android.Paths
+	// The subsets of the monolithic hiddenapi-stubs-flags.txt file that are provided by each
+	// bootclasspath_fragment modules.
+	StubFlagSubsets SignatureCsvSubsets
+
+	// The subsets of the monolithic hiddenapi-flags.csv file that are provided by each
+	// bootclasspath_fragment modules.
+	FlagSubsets SignatureCsvSubsets
 
 	// The classes jars from the libraries on the platform bootclasspath.
 	ClassesJars android.Paths
@@ -80,11 +82,12 @@ func newMonolithicHiddenAPIInfo(ctx android.ModuleContext, flagFilesByCategory F
 // append appends all the files from the supplied info to the corresponding files in this struct.
 func (i *MonolithicHiddenAPIInfo) append(other *HiddenAPIInfo) {
 	i.FlagsFilesByCategory.append(other.FlagFilesByCategory)
-	i.StubFlagsPaths = append(i.StubFlagsPaths, other.StubFlagsPath)
 	i.AnnotationFlagsPaths = append(i.AnnotationFlagsPaths, other.AnnotationFlagsPath)
 	i.MetadataPaths = append(i.MetadataPaths, other.MetadataPath)
 	i.IndexPaths = append(i.IndexPaths, other.IndexPath)
-	i.AllFlagsPaths = append(i.AllFlagsPaths, other.AllFlagsPath)
+
+	i.StubFlagSubsets = append(i.StubFlagSubsets, other.StubFlagSubset())
+	i.FlagSubsets = append(i.FlagSubsets, other.FlagSubset())
 }
 
 var MonolithicHiddenAPIInfoProvider = blueprint.NewProvider(MonolithicHiddenAPIInfo{})

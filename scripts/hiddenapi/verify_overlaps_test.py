@@ -26,6 +26,10 @@ class TestDetectOverlaps(unittest.TestCase):
         with io.StringIO(csv) as f:
             return read_signature_csv_from_stream_as_dict(f)
 
+    def extract_subset_from_monolithic_flags_as_dict_from_string(self, monolithic, patterns):
+        with io.StringIO(patterns) as f:
+            return extract_subset_from_monolithic_flags_as_dict_from_stream(monolithic, f)
+
     extractInput = '''
 Ljava/lang/Object;->hashCode()I,public-api,system-api,test-api
 Ljava/lang/Object;->toString()Ljava/lang/String;,blocked
@@ -36,7 +40,10 @@ Ljava/lang/Object;->toString()Ljava/lang/String;,blocked
         modular = self.read_signature_csv_from_string_as_dict('''
 Ljava/lang/Object;->hashCode()I,public-api,system-api,test-api
 ''')
-        subset = extract_subset_from_monolithic_flags_as_dict(monolithic, modular.keys())
+
+        patterns = 'Ljava/lang/Object;->hashCode()I'
+
+        subset = self.extract_subset_from_monolithic_flags_as_dict_from_string(monolithic, patterns)
         expected = {
             'Ljava/lang/Object;->hashCode()I': {
                 None: ['public-api', 'system-api', 'test-api'],
