@@ -47,7 +47,7 @@ func main() {
 	flag.Parse()
 
 	if flag.NArg() < 1 {
-		fmt.Fprintln(os.Stderr, "command is required")
+		fmt.Fprintf(os.Stderr, "%s: error: command is required\n", os.Args[0])
 		usage()
 	}
 
@@ -55,9 +55,9 @@ func main() {
 		os.Stdin, os.Stdout, os.Stderr)
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
-			fmt.Fprintln(os.Stderr, "process exited with error:", exitErr.Error())
+			fmt.Fprintf(os.Stderr, "%s: process exited with error: %s\n", os.Args[0], exitErr.Error())
 		} else {
-			fmt.Fprintln(os.Stderr, "error:", err.Error())
+			fmt.Fprintf(os.Stderr, "%s: error: %s\n", os.Args[0], err.Error())
 		}
 		os.Exit(1)
 	}
@@ -115,6 +115,7 @@ func runWithTimeout(command string, args []string, timeout time.Duration, onTime
 	if timeout > 0 {
 		timeoutCh = time.After(timeout)
 	}
+	startTime := time.Now()
 
 	select {
 	case err := <-waitCh:
@@ -126,10 +127,12 @@ func runWithTimeout(command string, args []string, timeout time.Duration, onTime
 		// Continue below.
 	}
 
+	fmt.Fprintf(concurrentStderr, "%s: process timed out after %s\n", os.Args[0], time.Since(startTime))
 	// Process timed out before exiting.
 	defer cmd.Process.Signal(syscall.SIGKILL)
 
 	if onTimeoutCmdStr != "" {
+		fmt.Fprintf(concurrentStderr, "%s: running on_timeout command `%s`\n", os.Args[0], onTimeoutCmdStr)
 		onTimeoutCmd := exec.Command("sh", "-c", onTimeoutCmdStr)
 		onTimeoutCmd.Stdin, onTimeoutCmd.Stdout, onTimeoutCmd.Stderr = stdin, concurrentStdout, concurrentStderr
 		onTimeoutCmd.Env = append(os.Environ(), fmt.Sprintf("PID=%d", cmd.Process.Pid))
