@@ -137,6 +137,7 @@ prebuilt_bootclasspath_fragment {
         annotation_flags: "hiddenapi/annotation-flags.csv",
         metadata: "hiddenapi/metadata.csv",
         index: "hiddenapi/index.csv",
+        signature_patterns: "hiddenapi/signature-patterns.csv",
         stub_flags: "hiddenapi/stub-flags.csv",
         all_flags: "hiddenapi/all-flags.csv",
     },
@@ -164,6 +165,7 @@ prebuilt_bootclasspath_fragment {
         annotation_flags: "hiddenapi/annotation-flags.csv",
         metadata: "hiddenapi/metadata.csv",
         index: "hiddenapi/index.csv",
+        signature_patterns: "hiddenapi/signature-patterns.csv",
         stub_flags: "hiddenapi/stub-flags.csv",
         all_flags: "hiddenapi/all-flags.csv",
     },
@@ -188,6 +190,7 @@ sdk_snapshot {
 .intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/annotation-flags.csv -> hiddenapi/annotation-flags.csv
 .intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/metadata.csv -> hiddenapi/metadata.csv
 .intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/index.csv -> hiddenapi/index.csv
+.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/signature-patterns.csv -> hiddenapi/signature-patterns.csv
 .intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/stub-flags.csv -> hiddenapi/stub-flags.csv
 .intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/all-flags.csv -> hiddenapi/all-flags.csv
 .intermediates/mysdk/common_os/empty -> java_boot_libs/snapshot/jars/are/invalid/mybootlib.jar
@@ -335,6 +338,7 @@ prebuilt_bootclasspath_fragment {
         annotation_flags: "hiddenapi/annotation-flags.csv",
         metadata: "hiddenapi/metadata.csv",
         index: "hiddenapi/index.csv",
+        signature_patterns: "hiddenapi/signature-patterns.csv",
         stub_flags: "hiddenapi/stub-flags.csv",
         all_flags: "hiddenapi/all-flags.csv",
     },
@@ -419,6 +423,7 @@ prebuilt_bootclasspath_fragment {
         annotation_flags: "hiddenapi/annotation-flags.csv",
         metadata: "hiddenapi/metadata.csv",
         index: "hiddenapi/index.csv",
+        signature_patterns: "hiddenapi/signature-patterns.csv",
         stub_flags: "hiddenapi/stub-flags.csv",
         all_flags: "hiddenapi/all-flags.csv",
     },
@@ -497,6 +502,7 @@ sdk_snapshot {
 .intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/annotation-flags.csv -> hiddenapi/annotation-flags.csv
 .intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/metadata.csv -> hiddenapi/metadata.csv
 .intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/index.csv -> hiddenapi/index.csv
+.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/signature-patterns.csv -> hiddenapi/signature-patterns.csv
 .intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/stub-flags.csv -> hiddenapi/stub-flags.csv
 .intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/all-flags.csv -> hiddenapi/all-flags.csv
 .intermediates/mysdk/common_os/empty -> java_boot_libs/snapshot/jars/are/invalid/mybootlib.jar
@@ -538,8 +544,16 @@ sdk_snapshot {
 			rule = module.Output("updatable-bcp-packages.txt")
 			expectedContents := `'mybootlib\nmyothersdklibrary\n'`
 			android.AssertStringEquals(t, "updatable-bcp-packages.txt", expectedContents, rule.Args["content"])
+
+			rule = module.Output("out/soong/hiddenapi/hiddenapi-flags.csv.valid")
+			android.AssertStringDoesContain(t, "verify-overlaps", rule.RuleParams.Command, " snapshot/hiddenapi/all-flags.csv:snapshot/hiddenapi/signature-patterns.csv ")
 		}),
 		snapshotTestPreparer(checkSnapshotWithSourcePreferred, preparerForSnapshot),
+		snapshotTestChecker(checkSnapshotWithSourcePreferred, func(t *testing.T, result *android.TestResult) {
+			module := result.ModuleForTests("platform-bootclasspath", "android_common")
+			rule := module.Output("out/soong/hiddenapi/hiddenapi-flags.csv.valid")
+			android.AssertStringDoesContain(t, "verify-overlaps", rule.RuleParams.Command, " out/soong/.intermediates/mybootclasspathfragment/android_common_myapex/modular-hiddenapi/all-flags.csv:out/soong/.intermediates/mybootclasspathfragment/android_common_myapex/modular-hiddenapi/signature-patterns.csv ")
+		}),
 		snapshotTestPreparer(checkSnapshotPreferredWithSource, preparerForSnapshot),
 	)
 }
@@ -639,6 +653,7 @@ prebuilt_bootclasspath_fragment {
         annotation_flags: "hiddenapi/annotation-flags.csv",
         metadata: "hiddenapi/metadata.csv",
         index: "hiddenapi/index.csv",
+        signature_patterns: "hiddenapi/signature-patterns.csv",
         stub_flags: "hiddenapi/stub-flags.csv",
         all_flags: "hiddenapi/all-flags.csv",
     },
@@ -841,6 +856,7 @@ prebuilt_bootclasspath_fragment {
         annotation_flags: "hiddenapi/annotation-flags.csv",
         metadata: "hiddenapi/metadata.csv",
         index: "hiddenapi/index.csv",
+        signature_patterns: "hiddenapi/signature-patterns.csv",
         stub_flags: "hiddenapi/stub-flags.csv",
         all_flags: "hiddenapi/all-flags.csv",
     },
@@ -884,6 +900,7 @@ my-unsupported-packages.txt -> hiddenapi/my-unsupported-packages.txt
 .intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/annotation-flags.csv -> hiddenapi/annotation-flags.csv
 .intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/metadata.csv -> hiddenapi/metadata.csv
 .intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/index.csv -> hiddenapi/index.csv
+.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/signature-patterns.csv -> hiddenapi/signature-patterns.csv
 .intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/stub-flags.csv -> hiddenapi/stub-flags.csv
 .intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/all-flags.csv -> hiddenapi/all-flags.csv
 .intermediates/mysdk/common_os/empty -> java_boot_libs/snapshot/jars/are/invalid/mybootlib.jar
