@@ -39,7 +39,7 @@ func TestPlatformBootclasspath_Fragments(t *testing.T) {
 		prepareForTestWithMyapex,
 		java.PrepareForTestWithJavaSdkLibraryFiles,
 		java.FixtureWithLastReleaseApis("foo"),
-		java.FixtureConfigureBootJars("myapex:bar"),
+		java.FixtureConfigureApexBootJars("myapex:bar"),
 		android.FixtureWithRootAndroidBp(`
 			platform_bootclasspath {
 				name: "platform-bootclasspath",
@@ -194,6 +194,7 @@ func TestPlatformBootclasspathDependencies(t *testing.T) {
 
 		bootclasspath_fragment {
 			name: "art-bootclasspath-fragment",
+			image_name: "art",
 			apex_available: [
 				"com.android.art",
 			],
