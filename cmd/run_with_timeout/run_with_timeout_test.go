@@ -17,6 +17,7 @@ package main
 import (
 	"bytes"
 	"io"
+	"regexp"
 	"testing"
 	"time"
 )
@@ -60,7 +61,8 @@ func Test_runWithTimeout(t *testing.T) {
 				args:    []string{"-c", "sleep 1 && echo foo"},
 				timeout: 1 * time.Millisecond,
 			},
-			wantErr: true,
+			wantStderr: ".*: process timed out after .*\n",
+			wantErr:    true,
 		},
 		{
 			name: "on_timeout command",
@@ -71,6 +73,7 @@ func Test_runWithTimeout(t *testing.T) {
 				onTimeoutCmd: "echo bar",
 			},
 			wantStdout: "bar\n",
+			wantStderr: ".*: process timed out after .*\n.*: running on_timeout command `echo bar`\n",
 			wantErr:    true,
 		},
 	}
@@ -86,7 +89,7 @@ func Test_runWithTimeout(t *testing.T) {
 			if gotStdout := stdout.String(); gotStdout != tt.wantStdout {
 				t.Errorf("runWithTimeout() gotStdout = %v, want %v", gotStdout, tt.wantStdout)
 			}
-			if gotStderr := stderr.String(); gotStderr != tt.wantStderr {
+			if gotStderr := stderr.String(); !regexp.MustCompile(tt.wantStderr).MatchString(gotStderr) {
 				t.Errorf("runWithTimeout() gotStderr = %v, want %v", gotStderr, tt.wantStderr)
 			}
 		})
