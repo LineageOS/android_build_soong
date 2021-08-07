@@ -83,3 +83,60 @@ python_binary_host {
         },
     },
 }
+
+python_test_host {
+    name: "verify_overlaps_test",
+    main: "verify_overlaps_test.py",
+    srcs: [
+        "verify_overlaps.py",
+        "verify_overlaps_test.py",
+    ],
+    version: {
+        py2: {
+            enabled: false,
+        },
+        py3: {
+            enabled: true,
+            embedded_launcher: true,
+        },
+    },
+    test_options: {
+        unit_test: true,
+    },
+}
+
+python_binary_host {
+    name: "signature_patterns",
+    main: "signature_patterns.py",
+    srcs: ["signature_patterns.py"],
+    version: {
+        py2: {
+            enabled: false,
+        },
+        py3: {
+            enabled: true,
+            embedded_launcher: true,
+        },
+    },
+}
+
+python_test_host {
+    name: "signature_patterns_test",
+    main: "signature_patterns_test.py",
+    srcs: [
+        "signature_patterns.py",
+        "signature_patterns_test.py",
+    ],
+    version: {
+        py2: {
+            enabled: false,
+        },
+        py3: {
+            enabled: true,
+            embedded_launcher: true,
+        },
+    },
+    test_options: {
+        unit_test: true,
+    },
+}
