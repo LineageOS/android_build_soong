@@ -133,10 +133,6 @@ func (p *prebuiltCommon) checkForceDisable(ctx android.ModuleContext) bool {
 	// to build the prebuilts themselves.
 	forceDisable = forceDisable || ctx.Config().UnbundledBuild()
 
-	// Force disable the prebuilts when coverage is enabled.
-	forceDisable = forceDisable || ctx.DeviceConfig().NativeCoverageEnabled()
-	forceDisable = forceDisable || ctx.Config().IsEnvTrue("EMMA_INSTRUMENT")
-
 	// b/137216042 don't use prebuilts when address sanitizer is on, unless the prebuilt has a sanitized source
 	sanitized := ctx.Module().(sanitizedPrebuilt)
 	forceDisable = forceDisable || (android.InList("address", ctx.Config().SanitizeDevice()) && !sanitized.hasSanitizedSource("address"))
