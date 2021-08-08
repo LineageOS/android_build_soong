@@ -228,6 +228,8 @@ var (
 		"-Wno-non-c-typedef-for-linkage", // http://b/161304145
 		// New warnings to be fixed after clang-r407598
 		"-Wno-string-concatenation", // http://b/175068488
+		// New warnings to be fixed after clang-r428724
+		"-Wno-align-mismatch", // http://b/193679946
 	}
 
 	// Extra cflags for external third-party projects to disable warnings that
@@ -266,8 +268,8 @@ var (
 
 	// prebuilts/clang default settings.
 	ClangDefaultBase         = "prebuilts/clang/host"
-	ClangDefaultVersion      = "clang-r416183b1"
-	ClangDefaultShortVersion = "12.0.7"
+	ClangDefaultVersion      = "clang-r428724"
+	ClangDefaultShortVersion = "13.0.1"
 
 	// Directories with warnings from Android.bp files.
 	WarningAllowedProjects = []string{
