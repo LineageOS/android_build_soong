@@ -108,6 +108,7 @@ type bazelCcLibraryHeadersAttributes struct {
 	Includes            bazel.StringListAttribute
 	Deps                bazel.LabelListAttribute
 	Implementation_deps bazel.LabelListAttribute
+	System_dynamic_deps bazel.LabelListAttribute
 }
 
 type bazelCcLibraryHeaders struct {
@@ -146,6 +147,7 @@ func CcLibraryHeadersBp2Build(ctx android.TopDownMutatorContext) {
 		Includes:            exportedIncludes,
 		Implementation_deps: linkerAttrs.deps,
 		Deps:                linkerAttrs.exportedDeps,
+		System_dynamic_deps: linkerAttrs.systemDynamicDeps,
 	}
 
 	props := bazel.BazelTargetModuleProperties{
