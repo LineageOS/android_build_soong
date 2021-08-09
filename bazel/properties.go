@@ -69,6 +69,23 @@ type LabelList struct {
 	Excludes []Label
 }
 
+func (ll *LabelList) Equals(other LabelList) bool {
+	if len(ll.Includes) != len(other.Includes) || len(ll.Excludes) != len(other.Excludes) {
+		return false
+	}
+	for i, _ := range ll.Includes {
+		if ll.Includes[i] != other.Includes[i] {
+			return false
+		}
+	}
+	for i, _ := range ll.Excludes {
+		if ll.Excludes[i] != other.Excludes[i] {
+			return false
+		}
+	}
+	return true
+}
+
 func (ll *LabelList) IsNil() bool {
 	return ll.Includes == nil && ll.Excludes == nil
 }
@@ -446,7 +463,7 @@ func (ll labelListSelectValues) appendSelects(other labelListSelectValues) {
 // HasConfigurableValues returns whether there are configurable values within this set of selects.
 func (ll labelListSelectValues) HasConfigurableValues() bool {
 	for _, v := range ll {
-		if len(v.Includes) > 0 {
+		if v.Includes != nil {
 			return true
 		}
 	}
@@ -462,6 +479,13 @@ type LabelListAttribute struct {
 	// The configured attribute label list Values. Optional
 	// a map of independent configurability axes
 	ConfigurableValues configurableLabelLists
+
+	// If true, differentiate between "nil" and "empty" list. nil means that
+	// this attribute should not be specified at all, and "empty" means that
+	// the attribute should be explicitly specified as an empty list.
+	// This mode facilitates use of attribute defaults: an empty list should
+	// override the default.
+	ForceSpecifyEmptyList bool
 }
 
 type configurableLabelLists map[ConfigurationAxis]labelListSelectValues
@@ -546,6 +570,9 @@ func (lla *LabelListAttribute) SortedConfigurationAxes() []ConfigurationAxis {
 // Append all values, including os and arch specific ones, from another
 // LabelListAttribute to this LabelListAttribute.
 func (lla *LabelListAttribute) Append(other LabelListAttribute) {
+	if lla.ForceSpecifyEmptyList && !other.Value.IsNil() {
+		lla.Value.Includes = []Label{}
+	}
 	lla.Value.Append(other.Value)
 	if lla.ConfigurableValues == nil {
 		lla.ConfigurableValues = make(configurableLabelLists)
@@ -595,7 +622,7 @@ func (lla *LabelListAttribute) ResolveExcludes() {
 
 		// Now that the Value list is finalized for this axis, compare it with the original
 		// list, and put the difference into the default condition for the axis.
-		lla.ConfigurableValues[axis][conditionsDefault] = SubtractBazelLabelList(baseLabels, lla.Value)
+		lla.ConfigurableValues[axis][ConditionsDefaultConfigKey] = SubtractBazelLabelList(baseLabels, lla.Value)
 
 		// if everything ends up without includes, just delete the axis
 		if !lla.ConfigurableValues[axis].HasConfigurableValues() {
