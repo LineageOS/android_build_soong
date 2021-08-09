@@ -1454,3 +1454,213 @@ cc_library {
 )`},
 	})
 }
+
+func TestCcLibrary_SystemSharedLibsRootEmpty(t *testing.T) {
+	runCcLibraryTestCase(t, bp2buildTestCase{
+		description:                        "cc_library system_shared_libs empty at root",
+		moduleTypeUnderTest:                "cc_library",
+		moduleTypeUnderTestFactory:         cc.LibraryFactory,
+		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryBp2Build,
+		blueprint: soongCcLibraryPreamble + `
+cc_library {
+    name: "root_empty",
+	  system_shared_libs: [],
+}
+`,
+		expectedBazelTargets: []string{`cc_library(
+    name = "root_empty",
+    copts = [
+        "-I.",
+        "-I$(BINDIR)/.",
+    ],
+    system_dynamic_deps = [],
+)`},
+	})
+}
+
+func TestCcLibrary_SystemSharedLibsStaticEmpty(t *testing.T) {
+	runCcLibraryTestCase(t, bp2buildTestCase{
+		description:                        "cc_library system_shared_libs empty for static variant",
+		moduleTypeUnderTest:                "cc_library",
+		moduleTypeUnderTestFactory:         cc.LibraryFactory,
+		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryBp2Build,
+		blueprint: soongCcLibraryPreamble + `
+cc_library {
+    name: "static_empty",
+    static: {
+				system_shared_libs: [],
+		},
+}
+`,
+		expectedBazelTargets: []string{`cc_library(
+    name = "static_empty",
+    copts = [
+        "-I.",
+        "-I$(BINDIR)/.",
+    ],
+    static = {
+        "system_dynamic_deps": [],
+    },
+)`},
+	})
+}
+
+func TestCcLibrary_SystemSharedLibsSharedEmpty(t *testing.T) {
+	runCcLibraryTestCase(t, bp2buildTestCase{
+		description:                        "cc_library system_shared_libs empty for shared variant",
+		moduleTypeUnderTest:                "cc_library",
+		moduleTypeUnderTestFactory:         cc.LibraryFactory,
+		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryBp2Build,
+		blueprint: soongCcLibraryPreamble + `
+cc_library {
+    name: "shared_empty",
+    shared: {
+				system_shared_libs: [],
+		},
+}
+`,
+		expectedBazelTargets: []string{`cc_library(
+    name = "shared_empty",
+    copts = [
+        "-I.",
+        "-I$(BINDIR)/.",
+    ],
+    shared = {
+        "system_dynamic_deps": [],
+    },
+)`},
+	})
+}
+
+func TestCcLibrary_SystemSharedLibsSharedBionicEmpty(t *testing.T) {
+	runCcLibraryTestCase(t, bp2buildTestCase{
+		description:                        "cc_library system_shared_libs empty for shared, bionic variant",
+		moduleTypeUnderTest:                "cc_library",
+		moduleTypeUnderTestFactory:         cc.LibraryFactory,
+		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryBp2Build,
+		blueprint: soongCcLibraryPreamble + `
+cc_library {
+    name: "shared_empty",
+    target: {
+        bionic: {
+            shared: {
+                system_shared_libs: [],
+            }
+        }
+		},
+}
+`,
+		expectedBazelTargets: []string{`cc_library(
+    name = "shared_empty",
+    copts = [
+        "-I.",
+        "-I$(BINDIR)/.",
+    ],
+    shared = {
+        "system_dynamic_deps": [],
+    },
+)`},
+	})
+}
+
+func TestCcLibrary_SystemSharedLibsLinuxBionicEmpty(t *testing.T) {
+	// Note that this behavior is technically incorrect (it's a simplification).
+	// The correct behavior would be if bp2build wrote `system_dynamic_deps = []`
+	// only for linux_bionic, but `android` had `["libc", "libdl", "libm"].
+	// b/195791252 tracks the fix.
+	runCcLibraryTestCase(t, bp2buildTestCase{
+		description:                        "cc_library system_shared_libs empty for linux_bionic variant",
+		moduleTypeUnderTest:                "cc_library",
+		moduleTypeUnderTestFactory:         cc.LibraryFactory,
+		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryBp2Build,
+		blueprint: soongCcLibraryPreamble + `
+cc_library {
+    name: "target_linux_bionic_empty",
+    target: {
+        linux_bionic: {
+            system_shared_libs: [],
+        },
+    },
+}
+`,
+		expectedBazelTargets: []string{`cc_library(
+    name = "target_linux_bionic_empty",
+    copts = [
+        "-I.",
+        "-I$(BINDIR)/.",
+    ],
+    system_dynamic_deps = [],
+)`},
+	})
+}
+
+func TestCcLibrary_SystemSharedLibsBionicEmpty(t *testing.T) {
+	runCcLibraryTestCase(t, bp2buildTestCase{
+		description:                        "cc_library system_shared_libs empty for bionic variant",
+		moduleTypeUnderTest:                "cc_library",
+		moduleTypeUnderTestFactory:         cc.LibraryFactory,
+		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryBp2Build,
+		blueprint: soongCcLibraryPreamble + `
+cc_library {
+    name: "target_bionic_empty",
+    target: {
+        bionic: {
+            system_shared_libs: [],
+        },
+    },
+}
+`,
+		expectedBazelTargets: []string{`cc_library(
+    name = "target_bionic_empty",
+    copts = [
+        "-I.",
+        "-I$(BINDIR)/.",
+    ],
+    system_dynamic_deps = [],
+)`},
+	})
+}
+
+func TestCcLibrary_SystemSharedLibsSharedAndRoot(t *testing.T) {
+	runCcLibraryTestCase(t, bp2buildTestCase{
+		description:                        "cc_library system_shared_libs set for shared and root",
+		moduleTypeUnderTest:                "cc_library",
+		moduleTypeUnderTestFactory:         cc.LibraryFactory,
+		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryBp2Build,
+		blueprint: soongCcLibraryPreamble + `
+cc_library {name: "libc"}
+cc_library {name: "libm"}
+
+cc_library {
+    name: "foo",
+    system_shared_libs: ["libc"],
+    shared: {
+				system_shared_libs: ["libm"],
+    },
+}
+`,
+		expectedBazelTargets: []string{`cc_library(
+    name = "foo",
+    copts = [
+        "-I.",
+        "-I$(BINDIR)/.",
+    ],
+    shared = {
+        "system_dynamic_deps": [":libm"],
+    },
+    system_dynamic_deps = [":libc"],
+)`, `cc_library(
+    name = "libc",
+    copts = [
+        "-I.",
+        "-I$(BINDIR)/.",
+    ],
+)`, `cc_library(
+    name = "libm",
+    copts = [
+        "-I.",
+        "-I$(BINDIR)/.",
+    ],
+)`},
+	})
+}
