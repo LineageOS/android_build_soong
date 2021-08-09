@@ -82,7 +82,12 @@ func getLabelListValues(list bazel.LabelListAttribute) (reflect.Value, []selects
 			continue
 		}
 		archSelects := map[string]reflect.Value{}
+		defaultVal := configToLabels[bazel.ConditionsDefaultConfigKey]
 		for config, labels := range configToLabels {
+			// Omit any entries in the map which match the default value, for brevity.
+			if config != bazel.ConditionsDefaultConfigKey && labels.Equals(defaultVal) {
+				continue
+			}
 			selectKey := axis.SelectKey(config)
 			if use, value := labelListSelectValue(selectKey, labels); use {
 				archSelects[selectKey] = value
@@ -118,6 +123,8 @@ func prettyPrintAttribute(v bazel.Attribute, indent int) (string, error) {
 	var value reflect.Value
 	var configurableAttrs []selects
 	var defaultSelectValue *string
+	// If true, print the default attribute value, even if the attribute is zero.
+	shouldPrintDefault := false
 	switch list := v.(type) {
 	case bazel.StringListAttribute:
 		value, configurableAttrs = getStringListValues(list)
@@ -125,6 +132,9 @@ func prettyPrintAttribute(v bazel.Attribute, indent int) (string, error) {
 	case bazel.LabelListAttribute:
 		value, configurableAttrs = getLabelListValues(list)
 		defaultSelectValue = &emptyBazelList
+		if list.ForceSpecifyEmptyList && (!value.IsNil() || list.HasConfigurableValues()) {
+			shouldPrintDefault = true
+		}
 	case bazel.LabelAttribute:
 		value, configurableAttrs = getLabelValue(list)
 		defaultSelectValue = &bazelNone
@@ -166,6 +176,9 @@ func prettyPrintAttribute(v bazel.Attribute, indent int) (string, error) {
 		}
 	}
 
+	if ret == "" && shouldPrintDefault {
+		return *defaultSelectValue, nil
+	}
 	return ret, nil
 }
 
