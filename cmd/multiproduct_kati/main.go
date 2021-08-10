@@ -15,12 +15,15 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -207,6 +210,14 @@ func main() {
 	if *alternateResultDir {
 		args = "dist"
 	}
+
+	originalOutDir := os.Getenv("OUT_DIR")
+	if originalOutDir == "" {
+		originalOutDir = "out"
+	}
+
+	soongUi := "build/soong/soong_ui.bash"
+
 	config := build.NewConfig(buildCtx, args)
 	if *outDir == "" {
 		name := "multiproduct"
@@ -214,7 +225,7 @@ func main() {
 			name += "-" + time.Now().Format("20060102150405")
 		}
 
-		*outDir = filepath.Join(config.OutDir(), name)
+		*outDir = filepath.Join(originalOutDir, name)
 
 		// Ensure the empty files exist in the output directory
 		// containing our output directory too. This is mostly for
@@ -348,7 +359,7 @@ func main() {
 					if product == "" {
 						return
 					}
-					buildProduct(mpCtx, product)
+					runSoongUiForProduct(mpCtx, product, soongUi)
 				}
 			}
 		}()
@@ -380,11 +391,33 @@ func main() {
 	}
 }
 
-func buildProduct(mpctx *mpContext, product string) {
-	var stdLog string
+func cleanupAfterProduct(outDir, productZip string) {
+	if *keepArtifacts {
+		args := zip.ZipArgs{
+			FileArgs: []zip.FileArg{
+				{
+					GlobDir:             outDir,
+					SourcePrefixToStrip: outDir,
+				},
+			},
+			OutputFilePath:   productZip,
+			NumParallelJobs:  runtime.NumCPU(),
+			CompressionLevel: 5,
+		}
+		if err := zip.Zip(args); err != nil {
+			log.Fatalf("Error zipping artifacts: %v", err)
+		}
+	}
+	if !*incremental {
+		os.RemoveAll(outDir)
+	}
+}
 
+func runSoongUiForProduct(mpctx *mpContext, product, soongUi string) {
 	outDir := filepath.Join(mpctx.Config.OutDir(), product)
 	logsDir := filepath.Join(mpctx.LogsDir, product)
+	productZip := filepath.Join(mpctx.Config.OutDir(), product+".zip")
+	consoleLogPath := filepath.Join(logsDir, "std.log")
 
 	if err := os.MkdirAll(outDir, 0777); err != nil {
 		mpctx.Logger.Fatalf("Error creating out directory: %v", err)
@@ -393,98 +426,65 @@ func buildProduct(mpctx *mpContext, product string) {
 		mpctx.Logger.Fatalf("Error creating log directory: %v", err)
 	}
 
-	stdLog = filepath.Join(logsDir, "std.log")
-	f, err := os.Create(stdLog)
+	consoleLogFile, err := os.Create(consoleLogPath)
 	if err != nil {
-		mpctx.Logger.Fatalf("Error creating std.log: %v", err)
+		mpctx.Logger.Fatalf("Error creating console log file: %v", err)
 	}
-	defer f.Close()
+	defer consoleLogFile.Close()
 
-	log := logger.New(f)
-	defer log.Cleanup()
-	log.SetOutput(filepath.Join(logsDir, "soong.log"))
+	consoleLogWriter := bufio.NewWriter(consoleLogFile)
+	defer consoleLogWriter.Flush()
+
+	args := []string{"--make-mode", "--skip-soong-tests", "--skip-ninja"}
+
+	if !*keepArtifacts {
+		args = append(args, "--empty-ninja-file")
+	}
+
+	if *onlyConfig {
+		args = append(args, "--config-only")
+	} else if *onlySoong {
+		args = append(args, "--soong-only")
+	}
+
+	if *alternateResultDir {
+		args = append(args, "dist")
+	}
+
+	cmd := exec.Command(soongUi, args...)
+	cmd.Stdout = consoleLogWriter
+	cmd.Stderr = consoleLogWriter
+	cmd.Env = append(os.Environ(),
+		"OUT_DIR="+outDir,
+		"TARGET_PRODUCT="+product,
+		"TARGET_BUILD_VARIANT="+*buildVariant,
+		"TARGET_BUILD_TYPE=release",
+		"TARGET_BUILD_APPS=",
+		"TARGET_BUILD_UNBUNDLED=")
 
 	action := &status.Action{
 		Description: product,
 		Outputs:     []string{product},
 	}
+
 	mpctx.Status.StartAction(action)
-	defer logger.Recover(func(err error) {
-		mpctx.Status.FinishAction(status.ActionResult{
-			Action: action,
-			Error:  err,
-			Output: errMsgFromLog(stdLog),
-		})
-	})
-
-	ctx := build.Context{ContextImpl: &build.ContextImpl{
-		Context: mpctx.Context,
-		Logger:  log,
-		Tracer:  mpctx.Tracer,
-		Writer:  f,
-		Thread:  mpctx.Tracer.NewThread(product),
-		Status:  &status.Status{},
-	}}
-	ctx.Status.AddOutput(terminal.NewStatusOutput(ctx.Writer, "", false,
-		build.OsEnvironment().IsEnvTrue("ANDROID_QUIET_BUILD")))
-
-	args := append([]string(nil), flag.Args()...)
-	args = append(args, "--skip-soong-tests")
-	config := build.NewConfig(ctx, args...)
-	config.Environment().Set("OUT_DIR", outDir)
-	if !*keepArtifacts {
-		config.SetEmptyNinjaFile(true)
-	}
-	build.FindSources(ctx, config, mpctx.Finder)
-	config.Lunch(ctx, product, *buildVariant)
-
-	defer func() {
-		if *keepArtifacts {
-			args := zip.ZipArgs{
-				FileArgs: []zip.FileArg{
-					{
-						GlobDir:             outDir,
-						SourcePrefixToStrip: outDir,
-					},
-				},
-				OutputFilePath:   filepath.Join(mpctx.Config.OutDir(), product+".zip"),
-				NumParallelJobs:  runtime.NumCPU(),
-				CompressionLevel: 5,
-			}
-			if err := zip.Zip(args); err != nil {
-				log.Fatalf("Error zipping artifacts: %v", err)
-			}
-		}
-		if !*incremental {
-			os.RemoveAll(outDir)
-		}
-	}()
-
-	config.SetSkipNinja(true)
-
-	buildWhat := build.RunProductConfig
-	if !*onlyConfig {
-		buildWhat |= build.RunSoong
-		if !*onlySoong {
-			buildWhat |= build.RunKati
-		}
-	}
+	defer cleanupAfterProduct(outDir, productZip)
 
 	before := time.Now()
-	build.Build(ctx, config)
+	err = cmd.Run()
 
-	// Save std_full.log if Kati re-read the makefiles
-	if buildWhat&build.RunKati != 0 {
-		if after, err := os.Stat(config.KatiBuildNinjaFile()); err == nil && after.ModTime().After(before) {
-			err := copyFile(stdLog, filepath.Join(filepath.Dir(stdLog), "std_full.log"))
+	if !*onlyConfig && !*onlySoong {
+		katiBuildNinjaFile := filepath.Join(outDir, "build-"+product+".ninja")
+		if after, err := os.Stat(katiBuildNinjaFile); err == nil && after.ModTime().After(before) {
+			err := copyFile(consoleLogPath, filepath.Join(filepath.Dir(consoleLogPath), "std_full.log"))
 			if err != nil {
 				log.Fatalf("Error copying log file: %s", err)
 			}
 		}
 	}
-
 	mpctx.Status.FinishAction(status.ActionResult{
 		Action: action,
+		Error:  err,
 	})
 }
 
