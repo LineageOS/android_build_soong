@@ -240,6 +240,8 @@ type compilerAttributes struct {
 	// C++ options and sources
 	cppFlags bazel.StringListAttribute
 	srcs     bazel.LabelListAttribute
+
+	rtti bazel.BoolAttribute
 }
 
 // bp2BuildParseCompilerProps returns copts, srcs and hdrs and other attributes.
@@ -249,6 +251,7 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 	var asFlags bazel.StringListAttribute
 	var conlyFlags bazel.StringListAttribute
 	var cppFlags bazel.StringListAttribute
+	var rtti bazel.BoolAttribute
 
 	// Creates the -I flags for a directory, while making the directory relative
 	// to the exec root for Bazel to work.
@@ -302,6 +305,7 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 			asFlags.Value = parseCommandLineFlags(baseCompilerProps.Asflags)
 			conlyFlags.Value = parseCommandLineFlags(baseCompilerProps.Conlyflags)
 			cppFlags.Value = parseCommandLineFlags(baseCompilerProps.Cppflags)
+			rtti.Value = baseCompilerProps.Rtti
 
 			for _, dir := range parseLocalIncludeDirs(baseCompilerProps) {
 				copts.Value = append(copts.Value, includeFlags(dir)...)
@@ -345,6 +349,7 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 				asFlags.SetSelectValue(axis, config, archVariantAsflags)
 				conlyFlags.SetSelectValue(axis, config, parseCommandLineFlags(baseCompilerProps.Conlyflags))
 				cppFlags.SetSelectValue(axis, config, parseCommandLineFlags(baseCompilerProps.Cppflags))
+				rtti.SetSelectValue(axis, config, baseCompilerProps.Rtti)
 			}
 		}
 	}
@@ -380,6 +385,7 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 		cSrcs:      cSrcs,
 		conlyFlags: conlyFlags,
 		cppFlags:   cppFlags,
+		rtti:       rtti,
 	}
 }
 
