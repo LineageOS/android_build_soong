@@ -146,6 +146,8 @@ func (tidy *tidyFeature) flags(ctx ModuleContext, flags Flags) Flags {
 	tidyChecks = tidyChecks + ",-bugprone-signed-char-misuse"
 	// http://b/155034972
 	tidyChecks = tidyChecks + ",-bugprone-branch-clone"
+	// http://b/193716442
+	tidyChecks = tidyChecks + ",-bugprone-implicit-widening-of-multiplication-result"
 	flags.TidyFlags = append(flags.TidyFlags, tidyChecks)
 
 	if ctx.Config().IsEnvTrue("WITH_TIDY") {
