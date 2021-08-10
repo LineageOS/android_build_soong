@@ -188,6 +188,9 @@ func init() {
 	exportStringListStaticVariable("ArmArmCflags", armArmCflags)
 	exportStringListStaticVariable("ArmThumbCflags", armThumbCflags)
 
+	exportedStringListDictVars.Set("ArmArchVariantCflags", armArchVariantCflags)
+	exportedStringListDictVars.Set("ArmCpuVariantCflags", armCpuVariantCflags)
+
 	// Clang arch variant cflags
 	exportStringListStaticVariable("ArmArmv7ACflags", armArchVariantCflags["armv7-a"])
 	exportStringListStaticVariable("ArmArmv7ANeonCflags", armArchVariantCflags["armv7-a-neon"])
