@@ -115,3 +115,143 @@ func TestExpandVars(t *testing.T) {
 		})
 	}
 }
+
+func TestBazelToolchainVars(t *testing.T) {
+	testCases := []struct {
+		name        string
+		vars        []bazelVarExporter
+		expectedOut string
+	}{
+		{
+			name: "exports strings",
+			vars: []bazelVarExporter{
+				exportedStringVariables{
+					"a": "b",
+					"c": "d",
+				},
+			},
+			expectedOut: `# GENERATED FOR BAZEL FROM SOONG. DO NOT EDIT.
+
+_a = "b"
+
+_c = "d"
+
+constants = struct(
+    a = _a,
+    c = _c,
+)`,
+		},
+		{
+			name: "exports string lists",
+			vars: []bazelVarExporter{
+				exportedStringListVariables{
+					"a": []string{"b1", "b2"},
+					"c": []string{"d1", "d2"},
+				},
+			},
+			expectedOut: `# GENERATED FOR BAZEL FROM SOONG. DO NOT EDIT.
+
+_a = [
+    "b1",
+    "b2",
+]
+
+_c = [
+    "d1",
+    "d2",
+]
+
+constants = struct(
+    a = _a,
+    c = _c,
+)`,
+		},
+		{
+			name: "exports string lists dicts",
+			vars: []bazelVarExporter{
+				exportedStringListDictVariables{
+					"a": map[string][]string{"b1": []string{"b2"}},
+					"c": map[string][]string{"d1": []string{"d2"}},
+				},
+			},
+			expectedOut: `# GENERATED FOR BAZEL FROM SOONG. DO NOT EDIT.
+
+_a = {
+    "b1": [
+        "b2",
+    ],
+}
+
+_c = {
+    "d1": [
+        "d2",
+    ],
+}
+
+constants = struct(
+    a = _a,
+    c = _c,
+)`,
+		},
+		{
+			name: "sorts across types",
+			vars: []bazelVarExporter{
+				exportedStringVariables{
+					"b": "b-val",
+					"d": "d-val",
+				},
+				exportedStringListVariables{
+					"c": []string{"c-val"},
+					"e": []string{"e-val"},
+				},
+				exportedStringListDictVariables{
+					"a": map[string][]string{"a1": []string{"a2"}},
+					"f": map[string][]string{"f1": []string{"f2"}},
+				},
+			},
+			expectedOut: `# GENERATED FOR BAZEL FROM SOONG. DO NOT EDIT.
+
+_a = {
+    "a1": [
+        "a2",
+    ],
+}
+
+_b = "b-val"
+
+_c = [
+    "c-val",
+]
+
+_d = "d-val"
+
+_e = [
+    "e-val",
+]
+
+_f = {
+    "f1": [
+        "f2",
+    ],
+}
+
+constants = struct(
+    a = _a,
+    b = _b,
+    c = _c,
+    d = _d,
+    e = _e,
+    f = _f,
+)`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			out := bazelToolchainVars(tc.vars...)
+			if out != tc.expectedOut {
+				t.Errorf("Expected \n%s, got \n%s", tc.expectedOut, out)
+			}
+		})
+	}
+}
