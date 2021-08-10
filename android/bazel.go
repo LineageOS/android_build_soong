@@ -166,9 +166,10 @@ var (
 		"system/logging/liblog":           Bp2BuildDefaultTrueRecursively,
 		"system/timezone/apex":            Bp2BuildDefaultTrueRecursively,
 		"system/timezone/output_data":     Bp2BuildDefaultTrueRecursively,
-		"external/jemalloc_new":           Bp2BuildDefaultTrueRecursively,
-		"external/fmtlib":                 Bp2BuildDefaultTrueRecursively,
 		"external/arm-optimized-routines": Bp2BuildDefaultTrueRecursively,
+		"external/fmtlib":                 Bp2BuildDefaultTrueRecursively,
+		"external/jemalloc_new":           Bp2BuildDefaultTrueRecursively,
+		"external/libcxxabi":              Bp2BuildDefaultTrueRecursively,
 		"external/scudo":                  Bp2BuildDefaultTrueRecursively,
 		"prebuilts/clang/host/linux-x86":  Bp2BuildDefaultTrueRecursively,
 	}
@@ -231,7 +232,10 @@ var (
 
 	// Per-module denylist to opt modules out of mixed builds. Such modules will
 	// still be generated via bp2build.
-	mixedBuildsDisabledList = []string{}
+	mixedBuildsDisabledList = []string{
+		"libc++abi",      // http://b/195970501, cc_library_static, duplicate symbols because it propagates libc objects.
+		"libc++demangle", // http://b/195970501, cc_library_static, duplicate symbols because it propagates libc objects.
+	}
 
 	// Used for quicker lookups
 	bp2buildModuleDoNotConvert  = map[string]bool{}
