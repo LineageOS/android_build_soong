@@ -236,6 +236,7 @@ type bazelCcLibraryAttributes struct {
 	Includes            bazel.StringListAttribute
 	Linkopts            bazel.StringListAttribute
 	Use_libcrt          bazel.BoolAttribute
+	Rtti                bazel.BoolAttribute
 
 	// This is shared only.
 	Version_script bazel.LabelAttribute
@@ -323,6 +324,7 @@ func CcLibraryBp2Build(ctx android.TopDownMutatorContext) {
 		Includes:            exportedIncludes,
 		Linkopts:            linkerAttrs.linkopts,
 		Use_libcrt:          linkerAttrs.useLibcrt,
+		Rtti:                compilerAttrs.rtti,
 
 		Version_script: linkerAttrs.versionScript,
 
@@ -2335,6 +2337,7 @@ type bazelCcLibraryStaticAttributes struct {
 	Linkopts            bazel.StringListAttribute
 	Linkstatic          bool
 	Use_libcrt          bazel.BoolAttribute
+	Rtti                bazel.BoolAttribute
 	Includes            bazel.StringListAttribute
 	Hdrs                bazel.LabelListAttribute
 
@@ -2396,6 +2399,7 @@ func ccLibraryStaticBp2BuildInternal(ctx android.TopDownMutatorContext, module *
 		Linkopts:   linkerAttrs.linkopts,
 		Linkstatic: true,
 		Use_libcrt: linkerAttrs.useLibcrt,
+		Rtti:       compilerAttrs.rtti,
 		Includes:   exportedIncludes,
 
 		Cppflags:   compilerAttrs.cppFlags,
