@@ -26,6 +26,7 @@ import (
 	"android/soong/android"
 	"android/soong/bazel"
 	"android/soong/cc"
+	"android/soong/snapshot"
 	"android/soong/tradefed"
 )
 
@@ -195,6 +196,9 @@ func (s *ShBinary) SubDir() string {
 	return proptools.String(s.properties.Sub_dir)
 }
 
+func (s *ShBinary) RelativeInstallPath() string {
+	return s.SubDir()
+}
 func (s *ShBinary) Installable() bool {
 	return s.properties.Installable == nil || proptools.Bool(s.properties.Installable)
 }
@@ -566,3 +570,5 @@ func (m *bazelShBinary) Name() string {
 func (m *bazelShBinary) GenerateAndroidBuildActions(ctx android.ModuleContext) {}
 
 var Bool = proptools.Bool
+
+var _ snapshot.RelativeInstallPath = (*ShBinary)(nil)

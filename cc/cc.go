@@ -30,6 +30,7 @@ import (
 	"android/soong/android"
 	"android/soong/cc/config"
 	"android/soong/genrule"
+	"android/soong/snapshot"
 )
 
 func init() {
@@ -3385,6 +3386,8 @@ func (c *Module) AlwaysRequiresPlatformApexVariant() bool {
 	// stub libraries and native bridge libraries are always available to platform
 	return c.IsStubs() || c.Target().NativeBridge == android.NativeBridgeEnabled
 }
+
+var _ snapshot.RelativeInstallPath = (*Module)(nil)
 
 //
 // Defaults

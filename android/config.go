@@ -1517,6 +1517,10 @@ func (c *deviceConfig) RecoverySnapshotDirsIncludedMap() map[string]bool {
 		c.config.productVariables.RecoverySnapshotDirsIncluded)
 }
 
+func (c *deviceConfig) HostFakeSnapshotEnabled() bool {
+	return c.config.productVariables.HostFakeSnapshotEnabled
+}
+
 func (c *deviceConfig) ShippingApiLevel() ApiLevel {
 	if c.config.productVariables.ShippingApiLevel == nil {
 		return NoneApiLevel
