@@ -54,7 +54,7 @@ type rustProjectCrate struct {
 }
 
 type rustProjectJson struct {
-	Roots  []string           `json:"roots"`
+	// Roots  []string           `json:"roots"`
 	Crates []rustProjectCrate `json:"crates"`
 }
 
@@ -250,7 +250,7 @@ func (singleton *projectGeneratorSingleton) addCrate(ctx android.SingletonContex
 	singleton.project.Crates = append(singleton.project.Crates, crate)
 	// rust-analyzer requires that all crates belong to at least one root:
 	// https://github.com/rust-analyzer/rust-analyzer/issues/4735.
-	singleton.project.Roots = append(singleton.project.Roots, path.Dir(crate.RootModule))
+	// singleton.project.Roots = append(singleton.project.Roots, path.Dir(crate.RootModule))
 	return idx, true
 }
 
