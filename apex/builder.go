@@ -76,7 +76,7 @@ var (
 	// by default set to (uid/gid/mode) = (1000/1000/0644)
 	// TODO(b/113082813) make this configurable using config.fs syntax
 	generateFsConfig = pctx.StaticRule("generateFsConfig", blueprint.RuleParams{
-		Command: `( echo '/ 1000 1000 0755' ` +
+		Command: `( set -e; echo '/ 1000 1000 0755' ` +
 			`&& for i in ${ro_paths}; do echo "/$$i 1000 1000 0644"; done ` +
 			`&& for i in  ${exec_paths}; do echo "/$$i 0 2000 0755"; done ` +
 			`&& ( tr ' ' '\n' <${out}.apklist | for i in ${apk_paths}; do read apk; echo "/$$i 0 2000 0755"; zipinfo -1 $$apk | sed "s:\(.*\):/$$i/\1 1000 1000 0644:"; done ) ) > ${out}`,
