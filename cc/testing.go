@@ -451,16 +451,6 @@ func commonDefaultModules() string {
 			name: "note_memtag_heap_sync",
 		}
 
-
-		cc_library {
-			name: "libjemalloc5",
-			host_supported: true,
-			no_libcrt: true,
-			nocrt: true,
-			system_shared_libs: [],
-			stl: "none",
-		}
-
 		cc_library {
 			name: "libc_musl",
 			host_supported: true,
