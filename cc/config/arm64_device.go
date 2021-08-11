@@ -96,31 +96,25 @@ func init() {
 	pctx.SourcePathVariable("Arm64GccRoot",
 		"prebuilts/gcc/${HostPrebuiltTag}/aarch64/aarch64-linux-android-${arm64GccVersion}")
 
-	pctx.StaticVariable("Arm64Ldflags", strings.Join(arm64Ldflags, " "))
-	pctx.StaticVariable("Arm64Lldflags", strings.Join(arm64Lldflags, " "))
+	exportStringListStaticVariable("Arm64Ldflags", arm64Ldflags)
+	exportStringListStaticVariable("Arm64Lldflags", arm64Lldflags)
 
-	pctx.StaticVariable("Arm64Cflags", strings.Join(arm64Cflags, " "))
-	pctx.StaticVariable("Arm64Cppflags", strings.Join(arm64Cppflags, " "))
+	exportStringListStaticVariable("Arm64Cflags", arm64Cflags)
+	exportStringListStaticVariable("Arm64Cppflags", arm64Cppflags)
+
+	exportedStringListDictVars.Set("Arm64ArchVariantCflags", arm64ArchVariantCflags)
+	exportedStringListDictVars.Set("Arm64CpuVariantCflags", arm64CpuVariantCflags)
 
 	pctx.StaticVariable("Arm64Armv8ACflags", strings.Join(arm64ArchVariantCflags["armv8-a"], " "))
 	pctx.StaticVariable("Arm64Armv8ABranchProtCflags", strings.Join(arm64ArchVariantCflags["armv8-a-branchprot"], " "))
 	pctx.StaticVariable("Arm64Armv82ACflags", strings.Join(arm64ArchVariantCflags["armv8-2a"], " "))
 	pctx.StaticVariable("Arm64Armv82ADotprodCflags", strings.Join(arm64ArchVariantCflags["armv8-2a-dotprod"], " "))
 
-	pctx.StaticVariable("Arm64CortexA53Cflags",
-		strings.Join(arm64CpuVariantCflags["cortex-a53"], " "))
-
-	pctx.StaticVariable("Arm64CortexA55Cflags",
-		strings.Join(arm64CpuVariantCflags["cortex-a55"], " "))
-
-	pctx.StaticVariable("Arm64KryoCflags",
-		strings.Join(arm64CpuVariantCflags["kryo"], " "))
-
-	pctx.StaticVariable("Arm64ExynosM1Cflags",
-		strings.Join(arm64CpuVariantCflags["exynos-m1"], " "))
-
-	pctx.StaticVariable("Arm64ExynosM2Cflags",
-		strings.Join(arm64CpuVariantCflags["exynos-m2"], " "))
+	pctx.StaticVariable("Arm64CortexA53Cflags", strings.Join(arm64CpuVariantCflags["cortex-a53"], " "))
+	pctx.StaticVariable("Arm64CortexA55Cflags", strings.Join(arm64CpuVariantCflags["cortex-a55"], " "))
+	pctx.StaticVariable("Arm64KryoCflags", strings.Join(arm64CpuVariantCflags["kryo"], " "))
+	pctx.StaticVariable("Arm64ExynosM1Cflags", strings.Join(arm64CpuVariantCflags["exynos-m1"], " "))
+	pctx.StaticVariable("Arm64ExynosM2Cflags", strings.Join(arm64CpuVariantCflags["exynos-m2"], " "))
 }
 
 var (
