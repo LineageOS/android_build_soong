@@ -137,6 +137,7 @@ var (
 		// build/bazel explicitly.
 		"build/bazel":/* recursive = */ false,
 		"build/bazel/examples/android_app":/* recursive = */ true,
+		"build/bazel/examples/java":/* recursive = */ true,
 		"build/bazel/bazel_skylib":/* recursive = */ true,
 		"build/bazel/rules":/* recursive = */ true,
 		"build/bazel/rules_cc":/* recursive = */ true,
@@ -149,6 +150,7 @@ var (
 		// e.g. ERROR: Analysis of target '@soong_injection//mixed_builds:buildroot' failed
 		"external/bazelbuild-rules_android":/* recursive = */ true,
 
+		"prebuilts/jdk":/* recursive = */ true,
 		"prebuilts/sdk":/* recursive = */ false,
 		"prebuilts/sdk/tools":/* recursive = */ false,
 		"prebuilts/r8":/* recursive = */ false,
@@ -166,9 +168,10 @@ var (
 		"system/logging/liblog":           Bp2BuildDefaultTrueRecursively,
 		"system/timezone/apex":            Bp2BuildDefaultTrueRecursively,
 		"system/timezone/output_data":     Bp2BuildDefaultTrueRecursively,
-		"external/jemalloc_new":           Bp2BuildDefaultTrueRecursively,
-		"external/fmtlib":                 Bp2BuildDefaultTrueRecursively,
 		"external/arm-optimized-routines": Bp2BuildDefaultTrueRecursively,
+		"external/fmtlib":                 Bp2BuildDefaultTrueRecursively,
+		"external/jemalloc_new":           Bp2BuildDefaultTrueRecursively,
+		"external/libcxxabi":              Bp2BuildDefaultTrueRecursively,
 		"external/scudo":                  Bp2BuildDefaultTrueRecursively,
 		"prebuilts/clang/host/linux-x86":  Bp2BuildDefaultTrueRecursively,
 	}
@@ -231,7 +234,10 @@ var (
 
 	// Per-module denylist to opt modules out of mixed builds. Such modules will
 	// still be generated via bp2build.
-	mixedBuildsDisabledList = []string{}
+	mixedBuildsDisabledList = []string{
+		"libc++abi",      // http://b/195970501, cc_library_static, duplicate symbols because it propagates libc objects.
+		"libc++demangle", // http://b/195970501, cc_library_static, duplicate symbols because it propagates libc objects.
+	}
 
 	// Used for quicker lookups
 	bp2buildModuleDoNotConvert  = map[string]bool{}
