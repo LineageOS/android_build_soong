@@ -331,8 +331,11 @@ def compare_signature_flags(monolithicFlagsDict, modularFlagsDict):
     for signature in allSignatures:
         monolithicRow = monolithicFlagsDict.get(signature, {})
         monolithicFlags = monolithicRow.get(None, [])
-        modularRow = modularFlagsDict.get(signature, {})
-        modularFlags = modularRow.get(None, [])
+        if signature in modularFlagsDict:
+            modularRow = modularFlagsDict.get(signature, {})
+            modularFlags = modularRow.get(None, [])
+        else:
+            modularFlags = ["blocked"]
         if monolithicFlags != modularFlags:
             mismatchingSignatures.append((signature, modularFlags, monolithicFlags))
     return mismatchingSignatures
