@@ -31,8 +31,8 @@ import (
 	"syscall"
 	"time"
 
-	"android/soong/ui/build"
 	"android/soong/ui/logger"
+	"android/soong/ui/signal"
 	"android/soong/ui/status"
 	"android/soong/ui/terminal"
 	"android/soong/ui/tracer"
@@ -127,12 +127,12 @@ func copyFile(from, to string) error {
 }
 
 type mpContext struct {
-	Context context.Context
-	Logger  logger.Logger
-	Status  status.ToolStatus
-	Tracer  tracer.Tracer
+	Logger logger.Logger
+	Status status.ToolStatus
 
-	LogsDir string
+	SoongUi     string
+	MainOutDir  string
+	MainLogsDir string
 }
 
 func detectTotalRAM() uint64 {
@@ -179,7 +179,7 @@ func main() {
 
 	flag.Parse()
 
-	ctx, cancel := context.WithCancel(context.Background())
+	_, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	trace := tracer.New(log)
@@ -192,7 +192,7 @@ func main() {
 	var failures failureCount
 	stat.AddOutput(&failures)
 
-	build.SetupSignals(log, cancel, func() {
+	signal.SetupSignals(log, cancel, func() {
 		trace.Close()
 		log.Cleanup()
 		stat.Finish()
@@ -310,12 +310,11 @@ func main() {
 	s.SetTotalActions(len(finalProductsList))
 
 	mpCtx := &mpContext{
-		Context: ctx,
-		Logger:  log,
-		Status:  s,
-		Tracer:  trace,
-
-		LogsDir: logsDir,
+		Logger:      log,
+		Status:      s,
+		SoongUi:     soongUi,
+		MainOutDir:  outputDir,
+		MainLogsDir: logsDir,
 	}
 
 	products := make(chan string, len(productsList))
@@ -337,7 +336,7 @@ func main() {
 					if product == "" {
 						return
 					}
-					runSoongUiForProduct(mpCtx, product, soongUi, outputDir)
+					runSoongUiForProduct(mpCtx, product)
 				}
 			}
 		}()
@@ -391,10 +390,10 @@ func cleanupAfterProduct(outDir, productZip string) {
 	}
 }
 
-func runSoongUiForProduct(mpctx *mpContext, product, soongUi, mainOutDir string) {
-	outDir := filepath.Join(mainOutDir, product)
-	logsDir := filepath.Join(mpctx.LogsDir, product)
-	productZip := filepath.Join(mainOutDir, product+".zip")
+func runSoongUiForProduct(mpctx *mpContext, product string) {
+	outDir := filepath.Join(mpctx.MainOutDir, product)
+	logsDir := filepath.Join(mpctx.MainLogsDir, product)
+	productZip := filepath.Join(mpctx.MainOutDir, product+".zip")
 	consoleLogPath := filepath.Join(logsDir, "std.log")
 
 	if err := os.MkdirAll(outDir, 0777); err != nil {
@@ -429,7 +428,7 @@ func runSoongUiForProduct(mpctx *mpContext, product, soongUi, mainOutDir string)
 		args = append(args, "dist")
 	}
 
-	cmd := exec.Command(soongUi, args...)
+	cmd := exec.Command(mpctx.SoongUi, args...)
 	cmd.Stdout = consoleLogWriter
 	cmd.Stderr = consoleLogWriter
 	cmd.Env = append(os.Environ(),
