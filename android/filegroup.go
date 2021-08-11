@@ -15,8 +15,9 @@
 package android
 
 import (
-	"android/soong/bazel"
 	"strings"
+
+	"android/soong/bazel"
 )
 
 func init() {
@@ -108,7 +109,7 @@ func FileGroupFactory() Module {
 	return module
 }
 
-func (fg *fileGroup) generateBazelBuildActions(ctx ModuleContext) bool {
+func (fg *fileGroup) GenerateBazelBuildActions(ctx ModuleContext) bool {
 	if !fg.MixedBuildsEnabled(ctx) {
 		return false
 	}
@@ -131,7 +132,7 @@ func (fg *fileGroup) generateBazelBuildActions(ctx ModuleContext) bool {
 }
 
 func (fg *fileGroup) GenerateAndroidBuildActions(ctx ModuleContext) {
-	if fg.generateBazelBuildActions(ctx) {
+	if fg.GenerateBazelBuildActions(ctx) {
 		return
 	}
 
