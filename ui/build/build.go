@@ -238,6 +238,11 @@ func Build(ctx Context, config Config) {
 		ctx.Verboseln("Skipping use of Kati ninja as requested")
 		what = what &^ RunKatiNinja
 	}
+	if config.SkipSoong() {
+		ctx.Verboseln("Skipping use of Soong as requested")
+		what = what &^ RunSoong
+	}
+
 	if config.SkipNinja() {
 		ctx.Verboseln("Skipping Ninja as requested")
 		what = what &^ RunNinja
