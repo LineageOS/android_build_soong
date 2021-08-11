@@ -130,24 +130,6 @@ type bazelObjectAttributes struct {
 	Asflags bazel.StringListAttribute
 }
 
-type bazelObject struct {
-	android.BazelTargetModuleBase
-	bazelObjectAttributes
-}
-
-func (m *bazelObject) Name() string {
-	return m.BaseModuleName()
-}
-
-func (m *bazelObject) GenerateAndroidBuildActions(ctx android.ModuleContext) {}
-
-func BazelObjectFactory() android.Module {
-	module := &bazelObject{}
-	module.AddProperties(&module.bazelObjectAttributes)
-	android.InitBazelTargetModule(module)
-	return module
-}
-
 // ObjectBp2Build is the bp2build converter from cc_object modules to the
 // Bazel equivalent target, plus any necessary include deps for the cc_object.
 func ObjectBp2Build(ctx android.TopDownMutatorContext) {
@@ -200,7 +182,7 @@ func ObjectBp2Build(ctx android.TopDownMutatorContext) {
 		Bzl_load_location: "//build/bazel/rules:cc_object.bzl",
 	}
 
-	ctx.CreateBazelTargetModule(BazelObjectFactory, m.Name(), props, attrs)
+	ctx.CreateBazelTargetModule(m.Name(), props, attrs)
 }
 
 func (object *objectLinker) appendLdflags(flags []string) {
