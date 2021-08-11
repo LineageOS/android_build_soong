@@ -15,6 +15,7 @@
 package apex
 
 import (
+	"android/soong/dexpreopt"
 	"testing"
 
 	"android/soong/android"
@@ -30,6 +31,7 @@ func TestSystemserverclasspathFragmentContents(t *testing.T) {
 	result := android.GroupFixturePreparers(
 		prepareForTestWithSystemserverclasspathFragment,
 		prepareForTestWithMyapex,
+		dexpreopt.FixtureSetApexSystemServerJars("myapex:foo"),
 	).RunTestWithBp(t, `
 		apex {
 			name: "myapex",
@@ -81,6 +83,7 @@ func TestSystemserverclasspathFragmentNoGeneratedProto(t *testing.T) {
 	result := android.GroupFixturePreparers(
 		prepareForTestWithSystemserverclasspathFragment,
 		prepareForTestWithMyapex,
+		dexpreopt.FixtureSetApexSystemServerJars("myapex:foo"),
 	).RunTestWithBp(t, `
 		apex {
 			name: "myapex",
