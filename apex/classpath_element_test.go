@@ -58,6 +58,7 @@ func TestCreateClasspathElements(t *testing.T) {
 		}),
 		java.PrepareForTestWithJavaSdkLibraryFiles,
 		java.FixtureWithLastReleaseApis("foo", "othersdklibrary"),
+		java.FixtureConfigureApexBootJars("myapex:bar"),
 		android.FixtureWithRootAndroidBp(`
 		apex {
 			name: "com.android.art",
@@ -79,6 +80,7 @@ func TestCreateClasspathElements(t *testing.T) {
 
 		bootclasspath_fragment {
 			name: "art-bootclasspath-fragment",
+			image_name: "art",
 			apex_available: [
 				"com.android.art",
 			],
@@ -192,6 +194,10 @@ func TestCreateClasspathElements(t *testing.T) {
 				{
 					apex: "com.android.art",
 					module: "art-bootclasspath-fragment",
+				},
+				{
+					apex: "myapex",
+					module: "mybootclasspath-fragment",
 				},
 			],
 		}
