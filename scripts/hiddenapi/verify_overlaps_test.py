@@ -298,7 +298,7 @@ Ljava/lang/Object;->toString()Ljava/lang/String;,blocked
         ]
         self.assertEqual(expected, mismatches)
 
-    def test_missing_from_monolithic(self):
+    def test_match_treat_missing_from_modular_as_blocked(self):
         monolithic = self.read_signature_csv_from_string_as_dict('')
         modular = self.read_signature_csv_from_string_as_dict('''
 Ljava/lang/Object;->toString()Ljava/lang/String;,public-api,system-api,test-api
@@ -313,7 +313,7 @@ Ljava/lang/Object;->toString()Ljava/lang/String;,public-api,system-api,test-api
         ]
         self.assertEqual(expected, mismatches)
 
-    def test_missing_from_modular(self):
+    def test_mismatch_treat_missing_from_modular_as_blocked(self):
         monolithic = self.read_signature_csv_from_string_as_dict('''
 Ljava/lang/Object;->hashCode()I,public-api,system-api,test-api
 ''')
@@ -322,7 +322,7 @@ Ljava/lang/Object;->hashCode()I,public-api,system-api,test-api
         expected = [
             (
                 'Ljava/lang/Object;->hashCode()I',
-                [],
+                ['blocked'],
                 ['public-api', 'system-api', 'test-api'],
             ),
         ]
@@ -334,13 +334,7 @@ Ljava/lang/Object;->hashCode()I,blocked
 ''')
         modular = {}
         mismatches = compare_signature_flags(monolithic, modular)
-        expected = [
-            (
-                'Ljava/lang/Object;->hashCode()I',
-                [],
-                ['blocked'],
-            ),
-        ]
+        expected = []
         self.assertEqual(expected, mismatches)
 
 if __name__ == '__main__':
