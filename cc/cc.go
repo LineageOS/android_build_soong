@@ -589,17 +589,6 @@ type installer interface {
 	installInRoot() bool
 }
 
-// bazelHandler is the interface for a helper object related to deferring to Bazel for
-// processing a module (during Bazel mixed builds). Individual module types should define
-// their own bazel handler if they support deferring to Bazel.
-type bazelHandler interface {
-	// Issue query to Bazel to retrieve information about Bazel's view of the current module.
-	// If Bazel returns this information, set module properties on the current module to reflect
-	// the returned information.
-	// Returns true if information was available from Bazel, false if bazel invocation still needs to occur.
-	generateBazelBuildActions(ctx android.ModuleContext, label string) bool
-}
-
 type xref interface {
 	XrefCcFiles() android.Paths
 }
@@ -796,7 +785,7 @@ type Module struct {
 	compiler     compiler
 	linker       linker
 	installer    installer
-	bazelHandler bazelHandler
+	bazelHandler android.BazelHandler
 
 	features []feature
 	stl      *stl
@@ -1696,7 +1685,7 @@ func (c *Module) maybeGenerateBazelActions(actx android.ModuleContext) bool {
 	bazelModuleLabel := c.GetBazelLabel(actx, c)
 	bazelActionsUsed := false
 	if c.MixedBuildsEnabled(actx) && c.bazelHandler != nil {
-		bazelActionsUsed = c.bazelHandler.generateBazelBuildActions(actx, bazelModuleLabel)
+		bazelActionsUsed = c.bazelHandler.GenerateBazelBuildActions(actx, bazelModuleLabel)
 	}
 	return bazelActionsUsed
 }
