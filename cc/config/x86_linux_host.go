@@ -110,7 +110,7 @@ var (
 	muslCrtBeginSharedBinary, muslCrtEndSharedBinary   = []string{"libc_musl_crtbegin_dynamic", "musl_linker_script"}, []string{"libc_musl_crtend"}
 	muslCrtBeginSharedLibrary, muslCrtEndSharedLibrary = []string{"libc_musl_crtbegin_so"}, []string{"libc_musl_crtend_so"}
 
-	muslDefaultSharedLibraries = []string{"libjemalloc5", "libc_musl"}
+	muslDefaultSharedLibraries = []string{"libc_musl"}
 )
 
 const (
