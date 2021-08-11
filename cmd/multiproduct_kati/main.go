@@ -20,18 +20,17 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
 
-	"android/soong/finder"
 	"android/soong/ui/build"
 	"android/soong/ui/logger"
 	"android/soong/ui/status"
@@ -75,36 +74,6 @@ func (m *multipleStringArg) String() string {
 func (m *multipleStringArg) Set(s string) error {
 	*m = append(*m, strings.Split(s, ",")...)
 	return nil
-}
-
-const errorLeadingLines = 20
-const errorTrailingLines = 20
-
-func errMsgFromLog(filename string) string {
-	if filename == "" {
-		return ""
-	}
-
-	data, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return ""
-	}
-
-	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
-	if len(lines) > errorLeadingLines+errorTrailingLines+1 {
-		lines[errorLeadingLines] = fmt.Sprintf("... skipping %d lines ...",
-			len(lines)-errorLeadingLines-errorTrailingLines)
-
-		lines = append(lines[:errorLeadingLines+1],
-			lines[len(lines)-errorTrailingLines:]...)
-	}
-	var buf strings.Builder
-	for _, line := range lines {
-		buf.WriteString("> ")
-		buf.WriteString(line)
-		buf.WriteString("\n")
-	}
-	return buf.String()
 }
 
 // TODO(b/70370883): This tool uses a lot of open files -- over the default
@@ -162,18 +131,49 @@ type mpContext struct {
 	Logger  logger.Logger
 	Status  status.ToolStatus
 	Tracer  tracer.Tracer
-	Finder  *finder.Finder
-	Config  build.Config
 
 	LogsDir string
+}
+
+func detectTotalRAM() uint64 {
+	var info syscall.Sysinfo_t
+	err := syscall.Sysinfo(&info)
+	if err != nil {
+		panic(err)
+	}
+	return info.Totalram * uint64(info.Unit)
+}
+
+func findNamedProducts(soongUi string, log logger.Logger) []string {
+	cmd := exec.Command(soongUi, "--dumpvars-mode", "--vars=all_named_products")
+	output, err := cmd.Output()
+	if err != nil {
+		log.Fatalf("Cannot determine named products: %v", err)
+	}
+
+	rx := regexp.MustCompile(`^all_named_products='(.*)'$`)
+	match := rx.FindStringSubmatch(strings.TrimSpace(string(output)))
+	return strings.Fields(match[1])
+}
+
+// ensureEmptyFileExists ensures that the containing directory exists, and the
+// specified file exists. If it doesn't exist, it will write an empty file.
+func ensureEmptyFileExists(file string, log logger.Logger) {
+	if _, err := os.Stat(file); os.IsNotExist(err) {
+		f, err := os.Create(file)
+		if err != nil {
+			log.Fatalf("Error creating %s: %q\n", file, err)
+		}
+		f.Close()
+	} else if err != nil {
+		log.Fatalf("Error checking %s: %q\n", file, err)
+	}
 }
 
 func main() {
 	stdio := terminal.StdioImpl{}
 
-	output := terminal.NewStatusOutput(stdio.Stdout(), "", false,
-		build.OsEnvironment().IsEnvTrue("ANDROID_QUIET_BUILD"))
-
+	output := terminal.NewStatusOutput(stdio.Stdout(), "", false, false)
 	log := logger.New(output)
 	defer log.Cleanup()
 
@@ -198,63 +198,53 @@ func main() {
 		stat.Finish()
 	})
 
-	buildCtx := build.Context{ContextImpl: &build.ContextImpl{
-		Context: ctx,
-		Logger:  log,
-		Tracer:  trace,
-		Writer:  output,
-		Status:  stat,
-	}}
-
-	args := ""
-	if *alternateResultDir {
-		args = "dist"
-	}
-
-	originalOutDir := os.Getenv("OUT_DIR")
-	if originalOutDir == "" {
-		originalOutDir = "out"
-	}
-
 	soongUi := "build/soong/soong_ui.bash"
 
-	config := build.NewConfig(buildCtx, args)
-	if *outDir == "" {
+	var outputDir string
+	if *outDir != "" {
+		outputDir = *outDir
+	} else {
 		name := "multiproduct"
 		if !*incremental {
 			name += "-" + time.Now().Format("20060102150405")
 		}
 
-		*outDir = filepath.Join(originalOutDir, name)
-
-		// Ensure the empty files exist in the output directory
-		// containing our output directory too. This is mostly for
-		// safety, but also triggers the ninja_build file so that our
-		// build servers know that they can parse the output as if it
-		// was ninja output.
-		build.SetupOutDir(buildCtx, config)
-
-		if err := os.MkdirAll(*outDir, 0777); err != nil {
-			log.Fatalf("Failed to create tempdir: %v", err)
+		outDirBase := os.Getenv("OUT_DIR")
+		if outDirBase == "" {
+			outDirBase = "out"
 		}
-	}
-	config.Environment().Set("OUT_DIR", *outDir)
-	log.Println("Output directory:", *outDir)
 
-	logsDir := filepath.Join(config.OutDir(), "logs")
+		outputDir = filepath.Join(outDirBase, name)
+	}
+
+	log.Println("Output directory:", outputDir)
+
+	// The ninja_build file is used by our buildbots to understand that the output
+	// can be parsed as ninja output.
+	if err := os.MkdirAll(outputDir, 0777); err != nil {
+		log.Fatalf("Failed to create output directory: %v", err)
+	}
+	ensureEmptyFileExists(filepath.Join(outputDir, "ninja_build"), log)
+
+	logsDir := filepath.Join(outputDir, "logs")
 	os.MkdirAll(logsDir, 0777)
 
-	build.SetupOutDir(buildCtx, config)
+	var configLogsDir string
+	if *alternateResultDir {
+		configLogsDir = filepath.Join(outputDir, "dist/logs")
+	} else {
+		configLogsDir = outputDir
+	}
 
-	os.MkdirAll(config.LogsDir(), 0777)
-	log.SetOutput(filepath.Join(config.LogsDir(), "soong.log"))
-	trace.SetOutput(filepath.Join(config.LogsDir(), "build.trace"))
+	os.MkdirAll(configLogsDir, 0777)
+	log.SetOutput(filepath.Join(configLogsDir, "soong.log"))
+	trace.SetOutput(filepath.Join(configLogsDir, "build.trace"))
 
 	var jobs = *numJobs
 	if jobs < 1 {
 		jobs = runtime.NumCPU() / 4
 
-		ramGb := int(config.TotalRAM() / 1024 / 1024 / 1024)
+		ramGb := int(detectTotalRAM() / (1024 * 1024 * 1024))
 		if ramJobs := ramGb / 25; ramGb > 0 && jobs > ramJobs {
 			jobs = ramJobs
 		}
@@ -267,17 +257,8 @@ func main() {
 
 	setMaxFiles(log)
 
-	finder := build.NewSourceFinder(buildCtx, config)
-	defer finder.Shutdown()
-
-	build.FindSources(buildCtx, config, finder)
-
-	vars, err := build.DumpMakeVars(buildCtx, config, nil, []string{"all_named_products"})
-	if err != nil {
-		log.Fatal(err)
-	}
+	allProducts := findNamedProducts(soongUi, log)
 	var productsList []string
-	allProducts := strings.Fields(vars["all_named_products"])
 
 	if len(includeProducts) > 0 {
 		var missingProducts []string
@@ -325,7 +306,7 @@ func main() {
 
 	log.Verbose("Got product list: ", finalProductsList)
 
-	s := buildCtx.Status.StartTool()
+	s := stat.StartTool()
 	s.SetTotalActions(len(finalProductsList))
 
 	mpCtx := &mpContext{
@@ -333,9 +314,6 @@ func main() {
 		Logger:  log,
 		Status:  s,
 		Tracer:  trace,
-
-		Finder: finder,
-		Config: config,
 
 		LogsDir: logsDir,
 	}
@@ -359,7 +337,7 @@ func main() {
 					if product == "" {
 						return
 					}
-					runSoongUiForProduct(mpCtx, product, soongUi)
+					runSoongUiForProduct(mpCtx, product, soongUi, outputDir)
 				}
 			}
 		}()
@@ -371,7 +349,7 @@ func main() {
 			FileArgs: []zip.FileArg{
 				{GlobDir: logsDir, SourcePrefixToStrip: logsDir},
 			},
-			OutputFilePath:   filepath.Join(config.RealDistDir(), "logs.zip"),
+			OutputFilePath:   filepath.Join(outputDir, "dist/logs.zip"),
 			NumParallelJobs:  runtime.NumCPU(),
 			CompressionLevel: 5,
 		}
@@ -413,10 +391,10 @@ func cleanupAfterProduct(outDir, productZip string) {
 	}
 }
 
-func runSoongUiForProduct(mpctx *mpContext, product, soongUi string) {
-	outDir := filepath.Join(mpctx.Config.OutDir(), product)
+func runSoongUiForProduct(mpctx *mpContext, product, soongUi, mainOutDir string) {
+	outDir := filepath.Join(mainOutDir, product)
 	logsDir := filepath.Join(mpctx.LogsDir, product)
-	productZip := filepath.Join(mpctx.Config.OutDir(), product+".zip")
+	productZip := filepath.Join(mainOutDir, product+".zip")
 	consoleLogPath := filepath.Join(logsDir, "std.log")
 
 	if err := os.MkdirAll(outDir, 0777); err != nil {
