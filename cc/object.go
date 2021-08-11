@@ -47,12 +47,12 @@ type objectLinker struct {
 }
 
 type objectBazelHandler struct {
-	bazelHandler
+	android.BazelHandler
 
 	module *Module
 }
 
-func (handler *objectBazelHandler) generateBazelBuildActions(ctx android.ModuleContext, label string) bool {
+func (handler *objectBazelHandler) GenerateBazelBuildActions(ctx android.ModuleContext, label string) bool {
 	bazelCtx := ctx.Config().BazelContext
 	objPaths, ok := bazelCtx.GetOutputFiles(label, ctx.Arch().ArchType)
 	if ok {

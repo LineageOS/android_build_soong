@@ -556,7 +556,7 @@ type libraryDecorator struct {
 }
 
 type ccLibraryBazelHandler struct {
-	bazelHandler
+	android.BazelHandler
 
 	module *Module
 }
@@ -642,7 +642,7 @@ func getTocFile(ctx android.ModuleContext, label string, outputFiles []string) a
 	return android.OptionalPathForPath(android.PathForBazelOut(ctx, tocFile))
 }
 
-func (handler *ccLibraryBazelHandler) generateBazelBuildActions(ctx android.ModuleContext, label string) bool {
+func (handler *ccLibraryBazelHandler) GenerateBazelBuildActions(ctx android.ModuleContext, label string) bool {
 	bazelCtx := ctx.Config().BazelContext
 	ccInfo, ok, err := bazelCtx.GetCcInfo(label, ctx.Arch().ArchType)
 	if err != nil {
