@@ -15,9 +15,10 @@
 package cc
 
 import (
-	"android/soong/android"
 	"path/filepath"
 	"strings"
+
+	"android/soong/android"
 )
 
 func init() {
@@ -321,13 +322,13 @@ type prebuiltObjectLinker struct {
 }
 
 type prebuiltStaticLibraryBazelHandler struct {
-	bazelHandler
+	android.BazelHandler
 
 	module  *Module
 	library *libraryDecorator
 }
 
-func (h *prebuiltStaticLibraryBazelHandler) generateBazelBuildActions(ctx android.ModuleContext, label string) bool {
+func (h *prebuiltStaticLibraryBazelHandler) GenerateBazelBuildActions(ctx android.ModuleContext, label string) bool {
 	bazelCtx := ctx.Config().BazelContext
 	ccInfo, ok, err := bazelCtx.GetCcInfo(label, ctx.Arch().ArchType)
 	if err != nil {

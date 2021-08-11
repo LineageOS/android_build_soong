@@ -240,7 +240,7 @@ func toolDepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
 // Returns true if information was available from Bazel, false if bazel invocation still needs to occur.
-func (c *Module) generateBazelBuildActions(ctx android.ModuleContext, label string) bool {
+func (c *Module) GenerateBazelBuildActions(ctx android.ModuleContext, label string) bool {
 	bazelCtx := ctx.Config().BazelContext
 	filePaths, ok := bazelCtx.GetOutputFiles(label, ctx.Arch().ArchType)
 	if ok {
@@ -560,7 +560,7 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	bazelModuleLabel := g.GetBazelLabel(ctx, g)
 	bazelActionsUsed := false
 	if g.MixedBuildsEnabled(ctx) {
-		bazelActionsUsed = g.generateBazelBuildActions(ctx, bazelModuleLabel)
+		bazelActionsUsed = g.GenerateBazelBuildActions(ctx, bazelModuleLabel)
 	}
 	if !bazelActionsUsed {
 		// For <= 6 outputs, just embed those directly in the users. Right now, that covers >90% of
