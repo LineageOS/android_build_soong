@@ -19,8 +19,8 @@ package {
 blueprint_go_binary {
     name: "multiproduct_kati",
     deps: [
-        "soong-ui-build",
         "soong-ui-logger",
+        "soong-ui-signal",
         "soong-ui-terminal",
         "soong-ui-tracer",
         "soong-zip",

@@ -30,6 +30,7 @@ import (
 	"android/soong/ui/build"
 	"android/soong/ui/logger"
 	"android/soong/ui/metrics"
+	"android/soong/ui/signal"
 	"android/soong/ui/status"
 	"android/soong/ui/terminal"
 	"android/soong/ui/tracer"
@@ -190,7 +191,7 @@ func main() {
 	stat.AddOutput(trace.StatusTracer())
 
 	// Set up a cleanup procedure in case the normal termination process doesn't work.
-	build.SetupSignals(log, cancel, func() {
+	signal.SetupSignals(log, cancel, func() {
 		trace.Close()
 		log.Cleanup()
 		stat.Finish()
