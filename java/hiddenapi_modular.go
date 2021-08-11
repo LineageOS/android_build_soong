@@ -948,6 +948,22 @@ func buildRuleSignaturePatternsFile(ctx android.ModuleContext, flagsPath android
 	return patternsFile
 }
 
+// buildRuleRemoveBlockedFlag creates a rule that will remove entries from the input path which
+// only have blocked flags. It will not remove entries that have blocked as well as other flags,
+// e.g. blocked,core-platform-api.
+func buildRuleRemoveBlockedFlag(ctx android.BuilderContext, name string, desc string, inputPath android.Path, filteredPath android.WritablePath) {
+	rule := android.NewRuleBuilder(pctx, ctx)
+	rule.Command().
+		Text(`grep -vE "^[^,]+,blocked$"`).Input(inputPath).Text(">").Output(filteredPath).
+		// Grep's exit code depends on whether it finds anything. It is 0 (build success) when it finds
+		// something and 1 (build failure) when it does not and 2 (when it encounters an error).
+		// However, while it is unlikely it is not an error if this does not find any matches. The
+		// following will only run if the grep does not find something and in that case it will treat
+		// an exit code of 1 as success and anything else as failure.
+		Text("|| test $? -eq 1")
+	rule.Build(name, desc)
+}
+
 // buildRuleValidateOverlappingCsvFiles checks that the modular CSV files, i.e. the files generated
 // by the individual bootclasspath_fragment modules are subsets of the monolithic CSV file.
 func buildRuleValidateOverlappingCsvFiles(ctx android.BuilderContext, name string, desc string, monolithicFilePath android.WritablePath, csvSubsets SignatureCsvSubsets) android.WritablePath {
@@ -1036,14 +1052,24 @@ func hiddenAPIRulesForBootclasspathFragment(ctx android.ModuleContext, contents 
 		encodedBootDexJarsByModule[name] = encodedDex
 	}
 
+	// Generate the filtered-stub-flags.csv file which contains the filtered stub flags that will be
+	// compared against the monolithic stub flags.
+	filteredStubFlagsCSV := android.PathForModuleOut(ctx, hiddenApiSubDir, "filtered-stub-flags.csv")
+	buildRuleRemoveBlockedFlag(ctx, "modularHiddenApiFilteredStubFlags", "modular hiddenapi filtered stub flags", stubFlagsCSV, filteredStubFlagsCSV)
+
+	// Generate the filtered-flags.csv file which contains the filtered flags that will be compared
+	// against the monolithic flags.
+	filteredFlagsCSV := android.PathForModuleOut(ctx, hiddenApiSubDir, "filtered-flags.csv")
+	buildRuleRemoveBlockedFlag(ctx, "modularHiddenApiFilteredFlags", "modular hiddenapi filtered flags", allFlagsCSV, filteredFlagsCSV)
+
 	// Store the paths in the info for use by other modules and sdk snapshot generation.
 	output := HiddenAPIOutput{
 		HiddenAPIFlagOutput: HiddenAPIFlagOutput{
-			StubFlagsPath:       stubFlagsCSV,
+			StubFlagsPath:       filteredStubFlagsCSV,
 			AnnotationFlagsPath: annotationFlagsCSV,
 			MetadataPath:        metadataCSV,
 			IndexPath:           indexCSV,
-			AllFlagsPath:        allFlagsCSV,
+			AllFlagsPath:        filteredFlagsCSV,
 		},
 		EncodedBootDexFilesByModule: encodedBootDexJarsByModule,
 	}
