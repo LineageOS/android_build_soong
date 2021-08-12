@@ -269,6 +269,17 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 
 	envVars = append(envVars, "ANDROID_RUST_VERSION="+config.RustDefaultVersion)
 
+	if ctx.RustModule().compiler.CargoEnvCompat() {
+		if _, ok := ctx.RustModule().compiler.(*binaryDecorator); ok {
+			envVars = append(envVars, "CARGO_BIN_NAME="+strings.TrimSuffix(outputFile.Base(), outputFile.Ext()))
+		}
+		envVars = append(envVars, "CARGO_CRATE_NAME="+ctx.RustModule().CrateName())
+		pkgVersion := ctx.RustModule().compiler.CargoPkgVersion()
+		if pkgVersion != "" {
+			envVars = append(envVars, "CARGO_PKG_VERSION="+pkgVersion)
+		}
+	}
+
 	if flags.Clippy {
 		clippyFile := android.PathForModuleOut(ctx, outputFile.Base()+".clippy")
 		ctx.Build(pctx, android.BuildParams{
