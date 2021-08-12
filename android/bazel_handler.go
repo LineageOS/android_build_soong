@@ -80,6 +80,9 @@ type BazelContext interface {
 	// Returns the results of GetOutputFiles and GetCcObjectFiles in a single query (in that order).
 	GetCcInfo(label string, archType ArchType) (cquery.CcInfo, bool, error)
 
+	// Returns the executable binary resultant from building together the python sources
+	GetPythonBinary(label string, archType ArchType) (string, bool)
+
 	// ** End cquery methods
 
 	// Issues commands to Bazel to receive results for all cquery requests
@@ -134,8 +137,9 @@ var _ BazelContext = noopBazelContext{}
 type MockBazelContext struct {
 	OutputBaseDir string
 
-	LabelToOutputFiles map[string][]string
-	LabelToCcInfo      map[string]cquery.CcInfo
+	LabelToOutputFiles  map[string][]string
+	LabelToCcInfo       map[string]cquery.CcInfo
+	LabelToPythonBinary map[string]string
 }
 
 func (m MockBazelContext) GetOutputFiles(label string, archType ArchType) ([]string, bool) {
@@ -146,6 +150,11 @@ func (m MockBazelContext) GetOutputFiles(label string, archType ArchType) ([]str
 func (m MockBazelContext) GetCcInfo(label string, archType ArchType) (cquery.CcInfo, bool, error) {
 	result, ok := m.LabelToCcInfo[label]
 	return result, ok, nil
+}
+
+func (m MockBazelContext) GetPythonBinary(label string, archType ArchType) (string, bool) {
+	result, ok := m.LabelToPythonBinary[label]
+	return result, ok
 }
 
 func (m MockBazelContext) InvokeBazel() error {
@@ -185,11 +194,25 @@ func (bazelCtx *bazelContext) GetCcInfo(label string, archType ArchType) (cquery
 	return ret, ok, err
 }
 
+func (bazelCtx *bazelContext) GetPythonBinary(label string, archType ArchType) (string, bool) {
+	rawString, ok := bazelCtx.cquery(label, cquery.GetPythonBinary, archType)
+	var ret string
+	if ok {
+		bazelOutput := strings.TrimSpace(rawString)
+		ret = cquery.GetPythonBinary.ParseResult(bazelOutput)
+	}
+	return ret, ok
+}
+
 func (n noopBazelContext) GetOutputFiles(label string, archType ArchType) ([]string, bool) {
 	panic("unimplemented")
 }
 
 func (n noopBazelContext) GetCcInfo(label string, archType ArchType) (cquery.CcInfo, bool, error) {
+	panic("unimplemented")
+}
+
+func (n noopBazelContext) GetPythonBinary(label string, archType ArchType) (string, bool) {
 	panic("unimplemented")
 }
 
