@@ -402,6 +402,10 @@ func (a *AndroidAppImport) MinSdkVersion(ctx android.EarlyModuleContext) android
 	return android.SdkSpecPrivate
 }
 
+func (a *AndroidAppImport) LintDepSets() LintDepSets {
+	return LintDepSets{}
+}
+
 var _ android.ApexModule = (*AndroidAppImport)(nil)
 
 // Implements android.ApexModule
