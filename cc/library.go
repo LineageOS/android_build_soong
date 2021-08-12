@@ -236,6 +236,7 @@ type bazelCcLibraryAttributes struct {
 	Includes            bazel.StringListAttribute
 	Linkopts            bazel.StringListAttribute
 	Use_libcrt          bazel.BoolAttribute
+	Rtti                bazel.BoolAttribute
 
 	// This is shared only.
 	Version_script bazel.LabelAttribute
@@ -323,6 +324,7 @@ func CcLibraryBp2Build(ctx android.TopDownMutatorContext) {
 		Includes:            exportedIncludes,
 		Linkopts:            linkerAttrs.linkopts,
 		Use_libcrt:          linkerAttrs.useLibcrt,
+		Rtti:                compilerAttrs.rtti,
 
 		Version_script: linkerAttrs.versionScript,
 
@@ -554,7 +556,7 @@ type libraryDecorator struct {
 }
 
 type ccLibraryBazelHandler struct {
-	bazelHandler
+	android.BazelHandler
 
 	module *Module
 }
@@ -640,7 +642,7 @@ func getTocFile(ctx android.ModuleContext, label string, outputFiles []string) a
 	return android.OptionalPathForPath(android.PathForBazelOut(ctx, tocFile))
 }
 
-func (handler *ccLibraryBazelHandler) generateBazelBuildActions(ctx android.ModuleContext, label string) bool {
+func (handler *ccLibraryBazelHandler) GenerateBazelBuildActions(ctx android.ModuleContext, label string) bool {
 	bazelCtx := ctx.Config().BazelContext
 	ccInfo, ok, err := bazelCtx.GetCcInfo(label, ctx.Arch().ArchType)
 	if err != nil {
@@ -2335,6 +2337,7 @@ type bazelCcLibraryStaticAttributes struct {
 	Linkopts            bazel.StringListAttribute
 	Linkstatic          bool
 	Use_libcrt          bazel.BoolAttribute
+	Rtti                bazel.BoolAttribute
 	Includes            bazel.StringListAttribute
 	Hdrs                bazel.LabelListAttribute
 
@@ -2396,6 +2399,7 @@ func ccLibraryStaticBp2BuildInternal(ctx android.TopDownMutatorContext, module *
 		Linkopts:   linkerAttrs.linkopts,
 		Linkstatic: true,
 		Use_libcrt: linkerAttrs.useLibcrt,
+		Rtti:       compilerAttrs.rtti,
 		Includes:   exportedIncludes,
 
 		Cppflags:   compilerAttrs.cppFlags,

@@ -26,7 +26,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"strings"
+	"strconv"
 )
 
 func main() {
@@ -59,20 +59,16 @@ func main() {
 	fmt.Fprintln(script, "ENTRY(__dlwrap__start)")
 	fmt.Fprintln(script, "SECTIONS {")
 
+	progsWithFlagsCount := make(map[string]int)
+
 	for _, prog := range ef.Progs {
 		if prog.Type != elf.PT_LOAD {
 			continue
 		}
 
-		var progName string
-		progSection := progToFirstSection(prog, ef.Sections)
-		if progSection != nil {
-			progName = progSection.Name
-		} else {
-			progName = fmt.Sprintf(".sect%d", load)
-		}
-		sectionName := ".linker" + progName
-		symName := "__dlwrap_linker" + strings.ReplaceAll(progName, ".", "_")
+		progName := progNameFromFlags(prog.Flags, progsWithFlagsCount)
+		sectionName := ".linker_" + progName
+		symName := "__dlwrap_linker_" + progName
 
 		flags := ""
 		if prog.Flags&elf.PF_W != 0 {
@@ -82,6 +78,12 @@ func main() {
 			flags += "x"
 		}
 		fmt.Fprintf(asm, ".section %s, \"a%s\"\n", sectionName, flags)
+
+		if load == 0 {
+			fmt.Fprintln(asm, ".globl __dlwrap_linker")
+			fmt.Fprintln(asm, "__dlwrap_linker:")
+			fmt.Fprintln(asm)
+		}
 
 		fmt.Fprintf(asm, ".globl %s\n%s:\n\n", symName, symName)
 
@@ -105,6 +107,10 @@ func main() {
 
 		load += 1
 	}
+
+	fmt.Fprintln(asm, ".globl __dlwrap_linker_end")
+	fmt.Fprintln(asm, "__dlwrap_linker_end:")
+	fmt.Fprintln(asm)
 
 	fmt.Fprintln(asm, `.section .note.android.embedded_linker,"a",%note`)
 
@@ -139,11 +145,25 @@ func bytesToAsm(asm io.Writer, buf []byte) {
 	fmt.Fprintln(asm)
 }
 
-func progToFirstSection(prog *elf.Prog, sections []*elf.Section) *elf.Section {
-	for _, section := range sections {
-		if section.Addr == prog.Vaddr {
-			return section
-		}
+func progNameFromFlags(flags elf.ProgFlag, progsWithFlagsCount map[string]int) string {
+	s := ""
+	if flags&elf.PF_R != 0 {
+		s += "r"
 	}
-	return nil
+	if flags&elf.PF_W != 0 {
+		s += "w"
+	}
+	if flags&elf.PF_X != 0 {
+		s += "x"
+	}
+
+	count := progsWithFlagsCount[s]
+	count++
+	progsWithFlagsCount[s] = count
+
+	if count > 1 {
+		s += strconv.Itoa(count)
+	}
+
+	return s
 }
