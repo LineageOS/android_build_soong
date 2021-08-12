@@ -434,6 +434,12 @@ type compiler interface {
 	// copied. This is equivalent to Cargo's OUT_DIR variable.
 	CargoOutDir() android.OptionalPath
 
+	// CargoPkgVersion returns the value of the Cargo_pkg_version property.
+	CargoPkgVersion() string
+
+	// CargoEnvCompat returns whether Cargo environment variables should be used.
+	CargoEnvCompat() bool
+
 	inData() bool
 	install(ctx ModuleContext)
 	relativeInstallPath() string
