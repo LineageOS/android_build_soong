@@ -30,11 +30,21 @@ def produce_patterns_from_file(file):
         return produce_patterns_from_stream(f)
 
 def produce_patterns_from_stream(stream):
-    patterns = []
-    allFlagsReader = dict_reader(stream)
-    for row in allFlagsReader:
+    # Read in all the signatures into a list and remove member names.
+    patterns = set()
+    for row in dict_reader(stream):
         signature = row['signature']
-        patterns.append(signature)
+        text = signature.removeprefix("L")
+        # Remove the class specific member signature
+        pieces = text.split(";->")
+        qualifiedClassName = pieces[0]
+            # Remove inner class names as they cannot be separated from the containing outer class.
+        pieces = qualifiedClassName.split("$", maxsplit=1)
+        pattern = pieces[0]
+        patterns.add(pattern)
+
+    patterns = list(patterns)
+    patterns.sort()
     return patterns
 
 def main(args):
