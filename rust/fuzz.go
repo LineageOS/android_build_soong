@@ -21,6 +21,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/cc"
+	"android/soong/fuzz"
 	"android/soong/rust/config"
 )
 
@@ -32,7 +33,7 @@ func init() {
 type fuzzDecorator struct {
 	*binaryDecorator
 
-	fuzzPackagedModule cc.FuzzPackagedModule
+	fuzzPackagedModule fuzz.FuzzPackagedModule
 }
 
 var _ compiler = (*binaryDecorator)(nil)
@@ -96,7 +97,7 @@ func (fuzzer *fuzzDecorator) autoDep(ctx android.BottomUpMutatorContext) autoDep
 // Responsible for generating GNU Make rules that package fuzz targets into
 // their architecture & target/host specific zip file.
 type rustFuzzPackager struct {
-	cc.FuzzPackager
+	fuzz.FuzzPackager
 }
 
 func rustFuzzPackagingFactory() android.Singleton {
@@ -105,7 +106,7 @@ func rustFuzzPackagingFactory() android.Singleton {
 
 func (s *rustFuzzPackager) GenerateBuildActions(ctx android.SingletonContext) {
 	// Map between each architecture + host/device combination.
-	archDirs := make(map[cc.ArchOs][]cc.FileToZip)
+	archDirs := make(map[fuzz.ArchOs][]fuzz.FileToZip)
 
 	// List of individual fuzz targets.
 	s.FuzzTargets = make(map[string]bool)
@@ -117,7 +118,7 @@ func (s *rustFuzzPackager) GenerateBuildActions(ctx android.SingletonContext) {
 			return
 		}
 
-		if ok := cc.IsValid(rustModule.FuzzModule); !ok || rustModule.Properties.PreventInstall {
+		if ok := fuzz.IsValid(rustModule.FuzzModule); !ok || rustModule.Properties.PreventInstall {
 			return
 		}
 
@@ -133,16 +134,16 @@ func (s *rustFuzzPackager) GenerateBuildActions(ctx android.SingletonContext) {
 
 		archString := rustModule.Arch().ArchType.String()
 		archDir := android.PathForIntermediates(ctx, "fuzz", hostOrTargetString, archString)
-		archOs := cc.ArchOs{HostOrTarget: hostOrTargetString, Arch: archString, Dir: archDir.String()}
+		archOs := fuzz.ArchOs{HostOrTarget: hostOrTargetString, Arch: archString, Dir: archDir.String()}
 
-		var files []cc.FileToZip
+		var files []fuzz.FileToZip
 		builder := android.NewRuleBuilder(pctx, ctx)
 
 		// Package the artifacts (data, corpus, config and dictionary into a zipfile.
 		files = s.PackageArtifacts(ctx, module, fuzzModule.fuzzPackagedModule, archDir, builder)
 
 		// The executable.
-		files = append(files, cc.FileToZip{rustModule.unstrippedOutputFile.Path(), ""})
+		files = append(files, fuzz.FileToZip{rustModule.unstrippedOutputFile.Path(), ""})
 
 		archDirs[archOs], ok = s.BuildZipFile(ctx, module, fuzzModule.fuzzPackagedModule, files, builder, archDir, archString, hostOrTargetString, archOs, archDirs)
 		if !ok {
@@ -150,7 +151,7 @@ func (s *rustFuzzPackager) GenerateBuildActions(ctx android.SingletonContext) {
 		}
 
 	})
-	s.CreateFuzzPackage(ctx, archDirs, cc.Rust)
+	s.CreateFuzzPackage(ctx, archDirs, fuzz.Rust, pctx)
 }
 
 func (s *rustFuzzPackager) MakeVars(ctx android.MakeVarsContext) {
