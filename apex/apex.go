@@ -1522,6 +1522,7 @@ type androidApp interface {
 	JacocoReportClassesFile() android.Path
 	Certificate() java.Certificate
 	BaseModuleName() string
+	LintDepSets() java.LintDepSets
 }
 
 var _ androidApp = (*java.AndroidApp)(nil)
@@ -1536,6 +1537,7 @@ func apexFileForAndroidApp(ctx android.BaseModuleContext, aapp androidApp) apexF
 	fileToCopy := aapp.OutputFile()
 	af := newApexFile(ctx, fileToCopy, aapp.BaseModuleName(), dirInApex, app, aapp)
 	af.jacocoReportClassesFile = aapp.JacocoReportClassesFile()
+	af.lintDepSets = aapp.LintDepSets()
 	af.certificate = aapp.Certificate()
 
 	if app, ok := aapp.(interface {
