@@ -209,6 +209,20 @@ func loadFromConfigFile(configurable *productVariables, filename string) error {
 		Bool(configurable.GcovCoverage) ||
 			Bool(configurable.ClangCoverage))
 
+	// when Platform_sdk_final is true (or PLATFORM_VERSION_CODENAME is REL), use Platform_sdk_version;
+	// if false (pre-released version, for example), use Platform_sdk_codename.
+	if Bool(configurable.Platform_sdk_final) {
+		if configurable.Platform_sdk_version != nil {
+			configurable.Platform_sdk_version_or_codename =
+				proptools.StringPtr(strconv.Itoa(*(configurable.Platform_sdk_version)))
+		} else {
+			return fmt.Errorf("Platform_sdk_version cannot be pointed by a NULL pointer")
+		}
+	} else {
+		configurable.Platform_sdk_version_or_codename =
+			proptools.StringPtr(String(configurable.Platform_sdk_codename))
+	}
+
 	return saveToBazelConfigFile(configurable, filepath.Dir(filename))
 }
 
