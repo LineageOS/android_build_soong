@@ -33,7 +33,8 @@ type customProps struct {
 	Nested_props     nestedProps
 	Nested_props_ptr *nestedProps
 
-	Arch_paths []string `android:"path,arch_variant"`
+	Arch_paths         []string `android:"path,arch_variant"`
+	Arch_paths_exclude []string `android:"path,arch_variant"`
 }
 
 type customModule struct {
@@ -155,15 +156,17 @@ func customBp2BuildMutator(ctx android.TopDownMutatorContext) {
 			return
 		}
 
-		paths := bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrc(ctx, m.props.Arch_paths))
+		paths := bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrcExcludes(ctx, m.props.Arch_paths, m.props.Arch_paths_exclude))
 
 		for axis, configToProps := range m.GetArchVariantProperties(ctx, &customProps{}) {
 			for config, props := range configToProps {
 				if archProps, ok := props.(*customProps); ok && archProps.Arch_paths != nil {
-					paths.SetSelectValue(axis, config, android.BazelLabelForModuleSrc(ctx, archProps.Arch_paths))
+					paths.SetSelectValue(axis, config, android.BazelLabelForModuleSrcExcludes(ctx, archProps.Arch_paths, archProps.Arch_paths_exclude))
 				}
 			}
 		}
+
+		paths.ResolveExcludes()
 
 		attrs := &customBazelModuleAttributes{
 			String_prop:      m.props.String_prop,
@@ -215,4 +218,10 @@ func generateBazelTargetsForDir(codegenCtx *CodegenContext, dir string) BazelTar
 	// TODO: Set generateFilegroups to true and/or remove the generateFilegroups argument completely
 	buildFileToTargets, _, _ := GenerateBazelTargets(codegenCtx, false)
 	return buildFileToTargets[dir]
+}
+
+func registerCustomModuleForBp2buildConversion(ctx *android.TestContext) {
+	ctx.RegisterModuleType("custom", customModuleFactory)
+	ctx.RegisterBp2BuildMutator("custom", customBp2BuildMutator)
+	ctx.RegisterForBazelConversion()
 }
