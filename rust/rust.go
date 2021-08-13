@@ -25,6 +25,7 @@ import (
 	"android/soong/bloaty"
 	"android/soong/cc"
 	cc_config "android/soong/cc/config"
+	"android/soong/fuzz"
 	"android/soong/rust/config"
 )
 
@@ -123,7 +124,7 @@ type BaseProperties struct {
 }
 
 type Module struct {
-	cc.FuzzModule
+	fuzz.FuzzModule
 
 	VendorProperties cc.VendorProperties
 
@@ -432,6 +433,12 @@ type compiler interface {
 	// Output directory in which source-generated code from dependencies is
 	// copied. This is equivalent to Cargo's OUT_DIR variable.
 	CargoOutDir() android.OptionalPath
+
+	// CargoPkgVersion returns the value of the Cargo_pkg_version property.
+	CargoPkgVersion() string
+
+	// CargoEnvCompat returns whether Cargo environment variables should be used.
+	CargoEnvCompat() bool
 
 	inData() bool
 	install(ctx ModuleContext)
