@@ -137,7 +137,6 @@ var (
 		// build/bazel explicitly.
 		"build/bazel":/* recursive = */ false,
 		"build/bazel/examples/android_app":/* recursive = */ true,
-		"build/bazel/examples/java":/* recursive = */ true,
 		"build/bazel/bazel_skylib":/* recursive = */ true,
 		"build/bazel/rules":/* recursive = */ true,
 		"build/bazel/rules_cc":/* recursive = */ true,
@@ -150,7 +149,6 @@ var (
 		// e.g. ERROR: Analysis of target '@soong_injection//mixed_builds:buildroot' failed
 		"external/bazelbuild-rules_android":/* recursive = */ true,
 
-		"prebuilts/jdk":/* recursive = */ true,
 		"prebuilts/sdk":/* recursive = */ false,
 		"prebuilts/sdk/tools":/* recursive = */ false,
 		"prebuilts/r8":/* recursive = */ false,
