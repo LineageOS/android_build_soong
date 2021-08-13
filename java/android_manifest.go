@@ -71,12 +71,12 @@ func manifestFixer(ctx android.ModuleContext, manifest android.Path, sdkContext 
 		args = append(args, "--use-embedded-dex")
 	}
 
-	for _, usesLib := range classLoaderContexts.UsesLibs() {
-		if inList(usesLib, dexpreopt.OptionalCompatUsesLibs) {
-			args = append(args, "--optional-uses-library", usesLib)
-		} else {
-			args = append(args, "--uses-library", usesLib)
-		}
+	requiredUsesLibs, optionalUsesLibs := classLoaderContexts.UsesLibs()
+	for _, usesLib := range requiredUsesLibs {
+		args = append(args, "--uses-library", usesLib)
+	}
+	for _, usesLib := range optionalUsesLibs {
+		args = append(args, "--optional-uses-library", usesLib)
 	}
 
 	if hasNoCode {
