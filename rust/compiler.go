@@ -362,7 +362,9 @@ func bionicDeps(ctx DepsContext, deps Deps, static bool) Deps {
 	} else {
 		deps.SharedLibs = append(deps.SharedLibs, bionicLibs...)
 	}
-
+	if ctx.RustModule().StaticExecutable() {
+		deps.StaticLibs = append(deps.StaticLibs, "libunwind")
+	}
 	if libRuntimeBuiltins := config.BuiltinsRuntimeLibrary(ctx.toolchain()); libRuntimeBuiltins != "" {
 		deps.StaticLibs = append(deps.StaticLibs, libRuntimeBuiltins)
 	}
