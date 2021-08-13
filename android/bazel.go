@@ -155,7 +155,7 @@ var (
 		"prebuilts/sdk":/* recursive = */ false,
 		"prebuilts/sdk/tools":/* recursive = */ false,
 		"prebuilts/r8":/* recursive = */ false,
-		"packages/apps/Music":/* recursive = */ false,
+		"packages/apps/Music":/* recursive = */ true,
 	}
 
 	// Configure modules in these directories to enable bp2build_available: true or false by default.
