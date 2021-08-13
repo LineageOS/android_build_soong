@@ -334,9 +334,7 @@ custom {
 		config := android.TestConfig(buildDir, nil, testCase.bp, nil)
 		ctx := android.NewTestContext(config)
 
-		ctx.RegisterModuleType("custom", customModuleFactory)
-		ctx.RegisterBp2BuildMutator("custom", customBp2BuildMutator)
-		ctx.RegisterForBazelConversion()
+		registerCustomModuleForBp2buildConversion(ctx)
 
 		_, errs := ctx.ParseFileList(dir, []string{"Android.bp"})
 		if errored(t, "", errs) {
