@@ -137,7 +137,6 @@ var (
 		// build/bazel explicitly.
 		"build/bazel":/* recursive = */ false,
 		"build/bazel/examples/android_app":/* recursive = */ true,
-		"build/bazel/examples/java":/* recursive = */ true,
 		"build/bazel/bazel_skylib":/* recursive = */ true,
 		"build/bazel/rules":/* recursive = */ true,
 		"build/bazel/rules_cc":/* recursive = */ true,
@@ -151,11 +150,10 @@ var (
 		"external/bazelbuild-rules_android":/* recursive = */ true,
 		"external/bazel-skylib":/* recursive = */ true,
 
-		"prebuilts/jdk":/* recursive = */ true,
 		"prebuilts/sdk":/* recursive = */ false,
 		"prebuilts/sdk/tools":/* recursive = */ false,
 		"prebuilts/r8":/* recursive = */ false,
-		"packages/apps/Music":/* recursive = */ false,
+		"packages/apps/Music":/* recursive = */ true,
 	}
 
 	// Configure modules in these directories to enable bp2build_available: true or false by default.
