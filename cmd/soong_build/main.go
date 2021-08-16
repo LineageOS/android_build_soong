@@ -472,10 +472,10 @@ func runBp2Build(configuration android.Config, extraNinjaDeps []string) {
 	// Generate out/soong/.bootstrap/build-globs.ninja with the actions to generate flattened globfiles
 	// containing the globs seen during bp2build conversion
 	if blueprintArgs.GlobFile != "" {
-		bootstrap.WriteBuildGlobsNinjaFile(bootstrap.StageMain, bp2buildCtx.Context, blueprintArgs, configuration)
+		bootstrap.WriteBuildGlobsNinjaFile(blueprintArgs.GlobListDir, bp2buildCtx.Context, blueprintArgs, configuration)
 	}
 	// Add the depfile on the expanded globs in out/soong/.primary/globs
-	ninjaDeps = append(ninjaDeps, bootstrap.GlobFileListFiles(configuration)...)
+	ninjaDeps = append(ninjaDeps, bootstrap.GlobFileListFiles(configuration, blueprintArgs.GlobListDir)...)
 
 	// Run the code-generation phase to convert BazelTargetModules to BUILD files
 	// and print conversion metrics to the user.
@@ -528,12 +528,4 @@ func runBp2Build(configuration android.Config, extraNinjaDeps []string) {
 
 	// Create an empty bp2build marker file.
 	touch(shared.JoinPath(topDir, bp2buildMarker))
-
-	// bp2build *always* writes a fake Ninja file containing just the nothing
-	// phony target if it ever re-runs. This allows bp2build to exit early with
-	// GENERATE_BAZEL_FILES=1 m nothing.
-	//
-	// If bp2build is invoked as part of an integrated mixed build, the fake
-	// build.ninja file will be rewritten later into the real file anyway.
-	writeFakeNinjaFile(extraNinjaDeps, codegenContext.Config().BuildDir())
 }
