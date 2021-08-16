@@ -48,60 +48,6 @@ EOF
 
 test_bp2build_null_build_with_globs
 
-function test_soong_after_bp2build_regenerates_build_globs_ninja() {
-  setup
-
-  mkdir -p foo/bar
-  cat > foo/bar/Android.bp <<'EOF'
-filegroup {
-    name: "bp2build-files",
-    srcs: ["bp2build.*"],
-    bazel_module: { bp2build_available: true },
-}
-
-filegroup {
-    name: "soong-files",
-    srcs: ["soong.*"],
-}
-EOF
-  touch foo/bar/bp2build.txt foo/bar/soong.txt
-
-  build_globs_file="out/soong/.bootstrap/build-globs.ninja"
-
-  # Test: the build-globs file for bp2build should only contain the bp2build-files
-  # glob, whereas the build-globs file for soong should contain both bp2build-files
-  # and soong-files globs.
-
-  run_bp2build
-  local output_mtime1=$(stat -c "%y" "${build_globs_file}")
-
-  if ! grep "\"foo/bar/bp2build.*\"" "${build_globs_file}"; then
-    fail "bp2build filegroup globs not found in bp2build's globs file"
-  fi
-
-  if grep "\"foo/bar/soong.*\"" "${build_globs_file}"; then
-    fail "soong filegroup globs unexpectedly found in bp2build's globs file"
-  fi
-
-  run_soong
-  local output_mtime2=$(stat -c "%y" "${build_globs_file}")
-
-  if [[ "$output_mtime1" == "$output_mtime2" ]]; then
-    fail "Output build-globs.ninja file did not change"
-  fi
-
-  if ! grep "\"foo/bar/bp2build.*\"" "${build_globs_file}"; then
-    fail "bp2build filegroup globs not found in bp2build's globs file"
-  fi
-
-  if ! grep "\"foo/bar/soong.*\"" "${build_globs_file}"; then
-    fail "soong filegroup globs not found in bp2build's globs file"
-  fi
-
-}
-
-test_soong_after_bp2build_regenerates_build_globs_ninja
-
 function test_bp2build_generates_all_buildfiles {
   setup
   create_mock_bazel
