@@ -212,7 +212,7 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, apexName, mo
 			}
 			if host {
 				makeOs := fi.module.Target().Os.String()
-				if fi.module.Target().Os == android.Linux || fi.module.Target().Os == android.LinuxBionic {
+				if fi.module.Target().Os == android.Linux || fi.module.Target().Os == android.LinuxBionic || fi.module.Target().Os == android.LinuxMusl {
 					makeOs = "linux"
 				}
 				fmt.Fprintln(w, "LOCAL_MODULE_HOST_OS :=", makeOs)
