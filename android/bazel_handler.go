@@ -28,8 +28,6 @@ import (
 
 	"android/soong/bazel/cquery"
 
-	"github.com/google/blueprint/bootstrap"
-
 	"android/soong/bazel"
 	"android/soong/shared"
 )
@@ -760,7 +758,7 @@ func (c *bazelSingleton) GenerateBuildActions(ctx SingletonContext) {
 
 	// Add ninja file dependencies for files which all bazel invocations require.
 	bazelBuildList := absolutePath(filepath.Join(
-		filepath.Dir(bootstrap.CmdlineArgs.ModuleListFile), "bazel.list"))
+		filepath.Dir(ctx.Config().moduleListFile), "bazel.list"))
 	ctx.AddNinjaFileDeps(bazelBuildList)
 
 	data, err := ioutil.ReadFile(bazelBuildList)
