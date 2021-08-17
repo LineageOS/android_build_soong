@@ -79,10 +79,6 @@ func (c Config) DebugCompilation() bool {
 	return false // Never compile Go code in the main build for debugging
 }
 
-func (c Config) SrcDir() string {
-	return c.srcDir
-}
-
 // A DeviceConfig object represents the configuration for a particular device
 // being built. For now there will only be one of these, but in the future there
 // may be multiple devices being built.
@@ -126,7 +122,6 @@ type config struct {
 
 	deviceConfig *deviceConfig
 
-	srcDir         string // the path of the root source directory
 	buildDir       string // the path of the build output directory
 	moduleListFile string // the path to the file which lists blueprint files to parse.
 
@@ -402,7 +397,7 @@ func TestArchConfig(buildDir string, env map[string]string, bp string, fs map[st
 // multiple runs in the same program execution is carried over (such as Bazel
 // context or environment deps).
 func ConfigForAdditionalRun(c Config) (Config, error) {
-	newConfig, err := NewConfig(c.srcDir, c.buildDir, c.moduleListFile, c.env)
+	newConfig, err := NewConfig(c.buildDir, c.moduleListFile, c.env)
 	if err != nil {
 		return Config{}, err
 	}
@@ -413,14 +408,13 @@ func ConfigForAdditionalRun(c Config) (Config, error) {
 
 // NewConfig creates a new Config object. The srcDir argument specifies the path
 // to the root source directory. It also loads the config file, if found.
-func NewConfig(srcDir, buildDir string, moduleListFile string, availableEnv map[string]string) (Config, error) {
+func NewConfig(buildDir string, moduleListFile string, availableEnv map[string]string) (Config, error) {
 	// Make a config with default options.
 	config := &config{
 		ProductVariablesFileName: filepath.Join(buildDir, productVariablesFileName),
 
 		env: availableEnv,
 
-		srcDir:            srcDir,
 		buildDir:          buildDir,
 		multilibConflicts: make(map[ArchType]bool),
 
@@ -439,7 +433,7 @@ func NewConfig(srcDir, buildDir string, moduleListFile string, availableEnv map[
 		return Config{}, err
 	}
 
-	absSrcDir, err := filepath.Abs(srcDir)
+	absSrcDir, err := filepath.Abs(".")
 	if err != nil {
 		return Config{}, err
 	}
@@ -597,7 +591,7 @@ func (c *config) PrebuiltOS() string {
 
 // GoRoot returns the path to the root directory of the Go toolchain.
 func (c *config) GoRoot() string {
-	return fmt.Sprintf("%s/prebuilts/go/%s", c.srcDir, c.PrebuiltOS())
+	return fmt.Sprintf("prebuilts/go/%s", c.PrebuiltOS())
 }
 
 // PrebuiltBuildTool returns the path to a tool in the prebuilts directory containing
