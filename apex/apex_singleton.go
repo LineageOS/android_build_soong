@@ -17,9 +17,9 @@
 package apex
 
 import (
-	"android/soong/android"
-
 	"github.com/google/blueprint"
+
+	"android/soong/android"
 )
 
 func init() {
