@@ -294,6 +294,9 @@ func (library *libraryDecorator) AndroidMkEntries(ctx AndroidMkContext, entries 
 			if library.buildStubs() {
 				entries.SetBool("LOCAL_NO_NOTICE_FILE", true)
 			}
+			if library.apiListCoverageXmlPath.String() != "" {
+				entries.SetString("SOONG_CC_API_XML", "$(SOONG_CC_API_XML) "+library.apiListCoverageXmlPath.String())
+			}
 		})
 	}
 	// If a library providing a stub is included in an APEX, the private APIs of the library
