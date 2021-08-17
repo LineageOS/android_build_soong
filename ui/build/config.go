@@ -739,6 +739,14 @@ func (c *configImpl) SoongOutDir() string {
 	return filepath.Join(c.OutDir(), "soong")
 }
 
+func (c *configImpl) MainNinjaFile() string {
+	return shared.JoinPath(c.SoongOutDir(), "build.ninja")
+}
+
+func (c *configImpl) Bp2BuildMarkerFile() string {
+	return shared.JoinPath(c.SoongOutDir(), ".bootstrap/bp2build_workspace_marker")
+}
+
 func (c *configImpl) TempDir() string {
 	return shared.TempDirForOutDir(c.SoongOutDir())
 }
