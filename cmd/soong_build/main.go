@@ -107,8 +107,8 @@ func newContext(configuration android.Config, prepareBuildActions bool) *android
 	return ctx
 }
 
-func newConfig(srcDir, outDir string, availableEnv map[string]string) android.Config {
-	configuration, err := android.NewConfig(srcDir, outDir, cmdlineArgs.ModuleListFile, availableEnv)
+func newConfig(outDir string, availableEnv map[string]string) android.Config {
+	configuration, err := android.NewConfig(outDir, cmdlineArgs.ModuleListFile, availableEnv)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s", err)
 		os.Exit(1)
@@ -273,9 +273,7 @@ func main() {
 
 	availableEnv := parseAvailableEnv()
 
-	// The top-level Blueprints file is passed as the first argument.
-	srcDir := filepath.Dir(flag.Arg(0))
-	configuration := newConfig(srcDir, outDir, availableEnv)
+	configuration := newConfig(outDir, availableEnv)
 	extraNinjaDeps := []string{
 		configuration.ProductVariablesFileName,
 		usedEnvFile,
@@ -469,7 +467,7 @@ func runBp2Build(configuration android.Config, extraNinjaDeps []string) {
 	// configurations or variables, since those will generate different BUILD
 	// files based on how the user has configured their tree.
 	bp2buildCtx.SetModuleListFile(cmdlineArgs.ModuleListFile)
-	modulePaths, err := bp2buildCtx.ListModulePaths(configuration.SrcDir())
+	modulePaths, err := bp2buildCtx.ListModulePaths(".")
 	if err != nil {
 		panic(err)
 	}
@@ -526,7 +524,7 @@ func runBp2Build(configuration android.Config, extraNinjaDeps []string) {
 	excludes = append(excludes, getTemporaryExcludes()...)
 
 	symlinkForestDeps := bp2build.PlantSymlinkForest(
-		topDir, workspaceRoot, generatedRoot, configuration.SrcDir(), excludes)
+		topDir, workspaceRoot, generatedRoot, ".", excludes)
 
 	// Only report metrics when in bp2build mode. The metrics aren't relevant
 	// for queryview, since that's a total repo-wide conversion and there's a
