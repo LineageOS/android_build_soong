@@ -329,7 +329,7 @@ class SymbolFileParser:
     def parse(self) -> List[Version]:
         """Parses the symbol file and returns a list of Version objects."""
         versions = []
-        while self.next_line() != '':
+        while self.next_line():
             assert self.current_line is not None
             if '{' in self.current_line:
                 versions.append(self.parse_version())
@@ -376,7 +376,7 @@ class SymbolFileParser:
         symbols: List[Symbol] = []
         global_scope = True
         cpp_symbols = False
-        while self.next_line() != '':
+        while self.next_line():
             if '}' in self.current_line:
                 # Line is something like '} BASE; # tags'. Both base and tags
                 # are optional here.
@@ -428,11 +428,11 @@ class SymbolFileParser:
         A return value of '' indicates EOF.
         """
         line = self.input_file.readline()
-        while line.strip() == '' or line.strip().startswith('#'):
+        while not line.strip() or line.strip().startswith('#'):
             line = self.input_file.readline()
 
             # We want to skip empty lines, but '' indicates EOF.
-            if line == '':
+            if not line:
                 break
         self.current_line = line
         return self.current_line
