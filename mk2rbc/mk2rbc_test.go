@@ -259,7 +259,7 @@ def init(g, handle):
 ifdef PRODUCT_NAME
 # Comment
 else
-  TARGET_COPY_OUT_VENDOR := foo
+  TARGET_COPY_OUT_RECOVERY := foo
 endif
 `,
 		expected: `load("//build/make/core:product_config.rbc", "rblf")
@@ -270,7 +270,7 @@ def init(g, handle):
     # Comment
     pass
   else:
-    # MK2RBC TRANSLATION ERROR: cannot set predefined variable TARGET_COPY_OUT_VENDOR to "foo", its value should be "||VENDOR-PATH-PH||"
+    # MK2RBC TRANSLATION ERROR: cannot set predefined variable TARGET_COPY_OUT_RECOVERY to "foo", its value should be "recovery"
     pass
   rblf.warning("product.mk", "partially successful conversion")
 `,
