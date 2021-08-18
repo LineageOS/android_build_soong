@@ -111,18 +111,6 @@ type bazelCcLibraryHeadersAttributes struct {
 	System_dynamic_deps bazel.LabelListAttribute
 }
 
-type bazelCcLibraryHeaders struct {
-	android.BazelTargetModuleBase
-	bazelCcLibraryHeadersAttributes
-}
-
-func BazelCcLibraryHeadersFactory() android.Module {
-	module := &bazelCcLibraryHeaders{}
-	module.AddProperties(&module.bazelCcLibraryHeadersAttributes)
-	android.InitBazelTargetModule(module)
-	return module
-}
-
 func CcLibraryHeadersBp2Build(ctx android.TopDownMutatorContext) {
 	module, ok := ctx.Module().(*Module)
 	if !ok {
@@ -155,11 +143,5 @@ func CcLibraryHeadersBp2Build(ctx android.TopDownMutatorContext) {
 		Bzl_load_location: "//build/bazel/rules:cc_library_headers.bzl",
 	}
 
-	ctx.CreateBazelTargetModule(BazelCcLibraryHeadersFactory, module.Name(), props, attrs)
+	ctx.CreateBazelTargetModule(module.Name(), props, attrs)
 }
-
-func (m *bazelCcLibraryHeaders) Name() string {
-	return m.BaseModuleName()
-}
-
-func (m *bazelCcLibraryHeaders) GenerateAndroidBuildActions(ctx android.ModuleContext) {}
