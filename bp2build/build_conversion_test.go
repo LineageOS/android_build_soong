@@ -480,12 +480,12 @@ func TestGenerateBazelTargetModules_OneToMany_LoadedFromStarlark(t *testing.T) {
     name = "bar",
 )
 
-my_proto_library(
-    name = "bar_my_proto_library_deps",
-)
-
 proto_library(
     name = "bar_proto_library_deps",
+)
+
+my_proto_library(
+    name = "bar_my_proto_library_deps",
 )`,
 			expectedBazelTargetCount: 3,
 			expectedLoadStatements: `load("//build/bazel/rules:proto.bzl", "my_proto_library", "proto_library")
@@ -1213,22 +1213,24 @@ func TestAllowlistingBp2buildTargetsExplicitly(t *testing.T) {
 
 	dir := "."
 	for _, testCase := range testCases {
-		config := android.TestConfig(buildDir, nil, testCase.bp, nil)
-		ctx := android.NewTestContext(config)
-		ctx.RegisterModuleType(testCase.moduleTypeUnderTest, testCase.moduleTypeUnderTestFactory)
-		ctx.RegisterBp2BuildMutator(testCase.moduleTypeUnderTest, testCase.moduleTypeUnderTestBp2BuildMutator)
-		ctx.RegisterForBazelConversion()
+		t.Run(testCase.description, func(t *testing.T) {
+			config := android.TestConfig(buildDir, nil, testCase.bp, nil)
+			ctx := android.NewTestContext(config)
+			ctx.RegisterModuleType(testCase.moduleTypeUnderTest, testCase.moduleTypeUnderTestFactory)
+			ctx.RegisterBp2BuildMutator(testCase.moduleTypeUnderTest, testCase.moduleTypeUnderTestBp2BuildMutator)
+			ctx.RegisterForBazelConversion()
 
-		_, errs := ctx.ParseFileList(dir, []string{"Android.bp"})
-		android.FailIfErrored(t, errs)
-		_, errs = ctx.ResolveDependencies(config)
-		android.FailIfErrored(t, errs)
+			_, errs := ctx.ParseFileList(dir, []string{"Android.bp"})
+			android.FailIfErrored(t, errs)
+			_, errs = ctx.ResolveDependencies(config)
+			android.FailIfErrored(t, errs)
 
-		codegenCtx := NewCodegenContext(config, *ctx.Context, Bp2Build)
-		bazelTargets := generateBazelTargetsForDir(codegenCtx, dir)
-		if actualCount := len(bazelTargets); actualCount != testCase.expectedCount {
-			t.Fatalf("%s: Expected %d bazel target, got %d", testCase.description, testCase.expectedCount, actualCount)
-		}
+			codegenCtx := NewCodegenContext(config, *ctx.Context, Bp2Build)
+			bazelTargets := generateBazelTargetsForDir(codegenCtx, dir)
+			if actualCount := len(bazelTargets); actualCount != testCase.expectedCount {
+				t.Fatalf("%s: Expected %d bazel target, got %d", testCase.description, testCase.expectedCount, actualCount)
+			}
+		})
 	}
 }
 
