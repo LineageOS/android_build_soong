@@ -71,14 +71,9 @@ func writeEnvironmentFile(ctx Context, envFile string, envDeps map[string]string
 // A tiny struct used to tell Blueprint that it's in bootstrap mode. It would
 // probably be nicer to use a flag in bootstrap.Args instead.
 type BlueprintConfig struct {
-	srcDir           string
 	buildDir         string
 	ninjaBuildDir    string
 	debugCompilation bool
-}
-
-func (c BlueprintConfig) SrcDir() string {
-	return "."
 }
 
 func (c BlueprintConfig) BuildDir() string {
@@ -194,7 +189,6 @@ func bootstrapBlueprint(ctx Context, config Config) {
 	blueprintCtx := blueprint.NewContext()
 	blueprintCtx.SetIgnoreUnknownModuleTypes(true)
 	blueprintConfig := BlueprintConfig{
-		srcDir:           os.Getenv("TOP"),
 		buildDir:         config.SoongOutDir(),
 		ninjaBuildDir:    config.OutDir(),
 		debugCompilation: os.Getenv("SOONG_DELVE") != "",
@@ -227,11 +221,9 @@ func runSoong(ctx Context, config Config) {
 	// unused variables were changed?
 	envFile := filepath.Join(config.SoongOutDir(), availableEnvFile)
 
-	for _, n := range []string{".bootstrap", ".minibootstrap"} {
-		dir := filepath.Join(config.SoongOutDir(), n)
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			ctx.Fatalf("Cannot mkdir " + dir)
-		}
+	dir := filepath.Join(config.SoongOutDir(), ".bootstrap")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		ctx.Fatalf("Cannot mkdir " + dir)
 	}
 
 	buildMode := config.bazelBuildMode()
@@ -272,7 +264,7 @@ func runSoong(ctx Context, config Config) {
 		}
 	}()
 
-	runMicrofactory(ctx, config, ".minibootstrap/bpglob", "github.com/google/blueprint/bootstrap/bpglob",
+	runMicrofactory(ctx, config, ".bootstrap/bpglob", "github.com/google/blueprint/bootstrap/bpglob",
 		map[string]string{"github.com/google/blueprint": "build/blueprint"})
 
 	ninja := func(name, ninjaFile string, targets ...string) {
