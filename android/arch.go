@@ -1967,6 +1967,7 @@ func (m *ModuleBase) GetArchVariantProperties(ctx ArchVariantContext, propertySe
 		srcType := reflect.ValueOf(generalProp).Type()
 		if srcType == dstType {
 			archProperties = m.archProperties[i]
+			axisToProps[bazel.NoConfigAxis] = ArchVariantProperties{"": generalProp}
 			break
 		}
 	}

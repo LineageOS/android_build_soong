@@ -132,27 +132,7 @@ func bp2BuildParseStaticProps(ctx android.TopDownMutatorContext, module *Module)
 }
 
 func bp2buildParseStaticOrSharedProps(ctx android.TopDownMutatorContext, module *Module, lib *libraryDecorator, isStatic bool) staticOrSharedAttributes {
-	var props StaticOrSharedProperties
-	if isStatic {
-		props = lib.StaticProperties.Static
-	} else {
-		props = lib.SharedProperties.Shared
-	}
-
-	system_dynamic_deps := bazel.MakeLabelListAttribute(android.BazelLabelForModuleDeps(ctx, props.System_shared_libs))
-	system_dynamic_deps.ForceSpecifyEmptyList = true
-	if system_dynamic_deps.IsEmpty() && props.System_shared_libs != nil {
-		system_dynamic_deps.Value.Includes = []bazel.Label{}
-	}
-
-	attrs := staticOrSharedAttributes{
-		Copts:               bazel.StringListAttribute{Value: props.Cflags},
-		Srcs:                bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrc(ctx, props.Srcs)),
-		Static_deps:         bazel.MakeLabelListAttribute(android.BazelLabelForModuleDeps(ctx, props.Static_libs)),
-		Dynamic_deps:        bazel.MakeLabelListAttribute(android.BazelLabelForModuleDeps(ctx, props.Shared_libs)),
-		Whole_archive_deps:  bazel.MakeLabelListAttribute(android.BazelLabelForModuleWholeDeps(ctx, props.Whole_static_libs)),
-		System_dynamic_deps: system_dynamic_deps,
-	}
+	attrs := staticOrSharedAttributes{}
 
 	setAttrs := func(axis bazel.ConfigurationAxis, config string, props StaticOrSharedProperties) {
 		attrs.Copts.SetSelectValue(axis, config, props.Cflags)
@@ -162,6 +142,10 @@ func bp2buildParseStaticOrSharedProps(ctx android.TopDownMutatorContext, module 
 		attrs.Whole_archive_deps.SetSelectValue(axis, config, android.BazelLabelForModuleWholeDeps(ctx, props.Whole_static_libs))
 		attrs.System_dynamic_deps.SetSelectValue(axis, config, android.BazelLabelForModuleDeps(ctx, props.System_shared_libs))
 	}
+	// system_dynamic_deps distinguishes between nil/empty list behavior:
+	//    nil -> use default values
+	//    empty list -> no values specified
+	attrs.System_dynamic_deps.ForceSpecifyEmptyList = true
 
 	if isStatic {
 		for axis, configToProps := range module.GetArchVariantProperties(ctx, &StaticProperties{}) {
@@ -195,18 +179,8 @@ type prebuiltAttributes struct {
 }
 
 func Bp2BuildParsePrebuiltLibraryProps(ctx android.TopDownMutatorContext, module *Module) prebuiltAttributes {
-	prebuiltLibraryLinker := module.linker.(*prebuiltLibraryLinker)
-	prebuiltLinker := prebuiltLibraryLinker.prebuiltLinker
-
 	var srcLabelAttribute bazel.LabelAttribute
 
-	if len(prebuiltLinker.properties.Srcs) > 1 {
-		ctx.ModuleErrorf("Bp2BuildParsePrebuiltLibraryProps: Expected at most once source file\n")
-	}
-
-	if len(prebuiltLinker.properties.Srcs) == 1 {
-		srcLabelAttribute.SetValue(android.BazelLabelForModuleSrcSingle(ctx, prebuiltLinker.properties.Srcs[0]))
-	}
 	for axis, configToProps := range module.GetArchVariantProperties(ctx, &prebuiltLinkerProperties{}) {
 		for config, props := range configToProps {
 			if prebuiltLinkerProperties, ok := props.(*prebuiltLinkerProperties); ok {
@@ -298,36 +272,7 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 		return bazel.AppendBazelLabelLists(allSrcsLabelList, generatedHdrsAndSrcsLabelList)
 	}
 
-	for _, props := range module.compiler.compilerProps() {
-		if baseCompilerProps, ok := props.(*BaseCompilerProperties); ok {
-			srcs.SetValue(parseSrcs(baseCompilerProps))
-			copts.Value = parseCommandLineFlags(baseCompilerProps.Cflags)
-			asFlags.Value = parseCommandLineFlags(baseCompilerProps.Asflags)
-			conlyFlags.Value = parseCommandLineFlags(baseCompilerProps.Conlyflags)
-			cppFlags.Value = parseCommandLineFlags(baseCompilerProps.Cppflags)
-			rtti.Value = baseCompilerProps.Rtti
-
-			for _, dir := range parseLocalIncludeDirs(baseCompilerProps) {
-				copts.Value = append(copts.Value, includeFlags(dir)...)
-				asFlags.Value = append(asFlags.Value, includeFlags(dir)...)
-			}
-			break
-		}
-	}
-
-	// Handle include_build_directory prop. If the property is true, then the
-	// target has access to all headers recursively in the package, and has
-	// "-I<module-dir>" in its copts.
-	if c, ok := module.compiler.(*baseCompiler); ok && c.includeBuildDirectory() {
-		copts.Value = append(copts.Value, includeFlags(".")...)
-		asFlags.Value = append(asFlags.Value, includeFlags(".")...)
-	} else if c, ok := module.compiler.(*libraryDecorator); ok && c.includeBuildDirectory() {
-		copts.Value = append(copts.Value, includeFlags(".")...)
-		asFlags.Value = append(asFlags.Value, includeFlags(".")...)
-	}
-
 	archVariantCompilerProps := module.GetArchVariantProperties(ctx, &BaseCompilerProperties{})
-
 	for axis, configToProps := range archVariantCompilerProps {
 		for config, props := range configToProps {
 			if baseCompilerProps, ok := props.(*BaseCompilerProperties); ok {
@@ -343,6 +288,14 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 				for _, dir := range parseLocalIncludeDirs(baseCompilerProps) {
 					archVariantCopts = append(archVariantCopts, includeFlags(dir)...)
 					archVariantAsflags = append(archVariantAsflags, includeFlags(dir)...)
+				}
+
+				if axis == bazel.NoConfigAxis {
+					if includeBuildDirectory(baseCompilerProps.Include_build_directory) {
+						flags := includeFlags(".")
+						archVariantCopts = append(archVariantCopts, flags...)
+						archVariantAsflags = append(archVariantAsflags, flags...)
+					}
 				}
 
 				copts.SetSelectValue(axis, config, archVariantCopts)
@@ -423,7 +376,7 @@ func bp2BuildParseLinkerProps(ctx android.TopDownMutatorContext, module *Module)
 	var exportedDeps bazel.LabelListAttribute
 	var dynamicDeps bazel.LabelListAttribute
 	var wholeArchiveDeps bazel.LabelListAttribute
-	var systemSharedDeps bazel.LabelListAttribute
+	systemSharedDeps := bazel.LabelListAttribute{ForceSpecifyEmptyList: true}
 	var linkopts bazel.StringListAttribute
 	var versionScript bazel.LabelAttribute
 	var useLibcrt bazel.BoolAttribute
@@ -433,15 +386,6 @@ func bp2BuildParseLinkerProps(ctx android.TopDownMutatorContext, module *Module)
 	var stripKeepSymbolsList bazel.StringListAttribute
 	var stripAll bazel.BoolAttribute
 	var stripNone bazel.BoolAttribute
-
-	if libraryDecorator, ok := module.linker.(*libraryDecorator); ok {
-		stripProperties := libraryDecorator.stripper.StripProperties
-		stripKeepSymbols.Value = stripProperties.Strip.Keep_symbols
-		stripKeepSymbolsList.Value = stripProperties.Strip.Keep_symbols_list
-		stripKeepSymbolsAndDebugFrame.Value = stripProperties.Strip.Keep_symbols_and_debug_frame
-		stripAll.Value = stripProperties.Strip.All
-		stripNone.Value = stripProperties.Strip.None
-	}
 
 	for axis, configToProps := range module.GetArchVariantProperties(ctx, &StripProperties{}) {
 		for config, props := range configToProps {
@@ -455,54 +399,22 @@ func bp2BuildParseLinkerProps(ctx android.TopDownMutatorContext, module *Module)
 		}
 	}
 
-	for _, linkerProps := range module.linker.linkerProps() {
-		if baseLinkerProps, ok := linkerProps.(*BaseLinkerProperties); ok {
-			// Excludes to parallel Soong:
-			// https://cs.android.com/android/platform/superproject/+/master:build/soong/cc/linker.go;l=247-249;drc=088b53577dde6e40085ffd737a1ae96ad82fc4b0
-			staticLibs := android.FirstUniqueStrings(baseLinkerProps.Static_libs)
-			staticDeps.Value = android.BazelLabelForModuleDepsExcludes(ctx, staticLibs, baseLinkerProps.Exclude_static_libs)
-			wholeArchiveLibs := android.FirstUniqueStrings(baseLinkerProps.Whole_static_libs)
-			wholeArchiveDeps = bazel.MakeLabelListAttribute(android.BazelLabelForModuleWholeDepsExcludes(ctx, wholeArchiveLibs, baseLinkerProps.Exclude_static_libs))
-
-			systemSharedLibs := android.FirstUniqueStrings(baseLinkerProps.System_shared_libs)
-			systemSharedDeps = bazel.MakeLabelListAttribute(android.BazelLabelForModuleDeps(ctx, systemSharedLibs))
-			systemSharedDeps.ForceSpecifyEmptyList = true
-			if systemSharedDeps.Value.IsNil() && baseLinkerProps.System_shared_libs != nil {
-				systemSharedDeps.Value.Includes = []bazel.Label{}
-			}
-
-			sharedLibs := android.FirstUniqueStrings(baseLinkerProps.Shared_libs)
-
-			dynamicDeps = bazel.MakeLabelListAttribute(android.BazelLabelForModuleDepsExcludes(ctx, sharedLibs, baseLinkerProps.Exclude_shared_libs))
-
-			headerLibs := android.FirstUniqueStrings(baseLinkerProps.Header_libs)
-			headerDeps = bazel.MakeLabelListAttribute(android.BazelLabelForModuleDeps(ctx, headerLibs))
-			// TODO(b/188796939): also handle export_static_lib_headers, export_shared_lib_headers,
-			// export_generated_headers
-			exportedLibs := android.FirstUniqueStrings(baseLinkerProps.Export_header_lib_headers)
-			exportedDeps = bazel.MakeLabelListAttribute(android.BazelLabelForModuleDeps(ctx, exportedLibs))
-
-			linkopts.Value = getBp2BuildLinkerFlags(baseLinkerProps)
-			if baseLinkerProps.Version_script != nil {
-				versionScript.SetValue(android.BazelLabelForModuleSrcSingle(ctx, *baseLinkerProps.Version_script))
-			}
-			useLibcrt.Value = baseLinkerProps.libCrt()
-
-			break
-		}
-	}
-
 	for axis, configToProps := range module.GetArchVariantProperties(ctx, &BaseLinkerProperties{}) {
 		for config, props := range configToProps {
 			if baseLinkerProps, ok := props.(*BaseLinkerProperties); ok {
+				// Excludes to parallel Soong:
+				// https://cs.android.com/android/platform/superproject/+/master:build/soong/cc/linker.go;l=247-249;drc=088b53577dde6e40085ffd737a1ae96ad82fc4b0
 				staticLibs := android.FirstUniqueStrings(baseLinkerProps.Static_libs)
 				staticDeps.SetSelectValue(axis, config, android.BazelLabelForModuleDepsExcludes(ctx, staticLibs, baseLinkerProps.Exclude_static_libs))
 				wholeArchiveLibs := android.FirstUniqueStrings(baseLinkerProps.Whole_static_libs)
 				wholeArchiveDeps.SetSelectValue(axis, config, android.BazelLabelForModuleWholeDepsExcludes(ctx, wholeArchiveLibs, baseLinkerProps.Exclude_static_libs))
 
-				systemSharedLibs := android.FirstUniqueStrings(baseLinkerProps.System_shared_libs)
-				if len(systemSharedLibs) == 0 && baseLinkerProps.System_shared_libs != nil {
-					systemSharedLibs = baseLinkerProps.System_shared_libs
+				systemSharedLibs := baseLinkerProps.System_shared_libs
+				// systemSharedLibs distinguishes between nil/empty list behavior:
+				//    nil -> use default values
+				//    empty list -> no values specified
+				if len(systemSharedLibs) > 0 {
+					systemSharedLibs = android.FirstUniqueStrings(systemSharedLibs)
 				}
 				systemSharedDeps.SetSelectValue(axis, config, android.BazelLabelForModuleDeps(ctx, systemSharedLibs))
 
@@ -642,22 +554,24 @@ func bp2BuildParseExportedIncludesHelper(ctx android.TopDownMutatorContext, modu
 	// are root-relative.
 	includeDirs := libraryDecorator.flagExporter.Properties.Export_system_include_dirs
 	includeDirs = append(includeDirs, libraryDecorator.flagExporter.Properties.Export_include_dirs...)
-	includeDirsAttribute := bazel.MakeStringListAttribute(includeDirs)
+	var includeDirsAttribute bazel.StringListAttribute
 
-	getVariantIncludeDirs := func(includeDirs []string, flagExporterProperties *FlagExporterProperties) []string {
+	getVariantIncludeDirs := func(includeDirs []string, flagExporterProperties *FlagExporterProperties, subtract bool) []string {
 		variantIncludeDirs := flagExporterProperties.Export_system_include_dirs
 		variantIncludeDirs = append(variantIncludeDirs, flagExporterProperties.Export_include_dirs...)
 
-		// To avoid duplicate includes when base includes + arch includes are combined
-		// TODO: This doesn't take conflicts between arch and os includes into account
-		variantIncludeDirs = bazel.SubtractStrings(variantIncludeDirs, includeDirs)
+		if subtract {
+			// To avoid duplicate includes when base includes + arch includes are combined
+			// TODO: Add something similar to ResolveExcludes() in bazel/properties.go
+			variantIncludeDirs = bazel.SubtractStrings(variantIncludeDirs, includeDirs)
+		}
 		return variantIncludeDirs
 	}
 
 	for axis, configToProps := range module.GetArchVariantProperties(ctx, &FlagExporterProperties{}) {
 		for config, props := range configToProps {
 			if flagExporterProperties, ok := props.(*FlagExporterProperties); ok {
-				archVariantIncludeDirs := getVariantIncludeDirs(includeDirs, flagExporterProperties)
+				archVariantIncludeDirs := getVariantIncludeDirs(includeDirs, flagExporterProperties, axis != bazel.NoConfigAxis)
 				if len(archVariantIncludeDirs) > 0 {
 					includeDirsAttribute.SetSelectValue(axis, config, archVariantIncludeDirs)
 				}
