@@ -261,8 +261,12 @@ func (compiler *baseCompiler) compilerProps() []interface{} {
 	return []interface{}{&compiler.Properties, &compiler.Proto}
 }
 
+func includeBuildDirectory(prop *bool) bool {
+	return proptools.BoolDefault(prop, true)
+}
+
 func (compiler *baseCompiler) includeBuildDirectory() bool {
-	return proptools.BoolDefault(compiler.Properties.Include_build_directory, true)
+	return includeBuildDirectory(compiler.Properties.Include_build_directory)
 }
 
 func (compiler *baseCompiler) compilerInit(ctx BaseModuleContext) {}
