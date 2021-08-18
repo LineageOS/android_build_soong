@@ -622,7 +622,7 @@ func expandOneSrcPath(ctx ModuleWithDepsPathContext, sPath string, expandedExclu
 // It intended for use in globs that only list files that exist, so it allows '$' in
 // filenames.
 func pathsForModuleSrcFromFullPath(ctx EarlyModulePathContext, paths []string, incDirs bool) Paths {
-	prefix := filepath.Join(ctx.Config().srcDir, ctx.ModuleDir()) + "/"
+	prefix := ctx.ModuleDir() + "/"
 	if prefix == "./" {
 		prefix = ""
 	}
@@ -658,7 +658,7 @@ func PathsWithOptionalDefaultForModuleSrc(ctx ModuleMissingDepsPathContext, inpu
 	}
 	// Use Glob so that if the default doesn't exist, a dependency is added so that when it
 	// is created, we're run again.
-	path := filepath.Join(ctx.Config().srcDir, ctx.ModuleDir(), def)
+	path := filepath.Join(ctx.ModuleDir(), def)
 	return Glob(ctx, path, nil)
 }
 
@@ -986,7 +986,7 @@ func (p SourcePath) withRel(rel string) SourcePath {
 // code that is embedding ninja variables in paths
 func safePathForSource(ctx PathContext, pathComponents ...string) (SourcePath, error) {
 	p, err := validateSafePath(pathComponents...)
-	ret := SourcePath{basePath{p, ""}, ctx.Config().srcDir}
+	ret := SourcePath{basePath{p, ""}, "."}
 	if err != nil {
 		return ret, err
 	}
@@ -1002,7 +1002,7 @@ func safePathForSource(ctx PathContext, pathComponents ...string) (SourcePath, e
 // pathForSource creates a SourcePath from pathComponents, but does not check that it exists.
 func pathForSource(ctx PathContext, pathComponents ...string) (SourcePath, error) {
 	p, err := validatePath(pathComponents...)
-	ret := SourcePath{basePath{p, ""}, ctx.Config().srcDir}
+	ret := SourcePath{basePath{p, ""}, "."}
 	if err != nil {
 		return ret, err
 	}
