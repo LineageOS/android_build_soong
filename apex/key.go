@@ -203,18 +203,6 @@ type bazelApexKeyAttributes struct {
 	Private_key bazel.LabelAttribute
 }
 
-type bazelApexKey struct {
-	android.BazelTargetModuleBase
-	bazelApexKeyAttributes
-}
-
-func BazelApexKeyFactory() android.Module {
-	module := &bazelApexKey{}
-	module.AddProperties(&module.bazelApexKeyAttributes)
-	android.InitBazelTargetModule(module)
-	return module
-}
-
 func ApexKeyBp2Build(ctx android.TopDownMutatorContext) {
 	module, ok := ctx.Module().(*apexKey)
 	if !ok {
@@ -252,11 +240,5 @@ func apexKeyBp2BuildInternal(ctx android.TopDownMutatorContext, module *apexKey)
 		Bzl_load_location: "//build/bazel/rules:apex_key.bzl",
 	}
 
-	ctx.CreateBazelTargetModule(BazelApexKeyFactory, module.Name(), props, attrs)
+	ctx.CreateBazelTargetModule(module.Name(), props, attrs)
 }
-
-func (m *bazelApexKey) Name() string {
-	return m.BaseModuleName()
-}
-
-func (m *bazelApexKey) GenerateAndroidBuildActions(ctx android.ModuleContext) {}

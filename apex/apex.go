@@ -3173,18 +3173,6 @@ type bazelApexBundleAttributes struct {
 	Prebuilts          bazel.LabelListAttribute
 }
 
-type bazelApexBundle struct {
-	android.BazelTargetModuleBase
-	bazelApexBundleAttributes
-}
-
-func BazelApexBundleFactory() android.Module {
-	module := &bazelApexBundle{}
-	module.AddProperties(&module.bazelApexBundleAttributes)
-	android.InitBazelTargetModule(module)
-	return module
-}
-
 func ApexBundleBp2Build(ctx android.TopDownMutatorContext) {
 	module, ok := ctx.Module().(*apexBundle)
 	if !ok {
@@ -3272,11 +3260,5 @@ func apexBundleBp2BuildInternal(ctx android.TopDownMutatorContext, module *apexB
 		Bzl_load_location: "//build/bazel/rules:apex.bzl",
 	}
 
-	ctx.CreateBazelTargetModule(BazelApexBundleFactory, module.Name(), props, attrs)
+	ctx.CreateBazelTargetModule(module.Name(), props, attrs)
 }
-
-func (m *bazelApexBundle) Name() string {
-	return m.BaseModuleName()
-}
-
-func (m *bazelApexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {}

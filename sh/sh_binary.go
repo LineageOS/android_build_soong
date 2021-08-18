@@ -527,18 +527,6 @@ type bazelShBinaryAttributes struct {
 	// visibility
 }
 
-type bazelShBinary struct {
-	android.BazelTargetModuleBase
-	bazelShBinaryAttributes
-}
-
-func BazelShBinaryFactory() android.Module {
-	module := &bazelShBinary{}
-	module.AddProperties(&module.bazelShBinaryAttributes)
-	android.InitBazelTargetModule(module)
-	return module
-}
-
 func ShBinaryBp2Build(ctx android.TopDownMutatorContext) {
 	m, ok := ctx.Module().(*ShBinary)
 	if !ok || !m.ConvertWithBp2build(ctx) {
@@ -556,13 +544,7 @@ func ShBinaryBp2Build(ctx android.TopDownMutatorContext) {
 		Rule_class: "sh_binary",
 	}
 
-	ctx.CreateBazelTargetModule(BazelShBinaryFactory, m.Name(), props, attrs)
+	ctx.CreateBazelTargetModule(m.Name(), props, attrs)
 }
-
-func (m *bazelShBinary) Name() string {
-	return m.BaseModuleName()
-}
-
-func (m *bazelShBinary) GenerateAndroidBuildActions(ctx android.ModuleContext) {}
 
 var Bool = proptools.Bool
