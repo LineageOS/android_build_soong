@@ -156,6 +156,10 @@ func (binary *binaryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 		}
 	}
 
+	if binary.static() {
+		deps.StaticLibs = append(deps.StaticLibs, deps.SystemSharedLibs...)
+	}
+
 	if ctx.toolchain().Bionic() {
 		if binary.static() {
 			if ctx.selectedStl() == "libc++_static" {
