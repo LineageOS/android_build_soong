@@ -502,11 +502,12 @@ func (a *AndroidLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	if sdkDep.hasFrameworkLibs() {
 		a.aapt.deps(ctx, sdkDep)
 	}
+	a.usesLibrary.deps(ctx, sdkDep.hasFrameworkLibs())
 }
 
 func (a *AndroidLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.aapt.isLibrary = true
-	a.classLoaderContexts = make(dexpreopt.ClassLoaderContextMap)
+	a.classLoaderContexts = a.usesLibrary.classLoaderContextForUsesLibDeps(ctx)
 	a.aapt.buildActions(ctx, android.SdkContext(a), a.classLoaderContexts)
 
 	a.hideApexVariantFromMake = !ctx.Provider(android.ApexInfoProvider).(android.ApexInfo).IsForPlatform()
