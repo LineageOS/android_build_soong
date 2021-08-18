@@ -662,18 +662,6 @@ type bazelPrebuiltEtcAttributes struct {
 	Installable bazel.BoolAttribute
 }
 
-type bazelPrebuiltEtc struct {
-	android.BazelTargetModuleBase
-	bazelPrebuiltEtcAttributes
-}
-
-func BazelPrebuiltEtcFactory() android.Module {
-	module := &bazelPrebuiltEtc{}
-	module.AddProperties(&module.bazelPrebuiltEtcAttributes)
-	android.InitBazelTargetModule(module)
-	return module
-}
-
 func PrebuiltEtcBp2Build(ctx android.TopDownMutatorContext) {
 	module, ok := ctx.Module().(*PrebuiltEtc)
 	if !ok {
@@ -723,11 +711,5 @@ func prebuiltEtcBp2BuildInternal(ctx android.TopDownMutatorContext, module *Preb
 		Bzl_load_location: "//build/bazel/rules:prebuilt_etc.bzl",
 	}
 
-	ctx.CreateBazelTargetModule(BazelPrebuiltEtcFactory, module.Name(), props, attrs)
+	ctx.CreateBazelTargetModule(module.Name(), props, attrs)
 }
-
-func (m *bazelPrebuiltEtc) Name() string {
-	return m.BaseModuleName()
-}
-
-func (m *bazelPrebuiltEtc) GenerateAndroidBuildActions(ctx android.ModuleContext) {}

@@ -826,18 +826,6 @@ type bazelGenruleAttributes struct {
 	Cmd   string
 }
 
-type bazelGenrule struct {
-	android.BazelTargetModuleBase
-	bazelGenruleAttributes
-}
-
-func BazelGenruleFactory() android.Module {
-	module := &bazelGenrule{}
-	module.AddProperties(&module.bazelGenruleAttributes)
-	android.InitBazelTargetModule(module)
-	return module
-}
-
 func GenruleBp2Build(ctx android.TopDownMutatorContext) {
 	m, ok := ctx.Module().(*Module)
 	if !ok || !m.ConvertWithBp2build(ctx) {
@@ -904,14 +892,8 @@ func GenruleBp2Build(ctx android.TopDownMutatorContext) {
 	}
 
 	// Create the BazelTargetModule.
-	ctx.CreateBazelTargetModule(BazelGenruleFactory, m.Name(), props, attrs)
+	ctx.CreateBazelTargetModule(m.Name(), props, attrs)
 }
-
-func (m *bazelGenrule) Name() string {
-	return m.BaseModuleName()
-}
-
-func (m *bazelGenrule) GenerateAndroidBuildActions(ctx android.ModuleContext) {}
 
 var Bool = proptools.Bool
 var String = proptools.String
