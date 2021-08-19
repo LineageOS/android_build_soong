@@ -822,6 +822,16 @@ type Module struct {
 }
 
 func (c *Module) AddJSONData(d *map[string]interface{}) {
+	var hasAidl, hasLex, hasProto, hasRenderscript, hasSysprop, hasWinMsg, hasYacc bool
+	if b, ok := c.compiler.(*baseCompiler); ok {
+		hasAidl = b.hasSrcExt(".aidl")
+		hasLex = b.hasSrcExt(".l") || b.hasSrcExt(".ll")
+		hasProto = b.hasSrcExt(".proto")
+		hasRenderscript = b.hasSrcExt(".rscript") || b.hasSrcExt(".fs")
+		hasSysprop = b.hasSrcExt(".sysprop")
+		hasWinMsg = b.hasSrcExt(".mc")
+		hasYacc = b.hasSrcExt(".y") || b.hasSrcExt(".yy")
+	}
 	c.AndroidModuleBase().AddJSONData(d)
 	(*d)["Cc"] = map[string]interface{}{
 		"SdkVersion":             c.SdkVersion(),
@@ -858,6 +868,14 @@ func (c *Module) AddJSONData(d *map[string]interface{}) {
 		"IsVendorPublicLibrary":  c.IsVendorPublicLibrary(),
 		"ApexSdkVersion":         c.apexSdkVersion,
 		"TestFor":                c.TestFor(),
+		"AidlSrcs":               hasAidl,
+		"LexSrcs":                hasLex,
+		"ProtoSrcs":              hasProto,
+		"RenderscriptSrcs":       hasRenderscript,
+		"SyspropSrcs":            hasSysprop,
+		"WinMsgSrcs":             hasWinMsg,
+		"YaccSrsc":               hasYacc,
+		"OnlyCSrcs":              !(hasAidl || hasLex || hasProto || hasRenderscript || hasSysprop || hasWinMsg || hasYacc),
 	}
 }
 
