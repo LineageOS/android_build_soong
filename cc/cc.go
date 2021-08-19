@@ -1632,7 +1632,7 @@ func (c *Module) getNameSuffixWithVndkVersion(ctx android.ModuleContext) string 
 			return ""
 		}
 		vndkVersion = ctx.DeviceConfig().ProductVndkVersion()
-		nameSuffix = productSuffix
+		nameSuffix = ProductSuffix
 	} else {
 		vndkVersion = ctx.DeviceConfig().VndkVersion()
 		nameSuffix = VendorSuffix
@@ -1652,7 +1652,7 @@ func (c *Module) setSubnameProperty(actx android.ModuleContext) {
 	c.Properties.SubName = ""
 
 	if c.Target().NativeBridge == android.NativeBridgeEnabled {
-		c.Properties.SubName += nativeBridgeSuffix
+		c.Properties.SubName += NativeBridgeSuffix
 	}
 
 	llndk := c.IsLlndk()
@@ -1668,11 +1668,11 @@ func (c *Module) setSubnameProperty(actx android.ModuleContext) {
 		// such suffixes are already hard-coded in prebuilts/vndk/.../Android.bp.
 		c.Properties.SubName += VendorSuffix
 	} else if c.InRamdisk() && !c.OnlyInRamdisk() {
-		c.Properties.SubName += ramdiskSuffix
+		c.Properties.SubName += RamdiskSuffix
 	} else if c.InVendorRamdisk() && !c.OnlyInVendorRamdisk() {
 		c.Properties.SubName += VendorRamdiskSuffix
 	} else if c.InRecovery() && !c.OnlyInRecovery() {
-		c.Properties.SubName += recoverySuffix
+		c.Properties.SubName += RecoverySuffix
 	} else if c.IsSdkVariant() && (c.Properties.SdkAndPlatformVariantVisibleToMake || c.SplitPerApiLevel()) {
 		c.Properties.SubName += sdkSuffix
 		if c.SplitPerApiLevel() {
@@ -3029,13 +3029,13 @@ func MakeLibName(ctx android.ModuleContext, c LinkableInterface, ccDep LinkableI
 		// core module, so update the dependency name here accordingly.
 		return libName + ccDep.SubName()
 	} else if ccDep.InRamdisk() && !ccDep.OnlyInRamdisk() {
-		return libName + ramdiskSuffix
+		return libName + RamdiskSuffix
 	} else if ccDep.InVendorRamdisk() && !ccDep.OnlyInVendorRamdisk() {
 		return libName + VendorRamdiskSuffix
 	} else if ccDep.InRecovery() && !ccDep.OnlyInRecovery() {
-		return libName + recoverySuffix
+		return libName + RecoverySuffix
 	} else if ccDep.Target().NativeBridge == android.NativeBridgeEnabled {
-		return libName + nativeBridgeSuffix
+		return libName + NativeBridgeSuffix
 	} else {
 		return libName
 	}
