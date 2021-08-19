@@ -41,24 +41,6 @@ type bazelPythonBinaryAttributes struct {
 	Python_version string
 }
 
-type bazelPythonBinary struct {
-	android.BazelTargetModuleBase
-	bazelPythonBinaryAttributes
-}
-
-func BazelPythonBinaryFactory() android.Module {
-	module := &bazelPythonBinary{}
-	module.AddProperties(&module.bazelPythonBinaryAttributes)
-	android.InitBazelTargetModule(module)
-	return module
-}
-
-func (m *bazelPythonBinary) Name() string {
-	return m.BaseModuleName()
-}
-
-func (m *bazelPythonBinary) GenerateAndroidBuildActions(ctx android.ModuleContext) {}
-
 func PythonBinaryBp2Build(ctx android.TopDownMutatorContext) {
 	m, ok := ctx.Module().(*Module)
 	if !ok || !m.ConvertWithBp2build(ctx) {
@@ -112,7 +94,7 @@ func PythonBinaryBp2Build(ctx android.TopDownMutatorContext) {
 		Rule_class: "py_binary",
 	}
 
-	ctx.CreateBazelTargetModule(BazelPythonBinaryFactory, m.Name(), props, attrs)
+	ctx.CreateBazelTargetModule(m.Name(), props, attrs)
 }
 
 type BinaryProperties struct {
