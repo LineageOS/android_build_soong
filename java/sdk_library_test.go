@@ -157,7 +157,7 @@ func TestJavaSdkLibrary(t *testing.T) {
 	qux := result.ModuleForTests("qux", "android_common")
 	if quxLib, ok := qux.Module().(*Library); ok {
 		requiredSdkLibs, optionalSdkLibs := quxLib.ClassLoaderContexts().UsesLibs()
-		android.AssertDeepEquals(t, "qux exports (required)", []string{"foo", "bar", "fred", "quuz"}, requiredSdkLibs)
+		android.AssertDeepEquals(t, "qux exports (required)", []string{"fred", "quuz", "foo", "bar"}, requiredSdkLibs)
 		android.AssertDeepEquals(t, "qux exports (optional)", []string{}, optionalSdkLibs)
 	}
 }
