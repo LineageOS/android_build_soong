@@ -25,9 +25,9 @@ import (
 
 	"android/soong/bp2build"
 	"android/soong/shared"
-
 	"github.com/google/blueprint/bootstrap"
 	"github.com/google/blueprint/deptools"
+	"github.com/google/blueprint/pathtools"
 
 	"android/soong/android"
 )
@@ -38,6 +38,8 @@ var (
 	availableEnvFile string
 	usedEnvFile      string
 
+	globFile    string
+	globListDir string
 	delveListen string
 	delvePath   string
 
@@ -65,8 +67,8 @@ func init() {
 	flag.StringVar(&bp2buildMarker, "bp2build_marker", "", "If set, run bp2build, touch the specified marker file then exit")
 
 	flag.StringVar(&cmdlineArgs.OutFile, "o", "build.ninja", "the Ninja file to output")
-	flag.StringVar(&cmdlineArgs.GlobFile, "globFile", "build-globs.ninja", "the Ninja file of globs to output")
-	flag.StringVar(&cmdlineArgs.GlobListDir, "globListDir", "", "the directory containing the glob list files")
+	flag.StringVar(&globFile, "globFile", "build-globs.ninja", "the Ninja file of globs to output")
+	flag.StringVar(&globListDir, "globListDir", "", "the directory containing the glob list files")
 	flag.StringVar(&cmdlineArgs.BuildDir, "b", ".", "the build output directory")
 	flag.StringVar(&cmdlineArgs.NinjaBuildDir, "n", "", "the ninja builddir directory")
 	flag.StringVar(&cmdlineArgs.DepFile, "d", "", "the dependency file to output")
@@ -143,6 +145,10 @@ func runMixedModeBuild(configuration android.Config, firstCtx *android.Context, 
 	secondArgs = cmdlineArgs
 	ninjaDeps := bootstrap.RunBlueprint(secondArgs, secondCtx.Context, secondConfig)
 	ninjaDeps = append(ninjaDeps, extraNinjaDeps...)
+
+	globListFiles := writeBuildGlobsNinjaFile(secondCtx.SrcDir(), configuration.BuildDir(), secondCtx.Globs, configuration)
+	ninjaDeps = append(ninjaDeps, globListFiles...)
+
 	err = deptools.WriteDepFile(shared.JoinPath(topDir, secondArgs.DepFile), secondArgs.OutFile, ninjaDeps)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error writing depfile '%s': %s\n", secondArgs.DepFile, err)
@@ -191,6 +197,17 @@ func writeJsonModuleGraph(configuration android.Config, ctx *android.Context, pa
 	writeFakeNinjaFile(extraNinjaDeps, configuration.BuildDir())
 }
 
+func writeBuildGlobsNinjaFile(srcDir, buildDir string, globs func() pathtools.MultipleGlobResults, config interface{}) []string {
+	globDir := bootstrap.GlobDirectory(buildDir, globListDir)
+	bootstrap.WriteBuildGlobsNinjaFile(&bootstrap.GlobSingleton{
+		GlobLister: globs,
+		GlobFile:   globFile,
+		GlobDir:    globDir,
+		SrcDir:     srcDir,
+	}, config)
+	return bootstrap.GlobFileListFiles(globDir)
+}
+
 // doChosenActivity runs Soong for a specific activity, like bp2build, queryview
 // or the actual Soong build for the build.ninja file. Returns the top level
 // output file of the specific activity.
@@ -215,6 +232,10 @@ func doChosenActivity(configuration android.Config, extraNinjaDeps []string) str
 	} else {
 		ninjaDeps := bootstrap.RunBlueprint(blueprintArgs, ctx.Context, configuration)
 		ninjaDeps = append(ninjaDeps, extraNinjaDeps...)
+
+		globListFiles := writeBuildGlobsNinjaFile(ctx.SrcDir(), configuration.BuildDir(), ctx.Globs, configuration)
+		ninjaDeps = append(ninjaDeps, globListFiles...)
+
 		err := deptools.WriteDepFile(shared.JoinPath(topDir, blueprintArgs.DepFile), blueprintArgs.OutFile, ninjaDeps)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error writing depfile '%s': %s\n", blueprintArgs.DepFile, err)
@@ -484,13 +505,8 @@ func runBp2Build(configuration android.Config, extraNinjaDeps []string) {
 	ninjaDeps := bootstrap.RunBlueprint(blueprintArgs, bp2buildCtx.Context, configuration)
 	ninjaDeps = append(ninjaDeps, extraNinjaDeps...)
 
-	// Generate out/soong/.bootstrap/build-globs.ninja with the actions to generate flattened globfiles
-	// containing the globs seen during bp2build conversion
-	if blueprintArgs.GlobFile != "" {
-		bootstrap.WriteBuildGlobsNinjaFile(blueprintArgs.GlobListDir, bp2buildCtx.Context, blueprintArgs, configuration)
-	}
-	// Add the depfile on the expanded globs in out/soong/.primary/globs
-	ninjaDeps = append(ninjaDeps, bootstrap.GlobFileListFiles(configuration, blueprintArgs.GlobListDir)...)
+	globListFiles := writeBuildGlobsNinjaFile(bp2buildCtx.SrcDir(), configuration.BuildDir(), bp2buildCtx.Globs, configuration)
+	ninjaDeps = append(ninjaDeps, globListFiles...)
 
 	// Run the code-generation phase to convert BazelTargetModules to BUILD files
 	// and print conversion metrics to the user.
