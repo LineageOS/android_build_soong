@@ -24,58 +24,63 @@ import argparse
 import csv
 import gzip
 
+# pylint: disable=import-error
 import ninja_rsp
 
 import file_sections_pb2
 
 BLOATY_EXTENSION = ".bloaty.csv"
 
+
 def parse_csv(path):
-  """Parses a Bloaty-generated CSV file into a protobuf.
+    """Parses a Bloaty-generated CSV file into a protobuf.
 
-  Args:
-    path: The filepath to the CSV file, relative to $ANDROID_TOP.
+    Args:
+      path: The filepath to the CSV file, relative to $ANDROID_TOP.
 
-  Returns:
-    A file_sections_pb2.File if the file was found; None otherwise.
-  """
-  file_proto = None
-  with open(path, newline='') as csv_file:
-    file_proto = file_sections_pb2.File()
-    if path.endswith(BLOATY_EXTENSION):
-      file_proto.path = path[:-len(BLOATY_EXTENSION)]
-    section_reader = csv.DictReader(csv_file)
-    for row in section_reader:
-      section = file_proto.sections.add()
-      section.name = row["sections"]
-      section.vm_size = int(row["vmsize"])
-      section.file_size = int(row["filesize"])
-  return file_proto
+    Returns:
+      A file_sections_pb2.File if the file was found; None otherwise.
+    """
+    file_proto = None
+    with open(path, newline='') as csv_file:
+        file_proto = file_sections_pb2.File()
+        if path.endswith(BLOATY_EXTENSION):
+            file_proto.path = path[: -len(BLOATY_EXTENSION)]
+        section_reader = csv.DictReader(csv_file)
+        for row in section_reader:
+            section = file_proto.sections.add()
+            section.name = row["sections"]
+            section.vm_size = int(row["vmsize"])
+            section.file_size = int(row["filesize"])
+    return file_proto
+
 
 def create_file_size_metrics(input_list, output_proto):
-  """Creates a FileSizeMetrics proto from a list of CSV files.
+    """Creates a FileSizeMetrics proto from a list of CSV files.
 
-  Args:
-    input_list: The path to the file which contains the list of CSV files. Each
-        filepath is separated by a space.
-    output_proto: The path for the output protobuf. It will be compressed using
-        gzip.
-  """
-  metrics = file_sections_pb2.FileSizeMetrics()
-  reader = ninja_rsp.NinjaRspFileReader(input_list)
-  for csv_path in reader:
-    file_proto = parse_csv(csv_path)
-    if file_proto:
-      metrics.files.append(file_proto)
-  with gzip.open(output_proto, "wb") as output:
-    output.write(metrics.SerializeToString())
+    Args:
+      input_list: The path to the file which contains the list of CSV files.
+          Each filepath is separated by a space.
+      output_proto: The path for the output protobuf. It will be compressed
+          using gzip.
+    """
+    metrics = file_sections_pb2.FileSizeMetrics()
+    reader = ninja_rsp.NinjaRspFileReader(input_list)
+    for csv_path in reader:
+        file_proto = parse_csv(csv_path)
+        if file_proto:
+            metrics.files.append(file_proto)
+    with gzip.open(output_proto, "wb") as output:
+        output.write(metrics.SerializeToString())
+
 
 def main():
-  parser = argparse.ArgumentParser()
-  parser.add_argument("input_list_file", help="List of bloaty csv files.")
-  parser.add_argument("output_proto", help="Output proto.")
-  args = parser.parse_args()
-  create_file_size_metrics(args.input_list_file, args.output_proto)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("input_list_file", help="List of bloaty csv files.")
+    parser.add_argument("output_proto", help="Output proto.")
+    args = parser.parse_args()
+    create_file_size_metrics(args.input_list_file, args.output_proto)
+
 
 if __name__ == '__main__':
-  main()
+    main()
