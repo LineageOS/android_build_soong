@@ -61,7 +61,7 @@ func (recoverySnapshotImage) imageVariantName(cfg android.DeviceConfig) string {
 }
 
 func (recoverySnapshotImage) moduleNameSuffix() string {
-	return recoverySuffix
+	return RecoverySuffix
 }
 
 // Override existing vendor and recovery snapshot for cc module specific extra functions
