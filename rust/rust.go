@@ -84,6 +84,8 @@ type BaseProperties struct {
 	// Set by imageMutator
 	CoreVariantNeeded          bool     `blueprint:"mutated"`
 	VendorRamdiskVariantNeeded bool     `blueprint:"mutated"`
+	RamdiskVariantNeeded       bool     `blueprint:"mutated"`
+	RecoveryVariantNeeded      bool     `blueprint:"mutated"`
 	ExtraVariants              []string `blueprint:"mutated"`
 
 	// Allows this module to use non-APEX version of libraries. Useful
@@ -94,11 +96,18 @@ type BaseProperties struct {
 	SnapshotSharedLibs []string `blueprint:"mutated"`
 	SnapshotStaticLibs []string `blueprint:"mutated"`
 
+	// Make this module available when building for ramdisk.
+	// On device without a dedicated recovery partition, the module is only
+	// available after switching root into
+	// /first_stage_ramdisk. To expose the module before switching root, install
+	// the recovery variant instead.
+	Ramdisk_available *bool
+
 	// Make this module available when building for vendor ramdisk.
 	// On device without a dedicated recovery partition, the module is only
 	// available after switching root into
 	// /first_stage_ramdisk. To expose the module before switching root, install
-	// the recovery variant instead (TODO(b/165791368) recovery not yet supported)
+	// the recovery variant instead
 	Vendor_ramdisk_available *bool
 
 	// Normally Soong uses the directory structure to decide which modules
@@ -114,6 +123,9 @@ type BaseProperties struct {
 	// allows a partner to exclude a module normally thought of as a
 	// framework module from the recovery snapshot.
 	Exclude_from_recovery_snapshot *bool
+
+	// Make this module available when building for recovery
+	Recovery_available *bool
 
 	// Minimum sdk version that the artifact should support when it runs as part of mainline modules(APEX).
 	Min_sdk_version *string
@@ -762,6 +774,10 @@ func (ctx *baseModuleContext) toolchain() config.Toolchain {
 }
 
 func (mod *Module) nativeCoverage() bool {
+	// Bug: http://b/137883967 - native-bridge modules do not currently work with coverage
+	if mod.Target().NativeBridge == android.NativeBridgeEnabled {
+		return false
+	}
 	return mod.compiler != nil && mod.compiler.nativeCoverage()
 }
 
@@ -804,9 +820,21 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 
 	// Differentiate static libraries that are vendor available
 	if mod.UseVndk() {
-		mod.Properties.SubName += cc.VendorSuffix
+		if mod.InProduct() && !mod.OnlyInProduct() {
+			mod.Properties.SubName += cc.ProductSuffix
+		} else {
+			mod.Properties.SubName += cc.VendorSuffix
+		}
+	} else if mod.InRamdisk() && !mod.OnlyInRamdisk() {
+		mod.Properties.SubName += cc.RamdiskSuffix
 	} else if mod.InVendorRamdisk() && !mod.OnlyInVendorRamdisk() {
 		mod.Properties.SubName += cc.VendorRamdiskSuffix
+	} else if mod.InRecovery() && !mod.OnlyInRecovery() {
+		mod.Properties.SubName += cc.RecoverySuffix
+	}
+
+	if mod.Target().NativeBridge == android.NativeBridgeEnabled {
+		mod.Properties.SubName += cc.NativeBridgeSuffix
 	}
 
 	if !toolchain.Supported() {
