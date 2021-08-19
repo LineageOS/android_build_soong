@@ -477,7 +477,8 @@ function test_null_build_after_docs {
   run_soong
   local mtime1=$(stat -c "%y" out/soong/build.ninja)
 
-  prebuilts/build-tools/linux-x86/bin/ninja -f out/soong/build.ninja soong_docs
+  prebuilts/build-tools/linux-x86/bin/ninja -f out/combined.ninja soong_docs
+
   run_soong
   local mtime2=$(stat -c "%y" out/soong/build.ninja)
 
