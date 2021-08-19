@@ -118,7 +118,7 @@ var knownFunctions = map[string]struct {
 	"notdir":                              {baseName + ".notdir", starlarkTypeString, hiddenArgNone},
 	"my-dir":                              {"!my-dir", starlarkTypeString, hiddenArgNone},
 	"patsubst":                            {baseName + ".mkpatsubst", starlarkTypeString, hiddenArgNone},
-	"produce_copy_files":                  {baseName + ".produce_copy_files", starlarkTypeList, hiddenArgNone},
+	"product-copy-files-by-pattern":       {baseName + ".product_copy_files_by_pattern", starlarkTypeList, hiddenArgNone},
 	"require-artifacts-in-path":           {baseName + ".require_artifacts_in_path", starlarkTypeVoid, hiddenArgNone},
 	"require-artifacts-in-path-relaxed":   {baseName + ".require_artifacts_in_path_relaxed", starlarkTypeVoid, hiddenArgNone},
 	// TODO(asmundak): remove it once all calls are removed from configuration makefiles. see b/183161002

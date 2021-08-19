@@ -27,6 +27,7 @@ import (
 	"android/soong/bazel"
 	"android/soong/bazel/cquery"
 	"android/soong/cc/config"
+
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/pathtools"
 )
@@ -256,24 +257,6 @@ type stripAttributes struct {
 	None                         bazel.BoolAttribute
 }
 
-type bazelCcLibrary struct {
-	android.BazelTargetModuleBase
-	bazelCcLibraryAttributes
-}
-
-func (m *bazelCcLibrary) Name() string {
-	return m.BaseModuleName()
-}
-
-func (m *bazelCcLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {}
-
-func BazelCcLibraryFactory() android.Module {
-	module := &bazelCcLibrary{}
-	module.AddProperties(&module.bazelCcLibraryAttributes)
-	android.InitBazelTargetModule(module)
-	return module
-}
-
 func CcLibraryBp2Build(ctx android.TopDownMutatorContext) {
 	m, ok := ctx.Module().(*Module)
 	if !ok || !m.ConvertWithBp2build(ctx) {
@@ -346,7 +329,7 @@ func CcLibraryBp2Build(ctx android.TopDownMutatorContext) {
 		Bzl_load_location: "//build/bazel/rules:full_cc_library.bzl",
 	}
 
-	ctx.CreateBazelTargetModule(BazelCcLibraryFactory, m.Name(), props, attrs)
+	ctx.CreateBazelTargetModule(m.Name(), props, attrs)
 }
 
 // cc_library creates both static and/or shared libraries for a device and/or
@@ -1754,7 +1737,7 @@ func (library *libraryDecorator) install(ctx ModuleContext, file android.Path) {
 					mayUseCoreVariant = false
 				}
 
-				if ctx.Config().CFIEnabledForPath(ctx.ModuleDir()) && ctx.Arch().ArchType == android.Arm64 {
+				if ctx.Config().CFIEnabledForPath(ctx.ModuleDir()) {
 					mayUseCoreVariant = false
 				}
 
@@ -2414,7 +2397,7 @@ func ccLibraryStaticBp2BuildInternal(ctx android.TopDownMutatorContext, module *
 		Bzl_load_location: "//build/bazel/rules:cc_library_static.bzl",
 	}
 
-	ctx.CreateBazelTargetModule(BazelCcLibraryStaticFactory, module.Name(), props, attrs)
+	ctx.CreateBazelTargetModule(module.Name(), props, attrs)
 }
 
 func CcLibraryStaticBp2Build(ctx android.TopDownMutatorContext) {

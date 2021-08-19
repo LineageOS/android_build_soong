@@ -244,7 +244,7 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (map[str
 		dir := bpCtx.ModuleDir(m)
 		dirs[dir] = true
 
-		var t BazelTarget
+		var targets []BazelTarget
 
 		switch ctx.Mode() {
 		case Bp2Build:
@@ -258,18 +258,23 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (map[str
 				if _, exists := buildFileToAppend[pathToBuildFile]; exists {
 					return
 				}
-				var err error
-				t, err = getHandcraftedBuildContent(ctx, b, pathToBuildFile)
+				t, err := getHandcraftedBuildContent(ctx, b, pathToBuildFile)
 				if err != nil {
 					panic(fmt.Errorf("Error converting %s: %s", bpCtx.ModuleName(m), err))
 				}
+				targets = append(targets, t)
 				// TODO(b/181575318): currently we append the whole BUILD file, let's change that to do
 				// something more targeted based on the rule type and target
 				buildFileToAppend[pathToBuildFile] = true
-			} else if btm, ok := m.(android.BazelTargetModule); ok {
-				t = generateBazelTarget(bpCtx, m, btm)
-				metrics.RuleClassCount[t.ruleClass] += 1
-				compatLayer.AddNameToLabelEntry(m.Name(), t.Label())
+			} else if aModule, ok := m.(android.Module); ok && aModule.IsConvertedByBp2build() {
+				targets = generateBazelTargets(bpCtx, aModule)
+				for _, t := range targets {
+					if t.name == m.Name() {
+						// only add targets that exist in Soong to compatibility layer
+						compatLayer.AddNameToLabelEntry(m.Name(), t.Label())
+					}
+					metrics.RuleClassCount[t.ruleClass] += 1
+				}
 			} else {
 				metrics.TotalModuleCount += 1
 				return
@@ -281,12 +286,13 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (map[str
 				// be mapped cleanly to a bazel label.
 				return
 			}
-			t = generateSoongModuleTarget(bpCtx, m)
+			t := generateSoongModuleTarget(bpCtx, m)
+			targets = append(targets, t)
 		default:
 			panic(fmt.Errorf("Unknown code-generation mode: %s", ctx.Mode()))
 		}
 
-		buildFileToTargets[dir] = append(buildFileToTargets[dir], t)
+		buildFileToTargets[dir] = append(buildFileToTargets[dir], targets...)
 	})
 	if generateFilegroups {
 		// Add a filegroup target that exposes all sources in the subtree of this package
@@ -326,22 +332,38 @@ func getHandcraftedBuildContent(ctx *CodegenContext, b android.Bazelable, pathTo
 	}, nil
 }
 
-func generateBazelTarget(ctx bpToBuildContext, m blueprint.Module, btm android.BazelTargetModule) BazelTarget {
-	ruleClass := btm.RuleClass()
-	bzlLoadLocation := btm.BzlLoadLocation()
+func generateBazelTargets(ctx bpToBuildContext, m android.Module) []BazelTarget {
+	var targets []BazelTarget
+	for _, m := range m.Bp2buildTargets() {
+		targets = append(targets, generateBazelTarget(ctx, m))
+	}
+	return targets
+}
+
+type bp2buildModule interface {
+	TargetName() string
+	TargetPackage() string
+	BazelRuleClass() string
+	BazelRuleLoadLocation() string
+	BazelAttributes() interface{}
+}
+
+func generateBazelTarget(ctx bpToBuildContext, m bp2buildModule) BazelTarget {
+	ruleClass := m.BazelRuleClass()
+	bzlLoadLocation := m.BazelRuleLoadLocation()
 
 	// extract the bazel attributes from the module.
-	props := getBuildProperties(ctx, m)
+	props := extractModuleProperties([]interface{}{m.BazelAttributes()})
 
 	delete(props.Attrs, "bp2build_available")
 
 	// Return the Bazel target with rule class and attributes, ready to be
 	// code-generated.
 	attributes := propsToAttributes(props.Attrs)
-	targetName := targetNameForBp2Build(ctx, m)
+	targetName := m.TargetName()
 	return BazelTarget{
 		name:            targetName,
-		packageName:     ctx.ModuleDir(m),
+		packageName:     m.TargetPackage(),
 		ruleClass:       ruleClass,
 		bzlLoadLocation: bzlLoadLocation,
 		content: fmt.Sprintf(
@@ -391,24 +413,21 @@ func generateSoongModuleTarget(ctx bpToBuildContext, m blueprint.Module) BazelTa
 }
 
 func getBuildProperties(ctx bpToBuildContext, m blueprint.Module) BazelAttributes {
-	var allProps map[string]string
 	// TODO: this omits properties for blueprint modules (blueprint_go_binary,
 	// bootstrap_go_binary, bootstrap_go_package), which will have to be handled separately.
 	if aModule, ok := m.(android.Module); ok {
-		allProps = ExtractModuleProperties(aModule)
+		return extractModuleProperties(aModule.GetProperties())
 	}
 
-	return BazelAttributes{
-		Attrs: allProps,
-	}
+	return BazelAttributes{}
 }
 
 // Generically extract module properties and types into a map, keyed by the module property name.
-func ExtractModuleProperties(aModule android.Module) map[string]string {
+func extractModuleProperties(props []interface{}) BazelAttributes {
 	ret := map[string]string{}
 
 	// Iterate over this android.Module's property structs.
-	for _, properties := range aModule.GetProperties() {
+	for _, properties := range props {
 		propertiesValue := reflect.ValueOf(properties)
 		// Check that propertiesValue is a pointer to the Properties struct, like
 		// *cc.BaseLinkerProperties or *java.CompilerProperties.
@@ -427,7 +446,9 @@ func ExtractModuleProperties(aModule android.Module) map[string]string {
 		}
 	}
 
-	return ret
+	return BazelAttributes{
+		Attrs: ret,
+	}
 }
 
 func isStructPtr(t reflect.Type) bool {
