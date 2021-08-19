@@ -511,7 +511,7 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		j.dexProperties.Uncompress_dex = proptools.BoolPtr(shouldUncompressDex(ctx, &j.dexpreopter))
 	}
 	j.dexpreopter.uncompressedDex = *j.dexProperties.Uncompress_dex
-	j.classLoaderContexts = make(dexpreopt.ClassLoaderContextMap)
+	j.classLoaderContexts = j.usesLibrary.classLoaderContextForUsesLibDeps(ctx)
 	j.compile(ctx, nil)
 
 	// Collect the module directory for IDE info in java/jdeps.go.
@@ -530,6 +530,7 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 func (j *Library) DepsMutator(ctx android.BottomUpMutatorContext) {
 	j.deps(ctx)
+	j.usesLibrary.deps(ctx, false)
 }
 
 const (
