@@ -5090,6 +5090,12 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 		// find the dex boot jar in it. We either need to disable the source libfoo
 		// or make the prebuilt libfoo preferred.
 		testDexpreoptWithApexes(t, bp, "module libfoo does not provide a dex boot jar", preparer, fragment)
+		// dexbootjar check is skipped if AllowMissingDependencies is true
+		preparerAllowMissingDeps := android.GroupFixturePreparers(
+			preparer,
+			android.PrepareForTestWithAllowMissingDependencies,
+		)
+		testDexpreoptWithApexes(t, bp, "", preparerAllowMissingDeps, fragment)
 	})
 
 	t.Run("prebuilt library preferred with source", func(t *testing.T) {
