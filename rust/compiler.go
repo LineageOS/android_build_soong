@@ -397,8 +397,15 @@ func (compiler *baseCompiler) installDir(ctx ModuleContext) android.InstallPath 
 	}
 
 	if compiler.location == InstallInData && ctx.RustModule().UseVndk() {
-		dir = filepath.Join(dir, "vendor")
+		if ctx.RustModule().InProduct() {
+			dir = filepath.Join(dir, "product")
+		} else if ctx.RustModule().InVendor() {
+			dir = filepath.Join(dir, "vendor")
+		} else {
+			ctx.ModuleErrorf("Unknown data+VNDK installation kind")
+		}
 	}
+
 	return android.PathForModuleInstall(ctx, dir, compiler.subDir,
 		compiler.relativeInstallPath(), compiler.relative)
 }
