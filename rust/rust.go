@@ -1233,6 +1233,18 @@ func (mod *Module) InstallInData() bool {
 	return mod.compiler.inData()
 }
 
+func (mod *Module) InstallInRamdisk() bool {
+	return mod.InRamdisk()
+}
+
+func (mod *Module) InstallInVendorRamdisk() bool {
+	return mod.InVendorRamdisk()
+}
+
+func (mod *Module) InstallInRecovery() bool {
+	return mod.InRecovery()
+}
+
 func linkPathFromFilePath(filepath android.Path) string {
 	return strings.Split(filepath.String(), filepath.Base())[0]
 }
