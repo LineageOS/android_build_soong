@@ -675,7 +675,7 @@ func (p *Module) collectPathsFromTransitiveDeps(ctx android.ModuleContext) {
 		if !isPythonLibModule(child) {
 			ctx.PropertyErrorf("libs",
 				"the dependency %q of module %q is not Python library!",
-				ctx.ModuleName(), ctx.OtherModuleName(child))
+				ctx.OtherModuleName(child), ctx.ModuleName())
 		}
 		// collect source and data paths, checking that there are no duplicate output file conflicts
 		if dep, ok := child.(pythonDependency); ok {
