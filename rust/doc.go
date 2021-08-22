@@ -29,6 +29,14 @@ func RustdocSingleton() android.Singleton {
 type rustdocSingleton struct{}
 
 func (n *rustdocSingleton) GenerateBuildActions(ctx android.SingletonContext) {
+	docDir := android.PathForOutput(ctx, "rustdoc")
+	docZip := android.PathForOutput(ctx, "rustdoc.zip")
+	rule := android.NewRuleBuilder(pctx, ctx)
+	zipCmd := rule.Command().BuiltTool("soong_zip").
+		FlagWithOutput("-o ", docZip).
+		FlagWithArg("-C ", docDir.String()).
+		FlagWithArg("-D ", docDir.String())
+
 	ctx.VisitAllModules(func(module android.Module) {
 		if !module.Enabled() {
 			return
@@ -36,8 +44,10 @@ func (n *rustdocSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 
 		if m, ok := module.(*Module); ok {
 			if m.docTimestampFile.Valid() {
-				ctx.Phony("rustdoc", m.docTimestampFile.Path())
+				zipCmd.Implicit(m.docTimestampFile.Path())
 			}
 		}
 	})
+	rule.Build("rustdoc-zip", "Zipping all built Rust documentation...")
+	ctx.Phony("rustdoc", docZip)
 }

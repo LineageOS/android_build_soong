@@ -136,7 +136,13 @@ func (c *Module) VendorVariantToOdm() bool {
 }
 
 func (ctx *moduleContext) ProductSpecific() bool {
-	return false
+	return ctx.ModuleContext.ProductSpecific() || ctx.RustModule().productSpecificModuleContext()
+}
+
+func (c *Module) productSpecificModuleContext() bool {
+	// Additionally check if this module is inProduct() that means it is a "product" variant of a
+	// module. As well as product specific modules, product variants must be installed to /product.
+	return c.InProduct()
 }
 
 func (mod *Module) InRecovery() bool {
