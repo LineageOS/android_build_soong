@@ -7,7 +7,7 @@ import (
 )
 
 func TestPythonBinaryHostSimple(t *testing.T) {
-	runPythonTestCase(t, bp2buildTestCase{
+	runBp2BuildTestCaseSimple(t, bp2buildTestCase{
 		description:                        "simple python_binary_host converts to a native py_binary",
 		moduleTypeUnderTest:                "python_binary_host",
 		moduleTypeUnderTestFactory:         python.PythonBinaryHostFactory,
@@ -43,7 +43,7 @@ func TestPythonBinaryHostSimple(t *testing.T) {
 }
 
 func TestPythonBinaryHostPy2(t *testing.T) {
-	runPythonTestCase(t, bp2buildTestCase{
+	runBp2BuildTestCaseSimple(t, bp2buildTestCase{
 		description:                        "py2 python_binary_host",
 		moduleTypeUnderTest:                "python_binary_host",
 		moduleTypeUnderTestFactory:         python.PythonBinaryHostFactory,
@@ -73,7 +73,7 @@ func TestPythonBinaryHostPy2(t *testing.T) {
 }
 
 func TestPythonBinaryHostPy3(t *testing.T) {
-	runPythonTestCase(t, bp2buildTestCase{
+	runBp2BuildTestCaseSimple(t, bp2buildTestCase{
 		description:                        "py3 python_binary_host",
 		moduleTypeUnderTest:                "python_binary_host",
 		moduleTypeUnderTestFactory:         python.PythonBinaryHostFactory,

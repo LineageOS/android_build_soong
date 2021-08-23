@@ -28,7 +28,7 @@ func errored(t *testing.T, desc string, errs []error) bool {
 	return false
 }
 
-func runPythonTestCase(t *testing.T, tc bp2buildTestCase) {
+func runBp2BuildTestCaseSimple(t *testing.T, tc bp2buildTestCase) {
 	t.Helper()
 	runBp2BuildTestCase(t, func(ctx android.RegistrationContext) {}, tc)
 }
