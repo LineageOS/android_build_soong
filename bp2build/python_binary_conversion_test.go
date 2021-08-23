@@ -3,14 +3,8 @@ package bp2build
 import (
 	"testing"
 
-	"android/soong/android"
 	"android/soong/python"
 )
-
-func runPythonTestCase(t *testing.T, tc bp2buildTestCase) {
-	t.Helper()
-	runBp2BuildTestCase(t, func(ctx android.RegistrationContext) {}, tc)
-}
 
 func TestPythonBinaryHostSimple(t *testing.T) {
 	runPythonTestCase(t, bp2buildTestCase{
