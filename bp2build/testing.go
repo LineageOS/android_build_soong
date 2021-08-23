@@ -1,5 +1,10 @@
 package bp2build
 
+/*
+For shareable/common bp2build testing functionality and dumping ground for
+specific-but-shared functionality among tests in package
+*/
+
 import (
 	"strings"
 	"testing"
