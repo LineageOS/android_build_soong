@@ -50,10 +50,12 @@ def etree_equal(elem1, elem2):
         return False
     return all(etree_equal(c1, c2) for c1, c2 in zip(elem1, elem2))
 
-
+# pylint: disable=line-too-long
 class ApiCoverageSymbolFileParserTest(unittest.TestCase):
     def test_parse(self):
-        input_file = io.StringIO(textwrap.dedent(u"""\
+        input_file = io.StringIO(
+            textwrap.dedent(
+                u"""\
             LIBLOG { # introduced-arm64=24 introduced-x86=24 introduced-x86_64=24
               global:
                 android_name_to_log_id; # apex llndk introduced=23
@@ -64,22 +66,28 @@ class ApiCoverageSymbolFileParserTest(unittest.TestCase):
               local:
                 *;
             };
-            
+
             LIBLOG_PLATFORM {
                 android_fdtrack; # llndk
                 android_net; # introduced=23
             };
-            
+
             LIBLOG_FOO { # var
                 android_var;
             };
-        """))
-        parser = SymbolFileParser(input_file, {}, "", FUTURE_API_LEVEL, True, True)
+        """
+            )
+        )
+        parser = SymbolFileParser(
+            input_file, {}, "", FUTURE_API_LEVEL, True, True
+        )
         generator = nparser.XmlGenerator(io.StringIO())
         result = generator.convertToXml(parser.parse())
-        expected = fromstring('<ndk-library><symbol apex="True" arch="" introduced="23" introduced-arm64="24" introduced-x86="24" introduced-x86_64="24" is_deprecated="False" is_platform="False" llndk="True" name="android_name_to_log_id" /><symbol arch="arm" introduced-arm64="24" introduced-x86="24" introduced-x86_64="24" is_deprecated="False" is_platform="False" llndk="True" name="android_log_id_to_name" /><symbol arch="" introduced-arm64="24" introduced-x86="23" introduced-x86_64="24" is_deprecated="False" is_platform="False" name="__android_log_assert" /><symbol arch="" introduced-arm64="24" introduced-x86="24" introduced-x86_64="24" is_deprecated="False" is_platform="False" name="__android_log_buf_write" /><symbol arch="" is_deprecated="False" is_platform="True" llndk="True" name="android_fdtrack" /><symbol arch="" introduced="23" is_deprecated="False" is_platform="True" name="android_net" /></ndk-library>')
+        expected = fromstring(
+            '<ndk-library><symbol apex="True" arch="" introduced="23" introduced-arm64="24" introduced-x86="24" introduced-x86_64="24" is_deprecated="False" is_platform="False" llndk="True" name="android_name_to_log_id" /><symbol arch="arm" introduced-arm64="24" introduced-x86="24" introduced-x86_64="24" is_deprecated="False" is_platform="False" llndk="True" name="android_log_id_to_name" /><symbol arch="" introduced-arm64="24" introduced-x86="23" introduced-x86_64="24" is_deprecated="False" is_platform="False" name="__android_log_assert" /><symbol arch="" introduced-arm64="24" introduced-x86="24" introduced-x86_64="24" is_deprecated="False" is_platform="False" name="__android_log_buf_write" /><symbol arch="" is_deprecated="False" is_platform="True" llndk="True" name="android_fdtrack" /><symbol arch="" introduced="23" is_deprecated="False" is_platform="True" name="android_net" /></ndk-library>'
+        )
         self.assertTrue(etree_equal(expected, result))
-
+# pylint: enable=line-too-long
 
 def main():
     suite = unittest.TestLoader().loadTestsFromName(__name__)
