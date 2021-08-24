@@ -543,3 +543,140 @@ func TestPlatformBootclasspath_IncludesRemainingApexJars(t *testing.T) {
 		"out/soong/target/product/test_device/system/etc/classpaths",
 	)
 }
+
+func TestBootJarNotInApex(t *testing.T) {
+	android.GroupFixturePreparers(
+		prepareForTestWithPlatformBootclasspath,
+		PrepareForTestWithApexBuildComponents,
+		prepareForTestWithMyapex,
+		java.FixtureConfigureApexBootJars("myapex:foo"),
+	).ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(
+		`dependency "foo" of "myplatform-bootclasspath" missing variant`)).
+		RunTestWithBp(t, `
+			apex {
+				name: "myapex",
+				key: "myapex.key",
+				updatable: false,
+			}
+
+			apex_key {
+				name: "myapex.key",
+				public_key: "testkey.avbpubkey",
+				private_key: "testkey.pem",
+			}
+
+			java_library {
+				name: "foo",
+				srcs: ["b.java"],
+				installable: true,
+				apex_available: [
+					"myapex",
+				],
+			}
+
+			bootclasspath_fragment {
+				name: "not-in-apex-fragment",
+				contents: [
+					"foo",
+				],
+			}
+
+			platform_bootclasspath {
+				name: "myplatform-bootclasspath",
+			}
+		`)
+}
+
+func TestBootFragmentNotInApex(t *testing.T) {
+	android.GroupFixturePreparers(
+		prepareForTestWithPlatformBootclasspath,
+		PrepareForTestWithApexBuildComponents,
+		prepareForTestWithMyapex,
+		java.FixtureConfigureApexBootJars("myapex:foo"),
+	).ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(
+		`library foo.*have no corresponding fragment.*`)).RunTestWithBp(t, `
+			apex {
+				name: "myapex",
+				key: "myapex.key",
+				java_libs: ["foo"],
+				updatable: false,
+			}
+
+			apex_key {
+				name: "myapex.key",
+				public_key: "testkey.avbpubkey",
+				private_key: "testkey.pem",
+			}
+
+			java_library {
+				name: "foo",
+				srcs: ["b.java"],
+				installable: true,
+				apex_available: ["myapex"],
+				permitted_packages: ["foo"],
+			}
+
+			bootclasspath_fragment {
+				name: "not-in-apex-fragment",
+				contents: ["foo"],
+			}
+
+			platform_bootclasspath {
+				name: "myplatform-bootclasspath",
+			}
+		`)
+}
+
+func TestNonBootJarInFragment(t *testing.T) {
+	android.GroupFixturePreparers(
+		prepareForTestWithPlatformBootclasspath,
+		PrepareForTestWithApexBuildComponents,
+		prepareForTestWithMyapex,
+		java.FixtureConfigureApexBootJars("myapex:foo"),
+	).ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(
+		`in contents must also be declared in PRODUCT_APEX_BOOT_JARS`)).
+		RunTestWithBp(t, `
+			apex {
+				name: "myapex",
+				key: "myapex.key",
+				bootclasspath_fragments: ["apex-fragment"],
+				updatable: false,
+			}
+
+			apex_key {
+				name: "myapex.key",
+				public_key: "testkey.avbpubkey",
+				private_key: "testkey.pem",
+			}
+
+			java_library {
+				name: "foo",
+				srcs: ["b.java"],
+				installable: true,
+				apex_available: ["myapex"],
+				permitted_packages: ["foo"],
+			}
+
+			java_library {
+				name: "bar",
+				srcs: ["b.java"],
+				installable: true,
+				apex_available: ["myapex"],
+				permitted_packages: ["bar"],
+			}
+
+			bootclasspath_fragment {
+				name: "apex-fragment",
+				contents: ["foo", "bar"],
+				apex_available:[ "myapex" ],
+			}
+
+			platform_bootclasspath {
+				name: "myplatform-bootclasspath",
+				fragments: [{
+						apex: "myapex",
+						module:"apex-fragment",
+				}],
+			}
+		`)
+}
