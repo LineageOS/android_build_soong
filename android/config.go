@@ -1665,8 +1665,9 @@ func (l *ConfiguredJarList) RemoveList(list ConfiguredJarList) ConfiguredJarList
 	return ConfiguredJarList{apexes, jars}
 }
 
-// Filter keeps the entries if a jar appears in the given list of jars to keep; returns a new list.
-func (l *ConfiguredJarList) Filter(jarsToKeep []string) ConfiguredJarList {
+// Filter keeps the entries if a jar appears in the given list of jars to keep. Returns a new list
+// and any remaining jars that are not on this list.
+func (l *ConfiguredJarList) Filter(jarsToKeep []string) (ConfiguredJarList, []string) {
 	var apexes []string
 	var jars []string
 
@@ -1677,7 +1678,7 @@ func (l *ConfiguredJarList) Filter(jarsToKeep []string) ConfiguredJarList {
 		}
 	}
 
-	return ConfiguredJarList{apexes, jars}
+	return ConfiguredJarList{apexes, jars}, RemoveListFromList(jarsToKeep, jars)
 }
 
 // CopyOfJars returns a copy of the list of strings containing jar module name

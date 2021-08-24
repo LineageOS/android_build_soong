@@ -107,7 +107,16 @@ func (s *SystemServerClasspathModule) configuredJars(ctx android.ModuleContext) 
 	global := dexpreopt.GetGlobalConfig(ctx)
 
 	possibleUpdatableModules := gatherPossibleApexModuleNamesAndStems(ctx, s.properties.Contents, systemServerClasspathFragmentContentDepTag)
-	return global.ApexSystemServerJars.Filter(possibleUpdatableModules)
+	jars, unknown := global.ApexSystemServerJars.Filter(possibleUpdatableModules)
+	// TODO(satayev): remove geotz ssc_fragment, since geotz is not part of SSCP anymore.
+	_, unknown = android.RemoveFromList("geotz", unknown)
+
+	// For non test apexes, make sure that all contents are actually declared in make.
+	if global.ApexSystemServerJars.Len() > 0 && len(unknown) > 0 {
+		ctx.ModuleErrorf("%s in contents must also be declared in PRODUCT_UPDATABLE_SYSTEM_SERVER_JARS", unknown)
+	}
+
+	return jars
 }
 
 type systemServerClasspathFragmentContentDependencyTag struct {
