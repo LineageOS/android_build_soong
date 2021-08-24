@@ -15,6 +15,7 @@ bootstrap_go_package {
     ],
     srcs: [
         "bp.go",
+        "build_release.go",
         "exports.go",
         "sdk.go",
         "update.go",
@@ -22,6 +23,7 @@ bootstrap_go_package {
     testSrcs: [
         "bootclasspath_fragment_sdk_test.go",
         "bp_test.go",
+        "build_release_test.go",
         "cc_sdk_test.go",
         "compat_config_sdk_test.go",
         "exports_test.go",
