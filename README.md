@@ -451,15 +451,10 @@ used. To specify that no properties should be amended for `soc_b`, you can set
 
 The values of the variables can be set from a product's `BoardConfig.mk` file:
 ```
-SOONG_CONFIG_NAMESPACES += acme
-SOONG_CONFIG_acme += \
-    board \
-    feature \
-    width \
-
-SOONG_CONFIG_acme_board := soc_a
-SOONG_CONFIG_acme_feature := true
-SOONG_CONFIG_acme_width := 200
+$(call add_soong_config_namespace, acme)
+$(call add_soong_config_var_value, acme, board, soc_a)
+$(call add_soong_config_var_value, acme, feature, true)
+$(call add_soong_config_var_value, acme, width, 200)
 ```
 
 The `acme_cc_defaults` module type can be used anywhere after the definition in
