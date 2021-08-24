@@ -122,15 +122,10 @@ type soongConfigModuleTypeImportProperties struct {
 //     }
 //
 // If an acme BoardConfig.mk file contained:
-//
-//     SOONG_CONFIG_NAMESPACES += acme
-//     SOONG_CONFIG_acme += \
-//         board \
-//         feature \
-//
-//     SOONG_CONFIG_acme_board := soc_a
-//     SOONG_CONFIG_acme_feature := true
-//     SOONG_CONFIG_acme_width := 200
+//     $(call add_sonng_config_namespace, acme)
+//     $(call add_soong_config_var_value, acme, board, soc_a)
+//     $(call add_soong_config_var_value, acme, feature, true)
+//     $(call add_soong_config_var_value, acme, width, 200)
 //
 // Then libacme_foo would build with cflags "-DGENERIC -DSOC_A -DFEATURE -DWIDTH=200".
 //
