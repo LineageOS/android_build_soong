@@ -15,10 +15,10 @@
 package bp2build
 
 import (
+	"testing"
+
 	"android/soong/android"
 	"android/soong/cc"
-	"strings"
-	"testing"
 )
 
 const (
@@ -52,59 +52,6 @@ func registerCcLibraryModuleTypes(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("cc_prebuilt_library_static", cc.PrebuiltStaticLibraryFactory)
 	ctx.RegisterModuleType("toolchain_library", cc.ToolchainLibraryFactory)
 	ctx.RegisterModuleType("cc_library_headers", cc.LibraryHeaderFactory)
-}
-
-func runBp2BuildTestCase(t *testing.T, registerModuleTypes func(ctx android.RegistrationContext), tc bp2buildTestCase) {
-	t.Helper()
-	dir := "."
-	filesystem := make(map[string][]byte)
-	toParse := []string{
-		"Android.bp",
-	}
-	for f, content := range tc.filesystem {
-		if strings.HasSuffix(f, "Android.bp") {
-			toParse = append(toParse, f)
-		}
-		filesystem[f] = []byte(content)
-	}
-	config := android.TestConfig(buildDir, nil, tc.blueprint, filesystem)
-	ctx := android.NewTestContext(config)
-
-	registerModuleTypes(ctx)
-	ctx.RegisterModuleType(tc.moduleTypeUnderTest, tc.moduleTypeUnderTestFactory)
-	ctx.RegisterBp2BuildConfig(bp2buildConfig)
-	ctx.RegisterBp2BuildMutator(tc.moduleTypeUnderTest, tc.moduleTypeUnderTestBp2BuildMutator)
-	ctx.RegisterForBazelConversion()
-
-	_, errs := ctx.ParseFileList(dir, toParse)
-	if errored(t, tc.description, errs) {
-		return
-	}
-	_, errs = ctx.ResolveDependencies(config)
-	if errored(t, tc.description, errs) {
-		return
-	}
-
-	checkDir := dir
-	if tc.dir != "" {
-		checkDir = tc.dir
-	}
-	codegenCtx := NewCodegenContext(config, *ctx.Context, Bp2Build)
-	bazelTargets := generateBazelTargetsForDir(codegenCtx, checkDir)
-	if actualCount, expectedCount := len(bazelTargets), len(tc.expectedBazelTargets); actualCount != expectedCount {
-		t.Errorf("%s: Expected %d bazel target, got %d", tc.description, expectedCount, actualCount)
-	} else {
-		for i, target := range bazelTargets {
-			if w, g := tc.expectedBazelTargets[i], target.content; w != g {
-				t.Errorf(
-					"%s: Expected generated Bazel target to be '%s', got '%s'",
-					tc.description,
-					w,
-					g,
-				)
-			}
-		}
-	}
 }
 
 func TestCcLibrarySimple(t *testing.T) {

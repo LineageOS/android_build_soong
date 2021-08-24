@@ -1,6 +1,26 @@
+// Copyright 2021 Google Inc. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package bp2build
 
+/*
+For shareable/common bp2build testing functionality and dumping ground for
+specific-but-shared functionality among tests in package
+*/
+
 import (
+	"strings"
 	"testing"
 
 	"android/soong/android"
@@ -15,6 +35,86 @@ var (
 
 	buildDir string
 )
+
+func errored(t *testing.T, desc string, errs []error) bool {
+	t.Helper()
+	if len(errs) > 0 {
+		for _, err := range errs {
+			t.Errorf("%s: %s", desc, err)
+		}
+		return true
+	}
+	return false
+}
+
+func runBp2BuildTestCaseSimple(t *testing.T, tc bp2buildTestCase) {
+	t.Helper()
+	runBp2BuildTestCase(t, func(ctx android.RegistrationContext) {}, tc)
+}
+
+type bp2buildTestCase struct {
+	description                        string
+	moduleTypeUnderTest                string
+	moduleTypeUnderTestFactory         android.ModuleFactory
+	moduleTypeUnderTestBp2BuildMutator func(android.TopDownMutatorContext)
+	blueprint                          string
+	expectedBazelTargets               []string
+	filesystem                         map[string]string
+	dir                                string
+}
+
+func runBp2BuildTestCase(t *testing.T, registerModuleTypes func(ctx android.RegistrationContext), tc bp2buildTestCase) {
+	t.Helper()
+	dir := "."
+	filesystem := make(map[string][]byte)
+	toParse := []string{
+		"Android.bp",
+	}
+	for f, content := range tc.filesystem {
+		if strings.HasSuffix(f, "Android.bp") {
+			toParse = append(toParse, f)
+		}
+		filesystem[f] = []byte(content)
+	}
+	config := android.TestConfig(buildDir, nil, tc.blueprint, filesystem)
+	ctx := android.NewTestContext(config)
+
+	registerModuleTypes(ctx)
+	ctx.RegisterModuleType(tc.moduleTypeUnderTest, tc.moduleTypeUnderTestFactory)
+	ctx.RegisterBp2BuildConfig(bp2buildConfig)
+	ctx.RegisterBp2BuildMutator(tc.moduleTypeUnderTest, tc.moduleTypeUnderTestBp2BuildMutator)
+	ctx.RegisterForBazelConversion()
+
+	_, errs := ctx.ParseFileList(dir, toParse)
+	if errored(t, tc.description, errs) {
+		return
+	}
+	_, errs = ctx.ResolveDependencies(config)
+	if errored(t, tc.description, errs) {
+		return
+	}
+
+	checkDir := dir
+	if tc.dir != "" {
+		checkDir = tc.dir
+	}
+	codegenCtx := NewCodegenContext(config, *ctx.Context, Bp2Build)
+	bazelTargets := generateBazelTargetsForDir(codegenCtx, checkDir)
+	if actualCount, expectedCount := len(bazelTargets), len(tc.expectedBazelTargets); actualCount != expectedCount {
+		t.Errorf("%s: Expected %d bazel target, got %d", tc.description, expectedCount, actualCount)
+	} else {
+		for i, target := range bazelTargets {
+			if w, g := tc.expectedBazelTargets[i], target.content; w != g {
+				t.Errorf(
+					"%s: Expected generated Bazel target to be '%s', got '%s'",
+					tc.description,
+					w,
+					g,
+				)
+			}
+		}
+	}
+}
 
 type nestedProps struct {
 	Nested_prop string
@@ -42,17 +142,6 @@ type customModule struct {
 	android.BazelModuleBase
 
 	props customProps
-}
-
-func errored(t *testing.T, desc string, errs []error) bool {
-	t.Helper()
-	if len(errs) > 0 {
-		for _, err := range errs {
-			t.Errorf("%s: %s", desc, err)
-		}
-		return true
-	}
-	return false
 }
 
 // OutputFiles is needed because some instances of this module use dist with a
