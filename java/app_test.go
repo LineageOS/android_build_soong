@@ -2398,14 +2398,7 @@ func TestUsesLibraries(t *testing.T) {
 	expectManifestFixerArgs := `--extract-native-libs=true ` +
 		`--uses-library qux ` +
 		`--uses-library quuz ` +
-		`--uses-library foo ` + // TODO(b/132357300): "foo" should not be passed to manifest_fixer
-		`--uses-library com.non.sdk.lib ` + // TODO(b/132357300): "com.non.sdk.lib" should not be passed to manifest_fixer
-		`--uses-library runtime-library ` +
-		`--uses-library runtime-required-x ` + // TODO(b/132357300): "runtime-required-x" should not be passed to manifest_fixer
-		`--uses-library runtime-required-y ` + // TODO(b/132357300): "runtime-required-y" should not be passed to manifest_fixer
-		`--optional-uses-library bar ` + // TODO(b/132357300): "bar" should not be passed to manifest_fixer
-		`--optional-uses-library runtime-optional-x ` + // TODO(b/132357300): "runtime-optional-x" should not be passed to manifest_fixer
-		`--optional-uses-library runtime-optional-y` // TODO(b/132357300): "runtime-optional-y" should not be passed to manifest_fixer
+		`--uses-library runtime-library`
 	android.AssertStringEquals(t, "manifest_fixer args", expectManifestFixerArgs, actualManifestFixerArgs)
 
 	// Test that all libraries are verified (library order matters).
