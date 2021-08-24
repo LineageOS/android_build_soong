@@ -430,11 +430,6 @@ func dexpreoptCommand(ctx android.PathContext, globalSoong *GlobalSoongConfig, g
 		}
 	}
 
-	// Never enable on eng.
-	if global.IsEng {
-		debugInfo = false
-	}
-
 	if debugInfo {
 		cmd.Flag("--generate-mini-debug-info")
 	} else {
