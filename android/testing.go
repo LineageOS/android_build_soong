@@ -664,15 +664,15 @@ func newBaseTestingComponent(config Config, provider testBuildProvider) baseTest
 // containing at most one instance of the temporary build directory at the start of the path while
 // this assumes that there can be any number at any position.
 func normalizeStringRelativeToTop(config Config, s string) string {
-	// The buildDir usually looks something like: /tmp/testFoo2345/001
+	// The soongOutDir usually looks something like: /tmp/testFoo2345/001
 	//
-	// Replace any usage of the buildDir with out/soong, e.g. replace "/tmp/testFoo2345/001" with
+	// Replace any usage of the soongOutDir with out/soong, e.g. replace "/tmp/testFoo2345/001" with
 	// "out/soong".
-	outSoongDir := filepath.Clean(config.buildDir)
+	outSoongDir := filepath.Clean(config.soongOutDir)
 	re := regexp.MustCompile(`\Q` + outSoongDir + `\E\b`)
 	s = re.ReplaceAllString(s, "out/soong")
 
-	// Replace any usage of the buildDir/.. with out, e.g. replace "/tmp/testFoo2345" with
+	// Replace any usage of the soongOutDir/.. with out, e.g. replace "/tmp/testFoo2345" with
 	// "out". This must come after the previous replacement otherwise this would replace
 	// "/tmp/testFoo2345/001" with "out/001" instead of "out/soong".
 	outDir := filepath.Dir(outSoongDir)
@@ -991,7 +991,7 @@ func NormalizePathForTesting(path Path) string {
 	}
 	p := path.String()
 	if w, ok := path.(WritablePath); ok {
-		rel, err := filepath.Rel(w.getBuildDir(), p)
+		rel, err := filepath.Rel(w.getSoongOutDir(), p)
 		if err != nil {
 			panic(err)
 		}

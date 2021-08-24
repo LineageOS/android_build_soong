@@ -71,17 +71,17 @@ func writeEnvironmentFile(ctx Context, envFile string, envDeps map[string]string
 // A tiny struct used to tell Blueprint that it's in bootstrap mode. It would
 // probably be nicer to use a flag in bootstrap.Args instead.
 type BlueprintConfig struct {
-	buildDir         string
-	ninjaBuildDir    string
+	soongOutDir      string
+	outDir           string
 	debugCompilation bool
 }
 
-func (c BlueprintConfig) BuildDir() string {
-	return c.buildDir
+func (c BlueprintConfig) SoongOutDir() string {
+	return c.soongOutDir
 }
 
-func (c BlueprintConfig) NinjaBuildDir() string {
-	return c.ninjaBuildDir
+func (c BlueprintConfig) OutDir() string {
+	return c.outDir
 }
 
 func (c BlueprintConfig) DebugCompilation() bool {
@@ -189,8 +189,8 @@ func bootstrapBlueprint(ctx Context, config Config) {
 	blueprintCtx := blueprint.NewContext()
 	blueprintCtx.SetIgnoreUnknownModuleTypes(true)
 	blueprintConfig := BlueprintConfig{
-		buildDir:         config.SoongOutDir(),
-		ninjaBuildDir:    config.OutDir(),
+		soongOutDir:      config.SoongOutDir(),
+		outDir:           config.OutDir(),
 		debugCompilation: os.Getenv("SOONG_DELVE") != "",
 	}
 
