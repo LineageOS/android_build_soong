@@ -25,6 +25,7 @@ var (
 		"system/extras/simpleperf",
 		"system/hardware/interfaces/keystore2",
 		"system/librustutils",
+		"system/logging/liblog",
 		"system/logging/rust",
 		"system/security",
 		"system/tools/aidl",
