@@ -536,6 +536,8 @@ type libraryDecorator struct {
 	*baseInstaller
 
 	collectedSnapshotHeaders android.Paths
+
+	apiListCoverageXmlPath android.ModuleOutPath
 }
 
 type ccLibraryBazelHandler struct {
@@ -951,6 +953,12 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 		objs := compileStubLibrary(ctx, flags, nativeAbiResult.stubSrc)
 		library.versionScriptPath = android.OptionalPathForPath(
 			nativeAbiResult.versionScript)
+
+		// Parse symbol file to get API list for coverage
+		if library.stubsVersion() == "current" && ctx.PrimaryArch() {
+			library.apiListCoverageXmlPath = parseSymbolFileForAPICoverage(ctx, symbolFile)
+		}
+
 		return objs
 	}
 
