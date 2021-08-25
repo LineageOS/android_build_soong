@@ -607,11 +607,35 @@ EOF
 
 function test_dump_json_module_graph() {
   setup
-  SOONG_DUMP_JSON_MODULE_GRAPH="$MOCK_TOP/modules.json" run_soong
-  if [[ ! -r "$MOCK_TOP/modules.json" ]]; then
+  GENERATE_JSON_MODULE_GRAPH=1 run_soong
+  if [[ ! -r "out/soong//module-graph.json" ]]; then
     fail "JSON file was not created"
   fi
 }
+
+function test_json_module_graph_back_and_forth_null_build() {
+  setup
+
+  run_soong
+  local ninja_mtime1=$(stat -c "%y" out/soong/build.ninja)
+
+  GENERATE_JSON_MODULE_GRAPH=1 run_soong
+  local json_mtime1=$(stat -c "%y" out/soong/module-graph.json)
+
+  run_soong
+  local ninja_mtime2=$(stat -c "%y" out/soong/build.ninja)
+  if [[ "$ninja_mtime1" != "$ninja_mtime2" ]]; then
+    fail "Output Ninja file changed after writing JSON module graph"
+  fi
+
+  GENERATE_JSON_MODULE_GRAPH=1 run_soong
+  local json_mtime2=$(stat -c "%y" out/soong/module-graph.json)
+  if [[ "$json_mtime1" != "$json_mtime2" ]]; then
+    fail "JSON module graph file changed after writing Ninja file"
+  fi
+
+}
+
 
 function test_bp2build_bazel_workspace_structure {
   setup
@@ -757,6 +781,7 @@ test_add_file_to_soong_build
 test_glob_during_bootstrapping
 test_soong_build_rerun_iff_environment_changes
 test_dump_json_module_graph
+test_json_module_graph_back_and_forth_null_build
 test_write_to_source_tree
 test_bp2build_smoke
 test_bp2build_generates_marker_file
