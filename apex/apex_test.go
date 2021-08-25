@@ -1874,6 +1874,45 @@ func TestApexMinSdkVersion_DefaultsToLatest(t *testing.T) {
 	expectNoLink("libx", "shared_apex10000", "libz", "shared")
 }
 
+func TestApexMinSdkVersion_crtobjectInVendorApex(t *testing.T) {
+	ctx := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			native_shared_libs: ["mylib"],
+			updatable: false,
+			vendor: true,
+			min_sdk_version: "29",
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "mylib",
+			vendor_available: true,
+			system_shared_libs: [],
+			stl: "none",
+			apex_available: [ "myapex" ],
+			min_sdk_version: "29",
+		}
+	`)
+
+	vendorVariant := "android_vendor.29_arm64_armv8-a"
+
+	// First check that the correct variant of crtbegin_so is used.
+	ldRule := ctx.ModuleForTests("mylib", vendorVariant+"_shared_apex29").Rule("ld")
+	crtBegin := names(ldRule.Args["crtBegin"])
+	ensureListContains(t, crtBegin, "out/soong/.intermediates/"+cc.DefaultCcCommonTestModulesDir+"crtbegin_so/"+vendorVariant+"_apex29/crtbegin_so.o")
+
+	// Ensure that the crtbegin_so used by the APEX is targeting 29
+	cflags := ctx.ModuleForTests("crtbegin_so", vendorVariant+"_apex29").Rule("cc").Args["cFlags"]
+	android.AssertStringDoesContain(t, "cflags", cflags, "-target aarch64-linux-android29")
+}
+
 func TestPlatformUsesLatestStubsFromApexes(t *testing.T) {
 	ctx := testApex(t, `
 		apex {
