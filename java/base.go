@@ -606,10 +606,8 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 			if component, ok := dep.(SdkLibraryComponentDependency); ok {
 				if lib := component.OptionalSdkLibraryImplementation(); lib != nil {
 					// Add library as optional if it's one of the optional compatibility libs.
-					tag := usesLibReqTag
-					if android.InList(*lib, dexpreopt.OptionalCompatUsesLibs) {
-						tag = usesLibOptTag
-					}
+					optional := android.InList(*lib, dexpreopt.OptionalCompatUsesLibs)
+					tag := makeUsesLibraryDependencyTag(dexpreopt.AnySdkVersion, optional, true)
 					ctx.AddVariationDependencies(nil, tag, *lib)
 				}
 			}
@@ -793,7 +791,7 @@ func (j *Module) collectJavacFlags(
 			// Manually specify build directory in case it is not under the repo root.
 			// (javac doesn't seem to expand into symbolic links when searching for patch-module targets, so
 			// just adding a symlink under the root doesn't help.)
-			patchPaths := []string{".", ctx.Config().BuildDir()}
+			patchPaths := []string{".", ctx.Config().SoongOutDir()}
 
 			// b/150878007
 			//

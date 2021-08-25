@@ -50,33 +50,34 @@ func TestCLC(t *testing.T) {
 	ctx := testContext()
 
 	optional := false
+	implicit := true
 
 	m := make(ClassLoaderContextMap)
 
-	m.AddContext(ctx, AnySdkVersion, "a", optional, buildPath(ctx, "a"), installPath(ctx, "a"), nil)
-	m.AddContext(ctx, AnySdkVersion, "b", optional, buildPath(ctx, "b"), installPath(ctx, "b"), nil)
-	m.AddContext(ctx, AnySdkVersion, "c", optional, buildPath(ctx, "c"), installPath(ctx, "c"), nil)
+	m.AddContext(ctx, AnySdkVersion, "a", optional, implicit, buildPath(ctx, "a"), installPath(ctx, "a"), nil)
+	m.AddContext(ctx, AnySdkVersion, "b", optional, implicit, buildPath(ctx, "b"), installPath(ctx, "b"), nil)
+	m.AddContext(ctx, AnySdkVersion, "c", optional, implicit, buildPath(ctx, "c"), installPath(ctx, "c"), nil)
 
 	// Add some libraries with nested subcontexts.
 
 	m1 := make(ClassLoaderContextMap)
-	m1.AddContext(ctx, AnySdkVersion, "a1", optional, buildPath(ctx, "a1"), installPath(ctx, "a1"), nil)
-	m1.AddContext(ctx, AnySdkVersion, "b1", optional, buildPath(ctx, "b1"), installPath(ctx, "b1"), nil)
+	m1.AddContext(ctx, AnySdkVersion, "a1", optional, implicit, buildPath(ctx, "a1"), installPath(ctx, "a1"), nil)
+	m1.AddContext(ctx, AnySdkVersion, "b1", optional, implicit, buildPath(ctx, "b1"), installPath(ctx, "b1"), nil)
 
 	m2 := make(ClassLoaderContextMap)
-	m2.AddContext(ctx, AnySdkVersion, "a2", optional, buildPath(ctx, "a2"), installPath(ctx, "a2"), nil)
-	m2.AddContext(ctx, AnySdkVersion, "b2", optional, buildPath(ctx, "b2"), installPath(ctx, "b2"), nil)
-	m2.AddContext(ctx, AnySdkVersion, "c2", optional, buildPath(ctx, "c2"), installPath(ctx, "c2"), m1)
+	m2.AddContext(ctx, AnySdkVersion, "a2", optional, implicit, buildPath(ctx, "a2"), installPath(ctx, "a2"), nil)
+	m2.AddContext(ctx, AnySdkVersion, "b2", optional, implicit, buildPath(ctx, "b2"), installPath(ctx, "b2"), nil)
+	m2.AddContext(ctx, AnySdkVersion, "c2", optional, implicit, buildPath(ctx, "c2"), installPath(ctx, "c2"), m1)
 
 	m3 := make(ClassLoaderContextMap)
-	m3.AddContext(ctx, AnySdkVersion, "a3", optional, buildPath(ctx, "a3"), installPath(ctx, "a3"), nil)
-	m3.AddContext(ctx, AnySdkVersion, "b3", optional, buildPath(ctx, "b3"), installPath(ctx, "b3"), nil)
+	m3.AddContext(ctx, AnySdkVersion, "a3", optional, implicit, buildPath(ctx, "a3"), installPath(ctx, "a3"), nil)
+	m3.AddContext(ctx, AnySdkVersion, "b3", optional, implicit, buildPath(ctx, "b3"), installPath(ctx, "b3"), nil)
 
-	m.AddContext(ctx, AnySdkVersion, "d", optional, buildPath(ctx, "d"), installPath(ctx, "d"), m2)
+	m.AddContext(ctx, AnySdkVersion, "d", optional, implicit, buildPath(ctx, "d"), installPath(ctx, "d"), m2)
 	// When the same library is both in conditional and unconditional context, it should be removed
 	// from conditional context.
-	m.AddContext(ctx, 42, "f", optional, buildPath(ctx, "f"), installPath(ctx, "f"), nil)
-	m.AddContext(ctx, AnySdkVersion, "f", optional, buildPath(ctx, "f"), installPath(ctx, "f"), nil)
+	m.AddContext(ctx, 42, "f", optional, implicit, buildPath(ctx, "f"), installPath(ctx, "f"), nil)
+	m.AddContext(ctx, AnySdkVersion, "f", optional, implicit, buildPath(ctx, "f"), installPath(ctx, "f"), nil)
 
 	// Merge map with implicit root library that is among toplevel contexts => does nothing.
 	m.AddContextMap(m1, "c")
@@ -85,12 +86,12 @@ func TestCLC(t *testing.T) {
 	m.AddContextMap(m3, "m_g")
 
 	// Compatibility libraries with unknown install paths get default paths.
-	m.AddContext(ctx, 29, AndroidHidlManager, optional, buildPath(ctx, AndroidHidlManager), nil, nil)
-	m.AddContext(ctx, 29, AndroidHidlBase, optional, buildPath(ctx, AndroidHidlBase), nil, nil)
+	m.AddContext(ctx, 29, AndroidHidlManager, optional, implicit, buildPath(ctx, AndroidHidlManager), nil, nil)
+	m.AddContext(ctx, 29, AndroidHidlBase, optional, implicit, buildPath(ctx, AndroidHidlBase), nil, nil)
 
 	// Add "android.test.mock" to conditional CLC, observe that is gets removed because it is only
 	// needed as a compatibility library if "android.test.runner" is in CLC as well.
-	m.AddContext(ctx, 30, AndroidTestMock, optional, buildPath(ctx, AndroidTestMock), nil, nil)
+	m.AddContext(ctx, 30, AndroidTestMock, optional, implicit, buildPath(ctx, AndroidTestMock), nil, nil)
 
 	valid, validationError := validateClassLoaderContext(m)
 
@@ -164,11 +165,12 @@ func TestCLC(t *testing.T) {
 func TestCLCJson(t *testing.T) {
 	ctx := testContext()
 	optional := false
+	implicit := true
 	m := make(ClassLoaderContextMap)
-	m.AddContext(ctx, 28, "a", optional, buildPath(ctx, "a"), installPath(ctx, "a"), nil)
-	m.AddContext(ctx, 29, "b", optional, buildPath(ctx, "b"), installPath(ctx, "b"), nil)
-	m.AddContext(ctx, 30, "c", optional, buildPath(ctx, "c"), installPath(ctx, "c"), nil)
-	m.AddContext(ctx, AnySdkVersion, "d", optional, buildPath(ctx, "d"), installPath(ctx, "d"), nil)
+	m.AddContext(ctx, 28, "a", optional, implicit, buildPath(ctx, "a"), installPath(ctx, "a"), nil)
+	m.AddContext(ctx, 29, "b", optional, implicit, buildPath(ctx, "b"), installPath(ctx, "b"), nil)
+	m.AddContext(ctx, 30, "c", optional, implicit, buildPath(ctx, "c"), installPath(ctx, "c"), nil)
+	m.AddContext(ctx, AnySdkVersion, "d", optional, implicit, buildPath(ctx, "d"), installPath(ctx, "d"), nil)
 	jsonCLC := toJsonClassLoaderContext(m)
 	restored := fromJsonClassLoaderContext(ctx, jsonCLC)
 	android.AssertIntEquals(t, "The size of the maps should be the same.", len(m), len(restored))
@@ -189,12 +191,13 @@ func TestCLCJson(t *testing.T) {
 func testCLCUnknownPath(t *testing.T, whichPath string) {
 	ctx := testContext()
 	optional := false
+	implicit := true
 
 	m := make(ClassLoaderContextMap)
 	if whichPath == "build" {
-		m.AddContext(ctx, AnySdkVersion, "a", optional, nil, nil, nil)
+		m.AddContext(ctx, AnySdkVersion, "a", optional, implicit, nil, nil, nil)
 	} else {
-		m.AddContext(ctx, AnySdkVersion, "a", optional, buildPath(ctx, "a"), nil, nil)
+		m.AddContext(ctx, AnySdkVersion, "a", optional, implicit, buildPath(ctx, "a"), nil, nil)
 	}
 
 	// The library should be added to <uses-library> tags by the manifest_fixer.
@@ -229,10 +232,11 @@ func TestCLCUnknownInstallPath(t *testing.T) {
 func TestCLCNestedConditional(t *testing.T) {
 	ctx := testContext()
 	optional := false
+	implicit := true
 	m1 := make(ClassLoaderContextMap)
-	m1.AddContext(ctx, 42, "a", optional, buildPath(ctx, "a"), installPath(ctx, "a"), nil)
+	m1.AddContext(ctx, 42, "a", optional, implicit, buildPath(ctx, "a"), installPath(ctx, "a"), nil)
 	m := make(ClassLoaderContextMap)
-	err := m.addContext(ctx, AnySdkVersion, "b", optional, buildPath(ctx, "b"), installPath(ctx, "b"), m1)
+	err := m.addContext(ctx, AnySdkVersion, "b", optional, implicit, buildPath(ctx, "b"), installPath(ctx, "b"), m1)
 	checkError(t, err, "nested class loader context shouldn't have conditional part")
 }
 
@@ -241,11 +245,12 @@ func TestCLCNestedConditional(t *testing.T) {
 func TestCLCSdkVersionOrder(t *testing.T) {
 	ctx := testContext()
 	optional := false
+	implicit := true
 	m := make(ClassLoaderContextMap)
-	m.AddContext(ctx, 28, "a", optional, buildPath(ctx, "a"), installPath(ctx, "a"), nil)
-	m.AddContext(ctx, 29, "b", optional, buildPath(ctx, "b"), installPath(ctx, "b"), nil)
-	m.AddContext(ctx, 30, "c", optional, buildPath(ctx, "c"), installPath(ctx, "c"), nil)
-	m.AddContext(ctx, AnySdkVersion, "d", optional, buildPath(ctx, "d"), installPath(ctx, "d"), nil)
+	m.AddContext(ctx, 28, "a", optional, implicit, buildPath(ctx, "a"), installPath(ctx, "a"), nil)
+	m.AddContext(ctx, 29, "b", optional, implicit, buildPath(ctx, "b"), installPath(ctx, "b"), nil)
+	m.AddContext(ctx, 30, "c", optional, implicit, buildPath(ctx, "c"), installPath(ctx, "c"), nil)
+	m.AddContext(ctx, AnySdkVersion, "d", optional, implicit, buildPath(ctx, "d"), installPath(ctx, "d"), nil)
 
 	valid, validationError := validateClassLoaderContext(m)
 

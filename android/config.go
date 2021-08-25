@@ -67,12 +67,12 @@ type Config struct {
 }
 
 // BuildDir returns the build output directory for the configuration.
-func (c Config) BuildDir() string {
-	return c.buildDir
+func (c Config) SoongOutDir() string {
+	return c.soongOutDir
 }
 
-func (c Config) NinjaBuildDir() string {
-	return c.buildDir
+func (c Config) OutDir() string {
+	return c.soongOutDir
 }
 
 func (c Config) DebugCompilation() bool {
@@ -122,7 +122,7 @@ type config struct {
 
 	deviceConfig *deviceConfig
 
-	buildDir       string // the path of the build output directory
+	soongOutDir    string // the path of the build output directory
 	moduleListFile string // the path to the file which lists blueprint files to parse.
 
 	env       map[string]string
@@ -283,11 +283,11 @@ func saveToBazelConfigFile(config *productVariables, outDir string) error {
 
 // NullConfig returns a mostly empty Config for use by standalone tools like dexpreopt_gen that
 // use the android package.
-func NullConfig(buildDir string) Config {
+func NullConfig(soongOutDir string) Config {
 	return Config{
 		config: &config{
-			buildDir: buildDir,
-			fs:       pathtools.OsFs,
+			soongOutDir: soongOutDir,
+			fs:          pathtools.OsFs,
 		},
 	}
 }
@@ -319,7 +319,7 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 			ShippingApiLevel:                  stringPtr("30"),
 		},
 
-		buildDir:     buildDir,
+		soongOutDir:  buildDir,
 		captureBuild: true,
 		env:          envCopy,
 
@@ -397,7 +397,7 @@ func TestArchConfig(buildDir string, env map[string]string, bp string, fs map[st
 // multiple runs in the same program execution is carried over (such as Bazel
 // context or environment deps).
 func ConfigForAdditionalRun(c Config) (Config, error) {
-	newConfig, err := NewConfig(c.buildDir, c.moduleListFile, c.env)
+	newConfig, err := NewConfig(c.soongOutDir, c.moduleListFile, c.env)
 	if err != nil {
 		return Config{}, err
 	}
@@ -408,14 +408,14 @@ func ConfigForAdditionalRun(c Config) (Config, error) {
 
 // NewConfig creates a new Config object. The srcDir argument specifies the path
 // to the root source directory. It also loads the config file, if found.
-func NewConfig(buildDir string, moduleListFile string, availableEnv map[string]string) (Config, error) {
+func NewConfig(soongOutDir string, moduleListFile string, availableEnv map[string]string) (Config, error) {
 	// Make a config with default options.
 	config := &config{
-		ProductVariablesFileName: filepath.Join(buildDir, productVariablesFileName),
+		ProductVariablesFileName: filepath.Join(soongOutDir, productVariablesFileName),
 
 		env: availableEnv,
 
-		buildDir:          buildDir,
+		soongOutDir:       soongOutDir,
 		multilibConflicts: make(map[ArchType]bool),
 
 		moduleListFile: moduleListFile,
@@ -428,7 +428,7 @@ func NewConfig(buildDir string, moduleListFile string, availableEnv map[string]s
 
 	// Soundness check of the build and source directories. This won't catch strange
 	// configurations with symlinks, but at least checks the obvious case.
-	absBuildDir, err := filepath.Abs(buildDir)
+	absBuildDir, err := filepath.Abs(soongOutDir)
 	if err != nil {
 		return Config{}, err
 	}
@@ -448,7 +448,7 @@ func NewConfig(buildDir string, moduleListFile string, availableEnv map[string]s
 		return Config{}, err
 	}
 
-	KatiEnabledMarkerFile := filepath.Join(buildDir, ".soong.kati_enabled")
+	KatiEnabledMarkerFile := filepath.Join(soongOutDir, ".soong.kati_enabled")
 	if _, err := os.Stat(absolutePath(KatiEnabledMarkerFile)); err == nil {
 		config.katiEnabled = true
 	}
@@ -556,7 +556,7 @@ var _ bootstrap.ConfigStopBefore = (*config)(nil)
 // BlueprintToolLocation returns the directory containing build system tools
 // from Blueprint, like soong_zip and merge_zips.
 func (c *config) BlueprintToolLocation() string {
-	return filepath.Join(c.buildDir, "host", c.PrebuiltOS(), "bin")
+	return filepath.Join(c.soongOutDir, "host", c.PrebuiltOS(), "bin")
 }
 
 var _ bootstrap.ConfigBlueprintToolLocation = (*config)(nil)
@@ -1665,8 +1665,9 @@ func (l *ConfiguredJarList) RemoveList(list ConfiguredJarList) ConfiguredJarList
 	return ConfiguredJarList{apexes, jars}
 }
 
-// Filter keeps the entries if a jar appears in the given list of jars to keep; returns a new list.
-func (l *ConfiguredJarList) Filter(jarsToKeep []string) ConfiguredJarList {
+// Filter keeps the entries if a jar appears in the given list of jars to keep. Returns a new list
+// and any remaining jars that are not on this list.
+func (l *ConfiguredJarList) Filter(jarsToKeep []string) (ConfiguredJarList, []string) {
 	var apexes []string
 	var jars []string
 
@@ -1677,7 +1678,7 @@ func (l *ConfiguredJarList) Filter(jarsToKeep []string) ConfiguredJarList {
 		}
 	}
 
-	return ConfiguredJarList{apexes, jars}
+	return ConfiguredJarList{apexes, jars}, RemoveListFromList(jarsToKeep, jars)
 }
 
 // CopyOfJars returns a copy of the list of strings containing jar module name
