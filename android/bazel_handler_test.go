@@ -101,7 +101,7 @@ func TestInvokeBazelPopulatesBuildStatements(t *testing.T) {
 func testBazelContext(t *testing.T, bazelCommandResults map[bazelCommand]string) (*bazelContext, string) {
 	t.Helper()
 	p := bazelPaths{
-		buildDir:     t.TempDir(),
+		soongOutDir:  t.TempDir(),
 		outputBase:   "outputbase",
 		workspaceDir: "workspace_dir",
 	}
@@ -114,5 +114,5 @@ func testBazelContext(t *testing.T, bazelCommandResults map[bazelCommand]string)
 		bazelRunner: runner,
 		paths:       &p,
 		requests:    map[cqueryKey]bool{},
-	}, p.buildDir
+	}, p.soongOutDir
 }

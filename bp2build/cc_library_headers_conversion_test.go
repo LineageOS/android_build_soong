@@ -40,17 +40,6 @@ toolchain_library {
 }`
 )
 
-type bp2buildTestCase struct {
-	description                        string
-	moduleTypeUnderTest                string
-	moduleTypeUnderTestFactory         android.ModuleFactory
-	moduleTypeUnderTestBp2BuildMutator func(android.TopDownMutatorContext)
-	blueprint                          string
-	expectedBazelTargets               []string
-	filesystem                         map[string]string
-	dir                                string
-}
-
 func TestCcLibraryHeadersLoadStatement(t *testing.T) {
 	testCases := []struct {
 		bazelTargets           BazelTargets

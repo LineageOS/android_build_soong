@@ -14,13 +14,19 @@
 
 package bp2build
 
+/*
+For shareable/common functionality for conversion from soong-module to build files
+for queryview/bp2build
+*/
+
 import (
-	"android/soong/android"
-	"android/soong/bazel"
 	"fmt"
 	"reflect"
 	"sort"
 	"strings"
+
+	"android/soong/android"
+	"android/soong/bazel"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
