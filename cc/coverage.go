@@ -244,3 +244,19 @@ func coverageMutator(mctx android.BottomUpMutatorContext) {
 		m[1].(Coverage).EnableCoverageIfNeeded()
 	}
 }
+
+func parseSymbolFileForAPICoverage(ctx ModuleContext, symbolFile string) android.ModuleOutPath {
+	apiLevelsJson := android.GetApiLevelsJson(ctx)
+	symbolFilePath := android.PathForModuleSrc(ctx, symbolFile)
+	outputFile := ctx.baseModuleName() + ".xml"
+	parsedApiCoveragePath := android.PathForModuleOut(ctx, outputFile)
+	rule := android.NewRuleBuilder(pctx, ctx)
+	rule.Command().
+		BuiltTool("ndk_api_coverage_parser").
+		Input(symbolFilePath).
+		Output(parsedApiCoveragePath).
+		Implicit(apiLevelsJson).
+		FlagWithArg("--api-map ", apiLevelsJson.String())
+	rule.Build("native_library_api_list", "Generate native API list based on symbol files for coverage measurement")
+	return parsedApiCoveragePath
+}
