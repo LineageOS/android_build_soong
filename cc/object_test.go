@@ -15,8 +15,9 @@
 package cc
 
 import (
-	"android/soong/android"
 	"testing"
+
+	"android/soong/android"
 )
 
 func TestMinSdkVersionsOfCrtObjects(t *testing.T) {
@@ -27,24 +28,23 @@ func TestMinSdkVersionsOfCrtObjects(t *testing.T) {
 			crt: true,
 			stl: "none",
 			min_sdk_version: "28",
-
+			vendor_available: true,
 		}`)
 
-	arch := "android_arm64_armv8-a"
-	for _, v := range []string{"", "28", "29", "30", "current"} {
-		var variant string
-		// platform variant
-		if v == "" {
-			variant = arch
-		} else {
-			variant = arch + "_sdk_" + v
-		}
-		cflags := ctx.ModuleForTests("crt_foo", variant).Rule("cc").Args["cFlags"]
-		vNum := v
-		if v == "current" || v == "" {
-			vNum = "10000"
-		}
-		expected := "-target aarch64-linux-android" + vNum + " "
+	variants := []struct {
+		variant string
+		num     string
+	}{
+		{"android_arm64_armv8-a", "10000"},
+		{"android_arm64_armv8-a_sdk_28", "28"},
+		{"android_arm64_armv8-a_sdk_29", "29"},
+		{"android_arm64_armv8-a_sdk_30", "30"},
+		{"android_arm64_armv8-a_sdk_current", "10000"},
+		{"android_vendor.29_arm64_armv8-a", "29"},
+	}
+	for _, v := range variants {
+		cflags := ctx.ModuleForTests("crt_foo", v.variant).Rule("cc").Args["cFlags"]
+		expected := "-target aarch64-linux-android" + v.num + " "
 		android.AssertStringDoesContain(t, "cflag", cflags, expected)
 	}
 }

@@ -975,14 +975,15 @@ func (c *Module) MinSdkVersion() string {
 	return String(c.Properties.Min_sdk_version)
 }
 
-func (c *Module) SplitPerApiLevel() bool {
-	if !c.canUseSdk() {
-		return false
-	}
+func (c *Module) isCrt() bool {
 	if linker, ok := c.linker.(*objectLinker); ok {
 		return linker.isCrt()
 	}
 	return false
+}
+
+func (c *Module) SplitPerApiLevel() bool {
+	return c.canUseSdk() && c.isCrt()
 }
 
 func (c *Module) AlwaysSdk() bool {
@@ -1446,12 +1447,20 @@ func (ctx *moduleContextImpl) minSdkVersion() string {
 	// create versioned variants for. For example, if min_sdk_version is 16, then sdk variant of
 	// the crt object has local variants of 16, 17, ..., up to the latest version. sdk_version
 	// and min_sdk_version properties of the variants are set to the corresponding version
-	// numbers. However, the platform (non-sdk) variant of the crt object is left untouched.
-	// min_sdk_version: 16 doesn't actually mean that the platform variant has to support such
-	// an old version. Since the variant is for the platform, it's preferred to target the
-	// latest version.
-	if ctx.mod.SplitPerApiLevel() && !ctx.isSdkVariant() {
-		ver = strconv.Itoa(android.FutureApiLevelInt)
+	// numbers. However, the non-sdk variant (for apex or platform) of the crt object is left
+	// untouched.  min_sdk_version: 16 doesn't actually mean that the non-sdk variant has to
+	// support such an old version. The version is set to the later version in case when the
+	// non-sdk variant is for the platform, or the min_sdk_version of the containing APEX if
+	// it's for an APEX.
+	if ctx.mod.isCrt() && !ctx.isSdkVariant() {
+		if ctx.isForPlatform() {
+			ver = strconv.Itoa(android.FutureApiLevelInt)
+		} else { // for apex
+			ver = ctx.apexSdkVersion().String()
+			if ver == "" { // in case when min_sdk_version was not set by the APEX
+				ver = ctx.sdkVersion()
+			}
+		}
 	}
 
 	// Also make sure that minSdkVersion is not greater than sdkVersion, if they are both numbers
