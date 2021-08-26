@@ -267,7 +267,8 @@ genrule {
 		}
 
 		codegenCtx := NewCodegenContext(config, *ctx.Context, Bp2Build)
-		bazelTargets := generateBazelTargetsForDir(codegenCtx, checkDir)
+		bazelTargets, err := generateBazelTargetsForDir(codegenCtx, checkDir)
+		android.FailIfErrored(t, err)
 		if actualCount, expectedCount := len(bazelTargets), len(testCase.expectedBazelTargets); actualCount != expectedCount {
 			t.Errorf("%s: Expected %d bazel target, got %d", testCase.description, expectedCount, actualCount)
 		} else {
@@ -461,7 +462,8 @@ genrule {
 		android.FailIfErrored(t, errs)
 
 		codegenCtx := NewCodegenContext(config, *ctx.Context, Bp2Build)
-		bazelTargets := generateBazelTargetsForDir(codegenCtx, dir)
+		bazelTargets, err := generateBazelTargetsForDir(codegenCtx, dir)
+		android.FailIfErrored(t, err)
 		if actualCount := len(bazelTargets); actualCount != 1 {
 			t.Fatalf("%s: Expected 1 bazel target, got %d", testCase.description, actualCount)
 		}

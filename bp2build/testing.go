@@ -39,9 +39,8 @@ var (
 func checkError(t *testing.T, errs []error, expectedErr error) bool {
 	t.Helper()
 
-	// expectedErr is not nil, find it in the list of errors
 	if len(errs) != 1 {
-		t.Errorf("Expected only 1 error, got %d: %q", len(errs), errs)
+		return false
 	}
 	if errs[0].Error() == expectedErr.Error() {
 		return true
@@ -83,6 +82,7 @@ type bp2buildTestCase struct {
 	filesystem                         map[string]string
 	dir                                string
 	expectedErr                        error
+	unconvertedDepsMode                unconvertedDepsMode
 }
 
 func runBp2BuildTestCase(t *testing.T, registerModuleTypes func(ctx android.RegistrationContext), tc bp2buildTestCase) {
@@ -126,7 +126,13 @@ func runBp2BuildTestCase(t *testing.T, registerModuleTypes func(ctx android.Regi
 		checkDir = tc.dir
 	}
 	codegenCtx := NewCodegenContext(config, *ctx.Context, Bp2Build)
-	bazelTargets := generateBazelTargetsForDir(codegenCtx, checkDir)
+	codegenCtx.unconvertedDepMode = tc.unconvertedDepsMode
+	bazelTargets, errs := generateBazelTargetsForDir(codegenCtx, checkDir)
+	if tc.expectedErr != nil && checkError(t, errs, tc.expectedErr) {
+		return
+	} else {
+		android.FailIfErrored(t, errs)
+	}
 	if actualCount, expectedCount := len(bazelTargets), len(tc.expectedBazelTargets); actualCount != expectedCount {
 		t.Errorf("%s: Expected %d bazel target, got %d; %v",
 			tc.description, expectedCount, actualCount, bazelTargets)
@@ -316,10 +322,10 @@ func customBp2BuildMutatorFromStarlark(ctx android.TopDownMutatorContext) {
 }
 
 // Helper method for tests to easily access the targets in a dir.
-func generateBazelTargetsForDir(codegenCtx *CodegenContext, dir string) BazelTargets {
+func generateBazelTargetsForDir(codegenCtx *CodegenContext, dir string) (BazelTargets, []error) {
 	// TODO: Set generateFilegroups to true and/or remove the generateFilegroups argument completely
-	buildFileToTargets, _, _ := GenerateBazelTargets(codegenCtx, false)
-	return buildFileToTargets[dir]
+	res, err := GenerateBazelTargets(codegenCtx, false)
+	return res.buildFileToTargets[dir], err
 }
 
 func registerCustomModuleForBp2buildConversion(ctx *android.TestContext) {
