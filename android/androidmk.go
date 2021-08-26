@@ -571,7 +571,7 @@ func (a *AndroidMkEntries) fillInEntries(ctx fillInEntriesContext, mod blueprint
 
 	if host {
 		makeOs := amod.Os().String()
-		if amod.Os() == Linux || amod.Os() == LinuxBionic {
+		if amod.Os() == Linux || amod.Os() == LinuxBionic || amod.Os() == LinuxMusl {
 			makeOs = "linux"
 		}
 		a.SetString("LOCAL_MODULE_HOST_OS", makeOs)
