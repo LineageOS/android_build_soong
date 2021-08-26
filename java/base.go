@@ -791,7 +791,7 @@ func (j *Module) collectJavacFlags(
 			// Manually specify build directory in case it is not under the repo root.
 			// (javac doesn't seem to expand into symbolic links when searching for patch-module targets, so
 			// just adding a symlink under the root doesn't help.)
-			patchPaths := []string{".", ctx.Config().BuildDir()}
+			patchPaths := []string{".", ctx.Config().SoongOutDir()}
 
 			// b/150878007
 			//
