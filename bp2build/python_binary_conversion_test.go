@@ -3,11 +3,19 @@ package bp2build
 import (
 	"testing"
 
+	"android/soong/android"
 	"android/soong/python"
 )
 
+func runBp2BuildTestCaseWithLibs(t *testing.T, tc bp2buildTestCase) {
+	runBp2BuildTestCase(t, func(ctx android.RegistrationContext) {
+		ctx.RegisterModuleType("python_library", python.PythonLibraryFactory)
+		ctx.RegisterModuleType("python_library_host", python.PythonLibraryHostFactory)
+	}, tc)
+}
+
 func TestPythonBinaryHostSimple(t *testing.T) {
-	runBp2BuildTestCaseSimple(t, bp2buildTestCase{
+	runBp2BuildTestCaseWithLibs(t, bp2buildTestCase{
 		description:                        "simple python_binary_host converts to a native py_binary",
 		moduleTypeUnderTest:                "python_binary_host",
 		moduleTypeUnderTestFactory:         python.PythonBinaryHostFactory,
@@ -25,12 +33,18 @@ func TestPythonBinaryHostSimple(t *testing.T) {
     srcs: ["**/*.py"],
     exclude_srcs: ["b/e.py"],
     data: ["files/data.txt",],
+    libs: ["bar"],
     bazel_module: { bp2build_available: true },
 }
-`,
+    python_library_host {
+      name: "bar",
+      srcs: ["b/e.py"],
+      bazel_module: { bp2build_available: true },
+    }`,
 		expectedBazelTargets: []string{`py_binary(
     name = "foo",
     data = ["files/data.txt"],
+    deps = [":bar"],
     main = "a.py",
     srcs = [
         "a.py",
