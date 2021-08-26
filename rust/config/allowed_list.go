@@ -13,6 +13,7 @@ var (
 		"external/minijail",
 		"external/rust",
 		"external/selinux/libselinux",
+		"external/uwb",
 		"external/vm_tools/p9",
 		"frameworks/native/libs/binder/rust",
 		"frameworks/proto_logging/stats",
