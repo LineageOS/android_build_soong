@@ -42,6 +42,7 @@ bootstrap_go_package {
         "performance_test.go",
         "prebuilt_etc_conversion_test.go",
         "python_binary_conversion_test.go",
+        "python_library_conversion_test.go",
         "sh_conversion_test.go",
         "testing.go",
     ],
