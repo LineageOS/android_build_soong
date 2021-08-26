@@ -156,6 +156,10 @@ func (binary *binaryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 		}
 	}
 
+	if binary.static() {
+		deps.StaticLibs = append(deps.StaticLibs, deps.SystemSharedLibs...)
+	}
+
 	if ctx.toolchain().Bionic() {
 		if binary.static() {
 			if ctx.selectedStl() == "libc++_static" {
@@ -208,7 +212,7 @@ func NewBinary(hod android.HostOrDeviceSupported) (*Module, *binaryDecorator) {
 func (binary *binaryDecorator) linkerInit(ctx BaseModuleContext) {
 	binary.baseLinker.linkerInit(ctx)
 
-	if !ctx.toolchain().Bionic() {
+	if !ctx.toolchain().Bionic() && !ctx.toolchain().Musl() {
 		if ctx.Os() == android.Linux {
 			// Unless explicitly specified otherwise, host static binaries are built with -static
 			// if HostStaticBinaries is true for the product configuration.
