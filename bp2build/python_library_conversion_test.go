@@ -1,17 +1,35 @@
 package bp2build
 
 import (
+	"fmt"
 	"testing"
 
+	"android/soong/android"
 	"android/soong/python"
 )
 
-func TestPythonLibrarySimple(t *testing.T) {
+// TODO(alexmarquez): Should be lifted into a generic Bp2Build file
+type PythonLibBp2Build func(ctx android.TopDownMutatorContext)
+
+func TestPythonLibrary(t *testing.T) {
+	testPythonLib(t, "python_library",
+		python.PythonLibraryFactory, python.PythonLibraryBp2Build)
+}
+
+func TestPythonLibraryHost(t *testing.T) {
+	testPythonLib(t, "python_library_host",
+		python.PythonLibraryHostFactory, python.PythonLibraryHostBp2Build)
+}
+
+func testPythonLib(t *testing.T, modType string,
+	factory android.ModuleFactory, mutator PythonLibBp2Build) {
+	t.Helper()
+	// Simple
 	runBp2BuildTestCaseSimple(t, bp2buildTestCase{
-		description:                        "simple python_library converts to a native py_library",
-		moduleTypeUnderTest:                "python_library",
-		moduleTypeUnderTestFactory:         python.PythonLibraryFactory,
-		moduleTypeUnderTestBp2BuildMutator: python.PythonLibraryBp2Build,
+		description:                        fmt.Sprintf("simple %s converts to a native py_library", modType),
+		moduleTypeUnderTest:                modType,
+		moduleTypeUnderTestFactory:         factory,
+		moduleTypeUnderTestBp2BuildMutator: mutator,
 		filesystem: map[string]string{
 			"a.py":           "",
 			"b/c.py":         "",
@@ -19,14 +37,13 @@ func TestPythonLibrarySimple(t *testing.T) {
 			"b/e.py":         "",
 			"files/data.txt": "",
 		},
-		blueprint: `python_library {
+		blueprint: fmt.Sprintf(`%s {
     name: "foo",
     srcs: ["**/*.py"],
     exclude_srcs: ["b/e.py"],
     data: ["files/data.txt",],
     bazel_module: { bp2build_available: true },
-}
-`,
+}`, modType),
 		expectedBazelTargets: []string{`py_library(
     name = "foo",
     data = ["files/data.txt"],
@@ -39,15 +56,14 @@ func TestPythonLibrarySimple(t *testing.T) {
 )`,
 		},
 	})
-}
 
-func TestPythonLibraryPy2(t *testing.T) {
+	// PY2
 	runBp2BuildTestCaseSimple(t, bp2buildTestCase{
-		description:                        "py2 python_library",
-		moduleTypeUnderTest:                "python_library",
-		moduleTypeUnderTestFactory:         python.PythonLibraryFactory,
-		moduleTypeUnderTestBp2BuildMutator: python.PythonLibraryBp2Build,
-		blueprint: `python_library {
+		description:                        fmt.Sprintf("py2 %s converts to a native py_library", modType),
+		moduleTypeUnderTest:                modType,
+		moduleTypeUnderTestFactory:         factory,
+		moduleTypeUnderTestBp2BuildMutator: mutator,
+		blueprint: fmt.Sprintf(`%s {
     name: "foo",
     srcs: ["a.py"],
     version: {
@@ -60,8 +76,7 @@ func TestPythonLibraryPy2(t *testing.T) {
     },
 
     bazel_module: { bp2build_available: true },
-}
-`,
+}`, modType),
 		expectedBazelTargets: []string{`py_library(
     name = "foo",
     srcs = ["a.py"],
@@ -69,15 +84,14 @@ func TestPythonLibraryPy2(t *testing.T) {
 )`,
 		},
 	})
-}
 
-func TestPythonLibraryPy3(t *testing.T) {
+	// PY3
 	runBp2BuildTestCaseSimple(t, bp2buildTestCase{
-		description:                        "py3 python_library",
-		moduleTypeUnderTest:                "python_library",
-		moduleTypeUnderTestFactory:         python.PythonLibraryFactory,
-		moduleTypeUnderTestBp2BuildMutator: python.PythonLibraryBp2Build,
-		blueprint: `python_library {
+		description:                        fmt.Sprintf("py3 %s converts to a native py_library", modType),
+		moduleTypeUnderTest:                modType,
+		moduleTypeUnderTestFactory:         factory,
+		moduleTypeUnderTestBp2BuildMutator: mutator,
+		blueprint: fmt.Sprintf(`%s {
     name: "foo",
     srcs: ["a.py"],
     version: {
@@ -90,25 +104,22 @@ func TestPythonLibraryPy3(t *testing.T) {
     },
 
     bazel_module: { bp2build_available: true },
-}
-`,
-		expectedBazelTargets: []string{
-			`py_library(
+}`, modType),
+		expectedBazelTargets: []string{`py_library(
     name = "foo",
     srcs = ["a.py"],
     srcs_version = "PY3",
 )`,
 		},
 	})
-}
 
-func TestPythonLibraryPyBoth(t *testing.T) {
+	// Both
 	runBp2BuildTestCaseSimple(t, bp2buildTestCase{
-		description:                        "py3 python_library",
-		moduleTypeUnderTest:                "python_library",
-		moduleTypeUnderTestFactory:         python.PythonLibraryFactory,
-		moduleTypeUnderTestBp2BuildMutator: python.PythonLibraryBp2Build,
-		blueprint: `python_library {
+		description:                        fmt.Sprintf("py2&3 %s converts to a native py_library", modType),
+		moduleTypeUnderTest:                modType,
+		moduleTypeUnderTestFactory:         factory,
+		moduleTypeUnderTestBp2BuildMutator: mutator,
+		blueprint: fmt.Sprintf(`%s {
     name: "foo",
     srcs: ["a.py"],
     version: {
@@ -121,8 +132,7 @@ func TestPythonLibraryPyBoth(t *testing.T) {
     },
 
     bazel_module: { bp2build_available: true },
-}
-`,
+}`, modType),
 		expectedBazelTargets: []string{
 			// srcs_version is PY2ANDPY3 by default.
 			`py_library(
