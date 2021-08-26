@@ -25,57 +25,78 @@ from manifest import compare_version_gt
 
 
 def parse_args(args):
-  """Parse commandline arguments."""
-  parser = argparse.ArgumentParser()
-  parser.add_argument('--target-sdk-version', default='', dest='sdk',
-    help='specify target SDK version (as it appears in the manifest)')
-  parser.add_argument('--host-context-for-sdk', dest='host_contexts',
-    action='append', nargs=2, metavar=('sdk','context'),
-    help='specify context on host for a given SDK version or "any" version')
-  parser.add_argument('--target-context-for-sdk', dest='target_contexts',
-    action='append', nargs=2, metavar=('sdk','context'),
-    help='specify context on target for a given SDK version or "any" version')
-  return parser.parse_args(args)
+    """Parse commandline arguments."""
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '--target-sdk-version',
+        default='',
+        dest='sdk',
+        help='specify target SDK version (as it appears in the manifest)')
+    parser.add_argument(
+        '--host-context-for-sdk',
+        dest='host_contexts',
+        action='append',
+        nargs=2,
+        metavar=('sdk', 'context'),
+        help='specify context on host for a given SDK version or "any" version')
+    parser.add_argument(
+        '--target-context-for-sdk',
+        dest='target_contexts',
+        action='append',
+        nargs=2,
+        metavar=('sdk', 'context'),
+        help='specify context on target for a given SDK version or "any" '
+        'version'
+    )
+    return parser.parse_args(args)
+
 
 # Special keyword that means that the context should be added to class loader
 # context regardless of the target SDK version.
 any_sdk = 'any'
+
 
 # We assume that the order of context arguments passed to this script is
 # correct (matches the order computed by package manager). It is possible to
 # sort them here, but Soong needs to use deterministic order anyway, so it can
 # as well use the correct order.
 def construct_context(versioned_contexts, target_sdk):
-  context = []
-  for [sdk, ctx] in versioned_contexts:
-    if sdk == any_sdk or compare_version_gt(sdk, target_sdk):
-      context.append(ctx)
-  return context
+    context = []
+    for [sdk, ctx] in versioned_contexts:
+        if sdk == any_sdk or compare_version_gt(sdk, target_sdk):
+            context.append(ctx)
+    return context
+
 
 def construct_contexts(args):
-  host_context = construct_context(args.host_contexts, args.sdk)
-  target_context = construct_context(args.target_contexts, args.sdk)
-  context_sep = '#'
-  return ('class_loader_context_arg=--class-loader-context=PCL[]{%s} ; ' % context_sep.join(host_context) +
-    'stored_class_loader_context_arg=--stored-class-loader-context=PCL[]{%s}' % context_sep.join(target_context))
+    host_context = construct_context(args.host_contexts, args.sdk)
+    target_context = construct_context(args.target_contexts, args.sdk)
+    context_sep = '#'
+    return (
+        'class_loader_context_arg=--class-loader-context=PCL[]{%s} ; ' %
+        context_sep.join(host_context) +
+        'stored_class_loader_context_arg=--stored-class-loader-context=PCL[]{%s}' #pylint: disable=line-too-long
+        % context_sep.join(target_context))
+
 
 def main():
-  """Program entry point."""
-  try:
-    args = parse_args(sys.argv[1:])
-    if not args.sdk:
-      raise SystemExit('target sdk version is not set')
-    if not args.host_contexts:
-      args.host_contexts = []
-    if not args.target_contexts:
-      args.target_contexts = []
+    """Program entry point."""
+    try:
+        args = parse_args(sys.argv[1:])
+        if not args.sdk:
+            raise SystemExit('target sdk version is not set')
+        if not args.host_contexts:
+            args.host_contexts = []
+        if not args.target_contexts:
+            args.target_contexts = []
 
-    print(construct_contexts(args))
+        print(construct_contexts(args))
 
-  # pylint: disable=broad-except
-  except Exception as err:
-    print('error: ' + str(err), file=sys.stderr)
-    sys.exit(-1)
+    # pylint: disable=broad-except
+    except Exception as err:
+        print('error: ' + str(err), file=sys.stderr)
+        sys.exit(-1)
+
 
 if __name__ == '__main__':
-  main()
+    main()
