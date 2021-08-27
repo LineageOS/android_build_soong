@@ -1183,7 +1183,7 @@ func checkPatchModuleFlag(t *testing.T, ctx *android.TestContext, moduleName str
 			break
 		}
 	}
-	if expected != android.StringPathRelativeToTop(ctx.Config().BuildDir(), got) {
+	if expected != android.StringPathRelativeToTop(ctx.Config().SoongOutDir(), got) {
 		t.Errorf("Unexpected patch-module flag for module %q - expected %q, but got %q", moduleName, expected, got)
 	}
 }

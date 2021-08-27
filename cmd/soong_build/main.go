@@ -146,7 +146,7 @@ func runMixedModeBuild(configuration android.Config, firstCtx *android.Context, 
 	ninjaDeps := bootstrap.RunBlueprint(secondArgs, secondCtx.Context, secondConfig)
 	ninjaDeps = append(ninjaDeps, extraNinjaDeps...)
 
-	globListFiles := writeBuildGlobsNinjaFile(secondCtx.SrcDir(), configuration.BuildDir(), secondCtx.Globs, configuration)
+	globListFiles := writeBuildGlobsNinjaFile(secondCtx.SrcDir(), configuration.SoongOutDir(), secondCtx.Globs, configuration)
 	ninjaDeps = append(ninjaDeps, globListFiles...)
 
 	err = deptools.WriteDepFile(shared.JoinPath(topDir, secondArgs.DepFile), secondArgs.OutFile, ninjaDeps)
@@ -177,7 +177,7 @@ func runSoongDocs(configuration android.Config) {
 }
 
 func writeMetrics(configuration android.Config) {
-	metricsFile := filepath.Join(configuration.BuildDir(), "soong_build_metrics.pb")
+	metricsFile := filepath.Join(configuration.SoongOutDir(), "soong_build_metrics.pb")
 	err := android.WriteMetrics(configuration, metricsFile)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error writing soong_build metrics %s: %s", metricsFile, err)
@@ -194,7 +194,7 @@ func writeJsonModuleGraph(configuration android.Config, ctx *android.Context, pa
 
 	defer f.Close()
 	ctx.Context.PrintJSONGraph(f)
-	writeFakeNinjaFile(extraNinjaDeps, configuration.BuildDir())
+	writeFakeNinjaFile(extraNinjaDeps, configuration.SoongOutDir())
 }
 
 func writeBuildGlobsNinjaFile(srcDir, buildDir string, globs func() pathtools.MultipleGlobResults, config interface{}) []string {
@@ -233,7 +233,7 @@ func doChosenActivity(configuration android.Config, extraNinjaDeps []string) str
 		ninjaDeps := bootstrap.RunBlueprint(blueprintArgs, ctx.Context, configuration)
 		ninjaDeps = append(ninjaDeps, extraNinjaDeps...)
 
-		globListFiles := writeBuildGlobsNinjaFile(ctx.SrcDir(), configuration.BuildDir(), ctx.Globs, configuration)
+		globListFiles := writeBuildGlobsNinjaFile(ctx.SrcDir(), configuration.SoongOutDir(), ctx.Globs, configuration)
 		ninjaDeps = append(ninjaDeps, globListFiles...)
 
 		err := deptools.WriteDepFile(shared.JoinPath(topDir, blueprintArgs.DepFile), blueprintArgs.OutFile, ninjaDeps)
@@ -307,7 +307,7 @@ func main() {
 	if shared.IsDebugging() {
 		// Add a non-existent file to the dependencies so that soong_build will rerun when the debugger is
 		// enabled even if it completed successfully.
-		extraNinjaDeps = append(extraNinjaDeps, filepath.Join(configuration.BuildDir(), "always_rerun_for_delve"))
+		extraNinjaDeps = append(extraNinjaDeps, filepath.Join(configuration.SoongOutDir(), "always_rerun_for_delve"))
 	}
 
 	if docFile != "" {
@@ -356,12 +356,12 @@ func writeUsedEnvironmentFile(configuration android.Config, finalOutputFile stri
 // These files are: build.ninja and build.ninja.d. Since Kati hasn't been
 // ran as well, and `nothing` is defined in a .mk file, there isn't a ninja
 // target called `nothing`, so we manually create it here.
-func writeFakeNinjaFile(extraNinjaDeps []string, buildDir string) {
+func writeFakeNinjaFile(extraNinjaDeps []string, soongOutDir string) {
 	extraNinjaDepsString := strings.Join(extraNinjaDeps, " \\\n ")
 
 	ninjaFileName := "build.ninja"
-	ninjaFile := shared.JoinPath(topDir, buildDir, ninjaFileName)
-	ninjaFileD := shared.JoinPath(topDir, buildDir, ninjaFileName+".d")
+	ninjaFile := shared.JoinPath(topDir, soongOutDir, ninjaFileName)
+	ninjaFileD := shared.JoinPath(topDir, soongOutDir, ninjaFileName+".d")
 	// A workaround to create the 'nothing' ninja target so `m nothing` works,
 	// since bp2build runs without Kati, and the 'nothing' target is declared in
 	// a Makefile.
@@ -505,7 +505,7 @@ func runBp2Build(configuration android.Config, extraNinjaDeps []string) {
 	ninjaDeps := bootstrap.RunBlueprint(blueprintArgs, bp2buildCtx.Context, configuration)
 	ninjaDeps = append(ninjaDeps, extraNinjaDeps...)
 
-	globListFiles := writeBuildGlobsNinjaFile(bp2buildCtx.SrcDir(), configuration.BuildDir(), bp2buildCtx.Globs, configuration)
+	globListFiles := writeBuildGlobsNinjaFile(bp2buildCtx.SrcDir(), configuration.SoongOutDir(), bp2buildCtx.Globs, configuration)
 	ninjaDeps = append(ninjaDeps, globListFiles...)
 
 	// Run the code-generation phase to convert BazelTargetModules to BUILD files
@@ -513,8 +513,8 @@ func runBp2Build(configuration android.Config, extraNinjaDeps []string) {
 	codegenContext := bp2build.NewCodegenContext(configuration, *bp2buildCtx, bp2build.Bp2Build)
 	metrics := bp2build.Codegen(codegenContext)
 
-	generatedRoot := shared.JoinPath(configuration.BuildDir(), "bp2build")
-	workspaceRoot := shared.JoinPath(configuration.BuildDir(), "workspace")
+	generatedRoot := shared.JoinPath(configuration.SoongOutDir(), "bp2build")
+	workspaceRoot := shared.JoinPath(configuration.SoongOutDir(), "workspace")
 
 	excludes := []string{
 		"bazel-bin",

@@ -159,7 +159,7 @@ func init() {
 }
 
 func constructPath(ctx android.PathContext, path string) android.Path {
-	buildDirPrefix := ctx.Config().BuildDir() + "/"
+	buildDirPrefix := ctx.Config().SoongOutDir() + "/"
 	if path == "" {
 		return nil
 	} else if strings.HasPrefix(path, buildDirPrefix) {
