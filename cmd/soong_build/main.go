@@ -25,6 +25,7 @@ import (
 
 	"android/soong/bp2build"
 	"android/soong/shared"
+
 	"github.com/google/blueprint/bootstrap"
 	"github.com/google/blueprint/deptools"
 	"github.com/google/blueprint/pathtools"
@@ -43,6 +44,7 @@ var (
 	delveListen string
 	delvePath   string
 
+	moduleGraphFile   string
 	docFile           string
 	bazelQueryViewDir string
 	bp2buildMarker    string
@@ -62,6 +64,7 @@ func init() {
 	flag.StringVar(&delvePath, "delve_path", "", "Path to Delve. Only used if --delve_listen is set")
 
 	// Flags representing various modes soong_build can run in
+	flag.StringVar(&moduleGraphFile, "module_graph_file", "", "JSON module graph file to output")
 	flag.StringVar(&docFile, "soong_docs", "", "build documentation file to output")
 	flag.StringVar(&bazelQueryViewDir, "bazel_queryview_dir", "", "path to the bazel queryview directory relative to --top")
 	flag.StringVar(&bp2buildMarker, "bp2build_marker", "", "If set, run bp2build, touch the specified marker file then exit")
@@ -71,7 +74,6 @@ func init() {
 	flag.StringVar(&globListDir, "globListDir", "", "the directory containing the glob list files")
 	flag.StringVar(&cmdlineArgs.BuildDir, "b", ".", "the build output directory")
 	flag.StringVar(&cmdlineArgs.NinjaBuildDir, "n", "", "the ninja builddir directory")
-	flag.StringVar(&cmdlineArgs.DepFile, "d", "", "the dependency file to output")
 	flag.StringVar(&cmdlineArgs.Cpuprofile, "cpuprofile", "", "write cpu profile to file")
 	flag.StringVar(&cmdlineArgs.TraceFile, "trace", "", "write trace to file")
 	flag.StringVar(&cmdlineArgs.Memprofile, "memprofile", "", "write memory profile to file")
@@ -149,11 +151,7 @@ func runMixedModeBuild(configuration android.Config, firstCtx *android.Context, 
 	globListFiles := writeBuildGlobsNinjaFile(secondCtx.SrcDir(), configuration.SoongOutDir(), secondCtx.Globs, configuration)
 	ninjaDeps = append(ninjaDeps, globListFiles...)
 
-	err = deptools.WriteDepFile(shared.JoinPath(topDir, secondArgs.DepFile), secondArgs.OutFile, ninjaDeps)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error writing depfile '%s': %s\n", secondArgs.DepFile, err)
-		os.Exit(1)
-	}
+	writeDepFile(secondArgs.OutFile, ninjaDeps)
 }
 
 // Run the code-generation phase to convert BazelTargetModules to BUILD files.
@@ -185,8 +183,8 @@ func writeMetrics(configuration android.Config) {
 	}
 }
 
-func writeJsonModuleGraph(configuration android.Config, ctx *android.Context, path string, extraNinjaDeps []string) {
-	f, err := os.Create(path)
+func writeJsonModuleGraph(ctx *android.Context, path string) {
+	f, err := os.Create(shared.JoinPath(topDir, path))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s", err)
 		os.Exit(1)
@@ -194,7 +192,6 @@ func writeJsonModuleGraph(configuration android.Config, ctx *android.Context, pa
 
 	defer f.Close()
 	ctx.Context.PrintJSONGraph(f)
-	writeFakeNinjaFile(extraNinjaDeps, configuration.SoongOutDir())
 }
 
 func writeBuildGlobsNinjaFile(srcDir, buildDir string, globs func() pathtools.MultipleGlobResults, config interface{}) []string {
@@ -208,6 +205,15 @@ func writeBuildGlobsNinjaFile(srcDir, buildDir string, globs func() pathtools.Mu
 	return bootstrap.GlobFileListFiles(globDir)
 }
 
+func writeDepFile(outputFile string, ninjaDeps []string) {
+	depFile := shared.JoinPath(topDir, outputFile+".d")
+	err := deptools.WriteDepFile(depFile, outputFile, ninjaDeps)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error writing depfile '%s': %s\n", depFile, err)
+		os.Exit(1)
+	}
+}
+
 // doChosenActivity runs Soong for a specific activity, like bp2build, queryview
 // or the actual Soong build for the build.ninja file. Returns the top level
 // output file of the specific activity.
@@ -215,10 +221,9 @@ func doChosenActivity(configuration android.Config, extraNinjaDeps []string) str
 	bazelConversionRequested := bp2buildMarker != ""
 	mixedModeBuild := configuration.BazelContext.BazelEnabled()
 	generateQueryView := bazelQueryViewDir != ""
-	jsonModuleFile := configuration.Getenv("SOONG_DUMP_JSON_MODULE_GRAPH")
 
 	blueprintArgs := cmdlineArgs
-	prepareBuildActions := !generateQueryView && jsonModuleFile == ""
+	prepareBuildActions := !generateQueryView && moduleGraphFile == ""
 	if bazelConversionRequested {
 		// Run the alternate pipeline of bp2build mutators and singleton to convert
 		// Blueprint to BUILD files before everything else.
@@ -236,22 +241,19 @@ func doChosenActivity(configuration android.Config, extraNinjaDeps []string) str
 		globListFiles := writeBuildGlobsNinjaFile(ctx.SrcDir(), configuration.SoongOutDir(), ctx.Globs, configuration)
 		ninjaDeps = append(ninjaDeps, globListFiles...)
 
-		err := deptools.WriteDepFile(shared.JoinPath(topDir, blueprintArgs.DepFile), blueprintArgs.OutFile, ninjaDeps)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error writing depfile '%s': %s\n", blueprintArgs.DepFile, err)
-			os.Exit(1)
+		// Convert the Soong module graph into Bazel BUILD files.
+		if generateQueryView {
+			runQueryView(configuration, ctx)
+			return cmdlineArgs.OutFile // TODO: This is a lie
+		} else if moduleGraphFile != "" {
+			writeJsonModuleGraph(ctx, moduleGraphFile)
+			writeDepFile(moduleGraphFile, ninjaDeps)
+			return moduleGraphFile
+		} else {
+			// The actual output (build.ninja) was written in the RunBlueprint() call
+			// above
+			writeDepFile(cmdlineArgs.OutFile, ninjaDeps)
 		}
-	}
-
-	// Convert the Soong module graph into Bazel BUILD files.
-	if generateQueryView {
-		runQueryView(configuration, ctx)
-		return cmdlineArgs.OutFile // TODO: This is a lie
-	}
-
-	if jsonModuleFile != "" {
-		writeJsonModuleGraph(configuration, ctx, jsonModuleFile, extraNinjaDeps)
-		return cmdlineArgs.OutFile // TODO: This is a lie
 	}
 
 	writeMetrics(configuration)
@@ -346,29 +348,6 @@ func writeUsedEnvironmentFile(configuration android.Config, finalOutputFile stri
 	// wrote. We can't write the environment file earlier because one an access
 	// new environment variables while writing it.
 	touch(shared.JoinPath(topDir, finalOutputFile))
-}
-
-// Workarounds to support running bp2build in a clean AOSP checkout with no
-// prior builds, and exiting early as soon as the BUILD files get generated,
-// therefore not creating build.ninja files that soong_ui and callers of
-// soong_build expects.
-//
-// These files are: build.ninja and build.ninja.d. Since Kati hasn't been
-// ran as well, and `nothing` is defined in a .mk file, there isn't a ninja
-// target called `nothing`, so we manually create it here.
-func writeFakeNinjaFile(extraNinjaDeps []string, soongOutDir string) {
-	extraNinjaDepsString := strings.Join(extraNinjaDeps, " \\\n ")
-
-	ninjaFileName := "build.ninja"
-	ninjaFile := shared.JoinPath(topDir, soongOutDir, ninjaFileName)
-	ninjaFileD := shared.JoinPath(topDir, soongOutDir, ninjaFileName+".d")
-	// A workaround to create the 'nothing' ninja target so `m nothing` works,
-	// since bp2build runs without Kati, and the 'nothing' target is declared in
-	// a Makefile.
-	ioutil.WriteFile(ninjaFile, []byte("build nothing: phony\n  phony_output = true\n"), 0666)
-	ioutil.WriteFile(ninjaFileD,
-		[]byte(fmt.Sprintf("%s: \\\n %s\n", ninjaFile, extraNinjaDepsString)),
-		0666)
 }
 
 func touch(path string) {
@@ -550,12 +529,7 @@ func runBp2Build(configuration android.Config, extraNinjaDeps []string) {
 	ninjaDeps = append(ninjaDeps, codegenContext.AdditionalNinjaDeps()...)
 	ninjaDeps = append(ninjaDeps, symlinkForestDeps...)
 
-	depFile := bp2buildMarker + ".d"
-	err = deptools.WriteDepFile(shared.JoinPath(topDir, depFile), bp2buildMarker, ninjaDeps)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Cannot write depfile '%s': %s\n", depFile, err)
-		os.Exit(1)
-	}
+	writeDepFile(bp2buildMarker, ninjaDeps)
 
 	// Create an empty bp2build marker file.
 	touch(shared.JoinPath(topDir, bp2buildMarker))
