@@ -137,6 +137,7 @@ var (
 		// build/bazel explicitly.
 		"build/bazel":/* recursive = */ false,
 		"build/bazel/examples/android_app":/* recursive = */ true,
+		"build/bazel/examples/java":/* recursive = */ true,
 		"build/bazel/bazel_skylib":/* recursive = */ true,
 		"build/bazel/rules":/* recursive = */ true,
 		"build/bazel/rules_cc":/* recursive = */ true,
