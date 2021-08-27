@@ -117,9 +117,6 @@ type apexBundleProperties struct {
 	// List of platform_compat_config files that are embedded inside this APEX bundle.
 	Compat_configs []string
 
-	// List of BPF programs inside this APEX bundle.
-	Bpfs []string
-
 	// List of filesystem images that are embedded inside this APEX bundle.
 	Filesystems []string
 
@@ -291,6 +288,9 @@ type overridableProperties struct {
 
 	// List of runtime resource overlays (RROs) that are embedded inside this APEX.
 	Rros []string
+
+	// List of BPF programs inside this APEX bundle.
+	Bpfs []string
 
 	// Names of modules to be overridden. Listed modules can only be other binaries (in Make or
 	// Soong). This does not completely prevent installation of the overridden binaries, but if
@@ -769,7 +769,6 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 	ctx.AddFarVariationDependencies(commonVariation, bcpfTag, a.properties.Bootclasspath_fragments...)
 	ctx.AddFarVariationDependencies(commonVariation, sscpfTag, a.properties.Systemserverclasspath_fragments...)
 	ctx.AddFarVariationDependencies(commonVariation, javaLibTag, a.properties.Java_libs...)
-	ctx.AddFarVariationDependencies(commonVariation, bpfTag, a.properties.Bpfs...)
 	ctx.AddFarVariationDependencies(commonVariation, fsTag, a.properties.Filesystems...)
 	ctx.AddFarVariationDependencies(commonVariation, compatConfigTag, a.properties.Compat_configs...)
 
@@ -802,6 +801,7 @@ func (a *apexBundle) OverridablePropertiesDepsMutator(ctx android.BottomUpMutato
 
 	commonVariation := ctx.Config().AndroidCommonTarget.Variations()
 	ctx.AddFarVariationDependencies(commonVariation, androidAppTag, a.overridableProperties.Apps...)
+	ctx.AddFarVariationDependencies(commonVariation, bpfTag, a.overridableProperties.Bpfs...)
 	ctx.AddFarVariationDependencies(commonVariation, rroTag, a.overridableProperties.Rros...)
 
 	// Dependencies for signing
