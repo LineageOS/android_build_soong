@@ -414,7 +414,7 @@ func PathForBazelOut(ctx PathContext, paths ...string) BazelOutPath {
 	}
 
 	outputPath := OutputPath{basePath{"", ""},
-		ctx.Config().buildDir,
+		ctx.Config().soongOutDir,
 		ctx.Config().BazelContext.OutputBase()}
 
 	return BazelOutPath{
