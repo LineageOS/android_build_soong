@@ -101,7 +101,8 @@ func runBp2BuildTestCase(t *testing.T, registerModuleTypes func(ctx android.Regi
 	codegenCtx := NewCodegenContext(config, *ctx.Context, Bp2Build)
 	bazelTargets := generateBazelTargetsForDir(codegenCtx, checkDir)
 	if actualCount, expectedCount := len(bazelTargets), len(tc.expectedBazelTargets); actualCount != expectedCount {
-		t.Errorf("%s: Expected %d bazel target, got %d", tc.description, expectedCount, actualCount)
+		t.Errorf("%s: Expected %d bazel target, got %d; %v",
+			tc.description, expectedCount, actualCount, bazelTargets)
 	} else {
 		for i, target := range bazelTargets {
 			if w, g := tc.expectedBazelTargets[i], target.content; w != g {
