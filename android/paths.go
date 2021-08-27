@@ -186,13 +186,13 @@ type Path interface {
 	// A standard build has the following structure:
 	//   ../top/
 	//          out/ - make install files go here.
-	//          out/soong - this is the buildDir passed to NewTestConfig()
+	//          out/soong - this is the soongOutDir passed to NewTestConfig()
 	//          ... - the source files
 	//
 	// This function converts a path so that it appears relative to the ../top/ directory, i.e.
-	// * Make install paths, which have the pattern "buildDir/../<path>" are converted into the top
+	// * Make install paths, which have the pattern "soongOutDir/../<path>" are converted into the top
 	//   relative path "out/<path>"
-	// * Soong install paths and other writable paths, which have the pattern "buildDir/<path>" are
+	// * Soong install paths and other writable paths, which have the pattern "soongOutDir/<path>" are
 	//   converted into the top relative path "out/soong/<path>".
 	// * Source paths are already relative to the top.
 	// * Phony paths are not relative to anything.
@@ -211,7 +211,7 @@ type WritablePath interface {
 	Path
 
 	// return the path to the build directory.
-	getBuildDir() string
+	getSoongOutDir() string
 
 	// the writablePath method doesn't directly do anything,
 	// but it allows a struct to distinguish between whether or not it implements the WritablePath interface
@@ -992,7 +992,7 @@ func safePathForSource(ctx PathContext, pathComponents ...string) (SourcePath, e
 	}
 
 	// absolute path already checked by validateSafePath
-	if strings.HasPrefix(ret.String(), ctx.Config().buildDir) {
+	if strings.HasPrefix(ret.String(), ctx.Config().soongOutDir) {
 		return ret, fmt.Errorf("source path %q is in output", ret.String())
 	}
 
@@ -1008,7 +1008,7 @@ func pathForSource(ctx PathContext, pathComponents ...string) (SourcePath, error
 	}
 
 	// absolute path already checked by validatePath
-	if strings.HasPrefix(ret.String(), ctx.Config().buildDir) {
+	if strings.HasPrefix(ret.String(), ctx.Config().soongOutDir) {
 		return ret, fmt.Errorf("source path %q is in output", ret.String())
 	}
 
@@ -1151,7 +1151,7 @@ type OutputPath struct {
 	basePath
 
 	// The soong build directory, i.e. Config.BuildDir()
-	buildDir string
+	soongOutDir string
 
 	fullPath string
 }
@@ -1167,8 +1167,8 @@ func (p OutputPath) WithoutRel() OutputPath {
 	return p
 }
 
-func (p OutputPath) getBuildDir() string {
-	return p.buildDir
+func (p OutputPath) getSoongOutDir() string {
+	return p.soongOutDir
 }
 
 func (p OutputPath) RelativeToTop() Path {
@@ -1176,8 +1176,8 @@ func (p OutputPath) RelativeToTop() Path {
 }
 
 func (p OutputPath) outputPathRelativeToTop() OutputPath {
-	p.fullPath = StringPathRelativeToTop(p.buildDir, p.fullPath)
-	p.buildDir = OutSoongDir
+	p.fullPath = StringPathRelativeToTop(p.soongOutDir, p.fullPath)
+	p.soongOutDir = OutSoongDir
 	return p
 }
 
@@ -1218,12 +1218,12 @@ func PathForOutput(ctx PathContext, pathComponents ...string) OutputPath {
 	if err != nil {
 		reportPathError(ctx, err)
 	}
-	fullPath := filepath.Join(ctx.Config().buildDir, path)
+	fullPath := filepath.Join(ctx.Config().soongOutDir, path)
 	path = fullPath[len(fullPath)-len(path):]
-	return OutputPath{basePath{path, ""}, ctx.Config().buildDir, fullPath}
+	return OutputPath{basePath{path, ""}, ctx.Config().soongOutDir, fullPath}
 }
 
-// PathsForOutput returns Paths rooted from buildDir
+// PathsForOutput returns Paths rooted from soongOutDir
 func PathsForOutput(ctx PathContext, paths []string) WritablePaths {
 	ret := make(WritablePaths, len(paths))
 	for i, path := range paths {
@@ -1545,7 +1545,7 @@ type InstallPath struct {
 	basePath
 
 	// The soong build directory, i.e. Config.BuildDir()
-	buildDir string
+	soongOutDir string
 
 	// partitionDir is the part of the InstallPath that is automatically determined according to the context.
 	// For example, it is host/<os>-<arch> for host modules, and target/product/<device>/<partition> for device modules.
@@ -1565,12 +1565,12 @@ func ensureTestOnly() {
 
 func (p InstallPath) RelativeToTop() Path {
 	ensureTestOnly()
-	p.buildDir = OutSoongDir
+	p.soongOutDir = OutSoongDir
 	return p
 }
 
-func (p InstallPath) getBuildDir() string {
-	return p.buildDir
+func (p InstallPath) getSoongOutDir() string {
+	return p.soongOutDir
 }
 
 func (p InstallPath) ReplaceExtension(ctx PathContext, ext string) OutputPath {
@@ -1585,9 +1585,9 @@ func (p InstallPath) writablePath() {}
 func (p InstallPath) String() string {
 	if p.makePath {
 		// Make path starts with out/ instead of out/soong.
-		return filepath.Join(p.buildDir, "../", p.path)
+		return filepath.Join(p.soongOutDir, "../", p.path)
 	} else {
-		return filepath.Join(p.buildDir, p.path)
+		return filepath.Join(p.soongOutDir, p.path)
 	}
 }
 
@@ -1596,9 +1596,9 @@ func (p InstallPath) String() string {
 // The ./soong is dropped if the install path is for Make.
 func (p InstallPath) PartitionDir() string {
 	if p.makePath {
-		return filepath.Join(p.buildDir, "../", p.partitionDir)
+		return filepath.Join(p.soongOutDir, "../", p.partitionDir)
 	} else {
-		return filepath.Join(p.buildDir, p.partitionDir)
+		return filepath.Join(p.soongOutDir, p.partitionDir)
 	}
 }
 
@@ -1694,7 +1694,7 @@ func pathForInstall(ctx PathContext, os OsType, arch ArchType, partition string,
 
 	base := InstallPath{
 		basePath:     basePath{partionPath, ""},
-		buildDir:     ctx.Config().buildDir,
+		soongOutDir:  ctx.Config().soongOutDir,
 		partitionDir: partionPath,
 		makePath:     false,
 	}
@@ -1705,7 +1705,7 @@ func pathForInstall(ctx PathContext, os OsType, arch ArchType, partition string,
 func pathForNdkOrSdkInstall(ctx PathContext, prefix string, paths []string) InstallPath {
 	base := InstallPath{
 		basePath:     basePath{prefix, ""},
-		buildDir:     ctx.Config().buildDir,
+		soongOutDir:  ctx.Config().soongOutDir,
 		partitionDir: prefix,
 		makePath:     false,
 	}
@@ -1851,7 +1851,7 @@ type PhonyPath struct {
 
 func (p PhonyPath) writablePath() {}
 
-func (p PhonyPath) getBuildDir() string {
+func (p PhonyPath) getSoongOutDir() string {
 	// A phone path cannot contain any / so cannot be relative to the build directory.
 	return ""
 }

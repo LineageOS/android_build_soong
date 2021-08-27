@@ -834,7 +834,7 @@ func (f *fixture) outputDebugState() {
 func (r *TestResult) NormalizePathForTesting(path Path) string {
 	pathContext := PathContextForTesting(r.Config)
 	pathAsString := path.String()
-	if rel, isRel := MaybeRel(pathContext, r.Config.BuildDir(), pathAsString); isRel {
+	if rel, isRel := MaybeRel(pathContext, r.Config.SoongOutDir(), pathAsString); isRel {
 		return rel
 	}
 	return pathAsString
