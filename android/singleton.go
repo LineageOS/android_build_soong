@@ -54,10 +54,10 @@ type SingletonContext interface {
 
 	RequireNinjaVersion(major, minor, micro int)
 
-	// SetNinjaBuildDir sets the value of the top-level "builddir" Ninja variable
+	// SetOutDir sets the value of the top-level "builddir" Ninja variable
 	// that controls where Ninja stores its build log files.  This value can be
 	// set at most one time for a single build, later calls are ignored.
-	SetNinjaBuildDir(pctx PackageContext, value string)
+	SetOutDir(pctx PackageContext, value string)
 
 	// Eval takes a string with embedded ninja variables, and returns a string
 	// with all of the variables recursively expanded. Any variables references
@@ -180,8 +180,8 @@ func (s *singletonContextAdaptor) Phony(name string, deps ...Path) {
 	addPhony(s.Config(), name, deps...)
 }
 
-func (s *singletonContextAdaptor) SetNinjaBuildDir(pctx PackageContext, value string) {
-	s.SingletonContext.SetNinjaBuildDir(pctx.PackageContext, value)
+func (s *singletonContextAdaptor) SetOutDir(pctx PackageContext, value string) {
+	s.SingletonContext.SetOutDir(pctx.PackageContext, value)
 }
 
 func (s *singletonContextAdaptor) Eval(pctx PackageContext, ninjaStr string) (string, error) {

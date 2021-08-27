@@ -1737,7 +1737,7 @@ func TestPackageNameOverride(t *testing.T) {
 
 			foo := result.ModuleForTests("foo", "android_common")
 
-			outSoongDir := result.Config.BuildDir()
+			outSoongDir := result.Config.SoongOutDir()
 
 			outputs := foo.AllOutputs()
 			outputMap := make(map[string]bool)
