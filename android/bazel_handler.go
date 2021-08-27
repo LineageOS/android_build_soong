@@ -353,7 +353,16 @@ type builtinBazelRunner struct{}
 // the invocation returned an error code.
 func (r *builtinBazelRunner) issueBazelCommand(paths *bazelPaths, runName bazel.RunName, command bazelCommand,
 	extraFlags ...string) (string, string, error) {
-	cmdFlags := []string{"--output_base=" + absolutePath(paths.outputBase), command.command}
+	cmdFlags := []string{
+		// --noautodetect_server_javabase has the practical consequence of preventing Bazel from
+		// attempting to download rules_java, which is incompatible with
+		// --experimental_repository_disable_download set further below.
+		// rules_java is also not needed until mixed builds start building java targets.
+		// TODO(b/197958133): Once rules_java is pulled into AOSP, remove this flag.
+		"--noautodetect_server_javabase",
+		"--output_base=" + absolutePath(paths.outputBase),
+		command.command,
+	}
 	cmdFlags = append(cmdFlags, command.expression)
 	cmdFlags = append(cmdFlags, "--profile="+shared.BazelMetricsFilename(paths, runName))
 
