@@ -13,19 +13,24 @@ type PythonLibBp2Build func(ctx android.TopDownMutatorContext)
 
 func TestPythonLibrary(t *testing.T) {
 	testPythonLib(t, "python_library",
-		python.PythonLibraryFactory, python.PythonLibraryBp2Build)
+		python.PythonLibraryFactory, python.PythonLibraryBp2Build,
+		func(ctx android.RegistrationContext) {})
 }
 
 func TestPythonLibraryHost(t *testing.T) {
 	testPythonLib(t, "python_library_host",
-		python.PythonLibraryHostFactory, python.PythonLibraryHostBp2Build)
+		python.PythonLibraryHostFactory, python.PythonLibraryHostBp2Build,
+		func(ctx android.RegistrationContext) {
+			ctx.RegisterModuleType("python_library", python.PythonLibraryFactory)
+		})
 }
 
 func testPythonLib(t *testing.T, modType string,
-	factory android.ModuleFactory, mutator PythonLibBp2Build) {
+	factory android.ModuleFactory, mutator PythonLibBp2Build,
+	registration func(ctx android.RegistrationContext)) {
 	t.Helper()
 	// Simple
-	runBp2BuildTestCaseSimple(t, bp2buildTestCase{
+	runBp2BuildTestCase(t, registration, bp2buildTestCase{
 		description:                        fmt.Sprintf("simple %s converts to a native py_library", modType),
 		moduleTypeUnderTest:                modType,
 		moduleTypeUnderTestFactory:         factory,
@@ -42,11 +47,18 @@ func testPythonLib(t *testing.T, modType string,
     srcs: ["**/*.py"],
     exclude_srcs: ["b/e.py"],
     data: ["files/data.txt",],
+    libs: ["bar"],
     bazel_module: { bp2build_available: true },
-}`, modType),
+}
+    python_library {
+      name: "bar",
+      srcs: ["b/e.py"],
+      bazel_module: { bp2build_available: false },
+    }`, modType),
 		expectedBazelTargets: []string{`py_library(
     name = "foo",
     data = ["files/data.txt"],
+    deps = [":bar"],
     srcs = [
         "a.py",
         "b/c.py",
