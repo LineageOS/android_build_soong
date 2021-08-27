@@ -747,6 +747,10 @@ func (c *configImpl) Bp2BuildMarkerFile() string {
 	return shared.JoinPath(c.SoongOutDir(), ".bootstrap/bp2build_workspace_marker")
 }
 
+func (c *configImpl) ModuleGraphFile() string {
+	return shared.JoinPath(c.SoongOutDir(), "module-graph.json")
+}
+
 func (c *configImpl) TempDir() string {
 	return shared.TempDirForOutDir(c.SoongOutDir())
 }
@@ -919,7 +923,7 @@ func (c *configImpl) bazelBuildMode() bazelBuildMode {
 		return mixedBuild
 	} else if c.Environment().IsEnvTrue("GENERATE_BAZEL_FILES") {
 		return generateBuildFiles
-	} else if v, ok := c.Environment().Get("SOONG_DUMP_JSON_MODULE_GRAPH"); ok && v != "" {
+	} else if c.Environment().IsEnvTrue("GENERATE_JSON_MODULE_GRAPH") {
 		return generateJsonModuleGraph
 	} else {
 		return noBazel
