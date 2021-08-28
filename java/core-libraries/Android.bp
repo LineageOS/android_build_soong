@@ -24,6 +24,10 @@
 // core libraries.
 //
 // Don't use this directly, use "sdk_version: core_current".
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
 java_library {
     name: "core.current.stubs",
     visibility: ["//visibility:public"],

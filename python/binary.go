@@ -38,6 +38,7 @@ type bazelPythonBinaryAttributes struct {
 	Main           string
 	Srcs           bazel.LabelListAttribute
 	Data           bazel.LabelListAttribute
+	Deps           bazel.LabelListAttribute
 	Python_version string
 }
 
@@ -81,11 +82,13 @@ func PythonBinaryBp2Build(ctx android.TopDownMutatorContext) {
 
 	srcs := android.BazelLabelForModuleSrcExcludes(ctx, m.properties.Srcs, m.properties.Exclude_srcs)
 	data := android.BazelLabelForModuleSrc(ctx, m.properties.Data)
+	deps := android.BazelLabelForModuleDeps(ctx, m.properties.Libs)
 
 	attrs := &bazelPythonBinaryAttributes{
 		Main:           main,
 		Srcs:           bazel.MakeLabelListAttribute(srcs),
 		Data:           bazel.MakeLabelListAttribute(data),
+		Deps:           bazel.MakeLabelListAttribute(deps),
 		Python_version: python_version,
 	}
 
