@@ -123,7 +123,7 @@ func collectAllSharedDependencies(ctx android.SingletonContext, module android.M
 // that should be installed in the fuzz target output directories. This function
 // returns true, unless:
 //  - The module is not an installable shared library, or
-//  - The module is a header, stub, or vendor-linked library, or
+//  - The module is a header or stub, or
 //  - The module is a prebuilt and its source is available, or
 //  - The module is a versioned member of an SDK snapshot.
 func isValidSharedDependency(dependency android.Module) bool {
@@ -138,11 +138,6 @@ func isValidSharedDependency(dependency android.Module) bool {
 
 	if !linkable.Shared() {
 		// Discard static libs.
-		return false
-	}
-
-	if linkable.UseVndk() {
-		// Discard vendor linked libraries.
 		return false
 	}
 
