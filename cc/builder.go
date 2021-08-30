@@ -205,11 +205,13 @@ var (
 			Labels:       map[string]string{"type": "lint", "tool": "clang-tidy", "lang": "cpp"},
 			ExecStrategy: "${config.REClangTidyExecStrategy}",
 			Inputs:       []string{"$in"},
-			// OutputFile here is $in for remote-execution since its possible that
-			// clang-tidy modifies the given input file itself and $out refers to the
-			// ".tidy" file generated for ninja-dependency reasons.
-			OutputFiles: []string{"$in"},
-			Platform:    map[string]string{remoteexec.PoolKey: "${config.REClangTidyPool}"},
+			// Although clang-tidy has an option to "fix" source files, that feature is hardly useable
+			// under parallel compilation and RBE. So we assume no OutputFiles here.
+			// The clang-tidy fix option is best run locally in single thread.
+			// Copying source file back to local caused two problems:
+			// (1) New timestamps trigger clang and clang-tidy compilations again.
+			// (2) Changing source files caused concurrent clang or clang-tidy jobs to crash.
+			Platform: map[string]string{remoteexec.PoolKey: "${config.REClangTidyPool}"},
 		}, []string{"cFlags", "tidyFlags"}, []string{})
 
 	_ = pctx.SourcePathVariable("yasmCmd", "prebuilts/misc/${config.HostPrebuiltTag}/yasm/yasm")
