@@ -646,7 +646,7 @@ func transformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 				OrderOnly: pathDeps,
 				Args: map[string]string{
 					"cFlags":    moduleToolingFlags,
-					"tidyFlags": flags.tidyFlags,
+					"tidyFlags": config.TidyFlagsForSrcFile(srcFile, flags.tidyFlags),
 				},
 			})
 		}
