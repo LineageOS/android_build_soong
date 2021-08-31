@@ -120,6 +120,10 @@ const (
 	// allows modules to opt-out.
 	Bp2BuildDefaultTrueRecursively BazelConversionConfigEntry = iota + 1
 
+	// all modules in this package (not recursively) default to bp2build_available: true.
+	// allows modules to opt-out.
+	Bp2BuildDefaultTrue
+
 	// all modules in this package (not recursively) default to bp2build_available: false.
 	// allows modules to opt-in.
 	Bp2BuildDefaultFalse
@@ -166,6 +170,7 @@ var (
 		"development/sdk":                   Bp2BuildDefaultTrueRecursively,
 		"external/gwp_asan":                 Bp2BuildDefaultTrueRecursively,
 		"system/core/libcutils":             Bp2BuildDefaultTrueRecursively,
+		"system/core/libprocessgroup":       Bp2BuildDefaultTrue,
 		"system/core/property_service/libpropertyinfoparser": Bp2BuildDefaultTrueRecursively,
 		"system/libbase":                  Bp2BuildDefaultTrueRecursively,
 		"system/logging/liblog":           Bp2BuildDefaultTrueRecursively,
@@ -218,6 +223,8 @@ var (
 		"libseccomp_policy", // depends on libbase
 
 		"gwp_asan_crash_handler", // cc_library, ld.lld: error: undefined symbol: memset
+
+		"libprocessgroup", // depends on //system/core/libprocessgroup/cgrouprc:libcgrouprc
 
 		// Tests. Handle later.
 		"libbionic_tests_headers_posix", // http://b/186024507, cc_library_static, sched.h, time.h not found
@@ -343,11 +350,10 @@ func (b *BazelModuleBase) ConvertWithBp2build(ctx BazelConversionPathContext) bo
 func bp2buildDefaultTrueRecursively(packagePath string, config Bp2BuildConfig) bool {
 	ret := false
 
-	// Return exact matches in the config.
-	if config[packagePath] == Bp2BuildDefaultTrueRecursively {
+	// Check if the package path has an exact match in the config.
+	if config[packagePath] == Bp2BuildDefaultTrue || config[packagePath] == Bp2BuildDefaultTrueRecursively {
 		return true
-	}
-	if config[packagePath] == Bp2BuildDefaultFalse {
+	} else if config[packagePath] == Bp2BuildDefaultFalse {
 		return false
 	}
 
