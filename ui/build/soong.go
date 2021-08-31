@@ -128,16 +128,14 @@ func bootstrapBlueprint(ctx Context, config Config) {
 
 	args.RunGoTests = !config.skipSoongTests
 	args.UseValidations = true // Use validations to depend on tests
-	args.BuildDir = config.SoongOutDir()
-	args.NinjaBuildDir = config.OutDir()
-	args.TopFile = "Android.bp"
+	args.SoongOutDir = config.SoongOutDir()
+	args.OutDir = config.OutDir()
 	args.ModuleListFile = filepath.Join(config.FileListDir(), "Android.bp.list")
 	args.OutFile = shared.JoinPath(config.SoongOutDir(), ".bootstrap/build.ninja")
 	// The primary builder (aka soong_build) will use bootstrapGlobFile as the globFile to generate build.ninja(.d)
 	// Building soong_build does not require a glob file
 	// Using "" instead of "<soong_build_glob>.ninja" will ensure that an unused glob file is not written to out/soong/.bootstrap during StagePrimary
 	args.Subninjas = []string{bootstrapGlobFile, bp2buildGlobFile}
-	args.GeneratingPrimaryBuilder = true
 	args.EmptyNinjaFile = config.EmptyNinjaFile()
 
 	args.DelveListen = os.Getenv("SOONG_DELVE")
@@ -213,6 +211,7 @@ func bootstrapBlueprint(ctx Context, config Config) {
 		debugCompilation: os.Getenv("SOONG_DELVE") != "",
 	}
 
+	args.EmptyNinjaFile = false
 	bootstrapDeps := bootstrap.RunBlueprint(args, blueprintCtx, blueprintConfig)
 	err := deptools.WriteDepFile(bootstrapDepFile, args.OutFile, bootstrapDeps)
 	if err != nil {
