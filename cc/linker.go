@@ -86,8 +86,7 @@ type BaseLinkerProperties struct {
 	// compiling crt or libc.
 	Nocrt *bool `android:"arch_variant"`
 
-	// group static libraries.  This can resolve missing symbols issues with interdependencies
-	// between static libraries, but it is generally better to order them correctly instead.
+	// deprecated and ignored because lld makes it unnecessary. See b/189475744.
 	Group_static_libs *bool `android:"arch_variant"`
 
 	// list of modules that should be installed with this module.  This is similar to 'required'
@@ -542,10 +541,6 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 	}
 
 	flags.Global.LdFlags = append(flags.Global.LdFlags, toolchain.ToolchainLdflags())
-
-	if Bool(linker.Properties.Group_static_libs) {
-		flags.GroupStaticLibs = true
-	}
 
 	// Version_script is not needed when linking stubs lib where the version
 	// script is created from the symbol map file.
