@@ -169,6 +169,7 @@ var (
 		"build/bazel/examples/apex/minimal": Bp2BuildDefaultTrueRecursively,
 		"development/sdk":                   Bp2BuildDefaultTrueRecursively,
 		"external/gwp_asan":                 Bp2BuildDefaultTrueRecursively,
+		"external/brotli":                   Bp2BuildDefaultTrue,
 		"system/core/libcutils":             Bp2BuildDefaultTrueRecursively,
 		"system/core/libprocessgroup":       Bp2BuildDefaultTrue,
 		"system/core/property_service/libpropertyinfoparser": Bp2BuildDefaultTrueRecursively,
@@ -224,7 +225,11 @@ var (
 
 		"gwp_asan_crash_handler", // cc_library, ld.lld: error: undefined symbol: memset
 
+		//system/core/libprocessgroup/...
 		"libprocessgroup", // depends on //system/core/libprocessgroup/cgrouprc:libcgrouprc
+
+		//external/brotli/...
+		"brotli-fuzzer-corpus", // "declared output 'external/brotli/c/fuzz/73231c6592f195ffd41100b8706d1138ff6893b9' was not created by genrule"
 
 		// Tests. Handle later.
 		"libbionic_tests_headers_posix", // http://b/186024507, cc_library_static, sched.h, time.h not found
