@@ -20,6 +20,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -74,6 +75,36 @@ func (m *multipleStringArg) String() string {
 func (m *multipleStringArg) Set(s string) error {
 	*m = append(*m, strings.Split(s, ",")...)
 	return nil
+}
+
+const errorLeadingLines = 20
+const errorTrailingLines = 20
+
+func errMsgFromLog(filename string) string {
+	if filename == "" {
+		return ""
+	}
+
+	data, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return ""
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	if len(lines) > errorLeadingLines+errorTrailingLines+1 {
+		lines[errorLeadingLines] = fmt.Sprintf("... skipping %d lines ...",
+			len(lines)-errorLeadingLines-errorTrailingLines)
+
+		lines = append(lines[:errorLeadingLines+1],
+			lines[len(lines)-errorTrailingLines:]...)
+	}
+	var buf strings.Builder
+	for _, line := range lines {
+		buf.WriteString("> ")
+		buf.WriteString(line)
+		buf.WriteString("\n")
+	}
+	return buf.String()
 }
 
 // TODO(b/70370883): This tool uses a lot of open files -- over the default
@@ -170,12 +201,35 @@ func ensureEmptyFileExists(file string, log logger.Logger) {
 	}
 }
 
+func outDirBase() string {
+	outDirBase := os.Getenv("OUT_DIR")
+	if outDirBase == "" {
+		return "out"
+	} else {
+		return outDirBase
+	}
+}
+
+func distDir(outDir string) string {
+	if distDir := os.Getenv("DIST_DIR"); distDir != "" {
+		return filepath.Clean(distDir)
+	} else {
+		return filepath.Join(outDir, "dist")
+	}
+}
+
 func main() {
 	stdio := terminal.StdioImpl{}
 
 	output := terminal.NewStatusOutput(stdio.Stdout(), "", false, false)
 	log := logger.New(output)
 	defer log.Cleanup()
+
+	for _, v := range os.Environ() {
+		log.Println("Environment: " + v)
+	}
+
+	log.Printf("Argv: %v\n", os.Args)
 
 	flag.Parse()
 
@@ -208,13 +262,7 @@ func main() {
 		if !*incremental {
 			name += "-" + time.Now().Format("20060102150405")
 		}
-
-		outDirBase := os.Getenv("OUT_DIR")
-		if outDirBase == "" {
-			outDirBase = "out"
-		}
-
-		outputDir = filepath.Join(outDirBase, name)
+		outputDir = filepath.Join(outDirBase(), name)
 	}
 
 	log.Println("Output directory:", outputDir)
@@ -231,10 +279,12 @@ func main() {
 
 	var configLogsDir string
 	if *alternateResultDir {
-		configLogsDir = filepath.Join(outputDir, "dist/logs")
+		configLogsDir = filepath.Join(distDir(outDirBase()), "logs")
 	} else {
 		configLogsDir = outputDir
 	}
+
+	log.Println("Logs dir: " + configLogsDir)
 
 	os.MkdirAll(configLogsDir, 0777)
 	log.SetOutput(filepath.Join(configLogsDir, "soong.log"))
@@ -348,10 +398,11 @@ func main() {
 			FileArgs: []zip.FileArg{
 				{GlobDir: logsDir, SourcePrefixToStrip: logsDir},
 			},
-			OutputFilePath:   filepath.Join(outputDir, "dist/logs.zip"),
+			OutputFilePath:   filepath.Join(distDir(outDirBase()), "logs.zip"),
 			NumParallelJobs:  runtime.NumCPU(),
 			CompressionLevel: 5,
 		}
+		log.Printf("Logs zip: %v\n", args.OutputFilePath)
 		if err := zip.Zip(args); err != nil {
 			log.Fatalf("Error zipping logs: %v", err)
 		}
@@ -424,10 +475,6 @@ func runSoongUiForProduct(mpctx *mpContext, product string) {
 		args = append(args, "--soong-only")
 	}
 
-	if *alternateResultDir {
-		args = append(args, "dist")
-	}
-
 	cmd := exec.Command(mpctx.SoongUi, args...)
 	cmd.Stdout = consoleLogWriter
 	cmd.Stderr = consoleLogWriter
@@ -438,6 +485,11 @@ func runSoongUiForProduct(mpctx *mpContext, product string) {
 		"TARGET_BUILD_TYPE=release",
 		"TARGET_BUILD_APPS=",
 		"TARGET_BUILD_UNBUNDLED=")
+
+	if *alternateResultDir {
+		cmd.Env = append(cmd.Env,
+			"DIST_DIR="+filepath.Join(distDir(outDirBase()), "products/"+product))
+	}
 
 	action := &status.Action{
 		Description: product,
@@ -459,9 +511,17 @@ func runSoongUiForProduct(mpctx *mpContext, product string) {
 			}
 		}
 	}
+	var errOutput string
+	if err == nil {
+		errOutput = ""
+	} else {
+		errOutput = errMsgFromLog(consoleLogPath)
+	}
+
 	mpctx.Status.FinishAction(status.ActionResult{
 		Action: action,
 		Error:  err,
+		Output: errOutput,
 	})
 }
 
