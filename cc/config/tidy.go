@@ -106,6 +106,7 @@ type PathBasedTidyCheck struct {
 
 const tidyDefault = "${config.TidyDefaultGlobalChecks}"
 const tidyExternalVendor = "${config.TidyExternalVendorChecks}"
+const tidyDefaultNoAnalyzer = "${config.TidyDefaultGlobalChecks},-clang-analyzer-*"
 
 // This is a map of local path prefixes to the set of default clang-tidy checks
 // to be used.
@@ -138,4 +139,18 @@ func TidyChecksForDir(dir string) string {
 		}
 	}
 	return tidyDefault
+}
+
+func TidyFlagsForSrcFile(srcFile android.Path, flags string) string {
+	// Disable clang-analyzer-* checks globally for generated source files
+	// because some of them are too huge. Local .bp files can add wanted
+	// clang-analyzer checks through the tidy_checks property.
+	// Need to do this patch per source file, because some modules
+	// have both generated and organic source files.
+	if _, ok := srcFile.(android.WritablePath); ok {
+		if strings.Contains(flags, tidyDefault) {
+			return strings.ReplaceAll(flags, tidyDefault, tidyDefaultNoAnalyzer)
+		}
+	}
+	return flags
 }
