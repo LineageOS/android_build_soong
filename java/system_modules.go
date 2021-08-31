@@ -245,8 +245,8 @@ type systemModulesSdkMemberType struct {
 	android.SdkMemberTypeBase
 }
 
-func (mt *systemModulesSdkMemberType) AddDependencies(mctx android.BottomUpMutatorContext, dependencyTag blueprint.DependencyTag, names []string) {
-	mctx.AddVariationDependencies(nil, dependencyTag, names...)
+func (mt *systemModulesSdkMemberType) AddDependencies(ctx android.SdkDependencyContext, dependencyTag blueprint.DependencyTag, names []string) {
+	ctx.AddVariationDependencies(nil, dependencyTag, names...)
 }
 
 func (mt *systemModulesSdkMemberType) IsInstance(module android.Module) bool {
