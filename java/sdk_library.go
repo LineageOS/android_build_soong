@@ -2471,8 +2471,8 @@ type sdkLibrarySdkMemberType struct {
 	android.SdkMemberTypeBase
 }
 
-func (s *sdkLibrarySdkMemberType) AddDependencies(mctx android.BottomUpMutatorContext, dependencyTag blueprint.DependencyTag, names []string) {
-	mctx.AddVariationDependencies(nil, dependencyTag, names...)
+func (s *sdkLibrarySdkMemberType) AddDependencies(ctx android.SdkDependencyContext, dependencyTag blueprint.DependencyTag, names []string) {
+	ctx.AddVariationDependencies(nil, dependencyTag, names...)
 }
 
 func (s *sdkLibrarySdkMemberType) IsInstance(module android.Module) bool {
