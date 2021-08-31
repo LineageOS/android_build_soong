@@ -162,6 +162,7 @@ var (
 	bp2buildDefaultConfig = Bp2BuildConfig{
 		"bionic":                            Bp2BuildDefaultTrueRecursively,
 		"build/bazel/examples/apex/minimal": Bp2BuildDefaultTrueRecursively,
+		"development/sdk":                   Bp2BuildDefaultTrueRecursively,
 		"external/gwp_asan":                 Bp2BuildDefaultTrueRecursively,
 		"system/core/libcutils":             Bp2BuildDefaultTrueRecursively,
 		"system/core/property_service/libpropertyinfoparser": Bp2BuildDefaultTrueRecursively,
