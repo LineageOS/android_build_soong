@@ -341,6 +341,19 @@ func (s *sdk) AndroidMkEntries() []android.AndroidMkEntries {
 	}}
 }
 
+// newDependencyContext creates a new SdkDependencyContext for this sdk.
+func (s *sdk) newDependencyContext(mctx android.BottomUpMutatorContext) android.SdkDependencyContext {
+	return &dependencyContext{
+		BottomUpMutatorContext: mctx,
+	}
+}
+
+type dependencyContext struct {
+	android.BottomUpMutatorContext
+}
+
+var _ android.SdkDependencyContext = (*dependencyContext)(nil)
+
 // RegisterPreDepsMutators registers pre-deps mutators to support modules implementing SdkAware
 // interface and the sdk module type. This function has been made public to be called by tests
 // outside of the sdk package
@@ -410,6 +423,7 @@ func memberMutator(mctx android.BottomUpMutatorContext) {
 	if s, ok := mctx.Module().(*sdk); ok {
 		// Add dependencies from enabled and non CommonOS variants to the sdk member variants.
 		if s.Enabled() && !s.IsCommonOSVariant() {
+			ctx := s.newDependencyContext(mctx)
 			for _, memberListProperty := range s.memberListProperties() {
 				if memberListProperty.getter == nil {
 					continue
@@ -417,7 +431,7 @@ func memberMutator(mctx android.BottomUpMutatorContext) {
 				names := memberListProperty.getter(s.dynamicMemberTypeListProperties)
 				if len(names) > 0 {
 					tag := memberListProperty.dependencyTag
-					memberListProperty.memberType.AddDependencies(mctx, tag, names)
+					memberListProperty.memberType.AddDependencies(ctx, tag, names)
 				}
 			}
 		}

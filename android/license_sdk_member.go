@@ -31,9 +31,9 @@ type licenseSdkMemberType struct {
 	SdkMemberTypeBase
 }
 
-func (l *licenseSdkMemberType) AddDependencies(mctx BottomUpMutatorContext, dependencyTag blueprint.DependencyTag, names []string) {
+func (l *licenseSdkMemberType) AddDependencies(ctx SdkDependencyContext, dependencyTag blueprint.DependencyTag, names []string) {
 	// Add dependencies onto the license module from the sdk module.
-	mctx.AddDependency(mctx.Module(), dependencyTag, names...)
+	ctx.AddDependency(ctx.Module(), dependencyTag, names...)
 }
 
 func (l *licenseSdkMemberType) IsInstance(module Module) bool {
