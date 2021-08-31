@@ -570,9 +570,6 @@ func (b *SdkMemberTypeBase) UsesSourceModuleTypeInSnapshot() bool {
 type SdkMemberTypesRegistry struct {
 	// The list of types sorted by property name.
 	list []SdkMemberType
-
-	// The key that uniquely identifies this registry instance.
-	key OnceKey
 }
 
 func (r *SdkMemberTypesRegistry) copyAndAppend(memberType SdkMemberType) *SdkMemberTypesRegistry {
@@ -592,18 +589,9 @@ func (r *SdkMemberTypesRegistry) copyAndAppend(memberType SdkMemberType) *SdkMem
 		return t1.SdkPropertyName() < t2.SdkPropertyName()
 	})
 
-	// Generate a key that identifies the slice of SdkMemberTypes by joining the property names
-	// from all the SdkMemberType .
-	var properties []string
-	for _, t := range list {
-		properties = append(properties, t.SdkPropertyName())
-	}
-	key := NewOnceKey(strings.Join(properties, "|"))
-
 	// Create a new registry so the pointer uniquely identifies the set of registered types.
 	return &SdkMemberTypesRegistry{
 		list: list,
-		key:  key,
 	}
 }
 
