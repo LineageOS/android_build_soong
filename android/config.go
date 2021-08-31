@@ -66,7 +66,7 @@ type Config struct {
 	*config
 }
 
-// BuildDir returns the build output directory for the configuration.
+// SoongOutDir returns the build output directory for the configuration.
 func (c Config) SoongOutDir() string {
 	return c.soongOutDir
 }

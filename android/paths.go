@@ -1150,7 +1150,7 @@ func (p SourcePath) OverlayPath(ctx ModuleMissingDepsPathContext, path Path) Opt
 type OutputPath struct {
 	basePath
 
-	// The soong build directory, i.e. Config.BuildDir()
+	// The soong build directory, i.e. Config.SoongOutDir()
 	soongOutDir string
 
 	fullPath string
@@ -1544,7 +1544,7 @@ func PathForModuleRes(ctx ModuleOutPathContext, pathComponents ...string) Module
 type InstallPath struct {
 	basePath
 
-	// The soong build directory, i.e. Config.BuildDir()
+	// The soong build directory, i.e. Config.SoongOutDir()
 	soongOutDir string
 
 	// partitionDir is the part of the InstallPath that is automatically determined according to the context.
