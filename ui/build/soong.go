@@ -71,9 +71,14 @@ func writeEnvironmentFile(ctx Context, envFile string, envDeps map[string]string
 // A tiny struct used to tell Blueprint that it's in bootstrap mode. It would
 // probably be nicer to use a flag in bootstrap.Args instead.
 type BlueprintConfig struct {
+	toolDir          string
 	soongOutDir      string
 	outDir           string
 	debugCompilation bool
+}
+
+func (c BlueprintConfig) HostToolDir() string {
+	return c.toolDir
 }
 
 func (c BlueprintConfig) SoongOutDir() string {
@@ -151,7 +156,7 @@ func bootstrapBlueprint(ctx Context, config Config) {
 	}
 
 	soongBuildArgs := []string{
-		"--globListDir", "globs",
+		"--globListDir", "build",
 		"--globFile", bootstrapGlobFile,
 	}
 
@@ -167,7 +172,7 @@ func bootstrapBlueprint(ctx Context, config Config) {
 
 	bp2buildArgs := []string{
 		"--bp2build_marker", config.Bp2BuildMarkerFile(),
-		"--globListDir", "globs.bp2build",
+		"--globListDir", "bp2build",
 		"--globFile", bp2buildGlobFile,
 	}
 
@@ -183,7 +188,7 @@ func bootstrapBlueprint(ctx Context, config Config) {
 
 	moduleGraphArgs := []string{
 		"--module_graph_file", config.ModuleGraphFile(),
-		"--globListDir", "globs.modulegraph",
+		"--globListDir", "modulegraph",
 		"--globFile", moduleGraphGlobFile,
 	}
 
@@ -207,6 +212,7 @@ func bootstrapBlueprint(ctx Context, config Config) {
 	blueprintCtx.SetIgnoreUnknownModuleTypes(true)
 	blueprintConfig := BlueprintConfig{
 		soongOutDir:      config.SoongOutDir(),
+		toolDir:          config.HostToolDir(),
 		outDir:           config.OutDir(),
 		debugCompilation: os.Getenv("SOONG_DELVE") != "",
 	}
@@ -282,7 +288,7 @@ func runSoong(ctx Context, config Config) {
 		}
 	}()
 
-	runMicrofactory(ctx, config, ".bootstrap/bpglob", "github.com/google/blueprint/bootstrap/bpglob",
+	runMicrofactory(ctx, config, filepath.Join(config.HostToolDir(), "bpglob"), "github.com/google/blueprint/bootstrap/bpglob",
 		map[string]string{"github.com/google/blueprint": "build/blueprint"})
 
 	ninja := func(name, ninjaFile string, targets ...string) {
