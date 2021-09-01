@@ -705,10 +705,10 @@ func TestAndroidTestImport_UncompressDex(t *testing.T) {
 		expect := !unbundled
 		if strings.Contains(bp, "privileged: true") {
 			if dontUncompressPrivAppDexs {
-				// TODO(b/194504107): DONT_UNCOMPRESS_PRIV_APPS_DEXS should disable uncompression of priv-apps no matter what.
-				// expect = false
+				expect = false
 			} else {
-				// TODO(b/194504107): shouldn't priv-apps be always uncompressed unless DONT_UNCOMPRESS_PRIV_APPS_DEXS is true?
+				// TODO(b/194504107): shouldn't priv-apps be always uncompressed unless
+				// DONT_UNCOMPRESS_PRIV_APPS_DEXS is true (regardless of unbundling)?
 				// expect = true
 			}
 		}
