@@ -134,8 +134,8 @@ type compatConfigMemberType struct {
 	android.SdkMemberTypeBase
 }
 
-func (b *compatConfigMemberType) AddDependencies(mctx android.BottomUpMutatorContext, dependencyTag blueprint.DependencyTag, names []string) {
-	mctx.AddVariationDependencies(nil, dependencyTag, names...)
+func (b *compatConfigMemberType) AddDependencies(ctx android.SdkDependencyContext, dependencyTag blueprint.DependencyTag, names []string) {
+	ctx.AddVariationDependencies(nil, dependencyTag, names...)
 }
 
 func (b *compatConfigMemberType) IsInstance(module android.Module) bool {
