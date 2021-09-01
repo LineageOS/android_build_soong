@@ -251,7 +251,7 @@ func (s *sdk) groupMemberVariantsByMemberThenType(ctx android.ModuleContext, mem
 	}
 
 	var members []*sdkMember
-	for _, memberListProperty := range s.memberListProperties() {
+	for _, memberListProperty := range s.memberTypeListProperties() {
 		membersOfType := byType[memberListProperty.memberType]
 		members = append(members, membersOfType...)
 	}
@@ -667,7 +667,7 @@ func (s *sdk) collateSnapshotModuleInfo(ctx android.BaseModuleContext, sdkVarian
 		staticProperties := &snapshotModuleStaticProperties{
 			Compile_multilib: sdkVariant.multilibUsages.String(),
 		}
-		dynamicProperties := s.dynamicSdkMemberTypes.createMemberListProperties()
+		dynamicProperties := s.dynamicSdkMemberTypes.createMemberTypeListProperties()
 
 		combinedProperties := &combinedSnapshotModuleProperties{
 			sdkVariant:        sdkVariant,
@@ -687,7 +687,7 @@ func (s *sdk) collateSnapshotModuleInfo(ctx android.BaseModuleContext, sdkVarian
 		}
 
 		combined := sdkVariantToCombinedProperties[memberVariantDep.sdkVariant]
-		memberListProperty := s.memberListProperty(memberVariantDep.memberType)
+		memberListProperty := s.memberTypeListProperty(memberVariantDep.memberType)
 		memberName := ctx.OtherModuleName(memberVariantDep.variant)
 
 		if memberListProperty.getter == nil {
@@ -717,7 +717,7 @@ func (s *sdk) optimizeSnapshotModuleProperties(ctx android.ModuleContext, list [
 	}
 
 	// Extract the common members, removing them from the original properties.
-	commonDynamicProperties := s.dynamicSdkMemberTypes.createMemberListProperties()
+	commonDynamicProperties := s.dynamicSdkMemberTypes.createMemberTypeListProperties()
 	extractor := newCommonValueExtractor(commonDynamicProperties)
 	extractCommonProperties(ctx, extractor, commonDynamicProperties, propertyContainers)
 
@@ -750,7 +750,7 @@ func (s *sdk) addSnapshotPropertiesToPropertySet(builder *snapshotBuilder, prope
 	}
 
 	dynamicMemberTypeListProperties := combined.dynamicProperties
-	for _, memberListProperty := range s.memberListProperties() {
+	for _, memberListProperty := range s.memberTypeListProperties() {
 		if memberListProperty.getter == nil {
 			continue
 		}
