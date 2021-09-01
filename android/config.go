@@ -555,11 +555,9 @@ var _ bootstrap.ConfigStopBefore = (*config)(nil)
 
 // BlueprintToolLocation returns the directory containing build system tools
 // from Blueprint, like soong_zip and merge_zips.
-func (c *config) BlueprintToolLocation() string {
+func (c *config) HostToolDir() string {
 	return filepath.Join(c.soongOutDir, "host", c.PrebuiltOS(), "bin")
 }
-
-var _ bootstrap.ConfigBlueprintToolLocation = (*config)(nil)
 
 func (c *config) HostToolPath(ctx PathContext, tool string) Path {
 	return PathForOutput(ctx, "host", c.PrebuiltOS(), "bin", tool)
