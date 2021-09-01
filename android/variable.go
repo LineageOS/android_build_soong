@@ -46,6 +46,10 @@ type variableProperties struct {
 			Java_resource_dirs []string
 		}
 
+		Platform_sdk_extension_version struct {
+			Cmd *string
+		}
+
 		// unbundled_build is a catch-all property to annotate modules that don't build in one or
 		// more unbundled branches, usually due to dependencies missing from the manifest.
 		Unbundled_build struct {
@@ -172,6 +176,7 @@ type productVariables struct {
 	Platform_sdk_codename                     *string  `json:",omitempty"`
 	Platform_sdk_version_or_codename          *string  `json:",omitempty"`
 	Platform_sdk_final                        *bool    `json:",omitempty"`
+	Platform_sdk_extension_version            *int     `json:",omitempty"`
 	Platform_version_active_codenames         []string `json:",omitempty"`
 	Platform_vndk_version                     *string  `json:",omitempty"`
 	Platform_systemsdk_versions               []string `json:",omitempty"`
