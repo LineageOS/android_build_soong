@@ -51,7 +51,6 @@ func testForDanglingRules(ctx Context, config Config) {
 	executable := config.PrebuiltBuildTool("ninja")
 
 	commonArgs := []string{}
-	commonArgs = append(commonArgs, config.NinjaArgs()...)
 	commonArgs = append(commonArgs, "-f", config.CombinedNinjaFile())
 	args := append(commonArgs, "-t", "targets", "rule")
 

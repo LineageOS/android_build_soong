@@ -475,7 +475,7 @@ type SdkMemberType interface {
 	// properties. The dependencies must be added with the supplied tag.
 	//
 	// The BottomUpMutatorContext provided is for the SDK module.
-	AddDependencies(mctx BottomUpMutatorContext, dependencyTag blueprint.DependencyTag, names []string)
+	AddDependencies(ctx SdkDependencyContext, dependencyTag blueprint.DependencyTag, names []string)
 
 	// Return true if the supplied module is an instance of this member type.
 	//
@@ -529,6 +529,12 @@ type SdkMemberType interface {
 	CreateVariantPropertiesStruct() SdkMemberProperties
 }
 
+// SdkDependencyContext provides access to information needed by the SdkMemberType.AddDependencies()
+// implementations.
+type SdkDependencyContext interface {
+	BottomUpMutatorContext
+}
+
 // Base type for SdkMemberType implementations.
 type SdkMemberTypeBase struct {
 	PropertyName string
@@ -570,9 +576,6 @@ func (b *SdkMemberTypeBase) UsesSourceModuleTypeInSnapshot() bool {
 type SdkMemberTypesRegistry struct {
 	// The list of types sorted by property name.
 	list []SdkMemberType
-
-	// The key that uniquely identifies this registry instance.
-	key OnceKey
 }
 
 func (r *SdkMemberTypesRegistry) copyAndAppend(memberType SdkMemberType) *SdkMemberTypesRegistry {
@@ -592,18 +595,9 @@ func (r *SdkMemberTypesRegistry) copyAndAppend(memberType SdkMemberType) *SdkMem
 		return t1.SdkPropertyName() < t2.SdkPropertyName()
 	})
 
-	// Generate a key that identifies the slice of SdkMemberTypes by joining the property names
-	// from all the SdkMemberType .
-	var properties []string
-	for _, t := range list {
-		properties = append(properties, t.SdkPropertyName())
-	}
-	key := NewOnceKey(strings.Join(properties, "|"))
-
 	// Create a new registry so the pointer uniquely identifies the set of registered types.
 	return &SdkMemberTypesRegistry{
 		list: list,
-		key:  key,
 	}
 }
 

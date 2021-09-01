@@ -384,9 +384,6 @@ type builderFlags struct {
 
 	systemIncludeFlags string
 
-	// True if static libraries should be grouped (using `-Wl,--start-group` and `-Wl,--end-group`).
-	groupStaticLibs bool
-
 	proto            android.ProtoFlags
 	protoC           bool // If true, compile protos as `.c` files. Otherwise, output as `.cc`.
 	protoOptionsFile bool // If true, output a proto options file.
@@ -646,7 +643,7 @@ func transformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 				OrderOnly: pathDeps,
 				Args: map[string]string{
 					"cFlags":    moduleToolingFlags,
-					"tidyFlags": flags.tidyFlags,
+					"tidyFlags": config.TidyFlagsForSrcFile(srcFile, flags.tidyFlags),
 				},
 			})
 		}
@@ -752,13 +749,7 @@ func transformObjToDynamicBinary(ctx android.ModuleContext,
 		}
 	}
 
-	if flags.groupStaticLibs && !ctx.Darwin() && len(staticLibs) > 0 {
-		libFlagsList = append(libFlagsList, "-Wl,--start-group")
-	}
 	libFlagsList = append(libFlagsList, staticLibs.Strings()...)
-	if flags.groupStaticLibs && !ctx.Darwin() && len(staticLibs) > 0 {
-		libFlagsList = append(libFlagsList, "-Wl,--end-group")
-	}
 
 	if groupLate && !ctx.Darwin() && len(lateStaticLibs) > 0 {
 		libFlagsList = append(libFlagsList, "-Wl,--start-group")
