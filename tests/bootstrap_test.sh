@@ -144,7 +144,7 @@ EOF
   run_soong
   local ninja_mtime1=$(stat -c "%y" out/soong/build.ninja)
 
-  local glob_deps_file=out/soong/.bootstrap/globs/0.d
+  local glob_deps_file=out/soong/globs/build/0.d
 
   if [ -e "$glob_deps_file" ]; then
     fail "Glob deps file unexpectedly written on first build"
