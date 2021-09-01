@@ -739,6 +739,20 @@ func (c *configImpl) SoongOutDir() string {
 	return filepath.Join(c.OutDir(), "soong")
 }
 
+func (c *configImpl) PrebuiltOS() string {
+	switch runtime.GOOS {
+	case "linux":
+		return "linux-x86"
+	case "darwin":
+		return "darwin-x86"
+	default:
+		panic("Unknown GOOS")
+	}
+}
+func (c *configImpl) HostToolDir() string {
+	return filepath.Join(c.SoongOutDir(), "host", c.PrebuiltOS(), "bin")
+}
+
 func (c *configImpl) MainNinjaFile() string {
 	return shared.JoinPath(c.SoongOutDir(), "build.ninja")
 }
