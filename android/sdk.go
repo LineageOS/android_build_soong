@@ -401,26 +401,26 @@ type SdkMemberTypeDependencyTag interface {
 	ExportMember() bool
 }
 
-var _ SdkMemberTypeDependencyTag = (*sdkMemberDependencyTag)(nil)
-var _ ReplaceSourceWithPrebuilt = (*sdkMemberDependencyTag)(nil)
+var _ SdkMemberTypeDependencyTag = (*sdkMemberTypeDependencyTag)(nil)
+var _ ReplaceSourceWithPrebuilt = (*sdkMemberTypeDependencyTag)(nil)
 
-type sdkMemberDependencyTag struct {
+type sdkMemberTypeDependencyTag struct {
 	blueprint.BaseDependencyTag
 	memberType SdkMemberType
 	export     bool
 }
 
-func (t *sdkMemberDependencyTag) SdkMemberType(_ Module) SdkMemberType {
+func (t *sdkMemberTypeDependencyTag) SdkMemberType(_ Module) SdkMemberType {
 	return t.memberType
 }
 
-func (t *sdkMemberDependencyTag) ExportMember() bool {
+func (t *sdkMemberTypeDependencyTag) ExportMember() bool {
 	return t.export
 }
 
 // Prevent dependencies from the sdk/module_exports onto their members from being
 // replaced with a preferred prebuilt.
-func (t *sdkMemberDependencyTag) ReplaceSourceWithPrebuilt() bool {
+func (t *sdkMemberTypeDependencyTag) ReplaceSourceWithPrebuilt() bool {
 	return false
 }
 
@@ -428,7 +428,7 @@ func (t *sdkMemberDependencyTag) ReplaceSourceWithPrebuilt() bool {
 // dependencies added by the tag to be added to the sdk as the specified SdkMemberType and exported
 // (or not) as specified by the export parameter.
 func DependencyTagForSdkMemberType(memberType SdkMemberType, export bool) SdkMemberTypeDependencyTag {
-	return &sdkMemberDependencyTag{memberType: memberType, export: export}
+	return &sdkMemberTypeDependencyTag{memberType: memberType, export: export}
 }
 
 // Interface that must be implemented for every type that can be a member of an
@@ -610,8 +610,10 @@ func (r *SdkMemberTypesRegistry) UniqueOnceKey() OnceKey {
 	return NewCustomOnceKey(r)
 }
 
-// The set of registered SdkMemberTypes, one for sdk module and one for module_exports.
+// The set of registered SdkMemberTypes for module_exports modules.
 var ModuleExportsMemberTypes = &SdkMemberTypesRegistry{}
+
+// The set of registered SdkMemberTypes for sdk modules.
 var SdkMemberTypes = &SdkMemberTypesRegistry{}
 
 // Register an SdkMemberType object to allow them to be used in the sdk and sdk_snapshot module
