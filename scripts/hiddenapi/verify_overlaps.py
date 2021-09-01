@@ -13,8 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""
-Verify that one set of hidden API flags is a subset of another.
+"""Verify that one set of hidden API flags is a subset of another.
 """
 
 import argparse
@@ -22,9 +21,9 @@ import csv
 import sys
 from itertools import chain
 
+#pylint: disable=line-too-long
 class InteriorNode:
-    """
-    An interior node in a trie.
+    """An interior node in a trie.
 
     Each interior node has a dict that maps from an element of a signature to
     either another interior node or a leaf. Each interior node represents either
@@ -52,19 +51,21 @@ class InteriorNode:
 
     Attributes:
         nodes: a dict from an element of the signature to the Node/Leaf
-        containing the next element/value.
+          containing the next element/value.
     """
+    #pylint: enable=line-too-long
+
     def __init__(self):
         self.nodes = {}
 
+    #pylint: disable=line-too-long
     def signatureToElements(self, signature):
-        """
-        Split a signature or a prefix into a number of elements:
+        """Split a signature or a prefix into a number of elements:
         1. The packages (excluding the leading L preceding the first package).
         2. The class names, from outermost to innermost.
         3. The member signature.
-
-        e.g. Ljava/lang/Character$UnicodeScript;->of(I)Ljava/lang/Character$UnicodeScript;
+        e.g.
+        Ljava/lang/Character$UnicodeScript;->of(I)Ljava/lang/Character$UnicodeScript;
         will be broken down into these elements:
         1. package:java
         2. package:lang
@@ -88,19 +89,21 @@ class InteriorNode:
         elements = parts[0].split("/")
         packages = elements[0:-1]
         className = elements[-1]
-        if className == "*" or className == "**":
+        if className in ("*" , "**"): #pylint: disable=no-else-return
             # Cannot specify a wildcard and target a specific member
             if len(member) != 0:
-                raise Exception("Invalid signature %s: contains wildcard %s and member signature %s"
-                                % (signature, className, member[0]))
+                raise Exception(
+                    "Invalid signature %s: contains wildcard %s and member " \
+                    "signature %s"
+                    % (signature, className, member[0]))
             wildcard = [className]
             # Assemble the parts into a single list, adding prefixes to identify
             # the different parts.
             #  0 - package:java
             #  1 - package:lang
             #  2 - *
-            return list(chain(map(lambda x : "package:" + x, packages),
-                              wildcard))
+            return list(
+                chain(["package:" + x for x in packages], wildcard))
         else:
             # Split the class name into outer / inner classes
             #  0 - Character
@@ -113,13 +116,16 @@ class InteriorNode:
             #  2 - class:Character
             #  3 - class:UnicodeScript
             #  4 - member:of(I)Ljava/lang/Character$UnicodeScript;
-            return list(chain(map(lambda x : "package:" + x, packages),
-                              map(lambda x : "class:" + x, classes),
-                              map(lambda x : "member:" + x, member)))
+            return list(
+                chain(
+                    ["package:" + x for x in packages],
+                    ["class:" + x for x in classes],
+                    ["member:" + x for x in member]))
+    #pylint: enable=line-too-long
 
     def add(self, signature, value):
-        """
-        Associate the value with the specific signature.
+        """Associate the value with the specific signature.
+
         :param signature: the member signature
         :param value: the value to associated with the signature
         :return: n/a
@@ -132,21 +138,22 @@ class InteriorNode:
             if element in node.nodes:
                 node = node.nodes[element]
             else:
-                next = InteriorNode()
-                node.nodes[element] = next
-                node = next
+                next_node = InteriorNode()
+                node.nodes[element] = next_node
+                node = next_node
         # Add a Leaf containing the value and associate it with the member
         # signature within the class.
         lastElement = elements[-1]
         if not lastElement.startswith("member:"):
-            raise Exception("Invalid signature: %s, does not identify a specific member" % signature)
+            raise Exception(
+                "Invalid signature: %s, does not identify a specific member" %
+                signature)
         if lastElement in node.nodes:
             raise Exception("Duplicate signature: %s" % signature)
         node.nodes[lastElement] = Leaf(value)
 
     def getMatchingRows(self, pattern):
-        """
-        Get the values (plural) associated with the pattern.
+        """Get the values (plural) associated with the pattern.
 
         e.g. If the pattern is a full signature then this will return a list
         containing the value associated with that signature.
@@ -175,13 +182,13 @@ class InteriorNode:
         elements = self.signatureToElements(pattern)
         node = self
         # Include all values from this node and all its children.
-        selector = lambda x : True
+        selector = lambda x: True
         lastElement = elements[-1]
-        if lastElement == "*" or lastElement == "**":
+        if lastElement in ("*", "**"):
             elements = elements[:-1]
             if lastElement == "*":
                 # Do not include values from sub-packages.
-                selector = lambda x : not x.startswith("package:")
+                selector = lambda x: not x.startswith("package:")
         for element in elements:
             if element in node.nodes:
                 node = node.nodes[element]
@@ -190,19 +197,18 @@ class InteriorNode:
         return chain.from_iterable(node.values(selector))
 
     def values(self, selector):
-        """
-        :param selector: a function that can be applied to a key in the nodes
+        """:param selector: a function that can be applied to a key in the nodes
         attribute to determine whether to return its values.
-        :return: A list of iterables of all the values associated with this
-        node and its children.
+
+        :return: A list of iterables of all the values associated with
+        this node and its children.
         """
         values = []
         self.appendValues(values, selector)
         return values
 
     def appendValues(self, values, selector):
-        """
-        Append the values associated with this node and its children to the
+        """Append the values associated with this node and its children to the
         list.
 
         For each item (key, child) in nodes the child node's values are returned
@@ -216,105 +222,116 @@ class InteriorNode:
         """
         for key, node in self.nodes.items():
             if selector(key):
-                node.appendValues(values, lambda x : True)
+                node.appendValues(values, lambda x: True)
+
 
 class Leaf:
-    """
-    A leaf of the trie
+    """A leaf of the trie
 
     Attributes:
         value: the value associated with this leaf.
     """
+
     def __init__(self, value):
         self.value = value
 
-    def values(self, selector):
-        """
-        :return: A list of a list of the value associated with this node.
+    def values(self, selector): #pylint: disable=unused-argument
+        """:return: A list of a list of the value associated with this node.
         """
         return [[self.value]]
 
-    def appendValues(self, values, selector):
-        """
-        Appends a list of the value associated with this node to the list.
+    def appendValues(self, values, selector): #pylint: disable=unused-argument
+        """Appends a list of the value associated with this node to the list.
+
         :param values: a list of a iterables of values.
         """
         values.append([self.value])
 
-def dict_reader(input):
-    return csv.DictReader(input, delimiter=',', quotechar='|', fieldnames=['signature'])
+
+def dict_reader(csvfile):
+    return csv.DictReader(
+        csvfile, delimiter=",", quotechar="|", fieldnames=["signature"])
+
 
 def read_flag_trie_from_file(file):
-    with open(file, 'r') as stream:
+    with open(file, "r") as stream:
         return read_flag_trie_from_stream(stream)
+
 
 def read_flag_trie_from_stream(stream):
     trie = InteriorNode()
     reader = dict_reader(stream)
     for row in reader:
-        signature = row['signature']
+        signature = row["signature"]
         trie.add(signature, row)
     return trie
 
-def extract_subset_from_monolithic_flags_as_dict_from_file(monolithicTrie, patternsFile):
-    """
-    Extract a subset of flags from the dict containing all the monolithic flags.
+
+def extract_subset_from_monolithic_flags_as_dict_from_file(
+        monolithicTrie, patternsFile):
+    """Extract a subset of flags from the dict containing all the monolithic
+    flags.
 
     :param monolithicFlagsDict: the dict containing all the monolithic flags.
     :param patternsFile: a file containing a list of signature patterns that
     define the subset.
     :return: the dict from signature to row.
     """
-    with open(patternsFile, 'r') as stream:
-        return extract_subset_from_monolithic_flags_as_dict_from_stream(monolithicTrie, stream)
+    with open(patternsFile, "r") as stream:
+        return extract_subset_from_monolithic_flags_as_dict_from_stream(
+            monolithicTrie, stream)
 
-def extract_subset_from_monolithic_flags_as_dict_from_stream(monolithicTrie, stream):
-    """
-    Extract a subset of flags from the trie containing all the monolithic flags.
+
+def extract_subset_from_monolithic_flags_as_dict_from_stream(
+        monolithicTrie, stream):
+    """Extract a subset of flags from the trie containing all the monolithic
+    flags.
 
     :param monolithicTrie: the trie containing all the monolithic flags.
     :param stream: a stream containing a list of signature patterns that define
     the subset.
     :return: the dict from signature to row.
     """
-    dict = {}
+    dict_signature_to_row = {}
     for pattern in stream:
         pattern = pattern.rstrip()
         rows = monolithicTrie.getMatchingRows(pattern)
         for row in rows:
-            signature = row['signature']
-            dict[signature] = row
-    return dict
+            signature = row["signature"]
+            dict_signature_to_row[signature] = row
+    return dict_signature_to_row
+
 
 def read_signature_csv_from_stream_as_dict(stream):
-    """
-    Read the csv contents from the stream into a dict. The first column is assumed to be the
-    signature and used as the key. The whole row is stored as the value.
+    """Read the csv contents from the stream into a dict. The first column is
+    assumed to be the signature and used as the key.
 
+    The whole row is stored as the value.
     :param stream: the csv contents to read
     :return: the dict from signature to row.
     """
-    dict = {}
+    dict_signature_to_row = {}
     reader = dict_reader(stream)
     for row in reader:
-        signature = row['signature']
-        dict[signature] = row
-    return dict
+        signature = row["signature"]
+        dict_signature_to_row[signature] = row
+    return dict_signature_to_row
+
 
 def read_signature_csv_from_file_as_dict(csvFile):
-    """
-    Read the csvFile into a dict. The first column is assumed to be the
-    signature and used as the key. The whole row is stored as the value.
+    """Read the csvFile into a dict. The first column is assumed to be the
+    signature and used as the key.
 
+    The whole row is stored as the value.
     :param csvFile: the csv file to read
     :return: the dict from signature to row.
     """
-    with open(csvFile, 'r') as f:
+    with open(csvFile, "r") as f:
         return read_signature_csv_from_stream_as_dict(f)
 
+
 def compare_signature_flags(monolithicFlagsDict, modularFlagsDict):
-    """
-    Compare the signature flags between the two dicts.
+    """Compare the signature flags between the two dicts.
 
     :param monolithicFlagsDict: the dict containing the subset of the monolithic
     flags that should be equal to the modular flags.
@@ -327,7 +344,8 @@ def compare_signature_flags(monolithicFlagsDict, modularFlagsDict):
     mismatchingSignatures = []
     # Create a sorted set of all the signatures from both the monolithic and
     # modular dicts.
-    allSignatures = sorted(set(chain(monolithicFlagsDict.keys(), modularFlagsDict.keys())))
+    allSignatures = sorted(
+        set(chain(monolithicFlagsDict.keys(), modularFlagsDict.keys())))
     for signature in allSignatures:
         monolithicRow = monolithicFlagsDict.get(signature, {})
         monolithicFlags = monolithicRow.get(None, [])
@@ -337,13 +355,21 @@ def compare_signature_flags(monolithicFlagsDict, modularFlagsDict):
         else:
             modularFlags = ["blocked"]
         if monolithicFlags != modularFlags:
-            mismatchingSignatures.append((signature, modularFlags, monolithicFlags))
+            mismatchingSignatures.append(
+                (signature, modularFlags, monolithicFlags))
     return mismatchingSignatures
 
+
 def main(argv):
-    args_parser = argparse.ArgumentParser(description='Verify that sets of hidden API flags are each a subset of the monolithic flag file.')
-    args_parser.add_argument('monolithicFlags', help='The monolithic flag file')
-    args_parser.add_argument('modularFlags', nargs=argparse.REMAINDER, help='Flags produced by individual bootclasspath_fragment modules')
+    args_parser = argparse.ArgumentParser(
+        description="Verify that sets of hidden API flags are each a subset of "
+        "the monolithic flag file."
+    )
+    args_parser.add_argument("monolithicFlags", help="The monolithic flag file")
+    args_parser.add_argument(
+        "modularFlags",
+        nargs=argparse.REMAINDER,
+        help="Flags produced by individual bootclasspath_fragment modules")
     args = args_parser.parse_args(argv[1:])
 
     # Read in all the flags into the trie
@@ -358,9 +384,13 @@ def main(argv):
         parts = modularPair.split(":")
         modularFlagsPath = parts[0]
         modularPatternsPath = parts[1]
-        modularFlagsDict = read_signature_csv_from_file_as_dict(modularFlagsPath)
-        monolithicFlagsSubsetDict = extract_subset_from_monolithic_flags_as_dict_from_file(monolithicTrie, modularPatternsPath)
-        mismatchingSignatures = compare_signature_flags(monolithicFlagsSubsetDict, modularFlagsDict)
+        modularFlagsDict = read_signature_csv_from_file_as_dict(
+            modularFlagsPath)
+        monolithicFlagsSubsetDict = \
+            extract_subset_from_monolithic_flags_as_dict_from_file(
+            monolithicTrie, modularPatternsPath)
+        mismatchingSignatures = compare_signature_flags(
+            monolithicFlagsSubsetDict, modularFlagsDict)
         if mismatchingSignatures:
             failed = True
             print("ERROR: Hidden API flags are inconsistent:")
@@ -369,11 +399,12 @@ def main(argv):
             for mismatch in mismatchingSignatures:
                 signature = mismatch[0]
                 print()
-                print("< " + ",".join([signature]+ mismatch[1]))
-                print("> " + ",".join([signature]+ mismatch[2]))
+                print("< " + ",".join([signature] + mismatch[1]))
+                print("> " + ",".join([signature] + mismatch[2]))
 
     if failed:
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main(sys.argv)
