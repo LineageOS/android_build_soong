@@ -72,7 +72,7 @@ func (c Config) SoongOutDir() string {
 }
 
 func (c Config) OutDir() string {
-	return c.soongOutDir
+	return c.outDir
 }
 
 func (c Config) RunGoTests() bool {
@@ -138,7 +138,8 @@ type config struct {
 
 	deviceConfig *deviceConfig
 
-	soongOutDir    string // the path of the build output directory
+	outDir         string // The output directory (usually out/)
+	soongOutDir    string
 	moduleListFile string // the path to the file which lists blueprint files to parse.
 
 	runGoTests               bool
@@ -302,9 +303,10 @@ func saveToBazelConfigFile(config *productVariables, outDir string) error {
 
 // NullConfig returns a mostly empty Config for use by standalone tools like dexpreopt_gen that
 // use the android package.
-func NullConfig(soongOutDir string) Config {
+func NullConfig(outDir, soongOutDir string) Config {
 	return Config{
 		config: &config{
+			outDir:      outDir,
 			soongOutDir: soongOutDir,
 			fs:          pathtools.OsFs,
 		},
@@ -338,6 +340,9 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 			ShippingApiLevel:                  stringPtr("30"),
 		},
 
+		outDir: buildDir,
+		// soongOutDir is inconsistent with production (it should be buildDir + "/soong")
+		// but a lot of tests assume this :(
 		soongOutDir:  buildDir,
 		captureBuild: true,
 		env:          envCopy,
@@ -434,6 +439,7 @@ func NewConfig(cmdlineArgs bootstrap.Args, soongOutDir string, availableEnv map[
 
 		env: availableEnv,
 
+		outDir:                   cmdlineArgs.OutDir,
 		soongOutDir:              soongOutDir,
 		runGoTests:               cmdlineArgs.RunGoTests,
 		useValidationsForGoTests: cmdlineArgs.UseValidations,
