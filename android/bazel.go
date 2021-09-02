@@ -120,6 +120,10 @@ const (
 	// allows modules to opt-out.
 	Bp2BuildDefaultTrueRecursively BazelConversionConfigEntry = iota + 1
 
+	// all modules in this package (not recursively) default to bp2build_available: true.
+	// allows modules to opt-out.
+	Bp2BuildDefaultTrue
+
 	// all modules in this package (not recursively) default to bp2build_available: false.
 	// allows modules to opt-in.
 	Bp2BuildDefaultFalse
@@ -141,6 +145,7 @@ var (
 		"build/bazel/bazel_skylib":/* recursive = */ true,
 		"build/bazel/rules":/* recursive = */ true,
 		"build/bazel/rules_cc":/* recursive = */ true,
+		"build/bazel/scripts":/* recursive = */ true,
 		"build/bazel/tests":/* recursive = */ true,
 		"build/bazel/platforms":/* recursive = */ true,
 		"build/bazel/product_variables":/* recursive = */ true,
@@ -164,7 +169,9 @@ var (
 		"build/bazel/examples/apex/minimal": Bp2BuildDefaultTrueRecursively,
 		"development/sdk":                   Bp2BuildDefaultTrueRecursively,
 		"external/gwp_asan":                 Bp2BuildDefaultTrueRecursively,
+		"external/brotli":                   Bp2BuildDefaultTrue,
 		"system/core/libcutils":             Bp2BuildDefaultTrueRecursively,
+		"system/core/libprocessgroup":       Bp2BuildDefaultTrue,
 		"system/core/property_service/libpropertyinfoparser": Bp2BuildDefaultTrueRecursively,
 		"system/libbase":                  Bp2BuildDefaultTrueRecursively,
 		"system/logging/liblog":           Bp2BuildDefaultTrueRecursively,
@@ -173,6 +180,7 @@ var (
 		"external/arm-optimized-routines": Bp2BuildDefaultTrueRecursively,
 		"external/fmtlib":                 Bp2BuildDefaultTrueRecursively,
 		"external/jemalloc_new":           Bp2BuildDefaultTrueRecursively,
+		"external/libcxx":                 Bp2BuildDefaultTrueRecursively,
 		"external/libcxxabi":              Bp2BuildDefaultTrueRecursively,
 		"external/scudo":                  Bp2BuildDefaultTrueRecursively,
 		"prebuilts/clang/host/linux-x86":  Bp2BuildDefaultTrueRecursively,
@@ -217,6 +225,12 @@ var (
 
 		"gwp_asan_crash_handler", // cc_library, ld.lld: error: undefined symbol: memset
 
+		//system/core/libprocessgroup/...
+		"libprocessgroup", // depends on //system/core/libprocessgroup/cgrouprc:libcgrouprc
+
+		//external/brotli/...
+		"brotli-fuzzer-corpus", // "declared output 'external/brotli/c/fuzz/73231c6592f195ffd41100b8706d1138ff6893b9' was not created by genrule"
+
 		// Tests. Handle later.
 		"libbionic_tests_headers_posix", // http://b/186024507, cc_library_static, sched.h, time.h not found
 		"libjemalloc5_integrationtest",
@@ -237,8 +251,12 @@ var (
 	// Per-module denylist to opt modules out of mixed builds. Such modules will
 	// still be generated via bp2build.
 	mixedBuildsDisabledList = []string{
-		"libc++abi",      // http://b/195970501, cc_library_static, duplicate symbols because it propagates libc objects.
-		"libc++demangle", // http://b/195970501, cc_library_static, duplicate symbols because it propagates libc objects.
+		"libbrotli",           // http://b/198585397, ld.lld: error: bionic/libc/arch-arm64/generic/bionic/memmove.S:95:(.text+0x10): relocation R_AARCH64_CONDBR19 out of range: -1404176 is not in [-1048576, 1048575]; references __memcpy
+		"libc++fs",            // http://b/198403271, Missing symbols/members in the global namespace when referenced from headers in //external/libcxx/includes
+		"libc++_experimental", // http://b/198403271, Missing symbols/members in the global namespace when referenced from headers in //external/libcxx/includes
+		"libc++_static",       // http://b/198403271, Missing symbols/members in the global namespace when referenced from headers in //external/libcxx/includes
+		"libc++abi",           // http://b/195970501, cc_library_static, duplicate symbols because it propagates libc objects.
+		"libc++demangle",      // http://b/195970501, cc_library_static, duplicate symbols because it propagates libc objects.
 	}
 
 	// Used for quicker lookups
@@ -340,11 +358,10 @@ func (b *BazelModuleBase) ConvertWithBp2build(ctx BazelConversionPathContext) bo
 func bp2buildDefaultTrueRecursively(packagePath string, config Bp2BuildConfig) bool {
 	ret := false
 
-	// Return exact matches in the config.
-	if config[packagePath] == Bp2BuildDefaultTrueRecursively {
+	// Check if the package path has an exact match in the config.
+	if config[packagePath] == Bp2BuildDefaultTrue || config[packagePath] == Bp2BuildDefaultTrueRecursively {
 		return true
-	}
-	if config[packagePath] == Bp2BuildDefaultFalse {
+	} else if config[packagePath] == Bp2BuildDefaultFalse {
 		return false
 	}
 
