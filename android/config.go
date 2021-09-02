@@ -75,8 +75,24 @@ func (c Config) OutDir() string {
 	return c.soongOutDir
 }
 
+func (c Config) RunGoTests() bool {
+	return c.runGoTests
+}
+
+func (c Config) UseValidationsForGoTests() bool {
+	return c.useValidationsForGoTests
+}
+
 func (c Config) DebugCompilation() bool {
 	return false // Never compile Go code in the main build for debugging
+}
+
+func (c Config) Subninjas() []string {
+	return []string{}
+}
+
+func (c Config) PrimaryBuilderInvocations() []bootstrap.PrimaryBuilderInvocation {
+	return []bootstrap.PrimaryBuilderInvocation{}
 }
 
 // A DeviceConfig object represents the configuration for a particular device
@@ -124,6 +140,9 @@ type config struct {
 
 	soongOutDir    string // the path of the build output directory
 	moduleListFile string // the path to the file which lists blueprint files to parse.
+
+	runGoTests               bool
+	useValidationsForGoTests bool
 
 	env       map[string]string
 	envLock   sync.Mutex
@@ -396,8 +415,8 @@ func TestArchConfig(buildDir string, env map[string]string, bp string, fs map[st
 // bootstrap run. Only per-run data is reset. Data which needs to persist across
 // multiple runs in the same program execution is carried over (such as Bazel
 // context or environment deps).
-func ConfigForAdditionalRun(c Config) (Config, error) {
-	newConfig, err := NewConfig(c.soongOutDir, c.moduleListFile, c.env)
+func ConfigForAdditionalRun(cmdlineArgs bootstrap.Args, c Config) (Config, error) {
+	newConfig, err := NewConfig(cmdlineArgs, c.soongOutDir, c.env)
 	if err != nil {
 		return Config{}, err
 	}
@@ -408,17 +427,19 @@ func ConfigForAdditionalRun(c Config) (Config, error) {
 
 // NewConfig creates a new Config object. The srcDir argument specifies the path
 // to the root source directory. It also loads the config file, if found.
-func NewConfig(soongOutDir string, moduleListFile string, availableEnv map[string]string) (Config, error) {
+func NewConfig(cmdlineArgs bootstrap.Args, soongOutDir string, availableEnv map[string]string) (Config, error) {
 	// Make a config with default options.
 	config := &config{
 		ProductVariablesFileName: filepath.Join(soongOutDir, productVariablesFileName),
 
 		env: availableEnv,
 
-		soongOutDir:       soongOutDir,
-		multilibConflicts: make(map[ArchType]bool),
+		soongOutDir:              soongOutDir,
+		runGoTests:               cmdlineArgs.RunGoTests,
+		useValidationsForGoTests: cmdlineArgs.UseValidations,
+		multilibConflicts:        make(map[ArchType]bool),
 
-		moduleListFile: moduleListFile,
+		moduleListFile: cmdlineArgs.ModuleListFile,
 		fs:             pathtools.NewOsFs(absSrcDir),
 	}
 
