@@ -16,6 +16,7 @@ bootstrap_go_package {
     srcs: [
         "bp.go",
         "exports.go",
+        "member_type.go",
         "sdk.go",
         "update.go",
     ],
