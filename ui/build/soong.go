@@ -71,10 +71,14 @@ func writeEnvironmentFile(ctx Context, envFile string, envDeps map[string]string
 // A tiny struct used to tell Blueprint that it's in bootstrap mode. It would
 // probably be nicer to use a flag in bootstrap.Args instead.
 type BlueprintConfig struct {
-	toolDir          string
-	soongOutDir      string
-	outDir           string
-	debugCompilation bool
+	toolDir                   string
+	soongOutDir               string
+	outDir                    string
+	runGoTests                bool
+	useValidations            bool
+	debugCompilation          bool
+	subninjas                 []string
+	primaryBuilderInvocations []bootstrap.PrimaryBuilderInvocation
 }
 
 func (c BlueprintConfig) HostToolDir() string {
@@ -89,8 +93,24 @@ func (c BlueprintConfig) OutDir() string {
 	return c.outDir
 }
 
+func (c BlueprintConfig) RunGoTests() bool {
+	return c.runGoTests
+}
+
+func (c BlueprintConfig) UseValidationsForGoTests() bool {
+	return c.useValidations
+}
+
 func (c BlueprintConfig) DebugCompilation() bool {
 	return c.debugCompilation
+}
+
+func (c BlueprintConfig) Subninjas() []string {
+	return c.subninjas
+}
+
+func (c BlueprintConfig) PrimaryBuilderInvocations() []bootstrap.PrimaryBuilderInvocation {
+	return c.primaryBuilderInvocations
 }
 
 func environmentArgs(config Config, suffix string) []string {
@@ -211,10 +231,14 @@ func bootstrapBlueprint(ctx Context, config Config) {
 	blueprintCtx := blueprint.NewContext()
 	blueprintCtx.SetIgnoreUnknownModuleTypes(true)
 	blueprintConfig := BlueprintConfig{
-		soongOutDir:      config.SoongOutDir(),
-		toolDir:          config.HostToolDir(),
-		outDir:           config.OutDir(),
-		debugCompilation: os.Getenv("SOONG_DELVE") != "",
+		soongOutDir:               config.SoongOutDir(),
+		toolDir:                   config.HostToolDir(),
+		outDir:                    config.OutDir(),
+		runGoTests:                !config.skipSoongTests,
+		useValidations:            true,
+		debugCompilation:          os.Getenv("SOONG_DELVE") != "",
+		subninjas:                 args.Subninjas,
+		primaryBuilderInvocations: args.PrimaryBuilderInvocations,
 	}
 
 	args.EmptyNinjaFile = false
