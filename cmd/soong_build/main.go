@@ -113,8 +113,8 @@ func newContext(configuration android.Config, prepareBuildActions bool) *android
 	return ctx
 }
 
-func newConfig(outDir string, availableEnv map[string]string) android.Config {
-	configuration, err := android.NewConfig(outDir, cmdlineArgs.ModuleListFile, availableEnv)
+func newConfig(cmdlineArgs bootstrap.Args, outDir string, availableEnv map[string]string) android.Config {
+	configuration, err := android.NewConfig(cmdlineArgs, outDir, availableEnv)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s", err)
 		os.Exit(1)
@@ -140,13 +140,13 @@ func runMixedModeBuild(configuration android.Config, firstCtx *android.Context, 
 		os.Exit(1)
 	}
 	// Second pass: Full analysis, using the bazel command results. Output ninja file.
-	secondConfig, err := android.ConfigForAdditionalRun(configuration)
+	secondArgs = cmdlineArgs
+	secondConfig, err := android.ConfigForAdditionalRun(secondArgs, configuration)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s", err)
 		os.Exit(1)
 	}
 	secondCtx := newContext(secondConfig, true)
-	secondArgs = cmdlineArgs
 	ninjaDeps := bootstrap.RunBlueprint(secondArgs, secondCtx.Context, secondConfig)
 	ninjaDeps = append(ninjaDeps, extraNinjaDeps...)
 
@@ -298,7 +298,7 @@ func main() {
 
 	availableEnv := parseAvailableEnv()
 
-	configuration := newConfig(outDir, availableEnv)
+	configuration := newConfig(cmdlineArgs, outDir, availableEnv)
 	extraNinjaDeps := []string{
 		configuration.ProductVariablesFileName,
 		usedEnvFile,
