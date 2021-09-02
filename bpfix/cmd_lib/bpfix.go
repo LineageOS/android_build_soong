@@ -114,7 +114,7 @@ func processFile(filename string, in io.Reader, out io.Writer, fixRequest bpfix.
 
 func makeFileVisitor(fixRequest bpfix.FixRequest) func(string, os.FileInfo, error) error {
 	return func(path string, f os.FileInfo, err error) error {
-		if err == nil && (f.Name() == "Blueprints" || f.Name() == "Android.bp") {
+		if err == nil && f.Name() == "Android.bp" {
 			err = openAndProcess(path, os.Stdout, fixRequest)
 		}
 		if err != nil {
