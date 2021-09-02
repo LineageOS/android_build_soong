@@ -15,34 +15,39 @@
 # limitations under the License.
 """Unit tests for Hidden API list generation."""
 import unittest
-from generate_hiddenapi_lists import *
+from generate_hiddenapi_lists import *  # pylint: disable=wildcard-import,unused-wildcard-import
+
 
 class TestHiddenapiListGeneration(unittest.TestCase):
-
     def test_filter_apis(self):
         # Initialize flags so that A and B are put on the allow list and
         # C, D, E are left unassigned. Try filtering for the unassigned ones.
         flags = FlagsDict()
-        flags.parse_and_merge_csv(['A,' + FLAG_SDK, 'B,' + FLAG_SDK,
-                        'C', 'D', 'E'])
+        flags.parse_and_merge_csv(
+            ['A,' + FLAG_SDK, 'B,' + FLAG_SDK, 'C', 'D', 'E']
+        )
         filter_set = flags.filter_apis(lambda api, flags: not flags)
         self.assertTrue(isinstance(filter_set, set))
-        self.assertEqual(filter_set, set([ 'C', 'D', 'E' ]))
+        self.assertEqual(filter_set, set(['C', 'D', 'E']))
 
     def test_get_valid_subset_of_unassigned_keys(self):
         # Create flags where only A is unassigned.
         flags = FlagsDict()
         flags.parse_and_merge_csv(['A,' + FLAG_SDK, 'B', 'C'])
         flags.assign_flag(FLAG_UNSUPPORTED, set(['C']))
-        self.assertEqual(flags.generate_csv(),
-            [ 'A,' + FLAG_SDK, 'B', 'C,' + FLAG_UNSUPPORTED ])
+        self.assertEqual(
+            flags.generate_csv(),
+            ['A,' + FLAG_SDK, 'B', 'C,' + FLAG_UNSUPPORTED],
+        )
 
         # Check three things:
         # (1) B is selected as valid unassigned
         # (2) A is not selected because it is assigned to the allow list
         # (3) D is not selected because it is not a valid key
         self.assertEqual(
-            flags.get_valid_subset_of_unassigned_apis(set(['A', 'B', 'D'])), set([ 'B' ]))
+            flags.get_valid_subset_of_unassigned_apis(set(['A', 'B', 'D'])),
+            set(['B']),
+        )
 
     def test_parse_and_merge_csv(self):
         flags = FlagsDict()
@@ -51,41 +56,48 @@ class TestHiddenapiListGeneration(unittest.TestCase):
         self.assertEqual(flags.generate_csv(), [])
 
         # Test new additions.
-        flags.parse_and_merge_csv([
-            'A,' + FLAG_UNSUPPORTED,
-            'B,' + FLAG_BLOCKED + ',' + FLAG_MAX_TARGET_O,
-            'C,' + FLAG_SDK + ',' + FLAG_SYSTEM_API,
-            'D,' + FLAG_UNSUPPORTED + ',' + FLAG_TEST_API,
-            'E,' + FLAG_BLOCKED + ',' + FLAG_TEST_API,
-        ])
-        self.assertEqual(flags.generate_csv(), [
-            'A,' + FLAG_UNSUPPORTED,
-            'B,' + FLAG_BLOCKED + "," + FLAG_MAX_TARGET_O,
-            'C,' + FLAG_SDK + ',' + FLAG_SYSTEM_API,
-            'D,' + FLAG_TEST_API + ',' + FLAG_UNSUPPORTED,
-            'E,' + FLAG_BLOCKED + ',' + FLAG_TEST_API,
-        ])
+        flags.parse_and_merge_csv(
+            [
+                'A,' + FLAG_UNSUPPORTED,
+                'B,' + FLAG_BLOCKED + ',' + FLAG_MAX_TARGET_O,
+                'C,' + FLAG_SDK + ',' + FLAG_SYSTEM_API,
+                'D,' + FLAG_UNSUPPORTED + ',' + FLAG_TEST_API,
+                'E,' + FLAG_BLOCKED + ',' + FLAG_TEST_API,
+            ]
+        )
+        self.assertEqual(
+            flags.generate_csv(),
+            [
+                'A,' + FLAG_UNSUPPORTED,
+                'B,' + FLAG_BLOCKED + "," + FLAG_MAX_TARGET_O,
+                'C,' + FLAG_SDK + ',' + FLAG_SYSTEM_API,
+                'D,' + FLAG_TEST_API + ',' + FLAG_UNSUPPORTED,
+                'E,' + FLAG_BLOCKED + ',' + FLAG_TEST_API,
+            ],
+        )
 
         # Test unknown flag.
         with self.assertRaises(AssertionError):
-            flags.parse_and_merge_csv([ 'Z,foo' ])
+            flags.parse_and_merge_csv(['Z,foo'])
 
     def test_assign_flag(self):
         flags = FlagsDict()
         flags.parse_and_merge_csv(['A,' + FLAG_SDK, 'B'])
 
         # Test new additions.
-        flags.assign_flag(FLAG_UNSUPPORTED, set([ 'A', 'B' ]))
-        self.assertEqual(flags.generate_csv(),
-            [ 'A,' + FLAG_SDK + "," + FLAG_UNSUPPORTED, 'B,' + FLAG_UNSUPPORTED ])
+        flags.assign_flag(FLAG_UNSUPPORTED, set(['A', 'B']))
+        self.assertEqual(
+            flags.generate_csv(),
+            ['A,' + FLAG_SDK + "," + FLAG_UNSUPPORTED, 'B,' + FLAG_UNSUPPORTED],
+        )
 
         # Test invalid API signature.
         with self.assertRaises(AssertionError):
-            flags.assign_flag(FLAG_SDK, set([ 'C' ]))
+            flags.assign_flag(FLAG_SDK, set(['C']))
 
         # Test invalid flag.
         with self.assertRaises(AssertionError):
-            flags.assign_flag('foo', set([ 'A' ]))
+            flags.assign_flag('foo', set(['A']))
 
     def test_extract_package(self):
         signature = 'Lcom/foo/bar/Baz;->method1()Lcom/bar/Baz;'
@@ -99,6 +111,7 @@ class TestHiddenapiListGeneration(unittest.TestCase):
         signature = 'Lcom/foo_bar/baz/MyClass;->method3()V'
         expected_package = 'com.foo_bar.baz'
         self.assertEqual(extract_package(signature), expected_package)
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

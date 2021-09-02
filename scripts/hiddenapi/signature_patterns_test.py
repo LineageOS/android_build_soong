@@ -18,27 +18,32 @@
 import io
 import unittest
 
-from signature_patterns import *
+from signature_patterns import * #pylint: disable=unused-wildcard-import,wildcard-import
+
 
 class TestGeneratedPatterns(unittest.TestCase):
-
-    def produce_patterns_from_string(self, csv):
-        with io.StringIO(csv) as f:
+    def produce_patterns_from_string(self, csvdata):
+        with io.StringIO(csvdata) as f:
             return produce_patterns_from_stream(f)
 
     def test_generate(self):
-        patterns = self.produce_patterns_from_string('''
+        #pylint: disable=line-too-long
+        patterns = self.produce_patterns_from_string(
+            '''
 Ljava/lang/ProcessBuilder$Redirect$1;-><init>()V,blocked
 Ljava/lang/Character$UnicodeScript;->of(I)Ljava/lang/Character$UnicodeScript;,public-api
 Ljava/lang/Object;->hashCode()I,public-api,system-api,test-api
 Ljava/lang/Object;->toString()Ljava/lang/String;,blocked
-''')
+'''
+        )
+        #pylint: enable=line-too-long
         expected = [
             "java/lang/Character",
             "java/lang/Object",
             "java/lang/ProcessBuilder",
         ]
         self.assertEqual(expected, patterns)
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
