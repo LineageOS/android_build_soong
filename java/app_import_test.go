@@ -15,6 +15,7 @@
 package java
 
 import (
+	"fmt"
 	"reflect"
 	"regexp"
 	"strings"
@@ -653,6 +654,77 @@ func TestAndroidTestImport_Preprocessed(t *testing.T) {
 		}
 		if variant.MaybeOutput("zip-aligned/"+apkName).Rule != nil {
 			t.Errorf("aligning rule shouldn't be for preprocessed")
+		}
+	}
+}
+
+func TestAndroidTestImport_UncompressDex(t *testing.T) {
+	testCases := []struct {
+		name string
+		bp   string
+	}{
+		{
+			name: "normal",
+			bp: `
+				android_app_import {
+					name: "foo",
+					presigned: true,
+					apk: "prebuilts/apk/app.apk",
+				}
+			`,
+		},
+		{
+			name: "privileged",
+			bp: `
+				android_app_import {
+					name: "foo",
+					presigned: true,
+					privileged: true,
+					apk: "prebuilts/apk/app.apk",
+				}
+			`,
+		},
+	}
+
+	test := func(t *testing.T, bp string, unbundled bool, dontUncompressPrivAppDexs bool) {
+		t.Helper()
+
+		result := android.GroupFixturePreparers(
+			prepareForJavaTest,
+			android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+				if unbundled {
+					variables.Unbundled_build = proptools.BoolPtr(true)
+				}
+				variables.UncompressPrivAppDex = proptools.BoolPtr(!dontUncompressPrivAppDexs)
+			}),
+		).RunTestWithBp(t, bp)
+
+		foo := result.ModuleForTests("foo", "android_common")
+		actual := foo.MaybeRule("uncompress-dex").Rule != nil
+
+		expect := !unbundled
+		if strings.Contains(bp, "privileged: true") {
+			if dontUncompressPrivAppDexs {
+				expect = false
+			} else {
+				// TODO(b/194504107): shouldn't priv-apps be always uncompressed unless
+				// DONT_UNCOMPRESS_PRIV_APPS_DEXS is true (regardless of unbundling)?
+				// expect = true
+			}
+		}
+
+		android.AssertBoolEquals(t, "uncompress dex", expect, actual)
+	}
+
+	for _, unbundled := range []bool{false, true} {
+		for _, dontUncompressPrivAppDexs := range []bool{false, true} {
+			for _, tt := range testCases {
+				name := fmt.Sprintf("%s,unbundled:%t,dontUncompressPrivAppDexs:%t",
+					tt.name, unbundled, dontUncompressPrivAppDexs)
+				t.Run(name, func(t *testing.T) {
+					test(t, tt.bp, unbundled, dontUncompressPrivAppDexs)
+				})
+			}
 		}
 	}
 }
