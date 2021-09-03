@@ -13,7 +13,7 @@ var packageTests = []struct {
 	{
 		name: "package must not accept visibility and name properties",
 		fs: map[string][]byte{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				package {
 					name: "package",
 					visibility: ["//visibility:private"],
@@ -21,21 +21,21 @@ var packageTests = []struct {
 				}`),
 		},
 		expectedErrors: []string{
-			`top/Blueprints:5:14: unrecognized property "licenses"`,
-			`top/Blueprints:3:10: unrecognized property "name"`,
-			`top/Blueprints:4:16: unrecognized property "visibility"`,
+			`top/Android.bp:5:14: unrecognized property "licenses"`,
+			`top/Android.bp:3:10: unrecognized property "name"`,
+			`top/Android.bp:4:16: unrecognized property "visibility"`,
 		},
 	},
 	{
 		name: "multiple packages in separate directories",
 		fs: map[string][]byte{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				package {
 				}`),
-			"other/Blueprints": []byte(`
+			"other/Android.bp": []byte(`
 				package {
 				}`),
-			"other/nested/Blueprints": []byte(`
+			"other/nested/Android.bp": []byte(`
 				package {
 				}`),
 		},
@@ -43,7 +43,7 @@ var packageTests = []struct {
 	{
 		name: "package must not be specified more than once per package",
 		fs: map[string][]byte{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				package {
 					default_visibility: ["//visibility:private"],
 					default_applicable_licenses: ["license"],
