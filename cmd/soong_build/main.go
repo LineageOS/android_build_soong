@@ -35,7 +35,7 @@ import (
 
 var (
 	topDir           string
-	outDir           string
+	soongOutDir      string
 	availableEnvFile string
 	usedEnvFile      string
 
@@ -55,13 +55,12 @@ var (
 func init() {
 	// Flags that make sense in every mode
 	flag.StringVar(&topDir, "top", "", "Top directory of the Android source tree")
-	flag.StringVar(&outDir, "out", "", "Soong output directory (usually $TOP/out/soong)")
+	flag.StringVar(&soongOutDir, "soong_out", "", "Soong output directory (usually $TOP/out/soong)")
 	flag.StringVar(&availableEnvFile, "available_env", "", "File containing available environment variables")
 	flag.StringVar(&usedEnvFile, "used_env", "", "File containing used environment variables")
 	flag.StringVar(&globFile, "globFile", "build-globs.ninja", "the Ninja file of globs to output")
 	flag.StringVar(&globListDir, "globListDir", "", "the directory containing the glob list files")
-	flag.StringVar(&cmdlineArgs.SoongOutDir, "b", ".", "the build output directory")
-	flag.StringVar(&cmdlineArgs.OutDir, "n", "", "the ninja builddir directory")
+	flag.StringVar(&cmdlineArgs.OutDir, "out", "", "the ninja builddir directory")
 	flag.StringVar(&cmdlineArgs.ModuleListFile, "l", "", "file that lists filepaths to parse")
 
 	// Debug flags
@@ -113,8 +112,8 @@ func newContext(configuration android.Config, prepareBuildActions bool) *android
 	return ctx
 }
 
-func newConfig(outDir string, availableEnv map[string]string) android.Config {
-	configuration, err := android.NewConfig(outDir, cmdlineArgs.ModuleListFile, availableEnv)
+func newConfig(cmdlineArgs bootstrap.Args, outDir string, availableEnv map[string]string) android.Config {
+	configuration, err := android.NewConfig(cmdlineArgs, outDir, availableEnv)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s", err)
 		os.Exit(1)
@@ -140,13 +139,13 @@ func runMixedModeBuild(configuration android.Config, firstCtx *android.Context, 
 		os.Exit(1)
 	}
 	// Second pass: Full analysis, using the bazel command results. Output ninja file.
-	secondConfig, err := android.ConfigForAdditionalRun(configuration)
+	secondArgs = cmdlineArgs
+	secondConfig, err := android.ConfigForAdditionalRun(secondArgs, configuration)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s", err)
 		os.Exit(1)
 	}
 	secondCtx := newContext(secondConfig, true)
-	secondArgs = cmdlineArgs
 	ninjaDeps := bootstrap.RunBlueprint(secondArgs, secondCtx.Context, secondConfig)
 	ninjaDeps = append(ninjaDeps, extraNinjaDeps...)
 
@@ -298,7 +297,7 @@ func main() {
 
 	availableEnv := parseAvailableEnv()
 
-	configuration := newConfig(outDir, availableEnv)
+	configuration := newConfig(cmdlineArgs, soongOutDir, availableEnv)
 	extraNinjaDeps := []string{
 		configuration.ProductVariablesFileName,
 		usedEnvFile,
