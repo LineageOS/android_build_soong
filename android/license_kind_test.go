@@ -14,38 +14,38 @@ var licenseKindTests = []struct {
 	{
 		name: "license_kind must not accept licenses property",
 		fs: map[string][]byte{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				license_kind {
 					name: "top_license",
 					licenses: ["other_license"],
 				}`),
 		},
 		expectedErrors: []string{
-			`top/Blueprints:4:14: unrecognized property "licenses"`,
+			`top/Android.bp:4:14: unrecognized property "licenses"`,
 		},
 	},
 	{
 		name: "bad license_kind",
 		fs: map[string][]byte{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				license_kind {
 					name: "top_notice",
 					conditions: ["notice"],
 				}`),
-			"other/Blueprints": []byte(`
+			"other/Android.bp": []byte(`
 				mock_license {
 					name: "other_notice",
 					license_kinds: ["notice"],
 				}`),
 		},
 		expectedErrors: []string{
-			`other/Blueprints:2:5: "other_notice" depends on undefined module "notice"`,
+			`other/Android.bp:2:5: "other_notice" depends on undefined module "notice"`,
 		},
 	},
 	{
 		name: "good license kind",
 		fs: map[string][]byte{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				license_kind {
 					name: "top_by_exception_only",
 					conditions: ["by_exception_only"],
@@ -55,7 +55,7 @@ var licenseKindTests = []struct {
 					name: "top_proprietary",
 					license_kinds: ["top_by_exception_only"],
 				}`),
-			"other/Blueprints": []byte(`
+			"other/Android.bp": []byte(`
 				mock_license {
 					name: "other_proprietary",
 					license_kinds: ["top_proprietary"],
@@ -65,7 +65,7 @@ var licenseKindTests = []struct {
 	{
 		name: "multiple license kinds",
 		fs: map[string][]byte{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				license_kind {
 					name: "top_notice",
 					conditions: ["notice"],
@@ -85,7 +85,7 @@ var licenseKindTests = []struct {
 					name: "top_proprietary",
 					license_kinds: ["top_by_exception_only"],
 				}`),
-			"other/Blueprints": []byte(`
+			"other/Android.bp": []byte(`
 				mock_license {
 					name: "other_rule",
 					license_kinds: ["top_by_exception_only"],
