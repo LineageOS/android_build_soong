@@ -204,9 +204,9 @@ func (a *AndroidAppImport) shouldUncompressDex(ctx android.ModuleContext) bool {
 		return false
 	}
 
-	// Uncompress dex in APKs of privileged apps
-	if ctx.Config().UncompressPrivAppDex() && a.Privileged() {
-		return true
+	// Uncompress dex in APKs of priv-apps if and only if DONT_UNCOMPRESS_PRIV_APPS_DEXS is false.
+	if a.Privileged() {
+		return ctx.Config().UncompressPrivAppDex()
 	}
 
 	return shouldUncompressDex(ctx, &a.dexpreopter)
