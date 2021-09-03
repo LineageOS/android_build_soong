@@ -20,7 +20,7 @@ var licensesTests = []struct {
 	{
 		name: "invalid module type without licenses property",
 		fs: map[string][]byte{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				mock_bad_module {
 					name: "libexample",
 				}`),
@@ -30,7 +30,7 @@ var licensesTests = []struct {
 	{
 		name: "license must exist",
 		fs: map[string][]byte{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				mock_library {
 					name: "libexample",
 					licenses: ["notice"],
@@ -41,7 +41,7 @@ var licensesTests = []struct {
 	{
 		name: "all good",
 		fs: map[string][]byte{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				license_kind {
 					name: "notice",
 					conditions: ["shownotice"],
@@ -58,12 +58,12 @@ var licensesTests = []struct {
 					name: "libexample1",
 					licenses: ["top_Apache2"],
 				}`),
-			"top/nested/Blueprints": []byte(`
+			"top/nested/Android.bp": []byte(`
 				mock_library {
 					name: "libnested",
 					licenses: ["top_Apache2"],
 				}`),
-			"other/Blueprints": []byte(`
+			"other/Android.bp": []byte(`
 				mock_library {
 					name: "libother",
 					licenses: ["top_Apache2"],
@@ -101,7 +101,7 @@ var licensesTests = []struct {
 		// Check that licenses is the union of the defaults modules.
 		name: "defaults union, basic",
 		fs: map[string][]byte{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				license_kind {
 					name: "top_notice",
 					conditions: ["notice"],
@@ -125,7 +125,7 @@ var licensesTests = []struct {
 					name: "libsamepackage",
 					deps: ["libexample"],
 				}`),
-			"top/nested/Blueprints": []byte(`
+			"top/nested/Android.bp": []byte(`
 				license_kind {
 					name: "nested_notice",
 					conditions: ["notice"],
@@ -140,7 +140,7 @@ var licensesTests = []struct {
 					name: "libnested",
 					deps: ["libexample"],
 				}`),
-			"other/Blueprints": []byte(`
+			"other/Android.bp": []byte(`
 				mock_library {
 					name: "libother",
 					deps: ["libexample"],
@@ -174,7 +174,7 @@ var licensesTests = []struct {
 	{
 		name: "defaults union, multiple defaults",
 		fs: map[string][]byte{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				license {
 					name: "top",
 				}
@@ -194,7 +194,7 @@ var licensesTests = []struct {
 					name: "libsamepackage",
 					deps: ["libexample"],
 				}`),
-			"top/nested/Blueprints": []byte(`
+			"top/nested/Android.bp": []byte(`
 				license {
 					name: "top_nested",
 					license_text: ["LICENSE.txt"],
@@ -203,7 +203,7 @@ var licensesTests = []struct {
 					name: "libnested",
 					deps: ["libexample"],
 				}`),
-			"other/Blueprints": []byte(`
+			"other/Android.bp": []byte(`
 				license {
 					name: "other",
 				}
@@ -211,7 +211,7 @@ var licensesTests = []struct {
 					name: "libother",
 					deps: ["libexample"],
 				}`),
-			"outsider/Blueprints": []byte(`
+			"outsider/Android.bp": []byte(`
 				mock_library {
 					name: "liboutsider",
 					deps: ["libexample"],
@@ -251,7 +251,7 @@ var licensesTests = []struct {
 	{
 		name: "defaults_licenses invalid",
 		fs: map[string][]byte{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				mock_defaults {
 					name: "top_defaults",
 					licenses: ["notice"],
@@ -262,7 +262,7 @@ var licensesTests = []struct {
 	{
 		name: "defaults_licenses overrides package default",
 		fs: map[string][]byte{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				package {
 					default_applicable_licenses: ["by_exception_only"],
 				}
@@ -298,7 +298,7 @@ var licensesTests = []struct {
 	{
 		name: "package default_applicable_licenses must exist",
 		fs: map[string][]byte{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				package {
 					default_applicable_licenses: ["notice"],
 				}`),
@@ -309,7 +309,7 @@ var licensesTests = []struct {
 		// This test relies on the default licenses being legacy_public.
 		name: "package default_applicable_licenses property used when no licenses specified",
 		fs: map[string][]byte{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				package {
 					default_applicable_licenses: ["top_notice"],
 				}
@@ -320,7 +320,7 @@ var licensesTests = []struct {
 				mock_library {
 					name: "libexample",
 				}`),
-			"outsider/Blueprints": []byte(`
+			"outsider/Android.bp": []byte(`
 				mock_library {
 					name: "liboutsider",
 					deps: ["libexample"],
@@ -338,7 +338,7 @@ var licensesTests = []struct {
 	{
 		name: "package default_applicable_licenses not inherited to subpackages",
 		fs: map[string][]byte{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				package {
 					default_applicable_licenses: ["top_notice"],
 				}
@@ -348,7 +348,7 @@ var licensesTests = []struct {
 				mock_library {
 					name: "libexample",
 				}`),
-			"top/nested/Blueprints": []byte(`
+			"top/nested/Android.bp": []byte(`
 				package {
 					default_applicable_licenses: ["outsider"],
 				}
@@ -356,11 +356,11 @@ var licensesTests = []struct {
 				mock_library {
 					name: "libnested",
 				}`),
-			"top/other/Blueprints": []byte(`
+			"top/other/Android.bp": []byte(`
 				mock_library {
 					name: "libother",
 				}`),
-			"outsider/Blueprints": []byte(`
+			"outsider/Android.bp": []byte(`
 				license {
 					name: "outsider",
 				}
@@ -385,7 +385,7 @@ var licensesTests = []struct {
 	{
 		name: "verify that prebuilt dependencies are included",
 		fs: map[string][]byte{
-			"prebuilts/Blueprints": []byte(`
+			"prebuilts/Android.bp": []byte(`
 				license {
 					name: "prebuilt"
 				}
@@ -394,7 +394,7 @@ var licensesTests = []struct {
 					licenses: ["prebuilt"],
 				}`),
 			"top/sources/source_file": nil,
-			"top/sources/Blueprints": []byte(`
+			"top/sources/Android.bp": []byte(`
 				license {
 					name: "top_sources"
 				}
@@ -403,7 +403,7 @@ var licensesTests = []struct {
 					licenses: ["top_sources"],
 				}`),
 			"top/other/source_file": nil,
-			"top/other/Blueprints": []byte(`
+			"top/other/Android.bp": []byte(`
 				source {
 					name: "other",
 					deps: [":module"],
@@ -419,7 +419,7 @@ var licensesTests = []struct {
 	{
 		name: "verify that prebuilt dependencies are ignored for licenses reasons (preferred)",
 		fs: map[string][]byte{
-			"prebuilts/Blueprints": []byte(`
+			"prebuilts/Android.bp": []byte(`
 				license {
 					name: "prebuilt"
 				}
@@ -429,7 +429,7 @@ var licensesTests = []struct {
 					prefer: true,
 				}`),
 			"top/sources/source_file": nil,
-			"top/sources/Blueprints": []byte(`
+			"top/sources/Android.bp": []byte(`
 				license {
 					name: "top_sources"
 				}
@@ -438,7 +438,7 @@ var licensesTests = []struct {
 					licenses: ["top_sources"],
 				}`),
 			"top/other/source_file": nil,
-			"top/other/Blueprints": []byte(`
+			"top/other/Android.bp": []byte(`
 				source {
 					name: "other",
 					deps: [":module"],
