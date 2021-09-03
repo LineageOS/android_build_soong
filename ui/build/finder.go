@@ -15,14 +15,15 @@
 package build
 
 import (
-	"android/soong/finder"
-	"android/soong/finder/fs"
-	"android/soong/ui/logger"
 	"bytes"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"android/soong/finder"
+	"android/soong/finder/fs"
+	"android/soong/ui/logger"
 
 	"android/soong/ui/metrics"
 )
@@ -72,8 +73,6 @@ func NewSourceFinder(ctx Context, config Config) (f *finder.Finder) {
 			"AndroidProducts.mk",
 			// General Soong build definitions, using the Blueprint syntax.
 			"Android.bp",
-			// build/blueprint build definitions, using the Blueprint syntax.
-			"Blueprints",
 			// Bazel build definitions.
 			"BUILD.bazel",
 			// Bazel build definitions.
@@ -165,8 +164,6 @@ func FindSources(ctx Context, config Config, f *finder.Finder) {
 
 	// Recursively look for all Android.bp files
 	androidBps := f.FindNamedAt(".", "Android.bp")
-	// The files are named "Blueprints" only in the build/blueprint directory.
-	androidBps = append(androidBps, f.FindNamedAt("build/blueprint", "Blueprints")...)
 	if len(androidBps) == 0 {
 		ctx.Fatalf("No Android.bp found")
 	}

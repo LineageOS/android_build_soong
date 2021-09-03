@@ -27,7 +27,7 @@ var licenseTests = []struct {
 	{
 		name: "license must not accept licenses property",
 		fs: map[string][]byte{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				license {
 					name: "top_license",
 					visibility: ["//visibility:private"],
@@ -35,13 +35,13 @@ var licenseTests = []struct {
 				}`),
 		},
 		expectedErrors: []string{
-			`top/Blueprints:5:14: unrecognized property "licenses"`,
+			`top/Android.bp:5:14: unrecognized property "licenses"`,
 		},
 	},
 	{
 		name: "private license",
 		fs: map[string][]byte{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				license_kind {
 					name: "top_notice",
 					conditions: ["notice"],
@@ -53,27 +53,27 @@ var licenseTests = []struct {
 					license_kinds: ["top_notice"],
 					visibility: ["//visibility:private"],
 				}`),
-			"other/Blueprints": []byte(`
+			"other/Android.bp": []byte(`
 				rule {
 					name: "arule",
 					licenses: ["top_allowed_as_notice"],
 				}`),
-			"yetmore/Blueprints": []byte(`
+			"yetmore/Android.bp": []byte(`
 				package {
 					default_applicable_licenses: ["top_allowed_as_notice"],
 				}`),
 		},
 		expectedErrors: []string{
-			`other/Blueprints:2:5: module "arule": depends on //top:top_allowed_as_notice ` +
+			`other/Android.bp:2:5: module "arule": depends on //top:top_allowed_as_notice ` +
 				`which is not visible to this module`,
-			`yetmore/Blueprints:2:5: module "//yetmore": depends on //top:top_allowed_as_notice ` +
+			`yetmore/Android.bp:2:5: module "//yetmore": depends on //top:top_allowed_as_notice ` +
 				`which is not visible to this module`,
 		},
 	},
 	{
 		name: "must reference license_kind module",
 		fs: map[string][]byte{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				rule {
 					name: "top_by_exception_only",
 				}
@@ -85,14 +85,14 @@ var licenseTests = []struct {
 				}`),
 		},
 		expectedErrors: []string{
-			`top/Blueprints:6:5: module "top_proprietary": license_kinds property ` +
+			`top/Android.bp:6:5: module "top_proprietary": license_kinds property ` +
 				`"top_by_exception_only" is not a license_kind module`,
 		},
 	},
 	{
 		name: "license_kind module must exist",
 		fs: map[string][]byte{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				license {
 					name: "top_notice_allowed",
 					license_kinds: ["top_notice"],
@@ -100,13 +100,13 @@ var licenseTests = []struct {
 				}`),
 		},
 		expectedErrors: []string{
-			`top/Blueprints:2:5: "top_notice_allowed" depends on undefined module "top_notice"`,
+			`top/Android.bp:2:5: "top_notice_allowed" depends on undefined module "top_notice"`,
 		},
 	},
 	{
 		name: "public license",
 		fs: map[string][]byte{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				license_kind {
 					name: "top_by_exception_only",
 					conditions: ["by_exception_only"],
@@ -118,12 +118,12 @@ var licenseTests = []struct {
 					license_kinds: ["top_by_exception_only"],
 					visibility: ["//visibility:public"],
 				}`),
-			"other/Blueprints": []byte(`
+			"other/Android.bp": []byte(`
 				rule {
 					name: "arule",
 					licenses: ["top_proprietary"],
 				}`),
-			"yetmore/Blueprints": []byte(`
+			"yetmore/Android.bp": []byte(`
 				package {
 					default_applicable_licenses: ["top_proprietary"],
 				}`),
@@ -132,7 +132,7 @@ var licenseTests = []struct {
 	{
 		name: "multiple licenses",
 		fs: map[string][]byte{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				package {
 					default_applicable_licenses: ["top_proprietary"],
 				}
@@ -162,12 +162,12 @@ var licenseTests = []struct {
 					name: "myrule",
 					licenses: ["top_allowed_as_notice", "top_proprietary"]
 				}`),
-			"other/Blueprints": []byte(`
+			"other/Android.bp": []byte(`
 				rule {
 					name: "arule",
 					licenses: ["top_proprietary"],
 				}`),
-			"yetmore/Blueprints": []byte(`
+			"yetmore/Android.bp": []byte(`
 				package {
 					default_applicable_licenses: ["top_proprietary"],
 				}`),

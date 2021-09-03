@@ -16,7 +16,7 @@ var visibilityTests = []struct {
 	{
 		name: "invalid visibility: empty list",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				mock_library {
 					name: "libexample",
 					visibility: [],
@@ -27,7 +27,7 @@ var visibilityTests = []struct {
 	{
 		name: "invalid visibility: empty rule",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				mock_library {
 					name: "libexample",
 					visibility: [""],
@@ -38,7 +38,7 @@ var visibilityTests = []struct {
 	{
 		name: "invalid visibility: unqualified",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				mock_library {
 					name: "libexample",
 					visibility: ["target"],
@@ -49,7 +49,7 @@ var visibilityTests = []struct {
 	{
 		name: "invalid visibility: empty namespace",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				mock_library {
 					name: "libexample",
 					visibility: ["//"],
@@ -60,7 +60,7 @@ var visibilityTests = []struct {
 	{
 		name: "invalid visibility: empty module",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				mock_library {
 					name: "libexample",
 					visibility: [":"],
@@ -71,7 +71,7 @@ var visibilityTests = []struct {
 	{
 		name: "invalid visibility: empty namespace and module",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				mock_library {
 					name: "libexample",
 					visibility: ["//:"],
@@ -82,7 +82,7 @@ var visibilityTests = []struct {
 	{
 		name: "//visibility:unknown",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				mock_library {
 					name: "libexample",
 					visibility: ["//visibility:unknown"],
@@ -93,7 +93,7 @@ var visibilityTests = []struct {
 	{
 		name: "//visibility:xxx mixed",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				mock_library {
 					name: "libexample",
 					visibility: ["//visibility:public", "//namespace"],
@@ -114,7 +114,7 @@ var visibilityTests = []struct {
 	{
 		name: "//visibility:legacy_public",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				mock_library {
 					name: "libexample",
 					visibility: ["//visibility:legacy_public"],
@@ -130,7 +130,7 @@ var visibilityTests = []struct {
 		// the current directory, a nested directory and a directory in a separate tree.
 		name: "//visibility:public",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				mock_library {
 					name: "libexample",
 					visibility: ["//visibility:public"],
@@ -140,12 +140,12 @@ var visibilityTests = []struct {
 					name: "libsamepackage",
 					deps: ["libexample"],
 				}`),
-			"top/nested/Blueprints": []byte(`
+			"top/nested/Android.bp": []byte(`
 				mock_library {
 					name: "libnested",
 					deps: ["libexample"],
 				}`),
-			"other/Blueprints": []byte(`
+			"other/Android.bp": []byte(`
 				mock_library {
 					name: "libother",
 					deps: ["libexample"],
@@ -157,7 +157,7 @@ var visibilityTests = []struct {
 		// directory only.
 		name: "//visibility:private",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				mock_library {
 					name: "libexample",
 					visibility: ["//visibility:private"],
@@ -167,12 +167,12 @@ var visibilityTests = []struct {
 					name: "libsamepackage",
 					deps: ["libexample"],
 				}`),
-			"top/nested/Blueprints": []byte(`
+			"top/nested/Android.bp": []byte(`
 				mock_library {
 					name: "libnested",
 					deps: ["libexample"],
 				}`),
-			"other/Blueprints": []byte(`
+			"other/Android.bp": []byte(`
 				mock_library {
 					name: "libother",
 					deps: ["libexample"],
@@ -189,7 +189,7 @@ var visibilityTests = []struct {
 		// Verify that :__pkg__ allows the module to be referenced from the current directory only.
 		name: ":__pkg__",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				mock_library {
 					name: "libexample",
 					visibility: [":__pkg__"],
@@ -199,12 +199,12 @@ var visibilityTests = []struct {
 					name: "libsamepackage",
 					deps: ["libexample"],
 				}`),
-			"top/nested/Blueprints": []byte(`
+			"top/nested/Android.bp": []byte(`
 				mock_library {
 					name: "libnested",
 					deps: ["libexample"],
 				}`),
-			"other/Blueprints": []byte(`
+			"other/Android.bp": []byte(`
 				mock_library {
 					name: "libother",
 					deps: ["libexample"],
@@ -222,7 +222,7 @@ var visibilityTests = []struct {
 		// the top/nested directory only, not a subdirectory of top/nested and not peak directory.
 		name: "//top/nested",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				mock_library {
 					name: "libexample",
 					visibility: ["//top/nested"],
@@ -232,17 +232,17 @@ var visibilityTests = []struct {
 					name: "libsamepackage",
 					deps: ["libexample"],
 				}`),
-			"top/nested/Blueprints": []byte(`
+			"top/nested/Android.bp": []byte(`
 				mock_library {
 					name: "libnested",
 					deps: ["libexample"],
 				}`),
-			"top/nested/again/Blueprints": []byte(`
+			"top/nested/again/Android.bp": []byte(`
 				mock_library {
 					name: "libnestedagain",
 					deps: ["libexample"],
 				}`),
-			"peak/Blueprints": []byte(`
+			"peak/Android.bp": []byte(`
 				mock_library {
 					name: "libother",
 					deps: ["libexample"],
@@ -260,7 +260,7 @@ var visibilityTests = []struct {
 		// and sub directories but nowhere else.
 		name: ":__subpackages__",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				mock_library {
 					name: "libexample",
 					visibility: [":__subpackages__"],
@@ -270,12 +270,12 @@ var visibilityTests = []struct {
 					name: "libsamepackage",
 					deps: ["libexample"],
 				}`),
-			"top/nested/Blueprints": []byte(`
+			"top/nested/Android.bp": []byte(`
 				mock_library {
 					name: "libnested",
 					deps: ["libexample"],
 				}`),
-			"peak/other/Blueprints": []byte(`
+			"peak/other/Android.bp": []byte(`
 				mock_library {
 					name: "libother",
 					deps: ["libexample"],
@@ -291,7 +291,7 @@ var visibilityTests = []struct {
 		// directory and sub directories but nowhere else.
 		name: "//top/nested:__subpackages__",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				mock_library {
 					name: "libexample",
 					visibility: ["//top/nested:__subpackages__", "//other"],
@@ -301,12 +301,12 @@ var visibilityTests = []struct {
 					name: "libsamepackage",
 					deps: ["libexample"],
 				}`),
-			"top/nested/Blueprints": []byte(`
+			"top/nested/Android.bp": []byte(`
 				mock_library {
 					name: "libnested",
 					deps: ["libexample"],
 				}`),
-			"top/other/Blueprints": []byte(`
+			"top/other/Android.bp": []byte(`
 				mock_library {
 					name: "libother",
 					deps: ["libexample"],
@@ -322,7 +322,7 @@ var visibilityTests = []struct {
 		// the current directory, top/nested and peak and all its subpackages.
 		name: `["//top/nested", "//peak:__subpackages__"]`,
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				mock_library {
 					name: "libexample",
 					visibility: ["//top/nested", "//peak:__subpackages__"],
@@ -332,12 +332,12 @@ var visibilityTests = []struct {
 					name: "libsamepackage",
 					deps: ["libexample"],
 				}`),
-			"top/nested/Blueprints": []byte(`
+			"top/nested/Android.bp": []byte(`
 				mock_library {
 					name: "libnested",
 					deps: ["libexample"],
 				}`),
-			"peak/other/Blueprints": []byte(`
+			"peak/other/Android.bp": []byte(`
 				mock_library {
 					name: "libother",
 					deps: ["libexample"],
@@ -348,7 +348,7 @@ var visibilityTests = []struct {
 		// Verify that //vendor... cannot be used outside vendor apart from //vendor:__subpackages__
 		name: `//vendor`,
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				mock_library {
 					name: "libexample",
 					visibility: ["//vendor:__subpackages__"],
@@ -358,13 +358,13 @@ var visibilityTests = []struct {
 					name: "libsamepackage",
 					visibility: ["//vendor/apps/AcmeSettings"],
 				}`),
-			"vendor/Blueprints": []byte(`
+			"vendor/Android.bp": []byte(`
 				mock_library {
 					name: "libvendorexample",
 					deps: ["libexample"],
 					visibility: ["//vendor/nested"],
 				}`),
-			"vendor/nested/Blueprints": []byte(`
+			"vendor/nested/Android.bp": []byte(`
 				mock_library {
 					name: "libvendornested",
 					deps: ["libexample", "libvendorexample"],
@@ -382,7 +382,7 @@ var visibilityTests = []struct {
 		// Check that visibility is the union of the defaults modules.
 		name: "defaults union, basic",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				mock_defaults {
 					name: "libexample_defaults",
 					visibility: ["//other"],
@@ -396,17 +396,17 @@ var visibilityTests = []struct {
 					name: "libsamepackage",
 					deps: ["libexample"],
 				}`),
-			"top/nested/Blueprints": []byte(`
+			"top/nested/Android.bp": []byte(`
 				mock_library {
 					name: "libnested",
 					deps: ["libexample"],
 				}`),
-			"other/Blueprints": []byte(`
+			"other/Android.bp": []byte(`
 				mock_library {
 					name: "libother",
 					deps: ["libexample"],
 				}`),
-			"outsider/Blueprints": []byte(`
+			"outsider/Android.bp": []byte(`
 				mock_library {
 					name: "liboutsider",
 					deps: ["libexample"],
@@ -420,7 +420,7 @@ var visibilityTests = []struct {
 	{
 		name: "defaults union, multiple defaults",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				mock_defaults {
 					name: "libexample_defaults_1",
 					visibility: ["//other"],
@@ -437,17 +437,17 @@ var visibilityTests = []struct {
 					name: "libsamepackage",
 					deps: ["libexample"],
 				}`),
-			"top/nested/Blueprints": []byte(`
+			"top/nested/Android.bp": []byte(`
 				mock_library {
 					name: "libnested",
 					deps: ["libexample"],
 				}`),
-			"other/Blueprints": []byte(`
+			"other/Android.bp": []byte(`
 				mock_library {
 					name: "libother",
 					deps: ["libexample"],
 				}`),
-			"outsider/Blueprints": []byte(`
+			"outsider/Android.bp": []byte(`
 				mock_library {
 					name: "liboutsider",
 					deps: ["libexample"],
@@ -461,7 +461,7 @@ var visibilityTests = []struct {
 	{
 		name: "//visibility:public mixed with other in defaults",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				mock_defaults {
 					name: "libexample_defaults",
 					visibility: ["//visibility:public", "//namespace"],
@@ -479,7 +479,7 @@ var visibilityTests = []struct {
 	{
 		name: "//visibility:public overriding defaults",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				mock_defaults {
 					name: "libexample_defaults",
 					visibility: ["//namespace"],
@@ -489,7 +489,7 @@ var visibilityTests = []struct {
 					visibility: ["//visibility:public"],
 					defaults: ["libexample_defaults"],
 				}`),
-			"outsider/Blueprints": []byte(`
+			"outsider/Android.bp": []byte(`
 				mock_library {
 					name: "liboutsider",
 					deps: ["libexample"],
@@ -502,7 +502,7 @@ var visibilityTests = []struct {
 	{
 		name: "//visibility:public mixed with other from different defaults 1",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				mock_defaults {
 					name: "libexample_defaults_1",
 					visibility: ["//namespace"],
@@ -515,7 +515,7 @@ var visibilityTests = []struct {
 					name: "libexample",
 					defaults: ["libexample_defaults_1", "libexample_defaults_2"],
 				}`),
-			"outsider/Blueprints": []byte(`
+			"outsider/Android.bp": []byte(`
 				mock_library {
 					name: "liboutsider",
 					deps: ["libexample"],
@@ -525,7 +525,7 @@ var visibilityTests = []struct {
 	{
 		name: "//visibility:public mixed with other from different defaults 2",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				mock_defaults {
 					name: "libexample_defaults_1",
 					visibility: ["//visibility:public"],
@@ -538,7 +538,7 @@ var visibilityTests = []struct {
 					name: "libexample",
 					defaults: ["libexample_defaults_1", "libexample_defaults_2"],
 				}`),
-			"outsider/Blueprints": []byte(`
+			"outsider/Android.bp": []byte(`
 				mock_library {
 					name: "liboutsider",
 					deps: ["libexample"],
@@ -548,7 +548,7 @@ var visibilityTests = []struct {
 	{
 		name: "//visibility:private in defaults",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				mock_defaults {
 					name: "libexample_defaults",
 					visibility: ["//visibility:private"],
@@ -561,12 +561,12 @@ var visibilityTests = []struct {
 					name: "libsamepackage",
 					deps: ["libexample"],
 				}`),
-			"top/nested/Blueprints": []byte(`
+			"top/nested/Android.bp": []byte(`
 				mock_library {
 					name: "libnested",
 					deps: ["libexample"],
 				}`),
-			"other/Blueprints": []byte(`
+			"other/Android.bp": []byte(`
 				mock_library {
 					name: "libother",
 					deps: ["libexample"],
@@ -582,7 +582,7 @@ var visibilityTests = []struct {
 	{
 		name: "//visibility:private mixed with other in defaults",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				mock_defaults {
 					name: "libexample_defaults",
 					visibility: ["//visibility:private", "//namespace"],
@@ -600,7 +600,7 @@ var visibilityTests = []struct {
 	{
 		name: "//visibility:private overriding defaults",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				mock_defaults {
 					name: "libexample_defaults",
 					visibility: ["//namespace"],
@@ -619,7 +619,7 @@ var visibilityTests = []struct {
 	{
 		name: "//visibility:private in defaults overridden",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				mock_defaults {
 					name: "libexample_defaults",
 					visibility: ["//visibility:private"],
@@ -638,7 +638,7 @@ var visibilityTests = []struct {
 	{
 		name: "//visibility:private override //visibility:public",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				mock_defaults {
 					name: "libexample_defaults",
 					visibility: ["//visibility:public"],
@@ -656,7 +656,7 @@ var visibilityTests = []struct {
 	{
 		name: "//visibility:public override //visibility:private",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				mock_defaults {
 					name: "libexample_defaults",
 					visibility: ["//visibility:private"],
@@ -674,7 +674,7 @@ var visibilityTests = []struct {
 	{
 		name: "//visibility:override must be first in the list",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				mock_library {
 					name: "libexample",
 					visibility: ["//other", "//visibility:override", "//namespace"],
@@ -687,7 +687,7 @@ var visibilityTests = []struct {
 	{
 		name: "//visibility:override discards //visibility:private",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				mock_defaults {
 					name: "libexample_defaults",
 					visibility: ["//visibility:private"],
@@ -698,7 +698,7 @@ var visibilityTests = []struct {
 					visibility: ["//visibility:override", "//other"],
 					defaults: ["libexample_defaults"],
 				}`),
-			"other/Blueprints": []byte(`
+			"other/Android.bp": []byte(`
 				mock_library {
 					name: "libother",
 					deps: ["libexample"],
@@ -708,7 +708,7 @@ var visibilityTests = []struct {
 	{
 		name: "//visibility:override discards //visibility:public",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				mock_defaults {
 					name: "libexample_defaults",
 					visibility: ["//visibility:public"],
@@ -719,12 +719,12 @@ var visibilityTests = []struct {
 					visibility: ["//visibility:override", "//other"],
 					defaults: ["libexample_defaults"],
 				}`),
-			"other/Blueprints": []byte(`
+			"other/Android.bp": []byte(`
 				mock_library {
 					name: "libother",
 					deps: ["libexample"],
 				}`),
-			"namespace/Blueprints": []byte(`
+			"namespace/Android.bp": []byte(`
 				mock_library {
 					name: "libnamespace",
 					deps: ["libexample"],
@@ -737,7 +737,7 @@ var visibilityTests = []struct {
 	{
 		name: "//visibility:override discards defaults supplied rules",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				mock_defaults {
 					name: "libexample_defaults",
 					visibility: ["//namespace"],
@@ -748,12 +748,12 @@ var visibilityTests = []struct {
 					visibility: ["//visibility:override", "//other"],
 					defaults: ["libexample_defaults"],
 				}`),
-			"other/Blueprints": []byte(`
+			"other/Android.bp": []byte(`
 				mock_library {
 					name: "libother",
 					deps: ["libexample"],
 				}`),
-			"namespace/Blueprints": []byte(`
+			"namespace/Android.bp": []byte(`
 				mock_library {
 					name: "libnamespace",
 					deps: ["libexample"],
@@ -766,7 +766,7 @@ var visibilityTests = []struct {
 	{
 		name: "//visibility:override can override //visibility:public with //visibility:private",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				mock_defaults {
 					name: "libexample_defaults",
 					visibility: ["//visibility:public"],
@@ -776,7 +776,7 @@ var visibilityTests = []struct {
 					visibility: ["//visibility:override", "//visibility:private"],
 					defaults: ["libexample_defaults"],
 				}`),
-			"namespace/Blueprints": []byte(`
+			"namespace/Android.bp": []byte(`
 				mock_library {
 					name: "libnamespace",
 					deps: ["libexample"],
@@ -789,7 +789,7 @@ var visibilityTests = []struct {
 	{
 		name: "//visibility:override can override //visibility:private with //visibility:public",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				mock_defaults {
 					name: "libexample_defaults",
 					visibility: ["//visibility:private"],
@@ -799,7 +799,7 @@ var visibilityTests = []struct {
 					visibility: ["//visibility:override", "//visibility:public"],
 					defaults: ["libexample_defaults"],
 				}`),
-			"namespace/Blueprints": []byte(`
+			"namespace/Android.bp": []byte(`
 				mock_library {
 					name: "libnamespace",
 					deps: ["libexample"],
@@ -809,7 +809,7 @@ var visibilityTests = []struct {
 	{
 		name: "//visibility:private mixed with itself",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				mock_defaults {
 					name: "libexample_defaults_1",
 					visibility: ["//visibility:private"],
@@ -823,7 +823,7 @@ var visibilityTests = []struct {
 					visibility: ["//visibility:private"],
 					defaults: ["libexample_defaults_1", "libexample_defaults_2"],
 				}`),
-			"outsider/Blueprints": []byte(`
+			"outsider/Android.bp": []byte(`
 				mock_library {
 					name: "liboutsider",
 					deps: ["libexample"],
@@ -839,7 +839,7 @@ var visibilityTests = []struct {
 	{
 		name: "defaults_visibility invalid",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				mock_defaults {
 					name: "top_defaults",
 					defaults_visibility: ["//visibility:invalid"],
@@ -852,7 +852,7 @@ var visibilityTests = []struct {
 	{
 		name: "defaults_visibility overrides package default",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				package {
 					default_visibility: ["//visibility:private"],
 				}
@@ -860,7 +860,7 @@ var visibilityTests = []struct {
 					name: "top_defaults",
 					defaults_visibility: ["//visibility:public"],
 				}`),
-			"outsider/Blueprints": []byte(`
+			"outsider/Android.bp": []byte(`
 				mock_library {
 					name: "liboutsider",
 					defaults: ["top_defaults"],
@@ -872,7 +872,7 @@ var visibilityTests = []struct {
 	{
 		name: "package default_visibility property is checked",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				package {
 					default_visibility: ["//visibility:invalid"],
 				}`),
@@ -883,7 +883,7 @@ var visibilityTests = []struct {
 		// This test relies on the default visibility being legacy_public.
 		name: "package default_visibility property used when no visibility specified",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				package {
 					default_visibility: ["//visibility:private"],
 				}
@@ -891,7 +891,7 @@ var visibilityTests = []struct {
 				mock_library {
 					name: "libexample",
 				}`),
-			"outsider/Blueprints": []byte(`
+			"outsider/Android.bp": []byte(`
 				mock_library {
 					name: "liboutsider",
 					deps: ["libexample"],
@@ -905,7 +905,7 @@ var visibilityTests = []struct {
 	{
 		name: "package default_visibility public does not override visibility private",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				package {
 					default_visibility: ["//visibility:public"],
 				}
@@ -914,7 +914,7 @@ var visibilityTests = []struct {
 					name: "libexample",
 					visibility: ["//visibility:private"],
 				}`),
-			"outsider/Blueprints": []byte(`
+			"outsider/Android.bp": []byte(`
 				mock_library {
 					name: "liboutsider",
 					deps: ["libexample"],
@@ -928,7 +928,7 @@ var visibilityTests = []struct {
 	{
 		name: "package default_visibility private does not override visibility public",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				package {
 					default_visibility: ["//visibility:private"],
 				}
@@ -937,7 +937,7 @@ var visibilityTests = []struct {
 					name: "libexample",
 					visibility: ["//visibility:public"],
 				}`),
-			"outsider/Blueprints": []byte(`
+			"outsider/Android.bp": []byte(`
 				mock_library {
 					name: "liboutsider",
 					deps: ["libexample"],
@@ -947,7 +947,7 @@ var visibilityTests = []struct {
 	{
 		name: "package default_visibility :__subpackages__",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				package {
 					default_visibility: [":__subpackages__"],
 				}
@@ -955,12 +955,12 @@ var visibilityTests = []struct {
 				mock_library {
 					name: "libexample",
 				}`),
-			"top/nested/Blueprints": []byte(`
+			"top/nested/Android.bp": []byte(`
 				mock_library {
 					name: "libnested",
 					deps: ["libexample"],
 				}`),
-			"outsider/Blueprints": []byte(`
+			"outsider/Android.bp": []byte(`
 				mock_library {
 					name: "liboutsider",
 					deps: ["libexample"],
@@ -974,7 +974,7 @@ var visibilityTests = []struct {
 	{
 		name: "package default_visibility inherited to subpackages",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				package {
 					default_visibility: ["//outsider"],
 				}
@@ -983,12 +983,12 @@ var visibilityTests = []struct {
 					name: "libexample",
           visibility: [":__subpackages__"],
 				}`),
-			"top/nested/Blueprints": []byte(`
+			"top/nested/Android.bp": []byte(`
 				mock_library {
 					name: "libnested",
 					deps: ["libexample"],
 				}`),
-			"outsider/Blueprints": []byte(`
+			"outsider/Android.bp": []byte(`
 				mock_library {
 					name: "liboutsider",
 					deps: ["libexample", "libnested"],
@@ -1002,11 +1002,11 @@ var visibilityTests = []struct {
 	{
 		name: "package default_visibility inherited to subpackages",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				package {
 					default_visibility: ["//visibility:private"],
 				}`),
-			"top/nested/Blueprints": []byte(`
+			"top/nested/Android.bp": []byte(`
 				package {
 					default_visibility: ["//outsider"],
 				}
@@ -1014,11 +1014,11 @@ var visibilityTests = []struct {
 				mock_library {
 					name: "libnested",
 				}`),
-			"top/other/Blueprints": []byte(`
+			"top/other/Android.bp": []byte(`
 				mock_library {
 					name: "libother",
 				}`),
-			"outsider/Blueprints": []byte(`
+			"outsider/Android.bp": []byte(`
 				mock_library {
 					name: "liboutsider",
 					deps: ["libother", "libnested"],
@@ -1032,19 +1032,19 @@ var visibilityTests = []struct {
 	{
 		name: "verify that prebuilt dependencies are ignored for visibility reasons (not preferred)",
 		fs: MockFS{
-			"prebuilts/Blueprints": []byte(`
+			"prebuilts/Android.bp": []byte(`
 				prebuilt {
 					name: "module",
 					visibility: ["//top/other"],
 				}`),
 			"top/sources/source_file": nil,
-			"top/sources/Blueprints": []byte(`
+			"top/sources/Android.bp": []byte(`
 				source {
 					name: "module",
 					visibility: ["//top/other"],
 				}`),
 			"top/other/source_file": nil,
-			"top/other/Blueprints": []byte(`
+			"top/other/Android.bp": []byte(`
 				source {
 					name: "other",
 					deps: [":module"],
@@ -1054,20 +1054,20 @@ var visibilityTests = []struct {
 	{
 		name: "verify that prebuilt dependencies are ignored for visibility reasons (preferred)",
 		fs: MockFS{
-			"prebuilts/Blueprints": []byte(`
+			"prebuilts/Android.bp": []byte(`
 				prebuilt {
 					name: "module",
 					visibility: ["//top/other"],
 					prefer: true,
 				}`),
 			"top/sources/source_file": nil,
-			"top/sources/Blueprints": []byte(`
+			"top/sources/Android.bp": []byte(`
 				source {
 					name: "module",
 					visibility: ["//top/other"],
 				}`),
 			"top/other/source_file": nil,
-			"top/other/Blueprints": []byte(`
+			"top/other/Android.bp": []byte(`
 				source {
 					name: "other",
 					deps: [":module"],
@@ -1077,7 +1077,7 @@ var visibilityTests = []struct {
 	{
 		name: "ensure visibility properties are checked for correctness",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				mock_parent {
 					name: "parent",
 					visibility: ["//top/nested"],
@@ -1094,7 +1094,7 @@ var visibilityTests = []struct {
 	{
 		name: "invalid visibility added to child detected during gather phase",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				mock_parent {
 					name: "parent",
 					visibility: ["//top/nested"],
@@ -1116,7 +1116,7 @@ var visibilityTests = []struct {
 	{
 		name: "automatic visibility inheritance enabled",
 		fs: MockFS{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				mock_parent {
 					name: "parent",
 					visibility: ["//top/nested"],
@@ -1125,12 +1125,12 @@ var visibilityTests = []struct {
 						visibility: ["//top/other"],
 					},
 				}`),
-			"top/nested/Blueprints": []byte(`
+			"top/nested/Android.bp": []byte(`
 				mock_library {
 					name: "libnested",
 					deps: ["libchild"],
 				}`),
-			"top/other/Blueprints": []byte(`
+			"top/other/Android.bp": []byte(`
 				mock_library {
 					name: "libother",
 					deps: ["libchild"],
