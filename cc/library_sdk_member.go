@@ -265,8 +265,8 @@ func addPossiblyArchSpecificProperties(sdkModuleContext android.ModuleContext, b
 	// values where necessary.
 	for _, propertyInfo := range includeDirProperties {
 		// Calculate the base directory in the snapshot into which the files will be copied.
-		// lib.archType is "" for common properties.
-		targetDir := filepath.Join(libInfo.OsPrefix(), libInfo.archType, propertyInfo.snapshotDir)
+		// lib.archSubDir is "" for common properties.
+		targetDir := filepath.Join(libInfo.OsPrefix(), libInfo.archSubDir, propertyInfo.snapshotDir)
 
 		propertyName := propertyInfo.propertyName
 
@@ -334,7 +334,7 @@ const (
 
 // path to the native library. Relative to <sdk_root>/<api_dir>
 func nativeLibraryPathFor(lib *nativeLibInfoProperties) string {
-	return filepath.Join(lib.OsPrefix(), lib.archType,
+	return filepath.Join(lib.OsPrefix(), lib.archSubDir,
 		nativeStubDir, lib.outputFile.Base())
 }
 
@@ -347,9 +347,12 @@ type nativeLibInfoProperties struct {
 
 	memberType *librarySdkMemberType
 
-	// archType is not exported as if set (to a non default value) it is always arch specific.
-	// This is "" for common properties.
-	archType string
+	// archSubDir is the subdirectory within the OS directory in the sdk snapshot into which arch
+	// specific files will be copied.
+	//
+	// It is not exported since any value other than "" is always going to be arch specific.
+	// This is "" for non-arch specific common properties.
+	archSubDir string
 
 	// The list of possibly common exported include dirs.
 	//
@@ -433,7 +436,7 @@ func (p *nativeLibInfoProperties) PopulateFromVariant(ctx android.SdkMemberConte
 	exportedIncludeDirs, exportedGeneratedIncludeDirs := android.FilterPathListPredicate(
 		exportedInfo.IncludeDirs, isGeneratedHeaderDirectory)
 
-	p.archType = ccModule.Target().Arch.ArchType.String()
+	p.archSubDir = ccModule.Target().Arch.ArchType.String()
 
 	// Make sure that the include directories are unique.
 	p.ExportedIncludeDirs = android.FirstUniquePaths(exportedIncludeDirs)
