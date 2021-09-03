@@ -5930,6 +5930,7 @@ func TestOverrideApex(t *testing.T) {
 			key: "myapex.key",
 			apps: ["app"],
 			bpfs: ["bpf"],
+			prebuilts: ["myetc"],
 			overrides: ["oldapex"],
 			updatable: false,
 		}
@@ -5939,6 +5940,7 @@ func TestOverrideApex(t *testing.T) {
 			base: "myapex",
 			apps: ["override_app"],
 			bpfs: ["override_bpf"],
+			prebuilts: ["override_myetc"],
 			overrides: ["unknownapex"],
 			logging_parent: "com.foo.bar",
 			package_name: "test.overridden.package",
@@ -5987,6 +5989,16 @@ func TestOverrideApex(t *testing.T) {
 			name: "override_bpf",
 			srcs: ["override_bpf.c"],
 		}
+
+		prebuilt_etc {
+			name: "myetc",
+			src: "myprebuilt",
+		}
+
+		prebuilt_etc {
+			name: "override_myetc",
+			src: "override_myprebuilt",
+		}
 	`, withManifestPackageNameOverrides([]string{"myapex:com.android.myapex"}))
 
 	originalVariant := ctx.ModuleForTests("myapex", "android_common_myapex_image").Module().(android.OverridableModule)
@@ -6007,6 +6019,9 @@ func TestOverrideApex(t *testing.T) {
 
 	ensureNotContains(t, copyCmds, "image.apex/etc/bpf/bpf.o")
 	ensureContains(t, copyCmds, "image.apex/etc/bpf/override_bpf.o")
+
+	ensureNotContains(t, copyCmds, "image.apex/etc/myetc")
+	ensureContains(t, copyCmds, "image.apex/etc/override_myetc")
 
 	apexBundle := module.Module().(*apexBundle)
 	name := apexBundle.Name()
