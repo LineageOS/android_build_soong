@@ -127,7 +127,7 @@ func TestDataTests(t *testing.T) {
 			ctx.RegisterModuleType("test", newTest)
 			ctx.Register()
 
-			_, errs := ctx.ParseBlueprintsFiles("Blueprints")
+			_, errs := ctx.ParseBlueprintsFiles("Android.bp")
 			android.FailIfErrored(t, errs)
 			_, errs = ctx.PrepareBuildActions(config)
 			android.FailIfErrored(t, errs)
