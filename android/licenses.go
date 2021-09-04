@@ -293,7 +293,7 @@ func exemptFromRequiredApplicableLicensesProperty(module Module) bool {
 	case "*android.soongConfigModuleTypeModule": // creates aliases for modules with licenses
 	case "*android.soongConfigModuleTypeImport": // creates aliases for modules with licenses
 	case "*android.soongConfigStringVariableDummyModule": // used for creating aliases
-	case "*android.SoongConfigBoolVariableDummyModule": // used for creating aliases
+	case "*android.soongConfigBoolVariableDummyModule": // used for creating aliases
 	default:
 		return false
 	}
