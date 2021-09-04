@@ -61,6 +61,8 @@ var VndkMustUseVendorVariantList = []string{
 	"android.hardware.rebootescrow-V1-ndk",
 	"android.hardware.rebootescrow-V1-ndk_platform",
 	"android.hardware.rebootescrow-ndk_platform",
+	"android.hardware.radio-V1-ndk",
+	"android.hardware.radio-V1-ndk_platform",
 	"android.hardware.security.keymint-V1-ndk",
 	"android.hardware.security.keymint-V1-ndk_platform",
 	"android.hardware.security.keymint-ndk_platform",

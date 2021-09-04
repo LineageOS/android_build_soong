@@ -552,7 +552,7 @@ func (c *config) mockFileSystem(bp string, fs map[string][]byte) {
 	pathsToParse := []string{}
 	for candidate := range mockFS {
 		base := filepath.Base(candidate)
-		if base == "Blueprints" || base == "Android.bp" {
+		if base == "Android.bp" {
 			pathsToParse = append(pathsToParse, candidate)
 		}
 	}
