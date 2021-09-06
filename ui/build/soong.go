@@ -142,6 +142,7 @@ func bootstrapBlueprint(ctx Context, config Config) {
 
 	bootstrapGlobFile := shared.JoinPath(config.SoongOutDir(), ".bootstrap/build-globs.ninja")
 	bp2buildGlobFile := shared.JoinPath(config.SoongOutDir(), ".bootstrap/build-globs.bp2build.ninja")
+	queryviewGlobFile := shared.JoinPath(config.SoongOutDir(), ".bootstrap/build-globs.queryview.ninja")
 	moduleGraphGlobFile := shared.JoinPath(config.SoongOutDir(), ".bootstrap/build-globs.modulegraph.ninja")
 
 	// The glob .ninja files are subninja'd. However, they are generated during
@@ -149,6 +150,9 @@ func bootstrapBlueprint(ctx Context, config Config) {
 	// fail on clean builds
 	writeEmptyGlobFile(ctx, bootstrapGlobFile)
 	writeEmptyGlobFile(ctx, bp2buildGlobFile)
+	writeEmptyGlobFile(ctx, queryviewGlobFile)
+	writeEmptyGlobFile(ctx, moduleGraphGlobFile)
+
 	bootstrapDepFile := shared.JoinPath(config.SoongOutDir(), ".bootstrap/build.ninja.d")
 
 	args.RunGoTests = !config.skipSoongTests
@@ -160,7 +164,7 @@ func bootstrapBlueprint(ctx Context, config Config) {
 	// The primary builder (aka soong_build) will use bootstrapGlobFile as the globFile to generate build.ninja(.d)
 	// Building soong_build does not require a glob file
 	// Using "" instead of "<soong_build_glob>.ninja" will ensure that an unused glob file is not written to out/soong/.bootstrap during StagePrimary
-	args.Subninjas = []string{bootstrapGlobFile, bp2buildGlobFile}
+	args.Subninjas = []string{bootstrapGlobFile, bp2buildGlobFile, moduleGraphGlobFile, queryviewGlobFile}
 	args.EmptyNinjaFile = config.EmptyNinjaFile()
 
 	args.DelveListen = os.Getenv("SOONG_DELVE")
@@ -206,6 +210,22 @@ func bootstrapBlueprint(ctx Context, config Config) {
 		Args:    bp2buildArgs,
 	}
 
+	queryviewArgs := []string{
+		"--bazel_queryview_dir", filepath.Join(config.SoongOutDir(), "queryview"),
+		"--globListDir", "queryview",
+		"--globFile", queryviewGlobFile,
+	}
+
+	queryviewArgs = append(queryviewArgs, commonArgs...)
+	queryviewArgs = append(queryviewArgs, environmentArgs(config, ".queryview")...)
+	queryviewArgs = append(queryviewArgs, "Android.bp")
+
+	queryviewInvocation := bootstrap.PrimaryBuilderInvocation{
+		Inputs:  []string{"Android.bp"},
+		Outputs: []string{config.QueryviewMarkerFile()},
+		Args:    queryviewArgs,
+	}
+
 	moduleGraphArgs := []string{
 		"--module_graph_file", config.ModuleGraphFile(),
 		"--globListDir", "modulegraph",
@@ -226,6 +246,7 @@ func bootstrapBlueprint(ctx Context, config Config) {
 		bp2buildInvocation,
 		mainSoongBuildInvocation,
 		moduleGraphInvocation,
+		queryviewInvocation,
 	}
 
 	blueprintCtx := blueprint.NewContext()
@@ -359,6 +380,10 @@ func runSoong(ctx Context, config Config) {
 
 	if config.Bp2Build() {
 		targets = append(targets, config.Bp2BuildMarkerFile())
+	}
+
+	if config.Queryview() {
+		targets = append(targets, config.QueryviewMarkerFile())
 	}
 
 	if config.SoongBuildInvocationNeeded() {

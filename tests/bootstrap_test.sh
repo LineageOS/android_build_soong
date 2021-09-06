@@ -785,6 +785,28 @@ function test_bp2build_back_and_forth_null_build {
   fi
 }
 
+function test_queryview_smoke() {
+  setup
+
+  run_soong queryview
+  [[ -e out/soong/queryview/WORKSPACE ]] || fail "queryview WORKSPACE file not created"
+
+}
+
+function test_queryview_null_build() {
+  setup
+
+  run_soong queryview
+  local output_mtime1=$(stat -c "%y" out/soong/queryview.marker)
+
+  run_soong queryview
+  local output_mtime2=$(stat -c "%y" out/soong/queryview.marker)
+
+  if [[ "$output_mtime1" != "$output_mtime2" ]]; then
+    fail "Queryview marker file changed on null build"
+  fi
+}
+
 test_smoke
 test_null_build
 test_null_build_after_docs
@@ -801,6 +823,8 @@ test_multiple_soong_build_modes
 test_dump_json_module_graph
 test_json_module_graph_back_and_forth_null_build
 test_write_to_source_tree
+test_queryview_smoke
+test_queryview_null_build
 test_bp2build_smoke
 test_bp2build_generates_marker_file
 test_bp2build_null_build
