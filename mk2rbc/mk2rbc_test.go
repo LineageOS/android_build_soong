@@ -414,7 +414,7 @@ endif
 
 def init(g, handle):
   cfg = rblf.cfg(handle)
-  if rblf.filter(g.get("PRODUCT_LIST", ""), g["TARGET_PRODUCT"]):
+  if rblf.filter(g.get("PRODUCT_LIST", []), g["TARGET_PRODUCT"]):
     pass
 `,
 	},
