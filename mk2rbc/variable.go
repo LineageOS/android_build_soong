@@ -299,6 +299,10 @@ func (ctx *parseContext) addVariable(name string) variable {
 					vt = vi.valueType
 				}
 			}
+			if strings.HasSuffix(name, "_LIST") && vt == starlarkTypeUnknown {
+				// Heuristics: Variables with "_LIST" suffix are lists
+				vt = starlarkTypeList
+			}
 			v = &otherGlobalVariable{baseVariable{nam: name, typ: vt}}
 		}
 		ctx.variables[name] = v
