@@ -204,7 +204,7 @@ func (j *Module) compileDex(ctx android.ModuleContext, flags javaBuilderFlags,
 			"outDict":  j.proguardDictionary.String(),
 			"outDir":   outDir.String(),
 		}
-		if ctx.Config().IsEnvTrue("RBE_R8") {
+		if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_R8") {
 			rule = r8RE
 			args["implicits"] = strings.Join(r8Deps.Strings(), ",")
 		}
@@ -220,7 +220,7 @@ func (j *Module) compileDex(ctx android.ModuleContext, flags javaBuilderFlags,
 	} else {
 		d8Flags, d8Deps := j.d8Flags(ctx, flags)
 		rule := d8
-		if ctx.Config().IsEnvTrue("RBE_D8") {
+		if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_D8") {
 			rule = d8RE
 		}
 		ctx.Build(pctx, android.BuildParams{
