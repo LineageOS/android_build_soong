@@ -225,11 +225,6 @@ type customBazelModuleAttributes struct {
 	Arch_paths       bazel.LabelListAttribute
 }
 
-type customBazelModule struct {
-	android.BazelTargetModuleBase
-	customBazelModuleAttributes
-}
-
 func customBp2BuildMutator(ctx android.TopDownMutatorContext) {
 	if m, ok := ctx.Module().(*customModule); ok {
 		if !m.ConvertWithBp2build(ctx) {

@@ -2341,18 +2341,6 @@ type bazelCcLibraryStaticAttributes struct {
 	Static staticOrSharedAttributes
 }
 
-type bazelCcLibraryStatic struct {
-	android.BazelTargetModuleBase
-	bazelCcLibraryStaticAttributes
-}
-
-func BazelCcLibraryStaticFactory() android.Module {
-	module := &bazelCcLibraryStatic{}
-	module.AddProperties(&module.bazelCcLibraryStaticAttributes)
-	android.InitBazelTargetModule(module)
-	return module
-}
-
 func ccLibraryStaticBp2BuildInternal(ctx android.TopDownMutatorContext, module *Module) {
 	compilerAttrs := bp2BuildParseCompilerProps(ctx, module)
 	linkerAttrs := bp2BuildParseLinkerProps(ctx, module)
@@ -2423,9 +2411,3 @@ func CcLibraryStaticBp2Build(ctx android.TopDownMutatorContext) {
 
 	ccLibraryStaticBp2BuildInternal(ctx, module)
 }
-
-func (m *bazelCcLibraryStatic) Name() string {
-	return m.BaseModuleName()
-}
-
-func (m *bazelCcLibraryStatic) GenerateAndroidBuildActions(ctx android.ModuleContext) {}
