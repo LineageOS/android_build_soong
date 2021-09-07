@@ -123,10 +123,16 @@ type systemServerClasspathFragmentContentDependencyTag struct {
 	blueprint.BaseDependencyTag
 }
 
+// The systemserverclasspath_fragment contents must never depend on prebuilts.
+func (systemServerClasspathFragmentContentDependencyTag) ReplaceSourceWithPrebuilt() bool {
+	return false
+}
+
 // Contents of system server fragments in an apex are considered to be directly in the apex, as if
 // they were listed in java_libs.
 func (systemServerClasspathFragmentContentDependencyTag) CopyDirectlyInAnyApex() {}
 
+var _ android.ReplaceSourceWithPrebuilt = systemServerClasspathFragmentContentDepTag
 var _ android.CopyDirectlyInAnyApexTag = systemServerClasspathFragmentContentDepTag
 
 // The tag used for the dependency between the systemserverclasspath_fragment module and its contents.
