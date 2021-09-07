@@ -275,7 +275,7 @@ func runSoong(ctx Context, config Config) {
 	}
 
 	buildMode := config.bazelBuildMode()
-	integratedBp2Build := (buildMode == mixedBuild) || (buildMode == generateBuildFiles)
+	integratedBp2Build := buildMode == mixedBuild
 
 	// This is done unconditionally, but does not take a measurable amount of time
 	bootstrapBlueprint(ctx, config)
@@ -351,18 +351,22 @@ func runSoong(ctx Context, config Config) {
 		cmd.RunAndStreamOrFatal()
 	}
 
-	var target string
+	targets := make([]string, 0, 0)
 
-	if config.bazelBuildMode() == generateBuildFiles {
-		target = config.Bp2BuildMarkerFile()
-	} else if config.bazelBuildMode() == generateJsonModuleGraph {
-		target = config.ModuleGraphFile()
-	} else {
-		// This build generates <builddir>/build.ninja, which is used later by build/soong/ui/build/build.go#Build().
-		target = config.MainNinjaFile()
+	if config.JsonModuleGraph() {
+		targets = append(targets, config.ModuleGraphFile())
 	}
 
-	ninja("bootstrap", ".bootstrap/build.ninja", target)
+	if config.Bp2Build() {
+		targets = append(targets, config.Bp2BuildMarkerFile())
+	}
+
+	if config.SoongBuildInvocationNeeded() {
+		// This build generates <builddir>/build.ninja, which is used later by build/soong/ui/build/build.go#Build().
+		targets = append(targets, config.MainNinjaFile())
+	}
+
+	ninja("bootstrap", ".bootstrap/build.ninja", targets...)
 
 	var soongBuildMetrics *soong_metrics_proto.SoongBuildMetrics
 	if shouldCollectBuildSoongMetrics(config) {
@@ -404,7 +408,7 @@ func runMicrofactory(ctx Context, config Config, relExePath string, pkg string, 
 func shouldCollectBuildSoongMetrics(config Config) bool {
 	// Do not collect metrics protobuf if the soong_build binary ran as the
 	// bp2build converter or the JSON graph dump.
-	return config.bazelBuildMode() != generateBuildFiles && config.bazelBuildMode() != generateJsonModuleGraph
+	return config.SoongBuildInvocationNeeded()
 }
 
 func loadSoongBuildMetrics(ctx Context, config Config) *soong_metrics_proto.SoongBuildMetrics {
