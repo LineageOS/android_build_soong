@@ -10,10 +10,10 @@ readonly GENERATED_BUILD_FILE_NAME="BUILD.bazel"
 
 function test_bp2build_null_build() {
   setup
-  run_bp2build
+  run_soong bp2build
   local output_mtime1=$(stat -c "%y" out/soong/.bootstrap/bp2build_workspace_marker)
 
-  run_bp2build
+  run_soong bp2build
   local output_mtime2=$(stat -c "%y" out/soong/.bootstrap/bp2build_workspace_marker)
 
   if [[ "$output_mtime1" != "$output_mtime2" ]]; then
@@ -35,10 +35,10 @@ filegroup {
 EOF
   touch foo/bar/a.txt foo/bar/b.txt
 
-  run_bp2build
+  run_soong bp2build
   local output_mtime1=$(stat -c "%y" out/soong/.bootstrap/bp2build_workspace_marker)
 
-  run_bp2build
+  run_soong bp2build
   local output_mtime2=$(stat -c "%y" out/soong/.bootstrap/bp2build_workspace_marker)
 
   if [[ "$output_mtime1" != "$output_mtime2" ]]; then
@@ -80,7 +80,7 @@ genrule {
   }
 EOF
 
-  run_bp2build
+  run_soong bp2build
 
   if [[ ! -f "./out/soong/workspace/foo/convertible_soong_module/${GENERATED_BUILD_FILE_NAME}" ]]; then
     fail "./out/soong/workspace/foo/convertible_soong_module/${GENERATED_BUILD_FILE_NAME} was not generated"
