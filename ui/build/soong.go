@@ -263,7 +263,7 @@ func bootstrapBlueprint(ctx Context, config Config) {
 	}
 
 	args.EmptyNinjaFile = false
-	bootstrapDeps := bootstrap.RunBlueprint(args, blueprintCtx, blueprintConfig)
+	bootstrapDeps := bootstrap.RunBlueprint(args, bootstrap.DoEverything, blueprintCtx, blueprintConfig)
 	err := deptools.WriteDepFile(bootstrapDepFile, args.OutFile, bootstrapDeps)
 	if err != nil {
 		ctx.Fatalf("Error writing depfile '%s': %s", bootstrapDepFile, err)
