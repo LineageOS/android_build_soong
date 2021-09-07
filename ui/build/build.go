@@ -248,6 +248,16 @@ func Build(ctx Context, config Config) {
 		what = what &^ RunNinja
 	}
 
+	if !config.SoongBuildInvocationNeeded() {
+		// This means that the output of soong_build is not needed and thus it would
+		// run unnecessarily. In addition, if this code wasn't there invocations
+		// with only special-cased target names like "m bp2build" would result in
+		// passing Ninja the empty target list and it would then build the default
+		// targets which is not what the user asked for.
+		what = what &^ RunNinja
+		what = what &^ RunKati
+	}
+
 	if config.StartGoma() {
 		startGoma(ctx, config)
 	}
@@ -278,16 +288,6 @@ func Build(ctx Context, config Config) {
 
 	if what&RunSoong != 0 {
 		runSoong(ctx, config)
-
-		if config.bazelBuildMode() == generateBuildFiles {
-			// Return early, if we're using Soong as solely the generator of BUILD files.
-			return
-		}
-
-		if config.bazelBuildMode() == generateJsonModuleGraph {
-			// Return early, if we're using Soong as solely the generator of the JSON module graph
-			return
-		}
 	}
 
 	if what&RunKati != 0 {
