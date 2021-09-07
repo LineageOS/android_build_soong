@@ -156,13 +156,15 @@ func runMixedModeBuild(configuration android.Config, firstCtx *android.Context, 
 }
 
 // Run the code-generation phase to convert BazelTargetModules to BUILD files.
-func runQueryView(configuration android.Config, ctx *android.Context) {
+func runQueryView(queryviewDir, queryviewMarker string, configuration android.Config, ctx *android.Context) {
 	codegenContext := bp2build.NewCodegenContext(configuration, *ctx, bp2build.QueryView)
-	absoluteQueryViewDir := shared.JoinPath(topDir, bazelQueryViewDir)
+	absoluteQueryViewDir := shared.JoinPath(topDir, queryviewDir)
 	if err := createBazelQueryView(codegenContext, absoluteQueryViewDir); err != nil {
 		fmt.Fprintf(os.Stderr, "%s", err)
 		os.Exit(1)
 	}
+
+	touch(shared.JoinPath(topDir, queryviewMarker))
 }
 
 func runSoongDocs(configuration android.Config) {
@@ -244,8 +246,10 @@ func doChosenActivity(configuration android.Config, extraNinjaDeps []string) str
 
 		// Convert the Soong module graph into Bazel BUILD files.
 		if generateQueryView {
-			runQueryView(configuration, ctx)
-			return cmdlineArgs.OutFile // TODO: This is a lie
+			queryviewMarkerFile := bazelQueryViewDir + ".marker"
+			runQueryView(bazelQueryViewDir, queryviewMarkerFile, configuration, ctx)
+			writeDepFile(queryviewMarkerFile, ninjaDeps)
+			return queryviewMarkerFile
 		} else if moduleGraphFile != "" {
 			writeJsonModuleGraph(ctx, moduleGraphFile)
 			writeDepFile(moduleGraphFile, ninjaDeps)

@@ -49,6 +49,7 @@ type configImpl struct {
 	dist            bool
 	jsonModuleGraph bool
 	bp2build        bool
+	queryview       bool
 	skipConfig      bool
 	skipKati        bool
 	skipKatiNinja   bool
@@ -643,6 +644,8 @@ func (c *configImpl) parseArgs(ctx Context, args []string) {
 			c.jsonModuleGraph = true
 		} else if arg == "bp2build" {
 			c.bp2build = true
+		} else if arg == "queryview" {
+			c.queryview = true
 		} else {
 			if arg == "checkbuild" {
 				c.checkbuild = true
@@ -720,7 +723,7 @@ func (c *configImpl) SoongBuildInvocationNeeded() bool {
 		return true
 	}
 
-	if !c.JsonModuleGraph() && !c.Bp2Build() {
+	if !c.JsonModuleGraph() && !c.Bp2Build() && !c.Queryview() {
 		// Command line was empty, the default Ninja target is built
 		return true
 	}
@@ -785,6 +788,10 @@ func (c *configImpl) Bp2BuildMarkerFile() string {
 	return shared.JoinPath(c.SoongOutDir(), ".bootstrap/bp2build_workspace_marker")
 }
 
+func (c *configImpl) QueryviewMarkerFile() string {
+	return shared.JoinPath(c.SoongOutDir(), "queryview.marker")
+}
+
 func (c *configImpl) ModuleGraphFile() string {
 	return shared.JoinPath(c.SoongOutDir(), "module-graph.json")
 }
@@ -820,6 +827,10 @@ func (c *configImpl) JsonModuleGraph() bool {
 
 func (c *configImpl) Bp2Build() bool {
 	return c.bp2build
+}
+
+func (c *configImpl) Queryview() bool {
+	return c.queryview
 }
 
 func (c *configImpl) IsVerbose() bool {
