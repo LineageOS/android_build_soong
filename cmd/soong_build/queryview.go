@@ -15,14 +15,16 @@
 package main
 
 import (
-	"android/soong/android"
-	"android/soong/bp2build"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+
+	"android/soong/android"
+	"android/soong/bp2build"
 )
 
 func createBazelQueryView(ctx *bp2build.CodegenContext, bazelQueryViewDir string) error {
+	os.RemoveAll(bazelQueryViewDir)
 	ruleShims := bp2build.CreateRuleShims(android.ModuleTypeFactories())
 
 	// Ignore metrics reporting and compat layers for queryview, since queryview
