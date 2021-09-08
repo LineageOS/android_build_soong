@@ -142,6 +142,7 @@ func bootstrapBlueprint(ctx Context, config Config) {
 
 	bootstrapGlobFile := shared.JoinPath(config.SoongOutDir(), ".bootstrap/build-globs.ninja")
 	bp2buildGlobFile := shared.JoinPath(config.SoongOutDir(), ".bootstrap/build-globs.bp2build.ninja")
+	queryviewGlobFile := shared.JoinPath(config.SoongOutDir(), ".bootstrap/build-globs.queryview.ninja")
 	moduleGraphGlobFile := shared.JoinPath(config.SoongOutDir(), ".bootstrap/build-globs.modulegraph.ninja")
 
 	// The glob .ninja files are subninja'd. However, they are generated during
@@ -149,6 +150,9 @@ func bootstrapBlueprint(ctx Context, config Config) {
 	// fail on clean builds
 	writeEmptyGlobFile(ctx, bootstrapGlobFile)
 	writeEmptyGlobFile(ctx, bp2buildGlobFile)
+	writeEmptyGlobFile(ctx, queryviewGlobFile)
+	writeEmptyGlobFile(ctx, moduleGraphGlobFile)
+
 	bootstrapDepFile := shared.JoinPath(config.SoongOutDir(), ".bootstrap/build.ninja.d")
 
 	args.RunGoTests = !config.skipSoongTests
@@ -160,7 +164,7 @@ func bootstrapBlueprint(ctx Context, config Config) {
 	// The primary builder (aka soong_build) will use bootstrapGlobFile as the globFile to generate build.ninja(.d)
 	// Building soong_build does not require a glob file
 	// Using "" instead of "<soong_build_glob>.ninja" will ensure that an unused glob file is not written to out/soong/.bootstrap during StagePrimary
-	args.Subninjas = []string{bootstrapGlobFile, bp2buildGlobFile}
+	args.Subninjas = []string{bootstrapGlobFile, bp2buildGlobFile, moduleGraphGlobFile, queryviewGlobFile}
 	args.EmptyNinjaFile = config.EmptyNinjaFile()
 
 	args.DelveListen = os.Getenv("SOONG_DELVE")
@@ -206,6 +210,22 @@ func bootstrapBlueprint(ctx Context, config Config) {
 		Args:    bp2buildArgs,
 	}
 
+	queryviewArgs := []string{
+		"--bazel_queryview_dir", filepath.Join(config.SoongOutDir(), "queryview"),
+		"--globListDir", "queryview",
+		"--globFile", queryviewGlobFile,
+	}
+
+	queryviewArgs = append(queryviewArgs, commonArgs...)
+	queryviewArgs = append(queryviewArgs, environmentArgs(config, ".queryview")...)
+	queryviewArgs = append(queryviewArgs, "Android.bp")
+
+	queryviewInvocation := bootstrap.PrimaryBuilderInvocation{
+		Inputs:  []string{"Android.bp"},
+		Outputs: []string{config.QueryviewMarkerFile()},
+		Args:    queryviewArgs,
+	}
+
 	moduleGraphArgs := []string{
 		"--module_graph_file", config.ModuleGraphFile(),
 		"--globListDir", "modulegraph",
@@ -226,6 +246,7 @@ func bootstrapBlueprint(ctx Context, config Config) {
 		bp2buildInvocation,
 		mainSoongBuildInvocation,
 		moduleGraphInvocation,
+		queryviewInvocation,
 	}
 
 	blueprintCtx := blueprint.NewContext()
@@ -275,7 +296,7 @@ func runSoong(ctx Context, config Config) {
 	}
 
 	buildMode := config.bazelBuildMode()
-	integratedBp2Build := (buildMode == mixedBuild) || (buildMode == generateBuildFiles)
+	integratedBp2Build := buildMode == mixedBuild
 
 	// This is done unconditionally, but does not take a measurable amount of time
 	bootstrapBlueprint(ctx, config)
@@ -351,18 +372,26 @@ func runSoong(ctx Context, config Config) {
 		cmd.RunAndStreamOrFatal()
 	}
 
-	var target string
+	targets := make([]string, 0, 0)
 
-	if config.bazelBuildMode() == generateBuildFiles {
-		target = config.Bp2BuildMarkerFile()
-	} else if config.bazelBuildMode() == generateJsonModuleGraph {
-		target = config.ModuleGraphFile()
-	} else {
-		// This build generates <builddir>/build.ninja, which is used later by build/soong/ui/build/build.go#Build().
-		target = config.MainNinjaFile()
+	if config.JsonModuleGraph() {
+		targets = append(targets, config.ModuleGraphFile())
 	}
 
-	ninja("bootstrap", ".bootstrap/build.ninja", target)
+	if config.Bp2Build() {
+		targets = append(targets, config.Bp2BuildMarkerFile())
+	}
+
+	if config.Queryview() {
+		targets = append(targets, config.QueryviewMarkerFile())
+	}
+
+	if config.SoongBuildInvocationNeeded() {
+		// This build generates <builddir>/build.ninja, which is used later by build/soong/ui/build/build.go#Build().
+		targets = append(targets, config.MainNinjaFile())
+	}
+
+	ninja("bootstrap", ".bootstrap/build.ninja", targets...)
 
 	var soongBuildMetrics *soong_metrics_proto.SoongBuildMetrics
 	if shouldCollectBuildSoongMetrics(config) {
@@ -404,7 +433,7 @@ func runMicrofactory(ctx Context, config Config, relExePath string, pkg string, 
 func shouldCollectBuildSoongMetrics(config Config) bool {
 	// Do not collect metrics protobuf if the soong_build binary ran as the
 	// bp2build converter or the JSON graph dump.
-	return config.bazelBuildMode() != generateBuildFiles && config.bazelBuildMode() != generateJsonModuleGraph
+	return config.SoongBuildInvocationNeeded()
 }
 
 func loadSoongBuildMetrics(ctx Context, config Config) *soong_metrics_proto.SoongBuildMetrics {
