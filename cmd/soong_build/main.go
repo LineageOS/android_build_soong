@@ -101,12 +101,9 @@ func newNameResolver(config android.Config) *android.NameResolver {
 	return android.NewNameResolver(exportFilter)
 }
 
-func newContext(configuration android.Config, prepareBuildActions bool) *android.Context {
+func newContext(configuration android.Config) *android.Context {
 	ctx := android.NewContext(configuration)
 	ctx.Register()
-	if !prepareBuildActions {
-		configuration.SetStopBefore(bootstrap.StopBeforePrepareBuildActions)
-	}
 	ctx.SetNameInterface(newNameResolver(configuration))
 	ctx.SetAllowMissingDependencies(configuration.AllowMissingDependencies())
 	return ctx
@@ -130,8 +127,7 @@ func runMixedModeBuild(configuration android.Config, firstCtx *android.Context, 
 	var firstArgs, secondArgs bootstrap.Args
 
 	firstArgs = cmdlineArgs
-	configuration.SetStopBefore(bootstrap.StopBeforeWriteNinja)
-	bootstrap.RunBlueprint(firstArgs, firstCtx.Context, configuration)
+	bootstrap.RunBlueprint(firstArgs, bootstrap.StopBeforeWriteNinja, firstCtx.Context, configuration)
 
 	// Invoke bazel commands and save results for second pass.
 	if err := configuration.BazelContext.InvokeBazel(); err != nil {
@@ -145,8 +141,8 @@ func runMixedModeBuild(configuration android.Config, firstCtx *android.Context, 
 		fmt.Fprintf(os.Stderr, "%s", err)
 		os.Exit(1)
 	}
-	secondCtx := newContext(secondConfig, true)
-	ninjaDeps := bootstrap.RunBlueprint(secondArgs, secondCtx.Context, secondConfig)
+	secondCtx := newContext(secondConfig)
+	ninjaDeps := bootstrap.RunBlueprint(secondArgs, bootstrap.DoEverything, secondCtx.Context, secondConfig)
 	ninjaDeps = append(ninjaDeps, extraNinjaDeps...)
 
 	globListFiles := writeBuildGlobsNinjaFile(secondCtx.SrcDir(), configuration.SoongOutDir(), secondCtx.Globs, configuration)
@@ -168,9 +164,9 @@ func runQueryView(queryviewDir, queryviewMarker string, configuration android.Co
 }
 
 func runSoongDocs(configuration android.Config) {
-	ctx := newContext(configuration, false)
+	ctx := newContext(configuration)
 	soongDocsArgs := cmdlineArgs
-	bootstrap.RunBlueprint(soongDocsArgs, ctx.Context, configuration)
+	bootstrap.RunBlueprint(soongDocsArgs, bootstrap.StopBeforePrepareBuildActions, ctx.Context, configuration)
 	if err := writeDocs(ctx, configuration, docFile); err != nil {
 		fmt.Fprintf(os.Stderr, "%s", err)
 		os.Exit(1)
@@ -226,7 +222,14 @@ func doChosenActivity(configuration android.Config, extraNinjaDeps []string) str
 	generateQueryView := bazelQueryViewDir != ""
 
 	blueprintArgs := cmdlineArgs
-	prepareBuildActions := !generateQueryView && moduleGraphFile == ""
+
+	var stopBefore bootstrap.StopBefore
+	if !generateQueryView && moduleGraphFile == "" {
+		stopBefore = bootstrap.DoEverything
+	} else {
+		stopBefore = bootstrap.StopBeforePrepareBuildActions
+	}
+
 	if bazelConversionRequested {
 		// Run the alternate pipeline of bp2build mutators and singleton to convert
 		// Blueprint to BUILD files before everything else.
@@ -234,11 +237,11 @@ func doChosenActivity(configuration android.Config, extraNinjaDeps []string) str
 		return bp2buildMarker
 	}
 
-	ctx := newContext(configuration, prepareBuildActions)
+	ctx := newContext(configuration)
 	if mixedModeBuild {
 		runMixedModeBuild(configuration, ctx, extraNinjaDeps)
 	} else {
-		ninjaDeps := bootstrap.RunBlueprint(blueprintArgs, ctx.Context, configuration)
+		ninjaDeps := bootstrap.RunBlueprint(blueprintArgs, stopBefore, ctx.Context, configuration)
 		ninjaDeps = append(ninjaDeps, extraNinjaDeps...)
 
 		globListFiles := writeBuildGlobsNinjaFile(ctx.SrcDir(), configuration.SoongOutDir(), ctx.Globs, configuration)
@@ -479,14 +482,11 @@ func runBp2Build(configuration android.Config, extraNinjaDeps []string) {
 
 	extraNinjaDeps = append(extraNinjaDeps, modulePaths...)
 
-	// No need to generate Ninja build rules/statements from Modules and Singletons.
-	configuration.SetStopBefore(bootstrap.StopBeforePrepareBuildActions)
-
 	// Run the loading and analysis pipeline to prepare the graph of regular
 	// Modules parsed from Android.bp files, and the BazelTargetModules mapped
 	// from the regular Modules.
 	blueprintArgs := cmdlineArgs
-	ninjaDeps := bootstrap.RunBlueprint(blueprintArgs, bp2buildCtx.Context, configuration)
+	ninjaDeps := bootstrap.RunBlueprint(blueprintArgs, bootstrap.StopBeforePrepareBuildActions, bp2buildCtx.Context, configuration)
 	ninjaDeps = append(ninjaDeps, extraNinjaDeps...)
 
 	globListFiles := writeBuildGlobsNinjaFile(bp2buildCtx.SrcDir(), configuration.SoongOutDir(), bp2buildCtx.Globs, configuration)
