@@ -472,17 +472,35 @@ EOF
   fi
 }
 
-function test_null_build_after_docs {
+function test_soong_docs_smoke() {
   setup
+
+  run_soong soong_docs
+
+  [[ -e "out/soong/docs/soong_build.html" ]] || fail "Documentation for main page not created"
+  [[ -e "out/soong/docs/cc.html" ]] || fail "Documentation for C++ modules not created"
+}
+
+function test_null_build_after_soong_docs() {
+  setup
+
   run_soong
-  local mtime1=$(stat -c "%y" out/soong/build.ninja)
+  local ninja_mtime1=$(stat -c "%y" out/soong/build.ninja)
 
-  prebuilts/build-tools/linux-x86/bin/ninja -f out/combined.ninja soong_docs
+  run_soong soong_docs
+  local docs_mtime1=$(stat -c "%y" out/soong/docs/soong_build.html)
+
+  run_soong soong_docs
+  local docs_mtime2=$(stat -c "%y" out/soong/docs/soong_build.html)
+
+  if [[ "$docs_mtime1" != "$docs_mtime2" ]]; then
+    fail "Output Ninja file changed on null build"
+  fi
 
   run_soong
-  local mtime2=$(stat -c "%y" out/soong/build.ninja)
+  local ninja_mtime2=$(stat -c "%y" out/soong/build.ninja)
 
-  if [[ "$mtime1" != "$mtime2" ]]; then
+  if [[ "$ninja_mtime1" != "$ninja_mtime2" ]]; then
     fail "Output Ninja file changed on null build"
   fi
 }
@@ -809,7 +827,8 @@ function test_queryview_null_build() {
 
 test_smoke
 test_null_build
-test_null_build_after_docs
+test_soong_docs_smoke
+test_null_build_after_soong_docs
 test_soong_build_rebuilt_if_blueprint_changes
 test_glob_noop_incremental
 test_add_file_to_glob
