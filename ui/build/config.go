@@ -111,9 +111,6 @@ const (
 	// Don't use bazel at all.
 	noBazel bazelBuildMode = iota
 
-	// Only generate build files (in a subdirectory of the out directory) and exit.
-	generateBuildFiles
-
 	// Generate synthetic build files and incorporate these files into a build which
 	// partially uses Bazel. Build metadata may come from Android.bp or BUILD files.
 	mixedBuild
@@ -781,6 +778,10 @@ func (c *configImpl) PrebuiltOS() string {
 }
 func (c *configImpl) HostToolDir() string {
 	return filepath.Join(c.SoongOutDir(), "host", c.PrebuiltOS(), "bin")
+}
+
+func (c *configImpl) NamedGlobFile(name string) string {
+	return shared.JoinPath(c.SoongOutDir(), ".bootstrap/build-globs."+name+".ninja")
 }
 
 func (c *configImpl) MainNinjaFile() string {
