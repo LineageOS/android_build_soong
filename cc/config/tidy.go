@@ -115,6 +115,7 @@ var DefaultLocalTidyChecks = []PathBasedTidyCheck{
 	{"external/", tidyExternalVendor},
 	{"external/google", tidyDefault},
 	{"external/webrtc", tidyDefault},
+	{"external/googletest/", tidyExternalVendor},
 	{"frameworks/compile/mclinker/", tidyExternalVendor},
 	{"hardware/qcom", tidyExternalVendor},
 	{"vendor/", tidyExternalVendor},
@@ -133,6 +134,7 @@ func reverseTidyChecks(in []PathBasedTidyCheck) []PathBasedTidyCheck {
 }
 
 func TidyChecksForDir(dir string) string {
+	dir = dir + "/"
 	for _, pathCheck := range reversedDefaultLocalTidyChecks {
 		if strings.HasPrefix(dir, pathCheck.PathPrefix) {
 			return pathCheck.Checks
