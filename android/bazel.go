@@ -145,17 +145,23 @@ var (
 		"build/bazel/platforms":/* recursive = */ true,
 		"build/bazel/product_variables":/* recursive = */ true,
 		"build/bazel_common_rules":/* recursive = */ true,
+		"build/make/tools":/* recursive = */ true,
 		"build/pesto":/* recursive = */ true,
 
 		// external/bazelbuild-rules_android/... is needed by mixed builds, otherwise mixed builds analysis fails
 		// e.g. ERROR: Analysis of target '@soong_injection//mixed_builds:buildroot' failed
 		"external/bazelbuild-rules_android":/* recursive = */ true,
 		"external/bazel-skylib":/* recursive = */ true,
+		"external/guava":/* recursive = */ true,
+		"external/error_prone":/* recursive = */ true,
+		"external/jsr305":/* recursive = */ true,
+		"frameworks/ex/common":/* recursive = */ true,
 
 		"prebuilts/sdk":/* recursive = */ false,
 		"prebuilts/sdk/tools":/* recursive = */ false,
 		"prebuilts/r8":/* recursive = */ false,
 		"packages/apps/Music":/* recursive = */ true,
+		"packages/apps/QuickSearchBox":/* recursive = */ true,
 	}
 
 	// Configure modules in these directories to enable bp2build_available: true or false by default.
