@@ -924,8 +924,8 @@ func (a *ApexSet) ApexInfoMutator(mctx android.TopDownMutatorContext) {
 
 func (a *ApexSet) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.installFilename = a.InstallFilename()
-	if !strings.HasSuffix(a.installFilename, imageApexSuffix) {
-		ctx.ModuleErrorf("filename should end in %s for apex_set", imageApexSuffix)
+	if !strings.HasSuffix(a.installFilename, imageApexSuffix) && !strings.HasSuffix(a.installFilename, imageCapexSuffix) {
+		ctx.ModuleErrorf("filename should end in %s or %s for apex_set", imageApexSuffix, imageCapexSuffix)
 	}
 
 	inputApex := android.OptionalPathForModuleSrc(ctx, a.prebuiltCommonProperties.Selected_apex).Path()
