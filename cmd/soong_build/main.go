@@ -163,16 +163,6 @@ func runQueryView(queryviewDir, queryviewMarker string, configuration android.Co
 	touch(shared.JoinPath(topDir, queryviewMarker))
 }
 
-func runSoongDocs(configuration android.Config) {
-	ctx := newContext(configuration)
-	soongDocsArgs := cmdlineArgs
-	bootstrap.RunBlueprint(soongDocsArgs, bootstrap.StopBeforePrepareBuildActions, ctx.Context, configuration)
-	if err := writeDocs(ctx, configuration, docFile); err != nil {
-		fmt.Fprintf(os.Stderr, "%s", err)
-		os.Exit(1)
-	}
-}
-
 func writeMetrics(configuration android.Config) {
 	metricsFile := filepath.Join(configuration.SoongOutDir(), "soong_build_metrics.pb")
 	err := android.WriteMetrics(configuration, metricsFile)
@@ -217,20 +207,22 @@ func writeDepFile(outputFile string, ninjaDeps []string) {
 // or the actual Soong build for the build.ninja file. Returns the top level
 // output file of the specific activity.
 func doChosenActivity(configuration android.Config, extraNinjaDeps []string) string {
-	bazelConversionRequested := bp2buildMarker != ""
 	mixedModeBuild := configuration.BazelContext.BazelEnabled()
+	generateBazelWorkspace := bp2buildMarker != ""
 	generateQueryView := bazelQueryViewDir != ""
+	generateModuleGraphFile := moduleGraphFile != ""
+	generateDocFile := docFile != ""
 
 	blueprintArgs := cmdlineArgs
 
 	var stopBefore bootstrap.StopBefore
-	if !generateQueryView && moduleGraphFile == "" {
+	if !generateModuleGraphFile && !generateQueryView && !generateDocFile {
 		stopBefore = bootstrap.DoEverything
 	} else {
 		stopBefore = bootstrap.StopBeforePrepareBuildActions
 	}
 
-	if bazelConversionRequested {
+	if generateBazelWorkspace {
 		// Run the alternate pipeline of bp2build mutators and singleton to convert
 		// Blueprint to BUILD files before everything else.
 		runBp2Build(configuration, extraNinjaDeps)
@@ -253,10 +245,20 @@ func doChosenActivity(configuration android.Config, extraNinjaDeps []string) str
 			runQueryView(bazelQueryViewDir, queryviewMarkerFile, configuration, ctx)
 			writeDepFile(queryviewMarkerFile, ninjaDeps)
 			return queryviewMarkerFile
-		} else if moduleGraphFile != "" {
+		} else if generateModuleGraphFile {
 			writeJsonModuleGraph(ctx, moduleGraphFile)
 			writeDepFile(moduleGraphFile, ninjaDeps)
 			return moduleGraphFile
+		} else if generateDocFile {
+			// TODO: we could make writeDocs() return the list of documentation files
+			// written and add them to the .d file. Then soong_docs would be re-run
+			// whenever one is deleted.
+			if err := writeDocs(ctx, shared.JoinPath(topDir, docFile)); err != nil {
+				fmt.Fprintf(os.Stderr, "error building Soong documentation: %s\n", err)
+				os.Exit(1)
+			}
+			writeDepFile(docFile, ninjaDeps)
+			return docFile
 		} else {
 			// The actual output (build.ninja) was written in the RunBlueprint() call
 			// above
@@ -318,16 +320,6 @@ func main() {
 		// Add a non-existent file to the dependencies so that soong_build will rerun when the debugger is
 		// enabled even if it completed successfully.
 		extraNinjaDeps = append(extraNinjaDeps, filepath.Join(configuration.SoongOutDir(), "always_rerun_for_delve"))
-	}
-
-	if docFile != "" {
-		// We don't write an used variables file when generating documentation
-		// because that is done from within the actual builds as a Ninja action and
-		// thus it would overwrite the actual used variables file so this is
-		// special-cased.
-		// TODO: Fix this by not passing --used_env to the soong_docs invocation
-		runSoongDocs(configuration)
-		return
 	}
 
 	finalOutputFile := doChosenActivity(configuration, extraNinjaDeps)
