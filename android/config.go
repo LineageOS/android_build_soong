@@ -157,8 +157,6 @@ type config struct {
 	captureBuild      bool // true for tests, saves build parameters for each module
 	ignoreEnvironment bool // true for tests, returns empty from all Getenv calls
 
-	stopBefore bootstrap.StopBefore
-
 	fs         pathtools.FileSystem
 	mockBpList string
 
@@ -565,20 +563,9 @@ func (c *config) mockFileSystem(bp string, fs map[string][]byte) {
 	c.mockBpList = blueprint.MockModuleListFile
 }
 
-func (c *config) StopBefore() bootstrap.StopBefore {
-	return c.stopBefore
-}
-
-// SetStopBefore configures soong_build to exit earlier at a specific point.
-func (c *config) SetStopBefore(stopBefore bootstrap.StopBefore) {
-	c.stopBefore = stopBefore
-}
-
 func (c *config) SetAllowMissingDependencies() {
 	c.productVariables.Allow_missing_dependencies = proptools.BoolPtr(true)
 }
-
-var _ bootstrap.ConfigStopBefore = (*config)(nil)
 
 // BlueprintToolLocation returns the directory containing build system tools
 // from Blueprint, like soong_zip and merge_zips.
