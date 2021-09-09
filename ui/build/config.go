@@ -784,6 +784,10 @@ func (c *configImpl) NamedGlobFile(name string) string {
 	return shared.JoinPath(c.SoongOutDir(), ".bootstrap/build-globs."+name+".ninja")
 }
 
+func (c *configImpl) UsedEnvFile(tag string) string {
+	return shared.JoinPath(c.SoongOutDir(), usedEnvFile+"."+tag)
+}
+
 func (c *configImpl) MainNinjaFile() string {
 	return shared.JoinPath(c.SoongOutDir(), "build.ninja")
 }
