@@ -102,27 +102,65 @@ func (mt *librarySdkMemberType) AddDependencies(ctx android.SdkDependencyContext
 			// Include the native bridge targets as well.
 			targets = includeNativeBridgeTargets
 		}
-		for _, target := range targets {
-			name, version := StubsLibNameAndVersion(lib)
-			if version == "" {
-				version = "latest"
-			}
-			variations := target.Variations()
-			if ctx.Device() {
-				variations = append(variations,
-					blueprint.Variation{Mutator: "image", Variation: android.CoreVariation})
-			}
-			if mt.linkTypes == nil {
-				ctx.AddFarVariationDependencies(variations, dependencyTag, name)
-			} else {
-				for _, linkType := range mt.linkTypes {
-					libVariations := append(variations,
-						blueprint.Variation{Mutator: "link", Variation: linkType})
-					if ctx.Device() && linkType == "shared" {
-						libVariations = append(libVariations,
-							blueprint.Variation{Mutator: "version", Variation: version})
+
+		// memberDependency encapsulates information about the dependencies to add for this member.
+		type memberDependency struct {
+			// The targets to depend upon.
+			targets []android.Target
+
+			// Additional image variations to depend upon, is either nil for no image variation or
+			// contains a single image variation.
+			imageVariations []blueprint.Variation
+		}
+
+		// Extract the name and version from the module name.
+		name, version := StubsLibNameAndVersion(lib)
+		if version == "" {
+			version = "latest"
+		}
+
+		// Compute the set of dependencies to add.
+		var memberDependencies []memberDependency
+		if ctx.Host() {
+			// Host does not support image variations so add a dependency without any.
+			memberDependencies = append(memberDependencies, memberDependency{
+				targets: targets,
+			})
+		} else {
+			// Otherwise, this is targeting the device so add a dependency on the core image variation
+			// (image:"").
+			memberDependencies = append(memberDependencies, memberDependency{
+				imageVariations: []blueprint.Variation{{Mutator: "image", Variation: android.CoreVariation}},
+				targets:         targets,
+			})
+		}
+
+		// For each dependency in the list add dependencies on the targets with the correct variations.
+		for _, dependency := range memberDependencies {
+			// For each target add a dependency on the target with any additional dependencies.
+			for _, target := range dependency.targets {
+				// Get the variations for the target.
+				variations := target.Variations()
+
+				// Add any additional dependencies needed.
+				variations = append(variations, dependency.imageVariations...)
+
+				if mt.linkTypes == nil {
+					// No link types are supported so add a dependency directly.
+					ctx.AddFarVariationDependencies(variations, dependencyTag, name)
+				} else {
+					// Otherwise, add a dependency on each supported link type in turn.
+					for _, linkType := range mt.linkTypes {
+						libVariations := append(variations,
+							blueprint.Variation{Mutator: "link", Variation: linkType})
+						// If this is for the device and a shared link type then add a dependency onto the
+						// appropriate version specific variant of the module.
+						if ctx.Device() && linkType == "shared" {
+							libVariations = append(libVariations,
+								blueprint.Variation{Mutator: "version", Variation: version})
+						}
+						ctx.AddFarVariationDependencies(libVariations, dependencyTag, name)
 					}
-					ctx.AddFarVariationDependencies(libVariations, dependencyTag, name)
 				}
 			}
 		}
