@@ -15,7 +15,6 @@
 package android
 
 import (
-	"android/soong/bazel"
 	"fmt"
 	"os"
 	"path"
@@ -23,6 +22,8 @@ import (
 	"regexp"
 	"strings"
 	"text/scanner"
+
+	"android/soong/bazel"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
@@ -452,6 +453,14 @@ type Module interface {
 	Enabled() bool
 	Target() Target
 	MultiTargets() []Target
+
+	// ImageVariation returns the image variation of this module.
+	//
+	// The returned structure has its Mutator field set to "image" and its Variation field set to the
+	// image variation, e.g. recovery, ramdisk, etc.. The Variation field is "" for host modules and
+	// device modules that have no image variation.
+	ImageVariation() blueprint.Variation
+
 	Owner() string
 	InstallInData() bool
 	InstallInTestcases() bool

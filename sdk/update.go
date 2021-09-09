@@ -22,6 +22,7 @@ import (
 
 	"android/soong/apex"
 	"android/soong/cc"
+
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
@@ -1411,7 +1412,7 @@ type archTypeSpecificInfo struct {
 	archType android.ArchType
 	osType   android.OsType
 
-	linkInfos []*linkTypeSpecificInfo
+	imageVariantInfos []*imageVariantSpecificInfo
 }
 
 var _ propertiesContainer = (*archTypeSpecificInfo)(nil)
@@ -1430,17 +1431,17 @@ func newArchSpecificInfo(ctx android.SdkMemberContext, archType android.ArchType
 	if len(archVariants) == 1 {
 		archInfo.Properties.PopulateFromVariant(ctx, archVariants[0])
 	} else {
-		// There is more than one variant for this arch type which must be differentiated
-		// by link type.
-		for _, linkVariant := range archVariants {
-			linkType := getLinkType(linkVariant)
-			if linkType == "" {
-				panic(fmt.Errorf("expected one arch specific variant as it is not identified by link type but found %d", len(archVariants)))
-			} else {
-				linkInfo := newLinkSpecificInfo(ctx, linkType, variantPropertiesFactory, linkVariant)
+		// Group the variants by image type.
+		variantsByImage := make(map[string][]android.Module)
+		for _, variant := range archVariants {
+			image := variant.ImageVariation().Variation
+			variantsByImage[image] = append(variantsByImage[image], variant)
+		}
 
-				archInfo.linkInfos = append(archInfo.linkInfos, linkInfo)
-			}
+		// Create the image variant info in a fixed order.
+		for _, imageVariantName := range android.SortedStringKeys(variantsByImage) {
+			variants := variantsByImage[imageVariantName]
+			archInfo.imageVariantInfos = append(archInfo.imageVariantInfos, newImageVariantSpecificInfo(ctx, imageVariantName, variantPropertiesFactory, variants))
 		}
 	}
 
@@ -1474,11 +1475,16 @@ func getLinkType(variant android.Module) string {
 // Optimize the properties by extracting common properties from link type specific
 // properties into arch type specific properties.
 func (archInfo *archTypeSpecificInfo) optimizeProperties(ctx *memberContext, commonValueExtractor *commonValueExtractor) {
-	if len(archInfo.linkInfos) == 0 {
+	if len(archInfo.imageVariantInfos) == 0 {
 		return
 	}
 
-	extractCommonProperties(ctx.sdkMemberContext, commonValueExtractor, archInfo.Properties, archInfo.linkInfos)
+	// Optimize the image variant properties first.
+	for _, imageVariantInfo := range archInfo.imageVariantInfos {
+		imageVariantInfo.optimizeProperties(ctx, commonValueExtractor)
+	}
+
+	extractCommonProperties(ctx.sdkMemberContext, commonValueExtractor, archInfo.Properties, archInfo.imageVariantInfos)
 }
 
 // Add the properties for an arch type to a property set.
@@ -1491,13 +1497,102 @@ func (archInfo *archTypeSpecificInfo) addToPropertySet(ctx *memberContext, archP
 	}
 	addSdkMemberPropertiesToSet(ctx, archInfo.Properties, archTypePropertySet)
 
-	for _, linkInfo := range archInfo.linkInfos {
-		linkInfo.addToPropertySet(ctx, archTypePropertySet)
+	for _, imageVariantInfo := range archInfo.imageVariantInfos {
+		imageVariantInfo.addToPropertySet(ctx, archTypePropertySet)
 	}
+}
+
+// getPropertySetContents returns the string representation of the contents of a property set, after
+// recursively pruning any empty nested property sets.
+func getPropertySetContents(propertySet android.BpPropertySet) string {
+	set := propertySet.(*bpPropertySet)
+	set.transformContents(pruneEmptySetTransformer{})
+	if len(set.properties) != 0 {
+		contents := &generatedContents{}
+		contents.Indent()
+		outputPropertySet(contents, set)
+		setAsString := contents.content.String()
+		return setAsString
+	}
+	return ""
 }
 
 func (archInfo *archTypeSpecificInfo) String() string {
 	return fmt.Sprintf("ArchType{%s}", archInfo.archType)
+}
+
+type imageVariantSpecificInfo struct {
+	baseInfo
+
+	imageVariant string
+
+	linkInfos []*linkTypeSpecificInfo
+}
+
+func newImageVariantSpecificInfo(ctx android.SdkMemberContext, imageVariant string, variantPropertiesFactory variantPropertiesFactoryFunc, imageVariants []android.Module) *imageVariantSpecificInfo {
+
+	// Create an image variant specific info into which the variant properties can be copied.
+	imageInfo := &imageVariantSpecificInfo{imageVariant: imageVariant}
+
+	// Create the properties into which the image variant specific properties will be added.
+	imageInfo.Properties = variantPropertiesFactory()
+
+	if len(imageVariants) == 1 {
+		imageInfo.Properties.PopulateFromVariant(ctx, imageVariants[0])
+	} else {
+		// There is more than one variant for this image variant which must be differentiated by link
+		// type.
+		for _, linkVariant := range imageVariants {
+			linkType := getLinkType(linkVariant)
+			if linkType == "" {
+				panic(fmt.Errorf("expected one arch specific variant as it is not identified by link type but found %d", len(imageVariants)))
+			} else {
+				linkInfo := newLinkSpecificInfo(ctx, linkType, variantPropertiesFactory, linkVariant)
+
+				imageInfo.linkInfos = append(imageInfo.linkInfos, linkInfo)
+			}
+		}
+	}
+
+	return imageInfo
+}
+
+// Optimize the properties by extracting common properties from link type specific
+// properties into arch type specific properties.
+func (imageInfo *imageVariantSpecificInfo) optimizeProperties(ctx *memberContext, commonValueExtractor *commonValueExtractor) {
+	if len(imageInfo.linkInfos) == 0 {
+		return
+	}
+
+	extractCommonProperties(ctx.sdkMemberContext, commonValueExtractor, imageInfo.Properties, imageInfo.linkInfos)
+}
+
+// Add the properties for an arch type to a property set.
+func (imageInfo *imageVariantSpecificInfo) addToPropertySet(ctx *memberContext, propertySet android.BpPropertySet) {
+	if imageInfo.imageVariant != android.CoreVariation {
+		propertySet = propertySet.AddPropertySet(imageInfo.imageVariant)
+	}
+
+	addSdkMemberPropertiesToSet(ctx, imageInfo.Properties, propertySet)
+
+	for _, linkInfo := range imageInfo.linkInfos {
+		linkInfo.addToPropertySet(ctx, propertySet)
+	}
+
+	// If this is for a non-core image variant then make sure that the property set does not contain
+	// any properties as providing non-core image variant specific properties for prebuilts is not
+	// currently supported.
+	if imageInfo.imageVariant != android.CoreVariation {
+		propertySetContents := getPropertySetContents(propertySet)
+		if propertySetContents != "" {
+			ctx.SdkModuleContext().ModuleErrorf("Image variant %q of sdk member %q has properties distinct from other variants; this is not yet supported. The properties are:\n%s",
+				imageInfo.imageVariant, ctx.name, propertySetContents)
+		}
+	}
+}
+
+func (imageInfo *imageVariantSpecificInfo) String() string {
+	return imageInfo.imageVariant
 }
 
 type linkTypeSpecificInfo struct {
