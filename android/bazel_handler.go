@@ -27,9 +27,9 @@ import (
 	"sync"
 
 	"android/soong/bazel/cquery"
+	"android/soong/shared"
 
 	"android/soong/bazel"
-	"android/soong/shared"
 )
 
 type cqueryRequest interface {
@@ -492,6 +492,12 @@ config_node(name = "%s",
 )
 `
 
+	commonArchFilegroupString := `
+filegroup(name = "common",
+    srcs = [%s],
+)
+`
+
 	configNodesSection := ""
 
 	labelsByArch := map[string][]string{}
@@ -501,14 +507,22 @@ config_node(name = "%s",
 		labelsByArch[archString] = append(labelsByArch[archString], labelString)
 	}
 
-	configNodeLabels := []string{}
+	allLabels := []string{}
 	for archString, labels := range labelsByArch {
-		configNodeLabels = append(configNodeLabels, fmt.Sprintf("\":%s\"", archString))
-		labelsString := strings.Join(labels, ",\n            ")
-		configNodesSection += fmt.Sprintf(configNodeFormatString, archString, archString, labelsString)
+		if archString == "common" {
+			// arch-less labels (e.g. filegroups) don't need a config_node
+			allLabels = append(allLabels, "\":common\"")
+			labelsString := strings.Join(labels, ",\n            ")
+			configNodesSection += fmt.Sprintf(commonArchFilegroupString, labelsString)
+		} else {
+			// Create a config_node, and add the config_node's label to allLabels
+			allLabels = append(allLabels, fmt.Sprintf("\":%s\"", archString))
+			labelsString := strings.Join(labels, ",\n            ")
+			configNodesSection += fmt.Sprintf(configNodeFormatString, archString, archString, labelsString)
+		}
 	}
 
-	return []byte(fmt.Sprintf(formatString, configNodesSection, strings.Join(configNodeLabels, ",\n            ")))
+	return []byte(fmt.Sprintf(formatString, configNodesSection, strings.Join(allLabels, ",\n            ")))
 }
 
 func indent(original string) string {
@@ -573,6 +587,12 @@ def %s(target):
 %s
 
 def get_arch(target):
+  # TODO(b/199363072): filegroups and file targets aren't associated with any
+  # specific platform architecture in mixed builds. This is consistent with how
+  # Soong treats filegroups, but it may not be the case with manually-written
+  # filegroup BUILD targets.
+  if target.kind in ["filegroup", ""]:
+    return "common"
   buildoptions = build_options(target)
   platforms = build_options(target)["//command_line_option:platforms"]
   if len(platforms) != 1:
@@ -671,11 +691,12 @@ func (context *bazelContext) InvokeBazel() error {
 	if err != nil {
 		return err
 	}
+
 	buildrootLabel := "@soong_injection//mixed_builds:buildroot"
 	cqueryOutput, cqueryErr, err = context.issueBazelCommand(
 		context.paths,
 		bazel.CqueryBuildRootRunName,
-		bazelCommand{"cquery", fmt.Sprintf("kind(rule, deps(%s))", buildrootLabel)},
+		bazelCommand{"cquery", fmt.Sprintf("deps(%s)", buildrootLabel)},
 		"--output=starlark",
 		"--starlark:file="+absolutePath(cqueryFileRelpath))
 	err = ioutil.WriteFile(filepath.Join(soongInjectionPath, "cquery.out"),
