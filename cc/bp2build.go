@@ -535,12 +535,21 @@ func bp2BuildMakePathsRelativeToModule(ctx android.BazelConversionPathContext, p
 	return relativePaths
 }
 
-func bp2BuildParseExportedIncludes(ctx android.TopDownMutatorContext, module *Module) bazel.StringListAttribute {
+// BazelIncludes contains information about -I and -isystem paths from a module converted to Bazel
+// attributes.
+type BazelIncludes struct {
+	Includes       bazel.StringListAttribute
+	SystemIncludes bazel.StringListAttribute
+}
+
+func bp2BuildParseExportedIncludes(ctx android.TopDownMutatorContext, module *Module) BazelIncludes {
 	libraryDecorator := module.linker.(*libraryDecorator)
 	return bp2BuildParseExportedIncludesHelper(ctx, module, libraryDecorator)
 }
 
-func Bp2BuildParseExportedIncludesForPrebuiltLibrary(ctx android.TopDownMutatorContext, module *Module) bazel.StringListAttribute {
+// Bp2buildParseExportedIncludesForPrebuiltLibrary returns a BazelIncludes with Bazel-ified values
+// to export includes from the underlying module's properties.
+func Bp2BuildParseExportedIncludesForPrebuiltLibrary(ctx android.TopDownMutatorContext, module *Module) BazelIncludes {
 	prebuiltLibraryLinker := module.linker.(*prebuiltLibraryLinker)
 	libraryDecorator := prebuiltLibraryLinker.libraryDecorator
 	return bp2BuildParseExportedIncludesHelper(ctx, module, libraryDecorator)
@@ -548,36 +557,22 @@ func Bp2BuildParseExportedIncludesForPrebuiltLibrary(ctx android.TopDownMutatorC
 
 // bp2BuildParseExportedIncludes creates a string list attribute contains the
 // exported included directories of a module.
-func bp2BuildParseExportedIncludesHelper(ctx android.TopDownMutatorContext, module *Module, libraryDecorator *libraryDecorator) bazel.StringListAttribute {
-	// Export_system_include_dirs and export_include_dirs are already module dir
-	// relative, so they don't need to be relativized like include_dirs, which
-	// are root-relative.
-	includeDirs := libraryDecorator.flagExporter.Properties.Export_system_include_dirs
-	includeDirs = append(includeDirs, libraryDecorator.flagExporter.Properties.Export_include_dirs...)
-	var includeDirsAttribute bazel.StringListAttribute
-
-	getVariantIncludeDirs := func(includeDirs []string, flagExporterProperties *FlagExporterProperties, subtract bool) []string {
-		variantIncludeDirs := flagExporterProperties.Export_system_include_dirs
-		variantIncludeDirs = append(variantIncludeDirs, flagExporterProperties.Export_include_dirs...)
-
-		if subtract {
-			// To avoid duplicate includes when base includes + arch includes are combined
-			// TODO: Add something similar to ResolveExcludes() in bazel/properties.go
-			variantIncludeDirs = bazel.SubtractStrings(variantIncludeDirs, includeDirs)
-		}
-		return variantIncludeDirs
-	}
-
+func bp2BuildParseExportedIncludesHelper(ctx android.TopDownMutatorContext, module *Module, libraryDecorator *libraryDecorator) BazelIncludes {
+	exported := BazelIncludes{}
 	for axis, configToProps := range module.GetArchVariantProperties(ctx, &FlagExporterProperties{}) {
 		for config, props := range configToProps {
 			if flagExporterProperties, ok := props.(*FlagExporterProperties); ok {
-				archVariantIncludeDirs := getVariantIncludeDirs(includeDirs, flagExporterProperties, axis != bazel.NoConfigAxis)
-				if len(archVariantIncludeDirs) > 0 {
-					includeDirsAttribute.SetSelectValue(axis, config, archVariantIncludeDirs)
+				if len(flagExporterProperties.Export_include_dirs) > 0 {
+					exported.Includes.SetSelectValue(axis, config, flagExporterProperties.Export_include_dirs)
+				}
+				if len(flagExporterProperties.Export_system_include_dirs) > 0 {
+					exported.SystemIncludes.SetSelectValue(axis, config, flagExporterProperties.Export_system_include_dirs)
 				}
 			}
 		}
 	}
+	exported.Includes.DeduplicateAxesFromBase()
+	exported.SystemIncludes.DeduplicateAxesFromBase()
 
-	return includeDirsAttribute
+	return exported
 }
