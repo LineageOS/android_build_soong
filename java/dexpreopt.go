@@ -160,6 +160,10 @@ func (d *dexpreopter) dexpreoptDisabled(ctx android.BaseModuleContext) bool {
 		}
 	}
 
+	if !android.IsModulePreferred(ctx.Module()) {
+		return true
+	}
+
 	// TODO: contains no java code
 
 	return false

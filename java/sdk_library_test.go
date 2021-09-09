@@ -598,6 +598,7 @@ func TestJavaSdkLibraryImport(t *testing.T) {
 	}
 
 	CheckModuleDependencies(t, result.TestContext, "sdklib", "android_common", []string{
+		`dex2oatd`,
 		`prebuilt_sdklib.stubs`,
 		`prebuilt_sdklib.stubs.source.test`,
 		`prebuilt_sdklib.stubs.system`,
@@ -674,7 +675,6 @@ func TestJavaSdkLibraryImport_Preferred(t *testing.T) {
 		`)
 
 	CheckModuleDependencies(t, result.TestContext, "sdklib", "android_common", []string{
-		`dex2oatd`,
 		`prebuilt_sdklib`,
 		`sdklib.impl`,
 		`sdklib.stubs`,
@@ -683,6 +683,7 @@ func TestJavaSdkLibraryImport_Preferred(t *testing.T) {
 	})
 
 	CheckModuleDependencies(t, result.TestContext, "prebuilt_sdklib", "android_common", []string{
+		`dex2oatd`,
 		`prebuilt_sdklib.stubs`,
 		`sdklib.impl`,
 		`sdklib.xml`,
