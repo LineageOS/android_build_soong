@@ -157,8 +157,6 @@ type config struct {
 	captureBuild      bool // true for tests, saves build parameters for each module
 	ignoreEnvironment bool // true for tests, returns empty from all Getenv calls
 
-	stopBefore bootstrap.StopBefore
-
 	fs         pathtools.FileSystem
 	mockBpList string
 
@@ -420,8 +418,8 @@ func TestArchConfig(buildDir string, env map[string]string, bp string, fs map[st
 // bootstrap run. Only per-run data is reset. Data which needs to persist across
 // multiple runs in the same program execution is carried over (such as Bazel
 // context or environment deps).
-func ConfigForAdditionalRun(cmdlineArgs bootstrap.Args, c Config) (Config, error) {
-	newConfig, err := NewConfig(cmdlineArgs, c.soongOutDir, c.env)
+func ConfigForAdditionalRun(c Config) (Config, error) {
+	newConfig, err := NewConfig(c.moduleListFile, c.runGoTests, c.outDir, c.soongOutDir, c.env)
 	if err != nil {
 		return Config{}, err
 	}
@@ -432,20 +430,20 @@ func ConfigForAdditionalRun(cmdlineArgs bootstrap.Args, c Config) (Config, error
 
 // NewConfig creates a new Config object. The srcDir argument specifies the path
 // to the root source directory. It also loads the config file, if found.
-func NewConfig(cmdlineArgs bootstrap.Args, soongOutDir string, availableEnv map[string]string) (Config, error) {
+func NewConfig(moduleListFile string, runGoTests bool, outDir, soongOutDir string, availableEnv map[string]string) (Config, error) {
 	// Make a config with default options.
 	config := &config{
 		ProductVariablesFileName: filepath.Join(soongOutDir, productVariablesFileName),
 
 		env: availableEnv,
 
-		outDir:                   cmdlineArgs.OutDir,
+		outDir:                   outDir,
 		soongOutDir:              soongOutDir,
-		runGoTests:               cmdlineArgs.RunGoTests,
-		useValidationsForGoTests: cmdlineArgs.UseValidations,
+		runGoTests:               runGoTests,
+		useValidationsForGoTests: runGoTests,
 		multilibConflicts:        make(map[ArchType]bool),
 
-		moduleListFile: cmdlineArgs.ModuleListFile,
+		moduleListFile: moduleListFile,
 		fs:             pathtools.NewOsFs(absSrcDir),
 	}
 
@@ -565,20 +563,9 @@ func (c *config) mockFileSystem(bp string, fs map[string][]byte) {
 	c.mockBpList = blueprint.MockModuleListFile
 }
 
-func (c *config) StopBefore() bootstrap.StopBefore {
-	return c.stopBefore
-}
-
-// SetStopBefore configures soong_build to exit earlier at a specific point.
-func (c *config) SetStopBefore(stopBefore bootstrap.StopBefore) {
-	c.stopBefore = stopBefore
-}
-
 func (c *config) SetAllowMissingDependencies() {
 	c.productVariables.Allow_missing_dependencies = proptools.BoolPtr(true)
 }
-
-var _ bootstrap.ConfigStopBefore = (*config)(nil)
 
 // BlueprintToolLocation returns the directory containing build system tools
 // from Blueprint, like soong_zip and merge_zips.
