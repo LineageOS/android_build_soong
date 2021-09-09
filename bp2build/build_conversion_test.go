@@ -218,13 +218,9 @@ func TestGenerateSoongModuleTargets(t *testing.T) {
 }
 
 func TestGenerateBazelTargetModules(t *testing.T) {
-	testCases := []struct {
-		name                 string
-		bp                   string
-		expectedBazelTargets []string
-	}{
+	testCases := []bp2buildTestCase{
 		{
-			bp: `custom {
+			blueprint: `custom {
 	name: "foo",
     string_list_prop: ["a", "b"],
     string_prop: "a",
@@ -241,7 +237,7 @@ func TestGenerateBazelTargetModules(t *testing.T) {
 			},
 		},
 		{
-			bp: `custom {
+			blueprint: `custom {
 	name: "control_characters",
     string_list_prop: ["\t", "\n"],
     string_prop: "a\t\n\r",
@@ -258,7 +254,7 @@ func TestGenerateBazelTargetModules(t *testing.T) {
 			},
 		},
 		{
-			bp: `custom {
+			blueprint: `custom {
   name: "has_dep",
   arch_paths: [":dep"],
   bazel_module: { bp2build_available: true },
@@ -280,7 +276,7 @@ custom {
 			},
 		},
 		{
-			bp: `custom {
+			blueprint: `custom {
     name: "arch_paths",
     arch: {
       x86: {
@@ -299,7 +295,7 @@ custom {
 			},
 		},
 		{
-			bp: `custom {
+			blueprint: `custom {
   name: "has_dep",
   arch: {
     x86: {
@@ -331,17 +327,17 @@ custom {
 
 	dir := "."
 	for _, testCase := range testCases {
-		config := android.TestConfig(buildDir, nil, testCase.bp, nil)
+		config := android.TestConfig(buildDir, nil, testCase.blueprint, nil)
 		ctx := android.NewTestContext(config)
 
 		registerCustomModuleForBp2buildConversion(ctx)
 
 		_, errs := ctx.ParseFileList(dir, []string{"Android.bp"})
-		if errored(t, "", errs) {
+		if errored(t, testCase, errs) {
 			continue
 		}
 		_, errs = ctx.ResolveDependencies(config)
-		if errored(t, "", errs) {
+		if errored(t, testCase, errs) {
 			continue
 		}
 
@@ -548,23 +544,13 @@ genrule {
 }`,
 	}
 
-	testCases := []struct {
-		description                        string
-		moduleTypeUnderTest                string
-		moduleTypeUnderTestFactory         android.ModuleFactory
-		moduleTypeUnderTestBp2BuildMutator func(android.TopDownMutatorContext)
-		preArchMutators                    []android.RegisterMutatorFunc
-		bp                                 string
-		expectedBazelTargets               []string
-		fs                                 map[string]string
-		dir                                string
-	}{
+	testCases := []bp2buildTestCase{
 		{
 			description:                        "filegroup with does not specify srcs",
 			moduleTypeUnderTest:                "filegroup",
 			moduleTypeUnderTestFactory:         android.FileGroupFactory,
 			moduleTypeUnderTestBp2BuildMutator: android.FilegroupBp2Build,
-			bp: `filegroup {
+			blueprint: `filegroup {
     name: "fg_foo",
     bazel_module: { bp2build_available: true },
 }`,
@@ -579,7 +565,7 @@ genrule {
 			moduleTypeUnderTest:                "filegroup",
 			moduleTypeUnderTestFactory:         android.FileGroupFactory,
 			moduleTypeUnderTestBp2BuildMutator: android.FilegroupBp2Build,
-			bp: `filegroup {
+			blueprint: `filegroup {
     name: "fg_foo",
     srcs: [],
     bazel_module: { bp2build_available: true },
@@ -595,7 +581,7 @@ genrule {
 			moduleTypeUnderTest:                "filegroup",
 			moduleTypeUnderTestFactory:         android.FileGroupFactory,
 			moduleTypeUnderTestBp2BuildMutator: android.FilegroupBp2Build,
-			bp: `filegroup {
+			blueprint: `filegroup {
     name: "fg_foo",
     srcs: ["a", "b"],
     bazel_module: { bp2build_available: true },
@@ -614,7 +600,7 @@ genrule {
 			moduleTypeUnderTest:                "filegroup",
 			moduleTypeUnderTestFactory:         android.FileGroupFactory,
 			moduleTypeUnderTestBp2BuildMutator: android.FilegroupBp2Build,
-			bp: `filegroup {
+			blueprint: `filegroup {
     name: "fg_foo",
     srcs: ["a", "b"],
     exclude_srcs: ["a"],
@@ -631,7 +617,7 @@ genrule {
 			moduleTypeUnderTest:                "filegroup",
 			moduleTypeUnderTestFactory:         android.FileGroupFactory,
 			moduleTypeUnderTestBp2BuildMutator: android.FilegroupBp2Build,
-			bp: `filegroup {
+			blueprint: `filegroup {
     name: "foo",
     srcs: ["**/*.txt"],
     bazel_module: { bp2build_available: true },
@@ -645,7 +631,7 @@ genrule {
     ],
 )`,
 			},
-			fs: map[string]string{
+			filesystem: map[string]string{
 				"other/a.txt":        "",
 				"other/b.txt":        "",
 				"other/subdir/a.txt": "",
@@ -657,7 +643,7 @@ genrule {
 			moduleTypeUnderTest:                "filegroup",
 			moduleTypeUnderTestFactory:         android.FileGroupFactory,
 			moduleTypeUnderTestBp2BuildMutator: android.FilegroupBp2Build,
-			bp: `filegroup {
+			blueprint: `filegroup {
     name: "foo",
     srcs: ["a.txt"],
     bazel_module: { bp2build_available: true },
@@ -672,7 +658,7 @@ genrule {
     ],
 )`,
 			},
-			fs: map[string]string{
+			filesystem: map[string]string{
 				"other/Android.bp": `filegroup {
     name: "fg_foo",
     srcs: ["**/*.txt"],
@@ -689,7 +675,7 @@ genrule {
 			moduleTypeUnderTest:                "filegroup",
 			moduleTypeUnderTestFactory:         android.FileGroupFactory,
 			moduleTypeUnderTestBp2BuildMutator: android.FilegroupBp2Build,
-			bp: `filegroup {
+			blueprint: `filegroup {
     name: "foobar",
     srcs: [
         ":foo",
@@ -705,7 +691,7 @@ genrule {
     ],
 )`,
 			},
-			fs: map[string]string{
+			filesystem: map[string]string{
 				"other/Android.bp": `filegroup {
     name: "foo",
     srcs: ["a", "b"],
@@ -717,7 +703,7 @@ genrule {
 			moduleTypeUnderTest:                "genrule",
 			moduleTypeUnderTestFactory:         genrule.GenRuleFactory,
 			moduleTypeUnderTestBp2BuildMutator: genrule.GenruleBp2Build,
-			bp: `genrule {
+			blueprint: `genrule {
     name: "foo.tool",
     out: ["foo_tool.out"],
     srcs: ["foo_tool.in"],
@@ -754,7 +740,7 @@ genrule {
 			moduleTypeUnderTest:                "genrule",
 			moduleTypeUnderTestFactory:         genrule.GenRuleFactory,
 			moduleTypeUnderTestBp2BuildMutator: genrule.GenruleBp2Build,
-			bp: `genrule {
+			blueprint: `genrule {
     name: "foo.tools",
     out: ["foo_tool.out", "foo_tool2.out"],
     srcs: ["foo_tool.in"],
@@ -793,7 +779,7 @@ genrule {
 			moduleTypeUnderTest:                "genrule",
 			moduleTypeUnderTestFactory:         genrule.GenRuleFactory,
 			moduleTypeUnderTestBp2BuildMutator: genrule.GenruleBp2Build,
-			bp: `genrule {
+			blueprint: `genrule {
     name: "foo",
     out: ["foo.out"],
     srcs: ["foo.in"],
@@ -809,14 +795,14 @@ genrule {
     tools = ["//other:foo.tool"],
 )`,
 			},
-			fs: otherGenruleBp,
+			filesystem: otherGenruleBp,
 		},
 		{
 			description:                        "genrule srcs using $(locations //absolute:label)",
 			moduleTypeUnderTest:                "genrule",
 			moduleTypeUnderTestFactory:         genrule.GenRuleFactory,
 			moduleTypeUnderTestBp2BuildMutator: genrule.GenruleBp2Build,
-			bp: `genrule {
+			blueprint: `genrule {
     name: "foo",
     out: ["foo.out"],
     srcs: [":other.tool"],
@@ -832,14 +818,14 @@ genrule {
     tools = ["//other:foo.tool"],
 )`,
 			},
-			fs: otherGenruleBp,
+			filesystem: otherGenruleBp,
 		},
 		{
 			description:                        "genrule using $(location) label should substitute first tool label automatically",
 			moduleTypeUnderTest:                "genrule",
 			moduleTypeUnderTestFactory:         genrule.GenRuleFactory,
 			moduleTypeUnderTestBp2BuildMutator: genrule.GenruleBp2Build,
-			bp: `genrule {
+			blueprint: `genrule {
     name: "foo",
     out: ["foo.out"],
     srcs: ["foo.in"],
@@ -858,14 +844,14 @@ genrule {
     ],
 )`,
 			},
-			fs: otherGenruleBp,
+			filesystem: otherGenruleBp,
 		},
 		{
 			description:                        "genrule using $(locations) label should substitute first tool label automatically",
 			moduleTypeUnderTest:                "genrule",
 			moduleTypeUnderTestFactory:         genrule.GenRuleFactory,
 			moduleTypeUnderTestBp2BuildMutator: genrule.GenruleBp2Build,
-			bp: `genrule {
+			blueprint: `genrule {
     name: "foo",
     out: ["foo.out"],
     srcs: ["foo.in"],
@@ -884,14 +870,14 @@ genrule {
     ],
 )`,
 			},
-			fs: otherGenruleBp,
+			filesystem: otherGenruleBp,
 		},
 		{
 			description:                        "genrule without tools or tool_files can convert successfully",
 			moduleTypeUnderTest:                "genrule",
 			moduleTypeUnderTestFactory:         genrule.GenRuleFactory,
 			moduleTypeUnderTestBp2BuildMutator: genrule.GenruleBp2Build,
-			bp: `genrule {
+			blueprint: `genrule {
     name: "foo",
     out: ["foo.out"],
     srcs: ["foo.in"],
@@ -914,24 +900,24 @@ genrule {
 		toParse := []string{
 			"Android.bp",
 		}
-		for f, content := range testCase.fs {
+		for f, content := range testCase.filesystem {
 			if strings.HasSuffix(f, "Android.bp") {
 				toParse = append(toParse, f)
 			}
 			fs[f] = []byte(content)
 		}
-		config := android.TestConfig(buildDir, nil, testCase.bp, fs)
+		config := android.TestConfig(buildDir, nil, testCase.blueprint, fs)
 		ctx := android.NewTestContext(config)
 		ctx.RegisterModuleType(testCase.moduleTypeUnderTest, testCase.moduleTypeUnderTestFactory)
 		ctx.RegisterBp2BuildMutator(testCase.moduleTypeUnderTest, testCase.moduleTypeUnderTestBp2BuildMutator)
 		ctx.RegisterForBazelConversion()
 
 		_, errs := ctx.ParseFileList(dir, toParse)
-		if errored(t, testCase.description, errs) {
+		if errored(t, testCase, errs) {
 			continue
 		}
 		_, errs = ctx.ResolveDependencies(config)
-		if errored(t, testCase.description, errs) {
+		if errored(t, testCase, errs) {
 			continue
 		}
 
@@ -1353,30 +1339,20 @@ filegroup { name: "opt-out-h", bazel_module: { bp2build_available: false } }
 }
 
 func TestCombineBuildFilesBp2buildTargets(t *testing.T) {
-	testCases := []struct {
-		description                        string
-		moduleTypeUnderTest                string
-		moduleTypeUnderTestFactory         android.ModuleFactory
-		moduleTypeUnderTestBp2BuildMutator func(android.TopDownMutatorContext)
-		preArchMutators                    []android.RegisterMutatorFunc
-		bp                                 string
-		expectedBazelTargets               []string
-		fs                                 map[string]string
-		dir                                string
-	}{
+	testCases := []bp2buildTestCase{
 		{
 			description:                        "filegroup bazel_module.label",
 			moduleTypeUnderTest:                "filegroup",
 			moduleTypeUnderTestFactory:         android.FileGroupFactory,
 			moduleTypeUnderTestBp2BuildMutator: android.FilegroupBp2Build,
-			bp: `filegroup {
+			blueprint: `filegroup {
     name: "fg_foo",
     bazel_module: { label: "//other:fg_foo" },
 }`,
 			expectedBazelTargets: []string{
 				`// BUILD file`,
 			},
-			fs: map[string]string{
+			filesystem: map[string]string{
 				"other/BUILD.bazel": `// BUILD file`,
 			},
 		},
@@ -1385,7 +1361,7 @@ func TestCombineBuildFilesBp2buildTargets(t *testing.T) {
 			moduleTypeUnderTest:                "filegroup",
 			moduleTypeUnderTestFactory:         android.FileGroupFactory,
 			moduleTypeUnderTestBp2BuildMutator: android.FilegroupBp2Build,
-			bp: `filegroup {
+			blueprint: `filegroup {
 		    name: "fg_foo",
 		    bazel_module: { label: "//other:fg_foo" },
 		}
@@ -1397,7 +1373,7 @@ func TestCombineBuildFilesBp2buildTargets(t *testing.T) {
 			expectedBazelTargets: []string{
 				`// BUILD file`,
 			},
-			fs: map[string]string{
+			filesystem: map[string]string{
 				"other/BUILD.bazel": `// BUILD file`,
 			},
 		},
@@ -1407,8 +1383,8 @@ func TestCombineBuildFilesBp2buildTargets(t *testing.T) {
 			moduleTypeUnderTestFactory:         android.FileGroupFactory,
 			moduleTypeUnderTestBp2BuildMutator: android.FilegroupBp2Build,
 			dir:                                "other",
-			bp:                                 ``,
-			fs: map[string]string{
+			blueprint:                          ``,
+			filesystem: map[string]string{
 				"other/Android.bp": `filegroup {
 				name: "fg_foo",
 				bazel_module: {
@@ -1434,7 +1410,7 @@ func TestCombineBuildFilesBp2buildTargets(t *testing.T) {
 			moduleTypeUnderTest:                "filegroup",
 			moduleTypeUnderTestFactory:         android.FileGroupFactory,
 			moduleTypeUnderTestBp2BuildMutator: android.FilegroupBp2Build,
-			bp: `filegroup {
+			blueprint: `filegroup {
 		    name: "fg_foo",
 		    bazel_module: {
 		      label: "//other:fg_foo",
@@ -1453,7 +1429,7 @@ func TestCombineBuildFilesBp2buildTargets(t *testing.T) {
 )`,
 				`// BUILD file`,
 			},
-			fs: map[string]string{
+			filesystem: map[string]string{
 				"other/BUILD.bazel": `// BUILD file`,
 			},
 		},
@@ -1466,24 +1442,24 @@ func TestCombineBuildFilesBp2buildTargets(t *testing.T) {
 			toParse := []string{
 				"Android.bp",
 			}
-			for f, content := range testCase.fs {
+			for f, content := range testCase.filesystem {
 				if strings.HasSuffix(f, "Android.bp") {
 					toParse = append(toParse, f)
 				}
 				fs[f] = []byte(content)
 			}
-			config := android.TestConfig(buildDir, nil, testCase.bp, fs)
+			config := android.TestConfig(buildDir, nil, testCase.blueprint, fs)
 			ctx := android.NewTestContext(config)
 			ctx.RegisterModuleType(testCase.moduleTypeUnderTest, testCase.moduleTypeUnderTestFactory)
 			ctx.RegisterBp2BuildMutator(testCase.moduleTypeUnderTest, testCase.moduleTypeUnderTestBp2BuildMutator)
 			ctx.RegisterForBazelConversion()
 
 			_, errs := ctx.ParseFileList(dir, toParse)
-			if errored(t, testCase.description, errs) {
+			if errored(t, testCase, errs) {
 				return
 			}
 			_, errs = ctx.ResolveDependencies(config)
-			if errored(t, testCase.description, errs) {
+			if errored(t, testCase, errs) {
 				return
 			}
 
@@ -1517,22 +1493,13 @@ func TestCombineBuildFilesBp2buildTargets(t *testing.T) {
 }
 
 func TestGlobExcludeSrcs(t *testing.T) {
-	testCases := []struct {
-		description                        string
-		moduleTypeUnderTest                string
-		moduleTypeUnderTestFactory         android.ModuleFactory
-		moduleTypeUnderTestBp2BuildMutator func(android.TopDownMutatorContext)
-		bp                                 string
-		expectedBazelTargets               []string
-		fs                                 map[string]string
-		dir                                string
-	}{
+	testCases := []bp2buildTestCase{
 		{
 			description:                        "filegroup top level exclude_srcs",
 			moduleTypeUnderTest:                "filegroup",
 			moduleTypeUnderTestFactory:         android.FileGroupFactory,
 			moduleTypeUnderTestBp2BuildMutator: android.FilegroupBp2Build,
-			bp: `filegroup {
+			blueprint: `filegroup {
     name: "fg_foo",
     srcs: ["**/*.txt"],
     exclude_srcs: ["c.txt"],
@@ -1548,7 +1515,7 @@ func TestGlobExcludeSrcs(t *testing.T) {
     ],
 )`,
 			},
-			fs: map[string]string{
+			filesystem: map[string]string{
 				"a.txt":          "",
 				"b.txt":          "",
 				"c.txt":          "",
@@ -1562,9 +1529,9 @@ func TestGlobExcludeSrcs(t *testing.T) {
 			moduleTypeUnderTest:                "filegroup",
 			moduleTypeUnderTestFactory:         android.FileGroupFactory,
 			moduleTypeUnderTestBp2BuildMutator: android.FilegroupBp2Build,
-			bp:                                 "",
+			blueprint:                          "",
 			dir:                                "dir",
-			fs: map[string]string{
+			filesystem: map[string]string{
 				"dir/Android.bp": `filegroup {
     name: "fg_foo",
     srcs: ["**/*.txt"],
@@ -1596,24 +1563,24 @@ func TestGlobExcludeSrcs(t *testing.T) {
 		toParse := []string{
 			"Android.bp",
 		}
-		for f, content := range testCase.fs {
+		for f, content := range testCase.filesystem {
 			if strings.HasSuffix(f, "Android.bp") {
 				toParse = append(toParse, f)
 			}
 			fs[f] = []byte(content)
 		}
-		config := android.TestConfig(buildDir, nil, testCase.bp, fs)
+		config := android.TestConfig(buildDir, nil, testCase.blueprint, fs)
 		ctx := android.NewTestContext(config)
 		ctx.RegisterModuleType(testCase.moduleTypeUnderTest, testCase.moduleTypeUnderTestFactory)
 		ctx.RegisterBp2BuildMutator(testCase.moduleTypeUnderTest, testCase.moduleTypeUnderTestBp2BuildMutator)
 		ctx.RegisterForBazelConversion()
 
 		_, errs := ctx.ParseFileList(dir, toParse)
-		if errored(t, testCase.description, errs) {
+		if errored(t, testCase, errs) {
 			continue
 		}
 		_, errs = ctx.ResolveDependencies(config)
-		if errored(t, testCase.description, errs) {
+		if errored(t, testCase, errs) {
 			continue
 		}
 
