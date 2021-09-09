@@ -382,7 +382,7 @@ func (a *apexBundle) androidMkForType() android.AndroidMkData {
 				fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", a.installDir.ToMakePath().String())
 				stemSuffix := apexType.suffix()
 				if a.isCompressed {
-					stemSuffix = ".capex"
+					stemSuffix = imageCapexSuffix
 				}
 				fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", name+stemSuffix)
 				fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE :=", !a.installable())
