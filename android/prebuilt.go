@@ -240,7 +240,7 @@ func InitSingleSourcePrebuiltModule(module PrebuiltInterface, srcProps interface
 			value = value.Elem()
 		}
 		if value.Kind() != reflect.String {
-			panic(fmt.Errorf("prebuilt src field %q should be a string or a pointer to one but was %d %q", srcPropertyName, value.Kind(), value))
+			panic(fmt.Errorf("prebuilt src field %q in %T in module %s should be a string or a pointer to one but was %v", srcField, srcProps, module, value))
 		}
 		src := value.String()
 		if src == "" {
