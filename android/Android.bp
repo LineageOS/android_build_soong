@@ -66,7 +66,6 @@ bootstrap_go_package {
         "prebuilt.go",
         "prebuilt_build_tool.go",
         "proto.go",
-        "queryview.go",
         "register.go",
         "rule_builder.go",
         "sandbox.go",
@@ -81,7 +80,6 @@ bootstrap_go_package {
         "util.go",
         "variable.go",
         "visibility.go",
-        "writedocs.go",
     ],
     testSrcs: [
         "android_test.go",

@@ -33,7 +33,8 @@ import (
 type Config struct{ *configImpl }
 
 type configImpl struct {
-	// From the environment
+	// Some targets that are implemented in soong_build
+	// (bp2build, json-module-graph) are not here and have their own bits below.
 	arguments     []string
 	goma          bool
 	environ       *Environment
@@ -41,17 +42,21 @@ type configImpl struct {
 	buildDateTime string
 
 	// From the arguments
-	parallel       int
-	keepGoing      int
-	verbose        bool
-	checkbuild     bool
-	dist           bool
-	skipConfig     bool
-	skipKati       bool
-	skipKatiNinja  bool
-	skipSoong      bool
-	skipNinja      bool
-	skipSoongTests bool
+	parallel        int
+	keepGoing       int
+	verbose         bool
+	checkbuild      bool
+	dist            bool
+	jsonModuleGraph bool
+	bp2build        bool
+	queryview       bool
+	soongDocs       bool
+	skipConfig      bool
+	skipKati        bool
+	skipKatiNinja   bool
+	skipSoong       bool
+	skipNinja       bool
+	skipSoongTests  bool
 
 	// From the product config
 	katiArgs        []string
@@ -105,12 +110,6 @@ type bazelBuildMode int
 const (
 	// Don't use bazel at all.
 	noBazel bazelBuildMode = iota
-
-	// Only generate build files (in a subdirectory of the out directory) and exit.
-	generateBuildFiles
-
-	// Only generate the Soong json module graph for use with jq, and exit.
-	generateJsonModuleGraph
 
 	// Generate synthetic build files and incorporate these files into a build which
 	// partially uses Bazel. Build metadata may come from Android.bp or BUILD files.
@@ -639,6 +638,14 @@ func (c *configImpl) parseArgs(ctx Context, args []string) {
 			c.environ.Set(k, v)
 		} else if arg == "dist" {
 			c.dist = true
+		} else if arg == "json-module-graph" {
+			c.jsonModuleGraph = true
+		} else if arg == "bp2build" {
+			c.bp2build = true
+		} else if arg == "queryview" {
+			c.queryview = true
+		} else if arg == "soong_docs" {
+			c.soongDocs = true
 		} else {
 			if arg == "checkbuild" {
 				c.checkbuild = true
@@ -705,6 +712,26 @@ func (c *configImpl) Arguments() []string {
 	return c.arguments
 }
 
+func (c *configImpl) SoongBuildInvocationNeeded() bool {
+	if c.Dist() {
+		return true
+	}
+
+	if len(c.Arguments()) > 0 {
+		// Explicit targets requested that are not special targets like b2pbuild
+		// or the JSON module graph
+		return true
+	}
+
+	if !c.JsonModuleGraph() && !c.Bp2Build() && !c.Queryview() && !c.SoongDocs() {
+		// Command line was empty, the default Ninja target is built
+		return true
+	}
+
+	// build.ninja doesn't need to be generated
+	return false
+}
+
 func (c *configImpl) OutDir() string {
 	if outDir, ok := c.environ.Get("OUT_DIR"); ok {
 		return outDir
@@ -753,12 +780,24 @@ func (c *configImpl) HostToolDir() string {
 	return filepath.Join(c.SoongOutDir(), "host", c.PrebuiltOS(), "bin")
 }
 
+func (c *configImpl) NamedGlobFile(name string) string {
+	return shared.JoinPath(c.SoongOutDir(), ".bootstrap/build-globs."+name+".ninja")
+}
+
 func (c *configImpl) MainNinjaFile() string {
 	return shared.JoinPath(c.SoongOutDir(), "build.ninja")
 }
 
 func (c *configImpl) Bp2BuildMarkerFile() string {
 	return shared.JoinPath(c.SoongOutDir(), ".bootstrap/bp2build_workspace_marker")
+}
+
+func (c *configImpl) SoongDocsHtml() string {
+	return shared.JoinPath(c.SoongOutDir(), "docs/soong_build.html")
+}
+
+func (c *configImpl) QueryviewMarkerFile() string {
+	return shared.JoinPath(c.SoongOutDir(), "queryview.marker")
 }
 
 func (c *configImpl) ModuleGraphFile() string {
@@ -788,6 +827,22 @@ func (c *configImpl) Checkbuild() bool {
 
 func (c *configImpl) Dist() bool {
 	return c.dist
+}
+
+func (c *configImpl) JsonModuleGraph() bool {
+	return c.jsonModuleGraph
+}
+
+func (c *configImpl) Bp2Build() bool {
+	return c.bp2build
+}
+
+func (c *configImpl) Queryview() bool {
+	return c.queryview
+}
+
+func (c *configImpl) SoongDocs() bool {
+	return c.soongDocs
 }
 
 func (c *configImpl) IsVerbose() bool {
@@ -935,10 +990,6 @@ func (c *configImpl) UseBazel() bool {
 func (c *configImpl) bazelBuildMode() bazelBuildMode {
 	if c.Environment().IsEnvTrue("USE_BAZEL_ANALYSIS") {
 		return mixedBuild
-	} else if c.Environment().IsEnvTrue("GENERATE_BAZEL_FILES") {
-		return generateBuildFiles
-	} else if c.Environment().IsEnvTrue("GENERATE_JSON_MODULE_GRAPH") {
-		return generateJsonModuleGraph
 	} else {
 		return noBazel
 	}
