@@ -786,7 +786,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 
 	if apexType == imageApex && (compressionEnabled || a.testOnlyShouldForceCompression()) {
 		a.isCompressed = true
-		unsignedCompressedOutputFile := android.PathForModuleOut(ctx, a.Name()+".capex.unsigned")
+		unsignedCompressedOutputFile := android.PathForModuleOut(ctx, a.Name()+imageCapexSuffix+".unsigned")
 
 		compressRule := android.NewRuleBuilder(pctx, ctx)
 		compressRule.Command().
@@ -800,7 +800,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 			FlagWithOutput("--output ", unsignedCompressedOutputFile)
 		compressRule.Build("compressRule", "Generate unsigned compressed APEX file")
 
-		signedCompressedOutputFile := android.PathForModuleOut(ctx, a.Name()+".capex")
+		signedCompressedOutputFile := android.PathForModuleOut(ctx, a.Name()+imageCapexSuffix)
 		if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_SIGNAPK") {
 			args["outCommaList"] = signedCompressedOutputFile.String()
 		}
