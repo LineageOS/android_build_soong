@@ -633,6 +633,7 @@ func transformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 				rule = clangTidyRE
 			}
 
+			ctx.TidyFile(tidyFile)
 			ctx.Build(pctx, android.BuildParams{
 				Rule:        rule,
 				Description: "clang-tidy " + srcFile.Rel(),
