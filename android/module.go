@@ -522,62 +522,6 @@ type Module interface {
 	TransitivePackagingSpecs() []PackagingSpec
 }
 
-// BazelTargetModule is a lightweight wrapper interface around Module for
-// bp2build conversion purposes.
-//
-// In bp2build's bootstrap.Main execution, Soong runs an alternate pipeline of
-// mutators that creates BazelTargetModules from regular Module objects,
-// performing the mapping from Soong properties to Bazel rule attributes in the
-// process. This process may optionally create additional BazelTargetModules,
-// resulting in a 1:many mapping.
-//
-// bp2build.Codegen is then responsible for visiting all modules in the graph,
-// filtering for BazelTargetModules, and code-generating BUILD targets from
-// them.
-type BazelTargetModule interface {
-	Module
-
-	bazelTargetModuleProperties() *bazel.BazelTargetModuleProperties
-	SetBazelTargetModuleProperties(props bazel.BazelTargetModuleProperties)
-
-	RuleClass() string
-	BzlLoadLocation() string
-}
-
-// InitBazelTargetModule is a wrapper function that decorates BazelTargetModule
-// with property structs containing metadata for bp2build conversion.
-func InitBazelTargetModule(module BazelTargetModule) {
-	module.AddProperties(module.bazelTargetModuleProperties())
-	InitAndroidModule(module)
-}
-
-// BazelTargetModuleBase contains the property structs with metadata for
-// bp2build conversion.
-type BazelTargetModuleBase struct {
-	ModuleBase
-	Properties bazel.BazelTargetModuleProperties
-}
-
-// bazelTargetModuleProperties getter.
-func (btmb *BazelTargetModuleBase) bazelTargetModuleProperties() *bazel.BazelTargetModuleProperties {
-	return &btmb.Properties
-}
-
-// SetBazelTargetModuleProperties setter for BazelTargetModuleProperties
-func (btmb *BazelTargetModuleBase) SetBazelTargetModuleProperties(props bazel.BazelTargetModuleProperties) {
-	btmb.Properties = props
-}
-
-// RuleClass returns the rule class for this Bazel target
-func (b *BazelTargetModuleBase) RuleClass() string {
-	return b.bazelTargetModuleProperties().Rule_class
-}
-
-// BzlLoadLocation returns the rule class for this Bazel target
-func (b *BazelTargetModuleBase) BzlLoadLocation() string {
-	return b.bazelTargetModuleProperties().Bzl_load_location
-}
-
 // Qualified id for a module
 type qualifiedModuleName struct {
 	// The package (i.e. directory) in which the module is defined, without trailing /
