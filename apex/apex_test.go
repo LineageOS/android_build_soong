@@ -4640,6 +4640,35 @@ func TestPrebuiltFilenameOverride(t *testing.T) {
 	}
 }
 
+func TestApexSetFilenameOverride(t *testing.T) {
+	testApex(t, `
+		apex_set {
+ 			name: "com.company.android.myapex",
+			apex_name: "com.android.myapex",
+			set: "company-myapex.apks",
+      filename: "com.company.android.myapex.apex"
+		}
+	`).ModuleForTests("com.company.android.myapex", "android_common_com.android.myapex")
+
+	testApex(t, `
+		apex_set {
+ 			name: "com.company.android.myapex",
+			apex_name: "com.android.myapex",
+			set: "company-myapex.apks",
+      filename: "com.company.android.myapex.capex"
+		}
+	`).ModuleForTests("com.company.android.myapex", "android_common_com.android.myapex")
+
+	testApexError(t, `filename should end in .apex or .capex for apex_set`, `
+		apex_set {
+ 			name: "com.company.android.myapex",
+			apex_name: "com.android.myapex",
+			set: "company-myapex.apks",
+      filename: "some-random-suffix"
+		}
+	`)
+}
+
 func TestPrebuiltOverrides(t *testing.T) {
 	ctx := testApex(t, `
 		prebuilt_apex {
