@@ -79,10 +79,6 @@ func (c Config) RunGoTests() bool {
 	return c.runGoTests
 }
 
-func (c Config) UseValidationsForGoTests() bool {
-	return c.useValidationsForGoTests
-}
-
 func (c Config) DebugCompilation() bool {
 	return false // Never compile Go code in the main build for debugging
 }
@@ -142,8 +138,7 @@ type config struct {
 	soongOutDir    string
 	moduleListFile string // the path to the file which lists blueprint files to parse.
 
-	runGoTests               bool
-	useValidationsForGoTests bool
+	runGoTests bool
 
 	env       map[string]string
 	envLock   sync.Mutex
@@ -437,11 +432,10 @@ func NewConfig(moduleListFile string, runGoTests bool, outDir, soongOutDir strin
 
 		env: availableEnv,
 
-		outDir:                   outDir,
-		soongOutDir:              soongOutDir,
-		runGoTests:               runGoTests,
-		useValidationsForGoTests: runGoTests,
-		multilibConflicts:        make(map[ArchType]bool),
+		outDir:            outDir,
+		soongOutDir:       soongOutDir,
+		runGoTests:        runGoTests,
+		multilibConflicts: make(map[ArchType]bool),
 
 		moduleListFile: moduleListFile,
 		fs:             pathtools.NewOsFs(absSrcDir),

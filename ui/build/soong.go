@@ -81,7 +81,6 @@ type BlueprintConfig struct {
 	soongOutDir               string
 	outDir                    string
 	runGoTests                bool
-	useValidations            bool
 	debugCompilation          bool
 	subninjas                 []string
 	primaryBuilderInvocations []bootstrap.PrimaryBuilderInvocation
@@ -103,10 +102,6 @@ func (c BlueprintConfig) RunGoTests() bool {
 	return c.runGoTests
 }
 
-func (c BlueprintConfig) UseValidationsForGoTests() bool {
-	return c.useValidations
-}
-
 func (c BlueprintConfig) DebugCompilation() bool {
 	return c.debugCompilation
 }
@@ -119,10 +114,10 @@ func (c BlueprintConfig) PrimaryBuilderInvocations() []bootstrap.PrimaryBuilderI
 	return c.primaryBuilderInvocations
 }
 
-func environmentArgs(config Config, suffix string) []string {
+func environmentArgs(config Config, tag string) []string {
 	return []string{
 		"--available_env", shared.JoinPath(config.SoongOutDir(), availableEnvFile),
-		"--used_env", shared.JoinPath(config.SoongOutDir(), usedEnvFile+"."+suffix),
+		"--used_env", config.UsedEnvFile(tag),
 	}
 }
 
@@ -250,11 +245,10 @@ func bootstrapBlueprint(ctx Context, config Config) {
 	blueprintCtx := blueprint.NewContext()
 	blueprintCtx.SetIgnoreUnknownModuleTypes(true)
 	blueprintConfig := BlueprintConfig{
-		soongOutDir:    config.SoongOutDir(),
-		toolDir:        config.HostToolDir(),
-		outDir:         config.OutDir(),
-		runGoTests:     !config.skipSoongTests,
-		useValidations: !config.skipSoongTests,
+		soongOutDir: config.SoongOutDir(),
+		toolDir:     config.HostToolDir(),
+		outDir:      config.OutDir(),
+		runGoTests:  !config.skipSoongTests,
 		// If we want to debug soong_build, we need to compile it for debugging
 		debugCompilation: os.Getenv("SOONG_DELVE") != "",
 		subninjas:        globFiles,
@@ -279,6 +273,7 @@ func checkEnvironmentFile(currentEnv *Environment, envFile string) {
 		v, _ := currentEnv.Get(k)
 		return v
 	}
+
 	if stale, _ := shared.StaleEnvFile(envFile, getenv); stale {
 		os.Remove(envFile)
 	}
@@ -328,22 +323,22 @@ func runSoong(ctx Context, config Config) {
 		ctx.BeginTrace(metrics.RunSoong, "environment check")
 		defer ctx.EndTrace()
 
-		checkEnvironmentFile(soongBuildEnv, filepath.Join(config.SoongOutDir(), usedEnvFile+".build"))
+		checkEnvironmentFile(soongBuildEnv, config.UsedEnvFile(soongBuildTag))
 
 		if integratedBp2Build || config.Bp2Build() {
-			checkEnvironmentFile(soongBuildEnv, filepath.Join(config.SoongOutDir(), usedEnvFile+".bp2build"))
+			checkEnvironmentFile(soongBuildEnv, config.UsedEnvFile(bp2buildTag))
 		}
 
 		if config.JsonModuleGraph() {
-			checkEnvironmentFile(soongBuildEnv, filepath.Join(config.SoongOutDir(), usedEnvFile+".modulegraph"))
+			checkEnvironmentFile(soongBuildEnv, config.UsedEnvFile(jsonModuleGraphTag))
 		}
 
 		if config.Queryview() {
-			checkEnvironmentFile(soongBuildEnv, filepath.Join(config.SoongOutDir(), usedEnvFile+".queryview"))
+			checkEnvironmentFile(soongBuildEnv, config.UsedEnvFile(queryviewTag))
 		}
 
 		if config.SoongDocs() {
-			checkEnvironmentFile(soongBuildEnv, filepath.Join(config.SoongOutDir(), usedEnvFile+".soong_docs"))
+			checkEnvironmentFile(soongBuildEnv, config.UsedEnvFile(soongDocsTag))
 		}
 	}()
 
