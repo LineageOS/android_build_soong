@@ -40,6 +40,7 @@ bootstrap_go_package {
         "cc_object_conversion_test.go",
         "conversion_test.go",
         "filegroup_conversion_test.go",
+        "genrule_conversion_test.go",
         "performance_test.go",
         "prebuilt_etc_conversion_test.go",
         "python_binary_conversion_test.go",
