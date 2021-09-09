@@ -205,13 +205,12 @@ func main() {
 		Status:  stat,
 	}}
 
-	config := c.config(buildCtx, args...)
-
 	if err := loadEnvConfig(); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to parse env config files: %v", err)
 		os.Exit(1)
 	}
 
+	config := c.config(buildCtx, args...)
 
 	build.SetupOutDir(buildCtx, config)
 
