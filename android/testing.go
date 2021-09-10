@@ -509,12 +509,11 @@ func (ctx *TestContext) ModuleForTests(name, variant string) TestingModule {
 				allVariants = append(allVariants, ctx.ModuleSubDir(m))
 			}
 		})
-		sort.Strings(allModuleNames)
 		sort.Strings(allVariants)
 
 		if len(allVariants) == 0 {
 			panic(fmt.Errorf("failed to find module %q. All modules:\n  %s",
-				name, strings.Join(allModuleNames, "\n  ")))
+				name, strings.Join(SortedUniqueStrings(allModuleNames), "\n  ")))
 		} else {
 			panic(fmt.Errorf("failed to find module %q variant %q. All variants:\n  %s",
 				name, variant, strings.Join(allVariants, "\n  ")))
