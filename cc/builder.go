@@ -198,13 +198,14 @@ var (
 	// Rule for invoking clang-tidy (a clang-based linter).
 	clangTidy, clangTidyRE = pctx.RemoteStaticRules("clangTidy",
 		blueprint.RuleParams{
-			Command:     "rm -f $out && $reTemplate${config.ClangBin}/clang-tidy $tidyFlags $in -- $cFlags && touch $out",
+			Command:     "rm -f $out && $tidyVars $reTemplate${config.ClangBin}/clang-tidy $tidyFlags $in -- $cFlags && touch $out",
 			CommandDeps: []string{"${config.ClangBin}/clang-tidy"},
 		},
 		&remoteexec.REParams{
-			Labels:       map[string]string{"type": "lint", "tool": "clang-tidy", "lang": "cpp"},
-			ExecStrategy: "${config.REClangTidyExecStrategy}",
-			Inputs:       []string{"$in"},
+			Labels:               map[string]string{"type": "lint", "tool": "clang-tidy", "lang": "cpp"},
+			ExecStrategy:         "${config.REClangTidyExecStrategy}",
+			Inputs:               []string{"$in"},
+			EnvironmentVariables: []string{"TIDY_TIMEOUT"},
 			// Although clang-tidy has an option to "fix" source files, that feature is hardly useable
 			// under parallel compilation and RBE. So we assume no OutputFiles here.
 			// The clang-tidy fix option is best run locally in single thread.
@@ -212,7 +213,7 @@ var (
 			// (1) New timestamps trigger clang and clang-tidy compilations again.
 			// (2) Changing source files caused concurrent clang or clang-tidy jobs to crash.
 			Platform: map[string]string{remoteexec.PoolKey: "${config.REClangTidyPool}"},
-		}, []string{"cFlags", "tidyFlags"}, []string{})
+		}, []string{"cFlags", "tidyFlags", "tidyVars"}, []string{})
 
 	_ = pctx.SourcePathVariable("yasmCmd", "prebuilts/misc/${config.HostPrebuiltTag}/yasm/yasm")
 
@@ -442,8 +443,13 @@ func transformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 	// Source files are one-to-one with tidy, coverage, or kythe files, if enabled.
 	objFiles := make(android.Paths, len(srcFiles))
 	var tidyFiles android.Paths
+	var tidyVars string
 	if flags.tidy {
 		tidyFiles = make(android.Paths, 0, len(srcFiles))
+		tidyTimeout := ctx.Config().Getenv("TIDY_TIMEOUT")
+		if len(tidyTimeout) > 0 {
+			tidyVars += "TIDY_TIMEOUT=" + tidyTimeout
+		}
 	}
 	var coverageFiles android.Paths
 	if flags.gcovCoverage {
@@ -647,6 +653,7 @@ func transformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 				Args: map[string]string{
 					"cFlags":    moduleToolingFlags,
 					"tidyFlags": config.TidyFlagsForSrcFile(srcFile, flags.tidyFlags),
+					"tidyVars":  tidyVars,
 				},
 			})
 		}
