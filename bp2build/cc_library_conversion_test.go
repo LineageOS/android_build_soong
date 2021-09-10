@@ -25,18 +25,18 @@ const (
 	// See cc/testing.go for more context
 	soongCcLibraryPreamble = `
 cc_defaults {
-  name: "linux_bionic_supported",
+    name: "linux_bionic_supported",
 }
 
 toolchain_library {
-  name: "libclang_rt.builtins-x86_64-android",
-  defaults: ["linux_bionic_supported"],
-  vendor_available: true,
-  vendor_ramdisk_available: true,
-  product_available: true,
-  recovery_available: true,
-  native_bridge_supported: true,
-  src: "",
+    name: "libclang_rt.builtins-x86_64-android",
+    defaults: ["linux_bionic_supported"],
+    vendor_available: true,
+    vendor_ramdisk_available: true,
+    product_available: true,
+    recovery_available: true,
+    native_bridge_supported: true,
+    src: "",
 }`
 )
 
@@ -113,15 +113,12 @@ cc_library {
           srcs: ["bionic.cpp"]
         },
     },
+    include_build_directory: false,
 }
 `,
 		expectedBazelTargets: []string{`cc_library(
     name = "foo-lib",
-    copts = [
-        "-Wall",
-        "-I.",
-        "-I$(BINDIR)/.",
-    ],
+    copts = ["-Wall"],
     export_includes = ["foo-dir"],
     implementation_deps = [":some-headers"],
     linkopts = ["-Wl,--exclude-libs=bar.a"] + select({
@@ -186,6 +183,7 @@ cc_library {
             ldflags: ["-Wl,--exclude-libs=libgcc_eh.a"],
         },
     },
+    include_build_directory: false,
 }
 `,
 		expectedBazelTargets: []string{`cc_library(
@@ -195,8 +193,6 @@ cc_library {
         "-Wextra",
         "-Wunused",
         "-Werror",
-        "-I.",
-        "-I$(BINDIR)/.",
     ],
     implementation_deps = [":libc_headers"],
     linkopts = [
@@ -277,12 +273,12 @@ func TestCcLibrarySharedStaticProps(t *testing.T) {
 		moduleTypeUnderTest:                "cc_library",
 		moduleTypeUnderTestFactory:         cc.LibraryFactory,
 		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryBp2Build,
-		dir:                                "foo/bar",
 		filesystem: map[string]string{
-			"foo/bar/both.cpp":       "",
-			"foo/bar/sharedonly.cpp": "",
-			"foo/bar/staticonly.cpp": "",
-			"foo/bar/Android.bp": `
+			"both.cpp":       "",
+			"sharedonly.cpp": "",
+			"staticonly.cpp": "",
+		},
+		blueprint: soongCcLibraryPreamble + `
 cc_library {
     name: "a",
     srcs: ["both.cpp"],
@@ -304,36 +300,57 @@ cc_library {
         static_libs: ["static_dep_for_shared"],
         whole_static_libs: ["whole_static_lib_for_shared"],
     },
-    bazel_module: { bp2build_available: true },
+    include_build_directory: false,
 }
 
-cc_library_static { name: "static_dep_for_shared" }
+cc_library_static {
+    name: "static_dep_for_shared",
+    bazel_module: { bp2build_available: false },
+}
 
-cc_library_static { name: "static_dep_for_static" }
+cc_library_static {
+    name: "static_dep_for_static",
+    bazel_module: { bp2build_available: false },
+}
 
-cc_library_static { name: "static_dep_for_both" }
+cc_library_static {
+    name: "static_dep_for_both",
+    bazel_module: { bp2build_available: false },
+}
 
-cc_library_static { name: "whole_static_lib_for_shared" }
+cc_library_static {
+    name: "whole_static_lib_for_shared",
+    bazel_module: { bp2build_available: false },
+}
 
-cc_library_static { name: "whole_static_lib_for_static" }
+cc_library_static {
+    name: "whole_static_lib_for_static",
+    bazel_module: { bp2build_available: false },
+}
 
-cc_library_static { name: "whole_static_lib_for_both" }
+cc_library_static {
+    name: "whole_static_lib_for_both",
+    bazel_module: { bp2build_available: false },
+}
 
-cc_library { name: "shared_dep_for_shared" }
+cc_library {
+    name: "shared_dep_for_shared",
+    bazel_module: { bp2build_available: false },
+}
 
-cc_library { name: "shared_dep_for_static" }
+cc_library {
+    name: "shared_dep_for_static",
+    bazel_module: { bp2build_available: false },
+}
 
-cc_library { name: "shared_dep_for_both" }
+cc_library {
+    name: "shared_dep_for_both",
+    bazel_module: { bp2build_available: false },
+}
 `,
-		},
-		blueprint: soongCcLibraryPreamble,
 		expectedBazelTargets: []string{`cc_library(
     name = "a",
-    copts = [
-        "bothflag",
-        "-Ifoo/bar",
-        "-I$(BINDIR)/foo/bar",
-    ],
+    copts = ["bothflag"],
     dynamic_deps = [":shared_dep_for_both"],
     implementation_deps = [":static_dep_for_both"],
     shared = {
@@ -374,6 +391,7 @@ cc_library {
         whole_static_libs: ["whole_static_lib_for_shared"],
     },
     bazel_module: { bp2build_available: true },
+    include_build_directory: false,
 }
 
 cc_prebuilt_library_static { name: "whole_static_lib_for_shared" }
@@ -386,10 +404,6 @@ cc_prebuilt_library_static { name: "whole_static_lib_for_both" }
 		blueprint: soongCcLibraryPreamble,
 		expectedBazelTargets: []string{`cc_library(
     name = "a",
-    copts = [
-        "-Ifoo/bar",
-        "-I$(BINDIR)/foo/bar",
-    ],
     shared = {
         "whole_archive_deps": [":whole_static_lib_for_shared_alwayslink"],
     },
@@ -574,24 +588,24 @@ cc_library {
         ":both_filegroup",
   ],
     static: {
-    srcs: [
-      "static_source.cpp",
-      "static_source.cc",
-      "static_source.c",
-      "static_source.s",
-      "static_source.S",
-      ":static_filegroup",
-    ],
+        srcs: [
+          "static_source.cpp",
+          "static_source.cc",
+          "static_source.c",
+          "static_source.s",
+          "static_source.S",
+          ":static_filegroup",
+        ],
     },
     shared: {
-    srcs: [
-      "shared_source.cpp",
-      "shared_source.cc",
-      "shared_source.c",
-      "shared_source.s",
-      "shared_source.S",
-      ":shared_filegroup",
-    ],
+        srcs: [
+          "shared_source.cpp",
+          "shared_source.cc",
+          "shared_source.c",
+          "shared_source.s",
+          "shared_source.S",
+          ":shared_filegroup",
+        ],
     },
     bazel_module: { bp2build_available: true },
 }
@@ -693,16 +707,13 @@ cc_library {
     srcs: ["a.cpp"],
     version_script: "v.map",
     bazel_module: { bp2build_available: true },
+    include_build_directory: false,
 }
 `,
 		},
 		blueprint: soongCcLibraryPreamble,
 		expectedBazelTargets: []string{`cc_library(
     name = "a",
-    copts = [
-        "-Ifoo/bar",
-        "-I$(BINDIR)/foo/bar",
-    ],
     srcs = ["a.cpp"],
     version_script = "v.map",
 )`},
@@ -718,29 +729,26 @@ func TestCcLibraryConfiguredVersionScript(t *testing.T) {
 		dir:                                "foo/bar",
 		filesystem: map[string]string{
 			"foo/bar/Android.bp": `
-    cc_library {
-       name: "a",
-       srcs: ["a.cpp"],
-       arch: {
-         arm: {
-           version_script: "arm.map",
-         },
-         arm64: {
-           version_script: "arm64.map",
-         },
-       },
+cc_library {
+   name: "a",
+   srcs: ["a.cpp"],
+   arch: {
+     arm: {
+       version_script: "arm.map",
+     },
+     arm64: {
+       version_script: "arm64.map",
+     },
+   },
 
-       bazel_module: { bp2build_available: true },
-    }
+   bazel_module: { bp2build_available: true },
+    include_build_directory: false,
+}
     `,
 		},
 		blueprint: soongCcLibraryPreamble,
 		expectedBazelTargets: []string{`cc_library(
     name = "a",
-    copts = [
-        "-Ifoo/bar",
-        "-I$(BINDIR)/foo/bar",
-    ],
     srcs = ["a.cpp"],
     version_script = select({
         "//build/bazel/platforms/arch:arm": "arm.map",
@@ -757,35 +765,21 @@ func TestCcLibrarySharedLibs(t *testing.T) {
 		moduleTypeUnderTest:                "cc_library",
 		moduleTypeUnderTestFactory:         cc.LibraryFactory,
 		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryBp2Build,
-		dir:                                "foo/bar",
-		filesystem: map[string]string{
-			"foo/bar/Android.bp": `
+		blueprint: soongCcLibraryPreamble + `
 cc_library {
     name: "mylib",
-    bazel_module: { bp2build_available: true },
+    bazel_module: { bp2build_available: false },
 }
 
 cc_library {
     name: "a",
     shared_libs: ["mylib",],
-    bazel_module: { bp2build_available: true },
+    include_build_directory: false,
 }
 `,
-		},
-		blueprint: soongCcLibraryPreamble,
 		expectedBazelTargets: []string{`cc_library(
     name = "a",
-    copts = [
-        "-Ifoo/bar",
-        "-I$(BINDIR)/foo/bar",
-    ],
     dynamic_deps = [":mylib"],
-)`, `cc_library(
-    name = "mylib",
-    copts = [
-        "-Ifoo/bar",
-        "-I$(BINDIR)/foo/bar",
-    ],
 )`},
 	})
 }
@@ -796,14 +790,12 @@ func TestCcLibraryPackRelocations(t *testing.T) {
 		moduleTypeUnderTest:                "cc_library",
 		moduleTypeUnderTestFactory:         cc.LibraryFactory,
 		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryBp2Build,
-		dir:                                "foo/bar",
-		filesystem: map[string]string{
-			"foo/bar/Android.bp": `
+		blueprint: soongCcLibraryPreamble + `
 cc_library {
     name: "a",
     srcs: ["a.cpp"],
     pack_relocations: false,
-    bazel_module: { bp2build_available: true },
+    include_build_directory: false,
 }
 
 cc_library {
@@ -811,10 +803,10 @@ cc_library {
     srcs: ["b.cpp"],
     arch: {
         x86_64: {
-    pack_relocations: false,
-  },
+            pack_relocations: false,
+        },
     },
-    bazel_module: { bp2build_available: true },
+    include_build_directory: false,
 }
 
 cc_library {
@@ -822,27 +814,17 @@ cc_library {
     srcs: ["c.cpp"],
     target: {
         darwin: {
-    pack_relocations: false,
-  },
+            pack_relocations: false,
+        },
     },
-    bazel_module: { bp2build_available: true },
+    include_build_directory: false,
 }`,
-		},
-		blueprint: soongCcLibraryPreamble,
 		expectedBazelTargets: []string{`cc_library(
     name = "a",
-    copts = [
-        "-Ifoo/bar",
-        "-I$(BINDIR)/foo/bar",
-    ],
     linkopts = ["-Wl,--pack-dyn-relocs=none"],
     srcs = ["a.cpp"],
 )`, `cc_library(
     name = "b",
-    copts = [
-        "-Ifoo/bar",
-        "-I$(BINDIR)/foo/bar",
-    ],
     linkopts = select({
         "//build/bazel/platforms/arch:x86_64": ["-Wl,--pack-dyn-relocs=none"],
         "//conditions:default": [],
@@ -850,10 +832,6 @@ cc_library {
     srcs = ["b.cpp"],
 )`, `cc_library(
     name = "c",
-    copts = [
-        "-Ifoo/bar",
-        "-I$(BINDIR)/foo/bar",
-    ],
     linkopts = select({
         "//build/bazel/platforms/os:darwin": ["-Wl,--pack-dyn-relocs=none"],
         "//conditions:default": [],
@@ -869,24 +847,18 @@ func TestCcLibrarySpacesInCopts(t *testing.T) {
 		moduleTypeUnderTest:                "cc_library",
 		moduleTypeUnderTestFactory:         cc.LibraryFactory,
 		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryBp2Build,
-		dir:                                "foo/bar",
-		filesystem: map[string]string{
-			"foo/bar/Android.bp": `
+		blueprint: soongCcLibraryPreamble + `
 cc_library {
     name: "a",
     cflags: ["-include header.h",],
-    bazel_module: { bp2build_available: true },
+    include_build_directory: false,
 }
 `,
-		},
-		blueprint: soongCcLibraryPreamble,
 		expectedBazelTargets: []string{`cc_library(
     name = "a",
     copts = [
         "-include",
         "header.h",
-        "-Ifoo/bar",
-        "-I$(BINDIR)/foo/bar",
     ],
 )`},
 	})
@@ -898,40 +870,30 @@ func TestCcLibraryCppFlagsGoesIntoCopts(t *testing.T) {
 		moduleTypeUnderTest:                "cc_library",
 		moduleTypeUnderTestFactory:         cc.LibraryFactory,
 		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryBp2Build,
-		dir:                                "foo/bar",
-		filesystem: map[string]string{
-			"foo/bar/Android.bp": `cc_library {
+		blueprint: soongCcLibraryPreamble + `cc_library {
     name: "a",
     srcs: ["a.cpp"],
-    cflags: [
-    "-Wall",
-  ],
+    cflags: ["-Wall"],
     cppflags: [
         "-fsigned-char",
         "-pedantic",
-  ],
+    ],
     arch: {
         arm64: {
             cppflags: ["-DARM64=1"],
+        },
     },
-  },
     target: {
         android: {
             cppflags: ["-DANDROID=1"],
+        },
     },
-  },
-    bazel_module: { bp2build_available: true  },
+    include_build_directory: false,
 }
 `,
-		},
-		blueprint: soongCcLibraryPreamble,
 		expectedBazelTargets: []string{`cc_library(
     name = "a",
-    copts = [
-        "-Wall",
-        "-Ifoo/bar",
-        "-I$(BINDIR)/foo/bar",
-    ],
+    copts = ["-Wall"],
     cppflags = [
         "-fsigned-char",
         "-pedantic",
@@ -953,32 +915,23 @@ func TestCcLibraryLabelAttributeGetTargetProperties(t *testing.T) {
 		moduleTypeUnderTest:                "cc_library",
 		moduleTypeUnderTestFactory:         cc.LibraryFactory,
 		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryBp2Build,
-		dir:                                "foo/bar",
-		filesystem: map[string]string{
-			"foo/bar/Android.bp": `
-    cc_library {
-       name: "a",
-       srcs: ["a.cpp"],
-       target: {
-         android_arm: {
-           version_script: "android_arm.map",
-         },
-         linux_bionic_arm64: {
-           version_script: "linux_bionic_arm64.map",
-         },
-       },
-
-       bazel_module: { bp2build_available: true },
-    }
+		blueprint: soongCcLibraryPreamble + `
+cc_library {
+   name: "a",
+   srcs: ["a.cpp"],
+   target: {
+     android_arm: {
+       version_script: "android_arm.map",
+     },
+     linux_bionic_arm64: {
+       version_script: "linux_bionic_arm64.map",
+     },
+   },
+    include_build_directory: false,
+}
     `,
-		},
-		blueprint: soongCcLibraryPreamble,
 		expectedBazelTargets: []string{`cc_library(
     name = "a",
-    copts = [
-        "-Ifoo/bar",
-        "-I$(BINDIR)/foo/bar",
-    ],
     srcs = ["a.cpp"],
     version_script = select({
         "//build/bazel/platforms/os_arch:android_arm": "android_arm.map",
@@ -1031,6 +984,7 @@ cc_library {
             ],
         },
     },
+    include_build_directory: false,
 }
 
 cc_library {
@@ -1071,10 +1025,6 @@ cc_library {
 		expectedBazelTargets: []string{
 			`cc_library(
     name = "foo_static",
-    copts = [
-        "-I.",
-        "-I$(BINDIR)/.",
-    ],
     dynamic_deps = select({
         "//build/bazel/platforms/arch:arm": [],
         "//conditions:default": [":arm_shared_lib_excludes"],
@@ -1117,14 +1067,11 @@ cc_library {
     name: "foo-lib",
     srcs: ["impl.cpp"],
     no_libcrt: true,
+    include_build_directory: false,
 }
 `,
 		expectedBazelTargets: []string{`cc_library(
     name = "foo-lib",
-    copts = [
-        "-I.",
-        "-I$(BINDIR)/.",
-    ],
     srcs = ["impl.cpp"],
     use_libcrt = False,
 )`}})
@@ -1144,14 +1091,11 @@ cc_library {
     name: "foo-lib",
     srcs: ["impl.cpp"],
     no_libcrt: false,
+    include_build_directory: false,
 }
 `,
 		expectedBazelTargets: []string{`cc_library(
     name = "foo-lib",
-    copts = [
-        "-I.",
-        "-I$(BINDIR)/.",
-    ],
     srcs = ["impl.cpp"],
     use_libcrt = True,
 )`}})
@@ -1166,7 +1110,6 @@ func TestCCLibraryNoCrtArchVariant(t *testing.T) {
 			"impl.cpp": "",
 		},
 		blueprint: soongCcLibraryPreamble + `
-cc_library_headers { name: "some-headers" }
 cc_library {
     name: "foo-lib",
     srcs: ["impl.cpp"],
@@ -1178,14 +1121,11 @@ cc_library {
             no_libcrt: true,
         },
     },
+    include_build_directory: false,
 }
 `,
 		expectedBazelTargets: []string{`cc_library(
     name = "foo-lib",
-    copts = [
-        "-I.",
-        "-I$(BINDIR)/.",
-    ],
     srcs = ["impl.cpp"],
     use_libcrt = select({
         "//build/bazel/platforms/arch:arm": False,
@@ -1204,7 +1144,6 @@ func TestCCLibraryNoCrtArchVariantWithDefault(t *testing.T) {
 			"impl.cpp": "",
 		},
 		blueprint: soongCcLibraryPreamble + `
-cc_library_headers { name: "some-headers" }
 cc_library {
     name: "foo-lib",
     srcs: ["impl.cpp"],
@@ -1217,14 +1156,11 @@ cc_library {
             no_libcrt: true,
         },
     },
+    include_build_directory: false,
 }
 `,
 		expectedBazelTargets: []string{`cc_library(
     name = "foo-lib",
-    copts = [
-        "-I.",
-        "-I$(BINDIR)/.",
-    ],
     srcs = ["impl.cpp"],
     use_libcrt = select({
         "//build/bazel/platforms/arch:arm": False,
@@ -1240,102 +1176,74 @@ func TestCcLibraryStrip(t *testing.T) {
 		moduleTypeUnderTest:                "cc_library",
 		moduleTypeUnderTestFactory:         cc.LibraryFactory,
 		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryBp2Build,
-		dir:                                "foo/bar",
-		filesystem: map[string]string{
-			"foo/bar/Android.bp": `
+		blueprint: soongCcLibraryPreamble + `
 cc_library {
     name: "nothing",
-    bazel_module: { bp2build_available: true },
+    include_build_directory: false,
 }
 cc_library {
     name: "keep_symbols",
-    bazel_module: { bp2build_available: true },
     strip: {
-		keep_symbols: true,
-	}
+        keep_symbols: true,
+    },
+    include_build_directory: false,
 }
 cc_library {
     name: "keep_symbols_and_debug_frame",
-    bazel_module: { bp2build_available: true },
     strip: {
-		keep_symbols_and_debug_frame: true,
-	}
+        keep_symbols_and_debug_frame: true,
+    },
+    include_build_directory: false,
 }
 cc_library {
     name: "none",
-    bazel_module: { bp2build_available: true },
     strip: {
-		none: true,
-	}
+        none: true,
+    },
+    include_build_directory: false,
 }
 cc_library {
     name: "keep_symbols_list",
-    bazel_module: { bp2build_available: true },
     strip: {
-		keep_symbols_list: ["symbol"],
-	}
+        keep_symbols_list: ["symbol"],
+    },
+    include_build_directory: false,
 }
 cc_library {
     name: "all",
-    bazel_module: { bp2build_available: true },
     strip: {
-		all: true,
-	}
+        all: true,
+    },
+    include_build_directory: false,
 }
 `,
-		},
-		blueprint: soongCcLibraryPreamble,
 		expectedBazelTargets: []string{`cc_library(
     name = "all",
-    copts = [
-        "-Ifoo/bar",
-        "-I$(BINDIR)/foo/bar",
-    ],
     strip = {
         "all": True,
     },
 )`, `cc_library(
     name = "keep_symbols",
-    copts = [
-        "-Ifoo/bar",
-        "-I$(BINDIR)/foo/bar",
-    ],
     strip = {
         "keep_symbols": True,
     },
 )`, `cc_library(
     name = "keep_symbols_and_debug_frame",
-    copts = [
-        "-Ifoo/bar",
-        "-I$(BINDIR)/foo/bar",
-    ],
     strip = {
         "keep_symbols_and_debug_frame": True,
     },
 )`, `cc_library(
     name = "keep_symbols_list",
-    copts = [
-        "-Ifoo/bar",
-        "-I$(BINDIR)/foo/bar",
-    ],
     strip = {
         "keep_symbols_list": ["symbol"],
     },
 )`, `cc_library(
     name = "none",
-    copts = [
-        "-Ifoo/bar",
-        "-I$(BINDIR)/foo/bar",
-    ],
     strip = {
         "none": True,
     },
 )`, `cc_library(
     name = "nothing",
-    copts = [
-        "-Ifoo/bar",
-        "-I$(BINDIR)/foo/bar",
-    ],
 )`},
 	})
 }
@@ -1346,12 +1254,9 @@ func TestCcLibraryStripWithArch(t *testing.T) {
 		moduleTypeUnderTest:                "cc_library",
 		moduleTypeUnderTestFactory:         cc.LibraryFactory,
 		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryBp2Build,
-		dir:                                "foo/bar",
-		filesystem: map[string]string{
-			"foo/bar/Android.bp": `
+		blueprint: soongCcLibraryPreamble + `
 cc_library {
     name: "multi-arch",
-    bazel_module: { bp2build_available: true },
     target: {
         darwin: {
             strip: {
@@ -1370,17 +1275,12 @@ cc_library {
                 keep_symbols: true,
             },
         },
-    }
+    },
+    include_build_directory: false,
 }
 `,
-		},
-		blueprint: soongCcLibraryPreamble,
 		expectedBazelTargets: []string{`cc_library(
     name = "multi-arch",
-    copts = [
-        "-Ifoo/bar",
-        "-I$(BINDIR)/foo/bar",
-    ],
     strip = {
         "keep_symbols": select({
             "//build/bazel/platforms/arch:arm64": True,
@@ -1411,15 +1311,12 @@ func TestCcLibrary_SystemSharedLibsRootEmpty(t *testing.T) {
 		blueprint: soongCcLibraryPreamble + `
 cc_library {
     name: "root_empty",
-	  system_shared_libs: [],
+    system_shared_libs: [],
+    include_build_directory: false,
 }
 `,
 		expectedBazelTargets: []string{`cc_library(
     name = "root_empty",
-    copts = [
-        "-I.",
-        "-I$(BINDIR)/.",
-    ],
     system_dynamic_deps = [],
 )`},
 	})
@@ -1435,16 +1332,13 @@ func TestCcLibrary_SystemSharedLibsStaticEmpty(t *testing.T) {
 cc_library {
     name: "static_empty",
     static: {
-				system_shared_libs: [],
-		},
+        system_shared_libs: [],
+    },
+    include_build_directory: false,
 }
 `,
 		expectedBazelTargets: []string{`cc_library(
     name = "static_empty",
-    copts = [
-        "-I.",
-        "-I$(BINDIR)/.",
-    ],
     static = {
         "system_dynamic_deps": [],
     },
@@ -1462,16 +1356,13 @@ func TestCcLibrary_SystemSharedLibsSharedEmpty(t *testing.T) {
 cc_library {
     name: "shared_empty",
     shared: {
-				system_shared_libs: [],
-		},
+        system_shared_libs: [],
+    },
+    include_build_directory: false,
 }
 `,
 		expectedBazelTargets: []string{`cc_library(
     name = "shared_empty",
-    copts = [
-        "-I.",
-        "-I$(BINDIR)/.",
-    ],
     shared = {
         "system_dynamic_deps": [],
     },
@@ -1494,15 +1385,12 @@ cc_library {
                 system_shared_libs: [],
             }
         }
-		},
+    },
+    include_build_directory: false,
 }
 `,
 		expectedBazelTargets: []string{`cc_library(
     name = "shared_empty",
-    copts = [
-        "-I.",
-        "-I$(BINDIR)/.",
-    ],
     shared = {
         "system_dynamic_deps": [],
     },
@@ -1528,14 +1416,11 @@ cc_library {
             system_shared_libs: [],
         },
     },
+    include_build_directory: false,
 }
 `,
 		expectedBazelTargets: []string{`cc_library(
     name = "target_linux_bionic_empty",
-    copts = [
-        "-I.",
-        "-I$(BINDIR)/.",
-    ],
     system_dynamic_deps = [],
 )`},
 	})
@@ -1555,14 +1440,11 @@ cc_library {
             system_shared_libs: [],
         },
     },
+    include_build_directory: false,
 }
 `,
 		expectedBazelTargets: []string{`cc_library(
     name = "target_bionic_empty",
-    copts = [
-        "-I.",
-        "-I$(BINDIR)/.",
-    ],
     system_dynamic_deps = [],
 )`},
 	})
@@ -1575,39 +1457,30 @@ func TestCcLibrary_SystemSharedLibsSharedAndRoot(t *testing.T) {
 		moduleTypeUnderTestFactory:         cc.LibraryFactory,
 		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryBp2Build,
 		blueprint: soongCcLibraryPreamble + `
-cc_library {name: "libc"}
-cc_library {name: "libm"}
+cc_library {
+    name: "libc",
+    bazel_module: { bp2build_available: false },
+}
+cc_library {
+    name: "libm",
+    bazel_module: { bp2build_available: false },
+}
 
 cc_library {
     name: "foo",
     system_shared_libs: ["libc"],
     shared: {
-				system_shared_libs: ["libm"],
+        system_shared_libs: ["libm"],
     },
+    include_build_directory: false,
 }
 `,
 		expectedBazelTargets: []string{`cc_library(
     name = "foo",
-    copts = [
-        "-I.",
-        "-I$(BINDIR)/.",
-    ],
     shared = {
         "system_dynamic_deps": [":libm"],
     },
     system_dynamic_deps = [":libc"],
-)`, `cc_library(
-    name = "libc",
-    copts = [
-        "-I.",
-        "-I$(BINDIR)/.",
-    ],
-)`, `cc_library(
-    name = "libm",
-    copts = [
-        "-I.",
-        "-I$(BINDIR)/.",
-    ],
 )`},
 	})
 }
