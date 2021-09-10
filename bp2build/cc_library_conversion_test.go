@@ -255,13 +255,11 @@ cc_library {
 		blueprint: soongCcLibraryPreamble,
 		expectedBazelTargets: []string{`cc_library(
     name = "fake-libarm-optimized-routines-math",
-    copts = [
-        "-Iexternal",
-        "-I$(BINDIR)/external",
-    ] + select({
+    copts = select({
         "//build/bazel/platforms/arch:arm64": ["-DHAVE_FAST_FMA=1"],
         "//conditions:default": [],
     }),
+    local_includes = ["."],
     srcs_c = ["math/cosf.c"],
 )`},
 	})
@@ -494,12 +492,9 @@ cc_library_static { name: "android_dep_for_shared" }
 		blueprint: soongCcLibraryPreamble,
 		expectedBazelTargets: []string{`cc_library(
     name = "a",
-    copts = [
-        "bothflag",
-        "-Ifoo/bar",
-        "-I$(BINDIR)/foo/bar",
-    ],
+    copts = ["bothflag"],
     implementation_deps = [":static_dep_for_both"],
+    local_includes = ["."],
     shared = {
         "copts": ["sharedflag"] + select({
             "//build/bazel/platforms/arch:arm": ["-DARM_SHARED"],
@@ -635,14 +630,7 @@ filegroup {
 		blueprint: soongCcLibraryPreamble,
 		expectedBazelTargets: []string{`cc_library(
     name = "a",
-    asflags = [
-        "-Ifoo/bar",
-        "-I$(BINDIR)/foo/bar",
-    ],
-    copts = [
-        "-Ifoo/bar",
-        "-I$(BINDIR)/foo/bar",
-    ],
+    local_includes = ["."],
     shared = {
         "srcs": [
             ":shared_filegroup_cpp_srcs",
