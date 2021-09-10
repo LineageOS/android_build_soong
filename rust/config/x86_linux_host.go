@@ -26,6 +26,7 @@ var (
 		"-B${cc_config.ClangBin}",
 		"-fuse-ld=lld",
 		"-Wl,--undefined-version",
+		"--sysroot ${cc_config.LinuxGccRoot}/sysroot",
 	}
 	linuxX86Rustflags   = []string{}
 	linuxX86Linkflags   = []string{}
