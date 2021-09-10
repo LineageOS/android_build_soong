@@ -93,6 +93,8 @@ var extraStaticLibs = make(ExtraDeps)
 
 var extraLibs = make(ExtraDeps)
 
+var optionalUsesLibs = make(ExtraDeps)
+
 type Exclude map[string]bool
 
 func (e Exclude) String() string {
@@ -269,6 +271,10 @@ func (p Pom) BpExtraLibs() []string {
 	return extraLibs[p.BpName()]
 }
 
+func (p Pom) BpOptionalUsesLibs() []string {
+	return optionalUsesLibs[p.BpName()]
+}
+
 // BpDeps obtains dependencies filtered by type and scope. The results of this
 // method are formatted as Android.bp targets, e.g. run through MavenToBp rules.
 func (p Pom) BpDeps(typeExt string, scopes []string) []string {
@@ -400,6 +406,12 @@ var bpTemplate = template.Must(template.New("bp").Parse(`
         "{{.}}",
         {{- end}}
     ],
+    {{- if .BpOptionalUsesLibs}}
+    optional_uses_libs: [
+        {{- range .BpOptionalUsesLibs}}
+        "{{.}}",
+        {{- end}}
+    ],
     {{- end}}
     {{- else if not .IsHostOnly}}
     min_sdk_version: "{{.DefaultMinSdkVersion}}",
@@ -440,6 +452,12 @@ var bpDepsTemplate = template.Must(template.New("bp").Parse(`
     {{- if .BpExtraLibs}}
     libs: [
         {{- range .BpExtraLibs}}
+        "{{.}}",
+        {{- end}}
+    ],
+    {{- if .BpOptionalUsesLibs}}
+    optional_uses_libs: [
+        {{- range .BpOptionalUsesLibs}}
         "{{.}}",
         {{- end}}
     ],
@@ -484,6 +502,12 @@ var bpDepsTemplate = template.Must(template.New("bp").Parse(`
     {{- if .BpExtraLibs}}
     libs: [
         {{- range .BpExtraLibs}}
+        "{{.}}",
+        {{- end}}
+    ],
+    {{- if .BpOptionalUsesLibs}}
+    optional_uses_libs: [
+        {{- range .BpOptionalUsesLibs}}
         "{{.}}",
         {{- end}}
     ],
@@ -587,7 +611,7 @@ func main() {
 The tool will extract the necessary information from *.pom files to create an Android.bp whose
 aar libraries can be linked against when using AAPT2.
 
-Usage: %s [--rewrite <regex>=<replace>] [-exclude <module>] [--extra-static-libs <module>=<module>[,<module>]] [--extra-libs <module>=<module>[,<module>]] [<dir>] [-regen <file>]
+Usage: %s [--rewrite <regex>=<replace>] [--exclude <module>] [--extra-static-libs <module>=<module>[,<module>]] [--extra-libs <module>=<module>[,<module>]] [--optional-uses-libs <module>=<module>[,<module>]] [<dir>] [-regen <file>]
 
   -rewrite <regex>=<replace>
      rewrite can be used to specify mappings between Maven projects and Android.bp modules. The -rewrite
@@ -604,6 +628,11 @@ Usage: %s [--rewrite <regex>=<replace>] [-exclude <module>] [--extra-static-libs
   -extra-libs <module>=<module>[,<module>]
      Some Android.bp modules have transitive runtime dependencies that must be specified when they
      are depended upon (like androidx.test.rules requires android.test.base).
+     This may be specified multiple times to declare these dependencies.
+  -optional-uses-libs <module>=<module>[,<module>]
+     Some Android.bp modules have optional dependencies (typically specified with <uses-library> in
+     the module's AndroidManifest.xml) that must be specified when they are depended upon (like
+     androidx.window:window optionally requires androidx.window:window-extensions).
      This may be specified multiple times to declare these dependencies.
   -sdk-version <version>
      Sets sdk_version: "<version>" for all modules.
@@ -629,6 +658,7 @@ Usage: %s [--rewrite <regex>=<replace>] [-exclude <module>] [--extra-static-libs
 	flag.Var(&excludes, "exclude", "Exclude module")
 	flag.Var(&extraStaticLibs, "extra-static-libs", "Extra static dependencies needed when depending on a module")
 	flag.Var(&extraLibs, "extra-libs", "Extra runtime dependencies needed when depending on a module")
+	flag.Var(&optionalUsesLibs, "optional-uses-libs", "Extra optional dependencies needed when depending on a module")
 	flag.Var(&rewriteNames, "rewrite", "Regex(es) to rewrite artifact names")
 	flag.Var(&hostModuleNames, "host", "Specifies that the corresponding module (specified in the form 'module.group:module.artifact') is a host module")
 	flag.Var(&hostAndDeviceModuleNames, "host-and-device", "Specifies that the corresponding module (specified in the form 'module.group:module.artifact') is both a host and device module.")
