@@ -405,6 +405,7 @@ type ModuleContext interface {
 	PackageFile(installPath InstallPath, name string, srcPath Path) PackagingSpec
 
 	CheckbuildFile(srcPath Path)
+	TidyFile(srcPath Path)
 
 	InstallInData() bool
 	InstallInTestcases() bool
@@ -519,62 +520,6 @@ type Module interface {
 	// TransitivePackagingSpecs returns the PackagingSpecs for this module and any transitive
 	// dependencies with dependency tags for which IsInstallDepNeeded() returns true.
 	TransitivePackagingSpecs() []PackagingSpec
-}
-
-// BazelTargetModule is a lightweight wrapper interface around Module for
-// bp2build conversion purposes.
-//
-// In bp2build's bootstrap.Main execution, Soong runs an alternate pipeline of
-// mutators that creates BazelTargetModules from regular Module objects,
-// performing the mapping from Soong properties to Bazel rule attributes in the
-// process. This process may optionally create additional BazelTargetModules,
-// resulting in a 1:many mapping.
-//
-// bp2build.Codegen is then responsible for visiting all modules in the graph,
-// filtering for BazelTargetModules, and code-generating BUILD targets from
-// them.
-type BazelTargetModule interface {
-	Module
-
-	bazelTargetModuleProperties() *bazel.BazelTargetModuleProperties
-	SetBazelTargetModuleProperties(props bazel.BazelTargetModuleProperties)
-
-	RuleClass() string
-	BzlLoadLocation() string
-}
-
-// InitBazelTargetModule is a wrapper function that decorates BazelTargetModule
-// with property structs containing metadata for bp2build conversion.
-func InitBazelTargetModule(module BazelTargetModule) {
-	module.AddProperties(module.bazelTargetModuleProperties())
-	InitAndroidModule(module)
-}
-
-// BazelTargetModuleBase contains the property structs with metadata for
-// bp2build conversion.
-type BazelTargetModuleBase struct {
-	ModuleBase
-	Properties bazel.BazelTargetModuleProperties
-}
-
-// bazelTargetModuleProperties getter.
-func (btmb *BazelTargetModuleBase) bazelTargetModuleProperties() *bazel.BazelTargetModuleProperties {
-	return &btmb.Properties
-}
-
-// SetBazelTargetModuleProperties setter for BazelTargetModuleProperties
-func (btmb *BazelTargetModuleBase) SetBazelTargetModuleProperties(props bazel.BazelTargetModuleProperties) {
-	btmb.Properties = props
-}
-
-// RuleClass returns the rule class for this Bazel target
-func (b *BazelTargetModuleBase) RuleClass() string {
-	return b.bazelTargetModuleProperties().Rule_class
-}
-
-// BzlLoadLocation returns the rule class for this Bazel target
-func (b *BazelTargetModuleBase) BzlLoadLocation() string {
-	return b.bazelTargetModuleProperties().Bzl_load_location
 }
 
 // Qualified id for a module
@@ -987,12 +932,12 @@ const (
 	DeviceSupported = deviceSupported | deviceDefault
 
 	// By default, _only_ device variant is built. Device variant can be disabled with `device_supported: false`
-    // Host and HostCross are disabled by default and can be enabled with `host_supported: true`
+	// Host and HostCross are disabled by default and can be enabled with `host_supported: true`
 	HostAndDeviceSupported = hostSupported | hostCrossSupported | deviceSupported | deviceDefault
 
 	// Host, HostCross, and Device are built by default.
-    // Building Device can be disabled with `device_supported: false`
-    // Building Host and HostCross can be disabled with `host_supported: false`
+	// Building Device can be disabled with `device_supported: false`
+	// Building Host and HostCross can be disabled with `host_supported: false`
 	HostAndDeviceDefault = hostSupported | hostCrossSupported | hostDefault |
 		deviceSupported | deviceDefault
 
@@ -1190,6 +1135,7 @@ type ModuleBase struct {
 	installFiles         InstallPaths
 	installFilesDepSet   *installPathsDepSet
 	checkbuildFiles      Paths
+	tidyFiles            Paths
 	packagingSpecs       []PackagingSpec
 	packagingSpecsDepSet *packagingSpecsDepSet
 	noticeFiles          Paths
@@ -1202,6 +1148,7 @@ type ModuleBase struct {
 	// Only set on the final variant of each module
 	installTarget    WritablePath
 	checkbuildTarget WritablePath
+	tidyTarget       WritablePath
 	blueprintDir     string
 
 	hooks hooks
@@ -1727,10 +1674,12 @@ func (m *ModuleBase) VintfFragments() Paths {
 func (m *ModuleBase) generateModuleTarget(ctx ModuleContext) {
 	var allInstalledFiles InstallPaths
 	var allCheckbuildFiles Paths
+	var allTidyFiles Paths
 	ctx.VisitAllModuleVariants(func(module Module) {
 		a := module.base()
 		allInstalledFiles = append(allInstalledFiles, a.installFiles...)
 		allCheckbuildFiles = append(allCheckbuildFiles, a.checkbuildFiles...)
+		allTidyFiles = append(allTidyFiles, a.tidyFiles...)
 	})
 
 	var deps Paths
@@ -1752,6 +1701,13 @@ func (m *ModuleBase) generateModuleTarget(ctx ModuleContext) {
 		ctx.Phony(name, allCheckbuildFiles...)
 		m.checkbuildTarget = PathForPhony(ctx, name)
 		deps = append(deps, m.checkbuildTarget)
+	}
+
+	if len(allTidyFiles) > 0 {
+		name := namespacePrefix + ctx.ModuleName() + "-tidy"
+		ctx.Phony(name, allTidyFiles...)
+		m.tidyTarget = PathForPhony(ctx, name)
+		deps = append(deps, m.tidyTarget)
 	}
 
 	if len(deps) > 0 {
@@ -1962,6 +1918,7 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 
 		m.installFiles = append(m.installFiles, ctx.installFiles...)
 		m.checkbuildFiles = append(m.checkbuildFiles, ctx.checkbuildFiles...)
+		m.tidyFiles = append(m.tidyFiles, ctx.tidyFiles...)
 		m.packagingSpecs = append(m.packagingSpecs, ctx.packagingSpecs...)
 		for k, v := range ctx.phonies {
 			m.phonies[k] = append(m.phonies[k], v...)
@@ -2160,6 +2117,7 @@ type moduleContext struct {
 	packagingSpecs  []PackagingSpec
 	installFiles    InstallPaths
 	checkbuildFiles Paths
+	tidyFiles       Paths
 	module          Module
 	phonies         map[string]Paths
 
@@ -2892,6 +2850,10 @@ func (m *moduleContext) CheckbuildFile(srcPath Path) {
 	m.checkbuildFiles = append(m.checkbuildFiles, srcPath)
 }
 
+func (m *moduleContext) TidyFile(srcPath Path) {
+	m.tidyFiles = append(m.tidyFiles, srcPath)
+}
+
 func (m *moduleContext) blueprintModuleContext() blueprint.ModuleContext {
 	return m.bp
 }
@@ -3150,19 +3112,49 @@ func parentDir(dir string) string {
 
 type buildTargetSingleton struct{}
 
+func addAncestors(ctx SingletonContext, dirMap map[string]Paths, mmName func(string) string) []string {
+	// Ensure ancestor directories are in dirMap
+	// Make directories build their direct subdirectories
+	dirs := SortedStringKeys(dirMap)
+	for _, dir := range dirs {
+		dir := parentDir(dir)
+		for dir != "." && dir != "/" {
+			if _, exists := dirMap[dir]; exists {
+				break
+			}
+			dirMap[dir] = nil
+			dir = parentDir(dir)
+		}
+	}
+	dirs = SortedStringKeys(dirMap)
+	for _, dir := range dirs {
+		p := parentDir(dir)
+		if p != "." && p != "/" {
+			dirMap[p] = append(dirMap[p], PathForPhony(ctx, mmName(dir)))
+		}
+	}
+	return SortedStringKeys(dirMap)
+}
+
 func (c *buildTargetSingleton) GenerateBuildActions(ctx SingletonContext) {
 	var checkbuildDeps Paths
+	var tidyDeps Paths
 
 	mmTarget := func(dir string) string {
 		return "MODULES-IN-" + strings.Replace(filepath.Clean(dir), "/", "-", -1)
 	}
+	mmTidyTarget := func(dir string) string {
+		return "tidy-" + strings.Replace(filepath.Clean(dir), "/", "-", -1)
+	}
 
 	modulesInDir := make(map[string]Paths)
+	tidyModulesInDir := make(map[string]Paths)
 
 	ctx.VisitAllModules(func(module Module) {
 		blueprintDir := module.base().blueprintDir
 		installTarget := module.base().installTarget
 		checkbuildTarget := module.base().checkbuildTarget
+		tidyTarget := module.base().tidyTarget
 
 		if checkbuildTarget != nil {
 			checkbuildDeps = append(checkbuildDeps, checkbuildTarget)
@@ -3171,6 +3163,16 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx SingletonContext) {
 
 		if installTarget != nil {
 			modulesInDir[blueprintDir] = append(modulesInDir[blueprintDir], installTarget)
+		}
+
+		if tidyTarget != nil {
+			tidyDeps = append(tidyDeps, tidyTarget)
+			// tidyTarget is in modulesInDir so it will be built with "mm".
+			modulesInDir[blueprintDir] = append(modulesInDir[blueprintDir], tidyTarget)
+			// tidyModulesInDir contains tidyTarget but not checkbuildTarget
+			// or installTarget, so tidy targets in a directory can be built
+			// without other checkbuild or install targets.
+			tidyModulesInDir[blueprintDir] = append(tidyModulesInDir[blueprintDir], tidyTarget)
 		}
 	})
 
@@ -3182,31 +3184,24 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx SingletonContext) {
 	// Create a top-level checkbuild target that depends on all modules
 	ctx.Phony("checkbuild"+suffix, checkbuildDeps...)
 
+	// Create a top-level tidy target that depends on all modules
+	ctx.Phony("tidy"+suffix, tidyDeps...)
+
+	dirs := addAncestors(ctx, tidyModulesInDir, mmTidyTarget)
+
+	// Kati does not generate tidy-* phony targets yet.
+	// Create a tidy-<directory> target that depends on all subdirectories
+	// and modules in the directory.
+	for _, dir := range dirs {
+		ctx.Phony(mmTidyTarget(dir), tidyModulesInDir[dir]...)
+	}
+
 	// Make will generate the MODULES-IN-* targets
 	if ctx.Config().KatiEnabled() {
 		return
 	}
 
-	// Ensure ancestor directories are in modulesInDir
-	dirs := SortedStringKeys(modulesInDir)
-	for _, dir := range dirs {
-		dir := parentDir(dir)
-		for dir != "." && dir != "/" {
-			if _, exists := modulesInDir[dir]; exists {
-				break
-			}
-			modulesInDir[dir] = nil
-			dir = parentDir(dir)
-		}
-	}
-
-	// Make directories build their direct subdirectories
-	for _, dir := range dirs {
-		p := parentDir(dir)
-		if p != "." && p != "/" {
-			modulesInDir[p] = append(modulesInDir[p], PathForPhony(ctx, mmTarget(dir)))
-		}
-	}
+	dirs = addAncestors(ctx, modulesInDir, mmTarget)
 
 	// Create a MODULES-IN-<directory> target that depends on all modules in a directory, and
 	// depends on the MODULES-IN-* targets of all of its subdirectories that contain Android.bp

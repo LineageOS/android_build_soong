@@ -21,8 +21,12 @@ import sys
 
 
 ANDROID_BUILD_TOP = os.environ.get("ANDROID_BUILD_TOP", ".")
+LLVM_PREBUILTS_VERSION = os.environ.get("LLVM_PREBUILTS_VERSION")
 
 def get_clang_prebuilts_version(global_go):
+  if LLVM_PREBUILTS_VERSION:
+    return LLVM_PREBUILTS_VERSION
+
   # TODO(b/187231324): Get clang version from the json file once it is no longer
   # hard-coded in global.go
   if global_go is None:
