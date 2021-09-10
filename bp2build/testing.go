@@ -36,14 +36,35 @@ var (
 	buildDir string
 )
 
-func errored(t *testing.T, desc string, errs []error) bool {
+func checkError(t *testing.T, errs []error, expectedErr error) bool {
 	t.Helper()
+
+	// expectedErr is not nil, find it in the list of errors
+	if len(errs) != 1 {
+		t.Errorf("Expected only 1 error, got %d: %q", len(errs), errs)
+	}
+	if errs[0].Error() == expectedErr.Error() {
+		return true
+	}
+
+	return false
+}
+
+func errored(t *testing.T, tc bp2buildTestCase, errs []error) bool {
+	t.Helper()
+	if tc.expectedErr != nil {
+		// Rely on checkErrors, as this test case is expected to have an error.
+		return false
+	}
+
 	if len(errs) > 0 {
 		for _, err := range errs {
-			t.Errorf("%s: %s", desc, err)
+			t.Errorf("%s: %s", tc.description, err)
 		}
 		return true
 	}
+
+	// All good, continue execution.
 	return false
 }
 
@@ -61,6 +82,7 @@ type bp2buildTestCase struct {
 	expectedBazelTargets               []string
 	filesystem                         map[string]string
 	dir                                string
+	expectedErr                        error
 }
 
 func runBp2BuildTestCase(t *testing.T, registerModuleTypes func(ctx android.RegistrationContext), tc bp2buildTestCase) {
@@ -85,12 +107,17 @@ func runBp2BuildTestCase(t *testing.T, registerModuleTypes func(ctx android.Regi
 	ctx.RegisterBp2BuildMutator(tc.moduleTypeUnderTest, tc.moduleTypeUnderTestBp2BuildMutator)
 	ctx.RegisterForBazelConversion()
 
-	_, errs := ctx.ParseFileList(dir, toParse)
-	if errored(t, tc.description, errs) {
+	_, parseErrs := ctx.ParseFileList(dir, toParse)
+	if errored(t, tc, parseErrs) {
 		return
 	}
-	_, errs = ctx.ResolveDependencies(config)
-	if errored(t, tc.description, errs) {
+	_, resolveDepsErrs := ctx.ResolveDependencies(config)
+	if errored(t, tc, resolveDepsErrs) {
+		return
+	}
+
+	errs := append(parseErrs, resolveDepsErrs...)
+	if tc.expectedErr != nil && checkError(t, errs, tc.expectedErr) {
 		return
 	}
 
@@ -223,11 +250,6 @@ type customBazelModuleAttributes struct {
 	String_prop      string
 	String_list_prop []string
 	Arch_paths       bazel.LabelListAttribute
-}
-
-type customBazelModule struct {
-	android.BazelTargetModuleBase
-	customBazelModuleAttributes
 }
 
 func customBp2BuildMutator(ctx android.TopDownMutatorContext) {

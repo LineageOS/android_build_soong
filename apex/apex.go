@@ -1141,9 +1141,10 @@ const (
 
 const (
 	// File extensions of an APEX for different packaging methods
-	imageApexSuffix = ".apex"
-	zipApexSuffix   = ".zipapex"
-	flattenedSuffix = ".flattened"
+	imageApexSuffix  = ".apex"
+	imageCapexSuffix = ".capex"
+	zipApexSuffix    = ".zipapex"
+	flattenedSuffix  = ".flattened"
 
 	// variant names each of which is for a packaging method
 	imageApexType     = "image"
