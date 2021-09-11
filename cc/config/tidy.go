@@ -39,6 +39,7 @@ func init() {
 			"misc-*",
 			"performance-*",
 			"portability-*",
+			"-bugprone-easily-swappable-parameters",
 			"-bugprone-narrowing-conversions",
 			"-google-readability*",
 			"-google-runtime-references",
