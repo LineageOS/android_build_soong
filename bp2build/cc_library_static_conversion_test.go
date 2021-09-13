@@ -192,15 +192,15 @@ cc_library_static {
         "-I.",
         "-I$(BINDIR)/.",
     ],
+    export_includes = [
+        "export_include_dir_1",
+        "export_include_dir_2",
+    ],
     implementation_deps = [
         ":header_lib_1",
         ":header_lib_2",
         ":static_lib_1",
         ":static_lib_2",
-    ],
-    includes = [
-        "export_include_dir_1",
-        "export_include_dir_2",
     ],
     linkstatic = True,
     srcs = [
@@ -312,7 +312,7 @@ cc_library_static {
         "-I.",
         "-I$(BINDIR)/.",
     ],
-    includes = ["subpackage"],
+    export_includes = ["subpackage"],
     linkstatic = True,
 )`},
 	})
@@ -341,7 +341,7 @@ cc_library_static {
         "-I.",
         "-I$(BINDIR)/.",
     ],
-    includes = ["subpackage"],
+    export_system_includes = ["subpackage"],
     linkstatic = True,
 )`},
 	})
@@ -391,7 +391,7 @@ cc_library_static {
         "-Isubpackage",
         "-I$(BINDIR)/subpackage",
     ],
-    includes = ["./exported_subsubpackage"],
+    export_includes = ["./exported_subsubpackage"],
     linkstatic = True,
 )`},
 	})

@@ -228,16 +228,17 @@ type bazelCcLibraryAttributes struct {
 	Conlyflags bazel.StringListAttribute
 	Asflags    bazel.StringListAttribute
 
-	Hdrs                bazel.LabelListAttribute
-	Deps                bazel.LabelListAttribute
-	Implementation_deps bazel.LabelListAttribute
-	Dynamic_deps        bazel.LabelListAttribute
-	Whole_archive_deps  bazel.LabelListAttribute
-	System_dynamic_deps bazel.LabelListAttribute
-	Includes            bazel.StringListAttribute
-	Linkopts            bazel.StringListAttribute
-	Use_libcrt          bazel.BoolAttribute
-	Rtti                bazel.BoolAttribute
+	Hdrs                   bazel.LabelListAttribute
+	Deps                   bazel.LabelListAttribute
+	Implementation_deps    bazel.LabelListAttribute
+	Dynamic_deps           bazel.LabelListAttribute
+	Whole_archive_deps     bazel.LabelListAttribute
+	System_dynamic_deps    bazel.LabelListAttribute
+	Export_includes        bazel.StringListAttribute
+	Export_system_includes bazel.StringListAttribute
+	Linkopts               bazel.StringListAttribute
+	Use_libcrt             bazel.BoolAttribute
+	Rtti                   bazel.BoolAttribute
 
 	// This is shared only.
 	Version_script bazel.LabelAttribute
@@ -299,15 +300,16 @@ func CcLibraryBp2Build(ctx android.TopDownMutatorContext) {
 		Conlyflags: compilerAttrs.conlyFlags,
 		Asflags:    asFlags,
 
-		Implementation_deps: linkerAttrs.deps,
-		Deps:                linkerAttrs.exportedDeps,
-		Dynamic_deps:        linkerAttrs.dynamicDeps,
-		Whole_archive_deps:  linkerAttrs.wholeArchiveDeps,
-		System_dynamic_deps: linkerAttrs.systemDynamicDeps,
-		Includes:            exportedIncludes,
-		Linkopts:            linkerAttrs.linkopts,
-		Use_libcrt:          linkerAttrs.useLibcrt,
-		Rtti:                compilerAttrs.rtti,
+		Implementation_deps:    linkerAttrs.deps,
+		Deps:                   linkerAttrs.exportedDeps,
+		Dynamic_deps:           linkerAttrs.dynamicDeps,
+		Whole_archive_deps:     linkerAttrs.wholeArchiveDeps,
+		System_dynamic_deps:    linkerAttrs.systemDynamicDeps,
+		Export_includes:        exportedIncludes.Includes,
+		Export_system_includes: exportedIncludes.SystemIncludes,
+		Linkopts:               linkerAttrs.linkopts,
+		Use_libcrt:             linkerAttrs.useLibcrt,
+		Rtti:                   compilerAttrs.rtti,
 
 		Version_script: linkerAttrs.versionScript,
 
@@ -2318,19 +2320,20 @@ func maybeInjectBoringSSLHash(ctx android.ModuleContext, outputFile android.Modu
 }
 
 type bazelCcLibraryStaticAttributes struct {
-	Copts               bazel.StringListAttribute
-	Srcs                bazel.LabelListAttribute
-	Implementation_deps bazel.LabelListAttribute
-	Deps                bazel.LabelListAttribute
-	Whole_archive_deps  bazel.LabelListAttribute
-	Dynamic_deps        bazel.LabelListAttribute
-	System_dynamic_deps bazel.LabelListAttribute
-	Linkopts            bazel.StringListAttribute
-	Linkstatic          bool
-	Use_libcrt          bazel.BoolAttribute
-	Rtti                bazel.BoolAttribute
-	Includes            bazel.StringListAttribute
-	Hdrs                bazel.LabelListAttribute
+	Copts                  bazel.StringListAttribute
+	Srcs                   bazel.LabelListAttribute
+	Implementation_deps    bazel.LabelListAttribute
+	Deps                   bazel.LabelListAttribute
+	Whole_archive_deps     bazel.LabelListAttribute
+	Dynamic_deps           bazel.LabelListAttribute
+	System_dynamic_deps    bazel.LabelListAttribute
+	Linkopts               bazel.StringListAttribute
+	Linkstatic             bool
+	Use_libcrt             bazel.BoolAttribute
+	Rtti                   bazel.BoolAttribute
+	Export_includes        bazel.StringListAttribute
+	Export_system_includes bazel.StringListAttribute
+	Hdrs                   bazel.LabelListAttribute
 
 	Cppflags   bazel.StringListAttribute
 	Srcs_c     bazel.LabelListAttribute
@@ -2375,11 +2378,12 @@ func ccLibraryStaticBp2BuildInternal(ctx android.TopDownMutatorContext, module *
 		Dynamic_deps:        linkerAttrs.dynamicDeps,
 		System_dynamic_deps: linkerAttrs.systemDynamicDeps,
 
-		Linkopts:   linkerAttrs.linkopts,
-		Linkstatic: true,
-		Use_libcrt: linkerAttrs.useLibcrt,
-		Rtti:       compilerAttrs.rtti,
-		Includes:   exportedIncludes,
+		Linkopts:               linkerAttrs.linkopts,
+		Linkstatic:             true,
+		Use_libcrt:             linkerAttrs.useLibcrt,
+		Rtti:                   compilerAttrs.rtti,
+		Export_includes:        exportedIncludes.Includes,
+		Export_system_includes: exportedIncludes.SystemIncludes,
 
 		Cppflags:   compilerAttrs.cppFlags,
 		Srcs_c:     compilerAttrs.cSrcs,
