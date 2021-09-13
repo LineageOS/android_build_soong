@@ -130,10 +130,6 @@ cc_library_headers {
 }`,
 		expectedBazelTargets: []string{`cc_library_headers(
     name = "foo_headers",
-    copts = [
-        "-I.",
-        "-I$(BINDIR)/.",
-    ],
     export_includes = [
         "dir-1",
         "dir-2",
