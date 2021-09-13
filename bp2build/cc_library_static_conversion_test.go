@@ -184,19 +184,13 @@ cc_library_static {
 }`,
 		expectedBazelTargets: []string{`cc_library_static(
     name = "foo_static",
+    absolute_includes = [
+        "include_dir_1",
+        "include_dir_2",
+    ],
     copts = [
         "-Dflag1",
         "-Dflag2",
-        "-Iinclude_dir_1",
-        "-I$(BINDIR)/include_dir_1",
-        "-Iinclude_dir_2",
-        "-I$(BINDIR)/include_dir_2",
-        "-Ilocal_include_dir_1",
-        "-I$(BINDIR)/local_include_dir_1",
-        "-Ilocal_include_dir_2",
-        "-I$(BINDIR)/local_include_dir_2",
-        "-I.",
-        "-I$(BINDIR)/.",
     ],
     export_includes = [
         "export_include_dir_1",
@@ -209,6 +203,11 @@ cc_library_static {
         ":static_lib_2",
     ],
     linkstatic = True,
+    local_includes = [
+        "local_include_dir_1",
+        "local_include_dir_2",
+        ".",
+    ],
     srcs = [
         "foo_static1.cc",
         "foo_static2.cc",
@@ -244,21 +243,16 @@ func TestCcLibraryStaticSubpackage(t *testing.T) {
 		blueprint: soongCcLibraryStaticPreamble + `
 cc_library_static {
     name: "foo_static",
-    srcs: [
-    ],
+    srcs: [],
     include_dirs: [
-  "subpackage",
+        "subpackage",
     ],
 }`,
 		expectedBazelTargets: []string{`cc_library_static(
     name = "foo_static",
-    copts = [
-        "-Isubpackage",
-        "-I$(BINDIR)/subpackage",
-        "-I.",
-        "-I$(BINDIR)/.",
-    ],
+    absolute_includes = ["subpackage"],
     linkstatic = True,
+    local_includes = ["."],
 )`},
 	})
 }
@@ -347,20 +341,17 @@ cc_library_static {
 		blueprint: soongCcLibraryStaticPreamble,
 		expectedBazelTargets: []string{`cc_library_static(
     name = "foo_static",
-    copts = [
-        "-Isubpackage/subsubpackage",
-        "-I$(BINDIR)/subpackage/subsubpackage",
-        "-Isubpackage2",
-        "-I$(BINDIR)/subpackage2",
-        "-Isubpackage3/subsubpackage",
-        "-I$(BINDIR)/subpackage3/subsubpackage",
-        "-Isubpackage/subsubpackage2",
-        "-I$(BINDIR)/subpackage/subsubpackage2",
-        "-Isubpackage",
-        "-I$(BINDIR)/subpackage",
+    absolute_includes = [
+        "subpackage/subsubpackage",
+        "subpackage2",
+        "subpackage3/subsubpackage",
     ],
     export_includes = ["./exported_subsubpackage"],
     linkstatic = True,
+    local_includes = [
+        "subsubpackage2",
+        ".",
+    ],
 )`},
 	})
 }
@@ -386,13 +377,9 @@ cc_library_static {
 }`,
 		expectedBazelTargets: []string{`cc_library_static(
     name = "foo_static",
-    copts = [
-        "-Isubpackage",
-        "-I$(BINDIR)/subpackage",
-        "-Isubpackage2",
-        "-I$(BINDIR)/subpackage2",
-    ],
+    absolute_includes = ["subpackage"],
     linkstatic = True,
+    local_includes = ["subpackage2"],
 )`},
 	})
 }
@@ -420,15 +407,12 @@ cc_library_static {
 }`,
 		expectedBazelTargets: []string{`cc_library_static(
     name = "foo_static",
-    copts = [
-        "-Isubpackage",
-        "-I$(BINDIR)/subpackage",
-        "-Isubpackage2",
-        "-I$(BINDIR)/subpackage2",
-        "-I.",
-        "-I$(BINDIR)/.",
-    ],
+    absolute_includes = ["subpackage"],
     linkstatic = True,
+    local_includes = [
+        "subpackage2",
+        ".",
+    ],
 )`},
 	})
 }
