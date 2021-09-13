@@ -253,7 +253,7 @@ func getLicenses(ctx BaseModuleContext, module Module) []string {
 
 	primaryProperty := module.base().primaryLicensesProperty
 	if primaryProperty == nil {
-		if ctx.Config().IsEnvTrue("ANDROID_REQUIRE_LICENSES") {
+		if !ctx.Config().IsEnvFalse("ANDROID_REQUIRE_LICENSES") {
 			ctx.ModuleErrorf("module type %q must have an applicable licenses property", ctx.OtherModuleType(module))
 		}
 		return nil
