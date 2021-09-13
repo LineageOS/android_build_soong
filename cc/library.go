@@ -236,6 +236,8 @@ type bazelCcLibraryAttributes struct {
 	System_dynamic_deps    bazel.LabelListAttribute
 	Export_includes        bazel.StringListAttribute
 	Export_system_includes bazel.StringListAttribute
+	Local_includes         bazel.StringListAttribute
+	Absolute_includes      bazel.StringListAttribute
 	Linkopts               bazel.StringListAttribute
 	Use_libcrt             bazel.BoolAttribute
 	Rtti                   bazel.BoolAttribute
@@ -307,6 +309,8 @@ func CcLibraryBp2Build(ctx android.TopDownMutatorContext) {
 		System_dynamic_deps:    linkerAttrs.systemDynamicDeps,
 		Export_includes:        exportedIncludes.Includes,
 		Export_system_includes: exportedIncludes.SystemIncludes,
+		Local_includes:         compilerAttrs.localIncludes,
+		Absolute_includes:      compilerAttrs.absoluteIncludes,
 		Linkopts:               linkerAttrs.linkopts,
 		Use_libcrt:             linkerAttrs.useLibcrt,
 		Rtti:                   compilerAttrs.rtti,
@@ -2333,6 +2337,8 @@ type bazelCcLibraryStaticAttributes struct {
 	Rtti                   bazel.BoolAttribute
 	Export_includes        bazel.StringListAttribute
 	Export_system_includes bazel.StringListAttribute
+	Local_includes         bazel.StringListAttribute
+	Absolute_includes      bazel.StringListAttribute
 	Hdrs                   bazel.LabelListAttribute
 
 	Cppflags   bazel.StringListAttribute
@@ -2384,6 +2390,8 @@ func ccLibraryStaticBp2BuildInternal(ctx android.TopDownMutatorContext, module *
 		Rtti:                   compilerAttrs.rtti,
 		Export_includes:        exportedIncludes.Includes,
 		Export_system_includes: exportedIncludes.SystemIncludes,
+		Local_includes:         compilerAttrs.localIncludes,
+		Absolute_includes:      compilerAttrs.absoluteIncludes,
 
 		Cppflags:   compilerAttrs.cppFlags,
 		Srcs_c:     compilerAttrs.cSrcs,
