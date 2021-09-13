@@ -103,12 +103,13 @@ func prebuiltLibraryHeaderFactory() android.Module {
 }
 
 type bazelCcLibraryHeadersAttributes struct {
-	Copts               bazel.StringListAttribute
-	Hdrs                bazel.LabelListAttribute
-	Includes            bazel.StringListAttribute
-	Deps                bazel.LabelListAttribute
-	Implementation_deps bazel.LabelListAttribute
-	System_dynamic_deps bazel.LabelListAttribute
+	Copts                  bazel.StringListAttribute
+	Hdrs                   bazel.LabelListAttribute
+	Export_includes        bazel.StringListAttribute
+	Export_system_includes bazel.StringListAttribute
+	Deps                   bazel.LabelListAttribute
+	Implementation_deps    bazel.LabelListAttribute
+	System_dynamic_deps    bazel.LabelListAttribute
 }
 
 func CcLibraryHeadersBp2Build(ctx android.TopDownMutatorContext) {
@@ -131,11 +132,12 @@ func CcLibraryHeadersBp2Build(ctx android.TopDownMutatorContext) {
 	linkerAttrs := bp2BuildParseLinkerProps(ctx, module)
 
 	attrs := &bazelCcLibraryHeadersAttributes{
-		Copts:               compilerAttrs.copts,
-		Includes:            exportedIncludes,
-		Implementation_deps: linkerAttrs.deps,
-		Deps:                linkerAttrs.exportedDeps,
-		System_dynamic_deps: linkerAttrs.systemDynamicDeps,
+		Copts:                  compilerAttrs.copts,
+		Export_includes:        exportedIncludes.Includes,
+		Export_system_includes: exportedIncludes.SystemIncludes,
+		Implementation_deps:    linkerAttrs.deps,
+		Deps:                   linkerAttrs.exportedDeps,
+		System_dynamic_deps:    linkerAttrs.systemDynamicDeps,
 	}
 
 	props := bazel.BazelTargetModuleProperties{

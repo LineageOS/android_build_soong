@@ -122,8 +122,8 @@ cc_library {
         "-I.",
         "-I$(BINDIR)/.",
     ],
+    export_includes = ["foo-dir"],
     implementation_deps = [":some-headers"],
-    includes = ["foo-dir"],
     linkopts = ["-Wl,--exclude-libs=bar.a"] + select({
         "//build/bazel/platforms/arch:x86": ["-Wl,--exclude-libs=baz.a"],
         "//build/bazel/platforms/arch:x86_64": ["-Wl,--exclude-libs=qux.a"],

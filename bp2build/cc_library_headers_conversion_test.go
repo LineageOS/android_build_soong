@@ -132,11 +132,7 @@ cc_library_headers {
         "-I.",
         "-I$(BINDIR)/.",
     ],
-    implementation_deps = [
-        ":lib-1",
-        ":lib-2",
-    ],
-    includes = [
+    export_includes = [
         "dir-1",
         "dir-2",
     ] + select({
@@ -145,20 +141,24 @@ cc_library_headers {
         "//build/bazel/platforms/arch:x86_64": ["arch_x86_64_exported_include_dir"],
         "//conditions:default": [],
     }),
+    implementation_deps = [
+        ":lib-1",
+        ":lib-2",
+    ],
 )`, `cc_library_headers(
     name = "lib-1",
     copts = [
         "-I.",
         "-I$(BINDIR)/.",
     ],
-    includes = ["lib-1"],
+    export_includes = ["lib-1"],
 )`, `cc_library_headers(
     name = "lib-2",
     copts = [
         "-I.",
         "-I$(BINDIR)/.",
     ],
-    includes = ["lib-2"],
+    export_includes = ["lib-2"],
 )`},
 	})
 }
@@ -337,7 +337,7 @@ func TestCcLibraryHeadersArchAndTargetExportSystemIncludes(t *testing.T) {
         "-I.",
         "-I$(BINDIR)/.",
     ],
-    includes = ["shared_include_dir"] + select({
+    export_system_includes = ["shared_include_dir"] + select({
         "//build/bazel/platforms/arch:arm": ["arm_include_dir"],
         "//build/bazel/platforms/arch:x86_64": ["x86_64_include_dir"],
         "//conditions:default": [],
@@ -382,7 +382,7 @@ cc_library_headers {
         "-I.",
         "-I$(BINDIR)/.",
     ],
-    includes = ["lib-1"],
+    export_includes = ["lib-1"],
 )`},
 	})
 }
