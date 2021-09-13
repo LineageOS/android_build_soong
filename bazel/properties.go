@@ -743,6 +743,31 @@ func (sla *StringListAttribute) SortedConfigurationAxes() []ConfigurationAxis {
 	return keys
 }
 
+// DeduplicateAxesFromBase ensures no duplication of items between the no-configuration value and
+// configuration-specific values. For example, if we would convert this StringListAttribute as:
+// ["a", "b", "c"] + select({
+//    "//condition:one": ["a", "d"],
+//    "//conditions:default": [],
+// })
+// after this function, we would convert this StringListAttribute as:
+// ["a", "b", "c"] + select({
+//    "//condition:one": ["d"],
+//    "//conditions:default": [],
+// })
+func (sla *StringListAttribute) DeduplicateAxesFromBase() {
+	base := sla.Value
+	for axis, configToList := range sla.ConfigurableValues {
+		for config, list := range configToList {
+			remaining := SubtractStrings(list, base)
+			if len(remaining) == 0 {
+				delete(sla.ConfigurableValues[axis], config)
+			} else {
+				sla.ConfigurableValues[axis][config] = remaining
+			}
+		}
+	}
+}
+
 // TryVariableSubstitution, replace string substitution formatting within each string in slice with
 // Starlark string.format compatible tag for productVariable.
 func TryVariableSubstitutions(slice []string, productVariable string) ([]string, bool) {
