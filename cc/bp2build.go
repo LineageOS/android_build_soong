@@ -216,6 +216,9 @@ type compilerAttributes struct {
 	srcs     bazel.LabelListAttribute
 
 	rtti bazel.BoolAttribute
+
+	localIncludes    bazel.StringListAttribute
+	absoluteIncludes bazel.StringListAttribute
 }
 
 // bp2BuildParseCompilerProps returns copts, srcs and hdrs and other attributes.
@@ -226,28 +229,8 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 	var conlyFlags bazel.StringListAttribute
 	var cppFlags bazel.StringListAttribute
 	var rtti bazel.BoolAttribute
-
-	// Creates the -I flags for a directory, while making the directory relative
-	// to the exec root for Bazel to work.
-	includeFlags := func(dir string) []string {
-		// filepath.Join canonicalizes the path, i.e. it takes care of . or .. elements.
-		moduleDirRootedPath := filepath.Join(ctx.ModuleDir(), dir)
-		return []string{
-			"-I" + moduleDirRootedPath,
-			// Include the bindir-rooted path (using make variable substitution). This most
-			// closely matches Bazel's native include path handling, which allows for dependency
-			// on generated headers in these directories.
-			// TODO(b/188084383): Handle local include directories in Bazel.
-			"-I$(BINDIR)/" + moduleDirRootedPath,
-		}
-	}
-
-	// Parse the list of module-relative include directories (-I).
-	parseLocalIncludeDirs := func(baseCompilerProps *BaseCompilerProperties) []string {
-		// include_dirs are root-relative, not module-relative.
-		includeDirs := bp2BuildMakePathsRelativeToModule(ctx, baseCompilerProps.Include_dirs)
-		return append(includeDirs, baseCompilerProps.Local_include_dirs...)
-	}
+	var localIncludes bazel.StringListAttribute
+	var absoluteIncludes bazel.StringListAttribute
 
 	parseCommandLineFlags := func(soongFlags []string) []string {
 		var result []string
@@ -285,18 +268,14 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 
 				archVariantCopts := parseCommandLineFlags(baseCompilerProps.Cflags)
 				archVariantAsflags := parseCommandLineFlags(baseCompilerProps.Asflags)
-				for _, dir := range parseLocalIncludeDirs(baseCompilerProps) {
-					archVariantCopts = append(archVariantCopts, includeFlags(dir)...)
-					archVariantAsflags = append(archVariantAsflags, includeFlags(dir)...)
+
+				localIncludeDirs := baseCompilerProps.Local_include_dirs
+				if axis == bazel.NoConfigAxis && includeBuildDirectory(baseCompilerProps.Include_build_directory) {
+					localIncludeDirs = append(localIncludeDirs, ".")
 				}
 
-				if axis == bazel.NoConfigAxis {
-					if includeBuildDirectory(baseCompilerProps.Include_build_directory) {
-						flags := includeFlags(".")
-						archVariantCopts = append(archVariantCopts, flags...)
-						archVariantAsflags = append(archVariantAsflags, flags...)
-					}
-				}
+				absoluteIncludes.SetSelectValue(axis, config, baseCompilerProps.Include_dirs)
+				localIncludes.SetSelectValue(axis, config, localIncludeDirs)
 
 				copts.SetSelectValue(axis, config, archVariantCopts)
 				asFlags.SetSelectValue(axis, config, archVariantAsflags)
@@ -308,6 +287,8 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 	}
 
 	srcs.ResolveExcludes()
+	absoluteIncludes.DeduplicateAxesFromBase()
+	localIncludes.DeduplicateAxesFromBase()
 
 	productVarPropNameToAttribute := map[string]*bazel.StringListAttribute{
 		"Cflags":   &copts,
@@ -331,14 +312,16 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 	srcs, cSrcs, asSrcs := groupSrcsByExtension(ctx, srcs)
 
 	return compilerAttributes{
-		copts:      copts,
-		srcs:       srcs,
-		asFlags:    asFlags,
-		asSrcs:     asSrcs,
-		cSrcs:      cSrcs,
-		conlyFlags: conlyFlags,
-		cppFlags:   cppFlags,
-		rtti:       rtti,
+		copts:            copts,
+		srcs:             srcs,
+		asFlags:          asFlags,
+		asSrcs:           asSrcs,
+		cSrcs:            cSrcs,
+		conlyFlags:       conlyFlags,
+		cppFlags:         cppFlags,
+		rtti:             rtti,
+		localIncludes:    localIncludes,
+		absoluteIncludes: absoluteIncludes,
 	}
 }
 
@@ -535,12 +518,21 @@ func bp2BuildMakePathsRelativeToModule(ctx android.BazelConversionPathContext, p
 	return relativePaths
 }
 
-func bp2BuildParseExportedIncludes(ctx android.TopDownMutatorContext, module *Module) bazel.StringListAttribute {
+// BazelIncludes contains information about -I and -isystem paths from a module converted to Bazel
+// attributes.
+type BazelIncludes struct {
+	Includes       bazel.StringListAttribute
+	SystemIncludes bazel.StringListAttribute
+}
+
+func bp2BuildParseExportedIncludes(ctx android.TopDownMutatorContext, module *Module) BazelIncludes {
 	libraryDecorator := module.linker.(*libraryDecorator)
 	return bp2BuildParseExportedIncludesHelper(ctx, module, libraryDecorator)
 }
 
-func Bp2BuildParseExportedIncludesForPrebuiltLibrary(ctx android.TopDownMutatorContext, module *Module) bazel.StringListAttribute {
+// Bp2buildParseExportedIncludesForPrebuiltLibrary returns a BazelIncludes with Bazel-ified values
+// to export includes from the underlying module's properties.
+func Bp2BuildParseExportedIncludesForPrebuiltLibrary(ctx android.TopDownMutatorContext, module *Module) BazelIncludes {
 	prebuiltLibraryLinker := module.linker.(*prebuiltLibraryLinker)
 	libraryDecorator := prebuiltLibraryLinker.libraryDecorator
 	return bp2BuildParseExportedIncludesHelper(ctx, module, libraryDecorator)
@@ -548,36 +540,22 @@ func Bp2BuildParseExportedIncludesForPrebuiltLibrary(ctx android.TopDownMutatorC
 
 // bp2BuildParseExportedIncludes creates a string list attribute contains the
 // exported included directories of a module.
-func bp2BuildParseExportedIncludesHelper(ctx android.TopDownMutatorContext, module *Module, libraryDecorator *libraryDecorator) bazel.StringListAttribute {
-	// Export_system_include_dirs and export_include_dirs are already module dir
-	// relative, so they don't need to be relativized like include_dirs, which
-	// are root-relative.
-	includeDirs := libraryDecorator.flagExporter.Properties.Export_system_include_dirs
-	includeDirs = append(includeDirs, libraryDecorator.flagExporter.Properties.Export_include_dirs...)
-	var includeDirsAttribute bazel.StringListAttribute
-
-	getVariantIncludeDirs := func(includeDirs []string, flagExporterProperties *FlagExporterProperties, subtract bool) []string {
-		variantIncludeDirs := flagExporterProperties.Export_system_include_dirs
-		variantIncludeDirs = append(variantIncludeDirs, flagExporterProperties.Export_include_dirs...)
-
-		if subtract {
-			// To avoid duplicate includes when base includes + arch includes are combined
-			// TODO: Add something similar to ResolveExcludes() in bazel/properties.go
-			variantIncludeDirs = bazel.SubtractStrings(variantIncludeDirs, includeDirs)
-		}
-		return variantIncludeDirs
-	}
-
+func bp2BuildParseExportedIncludesHelper(ctx android.TopDownMutatorContext, module *Module, libraryDecorator *libraryDecorator) BazelIncludes {
+	exported := BazelIncludes{}
 	for axis, configToProps := range module.GetArchVariantProperties(ctx, &FlagExporterProperties{}) {
 		for config, props := range configToProps {
 			if flagExporterProperties, ok := props.(*FlagExporterProperties); ok {
-				archVariantIncludeDirs := getVariantIncludeDirs(includeDirs, flagExporterProperties, axis != bazel.NoConfigAxis)
-				if len(archVariantIncludeDirs) > 0 {
-					includeDirsAttribute.SetSelectValue(axis, config, archVariantIncludeDirs)
+				if len(flagExporterProperties.Export_include_dirs) > 0 {
+					exported.Includes.SetSelectValue(axis, config, flagExporterProperties.Export_include_dirs)
+				}
+				if len(flagExporterProperties.Export_system_include_dirs) > 0 {
+					exported.SystemIncludes.SetSelectValue(axis, config, flagExporterProperties.Export_system_include_dirs)
 				}
 			}
 		}
 	}
+	exported.Includes.DeduplicateAxesFromBase()
+	exported.SystemIncludes.DeduplicateAxesFromBase()
 
-	return includeDirsAttribute
+	return exported
 }

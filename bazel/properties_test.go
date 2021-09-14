@@ -293,3 +293,74 @@ func TestResolveExcludes(t *testing.T) {
 		}
 	}
 }
+
+func TestDeduplicateAxesFromBase(t *testing.T) {
+	attr := StringListAttribute{
+		Value: []string{
+			"all_include",
+			"arm_include",
+			"android_include",
+			"linux_x86_include",
+		},
+		ConfigurableValues: configurableStringLists{
+			ArchConfigurationAxis: stringListSelectValues{
+				"arm": []string{"arm_include"},
+				"x86": []string{"x86_include"},
+			},
+			OsConfigurationAxis: stringListSelectValues{
+				"android": []string{"android_include"},
+				"linux":   []string{"linux_include"},
+			},
+			OsArchConfigurationAxis: stringListSelectValues{
+				"linux_x86": {"linux_x86_include"},
+			},
+			ProductVariableConfigurationAxis("a"): stringListSelectValues{
+				"a": []string{"not_in_value"},
+			},
+		},
+	}
+
+	attr.DeduplicateAxesFromBase()
+
+	expectedBaseIncludes := []string{
+		"all_include",
+		"arm_include",
+		"android_include",
+		"linux_x86_include",
+	}
+	if !reflect.DeepEqual(expectedBaseIncludes, attr.Value) {
+		t.Errorf("Expected Value includes %q, got %q", attr.Value, expectedBaseIncludes)
+	}
+	expectedConfiguredIncludes := configurableStringLists{
+		ArchConfigurationAxis: stringListSelectValues{
+			"x86": []string{"x86_include"},
+		},
+		OsConfigurationAxis: stringListSelectValues{
+			"linux": []string{"linux_include"},
+		},
+		OsArchConfigurationAxis: stringListSelectValues{},
+		ProductVariableConfigurationAxis("a"): stringListSelectValues{
+			"a": []string{"not_in_value"},
+		},
+	}
+	for _, axis := range attr.SortedConfigurationAxes() {
+		if _, ok := expectedConfiguredIncludes[axis]; !ok {
+			t.Errorf("Found unexpected axis %s", axis)
+			continue
+		}
+		expectedForAxis := expectedConfiguredIncludes[axis]
+		gotForAxis := attr.ConfigurableValues[axis]
+		if len(expectedForAxis) != len(gotForAxis) {
+			t.Errorf("Expected %d configs for %s, got %d: %s", len(expectedForAxis), axis, len(gotForAxis), gotForAxis)
+		}
+		for config, value := range gotForAxis {
+			if expected, ok := expectedForAxis[config]; ok {
+				if !reflect.DeepEqual(expected, value) {
+					t.Errorf("For %s, expected: %#v, got %#v", axis, expected, value)
+				}
+			} else {
+				t.Errorf("Got unexpected config %q for %s", config, axis)
+			}
+		}
+	}
+}
