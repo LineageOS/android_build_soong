@@ -250,7 +250,10 @@ func cleanOldFiles(ctx Context, basePath, newFile string) {
 	newFile = filepath.Join(basePath, newFile)
 	oldFile := newFile + ".previous"
 
-	if _, err := os.Stat(newFile); err != nil {
+	if _, err := os.Stat(newFile); os.IsNotExist(err) {
+		// If the file doesn't exist, assume no installed files exist either
+		return
+	} else if err != nil {
 		ctx.Fatalf("Expected %q to be readable", newFile)
 	}
 
