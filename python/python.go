@@ -310,13 +310,16 @@ func versionSplitMutator() func(android.BottomUpMutatorContext) {
 // HostToolPath returns a path if appropriate such that this module can be used as a host tool,
 // fulfilling HostToolProvider interface.
 func (p *Module) HostToolPath() android.OptionalPath {
-	if p.installer == nil {
-		// python_library is just meta module, and doesn't have any installer.
-		return android.OptionalPath{}
+	if p.installer != nil {
+		if bin, ok := p.installer.(*binaryDecorator); ok {
+			// TODO: This should only be set when building host binaries -- tests built for device would be
+			// setting this incorrectly.
+			return android.OptionalPathForPath(bin.path)
+		}
 	}
-	// TODO: This should only be set when building host binaries -- tests built for device would be
-	// setting this incorrectly.
-	return android.OptionalPathForPath(p.installer.(*binaryDecorator).path)
+
+	return android.OptionalPath{}
+
 }
 
 // OutputFiles returns output files based on given tag, returns an error if tag is unsupported.
