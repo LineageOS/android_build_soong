@@ -65,10 +65,10 @@ func TestCcObjectSimple(t *testing.T) {
         "-Wno-gcc-compat",
         "-Wall",
         "-Werror",
-        "-Iinclude",
-        "-I$(BINDIR)/include",
-        "-I.",
-        "-I$(BINDIR)/.",
+    ],
+    local_includes = [
+        "include",
+        ".",
     ],
     srcs = ["a/b/c.c"],
 )`,
@@ -78,14 +78,12 @@ func TestCcObjectSimple(t *testing.T) {
 
 func TestCcObjectDefaults(t *testing.T) {
 	runCcObjectTestCase(t, bp2buildTestCase{
-		description:                        "simple cc_object with defaults",
 		moduleTypeUnderTest:                "cc_object",
 		moduleTypeUnderTestFactory:         cc.ObjectFactory,
 		moduleTypeUnderTestBp2BuildMutator: cc.ObjectBp2Build,
 		blueprint: `cc_object {
     name: "foo",
     system_shared_libs: [],
-    local_include_dirs: ["include"],
     srcs: [
         "a/b/*.h",
         "a/b/c.c"
@@ -115,11 +113,8 @@ cc_defaults {
         "-Wall",
         "-Werror",
         "-fno-addrsig",
-        "-Iinclude",
-        "-I$(BINDIR)/include",
-        "-I.",
-        "-I$(BINDIR)/.",
     ],
+    local_includes = ["."],
     srcs = ["a/b/c.c"],
 )`,
 		}})
@@ -140,29 +135,23 @@ func TestCcObjectCcObjetDepsInObjs(t *testing.T) {
     system_shared_libs: [],
     srcs: ["a/b/c.c"],
     objs: ["bar"],
+    include_build_directory: false,
 }
 
 cc_object {
     name: "bar",
     system_shared_libs: [],
     srcs: ["x/y/z.c"],
+    include_build_directory: false,
 }
 `,
 		expectedBazelTargets: []string{`cc_object(
     name = "bar",
-    copts = [
-        "-fno-addrsig",
-        "-I.",
-        "-I$(BINDIR)/.",
-    ],
+    copts = ["-fno-addrsig"],
     srcs = ["x/y/z.c"],
 )`, `cc_object(
     name = "foo",
-    copts = [
-        "-fno-addrsig",
-        "-I.",
-        "-I$(BINDIR)/.",
-    ],
+    copts = ["-fno-addrsig"],
     deps = [":bar"],
     srcs = ["a/b/c.c"],
 )`,
@@ -245,16 +234,13 @@ func TestCcObjectCflagsOneArch(t *testing.T) {
             srcs: ["arch/arm/file.cpp"], // label list
         },
     },
+    include_build_directory: false,
 }
 `,
 		expectedBazelTargets: []string{
 			`cc_object(
     name = "foo",
-    copts = [
-        "-fno-addrsig",
-        "-I.",
-        "-I$(BINDIR)/.",
-    ] + select({
+    copts = ["-fno-addrsig"] + select({
         "//build/bazel/platforms/arch:x86": ["-fPIC"],
         "//conditions:default": [],
     }),
@@ -295,16 +281,13 @@ func TestCcObjectCflagsFourArch(t *testing.T) {
             cflags: ["-Wall"],
         },
     },
+    include_build_directory: false,
 }
 `,
 		expectedBazelTargets: []string{
 			`cc_object(
     name = "foo",
-    copts = [
-        "-fno-addrsig",
-        "-I.",
-        "-I$(BINDIR)/.",
-    ] + select({
+    copts = ["-fno-addrsig"] + select({
         "//build/bazel/platforms/arch:arm": ["-Wall"],
         "//build/bazel/platforms/arch:arm64": ["-Wall"],
         "//build/bazel/platforms/arch:x86": ["-fPIC"],
@@ -344,16 +327,13 @@ func TestCcObjectCflagsMultiOs(t *testing.T) {
             cflags: ["-Wall"],
         },
     },
+    include_build_directory: false,
 }
 `,
 		expectedBazelTargets: []string{
 			`cc_object(
     name = "foo",
-    copts = [
-        "-fno-addrsig",
-        "-I.",
-        "-I$(BINDIR)/.",
-    ] + select({
+    copts = ["-fno-addrsig"] + select({
         "//build/bazel/platforms/os:android": ["-fPIC"],
         "//build/bazel/platforms/os:darwin": ["-Wall"],
         "//build/bazel/platforms/os:windows": ["-fPIC"],
