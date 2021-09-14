@@ -160,8 +160,15 @@ func extractPropertyDescriptionsFromStruct(structType reflect.Type) []property {
 		if shouldSkipStructField(field) {
 			continue
 		}
-
-		properties = append(properties, extractPropertyDescriptions(field.Name, field.Type)...)
+		subProps := extractPropertyDescriptions(field.Name, field.Type)
+		// if the struct is embedded (anonymous), flatten the properties into the containing struct
+		if field.Anonymous {
+			for _, prop := range subProps {
+				properties = append(properties, prop.properties...)
+			}
+		} else {
+			properties = append(properties, subProps...)
+		}
 	}
 	return properties
 }

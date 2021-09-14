@@ -92,6 +92,7 @@ custom = rule(
         # bazel_module end
         "bool_prop": attr.bool(),
         "bool_ptr_prop": attr.bool(),
+        "embedded_prop": attr.string(),
         "int64_ptr_prop": attr.int(),
         # nested_props start
 #         "nested_prop": attr.string(),
@@ -99,6 +100,7 @@ custom = rule(
         # nested_props_ptr start
 #         "nested_prop": attr.string(),
         # nested_props_ptr end
+        "other_embedded_prop": attr.string(),
         "string_list_prop": attr.string_list(),
         "string_prop": attr.string(),
         "string_ptr_prop": attr.string(),
@@ -118,6 +120,7 @@ custom_defaults = rule(
         "arch_paths_exclude": attr.string_list(),
         "bool_prop": attr.bool(),
         "bool_ptr_prop": attr.bool(),
+        "embedded_prop": attr.string(),
         "int64_ptr_prop": attr.int(),
         # nested_props start
 #         "nested_prop": attr.string(),
@@ -125,6 +128,7 @@ custom_defaults = rule(
         # nested_props_ptr start
 #         "nested_prop": attr.string(),
         # nested_props_ptr end
+        "other_embedded_prop": attr.string(),
         "string_list_prop": attr.string_list(),
         "string_prop": attr.string(),
         "string_ptr_prop": attr.string(),
@@ -144,6 +148,7 @@ custom_test_ = rule(
         "arch_paths_exclude": attr.string_list(),
         "bool_prop": attr.bool(),
         "bool_ptr_prop": attr.bool(),
+        "embedded_prop": attr.string(),
         "int64_ptr_prop": attr.int(),
         # nested_props start
 #         "nested_prop": attr.string(),
@@ -151,6 +156,7 @@ custom_test_ = rule(
         # nested_props_ptr start
 #         "nested_prop": attr.string(),
         # nested_props_ptr end
+        "other_embedded_prop": attr.string(),
         "string_list_prop": attr.string_list(),
         "string_prop": attr.string(),
         "string_ptr_prop": attr.string(),
