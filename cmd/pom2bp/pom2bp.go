@@ -406,6 +406,7 @@ var bpTemplate = template.Must(template.New("bp").Parse(`
         "{{.}}",
         {{- end}}
     ],
+    {{- end}}
     {{- if .BpOptionalUsesLibs}}
     optional_uses_libs: [
         {{- range .BpOptionalUsesLibs}}
@@ -462,12 +463,6 @@ var bpDepsTemplate = template.Must(template.New("bp").Parse(`
         "{{.}}",
         {{- end}}
     ],
-    {{- if .BpOptionalUsesLibs}}
-    optional_uses_libs: [
-        {{- range .BpOptionalUsesLibs}}
-        "{{.}}",
-        {{- end}}
-    ],
     {{- end}}
     {{- else if not .IsHostOnly}}
     min_sdk_version: "{{.DefaultMinSdkVersion}}",
@@ -512,6 +507,7 @@ var bpDepsTemplate = template.Must(template.New("bp").Parse(`
         "{{.}}",
         {{- end}}
     ],
+    {{- end}}
     {{- if .BpOptionalUsesLibs}}
     optional_uses_libs: [
         {{- range .BpOptionalUsesLibs}}
