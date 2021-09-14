@@ -102,3 +102,19 @@ func isDirectoryExcluded(dir string, excludedMap directoryMap, includedMap direc
 		return isDirectoryExcluded(filepath.Dir(dir), excludedMap, includedMap)
 	}
 }
+
+// This is to be saved as .json files, which is for development/vendor_snapshot/update.py.
+// These flags become Android.bp snapshot module properties.
+//
+// Attributes are optional and will be populated based on each module's need.
+// Common attributes are defined here, languages may extend this struct to add
+// additional attributes.
+type SnapshotJsonFlags struct {
+	ModuleName          string `json:",omitempty"`
+	RelativeInstallPath string `json:",omitempty"`
+	Filename            string `json:",omitempty"`
+	ModuleStemName      string `json:",omitempty"`
+
+	// dependencies
+	Required []string `json:",omitempty"`
+}
