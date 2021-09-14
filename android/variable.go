@@ -333,6 +333,7 @@ type productVariables struct {
 	VendorSnapshotDirsExcluded   []string `json:",omitempty"`
 	RecoverySnapshotDirsExcluded []string `json:",omitempty"`
 	RecoverySnapshotDirsIncluded []string `json:",omitempty"`
+	HostFakeSnapshotEnabled      bool     `json:",omitempty"`
 
 	BoardVendorSepolicyDirs      []string `json:",omitempty"`
 	BoardOdmSepolicyDirs         []string `json:",omitempty"`

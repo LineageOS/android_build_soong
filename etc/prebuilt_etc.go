@@ -519,13 +519,6 @@ func PrebuiltRFSAFactory() android.Module {
 	return module
 }
 
-// Flags to be included in the snapshot
-type snapshotJsonFlags struct {
-	ModuleName          string `json:",omitempty"`
-	Filename            string `json:",omitempty"`
-	RelativeInstallPath string `json:",omitempty"`
-}
-
 // Copy file into the snapshot
 func copyFile(ctx android.SingletonContext, path android.Path, out string, fake bool) android.OutputPath {
 	if fake {
@@ -612,7 +605,7 @@ func generatePrebuiltSnapshot(s snapshot.SnapshotSingleton, ctx android.Singleto
 		snapshotLibOut := filepath.Join(snapshotArchDir, targetArch, "etc", m.BaseModuleName())
 		snapshotOutputs = append(snapshotOutputs, copyFile(ctx, m.OutputFile(), snapshotLibOut, s.Fake))
 
-		prop := snapshotJsonFlags{}
+		prop := snapshot.SnapshotJsonFlags{}
 		propOut := snapshotLibOut + ".json"
 		prop.ModuleName = m.BaseModuleName()
 		if m.subdirProperties.Relative_install_path != nil {
