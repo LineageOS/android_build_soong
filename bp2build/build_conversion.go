@@ -575,6 +575,19 @@ func extractStructProperties(structValue reflect.Value, indent int) map[string]s
 			// Ignore zero-valued fields
 			continue
 		}
+		// if the struct is embedded (anonymous), flatten the properties into the containing struct
+		if field.Anonymous {
+			if field.Type.Kind() == reflect.Ptr {
+				fieldValue = fieldValue.Elem()
+			}
+			if fieldValue.Type().Kind() == reflect.Struct {
+				propsToMerge := extractStructProperties(fieldValue, indent)
+				for prop, value := range propsToMerge {
+					ret[prop] = value
+				}
+				continue
+			}
+		}
 
 		propertyName := proptools.PropertyNameForField(field.Name)
 		prettyPrintedValue, err := prettyPrint(fieldValue, indent+1)
