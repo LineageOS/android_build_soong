@@ -760,18 +760,18 @@ func collectAppDeps(ctx android.ModuleContext, app appDepsInterface,
 				}
 
 				lib := dep.OutputFile()
-				path := lib.Path()
-				if seenModulePaths[path.String()] {
-					return false
-				}
-				seenModulePaths[path.String()] = true
-
-				if checkNativeSdkVersion && dep.SdkVersion() == "" {
-					ctx.PropertyErrorf("jni_libs", "JNI dependency %q uses platform APIs, but this module does not",
-						otherName)
-				}
-
 				if lib.Valid() {
+					path := lib.Path()
+					if seenModulePaths[path.String()] {
+						return false
+					}
+					seenModulePaths[path.String()] = true
+
+					if checkNativeSdkVersion && dep.SdkVersion() == "" {
+						ctx.PropertyErrorf("jni_libs", "JNI dependency %q uses platform APIs, but this module does not",
+							otherName)
+					}
+
 					jniLibs = append(jniLibs, jniLib{
 						name:           ctx.OtherModuleName(module),
 						path:           path,
