@@ -218,7 +218,7 @@ func (b hiddenAPIStubsDependencyTag) ExcludeFromVisibilityEnforcement() {
 var _ android.ExcludeFromVisibilityEnforcementTag = hiddenAPIStubsDependencyTag{}
 var _ android.ReplaceSourceWithPrebuilt = hiddenAPIStubsDependencyTag{}
 var _ android.ExcludeFromApexContentsTag = hiddenAPIStubsDependencyTag{}
-var _ android.SdkMemberTypeDependencyTag = hiddenAPIStubsDependencyTag{}
+var _ android.SdkMemberDependencyTag = hiddenAPIStubsDependencyTag{}
 
 // hiddenAPIComputeMonolithicStubLibModules computes the set of module names that provide stubs
 // needed to produce the hidden API monolithic stub flags file.
