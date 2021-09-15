@@ -185,7 +185,7 @@ func (s *sdk) collectMembers(ctx android.ModuleContext) {
 	s.multilibUsages = multilibNone
 	ctx.WalkDeps(func(child android.Module, parent android.Module) bool {
 		tag := ctx.OtherModuleDependencyTag(child)
-		if memberTag, ok := tag.(android.SdkMemberTypeDependencyTag); ok {
+		if memberTag, ok := tag.(android.SdkMemberDependencyTag); ok {
 			memberType := memberTag.SdkMemberType(child)
 
 			// If a nil SdkMemberType was returned then this module should not be added to the sdk.
