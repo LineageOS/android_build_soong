@@ -188,6 +188,15 @@ func WriteFileRule(ctx BuilderContext, outputFile WritablePath, content string) 
 	buildWriteFileRule(ctx, outputFile, content)
 }
 
+func CatFileRule(ctx BuilderContext, paths Paths, outputFile WritablePath) {
+	ctx.Build(pctx, BuildParams{
+		Rule:        Cat,
+		Inputs:      paths,
+		Output:      outputFile,
+		Description: "combine files to " + outputFile.Base(),
+	})
+}
+
 // shellUnescape reverses proptools.ShellEscape
 func shellUnescape(s string) string {
 	// Remove leading and trailing quotes if present
