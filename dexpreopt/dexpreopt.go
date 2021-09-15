@@ -110,12 +110,17 @@ func dexpreoptDisabled(ctx android.PathContext, global *GlobalConfig, module *Mo
 		return true
 	}
 
+	// Don't preopt system server jars that are updatable.
+	if global.ApexSystemServerJars.ContainsJar(module.Name) {
+		return true
+	}
+
 	// If OnlyPreoptBootImageAndSystemServer=true and module is not in boot class path skip
 	// Also preopt system server jars since selinux prevents system server from loading anything from
 	// /data. If we don't do this they will need to be extracted which is not favorable for RAM usage
 	// or performance. If PreoptExtractedApk is true, we ignore the only preopt boot image options.
 	if global.OnlyPreoptBootImageAndSystemServer && !global.BootJars.ContainsJar(module.Name) &&
-		!AllSystemServerJars(ctx, global).ContainsJar(module.Name) && !module.PreoptExtractedApk {
+		!global.SystemServerJars.ContainsJar(module.Name) && !module.PreoptExtractedApk {
 		return true
 	}
 
@@ -196,14 +201,6 @@ func bootProfileCommand(ctx android.PathContext, globalSoong *GlobalSoongConfig,
 	return profilePath
 }
 
-// Returns the dex location of a system server java library.
-func GetSystemServerDexLocation(global *GlobalConfig, lib string) string {
-	if apex := global.ApexSystemServerJars.ApexOfJar(lib); apex != "" {
-		return fmt.Sprintf("/apex/%s/javalib/%s.jar", apex, lib)
-	}
-	return fmt.Sprintf("/system/framework/%s.jar", lib)
-}
-
 func dexpreoptCommand(ctx android.PathContext, globalSoong *GlobalSoongConfig, global *GlobalConfig,
 	module *ModuleConfig, rule *android.RuleBuilder, archIdx int, profile android.WritablePath,
 	appImage bool, generateDM bool) {
@@ -219,13 +216,6 @@ func dexpreoptCommand(ctx android.PathContext, globalSoong *GlobalSoongConfig, g
 	}
 
 	toOdexPath := func(path string) string {
-		if global.ApexSystemServerJars.ContainsJar(module.Name) {
-			return filepath.Join(
-				"/system/framework/oat",
-				arch.String(),
-				strings.ReplaceAll(path[1:], "/", "@")+"@classes.odex")
-		}
-
 		return filepath.Join(
 			filepath.Dir(path),
 			"oat",
@@ -244,21 +234,20 @@ func dexpreoptCommand(ctx android.PathContext, globalSoong *GlobalSoongConfig, g
 
 	invocationPath := odexPath.ReplaceExtension(ctx, "invocation")
 
-	systemServerJars := AllSystemServerJars(ctx, global)
+	systemServerJars := NonApexSystemServerJars(ctx, global)
 
 	rule.Command().FlagWithArg("mkdir -p ", filepath.Dir(odexPath.String()))
 	rule.Command().FlagWithOutput("rm -f ", odexPath)
 
-	if jarIndex := systemServerJars.IndexOfJar(module.Name); jarIndex >= 0 {
+	if jarIndex := android.IndexList(module.Name, systemServerJars); jarIndex >= 0 {
 		// System server jars should be dexpreopted together: class loader context of each jar
 		// should include all preceding jars on the system server classpath.
 
 		var clcHost android.Paths
 		var clcTarget []string
-		for i := 0; i < jarIndex; i++ {
-			lib := systemServerJars.Jar(i)
+		for _, lib := range systemServerJars[:jarIndex] {
 			clcHost = append(clcHost, SystemServerDexJarHostPath(ctx, lib))
-			clcTarget = append(clcTarget, GetSystemServerDexLocation(global, lib))
+			clcTarget = append(clcTarget, filepath.Join("/system/framework", lib+".jar"))
 		}
 
 		// Copy the system server jar to a predefined location where dex2oat will find it.
@@ -373,7 +362,7 @@ func dexpreoptCommand(ctx android.PathContext, globalSoong *GlobalSoongConfig, g
 
 	if !android.PrefixInList(preoptFlags, "--compiler-filter=") {
 		var compilerFilter string
-		if systemServerJars.ContainsJar(module.Name) {
+		if global.SystemServerJars.ContainsJar(module.Name) {
 			// Jars of system server, use the product option if it is set, speed otherwise.
 			if global.SystemServerCompilerFilter != "" {
 				compilerFilter = global.SystemServerCompilerFilter
@@ -427,7 +416,7 @@ func dexpreoptCommand(ctx android.PathContext, globalSoong *GlobalSoongConfig, g
 
 	// PRODUCT_SYSTEM_SERVER_DEBUG_INFO overrides WITH_DEXPREOPT_DEBUG_INFO.
 	// PRODUCT_OTHER_JAVA_DEBUG_INFO overrides WITH_DEXPREOPT_DEBUG_INFO.
-	if systemServerJars.ContainsJar(module.Name) {
+	if global.SystemServerJars.ContainsJar(module.Name) {
 		if global.AlwaysSystemServerDebugInfo {
 			debugInfo = true
 		} else if global.NeverSystemServerDebugInfo {
@@ -529,15 +518,14 @@ func makefileMatch(pattern, s string) bool {
 	}
 }
 
-var allSystemServerJarsKey = android.NewOnceKey("allSystemServerJars")
+var nonApexSystemServerJarsKey = android.NewOnceKey("nonApexSystemServerJars")
 
 // TODO: eliminate the superficial global config parameter by moving global config definition
 // from java subpackage to dexpreopt.
-func AllSystemServerJars(ctx android.PathContext, global *GlobalConfig) *android.ConfiguredJarList {
-	return ctx.Config().Once(allSystemServerJarsKey, func() interface{} {
-		allSystemServerJars := global.SystemServerJars.AppendList(global.ApexSystemServerJars)
-		return &allSystemServerJars
-	}).(*android.ConfiguredJarList)
+func NonApexSystemServerJars(ctx android.PathContext, global *GlobalConfig) []string {
+	return ctx.Config().Once(nonApexSystemServerJarsKey, func() interface{} {
+		return android.RemoveListFromList(global.SystemServerJars.CopyOfJars(), global.ApexSystemServerJars.CopyOfJars())
+	}).([]string)
 }
 
 // A predefined location for the system server dex jars. This is needed in order to generate
@@ -563,12 +551,12 @@ func checkSystemServerOrder(ctx android.PathContext, jarIndex int) {
 	mctx, isModule := ctx.(android.ModuleContext)
 	if isModule {
 		config := GetGlobalConfig(ctx)
-		jars := AllSystemServerJars(ctx, config)
+		jars := NonApexSystemServerJars(ctx, config)
 		mctx.WalkDeps(func(dep android.Module, parent android.Module) bool {
-			depIndex := jars.IndexOfJar(dep.Name())
+			depIndex := android.IndexList(dep.Name(), jars)
 			if jarIndex < depIndex && !config.BrokenSuboptimalOrderOfSystemServerJars {
-				jar := jars.Jar(jarIndex)
-				dep := jars.Jar(depIndex)
+				jar := jars[jarIndex]
+				dep := jars[depIndex]
 				mctx.ModuleErrorf("non-optimal order of jars on the system server classpath:"+
 					" '%s' precedes its dependency '%s', so dexpreopt is unable to resolve any"+
 					" references from '%s' to '%s'.\n", jar, dep, jar, dep)
