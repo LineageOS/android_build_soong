@@ -17,7 +17,6 @@ package apex
 import (
 	"encoding/json"
 	"fmt"
-	"path"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -256,14 +255,24 @@ func (a *apexBundle) buildManifest(ctx android.ModuleContext, provideNativeLibs,
 // labeled as system_file.
 func (a *apexBundle) buildFileContexts(ctx android.ModuleContext) android.OutputPath {
 	var fileContexts android.Path
+	var fileContextsDir string
 	if a.properties.File_contexts == nil {
 		fileContexts = android.PathForSource(ctx, "system/sepolicy/apex", ctx.ModuleName()+"-file_contexts")
 	} else {
+		if m, t := android.SrcIsModuleWithTag(*a.properties.File_contexts); m != "" {
+			otherModule := android.GetModuleFromPathDep(ctx, m, t)
+			fileContextsDir = ctx.OtherModuleDir(otherModule)
+		}
 		fileContexts = android.PathForModuleSrc(ctx, *a.properties.File_contexts)
 	}
+	if fileContextsDir == "" {
+		fileContextsDir = filepath.Dir(fileContexts.String())
+	}
+	fileContextsDir += string(filepath.Separator)
+
 	if a.Platform() {
-		if matched, err := path.Match("system/sepolicy/**/*", fileContexts.String()); err != nil || !matched {
-			ctx.PropertyErrorf("file_contexts", "should be under system/sepolicy, but %q", fileContexts)
+		if !strings.HasPrefix(fileContextsDir, "system/sepolicy/") {
+			ctx.PropertyErrorf("file_contexts", "should be under system/sepolicy, but found in  %q", fileContextsDir)
 		}
 	}
 	if !android.ExistentPathForSource(ctx, fileContexts.String()).Valid() {
