@@ -3,6 +3,7 @@ package bp2build
 import (
 	"android/soong/android"
 	"fmt"
+	"strings"
 )
 
 // Simple metrics struct to collect information about a Blueprint to BUILD
@@ -16,6 +17,8 @@ type CodegenMetrics struct {
 
 	// Total number of handcrafted targets
 	handCraftedTargetCount int
+
+	moduleWithUnconvertedDepsMsgs []string
 }
 
 // Print the codegen metrics to stdout.
@@ -27,8 +30,10 @@ func (metrics CodegenMetrics) Print() {
 		generatedTargetCount += count
 	}
 	fmt.Printf(
-		"[bp2build] Generated %d total BUILD targets and included %d handcrafted BUILD targets from %d Android.bp modules.\n",
+		"[bp2build] Generated %d total BUILD targets and included %d handcrafted BUILD targets from %d Android.bp modules.\n With %d modules with unconverted deps \n\t%s",
 		generatedTargetCount,
 		metrics.handCraftedTargetCount,
-		metrics.TotalModuleCount)
+		metrics.TotalModuleCount,
+		len(metrics.moduleWithUnconvertedDepsMsgs),
+		strings.Join(metrics.moduleWithUnconvertedDepsMsgs, "\n\t"))
 }
