@@ -89,7 +89,7 @@ var bootclasspathFragmentContentDepTag = bootclasspathFragmentContentDependencyT
 
 var _ android.ExcludeFromVisibilityEnforcementTag = bootclasspathFragmentContentDepTag
 var _ android.ReplaceSourceWithPrebuilt = bootclasspathFragmentContentDepTag
-var _ android.SdkMemberTypeDependencyTag = bootclasspathFragmentContentDepTag
+var _ android.SdkMemberDependencyTag = bootclasspathFragmentContentDepTag
 var _ android.CopyDirectlyInAnyApexTag = bootclasspathFragmentContentDepTag
 var _ android.RequiresFilesFromPrebuiltApexTag = bootclasspathFragmentContentDepTag
 
