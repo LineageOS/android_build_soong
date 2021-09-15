@@ -532,7 +532,6 @@ func (t *topDownMutatorContext) CreateBazelTargetModule(
 		BazelProps: bazelProps,
 		Attrs:      attrs,
 	}
-
 	t.Module().base().addBp2buildInfo(info)
 }
 
