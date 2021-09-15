@@ -316,6 +316,9 @@ type BaseModuleContext interface {
 
 	AddMissingDependencies(missingDeps []string)
 
+	// AddUnconvertedBp2buildDep stores module name of a direct dependency that was not converted via bp2build
+	AddUnconvertedBp2buildDep(dep string)
+
 	Target() Target
 	TargetPrimary() bool
 
@@ -496,6 +499,7 @@ type Module interface {
 	IsConvertedByBp2build() bool
 	// Bp2buildTargets returns the target(s) generated for Bazel via bp2build for this module
 	Bp2buildTargets() []bp2buildInfo
+	GetUnconvertedBp2buildDeps() []string
 
 	BuildParamsForTests() []BuildParams
 	RuleParamsForTests() map[blueprint.Rule]blueprint.RuleParams
@@ -833,6 +837,10 @@ type commonProperties struct {
 	// supported as Soong handles some things within a single target that we may choose to split into
 	// multiple targets, e.g. renderscript, protos, yacc within a cc module.
 	Bp2buildInfo []bp2buildInfo `blueprint:"mutated"`
+
+	// UnconvertedBp2buildDep stores the module names of direct dependency that were not converted to
+	// Bazel
+	UnconvertedBp2buildDeps []string `blueprint:"mutated"`
 }
 
 type distProperties struct {
@@ -1210,6 +1218,18 @@ func (m *ModuleBase) IsConvertedByBp2build() bool {
 // Bp2buildTargets returns the Bazel targets bp2build generated for this module.
 func (m *ModuleBase) Bp2buildTargets() []bp2buildInfo {
 	return m.commonProperties.Bp2buildInfo
+}
+
+// AddUnconvertedBp2buildDep stores module name of a dependency that was not converted to Bazel.
+func (b *baseModuleContext) AddUnconvertedBp2buildDep(dep string) {
+	unconvertedDeps := &b.Module().base().commonProperties.UnconvertedBp2buildDeps
+	*unconvertedDeps = append(*unconvertedDeps, dep)
+}
+
+// GetUnconvertedBp2buildDeps returns the list of module names of this module's direct dependencies that
+// were not converted to Bazel.
+func (m *ModuleBase) GetUnconvertedBp2buildDeps() []string {
+	return m.commonProperties.UnconvertedBp2buildDeps
 }
 
 func (m *ModuleBase) AddJSONData(d *map[string]interface{}) {

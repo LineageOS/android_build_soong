@@ -27,12 +27,12 @@ func createBazelQueryView(ctx *bp2build.CodegenContext, bazelQueryViewDir string
 	os.RemoveAll(bazelQueryViewDir)
 	ruleShims := bp2build.CreateRuleShims(android.ModuleTypeFactories())
 
-	// Ignore metrics reporting and compat layers for queryview, since queryview
-	// is already a full-repo conversion and can use data from bazel query
-	// directly.
-	buildToTargets, _, _ := bp2build.GenerateBazelTargets(ctx, true)
+	res, err := bp2build.GenerateBazelTargets(ctx, true)
+	if err != nil {
+		panic(err)
+	}
 
-	filesToWrite := bp2build.CreateBazelFiles(ruleShims, buildToTargets, bp2build.QueryView)
+	filesToWrite := bp2build.CreateBazelFiles(ruleShims, res.BuildDirToTargets(), bp2build.QueryView)
 	for _, f := range filesToWrite {
 		if err := writeReadOnlyFile(bazelQueryViewDir, f); err != nil {
 			return err
