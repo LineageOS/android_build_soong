@@ -22,6 +22,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/java"
+
 	"github.com/google/blueprint/proptools"
 )
 
@@ -737,7 +738,7 @@ func TestBootclasspathFragmentContentsNoName(t *testing.T) {
 
 func getDexJarPath(result *android.TestResult, name string) string {
 	module := result.Module(name, "android_common")
-	return module.(java.UsesLibraryDependency).DexJarBuildPath().RelativeToTop().String()
+	return module.(java.UsesLibraryDependency).DexJarBuildPath().Path().RelativeToTop().String()
 }
 
 // TestBootclasspathFragment_HiddenAPIList checks to make sure that the correct parameters are
