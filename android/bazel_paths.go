@@ -75,9 +75,10 @@ type BazelConversionPathContext interface {
 	GetDirectDep(name string) (blueprint.Module, blueprint.DependencyTag)
 	ModuleFromName(name string) (blueprint.Module, bool)
 	Module() Module
-	ModuleType() string
+	OtherModuleType(m blueprint.Module) string
 	OtherModuleName(m blueprint.Module) string
 	OtherModuleDir(m blueprint.Module) string
+	AddUnconvertedBp2buildDep(string)
 }
 
 // BazelLabelForModuleDeps expects a list of reference to other modules, ("<module>"
@@ -345,6 +346,9 @@ func getOtherModuleLabel(ctx BazelConversionPathContext, dep, tag string, isWhol
 	if m == nil {
 		panic(fmt.Errorf("No module named %q found, but was a direct dep of %q", dep, ctx.Module().Name()))
 	}
+	if !convertedToBazel(ctx, m) {
+		ctx.AddUnconvertedBp2buildDep(dep)
+	}
 	otherLabel := bazelModuleLabel(ctx, m, tag)
 	label := bazelModuleLabel(ctx, ctx.Module(), "")
 	if isWholeLibs {
@@ -363,11 +367,10 @@ func getOtherModuleLabel(ctx BazelConversionPathContext, dep, tag string, isWhol
 
 func bazelModuleLabel(ctx BazelConversionPathContext, module blueprint.Module, tag string) string {
 	// TODO(b/165114590): Convert tag (":name{.tag}") to corresponding Bazel implicit output targets.
-	b, ok := module.(Bazelable)
-	// TODO(b/181155349): perhaps return an error here if the module can't be/isn't being converted
-	if !ok || !b.ConvertedToBazel(ctx) {
+	if !convertedToBazel(ctx, module) {
 		return bp2buildModuleLabel(ctx, module)
 	}
+	b, _ := module.(Bazelable)
 	return b.GetBazelLabel(ctx, module)
 }
 
