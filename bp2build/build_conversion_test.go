@@ -322,6 +322,30 @@ custom {
 )`,
 			},
 		},
+		{
+			blueprint: `custom {
+    name: "embedded_props",
+    embedded_prop: "abc",
+    bazel_module: { bp2build_available: true },
+}`,
+			expectedBazelTargets: []string{`custom(
+    name = "embedded_props",
+    embedded_attr = "abc",
+)`,
+			},
+		},
+		{
+			blueprint: `custom {
+    name: "ptr_to_embedded_props",
+    other_embedded_prop: "abc",
+    bazel_module: { bp2build_available: true },
+}`,
+			expectedBazelTargets: []string{`custom(
+    name = "ptr_to_embedded_props",
+    other_embedded_attr = "abc",
+)`,
+			},
+		},
 	}
 
 	dir := "."
