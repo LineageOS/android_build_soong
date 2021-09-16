@@ -23,7 +23,7 @@ import (
 
 func testGenruleContext(config android.Config) *android.TestContext {
 	ctx := android.NewTestArchContext(config)
-	ctx.RegisterModuleType("cc_genrule", genRuleFactory)
+	ctx.RegisterModuleType("cc_genrule", GenRuleFactory)
 	ctx.Register()
 
 	return ctx
