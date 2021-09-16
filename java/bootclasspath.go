@@ -95,15 +95,6 @@ func addDependencyOntoApexModulePair(ctx android.BottomUpMutatorContext, apex st
 	if ctx.OtherModuleDependencyVariantExists(variations, prebuiltName) {
 		ctx.AddVariationDependencies(variations, tag, prebuiltName)
 		addedDep = true
-	} else if ctx.Config().AlwaysUsePrebuiltSdks() && len(variations) > 0 {
-		// TODO(b/179354495): Remove this code path once the Android build has been fully migrated to
-		//  use bootclasspath_fragment properly.
-		// Some prebuilt java_sdk_library modules do not yet have an APEX variations so try and add a
-		// dependency on the non-APEX variant.
-		if ctx.OtherModuleDependencyVariantExists(nil, prebuiltName) {
-			ctx.AddVariationDependencies(nil, tag, prebuiltName)
-			addedDep = true
-		}
 	}
 
 	// If no appropriate variant existing for this, so no dependency could be added, then it is an
