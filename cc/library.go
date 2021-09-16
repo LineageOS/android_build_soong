@@ -2332,7 +2332,6 @@ type bazelCcLibraryStaticAttributes struct {
 	Dynamic_deps           bazel.LabelListAttribute
 	System_dynamic_deps    bazel.LabelListAttribute
 	Linkopts               bazel.StringListAttribute
-	Linkstatic             bool
 	Use_libcrt             bazel.BoolAttribute
 	Rtti                   bazel.BoolAttribute
 	Export_includes        bazel.StringListAttribute
