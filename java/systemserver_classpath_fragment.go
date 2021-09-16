@@ -132,6 +132,7 @@ func (systemServerClasspathFragmentContentDependencyTag) ReplaceSourceWithPrebui
 // they were listed in java_libs.
 func (systemServerClasspathFragmentContentDependencyTag) CopyDirectlyInAnyApex() {}
 
+var _ android.ReplaceSourceWithPrebuilt = systemServerClasspathFragmentContentDepTag
 var _ android.CopyDirectlyInAnyApexTag = systemServerClasspathFragmentContentDepTag
 
 // The tag used for the dependency between the systemserverclasspath_fragment module and its contents.
