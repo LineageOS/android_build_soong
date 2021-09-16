@@ -212,6 +212,13 @@ var (
 		"libc_ndk",          // http://b/187013218, cc_library_static, depends on //bionic/libm:libm (http://b/183064661)
 		"libc_malloc_hooks", // http://b/187016307, cc_library, ld.lld: error: undefined symbol: __malloc_hook
 
+		// There are unexported symbols that don't surface on a shared library build,
+		// from the source static archive
+		// e.g. _Unwind_{GetRegionStart,GetLanguageSpecificData,GetIP,Set{IP,GR},Resume,{Raise,Delete}Exception}, pthread_atfork
+		// ... from: cxa_{personality,exception}.o, system_error.o, wrappers_c_bionic.o
+		// cf. http://b/198403271
+		"libc++",
+
 		// http://b/186823769: Needs C++ STL support, includes from unconverted standard libraries in //external/libcxx
 		// c++_static
 		"libbase_ndk", // http://b/186826477, cc_library, no such target '//build/bazel/platforms/os:darwin' when --platforms //build/bazel/platforms:android_x86 is added
@@ -222,6 +229,8 @@ var (
 		"liblog",                   // http://b/186822772: cc_library, 'sys/cdefs.h' file not found
 		"libbase",                  // Requires liblog. http://b/186826479, cc_library, fatal error: 'memory' file not found, from libcxx.
 		// Also depends on fmtlib.
+
+		"libfdtrack", // depends on STL
 
 		"libseccomp_policy", // depends on libbase
 
