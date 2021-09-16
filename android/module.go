@@ -1249,7 +1249,30 @@ func (m *ModuleBase) GetProperties() []interface{} {
 }
 
 func (m *ModuleBase) BuildParamsForTests() []BuildParams {
-	return m.buildParams
+	// Expand the references to module variables like $flags[0-9]*,
+	// so we do not need to change many existing unit tests.
+	// This looks like undoing the shareFlags optimization in cc's
+	// transformSourceToObj, and should only affects unit tests.
+	vars := m.VariablesForTests()
+	buildParams := append([]BuildParams(nil), m.buildParams...)
+	for i, _ := range buildParams {
+		newArgs := make(map[string]string)
+		for k, v := range buildParams[i].Args {
+			newArgs[k] = v
+			// Replaces both ${flags1} and $flags1 syntax.
+			if strings.HasPrefix(v, "${") && strings.HasSuffix(v, "}") {
+				if value, found := vars[v[2:len(v)-1]]; found {
+					newArgs[k] = value
+				}
+			} else if strings.HasPrefix(v, "$") {
+				if value, found := vars[v[1:]]; found {
+					newArgs[k] = value
+				}
+			}
+		}
+		buildParams[i].Args = newArgs
+	}
+	return buildParams
 }
 
 func (m *ModuleBase) RuleParamsForTests() map[blueprint.Rule]blueprint.RuleParams {
