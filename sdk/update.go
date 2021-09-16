@@ -1563,10 +1563,6 @@ func newArchSpecificInfo(ctx android.SdkMemberContext, archType android.ArchType
 	return archInfo
 }
 
-func (archInfo *archTypeSpecificInfo) optimizableProperties() interface{} {
-	return archInfo.Properties
-}
-
 // Get the link type of the variant
 //
 // If the variant is not differentiated by link type then it returns "",
