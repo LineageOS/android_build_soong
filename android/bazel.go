@@ -61,8 +61,8 @@ type Bazelable interface {
 	HandcraftedLabel() string
 	GetBazelLabel(ctx BazelConversionPathContext, module blueprint.Module) string
 	ConvertWithBp2build(ctx BazelConversionPathContext) bool
+	convertWithBp2build(ctx BazelConversionPathContext, module blueprint.Module) bool
 	GetBazelBuildFileContents(c Config, path, name string) (string, error)
-	ConvertedToBazel(ctx BazelConversionPathContext) bool
 }
 
 // BazelModule is a lightweight wrapper interface around Module for Bazel-convertible modules.
@@ -175,6 +175,7 @@ var (
 		"system/core/property_service/libpropertyinfoparser": Bp2BuildDefaultTrueRecursively,
 		"system/libbase":                  Bp2BuildDefaultTrueRecursively,
 		"system/logging/liblog":           Bp2BuildDefaultTrueRecursively,
+		"system/sepolicy/apex":            Bp2BuildDefaultTrueRecursively,
 		"system/timezone/apex":            Bp2BuildDefaultTrueRecursively,
 		"system/timezone/output_data":     Bp2BuildDefaultTrueRecursively,
 		"external/arm-optimized-routines": Bp2BuildDefaultTrueRecursively,
@@ -311,9 +312,10 @@ func (b *BazelModuleBase) MixedBuildsEnabled(ctx BazelConversionPathContext) boo
 	if !ctx.Config().BazelContext.BazelEnabled() {
 		return false
 	}
-	if len(b.GetBazelLabel(ctx, ctx.Module())) == 0 {
+	if !convertedToBazel(ctx, ctx.Module()) {
 		return false
 	}
+
 	if GenerateCcLibraryStaticOnly(ctx) {
 		// Don't use partially-converted cc_library targets in mixed builds,
 		// since mixed builds would generally rely on both static and shared
@@ -323,20 +325,33 @@ func (b *BazelModuleBase) MixedBuildsEnabled(ctx BazelConversionPathContext) boo
 	return !mixedBuildsDisabled[ctx.Module().Name()]
 }
 
+// ConvertedToBazel returns whether this module has been converted (with bp2build or manually) to Bazel.
+func convertedToBazel(ctx BazelConversionPathContext, module blueprint.Module) bool {
+	b, ok := module.(Bazelable)
+	if !ok {
+		return false
+	}
+	return b.convertWithBp2build(ctx, module) || b.HasHandcraftedLabel()
+}
+
 // ConvertWithBp2build returns whether the given BazelModuleBase should be converted with bp2build.
 func (b *BazelModuleBase) ConvertWithBp2build(ctx BazelConversionPathContext) bool {
-	if bp2buildModuleDoNotConvert[ctx.Module().Name()] {
+	return b.convertWithBp2build(ctx, ctx.Module())
+}
+
+func (b *BazelModuleBase) convertWithBp2build(ctx BazelConversionPathContext, module blueprint.Module) bool {
+	if bp2buildModuleDoNotConvert[module.Name()] {
 		return false
 	}
 
 	// Ensure that the module type of this module has a bp2build converter. This
 	// prevents mixed builds from using auto-converted modules just by matching
 	// the package dir; it also has to have a bp2build mutator as well.
-	if ctx.Config().bp2buildModuleTypeConfig[ctx.ModuleType()] == false {
+	if ctx.Config().bp2buildModuleTypeConfig[ctx.OtherModuleType(module)] == false {
 		return false
 	}
 
-	packagePath := ctx.ModuleDir()
+	packagePath := ctx.OtherModuleDir(module)
 	config := ctx.Config().bp2buildPackageConfig
 
 	// This is a tristate value: true, false, or unset.
@@ -406,10 +421,4 @@ func (b *BazelModuleBase) GetBazelBuildFileContents(c Config, path, name string)
 		return "", err
 	}
 	return string(data[:]), nil
-}
-
-// ConvertedToBazel returns whether this module has been converted to Bazel, whether automatically
-// or manually
-func (b *BazelModuleBase) ConvertedToBazel(ctx BazelConversionPathContext) bool {
-	return b.ConvertWithBp2build(ctx) || b.HasHandcraftedLabel()
 }

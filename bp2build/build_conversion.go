@@ -153,10 +153,11 @@ type bpToBuildContext interface {
 }
 
 type CodegenContext struct {
-	config         android.Config
-	context        android.Context
-	mode           CodegenMode
-	additionalDeps []string
+	config                  android.Config
+	context                 android.Context
+	mode                    CodegenMode
+	additionalDeps          []string
+	unconvertedDepMode unconvertedDepsMode
 }
 
 func (c *CodegenContext) Mode() CodegenMode {
@@ -179,6 +180,16 @@ const (
 	// This mode is used for discovering and introspecting the existing Soong
 	// module graph.
 	QueryView
+)
+
+type unconvertedDepsMode int
+
+const (
+	// Include a warning in conversion metrics about converted modules with unconverted direct deps
+	warnUnconvertedDeps unconvertedDepsMode = iota
+	// Error and fail conversion if encountering a module with unconverted direct deps
+	// Enabled by setting environment variable `BP2BUILD_ERROR_UNCONVERTED`
+	errorModulesUnconvertedDeps
 )
 
 func (mode CodegenMode) String() string {
@@ -211,10 +222,15 @@ func (ctx *CodegenContext) Context() android.Context { return ctx.context }
 // NewCodegenContext creates a wrapper context that conforms to PathContext for
 // writing BUILD files in the output directory.
 func NewCodegenContext(config android.Config, context android.Context, mode CodegenMode) *CodegenContext {
+	var unconvertedDeps unconvertedDepsMode
+	if config.IsEnvTrue("BP2BUILD_ERROR_UNCONVERTED") {
+		unconvertedDeps = errorModulesUnconvertedDeps
+	}
 	return &CodegenContext{
-		context: context,
-		config:  config,
-		mode:    mode,
+		context:            context,
+		config:             config,
+		mode:               mode,
+		unconvertedDepMode: unconvertedDeps,
 	}
 }
 
@@ -230,7 +246,17 @@ func propsToAttributes(props map[string]string) string {
 	return attributes
 }
 
-func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (map[string]BazelTargets, CodegenMetrics, CodegenCompatLayer) {
+type conversionResults struct {
+	buildFileToTargets map[string]BazelTargets
+	metrics            CodegenMetrics
+	compatLayer        CodegenCompatLayer
+}
+
+func (r conversionResults) BuildDirToTargets() map[string]BazelTargets {
+	return r.buildFileToTargets
+}
+
+func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (conversionResults, []error) {
 	buildFileToTargets := make(map[string]BazelTargets)
 	buildFileToAppend := make(map[string]bool)
 
@@ -244,6 +270,8 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (map[str
 	}
 
 	dirs := make(map[string]bool)
+
+	var errs []error
 
 	bpCtx := ctx.Context()
 	bpCtx.VisitAllModules(func(m blueprint.Module) {
@@ -266,13 +294,24 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (map[str
 				}
 				t, err := getHandcraftedBuildContent(ctx, b, pathToBuildFile)
 				if err != nil {
-					panic(fmt.Errorf("Error converting %s: %s", bpCtx.ModuleName(m), err))
+					errs = append(errs, fmt.Errorf("Error converting %s: %s", bpCtx.ModuleName(m), err))
+					return
 				}
 				targets = append(targets, t)
 				// TODO(b/181575318): currently we append the whole BUILD file, let's change that to do
 				// something more targeted based on the rule type and target
 				buildFileToAppend[pathToBuildFile] = true
 			} else if aModule, ok := m.(android.Module); ok && aModule.IsConvertedByBp2build() {
+				if unconvertedDeps := aModule.GetUnconvertedBp2buildDeps(); len(unconvertedDeps) > 0 {
+					msg := fmt.Sprintf("%q depends on unconverted modules: %s", m.Name(), strings.Join(unconvertedDeps, ", "))
+					if ctx.unconvertedDepMode == warnUnconvertedDeps {
+						metrics.moduleWithUnconvertedDepsMsgs = append(metrics.moduleWithUnconvertedDepsMsgs, msg)
+					} else if ctx.unconvertedDepMode == errorModulesUnconvertedDeps {
+						metrics.TotalModuleCount += 1
+						errs = append(errs, fmt.Errorf(msg))
+						return
+					}
+				}
 				targets = generateBazelTargets(bpCtx, aModule)
 				for _, t := range targets {
 					if t.name == m.Name() {
@@ -295,11 +334,17 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (map[str
 			t := generateSoongModuleTarget(bpCtx, m)
 			targets = append(targets, t)
 		default:
-			panic(fmt.Errorf("Unknown code-generation mode: %s", ctx.Mode()))
+			errs = append(errs, fmt.Errorf("Unknown code-generation mode: %s", ctx.Mode()))
+			return
 		}
 
 		buildFileToTargets[dir] = append(buildFileToTargets[dir], targets...)
 	})
+
+	if len(errs) > 0 {
+		return conversionResults{}, errs
+	}
+
 	if generateFilegroups {
 		// Add a filegroup target that exposes all sources in the subtree of this package
 		// NOTE: This also means we generate a BUILD file for every Android.bp file (as long as it has at least one module)
@@ -312,7 +357,11 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (map[str
 		}
 	}
 
-	return buildFileToTargets, metrics, compatLayer
+	return conversionResults{
+		buildFileToTargets: buildFileToTargets,
+		metrics:            metrics,
+		compatLayer:        compatLayer,
+	}, errs
 }
 
 func getBazelPackagePath(b android.Bazelable) string {
@@ -574,6 +623,19 @@ func extractStructProperties(structValue reflect.Value, indent int) map[string]s
 		if isZero(fieldValue) {
 			// Ignore zero-valued fields
 			continue
+		}
+		// if the struct is embedded (anonymous), flatten the properties into the containing struct
+		if field.Anonymous {
+			if field.Type.Kind() == reflect.Ptr {
+				fieldValue = fieldValue.Elem()
+			}
+			if fieldValue.Type().Kind() == reflect.Struct {
+				propsToMerge := extractStructProperties(fieldValue, indent)
+				for prop, value := range propsToMerge {
+					ret[prop] = value
+				}
+				continue
+			}
 		}
 
 		propertyName := proptools.PropertyNameForField(field.Name)
