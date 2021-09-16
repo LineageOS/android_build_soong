@@ -26,6 +26,7 @@ var VndkMustUseVendorVariantList = []string{
 	"android.hardware.automotive.occupant_awareness-V1-ndk",
 	"android.hardware.automotive.occupant_awareness-V1-ndk_platform",
 	"android.hardware.automotive.occupant_awareness-ndk_platform",
+	"android.hardware.drm-V1-ndk",
 	"android.hardware.gnss-V1-ndk",
 	"android.hardware.gnss-V1-ndk_platform",
 	"android.hardware.gnss-ndk_platform",
