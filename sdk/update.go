@@ -1608,8 +1608,7 @@ func (archInfo *archTypeSpecificInfo) addToPropertySet(ctx *memberContext, archP
 	addSdkMemberPropertiesToSet(ctx, archInfo.Properties, archTypePropertySet)
 
 	for _, linkInfo := range archInfo.linkInfos {
-		linkPropertySet := archTypePropertySet.AddPropertySet(linkInfo.linkType)
-		addSdkMemberPropertiesToSet(ctx, linkInfo.Properties, linkPropertySet)
+		linkInfo.addToPropertySet(ctx, archTypePropertySet)
 	}
 }
 
@@ -1638,6 +1637,11 @@ func newLinkSpecificInfo(ctx android.SdkMemberContext, linkType string, variantP
 	}
 	linkInfo.Properties.PopulateFromVariant(ctx, linkVariant)
 	return linkInfo
+}
+
+func (l *linkTypeSpecificInfo) addToPropertySet(ctx *memberContext, propertySet android.BpPropertySet) {
+	linkPropertySet := propertySet.AddPropertySet(l.linkType)
+	addSdkMemberPropertiesToSet(ctx, l.Properties, linkPropertySet)
 }
 
 func (l *linkTypeSpecificInfo) String() string {
