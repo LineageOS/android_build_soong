@@ -111,24 +111,23 @@ func groupSrcsByExtension(ctx android.TopDownMutatorContext, srcs bazel.LabelLis
 	return
 }
 
-// bp2buildParseSharedProps returns the attributes for the shared variant of a cc_library.
-func bp2BuildParseSharedProps(ctx android.TopDownMutatorContext, module *Module) staticOrSharedAttributes {
+// bp2BuildParseLibProps returns the attributes for a variant of a cc_library.
+func bp2BuildParseLibProps(ctx android.TopDownMutatorContext, module *Module, isStatic bool) staticOrSharedAttributes {
 	lib, ok := module.compiler.(*libraryDecorator)
 	if !ok {
 		return staticOrSharedAttributes{}
 	}
+	return bp2buildParseStaticOrSharedProps(ctx, module, lib, isStatic)
+}
 
-	return bp2buildParseStaticOrSharedProps(ctx, module, lib, false)
+// bp2buildParseSharedProps returns the attributes for the shared variant of a cc_library.
+func bp2BuildParseSharedProps(ctx android.TopDownMutatorContext, module *Module) staticOrSharedAttributes {
+	return bp2BuildParseLibProps(ctx, module, false)
 }
 
 // bp2buildParseStaticProps returns the attributes for the static variant of a cc_library.
 func bp2BuildParseStaticProps(ctx android.TopDownMutatorContext, module *Module) staticOrSharedAttributes {
-	lib, ok := module.compiler.(*libraryDecorator)
-	if !ok {
-		return staticOrSharedAttributes{}
-	}
-
-	return bp2buildParseStaticOrSharedProps(ctx, module, lib, true)
+	return bp2BuildParseLibProps(ctx, module, true)
 }
 
 func bp2buildParseStaticOrSharedProps(ctx android.TopDownMutatorContext, module *Module, lib *libraryDecorator, isStatic bool) staticOrSharedAttributes {
@@ -178,6 +177,7 @@ type prebuiltAttributes struct {
 	Src bazel.LabelAttribute
 }
 
+// NOTE: Used outside of Soong repo project, in the clangprebuilts.go bootstrap_go_package
 func Bp2BuildParsePrebuiltLibraryProps(ctx android.TopDownMutatorContext, module *Module) prebuiltAttributes {
 	var srcLabelAttribute bazel.LabelAttribute
 
