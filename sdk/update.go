@@ -765,6 +765,8 @@ type propertyTag struct {
 	name string
 }
 
+var _ android.BpPropertyTag = propertyTag{}
+
 // A BpPropertyTag to add to a property that contains references to other sdk members.
 //
 // This will cause the references to be rewritten to a versioned reference in the version
