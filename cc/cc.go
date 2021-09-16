@@ -1814,15 +1814,6 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 
 	flags.AssemblerWithCpp = inList("-xassembler-with-cpp", flags.Local.AsFlags)
 
-	// Optimization to reduce size of build.ninja
-	// Replace the long list of flags for each file with a module-local variable
-	ctx.Variable(pctx, "cflags", strings.Join(flags.Local.CFlags, " "))
-	ctx.Variable(pctx, "cppflags", strings.Join(flags.Local.CppFlags, " "))
-	ctx.Variable(pctx, "asflags", strings.Join(flags.Local.AsFlags, " "))
-	flags.Local.CFlags = []string{"$cflags"}
-	flags.Local.CppFlags = []string{"$cppflags"}
-	flags.Local.AsFlags = []string{"$asflags"}
-
 	var objs Objects
 	if c.compiler != nil {
 		objs = c.compiler.compile(ctx, flags, deps)
