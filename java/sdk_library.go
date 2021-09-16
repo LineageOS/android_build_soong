@@ -376,6 +376,9 @@ type ApiScopeProperties struct {
 }
 
 type sdkLibraryProperties struct {
+	// List of source files that are needed to compile the API, but are not part of runtime library.
+	Api_srcs []string `android:"arch_variant"`
+
 	// Visibility for impl library module. If not specified then defaults to the
 	// visibility property.
 	Impl_library_visibility []string
@@ -1442,6 +1445,7 @@ func (module *SdkLibrary) createStubsSourcesAndApi(mctx android.DefaultableHookC
 	props.Name = proptools.StringPtr(name)
 	props.Visibility = childModuleVisibility(module.sdkLibraryProperties.Stubs_source_visibility)
 	props.Srcs = append(props.Srcs, module.properties.Srcs...)
+	props.Srcs = append(props.Srcs, module.sdkLibraryProperties.Api_srcs...)
 	props.Sdk_version = module.deviceProperties.Sdk_version
 	props.System_modules = module.deviceProperties.System_modules
 	props.Installable = proptools.BoolPtr(false)
