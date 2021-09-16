@@ -22,6 +22,8 @@ import (
 	"github.com/google/blueprint/proptools"
 )
 
+// RequiredSdks provides access to the set of SDKs required by an APEX and its contents.
+//
 // Extracted from SdkAware to make it easier to define custom subsets of the
 // SdkAware interface and improve code navigation within the IDE.
 //
@@ -30,11 +32,11 @@ import (
 // is expected to implement RequiredSdks() by reading its own properties like
 // `uses_sdks`.
 type RequiredSdks interface {
-	// The set of SDKs required by an APEX and its contents.
+	// RequiredSdks returns the set of SDKs required by an APEX and its contents.
 	RequiredSdks() SdkRefs
 }
 
-// Provided to improve code navigation with the IDE.
+// sdkAwareWithoutModule is provided simply to improve code navigation with the IDE.
 type sdkAwareWithoutModule interface {
 	RequiredSdks
 
@@ -233,75 +235,85 @@ func IsModuleInVersionedSdk(module Module) bool {
 	return false
 }
 
-// Provide support for generating the build rules which will build the snapshot.
+// SnapshotBuilder provides support for generating the build rules which will build the snapshot.
 type SnapshotBuilder interface {
-	// Copy src to the dest (which is a snapshot relative path) and add the dest
-	// to the zip
+	// CopyToSnapshot generates a rule that will copy the src to the dest (which is a snapshot
+	// relative path) and add the dest to the zip.
 	CopyToSnapshot(src Path, dest string)
 
-	// Return the path to an empty file.
+	// EmptyFile returns the path to an empty file.
 	//
 	// This can be used by sdk member types that need to create an empty file in the snapshot, simply
 	// pass the value returned from this to the CopyToSnapshot() method.
 	EmptyFile() Path
 
-	// Unzip the supplied zip into the snapshot relative directory destDir.
+	// UnzipToSnapshot generates a rule that will unzip the supplied zip into the snapshot relative
+	// directory destDir.
 	UnzipToSnapshot(zipPath Path, destDir string)
 
-	// Add a new prebuilt module to the snapshot. The returned module
-	// must be populated with the module type specific properties. The following
-	// properties will be automatically populated.
+	// AddPrebuiltModule adds a new prebuilt module to the snapshot.
+	//
+	// It is intended to be called from SdkMemberType.AddPrebuiltModule which can add module type
+	// specific properties that are not variant specific. The following properties will be
+	// automatically populated before returning.
 	//
 	// * name
 	// * sdk_member_name
 	// * prefer
 	//
-	// This will result in two Soong modules being generated in the Android. One
-	// that is versioned, coupled to the snapshot version and marked as
-	// prefer=true. And one that is not versioned, not marked as prefer=true and
-	// will only be used if the equivalently named non-prebuilt module is not
-	// present.
+	// Properties that are variant specific will be handled by SdkMemberProperties structure.
+	//
+	// Each module created by this method can be output to the generated Android.bp file in two
+	// different forms, depending on the setting of the SOONG_SDK_SNAPSHOT_VERSION build property.
+	// The two forms are:
+	// 1. A versioned Soong module that is referenced from a corresponding similarly versioned
+	//    snapshot module.
+	// 2. An unversioned Soong module that.
+	//
+	// See sdk/update.go for more information.
 	AddPrebuiltModule(member SdkMember, moduleType string) BpModule
 
-	// The property tag to use when adding a property to a BpModule that contains
-	// references to other sdk members. Using this will ensure that the reference
-	// is correctly output for both versioned and unversioned prebuilts in the
-	// snapshot.
+	// SdkMemberReferencePropertyTag returns a property tag to use when adding a property to a
+	// BpModule that contains references to other sdk members.
 	//
-	// "required: true" means that the property must only contain references
-	// to other members of the sdk. Passing a reference to a module that is not a
-	// member of the sdk will result in a build error.
+	// Using this will ensure that the reference is correctly output for both versioned and
+	// unversioned prebuilts in the snapshot.
 	//
-	// "required: false" means that the property can contain references to modules
-	// that are either members or not members of the sdk. If a reference is to a
-	// module that is a non member then the reference is left unchanged, i.e. it
-	// is not transformed as references to members are.
+	// "required: true" means that the property must only contain references to other members of the
+	// sdk. Passing a reference to a module that is not a member of the sdk will result in a build
+	// error.
 	//
-	// The handling of the member names is dependent on whether it is an internal or
-	// exported member. An exported member is one whose name is specified in one of
-	// the member type specific properties. An internal member is one that is added
-	// due to being a part of an exported (or other internal) member and is not itself
-	// an exported member.
+	// "required: false" means that the property can contain references to modules that are either
+	// members or not members of the sdk. If a reference is to a module that is a non member then the
+	// reference is left unchanged, i.e. it is not transformed as references to members are.
+	//
+	// The handling of the member names is dependent on whether it is an internal or exported member.
+	// An exported member is one whose name is specified in one of the member type specific
+	// properties. An internal member is one that is added due to being a part of an exported (or
+	// other internal) member and is not itself an exported member.
 	//
 	// Member names are handled as follows:
-	// * When creating the unversioned form of the module the name is left unchecked
-	//   unless the member is internal in which case it is transformed into an sdk
-	//   specific name, i.e. by prefixing with the sdk name.
+	// * When creating the unversioned form of the module the name is left unchecked unless the member
+	//   is internal in which case it is transformed into an sdk specific name, i.e. by prefixing with
+	//   the sdk name.
 	//
-	// * When creating the versioned form of the module the name is transformed into
-	//   a versioned sdk specific name, i.e. by prefixing with the sdk name and
-	//   suffixing with the version.
+	// * When creating the versioned form of the module the name is transformed into a versioned sdk
+	//   specific name, i.e. by prefixing with the sdk name and suffixing with the version.
 	//
 	// e.g.
 	// bpPropertySet.AddPropertyWithTag("libs", []string{"member1", "member2"}, builder.SdkMemberReferencePropertyTag(true))
 	SdkMemberReferencePropertyTag(required bool) BpPropertyTag
 }
 
+// BpPropertyTag is a marker interface that can be associated with properties in a BpPropertySet to
+// provide additional information which can be used to customize their behavior.
 type BpPropertyTag interface{}
 
-// A set of properties for use in a .bp file.
+// BpPropertySet is a set of properties for use in a .bp file.
 type BpPropertySet interface {
-	// Add a property, the value can be one of the following types:
+	// AddProperty adds a property.
+	//
+	// The value can be one of the following types:
 	// * string
 	// * array of the above
 	// * bool
@@ -326,18 +338,18 @@ type BpPropertySet interface {
 	// * Otherwise, if a property exists with the name then it is an error.
 	AddProperty(name string, value interface{})
 
-	// Add a property with an associated tag
+	// AddPropertyWithTag adds a property with an associated property tag.
 	AddPropertyWithTag(name string, value interface{}, tag BpPropertyTag)
 
-	// Add a property set with the specified name and return so that additional
-	// properties can be added.
+	// AddPropertySet adds a property set with the specified name and returns it so that additional
+	// properties can be added to it.
 	AddPropertySet(name string) BpPropertySet
 
-	// Add comment for property (or property set).
+	// AddCommentForProperty adds a comment for the named property (or property set).
 	AddCommentForProperty(name, text string)
 }
 
-// A .bp module definition.
+// BpModule represents a module definition in a .bp file.
 type BpModule interface {
 	BpPropertySet
 
@@ -364,13 +376,14 @@ func (b BpPrintableBase) bpPrintable() {
 
 var _ BpPrintable = BpPrintableBase{}
 
-// An individual member of the SDK, includes all of the variants that the SDK
-// requires.
+// SdkMember is an individual member of the SDK.
+//
+// It includes all of the variants that the SDK depends upon.
 type SdkMember interface {
-	// The name of the member.
+	// Name returns the name of the member.
 	Name() string
 
-	// All the variants required by the SDK.
+	// Variants returns all the variants of this module depended upon by the SDK.
 	Variants() []SdkAware
 }
 
@@ -418,8 +431,8 @@ func (t *sdkMemberDependencyTag) ExportMember() bool {
 	return t.export
 }
 
-// Prevent dependencies from the sdk/module_exports onto their members from being
-// replaced with a preferred prebuilt.
+// ReplaceSourceWithPrebuilt prevents dependencies from the sdk/module_exports onto their members
+// from being replaced with a preferred prebuilt.
 func (t *sdkMemberDependencyTag) ReplaceSourceWithPrebuilt() bool {
 	return false
 }
@@ -431,7 +444,7 @@ func DependencyTagForSdkMemberType(memberType SdkMemberType, export bool) SdkMem
 	return &sdkMemberDependencyTag{memberType: memberType, export: export}
 }
 
-// Interface that must be implemented for every type that can be a member of an
+// SdkMemberType is the interface that must be implemented for every type that can be a member of an
 // sdk.
 //
 // The basic implementation should look something like this, where ModuleType is
@@ -452,43 +465,43 @@ func DependencyTagForSdkMemberType(memberType SdkMemberType, export bool) SdkMem
 //    ...methods...
 //
 type SdkMemberType interface {
-	// The name of the member type property on an sdk module.
+	// SdkPropertyName returns the name of the member type property on an sdk module.
 	SdkPropertyName() string
 
 	// RequiresBpProperty returns true if this member type requires its property to be usable within
 	// an Android.bp file.
 	RequiresBpProperty() bool
 
-	// True if the member type supports the sdk/sdk_snapshot, false otherwise.
+	// UsableWithSdkAndSdkSnapshot returns true if the member type supports the sdk/sdk_snapshot,
+	// false otherwise.
 	UsableWithSdkAndSdkSnapshot() bool
 
-	// Return true if prebuilt host artifacts may be specific to the host OS. Only
-	// applicable to modules where HostSupported() is true. If this is true,
-	// snapshots will list each host OS variant explicitly and disable all other
-	// host OS'es.
+	// IsHostOsDependent returns true if prebuilt host artifacts may be specific to the host OS. Only
+	// applicable to modules where HostSupported() is true. If this is true, snapshots will list each
+	// host OS variant explicitly and disable all other host OS'es.
 	IsHostOsDependent() bool
 
-	// Add dependencies from the SDK module to all the module variants the member
-	// type contributes to the SDK. `names` is the list of module names given in
-	// the member type property (as returned by SdkPropertyName()) in the SDK
-	// module. The exact set of variants required is determined by the SDK and its
-	// properties. The dependencies must be added with the supplied tag.
+	// AddDependencies adds dependencies from the SDK module to all the module variants the member
+	// type contributes to the SDK. `names` is the list of module names given in the member type
+	// property (as returned by SdkPropertyName()) in the SDK module. The exact set of variants
+	// required is determined by the SDK and its properties. The dependencies must be added with the
+	// supplied tag.
 	//
 	// The BottomUpMutatorContext provided is for the SDK module.
 	AddDependencies(ctx SdkDependencyContext, dependencyTag blueprint.DependencyTag, names []string)
 
-	// Return true if the supplied module is an instance of this member type.
+	// IsInstance returns true if the supplied module is an instance of this member type.
 	//
-	// This is used to check the type of each variant before added to the
-	// SdkMember. Returning false will cause an error to be logged expaining that
-	// the module is not allowed in whichever sdk property it was added.
+	// This is used to check the type of each variant before added to the SdkMember. Returning false
+	// will cause an error to be logged explaining that the module is not allowed in whichever sdk
+	// property it was added.
 	IsInstance(module Module) bool
 
 	// UsesSourceModuleTypeInSnapshot returns true when the AddPrebuiltModule() method returns a
 	// source module type.
 	UsesSourceModuleTypeInSnapshot() bool
 
-	// Add a prebuilt module that the sdk will populate.
+	// AddPrebuiltModule is called to add a prebuilt module that the sdk will populate.
 	//
 	// The sdk module code generates the snapshot as follows:
 	//
@@ -525,7 +538,8 @@ type SdkMemberType interface {
 	//
 	AddPrebuiltModule(ctx SdkMemberContext, member SdkMember) BpModule
 
-	// Create a structure into which variant specific properties can be added.
+	// CreateVariantPropertiesStruct creates a structure into which variant specific properties can be
+	// added.
 	CreateVariantPropertiesStruct() SdkMemberProperties
 }
 
@@ -535,7 +549,8 @@ type SdkDependencyContext interface {
 	BottomUpMutatorContext
 }
 
-// Base type for SdkMemberType implementations.
+// SdkMemberTypeBase is the base type for SdkMemberType implementations and must be embedded in any
+// struct that implements SdkMemberType.
 type SdkMemberTypeBase struct {
 	PropertyName string
 
@@ -572,7 +587,7 @@ func (b *SdkMemberTypeBase) UsesSourceModuleTypeInSnapshot() bool {
 	return b.UseSourceModuleTypeInSnapshot
 }
 
-// Encapsulates the information about registered SdkMemberTypes.
+// SdkMemberTypesRegistry encapsulates the information about registered SdkMemberTypes.
 type SdkMemberTypesRegistry struct {
 	// The list of types sorted by property name.
 	list []SdkMemberType
@@ -610,14 +625,15 @@ func (r *SdkMemberTypesRegistry) UniqueOnceKey() OnceKey {
 	return NewCustomOnceKey(r)
 }
 
-// The set of registered SdkMemberTypes for module_exports modules.
+// ModuleExportsMemberTypes is the set of registered SdkMemberTypes for module_exports modules.
 var ModuleExportsMemberTypes = &SdkMemberTypesRegistry{}
 
-// The set of registered SdkMemberTypes for sdk modules.
+// SdkMemberTypes is the set of registered SdkMemberTypes for sdk modules.
 var SdkMemberTypes = &SdkMemberTypesRegistry{}
 
-// Register an SdkMemberType object to allow them to be used in the sdk and sdk_snapshot module
-// types.
+// RegisterSdkMemberType registers an SdkMemberType object to allow them to be used in the
+// module_exports, module_exports_snapshot and (depending on the value returned from
+// SdkMemberType.UsableWithSdkAndSdkSnapshot) the sdk and sdk_snapshot module types.
 func RegisterSdkMemberType(memberType SdkMemberType) {
 	// All member types are usable with module_exports.
 	ModuleExportsMemberTypes = ModuleExportsMemberTypes.copyAndAppend(memberType)
@@ -628,7 +644,8 @@ func RegisterSdkMemberType(memberType SdkMemberType) {
 	}
 }
 
-// Base structure for all implementations of SdkMemberProperties.
+// SdkMemberPropertiesBase is the base structure for all implementations of SdkMemberProperties and
+// must be embedded in any struct that implements SdkMemberProperties.
 //
 // Contains common properties that apply across many different member types.
 type SdkMemberPropertiesBase struct {
@@ -655,7 +672,7 @@ type SdkMemberPropertiesBase struct {
 	Compile_multilib string `android:"arch_variant"`
 }
 
-// The os prefix to use for any file paths in the sdk.
+// OsPrefix returns the os prefix to use for any file paths in the sdk.
 //
 // Is an empty string if the member only provides variants for a single os type, otherwise
 // is the OsType.Name.
@@ -671,35 +688,47 @@ func (b *SdkMemberPropertiesBase) Base() *SdkMemberPropertiesBase {
 	return b
 }
 
-// Interface to be implemented on top of a structure that contains variant specific
-// information.
+// SdkMemberProperties is the interface to be implemented on top of a structure that contains
+// variant specific information.
 //
-// Struct fields that are capitalized are examined for common values to extract. Fields
-// that are not capitalized are assumed to be arch specific.
+// Struct fields that are capitalized are examined for common values to extract. Fields that are not
+// capitalized are assumed to be arch specific.
 type SdkMemberProperties interface {
-	// Access the base structure.
+	// Base returns the base structure.
 	Base() *SdkMemberPropertiesBase
 
-	// Populate this structure with information from the variant.
+	// PopulateFromVariant populates this structure with information from a module variant.
+	//
+	// It will typically be called once for each variant of a member module that the SDK depends upon.
 	PopulateFromVariant(ctx SdkMemberContext, variant Module)
 
-	// Add the information from this structure to the property set.
+	// AddToPropertySet adds the information from this structure to the property set.
+	//
+	// This will be called for each instance of this structure on which the PopulateFromVariant method
+	// was called and also on a number of different instances of this structure into which properties
+	// common to one or more variants have been copied. Therefore, implementations of this must handle
+	// the case when this structure is only partially populated.
 	AddToPropertySet(ctx SdkMemberContext, propertySet BpPropertySet)
 }
 
-// Provides access to information common to a specific member.
+// SdkMemberContext provides access to information common to a specific member.
 type SdkMemberContext interface {
 
-	// The module context of the sdk common os variant which is creating the snapshot.
+	// SdkModuleContext returns the module context of the sdk common os variant which is creating the
+	// snapshot.
+	//
+	// This is common to all members of the sdk and is not specific to the member being processed.
+	// If information about the member being processed needs to be obtained from this ModuleContext it
+	// must be obtained using one of the OtherModule... methods not the Module... methods.
 	SdkModuleContext() ModuleContext
 
-	// The builder of the snapshot.
+	// SnapshotBuilder the builder of the snapshot.
 	SnapshotBuilder() SnapshotBuilder
 
-	// The type of the member.
+	// MemberType returns the type of the member currently being processed.
 	MemberType() SdkMemberType
 
-	// The name of the member.
+	// Name returns the name of the member currently being processed.
 	//
 	// Provided for use by sdk members to create a member specific location within the snapshot
 	// into which to copy the prebuilt files.
