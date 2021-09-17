@@ -320,3 +320,38 @@ func TestLibraryDynamicList(t *testing.T) {
 		libfoo.Args["ldFlags"], "-Wl,--dynamic-list,foo.dynamic.txt")
 
 }
+
+func TestCcLibrarySharedWithBazel(t *testing.T) {
+	bp := `
+cc_library_shared {
+	name: "foo",
+	srcs: ["foo.cc"],
+	bazel_module: { label: "//foo/bar:bar" },
+}`
+	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
+	config.BazelContext = android.MockBazelContext{
+		OutputBaseDir: "outputbase",
+		LabelToCcInfo: map[string]cquery.CcInfo{
+			"//foo/bar:bar": cquery.CcInfo{
+				CcObjectFiles:        []string{"foo.o"},
+				Includes:             []string{"include"},
+				SystemIncludes:       []string{"system_include"},
+				RootDynamicLibraries: []string{"foo.so"},
+			},
+		},
+	}
+	ctx := testCcWithConfig(t, config)
+
+	sharedFoo := ctx.ModuleForTests("foo", "android_arm_armv7-a-neon_shared").Module()
+	outputFiles, err := sharedFoo.(android.OutputFileProducer).OutputFiles("")
+	if err != nil {
+		t.Errorf("Unexpected error getting cc_object outputfiles %s", err)
+	}
+	expectedOutputFiles := []string{"outputbase/execroot/__main__/foo.so"}
+	android.AssertDeepEquals(t, "output files", expectedOutputFiles, outputFiles.Strings())
+
+	entries := android.AndroidMkEntriesForTest(t, ctx, sharedFoo)[0]
+	expectedFlags := []string{"-Ioutputbase/execroot/__main__/include", "-isystem outputbase/execroot/__main__/system_include"}
+	gotFlags := entries.EntryMap["LOCAL_EXPORT_CFLAGS"]
+	android.AssertDeepEquals(t, "androidmk exported cflags", expectedFlags, gotFlags)
+}
