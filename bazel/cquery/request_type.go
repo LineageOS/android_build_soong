@@ -25,6 +25,7 @@ type CcInfo struct {
 	// be a subset of OutputFiles. (or shared libraries, this will be equal to OutputFiles,
 	// but general cc_library will also have dynamic libraries in output files).
 	RootDynamicLibraries []string
+	TocFile              string
 }
 
 type getOutputFilesRequestType struct{}
@@ -100,14 +101,15 @@ func (g getCcInfoType) Name() string {
 func (g getCcInfoType) StarlarkFunctionBody() string {
 	return `
 outputFiles = [f.path for f in target.files.to_list()]
+cc_info = providers(target)["CcInfo"]
 
-includes = providers(target)["CcInfo"].compilation_context.includes.to_list()
-system_includes = providers(target)["CcInfo"].compilation_context.system_includes.to_list()
+includes = cc_info.compilation_context.includes.to_list()
+system_includes = cc_info.compilation_context.system_includes.to_list()
 
 ccObjectFiles = []
 staticLibraries = []
 rootStaticArchives = []
-linker_inputs = providers(target)["CcInfo"].linking_context.linker_inputs.to_list()
+linker_inputs = cc_info.linking_context.linker_inputs.to_list()
 
 for linker_input in linker_inputs:
   for library in linker_input.libraries:
@@ -120,10 +122,16 @@ for linker_input in linker_inputs:
 
 rootDynamicLibraries = []
 
-if "@rules_cc//examples:experimental_cc_shared_library.bzl%CcSharedLibraryInfo" in providers(target):
-  shared_info = providers(target)["@rules_cc//examples:experimental_cc_shared_library.bzl%CcSharedLibraryInfo"]
+shared_info_tag = "@rules_cc//examples:experimental_cc_shared_library.bzl%CcSharedLibraryInfo"
+if shared_info_tag in providers(target):
+  shared_info = providers(target)[shared_info_tag]
   for lib in shared_info.linker_input.libraries:
     rootDynamicLibraries += [lib.dynamic_library.path]
+
+toc_file = ""
+toc_file_tag = "//build/bazel/rules:generate_toc.bzl%CcTocInfo"
+if toc_file_tag in providers(target):
+  toc_file = providers(target)[toc_file_tag].toc.path
 
 returns = [
   outputFiles,
@@ -132,10 +140,10 @@ returns = [
   includes,
   system_includes,
   rootStaticArchives,
-  rootDynamicLibraries
+  rootDynamicLibraries,
 ]
 
-return "|".join([", ".join(r) for r in returns])`
+return "|".join([", ".join(r) for r in returns] + [toc_file])`
 }
 
 // ParseResult returns a value obtained by parsing the result of the request's Starlark function.
@@ -146,7 +154,7 @@ func (g getCcInfoType) ParseResult(rawString string) (CcInfo, error) {
 	var ccObjects []string
 
 	splitString := strings.Split(rawString, "|")
-	if expectedLen := 7; len(splitString) != expectedLen {
+	if expectedLen := 8; len(splitString) != expectedLen {
 		return CcInfo{}, fmt.Errorf("Expected %d items, got %q", expectedLen, splitString)
 	}
 	outputFilesString := splitString[0]
@@ -159,6 +167,7 @@ func (g getCcInfoType) ParseResult(rawString string) (CcInfo, error) {
 	systemIncludes := splitOrEmpty(splitString[4], ", ")
 	rootStaticArchives := splitOrEmpty(splitString[5], ", ")
 	rootDynamicLibraries := splitOrEmpty(splitString[6], ", ")
+	tocFile := splitString[7] // NOTE: Will be the empty string if there wasn't
 	return CcInfo{
 		OutputFiles:          outputFiles,
 		CcObjectFiles:        ccObjects,
@@ -167,6 +176,7 @@ func (g getCcInfoType) ParseResult(rawString string) (CcInfo, error) {
 		SystemIncludes:       systemIncludes,
 		RootStaticArchives:   rootStaticArchives,
 		RootDynamicLibraries: rootDynamicLibraries,
+		TocFile:              tocFile,
 	}, nil
 }
 
