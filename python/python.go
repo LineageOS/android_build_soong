@@ -22,6 +22,7 @@ import (
 	"regexp"
 	"strings"
 
+	"android/soong/bazel"
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
@@ -120,6 +121,18 @@ type BaseProperties struct {
 	Embedded_launcher *bool `blueprint:"mutated"`
 }
 
+type baseAttributes struct {
+	// TODO(b/200311466): Probably not translate b/c Bazel has no good equiv
+	//Pkg_path    bazel.StringAttribute
+	// TODO: Related to Pkg_bath and similarLy gated
+	//Is_internal bazel.BoolAttribute
+	// Combines Srcs and Exclude_srcs
+	Srcs bazel.LabelListAttribute
+	Deps bazel.LabelListAttribute
+	// Combines Data and Java_data (invariant)
+	Data bazel.LabelListAttribute
+}
+
 // Used to store files of current module after expanding dependencies
 type pathMapping struct {
 	dest string
@@ -175,6 +188,25 @@ func newModule(hod android.HostOrDeviceSupported, multilib android.Multilib) *Mo
 		hod:      hod,
 		multilib: multilib,
 	}
+}
+
+func (m *Module) makeArchVariantBaseAttributes(ctx android.TopDownMutatorContext) baseAttributes {
+	var attrs baseAttributes
+	archVariantBaseProps := m.GetArchVariantProperties(ctx, &BaseProperties{})
+	for axis, configToProps := range archVariantBaseProps {
+		for config, props := range configToProps {
+			if baseProps, ok := props.(*BaseProperties); ok {
+				attrs.Srcs.SetSelectValue(axis, config,
+					android.BazelLabelForModuleSrcExcludes(ctx, baseProps.Srcs, baseProps.Exclude_srcs))
+				attrs.Deps.SetSelectValue(axis, config,
+					android.BazelLabelForModuleDeps(ctx, baseProps.Libs))
+				data := android.BazelLabelForModuleSrc(ctx, baseProps.Data)
+				data.Append(android.BazelLabelForModuleSrc(ctx, baseProps.Java_data))
+				attrs.Data.SetSelectValue(axis, config, data)
+			}
+		}
+	}
+	return attrs
 }
 
 // bootstrapper interface should be implemented for runnable modules, e.g. binary and test
