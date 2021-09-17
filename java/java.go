@@ -286,6 +286,7 @@ var (
 	frameworkResTag         = dependencyTag{name: "framework-res"}
 	kotlinStdlibTag         = dependencyTag{name: "kotlin-stdlib"}
 	kotlinAnnotationsTag    = dependencyTag{name: "kotlin-annotations"}
+	kotlinPluginTag         = dependencyTag{name: "kotlin-plugin"}
 	proguardRaiseTag        = dependencyTag{name: "proguard-raise"}
 	certificateTag          = dependencyTag{name: "certificate"}
 	instrumentationForTag   = dependencyTag{name: "instrumentation_for"}
@@ -380,6 +381,7 @@ type deps struct {
 	aidlPreprocess          android.OptionalPath
 	kotlinStdlib            android.Paths
 	kotlinAnnotations       android.Paths
+	kotlinPlugins           android.Paths
 
 	disableTurbine bool
 }

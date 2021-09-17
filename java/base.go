@@ -643,6 +643,11 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 	} else if j.shouldInstrumentStatic(ctx) {
 		ctx.AddVariationDependencies(nil, staticLibTag, "jacocoagent")
 	}
+
+	if j.useCompose() {
+		ctx.AddVariationDependencies(ctx.Config().BuildOSCommonTarget.Variations(), kotlinPluginTag,
+			"androidx.compose.compiler_compiler-hosted")
+	}
 }
 
 func hasSrcExt(srcs []string, ext string) bool {
@@ -911,6 +916,12 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 		if ctx.Device() {
 			kotlincFlags = append(kotlincFlags, "-no-jdk")
 		}
+
+		for _, plugin := range deps.kotlinPlugins {
+			kotlincFlags = append(kotlincFlags, "-Xplugin="+plugin.String())
+		}
+		flags.kotlincDeps = append(flags.kotlincDeps, deps.kotlinPlugins...)
+
 		if len(kotlincFlags) > 0 {
 			// optimization.
 			ctx.Variable(pctx, "kotlincFlags", strings.Join(kotlincFlags, " "))
@@ -1323,6 +1334,10 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 
 	// Save the output file with no relative path so that it doesn't end up in a subdirectory when used as a resource
 	j.outputFile = outputFile.WithoutRel()
+}
+
+func (j *Module) useCompose() bool {
+	return android.InList("androidx.compose.runtime_runtime", j.properties.Static_libs)
 }
 
 // Returns a copy of the supplied flags, but with all the errorprone-related
@@ -1755,6 +1770,8 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 				deps.kotlinStdlib = append(deps.kotlinStdlib, dep.HeaderJars...)
 			case kotlinAnnotationsTag:
 				deps.kotlinAnnotations = dep.HeaderJars
+			case kotlinPluginTag:
+				deps.kotlinPlugins = append(deps.kotlinPlugins, dep.ImplementationAndResourcesJars...)
 			case syspropPublicStubDepTag:
 				// This is a sysprop implementation library, forward the JavaInfoProvider from
 				// the corresponding sysprop public stub library as SyspropPublicStubInfoProvider.
