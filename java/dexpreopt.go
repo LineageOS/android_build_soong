@@ -160,6 +160,10 @@ func (d *dexpreopter) dexpreoptDisabled(ctx android.BaseModuleContext) bool {
 		}
 	}
 
+	if !android.IsModulePreferred(ctx.Module()) {
+		return true
+	}
+
 	// TODO: contains no java code
 
 	return false
@@ -232,8 +236,7 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Wr
 		bootImage = artBootImageConfig(ctx)
 	}
 
-	// System server jars are an exception: they are dexpreopted without updatable bootclasspath.
-	dexFiles, dexLocations := bcpForDexpreopt(ctx, global.PreoptWithUpdatableBcp && !isSystemServerJar)
+	dexFiles, dexLocations := bcpForDexpreopt(ctx, global.PreoptWithUpdatableBcp)
 
 	targets := ctx.MultiTargets()
 	if len(targets) == 0 {
