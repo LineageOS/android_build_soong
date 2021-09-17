@@ -178,13 +178,19 @@ func (p *prebuiltCommon) initApexFilesForAndroidMk(ctx android.ModuleContext) {
 			// If the exported java module provides a dex jar path then add it to the list of apexFiles.
 			path := child.(interface{ DexJarBuildPath() android.Path }).DexJarBuildPath()
 			if path != nil {
-				p.apexFilesForAndroidMk = append(p.apexFilesForAndroidMk, apexFile{
+				af := apexFile{
 					module:              child,
 					moduleDir:           ctx.OtherModuleDir(child),
 					androidMkModuleName: name,
 					builtFile:           path,
 					class:               javaSharedLib,
-				})
+				}
+				if module, ok := child.(java.DexpreopterInterface); ok {
+					for _, install := range module.DexpreoptBuiltInstalledForApex() {
+						af.requiredModuleNames = append(af.requiredModuleNames, install.FullModuleName())
+					}
+				}
+				p.apexFilesForAndroidMk = append(p.apexFilesForAndroidMk, af)
 			}
 		} else if tag == exportedBootclasspathFragmentTag {
 			// Visit the children of the bootclasspath_fragment.
@@ -193,6 +199,14 @@ func (p *prebuiltCommon) initApexFilesForAndroidMk(ctx android.ModuleContext) {
 
 		return false
 	})
+}
+
+func (p *prebuiltCommon) addRequiredModules(entries *android.AndroidMkEntries) {
+	for _, fi := range p.apexFilesForAndroidMk {
+		entries.AddStrings("LOCAL_REQUIRED_MODULES", fi.requiredModuleNames...)
+		entries.AddStrings("LOCAL_TARGET_REQUIRED_MODULES", fi.targetRequiredModuleNames...)
+		entries.AddStrings("LOCAL_HOST_REQUIRED_MODULES", fi.hostRequiredModuleNames...)
+	}
 }
 
 func (p *prebuiltCommon) AndroidMkEntries() []android.AndroidMkEntries {
@@ -213,6 +227,7 @@ func (p *prebuiltCommon) AndroidMkEntries() []android.AndroidMkEntries {
 					if len(postInstallCommands) > 0 {
 						entries.SetString("LOCAL_POST_INSTALL_CMD", strings.Join(postInstallCommands, " && "))
 					}
+					p.addRequiredModules(entries)
 				},
 			},
 		},
