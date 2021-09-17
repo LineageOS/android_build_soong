@@ -25,6 +25,7 @@ type CcInfo struct {
 	// be a subset of OutputFiles. (or shared libraries, this will be equal to OutputFiles,
 	// but general cc_library will also have dynamic libraries in output files).
 	RootDynamicLibraries []string
+	TocFile              string
 }
 
 type getOutputFilesRequestType struct{}
@@ -127,6 +128,11 @@ if shared_info_tag in providers(target):
   for lib in shared_info.linker_input.libraries:
     rootDynamicLibraries += [lib.dynamic_library.path]
 
+toc_file = ""
+toc_file_tag = "//build/bazel/rules:generate_toc.bzl%CcTocInfo"
+if toc_file_tag in providers(target):
+  toc_file = providers(target)[toc_file_tag].toc.path
+
 returns = [
   outputFiles,
   staticLibraries,
@@ -134,10 +140,10 @@ returns = [
   includes,
   system_includes,
   rootStaticArchives,
-  rootDynamicLibraries
+  rootDynamicLibraries,
 ]
 
-return "|".join([", ".join(r) for r in returns])`
+return "|".join([", ".join(r) for r in returns] + [toc_file])`
 }
 
 // ParseResult returns a value obtained by parsing the result of the request's Starlark function.
@@ -148,7 +154,7 @@ func (g getCcInfoType) ParseResult(rawString string) (CcInfo, error) {
 	var ccObjects []string
 
 	splitString := strings.Split(rawString, "|")
-	if expectedLen := 7; len(splitString) != expectedLen {
+	if expectedLen := 8; len(splitString) != expectedLen {
 		return CcInfo{}, fmt.Errorf("Expected %d items, got %q", expectedLen, splitString)
 	}
 	outputFilesString := splitString[0]
@@ -161,6 +167,7 @@ func (g getCcInfoType) ParseResult(rawString string) (CcInfo, error) {
 	systemIncludes := splitOrEmpty(splitString[4], ", ")
 	rootStaticArchives := splitOrEmpty(splitString[5], ", ")
 	rootDynamicLibraries := splitOrEmpty(splitString[6], ", ")
+	tocFile := splitString[7] // NOTE: Will be the empty string if there wasn't
 	return CcInfo{
 		OutputFiles:          outputFiles,
 		CcObjectFiles:        ccObjects,
@@ -169,6 +176,7 @@ func (g getCcInfoType) ParseResult(rawString string) (CcInfo, error) {
 		SystemIncludes:       systemIncludes,
 		RootStaticArchives:   rootStaticArchives,
 		RootDynamicLibraries: rootDynamicLibraries,
+		TocFile:              tocFile,
 	}, nil
 }
 
