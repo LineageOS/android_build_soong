@@ -100,14 +100,15 @@ func (g getCcInfoType) Name() string {
 func (g getCcInfoType) StarlarkFunctionBody() string {
 	return `
 outputFiles = [f.path for f in target.files.to_list()]
+cc_info = providers(target)["CcInfo"]
 
-includes = providers(target)["CcInfo"].compilation_context.includes.to_list()
-system_includes = providers(target)["CcInfo"].compilation_context.system_includes.to_list()
+includes = cc_info.compilation_context.includes.to_list()
+system_includes = cc_info.compilation_context.system_includes.to_list()
 
 ccObjectFiles = []
 staticLibraries = []
 rootStaticArchives = []
-linker_inputs = providers(target)["CcInfo"].linking_context.linker_inputs.to_list()
+linker_inputs = cc_info.linking_context.linker_inputs.to_list()
 
 for linker_input in linker_inputs:
   for library in linker_input.libraries:
@@ -120,8 +121,9 @@ for linker_input in linker_inputs:
 
 rootDynamicLibraries = []
 
-if "@rules_cc//examples:experimental_cc_shared_library.bzl%CcSharedLibraryInfo" in providers(target):
-  shared_info = providers(target)["@rules_cc//examples:experimental_cc_shared_library.bzl%CcSharedLibraryInfo"]
+shared_info_tag = "@rules_cc//examples:experimental_cc_shared_library.bzl%CcSharedLibraryInfo"
+if shared_info_tag in providers(target):
+  shared_info = providers(target)[shared_info_tag]
   for lib in shared_info.linker_input.libraries:
     rootDynamicLibraries += [lib.dynamic_library.path]
 
