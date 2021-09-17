@@ -631,10 +631,6 @@ func createDeapexerModuleIfNeeded(ctx android.TopDownMutatorContext, deapexerNam
 	)
 }
 
-func deapexerModuleName(baseModuleName string) string {
-	return baseModuleName + ".deapexer"
-}
-
 func apexSelectorModuleName(baseModuleName string) string {
 	return baseModuleName + ".apex.selector"
 }

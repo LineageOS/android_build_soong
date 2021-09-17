@@ -4859,8 +4859,11 @@ func TestPrebuiltExportDexImplementationJars(t *testing.T) {
 		// Make sure that dexpreopt can access dex implementation files from the prebuilt.
 		ctx := testDexpreoptWithApexes(t, bp, "", transform)
 
+		deapexerName := deapexerModuleName("myapex")
+		android.AssertStringEquals(t, "APEX module name from deapexer name", "myapex", apexModuleName(deapexerName))
+
 		// Make sure that the deapexer has the correct input APEX.
-		deapexer := ctx.ModuleForTests("myapex.deapexer", "android_common")
+		deapexer := ctx.ModuleForTests(deapexerName, "android_common")
 		rule := deapexer.Rule("deapexer")
 		if expected, actual := []string{"myapex-arm64.apex"}, android.NormalizePathsForTesting(rule.Implicits); !reflect.DeepEqual(expected, actual) {
 			t.Errorf("expected: %q, found: %q", expected, actual)
