@@ -337,18 +337,28 @@ cc_library_shared {
 				Includes:             []string{"include"},
 				SystemIncludes:       []string{"system_include"},
 				RootDynamicLibraries: []string{"foo.so"},
+				TocFile:              "foo.so.toc",
 			},
 		},
 	}
 	ctx := testCcWithConfig(t, config)
 
 	sharedFoo := ctx.ModuleForTests("foo", "android_arm_armv7-a-neon_shared").Module()
-	outputFiles, err := sharedFoo.(android.OutputFileProducer).OutputFiles("")
+	producer := sharedFoo.(android.OutputFileProducer)
+	outputFiles, err := producer.OutputFiles("")
 	if err != nil {
 		t.Errorf("Unexpected error getting cc_object outputfiles %s", err)
 	}
 	expectedOutputFiles := []string{"outputbase/execroot/__main__/foo.so"}
 	android.AssertDeepEquals(t, "output files", expectedOutputFiles, outputFiles.Strings())
+
+	tocFilePath := sharedFoo.(*Module).Toc()
+	if !tocFilePath.Valid() {
+		t.Errorf("Invalid tocFilePath: %s", tocFilePath)
+	}
+	tocFile := tocFilePath.Path()
+	expectedToc := "outputbase/execroot/__main__/foo.so.toc"
+	android.AssertStringEquals(t, "toc file", expectedToc, tocFile.String())
 
 	entries := android.AndroidMkEntriesForTest(t, ctx, sharedFoo)[0]
 	expectedFlags := []string{"-Ioutputbase/execroot/__main__/include", "-isystem outputbase/execroot/__main__/system_include"}
