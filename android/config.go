@@ -1659,6 +1659,20 @@ func (l *ConfiguredJarList) Append(apex string, jar string) ConfiguredJarList {
 	return ConfiguredJarList{apexes, jars}
 }
 
+// Append a list of (apex, jar) pairs to the list.
+func (l *ConfiguredJarList) AppendList(other ConfiguredJarList) ConfiguredJarList {
+	apexes := make([]string, 0, l.Len()+other.Len())
+	jars := make([]string, 0, l.Len()+other.Len())
+
+	apexes = append(apexes, l.apexes...)
+	jars = append(jars, l.jars...)
+
+	apexes = append(apexes, other.apexes...)
+	jars = append(jars, other.jars...)
+
+	return ConfiguredJarList{apexes, jars}
+}
+
 // RemoveList filters out a list of (apex, jar) pairs from the receiving list of pairs.
 func (l *ConfiguredJarList) RemoveList(list ConfiguredJarList) ConfiguredJarList {
 	apexes := make([]string, 0, l.Len())
