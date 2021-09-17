@@ -604,7 +604,10 @@ func (handler *ccLibraryBazelHandler) generateSharedBazelBuildActions(ctx androi
 
 	handler.module.linker.(*libraryDecorator).unstrippedOutputFile = outputFilePath
 
-	tocFile := getTocFile(ctx, label, ccInfo.OutputFiles)
+	var tocFile android.OptionalPath
+	if len(ccInfo.TocFile) > 0 {
+		tocFile = android.OptionalPathForPath(android.PathForBazelOut(ctx, ccInfo.TocFile))
+	}
 	handler.module.linker.(*libraryDecorator).tocFile = tocFile
 
 	ctx.SetProvider(SharedLibraryInfoProvider, SharedLibraryInfo{
@@ -615,25 +618,6 @@ func (handler *ccLibraryBazelHandler) generateSharedBazelBuildActions(ctx androi
 		// static libraries with deps. The provider key for this is TransitiveStaticLibrariesForOrdering.
 	})
 	return true
-}
-
-// getTocFile looks for the .so.toc file in the target's output files, if any. The .so.toc file
-// contains the table of contents of all symbols of a shared object.
-func getTocFile(ctx android.ModuleContext, label string, outputFiles []string) android.OptionalPath {
-	var tocFile string
-	for _, file := range outputFiles {
-		if strings.HasSuffix(file, ".so.toc") {
-			if tocFile != "" {
-				ctx.ModuleErrorf("The %s target cannot produce more than 1 .toc file.", label)
-			}
-			tocFile = file
-			// Don't break to validate that there are no multiple .toc files per .so.
-		}
-	}
-	if tocFile == "" {
-		return android.OptionalPath{}
-	}
-	return android.OptionalPathForPath(android.PathForBazelOut(ctx, tocFile))
 }
 
 func (handler *ccLibraryBazelHandler) GenerateBazelBuildActions(ctx android.ModuleContext, label string) bool {
