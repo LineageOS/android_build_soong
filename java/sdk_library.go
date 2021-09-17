@@ -1907,6 +1907,7 @@ type SdkLibraryImport struct {
 	android.SdkBase
 
 	hiddenAPI
+	dexpreopter
 
 	properties sdkLibraryImportProperties
 
@@ -2111,6 +2112,14 @@ func (module *SdkLibraryImport) DepsMutator(ctx android.BottomUpMutatorContext) 
 	}
 }
 
+func (module *SdkLibraryImport) AndroidMkEntries() []android.AndroidMkEntries {
+	// For an SDK library imported from a prebuilt APEX, we don't need a Make module for itself, as we
+	// don't need to install it. However, we need to add its dexpreopt outputs as sub-modules, if it
+	// is preopted.
+	dexpreoptEntries := module.dexpreopter.AndroidMkEntriesForApex()
+	return append(dexpreoptEntries, android.AndroidMkEntries{Disabled: true})
+}
+
 var _ android.ApexModule = (*SdkLibraryImport)(nil)
 
 // Implements android.ApexModule
@@ -2208,8 +2217,16 @@ func (module *SdkLibraryImport) GenerateAndroidBuildActions(ctx android.ModuleCo
 			di := ctx.OtherModuleProvider(deapexerModule, android.DeapexerProvider).(android.DeapexerInfo)
 			if dexOutputPath := di.PrebuiltExportPath(apexRootRelativePathToJavaLib(module.BaseModuleName())); dexOutputPath != nil {
 				module.dexJarFile = dexOutputPath
-				module.installFile = android.PathForModuleInPartitionInstall(ctx, "apex", ai.ApexVariationName, apexRootRelativePathToJavaLib(module.BaseModuleName()))
+				installPath := android.PathForModuleInPartitionInstall(
+					ctx, "apex", ai.ApexVariationName, apexRootRelativePathToJavaLib(module.BaseModuleName()))
+				module.installFile = installPath
 				module.initHiddenAPI(ctx, dexOutputPath, module.findScopePaths(apiScopePublic).stubsImplPath[0], nil)
+
+				// Dexpreopting.
+				module.dexpreopter.installPath = module.dexpreopter.getInstallPath(ctx, installPath)
+				module.dexpreopter.isSDKLibrary = true
+				module.dexpreopter.uncompressedDex = shouldUncompressDex(ctx, &module.dexpreopter)
+				module.dexpreopt(ctx, dexOutputPath)
 			} else {
 				// This should never happen as a variant for a prebuilt_apex is only created if the
 				// prebuilt_apex has been configured to export the java library dex file.
@@ -2326,6 +2343,11 @@ func (module *SdkLibraryImport) ImplementationAndResourcesJars() android.Paths {
 	} else {
 		return module.implLibraryModule.ImplementationAndResourcesJars()
 	}
+}
+
+// to satisfy java.DexpreopterInterface interface
+func (module *SdkLibraryImport) IsInstallable() bool {
+	return true
 }
 
 var _ android.RequiredFilesFromPrebuiltApex = (*SdkLibraryImport)(nil)
