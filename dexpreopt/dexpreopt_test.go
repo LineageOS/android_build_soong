@@ -33,17 +33,35 @@ func testProductModuleConfig(ctx android.PathContext, name string) *ModuleConfig
 }
 
 func testModuleConfig(ctx android.PathContext, name, partition string) *ModuleConfig {
+	return createTestModuleConfig(
+		name,
+		fmt.Sprintf("/%s/app/test/%s.apk", partition, name),
+		android.PathForOutput(ctx, fmt.Sprintf("%s/%s.apk", name, name)),
+		android.PathForOutput(ctx, fmt.Sprintf("%s/dex/%s.jar", name, name)),
+		android.PathForOutput(ctx, fmt.Sprintf("%s/enforce_uses_libraries.status", name)))
+}
+
+func testApexModuleConfig(ctx android.PathContext, name, apexName string) *ModuleConfig {
+	return createTestModuleConfig(
+		name,
+		fmt.Sprintf("/apex/%s/javalib/%s.jar", apexName, name),
+		android.PathForOutput(ctx, fmt.Sprintf("%s/dexpreopt/%s.jar", name, name)),
+		android.PathForOutput(ctx, fmt.Sprintf("%s/aligned/%s.jar", name, name)),
+		android.PathForOutput(ctx, fmt.Sprintf("%s/enforce_uses_libraries.status", name)))
+}
+
+func createTestModuleConfig(name, dexLocation string, buildPath, dexPath, enforceUsesLibrariesStatusFile android.OutputPath) *ModuleConfig {
 	return &ModuleConfig{
 		Name:                            name,
-		DexLocation:                     fmt.Sprintf("/%s/app/test/%s.apk", partition, name),
-		BuildPath:                       android.PathForOutput(ctx, fmt.Sprintf("%s/%s.apk", name, name)),
-		DexPath:                         android.PathForOutput(ctx, fmt.Sprintf("%s/dex/%s.jar", name, name)),
+		DexLocation:                     dexLocation,
+		BuildPath:                       buildPath,
+		DexPath:                         dexPath,
 		UncompressedDex:                 false,
 		HasApkLibraries:                 false,
 		PreoptFlags:                     nil,
 		ProfileClassListing:             android.OptionalPath{},
 		ProfileIsTextListing:            false,
-		EnforceUsesLibrariesStatusFile:  android.PathForOutput(ctx, fmt.Sprintf("%s/enforce_uses_libraries.status", name)),
+		EnforceUsesLibrariesStatusFile:  enforceUsesLibrariesStatusFile,
 		EnforceUsesLibraries:            false,
 		ClassLoaderContexts:             nil,
 		Archs:                           []android.ArchType{android.Arm},
@@ -138,6 +156,29 @@ func TestDexPreoptSystemOther(t *testing.T) {
 		}
 	}
 
+}
+
+func TestDexPreoptApexSystemServerJars(t *testing.T) {
+	config := android.TestConfig("out", nil, "", nil)
+	ctx := android.BuilderContextForTesting(config)
+	globalSoong := globalSoongConfigForTests()
+	global := GlobalConfigForTests(ctx)
+	module := testApexModuleConfig(ctx, "service-A", "com.android.apex1")
+
+	global.ApexSystemServerJars = android.CreateTestConfiguredJarList(
+		[]string{"com.android.apex1:service-A"})
+
+	rule, err := GenerateDexpreoptRule(ctx, globalSoong, global, module)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	wantInstalls := android.RuleBuilderInstalls{
+		{android.PathForOutput(ctx, "service-A/dexpreopt/oat/arm/javalib.odex"), "/system/framework/oat/arm/apex@com.android.apex1@javalib@service-A.jar@classes.odex"},
+		{android.PathForOutput(ctx, "service-A/dexpreopt/oat/arm/javalib.vdex"), "/system/framework/oat/arm/apex@com.android.apex1@javalib@service-A.jar@classes.vdex"},
+	}
+
+	android.AssertStringEquals(t, "installs", wantInstalls.String(), rule.Installs().String())
 }
 
 func TestDexPreoptProfile(t *testing.T) {
