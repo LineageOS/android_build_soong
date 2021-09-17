@@ -73,7 +73,7 @@ type DeapexerInfo struct {
 	// exported file name is the apex relative path, e.g. javalib/core-libart.jar.
 	//
 	// See Prebuilt.ApexInfoMutator for more information.
-	exports map[string]Path
+	exports map[string]WritablePath
 }
 
 // PrebuiltExportPath provides the path, or nil if not available, of a file exported from the
@@ -82,7 +82,7 @@ type DeapexerInfo struct {
 // The exported file is identified by the apex relative path, e.g. "javalib/core-libart.jar".
 //
 // See apex/deapexer.go for more information.
-func (i DeapexerInfo) PrebuiltExportPath(apexRelativePath string) Path {
+func (i DeapexerInfo) PrebuiltExportPath(apexRelativePath string) WritablePath {
 	path := i.exports[apexRelativePath]
 	return path
 }
@@ -95,7 +95,7 @@ var DeapexerProvider = blueprint.NewProvider(DeapexerInfo{})
 // for use with a prebuilt_apex module.
 //
 // See apex/deapexer.go for more information.
-func NewDeapexerInfo(exports map[string]Path) DeapexerInfo {
+func NewDeapexerInfo(exports map[string]WritablePath) DeapexerInfo {
 	return DeapexerInfo{
 		exports: exports,
 	}
