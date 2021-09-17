@@ -316,6 +316,9 @@ type BaseModuleContext interface {
 
 	AddMissingDependencies(missingDeps []string)
 
+	// AddUnconvertedBp2buildDep stores module name of a direct dependency that was not converted via bp2build
+	AddUnconvertedBp2buildDep(dep string)
+
 	Target() Target
 	TargetPrimary() bool
 
@@ -496,6 +499,7 @@ type Module interface {
 	IsConvertedByBp2build() bool
 	// Bp2buildTargets returns the target(s) generated for Bazel via bp2build for this module
 	Bp2buildTargets() []bp2buildInfo
+	GetUnconvertedBp2buildDeps() []string
 
 	BuildParamsForTests() []BuildParams
 	RuleParamsForTests() map[blueprint.Rule]blueprint.RuleParams
@@ -833,6 +837,10 @@ type commonProperties struct {
 	// supported as Soong handles some things within a single target that we may choose to split into
 	// multiple targets, e.g. renderscript, protos, yacc within a cc module.
 	Bp2buildInfo []bp2buildInfo `blueprint:"mutated"`
+
+	// UnconvertedBp2buildDep stores the module names of direct dependency that were not converted to
+	// Bazel
+	UnconvertedBp2buildDeps []string `blueprint:"mutated"`
 }
 
 type distProperties struct {
@@ -1212,6 +1220,18 @@ func (m *ModuleBase) Bp2buildTargets() []bp2buildInfo {
 	return m.commonProperties.Bp2buildInfo
 }
 
+// AddUnconvertedBp2buildDep stores module name of a dependency that was not converted to Bazel.
+func (b *baseModuleContext) AddUnconvertedBp2buildDep(dep string) {
+	unconvertedDeps := &b.Module().base().commonProperties.UnconvertedBp2buildDeps
+	*unconvertedDeps = append(*unconvertedDeps, dep)
+}
+
+// GetUnconvertedBp2buildDeps returns the list of module names of this module's direct dependencies that
+// were not converted to Bazel.
+func (m *ModuleBase) GetUnconvertedBp2buildDeps() []string {
+	return m.commonProperties.UnconvertedBp2buildDeps
+}
+
 func (m *ModuleBase) AddJSONData(d *map[string]interface{}) {
 	(*d)["Android"] = map[string]interface{}{}
 }
@@ -1229,7 +1249,30 @@ func (m *ModuleBase) GetProperties() []interface{} {
 }
 
 func (m *ModuleBase) BuildParamsForTests() []BuildParams {
-	return m.buildParams
+	// Expand the references to module variables like $flags[0-9]*,
+	// so we do not need to change many existing unit tests.
+	// This looks like undoing the shareFlags optimization in cc's
+	// transformSourceToObj, and should only affects unit tests.
+	vars := m.VariablesForTests()
+	buildParams := append([]BuildParams(nil), m.buildParams...)
+	for i, _ := range buildParams {
+		newArgs := make(map[string]string)
+		for k, v := range buildParams[i].Args {
+			newArgs[k] = v
+			// Replaces both ${flags1} and $flags1 syntax.
+			if strings.HasPrefix(v, "${") && strings.HasSuffix(v, "}") {
+				if value, found := vars[v[2:len(v)-1]]; found {
+					newArgs[k] = value
+				}
+			} else if strings.HasPrefix(v, "$") {
+				if value, found := vars[v[1:]]; found {
+					newArgs[k] = value
+				}
+			}
+		}
+		buildParams[i].Args = newArgs
+	}
+	return buildParams
 }
 
 func (m *ModuleBase) RuleParamsForTests() map[blueprint.Rule]blueprint.RuleParams {

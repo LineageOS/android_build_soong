@@ -185,7 +185,7 @@ func (s *sdk) collectMembers(ctx android.ModuleContext) {
 	s.multilibUsages = multilibNone
 	ctx.WalkDeps(func(child android.Module, parent android.Module) bool {
 		tag := ctx.OtherModuleDependencyTag(child)
-		if memberTag, ok := tag.(android.SdkMemberTypeDependencyTag); ok {
+		if memberTag, ok := tag.(android.SdkMemberDependencyTag); ok {
 			memberType := memberTag.SdkMemberType(child)
 
 			// If a nil SdkMemberType was returned then this module should not be added to the sdk.
@@ -764,6 +764,8 @@ func (s *sdk) addSnapshotPropertiesToPropertySet(builder *snapshotBuilder, prope
 type propertyTag struct {
 	name string
 }
+
+var _ android.BpPropertyTag = propertyTag{}
 
 // A BpPropertyTag to add to a property that contains references to other sdk members.
 //
@@ -1563,10 +1565,6 @@ func newArchSpecificInfo(ctx android.SdkMemberContext, archType android.ArchType
 	return archInfo
 }
 
-func (archInfo *archTypeSpecificInfo) optimizableProperties() interface{} {
-	return archInfo.Properties
-}
-
 // Get the link type of the variant
 //
 // If the variant is not differentiated by link type then it returns "",
@@ -1608,8 +1606,7 @@ func (archInfo *archTypeSpecificInfo) addToPropertySet(ctx *memberContext, archP
 	addSdkMemberPropertiesToSet(ctx, archInfo.Properties, archTypePropertySet)
 
 	for _, linkInfo := range archInfo.linkInfos {
-		linkPropertySet := archTypePropertySet.AddPropertySet(linkInfo.linkType)
-		addSdkMemberPropertiesToSet(ctx, linkInfo.Properties, linkPropertySet)
+		linkInfo.addToPropertySet(ctx, archTypePropertySet)
 	}
 }
 
@@ -1638,6 +1635,11 @@ func newLinkSpecificInfo(ctx android.SdkMemberContext, linkType string, variantP
 	}
 	linkInfo.Properties.PopulateFromVariant(ctx, linkVariant)
 	return linkInfo
+}
+
+func (l *linkTypeSpecificInfo) addToPropertySet(ctx *memberContext, propertySet android.BpPropertySet) {
+	linkPropertySet := propertySet.AddPropertySet(l.linkType)
+	addSdkMemberPropertiesToSet(ctx, l.Properties, linkPropertySet)
 }
 
 func (l *linkTypeSpecificInfo) String() string {

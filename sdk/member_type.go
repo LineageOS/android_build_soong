@@ -35,7 +35,7 @@ type sdkMemberTypeListProperty struct {
 
 	// the dependency tag used for items in this list that can be used to determine the memberType
 	// for a resolved dependency.
-	dependencyTag android.SdkMemberTypeDependencyTag
+	dependencyTag android.SdkMemberDependencyTag
 }
 
 func (p *sdkMemberTypeListProperty) propertyName() string {

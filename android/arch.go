@@ -631,8 +631,7 @@ func archMutator(bpctx blueprint.BottomUpMutatorContext) {
 	image := base.commonProperties.ImageVariation
 	// Filter NativeBridge targets unless they are explicitly supported.
 	// Skip creating native bridge variants for non-core modules.
-	if os == Android &&
-		!(Bool(base.commonProperties.Native_bridge_supported) && image == CoreVariation) {
+	if os == Android && !(base.IsNativeBridgeSupported() && image == CoreVariation) {
 
 		var targets []Target
 		for _, t := range osTargets {

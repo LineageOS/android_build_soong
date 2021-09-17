@@ -61,8 +61,8 @@ type Bazelable interface {
 	HandcraftedLabel() string
 	GetBazelLabel(ctx BazelConversionPathContext, module blueprint.Module) string
 	ConvertWithBp2build(ctx BazelConversionPathContext) bool
+	convertWithBp2build(ctx BazelConversionPathContext, module blueprint.Module) bool
 	GetBazelBuildFileContents(c Config, path, name string) (string, error)
-	ConvertedToBazel(ctx BazelConversionPathContext) bool
 }
 
 // BazelModule is a lightweight wrapper interface around Module for Bazel-convertible modules.
@@ -175,6 +175,7 @@ var (
 		"system/core/property_service/libpropertyinfoparser": Bp2BuildDefaultTrueRecursively,
 		"system/libbase":                  Bp2BuildDefaultTrueRecursively,
 		"system/logging/liblog":           Bp2BuildDefaultTrueRecursively,
+		"system/sepolicy/apex":            Bp2BuildDefaultTrueRecursively,
 		"system/timezone/apex":            Bp2BuildDefaultTrueRecursively,
 		"system/timezone/output_data":     Bp2BuildDefaultTrueRecursively,
 		"external/arm-optimized-routines": Bp2BuildDefaultTrueRecursively,
@@ -211,6 +212,13 @@ var (
 		"libc_ndk",          // http://b/187013218, cc_library_static, depends on //bionic/libm:libm (http://b/183064661)
 		"libc_malloc_hooks", // http://b/187016307, cc_library, ld.lld: error: undefined symbol: __malloc_hook
 
+		// There are unexported symbols that don't surface on a shared library build,
+		// from the source static archive
+		// e.g. _Unwind_{GetRegionStart,GetLanguageSpecificData,GetIP,Set{IP,GR},Resume,{Raise,Delete}Exception}, pthread_atfork
+		// ... from: cxa_{personality,exception}.o, system_error.o, wrappers_c_bionic.o
+		// cf. http://b/198403271
+		"libc++",
+
 		// http://b/186823769: Needs C++ STL support, includes from unconverted standard libraries in //external/libcxx
 		// c++_static
 		"libbase_ndk", // http://b/186826477, cc_library, no such target '//build/bazel/platforms/os:darwin' when --platforms //build/bazel/platforms:android_x86 is added
@@ -221,6 +229,8 @@ var (
 		"liblog",                   // http://b/186822772: cc_library, 'sys/cdefs.h' file not found
 		"libbase",                  // Requires liblog. http://b/186826479, cc_library, fatal error: 'memory' file not found, from libcxx.
 		// Also depends on fmtlib.
+
+		"libfdtrack", // depends on STL
 
 		"libseccomp_policy", // depends on libbase
 
@@ -311,9 +321,10 @@ func (b *BazelModuleBase) MixedBuildsEnabled(ctx BazelConversionPathContext) boo
 	if !ctx.Config().BazelContext.BazelEnabled() {
 		return false
 	}
-	if len(b.GetBazelLabel(ctx, ctx.Module())) == 0 {
+	if !convertedToBazel(ctx, ctx.Module()) {
 		return false
 	}
+
 	if GenerateCcLibraryStaticOnly(ctx) {
 		// Don't use partially-converted cc_library targets in mixed builds,
 		// since mixed builds would generally rely on both static and shared
@@ -323,20 +334,33 @@ func (b *BazelModuleBase) MixedBuildsEnabled(ctx BazelConversionPathContext) boo
 	return !mixedBuildsDisabled[ctx.Module().Name()]
 }
 
+// ConvertedToBazel returns whether this module has been converted (with bp2build or manually) to Bazel.
+func convertedToBazel(ctx BazelConversionPathContext, module blueprint.Module) bool {
+	b, ok := module.(Bazelable)
+	if !ok {
+		return false
+	}
+	return b.convertWithBp2build(ctx, module) || b.HasHandcraftedLabel()
+}
+
 // ConvertWithBp2build returns whether the given BazelModuleBase should be converted with bp2build.
 func (b *BazelModuleBase) ConvertWithBp2build(ctx BazelConversionPathContext) bool {
-	if bp2buildModuleDoNotConvert[ctx.Module().Name()] {
+	return b.convertWithBp2build(ctx, ctx.Module())
+}
+
+func (b *BazelModuleBase) convertWithBp2build(ctx BazelConversionPathContext, module blueprint.Module) bool {
+	if bp2buildModuleDoNotConvert[module.Name()] {
 		return false
 	}
 
 	// Ensure that the module type of this module has a bp2build converter. This
 	// prevents mixed builds from using auto-converted modules just by matching
 	// the package dir; it also has to have a bp2build mutator as well.
-	if ctx.Config().bp2buildModuleTypeConfig[ctx.ModuleType()] == false {
+	if ctx.Config().bp2buildModuleTypeConfig[ctx.OtherModuleType(module)] == false {
 		return false
 	}
 
-	packagePath := ctx.ModuleDir()
+	packagePath := ctx.OtherModuleDir(module)
 	config := ctx.Config().bp2buildPackageConfig
 
 	// This is a tristate value: true, false, or unset.
@@ -406,10 +430,4 @@ func (b *BazelModuleBase) GetBazelBuildFileContents(c Config, path, name string)
 		return "", err
 	}
 	return string(data[:]), nil
-}
-
-// ConvertedToBazel returns whether this module has been converted to Bazel, whether automatically
-// or manually
-func (b *BazelModuleBase) ConvertedToBazel(ctx BazelConversionPathContext) bool {
-	return b.ConvertWithBp2build(ctx) || b.HasHandcraftedLabel()
 }

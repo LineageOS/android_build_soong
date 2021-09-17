@@ -39,9 +39,8 @@ var (
 func checkError(t *testing.T, errs []error, expectedErr error) bool {
 	t.Helper()
 
-	// expectedErr is not nil, find it in the list of errors
 	if len(errs) != 1 {
-		t.Errorf("Expected only 1 error, got %d: %q", len(errs), errs)
+		return false
 	}
 	if errs[0].Error() == expectedErr.Error() {
 		return true
@@ -83,6 +82,7 @@ type bp2buildTestCase struct {
 	filesystem                         map[string]string
 	dir                                string
 	expectedErr                        error
+	unconvertedDepsMode                unconvertedDepsMode
 }
 
 func runBp2BuildTestCase(t *testing.T, registerModuleTypes func(ctx android.RegistrationContext), tc bp2buildTestCase) {
@@ -126,7 +126,13 @@ func runBp2BuildTestCase(t *testing.T, registerModuleTypes func(ctx android.Regi
 		checkDir = tc.dir
 	}
 	codegenCtx := NewCodegenContext(config, *ctx.Context, Bp2Build)
-	bazelTargets := generateBazelTargetsForDir(codegenCtx, checkDir)
+	codegenCtx.unconvertedDepMode = tc.unconvertedDepsMode
+	bazelTargets, errs := generateBazelTargetsForDir(codegenCtx, checkDir)
+	if tc.expectedErr != nil && checkError(t, errs, tc.expectedErr) {
+		return
+	} else {
+		android.FailIfErrored(t, errs)
+	}
 	if actualCount, expectedCount := len(bazelTargets), len(tc.expectedBazelTargets); actualCount != expectedCount {
 		t.Errorf("%s: Expected %d bazel target, got %d; %v",
 			tc.description, expectedCount, actualCount, bazelTargets)
@@ -148,7 +154,18 @@ type nestedProps struct {
 	Nested_prop string
 }
 
+type EmbeddedProps struct {
+	Embedded_prop string
+}
+
+type OtherEmbeddedProps struct {
+	Other_embedded_prop string
+}
+
 type customProps struct {
+	EmbeddedProps
+	*OtherEmbeddedProps
+
 	Bool_prop     bool
 	Bool_ptr_prop *bool
 	// Ensure that properties tagged `blueprint:mutated` are omitted
@@ -246,7 +263,17 @@ func customDefaultsModuleFactory() android.Module {
 	return m
 }
 
+type EmbeddedAttr struct {
+	Embedded_attr string
+}
+
+type OtherEmbeddedAttr struct {
+	Other_embedded_attr string
+}
+
 type customBazelModuleAttributes struct {
+	EmbeddedAttr
+	*OtherEmbeddedAttr
 	String_prop      string
 	String_list_prop []string
 	Arch_paths       bazel.LabelListAttribute
@@ -274,6 +301,10 @@ func customBp2BuildMutator(ctx android.TopDownMutatorContext) {
 			String_prop:      m.props.String_prop,
 			String_list_prop: m.props.String_list_prop,
 			Arch_paths:       paths,
+		}
+		attrs.Embedded_attr = m.props.Embedded_prop
+		if m.props.OtherEmbeddedProps != nil {
+			attrs.OtherEmbeddedAttr = &OtherEmbeddedAttr{Other_embedded_attr: m.props.OtherEmbeddedProps.Other_embedded_prop}
 		}
 
 		props := bazel.BazelTargetModuleProperties{
@@ -316,10 +347,10 @@ func customBp2BuildMutatorFromStarlark(ctx android.TopDownMutatorContext) {
 }
 
 // Helper method for tests to easily access the targets in a dir.
-func generateBazelTargetsForDir(codegenCtx *CodegenContext, dir string) BazelTargets {
+func generateBazelTargetsForDir(codegenCtx *CodegenContext, dir string) (BazelTargets, []error) {
 	// TODO: Set generateFilegroups to true and/or remove the generateFilegroups argument completely
-	buildFileToTargets, _, _ := GenerateBazelTargets(codegenCtx, false)
-	return buildFileToTargets[dir]
+	res, err := GenerateBazelTargets(codegenCtx, false)
+	return res.buildFileToTargets[dir], err
 }
 
 func registerCustomModuleForBp2buildConversion(ctx *android.TestContext) {
