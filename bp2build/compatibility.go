@@ -1,7 +1,6 @@
 package bp2build
 
 import (
-	"android/soong/bazel"
 	"fmt"
 )
 
@@ -16,9 +15,6 @@ type CodegenCompatLayer struct {
 
 // Log an entry of module name -> Bazel target label.
 func (compatLayer CodegenCompatLayer) AddNameToLabelEntry(name, label string) {
-	// The module name may be prefixed with bazel.BazelTargetModuleNamePrefix if
-	// generated from bp2build.
-	name = bazel.StripNamePrefix(name)
 	if existingLabel, ok := compatLayer.NameToLabelMap[name]; ok {
 		panic(fmt.Errorf(
 			"Module '%s' maps to more than one Bazel target label: %s, %s. "+

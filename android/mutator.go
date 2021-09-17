@@ -16,9 +16,7 @@ package android
 
 import (
 	"android/soong/bazel"
-	"fmt"
 	"reflect"
-	"strings"
 	"sync"
 
 	"github.com/google/blueprint"
@@ -519,12 +517,6 @@ func (t *topDownMutatorContext) CreateBazelTargetModule(
 	name string,
 	bazelProps bazel.BazelTargetModuleProperties,
 	attrs interface{}) {
-	if strings.HasPrefix(name, bazel.BazelTargetModuleNamePrefix) {
-		panic(fmt.Errorf(
-			"The %s name prefix is added automatically, do not set it manually: %s",
-			bazel.BazelTargetModuleNamePrefix,
-			name))
-	}
 
 	info := bp2buildInfo{
 		Name:       name,
