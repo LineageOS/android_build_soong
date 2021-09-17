@@ -431,3 +431,45 @@ func CheckMergedCompatConfigInputs(t *testing.T, result *android.TestResult, mes
 	output := sourceGlobalCompatConfig.Output(allOutputs[0])
 	android.AssertPathsRelativeToTopEquals(t, message+": inputs", expectedPaths, output.Implicits)
 }
+
+// Register the fake APEX mutator to `android.InitRegistrationContext` as if the real mutator exists
+// at runtime. This must be called in `init()` of a test if the test is going to use the fake APEX
+// mutator. Otherwise, we will be missing the runtime mutator because "soong-apex" is not a
+// dependency, which will cause an inconsistency between testing and runtime mutators.
+func RegisterFakeRuntimeApexMutator() {
+	registerFakeApexMutator(android.InitRegistrationContext)
+}
+
+var PrepareForTestWithFakeApexMutator = android.GroupFixturePreparers(
+	android.FixtureRegisterWithContext(registerFakeApexMutator),
+)
+
+func registerFakeApexMutator(ctx android.RegistrationContext) {
+	ctx.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
+		ctx.BottomUp("apex", fakeApexMutator).Parallel()
+	})
+}
+
+type apexModuleBase interface {
+	ApexAvailable() []string
+}
+
+var _ apexModuleBase = (*Library)(nil)
+var _ apexModuleBase = (*SdkLibrary)(nil)
+
+// A fake APEX mutator that creates a platform variant and an APEX variant for modules with
+// `apex_available`. It helps us avoid a dependency on the real mutator defined in "soong-apex",
+// which will cause a cyclic dependency, and it provides an easy way to create an APEX variant for
+// testing without dealing with all the complexities in the real mutator.
+func fakeApexMutator(mctx android.BottomUpMutatorContext) {
+	switch mctx.Module().(type) {
+	case *Library, *SdkLibrary:
+		if len(mctx.Module().(apexModuleBase).ApexAvailable()) > 0 {
+			modules := mctx.CreateVariations("", "apex1000")
+			apexInfo := android.ApexInfo{
+				ApexVariationName: "apex1000",
+			}
+			mctx.SetVariationProvider(modules[1], android.ApexInfoProvider, apexInfo)
+		}
+	}
+}
