@@ -19,7 +19,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
-	"strings"
 )
 
 // BazelTargetModuleProperties contain properties and metadata used for
@@ -30,12 +29,6 @@ type BazelTargetModuleProperties struct {
 
 	// The target label for the bzl file containing the definition of the rule class.
 	Bzl_load_location string `blueprint:"mutated"`
-}
-
-const BazelTargetModuleNamePrefix = "__bp2build__"
-
-func StripNamePrefix(moduleName string) string {
-	return strings.TrimPrefix(moduleName, BazelTargetModuleNamePrefix)
 }
 
 var productVariableSubstitutionPattern = regexp.MustCompile("%(d|s)")
