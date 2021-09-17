@@ -153,10 +153,10 @@ type bpToBuildContext interface {
 }
 
 type CodegenContext struct {
-	config                  android.Config
-	context                 android.Context
-	mode                    CodegenMode
-	additionalDeps          []string
+	config             android.Config
+	context            android.Context
+	mode               CodegenMode
+	additionalDeps     []string
 	unconvertedDepMode unconvertedDepsMode
 }
 
@@ -708,10 +708,6 @@ func makeIndent(indent int) string {
 		panic(fmt.Errorf("indent column cannot be less than 0, but got %d", indent))
 	}
 	return strings.Repeat("    ", indent)
-}
-
-func targetNameForBp2Build(c bpToBuildContext, logicModule blueprint.Module) string {
-	return strings.Replace(c.ModuleName(logicModule), bazel.BazelTargetModuleNamePrefix, "", 1)
 }
 
 func targetNameWithVariant(c bpToBuildContext, logicModule blueprint.Module) string {
