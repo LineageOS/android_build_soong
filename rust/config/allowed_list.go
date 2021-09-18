@@ -28,6 +28,7 @@ var (
 		"system/librustutils",
 		"system/logging/liblog",
 		"system/logging/rust",
+		"system/nfc",
 		"system/security",
 		"system/tools/aidl",
 		"tools/security/fuzzing/example_rust_fuzzer",
