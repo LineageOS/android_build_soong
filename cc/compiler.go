@@ -39,6 +39,9 @@ type BaseCompilerProperties struct {
 	// or filegroup using the syntax ":module".
 	Srcs []string `android:"path,arch_variant"`
 
+	// list of source files that should not be compiled with clang-tidy.
+	Tidy_disabled_srcs []string `android:"path,arch_variant"`
+
 	// list of source files that should not be used to build the C/C++ module.
 	// This is most useful in the arch/multilib variants to remove non-common files
 	Exclude_srcs []string `android:"path,arch_variant"`
@@ -663,7 +666,9 @@ func (compiler *baseCompiler) compile(ctx ModuleContext, flags Flags, deps PathD
 	compiler.srcs = srcs
 
 	// Compile files listed in c.Properties.Srcs into objects
-	objs := compileObjs(ctx, buildFlags, "", srcs, pathDeps, compiler.cFlagsDeps)
+	objs := compileObjs(ctx, buildFlags, "", srcs,
+		android.PathsForModuleSrc(ctx, compiler.Properties.Tidy_disabled_srcs),
+		pathDeps, compiler.cFlagsDeps)
 
 	if ctx.Failed() {
 		return Objects{}
@@ -673,10 +678,10 @@ func (compiler *baseCompiler) compile(ctx ModuleContext, flags Flags, deps PathD
 }
 
 // Compile a list of source files into objects a specified subdirectory
-func compileObjs(ctx android.ModuleContext, flags builderFlags,
-	subdir string, srcFiles, pathDeps android.Paths, cFlagsDeps android.Paths) Objects {
+func compileObjs(ctx android.ModuleContext, flags builderFlags, subdir string,
+	srcFiles, noTidySrcs, pathDeps android.Paths, cFlagsDeps android.Paths) Objects {
 
-	return transformSourceToObj(ctx, subdir, srcFiles, flags, pathDeps, cFlagsDeps)
+	return transformSourceToObj(ctx, subdir, srcFiles, noTidySrcs, flags, pathDeps, cFlagsDeps)
 }
 
 // Properties for rust_bindgen related to generating rust bindings.
