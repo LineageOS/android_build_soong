@@ -97,7 +97,7 @@ func (p *Deapexer) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// Create and remember the directory into which the .apex file's contents will be unpacked.
 	deapexerOutput := android.PathForModuleOut(ctx, "deapexer")
 
-	exports := make(map[string]android.Path)
+	exports := make(map[string]android.WritablePath)
 
 	// Create mappings from apex relative path to the extracted file's path.
 	exportedPaths := make(android.Paths, 0, len(exports))
