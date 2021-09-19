@@ -491,6 +491,66 @@ func (ctx *TestContext) RegisterPreSingletonType(name string, factory SingletonF
 	ctx.preSingletons = append(ctx.preSingletons, newPreSingleton(name, factory))
 }
 
+// ModuleVariantForTests selects a specific variant of the module with the given
+// name by matching the variations map against the variations of each module
+// variant. A module variant matches the map if every variation that exists in
+// both have the same value. Both the module and the map are allowed to have
+// extra variations that the other doesn't have. Panics if not exactly one
+// module variant matches.
+func (ctx *TestContext) ModuleVariantForTests(name string, matchVariations map[string]string) TestingModule {
+	modules := []Module{}
+	ctx.VisitAllModules(func(m blueprint.Module) {
+		if ctx.ModuleName(m) == name {
+			am := m.(Module)
+			amMut := am.base().commonProperties.DebugMutators
+			amVar := am.base().commonProperties.DebugVariations
+			matched := true
+			for i, mut := range amMut {
+				if wantedVar, found := matchVariations[mut]; found && amVar[i] != wantedVar {
+					matched = false
+					break
+				}
+			}
+			if matched {
+				modules = append(modules, am)
+			}
+		}
+	})
+
+	if len(modules) == 0 {
+		// Show all the modules or module variants that do exist.
+		var allModuleNames []string
+		var allVariants []string
+		ctx.VisitAllModules(func(m blueprint.Module) {
+			allModuleNames = append(allModuleNames, ctx.ModuleName(m))
+			if ctx.ModuleName(m) == name {
+				allVariants = append(allVariants, m.(Module).String())
+			}
+		})
+
+		if len(allVariants) == 0 {
+			panic(fmt.Errorf("failed to find module %q. All modules:\n  %s",
+				name, strings.Join(SortedUniqueStrings(allModuleNames), "\n  ")))
+		} else {
+			sort.Strings(allVariants)
+			panic(fmt.Errorf("failed to find module %q matching %v. All variants:\n  %s",
+				name, matchVariations, strings.Join(allVariants, "\n  ")))
+		}
+	}
+
+	if len(modules) > 1 {
+		moduleStrings := []string{}
+		for _, m := range modules {
+			moduleStrings = append(moduleStrings, m.String())
+		}
+		sort.Strings(moduleStrings)
+		panic(fmt.Errorf("module %q has more than one variant that match %v:\n  %s",
+			name, matchVariations, strings.Join(moduleStrings, "\n  ")))
+	}
+
+	return newTestingModule(ctx.config, modules[0])
+}
+
 func (ctx *TestContext) ModuleForTests(name, variant string) TestingModule {
 	var module Module
 	ctx.VisitAllModules(func(m blueprint.Module) {
