@@ -580,7 +580,7 @@ cc_library {
     "both_source.c",
     "both_source.s",
     "both_source.S",
-        ":both_filegroup",
+    ":both_filegroup",
   ],
     static: {
         srcs: [
@@ -633,9 +633,9 @@ filegroup {
     local_includes = ["."],
     shared = {
         "srcs": [
-            ":shared_filegroup_cpp_srcs",
-            "shared_source.cc",
             "shared_source.cpp",
+            "shared_source.cc",
+            ":shared_filegroup_cpp_srcs",
         ],
         "srcs_as": [
             "shared_source.s",
@@ -648,9 +648,9 @@ filegroup {
         ],
     },
     srcs = [
-        ":both_filegroup_cpp_srcs",
-        "both_source.cc",
         "both_source.cpp",
+        "both_source.cc",
+        ":both_filegroup_cpp_srcs",
     ],
     srcs_as = [
         "both_source.s",
@@ -663,9 +663,9 @@ filegroup {
     ],
     static = {
         "srcs": [
-            ":static_filegroup_cpp_srcs",
-            "static_source.cc",
             "static_source.cpp",
+            "static_source.cc",
+            ":static_filegroup_cpp_srcs",
         ],
         "srcs_as": [
             "static_source.s",
