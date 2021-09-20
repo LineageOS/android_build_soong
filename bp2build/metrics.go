@@ -19,6 +19,8 @@ type CodegenMetrics struct {
 	handCraftedTargetCount int
 
 	moduleWithUnconvertedDepsMsgs []string
+
+	convertedModules []string
 }
 
 // Print the codegen metrics to stdout.
@@ -36,4 +38,10 @@ func (metrics CodegenMetrics) Print() {
 		metrics.TotalModuleCount,
 		len(metrics.moduleWithUnconvertedDepsMsgs),
 		strings.Join(metrics.moduleWithUnconvertedDepsMsgs, "\n\t"))
+}
+
+func (metrics CodegenMetrics) AddConvertedModule(moduleName string) {
+	// Undo prebuilt_ module name prefix modifications
+	moduleName = android.RemoveOptionalPrebuiltPrefix(moduleName)
+	metrics.convertedModules = append(metrics.convertedModules, moduleName)
 }
