@@ -382,7 +382,7 @@ func (j *Module) CheckStableSdkVersion(ctx android.BaseModuleContext) error {
 		return nil
 	}
 	if sdkVersion.Kind == android.SdkCorePlatform {
-		if useLegacyCorePlatformApiByName(j.BaseModuleName()) {
+		if useLegacyCorePlatformApi(ctx, j.BaseModuleName()) {
 			return fmt.Errorf("non stable SDK %v - uses legacy core platform", sdkVersion)
 		} else {
 			// Treat stable core platform as stable.
