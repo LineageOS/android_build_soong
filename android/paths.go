@@ -263,30 +263,48 @@ func ResPathWithName(ctx ModuleOutPathContext, p Path, name string) ModuleResPat
 
 // OptionalPath is a container that may or may not contain a valid Path.
 type OptionalPath struct {
-	valid bool
-	path  Path
+	path          Path   // nil if invalid.
+	invalidReason string // Not applicable if path != nil. "" if the reason is unknown.
 }
 
 // OptionalPathForPath returns an OptionalPath containing the path.
 func OptionalPathForPath(path Path) OptionalPath {
-	if path == nil {
-		return OptionalPath{}
-	}
-	return OptionalPath{valid: true, path: path}
+	return OptionalPath{path: path}
+}
+
+// InvalidOptionalPath returns an OptionalPath that is invalid with the given reason.
+func InvalidOptionalPath(reason string) OptionalPath {
+
+	return OptionalPath{invalidReason: reason}
 }
 
 // Valid returns whether there is a valid path
 func (p OptionalPath) Valid() bool {
-	return p.valid
+	return p.path != nil
 }
 
 // Path returns the Path embedded in this OptionalPath. You must be sure that
 // there is a valid path, since this method will panic if there is not.
 func (p OptionalPath) Path() Path {
-	if !p.valid {
-		panic("Requesting an invalid path")
+	if p.path == nil {
+		msg := "Requesting an invalid path"
+		if p.invalidReason != "" {
+			msg += ": " + p.invalidReason
+		}
+		panic(msg)
 	}
 	return p.path
+}
+
+// InvalidReason returns the reason that the optional path is invalid, or "" if it is valid.
+func (p OptionalPath) InvalidReason() string {
+	if p.path != nil {
+		return ""
+	}
+	if p.invalidReason == "" {
+		return "unknown"
+	}
+	return p.invalidReason
 }
 
 // AsPaths converts the OptionalPath into Paths.
@@ -294,7 +312,7 @@ func (p OptionalPath) Path() Path {
 // It returns nil if this is not valid, or a single length slice containing the Path embedded in
 // this OptionalPath.
 func (p OptionalPath) AsPaths() Paths {
-	if !p.valid {
+	if p.path == nil {
 		return nil
 	}
 	return Paths{p.path}
@@ -303,7 +321,7 @@ func (p OptionalPath) AsPaths() Paths {
 // RelativeToTop returns an OptionalPath with the path that was embedded having been replaced by the
 // result of calling Path.RelativeToTop on it.
 func (p OptionalPath) RelativeToTop() OptionalPath {
-	if !p.valid {
+	if p.path == nil {
 		return p
 	}
 	p.path = p.path.RelativeToTop()
@@ -312,7 +330,7 @@ func (p OptionalPath) RelativeToTop() OptionalPath {
 
 // String returns the string version of the Path, or "" if it isn't valid.
 func (p OptionalPath) String() string {
-	if p.valid {
+	if p.path != nil {
 		return p.path.String()
 	} else {
 		return ""
@@ -1077,6 +1095,7 @@ func ExistentPathForSource(ctx PathContext, pathComponents ...string) OptionalPa
 	path, err := pathForSource(ctx, pathComponents...)
 	if err != nil {
 		reportPathError(ctx, err)
+		// No need to put the error message into the returned path since it has been reported already.
 		return OptionalPath{}
 	}
 
@@ -1091,7 +1110,7 @@ func ExistentPathForSource(ctx PathContext, pathComponents ...string) OptionalPa
 		return OptionalPath{}
 	}
 	if !exists {
-		return OptionalPath{}
+		return InvalidOptionalPath(path.String() + " does not exist")
 	}
 	return OptionalPathForPath(path)
 }
@@ -1127,6 +1146,7 @@ func (p SourcePath) OverlayPath(ctx ModuleMissingDepsPathContext, path Path) Opt
 		relDir = srcPath.path
 	} else {
 		ReportPathErrorf(ctx, "Cannot find relative path for %s(%s)", reflect.TypeOf(path).Name(), path)
+		// No need to put the error message into the returned path since it has been reported already.
 		return OptionalPath{}
 	}
 	dir := filepath.Join(p.srcDir, p.path, relDir)
@@ -1140,7 +1160,7 @@ func (p SourcePath) OverlayPath(ctx ModuleMissingDepsPathContext, path Path) Opt
 		return OptionalPath{}
 	}
 	if len(paths) == 0 {
-		return OptionalPath{}
+		return InvalidOptionalPath(dir + " does not exist")
 	}
 	relPath := Rel(ctx, p.srcDir, paths[0])
 	return OptionalPathForPath(PathForSource(ctx, relPath))
