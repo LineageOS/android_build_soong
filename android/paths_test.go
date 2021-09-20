@@ -137,26 +137,35 @@ func TestValidatePath(t *testing.T) {
 
 func TestOptionalPath(t *testing.T) {
 	var path OptionalPath
-	checkInvalidOptionalPath(t, path)
+	checkInvalidOptionalPath(t, path, "unknown")
 
 	path = OptionalPathForPath(nil)
-	checkInvalidOptionalPath(t, path)
+	checkInvalidOptionalPath(t, path, "unknown")
+
+	path = InvalidOptionalPath("foo")
+	checkInvalidOptionalPath(t, path, "foo")
+
+	path = InvalidOptionalPath("")
+	checkInvalidOptionalPath(t, path, "unknown")
 
 	path = OptionalPathForPath(PathForTesting("path"))
 	checkValidOptionalPath(t, path, "path")
 }
 
-func checkInvalidOptionalPath(t *testing.T, path OptionalPath) {
+func checkInvalidOptionalPath(t *testing.T, path OptionalPath, expectedInvalidReason string) {
 	t.Helper()
 	if path.Valid() {
-		t.Errorf("Uninitialized OptionalPath should not be valid")
+		t.Errorf("Invalid OptionalPath should not be valid")
+	}
+	if path.InvalidReason() != expectedInvalidReason {
+		t.Errorf("Wrong invalid reason: expected %q, got %q", expectedInvalidReason, path.InvalidReason())
 	}
 	if path.String() != "" {
-		t.Errorf("Uninitialized OptionalPath String() should return \"\", not %q", path.String())
+		t.Errorf("Invalid OptionalPath String() should return \"\", not %q", path.String())
 	}
 	paths := path.AsPaths()
 	if len(paths) != 0 {
-		t.Errorf("Uninitialized OptionalPath AsPaths() should return empty Paths, not %q", paths)
+		t.Errorf("Invalid OptionalPath AsPaths() should return empty Paths, not %q", paths)
 	}
 	defer func() {
 		if r := recover(); r == nil {
@@ -170,6 +179,9 @@ func checkValidOptionalPath(t *testing.T, path OptionalPath, expectedString stri
 	t.Helper()
 	if !path.Valid() {
 		t.Errorf("Initialized OptionalPath should not be invalid")
+	}
+	if path.InvalidReason() != "" {
+		t.Errorf("Initialized OptionalPath should not have an invalid reason, got: %q", path.InvalidReason())
 	}
 	if path.String() != expectedString {
 		t.Errorf("Initialized OptionalPath String() should return %q, not %q", expectedString, path.String())
