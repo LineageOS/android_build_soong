@@ -808,7 +808,7 @@ func (b baseTestingComponent) buildParamsFromDescription(desc string) TestingBui
 }
 
 func (b baseTestingComponent) maybeBuildParamsFromOutput(file string) (TestingBuildParams, []string) {
-	var searchedOutputs []string
+	searchedOutputs := WritablePaths(nil)
 	for _, p := range b.provider.BuildParamsForTests() {
 		outputs := append(WritablePaths(nil), p.Outputs...)
 		outputs = append(outputs, p.ImplicitOutputs...)
@@ -819,10 +819,17 @@ func (b baseTestingComponent) maybeBuildParamsFromOutput(file string) (TestingBu
 			if f.String() == file || f.Rel() == file || PathRelativeToTop(f) == file {
 				return b.newTestingBuildParams(p), nil
 			}
-			searchedOutputs = append(searchedOutputs, f.Rel())
+			searchedOutputs = append(searchedOutputs, f)
 		}
 	}
-	return TestingBuildParams{}, searchedOutputs
+
+	formattedOutputs := []string{}
+	for _, f := range searchedOutputs {
+		formattedOutputs = append(formattedOutputs,
+			fmt.Sprintf("%s (rel=%s)", PathRelativeToTop(f), f.Rel()))
+	}
+
+	return TestingBuildParams{}, formattedOutputs
 }
 
 func (b baseTestingComponent) buildParamsFromOutput(file string) TestingBuildParams {
