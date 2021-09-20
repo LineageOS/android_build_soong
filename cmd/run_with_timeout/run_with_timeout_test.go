@@ -50,7 +50,7 @@ func Test_runWithTimeout(t *testing.T) {
 			args: args{
 				command: "echo",
 				args:    []string{"foo"},
-				timeout: 1 * time.Second,
+				timeout: 10 * time.Second,
 			},
 			wantStdout: "foo\n",
 		},
@@ -58,7 +58,7 @@ func Test_runWithTimeout(t *testing.T) {
 			name: "timed out",
 			args: args{
 				command: "sh",
-				args:    []string{"-c", "sleep 1 && echo foo"},
+				args:    []string{"-c", "sleep 10 && echo foo"},
 				timeout: 1 * time.Millisecond,
 			},
 			wantStderr: ".*: process timed out after .*\n",
@@ -68,7 +68,7 @@ func Test_runWithTimeout(t *testing.T) {
 			name: "on_timeout command",
 			args: args{
 				command:      "sh",
-				args:         []string{"-c", "sleep 1 && echo foo"},
+				args:         []string{"-c", "sleep 10 && echo foo"},
 				timeout:      1 * time.Millisecond,
 				onTimeoutCmd: "echo bar",
 			},
