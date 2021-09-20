@@ -32,6 +32,9 @@ type DexProperties struct {
 	// list of module-specific flags that will be used for dex compiles
 	Dxflags []string `android:"arch_variant"`
 
+	// A list of files containing rules that specify the classes to keep in the main dex file.
+	Main_dex_rules []string `android:"path"`
+
 	Optimize struct {
 		// If false, disable all optimization.  Defaults to true for android_app and android_test
 		// modules, false for java_library and java_test modules.
@@ -164,12 +167,19 @@ var r8, r8RE = pctx.MultiCommandRemoteStaticRules("r8",
 	}, []string{"outDir", "outDict", "outUsage", "outUsageZip", "outUsageDir",
 		"r8Flags", "zipFlags", "tmpJar"}, []string{"implicits"})
 
-func (d *dexer) dexCommonFlags(ctx android.ModuleContext, minSdkVersion android.SdkSpec) []string {
-	flags := d.dexProperties.Dxflags
+func (d *dexer) dexCommonFlags(ctx android.ModuleContext,
+	minSdkVersion android.SdkSpec) (flags []string, deps android.Paths) {
+
+	flags = d.dexProperties.Dxflags
 	// Translate all the DX flags to D8 ones until all the build files have been migrated
 	// to D8 flags. See: b/69377755
 	flags = android.RemoveListFromList(flags,
 		[]string{"--core-library", "--dex", "--multi-dex"})
+
+	for _, f := range android.PathsForModuleSrc(ctx, d.dexProperties.Main_dex_rules) {
+		flags = append(flags, "--main-dex-rules", f.String())
+		deps = append(deps, f)
+	}
 
 	if ctx.Config().Getenv("NO_OPTIMIZE_DX") != "" {
 		flags = append(flags, "--debug")
@@ -187,7 +197,7 @@ func (d *dexer) dexCommonFlags(ctx android.ModuleContext, minSdkVersion android.
 	}
 
 	flags = append(flags, "--min-api "+strconv.Itoa(effectiveVersion.FinalOrFutureInt()))
-	return flags
+	return flags, deps
 }
 
 func d8Flags(flags javaBuilderFlags) (d8Flags []string, d8Deps android.Paths) {
@@ -286,7 +296,7 @@ func (d *dexer) compileDex(ctx android.ModuleContext, flags javaBuilderFlags, mi
 		zipFlags += " -L 0"
 	}
 
-	commonFlags := d.dexCommonFlags(ctx, minSdkVersion)
+	commonFlags, commonDeps := d.dexCommonFlags(ctx, minSdkVersion)
 
 	useR8 := d.effectiveOptimizeEnabled()
 	if useR8 {
@@ -298,6 +308,7 @@ func (d *dexer) compileDex(ctx android.ModuleContext, flags javaBuilderFlags, mi
 		proguardUsageZip := android.PathForModuleOut(ctx, "proguard_usage.zip")
 		d.proguardUsageZip = android.OptionalPathForPath(proguardUsageZip)
 		r8Flags, r8Deps := d.r8Flags(ctx, flags)
+		r8Deps = append(r8Deps, commonDeps...)
 		rule := r8
 		args := map[string]string{
 			"r8Flags":     strings.Join(append(commonFlags, r8Flags...), " "),
@@ -324,6 +335,7 @@ func (d *dexer) compileDex(ctx android.ModuleContext, flags javaBuilderFlags, mi
 		})
 	} else {
 		d8Flags, d8Deps := d8Flags(flags)
+		d8Deps = append(d8Deps, commonDeps...)
 		rule := d8
 		if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_D8") {
 			rule = d8RE
