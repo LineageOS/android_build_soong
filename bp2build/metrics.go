@@ -24,7 +24,7 @@ type CodegenMetrics struct {
 }
 
 // Print the codegen metrics to stdout.
-func (metrics CodegenMetrics) Print() {
+func (metrics *CodegenMetrics) Print() {
 	generatedTargetCount := 0
 	for _, ruleClass := range android.SortedStringKeys(metrics.RuleClassCount) {
 		count := metrics.RuleClassCount[ruleClass]
@@ -40,7 +40,7 @@ func (metrics CodegenMetrics) Print() {
 		strings.Join(metrics.moduleWithUnconvertedDepsMsgs, "\n\t"))
 }
 
-func (metrics CodegenMetrics) AddConvertedModule(moduleName string) {
+func (metrics *CodegenMetrics) AddConvertedModule(moduleName string) {
 	// Undo prebuilt_ module name prefix modifications
 	moduleName = android.RemoveOptionalPrebuiltPrefix(moduleName)
 	metrics.convertedModules = append(metrics.convertedModules, moduleName)
