@@ -1618,12 +1618,12 @@ func Convert(req Request) (*StarlarkScript, error) {
 	return starScript, nil
 }
 
-func Launcher(path, name string) string {
+func Launcher(mainModuleUri, versionDefaultsUri, mainModuleName string) string {
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, "load(%q, %q)\n", baseUri, baseName)
-	fmt.Fprintf(&buf, "load(%q, \"init\")\n", path)
-	fmt.Fprintf(&buf, "g, config = %s(%q, init)\n", cfnMain, name)
-	fmt.Fprintf(&buf, "%s(g, config)\n", cfnPrintVars)
+	fmt.Fprintf(&buf, "load(%q, \"version_defaults\")\n", versionDefaultsUri)
+	fmt.Fprintf(&buf, "load(%q, \"init\")\n", mainModuleUri)
+	fmt.Fprintf(&buf, "%s(%s(%q, init, version_defaults))\n", cfnPrintVars, cfnMain, mainModuleName)
 	return buf.String()
 }
 
