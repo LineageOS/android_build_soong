@@ -81,6 +81,7 @@ var backupSuffix string
 var tracedVariables []string
 var errorLogger = errorsByType{data: make(map[string]datum)}
 var makefileFinder = &LinuxMakefileFinder{}
+var versionDefaultsMk = filepath.Join("build", "make", "core", "version_defaults.mk")
 
 func main() {
 	flag.Usage = func() {
@@ -165,13 +166,24 @@ func main() {
 			quit(fmt.Errorf("cannot generate configuration launcher for %s, it is not a known product",
 				product))
 		}
+		versionDefaults, err := generateVersionDefaults()
+		if err != nil {
+			quit(err)
+		}
 		ok = convertOne(path) && ok
-		err := writeGenerated(*launcher, mk2rbc.Launcher(outputFilePath(path), mk2rbc.MakePath2ModuleName(path)))
+		versionDefaultsPath := outputFilePath(versionDefaultsMk)
+		err = writeGenerated(versionDefaultsPath, versionDefaults)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s:%s", path, err)
 			ok = false
 		}
 
+		err = writeGenerated(*launcher, mk2rbc.Launcher(outputFilePath(path), versionDefaultsPath,
+			mk2rbc.MakePath2ModuleName(path)))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s:%s", path, err)
+			ok = false
+		}
 	} else {
 		files := flag.Args()
 		if *allInSource {
@@ -192,6 +204,15 @@ func main() {
 	if !ok {
 		os.Exit(1)
 	}
+}
+
+func generateVersionDefaults() (string, error) {
+	versionSettings, err := mk2rbc.ParseVersionDefaults(filepath.Join(*rootDir, versionDefaultsMk))
+	if err != nil {
+		return "", err
+	}
+	return mk2rbc.VersionDefaults(versionSettings), nil
+
 }
 
 func quit(s interface{}) {
