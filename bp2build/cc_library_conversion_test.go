@@ -1022,18 +1022,18 @@ cc_library {
     }),
     implementation_deps = select({
         "//build/bazel/platforms/arch:arm": [],
-        "//conditions:default": [":arm_static_lib_excludes"],
+        "//conditions:default": [":arm_static_lib_excludes_bp2build_cc_library_static"],
     }) + select({
         "//build/bazel/product_variables:malloc_not_svelte": [],
-        "//conditions:default": [":malloc_not_svelte_static_lib_excludes"],
+        "//conditions:default": [":malloc_not_svelte_static_lib_excludes_bp2build_cc_library_static"],
     }),
     srcs_c = ["common.c"],
     whole_archive_deps = select({
         "//build/bazel/platforms/arch:arm": [],
-        "//conditions:default": [":arm_whole_static_lib_excludes"],
+        "//conditions:default": [":arm_whole_static_lib_excludes_bp2build_cc_library_static"],
     }) + select({
-        "//build/bazel/product_variables:malloc_not_svelte": [":malloc_not_svelte_whole_static_lib"],
-        "//conditions:default": [":malloc_not_svelte_whole_static_lib_excludes"],
+        "//build/bazel/product_variables:malloc_not_svelte": [":malloc_not_svelte_whole_static_lib_bp2build_cc_library_static"],
+        "//conditions:default": [":malloc_not_svelte_whole_static_lib_excludes_bp2build_cc_library_static"],
     }),
 )`,
 		},
