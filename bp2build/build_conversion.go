@@ -249,7 +249,6 @@ func propsToAttributes(props map[string]string) string {
 type conversionResults struct {
 	buildFileToTargets map[string]BazelTargets
 	metrics            CodegenMetrics
-	compatLayer        CodegenCompatLayer
 }
 
 func (r conversionResults) BuildDirToTargets() map[string]BazelTargets {
@@ -263,10 +262,6 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (convers
 	// Simple metrics tracking for bp2build
 	metrics := CodegenMetrics{
 		RuleClassCount: make(map[string]int),
-	}
-
-	compatLayer := CodegenCompatLayer{
-		NameToLabelMap: make(map[string]string),
 	}
 
 	dirs := make(map[string]bool)
@@ -285,7 +280,7 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (convers
 			if b, ok := m.(android.Bazelable); ok && b.HasHandcraftedLabel() {
 				metrics.handCraftedTargetCount += 1
 				metrics.TotalModuleCount += 1
-				compatLayer.AddNameToLabelEntry(m.Name(), b.HandcraftedLabel())
+				metrics.AddConvertedModule(m.Name())
 				pathToBuildFile := getBazelPackagePath(b)
 				// We are using the entire contents of handcrafted build file, so if multiple targets within
 				// a package have handcrafted targets, we only want to include the contents one time.
@@ -314,10 +309,8 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (convers
 				}
 				targets = generateBazelTargets(bpCtx, aModule)
 				for _, t := range targets {
-					if t.name == m.Name() {
-						// only add targets that exist in Soong to compatibility layer
-						compatLayer.AddNameToLabelEntry(m.Name(), t.Label())
-					}
+					// only add targets that exist in Soong to compatibility layer
+					metrics.AddConvertedModule(m.Name())
 					metrics.RuleClassCount[t.ruleClass] += 1
 				}
 			} else {
@@ -360,7 +353,6 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (convers
 	return conversionResults{
 		buildFileToTargets: buildFileToTargets,
 		metrics:            metrics,
-		compatLayer:        compatLayer,
 	}, errs
 }
 
