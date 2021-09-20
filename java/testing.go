@@ -229,6 +229,26 @@ func FixtureConfigureApexBootJars(bootJars ...string) android.FixturePreparer {
 	)
 }
 
+// FixtureUseLegacyCorePlatformApi prepares the fixture by setting the exception list of those
+// modules that are allowed to use the legacy core platform API to be the ones supplied.
+func FixtureUseLegacyCorePlatformApi(moduleNames ...string) android.FixturePreparer {
+	lookup := make(map[string]struct{})
+	for _, moduleName := range moduleNames {
+		lookup[moduleName] = struct{}{}
+	}
+	return android.FixtureModifyConfig(func(config android.Config) {
+		// Try and set the legacyCorePlatformApiLookup in the config, the returned value will be the
+		// actual value that is set.
+		cached := config.Once(legacyCorePlatformApiLookupKey, func() interface{} {
+			return lookup
+		})
+		// Make sure that the cached value is the one we need.
+		if !reflect.DeepEqual(cached, lookup) {
+			panic(fmt.Errorf("attempting to set legacyCorePlatformApiLookupKey to %q but it has already been set to %q", lookup, cached))
+		}
+	})
+}
+
 // registerRequiredBuildComponentsForTest registers the build components used by
 // PrepareForTestWithJavaDefaultModules.
 //
