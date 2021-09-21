@@ -547,6 +547,9 @@ type scopePaths struct {
 
 	// The stubs source jar.
 	stubsSrcJar android.OptionalPath
+
+	// Extracted annotations.
+	annotationsZip android.OptionalPath
 }
 
 func (paths *scopePaths) extractStubsLibraryInfoFromDependency(ctx android.ModuleContext, dep android.Module) error {
@@ -582,6 +585,7 @@ func (paths *scopePaths) treatDepAsApiStubsSrcProvider(dep android.Module, actio
 }
 
 func (paths *scopePaths) extractApiInfoFromApiStubsProvider(provider ApiStubsProvider) {
+	paths.annotationsZip = android.OptionalPathForPath(provider.AnnotationsZip())
 	paths.currentApiFilePath = android.OptionalPathForPath(provider.ApiFilePath())
 	paths.removedApiFilePath = android.OptionalPathForPath(provider.RemovedApiFilePath())
 }
@@ -736,6 +740,8 @@ const (
 	apiTxtComponentName = "api.txt"
 
 	removedApiTxtComponentName = "removed-api.txt"
+
+	annotationsComponentName = "annotations.zip"
 )
 
 // A regular expression to match tags that reference a specific stubs component.
@@ -754,7 +760,7 @@ var tagSplitter = func() *regexp.Regexp {
 	scopesRegexp := choice(allScopeNames...)
 
 	// Regular expression to match one of the components.
-	componentsRegexp := choice(stubsSourceComponentName, apiTxtComponentName, removedApiTxtComponentName)
+	componentsRegexp := choice(stubsSourceComponentName, apiTxtComponentName, removedApiTxtComponentName, annotationsComponentName)
 
 	// Regular expression to match any combination of one scope and one component.
 	return regexp.MustCompile(fmt.Sprintf(`^\.(%s)\.(%s)$`, scopesRegexp, componentsRegexp))
@@ -762,9 +768,7 @@ var tagSplitter = func() *regexp.Regexp {
 
 // For OutputFileProducer interface
 //
-// .<scope>.stubs.source
-// .<scope>.api.txt
-// .<scope>.removed-api.txt
+// .<scope>.<component name>, for all ComponentNames (for example: .public.removed-api.txt)
 func (c *commonToSdkLibraryAndImport) commonOutputFiles(tag string) (android.Paths, error) {
 	if groups := tagSplitter.FindStringSubmatch(tag); groups != nil {
 		scopeName := groups[1]
@@ -790,6 +794,11 @@ func (c *commonToSdkLibraryAndImport) commonOutputFiles(tag string) (android.Pat
 			case removedApiTxtComponentName:
 				if paths.removedApiFilePath.Valid() {
 					return android.Paths{paths.removedApiFilePath.Path()}, nil
+				}
+
+			case annotationsComponentName:
+				if paths.annotationsZip.Valid() {
+					return android.Paths{paths.annotationsZip.Path()}, nil
 				}
 			}
 
@@ -1884,6 +1893,9 @@ type sdkLibraryScopeProperties struct {
 
 	// The removed.txt
 	Removed_api *string `android:"path"`
+
+	// Annotation zip
+	Annotations *string `android:"path"`
 }
 
 type sdkLibraryImportProperties struct {
@@ -2197,6 +2209,7 @@ func (module *SdkLibraryImport) GenerateAndroidBuildActions(ctx android.ModuleCo
 		}
 
 		paths := module.getScopePathsCreateIfNeeded(apiScope)
+		paths.annotationsZip = android.OptionalPathForModuleSrc(ctx, scopeProperties.Annotations)
 		paths.currentApiFilePath = android.OptionalPathForModuleSrc(ctx, scopeProperties.Current_api)
 		paths.removedApiFilePath = android.OptionalPathForModuleSrc(ctx, scopeProperties.Removed_api)
 	}
@@ -2547,6 +2560,7 @@ type scopeProperties struct {
 	StubsSrcJar    android.Path
 	CurrentApiFile android.Path
 	RemovedApiFile android.Path
+	AnnotationsZip android.Path
 	SdkVersion     string
 }
 
@@ -2571,6 +2585,10 @@ func (s *sdkLibrarySdkMemberProperties) PopulateFromVariant(ctx android.SdkMembe
 			}
 			if paths.removedApiFilePath.Valid() {
 				properties.RemovedApiFile = paths.removedApiFilePath.Path()
+			}
+			// The annotations zip is only available for modules that set annotations_enabled: true.
+			if paths.annotationsZip.Valid() {
+				properties.AnnotationsZip = paths.annotationsZip.Path()
 			}
 			s.Scopes[apiScope] = properties
 		}
@@ -2634,6 +2652,12 @@ func (s *sdkLibrarySdkMemberProperties) AddToPropertySet(ctx android.SdkMemberCo
 				removedApiSnapshotPath := filepath.Join(scopeDir, ctx.Name()+"-removed.txt")
 				ctx.SnapshotBuilder().CopyToSnapshot(properties.RemovedApiFile, removedApiSnapshotPath)
 				scopeSet.AddProperty("removed_api", removedApiSnapshotPath)
+			}
+
+			if properties.AnnotationsZip != nil {
+				annotationsSnapshotPath := filepath.Join(scopeDir, ctx.Name()+"_annotations.zip")
+				ctx.SnapshotBuilder().CopyToSnapshot(properties.AnnotationsZip, annotationsSnapshotPath)
+				scopeSet.AddProperty("annotations", annotationsSnapshotPath)
 			}
 
 			if properties.SdkVersion != "" {
