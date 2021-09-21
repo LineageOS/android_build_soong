@@ -372,6 +372,7 @@ li a:hover:not(.active) {
     {{if .Properties -}}
       <div class="accordion"  id="{{getModule}}.{{.Name}}">
         <span class="fixed">&#x2295</span><b>{{.Name}}</b>
+        <i>{{.Type}}</i>
         {{- range .OtherNames -}}, {{.}}{{- end -}}
       </div>
       <div class="collapsible">
