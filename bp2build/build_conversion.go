@@ -308,9 +308,8 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (convers
 					}
 				}
 				targets = generateBazelTargets(bpCtx, aModule)
+				metrics.AddConvertedModule(m.Name())
 				for _, t := range targets {
-					// only add targets that exist in Soong to compatibility layer
-					metrics.AddConvertedModule(m.Name())
 					metrics.RuleClassCount[t.ruleClass] += 1
 				}
 			} else {
