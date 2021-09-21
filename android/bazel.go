@@ -259,7 +259,6 @@ var (
 	// Per-module denylist of cc_library modules to only generate the static
 	// variant if their shared variant isn't ready or buildable by Bazel.
 	bp2buildCcLibraryStaticOnlyList = []string{
-		"libstdc++",    // http://b/186822597, cc_library, ld.lld: error: undefined symbol: __errno
 		"libjemalloc5", // http://b/188503688, cc_library, `target: { android: { enabled: false } }` for android targets.
 	}
 
@@ -294,8 +293,8 @@ func init() {
 	}
 }
 
-func GenerateCcLibraryStaticOnly(ctx BazelConversionPathContext) bool {
-	return bp2buildCcLibraryStaticOnly[ctx.Module().Name()]
+func GenerateCcLibraryStaticOnly(moduleName string) bool {
+	return bp2buildCcLibraryStaticOnly[moduleName]
 }
 
 func ShouldKeepExistingBuildFileForDir(dir string) bool {
@@ -325,7 +324,7 @@ func (b *BazelModuleBase) MixedBuildsEnabled(ctx BazelConversionPathContext) boo
 		return false
 	}
 
-	if GenerateCcLibraryStaticOnly(ctx) {
+	if GenerateCcLibraryStaticOnly(ctx.Module().Name()) {
 		// Don't use partially-converted cc_library targets in mixed builds,
 		// since mixed builds would generally rely on both static and shared
 		// variants of a cc_library.
