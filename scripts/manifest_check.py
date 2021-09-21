@@ -358,7 +358,7 @@ def main():
             # the check has failed.
             if args.enforce_uses_libraries_status:
                 with open(args.enforce_uses_libraries_status, 'w') as f:
-                    if not errmsg is not None:
+                    if errmsg is not None:
                         f.write('%s\n' % errmsg)
 
         if args.extract_target_sdk_version:

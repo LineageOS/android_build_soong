@@ -228,17 +228,27 @@ func init() {
 	}
 }
 
-func useLegacyCorePlatformApi(ctx android.EarlyModuleContext) bool {
-	return useLegacyCorePlatformApiByName(ctx.ModuleName())
+var legacyCorePlatformApiLookupKey = android.NewOnceKey("legacyCorePlatformApiLookup")
+
+func getLegacyCorePlatformApiLookup(config android.Config) map[string]struct{} {
+	return config.Once(legacyCorePlatformApiLookupKey, func() interface{} {
+		return legacyCorePlatformApiLookup
+	}).(map[string]struct{})
 }
 
-func useLegacyCorePlatformApiByName(name string) bool {
-	_, found := legacyCorePlatformApiLookup[name]
+// useLegacyCorePlatformApi checks to see whether the supplied module name is in the list of modules
+// that are able to use the legacy core platform API and returns true if it does, false otherwise.
+//
+// This method takes the module name separately from the context as this may be being called for a
+// module that is not the target of the supplied context.
+func useLegacyCorePlatformApi(ctx android.EarlyModuleContext, moduleName string) bool {
+	lookup := getLegacyCorePlatformApiLookup(ctx.Config())
+	_, found := lookup[moduleName]
 	return found
 }
 
 func corePlatformSystemModules(ctx android.EarlyModuleContext) string {
-	if useLegacyCorePlatformApi(ctx) {
+	if useLegacyCorePlatformApi(ctx, ctx.ModuleName()) {
 		return config.LegacyCorePlatformSystemModules
 	} else {
 		return config.StableCorePlatformSystemModules
@@ -246,7 +256,7 @@ func corePlatformSystemModules(ctx android.EarlyModuleContext) string {
 }
 
 func corePlatformBootclasspathLibraries(ctx android.EarlyModuleContext) []string {
-	if useLegacyCorePlatformApi(ctx) {
+	if useLegacyCorePlatformApi(ctx, ctx.ModuleName()) {
 		return config.LegacyCorePlatformBootclasspathLibraries
 	} else {
 		return config.StableCorePlatformBootclasspathLibraries
