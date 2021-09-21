@@ -2185,6 +2185,7 @@ func TestJavaStableSdkVersion(t *testing.T) {
 		name          string
 		expectedError string
 		bp            string
+		preparer      android.FixturePreparer
 	}{
 		{
 			name: "Non-updatable apex with non-stable dep",
@@ -2256,6 +2257,30 @@ func TestJavaStableSdkVersion(t *testing.T) {
 			`,
 		},
 		{
+			name:          "Updatable apex with non-stable legacy core platform dep",
+			expectedError: `\Qcannot depend on "myjar-uses-legacy": non stable SDK core_platform_current - uses legacy core platform\E`,
+			bp: `
+				apex {
+					name: "myapex",
+					java_libs: ["myjar-uses-legacy"],
+					key: "myapex.key",
+					updatable: true,
+				}
+				apex_key {
+					name: "myapex.key",
+					public_key: "testkey.avbpubkey",
+					private_key: "testkey.pem",
+				}
+				java_library {
+					name: "myjar-uses-legacy",
+					srcs: ["foo/bar/MyClass.java"],
+					sdk_version: "core_platform",
+					apex_available: ["myapex"],
+				}
+			`,
+			preparer: java.FixtureUseLegacyCorePlatformApi("myjar-uses-legacy"),
+		},
+		{
 			name: "Updatable apex with non-stable transitive dep",
 			// This is not actually detecting that the transitive dependency is unstable, rather it is
 			// detecting that the transitive dependency is building against a wider API surface than the
@@ -2291,12 +2316,22 @@ func TestJavaStableSdkVersion(t *testing.T) {
 	}
 
 	for _, test := range testCases {
+		if test.name != "Updatable apex with non-stable legacy core platform dep" {
+			continue
+		}
 		t.Run(test.name, func(t *testing.T) {
-			if test.expectedError == "" {
-				testApex(t, test.bp)
-			} else {
-				testApexError(t, test.expectedError, test.bp)
+			errorHandler := android.FixtureExpectsNoErrors
+			if test.expectedError != "" {
+				errorHandler = android.FixtureExpectsAtLeastOneErrorMatchingPattern(test.expectedError)
 			}
+			android.GroupFixturePreparers(
+				java.PrepareForTestWithJavaDefaultModules,
+				PrepareForTestWithApexBuildComponents,
+				prepareForTestWithMyapex,
+				android.OptionalFixturePreparer(test.preparer),
+			).
+				ExtendWithErrorHandler(errorHandler).
+				RunTestWithBp(t, test.bp)
 		})
 	}
 }
