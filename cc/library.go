@@ -277,7 +277,7 @@ func CcLibraryBp2Build(ctx android.TopDownMutatorContext) {
 	// For some cc_library modules, their static variants are ready to be
 	// converted, but not their shared variants. For these modules, delegate to
 	// the cc_library_static bp2build converter temporarily instead.
-	if android.GenerateCcLibraryStaticOnly(ctx) {
+	if android.GenerateCcLibraryStaticOnly(ctx.Module().Name()) {
 		ccSharedOrStaticBp2BuildMutatorInternal(ctx, m, "cc_library_static")
 		return
 	}
