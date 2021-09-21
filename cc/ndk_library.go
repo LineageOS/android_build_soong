@@ -272,7 +272,7 @@ func parseNativeAbiDefinition(ctx ModuleContext, symbolFile string,
 
 func compileStubLibrary(ctx ModuleContext, flags Flags, src android.Path) Objects {
 	return compileObjs(ctx, flagsToBuilderFlags(flags), "",
-		android.Paths{src}, nil, nil)
+		android.Paths{src}, nil, nil, nil)
 }
 
 func (this *stubDecorator) findImplementationLibrary(ctx ModuleContext) android.Path {
