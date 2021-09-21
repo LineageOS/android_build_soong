@@ -263,6 +263,7 @@ type javaBuilderFlags struct {
 
 	kotlincFlags     string
 	kotlincClasspath classpath
+	kotlincDeps      android.Paths
 
 	proto android.ProtoFlags
 }
