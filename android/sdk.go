@@ -396,6 +396,25 @@ type sdkRegistry struct {
 func (r *sdkRegistry) copyAndAppend(registerable sdkRegisterable) *sdkRegistry {
 	oldList := r.list
 
+	// Make sure that list does not already contain the property. Uses a simple linear search instead
+	// of a binary search even though the list is sorted. That is because the number of items in the
+	// list is small and so not worth the overhead of a binary search.
+	found := false
+	newPropertyName := registerable.SdkPropertyName()
+	for _, r := range oldList {
+		if r.SdkPropertyName() == newPropertyName {
+			found = true
+			break
+		}
+	}
+	if found {
+		names := []string{}
+		for _, r := range oldList {
+			names = append(names, r.SdkPropertyName())
+		}
+		panic(fmt.Errorf("duplicate properties found, %q already exists in %q", newPropertyName, names))
+	}
+
 	// Copy the slice just in case this is being read while being modified, e.g. when testing.
 	list := make([]sdkRegisterable, 0, len(oldList)+1)
 	list = append(list, oldList...)
