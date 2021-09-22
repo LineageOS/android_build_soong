@@ -143,6 +143,8 @@ type SharedProperties struct {
 type StaticOrSharedProperties struct {
 	Srcs []string `android:"path,arch_variant"`
 
+	Tidy_disabled_srcs []string `android:"path,arch_variant"`
+
 	Sanitized Sanitized `android:"arch_variant"`
 
 	Cflags []string `android:"arch_variant"`
@@ -275,7 +277,7 @@ func CcLibraryBp2Build(ctx android.TopDownMutatorContext) {
 	// For some cc_library modules, their static variants are ready to be
 	// converted, but not their shared variants. For these modules, delegate to
 	// the cc_library_static bp2build converter temporarily instead.
-	if android.GenerateCcLibraryStaticOnly(ctx) {
+	if android.GenerateCcLibraryStaticOnly(ctx.Module().Name()) {
 		ccSharedOrStaticBp2BuildMutatorInternal(ctx, m, "cc_library_static")
 		return
 	}
@@ -989,12 +991,14 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 
 	if library.static() {
 		srcs := android.PathsForModuleSrc(ctx, library.StaticProperties.Static.Srcs)
-		objs = objs.Append(compileObjs(ctx, buildFlags, android.DeviceStaticLibrary,
-			srcs, library.baseCompiler.pathDeps, library.baseCompiler.cFlagsDeps))
+		objs = objs.Append(compileObjs(ctx, buildFlags, android.DeviceStaticLibrary, srcs,
+			android.PathsForModuleSrc(ctx, library.StaticProperties.Static.Tidy_disabled_srcs),
+			library.baseCompiler.pathDeps, library.baseCompiler.cFlagsDeps))
 	} else if library.shared() {
 		srcs := android.PathsForModuleSrc(ctx, library.SharedProperties.Shared.Srcs)
-		objs = objs.Append(compileObjs(ctx, buildFlags, android.DeviceSharedLibrary,
-			srcs, library.baseCompiler.pathDeps, library.baseCompiler.cFlagsDeps))
+		objs = objs.Append(compileObjs(ctx, buildFlags, android.DeviceSharedLibrary, srcs,
+			android.PathsForModuleSrc(ctx, library.SharedProperties.Shared.Tidy_disabled_srcs),
+			library.baseCompiler.pathDeps, library.baseCompiler.cFlagsDeps))
 	}
 
 	return objs
