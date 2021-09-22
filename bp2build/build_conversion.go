@@ -261,7 +261,7 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (convers
 
 	// Simple metrics tracking for bp2build
 	metrics := CodegenMetrics{
-		RuleClassCount: make(map[string]int),
+		ruleClassCount: make(map[string]int),
 	}
 
 	dirs := make(map[string]bool)
@@ -277,14 +277,28 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (convers
 
 		switch ctx.Mode() {
 		case Bp2Build:
+			// There are two main ways of converting a Soong module to Bazel:
+			// 1) Manually handcrafting a Bazel target and associating the module with its label
+			// 2) Automatically generating with bp2build converters
+			//
+			// bp2build converters are used for the majority of modules.
 			if b, ok := m.(android.Bazelable); ok && b.HasHandcraftedLabel() {
-				metrics.handCraftedTargetCount += 1
-				metrics.TotalModuleCount += 1
-				metrics.AddConvertedModule(m.Name())
+				// Handle modules converted to handcrafted targets.
+				//
+				// Since these modules are associated with some handcrafted
+				// target in a BUILD file, we simply append the entire contents
+				// of that BUILD file to the generated BUILD file.
+				//
+				// The append operation is only done once, even if there are
+				// multiple modules from the same directory associated to
+				// targets in the same BUILD file (or package).
+
+				// Log the module.
+				metrics.AddConvertedModule(m.Name(), Handcrafted)
+
 				pathToBuildFile := getBazelPackagePath(b)
-				// We are using the entire contents of handcrafted build file, so if multiple targets within
-				// a package have handcrafted targets, we only want to include the contents one time.
 				if _, exists := buildFileToAppend[pathToBuildFile]; exists {
+					// Append the BUILD file content once per package, at most.
 					return
 				}
 				t, err := getHandcraftedBuildContent(ctx, b, pathToBuildFile)
@@ -297,23 +311,29 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (convers
 				// something more targeted based on the rule type and target
 				buildFileToAppend[pathToBuildFile] = true
 			} else if aModule, ok := m.(android.Module); ok && aModule.IsConvertedByBp2build() {
+				// Handle modules converted to generated targets.
+
+				// Log the module.
+				metrics.AddConvertedModule(m.Name(), Generated)
+
+				// Handle modules with unconverted deps. By default, emit a warning.
 				if unconvertedDeps := aModule.GetUnconvertedBp2buildDeps(); len(unconvertedDeps) > 0 {
 					msg := fmt.Sprintf("%q depends on unconverted modules: %s", m.Name(), strings.Join(unconvertedDeps, ", "))
 					if ctx.unconvertedDepMode == warnUnconvertedDeps {
 						metrics.moduleWithUnconvertedDepsMsgs = append(metrics.moduleWithUnconvertedDepsMsgs, msg)
 					} else if ctx.unconvertedDepMode == errorModulesUnconvertedDeps {
-						metrics.TotalModuleCount += 1
 						errs = append(errs, fmt.Errorf(msg))
 						return
 					}
 				}
 				targets = generateBazelTargets(bpCtx, aModule)
-				metrics.AddConvertedModule(m.Name())
 				for _, t := range targets {
-					metrics.RuleClassCount[t.ruleClass] += 1
+					// A module can potentially generate more than 1 Bazel
+					// target, each of a different rule class.
+					metrics.IncrementRuleClassCount(t.ruleClass)
 				}
 			} else {
-				metrics.TotalModuleCount += 1
+				metrics.IncrementUnconvertedCount()
 				return
 			}
 		case QueryView:
