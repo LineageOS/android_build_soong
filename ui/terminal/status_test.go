@@ -94,7 +94,7 @@ func TestStatusOutput(t *testing.T) {
 
 			t.Run("smart", func(t *testing.T) {
 				smart := &fakeSmartTerminal{termWidth: 40}
-				stat := NewStatusOutput(smart, "", false, false)
+				stat := NewStatusOutput(smart, "", false, false, false)
 				tt.calls(stat)
 				stat.Flush()
 
@@ -105,7 +105,7 @@ func TestStatusOutput(t *testing.T) {
 
 			t.Run("simple", func(t *testing.T) {
 				simple := &bytes.Buffer{}
-				stat := NewStatusOutput(simple, "", false, false)
+				stat := NewStatusOutput(simple, "", false, false, false)
 				tt.calls(stat)
 				stat.Flush()
 
@@ -116,7 +116,7 @@ func TestStatusOutput(t *testing.T) {
 
 			t.Run("force simple", func(t *testing.T) {
 				smart := &fakeSmartTerminal{termWidth: 40}
-				stat := NewStatusOutput(smart, "", true, false)
+				stat := NewStatusOutput(smart, "", true, false, false)
 				tt.calls(stat)
 				stat.Flush()
 
@@ -269,7 +269,7 @@ func TestSmartStatusOutputWidthChange(t *testing.T) {
 	os.Setenv(tableHeightEnVar, "")
 
 	smart := &fakeSmartTerminal{termWidth: 40}
-	stat := NewStatusOutput(smart, "", false, false)
+	stat := NewStatusOutput(smart, "", false, false, false)
 	smartStat := stat.(*smartStatusOutput)
 	smartStat.sigwinchHandled = make(chan bool)
 
