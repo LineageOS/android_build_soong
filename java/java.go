@@ -533,6 +533,10 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		j.installFile = ctx.InstallFile(android.PathForModuleInstall(ctx, "framework"),
 			j.Stem()+".jar", j.outputFile, extraInstallDeps...)
 	}
+
+	if ctx.Windows() {
+		j.HideFromMake()
+	}
 }
 
 func (j *Library) DepsMutator(ctx android.BottomUpMutatorContext) {
@@ -1030,14 +1034,14 @@ func InitTestHost(th *TestHost, installable *bool, testSuites []string, autoGenC
 
 type binaryProperties struct {
 	// installable script to execute the resulting jar
-	Wrapper *string `android:"path"`
+	Wrapper *string `android:"path,arch_variant"`
 
 	// Name of the class containing main to be inserted into the manifest as Main-Class.
 	Main_class *string
 
 	// Names of modules containing JNI libraries that should be installed alongside the host
 	// variant of the binary.
-	Jni_libs []string
+	Jni_libs []string `android:"arch_variant"`
 }
 
 type Binary struct {
@@ -1075,14 +1079,27 @@ func (j *Binary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		if j.binaryProperties.Wrapper != nil {
 			j.wrapperFile = android.PathForModuleSrc(ctx, *j.binaryProperties.Wrapper)
 		} else {
+			if ctx.Windows() {
+				ctx.PropertyErrorf("wrapper", "wrapper is required for Windows")
+			}
+
 			j.wrapperFile = android.PathForSource(ctx, "build/soong/scripts/jar-wrapper.sh")
+		}
+
+		ext := ""
+		if ctx.Windows() {
+			ext = ".bat"
 		}
 
 		// The host installation rules make the installed wrapper depend on all the dependencies
 		// of the wrapper variant, which will include the common variant's jar file and any JNI
 		// libraries.  This is verified by TestBinary.
 		j.binaryFile = ctx.InstallExecutable(android.PathForModuleInstall(ctx, "bin"),
-			ctx.ModuleName(), j.wrapperFile)
+			ctx.ModuleName()+ext, j.wrapperFile)
+	}
+
+	if ctx.Windows() {
+		j.HideFromMake()
 	}
 }
 
@@ -1281,6 +1298,10 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	if !ctx.Provider(android.ApexInfoProvider).(android.ApexInfo).IsForPlatform() {
 		j.hideApexVariantFromMake = true
+	}
+
+	if ctx.Windows() {
+		j.HideFromMake()
 	}
 
 	jars := android.PathsForModuleSrc(ctx, j.properties.Jars)
