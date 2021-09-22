@@ -45,7 +45,7 @@ func RegisterPythonPreDepsMutators(ctx android.RegisterMutatorsContext) {
 type VersionProperties struct {
 	// whether the module is required to be built with this version.
 	// Defaults to true for Python 3, and false otherwise.
-	Enabled *bool `android:"arch_variant"`
+	Enabled *bool
 
 	// list of source files specific to this Python version.
 	// Using the syntax ":module", srcs may reference the outputs of other modules that produce source files,
@@ -60,7 +60,7 @@ type VersionProperties struct {
 	Libs []string `android:"arch_variant"`
 
 	// whether the binary is required to be built with embedded launcher for this version, defaults to false.
-	Embedded_launcher *bool `android:"arch_variant"` // TODO(b/174041232): Remove this property
+	Embedded_launcher *bool // TODO(b/174041232): Remove this property
 }
 
 // properties that apply to all python modules
@@ -70,10 +70,10 @@ type BaseProperties struct {
 	// eg. Pkg_path = "a/b/c"; Other packages can reference this module by using
 	// (from a.b.c import ...) statement.
 	// if left unspecified, all the source/data files path is unchanged within zip file.
-	Pkg_path *string `android:"arch_variant"`
+	Pkg_path *string
 
 	// true, if the Python module is used internally, eg, Python std libs.
-	Is_internal *bool `android:"arch_variant"`
+	Is_internal *bool
 
 	// list of source (.py) files compatible both with Python2 and Python3 used to compile the
 	// Python module.
