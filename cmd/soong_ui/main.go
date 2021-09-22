@@ -164,7 +164,8 @@ func main() {
 
 	// Create a terminal output that mimics Ninja's.
 	output := terminal.NewStatusOutput(c.stdio().Stdout(), os.Getenv("NINJA_STATUS"), c.simpleOutput,
-		build.OsEnvironment().IsEnvTrue("ANDROID_QUIET_BUILD"))
+		build.OsEnvironment().IsEnvTrue("ANDROID_QUIET_BUILD"),
+		build.OsEnvironment().IsEnvTrue("SOONG_UI_ANSI_OUTPUT"))
 
 	// Attach a new logger instance to the terminal output.
 	log := logger.New(output)
