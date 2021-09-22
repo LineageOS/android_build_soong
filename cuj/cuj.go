@@ -138,6 +138,8 @@ func main() {
 
 	cujDir := filepath.Join(outDir, "cuj_tests")
 
+	wd, _ := os.Getwd()
+	os.Setenv("TOP", wd)
 	// Use a subdirectory for the out directory for the tests to keep them isolated.
 	os.Setenv("OUT_DIR", filepath.Join(cujDir, "out"))
 
