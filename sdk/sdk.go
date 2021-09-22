@@ -111,19 +111,14 @@ func newSdkModule(moduleExports bool) *sdk {
 	s := &sdk{}
 	s.properties.Module_exports = moduleExports
 	// Get the dynamic sdk member type data for the currently registered sdk member types.
-	var typeRegistry *android.SdkMemberTypesRegistry
-	if moduleExports {
-		typeRegistry = android.ModuleExportsMemberTypes
-	} else {
-		typeRegistry = android.SdkMemberTypes
-	}
-	s.dynamicSdkMemberTypes = getDynamicSdkMemberTypes(typeRegistry)
+	sdkMemberTypeKey, sdkMemberTypes := android.RegisteredSdkMemberTypes(moduleExports)
+	s.dynamicSdkMemberTypes = getDynamicSdkMemberTypes(sdkMemberTypeKey, sdkMemberTypes)
 	// Create an instance of the dynamically created struct that contains all the
 	// properties for the member type specific list properties.
 	s.dynamicMemberTypeListProperties = s.dynamicSdkMemberTypes.createMemberTypeListProperties()
 
-	traitRegistry := android.RegisteredSdkMemberTraits
-	s.dynamicSdkMemberTraits = getDynamicSdkMemberTraits(traitRegistry)
+	sdkMemberTraitsKey, sdkMemberTraits := android.RegisteredSdkMemberTraits()
+	s.dynamicSdkMemberTraits = getDynamicSdkMemberTraits(sdkMemberTraitsKey, sdkMemberTraits)
 	// Create an instance of the dynamically created struct that contains all the properties for the
 	// member trait specific list properties.
 	s.dynamicMemberTraitListProperties = s.dynamicSdkMemberTraits.createMemberTraitListProperties()
