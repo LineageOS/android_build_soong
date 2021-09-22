@@ -357,7 +357,8 @@ func (test *testBinary) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 }
 
 func (test *testBinary) install(ctx ModuleContext, file android.Path) {
-	testInstallBase := "/data/local/tests/unrestricted"
+	// TODO: (b/167308193) Switch to /data/local/tests/unrestricted as the default install base.
+	testInstallBase := "/data/local/tmp"
 	if ctx.inVendor() || ctx.useVndk() {
 		testInstallBase = "/data/local/tests/vendor"
 	}
