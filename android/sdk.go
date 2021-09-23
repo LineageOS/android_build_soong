@@ -377,6 +377,82 @@ func (b BpPrintableBase) bpPrintable() {
 
 var _ BpPrintable = BpPrintableBase{}
 
+// sdkRegisterable defines the interface that must be implemented by objects that can be registered
+// in an sdkRegistry.
+type sdkRegisterable interface {
+	// SdkPropertyName returns the name of the corresponding property on an sdk module.
+	SdkPropertyName() string
+}
+
+// sdkRegistry provides support for registering and retrieving objects that define properties for
+// use by sdk and module_exports module types.
+type sdkRegistry struct {
+	// The list of registered objects sorted by property name.
+	list []sdkRegisterable
+}
+
+// copyAndAppend creates a new sdkRegistry that includes all the traits registered in
+// this registry plus the supplied trait.
+func (r *sdkRegistry) copyAndAppend(registerable sdkRegisterable) *sdkRegistry {
+	oldList := r.list
+
+	// Make sure that list does not already contain the property. Uses a simple linear search instead
+	// of a binary search even though the list is sorted. That is because the number of items in the
+	// list is small and so not worth the overhead of a binary search.
+	found := false
+	newPropertyName := registerable.SdkPropertyName()
+	for _, r := range oldList {
+		if r.SdkPropertyName() == newPropertyName {
+			found = true
+			break
+		}
+	}
+	if found {
+		names := []string{}
+		for _, r := range oldList {
+			names = append(names, r.SdkPropertyName())
+		}
+		panic(fmt.Errorf("duplicate properties found, %q already exists in %q", newPropertyName, names))
+	}
+
+	// Copy the slice just in case this is being read while being modified, e.g. when testing.
+	list := make([]sdkRegisterable, 0, len(oldList)+1)
+	list = append(list, oldList...)
+	list = append(list, registerable)
+
+	// Sort the registered objects by their property name to ensure that registry order has no effect
+	// on behavior.
+	sort.Slice(list, func(i1, i2 int) bool {
+		t1 := list[i1]
+		t2 := list[i2]
+
+		return t1.SdkPropertyName() < t2.SdkPropertyName()
+	})
+
+	// Create a new registry so the pointer uniquely identifies the set of registered types.
+	return &sdkRegistry{
+		list: list,
+	}
+}
+
+// registeredObjects returns the list of registered instances.
+func (r *sdkRegistry) registeredObjects() []sdkRegisterable {
+	return r.list
+}
+
+// uniqueOnceKey returns a key that uniquely identifies this instance and can be used with
+// OncePer.Once
+func (r *sdkRegistry) uniqueOnceKey() OnceKey {
+	// Use the pointer to the registry as the unique key. The pointer is used because it is guaranteed
+	// to uniquely identify the contained list. The list itself cannot be used as slices are not
+	// comparable. Using the pointer does mean that two separate registries with identical lists would
+	// have different keys and so cause whatever information is cached to be created multiple times.
+	// However, that is not an issue in practice as it should not occur outside tests. Constructing a
+	// string representation of the list to use instead would avoid that but is an unnecessary
+	// complication that provides no significant benefit.
+	return NewCustomOnceKey(r)
+}
+
 // SdkMemberTrait represents a trait that members of an sdk module can contribute to the sdk
 // snapshot.
 //
@@ -416,6 +492,8 @@ type SdkMemberTrait interface {
 	// SdkPropertyName returns the name of the traits property on an sdk module.
 	SdkPropertyName() string
 }
+
+var _ sdkRegisterable = (SdkMemberTrait)(nil)
 
 // SdkMemberTraitBase is the base struct that must be embedded within any type that implements
 // SdkMemberTrait.
@@ -496,56 +574,19 @@ func (s sdkMemberTraitSet) String() string {
 	return fmt.Sprintf("[%s]", strings.Join(list, ","))
 }
 
-// SdkMemberTraitsRegistry is a registry of SdkMemberTrait instances.
-type SdkMemberTraitsRegistry struct {
-	// The list of traits sorted by property name.
-	list []SdkMemberTrait
-}
-
-// copyAndAppend creates a new SdkMemberTraitsRegistry that includes all the traits registered in
-// this registry plus the supplied trait.
-func (r *SdkMemberTraitsRegistry) copyAndAppend(trait SdkMemberTrait) *SdkMemberTraitsRegistry {
-	oldList := r.list
-
-	// Copy the slice just in case this is being read while being modified, e.g. when testing.
-	list := make([]SdkMemberTrait, 0, len(oldList)+1)
-	list = append(list, oldList...)
-	list = append(list, trait)
-
-	// Sort the member types by their property name to ensure that registry order has no effect
-	// on behavior.
-	sort.Slice(list, func(i1, i2 int) bool {
-		t1 := list[i1]
-		t2 := list[i2]
-
-		return t1.SdkPropertyName() < t2.SdkPropertyName()
-	})
-
-	// Create a new registry so the pointer uniquely identifies the set of registered types.
-	return &SdkMemberTraitsRegistry{
-		list: list,
-	}
-}
-
-// RegisteredTraits returns the list of registered SdkMemberTrait instances.
-func (r *SdkMemberTraitsRegistry) RegisteredTraits() []SdkMemberTrait {
-	return r.list
-}
-
-// UniqueOnceKey returns a key to use with Config.Once that uniquely identifies this instance.
-func (r *SdkMemberTraitsRegistry) UniqueOnceKey() OnceKey {
-	// Use the pointer to the registry as the unique key.
-	return NewCustomOnceKey(r)
-}
-
-var registeredSdkMemberTraits = &SdkMemberTraitsRegistry{}
+var registeredSdkMemberTraits = &sdkRegistry{}
 
 // RegisteredSdkMemberTraits returns a OnceKey and a sorted list of registered traits.
 //
 // The key uniquely identifies the array of traits and can be used with OncePer.Once() to cache
 // information derived from the array of traits.
 func RegisteredSdkMemberTraits() (OnceKey, []SdkMemberTrait) {
-	return registeredSdkMemberTraits.UniqueOnceKey(), registeredSdkMemberTraits.RegisteredTraits()
+	registerables := registeredSdkMemberTraits.registeredObjects()
+	traits := make([]SdkMemberTrait, len(registerables))
+	for i, registerable := range registerables {
+		traits[i] = registerable.(SdkMemberTrait)
+	}
+	return registeredSdkMemberTraits.uniqueOnceKey(), traits
 }
 
 // RegisterSdkMemberTrait registers an SdkMemberTrait object to allow them to be used in the
@@ -724,6 +765,8 @@ type SdkMemberType interface {
 	SupportedTraits() SdkMemberTraitSet
 }
 
+var _ sdkRegisterable = (SdkMemberType)(nil)
+
 // SdkDependencyContext provides access to information needed by the SdkMemberType.AddDependencies()
 // implementations.
 type SdkDependencyContext interface {
@@ -783,50 +826,12 @@ func (b *SdkMemberTypeBase) SupportedTraits() SdkMemberTraitSet {
 	return NewSdkMemberTraitSet(b.Traits)
 }
 
-// SdkMemberTypesRegistry encapsulates the information about registered SdkMemberTypes.
-type SdkMemberTypesRegistry struct {
-	// The list of types sorted by property name.
-	list []SdkMemberType
-}
-
-func (r *SdkMemberTypesRegistry) copyAndAppend(memberType SdkMemberType) *SdkMemberTypesRegistry {
-	oldList := r.list
-
-	// Copy the slice just in case this is being read while being modified, e.g. when testing.
-	list := make([]SdkMemberType, 0, len(oldList)+1)
-	list = append(list, oldList...)
-	list = append(list, memberType)
-
-	// Sort the member types by their property name to ensure that registry order has no effect
-	// on behavior.
-	sort.Slice(list, func(i1, i2 int) bool {
-		t1 := list[i1]
-		t2 := list[i2]
-
-		return t1.SdkPropertyName() < t2.SdkPropertyName()
-	})
-
-	// Create a new registry so the pointer uniquely identifies the set of registered types.
-	return &SdkMemberTypesRegistry{
-		list: list,
-	}
-}
-
-func (r *SdkMemberTypesRegistry) RegisteredTypes() []SdkMemberType {
-	return r.list
-}
-
-func (r *SdkMemberTypesRegistry) UniqueOnceKey() OnceKey {
-	// Use the pointer to the registry as the unique key.
-	return NewCustomOnceKey(r)
-}
-
 // registeredModuleExportsMemberTypes is the set of registered SdkMemberTypes for module_exports
 // modules.
-var registeredModuleExportsMemberTypes = &SdkMemberTypesRegistry{}
+var registeredModuleExportsMemberTypes = &sdkRegistry{}
 
-// registeredSdkMemberTypes is the set of registered SdkMemberTypes for sdk modules.
-var registeredSdkMemberTypes = &SdkMemberTypesRegistry{}
+// registeredSdkMemberTypes is the set of registered registeredSdkMemberTypes for sdk modules.
+var registeredSdkMemberTypes = &sdkRegistry{}
 
 // RegisteredSdkMemberTypes returns a OnceKey and a sorted list of registered types.
 //
@@ -838,14 +843,19 @@ var registeredSdkMemberTypes = &SdkMemberTypesRegistry{}
 // The key uniquely identifies the array of types and can be used with OncePer.Once() to cache
 // information derived from the array of types.
 func RegisteredSdkMemberTypes(moduleExports bool) (OnceKey, []SdkMemberType) {
-	var registry *SdkMemberTypesRegistry
+	var registry *sdkRegistry
 	if moduleExports {
 		registry = registeredModuleExportsMemberTypes
 	} else {
 		registry = registeredSdkMemberTypes
 	}
 
-	return registry.UniqueOnceKey(), registry.RegisteredTypes()
+	registerables := registry.registeredObjects()
+	types := make([]SdkMemberType, len(registerables))
+	for i, registerable := range registerables {
+		types[i] = registerable.(SdkMemberType)
+	}
+	return registry.uniqueOnceKey(), types
 }
 
 // RegisterSdkMemberType registers an SdkMemberType object to allow them to be used in the
