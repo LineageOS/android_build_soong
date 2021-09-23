@@ -48,7 +48,7 @@ type TestResults struct {
 
 // Run runs a single build command.  It emulates the "m" command line by calling into Soong UI directly.
 func (t *Test) Run(logsDir string) {
-	output := terminal.NewStatusOutput(os.Stdout, "", false, false)
+	output := terminal.NewStatusOutput(os.Stdout, "", false, false, false)
 
 	log := logger.New(output)
 	defer log.Cleanup()
@@ -138,6 +138,8 @@ func main() {
 
 	cujDir := filepath.Join(outDir, "cuj_tests")
 
+	wd, _ := os.Getwd()
+	os.Setenv("TOP", wd)
 	// Use a subdirectory for the out directory for the tests to keep them isolated.
 	os.Setenv("OUT_DIR", filepath.Join(cujDir, "out"))
 

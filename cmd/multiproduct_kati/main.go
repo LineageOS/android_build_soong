@@ -218,10 +218,16 @@ func distDir(outDir string) string {
 	}
 }
 
+func forceAnsiOutput() bool {
+	value := os.Getenv("SOONG_UI_ANSI_OUTPUT")
+	return value == "1" || value == "y" || value == "yes" || value == "on" || value == "true"
+}
+
 func main() {
 	stdio := terminal.StdioImpl{}
 
-	output := terminal.NewStatusOutput(stdio.Stdout(), "", false, false)
+	output := terminal.NewStatusOutput(stdio.Stdout(), "", false, false,
+		forceAnsiOutput())
 	log := logger.New(output)
 	defer log.Cleanup()
 
