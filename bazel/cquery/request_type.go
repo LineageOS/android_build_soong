@@ -111,14 +111,20 @@ staticLibraries = []
 rootStaticArchives = []
 linker_inputs = cc_info.linking_context.linker_inputs.to_list()
 
-for linker_input in linker_inputs:
-  for library in linker_input.libraries:
-    for object in library.objects:
-      ccObjectFiles += [object.path]
-    if library.static_library:
-      staticLibraries.append(library.static_library.path)
-      if linker_input.owner == target.label:
-        rootStaticArchives.append(library.static_library.path)
+static_info_tag = "//build/bazel/rules:cc_library_static.bzl%CcStaticLibraryInfo"
+if static_info_tag in providers(target):
+  static_info = providers(target)[static_info_tag]
+  ccObjectFiles = [f.path for f in static_info.objects]
+  rootStaticArchives = [static_info.root_static_archive.path]
+else:
+  for linker_input in linker_inputs:
+    for library in linker_input.libraries:
+      for object in library.objects:
+        ccObjectFiles += [object.path]
+      if library.static_library:
+        staticLibraries.append(library.static_library.path)
+        if linker_input.owner == target.label:
+          rootStaticArchives.append(library.static_library.path)
 
 rootDynamicLibraries = []
 
@@ -141,9 +147,10 @@ returns = [
   system_includes,
   rootStaticArchives,
   rootDynamicLibraries,
+  [toc_file]
 ]
 
-return "|".join([", ".join(r) for r in returns] + [toc_file])`
+return "|".join([", ".join(r) for r in returns])`
 }
 
 // ParseResult returns a value obtained by parsing the result of the request's Starlark function.
