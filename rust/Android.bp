@@ -50,6 +50,7 @@ bootstrap_go_package {
         "fuzz_test.go",
         "image_test.go",
         "library_test.go",
+        "proc_macro_test.go",
         "project_json_test.go",
         "protobuf_test.go",
         "rust_test.go",
