@@ -32,7 +32,7 @@ type sdkMemberTraitListProperty struct {
 }
 
 // Cache of dynamically generated dynamicSdkMemberTraits objects. The key is the pointer
-// to a slice of SdkMemberTrait instances held in android.RegisteredSdkMemberTraits.
+// to a slice of SdkMemberTrait instances returned by android.RegisteredSdkMemberTraits().
 var dynamicSdkMemberTraitsMap android.OncePer
 
 // A dynamically generated set of member list properties and associated structure type.
@@ -41,7 +41,7 @@ var dynamicSdkMemberTraitsMap android.OncePer
 type dynamicSdkMemberTraits struct {
 	// The dynamically generated structure type.
 	//
-	// Contains one []string exported field for each android.RegisteredSdkMemberTraits. The name of
+	// Contains one []string exported field for each SdkMemberTrait returned by android.RegisteredSdkMemberTraits(). The name of
 	// the field is the exported form of the value returned by SdkMemberTrait.SdkPropertyName().
 	propertiesStructType reflect.Type
 
@@ -53,14 +53,7 @@ func (d *dynamicSdkMemberTraits) createMemberTraitListProperties() interface{} {
 	return reflect.New(d.propertiesStructType).Interface()
 }
 
-func getDynamicSdkMemberTraits(registry *android.SdkMemberTraitsRegistry) *dynamicSdkMemberTraits {
-
-	// Get a key that uniquely identifies the registry contents.
-	key := registry.UniqueOnceKey()
-
-	// Get the registered traits.
-	registeredTraits := registry.RegisteredTraits()
-
+func getDynamicSdkMemberTraits(key android.OnceKey, registeredTraits []android.SdkMemberTrait) *dynamicSdkMemberTraits {
 	// Get the cached value, creating new instance if necessary.
 	return dynamicSdkMemberTraitsMap.Once(key, func() interface{} {
 		return createDynamicSdkMemberTraits(registeredTraits)
