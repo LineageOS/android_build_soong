@@ -261,10 +261,18 @@ func dexpreoptCommand(ctx android.PathContext, globalSoong *GlobalSoongConfig, g
 			clcTarget = append(clcTarget, GetSystemServerDexLocation(global, lib))
 		}
 
-		// Copy the system server jar to a predefined location where dex2oat will find it.
-		dexPathHost := SystemServerDexJarHostPath(ctx, module.Name)
-		rule.Command().Text("mkdir -p").Flag(filepath.Dir(dexPathHost.String()))
-		rule.Command().Text("cp -f").Input(module.DexPath).Output(dexPathHost)
+		if DexpreoptRunningInSoong {
+			// Copy the system server jar to a predefined location where dex2oat will find it.
+			dexPathHost := SystemServerDexJarHostPath(ctx, module.Name)
+			rule.Command().Text("mkdir -p").Flag(filepath.Dir(dexPathHost.String()))
+			rule.Command().Text("cp -f").Input(module.DexPath).Output(dexPathHost)
+		} else {
+			// For Make modules the copy rule is generated in the makefiles, not in dexpreopt.sh.
+			// This is necessary to expose the rule to Ninja, otherwise it has rules that depend on
+			// the jar (namely, dexpreopt commands for all subsequent system server jars that have
+			// this one in their class loader context), but no rule that creates it (because Ninja
+			// cannot see the rule in the generated dexpreopt.sh script).
+		}
 
 		checkSystemServerOrder(ctx, jarIndex)
 
