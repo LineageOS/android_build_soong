@@ -538,12 +538,20 @@ func (r *SdkMemberTraitsRegistry) UniqueOnceKey() OnceKey {
 	return NewCustomOnceKey(r)
 }
 
-var RegisteredSdkMemberTraits = &SdkMemberTraitsRegistry{}
+var registeredSdkMemberTraits = &SdkMemberTraitsRegistry{}
+
+// RegisteredSdkMemberTraits returns a OnceKey and a sorted list of registered traits.
+//
+// The key uniquely identifies the array of traits and can be used with OncePer.Once() to cache
+// information derived from the array of traits.
+func RegisteredSdkMemberTraits() (OnceKey, []SdkMemberTrait) {
+	return registeredSdkMemberTraits.UniqueOnceKey(), registeredSdkMemberTraits.RegisteredTraits()
+}
 
 // RegisterSdkMemberTrait registers an SdkMemberTrait object to allow them to be used in the
 // module_exports, module_exports_snapshot, sdk and sdk_snapshot module types.
 func RegisterSdkMemberTrait(trait SdkMemberTrait) {
-	RegisteredSdkMemberTraits = RegisteredSdkMemberTraits.copyAndAppend(trait)
+	registeredSdkMemberTraits = registeredSdkMemberTraits.copyAndAppend(trait)
 }
 
 // SdkMember is an individual member of the SDK.
@@ -813,22 +821,43 @@ func (r *SdkMemberTypesRegistry) UniqueOnceKey() OnceKey {
 	return NewCustomOnceKey(r)
 }
 
-// ModuleExportsMemberTypes is the set of registered SdkMemberTypes for module_exports modules.
-var ModuleExportsMemberTypes = &SdkMemberTypesRegistry{}
+// registeredModuleExportsMemberTypes is the set of registered SdkMemberTypes for module_exports
+// modules.
+var registeredModuleExportsMemberTypes = &SdkMemberTypesRegistry{}
 
-// SdkMemberTypes is the set of registered SdkMemberTypes for sdk modules.
-var SdkMemberTypes = &SdkMemberTypesRegistry{}
+// registeredSdkMemberTypes is the set of registered SdkMemberTypes for sdk modules.
+var registeredSdkMemberTypes = &SdkMemberTypesRegistry{}
+
+// RegisteredSdkMemberTypes returns a OnceKey and a sorted list of registered types.
+//
+// If moduleExports is true then the slice of types includes all registered types that can be used
+// with the module_exports and module_exports_snapshot module types. Otherwise, the slice of types
+// only includes those registered types that can be used with the sdk and sdk_snapshot module
+// types.
+//
+// The key uniquely identifies the array of types and can be used with OncePer.Once() to cache
+// information derived from the array of types.
+func RegisteredSdkMemberTypes(moduleExports bool) (OnceKey, []SdkMemberType) {
+	var registry *SdkMemberTypesRegistry
+	if moduleExports {
+		registry = registeredModuleExportsMemberTypes
+	} else {
+		registry = registeredSdkMemberTypes
+	}
+
+	return registry.UniqueOnceKey(), registry.RegisteredTypes()
+}
 
 // RegisterSdkMemberType registers an SdkMemberType object to allow them to be used in the
 // module_exports, module_exports_snapshot and (depending on the value returned from
 // SdkMemberType.UsableWithSdkAndSdkSnapshot) the sdk and sdk_snapshot module types.
 func RegisterSdkMemberType(memberType SdkMemberType) {
 	// All member types are usable with module_exports.
-	ModuleExportsMemberTypes = ModuleExportsMemberTypes.copyAndAppend(memberType)
+	registeredModuleExportsMemberTypes = registeredModuleExportsMemberTypes.copyAndAppend(memberType)
 
 	// Only those that explicitly indicate it are usable with sdk.
 	if memberType.UsableWithSdkAndSdkSnapshot() {
-		SdkMemberTypes = SdkMemberTypes.copyAndAppend(memberType)
+		registeredSdkMemberTypes = registeredSdkMemberTypes.copyAndAppend(memberType)
 	}
 }
 
