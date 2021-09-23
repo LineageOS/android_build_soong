@@ -809,7 +809,16 @@ func (c *bazelSingleton) GenerateBuildActions(ctx SingletonContext) {
 		cmd := rule.Command()
 
 		// cd into Bazel's execution root, which is the action cwd.
-		cmd.Text(fmt.Sprintf("cd %s/execroot/__main__ && ", ctx.Config().BazelContext.OutputBase()))
+		cmd.Text(fmt.Sprintf("cd %s/execroot/__main__ &&", ctx.Config().BazelContext.OutputBase()))
+
+		// Remove old outputs, as some actions might not rerun if the outputs are detected.
+		if len(buildStatement.OutputPaths) > 0 {
+			cmd.Text("rm -f")
+			for _, outputPath := range buildStatement.OutputPaths {
+				cmd.Text(PathForBazelOut(ctx, outputPath).String())
+			}
+			cmd.Text("&&")
+		}
 
 		for _, pair := range buildStatement.Env {
 			// Set per-action env variables, if any.
