@@ -300,6 +300,7 @@ func gatherRequiredDepsForTest() string {
 		"kotlin-stdlib-jdk7",
 		"kotlin-stdlib-jdk8",
 		"kotlin-annotations",
+		"stub-annotations",
 	}
 
 	for _, extra := range extraModules {
