@@ -116,6 +116,8 @@ type variableProperties struct {
 			Shared_libs       []string
 
 			Cmdline []string
+			Srcs         []string
+			Exclude_srcs []string
 		}
 
 		// eng is true for -eng builds, and can be used to turn on additionaly heavyweight debugging
