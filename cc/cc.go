@@ -1711,7 +1711,9 @@ func (c *Module) setSubnameProperty(actx android.ModuleContext) {
 func (c *Module) maybeGenerateBazelActions(actx android.ModuleContext) bool {
 	bazelModuleLabel := c.GetBazelLabel(actx, c)
 	bazelActionsUsed := false
-	if c.MixedBuildsEnabled(actx) && c.bazelHandler != nil {
+	// Mixed builds mode is disabled for modules outside of device OS.
+	// TODO(b/200841190): Support non-device OS in mixed builds.
+	if c.MixedBuildsEnabled(actx) && c.bazelHandler != nil && actx.Os().Class == android.Device {
 		bazelActionsUsed = c.bazelHandler.GenerateBazelBuildActions(actx, bazelModuleLabel)
 	}
 	return bazelActionsUsed

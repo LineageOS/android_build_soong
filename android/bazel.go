@@ -272,11 +272,6 @@ var (
 	// still be generated via bp2build.
 	mixedBuildsDisabledList = []string{
 		"libbrotli",                            // http://b/198585397, ld.lld: error: bionic/libc/arch-arm64/generic/bionic/memmove.S:95:(.text+0x10): relocation R_AARCH64_CONDBR19 out of range: -1404176 is not in [-1048576, 1048575]; references __memcpy
-		"libc++fs",                             // http://b/198403271, Missing symbols/members in the global namespace when referenced from headers in //external/libcxx/includes
-		"libc++_experimental",                  // http://b/198403271, Missing symbols/members in the global namespace when referenced from headers in //external/libcxx/includes
-		"libc++_static",                        // http://b/198403271, Missing symbols/members in the global namespace when referenced from headers in //external/libcxx/includes
-		"libc++abi",                            // http://b/195970501, cc_library_static, duplicate symbols because it propagates libc objects.
-		"libc++demangle",                       // http://b/195970501, cc_library_static, duplicate symbols because it propagates libc objects.
 		"func_to_syscall_nrs",                  // http://b/200899432, bazel-built cc_genrule does not work in mixed build when it is a dependency of another soong module.
 		"libseccomp_policy_app_zygote_sources", // http://b/200899432, bazel-built cc_genrule does not work in mixed build when it is a dependency of another soong module.
 		"libseccomp_policy_app_sources",        // http://b/200899432, bazel-built cc_genrule does not work in mixed build when it is a dependency of another soong module.
