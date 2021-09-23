@@ -33,7 +33,7 @@ func RegisterRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("toolchain_library", ToolchainLibraryFactory)
 	ctx.RegisterModuleType("cc_benchmark", BenchmarkFactory)
 	ctx.RegisterModuleType("cc_object", ObjectFactory)
-	ctx.RegisterModuleType("cc_genrule", genRuleFactory)
+	ctx.RegisterModuleType("cc_genrule", GenRuleFactory)
 	ctx.RegisterModuleType("ndk_prebuilt_shared_stl", NdkPrebuiltSharedStlFactory)
 	ctx.RegisterModuleType("ndk_prebuilt_static_stl", NdkPrebuiltStaticStlFactory)
 	ctx.RegisterModuleType("ndk_prebuilt_object", NdkPrebuiltObjectFactory)
