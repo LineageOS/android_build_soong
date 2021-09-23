@@ -22,6 +22,7 @@ blueprint_go_binary {
         "blueprint",
         "blueprint-bootstrap",
         "golang-protobuf-proto",
+        "golang-protobuf-android",
         "soong",
         "soong-android",
         "soong-bp2build",
