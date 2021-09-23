@@ -63,6 +63,7 @@ bootstrap_go_package {
         "library.go",
         "library_headers.go",
         "library_sdk_member.go",
+        "native_bridge_sdk_trait.go",
         "object.go",
         "test.go",
         "toolchain_library.go",
