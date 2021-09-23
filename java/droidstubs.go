@@ -156,6 +156,7 @@ type ApiStubsSrcProvider interface {
 
 // Provider of information about API stubs, used by java_sdk_library.
 type ApiStubsProvider interface {
+	AnnotationsZip() android.Path
 	ApiFilePath
 	RemovedApiFilePath() android.Path
 
@@ -208,6 +209,10 @@ func (d *Droidstubs) OutputFiles(tag string) (android.Paths, error) {
 	default:
 		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
 	}
+}
+
+func (d *Droidstubs) AnnotationsZip() android.Path {
+	return d.annotationsZip
 }
 
 func (d *Droidstubs) ApiFilePath() android.Path {
