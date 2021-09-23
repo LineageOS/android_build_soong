@@ -16,7 +16,6 @@ package java
 
 import (
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"android/soong/android"
@@ -810,40 +809,6 @@ func bootFrameworkProfileRule(ctx android.ModuleContext, image *bootImageConfig)
 	image.profileInstalls = append(image.profileInstalls, rule.Installs()...)
 
 	return profile
-}
-
-// generateUpdatableBcpPackagesRule generates the rule to create the updatable-bcp-packages.txt file
-// and returns a path to the generated file.
-func generateUpdatableBcpPackagesRule(ctx android.ModuleContext, image *bootImageConfig, apexModules []android.Module) android.WritablePath {
-	// Collect `permitted_packages` for updatable boot jars.
-	var updatablePackages []string
-	for _, module := range apexModules {
-		if j, ok := module.(PermittedPackagesForUpdatableBootJars); ok {
-			pp := j.PermittedPackagesForUpdatableBootJars()
-			if len(pp) > 0 {
-				updatablePackages = append(updatablePackages, pp...)
-			} else {
-				ctx.OtherModuleErrorf(module, "Missing permitted_packages")
-			}
-		}
-	}
-
-	// Sort updatable packages to ensure deterministic ordering.
-	sort.Strings(updatablePackages)
-
-	updatableBcpPackagesName := "updatable-bcp-packages.txt"
-	updatableBcpPackages := image.dir.Join(ctx, updatableBcpPackagesName)
-
-	// WriteFileRule automatically adds the last end-of-line.
-	android.WriteFileRule(ctx, updatableBcpPackages, strings.Join(updatablePackages, "\n"))
-
-	rule := android.NewRuleBuilder(pctx, ctx)
-	rule.Install(updatableBcpPackages, "/system/etc/"+updatableBcpPackagesName)
-	// TODO: Rename `profileInstalls` to `extraInstalls`?
-	// Maybe even move the field out of the bootImageConfig into some higher level type?
-	image.profileInstalls = append(image.profileInstalls, rule.Installs()...)
-
-	return updatableBcpPackages
 }
 
 func dumpOatRules(ctx android.ModuleContext, image *bootImageConfig) {

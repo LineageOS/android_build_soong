@@ -539,12 +539,6 @@ sdk_snapshot {
         snapshot/hiddenapi/index.csv
 			`, rule)
 
-			// Make sure that the permitted packages from the prebuilts end up in the
-			// updatable-bcp-packages.txt file.
-			rule = module.Output("updatable-bcp-packages.txt")
-			expectedContents := `'mybootlib\nmyothersdklibrary\n'`
-			android.AssertStringEquals(t, "updatable-bcp-packages.txt", expectedContents, rule.Args["content"])
-
 			rule = module.Output("out/soong/hiddenapi/hiddenapi-flags.csv.valid")
 			android.AssertStringDoesContain(t, "verify-overlaps", rule.RuleParams.Command, " snapshot/hiddenapi/filtered-flags.csv:snapshot/hiddenapi/signature-patterns.csv ")
 		}),
