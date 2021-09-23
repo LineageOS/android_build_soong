@@ -152,7 +152,7 @@ func createJavaDeviceForHostRules() []Rule {
 	javaDeviceForHostProjectsAllowedList := []string{
 		"external/guava",
 		"external/robolectric-shadows",
-		"framework/layoutlib",
+		"frameworks/layoutlib",
 	}
 
 	return []Rule{
