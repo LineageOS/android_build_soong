@@ -430,15 +430,25 @@ func (library *libraryDecorator) sharedLibFilename(ctx ModuleContext) string {
 	return library.getStem(ctx) + ctx.toolchain().SharedLibSuffix()
 }
 
-func (library *libraryDecorator) compilerFlags(ctx ModuleContext, flags Flags) Flags {
-	flags.RustFlags = append(flags.RustFlags, "-C metadata="+ctx.ModuleName())
+func (library *libraryDecorator) cfgFlags(ctx ModuleContext, flags Flags) Flags {
+	flags = library.baseCompiler.cfgFlags(ctx, flags)
 	if library.dylib() {
 		// We need to add a dependency on std in order to link crates as dylibs.
 		// The hack to add this dependency is guarded by the following cfg so
 		// that we don't force a dependency when it isn't needed.
 		library.baseCompiler.Properties.Cfgs = append(library.baseCompiler.Properties.Cfgs, "android_dylib")
 	}
+
+	flags.RustFlags = append(flags.RustFlags, library.baseCompiler.cfgsToFlags()...)
+	flags.RustdocFlags = append(flags.RustdocFlags, library.baseCompiler.cfgsToFlags()...)
+
+	return flags
+}
+
+func (library *libraryDecorator) compilerFlags(ctx ModuleContext, flags Flags) Flags {
 	flags = library.baseCompiler.compilerFlags(ctx, flags)
+
+	flags.RustFlags = append(flags.RustFlags, "-C metadata="+ctx.ModuleName())
 	if library.shared() || library.static() {
 		library.includeDirs = append(library.includeDirs, android.PathsForModuleSrc(ctx, library.Properties.Include_dirs)...)
 	}
