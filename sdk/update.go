@@ -393,10 +393,18 @@ be unnecessary as every module in the sdk already has its own licenses property.
 	members := s.groupMemberVariantsByMemberThenType(ctx, memberVariantDeps)
 
 	// Create the prebuilt modules for each of the member modules.
+	traits := s.gatherTraits()
 	for _, member := range members {
 		memberType := member.memberType
 
-		memberCtx := &memberContext{ctx, builder, memberType, member.name}
+		name := member.name
+		requiredTraits := traits[name]
+		if requiredTraits == nil {
+			requiredTraits = android.EmptySdkMemberTraitSet()
+		}
+
+		// Create the snapshot for the member.
+		memberCtx := &memberContext{ctx, builder, memberType, name, requiredTraits}
 
 		prebuiltModule := memberType.AddPrebuiltModule(memberCtx, member)
 		s.createMemberSnapshot(memberCtx, member, prebuiltModule.(*bpModule))
@@ -1651,6 +1659,9 @@ type memberContext struct {
 	builder          *snapshotBuilder
 	memberType       android.SdkMemberType
 	name             string
+
+	// The set of traits required of this member.
+	requiredTraits android.SdkMemberTraitSet
 }
 
 func (m *memberContext) SdkModuleContext() android.ModuleContext {
@@ -1667,6 +1678,10 @@ func (m *memberContext) MemberType() android.SdkMemberType {
 
 func (m *memberContext) Name() string {
 	return m.name
+}
+
+func (m *memberContext) RequiresTrait(trait android.SdkMemberTrait) bool {
+	return m.requiredTraits.Contains(trait)
 }
 
 func (s *sdk) createMemberSnapshot(ctx *memberContext, member *sdkMember, bpModule *bpModule) {

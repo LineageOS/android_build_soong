@@ -16,6 +16,7 @@ bootstrap_go_package {
     srcs: [
         "bp.go",
         "exports.go",
+        "member_trait.go",
         "member_type.go",
         "sdk.go",
         "update.go",
@@ -28,6 +29,7 @@ bootstrap_go_package {
         "exports_test.go",
         "java_sdk_test.go",
         "license_sdk_test.go",
+        "member_trait_test.go",
         "sdk_test.go",
         "testing.go",
     ],

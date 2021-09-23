@@ -15,6 +15,7 @@
 package android
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 
@@ -376,6 +377,175 @@ func (b BpPrintableBase) bpPrintable() {
 
 var _ BpPrintable = BpPrintableBase{}
 
+// SdkMemberTrait represents a trait that members of an sdk module can contribute to the sdk
+// snapshot.
+//
+// A trait is simply a characteristic of sdk member that is not required by default which may be
+// required for some members but not others. Traits can cause additional information to be output
+// to the sdk snapshot or replace the default information exported for a member with something else.
+// e.g.
+// * By default cc libraries only export the default image variants to the SDK. However, for some
+//   members it may be necessary to export specific image variants, e.g. vendor, or recovery.
+// * By default cc libraries export all the configured architecture variants except for the native
+//   bridge architecture variants. However, for some members it may be necessary to export the
+//   native bridge architecture variants as well.
+// * By default cc libraries export the platform variant (i.e. sdk:). However, for some members it
+//   may be necessary to export the sdk variant (i.e. sdk:sdk).
+//
+// A sdk can request a module to provide no traits, one trait or a collection of traits. The exact
+// behavior of a trait is determined by how SdkMemberType implementations handle the traits. A trait
+// could be specific to one SdkMemberType or many. Some trait combinations could be incompatible.
+//
+// The sdk module type will create a special traits structure that contains a property for each
+// trait registered with RegisterSdkMemberTrait(). The property names are those returned from
+// SdkPropertyName(). Each property contains a list of modules that are required to have that trait.
+// e.g. something like this:
+//
+//   sdk {
+//     name: "sdk",
+//     ...
+//     traits: {
+//       recovery_image: ["module1", "module4", "module5"],
+//       native_bridge: ["module1", "module2"],
+//       native_sdk: ["module1", "module3"],
+//       ...
+//     },
+//     ...
+//   }
+type SdkMemberTrait interface {
+	// SdkPropertyName returns the name of the traits property on an sdk module.
+	SdkPropertyName() string
+}
+
+// SdkMemberTraitBase is the base struct that must be embedded within any type that implements
+// SdkMemberTrait.
+type SdkMemberTraitBase struct {
+	// PropertyName is the name of the property
+	PropertyName string
+}
+
+func (b *SdkMemberTraitBase) SdkPropertyName() string {
+	return b.PropertyName
+}
+
+// SdkMemberTraitSet is a set of SdkMemberTrait instances.
+type SdkMemberTraitSet interface {
+	// Empty returns true if this set is empty.
+	Empty() bool
+
+	// Contains returns true if this set contains the specified trait.
+	Contains(trait SdkMemberTrait) bool
+
+	// Subtract returns a new set containing all elements of this set except for those in the
+	// other set.
+	Subtract(other SdkMemberTraitSet) SdkMemberTraitSet
+
+	// String returns a string representation of the set and its contents.
+	String() string
+}
+
+func NewSdkMemberTraitSet(traits []SdkMemberTrait) SdkMemberTraitSet {
+	if len(traits) == 0 {
+		return EmptySdkMemberTraitSet()
+	}
+
+	m := sdkMemberTraitSet{}
+	for _, trait := range traits {
+		m[trait] = true
+	}
+	return m
+}
+
+func EmptySdkMemberTraitSet() SdkMemberTraitSet {
+	return (sdkMemberTraitSet)(nil)
+}
+
+type sdkMemberTraitSet map[SdkMemberTrait]bool
+
+var _ SdkMemberTraitSet = (sdkMemberTraitSet{})
+
+func (s sdkMemberTraitSet) Empty() bool {
+	return len(s) == 0
+}
+
+func (s sdkMemberTraitSet) Contains(trait SdkMemberTrait) bool {
+	return s[trait]
+}
+
+func (s sdkMemberTraitSet) Subtract(other SdkMemberTraitSet) SdkMemberTraitSet {
+	if other.Empty() {
+		return s
+	}
+
+	var remainder []SdkMemberTrait
+	for trait, _ := range s {
+		if !other.Contains(trait) {
+			remainder = append(remainder, trait)
+		}
+	}
+
+	return NewSdkMemberTraitSet(remainder)
+}
+
+func (s sdkMemberTraitSet) String() string {
+	list := []string{}
+	for trait, _ := range s {
+		list = append(list, trait.SdkPropertyName())
+	}
+	sort.Strings(list)
+	return fmt.Sprintf("[%s]", strings.Join(list, ","))
+}
+
+// SdkMemberTraitsRegistry is a registry of SdkMemberTrait instances.
+type SdkMemberTraitsRegistry struct {
+	// The list of traits sorted by property name.
+	list []SdkMemberTrait
+}
+
+// copyAndAppend creates a new SdkMemberTraitsRegistry that includes all the traits registered in
+// this registry plus the supplied trait.
+func (r *SdkMemberTraitsRegistry) copyAndAppend(trait SdkMemberTrait) *SdkMemberTraitsRegistry {
+	oldList := r.list
+
+	// Copy the slice just in case this is being read while being modified, e.g. when testing.
+	list := make([]SdkMemberTrait, 0, len(oldList)+1)
+	list = append(list, oldList...)
+	list = append(list, trait)
+
+	// Sort the member types by their property name to ensure that registry order has no effect
+	// on behavior.
+	sort.Slice(list, func(i1, i2 int) bool {
+		t1 := list[i1]
+		t2 := list[i2]
+
+		return t1.SdkPropertyName() < t2.SdkPropertyName()
+	})
+
+	// Create a new registry so the pointer uniquely identifies the set of registered types.
+	return &SdkMemberTraitsRegistry{
+		list: list,
+	}
+}
+
+// RegisteredTraits returns the list of registered SdkMemberTrait instances.
+func (r *SdkMemberTraitsRegistry) RegisteredTraits() []SdkMemberTrait {
+	return r.list
+}
+
+// UniqueOnceKey returns a key to use with Config.Once that uniquely identifies this instance.
+func (r *SdkMemberTraitsRegistry) UniqueOnceKey() OnceKey {
+	// Use the pointer to the registry as the unique key.
+	return NewCustomOnceKey(r)
+}
+
+var RegisteredSdkMemberTraits = &SdkMemberTraitsRegistry{}
+
+// RegisterSdkMemberTrait registers an SdkMemberTrait object to allow them to be used in the
+// module_exports, module_exports_snapshot, sdk and sdk_snapshot module types.
+func RegisterSdkMemberTrait(trait SdkMemberTrait) {
+	RegisteredSdkMemberTraits = RegisteredSdkMemberTraits.copyAndAppend(trait)
+}
+
 // SdkMember is an individual member of the SDK.
 //
 // It includes all of the variants that the SDK depends upon.
@@ -541,12 +711,23 @@ type SdkMemberType interface {
 	// CreateVariantPropertiesStruct creates a structure into which variant specific properties can be
 	// added.
 	CreateVariantPropertiesStruct() SdkMemberProperties
+
+	// SupportedTraits returns the set of traits supported by this member type.
+	SupportedTraits() SdkMemberTraitSet
 }
 
 // SdkDependencyContext provides access to information needed by the SdkMemberType.AddDependencies()
 // implementations.
 type SdkDependencyContext interface {
 	BottomUpMutatorContext
+
+	// RequiredTraits returns the set of SdkMemberTrait instances that the sdk requires the named
+	// member to provide.
+	RequiredTraits(name string) SdkMemberTraitSet
+
+	// RequiresTrait returns true if the sdk requires the member with the supplied name to provide the
+	// supplied trait.
+	RequiresTrait(name string, trait SdkMemberTrait) bool
 }
 
 // SdkMemberTypeBase is the base type for SdkMemberType implementations and must be embedded in any
@@ -565,6 +746,9 @@ type SdkMemberTypeBase struct {
 	// module type in its SdkMemberType.AddPrebuiltModule() method. That prevents the sdk snapshot
 	// code from automatically adding a prefer: true flag.
 	UseSourceModuleTypeInSnapshot bool
+
+	// The list of supported traits.
+	Traits []SdkMemberTrait
 }
 
 func (b *SdkMemberTypeBase) SdkPropertyName() string {
@@ -585,6 +769,10 @@ func (b *SdkMemberTypeBase) IsHostOsDependent() bool {
 
 func (b *SdkMemberTypeBase) UsesSourceModuleTypeInSnapshot() bool {
 	return b.UseSourceModuleTypeInSnapshot
+}
+
+func (b *SdkMemberTypeBase) SupportedTraits() SdkMemberTraitSet {
+	return NewSdkMemberTraitSet(b.Traits)
 }
 
 // SdkMemberTypesRegistry encapsulates the information about registered SdkMemberTypes.
@@ -733,6 +921,9 @@ type SdkMemberContext interface {
 	// Provided for use by sdk members to create a member specific location within the snapshot
 	// into which to copy the prebuilt files.
 	Name() string
+
+	// RequiresTrait returns true if this member is expected to provide the specified trait.
+	RequiresTrait(trait SdkMemberTrait) bool
 }
 
 // ExportedComponentsInfo contains information about the components that this module exports to an
