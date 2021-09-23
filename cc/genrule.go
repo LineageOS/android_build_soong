@@ -21,7 +21,7 @@ import (
 )
 
 func init() {
-	android.RegisterModuleType("cc_genrule", genRuleFactory)
+	android.RegisterModuleType("cc_genrule", GenRuleFactory)
 }
 
 type GenruleExtraProperties struct {
@@ -37,7 +37,7 @@ type GenruleExtraProperties struct {
 // cc_genrule is a genrule that can depend on other cc_* objects.
 // The cmd may be run multiple times, once for each of the different arch/etc
 // variations.
-func genRuleFactory() android.Module {
+func GenRuleFactory() android.Module {
 	module := genrule.NewGenRule()
 
 	extra := &GenruleExtraProperties{}
@@ -48,6 +48,7 @@ func genRuleFactory() android.Module {
 	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibBoth)
 
 	android.InitApexModule(module)
+	android.InitBazelModule(module)
 
 	return module
 }
