@@ -436,6 +436,8 @@ type RustLibrary struct {
 type compiler interface {
 	initialize(ctx ModuleContext)
 	compilerFlags(ctx ModuleContext, flags Flags) Flags
+	cfgFlags(ctx ModuleContext, flags Flags) Flags
+	featureFlags(ctx ModuleContext, flags Flags) Flags
 	compilerProps() []interface{}
 	compile(ctx ModuleContext, flags Flags, deps PathDeps) android.Path
 	compilerDeps(ctx DepsContext, deps Deps) Deps
@@ -847,8 +849,11 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		Toolchain: toolchain,
 	}
 
+	// Calculate rustc flags
 	if mod.compiler != nil {
 		flags = mod.compiler.compilerFlags(ctx, flags)
+		flags = mod.compiler.cfgFlags(ctx, flags)
+		flags = mod.compiler.featureFlags(ctx, flags)
 	}
 	if mod.coverage != nil {
 		flags, deps = mod.coverage.flags(ctx, flags, deps)
