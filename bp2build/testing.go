@@ -20,6 +20,7 @@ specific-but-shared functionality among tests in package
 */
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -357,4 +358,12 @@ func registerCustomModuleForBp2buildConversion(ctx *android.TestContext) {
 	ctx.RegisterModuleType("custom", customModuleFactory)
 	ctx.RegisterBp2BuildMutator("custom", customBp2BuildMutator)
 	ctx.RegisterForBazelConversion()
+}
+
+func simpleModuleDoNotConvertBp2build(typ, name string) string {
+	return fmt.Sprintf(`
+%s {
+		name: "%s",
+		bazel_module: { bp2build_available: false },
+}`, typ, name)
 }

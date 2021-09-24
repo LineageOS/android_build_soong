@@ -224,7 +224,10 @@ cc_library_headers {
 cc_library_headers {
     name: "foo_headers",
     target: {
-        android: { header_libs: ["android-lib"], export_header_lib_headers: ["exported-lib"] },
+        android: {
+            header_libs: ["android-lib", "exported-lib"],
+            export_header_lib_headers: ["exported-lib"]
+        },
     },
     include_build_directory: false,
 }`,
