@@ -276,6 +276,87 @@ func (e *embeddableInModuleAndImport) depIsInSameApex(ctx android.BaseModuleCont
 	return false
 }
 
+// OptionalDexJarPath can be either unset, hold a valid path to a dex jar file,
+// or an invalid path describing the reason it is invalid.
+//
+// It is unset if a dex jar isn't applicable, i.e. no build rule has been
+// requested to create one.
+//
+// If a dex jar has been requested to be built then it is set, and it may be
+// either a valid android.Path, or invalid with a reason message. The latter
+// happens if the source that should produce the dex file isn't able to.
+//
+// E.g. it is invalid with a reason message if there is a prebuilt APEX that
+// could produce the dex jar through a deapexer module, but the APEX isn't
+// installable so doing so wouldn't be safe.
+type OptionalDexJarPath struct {
+	isSet bool
+	path  android.OptionalPath
+}
+
+// IsSet returns true if a path has been set, either invalid or valid.
+func (o OptionalDexJarPath) IsSet() bool {
+	return o.isSet
+}
+
+// Valid returns true if there is a path that is valid.
+func (o OptionalDexJarPath) Valid() bool {
+	return o.isSet && o.path.Valid()
+}
+
+// Path returns the valid path, or panics if it's either not set or is invalid.
+func (o OptionalDexJarPath) Path() android.Path {
+	if !o.isSet {
+		panic("path isn't set")
+	}
+	return o.path.Path()
+}
+
+// PathOrNil returns the path if it's set and valid, or else nil.
+func (o OptionalDexJarPath) PathOrNil() android.Path {
+	if o.Valid() {
+		return o.Path()
+	}
+	return nil
+}
+
+// InvalidReason returns the reason for an invalid path, which is never "". It
+// returns "" for an unset or valid path.
+func (o OptionalDexJarPath) InvalidReason() string {
+	if !o.isSet {
+		return ""
+	}
+	return o.path.InvalidReason()
+}
+
+func (o OptionalDexJarPath) String() string {
+	if !o.isSet {
+		return "<unset>"
+	}
+	return o.path.String()
+}
+
+// makeUnsetDexJarPath returns an unset OptionalDexJarPath.
+func makeUnsetDexJarPath() OptionalDexJarPath {
+	return OptionalDexJarPath{isSet: false}
+}
+
+// makeDexJarPathFromOptionalPath returns an OptionalDexJarPath that is set with
+// the given OptionalPath, which may be valid or invalid.
+func makeDexJarPathFromOptionalPath(path android.OptionalPath) OptionalDexJarPath {
+	return OptionalDexJarPath{isSet: true, path: path}
+}
+
+// makeDexJarPathFromPath returns an OptionalDexJarPath that is set with the
+// valid given path. It returns an unset OptionalDexJarPath if the given path is
+// nil.
+func makeDexJarPathFromPath(path android.Path) OptionalDexJarPath {
+	if path == nil {
+		return makeUnsetDexJarPath()
+	}
+	return makeDexJarPathFromOptionalPath(android.OptionalPathForPath(path))
+}
+
 // Module contains the properties and members used by all java module types
 type Module struct {
 	android.ModuleBase
@@ -310,7 +391,7 @@ type Module struct {
 	implementationAndResourcesJar android.Path
 
 	// output file containing classes.dex and resources
-	dexJarFile android.Path
+	dexJarFile OptionalDexJarPath
 
 	// output file containing uninstrumented classes that will be instrumented by jacoco
 	jacocoReportClassesFile android.Path
@@ -1265,12 +1346,13 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 			}
 
 			// Initialize the hiddenapi structure.
-			j.initHiddenAPI(ctx, dexOutputFile, j.implementationJarFile, j.dexProperties.Uncompress_dex)
+
+			j.initHiddenAPI(ctx, makeDexJarPathFromPath(dexOutputFile), j.implementationJarFile, j.dexProperties.Uncompress_dex)
 
 			// Encode hidden API flags in dex file, if needed.
 			dexOutputFile = j.hiddenAPIEncodeDex(ctx, dexOutputFile)
 
-			j.dexJarFile = dexOutputFile
+			j.dexJarFile = makeDexJarPathFromPath(dexOutputFile)
 
 			// Dexpreopting
 			j.dexpreopt(ctx, dexOutputFile)
@@ -1280,7 +1362,7 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 			// There is no code to compile into a dex jar, make sure the resources are propagated
 			// to the APK if this is an app.
 			outputFile = implementationAndResourcesJar
-			j.dexJarFile = j.resourceJar
+			j.dexJarFile = makeDexJarPathFromPath(j.resourceJar)
 		}
 
 		if ctx.Failed() {
@@ -1470,7 +1552,7 @@ func (j *Module) ImplementationJars() android.Paths {
 	return android.Paths{j.implementationJarFile}
 }
 
-func (j *Module) DexJarBuildPath() android.Path {
+func (j *Module) DexJarBuildPath() OptionalDexJarPath {
 	return j.dexJarFile
 }
 
