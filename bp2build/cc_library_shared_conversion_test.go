@@ -149,10 +149,6 @@ cc_library_shared {
         "-Dflag1",
         "-Dflag2",
     ],
-    dynamic_deps = [
-        ":shared_lib_1",
-        ":shared_lib_2",
-    ],
     export_includes = [
         "export_include_dir_1",
         "export_include_dir_2",
@@ -160,6 +156,10 @@ cc_library_shared {
     implementation_deps = [
         ":header_lib_1",
         ":header_lib_2",
+    ],
+    implementation_dynamic_deps = [
+        ":shared_lib_1",
+        ":shared_lib_2",
     ],
     local_includes = [
         "local_include_dir_1",
@@ -201,7 +201,7 @@ cc_library_shared {
 }`,
 		expectedBazelTargets: []string{`cc_library_shared(
     name = "foo_shared",
-    dynamic_deps = select({
+    implementation_dynamic_deps = select({
         "//build/bazel/platforms/arch:arm64": [":shared_dep"],
         "//conditions:default": [],
     }),
@@ -232,7 +232,7 @@ cc_library_shared {
 }`,
 		expectedBazelTargets: []string{`cc_library_shared(
     name = "foo_shared",
-    dynamic_deps = select({
+    implementation_dynamic_deps = select({
         "//build/bazel/platforms/os:android": [":shared_dep"],
         "//conditions:default": [],
     }),
@@ -269,7 +269,7 @@ cc_library_shared {
 }`,
 		expectedBazelTargets: []string{`cc_library_shared(
     name = "foo_shared",
-    dynamic_deps = [":shared_dep"] + select({
+    implementation_dynamic_deps = [":shared_dep"] + select({
         "//build/bazel/platforms/arch:arm64": [":shared_dep3"],
         "//conditions:default": [],
     }) + select({

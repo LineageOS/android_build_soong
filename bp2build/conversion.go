@@ -142,7 +142,7 @@ func shouldGenerateAttribute(prop string) bool {
 }
 
 func shouldSkipStructField(field reflect.StructField) bool {
-	if field.PkgPath != "" {
+	if field.PkgPath != "" && !field.Anonymous {
 		// Skip unexported fields. Some properties are
 		// internal to Soong only, and these fields do not have PkgPath.
 		return true
