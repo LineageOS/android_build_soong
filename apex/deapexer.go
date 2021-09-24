@@ -15,6 +15,8 @@
 package apex
 
 import (
+	"strings"
+
 	"android/soong/android"
 )
 
@@ -75,6 +77,17 @@ type Deapexer struct {
 	inputApex android.Path
 }
 
+// Returns the name of the deapexer module corresponding to an APEX module with the given name.
+func deapexerModuleName(apexModuleName string) string {
+	return apexModuleName + ".deapexer"
+}
+
+// Returns the name of the APEX module corresponding to an deapexer module with
+// the given name. This reverses deapexerModuleName.
+func apexModuleName(deapexerModuleName string) string {
+	return strings.TrimSuffix(deapexerModuleName, ".deapexer")
+}
+
 func privateDeapexerFactory() android.Module {
 	module := &Deapexer{}
 	module.AddProperties(&module.properties, &module.selectedApexProperties)
@@ -113,7 +126,8 @@ func (p *Deapexer) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// apex relative path to extracted file path available for other modules.
 	if len(exports) > 0 {
 		// Make the information available for other modules.
-		ctx.SetProvider(android.DeapexerProvider, android.NewDeapexerInfo(exports))
+		di := android.NewDeapexerInfo(apexModuleName(ctx.ModuleName()), exports)
+		ctx.SetProvider(android.DeapexerProvider, di)
 
 		// Create a sorted list of the files that this exports.
 		exportedPaths = android.SortedUniquePaths(exportedPaths)
@@ -131,6 +145,6 @@ func (p *Deapexer) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		for _, p := range exportedPaths {
 			command.Output(p.(android.WritablePath))
 		}
-		builder.Build("deapexer", "deapex "+ctx.ModuleName())
+		builder.Build("deapexer", "deapex "+apexModuleName(ctx.ModuleName()))
 	}
 }
