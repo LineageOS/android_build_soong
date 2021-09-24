@@ -212,7 +212,13 @@ func (r *robolectricTest) GenerateAndroidBuildActions(ctx android.ModuleContext)
 		installDeps = append(installDeps, installedData)
 	}
 
-	ctx.InstallFile(installPath, ctx.ModuleName()+".jar", r.combinedJar, installDeps...)
+	installed := ctx.InstallFile(installPath, ctx.ModuleName()+".jar", r.combinedJar, installDeps...)
+
+	if r.ExportedToMake() {
+		// Soong handles installation here, but Make is usually what creates the phony rule that atest
+		// uses to build the module.  Create it here for now.
+		ctx.Phony(ctx.ModuleName(), installed)
+	}
 }
 
 func generateRoboTestConfig(ctx android.ModuleContext, outputFile android.WritablePath,
