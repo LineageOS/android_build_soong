@@ -115,6 +115,9 @@ type TestBinaryProperties struct {
 	// Add parameterized mainline modules to auto generated test config. The options will be
 	// handled by TradeFed to download and install the specified modules on the device.
 	Test_mainline_modules []string
+
+	// Install the test into a folder named for the module in all test suites.
+	Per_testcase_directory *bool
 }
 
 func init() {
