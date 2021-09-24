@@ -16,7 +16,10 @@ package bazel
 
 import (
 	"reflect"
+	"strings"
 	"testing"
+
+	"github.com/google/blueprint/proptools"
 )
 
 func TestUniqueBazelLabels(t *testing.T) {
@@ -291,6 +294,222 @@ func TestResolveExcludes(t *testing.T) {
 				t.Errorf("Got unexpected config %q for %s", config, axis)
 			}
 		}
+	}
+}
+
+// labelAddSuffixForTypeMapper returns a LabelMapper that adds suffix to label name for modules of
+// typ
+func labelAddSuffixForTypeMapper(suffix, typ string) LabelMapper {
+	return func(omc OtherModuleContext, label string) (string, bool) {
+		m, ok := omc.ModuleFromName(label)
+		if !ok {
+			return label, false
+		}
+		mTyp := omc.OtherModuleType(m)
+		if typ == mTyp {
+			return label + suffix, true
+		}
+		return label, false
+	}
+}
+
+func TestPartitionLabelListAttribute(t *testing.T) {
+	testCases := []struct {
+		name           string
+		ctx            *otherModuleTestContext
+		labelList      LabelListAttribute
+		filters        LabelPartitions
+		expected       PartitionToLabelListAttribute
+		expectedErrMsg *string
+	}{
+		{
+			name: "no configurable values",
+			ctx:  &otherModuleTestContext{},
+			labelList: LabelListAttribute{
+				Value: makeLabelList([]string{"a.a", "b.b", "c.c", "d.d", "e.e"}, []string{}),
+			},
+			filters: LabelPartitions{
+				"A": LabelPartition{Extensions: []string{".a"}},
+				"B": LabelPartition{Extensions: []string{".b"}},
+				"C": LabelPartition{Extensions: []string{".c"}},
+			},
+			expected: PartitionToLabelListAttribute{
+				"A": LabelListAttribute{Value: makeLabelList([]string{"a.a"}, []string{})},
+				"B": LabelListAttribute{Value: makeLabelList([]string{"b.b"}, []string{})},
+				"C": LabelListAttribute{Value: makeLabelList([]string{"c.c"}, []string{})},
+			},
+		},
+		{
+			name: "no configurable values, remainder partition",
+			ctx:  &otherModuleTestContext{},
+			labelList: LabelListAttribute{
+				Value: makeLabelList([]string{"a.a", "b.b", "c.c", "d.d", "e.e"}, []string{}),
+			},
+			filters: LabelPartitions{
+				"A": LabelPartition{Extensions: []string{".a"}, Keep_remainder: true},
+				"B": LabelPartition{Extensions: []string{".b"}},
+				"C": LabelPartition{Extensions: []string{".c"}},
+			},
+			expected: PartitionToLabelListAttribute{
+				"A": LabelListAttribute{Value: makeLabelList([]string{"a.a", "d.d", "e.e"}, []string{})},
+				"B": LabelListAttribute{Value: makeLabelList([]string{"b.b"}, []string{})},
+				"C": LabelListAttribute{Value: makeLabelList([]string{"c.c"}, []string{})},
+			},
+		},
+		{
+			name: "no configurable values, empty partition",
+			ctx:  &otherModuleTestContext{},
+			labelList: LabelListAttribute{
+				Value: makeLabelList([]string{"a.a", "c.c"}, []string{}),
+			},
+			filters: LabelPartitions{
+				"A": LabelPartition{Extensions: []string{".a"}},
+				"B": LabelPartition{Extensions: []string{".b"}},
+				"C": LabelPartition{Extensions: []string{".c"}},
+			},
+			expected: PartitionToLabelListAttribute{
+				"A": LabelListAttribute{Value: makeLabelList([]string{"a.a"}, []string{})},
+				"C": LabelListAttribute{Value: makeLabelList([]string{"c.c"}, []string{})},
+			},
+		},
+		{
+			name: "no configurable values, has map",
+			ctx: &otherModuleTestContext{
+				modules: []testModuleInfo{testModuleInfo{name: "srcs", typ: "fg", dir: "dir"}},
+			},
+			labelList: LabelListAttribute{
+				Value: makeLabelList([]string{"a.a", "srcs", "b.b", "c.c"}, []string{}),
+			},
+			filters: LabelPartitions{
+				"A": LabelPartition{Extensions: []string{".a"}, LabelMapper: labelAddSuffixForTypeMapper("_a", "fg")},
+				"B": LabelPartition{Extensions: []string{".b"}},
+				"C": LabelPartition{Extensions: []string{".c"}},
+			},
+			expected: PartitionToLabelListAttribute{
+				"A": LabelListAttribute{Value: makeLabelList([]string{"a.a", "srcs_a"}, []string{})},
+				"B": LabelListAttribute{Value: makeLabelList([]string{"b.b"}, []string{})},
+				"C": LabelListAttribute{Value: makeLabelList([]string{"c.c"}, []string{})},
+			},
+		},
+		{
+			name: "configurable values, keeps empty if excludes",
+			ctx:  &otherModuleTestContext{},
+			labelList: LabelListAttribute{
+				ConfigurableValues: configurableLabelLists{
+					ArchConfigurationAxis: labelListSelectValues{
+						"x86":    makeLabelList([]string{"a.a", "c.c"}, []string{}),
+						"arm":    makeLabelList([]string{"b.b"}, []string{}),
+						"x86_64": makeLabelList([]string{"b.b"}, []string{"d.d"}),
+					},
+				},
+			},
+			filters: LabelPartitions{
+				"A": LabelPartition{Extensions: []string{".a"}},
+				"B": LabelPartition{Extensions: []string{".b"}},
+				"C": LabelPartition{Extensions: []string{".c"}},
+			},
+			expected: PartitionToLabelListAttribute{
+				"A": LabelListAttribute{
+					ConfigurableValues: configurableLabelLists{
+						ArchConfigurationAxis: labelListSelectValues{
+							"x86":    makeLabelList([]string{"a.a"}, []string{}),
+							"x86_64": makeLabelList([]string{}, []string{"c.c"}),
+						},
+					},
+				},
+				"B": LabelListAttribute{
+					ConfigurableValues: configurableLabelLists{
+						ArchConfigurationAxis: labelListSelectValues{
+							"arm":    makeLabelList([]string{"b.b"}, []string{}),
+							"x86_64": makeLabelList([]string{"b.b"}, []string{"c.c"}),
+						},
+					},
+				},
+				"C": LabelListAttribute{
+					ConfigurableValues: configurableLabelLists{
+						ArchConfigurationAxis: labelListSelectValues{
+							"x86":    makeLabelList([]string{"c.c"}, []string{}),
+							"x86_64": makeLabelList([]string{}, []string{"c.c"}),
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "error for multiple partitions same value",
+			ctx:  &otherModuleTestContext{},
+			labelList: LabelListAttribute{
+				Value: makeLabelList([]string{"a.a", "b.b", "c.c", "d.d", "e.e"}, []string{}),
+			},
+			filters: LabelPartitions{
+				"A":       LabelPartition{Extensions: []string{".a"}},
+				"other A": LabelPartition{Extensions: []string{".a"}},
+			},
+			expected:       PartitionToLabelListAttribute{},
+			expectedErrMsg: proptools.StringPtr(`"a.a" was found in multiple partitions:`),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := PartitionLabelListAttribute(tc.ctx, &tc.labelList, tc.filters)
+
+			if hasErrors, expectsErr := len(tc.ctx.errors) > 0, tc.expectedErrMsg != nil; hasErrors != expectsErr {
+				t.Errorf("Unexpected error(s): %q, expected: %q", tc.ctx.errors, *tc.expectedErrMsg)
+			} else if tc.expectedErrMsg != nil {
+				found := false
+				for _, err := range tc.ctx.errors {
+					if strings.Contains(err, *tc.expectedErrMsg) {
+						found = true
+						break
+					}
+				}
+
+				if !found {
+					t.Errorf("Expected error message: %q, got %q", *tc.expectedErrMsg, tc.ctx.errors)
+				}
+				return
+			}
+
+			if len(tc.expected) != len(got) {
+				t.Errorf("Expected %d partitions, got %d partitions", len(tc.expected), len(got))
+			}
+			for partition, expectedLla := range tc.expected {
+				gotLla, ok := got[partition]
+				if !ok {
+					t.Errorf("Expected partition %q, but it was not found %v", partition, got)
+					continue
+				}
+				expectedLabelList := expectedLla.Value
+				gotLabelList := gotLla.Value
+				if !reflect.DeepEqual(expectedLabelList.Includes, gotLabelList.Includes) {
+					t.Errorf("Expected no config includes %v, got %v", expectedLabelList.Includes, gotLabelList.Includes)
+				}
+				expectedAxes := expectedLla.SortedConfigurationAxes()
+				gotAxes := gotLla.SortedConfigurationAxes()
+				if !reflect.DeepEqual(expectedAxes, gotAxes) {
+					t.Errorf("Expected axes %v, got %v (%#v)", expectedAxes, gotAxes, gotLla)
+				}
+				for _, axis := range expectedLla.SortedConfigurationAxes() {
+					if _, exists := gotLla.ConfigurableValues[axis]; !exists {
+						t.Errorf("Expected %s to be a supported axis, but it was not found", axis)
+					}
+					if expected, got := expectedLla.ConfigurableValues[axis], gotLla.ConfigurableValues[axis]; len(expected) != len(got) {
+						t.Errorf("For axis %q: expected configs %v, got %v", axis, expected, got)
+					}
+					for config, expectedLabelList := range expectedLla.ConfigurableValues[axis] {
+						gotLabelList, exists := gotLla.ConfigurableValues[axis][config]
+						if !exists {
+							t.Errorf("Expected %s to be a supported config, but config was not found", config)
+							continue
+						}
+						if !reflect.DeepEqual(expectedLabelList.Includes, gotLabelList.Includes) {
+							t.Errorf("Expected %s %s includes %v, got %v", axis, config, expectedLabelList.Includes, gotLabelList.Includes)
+						}
+					}
+				}
+			}
+		})
 	}
 }
 
