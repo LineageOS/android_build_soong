@@ -226,6 +226,7 @@ type compilerAttributes struct {
 	srcs     bazel.LabelListAttribute
 
 	rtti bazel.BoolAttribute
+	stl  *string
 
 	localIncludes    bazel.StringListAttribute
 	absoluteIncludes bazel.StringListAttribute
@@ -321,6 +322,24 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 
 	srcs, cSrcs, asSrcs := groupSrcsByExtension(ctx, srcs)
 
+	var stl *string = nil
+	stlPropsByArch := module.GetArchVariantProperties(ctx, &StlProperties{})
+	for _, configToProps := range stlPropsByArch {
+		for _, props := range configToProps {
+			if stlProps, ok := props.(*StlProperties); ok {
+				if stlProps.Stl != nil {
+					if stl == nil {
+						stl = stlProps.Stl
+					} else {
+						if stl != stlProps.Stl {
+							ctx.ModuleErrorf("Unsupported conversion: module with different stl for different variants: %s and %s", *stl, stlProps.Stl)
+						}
+					}
+				}
+			}
+		}
+	}
+
 	return compilerAttributes{
 		copts:            copts,
 		srcs:             srcs,
@@ -330,6 +349,7 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 		conlyFlags:       conlyFlags,
 		cppFlags:         cppFlags,
 		rtti:             rtti,
+		stl:              stl,
 		localIncludes:    localIncludes,
 		absoluteIncludes: absoluteIncludes,
 	}

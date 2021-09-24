@@ -223,13 +223,9 @@ var (
 		"libbase_ndk", // http://b/186826477, cc_library, no such target '//build/bazel/platforms/os:darwin' when --platforms //build/bazel/platforms:android_x86 is added
 		// libcxx
 		"libBionicBenchmarksUtils", // cc_library_static, fatal error: 'map' file not found, from libcxx
-		"fmtlib",                   // cc_library_static, fatal error: 'cassert' file not found, from libcxx
-		"fmtlib_ndk",               // cc_library_static, fatal error: 'cassert' file not found
-		"liblog",                   // http://b/186822772: cc_library, 'sys/cdefs.h' file not found
-		"libbase",                  // Requires liblog. http://b/186826479, cc_library, fatal error: 'memory' file not found, from libcxx.
-		// Also depends on fmtlib.
+		"libbase",                  // Depends on fmtlib via static_libs and also whole_static_libs, which results in bazel errors.
 
-		"libfdtrack", // depends on STL
+		"libfdtrack", // depends on liblzma and libbase
 
 		"libseccomp_policy", // depends on libbase
 
