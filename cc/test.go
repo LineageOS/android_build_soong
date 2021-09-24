@@ -80,6 +80,9 @@ type TestBinaryProperties struct {
 	// list of shared library modules that should be installed alongside the test
 	Data_libs []string `android:"arch_variant"`
 
+	// list of binary modules that should be installed alongside the test
+	Data_bins []string `android:"arch_variant"`
+
 	// list of compatibility suites (for example "cts", "vts") that the module should be
 	// installed into.
 	Test_suites []string `android:"arch_variant"`
@@ -350,6 +353,7 @@ func (test *testBinary) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	deps = test.testDecorator.linkerDeps(ctx, deps)
 	deps = test.binaryDecorator.linkerDeps(ctx, deps)
 	deps.DataLibs = append(deps.DataLibs, test.Properties.Data_libs...)
+	deps.DataBins = append(deps.DataBins, test.Properties.Data_bins...)
 	return deps
 }
 
@@ -386,6 +390,18 @@ func (test *testBinary) install(ctx ModuleContext, file android.Path) {
 		if ccDep.OutputFile().Valid() {
 			test.data = append(test.data,
 				android.DataPath{SrcPath: ccDep.OutputFile().Path(),
+					RelativeInstallPath: ccModule.installer.relativeInstallPath()})
+		}
+	})
+	ctx.VisitDirectDepsWithTag(dataBinDepTag, func(dep android.Module) {
+		depName := ctx.OtherModuleName(dep)
+		ccModule, ok := dep.(*Module)
+		if !ok {
+			ctx.ModuleErrorf("data_bin %q is not a cc module", depName)
+		}
+		if ccModule.OutputFile().Valid() {
+			test.data = append(test.data,
+				android.DataPath{SrcPath: ccModule.OutputFile().Path(),
 					RelativeInstallPath: ccModule.installer.relativeInstallPath()})
 		}
 	})
