@@ -176,13 +176,15 @@ func (p *prebuiltCommon) initApexFilesForAndroidMk(ctx android.ModuleContext) {
 		name := android.RemoveOptionalPrebuiltPrefix(ctx.OtherModuleName(child))
 		if java.IsBootclasspathFragmentContentDepTag(tag) || tag == exportedJavaLibTag {
 			// If the exported java module provides a dex jar path then add it to the list of apexFiles.
-			path := child.(interface{ DexJarBuildPath() android.Path }).DexJarBuildPath()
-			if path != nil {
+			path := child.(interface {
+				DexJarBuildPath() java.OptionalDexJarPath
+			}).DexJarBuildPath()
+			if path.IsSet() {
 				af := apexFile{
 					module:              child,
 					moduleDir:           ctx.OtherModuleDir(child),
 					androidMkModuleName: name,
-					builtFile:           path,
+					builtFile:           path.Path(),
 					class:               javaSharedLib,
 				}
 				if module, ok := child.(java.DexpreopterInterface); ok {
@@ -627,10 +629,6 @@ func createDeapexerModuleIfNeeded(ctx android.TopDownMutatorContext, deapexerNam
 		&props,
 		deapexerProperties,
 	)
-}
-
-func deapexerModuleName(baseModuleName string) string {
-	return baseModuleName + ".deapexer"
 }
 
 func apexSelectorModuleName(baseModuleName string) string {

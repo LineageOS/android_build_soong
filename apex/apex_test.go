@@ -4799,9 +4799,10 @@ func TestPrebuiltExportDexImplementationJars(t *testing.T) {
 	transform := android.NullFixturePreparer
 
 	checkDexJarBuildPath := func(t *testing.T, ctx *android.TestContext, name string) {
+		t.Helper()
 		// Make sure the import has been given the correct path to the dex jar.
 		p := ctx.ModuleForTests(name, "android_common_myapex").Module().(java.UsesLibraryDependency)
-		dexJarBuildPath := p.DexJarBuildPath()
+		dexJarBuildPath := p.DexJarBuildPath().PathOrNil()
 		stem := android.RemoveOptionalPrebuiltPrefix(name)
 		android.AssertStringEquals(t, "DexJarBuildPath should be apex-related path.",
 			".intermediates/myapex.deapexer/android_common/deapexer/javalib/"+stem+".jar",
@@ -4809,6 +4810,7 @@ func TestPrebuiltExportDexImplementationJars(t *testing.T) {
 	}
 
 	checkDexJarInstallPath := func(t *testing.T, ctx *android.TestContext, name string) {
+		t.Helper()
 		// Make sure the import has been given the correct path to the dex jar.
 		p := ctx.ModuleForTests(name, "android_common_myapex").Module().(java.UsesLibraryDependency)
 		dexJarBuildPath := p.DexJarInstallPath()
@@ -4819,6 +4821,7 @@ func TestPrebuiltExportDexImplementationJars(t *testing.T) {
 	}
 
 	ensureNoSourceVariant := func(t *testing.T, ctx *android.TestContext, name string) {
+		t.Helper()
 		// Make sure that an apex variant is not created for the source module.
 		android.AssertArrayString(t, "Check if there is no source variant",
 			[]string{"android_common"},
@@ -4856,8 +4859,11 @@ func TestPrebuiltExportDexImplementationJars(t *testing.T) {
 		// Make sure that dexpreopt can access dex implementation files from the prebuilt.
 		ctx := testDexpreoptWithApexes(t, bp, "", transform)
 
+		deapexerName := deapexerModuleName("myapex")
+		android.AssertStringEquals(t, "APEX module name from deapexer name", "myapex", apexModuleName(deapexerName))
+
 		// Make sure that the deapexer has the correct input APEX.
-		deapexer := ctx.ModuleForTests("myapex.deapexer", "android_common")
+		deapexer := ctx.ModuleForTests(deapexerName, "android_common")
 		rule := deapexer.Rule("deapexer")
 		if expected, actual := []string{"myapex-arm64.apex"}, android.NormalizePathsForTesting(rule.Implicits); !reflect.DeepEqual(expected, actual) {
 			t.Errorf("expected: %q, found: %q", expected, actual)
