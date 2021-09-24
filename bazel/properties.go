@@ -19,6 +19,9 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strings"
+
+	"github.com/google/blueprint"
 )
 
 // BazelTargetModuleProperties contain properties and metadata used for
@@ -180,76 +183,6 @@ func SubtractStrings(haystack []string, needle []string) []string {
 	})
 
 	return strings
-}
-
-// Map a function over all labels in a LabelList.
-func MapLabelList(mapOver LabelList, mapFn func(string) string) LabelList {
-	var includes []Label
-	for _, inc := range mapOver.Includes {
-		mappedLabel := Label{Label: mapFn(inc.Label), OriginalModuleName: inc.OriginalModuleName}
-		includes = append(includes, mappedLabel)
-	}
-	// mapFn is not applied over excludes, but they are propagated as-is.
-	return LabelList{Includes: includes, Excludes: mapOver.Excludes}
-}
-
-// Map a function over all Labels in a LabelListAttribute
-func MapLabelListAttribute(mapOver LabelListAttribute, mapFn func(string) string) LabelListAttribute {
-	var result LabelListAttribute
-
-	result.Value = MapLabelList(mapOver.Value, mapFn)
-
-	for axis, configToLabels := range mapOver.ConfigurableValues {
-		for config, value := range configToLabels {
-			result.SetSelectValue(axis, config, MapLabelList(value, mapFn))
-		}
-	}
-
-	return result
-}
-
-// Return all needles in a given haystack, where needleFn is true for needles.
-func FilterLabelList(haystack LabelList, needleFn func(string) bool) LabelList {
-	var includes []Label
-	for _, inc := range haystack.Includes {
-		if needleFn(inc.Label) {
-			includes = append(includes, inc)
-		}
-	}
-	// needleFn is not applied over excludes, but they are propagated as-is.
-	return LabelList{Includes: includes, Excludes: haystack.Excludes}
-}
-
-// Return all needles in a given haystack, where needleFn is true for needles.
-func FilterLabelListAttribute(haystack LabelListAttribute, needleFn func(string) bool) LabelListAttribute {
-	result := MakeLabelListAttribute(FilterLabelList(haystack.Value, needleFn))
-
-	for config, selects := range haystack.ConfigurableValues {
-		newSelects := make(labelListSelectValues, len(selects))
-		for k, v := range selects {
-			newSelects[k] = FilterLabelList(v, needleFn)
-		}
-		result.ConfigurableValues[config] = newSelects
-	}
-
-	return result
-}
-
-// Subtract needle from haystack
-func SubtractBazelLabelListAttribute(haystack LabelListAttribute, needle LabelListAttribute) LabelListAttribute {
-	result := MakeLabelListAttribute(SubtractBazelLabelList(haystack.Value, needle.Value))
-
-	for config, selects := range haystack.ConfigurableValues {
-		newSelects := make(labelListSelectValues, len(selects))
-		needleSelects := needle.ConfigurableValues[config]
-
-		for k, v := range selects {
-			newSelects[k] = SubtractBazelLabelList(v, needleSelects[k])
-		}
-		result.ConfigurableValues[config] = newSelects
-	}
-
-	return result
 }
 
 // Subtract needle from haystack
@@ -622,6 +555,144 @@ func (lla *LabelListAttribute) ResolveExcludes() {
 			delete(lla.ConfigurableValues, axis)
 		}
 	}
+}
+
+// OtherModuleContext is a limited context that has methods with information about other modules.
+type OtherModuleContext interface {
+	ModuleFromName(name string) (blueprint.Module, bool)
+	OtherModuleType(m blueprint.Module) string
+	OtherModuleName(m blueprint.Module) string
+	OtherModuleDir(m blueprint.Module) string
+	ModuleErrorf(fmt string, args ...interface{})
+}
+
+// LabelMapper is a function that takes a OtherModuleContext and returns a (potentially changed)
+// label and whether it was changed.
+type LabelMapper func(OtherModuleContext, string) (string, bool)
+
+// LabelPartition contains descriptions of a partition for labels
+type LabelPartition struct {
+	// Extensions to include in this partition
+	Extensions []string
+	// LabelMapper is a function that can map a label to a new label, and indicate whether to include
+	// the mapped label in the partition
+	LabelMapper LabelMapper
+	// Whether to store files not included in any other partition in a group of LabelPartitions
+	// Only one partition in a group of LabelPartitions can enabled Keep_remainder
+	Keep_remainder bool
+}
+
+// LabelPartitions is a map of partition name to a LabelPartition describing the elements of the
+// partition
+type LabelPartitions map[string]LabelPartition
+
+// filter returns a pointer to a label if the label should be included in the partition or nil if
+// not.
+func (lf LabelPartition) filter(ctx OtherModuleContext, label Label) *Label {
+	if lf.LabelMapper != nil {
+		if newLabel, changed := lf.LabelMapper(ctx, label.Label); changed {
+			return &Label{newLabel, label.OriginalModuleName}
+		}
+	}
+	for _, ext := range lf.Extensions {
+		if strings.HasSuffix(label.Label, ext) {
+			return &label
+		}
+	}
+
+	return nil
+}
+
+// PartitionToLabelListAttribute is map of partition name to a LabelListAttribute
+type PartitionToLabelListAttribute map[string]LabelListAttribute
+
+type partitionToLabelList map[string]*LabelList
+
+func (p partitionToLabelList) appendIncludes(partition string, label Label) {
+	if _, ok := p[partition]; !ok {
+		p[partition] = &LabelList{}
+	}
+	p[partition].Includes = append(p[partition].Includes, label)
+}
+
+func (p partitionToLabelList) excludes(partition string, excludes []Label) {
+	if _, ok := p[partition]; !ok {
+		p[partition] = &LabelList{}
+	}
+	p[partition].Excludes = excludes
+}
+
+// PartitionLabelListAttribute partitions a LabelListAttribute into the requested partitions
+func PartitionLabelListAttribute(ctx OtherModuleContext, lla *LabelListAttribute, partitions LabelPartitions) PartitionToLabelListAttribute {
+	ret := PartitionToLabelListAttribute{}
+	var partitionNames []string
+	// Stored as a pointer to distinguish nil (no remainder partition) from empty string partition
+	var remainderPartition *string
+	for p, f := range partitions {
+		partitionNames = append(partitionNames, p)
+		if f.Keep_remainder {
+			if remainderPartition != nil {
+				panic("only one partition can store the remainder")
+			}
+			// If we take the address of p in a loop, we'll end up with the last value of p in
+			// remainderPartition, we want the requested partition
+			capturePartition := p
+			remainderPartition = &capturePartition
+		}
+	}
+
+	partitionLabelList := func(axis ConfigurationAxis, config string) {
+		value := lla.SelectValue(axis, config)
+		partitionToLabels := partitionToLabelList{}
+		for _, item := range value.Includes {
+			wasFiltered := false
+			var inPartition *string
+			for partition, f := range partitions {
+				filtered := f.filter(ctx, item)
+				if filtered == nil {
+					// did not match this filter, keep looking
+					continue
+				}
+				wasFiltered = true
+				partitionToLabels.appendIncludes(partition, *filtered)
+				// don't need to check other partitions if this filter used the item,
+				// continue checking if mapped to another name
+				if *filtered == item {
+					if inPartition != nil {
+						ctx.ModuleErrorf("%q was found in multiple partitions: %q, %q", item.Label, *inPartition, partition)
+					}
+					capturePartition := partition
+					inPartition = &capturePartition
+				}
+			}
+
+			// if not specified in a partition, add to remainder partition if one exists
+			if !wasFiltered && remainderPartition != nil {
+				partitionToLabels.appendIncludes(*remainderPartition, item)
+			}
+		}
+
+		// ensure empty lists are maintained
+		if value.Excludes != nil {
+			for _, partition := range partitionNames {
+				partitionToLabels.excludes(partition, value.Excludes)
+			}
+		}
+
+		for partition, list := range partitionToLabels {
+			val := ret[partition]
+			(&val).SetSelectValue(axis, config, *list)
+			ret[partition] = val
+		}
+	}
+
+	partitionLabelList(NoConfigAxis, "")
+	for axis, configToList := range lla.ConfigurableValues {
+		for config, _ := range configToList {
+			partitionLabelList(axis, config)
+		}
+	}
+	return ret
 }
 
 // StringListAttribute corresponds to the string_list Bazel attribute type with
