@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"android/soong/android"
+
 	"github.com/google/blueprint"
 )
 
@@ -277,7 +278,7 @@ func hiddenAPIAddStubLibDependencies(ctx android.BottomUpMutatorContext, apiScop
 // hiddenAPIRetrieveDexJarBuildPath retrieves the DexJarBuildPath from the specified module, if
 // available, or reports an error.
 func hiddenAPIRetrieveDexJarBuildPath(ctx android.ModuleContext, module android.Module, kind android.SdkKind) android.Path {
-	var dexJar android.Path
+	var dexJar OptionalDexJarPath
 	if sdkLibrary, ok := module.(SdkLibraryDependency); ok {
 		dexJar = sdkLibrary.SdkApiStubDexJar(ctx, kind)
 	} else if j, ok := module.(UsesLibraryDependency); ok {
@@ -287,10 +288,11 @@ func hiddenAPIRetrieveDexJarBuildPath(ctx android.ModuleContext, module android.
 		return nil
 	}
 
-	if dexJar == nil {
-		ctx.ModuleErrorf("dependency %s does not provide a dex jar, consider setting compile_dex: true", module)
+	if !dexJar.Valid() {
+		ctx.ModuleErrorf("dependency %s does not provide a dex jar: %s", module, dexJar.InvalidReason())
+		return nil
 	}
-	return dexJar
+	return dexJar.Path()
 }
 
 // buildRuleToGenerateHiddenAPIStubFlagsFile creates a rule to create a hidden API stub flags file.
@@ -1159,18 +1161,17 @@ func extractBootDexInfoFromModules(ctx android.ModuleContext, contents []android
 
 // retrieveBootDexJarFromHiddenAPIModule retrieves the boot dex jar from the hiddenAPIModule.
 //
-// If the module does not provide a boot dex jar, i.e. the returned boot dex jar is nil, then  that
-// create a fake path and either report an error immediately or defer reporting of the error until
-// the path is actually used.
+// If the module does not provide a boot dex jar, i.e. the returned boot dex jar is unset or
+// invalid, then create a fake path and either report an error immediately or defer reporting of the
+// error until the path is actually used.
 func retrieveBootDexJarFromHiddenAPIModule(ctx android.ModuleContext, module hiddenAPIModule) android.Path {
 	bootDexJar := module.bootDexJar()
-	if bootDexJar == nil {
+	if !bootDexJar.Valid() {
 		fake := android.PathForModuleOut(ctx, fmt.Sprintf("fake/boot-dex/%s.jar", module.Name()))
-		bootDexJar = fake
-
-		handleMissingDexBootFile(ctx, module, fake)
+		handleMissingDexBootFile(ctx, module, fake, bootDexJar.InvalidReason())
+		return fake
 	}
-	return bootDexJar
+	return bootDexJar.Path()
 }
 
 // extractClassesJarsFromModules extracts the class jars from the supplied modules.
@@ -1264,7 +1265,7 @@ func deferReportingMissingBootDexJar(ctx android.ModuleContext, module android.M
 
 // handleMissingDexBootFile will either log a warning or create an error rule to create the fake
 // file depending on the value returned from deferReportingMissingBootDexJar.
-func handleMissingDexBootFile(ctx android.ModuleContext, module android.Module, fake android.WritablePath) {
+func handleMissingDexBootFile(ctx android.ModuleContext, module android.Module, fake android.WritablePath, reason string) {
 	if deferReportingMissingBootDexJar(ctx, module) {
 		// Create an error rule that pretends to create the output file but will actually fail if it
 		// is run.
@@ -1272,11 +1273,11 @@ func handleMissingDexBootFile(ctx android.ModuleContext, module android.Module, 
 			Rule:   android.ErrorRule,
 			Output: fake,
 			Args: map[string]string{
-				"error": fmt.Sprintf("missing dependencies: boot dex jar for %s", module),
+				"error": fmt.Sprintf("missing boot dex jar dependency for %s: %s", module, reason),
 			},
 		})
 	} else {
-		ctx.ModuleErrorf("module %s does not provide a dex jar", module)
+		ctx.ModuleErrorf("module %s does not provide a dex jar: %s", module, reason)
 	}
 }
 
@@ -1287,14 +1288,13 @@ func handleMissingDexBootFile(ctx android.ModuleContext, module android.Module, 
 // However, under certain conditions, e.g. errors, or special build configurations it will return
 // a path to a fake file.
 func retrieveEncodedBootDexJarFromModule(ctx android.ModuleContext, module android.Module) android.Path {
-	bootDexJar := module.(interface{ DexJarBuildPath() android.Path }).DexJarBuildPath()
-	if bootDexJar == nil {
+	bootDexJar := module.(interface{ DexJarBuildPath() OptionalDexJarPath }).DexJarBuildPath()
+	if !bootDexJar.Valid() {
 		fake := android.PathForModuleOut(ctx, fmt.Sprintf("fake/encoded-dex/%s.jar", module.Name()))
-		bootDexJar = fake
-
-		handleMissingDexBootFile(ctx, module, fake)
+		handleMissingDexBootFile(ctx, module, fake, bootDexJar.InvalidReason())
+		return fake
 	}
-	return bootDexJar
+	return bootDexJar.Path()
 }
 
 // extractEncodedDexJarsFromModules extracts the encoded dex jars from the supplied modules.
