@@ -23,14 +23,14 @@ import (
 	"strings"
 	"time"
 
+	"android/soong/android"
 	"android/soong/bp2build"
 	"android/soong/shared"
 
 	"github.com/google/blueprint/bootstrap"
 	"github.com/google/blueprint/deptools"
 	"github.com/google/blueprint/pathtools"
-
-	"android/soong/android"
+	androidProtobuf "google.golang.org/protobuf/android"
 )
 
 var (
@@ -85,6 +85,12 @@ func init() {
 	// Flags that probably shouldn't be flags of soong_build but we haven't found
 	// the time to remove them yet
 	flag.BoolVar(&runGoTests, "t", false, "build and run go tests during bootstrap")
+
+	// Disable deterministic randomization in the protobuf package, so incremental
+	// builds with unrelated Soong changes don't trigger large rebuilds (since we
+	// write out text protos in command lines, and command line changes trigger
+	// rebuilds).
+	androidProtobuf.DisableRand()
 }
 
 func newNameResolver(config android.Config) *android.NameResolver {

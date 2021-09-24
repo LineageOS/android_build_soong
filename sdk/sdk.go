@@ -53,6 +53,13 @@ type sdk struct {
 	// list properties, e.g. java_libs.
 	dynamicMemberTypeListProperties interface{}
 
+	// The dynamically generated information about the registered SdkMemberTrait
+	dynamicSdkMemberTraits *dynamicSdkMemberTraits
+
+	// The dynamically created instance of the properties struct containing the sdk member trait
+	// list properties.
+	dynamicMemberTraitListProperties interface{}
+
 	// Information about the OsType specific member variants depended upon by this variant.
 	//
 	// Set by OsType specific variants in the collectMembers() method and used by the
@@ -104,17 +111,25 @@ func newSdkModule(moduleExports bool) *sdk {
 	s := &sdk{}
 	s.properties.Module_exports = moduleExports
 	// Get the dynamic sdk member type data for the currently registered sdk member types.
-	var typeRegistry *android.SdkMemberTypesRegistry
-	if moduleExports {
-		typeRegistry = android.ModuleExportsMemberTypes
-	} else {
-		typeRegistry = android.SdkMemberTypes
-	}
-	s.dynamicSdkMemberTypes = getDynamicSdkMemberTypes(typeRegistry)
+	sdkMemberTypeKey, sdkMemberTypes := android.RegisteredSdkMemberTypes(moduleExports)
+	s.dynamicSdkMemberTypes = getDynamicSdkMemberTypes(sdkMemberTypeKey, sdkMemberTypes)
 	// Create an instance of the dynamically created struct that contains all the
 	// properties for the member type specific list properties.
 	s.dynamicMemberTypeListProperties = s.dynamicSdkMemberTypes.createMemberTypeListProperties()
-	s.AddProperties(&s.properties, s.dynamicMemberTypeListProperties)
+
+	sdkMemberTraitsKey, sdkMemberTraits := android.RegisteredSdkMemberTraits()
+	s.dynamicSdkMemberTraits = getDynamicSdkMemberTraits(sdkMemberTraitsKey, sdkMemberTraits)
+	// Create an instance of the dynamically created struct that contains all the properties for the
+	// member trait specific list properties.
+	s.dynamicMemberTraitListProperties = s.dynamicSdkMemberTraits.createMemberTraitListProperties()
+
+	// Create a wrapper around the dynamic trait specific properties so that they have to be
+	// specified within a traits:{} section in the .bp file.
+	traitsWrapper := struct {
+		Traits interface{}
+	}{s.dynamicMemberTraitListProperties}
+
+	s.AddProperties(&s.properties, s.dynamicMemberTypeListProperties, &traitsWrapper)
 
 	// Make sure that the prebuilt visibility property is verified for errors.
 	android.AddVisibilityProperty(s, "prebuilt_visibility", &s.properties.Prebuilt_visibility)
@@ -143,6 +158,11 @@ func (s *sdk) memberTypeListProperties() []*sdkMemberTypeListProperty {
 
 func (s *sdk) memberTypeListProperty(memberType android.SdkMemberType) *sdkMemberTypeListProperty {
 	return s.dynamicSdkMemberTypes.memberTypeToProperty[memberType]
+}
+
+// memberTraitListProperties returns the list of *sdkMemberTraitListProperty instances for this sdk.
+func (s *sdk) memberTraitListProperties() []*sdkMemberTraitListProperty {
+	return s.dynamicSdkMemberTraits.memberTraitListProperties
 }
 
 func (s *sdk) snapshot() bool {
@@ -198,15 +218,53 @@ func (s *sdk) AndroidMkEntries() []android.AndroidMkEntries {
 	}}
 }
 
+// gatherTraits gathers the traits from the dynamically generated trait specific properties.
+//
+// Returns a map from member name to the set of required traits.
+func (s *sdk) gatherTraits() map[string]android.SdkMemberTraitSet {
+	traitListByMember := map[string][]android.SdkMemberTrait{}
+	for _, memberListProperty := range s.memberTraitListProperties() {
+		names := memberListProperty.getter(s.dynamicMemberTraitListProperties)
+		for _, name := range names {
+			traitListByMember[name] = append(traitListByMember[name], memberListProperty.memberTrait)
+		}
+	}
+
+	traitSetByMember := map[string]android.SdkMemberTraitSet{}
+	for name, list := range traitListByMember {
+		traitSetByMember[name] = android.NewSdkMemberTraitSet(list)
+	}
+
+	return traitSetByMember
+}
+
 // newDependencyContext creates a new SdkDependencyContext for this sdk.
 func (s *sdk) newDependencyContext(mctx android.BottomUpMutatorContext) android.SdkDependencyContext {
+	traits := s.gatherTraits()
+
 	return &dependencyContext{
 		BottomUpMutatorContext: mctx,
+		requiredTraits:         traits,
 	}
 }
 
 type dependencyContext struct {
 	android.BottomUpMutatorContext
+
+	// Map from member name to the set of traits that the sdk requires the member provides.
+	requiredTraits map[string]android.SdkMemberTraitSet
+}
+
+func (d *dependencyContext) RequiredTraits(name string) android.SdkMemberTraitSet {
+	if s, ok := d.requiredTraits[name]; ok {
+		return s
+	} else {
+		return android.EmptySdkMemberTraitSet()
+	}
+}
+
+func (d *dependencyContext) RequiresTrait(name string, trait android.SdkMemberTrait) bool {
+	return d.RequiredTraits(name).Contains(trait)
 }
 
 var _ android.SdkDependencyContext = (*dependencyContext)(nil)
@@ -287,8 +345,21 @@ func memberMutator(mctx android.BottomUpMutatorContext) {
 				}
 				names := memberListProperty.getter(s.dynamicMemberTypeListProperties)
 				if len(names) > 0 {
+					memberType := memberListProperty.memberType
+
+					// Verify that the member type supports the specified traits.
+					supportedTraits := memberType.SupportedTraits()
+					for _, name := range names {
+						requiredTraits := ctx.RequiredTraits(name)
+						unsupportedTraits := requiredTraits.Subtract(supportedTraits)
+						if !unsupportedTraits.Empty() {
+							ctx.ModuleErrorf("sdk member %q has traits %s that are unsupported by its member type %q", name, unsupportedTraits, memberType.SdkPropertyName())
+						}
+					}
+
+					// Add dependencies using the appropriate tag.
 					tag := memberListProperty.dependencyTag
-					memberListProperty.memberType.AddDependencies(ctx, tag, names)
+					memberType.AddDependencies(ctx, tag, names)
 				}
 			}
 		}

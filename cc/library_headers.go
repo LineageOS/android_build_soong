@@ -33,6 +33,9 @@ var headersLibrarySdkMemberType = &librarySdkMemberType{
 		PropertyName:    "native_header_libs",
 		SupportsSdk:     true,
 		HostOsDependent: true,
+		Traits: []android.SdkMemberTrait{
+			nativeBridgeSdkTrait,
+		},
 	},
 	prebuiltModuleType: "cc_prebuilt_library_headers",
 	noOutputFiles:      true,
