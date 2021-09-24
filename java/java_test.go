@@ -600,8 +600,8 @@ func TestPrebuilts(t *testing.T) {
 	}
 
 	barDexJar := barModule.Module().(*Import).DexJarBuildPath()
-	if barDexJar != nil {
-		t.Errorf("bar dex jar build path expected to be nil, got %q", barDexJar)
+	if barDexJar.IsSet() {
+		t.Errorf("bar dex jar build path expected to be set, got %s", barDexJar)
 	}
 
 	if !strings.Contains(javac.Args["classpath"], sdklibStubsJar.String()) {
@@ -612,7 +612,7 @@ func TestPrebuilts(t *testing.T) {
 		t.Errorf("foo combineJar inputs %v does not contain %q", combineJar.Inputs, bazJar.String())
 	}
 
-	bazDexJar := bazModule.Module().(*Import).DexJarBuildPath()
+	bazDexJar := bazModule.Module().(*Import).DexJarBuildPath().Path()
 	expectedDexJar := "out/soong/.intermediates/baz/android_common/dex/baz.jar"
 	android.AssertPathRelativeToTopEquals(t, "baz dex jar build path", expectedDexJar, bazDexJar)
 
