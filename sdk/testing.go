@@ -136,6 +136,7 @@ func getSdkSnapshotBuildInfo(t *testing.T, result *android.TestResult, sdk *sdk)
 		androidUnversionedBpContents: sdk.GetUnversionedAndroidBpContentsForTests(),
 		androidVersionedBpContents:   sdk.GetVersionedAndroidBpContentsForTests(),
 		snapshotTestCustomizations:   map[snapshotTest]*snapshotTestCustomization{},
+		targetBuildRelease:           sdk.builderForTests.targetBuildRelease,
 	}
 
 	buildParams := sdk.BuildParamsForTests()
@@ -252,6 +253,13 @@ func CheckSnapshot(t *testing.T, result *android.TestResult, name string, dir st
 		fs[filepath.Join(snapshotSubDir, dest)] = nil
 	}
 	fs[filepath.Join(snapshotSubDir, "Android.bp")] = []byte(snapshotBuildInfo.androidBpContents)
+
+	// If the generated snapshot builders not for the current release then it cannot be loaded by
+	// the current release.
+	currentBuildRelease := latestBuildRelease()
+	if snapshotBuildInfo.targetBuildRelease != currentBuildRelease {
+		return
+	}
 
 	// The preparers from the original source fixture.
 	sourcePreparers := result.Preparer()
@@ -475,6 +483,9 @@ type snapshotBuildInfo struct {
 
 	// The final output zip.
 	outputZip string
+
+	// The target build release.
+	targetBuildRelease *buildRelease
 
 	// The test specific customizations for each snapshot test.
 	snapshotTestCustomizations map[snapshotTest]*snapshotTestCustomization

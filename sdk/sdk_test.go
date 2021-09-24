@@ -15,10 +15,12 @@
 package sdk
 
 import (
-	"android/soong/android"
 	"log"
 	"os"
 	"testing"
+
+	"android/soong/android"
+	"android/soong/java"
 
 	"github.com/google/blueprint/proptools"
 )
@@ -661,4 +663,86 @@ sdk_snapshot {
 			snapshotTestPreparer(checkSnapshotWithoutSource, android.FixtureWithRootAndroidBp(bp)),
 		)
 	})
+
+	t.Run("SOONG_SDK_SNAPSHOT_TARGET_BUILD_RELEASE=S", func(t *testing.T) {
+		result := android.GroupFixturePreparers(
+			prepareForSdkTestWithJava,
+			java.PrepareForTestWithJavaDefaultModules,
+			java.PrepareForTestWithJavaSdkLibraryFiles,
+			java.FixtureWithLastReleaseApis("mysdklibrary"),
+			android.FixtureWithRootAndroidBp(`
+			sdk {
+				name: "mysdk",
+				bootclasspath_fragments: ["mybootclasspathfragment"],
+			}
+
+			bootclasspath_fragment {
+				name: "mybootclasspathfragment",
+				apex_available: ["myapex"],
+				contents: ["mysdklibrary"],
+			}
+
+			java_sdk_library {
+				name: "mysdklibrary",
+				srcs: ["Test.java"],
+				compile_dex: true,
+				public: {enabled: true},
+				permitted_packages: ["mysdklibrary"],
+			}
+		`),
+			android.FixtureMergeEnv(map[string]string{
+				"SOONG_SDK_SNAPSHOT_TARGET_BUILD_RELEASE": "S",
+			}),
+		).RunTest(t)
+
+		CheckSnapshot(t, result, "mysdk", "",
+			checkUnversionedAndroidBpContents(`
+// This is auto-generated. DO NOT EDIT.
+
+prebuilt_bootclasspath_fragment {
+    name: "mybootclasspathfragment",
+    prefer: false,
+    visibility: ["//visibility:public"],
+    apex_available: ["myapex"],
+    contents: ["mysdklibrary"],
+    hidden_api: {
+        stub_flags: "hiddenapi/stub-flags.csv",
+        annotation_flags: "hiddenapi/annotation-flags.csv",
+        metadata: "hiddenapi/metadata.csv",
+        index: "hiddenapi/index.csv",
+        all_flags: "hiddenapi/all-flags.csv",
+    },
+}
+
+java_sdk_library_import {
+    name: "mysdklibrary",
+    prefer: false,
+    visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
+    shared_library: true,
+    compile_dex: true,
+    permitted_packages: ["mysdklibrary"],
+    public: {
+        jars: ["sdk_library/public/mysdklibrary-stubs.jar"],
+        stub_srcs: ["sdk_library/public/mysdklibrary_stub_sources"],
+        current_api: "sdk_library/public/mysdklibrary.txt",
+        removed_api: "sdk_library/public/mysdklibrary-removed.txt",
+        sdk_version: "current",
+    },
+}
+`),
+
+			checkAllCopyRules(`
+.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/stub-flags.csv -> hiddenapi/stub-flags.csv
+.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/annotation-flags.csv -> hiddenapi/annotation-flags.csv
+.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/metadata.csv -> hiddenapi/metadata.csv
+.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/index.csv -> hiddenapi/index.csv
+.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/all-flags.csv -> hiddenapi/all-flags.csv
+.intermediates/mysdklibrary.stubs/android_common/javac/mysdklibrary.stubs.jar -> sdk_library/public/mysdklibrary-stubs.jar
+.intermediates/mysdklibrary.stubs.source/android_common/metalava/mysdklibrary.stubs.source_api.txt -> sdk_library/public/mysdklibrary.txt
+.intermediates/mysdklibrary.stubs.source/android_common/metalava/mysdklibrary.stubs.source_removed.txt -> sdk_library/public/mysdklibrary-removed.txt
+`),
+		)
+	})
+
 }

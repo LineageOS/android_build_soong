@@ -50,6 +50,19 @@ import (
 //     snapshot module only. The zip file containing the generated snapshot will be
 //     <sdk-name>-<number>.zip.
 //
+// SOONG_SDK_SNAPSHOT_TARGET_BUILD_RELEASE
+//     This allows the target build release (i.e. the release version of the build within which
+//     the snapshot will be used) of the snapshot to be specified. If unspecified then it defaults
+//     to the current build release version. Otherwise, it must be the name of one of the build
+//     releases defined in nameToBuildRelease, e.g. S, T, etc..
+//
+//     The generated snapshot must only be used in the specified target release. If the target
+//     build release is not the current build release then the generated Android.bp file not be
+//     checked for compatibility.
+//
+//     e.g. if setting SOONG_SDK_SNAPSHOT_TARGET_BUILD_RELEASE=S will cause the generated snapshot
+//     to be compatible with S.
+//
 
 var pctx = android.NewPackageContext("android/soong/sdk")
 
@@ -319,6 +332,14 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) andro
 		snapshotZipFileSuffix = "-" + version
 	}
 
+	currentBuildRelease := latestBuildRelease()
+	targetBuildReleaseEnv := config.GetenvWithDefault("SOONG_SDK_SNAPSHOT_TARGET_BUILD_RELEASE", currentBuildRelease.name)
+	targetBuildRelease, err := nameToRelease(targetBuildReleaseEnv)
+	if err != nil {
+		ctx.ModuleErrorf("invalid SOONG_SDK_SNAPSHOT_TARGET_BUILD_RELEASE: %s", err)
+		targetBuildRelease = currentBuildRelease
+	}
+
 	builder := &snapshotBuilder{
 		ctx:                   ctx,
 		sdk:                   s,
@@ -330,6 +351,7 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) andro
 		prebuiltModules:       make(map[string]*bpModule),
 		allMembersByName:      allMembersByName,
 		exportedMembersByName: exportedMembersByName,
+		targetBuildRelease:    targetBuildRelease,
 	}
 	s.builderForTests = builder
 
@@ -402,7 +424,11 @@ be unnecessary as every module in the sdk already has its own licenses property.
 	generateBpContents(&bp.generatedContents, bpFile)
 
 	contents := bp.content.String()
-	syntaxCheckSnapshotBpFile(ctx, contents)
+	// If the snapshot is being generated for the current build release then check the syntax to make
+	// sure that it is compatible.
+	if targetBuildRelease == currentBuildRelease {
+		syntaxCheckSnapshotBpFile(ctx, contents)
+	}
 
 	bp.build(pctx, ctx, nil)
 
@@ -939,6 +965,9 @@ type snapshotBuilder struct {
 
 	// The set of exported members by name.
 	exportedMembersByName map[string]struct{}
+
+	// The target build release for which the snapshot is to be generated.
+	targetBuildRelease *buildRelease
 }
 
 func (s *snapshotBuilder) CopyToSnapshot(src android.Path, dest string) {
@@ -1303,6 +1332,16 @@ func newOsTypeSpecificInfo(ctx android.SdkMemberContext, osType android.OsType, 
 	return osInfo
 }
 
+func (osInfo *osTypeSpecificInfo) pruneUnsupportedProperties(pruner *propertyPruner) {
+	if len(osInfo.archInfos) == 0 {
+		pruner.pruneProperties(osInfo.Properties)
+	} else {
+		for _, archInfo := range osInfo.archInfos {
+			archInfo.pruneUnsupportedProperties(pruner)
+		}
+	}
+}
+
 // Optimize the properties by extracting common properties from arch type specific
 // properties into os type specific properties.
 func (osInfo *osTypeSpecificInfo) optimizeProperties(ctx *memberContext, commonValueExtractor *commonValueExtractor) {
@@ -1472,6 +1511,16 @@ func getLinkType(variant android.Module) string {
 	return linkType
 }
 
+func (archInfo *archTypeSpecificInfo) pruneUnsupportedProperties(pruner *propertyPruner) {
+	if len(archInfo.imageVariantInfos) == 0 {
+		pruner.pruneProperties(archInfo.Properties)
+	} else {
+		for _, imageVariantInfo := range archInfo.imageVariantInfos {
+			imageVariantInfo.pruneUnsupportedProperties(pruner)
+		}
+	}
+}
+
 // Optimize the properties by extracting common properties from link type specific
 // properties into arch type specific properties.
 func (archInfo *archTypeSpecificInfo) optimizeProperties(ctx *memberContext, commonValueExtractor *commonValueExtractor) {
@@ -1557,6 +1606,16 @@ func newImageVariantSpecificInfo(ctx android.SdkMemberContext, imageVariant stri
 	return imageInfo
 }
 
+func (imageInfo *imageVariantSpecificInfo) pruneUnsupportedProperties(pruner *propertyPruner) {
+	if len(imageInfo.linkInfos) == 0 {
+		pruner.pruneProperties(imageInfo.Properties)
+	} else {
+		for _, linkInfo := range imageInfo.linkInfos {
+			linkInfo.pruneUnsupportedProperties(pruner)
+		}
+	}
+}
+
 // Optimize the properties by extracting common properties from link type specific
 // properties into arch type specific properties.
 func (imageInfo *imageVariantSpecificInfo) optimizeProperties(ctx *memberContext, commonValueExtractor *commonValueExtractor) {
@@ -1623,6 +1682,10 @@ func (l *linkTypeSpecificInfo) addToPropertySet(ctx *memberContext, propertySet 
 	addSdkMemberPropertiesToSet(ctx, l.Properties, linkPropertySet)
 }
 
+func (l *linkTypeSpecificInfo) pruneUnsupportedProperties(pruner *propertyPruner) {
+	pruner.pruneProperties(l.Properties)
+}
+
 func (l *linkTypeSpecificInfo) String() string {
 	return fmt.Sprintf("LinkType{%s}", l.linkType)
 }
@@ -1655,12 +1718,13 @@ func (s *sdk) createMemberSnapshot(ctx *memberContext, member *sdkMember, bpModu
 	memberType := member.memberType
 
 	// Do not add the prefer property if the member snapshot module is a source module type.
+	config := ctx.sdkMemberContext.Config()
 	if !memberType.UsesSourceModuleTypeInSnapshot() {
 		// Set the prefer based on the environment variable. This is a temporary work around to allow a
 		// snapshot to be created that sets prefer: true.
 		// TODO(b/174997203): Remove once the ability to select the modules to prefer can be done
 		//  dynamically at build time not at snapshot generation time.
-		prefer := ctx.sdkMemberContext.Config().IsEnvTrue("SOONG_SDK_SNAPSHOT_PREFER")
+		prefer := config.IsEnvTrue("SOONG_SDK_SNAPSHOT_PREFER")
 
 		// Set prefer. Setting this to false is not strictly required as that is the default but it does
 		// provide a convenient hook to post-process the generated Android.bp file, e.g. in tests to
@@ -1691,6 +1755,11 @@ func (s *sdk) createMemberSnapshot(ctx *memberContext, member *sdkMember, bpModu
 	commonProperties := variantPropertiesFactory()
 	commonProperties.Base().Os = android.CommonOS
 
+	// Create a property pruner that will prune any properties unsupported by the target build
+	// release.
+	targetBuildRelease := ctx.builder.targetBuildRelease
+	unsupportedPropertyPruner := newPropertyPrunerByBuildRelease(commonProperties, targetBuildRelease)
+
 	// Create common value extractor that can be used to optimize the properties.
 	commonValueExtractor := newCommonValueExtractor(commonProperties)
 
@@ -1704,6 +1773,8 @@ func (s *sdk) createMemberSnapshot(ctx *memberContext, member *sdkMember, bpModu
 		// Add the os specific properties to a list of os type specific yet architecture
 		// independent properties structs.
 		osSpecificPropertiesContainers = append(osSpecificPropertiesContainers, osInfo)
+
+		osInfo.pruneUnsupportedProperties(unsupportedPropertyPruner)
 
 		// Optimize the properties across all the variants for a specific os type.
 		osInfo.optimizeProperties(ctx, commonValueExtractor)
