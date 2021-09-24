@@ -33,6 +33,7 @@ bootstrap_go_package {
         "apex_key_conversion_test.go",
         "build_conversion_test.go",
         "bzl_conversion_test.go",
+        "cc_genrule_conversion_test.go",
         "cc_library_conversion_test.go",
         "cc_library_headers_conversion_test.go",
         "cc_library_static_conversion_test.go",

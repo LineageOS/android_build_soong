@@ -15,6 +15,7 @@
 package android
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 
@@ -376,6 +377,224 @@ func (b BpPrintableBase) bpPrintable() {
 
 var _ BpPrintable = BpPrintableBase{}
 
+// sdkRegisterable defines the interface that must be implemented by objects that can be registered
+// in an sdkRegistry.
+type sdkRegisterable interface {
+	// SdkPropertyName returns the name of the corresponding property on an sdk module.
+	SdkPropertyName() string
+}
+
+// sdkRegistry provides support for registering and retrieving objects that define properties for
+// use by sdk and module_exports module types.
+type sdkRegistry struct {
+	// The list of registered objects sorted by property name.
+	list []sdkRegisterable
+}
+
+// copyAndAppend creates a new sdkRegistry that includes all the traits registered in
+// this registry plus the supplied trait.
+func (r *sdkRegistry) copyAndAppend(registerable sdkRegisterable) *sdkRegistry {
+	oldList := r.list
+
+	// Make sure that list does not already contain the property. Uses a simple linear search instead
+	// of a binary search even though the list is sorted. That is because the number of items in the
+	// list is small and so not worth the overhead of a binary search.
+	found := false
+	newPropertyName := registerable.SdkPropertyName()
+	for _, r := range oldList {
+		if r.SdkPropertyName() == newPropertyName {
+			found = true
+			break
+		}
+	}
+	if found {
+		names := []string{}
+		for _, r := range oldList {
+			names = append(names, r.SdkPropertyName())
+		}
+		panic(fmt.Errorf("duplicate properties found, %q already exists in %q", newPropertyName, names))
+	}
+
+	// Copy the slice just in case this is being read while being modified, e.g. when testing.
+	list := make([]sdkRegisterable, 0, len(oldList)+1)
+	list = append(list, oldList...)
+	list = append(list, registerable)
+
+	// Sort the registered objects by their property name to ensure that registry order has no effect
+	// on behavior.
+	sort.Slice(list, func(i1, i2 int) bool {
+		t1 := list[i1]
+		t2 := list[i2]
+
+		return t1.SdkPropertyName() < t2.SdkPropertyName()
+	})
+
+	// Create a new registry so the pointer uniquely identifies the set of registered types.
+	return &sdkRegistry{
+		list: list,
+	}
+}
+
+// registeredObjects returns the list of registered instances.
+func (r *sdkRegistry) registeredObjects() []sdkRegisterable {
+	return r.list
+}
+
+// uniqueOnceKey returns a key that uniquely identifies this instance and can be used with
+// OncePer.Once
+func (r *sdkRegistry) uniqueOnceKey() OnceKey {
+	// Use the pointer to the registry as the unique key. The pointer is used because it is guaranteed
+	// to uniquely identify the contained list. The list itself cannot be used as slices are not
+	// comparable. Using the pointer does mean that two separate registries with identical lists would
+	// have different keys and so cause whatever information is cached to be created multiple times.
+	// However, that is not an issue in practice as it should not occur outside tests. Constructing a
+	// string representation of the list to use instead would avoid that but is an unnecessary
+	// complication that provides no significant benefit.
+	return NewCustomOnceKey(r)
+}
+
+// SdkMemberTrait represents a trait that members of an sdk module can contribute to the sdk
+// snapshot.
+//
+// A trait is simply a characteristic of sdk member that is not required by default which may be
+// required for some members but not others. Traits can cause additional information to be output
+// to the sdk snapshot or replace the default information exported for a member with something else.
+// e.g.
+// * By default cc libraries only export the default image variants to the SDK. However, for some
+//   members it may be necessary to export specific image variants, e.g. vendor, or recovery.
+// * By default cc libraries export all the configured architecture variants except for the native
+//   bridge architecture variants. However, for some members it may be necessary to export the
+//   native bridge architecture variants as well.
+// * By default cc libraries export the platform variant (i.e. sdk:). However, for some members it
+//   may be necessary to export the sdk variant (i.e. sdk:sdk).
+//
+// A sdk can request a module to provide no traits, one trait or a collection of traits. The exact
+// behavior of a trait is determined by how SdkMemberType implementations handle the traits. A trait
+// could be specific to one SdkMemberType or many. Some trait combinations could be incompatible.
+//
+// The sdk module type will create a special traits structure that contains a property for each
+// trait registered with RegisterSdkMemberTrait(). The property names are those returned from
+// SdkPropertyName(). Each property contains a list of modules that are required to have that trait.
+// e.g. something like this:
+//
+//   sdk {
+//     name: "sdk",
+//     ...
+//     traits: {
+//       recovery_image: ["module1", "module4", "module5"],
+//       native_bridge: ["module1", "module2"],
+//       native_sdk: ["module1", "module3"],
+//       ...
+//     },
+//     ...
+//   }
+type SdkMemberTrait interface {
+	// SdkPropertyName returns the name of the traits property on an sdk module.
+	SdkPropertyName() string
+}
+
+var _ sdkRegisterable = (SdkMemberTrait)(nil)
+
+// SdkMemberTraitBase is the base struct that must be embedded within any type that implements
+// SdkMemberTrait.
+type SdkMemberTraitBase struct {
+	// PropertyName is the name of the property
+	PropertyName string
+}
+
+func (b *SdkMemberTraitBase) SdkPropertyName() string {
+	return b.PropertyName
+}
+
+// SdkMemberTraitSet is a set of SdkMemberTrait instances.
+type SdkMemberTraitSet interface {
+	// Empty returns true if this set is empty.
+	Empty() bool
+
+	// Contains returns true if this set contains the specified trait.
+	Contains(trait SdkMemberTrait) bool
+
+	// Subtract returns a new set containing all elements of this set except for those in the
+	// other set.
+	Subtract(other SdkMemberTraitSet) SdkMemberTraitSet
+
+	// String returns a string representation of the set and its contents.
+	String() string
+}
+
+func NewSdkMemberTraitSet(traits []SdkMemberTrait) SdkMemberTraitSet {
+	if len(traits) == 0 {
+		return EmptySdkMemberTraitSet()
+	}
+
+	m := sdkMemberTraitSet{}
+	for _, trait := range traits {
+		m[trait] = true
+	}
+	return m
+}
+
+func EmptySdkMemberTraitSet() SdkMemberTraitSet {
+	return (sdkMemberTraitSet)(nil)
+}
+
+type sdkMemberTraitSet map[SdkMemberTrait]bool
+
+var _ SdkMemberTraitSet = (sdkMemberTraitSet{})
+
+func (s sdkMemberTraitSet) Empty() bool {
+	return len(s) == 0
+}
+
+func (s sdkMemberTraitSet) Contains(trait SdkMemberTrait) bool {
+	return s[trait]
+}
+
+func (s sdkMemberTraitSet) Subtract(other SdkMemberTraitSet) SdkMemberTraitSet {
+	if other.Empty() {
+		return s
+	}
+
+	var remainder []SdkMemberTrait
+	for trait, _ := range s {
+		if !other.Contains(trait) {
+			remainder = append(remainder, trait)
+		}
+	}
+
+	return NewSdkMemberTraitSet(remainder)
+}
+
+func (s sdkMemberTraitSet) String() string {
+	list := []string{}
+	for trait, _ := range s {
+		list = append(list, trait.SdkPropertyName())
+	}
+	sort.Strings(list)
+	return fmt.Sprintf("[%s]", strings.Join(list, ","))
+}
+
+var registeredSdkMemberTraits = &sdkRegistry{}
+
+// RegisteredSdkMemberTraits returns a OnceKey and a sorted list of registered traits.
+//
+// The key uniquely identifies the array of traits and can be used with OncePer.Once() to cache
+// information derived from the array of traits.
+func RegisteredSdkMemberTraits() (OnceKey, []SdkMemberTrait) {
+	registerables := registeredSdkMemberTraits.registeredObjects()
+	traits := make([]SdkMemberTrait, len(registerables))
+	for i, registerable := range registerables {
+		traits[i] = registerable.(SdkMemberTrait)
+	}
+	return registeredSdkMemberTraits.uniqueOnceKey(), traits
+}
+
+// RegisterSdkMemberTrait registers an SdkMemberTrait object to allow them to be used in the
+// module_exports, module_exports_snapshot, sdk and sdk_snapshot module types.
+func RegisterSdkMemberTrait(trait SdkMemberTrait) {
+	registeredSdkMemberTraits = registeredSdkMemberTraits.copyAndAppend(trait)
+}
+
 // SdkMember is an individual member of the SDK.
 //
 // It includes all of the variants that the SDK depends upon.
@@ -541,12 +760,25 @@ type SdkMemberType interface {
 	// CreateVariantPropertiesStruct creates a structure into which variant specific properties can be
 	// added.
 	CreateVariantPropertiesStruct() SdkMemberProperties
+
+	// SupportedTraits returns the set of traits supported by this member type.
+	SupportedTraits() SdkMemberTraitSet
 }
+
+var _ sdkRegisterable = (SdkMemberType)(nil)
 
 // SdkDependencyContext provides access to information needed by the SdkMemberType.AddDependencies()
 // implementations.
 type SdkDependencyContext interface {
 	BottomUpMutatorContext
+
+	// RequiredTraits returns the set of SdkMemberTrait instances that the sdk requires the named
+	// member to provide.
+	RequiredTraits(name string) SdkMemberTraitSet
+
+	// RequiresTrait returns true if the sdk requires the member with the supplied name to provide the
+	// supplied trait.
+	RequiresTrait(name string, trait SdkMemberTrait) bool
 }
 
 // SdkMemberTypeBase is the base type for SdkMemberType implementations and must be embedded in any
@@ -565,6 +797,9 @@ type SdkMemberTypeBase struct {
 	// module type in its SdkMemberType.AddPrebuiltModule() method. That prevents the sdk snapshot
 	// code from automatically adding a prefer: true flag.
 	UseSourceModuleTypeInSnapshot bool
+
+	// The list of supported traits.
+	Traits []SdkMemberTrait
 }
 
 func (b *SdkMemberTypeBase) SdkPropertyName() string {
@@ -587,60 +822,52 @@ func (b *SdkMemberTypeBase) UsesSourceModuleTypeInSnapshot() bool {
 	return b.UseSourceModuleTypeInSnapshot
 }
 
-// SdkMemberTypesRegistry encapsulates the information about registered SdkMemberTypes.
-type SdkMemberTypesRegistry struct {
-	// The list of types sorted by property name.
-	list []SdkMemberType
+func (b *SdkMemberTypeBase) SupportedTraits() SdkMemberTraitSet {
+	return NewSdkMemberTraitSet(b.Traits)
 }
 
-func (r *SdkMemberTypesRegistry) copyAndAppend(memberType SdkMemberType) *SdkMemberTypesRegistry {
-	oldList := r.list
+// registeredModuleExportsMemberTypes is the set of registered SdkMemberTypes for module_exports
+// modules.
+var registeredModuleExportsMemberTypes = &sdkRegistry{}
 
-	// Copy the slice just in case this is being read while being modified, e.g. when testing.
-	list := make([]SdkMemberType, 0, len(oldList)+1)
-	list = append(list, oldList...)
-	list = append(list, memberType)
+// registeredSdkMemberTypes is the set of registered registeredSdkMemberTypes for sdk modules.
+var registeredSdkMemberTypes = &sdkRegistry{}
 
-	// Sort the member types by their property name to ensure that registry order has no effect
-	// on behavior.
-	sort.Slice(list, func(i1, i2 int) bool {
-		t1 := list[i1]
-		t2 := list[i2]
-
-		return t1.SdkPropertyName() < t2.SdkPropertyName()
-	})
-
-	// Create a new registry so the pointer uniquely identifies the set of registered types.
-	return &SdkMemberTypesRegistry{
-		list: list,
+// RegisteredSdkMemberTypes returns a OnceKey and a sorted list of registered types.
+//
+// If moduleExports is true then the slice of types includes all registered types that can be used
+// with the module_exports and module_exports_snapshot module types. Otherwise, the slice of types
+// only includes those registered types that can be used with the sdk and sdk_snapshot module
+// types.
+//
+// The key uniquely identifies the array of types and can be used with OncePer.Once() to cache
+// information derived from the array of types.
+func RegisteredSdkMemberTypes(moduleExports bool) (OnceKey, []SdkMemberType) {
+	var registry *sdkRegistry
+	if moduleExports {
+		registry = registeredModuleExportsMemberTypes
+	} else {
+		registry = registeredSdkMemberTypes
 	}
+
+	registerables := registry.registeredObjects()
+	types := make([]SdkMemberType, len(registerables))
+	for i, registerable := range registerables {
+		types[i] = registerable.(SdkMemberType)
+	}
+	return registry.uniqueOnceKey(), types
 }
-
-func (r *SdkMemberTypesRegistry) RegisteredTypes() []SdkMemberType {
-	return r.list
-}
-
-func (r *SdkMemberTypesRegistry) UniqueOnceKey() OnceKey {
-	// Use the pointer to the registry as the unique key.
-	return NewCustomOnceKey(r)
-}
-
-// ModuleExportsMemberTypes is the set of registered SdkMemberTypes for module_exports modules.
-var ModuleExportsMemberTypes = &SdkMemberTypesRegistry{}
-
-// SdkMemberTypes is the set of registered SdkMemberTypes for sdk modules.
-var SdkMemberTypes = &SdkMemberTypesRegistry{}
 
 // RegisterSdkMemberType registers an SdkMemberType object to allow them to be used in the
 // module_exports, module_exports_snapshot and (depending on the value returned from
 // SdkMemberType.UsableWithSdkAndSdkSnapshot) the sdk and sdk_snapshot module types.
 func RegisterSdkMemberType(memberType SdkMemberType) {
 	// All member types are usable with module_exports.
-	ModuleExportsMemberTypes = ModuleExportsMemberTypes.copyAndAppend(memberType)
+	registeredModuleExportsMemberTypes = registeredModuleExportsMemberTypes.copyAndAppend(memberType)
 
 	// Only those that explicitly indicate it are usable with sdk.
 	if memberType.UsableWithSdkAndSdkSnapshot() {
-		SdkMemberTypes = SdkMemberTypes.copyAndAppend(memberType)
+		registeredSdkMemberTypes = registeredSdkMemberTypes.copyAndAppend(memberType)
 	}
 }
 
@@ -733,6 +960,9 @@ type SdkMemberContext interface {
 	// Provided for use by sdk members to create a member specific location within the snapshot
 	// into which to copy the prebuilt files.
 	Name() string
+
+	// RequiresTrait returns true if this member is expected to provide the specified trait.
+	RequiresTrait(trait SdkMemberTrait) bool
 }
 
 // ExportedComponentsInfo contains information about the components that this module exports to an

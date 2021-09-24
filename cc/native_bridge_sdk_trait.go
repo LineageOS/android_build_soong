@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All rights reserved.
+// Copyright 2021 Google Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,26 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package {
-    default_applicable_licenses: ["Android-Apache-2.0"],
+package cc
+
+import "android/soong/android"
+
+// This file contains support for the native bridge sdk trait.
+
+func init() {
+	android.RegisterSdkMemberTrait(nativeBridgeSdkTrait)
 }
 
-blueprint_go_binary {
-    name: "soong_build",
-    deps: [
-        "blueprint",
-        "blueprint-bootstrap",
-        "golang-protobuf-proto",
-        "golang-protobuf-android",
-        "soong",
-        "soong-android",
-        "soong-bp2build",
-        "soong-ui-metrics_proto",
-    ],
-    srcs: [
-        "main.go",
-        "writedocs.go",
-        "queryview.go",
-    ],
-    primaryBuilder: true,
+type nativeBridgeSdkTraitStruct struct {
+	android.SdkMemberTraitBase
+}
+
+var nativeBridgeSdkTrait android.SdkMemberTrait = &nativeBridgeSdkTraitStruct{
+	SdkMemberTraitBase: android.SdkMemberTraitBase{
+		PropertyName: "native_bridge_support",
+	},
 }
