@@ -59,6 +59,10 @@ type TestProperties struct {
 
 	// Test options.
 	Test_options TestOptions
+
+	// Add RootTargetPreparer to auto generated test config. This guarantees the test to run
+	// with root permission.
+	Require_root *bool
 }
 
 // A test module is a binary module with extra --test compiler flag
@@ -109,12 +113,27 @@ func (test *testDecorator) compilerProps() []interface{} {
 }
 
 func (test *testDecorator) install(ctx ModuleContext) {
+	testInstallBase := "/data/local/tests/unrestricted"
+	if ctx.RustModule().InVendor() || ctx.RustModule().UseVndk() {
+		testInstallBase = "/data/local/tests/vendor"
+	}
+
+	var configs []tradefed.Config
+	if Bool(test.Properties.Require_root) {
+		configs = append(configs, tradefed.Object{"target_preparer", "com.android.tradefed.targetprep.RootTargetPreparer", nil})
+	} else {
+		var options []tradefed.Option
+		options = append(options, tradefed.Option{Name: "force-root", Value: "false"})
+		configs = append(configs, tradefed.Object{"target_preparer", "com.android.tradefed.targetprep.RootTargetPreparer", options})
+	}
+
 	test.testConfig = tradefed.AutoGenRustTestConfig(ctx,
 		test.Properties.Test_config,
 		test.Properties.Test_config_template,
 		test.Properties.Test_suites,
-		nil,
-		test.Properties.Auto_gen_config)
+		configs,
+		test.Properties.Auto_gen_config,
+		testInstallBase)
 
 	dataSrcPaths := android.PathsForModuleSrc(ctx, test.Properties.Data)
 
