@@ -219,7 +219,7 @@ type ApexDependency interface {
 
 // Provides build path and install path to DEX jars.
 type UsesLibraryDependency interface {
-	DexJarBuildPath() android.Path
+	DexJarBuildPath() OptionalDexJarPath
 	DexJarInstallPath() android.Path
 	ClassLoaderContexts() dexpreopt.ClassLoaderContextMap
 }
@@ -1215,7 +1215,7 @@ type Import struct {
 	properties ImportProperties
 
 	// output file containing classes.dex and resources
-	dexJarFile        android.Path
+	dexJarFile        OptionalDexJarPath
 	dexJarInstallFile android.Path
 
 	combinedClasspathFile android.Path
@@ -1319,7 +1319,6 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.classLoaderContexts = make(dexpreopt.ClassLoaderContextMap)
 
 	var flags javaBuilderFlags
-	var deapexerModule android.Module
 
 	ctx.VisitDirectDeps(func(module android.Module) {
 		tag := ctx.OtherModuleDependencyTag(module)
@@ -1340,11 +1339,6 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		}
 
 		addCLCFromDep(ctx, module, j.classLoaderContexts)
-
-		// Save away the `deapexer` module on which this depends, if any.
-		if tag == android.DeapexerTag {
-			deapexerModule = module
-		}
 	})
 
 	if Bool(j.properties.Installable) {
@@ -1359,26 +1353,22 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		// obtained from the associated deapexer module.
 		ai := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
 		if ai.ForPrebuiltApex {
-			if deapexerModule == nil {
-				// This should never happen as a variant for a prebuilt_apex is only created if the
-				// deapexer module has been configured to export the dex implementation jar for this module.
-				ctx.ModuleErrorf("internal error: module %q does not depend on a `deapexer` module for prebuilt_apex %q",
-					j.Name(), ai.ApexVariationName)
-				return
-			}
-
 			// Get the path of the dex implementation jar from the `deapexer` module.
-			di := ctx.OtherModuleProvider(deapexerModule, android.DeapexerProvider).(android.DeapexerInfo)
+			di := android.FindDeapexerProviderForModule(ctx)
+			if di == nil {
+				return // An error has been reported by FindDeapexerProviderForModule.
+			}
 			if dexOutputPath := di.PrebuiltExportPath(apexRootRelativePathToJavaLib(j.BaseModuleName())); dexOutputPath != nil {
-				j.dexJarFile = dexOutputPath
+				dexJarFile := makeDexJarPathFromPath(dexOutputPath)
+				j.dexJarFile = dexJarFile
 				j.dexJarInstallFile = android.PathForModuleInPartitionInstall(ctx, "apex", ai.ApexVariationName, apexRootRelativePathToJavaLib(j.BaseModuleName()))
 
 				// Initialize the hiddenapi structure.
-				j.initHiddenAPI(ctx, dexOutputPath, outputFile, nil)
+				j.initHiddenAPI(ctx, dexJarFile, outputFile, nil)
 			} else {
 				// This should never happen as a variant for a prebuilt_apex is only created if the
 				// prebuilt_apex has been configured to export the java library dex file.
-				ctx.ModuleErrorf("internal error: no dex implementation jar available from prebuilt_apex %q", deapexerModule.Name())
+				ctx.ModuleErrorf("internal error: no dex implementation jar available from prebuilt APEX %s", di.ApexModuleName())
 			}
 		} else if Bool(j.dexProperties.Compile_dex) {
 			sdkDep := decodeSdkDep(ctx, android.SdkContext(j))
@@ -1407,12 +1397,12 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			}
 
 			// Initialize the hiddenapi structure.
-			j.initHiddenAPI(ctx, dexOutputFile, outputFile, j.dexProperties.Uncompress_dex)
+			j.initHiddenAPI(ctx, makeDexJarPathFromPath(dexOutputFile), outputFile, j.dexProperties.Uncompress_dex)
 
 			// Encode hidden API flags in dex file.
 			dexOutputFile = j.hiddenAPIEncodeDex(ctx, dexOutputFile)
 
-			j.dexJarFile = dexOutputFile
+			j.dexJarFile = makeDexJarPathFromPath(dexOutputFile)
 			j.dexJarInstallFile = android.PathForModuleInstall(ctx, "framework", jarName)
 		}
 	}
@@ -1450,7 +1440,7 @@ func (j *Import) ImplementationAndResourcesJars() android.Paths {
 	return android.Paths{j.combinedClasspathFile}
 }
 
-func (j *Import) DexJarBuildPath() android.Path {
+func (j *Import) DexJarBuildPath() OptionalDexJarPath {
 	return j.dexJarFile
 }
 
@@ -1595,7 +1585,7 @@ type DexImport struct {
 
 	properties DexImportProperties
 
-	dexJarFile android.Path
+	dexJarFile OptionalDexJarPath
 
 	dexpreopter
 
@@ -1686,7 +1676,7 @@ func (j *DexImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		})
 	}
 
-	j.dexJarFile = dexOutputFile
+	j.dexJarFile = makeDexJarPathFromPath(dexOutputFile)
 
 	j.dexpreopt(ctx, dexOutputFile)
 
@@ -1696,7 +1686,7 @@ func (j *DexImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 }
 
-func (j *DexImport) DexJarBuildPath() android.Path {
+func (j *DexImport) DexJarBuildPath() OptionalDexJarPath {
 	return j.dexJarFile
 }
 
@@ -1865,7 +1855,7 @@ func addCLCFromDep(ctx android.ModuleContext, depModule android.Module,
 	// from its CLC should be added to the current CLC.
 	if sdkLib != nil {
 		clcMap.AddContext(ctx, dexpreopt.AnySdkVersion, *sdkLib, false, true,
-			dep.DexJarBuildPath(), dep.DexJarInstallPath(), dep.ClassLoaderContexts())
+			dep.DexJarBuildPath().PathOrNil(), dep.DexJarInstallPath(), dep.ClassLoaderContexts())
 	} else {
 		clcMap.AddContextMap(dep.ClassLoaderContexts(), depName)
 	}

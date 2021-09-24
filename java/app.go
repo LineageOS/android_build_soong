@@ -476,7 +476,7 @@ func (a *AndroidApp) dexBuildActions(ctx android.ModuleContext) android.Path {
 		a.Module.compile(ctx, a.aaptSrcJar)
 	}
 
-	return a.dexJarFile
+	return a.dexJarFile.PathOrNil()
 }
 
 func (a *AndroidApp) jniBuildActions(jniLibs []jniLib, ctx android.ModuleContext) android.WritablePath {
@@ -1305,7 +1305,8 @@ func (u *usesLibrary) classLoaderContextForUsesLibDeps(ctx android.ModuleContext
 				replaceInList(u.usesLibraryProperties.Optional_uses_libs, dep, libName)
 			}
 			clcMap.AddContext(ctx, tag.sdkVersion, libName, tag.optional, tag.implicit,
-				lib.DexJarBuildPath(), lib.DexJarInstallPath(), lib.ClassLoaderContexts())
+				lib.DexJarBuildPath().PathOrNil(), lib.DexJarInstallPath(),
+				lib.ClassLoaderContexts())
 		} else if ctx.Config().AllowMissingDependencies() {
 			ctx.AddMissingDependencies([]string{dep})
 		} else {
