@@ -954,23 +954,11 @@ func (module *prebuiltBootclasspathFragmentModule) produceBootImageFiles(ctx and
 		return nil
 	}
 
-	var deapexerModule android.Module
-	ctx.VisitDirectDeps(func(module android.Module) {
-		tag := ctx.OtherModuleDependencyTag(module)
-		// Save away the `deapexer` module on which this depends, if any.
-		if tag == android.DeapexerTag {
-			deapexerModule = module
-		}
-	})
-
-	if deapexerModule == nil {
-		// This should never happen as a variant for a prebuilt_apex is only created if the
-		// deapexer module has been configured to export the dex implementation jar for this module.
-		ctx.ModuleErrorf("internal error: module does not depend on a `deapexer` module")
-		return nil
+	di := android.FindDeapexerProviderForModule(ctx)
+	if di == nil {
+		return nil // An error has been reported by FindDeapexerProviderForModule.
 	}
 
-	di := ctx.OtherModuleProvider(deapexerModule, android.DeapexerProvider).(android.DeapexerInfo)
 	files := bootImageFilesByArch{}
 	for _, variant := range imageConfig.apexVariants() {
 		arch := variant.target.Arch.ArchType

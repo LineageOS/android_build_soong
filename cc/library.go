@@ -232,12 +232,15 @@ type bazelCcLibraryAttributes struct {
 	Conlyflags bazel.StringListAttribute
 	Asflags    bazel.StringListAttribute
 
-	Hdrs                   bazel.LabelListAttribute
-	Deps                   bazel.LabelListAttribute
-	Implementation_deps    bazel.LabelListAttribute
-	Dynamic_deps           bazel.LabelListAttribute
-	Whole_archive_deps     bazel.LabelListAttribute
-	System_dynamic_deps    bazel.LabelListAttribute
+	Hdrs bazel.LabelListAttribute
+
+	Deps                        bazel.LabelListAttribute
+	Implementation_deps         bazel.LabelListAttribute
+	Dynamic_deps                bazel.LabelListAttribute
+	Implementation_dynamic_deps bazel.LabelListAttribute
+	Whole_archive_deps          bazel.LabelListAttribute
+	System_dynamic_deps         bazel.LabelListAttribute
+
 	Export_includes        bazel.StringListAttribute
 	Export_system_includes bazel.StringListAttribute
 	Local_includes         bazel.StringListAttribute
@@ -245,6 +248,7 @@ type bazelCcLibraryAttributes struct {
 	Linkopts               bazel.StringListAttribute
 	Use_libcrt             bazel.BoolAttribute
 	Rtti                   bazel.BoolAttribute
+	Stl                    *string
 
 	// This is shared only.
 	Version_script bazel.LabelAttribute
@@ -306,18 +310,20 @@ func CcLibraryBp2Build(ctx android.TopDownMutatorContext) {
 		Conlyflags: compilerAttrs.conlyFlags,
 		Asflags:    asFlags,
 
-		Implementation_deps:    linkerAttrs.deps,
-		Deps:                   linkerAttrs.exportedDeps,
-		Dynamic_deps:           linkerAttrs.dynamicDeps,
-		Whole_archive_deps:     linkerAttrs.wholeArchiveDeps,
-		System_dynamic_deps:    linkerAttrs.systemDynamicDeps,
-		Export_includes:        exportedIncludes.Includes,
-		Export_system_includes: exportedIncludes.SystemIncludes,
-		Local_includes:         compilerAttrs.localIncludes,
-		Absolute_includes:      compilerAttrs.absoluteIncludes,
-		Linkopts:               linkerAttrs.linkopts,
-		Use_libcrt:             linkerAttrs.useLibcrt,
-		Rtti:                   compilerAttrs.rtti,
+		Implementation_deps:         linkerAttrs.implementationDeps,
+		Deps:                        linkerAttrs.deps,
+		Implementation_dynamic_deps: linkerAttrs.implementationDynamicDeps,
+		Dynamic_deps:                linkerAttrs.dynamicDeps,
+		Whole_archive_deps:          linkerAttrs.wholeArchiveDeps,
+		System_dynamic_deps:         linkerAttrs.systemDynamicDeps,
+		Export_includes:             exportedIncludes.Includes,
+		Export_system_includes:      exportedIncludes.SystemIncludes,
+		Local_includes:              compilerAttrs.localIncludes,
+		Absolute_includes:           compilerAttrs.absoluteIncludes,
+		Linkopts:                    linkerAttrs.linkopts,
+		Use_libcrt:                  linkerAttrs.useLibcrt,
+		Rtti:                        compilerAttrs.rtti,
+		Stl:                         compilerAttrs.stl,
 
 		Version_script: linkerAttrs.versionScript,
 
@@ -2349,9 +2355,11 @@ func ccSharedOrStaticBp2BuildMutatorInternal(ctx android.TopDownMutatorContext, 
 	compilerAttrs.cSrcs.Append(libSharedOrStaticAttrs.Srcs_c)
 	compilerAttrs.asSrcs.Append(libSharedOrStaticAttrs.Srcs_as)
 	compilerAttrs.copts.Append(libSharedOrStaticAttrs.Copts)
-	linkerAttrs.exportedDeps.Append(libSharedOrStaticAttrs.Static_deps)
+
+	linkerAttrs.deps.Append(libSharedOrStaticAttrs.Deps)
+	linkerAttrs.implementationDeps.Append(libSharedOrStaticAttrs.Implementation_deps)
 	linkerAttrs.dynamicDeps.Append(libSharedOrStaticAttrs.Dynamic_deps)
-	linkerAttrs.wholeArchiveDeps.Append(libSharedOrStaticAttrs.Whole_archive_deps)
+	linkerAttrs.implementationDynamicDeps.Append(libSharedOrStaticAttrs.Implementation_dynamic_deps)
 	linkerAttrs.systemDynamicDeps.Append(libSharedOrStaticAttrs.System_dynamic_deps)
 
 	asFlags := compilerAttrs.asFlags
@@ -2360,44 +2368,42 @@ func ccSharedOrStaticBp2BuildMutatorInternal(ctx android.TopDownMutatorContext, 
 		asFlags = bazel.MakeStringListAttribute(nil)
 	}
 
+	commonAttrs := staticOrSharedAttributes{
+		Srcs:    compilerAttrs.srcs,
+		Srcs_c:  compilerAttrs.cSrcs,
+		Srcs_as: compilerAttrs.asSrcs,
+		Copts:   compilerAttrs.copts,
+
+		Deps:                        linkerAttrs.deps,
+		Implementation_deps:         linkerAttrs.implementationDeps,
+		Dynamic_deps:                linkerAttrs.dynamicDeps,
+		Implementation_dynamic_deps: linkerAttrs.implementationDynamicDeps,
+		Whole_archive_deps:          linkerAttrs.wholeArchiveDeps,
+		System_dynamic_deps:         linkerAttrs.systemDynamicDeps,
+	}
+
 	var attrs interface{}
 	if isStatic {
 		attrs = &bazelCcLibraryStaticAttributes{
-			Copts:               compilerAttrs.copts,
-			Srcs:                compilerAttrs.srcs,
-			Implementation_deps: linkerAttrs.deps,
-			Deps:                linkerAttrs.exportedDeps,
-			Whole_archive_deps:  linkerAttrs.wholeArchiveDeps,
-			Dynamic_deps:        linkerAttrs.dynamicDeps,
-			System_dynamic_deps: linkerAttrs.systemDynamicDeps,
+			staticOrSharedAttributes: commonAttrs,
 
 			Linkopts:               linkerAttrs.linkopts,
 			Use_libcrt:             linkerAttrs.useLibcrt,
 			Rtti:                   compilerAttrs.rtti,
+			Stl:                    compilerAttrs.stl,
 			Export_includes:        exportedIncludes.Includes,
 			Export_system_includes: exportedIncludes.SystemIncludes,
 			Local_includes:         compilerAttrs.localIncludes,
 			Absolute_includes:      compilerAttrs.absoluteIncludes,
 
 			Cppflags:   compilerAttrs.cppFlags,
-			Srcs_c:     compilerAttrs.cSrcs,
 			Conlyflags: compilerAttrs.conlyFlags,
-			Srcs_as:    compilerAttrs.asSrcs,
 			Asflags:    asFlags,
 		}
 	} else {
 		attrs = &bazelCcLibrarySharedAttributes{
-			Srcs:    compilerAttrs.srcs,
-			Srcs_c:  compilerAttrs.cSrcs,
-			Srcs_as: compilerAttrs.asSrcs,
+			staticOrSharedAttributes: commonAttrs,
 
-			Implementation_deps: linkerAttrs.deps,
-			Deps:                linkerAttrs.exportedDeps,
-			Whole_archive_deps:  linkerAttrs.wholeArchiveDeps,
-			Dynamic_deps:        linkerAttrs.dynamicDeps,
-			System_dynamic_deps: linkerAttrs.systemDynamicDeps,
-
-			Copts:      compilerAttrs.copts,
 			Cppflags:   compilerAttrs.cppFlags,
 			Conlyflags: compilerAttrs.conlyFlags,
 			Asflags:    asFlags,
@@ -2405,6 +2411,7 @@ func ccSharedOrStaticBp2BuildMutatorInternal(ctx android.TopDownMutatorContext, 
 
 			Use_libcrt: linkerAttrs.useLibcrt,
 			Rtti:       compilerAttrs.rtti,
+			Stl:        compilerAttrs.stl,
 
 			Export_includes:        exportedIncludes.Includes,
 			Export_system_includes: exportedIncludes.SystemIncludes,
@@ -2432,16 +2439,13 @@ func ccSharedOrStaticBp2BuildMutatorInternal(ctx android.TopDownMutatorContext, 
 
 // TODO(b/199902614): Can this be factored to share with the other Attributes?
 type bazelCcLibraryStaticAttributes struct {
-	Copts                  bazel.StringListAttribute
-	Srcs                   bazel.LabelListAttribute
-	Implementation_deps    bazel.LabelListAttribute
-	Deps                   bazel.LabelListAttribute
-	Whole_archive_deps     bazel.LabelListAttribute
-	Dynamic_deps           bazel.LabelListAttribute
-	System_dynamic_deps    bazel.LabelListAttribute
-	Linkopts               bazel.StringListAttribute
-	Use_libcrt             bazel.BoolAttribute
-	Rtti                   bazel.BoolAttribute
+	staticOrSharedAttributes
+
+	Linkopts   bazel.StringListAttribute
+	Use_libcrt bazel.BoolAttribute
+	Rtti       bazel.BoolAttribute
+	Stl        *string
+
 	Export_includes        bazel.StringListAttribute
 	Export_system_includes bazel.StringListAttribute
 	Local_includes         bazel.StringListAttribute
@@ -2449,9 +2453,7 @@ type bazelCcLibraryStaticAttributes struct {
 	Hdrs                   bazel.LabelListAttribute
 
 	Cppflags   bazel.StringListAttribute
-	Srcs_c     bazel.LabelListAttribute
 	Conlyflags bazel.StringListAttribute
-	Srcs_as    bazel.LabelListAttribute
 	Asflags    bazel.StringListAttribute
 }
 
@@ -2461,29 +2463,22 @@ func CcLibraryStaticBp2Build(ctx android.TopDownMutatorContext) {
 
 // TODO(b/199902614): Can this be factored to share with the other Attributes?
 type bazelCcLibrarySharedAttributes struct {
-	Srcs    bazel.LabelListAttribute
-	Srcs_c  bazel.LabelListAttribute
-	Srcs_as bazel.LabelListAttribute
-
-	Implementation_deps bazel.LabelListAttribute
-	Deps                bazel.LabelListAttribute
-	Whole_archive_deps  bazel.LabelListAttribute
-	Dynamic_deps        bazel.LabelListAttribute
-	System_dynamic_deps bazel.LabelListAttribute
+	staticOrSharedAttributes
 
 	Linkopts   bazel.StringListAttribute
 	Use_libcrt bazel.BoolAttribute
 	Rtti       bazel.BoolAttribute
-	Strip      stripAttributes
+	Stl        *string
 
 	Export_includes        bazel.StringListAttribute
 	Export_system_includes bazel.StringListAttribute
 	Local_includes         bazel.StringListAttribute
 	Absolute_includes      bazel.StringListAttribute
 	Hdrs                   bazel.LabelListAttribute
-	Version_script         bazel.LabelAttribute
 
-	Copts      bazel.StringListAttribute
+	Strip          stripAttributes
+	Version_script bazel.LabelAttribute
+
 	Cppflags   bazel.StringListAttribute
 	Conlyflags bazel.StringListAttribute
 	Asflags    bazel.StringListAttribute

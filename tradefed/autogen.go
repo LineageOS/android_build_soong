@@ -227,17 +227,17 @@ func AutoGenPythonBinaryHostTestConfig(ctx android.ModuleContext, testConfigProp
 }
 
 func AutoGenRustTestConfig(ctx android.ModuleContext, testConfigProp *string,
-	testConfigTemplateProp *string, testSuites []string, config []Config, autoGenConfig *bool) android.Path {
+	testConfigTemplateProp *string, testSuites []string, config []Config, autoGenConfig *bool, testInstallBase string) android.Path {
 	path, autogenPath := testConfigPath(ctx, testConfigProp, testSuites, autoGenConfig, testConfigTemplateProp)
 	if autogenPath != nil {
 		templatePath := getTestConfigTemplate(ctx, testConfigTemplateProp)
 		if templatePath.Valid() {
-			autogenTemplate(ctx, autogenPath, templatePath.String(), config, "")
+			autogenTemplate(ctx, autogenPath, templatePath.String(), config, testInstallBase)
 		} else {
 			if ctx.Device() {
-				autogenTemplate(ctx, autogenPath, "${RustDeviceTestConfigTemplate}", config, "")
+				autogenTemplate(ctx, autogenPath, "${RustDeviceTestConfigTemplate}", config, testInstallBase)
 			} else {
-				autogenTemplate(ctx, autogenPath, "${RustHostTestConfigTemplate}", config, "")
+				autogenTemplate(ctx, autogenPath, "${RustHostTestConfigTemplate}", config, testInstallBase)
 			}
 		}
 		return autogenPath
