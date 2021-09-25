@@ -60,6 +60,7 @@ bootstrap_go_package {
         "binary.go",
         "binary_sdk_member.go",
         "fuzz.go",
+        "image_sdk_traits.go",
         "library.go",
         "library_headers.go",
         "library_sdk_member.go",
