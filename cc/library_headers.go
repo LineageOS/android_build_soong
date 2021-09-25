@@ -35,6 +35,7 @@ var headersLibrarySdkMemberType = &librarySdkMemberType{
 		HostOsDependent: true,
 		Traits: []android.SdkMemberTrait{
 			nativeBridgeSdkTrait,
+			ramdiskImageRequiredSdkTrait,
 			recoveryImageRequiredSdkTrait,
 		},
 	},
