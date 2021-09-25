@@ -134,6 +134,16 @@ func (mt *librarySdkMemberType) AddDependencies(ctx android.SdkDependencyContext
 				targets:         targets,
 			})
 
+			// If required add additional dependencies on the image:ramdisk variants.
+			if ctx.RequiresTrait(lib, ramdiskImageRequiredSdkTrait) {
+				memberDependencies = append(memberDependencies, memberDependency{
+					imageVariations: []blueprint.Variation{{Mutator: "image", Variation: android.RamdiskVariation}},
+					// Only add a dependency on the first target as that is the only one which will have an
+					// image:ramdisk variant.
+					targets: targets[:1],
+				})
+			}
+
 			// If required add additional dependencies on the image:recovery variants.
 			if ctx.RequiresTrait(lib, recoveryImageRequiredSdkTrait) {
 				memberDependencies = append(memberDependencies, memberDependency{
@@ -197,6 +207,10 @@ func (mt *librarySdkMemberType) AddPrebuiltModule(ctx android.SdkMemberContext, 
 
 	if ctx.RequiresTrait(nativeBridgeSdkTrait) {
 		pbm.AddProperty("native_bridge_supported", true)
+	}
+
+	if ctx.RequiresTrait(ramdiskImageRequiredSdkTrait) {
+		pbm.AddProperty("ramdisk_available", true)
 	}
 
 	if ctx.RequiresTrait(recoveryImageRequiredSdkTrait) {

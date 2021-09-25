@@ -19,11 +19,18 @@ import "android/soong/android"
 // This file contains support for the image variant sdk traits.
 
 func init() {
+	android.RegisterSdkMemberTrait(ramdiskImageRequiredSdkTrait)
 	android.RegisterSdkMemberTrait(recoveryImageRequiredSdkTrait)
 }
 
 type imageSdkTraitStruct struct {
 	android.SdkMemberTraitBase
+}
+
+var ramdiskImageRequiredSdkTrait android.SdkMemberTrait = &imageSdkTraitStruct{
+	SdkMemberTraitBase: android.SdkMemberTraitBase{
+		PropertyName: "ramdisk_image_required",
+	},
 }
 
 var recoveryImageRequiredSdkTrait android.SdkMemberTrait = &imageSdkTraitStruct{
