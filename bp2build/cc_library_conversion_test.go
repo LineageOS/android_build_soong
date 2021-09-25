@@ -349,24 +349,123 @@ cc_library {
 		expectedBazelTargets: []string{`cc_library(
     name = "a",
     copts = ["bothflag"],
-    dynamic_deps = [":shared_dep_for_both"],
     implementation_deps = [":static_dep_for_both"],
+    implementation_dynamic_deps = [":shared_dep_for_both"],
     shared = {
         "copts": ["sharedflag"],
-        "dynamic_deps": [":shared_dep_for_shared"],
+        "implementation_deps": [":static_dep_for_shared"],
+        "implementation_dynamic_deps": [":shared_dep_for_shared"],
         "srcs": ["sharedonly.cpp"],
-        "static_deps": [":static_dep_for_shared"],
         "whole_archive_deps": [":whole_static_lib_for_shared"],
     },
     srcs = ["both.cpp"],
     static = {
         "copts": ["staticflag"],
-        "dynamic_deps": [":shared_dep_for_static"],
+        "implementation_deps": [":static_dep_for_static"],
+        "implementation_dynamic_deps": [":shared_dep_for_static"],
         "srcs": ["staticonly.cpp"],
-        "static_deps": [":static_dep_for_static"],
         "whole_archive_deps": [":whole_static_lib_for_static"],
     },
     whole_archive_deps = [":whole_static_lib_for_both"],
+)`},
+	})
+}
+
+func TestCcLibraryDeps(t *testing.T) {
+	runCcLibraryTestCase(t, bp2buildTestCase{
+		description:                        "cc_library shared/static props",
+		moduleTypeUnderTest:                "cc_library",
+		moduleTypeUnderTestFactory:         cc.LibraryFactory,
+		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryBp2Build,
+		filesystem: map[string]string{
+			"both.cpp":       "",
+			"sharedonly.cpp": "",
+			"staticonly.cpp": "",
+		},
+		blueprint: soongCcLibraryPreamble + `
+cc_library {
+    name: "a",
+    srcs: ["both.cpp"],
+    cflags: ["bothflag"],
+    shared_libs: ["implementation_shared_dep_for_both", "shared_dep_for_both"],
+    export_shared_lib_headers: ["shared_dep_for_both"],
+    static_libs: ["implementation_static_dep_for_both", "static_dep_for_both"],
+    export_static_lib_headers: ["static_dep_for_both", "whole_static_dep_for_both"],
+    whole_static_libs: ["not_explicitly_exported_whole_static_dep_for_both", "whole_static_dep_for_both"],
+    static: {
+        srcs: ["staticonly.cpp"],
+        cflags: ["staticflag"],
+        shared_libs: ["implementation_shared_dep_for_static", "shared_dep_for_static"],
+        export_shared_lib_headers: ["shared_dep_for_static"],
+        static_libs: ["implementation_static_dep_for_static", "static_dep_for_static"],
+        export_static_lib_headers: ["static_dep_for_static", "whole_static_dep_for_static"],
+        whole_static_libs: ["not_explicitly_exported_whole_static_dep_for_static", "whole_static_dep_for_static"],
+    },
+    shared: {
+        srcs: ["sharedonly.cpp"],
+        cflags: ["sharedflag"],
+        shared_libs: ["implementation_shared_dep_for_shared", "shared_dep_for_shared"],
+        export_shared_lib_headers: ["shared_dep_for_shared"],
+        static_libs: ["implementation_static_dep_for_shared", "static_dep_for_shared"],
+        export_static_lib_headers: ["static_dep_for_shared", "whole_static_dep_for_shared"],
+        whole_static_libs: ["not_explicitly_exported_whole_static_dep_for_shared", "whole_static_dep_for_shared"],
+    },
+    include_build_directory: false,
+}
+` + simpleModuleDoNotConvertBp2build("cc_library_static", "static_dep_for_shared") +
+			simpleModuleDoNotConvertBp2build("cc_library_static", "implementation_static_dep_for_shared") +
+			simpleModuleDoNotConvertBp2build("cc_library_static", "static_dep_for_static") +
+			simpleModuleDoNotConvertBp2build("cc_library_static", "implementation_static_dep_for_static") +
+			simpleModuleDoNotConvertBp2build("cc_library_static", "static_dep_for_both") +
+			simpleModuleDoNotConvertBp2build("cc_library_static", "implementation_static_dep_for_both") +
+			simpleModuleDoNotConvertBp2build("cc_library_static", "whole_static_dep_for_shared") +
+			simpleModuleDoNotConvertBp2build("cc_library_static", "not_explicitly_exported_whole_static_dep_for_shared") +
+			simpleModuleDoNotConvertBp2build("cc_library_static", "whole_static_dep_for_static") +
+			simpleModuleDoNotConvertBp2build("cc_library_static", "not_explicitly_exported_whole_static_dep_for_static") +
+			simpleModuleDoNotConvertBp2build("cc_library_static", "whole_static_dep_for_both") +
+			simpleModuleDoNotConvertBp2build("cc_library_static", "not_explicitly_exported_whole_static_dep_for_both") +
+			simpleModuleDoNotConvertBp2build("cc_library", "shared_dep_for_shared") +
+			simpleModuleDoNotConvertBp2build("cc_library", "implementation_shared_dep_for_shared") +
+			simpleModuleDoNotConvertBp2build("cc_library", "shared_dep_for_static") +
+			simpleModuleDoNotConvertBp2build("cc_library", "implementation_shared_dep_for_static") +
+			simpleModuleDoNotConvertBp2build("cc_library", "shared_dep_for_both") +
+			simpleModuleDoNotConvertBp2build("cc_library", "implementation_shared_dep_for_both"),
+		expectedBazelTargets: []string{`cc_library(
+    name = "a",
+    copts = ["bothflag"],
+    deps = [":static_dep_for_both"],
+    dynamic_deps = [":shared_dep_for_both"],
+    implementation_deps = [":implementation_static_dep_for_both"],
+    implementation_dynamic_deps = [":implementation_shared_dep_for_both"],
+    shared = {
+        "copts": ["sharedflag"],
+        "deps": [":static_dep_for_shared"],
+        "dynamic_deps": [":shared_dep_for_shared"],
+        "implementation_deps": [":implementation_static_dep_for_shared"],
+        "implementation_dynamic_deps": [":implementation_shared_dep_for_shared"],
+        "srcs": ["sharedonly.cpp"],
+        "whole_archive_deps": [
+            ":not_explicitly_exported_whole_static_dep_for_shared",
+            ":whole_static_dep_for_shared",
+        ],
+    },
+    srcs = ["both.cpp"],
+    static = {
+        "copts": ["staticflag"],
+        "deps": [":static_dep_for_static"],
+        "dynamic_deps": [":shared_dep_for_static"],
+        "implementation_deps": [":implementation_static_dep_for_static"],
+        "implementation_dynamic_deps": [":implementation_shared_dep_for_static"],
+        "srcs": ["staticonly.cpp"],
+        "whole_archive_deps": [
+            ":not_explicitly_exported_whole_static_dep_for_static",
+            ":whole_static_dep_for_static",
+        ],
+    },
+    whole_archive_deps = [
+        ":not_explicitly_exported_whole_static_dep_for_both",
+        ":whole_static_dep_for_both",
+    ],
 )`},
 	})
 }
@@ -506,7 +605,14 @@ cc_library_static { name: "android_dep_for_shared" }
             "//build/bazel/platforms/os_arch:android_arm": ["-DANDROID_ARM_SHARED"],
             "//conditions:default": [],
         }),
-        "dynamic_deps": select({
+        "implementation_deps": [":static_dep_for_shared"] + select({
+            "//build/bazel/platforms/arch:arm": [":arm_static_dep_for_shared"],
+            "//conditions:default": [],
+        }) + select({
+            "//build/bazel/platforms/os:android": [":android_dep_for_shared"],
+            "//conditions:default": [],
+        }),
+        "implementation_dynamic_deps": select({
             "//build/bazel/platforms/arch:arm": [":arm_shared_dep_for_shared"],
             "//conditions:default": [],
         }),
@@ -515,13 +621,6 @@ cc_library_static { name: "android_dep_for_shared" }
             "//conditions:default": [],
         }) + select({
             "//build/bazel/platforms/os:android": ["android_shared.cpp"],
-            "//conditions:default": [],
-        }),
-        "static_deps": [":static_dep_for_shared"] + select({
-            "//build/bazel/platforms/arch:arm": [":arm_static_dep_for_shared"],
-            "//conditions:default": [],
-        }) + select({
-            "//build/bazel/platforms/os:android": [":android_dep_for_shared"],
             "//conditions:default": [],
         }),
         "whole_archive_deps": select({
@@ -535,12 +634,12 @@ cc_library_static { name: "android_dep_for_shared" }
             "//build/bazel/platforms/arch:x86": ["-DX86_STATIC"],
             "//conditions:default": [],
         }),
-        "srcs": ["staticonly.cpp"] + select({
-            "//build/bazel/platforms/arch:x86": ["x86_static.cpp"],
+        "implementation_deps": [":static_dep_for_static"] + select({
+            "//build/bazel/platforms/arch:x86": [":x86_dep_for_static"],
             "//conditions:default": [],
         }),
-        "static_deps": [":static_dep_for_static"] + select({
-            "//build/bazel/platforms/arch:x86": [":x86_dep_for_static"],
+        "srcs": ["staticonly.cpp"] + select({
+            "//build/bazel/platforms/arch:x86": ["x86_static.cpp"],
             "//conditions:default": [],
         }),
     },
@@ -580,7 +679,7 @@ cc_library {
     "both_source.c",
     "both_source.s",
     "both_source.S",
-        ":both_filegroup",
+    ":both_filegroup",
   ],
     static: {
         srcs: [
@@ -633,9 +732,9 @@ filegroup {
     local_includes = ["."],
     shared = {
         "srcs": [
-            ":shared_filegroup_cpp_srcs",
-            "shared_source.cc",
             "shared_source.cpp",
+            "shared_source.cc",
+            ":shared_filegroup_cpp_srcs",
         ],
         "srcs_as": [
             "shared_source.s",
@@ -648,9 +747,9 @@ filegroup {
         ],
     },
     srcs = [
-        ":both_filegroup_cpp_srcs",
-        "both_source.cc",
         "both_source.cpp",
+        "both_source.cc",
+        ":both_filegroup_cpp_srcs",
     ],
     srcs_as = [
         "both_source.s",
@@ -663,9 +762,9 @@ filegroup {
     ],
     static = {
         "srcs": [
-            ":static_filegroup_cpp_srcs",
-            "static_source.cc",
             "static_source.cpp",
+            "static_source.cc",
+            ":static_filegroup_cpp_srcs",
         ],
         "srcs_as": [
             "static_source.s",
@@ -767,7 +866,7 @@ cc_library {
 `,
 		expectedBazelTargets: []string{`cc_library(
     name = "a",
-    dynamic_deps = [":mylib"],
+    implementation_dynamic_deps = [":mylib"],
 )`},
 	})
 }
@@ -1013,19 +1112,19 @@ cc_library {
 		expectedBazelTargets: []string{
 			`cc_library(
     name = "foo_static",
-    dynamic_deps = select({
-        "//build/bazel/platforms/arch:arm": [],
-        "//conditions:default": [":arm_shared_lib_excludes"],
-    }) + select({
-        "//build/bazel/product_variables:malloc_not_svelte": [":malloc_not_svelte_shared_lib"],
-        "//conditions:default": [],
-    }),
     implementation_deps = select({
         "//build/bazel/platforms/arch:arm": [],
         "//conditions:default": [":arm_static_lib_excludes_bp2build_cc_library_static"],
     }) + select({
         "//build/bazel/product_variables:malloc_not_svelte": [],
         "//conditions:default": [":malloc_not_svelte_static_lib_excludes_bp2build_cc_library_static"],
+    }),
+    implementation_dynamic_deps = select({
+        "//build/bazel/platforms/arch:arm": [],
+        "//conditions:default": [":arm_shared_lib_excludes"],
+    }) + select({
+        "//build/bazel/product_variables:malloc_not_svelte": [":malloc_not_svelte_shared_lib"],
+        "//conditions:default": [],
     }),
     srcs_c = ["common.c"],
     whole_archive_deps = select({

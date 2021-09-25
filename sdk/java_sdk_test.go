@@ -1307,7 +1307,7 @@ java_sdk_library_import {
 			ctx := android.ModuleInstallPathContextForTesting(result.Config)
 			dexJarBuildPath := func(name string, kind android.SdkKind) string {
 				dep := result.Module(name, "android_common").(java.SdkLibraryDependency)
-				path := dep.SdkApiStubDexJar(ctx, kind)
+				path := dep.SdkApiStubDexJar(ctx, kind).Path()
 				return path.RelativeToTop().String()
 			}
 

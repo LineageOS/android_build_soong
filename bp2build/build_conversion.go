@@ -635,6 +635,7 @@ func extractStructProperties(structValue reflect.Value, indent int) map[string]s
 			// Ignore zero-valued fields
 			continue
 		}
+
 		// if the struct is embedded (anonymous), flatten the properties into the containing struct
 		if field.Anonymous {
 			if field.Type.Kind() == reflect.Ptr {
