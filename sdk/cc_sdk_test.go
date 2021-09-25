@@ -2126,6 +2126,10 @@ myinclude/Test.h -> include/myinclude/Test.h
 		)
 	}
 
+	t.Run("ramdisk", func(t *testing.T) {
+		testImageVariant(t, "ramdisk_available", "ramdisk_image_required")
+	})
+
 	t.Run("recovery", func(t *testing.T) {
 		testImageVariant(t, "recovery_available", "recovery_image_required")
 	})
