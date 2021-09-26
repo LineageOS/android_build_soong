@@ -15,6 +15,7 @@
 package sdk
 
 import (
+	"fmt"
 	"testing"
 
 	"android/soong/android"
@@ -1771,7 +1772,6 @@ cc_prebuilt_library {
     prefer: false,
     visibility: ["//visibility:public"],
     apex_available: ["//apex_available:platform"],
-    recovery_available: true,
     vendor_available: true,
     stl: "none",
     compile_multilib: "both",
@@ -1806,7 +1806,6 @@ cc_prebuilt_library {
     visibility: ["//visibility:public"],
     apex_available: ["//apex_available:platform"],
     installable: false,
-    recovery_available: true,
     vendor_available: true,
     stl: "none",
     compile_multilib: "both",
@@ -2079,6 +2078,61 @@ func TestSnapshotWithCcHeadersLibrary_DetectsNativeBridgeSpecificProperties(t *t
 			},
 		}
 	`)
+}
+
+func TestSnapshotWithCcHeadersLibraryAndImageVariants(t *testing.T) {
+	testImageVariant := func(t *testing.T, property, trait string) {
+		result := android.GroupFixturePreparers(
+			cc.PrepareForTestWithCcDefaultModules,
+			PrepareForTestWithSdkBuildComponents,
+			ccTestFs.AddToFixture(),
+		).RunTestWithBp(t, fmt.Sprintf(`
+		sdk {
+			name: "mysdk",
+			native_header_libs: ["mynativeheaders"],
+			traits: {
+				%s: ["mynativeheaders"],
+			},
+		}
+
+		cc_library_headers {
+			name: "mynativeheaders",
+			export_include_dirs: ["myinclude"],
+			stl: "none",
+			system_shared_libs: [],
+			%s: true,
+		}
+	`, trait, property))
+
+		CheckSnapshot(t, result, "mysdk", "",
+			checkUnversionedAndroidBpContents(fmt.Sprintf(`
+// This is auto-generated. DO NOT EDIT.
+
+cc_prebuilt_library_headers {
+    name: "mynativeheaders",
+    prefer: false,
+    visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
+    %s: true,
+    stl: "none",
+    compile_multilib: "both",
+    system_shared_libs: [],
+    export_include_dirs: ["include/myinclude"],
+}
+`, property)),
+			checkAllCopyRules(`
+myinclude/Test.h -> include/myinclude/Test.h
+`),
+		)
+	}
+
+	t.Run("ramdisk", func(t *testing.T) {
+		testImageVariant(t, "ramdisk_available", "ramdisk_image_required")
+	})
+
+	t.Run("recovery", func(t *testing.T) {
+		testImageVariant(t, "recovery_available", "recovery_image_required")
+	})
 }
 
 func TestHostSnapshotWithCcHeadersLibrary(t *testing.T) {
