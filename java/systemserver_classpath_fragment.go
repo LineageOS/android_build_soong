@@ -28,6 +28,7 @@ func init() {
 func registerSystemserverClasspathBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("platform_systemserverclasspath", platformSystemServerClasspathFactory)
 	ctx.RegisterModuleType("systemserverclasspath_fragment", systemServerClasspathFactory)
+	ctx.RegisterModuleType("prebuilt_systemserverclasspath_fragment", prebuiltSystemServerClasspathModuleFactory)
 }
 
 type platformSystemServerClasspathModule struct {
@@ -144,8 +145,14 @@ func IsSystemServerClasspathFragmentContentDepTag(tag blueprint.DependencyTag) b
 
 func (s *SystemServerClasspathModule) ComponentDepsMutator(ctx android.BottomUpMutatorContext) {
 	module := ctx.Module()
+	_, isSourceModule := module.(*SystemServerClasspathModule)
 
 	for _, name := range s.properties.Contents {
+		// A systemserverclasspath_fragment must depend only on other source modules, while the
+		// prebuilt_systemserverclasspath_fragment_fragment must only depend on other prebuilt modules.
+		if !isSourceModule {
+			name = android.PrebuiltNameFromSource(name)
+		}
 		ctx.AddDependency(module, systemServerClasspathFragmentContentDepTag, name)
 	}
 }
@@ -154,4 +161,29 @@ func (s *SystemServerClasspathModule) ComponentDepsMutator(ctx android.BottomUpM
 func (s *SystemServerClasspathModule) IDEInfo(dpInfo *android.IdeInfo) {
 	dpInfo.Deps = append(dpInfo.Deps, s.properties.Contents...)
 	dpInfo.Paths = append(dpInfo.Paths, s.modulePaths...)
+}
+
+// A prebuilt version of the systemserverclasspath_fragment module.
+type prebuiltSystemServerClasspathModule struct {
+	SystemServerClasspathModule
+	prebuilt android.Prebuilt
+}
+
+func (module *prebuiltSystemServerClasspathModule) Prebuilt() *android.Prebuilt {
+	return &module.prebuilt
+}
+
+func (module *prebuiltSystemServerClasspathModule) Name() string {
+	return module.prebuilt.Name(module.ModuleBase.Name())
+}
+
+func prebuiltSystemServerClasspathModuleFactory() android.Module {
+	m := &prebuiltSystemServerClasspathModule{}
+	m.AddProperties(&m.properties)
+	// This doesn't actually have any prebuilt files of its own so pass a placeholder for the srcs
+	// array.
+	android.InitPrebuiltModule(m, &[]string{"placeholder"})
+	android.InitApexModule(m)
+	android.InitAndroidArchModule(m, android.DeviceSupported, android.MultilibCommon)
+	return m
 }

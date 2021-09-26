@@ -181,3 +181,34 @@ func TestSystemServerClasspathFragmentWithContentNotInMake(t *testing.T) {
 			}
 		`)
 }
+
+func TestPrebuiltSystemserverclasspathFragmentContents(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		prepareForTestWithSystemserverclasspathFragment,
+		prepareForTestWithMyapex,
+		dexpreopt.FixtureSetApexSystemServerJars("myapex:foo"),
+	).RunTestWithBp(t, `
+		java_import {
+			name: "foo",
+			jars: ["foo.jar"],
+			apex_available: [
+				"myapex",
+			],
+		}
+
+		prebuilt_systemserverclasspath_fragment {
+			name: "mysystemserverclasspathfragment",
+			prefer: true,
+			contents: [
+				"foo",
+			],
+			apex_available: [
+				"myapex",
+			],
+		}
+	`)
+
+	java.CheckModuleDependencies(t, result.TestContext, "mysystemserverclasspathfragment", "android_common", []string{
+		`prebuilt_foo`,
+	})
+}
