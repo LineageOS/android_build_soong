@@ -133,8 +133,12 @@ func (systemServerClasspathFragmentContentDependencyTag) ReplaceSourceWithPrebui
 // they were listed in java_libs.
 func (systemServerClasspathFragmentContentDependencyTag) CopyDirectlyInAnyApex() {}
 
+// Contents of system server fragments require files from prebuilt apex files.
+func (systemServerClasspathFragmentContentDependencyTag) RequiresFilesFromPrebuiltApex() {}
+
 var _ android.ReplaceSourceWithPrebuilt = systemServerClasspathFragmentContentDepTag
 var _ android.CopyDirectlyInAnyApexTag = systemServerClasspathFragmentContentDepTag
+var _ android.RequiresFilesFromPrebuiltApexTag = systemServerClasspathFragmentContentDepTag
 
 // The tag used for the dependency between the systemserverclasspath_fragment module and its contents.
 var systemServerClasspathFragmentContentDepTag = systemServerClasspathFragmentContentDependencyTag{}
@@ -176,6 +180,12 @@ func (module *prebuiltSystemServerClasspathModule) Prebuilt() *android.Prebuilt 
 func (module *prebuiltSystemServerClasspathModule) Name() string {
 	return module.prebuilt.Name(module.ModuleBase.Name())
 }
+
+func (module *prebuiltSystemServerClasspathModule) RequiredFilesFromPrebuiltApex(ctx android.BaseModuleContext) []string {
+	return nil
+}
+
+var _ android.RequiredFilesFromPrebuiltApex = (*prebuiltSystemServerClasspathModule)(nil)
 
 func prebuiltSystemServerClasspathModuleFactory() android.Module {
 	m := &prebuiltSystemServerClasspathModule{}

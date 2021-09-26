@@ -188,6 +188,19 @@ func TestPrebuiltSystemserverclasspathFragmentContents(t *testing.T) {
 		prepareForTestWithMyapex,
 		dexpreopt.FixtureSetApexSystemServerJars("myapex:foo"),
 	).RunTestWithBp(t, `
+		prebuilt_apex {
+			name: "myapex",
+			arch: {
+				arm64: {
+					src: "myapex-arm64.apex",
+				},
+				arm: {
+					src: "myapex-arm.apex",
+				},
+			},
+			exported_systemserverclasspath_fragments: ["mysystemserverclasspathfragment"],
+		}
+
 		java_import {
 			name: "foo",
 			jars: ["foo.jar"],
@@ -208,7 +221,13 @@ func TestPrebuiltSystemserverclasspathFragmentContents(t *testing.T) {
 		}
 	`)
 
-	java.CheckModuleDependencies(t, result.TestContext, "mysystemserverclasspathfragment", "android_common", []string{
+	java.CheckModuleDependencies(t, result.TestContext, "myapex", "android_common_myapex", []string{
+		`myapex.apex.selector`,
+		`prebuilt_mysystemserverclasspathfragment`,
+	})
+
+	java.CheckModuleDependencies(t, result.TestContext, "mysystemserverclasspathfragment", "android_common_myapex", []string{
+		`myapex.deapexer`,
 		`prebuilt_foo`,
 	})
 }
