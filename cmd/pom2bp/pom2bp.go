@@ -663,23 +663,6 @@ var bazelDepsTemplate = template.Must(template.New("bp").Parse(`
     name = "{{.BpName}}",
     {{.BazelImportProperty}} = {{- if not .IsAar}}[{{- end}}"{{.ArtifactFile}}"{{- if not .IsAar}}]{{- end}},
     visibility = ["//visibility:public"],
-    deps = [
-        {{- range .BazelJarDeps}}
-        "{{.}}",
-        {{- end}}
-        {{- range .BazelAarDeps}}
-        "{{.}}",
-        {{- end}}
-        {{- range .BpExtraStaticLibs}}
-        "{{.}}",
-        {{- end}}
-        {{- range .BpExtraLibs}}
-        "{{.}}",
-        {{- end}}
-        {{- range .BpOptionalUsesLibs}}
-        "{{.}}",
-        {{- end}}
-    ],
     exports = [
         {{- range .BazelJarDeps}}
         "{{.}}",
