@@ -120,22 +120,25 @@ def init(g, handle):
 		desc:   "Inherit configuration always",
 		mkname: "product.mk",
 		in: `
-ifdef PRODUCT_NAME
 $(call inherit-product, part.mk)
+ifdef PRODUCT_NAME
+$(call inherit-product, part1.mk)
 else # Comment
-$(call inherit-product, $(LOCAL_PATH)/part.mk)
+$(call inherit-product, $(LOCAL_PATH)/part1.mk)
 endif
 `,
 		expected: `load("//build/make/core:product_config.rbc", "rblf")
 load(":part.star", _part_init = "init")
+load(":part1.star|init", _part1_init = "init")
 
 def init(g, handle):
   cfg = rblf.cfg(handle)
+  rblf.inherit(handle, "part", _part_init)
   if g.get("PRODUCT_NAME") != None:
-    rblf.inherit(handle, "part", _part_init)
+    rblf.inherit(handle, "part1", _part1_init)
   else:
     # Comment
-    rblf.inherit(handle, "part", _part_init)
+    rblf.inherit(handle, "part1", _part1_init)
 `,
 	},
 	{
@@ -158,22 +161,25 @@ def init(g, handle):
 		desc:   "Include configuration",
 		mkname: "product.mk",
 		in: `
-ifdef PRODUCT_NAME
 include part.mk
+ifdef PRODUCT_NAME
+include part1.mk
 else
--include $(LOCAL_PATH)/part.mk)
+-include $(LOCAL_PATH)/part1.mk)
 endif
 `,
 		expected: `load("//build/make/core:product_config.rbc", "rblf")
-load(":part.star|init", _part_init = "init")
+load(":part.star", _part_init = "init")
+load(":part1.star|init", _part1_init = "init")
 
 def init(g, handle):
   cfg = rblf.cfg(handle)
+  _part_init(g, handle)
   if g.get("PRODUCT_NAME") != None:
-    _part_init(g, handle)
+    _part1_init(g, handle)
   else:
-    if _part_init != None:
-      _part_init(g, handle)
+    if _part1_init != None:
+      _part1_init(g, handle)
 `,
 	},
 
