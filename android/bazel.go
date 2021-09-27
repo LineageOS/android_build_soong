@@ -162,11 +162,15 @@ var (
 		"external/jsr305":/* recursive = */ true,
 		"frameworks/ex/common":/* recursive = */ true,
 
-		"prebuilts/sdk":/* recursive = */ false,
-		"prebuilts/sdk/tools":/* recursive = */ false,
-		"prebuilts/r8":/* recursive = */ false,
 		"packages/apps/Music":/* recursive = */ true,
 		"packages/apps/QuickSearchBox":/* recursive = */ true,
+		"packages/apps/WallpaperPicker":/* recursive = */ false,
+
+		"prebuilts/sdk":/* recursive = */ false,
+		"prebuilts/sdk/current/extras/app-toolkit":/* recursive = */ false,
+		"prebuilts/sdk/current/support":/* recursive = */ false,
+		"prebuilts/sdk/tools":/* recursive = */ false,
+		"prebuilts/r8":/* recursive = */ false,
 	}
 
 	// Configure modules in these directories to enable bp2build_available: true or false by default.
