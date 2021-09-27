@@ -1929,7 +1929,6 @@ type sdkLibraryImportProperties struct {
 	Compile_dex *bool
 
 	// If not empty, classes are restricted to the specified packages and their sub-packages.
-	// This information is used to generate the updatable-bcp-packages.txt file.
 	Permitted_packages []string
 }
 
