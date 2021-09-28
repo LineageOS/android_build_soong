@@ -40,7 +40,8 @@ import (
 )
 
 const (
-	baseUri = "//build/make/core:product_config.rbc"
+	annotationCommentPrefix = "RBC#"
+	baseUri                 = "//build/make/core:product_config.rbc"
 	// The name of the struct exported by the product_config.rbc
 	// that contains the functions and variables available to
 	// product configuration Starlark files.
@@ -407,6 +408,7 @@ type parseContext struct {
 	outputDir        string
 	dependentModules map[string]*moduleInfo
 	soongNamespaces  map[string]map[string]bool
+	includeTops      []string
 }
 
 func newParseContext(ss *StarlarkScript, nodes []mkparser.Node) *parseContext {
@@ -452,6 +454,7 @@ func newParseContext(ss *StarlarkScript, nodes []mkparser.Node) *parseContext {
 		variables:        make(map[string]variable),
 		dependentModules: make(map[string]*moduleInfo),
 		soongNamespaces:  make(map[string]map[string]bool),
+		includeTops:      []string{"vendor/google-devices"},
 	}
 	ctx.pushVarAssignments()
 	for _, item := range predefined {
@@ -810,21 +813,15 @@ func (ctx *parseContext) handleSubConfig(
 			pathPattern = append(pathPattern, chunk)
 		}
 	}
-	if pathPattern[0] != "" {
-		matchingPaths = ctx.findMatchingPaths(pathPattern)
-	} else {
-		// Heuristics -- if pattern starts from top, restrict it to the directories where
-		// we know inherit-product uses dynamically calculated path. Restrict it even further
-		// for certain path which would yield too many useless matches
-		if len(varPath.chunks) == 2 && varPath.chunks[1] == "/BoardConfigVendor.mk" {
-			pathPattern[0] = "vendor/google_devices"
-			matchingPaths = ctx.findMatchingPaths(pathPattern)
-		} else {
-			for _, t := range []string{"vendor/qcom", "vendor/google_devices"} {
-				pathPattern[0] = t
-				matchingPaths = append(matchingPaths, ctx.findMatchingPaths(pathPattern)...)
-			}
+	if pathPattern[0] == "" {
+		// If pattern starts from the top. restrict it to the directories where
+		// we know inherit-product uses dynamically calculated path.
+		for _, p := range ctx.includeTops {
+			pathPattern[0] = p
+			matchingPaths = append(matchingPaths, ctx.findMatchingPaths(pathPattern)...)
 		}
+	} else {
+		matchingPaths = ctx.findMatchingPaths(pathPattern)
 	}
 	// Safeguard against $(call inherit-product,$(PRODUCT_PATH))
 	const maxMatchingFiles = 150
@@ -1453,6 +1450,7 @@ func (ctx *parseContext) handleSimpleStatement(node mkparser.Node) bool {
 	handled := true
 	switch x := node.(type) {
 	case *mkparser.Comment:
+		ctx.maybeHandleAnnotation(x)
 		ctx.insertComment("#" + x.Comment)
 	case *mkparser.Assignment:
 		ctx.handleAssignment(x)
@@ -1471,6 +1469,28 @@ func (ctx *parseContext) handleSimpleStatement(node mkparser.Node) bool {
 		ctx.errorf(x, "unsupported line %s", x.Dump())
 	}
 	return handled
+}
+
+// Processes annotation. An annotation is a comment that starts with #RBC# and provides
+// a conversion hint -- say, where to look for the dynamically calculated inherit/include
+// paths.
+func (ctx *parseContext) maybeHandleAnnotation(cnode *mkparser.Comment) {
+	maybeTrim := func(s, prefix string) (string, bool) {
+		if strings.HasPrefix(s, prefix) {
+			return strings.TrimSpace(strings.TrimPrefix(s, prefix)), true
+		}
+		return s, false
+	}
+	annotation, ok := maybeTrim(cnode.Comment, annotationCommentPrefix)
+	if !ok {
+		return
+	}
+	if p, ok := maybeTrim(annotation, "include_top"); ok {
+		ctx.includeTops = append(ctx.includeTops, p)
+		return
+	}
+	ctx.errorf(cnode, "unsupported annotation %s", cnode.Comment)
+
 }
 
 func (ctx *parseContext) insertComment(s string) {
