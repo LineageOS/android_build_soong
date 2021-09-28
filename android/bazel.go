@@ -180,6 +180,7 @@ var (
 		"development/sdk":                   Bp2BuildDefaultTrueRecursively,
 		"external/gwp_asan":                 Bp2BuildDefaultTrueRecursively,
 		"external/brotli":                   Bp2BuildDefaultTrue,
+		"system/core/libasyncio":            Bp2BuildDefaultTrue,
 		"system/core/libcutils":             Bp2BuildDefaultTrueRecursively,
 		"system/core/libprocessgroup":       Bp2BuildDefaultTrue,
 		"system/core/property_service/libpropertyinfoparser": Bp2BuildDefaultTrueRecursively,
