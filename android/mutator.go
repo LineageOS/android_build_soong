@@ -221,6 +221,13 @@ var bp2buildMutators = map[string]RegisterMutatorFunc{}
 // See http://b/192523357
 var bp2buildLock sync.Mutex
 
+// A minimal context for Bp2build conversion
+type Bp2buildMutatorContext interface {
+	BazelConversionPathContext
+
+	CreateBazelTargetModule(bazel.BazelTargetModuleProperties, CommonAttributes, interface{})
+}
+
 // RegisterBp2BuildMutator registers specially crafted mutators for
 // converting Blueprint/Android modules into special modules that can
 // be code-generated into Bazel BUILD targets.
