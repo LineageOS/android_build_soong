@@ -393,8 +393,18 @@ type BazelOutPath struct {
 	OutputPath
 }
 
+// ensure BazelOutPath implements Path
 var _ Path = BazelOutPath{}
+
+// ensure BazelOutPath implements genPathProvider
+var _ genPathProvider = BazelOutPath{}
+
+// ensure BazelOutPath implements objPathProvider
 var _ objPathProvider = BazelOutPath{}
+
+func (p BazelOutPath) genPathWithExt(ctx ModuleOutPathContext, subdir, ext string) ModuleGenPath {
+	return PathForModuleGen(ctx, subdir, pathtools.ReplaceExtension(p.path, ext))
+}
 
 func (p BazelOutPath) objPathWithExt(ctx ModuleOutPathContext, subdir, ext string) ModuleObjPath {
 	return PathForModuleObj(ctx, subdir, pathtools.ReplaceExtension(p.path, ext))
