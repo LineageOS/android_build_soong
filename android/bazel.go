@@ -194,6 +194,7 @@ var (
 		"external/libcxx":                 Bp2BuildDefaultTrueRecursively,
 		"external/libcxxabi":              Bp2BuildDefaultTrueRecursively,
 		"external/libcap":                 Bp2BuildDefaultTrueRecursively,
+		"external/lz4/lib":                Bp2BuildDefaultTrue,
 		"external/scudo":                  Bp2BuildDefaultTrueRecursively,
 		"prebuilts/clang/host/linux-x86":  Bp2BuildDefaultTrueRecursively,
 	}
