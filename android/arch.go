@@ -1999,12 +1999,7 @@ func (m *ModuleBase) GetArchVariantProperties(ctx ArchVariantContext, propertySe
 		// Create a new instance of the requested property set
 		value := reflect.New(reflect.ValueOf(propertySet).Elem().Type()).Interface()
 
-		// Merge all the structs together
-		for _, propertyStruct := range propertyStructs {
-			mergePropertyStruct(ctx, value, propertyStruct)
-		}
-
-		archToProp[arch.Name] = value
+		archToProp[arch.Name] = mergeStructs(ctx, propertyStructs, value)
 	}
 	axisToProps[bazel.ArchConfigurationAxis] = archToProp
 
@@ -2016,19 +2011,50 @@ func (m *ModuleBase) GetArchVariantProperties(ctx ArchVariantContext, propertySe
 			// It looks like this OS value is not used in Blueprint files
 			continue
 		}
-		osToProp[os.Name] = getTargetStruct(ctx, propertySet, archProperties, os.Field)
+		osStructs, ok := getTargetStructs(ctx, archProperties, os.Field)
+		if ok {
+			osToProp[os.Name] = mergeStructs(ctx, osStructs, propertySet)
+		}
+
 		// For arm, x86, ...
 		for _, arch := range osArchTypeMap[os] {
+			osArchStructs := make([]reflect.Value, 0)
+
 			targetField := GetCompoundTargetField(os, arch)
 			targetName := fmt.Sprintf("%s_%s", os.Name, arch.Name)
-			archOsToProp[targetName] = getTargetStruct(ctx, propertySet, archProperties, targetField)
+			targetStructs, ok := getTargetStructs(ctx, archProperties, targetField)
+			if ok {
+				osArchStructs = append(osArchStructs, targetStructs...)
+			}
+
+			// Auto-combine with Linux_ and Bionic_ targets. This potentially results in
+			// repetition and select() bloat, but use of Linux_* and Bionic_* targets is rare.
+			// TODO(b/201423152): Look into cleanup.
+			if os.Linux() {
+				targetField := "Linux_" + arch.Name
+				targetStructs, ok := getTargetStructs(ctx, archProperties, targetField)
+				if ok {
+					osArchStructs = append(osArchStructs, targetStructs...)
+				}
+			}
+			if os.Bionic() {
+				targetField := "Bionic_" + arch.Name
+				targetStructs, ok := getTargetStructs(ctx, archProperties, targetField)
+				if ok {
+					osArchStructs = append(osArchStructs, targetStructs...)
+				}
+			}
+
+			archOsToProp[targetName] = mergeStructs(ctx, osArchStructs, propertySet)
 		}
 	}
 	axisToProps[bazel.OsConfigurationAxis] = osToProp
 	axisToProps[bazel.OsArchConfigurationAxis] = archOsToProp
 
-	axisToProps[bazel.BionicConfigurationAxis] = map[string]interface{}{
-		"bionic": getTargetStruct(ctx, propertySet, archProperties, "Bionic"),
+	bionicStructs, ok := getTargetStructs(ctx, archProperties, "Bionic")
+	if ok {
+		axisToProps[bazel.BionicConfigurationAxis] = map[string]interface{}{
+			"bionic": mergeStructs(ctx, bionicStructs, propertySet)}
 	}
 
 	return axisToProps
@@ -2048,7 +2074,7 @@ func (m *ModuleBase) GetArchVariantProperties(ctx ArchVariantContext, propertySe
 //      }
 //    }
 // This would return a BaseCompilerProperties with BaseCompilerProperties.Srcs = ["foo.c"]
-func getTargetStruct(ctx ArchVariantContext, propertySet interface{}, archProperties []interface{}, targetName string) interface{} {
+func getTargetStructs(ctx ArchVariantContext, archProperties []interface{}, targetName string) ([]reflect.Value, bool) {
 	propertyStructs := make([]reflect.Value, 0)
 	for _, archProperty := range archProperties {
 		archPropValues := reflect.ValueOf(archProperty).Elem()
@@ -2056,9 +2082,15 @@ func getTargetStruct(ctx ArchVariantContext, propertySet interface{}, archProper
 		targetStruct, ok := getChildPropertyStruct(ctx, targetProp, targetName, targetName)
 		if ok {
 			propertyStructs = append(propertyStructs, targetStruct)
+		} else {
+			return propertyStructs, false
 		}
 	}
 
+	return propertyStructs, true
+}
+
+func mergeStructs(ctx ArchVariantContext, propertyStructs []reflect.Value, propertySet interface{}) interface{} {
 	// Create a new instance of the requested property set
 	value := reflect.New(reflect.ValueOf(propertySet).Elem().Type()).Interface()
 
