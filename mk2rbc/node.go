@@ -57,7 +57,7 @@ type inheritedModule interface {
 	name() string
 	entryName() string
 	emitSelect(gctx *generationContext)
-	isLoadAlways() bool
+	shouldExist() bool
 }
 
 type inheritedStaticModule struct {
@@ -72,7 +72,7 @@ func (im inheritedStaticModule) name() string {
 func (im inheritedStaticModule) emitSelect(_ *generationContext) {
 }
 
-func (im inheritedStaticModule) isLoadAlways() bool {
+func (im inheritedStaticModule) shouldExist() bool {
 	return im.loadAlways
 }
 
@@ -115,12 +115,13 @@ func (i inheritedDynamicModule) emitSelect(gctx *generationContext) {
 	}
 }
 
-func (i inheritedDynamicModule) isLoadAlways() bool {
+func (i inheritedDynamicModule) shouldExist() bool {
 	return i.loadAlways
 }
 
 type inheritNode struct {
-	module inheritedModule
+	module     inheritedModule
+	loadAlways bool
 }
 
 func (inn *inheritNode) emit(gctx *generationContext) {
@@ -134,7 +135,7 @@ func (inn *inheritNode) emit(gctx *generationContext) {
 	name := inn.module.name()
 	entry := inn.module.entryName()
 	gctx.newLine()
-	if inn.module.isLoadAlways() {
+	if inn.loadAlways {
 		gctx.writef("%s(handle, %s, %s)", cfnInherit, name, entry)
 		return
 	}
@@ -147,14 +148,15 @@ func (inn *inheritNode) emit(gctx *generationContext) {
 }
 
 type includeNode struct {
-	module inheritedModule
+	module     inheritedModule
+	loadAlways bool
 }
 
 func (inn *includeNode) emit(gctx *generationContext) {
 	inn.module.emitSelect(gctx)
 	entry := inn.module.entryName()
 	gctx.newLine()
-	if inn.module.isLoadAlways() {
+	if inn.loadAlways {
 		gctx.writef("%s(g, handle)", entry)
 		return
 	}
