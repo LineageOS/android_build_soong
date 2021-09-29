@@ -42,7 +42,7 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	ctx.Strict("COMMON_JDK_FLAGS", "${CommonJdkFlags}")
 
 	ctx.Strict("DX", "${D8Cmd}")
-	ctx.Strict("DX_COMMAND", "${D8Cmd} -JXms16M -JXmx2048M")
+	ctx.Strict("DX_COMMAND", "${D8Cmd} -JXms16M -JXmx1024M")
 	ctx.Strict("R8_COMPAT_PROGUARD", "${R8Cmd}")
 
 	ctx.Strict("TURBINE", "${TurbineJar}")
