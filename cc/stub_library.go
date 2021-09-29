@@ -15,6 +15,7 @@
 package cc
 
 import (
+	"sort"
 	"strings"
 
 	"android/soong/android"
@@ -27,6 +28,8 @@ func init() {
 
 type stubLibraries struct {
 	stubLibraryMap map[string]bool
+
+	apiListCoverageXmlPaths []string
 }
 
 // Check if the module defines stub, or itself is stub
@@ -53,6 +56,11 @@ func (s *stubLibraries) GenerateBuildActions(ctx android.SingletonContext) {
 					s.stubLibraryMap[name] = true
 				}
 			}
+			if m.library != nil {
+				if p := m.library.getAPIListCoverageXMLPath().String(); p != "" {
+					s.apiListCoverageXmlPaths = append(s.apiListCoverageXmlPaths, p)
+				}
+			}
 		}
 	})
 }
@@ -66,4 +74,8 @@ func stubLibrariesSingleton() android.Singleton {
 func (s *stubLibraries) MakeVars(ctx android.MakeVarsContext) {
 	// Convert stub library file names into Makefile variable.
 	ctx.Strict("STUB_LIBRARIES", strings.Join(android.SortedStringKeys(s.stubLibraryMap), " "))
+
+	// Export the list of API XML files to Make.
+	sort.Strings(s.apiListCoverageXmlPaths)
+	ctx.Strict("SOONG_CC_API_XML", strings.Join(s.apiListCoverageXmlPaths, " "))
 }
