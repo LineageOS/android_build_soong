@@ -180,6 +180,7 @@ var (
 		"development/sdk":                   Bp2BuildDefaultTrueRecursively,
 		"external/gwp_asan":                 Bp2BuildDefaultTrueRecursively,
 		"external/brotli":                   Bp2BuildDefaultTrue,
+		"system/core/libasyncio":            Bp2BuildDefaultTrue,
 		"system/core/libcutils":             Bp2BuildDefaultTrueRecursively,
 		"system/core/libprocessgroup":       Bp2BuildDefaultTrue,
 		"system/core/property_service/libpropertyinfoparser": Bp2BuildDefaultTrueRecursively,
@@ -194,6 +195,7 @@ var (
 		"external/libcxx":                 Bp2BuildDefaultTrueRecursively,
 		"external/libcxxabi":              Bp2BuildDefaultTrueRecursively,
 		"external/libcap":                 Bp2BuildDefaultTrueRecursively,
+		"external/lz4/lib":                Bp2BuildDefaultTrue,
 		"external/scudo":                  Bp2BuildDefaultTrueRecursively,
 		"prebuilts/clang/host/linux-x86":  Bp2BuildDefaultTrueRecursively,
 	}
