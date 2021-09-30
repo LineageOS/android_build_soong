@@ -285,6 +285,24 @@ var (
 		"libadb_protos_static",         // b/200601772: Requires cc_library proto support
 		"libadb_protos",                // b/200601772: Requires cc_library proto support
 		"libapp_processes_protos_lite", // b/200601772: Requires cc_library proto support
+
+		"libbase", // TODO(cparsons): Breaks libandroidfw. Investigate.
+
+		// The below items depend on libbase.
+		"libadb_pairing_auth",
+		"libadb_pairing_auth_static",
+		"libadb_sysdeps",
+		"libadb_tls_connection",
+		"libadb_tls_connection_static",
+		"libadbconnection_client",
+		"libadbconnection_server",
+		"libadbd_auth",
+		"libadbd_fs",
+		"libcutils",
+		"libcutils_sockets",
+		"libdiagnose_usb",
+		// ---
+
 	}
 
 	// Per-module denylist of cc_library modules to only generate the static
