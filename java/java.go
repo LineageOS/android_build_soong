@@ -73,6 +73,7 @@ func RegisterJavaSdkMemberTypes() {
 	android.RegisterSdkMemberType(javaHeaderLibsSdkMemberType)
 	android.RegisterSdkMemberType(javaLibsSdkMemberType)
 	android.RegisterSdkMemberType(javaBootLibsSdkMemberType)
+	android.RegisterSdkMemberType(javaSystemserverLibsSdkMemberType)
 	android.RegisterSdkMemberType(javaTestSdkMemberType)
 }
 
@@ -142,6 +143,37 @@ var (
 			// to a developer that attempts to compile against this.
 			// TODO(b/175714559): Provide a proper error message in Soong not ninja.
 			return filepath.Join(osPrefix, "java_boot_libs", "snapshot", "jars", "are", "invalid", name+jarFileSuffix)
+		},
+		onlyCopyJarToSnapshot,
+	}
+
+	// Supports adding java systemserver libraries to module_exports and sdk.
+	//
+	// The build has some implicit dependencies (via the systemserver jars configuration) on a number
+	// of modules that are part of the java systemserver classpath and which are provided by mainline
+	// modules but which are not otherwise used outside those mainline modules.
+	//
+	// As they are not needed outside the mainline modules adding them to the sdk/module-exports as
+	// either java_libs, or java_header_libs would end up exporting more information than was strictly
+	// necessary. The java_systemserver_libs property to allow those modules to be exported as part of
+	// the sdk/module_exports without exposing any unnecessary information.
+	javaSystemserverLibsSdkMemberType = &librarySdkMemberType{
+		android.SdkMemberTypeBase{
+			PropertyName: "java_systemserver_libs",
+			SupportsSdk:  true,
+		},
+		func(ctx android.SdkMemberContext, j *Library) android.Path {
+			// Java systemserver libs are only provided in the SDK to provide access to their dex
+			// implementation jar for use by dexpreopting. They do not need to provide an actual
+			// implementation jar but the java_import will need a file that exists so just copy an empty
+			// file. Any attempt to use that file as a jar will cause a build error.
+			return ctx.SnapshotBuilder().EmptyFile()
+		},
+		func(osPrefix, name string) string {
+			// Create a special name for the implementation jar to try and provide some useful information
+			// to a developer that attempts to compile against this.
+			// TODO(b/175714559): Provide a proper error message in Soong not ninja.
+			return filepath.Join(osPrefix, "java_systemserver_libs", "snapshot", "jars", "are", "invalid", name+jarFileSuffix)
 		},
 		onlyCopyJarToSnapshot,
 	}

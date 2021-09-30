@@ -23,11 +23,19 @@ import (
 
 func init() {
 	registerSystemserverClasspathBuildComponents(android.InitRegistrationContext)
+
+	android.RegisterSdkMemberType(&systemServerClasspathFragmentMemberType{
+		SdkMemberTypeBase: android.SdkMemberTypeBase{
+			PropertyName: "systemserverclasspath_fragments",
+			SupportsSdk:  true,
+		},
+	})
 }
 
 func registerSystemserverClasspathBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("platform_systemserverclasspath", platformSystemServerClasspathFactory)
 	ctx.RegisterModuleType("systemserverclasspath_fragment", systemServerClasspathFactory)
+	ctx.RegisterModuleType("prebuilt_systemserverclasspath_fragment", prebuiltSystemServerClasspathModuleFactory)
 }
 
 type platformSystemServerClasspathModule struct {
@@ -61,6 +69,7 @@ func (p *platformSystemServerClasspathModule) configuredJars(ctx android.ModuleC
 type SystemServerClasspathModule struct {
 	android.ModuleBase
 	android.ApexModuleBase
+	android.SdkBase
 
 	ClasspathFragmentBase
 
@@ -85,6 +94,7 @@ func systemServerClasspathFactory() android.Module {
 	m := &SystemServerClasspathModule{}
 	m.AddProperties(&m.properties)
 	android.InitApexModule(m)
+	android.InitSdkAwareModule(m)
 	initClasspathFragment(m, SYSTEMSERVERCLASSPATH)
 	android.InitAndroidArchModule(m, android.DeviceSupported, android.MultilibCommon)
 	return m
@@ -112,7 +122,7 @@ func (s *SystemServerClasspathModule) configuredJars(ctx android.ModuleContext) 
 	_, unknown = android.RemoveFromList("geotz", unknown)
 
 	// For non test apexes, make sure that all contents are actually declared in make.
-	if global.ApexSystemServerJars.Len() > 0 && len(unknown) > 0 {
+	if global.ApexSystemServerJars.Len() > 0 && len(unknown) > 0 && !android.IsModuleInVersionedSdk(ctx.Module()) {
 		ctx.ModuleErrorf("%s in contents must also be declared in PRODUCT_UPDATABLE_SYSTEM_SERVER_JARS", unknown)
 	}
 
@@ -128,12 +138,33 @@ func (systemServerClasspathFragmentContentDependencyTag) ReplaceSourceWithPrebui
 	return false
 }
 
+// SdkMemberType causes dependencies added with this tag to be automatically added to the sdk as if
+// they were specified using java_systemserver_libs or java_sdk_libs.
+func (b systemServerClasspathFragmentContentDependencyTag) SdkMemberType(child android.Module) android.SdkMemberType {
+	// If the module is a java_sdk_library then treat it as if it was specified in the java_sdk_libs
+	// property, otherwise treat if it was specified in the java_systemserver_libs property.
+	if javaSdkLibrarySdkMemberType.IsInstance(child) {
+		return javaSdkLibrarySdkMemberType
+	}
+
+	return javaSystemserverLibsSdkMemberType
+}
+
+func (b systemServerClasspathFragmentContentDependencyTag) ExportMember() bool {
+	return true
+}
+
 // Contents of system server fragments in an apex are considered to be directly in the apex, as if
 // they were listed in java_libs.
 func (systemServerClasspathFragmentContentDependencyTag) CopyDirectlyInAnyApex() {}
 
+// Contents of system server fragments require files from prebuilt apex files.
+func (systemServerClasspathFragmentContentDependencyTag) RequiresFilesFromPrebuiltApex() {}
+
 var _ android.ReplaceSourceWithPrebuilt = systemServerClasspathFragmentContentDepTag
+var _ android.SdkMemberDependencyTag = systemServerClasspathFragmentContentDepTag
 var _ android.CopyDirectlyInAnyApexTag = systemServerClasspathFragmentContentDepTag
+var _ android.RequiresFilesFromPrebuiltApexTag = systemServerClasspathFragmentContentDepTag
 
 // The tag used for the dependency between the systemserverclasspath_fragment module and its contents.
 var systemServerClasspathFragmentContentDepTag = systemServerClasspathFragmentContentDependencyTag{}
@@ -144,8 +175,14 @@ func IsSystemServerClasspathFragmentContentDepTag(tag blueprint.DependencyTag) b
 
 func (s *SystemServerClasspathModule) ComponentDepsMutator(ctx android.BottomUpMutatorContext) {
 	module := ctx.Module()
+	_, isSourceModule := module.(*SystemServerClasspathModule)
 
 	for _, name := range s.properties.Contents {
+		// A systemserverclasspath_fragment must depend only on other source modules, while the
+		// prebuilt_systemserverclasspath_fragment_fragment must only depend on other prebuilt modules.
+		if !isSourceModule {
+			name = android.PrebuiltNameFromSource(name)
+		}
 		ctx.AddDependency(module, systemServerClasspathFragmentContentDepTag, name)
 	}
 }
@@ -154,4 +191,81 @@ func (s *SystemServerClasspathModule) ComponentDepsMutator(ctx android.BottomUpM
 func (s *SystemServerClasspathModule) IDEInfo(dpInfo *android.IdeInfo) {
 	dpInfo.Deps = append(dpInfo.Deps, s.properties.Contents...)
 	dpInfo.Paths = append(dpInfo.Paths, s.modulePaths...)
+}
+
+type systemServerClasspathFragmentMemberType struct {
+	android.SdkMemberTypeBase
+}
+
+func (s *systemServerClasspathFragmentMemberType) AddDependencies(ctx android.SdkDependencyContext, dependencyTag blueprint.DependencyTag, names []string) {
+	ctx.AddVariationDependencies(nil, dependencyTag, names...)
+}
+
+func (s *systemServerClasspathFragmentMemberType) IsInstance(module android.Module) bool {
+	_, ok := module.(*SystemServerClasspathModule)
+	return ok
+}
+
+func (s *systemServerClasspathFragmentMemberType) AddPrebuiltModule(ctx android.SdkMemberContext, member android.SdkMember) android.BpModule {
+	return ctx.SnapshotBuilder().AddPrebuiltModule(member, "prebuilt_systemserverclasspath_fragment")
+}
+
+func (s *systemServerClasspathFragmentMemberType) CreateVariantPropertiesStruct() android.SdkMemberProperties {
+	return &systemServerClasspathFragmentSdkMemberProperties{}
+}
+
+type systemServerClasspathFragmentSdkMemberProperties struct {
+	android.SdkMemberPropertiesBase
+
+	// Contents of the systemserverclasspath fragment
+	Contents []string
+}
+
+func (s *systemServerClasspathFragmentSdkMemberProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.Module) {
+	module := variant.(*SystemServerClasspathModule)
+
+	s.Contents = module.properties.Contents
+}
+
+func (s *systemServerClasspathFragmentSdkMemberProperties) AddToPropertySet(ctx android.SdkMemberContext, propertySet android.BpPropertySet) {
+	builder := ctx.SnapshotBuilder()
+	requiredMemberDependency := builder.SdkMemberReferencePropertyTag(true)
+
+	if len(s.Contents) > 0 {
+		propertySet.AddPropertyWithTag("contents", s.Contents, requiredMemberDependency)
+	}
+}
+
+var _ android.SdkMemberType = (*systemServerClasspathFragmentMemberType)(nil)
+
+// A prebuilt version of the systemserverclasspath_fragment module.
+type prebuiltSystemServerClasspathModule struct {
+	SystemServerClasspathModule
+	prebuilt android.Prebuilt
+}
+
+func (module *prebuiltSystemServerClasspathModule) Prebuilt() *android.Prebuilt {
+	return &module.prebuilt
+}
+
+func (module *prebuiltSystemServerClasspathModule) Name() string {
+	return module.prebuilt.Name(module.ModuleBase.Name())
+}
+
+func (module *prebuiltSystemServerClasspathModule) RequiredFilesFromPrebuiltApex(ctx android.BaseModuleContext) []string {
+	return nil
+}
+
+var _ android.RequiredFilesFromPrebuiltApex = (*prebuiltSystemServerClasspathModule)(nil)
+
+func prebuiltSystemServerClasspathModuleFactory() android.Module {
+	m := &prebuiltSystemServerClasspathModule{}
+	m.AddProperties(&m.properties)
+	// This doesn't actually have any prebuilt files of its own so pass a placeholder for the srcs
+	// array.
+	android.InitPrebuiltModule(m, &[]string{"placeholder"})
+	android.InitApexModule(m)
+	android.InitSdkAwareModule(m)
+	android.InitAndroidArchModule(m, android.DeviceSupported, android.MultilibCommon)
+	return m
 }
