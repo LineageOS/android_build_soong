@@ -1360,10 +1360,19 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			if dexOutputPath := di.PrebuiltExportPath(apexRootRelativePathToJavaLib(j.BaseModuleName())); dexOutputPath != nil {
 				dexJarFile := makeDexJarPathFromPath(dexOutputPath)
 				j.dexJarFile = dexJarFile
-				j.dexJarInstallFile = android.PathForModuleInPartitionInstall(ctx, "apex", ai.ApexVariationName, apexRootRelativePathToJavaLib(j.BaseModuleName()))
+				installPath := android.PathForModuleInPartitionInstall(ctx, "apex", ai.ApexVariationName, apexRootRelativePathToJavaLib(j.BaseModuleName()))
+				j.dexJarInstallFile = installPath
 
 				// Initialize the hiddenapi structure.
 				j.initHiddenAPI(ctx, dexJarFile, outputFile, nil)
+
+				j.dexpreopter.installPath = j.dexpreopter.getInstallPath(ctx, installPath)
+				if j.dexProperties.Uncompress_dex == nil {
+					// If the value was not force-set by the user, use reasonable default based on the module.
+					j.dexProperties.Uncompress_dex = proptools.BoolPtr(shouldUncompressDex(ctx, &j.dexpreopter))
+				}
+				j.dexpreopter.uncompressedDex = *j.dexProperties.Uncompress_dex
+				j.dexpreopt(ctx, dexOutputPath)
 			} else {
 				// This should never happen as a variant for a prebuilt_apex is only created if the
 				// prebuilt_apex has been configured to export the java library dex file.
