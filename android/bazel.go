@@ -223,9 +223,6 @@ var (
 		"libc_malloc_debug",           // http://b/186824339, cc_library_static, depends on //system/libbase:libbase (http://b/186823646)
 		"libc_malloc_debug_backtrace", // http://b/186824112, cc_library_static, depends on //external/libcxxabi:libc++demangle (http://b/186823773)
 
-		//"libcutils",         // http://b/186827426, cc_library, depends on //system/core/libprocessgroup:libprocessgroup_headers (http://b/186826841)
-		//"libcutils_sockets", // http://b/186826853, cc_library, depends on //system/libbase:libbase (http://b/186826479)
-
 		"liblinker_debuggerd_stub", // http://b/186824327, cc_library_static, depends on //external/zlib:libz (http://b/186823782)
 		//                                                               also depends on //system/libziparchive:libziparchive (http://b/186823656)
 		//                                                               also depends on //system/logging/liblog:liblog (http://b/186822772)
@@ -285,24 +282,6 @@ var (
 		"libadb_protos_static",         // b/200601772: Requires cc_library proto support
 		"libadb_protos",                // b/200601772: Requires cc_library proto support
 		"libapp_processes_protos_lite", // b/200601772: Requires cc_library proto support
-
-		"libbase", // TODO(cparsons): Breaks libandroidfw. Investigate.
-
-		// The below items depend on libbase.
-		"libadb_pairing_auth",
-		"libadb_pairing_auth_static",
-		"libadb_sysdeps",
-		"libadb_tls_connection",
-		"libadb_tls_connection_static",
-		"libadbconnection_client",
-		"libadbconnection_server",
-		"libadbd_auth",
-		"libadbd_fs",
-		"libcutils",
-		"libcutils_sockets",
-		"libdiagnose_usb",
-		// ---
-
 	}
 
 	// Per-module denylist of cc_library modules to only generate the static
