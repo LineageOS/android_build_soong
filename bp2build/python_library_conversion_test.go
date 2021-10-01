@@ -154,3 +154,54 @@ func testPythonLib(t *testing.T, modType string,
 		},
 	})
 }
+
+func TestPythonLibraryArchVariance(t *testing.T) {
+	testPythonArchVariance(t, "python_library", "py_library",
+		python.PythonLibraryFactory, python.PythonLibraryBp2Build,
+		func(ctx android.RegistrationContext) {})
+}
+
+func TestPythonLibraryHostArchVariance(t *testing.T) {
+	testPythonArchVariance(t, "python_library_host", "py_library",
+		python.PythonLibraryHostFactory, python.PythonLibraryHostBp2Build,
+		func(ctx android.RegistrationContext) {})
+}
+
+// TODO: refactor python_binary_conversion_test to use this
+func testPythonArchVariance(t *testing.T, modType, bazelTarget string,
+	factory android.ModuleFactory, mutator PythonLibBp2Build,
+	registration func(ctx android.RegistrationContext)) {
+	t.Helper()
+	runBp2BuildTestCase(t, registration, bp2buildTestCase{
+		description:                        fmt.Sprintf("test %s arch variants", modType),
+		moduleTypeUnderTest:                modType,
+		moduleTypeUnderTestFactory:         factory,
+		moduleTypeUnderTestBp2BuildMutator: mutator,
+		filesystem: map[string]string{
+			"dir/arm.py": "",
+			"dir/x86.py": "",
+		},
+		blueprint: fmt.Sprintf(`%s {
+					 name: "foo",
+					 arch: {
+						 arm: {
+							 srcs: ["arm.py"],
+						 },
+						 x86: {
+							 srcs: ["x86.py"],
+						 },
+					},
+				 }`, modType),
+		expectedBazelTargets: []string{
+			fmt.Sprintf(`%s(
+    name = "foo",
+    srcs = select({
+        "//build/bazel/platforms/arch:arm": ["arm.py"],
+        "//build/bazel/platforms/arch:x86": ["x86.py"],
+        "//conditions:default": [],
+    }),
+    srcs_version = "PY3",
+)`, bazelTarget),
+		},
+	})
+}
