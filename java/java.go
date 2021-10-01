@@ -781,6 +781,9 @@ type testProperties struct {
 
 	// Names of modules containing JNI libraries that should be installed alongside the test.
 	Jni_libs []string
+
+	// Install the test into a folder named for the module in all test suites.
+	Per_testcase_directory *bool
 }
 
 type hostTestProperties struct {
@@ -792,6 +795,9 @@ type testHelperLibraryProperties struct {
 	// list of compatibility suites (for example "cts", "vts") that the module should be
 	// installed into.
 	Test_suites []string `android:"arch_variant"`
+
+	// Install the test into a folder named for the module in all test suites.
+	Per_testcase_directory *bool
 }
 
 type prebuiltTestProperties struct {
