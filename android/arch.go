@@ -2005,16 +2005,37 @@ func (m *ModuleBase) GetArchVariantProperties(ctx ArchVariantContext, propertySe
 
 	osToProp := ArchVariantProperties{}
 	archOsToProp := ArchVariantProperties{}
+
+	var linuxStructs, bionicStructs []reflect.Value
+	var ok bool
+
+	linuxStructs, ok = getTargetStructs(ctx, archProperties, "Linux")
+	if !ok {
+		linuxStructs = make([]reflect.Value, 0)
+	}
+	bionicStructs, ok = getTargetStructs(ctx, archProperties, "Bionic")
+	if !ok {
+		bionicStructs = make([]reflect.Value, 0)
+	}
+
 	// For android, linux, ...
 	for _, os := range osTypeList {
 		if os == CommonOS {
 			// It looks like this OS value is not used in Blueprint files
 			continue
 		}
-		osStructs, ok := getTargetStructs(ctx, archProperties, os.Field)
+		osStructs := make([]reflect.Value, 0)
+		osSpecificStructs, ok := getTargetStructs(ctx, archProperties, os.Field)
 		if ok {
-			osToProp[os.Name] = mergeStructs(ctx, osStructs, propertySet)
+			osStructs = append(osStructs, osSpecificStructs...)
 		}
+		if os.Linux() {
+			osStructs = append(osStructs, linuxStructs...)
+		}
+		if os.Bionic() {
+			osStructs = append(osStructs, bionicStructs...)
+		}
+		osToProp[os.Name] = mergeStructs(ctx, osStructs, propertySet)
 
 		// For arm, x86, ...
 		for _, arch := range osArchTypeMap[os] {
@@ -2048,15 +2069,9 @@ func (m *ModuleBase) GetArchVariantProperties(ctx ArchVariantContext, propertySe
 			archOsToProp[targetName] = mergeStructs(ctx, osArchStructs, propertySet)
 		}
 	}
+
 	axisToProps[bazel.OsConfigurationAxis] = osToProp
 	axisToProps[bazel.OsArchConfigurationAxis] = archOsToProp
-
-	bionicStructs, ok := getTargetStructs(ctx, archProperties, "Bionic")
-	if ok {
-		axisToProps[bazel.BionicConfigurationAxis] = map[string]interface{}{
-			"bionic": mergeStructs(ctx, bionicStructs, propertySet)}
-	}
-
 	return axisToProps
 }
 
