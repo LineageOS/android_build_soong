@@ -663,7 +663,7 @@ func (mod *Module) CoverageFiles() android.Paths {
 }
 
 func (mod *Module) installable(apexInfo android.ApexInfo) bool {
-	if !mod.EverInstallable() {
+	if !proptools.BoolDefault(mod.Installable(), mod.EverInstallable()) {
 		return false
 	}
 
