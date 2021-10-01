@@ -1070,6 +1070,9 @@ type appTestHelperAppProperties struct {
 	// doesn't exist next to the Android.bp, this attribute doesn't need to be set to true
 	// explicitly.
 	Auto_gen_config *bool
+
+	// Install the test into a folder named for the module in all test suites.
+	Per_testcase_directory *bool
 }
 
 type AndroidTestHelperApp struct {
