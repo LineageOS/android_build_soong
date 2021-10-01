@@ -115,3 +115,75 @@ func TestLibraryGenruleCmd(t *testing.T) {
 		t.Errorf(`want inputs %v, got %v`, expected, got)
 	}
 }
+
+func TestCmdPrefix(t *testing.T) {
+	bp := `
+		cc_genrule {
+			name: "gen",
+			cmd: "echo foo",
+			out: ["out"],
+			native_bridge_supported: true,
+		}
+		`
+
+	testCases := []struct {
+		name     string
+		variant  string
+		preparer android.FixturePreparer
+
+		arch         string
+		nativeBridge string
+		multilib     string
+	}{
+		{
+			name:     "arm",
+			variant:  "android_arm_armv7-a-neon",
+			arch:     "arm",
+			multilib: "lib32",
+		},
+		{
+			name:     "arm64",
+			variant:  "android_arm64_armv8-a",
+			arch:     "arm64",
+			multilib: "lib64",
+		},
+		{
+			name:    "nativebridge",
+			variant: "android_native_bridge_arm_armv7-a-neon",
+			preparer: android.FixtureModifyConfig(func(config android.Config) {
+				config.Targets[android.Android] = []android.Target{
+					{
+						Os:           android.Android,
+						Arch:         android.Arch{ArchType: android.X86, ArchVariant: "silvermont", Abi: []string{"armeabi-v7a"}},
+						NativeBridge: android.NativeBridgeDisabled,
+					},
+					{
+						Os:                       android.Android,
+						Arch:                     android.Arch{ArchType: android.Arm, ArchVariant: "armv7-a-neon", Abi: []string{"armeabi-v7a"}},
+						NativeBridge:             android.NativeBridgeEnabled,
+						NativeBridgeHostArchName: "x86",
+						NativeBridgeRelativePath: "arm",
+					},
+				}
+			}),
+			arch:         "arm",
+			multilib:     "lib32",
+			nativeBridge: "arm",
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			result := android.GroupFixturePreparers(
+				PrepareForIntegrationTestWithCc,
+				android.OptionalFixturePreparer(tt.preparer),
+			).RunTestWithBp(t, bp)
+			gen := result.ModuleForTests("gen", tt.variant)
+			sboxProto := android.RuleBuilderSboxProtoForTests(t, gen.Output("genrule.sbox.textproto"))
+			cmd := *sboxProto.Commands[0].Command
+			android.AssertStringDoesContain(t, "incorrect CC_ARCH", cmd, "CC_ARCH="+tt.arch+" ")
+			android.AssertStringDoesContain(t, "incorrect CC_NATIVE_BRIDGE", cmd, "CC_NATIVE_BRIDGE="+tt.nativeBridge+" ")
+			android.AssertStringDoesContain(t, "incorrect CC_MULTILIB", cmd, "CC_MULTILIB="+tt.multilib+" ")
+		})
+	}
+}
