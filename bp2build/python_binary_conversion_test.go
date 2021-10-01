@@ -116,3 +116,37 @@ func TestPythonBinaryHostPy3(t *testing.T) {
 		},
 	})
 }
+
+func TestPythonBinaryHostArchVariance(t *testing.T) {
+	runBp2BuildTestCaseSimple(t, bp2buildTestCase{
+		description:                        "test arch variants",
+		moduleTypeUnderTest:                "python_binary_host",
+		moduleTypeUnderTestFactory:         python.PythonBinaryHostFactory,
+		moduleTypeUnderTestBp2BuildMutator: python.PythonBinaryBp2Build,
+		filesystem: map[string]string{
+			"dir/arm.py": "",
+			"dir/x86.py": "",
+		},
+		blueprint: `python_binary_host {
+					 name: "foo-arm",
+					 arch: {
+						 arm: {
+							 srcs: ["arm.py"],
+						 },
+						 x86: {
+							 srcs: ["x86.py"],
+						 },
+					},
+				 }`,
+		expectedBazelTargets: []string{
+			`py_binary(
+    name = "foo-arm",
+    srcs = select({
+        "//build/bazel/platforms/arch:arm": ["arm.py"],
+        "//build/bazel/platforms/arch:x86": ["x86.py"],
+        "//conditions:default": [],
+    }),
+)`,
+		},
+	})
+}
