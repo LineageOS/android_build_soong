@@ -1152,10 +1152,25 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 
 	// Check package restrictions if necessary.
 	if len(j.properties.Permitted_packages) > 0 {
-		// Check packages and copy to package-checked file.
+		// Time stamp file created by the package check rule.
 		pkgckFile := android.PathForModuleOut(ctx, "package-check.stamp")
+
+		// Create a rule to copy the output jar to another path and add a validate dependency that
+		// will check that the jar only contains the permitted packages. The new location will become
+		// the output file of this module.
+		inputFile := outputFile
+		outputFile = android.PathForModuleOut(ctx, "package-check", jarName).OutputPath
+		ctx.Build(pctx, android.BuildParams{
+			Rule:   android.Cp,
+			Input:  inputFile,
+			Output: outputFile,
+			// Make sure that any dependency on the output file will cause ninja to run the package check
+			// rule.
+			Validation: pkgckFile,
+		})
+
+		// Check packages and create a timestamp file when complete.
 		CheckJarPackages(ctx, pkgckFile, outputFile, j.properties.Permitted_packages)
-		j.additionalCheckedModules = append(j.additionalCheckedModules, pkgckFile)
 
 		if ctx.Failed() {
 			return
