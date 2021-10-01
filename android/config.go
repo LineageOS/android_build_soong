@@ -854,11 +854,6 @@ func (c *config) AlwaysUsePrebuiltSdks() bool {
 	return Bool(c.productVariables.Always_use_prebuilt_sdks)
 }
 
-// Returns true if the boot jars check should be skipped.
-func (c *config) SkipBootJarsCheck() bool {
-	return Bool(c.productVariables.Skip_boot_jars_check)
-}
-
 func (c *config) MinimizeJavaDebugInfo() bool {
 	return Bool(c.productVariables.MinimizeJavaDebugInfo) && !Bool(c.productVariables.Eng)
 }
