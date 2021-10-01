@@ -131,12 +131,13 @@ cc_library {
         "//build/bazel/platforms/arch:x86_64": ["x86_64.cpp"],
         "//conditions:default": [],
     }) + select({
-        "//build/bazel/platforms/os:android": ["android.cpp"],
+        "//build/bazel/platforms/os:android": [
+            "android.cpp",
+            "bionic.cpp",
+        ],
         "//build/bazel/platforms/os:darwin": ["darwin.cpp"],
         "//build/bazel/platforms/os:linux": ["linux.cpp"],
-        "//conditions:default": [],
-    }) + select({
-        "//build/bazel/platforms/os:bionic": ["bionic.cpp"],
+        "//build/bazel/platforms/os:linux_bionic": ["bionic.cpp"],
         "//conditions:default": [],
     }),
 )`}})
@@ -1570,4 +1571,69 @@ cc_library {
     system_dynamic_deps = [":libc"],
 )`},
 	})
+}
+
+func TestCcLibraryOsSelects(t *testing.T) {
+	runCcLibraryTestCase(t, bp2buildTestCase{
+		description:                        "cc_library - selects for all os targets",
+		moduleTypeUnderTest:                "cc_library",
+		moduleTypeUnderTestFactory:         cc.LibraryFactory,
+		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryBp2Build,
+		filesystem:                         map[string]string{},
+		blueprint: soongCcLibraryPreamble + `
+cc_library_headers { name: "some-headers" }
+cc_library {
+    name: "foo-lib",
+    srcs: ["base.cpp"],
+    target: {
+        android: {
+            srcs: ["android.cpp"],
+        },
+        linux: {
+            srcs: ["linux.cpp"],
+        },
+        linux_glibc: {
+            srcs: ["linux_glibc.cpp"],
+        },
+        darwin: {
+            srcs: ["darwin.cpp"],
+        },
+        bionic: {
+            srcs: ["bionic.cpp"],
+        },
+        linux_musl: {
+            srcs: ["linux_musl.cpp"],
+        },
+        windows: {
+            srcs: ["windows.cpp"],
+        },
+    },
+    include_build_directory: false,
+}
+`,
+		expectedBazelTargets: []string{`cc_library(
+    name = "foo-lib",
+    srcs = ["base.cpp"] + select({
+        "//build/bazel/platforms/os:android": [
+            "android.cpp",
+            "bionic.cpp",
+            "linux.cpp",
+        ],
+        "//build/bazel/platforms/os:darwin": ["darwin.cpp"],
+        "//build/bazel/platforms/os:linux": [
+            "linux.cpp",
+            "linux_glibc.cpp",
+        ],
+        "//build/bazel/platforms/os:linux_bionic": [
+            "bionic.cpp",
+            "linux.cpp",
+        ],
+        "//build/bazel/platforms/os:linux_musl": [
+            "linux.cpp",
+            "linux_musl.cpp",
+        ],
+        "//build/bazel/platforms/os:windows": ["windows.cpp"],
+        "//conditions:default": [],
+    }),
+)`}})
 }

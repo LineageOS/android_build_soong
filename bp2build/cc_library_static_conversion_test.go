@@ -1382,7 +1382,8 @@ cc_library_static {
 		expectedBazelTargets: []string{`cc_library_static(
     name = "target_bionic",
     system_dynamic_deps = select({
-        "//build/bazel/platforms/os:bionic": [":libc"],
+        "//build/bazel/platforms/os:android": [":libc"],
+        "//build/bazel/platforms/os:linux_bionic": [":libc"],
         "//conditions:default": [],
     }),
 )`},
