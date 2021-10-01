@@ -815,7 +815,7 @@ func (c *bazelSingleton) GenerateBuildActions(ctx SingletonContext) {
 		if len(buildStatement.OutputPaths) > 0 {
 			cmd.Text("rm -f")
 			for _, outputPath := range buildStatement.OutputPaths {
-				cmd.Text(PathForBazelOut(ctx, outputPath).String())
+				cmd.Text(outputPath)
 			}
 			cmd.Text("&&")
 		}
