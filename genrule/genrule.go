@@ -156,6 +156,11 @@ type Module struct {
 	// For other packages to make their own genrules with extra
 	// properties
 	Extra interface{}
+
+	// CmdModifier can be set by wrappers around genrule to modify the command, for example to
+	// prefix environment variables to it.
+	CmdModifier func(ctx android.ModuleContext, cmd string) string
+
 	android.ImageInterface
 
 	properties generatorProperties
@@ -398,8 +403,13 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	var outputFiles android.WritablePaths
 	var zipArgs strings.Builder
 
+	cmd := String(g.properties.Cmd)
+	if g.CmdModifier != nil {
+		cmd = g.CmdModifier(ctx, cmd)
+	}
+
 	// Generate tasks, either from genrule or gensrcs.
-	for _, task := range g.taskGenerator(ctx, String(g.properties.Cmd), srcFiles) {
+	for _, task := range g.taskGenerator(ctx, cmd, srcFiles) {
 		if len(task.out) == 0 {
 			ctx.ModuleErrorf("must have at least one output file")
 			return
