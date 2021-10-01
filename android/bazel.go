@@ -175,32 +175,43 @@ var (
 
 	// Configure modules in these directories to enable bp2build_available: true or false by default.
 	bp2buildDefaultConfig = Bp2BuildConfig{
-		"bionic":                            Bp2BuildDefaultTrueRecursively,
-		"build/bazel/examples/apex/minimal": Bp2BuildDefaultTrueRecursively,
-		"development/sdk":                   Bp2BuildDefaultTrueRecursively,
-		"external/arm-optimized-routines":   Bp2BuildDefaultTrueRecursively,
-		"external/brotli":                   Bp2BuildDefaultTrue,
-		"external/fmtlib":                   Bp2BuildDefaultTrueRecursively,
-		"external/gwp_asan":                 Bp2BuildDefaultTrueRecursively,
-		"external/jemalloc_new":             Bp2BuildDefaultTrueRecursively,
-		"external/libcap":                   Bp2BuildDefaultTrueRecursively,
-		"external/libcxx":                   Bp2BuildDefaultTrueRecursively,
-		"external/libcxxabi":                Bp2BuildDefaultTrueRecursively,
-		"external/lz4/lib":                  Bp2BuildDefaultTrue,
-		"external/protobuf":                 Bp2BuildDefaultTrueRecursively,
-		"external/python/six":               Bp2BuildDefaultTrueRecursively,
-		"external/scudo":                    Bp2BuildDefaultTrueRecursively,
-		"external/zlib":                     Bp2BuildDefaultTrueRecursively,
-		"prebuilts/clang/host/linux-x86":    Bp2BuildDefaultTrueRecursively,
-		"system/core/libasyncio":            Bp2BuildDefaultTrue,
-		"system/core/libcutils":             Bp2BuildDefaultTrueRecursively,
-		"system/core/libprocessgroup":       Bp2BuildDefaultTrue,
+		"bionic":                                             Bp2BuildDefaultTrueRecursively,
+		"build/bazel/examples/apex/minimal":                  Bp2BuildDefaultTrueRecursively,
+		"development/sdk":                                    Bp2BuildDefaultTrueRecursively,
+		"external/arm-optimized-routines":                    Bp2BuildDefaultTrueRecursively,
+		"external/boringssl":                                 Bp2BuildDefaultTrueRecursively,
+		"external/brotli":                                    Bp2BuildDefaultTrue,
+		"external/fmtlib":                                    Bp2BuildDefaultTrueRecursively,
+		"external/gwp_asan":                                  Bp2BuildDefaultTrueRecursively,
+		"external/jemalloc_new":                              Bp2BuildDefaultTrueRecursively,
+		"external/libcap":                                    Bp2BuildDefaultTrueRecursively,
+		"external/libcxx":                                    Bp2BuildDefaultTrueRecursively,
+		"external/libcxxabi":                                 Bp2BuildDefaultTrueRecursively,
+		"external/lz4/lib":                                   Bp2BuildDefaultTrue,
+		"external/protobuf":                                  Bp2BuildDefaultTrueRecursively,
+		"external/python/six":                                Bp2BuildDefaultTrueRecursively,
+		"external/scudo":                                     Bp2BuildDefaultTrueRecursively,
+		"external/zlib":                                      Bp2BuildDefaultTrueRecursively,
+		"frameworks/native/libs/adbd_auth":                   Bp2BuildDefaultTrueRecursively,
+		"packages/modules/adb":                               Bp2BuildDefaultTrue,
+		"packages/modules/adb/crypto":                        Bp2BuildDefaultTrueRecursively,
+		"packages/modules/adb/libs":                          Bp2BuildDefaultTrueRecursively,
+		"packages/modules/adb/pairing_auth":                  Bp2BuildDefaultTrueRecursively,
+		"packages/modules/adb/pairing_connection":            Bp2BuildDefaultTrueRecursively,
+		"packages/modules/adb/proto":                         Bp2BuildDefaultTrueRecursively,
+		"packages/modules/adb/tls":                           Bp2BuildDefaultTrueRecursively,
+		"prebuilts/clang/host/linux-x86":                     Bp2BuildDefaultTrueRecursively,
+		"system/core/diagnose_usb":                           Bp2BuildDefaultTrueRecursively,
+		"system/core/libasyncio":                             Bp2BuildDefaultTrue,
+		"system/core/libcrypto_utils":                        Bp2BuildDefaultTrueRecursively,
+		"system/core/libcutils":                              Bp2BuildDefaultTrueRecursively,
+		"system/core/libprocessgroup":                        Bp2BuildDefaultTrue,
 		"system/core/property_service/libpropertyinfoparser": Bp2BuildDefaultTrueRecursively,
-		"system/libbase":              Bp2BuildDefaultTrueRecursively,
-		"system/logging/liblog":       Bp2BuildDefaultTrueRecursively,
-		"system/sepolicy/apex":        Bp2BuildDefaultTrueRecursively,
-		"system/timezone/apex":        Bp2BuildDefaultTrueRecursively,
-		"system/timezone/output_data": Bp2BuildDefaultTrueRecursively,
+		"system/libbase":                                     Bp2BuildDefaultTrueRecursively,
+		"system/logging/liblog":                              Bp2BuildDefaultTrueRecursively,
+		"system/sepolicy/apex":                               Bp2BuildDefaultTrueRecursively,
+		"system/timezone/apex":                               Bp2BuildDefaultTrueRecursively,
+		"system/timezone/output_data":                        Bp2BuildDefaultTrueRecursively,
 	}
 
 	// Per-module denylist to always opt modules out of both bp2build and mixed builds.
@@ -212,8 +223,8 @@ var (
 		"libc_malloc_debug",           // http://b/186824339, cc_library_static, depends on //system/libbase:libbase (http://b/186823646)
 		"libc_malloc_debug_backtrace", // http://b/186824112, cc_library_static, depends on //external/libcxxabi:libc++demangle (http://b/186823773)
 
-		"libcutils",         // http://b/186827426, cc_library, depends on //system/core/libprocessgroup:libprocessgroup_headers (http://b/186826841)
-		"libcutils_sockets", // http://b/186826853, cc_library, depends on //system/libbase:libbase (http://b/186826479)
+		//"libcutils",         // http://b/186827426, cc_library, depends on //system/core/libprocessgroup:libprocessgroup_headers (http://b/186826841)
+		//"libcutils_sockets", // http://b/186826853, cc_library, depends on //system/libbase:libbase (http://b/186826479)
 
 		"liblinker_debuggerd_stub", // http://b/186824327, cc_library_static, depends on //external/zlib:libz (http://b/186823782)
 		//                                                               also depends on //system/libziparchive:libziparchive (http://b/186823656)
@@ -232,15 +243,13 @@ var (
 		"libbase_ndk", // http://b/186826477, cc_library, no such target '//build/bazel/platforms/os:darwin' when --platforms //build/bazel/platforms:android_x86 is added
 		// libcxx
 		"libBionicBenchmarksUtils", // cc_library_static, fatal error: 'map' file not found, from libcxx
-		"libbase",                  // Depends on fmtlib via static_libs and also whole_static_libs, which results in bazel errors.
-
-		"libfdtrack", // depends on liblzma and libbase
 
 		"libprotobuf-python",               // contains .proto sources
 		"libprotobuf-internal-protos",      // we don't handle path property for fileegroups
 		"libprotobuf-internal-python-srcs", // we don't handle path property for fileegroups
 
-		"libseccomp_policy", // depends on libbase
+		"libseccomp_policy", // b/201094425: depends on func_to_syscall_nrs, which depends on py_binary, which is unsupported in mixed builds.
+		"libfdtrack",        // depends on libunwindstack, which depends on unsupported module art_cc_library_statics
 
 		"gwp_asan_crash_handler", // cc_library, ld.lld: error: undefined symbol: memset
 
@@ -262,6 +271,38 @@ var (
 
 		// APEX support
 		"com.android.runtime", // http://b/194746715, apex, depends on 'libc_malloc_debug' and 'libc_malloc_hooks'
+
+		"libadb_crypto",                    // Depends on libadb_protos
+		"libadb_crypto_static",             // Depends on libadb_protos_static
+		"libadb_pairing_connection",        // Depends on libadb_protos
+		"libadb_pairing_connection_static", // Depends on libadb_protos_static
+		"libadb_pairing_server",            // Depends on libadb_protos
+		"libadb_pairing_server_static",     // Depends on libadb_protos_static
+		"libadbd",                          // Depends on libadbd_core
+		"libadbd_core",                     // Depends on libadb_protos
+		"libadbd_services",                 // Depends on libadb_protos
+
+		"libadb_protos_static",         // b/200601772: Requires cc_library proto support
+		"libadb_protos",                // b/200601772: Requires cc_library proto support
+		"libapp_processes_protos_lite", // b/200601772: Requires cc_library proto support
+
+		"libbase", // TODO(cparsons): Breaks libandroidfw. Investigate.
+
+		// The below items depend on libbase.
+		"libadb_pairing_auth",
+		"libadb_pairing_auth_static",
+		"libadb_sysdeps",
+		"libadb_tls_connection",
+		"libadb_tls_connection_static",
+		"libadbconnection_client",
+		"libadbconnection_server",
+		"libadbd_auth",
+		"libadbd_fs",
+		"libcutils",
+		"libcutils_sockets",
+		"libdiagnose_usb",
+		// ---
+
 	}
 
 	// Per-module denylist of cc_library modules to only generate the static
