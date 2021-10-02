@@ -88,14 +88,11 @@ func pythonLibBp2Build(ctx android.TopDownMutatorContext, modType string) {
 		// do nothing, since python_version defaults to PY2ANDPY3
 	}
 
-	srcs := android.BazelLabelForModuleSrcExcludes(ctx, m.properties.Srcs, m.properties.Exclude_srcs)
-	data := android.BazelLabelForModuleSrc(ctx, m.properties.Data)
-	deps := android.BazelLabelForModuleDeps(ctx, m.properties.Libs)
-
+	baseAttrs := m.makeArchVariantBaseAttributes(ctx)
 	attrs := &bazelPythonLibraryAttributes{
-		Srcs:         bazel.MakeLabelListAttribute(srcs),
-		Data:         bazel.MakeLabelListAttribute(data),
-		Deps:         bazel.MakeLabelListAttribute(deps),
+		Srcs:         baseAttrs.Srcs,
+		Data:         baseAttrs.Data,
+		Deps:         baseAttrs.Deps,
 		Srcs_version: python_version,
 	}
 

@@ -91,11 +91,6 @@ var (
 		ConditionsDefaultConfigKey: ConditionsDefaultSelectKey, // The default condition of an os select map.
 	}
 
-	platformBionicMap = map[string]string{
-		"bionic":                   "//build/bazel/platforms/os:bionic",
-		ConditionsDefaultConfigKey: ConditionsDefaultSelectKey, // The default condition of an os select map.
-	}
-
 	platformOsArchMap = map[string]string{
 		osArchAndroidArm:           "//build/bazel/platforms/os_arch:android_arm",
 		osArchAndroidArm64:         "//build/bazel/platforms/os_arch:android_arm64",
@@ -122,7 +117,6 @@ const (
 	arch
 	os
 	osArch
-	bionic
 	productVariables
 )
 
@@ -132,7 +126,6 @@ func (ct configurationType) String() string {
 		arch:             "arch",
 		os:               "os",
 		osArch:           "arch_os",
-		bionic:           "bionic",
 		productVariables: "product_variables",
 	}[ct]
 }
@@ -155,10 +148,6 @@ func (ct configurationType) validateConfig(config string) {
 		if _, ok := platformOsArchMap[config]; !ok {
 			panic(fmt.Errorf("Unknown os+arch: %s", config))
 		}
-	case bionic:
-		if _, ok := platformBionicMap[config]; !ok {
-			panic(fmt.Errorf("Unknown for %s: %s", ct.String(), config))
-		}
 	case productVariables:
 		// do nothing
 	default:
@@ -178,8 +167,6 @@ func (ct configurationType) SelectKey(config string) string {
 		return platformOsMap[config]
 	case osArch:
 		return platformOsArchMap[config]
-	case bionic:
-		return platformBionicMap[config]
 	case productVariables:
 		if config == ConditionsDefaultConfigKey {
 			return ConditionsDefaultSelectKey
@@ -199,8 +186,6 @@ var (
 	OsConfigurationAxis = ConfigurationAxis{configurationType: os}
 	// An axis for arch+os-specific configurations
 	OsArchConfigurationAxis = ConfigurationAxis{configurationType: osArch}
-	// An axis for bionic os-specific configurations
-	BionicConfigurationAxis = ConfigurationAxis{configurationType: bionic}
 )
 
 // ProductVariableConfigurationAxis returns an axis for the given product variable
