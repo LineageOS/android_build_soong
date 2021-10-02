@@ -98,3 +98,88 @@ func TestBuildReleaseSetContains(t *testing.T) {
 		android.AssertBoolEquals(t, "set does not contain T", false, set.contains(buildReleaseT))
 	})
 }
+
+func TestPropertyPrunerInvalidTag(t *testing.T) {
+	type brokenStruct struct {
+		Broken string `supported_build_releases:"A"`
+	}
+	type containingStruct struct {
+		Nested brokenStruct
+	}
+
+	t.Run("broken struct", func(t *testing.T) {
+		android.AssertPanicMessageContains(t, "error", "invalid `supported_build_releases` tag on Broken of *sdk.brokenStruct: unknown release \"A\"", func() {
+			newPropertyPrunerByBuildRelease(&brokenStruct{}, buildReleaseS)
+		})
+	})
+
+	t.Run("nested broken struct", func(t *testing.T) {
+		android.AssertPanicMessageContains(t, "error", "invalid `supported_build_releases` tag on Nested.Broken of *sdk.containingStruct: unknown release \"A\"", func() {
+			newPropertyPrunerByBuildRelease(&containingStruct{}, buildReleaseS)
+		})
+	})
+}
+
+func TestPropertyPrunerByBuildRelease(t *testing.T) {
+	type nested struct {
+		F1_only string `supported_build_releases:"F1"`
+	}
+
+	type testBuildReleasePruner struct {
+		Default      string
+		S_and_T_only string `supported_build_releases:"S-T"`
+		T_later      string `supported_build_releases:"T+"`
+		Nested       nested
+	}
+
+	input := testBuildReleasePruner{
+		Default:      "Default",
+		S_and_T_only: "S_and_T_only",
+		T_later:      "T_later",
+		Nested: nested{
+			F1_only: "F1_only",
+		},
+	}
+
+	t.Run("target S", func(t *testing.T) {
+		testStruct := input
+		pruner := newPropertyPrunerByBuildRelease(&testStruct, buildReleaseS)
+		pruner.pruneProperties(&testStruct)
+
+		expected := input
+		expected.T_later = ""
+		expected.Nested.F1_only = ""
+		android.AssertDeepEquals(t, "test struct", expected, testStruct)
+	})
+
+	t.Run("target T", func(t *testing.T) {
+		testStruct := input
+		pruner := newPropertyPrunerByBuildRelease(&testStruct, buildReleaseT)
+		pruner.pruneProperties(&testStruct)
+
+		expected := input
+		expected.Nested.F1_only = ""
+		android.AssertDeepEquals(t, "test struct", expected, testStruct)
+	})
+
+	t.Run("target F1", func(t *testing.T) {
+		testStruct := input
+		pruner := newPropertyPrunerByBuildRelease(&testStruct, buildReleaseFuture1)
+		pruner.pruneProperties(&testStruct)
+
+		expected := input
+		expected.S_and_T_only = ""
+		android.AssertDeepEquals(t, "test struct", expected, testStruct)
+	})
+
+	t.Run("target F2", func(t *testing.T) {
+		testStruct := input
+		pruner := newPropertyPrunerByBuildRelease(&testStruct, buildReleaseFuture2)
+		pruner.pruneProperties(&testStruct)
+
+		expected := input
+		expected.S_and_T_only = ""
+		expected.Nested.F1_only = ""
+		android.AssertDeepEquals(t, "test struct", expected, testStruct)
+	})
+}
