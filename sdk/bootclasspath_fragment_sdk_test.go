@@ -138,8 +138,8 @@ prebuilt_bootclasspath_fragment {
         metadata: "hiddenapi/metadata.csv",
         index: "hiddenapi/index.csv",
         signature_patterns: "hiddenapi/signature-patterns.csv",
-        stub_flags: "hiddenapi/filtered-stub-flags.csv",
-        all_flags: "hiddenapi/filtered-flags.csv",
+        filtered_stub_flags: "hiddenapi/filtered-stub-flags.csv",
+        filtered_flags: "hiddenapi/filtered-flags.csv",
     },
 }
 
@@ -166,8 +166,8 @@ prebuilt_bootclasspath_fragment {
         metadata: "hiddenapi/metadata.csv",
         index: "hiddenapi/index.csv",
         signature_patterns: "hiddenapi/signature-patterns.csv",
-        stub_flags: "hiddenapi/filtered-stub-flags.csv",
-        all_flags: "hiddenapi/filtered-flags.csv",
+        filtered_stub_flags: "hiddenapi/filtered-stub-flags.csv",
+        filtered_flags: "hiddenapi/filtered-flags.csv",
     },
 }
 
@@ -339,8 +339,8 @@ prebuilt_bootclasspath_fragment {
         metadata: "hiddenapi/metadata.csv",
         index: "hiddenapi/index.csv",
         signature_patterns: "hiddenapi/signature-patterns.csv",
-        stub_flags: "hiddenapi/filtered-stub-flags.csv",
-        all_flags: "hiddenapi/filtered-flags.csv",
+        filtered_stub_flags: "hiddenapi/filtered-stub-flags.csv",
+        filtered_flags: "hiddenapi/filtered-flags.csv",
     },
 }
 
@@ -424,8 +424,8 @@ prebuilt_bootclasspath_fragment {
         metadata: "hiddenapi/metadata.csv",
         index: "hiddenapi/index.csv",
         signature_patterns: "hiddenapi/signature-patterns.csv",
-        stub_flags: "hiddenapi/filtered-stub-flags.csv",
-        all_flags: "hiddenapi/filtered-flags.csv",
+        filtered_stub_flags: "hiddenapi/filtered-stub-flags.csv",
+        filtered_flags: "hiddenapi/filtered-flags.csv",
     },
 }
 
@@ -649,8 +649,8 @@ prebuilt_bootclasspath_fragment {
         metadata: "hiddenapi/metadata.csv",
         index: "hiddenapi/index.csv",
         signature_patterns: "hiddenapi/signature-patterns.csv",
-        stub_flags: "hiddenapi/filtered-stub-flags.csv",
-        all_flags: "hiddenapi/filtered-flags.csv",
+        filtered_stub_flags: "hiddenapi/filtered-stub-flags.csv",
+        filtered_flags: "hiddenapi/filtered-flags.csv",
     },
 }
 
@@ -852,8 +852,8 @@ prebuilt_bootclasspath_fragment {
         metadata: "hiddenapi/metadata.csv",
         index: "hiddenapi/index.csv",
         signature_patterns: "hiddenapi/signature-patterns.csv",
-        stub_flags: "hiddenapi/filtered-stub-flags.csv",
-        all_flags: "hiddenapi/filtered-flags.csv",
+        filtered_stub_flags: "hiddenapi/filtered-stub-flags.csv",
+        filtered_flags: "hiddenapi/filtered-flags.csv",
     },
 }
 

@@ -548,18 +548,18 @@ func (i *HiddenAPIInfo) mergeFromFragmentDeps(ctx android.ModuleContext, fragmen
 	}
 }
 
-// StubFlagSubset returns a SignatureCsvSubset that contains a path to a stub-flags.csv file and a
-// path to a signature-patterns.csv file that defines a subset of the monolithic stub flags file,
-// i.e. out/soong/hiddenapi/hiddenapi-stub-flags.txt, against which it will be compared.
+// StubFlagSubset returns a SignatureCsvSubset that contains a path to a filtered-stub-flags.csv
+// file and a path to a signature-patterns.csv file that defines a subset of the monolithic stub
+// flags file, i.e. out/soong/hiddenapi/hiddenapi-stub-flags.txt, against which it will be compared.
 func (i *HiddenAPIInfo) StubFlagSubset() SignatureCsvSubset {
-	return SignatureCsvSubset{i.StubFlagsPath, i.SignaturePatternsPath}
+	return SignatureCsvSubset{i.FilteredStubFlagsPath, i.SignaturePatternsPath}
 }
 
-// FlagSubset returns a SignatureCsvSubset that contains a path to an all-flags.csv file and a
+// FlagSubset returns a SignatureCsvSubset that contains a path to a filtered-flags.csv file and a
 // path to a signature-patterns.csv file that defines a subset of the monolithic flags file, i.e.
 // out/soong/hiddenapi/hiddenapi-flags.csv, against which it will be compared.
 func (i *HiddenAPIInfo) FlagSubset() SignatureCsvSubset {
-	return SignatureCsvSubset{i.AllFlagsPath, i.SignaturePatternsPath}
+	return SignatureCsvSubset{i.FilteredFlagsPath, i.SignaturePatternsPath}
 }
 
 var HiddenAPIInfoProvider = blueprint.NewProvider(HiddenAPIInfo{})
@@ -784,9 +784,6 @@ func (i *HiddenAPIFlagInput) transitiveStubDexJarsByScope() StubDexJarsByModule 
 // HiddenAPIFlagOutput contains paths to output files from the hidden API flag generation for a
 // bootclasspath_fragment module.
 type HiddenAPIFlagOutput struct {
-	// The path to the generated stub-flags.csv file.
-	StubFlagsPath android.Path
-
 	// The path to the generated annotation-flags.csv file.
 	AnnotationFlagsPath android.Path
 
@@ -796,12 +793,21 @@ type HiddenAPIFlagOutput struct {
 	// The path to the generated index.csv file.
 	IndexPath android.Path
 
+	// The path to the generated stub-flags.csv file.
+	StubFlagsPath android.Path
+
 	// The path to the generated all-flags.csv file.
 	AllFlagsPath android.Path
 
 	// The path to the generated signature-patterns.txt file which defines the subset of the
 	// monolithic hidden API files provided in this.
 	SignaturePatternsPath android.Path
+
+	// The path to the generated filtered-stub-flags.csv file.
+	FilteredStubFlagsPath android.Path
+
+	// The path to the generated filtered-flags.csv file.
+	FilteredFlagsPath android.Path
 }
 
 // bootDexJarByModule is a map from base module name (without prebuilt_ prefix) to the boot dex
@@ -1067,11 +1073,13 @@ func hiddenAPIRulesForBootclasspathFragment(ctx android.ModuleContext, contents 
 	// Store the paths in the info for use by other modules and sdk snapshot generation.
 	output := HiddenAPIOutput{
 		HiddenAPIFlagOutput: HiddenAPIFlagOutput{
-			StubFlagsPath:       filteredStubFlagsCSV,
-			AnnotationFlagsPath: annotationFlagsCSV,
-			MetadataPath:        metadataCSV,
-			IndexPath:           indexCSV,
-			AllFlagsPath:        filteredFlagsCSV,
+			AnnotationFlagsPath:   annotationFlagsCSV,
+			MetadataPath:          metadataCSV,
+			IndexPath:             indexCSV,
+			StubFlagsPath:         stubFlagsCSV,
+			AllFlagsPath:          allFlagsCSV,
+			FilteredStubFlagsPath: filteredStubFlagsCSV,
+			FilteredFlagsPath:     filteredFlagsCSV,
 		},
 		EncodedBootDexFilesByModule: encodedBootDexJarsByModule,
 	}
