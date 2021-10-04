@@ -138,7 +138,7 @@ func TestSystemServerClasspathFragmentWithContentNotInMake(t *testing.T) {
 		dexpreopt.FixtureSetApexSystemServerJars("myapex:foo"),
 	).
 		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(
-			`in contents must also be declared in PRODUCT_UPDATABLE_SYSTEM_SERVER_JARS`)).
+			`in contents must also be declared in PRODUCT_APEX_SYSTEM_SERVER_JARS`)).
 		RunTestWithBp(t, `
 			apex {
 				name: "myapex",
