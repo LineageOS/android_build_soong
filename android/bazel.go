@@ -183,8 +183,10 @@ var (
 		"external/brotli":                                    Bp2BuildDefaultTrue,
 		"external/fmtlib":                                    Bp2BuildDefaultTrueRecursively,
 		"external/googletest/googletest":                     Bp2BuildDefaultTrueRecursively,
+		"external/google-benchmark":                          Bp2BuildDefaultTrueRecursively,
 		"external/gwp_asan":                                  Bp2BuildDefaultTrueRecursively,
 		"external/jemalloc_new":                              Bp2BuildDefaultTrueRecursively,
+		"external/jsoncpp":                                   Bp2BuildDefaultTrueRecursively,
 		"external/libcap":                                    Bp2BuildDefaultTrueRecursively,
 		"external/libcxx":                                    Bp2BuildDefaultTrueRecursively,
 		"external/libcxxabi":                                 Bp2BuildDefaultTrueRecursively,
@@ -207,6 +209,8 @@ var (
 		"system/core/libcrypto_utils":                        Bp2BuildDefaultTrueRecursively,
 		"system/core/libcutils":                              Bp2BuildDefaultTrueRecursively,
 		"system/core/libprocessgroup":                        Bp2BuildDefaultTrue,
+		"system/core/libprocessgroup/cgrouprc":               Bp2BuildDefaultTrue,
+		"system/core/libprocessgroup/cgrouprc_format":        Bp2BuildDefaultTrue,
 		"system/core/property_service/libpropertyinfoparser": Bp2BuildDefaultTrueRecursively,
 		"system/libbase":                                     Bp2BuildDefaultTrueRecursively,
 		"system/libziparchive":                               Bp2BuildDefaultTrueRecursively,
@@ -218,13 +222,7 @@ var (
 
 	// Per-module denylist to always opt modules out of both bp2build and mixed builds.
 	bp2buildModuleDoNotConvertList = []string{
-		// Things that transitively depend on unconverted libc_* modules.
-		"libbionic_spawn_benchmark", // http://b/186824595, cc_library_static, depends on //external/google-benchmark (http://b/186822740)
-		//                                                                also depends on //system/logging/liblog:liblog (http://b/186822772)
-
 		"libc_malloc_debug", // depends on libunwindstack, which depends on unsupported module art_cc_library_statics
-
-		"libc_malloc_hooks", // http://b/187016307, cc_library, ld.lld: error: undefined symbol: __malloc_hook
 
 		"libbase_ndk", // http://b/186826477, fails to link libctscamera2_jni for device (required for CtsCameraTestCases)
 
@@ -237,11 +235,7 @@ var (
 
 		"gwp_asan_crash_handler", // cc_library, ld.lld: error: undefined symbol: memset
 
-		//system/core/libprocessgroup/...
-		"libprocessgroup", // depends on //system/core/libprocessgroup/cgrouprc:libcgrouprc
-
-		//external/brotli/...
-		"brotli-fuzzer-corpus", // "declared output 'external/brotli/c/fuzz/73231c6592f195ffd41100b8706d1138ff6893b9' was not created by genrule"
+		"brotli-fuzzer-corpus", // b/202015218: outputs are in location incompatible with bazel genrule handling.
 
 		// //external/libcap/...
 		"libcap",      // http://b/198595332, depends on _makenames, a cc_binary
@@ -254,7 +248,7 @@ var (
 		"libjemalloc5_unittest",
 
 		// APEX support
-		"com.android.runtime", // http://b/194746715, apex, depends on 'libc_malloc_debug' and 'libc_malloc_hooks'
+		"com.android.runtime", // http://b/194746715, apex, depends on 'libc_malloc_debug'
 
 		"libadb_crypto",                    // Depends on libadb_protos
 		"libadb_crypto_static",             // Depends on libadb_protos_static
