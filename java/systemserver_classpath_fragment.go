@@ -123,7 +123,7 @@ func (s *SystemServerClasspathModule) configuredJars(ctx android.ModuleContext) 
 
 	// For non test apexes, make sure that all contents are actually declared in make.
 	if global.ApexSystemServerJars.Len() > 0 && len(unknown) > 0 && !android.IsModuleInVersionedSdk(ctx.Module()) {
-		ctx.ModuleErrorf("%s in contents must also be declared in PRODUCT_UPDATABLE_SYSTEM_SERVER_JARS", unknown)
+		ctx.ModuleErrorf("%s in contents must also be declared in PRODUCT_APEX_SYSTEM_SERVER_JARS", unknown)
 	}
 
 	return jars
