@@ -123,6 +123,10 @@ message BuildConfig {
   // Whether build is occurring in a mixed build mode, where Bazel maintains the
   // definition and build of some modules in cooperation with Soong.
   optional bool bazel_mixed_build = 5;
+
+  // These are the targets soong passes to ninja, these targets include special
+  // targets such as droid as well as the regular build targets.
+  repeated string targets = 6;
 }
 
 message SystemResourceInfo {

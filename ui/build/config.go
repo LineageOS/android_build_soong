@@ -355,13 +355,16 @@ func storeConfigMetrics(ctx Context, config Config) {
 }
 
 func buildConfig(config Config) *smpb.BuildConfig {
-	return &smpb.BuildConfig{
+	c := &smpb.BuildConfig{
 		ForceUseGoma:    proto.Bool(config.ForceUseGoma()),
 		UseGoma:         proto.Bool(config.UseGoma()),
 		UseRbe:          proto.Bool(config.UseRBE()),
 		BazelAsNinja:    proto.Bool(config.UseBazel()),
 		BazelMixedBuild: proto.Bool(config.bazelBuildMode() == mixedBuild),
 	}
+	c.Targets = append(c.Targets, config.arguments...)
+
+	return c
 }
 
 // getConfigArgs processes the command arguments based on the build action and creates a set of new
