@@ -956,7 +956,7 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 			nativeAbiResult.versionScript)
 
 		// Parse symbol file to get API list for coverage
-		if library.stubsVersion() == "current" && ctx.PrimaryArch() {
+		if library.stubsVersion() == "current" && ctx.PrimaryArch() && !ctx.inRecovery() && !ctx.inProduct() && !ctx.inVendor() {
 			library.apiListCoverageXmlPath = parseSymbolFileForAPICoverage(ctx, symbolFile)
 		}
 
@@ -1035,6 +1035,8 @@ type libraryInterface interface {
 	androidMkWriteAdditionalDependenciesForSourceAbiDiff(w io.Writer)
 
 	availableFor(string) bool
+
+	getAPIListCoverageXMLPath() android.ModuleOutPath
 }
 
 type versionedInterface interface {
@@ -1969,6 +1971,10 @@ func (library *libraryDecorator) makeUninstallable(mod *Module) {
 		return
 	}
 	mod.ModuleBase.MakeUninstallable()
+}
+
+func (library *libraryDecorator) getAPIListCoverageXMLPath() android.ModuleOutPath {
+	return library.apiListCoverageXmlPath
 }
 
 var versioningMacroNamesListKey = android.NewOnceKey("versioningMacroNamesList")
