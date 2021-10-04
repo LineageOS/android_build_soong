@@ -928,7 +928,7 @@ func genruleBp2Build(ctx android.TopDownMutatorContext) {
 	}
 
 	// Create the BazelTargetModule.
-	ctx.CreateBazelTargetModule(m.Name(), props, attrs)
+	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: m.Name()}, attrs)
 }
 
 var Bool = proptools.Bool
