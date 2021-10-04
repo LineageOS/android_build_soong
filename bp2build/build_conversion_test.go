@@ -15,10 +15,12 @@
 package bp2build
 
 import (
-	"android/soong/android"
 	"fmt"
 	"strings"
 	"testing"
+
+	"android/soong/android"
+	"android/soong/python"
 )
 
 func TestGenerateSoongModuleTargets(t *testing.T) {
@@ -1213,5 +1215,135 @@ func TestGlobExcludeSrcs(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestCommonBp2BuildModuleAttrs(t *testing.T) {
+	testCases := []bp2buildTestCase{
+		{
+			description:                        "Required into data test",
+			moduleTypeUnderTest:                "filegroup",
+			moduleTypeUnderTestFactory:         android.FileGroupFactory,
+			moduleTypeUnderTestBp2BuildMutator: android.FilegroupBp2Build,
+			blueprint: `filegroup {
+    name: "reqd",
+}
+
+filegroup {
+    name: "fg_foo",
+    required: ["reqd"],
+    bazel_module: { bp2build_available: true },
+}`,
+			expectedBazelTargets: []string{`filegroup(
+    name = "fg_foo",
+    data = [":reqd"],
+)`,
+				`filegroup(
+    name = "reqd",
+)`,
+			},
+		},
+		{
+			description:                        "Required via arch into data test",
+			moduleTypeUnderTest:                "python_library",
+			moduleTypeUnderTestFactory:         python.PythonLibraryFactory,
+			moduleTypeUnderTestBp2BuildMutator: python.PythonLibraryBp2Build,
+			blueprint: `python_library {
+    name: "reqdx86",
+    bazel_module: { bp2build_available: false, },
+}
+
+python_library {
+    name: "reqdarm",
+    bazel_module: { bp2build_available: false, },
+}
+
+python_library {
+    name: "fg_foo",
+    arch: {
+			 arm: {
+				 required: ["reqdarm"],
+			 },
+			 x86: {
+				 required: ["reqdx86"],
+			 },
+    },
+    bazel_module: { bp2build_available: true },
+}`,
+			expectedBazelTargets: []string{`py_library(
+    name = "fg_foo",
+    data = select({
+        "//build/bazel/platforms/arch:arm": [":reqdarm"],
+        "//build/bazel/platforms/arch:x86": [":reqdx86"],
+        "//conditions:default": [],
+    }),
+    srcs_version = "PY3",
+)`,
+			},
+		},
+		{
+			description:                        "Required appended to data test",
+			moduleTypeUnderTest:                "python_library",
+			moduleTypeUnderTestFactory:         python.PythonLibraryFactory,
+			moduleTypeUnderTestBp2BuildMutator: python.PythonLibraryBp2Build,
+			blueprint: `python_library {
+    name: "reqd",
+    srcs: ["src.py"],
+}
+
+python_library {
+    name: "fg_foo",
+    data: ["data.bin"],
+    required: ["reqd"],
+    bazel_module: { bp2build_available: true },
+}`,
+			expectedBazelTargets: []string{
+				`py_library(
+    name = "fg_foo",
+    data = [
+        "data.bin",
+        ":reqd",
+    ],
+    srcs_version = "PY3",
+)`,
+				`py_library(
+    name = "reqd",
+    srcs = ["src.py"],
+    srcs_version = "PY3",
+)`,
+			},
+			filesystem: map[string]string{
+				"data.bin": "",
+				"src.py":   "",
+			},
+		},
+		{
+			description:                        "All props-to-attrs at once together test",
+			moduleTypeUnderTest:                "filegroup",
+			moduleTypeUnderTestFactory:         android.FileGroupFactory,
+			moduleTypeUnderTestBp2BuildMutator: android.FilegroupBp2Build,
+			blueprint: `filegroup {
+    name: "reqd"
+}
+filegroup {
+    name: "fg_foo",
+    required: ["reqd"],
+    bazel_module: { bp2build_available: true },
+}`,
+			expectedBazelTargets: []string{
+				`filegroup(
+    name = "fg_foo",
+    data = [":reqd"],
+)`,
+				`filegroup(
+    name = "reqd",
+)`,
+			},
+			filesystem: map[string]string{},
+		},
+	}
+
+	for _, test := range testCases {
+		runBp2BuildTestCaseSimple(t, test)
 	}
 }

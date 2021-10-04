@@ -1431,5 +1431,5 @@ func androidAppCertificateBp2BuildInternal(ctx android.TopDownMutatorContext, mo
 		Bzl_load_location: "//build/bazel/rules:android_app_certificate.bzl",
 	}
 
-	ctx.CreateBazelTargetModule(module.Name(), props, attrs)
+	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: module.Name()}, attrs)
 }

@@ -3325,5 +3325,5 @@ func apexBundleBp2BuildInternal(ctx android.TopDownMutatorContext, module *apexB
 		Bzl_load_location: "//build/bazel/rules:apex.bzl",
 	}
 
-	ctx.CreateBazelTargetModule(module.Name(), props, attrs)
+	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: module.Name()}, attrs)
 }
