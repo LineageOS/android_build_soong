@@ -345,7 +345,7 @@ func CcLibraryBp2Build(ctx android.TopDownMutatorContext) {
 		Bzl_load_location: "//build/bazel/rules:full_cc_library.bzl",
 	}
 
-	ctx.CreateBazelTargetModule(m.Name(), props, attrs)
+	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: m.Name()}, attrs)
 }
 
 // cc_library creates both static and/or shared libraries for a device and/or
@@ -2440,7 +2440,7 @@ func ccSharedOrStaticBp2BuildMutatorInternal(ctx android.TopDownMutatorContext, 
 		Bzl_load_location: fmt.Sprintf("//build/bazel/rules:%s.bzl", modType),
 	}
 
-	ctx.CreateBazelTargetModule(module.Name(), props, attrs)
+	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: module.Name()}, attrs)
 }
 
 // TODO(b/199902614): Can this be factored to share with the other Attributes?
