@@ -182,6 +182,7 @@ var (
 		"external/boringssl":                                 Bp2BuildDefaultTrueRecursively,
 		"external/brotli":                                    Bp2BuildDefaultTrue,
 		"external/fmtlib":                                    Bp2BuildDefaultTrueRecursively,
+		"external/googletest/googletest":                     Bp2BuildDefaultTrueRecursively,
 		"external/gwp_asan":                                  Bp2BuildDefaultTrueRecursively,
 		"external/jemalloc_new":                              Bp2BuildDefaultTrueRecursively,
 		"external/libcap":                                    Bp2BuildDefaultTrueRecursively,
@@ -208,6 +209,7 @@ var (
 		"system/core/libprocessgroup":                        Bp2BuildDefaultTrue,
 		"system/core/property_service/libpropertyinfoparser": Bp2BuildDefaultTrueRecursively,
 		"system/libbase":                                     Bp2BuildDefaultTrueRecursively,
+		"system/libziparchive":                               Bp2BuildDefaultTrueRecursively,
 		"system/logging/liblog":                              Bp2BuildDefaultTrueRecursively,
 		"system/sepolicy/apex":                               Bp2BuildDefaultTrueRecursively,
 		"system/timezone/apex":                               Bp2BuildDefaultTrueRecursively,
@@ -220,26 +222,11 @@ var (
 		"libbionic_spawn_benchmark", // http://b/186824595, cc_library_static, depends on //external/google-benchmark (http://b/186822740)
 		//                                                                also depends on //system/logging/liblog:liblog (http://b/186822772)
 
-		"libc_malloc_debug",           // http://b/186824339, cc_library_static, depends on //system/libbase:libbase (http://b/186823646)
-		"libc_malloc_debug_backtrace", // http://b/186824112, cc_library_static, depends on //external/libcxxabi:libc++demangle (http://b/186823773)
+		"libc_malloc_debug", // depends on libunwindstack, which depends on unsupported module art_cc_library_statics
 
-		"liblinker_debuggerd_stub", // http://b/186824327, cc_library_static, depends on //external/zlib:libz (http://b/186823782)
-		//                                                               also depends on //system/libziparchive:libziparchive (http://b/186823656)
-		//                                                               also depends on //system/logging/liblog:liblog (http://b/186822772)
-		"liblinker_main", // http://b/186825989, cc_library_static, depends on //external/zlib:libz (http://b/186823782)
-		//                                                     also depends on //system/libziparchive:libziparchive (http://b/186823656)
-		//                                                     also depends on//system/logging/liblog:liblog (http://b/186822772)
-		"liblinker_malloc", // http://b/186826466, cc_library_static, depends on //external/zlib:libz (http://b/186823782)
-		//                                                       also depends on //system/libziparchive:libziparchive (http://b/186823656)
-		//                                                       also depends on //system/logging/liblog:liblog (http://b/186822772)
-		"libc_ndk",          // http://b/187013218, cc_library_static, depends on //bionic/libm:libm (http://b/183064661)
 		"libc_malloc_hooks", // http://b/187016307, cc_library, ld.lld: error: undefined symbol: __malloc_hook
 
-		// http://b/186823769: Needs C++ STL support, includes from unconverted standard libraries in //external/libcxx
-		// c++_static
-		"libbase_ndk", // http://b/186826477, cc_library, no such target '//build/bazel/platforms/os:darwin' when --platforms //build/bazel/platforms:android_x86 is added
-		// libcxx
-		"libBionicBenchmarksUtils", // cc_library_static, fatal error: 'map' file not found, from libcxx
+		"libbase_ndk", // http://b/186826477, fails to link libctscamera2_jni for device (required for CtsCameraTestCases)
 
 		"libprotobuf-python",               // contains .proto sources
 		"libprotobuf-internal-protos",      // we don't handle path property for fileegroups
@@ -282,6 +269,9 @@ var (
 		"libadb_protos_static",         // b/200601772: Requires cc_library proto support
 		"libadb_protos",                // b/200601772: Requires cc_library proto support
 		"libapp_processes_protos_lite", // b/200601772: Requires cc_library proto support
+
+		"libgtest_ndk_c++",      // b/201816222: Requires sdk_version support.
+		"libgtest_main_ndk_c++", // b/201816222: Requires sdk_version support.
 	}
 
 	// Per-module denylist of cc_library modules to only generate the static
