@@ -48,6 +48,12 @@ func getLabelValue(label bazel.LabelAttribute) (reflect.Value, []selects) {
 		}
 	}
 
+	// if there is a select, use the base value as the conditions default value
+	if len(ret) > 0 {
+		ret[bazel.ConditionsDefaultSelectKey] = value
+		value = reflect.Zero(value.Type())
+	}
+
 	return value, []selects{ret}
 }
 

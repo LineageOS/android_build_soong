@@ -53,3 +53,40 @@ prebuilt_etc {
     sub_dir = "tz",
 )`}})
 }
+
+func TestPrebuiltEtcArchVariant(t *testing.T) {
+	runPrebuiltEtcTestCase(t, bp2buildTestCase{
+		description:                        "prebuilt_etc - simple example",
+		moduleTypeUnderTest:                "prebuilt_etc",
+		moduleTypeUnderTestFactory:         etc.PrebuiltEtcFactory,
+		moduleTypeUnderTestBp2BuildMutator: etc.PrebuiltEtcBp2Build,
+		filesystem:                         map[string]string{},
+		blueprint: `
+prebuilt_etc {
+    name: "apex_tz_version",
+    src: "version/tz_version",
+    filename: "tz_version",
+    sub_dir: "tz",
+    installable: false,
+    arch: {
+      arm: {
+        src: "arm",
+      },
+      arm64: {
+        src: "arm64",
+      },
+    }
+}
+`,
+		expectedBazelTargets: []string{`prebuilt_etc(
+    name = "apex_tz_version",
+    filename = "tz_version",
+    installable = False,
+    src = select({
+        "//build/bazel/platforms/arch:arm": "arm",
+        "//build/bazel/platforms/arch:arm64": "arm64",
+        "//conditions:default": "version/tz_version",
+    }),
+    sub_dir = "tz",
+)`}})
+}
