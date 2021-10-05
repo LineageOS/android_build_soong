@@ -345,7 +345,7 @@ func CcLibraryBp2Build(ctx android.TopDownMutatorContext) {
 		Bzl_load_location: "//build/bazel/rules:full_cc_library.bzl",
 	}
 
-	ctx.CreateBazelTargetModule(m.Name(), props, attrs)
+	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: m.Name()}, attrs)
 }
 
 // cc_library creates both static and/or shared libraries for a device and/or
@@ -956,7 +956,7 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 			nativeAbiResult.versionScript)
 
 		// Parse symbol file to get API list for coverage
-		if library.stubsVersion() == "current" && ctx.PrimaryArch() {
+		if library.stubsVersion() == "current" && ctx.PrimaryArch() && !ctx.inRecovery() && !ctx.inProduct() && !ctx.inVendor() {
 			library.apiListCoverageXmlPath = parseSymbolFileForAPICoverage(ctx, symbolFile)
 		}
 
@@ -1035,6 +1035,8 @@ type libraryInterface interface {
 	androidMkWriteAdditionalDependenciesForSourceAbiDiff(w io.Writer)
 
 	availableFor(string) bool
+
+	getAPIListCoverageXMLPath() android.ModuleOutPath
 }
 
 type versionedInterface interface {
@@ -1971,6 +1973,10 @@ func (library *libraryDecorator) makeUninstallable(mod *Module) {
 	mod.ModuleBase.MakeUninstallable()
 }
 
+func (library *libraryDecorator) getAPIListCoverageXMLPath() android.ModuleOutPath {
+	return library.apiListCoverageXmlPath
+}
+
 var versioningMacroNamesListKey = android.NewOnceKey("versioningMacroNamesList")
 
 // versioningMacroNamesList returns a singleton map, where keys are "version macro names",
@@ -2434,7 +2440,7 @@ func ccSharedOrStaticBp2BuildMutatorInternal(ctx android.TopDownMutatorContext, 
 		Bzl_load_location: fmt.Sprintf("//build/bazel/rules:%s.bzl", modType),
 	}
 
-	ctx.CreateBazelTargetModule(module.Name(), props, attrs)
+	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: module.Name()}, attrs)
 }
 
 // TODO(b/199902614): Can this be factored to share with the other Attributes?

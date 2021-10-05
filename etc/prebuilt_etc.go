@@ -704,5 +704,5 @@ func prebuiltEtcBp2BuildInternal(ctx android.TopDownMutatorContext, module *Preb
 		Bzl_load_location: "//build/bazel/rules:prebuilt_etc.bzl",
 	}
 
-	ctx.CreateBazelTargetModule(module.Name(), props, attrs)
+	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: module.Name()}, attrs)
 }

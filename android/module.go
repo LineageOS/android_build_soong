@@ -852,6 +852,16 @@ type commonProperties struct {
 	UnconvertedBp2buildDeps []string `blueprint:"mutated"`
 }
 
+// CommonAttributes represents the common Bazel attributes from which properties
+// in `commonProperties` are translated/mapped; such properties are annotated in
+// a list their corresponding attribute. It is embedded within `bp2buildInfo`.
+type CommonAttributes struct {
+	// Soong nameProperties -> Bazel name
+	Name string
+	// Data mapped from: Required
+	Data bazel.LabelListAttribute
+}
+
 type distProperties struct {
 	// configuration to distribute output files from this module to the distribution
 	// directory (default: $OUT/dist, configurable with $DIST_DIR)
@@ -1072,6 +1082,34 @@ func InitCommonOSAndroidMultiTargetsArchModule(m Module, hod HostOrDeviceSupport
 	m.base().commonProperties.CreateCommonOSVariant = true
 }
 
+func (attrs *CommonAttributes) fillCommonBp2BuildModuleAttrs(ctx *topDownMutatorContext) {
+	// Assert passed-in attributes include Name
+	name := attrs.Name
+	if len(name) == 0 {
+		ctx.ModuleErrorf("CommonAttributes in fillCommonBp2BuildModuleAttrs expects a `.Name`!")
+	}
+
+	mod := ctx.Module().base()
+	props := &mod.commonProperties
+
+	depsToLabelList := func(deps []string) bazel.LabelListAttribute {
+		return bazel.MakeLabelListAttribute(BazelLabelForModuleDeps(ctx, deps))
+	}
+
+	data := &attrs.Data
+
+	required := depsToLabelList(props.Required)
+	archVariantProps := mod.GetArchVariantProperties(ctx, &commonProperties{})
+	for axis, configToProps := range archVariantProps {
+		for config, _props := range configToProps {
+			if archProps, ok := _props.(*commonProperties); ok {
+				required.SetSelectValue(axis, config, depsToLabelList(archProps.Required).Value)
+			}
+		}
+	}
+	data.Append(required)
+}
+
 // A ModuleBase object contains the properties that are common to all Android
 // modules.  It should be included as an anonymous field in every module
 // struct definition.  InitAndroidModule should then be called from the module's
@@ -1183,15 +1221,15 @@ type ModuleBase struct {
 
 // A struct containing all relevant information about a Bazel target converted via bp2build.
 type bp2buildInfo struct {
-	Name       string
-	Dir        string
-	BazelProps bazel.BazelTargetModuleProperties
-	Attrs      interface{}
+	Dir         string
+	BazelProps  bazel.BazelTargetModuleProperties
+	CommonAttrs CommonAttributes
+	Attrs       interface{}
 }
 
 // TargetName returns the Bazel target name of a bp2build converted target.
 func (b bp2buildInfo) TargetName() string {
-	return b.Name
+	return b.CommonAttrs.Name
 }
 
 // TargetPackage returns the Bazel package of a bp2build converted target.
@@ -1211,8 +1249,8 @@ func (b bp2buildInfo) BazelRuleLoadLocation() string {
 }
 
 // BazelAttributes returns the Bazel attributes of a bp2build converted target.
-func (b bp2buildInfo) BazelAttributes() interface{} {
-	return b.Attrs
+func (b bp2buildInfo) BazelAttributes() []interface{} {
+	return []interface{}{&b.CommonAttrs, b.Attrs}
 }
 
 func (m *ModuleBase) addBp2buildInfo(info bp2buildInfo) {

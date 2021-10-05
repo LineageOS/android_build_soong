@@ -42,7 +42,7 @@ while [[ $# -ge 1 ]]; do
   fi
   # Transform to a slash-separated path and add a trailing slash to enforce
   # package name boundary.
-  prefixes+=("${package//\./\/}/")
+  prefixes+=("${package//\.//}/")
   shift
 done
 

@@ -135,17 +135,14 @@ func runBp2BuildTestCase(t *testing.T, registerModuleTypes func(ctx android.Regi
 		android.FailIfErrored(t, errs)
 	}
 	if actualCount, expectedCount := len(bazelTargets), len(tc.expectedBazelTargets); actualCount != expectedCount {
-		t.Errorf("%s: Expected %d bazel target, got %d; %v",
-			tc.description, expectedCount, actualCount, bazelTargets)
+		t.Errorf("%s: Expected %d bazel target, got `%d``",
+			tc.description, expectedCount, actualCount)
 	} else {
 		for i, target := range bazelTargets {
 			if w, g := tc.expectedBazelTargets[i], target.content; w != g {
 				t.Errorf(
-					"%s: Expected generated Bazel target to be '%s', got '%s'",
-					tc.description,
-					w,
-					g,
-				)
+					"%s: Expected generated Bazel target to be `%s`, got `%s`",
+					tc.description, w, g)
 			}
 		}
 	}
@@ -312,7 +309,7 @@ func customBp2BuildMutator(ctx android.TopDownMutatorContext) {
 			Rule_class: "custom",
 		}
 
-		ctx.CreateBazelTargetModule(m.Name(), props, attrs)
+		ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: m.Name()}, attrs)
 	}
 }
 
@@ -331,19 +328,19 @@ func customBp2BuildMutatorFromStarlark(ctx android.TopDownMutatorContext) {
 			Rule_class:        "my_library",
 			Bzl_load_location: "//build/bazel/rules:rules.bzl",
 		}
-		ctx.CreateBazelTargetModule(baseName, myLibraryProps, attrs)
+		ctx.CreateBazelTargetModule(myLibraryProps, android.CommonAttributes{Name: baseName}, attrs)
 
 		protoLibraryProps := bazel.BazelTargetModuleProperties{
 			Rule_class:        "proto_library",
 			Bzl_load_location: "//build/bazel/rules:proto.bzl",
 		}
-		ctx.CreateBazelTargetModule(baseName+"_proto_library_deps", protoLibraryProps, attrs)
+		ctx.CreateBazelTargetModule(protoLibraryProps, android.CommonAttributes{Name: baseName + "_proto_library_deps"}, attrs)
 
 		myProtoLibraryProps := bazel.BazelTargetModuleProperties{
 			Rule_class:        "my_proto_library",
 			Bzl_load_location: "//build/bazel/rules:proto.bzl",
 		}
-		ctx.CreateBazelTargetModule(baseName+"_my_proto_library_deps", myProtoLibraryProps, attrs)
+		ctx.CreateBazelTargetModule(myProtoLibraryProps, android.CommonAttributes{Name: baseName + "_my_proto_library_deps"}, attrs)
 	}
 }
 
