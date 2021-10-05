@@ -71,6 +71,7 @@ javax\.xml\.validation
 javax\.xml\.xpath
 jdk\.internal\.math
 jdk\.internal\.misc
+jdk\.internal\.reflect
 jdk\.internal\.util
 jdk\.internal\.vm\.annotation
 jdk\.net
