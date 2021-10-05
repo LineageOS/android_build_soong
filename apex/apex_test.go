@@ -4908,8 +4908,9 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 				annotation_flags: "my-bootclasspath-fragment/annotation-flags.csv",
 				metadata: "my-bootclasspath-fragment/metadata.csv",
 				index: "my-bootclasspath-fragment/index.csv",
-				stub_flags: "my-bootclasspath-fragment/stub-flags.csv",
-				all_flags: "my-bootclasspath-fragment/all-flags.csv",
+				signature_patterns: "my-bootclasspath-fragment/signature-patterns.csv",
+				filtered_stub_flags: "my-bootclasspath-fragment/filtered-stub-flags.csv",
+				filtered_flags: "my-bootclasspath-fragment/filtered-flags.csv",
 			},
 		}
 
@@ -4959,8 +4960,9 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 				annotation_flags: "my-bootclasspath-fragment/annotation-flags.csv",
 				metadata: "my-bootclasspath-fragment/metadata.csv",
 				index: "my-bootclasspath-fragment/index.csv",
-				stub_flags: "my-bootclasspath-fragment/stub-flags.csv",
-				all_flags: "my-bootclasspath-fragment/all-flags.csv",
+				signature_patterns: "my-bootclasspath-fragment/signature-patterns.csv",
+				filtered_stub_flags: "my-bootclasspath-fragment/filtered-stub-flags.csv",
+				filtered_flags: "my-bootclasspath-fragment/filtered-flags.csv",
 			},
 		}
 
@@ -5088,8 +5090,9 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 				annotation_flags: "my-bootclasspath-fragment/annotation-flags.csv",
 				metadata: "my-bootclasspath-fragment/metadata.csv",
 				index: "my-bootclasspath-fragment/index.csv",
-				stub_flags: "my-bootclasspath-fragment/stub-flags.csv",
-				all_flags: "my-bootclasspath-fragment/all-flags.csv",
+				signature_patterns: "my-bootclasspath-fragment/signature-patterns.csv",
+				filtered_stub_flags: "my-bootclasspath-fragment/filtered-stub-flags.csv",
+				filtered_flags: "my-bootclasspath-fragment/filtered-flags.csv",
 			},
 		}
 
@@ -5174,8 +5177,9 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 				annotation_flags: "my-bootclasspath-fragment/annotation-flags.csv",
 				metadata: "my-bootclasspath-fragment/metadata.csv",
 				index: "my-bootclasspath-fragment/index.csv",
-				stub_flags: "my-bootclasspath-fragment/stub-flags.csv",
-				all_flags: "my-bootclasspath-fragment/all-flags.csv",
+				signature_patterns: "my-bootclasspath-fragment/signature-patterns.csv",
+				filtered_stub_flags: "my-bootclasspath-fragment/filtered-stub-flags.csv",
+				filtered_flags: "my-bootclasspath-fragment/filtered-flags.csv",
 			},
 		}
 
@@ -5258,8 +5262,9 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 				annotation_flags: "my-bootclasspath-fragment/annotation-flags.csv",
 				metadata: "my-bootclasspath-fragment/metadata.csv",
 				index: "my-bootclasspath-fragment/index.csv",
-				stub_flags: "my-bootclasspath-fragment/stub-flags.csv",
-				all_flags: "my-bootclasspath-fragment/all-flags.csv",
+				signature_patterns: "my-bootclasspath-fragment/signature-patterns.csv",
+				filtered_stub_flags: "my-bootclasspath-fragment/filtered-stub-flags.csv",
+				filtered_flags: "my-bootclasspath-fragment/filtered-flags.csv",
 			},
 		}
 
@@ -7291,8 +7296,9 @@ func TestDexpreoptAccessDexFilesFromPrebuiltApex(t *testing.T) {
 					annotation_flags: "my-bootclasspath-fragment/annotation-flags.csv",
 					metadata: "my-bootclasspath-fragment/metadata.csv",
 					index: "my-bootclasspath-fragment/index.csv",
-					stub_flags: "my-bootclasspath-fragment/stub-flags.csv",
-					all_flags: "my-bootclasspath-fragment/all-flags.csv",
+					signature_patterns: "my-bootclasspath-fragment/signature-patterns.csv",
+					filtered_stub_flags: "my-bootclasspath-fragment/filtered-stub-flags.csv",
+					filtered_flags: "my-bootclasspath-fragment/filtered-flags.csv",
 				},
 			}
 
