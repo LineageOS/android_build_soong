@@ -1589,22 +1589,29 @@ func (module *SdkLibrary) UniqueApexVariations() bool {
 
 // Creates the xml file that publicizes the runtime library
 func (module *SdkLibrary) createXmlFile(mctx android.DefaultableHookContext) {
+	moduleMinApiLevel := module.Library.MinSdkVersion(mctx).ApiLevel
+	var moduleMinApiLevelStr = moduleMinApiLevel.String()
+	if moduleMinApiLevel == android.NoneApiLevel {
+		moduleMinApiLevelStr = "current"
+	}
 	props := struct {
-		Name                    *string
-		Lib_name                *string
-		Apex_available          []string
-		On_bootclasspath_since  *string
-		On_bootclasspath_before *string
-		Min_device_sdk          *string
-		Max_device_sdk          *string
+		Name                      *string
+		Lib_name                  *string
+		Apex_available            []string
+		On_bootclasspath_since    *string
+		On_bootclasspath_before   *string
+		Min_device_sdk            *string
+		Max_device_sdk            *string
+		Sdk_library_min_api_level *string
 	}{
-		Name:                    proptools.StringPtr(module.xmlPermissionsModuleName()),
-		Lib_name:                proptools.StringPtr(module.BaseModuleName()),
-		Apex_available:          module.ApexProperties.Apex_available,
-		On_bootclasspath_since:  module.commonSdkLibraryProperties.On_bootclasspath_since,
-		On_bootclasspath_before: module.commonSdkLibraryProperties.On_bootclasspath_before,
-		Min_device_sdk:          module.commonSdkLibraryProperties.Min_device_sdk,
-		Max_device_sdk:          module.commonSdkLibraryProperties.Max_device_sdk,
+		Name:                      proptools.StringPtr(module.xmlPermissionsModuleName()),
+		Lib_name:                  proptools.StringPtr(module.BaseModuleName()),
+		Apex_available:            module.ApexProperties.Apex_available,
+		On_bootclasspath_since:    module.commonSdkLibraryProperties.On_bootclasspath_since,
+		On_bootclasspath_before:   module.commonSdkLibraryProperties.On_bootclasspath_before,
+		Min_device_sdk:            module.commonSdkLibraryProperties.Min_device_sdk,
+		Max_device_sdk:            module.commonSdkLibraryProperties.Max_device_sdk,
+		Sdk_library_min_api_level: &moduleMinApiLevelStr,
 	}
 
 	mctx.CreateModule(sdkLibraryXmlFactory, &props)
@@ -2427,6 +2434,11 @@ type sdkLibraryXmlProperties struct {
 	//
 	// This means that the device won't recognise this library as installed.
 	Max_device_sdk *string
+
+	// The SdkLibrary's min api level as a string
+	//
+	// This value comes from the ApiLevel of the MinSdkVersion property.
+	Sdk_library_min_api_level *string
 }
 
 // java_sdk_library_xml builds the permission xml file for a java_sdk_library.
@@ -2534,6 +2546,14 @@ func (module *sdkLibraryXml) permissionsContents(ctx android.ModuleContext) stri
 	implicitUntilAttr := formattedOptionalSdkLevelAttribute(ctx, "on_bootclasspath_before", module.properties.On_bootclasspath_before)
 	minSdkAttr := formattedOptionalSdkLevelAttribute(ctx, "min_device_sdk", module.properties.Min_device_sdk)
 	maxSdkAttr := formattedOptionalSdkLevelAttribute(ctx, "max_device_sdk", module.properties.Max_device_sdk)
+	// <library> is understood in all android versions whereas <updatable-library> is only understood from API T (and ignored before that).
+	// similarly, min_device_sdk is only understood from T. So if a library is using that, we need to use the updatable-library to make sure this library is not loaded before T
+	var libraryTag string
+	if module.properties.Min_device_sdk != nil {
+		libraryTag = `    <updatable-library\n`
+	} else {
+		libraryTag = `    <library\n`
+	}
 
 	return strings.Join([]string{
 		`<?xml version=\"1.0\" encoding=\"utf-8\"?>\n`,
@@ -2552,7 +2572,7 @@ func (module *sdkLibraryXml) permissionsContents(ctx android.ModuleContext) stri
 		`    limitations under the License.\n`,
 		`-->\n`,
 		`<permissions>\n`,
-		`    <library\n`,
+		libraryTag,
 		libNameAttr,
 		filePathAttr,
 		implicitFromAttr,
@@ -2567,6 +2587,7 @@ func (module *sdkLibraryXml) GenerateAndroidBuildActions(ctx android.ModuleConte
 	module.hideApexVariantFromMake = !ctx.Provider(android.ApexInfoProvider).(android.ApexInfo).IsForPlatform()
 
 	libName := proptools.String(module.properties.Lib_name)
+	module.selfValidate(ctx)
 	xmlContent := module.permissionsContents(ctx)
 
 	module.outputFilePath = android.PathForModuleOut(ctx, libName+".xml").OutputPath
@@ -2598,6 +2619,81 @@ func (module *sdkLibraryXml) AndroidMkEntries() []android.AndroidMkEntries {
 			},
 		},
 	}}
+}
+
+func (module *sdkLibraryXml) selfValidate(ctx android.ModuleContext) {
+	module.validateAtLeastTAttributes(ctx)
+	module.validateMinAndMaxDeviceSdk(ctx)
+	module.validateMinMaxDeviceSdkAndModuleMinSdk(ctx)
+	module.validateOnBootclasspathBeforeRequirements(ctx)
+}
+
+func (module *sdkLibraryXml) validateAtLeastTAttributes(ctx android.ModuleContext) {
+	t := android.ApiLevelOrPanic(ctx, "Tiramisu")
+	module.attrAtLeastT(ctx, t, module.properties.Min_device_sdk, "min_device_sdk")
+	module.attrAtLeastT(ctx, t, module.properties.Max_device_sdk, "max_device_sdk")
+	module.attrAtLeastT(ctx, t, module.properties.On_bootclasspath_before, "on_bootclasspath_before")
+	module.attrAtLeastT(ctx, t, module.properties.On_bootclasspath_since, "on_bootclasspath_since")
+}
+
+func (module *sdkLibraryXml) attrAtLeastT(ctx android.ModuleContext, t android.ApiLevel, attr *string, attrName string) {
+	if attr != nil {
+		if level, err := android.ApiLevelFromUser(ctx, *attr); err == nil {
+			// we will inform the user of invalid inputs when we try to write the
+			// permissions xml file so we don't need to do it here
+			if t.GreaterThan(level) {
+				ctx.PropertyErrorf(attrName, "Attribute value needs to be at least T")
+			}
+		}
+	}
+}
+
+func (module *sdkLibraryXml) validateMinAndMaxDeviceSdk(ctx android.ModuleContext) {
+	if module.properties.Min_device_sdk != nil && module.properties.Max_device_sdk != nil {
+		min, minErr := android.ApiLevelFromUser(ctx, *module.properties.Min_device_sdk)
+		max, maxErr := android.ApiLevelFromUser(ctx, *module.properties.Max_device_sdk)
+		if minErr == nil && maxErr == nil {
+			// we will inform the user of invalid inputs when we try to write the
+			// permissions xml file so we don't need to do it here
+			if min.GreaterThan(max) {
+				ctx.ModuleErrorf("min_device_sdk can't be greater than max_device_sdk")
+			}
+		}
+	}
+}
+
+func (module *sdkLibraryXml) validateMinMaxDeviceSdkAndModuleMinSdk(ctx android.ModuleContext) {
+	moduleMinApi := android.ApiLevelOrPanic(ctx, *module.properties.Sdk_library_min_api_level)
+	if module.properties.Min_device_sdk != nil {
+		api, err := android.ApiLevelFromUser(ctx, *module.properties.Min_device_sdk)
+		if err == nil {
+			if moduleMinApi.GreaterThan(api) {
+				ctx.PropertyErrorf("min_device_sdk", "Can't be less than module's min sdk (%s)", moduleMinApi)
+			}
+		}
+	}
+	if module.properties.Max_device_sdk != nil {
+		api, err := android.ApiLevelFromUser(ctx, *module.properties.Max_device_sdk)
+		if err == nil {
+			if moduleMinApi.GreaterThan(api) {
+				ctx.PropertyErrorf("max_device_sdk", "Can't be less than module's min sdk (%s)", moduleMinApi)
+			}
+		}
+	}
+}
+
+func (module *sdkLibraryXml) validateOnBootclasspathBeforeRequirements(ctx android.ModuleContext) {
+	moduleMinApi := android.ApiLevelOrPanic(ctx, *module.properties.Sdk_library_min_api_level)
+	if module.properties.On_bootclasspath_before != nil {
+		t := android.ApiLevelOrPanic(ctx, "Tiramisu")
+		// if we use the attribute, then we need to do this validation
+		if moduleMinApi.LessThan(t) {
+			// if minAPi is < T, then we need to have min_device_sdk (which only accepts T+)
+			if module.properties.Min_device_sdk == nil {
+				ctx.PropertyErrorf("on_bootclasspath_before", "Using this property requires that the module's min_sdk_version or the shared library's min_device_sdk is at least T")
+			}
+		}
+	}
 }
 
 type sdkLibrarySdkMemberType struct {
