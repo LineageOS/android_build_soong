@@ -71,23 +71,7 @@ func (library *Library) AndroidMkEntries() []android.AndroidMkEntries {
 		entriesList = append(entriesList, android.AndroidMkEntries{Disabled: true})
 	} else if !library.ApexModuleBase.AvailableFor(android.AvailableToPlatform) {
 		// Platform variant.  If not available for the platform, we don't need Make module.
-		// May still need to add some additional dependencies.
-		checkedModulePaths := library.additionalCheckedModules
-		if len(checkedModulePaths) != 0 {
-			entriesList = append(entriesList, android.AndroidMkEntries{
-				Class: "FAKE",
-				// Need at least one output file in order for this to take effect.
-				OutputFile: android.OptionalPathForPath(checkedModulePaths[0]),
-				Include:    "$(BUILD_PHONY_PACKAGE)",
-				ExtraEntries: []android.AndroidMkExtraEntriesFunc{
-					func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
-						entries.AddStrings("LOCAL_ADDITIONAL_CHECKED_MODULE", checkedModulePaths.Strings()...)
-					},
-				},
-			})
-		} else {
-			entriesList = append(entriesList, android.AndroidMkEntries{Disabled: true})
-		}
+		entriesList = append(entriesList, android.AndroidMkEntries{Disabled: true})
 	} else {
 		entriesList = append(entriesList, android.AndroidMkEntries{
 			Class:      "JAVA_LIBRARIES",
@@ -122,10 +106,6 @@ func (library *Library) AndroidMkEntries() []android.AndroidMkEntries {
 
 					requiredUsesLibs, optionalUsesLibs := library.classLoaderContexts.UsesLibs()
 					entries.AddStrings("LOCAL_EXPORT_SDK_LIBRARIES", append(requiredUsesLibs, optionalUsesLibs...)...)
-
-					if len(library.additionalCheckedModules) != 0 {
-						entries.AddStrings("LOCAL_ADDITIONAL_CHECKED_MODULE", library.additionalCheckedModules.Strings()...)
-					}
 
 					entries.SetOptionalPath("LOCAL_SOONG_PROGUARD_DICT", library.dexer.proguardDictionary)
 					entries.SetOptionalPath("LOCAL_SOONG_PROGUARD_USAGE_ZIP", library.dexer.proguardUsageZip)

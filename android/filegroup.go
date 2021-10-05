@@ -72,7 +72,7 @@ func FilegroupBp2Build(ctx TopDownMutatorContext) {
 		Bzl_load_location: "//build/bazel/rules:filegroup.bzl",
 	}
 
-	ctx.CreateBazelTargetModule(fg.Name(), props, attrs)
+	ctx.CreateBazelTargetModule(props, CommonAttributes{Name: fg.Name()}, attrs)
 }
 
 type fileGroupProperties struct {
