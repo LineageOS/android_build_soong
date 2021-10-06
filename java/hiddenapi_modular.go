@@ -943,13 +943,22 @@ func (s SignatureCsvSubsets) RelativeToTop() []string {
 
 // buildRuleSignaturePatternsFile creates a rule to generate a file containing the set of signature
 // patterns that will select a subset of the monolithic flags.
-func buildRuleSignaturePatternsFile(ctx android.ModuleContext, flagsPath android.Path) android.Path {
+func buildRuleSignaturePatternsFile(ctx android.ModuleContext, flagsPath android.Path, splitPackages []string, packagePrefixes []string) android.Path {
 	patternsFile := android.PathForModuleOut(ctx, "modular-hiddenapi", "signature-patterns.csv")
 	// Create a rule to validate the output from the following rule.
 	rule := android.NewRuleBuilder(pctx, ctx)
+
+	// Quote any * in the packages to avoid them being expanded by the shell.
+	quotedSplitPackages := []string{}
+	for _, pkg := range splitPackages {
+		quotedSplitPackages = append(quotedSplitPackages, strings.ReplaceAll(pkg, "*", "\\*"))
+	}
+
 	rule.Command().
 		BuiltTool("signature_patterns").
 		FlagWithInput("--flags ", flagsPath).
+		FlagForEachArg("--split-package ", quotedSplitPackages).
+		FlagForEachArg("--package-prefix ", packagePrefixes).
 		FlagWithOutput("--output ", patternsFile)
 	rule.Build("hiddenAPISignaturePatterns", "hidden API signature patterns")
 
