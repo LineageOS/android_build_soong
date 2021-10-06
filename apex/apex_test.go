@@ -215,7 +215,9 @@ var prepareForApexTest = android.GroupFixturePreparers(
 		variables.CertificateOverrides = []string{"myapex_keytest:myapex.certificate.override"}
 		variables.Platform_sdk_codename = proptools.StringPtr("Q")
 		variables.Platform_sdk_final = proptools.BoolPtr(false)
-		variables.Platform_version_active_codenames = []string{"Q"}
+		// "Tiramisu" needs to be in the next line for compatibility with soong code,
+		// not because of these tests specifically (it's not used by the tests)
+		variables.Platform_version_active_codenames = []string{"Q", "Tiramisu"}
 		variables.Platform_vndk_version = proptools.StringPtr("29")
 	}),
 )
@@ -4908,8 +4910,9 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 				annotation_flags: "my-bootclasspath-fragment/annotation-flags.csv",
 				metadata: "my-bootclasspath-fragment/metadata.csv",
 				index: "my-bootclasspath-fragment/index.csv",
-				stub_flags: "my-bootclasspath-fragment/stub-flags.csv",
-				all_flags: "my-bootclasspath-fragment/all-flags.csv",
+				signature_patterns: "my-bootclasspath-fragment/signature-patterns.csv",
+				filtered_stub_flags: "my-bootclasspath-fragment/filtered-stub-flags.csv",
+				filtered_flags: "my-bootclasspath-fragment/filtered-flags.csv",
 			},
 		}
 
@@ -4959,8 +4962,9 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 				annotation_flags: "my-bootclasspath-fragment/annotation-flags.csv",
 				metadata: "my-bootclasspath-fragment/metadata.csv",
 				index: "my-bootclasspath-fragment/index.csv",
-				stub_flags: "my-bootclasspath-fragment/stub-flags.csv",
-				all_flags: "my-bootclasspath-fragment/all-flags.csv",
+				signature_patterns: "my-bootclasspath-fragment/signature-patterns.csv",
+				filtered_stub_flags: "my-bootclasspath-fragment/filtered-stub-flags.csv",
+				filtered_flags: "my-bootclasspath-fragment/filtered-flags.csv",
 			},
 		}
 
@@ -5088,8 +5092,9 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 				annotation_flags: "my-bootclasspath-fragment/annotation-flags.csv",
 				metadata: "my-bootclasspath-fragment/metadata.csv",
 				index: "my-bootclasspath-fragment/index.csv",
-				stub_flags: "my-bootclasspath-fragment/stub-flags.csv",
-				all_flags: "my-bootclasspath-fragment/all-flags.csv",
+				signature_patterns: "my-bootclasspath-fragment/signature-patterns.csv",
+				filtered_stub_flags: "my-bootclasspath-fragment/filtered-stub-flags.csv",
+				filtered_flags: "my-bootclasspath-fragment/filtered-flags.csv",
 			},
 		}
 
@@ -5174,8 +5179,9 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 				annotation_flags: "my-bootclasspath-fragment/annotation-flags.csv",
 				metadata: "my-bootclasspath-fragment/metadata.csv",
 				index: "my-bootclasspath-fragment/index.csv",
-				stub_flags: "my-bootclasspath-fragment/stub-flags.csv",
-				all_flags: "my-bootclasspath-fragment/all-flags.csv",
+				signature_patterns: "my-bootclasspath-fragment/signature-patterns.csv",
+				filtered_stub_flags: "my-bootclasspath-fragment/filtered-stub-flags.csv",
+				filtered_flags: "my-bootclasspath-fragment/filtered-flags.csv",
 			},
 		}
 
@@ -5258,8 +5264,9 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 				annotation_flags: "my-bootclasspath-fragment/annotation-flags.csv",
 				metadata: "my-bootclasspath-fragment/metadata.csv",
 				index: "my-bootclasspath-fragment/index.csv",
-				stub_flags: "my-bootclasspath-fragment/stub-flags.csv",
-				all_flags: "my-bootclasspath-fragment/all-flags.csv",
+				signature_patterns: "my-bootclasspath-fragment/signature-patterns.csv",
+				filtered_stub_flags: "my-bootclasspath-fragment/filtered-stub-flags.csv",
+				filtered_flags: "my-bootclasspath-fragment/filtered-flags.csv",
 			},
 		}
 
@@ -7291,8 +7298,9 @@ func TestDexpreoptAccessDexFilesFromPrebuiltApex(t *testing.T) {
 					annotation_flags: "my-bootclasspath-fragment/annotation-flags.csv",
 					metadata: "my-bootclasspath-fragment/metadata.csv",
 					index: "my-bootclasspath-fragment/index.csv",
-					stub_flags: "my-bootclasspath-fragment/stub-flags.csv",
-					all_flags: "my-bootclasspath-fragment/all-flags.csv",
+					signature_patterns: "my-bootclasspath-fragment/signature-patterns.csv",
+					filtered_stub_flags: "my-bootclasspath-fragment/filtered-stub-flags.csv",
+					filtered_flags: "my-bootclasspath-fragment/filtered-flags.csv",
 				},
 			}
 

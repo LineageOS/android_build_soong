@@ -155,20 +155,10 @@ func main() {
 
 	// Convert!
 	files := flag.Args()
-	productConfigMap := buildProductConfigMap()
 	if *allInSource {
+		productConfigMap := buildProductConfigMap()
 		for _, path := range productConfigMap {
 			files = append(files, path)
-		}
-	}
-	for i, file := range files {
-		if _, err := os.Stat(file); os.IsNotExist(err) {
-			temp, ok := productConfigMap[file]
-			if ok {
-				files[i] = temp
-			} else {
-				quit(fmt.Errorf("%s is neither a product makefile nor a product name", file))
-			}
 		}
 	}
 	ok := true
