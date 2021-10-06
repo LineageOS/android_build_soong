@@ -767,14 +767,20 @@ type bootclasspathFragmentSdkMemberProperties struct {
 	// The path to the generated index.csv file.
 	Index_path android.OptionalPath
 
-	// The path to the generated signature-patterns.csv file.
-	Signature_patterns_path android.OptionalPath
-
 	// The path to the generated stub-flags.csv file.
-	Stub_flags_path android.OptionalPath
+	Stub_flags_path android.OptionalPath `supported_build_releases:"S"`
 
 	// The path to the generated all-flags.csv file.
-	All_flags_path android.OptionalPath
+	All_flags_path android.OptionalPath `supported_build_releases:"S"`
+
+	// The path to the generated signature-patterns.csv file.
+	Signature_patterns_path android.OptionalPath `supported_build_releases:"T+"`
+
+	// The path to the generated filtered-stub-flags.csv file.
+	Filtered_stub_flags_path android.OptionalPath `supported_build_releases:"T+"`
+
+	// The path to the generated filtered-flags.csv file.
+	Filtered_flags_path android.OptionalPath `supported_build_releases:"T+"`
 }
 
 func (b *bootclasspathFragmentSdkMemberProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.Module) {
@@ -793,9 +799,12 @@ func (b *bootclasspathFragmentSdkMemberProperties) PopulateFromVariant(ctx andro
 	b.Metadata_path = android.OptionalPathForPath(hiddenAPIInfo.MetadataPath)
 	b.Index_path = android.OptionalPathForPath(hiddenAPIInfo.IndexPath)
 
-	b.Signature_patterns_path = android.OptionalPathForPath(hiddenAPIInfo.SignaturePatternsPath)
 	b.Stub_flags_path = android.OptionalPathForPath(hiddenAPIInfo.StubFlagsPath)
 	b.All_flags_path = android.OptionalPathForPath(hiddenAPIInfo.AllFlagsPath)
+
+	b.Signature_patterns_path = android.OptionalPathForPath(hiddenAPIInfo.SignaturePatternsPath)
+	b.Filtered_stub_flags_path = android.OptionalPathForPath(hiddenAPIInfo.FilteredStubFlagsPath)
+	b.Filtered_flags_path = android.OptionalPathForPath(hiddenAPIInfo.FilteredFlagsPath)
 
 	// Copy stub_libs properties.
 	b.Stub_libs = module.properties.Api.Stub_libs
@@ -861,9 +870,13 @@ func (b *bootclasspathFragmentSdkMemberProperties) AddToPropertySet(ctx android.
 	copyOptionalPath(b.Annotation_flags_path, "annotation_flags")
 	copyOptionalPath(b.Metadata_path, "metadata")
 	copyOptionalPath(b.Index_path, "index")
-	copyOptionalPath(b.Signature_patterns_path, "signature_patterns")
+
 	copyOptionalPath(b.Stub_flags_path, "stub_flags")
 	copyOptionalPath(b.All_flags_path, "all_flags")
+
+	copyOptionalPath(b.Signature_patterns_path, "signature_patterns")
+	copyOptionalPath(b.Filtered_stub_flags_path, "filtered_stub_flags")
+	copyOptionalPath(b.Filtered_flags_path, "filtered_flags")
 }
 
 var _ android.SdkMemberType = (*bootclasspathFragmentMemberType)(nil)
@@ -889,6 +902,12 @@ type prebuiltBootclasspathFragmentProperties struct {
 
 		// The path to the all-flags.csv file created by the bootclasspath_fragment.
 		All_flags *string `android:"path"`
+
+		// The path to the filtered-stub-flags.csv file created by the bootclasspath_fragment.
+		Filtered_stub_flags *string `android:"path"`
+
+		// The path to the filtered-flags.csv file created by the bootclasspath_fragment.
+		Filtered_flags *string `android:"path"`
 	}
 }
 
@@ -915,9 +934,9 @@ func (module *prebuiltBootclasspathFragmentModule) Name() string {
 
 // produceHiddenAPIOutput returns a path to the prebuilt all-flags.csv or nil if none is specified.
 func (module *prebuiltBootclasspathFragmentModule) produceHiddenAPIOutput(ctx android.ModuleContext, contents []android.Module, input HiddenAPIFlagInput) *HiddenAPIOutput {
-	pathForOptionalSrc := func(src *string) android.Path {
+	pathForOptionalSrc := func(src *string, defaultPath android.Path) android.Path {
 		if src == nil {
-			return nil
+			return defaultPath
 		}
 		return android.PathForModuleSrc(ctx, *src)
 	}
@@ -938,12 +957,18 @@ func (module *prebuiltBootclasspathFragmentModule) produceHiddenAPIOutput(ctx an
 			AnnotationFlagsPath:   pathForSrc("hidden_api.annotation_flags", module.prebuiltProperties.Hidden_api.Annotation_flags),
 			MetadataPath:          pathForSrc("hidden_api.metadata", module.prebuiltProperties.Hidden_api.Metadata),
 			IndexPath:             pathForSrc("hidden_api.index", module.prebuiltProperties.Hidden_api.Index),
-			SignaturePatternsPath: pathForOptionalSrc(module.prebuiltProperties.Hidden_api.Signature_patterns),
-			StubFlagsPath:         pathForSrc("hidden_api.stub_flags", module.prebuiltProperties.Hidden_api.Stub_flags),
-			AllFlagsPath:          pathForSrc("hidden_api.all_flags", module.prebuiltProperties.Hidden_api.All_flags),
+			SignaturePatternsPath: pathForOptionalSrc(module.prebuiltProperties.Hidden_api.Signature_patterns, nil),
+			// TODO: Temporarily handle stub_flags/all_flags properties until prebuilts have been updated.
+			StubFlagsPath: pathForOptionalSrc(module.prebuiltProperties.Hidden_api.Stub_flags, nil),
+			AllFlagsPath:  pathForOptionalSrc(module.prebuiltProperties.Hidden_api.All_flags, nil),
 		},
+
 		EncodedBootDexFilesByModule: encodedBootDexJarsByModule,
 	}
+
+	// TODO: Temporarily fallback to stub_flags/all_flags properties until prebuilts have been updated.
+	output.FilteredStubFlagsPath = pathForOptionalSrc(module.prebuiltProperties.Hidden_api.Filtered_stub_flags, output.StubFlagsPath)
+	output.FilteredFlagsPath = pathForOptionalSrc(module.prebuiltProperties.Hidden_api.Filtered_flags, output.AllFlagsPath)
 
 	return &output
 }
