@@ -673,8 +673,16 @@ func PrebuiltEtcBp2Build(ctx android.TopDownMutatorContext) {
 
 func prebuiltEtcBp2BuildInternal(ctx android.TopDownMutatorContext, module *PrebuiltEtc) {
 	var srcLabelAttribute bazel.LabelAttribute
-	if module.properties.Src != nil {
-		srcLabelAttribute.SetValue(android.BazelLabelForModuleSrcSingle(ctx, *module.properties.Src))
+	for axis, configToProps := range module.GetArchVariantProperties(ctx, &prebuiltEtcProperties{}) {
+		for config, p := range configToProps {
+			props, ok := p.(*prebuiltEtcProperties)
+			if !ok {
+				continue
+			}
+			if props.Src != nil {
+				srcLabelAttribute.SetSelectValue(axis, config, android.BazelLabelForModuleSrcSingle(ctx, *props.Src))
+			}
+		}
 	}
 
 	var filename string
