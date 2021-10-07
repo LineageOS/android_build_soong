@@ -238,6 +238,19 @@ func invertBoolPtr(value *bool) *bool {
 	return &ret
 }
 
+func (blp *BaseLinkerProperties) crt() *bool {
+	val := invertBoolPtr(blp.Nocrt)
+	if val != nil && *val {
+		// == True
+		//
+		// Since crt is enabled for almost every module compiling against the Bionic runtime,
+		// use `nil` when it's enabled, and rely on the Starlark macro to set it to True by default.
+		// This keeps the BUILD files clean.
+		return nil
+	}
+	return val // can be False or nil
+}
+
 func (blp *BaseLinkerProperties) libCrt() *bool {
 	return invertBoolPtr(blp.No_libcrt)
 }
