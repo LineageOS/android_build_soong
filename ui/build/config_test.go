@@ -1003,6 +1003,7 @@ func TestBuildConfig(t *testing.T) {
 	tests := []struct {
 		name                string
 		environ             Environment
+		arguments           []string
 		useBazel            bool
 		expectedBuildConfig *smpb.BuildConfig
 	}{
@@ -1074,6 +1075,20 @@ func TestBuildConfig(t *testing.T) {
 			},
 		},
 		{
+			name:      "specified targets",
+			environ:   Environment{},
+			useBazel:  true,
+			arguments: []string{"droid", "dist"},
+			expectedBuildConfig: &smpb.BuildConfig{
+				ForceUseGoma:    proto.Bool(false),
+				UseGoma:         proto.Bool(false),
+				UseRbe:          proto.Bool(false),
+				BazelAsNinja:    proto.Bool(true),
+				BazelMixedBuild: proto.Bool(false),
+				Targets:         []string{"droid", "dist"},
+			},
+		},
+		{
 			name: "all set",
 			environ: Environment{
 				"FORCE_USE_GOMA=1",
@@ -1095,8 +1110,9 @@ func TestBuildConfig(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			c := &configImpl{
-				environ:  &tc.environ,
-				useBazel: tc.useBazel,
+				environ:   &tc.environ,
+				useBazel:  tc.useBazel,
+				arguments: tc.arguments,
 			}
 			config := Config{c}
 			actualBuildConfig := buildConfig(config)
