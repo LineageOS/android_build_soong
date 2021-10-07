@@ -51,6 +51,7 @@ type rustProjectCrate struct {
 	Deps        []rustProjectDep  `json:"deps"`
 	Cfg         []string          `json:"cfg"`
 	Env         map[string]string `json:"env"`
+	ProcMacro   bool              `json:"is_proc_macro"`
 }
 
 type rustProjectJson struct {
@@ -208,6 +209,8 @@ func isModuleSupported(ctx android.SingletonContext, module android.Module) (*Mo
 		comp = c.baseCompiler
 	case *testDecorator:
 		comp = c.binaryDecorator.baseCompiler
+	case *procMacroDecorator:
+		comp = c.baseCompiler
 	default:
 		return nil, nil, false
 	}
@@ -224,6 +227,8 @@ func (singleton *projectGeneratorSingleton) addCrate(ctx android.SingletonContex
 		return 0, false
 	}
 
+	_, procMacro := rModule.compiler.(*procMacroDecorator)
+
 	crate := rustProjectCrate{
 		DisplayName: rModule.Name(),
 		RootModule:  rootModule,
@@ -231,6 +236,7 @@ func (singleton *projectGeneratorSingleton) addCrate(ctx android.SingletonContex
 		Deps:        make([]rustProjectDep, 0),
 		Cfg:         make([]string, 0),
 		Env:         make(map[string]string),
+		ProcMacro:   procMacro,
 	}
 
 	if comp.CargoOutDir().Valid() {
