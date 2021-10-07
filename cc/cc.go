@@ -3455,6 +3455,7 @@ func DefaultsFactory(props ...interface{}) android.Module {
 		&android.ProtoProperties{},
 		// RustBindgenProperties is included here so that cc_defaults can be used for rust_bindgen modules.
 		&RustBindgenClangProperties{},
+		&prebuiltLinkerProperties{},
 	)
 
 	// Bazel module must be initialized _before_ Defaults to be included in cc_defaults module.
