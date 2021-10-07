@@ -587,13 +587,11 @@ def %s(target):
 %s
 
 def get_arch(target):
-  # TODO(b/199363072): filegroups and file targets aren't associated with any
-  # specific platform architecture in mixed builds. This is consistent with how
-  # Soong treats filegroups, but it may not be the case with manually-written
-  # filegroup BUILD targets.
-  if target.kind in ["filegroup", ""]:
-    return "common"
   buildoptions = build_options(target)
+  if buildoptions == None:
+    # File targets do not have buildoptions. File targets aren't associated with
+    #  any specific platform architecture in mixed builds.
+    return "common"
   platforms = build_options(target)["//command_line_option:platforms"]
   if len(platforms) != 1:
     # An individual configured target should have only one platform architecture.
