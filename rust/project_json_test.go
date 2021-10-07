@@ -117,6 +117,58 @@ func TestProjectJsonDep(t *testing.T) {
 	validateJsonCrates(t, jsonContent)
 }
 
+func TestProjectJsonProcMacroDep(t *testing.T) {
+	bp := `
+	rust_proc_macro {
+		name: "libproc_macro",
+		srcs: ["a/src/lib.rs"],
+		crate_name: "proc_macro"
+	}
+	rust_library {
+		name: "librust",
+		srcs: ["b/src/lib.rs"],
+		crate_name: "rust",
+		proc_macros: ["libproc_macro"],
+	}
+	`
+	jsonContent := testProjectJson(t, bp)
+	crates := validateJsonCrates(t, jsonContent)
+	libproc_macro_count := 0
+	librust_count := 0
+	for _, c := range crates {
+		crate := validateCrate(t, c)
+		procMacro, ok := crate["is_proc_macro"].(bool)
+		if !ok {
+			t.Fatalf("Unexpected type for is_proc_macro: %v", crate["is_proc_macro"])
+		}
+
+		name, ok := crate["display_name"].(string)
+		if !ok {
+			t.Fatalf("Unexpected type for display_name: %v", crate["display_name"])
+		}
+
+		switch name {
+		case "libproc_macro":
+			libproc_macro_count += 1
+			if !procMacro {
+				t.Fatalf("'libproc_macro' is marked with is_proc_macro=false")
+			}
+		case "librust":
+			librust_count += 1
+			if procMacro {
+				t.Fatalf("'librust' is not a proc macro crate, but is marked with is_proc_macro=true")
+			}
+		default:
+			break
+		}
+	}
+
+	if libproc_macro_count != 1 || librust_count != 1 {
+		t.Fatalf("Unexpected crate counts: libproc_macro_count: %v, librust_count: %v",
+			libproc_macro_count, librust_count)
+	}
+}
+
 func TestProjectJsonFeature(t *testing.T) {
 	bp := `
 	rust_library {
