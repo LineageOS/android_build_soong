@@ -694,7 +694,7 @@ func (context *bazelContext) InvokeBazel() error {
 	cqueryOutput, cqueryErr, err = context.issueBazelCommand(
 		context.paths,
 		bazel.CqueryBuildRootRunName,
-		bazelCommand{"cquery", fmt.Sprintf("deps(%s)", buildrootLabel)},
+		bazelCommand{"cquery", fmt.Sprintf("deps(%s, 2)", buildrootLabel)},
 		"--output=starlark",
 		"--starlark:file="+absolutePath(cqueryFileRelpath))
 	err = ioutil.WriteFile(filepath.Join(soongInjectionPath, "cquery.out"),
