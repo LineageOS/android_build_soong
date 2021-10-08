@@ -1479,6 +1479,44 @@ android_test {
 }
 `,
 	},
+	{
+		desc: "LOCAL_USES_LIBRARIES",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := foo
+LOCAL_USES_LIBRARIES := foo.test bar.test baz.test
+include $(BUILD_PACKAGE)
+`,
+		expected: `
+android_app {
+    name: "foo",
+    uses_libs: [
+        "foo.test",
+        "bar.test",
+        "baz.test",
+    ],
+}
+`,
+	},
+	{
+		desc: "LOCAL_OPTIONAL_USES_LIBRARIES",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := foo
+LOCAL_OPTIONAL_USES_LIBRARIES := foo.test bar.test baz.test
+include $(BUILD_PACKAGE)
+`,
+		expected: `
+android_app {
+    name: "foo",
+    optional_uses_libs: [
+        "foo.test",
+        "bar.test",
+        "baz.test",
+    ],
+}
+`,
+	},
 }
 
 func TestEndToEnd(t *testing.T) {
