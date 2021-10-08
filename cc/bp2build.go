@@ -277,7 +277,24 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 					srcs.SetSelectValue(axis, config, srcsList)
 				}
 
-				archVariantCopts := parseCommandLineFlags(baseCompilerProps.Cflags)
+				var archVariantCopts []string
+				if axis == bazel.NoConfigAxis {
+					// If cpp_std is not specified, don't generate it in the
+					// BUILD file. For readability purposes, cpp_std and gnu_extensions are
+					// combined into a single -std=<version> copt, except in the
+					// default case where cpp_std is nil and gnu_extensions is true or unspecified,
+					// then the toolchain's default "gnu++17" will be used.
+					if baseCompilerProps.Cpp_std != nil {
+						// TODO(b/202491296): Handle C_std.
+						// These transformations are shared with compiler.go.
+						cppStdVal := parseCppStd(baseCompilerProps.Cpp_std)
+						_, cppStdVal = maybeReplaceGnuToC(baseCompilerProps.Gnu_extensions, "", cppStdVal)
+						archVariantCopts = append(archVariantCopts, "-std="+cppStdVal)
+					} else if baseCompilerProps.Gnu_extensions != nil && !*baseCompilerProps.Gnu_extensions {
+						archVariantCopts = append(archVariantCopts, "-std=c++17")
+					}
+				}
+				archVariantCopts = append(archVariantCopts, parseCommandLineFlags(baseCompilerProps.Cflags)...)
 				archVariantAsflags := parseCommandLineFlags(baseCompilerProps.Asflags)
 
 				localIncludeDirs := baseCompilerProps.Local_include_dirs
