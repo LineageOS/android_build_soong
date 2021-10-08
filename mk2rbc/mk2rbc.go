@@ -52,7 +52,9 @@ const (
 	// And here are the functions and variables:
 	cfnGetCfg          = baseName + ".cfg"
 	cfnMain            = baseName + ".product_configuration"
+	cfnBoardMain       = baseName + ".board_configuration"
 	cfnPrintVars       = baseName + ".printvars"
+	cfnPrintGlobals    = baseName + ".printglobals"
 	cfnWarning         = baseName + ".warning"
 	cfnLocalAppend     = baseName + ".local_append"
 	cfnLocalSetDefault = baseName + ".local_set_default"
@@ -1699,6 +1701,17 @@ func Launcher(mainModuleUri, versionDefaultsUri, mainModuleName string) string {
 	fmt.Fprintf(&buf, "load(%q, \"version_defaults\")\n", versionDefaultsUri)
 	fmt.Fprintf(&buf, "load(%q, \"init\")\n", mainModuleUri)
 	fmt.Fprintf(&buf, "%s(%s(%q, init, version_defaults))\n", cfnPrintVars, cfnMain, mainModuleName)
+	return buf.String()
+}
+
+func BoardLauncher(mainModuleUri string, inputVariablesUri string) string {
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, "load(%q, %q)\n", baseUri, baseName)
+	fmt.Fprintf(&buf, "load(%q, \"init\")\n", mainModuleUri)
+	fmt.Fprintf(&buf, "load(%q, input_variables_init = \"init\")\n", inputVariablesUri)
+	fmt.Fprintf(&buf, "globals, cfg, globals_base = %s(init, input_variables_init)\n", cfnBoardMain)
+	fmt.Fprintf(&buf, "# TODO: Some product config variables need to be printed, but most are readonly so we can't just print cfg here.\n")
+	fmt.Fprintf(&buf, "%s(globals, globals_base)\n", cfnPrintGlobals)
 	return buf.String()
 }
 
