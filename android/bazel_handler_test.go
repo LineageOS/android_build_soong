@@ -11,7 +11,7 @@ func TestRequestResultsAfterInvokeBazel(t *testing.T) {
 	label := "//foo:bar"
 	arch := Arm64
 	bazelContext, _ := testBazelContext(t, map[bazelCommand]string{
-		bazelCommand{command: "cquery", expression: "deps(@soong_injection//mixed_builds:buildroot)"}: `//foo:bar|arm64>>out/foo/bar.txt`,
+		bazelCommand{command: "cquery", expression: "deps(@soong_injection//mixed_builds:buildroot, 2)"}: `//foo:bar|arm64>>out/foo/bar.txt`,
 	})
 	g, ok := bazelContext.GetOutputFiles(label, arch)
 	if ok {
