@@ -239,9 +239,7 @@ func NewCodegenContext(config android.Config, context android.Context, mode Code
 func propsToAttributes(props map[string]string) string {
 	var attributes string
 	for _, propName := range android.SortedStringKeys(props) {
-		if shouldGenerateAttribute(propName) {
-			attributes += fmt.Sprintf("    %s = %s,\n", propName, props[propName])
-		}
+		attributes += fmt.Sprintf("    %s = %s,\n", propName, props[propName])
 	}
 	return attributes
 }
@@ -422,7 +420,8 @@ func generateBazelTarget(ctx bpToBuildContext, m bp2buildModule) BazelTarget {
 	attrs := m.BazelAttributes()
 	props := extractModuleProperties(attrs, true)
 
-	delete(props.Attrs, "bp2build_available")
+	// name is handled in a special manner
+	delete(props.Attrs, "name")
 
 	// Return the Bazel target with rule class and attributes, ready to be
 	// code-generated.
@@ -456,6 +455,10 @@ func generateSoongModuleTarget(ctx bpToBuildContext, m blueprint.Module) BazelTa
 		ctx.VisitDirectDeps(aModule, func(depModule blueprint.Module) {
 			depLabels[qualifiedTargetLabel(ctx, depModule)] = true
 		})
+	}
+
+	for p, _ := range ignoredPropNames {
+		delete(props.Attrs, p)
 	}
 	attributes := propsToAttributes(props.Attrs)
 
