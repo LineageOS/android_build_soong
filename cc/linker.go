@@ -27,6 +27,10 @@ import (
 // This file contains the basic functionality for linking against static libraries and shared
 // libraries.  Final linking into libraries or executables is handled in library.go, binary.go, etc.
 
+const (
+	packRelocationsDefault = true
+)
+
 type BaseLinkerProperties struct {
 	// list of modules whose object files should be linked into this module
 	// in their entirety.  For static library modules, all of the .o files from the intermediate
@@ -471,7 +475,7 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 
 	if linker.useClangLld(ctx) {
 		flags.Global.LdFlags = append(flags.Global.LdFlags, fmt.Sprintf("${config.%sGlobalLldflags}", hod))
-		if !BoolDefault(linker.Properties.Pack_relocations, true) {
+		if !BoolDefault(linker.Properties.Pack_relocations, packRelocationsDefault) {
 			flags.Global.LdFlags = append(flags.Global.LdFlags, "-Wl,--pack-dyn-relocs=none")
 		} else if ctx.Device() {
 			// SHT_RELR relocations are only supported at API level >= 30.
