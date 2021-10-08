@@ -390,15 +390,7 @@ type linkerAttributes struct {
 	stripKeepSymbolsList          bazel.StringListAttribute
 	stripAll                      bazel.BoolAttribute
 	stripNone                     bazel.BoolAttribute
-}
-
-// FIXME(b/187655838): Use the existing linkerFlags() function instead of duplicating logic here
-func getBp2BuildLinkerFlags(linkerProperties *BaseLinkerProperties) []string {
-	flags := linkerProperties.Ldflags
-	if !BoolDefault(linkerProperties.Pack_relocations, true) {
-		flags = append(flags, "-Wl,--pack-dyn-relocs=none")
-	}
-	return flags
+	features                      bazel.StringListAttribute
 }
 
 // bp2BuildParseLinkerProps parses the linker properties of a module, including
@@ -425,6 +417,8 @@ func bp2BuildParseLinkerProps(ctx android.TopDownMutatorContext, module *Module)
 	var stripAll bazel.BoolAttribute
 	var stripNone bazel.BoolAttribute
 
+	var features bazel.StringListAttribute
+
 	for axis, configToProps := range module.GetArchVariantProperties(ctx, &StripProperties{}) {
 		for config, props := range configToProps {
 			if stripProperties, ok := props.(*StripProperties); ok {
@@ -443,6 +437,7 @@ func bp2BuildParseLinkerProps(ctx android.TopDownMutatorContext, module *Module)
 	for axis, configToProps := range module.GetArchVariantProperties(ctx, &BaseLinkerProperties{}) {
 		for config, props := range configToProps {
 			if baseLinkerProps, ok := props.(*BaseLinkerProperties); ok {
+				var axisFeatures []string
 
 				// Excludes to parallel Soong:
 				// https://cs.android.com/android/platform/superproject/+/master:build/soong/cc/linker.go;l=247-249;drc=088b53577dde6e40085ffd737a1ae96ad82fc4b0
@@ -474,7 +469,15 @@ func bp2BuildParseLinkerProps(ctx android.TopDownMutatorContext, module *Module)
 				headerDeps.SetSelectValue(axis, config, hDeps.export)
 				implementationHeaderDeps.SetSelectValue(axis, config, hDeps.implementation)
 
-				linkopts.SetSelectValue(axis, config, getBp2BuildLinkerFlags(baseLinkerProps))
+				linkopts.SetSelectValue(axis, config, baseLinkerProps.Ldflags)
+				if !BoolDefault(baseLinkerProps.Pack_relocations, packRelocationsDefault) {
+					axisFeatures = append(axisFeatures, "disable_pack_relocations")
+				}
+
+				if Bool(baseLinkerProps.Allow_undefined_symbols) {
+					axisFeatures = append(axisFeatures, "-no_undefined_symbols")
+				}
+
 				if baseLinkerProps.Version_script != nil {
 					versionScript.SetSelectValue(axis, config, android.BazelLabelForModuleSrcSingle(ctx, *baseLinkerProps.Version_script))
 				}
@@ -487,6 +490,10 @@ func bp2BuildParseLinkerProps(ctx android.TopDownMutatorContext, module *Module)
 					} else if axis == bazel.ArchConfigurationAxis {
 						disallowedArchVariantCrt = true
 					}
+				}
+
+				if axisFeatures != nil {
+					features.SetSelectValue(axis, config, axisFeatures)
 				}
 			}
 		}
@@ -576,6 +583,8 @@ func bp2BuildParseLinkerProps(ctx android.TopDownMutatorContext, module *Module)
 		stripKeepSymbolsList:          stripKeepSymbolsList,
 		stripAll:                      stripAll,
 		stripNone:                     stripNone,
+
+		features: features,
 	}
 }
 
