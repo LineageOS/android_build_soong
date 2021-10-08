@@ -15,6 +15,7 @@
 package bp2build
 
 import (
+	"fmt"
 	"testing"
 
 	"android/soong/android"
@@ -1142,6 +1143,81 @@ cc_library {
 
 func TestCCLibraryNoCrtTrue(t *testing.T) {
 	runCcLibraryTestCase(t, bp2buildTestCase{
+		description:                        "cc_library - nocrt: true emits attribute",
+		moduleTypeUnderTest:                "cc_library",
+		moduleTypeUnderTestFactory:         cc.LibraryFactory,
+		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryBp2Build,
+		filesystem: map[string]string{
+			"impl.cpp": "",
+		},
+		blueprint: soongCcLibraryPreamble + `
+cc_library {
+    name: "foo-lib",
+    srcs: ["impl.cpp"],
+    nocrt: true,
+    include_build_directory: false,
+}
+`,
+		expectedBazelTargets: []string{`cc_library(
+    name = "foo-lib",
+    link_crt = False,
+    srcs = ["impl.cpp"],
+)`}})
+}
+
+func TestCCLibraryNoCrtFalse(t *testing.T) {
+	runCcLibraryTestCase(t, bp2buildTestCase{
+		description:                        "cc_library - nocrt: false - does not emit attribute",
+		moduleTypeUnderTest:                "cc_library",
+		moduleTypeUnderTestFactory:         cc.LibraryFactory,
+		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryBp2Build,
+		filesystem: map[string]string{
+			"impl.cpp": "",
+		},
+		blueprint: soongCcLibraryPreamble + `
+cc_library {
+    name: "foo-lib",
+    srcs: ["impl.cpp"],
+    nocrt: false,
+    include_build_directory: false,
+}
+`,
+		expectedBazelTargets: []string{`cc_library(
+    name = "foo-lib",
+    srcs = ["impl.cpp"],
+)`}})
+}
+
+func TestCCLibraryNoCrtArchVariant(t *testing.T) {
+	runCcLibraryTestCase(t, bp2buildTestCase{
+		description:                        "cc_library - nocrt in select",
+		moduleTypeUnderTest:                "cc_library",
+		moduleTypeUnderTestFactory:         cc.LibraryFactory,
+		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryBp2Build,
+		filesystem: map[string]string{
+			"impl.cpp": "",
+		},
+		blueprint: soongCcLibraryPreamble + `
+cc_library {
+    name: "foo-lib",
+    srcs: ["impl.cpp"],
+    arch: {
+        arm: {
+            nocrt: true,
+        },
+        x86: {
+            nocrt: false,
+        },
+    },
+    include_build_directory: false,
+}
+`,
+		expectedErr: fmt.Errorf("Android.bp:16:1: module \"foo-lib\": nocrt is not supported for arch variants"),
+	})
+}
+
+func TestCCLibraryNoLibCrtTrue(t *testing.T) {
+	runCcLibraryTestCase(t, bp2buildTestCase{
 		description:                        "cc_library - simple example",
 		moduleTypeUnderTest:                "cc_library",
 		moduleTypeUnderTestFactory:         cc.LibraryFactory,
@@ -1165,7 +1241,7 @@ cc_library {
 )`}})
 }
 
-func TestCCLibraryNoCrtFalse(t *testing.T) {
+func TestCCLibraryNoLibCrtFalse(t *testing.T) {
 	runCcLibraryTestCase(t, bp2buildTestCase{
 		moduleTypeUnderTest:                "cc_library",
 		moduleTypeUnderTestFactory:         cc.LibraryFactory,
@@ -1189,7 +1265,7 @@ cc_library {
 )`}})
 }
 
-func TestCCLibraryNoCrtArchVariant(t *testing.T) {
+func TestCCLibraryNoLibCrtArchVariant(t *testing.T) {
 	runCcLibraryTestCase(t, bp2buildTestCase{
 		moduleTypeUnderTest:                "cc_library",
 		moduleTypeUnderTestFactory:         cc.LibraryFactory,
@@ -1219,41 +1295,6 @@ cc_library {
         "//build/bazel/platforms/arch:arm": False,
         "//build/bazel/platforms/arch:x86": False,
         "//conditions:default": None,
-    }),
-)`}})
-}
-
-func TestCCLibraryNoCrtArchVariantWithDefault(t *testing.T) {
-	runCcLibraryTestCase(t, bp2buildTestCase{
-		moduleTypeUnderTest:                "cc_library",
-		moduleTypeUnderTestFactory:         cc.LibraryFactory,
-		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryBp2Build,
-		filesystem: map[string]string{
-			"impl.cpp": "",
-		},
-		blueprint: soongCcLibraryPreamble + `
-cc_library {
-    name: "foo-lib",
-    srcs: ["impl.cpp"],
-    no_libcrt: false,
-    arch: {
-        arm: {
-            no_libcrt: true,
-        },
-        x86: {
-            no_libcrt: true,
-        },
-    },
-    include_build_directory: false,
-}
-`,
-		expectedBazelTargets: []string{`cc_library(
-    name = "foo-lib",
-    srcs = ["impl.cpp"],
-    use_libcrt = select({
-        "//build/bazel/platforms/arch:arm": False,
-        "//build/bazel/platforms/arch:x86": False,
-        "//conditions:default": True,
     }),
 )`}})
 }

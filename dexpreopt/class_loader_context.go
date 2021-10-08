@@ -598,11 +598,18 @@ func toJsonClassLoaderContext(clcMap ClassLoaderContextMap) jsonClassLoaderConte
 func toJsonClassLoaderContextRec(clcs []*ClassLoaderContext) []*jsonClassLoaderContext {
 	jClcs := make([]*jsonClassLoaderContext, len(clcs))
 	for i, clc := range clcs {
+		var host string
+		if clc.Host == nil {
+			// Defer build failure to when this CLC is actually used.
+			host = fmt.Sprintf("implementation-jar-for-%s-is-not-available.jar", clc.Name)
+		} else {
+			host = clc.Host.String()
+		}
 		jClcs[i] = &jsonClassLoaderContext{
 			Name:        clc.Name,
 			Optional:    clc.Optional,
 			Implicit:    clc.Implicit,
-			Host:        clc.Host.String(),
+			Host:        host,
 			Device:      clc.Device,
 			Subcontexts: toJsonClassLoaderContextRec(clc.Subcontexts),
 		}

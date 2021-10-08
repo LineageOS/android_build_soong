@@ -252,6 +252,7 @@ type bazelCcLibraryAttributes struct {
 
 	// This is shared only.
 	Version_script bazel.LabelAttribute
+	Link_crt       bazel.BoolAttribute
 
 	// Common properties shared between both shared and static variants.
 	Shared staticOrSharedAttributes
@@ -321,6 +322,7 @@ func CcLibraryBp2Build(ctx android.TopDownMutatorContext) {
 		Local_includes:              compilerAttrs.localIncludes,
 		Absolute_includes:           compilerAttrs.absoluteIncludes,
 		Linkopts:                    linkerAttrs.linkopts,
+		Link_crt:                    linkerAttrs.linkCrt,
 		Use_libcrt:                  linkerAttrs.useLibcrt,
 		Rtti:                        compilerAttrs.rtti,
 		Stl:                         compilerAttrs.stl,
@@ -2415,6 +2417,7 @@ func ccSharedOrStaticBp2BuildMutatorInternal(ctx android.TopDownMutatorContext, 
 			Asflags:    asFlags,
 			Linkopts:   linkerAttrs.linkopts,
 
+			Link_crt:   linkerAttrs.linkCrt,
 			Use_libcrt: linkerAttrs.useLibcrt,
 			Rtti:       compilerAttrs.rtti,
 			Stl:        compilerAttrs.stl,
@@ -2472,6 +2475,7 @@ type bazelCcLibrarySharedAttributes struct {
 	staticOrSharedAttributes
 
 	Linkopts   bazel.StringListAttribute
+	Link_crt   bazel.BoolAttribute // Only for linking shared library (and cc_binary)
 	Use_libcrt bazel.BoolAttribute
 	Rtti       bazel.BoolAttribute
 	Stl        *string

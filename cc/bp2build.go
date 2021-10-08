@@ -364,6 +364,7 @@ type linkerAttributes struct {
 	wholeArchiveDeps          bazel.LabelListAttribute
 	systemDynamicDeps         bazel.LabelListAttribute
 
+	linkCrt                       bazel.BoolAttribute
 	useLibcrt                     bazel.BoolAttribute
 	linkopts                      bazel.StringListAttribute
 	versionScript                 bazel.LabelAttribute
@@ -398,6 +399,7 @@ func bp2BuildParseLinkerProps(ctx android.TopDownMutatorContext, module *Module)
 
 	var linkopts bazel.StringListAttribute
 	var versionScript bazel.LabelAttribute
+	var linkCrt bazel.BoolAttribute
 	var useLibcrt bazel.BoolAttribute
 
 	var stripKeepSymbols bazel.BoolAttribute
@@ -417,6 +419,9 @@ func bp2BuildParseLinkerProps(ctx android.TopDownMutatorContext, module *Module)
 			}
 		}
 	}
+
+	// Use a single variable to capture usage of nocrt in arch variants, so there's only 1 error message for this module
+	var disallowedArchVariantCrt bool
 
 	for axis, configToProps := range module.GetArchVariantProperties(ctx, &BaseLinkerProperties{}) {
 		for config, props := range configToProps {
@@ -457,8 +462,21 @@ func bp2BuildParseLinkerProps(ctx android.TopDownMutatorContext, module *Module)
 					versionScript.SetSelectValue(axis, config, android.BazelLabelForModuleSrcSingle(ctx, *baseLinkerProps.Version_script))
 				}
 				useLibcrt.SetSelectValue(axis, config, baseLinkerProps.libCrt())
+
+				// it's very unlikely for nocrt to be arch variant, so bp2build doesn't support it.
+				if baseLinkerProps.crt() != nil {
+					if axis == bazel.NoConfigAxis {
+						linkCrt.SetSelectValue(axis, config, baseLinkerProps.crt())
+					} else if axis == bazel.ArchConfigurationAxis {
+						disallowedArchVariantCrt = true
+					}
+				}
 			}
 		}
+	}
+
+	if disallowedArchVariantCrt {
+		ctx.ModuleErrorf("nocrt is not supported for arch variants")
 	}
 
 	type productVarDep struct {
@@ -530,6 +548,7 @@ func bp2BuildParseLinkerProps(ctx android.TopDownMutatorContext, module *Module)
 		wholeArchiveDeps:          wholeArchiveDeps,
 		systemDynamicDeps:         systemSharedDeps,
 
+		linkCrt:       linkCrt,
 		linkopts:      linkopts,
 		useLibcrt:     useLibcrt,
 		versionScript: versionScript,
