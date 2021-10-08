@@ -873,7 +873,7 @@ cc_library {
 	})
 }
 
-func TestCcLibraryPackRelocations(t *testing.T) {
+func TestCcLibraryFeatures(t *testing.T) {
 	runCcLibraryTestCase(t, bp2buildTestCase{
 		description:                        "cc_library pack_relocations test",
 		moduleTypeUnderTest:                "cc_library",
@@ -884,6 +884,7 @@ cc_library {
     name: "a",
     srcs: ["a.cpp"],
     pack_relocations: false,
+    allow_undefined_symbols: true,
     include_build_directory: false,
 }
 
@@ -893,6 +894,7 @@ cc_library {
     arch: {
         x86_64: {
             pack_relocations: false,
+            allow_undefined_symbols: true,
         },
     },
     include_build_directory: false,
@@ -904,25 +906,35 @@ cc_library {
     target: {
         darwin: {
             pack_relocations: false,
+            allow_undefined_symbols: true,
         },
     },
     include_build_directory: false,
 }`,
 		expectedBazelTargets: []string{`cc_library(
     name = "a",
-    linkopts = ["-Wl,--pack-dyn-relocs=none"],
+    features = [
+        "disable_pack_relocations",
+        "-no_undefined_symbols",
+    ],
     srcs = ["a.cpp"],
 )`, `cc_library(
     name = "b",
-    linkopts = select({
-        "//build/bazel/platforms/arch:x86_64": ["-Wl,--pack-dyn-relocs=none"],
+    features = select({
+        "//build/bazel/platforms/arch:x86_64": [
+            "disable_pack_relocations",
+            "-no_undefined_symbols",
+        ],
         "//conditions:default": [],
     }),
     srcs = ["b.cpp"],
 )`, `cc_library(
     name = "c",
-    linkopts = select({
-        "//build/bazel/platforms/os:darwin": ["-Wl,--pack-dyn-relocs=none"],
+    features = select({
+        "//build/bazel/platforms/os:darwin": [
+            "disable_pack_relocations",
+            "-no_undefined_symbols",
+        ],
         "//conditions:default": [],
     }),
     srcs = ["c.cpp"],
