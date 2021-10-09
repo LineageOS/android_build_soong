@@ -347,8 +347,14 @@ func (app *AndroidApp) AndroidMkEntries() []android.AndroidMkEntries {
 				entries.SetOptionalPath("LOCAL_SOONG_PROGUARD_DICT", app.dexer.proguardDictionary)
 				entries.SetOptionalPath("LOCAL_SOONG_PROGUARD_USAGE_ZIP", app.dexer.proguardUsageZip)
 
-				if app.Name() == "framework-res" || app.Name() == "org.lineageos.platform-res" {
+				if app.Name() == "framework-res" {
 					entries.SetString("LOCAL_MODULE_PATH", "$(TARGET_OUT_JAVA_LIBRARIES)")
+					// Make base_rules.mk not put framework-res in a subdirectory called
+					// framework_res.
+					entries.SetBoolIfTrue("LOCAL_NO_STANDARD_LIBRARIES", true)
+				}
+				if app.Name() == "org.lineageos.platform-res" {
+					entries.SetString("LOCAL_MODULE_PATH", "$(TARGET_OUT_SYSTEM_EXT_JAVA_LIBRARIES)")
 					// Make base_rules.mk not put framework-res in a subdirectory called
 					// framework_res.
 					entries.SetBoolIfTrue("LOCAL_NO_STANDARD_LIBRARIES", true)
