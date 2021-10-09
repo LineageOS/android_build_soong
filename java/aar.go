@@ -486,6 +486,18 @@ type AndroidLibrary struct {
 	exportedStaticPackages    android.Paths
 }
 
+var _ android.OutputFileProducer = (*AndroidLibrary)(nil)
+
+// For OutputFileProducer interface
+func (a *AndroidLibrary) OutputFiles(tag string) (android.Paths, error) {
+	switch tag {
+	case ".aar":
+		return []android.Path{a.aarFile}, nil
+	default:
+		return a.Library.OutputFiles(tag)
+	}
+}
+
 func (a *AndroidLibrary) ExportedProguardFlagFiles() android.Paths {
 	return a.exportedProguardFlagFiles
 }
