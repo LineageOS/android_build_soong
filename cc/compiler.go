@@ -305,6 +305,25 @@ func addToModuleList(ctx ModuleContext, key android.OnceKey, module string) {
 	getNamedMapForConfig(ctx.Config(), key).Store(module, true)
 }
 
+func maybeReplaceGnuToC(gnuExtensions *bool, cStd string, cppStd string) (string, string) {
+	if gnuExtensions != nil && *gnuExtensions == false {
+		cStd = gnuToCReplacer.Replace(cStd)
+		cppStd = gnuToCReplacer.Replace(cppStd)
+	}
+	return cStd, cppStd
+}
+
+func parseCppStd(cppStdPtr *string) string {
+	cppStd := String(cppStdPtr)
+	switch cppStd {
+	case "":
+		cppStd = config.CppStdVersion
+	case "experimental":
+		cppStd = config.ExperimentalCppStdVersion
+	}
+	return cppStd
+}
+
 // Create a Flags struct that collects the compile flags from global values,
 // per-target values, module type values, and per-module Blueprints properties
 func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps PathDeps) Flags {
@@ -484,18 +503,9 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 		cStd = String(compiler.Properties.C_std)
 	}
 
-	cppStd := String(compiler.Properties.Cpp_std)
-	switch String(compiler.Properties.Cpp_std) {
-	case "":
-		cppStd = config.CppStdVersion
-	case "experimental":
-		cppStd = config.ExperimentalCppStdVersion
-	}
+	cppStd := parseCppStd(compiler.Properties.Cpp_std)
 
-	if compiler.Properties.Gnu_extensions != nil && *compiler.Properties.Gnu_extensions == false {
-		cStd = gnuToCReplacer.Replace(cStd)
-		cppStd = gnuToCReplacer.Replace(cppStd)
-	}
+	cStd, cppStd = maybeReplaceGnuToC(compiler.Properties.Gnu_extensions, cStd, cppStd)
 
 	flags.Local.ConlyFlags = append([]string{"-std=" + cStd}, flags.Local.ConlyFlags...)
 	flags.Local.CppFlags = append([]string{"-std=" + cppStd}, flags.Local.CppFlags...)
