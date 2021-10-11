@@ -370,7 +370,7 @@ func createAPIFingerprint(ctx android.SingletonContext) {
 			"frameworks-base-api-current.txt",
 			"frameworks-base-api-system-current.txt",
 			"frameworks-base-api-module-lib-current.txt",
-			"services-system-server-current.txt",
+			"frameworks-base-api-system-server-current.txt",
 		}
 		count := 0
 		ctx.VisitAllModules(func(module android.Module) {
