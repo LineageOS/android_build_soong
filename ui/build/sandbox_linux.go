@@ -213,6 +213,10 @@ func (c *Cmd) wrapSandbox() {
 		sandboxArgs = append(sandboxArgs, "-N")
 	}
 
+	if ccacheDir := os.Getenv("CCACHE_DIR"); ccacheDir != "" {
+		sandboxArgs = append(sandboxArgs, "-B", ccacheDir)
+	}
+
 	// Stop nsjail from parsing arguments
 	sandboxArgs = append(sandboxArgs, "--")
 
