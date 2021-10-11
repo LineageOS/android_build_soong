@@ -124,8 +124,15 @@ func (s *SystemServerClasspathModule) configuredJars(ctx android.ModuleContext) 
 	// So ignore it even if it is not in PRODUCT_APEX_SYSTEM_SERVER_JARS.
 	// TODO(b/203233647): Add better mechanism to make it optional.
 	_, unknown = android.RemoveFromList("car-frameworks-service-module", unknown)
-	// For non test apexes, make sure that all contents are actually declared in make.
-	if global.ApexSystemServerJars.Len() > 0 && len(unknown) > 0 && !android.IsModuleInVersionedSdk(ctx.Module()) {
+
+	// TODO(satayev): for apex_test we want to include all contents unconditionally to classpaths
+	// config. However, any test specific jars would not be present in ApexSystemServerJars. Instead,
+	// we should check if we are creating a config for apex_test via ApexInfo and amend the values.
+	// This is an exception to support end-to-end test for ApexdUnitTests, until such support exists.
+	if android.InList("test_service-apexd", possibleUpdatableModules) {
+		jars = jars.Append("com.android.apex.test_package", "test_service-apexd")
+	} else if global.ApexSystemServerJars.Len() > 0 && len(unknown) > 0 && !android.IsModuleInVersionedSdk(ctx.Module()) {
+		// For non test apexes, make sure that all contents are actually declared in make.
 		ctx.ModuleErrorf("%s in contents must also be declared in PRODUCT_APEX_SYSTEM_SERVER_JARS", unknown)
 	}
 
