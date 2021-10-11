@@ -69,7 +69,7 @@ func newEvent(name, desc string) *event {
 func (e event) perfInfo() soong_metrics_proto.PerfInfo {
 	realTime := uint64(_now().Sub(e.start).Nanoseconds())
 	return soong_metrics_proto.PerfInfo{
-		Desc:                  proto.String(e.desc),
+		Description:           proto.String(e.desc),
 		Name:                  proto.String(e.name),
 		StartTime:             proto.Uint64(uint64(e.start.UnixNano())),
 		RealTime:              proto.Uint64(realTime),
