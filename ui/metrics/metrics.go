@@ -25,16 +25,11 @@ package metrics
 // that captures the metrics and is them added as a perfInfo into the set
 // of the collected metrics. Finally, when soong_ui has finished the build,
 // the defer Dump function is invoked to store the collected metrics to the
-// raw protobuf file in the $OUT directory.
-//
-// There is one additional step that occurs after the raw protobuf file is written.
-// If the configuration environment variable ANDROID_ENABLE_METRICS_UPLOAD is
-// set with the path, the raw protobuf file is uploaded to the destination. See
-// ui/build/upload.go for more details. The filename of the raw protobuf file
-// and the list of files to be uploaded is defined in cmd/soong_ui/main.go.
-//
-// See ui/metrics/event.go for the explanation of what an event is and how
-// the metrics system is a stack based system.
+// raw protobuf file in the $OUT directory and this raw protobuf file will be
+// uploaded to the destination. See ui/build/upload.go for more details. The
+// filename of the raw protobuf file and the list of files to be uploaded is
+// defined in cmd/soong_ui/main.go. See ui/metrics/event.go for the explanation
+// of what an event is and how the metrics system is a stack based system.
 
 import (
 	"io/ioutil"
