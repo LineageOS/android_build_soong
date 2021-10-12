@@ -83,6 +83,8 @@ type configImpl struct {
 
 	// Set by multiproduct_kati
 	emptyNinjaFile bool
+
+	metricsUploader string
 }
 
 const srcDirFileCheck = "build/soong/root.bp"
@@ -237,13 +239,16 @@ func NewConfig(ctx Context, args ...string) Config {
 	// Precondition: the current directory is the top of the source tree
 	checkTopDir(ctx)
 
-	if srcDir := absPath(ctx, "."); strings.ContainsRune(srcDir, ' ') {
+	srcDir := absPath(ctx, ".")
+	if strings.ContainsRune(srcDir, ' ') {
 		ctx.Println("You are building in a directory whose absolute path contains a space character:")
 		ctx.Println()
 		ctx.Printf("%q\n", srcDir)
 		ctx.Println()
 		ctx.Fatalln("Directory names containing spaces are not supported")
 	}
+
+	ret.metricsUploader = GetMetricsUploader(srcDir, ret.environ)
 
 	if outDir := ret.OutDir(); strings.ContainsRune(outDir, ' ') {
 		ctx.Println("The absolute path of your output directory ($OUT_DIR) contains a space character:")
@@ -1246,10 +1251,7 @@ func (c *configImpl) BuildDateTime() string {
 }
 
 func (c *configImpl) MetricsUploaderApp() string {
-	if p, ok := c.environ.Get("ANDROID_ENABLE_METRICS_UPLOAD"); ok {
-		return p
-	}
-	return ""
+	return c.metricsUploader
 }
 
 // LogsDir returns the logs directory where build log and metrics
@@ -1276,4 +1278,15 @@ func (c *configImpl) SetEmptyNinjaFile(v bool) {
 
 func (c *configImpl) EmptyNinjaFile() bool {
 	return c.emptyNinjaFile
+}
+
+func GetMetricsUploader(topDir string, env *Environment) string {
+	if p, ok := env.Get("METRICS_UPLOADER"); ok {
+		metricsUploader := filepath.Join(topDir, p)
+		if _, err := os.Stat(metricsUploader); err == nil {
+			return metricsUploader
+		}
+	}
+
+	return ""
 }
