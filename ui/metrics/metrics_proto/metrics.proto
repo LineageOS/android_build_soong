@@ -139,7 +139,7 @@ message SystemResourceInfo {
 
 message PerfInfo {
   // The description for the phase/action/part while the tool running.
-  optional string desc = 1;
+  optional string description = 1;
 
   // The name for the running phase/action/part.
   optional string name = 2;
