@@ -349,16 +349,8 @@ func sdkDeps(ctx android.BottomUpMutatorContext, sdkContext android.SdkContext, 
 	if sdkDep.systemModules != "" {
 		ctx.AddVariationDependencies(nil, systemModulesTag, sdkDep.systemModules)
 	}
-	if ctx.ModuleName() == "framework" || ctx.ModuleName() == "framework-annotation-proc" {
-		ctx.AddDependency(ctx.Module(), lineageResTag, "org.lineageos.platform-res")
-	}
 	if ctx.ModuleName() == "org.lineageos.platform-res" {
 		ctx.AddDependency(ctx.Module(), frameworkResTag, "framework-res")
-	}
-	if ctx.ModuleName() == "org.lineageos.platform" ||
-		ctx.ModuleName() == "org.lineageos.platform.internal" ||
-		ctx.ModuleName() == "org.lineageos.platform.sdk" {
-		ctx.AddDependency(ctx.Module(), lineageResTag, "org.lineageos.platform-res")
 	}
 }
 
