@@ -226,7 +226,10 @@ type compilerAttributes struct {
 	srcs     bazel.LabelListAttribute
 
 	rtti bazel.BoolAttribute
-	stl  *string
+
+	// Not affected by arch variants
+	stl    *string
+	cppStd *string
 
 	localIncludes    bazel.StringListAttribute
 	absoluteIncludes bazel.StringListAttribute
@@ -242,6 +245,8 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 	var rtti bazel.BoolAttribute
 	var localIncludes bazel.StringListAttribute
 	var absoluteIncludes bazel.StringListAttribute
+	var stl *string = nil
+	var cppStd *string = nil
 
 	parseCommandLineFlags := func(soongFlags []string) []string {
 		var result []string
@@ -283,7 +288,6 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 					srcs.SetSelectValue(axis, config, srcsList)
 				}
 
-				var archVariantCopts []string
 				if axis == bazel.NoConfigAxis {
 					// If cpp_std is not specified, don't generate it in the
 					// BUILD file. For readability purposes, cpp_std and gnu_extensions are
@@ -295,11 +299,14 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 						// These transformations are shared with compiler.go.
 						cppStdVal := parseCppStd(baseCompilerProps.Cpp_std)
 						_, cppStdVal = maybeReplaceGnuToC(baseCompilerProps.Gnu_extensions, "", cppStdVal)
-						archVariantCopts = append(archVariantCopts, "-std="+cppStdVal)
+						cppStd = &cppStdVal
 					} else if baseCompilerProps.Gnu_extensions != nil && !*baseCompilerProps.Gnu_extensions {
-						archVariantCopts = append(archVariantCopts, "-std=c++17")
+						cppStdVal := "c++17"
+						cppStd = &cppStdVal
 					}
 				}
+
+				var archVariantCopts []string
 				archVariantCopts = append(archVariantCopts, parseCommandLineFlags(baseCompilerProps.Cflags)...)
 				archVariantAsflags := parseCommandLineFlags(baseCompilerProps.Asflags)
 
@@ -345,7 +352,6 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 
 	srcs, cSrcs, asSrcs := groupSrcsByExtension(ctx, srcs)
 
-	var stl *string = nil
 	stlPropsByArch := module.GetArchVariantProperties(ctx, &StlProperties{})
 	for _, configToProps := range stlPropsByArch {
 		for _, props := range configToProps {
@@ -373,6 +379,7 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 		cppFlags:         cppFlags,
 		rtti:             rtti,
 		stl:              stl,
+		cppStd:           cppStd,
 		localIncludes:    localIncludes,
 		absoluteIncludes: absoluteIncludes,
 	}
