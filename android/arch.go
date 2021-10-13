@@ -2006,17 +2006,10 @@ func (m *ModuleBase) GetArchVariantProperties(ctx ArchVariantContext, propertySe
 	osToProp := ArchVariantProperties{}
 	archOsToProp := ArchVariantProperties{}
 
-	var linuxStructs, bionicStructs []reflect.Value
-	var ok bool
-
-	linuxStructs, ok = getTargetStructs(ctx, archProperties, "Linux")
-	if !ok {
-		linuxStructs = make([]reflect.Value, 0)
-	}
-	bionicStructs, ok = getTargetStructs(ctx, archProperties, "Bionic")
-	if !ok {
-		bionicStructs = make([]reflect.Value, 0)
-	}
+	linuxStructs := getTargetStructs(ctx, archProperties, "Linux")
+	bionicStructs := getTargetStructs(ctx, archProperties, "Bionic")
+	hostStructs := getTargetStructs(ctx, archProperties, "Host")
+	hostNotWindowsStructs := getTargetStructs(ctx, archProperties, "Not_windows")
 
 	// For android, linux, ...
 	for _, os := range osTypeList {
@@ -2025,9 +2018,10 @@ func (m *ModuleBase) GetArchVariantProperties(ctx ArchVariantContext, propertySe
 			continue
 		}
 		osStructs := make([]reflect.Value, 0)
-		osSpecificStructs, ok := getTargetStructs(ctx, archProperties, os.Field)
-		if ok {
-			osStructs = append(osStructs, osSpecificStructs...)
+
+		osSpecificStructs := getTargetStructs(ctx, archProperties, os.Field)
+		if os.Class == Host {
+			osStructs = append(osStructs, hostStructs...)
 		}
 		if os.Linux() {
 			osStructs = append(osStructs, linuxStructs...)
@@ -2035,36 +2029,43 @@ func (m *ModuleBase) GetArchVariantProperties(ctx ArchVariantContext, propertySe
 		if os.Bionic() {
 			osStructs = append(osStructs, bionicStructs...)
 		}
+
+		if os == LinuxMusl {
+			osStructs = append(osStructs, getTargetStructs(ctx, archProperties, "Musl")...)
+		}
+		if os == Linux {
+			osStructs = append(osStructs, getTargetStructs(ctx, archProperties, "Glibc")...)
+		}
+
+		osStructs = append(osStructs, osSpecificStructs...)
+
+		if os.Class == Host && os != Windows {
+			osStructs = append(osStructs, hostNotWindowsStructs...)
+		}
 		osToProp[os.Name] = mergeStructs(ctx, osStructs, propertySet)
 
 		// For arm, x86, ...
 		for _, arch := range osArchTypeMap[os] {
 			osArchStructs := make([]reflect.Value, 0)
 
-			targetField := GetCompoundTargetField(os, arch)
-			targetName := fmt.Sprintf("%s_%s", os.Name, arch.Name)
-			targetStructs, ok := getTargetStructs(ctx, archProperties, targetField)
-			if ok {
-				osArchStructs = append(osArchStructs, targetStructs...)
-			}
-
 			// Auto-combine with Linux_ and Bionic_ targets. This potentially results in
 			// repetition and select() bloat, but use of Linux_* and Bionic_* targets is rare.
 			// TODO(b/201423152): Look into cleanup.
 			if os.Linux() {
 				targetField := "Linux_" + arch.Name
-				targetStructs, ok := getTargetStructs(ctx, archProperties, targetField)
-				if ok {
-					osArchStructs = append(osArchStructs, targetStructs...)
-				}
+				targetStructs := getTargetStructs(ctx, archProperties, targetField)
+				osArchStructs = append(osArchStructs, targetStructs...)
 			}
 			if os.Bionic() {
 				targetField := "Bionic_" + arch.Name
-				targetStructs, ok := getTargetStructs(ctx, archProperties, targetField)
-				if ok {
-					osArchStructs = append(osArchStructs, targetStructs...)
-				}
+				targetStructs := getTargetStructs(ctx, archProperties, targetField)
+				osArchStructs = append(osArchStructs, targetStructs...)
 			}
+
+			targetField := GetCompoundTargetField(os, arch)
+			targetName := fmt.Sprintf("%s_%s", os.Name, arch.Name)
+			targetStructs := getTargetStructs(ctx, archProperties, targetField)
+			osArchStructs = append(osArchStructs, targetStructs...)
 
 			archOsToProp[targetName] = mergeStructs(ctx, osArchStructs, propertySet)
 		}
@@ -2089,8 +2090,8 @@ func (m *ModuleBase) GetArchVariantProperties(ctx ArchVariantContext, propertySe
 //      }
 //    }
 // This would return a BaseCompilerProperties with BaseCompilerProperties.Srcs = ["foo.c"]
-func getTargetStructs(ctx ArchVariantContext, archProperties []interface{}, targetName string) ([]reflect.Value, bool) {
-	propertyStructs := make([]reflect.Value, 0)
+func getTargetStructs(ctx ArchVariantContext, archProperties []interface{}, targetName string) []reflect.Value {
+	var propertyStructs []reflect.Value
 	for _, archProperty := range archProperties {
 		archPropValues := reflect.ValueOf(archProperty).Elem()
 		targetProp := archPropValues.FieldByName("Target").Elem()
@@ -2098,11 +2099,11 @@ func getTargetStructs(ctx ArchVariantContext, archProperties []interface{}, targ
 		if ok {
 			propertyStructs = append(propertyStructs, targetStruct)
 		} else {
-			return propertyStructs, false
+			return []reflect.Value{}
 		}
 	}
 
-	return propertyStructs, true
+	return propertyStructs
 }
 
 func mergeStructs(ctx ArchVariantContext, propertyStructs []reflect.Value, propertySet interface{}) interface{} {
