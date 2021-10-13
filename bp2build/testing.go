@@ -283,7 +283,7 @@ func customBp2BuildMutator(ctx android.TopDownMutatorContext) {
 			return
 		}
 
-		paths := bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrcExcludes(ctx, m.props.Arch_paths, m.props.Arch_paths_exclude))
+		paths := bazel.LabelListAttribute{}
 
 		for axis, configToProps := range m.GetArchVariantProperties(ctx, &customProps{}) {
 			for config, props := range configToProps {
