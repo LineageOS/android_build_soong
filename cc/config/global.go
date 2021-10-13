@@ -77,10 +77,6 @@ var (
 		// TODO: can we remove this now?
 		"-Wno-reserved-id-macro",
 
-		// Workaround for ccache with clang.
-		// See http://petereisentraut.blogspot.com/2011/05/ccache-and-clang.html.
-		"-Wno-unused-command-line-argument",
-
 		// Force clang to always output color diagnostics. Ninja will strip the ANSI
 		// color codes if it is not running in a terminal.
 		"-fcolor-diagnostics",
@@ -328,6 +324,12 @@ func init() {
 		} else {
 			// Default to zero initialization.
 			flags = append(flags, "-ftrivial-auto-var-init=zero -enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clang")
+		}
+
+		// Workaround for ccache with clang.
+		// See http://petereisentraut.blogspot.com/2011/05/ccache-and-clang.html.
+		if ctx.Config().IsEnvTrue("USE_CCACHE") {
+			flags = append(flags, "-Wno-unused-command-line-argument")
 		}
 		return strings.Join(flags, " ")
 	})
