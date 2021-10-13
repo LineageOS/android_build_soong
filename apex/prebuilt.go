@@ -264,17 +264,6 @@ func (p *prebuiltCommon) createEntriesForApexFile(fi apexFile, apexName string) 
 				// we need to remove the suffix from LOCAL_MODULE_STEM, otherwise
 				// we will have foo.jar.jar
 				entries.SetString("LOCAL_MODULE_STEM", strings.TrimSuffix(fi.stem(), ".jar"))
-				var classesJar android.Path
-				var headerJar android.Path
-				if javaModule, ok := fi.module.(java.ApexDependency); ok {
-					classesJar = javaModule.ImplementationAndResourcesJars()[0]
-					headerJar = javaModule.HeaderJars()[0]
-				} else {
-					classesJar = fi.builtFile
-					headerJar = fi.builtFile
-				}
-				entries.SetString("LOCAL_SOONG_CLASSES_JAR", classesJar.String())
-				entries.SetString("LOCAL_SOONG_HEADER_JAR", headerJar.String())
 				entries.SetString("LOCAL_SOONG_DEX_JAR", fi.builtFile.String())
 				entries.SetString("LOCAL_DEX_PREOPT", "false")
 			},
