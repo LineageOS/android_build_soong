@@ -223,6 +223,7 @@ func TestGenerateSoongModuleTargets(t *testing.T) {
 func TestGenerateBazelTargetModules(t *testing.T) {
 	testCases := []bp2buildTestCase{
 		{
+			description: "string props",
 			blueprint: `custom {
 	name: "foo",
     string_list_prop: ["a", "b"],
@@ -240,6 +241,7 @@ func TestGenerateBazelTargetModules(t *testing.T) {
 			},
 		},
 		{
+			description: "control characters",
 			blueprint: `custom {
 	name: "control_characters",
     string_list_prop: ["\t", "\n"],
@@ -257,6 +259,7 @@ func TestGenerateBazelTargetModules(t *testing.T) {
 			},
 		},
 		{
+			description: "handles dep",
 			blueprint: `custom {
   name: "has_dep",
   arch_paths: [":dep"],
@@ -279,25 +282,98 @@ custom {
 			},
 		},
 		{
+			description: "arch-variant srcs",
 			blueprint: `custom {
     name: "arch_paths",
     arch: {
-      x86: {
-        arch_paths: ["abc"],
-      },
+      x86: { arch_paths: ["x86.txt"] },
+      x86_64:  { arch_paths: ["x86_64.txt"] },
+      arm:  { arch_paths: ["arm.txt"] },
+      arm64:  { arch_paths: ["arm64.txt"] },
+    },
+    target: {
+      linux: { arch_paths: ["linux.txt"] },
+      bionic: { arch_paths: ["bionic.txt"] },
+      host: { arch_paths: ["host.txt"] },
+      not_windows: { arch_paths: ["not_windows.txt"] },
+      android: { arch_paths: ["android.txt"] },
+      linux_musl: { arch_paths: ["linux_musl.txt"] },
+      musl: { arch_paths: ["musl.txt"] },
+      linux_glibc: { arch_paths: ["linux_glibc.txt"] },
+      glibc: { arch_paths: ["glibc.txt"] },
+      linux_bionic: { arch_paths: ["linux_bionic.txt"] },
+      darwin: { arch_paths: ["darwin.txt"] },
+      windows: { arch_paths: ["windows.txt"] },
+    },
+    multilib: {
+        lib32: { arch_paths: ["lib32.txt"] },
+        lib64: { arch_paths: ["lib64.txt"] },
     },
     bazel_module: { bp2build_available: true },
 }`,
 			expectedBazelTargets: []string{`custom(
     name = "arch_paths",
     arch_paths = select({
-        "//build/bazel/platforms/arch:x86": ["abc"],
+        "//build/bazel/platforms/arch:arm": [
+            "arm.txt",
+            "lib32.txt",
+        ],
+        "//build/bazel/platforms/arch:arm64": [
+            "arm64.txt",
+            "lib64.txt",
+        ],
+        "//build/bazel/platforms/arch:x86": [
+            "x86.txt",
+            "lib32.txt",
+        ],
+        "//build/bazel/platforms/arch:x86_64": [
+            "x86_64.txt",
+            "lib64.txt",
+        ],
+        "//conditions:default": [],
+    }) + select({
+        "//build/bazel/platforms/os:android": [
+            "linux.txt",
+            "bionic.txt",
+            "android.txt",
+        ],
+        "//build/bazel/platforms/os:darwin": [
+            "host.txt",
+            "darwin.txt",
+            "not_windows.txt",
+        ],
+        "//build/bazel/platforms/os:linux": [
+            "host.txt",
+            "linux.txt",
+            "glibc.txt",
+            "linux_glibc.txt",
+            "not_windows.txt",
+        ],
+        "//build/bazel/platforms/os:linux_bionic": [
+            "host.txt",
+            "linux.txt",
+            "bionic.txt",
+            "linux_bionic.txt",
+            "not_windows.txt",
+        ],
+        "//build/bazel/platforms/os:linux_musl": [
+            "host.txt",
+            "linux.txt",
+            "musl.txt",
+            "linux_musl.txt",
+            "not_windows.txt",
+        ],
+        "//build/bazel/platforms/os:windows": [
+            "host.txt",
+            "windows.txt",
+        ],
         "//conditions:default": [],
     }),
 )`,
 			},
 		},
 		{
+			description: "arch-variant deps",
 			blueprint: `custom {
   name: "has_dep",
   arch: {
@@ -327,6 +403,7 @@ custom {
 			},
 		},
 		{
+			description: "embedded props",
 			blueprint: `custom {
     name: "embedded_props",
     embedded_prop: "abc",
@@ -339,6 +416,7 @@ custom {
 			},
 		},
 		{
+			description: "ptr to embedded props",
 			blueprint: `custom {
     name: "ptr_to_embedded_props",
     other_embedded_prop: "abc",
@@ -354,38 +432,40 @@ custom {
 
 	dir := "."
 	for _, testCase := range testCases {
-		config := android.TestConfig(buildDir, nil, testCase.blueprint, nil)
-		ctx := android.NewTestContext(config)
+		t.Run(testCase.description, func(t *testing.T) {
+			config := android.TestConfig(buildDir, nil, testCase.blueprint, nil)
+			ctx := android.NewTestContext(config)
 
-		registerCustomModuleForBp2buildConversion(ctx)
+			registerCustomModuleForBp2buildConversion(ctx)
 
-		_, errs := ctx.ParseFileList(dir, []string{"Android.bp"})
-		if errored(t, testCase, errs) {
-			continue
-		}
-		_, errs = ctx.ResolveDependencies(config)
-		if errored(t, testCase, errs) {
-			continue
-		}
+			_, errs := ctx.ParseFileList(dir, []string{"Android.bp"})
+			if errored(t, testCase, errs) {
+				return
+			}
+			_, errs = ctx.ResolveDependencies(config)
+			if errored(t, testCase, errs) {
+				return
+			}
 
-		codegenCtx := NewCodegenContext(config, *ctx.Context, Bp2Build)
-		bazelTargets, err := generateBazelTargetsForDir(codegenCtx, dir)
-		android.FailIfErrored(t, err)
+			codegenCtx := NewCodegenContext(config, *ctx.Context, Bp2Build)
+			bazelTargets, err := generateBazelTargetsForDir(codegenCtx, dir)
+			android.FailIfErrored(t, err)
 
-		if actualCount, expectedCount := len(bazelTargets), len(testCase.expectedBazelTargets); actualCount != expectedCount {
-			t.Errorf("Expected %d bazel target, got %d", expectedCount, actualCount)
-		} else {
-			for i, expectedBazelTarget := range testCase.expectedBazelTargets {
-				actualBazelTarget := bazelTargets[i]
-				if actualBazelTarget.content != expectedBazelTarget {
-					t.Errorf(
-						"Expected generated Bazel target to be '%s', got '%s'",
-						expectedBazelTarget,
-						actualBazelTarget.content,
-					)
+			if actualCount, expectedCount := len(bazelTargets), len(testCase.expectedBazelTargets); actualCount != expectedCount {
+				t.Errorf("Expected %d bazel target, got %d", expectedCount, actualCount)
+			} else {
+				for i, expectedBazelTarget := range testCase.expectedBazelTargets {
+					actualBazelTarget := bazelTargets[i]
+					if actualBazelTarget.content != expectedBazelTarget {
+						t.Errorf(
+							"Expected generated Bazel target to be '%s', got '%s'",
+							expectedBazelTarget,
+							actualBazelTarget.content,
+						)
+					}
 				}
 			}
-		}
+		})
 	}
 }
 
