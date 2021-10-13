@@ -1669,21 +1669,21 @@ cc_library {
     srcs = ["base.cpp"] + select({
         "//build/bazel/platforms/os:android": [
             "android.cpp",
-            "bionic.cpp",
             "linux.cpp",
+            "bionic.cpp",
         ],
         "//build/bazel/platforms/os:darwin": ["darwin.cpp"],
         "//build/bazel/platforms/os:linux": [
-            "linux.cpp",
             "linux_glibc.cpp",
+            "linux.cpp",
         ],
         "//build/bazel/platforms/os:linux_bionic": [
-            "bionic.cpp",
             "linux.cpp",
+            "bionic.cpp",
         ],
         "//build/bazel/platforms/os:linux_musl": [
-            "linux.cpp",
             "linux_musl.cpp",
+            "linux.cpp",
         ],
         "//build/bazel/platforms/os:windows": ["windows.cpp"],
         "//conditions:default": [],
