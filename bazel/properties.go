@@ -164,23 +164,17 @@ func UniqueSortedBazelLabelList(originalLabelList LabelList) LabelList {
 // Subtract needle from haystack
 func SubtractStrings(haystack []string, needle []string) []string {
 	// This is really a set
-	remainder := make(map[string]bool)
-
-	for _, s := range haystack {
-		remainder[s] = true
-	}
+	needleMap := make(map[string]bool)
 	for _, s := range needle {
-		delete(remainder, s)
+		needleMap[s] = true
 	}
 
 	var strings []string
-	for s, _ := range remainder {
-		strings = append(strings, s)
+	for _, s := range haystack {
+		if exclude := needleMap[s]; !exclude {
+			strings = append(strings, s)
+		}
 	}
-
-	sort.SliceStable(strings, func(i, j int) bool {
-		return strings[i] < strings[j]
-	})
 
 	return strings
 }
@@ -188,23 +182,17 @@ func SubtractStrings(haystack []string, needle []string) []string {
 // Subtract needle from haystack
 func SubtractBazelLabels(haystack []Label, needle []Label) []Label {
 	// This is really a set
-	remainder := make(map[Label]bool)
-
-	for _, label := range haystack {
-		remainder[label] = true
-	}
-	for _, label := range needle {
-		delete(remainder, label)
+	needleMap := make(map[Label]bool)
+	for _, s := range needle {
+		needleMap[s] = true
 	}
 
 	var labels []Label
-	for label, _ := range remainder {
-		labels = append(labels, label)
+	for _, label := range haystack {
+		if exclude := needleMap[label]; !exclude {
+			labels = append(labels, label)
+		}
 	}
-
-	sort.SliceStable(labels, func(i, j int) bool {
-		return labels[i].Label < labels[j].Label
-	})
 
 	return labels
 }
