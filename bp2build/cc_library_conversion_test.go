@@ -1692,7 +1692,7 @@ cc_library {
 
 }
 
-func TestCcLibraryCppStdWithGnuExtensions_ConvertstoCopt(t *testing.T) {
+func TestCcLibraryCppStdWithGnuExtensions_ConvertsToFeatureAttr(t *testing.T) {
 	type testCase struct {
 		cpp_std        string
 		gnu_extensions string
@@ -1751,7 +1751,7 @@ func TestCcLibraryCppStdWithGnuExtensions_ConvertstoCopt(t *testing.T) {
 		}
 		bazelCppStdAttr := ""
 		if tc.bazel_cpp_std != "" {
-			bazelCppStdAttr = fmt.Sprintf("\n    copts = [\"-std=%s\"],", tc.bazel_cpp_std)
+			bazelCppStdAttr = fmt.Sprintf("\n    cpp_std = \"%s\",", tc.bazel_cpp_std)
 		}
 
 		runCcLibraryTestCase(t, bp2buildTestCase{
@@ -1769,6 +1769,44 @@ cc_library {
 }
 `, cppStdAttr, gnuExtensionsAttr),
 			expectedBazelTargets: []string{fmt.Sprintf(`cc_library(
+    name = "a",%s
+)`, bazelCppStdAttr)},
+		})
+
+		runCcLibraryStaticTestCase(t, bp2buildTestCase{
+			description: fmt.Sprintf(
+				"cc_library_static with cpp_std: %s and gnu_extensions: %s", tc.cpp_std, tc.gnu_extensions),
+			moduleTypeUnderTest:                "cc_library_static",
+			moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
+			moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
+			blueprint: soongCcLibraryPreamble + fmt.Sprintf(`
+cc_library_static {
+	name: "a",
+%s // cpp_std: *string
+%s // gnu_extensions: *bool
+	include_build_directory: false,
+}
+`, cppStdAttr, gnuExtensionsAttr),
+			expectedBazelTargets: []string{fmt.Sprintf(`cc_library_static(
+    name = "a",%s
+)`, bazelCppStdAttr)},
+		})
+
+		runCcLibrarySharedTestCase(t, bp2buildTestCase{
+			description: fmt.Sprintf(
+				"cc_library_shared with cpp_std: %s and gnu_extensions: %s", tc.cpp_std, tc.gnu_extensions),
+			moduleTypeUnderTest:                "cc_library_shared",
+			moduleTypeUnderTestFactory:         cc.LibrarySharedFactory,
+			moduleTypeUnderTestBp2BuildMutator: cc.CcLibrarySharedBp2Build,
+			blueprint: soongCcLibraryPreamble + fmt.Sprintf(`
+cc_library_shared {
+	name: "a",
+%s // cpp_std: *string
+%s // gnu_extensions: *bool
+	include_build_directory: false,
+}
+`, cppStdAttr, gnuExtensionsAttr),
+			expectedBazelTargets: []string{fmt.Sprintf(`cc_library_shared(
     name = "a",%s
 )`, bazelCppStdAttr)},
 		})
