@@ -58,6 +58,7 @@ var rewriteProperties = map[string](func(variableAssignmentContext) error){
 	"LOCAL_MODULE_STEM":                    stem,
 	"LOCAL_MODULE_HOST_OS":                 hostOs,
 	"LOCAL_RESOURCE_DIR":                   localizePathList("resource_dirs"),
+	"LOCAL_NOTICE_FILE":                    localizePathList("android_license_files"),
 	"LOCAL_SANITIZE":                       sanitize(""),
 	"LOCAL_SANITIZE_DIAG":                  sanitize("diag."),
 	"LOCAL_STRIP_MODULE":                   strip(),
@@ -111,7 +112,6 @@ func init() {
 			"LOCAL_PROTOC_OPTIMIZE_TYPE":    "proto.type",
 			"LOCAL_MODULE_OWNER":            "owner",
 			"LOCAL_RENDERSCRIPT_TARGET_API": "renderscript.target_api",
-			"LOCAL_NOTICE_FILE":             "notice",
 			"LOCAL_JAVA_LANGUAGE_VERSION":   "java_version",
 			"LOCAL_INSTRUMENTATION_FOR":     "instrumentation_for",
 			"LOCAL_MANIFEST_FILE":           "manifest",
@@ -185,6 +185,12 @@ func init() {
 			"LOCAL_JACK_COVERAGE_EXCLUDE_FILTER": "jacoco.exclude_filter",
 
 			"LOCAL_FULL_LIBS_MANIFEST_FILES": "additional_manifests",
+
+			// will be rewrite later to "license_kinds:" by byfix
+			"LOCAL_LICENSE_KINDS": "android_license_kinds",
+			// will be removed later by byfix
+			// TODO: does this property matter in the license module?
+			"LOCAL_LICENSE_CONDITIONS": "android_license_conditions",
 		})
 
 	addStandardProperties(bpparser.BoolType,
