@@ -639,6 +639,12 @@ func prebuiltModulePath(ctx variableAssignmentContext) error {
 	if len(val.Variables) == 1 && varLiteralName(val.Variables[0]) != "" && len(val.Strings) == 2 && val.Strings[0] == "" {
 		fixed = val.Strings[1]
 		varname = val.Variables[0].Name.Strings[0]
+		// TARGET_OUT_OPTIONAL_EXECUTABLES puts the artifact in xbin, which is
+		// deprecated. TARGET_OUT_DATA_APPS install location will be handled
+		// automatically by Soong
+		if varname == "TARGET_OUT_OPTIONAL_EXECUTABLES" || varname == "TARGET_OUT_DATA_APPS" {
+			return nil
+		}
 	} else if len(val.Variables) == 2 && varLiteralName(val.Variables[0]) == "PRODUCT_OUT" && varLiteralName(val.Variables[1]) == "TARGET_COPY_OUT_VENDOR" &&
 		len(val.Strings) == 3 && val.Strings[0] == "" && val.Strings[1] == "/" {
 		fixed = val.Strings[2]
