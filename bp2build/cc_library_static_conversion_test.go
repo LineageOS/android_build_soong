@@ -1000,55 +1000,66 @@ func TestCcLibraryStaticArchSrcsExcludeSrcsGeneratedFiles(t *testing.T) {
 			"dep/Android.bp": `
 genrule {
   name: "generated_src_other_pkg",
-  out: ["generated_src_other_pkg.cpp"],
   cmd: "nothing to see here",
 }
 
 genrule {
   name: "generated_hdr_other_pkg",
-  out: ["generated_hdr_other_pkg.cpp"],
   cmd: "nothing to see here",
 }
 
 genrule {
   name: "generated_hdr_other_pkg_x86",
-  out: ["generated_hdr_other_pkg_x86.cpp"],
+  cmd: "nothing to see here",
+}
+
+genrule {
+  name: "generated_hdr_other_pkg_android",
   cmd: "nothing to see here",
 }`,
 		},
 		blueprint: soongCcLibraryStaticPreamble + `
 genrule {
     name: "generated_src",
-    out: ["generated_src.cpp"],
     cmd: "nothing to see here",
 }
 
 genrule {
-    name: "generated_src_x86",
-    out: ["generated_src_x86.cpp"],
+    name: "generated_src_not_x86",
+    cmd: "nothing to see here",
+}
+
+genrule {
+    name: "generated_src_android",
     cmd: "nothing to see here",
 }
 
 genrule {
     name: "generated_hdr",
-    out: ["generated_hdr.h"],
     cmd: "nothing to see here",
 }
 
 cc_library_static {
-   name: "foo_static3",
-   srcs: ["common.cpp", "not-for-*.cpp"],
-   exclude_srcs: ["not-for-everything.cpp"],
-   generated_sources: ["generated_src", "generated_src_other_pkg"],
-   generated_headers: ["generated_hdr", "generated_hdr_other_pkg"],
-   arch: {
-       x86: {
-           srcs: ["for-x86.cpp"],
-           exclude_srcs: ["not-for-x86.cpp"],
-           generated_sources: ["generated_src_x86"],
-           generated_headers: ["generated_hdr_other_pkg_x86"],
-       },
-   },
+    name: "foo_static3",
+    srcs: ["common.cpp", "not-for-*.cpp"],
+    exclude_srcs: ["not-for-everything.cpp"],
+    generated_sources: ["generated_src", "generated_src_other_pkg", "generated_src_not_x86"],
+    generated_headers: ["generated_hdr", "generated_hdr_other_pkg"],
+    arch: {
+        x86: {
+          srcs: ["for-x86.cpp"],
+          exclude_srcs: ["not-for-x86.cpp"],
+          generated_headers: ["generated_hdr_other_pkg_x86"],
+          exclude_generated_sources: ["generated_src_not_x86"],
+        },
+    },
+    target: {
+        android: {
+            generated_sources: ["generated_src_android"],
+            generated_headers: ["generated_hdr_other_pkg_android"],
+        },
+    },
+
     include_build_directory: false,
 }
 `,
@@ -1063,10 +1074,18 @@ cc_library_static {
     ] + select({
         "//build/bazel/platforms/arch:x86": [
             "//dep:generated_hdr_other_pkg_x86",
-            ":generated_src_x86",
             "for-x86.cpp",
         ],
-        "//conditions:default": ["not-for-x86.cpp"],
+        "//conditions:default": [
+            ":generated_src_not_x86",
+            "not-for-x86.cpp",
+        ],
+    }) + select({
+        "//build/bazel/platforms/os:android": [
+            "//dep:generated_hdr_other_pkg_android",
+            ":generated_src_android",
+        ],
+        "//conditions:default": [],
     }),
 )`},
 	})
