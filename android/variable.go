@@ -101,6 +101,8 @@ type variableProperties struct {
 				Keep_symbols                 *bool
 				Keep_symbols_and_debug_frame *bool
 			}
+			Srcs         []string
+			Exclude_srcs []string
 		}
 
 		// eng is true for -eng builds, and can be used to turn on additionaly heavyweight debugging
