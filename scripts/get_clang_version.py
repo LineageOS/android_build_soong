@@ -34,7 +34,7 @@ def get_clang_prebuilts_version(global_go):
   with open(global_go) as infile:
     contents = infile.read()
 
-  regex_rev = r'\tClangDefaultVersion\s+= "(?P<rev>clang-r\d+[a-z]?\d?)"'
+  regex_rev = r'\tClangDefaultVersion\s+= "(?P<rev>clang-.*)"'
   match_rev = re.search(regex_rev, contents)
   if match_rev is None:
     raise RuntimeError('Parsing clang info failed')
