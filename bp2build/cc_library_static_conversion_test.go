@@ -641,12 +641,12 @@ cc_library_static {
     name = "foo_static",
     srcs_c = ["common.c"] + select({
         "//build/bazel/platforms/arch:arm": [
-            "for-arm.c",
             "not-for-x86.c",
+            "for-arm.c",
         ],
         "//build/bazel/platforms/arch:x86": [
-            "for-x86.c",
             "not-for-arm.c",
+            "for-x86.c",
         ],
         "//conditions:default": [
             "not-for-arm.c",
@@ -691,28 +691,28 @@ cc_library_static {
     name = "foo_static",
     srcs_c = ["common.c"] + select({
         "//build/bazel/platforms/arch:arm": [
-            "for-arm.c",
             "not-for-arm64.c",
             "not-for-x86.c",
             "not-for-x86_64.c",
+            "for-arm.c",
         ],
         "//build/bazel/platforms/arch:arm64": [
-            "for-arm64.c",
             "not-for-arm.c",
             "not-for-x86.c",
             "not-for-x86_64.c",
+            "for-arm64.c",
         ],
         "//build/bazel/platforms/arch:x86": [
-            "for-x86.c",
             "not-for-arm.c",
             "not-for-arm64.c",
             "not-for-x86_64.c",
+            "for-x86.c",
         ],
         "//build/bazel/platforms/arch:x86_64": [
-            "for-x86_64.c",
             "not-for-arm.c",
             "not-for-arm64.c",
             "not-for-x86.c",
+            "for-x86_64.c",
         ],
         "//conditions:default": [
             "not-for-arm.c",
@@ -875,20 +875,20 @@ cc_library_static {
     name = "foo_static2",
     srcs_c = ["common.c"] + select({
         "//build/bazel/platforms/arch:arm": [
-            "for-lib32.c",
             "not-for-lib64.c",
+            "for-lib32.c",
         ],
         "//build/bazel/platforms/arch:arm64": [
-            "for-lib64.c",
             "not-for-lib32.c",
+            "for-lib64.c",
         ],
         "//build/bazel/platforms/arch:x86": [
-            "for-lib32.c",
             "not-for-lib64.c",
+            "for-lib32.c",
         ],
         "//build/bazel/platforms/arch:x86_64": [
-            "for-lib64.c",
             "not-for-lib32.c",
+            "for-lib64.c",
         ],
         "//conditions:default": [
             "not-for-lib32.c",
@@ -942,36 +942,36 @@ cc_library_static {
     name = "foo_static3",
     srcs_c = ["common.c"] + select({
         "//build/bazel/platforms/arch:arm": [
+            "not-for-arm64.c",
+            "not-for-lib64.c",
+            "not-for-x86.c",
+            "not-for-x86_64.c",
             "for-arm.c",
             "for-lib32.c",
-            "not-for-arm64.c",
-            "not-for-lib64.c",
-            "not-for-x86.c",
-            "not-for-x86_64.c",
         ],
         "//build/bazel/platforms/arch:arm64": [
-            "for-arm64.c",
-            "for-lib64.c",
             "not-for-arm.c",
             "not-for-lib32.c",
             "not-for-x86.c",
             "not-for-x86_64.c",
+            "for-arm64.c",
+            "for-lib64.c",
         ],
         "//build/bazel/platforms/arch:x86": [
-            "for-lib32.c",
-            "for-x86.c",
             "not-for-arm.c",
             "not-for-arm64.c",
             "not-for-lib64.c",
             "not-for-x86_64.c",
+            "for-x86.c",
+            "for-lib32.c",
         ],
         "//build/bazel/platforms/arch:x86_64": [
-            "for-lib64.c",
-            "for-x86_64.c",
             "not-for-arm.c",
             "not-for-arm64.c",
             "not-for-lib32.c",
             "not-for-x86.c",
+            "for-x86_64.c",
+            "for-lib64.c",
         ],
         "//conditions:default": [
             "not-for-arm.c",
@@ -1066,19 +1066,19 @@ cc_library_static {
 		expectedBazelTargets: []string{`cc_library_static(
     name = "foo_static3",
     srcs = [
-        "//dep:generated_hdr_other_pkg",
-        "//dep:generated_src_other_pkg",
-        ":generated_hdr",
-        ":generated_src",
         "common.cpp",
+        ":generated_hdr",
+        "//dep:generated_hdr_other_pkg",
+        ":generated_src",
+        "//dep:generated_src_other_pkg",
     ] + select({
         "//build/bazel/platforms/arch:x86": [
-            "//dep:generated_hdr_other_pkg_x86",
             "for-x86.cpp",
+            "//dep:generated_hdr_other_pkg_x86",
         ],
         "//conditions:default": [
-            ":generated_src_not_x86",
             "not-for-x86.cpp",
+            ":generated_src_not_x86",
         ],
     }) + select({
         "//build/bazel/platforms/os:android": [
