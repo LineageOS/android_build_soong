@@ -133,8 +133,8 @@ cc_library {
         "//conditions:default": [],
     }) + select({
         "//build/bazel/platforms/os:android": [
-            "android.cpp",
             "bionic.cpp",
+            "android.cpp",
         ],
         "//build/bazel/platforms/os:darwin": ["darwin.cpp"],
         "//build/bazel/platforms/os:linux": ["linux.cpp"],
@@ -1668,9 +1668,9 @@ cc_library {
     name = "foo-lib",
     srcs = ["base.cpp"] + select({
         "//build/bazel/platforms/os:android": [
-            "android.cpp",
-            "bionic.cpp",
             "linux.cpp",
+            "bionic.cpp",
+            "android.cpp",
         ],
         "//build/bazel/platforms/os:darwin": ["darwin.cpp"],
         "//build/bazel/platforms/os:linux": [
@@ -1678,8 +1678,8 @@ cc_library {
             "linux_glibc.cpp",
         ],
         "//build/bazel/platforms/os:linux_bionic": [
-            "bionic.cpp",
             "linux.cpp",
+            "bionic.cpp",
         ],
         "//build/bazel/platforms/os:linux_musl": [
             "linux.cpp",
