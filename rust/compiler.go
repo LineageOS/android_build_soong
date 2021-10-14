@@ -449,6 +449,10 @@ func (compiler *baseCompiler) relativeInstallPath() string {
 
 // Returns the Path for the main source file along with Paths for generated source files from modules listed in srcs.
 func srcPathFromModuleSrcs(ctx ModuleContext, srcs []string) (android.Path, android.Paths) {
+	if len(srcs) == 0 {
+		ctx.PropertyErrorf("srcs", "srcs must not be empty")
+	}
+
 	// The srcs can contain strings with prefix ":".
 	// They are dependent modules of this module, with android.SourceDepTag.
 	// They are not the main source file compiled by rustc.
