@@ -182,8 +182,8 @@ var (
 		"external/boringssl":                                 Bp2BuildDefaultTrueRecursively,
 		"external/brotli":                                    Bp2BuildDefaultTrue,
 		"external/fmtlib":                                    Bp2BuildDefaultTrueRecursively,
-		"external/googletest/googletest":                     Bp2BuildDefaultTrueRecursively,
 		"external/google-benchmark":                          Bp2BuildDefaultTrueRecursively,
+		"external/googletest/googletest":                     Bp2BuildDefaultTrueRecursively,
 		"external/gwp_asan":                                  Bp2BuildDefaultTrueRecursively,
 		"external/jemalloc_new":                              Bp2BuildDefaultTrueRecursively,
 		"external/jsoncpp":                                   Bp2BuildDefaultTrueRecursively,
@@ -191,10 +191,15 @@ var (
 		"external/libcxx":                                    Bp2BuildDefaultTrueRecursively,
 		"external/libcxxabi":                                 Bp2BuildDefaultTrueRecursively,
 		"external/lz4/lib":                                   Bp2BuildDefaultTrue,
+		"external/mdnsresponder":                             Bp2BuildDefaultTrueRecursively,
+		"external/minijail":                                  Bp2BuildDefaultTrueRecursively,
+		"external/pcre":                                      Bp2BuildDefaultTrueRecursively,
 		"external/protobuf":                                  Bp2BuildDefaultTrueRecursively,
 		"external/python/six":                                Bp2BuildDefaultTrueRecursively,
 		"external/scudo":                                     Bp2BuildDefaultTrueRecursively,
+		"external/selinux/libselinux":                        Bp2BuildDefaultTrueRecursively,
 		"external/zlib":                                      Bp2BuildDefaultTrueRecursively,
+		"external/zstd":                                      Bp2BuildDefaultTrueRecursively,
 		"frameworks/native/libs/adbd_auth":                   Bp2BuildDefaultTrueRecursively,
 		"packages/modules/adb":                               Bp2BuildDefaultTrue,
 		"packages/modules/adb/crypto":                        Bp2BuildDefaultTrueRecursively,
@@ -208,6 +213,7 @@ var (
 		"system/core/libasyncio":                             Bp2BuildDefaultTrue,
 		"system/core/libcrypto_utils":                        Bp2BuildDefaultTrueRecursively,
 		"system/core/libcutils":                              Bp2BuildDefaultTrueRecursively,
+		"system/core/libpackagelistparser":                   Bp2BuildDefaultTrueRecursively,
 		"system/core/libprocessgroup":                        Bp2BuildDefaultTrue,
 		"system/core/libprocessgroup/cgrouprc":               Bp2BuildDefaultTrue,
 		"system/core/libprocessgroup/cgrouprc_format":        Bp2BuildDefaultTrue,
@@ -240,6 +246,8 @@ var (
 		// //external/libcap/...
 		"libcap",      // http://b/198595332, depends on _makenames, a cc_binary
 		"cap_names.h", // http://b/198596102, depends on _makenames, a cc_binary
+
+		"libminijail", // depends on unconverted modules: libcap
 
 		// Tests. Handle later.
 		"libbionic_tests_headers_posix", // http://b/186024507, cc_library_static, sched.h, time.h not found
@@ -282,7 +290,7 @@ var (
 		"libseccomp_policy_app_zygote_sources", // http://b/200899432, bazel-built cc_genrule does not work in mixed build when it is a dependency of another soong module.
 		"libseccomp_policy_app_sources",        // http://b/200899432, bazel-built cc_genrule does not work in mixed build when it is a dependency of another soong module.
 		"libseccomp_policy_system_sources",     // http://b/200899432, bazel-built cc_genrule does not work in mixed build when it is a dependency of another soong module.
-
+		"minijail_constants_json",              // http://b/200899432, bazel-built cc_genrule does not work in mixed build when it is a dependency of another soong module.
 	}
 
 	// Used for quicker lookups
