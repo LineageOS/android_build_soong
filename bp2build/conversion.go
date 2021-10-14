@@ -17,11 +17,11 @@ type BazelFile struct {
 	Contents string
 }
 
-func CreateSoongInjectionFiles(metrics CodegenMetrics) []BazelFile {
+func CreateSoongInjectionFiles(cfg android.Config, metrics CodegenMetrics) []BazelFile {
 	var files []BazelFile
 
 	files = append(files, newFile("cc_toolchain", GeneratedBuildFileName, "")) // Creates a //cc_toolchain package.
-	files = append(files, newFile("cc_toolchain", "constants.bzl", config.BazelCcToolchainVars()))
+	files = append(files, newFile("cc_toolchain", "constants.bzl", config.BazelCcToolchainVars(cfg)))
 
 	files = append(files, newFile("metrics", "converted_modules.txt", strings.Join(metrics.convertedModules, "\n")))
 
