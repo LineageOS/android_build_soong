@@ -98,6 +98,41 @@ func TestEnforceSingleSourceFile(t *testing.T) {
 		}`)
 }
 
+// Test that we reject _no_ source files.
+func TestEnforceMissingSourceFiles(t *testing.T) {
+
+	singleSrcError := "srcs must not be empty"
+
+	// Test libraries
+	testRustError(t, singleSrcError, `
+		rust_library_host {
+			name: "foo-bar-library",
+			crate_name: "foo",
+		}`)
+
+	// Test binaries
+	testRustError(t, singleSrcError, `
+		rust_binary_host {
+			name: "foo-bar-binary",
+			crate_name: "foo",
+		}`)
+
+	// Test proc_macros
+	testRustError(t, singleSrcError, `
+		rust_proc_macro {
+			name: "foo-bar-proc-macro",
+			crate_name: "foo",
+		}`)
+
+	// Test prebuilts
+	testRustError(t, singleSrcError, `
+		rust_prebuilt_dylib {
+			name: "foo-bar-prebuilt",
+			crate_name: "foo",
+		  host_supported: true,
+		}`)
+}
+
 // Test environment vars for Cargo compat are set.
 func TestCargoCompat(t *testing.T) {
 	ctx := testRust(t, `
