@@ -48,11 +48,17 @@ type cqueryRequest interface {
 	StarlarkFunctionBody() string
 }
 
+// Portion of cquery map key to describe target configuration.
+type configKey struct {
+	archType ArchType
+	osType   OsType
+}
+
 // Map key to describe bazel cquery requests.
 type cqueryKey struct {
 	label       string
 	requestType cqueryRequest
-	archType    ArchType
+	configKey   configKey
 }
 
 // bazelHandler is the interface for a helper object related to deferring to Bazel for
@@ -72,14 +78,14 @@ type BazelContext interface {
 	// has been queued to be run later.
 
 	// Returns result files built by building the given bazel target label.
-	GetOutputFiles(label string, archType ArchType) ([]string, bool)
+	GetOutputFiles(label string, cfgKey configKey) ([]string, bool)
 
 	// TODO(cparsons): Other cquery-related methods should be added here.
 	// Returns the results of GetOutputFiles and GetCcObjectFiles in a single query (in that order).
-	GetCcInfo(label string, archType ArchType) (cquery.CcInfo, bool, error)
+	GetCcInfo(label string, cfgKey configKey) (cquery.CcInfo, bool, error)
 
 	// Returns the executable binary resultant from building together the python sources
-	GetPythonBinary(label string, archType ArchType) (string, bool)
+	GetPythonBinary(label string, cfgKey configKey) (string, bool)
 
 	// ** End cquery methods
 
@@ -140,17 +146,17 @@ type MockBazelContext struct {
 	LabelToPythonBinary map[string]string
 }
 
-func (m MockBazelContext) GetOutputFiles(label string, archType ArchType) ([]string, bool) {
+func (m MockBazelContext) GetOutputFiles(label string, cfgKey configKey) ([]string, bool) {
 	result, ok := m.LabelToOutputFiles[label]
 	return result, ok
 }
 
-func (m MockBazelContext) GetCcInfo(label string, archType ArchType) (cquery.CcInfo, bool, error) {
+func (m MockBazelContext) GetCcInfo(label string, cfgKey configKey) (cquery.CcInfo, bool, error) {
 	result, ok := m.LabelToCcInfo[label]
 	return result, ok, nil
 }
 
-func (m MockBazelContext) GetPythonBinary(label string, archType ArchType) (string, bool) {
+func (m MockBazelContext) GetPythonBinary(label string, cfgKey configKey) (string, bool) {
 	result, ok := m.LabelToPythonBinary[label]
 	return result, ok
 }
@@ -171,8 +177,8 @@ func (m MockBazelContext) BuildStatementsToRegister() []bazel.BuildStatement {
 
 var _ BazelContext = MockBazelContext{}
 
-func (bazelCtx *bazelContext) GetOutputFiles(label string, archType ArchType) ([]string, bool) {
-	rawString, ok := bazelCtx.cquery(label, cquery.GetOutputFiles, archType)
+func (bazelCtx *bazelContext) GetOutputFiles(label string, cfgKey configKey) ([]string, bool) {
+	rawString, ok := bazelCtx.cquery(label, cquery.GetOutputFiles, cfgKey)
 	var ret []string
 	if ok {
 		bazelOutput := strings.TrimSpace(rawString)
@@ -181,8 +187,8 @@ func (bazelCtx *bazelContext) GetOutputFiles(label string, archType ArchType) ([
 	return ret, ok
 }
 
-func (bazelCtx *bazelContext) GetCcInfo(label string, archType ArchType) (cquery.CcInfo, bool, error) {
-	result, ok := bazelCtx.cquery(label, cquery.GetCcInfo, archType)
+func (bazelCtx *bazelContext) GetCcInfo(label string, cfgKey configKey) (cquery.CcInfo, bool, error) {
+	result, ok := bazelCtx.cquery(label, cquery.GetCcInfo, cfgKey)
 	if !ok {
 		return cquery.CcInfo{}, ok, nil
 	}
@@ -192,8 +198,8 @@ func (bazelCtx *bazelContext) GetCcInfo(label string, archType ArchType) (cquery
 	return ret, ok, err
 }
 
-func (bazelCtx *bazelContext) GetPythonBinary(label string, archType ArchType) (string, bool) {
-	rawString, ok := bazelCtx.cquery(label, cquery.GetPythonBinary, archType)
+func (bazelCtx *bazelContext) GetPythonBinary(label string, cfgKey configKey) (string, bool) {
+	rawString, ok := bazelCtx.cquery(label, cquery.GetPythonBinary, cfgKey)
 	var ret string
 	if ok {
 		bazelOutput := strings.TrimSpace(rawString)
@@ -202,15 +208,15 @@ func (bazelCtx *bazelContext) GetPythonBinary(label string, archType ArchType) (
 	return ret, ok
 }
 
-func (n noopBazelContext) GetOutputFiles(label string, archType ArchType) ([]string, bool) {
+func (n noopBazelContext) GetOutputFiles(label string, cfgKey configKey) ([]string, bool) {
 	panic("unimplemented")
 }
 
-func (n noopBazelContext) GetCcInfo(label string, archType ArchType) (cquery.CcInfo, bool, error) {
+func (n noopBazelContext) GetCcInfo(label string, cfgKey configKey) (cquery.CcInfo, bool, error) {
 	panic("unimplemented")
 }
 
-func (n noopBazelContext) GetPythonBinary(label string, archType ArchType) (string, bool) {
+func (n noopBazelContext) GetPythonBinary(label string, cfgKey configKey) (string, bool) {
 	panic("unimplemented")
 }
 
@@ -303,8 +309,8 @@ func (context *bazelContext) BazelEnabled() bool {
 // returns (result, true). If the request is queued but no results are available,
 // then returns ("", false).
 func (context *bazelContext) cquery(label string, requestType cqueryRequest,
-	archType ArchType) (string, bool) {
-	key := cqueryKey{label, requestType, archType}
+	cfgKey configKey) (string, bool) {
+	key := cqueryKey{label, requestType, cfgKey}
 	if result, ok := context.results[key]; ok {
 		return result, true
 	} else {
@@ -419,7 +425,7 @@ func (context *bazelContext) mainBzlFileContents() []byte {
 
 def _config_node_transition_impl(settings, attr):
     return {
-        "//command_line_option:platforms": "@//build/bazel/platforms:android_%s" % attr.arch,
+        "//command_line_option:platforms": "@//build/bazel/platforms:%s_%s" % (attr.os, attr.arch),
     }
 
 _config_node_transition = transition(
@@ -437,7 +443,8 @@ config_node = rule(
     implementation = _passthrough_rule_impl,
     attrs = {
         "arch" : attr.string(mandatory = True),
-        "deps" : attr.label_list(cfg = _config_node_transition),
+        "os"   : attr.string(mandatory = True),
+        "deps" : attr.label_list(cfg = _config_node_transition, allow_files = True),
         "_allowlist_function_transition": attr.label(default = "@bazel_tools//tools/allowlists/function_transition_allowlist"),
     },
 )
@@ -488,38 +495,32 @@ phony_root(name = "phonyroot",
 	configNodeFormatString := `
 config_node(name = "%s",
     arch = "%s",
+    os = "%s",
     deps = [%s],
-)
-`
-
-	commonArchFilegroupString := `
-filegroup(name = "common",
-    srcs = [%s],
 )
 `
 
 	configNodesSection := ""
 
-	labelsByArch := map[string][]string{}
+	labelsByConfig := map[string][]string{}
 	for val, _ := range context.requests {
 		labelString := fmt.Sprintf("\"@%s\"", val.label)
-		archString := getArchString(val)
-		labelsByArch[archString] = append(labelsByArch[archString], labelString)
+		configString := getConfigString(val)
+		labelsByConfig[configString] = append(labelsByConfig[configString], labelString)
 	}
 
 	allLabels := []string{}
-	for archString, labels := range labelsByArch {
-		if archString == "common" {
-			// arch-less labels (e.g. filegroups) don't need a config_node
-			allLabels = append(allLabels, "\":common\"")
-			labelsString := strings.Join(labels, ",\n            ")
-			configNodesSection += fmt.Sprintf(commonArchFilegroupString, labelsString)
-		} else {
-			// Create a config_node, and add the config_node's label to allLabels
-			allLabels = append(allLabels, fmt.Sprintf("\":%s\"", archString))
-			labelsString := strings.Join(labels, ",\n            ")
-			configNodesSection += fmt.Sprintf(configNodeFormatString, archString, archString, labelsString)
+	for configString, labels := range labelsByConfig {
+		configTokens := strings.Split(configString, "|")
+		if len(configTokens) != 2 {
+			panic(fmt.Errorf("Unexpected config string format: %s", configString))
 		}
+		archString := configTokens[0]
+		osString := configTokens[1]
+		targetString := fmt.Sprintf("%s_%s", osString, archString)
+		allLabels = append(allLabels, fmt.Sprintf("\":%s\"", targetString))
+		labelsString := strings.Join(labels, ",\n            ")
+		configNodesSection += fmt.Sprintf(configNodeFormatString, targetString, archString, osString, labelsString)
 	}
 
 	return []byte(fmt.Sprintf(formatString, configNodesSection, strings.Join(allLabels, ",\n            ")))
@@ -587,11 +588,15 @@ def %s(target):
 %s
 
 def get_arch(target):
+  # TODO(b/199363072): filegroups and file targets aren't associated with any
+  # specific platform architecture in mixed builds. This is consistent with how
+  # Soong treats filegroups, but it may not be the case with manually-written
+  # filegroup BUILD targets.
   buildoptions = build_options(target)
   if buildoptions == None:
     # File targets do not have buildoptions. File targets aren't associated with
-    #  any specific platform architecture in mixed builds.
-    return "common"
+    #  any specific platform architecture in mixed builds, so use the host.
+    return "x86_64|linux"
   platforms = build_options(target)["//command_line_option:platforms"]
   if len(platforms) != 1:
     # An individual configured target should have only one platform architecture.
@@ -601,10 +606,12 @@ def get_arch(target):
   platform_name = build_options(target)["//command_line_option:platforms"][0].name
   if platform_name == "host":
     return "HOST"
+  elif platform_name.startswith("linux_glibc_"):
+    return platform_name[len("linux_glibc_"):] + "|" + platform_name[:len("linux_glibc_")-1]
   elif platform_name.startswith("android_"):
-    return platform_name[len("android_"):]
+    return platform_name[len("android_"):] + "|" + platform_name[:len("android_")-1]
   elif platform_name.startswith("linux_"):
-    return platform_name[len("linux_"):]
+    return platform_name[len("linux_"):] + "|" + platform_name[:len("linux_")-1]
   else:
     fail("expected platform name of the form 'android_<arch>' or 'linux_<arch>', but was " + str(platforms))
     return "UNKNOWN"
@@ -852,14 +859,23 @@ func (c *bazelSingleton) GenerateBuildActions(ctx SingletonContext) {
 }
 
 func getCqueryId(key cqueryKey) string {
-	return key.label + "|" + getArchString(key)
+	return key.label + "|" + getConfigString(key)
 }
 
-func getArchString(key cqueryKey) string {
-	arch := key.archType.Name
-	if len(arch) > 0 {
-		return arch
-	} else {
-		return "x86_64"
+func getConfigString(key cqueryKey) string {
+	arch := key.configKey.archType.Name
+	if len(arch) == 0 || arch == "common" {
+		// Use host platform, which is currently hardcoded to be x86_64.
+		arch = "x86_64"
 	}
+	os := key.configKey.osType.Name
+	if len(os) == 0 || os == "common_os" {
+		// Use host OS, which is currently hardcoded to be linux.
+		os = "linux"
+	}
+	return arch + "|" + os
+}
+
+func GetConfigKey(ctx ModuleContext) configKey {
+	return configKey{archType: ctx.Arch().ArchType, osType: ctx.Os()}
 }
