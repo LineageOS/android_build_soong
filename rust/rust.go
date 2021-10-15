@@ -594,6 +594,13 @@ func (mod *Module) CcLibraryInterface() bool {
 	return false
 }
 
+func (mod *Module) UnstrippedOutputFile() android.Path {
+	if mod.unstrippedOutputFile.Valid() {
+		return mod.unstrippedOutputFile.Path()
+	}
+	return nil
+}
+
 func (mod *Module) IncludeDirs() android.Paths {
 	if mod.compiler != nil {
 		if library, ok := mod.compiler.(*libraryDecorator); ok {
