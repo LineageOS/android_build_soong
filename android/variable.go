@@ -40,6 +40,7 @@ type variableProperties struct {
 		Platform_sdk_version struct {
 			Asflags []string
 			Cflags  []string
+			Cmd     *string
 		}
 
 		Platform_sdk_version_or_codename struct {
@@ -48,6 +49,10 @@ type variableProperties struct {
 
 		Platform_sdk_extension_version struct {
 			Cmd *string
+		}
+
+		Platform_version_name struct {
+			Base_dir *string
 		}
 
 		// unbundled_build is a catch-all property to annotate modules that don't build in one or

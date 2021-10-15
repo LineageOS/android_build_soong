@@ -60,6 +60,11 @@ func (library *Library) AndroidMkEntriesHostDex() android.AndroidMkEntries {
 func (library *Library) AndroidMkEntries() []android.AndroidMkEntries {
 	var entriesList []android.AndroidMkEntries
 
+	if library.Os() == android.Windows {
+		// Make does not support Windows Java modules
+		return nil
+	}
+
 	if library.hideApexVariantFromMake {
 		// For a java library built for an APEX, we don't need a Make module for itself. Otherwise, it
 		// will conflict with the platform variant because they have the same module name in the
@@ -250,6 +255,10 @@ func (prebuilt *AARImport) AndroidMkEntries() []android.AndroidMkEntries {
 }
 
 func (binary *Binary) AndroidMkEntries() []android.AndroidMkEntries {
+	if binary.Os() == android.Windows {
+		// Make does not support Windows Java modules
+		return nil
+	}
 
 	if !binary.isWrapperVariant {
 		return []android.AndroidMkEntries{android.AndroidMkEntries{
