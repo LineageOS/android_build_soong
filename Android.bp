@@ -62,6 +62,7 @@ toolchain_library {
         },
     },
     notice: ":mingw-libwinpthread-notice",
+    licenses: ["winpthreads_license"],
 }
 
 kernel_headers {

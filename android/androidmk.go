@@ -836,6 +836,7 @@ func translateAndroidModule(ctx SingletonContext, w io.Writer, mod blueprint.Mod
 		case "*aidl.aidlApi": // writes non-custom before adding .phony
 		case "*aidl.aidlMapping": // writes non-custom before adding .phony
 		case "*android.customModule": // appears in tests only
+		case "*android_sdk.sdkRepoHost": // doesn't go through base_rules
 		case "*apex.apexBundle": // license properties written
 		case "*bpf.bpf": // license properties written (both for module and objs)
 		case "*genrule.Module": // writes non-custom before adding .phony
