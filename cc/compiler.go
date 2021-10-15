@@ -209,15 +209,6 @@ type BaseCompilerProperties struct {
 
 	// Build and link with OpenMP
 	Openmp *bool `android:"arch_variant"`
-
-	// Deprecated.
-	// Adds __ANDROID_APEX_<APEX_MODULE_NAME>__ macro defined for apex variants in addition to __ANDROID_APEX__
-	Use_apex_name_macro *bool
-
-	// Adds two macros for apex variants in addition to __ANDROID_APEX__
-	// * __ANDROID_APEX_COM_ANDROID_FOO__
-	// * __ANDROID_APEX_NAME__="com.android.foo"
-	UseApexNameMacro bool `blueprint:"mutated"`
 }
 
 func NewBaseCompiler() *baseCompiler {
@@ -289,10 +280,6 @@ func (compiler *baseCompiler) compilerDeps(ctx DepsContext, deps Deps) Deps {
 	}
 
 	return deps
-}
-
-func (compiler *baseCompiler) useApexNameMacro() bool {
-	return Bool(compiler.Properties.Use_apex_name_macro) || compiler.Properties.UseApexNameMacro
 }
 
 // Return true if the module is in the WarningAllowedProjects.
@@ -405,10 +392,6 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 
 	if ctx.apexVariationName() != "" {
 		flags.Global.CommonFlags = append(flags.Global.CommonFlags, "-D__ANDROID_APEX__")
-		if compiler.useApexNameMacro() {
-			flags.Global.CommonFlags = append(flags.Global.CommonFlags, "-D__ANDROID_APEX_"+makeDefineString(ctx.apexVariationName())+"__")
-			flags.Global.CommonFlags = append(flags.Global.CommonFlags, "-D__ANDROID_APEX_NAME__='\""+ctx.apexVariationName()+"\"'")
-		}
 		if ctx.Device() {
 			flags.Global.CommonFlags = append(flags.Global.CommonFlags,
 				fmt.Sprintf("-D__ANDROID_APEX_MIN_SDK_VERSION__=%d",
@@ -632,10 +615,6 @@ func (compiler *baseCompiler) hasSrcExt(ext string) bool {
 	}
 
 	return false
-}
-
-func (compiler *baseCompiler) uniqueApexVariations() bool {
-	return compiler.useApexNameMacro()
 }
 
 var invalidDefineCharRegex = regexp.MustCompile("[^a-zA-Z0-9_]")
