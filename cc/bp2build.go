@@ -14,6 +14,7 @@
 package cc
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -397,7 +398,7 @@ type linkerAttributes struct {
 	linkCrt                       bazel.BoolAttribute
 	useLibcrt                     bazel.BoolAttribute
 	linkopts                      bazel.StringListAttribute
-	versionScript                 bazel.LabelAttribute
+	additionalLinkerInputs        bazel.LabelListAttribute
 	stripKeepSymbols              bazel.BoolAttribute
 	stripKeepSymbolsAndDebugFrame bazel.BoolAttribute
 	stripKeepSymbolsList          bazel.StringListAttribute
@@ -420,8 +421,8 @@ func bp2BuildParseLinkerProps(ctx android.TopDownMutatorContext, module *Module)
 	systemSharedDeps := bazel.LabelListAttribute{ForceSpecifyEmptyList: true}
 
 	var linkopts bazel.StringListAttribute
-	var versionScript bazel.LabelAttribute
 	var linkCrt bazel.BoolAttribute
+	var additionalLinkerInputs bazel.LabelListAttribute
 	var useLibcrt bazel.BoolAttribute
 
 	var stripKeepSymbols bazel.BoolAttribute
@@ -482,7 +483,6 @@ func bp2BuildParseLinkerProps(ctx android.TopDownMutatorContext, module *Module)
 				headerDeps.SetSelectValue(axis, config, hDeps.export)
 				implementationHeaderDeps.SetSelectValue(axis, config, hDeps.implementation)
 
-				linkopts.SetSelectValue(axis, config, baseLinkerProps.Ldflags)
 				if !BoolDefault(baseLinkerProps.Pack_relocations, packRelocationsDefault) {
 					axisFeatures = append(axisFeatures, "disable_pack_relocations")
 				}
@@ -491,9 +491,16 @@ func bp2BuildParseLinkerProps(ctx android.TopDownMutatorContext, module *Module)
 					axisFeatures = append(axisFeatures, "-no_undefined_symbols")
 				}
 
-				if baseLinkerProps.Version_script != nil {
-					versionScript.SetSelectValue(axis, config, android.BazelLabelForModuleSrcSingle(ctx, *baseLinkerProps.Version_script))
+				var linkerFlags []string
+				if len(baseLinkerProps.Ldflags) > 0 {
+					linkerFlags = append(linkerFlags, baseLinkerProps.Ldflags...)
 				}
+				if baseLinkerProps.Version_script != nil {
+					label := android.BazelLabelForModuleSrcSingle(ctx, *baseLinkerProps.Version_script)
+					additionalLinkerInputs.SetSelectValue(axis, config, bazel.LabelList{Includes: []bazel.Label{label}})
+					linkerFlags = append(linkerFlags, fmt.Sprintf("-Wl,--version-script,$(location %s)", label.Label))
+				}
+				linkopts.SetSelectValue(axis, config, linkerFlags)
 				useLibcrt.SetSelectValue(axis, config, baseLinkerProps.libCrt())
 
 				// it's very unlikely for nocrt to be arch variant, so bp2build doesn't support it.
@@ -585,10 +592,10 @@ func bp2BuildParseLinkerProps(ctx android.TopDownMutatorContext, module *Module)
 		wholeArchiveDeps:          wholeArchiveDeps,
 		systemDynamicDeps:         systemSharedDeps,
 
-		linkCrt:       linkCrt,
-		linkopts:      linkopts,
-		useLibcrt:     useLibcrt,
-		versionScript: versionScript,
+		linkCrt:                linkCrt,
+		linkopts:               linkopts,
+		useLibcrt:              useLibcrt,
+		additionalLinkerInputs: additionalLinkerInputs,
 
 		// Strip properties
 		stripKeepSymbols:              stripKeepSymbols,
