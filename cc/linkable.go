@@ -110,6 +110,7 @@ type LinkableInterface interface {
 	BaseModuleName() string
 
 	OutputFile() android.OptionalPath
+	UnstrippedOutputFile() android.Path
 	CoverageFiles() android.Paths
 
 	NonCcVariants() bool
