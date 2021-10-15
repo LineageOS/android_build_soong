@@ -38,6 +38,8 @@ type PackagingSpec struct {
 
 	// Whether relPathInPackage should be marked as executable or not
 	executable bool
+
+	effectiveLicenseFiles *Paths
 }
 
 // Get file name of installed package
@@ -52,6 +54,17 @@ func (p *PackagingSpec) FileName() string {
 // Path relative to the root of the package
 func (p *PackagingSpec) RelPathInPackage() string {
 	return p.relPathInPackage
+}
+
+func (p *PackagingSpec) SetRelPathInPackage(relPathInPackage string) {
+	p.relPathInPackage = relPathInPackage
+}
+
+func (p *PackagingSpec) EffectiveLicenseFiles() Paths {
+	if p.effectiveLicenseFiles == nil {
+		return Paths{}
+	}
+	return *p.effectiveLicenseFiles
 }
 
 type PackageModule interface {
@@ -214,15 +227,9 @@ func (p *PackagingBase) GatherPackagingSpecs(ctx ModuleContext) map[string]Packa
 	return m
 }
 
-// See PackageModule.CopyDepsToZip
-func (p *PackagingBase) CopyDepsToZip(ctx ModuleContext, zipOut WritablePath) (entries []string) {
-	m := p.GatherPackagingSpecs(ctx)
-	builder := NewRuleBuilder(pctx, ctx)
-
-	dir := PathForModuleOut(ctx, ".zip")
-	builder.Command().Text("rm").Flag("-rf").Text(dir.String())
-	builder.Command().Text("mkdir").Flag("-p").Text(dir.String())
-
+// CopySpecsToDir is a helper that will add commands to the rule builder to copy the PackagingSpec
+// entries into the specified directory.
+func (p *PackagingBase) CopySpecsToDir(ctx ModuleContext, builder *RuleBuilder, m map[string]PackagingSpec, dir ModuleOutPath) (entries []string) {
 	seenDir := make(map[string]bool)
 	for _, k := range SortedStringKeys(m) {
 		ps := m[k]
@@ -242,6 +249,19 @@ func (p *PackagingBase) CopyDepsToZip(ctx ModuleContext, zipOut WritablePath) (e
 			builder.Command().Text("chmod").Flag("a+x").Text(destPath)
 		}
 	}
+
+	return entries
+}
+
+// See PackageModule.CopyDepsToZip
+func (p *PackagingBase) CopyDepsToZip(ctx ModuleContext, zipOut WritablePath) (entries []string) {
+	m := p.GatherPackagingSpecs(ctx)
+	builder := NewRuleBuilder(pctx, ctx)
+
+	dir := PathForModuleOut(ctx, ".zip")
+	builder.Command().Text("rm").Flag("-rf").Text(dir.String())
+	builder.Command().Text("mkdir").Flag("-p").Text(dir.String())
+	entries = p.CopySpecsToDir(ctx, builder, m, dir)
 
 	builder.Command().
 		BuiltTool("soong_zip").

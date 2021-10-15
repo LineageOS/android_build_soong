@@ -150,6 +150,7 @@ func createTrebleRules() []Rule {
 
 func createJavaDeviceForHostRules() []Rule {
 	javaDeviceForHostProjectsAllowedList := []string{
+		"development/build",
 		"external/guava",
 		"external/robolectric-shadows",
 		"frameworks/layoutlib",
