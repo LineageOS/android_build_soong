@@ -101,6 +101,7 @@ var VndkMustUseVendorVariantList = []string{
 	"android.system.keystore2-V1-ndk",
 	"android.hardware.wifi.hostapd-V1-ndk",
 	"android.hardware.wifi.hostapd-V1-ndk_platform",
+	"android.hardware.wifi.supplicant-V1-ndk",
 	"android.system.keystore2-V1-ndk_platform",
 	"android.system.keystore2-ndk_platform",
 	"android.system.keystore2-unstable-ndk_platform",
