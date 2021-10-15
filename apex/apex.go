@@ -158,8 +158,8 @@ type apexBundleProperties struct {
 	// is 'image'.
 	Payload_type *string
 
-	// The type of filesystem to use when the payload_type is 'image'. Either 'ext4' or 'f2fs'.
-	// Default 'ext4'.
+	// The type of filesystem to use when the payload_type is 'image'. Either 'ext4', 'f2fs'
+	// or 'erofs'. Default 'ext4'.
 	Payload_fs_type *string
 
 	// For telling the APEX to ignore special handling for system libraries such as bionic.
@@ -1153,6 +1153,7 @@ const (
 
 	ext4FsType = "ext4"
 	f2fsFsType = "f2fs"
+	erofsFsType = "erofs"
 )
 
 // The suffix for the output "file", not the module
@@ -1625,6 +1626,7 @@ type fsType int
 const (
 	ext4 fsType = iota
 	f2fs
+	erofs
 )
 
 func (f fsType) string() string {
@@ -1633,6 +1635,8 @@ func (f fsType) string() string {
 		return ext4FsType
 	case f2fs:
 		return f2fsFsType
+	case erofs:
+		return erofsFsType
 	default:
 		panic(fmt.Errorf("unknown APEX payload type %d", f))
 	}
@@ -2056,8 +2060,10 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		a.payloadFsType = ext4
 	case f2fsFsType:
 		a.payloadFsType = f2fs
+	case erofsFsType:
+		a.payloadFsType = erofs
 	default:
-		ctx.PropertyErrorf("payload_fs_type", "%q is not a valid filesystem for apex [ext4, f2fs]", *a.properties.Payload_fs_type)
+		ctx.PropertyErrorf("payload_fs_type", "%q is not a valid filesystem for apex [ext4, f2fs, erofs]", *a.properties.Payload_fs_type)
 	}
 
 	// Optimization. If we are building bundled APEX, for the files that are gathered due to the
