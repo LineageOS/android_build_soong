@@ -111,6 +111,10 @@ func (s *rustFuzzPackager) GenerateBuildActions(ctx android.SingletonContext) {
 	// List of individual fuzz targets.
 	s.FuzzTargets = make(map[string]bool)
 
+	// Map tracking whether each shared library has an install rule to avoid duplicate install rules from
+	// multiple fuzzers that depend on the same shared library.
+	sharedLibraryInstalled := make(map[string]bool)
+
 	ctx.VisitAllModules(func(module android.Module) {
 		// Discard non-fuzz targets.
 		rustModule, ok := module.(*Module)
@@ -144,6 +148,12 @@ func (s *rustFuzzPackager) GenerateBuildActions(ctx android.SingletonContext) {
 
 		// The executable.
 		files = append(files, fuzz.FileToZip{rustModule.unstrippedOutputFile.Path(), ""})
+
+		// Grab the list of required shared libraries.
+		sharedLibraries := fuzz.CollectAllSharedDependencies(ctx, module, cc.UnstrippedOutputFile, cc.IsValidSharedDependency)
+
+		// Package shared libraries
+		files = append(files, cc.GetSharedLibsToZip(sharedLibraries, rustModule, &s.FuzzPackager, archString, &sharedLibraryInstalled)...)
 
 		archDirs[archOs], ok = s.BuildZipFile(ctx, module, fuzzModule.fuzzPackagedModule, files, builder, archDir, archString, hostOrTargetString, archOs, archDirs)
 		if !ok {
