@@ -439,6 +439,7 @@ func PrebuiltEtcHostFactory() android.Module {
 	InitPrebuiltEtcModule(module, "etc")
 	// This module is host-only
 	android.InitAndroidArchModule(module, android.HostSupported, android.MultilibCommon)
+	android.InitDefaultableModule(module)
 	return module
 }
 
@@ -449,6 +450,7 @@ func PrebuiltRootFactory() android.Module {
 	InitPrebuiltRootModule(module)
 	// This module is device-only
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
+	android.InitDefaultableModule(module)
 	return module
 }
 
@@ -459,6 +461,7 @@ func PrebuiltUserShareFactory() android.Module {
 	InitPrebuiltEtcModule(module, "usr/share")
 	// This module is device-only
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
+	android.InitDefaultableModule(module)
 	return module
 }
 
@@ -469,6 +472,7 @@ func PrebuiltUserShareHostFactory() android.Module {
 	InitPrebuiltEtcModule(module, "usr/share")
 	// This module is host-only
 	android.InitAndroidArchModule(module, android.HostSupported, android.MultilibCommon)
+	android.InitDefaultableModule(module)
 	return module
 }
 
@@ -478,6 +482,7 @@ func PrebuiltFontFactory() android.Module {
 	InitPrebuiltEtcModule(module, "fonts")
 	// This module is device-only
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
+	android.InitDefaultableModule(module)
 	return module
 }
 
@@ -491,6 +496,7 @@ func PrebuiltFirmwareFactory() android.Module {
 	InitPrebuiltEtcModule(module, "etc/firmware")
 	// This module is device-only
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
+	android.InitDefaultableModule(module)
 	return module
 }
 
@@ -503,6 +509,7 @@ func PrebuiltDSPFactory() android.Module {
 	InitPrebuiltEtcModule(module, "etc/dsp")
 	// This module is device-only
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
+	android.InitDefaultableModule(module)
 	return module
 }
 
@@ -516,6 +523,7 @@ func PrebuiltRFSAFactory() android.Module {
 	InitPrebuiltEtcModule(module, "lib/rfsa")
 	// This module is device-only
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
+	android.InitDefaultableModule(module)
 	return module
 }
 

@@ -361,7 +361,8 @@ cc_library_shared {
 }`,
 		expectedBazelTargets: []string{`cc_library_shared(
     name = "foo_shared",
-    version_script = "version_script",
+    additional_linker_inputs = ["version_script"],
+    linkopts = ["-Wl,--version-script,$(location version_script)"],
 )`},
 	})
 }
