@@ -2818,11 +2818,13 @@ func (m *moduleContext) PackageFile(installPath InstallPath, name string, srcPat
 }
 
 func (m *moduleContext) packageFile(fullInstallPath InstallPath, srcPath Path, executable bool) PackagingSpec {
+	licenseFiles := m.Module().EffectiveLicenseFiles()
 	spec := PackagingSpec{
-		relPathInPackage: Rel(m, fullInstallPath.PartitionDir(), fullInstallPath.String()),
-		srcPath:          srcPath,
-		symlinkTarget:    "",
-		executable:       executable,
+		relPathInPackage:      Rel(m, fullInstallPath.PartitionDir(), fullInstallPath.String()),
+		srcPath:               srcPath,
+		symlinkTarget:         "",
+		executable:            executable,
+		effectiveLicenseFiles: &licenseFiles,
 	}
 	m.packagingSpecs = append(m.packagingSpecs, spec)
 	return spec
