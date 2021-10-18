@@ -859,7 +859,7 @@ func TestSimpleSymlink(t *testing.T) {
 		BuildStatement{
 			Command: "mkdir -p one/symlink_subdir && " +
 				"rm -f one/symlink_subdir/symlink && " +
-				"ln -rsf one/file_subdir/file one/symlink_subdir/symlink",
+				"ln -f one/file_subdir/file one/symlink_subdir/symlink",
 			InputPaths:   []string{"one/file_subdir/file"},
 			OutputPaths:  []string{"one/symlink_subdir/symlink"},
 			SymlinkPaths: []string{"one/symlink_subdir/symlink"},
@@ -923,7 +923,7 @@ func TestSymlinkQuotesPaths(t *testing.T) {
 		BuildStatement{
 			Command: "mkdir -p 'one/symlink subdir' && " +
 				"rm -f 'one/symlink subdir/symlink' && " +
-				"ln -rsf 'one/file subdir/file' 'one/symlink subdir/symlink'",
+				"ln -f 'one/file subdir/file' 'one/symlink subdir/symlink'",
 			InputPaths:   []string{"one/file subdir/file"},
 			OutputPaths:  []string{"one/symlink subdir/symlink"},
 			SymlinkPaths: []string{"one/symlink subdir/symlink"},
