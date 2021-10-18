@@ -1151,8 +1151,8 @@ const (
 	zipApexType       = "zip"
 	flattenedApexType = "flattened"
 
-	ext4FsType = "ext4"
-	f2fsFsType = "f2fs"
+	ext4FsType  = "ext4"
+	f2fsFsType  = "f2fs"
 	erofsFsType = "erofs"
 )
 
@@ -1681,6 +1681,9 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	ctx.WalkDepsBlueprint(func(child, parent blueprint.Module) bool {
 		depTag := ctx.OtherModuleDependencyTag(child)
 		if _, ok := depTag.(android.ExcludeFromApexContentsTag); ok {
+			return false
+		}
+		if mod, ok := child.(android.Module); ok && !mod.Enabled() {
 			return false
 		}
 		depName := ctx.OtherModuleName(child)
