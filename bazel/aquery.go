@@ -246,7 +246,8 @@ func AqueryBuildStatements(aqueryJsonProto []byte) ([]BuildStatement, error) {
 			outDir := proptools.ShellEscapeIncludingSpaces(filepath.Dir(out))
 			out = proptools.ShellEscapeIncludingSpaces(out)
 			in := proptools.ShellEscapeIncludingSpaces(inputPaths[0])
-			buildStatement.Command = fmt.Sprintf("mkdir -p %[1]s && rm -f %[2]s && ln -rsf %[3]s %[2]s", outDir, out, in)
+			// Use hard links, because some soong actions expect real files (for example, `cp -d`).
+			buildStatement.Command = fmt.Sprintf("mkdir -p %[1]s && rm -f %[2]s && ln -f %[3]s %[2]s", outDir, out, in)
 			buildStatement.SymlinkPaths = outputPaths[:]
 		} else if len(actionEntry.Arguments) < 1 {
 			return nil, fmt.Errorf("received action with no command: [%v]", buildStatement)
