@@ -422,6 +422,8 @@ type productVariables struct {
 
 	SepolicyFreezeTestExtraDirs         []string `json:",omitempty"`
 	SepolicyFreezeTestExtraPrebuiltDirs []string `json:",omitempty"`
+
+	GenerateAidlNdkPlatformBackend bool `json:",omitempty"`
 }
 
 func boolPtr(v bool) *bool {
