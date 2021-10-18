@@ -60,7 +60,7 @@ func TestSoongConfigModule(t *testing.T) {
 			module_type: "test",
 			config_namespace: "acme",
 			variables: ["board", "feature1", "FEATURE3", "unused_string_var"],
-			bool_variables: ["feature2", "unused_feature"],
+			bool_variables: ["feature2", "unused_feature", "always_true"],
 			value_variables: ["size", "unused_size"],
 			properties: ["cflags", "srcs", "defaults"],
 		}
@@ -148,6 +148,11 @@ func TestSoongConfigModule(t *testing.T) {
 			cflags: ["DEFAULT_B"],
 		}
 
+		test_defaults {
+			name: "foo_defaults_always_true",
+			cflags: ["DEFAULT_ALWAYS_TRUE"],
+		}
+
 		acme_test {
 			name: "foo_with_defaults",
 			cflags: ["-DGENERIC"],
@@ -175,6 +180,15 @@ func TestSoongConfigModule(t *testing.T) {
 				},
 				FEATURE3: {
 					cflags: ["-DFEATURE3"],
+				},
+				always_true: {
+					defaults: ["foo_defaults_always_true"],
+					conditions_default: {
+						// verify that conditions_default is skipped if the
+						// soong config variable is true by specifying a
+						// non-existent module in conditions_default
+						defaults: ["//nonexistent:defaults"],
+					}
 				},
 			},
 		}
@@ -205,6 +219,7 @@ func TestSoongConfigModule(t *testing.T) {
 						"unused_feature":    "true", // unused
 						"unused_size":       "1",    // unused
 						"unused_string_var": "a",    // unused
+						"always_true":       "true",
 					},
 				}),
 				fooExpectedFlags: []string{
@@ -217,6 +232,7 @@ func TestSoongConfigModule(t *testing.T) {
 				},
 				fooDefaultsExpectedFlags: []string{
 					"DEFAULT_A",
+					"DEFAULT_ALWAYS_TRUE",
 					"DEFAULT",
 					"-DGENERIC",
 					"-DSIZE=42",
@@ -227,7 +243,10 @@ func TestSoongConfigModule(t *testing.T) {
 			{
 				name: "empty_prop_for_string_var",
 				preparer: fixtureForVendorVars(map[string]map[string]string{
-					"acme": {"board": "soc_c"}}),
+					"acme": {
+						"board":       "soc_c",
+						"always_true": "true",
+					}}),
 				fooExpectedFlags: []string{
 					"DEFAULT",
 					"-DGENERIC",
@@ -236,6 +255,7 @@ func TestSoongConfigModule(t *testing.T) {
 					"-DF1_CONDITIONS_DEFAULT",
 				},
 				fooDefaultsExpectedFlags: []string{
+					"DEFAULT_ALWAYS_TRUE",
 					"DEFAULT",
 					"-DGENERIC",
 				},
@@ -243,7 +263,10 @@ func TestSoongConfigModule(t *testing.T) {
 			{
 				name: "unused_string_var",
 				preparer: fixtureForVendorVars(map[string]map[string]string{
-					"acme": {"board": "soc_d"}}),
+					"acme": {
+						"board":       "soc_d",
+						"always_true": "true",
+					}}),
 				fooExpectedFlags: []string{
 					"DEFAULT",
 					"-DGENERIC",
@@ -253,14 +276,18 @@ func TestSoongConfigModule(t *testing.T) {
 					"-DF1_CONDITIONS_DEFAULT",
 				},
 				fooDefaultsExpectedFlags: []string{
+					"DEFAULT_ALWAYS_TRUE",
 					"DEFAULT",
 					"-DGENERIC",
 				},
 			},
 
 			{
-				name:     "conditions_default",
-				preparer: fixtureForVendorVars(map[string]map[string]string{}),
+				name: "conditions_default",
+				preparer: fixtureForVendorVars(map[string]map[string]string{
+					"acme": {
+						"always_true": "true",
+					}}),
 				fooExpectedFlags: []string{
 					"DEFAULT",
 					"-DGENERIC",
@@ -270,6 +297,7 @@ func TestSoongConfigModule(t *testing.T) {
 					"-DF1_CONDITIONS_DEFAULT",
 				},
 				fooDefaultsExpectedFlags: []string{
+					"DEFAULT_ALWAYS_TRUE",
 					"DEFAULT",
 					"-DGENERIC",
 				},
