@@ -12,33 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package {
-    default_applicable_licenses: ["Android-Apache-2.0"],
-}
+package main
 
-blueprint_go_binary {
-    name: "multiproduct_kati",
-    deps: [
-        "soong-ui-logger",
-        "soong-ui-signal",
-        "soong-ui-terminal",
-        "soong-ui-tracer",
-        "soong-zip",
-    ],
-    srcs: [
-        "main.go",
-    ],
-    testSrcs: [
-        "main_test.go",
-    ],
-    linux: {
-        srcs: [
-            "main_linux.go",
-        ],
-    },
-    darwin: {
-        srcs: [
-            "main_darwin.go",
-        ],
-    },
+func detectTotalRAM() uint64 {
+	// unimplemented stub on darwin
+	return 0
 }

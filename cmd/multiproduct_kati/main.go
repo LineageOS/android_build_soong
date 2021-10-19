@@ -166,15 +166,6 @@ type mpContext struct {
 	MainLogsDir string
 }
 
-func detectTotalRAM() uint64 {
-	var info syscall.Sysinfo_t
-	err := syscall.Sysinfo(&info)
-	if err != nil {
-		panic(err)
-	}
-	return info.Totalram * uint64(info.Unit)
-}
-
 func findNamedProducts(soongUi string, log logger.Logger) []string {
 	cmd := exec.Command(soongUi, "--dumpvars-mode", "--vars=all_named_products")
 	output, err := cmd.Output()
