@@ -39,6 +39,7 @@ const (
 	osArchAndroidArm64      = "android_arm64"
 	osArchAndroidX86        = "android_x86"
 	osArchAndroidX86_64     = "android_x86_64"
+	osArchDarwinArm64       = "darwin_arm64"
 	osArchDarwinX86_64      = "darwin_x86_64"
 	osArchLinuxX86          = "linux_glibc_x86"
 	osArchLinuxX86_64       = "linux_glibc_x86_64"
@@ -96,6 +97,7 @@ var (
 		osArchAndroidArm64:         "//build/bazel/platforms/os_arch:android_arm64",
 		osArchAndroidX86:           "//build/bazel/platforms/os_arch:android_x86",
 		osArchAndroidX86_64:        "//build/bazel/platforms/os_arch:android_x86_64",
+		osArchDarwinArm64:          "//build/bazel/platforms/os_arch:darwin_arm64",
 		osArchDarwinX86_64:         "//build/bazel/platforms/os_arch:darwin_x86_64",
 		osArchLinuxX86:             "//build/bazel/platforms/os_arch:linux_glibc_x86",
 		osArchLinuxX86_64:          "//build/bazel/platforms/os_arch:linux_glibc_x86_64",
