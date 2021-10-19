@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -155,6 +156,11 @@ func buildContextAndCustomModuleFoo(t *testing.T, bp string) (*TestContext, *cus
 }
 
 func TestAndroidMkSingleton_PassesUpdatedAndroidMkDataToCustomCallback(t *testing.T) {
+	if runtime.GOOS == "darwin" {
+		// Device modules are not exported on Mac, so this test doesn't work.
+		t.SkipNow()
+	}
+
 	bp := `
 	custom {
 		name: "foo",
