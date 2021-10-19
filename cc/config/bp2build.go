@@ -16,9 +16,13 @@ package config
 
 import (
 	"fmt"
+	"reflect"
 	"regexp"
 	"sort"
 	"strings"
+
+	"android/soong/android"
+	"github.com/google/blueprint"
 )
 
 const (
@@ -26,17 +30,26 @@ const (
 )
 
 type bazelVarExporter interface {
-	asBazel(exportedStringVariables, exportedStringListVariables) []bazelConstant
+	asBazel(android.Config, exportedStringVariables, exportedStringListVariables, exportedConfigDependingVariables) []bazelConstant
 }
 
 // Helpers for exporting cc configuration information to Bazel.
 var (
-	// Map containing toolchain variables that are independent of the
+	// Maps containing toolchain variables that are independent of the
 	// environment variables of the build.
 	exportedStringListVars     = exportedStringListVariables{}
 	exportedStringVars         = exportedStringVariables{}
 	exportedStringListDictVars = exportedStringListDictVariables{}
+
+	/// Maps containing variables that are dependent on the build config.
+	exportedConfigDependingVars = exportedConfigDependingVariables{}
 )
+
+type exportedConfigDependingVariables map[string]interface{}
+
+func (m exportedConfigDependingVariables) Set(k string, v interface{}) {
+	m[k] = v
+}
 
 // Ensure that string s has no invalid characters to be generated into the bzl file.
 func validateCharacters(s string) string {
@@ -74,10 +87,14 @@ func printBazelList(items []string, indentLevel int) string {
 	return strings.Join(list, "\n")
 }
 
-func (m exportedStringVariables) asBazel(stringScope exportedStringVariables, stringListScope exportedStringListVariables) []bazelConstant {
+func (m exportedStringVariables) asBazel(config android.Config,
+	stringVars exportedStringVariables, stringListVars exportedStringListVariables, cfgDepVars exportedConfigDependingVariables) []bazelConstant {
 	ret := make([]bazelConstant, 0, len(m))
 	for k, variableValue := range m {
-		expandedVar := expandVar(variableValue, exportedStringVars, exportedStringListVars)
+		expandedVar, err := expandVar(config, variableValue, stringVars, stringListVars, cfgDepVars)
+		if err != nil {
+			panic(fmt.Errorf("error expanding config variable %s: %s", k, err))
+		}
 		if len(expandedVar) > 1 {
 			panic(fmt.Errorf("%s expands to more than one string value: %s", variableValue, expandedVar))
 		}
@@ -101,7 +118,9 @@ func (m exportedStringListVariables) Set(k string, v []string) {
 	m[k] = v
 }
 
-func (m exportedStringListVariables) asBazel(stringScope exportedStringVariables, stringListScope exportedStringListVariables) []bazelConstant {
+func (m exportedStringListVariables) asBazel(config android.Config,
+	stringScope exportedStringVariables, stringListScope exportedStringListVariables,
+	exportedVars exportedConfigDependingVariables) []bazelConstant {
 	ret := make([]bazelConstant, 0, len(m))
 	// For each exported variable, recursively expand elements in the variableValue
 	// list to ensure that interpolated variables are expanded according to their values
@@ -109,7 +128,11 @@ func (m exportedStringListVariables) asBazel(stringScope exportedStringVariables
 	for k, variableValue := range m {
 		var expandedVars []string
 		for _, v := range variableValue {
-			expandedVars = append(expandedVars, expandVar(v, stringScope, stringListScope)...)
+			expandedVar, err := expandVar(config, v, stringScope, stringListScope, exportedVars)
+			if err != nil {
+				panic(fmt.Errorf("Error expanding config variable %s=%s: %s", k, v, err))
+			}
+			expandedVars = append(expandedVars, expandedVar...)
 		}
 		// Assign the list as a bzl-private variable; this variable will be exported
 		// out through a constants struct later.
@@ -119,6 +142,18 @@ func (m exportedStringListVariables) asBazel(stringScope exportedStringVariables
 		})
 	}
 	return ret
+}
+
+// Convenience function to declare a static "source path" variable and export it to Bazel's cc_toolchain.
+func exportVariableConfigMethod(name string, method interface{}) blueprint.Variable {
+	exportedConfigDependingVars.Set(name, method)
+	return pctx.VariableConfigMethod(name, method)
+}
+
+// Convenience function to declare a static "source path" variable and export it to Bazel's cc_toolchain.
+func exportSourcePathVariable(name string, value string) {
+	pctx.SourcePathVariable(name, value)
+	exportedStringVars.Set(name, value)
 }
 
 // Convenience function to declare a static variable and export it to Bazel's cc_toolchain.
@@ -145,7 +180,8 @@ func printBazelStringListDict(dict map[string][]string) string {
 }
 
 // Since dictionaries are not supported in Ninja, we do not expand variables for dictionaries
-func (m exportedStringListDictVariables) asBazel(_ exportedStringVariables, _ exportedStringListVariables) []bazelConstant {
+func (m exportedStringListDictVariables) asBazel(_ android.Config, _ exportedStringVariables,
+	_ exportedStringListVariables, _ exportedConfigDependingVariables) []bazelConstant {
 	ret := make([]bazelConstant, 0, len(m))
 	for k, dict := range m {
 		ret = append(ret, bazelConstant{
@@ -158,19 +194,20 @@ func (m exportedStringListDictVariables) asBazel(_ exportedStringVariables, _ ex
 
 // BazelCcToolchainVars generates bzl file content containing variables for
 // Bazel's cc_toolchain configuration.
-func BazelCcToolchainVars() string {
+func BazelCcToolchainVars(config android.Config) string {
 	return bazelToolchainVars(
+		config,
 		exportedStringListDictVars,
 		exportedStringListVars,
 		exportedStringVars)
 }
 
-func bazelToolchainVars(vars ...bazelVarExporter) string {
+func bazelToolchainVars(config android.Config, vars ...bazelVarExporter) string {
 	ret := "# GENERATED FOR BAZEL FROM SOONG. DO NOT EDIT.\n\n"
 
 	results := []bazelConstant{}
 	for _, v := range vars {
-		results = append(results, v.asBazel(exportedStringVars, exportedStringListVars)...)
+		results = append(results, v.asBazel(config, exportedStringVars, exportedStringListVars, exportedConfigDependingVars)...)
 	}
 
 	sort.Slice(results, func(i, j int) bool { return results[i].variableName < results[j].variableName })
@@ -201,34 +238,35 @@ func bazelToolchainVars(vars ...bazelVarExporter) string {
 // string slice than to handle a pass-by-referenced map, which would make it
 // quite complex to track depth-first interpolations. It's also unlikely the
 // interpolation stacks are deep (n > 1).
-func expandVar(toExpand string, stringScope exportedStringVariables, stringListScope exportedStringListVariables) []string {
+func expandVar(config android.Config, toExpand string, stringScope exportedStringVariables,
+	stringListScope exportedStringListVariables, exportedVars exportedConfigDependingVariables) ([]string, error) {
 	// e.g. "${ExternalCflags}"
 	r := regexp.MustCompile(`\${([a-zA-Z0-9_]+)}`)
 
 	// Internal recursive function.
-	var expandVarInternal func(string, map[string]bool) []string
-	expandVarInternal = func(toExpand string, seenVars map[string]bool) []string {
-		var ret []string
-		for _, v := range strings.Split(toExpand, " ") {
-			matches := r.FindStringSubmatch(v)
+	var expandVarInternal func(string, map[string]bool) (string, error)
+	expandVarInternal = func(toExpand string, seenVars map[string]bool) (string, error) {
+		var ret string
+		remainingString := toExpand
+		for len(remainingString) > 0 {
+			matches := r.FindStringSubmatch(remainingString)
 			if len(matches) == 0 {
-				return []string{v}
+				return ret + remainingString, nil
 			}
-
 			if len(matches) != 2 {
-				panic(fmt.Errorf(
-					"Expected to only match 1 subexpression in %s, got %d",
-					v,
-					len(matches)-1))
+				panic(fmt.Errorf("Expected to only match 1 subexpression in %s, got %d", remainingString, len(matches)-1))
 			}
+			matchIndex := strings.Index(remainingString, matches[0])
+			ret += remainingString[:matchIndex]
+			remainingString = remainingString[matchIndex+len(matches[0]):]
 
 			// Index 1 of FindStringSubmatch contains the subexpression match
 			// (variable name) of the capture group.
 			variable := matches[1]
 			// toExpand contains a variable.
 			if _, ok := seenVars[variable]; ok {
-				panic(fmt.Errorf(
-					"Unbounded recursive interpolation of variable: %s", variable))
+				return ret, fmt.Errorf(
+					"Unbounded recursive interpolation of variable: %s", variable)
 			}
 			// A map is passed-by-reference. Create a new map for
 			// this scope to prevent variables seen in one depth-first expansion
@@ -239,15 +277,65 @@ func expandVar(toExpand string, stringScope exportedStringVariables, stringListS
 			}
 			newSeenVars[variable] = true
 			if unexpandedVars, ok := stringListScope[variable]; ok {
+				expandedVars := []string{}
 				for _, unexpandedVar := range unexpandedVars {
-					ret = append(ret, expandVarInternal(unexpandedVar, newSeenVars)...)
+					expandedVar, err := expandVarInternal(unexpandedVar, newSeenVars)
+					if err != nil {
+						return ret, err
+					}
+					expandedVars = append(expandedVars, expandedVar)
 				}
+				ret += strings.Join(expandedVars, " ")
 			} else if unexpandedVar, ok := stringScope[variable]; ok {
-				ret = append(ret, expandVarInternal(unexpandedVar, newSeenVars)...)
+				expandedVar, err := expandVarInternal(unexpandedVar, newSeenVars)
+				if err != nil {
+					return ret, err
+				}
+				ret += expandedVar
+			} else if unevaluatedVar, ok := exportedVars[variable]; ok {
+				evalFunc := reflect.ValueOf(unevaluatedVar)
+				validateVariableMethod(variable, evalFunc)
+				evaluatedResult := evalFunc.Call([]reflect.Value{reflect.ValueOf(config)})
+				evaluatedValue := evaluatedResult[0].Interface().(string)
+				expandedVar, err := expandVarInternal(evaluatedValue, newSeenVars)
+				if err != nil {
+					return ret, err
+				}
+				ret += expandedVar
+			} else {
+				return "", fmt.Errorf("Unbound config variable %s", variable)
 			}
 		}
-		return ret
+		return ret, nil
+	}
+	var ret []string
+	for _, v := range strings.Split(toExpand, " ") {
+		val, err := expandVarInternal(v, map[string]bool{})
+		if err != nil {
+			return ret, err
+		}
+		ret = append(ret, val)
 	}
 
-	return expandVarInternal(toExpand, map[string]bool{})
+	return ret, nil
+}
+
+func validateVariableMethod(name string, methodValue reflect.Value) {
+	methodType := methodValue.Type()
+	if methodType.Kind() != reflect.Func {
+		panic(fmt.Errorf("method given for variable %s is not a function",
+			name))
+	}
+	if n := methodType.NumIn(); n != 1 {
+		panic(fmt.Errorf("method for variable %s has %d inputs (should be 1)",
+			name, n))
+	}
+	if n := methodType.NumOut(); n != 1 {
+		panic(fmt.Errorf("method for variable %s has %d outputs (should be 1)",
+			name, n))
+	}
+	if kind := methodType.Out(0).Kind(); kind != reflect.String {
+		panic(fmt.Errorf("method for variable %s does not return a string",
+			name))
+	}
 }
