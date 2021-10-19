@@ -16,13 +16,21 @@ package config
 
 import (
 	"testing"
+
+	"android/soong/android"
 )
 
 func TestExpandVars(t *testing.T) {
+	android_arm64_config := android.TestConfig("out", nil, "", nil)
+	android_arm64_config.BuildOS = android.Android
+	android_arm64_config.BuildArch = android.Arm64
+
 	testCases := []struct {
 		description     string
+		config          android.Config
 		stringScope     exportedStringVariables
 		stringListScope exportedStringListVariables
+		configVars      exportedConfigDependingVariables
 		toExpand        string
 		expectedValues  []string
 	}{
@@ -57,7 +65,7 @@ func TestExpandVars(t *testing.T) {
 				"bar": []string{"baz", "${qux}"},
 			},
 			toExpand:       "${foo}",
-			expectedValues: []string{"baz", "hello"},
+			expectedValues: []string{"baz hello"},
 		},
 		{
 			description: "double level expansion",
@@ -75,7 +83,7 @@ func TestExpandVars(t *testing.T) {
 				"b": []string{"d"},
 			},
 			toExpand:       "${a}",
-			expectedValues: []string{"d", "c"},
+			expectedValues: []string{"d c"},
 		},
 		{
 			description: "double level expansion, with two variables in a string",
@@ -85,7 +93,7 @@ func TestExpandVars(t *testing.T) {
 				"c": []string{"e"},
 			},
 			toExpand:       "${a}",
-			expectedValues: []string{"d", "e"},
+			expectedValues: []string{"d e"},
 		},
 		{
 			description: "triple level expansion with two variables in a string",
@@ -96,13 +104,38 @@ func TestExpandVars(t *testing.T) {
 				"d": []string{"foo"},
 			},
 			toExpand:       "${a}",
-			expectedValues: []string{"foo", "foo", "foo"},
+			expectedValues: []string{"foo foo foo"},
+		},
+		{
+			description: "expansion with config depending vars",
+			configVars: exportedConfigDependingVariables{
+				"a": func(c android.Config) string { return c.BuildOS.String() },
+				"b": func(c android.Config) string { return c.BuildArch.String() },
+			},
+			config:         android_arm64_config,
+			toExpand:       "${a}-${b}",
+			expectedValues: []string{"android-arm64"},
+		},
+		{
+			description: "double level multi type expansion",
+			stringListScope: exportedStringListVariables{
+				"platform": []string{"${os}-${arch}"},
+				"const":    []string{"const"},
+			},
+			configVars: exportedConfigDependingVariables{
+				"os":   func(c android.Config) string { return c.BuildOS.String() },
+				"arch": func(c android.Config) string { return c.BuildArch.String() },
+				"foo":  func(c android.Config) string { return "foo" },
+			},
+			config:         android_arm64_config,
+			toExpand:       "${const}/${platform}/${foo}",
+			expectedValues: []string{"const/android-arm64/foo"},
 		},
 	}
 
 	for _, testCase := range testCases {
 		t.Run(testCase.description, func(t *testing.T) {
-			output := expandVar(testCase.toExpand, testCase.stringScope, testCase.stringListScope)
+			output, _ := expandVar(testCase.config, testCase.toExpand, testCase.stringScope, testCase.stringListScope, testCase.configVars)
 			if len(output) != len(testCase.expectedValues) {
 				t.Errorf("Expected %d values, got %d", len(testCase.expectedValues), len(output))
 			}
@@ -119,6 +152,7 @@ func TestExpandVars(t *testing.T) {
 func TestBazelToolchainVars(t *testing.T) {
 	testCases := []struct {
 		name        string
+		config      android.Config
 		vars        []bazelVarExporter
 		expectedOut string
 	}{
@@ -248,7 +282,7 @@ constants = struct(
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			out := bazelToolchainVars(tc.vars...)
+			out := bazelToolchainVars(tc.config, tc.vars...)
 			if out != tc.expectedOut {
 				t.Errorf("Expected \n%s, got \n%s", tc.expectedOut, out)
 			}
