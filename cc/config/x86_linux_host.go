@@ -120,40 +120,40 @@ const (
 )
 
 func init() {
-	pctx.StaticVariable("LinuxGccVersion", linuxGccVersion)
-	pctx.StaticVariable("LinuxGlibcVersion", linuxGlibcVersion)
+	exportStringStaticVariable("LinuxGccVersion", linuxGccVersion)
+	exportStringStaticVariable("LinuxGlibcVersion", linuxGlibcVersion)
+
 	// Most places use the full GCC version. A few only use up to the first two numbers.
 	if p := strings.Split(linuxGccVersion, "."); len(p) > 2 {
-		pctx.StaticVariable("ShortLinuxGccVersion", strings.Join(p[:2], "."))
+		exportStringStaticVariable("ShortLinuxGccVersion", strings.Join(p[:2], "."))
 	} else {
-		pctx.StaticVariable("ShortLinuxGccVersion", linuxGccVersion)
+		exportStringStaticVariable("ShortLinuxGccVersion", linuxGccVersion)
 	}
 
-	pctx.SourcePathVariable("LinuxGccRoot",
-		"prebuilts/gcc/${HostPrebuiltTag}/host/x86_64-linux-glibc${LinuxGlibcVersion}-${ShortLinuxGccVersion}")
+	exportSourcePathVariable("LinuxGccRoot",
+		"prebuilts/gcc/linux-x86/host/x86_64-linux-glibc${LinuxGlibcVersion}-${ShortLinuxGccVersion}")
 
-	pctx.StaticVariable("LinuxGccTriple", "x86_64-linux")
+	exportStringListStaticVariable("LinuxGccTriple", []string{"x86_64-linux"})
 
-	pctx.StaticVariable("LinuxCflags", strings.Join(linuxCflags, " "))
-	pctx.StaticVariable("LinuxLdflags", strings.Join(linuxLdflags, " "))
-	pctx.StaticVariable("LinuxLldflags", strings.Join(linuxLdflags, " "))
+	exportStringListStaticVariable("LinuxCflags", linuxCflags)
+	exportStringListStaticVariable("LinuxLdflags", linuxLdflags)
+	exportStringListStaticVariable("LinuxLldflags", linuxLdflags)
+	exportStringListStaticVariable("LinuxGlibcCflags", linuxGlibcCflags)
+	exportStringListStaticVariable("LinuxGlibcLdflags", linuxGlibcLdflags)
+	exportStringListStaticVariable("LinuxGlibcLldflags", linuxGlibcLdflags)
+	exportStringListStaticVariable("LinuxMuslCflags", linuxMuslCflags)
+	exportStringListStaticVariable("LinuxMuslLdflags", linuxMuslLdflags)
+	exportStringListStaticVariable("LinuxMuslLldflags", linuxMuslLdflags)
 
-	pctx.StaticVariable("LinuxX86Cflags", strings.Join(linuxX86Cflags, " "))
-	pctx.StaticVariable("LinuxX8664Cflags", strings.Join(linuxX8664Cflags, " "))
-	pctx.StaticVariable("LinuxX86Ldflags", strings.Join(linuxX86Ldflags, " "))
-	pctx.StaticVariable("LinuxX86Lldflags", strings.Join(linuxX86Ldflags, " "))
-	pctx.StaticVariable("LinuxX8664Ldflags", strings.Join(linuxX8664Ldflags, " "))
-	pctx.StaticVariable("LinuxX8664Lldflags", strings.Join(linuxX8664Ldflags, " "))
+	exportStringListStaticVariable("LinuxX86Cflags", linuxX86Cflags)
+	exportStringListStaticVariable("LinuxX8664Cflags", linuxX8664Cflags)
+	exportStringListStaticVariable("LinuxX86Ldflags", linuxX86Ldflags)
+	exportStringListStaticVariable("LinuxX86Lldflags", linuxX86Ldflags)
+	exportStringListStaticVariable("LinuxX8664Ldflags", linuxX8664Ldflags)
+	exportStringListStaticVariable("LinuxX8664Lldflags", linuxX8664Ldflags)
 	// Yasm flags
-	pctx.StaticVariable("LinuxX86YasmFlags", "-f elf32 -m x86")
-	pctx.StaticVariable("LinuxX8664YasmFlags", "-f elf64 -m amd64")
-
-	pctx.StaticVariable("LinuxGlibcCflags", strings.Join(linuxGlibcCflags, " "))
-	pctx.StaticVariable("LinuxGlibcLdflags", strings.Join(linuxGlibcLdflags, " "))
-	pctx.StaticVariable("LinuxGlibcLldflags", strings.Join(linuxGlibcLdflags, " "))
-	pctx.StaticVariable("LinuxMuslCflags", strings.Join(linuxMuslCflags, " "))
-	pctx.StaticVariable("LinuxMuslLdflags", strings.Join(linuxMuslLdflags, " "))
-	pctx.StaticVariable("LinuxMuslLldflags", strings.Join(linuxMuslLdflags, " "))
+	exportStringListStaticVariable("LinuxX86YasmFlags", []string{"-f elf32 -m x86"})
+	exportStringListStaticVariable("LinuxX8664YasmFlags", []string{"-f elf64 -m amd64"})
 }
 
 type toolchainLinux struct {
