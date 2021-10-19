@@ -360,20 +360,27 @@ ifeq ($(TARGET_BUILD_VARIANT), $(filter $(TARGET_BUILD_VARIANT), userdebug eng))
 endif
 ifneq (,$(filter true, $(v1)$(v2)))
 endif
+ifeq (,$(filter barbet coral%,$(TARGET_PRODUCT)))
+else ifneq (,$(filter barbet%,$(TARGET_PRODUCT)))
+endif
 `,
 		expected: `load("//build/make/core:product_config.rbc", "rblf")
 
 def init(g, handle):
   cfg = rblf.cfg(handle)
-  if g["TARGET_BUILD_VARIANT"] not in ["userdebug", "eng"]:
+  if not rblf.filter("userdebug eng", g["TARGET_BUILD_VARIANT"]):
     pass
-  if g["TARGET_BUILD_VARIANT"] == "userdebug":
+  if rblf.filter("userdebug", g["TARGET_BUILD_VARIANT"]):
     pass
   if "plaf" in g.get("PLATFORM_LIST", []):
     pass
   if g["TARGET_BUILD_VARIANT"] in ["userdebug", "eng"]:
     pass
-  if "%s%s" % (_v1, _v2) == "true":
+  if rblf.filter("true", "%s%s" % (_v1, _v2)):
+    pass
+  if not rblf.filter("barbet coral%", g["TARGET_PRODUCT"]):
+    pass
+  elif rblf.filter("barbet%", g["TARGET_PRODUCT"]):
     pass
 `,
 	},
