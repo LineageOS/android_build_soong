@@ -404,7 +404,7 @@ func init() {
 	pctx.StaticVariableWithEnvOverride("REAbiLinkerExecStrategy", "RBE_ABI_LINKER_EXEC_STRATEGY", remoteexec.LocalExecStrategy)
 }
 
-var HostPrebuiltTag = pctx.VariableConfigMethod("HostPrebuiltTag", android.Config.PrebuiltOS)
+var HostPrebuiltTag = exportVariableConfigMethod("HostPrebuiltTag", android.Config.PrebuiltOS)
 
 func ClangPath(ctx android.PathContext, file string) android.SourcePath {
 	type clangToolKey string
