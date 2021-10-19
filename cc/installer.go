@@ -29,6 +29,9 @@ type InstallerProperties struct {
 	// Install output directly in {partition}/, not in any subdir.  This is only intended for use by
 	// init_first_stage.
 	Install_in_root *bool `android:"arch_variant"`
+
+	// Install output directly in {partition}/xbin
+	Install_in_xbin *bool `android:"arch_vvariant"`
 }
 
 type installLocation int
@@ -73,6 +76,8 @@ func (installer *baseInstaller) installDir(ctx ModuleContext) android.InstallPat
 
 	if installer.installInRoot() {
 		dir = ""
+	} else if installer.installInXbin() {
+		dir = "xbin"
 	}
 
 	if ctx.Target().NativeBridge == android.NativeBridgeEnabled {
@@ -122,4 +127,8 @@ func (installer *baseInstaller) makeUninstallable(mod *Module) {
 
 func (installer *baseInstaller) installInRoot() bool {
 	return Bool(installer.Properties.Install_in_root)
+}
+
+func (installer *baseInstaller) installInXbin() bool {
+	return Bool(installer.Properties.Install_in_xbin)
 }
