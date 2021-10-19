@@ -248,7 +248,7 @@ func toolDepsMutator(ctx android.BottomUpMutatorContext) {
 // Returns true if information was available from Bazel, false if bazel invocation still needs to occur.
 func (c *Module) GenerateBazelBuildActions(ctx android.ModuleContext, label string) bool {
 	bazelCtx := ctx.Config().BazelContext
-	filePaths, ok := bazelCtx.GetOutputFiles(label, ctx.Arch().ArchType)
+	filePaths, ok := bazelCtx.GetOutputFiles(label, android.GetConfigKey(ctx))
 	if ok {
 		var bazelOutputFiles android.Paths
 		exportIncludeDirs := map[string]bool{}
