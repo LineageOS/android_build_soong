@@ -243,6 +243,11 @@ var (
 
 		"brotli-fuzzer-corpus", // b/202015218: outputs are in location incompatible with bazel genrule handling.
 
+		// b/203369847: multiple genrules in the same package creating the same file
+		// //development/sdk/...
+		"platform_tools_properties",
+		"build_tools_source_properties",
+
 		// //external/libcap/...
 		"libcap",      // http://b/198595332, depends on _makenames, a cc_binary
 		"cap_names.h", // http://b/198596102, depends on _makenames, a cc_binary
