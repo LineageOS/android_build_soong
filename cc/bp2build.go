@@ -26,6 +26,12 @@ import (
 	"github.com/google/blueprint/proptools"
 )
 
+const (
+	cSrcPartition   = "c"
+	asSrcPartition  = "as"
+	cppSrcPartition = "cpp"
+)
+
 // staticOrSharedAttributes are the Bazel-ified versions of StaticOrSharedProperties --
 // properties which apply to either the shared or static version of a cc_library module.
 type staticOrSharedAttributes struct {
@@ -43,7 +49,7 @@ type staticOrSharedAttributes struct {
 	System_dynamic_deps bazel.LabelListAttribute
 }
 
-func groupSrcsByExtension(ctx android.TopDownMutatorContext, srcs bazel.LabelListAttribute) (cppSrcs, cSrcs, asSrcs bazel.LabelListAttribute) {
+func groupSrcsByExtension(ctx android.TopDownMutatorContext, srcs bazel.LabelListAttribute) bazel.PartitionToLabelListAttribute {
 	// Check that a module is a filegroup type named <label>.
 	isFilegroupNamed := func(m android.Module, fullLabel string) bool {
 		if ctx.OtherModuleType(m) != "filegroup" {
@@ -75,17 +81,14 @@ func groupSrcsByExtension(ctx android.TopDownMutatorContext, srcs bazel.LabelLis
 
 	// TODO(b/190006308): Handle language detection of sources in a Bazel rule.
 	partitioned := bazel.PartitionLabelListAttribute(ctx, &srcs, bazel.LabelPartitions{
-		"c":  bazel.LabelPartition{Extensions: []string{".c"}, LabelMapper: addSuffixForFilegroup("_c_srcs")},
-		"as": bazel.LabelPartition{Extensions: []string{".s", ".S"}, LabelMapper: addSuffixForFilegroup("_as_srcs")},
+		cSrcPartition:  bazel.LabelPartition{Extensions: []string{".c"}, LabelMapper: addSuffixForFilegroup("_c_srcs")},
+		asSrcPartition: bazel.LabelPartition{Extensions: []string{".s", ".S"}, LabelMapper: addSuffixForFilegroup("_as_srcs")},
 		// C++ is the "catch-all" group, and comprises generated sources because we don't
 		// know the language of these sources until the genrule is executed.
-		"cpp": bazel.LabelPartition{Extensions: []string{".cpp", ".cc", ".cxx", ".mm"}, LabelMapper: addSuffixForFilegroup("_cpp_srcs"), Keep_remainder: true},
+		cppSrcPartition: bazel.LabelPartition{Extensions: []string{".cpp", ".cc", ".cxx", ".mm"}, LabelMapper: addSuffixForFilegroup("_cpp_srcs"), Keep_remainder: true},
 	})
 
-	cSrcs = partitioned["c"]
-	asSrcs = partitioned["as"]
-	cppSrcs = partitioned["cpp"]
-	return
+	return partitioned
 }
 
 // bp2BuildParseLibProps returns the attributes for a variant of a cc_library.
@@ -175,10 +178,10 @@ func bp2buildParseStaticOrSharedProps(ctx android.TopDownMutatorContext, module 
 		}
 	}
 
-	cppSrcs, cSrcs, asSrcs := groupSrcsByExtension(ctx, attrs.Srcs)
-	attrs.Srcs = cppSrcs
-	attrs.Srcs_c = cSrcs
-	attrs.Srcs_as = asSrcs
+	partitionedSrcs := groupSrcsByExtension(ctx, attrs.Srcs)
+	attrs.Srcs = partitionedSrcs[cppSrcPartition]
+	attrs.Srcs_c = partitionedSrcs[cSrcPartition]
+	attrs.Srcs_as = partitionedSrcs[asSrcPartition]
 
 	return attrs
 }
@@ -239,6 +242,7 @@ type compilerAttributes struct {
 // bp2BuildParseCompilerProps returns copts, srcs and hdrs and other attributes.
 func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Module) compilerAttributes {
 	var srcs bazel.LabelListAttribute
+	var implementationHdrs bazel.LabelListAttribute
 	var copts bazel.StringListAttribute
 	var asFlags bazel.StringListAttribute
 	var conlyFlags bazel.StringListAttribute
@@ -265,10 +269,8 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 		anySrcs := false
 		// Add srcs-like dependencies such as generated files.
 		// First create a LabelList containing these dependencies, then merge the values with srcs.
-		generatedHdrsAndSrcs := props.Generated_headers
-		generatedHdrsAndSrcs = append(generatedHdrsAndSrcs, props.Generated_sources...)
-		generatedHdrsAndSrcsLabelList := android.BazelLabelForModuleDepsExcludes(ctx, generatedHdrsAndSrcs, props.Exclude_generated_sources)
-		if len(generatedHdrsAndSrcs) > 0 || len(props.Exclude_generated_sources) > 0 {
+		generatedSrcsLabelList := android.BazelLabelForModuleDepsExcludes(ctx, props.Generated_sources, props.Exclude_generated_sources)
+		if len(props.Generated_sources) > 0 || len(props.Exclude_generated_sources) > 0 {
 			anySrcs = true
 		}
 
@@ -276,7 +278,7 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 		if len(props.Srcs) > 0 || len(props.Exclude_srcs) > 0 {
 			anySrcs = true
 		}
-		return bazel.AppendBazelLabelLists(allSrcsLabelList, generatedHdrsAndSrcsLabelList), anySrcs
+		return bazel.AppendBazelLabelLists(allSrcsLabelList, generatedSrcsLabelList), anySrcs
 	}
 
 	archVariantCompilerProps := module.GetArchVariantProperties(ctx, &BaseCompilerProperties{})
@@ -287,6 +289,9 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 				// TODO(b/186153868): do this for OS specific srcs and exclude_srcs too.
 				if srcsList, ok := parseSrcs(baseCompilerProps); ok {
 					srcs.SetSelectValue(axis, config, srcsList)
+				}
+				if len(baseCompilerProps.Generated_headers) > 0 {
+					implementationHdrs.SetSelectValue(axis, config, android.BazelLabelForModuleDeps(ctx, baseCompilerProps.Generated_headers))
 				}
 
 				if axis == bazel.NoConfigAxis {
@@ -329,6 +334,21 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 	}
 
 	srcs.ResolveExcludes()
+	partitionedSrcs := groupSrcsByExtension(ctx, srcs)
+
+	for p, lla := range partitionedSrcs {
+		// if there are no sources, there is no need for headers
+		if lla.IsEmpty() {
+			continue
+		}
+		lla.Append(implementationHdrs)
+		partitionedSrcs[p] = lla
+	}
+
+	srcs = partitionedSrcs[cppSrcPartition]
+	cSrcs := partitionedSrcs[cSrcPartition]
+	asSrcs := partitionedSrcs[asSrcPartition]
+
 	absoluteIncludes.DeduplicateAxesFromBase()
 	localIncludes.DeduplicateAxesFromBase()
 
@@ -350,8 +370,6 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 			}
 		}
 	}
-
-	srcs, cSrcs, asSrcs := groupSrcsByExtension(ctx, srcs)
 
 	stlPropsByArch := module.GetArchVariantProperties(ctx, &StlProperties{})
 	for _, configToProps := range stlPropsByArch {
