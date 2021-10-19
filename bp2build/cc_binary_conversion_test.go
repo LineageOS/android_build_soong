@@ -17,6 +17,7 @@ package bp2build
 import (
 	"android/soong/android"
 	"android/soong/cc"
+	"android/soong/genrule"
 	"fmt"
 	"strings"
 	"testing"
@@ -32,6 +33,7 @@ func registerCcBinaryModuleTypes(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
 	ctx.RegisterModuleType("cc_library_static", cc.LibraryStaticFactory)
 	ctx.RegisterModuleType("cc_library", cc.LibraryFactory)
+	ctx.RegisterModuleType("genrule", genrule.GenRuleFactory)
 }
 
 var binaryReplacer = strings.NewReplacer(ccBinaryTypePlaceHolder, "cc_binary", compatibleWithPlaceHolder, "")
@@ -220,14 +222,27 @@ func TestCcBinaryDoNotDistinguishBetweenDepsAndImplementationDeps(t *testing.T) 
 	runCcBinaryTestCase(t, bp2buildTestCase{
 		description: "no implementation deps",
 		blueprint: `
+genrule {
+    name: "generated_hdr",
+    cmd: "nothing to see here",
+}
+
+genrule {
+    name: "export_generated_hdr",
+    cmd: "nothing to see here",
+}
+
 {rule_name} {
     name: "foo",
+    srcs: ["foo.cpp"],
     shared_libs: ["implementation_shared_dep", "shared_dep"],
     export_shared_lib_headers: ["shared_dep"],
     static_libs: ["implementation_static_dep", "static_dep"],
     export_static_lib_headers: ["static_dep", "whole_static_dep"],
     whole_static_libs: ["not_explicitly_exported_whole_static_dep", "whole_static_dep"],
     include_build_directory: false,
+    generated_headers: ["generated_hdr", "export_generated_hdr"],
+    export_generated_headers: ["export_generated_hdr"],
 }
 ` +
 			simpleModuleDoNotConvertBp2build("cc_library_static", "static_dep") +
@@ -245,6 +260,11 @@ func TestCcBinaryDoNotDistinguishBetweenDepsAndImplementationDeps(t *testing.T) 
     dynamic_deps = [
         ":implementation_shared_dep",
         ":shared_dep",
+    ],
+    srcs = [
+        "foo.cpp",
+        ":generated_hdr",
+        ":export_generated_hdr",
     ],{target_compatible_with}
     whole_archive_deps = [
         ":not_explicitly_exported_whole_static_dep",

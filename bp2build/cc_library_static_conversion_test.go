@@ -997,14 +997,21 @@ genrule {
     cmd: "nothing to see here",
 }
 
+genrule {
+    name: "export_generated_hdr",
+    cmd: "nothing to see here",
+}
+
 cc_library_static {
     name: "foo_static",
     srcs: ["cpp_src.cpp", "as_src.S", "c_src.c"],
-    generated_headers: ["generated_hdr"],
+    generated_headers: ["generated_hdr", "export_generated_hdr"],
+    export_generated_headers: ["export_generated_hdr"],
     include_build_directory: false,
 }`,
 		expectedBazelTargets: []string{`cc_library_static(
     name = "foo_static",
+    hdrs = [":export_generated_hdr"],
     srcs = [
         "cpp_src.cpp",
         ":generated_hdr",
