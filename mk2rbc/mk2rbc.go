@@ -1162,17 +1162,21 @@ func (ctx *parseContext) parseCompareFilterFuncResult(cond *mkparser.Directive,
 		}
 		// Either pattern or text should be const, and the
 		// non-const one should be varRefExpr
-		if xInList, ok = xPattern.(*stringLiteralExpr); ok {
+		if xInList, ok = xPattern.(*stringLiteralExpr); ok && !strings.ContainsRune(xInList.literal, '%') && xText.typ() == starlarkTypeList {
 			expr = xText
 		} else if xInList, ok = xText.(*stringLiteralExpr); ok {
 			expr = xPattern
 		} else {
-			return &callExpr{
+			expr = &callExpr{
 				object:     nil,
 				name:       filterFuncCall.name,
 				args:       filterFuncCall.args,
 				returnType: starlarkTypeBool,
 			}
+			if negate {
+				expr = &notExpr{expr: expr}
+			}
+			return expr
 		}
 	case *variableRefExpr:
 		if v, ok := xPattern.(*variableRefExpr); ok {
