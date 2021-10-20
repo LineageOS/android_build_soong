@@ -9,11 +9,11 @@ import (
 
 func TestRequestResultsAfterInvokeBazel(t *testing.T) {
 	label := "//foo:bar"
-	arch := Arm64
+	cfg := configKey{Arm64, Android}
 	bazelContext, _ := testBazelContext(t, map[bazelCommand]string{
-		bazelCommand{command: "cquery", expression: "deps(@soong_injection//mixed_builds:buildroot, 2)"}: `//foo:bar|arm64>>out/foo/bar.txt`,
+		bazelCommand{command: "cquery", expression: "deps(@soong_injection//mixed_builds:buildroot, 2)"}: `//foo:bar|arm64|android>>out/foo/bar.txt`,
 	})
-	g, ok := bazelContext.GetOutputFiles(label, arch)
+	g, ok := bazelContext.GetOutputFiles(label, cfg)
 	if ok {
 		t.Errorf("Did not expect cquery results prior to running InvokeBazel(), but got %s", g)
 	}
@@ -21,7 +21,7 @@ func TestRequestResultsAfterInvokeBazel(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Did not expect error invoking Bazel, but got %s", err)
 	}
-	g, ok = bazelContext.GetOutputFiles(label, arch)
+	g, ok = bazelContext.GetOutputFiles(label, cfg)
 	if !ok {
 		t.Errorf("Expected cquery results after running InvokeBazel(), but got none")
 	} else if w := []string{"out/foo/bar.txt"}; !reflect.DeepEqual(w, g) {

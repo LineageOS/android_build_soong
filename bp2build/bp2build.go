@@ -15,11 +15,12 @@
 package bp2build
 
 import (
-	"android/soong/android"
-	"android/soong/bazel"
 	"fmt"
 	"os"
 	"strings"
+
+	"android/soong/android"
+	"android/soong/bazel"
 )
 
 // Codegen is the backend of bp2build. The code generator is responsible for
@@ -43,7 +44,7 @@ func Codegen(ctx *CodegenContext) CodegenMetrics {
 	writeFiles(ctx, bp2buildDir, bp2buildFiles)
 
 	soongInjectionDir := android.PathForOutput(ctx, bazel.SoongInjectionDirName)
-	writeFiles(ctx, soongInjectionDir, CreateSoongInjectionFiles(res.metrics))
+	writeFiles(ctx, soongInjectionDir, CreateSoongInjectionFiles(ctx.Config(), res.metrics))
 
 	return res.metrics
 }

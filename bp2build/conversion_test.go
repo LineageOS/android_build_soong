@@ -17,6 +17,8 @@ package bp2build
 import (
 	"sort"
 	"testing"
+
+	"android/soong/android"
 )
 
 type bazelFilepath struct {
@@ -80,7 +82,7 @@ func TestCreateBazelFiles_QueryView_AddsTopLevelFiles(t *testing.T) {
 }
 
 func TestCreateBazelFiles_Bp2Build_CreatesDefaultFiles(t *testing.T) {
-	files := CreateSoongInjectionFiles(CodegenMetrics{})
+	files := CreateSoongInjectionFiles(android.Config{}, CodegenMetrics{})
 
 	expectedFilePaths := []bazelFilepath{
 		{

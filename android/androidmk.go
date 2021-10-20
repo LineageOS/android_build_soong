@@ -29,6 +29,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"sort"
 	"strings"
 
@@ -899,6 +900,13 @@ func shouldSkipAndroidMkProcessing(module *ModuleBase) bool {
 	if !module.commonProperties.NamespaceExportedToMake {
 		// TODO(jeffrygaston) do we want to validate that there are no modules being
 		// exported to Kati that depend on this module?
+		return true
+	}
+
+	// On Mac, only expose host darwin modules to Make, as that's all we claim to support.
+	// In reality, some of them depend on device-built (Java) modules, so we can't disable all
+	// device modules in Soong, but we can hide them from Make (and thus the build user interface)
+	if runtime.GOOS == "darwin" && module.Os() != Darwin {
 		return true
 	}
 
