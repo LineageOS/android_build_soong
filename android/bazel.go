@@ -253,6 +253,10 @@ var (
 		"cap_names.h", // http://b/198596102, depends on _makenames, a cc_binary
 
 		"libminijail", // depends on unconverted modules: libcap
+		"getcap",      // depends on unconverted modules: libcap
+		"setcap",      // depends on unconverted modules: libcap
+		"minijail0",   // depends on unconverted modules: libcap, libminijail
+		"drop_privs",  // depends on unconverted modules: libminijail
 
 		// Tests. Handle later.
 		"libbionic_tests_headers_posix", // http://b/186024507, cc_library_static, sched.h, time.h not found
@@ -279,6 +283,20 @@ var (
 
 		"libgtest_ndk_c++",      // b/201816222: Requires sdk_version support.
 		"libgtest_main_ndk_c++", // b/201816222: Requires sdk_version support.
+
+		"abb",                     // depends on unconverted modules: libadbd_core, libadbd_services, libcmd, libbinder, libutils, libselinux
+		"adb",                     // depends on unconverted modules: bin2c_fastdeployagent, libadb_crypto, libadb_host, libadb_pairing_connection, libadb_protos, libandroidfw, libapp_processes_protos_full, libfastdeploy_host, libmdnssd, libopenscreen-discovery, libopenscreen-platform-impl, libusb, libutils, libziparchive, libzstd, AdbWinApi
+		"adbd",                    // depends on unconverted modules: libadb_crypto, libadb_pairing_connection, libadb_protos, libadbd, libadbd_core, libapp_processes_protos_lite, libmdnssd, libzstd, libadbd_services, libcap, libminijail, libselinux
+		"bionic_tests_zipalign",   // depends on unconverted modules: libziparchive, libutils
+		"linker",                  // depends on unconverted modules: liblinker_debuggerd_stub, libdebuggerd_handler_fallback, libziparchive, liblinker_main, liblinker_malloc
+		"linker_reloc_bench_main", // depends on unconverted modules: liblinker_reloc_bench_*
+		"sefcontext_compile",      // depends on unconverted modules: libsepol
+		"versioner",               // depends on unconverted modules: libclang_cxx_host, libLLVM_host
+
+		"linkerconfig", // http://b/202876379 has arch-variant static_executable
+		"mdnsd",        // http://b/202876379 has arch-variant static_executable
+
+		"acvp_modulewrapper", // disabled for android x86/x86_64
 	}
 
 	// Per-module denylist of cc_library modules to only generate the static
