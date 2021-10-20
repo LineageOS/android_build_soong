@@ -165,6 +165,12 @@ var (
 		}
 	}()
 
+	darwinLipo = pctx.AndroidStaticRule("darwinLipo",
+		blueprint.RuleParams{
+			Command:     "${config.MacLipoPath} -create -output $out $in",
+			CommandDeps: []string{"${config.MacLipoPath}"},
+		})
+
 	_ = pctx.SourcePathVariable("archiveRepackPath", "build/soong/scripts/archive_repack.sh")
 
 	// Rule to repack an archive (.a) file with a subset of object files.
@@ -1057,6 +1063,15 @@ func transformDarwinStrip(ctx android.ModuleContext, inputFile android.Path,
 		Description: "strip " + outputFile.Base(),
 		Output:      outputFile,
 		Input:       inputFile,
+	})
+}
+
+func transformDarwinUniversalBinary(ctx android.ModuleContext, outputFile android.WritablePath, inputFiles ...android.Path) {
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        darwinLipo,
+		Description: "lipo " + outputFile.Base(),
+		Output:      outputFile,
+		Inputs:      inputFiles,
 	})
 }
 

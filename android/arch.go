@@ -566,6 +566,8 @@ func GetOsSpecificVariantsOfCommonOSVariant(mctx BaseModuleContext) []Module {
 	return variants
 }
 
+var DarwinUniversalVariantTag = archDepTag{name: "darwin universal binary"}
+
 // archMutator splits a module into a variant for each Target requested by the module.  Target selection
 // for a module is in three levels, OsClass, multilib, and then Target.
 // OsClass selection is determined by:
@@ -652,7 +654,7 @@ func archMutator(bpctx blueprint.BottomUpMutatorContext) {
 	prefer32 := os == Windows
 
 	// Determine the multilib selection for this module.
-	multilib, extraMultilib := decodeMultilib(base, os.Class)
+	multilib, extraMultilib := decodeMultilib(base, os)
 
 	// Convert the multilib selection into a list of Targets.
 	targets, err := decodeMultilibTargets(multilib, osTargets, prefer32)
@@ -702,6 +704,16 @@ func archMutator(bpctx blueprint.BottomUpMutatorContext) {
 			m.base().commonProperties.SkipInstall = true
 		}
 	}
+
+	// Create a dependency for Darwin Universal binaries from the primary to secondary
+	// architecture. The module itself will be responsible for calling lipo to merge the outputs.
+	if os == Darwin {
+		if multilib == "darwin_universal" && len(modules) == 2 {
+			mctx.AddInterVariantDependency(DarwinUniversalVariantTag, modules[1], modules[0])
+		} else if multilib == "darwin_universal_common_first" && len(modules) == 3 {
+			mctx.AddInterVariantDependency(DarwinUniversalVariantTag, modules[2], modules[1])
+		}
+	}
 }
 
 // addTargetProperties annotates a variant with the Target is is being compiled for, the list
@@ -717,9 +729,9 @@ func addTargetProperties(m Module, target Target, multiTargets []Target, primary
 // multilib from the factory's call to InitAndroidArchModule if none was set.  For modules that
 // called InitAndroidMultiTargetsArchModule it always returns "common" for multilib, and returns
 // the actual multilib in extraMultilib.
-func decodeMultilib(base *ModuleBase, class OsClass) (multilib, extraMultilib string) {
+func decodeMultilib(base *ModuleBase, os OsType) (multilib, extraMultilib string) {
 	// First check the "android.compile_multilib" or "host.compile_multilib" properties.
-	switch class {
+	switch os.Class {
 	case Device:
 		multilib = String(base.commonProperties.Target.Android.Compile_multilib)
 	case Host:
@@ -737,6 +749,26 @@ func decodeMultilib(base *ModuleBase, class OsClass) (multilib, extraMultilib st
 	}
 
 	if base.commonProperties.UseTargetVariants {
+		// Darwin has the concept of "universal binaries" which is implemented in Soong by
+		// building both x86_64 and arm64 variants, and having select module types know how to
+		// merge the outputs of their corresponding variants together into a final binary. Most
+		// module types don't need to understand this logic, as we only build a small portion
+		// of the tree for Darwin, and only module types writing macho files need to do the
+		// merging.
+		//
+		// This logic is not enabled for:
+		//  "common", as it's not an arch-specific variant
+		//  "32", as Darwin never has a 32-bit variant
+		//  !UseTargetVariants, as the module has opted into handling the arch-specific logic on
+		//    its own.
+		if os == Darwin && multilib != "common" && multilib != "32" {
+			if multilib == "common_first" {
+				multilib = "darwin_universal_common_first"
+			} else {
+				multilib = "darwin_universal"
+			}
+		}
+
 		return multilib, ""
 	} else {
 		// For app modules a single arch variant will be created per OS class which is expected to handle all the
@@ -1793,6 +1825,15 @@ func decodeMultilibTargets(multilib string, targets []Target, prefer32 bool) ([]
 		if len(buildTargets) == 0 {
 			buildTargets = filterMultilibTargets(targets, "lib64")
 		}
+	case "darwin_universal":
+		buildTargets = filterMultilibTargets(targets, "lib64")
+		// Reverse the targets so that the first architecture can depend on the second
+		// architecture module in order to merge the outputs.
+		reverseSliceInPlace(buildTargets)
+	case "darwin_universal_common_first":
+		archTargets := filterMultilibTargets(targets, "lib64")
+		reverseSliceInPlace(archTargets)
+		buildTargets = append(getCommonTargets(targets), archTargets...)
 	default:
 		return nil, fmt.Errorf(`compile_multilib must be "both", "first", "32", "64", "prefer32" or "first_prefer32" found %q`,
 			multilib)
