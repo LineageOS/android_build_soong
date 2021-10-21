@@ -15,7 +15,6 @@
 package mk2rbc
 
 import (
-	mkparser "android/soong/androidmk/parser"
 	"bytes"
 	"fmt"
 	"io/ioutil"
@@ -23,6 +22,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	mkparser "android/soong/androidmk/parser"
 )
 
 const codenamePrefix = "PLATFORM_VERSION_CODENAME."
@@ -97,7 +98,10 @@ func VersionDefaults(values map[string]string) string {
 				strings.ToLower(name), genericValue(value)))
 		}
 	}
+
 	sort.Strings(lines)
+	sort.Strings(codenames)
+
 	sink.WriteString("version_defaults = struct(\n")
 	for _, l := range lines {
 		sink.WriteString(l)
