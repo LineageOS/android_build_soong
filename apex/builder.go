@@ -716,12 +716,10 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 			}
 		}
 		apisBackedbyOutputFile := android.PathForModuleOut(ctx, a.Name()+"_backing.txt")
-		ndkLibraryList := android.PathForSource(ctx, "system/core/rootdir/etc/public.libraries.android.txt")
 		rule := android.NewRuleBuilder(pctx, ctx)
 		rule.Command().
 			Tool(android.PathForSource(ctx, "build/soong/scripts/gen_ndk_backedby_apex.sh")).
 			Output(apisBackedbyOutputFile).
-			Input(ndkLibraryList).
 			Flags(libNames)
 		rule.Build("ndk_backedby_list", "Generate API libraries backed by Apex")
 		a.apisBackedByModuleFile = apisBackedbyOutputFile
