@@ -963,6 +963,23 @@ def init(g, handle):
   rblf.inherit(handle, _varmod, _varmod_init)
 `,
 	},
+	{
+		desc:   "Ignore make rules",
+		mkname: "product.mk",
+		in: `
+foo: foo.c
+	gcc -o $@ $*`,
+		expected: `# MK2RBC TRANSLATION ERROR: unsupported line rule:       foo: foo.c
+#gcc -o $@ $*
+# rule:       foo: foo.c
+# gcc -o $@ $*
+load("//build/make/core:product_config.rbc", "rblf")
+
+def init(g, handle):
+  cfg = rblf.cfg(handle)
+  rblf.warning("product.mk", "partially successful conversion")
+`,
+	},
 }
 
 var known_variables = []struct {

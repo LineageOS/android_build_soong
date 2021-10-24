@@ -1466,7 +1466,7 @@ func (ctx *parseContext) handleSimpleStatement(node mkparser.Node) bool {
 			handled = false
 		}
 	default:
-		ctx.errorf(x, "unsupported line %s", x.Dump())
+		ctx.errorf(x, "unsupported line %s", strings.ReplaceAll(x.Dump(), "\n", "\n#"))
 	}
 	return handled
 }
