@@ -137,8 +137,9 @@ func (lto *lto) LTO(ctx BaseModuleContext) bool {
 
 func (lto *lto) DefaultThinLTO(ctx BaseModuleContext) bool {
 	host := ctx.Host()
+	test := ctx.testBinary()
 	vndk := ctx.isVndk() // b/169217596
-	return GlobalThinLTO(ctx) && !lto.Never() && !host && !vndk
+	return GlobalThinLTO(ctx) && !lto.Never() && !host && !test && !vndk
 }
 
 func (lto *lto) FullLTO() bool {
