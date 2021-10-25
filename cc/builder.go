@@ -421,7 +421,7 @@ type StripFlags struct {
 // Objects is a collection of file paths corresponding to outputs for C++ related build statements.
 type Objects struct {
 	objFiles      android.Paths
-	tidyFiles     android.Paths
+	tidyFiles     android.WritablePaths
 	coverageFiles android.Paths
 	sAbiDumpFiles android.Paths
 	kytheFiles    android.Paths
@@ -430,7 +430,7 @@ type Objects struct {
 func (a Objects) Copy() Objects {
 	return Objects{
 		objFiles:      append(android.Paths{}, a.objFiles...),
-		tidyFiles:     append(android.Paths{}, a.tidyFiles...),
+		tidyFiles:     append(android.WritablePaths{}, a.tidyFiles...),
 		coverageFiles: append(android.Paths{}, a.coverageFiles...),
 		sAbiDumpFiles: append(android.Paths{}, a.sAbiDumpFiles...),
 		kytheFiles:    append(android.Paths{}, a.kytheFiles...),
@@ -459,11 +459,11 @@ func transformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles, no
 
 	// Source files are one-to-one with tidy, coverage, or kythe files, if enabled.
 	objFiles := make(android.Paths, len(srcFiles))
-	var tidyFiles android.Paths
+	var tidyFiles android.WritablePaths
 	noTidySrcsMap := make(map[android.Path]bool)
 	var tidyVars string
 	if flags.tidy {
-		tidyFiles = make(android.Paths, 0, len(srcFiles))
+		tidyFiles = make(android.WritablePaths, 0, len(srcFiles))
 		for _, path := range noTidySrcs {
 			noTidySrcsMap[path] = true
 		}
@@ -741,7 +741,7 @@ func transformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles, no
 // Generate a rule for compiling multiple .o files to a static library (.a)
 func transformObjToStaticLib(ctx android.ModuleContext,
 	objFiles android.Paths, wholeStaticLibs android.Paths,
-	flags builderFlags, outputFile android.ModuleOutPath, deps android.Paths) {
+	flags builderFlags, outputFile android.ModuleOutPath, deps android.Paths, validations android.WritablePaths) {
 
 	arCmd := "${config.ClangBin}/llvm-ar"
 	arFlags := ""
@@ -756,6 +756,7 @@ func transformObjToStaticLib(ctx android.ModuleContext,
 			Output:      outputFile,
 			Inputs:      objFiles,
 			Implicits:   deps,
+			Validations: validations.Paths(),
 			Args: map[string]string{
 				"arFlags": "crsPD" + arFlags,
 				"arCmd":   arCmd,
