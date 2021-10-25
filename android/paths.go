@@ -462,6 +462,13 @@ func (p OutputPaths) Strings() []string {
 	return ret
 }
 
+// PathForGoBinary returns the path to the installed location of a bootstrap_go_binary module.
+func PathForGoBinary(ctx PathContext, goBinary bootstrap.GoBinaryTool) Path {
+	goBinaryInstallDir := pathForInstall(ctx, ctx.Config().BuildOS, ctx.Config().BuildArch, "bin", false)
+	rel := Rel(ctx, goBinaryInstallDir.String(), goBinary.InstallPath())
+	return goBinaryInstallDir.Join(ctx, rel)
+}
+
 // Expands Paths to a SourceFileProducer or OutputFileProducer module dependency referenced via ":name" or ":name{.tag}" syntax.
 // If the dependency is not found, a missingErrorDependency is returned.
 // If the module dependency is not a SourceFileProducer or OutputFileProducer, appropriate errors will be returned.
@@ -482,11 +489,8 @@ func getPathsFromModuleDep(ctx ModuleWithDepsPathContext, path, moduleName, tag 
 	} else if tag != "" {
 		return nil, fmt.Errorf("path dependency %q is not an output file producing module", path)
 	} else if goBinary, ok := module.(bootstrap.GoBinaryTool); ok {
-		if rel, err := filepath.Rel(PathForOutput(ctx).String(), goBinary.InstallPath()); err == nil {
-			return Paths{PathForOutput(ctx, rel).WithoutRel()}, nil
-		} else {
-			return nil, fmt.Errorf("cannot find output path for %q: %w", goBinary.InstallPath(), err)
-		}
+		goBinaryPath := PathForGoBinary(ctx, goBinary)
+		return Paths{goBinaryPath}, nil
 	} else if srcProducer, ok := module.(SourceFileProducer); ok {
 		return srcProducer.Srcs(), nil
 	} else {
