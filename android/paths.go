@@ -1571,6 +1571,8 @@ type InstallPath struct {
 	// For example, it is host/<os>-<arch> for host modules, and target/product/<device>/<partition> for device modules.
 	partitionDir string
 
+	partition string
+
 	// makePath indicates whether this path is for Soong (false) or Make (true).
 	makePath bool
 }
@@ -1716,6 +1718,7 @@ func pathForInstall(ctx PathContext, os OsType, arch ArchType, partition string,
 		basePath:     basePath{partionPath, ""},
 		soongOutDir:  ctx.Config().soongOutDir,
 		partitionDir: partionPath,
+		partition:    partition,
 		makePath:     false,
 	}
 
@@ -1741,8 +1744,7 @@ func PathForMainlineSdksInstall(ctx PathContext, paths ...string) InstallPath {
 }
 
 func InstallPathToOnDevicePath(ctx PathContext, path InstallPath) string {
-	rel := Rel(ctx, PathForOutput(ctx, "target", "product", ctx.Config().DeviceName()).String(), path.String())
-
+	rel := Rel(ctx, strings.TrimSuffix(path.PartitionDir(), path.partition), path.String())
 	return "/" + rel
 }
 
