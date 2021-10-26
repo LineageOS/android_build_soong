@@ -188,14 +188,6 @@ func (t *toolchainWindows) IncludeFlags() string {
 	return "${config.WindowsIncludeFlags}"
 }
 
-func (t *toolchainWindowsX86) WindresFlags() string {
-	return "-F pe-i386"
-}
-
-func (t *toolchainWindowsX8664) WindresFlags() string {
-	return "-F pe-x86-64"
-}
-
 func (t *toolchainWindowsX86) ClangTriple() string {
 	return "i686-windows-gnu"
 }

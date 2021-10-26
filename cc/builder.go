@@ -238,14 +238,6 @@ var (
 		},
 		"asFlags")
 
-	// Rule to invoke windres, for interaction with Windows resources.
-	windres = pctx.AndroidStaticRule("windres",
-		blueprint.RuleParams{
-			Command:     "$windresCmd $flags -I$$(dirname $in) -i $in -o $out --preprocessor \"${config.ClangBin}/clang -E -xc-header -DRC_INVOKED\"",
-			CommandDeps: []string{"$windresCmd"},
-		},
-		"windresCmd", "flags")
-
 	_ = pctx.SourcePathVariable("sAbiDumper", "prebuilts/clang-tools/${config.HostPrebuiltTag}/bin/header-abi-dumper")
 
 	// -w has been added since header-abi-dumper does not need to produce any sort of diagnostic information.
@@ -574,20 +566,6 @@ func transformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles, no
 				OrderOnly:   pathDeps,
 				Args: map[string]string{
 					"asFlags": shareFlags("asFlags", flags.globalYasmFlags+" "+flags.localYasmFlags),
-				},
-			})
-			continue
-		case ".rc":
-			ctx.Build(pctx, android.BuildParams{
-				Rule:        windres,
-				Description: "windres " + srcFile.Rel(),
-				Output:      objFile,
-				Input:       srcFile,
-				Implicits:   cFlagsDeps,
-				OrderOnly:   pathDeps,
-				Args: map[string]string{
-					"windresCmd": mingwCmd(flags.toolchain, "windres"),
-					"flags":      shareFlags("flags", flags.toolchain.WindresFlags()),
 				},
 			})
 			continue
