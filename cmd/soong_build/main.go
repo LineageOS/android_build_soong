@@ -217,20 +217,24 @@ func doChosenActivity(configuration android.Config, extraNinjaDeps []string) str
 	generateModuleGraphFile := moduleGraphFile != ""
 	generateDocFile := docFile != ""
 
-	blueprintArgs := cmdlineArgs
-
-	var stopBefore bootstrap.StopBefore
-	if !generateModuleGraphFile && !generateQueryView && !generateDocFile {
-		stopBefore = bootstrap.DoEverything
-	} else {
-		stopBefore = bootstrap.StopBeforePrepareBuildActions
-	}
-
 	if generateBazelWorkspace {
 		// Run the alternate pipeline of bp2build mutators and singleton to convert
 		// Blueprint to BUILD files before everything else.
 		runBp2Build(configuration, extraNinjaDeps)
 		return bp2buildMarker
+	}
+
+	blueprintArgs := cmdlineArgs
+
+	var stopBefore bootstrap.StopBefore
+	if generateModuleGraphFile {
+		stopBefore = bootstrap.StopBeforeWriteNinja
+	} else if generateQueryView {
+		stopBefore = bootstrap.StopBeforePrepareBuildActions
+	} else if generateDocFile {
+		stopBefore = bootstrap.StopBeforePrepareBuildActions
+	} else {
+		stopBefore = bootstrap.DoEverything
 	}
 
 	ctx := newContext(configuration)
