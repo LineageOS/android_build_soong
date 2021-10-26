@@ -1540,9 +1540,6 @@ var _ android.IDEInfo = (*Import)(nil)
 var _ android.IDECustomizedModuleName = (*Import)(nil)
 
 // Collect information for opening IDE project files in java/jdeps.go.
-const (
-	removedPrefix = "prebuilt_"
-)
 
 func (j *Import) IDEInfo(dpInfo *android.IdeInfo) {
 	dpInfo.Jars = append(dpInfo.Jars, j.PrebuiltSrcs()...)
