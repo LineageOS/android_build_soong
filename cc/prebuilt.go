@@ -16,7 +16,6 @@ package cc
 
 import (
 	"path/filepath"
-	"strings"
 
 	"android/soong/android"
 )
@@ -232,7 +231,7 @@ func (p *prebuiltLibraryLinker) disablePrebuilt() {
 
 // Implements versionedInterface
 func (p *prebuiltLibraryLinker) implementationModuleName(name string) string {
-	return strings.TrimPrefix(name, "prebuilt_")
+	return android.RemoveOptionalPrebuiltPrefix(name)
 }
 
 func NewPrebuiltLibrary(hod android.HostOrDeviceSupported) (*Module, *libraryDecorator) {
