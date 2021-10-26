@@ -524,7 +524,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 	}
 
 	unsignedOutputFile := android.PathForModuleOut(ctx, a.Name()+suffix+".unsigned")
-	outHostBinDir := android.PathForOutput(ctx, "host", ctx.Config().PrebuiltOS(), "bin").String()
+	outHostBinDir := ctx.Config().HostToolPath(ctx, "").String()
 	prebuiltSdkToolsBinDir := filepath.Join("prebuilts", "sdk", "tools", runtime.GOOS, "bin")
 
 	// Figure out if need to compress apex.
