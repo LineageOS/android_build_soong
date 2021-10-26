@@ -30,6 +30,8 @@ var VndkMustUseVendorVariantList = []string{
 	"android.hardware.gnss-V1-ndk_platform",
 	"android.hardware.gnss-ndk_platform",
 	"android.hardware.gnss-unstable-ndk_platform",
+	"android.hardware.health-V1-ndk",
+	"android.hardware.health-ndk",
 	"android.hardware.health.storage-V1-ndk",
 	"android.hardware.health.storage-V1-ndk_platform",
 	"android.hardware.health.storage-ndk_platform",
