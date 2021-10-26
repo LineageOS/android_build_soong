@@ -95,8 +95,6 @@ type Toolchain interface {
 
 	YasmFlags() string
 
-	WindresFlags() string
-
 	Is64Bit() bool
 
 	ShlibSuffix() string
@@ -166,10 +164,6 @@ func (toolchainBase) Asflags() string {
 }
 
 func (toolchainBase) YasmFlags() string {
-	return ""
-}
-
-func (toolchainBase) WindresFlags() string {
 	return ""
 }
 
