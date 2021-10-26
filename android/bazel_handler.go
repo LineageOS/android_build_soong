@@ -220,10 +220,6 @@ func (n noopBazelContext) GetPythonBinary(label string, cfgKey configKey) (strin
 	panic("unimplemented")
 }
 
-func (n noopBazelContext) GetPrebuiltCcStaticLibraryFiles(label string, archType ArchType) ([]string, bool) {
-	panic("unimplemented")
-}
-
 func (n noopBazelContext) InvokeBazel() error {
 	panic("unimplemented")
 }
