@@ -32,6 +32,7 @@ var (
 		"system/security",
 		"system/tools/aidl",
 		"tools/security/fuzzing/example_rust_fuzzer",
+		"tools/security/fuzzing/orphans",
 		"vendor/",
 	}
 
