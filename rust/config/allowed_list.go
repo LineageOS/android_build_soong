@@ -18,6 +18,7 @@ var (
 		"frameworks/native/libs/binder/rust",
 		"frameworks/proto_logging/stats",
 		"packages/modules/DnsResolver",
+		"packages/modules/Uwb",
 		"packages/modules/Virtualization",
 		"prebuilts/rust",
 		"system/bt",
