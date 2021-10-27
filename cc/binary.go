@@ -577,47 +577,46 @@ func binaryBp2build(ctx android.TopDownMutatorContext, typ string) {
 		compatibleWith.SetSelectValue(bazel.OsConfigurationAxis, bazel.ConditionsDefaultConfigKey, []string{})
 	}
 
-	compilerAttrs := bp2BuildParseCompilerProps(ctx, m)
-	linkerAttrs := bp2BuildParseLinkerProps(ctx, m)
+	baseAttrs := bp2BuildParseBaseProps(ctx, m)
 
 	attrs := &binaryAttributes{
 		binaryLinkerAttrs: bp2buildBinaryLinkerProps(ctx, m),
 
-		Srcs:    compilerAttrs.srcs,
-		Srcs_c:  compilerAttrs.cSrcs,
-		Srcs_as: compilerAttrs.asSrcs,
+		Srcs:    baseAttrs.srcs,
+		Srcs_c:  baseAttrs.cSrcs,
+		Srcs_as: baseAttrs.asSrcs,
 
-		Copts:      compilerAttrs.copts,
-		Cppflags:   compilerAttrs.cppFlags,
-		Conlyflags: compilerAttrs.conlyFlags,
-		Asflags:    compilerAttrs.asFlags,
+		Copts:      baseAttrs.copts,
+		Cppflags:   baseAttrs.cppFlags,
+		Conlyflags: baseAttrs.conlyFlags,
+		Asflags:    baseAttrs.asFlags,
 
-		Deps:               linkerAttrs.implementationDeps,
-		Dynamic_deps:       linkerAttrs.implementationDynamicDeps,
-		Whole_archive_deps: linkerAttrs.wholeArchiveDeps,
-		System_deps:        linkerAttrs.systemDynamicDeps,
+		Deps:               baseAttrs.implementationDeps,
+		Dynamic_deps:       baseAttrs.implementationDynamicDeps,
+		Whole_archive_deps: baseAttrs.wholeArchiveDeps,
+		System_deps:        baseAttrs.systemDynamicDeps,
 
-		Local_includes:    compilerAttrs.localIncludes,
-		Absolute_includes: compilerAttrs.absoluteIncludes,
-		Linkopts:          linkerAttrs.linkopts,
-		Link_crt:          linkerAttrs.linkCrt,
-		Use_libcrt:        linkerAttrs.useLibcrt,
-		Rtti:              compilerAttrs.rtti,
-		Stl:               compilerAttrs.stl,
-		Cpp_std:           compilerAttrs.cppStd,
+		Local_includes:    baseAttrs.localIncludes,
+		Absolute_includes: baseAttrs.absoluteIncludes,
+		Linkopts:          baseAttrs.linkopts,
+		Link_crt:          baseAttrs.linkCrt,
+		Use_libcrt:        baseAttrs.useLibcrt,
+		Rtti:              baseAttrs.rtti,
+		Stl:               baseAttrs.stl,
+		Cpp_std:           baseAttrs.cppStd,
 
-		Additional_linker_inputs: linkerAttrs.additionalLinkerInputs,
+		Additional_linker_inputs: baseAttrs.additionalLinkerInputs,
 
 		Strip: stripAttributes{
-			Keep_symbols:                 linkerAttrs.stripKeepSymbols,
-			Keep_symbols_and_debug_frame: linkerAttrs.stripKeepSymbolsAndDebugFrame,
-			Keep_symbols_list:            linkerAttrs.stripKeepSymbolsList,
-			All:                          linkerAttrs.stripAll,
-			None:                         linkerAttrs.stripNone,
+			Keep_symbols:                 baseAttrs.stripKeepSymbols,
+			Keep_symbols_and_debug_frame: baseAttrs.stripKeepSymbolsAndDebugFrame,
+			Keep_symbols_list:            baseAttrs.stripKeepSymbolsList,
+			All:                          baseAttrs.stripAll,
+			None:                         baseAttrs.stripNone,
 		},
 
 		Target_compatible_with: compatibleWith,
-		Features:               linkerAttrs.features,
+		Features:               baseAttrs.features,
 	}
 
 	ctx.CreateBazelTargetModule(bazel.BazelTargetModuleProperties{

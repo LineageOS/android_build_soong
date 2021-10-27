@@ -293,8 +293,9 @@ func CcLibraryBp2Build(ctx android.TopDownMutatorContext) {
 
 	sharedAttrs := bp2BuildParseSharedProps(ctx, m)
 	staticAttrs := bp2BuildParseStaticProps(ctx, m)
-	compilerAttrs := bp2BuildParseCompilerProps(ctx, m)
-	linkerAttrs := bp2BuildParseLinkerProps(ctx, m)
+	baseAttributes := bp2BuildParseBaseProps(ctx, m)
+	compilerAttrs := baseAttributes.compilerAttributes
+	linkerAttrs := baseAttributes.linkerAttributes
 	exportedIncludes := bp2BuildParseExportedIncludes(ctx, m)
 
 	srcs := compilerAttrs.srcs
@@ -309,6 +310,7 @@ func CcLibraryBp2Build(ctx android.TopDownMutatorContext) {
 		Srcs:    srcs,
 		Srcs_c:  compilerAttrs.cSrcs,
 		Srcs_as: compilerAttrs.asSrcs,
+		Hdrs:    compilerAttrs.hdrs,
 
 		Copts:      compilerAttrs.copts,
 		Cppflags:   compilerAttrs.cppFlags,
@@ -2357,8 +2359,10 @@ func ccSharedOrStaticBp2BuildMutatorInternal(ctx android.TopDownMutatorContext, 
 	}
 	isStatic := modType == "cc_library_static"
 
-	compilerAttrs := bp2BuildParseCompilerProps(ctx, module)
-	linkerAttrs := bp2BuildParseLinkerProps(ctx, module)
+	baseAttributes := bp2BuildParseBaseProps(ctx, module)
+	compilerAttrs := baseAttributes.compilerAttributes
+	linkerAttrs := baseAttributes.linkerAttributes
+
 	exportedIncludes := bp2BuildParseExportedIncludes(ctx, module)
 
 	// Append shared/static{} stanza properties. These won't be specified on
@@ -2388,6 +2392,7 @@ func ccSharedOrStaticBp2BuildMutatorInternal(ctx android.TopDownMutatorContext, 
 		Srcs_c:  compilerAttrs.cSrcs,
 		Srcs_as: compilerAttrs.asSrcs,
 		Copts:   compilerAttrs.copts,
+		Hdrs:    compilerAttrs.hdrs,
 
 		Deps:                        linkerAttrs.deps,
 		Implementation_deps:         linkerAttrs.implementationDeps,
