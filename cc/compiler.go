@@ -537,11 +537,6 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 			"-I"+android.PathForModuleGen(ctx, "yacc", ctx.ModuleDir()).String())
 	}
 
-	if compiler.hasSrcExt(".mc") {
-		flags.Local.CommonFlags = append(flags.Local.CommonFlags,
-			"-I"+android.PathForModuleGen(ctx, "windmc", ctx.ModuleDir()).String())
-	}
-
 	if compiler.hasSrcExt(".aidl") {
 		flags.aidlFlags = append(flags.aidlFlags, compiler.Properties.Aidl.Flags...)
 		if len(compiler.Properties.Aidl.Local_include_dirs) > 0 {

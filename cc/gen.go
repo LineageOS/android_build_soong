@@ -45,13 +45,6 @@ var (
 			CommandDeps: []string{"$syspropCmd"},
 		},
 		"headerOutDir", "publicOutDir", "srcOutDir", "includeName")
-
-	windmc = pctx.AndroidStaticRule("windmc",
-		blueprint.RuleParams{
-			Command:     "$windmcCmd -r$$(dirname $out) -h$$(dirname $out) $in",
-			CommandDeps: []string{"$windmcCmd"},
-		},
-		"windmcCmd")
 )
 
 type YaccProperties struct {
@@ -200,26 +193,6 @@ func genSysprop(ctx android.ModuleContext, syspropFile android.Path) (android.Pa
 	return cppFile, headers.Paths()
 }
 
-func genWinMsg(ctx android.ModuleContext, srcFile android.Path, flags builderFlags) (android.Path, android.Path) {
-	headerFile := android.GenPathWithExt(ctx, "windmc", srcFile, "h")
-	rcFile := android.GenPathWithExt(ctx, "windmc", srcFile, "rc")
-
-	windmcCmd := mingwCmd(flags.toolchain, "windmc")
-
-	ctx.Build(pctx, android.BuildParams{
-		Rule:           windmc,
-		Description:    "windmc " + srcFile.Rel(),
-		Output:         rcFile,
-		ImplicitOutput: headerFile,
-		Input:          srcFile,
-		Args: map[string]string{
-			"windmcCmd": windmcCmd,
-		},
-	})
-
-	return rcFile, headerFile
-}
-
 // Used to communicate information from the genSources method back to the library code that uses
 // it.
 type generatedSourceInfo struct {
@@ -305,10 +278,6 @@ func genSources(ctx android.ModuleContext, srcFiles android.Paths,
 			cppFile := rsGeneratedCppFile(ctx, srcFile)
 			rsFiles = append(rsFiles, srcFiles[i])
 			srcFiles[i] = cppFile
-		case ".mc":
-			rcFile, headerFile := genWinMsg(ctx, srcFile, buildFlags)
-			srcFiles[i] = rcFile
-			deps = append(deps, headerFile)
 		case ".sysprop":
 			cppFile, headerFiles := genSysprop(ctx, srcFile)
 			srcFiles[i] = cppFile
