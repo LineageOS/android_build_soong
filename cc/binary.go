@@ -413,7 +413,7 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 		linkerDeps = append(linkerDeps, deps.LateSharedLibsDeps...)
 	}
 
-	linkerDeps = append(linkerDeps, objs.tidyFiles...)
+	validations = append(validations, objs.tidyFiles...)
 	linkerDeps = append(linkerDeps, flags.LdFlagsDeps...)
 
 	// Register link action.
