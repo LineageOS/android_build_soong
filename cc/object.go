@@ -154,7 +154,8 @@ func ObjectBp2Build(ctx android.TopDownMutatorContext) {
 	}
 
 	// Set arch-specific configurable attributes
-	compilerAttrs := bp2BuildParseCompilerProps(ctx, m)
+	baseAttributes := bp2BuildParseBaseProps(ctx, m)
+	compilerAttrs := baseAttributes.compilerAttributes
 	var deps bazel.LabelListAttribute
 	systemDynamicDeps := bazel.LabelListAttribute{ForceSpecifyEmptyList: true}
 
