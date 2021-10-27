@@ -60,7 +60,7 @@ var (
 )
 
 func init() {
-	// Poor man's flag aliasing: works, but the usage string is ugly and
+	// Simplistic flag aliasing: works, but the usage string is ugly and
 	// both flag and its alias can be present on the command line
 	flagAlias := func(target string, alias string) {
 		if f := flag.Lookup(target); f != nil {

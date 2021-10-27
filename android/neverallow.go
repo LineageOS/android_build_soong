@@ -27,7 +27,7 @@ import (
 // "neverallow" rules for the build system.
 //
 // This allows things which aren't related to the build system and are enforced
-// for sanity, in progress code refactors, or policy to be expressed in a
+// against assumptions, in progress code refactors, or policy to be expressed in a
 // straightforward away disjoint from implementations and tests which should
 // work regardless of these restrictions.
 //
