@@ -15,6 +15,7 @@
 package android
 
 import (
+	"regexp"
 	"testing"
 
 	"github.com/google/blueprint"
@@ -55,7 +56,37 @@ var neverallowTests = []struct {
 				}`),
 		},
 		expectedErrors: []string{
-			`module "libother": violates neverallow deps:not_allowed_in_direct_deps`,
+			regexp.QuoteMeta("module \"libother\": violates neverallow requirements. Not allowed:\n\tdep(s): [\"not_allowed_in_direct_deps\"]"),
+		},
+	},
+	{
+		name: "multiple constraints",
+		rules: []Rule{
+			NeverAllow().
+				InDirectDeps("not_allowed_in_direct_deps").
+				In("other").
+				ModuleType("cc_library").
+				NotIn("top").
+				NotModuleType("cc_binary"),
+		},
+		fs: map[string][]byte{
+			"top/Android.bp": []byte(`
+				cc_library {
+					name: "not_allowed_in_direct_deps",
+				}`),
+			"other/Android.bp": []byte(`
+				cc_library {
+					name: "libother",
+					static_libs: ["not_allowed_in_direct_deps"],
+				}`),
+		},
+		expectedErrors: []string{
+			regexp.QuoteMeta(`module "libother": violates neverallow requirements. Not allowed:
+	in dirs: ["other/"]
+	module types: ["cc_library"]
+	dep(s): ["not_allowed_in_direct_deps"]
+	EXCEPT in dirs: ["top/"]
+	EXCEPT module types: ["cc_binary"]`),
 		},
 	},
 

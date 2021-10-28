@@ -7457,7 +7457,7 @@ func TestApexPermittedPackagesRules(t *testing.T) {
 		},
 		{
 			name:          "Bootclasspath apex jar not satisfying allowed module packages on Q.",
-			expectedError: `module "bcp_lib2" .* which is restricted because jars that are part of the myapex module may only allow these packages: foo.bar with min_sdk < T. Please jarjar or move code around.`,
+			expectedError: `(?s)module "bcp_lib2" .* which is restricted because jars that are part of the myapex module may only allow these packages: foo.bar with min_sdk < T. Please jarjar or move code around.`,
 			bp: `
 				java_library {
 					name: "bcp_lib1",
@@ -7494,7 +7494,7 @@ func TestApexPermittedPackagesRules(t *testing.T) {
 		},
 		{
 			name:          "Bootclasspath apex jar not satisfying allowed module packages on R.",
-			expectedError: `module "bcp_lib2" .* which is restricted because jars that are part of the myapex module may only allow these packages: foo.bar with min_sdk < T. Please jarjar or move code around.`,
+			expectedError: `(?s)module "bcp_lib2" .* which is restricted because jars that are part of the myapex module may only allow these packages: foo.bar with min_sdk < T. Please jarjar or move code around.`,
 			bp: `
 				java_library {
 					name: "bcp_lib1",
