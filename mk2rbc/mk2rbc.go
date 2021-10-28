@@ -111,13 +111,16 @@ var knownFunctions = map[string]struct {
 	"is-android-codename":                 {"!is-android-codename", starlarkTypeBool, hiddenArgNone},         // unused by product config
 	"is-android-codename-in-list":         {"!is-android-codename-in-list", starlarkTypeBool, hiddenArgNone}, // unused by product config
 	"is-board-platform":                   {"!is-board-platform", starlarkTypeBool, hiddenArgNone},
+	"is-board-platform2":                  {baseName + ".board_platform_is", starlarkTypeBool, hiddenArgGlobal},
 	"is-board-platform-in-list":           {"!is-board-platform-in-list", starlarkTypeBool, hiddenArgNone},
+	"is-board-platform-in-list2":          {baseName + ".board_platform_in", starlarkTypeBool, hiddenArgGlobal},
 	"is-chipset-in-board-platform":        {"!is-chipset-in-board-platform", starlarkTypeUnknown, hiddenArgNone},     // unused by product config
 	"is-chipset-prefix-in-board-platform": {"!is-chipset-prefix-in-board-platform", starlarkTypeBool, hiddenArgNone}, // unused by product config
 	"is-not-board-platform":               {"!is-not-board-platform", starlarkTypeBool, hiddenArgNone},               // defined but never used
 	"is-platform-sdk-version-at-least":    {"!is-platform-sdk-version-at-least", starlarkTypeBool, hiddenArgNone},    // unused by product config
 	"is-product-in-list":                  {"!is-product-in-list", starlarkTypeBool, hiddenArgNone},
 	"is-vendor-board-platform":            {"!is-vendor-board-platform", starlarkTypeBool, hiddenArgNone},
+	"is-vendor-board-qcom":                {"!is-vendor-board-qcom", starlarkTypeBool, hiddenArgNone},
 	callLoadAlways:                        {"!inherit-product", starlarkTypeVoid, hiddenArgNone},
 	callLoadIf:                            {"!inherit-product-if-exists", starlarkTypeVoid, hiddenArgNone},
 	"lastword":                            {"!lastword", starlarkTypeString, hiddenArgNone},
@@ -1139,6 +1142,34 @@ func (ctx *parseContext) parseCheckFunctionCallResult(directive *mkparser.Direct
 			return &inExpr{
 				expr:  &variableRefExpr{ctx.addVariable("TARGET_BOARD_PLATFORM"), false},
 				list:  &variableRefExpr{ctx.addVariable(s + "_BOARD_PLATFORMS"), true},
+				isNot: negate,
+			}, true
+
+		case "is-board-platform2", "is-board-platform-in-list2":
+			if s, ok := maybeString(xValue); !ok || s != "" {
+				return ctx.newBadExpr(directive,
+					fmt.Sprintf("the result of %s can be compared only to empty", x.name)), true
+			}
+			if len(x.args) != 1 {
+				return ctx.newBadExpr(directive, "%s requires an argument", x.name), true
+			}
+			cc := &callExpr{
+				name:       x.name,
+				args:       []starlarkExpr{x.args[0]},
+				returnType: starlarkTypeBool,
+			}
+			if !negate {
+				return &notExpr{cc}, true
+			}
+			return cc, true
+		case "is-vendor-board-qcom":
+			if s, ok := maybeString(xValue); !ok || s != "" {
+				return ctx.newBadExpr(directive,
+					fmt.Sprintf("the result of %s can be compared only to empty", x.name)), true
+			}
+			return &inExpr{
+				expr:  &variableRefExpr{ctx.addVariable("TARGET_BOARD_PLATFORM"), false},
+				list:  &variableRefExpr{ctx.addVariable("QCOM_BOARD_PLATFORMS"), true},
 				isNot: negate,
 			}, true
 		default:
