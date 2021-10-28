@@ -33,7 +33,7 @@ package cc
 // Component 3: Stub Libraries
 // The shared libraries in the NDK are not the actual shared libraries they
 // refer to (to prevent people from accidentally loading them), but stub
-// libraries with dummy implementations of everything for use at build time
+// libraries with placeholder implementations of everything for use at build time
 // only.
 //
 // Since we don't actually need to know anything about the stub libraries aside
