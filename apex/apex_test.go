@@ -8330,6 +8330,46 @@ func TestAndroidMk_DexpreoptBuiltInstalledForApex_Prebuilt(t *testing.T) {
 		})
 }
 
+func TestAndroidMk_RequiredModules(t *testing.T) {
+	ctx := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			updatable: false,
+			java_libs: ["foo"],
+			required: ["otherapex"],
+		}
+
+		apex {
+			name: "otherapex",
+			key: "myapex.key",
+			updatable: false,
+			java_libs: ["foo"],
+			required: ["otherapex"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		java_library {
+			name: "foo",
+			srcs: ["foo.java"],
+			apex_available: ["myapex", "otherapex"],
+			installable: true,
+		}
+	`)
+
+	apexBundle := ctx.ModuleForTests("myapex", "android_common_myapex_image").Module().(*apexBundle)
+	data := android.AndroidMkDataForTest(t, ctx, apexBundle)
+	var builder strings.Builder
+	data.Custom(&builder, apexBundle.BaseModuleName(), "TARGET_", "", data)
+	androidMk := builder.String()
+	ensureContains(t, androidMk, "LOCAL_REQUIRED_MODULES += otherapex")
+}
+
 func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
