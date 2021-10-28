@@ -25,27 +25,29 @@ import (
 	"android/soong/java/config"
 )
 
+type classpathTestCase struct {
+	name       string
+	unbundled  bool
+	moduleType string
+	host       android.OsClass
+	properties string
+
+	// for java 8
+	bootclasspath  []string
+	java8classpath []string
+
+	// for java 9
+	system         string
+	java9classpath []string
+
+	forces8 bool // if set, javac will always be called with java 8 arguments
+
+	aidl string
+}
+
 func TestClasspath(t *testing.T) {
 	const frameworkAidl = "-I" + defaultJavaDir + "/framework/aidl"
-	var classpathTestcases = []struct {
-		name       string
-		unbundled  bool
-		moduleType string
-		host       android.OsClass
-		properties string
-
-		// for java 8
-		bootclasspath  []string
-		java8classpath []string
-
-		// for java 9
-		system         string
-		java9classpath []string
-
-		forces8 bool // if set, javac will always be called with java 8 arguments
-
-		aidl string
-	}{
+	var classpathTestcases = []classpathTestCase{
 		{
 			name:           "default",
 			bootclasspath:  config.StableCorePlatformBootclasspathLibraries,
@@ -295,6 +297,10 @@ func TestClasspath(t *testing.T) {
 		},
 	}
 
+	testClasspathTestCases(t, classpathTestcases)
+}
+
+func testClasspathTestCases(t *testing.T, classpathTestcases []classpathTestCase) {
 	for _, testcase := range classpathTestcases {
 		t.Run(testcase.name, func(t *testing.T) {
 			moduleType := "java_library"
