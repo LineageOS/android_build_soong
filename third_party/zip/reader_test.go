@@ -786,7 +786,7 @@ func TestIssue10957(t *testing.T) {
 	}
 }
 
-// Verify the number of files is sane.
+// Verify the number of files is within expected bounds
 func TestIssue10956(t *testing.T) {
 	data := []byte("PK\x06\x06PK\x06\a0000\x00\x00\x00\x00\x00\x00\x00\x00" +
 		"0000PK\x05\x06000000000000" +

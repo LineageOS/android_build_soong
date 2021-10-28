@@ -53,7 +53,7 @@ type variableRegistrar interface {
 	NewVariable(name string, varClass varClass, valueType starlarkType)
 }
 
-// ScopeBase is a dummy implementation of the mkparser.Scope.
+// ScopeBase is a placeholder implementation of the mkparser.Scope.
 // All our scopes are read-only and resolve only simple variables.
 type ScopeBase struct{}
 
