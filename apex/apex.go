@@ -135,6 +135,16 @@ type apexBundleProperties struct {
 	// Default: true.
 	Installable *bool
 
+	// Whether this is multi-installed APEX should skip installing symbol files.
+	// Multi-installed APEXes share the same apex_name and are installed at the same time.
+	// Default is false.
+	//
+	// Should be set to true for all multi-installed APEXes except the singular
+	// default version within the multi-installed group.
+	// Only the default version can install symbol files in $(PRODUCT_OUT}/apex,
+	// or else conflicting build rules may be created.
+	Multi_install_skip_symbol_files *bool
+
 	// Whether this APEX can be compressed or not. Setting this property to false means this
 	// APEX will never be compressed. When set to true, APEX will be compressed if other
 	// conditions, e.g, target device needs to support APEX compression, are also fulfilled.
