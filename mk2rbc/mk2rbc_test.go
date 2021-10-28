@@ -681,6 +681,8 @@ $(info $(abspath foo/bar))
 $(info $(notdir foo/bar))
 $(call add_soong_config_namespace,snsconfig)
 $(call add_soong_config_var_value,snsconfig,imagetype,odm_image)
+$(call soong_config_set, snsconfig, foo, foo_value)
+$(call soong_config_append, snsconfig, bar, bar_value)
 PRODUCT_COPY_FILES := $(call copy-files,$(wildcard foo*.mk),etc)
 PRODUCT_COPY_FILES := $(call product-copy-files-by-pattern,from/%,to/%,a b c)
 `,
@@ -700,8 +702,10 @@ def init(g, handle):
   rblf.mkinfo("product.mk", rblf.dir((_foobar).split()[-1]))
   rblf.mkinfo("product.mk", rblf.abspath("foo/bar"))
   rblf.mkinfo("product.mk", rblf.notdir("foo/bar"))
-  rblf.add_soong_config_namespace(g, "snsconfig")
-  rblf.add_soong_config_var_value(g, "snsconfig", "imagetype", "odm_image")
+  rblf.soong_config_namespace(g, "snsconfig")
+  rblf.soong_config_set(g, "snsconfig", "imagetype", "odm_image")
+  rblf.soong_config_set(g, "snsconfig", "foo", "foo_value")
+  rblf.soong_config_append(g, "snsconfig", "bar", "bar_value")
   cfg["PRODUCT_COPY_FILES"] = rblf.copy_files(rblf.expand_wildcard("foo*.mk"), "etc")
   cfg["PRODUCT_COPY_FILES"] = rblf.product_copy_files_by_pattern("from/%", "to/%", "a b c")
 `,
@@ -784,17 +788,21 @@ def init(g, handle):
 		in: `
 SOONG_CONFIG_NAMESPACES += cvd
 SOONG_CONFIG_cvd += launch_configs
-SOONG_CONFIG_cvd_launch_configs += cvd_config_auto.json
+SOONG_CONFIG_cvd_launch_configs = cvd_config_auto.json
 SOONG_CONFIG_cvd += grub_config
 SOONG_CONFIG_cvd_grub_config += grub.cfg
+x := $(SOONG_CONFIG_cvd_grub_config)
 `,
 		expected: `load("//build/make/core:product_config.rbc", "rblf")
 
 def init(g, handle):
   cfg = rblf.cfg(handle)
-  rblf.add_soong_config_namespace(g, "cvd")
-  rblf.add_soong_config_var_value(g, "cvd", "launch_configs", "cvd_config_auto.json")
-  rblf.add_soong_config_var_value(g, "cvd", "grub_config", "grub.cfg")
+  rblf.soong_config_namespace(g, "cvd")
+  rblf.soong_config_set(g, "cvd", "launch_configs", "cvd_config_auto.json")
+  rblf.soong_config_append(g, "cvd", "grub_config", "grub.cfg")
+  # MK2RBC TRANSLATION ERROR: SOONG_CONFIG_ variables cannot be referenced: SOONG_CONFIG_cvd_grub_config
+  # x := $(SOONG_CONFIG_cvd_grub_config)
+  rblf.warning("product.mk", "partially successful conversion")
 `,
 	},
 	{
