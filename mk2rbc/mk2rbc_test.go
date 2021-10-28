@@ -919,7 +919,7 @@ def init(g, handle):
 		desc:   "Dynamic inherit path",
 		mkname: "product.mk",
 		in: `
-MY_PATH=foo
+MY_PATH:=foo
 $(call inherit-product,vendor/$(MY_PATH)/cfg.mk)
 `,
 		expected: `load("//build/make/core:product_config.rbc", "rblf")
@@ -933,6 +933,30 @@ def init(g, handle):
     "vendor/foo1/cfg.mk": ("_cfg", _cfg_init),
     "vendor/bar/baz/cfg.mk": ("_cfg1", _cfg1_init),
   }.get("vendor/%s/cfg.mk" % g["MY_PATH"])
+  (_varmod, _varmod_init) = _entry if _entry else (None, None)
+  if not _varmod_init:
+    rblf.mkerror("cannot")
+  rblf.inherit(handle, _varmod, _varmod_init)
+`,
+	},
+	{
+		desc:   "Dynamic inherit with hint",
+		mkname: "product.mk",
+		in: `
+MY_PATH:=foo
+#RBC# include_top vendor/foo1
+$(call inherit-product,$(MY_PATH)/cfg.mk)
+`,
+		expected: `load("//build/make/core:product_config.rbc", "rblf")
+load("//vendor/foo1:cfg.star|init", _cfg_init = "init")
+
+def init(g, handle):
+  cfg = rblf.cfg(handle)
+  g["MY_PATH"] = "foo"
+  #RBC# include_top vendor/foo1
+  _entry = {
+    "vendor/foo1/cfg.mk": ("_cfg", _cfg_init),
+  }.get("%s/cfg.mk" % g["MY_PATH"])
   (_varmod, _varmod_init) = _entry if _entry else (None, None)
   if not _varmod_init:
     rblf.mkerror("cannot")
