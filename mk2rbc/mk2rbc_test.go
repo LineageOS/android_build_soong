@@ -563,6 +563,27 @@ def init(g, handle):
 `,
 	},
 	{
+		desc:   "new is-board calls",
+		mkname: "product.mk",
+		in: `
+ifneq (,$(call is-board-platform-in-list2,msm8998 $(X))
+else ifeq (,$(call is-board-platform2,copper)
+else ifneq (,$(call is-vendor-board-qcom))
+endif
+`,
+		expected: `load("//build/make/core:product_config.rbc", "rblf")
+
+def init(g, handle):
+  cfg = rblf.cfg(handle)
+  if rblf.board_platform_in(g, "msm8998 %s" % g.get("X", "")):
+    pass
+  elif not rblf.board_platform_is(g, "copper"):
+    pass
+  elif g.get("TARGET_BOARD_PLATFORM", "") not in g["QCOM_BOARD_PLATFORMS"]:
+    pass
+`,
+	},
+	{
 		desc:   "findstring call",
 		mkname: "product.mk",
 		in: `
