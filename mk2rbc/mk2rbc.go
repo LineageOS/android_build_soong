@@ -46,6 +46,8 @@ const (
 	// product configuration Starlark files.
 	baseName = "rblf"
 
+	soongNsPrefix = "SOONG_CONFIG_"
+
 	// And here are the functions and variables:
 	cfnGetCfg          = baseName + ".cfg"
 	cfnMain            = baseName + ".product_configuration"
@@ -60,10 +62,14 @@ const (
 const (
 	// Phony makefile functions, they are eventually rewritten
 	// according to knownFunctions map
-	addSoongNamespace      = "add_soong_config_namespace"
-	addSoongConfigVarValue = "add_soong_config_var_value"
-	fileExistsPhony        = "$file_exists"
-	wildcardExistsPhony    = "$wildcard_exists"
+	fileExistsPhony = "$file_exists"
+	// The following two macros are obsolete, and will we deleted once
+	// there are deleted from the makefiles:
+	soongConfigNamespaceOld = "add_soong_config_namespace"
+	soongConfigVarSetOld    = "add_soong_config_var_value"
+	soongConfigAppend       = "soong_config_append"
+	soongConfigAssign       = "soong_config_set"
+	wildcardExistsPhony     = "$wildcard_exists"
 )
 
 const (
@@ -82,8 +88,10 @@ var knownFunctions = map[string]struct {
 	"abspath":                             {baseName + ".abspath", starlarkTypeString, hiddenArgNone},
 	fileExistsPhony:                       {baseName + ".file_exists", starlarkTypeBool, hiddenArgNone},
 	wildcardExistsPhony:                   {baseName + ".file_wildcard_exists", starlarkTypeBool, hiddenArgNone},
-	addSoongNamespace:                     {baseName + ".add_soong_config_namespace", starlarkTypeVoid, hiddenArgGlobal},
-	addSoongConfigVarValue:                {baseName + ".add_soong_config_var_value", starlarkTypeVoid, hiddenArgGlobal},
+	soongConfigNamespaceOld:               {baseName + ".soong_config_namespace", starlarkTypeVoid, hiddenArgGlobal},
+	soongConfigVarSetOld:                  {baseName + ".soong_config_set", starlarkTypeVoid, hiddenArgGlobal},
+	soongConfigAssign:                     {baseName + ".soong_config_set", starlarkTypeVoid, hiddenArgGlobal},
+	soongConfigAppend:                     {baseName + ".soong_config_append", starlarkTypeVoid, hiddenArgGlobal},
 	"add-to-product-copy-files-if-exists": {baseName + ".copy_if_exists", starlarkTypeList, hiddenArgNone},
 	"addprefix":                           {baseName + ".addprefix", starlarkTypeList, hiddenArgNone},
 	"addsuffix":                           {baseName + ".addsuffix", starlarkTypeList, hiddenArgNone},
@@ -522,7 +530,6 @@ func (ctx *parseContext) handleAssignment(a *mkparser.Assignment) {
 		return
 	}
 	name := a.Name.Strings[0]
-	const soongNsPrefix = "SOONG_CONFIG_"
 	// Soong confuguration
 	if strings.HasPrefix(name, soongNsPrefix) {
 		ctx.handleSoongNsAssignment(strings.TrimPrefix(name, soongNsPrefix), a)
@@ -615,7 +622,7 @@ func (ctx *parseContext) handleSoongNsAssignment(name string, asgn *mkparser.Ass
 		for _, ns := range strings.Fields(s) {
 			ctx.addSoongNamespace(ns)
 			ctx.receiver.newNode(&exprNode{&callExpr{
-				name:       addSoongNamespace,
+				name:       soongConfigNamespaceOld,
 				args:       []starlarkExpr{&stringLiteralExpr{ns}},
 				returnType: starlarkTypeVoid,
 			}})
@@ -665,8 +672,12 @@ func (ctx *parseContext) handleSoongNsAssignment(name string, asgn *mkparser.Ass
 			ctx.errorf(asgn, "no %s variable in %s namespace, please use add_soong_config_var_value instead", varName, namespaceName)
 			return
 		}
+		fname := soongConfigVarSetOld
+		if asgn.Type == "+=" {
+			fname = soongConfigAppend
+		}
 		ctx.receiver.newNode(&exprNode{&callExpr{
-			name:       addSoongConfigVarValue,
+			name:       fname,
 			args:       []starlarkExpr{&stringLiteralExpr{namespaceName}, &stringLiteralExpr{varName}, val},
 			returnType: starlarkTypeVoid,
 		}})
@@ -1276,6 +1287,10 @@ func (ctx *parseContext) parseReference(node mkparser.Node, ref *mkparser.MakeSt
 				args:       []starlarkExpr{&stringLiteralExpr{""}},
 				returnType: starlarkTypeUnknown,
 			}
+		}
+		if strings.HasPrefix(refDump, soongNsPrefix) {
+			// TODO (asmundak): if we find many, maybe handle them.
+			return ctx.newBadExpr(node, "SOONG_CONFIG_ variables cannot be referenced: %s", refDump)
 		}
 		if v := ctx.addVariable(refDump); v != nil {
 			return &variableRefExpr{v, ctx.lastAssignment(v.name()) != nil}
