@@ -106,7 +106,7 @@ var (
 		Description: "convert ${in}=>${out}",
 	})
 
-	// TODO(b/113233103): make sure that file_contexts is sane, i.e., validate
+	// TODO(b/113233103): make sure that file_contexts is as expected, i.e., validate
 	// against the binary policy using sefcontext_compiler -p <policy>.
 
 	// TODO(b/114327326): automate the generation of file_contexts
