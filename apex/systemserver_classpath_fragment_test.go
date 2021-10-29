@@ -231,3 +231,95 @@ func TestPrebuiltSystemserverclasspathFragmentContents(t *testing.T) {
 		`prebuilt_foo`,
 	})
 }
+
+func TestSystemserverclasspathFragmentStandaloneContents(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		prepareForTestWithSystemserverclasspathFragment,
+		prepareForTestWithMyapex,
+		dexpreopt.FixtureSetApexStandaloneSystemServerJars("myapex:foo"),
+	).RunTestWithBp(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			systemserverclasspath_fragments: [
+				"mysystemserverclasspathfragment",
+			],
+			updatable: false,
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		java_library {
+			name: "foo",
+			srcs: ["b.java"],
+			installable: true,
+			apex_available: [
+				"myapex",
+			],
+		}
+
+		systemserverclasspath_fragment {
+			name: "mysystemserverclasspathfragment",
+			standalone_contents: [
+				"foo",
+			],
+			apex_available: [
+				"myapex",
+			],
+		}
+	`)
+
+	ensureExactContents(t, result.TestContext, "myapex", "android_common_myapex_image", []string{
+		"etc/classpaths/systemserverclasspath.pb",
+		"javalib/foo.jar",
+	})
+}
+
+func TestPrebuiltStandaloneSystemserverclasspathFragmentContents(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		prepareForTestWithSystemserverclasspathFragment,
+		prepareForTestWithMyapex,
+		dexpreopt.FixtureSetApexStandaloneSystemServerJars("myapex:foo"),
+	).RunTestWithBp(t, `
+		prebuilt_apex {
+			name: "myapex",
+			arch: {
+				arm64: {
+					src: "myapex-arm64.apex",
+				},
+				arm: {
+					src: "myapex-arm.apex",
+				},
+			},
+			exported_systemserverclasspath_fragments: ["mysystemserverclasspathfragment"],
+		}
+
+		java_import {
+			name: "foo",
+			jars: ["foo.jar"],
+			apex_available: [
+				"myapex",
+			],
+		}
+
+		prebuilt_systemserverclasspath_fragment {
+			name: "mysystemserverclasspathfragment",
+			prefer: true,
+			standalone_contents: [
+				"foo",
+			],
+			apex_available: [
+				"myapex",
+			],
+		}
+	`)
+
+	java.CheckModuleDependencies(t, result.TestContext, "mysystemserverclasspathfragment", "android_common_myapex", []string{
+		`myapex.deapexer`,
+		`prebuilt_foo`,
+	})
+}
