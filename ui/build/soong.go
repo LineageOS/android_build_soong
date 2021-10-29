@@ -170,7 +170,7 @@ func bootstrapBlueprint(ctx Context, config Config) {
 	ctx.BeginTrace(metrics.RunSoong, "blueprint bootstrap")
 	defer ctx.EndTrace()
 
-	mainSoongBuildExtraArgs := []string{"-o", config.MainNinjaFile()}
+	mainSoongBuildExtraArgs := []string{"-o", config.SoongNinjaFile()}
 	if config.EmptyNinjaFile() {
 		mainSoongBuildExtraArgs = append(mainSoongBuildExtraArgs, "--empty-ninja-file")
 	}
@@ -178,7 +178,7 @@ func bootstrapBlueprint(ctx Context, config Config) {
 	mainSoongBuildInvocation := primaryBuilderInvocation(
 		config,
 		soongBuildTag,
-		config.MainNinjaFile(),
+		config.SoongNinjaFile(),
 		mainSoongBuildExtraArgs)
 
 	if config.bazelBuildMode() == mixedBuild {
@@ -401,7 +401,7 @@ func runSoong(ctx Context, config Config) {
 
 	if config.SoongBuildInvocationNeeded() {
 		// This build generates <builddir>/build.ninja, which is used later by build/soong/ui/build/build.go#Build().
-		targets = append(targets, config.MainNinjaFile())
+		targets = append(targets, config.SoongNinjaFile())
 	}
 
 	ninja("bootstrap", ".bootstrap/build.ninja", targets...)
