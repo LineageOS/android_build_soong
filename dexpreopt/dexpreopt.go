@@ -204,6 +204,17 @@ func GetSystemServerDexLocation(global *GlobalConfig, lib string) string {
 	return fmt.Sprintf("/system/framework/%s.jar", lib)
 }
 
+// Returns the location to the odex file for the dex file at `path`.
+func ToOdexPath(path string, arch android.ArchType) string {
+	if strings.HasPrefix(path, "/apex/") {
+		return filepath.Join("/system/framework/oat", arch.String(),
+			strings.ReplaceAll(path[1:], "/", "@")+"@classes.odex")
+	}
+
+	return filepath.Join(filepath.Dir(path), "oat", arch.String(),
+		pathtools.ReplaceExtension(filepath.Base(path), "odex"))
+}
+
 func dexpreoptCommand(ctx android.PathContext, globalSoong *GlobalSoongConfig, global *GlobalConfig,
 	module *ModuleConfig, rule *android.RuleBuilder, archIdx int, profile android.WritablePath,
 	appImage bool, generateDM bool) {
@@ -218,23 +229,8 @@ func dexpreoptCommand(ctx android.PathContext, globalSoong *GlobalSoongConfig, g
 		base = "package.apk"
 	}
 
-	toOdexPath := func(path string) string {
-		if global.ApexSystemServerJars.ContainsJar(module.Name) {
-			return filepath.Join(
-				"/system/framework/oat",
-				arch.String(),
-				strings.ReplaceAll(path[1:], "/", "@")+"@classes.odex")
-		}
-
-		return filepath.Join(
-			filepath.Dir(path),
-			"oat",
-			arch.String(),
-			pathtools.ReplaceExtension(filepath.Base(path), "odex"))
-	}
-
 	odexPath := module.BuildPath.InSameDir(ctx, "oat", arch.String(), pathtools.ReplaceExtension(base, "odex"))
-	odexInstallPath := toOdexPath(module.DexLocation)
+	odexInstallPath := ToOdexPath(module.DexLocation, arch)
 	if odexOnSystemOther(module, global) {
 		odexInstallPath = filepath.Join(SystemOtherPartition, odexInstallPath)
 	}
