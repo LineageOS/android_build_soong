@@ -325,7 +325,7 @@ type BaseProperties struct {
 	SnapshotStaticLibs  []string `blueprint:"mutated"`
 	SnapshotRuntimeLibs []string `blueprint:"mutated"`
 
-	Installable *bool `android:"arch_variant"`
+	Installable *bool
 
 	// Set by factories of module types that can only be referenced from variants compiled against
 	// the SDK.
