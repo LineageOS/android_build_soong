@@ -120,7 +120,10 @@ func (s *SystemServerClasspathModule) configuredJars(ctx android.ModuleContext) 
 	jars, unknown := global.ApexSystemServerJars.Filter(possibleUpdatableModules)
 	// TODO(satayev): remove geotz ssc_fragment, since geotz is not part of SSCP anymore.
 	_, unknown = android.RemoveFromList("geotz", unknown)
-
+	// This module only exists in car products.
+	// So ignore it even if it is not in PRODUCT_APEX_SYSTEM_SERVER_JARS.
+	// TODO(b/203233647): Add better mechanism to make it optional.
+	_, unknown = android.RemoveFromList("car-frameworks-service-module", unknown)
 	// For non test apexes, make sure that all contents are actually declared in make.
 	if global.ApexSystemServerJars.Len() > 0 && len(unknown) > 0 && !android.IsModuleInVersionedSdk(ctx.Module()) {
 		ctx.ModuleErrorf("%s in contents must also be declared in PRODUCT_APEX_SYSTEM_SERVER_JARS", unknown)
