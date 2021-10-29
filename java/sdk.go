@@ -60,6 +60,12 @@ func defaultJavaLanguageVersion(ctx android.EarlyModuleContext, s android.SdkSpe
 	}
 }
 
+// systemModuleKind returns the kind of system modules to use.
+func systemModuleKind() android.SdkKind {
+	// Currently, every sdk version uses the system modules for the public API.
+	return android.SdkPublic
+}
+
 func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext android.SdkContext) sdkDep {
 	sdkVersion := sdkContext.SdkVersion(ctx)
 	if !sdkVersion.Valid() {
@@ -105,7 +111,8 @@ func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext android.SdkContext)
 
 		var systemModules string
 		if defaultJavaLanguageVersion(ctx, sdkVersion).usesJavaModules() {
-			systemModules = "sdk_public_" + sdkVersion.ApiLevel.String() + "_system_modules"
+			systemModuleKind := systemModuleKind()
+			systemModules = fmt.Sprintf("sdk_%s_%s_system_modules", systemModuleKind, sdkVersion.ApiLevel)
 		}
 
 		return sdkDep{
