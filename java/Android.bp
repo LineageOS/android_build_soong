@@ -40,6 +40,7 @@ bootstrap_go_package {
         "dex.go",
         "dexpreopt.go",
         "dexpreopt_bootjars.go",
+        "dexpreopt_check.go",
         "dexpreopt_config.go",
         "droiddoc.go",
         "droidstubs.go",

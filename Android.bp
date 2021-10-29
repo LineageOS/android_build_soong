@@ -127,3 +127,7 @@ genrule {
     srcs: ["cc/config/global.go"],
     out: ["clang-prebuilts-version.txt"],
 }
+
+dexpreopt_systemserver_check {
+    name: "dexpreopt_systemserver_check",
+}
