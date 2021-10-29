@@ -195,18 +195,18 @@ func TestJavaSdkLibrary_UpdatableLibrary(t *testing.T) {
 `)
 	// test that updatability attributes are passed on correctly
 	fooUpdatable := result.ModuleForTests("fooUpdatable.xml", "android_common").Rule("java_sdk_xml")
-	android.AssertStringDoesContain(t, "fooUpdatable.xml java_sdk_xml command", fooUpdatable.RuleParams.Command, `on_bootclasspath_since=\"9001\"`)
-	android.AssertStringDoesContain(t, "fooUpdatable.xml java_sdk_xml command", fooUpdatable.RuleParams.Command, `on_bootclasspath_before=\"9002\"`)
-	android.AssertStringDoesContain(t, "fooUpdatable.xml java_sdk_xml command", fooUpdatable.RuleParams.Command, `min_device_sdk=\"9003\"`)
-	android.AssertStringDoesContain(t, "fooUpdatable.xml java_sdk_xml command", fooUpdatable.RuleParams.Command, `max_device_sdk=\"10000\"`)
+	android.AssertStringDoesContain(t, "fooUpdatable.xml java_sdk_xml command", fooUpdatable.RuleParams.Command, `on-bootclasspath-since=\"9001\"`)
+	android.AssertStringDoesContain(t, "fooUpdatable.xml java_sdk_xml command", fooUpdatable.RuleParams.Command, `on-bootclasspath-before=\"9002\"`)
+	android.AssertStringDoesContain(t, "fooUpdatable.xml java_sdk_xml command", fooUpdatable.RuleParams.Command, `min-device-sdk=\"9003\"`)
+	android.AssertStringDoesContain(t, "fooUpdatable.xml java_sdk_xml command", fooUpdatable.RuleParams.Command, `max-device-sdk=\"10000\"`)
 
 	// double check that updatability attributes are not written if they don't exist in the bp file
 	// the permissions file for the foo library defined above
 	fooPermissions := result.ModuleForTests("foo.xml", "android_common").Rule("java_sdk_xml")
-	android.AssertStringDoesNotContain(t, "foo.xml java_sdk_xml command", fooPermissions.RuleParams.Command, `on_bootclasspath_since`)
-	android.AssertStringDoesNotContain(t, "foo.xml java_sdk_xml command", fooPermissions.RuleParams.Command, `on_bootclasspath_before`)
-	android.AssertStringDoesNotContain(t, "foo.xml java_sdk_xml command", fooPermissions.RuleParams.Command, `min_device_sdk`)
-	android.AssertStringDoesNotContain(t, "foo.xml java_sdk_xml command", fooPermissions.RuleParams.Command, `max_device_sdk`)
+	android.AssertStringDoesNotContain(t, "foo.xml java_sdk_xml command", fooPermissions.RuleParams.Command, `on-bootclasspath-since`)
+	android.AssertStringDoesNotContain(t, "foo.xml java_sdk_xml command", fooPermissions.RuleParams.Command, `on-bootclasspath-before`)
+	android.AssertStringDoesNotContain(t, "foo.xml java_sdk_xml command", fooPermissions.RuleParams.Command, `min-device-sdk`)
+	android.AssertStringDoesNotContain(t, "foo.xml java_sdk_xml command", fooPermissions.RuleParams.Command, `max-device-sdk`)
 }
 
 func TestJavaSdkLibrary_UpdatableLibrary_Validation_ValidVersion(t *testing.T) {
