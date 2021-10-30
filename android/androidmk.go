@@ -478,8 +478,9 @@ type fillInEntriesContext interface {
 
 func (a *AndroidMkEntries) fillInEntries(ctx fillInEntriesContext, mod blueprint.Module) {
 	a.EntryMap = make(map[string][]string)
-	amod := mod.(Module).base()
-	name := amod.BaseModuleName()
+	amod := mod.(Module)
+	base := amod.base()
+	name := base.BaseModuleName()
 	if a.OverrideName != "" {
 		name = a.OverrideName
 	}
@@ -487,9 +488,9 @@ func (a *AndroidMkEntries) fillInEntries(ctx fillInEntriesContext, mod blueprint
 	if a.Include == "" {
 		a.Include = "$(BUILD_PREBUILT)"
 	}
-	a.Required = append(a.Required, mod.(Module).RequiredModuleNames()...)
-	a.Host_required = append(a.Host_required, mod.(Module).HostRequiredModuleNames()...)
-	a.Target_required = append(a.Target_required, mod.(Module).TargetRequiredModuleNames()...)
+	a.Required = append(a.Required, amod.RequiredModuleNames()...)
+	a.Host_required = append(a.Host_required, amod.HostRequiredModuleNames()...)
+	a.Target_required = append(a.Target_required, amod.TargetRequiredModuleNames()...)
 
 	for _, distString := range a.GetDistForGoals(mod) {
 		fmt.Fprintf(&a.header, distString)
@@ -500,14 +501,14 @@ func (a *AndroidMkEntries) fillInEntries(ctx fillInEntriesContext, mod blueprint
 	// Collect make variable assignment entries.
 	a.SetString("LOCAL_PATH", ctx.ModuleDir(mod))
 	a.SetString("LOCAL_MODULE", name+a.SubName)
-	a.AddStrings("LOCAL_LICENSE_KINDS", amod.commonProperties.Effective_license_kinds...)
-	a.AddStrings("LOCAL_LICENSE_CONDITIONS", amod.commonProperties.Effective_license_conditions...)
-	a.AddStrings("LOCAL_NOTICE_FILE", amod.commonProperties.Effective_license_text.Strings()...)
+	a.AddStrings("LOCAL_LICENSE_KINDS", base.commonProperties.Effective_license_kinds...)
+	a.AddStrings("LOCAL_LICENSE_CONDITIONS", base.commonProperties.Effective_license_conditions...)
+	a.AddStrings("LOCAL_NOTICE_FILE", base.commonProperties.Effective_license_text.Strings()...)
 	// TODO(b/151177513): Does this code need to set LOCAL_MODULE_IS_CONTAINER ?
-	if amod.commonProperties.Effective_package_name != nil {
-		a.SetString("LOCAL_LICENSE_PACKAGE_NAME", *amod.commonProperties.Effective_package_name)
-	} else if len(amod.commonProperties.Effective_licenses) > 0 {
-		a.SetString("LOCAL_LICENSE_PACKAGE_NAME", strings.Join(amod.commonProperties.Effective_licenses, " "))
+	if base.commonProperties.Effective_package_name != nil {
+		a.SetString("LOCAL_LICENSE_PACKAGE_NAME", *base.commonProperties.Effective_package_name)
+	} else if len(base.commonProperties.Effective_licenses) > 0 {
+		a.SetString("LOCAL_LICENSE_PACKAGE_NAME", strings.Join(base.commonProperties.Effective_licenses, " "))
 	}
 	a.SetString("LOCAL_MODULE_CLASS", a.Class)
 	a.SetString("LOCAL_PREBUILT_MODULE_FILE", a.OutputFile.String())
@@ -519,27 +520,27 @@ func (a *AndroidMkEntries) fillInEntries(ctx fillInEntriesContext, mod blueprint
 		a.SetBoolIfTrue("LOCAL_NOT_AVAILABLE_FOR_PLATFORM", am.NotAvailableForPlatform())
 	}
 
-	archStr := amod.Arch().ArchType.String()
+	archStr := base.Arch().ArchType.String()
 	host := false
-	switch amod.Os().Class {
+	switch base.Os().Class {
 	case Host:
-		if amod.Target().HostCross {
+		if base.Target().HostCross {
 			// Make cannot identify LOCAL_MODULE_HOST_CROSS_ARCH:= common.
-			if amod.Arch().ArchType != Common {
+			if base.Arch().ArchType != Common {
 				a.SetString("LOCAL_MODULE_HOST_CROSS_ARCH", archStr)
 			}
 		} else {
 			// Make cannot identify LOCAL_MODULE_HOST_ARCH:= common.
-			if amod.Arch().ArchType != Common {
+			if base.Arch().ArchType != Common {
 				a.SetString("LOCAL_MODULE_HOST_ARCH", archStr)
 			}
 		}
 		host = true
 	case Device:
 		// Make cannot identify LOCAL_MODULE_TARGET_ARCH:= common.
-		if amod.Arch().ArchType != Common {
-			if amod.Target().NativeBridge {
-				hostArchStr := amod.Target().NativeBridgeHostArchName
+		if base.Arch().ArchType != Common {
+			if base.Target().NativeBridge {
+				hostArchStr := base.Target().NativeBridgeHostArchName
 				if hostArchStr != "" {
 					a.SetString("LOCAL_MODULE_TARGET_ARCH", hostArchStr)
 				}
@@ -548,31 +549,31 @@ func (a *AndroidMkEntries) fillInEntries(ctx fillInEntriesContext, mod blueprint
 			}
 		}
 
-		if !amod.InRamdisk() && !amod.InVendorRamdisk() {
-			a.AddPaths("LOCAL_FULL_INIT_RC", amod.initRcPaths)
+		if !base.InRamdisk() && !base.InVendorRamdisk() {
+			a.AddPaths("LOCAL_FULL_INIT_RC", base.initRcPaths)
 		}
-		if len(amod.vintfFragmentsPaths) > 0 {
-			a.AddPaths("LOCAL_FULL_VINTF_FRAGMENTS", amod.vintfFragmentsPaths)
+		if len(base.vintfFragmentsPaths) > 0 {
+			a.AddPaths("LOCAL_FULL_VINTF_FRAGMENTS", base.vintfFragmentsPaths)
 		}
-		a.SetBoolIfTrue("LOCAL_PROPRIETARY_MODULE", Bool(amod.commonProperties.Proprietary))
-		if Bool(amod.commonProperties.Vendor) || Bool(amod.commonProperties.Soc_specific) {
+		a.SetBoolIfTrue("LOCAL_PROPRIETARY_MODULE", Bool(base.commonProperties.Proprietary))
+		if Bool(base.commonProperties.Vendor) || Bool(base.commonProperties.Soc_specific) {
 			a.SetString("LOCAL_VENDOR_MODULE", "true")
 		}
-		a.SetBoolIfTrue("LOCAL_ODM_MODULE", Bool(amod.commonProperties.Device_specific))
-		a.SetBoolIfTrue("LOCAL_PRODUCT_MODULE", Bool(amod.commonProperties.Product_specific))
-		a.SetBoolIfTrue("LOCAL_SYSTEM_EXT_MODULE", Bool(amod.commonProperties.System_ext_specific))
-		if amod.commonProperties.Owner != nil {
-			a.SetString("LOCAL_MODULE_OWNER", *amod.commonProperties.Owner)
+		a.SetBoolIfTrue("LOCAL_ODM_MODULE", Bool(base.commonProperties.Device_specific))
+		a.SetBoolIfTrue("LOCAL_PRODUCT_MODULE", Bool(base.commonProperties.Product_specific))
+		a.SetBoolIfTrue("LOCAL_SYSTEM_EXT_MODULE", Bool(base.commonProperties.System_ext_specific))
+		if base.commonProperties.Owner != nil {
+			a.SetString("LOCAL_MODULE_OWNER", *base.commonProperties.Owner)
 		}
 	}
 
-	if len(amod.noticeFiles) > 0 {
-		a.SetString("LOCAL_NOTICE_FILE", strings.Join(amod.noticeFiles.Strings(), " "))
+	if len(base.noticeFiles) > 0 {
+		a.SetString("LOCAL_NOTICE_FILE", strings.Join(base.noticeFiles.Strings(), " "))
 	}
 
 	if host {
-		makeOs := amod.Os().String()
-		if amod.Os() == Linux || amod.Os() == LinuxBionic || amod.Os() == LinuxMusl {
+		makeOs := base.Os().String()
+		if base.Os() == Linux || base.Os() == LinuxBionic || base.Os() == LinuxMusl {
 			makeOs = "linux"
 		}
 		a.SetString("LOCAL_MODULE_HOST_OS", makeOs)
@@ -580,10 +581,10 @@ func (a *AndroidMkEntries) fillInEntries(ctx fillInEntriesContext, mod blueprint
 	}
 
 	prefix := ""
-	if amod.ArchSpecific() {
-		switch amod.Os().Class {
+	if base.ArchSpecific() {
+		switch base.Os().Class {
 		case Host:
-			if amod.Target().HostCross {
+			if base.Target().HostCross {
 				prefix = "HOST_CROSS_"
 			} else {
 				prefix = "HOST_"
@@ -593,7 +594,7 @@ func (a *AndroidMkEntries) fillInEntries(ctx fillInEntriesContext, mod blueprint
 
 		}
 
-		if amod.Arch().ArchType != ctx.Config().Targets[amod.Os()][0].Arch.ArchType {
+		if base.Arch().ArchType != ctx.Config().Targets[base.Os()][0].Arch.ArchType {
 			prefix = "2ND_" + prefix
 		}
 	}
