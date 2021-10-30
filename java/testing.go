@@ -181,6 +181,9 @@ func prebuiltApisFilesForLibs(apiLevels []string, sdkLibs []string) map[string][
 				}
 			}
 		}
+		if level == "current" {
+			fs["prebuilts/sdk/current/core/android.jar"] = nil
+		}
 		fs[fmt.Sprintf("prebuilts/sdk/%s/public/framework.aidl", level)] = nil
 	}
 	return fs

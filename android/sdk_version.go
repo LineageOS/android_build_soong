@@ -157,7 +157,7 @@ func (s SdkSpec) UsePrebuilt(ctx EarlyModuleContext) bool {
 		return ctx.Config().AlwaysUsePrebuiltSdks()
 	} else if !s.ApiLevel.IsPreview() {
 		// validation check
-		if s.Kind != SdkPublic && s.Kind != SdkSystem && s.Kind != SdkTest && s.Kind != SdkModule {
+		if s.Kind != SdkPublic && s.Kind != SdkSystem && s.Kind != SdkTest && s.Kind != SdkModule && s.Kind != SdkSystemServer {
 			panic(fmt.Errorf("prebuilt SDK is not not available for SdkKind=%q", s.Kind))
 			return false
 		}

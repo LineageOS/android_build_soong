@@ -563,6 +563,27 @@ def init(g, handle):
 `,
 	},
 	{
+		desc:   "new is-board calls",
+		mkname: "product.mk",
+		in: `
+ifneq (,$(call is-board-platform-in-list2,msm8998 $(X))
+else ifeq (,$(call is-board-platform2,copper)
+else ifneq (,$(call is-vendor-board-qcom))
+endif
+`,
+		expected: `load("//build/make/core:product_config.rbc", "rblf")
+
+def init(g, handle):
+  cfg = rblf.cfg(handle)
+  if rblf.board_platform_in(g, "msm8998 %s" % g.get("X", "")):
+    pass
+  elif not rblf.board_platform_is(g, "copper"):
+    pass
+  elif g.get("TARGET_BOARD_PLATFORM", "") not in g["QCOM_BOARD_PLATFORMS"]:
+    pass
+`,
+	},
+	{
 		desc:   "findstring call",
 		mkname: "product.mk",
 		in: `
@@ -681,6 +702,8 @@ $(info $(abspath foo/bar))
 $(info $(notdir foo/bar))
 $(call add_soong_config_namespace,snsconfig)
 $(call add_soong_config_var_value,snsconfig,imagetype,odm_image)
+$(call soong_config_set, snsconfig, foo, foo_value)
+$(call soong_config_append, snsconfig, bar, bar_value)
 PRODUCT_COPY_FILES := $(call copy-files,$(wildcard foo*.mk),etc)
 PRODUCT_COPY_FILES := $(call product-copy-files-by-pattern,from/%,to/%,a b c)
 `,
@@ -700,8 +723,10 @@ def init(g, handle):
   rblf.mkinfo("product.mk", rblf.dir((_foobar).split()[-1]))
   rblf.mkinfo("product.mk", rblf.abspath("foo/bar"))
   rblf.mkinfo("product.mk", rblf.notdir("foo/bar"))
-  rblf.add_soong_config_namespace(g, "snsconfig")
-  rblf.add_soong_config_var_value(g, "snsconfig", "imagetype", "odm_image")
+  rblf.soong_config_namespace(g, "snsconfig")
+  rblf.soong_config_set(g, "snsconfig", "imagetype", "odm_image")
+  rblf.soong_config_set(g, "snsconfig", "foo", "foo_value")
+  rblf.soong_config_append(g, "snsconfig", "bar", "bar_value")
   cfg["PRODUCT_COPY_FILES"] = rblf.copy_files(rblf.expand_wildcard("foo*.mk"), "etc")
   cfg["PRODUCT_COPY_FILES"] = rblf.product_copy_files_by_pattern("from/%", "to/%", "a b c")
 `,
@@ -784,17 +809,21 @@ def init(g, handle):
 		in: `
 SOONG_CONFIG_NAMESPACES += cvd
 SOONG_CONFIG_cvd += launch_configs
-SOONG_CONFIG_cvd_launch_configs += cvd_config_auto.json
+SOONG_CONFIG_cvd_launch_configs = cvd_config_auto.json
 SOONG_CONFIG_cvd += grub_config
 SOONG_CONFIG_cvd_grub_config += grub.cfg
+x := $(SOONG_CONFIG_cvd_grub_config)
 `,
 		expected: `load("//build/make/core:product_config.rbc", "rblf")
 
 def init(g, handle):
   cfg = rblf.cfg(handle)
-  rblf.add_soong_config_namespace(g, "cvd")
-  rblf.add_soong_config_var_value(g, "cvd", "launch_configs", "cvd_config_auto.json")
-  rblf.add_soong_config_var_value(g, "cvd", "grub_config", "grub.cfg")
+  rblf.soong_config_namespace(g, "cvd")
+  rblf.soong_config_set(g, "cvd", "launch_configs", "cvd_config_auto.json")
+  rblf.soong_config_append(g, "cvd", "grub_config", "grub.cfg")
+  # MK2RBC TRANSLATION ERROR: SOONG_CONFIG_ variables cannot be referenced: SOONG_CONFIG_cvd_grub_config
+  # x := $(SOONG_CONFIG_cvd_grub_config)
+  rblf.warning("product.mk", "partially successful conversion")
 `,
 	},
 	{
@@ -911,7 +940,7 @@ def init(g, handle):
 		desc:   "Dynamic inherit path",
 		mkname: "product.mk",
 		in: `
-MY_PATH=foo
+MY_PATH:=foo
 $(call inherit-product,vendor/$(MY_PATH)/cfg.mk)
 `,
 		expected: `load("//build/make/core:product_config.rbc", "rblf")
@@ -929,6 +958,47 @@ def init(g, handle):
   if not _varmod_init:
     rblf.mkerror("cannot")
   rblf.inherit(handle, _varmod, _varmod_init)
+`,
+	},
+	{
+		desc:   "Dynamic inherit with hint",
+		mkname: "product.mk",
+		in: `
+MY_PATH:=foo
+#RBC# include_top vendor/foo1
+$(call inherit-product,$(MY_PATH)/cfg.mk)
+`,
+		expected: `load("//build/make/core:product_config.rbc", "rblf")
+load("//vendor/foo1:cfg.star|init", _cfg_init = "init")
+
+def init(g, handle):
+  cfg = rblf.cfg(handle)
+  g["MY_PATH"] = "foo"
+  #RBC# include_top vendor/foo1
+  _entry = {
+    "vendor/foo1/cfg.mk": ("_cfg", _cfg_init),
+  }.get("%s/cfg.mk" % g["MY_PATH"])
+  (_varmod, _varmod_init) = _entry if _entry else (None, None)
+  if not _varmod_init:
+    rblf.mkerror("cannot")
+  rblf.inherit(handle, _varmod, _varmod_init)
+`,
+	},
+	{
+		desc:   "Ignore make rules",
+		mkname: "product.mk",
+		in: `
+foo: foo.c
+	gcc -o $@ $*`,
+		expected: `# MK2RBC TRANSLATION ERROR: unsupported line rule:       foo: foo.c
+#gcc -o $@ $*
+# rule:       foo: foo.c
+# gcc -o $@ $*
+load("//build/make/core:product_config.rbc", "rblf")
+
+def init(g, handle):
+  cfg = rblf.cfg(handle)
+  rblf.warning("product.mk", "partially successful conversion")
 `,
 	},
 }
