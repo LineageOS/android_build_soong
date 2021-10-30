@@ -325,7 +325,7 @@ type BaseProperties struct {
 	SnapshotStaticLibs  []string `blueprint:"mutated"`
 	SnapshotRuntimeLibs []string `blueprint:"mutated"`
 
-	Installable *bool
+	Installable *bool `android:"arch_variant"`
 
 	// Set by factories of module types that can only be referenced from variants compiled against
 	// the SDK.
@@ -1865,7 +1865,7 @@ func (c *Module) maybeUnhideFromMake() {
 }
 
 func (c *Module) maybeInstall(ctx ModuleContext, apexInfo android.ApexInfo) {
-	if !proptools.BoolDefault(c.Properties.Installable, true) {
+	if !proptools.BoolDefault(c.Installable(), true) {
 		// If the module has been specifically configure to not be installed then
 		// hide from make as otherwise it will break when running inside make
 		// as the output path to install will not be specified. Not all uninstallable
@@ -3260,6 +3260,11 @@ func (c *Module) PreventInstall() bool {
 }
 
 func (c *Module) Installable() *bool {
+	if c.library != nil {
+		if i := c.library.installable(); i != nil {
+			return i
+		}
+	}
 	return c.Properties.Installable
 }
 

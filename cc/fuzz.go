@@ -123,7 +123,7 @@ func IsValidSharedDependency(dependency android.Module) bool {
 		}
 		// Discard installable:false libraries because they are expected to be absent
 		// in runtime.
-		if !proptools.BoolDefault(ccLibrary.Properties.Installable, true) {
+		if !proptools.BoolDefault(ccLibrary.Installable(), true) {
 			return false
 		}
 	}
