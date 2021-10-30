@@ -159,6 +159,8 @@ type StaticOrSharedProperties struct {
 	Export_static_lib_headers []string `android:"arch_variant"`
 
 	Apex_available []string `android:"arch_variant"`
+
+	Installable *bool `android:"arch_variant"`
 }
 
 type LibraryMutatedProperties struct {
@@ -1048,6 +1050,8 @@ type libraryInterface interface {
 	availableFor(string) bool
 
 	getAPIListCoverageXMLPath() android.ModuleOutPath
+
+	installable() *bool
 }
 
 type versionedInterface interface {
@@ -1970,6 +1974,15 @@ func (library *libraryDecorator) availableFor(what string) bool {
 		return false
 	}
 	return android.CheckAvailableForApex(what, list)
+}
+
+func (library *libraryDecorator) installable() *bool {
+	if library.static() {
+		return library.StaticProperties.Static.Installable
+	} else if library.shared() {
+		return library.SharedProperties.Shared.Installable
+	}
+	return nil
 }
 
 func (library *libraryDecorator) makeUninstallable(mod *Module) {
