@@ -105,7 +105,7 @@ function setup() {
 }
 
 function run_soong() {
-  build/soong/soong_ui.bash --make-mode --skip-ninja --skip-make --skip-soong-tests "$@"
+  build/soong/soong_ui.bash --make-mode --skip-ninja --skip-config --soong-only --skip-soong-tests "$@"
 }
 
 function create_mock_bazel() {
@@ -125,7 +125,7 @@ run_bazel() {
 }
 
 run_ninja() {
-  build/soong/soong_ui.bash --make-mode --skip-make --skip-soong-tests "$@"
+  build/soong/soong_ui.bash --make-mode --skip-config --soong-only --skip-soong-tests "$@"
 }
 
 info "Starting Soong integration test suite $(basename $0)"
