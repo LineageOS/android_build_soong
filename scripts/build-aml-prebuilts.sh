@@ -23,10 +23,10 @@ fi
 export OUT_DIR=${OUT_DIR:-out}
 
 if [ -e ${OUT_DIR}/soong/.soong.kati_enabled ]; then
-  # If ${OUT_DIR} has been created without --skip-make, Soong will create an
+  # If ${OUT_DIR} has been created without --soong-only, Soong will create an
   # ${OUT_DIR}/soong/build.ninja that leaves out many targets which are
   # expected to be supplied by the .mk files, and that might cause errors in
-  # "m --skip-make" below. We therefore default to a different out dir
+  # "m --soong-only" below. We therefore default to a different out dir
   # location in that case.
   AML_OUT_DIR=out/aml
   echo "Avoiding in-make OUT_DIR '${OUT_DIR}' - building in '${AML_OUT_DIR}' instead"
