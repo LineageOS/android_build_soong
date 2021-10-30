@@ -833,10 +833,11 @@ func (c *RuleBuilderCommand) PathForOutput(path WritablePath) string {
 
 func sboxPathForToolRel(ctx BuilderContext, path Path) string {
 	// Errors will be handled in RuleBuilder.Build where we have a context to report them
-	relOut, isRelOut, _ := maybeRelErr(PathForOutput(ctx, "host", ctx.Config().PrebuiltOS()).String(), path.String())
-	if isRelOut {
-		// The tool is in the output directory, it will be copied to __SBOX_OUT_DIR__/tools/out
-		return filepath.Join(sboxToolsSubDir, "out", relOut)
+	toolDir := pathForInstall(ctx, ctx.Config().BuildOS, ctx.Config().BuildArch, "", false)
+	relOutSoong, isRelOutSoong, _ := maybeRelErr(toolDir.String(), path.String())
+	if isRelOutSoong {
+		// The tool is in the Soong output directory, it will be copied to __SBOX_OUT_DIR__/tools/out
+		return filepath.Join(sboxToolsSubDir, "out", relOutSoong)
 	}
 	// The tool is in the source directory, it will be copied to __SBOX_OUT_DIR__/tools/src
 	return filepath.Join(sboxToolsSubDir, "src", path.String())
