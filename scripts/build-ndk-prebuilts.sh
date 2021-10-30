@@ -64,7 +64,7 @@ cat > ${SOONG_OUT}/soong.variables << EOF
     "MissingUsesLibraries": ${MISSING_USES_LIBRARIES}
 }
 EOF
-m --skip-make ${SOONG_OUT}/ndk.timestamp
+m --soong-only --skip-config ${SOONG_OUT}/ndk.timestamp
 
 if [ -n "${DIST_DIR}" ]; then
     mkdir -p ${DIST_DIR} || true
