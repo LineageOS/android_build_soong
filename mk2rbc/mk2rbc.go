@@ -40,11 +40,14 @@ import (
 )
 
 const (
-	baseUri = "//build/make/core:product_config.rbc"
+	annotationCommentPrefix = "RBC#"
+	baseUri                 = "//build/make/core:product_config.rbc"
 	// The name of the struct exported by the product_config.rbc
 	// that contains the functions and variables available to
 	// product configuration Starlark files.
 	baseName = "rblf"
+
+	soongNsPrefix = "SOONG_CONFIG_"
 
 	// And here are the functions and variables:
 	cfnGetCfg          = baseName + ".cfg"
@@ -60,10 +63,14 @@ const (
 const (
 	// Phony makefile functions, they are eventually rewritten
 	// according to knownFunctions map
-	addSoongNamespace      = "add_soong_config_namespace"
-	addSoongConfigVarValue = "add_soong_config_var_value"
-	fileExistsPhony        = "$file_exists"
-	wildcardExistsPhony    = "$wildcard_exists"
+	fileExistsPhony = "$file_exists"
+	// The following two macros are obsolete, and will we deleted once
+	// there are deleted from the makefiles:
+	soongConfigNamespaceOld = "add_soong_config_namespace"
+	soongConfigVarSetOld    = "add_soong_config_var_value"
+	soongConfigAppend       = "soong_config_append"
+	soongConfigAssign       = "soong_config_set"
+	wildcardExistsPhony     = "$wildcard_exists"
 )
 
 const (
@@ -82,8 +89,10 @@ var knownFunctions = map[string]struct {
 	"abspath":                             {baseName + ".abspath", starlarkTypeString, hiddenArgNone},
 	fileExistsPhony:                       {baseName + ".file_exists", starlarkTypeBool, hiddenArgNone},
 	wildcardExistsPhony:                   {baseName + ".file_wildcard_exists", starlarkTypeBool, hiddenArgNone},
-	addSoongNamespace:                     {baseName + ".add_soong_config_namespace", starlarkTypeVoid, hiddenArgGlobal},
-	addSoongConfigVarValue:                {baseName + ".add_soong_config_var_value", starlarkTypeVoid, hiddenArgGlobal},
+	soongConfigNamespaceOld:               {baseName + ".soong_config_namespace", starlarkTypeVoid, hiddenArgGlobal},
+	soongConfigVarSetOld:                  {baseName + ".soong_config_set", starlarkTypeVoid, hiddenArgGlobal},
+	soongConfigAssign:                     {baseName + ".soong_config_set", starlarkTypeVoid, hiddenArgGlobal},
+	soongConfigAppend:                     {baseName + ".soong_config_append", starlarkTypeVoid, hiddenArgGlobal},
 	"add-to-product-copy-files-if-exists": {baseName + ".copy_if_exists", starlarkTypeList, hiddenArgNone},
 	"addprefix":                           {baseName + ".addprefix", starlarkTypeList, hiddenArgNone},
 	"addsuffix":                           {baseName + ".addsuffix", starlarkTypeList, hiddenArgNone},
@@ -102,13 +111,16 @@ var knownFunctions = map[string]struct {
 	"is-android-codename":                 {"!is-android-codename", starlarkTypeBool, hiddenArgNone},         // unused by product config
 	"is-android-codename-in-list":         {"!is-android-codename-in-list", starlarkTypeBool, hiddenArgNone}, // unused by product config
 	"is-board-platform":                   {"!is-board-platform", starlarkTypeBool, hiddenArgNone},
+	"is-board-platform2":                  {baseName + ".board_platform_is", starlarkTypeBool, hiddenArgGlobal},
 	"is-board-platform-in-list":           {"!is-board-platform-in-list", starlarkTypeBool, hiddenArgNone},
+	"is-board-platform-in-list2":          {baseName + ".board_platform_in", starlarkTypeBool, hiddenArgGlobal},
 	"is-chipset-in-board-platform":        {"!is-chipset-in-board-platform", starlarkTypeUnknown, hiddenArgNone},     // unused by product config
 	"is-chipset-prefix-in-board-platform": {"!is-chipset-prefix-in-board-platform", starlarkTypeBool, hiddenArgNone}, // unused by product config
 	"is-not-board-platform":               {"!is-not-board-platform", starlarkTypeBool, hiddenArgNone},               // defined but never used
 	"is-platform-sdk-version-at-least":    {"!is-platform-sdk-version-at-least", starlarkTypeBool, hiddenArgNone},    // unused by product config
 	"is-product-in-list":                  {"!is-product-in-list", starlarkTypeBool, hiddenArgNone},
 	"is-vendor-board-platform":            {"!is-vendor-board-platform", starlarkTypeBool, hiddenArgNone},
+	"is-vendor-board-qcom":                {"!is-vendor-board-qcom", starlarkTypeBool, hiddenArgNone},
 	callLoadAlways:                        {"!inherit-product", starlarkTypeVoid, hiddenArgNone},
 	callLoadIf:                            {"!inherit-product-if-exists", starlarkTypeVoid, hiddenArgNone},
 	"lastword":                            {"!lastword", starlarkTypeString, hiddenArgNone},
@@ -399,6 +411,7 @@ type parseContext struct {
 	outputDir        string
 	dependentModules map[string]*moduleInfo
 	soongNamespaces  map[string]map[string]bool
+	includeTops      []string
 }
 
 func newParseContext(ss *StarlarkScript, nodes []mkparser.Node) *parseContext {
@@ -444,6 +457,7 @@ func newParseContext(ss *StarlarkScript, nodes []mkparser.Node) *parseContext {
 		variables:        make(map[string]variable),
 		dependentModules: make(map[string]*moduleInfo),
 		soongNamespaces:  make(map[string]map[string]bool),
+		includeTops:      []string{"vendor/google-devices"},
 	}
 	ctx.pushVarAssignments()
 	for _, item := range predefined {
@@ -522,7 +536,6 @@ func (ctx *parseContext) handleAssignment(a *mkparser.Assignment) {
 		return
 	}
 	name := a.Name.Strings[0]
-	const soongNsPrefix = "SOONG_CONFIG_"
 	// Soong confuguration
 	if strings.HasPrefix(name, soongNsPrefix) {
 		ctx.handleSoongNsAssignment(strings.TrimPrefix(name, soongNsPrefix), a)
@@ -615,7 +628,7 @@ func (ctx *parseContext) handleSoongNsAssignment(name string, asgn *mkparser.Ass
 		for _, ns := range strings.Fields(s) {
 			ctx.addSoongNamespace(ns)
 			ctx.receiver.newNode(&exprNode{&callExpr{
-				name:       addSoongNamespace,
+				name:       soongConfigNamespaceOld,
 				args:       []starlarkExpr{&stringLiteralExpr{ns}},
 				returnType: starlarkTypeVoid,
 			}})
@@ -665,8 +678,12 @@ func (ctx *parseContext) handleSoongNsAssignment(name string, asgn *mkparser.Ass
 			ctx.errorf(asgn, "no %s variable in %s namespace, please use add_soong_config_var_value instead", varName, namespaceName)
 			return
 		}
+		fname := soongConfigVarSetOld
+		if asgn.Type == "+=" {
+			fname = soongConfigAppend
+		}
 		ctx.receiver.newNode(&exprNode{&callExpr{
-			name:       addSoongConfigVarValue,
+			name:       fname,
 			args:       []starlarkExpr{&stringLiteralExpr{namespaceName}, &stringLiteralExpr{varName}, val},
 			returnType: starlarkTypeVoid,
 		}})
@@ -799,21 +816,15 @@ func (ctx *parseContext) handleSubConfig(
 			pathPattern = append(pathPattern, chunk)
 		}
 	}
-	if pathPattern[0] != "" {
-		matchingPaths = ctx.findMatchingPaths(pathPattern)
-	} else {
-		// Heuristics -- if pattern starts from top, restrict it to the directories where
-		// we know inherit-product uses dynamically calculated path. Restrict it even further
-		// for certain path which would yield too many useless matches
-		if len(varPath.chunks) == 2 && varPath.chunks[1] == "/BoardConfigVendor.mk" {
-			pathPattern[0] = "vendor/google_devices"
-			matchingPaths = ctx.findMatchingPaths(pathPattern)
-		} else {
-			for _, t := range []string{"vendor/qcom", "vendor/google_devices"} {
-				pathPattern[0] = t
-				matchingPaths = append(matchingPaths, ctx.findMatchingPaths(pathPattern)...)
-			}
+	if pathPattern[0] == "" {
+		// If pattern starts from the top. restrict it to the directories where
+		// we know inherit-product uses dynamically calculated path.
+		for _, p := range ctx.includeTops {
+			pathPattern[0] = p
+			matchingPaths = append(matchingPaths, ctx.findMatchingPaths(pathPattern)...)
 		}
+	} else {
+		matchingPaths = ctx.findMatchingPaths(pathPattern)
 	}
 	// Safeguard against $(call inherit-product,$(PRODUCT_PATH))
 	const maxMatchingFiles = 150
@@ -1133,6 +1144,34 @@ func (ctx *parseContext) parseCheckFunctionCallResult(directive *mkparser.Direct
 				list:  &variableRefExpr{ctx.addVariable(s + "_BOARD_PLATFORMS"), true},
 				isNot: negate,
 			}, true
+
+		case "is-board-platform2", "is-board-platform-in-list2":
+			if s, ok := maybeString(xValue); !ok || s != "" {
+				return ctx.newBadExpr(directive,
+					fmt.Sprintf("the result of %s can be compared only to empty", x.name)), true
+			}
+			if len(x.args) != 1 {
+				return ctx.newBadExpr(directive, "%s requires an argument", x.name), true
+			}
+			cc := &callExpr{
+				name:       x.name,
+				args:       []starlarkExpr{x.args[0]},
+				returnType: starlarkTypeBool,
+			}
+			if !negate {
+				return &notExpr{cc}, true
+			}
+			return cc, true
+		case "is-vendor-board-qcom":
+			if s, ok := maybeString(xValue); !ok || s != "" {
+				return ctx.newBadExpr(directive,
+					fmt.Sprintf("the result of %s can be compared only to empty", x.name)), true
+			}
+			return &inExpr{
+				expr:  &variableRefExpr{ctx.addVariable("TARGET_BOARD_PLATFORM"), false},
+				list:  &variableRefExpr{ctx.addVariable("QCOM_BOARD_PLATFORMS"), true},
+				isNot: negate,
+			}, true
 		default:
 			return ctx.newBadExpr(directive, "Unknown function in ifeq: %s", x.name), true
 		}
@@ -1276,6 +1315,10 @@ func (ctx *parseContext) parseReference(node mkparser.Node, ref *mkparser.MakeSt
 				args:       []starlarkExpr{&stringLiteralExpr{""}},
 				returnType: starlarkTypeUnknown,
 			}
+		}
+		if strings.HasPrefix(refDump, soongNsPrefix) {
+			// TODO (asmundak): if we find many, maybe handle them.
+			return ctx.newBadExpr(node, "SOONG_CONFIG_ variables cannot be referenced: %s", refDump)
 		}
 		if v := ctx.addVariable(refDump); v != nil {
 			return &variableRefExpr{v, ctx.lastAssignment(v.name()) != nil}
@@ -1438,6 +1481,7 @@ func (ctx *parseContext) handleSimpleStatement(node mkparser.Node) bool {
 	handled := true
 	switch x := node.(type) {
 	case *mkparser.Comment:
+		ctx.maybeHandleAnnotation(x)
 		ctx.insertComment("#" + x.Comment)
 	case *mkparser.Assignment:
 		ctx.handleAssignment(x)
@@ -1453,9 +1497,31 @@ func (ctx *parseContext) handleSimpleStatement(node mkparser.Node) bool {
 			handled = false
 		}
 	default:
-		ctx.errorf(x, "unsupported line %s", x.Dump())
+		ctx.errorf(x, "unsupported line %s", strings.ReplaceAll(x.Dump(), "\n", "\n#"))
 	}
 	return handled
+}
+
+// Processes annotation. An annotation is a comment that starts with #RBC# and provides
+// a conversion hint -- say, where to look for the dynamically calculated inherit/include
+// paths.
+func (ctx *parseContext) maybeHandleAnnotation(cnode *mkparser.Comment) {
+	maybeTrim := func(s, prefix string) (string, bool) {
+		if strings.HasPrefix(s, prefix) {
+			return strings.TrimSpace(strings.TrimPrefix(s, prefix)), true
+		}
+		return s, false
+	}
+	annotation, ok := maybeTrim(cnode.Comment, annotationCommentPrefix)
+	if !ok {
+		return
+	}
+	if p, ok := maybeTrim(annotation, "include_top"); ok {
+		ctx.includeTops = append(ctx.includeTops, p)
+		return
+	}
+	ctx.errorf(cnode, "unsupported annotation %s", cnode.Comment)
+
 }
 
 func (ctx *parseContext) insertComment(s string) {

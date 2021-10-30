@@ -25,27 +25,36 @@ import (
 	"android/soong/java/config"
 )
 
+type classpathTestCase struct {
+	name       string
+	unbundled  bool
+	moduleType string
+	host       android.OsClass
+	properties string
+
+	// for java 8
+	bootclasspath  []string
+	java8classpath []string
+
+	// for java 9
+	system         string
+	java9classpath []string
+
+	forces8 bool // if set, javac will always be called with java 8 arguments
+
+	aidl string
+
+	// Indicates how this test case is affected by the setting of Always_use_prebuilt_sdks.
+	//
+	// If this is nil then the test case is unaffected by the setting of Always_use_prebuilt_sdks.
+	// Otherwise, the test case can only be used when
+	// Always_use_prebuilt_sdks=*forAlwaysUsePrebuiltSdks.
+	forAlwaysUsePrebuiltSdks *bool
+}
+
 func TestClasspath(t *testing.T) {
 	const frameworkAidl = "-I" + defaultJavaDir + "/framework/aidl"
-	var classpathTestcases = []struct {
-		name       string
-		unbundled  bool
-		moduleType string
-		host       android.OsClass
-		properties string
-
-		// for java 8
-		bootclasspath  []string
-		java8classpath []string
-
-		// for java 9
-		system         string
-		java9classpath []string
-
-		forces8 bool // if set, javac will always be called with java 8 arguments
-
-		aidl string
-	}{
+	var classpathTestcases = []classpathTestCase{
 		{
 			name:           "default",
 			bootclasspath:  config.StableCorePlatformBootclasspathLibraries,
@@ -91,6 +100,8 @@ func TestClasspath(t *testing.T) {
 			aidl:           "-pprebuilts/sdk/30/public/framework.aidl",
 		},
 		{
+			// Test case only applies when Always_use_prebuilt_sdks=false (the default).
+			forAlwaysUsePrebuiltSdks: proptools.BoolPtr(false),
 
 			name:           "current",
 			properties:     `sdk_version: "current",`,
@@ -100,6 +111,20 @@ func TestClasspath(t *testing.T) {
 			aidl:           "-pout/soong/framework.aidl",
 		},
 		{
+			// Test case only applies when Always_use_prebuilt_sdks=true.
+			forAlwaysUsePrebuiltSdks: proptools.BoolPtr(true),
+
+			name:           "current",
+			properties:     `sdk_version: "current",`,
+			bootclasspath:  []string{`""`},
+			system:         "sdk_public_current_system_modules",
+			java8classpath: []string{"prebuilts/sdk/current/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			java9classpath: []string{"prebuilts/sdk/current/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			aidl:           "-pprebuilts/sdk/current/public/framework.aidl",
+		},
+		{
+			// Test case only applies when Always_use_prebuilt_sdks=false (the default).
+			forAlwaysUsePrebuiltSdks: proptools.BoolPtr(false),
 
 			name:           "system_current",
 			properties:     `sdk_version: "system_current",`,
@@ -109,7 +134,18 @@ func TestClasspath(t *testing.T) {
 			aidl:           "-pout/soong/framework.aidl",
 		},
 		{
+			// Test case only applies when Always_use_prebuilt_sdks=true.
+			forAlwaysUsePrebuiltSdks: proptools.BoolPtr(true),
 
+			name:           "system_current",
+			properties:     `sdk_version: "system_current",`,
+			bootclasspath:  []string{`""`},
+			system:         "sdk_public_current_system_modules",
+			java8classpath: []string{"prebuilts/sdk/current/system/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			java9classpath: []string{"prebuilts/sdk/current/system/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			aidl:           "-pprebuilts/sdk/current/public/framework.aidl",
+		},
+		{
 			name:           "system_29",
 			properties:     `sdk_version: "system_29",`,
 			bootclasspath:  []string{`""`},
@@ -118,7 +154,6 @@ func TestClasspath(t *testing.T) {
 			aidl:           "-pprebuilts/sdk/29/public/framework.aidl",
 		},
 		{
-
 			name:           "system_30",
 			properties:     `sdk_version: "system_30",`,
 			bootclasspath:  []string{`""`},
@@ -128,6 +163,8 @@ func TestClasspath(t *testing.T) {
 			aidl:           "-pprebuilts/sdk/30/public/framework.aidl",
 		},
 		{
+			// Test case only applies when Always_use_prebuilt_sdks=false (the default).
+			forAlwaysUsePrebuiltSdks: proptools.BoolPtr(false),
 
 			name:           "test_current",
 			properties:     `sdk_version: "test_current",`,
@@ -137,11 +174,46 @@ func TestClasspath(t *testing.T) {
 			aidl:           "-pout/soong/framework.aidl",
 		},
 		{
+			// Test case only applies when Always_use_prebuilt_sdks=true.
+			forAlwaysUsePrebuiltSdks: proptools.BoolPtr(true),
+
+			name:           "test_current",
+			properties:     `sdk_version: "test_current",`,
+			bootclasspath:  []string{`""`},
+			system:         "sdk_public_current_system_modules",
+			java8classpath: []string{"prebuilts/sdk/current/test/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			java9classpath: []string{"prebuilts/sdk/current/test/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			aidl:           "-pprebuilts/sdk/current/public/framework.aidl",
+		},
+		{
+			name:           "test_30",
+			properties:     `sdk_version: "test_30",`,
+			bootclasspath:  []string{`""`},
+			system:         "sdk_public_30_system_modules",
+			java8classpath: []string{"prebuilts/sdk/30/test/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			java9classpath: []string{"prebuilts/sdk/30/test/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			aidl:           "-pprebuilts/sdk/30/public/framework.aidl",
+		},
+		{
+			// Test case only applies when Always_use_prebuilt_sdks=false (the default).
+			forAlwaysUsePrebuiltSdks: proptools.BoolPtr(false),
 
 			name:          "core_current",
 			properties:    `sdk_version: "core_current",`,
 			bootclasspath: []string{"core.current.stubs", "core-lambda-stubs"},
 			system:        "core-current-stubs-system-modules",
+		},
+		{
+			// Test case only applies when Always_use_prebuilt_sdks=true.
+			forAlwaysUsePrebuiltSdks: proptools.BoolPtr(true),
+
+			name:           "core_current",
+			properties:     `sdk_version: "core_current",`,
+			bootclasspath:  []string{`""`},
+			system:         "sdk_public_current_system_modules",
+			java8classpath: []string{"prebuilts/sdk/current/core/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			java9classpath: []string{"prebuilts/sdk/current/core/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			aidl:           "-pprebuilts/sdk/current/public/framework.aidl",
 		},
 		{
 
@@ -214,8 +286,10 @@ func TestClasspath(t *testing.T) {
 			java9classpath: []string{"prebuilts/sdk/current/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
 			aidl:           "-pprebuilts/sdk/current/public/framework.aidl",
 		},
-
 		{
+			// Test case only applies when Always_use_prebuilt_sdks=false (the default).
+			forAlwaysUsePrebuiltSdks: proptools.BoolPtr(false),
+
 			name:           "module_current",
 			properties:     `sdk_version: "module_current",`,
 			bootclasspath:  []string{"android_module_lib_stubs_current", "core-lambda-stubs"},
@@ -224,6 +298,48 @@ func TestClasspath(t *testing.T) {
 			aidl:           "-pout/soong/framework_non_updatable.aidl",
 		},
 		{
+			// Test case only applies when Always_use_prebuilt_sdks=true.
+			forAlwaysUsePrebuiltSdks: proptools.BoolPtr(true),
+
+			name:           "module_current",
+			properties:     `sdk_version: "module_current",`,
+			bootclasspath:  []string{`""`},
+			system:         "sdk_public_current_system_modules",
+			java8classpath: []string{"prebuilts/sdk/current/module-lib/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			java9classpath: []string{"prebuilts/sdk/current/module-lib/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			aidl:           "-pprebuilts/sdk/current/public/framework.aidl",
+		},
+		{
+			name:           "module_30",
+			properties:     `sdk_version: "module_30",`,
+			bootclasspath:  []string{`""`},
+			system:         "sdk_public_30_system_modules",
+			java8classpath: []string{"prebuilts/sdk/30/module-lib/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			java9classpath: []string{"prebuilts/sdk/30/module-lib/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			aidl:           "-pprebuilts/sdk/30/public/framework.aidl",
+		},
+		{
+			name:           "module_31",
+			properties:     `sdk_version: "module_31",`,
+			bootclasspath:  []string{`""`},
+			system:         "sdk_public_31_system_modules",
+			java8classpath: []string{"prebuilts/sdk/31/module-lib/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			java9classpath: []string{"prebuilts/sdk/31/module-lib/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			aidl:           "-pprebuilts/sdk/31/public/framework.aidl",
+		},
+		{
+			name:           "module_32",
+			properties:     `sdk_version: "module_32",`,
+			bootclasspath:  []string{`""`},
+			system:         "sdk_public_32_system_modules",
+			java8classpath: []string{"prebuilts/sdk/32/module-lib/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			java9classpath: []string{"prebuilts/sdk/32/module-lib/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			aidl:           "-pprebuilts/sdk/32/public/framework.aidl",
+		},
+		{
+			// Test case only applies when Always_use_prebuilt_sdks=false (the default).
+			forAlwaysUsePrebuiltSdks: proptools.BoolPtr(false),
+
 			name:           "system_server_current",
 			properties:     `sdk_version: "system_server_current",`,
 			bootclasspath:  []string{"android_system_server_stubs_current", "core-lambda-stubs"},
@@ -231,9 +347,62 @@ func TestClasspath(t *testing.T) {
 			java9classpath: []string{"android_system_server_stubs_current"},
 			aidl:           "-pout/soong/framework.aidl",
 		},
+		{
+			// Test case only applies when Always_use_prebuilt_sdks=true.
+			forAlwaysUsePrebuiltSdks: proptools.BoolPtr(true),
+
+			name:           "system_server_current",
+			properties:     `sdk_version: "system_server_current",`,
+			bootclasspath:  []string{`""`},
+			system:         "sdk_public_current_system_modules",
+			java8classpath: []string{"prebuilts/sdk/current/system-server/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			java9classpath: []string{"prebuilts/sdk/current/system-server/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			aidl:           "-pprebuilts/sdk/current/public/framework.aidl",
+		},
+		{
+			name:           "system_server_30",
+			properties:     `sdk_version: "system_server_30",`,
+			bootclasspath:  []string{`""`},
+			system:         "sdk_public_30_system_modules",
+			java8classpath: []string{"prebuilts/sdk/30/system-server/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			java9classpath: []string{"prebuilts/sdk/30/system-server/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			aidl:           "-pprebuilts/sdk/30/public/framework.aidl",
+		},
+		{
+			name:           "system_server_31",
+			properties:     `sdk_version: "system_server_31",`,
+			bootclasspath:  []string{`""`},
+			system:         "sdk_public_31_system_modules",
+			java8classpath: []string{"prebuilts/sdk/31/system-server/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			java9classpath: []string{"prebuilts/sdk/31/system-server/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			aidl:           "-pprebuilts/sdk/31/public/framework.aidl",
+		},
+		{
+			name:           "system_server_32",
+			properties:     `sdk_version: "system_server_32",`,
+			bootclasspath:  []string{`""`},
+			system:         "sdk_public_32_system_modules",
+			java8classpath: []string{"prebuilts/sdk/32/system-server/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			java9classpath: []string{"prebuilts/sdk/32/system-server/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			aidl:           "-pprebuilts/sdk/32/public/framework.aidl",
+		},
 	}
 
+	t.Run("basic", func(t *testing.T) {
+		testClasspathTestCases(t, classpathTestcases, false)
+	})
+
+	t.Run("Always_use_prebuilt_sdks=true", func(t *testing.T) {
+		testClasspathTestCases(t, classpathTestcases, true)
+	})
+}
+
+func testClasspathTestCases(t *testing.T, classpathTestcases []classpathTestCase, alwaysUsePrebuiltSdks bool) {
 	for _, testcase := range classpathTestcases {
+		if testcase.forAlwaysUsePrebuiltSdks != nil && *testcase.forAlwaysUsePrebuiltSdks != alwaysUsePrebuiltSdks {
+			continue
+		}
+
 		t.Run(testcase.name, func(t *testing.T) {
 			moduleType := "java_library"
 			if testcase.moduleType != "" {
@@ -299,7 +468,9 @@ func TestClasspath(t *testing.T) {
 				system = "--system=none"
 			} else if testcase.system != "" {
 				dir := ""
-				if strings.HasPrefix(testcase.system, "sdk_public_") {
+				// If the system modules name starts with sdk_ then it is a prebuilt module and so comes
+				// from the prebuilt directory.
+				if strings.HasPrefix(testcase.system, "sdk_") {
 					dir = "prebuilts/sdk"
 				} else {
 					dir = defaultJavaDir
@@ -351,11 +522,20 @@ func TestClasspath(t *testing.T) {
 				android.AssertPathsRelativeToTopEquals(t, "implicits", deps, javac.Implicits)
 			}
 
+			preparer := android.NullFixturePreparer
+			if alwaysUsePrebuiltSdks {
+				preparer = android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+					variables.Always_use_prebuilt_sdks = proptools.BoolPtr(true)
+				})
+			}
+
 			fixtureFactory := android.GroupFixturePreparers(
 				prepareForJavaTest,
 				FixtureWithPrebuiltApis(map[string][]string{
 					"29":      {},
 					"30":      {},
+					"31":      {},
+					"32":      {},
 					"current": {},
 				}),
 				android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
@@ -369,6 +549,7 @@ func TestClasspath(t *testing.T) {
 						env["ANDROID_JAVA8_HOME"] = "jdk8"
 					}
 				}),
+				preparer,
 			)
 
 			// Test with legacy javac -source 1.8 -target 1.8

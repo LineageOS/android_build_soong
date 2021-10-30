@@ -123,13 +123,18 @@ func (s *apexKeysText) GenerateBuildActions(ctx android.SingletonContext) {
 		containerCertificate string
 		containerPrivateKey  string
 		partition            string
+		signTool             string
 	}
 	toString := func(e apexKeyEntry) string {
-		format := "name=%q public_key=%q private_key=%q container_certificate=%q container_private_key=%q partition=%q\n"
+		signTool := ""
+		if e.signTool != "" {
+			signTool = fmt.Sprintf(" sign_tool=%q", e.signTool)
+		}
+		format := "name=%q public_key=%q private_key=%q container_certificate=%q container_private_key=%q partition=%q%s\n"
 		if e.presigned {
-			return fmt.Sprintf(format, e.name, "PRESIGNED", "PRESIGNED", "PRESIGNED", "PRESIGNED", e.partition)
+			return fmt.Sprintf(format, e.name, "PRESIGNED", "PRESIGNED", "PRESIGNED", "PRESIGNED", e.partition, signTool)
 		} else {
-			return fmt.Sprintf(format, e.name, e.publicKey, e.privateKey, e.containerCertificate, e.containerPrivateKey, e.partition)
+			return fmt.Sprintf(format, e.name, e.publicKey, e.privateKey, e.containerCertificate, e.containerPrivateKey, e.partition, signTool)
 		}
 	}
 
@@ -145,6 +150,7 @@ func (s *apexKeysText) GenerateBuildActions(ctx android.SingletonContext) {
 				containerCertificate: pem.String(),
 				containerPrivateKey:  key.String(),
 				partition:            m.PartitionTag(ctx.DeviceConfig()),
+				signTool:             proptools.String(m.properties.Custom_sign_tool),
 			}
 		}
 	})
