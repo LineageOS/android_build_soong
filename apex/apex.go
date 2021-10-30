@@ -178,6 +178,10 @@ type apexBundleProperties struct {
 	// used in tests.
 	Test_only_force_compression *bool
 
+	// Put extra tags (signer=<value>) to apexkeys.txt, so that release tools can sign this apex
+	// with the tool to sign payload contents.
+	Custom_sign_tool *string
+
 	// Canonical name of this APEX bundle. Used to determine the path to the
 	// activated APEX on device (i.e. /apex/<apexVariationName>), and used for the
 	// apex mutator variations. For override_apex modules, this is the name of the
