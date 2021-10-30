@@ -1768,8 +1768,14 @@ func (m *ModuleBase) generateModuleTarget(ctx ModuleContext) {
 	ctx.VisitAllModuleVariants(func(module Module) {
 		a := module.base()
 		allInstalledFiles = append(allInstalledFiles, a.installFiles...)
-		allCheckbuildFiles = append(allCheckbuildFiles, a.checkbuildFiles...)
-		allTidyFiles = append(allTidyFiles, a.tidyFiles...)
+		// A module's -{checkbuild,tidy} phony targets should
+		// not be created if the module is not exported to make.
+		// Those could depend on the build target and fail to compile
+		// for the current build target.
+		if !ctx.Config().KatiEnabled() || !shouldSkipAndroidMkProcessing(a) {
+			allCheckbuildFiles = append(allCheckbuildFiles, a.checkbuildFiles...)
+			allTidyFiles = append(allTidyFiles, a.tidyFiles...)
+		}
 	})
 
 	var deps Paths
