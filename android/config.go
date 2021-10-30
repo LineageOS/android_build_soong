@@ -355,13 +355,13 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 
 	config.bp2buildModuleTypeConfig = map[string]bool{}
 
+	determineBuildOS(config)
+
 	return Config{config}
 }
 
 func modifyTestConfigToSupportArchMutator(testConfig Config) {
 	config := testConfig.config
-
-	determineBuildOS(config)
 
 	config.Targets = map[OsType][]Target{
 		Android: []Target{
@@ -568,15 +568,17 @@ func (c *config) HostToolDir() string {
 }
 
 func (c *config) HostToolPath(ctx PathContext, tool string) Path {
-	return PathForOutput(ctx, "host", c.PrebuiltOS(), "bin", tool)
+	path := pathForInstall(ctx, ctx.Config().BuildOS, ctx.Config().BuildArch, "bin", false, tool)
+	return path
 }
 
-func (c *config) HostJNIToolPath(ctx PathContext, path string) Path {
+func (c *config) HostJNIToolPath(ctx PathContext, lib string) Path {
 	ext := ".so"
 	if runtime.GOOS == "darwin" {
 		ext = ".dylib"
 	}
-	return PathForOutput(ctx, "host", c.PrebuiltOS(), "lib64", path+ext)
+	path := pathForInstall(ctx, ctx.Config().BuildOS, ctx.Config().BuildArch, "lib64", false, lib+ext)
+	return path
 }
 
 func (c *config) HostJavaToolPath(ctx PathContext, path string) Path {
