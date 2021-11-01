@@ -84,6 +84,13 @@ def parse_args():
     return parser.parse_args()
 
 
+C_RED = "\033[1;31m"
+C_GREEN = "\033[1;32m"
+C_BLUE = "\033[1;34m"
+C_OFF = "\033[0m"
+C_BOLD = "\033[1m"
+
+
 def enforce_uses_libraries(manifest, required, optional, relax, is_apk, path):
     """Verify that the <uses-library> tags in the manifest match those provided
 
@@ -119,22 +126,21 @@ def enforce_uses_libraries(manifest, required, optional, relax, is_apk, path):
     errmsg = ''.join([
         'mismatch in the <uses-library> tags between the build system and the '
         'manifest:\n',
-        '\t- required libraries in build system: [%s]\n' % ', '.join(required),
-        '\t                 vs. in the manifest: [%s]\n' %
-        ', '.join(manifest_required),
-        '\t- optional libraries in build system: [%s]\n' % ', '.join(optional),
-        '\t                 vs. in the manifest: [%s]\n' %
-        ', '.join(manifest_optional),
+        '\t- required libraries in build system: %s[%s]%s\n' % (C_RED, ', '.join(required), C_OFF),
+        '\t                 vs. in the manifest: %s[%s]%s\n' % (C_RED, ', '.join(manifest_required), C_OFF),
+        '\t- optional libraries in build system: %s[%s]%s\n' % (C_RED, ', '.join(optional), C_OFF),
+        '\t                 vs. in the manifest: %s[%s]%s\n' % (C_RED, ', '.join(manifest_optional), C_OFF),
         '\t- tags in the manifest (%s):\n' % path,
         '\t\t%s\n' % '\t\t'.join(tags),
-        'note: the following options are available:\n',
+        '%snote:%s the following options are available:\n' % (C_BLUE, C_OFF),
         '\t- to temporarily disable the check on command line, rebuild with ',
-        'RELAX_USES_LIBRARY_CHECK=true (this will set compiler filter "verify" ',
-        'and disable AOT-compilation in dexpreopt)\n',
+        '%sRELAX_USES_LIBRARY_CHECK=true%s' % (C_BOLD, C_OFF),
+        ' (this will set compiler filter "verify" and disable AOT-compilation in dexpreopt)\n',
         '\t- to temporarily disable the check for the whole product, set ',
-        'PRODUCT_BROKEN_VERIFY_USES_LIBRARIES := true in the product makefiles\n',
-        '\t- to fix the check, make build system properties coherent with the '
-        'manifest\n', '\t- see build/make/Changes.md for details\n'
+        '%sPRODUCT_BROKEN_VERIFY_USES_LIBRARIES := true%s in the product makefiles\n' % (C_BOLD, C_OFF),
+        '\t- to fix the check, make build system properties coherent with the manifest\n',
+        '\t- for details, see %sbuild/make/Changes.md%s' % (C_GREEN, C_OFF),
+        ' and %shttps://source.android.com/devices/tech/dalvik/art-class-loader-context%s\n' % (C_GREEN, C_OFF)
     ])
     #pylint: enable=line-too-long
 
@@ -380,7 +386,7 @@ def main():
 
     # pylint: disable=broad-except
     except Exception as err:
-        print('error: ' + str(err), file=sys.stderr)
+        print('%serror:%s ' % (C_RED, C_OFF) + str(err), file=sys.stderr)
         sys.exit(-1)
 
 
