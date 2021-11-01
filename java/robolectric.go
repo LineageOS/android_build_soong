@@ -212,13 +212,7 @@ func (r *robolectricTest) GenerateAndroidBuildActions(ctx android.ModuleContext)
 		installDeps = append(installDeps, installedData)
 	}
 
-	installed := ctx.InstallFile(installPath, ctx.ModuleName()+".jar", r.combinedJar, installDeps...)
-
-	if r.ExportedToMake() {
-		// Soong handles installation here, but Make is usually what creates the phony rule that atest
-		// uses to build the module.  Create it here for now.
-		ctx.Phony(ctx.ModuleName(), installed)
-	}
+	r.installFile = ctx.InstallFile(installPath, ctx.ModuleName()+".jar", r.combinedJar, installDeps...)
 }
 
 func generateRoboTestConfig(ctx android.ModuleContext, outputFile android.WritablePath,
@@ -282,6 +276,10 @@ func (r *robolectricTest) generateRoboSrcJar(ctx android.ModuleContext, outputFi
 func (r *robolectricTest) AndroidMkEntries() []android.AndroidMkEntries {
 	entriesList := r.Library.AndroidMkEntries()
 	entries := &entriesList[0]
+	entries.ExtraEntries = append(entries.ExtraEntries,
+		func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
+			entries.SetBool("LOCAL_UNINSTALLABLE_MODULE", true)
+		})
 
 	entries.ExtraFooters = []android.AndroidMkExtraFootersFunc{
 		func(w io.Writer, name, prefix, moduleDir string) {
