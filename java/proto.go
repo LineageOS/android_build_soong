@@ -102,6 +102,9 @@ func protoFlags(ctx android.ModuleContext, j *CommonProperties, p *android.Proto
 	if String(p.Proto.Plugin) == "" {
 		var typeToPlugin string
 		switch String(p.Proto.Type) {
+		case "stream":
+			flags.proto.OutTypeFlag = "--javastream_out"
+			typeToPlugin = "javastream"
 		case "micro":
 			flags.proto.OutTypeFlag = "--javamicro_out"
 			typeToPlugin = "javamicro"
