@@ -261,10 +261,8 @@ func (mod *Module) Rlib() bool {
 }
 
 func (mod *Module) Binary() bool {
-	if mod.compiler != nil {
-		if _, ok := mod.compiler.(*binaryDecorator); ok {
-			return true
-		}
+	if binary, ok := mod.compiler.(binaryInterface); ok {
+		return binary.binary()
 	}
 	return false
 }
@@ -273,7 +271,7 @@ func (mod *Module) StaticExecutable() bool {
 	if !mod.Binary() {
 		return false
 	}
-	return Bool(mod.compiler.(*binaryDecorator).Properties.Static_executable)
+	return mod.StaticallyLinked()
 }
 
 func (mod *Module) Object() bool {
