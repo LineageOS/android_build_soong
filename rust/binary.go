@@ -34,6 +34,7 @@ type BinaryCompilerProperties struct {
 type binaryInterface interface {
 	binary() bool
 	staticallyLinked() bool
+	testBinary() bool
 }
 
 type binaryDecorator struct {
@@ -167,4 +168,8 @@ func (binary *binaryDecorator) binary() bool {
 
 func (binary *binaryDecorator) staticallyLinked() bool {
 	return Bool(binary.Properties.Static_executable)
+}
+
+func (binary *binaryDecorator) testBinary() bool {
+	return false
 }

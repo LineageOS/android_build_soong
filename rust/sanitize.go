@@ -26,13 +26,28 @@ import (
 	"android/soong/rust/config"
 )
 
+// TODO: When Rust has sanitizer-parity with CC, deduplicate this struct
 type SanitizeProperties struct {
 	// enable AddressSanitizer, HWAddressSanitizer, and others.
 	Sanitize struct {
 		Address   *bool `android:"arch_variant"`
 		Hwaddress *bool `android:"arch_variant"`
-		Fuzzer    *bool `android:"arch_variant"`
-		Never     *bool `android:"arch_variant"`
+
+		// Memory-tagging, only available on arm64
+		// if diag.memtag unset or false, enables async memory tagging
+		Memtag_heap *bool `android:"arch_variant"`
+		Fuzzer      *bool `android:"arch_variant"`
+		Never       *bool `android:"arch_variant"`
+
+		// Sanitizers to run in the diagnostic mode (as opposed to the release mode).
+		// Replaces abort() on error with a human-readable error message.
+		// Address and Thread sanitizers always run in diagnostic mode.
+		Diag struct {
+			// Memory-tagging, only available on arm64
+			// requires sanitizer.memtag: true
+			// if set, enables sync memory tagging
+			Memtag_heap *bool `android:"arch_variant"`
+		}
 	}
 	SanitizerEnabled bool `blueprint:"mutated"`
 	SanitizeDep      bool `blueprint:"mutated"`
@@ -99,7 +114,18 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 		return
 	}
 
+	// rust_test targets default to SYNC MemTag unless explicitly set to ASYNC (via diag: {Memtag_heap}).
+	if binary, ok := ctx.RustModule().compiler.(binaryInterface); ok && binary.testBinary() {
+		if s.Memtag_heap == nil {
+			s.Memtag_heap = proptools.BoolPtr(true)
+		}
+		if s.Diag.Memtag_heap == nil {
+			s.Diag.Memtag_heap = proptools.BoolPtr(true)
+		}
+	}
+
 	var globalSanitizers []string
+	var globalSanitizersDiag []string
 
 	if ctx.Host() {
 		if !ctx.Windows() {
@@ -109,6 +135,7 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 		arches := ctx.Config().SanitizeDeviceArch()
 		if len(arches) == 0 || android.InList(ctx.Arch().ArchType.Name, arches) {
 			globalSanitizers = ctx.Config().SanitizeDevice()
+			globalSanitizersDiag = ctx.Config().SanitizeDeviceDiag()
 		}
 	}
 
@@ -123,6 +150,12 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 			}
 		}
 
+		if found, globalSanitizers = android.RemoveFromList("memtag_heap", globalSanitizers); found && s.Memtag_heap == nil {
+			if !ctx.Config().MemtagHeapDisabledForPath(ctx.ModuleDir()) {
+				s.Memtag_heap = proptools.BoolPtr(true)
+			}
+		}
+
 		if found, globalSanitizers = android.RemoveFromList("address", globalSanitizers); found && s.Address == nil {
 			s.Address = proptools.BoolPtr(true)
 		}
@@ -131,6 +164,27 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 			s.Fuzzer = proptools.BoolPtr(true)
 		}
 
+		// Global Diag Sanitizers
+		if found, globalSanitizersDiag = android.RemoveFromList("memtag_heap", globalSanitizersDiag); found &&
+			s.Diag.Memtag_heap == nil && Bool(s.Memtag_heap) {
+			s.Diag.Memtag_heap = proptools.BoolPtr(true)
+		}
+	}
+
+	// Enable Memtag for all components in the include paths (for Aarch64 only)
+	if ctx.Arch().ArchType == android.Arm64 {
+		if ctx.Config().MemtagHeapSyncEnabledForPath(ctx.ModuleDir()) {
+			if s.Memtag_heap == nil {
+				s.Memtag_heap = proptools.BoolPtr(true)
+			}
+			if s.Diag.Memtag_heap == nil {
+				s.Diag.Memtag_heap = proptools.BoolPtr(true)
+			}
+		} else if ctx.Config().MemtagHeapAsyncEnabledForPath(ctx.ModuleDir()) {
+			if s.Memtag_heap == nil {
+				s.Memtag_heap = proptools.BoolPtr(true)
+			}
+		}
 	}
 
 	// TODO:(b/178369775)
@@ -158,7 +212,12 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 		s.Address = nil
 	}
 
-	if ctx.Os() == android.Android && (Bool(s.Hwaddress) || Bool(s.Address)) {
+	// Memtag_heap is only implemented on AArch64.
+	if ctx.Arch().ArchType != android.Arm64 {
+		s.Memtag_heap = nil
+	}
+
+	if ctx.Os() == android.Android && (Bool(s.Hwaddress) || Bool(s.Address) || Bool(s.Memtag_heap)) {
 		sanitize.Properties.SanitizerEnabled = true
 	}
 }
@@ -198,6 +257,26 @@ func rustSanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 			return
 		}
 
+		if Bool(mod.sanitize.Properties.Sanitize.Memtag_heap) && mod.Binary() {
+			noteDep := "note_memtag_heap_async"
+			if Bool(mod.sanitize.Properties.Sanitize.Diag.Memtag_heap) {
+				noteDep = "note_memtag_heap_sync"
+			}
+			// If we're using snapshots, redirect to snapshot whenever possible
+			// TODO(b/178470649): clean manual snapshot redirections
+			snapshot := mctx.Provider(cc.SnapshotInfoProvider).(cc.SnapshotInfo)
+			if lib, ok := snapshot.StaticLibs[noteDep]; ok {
+				noteDep = lib
+			}
+			depTag := cc.StaticDepTag(true)
+			variations := append(mctx.Target().Variations(),
+				blueprint.Variation{Mutator: "link", Variation: "static"})
+			if mod.Device() {
+				variations = append(variations, mod.ImageVariation())
+			}
+			mctx.AddFarVariationDependencies(variations, depTag, noteDep)
+		}
+
 		variations := mctx.Target().Variations()
 		var depTag blueprint.DependencyTag
 		var deps []string
@@ -225,7 +304,9 @@ func rustSanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 			deps = []string{config.LibclangRuntimeLibrary(mod.toolchain(mctx), "hwasan")}
 		}
 
-		mctx.AddFarVariationDependencies(variations, depTag, deps...)
+		if len(deps) > 0 {
+			mctx.AddFarVariationDependencies(variations, depTag, deps...)
+		}
 	}
 }
 
@@ -240,6 +321,9 @@ func (sanitize *sanitize) SetSanitizer(t cc.SanitizerType, b bool) {
 		sanitizerSet = true
 	case cc.Hwasan:
 		sanitize.Properties.Sanitize.Hwaddress = boolPtr(b)
+		sanitizerSet = true
+	case cc.Memtag_heap:
+		sanitize.Properties.Sanitize.Memtag_heap = boolPtr(b)
 		sanitizerSet = true
 	default:
 		panic(fmt.Errorf("setting unsupported sanitizerType %d", t))
@@ -300,6 +384,8 @@ func (sanitize *sanitize) getSanitizerBoolPtr(t cc.SanitizerType) *bool {
 		return sanitize.Properties.Sanitize.Address
 	case cc.Hwasan:
 		return sanitize.Properties.Sanitize.Hwaddress
+	case cc.Memtag_heap:
+		return sanitize.Properties.Sanitize.Memtag_heap
 	default:
 		return nil
 	}
@@ -329,6 +415,8 @@ func (mod *Module) SanitizerSupported(t cc.SanitizerType) bool {
 		if mod.StaticExecutable() {
 			return false
 		}
+		return true
+	case cc.Memtag_heap:
 		return true
 	default:
 		return false
