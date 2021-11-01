@@ -15,11 +15,15 @@
 package rust
 
 import (
+	"fmt"
+	"strings"
+
+	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
+
 	"android/soong/android"
 	"android/soong/cc"
 	"android/soong/rust/config"
-	"fmt"
-	"github.com/google/blueprint"
 )
 
 type SanitizeProperties struct {
@@ -59,9 +63,18 @@ var asanFlags = []string{
 	"-Z sanitizer=address",
 }
 
+// See cc/sanitize.go's hwasanGlobalOptions for global hwasan options.
 var hwasanFlags = []string{
 	"-Z sanitizer=hwaddress",
 	"-C target-feature=+tagged-globals",
+
+	// Flags from cc/sanitize.go hwasanFlags
+	"-C llvm-args=--aarch64-enable-global-isel-at-O=-1",
+	"-C llvm-args=-fast-isel=false",
+	"-C llvm-args=-instcombine-lower-dbg-declare=0",
+
+	// Additional flags for HWASAN-ified Rust/C interop
+	"-C llvm-args=--hwasan-with-ifunc",
 }
 
 func boolPtr(v bool) *bool {
@@ -79,7 +92,46 @@ func (sanitize *sanitize) props() []interface{} {
 }
 
 func (sanitize *sanitize) begin(ctx BaseModuleContext) {
-	s := sanitize.Properties.Sanitize
+	s := &sanitize.Properties.Sanitize
+
+	// Never always wins.
+	if Bool(s.Never) {
+		return
+	}
+
+	var globalSanitizers []string
+
+	if ctx.Host() {
+		if !ctx.Windows() {
+			globalSanitizers = ctx.Config().SanitizeHost()
+		}
+	} else {
+		arches := ctx.Config().SanitizeDeviceArch()
+		if len(arches) == 0 || android.InList(ctx.Arch().ArchType.Name, arches) {
+			globalSanitizers = ctx.Config().SanitizeDevice()
+		}
+	}
+
+	if len(globalSanitizers) > 0 {
+		var found bool
+
+		// Global Sanitizers
+		if found, globalSanitizers = android.RemoveFromList("hwaddress", globalSanitizers); found && s.Hwaddress == nil {
+			// TODO(b/180495975): HWASan for static Rust binaries isn't supported yet.
+			if !ctx.RustModule().StaticExecutable() {
+				s.Hwaddress = proptools.BoolPtr(true)
+			}
+		}
+
+		if found, globalSanitizers = android.RemoveFromList("address", globalSanitizers); found && s.Address == nil {
+			s.Address = proptools.BoolPtr(true)
+		}
+
+		if found, globalSanitizers = android.RemoveFromList("fuzzer", globalSanitizers); found && s.Fuzzer == nil {
+			s.Fuzzer = proptools.BoolPtr(true)
+		}
+
+	}
 
 	// TODO:(b/178369775)
 	// For now sanitizing is only supported on devices
@@ -96,7 +148,17 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 		s.Hwaddress = nil
 	}
 
-	if ctx.Os() == android.Android && Bool(s.Hwaddress) {
+	// HWASan ramdisk (which is built from recovery) goes over some bootloader limit.
+	// Keep libc instrumented so that ramdisk / vendor_ramdisk / recovery can run hwasan-instrumented code if necessary.
+	if (ctx.RustModule().InRamdisk() || ctx.RustModule().InVendorRamdisk() || ctx.RustModule().InRecovery()) && !strings.HasPrefix(ctx.ModuleDir(), "bionic/libc") {
+		s.Hwaddress = nil
+	}
+
+	if Bool(s.Hwaddress) {
+		s.Address = nil
+	}
+
+	if ctx.Os() == android.Android && (Bool(s.Hwaddress) || Bool(s.Address)) {
 		sanitize.Properties.SanitizerEnabled = true
 	}
 }
@@ -149,23 +211,18 @@ func rustSanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 		} else if mod.IsSanitizerEnabled(cc.Hwasan) ||
 			(mod.IsSanitizerEnabled(cc.Fuzzer) && mctx.Arch().ArchType == android.Arm64) {
 			// TODO(b/180495975): HWASan for static Rust binaries isn't supported yet.
-			if binary, ok := mod.compiler.(*binaryDecorator); ok {
-				if Bool(binary.Properties.Static_executable) {
+			if binary, ok := mod.compiler.(binaryInterface); ok {
+				if binary.staticallyLinked() {
 					mctx.ModuleErrorf("HWASan is not supported for static Rust executables yet.")
 				}
 			}
 
-			if mod.StaticallyLinked() {
-				variations = append(variations,
-					blueprint.Variation{Mutator: "link", Variation: "static"})
-				depTag = cc.StaticDepTag(false)
-				deps = []string{config.LibclangRuntimeLibrary(mod.toolchain(mctx), "hwasan_static")}
-			} else {
-				variations = append(variations,
-					blueprint.Variation{Mutator: "link", Variation: "shared"})
-				depTag = cc.SharedDepTag()
-				deps = []string{config.LibclangRuntimeLibrary(mod.toolchain(mctx), "hwasan")}
-			}
+			// Always link against the shared library -- static binaries will pull in the static
+			// library during final link if necessary
+			variations = append(variations,
+				blueprint.Variation{Mutator: "link", Variation: "shared"})
+			depTag = cc.SharedDepTag()
+			deps = []string{config.LibclangRuntimeLibrary(mod.toolchain(mctx), "hwasan")}
 		}
 
 		mctx.AddFarVariationDependencies(variations, depTag, deps...)
@@ -268,6 +325,10 @@ func (mod *Module) SanitizerSupported(t cc.SanitizerType) bool {
 	case cc.Asan:
 		return true
 	case cc.Hwasan:
+		// TODO(b/180495975): HWASan for static Rust binaries isn't supported yet.
+		if mod.StaticExecutable() {
+			return false
+		}
 		return true
 	default:
 		return false

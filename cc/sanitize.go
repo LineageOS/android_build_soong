@@ -1303,6 +1303,10 @@ var _ PlatformSanitizeable = (*Module)(nil)
 func sanitizerMutator(t SanitizerType) func(android.BottomUpMutatorContext) {
 	return func(mctx android.BottomUpMutatorContext) {
 		if c, ok := mctx.Module().(PlatformSanitizeable); ok && c.SanitizePropDefined() {
+
+			// Make sure we're not setting CFI to any value if it's not supported.
+			cfiSupported := mctx.Module().(PlatformSanitizeable).SanitizerSupported(cfi)
+
 			if c.Binary() && c.IsSanitizerEnabled(t) {
 				modules := mctx.CreateVariations(t.variationName())
 				modules[0].(PlatformSanitizeable).SetSanitizer(t, true)
@@ -1323,7 +1327,6 @@ func sanitizerMutator(t SanitizerType) func(android.BottomUpMutatorContext) {
 					// is redirected to the sanitized variant of the dependent module.
 					defaultVariation := t.variationName()
 					// Not all PlatformSanitizeable modules support the CFI sanitizer
-					cfiSupported := mctx.Module().(PlatformSanitizeable).SanitizerSupported(cfi)
 					mctx.SetDefaultDependencyVariation(&defaultVariation)
 
 					modules := mctx.CreateVariations("", t.variationName())
@@ -1370,7 +1373,7 @@ func sanitizerMutator(t SanitizerType) func(android.BottomUpMutatorContext) {
 						modules[0].(PlatformSanitizeable).SetInSanitizerDir()
 					}
 
-					if mctx.Device() && t.incompatibleWithCfi() {
+					if mctx.Device() && t.incompatibleWithCfi() && cfiSupported {
 						// TODO: Make sure that cfi mutator runs "after" any of the sanitizers that
 						// are incompatible with cfi
 						modules[0].(PlatformSanitizeable).SetSanitizer(cfi, false)

@@ -36,7 +36,7 @@ type fuzzDecorator struct {
 	fuzzPackagedModule fuzz.FuzzPackagedModule
 }
 
-var _ compiler = (*binaryDecorator)(nil)
+var _ compiler = (*fuzzDecorator)(nil)
 
 // rust_binary produces a binary that is runnable on a device.
 func RustFuzzFactory() android.Module {
