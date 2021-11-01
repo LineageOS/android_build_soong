@@ -159,8 +159,7 @@ func FixtureWithPrebuiltApis(release2Modules map[string][]string) android.Fixtur
 		`, strings.Join(android.SortedStringKeys(release2Modules), `", "`))
 
 	for release, modules := range release2Modules {
-		libs := append([]string{"android", "core-for-system-modules"}, modules...)
-		mockFS.Merge(prebuiltApisFilesForLibs([]string{release}, libs))
+		mockFS.Merge(prebuiltApisFilesForModules([]string{release}, modules))
 	}
 	return android.GroupFixturePreparers(
 		android.FixtureAddTextFile(path, bp),
@@ -168,16 +167,25 @@ func FixtureWithPrebuiltApis(release2Modules map[string][]string) android.Fixtur
 	)
 }
 
-func prebuiltApisFilesForLibs(apiLevels []string, sdkLibs []string) map[string][]byte {
+func prebuiltApisFilesForModules(apiLevels []string, modules []string) map[string][]byte {
+	libs := append([]string{"android"}, modules...)
+
 	fs := make(map[string][]byte)
 	for _, level := range apiLevels {
-		for _, lib := range sdkLibs {
-			for _, scope := range []string{"public", "system", "module-lib", "system-server", "test"} {
-				fs[fmt.Sprintf("prebuilts/sdk/%s/%s/%s.jar", level, scope, lib)] = nil
+		for _, sdkKind := range []android.SdkKind{android.SdkPublic, android.SdkSystem, android.SdkModule, android.SdkSystemServer, android.SdkTest} {
+			// A core-for-system-modules file must only be created for the sdk kind that supports it.
+			if sdkKind == systemModuleKind() {
+				fs[fmt.Sprintf("prebuilts/sdk/%s/%s/core-for-system-modules.jar", level, sdkKind)] = nil
+			}
+
+			for _, lib := range libs {
+				// Create a jar file for every library.
+				fs[fmt.Sprintf("prebuilts/sdk/%s/%s/%s.jar", level, sdkKind, lib)] = nil
+
 				// No finalized API files for "current"
 				if level != "current" {
-					fs[fmt.Sprintf("prebuilts/sdk/%s/%s/api/%s.txt", level, scope, lib)] = nil
-					fs[fmt.Sprintf("prebuilts/sdk/%s/%s/api/%s-removed.txt", level, scope, lib)] = nil
+					fs[fmt.Sprintf("prebuilts/sdk/%s/%s/api/%s.txt", level, sdkKind, lib)] = nil
+					fs[fmt.Sprintf("prebuilts/sdk/%s/%s/api/%s-removed.txt", level, sdkKind, lib)] = nil
 				}
 			}
 		}
