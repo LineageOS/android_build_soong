@@ -28,7 +28,6 @@ func runGenruleTestCase(t *testing.T, tc bp2buildTestCase) {
 	t.Helper()
 	(&tc).moduleTypeUnderTest = "genrule"
 	(&tc).moduleTypeUnderTestFactory = genrule.GenRuleFactory
-	(&tc).moduleTypeUnderTestBp2BuildMutator = genrule.GenruleBp2Build
 	runBp2BuildTestCase(t, registerGenruleModuleTypes, tc)
 }
 

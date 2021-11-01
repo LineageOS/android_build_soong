@@ -39,6 +39,10 @@ type bazelModuleProperties struct {
 	// To opt-out a module, set bazel_module: { bp2build_available: false }
 	// To defer the default setting for the directory, do not set the value.
 	Bp2build_available *bool
+
+	// CanConvertToBazel is set via InitBazelModule to indicate that a module type can be converted to
+	// Bazel with Bp2build.
+	CanConvertToBazel bool `blueprint:"mutated"`
 }
 
 // Properties contains common module properties for Bazel migration purposes.
@@ -80,9 +84,10 @@ type Bazelable interface {
 	HasHandcraftedLabel() bool
 	HandcraftedLabel() string
 	GetBazelLabel(ctx BazelConversionPathContext, module blueprint.Module) string
-	ConvertWithBp2build(ctx BazelConversionContext) bool
-	convertWithBp2build(ctx BazelConversionContext, module blueprint.Module) bool
+	ShouldConvertWithBp2build(ctx BazelConversionContext) bool
+	shouldConvertWithBp2build(ctx BazelConversionContext, module blueprint.Module) bool
 	GetBazelBuildFileContents(c Config, path, name string) (string, error)
+	ConvertWithBp2build(ctx TopDownMutatorContext)
 
 	// namespacedVariableProps is a map from a soong config variable namespace
 	// (e.g. acme, android) to a map of interfaces{}, which are really
@@ -109,6 +114,7 @@ type BazelModule interface {
 // properties.
 func InitBazelModule(module BazelModule) {
 	module.AddProperties(module.bazelProps())
+	module.bazelProps().Bazel_module.CanConvertToBazel = true
 }
 
 // bazelProps returns the Bazel properties for the given BazelModuleBase.
@@ -147,7 +153,7 @@ func (b *BazelModuleBase) GetBazelLabel(ctx BazelConversionPathContext, module b
 	if b.HasHandcraftedLabel() {
 		return b.HandcraftedLabel()
 	}
-	if b.ConvertWithBp2build(ctx) {
+	if b.ShouldConvertWithBp2build(ctx) {
 		return bp2buildModuleLabel(ctx, module)
 	}
 	return "" // no label for unconverted module
@@ -436,6 +442,9 @@ var (
 
 		"acvp_modulewrapper", // disabled for android x86/x86_64
 		"CarHTMLViewer",      // depends on unconverted modules android.car-stubs, car-ui-lib
+
+		"libdexfile",  // depends on unconverted modules: dexfile_operator_srcs, libartbase, libartpalette,
+		"libdexfiled", // depends on unconverted modules: dexfile_operator_srcs, libartbased, libartpalette
 	}
 
 	// Per-module denylist of cc_library modules to only generate the static
@@ -530,32 +539,21 @@ func convertedToBazel(ctx BazelConversionContext, module blueprint.Module) bool 
 	if !ok {
 		return false
 	}
-	return b.convertWithBp2build(ctx, module) || b.HasHandcraftedLabel()
+	return b.shouldConvertWithBp2build(ctx, module) || b.HasHandcraftedLabel()
 }
 
-// ConvertWithBp2build returns whether the given BazelModuleBase should be converted with bp2build.
-func (b *BazelModuleBase) ConvertWithBp2build(ctx BazelConversionContext) bool {
-	return b.convertWithBp2build(ctx, ctx.Module())
+// ShouldConvertWithBp2build returns whether the given BazelModuleBase should be converted with bp2build.
+func (b *BazelModuleBase) ShouldConvertWithBp2build(ctx BazelConversionContext) bool {
+	return b.shouldConvertWithBp2build(ctx, ctx.Module())
 }
 
-func (b *BazelModuleBase) convertWithBp2build(ctx BazelConversionContext, module blueprint.Module) bool {
+func (b *BazelModuleBase) shouldConvertWithBp2build(ctx BazelConversionContext, module blueprint.Module) bool {
 	if bp2buildModuleDoNotConvert[module.Name()] {
 		return false
 	}
 
-	// Ensure that the module type of this module has a bp2build converter. This
-	// prevents mixed builds from using auto-converted modules just by matching
-	// the package dir; it also has to have a bp2build mutator as well.
-	if ctx.Config().bp2buildModuleTypeConfig[ctx.OtherModuleType(module)] == false {
-		if b, ok := module.(Bazelable); ok && b.BaseModuleType() != "" {
-			// For modules with custom types from soong_config_module_types,
-			// check that their _base module type_ has a bp2build mutator.
-			if ctx.Config().bp2buildModuleTypeConfig[b.BaseModuleType()] == false {
-				return false
-			}
-		} else {
-			return false
-		}
+	if !b.bazelProps().Bazel_module.CanConvertToBazel {
+		return false
 	}
 
 	packagePath := ctx.OtherModuleDir(module)
@@ -628,4 +626,17 @@ func (b *BazelModuleBase) GetBazelBuildFileContents(c Config, path, name string)
 		return "", err
 	}
 	return string(data[:]), nil
+}
+
+func registerBp2buildConversionMutator(ctx RegisterMutatorsContext) {
+	ctx.TopDown("bp2build_conversion", convertWithBp2build).Parallel()
+}
+
+func convertWithBp2build(ctx TopDownMutatorContext) {
+	bModule, ok := ctx.Module().(Bazelable)
+	if !ok || !bModule.shouldConvertWithBp2build(ctx, ctx.Module()) {
+		return
+	}
+
+	bModule.ConvertWithBp2build(ctx)
 }
