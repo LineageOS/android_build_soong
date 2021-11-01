@@ -28,6 +28,11 @@ package {
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
+dist_targets = [
+    "sdk",
+    "win_sdk",
+]
+
 java_library {
     name: "core.current.stubs",
     visibility: ["//visibility:public"],
@@ -40,15 +45,16 @@ java_library {
     system_modules: "none",
 
     dist: {
-        targets: [
-            "sdk",
-            "win_sdk",
-        ],
+        targets: dist_targets,
     },
 }
 
 // Distributed with the SDK for turning into system modules to compile apps
 // against.
+//
+// Also, produces dist files that are used by the
+// prebuilts/sdk/update_prebuilts.py script to update the prebuilts/sdk
+// directory.
 java_library {
     name: "core-current-stubs-for-system-modules",
     visibility: ["//development/sdk"],
@@ -65,13 +71,17 @@ java_library {
     ],
     sdk_version: "none",
     system_modules: "none",
-    dist: {
-        dest: "core-for-system-modules.jar",
-        targets: [
-            "sdk",
-            "win_sdk",
-        ],
-    },
+    dists: [
+        {
+            // Legacy dist location for the public file.
+            dest: "core-for-system-modules.jar",
+            targets: dist_targets,
+        },
+        {
+            dest: "system-modules/public/core-for-system-modules.jar",
+            targets: dist_targets,
+        },
+    ],
 }
 
 // Used when compiling higher-level code against core.current.stubs.
@@ -103,10 +113,13 @@ java_library {
     visibility: ["//visibility:private"],
 }
 
-// Used when compiling higher-level code with sdk_version "module_current"
-java_system_modules {
-    name: "core-module-lib-stubs-system-modules",
-    libs: [
+// Produces a dist file that is used by the
+// prebuilts/sdk/update_prebuilts.py script to update the prebuilts/sdk
+// directory.
+java_library {
+    name: "core-module-lib-stubs-for-system-modules",
+    visibility: ["//visibility:private"],
+    static_libs: [
         "core.module_lib.stubs",
         // This one is not on device but it's needed when javac compiles code
         // containing lambdas.
@@ -116,6 +129,20 @@ java_system_modules {
         // tools.
         // See http://b/123891440.
         "core-generated-annotation-stubs",
+    ],
+    sdk_version: "none",
+    system_modules: "none",
+    dist: {
+        dest: "system-modules/module-lib/core-for-system-modules.jar",
+        targets: dist_targets,
+    },
+}
+
+// Used when compiling higher-level code with sdk_version "module_current"
+java_system_modules {
+    name: "core-module-lib-stubs-system-modules",
+    libs: [
+        "core-module-lib-stubs-for-system-modules",
     ],
     visibility: ["//visibility:public"],
 }
