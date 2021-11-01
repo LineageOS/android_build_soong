@@ -1123,7 +1123,12 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				if cc.IsWholeStaticLib(depTag) {
 					// rustc will bundle static libraries when they're passed with "-lstatic=<lib>". This will fail
 					// if the library is not prefixed by "lib".
-					if libName, ok := libNameFromFilePath(linkObject.Path()); ok {
+					if mod.Binary() {
+						// Binaries may sometimes need to link whole static libraries that don't start with 'lib'.
+						// Since binaries don't need to 'rebundle' these like libraries and only use these for the
+						// final linkage, pass the args directly to the linker to handle these cases.
+						depPaths.depLinkFlags = append(depPaths.depLinkFlags, []string{"-Wl,--whole-archive", linkObject.Path().String(), "-Wl,--no-whole-archive"}...)
+					} else if libName, ok := libNameFromFilePath(linkObject.Path()); ok {
 						depPaths.depFlags = append(depPaths.depFlags, "-lstatic="+libName)
 					} else {
 						ctx.ModuleErrorf("'%q' cannot be listed as a whole_static_library in Rust modules unless the output is prefixed by 'lib'", depName, ctx.ModuleName())
