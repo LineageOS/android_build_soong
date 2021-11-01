@@ -167,28 +167,22 @@ func prebuiltSdkStubs(mctx android.LoadHookContext, p *prebuiltApis) {
 		localPath := strings.TrimPrefix(f, mydir)
 		module, apiver, scope := parseJarPath(localPath)
 		createImport(mctx, module, scope, apiver, localPath, sdkVersion, compileDex)
+
+		if module == "core-for-system-modules" {
+			createSystemModules(mctx, apiver, scope)
+		}
 	}
 }
 
-func createSystemModules(mctx android.LoadHookContext, apiver string) {
+func createSystemModules(mctx android.LoadHookContext, apiver string, scope string) {
 	props := struct {
 		Name *string
 		Libs []string
 	}{}
-	props.Name = proptools.StringPtr(prebuiltApiModuleName(mctx, "system_modules", "public", apiver))
-	props.Libs = append(props.Libs, prebuiltApiModuleName(mctx, "core-for-system-modules", "public", apiver))
+	props.Name = proptools.StringPtr(prebuiltApiModuleName(mctx, "system_modules", scope, apiver))
+	props.Libs = append(props.Libs, prebuiltApiModuleName(mctx, "core-for-system-modules", scope, apiver))
 
 	mctx.CreateModule(systemModulesImportFactory, &props)
-}
-
-func prebuiltSdkSystemModules(mctx android.LoadHookContext, p *prebuiltApis) {
-	for _, apiver := range p.properties.Api_dirs {
-		jar := android.ExistentPathForSource(mctx,
-			mctx.ModuleDir(), apiver, "public", "core-for-system-modules.jar")
-		if jar.Valid() {
-			createSystemModules(mctx, apiver)
-		}
-	}
 }
 
 func prebuiltApiFiles(mctx android.LoadHookContext, p *prebuiltApis) {
@@ -273,7 +267,6 @@ func createPrebuiltApiModules(mctx android.LoadHookContext) {
 	if p, ok := mctx.Module().(*prebuiltApis); ok {
 		prebuiltApiFiles(mctx, p)
 		prebuiltSdkStubs(mctx, p)
-		prebuiltSdkSystemModules(mctx, p)
 	}
 }
 
