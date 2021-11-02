@@ -370,11 +370,17 @@ func BazelModuleLabel(ctx TopDownMutatorContext, module blueprint.Module) string
 
 func bazelShortLabel(label string) string {
 	i := strings.Index(label, ":")
+	if i == -1 {
+		panic(fmt.Errorf("Could not find the ':' character in '%s', expected a fully qualified label.", label))
+	}
 	return label[i:]
 }
 
 func bazelPackage(label string) string {
 	i := strings.Index(label, ":")
+	if i == -1 {
+		panic(fmt.Errorf("Could not find the ':' character in '%s', expected a fully qualified label.", label))
+	}
 	return label[0:i]
 }
 
