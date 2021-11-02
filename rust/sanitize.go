@@ -311,8 +311,8 @@ func (mod *Module) SetSanitizeDep(b bool) {
 func (mod *Module) StaticallyLinked() bool {
 	if lib, ok := mod.compiler.(libraryInterface); ok {
 		return lib.rlib() || lib.static()
-	} else if binary, ok := mod.compiler.(*binaryDecorator); ok {
-		return Bool(binary.Properties.Static_executable)
+	} else if binary, ok := mod.compiler.(binaryInterface); ok {
+		return binary.staticallyLinked()
 	}
 	return false
 }
