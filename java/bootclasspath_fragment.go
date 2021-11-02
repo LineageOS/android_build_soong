@@ -616,6 +616,8 @@ func (b *BootclasspathFragmentModule) configuredJars(ctx android.ModuleContext) 
 	// This is an exception to support end-to-end test for SdkExtensions, until such support exists.
 	if android.InList("test_framework-sdkextensions", possibleUpdatableModules) {
 		jars = jars.Append("com.android.sdkext", "test_framework-sdkextensions")
+	} else if android.InList("test_framework-apexd", possibleUpdatableModules) {
+		jars = jars.Append("com.android.apex.test_package", "test_framework-apexd")
 	} else if global.ApexBootJars.Len() != 0 && !android.IsModuleInVersionedSdk(ctx.Module()) {
 		unknown = android.RemoveListFromList(unknown, b.properties.Coverage.Contents)
 		_, unknown = android.RemoveFromList("core-icu4j", unknown)
