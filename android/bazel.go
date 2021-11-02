@@ -249,8 +249,8 @@ var (
 		"build_tools_source_properties",
 
 		// //external/libcap/...
-		"libcap",      // http://b/198595332, depends on _makenames, a cc_binary
-		"cap_names.h", // http://b/198596102, depends on _makenames, a cc_binary
+		"cap_names.h", // http://b/196105070 host toolchain misconfigurations for mixed builds
+		"libcap",      // http://b/196105070 host toolchain misconfigurations for mixed builds
 
 		"libminijail", // depends on unconverted modules: libcap
 		"getcap",      // depends on unconverted modules: libcap
