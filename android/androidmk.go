@@ -921,6 +921,11 @@ func shouldSkipAndroidMkProcessing(module *ModuleBase) bool {
 		return true
 	}
 
+	// Only expose the primary Darwin target, as Make does not understand Darwin+Arm64
+	if module.Os() == Darwin && module.Target().HostCross {
+		return true
+	}
+
 	return !module.Enabled() ||
 		module.commonProperties.HideFromMake ||
 		// Make does not understand LinuxBionic

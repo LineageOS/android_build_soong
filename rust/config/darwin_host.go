@@ -25,39 +25,62 @@ var (
 	DarwinRustLinkFlags = []string{
 		"-B${cc_config.MacToolPath}",
 	}
+	darwinArm64Rustflags = []string{}
+	darwinArm64Linkflags = []string{}
 	darwinX8664Rustflags = []string{}
 	darwinX8664Linkflags = []string{}
 )
 
 func init() {
+	registerToolchainFactory(android.Darwin, android.Arm64, darwinArm64ToolchainFactory)
 	registerToolchainFactory(android.Darwin, android.X86_64, darwinX8664ToolchainFactory)
+
 	pctx.StaticVariable("DarwinToolchainRustFlags", strings.Join(DarwinRustFlags, " "))
 	pctx.StaticVariable("DarwinToolchainLinkFlags", strings.Join(DarwinRustLinkFlags, " "))
+
+	pctx.StaticVariable("DarwinToolchainArm64RustFlags", strings.Join(darwinArm64Rustflags, " "))
+	pctx.StaticVariable("DarwinToolchainArm64LinkFlags", strings.Join(darwinArm64Linkflags, " "))
 	pctx.StaticVariable("DarwinToolchainX8664RustFlags", strings.Join(darwinX8664Rustflags, " "))
 	pctx.StaticVariable("DarwinToolchainX8664LinkFlags", strings.Join(darwinX8664Linkflags, " "))
 
 }
 
 type toolchainDarwin struct {
+	toolchain64Bit
 	toolchainRustFlags string
 	toolchainLinkFlags string
 }
 
-type toolchainDarwinX8664 struct {
-	toolchain64Bit
+type toolchainDarwinArm64 struct {
 	toolchainDarwin
+}
+
+type toolchainDarwinX8664 struct {
+	toolchainDarwin
+}
+
+func (toolchainDarwinArm64) Supported() bool {
+	return true
 }
 
 func (toolchainDarwinX8664) Supported() bool {
 	return true
 }
 
-func (toolchainDarwinX8664) Bionic() bool {
+func (toolchainDarwin) Bionic() bool {
 	return false
+}
+
+func (t *toolchainDarwinArm64) Name() string {
+	return "arm64"
 }
 
 func (t *toolchainDarwinX8664) Name() string {
 	return "x86_64"
+}
+
+func (t *toolchainDarwinArm64) RustTriple() string {
+	return "aarch64-apple-darwin"
 }
 
 func (t *toolchainDarwinX8664) RustTriple() string {
@@ -76,6 +99,15 @@ func (t *toolchainDarwin) ProcMacroSuffix() string {
 	return ".dylib"
 }
 
+func (t *toolchainDarwinArm64) ToolchainLinkFlags() string {
+	// Prepend the lld flags from cc_config so we stay in sync with cc
+	return "${cc_config.DarwinLldflags} ${config.DarwinToolchainLinkFlags} ${config.DarwinToolchainArm64LinkFlags}"
+}
+
+func (t *toolchainDarwinArm64) ToolchainRustFlags() string {
+	return "${config.DarwinToolchainRustFlags} ${config.DarwinToolchainArm64RustFlags}"
+}
+
 func (t *toolchainDarwinX8664) ToolchainLinkFlags() string {
 	// Prepend the lld flags from cc_config so we stay in sync with cc
 	return "${cc_config.DarwinLldflags} ${config.DarwinToolchainLinkFlags} ${config.DarwinToolchainX8664LinkFlags}"
@@ -85,8 +117,13 @@ func (t *toolchainDarwinX8664) ToolchainRustFlags() string {
 	return "${config.DarwinToolchainRustFlags} ${config.DarwinToolchainX8664RustFlags}"
 }
 
+func darwinArm64ToolchainFactory(arch android.Arch) Toolchain {
+	return toolchainDarwinArm64Singleton
+}
+
 func darwinX8664ToolchainFactory(arch android.Arch) Toolchain {
 	return toolchainDarwinX8664Singleton
 }
 
+var toolchainDarwinArm64Singleton Toolchain = &toolchainDarwinArm64{}
 var toolchainDarwinX8664Singleton Toolchain = &toolchainDarwinX8664{}
