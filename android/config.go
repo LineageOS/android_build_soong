@@ -155,6 +155,7 @@ type config struct {
 	fs         pathtools.FileSystem
 	mockBpList string
 
+	runningAsBp2Build        bool
 	bp2buildPackageConfig    Bp2BuildConfig
 	bp2buildModuleTypeConfig map[string]bool
 
