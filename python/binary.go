@@ -143,7 +143,7 @@ var (
 
 func NewBinary(hod android.HostOrDeviceSupported) (*Module, *binaryDecorator) {
 	module := newModule(hod, android.MultilibFirst)
-	decorator := &binaryDecorator{pythonInstaller: NewPythonInstaller("bin", "")}
+	decorator := &binaryDecorator{pythonInstaller: NewPythonInstaller("bin", "", module)}
 
 	module.bootstrapper = decorator
 	module.installer = decorator
