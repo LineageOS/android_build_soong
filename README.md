@@ -561,27 +561,41 @@ written to a [ninja](http://ninja-build.org) build file.
 
 ## Developing for Soong
 
-To load Soong code in a Go-aware IDE, create a directory outside your android tree and then:
-```bash
-apt install bindfs
-export GOPATH=<path to the directory you created>
-build/soong/scripts/setup_go_workspace_for_soong.sh
-```
+To load the code of Soong in IntelliJ:
 
-This will bind mount the Soong source directories into the directory in the layout expected by
-the IDE.
-
+* File -> Open, open the `build/soong` directory. It will be opened as a new
+  project.
+* File -> Settings, then Languages & Frameworks -> Go -> GOROOT, then set it to
+  `prebuilts/go/linux-x86`
+* File -> Project Structure, then, Project Settings -> Modules, then Add
+  Content Root, then add the `build/blueprint` directory.
+* Optional: also add the `external/golang-protobuf` directory. In practice,
+  IntelliJ seems to work well enough without this, too.
 ### Running Soong in a debugger
 
-To run the soong_build process in a debugger, install `dlv` and then start the build with
-`SOONG_DELVE=<listen addr>` in the environment.
+To make `soong_build` wait for a debugger connection, install `dlv` and then
+start the build with `SOONG_DELVE=<listen addr>` in the environment.
 For example:
 ```bash
-SOONG_DELVE=:1234 m nothing
+SOONG_DELVE=:5006 m nothing
 ```
-and then in another terminal:
+
+To make `soong_ui` wait for a debugger connection, use the `SOONG_UI_DELVE`
+variable:
+
 ```
-dlv connect :1234
+SOONG_UI_DELVE=:5006 m nothing
+```
+
+
+setting or unsetting `SOONG_DELVE` causes a recompilation of `soong_build`. This
+is because in order to debug the binary, it needs to be built with debug
+symbols.
+
+To test the debugger connection, run this command:
+
+```
+dlv connect :5006
 ```
 
 If you see an error:
@@ -595,6 +609,21 @@ using:
 ```bash
 sudo sysctl -w kernel.yama.ptrace_scope=0
 ```
+
+To connect to the process using IntelliJ:
+
+* Run -> Edit Configurations...
+* Choose "Go Remote" on the left
+* Click on the "+" buttion on the top-left
+* Give it a nice name and set "Host" to localhost and "Port" to the port in the
+  environment variable
+
+Debugging works far worse than debugging Java, but is sometimes useful.
+
+Sometimes the `dlv` process hangs on connection. A symptom of this is `dlv`
+spinning a core or two. In that case, `kill -9` `dlv` and try again.
+Anecdotally, it _feels_ like waiting a minute after the start of `soong_build`
+helps.
 
 ## Contact
 
