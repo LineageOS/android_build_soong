@@ -60,8 +60,8 @@ type Bazelable interface {
 	HasHandcraftedLabel() bool
 	HandcraftedLabel() string
 	GetBazelLabel(ctx BazelConversionPathContext, module blueprint.Module) string
-	ConvertWithBp2build(ctx BazelConversionPathContext) bool
-	convertWithBp2build(ctx BazelConversionPathContext, module blueprint.Module) bool
+	ConvertWithBp2build(ctx BazelConversionContext) bool
+	convertWithBp2build(ctx BazelConversionContext, module blueprint.Module) bool
 	GetBazelBuildFileContents(c Config, path, name string) (string, error)
 }
 
@@ -377,7 +377,7 @@ func (b *BazelModuleBase) MixedBuildsEnabled(ctx BazelConversionPathContext) boo
 }
 
 // ConvertedToBazel returns whether this module has been converted (with bp2build or manually) to Bazel.
-func convertedToBazel(ctx BazelConversionPathContext, module blueprint.Module) bool {
+func convertedToBazel(ctx BazelConversionContext, module blueprint.Module) bool {
 	b, ok := module.(Bazelable)
 	if !ok {
 		return false
@@ -386,11 +386,11 @@ func convertedToBazel(ctx BazelConversionPathContext, module blueprint.Module) b
 }
 
 // ConvertWithBp2build returns whether the given BazelModuleBase should be converted with bp2build.
-func (b *BazelModuleBase) ConvertWithBp2build(ctx BazelConversionPathContext) bool {
+func (b *BazelModuleBase) ConvertWithBp2build(ctx BazelConversionContext) bool {
 	return b.convertWithBp2build(ctx, ctx.Module())
 }
 
-func (b *BazelModuleBase) convertWithBp2build(ctx BazelConversionPathContext, module blueprint.Module) bool {
+func (b *BazelModuleBase) convertWithBp2build(ctx BazelConversionContext, module blueprint.Module) bool {
 	if bp2buildModuleDoNotConvert[module.Name()] {
 		return false
 	}
