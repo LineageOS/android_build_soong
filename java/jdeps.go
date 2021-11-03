@@ -40,16 +40,11 @@ type jdepsGeneratorSingleton struct {
 var _ android.SingletonMakeVarsProvider = (*jdepsGeneratorSingleton)(nil)
 
 const (
-	// Environment variables used to modify behavior of this singleton.
-	envVariableCollectJavaDeps = "SOONG_COLLECT_JAVA_DEPS"
-	jdepsJsonFileName          = "module_bp_java_deps.json"
+	jdepsJsonFileName = "module_bp_java_deps.json"
 )
 
 func (j *jdepsGeneratorSingleton) GenerateBuildActions(ctx android.SingletonContext) {
-	if !ctx.Config().IsEnvTrue(envVariableCollectJavaDeps) {
-		return
-	}
-
+	// (b/204397180) Generate module_bp_java_deps.json by default.
 	moduleInfos := make(map[string]android.IdeInfo)
 
 	ctx.VisitAllModules(func(module android.Module) {
