@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/google/blueprint/proptools"
@@ -60,8 +59,6 @@ type action struct {
 	InputDepSetIds       []int
 	Mnemonic             string
 	OutputIds            []int
-	TemplateContent      string
-	Substitutions        []KeyValuePair
 }
 
 // actionGraphContainer contains relevant portions of Bazel's aquery proto, ActionGraphContainer.
@@ -101,14 +98,6 @@ type aqueryArtifactHandler struct {
 	depsetIdToArtifactIdsCache map[int][]int
 	// Maps artifact Id to fully expanded path.
 	artifactIdToPath map[int]string
-}
-
-// The tokens should be substituted with the value specified here, instead of the
-// one returned in 'substitutions' of TemplateExpand action.
-var TemplateActionOverriddenTokens = map[string]string{
-	// Uses "python3" for %python_binary% instead of the value returned by aquery
-	// which is "py3wrapper.sh". See removePy3wrapperScript.
-	"%python_binary%": "python3",
 }
 
 func newAqueryHandler(aqueryResult actionGraphContainer) (*aqueryArtifactHandler, error) {
@@ -174,22 +163,7 @@ func (a *aqueryArtifactHandler) getInputPaths(depsetIds []int) ([]string, error)
 			}
 		}
 	}
-
-	// Filter out py3wrapper.sh & MANIFEST file. The middleman action returned by aquery
-	// for python binary is the input list for a dependent of python binary, since py3wrapper.sh
-	// and MANIFEST file could not be created in mixed build, they should be removed from
-	// the input paths here.
-	py3wrapper := "/py3wrapper.sh"
-	manifestFile := regexp.MustCompile(".*/.+\\.runfiles/MANIFEST$")
-	filteredInputPaths := []string{}
-	for _, path := range inputPaths {
-		if strings.HasSuffix(path, py3wrapper) || manifestFile.MatchString(path) {
-			continue
-		}
-		filteredInputPaths = append(filteredInputPaths, path)
-	}
-
-	return filteredInputPaths, nil
+	return inputPaths, nil
 }
 
 func (a *aqueryArtifactHandler) artifactIdsFromDepsetId(depsetId int) ([]int, error) {
@@ -275,21 +249,6 @@ func AqueryBuildStatements(aqueryJsonProto []byte) ([]BuildStatement, error) {
 			// Use hard links, because some soong actions expect real files (for example, `cp -d`).
 			buildStatement.Command = fmt.Sprintf("mkdir -p %[1]s && rm -f %[2]s && ln -f %[3]s %[2]s", outDir, out, in)
 			buildStatement.SymlinkPaths = outputPaths[:]
-		} else if isTemplateExpandAction(actionEntry) && len(actionEntry.Arguments) < 1 {
-			if len(outputPaths) != 1 {
-				return nil, fmt.Errorf("Expect 1 output to template expand action, got: output %q", outputPaths)
-			}
-			expandedTemplateContent := expandTemplateContent(actionEntry)
-			command := fmt.Sprintf(`echo "%[1]s" | sed "s/\\\\n/\\n/g" >> %[2]s && chmod a+x %[2]s`,
-				escapeCommandlineArgument(expandedTemplateContent), outputPaths[0])
-			buildStatement.Command = command
-		} else if isPythonZipperAction(actionEntry) {
-			if len(inputPaths) < 1 || len(outputPaths) != 1 {
-				return nil, fmt.Errorf("Expect 1+ input and 1 output to python zipper action, got: input %q, output %q", inputPaths, outputPaths)
-			}
-			buildStatement.InputPaths, buildStatement.Command = removePy3wrapperScript(buildStatement)
-			buildStatement.Command = addCommandForPyBinaryRunfilesDir(buildStatement, inputPaths[0], outputPaths[0])
-			addPythonZipFileAsDependencyOfPythonBinary(&buildStatements, outputPaths[0])
 		} else if len(actionEntry.Arguments) < 1 {
 			return nil, fmt.Errorf("received action with no command: [%v]", buildStatement)
 		}
@@ -299,87 +258,8 @@ func AqueryBuildStatements(aqueryJsonProto []byte) ([]BuildStatement, error) {
 	return buildStatements, nil
 }
 
-// expandTemplateContent substitutes the tokens in a template.
-func expandTemplateContent(actionEntry action) string {
-	replacerString := []string{}
-	for _, pair := range actionEntry.Substitutions {
-		value := pair.Value
-		if val, ok := TemplateActionOverriddenTokens[pair.Key]; ok {
-			value = val
-		}
-		replacerString = append(replacerString, pair.Key, value)
-	}
-	replacer := strings.NewReplacer(replacerString...)
-	return replacer.Replace(actionEntry.TemplateContent)
-}
-
-func escapeCommandlineArgument(str string) string {
-	// \->\\, $->\$, `->\`, "->\", \n->\\n
-	replacer := strings.NewReplacer(
-		`\`, `\\`,
-		`$`, `\$`,
-		"`", "\\`",
-		`"`, `\"`,
-		"\n", "\\n",
-	)
-	return replacer.Replace(str)
-}
-
-// removePy3wrapperScript removes py3wrapper.sh from the input paths and command of the action of
-// creating python zip file in mixed build. py3wrapper.sh is returned as input by aquery but
-// there is no action returned by aquery for creating it. So in mixed build "python3" is used
-// as the PYTHON_BINARY in python binary stub script, and py3wrapper.sh is not needed and should be
-// removed from input paths and command of creating python zip file.
-func removePy3wrapperScript(bs BuildStatement) (newInputPaths []string, newCommand string) {
-	// Remove from inputs
-	py3wrapper := "/py3wrapper.sh"
-	filteredInputPaths := []string{}
-	for _, path := range bs.InputPaths {
-		if !strings.HasSuffix(path, py3wrapper) {
-			filteredInputPaths = append(filteredInputPaths, path)
-		}
-	}
-	newInputPaths = filteredInputPaths
-
-	// Remove from command line
-	var re = regexp.MustCompile(`\S*` + py3wrapper)
-	newCommand = re.ReplaceAllString(bs.Command, "")
-	return
-}
-
-// addCommandForPyBinaryRunfilesDir adds commands creating python binary runfiles directory
-// which currently could not be created with aquery output.
-func addCommandForPyBinaryRunfilesDir(bs BuildStatement, zipperCommandPath, zipFilePath string) string {
-	// Unzip the zip file, zipFilePath looks like <python_binary>.zip
-	runfilesDirName := zipFilePath[0:len(zipFilePath)-4] + ".runfiles"
-	command := fmt.Sprintf("%s x %s -d %s", zipperCommandPath, zipFilePath, runfilesDirName)
-	// Create a symblic link in <python_binary>.runfile/, which is the expected structure
-	// when running the python binary stub script.
-	command += fmt.Sprintf(" && ln -sf runfiles/__main__ %s", runfilesDirName)
-	return bs.Command + " && " + command
-}
-
-// addPythonZipFileAsDependencyOfPythonBinary adds the action of generating python zip file as dependency of
-// the corresponding action of creating python binary stub script. In mixed build the dependent of python binary depends on
-// the action of createing python binary stub script only, which is not sufficient without the python zip file created.
-func addPythonZipFileAsDependencyOfPythonBinary(buildStatements *[]BuildStatement, pythonZipFilePath string) {
-	for i, _ := range *buildStatements {
-		if len((*buildStatements)[i].OutputPaths) >= 1 && (*buildStatements)[i].OutputPaths[0]+".zip" == pythonZipFilePath {
-			(*buildStatements)[i].InputPaths = append((*buildStatements)[i].InputPaths, pythonZipFilePath)
-		}
-	}
-}
-
 func isSymlinkAction(a action) bool {
 	return a.Mnemonic == "Symlink" || a.Mnemonic == "SolibSymlink"
-}
-
-func isTemplateExpandAction(a action) bool {
-	return a.Mnemonic == "TemplateExpand"
-}
-
-func isPythonZipperAction(a action) bool {
-	return a.Mnemonic == "PythonZipper"
 }
 
 func shouldSkipAction(a action) bool {
