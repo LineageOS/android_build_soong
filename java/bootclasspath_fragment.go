@@ -616,9 +616,15 @@ func (b *BootclasspathFragmentModule) configuredJars(ctx android.ModuleContext) 
 	// This is an exception to support end-to-end test for SdkExtensions, until such support exists.
 	if android.InList("test_framework-sdkextensions", possibleUpdatableModules) {
 		jars = jars.Append("com.android.sdkext", "test_framework-sdkextensions")
+	} else if android.InList("test_framework-apexd", possibleUpdatableModules) {
+		jars = jars.Append("com.android.apex.test_package", "test_framework-apexd")
 	} else if global.ApexBootJars.Len() != 0 && !android.IsModuleInVersionedSdk(ctx.Module()) {
 		unknown = android.RemoveListFromList(unknown, b.properties.Coverage.Contents)
 		_, unknown = android.RemoveFromList("core-icu4j", unknown)
+		// This module only exists in car products.
+		// So ignore it even if it is not in PRODUCT_APEX_BOOT_JARS.
+		// TODO(b/202896428): Add better way to handle this.
+		_, unknown = android.RemoveFromList("android.car-module", unknown)
 		if len(unknown) > 0 {
 			ctx.ModuleErrorf("%s in contents must also be declared in PRODUCT_APEX_BOOT_JARS", unknown)
 		}

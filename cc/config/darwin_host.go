@@ -53,9 +53,6 @@ var (
 	}
 
 	darwinSupportedSdkVersions = []string{
-		"10.13",
-		"10.14",
-		"10.15",
 		"11",
 	}
 
@@ -174,19 +171,43 @@ type toolchainDarwin struct {
 	toolchain64Bit
 }
 
-func (t *toolchainDarwin) Name() string {
+type toolchainDarwinX86 struct {
+	toolchainDarwin
+}
+
+type toolchainDarwinArm struct {
+	toolchainDarwin
+}
+
+func (t *toolchainDarwinArm) Name() string {
+	return "arm64"
+}
+
+func (t *toolchainDarwinX86) Name() string {
 	return "x86_64"
 }
 
-func (t *toolchainDarwin) GccRoot() string {
+func (t *toolchainDarwinArm) GccRoot() string {
+	panic("unimplemented")
+}
+
+func (t *toolchainDarwinArm) GccTriple() string {
+	panic("unimplemented")
+}
+
+func (t *toolchainDarwinArm) GccVersion() string {
+	panic("unimplemented")
+}
+
+func (t *toolchainDarwinX86) GccRoot() string {
 	return "${config.DarwinGccRoot}"
 }
 
-func (t *toolchainDarwin) GccTriple() string {
+func (t *toolchainDarwinX86) GccTriple() string {
 	return "${config.DarwinGccTriple}"
 }
 
-func (t *toolchainDarwin) GccVersion() string {
+func (t *toolchainDarwinX86) GccVersion() string {
 	return darwinGccVersion
 }
 
@@ -194,7 +215,11 @@ func (t *toolchainDarwin) IncludeFlags() string {
 	return ""
 }
 
-func (t *toolchainDarwin) ClangTriple() string {
+func (t *toolchainDarwinArm) ClangTriple() string {
+	return "aarch64-apple-darwin"
+}
+
+func (t *toolchainDarwinX86) ClangTriple() string {
 	return "x86_64-apple-darwin"
 }
 
@@ -230,12 +255,18 @@ func (t *toolchainDarwin) ToolPath() string {
 	return "${config.MacToolPath}"
 }
 
-var toolchainDarwinSingleton Toolchain = &toolchainDarwin{}
+var toolchainDarwinArmSingleton Toolchain = &toolchainDarwinArm{}
+var toolchainDarwinX86Singleton Toolchain = &toolchainDarwinX86{}
 
-func darwinToolchainFactory(arch android.Arch) Toolchain {
-	return toolchainDarwinSingleton
+func darwinArmToolchainFactory(arch android.Arch) Toolchain {
+	return toolchainDarwinArmSingleton
+}
+
+func darwinX86ToolchainFactory(arch android.Arch) Toolchain {
+	return toolchainDarwinX86Singleton
 }
 
 func init() {
-	registerToolchainFactory(android.Darwin, android.X86_64, darwinToolchainFactory)
+	registerToolchainFactory(android.Darwin, android.Arm64, darwinArmToolchainFactory)
+	registerToolchainFactory(android.Darwin, android.X86_64, darwinX86ToolchainFactory)
 }
