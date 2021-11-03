@@ -308,3 +308,12 @@ type LicenseInfo struct {
 }
 
 var LicenseInfoProvider = blueprint.NewProvider(LicenseInfo{})
+
+func init() {
+	RegisterMakeVarsProvider(pctx, licensesMakeVarsProvider)
+}
+
+func licensesMakeVarsProvider(ctx MakeVarsContext) {
+	ctx.Strict("BUILD_LICENSE_METADATA",
+		ctx.Config().HostToolPath(ctx, "build_license_metadata").String())
+}
