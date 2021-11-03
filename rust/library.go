@@ -102,6 +102,9 @@ type libraryDecorator struct {
 	sourceProvider    SourceProvider
 
 	collectedSnapshotHeaders android.Paths
+
+	// table-of-contents file for cdylib crates to optimize out relinking when possible
+	tocFile android.OptionalPath
 }
 
 type libraryInterface interface {
@@ -137,10 +140,16 @@ type libraryInterface interface {
 	BuildOnlyDylib()
 	BuildOnlyStatic()
 	BuildOnlyShared()
+
+	toc() android.OptionalPath
 }
 
 func (library *libraryDecorator) nativeCoverage() bool {
 	return true
+}
+
+func (library *libraryDecorator) toc() android.OptionalPath {
+	return library.tocFile
 }
 
 func (library *libraryDecorator) rlib() bool {
@@ -519,9 +528,16 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 	}
 
 	if library.shared() {
+		// Optimize out relinking against shared libraries whose interface hasn't changed by
+		// depending on a table of contents file instead of the library itself.
+		tocFile := outputFile.ReplaceExtension(ctx, flags.Toolchain.SharedLibSuffix()[1:]+".toc")
+		library.tocFile = android.OptionalPathForPath(tocFile)
+		cc.TransformSharedObjectToToc(ctx, outputFile, tocFile)
+
 		ctx.SetProvider(cc.SharedLibraryInfoProvider, cc.SharedLibraryInfo{
-			SharedLibrary: outputFile,
-			Target:        ctx.Target(),
+			TableOfContents: android.OptionalPathForPath(tocFile),
+			SharedLibrary:   outputFile,
+			Target:          ctx.Target(),
 		})
 	}
 
