@@ -69,6 +69,7 @@ javax\.xml\.transform\.sax
 javax\.xml\.transform\.stream
 javax\.xml\.validation
 javax\.xml\.xpath
+jdk\.internal
 jdk\.internal\.math
 jdk\.internal\.misc
 jdk\.internal\.reflect

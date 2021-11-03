@@ -31,6 +31,11 @@ type BinaryCompilerProperties struct {
 	Static_executable *bool `android:"arch_variant"`
 }
 
+type binaryInterface interface {
+	binary() bool
+	staticallyLinked() bool
+}
+
 type binaryDecorator struct {
 	*baseCompiler
 	stripper Stripper
@@ -154,4 +159,12 @@ func (binary *binaryDecorator) stdLinkage(ctx *depsContext) RustLinkage {
 		return RlibLinkage
 	}
 	return binary.baseCompiler.stdLinkage(ctx)
+}
+
+func (binary *binaryDecorator) binary() bool {
+	return true
+}
+
+func (binary *binaryDecorator) staticallyLinked() bool {
+	return Bool(binary.Properties.Static_executable)
 }
