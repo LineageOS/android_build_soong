@@ -186,16 +186,16 @@ func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext android.SdkContext)
 			noFrameworksLibs: true,
 		}
 	case android.SdkPublic:
-		return toModule("core-current-stubs-system-modules", "android_stubs_current", sdkFrameworkAidlPath(ctx))
+		return toModule("core-public-stubs-system-modules", "android_stubs_current", sdkFrameworkAidlPath(ctx))
 	case android.SdkSystem:
-		return toModule("core-current-stubs-system-modules", "android_system_stubs_current", sdkFrameworkAidlPath(ctx))
+		return toModule("core-public-stubs-system-modules", "android_system_stubs_current", sdkFrameworkAidlPath(ctx))
 	case android.SdkTest:
-		return toModule("core-current-stubs-system-modules", "android_test_stubs_current", sdkFrameworkAidlPath(ctx))
+		return toModule("core-public-stubs-system-modules", "android_test_stubs_current", sdkFrameworkAidlPath(ctx))
 	case android.SdkCore:
 		return sdkDep{
 			useModule:        true,
 			bootclasspath:    []string{"core.current.stubs", config.DefaultLambdaStubsLibrary},
-			systemModules:    "core-current-stubs-system-modules",
+			systemModules:    "core-public-stubs-system-modules",
 			noFrameworksLibs: true,
 		}
 	case android.SdkModule:
