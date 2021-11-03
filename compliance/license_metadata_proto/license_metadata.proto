@@ -1,0 +1,76 @@
+// Copyright 2021 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto2";
+
+package build_license_metadata;
+option go_package = "android/soong/compliance/license_metadata_proto";
+
+message LicenseMetadata {
+  // package_name identifies the source package. License texts are named relative to the package name.
+  optional string package_name = 1;
+
+  repeated string module_types = 2;
+
+  repeated string module_classes = 3;
+
+  // projects identifies the git project(s) containing the associated source code.
+  repeated string projects = 4;
+
+  // license_kinds lists the kinds of licenses. e.g. SPDX-license-identifier-Apache-2.0 or legacy_notice.
+  repeated string license_kinds = 5;
+
+  // license_conditions lists the conditions that apply to the license kinds. e.g. notice or restricted.
+  repeated string license_conditions = 6;
+
+  // license_texts lists the filenames of the associated license text(s).
+  repeated string license_texts = 7;
+
+  // is_container is true for target types that merely aggregate. e.g. .img or .zip files.
+  optional bool is_container = 8;
+
+  // built lists the built targets.
+  repeated string built = 9;
+
+  // installed lists the installed targets.
+  repeated string installed = 10;
+
+  // installMap identifies the substitutions to make to path names when moving into installed location.
+  repeated InstallMap install_map = 11;
+
+  // sources lists the targets depended on.
+  repeated string sources = 12;
+
+  // deps lists the license metadata files depended on.
+  repeated AnnotatedDependency deps = 13;
+}
+
+// InstallMap messages describe the mapping from an input filesystem file to the path to the file
+// in a container.
+message InstallMap {
+  // The input path on the filesystem.
+  optional string from_path = 1;
+
+  // The path to the file inside the container or installed location.
+  optional string container_path = 2;
+}
+
+// AnnotateDepencency messages describe edges in the build graph.
+message AnnotatedDependency {
+  // The path to the dependency license metadata file.
+  optional string file = 1;
+
+  // The annotations attached to the dependency.
+  repeated string annotations = 2;
+}
