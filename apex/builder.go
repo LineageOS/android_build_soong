@@ -67,6 +67,7 @@ func init() {
 	pctx.HostBinToolVariable("sload_f2fs", "sload_f2fs")
 	pctx.HostBinToolVariable("make_erofs", "make_erofs")
 	pctx.HostBinToolVariable("apex_compression_tool", "apex_compression_tool")
+	pctx.HostBinToolVariable("dexdeps", "dexdeps")
 	pctx.SourcePathVariable("genNdkUsedbyApexPath", "build/soong/scripts/gen_ndk_usedby_apex.sh")
 }
 
@@ -707,12 +708,12 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 				"readelf":   "${config.ClangBin}/llvm-readelf",
 			},
 		})
-		a.apisUsedByModuleFile = apisUsedbyOutputFile
+		a.nativeApisUsedByModuleFile = apisUsedbyOutputFile
 
-		var libNames []string
+		var nativeLibNames []string
 		for _, f := range a.filesInfo {
 			if f.class == nativeSharedLib {
-				libNames = append(libNames, f.stem())
+				nativeLibNames = append(nativeLibNames, f.stem())
 			}
 		}
 		apisBackedbyOutputFile := android.PathForModuleOut(ctx, a.Name()+"_backing.txt")
@@ -720,9 +721,25 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 		rule.Command().
 			Tool(android.PathForSource(ctx, "build/soong/scripts/gen_ndk_backedby_apex.sh")).
 			Output(apisBackedbyOutputFile).
-			Flags(libNames)
+			Flags(nativeLibNames)
 		rule.Build("ndk_backedby_list", "Generate API libraries backed by Apex")
-		a.apisBackedByModuleFile = apisBackedbyOutputFile
+		a.nativeApisBackedByModuleFile = apisBackedbyOutputFile
+
+		var javaLibOrApkPath []android.Path
+		for _, f := range a.filesInfo {
+			if f.class == javaSharedLib || f.class == app {
+				javaLibOrApkPath = append(javaLibOrApkPath, f.builtFile)
+			}
+		}
+		javaApiUsedbyOutputFile := android.PathForModuleOut(ctx, a.Name()+"_using.xml")
+		javaUsedByRule := android.NewRuleBuilder(pctx, ctx)
+		javaUsedByRule.Command().
+			Tool(android.PathForSource(ctx, "build/soong/scripts/gen_java_usedby_apex.sh")).
+			BuiltTool("dexdeps").
+			Output(javaApiUsedbyOutputFile).
+			Inputs(javaLibOrApkPath)
+		javaUsedByRule.Build("java_usedby_list", "Generate Java APIs used by Apex")
+		a.javaApisUsedByModuleFile = javaApiUsedbyOutputFile
 
 		bundleConfig := a.buildBundleConfig(ctx)
 
