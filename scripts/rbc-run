@@ -4,12 +4,26 @@
 #       that will be passed to rbcrun.
 [[ $# -gt 0 && -f "$1" ]] || { echo "Usage: ${0##*/} product.mk [Additional rbcrun arguments]" >&2; exit 1; }
 set -eu
-declare -r output_root=${OUT_DIR:-out}
-declare -r runner="$output_root/soong/.bootstrap/bin/rbcrun"
-declare -r converter="$output_root/soong/.bootstrap/bin/mk2rbc"
-declare -r launcher=$output_root/launchers/run.rbc
-declare -r makefile=$1
+
+case $(uname -s) in
+  Linux)
+    declare -r os="linux-x86";
+    ;;
+  Darwin)
+    declare -r os="darwin-x86";
+    ;;
+  *)
+    echo "Unknown OS: $(uname -s)" >&2;
+    exit 1;
+    ;;
+esac
+
+declare -r output_root="${OUT_DIR:-out}"
+declare -r runner="${output_root}/soong/host/${os}/bin/rbcrun"
+declare -r converter="${output_root}/soong/host/${os}/bin/mk2rbc"
+declare -r launcher="$output_root/launchers/run.rbc"
+declare -r makefile="$1"
 shift
-$converter -mode=write -r --outdir $output_root --launcher=$launcher $makefile
-$runner RBC_OUT="make,global" RBC_DEBUG="${RBC_DEBUG:-}" $@ $launcher
+"$converter" -mode=write -r --outdir "$output_root" --launcher="$launcher" "$makefile"
+"$runner" RBC_OUT="make,global" RBC_DEBUG="${RBC_DEBUG:-}" $@ "$launcher"
 
