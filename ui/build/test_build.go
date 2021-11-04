@@ -63,7 +63,6 @@ func testForDanglingRules(ctx Context, config Config) {
 	cmd.StartOrFatal()
 
 	outDir := config.OutDir()
-	bootstrapDir := filepath.Join(outDir, "soong", ".bootstrap")
 	modulePathsDir := filepath.Join(outDir, ".module_paths")
 	variablesFilePath := filepath.Join(outDir, "soong", "soong.variables")
 
@@ -86,8 +85,7 @@ func testForDanglingRules(ctx Context, config Config) {
 			// Leaf node is not in the out directory.
 			continue
 		}
-		if strings.HasPrefix(line, bootstrapDir) ||
-			strings.HasPrefix(line, modulePathsDir) ||
+		if strings.HasPrefix(line, modulePathsDir) ||
 			line == variablesFilePath ||
 			line == dexpreoptConfigFilePath ||
 			line == buildDatetimeFilePath {
