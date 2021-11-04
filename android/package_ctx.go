@@ -177,16 +177,6 @@ func (p PackageContext) HostBinToolVariable(name, path string) blueprint.Variabl
 	})
 }
 
-// HostJavaBinToolVariable returns a Variable whose value is the path to a host java tool
-// in the bin directory for host java targets. It may only be called during a Go
-// package's initialization - either from the init() function or as part of a
-// package-scoped variable's initialization.
-func (p PackageContext) HostJavaBinToolVariable(name, path string) blueprint.Variable {
-	return p.VariableFunc(name, func(ctx PackageVarContext) string {
-		return ctx.Config().HostJavaBinToolPath(ctx, path).String()
-	})
-}
-
 // HostJNIToolVariable returns a Variable whose value is the path to a host tool
 // in the lib directory for host targets. It may only be called during a Go
 // package's initialization - either from the init() function or as part of a

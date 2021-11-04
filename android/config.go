@@ -599,14 +599,6 @@ func (c *config) HostJavaToolPath(ctx PathContext, tool string) Path {
 	return path
 }
 
-func (c *config) HostJavaBinToolPath(ctx PathContext, tool string) Path {
-	path := pathForInstall(ctx, ctx.Config().BuildOS, ctx.Config().BuildArch, "bin", false, tool)
-	if ctx.Config().KatiEnabled() {
-		path = path.ToMakePath()
-	}
-	return path
-}
-
 // PrebuiltOS returns the name of the host OS used in prebuilts directories.
 func (c *config) PrebuiltOS() string {
 	switch runtime.GOOS {
