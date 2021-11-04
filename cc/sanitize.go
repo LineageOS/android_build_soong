@@ -39,8 +39,15 @@ var (
 	}
 	asanLdflags = []string{"-Wl,-u,__asan_preinit"}
 
-	hwasanCflags = []string{"-fno-omit-frame-pointer", "-Wno-frame-larger-than=",
+	hwasanCflags = []string{
+		"-fno-omit-frame-pointer",
+		"-Wno-frame-larger-than=",
 		"-fsanitize-hwaddress-abi=platform",
+	}
+
+	// ThinLTO performs codegen during link time, thus these flags need to
+	// passed to both CFLAGS and LDFLAGS.
+	hwasanCommonflags = []string{
 		// The following improves debug location information
 		// availability at the cost of its accuracy. It increases
 		// the likelihood of a stack variable's frame offset
@@ -48,11 +55,11 @@ var (
 		// for the quality of hwasan reports. The downside is a
 		// higher number of "optimized out" stack variables.
 		// b/112437883.
-		"-mllvm", "-instcombine-lower-dbg-declare=0",
+		"-instcombine-lower-dbg-declare=0",
 		// TODO(b/159343917): HWASan and GlobalISel don't play nicely, and
 		// GlobalISel is the default at -O0 on aarch64.
-		"-mllvm", "--aarch64-enable-global-isel-at-O=-1",
-		"-mllvm", "-fast-isel=false",
+		"--aarch64-enable-global-isel-at-O=-1",
+		"-fast-isel=false",
 	}
 
 	cfiCflags = []string{"-flto", "-fsanitize-cfi-cross-dso",
@@ -629,6 +636,14 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 
 	if Bool(sanitize.Properties.Sanitize.Hwaddress) {
 		flags.Local.CFlags = append(flags.Local.CFlags, hwasanCflags...)
+
+		for _, flag := range hwasanCommonflags {
+			flags.Local.CFlags = append(flags.Local.CFlags, "-mllvm", flag)
+		}
+		for _, flag := range hwasanCommonflags {
+			flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,-mllvm,"+flag)
+		}
+
 		if Bool(sanitize.Properties.Sanitize.Writeonly) {
 			flags.Local.CFlags = append(flags.Local.CFlags, "-mllvm", "-hwasan-instrument-reads=0")
 		}
