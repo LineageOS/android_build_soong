@@ -49,7 +49,7 @@ const (
 	// version of bootstrap and needs cleaning before continuing the build.  Increment this for
 	// incompatible changes, for example when moving the location of the bpglob binary that is
 	// executed during bootstrap before the primary builder has had a chance to update the path.
-	bootstrapEpoch = 0
+	bootstrapEpoch = 1
 )
 
 func writeEnvironmentFile(ctx Context, envFile string, envDeps map[string]string) error {
