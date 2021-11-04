@@ -17,10 +17,10 @@ function test_smoke {
 function test_null_build() {
   setup
   run_soong
-  local bootstrap_mtime1=$(stat -c "%y" out/soong/.bootstrap/build.ninja)
+  local bootstrap_mtime1=$(stat -c "%y" out/soong/bootstrap.ninja)
   local output_mtime1=$(stat -c "%y" out/soong/build.ninja)
   run_soong
-  local bootstrap_mtime2=$(stat -c "%y" out/soong/.bootstrap/build.ninja)
+  local bootstrap_mtime2=$(stat -c "%y" out/soong/bootstrap.ninja)
   local output_mtime2=$(stat -c "%y" out/soong/build.ninja)
 
   if [[ "$bootstrap_mtime1" == "$bootstrap_mtime2" ]]; then
@@ -36,12 +36,12 @@ function test_null_build() {
 function test_soong_build_rebuilt_if_blueprint_changes() {
   setup
   run_soong
-  local mtime1=$(stat -c "%y" out/soong/.bootstrap/build.ninja)
+  local mtime1=$(stat -c "%y" out/soong/bootstrap.ninja)
 
   sed -i 's/pluginGenSrcCmd/pluginGenSrcCmd2/g' build/blueprint/bootstrap/bootstrap.go
 
   run_soong
-  local mtime2=$(stat -c "%y" out/soong/.bootstrap/build.ninja)
+  local mtime2=$(stat -c "%y" out/soong/bootstrap.ninja)
 
   if [[ "$mtime1" == "$mtime2" ]]; then
     fail "Bootstrap Ninja file did not change"
@@ -541,7 +541,7 @@ EOF
 function test_bp2build_smoke {
   setup
   run_soong bp2build
-  [[ -e out/soong/.bootstrap/bp2build_workspace_marker ]] || fail "bp2build marker file not created"
+  [[ -e out/soong/bp2build_workspace_marker ]] || fail "bp2build marker file not created"
   [[ -e out/soong/workspace ]] || fail "Bazel workspace not created"
 }
 
@@ -551,7 +551,7 @@ function test_bp2build_generates_marker_file {
 
   run_soong bp2build
 
-  if [[ ! -f "./out/soong/.bootstrap/bp2build_workspace_marker" ]]; then
+  if [[ ! -f "./out/soong/bp2build_workspace_marker" ]]; then
     fail "Marker file was not generated"
   fi
 }
@@ -592,10 +592,10 @@ function test_bp2build_null_build {
   setup
 
   run_soong bp2build
-  local mtime1=$(stat -c "%y" out/soong/.bootstrap/bp2build_workspace_marker)
+  local mtime1=$(stat -c "%y" out/soong/bp2build_workspace_marker)
 
   run_soong bp2build
-  local mtime2=$(stat -c "%y" out/soong/.bootstrap/bp2build_workspace_marker)
+  local mtime2=$(stat -c "%y" out/soong/bp2build_workspace_marker)
 
   if [[ "$mtime1" != "$mtime2" ]]; then
     fail "Output Ninja file changed on null build"
@@ -626,7 +626,7 @@ EOF
 function test_multiple_soong_build_modes() {
   setup
   run_soong json-module-graph bp2build nothing
-  if [[ ! -f "out/soong/.bootstrap/bp2build_workspace_marker" ]]; then
+  if [[ ! -f "out/soong/bp2build_workspace_marker" ]]; then
     fail "bp2build marker file was not generated"
   fi
 
@@ -780,11 +780,11 @@ function test_bp2build_back_and_forth_null_build {
     fail "Output Ninja file changed when switching to bp2build"
   fi
 
-  local marker_mtime1=$(stat -c "%y" out/soong/.bootstrap/bp2build_workspace_marker)
+  local marker_mtime1=$(stat -c "%y" out/soong/bp2build_workspace_marker)
 
   run_soong
   local output_mtime3=$(stat -c "%y" out/soong/build.ninja)
-  local marker_mtime2=$(stat -c "%y" out/soong/.bootstrap/bp2build_workspace_marker)
+  local marker_mtime2=$(stat -c "%y" out/soong/bp2build_workspace_marker)
   if [[ "$output_mtime1" != "$output_mtime3" ]]; then
     fail "Output Ninja file changed when switching to regular build from bp2build"
   fi
@@ -794,7 +794,7 @@ function test_bp2build_back_and_forth_null_build {
 
   run_soong bp2build
   local output_mtime4=$(stat -c "%y" out/soong/build.ninja)
-  local marker_mtime3=$(stat -c "%y" out/soong/.bootstrap/bp2build_workspace_marker)
+  local marker_mtime3=$(stat -c "%y" out/soong/bp2build_workspace_marker)
   if [[ "$output_mtime1" != "$output_mtime4" ]]; then
     fail "Output Ninja file changed when switching back to bp2build"
   fi
