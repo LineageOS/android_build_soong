@@ -730,9 +730,16 @@ func TestDataLibsRelativeInstallPath(t *testing.T) {
 			gtest: false,
 		}
 
+		cc_binary {
+			name: "test_bin",
+			relative_install_path: "foo/bar/baz",
+			compile_multilib: "both",
+		}
+
 		cc_test {
 			name: "main_test",
 			data_libs: ["test_lib"],
+			data_bins: ["test_bin"],
 			gtest: false,
 		}
  `
@@ -750,10 +757,10 @@ func TestDataLibsRelativeInstallPath(t *testing.T) {
 		t.Fatalf("Expected cc_test to produce output files, error: %s", err)
 	}
 	if len(outputFiles) != 1 {
-		t.Errorf("expected exactly one output file. output files: [%s]", outputFiles)
+		t.Fatalf("expected exactly one output file. output files: [%s]", outputFiles)
 	}
-	if len(testBinary.dataPaths()) != 1 {
-		t.Errorf("expected exactly one test data file. test data files: [%s]", testBinary.dataPaths())
+	if len(testBinary.dataPaths()) != 2 {
+		t.Fatalf("expected exactly one test data file. test data files: [%s]", testBinary.dataPaths())
 	}
 
 	outputPath := outputFiles[0].String()
@@ -765,6 +772,10 @@ func TestDataLibsRelativeInstallPath(t *testing.T) {
 	if !strings.HasSuffix(entries.EntryMap["LOCAL_TEST_DATA"][0], ":test_lib.so:foo/bar/baz") {
 		t.Errorf("expected LOCAL_TEST_DATA to end with `:test_lib.so:foo/bar/baz`,"+
 			" but was '%s'", entries.EntryMap["LOCAL_TEST_DATA"][0])
+	}
+	if !strings.HasSuffix(entries.EntryMap["LOCAL_TEST_DATA"][1], ":test_bin:foo/bar/baz") {
+		t.Errorf("expected LOCAL_TEST_DATA to end with `:test_bin:foo/bar/baz`,"+
+			" but was '%s'", entries.EntryMap["LOCAL_TEST_DATA"][1])
 	}
 }
 

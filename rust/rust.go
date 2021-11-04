@@ -390,6 +390,10 @@ type Deps struct {
 	WholeStaticLibs []string
 	HeaderLibs      []string
 
+	// Used for data dependencies adjacent to tests
+	DataLibs []string
+	DataBins []string
+
 	CrtBegin, CrtEnd string
 }
 
@@ -975,6 +979,8 @@ var (
 	procMacroDepTag     = dependencyTag{name: "procMacro", procMacro: true}
 	testPerSrcDepTag    = dependencyTag{name: "rust_unit_tests"}
 	sourceDepTag        = dependencyTag{name: "source"}
+	dataLibDepTag       = dependencyTag{name: "data lib"}
+	dataBinDepTag       = dependencyTag{name: "data bin"}
 )
 
 func IsDylibDepTag(depTag blueprint.DependencyTag) bool {
@@ -1399,6 +1405,12 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 				bindgen.Properties.Custom_bindgen)
 		}
 	}
+
+	actx.AddVariationDependencies([]blueprint.Variation{
+		{Mutator: "link", Variation: "shared"},
+	}, dataLibDepTag, deps.DataLibs...)
+
+	actx.AddVariationDependencies(nil, dataBinDepTag, deps.DataBins...)
 
 	// proc_macros are compiler plugins, and so we need the host arch variant as a dependendcy.
 	actx.AddFarVariationDependencies(ctx.Config().BuildOSTarget.Variations(), procMacroDepTag, deps.ProcMacros...)

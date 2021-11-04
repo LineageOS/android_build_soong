@@ -18,6 +18,7 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
+	"android/soong/cc"
 	"android/soong/tradefed"
 )
 
@@ -48,6 +49,12 @@ type TestProperties struct {
 	// list of files or filegroup modules that provide data that should be installed alongside
 	// the test
 	Data []string `android:"path,arch_variant"`
+
+	// list of shared library modules that should be installed alongside the test
+	Data_libs []string `android:"arch_variant"`
+
+	// list of binary modules that should be installed alongside the test
+	Data_bins []string `android:"arch_variant"`
 
 	// Flag to indicate whether or not to create test config automatically. If AndroidTest.xml
 	// doesn't exist next to the Android.bp, this attribute doesn't need to be set to true
@@ -137,6 +144,32 @@ func (test *testDecorator) install(ctx ModuleContext) {
 
 	dataSrcPaths := android.PathsForModuleSrc(ctx, test.Properties.Data)
 
+	ctx.VisitDirectDepsWithTag(dataLibDepTag, func(dep android.Module) {
+		depName := ctx.OtherModuleName(dep)
+		linkableDep, ok := dep.(cc.LinkableInterface)
+		if !ok {
+			ctx.ModuleErrorf("data_lib %q is not a linkable module", depName)
+		}
+		if linkableDep.OutputFile().Valid() {
+			test.data = append(test.data,
+				android.DataPath{SrcPath: linkableDep.OutputFile().Path(),
+					RelativeInstallPath: linkableDep.RelativeInstallPath()})
+		}
+	})
+
+	ctx.VisitDirectDepsWithTag(dataBinDepTag, func(dep android.Module) {
+		depName := ctx.OtherModuleName(dep)
+		linkableDep, ok := dep.(cc.LinkableInterface)
+		if !ok {
+			ctx.ModuleErrorf("data_bin %q is not a linkable module", depName)
+		}
+		if linkableDep.OutputFile().Valid() {
+			test.data = append(test.data,
+				android.DataPath{SrcPath: linkableDep.OutputFile().Path(),
+					RelativeInstallPath: linkableDep.RelativeInstallPath()})
+		}
+	})
+
 	for _, dataSrcPath := range dataSrcPaths {
 		test.data = append(test.data, android.DataPath{SrcPath: dataSrcPath})
 	}
@@ -193,6 +226,9 @@ func (test *testDecorator) compilerDeps(ctx DepsContext, deps Deps) Deps {
 	deps = test.binaryDecorator.compilerDeps(ctx, deps)
 
 	deps.Rustlibs = append(deps.Rustlibs, "libtest")
+
+	deps.DataLibs = append(deps.DataLibs, test.Properties.Data_libs...)
+	deps.DataBins = append(deps.DataBins, test.Properties.Data_bins...)
 
 	return deps
 }
