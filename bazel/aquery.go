@@ -245,9 +245,9 @@ func AqueryBuildStatements(aqueryJsonProto []byte) ([]BuildStatement, error) {
 			out := outputPaths[0]
 			outDir := proptools.ShellEscapeIncludingSpaces(filepath.Dir(out))
 			out = proptools.ShellEscapeIncludingSpaces(out)
-			in := proptools.ShellEscapeIncludingSpaces(inputPaths[0])
-			// Use hard links, because some soong actions expect real files (for example, `cp -d`).
-			buildStatement.Command = fmt.Sprintf("mkdir -p %[1]s && rm -f %[2]s && ln -f %[3]s %[2]s", outDir, out, in)
+			in := filepath.Join("$PWD", proptools.ShellEscapeIncludingSpaces(inputPaths[0]))
+			// Use absolute paths, because some soong actions don't play well with relative paths (for example, `cp -d`).
+			buildStatement.Command = fmt.Sprintf("mkdir -p %[1]s && rm -f %[2]s && ln -sf %[3]s %[2]s", outDir, out, in)
 			buildStatement.SymlinkPaths = outputPaths[:]
 		} else if len(actionEntry.Arguments) < 1 {
 			return nil, fmt.Errorf("received action with no command: [%v]", buildStatement)
