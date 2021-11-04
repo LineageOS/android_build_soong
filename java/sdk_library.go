@@ -361,13 +361,14 @@ type ApiScopeProperties struct {
 	// The sdk_version to use for building the stubs.
 	//
 	// If not specified then it will use an sdk_version determined as follows:
+	//
 	// 1) If the sdk_version specified on the java_sdk_library is none then this
-	//    will be none. This is used for java_sdk_library instances that are used
-	//    to create stubs that contribute to the core_current sdk version.
-	// 2) Otherwise, it is assumed that this library extends but does not contribute
-	//    directly to a specific sdk_version and so this uses the sdk_version appropriate
-	//    for the api scope. e.g. public will use sdk_version: current, system will use
-	//    sdk_version: system_current, etc.
+	// will be none. This is used for java_sdk_library instances that are used
+	// to create stubs that contribute to the core_current sdk version.
+	// 2) Otherwise, it is assumed that this library extends but does not
+	// contribute directly to a specific sdk_version and so this uses the
+	// sdk_version appropriate for the api scope. e.g. public will use
+	// sdk_version: current, system will use sdk_version: system_current, etc.
 	//
 	// This does not affect the sdk_version used for either generating the stubs source
 	// or the API file. They both have to use the same sdk_version as is used for
