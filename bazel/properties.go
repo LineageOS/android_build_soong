@@ -534,9 +534,13 @@ func (lla *LabelListAttribute) ResolveExcludes() {
 			lla.ConfigurableValues[axis][config] = SubtractBazelLabelList(val, lla.Value)
 		}
 
-		// Now that the Value list is finalized for this axis, compare it with the original
-		// list, and put the difference into the default condition for the axis.
-		lla.ConfigurableValues[axis][ConditionsDefaultConfigKey] = SubtractBazelLabelList(baseLabels, lla.Value)
+		// Now that the Value list is finalized for this axis, compare it with
+		// the original list, and union the difference with the default
+		// condition for the axis.
+		difference := SubtractBazelLabelList(baseLabels, lla.Value)
+		existingDefaults := lla.ConfigurableValues[axis][ConditionsDefaultConfigKey]
+		existingDefaults.Append(difference)
+		lla.ConfigurableValues[axis][ConditionsDefaultConfigKey] = FirstUniqueBazelLabelList(existingDefaults)
 
 		// if everything ends up without includes, just delete the axis
 		if !lla.ConfigurableValues[axis].HasConfigurableValues() {

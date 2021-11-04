@@ -236,8 +236,9 @@ func TestResolveExcludes(t *testing.T) {
 		),
 		ConfigurableValues: configurableLabelLists{
 			ArchConfigurationAxis: labelListSelectValues{
-				"arm": makeLabelList([]string{}, []string{"arm_exclude"}),
-				"x86": makeLabelList([]string{"x86_include"}, []string{}),
+				"arm":                      makeLabelList([]string{}, []string{"arm_exclude"}),
+				"x86":                      makeLabelList([]string{"x86_include"}, []string{}),
+				ConditionsDefaultConfigKey: makeLabelList([]string{"default_include"}, []string{}),
 			},
 			OsConfigurationAxis: labelListSelectValues{
 				"android": makeLabelList([]string{}, []string{"android_exclude"}),
@@ -246,7 +247,13 @@ func TestResolveExcludes(t *testing.T) {
 			OsArchConfigurationAxis: labelListSelectValues{
 				"linux_x86": makeLabelList([]string{"linux_x86_include"}, []string{}),
 			},
-			ProductVariableConfigurationAxis("a"): labelListSelectValues{
+			ProductVariableConfigurationAxis("product_with_defaults"): labelListSelectValues{
+				"a":                        makeLabelList([]string{}, []string{"not_in_value"}),
+				"b":                        makeLabelList([]string{"b_val"}, []string{}),
+				"c":                        makeLabelList([]string{"c_val"}, []string{}),
+				ConditionsDefaultConfigKey: makeLabelList([]string{"c_val", "default", "default2"}, []string{}),
+			},
+			ProductVariableConfigurationAxis("product_only_with_excludes"): labelListSelectValues{
 				"a": makeLabelList([]string{}, []string{"not_in_value"}),
 			},
 		},
@@ -254,25 +261,31 @@ func TestResolveExcludes(t *testing.T) {
 
 	attr.ResolveExcludes()
 
-	expectedBaseIncludes := []Label{Label{Label: "all_include"}}
+	expectedBaseIncludes := []Label{{Label: "all_include"}}
 	if !reflect.DeepEqual(expectedBaseIncludes, attr.Value.Includes) {
 		t.Errorf("Expected Value includes %q, got %q", attr.Value.Includes, expectedBaseIncludes)
 	}
 	var nilLabels []Label
 	expectedConfiguredIncludes := map[ConfigurationAxis]map[string][]Label{
-		ArchConfigurationAxis: map[string][]Label{
-			"arm":                nilLabels,
-			"x86":                makeLabels("arm_exclude", "x86_include"),
-			"conditions_default": makeLabels("arm_exclude"),
+		ArchConfigurationAxis: {
+			"arm":                      nilLabels,
+			"x86":                      makeLabels("arm_exclude", "x86_include"),
+			ConditionsDefaultConfigKey: makeLabels("arm_exclude", "default_include"),
 		},
-		OsConfigurationAxis: map[string][]Label{
-			"android":            nilLabels,
-			"linux":              makeLabels("android_exclude", "linux_include"),
-			"conditions_default": makeLabels("android_exclude"),
+		OsConfigurationAxis: {
+			"android":                  nilLabels,
+			"linux":                    makeLabels("android_exclude", "linux_include"),
+			ConditionsDefaultConfigKey: makeLabels("android_exclude"),
 		},
-		OsArchConfigurationAxis: map[string][]Label{
-			"linux_x86":          makeLabels("linux_x86_include"),
-			"conditions_default": nilLabels,
+		OsArchConfigurationAxis: {
+			"linux_x86":                makeLabels("linux_x86_include"),
+			ConditionsDefaultConfigKey: nilLabels,
+		},
+		ProductVariableConfigurationAxis("product_with_defaults"): {
+			"a":                        nilLabels,
+			"b":                        makeLabels("b_val"),
+			"c":                        makeLabels("c_val"),
+			ConditionsDefaultConfigKey: makeLabels("c_val", "default", "default2"),
 		},
 	}
 	for _, axis := range attr.SortedConfigurationAxes() {
@@ -288,7 +301,7 @@ func TestResolveExcludes(t *testing.T) {
 		for config, value := range gotForAxis {
 			if expected, ok := expectedForAxis[config]; ok {
 				if !reflect.DeepEqual(expected, value.Includes) {
-					t.Errorf("For %s, expected: %#v, got %#v", axis, expected, value.Includes)
+					t.Errorf("For %s,\nexpected: %#v\ngot %#v", axis, expected, value.Includes)
 				}
 			} else {
 				t.Errorf("Got unexpected config %q for %s", config, axis)

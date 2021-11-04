@@ -501,7 +501,7 @@ type ProductConfigProperties map[string]map[string]ProductConfigProperty
 
 // ProductVariableProperties returns a ProductConfigProperties containing only the properties which
 // have been set for the module in the given context.
-func ProductVariableProperties(ctx BaseMutatorContext) ProductConfigProperties {
+func ProductVariableProperties(ctx BazelConversionPathContext) ProductConfigProperties {
 	module := ctx.Module()
 	moduleBase := module.base()
 

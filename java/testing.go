@@ -172,9 +172,10 @@ func prebuiltApisFilesForModules(apiLevels []string, modules []string) map[strin
 
 	fs := make(map[string][]byte)
 	for _, level := range apiLevels {
+		apiLevel := android.ApiLevelForTest(level)
 		for _, sdkKind := range []android.SdkKind{android.SdkPublic, android.SdkSystem, android.SdkModule, android.SdkSystemServer, android.SdkTest} {
 			// A core-for-system-modules file must only be created for the sdk kind that supports it.
-			if sdkKind == systemModuleKind() {
+			if sdkKind == systemModuleKind(sdkKind, apiLevel) {
 				fs[fmt.Sprintf("prebuilts/sdk/%s/%s/core-for-system-modules.jar", level, sdkKind)] = nil
 			}
 
@@ -343,7 +344,7 @@ func gatherRequiredDepsForTest() string {
 		}`
 
 	systemModules := []string{
-		"core-current-stubs-system-modules",
+		"core-public-stubs-system-modules",
 		"core-module-lib-stubs-system-modules",
 		"legacy-core-platform-api-stubs-system-modules",
 		"stable-core-platform-api-stubs-system-modules",

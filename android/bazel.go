@@ -60,8 +60,8 @@ type Bazelable interface {
 	HasHandcraftedLabel() bool
 	HandcraftedLabel() string
 	GetBazelLabel(ctx BazelConversionPathContext, module blueprint.Module) string
-	ConvertWithBp2build(ctx BazelConversionPathContext) bool
-	convertWithBp2build(ctx BazelConversionPathContext, module blueprint.Module) bool
+	ConvertWithBp2build(ctx BazelConversionContext) bool
+	convertWithBp2build(ctx BazelConversionContext, module blueprint.Module) bool
 	GetBazelBuildFileContents(c Config, path, name string) (string, error)
 }
 
@@ -249,8 +249,8 @@ var (
 		"build_tools_source_properties",
 
 		// //external/libcap/...
-		"libcap",      // http://b/198595332, depends on _makenames, a cc_binary
-		"cap_names.h", // http://b/198596102, depends on _makenames, a cc_binary
+		"cap_names.h", // http://b/196105070 host toolchain misconfigurations for mixed builds
+		"libcap",      // http://b/196105070 host toolchain misconfigurations for mixed builds
 
 		"libminijail", // depends on unconverted modules: libcap
 		"getcap",      // depends on unconverted modules: libcap
@@ -308,8 +308,12 @@ var (
 	// Per-module denylist to opt modules out of mixed builds. Such modules will
 	// still be generated via bp2build.
 	mixedBuildsDisabledList = []string{
-		"libbrotli",               // http://b/198585397, ld.lld: error: bionic/libc/arch-arm64/generic/bionic/memmove.S:95:(.text+0x10): relocation R_AARCH64_CONDBR19 out of range: -1404176 is not in [-1048576, 1048575]; references __memcpy
-		"minijail_constants_json", // http://b/200899432, bazel-built cc_genrule does not work in mixed build when it is a dependency of another soong module.
+		"libbrotli",                            // http://b/198585397, ld.lld: error: bionic/libc/arch-arm64/generic/bionic/memmove.S:95:(.text+0x10): relocation R_AARCH64_CONDBR19 out of range: -1404176 is not in [-1048576, 1048575]; references __memcpy
+		"func_to_syscall_nrs",                  // http://b/200899432, bazel-built cc_genrule does not work in mixed build when it is a dependency of another soong module.
+		"libseccomp_policy_app_zygote_sources", // http://b/200899432, bazel-built cc_genrule does not work in mixed build when it is a dependency of another soong module.
+		"libseccomp_policy_app_sources",        // http://b/200899432, bazel-built cc_genrule does not work in mixed build when it is a dependency of another soong module.
+		"libseccomp_policy_system_sources",     // http://b/200899432, bazel-built cc_genrule does not work in mixed build when it is a dependency of another soong module.
+		"minijail_constants_json",              // http://b/200899432, bazel-built cc_genrule does not work in mixed build when it is a dependency of another soong module.
 	}
 
 	// Used for quicker lookups
@@ -373,7 +377,7 @@ func (b *BazelModuleBase) MixedBuildsEnabled(ctx BazelConversionPathContext) boo
 }
 
 // ConvertedToBazel returns whether this module has been converted (with bp2build or manually) to Bazel.
-func convertedToBazel(ctx BazelConversionPathContext, module blueprint.Module) bool {
+func convertedToBazel(ctx BazelConversionContext, module blueprint.Module) bool {
 	b, ok := module.(Bazelable)
 	if !ok {
 		return false
@@ -382,11 +386,11 @@ func convertedToBazel(ctx BazelConversionPathContext, module blueprint.Module) b
 }
 
 // ConvertWithBp2build returns whether the given BazelModuleBase should be converted with bp2build.
-func (b *BazelModuleBase) ConvertWithBp2build(ctx BazelConversionPathContext) bool {
+func (b *BazelModuleBase) ConvertWithBp2build(ctx BazelConversionContext) bool {
 	return b.convertWithBp2build(ctx, ctx.Module())
 }
 
-func (b *BazelModuleBase) convertWithBp2build(ctx BazelConversionPathContext, module blueprint.Module) bool {
+func (b *BazelModuleBase) convertWithBp2build(ctx BazelConversionContext, module blueprint.Module) bool {
 	if bp2buildModuleDoNotConvert[module.Name()] {
 		return false
 	}
