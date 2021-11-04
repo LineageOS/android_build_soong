@@ -101,7 +101,7 @@ func (test *testDecorator) install(ctx android.ModuleContext, file android.Path)
 func NewTest(hod android.HostOrDeviceSupported) *Module {
 	module, binary := NewBinary(hod)
 
-	binary.pythonInstaller = NewPythonInstaller("nativetest", "nativetest64", module)
+	binary.pythonInstaller = NewPythonInstaller("nativetest", "nativetest64")
 
 	test := &testDecorator{binaryDecorator: binary}
 	if hod == android.HostSupportedNoCross && test.testProperties.Test_options.Unit_test == nil {

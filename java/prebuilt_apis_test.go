@@ -28,6 +28,7 @@ func TestPrebuiltApis_SystemModulesCreation(t *testing.T) {
 		prepareForJavaTest,
 		FixtureWithPrebuiltApis(map[string][]string{
 			"31":      {},
+			"32":      {},
 			"current": {},
 		}),
 	).RunTest(t)
@@ -44,8 +45,11 @@ func TestPrebuiltApis_SystemModulesCreation(t *testing.T) {
 		// 31 only has public system modules.
 		"sdk_public_31_system_modules",
 
-		// current only has public system modules.
+		// 32 and current both have public and module-lib system modules.
+		"sdk_public_32_system_modules",
+		"sdk_module-lib_32_system_modules",
 		"sdk_public_current_system_modules",
+		"sdk_module-lib_current_system_modules",
 	}
 	sort.Strings(expected)
 	android.AssertArrayString(t, "sdk system modules", expected, sdkSystemModules)

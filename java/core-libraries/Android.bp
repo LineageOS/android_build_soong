@@ -86,7 +86,7 @@ java_library {
 
 // Used when compiling higher-level code against core.current.stubs.
 java_system_modules {
-    name: "core-current-stubs-system-modules",
+    name: "core-public-stubs-system-modules",
     visibility: ["//visibility:public"],
     libs: [
         "core-current-stubs-for-system-modules",

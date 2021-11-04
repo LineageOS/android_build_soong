@@ -60,10 +60,28 @@ func defaultJavaLanguageVersion(ctx android.EarlyModuleContext, s android.SdkSpe
 	}
 }
 
-// systemModuleKind returns the kind of system modules to use.
-func systemModuleKind() android.SdkKind {
-	// Currently, every sdk version uses the system modules for the public API.
-	return android.SdkPublic
+// systemModuleKind returns the kind of system modules to use for the supplied combination of sdk
+// kind and API level.
+func systemModuleKind(sdkKind android.SdkKind, apiLevel android.ApiLevel) android.SdkKind {
+	systemModuleKind := sdkKind
+	if apiLevel.LessThanOrEqualTo(android.LastWithoutModuleLibCoreSystemModules) {
+		// API levels less than or equal to 31 did not provide a core-for-system-modules.jar
+		// specifically for the module-lib API. So, always use the public system modules for them.
+		systemModuleKind = android.SdkPublic
+	} else if systemModuleKind == android.SdkCore {
+		// Core is by definition what is included in the system module for the public API so should
+		// just use its system modules.
+		systemModuleKind = android.SdkPublic
+	} else if systemModuleKind == android.SdkSystem || systemModuleKind == android.SdkTest {
+		// The core system and test APIs are currently the same as the public API so they should use
+		// its system modules.
+		systemModuleKind = android.SdkPublic
+	} else if systemModuleKind == android.SdkSystemServer {
+		// The core system server API is the same as the core module-lib API.
+		systemModuleKind = android.SdkModule
+	}
+
+	return systemModuleKind
 }
 
 func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext android.SdkContext) sdkDep {
@@ -111,7 +129,7 @@ func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext android.SdkContext)
 
 		var systemModules string
 		if defaultJavaLanguageVersion(ctx, sdkVersion).usesJavaModules() {
-			systemModuleKind := systemModuleKind()
+			systemModuleKind := systemModuleKind(sdkVersion.Kind, sdkVersion.ApiLevel)
 			systemModules = fmt.Sprintf("sdk_%s_%s_system_modules", systemModuleKind, sdkVersion.ApiLevel)
 		}
 
@@ -168,16 +186,16 @@ func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext android.SdkContext)
 			noFrameworksLibs: true,
 		}
 	case android.SdkPublic:
-		return toModule("core-current-stubs-system-modules", "android_stubs_current", sdkFrameworkAidlPath(ctx))
+		return toModule("core-public-stubs-system-modules", "android_stubs_current", sdkFrameworkAidlPath(ctx))
 	case android.SdkSystem:
-		return toModule("core-current-stubs-system-modules", "android_system_stubs_current", sdkFrameworkAidlPath(ctx))
+		return toModule("core-public-stubs-system-modules", "android_system_stubs_current", sdkFrameworkAidlPath(ctx))
 	case android.SdkTest:
-		return toModule("core-current-stubs-system-modules", "android_test_stubs_current", sdkFrameworkAidlPath(ctx))
+		return toModule("core-public-stubs-system-modules", "android_test_stubs_current", sdkFrameworkAidlPath(ctx))
 	case android.SdkCore:
 		return sdkDep{
 			useModule:        true,
 			bootclasspath:    []string{"core.current.stubs", config.DefaultLambdaStubsLibrary},
-			systemModules:    "core-current-stubs-system-modules",
+			systemModules:    "core-public-stubs-system-modules",
 			noFrameworksLibs: true,
 		}
 	case android.SdkModule:
