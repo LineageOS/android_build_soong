@@ -1377,7 +1377,7 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 	// depending on a table of contents file instead of the library itself.
 	tocFile := outputFile.ReplaceExtension(ctx, flags.Toolchain.ShlibSuffix()[1:]+".toc")
 	library.tocFile = android.OptionalPathForPath(tocFile)
-	transformSharedObjectToToc(ctx, outputFile, tocFile, builderFlags)
+	TransformSharedObjectToToc(ctx, outputFile, tocFile)
 
 	stripFlags := flagsToStripFlags(flags)
 	needsStrip := library.stripper.NeedsStrip(ctx)

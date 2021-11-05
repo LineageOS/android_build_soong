@@ -281,8 +281,8 @@ func (mod *Module) Object() bool {
 
 func (mod *Module) Toc() android.OptionalPath {
 	if mod.compiler != nil {
-		if _, ok := mod.compiler.(libraryInterface); ok {
-			return android.OptionalPath{}
+		if lib, ok := mod.compiler.(libraryInterface); ok {
+			return lib.toc()
 		}
 	}
 	panic(fmt.Errorf("Toc() called on non-library module: %q", mod.BaseModuleName()))
