@@ -839,6 +839,14 @@ func sboxPathForToolRel(ctx BuilderContext, path Path) string {
 		// The tool is in the Soong output directory, it will be copied to __SBOX_OUT_DIR__/tools/out
 		return filepath.Join(sboxToolsSubDir, "out", relOutSoong)
 	}
+	if ctx.Config().KatiEnabled() {
+		toolDir = toolDir.ToMakePath()
+		relOut, isRelOut, _ := maybeRelErr(toolDir.String(), path.String())
+		if isRelOut {
+			// The tool is in the Make output directory, it will be copied to __SBOX_OUT_DIR__/tools/out
+			return filepath.Join(sboxToolsSubDir, "out", relOut)
+		}
+	}
 	// The tool is in the source directory, it will be copied to __SBOX_OUT_DIR__/tools/src
 	return filepath.Join(sboxToolsSubDir, "src", path.String())
 }
