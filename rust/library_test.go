@@ -160,6 +160,26 @@ func TestSharedLibrary(t *testing.T) {
 	}
 }
 
+func TestSharedLibraryToc(t *testing.T) {
+	ctx := testRust(t, `
+		rust_ffi_shared {
+			name: "libfoo",
+			srcs: ["foo.rs"],
+			crate_name: "foo",
+		}
+		cc_binary {
+			name: "fizzbuzz",
+			shared_libs: ["libfoo"],
+		}`)
+
+	fizzbuzz := ctx.ModuleForTests("fizzbuzz", "android_arm64_armv8-a").Rule("ld")
+
+	if !android.SuffixInList(fizzbuzz.Implicits.Strings(), "libfoo.so.toc") {
+		t.Errorf("missing expected libfoo.so.toc implicit dependency, instead found: %#v",
+			fizzbuzz.Implicits.Strings())
+	}
+}
+
 func TestStaticLibraryLinkage(t *testing.T) {
 	ctx := testRust(t, `
 		rust_ffi_static {

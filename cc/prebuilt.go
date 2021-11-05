@@ -114,8 +114,6 @@ func (p *prebuiltLibraryLinker) link(ctx ModuleContext,
 	// TODO(ccross): verify shared library dependencies
 	srcs := p.prebuiltSrcs(ctx)
 	if len(srcs) > 0 {
-		builderFlags := flagsToBuilderFlags(flags)
-
 		if len(srcs) > 1 {
 			ctx.PropertyErrorf("srcs", "multiple prebuilt source files")
 			return nil
@@ -152,7 +150,7 @@ func (p *prebuiltLibraryLinker) link(ctx ModuleContext,
 			// depending on a table of contents file instead of the library itself.
 			tocFile := android.PathForModuleOut(ctx, libName+".toc")
 			p.tocFile = android.OptionalPathForPath(tocFile)
-			transformSharedObjectToToc(ctx, outputFile, tocFile, builderFlags)
+			TransformSharedObjectToToc(ctx, outputFile, tocFile)
 
 			if ctx.Windows() && p.properties.Windows_import_lib != nil {
 				// Consumers of this library actually links to the import library in build
