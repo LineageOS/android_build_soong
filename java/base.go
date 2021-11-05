@@ -184,16 +184,21 @@ type CommonProperties struct {
 // Properties that are specific to device modules. Host module factories should not add these when
 // constructing a new module.
 type DeviceProperties struct {
-	// if not blank, set to the version of the sdk to compile against.
+	// If not blank, set to the version of the sdk to compile against.
 	// Defaults to compiling against the current platform.
+	// Values are of one of the following forms:
+	// 1) numerical API level or "current"
+	// 2) An SDK kind with an API level: "<sdk kind>_<API level>". See
+	// build/soong/android/sdk_version.go for the complete and up to date list of
+	// SDK kinds. If the SDK kind value is empty, it will be set to public.
 	Sdk_version *string
 
 	// if not blank, set the minimum version of the sdk that the compiled artifacts will run against.
-	// Defaults to sdk_version if not set.
+	// Defaults to sdk_version if not set. See sdk_version for possible values.
 	Min_sdk_version *string
 
 	// if not blank, set the targetSdkVersion in the AndroidManifest.xml.
-	// Defaults to sdk_version if not set.
+	// Defaults to sdk_version if not set. See sdk_version for possible values.
 	Target_sdk_version *string
 
 	// Whether to compile against the platform APIs instead of an SDK.
