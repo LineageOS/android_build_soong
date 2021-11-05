@@ -49,7 +49,7 @@ const (
 	// version of bootstrap and needs cleaning before continuing the build.  Increment this for
 	// incompatible changes, for example when moving the location of the bpglob binary that is
 	// executed during bootstrap before the primary builder has had a chance to update the path.
-	bootstrapEpoch = 0
+	bootstrapEpoch = 1
 )
 
 func writeEnvironmentFile(ctx Context, envFile string, envDeps map[string]string) error {
@@ -292,7 +292,7 @@ func bootstrapBlueprint(ctx Context, config Config) {
 	var blueprintArgs bootstrap.Args
 
 	blueprintArgs.ModuleListFile = filepath.Join(config.FileListDir(), "Android.bp.list")
-	blueprintArgs.OutFile = shared.JoinPath(config.SoongOutDir(), ".bootstrap/build.ninja")
+	blueprintArgs.OutFile = shared.JoinPath(config.SoongOutDir(), "bootstrap.ninja")
 	blueprintArgs.EmptyNinjaFile = false
 
 	blueprintCtx := blueprint.NewContext()
@@ -314,7 +314,7 @@ func bootstrapBlueprint(ctx Context, config Config) {
 	}
 
 	bootstrapDeps := bootstrap.RunBlueprint(blueprintArgs, bootstrap.DoEverything, blueprintCtx, blueprintConfig)
-	bootstrapDepFile := shared.JoinPath(config.SoongOutDir(), ".bootstrap/build.ninja.d")
+	bootstrapDepFile := shared.JoinPath(config.SoongOutDir(), "bootstrap.ninja.d")
 	err := deptools.WriteDepFile(bootstrapDepFile, blueprintArgs.OutFile, bootstrapDeps)
 	if err != nil {
 		ctx.Fatalf("Error writing depfile '%s': %s", bootstrapDepFile, err)
@@ -341,11 +341,6 @@ func runSoong(ctx Context, config Config) {
 	// determine whether Soong needs to be re-run since why re-run it if only
 	// unused variables were changed?
 	envFile := filepath.Join(config.SoongOutDir(), availableEnvFile)
-
-	dir := filepath.Join(config.SoongOutDir(), ".bootstrap")
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		ctx.Fatalf("Cannot mkdir " + dir)
-	}
 
 	buildMode := config.bazelBuildMode()
 	integratedBp2Build := buildMode == mixedBuild
@@ -457,7 +452,7 @@ func runSoong(ctx Context, config Config) {
 		targets = append(targets, config.SoongNinjaFile())
 	}
 
-	ninja("bootstrap", ".bootstrap/build.ninja", targets...)
+	ninja("bootstrap", "bootstrap.ninja", targets...)
 
 	var soongBuildMetrics *soong_metrics_proto.SoongBuildMetrics
 	if shouldCollectBuildSoongMetrics(config) {
@@ -477,8 +472,7 @@ func runSoong(ctx Context, config Config) {
 	}
 }
 
-func runMicrofactory(ctx Context, config Config, relExePath string, pkg string, mapping map[string]string) {
-	name := filepath.Base(relExePath)
+func runMicrofactory(ctx Context, config Config, name string, pkg string, mapping map[string]string) {
 	ctx.BeginTrace(metrics.RunSoong, name)
 	defer ctx.EndTrace()
 	cfg := microfactory.Config{TrimPath: absPath(ctx, ".")}
@@ -486,7 +480,7 @@ func runMicrofactory(ctx Context, config Config, relExePath string, pkg string, 
 		cfg.Map(pkgPrefix, pathPrefix)
 	}
 
-	exePath := filepath.Join(config.SoongOutDir(), relExePath)
+	exePath := filepath.Join(config.SoongOutDir(), name)
 	dir := filepath.Dir(exePath)
 	if err := os.MkdirAll(dir, 0777); err != nil {
 		ctx.Fatalf("cannot create %s: %s", dir, err)
