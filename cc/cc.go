@@ -1365,6 +1365,8 @@ func (c *Module) InstallInRoot() bool {
 	return c.installer != nil && c.installer.installInRoot()
 }
 
+func (c *Module) InstallBypassMake() bool { return true }
+
 type baseModuleContext struct {
 	android.BaseModuleContext
 	moduleContextImpl
