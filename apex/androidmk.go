@@ -326,6 +326,9 @@ func (a *apexBundle) writeRequiredModules(w io.Writer, apexBundleName string) {
 	var required []string
 	var targetRequired []string
 	var hostRequired []string
+	required = append(required, a.RequiredModuleNames()...)
+	targetRequired = append(targetRequired, a.TargetRequiredModuleNames()...)
+	hostRequired = append(hostRequired, a.HostRequiredModuleNames()...)
 	installMapSet := make(map[string]bool) // set of dependency module:location mappings
 	for _, fi := range a.filesInfo {
 		required = append(required, fi.requiredModuleNames...)
