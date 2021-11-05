@@ -51,6 +51,9 @@ type RuntimeResourceOverlayProperties struct {
 	// Name of the signing certificate lineage file.
 	Lineage *string
 
+	// For overriding the --rotation-min-sdk-version property of apksig
+	RotationMinSdkVersion *string
+
 	// optional theme name. If specified, the overlay package will be applied
 	// only when the ro.boot.vendor.overlay.theme system property is set to the same value.
 	Theme *string
@@ -149,7 +152,10 @@ func (r *RuntimeResourceOverlay) GenerateAndroidBuildActions(ctx android.ModuleC
 	if lineage := String(r.properties.Lineage); lineage != "" {
 		lineageFile = android.PathForModuleSrc(ctx, lineage)
 	}
-	SignAppPackage(ctx, signed, r.aapt.exportPackage, certificates, nil, lineageFile)
+
+	rotationMinSdkVersion := String(r.properties.RotationMinSdkVersion)
+
+	SignAppPackage(ctx, signed, r.aapt.exportPackage, certificates, nil, lineageFile, rotationMinSdkVersion)
 	r.certificate = certificates[0]
 
 	r.outputFile = signed
