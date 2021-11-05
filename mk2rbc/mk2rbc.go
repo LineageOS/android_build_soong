@@ -1167,10 +1167,12 @@ func (ctx *parseContext) parseCheckFunctionCallResult(directive *mkparser.Direct
 				return ctx.newBadExpr(directive,
 					fmt.Sprintf("the result of %s can be compared only to empty", x.name)), true
 			}
+			// if the expression is ifneq (,$(call is-vendor-board-platform,...)), negate==true,
+			// so we should set inExpr.isNot to false
 			return &inExpr{
 				expr:  &variableRefExpr{ctx.addVariable("TARGET_BOARD_PLATFORM"), false},
 				list:  &variableRefExpr{ctx.addVariable("QCOM_BOARD_PLATFORMS"), true},
-				isNot: negate,
+				isNot: !negate,
 			}, true
 		default:
 			return ctx.newBadExpr(directive, "Unknown function in ifeq: %s", x.name), true
