@@ -226,6 +226,9 @@ ifdef  PRODUCT_NAME
   PRODUCT_NAME = gizmo
 else
 endif
+local_var :=
+ifdef local_var
+endif
 `,
 		expected: `load("//build/make/core:product_config.rbc", "rblf")
 
@@ -234,6 +237,9 @@ def init(g, handle):
   if g.get("PRODUCT_NAME") != None:
     cfg["PRODUCT_NAME"] = "gizmo"
   else:
+    pass
+  _local_var = ""
+  if _local_var:
     pass
 `,
 	},
