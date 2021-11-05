@@ -71,6 +71,10 @@ func (RecoverySnapshotImage) Init(ctx android.RegistrationContext) {
 	ctx.RegisterSingletonType("recovery-snapshot", RecoverySnapshotSingleton)
 }
 
+func (RecoverySnapshotImage) RegisterAdditionalModule(ctx android.RegistrationContext, name string, factory android.ModuleFactory) {
+	ctx.RegisterModuleType(name, factory)
+}
+
 func (RecoverySnapshotImage) shouldGenerateSnapshot(ctx android.SingletonContext) bool {
 	// RECOVERY_SNAPSHOT_VERSION must be set to 'current' in order to generate a
 	// snapshot.
