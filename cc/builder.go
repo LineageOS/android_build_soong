@@ -949,8 +949,7 @@ func sourceAbiDiff(ctx android.ModuleContext, inputDump android.Path, referenceD
 }
 
 // Generate a rule for extracting a table of contents from a shared library (.so)
-func transformSharedObjectToToc(ctx android.ModuleContext, inputFile android.Path,
-	outputFile android.WritablePath, flags builderFlags) {
+func TransformSharedObjectToToc(ctx android.ModuleContext, inputFile android.Path, outputFile android.WritablePath) {
 
 	var format string
 	if ctx.Darwin() {
