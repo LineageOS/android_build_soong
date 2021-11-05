@@ -8,9 +8,9 @@ set -eu
 declare -r output_root="${OUT_DIR:-out}"
 declare -r runner="${output_root}/soong/rbcrun"
 declare -r converter="${output_root}/soong/mk2rbc"
-declare -r launcher="${output_root}/launchers/run.rbc"
+declare -r launcher="${output_root}/rbc/launcher.rbc"
 declare -r makefile="$1"
 shift
-"${converter}" -mode=write -r --outdir "${output_root}" --launcher="${launcher}" "${makefile}"
+"${converter}" -mode=write -r --outdir "${output_root}/rbc" --launcher="${launcher}" "${makefile}"
 "${runner}" RBC_OUT="make,global" RBC_DEBUG="${RBC_DEBUG:-}" $@ "${launcher}"
 
