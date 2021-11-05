@@ -564,11 +564,18 @@ func (c *config) SetAllowMissingDependencies() {
 // BlueprintToolLocation returns the directory containing build system tools
 // from Blueprint, like soong_zip and merge_zips.
 func (c *config) HostToolDir() string {
-	return filepath.Join(c.soongOutDir, "host", c.PrebuiltOS(), "bin")
+	if c.KatiEnabled() {
+		return filepath.Join(c.outDir, "host", c.PrebuiltOS(), "bin")
+	} else {
+		return filepath.Join(c.soongOutDir, "host", c.PrebuiltOS(), "bin")
+	}
 }
 
 func (c *config) HostToolPath(ctx PathContext, tool string) Path {
 	path := pathForInstall(ctx, ctx.Config().BuildOS, ctx.Config().BuildArch, "bin", false, tool)
+	if ctx.Config().KatiEnabled() {
+		path = path.ToMakePath()
+	}
 	return path
 }
 
@@ -578,11 +585,19 @@ func (c *config) HostJNIToolPath(ctx PathContext, lib string) Path {
 		ext = ".dylib"
 	}
 	path := pathForInstall(ctx, ctx.Config().BuildOS, ctx.Config().BuildArch, "lib64", false, lib+ext)
+	if ctx.Config().KatiEnabled() {
+		path = path.ToMakePath()
+	}
 	return path
 }
 
 func (c *config) HostJavaToolPath(ctx PathContext, path string) Path {
 	return PathForOutput(ctx, "host", c.PrebuiltOS(), "framework", path)
+}
+
+func (c *config) HostJavaBinToolPath(ctx PathContext, tool string) Path {
+	path := pathForInstall(ctx, ctx.Config().BuildOS, ctx.Config().BuildArch, "bin", false, tool)
+	return path
 }
 
 // PrebuiltOS returns the name of the host OS used in prebuilts directories.
