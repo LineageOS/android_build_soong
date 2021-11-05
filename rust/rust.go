@@ -156,11 +156,10 @@ type Module struct {
 	sourceProvider   SourceProvider
 	subAndroidMkOnce map[SubAndroidMkProvider]bool
 
-	// Unstripped output. This is usually used when this module is linked to another module
-	// as a library. The stripped output which is used for installation can be found via
-	// compiler.strippedOutputFile if it exists.
-	unstrippedOutputFile android.OptionalPath
-	docTimestampFile     android.OptionalPath
+	// Output file to be installed, may be stripped or unstripped.
+	outputFile android.OptionalPath
+
+	docTimestampFile android.OptionalPath
 
 	hideApexVariantFromMake bool
 }
@@ -465,6 +464,7 @@ type compiler interface {
 
 	stdLinkage(ctx *depsContext) RustLinkage
 
+	unstrippedOutputFilePath() android.Path
 	strippedOutputFilePath() android.OptionalPath
 }
 
@@ -593,8 +593,8 @@ func (mod *Module) CcLibraryInterface() bool {
 }
 
 func (mod *Module) UnstrippedOutputFile() android.Path {
-	if mod.unstrippedOutputFile.Valid() {
-		return mod.unstrippedOutputFile.Path()
+	if mod.compiler != nil {
+		return mod.compiler.unstrippedOutputFilePath()
 	}
 	return nil
 }
@@ -651,10 +651,7 @@ func (mod *Module) Module() android.Module {
 }
 
 func (mod *Module) OutputFile() android.OptionalPath {
-	if mod.compiler != nil && mod.compiler.strippedOutputFilePath().Valid() {
-		return mod.compiler.strippedOutputFilePath()
-	}
-	return mod.unstrippedOutputFile
+	return mod.outputFile
 }
 
 func (mod *Module) CoverageFiles() android.Paths {
@@ -885,9 +882,12 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 
 	if mod.compiler != nil && !mod.compiler.Disabled() {
 		mod.compiler.initialize(ctx)
-		unstrippedOutputFile := mod.compiler.compile(ctx, flags, deps)
-		mod.unstrippedOutputFile = android.OptionalPathForPath(unstrippedOutputFile)
-		bloaty.MeasureSizeForPaths(ctx, mod.compiler.strippedOutputFilePath(), mod.unstrippedOutputFile)
+		outputFile := mod.compiler.compile(ctx, flags, deps)
+		if ctx.Failed() {
+			return
+		}
+		mod.outputFile = android.OptionalPathForPath(outputFile)
+		bloaty.MeasureSizeForPaths(ctx, mod.compiler.strippedOutputFilePath(), android.OptionalPathForPath(mod.compiler.unstrippedOutputFilePath()))
 
 		mod.docTimestampFile = mod.compiler.rustdoc(ctx, flags, deps)
 
@@ -1083,13 +1083,8 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			}
 
 			if depTag == dylibDepTag || depTag == rlibDepTag || depTag == procMacroDepTag {
-				linkFile := rustDep.unstrippedOutputFile
-				if !linkFile.Valid() {
-					ctx.ModuleErrorf("Invalid output file when adding dep %q to %q",
-						depName, ctx.ModuleName())
-					return
-				}
-				linkDir := linkPathFromFilePath(linkFile.Path())
+				linkFile := rustDep.UnstrippedOutputFile()
+				linkDir := linkPathFromFilePath(linkFile)
 				if lib, ok := mod.compiler.(exportedFlagsProducer); ok {
 					lib.exportLinkDirs(linkDir)
 				}
@@ -1198,15 +1193,15 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 
 	var rlibDepFiles RustLibraries
 	for _, dep := range directRlibDeps {
-		rlibDepFiles = append(rlibDepFiles, RustLibrary{Path: dep.unstrippedOutputFile.Path(), CrateName: dep.CrateName()})
+		rlibDepFiles = append(rlibDepFiles, RustLibrary{Path: dep.UnstrippedOutputFile(), CrateName: dep.CrateName()})
 	}
 	var dylibDepFiles RustLibraries
 	for _, dep := range directDylibDeps {
-		dylibDepFiles = append(dylibDepFiles, RustLibrary{Path: dep.unstrippedOutputFile.Path(), CrateName: dep.CrateName()})
+		dylibDepFiles = append(dylibDepFiles, RustLibrary{Path: dep.UnstrippedOutputFile(), CrateName: dep.CrateName()})
 	}
 	var procMacroDepFiles RustLibraries
 	for _, dep := range directProcMacroDeps {
-		procMacroDepFiles = append(procMacroDepFiles, RustLibrary{Path: dep.unstrippedOutputFile.Path(), CrateName: dep.CrateName()})
+		procMacroDepFiles = append(procMacroDepFiles, RustLibrary{Path: dep.UnstrippedOutputFile(), CrateName: dep.CrateName()})
 	}
 
 	var staticLibDepFiles android.Paths

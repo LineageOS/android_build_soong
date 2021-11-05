@@ -37,10 +37,10 @@ func TestLibraryVariants(t *testing.T) {
                 }`)
 
 	// Test all variants are being built.
-	libfooRlib := ctx.ModuleForTests("libfoo", "linux_glibc_x86_64_rlib_rlib-std").Output("libfoo.rlib")
-	libfooDylib := ctx.ModuleForTests("libfoo", "linux_glibc_x86_64_dylib").Output("libfoo.dylib.so")
-	libfooStatic := ctx.ModuleForTests("libfoo.ffi", "linux_glibc_x86_64_static").Output("libfoo.ffi.a")
-	libfooShared := ctx.ModuleForTests("libfoo.ffi", "linux_glibc_x86_64_shared").Output("libfoo.ffi.so")
+	libfooRlib := ctx.ModuleForTests("libfoo", "linux_glibc_x86_64_rlib_rlib-std").Rule("rustc")
+	libfooDylib := ctx.ModuleForTests("libfoo", "linux_glibc_x86_64_dylib").Rule("rustc")
+	libfooStatic := ctx.ModuleForTests("libfoo.ffi", "linux_glibc_x86_64_static").Rule("rustc")
+	libfooShared := ctx.ModuleForTests("libfoo.ffi", "linux_glibc_x86_64_shared").Rule("rustc")
 
 	rlibCrateType := "rlib"
 	dylibCrateType := "dylib"
@@ -78,7 +78,7 @@ func TestDylibPreferDynamic(t *testing.T) {
 			crate_name: "foo",
 		}`)
 
-	libfooDylib := ctx.ModuleForTests("libfoo", "linux_glibc_x86_64_dylib").Output("libfoo.dylib.so")
+	libfooDylib := ctx.ModuleForTests("libfoo", "linux_glibc_x86_64_dylib").Rule("rustc")
 
 	if !strings.Contains(libfooDylib.Args["rustcFlags"], "prefer-dynamic") {
 		t.Errorf("missing prefer-dynamic flag for libfoo dylib, rustcFlags: %#v", libfooDylib.Args["rustcFlags"])
@@ -94,7 +94,7 @@ func TestAndroidDylib(t *testing.T) {
 			crate_name: "foo",
 		}`)
 
-	libfooDylib := ctx.ModuleForTests("libfoo", "linux_glibc_x86_64_dylib").Output("libfoo.dylib.so")
+	libfooDylib := ctx.ModuleForTests("libfoo", "linux_glibc_x86_64_dylib").Rule("rustc")
 
 	if !strings.Contains(libfooDylib.Args["rustcFlags"], "--cfg 'android_dylib'") {
 		t.Errorf("missing android_dylib cfg flag for libfoo dylib, rustcFlags: %#v", libfooDylib.Args["rustcFlags"])
@@ -148,7 +148,7 @@ func TestSharedLibrary(t *testing.T) {
 
 	libfoo := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_shared")
 
-	libfooOutput := libfoo.Output("libfoo.so")
+	libfooOutput := libfoo.Rule("rustc")
 	if !strings.Contains(libfooOutput.Args["linkFlags"], "-Wl,-soname=libfoo.so") {
 		t.Errorf("missing expected -Wl,-soname linker flag for libfoo shared lib, linkFlags: %#v",
 			libfooOutput.Args["linkFlags"])
@@ -262,16 +262,17 @@ func TestStrippedLibrary(t *testing.T) {
 	`)
 
 	foo := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_dylib")
-	foo.Output("stripped/libfoo.dylib.so")
+	foo.Output("libfoo.dylib.so")
+	foo.Output("unstripped/libfoo.dylib.so")
 	// Check that the `cp` rule is using the stripped version as input.
 	cp := foo.Rule("android.Cp")
-	if !strings.HasSuffix(cp.Input.String(), "stripped/libfoo.dylib.so") {
-		t.Errorf("installed binary not based on stripped version: %v", cp.Input)
+	if strings.HasSuffix(cp.Input.String(), "unstripped/libfoo.dylib.so") {
+		t.Errorf("installed library not based on stripped version: %v", cp.Input)
 	}
 
-	fizzBar := ctx.ModuleForTests("libbar", "android_arm64_armv8-a_dylib").MaybeOutput("stripped/libbar.dylib.so")
+	fizzBar := ctx.ModuleForTests("libbar", "android_arm64_armv8-a_dylib").MaybeOutput("unstripped/libbar.dylib.so")
 	if fizzBar.Rule != nil {
-		t.Errorf("stripped version of bar has been generated")
+		t.Errorf("unstripped library exists, so stripped library has incorrectly been generated")
 	}
 }
 
