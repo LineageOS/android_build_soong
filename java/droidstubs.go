@@ -16,6 +16,7 @@ package java
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/google/blueprint/proptools"
@@ -805,7 +806,7 @@ type PrebuiltStubsSources struct {
 
 	properties PrebuiltStubsSourcesProperties
 
-	stubsSrcJar android.ModuleOutPath
+	stubsSrcJar android.Path
 }
 
 func (p *PrebuiltStubsSources) OutputFiles(tag string) (android.Paths, error) {
@@ -822,35 +823,39 @@ func (d *PrebuiltStubsSources) StubsSrcJar() android.Path {
 }
 
 func (p *PrebuiltStubsSources) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	p.stubsSrcJar = android.PathForModuleOut(ctx, ctx.ModuleName()+"-"+"stubs.srcjar")
-
 	if len(p.properties.Srcs) != 1 {
-		ctx.PropertyErrorf("srcs", "must only specify one directory path, contains %d paths", len(p.properties.Srcs))
+		ctx.PropertyErrorf("srcs", "must only specify one directory path or srcjar, contains %d paths", len(p.properties.Srcs))
 		return
 	}
 
-	localSrcDir := p.properties.Srcs[0]
-	// Although PathForModuleSrc can return nil if either the path doesn't exist or
-	// the path components are invalid it won't in this case because no components
-	// are specified and the module directory must exist in order to get this far.
-	srcDir := android.PathForModuleSrc(ctx).(android.SourcePath).Join(ctx, localSrcDir)
+	src := p.properties.Srcs[0]
+	if filepath.Ext(src) == ".srcjar" {
+		// This is a srcjar. We can use it directly.
+		p.stubsSrcJar = android.PathForModuleSrc(ctx, src)
+	} else {
+		outPath := android.PathForModuleOut(ctx, ctx.ModuleName()+"-"+"stubs.srcjar")
 
-	// Glob the contents of the directory just in case the directory does not exist.
-	srcGlob := localSrcDir + "/**/*"
-	srcPaths := android.PathsForModuleSrc(ctx, []string{srcGlob})
+		// This is a directory. Glob the contents just in case the directory does not exist.
+		srcGlob := src + "/**/*"
+		srcPaths := android.PathsForModuleSrc(ctx, []string{srcGlob})
 
-	rule := android.NewRuleBuilder(pctx, ctx)
-	rule.Command().
-		BuiltTool("soong_zip").
-		Flag("-write_if_changed").
-		Flag("-jar").
-		FlagWithOutput("-o ", p.stubsSrcJar).
-		FlagWithArg("-C ", srcDir.String()).
-		FlagWithRspFileInputList("-r ", p.stubsSrcJar.ReplaceExtension(ctx, "rsp"), srcPaths)
+		// Although PathForModuleSrc can return nil if either the path doesn't exist or
+		// the path components are invalid it won't in this case because no components
+		// are specified and the module directory must exist in order to get this far.
+		srcDir := android.PathForModuleSrc(ctx).(android.SourcePath).Join(ctx, src)
 
-	rule.Restat()
-
-	rule.Build("zip src", "Create srcjar from prebuilt source")
+		rule := android.NewRuleBuilder(pctx, ctx)
+		rule.Command().
+			BuiltTool("soong_zip").
+			Flag("-write_if_changed").
+			Flag("-jar").
+			FlagWithOutput("-o ", outPath).
+			FlagWithArg("-C ", srcDir.String()).
+			FlagWithRspFileInputList("-r ", outPath.ReplaceExtension(ctx, "rsp"), srcPaths)
+		rule.Restat()
+		rule.Build("zip src", "Create srcjar from prebuilt source")
+		p.stubsSrcJar = outPath
+	}
 }
 
 func (p *PrebuiltStubsSources) Prebuilt() *android.Prebuilt {
