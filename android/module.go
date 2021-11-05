@@ -1702,7 +1702,7 @@ func (m *ModuleBase) InstallInRoot() bool {
 }
 
 func (m *ModuleBase) InstallBypassMake() bool {
-	return false
+	return true
 }
 
 func (m *ModuleBase) InstallForceOS() (*OsType, *ArchType) {
