@@ -137,12 +137,16 @@ func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.An
 	} else if library.shared() {
 		ret.Class = "SHARED_LIBRARIES"
 	}
-
 	if library.distFile.Valid() {
 		ret.DistFiles = android.MakeDefaultDistFiles(library.distFile.Path())
 	}
+	ret.ExtraEntries = append(ret.ExtraEntries,
+		func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
+			if library.tocFile.Valid() {
+				entries.SetString("LOCAL_SOONG_TOC", library.tocFile.String())
+			}
+		})
 }
-
 func (procMacro *procMacroDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkEntries) {
 	ctx.SubAndroidMk(ret, procMacro.baseCompiler)
 
