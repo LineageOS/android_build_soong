@@ -144,7 +144,6 @@ func (p *vndkPrebuiltLibraryDecorator) link(ctx ModuleContext,
 		// current VNDK prebuilts are only shared libs.
 
 		in := p.singleSourcePath(ctx)
-		builderFlags := flagsToBuilderFlags(flags)
 		p.unstrippedOutputFile = in
 		libName := in.Base()
 		if p.stripper.NeedsStrip(ctx) {
@@ -158,7 +157,7 @@ func (p *vndkPrebuiltLibraryDecorator) link(ctx ModuleContext,
 		// depending on a table of contents file instead of the library itself.
 		tocFile := android.PathForModuleOut(ctx, libName+".toc")
 		p.tocFile = android.OptionalPathForPath(tocFile)
-		transformSharedObjectToToc(ctx, in, tocFile, builderFlags)
+		TransformSharedObjectToToc(ctx, in, tocFile)
 
 		p.androidMkSuffix = p.NameSuffix()
 

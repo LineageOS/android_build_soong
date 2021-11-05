@@ -185,7 +185,7 @@ func rustEnvVars(ctx ModuleContext, deps PathDeps) []string {
 }
 
 func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, flags Flags,
-	outputFile android.WritablePath, crate_type string) buildOutput {
+	outputFile android.WritablePath, crateType string) buildOutput {
 
 	var inputs android.Paths
 	var implicits android.Paths
@@ -204,7 +204,7 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 	// Collect rustc flags
 	rustcFlags = append(rustcFlags, flags.GlobalRustFlags...)
 	rustcFlags = append(rustcFlags, flags.RustFlags...)
-	rustcFlags = append(rustcFlags, "--crate-type="+crate_type)
+	rustcFlags = append(rustcFlags, "--crate-type="+crateType)
 	if crateName != "" {
 		rustcFlags = append(rustcFlags, "--crate-name="+crateName)
 	}
