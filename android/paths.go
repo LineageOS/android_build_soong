@@ -465,6 +465,9 @@ func (p OutputPaths) Strings() []string {
 // PathForGoBinary returns the path to the installed location of a bootstrap_go_binary module.
 func PathForGoBinary(ctx PathContext, goBinary bootstrap.GoBinaryTool) Path {
 	goBinaryInstallDir := pathForInstall(ctx, ctx.Config().BuildOS, ctx.Config().BuildArch, "bin", false)
+	if ctx.Config().KatiEnabled() {
+		goBinaryInstallDir = goBinaryInstallDir.ToMakePath()
+	}
 	rel := Rel(ctx, goBinaryInstallDir.String(), goBinary.InstallPath())
 	return goBinaryInstallDir.Join(ctx, rel)
 }
