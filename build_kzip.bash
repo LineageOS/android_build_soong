@@ -61,5 +61,5 @@ declare -r kzip_count=$(find "$out" -name '*.kzip' | wc -l)
 # Pack
 # TODO(asmundak): this should be done by soong.
 declare -r allkzip="$KZIP_NAME.kzip"
-"$out/soong/host/linux-x86/bin/merge_zips" "$DIST_DIR/$allkzip" @<(find "$out" -name '*.kzip')
+"$out/host/linux-x86/bin/merge_zips" "$DIST_DIR/$allkzip" @<(find "$out" -name '*.kzip')
 
