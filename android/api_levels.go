@@ -290,6 +290,7 @@ func getFinalCodenamesMap(config Config) map[string]int {
 			"Q":     29,
 			"R":     30,
 			"S":     31,
+			"S-V2":  32,
 		}
 
 		// TODO: Differentiate "current" and "future".
@@ -333,6 +334,7 @@ func getApiLevelsMap(config Config) map[string]int {
 			"Q":     29,
 			"R":     30,
 			"S":     31,
+			"S-V2":  32,
 		}
 		for i, codename := range config.PlatformVersionActiveCodenames() {
 			apiLevelsMap[codename] = previewAPILevelBase + i
