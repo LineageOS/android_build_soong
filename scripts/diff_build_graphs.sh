@@ -98,7 +98,7 @@ function run_build() {
   # or in case it is affected by some of the changes we're testing
   make blueprint_tools
   # find multiproduct_kati and have it build the ninja files for each product
-  builder="$(echo $OUT_DIR/soong/host/*/bin/multiproduct_kati)"
+  builder="$(echo $OUT_DIR/host/*/bin/multiproduct_kati)"
   BUILD_NUMBER=sample "$builder" $PRODUCTS_ARG --keep --out "$OUT_DIR_TEMP" || true
   echo
 }
