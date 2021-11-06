@@ -450,11 +450,6 @@ func (installer *baseInstaller) AndroidMkEntries(ctx AndroidMkContext, entries *
 	if installer.path == (android.InstallPath{}) {
 		return
 	}
-	// Soong installation is only supported for host modules. Have Make
-	// installation trigger Soong installation.
-	if ctx.Target().Os.Class == android.Host {
-		entries.OutputFile = android.OptionalPathForPath(installer.path)
-	}
 
 	entries.ExtraEntries = append(entries.ExtraEntries, func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
 		path, file := filepath.Split(installer.path.ToMakePath().String())
