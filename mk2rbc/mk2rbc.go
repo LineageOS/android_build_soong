@@ -965,25 +965,16 @@ func (ctx *parseContext) processBranch(check *mkparser.Directive) {
 	ctx.pushReceiver(&block)
 	for ctx.hasNodes() {
 		node := ctx.getNode()
-		if ctx.handleSimpleStatement(node) {
-			continue
-		}
-		switch d := node.(type) {
-		case *mkparser.Directive:
+		if d, ok := node.(*mkparser.Directive); ok {
 			switch d.Name {
 			case "else", "elifdef", "elifndef", "elifeq", "elifneq", "endif":
 				ctx.popReceiver()
 				ctx.receiver.newNode(&block)
 				ctx.backNode()
 				return
-			case "ifdef", "ifndef", "ifeq", "ifneq":
-				ctx.handleIfBlock(d)
-			default:
-				ctx.errorf(d, "unexpected directive %s", d.Name)
 			}
-		default:
-			ctx.errorf(node, "unexpected statement")
 		}
+		ctx.handleSimpleStatement(node)
 	}
 	ctx.fatalError = fmt.Errorf("no matching endif for %s", check.Dump())
 	ctx.popReceiver()
@@ -1485,9 +1476,7 @@ func (ctx *parseContext) parseMakeString(node mkparser.Node, mk *mkparser.MakeSt
 // Handles the statements whose treatment is the same in all contexts: comment,
 // assignment, variable (which is a macro call in reality) and all constructs that
 // do not handle in any context ('define directive and any unrecognized stuff).
-// Return true if we handled it.
-func (ctx *parseContext) handleSimpleStatement(node mkparser.Node) bool {
-	handled := true
+func (ctx *parseContext) handleSimpleStatement(node mkparser.Node) {
 	switch x := node.(type) {
 	case *mkparser.Comment:
 		ctx.maybeHandleAnnotation(x)
@@ -1502,13 +1491,14 @@ func (ctx *parseContext) handleSimpleStatement(node mkparser.Node) bool {
 			ctx.handleDefine(x)
 		case "include", "-include":
 			ctx.handleInclude(node, ctx.parseMakeString(node, x.Args), x.Name[0] != '-')
+		case "ifeq", "ifneq", "ifdef", "ifndef":
+			ctx.handleIfBlock(x)
 		default:
-			handled = false
+			ctx.errorf(x, "unexpected directive %s", x.Name)
 		}
 	default:
 		ctx.errorf(x, "unsupported line %s", strings.ReplaceAll(x.Dump(), "\n", "\n#"))
 	}
-	return handled
 }
 
 // Processes annotation. An annotation is a comment that starts with #RBC# and provides
@@ -1680,21 +1670,7 @@ func Convert(req Request) (*StarlarkScript, error) {
 	}
 	ctx.pushReceiver(starScript)
 	for ctx.hasNodes() && ctx.fatalError == nil {
-		node := ctx.getNode()
-		if ctx.handleSimpleStatement(node) {
-			continue
-		}
-		switch x := node.(type) {
-		case *mkparser.Directive:
-			switch x.Name {
-			case "ifeq", "ifneq", "ifdef", "ifndef":
-				ctx.handleIfBlock(x)
-			default:
-				ctx.errorf(x, "unexpected directive %s", x.Name)
-			}
-		default:
-			ctx.errorf(x, "unsupported line")
-		}
+		ctx.handleSimpleStatement(ctx.getNode())
 	}
 	if ctx.fatalError != nil {
 		return nil, ctx.fatalError
