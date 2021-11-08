@@ -128,9 +128,9 @@ cc_library_headers {
 
     // TODO: Also support export_header_lib_headers
 }`,
-		expectedBazelTargets: []string{`cc_library_headers(
-    name = "foo_headers",
-    export_includes = [
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_library_headers", "foo_headers", attrNameToString{
+				"export_includes": `[
         "dir-1",
         "dir-2",
     ] + select({
@@ -138,12 +138,13 @@ cc_library_headers {
         "//build/bazel/platforms/arch:x86": ["arch_x86_exported_include_dir"],
         "//build/bazel/platforms/arch:x86_64": ["arch_x86_64_exported_include_dir"],
         "//conditions:default": [],
-    }),
-    implementation_deps = [
+    })`,
+				"implementation_deps": `[
         ":lib-1",
         ":lib-2",
-    ],
-)`},
+    ]`,
+			}),
+		},
 	})
 }
 
@@ -191,17 +192,18 @@ cc_library_headers {
     },
     include_build_directory: false,
 }`,
-		expectedBazelTargets: []string{`cc_library_headers(
-    name = "foo_headers",
-    implementation_deps = [":base-lib"] + select({
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_library_headers", "foo_headers", attrNameToString{
+				"implementation_deps": `[":base-lib"] + select({
         "//build/bazel/platforms/os:android": [":android-lib"],
         "//build/bazel/platforms/os:darwin": [":darwin-lib"],
         "//build/bazel/platforms/os:linux": [":linux-lib"],
         "//build/bazel/platforms/os:linux_bionic": [":linux_bionic-lib"],
         "//build/bazel/platforms/os:windows": [":windows-lib"],
         "//conditions:default": [],
-    }),
-)`},
+    })`,
+			}),
+		},
 	})
 }
 
@@ -231,17 +233,18 @@ cc_library_headers {
     },
     include_build_directory: false,
 }`,
-		expectedBazelTargets: []string{`cc_library_headers(
-    name = "foo_headers",
-    deps = select({
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_library_headers", "foo_headers", attrNameToString{
+				"deps": `select({
         "//build/bazel/platforms/os:android": [":exported-lib"],
         "//conditions:default": [],
-    }),
-    implementation_deps = select({
+    })`,
+				"implementation_deps": `select({
         "//build/bazel/platforms/os:android": [":android-lib"],
         "//conditions:default": [],
-    }),
-)`},
+    })`,
+			}),
+		},
 	})
 }
 
@@ -288,9 +291,9 @@ func TestCcLibraryHeadersArchAndTargetExportSystemIncludes(t *testing.T) {
     },
     include_build_directory: false,
 }`,
-		expectedBazelTargets: []string{`cc_library_headers(
-    name = "foo_headers",
-    export_system_includes = ["shared_include_dir"] + select({
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_library_headers", "foo_headers", attrNameToString{
+				"export_system_includes": `["shared_include_dir"] + select({
         "//build/bazel/platforms/arch:arm": ["arm_include_dir"],
         "//build/bazel/platforms/arch:x86_64": ["x86_64_include_dir"],
         "//conditions:default": [],
@@ -299,8 +302,9 @@ func TestCcLibraryHeadersArchAndTargetExportSystemIncludes(t *testing.T) {
         "//build/bazel/platforms/os:darwin": ["darwin_include_dir"],
         "//build/bazel/platforms/os:linux": ["linux_include_dir"],
         "//conditions:default": [],
-    }),
-)`},
+    })`,
+			}),
+		},
 	})
 }
 
@@ -330,9 +334,10 @@ cc_library_headers {
     no_libcrt: true,
     include_build_directory: false,
 }`,
-		expectedBazelTargets: []string{`cc_library_headers(
-    name = "lib-1",
-    export_includes = ["lib-1"],
-)`},
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_library_headers", "lib-1", attrNameToString{
+				"export_includes": `["lib-1"]`,
+			}),
+		},
 	})
 }
