@@ -474,6 +474,7 @@ type fillInEntriesContext interface {
 	ModuleDir(module blueprint.Module) string
 	Config() Config
 	ModuleProvider(module blueprint.Module, provider blueprint.ProviderKey) interface{}
+	ModuleHasProvider(module blueprint.Module, provider blueprint.ProviderKey) bool
 }
 
 func (a *AndroidMkEntries) fillInEntries(ctx fillInEntriesContext, mod blueprint.Module) {
@@ -607,6 +608,11 @@ func (a *AndroidMkEntries) fillInEntries(ctx fillInEntriesContext, mod blueprint
 		if base.Arch().ArchType != ctx.Config().Targets[base.Os()][0].Arch.ArchType {
 			prefix = "2ND_" + prefix
 		}
+	}
+
+	if ctx.ModuleHasProvider(mod, LicenseMetadataProvider) {
+		licenseMetadata := ctx.ModuleProvider(mod, LicenseMetadataProvider).(*LicenseMetadataInfo)
+		a.SetPath("LOCAL_SOONG_LICENSE_METADATA", licenseMetadata.LicenseMetadataPath)
 	}
 
 	extraCtx := &androidMkExtraEntriesContext{
