@@ -72,6 +72,7 @@ const (
 	soongConfigVarSetOld    = "add_soong_config_var_value"
 	soongConfigAppend       = "soong_config_append"
 	soongConfigAssign       = "soong_config_set"
+	soongConfigGet          = "soong_config_get"
 	wildcardExistsPhony     = "$wildcard_exists"
 )
 
@@ -95,6 +96,7 @@ var knownFunctions = map[string]struct {
 	soongConfigVarSetOld:                  {baseName + ".soong_config_set", starlarkTypeVoid, hiddenArgGlobal},
 	soongConfigAssign:                     {baseName + ".soong_config_set", starlarkTypeVoid, hiddenArgGlobal},
 	soongConfigAppend:                     {baseName + ".soong_config_append", starlarkTypeVoid, hiddenArgGlobal},
+	soongConfigGet:                        {baseName + ".soong_config_get", starlarkTypeString, hiddenArgGlobal},
 	"add-to-product-copy-files-if-exists": {baseName + ".copy_if_exists", starlarkTypeList, hiddenArgNone},
 	"addprefix":                           {baseName + ".addprefix", starlarkTypeList, hiddenArgNone},
 	"addsuffix":                           {baseName + ".addsuffix", starlarkTypeList, hiddenArgNone},
@@ -538,7 +540,7 @@ func (ctx *parseContext) handleAssignment(a *mkparser.Assignment) {
 		return
 	}
 	name := a.Name.Strings[0]
-	// Soong confuguration
+	// Soong configuration
 	if strings.HasPrefix(name, soongNsPrefix) {
 		ctx.handleSoongNsAssignment(strings.TrimPrefix(name, soongNsPrefix), a)
 		return
@@ -639,7 +641,7 @@ func (ctx *parseContext) handleSoongNsAssignment(name string, asgn *mkparser.Ass
 		// Upon seeing
 		//      SOONG_CONFIG_x_y = v
 		// find a namespace called `x` and act as if we encountered
-		//      $(call add_config_var_value(x,y,v)
+		//      $(call soong_config_set,x,y,v)
 		// or check that `x_y` is a namespace, and then add the RHS of this assignment as variables in
 		// it.
 		// Emit an error in the ambiguous situation (namespaces `foo_bar` with a variable `baz`
@@ -680,7 +682,7 @@ func (ctx *parseContext) handleSoongNsAssignment(name string, asgn *mkparser.Ass
 			ctx.errorf(asgn, "no %s variable in %s namespace, please use add_soong_config_var_value instead", varName, namespaceName)
 			return
 		}
-		fname := soongConfigVarSetOld
+		fname := soongConfigAssign
 		if asgn.Type == "+=" {
 			fname = soongConfigAppend
 		}
@@ -1320,7 +1322,7 @@ func (ctx *parseContext) parseReference(node mkparser.Node, ref *mkparser.MakeSt
 		}
 		if strings.HasPrefix(refDump, soongNsPrefix) {
 			// TODO (asmundak): if we find many, maybe handle them.
-			return ctx.newBadExpr(node, "SOONG_CONFIG_ variables cannot be referenced: %s", refDump)
+			return ctx.newBadExpr(node, "SOONG_CONFIG_ variables cannot be referenced, use soong_config_get instead: %s", refDump)
 		}
 		if v := ctx.addVariable(refDump); v != nil {
 			return &variableRefExpr{v, ctx.lastAssignment(v.name()) != nil}
