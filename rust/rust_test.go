@@ -79,8 +79,10 @@ func testRustVndk(t *testing.T, bp string) *android.TestContext {
 }
 
 const (
-	sharedVendorVariant = "android_vendor.29_arm64_armv8-a_shared"
-	rlibVendorVariant   = "android_vendor.29_arm64_armv8-a_rlib_rlib-std"
+	sharedVendorVariant   = "android_vendor.29_arm64_armv8-a_shared"
+	rlibVendorVariant     = "android_vendor.29_arm64_armv8-a_rlib_rlib-std"
+	sharedRecoveryVariant = "android_recovery_arm64_armv8-a_shared"
+	rlibRecoveryVariant   = "android_recovery_arm64_armv8-a_rlib_rlib-std"
 )
 
 func testRustVndkFs(t *testing.T, bp string, fs android.MockFS) *android.TestContext {
@@ -101,7 +103,22 @@ func testRustVndkFsVersions(t *testing.T, bp string, fs android.MockFS, device_v
 		),
 	).RunTestWithBp(t, bp)
 	return result.TestContext
+}
 
+func testRustRecoveryFsVersions(t *testing.T, bp string, fs android.MockFS, device_version, vndk_version, recovery_version string) *android.TestContext {
+	skipTestIfOsNotSupported(t)
+	result := android.GroupFixturePreparers(
+		prepareForRustTest,
+		fs.AddToFixture(),
+		android.FixtureModifyProductVariables(
+			func(variables android.FixtureProductVariables) {
+				variables.DeviceVndkVersion = StringPtr(device_version)
+				variables.RecoverySnapshotVersion = StringPtr(recovery_version)
+				variables.Platform_vndk_version = StringPtr(vndk_version)
+			},
+		),
+	).RunTestWithBp(t, bp)
+	return result.TestContext
 }
 
 // testRustCov returns a TestContext in which a basic environment has been
