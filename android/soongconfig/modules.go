@@ -15,6 +15,7 @@
 package soongconfig
 
 import (
+	"android/soong/bazel"
 	"fmt"
 	"io"
 	"reflect"
@@ -28,7 +29,7 @@ import (
 
 const conditionsDefault = "conditions_default"
 
-var soongConfigProperty = proptools.FieldNameForProperty("soong_config_variables")
+var SoongConfigProperty = proptools.FieldNameForProperty("soong_config_variables")
 
 // loadSoongConfigModuleTypeDefinition loads module types from an Android.bp file.  It caches the
 // result so each file is only parsed once.
@@ -120,6 +121,8 @@ type ModuleTypeProperties struct {
 
 	// the list of properties that this module type will extend.
 	Properties []string
+
+	Bazel_module bazel.BazelModuleProperties
 }
 
 func processModuleTypeDef(v *SoongConfigDefinition, def *parser.Module) (errs []error) {
@@ -271,12 +274,12 @@ func CreateProperties(factory blueprint.ModuleFactory, moduleType *ModuleType) r
 	}
 
 	typ := reflect.StructOf([]reflect.StructField{{
-		Name: soongConfigProperty,
+		Name: SoongConfigProperty,
 		Type: reflect.StructOf(fields),
 	}})
 
 	props := reflect.New(typ)
-	structConditions := props.Elem().FieldByName(soongConfigProperty)
+	structConditions := props.Elem().FieldByName(SoongConfigProperty)
 
 	for i, c := range moduleType.Variables {
 		c.initializeProperties(structConditions.Field(i), affectablePropertiesType)
@@ -415,7 +418,7 @@ func typeForPropertyFromPropertyStruct(ps interface{}, property string) reflect.
 // soong_config_variables are expected to be in the same order as moduleType.Variables.
 func PropertiesToApply(moduleType *ModuleType, props reflect.Value, config SoongConfig) ([]interface{}, error) {
 	var ret []interface{}
-	props = props.Elem().FieldByName(soongConfigProperty)
+	props = props.Elem().FieldByName(SoongConfigProperty)
 	for i, c := range moduleType.Variables {
 		if ps, err := c.PropertiesToApply(config, props.Field(i)); err != nil {
 			return nil, err
@@ -433,6 +436,7 @@ type ModuleType struct {
 
 	affectableProperties []string
 	variableNames        []string
+	Bp2buildAvailable    *bool
 }
 
 func newModuleType(props *ModuleTypeProperties) (*ModuleType, []error) {
@@ -441,6 +445,7 @@ func newModuleType(props *ModuleTypeProperties) (*ModuleType, []error) {
 		ConfigNamespace:      props.Config_namespace,
 		BaseModuleType:       props.Module_type,
 		variableNames:        props.Variables,
+		Bp2buildAvailable:    props.Bazel_module.Bp2build_available,
 	}
 
 	for _, name := range props.Bool_variables {
