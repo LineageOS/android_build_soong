@@ -158,9 +158,9 @@ func (ct configurationType) validateConfig(config string) {
 }
 
 // SelectKey returns the Bazel select key for a given configurationType and config string.
-func (ct configurationType) SelectKey(config string) string {
-	ct.validateConfig(config)
-	switch ct {
+func (ca ConfigurationAxis) SelectKey(config string) string {
+	ca.validateConfig(config)
+	switch ca.configurationType {
 	case noConfig:
 		panic(fmt.Errorf("SelectKey is unnecessary for noConfig ConfigurationType "))
 	case arch:
@@ -170,12 +170,13 @@ func (ct configurationType) SelectKey(config string) string {
 	case osArch:
 		return platformOsArchMap[config]
 	case productVariables:
-		if config == ConditionsDefaultConfigKey {
+		if strings.HasSuffix(config, ConditionsDefaultConfigKey) {
+			// e.g. "acme__feature1__conditions_default" or "android__board__conditions_default"
 			return ConditionsDefaultSelectKey
 		}
-		return fmt.Sprintf("%s:%s", productVariableBazelPackage, strings.ToLower(config))
+		return fmt.Sprintf("%s:%s", productVariableBazelPackage, config)
 	default:
-		panic(fmt.Errorf("Unrecognized ConfigurationType %d", ct))
+		panic(fmt.Errorf("Unrecognized ConfigurationType %d", ca.configurationType))
 	}
 }
 

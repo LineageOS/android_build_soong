@@ -510,9 +510,9 @@ func registerTestPrebuiltModules(ctx RegistrationContext) {
 	ctx.RegisterModuleType("prebuilt", newPrebuiltModule)
 	ctx.RegisterModuleType("source", newSourceModule)
 	ctx.RegisterModuleType("override_source", newOverrideSourceModule)
-	ctx.RegisterModuleType("soong_config_module_type", soongConfigModuleTypeFactory)
-	ctx.RegisterModuleType("soong_config_string_variable", soongConfigStringVariableDummyFactory)
-	ctx.RegisterModuleType("soong_config_bool_variable", soongConfigBoolVariableDummyFactory)
+	ctx.RegisterModuleType("soong_config_module_type", SoongConfigModuleTypeFactory)
+	ctx.RegisterModuleType("soong_config_string_variable", SoongConfigStringVariableDummyFactory)
+	ctx.RegisterModuleType("soong_config_bool_variable", SoongConfigBoolVariableDummyFactory)
 }
 
 type prebuiltModule struct {

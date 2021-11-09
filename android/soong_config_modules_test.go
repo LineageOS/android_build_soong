@@ -310,10 +310,10 @@ func TestSoongConfigModule(t *testing.T) {
 					tc.preparer,
 					PrepareForTestWithDefaults,
 					FixtureRegisterWithContext(func(ctx RegistrationContext) {
-						ctx.RegisterModuleType("soong_config_module_type_import", soongConfigModuleTypeImportFactory)
-						ctx.RegisterModuleType("soong_config_module_type", soongConfigModuleTypeFactory)
-						ctx.RegisterModuleType("soong_config_string_variable", soongConfigStringVariableDummyFactory)
-						ctx.RegisterModuleType("soong_config_bool_variable", soongConfigBoolVariableDummyFactory)
+						ctx.RegisterModuleType("soong_config_module_type_import", SoongConfigModuleTypeImportFactory)
+						ctx.RegisterModuleType("soong_config_module_type", SoongConfigModuleTypeFactory)
+						ctx.RegisterModuleType("soong_config_string_variable", SoongConfigStringVariableDummyFactory)
+						ctx.RegisterModuleType("soong_config_bool_variable", SoongConfigBoolVariableDummyFactory)
 						ctx.RegisterModuleType("test_defaults", soongConfigTestDefaultsModuleFactory)
 						ctx.RegisterModuleType("test", soongConfigTestModuleFactory)
 					}),
@@ -372,10 +372,10 @@ func TestNonExistentPropertyInSoongConfigModule(t *testing.T) {
 		fixtureForVendorVars(map[string]map[string]string{"acme": {"feature1": "1"}}),
 		PrepareForTestWithDefaults,
 		FixtureRegisterWithContext(func(ctx RegistrationContext) {
-			ctx.RegisterModuleType("soong_config_module_type_import", soongConfigModuleTypeImportFactory)
-			ctx.RegisterModuleType("soong_config_module_type", soongConfigModuleTypeFactory)
-			ctx.RegisterModuleType("soong_config_string_variable", soongConfigStringVariableDummyFactory)
-			ctx.RegisterModuleType("soong_config_bool_variable", soongConfigBoolVariableDummyFactory)
+			ctx.RegisterModuleType("soong_config_module_type_import", SoongConfigModuleTypeImportFactory)
+			ctx.RegisterModuleType("soong_config_module_type", SoongConfigModuleTypeFactory)
+			ctx.RegisterModuleType("soong_config_string_variable", SoongConfigStringVariableDummyFactory)
+			ctx.RegisterModuleType("soong_config_bool_variable", SoongConfigBoolVariableDummyFactory)
 			ctx.RegisterModuleType("test_defaults", soongConfigTestDefaultsModuleFactory)
 			ctx.RegisterModuleType("test", soongConfigTestModuleFactory)
 		}),
