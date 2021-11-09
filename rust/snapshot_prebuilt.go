@@ -44,6 +44,8 @@ func init() {
 func registerRustSnapshotModules(ctx android.RegistrationContext) {
 	cc.VendorSnapshotImageSingleton.RegisterAdditionalModule(ctx,
 		"vendor_snapshot_rlib", VendorSnapshotRlibFactory)
+	cc.RecoverySnapshotImageSingleton.RegisterAdditionalModule(ctx,
+		"recovery_snapshot_rlib", RecoverySnapshotRlibFactory)
 }
 
 func snapshotLibraryFactory(image cc.SnapshotImage, moduleSuffix string) (*Module, *snapshotLibraryDecorator) {
@@ -99,6 +101,13 @@ func (library *snapshotLibraryDecorator) rustdoc(ctx ModuleContext, flags Flags,
 // is set.
 func VendorSnapshotRlibFactory() android.Module {
 	module, prebuilt := snapshotLibraryFactory(cc.VendorSnapshotImageSingleton, cc.SnapshotRlibSuffix)
+	prebuilt.libraryDecorator.BuildOnlyRlib()
+	prebuilt.libraryDecorator.setNoStdlibs()
+	return module.Init()
+}
+
+func RecoverySnapshotRlibFactory() android.Module {
+	module, prebuilt := snapshotLibraryFactory(cc.RecoverySnapshotImageSingleton, cc.SnapshotRlibSuffix)
 	prebuilt.libraryDecorator.BuildOnlyRlib()
 	prebuilt.libraryDecorator.setNoStdlibs()
 	return module.Init()
