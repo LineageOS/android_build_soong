@@ -168,6 +168,10 @@ type ShBinary struct {
 
 var _ android.HostToolProvider = (*ShBinary)(nil)
 
+func (s *ShBinary) InstallBypassMake() bool {
+	return true
+}
+
 type ShTest struct {
 	ShBinary
 
