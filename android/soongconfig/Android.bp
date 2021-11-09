@@ -9,6 +9,7 @@ bootstrap_go_package {
         "blueprint",
         "blueprint-parser",
         "blueprint-proptools",
+        "soong-bazel",
     ],
     srcs: [
         "config.go",

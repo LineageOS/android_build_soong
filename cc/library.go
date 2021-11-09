@@ -2358,9 +2358,6 @@ func ccSharedOrStaticBp2BuildMutator(ctx android.TopDownMutatorContext, modType 
 	if !module.ConvertWithBp2build(ctx) {
 		return
 	}
-	if ctx.ModuleType() != modType {
-		return
-	}
 
 	ccSharedOrStaticBp2BuildMutatorInternal(ctx, module, modType)
 }
@@ -2498,7 +2495,15 @@ type bazelCcLibraryStaticAttributes struct {
 }
 
 func CcLibraryStaticBp2Build(ctx android.TopDownMutatorContext) {
-	ccSharedOrStaticBp2BuildMutator(ctx, "cc_library_static")
+	isLibraryStatic := ctx.ModuleType() == "cc_library_static"
+	if b, ok := ctx.Module().(android.Bazelable); ok {
+		// This is created by a custom soong config module type, so its ctx.ModuleType() is not
+		// cc_library_static. Check its BaseModuleType.
+		isLibraryStatic = isLibraryStatic || b.BaseModuleType() == "cc_library_static"
+	}
+	if isLibraryStatic {
+		ccSharedOrStaticBp2BuildMutator(ctx, "cc_library_static")
+	}
 }
 
 // TODO(b/199902614): Can this be factored to share with the other Attributes?
@@ -2529,5 +2534,13 @@ type bazelCcLibrarySharedAttributes struct {
 }
 
 func CcLibrarySharedBp2Build(ctx android.TopDownMutatorContext) {
-	ccSharedOrStaticBp2BuildMutator(ctx, "cc_library_shared")
+	isLibraryShared := ctx.ModuleType() == "cc_library_shared"
+	if b, ok := ctx.Module().(android.Bazelable); ok {
+		// This is created by a custom soong config module type, so its ctx.ModuleType() is not
+		// cc_library_shared. Check its BaseModuleType.
+		isLibraryShared = isLibraryShared || b.BaseModuleType() == "cc_library_shared"
+	}
+	if isLibraryShared {
+		ccSharedOrStaticBp2BuildMutator(ctx, "cc_library_shared")
+	}
 }
