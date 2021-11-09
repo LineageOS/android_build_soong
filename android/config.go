@@ -333,10 +333,8 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 			ShippingApiLevel:                  stringPtr("30"),
 		},
 
-		outDir: buildDir,
-		// soongOutDir is inconsistent with production (it should be buildDir + "/soong")
-		// but a lot of tests assume this :(
-		soongOutDir:  buildDir,
+		outDir:       buildDir,
+		soongOutDir:  filepath.Join(buildDir, "soong"),
 		captureBuild: true,
 		env:          envCopy,
 
