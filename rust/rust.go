@@ -1273,6 +1273,10 @@ func (mod *Module) InstallInRecovery() bool {
 	return mod.InRecovery()
 }
 
+func (mod *Module) InstallBypassMake() bool {
+	return true
+}
+
 func linkPathFromFilePath(filepath android.Path) string {
 	return strings.Split(filepath.String(), filepath.Base())[0]
 }
