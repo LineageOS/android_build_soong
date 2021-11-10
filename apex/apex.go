@@ -424,9 +424,8 @@ type apexBundle struct {
 	isCompressed bool
 
 	// Path of API coverage generate file
-	nativeApisUsedByModuleFile   android.ModuleOutPath
-	nativeApisBackedByModuleFile android.ModuleOutPath
-	javaApisUsedByModuleFile     android.ModuleOutPath
+	apisUsedByModuleFile   android.ModuleOutPath
+	apisBackedByModuleFile android.ModuleOutPath
 
 	// Collect the module directory for IDE info in java/jdeps.go.
 	modulePaths []string
