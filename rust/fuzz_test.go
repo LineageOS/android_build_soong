@@ -45,7 +45,7 @@ func TestRustFuzz(t *testing.T) {
 	}
 
 	// Check that compiler flags are set appropriately .
-	fuzz_libtest := ctx.ModuleForTests("fuzz_libtest", "android_arm64_armv8-a_fuzzer").Output("fuzz_libtest")
+	fuzz_libtest := ctx.ModuleForTests("fuzz_libtest", "android_arm64_armv8-a_fuzzer").Rule("rustc")
 	if !strings.Contains(fuzz_libtest.Args["rustcFlags"], "-Z sanitizer=hwaddress") ||
 		!strings.Contains(fuzz_libtest.Args["rustcFlags"], "-C passes='sancov'") ||
 		!strings.Contains(fuzz_libtest.Args["rustcFlags"], "--cfg fuzzing") {

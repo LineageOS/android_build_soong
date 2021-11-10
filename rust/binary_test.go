@@ -106,7 +106,7 @@ func TestBinaryFlags(t *testing.T) {
 			srcs: ["foo.rs"],
 		}`)
 
-	fizzBuzz := ctx.ModuleForTests("fizz-buzz", "linux_glibc_x86_64").Output("fizz-buzz")
+	fizzBuzz := ctx.ModuleForTests("fizz-buzz", "linux_glibc_x86_64").Rule("rustc")
 
 	flags := fizzBuzz.Args["rustcFlags"]
 	if strings.Contains(flags, "--test") {
@@ -139,7 +139,7 @@ func TestStaticBinaryFlags(t *testing.T) {
 			static_executable: true,
 		}`)
 
-	fizzOut := ctx.ModuleForTests("fizz", "android_arm64_armv8-a").Output("fizz")
+	fizzOut := ctx.ModuleForTests("fizz", "android_arm64_armv8-a").Rule("rustc")
 	fizzMod := ctx.ModuleForTests("fizz", "android_arm64_armv8-a").Module().(*Module)
 
 	flags := fizzOut.Args["rustcFlags"]
@@ -173,7 +173,7 @@ func TestLinkObjects(t *testing.T) {
 			name: "libfoo",
 		}`)
 
-	fizzBuzz := ctx.ModuleForTests("fizz-buzz", "android_arm64_armv8-a").Output("fizz-buzz")
+	fizzBuzz := ctx.ModuleForTests("fizz-buzz", "android_arm64_armv8-a").Rule("rustc")
 	linkFlags := fizzBuzz.Args["linkFlags"]
 	if !strings.Contains(linkFlags, "/libfoo.so") {
 		t.Errorf("missing shared dependency 'libfoo.so' in linkFlags: %#v", linkFlags)
@@ -197,15 +197,17 @@ func TestStrippedBinary(t *testing.T) {
 	`)
 
 	foo := ctx.ModuleForTests("foo", "android_arm64_armv8-a")
-	foo.Output("stripped/foo")
+	foo.Output("unstripped/foo")
+	foo.Output("foo")
+
 	// Check that the `cp` rules is using the stripped version as input.
 	cp := foo.Rule("android.Cp")
-	if !strings.HasSuffix(cp.Input.String(), "stripped/foo") {
+	if strings.HasSuffix(cp.Input.String(), "unstripped/foo") {
 		t.Errorf("installed binary not based on stripped version: %v", cp.Input)
 	}
 
-	fizzBar := ctx.ModuleForTests("bar", "android_arm64_armv8-a").MaybeOutput("stripped/bar")
+	fizzBar := ctx.ModuleForTests("bar", "android_arm64_armv8-a").MaybeOutput("unstripped/bar")
 	if fizzBar.Rule != nil {
-		t.Errorf("stripped version of bar has been generated")
+		t.Errorf("unstripped binary exists, so stripped binary has incorrectly been generated")
 	}
 }
