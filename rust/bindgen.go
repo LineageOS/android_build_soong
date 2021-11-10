@@ -15,6 +15,7 @@
 package rust
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/google/blueprint"
@@ -146,6 +147,31 @@ func (b *bindgenDecorator) GenerateSource(ctx ModuleContext, deps PathDeps) andr
 	cflags = append(cflags, "-target "+ccToolchain.ClangTriple())
 	cflags = append(cflags, strings.ReplaceAll(ccToolchain.Cflags(), "${config.", "${cc_config."))
 	cflags = append(cflags, strings.ReplaceAll(ccToolchain.ToolchainCflags(), "${config.", "${cc_config."))
+
+	if ctx.RustModule().UseVndk() {
+		cflags = append(cflags, "-D__ANDROID_VNDK__")
+		if ctx.RustModule().InVendor() {
+			cflags = append(cflags, "-D__ANDROID_VENDOR__")
+		} else if ctx.RustModule().InProduct() {
+			cflags = append(cflags, "-D__ANDROID_PRODUCT__")
+		}
+	}
+
+	if ctx.RustModule().InRecovery() {
+		cflags = append(cflags, "-D__ANDROID_RECOVERY__")
+	}
+
+	if mctx, ok := ctx.(*moduleContext); ok && mctx.apexVariationName() != "" {
+		cflags = append(cflags, "-D__ANDROID_APEX__")
+		if ctx.Device() {
+			cflags = append(cflags, fmt.Sprintf("-D__ANDROID_APEX_MIN_SDK_VERSION__=%d",
+				ctx.RustModule().apexSdkVersion.FinalOrFutureInt()))
+		}
+	}
+
+	if ctx.Target().NativeBridge == android.NativeBridgeEnabled {
+		cflags = append(cflags, "-D__ANDROID_NATIVE_BRIDGE__")
+	}
 
 	// Dependency clang flags and include paths
 	cflags = append(cflags, deps.depClangFlags...)
