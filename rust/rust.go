@@ -163,6 +163,9 @@ type Module struct {
 	docTimestampFile     android.OptionalPath
 
 	hideApexVariantFromMake bool
+
+	// For apex variants, this is set as apex.min_sdk_version
+	apexSdkVersion android.ApiLevel
 }
 
 func (mod *Module) Header() bool {
@@ -678,6 +681,10 @@ func (mod *Module) installable(apexInfo android.ApexInfo) bool {
 	return mod.OutputFile().Valid() && !mod.Properties.PreventInstall
 }
 
+func (ctx moduleContext) apexVariationName() string {
+	return ctx.Provider(android.ApexInfoProvider).(android.ApexInfo).ApexVariationName
+}
+
 var _ cc.LinkableInterface = (*Module)(nil)
 
 func (mod *Module) Init() android.Module {
@@ -1022,6 +1029,20 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 	directStaticLibDeps := [](cc.LinkableInterface){}
 	directSrcProvidersDeps := []*Module{}
 	directSrcDeps := [](android.SourceFileProducer){}
+
+	// For the dependency from platform to apex, use the latest stubs
+	mod.apexSdkVersion = android.FutureApiLevel
+	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
+	if !apexInfo.IsForPlatform() {
+		mod.apexSdkVersion = apexInfo.MinSdkVersion
+	}
+
+	if android.InList("hwaddress", ctx.Config().SanitizeDevice()) {
+		// In hwasan build, we override apexSdkVersion to the FutureApiLevel(10000)
+		// so that even Q(29/Android10) apexes could use the dynamic unwinder by linking the newer stubs(e.g libc(R+)).
+		// (b/144430859)
+		mod.apexSdkVersion = android.FutureApiLevel
+	}
 
 	ctx.VisitDirectDeps(func(dep android.Module) {
 		depName := ctx.OtherModuleName(dep)
