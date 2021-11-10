@@ -769,8 +769,8 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	d.Javadoc.docZip = android.PathForModuleOut(ctx, ctx.ModuleName()+"-"+"docs.zip")
 
-	jsilver := android.PathForOutput(ctx, "host", ctx.Config().PrebuiltOS(), "framework", "jsilver.jar")
-	doclava := android.PathForOutput(ctx, "host", ctx.Config().PrebuiltOS(), "framework", "doclava.jar")
+	jsilver := ctx.Config().HostJavaToolPath(ctx, "jsilver.jar")
+	doclava := ctx.Config().HostJavaToolPath(ctx, "doclava.jar")
 
 	outDir := android.PathForModuleOut(ctx, "out")
 	srcJarDir := android.PathForModuleOut(ctx, "srcjars")

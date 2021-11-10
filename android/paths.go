@@ -1661,6 +1661,12 @@ func PathForModuleInstall(ctx ModuleInstallPathContext, pathComponents ...string
 	return makePathForInstall(ctx, os, arch, partition, ctx.Debug(), pathComponents...)
 }
 
+// PathForHostDexInstall returns an InstallPath representing the install path for the
+// module appended with paths...
+func PathForHostDexInstall(ctx ModuleInstallPathContext, pathComponents ...string) InstallPath {
+	return makePathForInstall(ctx, ctx.Config().BuildOS, ctx.Config().BuildArch, "", ctx.Debug(), pathComponents...)
+}
+
 // PathForModuleInPartitionInstall is similar to PathForModuleInstall but partition is provided by the caller
 func PathForModuleInPartitionInstall(ctx ModuleInstallPathContext, partition string, pathComponents ...string) InstallPath {
 	os, arch := osAndArch(ctx)

@@ -721,10 +721,12 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 
 	// Install the app package.
 	if (Bool(a.Module.properties.Installable) || ctx.Host()) && apexInfo.IsForPlatform() {
-		ctx.InstallFile(a.installDir, a.outputFile.Base(), a.outputFile)
+		var extraInstalledPaths android.Paths
 		for _, extra := range a.extraOutputFiles {
-			ctx.InstallFile(a.installDir, extra.Base(), extra)
+			installed := ctx.InstallFile(a.installDir, extra.Base(), extra)
+			extraInstalledPaths = append(extraInstalledPaths, installed)
 		}
+		ctx.InstallFile(a.installDir, a.outputFile.Base(), a.outputFile, extraInstalledPaths...)
 	}
 
 	a.buildAppDependencyInfo(ctx)

@@ -592,12 +592,11 @@ func (c *config) HostJNIToolPath(ctx PathContext, lib string) Path {
 	return path
 }
 
-func (c *config) HostJavaToolPath(ctx PathContext, path string) Path {
-	return PathForOutput(ctx, "host", c.PrebuiltOS(), "framework", path)
-}
-
-func (c *config) HostJavaBinToolPath(ctx PathContext, tool string) Path {
-	path := pathForInstall(ctx, ctx.Config().BuildOS, ctx.Config().BuildArch, "bin", false, tool)
+func (c *config) HostJavaToolPath(ctx PathContext, tool string) Path {
+	path := pathForInstall(ctx, ctx.Config().BuildOS, ctx.Config().BuildArch, "framework", false, tool)
+	if ctx.Config().KatiEnabled() {
+		path = path.ToMakePath()
+	}
 	return path
 }
 
