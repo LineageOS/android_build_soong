@@ -784,6 +784,9 @@ func (j *Module) aidlFlags(ctx android.ModuleContext, aidlPreprocess android.Opt
 		flags = append(flags, "--transaction_names")
 	}
 
+	aidlMinSdkVersion := j.MinSdkVersion(ctx).ApiLevel.String()
+	flags = append(flags, "--min_sdk_version="+aidlMinSdkVersion)
+
 	return strings.Join(flags, " "), deps
 }
 

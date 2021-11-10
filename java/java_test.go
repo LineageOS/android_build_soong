@@ -1357,6 +1357,36 @@ func TestAidlFlagsArePassedToTheAidlCompiler(t *testing.T) {
 	}
 }
 
+func TestAidlFlagsWithMinSdkVersion(t *testing.T) {
+	fixture := android.GroupFixturePreparers(
+		prepareForJavaTest, FixtureWithPrebuiltApis(map[string][]string{"14": {"foo"}}))
+
+	for _, tc := range []struct {
+		name       string
+		sdkVersion string
+		expected   string
+	}{
+		{"default is current", "", "current"},
+		{"use sdk_version", `sdk_version: "14"`, "14"},
+		{"system_current", `sdk_version: "system_current"`, "current"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := fixture.RunTestWithBp(t, `
+				java_library {
+					name: "foo",
+					srcs: ["aidl/foo/IFoo.aidl"],
+					`+tc.sdkVersion+`
+				}
+			`)
+			aidlCommand := ctx.ModuleForTests("foo", "android_common").Rule("aidl").RuleParams.Command
+			expectedAidlFlag := "--min_sdk_version=" + tc.expected
+			if !strings.Contains(aidlCommand, expectedAidlFlag) {
+				t.Errorf("aidl command %q does not contain %q", aidlCommand, expectedAidlFlag)
+			}
+		})
+	}
+}
+
 func TestDataNativeBinaries(t *testing.T) {
 	ctx, _ := testJava(t, `
 		java_test_host {
