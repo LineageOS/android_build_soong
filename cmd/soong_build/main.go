@@ -464,6 +464,11 @@ func runBp2Build(configuration android.Config, extraNinjaDeps []string) {
 	// conversion for Bazel conversion.
 	bp2buildCtx := android.NewContext(configuration)
 
+	// Soong internals like LoadHooks behave differently when running as
+	// bp2build. This is the bit to differentiate between Soong-as-Soong and
+	// Soong-as-bp2build.
+	bp2buildCtx.SetRunningAsBp2build()
+
 	// Propagate "allow misssing dependencies" bit. This is normally set in
 	// newContext(), but we create bp2buildCtx without calling that method.
 	bp2buildCtx.SetAllowMissingDependencies(configuration.AllowMissingDependencies())
