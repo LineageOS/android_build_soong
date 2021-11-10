@@ -473,14 +473,18 @@ func (s *makeVarsSingleton) writeInstalls(installs, symlinks []katiInstall) []by
 
 	for _, symlink := range symlinks {
 		fmt.Fprintf(buf, "%s:", symlink.to.String())
+		if symlink.from != nil {
+			// The symlink doesn't need updating when the target is modified, but we sometimes
+			// have a dependency on a symlink to a binary instead of to the binary directly, and
+			// the mtime of the symlink must be updated when the binary is modified, so use a
+			// normal dependency here instead of an order-only dependency.
+			fmt.Fprintf(buf, " %s", symlink.from.String())
+		}
 		for _, dep := range symlink.implicitDeps {
 			fmt.Fprintf(buf, " %s", dep.String())
 		}
-		if symlink.from != nil || len(symlink.orderOnlyDeps) > 0 {
+		if len(symlink.orderOnlyDeps) > 0 {
 			fmt.Fprintf(buf, " |")
-		}
-		if symlink.from != nil {
-			fmt.Fprintf(buf, " %s", symlink.from.String())
 		}
 		for _, dep := range symlink.orderOnlyDeps {
 			fmt.Fprintf(buf, " %s", dep.String())

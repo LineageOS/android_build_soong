@@ -425,7 +425,8 @@ func TestInstall(t *testing.T) {
 	)
 	assertOrderOnlys(hostInstallRule("foo"))
 
-	// Check host symlink rule dependencies
+	// Check host symlink rule dependencies.  Host symlinks must use a normal dependency, not an
+	// order-only dependency, so that the tool gets updated when the symlink is depended on.
 	assertInputs(hostSymlinkRule("foo"), hostInstallRule("foo").Output)
 	assertImplicits(hostSymlinkRule("foo"))
 	assertOrderOnlys(hostSymlinkRule("foo"))
@@ -442,7 +443,8 @@ func TestInstall(t *testing.T) {
 		symlinkRule("qux").Output,
 	)
 
-	// Check device symlink rule dependencies
+	// Check device symlink rule dependencies.  Device symlinks could use an order-only dependency,
+	// but the current implementation uses a normal dependency.
 	assertInputs(symlinkRule("foo"), installRule("foo").Output)
 	assertImplicits(symlinkRule("foo"))
 	assertOrderOnlys(symlinkRule("foo"))
@@ -553,9 +555,10 @@ func TestInstallBypassMake(t *testing.T) {
 	)
 	assertOrderOnlys(hostInstallRule("foo"))
 
-	// Check host symlink rule dependencies
-	assertDeps(hostSymlinkRule("foo"))
-	assertOrderOnlys(hostSymlinkRule("foo"), hostInstallRule("foo").target)
+	// Check host symlink rule dependencies.  Host symlinks must use a normal dependency, not an
+	// order-only dependency, so that the tool gets updated when the symlink is depended on.
+	assertDeps(hostSymlinkRule("foo"), hostInstallRule("foo").target)
+	assertOrderOnlys(hostSymlinkRule("foo"))
 
 	// Check device install rule dependencies
 	assertDeps(installRule("foo"), outputRule("foo").Output.String())
@@ -568,9 +571,10 @@ func TestInstallBypassMake(t *testing.T) {
 		symlinkRule("qux").target,
 	)
 
-	// Check device symlink rule dependencies
-	assertDeps(symlinkRule("foo"))
-	assertOrderOnlys(symlinkRule("foo"), installRule("foo").target)
+	// Check device symlink rule dependencies.  Device symlinks could use an order-only dependency,
+	// but the current implementation uses a normal dependency.
+	assertDeps(symlinkRule("foo"), installRule("foo").target)
+	assertOrderOnlys(symlinkRule("foo"))
 }
 
 type installMakeRule struct {
