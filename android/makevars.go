@@ -142,15 +142,19 @@ type SingletonMakeVarsProvider interface {
 
 var singletonMakeVarsProvidersKey = NewOnceKey("singletonMakeVarsProvidersKey")
 
+func getSingletonMakevarsProviders(config Config) *[]makeVarsProvider {
+	return config.Once(singletonMakeVarsProvidersKey, func() interface{} {
+		return &[]makeVarsProvider{}
+	}).(*[]makeVarsProvider)
+}
+
 // registerSingletonMakeVarsProvider adds a singleton that implements SingletonMakeVarsProvider to
 // the list of MakeVarsProviders to run.
 func registerSingletonMakeVarsProvider(config Config, singleton SingletonMakeVarsProvider) {
 	// Singletons are registered on the Context and may be different between different Contexts,
 	// for example when running multiple tests.  Store the SingletonMakeVarsProviders in the
 	// Config so they are attached to the Context.
-	singletonMakeVarsProviders := config.Once(singletonMakeVarsProvidersKey, func() interface{} {
-		return &[]makeVarsProvider{}
-	}).(*[]makeVarsProvider)
+	singletonMakeVarsProviders := getSingletonMakevarsProviders(config)
 
 	*singletonMakeVarsProviders = append(*singletonMakeVarsProviders,
 		makeVarsProvider{pctx, singletonMakeVarsProviderAdapter(singleton)})
@@ -175,7 +179,9 @@ func makeVarsSingletonFunc() Singleton {
 	return &makeVarsSingleton{}
 }
 
-type makeVarsSingleton struct{}
+type makeVarsSingleton struct {
+	installsForTesting []byte
+}
 
 type makeVarsProvider struct {
 	pctx PackageContext
@@ -238,7 +244,7 @@ func (s *makeVarsSingleton) GenerateBuildActions(ctx SingletonContext) {
 	var katiSymlinks []katiInstall
 
 	providers := append([]makeVarsProvider(nil), makeVarsInitProviders...)
-	providers = append(providers, *ctx.Config().Get(singletonMakeVarsProvidersKey).(*[]makeVarsProvider)...)
+	providers = append(providers, *getSingletonMakevarsProviders(ctx.Config())...)
 
 	for _, provider := range providers {
 		mctx := &makeVarsContext{
@@ -313,6 +319,8 @@ func (s *makeVarsSingleton) GenerateBuildActions(ctx SingletonContext) {
 	if err := pathtools.WriteFileIfChanged(installsFile, installsBytes, 0666); err != nil {
 		ctx.Errorf(err.Error())
 	}
+
+	s.installsForTesting = installsBytes
 }
 
 func (s *makeVarsSingleton) writeVars(vars []makeVarsVariable) []byte {
@@ -465,14 +473,18 @@ func (s *makeVarsSingleton) writeInstalls(installs, symlinks []katiInstall) []by
 
 	for _, symlink := range symlinks {
 		fmt.Fprintf(buf, "%s:", symlink.to.String())
+		if symlink.from != nil {
+			// The symlink doesn't need updating when the target is modified, but we sometimes
+			// have a dependency on a symlink to a binary instead of to the binary directly, and
+			// the mtime of the symlink must be updated when the binary is modified, so use a
+			// normal dependency here instead of an order-only dependency.
+			fmt.Fprintf(buf, " %s", symlink.from.String())
+		}
 		for _, dep := range symlink.implicitDeps {
 			fmt.Fprintf(buf, " %s", dep.String())
 		}
-		if symlink.from != nil || len(symlink.orderOnlyDeps) > 0 {
+		if len(symlink.orderOnlyDeps) > 0 {
 			fmt.Fprintf(buf, " |")
-		}
-		if symlink.from != nil {
-			fmt.Fprintf(buf, " %s", symlink.from.String())
 		}
 		for _, dep := range symlink.orderOnlyDeps {
 			fmt.Fprintf(buf, " %s", dep.String())
