@@ -552,6 +552,12 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 			flags.aidlFlags = append(flags.aidlFlags, "-t")
 		}
 
+		aidlMinSdkVersion := ctx.minSdkVersion()
+		if aidlMinSdkVersion == "" {
+			aidlMinSdkVersion = "platform_apis"
+		}
+		flags.aidlFlags = append(flags.aidlFlags, "--min_sdk_version="+aidlMinSdkVersion)
+
 		flags.Local.CommonFlags = append(flags.Local.CommonFlags,
 			"-I"+android.PathForModuleGen(ctx, "aidl").String())
 	}
