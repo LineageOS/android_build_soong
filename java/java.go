@@ -265,6 +265,8 @@ func (j *Module) XrefJavaFiles() android.Paths {
 	return j.kytheFiles
 }
 
+func (j *Module) InstallBypassMake() bool { return true }
+
 type dependencyTag struct {
 	blueprint.BaseDependencyTag
 	name string
@@ -854,6 +856,20 @@ type JavaTestImport struct {
 
 	testConfig android.Path
 	dexJarFile android.Path
+}
+
+func (j *Test) InstallInTestcases() bool {
+	// Host java tests install into $(HOST_OUT_JAVA_LIBRARIES), and then are copied into
+	// testcases by base_rules.mk.
+	return !j.Host()
+}
+
+func (j *TestHelperLibrary) InstallInTestcases() bool {
+	return true
+}
+
+func (j *JavaTestImport) InstallInTestcases() bool {
+	return true
 }
 
 func (j *TestHost) DepsMutator(ctx android.BottomUpMutatorContext) {
