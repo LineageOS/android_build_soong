@@ -46,7 +46,7 @@ var (
 	dryRun   = flag.Bool("dry_run", false, "dry run")
 	recurse  = flag.Bool("convert_dependents", false, "convert all dependent files")
 	mode     = flag.String("mode", "", `"backup" to back up existing files, "write" to overwrite them`)
-	warn     = flag.Bool("warnings", false, "warn about partially failed conversions")
+	noWarn   = flag.Bool("no_warnings", false, "don't warn about partially failed conversions")
 	verbose  = flag.Bool("v", false, "print summary")
 	errstat  = flag.Bool("error_stat", false, "print error statistics")
 	traceVar = flag.String("trace", "", "comma-separated list of variables to trace")
@@ -75,7 +75,7 @@ func init() {
 	flagAlias("root", "d")
 	flagAlias("dry_run", "n")
 	flagAlias("convert_dependents", "r")
-	flagAlias("warnings", "w")
+	flagAlias("no_warnings", "w")
 	flagAlias("error_stat", "e")
 }
 
@@ -336,7 +336,7 @@ func convertOne(mkFile string) (ok bool) {
 		OutputSuffix:       *suffix,
 		TracedVariables:    tracedVariables,
 		TraceCalls:         *traceCalls,
-		WarnPartialSuccess: *warn,
+		WarnPartialSuccess: !*noWarn,
 		SourceFS:           os.DirFS(*rootDir),
 		MakefileFinder:     makefileFinder,
 	}
@@ -419,7 +419,7 @@ func writeGenerated(path string, contents string) error {
 
 func printStats() {
 	var sortedFiles []string
-	if !*warn && !*verbose {
+	if *noWarn && !*verbose {
 		return
 	}
 	for p := range converted {
@@ -437,7 +437,7 @@ func printStats() {
 			nOk++
 		}
 	}
-	if *warn {
+	if !*noWarn {
 		if nPartial > 0 {
 			fmt.Fprintf(os.Stderr, "Conversion was partially successful for:\n")
 			for _, f := range sortedFiles {
