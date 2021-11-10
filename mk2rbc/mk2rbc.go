@@ -1388,11 +1388,14 @@ func (ctx *parseContext) parseSubstFunc(node mkparser.Node, fname string, args *
 	if len(words) != 3 {
 		return ctx.newBadExpr(node, "%s function should have 3 arguments", fname)
 	}
-	if !words[0].Const() || !words[1].Const() {
-		return ctx.newBadExpr(node, "%s function's from and to arguments should be constant", fname)
+	from := ctx.parseMakeString(node, words[0])
+	if xBad, ok := from.(*badExpr); ok {
+		return xBad
 	}
-	from := words[0].Strings[0]
-	to := words[1].Strings[0]
+	to := ctx.parseMakeString(node, words[1])
+	if xBad, ok := to.(*badExpr); ok {
+		return xBad
+	}
 	words[2].TrimLeftSpaces()
 	words[2].TrimRightSpaces()
 	obj := ctx.parseMakeString(node, words[2])
@@ -1402,13 +1405,13 @@ func (ctx *parseContext) parseSubstFunc(node mkparser.Node, fname string, args *
 		return &callExpr{
 			object:     obj,
 			name:       "replace",
-			args:       []starlarkExpr{&stringLiteralExpr{from}, &stringLiteralExpr{to}},
+			args:       []starlarkExpr{from, to},
 			returnType: typ,
 		}
 	}
 	return &callExpr{
 		name:       fname,
-		args:       []starlarkExpr{&stringLiteralExpr{from}, &stringLiteralExpr{to}, obj},
+		args:       []starlarkExpr{from, to, obj},
 		returnType: obj.typ(),
 	}
 }
