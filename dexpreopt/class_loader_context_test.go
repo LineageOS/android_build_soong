@@ -115,16 +115,16 @@ func TestCLC(t *testing.T) {
 	// Test that class loader context structure is correct.
 	t.Run("string", func(t *testing.T) {
 		wantStr := " --host-context-for-sdk 29 " +
-			"PCL[out/" + AndroidHidlManager + ".jar]#" +
-			"PCL[out/" + AndroidHidlBase + ".jar]" +
+			"PCL[out/soong/" + AndroidHidlManager + ".jar]#" +
+			"PCL[out/soong/" + AndroidHidlBase + ".jar]" +
 			" --target-context-for-sdk 29 " +
 			"PCL[/system/framework/" + AndroidHidlManager + ".jar]#" +
 			"PCL[/system/framework/" + AndroidHidlBase + ".jar]" +
 			" --host-context-for-sdk any " +
-			"PCL[out/a.jar]#PCL[out/b.jar]#PCL[out/c.jar]#PCL[out/d.jar]" +
-			"{PCL[out/a2.jar]#PCL[out/b2.jar]#PCL[out/c2.jar]" +
-			"{PCL[out/a1.jar]#PCL[out/b1.jar]}}#" +
-			"PCL[out/f.jar]#PCL[out/a3.jar]#PCL[out/b3.jar]" +
+			"PCL[out/soong/a.jar]#PCL[out/soong/b.jar]#PCL[out/soong/c.jar]#PCL[out/soong/d.jar]" +
+			"{PCL[out/soong/a2.jar]#PCL[out/soong/b2.jar]#PCL[out/soong/c2.jar]" +
+			"{PCL[out/soong/a1.jar]#PCL[out/soong/b1.jar]}}#" +
+			"PCL[out/soong/f.jar]#PCL[out/soong/a3.jar]#PCL[out/soong/b3.jar]" +
 			" --target-context-for-sdk any " +
 			"PCL[/system/a.jar]#PCL[/system/b.jar]#PCL[/system/c.jar]#PCL[/system/d.jar]" +
 			"{PCL[/system/a2.jar]#PCL[/system/b2.jar]#PCL[/system/c2.jar]" +
@@ -138,11 +138,11 @@ func TestCLC(t *testing.T) {
 	// Test that all expected build paths are gathered.
 	t.Run("paths", func(t *testing.T) {
 		wantPaths := []string{
-			"out/android.hidl.manager-V1.0-java.jar", "out/android.hidl.base-V1.0-java.jar",
-			"out/a.jar", "out/b.jar", "out/c.jar", "out/d.jar",
-			"out/a2.jar", "out/b2.jar", "out/c2.jar",
-			"out/a1.jar", "out/b1.jar",
-			"out/f.jar", "out/a3.jar", "out/b3.jar",
+			"out/soong/android.hidl.manager-V1.0-java.jar", "out/soong/android.hidl.base-V1.0-java.jar",
+			"out/soong/a.jar", "out/soong/b.jar", "out/soong/c.jar", "out/soong/d.jar",
+			"out/soong/a2.jar", "out/soong/b2.jar", "out/soong/c2.jar",
+			"out/soong/a1.jar", "out/soong/b1.jar",
+			"out/soong/f.jar", "out/soong/a3.jar", "out/soong/b3.jar",
 		}
 		if !reflect.DeepEqual(wantPaths, havePaths.Strings()) {
 			t.Errorf("\nwant paths: %s\nhave paths: %s", wantPaths, havePaths)
@@ -270,13 +270,13 @@ func TestCLCSdkVersionOrder(t *testing.T) {
 
 	// Test that class loader context structure is correct.
 	t.Run("string", func(t *testing.T) {
-		wantStr := " --host-context-for-sdk 30 PCL[out/c.jar]" +
+		wantStr := " --host-context-for-sdk 30 PCL[out/soong/c.jar]" +
 			" --target-context-for-sdk 30 PCL[/system/c.jar]" +
-			" --host-context-for-sdk 29 PCL[out/b.jar]" +
+			" --host-context-for-sdk 29 PCL[out/soong/b.jar]" +
 			" --target-context-for-sdk 29 PCL[/system/b.jar]" +
-			" --host-context-for-sdk 28 PCL[out/a.jar]" +
+			" --host-context-for-sdk 28 PCL[out/soong/a.jar]" +
 			" --target-context-for-sdk 28 PCL[/system/a.jar]" +
-			" --host-context-for-sdk any PCL[out/d.jar]" +
+			" --host-context-for-sdk any PCL[out/soong/d.jar]" +
 			" --target-context-for-sdk any PCL[/system/d.jar]"
 		if wantStr != haveStr {
 			t.Errorf("\nwant class loader context: %s\nhave class loader context: %s", wantStr, haveStr)
