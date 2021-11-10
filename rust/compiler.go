@@ -181,7 +181,11 @@ type baseCompiler struct {
 	sanitize *sanitize
 
 	distFile android.OptionalPath
-	// Stripped output file. If Valid(), this file will be installed instead of outputFile.
+
+	// unstripped output file.
+	unstrippedOutputFile android.Path
+
+	// stripped output file.
 	strippedOutputFile android.OptionalPath
 
 	// If a crate has a source-generated dependency, a copy of the source file
@@ -338,6 +342,10 @@ func (compiler *baseCompiler) CargoEnvCompat() bool {
 
 func (compiler *baseCompiler) CargoPkgVersion() string {
 	return String(compiler.Properties.Cargo_pkg_version)
+}
+
+func (compiler *baseCompiler) unstrippedOutputFilePath() android.Path {
+	return compiler.unstrippedOutputFile
 }
 
 func (compiler *baseCompiler) strippedOutputFilePath() android.OptionalPath {
