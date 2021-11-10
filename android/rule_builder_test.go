@@ -64,10 +64,10 @@ func ExampleRuleBuilder() {
 	fmt.Printf("outputs: %q\n", rule.Outputs())
 
 	// Output:
-	// commands: "ld a.o b.o -o out/linked && echo success"
+	// commands: "ld a.o b.o -o out/soong/linked && echo success"
 	// tools: ["ld"]
 	// inputs: ["a.o" "b.o"]
-	// outputs: ["out/linked"]
+	// outputs: ["out/soong/linked"]
 }
 
 func ExampleRuleBuilder_SymlinkOutputs() {
@@ -79,7 +79,7 @@ func ExampleRuleBuilder_SymlinkOutputs() {
 		Tool(PathForSource(ctx, "ln")).
 		FlagWithInput("-s ", PathForTesting("a.o")).
 		SymlinkOutput(PathForOutput(ctx, "a"))
-	rule.Command().Text("cp out/a out/b").
+	rule.Command().Text("cp out/soong/a out/soong/b").
 		ImplicitSymlinkOutput(PathForOutput(ctx, "b"))
 
 	fmt.Printf("commands: %q\n", strings.Join(rule.Commands(), " && "))
@@ -89,11 +89,11 @@ func ExampleRuleBuilder_SymlinkOutputs() {
 	fmt.Printf("symlink_outputs: %q\n", rule.SymlinkOutputs())
 
 	// Output:
-	// commands: "ln -s a.o out/a && cp out/a out/b"
+	// commands: "ln -s a.o out/soong/a && cp out/soong/a out/soong/b"
 	// tools: ["ln"]
 	// inputs: ["a.o"]
-	// outputs: ["out/a" "out/b"]
-	// symlink_outputs: ["out/a" "out/b"]
+	// outputs: ["out/soong/a" "out/soong/b"]
+	// symlink_outputs: ["out/soong/a" "out/soong/b"]
 }
 
 func ExampleRuleBuilder_Temporary() {
@@ -117,10 +117,10 @@ func ExampleRuleBuilder_Temporary() {
 	fmt.Printf("outputs: %q\n", rule.Outputs())
 
 	// Output:
-	// commands: "cp a out/b && cp out/b out/c"
+	// commands: "cp a out/soong/b && cp out/soong/b out/soong/c"
 	// tools: ["cp"]
 	// inputs: ["a"]
-	// outputs: ["out/c"]
+	// outputs: ["out/soong/c"]
 }
 
 func ExampleRuleBuilder_DeleteTemporaryFiles() {
@@ -145,10 +145,10 @@ func ExampleRuleBuilder_DeleteTemporaryFiles() {
 	fmt.Printf("outputs: %q\n", rule.Outputs())
 
 	// Output:
-	// commands: "cp a out/b && cp out/b out/c && rm -f out/b"
+	// commands: "cp a out/soong/b && cp out/soong/b out/soong/c && rm -f out/soong/b"
 	// tools: ["cp"]
 	// inputs: ["a"]
-	// outputs: ["out/c"]
+	// outputs: ["out/soong/c"]
 }
 
 func ExampleRuleBuilder_Installs() {
@@ -168,7 +168,7 @@ func ExampleRuleBuilder_Installs() {
 	fmt.Printf("rule.Installs().String() = %q\n", rule.Installs().String())
 
 	// Output:
-	// rule.Installs().String() = "out/linked:/bin/linked out/linked:/sbin/linked"
+	// rule.Installs().String() = "out/soong/linked:/bin/linked out/soong/linked:/sbin/linked"
 }
 
 func ExampleRuleBuilderCommand() {
@@ -271,7 +271,7 @@ func ExampleRuleBuilderCommand_FlagWithRspFileInputList() {
 		FlagWithRspFileInputList("@", PathForOutput(ctx, "foo.rsp"), PathsForTesting("a.java", "b.java")).
 		String())
 	// Output:
-	// javac @out/foo.rsp
+	// javac @out/soong/foo.rsp
 }
 
 func ExampleRuleBuilderCommand_String() {
@@ -371,15 +371,15 @@ func TestRuleBuilder(t *testing.T) {
 		addCommands(rule)
 
 		wantCommands := []string{
-			"out_local/module/DepFile Flag FlagWithArg=arg FlagWithDepFile=out_local/module/depfile " +
-				"FlagWithInput=input FlagWithOutput=out_local/module/output FlagWithRspFileInputList=out_local/rsp " +
-				"Input out_local/module/Output out_local/module/SymlinkOutput Text Tool after command2 old cmd",
-			"command2 out_local/module/depfile2 input2 out_local/module/output2 tool2",
-			"command3 input3 out_local/module/output2 out_local/module/output3 input3 out_local/module/output2",
+			"out_local/soong/module/DepFile Flag FlagWithArg=arg FlagWithDepFile=out_local/soong/module/depfile " +
+				"FlagWithInput=input FlagWithOutput=out_local/soong/module/output FlagWithRspFileInputList=out_local/soong/rsp " +
+				"Input out_local/soong/module/Output out_local/soong/module/SymlinkOutput Text Tool after command2 old cmd",
+			"command2 out_local/soong/module/depfile2 input2 out_local/soong/module/output2 tool2",
+			"command3 input3 out_local/soong/module/output2 out_local/soong/module/output3 input3 out_local/soong/module/output2",
 		}
 
-		wantDepMergerCommand := "out_local/host/" + ctx.Config().PrebuiltOS() + "/bin/dep_fixer " +
-			"out_local/module/DepFile out_local/module/depfile out_local/module/ImplicitDepFile out_local/module/depfile2"
+		wantDepMergerCommand := "out_local/soong/host/" + ctx.Config().PrebuiltOS() + "/bin/dep_fixer " +
+			"out_local/soong/module/DepFile out_local/soong/module/depfile out_local/soong/module/ImplicitDepFile out_local/soong/module/depfile2"
 
 		AssertDeepEquals(t, "rule.Commands()", wantCommands, rule.Commands())
 
@@ -403,13 +403,13 @@ func TestRuleBuilder(t *testing.T) {
 		wantCommands := []string{
 			"__SBOX_SANDBOX_DIR__/out/DepFile Flag FlagWithArg=arg FlagWithDepFile=__SBOX_SANDBOX_DIR__/out/depfile " +
 				"FlagWithInput=input FlagWithOutput=__SBOX_SANDBOX_DIR__/out/output " +
-				"FlagWithRspFileInputList=out_local/rsp Input __SBOX_SANDBOX_DIR__/out/Output " +
+				"FlagWithRspFileInputList=out_local/soong/rsp Input __SBOX_SANDBOX_DIR__/out/Output " +
 				"__SBOX_SANDBOX_DIR__/out/SymlinkOutput Text Tool after command2 old cmd",
 			"command2 __SBOX_SANDBOX_DIR__/out/depfile2 input2 __SBOX_SANDBOX_DIR__/out/output2 tool2",
 			"command3 input3 __SBOX_SANDBOX_DIR__/out/output2 __SBOX_SANDBOX_DIR__/out/output3 input3 __SBOX_SANDBOX_DIR__/out/output2",
 		}
 
-		wantDepMergerCommand := "out_local/host/" + ctx.Config().PrebuiltOS() + "/bin/dep_fixer __SBOX_SANDBOX_DIR__/out/DepFile __SBOX_SANDBOX_DIR__/out/depfile __SBOX_SANDBOX_DIR__/out/ImplicitDepFile __SBOX_SANDBOX_DIR__/out/depfile2"
+		wantDepMergerCommand := "out_local/soong/host/" + ctx.Config().PrebuiltOS() + "/bin/dep_fixer __SBOX_SANDBOX_DIR__/out/DepFile __SBOX_SANDBOX_DIR__/out/depfile __SBOX_SANDBOX_DIR__/out/ImplicitDepFile __SBOX_SANDBOX_DIR__/out/depfile2"
 
 		AssertDeepEquals(t, "rule.Commands()", wantCommands, rule.Commands())
 
@@ -433,7 +433,7 @@ func TestRuleBuilder(t *testing.T) {
 		wantCommands := []string{
 			"__SBOX_SANDBOX_DIR__/out/DepFile Flag FlagWithArg=arg FlagWithDepFile=__SBOX_SANDBOX_DIR__/out/depfile " +
 				"FlagWithInput=input FlagWithOutput=__SBOX_SANDBOX_DIR__/out/output " +
-				"FlagWithRspFileInputList=out_local/rsp Input __SBOX_SANDBOX_DIR__/out/Output " +
+				"FlagWithRspFileInputList=out_local/soong/rsp Input __SBOX_SANDBOX_DIR__/out/Output " +
 				"__SBOX_SANDBOX_DIR__/out/SymlinkOutput Text __SBOX_SANDBOX_DIR__/tools/src/Tool after command2 old cmd",
 			"command2 __SBOX_SANDBOX_DIR__/out/depfile2 input2 __SBOX_SANDBOX_DIR__/out/output2 __SBOX_SANDBOX_DIR__/tools/src/tool2",
 			"command3 input3 __SBOX_SANDBOX_DIR__/out/output2 __SBOX_SANDBOX_DIR__/out/output3 input3 __SBOX_SANDBOX_DIR__/out/output2",

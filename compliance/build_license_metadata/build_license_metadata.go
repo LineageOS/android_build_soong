@@ -119,7 +119,7 @@ func convertInstalledMap(installMaps []string) []*license_metadata_proto.Install
 	for _, installMap := range installMaps {
 		components := strings.Split(installMap, ":")
 		if len(components) != 2 {
-			panic(fmt.Errorf("install map entry %q contains %d colons, expected 1", len(components)-1))
+			panic(fmt.Errorf("install map entry %q contains %d colons, expected 1", installMap, len(components)-1))
 		}
 		ret = append(ret, &license_metadata_proto.InstallMap{
 			FromPath:      proto.String(components[0]),
@@ -140,7 +140,7 @@ func convertDependencies(deps []string) []*license_metadata_proto.AnnotatedDepen
 		dep := components[0]
 		components = components[1:]
 		ad := &license_metadata_proto.AnnotatedDependency{
-			File: proto.String(dep),
+			File:        proto.String(dep),
 			Annotations: make([]string, 0, len(components)),
 		}
 		for _, ann := range components {
