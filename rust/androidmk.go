@@ -50,7 +50,7 @@ func (mod *Module) AndroidMkEntries() []android.AndroidMkEntries {
 	}
 
 	ret := android.AndroidMkEntries{
-		OutputFile: mod.unstrippedOutputFile,
+		OutputFile: android.OptionalPathForPath(mod.UnstrippedOutputFile()),
 		Include:    "$(BUILD_SYSTEM)/soong_rust_prebuilt.mk",
 		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
 			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
@@ -185,14 +185,13 @@ func (compiler *baseCompiler) AndroidMk(ctx AndroidMkContext, ret *android.Andro
 		return
 	}
 
-	var unstrippedOutputFile android.OptionalPath
 	if compiler.strippedOutputFile.Valid() {
-		unstrippedOutputFile = ret.OutputFile
 		ret.OutputFile = compiler.strippedOutputFile
 	}
+
 	ret.ExtraEntries = append(ret.ExtraEntries,
 		func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
-			entries.SetOptionalPath("LOCAL_SOONG_UNSTRIPPED_BINARY", unstrippedOutputFile)
+			entries.SetPath("LOCAL_SOONG_UNSTRIPPED_BINARY", compiler.unstrippedOutputFile)
 			path, file := filepath.Split(compiler.path.ToMakePath().String())
 			stem, suffix, _ := android.SplitFileExt(file)
 			entries.SetString("LOCAL_MODULE_SUFFIX", suffix)

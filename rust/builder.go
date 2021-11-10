@@ -361,7 +361,7 @@ func Rustdoc(ctx ModuleContext, main android.Path, deps PathDeps,
 		Description: "rustdoc " + main.Rel(),
 		Output:      docTimestampFile,
 		Input:       main,
-		Implicit:    ctx.RustModule().unstrippedOutputFile.Path(),
+		Implicit:    ctx.RustModule().UnstrippedOutputFile(),
 		Args: map[string]string{
 			"rustdocFlags": strings.Join(rustdocFlags, " "),
 			"outDir":       docDir.String(),
