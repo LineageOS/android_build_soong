@@ -19,6 +19,9 @@ bootstrap_go_package {
         "soong-ui-metrics_proto",
         "golang-protobuf-proto",
         "golang-protobuf-encoding-prototext",
+
+        // Only used for tests.
+        "androidmk-parser",
     ],
     srcs: [
         "androidmk.go",
