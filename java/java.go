@@ -567,8 +567,22 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		if j.InstallMixin != nil {
 			extraInstallDeps = j.InstallMixin(ctx, j.outputFile)
 		}
-		j.installFile = ctx.InstallFile(android.PathForModuleInstall(ctx, "framework"),
-			j.Stem()+".jar", j.outputFile, extraInstallDeps...)
+		hostDexNeeded := Bool(j.deviceProperties.Hostdex) && !ctx.Host()
+		if hostDexNeeded {
+			ctx.InstallFile(android.PathForHostDexInstall(ctx, "framework"),
+				j.Stem()+"-hostdex.jar", j.outputFile)
+		}
+		var installDir android.InstallPath
+		if ctx.InstallInTestcases() {
+			var archDir string
+			if !ctx.Host() {
+				archDir = ctx.DeviceConfig().DeviceArch()
+			}
+			installDir = android.PathForModuleInstall(ctx, ctx.ModuleName(), archDir)
+		} else {
+			installDir = android.PathForModuleInstall(ctx, "framework")
+		}
+		j.installFile = ctx.InstallFile(installDir, j.Stem()+".jar", j.outputFile, extraInstallDeps...)
 	}
 }
 
@@ -1376,8 +1390,17 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	})
 
 	if Bool(j.properties.Installable) {
-		ctx.InstallFile(android.PathForModuleInstall(ctx, "framework"),
-			jarName, outputFile)
+		var installDir android.InstallPath
+		if ctx.InstallInTestcases() {
+			var archDir string
+			if !ctx.Host() {
+				archDir = ctx.DeviceConfig().DeviceArch()
+			}
+			installDir = android.PathForModuleInstall(ctx, ctx.ModuleName(), archDir)
+		} else {
+			installDir = android.PathForModuleInstall(ctx, "framework")
+		}
+		ctx.InstallFile(installDir, jarName, outputFile)
 	}
 
 	j.exportAidlIncludeDirs = android.PathsForModuleSrc(ctx, j.properties.Aidl.Export_include_dirs)
