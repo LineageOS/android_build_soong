@@ -122,20 +122,24 @@ func (binary *binaryDecorator) compile(ctx ModuleContext, flags Flags, deps Path
 	fileName := binary.getStem(ctx) + ctx.toolchain().ExecutableSuffix()
 	srcPath, _ := srcPathFromModuleSrcs(ctx, binary.baseCompiler.Properties.Srcs)
 	outputFile := android.PathForModuleOut(ctx, fileName)
+	ret := outputFile
 
 	flags.RustFlags = append(flags.RustFlags, deps.depFlags...)
 	flags.LinkFlags = append(flags.LinkFlags, deps.depLinkFlags...)
 	flags.LinkFlags = append(flags.LinkFlags, deps.linkObjects...)
 
+	if binary.stripper.NeedsStrip(ctx) {
+		strippedOutputFile := outputFile
+		outputFile = android.PathForModuleOut(ctx, "unstripped", fileName)
+		binary.stripper.StripExecutableOrSharedLib(ctx, outputFile, strippedOutputFile)
+
+		binary.baseCompiler.strippedOutputFile = android.OptionalPathForPath(strippedOutputFile)
+	}
+	binary.baseCompiler.unstrippedOutputFile = outputFile
+
 	TransformSrcToBinary(ctx, srcPath, deps, flags, outputFile)
 
-	if binary.stripper.NeedsStrip(ctx) {
-		strippedOutputFile := android.PathForModuleOut(ctx, "stripped", fileName)
-		binary.stripper.StripExecutableOrSharedLib(ctx, outputFile, strippedOutputFile)
-		binary.strippedOutputFile = android.OptionalPathForPath(strippedOutputFile)
-	}
-
-	return outputFile
+	return ret
 }
 
 func (binary *binaryDecorator) autoDep(ctx android.BottomUpMutatorContext) autoDep {
