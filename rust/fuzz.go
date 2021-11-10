@@ -147,7 +147,7 @@ func (s *rustFuzzPackager) GenerateBuildActions(ctx android.SingletonContext) {
 		files = s.PackageArtifacts(ctx, module, fuzzModule.fuzzPackagedModule, archDir, builder)
 
 		// The executable.
-		files = append(files, fuzz.FileToZip{rustModule.unstrippedOutputFile.Path(), ""})
+		files = append(files, fuzz.FileToZip{rustModule.UnstrippedOutputFile(), ""})
 
 		// Grab the list of required shared libraries.
 		sharedLibraries := fuzz.CollectAllSharedDependencies(ctx, module, cc.UnstrippedOutputFile, cc.IsValidSharedDependency)

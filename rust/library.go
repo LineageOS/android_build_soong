@@ -469,13 +469,41 @@ func (library *libraryDecorator) compilerFlags(ctx ModuleContext, flags Flags) F
 }
 
 func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) android.Path {
-	var outputFile android.ModuleOutPath
+	var outputFile, ret android.ModuleOutPath
 	var fileName string
 	srcPath := library.srcPath(ctx, deps)
 
 	if library.sourceProvider != nil {
 		deps.srcProviderFiles = append(deps.srcProviderFiles, library.sourceProvider.Srcs()...)
 	}
+
+	// Calculate output filename
+	if library.rlib() {
+		fileName = library.getStem(ctx) + ctx.toolchain().RlibSuffix()
+		outputFile = android.PathForModuleOut(ctx, fileName)
+		ret = outputFile
+	} else if library.dylib() {
+		fileName = library.getStem(ctx) + ctx.toolchain().DylibSuffix()
+		outputFile = android.PathForModuleOut(ctx, fileName)
+		ret = outputFile
+	} else if library.static() {
+		fileName = library.getStem(ctx) + ctx.toolchain().StaticLibSuffix()
+		outputFile = android.PathForModuleOut(ctx, fileName)
+		ret = outputFile
+	} else if library.shared() {
+		fileName = library.sharedLibFilename(ctx)
+		outputFile = android.PathForModuleOut(ctx, fileName)
+		ret = outputFile
+	}
+
+	if !library.rlib() && !library.static() && library.stripper.NeedsStrip(ctx) {
+		strippedOutputFile := outputFile
+		outputFile = android.PathForModuleOut(ctx, "unstripped", fileName)
+		library.stripper.StripExecutableOrSharedLib(ctx, outputFile, strippedOutputFile)
+
+		library.baseCompiler.strippedOutputFile = android.OptionalPathForPath(strippedOutputFile)
+	}
+	library.baseCompiler.unstrippedOutputFile = outputFile
 
 	flags.RustFlags = append(flags.RustFlags, deps.depFlags...)
 	flags.LinkFlags = append(flags.LinkFlags, deps.depLinkFlags...)
@@ -488,32 +516,15 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 		flags.RustFlags = append(flags.RustFlags, "-C prefer-dynamic")
 	}
 
+	// Call the appropriate builder for this library type
 	if library.rlib() {
-		fileName = library.getStem(ctx) + ctx.toolchain().RlibSuffix()
-		outputFile = android.PathForModuleOut(ctx, fileName)
-
 		TransformSrctoRlib(ctx, srcPath, deps, flags, outputFile)
 	} else if library.dylib() {
-		fileName = library.getStem(ctx) + ctx.toolchain().DylibSuffix()
-		outputFile = android.PathForModuleOut(ctx, fileName)
-
 		TransformSrctoDylib(ctx, srcPath, deps, flags, outputFile)
 	} else if library.static() {
-		fileName = library.getStem(ctx) + ctx.toolchain().StaticLibSuffix()
-		outputFile = android.PathForModuleOut(ctx, fileName)
-
 		TransformSrctoStatic(ctx, srcPath, deps, flags, outputFile)
 	} else if library.shared() {
-		fileName = library.sharedLibFilename(ctx)
-		outputFile = android.PathForModuleOut(ctx, fileName)
-
 		TransformSrctoShared(ctx, srcPath, deps, flags, outputFile)
-	}
-
-	if !library.rlib() && !library.static() && library.stripper.NeedsStrip(ctx) {
-		strippedOutputFile := android.PathForModuleOut(ctx, "stripped", fileName)
-		library.stripper.StripExecutableOrSharedLib(ctx, outputFile, strippedOutputFile)
-		library.strippedOutputFile = android.OptionalPathForPath(strippedOutputFile)
 	}
 
 	if library.rlib() || library.dylib() {
@@ -552,7 +563,7 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 
 	library.flagExporter.setProvider(ctx)
 
-	return outputFile
+	return ret
 }
 
 func (library *libraryDecorator) srcPath(ctx ModuleContext, deps PathDeps) android.Path {

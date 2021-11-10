@@ -439,6 +439,6 @@ func TestLibrarySizes(t *testing.T) {
 		}`)
 
 	m := ctx.SingletonForTests("file_metrics")
+	m.Output("unstripped/libwaldo.dylib.so.bloaty.csv")
 	m.Output("libwaldo.dylib.so.bloaty.csv")
-	m.Output("stripped/libwaldo.dylib.so.bloaty.csv")
 }
