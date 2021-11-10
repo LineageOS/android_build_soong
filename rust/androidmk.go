@@ -186,11 +186,7 @@ func (compiler *baseCompiler) AndroidMk(ctx AndroidMkContext, ret *android.Andro
 	}
 
 	var unstrippedOutputFile android.OptionalPath
-	// Soong installation is only supported for host modules. Have Make
-	// installation trigger Soong installation.
-	if ctx.Target().Os.Class == android.Host {
-		ret.OutputFile = android.OptionalPathForPath(compiler.path)
-	} else if compiler.strippedOutputFile.Valid() {
+	if compiler.strippedOutputFile.Valid() {
 		unstrippedOutputFile = ret.OutputFile
 		ret.OutputFile = compiler.strippedOutputFile
 	}

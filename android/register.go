@@ -161,6 +161,10 @@ func NewContext(config Config) *Context {
 	return ctx
 }
 
+func (ctx *Context) SetRunningAsBp2build() {
+	ctx.config.runningAsBp2Build = true
+}
+
 // RegisterForBazelConversion registers an alternate shadow pipeline of
 // singletons, module types and mutators to register for converting Blueprint
 // files to semantically equivalent BUILD files.

@@ -424,8 +424,9 @@ type apexBundle struct {
 	isCompressed bool
 
 	// Path of API coverage generate file
-	apisUsedByModuleFile   android.ModuleOutPath
-	apisBackedByModuleFile android.ModuleOutPath
+	nativeApisUsedByModuleFile   android.ModuleOutPath
+	nativeApisBackedByModuleFile android.ModuleOutPath
+	javaApisUsedByModuleFile     android.ModuleOutPath
 
 	// Collect the module directory for IDE info in java/jdeps.go.
 	modulePaths []string
@@ -3137,6 +3138,8 @@ func rModulesPackages() map[string][]string {
 		},
 		"com.android.permission": []string{
 			"android.permission",
+			//TODO(b/205719989): remove, do not cherry-pick anywhere
+			"android.safetycenter",
 			"android.app.role",
 			"com.android.permission",
 			"com.android.role",

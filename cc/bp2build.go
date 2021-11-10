@@ -327,7 +327,7 @@ func (ca *compilerAttributes) convertProductVariables(ctx android.BazelConversio
 					ctx.ModuleErrorf("Could not convert product variable %s property", proptools.PropertyNameForField(propName))
 				}
 				newFlags, _ := bazel.TryVariableSubstitutions(flags, prop.ProductConfigVariable)
-				attr.SetSelectValue(bazel.ProductVariableConfigurationAxis(prop.FullConfig), prop.FullConfig, newFlags)
+				attr.SetSelectValue(prop.ConfigurationAxis(), prop.FullConfig, newFlags)
 			}
 		}
 	}
@@ -611,7 +611,7 @@ func (la *linkerAttributes) convertProductVariables(ctx android.BazelConversionP
 				ctx.ModuleErrorf("Could not convert product variable %s property", dep.excludesField)
 			}
 
-			dep.attribute.SetSelectValue(bazel.ProductVariableConfigurationAxis(config), config, dep.depResolutionFunc(ctx, android.FirstUniqueStrings(includes), excludes))
+			dep.attribute.SetSelectValue(prop.ConfigurationAxis(), config, dep.depResolutionFunc(ctx, android.FirstUniqueStrings(includes), excludes))
 		}
 	}
 }

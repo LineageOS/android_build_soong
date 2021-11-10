@@ -66,7 +66,7 @@ func (recoverySnapshotImage) moduleNameSuffix() string {
 
 // Override existing vendor and recovery snapshot for cc module specific extra functions
 var VendorSnapshotImageSingleton vendorSnapshotImage = vendorSnapshotImage{&snapshot.VendorSnapshotImageSingleton}
-var recoverySnapshotImageSingleton recoverySnapshotImage = recoverySnapshotImage{&snapshot.RecoverySnapshotImageSingleton}
+var RecoverySnapshotImageSingleton recoverySnapshotImage = recoverySnapshotImage{&snapshot.RecoverySnapshotImageSingleton}
 
 func RegisterVendorSnapshotModules(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("vendor_snapshot", vendorSnapshotFactory)
@@ -231,7 +231,7 @@ func vendorSnapshotFactory() android.Module {
 }
 
 func recoverySnapshotFactory() android.Module {
-	return snapshotFactory(recoverySnapshotImageSingleton)
+	return snapshotFactory(RecoverySnapshotImageSingleton)
 }
 
 func snapshotFactory(image SnapshotImage) android.Module {
@@ -326,7 +326,7 @@ func (p *BaseSnapshotDecorator) SetSnapshotAndroidMkSuffix(ctx android.ModuleCon
 		return
 	}
 
-	images := []SnapshotImage{VendorSnapshotImageSingleton, recoverySnapshotImageSingleton}
+	images := []SnapshotImage{VendorSnapshotImageSingleton, RecoverySnapshotImageSingleton}
 
 	for _, image := range images {
 		if p.Image == image {
@@ -583,7 +583,7 @@ func VendorSnapshotSharedFactory() android.Module {
 // overrides the recovery variant of the cc shared library with the same name, if BOARD_VNDK_VERSION
 // is set.
 func RecoverySnapshotSharedFactory() android.Module {
-	module, prebuilt := snapshotLibraryFactory(recoverySnapshotImageSingleton, SnapshotSharedSuffix)
+	module, prebuilt := snapshotLibraryFactory(RecoverySnapshotImageSingleton, SnapshotSharedSuffix)
 	prebuilt.libraryDecorator.BuildOnlyShared()
 	return module.Init()
 }
@@ -603,7 +603,7 @@ func VendorSnapshotStaticFactory() android.Module {
 // overrides the recovery variant of the cc static library with the same name, if BOARD_VNDK_VERSION
 // is set.
 func RecoverySnapshotStaticFactory() android.Module {
-	module, prebuilt := snapshotLibraryFactory(recoverySnapshotImageSingleton, SnapshotStaticSuffix)
+	module, prebuilt := snapshotLibraryFactory(RecoverySnapshotImageSingleton, SnapshotStaticSuffix)
 	prebuilt.libraryDecorator.BuildOnlyStatic()
 	return module.Init()
 }
@@ -623,7 +623,7 @@ func VendorSnapshotHeaderFactory() android.Module {
 // overrides the recovery variant of the cc header library with the same name, if BOARD_VNDK_VERSION
 // is set.
 func RecoverySnapshotHeaderFactory() android.Module {
-	module, prebuilt := snapshotLibraryFactory(recoverySnapshotImageSingleton, snapshotHeaderSuffix)
+	module, prebuilt := snapshotLibraryFactory(RecoverySnapshotImageSingleton, snapshotHeaderSuffix)
 	prebuilt.libraryDecorator.HeaderOnly()
 	return module.Init()
 }
@@ -698,7 +698,7 @@ func VendorSnapshotBinaryFactory() android.Module {
 // development/vendor_snapshot/update.py. As a part of recovery snapshot, recovery_snapshot_binary
 // overrides the recovery variant of the cc binary with the same name, if BOARD_VNDK_VERSION is set.
 func RecoverySnapshotBinaryFactory() android.Module {
-	return snapshotBinaryFactory(recoverySnapshotImageSingleton, snapshotBinarySuffix)
+	return snapshotBinaryFactory(RecoverySnapshotImageSingleton, snapshotBinarySuffix)
 }
 
 func snapshotBinaryFactory(image SnapshotImage, moduleSuffix string) android.Module {
@@ -800,7 +800,7 @@ func RecoverySnapshotObjectFactory() android.Module {
 	}
 	module.linker = prebuilt
 
-	prebuilt.Init(module, recoverySnapshotImageSingleton, snapshotObjectSuffix)
+	prebuilt.Init(module, RecoverySnapshotImageSingleton, snapshotObjectSuffix)
 	module.AddProperties(&prebuilt.properties)
 	return module.Init()
 }
