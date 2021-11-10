@@ -177,8 +177,8 @@ type localVariable struct {
 	baseVariable
 }
 
-func (lv localVariable) emitDefined(_ *generationContext) {
-	panic("implement me")
+func (lv localVariable) emitDefined(gctx *generationContext) {
+	gctx.writef(lv.String())
 }
 
 func (lv localVariable) String() string {
