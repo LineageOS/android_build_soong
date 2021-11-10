@@ -3585,6 +3585,58 @@ func TestAidlFlagsPassedToTheAidlCompiler(t *testing.T) {
 	}
 }
 
+func TestAidlFlagsWithMinSdkVersion(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		sdkVersion string
+		variant    string
+		expected   string
+	}{
+		{
+			name:       "default is current",
+			sdkVersion: "",
+			variant:    "android_arm64_armv8-a_static",
+			expected:   "platform_apis",
+		},
+		{
+			name:       "use sdk_version",
+			sdkVersion: `sdk_version: "29"`,
+			variant:    "android_arm64_armv8-a_static",
+			expected:   "platform_apis",
+		},
+		{
+			name:       "use sdk_version(sdk variant)",
+			sdkVersion: `sdk_version: "29"`,
+			variant:    "android_arm64_armv8-a_sdk_static",
+			expected:   "29",
+		},
+		{
+			name:       "use min_sdk_version",
+			sdkVersion: `min_sdk_version: "29"`,
+			variant:    "android_arm64_armv8-a_static",
+			expected:   "29",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := testCc(t, `
+				cc_library {
+					name: "libfoo",
+					stl: "none",
+					srcs: ["a/Foo.aidl"],
+					`+tc.sdkVersion+`
+				}
+			`)
+			libfoo := ctx.ModuleForTests("libfoo", tc.variant)
+			manifest := android.RuleBuilderSboxProtoForTests(t, libfoo.Output("aidl.sbox.textproto"))
+			aidlCommand := manifest.Commands[0].GetCommand()
+			expectedAidlFlag := "--min_sdk_version=" + tc.expected
+			if !strings.Contains(aidlCommand, expectedAidlFlag) {
+				t.Errorf("aidl command %q does not contain %q", aidlCommand, expectedAidlFlag)
+			}
+		})
+	}
+}
+
 func TestMinSdkVersionInClangTriple(t *testing.T) {
 	ctx := testCc(t, `
 		cc_library_shared {
