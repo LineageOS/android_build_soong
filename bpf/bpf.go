@@ -54,12 +54,16 @@ type BpfModule interface {
 	android.Module
 
 	OutputFiles(tag string) (android.Paths, error)
+
+	// Returns the sub install directory if the bpf module is included by apex.
+	SubDir() string
 }
 
 type BpfProperties struct {
 	Srcs         []string `android:"path"`
 	Cflags       []string
 	Include_dirs []string
+	Sub_dir      string
 }
 
 type bpf struct {
@@ -121,6 +125,10 @@ func (bpf *bpf) AndroidMk() android.AndroidMkData {
 			fmt.Fprintln(w)
 			fmt.Fprintln(w, "LOCAL_PATH :=", moduleDir)
 			fmt.Fprintln(w)
+			localModulePath := "LOCAL_MODULE_PATH := $(TARGET_OUT_ETC)/bpf"
+			if len(bpf.properties.Sub_dir) > 0 {
+				localModulePath += "/" + bpf.properties.Sub_dir
+			}
 			for _, obj := range bpf.objs {
 				objName := name + "_" + obj.Base()
 				names = append(names, objName)
@@ -130,7 +138,7 @@ func (bpf *bpf) AndroidMk() android.AndroidMkData {
 				fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE :=", obj.String())
 				fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", obj.Base())
 				fmt.Fprintln(w, "LOCAL_MODULE_CLASS := ETC")
-				fmt.Fprintln(w, "LOCAL_MODULE_PATH := $(TARGET_OUT_ETC)/bpf")
+				fmt.Fprintln(w, localModulePath)
 				fmt.Fprintln(w, "include $(BUILD_PREBUILT)")
 				fmt.Fprintln(w)
 			}
@@ -152,6 +160,10 @@ func (bpf *bpf) OutputFiles(tag string) (android.Paths, error) {
 	default:
 		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
 	}
+}
+
+func (bpf *bpf) SubDir() string {
+	return bpf.properties.Sub_dir
 }
 
 var _ android.OutputFileProducer = (*bpf)(nil)
