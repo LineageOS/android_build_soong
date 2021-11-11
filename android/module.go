@@ -2953,6 +2953,10 @@ func (m *moduleContext) InstallSymlink(installPath InstallPath, name string, src
 				to:   fullInstallPath,
 			})
 		} else {
+			// The symlink doesn't need updating when the target is modified, but we sometimes
+			// have a dependency on a symlink to a binary instead of to the binary directly, and
+			// the mtime of the symlink must be updated when the binary is modified, so use a
+			// normal dependency here instead of an order-only dependency.
 			m.Build(pctx, BuildParams{
 				Rule:        Symlink,
 				Description: "install symlink " + fullInstallPath.Base(),
