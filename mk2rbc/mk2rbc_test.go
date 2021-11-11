@@ -1027,6 +1027,21 @@ def init(g, handle):
   rblf.warning("product.mk", "partially successful conversion")
 `,
 	},
+	{
+		desc:   "Flag override",
+		mkname: "product.mk",
+		in: `
+override FOO:=`,
+		expected: `# MK2RBC TRANSLATION ERROR: cannot handle override directive
+# override FOO :=
+load("//build/make/core:product_config.rbc", "rblf")
+
+def init(g, handle):
+  cfg = rblf.cfg(handle)
+  g["override FOO"] = ""
+  rblf.warning("product.mk", "partially successful conversion")
+`,
+	},
 }
 
 var known_variables = []struct {
