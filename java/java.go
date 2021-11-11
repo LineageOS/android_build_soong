@@ -571,7 +571,8 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		}
 		hostDexNeeded := Bool(j.deviceProperties.Hostdex) && !ctx.Host()
 		if hostDexNeeded {
-			ctx.InstallFile(android.PathForHostDexInstall(ctx, "framework"),
+			j.hostdexInstallFile = ctx.InstallFile(
+				android.PathForHostDexInstall(ctx, "framework"),
 				j.Stem()+"-hostdex.jar", j.outputFile)
 		}
 		var installDir android.InstallPath
