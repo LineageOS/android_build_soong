@@ -66,6 +66,7 @@ type dexpreopter struct {
 	isApp               bool
 	isTest              bool
 	isPresignedPrebuilt bool
+	preventInstall      bool
 
 	manifestFile        android.Path
 	statusFile          android.WritablePath
@@ -356,7 +357,7 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Wr
 				installDirOnDevice:  installPath,
 				installFileOnDevice: installBase,
 			})
-		} else {
+		} else if !d.preventInstall {
 			ctx.InstallFile(installPath, installBase, install.From)
 		}
 	}
