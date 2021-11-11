@@ -407,6 +407,9 @@ type Module struct {
 	// installed file for binary dependency
 	installFile android.Path
 
+	// installed file for hostdex copy
+	hostdexInstallFile android.InstallPath
+
 	// list of .java files and srcjars that was passed to javac
 	compiledJavaSrcs android.Paths
 	compiledSrcJars  android.Paths
