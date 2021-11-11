@@ -25,7 +25,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -35,6 +34,7 @@ import (
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/bootstrap"
+	"github.com/google/blueprint/pathtools"
 )
 
 func init() {
@@ -690,7 +690,7 @@ func (c *androidMkSingleton) GenerateBuildActions(ctx SingletonContext) {
 	})
 }
 
-func translateAndroidMk(ctx SingletonContext, mkFile string, mods []blueprint.Module) error {
+func translateAndroidMk(ctx SingletonContext, absMkFile string, mods []blueprint.Module) error {
 	buf := &bytes.Buffer{}
 
 	fmt.Fprintln(buf, "LOCAL_MODULE_MAKEFILE := $(lastword $(MAKEFILE_LIST))")
@@ -699,7 +699,7 @@ func translateAndroidMk(ctx SingletonContext, mkFile string, mods []blueprint.Mo
 	for _, mod := range mods {
 		err := translateAndroidMkModule(ctx, buf, mod)
 		if err != nil {
-			os.Remove(mkFile)
+			os.Remove(absMkFile)
 			return err
 		}
 
@@ -719,27 +719,7 @@ func translateAndroidMk(ctx SingletonContext, mkFile string, mods []blueprint.Mo
 		fmt.Fprintf(buf, "STATS.SOONG_MODULE_TYPE.%s := %d\n", mod_type, typeStats[mod_type])
 	}
 
-	// Don't write to the file if it hasn't changed
-	if _, err := os.Stat(absolutePath(mkFile)); !os.IsNotExist(err) {
-		if data, err := ioutil.ReadFile(absolutePath(mkFile)); err == nil {
-			matches := buf.Len() == len(data)
-
-			if matches {
-				for i, value := range buf.Bytes() {
-					if value != data[i] {
-						matches = false
-						break
-					}
-				}
-			}
-
-			if matches {
-				return nil
-			}
-		}
-	}
-
-	return ioutil.WriteFile(absolutePath(mkFile), buf.Bytes(), 0666)
+	return pathtools.WriteFileIfChanged(absMkFile, buf.Bytes(), 0666)
 }
 
 func translateAndroidMkModule(ctx SingletonContext, w io.Writer, mod blueprint.Module) error {

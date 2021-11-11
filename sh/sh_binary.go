@@ -275,6 +275,9 @@ func (s *ShBinary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	s.generateAndroidBuildActions(ctx)
 	installDir := android.PathForModuleInstall(ctx, "bin", proptools.String(s.properties.Sub_dir))
 	s.installedFile = ctx.InstallExecutable(installDir, s.outputFilePath.Base(), s.outputFilePath)
+	for _, symlink := range s.Symlinks() {
+		ctx.InstallSymlink(installDir, symlink, s.installedFile)
+	}
 }
 
 func (s *ShBinary) AndroidMkEntries() []android.AndroidMkEntries {

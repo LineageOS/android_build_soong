@@ -1661,6 +1661,12 @@ func PathForModuleInstall(ctx ModuleInstallPathContext, pathComponents ...string
 	return makePathForInstall(ctx, os, arch, partition, ctx.Debug(), pathComponents...)
 }
 
+// PathForHostDexInstall returns an InstallPath representing the install path for the
+// module appended with paths...
+func PathForHostDexInstall(ctx ModuleInstallPathContext, pathComponents ...string) InstallPath {
+	return makePathForInstall(ctx, ctx.Config().BuildOS, ctx.Config().BuildArch, "", ctx.Debug(), pathComponents...)
+}
+
 // PathForModuleInPartitionInstall is similar to PathForModuleInstall but partition is provided by the caller
 func PathForModuleInPartitionInstall(ctx ModuleInstallPathContext, partition string, pathComponents ...string) InstallPath {
 	os, arch := osAndArch(ctx)
@@ -2058,7 +2064,12 @@ func maybeRelErr(basePath string, targetPath string) (string, bool, error) {
 // Writes a file to the output directory.  Attempting to write directly to the output directory
 // will fail due to the sandbox of the soong_build process.
 func WriteFileToOutputDir(path WritablePath, data []byte, perm os.FileMode) error {
-	return ioutil.WriteFile(absolutePath(path.String()), data, perm)
+	absPath := absolutePath(path.String())
+	err := os.MkdirAll(filepath.Dir(absPath), 0777)
+	if err != nil {
+		return err
+	}
+	return ioutil.WriteFile(absPath, data, perm)
 }
 
 func RemoveAllOutputDir(path WritablePath) error {

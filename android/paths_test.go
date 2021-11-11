@@ -993,7 +993,7 @@ func TestPathForSource(t *testing.T) {
 		{
 			name:     "in out dir",
 			buildDir: "out",
-			src:      "out/a/b/c",
+			src:      "out/soong/a/b/c",
 			err:      "is in output",
 		},
 	}
@@ -1525,7 +1525,7 @@ func ExampleOutputPath_ReplaceExtension() {
 	fmt.Println(p.Rel(), p2.Rel())
 
 	// Output:
-	// out/system/framework/boot.art out/system/framework/boot.oat
+	// out/soong/system/framework/boot.art out/soong/system/framework/boot.oat
 	// boot.art boot.oat
 }
 
@@ -1539,7 +1539,7 @@ func ExampleOutputPath_InSameDir() {
 	fmt.Println(p.Rel(), p2.Rel())
 
 	// Output:
-	// out/system/framework/boot.art out/system/framework/oat/arm/boot.vdex
+	// out/soong/system/framework/boot.art out/soong/system/framework/oat/arm/boot.vdex
 	// boot.art oat/arm/boot.vdex
 }
 

@@ -226,6 +226,9 @@ ifdef  PRODUCT_NAME
   PRODUCT_NAME = gizmo
 else
 endif
+local_var :=
+ifdef local_var
+endif
 `,
 		expected: `load("//build/make/core:product_config.rbc", "rblf")
 
@@ -234,6 +237,9 @@ def init(g, handle):
   if g.get("PRODUCT_NAME") != None:
     cfg["PRODUCT_NAME"] = "gizmo"
   else:
+    pass
+  _local_var = ""
+  if _local_var:
     pass
 `,
 	},
@@ -691,7 +697,7 @@ def init(g, handle):
 PRODUCT_COPY_FILES := $(addprefix pfx-,a b c)
 PRODUCT_COPY_FILES := $(addsuffix .sff, a b c)
 PRODUCT_NAME := $(word 1, $(subst ., ,$(TARGET_BOARD_PLATFORM)))
-$(info $(patsubst %.pub,%,$(PRODUCT_ADB_KEYS)))
+$(info $(patsubst %.pub,$(PRODUCT_NAME)%,$(PRODUCT_ADB_KEYS)))
 $(info $(dir foo/bar))
 $(info $(firstword $(PRODUCT_COPY_FILES)))
 $(info $(lastword $(PRODUCT_COPY_FILES)))
@@ -714,7 +720,7 @@ def init(g, handle):
   cfg["PRODUCT_COPY_FILES"] = rblf.addprefix("pfx-", "a b c")
   cfg["PRODUCT_COPY_FILES"] = rblf.addsuffix(".sff", "a b c")
   cfg["PRODUCT_NAME"] = ((g.get("TARGET_BOARD_PLATFORM", "")).replace(".", " ")).split()[0]
-  rblf.mkinfo("product.mk", rblf.mkpatsubst("%.pub", "%", g.get("PRODUCT_ADB_KEYS", "")))
+  rblf.mkinfo("product.mk", rblf.mkpatsubst("%.pub", "%s%%" % cfg["PRODUCT_NAME"], g.get("PRODUCT_ADB_KEYS", "")))
   rblf.mkinfo("product.mk", rblf.dir("foo/bar"))
   rblf.mkinfo("product.mk", cfg["PRODUCT_COPY_FILES"][0])
   rblf.mkinfo("product.mk", cfg["PRODUCT_COPY_FILES"][-1])
@@ -821,9 +827,29 @@ def init(g, handle):
   rblf.soong_config_namespace(g, "cvd")
   rblf.soong_config_set(g, "cvd", "launch_configs", "cvd_config_auto.json")
   rblf.soong_config_append(g, "cvd", "grub_config", "grub.cfg")
-  # MK2RBC TRANSLATION ERROR: SOONG_CONFIG_ variables cannot be referenced: SOONG_CONFIG_cvd_grub_config
+  # MK2RBC TRANSLATION ERROR: SOONG_CONFIG_ variables cannot be referenced, use soong_config_get instead: SOONG_CONFIG_cvd_grub_config
   # x := $(SOONG_CONFIG_cvd_grub_config)
   rblf.warning("product.mk", "partially successful conversion")
+`,
+	}, {
+		desc:   "soong namespace accesses",
+		mkname: "product.mk",
+		in: `
+SOONG_CONFIG_NAMESPACES += cvd
+SOONG_CONFIG_cvd += launch_configs
+SOONG_CONFIG_cvd_launch_configs = cvd_config_auto.json
+SOONG_CONFIG_cvd += grub_config
+SOONG_CONFIG_cvd_grub_config += grub.cfg
+x := $(call soong_config_get,cvd,grub_config)
+`,
+		expected: `load("//build/make/core:product_config.rbc", "rblf")
+
+def init(g, handle):
+  cfg = rblf.cfg(handle)
+  rblf.soong_config_namespace(g, "cvd")
+  rblf.soong_config_set(g, "cvd", "launch_configs", "cvd_config_auto.json")
+  rblf.soong_config_append(g, "cvd", "grub_config", "grub.cfg")
+  _x = rblf.soong_config_get(g, "cvd", "grub_config")
 `,
 	},
 	{

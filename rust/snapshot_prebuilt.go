@@ -87,8 +87,9 @@ func (library *snapshotLibraryDecorator) compile(ctx ModuleContext, flags Flags,
 	if !library.MatchesWithDevice(ctx.DeviceConfig()) {
 		return nil
 	}
-
-	return android.PathForModuleSrc(ctx, *library.properties.Src)
+	outputFile := android.PathForModuleSrc(ctx, *library.properties.Src)
+	library.unstrippedOutputFile = outputFile
+	return outputFile
 }
 
 func (library *snapshotLibraryDecorator) rustdoc(ctx ModuleContext, flags Flags, deps PathDeps) android.OptionalPath {
