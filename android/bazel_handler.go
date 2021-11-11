@@ -602,8 +602,6 @@ def get_arch(target):
   platform_name = build_options(target)["//command_line_option:platforms"][0].name
   if platform_name == "host":
     return "HOST"
-  elif platform_name.startswith("linux_glibc_"):
-    return platform_name[len("linux_glibc_"):] + "|" + platform_name[:len("linux_glibc_")-1]
   elif platform_name.startswith("android_"):
     return platform_name[len("android_"):] + "|" + platform_name[:len("android_")-1]
   elif platform_name.startswith("linux_"):
@@ -865,7 +863,7 @@ func getConfigString(key cqueryKey) string {
 		arch = "x86_64"
 	}
 	os := key.configKey.osType.Name
-	if len(os) == 0 || os == "common_os" {
+	if len(os) == 0 || os == "common_os" || os == "linux_glibc" {
 		// Use host OS, which is currently hardcoded to be linux.
 		os = "linux"
 	}
