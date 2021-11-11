@@ -47,6 +47,7 @@ func (library *Library) AndroidMkEntriesHostDex() android.AndroidMkEntries {
 					if library.dexJarFile.IsSet() {
 						entries.SetPath("LOCAL_SOONG_DEX_JAR", library.dexJarFile.Path())
 					}
+					entries.SetPath("LOCAL_SOONG_INSTALLED_MODULE", library.hostdexInstallFile)
 					entries.SetPath("LOCAL_SOONG_HEADER_JAR", library.headerJarFile)
 					entries.SetPath("LOCAL_SOONG_CLASSES_JAR", library.implementationAndResourcesJar)
 					entries.SetString("LOCAL_MODULE_STEM", library.Stem()+"-hostdex")
