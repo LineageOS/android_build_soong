@@ -540,6 +540,14 @@ func (ctx *parseContext) handleAssignment(a *mkparser.Assignment) {
 		return
 	}
 	name := a.Name.Strings[0]
+	// The `override` directive
+	//      override FOO :=
+	// is parsed as an assignment to a variable named `override FOO`.
+	// There are very few places where `override` is used, just flag it.
+	if strings.HasPrefix(name, "override ") {
+		ctx.errorf(a, "cannot handle override directive")
+	}
+
 	// Soong configuration
 	if strings.HasPrefix(name, soongNsPrefix) {
 		ctx.handleSoongNsAssignment(strings.TrimPrefix(name, soongNsPrefix), a)
