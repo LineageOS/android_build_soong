@@ -16,7 +16,7 @@
 #
 """Unit tests for test_config_fixer.py."""
 
-import StringIO
+import io
 import sys
 import unittest
 from xml.dom import minidom
@@ -59,7 +59,7 @@ class OverwritePackageNameTest(unittest.TestCase):
     manifest = minidom.parseString(self.manifest)
 
     test_config_fixer.overwrite_package_name(doc, manifest, "com.soong.foo")
-    output = StringIO.StringIO()
+    output = io.StringIO()
     test_config_fixer.write_xml(output, doc)
 
     # Only the matching package name in a test node should be updated.
@@ -86,7 +86,7 @@ class OverwriteTestFileNameTest(unittest.TestCase):
     doc = minidom.parseString(self.test_config % ("foo.apk"))
 
     test_config_fixer.overwrite_test_file_name(doc, "bar.apk")
-    output = StringIO.StringIO()
+    output = io.StringIO()
     test_config_fixer.write_xml(output, doc)
 
     # Only the matching package name in a test node should be updated.
