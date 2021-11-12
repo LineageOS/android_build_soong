@@ -263,7 +263,7 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, apexName, mo
 			if !ok {
 				panic(fmt.Sprintf("Expected %s to be AndroidAppSet", fi.module))
 			}
-			fmt.Fprintln(w, "LOCAL_APK_SET_INSTALL_FILE :=", as.InstallFile())
+			fmt.Fprintln(w, "LOCAL_APK_SET_INSTALL_FILE :=", as.PackedAdditionalOutputs().String())
 			fmt.Fprintln(w, "LOCAL_APKCERTS_FILE :=", as.APKCertsFile().String())
 			fmt.Fprintln(w, "include $(BUILD_SYSTEM)/soong_android_app_set.mk")
 		case nativeSharedLib, nativeExecutable, nativeTest:

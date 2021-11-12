@@ -442,7 +442,8 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 		} else {
 			if fi.class == appSet {
 				copyCommands = append(copyCommands,
-					fmt.Sprintf("unzip -qDD -d %s %s", destPathDir, fi.builtFile.String()))
+					fmt.Sprintf("unzip -qDD -d %s %s", destPathDir,
+						fi.module.(*java.AndroidAppSet).PackedAdditionalOutputs().String()))
 			} else {
 				copyCommands = append(copyCommands, "cp -f "+fi.builtFile.String()+" "+destPath)
 			}
