@@ -399,14 +399,14 @@ type apexBundle struct {
 	// vendor/google/build/build_unbundled_mainline_module.sh for more detail.
 	bundleModuleFile android.WritablePath
 
-	// Target path to install this APEX. Usually out/target/product/<device>/<partition>/apex.
+	// Target directory to install this APEX. Usually out/target/product/<device>/<partition>/apex.
 	installDir android.InstallPath
 
-	// List of commands to create symlinks for backward compatibility. These commands will be
-	// attached as LOCAL_POST_INSTALL_CMD to apex package itself (for unflattened build) or
-	// apex_manifest (for flattened build) so that compat symlinks are always installed
-	// regardless of TARGET_FLATTEN_APEX setting.
-	compatSymlinks []string
+	// Path where this APEX was installed.
+	installedFile android.InstallPath
+
+	// Installed locations of symlinks for backward compatibility.
+	compatSymlinks android.InstallPaths
 
 	// Text file having the list of individual files that are included in this APEX. Used for
 	// debugging purpose.
@@ -429,6 +429,10 @@ type apexBundle struct {
 
 	// Collect the module directory for IDE info in java/jdeps.go.
 	modulePaths []string
+}
+
+func (*apexBundle) InstallBypassMake() bool {
+	return true
 }
 
 // apexFileClass represents a type of file that can be included in APEX.
@@ -2086,7 +2090,9 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		a.linkToSystemLib = false
 	}
 
-	a.compatSymlinks = makeCompatSymlinks(a.BaseModuleName(), ctx)
+	if a.properties.ApexType != zipApex {
+		a.compatSymlinks = makeCompatSymlinks(a.BaseModuleName(), ctx, a.primaryApexType)
+	}
 
 	////////////////////////////////////////////////////////////////////////////////////////////
 	// 4) generate the build rules to create the APEX. This is done in builder.go.
