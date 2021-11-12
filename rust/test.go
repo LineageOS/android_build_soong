@@ -196,3 +196,7 @@ func (test *testDecorator) compilerDeps(ctx DepsContext, deps Deps) Deps {
 
 	return deps
 }
+
+func (test *testDecorator) testBinary() bool {
+	return true
+}
