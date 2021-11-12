@@ -188,6 +188,7 @@ var (
 		"packages/apps/QuickSearchBox":/* recursive = */ true,
 		"packages/apps/WallpaperPicker":/* recursive = */ false,
 
+		"prebuilts/gcc":/* recursive = */ true,
 		"prebuilts/sdk":/* recursive = */ false,
 		"prebuilts/sdk/current/extras/app-toolkit":/* recursive = */ false,
 		"prebuilts/sdk/current/support":/* recursive = */ false,
@@ -250,6 +251,8 @@ var (
 
 	// Per-module denylist to always opt modules out of both bp2build and mixed builds.
 	bp2buildModuleDoNotConvertList = []string{
+		"libprotobuf-cpp-full", "libprotobuf-cpp-lite", // Unsupported product&vendor suffix. b/204811222 and b/204810610.
+
 		"libc_malloc_debug", // depends on libunwindstack, which depends on unsupported module art_cc_library_statics
 
 		"libbase_ndk", // http://b/186826477, fails to link libctscamera2_jni for device (required for CtsCameraTestCases)
@@ -270,14 +273,8 @@ var (
 		"platform_tools_properties",
 		"build_tools_source_properties",
 
-		// //external/libcap/...
-		"cap_names.h", // http://b/196105070 host toolchain misconfigurations for mixed builds
-		"libcap",      // http://b/196105070 host toolchain misconfigurations for mixed builds
-
-		"libminijail", // depends on unconverted modules: libcap
-		"getcap",      // depends on unconverted modules: libcap
-		"setcap",      // depends on unconverted modules: libcap
-		"minijail0",   // depends on unconverted modules: libcap, libminijail
+		"libminijail", // b/202491296: Uses unsupported c_std property.
+		"minijail0",   // depends on unconverted modules: libminijail
 		"drop_privs",  // depends on unconverted modules: libminijail
 
 		// Tests. Handle later.
@@ -381,7 +378,11 @@ func ShouldKeepExistingBuildFileForDir(dir string) bool {
 
 // MixedBuildsEnabled checks that a module is ready to be replaced by a
 // converted or handcrafted Bazel target.
-func (b *BazelModuleBase) MixedBuildsEnabled(ctx BazelConversionPathContext) bool {
+func (b *BazelModuleBase) MixedBuildsEnabled(ctx ModuleContext) bool {
+	if ctx.Os() == Windows {
+		// Windows toolchains are not currently supported.
+		return false
+	}
 	if !ctx.Config().BazelContext.BazelEnabled() {
 		return false
 	}
