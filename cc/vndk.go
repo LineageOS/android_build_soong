@@ -495,7 +495,7 @@ func newVndkLibrariesWithMakeVarFilter(lister moduleListerFunc, makeVarName stri
 		filterOutFromMakeVar: filter,
 	}
 	m.AddProperties(&m.properties)
-	android.InitAndroidModule(m)
+	android.InitAndroidArchModule(m, android.DeviceSupported, android.MultilibCommon)
 	return m
 }
 
