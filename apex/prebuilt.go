@@ -17,13 +17,11 @@ package apex
 import (
 	"fmt"
 	"io"
-	"path/filepath"
 	"strconv"
 	"strings"
 
 	"android/soong/android"
 	"android/soong/java"
-
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 )
@@ -55,17 +53,18 @@ type prebuiltCommon struct {
 
 	installDir      android.InstallPath
 	installFilename string
-	installedFile   android.InstallPath
 	outputApex      android.WritablePath
 
 	// A list of apexFile objects created in prebuiltCommon.initApexFilesForAndroidMk which are used
 	// to create make modules in prebuiltCommon.AndroidMkEntries.
 	apexFilesForAndroidMk []apexFile
 
-	// Installed locations of symlinks for backward compatibility.
-	compatSymlinks android.InstallPaths
+	// list of commands to create symlinks for backward compatibility.
+	// these commands will be attached as LOCAL_POST_INSTALL_CMD
+	compatSymlinks []string
 
-	hostRequired []string
+	hostRequired        []string
+	postInstallCommands []string
 }
 
 type sanitizedPrebuilt interface {
@@ -224,10 +223,13 @@ func (p *prebuiltCommon) AndroidMkEntries() []android.AndroidMkEntries {
 				func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
 					entries.SetString("LOCAL_MODULE_PATH", p.installDir.ToMakePath().String())
 					entries.SetString("LOCAL_MODULE_STEM", p.installFilename)
-					entries.SetPath("LOCAL_SOONG_INSTALLED_MODULE", p.installedFile)
-					entries.SetString("LOCAL_SOONG_INSTALL_PAIRS", p.outputApex.String()+":"+p.installedFile.String())
 					entries.SetBoolIfTrue("LOCAL_UNINSTALLABLE_MODULE", !p.installable())
 					entries.AddStrings("LOCAL_OVERRIDES_MODULES", p.prebuiltCommonProperties.Overrides...)
+					postInstallCommands := append([]string{}, p.postInstallCommands...)
+					postInstallCommands = append(postInstallCommands, p.compatSymlinks...)
+					if len(postInstallCommands) > 0 {
+						entries.SetString("LOCAL_POST_INSTALL_CMD", strings.Join(postInstallCommands, " && "))
+					}
 					p.addRequiredModules(entries)
 				},
 			},
@@ -257,9 +259,6 @@ func (p *prebuiltCommon) createEntriesForApexFile(fi apexFile, apexName string) 
 		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
 			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
 				entries.SetString("LOCAL_MODULE_PATH", p.installDir.ToMakePath().String())
-				entries.SetString("LOCAL_SOONG_INSTALLED_MODULE :=", filepath.Join(p.installDir.String(), fi.stem()))
-				entries.SetString("LOCAL_SOONG_INSTALL_PAIRS :=",
-					fi.builtFile.String()+":"+filepath.Join(p.installDir.String(), fi.stem()))
 
 				// soong_java_prebuilt.mk sets LOCAL_MODULE_SUFFIX := .jar  Therefore
 				// we need to remove the suffix from LOCAL_MODULE_STEM, otherwise
@@ -470,10 +469,6 @@ type Prebuilt struct {
 	properties PrebuiltProperties
 
 	inputApex android.Path
-}
-
-func (p *Prebuilt) InstallBypassMake() bool {
-	return true
 }
 
 type ApexFileProperties struct {
@@ -761,15 +756,15 @@ func (p *Prebuilt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// Save the files that need to be made available to Make.
 	p.initApexFilesForAndroidMk(ctx)
 
-	// in case that prebuilt_apex replaces source apex (using prefer: prop)
-	p.compatSymlinks = makeCompatSymlinks(p.BaseModuleName(), ctx, true)
-	// or that prebuilt_apex overrides other apexes (using overrides: prop)
-	for _, overridden := range p.prebuiltCommonProperties.Overrides {
-		p.compatSymlinks = append(p.compatSymlinks, makeCompatSymlinks(overridden, ctx, true)...)
+	if p.installable() {
+		ctx.InstallFile(p.installDir, p.installFilename, p.inputApex)
 	}
 
-	if p.installable() {
-		p.installedFile = ctx.InstallFile(p.installDir, p.installFilename, p.inputApex, p.compatSymlinks.Paths()...)
+	// in case that prebuilt_apex replaces source apex (using prefer: prop)
+	p.compatSymlinks = makeCompatSymlinks(p.BaseModuleName(), ctx)
+	// or that prebuilt_apex overrides other apexes (using overrides: prop)
+	for _, overridden := range p.prebuiltCommonProperties.Overrides {
+		p.compatSymlinks = append(p.compatSymlinks, makeCompatSymlinks(overridden, ctx)...)
 	}
 }
 
@@ -969,10 +964,10 @@ func (a *ApexSet) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	// in case that apex_set replaces source apex (using prefer: prop)
-	a.compatSymlinks = makeCompatSymlinks(a.BaseModuleName(), ctx, true)
+	a.compatSymlinks = makeCompatSymlinks(a.BaseModuleName(), ctx)
 	// or that apex_set overrides other apexes (using overrides: prop)
 	for _, overridden := range a.prebuiltCommonProperties.Overrides {
-		a.compatSymlinks = append(a.compatSymlinks, makeCompatSymlinks(overridden, ctx, true)...)
+		a.compatSymlinks = append(a.compatSymlinks, makeCompatSymlinks(overridden, ctx)...)
 	}
 }
 
