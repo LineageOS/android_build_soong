@@ -823,17 +823,20 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 		a.outputFile = signedCompressedOutputFile
 	}
 
-	installSuffix := suffix
-	if a.isCompressed {
-		installSuffix = imageCapexSuffix
-	}
-
 	// Install to $OUT/soong/{target,host}/.../apex.
-	a.installedFile = ctx.InstallFile(a.installDir, a.Name()+installSuffix, a.outputFile,
-		a.compatSymlinks.Paths()...)
+	ctx.InstallFile(a.installDir, a.Name()+suffix, a.outputFile)
 
 	// installed-files.txt is dist'ed
 	a.installedFilesFile = a.buildInstalledFilesFile(ctx, a.outputFile, imageDir)
+}
+
+// Context "decorator", overriding the InstallBypassMake method to always reply `true`.
+type flattenedApexContext struct {
+	android.ModuleContext
+}
+
+func (c *flattenedApexContext) InstallBypassMake() bool {
+	return true
 }
 
 // buildFlattenedApex creates rules for a flattened APEX. Flattened APEX actually doesn't have a
@@ -841,37 +844,26 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 // This function creates the installation rules for the files.
 func (a *apexBundle) buildFlattenedApex(ctx android.ModuleContext) {
 	bundleName := a.Name()
-	installedSymlinks := append(android.InstallPaths(nil), a.compatSymlinks...)
 	if a.installable() {
 		for _, fi := range a.filesInfo {
 			dir := filepath.Join("apex", bundleName, fi.installDir)
-			installDir := android.PathForModuleInstall(ctx, dir)
-			if a.linkToSystemLib && fi.transitiveDep && fi.availableToPlatform() {
-				// TODO(jiyong): pathOnDevice should come from fi.module, not being calculated here
-				pathOnDevice := filepath.Join("/system", fi.path())
-				installedSymlinks = append(installedSymlinks,
-					ctx.InstallAbsoluteSymlink(installDir, fi.stem(), pathOnDevice))
-			} else {
-				target := ctx.InstallFile(installDir, fi.stem(), fi.builtFile)
-				for _, sym := range fi.symlinks {
-					installedSymlinks = append(installedSymlinks,
-						ctx.InstallSymlink(installDir, sym, target))
-				}
+			target := ctx.InstallFile(android.PathForModuleInstall(ctx, dir), fi.stem(), fi.builtFile)
+			for _, sym := range fi.symlinks {
+				ctx.InstallSymlink(android.PathForModuleInstall(ctx, dir), sym, target)
 			}
 		}
-
-		// Create install rules for the files added in GenerateAndroidBuildActions after
-		// buildFlattenedApex is called.  Add the links to system libs (if any) as dependencies
-		// of the apex_manifest.pb file since it is always present.
-		dir := filepath.Join("apex", bundleName)
-		installDir := android.PathForModuleInstall(ctx, dir)
-		ctx.InstallFile(installDir, "apex_manifest.pb", a.manifestPbOut, installedSymlinks.Paths()...)
-		ctx.InstallFile(installDir, "apex_pubkey", a.publicKeyFile)
 	}
 
 	a.fileContexts = a.buildFileContexts(ctx)
 
-	a.outputFile = android.PathForModuleInstall(ctx, "apex", bundleName)
+	// Temporarily wrap the original `ctx` into a `flattenedApexContext` to have it reply true
+	// to `InstallBypassMake()` (thus making the call `android.PathForModuleInstall` below use
+	// `android.pathForInstallInMakeDir` instead of `android.PathForOutput`) to return the
+	// correct path to the flattened APEX (as its contents is installed by Make, not Soong).
+	// TODO(jiyong): Why do we need to set outputFile for flattened APEX? We don't seem to use
+	// it and it actually points to a path that can never be built. Remove this.
+	factx := flattenedApexContext{ctx}
+	a.outputFile = android.PathForModuleInstall(&factx, "apex", bundleName)
 }
 
 // getCertificateAndPrivateKey retrieves the cert and the private key that will be used to sign
