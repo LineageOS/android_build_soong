@@ -1019,6 +1019,13 @@ func (mod *Module) begin(ctx BaseModuleContext) {
 	}
 }
 
+func (mod *Module) Prebuilt() *android.Prebuilt {
+	if p, ok := mod.compiler.(*prebuiltLibraryDecorator); ok {
+		return p.prebuilt()
+	}
+	return nil
+}
+
 func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 	var depPaths PathDeps
 
