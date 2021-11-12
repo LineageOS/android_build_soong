@@ -86,7 +86,7 @@ def main():
     if args.test_file_name:
       overwrite_test_file_name(doc, args.test_file_name)
 
-    with open(args.output, 'wb') as f:
+    with open(args.output, 'w') as f:
       write_xml(f, doc)
 
   # pylint: disable=broad-except
