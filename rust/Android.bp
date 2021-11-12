@@ -54,6 +54,7 @@ bootstrap_go_package {
         "project_json_test.go",
         "protobuf_test.go",
         "rust_test.go",
+        "sanitize_test.go",
         "source_provider_test.go",
         "test_test.go",
         "vendor_snapshot_test.go",

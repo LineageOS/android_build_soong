@@ -562,6 +562,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 					"libvendor",
 					"libvndk",
 					"libclang_rt.builtins-aarch64-android",
+					"note_memtag_heap_sync",
 				],
 				shared_libs: [
 					"libvendor_available",
@@ -853,6 +854,20 @@ func TestVendorSnapshotUse(t *testing.T) {
 		},
 	}
 
+	// Test sanitizers use the snapshot libraries
+	rust_binary {
+		name: "memtag_binary",
+		srcs: ["vendor/bin.rs"],
+		vendor: true,
+		compile_multilib: "64",
+		sanitize: {
+			memtag_heap: true,
+			diag: {
+				memtag_heap: true,
+			}
+		},
+	}
+
 	// old snapshot module which has to be ignored
 	vendor_snapshot_binary {
 		name: "bin",
@@ -880,11 +895,25 @@ func TestVendorSnapshotUse(t *testing.T) {
 			},
 		},
 	}
+
+	vendor_snapshot_static {
+		name: "note_memtag_heap_sync",
+		vendor: true,
+		target_arch: "arm64",
+		version: "30",
+		arch: {
+			arm64: {
+				src: "note_memtag_heap_sync.a",
+			},
+		},
+	}
+
 `
 
 	mockFS := android.MockFS{
 		"framework/Android.bp":                          []byte(frameworkBp),
 		"framework/bin.rs":                              nil,
+		"note_memtag_heap_sync.a":                       nil,
 		"vendor/Android.bp":                             []byte(vendorProprietaryBp),
 		"vendor/bin":                                    nil,
 		"vendor/bin32":                                  nil,
@@ -992,5 +1021,10 @@ func TestVendorSnapshotUse(t *testing.T) {
 	binVariants := ctx.ModuleVariantsForTests("bin")
 	if android.InList(binaryVariant, binVariants) {
 		t.Errorf("bin must not have variant %#v, but it does", sharedVariant)
+	}
+
+	memtagStaticLibs := ctx.ModuleForTests("memtag_binary", "android_vendor.30_arm64_armv8-a").Module().(*Module).Properties.AndroidMkStaticLibs
+	if g, w := memtagStaticLibs, []string{"libclang_rt.builtins-aarch64-android.vendor", "note_memtag_heap_sync.vendor"}; !reflect.DeepEqual(g, w) {
+		t.Errorf("wanted memtag_binary AndroidMkStaticLibs %q, got %q", w, g)
 	}
 }
