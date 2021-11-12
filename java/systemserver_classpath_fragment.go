@@ -125,6 +125,12 @@ func (s *SystemServerClasspathModule) configuredJars(ctx android.ModuleContext) 
 	// TODO(b/203233647): Add better mechanism to make it optional.
 	_, unknown = android.RemoveFromList("car-frameworks-service-module", unknown)
 
+	// This module is optional, so it is not present in all products.
+	// (See PRODUCT_ISOLATED_COMPILATION_ENABLED.)
+	// So ignore it even if it is not in PRODUCT_APEX_SYSTEM_SERVER_JARS.
+	// TODO(b/203233647): Add better mechanism to make it optional.
+	_, unknown = android.RemoveFromList("service-compos", unknown)
+
 	// TODO(satayev): for apex_test we want to include all contents unconditionally to classpaths
 	// config. However, any test specific jars would not be present in ApexSystemServerJars. Instead,
 	// we should check if we are creating a config for apex_test via ApexInfo and amend the values.
