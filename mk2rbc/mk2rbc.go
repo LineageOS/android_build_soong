@@ -161,7 +161,7 @@ type Request struct {
 	RootDir            string    // root directory path used to resolve included files
 	OutputSuffix       string    // generated Starlark files suffix
 	OutputDir          string    // if set, root of the output hierarchy
-	ErrorLogger        ErrorMonitorCB
+	ErrorLogger        ErrorLogger
 	TracedVariables    []string // trace assignment to these variables
 	TraceCalls         bool
 	WarnPartialSuccess bool
@@ -169,10 +169,10 @@ type Request struct {
 	MakefileFinder     MakefileFinder
 }
 
-// An error sink allowing to gather error statistics.
-// NewError is called on every error encountered during processing.
-type ErrorMonitorCB interface {
-	NewError(s string, node mkparser.Node, args ...interface{})
+// ErrorLogger prints errors and gathers error statistics.
+// Its NewError function is called on every error encountered during the conversion.
+type ErrorLogger interface {
+	NewError(sourceFile string, sourceLine int, node mkparser.Node, text string, args ...interface{})
 }
 
 // Derives module name for a given file. It is base name
@@ -381,6 +381,7 @@ type StarlarkScript struct {
 	warnPartialSuccess bool
 	sourceFS           fs.FS
 	makefileFinder     MakefileFinder
+	nodeLocator        func(pos mkparser.Pos) int
 }
 
 func (ss *StarlarkScript) newNode(node starlarkNode) {
@@ -406,7 +407,7 @@ type parseContext struct {
 	fatalError       error
 	builtinMakeVars  map[string]starlarkExpr
 	outputSuffix     string
-	errorLogger      ErrorMonitorCB
+	errorLogger      ErrorLogger
 	tracedVariables  map[string]bool // variables to be traced in the generated script
 	variables        map[string]variable
 	varAssignments   *varAssignmentScope
@@ -1031,7 +1032,7 @@ func (ctx *parseContext) parseCondition(check *mkparser.Directive) starlarkNode 
 func (ctx *parseContext) newBadExpr(node mkparser.Node, text string, args ...interface{}) starlarkExpr {
 	message := fmt.Sprintf(text, args...)
 	if ctx.errorLogger != nil {
-		ctx.errorLogger.NewError(text, node, args)
+		ctx.errorLogger.NewError(ctx.script.mkFile, ctx.script.nodeLocator(node.Pos()), node, text, args...)
 	}
 	ctx.script.hasErrors = true
 	return &badExpr{node, message}
@@ -1554,11 +1555,12 @@ func (ctx *parseContext) carryAsComment(failedNode mkparser.Node) {
 // records that the given node failed to be converted and includes an explanatory message
 func (ctx *parseContext) errorf(failedNode mkparser.Node, message string, args ...interface{}) {
 	if ctx.errorLogger != nil {
-		ctx.errorLogger.NewError(message, failedNode, args...)
+		ctx.errorLogger.NewError(ctx.script.mkFile, ctx.script.nodeLocator(failedNode.Pos()), failedNode, message, args...)
 	}
 	message = fmt.Sprintf(message, args...)
 	ctx.insertComment(fmt.Sprintf("# MK2RBC TRANSLATION ERROR: %s", message))
 	ctx.carryAsComment(failedNode)
+
 	ctx.script.hasErrors = true
 }
 
@@ -1675,6 +1677,7 @@ func Convert(req Request) (*StarlarkScript, error) {
 		warnPartialSuccess: req.WarnPartialSuccess,
 		sourceFS:           req.SourceFS,
 		makefileFinder:     req.MakefileFinder,
+		nodeLocator:        func(pos mkparser.Pos) int { return parser.Unpack(pos).Line },
 	}
 	ctx := newParseContext(starScript, nodes)
 	ctx.outputSuffix = req.OutputSuffix
