@@ -363,9 +363,9 @@ func (compiler *baseCompiler) compilerDeps(ctx DepsContext, deps Deps) Deps {
 
 	if !Bool(compiler.Properties.No_stdlibs) {
 		for _, stdlib := range config.Stdlibs {
-			// If we're building for the primary arch of the build host, use the compiler's stdlibs
+			// If we're building for the build host, use the prebuilt stdlibs
 			if ctx.Target().Os == ctx.Config().BuildOS {
-				stdlib = stdlib + "_" + ctx.toolchain().RustTriple()
+				stdlib = "prebuilt_" + stdlib
 			}
 			deps.Stdlibs = append(deps.Stdlibs, stdlib)
 		}
