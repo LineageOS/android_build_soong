@@ -17,6 +17,7 @@ var (
 		"external/vm_tools/p9",
 		"frameworks/native/libs/binder/rust",
 		"frameworks/proto_logging/stats",
+		"hardware/interfaces/security",
 		"packages/modules/Bluetooth",
 		"packages/modules/DnsResolver",
 		"packages/modules/Uwb",
