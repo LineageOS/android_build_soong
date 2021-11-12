@@ -381,7 +381,7 @@ func (d *dexpreopter) AndroidMkEntriesForApex() []android.AndroidMkEntries {
 			OutputFile: android.OptionalPathForPath(install.outputPathOnHost),
 			ExtraEntries: []android.AndroidMkExtraEntriesFunc{
 				func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
-					entries.SetString("LOCAL_MODULE_PATH", install.installDirOnDevice.ToMakePath().String())
+					entries.SetString("LOCAL_MODULE_PATH", install.installDirOnDevice.String())
 					entries.SetString("LOCAL_INSTALLED_MODULE_STEM", install.installFileOnDevice)
 					entries.SetString("LOCAL_NOT_AVAILABLE_FOR_PLATFORM", "false")
 				},
