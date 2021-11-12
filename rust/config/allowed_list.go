@@ -11,6 +11,7 @@ var (
 		"external/crosvm",
 		"external/libchromeos-rs",
 		"external/minijail",
+		"external/open-dice",
 		"external/rust",
 		"external/selinux/libselinux",
 		"external/uwb",
