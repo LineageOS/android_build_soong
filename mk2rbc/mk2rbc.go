@@ -161,7 +161,7 @@ type Request struct {
 	RootDir            string    // root directory path used to resolve included files
 	OutputSuffix       string    // generated Starlark files suffix
 	OutputDir          string    // if set, root of the output hierarchy
-	ErrorLogger        ErrorMonitorCB
+	ErrorLogger        ErrorLogger
 	TracedVariables    []string // trace assignment to these variables
 	TraceCalls         bool
 	WarnPartialSuccess bool
@@ -169,10 +169,10 @@ type Request struct {
 	MakefileFinder     MakefileFinder
 }
 
-// An error sink allowing to gather error statistics.
-// NewError is called on every error encountered during processing.
-type ErrorMonitorCB interface {
-	NewError(s string, node mkparser.Node, args ...interface{})
+// ErrorLogger prints errors and gathers error statistics.
+// Its NewError function is called on every error encountered during the conversion.
+type ErrorLogger interface {
+	NewError(sourceFile string, sourceLine int, node mkparser.Node, text string, args ...interface{})
 }
 
 // Derives module name for a given file. It is base name
@@ -381,6 +381,7 @@ type StarlarkScript struct {
 	warnPartialSuccess bool
 	sourceFS           fs.FS
 	makefileFinder     MakefileFinder
+	nodeLocator        func(pos mkparser.Pos) int
 }
 
 func (ss *StarlarkScript) newNode(node starlarkNode) {
@@ -406,7 +407,7 @@ type parseContext struct {
 	fatalError       error
 	builtinMakeVars  map[string]starlarkExpr
 	outputSuffix     string
-	errorLogger      ErrorMonitorCB
+	errorLogger      ErrorLogger
 	tracedVariables  map[string]bool // variables to be traced in the generated script
 	variables        map[string]variable
 	varAssignments   *varAssignmentScope
@@ -973,25 +974,16 @@ func (ctx *parseContext) processBranch(check *mkparser.Directive) {
 	ctx.pushReceiver(&block)
 	for ctx.hasNodes() {
 		node := ctx.getNode()
-		if ctx.handleSimpleStatement(node) {
-			continue
-		}
-		switch d := node.(type) {
-		case *mkparser.Directive:
+		if d, ok := node.(*mkparser.Directive); ok {
 			switch d.Name {
 			case "else", "elifdef", "elifndef", "elifeq", "elifneq", "endif":
 				ctx.popReceiver()
 				ctx.receiver.newNode(&block)
 				ctx.backNode()
 				return
-			case "ifdef", "ifndef", "ifeq", "ifneq":
-				ctx.handleIfBlock(d)
-			default:
-				ctx.errorf(d, "unexpected directive %s", d.Name)
 			}
-		default:
-			ctx.errorf(node, "unexpected statement")
 		}
+		ctx.handleSimpleStatement(node)
 	}
 	ctx.fatalError = fmt.Errorf("no matching endif for %s", check.Dump())
 	ctx.popReceiver()
@@ -1031,7 +1023,7 @@ func (ctx *parseContext) parseCondition(check *mkparser.Directive) starlarkNode 
 func (ctx *parseContext) newBadExpr(node mkparser.Node, text string, args ...interface{}) starlarkExpr {
 	message := fmt.Sprintf(text, args...)
 	if ctx.errorLogger != nil {
-		ctx.errorLogger.NewError(text, node, args)
+		ctx.errorLogger.NewError(ctx.script.mkFile, ctx.script.nodeLocator(node.Pos()), node, text, args...)
 	}
 	ctx.script.hasErrors = true
 	return &badExpr{node, message}
@@ -1493,9 +1485,7 @@ func (ctx *parseContext) parseMakeString(node mkparser.Node, mk *mkparser.MakeSt
 // Handles the statements whose treatment is the same in all contexts: comment,
 // assignment, variable (which is a macro call in reality) and all constructs that
 // do not handle in any context ('define directive and any unrecognized stuff).
-// Return true if we handled it.
-func (ctx *parseContext) handleSimpleStatement(node mkparser.Node) bool {
-	handled := true
+func (ctx *parseContext) handleSimpleStatement(node mkparser.Node) {
 	switch x := node.(type) {
 	case *mkparser.Comment:
 		ctx.maybeHandleAnnotation(x)
@@ -1510,13 +1500,14 @@ func (ctx *parseContext) handleSimpleStatement(node mkparser.Node) bool {
 			ctx.handleDefine(x)
 		case "include", "-include":
 			ctx.handleInclude(node, ctx.parseMakeString(node, x.Args), x.Name[0] != '-')
+		case "ifeq", "ifneq", "ifdef", "ifndef":
+			ctx.handleIfBlock(x)
 		default:
-			handled = false
+			ctx.errorf(x, "unexpected directive %s", x.Name)
 		}
 	default:
 		ctx.errorf(x, "unsupported line %s", strings.ReplaceAll(x.Dump(), "\n", "\n#"))
 	}
-	return handled
 }
 
 // Processes annotation. An annotation is a comment that starts with #RBC# and provides
@@ -1554,11 +1545,12 @@ func (ctx *parseContext) carryAsComment(failedNode mkparser.Node) {
 // records that the given node failed to be converted and includes an explanatory message
 func (ctx *parseContext) errorf(failedNode mkparser.Node, message string, args ...interface{}) {
 	if ctx.errorLogger != nil {
-		ctx.errorLogger.NewError(message, failedNode, args...)
+		ctx.errorLogger.NewError(ctx.script.mkFile, ctx.script.nodeLocator(failedNode.Pos()), failedNode, message, args...)
 	}
 	message = fmt.Sprintf(message, args...)
 	ctx.insertComment(fmt.Sprintf("# MK2RBC TRANSLATION ERROR: %s", message))
 	ctx.carryAsComment(failedNode)
+
 	ctx.script.hasErrors = true
 }
 
@@ -1675,6 +1667,7 @@ func Convert(req Request) (*StarlarkScript, error) {
 		warnPartialSuccess: req.WarnPartialSuccess,
 		sourceFS:           req.SourceFS,
 		makefileFinder:     req.MakefileFinder,
+		nodeLocator:        func(pos mkparser.Pos) int { return parser.Unpack(pos).Line },
 	}
 	ctx := newParseContext(starScript, nodes)
 	ctx.outputSuffix = req.OutputSuffix
@@ -1688,21 +1681,7 @@ func Convert(req Request) (*StarlarkScript, error) {
 	}
 	ctx.pushReceiver(starScript)
 	for ctx.hasNodes() && ctx.fatalError == nil {
-		node := ctx.getNode()
-		if ctx.handleSimpleStatement(node) {
-			continue
-		}
-		switch x := node.(type) {
-		case *mkparser.Directive:
-			switch x.Name {
-			case "ifeq", "ifneq", "ifdef", "ifndef":
-				ctx.handleIfBlock(x)
-			default:
-				ctx.errorf(x, "unexpected directive %s", x.Name)
-			}
-		default:
-			ctx.errorf(x, "unsupported line")
-		}
+		ctx.handleSimpleStatement(ctx.getNode())
 	}
 	if ctx.fatalError != nil {
 		return nil, ctx.fatalError

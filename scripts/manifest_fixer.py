@@ -352,7 +352,7 @@ def main():
     if args.extract_native_libs is not None:
       add_extract_native_libs(doc, args.extract_native_libs)
 
-    with open(args.output, 'wb') as f:
+    with open(args.output, 'w') as f:
       write_xml(f, doc)
 
   # pylint: disable=broad-except

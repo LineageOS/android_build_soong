@@ -88,7 +88,7 @@ const (
 	intOverflow
 	scs
 	Fuzzer
-	memtag_heap
+	Memtag_heap
 	cfi // cfi is last to prevent it running before incompatible mutators
 )
 
@@ -99,7 +99,7 @@ var Sanitizers = []SanitizerType{
 	intOverflow,
 	scs,
 	Fuzzer,
-	memtag_heap,
+	Memtag_heap,
 	cfi, // cfi is last to prevent it running before incompatible mutators
 }
 
@@ -118,7 +118,7 @@ func (t SanitizerType) variationName() string {
 		return "cfi"
 	case scs:
 		return "scs"
-	case memtag_heap:
+	case Memtag_heap:
 		return "memtag_heap"
 	case Fuzzer:
 		return "fuzzer"
@@ -134,7 +134,7 @@ func (t SanitizerType) name() string {
 		return "address"
 	case Hwasan:
 		return "hwaddress"
-	case memtag_heap:
+	case Memtag_heap:
 		return "memtag_heap"
 	case tsan:
 		return "thread"
@@ -156,7 +156,7 @@ func (t SanitizerType) registerMutators(ctx android.RegisterMutatorsContext) {
 	case Asan, Hwasan, Fuzzer, scs, tsan, cfi:
 		ctx.TopDown(t.variationName()+"_deps", sanitizerDepsMutator(t))
 		ctx.BottomUp(t.variationName(), sanitizerMutator(t))
-	case memtag_heap, intOverflow:
+	case Memtag_heap, intOverflow:
 		// do nothing
 	default:
 		panic(fmt.Errorf("unknown SanitizerType %d", t))
@@ -178,6 +178,8 @@ func (*Module) SanitizerSupported(t SanitizerType) bool {
 	case scs:
 		return true
 	case Fuzzer:
+		return true
+	case Memtag_heap:
 		return true
 	default:
 		return false
@@ -467,7 +469,7 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 		s.Scs = nil
 	}
 
-	// memtag_heap is only implemented on AArch64.
+	// Memtag_heap is only implemented on AArch64.
 	if ctx.Arch().ArchType != android.Arm64 {
 		s.Memtag_heap = nil
 	}
@@ -813,7 +815,7 @@ func (sanitize *sanitize) getSanitizerBoolPtr(t SanitizerType) *bool {
 		return sanitize.Properties.Sanitize.Cfi
 	case scs:
 		return sanitize.Properties.Sanitize.Scs
-	case memtag_heap:
+	case Memtag_heap:
 		return sanitize.Properties.Sanitize.Memtag_heap
 	case Fuzzer:
 		return sanitize.Properties.Sanitize.Fuzzer
@@ -829,7 +831,7 @@ func (sanitize *sanitize) isUnsanitizedVariant() bool {
 		!sanitize.isSanitizerEnabled(tsan) &&
 		!sanitize.isSanitizerEnabled(cfi) &&
 		!sanitize.isSanitizerEnabled(scs) &&
-		!sanitize.isSanitizerEnabled(memtag_heap) &&
+		!sanitize.isSanitizerEnabled(Memtag_heap) &&
 		!sanitize.isSanitizerEnabled(Fuzzer)
 }
 
@@ -859,7 +861,7 @@ func (sanitize *sanitize) SetSanitizer(t SanitizerType, b bool) {
 		sanitize.Properties.Sanitize.Cfi = bPtr
 	case scs:
 		sanitize.Properties.Sanitize.Scs = bPtr
-	case memtag_heap:
+	case Memtag_heap:
 		sanitize.Properties.Sanitize.Memtag_heap = bPtr
 	case Fuzzer:
 		sanitize.Properties.Sanitize.Fuzzer = bPtr
@@ -1148,7 +1150,7 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 			if lib, ok := snapshot.StaticLibs[noteDep]; ok {
 				noteDep = lib
 			}
-			depTag := libraryDependencyTag{Kind: staticLibraryDependency, wholeStatic: true}
+			depTag := StaticDepTag(true)
 			variations := append(mctx.Target().Variations(),
 				blueprint.Variation{Mutator: "link", Variation: "static"})
 			if c.Device() {
@@ -1318,6 +1320,10 @@ var _ PlatformSanitizeable = (*Module)(nil)
 func sanitizerMutator(t SanitizerType) func(android.BottomUpMutatorContext) {
 	return func(mctx android.BottomUpMutatorContext) {
 		if c, ok := mctx.Module().(PlatformSanitizeable); ok && c.SanitizePropDefined() {
+
+			// Make sure we're not setting CFI to any value if it's not supported.
+			cfiSupported := mctx.Module().(PlatformSanitizeable).SanitizerSupported(cfi)
+
 			if c.Binary() && c.IsSanitizerEnabled(t) {
 				modules := mctx.CreateVariations(t.variationName())
 				modules[0].(PlatformSanitizeable).SetSanitizer(t, true)
@@ -1338,7 +1344,6 @@ func sanitizerMutator(t SanitizerType) func(android.BottomUpMutatorContext) {
 					// is redirected to the sanitized variant of the dependent module.
 					defaultVariation := t.variationName()
 					// Not all PlatformSanitizeable modules support the CFI sanitizer
-					cfiSupported := mctx.Module().(PlatformSanitizeable).SanitizerSupported(cfi)
 					mctx.SetDefaultDependencyVariation(&defaultVariation)
 
 					modules := mctx.CreateVariations("", t.variationName())
@@ -1385,7 +1390,7 @@ func sanitizerMutator(t SanitizerType) func(android.BottomUpMutatorContext) {
 						modules[0].(PlatformSanitizeable).SetInSanitizerDir()
 					}
 
-					if mctx.Device() && t.incompatibleWithCfi() {
+					if mctx.Device() && t.incompatibleWithCfi() && cfiSupported {
 						// TODO: Make sure that cfi mutator runs "after" any of the sanitizers that
 						// are incompatible with cfi
 						modules[0].(PlatformSanitizeable).SetSanitizer(cfi, false)
