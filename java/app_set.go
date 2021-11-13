@@ -143,7 +143,17 @@ func (as *AndroidAppSet) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 				"zip":               as.packedOutput.String(),
 			},
 		})
+
+	var installDir android.InstallPath
+	if as.Privileged() {
+		installDir = android.PathForModuleInstall(ctx, "priv-app", as.BaseModuleName())
+	} else {
+		installDir = android.PathForModuleInstall(ctx, "app", as.BaseModuleName())
+	}
+	ctx.InstallFileWithExtraFilesZip(installDir, as.BaseModuleName()+".apk", as.primaryOutput, as.packedOutput)
 }
+
+func (as *AndroidAppSet) InstallBypassMake() bool { return true }
 
 // android_app_set extracts a set of APKs based on the target device
 // configuration and installs this set as "split APKs".
