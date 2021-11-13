@@ -147,6 +147,7 @@ func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.An
 			}
 		})
 }
+
 func (procMacro *procMacroDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkEntries) {
 	ctx.SubAndroidMk(ret, procMacro.baseCompiler)
 

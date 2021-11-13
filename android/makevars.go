@@ -422,6 +422,7 @@ func (s *makeVarsSingleton) writeLate(phonies []phony, dists []dist) []byte {
 	fmt.Fprintln(buf)
 
 	for _, dist := range dists {
+		fmt.Fprintf(buf, ".PHONY: %s\n", strings.Join(dist.goals, " "))
 		fmt.Fprintf(buf, "$(call dist-for-goals,%s,%s)\n",
 			strings.Join(dist.goals, " "), strings.Join(dist.paths, " "))
 	}

@@ -1,5 +1,6 @@
 package {
     default_applicable_licenses: ["Android-Apache-2.0"],
+    default_visibility: ["//build/soong:__subpackages__"],
 }
 
 python_binary_host {
@@ -8,14 +9,6 @@ python_binary_host {
     srcs: [
         "check_boot_jars/check_boot_jars.py",
     ],
-    version: {
-        py2: {
-            enabled: true,
-        },
-        py3: {
-            enabled: false,
-        },
-    },
 }
 
 python_binary_host {
@@ -24,14 +17,6 @@ python_binary_host {
     srcs: [
         "manifest_fixer.py",
     ],
-    version: {
-        py2: {
-            enabled: true,
-        },
-        py3: {
-            enabled: false,
-        },
-    },
     libs: [
         "manifest_utils",
     ],
@@ -45,11 +30,8 @@ python_test_host {
         "manifest_fixer.py",
     ],
     version: {
-        py2: {
-            enabled: true,
-        },
         py3: {
-            enabled: false,
+            embedded_launcher: true,
         },
     },
     libs: [
@@ -67,12 +49,14 @@ python_library_host {
     ],
     version: {
         py2: {
+            // TODO(b/203436762) Remove when system/apex/apexer/apexer.py is converted
             enabled: true,
         },
         py3: {
-            enabled: false,
+            enabled: true,
         },
     },
+    visibility: ["//system/apex/apexer:__pkg__"],
 }
 
 python_binary_host {
@@ -81,14 +65,6 @@ python_binary_host {
     srcs: [
         "manifest_check.py",
     ],
-    version: {
-        py2: {
-            enabled: true,
-        },
-        py3: {
-            enabled: false,
-        },
-    },
     libs: [
         "manifest_utils",
     ],
@@ -101,14 +77,6 @@ python_test_host {
         "manifest_check_test.py",
         "manifest_check.py",
     ],
-    version: {
-        py2: {
-            enabled: true,
-        },
-        py3: {
-            enabled: false,
-        },
-    },
     libs: [
         "manifest_utils",
     ],
@@ -123,14 +91,6 @@ python_binary_host {
     srcs: [
         "jsonmodify.py",
     ],
-    version: {
-        py2: {
-            enabled: true,
-        },
-        py3: {
-            enabled: false,
-        },
-    },
 }
 
 python_binary_host {
@@ -139,14 +99,6 @@ python_binary_host {
     srcs: [
         "test_config_fixer.py",
     ],
-    version: {
-        py2: {
-            enabled: true,
-        },
-        py3: {
-            enabled: false,
-        },
-    },
     libs: [
         "manifest_utils",
     ],
@@ -159,14 +111,6 @@ python_test_host {
         "test_config_fixer_test.py",
         "test_config_fixer.py",
     ],
-    version: {
-        py2: {
-            enabled: true,
-        },
-        py3: {
-            enabled: false,
-        },
-    },
     libs: [
         "manifest_utils",
     ],
@@ -179,14 +123,6 @@ python_binary_host {
     srcs: [
         "construct_context.py",
     ],
-    version: {
-        py2: {
-            enabled: true,
-        },
-        py3: {
-            enabled: false,
-        },
-    },
     libs: [
         "manifest_utils",
     ],
@@ -199,14 +135,6 @@ python_test_host {
         "construct_context_test.py",
         "construct_context.py",
     ],
-    version: {
-        py2: {
-            enabled: true,
-        },
-        py3: {
-            enabled: false,
-        },
-    },
     libs: [
         "manifest_utils",
     ],
@@ -253,11 +181,7 @@ python_binary_host {
         "conv_linker_config.py",
     ],
     version: {
-        py2: {
-            enabled: false,
-        },
         py3: {
-            enabled: true,
             embedded_launcher: true,
         },
     },
@@ -272,12 +196,4 @@ python_binary_host {
     srcs: [
         "get_clang_version.py",
     ],
-    version: {
-        py2: {
-            enabled: false,
-        },
-        py3: {
-            enabled: true,
-        },
-    },
 }
