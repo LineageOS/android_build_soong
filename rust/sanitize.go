@@ -237,12 +237,10 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags, deps PathDeps) (
 		} else {
 			flags.RustFlags = append(flags.RustFlags, asanFlags...)
 		}
-	}
-	if Bool(sanitize.Properties.Sanitize.Address) {
-		flags.RustFlags = append(flags.RustFlags, asanFlags...)
-	}
-	if Bool(sanitize.Properties.Sanitize.Hwaddress) {
+	} else if Bool(sanitize.Properties.Sanitize.Hwaddress) {
 		flags.RustFlags = append(flags.RustFlags, hwasanFlags...)
+	} else if Bool(sanitize.Properties.Sanitize.Address) {
+		flags.RustFlags = append(flags.RustFlags, asanFlags...)
 	}
 	return flags, deps
 }
