@@ -23,6 +23,9 @@ import (
 
 func runPrebuiltEtcTestCase(t *testing.T, tc bp2buildTestCase) {
 	t.Helper()
+	(&tc).moduleTypeUnderTest = "prebuilt_etc"
+	(&tc).moduleTypeUnderTestFactory = etc.PrebuiltEtcFactory
+	(&tc).moduleTypeUnderTestBp2BuildMutator = etc.PrebuiltEtcBp2Build
 	runBp2BuildTestCase(t, registerPrebuiltEtcModuleTypes, tc)
 }
 
@@ -31,11 +34,8 @@ func registerPrebuiltEtcModuleTypes(ctx android.RegistrationContext) {
 
 func TestPrebuiltEtcSimple(t *testing.T) {
 	runPrebuiltEtcTestCase(t, bp2buildTestCase{
-		description:                        "prebuilt_etc - simple example",
-		moduleTypeUnderTest:                "prebuilt_etc",
-		moduleTypeUnderTestFactory:         etc.PrebuiltEtcFactory,
-		moduleTypeUnderTestBp2BuildMutator: etc.PrebuiltEtcBp2Build,
-		filesystem:                         map[string]string{},
+		description: "prebuilt_etc - simple example",
+		filesystem:  map[string]string{},
 		blueprint: `
 prebuilt_etc {
     name: "apex_tz_version",
@@ -45,22 +45,19 @@ prebuilt_etc {
     installable: false,
 }
 `,
-		expectedBazelTargets: []string{`prebuilt_etc(
-    name = "apex_tz_version",
-    filename = "tz_version",
-    installable = False,
-    src = "version/tz_version",
-    sub_dir = "tz",
-)`}})
+		expectedBazelTargets: []string{
+			makeBazelTarget("prebuilt_etc", "apex_tz_version", attrNameToString{
+				"filename":    `"tz_version"`,
+				"installable": `False`,
+				"src":         `"version/tz_version"`,
+				"sub_dir":     `"tz"`,
+			})}})
 }
 
 func TestPrebuiltEtcArchVariant(t *testing.T) {
 	runPrebuiltEtcTestCase(t, bp2buildTestCase{
-		description:                        "prebuilt_etc - simple example",
-		moduleTypeUnderTest:                "prebuilt_etc",
-		moduleTypeUnderTestFactory:         etc.PrebuiltEtcFactory,
-		moduleTypeUnderTestBp2BuildMutator: etc.PrebuiltEtcBp2Build,
-		filesystem:                         map[string]string{},
+		description: "prebuilt_etc - arch variant",
+		filesystem:  map[string]string{},
 		blueprint: `
 prebuilt_etc {
     name: "apex_tz_version",
@@ -78,15 +75,15 @@ prebuilt_etc {
     }
 }
 `,
-		expectedBazelTargets: []string{`prebuilt_etc(
-    name = "apex_tz_version",
-    filename = "tz_version",
-    installable = False,
-    src = select({
+		expectedBazelTargets: []string{
+			makeBazelTarget("prebuilt_etc", "apex_tz_version", attrNameToString{
+				"filename":    `"tz_version"`,
+				"installable": `False`,
+				"src": `select({
         "//build/bazel/platforms/arch:arm": "arm",
         "//build/bazel/platforms/arch:arm64": "arm64",
         "//conditions:default": "version/tz_version",
-    }),
-    sub_dir = "tz",
-)`}})
+    })`,
+				"sub_dir": `"tz"`,
+			})}})
 }

@@ -7,7 +7,8 @@ import (
 	"android/soong/python"
 )
 
-func runBp2BuildTestCaseWithLibs(t *testing.T, tc bp2buildTestCase) {
+func runBp2BuildTestCaseWithPythonLibraries(t *testing.T, tc bp2buildTestCase) {
+	t.Helper()
 	runBp2BuildTestCase(t, func(ctx android.RegistrationContext) {
 		ctx.RegisterModuleType("python_library", python.PythonLibraryFactory)
 		ctx.RegisterModuleType("python_library_host", python.PythonLibraryHostFactory)
@@ -15,7 +16,7 @@ func runBp2BuildTestCaseWithLibs(t *testing.T, tc bp2buildTestCase) {
 }
 
 func TestPythonBinaryHostSimple(t *testing.T) {
-	runBp2BuildTestCaseWithLibs(t, bp2buildTestCase{
+	runBp2BuildTestCaseWithPythonLibraries(t, bp2buildTestCase{
 		description:                        "simple python_binary_host converts to a native py_binary",
 		moduleTypeUnderTest:                "python_binary_host",
 		moduleTypeUnderTestFactory:         python.PythonBinaryHostFactory,
@@ -41,17 +42,17 @@ func TestPythonBinaryHostSimple(t *testing.T) {
       srcs: ["b/e.py"],
       bazel_module: { bp2build_available: true },
     }`,
-		expectedBazelTargets: []string{`py_binary(
-    name = "foo",
-    data = ["files/data.txt"],
-    deps = [":bar"],
-    main = "a.py",
-    srcs = [
+		expectedBazelTargets: []string{
+			makeBazelTarget("py_binary", "foo", attrNameToString{
+				"data": `["files/data.txt"]`,
+				"deps": `[":bar"]`,
+				"main": `"a.py"`,
+				"srcs": `[
         "a.py",
         "b/c.py",
         "b/d.py",
-    ],
-)`,
+    ]`,
+			}),
 		},
 	})
 }
@@ -77,11 +78,11 @@ func TestPythonBinaryHostPy2(t *testing.T) {
     bazel_module: { bp2build_available: true },
 }
 `,
-		expectedBazelTargets: []string{`py_binary(
-    name = "foo",
-    python_version = "PY2",
-    srcs = ["a.py"],
-)`,
+		expectedBazelTargets: []string{
+			makeBazelTarget("py_binary", "foo", attrNameToString{
+				"python_version": `"PY2"`,
+				"srcs":           `["a.py"]`,
+			}),
 		},
 	})
 }
@@ -109,10 +110,9 @@ func TestPythonBinaryHostPy3(t *testing.T) {
 `,
 		expectedBazelTargets: []string{
 			// python_version is PY3 by default.
-			`py_binary(
-    name = "foo",
-    srcs = ["a.py"],
-)`,
+			makeBazelTarget("py_binary", "foo", attrNameToString{
+				"srcs": `["a.py"]`,
+			}),
 		},
 	})
 }
@@ -139,14 +139,13 @@ func TestPythonBinaryHostArchVariance(t *testing.T) {
 					},
 				 }`,
 		expectedBazelTargets: []string{
-			`py_binary(
-    name = "foo-arm",
-    srcs = select({
+			makeBazelTarget("py_binary", "foo-arm", attrNameToString{
+				"srcs": `select({
         "//build/bazel/platforms/arch:arm": ["arm.py"],
         "//build/bazel/platforms/arch:x86": ["x86.py"],
         "//conditions:default": [],
-    }),
-)`,
+    })`,
+			}),
 		},
 	})
 }
