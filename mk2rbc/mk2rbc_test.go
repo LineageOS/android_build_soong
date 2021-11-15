@@ -353,6 +353,21 @@ def init(g, handle):
 `,
 	},
 	{
+		desc:   "ifeq with soong_config_get",
+		mkname: "product.mk",
+		in: `
+ifeq (true,$(call soong_config_get,art_module,source_build))
+endif
+`,
+		expected: `load("//build/make/core:product_config.rbc", "rblf")
+
+def init(g, handle):
+  cfg = rblf.cfg(handle)
+  if "true" == rblf.soong_config_get(g, "art_module", "source_build"):
+    pass
+`,
+	},
+	{
 		desc:   "Check filter result",
 		mkname: "product.mk",
 		in: `
@@ -511,6 +526,21 @@ def init(g, handle):
   if not rblf.file_exists("foo.mk"):
     pass
   if rblf.file_wildcard_exists("foo*.mk"):
+    pass
+`,
+	},
+	{
+		desc:   "if with interpolation",
+		mkname: "product.mk",
+		in: `
+ifeq ($(VARIABLE1)text$(VARIABLE2),true)
+endif
+`,
+		expected: `load("//build/make/core:product_config.rbc", "rblf")
+
+def init(g, handle):
+  cfg = rblf.cfg(handle)
+  if "%stext%s" % (g.get("VARIABLE1", ""), g.get("VARIABLE2", "")) == "true":
     pass
 `,
 	},
