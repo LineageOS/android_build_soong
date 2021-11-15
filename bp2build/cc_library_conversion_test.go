@@ -81,8 +81,8 @@ func TestCcLibrarySimple(t *testing.T) {
 			"x86_64.cpp":       "",
 			"foo-dir/a.h":      "",
 		},
-		blueprint: soongCcLibraryPreamble + `
-cc_library_headers { name: "some-headers" }
+		blueprint: soongCcLibraryPreamble +
+			simpleModuleDoNotConvertBp2build("cc_library_headers", "some-headers") + `
 cc_library {
     name: "foo-lib",
     srcs: ["impl.cpp"],
@@ -117,17 +117,17 @@ cc_library {
     include_build_directory: false,
 }
 `,
-		expectedBazelTargets: []string{`cc_library(
-    name = "foo-lib",
-    copts = ["-Wall"],
-    export_includes = ["foo-dir"],
-    implementation_deps = [":some-headers"],
-    linkopts = ["-Wl,--exclude-libs=bar.a"] + select({
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_library", "foo-lib", attrNameToString{
+				"copts":               `["-Wall"]`,
+				"export_includes":     `["foo-dir"]`,
+				"implementation_deps": `[":some-headers"]`,
+				"linkopts": `["-Wl,--exclude-libs=bar.a"] + select({
         "//build/bazel/platforms/arch:x86": ["-Wl,--exclude-libs=baz.a"],
         "//build/bazel/platforms/arch:x86_64": ["-Wl,--exclude-libs=qux.a"],
         "//conditions:default": [],
-    }),
-    srcs = ["impl.cpp"] + select({
+    })`,
+				"srcs": `["impl.cpp"] + select({
         "//build/bazel/platforms/arch:x86": ["x86.cpp"],
         "//build/bazel/platforms/arch:x86_64": ["x86_64.cpp"],
         "//conditions:default": [],
@@ -140,8 +140,10 @@ cc_library {
         "//build/bazel/platforms/os:linux": ["linux.cpp"],
         "//build/bazel/platforms/os:linux_bionic": ["bionic.cpp"],
         "//conditions:default": [],
-    }),
-)`}})
+    })`,
+			}),
+		},
+	})
 }
 
 func TestCcLibraryTrimmedLdAndroid(t *testing.T) {
@@ -188,16 +190,17 @@ cc_library {
     include_build_directory: false,
 }
 `,
-		expectedBazelTargets: []string{`cc_library(
-    name = "fake-ld-android",
-    copts = [
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_library", "fake-ld-android", attrNameToString{
+				"srcs": `["ld_android.cpp"]`,
+				"copts": `[
         "-Wall",
         "-Wextra",
         "-Wunused",
         "-Werror",
-    ],
-    implementation_deps = [":libc_headers"],
-    linkopts = [
+    ]`,
+				"implementation_deps": `[":libc_headers"]`,
+				"linkopts": `[
         "-Wl,--exclude-libs=libgcc.a",
         "-Wl,--exclude-libs=libgcc_stripped.a",
         "-Wl,--exclude-libs=libclang_rt.builtins-arm-android.a",
@@ -208,9 +211,9 @@ cc_library {
         "//build/bazel/platforms/arch:x86": ["-Wl,--exclude-libs=libgcc_eh.a"],
         "//build/bazel/platforms/arch:x86_64": ["-Wl,--exclude-libs=libgcc_eh.a"],
         "//conditions:default": [],
-    }),
-    srcs = ["ld_android.cpp"],
-)`},
+    })`,
+			}),
+		},
 	})
 }
 
@@ -255,15 +258,16 @@ cc_library {
 `,
 		},
 		blueprint: soongCcLibraryPreamble,
-		expectedBazelTargets: []string{`cc_library(
-    name = "fake-libarm-optimized-routines-math",
-    copts = select({
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_library", "fake-libarm-optimized-routines-math", attrNameToString{
+				"copts": `select({
         "//build/bazel/platforms/arch:arm64": ["-DHAVE_FAST_FMA=1"],
         "//conditions:default": [],
-    }),
-    local_includes = ["."],
-    srcs_c = ["math/cosf.c"],
-)`},
+    })`,
+				"local_includes": `["."]`,
+				"srcs_c":         `["math/cosf.c"]`,
+			}),
+		},
 	})
 }
 
@@ -348,28 +352,29 @@ cc_library {
     bazel_module: { bp2build_available: false },
 }
 `,
-		expectedBazelTargets: []string{`cc_library(
-    name = "a",
-    copts = ["bothflag"],
-    implementation_deps = [":static_dep_for_both"],
-    implementation_dynamic_deps = [":shared_dep_for_both"],
-    shared = {
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_library", "a", attrNameToString{
+				"copts":                       `["bothflag"]`,
+				"implementation_deps":         `[":static_dep_for_both"]`,
+				"implementation_dynamic_deps": `[":shared_dep_for_both"]`,
+				"shared": `{
         "copts": ["sharedflag"],
         "implementation_deps": [":static_dep_for_shared"],
         "implementation_dynamic_deps": [":shared_dep_for_shared"],
         "srcs": ["sharedonly.cpp"],
         "whole_archive_deps": [":whole_static_lib_for_shared"],
-    },
-    srcs = ["both.cpp"],
-    static = {
+    }`,
+				"srcs": `["both.cpp"]`,
+				"static": `{
         "copts": ["staticflag"],
         "implementation_deps": [":static_dep_for_static"],
         "implementation_dynamic_deps": [":shared_dep_for_static"],
         "srcs": ["staticonly.cpp"],
         "whole_archive_deps": [":whole_static_lib_for_static"],
-    },
-    whole_archive_deps = [":whole_static_lib_for_both"],
-)`},
+    }`,
+				"whole_archive_deps": `[":whole_static_lib_for_both"]`,
+			}),
+		},
 	})
 }
 
@@ -432,14 +437,14 @@ cc_library {
 			simpleModuleDoNotConvertBp2build("cc_library", "implementation_shared_dep_for_static") +
 			simpleModuleDoNotConvertBp2build("cc_library", "shared_dep_for_both") +
 			simpleModuleDoNotConvertBp2build("cc_library", "implementation_shared_dep_for_both"),
-		expectedBazelTargets: []string{`cc_library(
-    name = "a",
-    copts = ["bothflag"],
-    deps = [":static_dep_for_both"],
-    dynamic_deps = [":shared_dep_for_both"],
-    implementation_deps = [":implementation_static_dep_for_both"],
-    implementation_dynamic_deps = [":implementation_shared_dep_for_both"],
-    shared = {
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_library", "a", attrNameToString{
+				"copts":                       `["bothflag"]`,
+				"deps":                        `[":static_dep_for_both"]`,
+				"dynamic_deps":                `[":shared_dep_for_both"]`,
+				"implementation_deps":         `[":implementation_static_dep_for_both"]`,
+				"implementation_dynamic_deps": `[":implementation_shared_dep_for_both"]`,
+				"shared": `{
         "copts": ["sharedflag"],
         "deps": [":static_dep_for_shared"],
         "dynamic_deps": [":shared_dep_for_shared"],
@@ -450,9 +455,9 @@ cc_library {
             ":not_explicitly_exported_whole_static_dep_for_shared",
             ":whole_static_dep_for_shared",
         ],
-    },
-    srcs = ["both.cpp"],
-    static = {
+    }`,
+				"srcs": `["both.cpp"]`,
+				"static": `{
         "copts": ["staticflag"],
         "deps": [":static_dep_for_static"],
         "dynamic_deps": [":shared_dep_for_static"],
@@ -463,12 +468,13 @@ cc_library {
             ":not_explicitly_exported_whole_static_dep_for_static",
             ":whole_static_dep_for_static",
         ],
-    },
-    whole_archive_deps = [
+    }`,
+				"whole_archive_deps": `[
         ":not_explicitly_exported_whole_static_dep_for_both",
         ":whole_static_dep_for_both",
-    ],
-)`},
+    ]`,
+			}),
+		},
 	})
 }
 
@@ -501,16 +507,17 @@ cc_prebuilt_library_static { name: "whole_static_lib_for_both" }
 `,
 		},
 		blueprint: soongCcLibraryPreamble,
-		expectedBazelTargets: []string{`cc_library(
-    name = "a",
-    shared = {
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_library", "a", attrNameToString{
+				"shared": `{
         "whole_archive_deps": [":whole_static_lib_for_shared_alwayslink"],
-    },
-    static = {
+    }`,
+				"static": `{
         "whole_archive_deps": [":whole_static_lib_for_static_alwayslink"],
-    },
-    whole_archive_deps = [":whole_static_lib_for_both_alwayslink"],
-)`},
+    }`,
+				"whole_archive_deps": `[":whole_static_lib_for_both_alwayslink"]`,
+			}),
+		},
 	})
 }
 
@@ -591,12 +598,12 @@ cc_library_static { name: "android_dep_for_shared" }
 `,
 		},
 		blueprint: soongCcLibraryPreamble,
-		expectedBazelTargets: []string{`cc_library(
-    name = "a",
-    copts = ["bothflag"],
-    implementation_deps = [":static_dep_for_both"],
-    local_includes = ["."],
-    shared = {
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_library", "a", attrNameToString{
+				"copts":               `["bothflag"]`,
+				"implementation_deps": `[":static_dep_for_both"]`,
+				"local_includes":      `["."]`,
+				"shared": `{
         "copts": ["sharedflag"] + select({
             "//build/bazel/platforms/arch:arm": ["-DARM_SHARED"],
             "//conditions:default": [],
@@ -629,9 +636,9 @@ cc_library_static { name: "android_dep_for_shared" }
             "//build/bazel/platforms/arch:arm": [":arm_whole_static_dep_for_shared"],
             "//conditions:default": [],
         }),
-    },
-    srcs = ["both.cpp"],
-    static = {
+    }`,
+				"srcs": `["both.cpp"]`,
+				"static": `{
         "copts": ["staticflag"] + select({
             "//build/bazel/platforms/arch:x86": ["-DX86_STATIC"],
             "//conditions:default": [],
@@ -644,8 +651,9 @@ cc_library_static { name: "android_dep_for_shared" }
             "//build/bazel/platforms/arch:x86": ["x86_static.cpp"],
             "//conditions:default": [],
         }),
-    },
-)`},
+    }`,
+			}),
+		},
 	})
 }
 
@@ -729,10 +737,10 @@ filegroup {
 `,
 		},
 		blueprint: soongCcLibraryPreamble,
-		expectedBazelTargets: []string{`cc_library(
-    name = "a",
-    local_includes = ["."],
-    shared = {
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_library", "a", attrNameToString{
+				"local_includes": `["."]`,
+				"shared": `{
         "srcs": [
             "shared_source.cpp",
             "shared_source.cc",
@@ -747,22 +755,22 @@ filegroup {
             "shared_source.c",
             ":shared_filegroup_c_srcs",
         ],
-    },
-    srcs = [
+    }`,
+				"srcs": `[
         "both_source.cpp",
         "both_source.cc",
         ":both_filegroup_cpp_srcs",
-    ],
-    srcs_as = [
+    ]`,
+				"srcs_as": `[
         "both_source.s",
         "both_source.S",
         ":both_filegroup_as_srcs",
-    ],
-    srcs_c = [
+    ]`,
+				"srcs_c": `[
         "both_source.c",
         ":both_filegroup_c_srcs",
-    ],
-    static = {
+    ]`,
+				"static": `{
         "srcs": [
             "static_source.cpp",
             "static_source.cc",
@@ -777,8 +785,9 @@ filegroup {
             "static_source.c",
             ":static_filegroup_c_srcs",
         ],
-    },
-)`},
+    }`,
+			}),
+		},
 	})
 }
 
@@ -801,12 +810,13 @@ cc_library {
 `,
 		},
 		blueprint: soongCcLibraryPreamble,
-		expectedBazelTargets: []string{`cc_library(
-    name = "a",
-    additional_linker_inputs = ["v.map"],
-    linkopts = ["-Wl,--version-script,$(location v.map)"],
-    srcs = ["a.cpp"],
-)`},
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_library", "a", attrNameToString{
+				"additional_linker_inputs": `["v.map"]`,
+				"linkopts":                 `["-Wl,--version-script,$(location v.map)"]`,
+				"srcs":                     `["a.cpp"]`,
+			}),
+		},
 	})
 }
 
@@ -837,20 +847,21 @@ cc_library {
     `,
 		},
 		blueprint: soongCcLibraryPreamble,
-		expectedBazelTargets: []string{`cc_library(
-    name = "a",
-    additional_linker_inputs = select({
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_library", "a", attrNameToString{
+				"additional_linker_inputs": `select({
         "//build/bazel/platforms/arch:arm": ["arm.map"],
         "//build/bazel/platforms/arch:arm64": ["arm64.map"],
         "//conditions:default": [],
-    }),
-    linkopts = select({
+    })`,
+				"linkopts": `select({
         "//build/bazel/platforms/arch:arm": ["-Wl,--version-script,$(location arm.map)"],
         "//build/bazel/platforms/arch:arm64": ["-Wl,--version-script,$(location arm64.map)"],
         "//conditions:default": [],
-    }),
-    srcs = ["a.cpp"],
-)`},
+    })`,
+				"srcs": `["a.cpp"]`,
+			}),
+		},
 	})
 }
 
@@ -872,10 +883,11 @@ cc_library {
     include_build_directory: false,
 }
 `,
-		expectedBazelTargets: []string{`cc_library(
-    name = "a",
-    implementation_dynamic_deps = [":mylib"],
-)`},
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_library", "a", attrNameToString{
+				"implementation_dynamic_deps": `[":mylib"]`,
+			}),
+		},
 	})
 }
 
@@ -917,34 +929,33 @@ cc_library {
     },
     include_build_directory: false,
 }`,
-		expectedBazelTargets: []string{`cc_library(
-    name = "a",
-    features = [
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_library", "a", attrNameToString{
+				"features": `[
         "disable_pack_relocations",
         "-no_undefined_symbols",
-    ],
-    srcs = ["a.cpp"],
-)`, `cc_library(
-    name = "b",
-    features = select({
+    ]`,
+				"srcs": `["a.cpp"]`,
+			}), makeBazelTarget("cc_library", "b", attrNameToString{
+				"features": `select({
         "//build/bazel/platforms/arch:x86_64": [
             "disable_pack_relocations",
             "-no_undefined_symbols",
         ],
         "//conditions:default": [],
-    }),
-    srcs = ["b.cpp"],
-)`, `cc_library(
-    name = "c",
-    features = select({
+    })`,
+				"srcs": `["b.cpp"]`,
+			}), makeBazelTarget("cc_library", "c", attrNameToString{
+				"features": `select({
         "//build/bazel/platforms/os:darwin": [
             "disable_pack_relocations",
             "-no_undefined_symbols",
         ],
         "//conditions:default": [],
-    }),
-    srcs = ["c.cpp"],
-)`},
+    })`,
+				"srcs": `["c.cpp"]`,
+			}),
+		},
 	})
 }
 
@@ -961,13 +972,14 @@ cc_library {
     include_build_directory: false,
 }
 `,
-		expectedBazelTargets: []string{`cc_library(
-    name = "a",
-    copts = [
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_library", "a", attrNameToString{
+				"copts": `[
         "-include",
         "header.h",
-    ],
-)`},
+    ]`,
+			}),
+		},
 	})
 }
 
@@ -998,10 +1010,10 @@ func TestCcLibraryCppFlagsGoesIntoCopts(t *testing.T) {
     include_build_directory: false,
 }
 `,
-		expectedBazelTargets: []string{`cc_library(
-    name = "a",
-    copts = ["-Wall"],
-    cppflags = [
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_library", "a", attrNameToString{
+				"copts": `["-Wall"]`,
+				"cppflags": `[
         "-fsigned-char",
         "-pedantic",
     ] + select({
@@ -1010,9 +1022,10 @@ func TestCcLibraryCppFlagsGoesIntoCopts(t *testing.T) {
     }) + select({
         "//build/bazel/platforms/os:android": ["-DANDROID=1"],
         "//conditions:default": [],
-    }),
-    srcs = ["a.cpp"],
-)`},
+    })`,
+				"srcs": `["a.cpp"]`,
+			}),
+		},
 	})
 }
 
@@ -1097,31 +1110,30 @@ cc_library {
 }
 `,
 		expectedBazelTargets: []string{
-			`cc_library(
-    name = "foo_static",
-    implementation_deps = select({
+			makeBazelTarget("cc_library", "foo_static", attrNameToString{
+				"implementation_deps": `select({
         "//build/bazel/platforms/arch:arm": [],
         "//conditions:default": [":arm_static_lib_excludes_bp2build_cc_library_static"],
     }) + select({
         "//build/bazel/product_variables:malloc_not_svelte": [],
         "//conditions:default": [":malloc_not_svelte_static_lib_excludes_bp2build_cc_library_static"],
-    }),
-    implementation_dynamic_deps = select({
+    })`,
+				"implementation_dynamic_deps": `select({
         "//build/bazel/platforms/arch:arm": [],
         "//conditions:default": [":arm_shared_lib_excludes"],
     }) + select({
         "//build/bazel/product_variables:malloc_not_svelte": [":malloc_not_svelte_shared_lib"],
         "//conditions:default": [],
-    }),
-    srcs_c = ["common.c"],
-    whole_archive_deps = select({
+    })`,
+				"srcs_c": `["common.c"]`,
+				"whole_archive_deps": `select({
         "//build/bazel/platforms/arch:arm": [],
         "//conditions:default": [":arm_whole_static_lib_excludes_bp2build_cc_library_static"],
     }) + select({
         "//build/bazel/product_variables:malloc_not_svelte": [":malloc_not_svelte_whole_static_lib_bp2build_cc_library_static"],
         "//conditions:default": [":malloc_not_svelte_whole_static_lib_excludes_bp2build_cc_library_static"],
-    }),
-)`,
+    })`,
+			}),
 		},
 	})
 }
@@ -1143,11 +1155,13 @@ cc_library {
     include_build_directory: false,
 }
 `,
-		expectedBazelTargets: []string{`cc_library(
-    name = "foo-lib",
-    link_crt = False,
-    srcs = ["impl.cpp"],
-)`}})
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_library", "foo-lib", attrNameToString{
+				"link_crt": `False`,
+				"srcs":     `["impl.cpp"]`,
+			}),
+		},
+	})
 }
 
 func TestCCLibraryNoCrtFalse(t *testing.T) {
@@ -1167,10 +1181,12 @@ cc_library {
     include_build_directory: false,
 }
 `,
-		expectedBazelTargets: []string{`cc_library(
-    name = "foo-lib",
-    srcs = ["impl.cpp"],
-)`}})
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_library", "foo-lib", attrNameToString{
+				"srcs": `["impl.cpp"]`,
+			}),
+		},
+	})
 }
 
 func TestCCLibraryNoCrtArchVariant(t *testing.T) {
@@ -1219,11 +1235,12 @@ cc_library {
     include_build_directory: false,
 }
 `,
-		expectedBazelTargets: []string{`cc_library(
-    name = "foo-lib",
-    srcs = ["impl.cpp"],
-    use_libcrt = False,
-)`}})
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_library", "foo-lib", attrNameToString{
+				"srcs":       `["impl.cpp"]`,
+				"use_libcrt": `False`,
+			}),
+		}})
 }
 
 func TestCCLibraryNoLibCrtFalse(t *testing.T) {
@@ -1243,11 +1260,12 @@ cc_library {
     include_build_directory: false,
 }
 `,
-		expectedBazelTargets: []string{`cc_library(
-    name = "foo-lib",
-    srcs = ["impl.cpp"],
-    use_libcrt = True,
-)`}})
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_library", "foo-lib", attrNameToString{
+				"srcs":       `["impl.cpp"]`,
+				"use_libcrt": `True`,
+			}),
+		}})
 }
 
 func TestCCLibraryNoLibCrtArchVariant(t *testing.T) {
@@ -1273,15 +1291,16 @@ cc_library {
     include_build_directory: false,
 }
 `,
-		expectedBazelTargets: []string{`cc_library(
-    name = "foo-lib",
-    srcs = ["impl.cpp"],
-    use_libcrt = select({
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_library", "foo-lib", attrNameToString{
+				"srcs": `["impl.cpp"]`,
+				"use_libcrt": `select({
         "//build/bazel/platforms/arch:arm": False,
         "//build/bazel/platforms/arch:x86": False,
         "//conditions:default": None,
-    }),
-)`}})
+    })`,
+			}),
+		}})
 }
 
 func TestCcLibraryStrip(t *testing.T) {
@@ -1331,34 +1350,29 @@ cc_library {
     include_build_directory: false,
 }
 `,
-		expectedBazelTargets: []string{`cc_library(
-    name = "all",
-    strip = {
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_library", "all", attrNameToString{
+				"strip": `{
         "all": True,
-    },
-)`, `cc_library(
-    name = "keep_symbols",
-    strip = {
+    }`,
+			}), makeBazelTarget("cc_library", "keep_symbols", attrNameToString{
+				"strip": `{
         "keep_symbols": True,
-    },
-)`, `cc_library(
-    name = "keep_symbols_and_debug_frame",
-    strip = {
+    }`,
+			}), makeBazelTarget("cc_library", "keep_symbols_and_debug_frame", attrNameToString{
+				"strip": `{
         "keep_symbols_and_debug_frame": True,
-    },
-)`, `cc_library(
-    name = "keep_symbols_list",
-    strip = {
+    }`,
+			}), makeBazelTarget("cc_library", "keep_symbols_list", attrNameToString{
+				"strip": `{
         "keep_symbols_list": ["symbol"],
-    },
-)`, `cc_library(
-    name = "none",
-    strip = {
+    }`,
+			}), makeBazelTarget("cc_library", "none", attrNameToString{
+				"strip": `{
         "none": True,
-    },
-)`, `cc_library(
-    name = "nothing",
-)`},
+    }`,
+			}), makeBazelTarget("cc_library", "nothing", attrNameToString{}),
+		},
 	})
 }
 
@@ -1393,9 +1407,9 @@ cc_library {
     include_build_directory: false,
 }
 `,
-		expectedBazelTargets: []string{`cc_library(
-    name = "multi-arch",
-    strip = {
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_library", "multi-arch", attrNameToString{
+				"strip": `{
         "keep_symbols": select({
             "//build/bazel/platforms/arch:arm64": True,
             "//conditions:default": None,
@@ -1411,8 +1425,9 @@ cc_library {
             ],
             "//conditions:default": [],
         }),
-    },
-)`},
+    }`,
+			}),
+		},
 	})
 }
 
@@ -1429,10 +1444,11 @@ cc_library {
     include_build_directory: false,
 }
 `,
-		expectedBazelTargets: []string{`cc_library(
-    name = "root_empty",
-    system_dynamic_deps = [],
-)`},
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_library", "root_empty", attrNameToString{
+				"system_dynamic_deps": `[]`,
+			}),
+		},
 	})
 }
 
@@ -1451,12 +1467,13 @@ cc_library {
     include_build_directory: false,
 }
 `,
-		expectedBazelTargets: []string{`cc_library(
-    name = "static_empty",
-    static = {
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_library", "static_empty", attrNameToString{
+				"static": `{
         "system_dynamic_deps": [],
-    },
-)`},
+    }`,
+			}),
+		},
 	})
 }
 
@@ -1475,12 +1492,13 @@ cc_library {
     include_build_directory: false,
 }
 `,
-		expectedBazelTargets: []string{`cc_library(
-    name = "shared_empty",
-    shared = {
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_library", "shared_empty", attrNameToString{
+				"shared": `{
         "system_dynamic_deps": [],
-    },
-)`},
+    }`,
+			}),
+		},
 	})
 }
 
@@ -1503,12 +1521,13 @@ cc_library {
     include_build_directory: false,
 }
 `,
-		expectedBazelTargets: []string{`cc_library(
-    name = "shared_empty",
-    shared = {
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_library", "shared_empty", attrNameToString{
+				"shared": `{
         "system_dynamic_deps": [],
-    },
-)`},
+    }`,
+			}),
+		},
 	})
 }
 
@@ -1533,10 +1552,11 @@ cc_library {
     include_build_directory: false,
 }
 `,
-		expectedBazelTargets: []string{`cc_library(
-    name = "target_linux_bionic_empty",
-    system_dynamic_deps = [],
-)`},
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_library", "target_linux_bionic_empty", attrNameToString{
+				"system_dynamic_deps": `[]`,
+			}),
+		},
 	})
 }
 
@@ -1557,10 +1577,11 @@ cc_library {
     include_build_directory: false,
 }
 `,
-		expectedBazelTargets: []string{`cc_library(
-    name = "target_bionic_empty",
-    system_dynamic_deps = [],
-)`},
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_library", "target_bionic_empty", attrNameToString{
+				"system_dynamic_deps": `[]`,
+			}),
+		},
 	})
 }
 
@@ -1589,13 +1610,14 @@ cc_library {
     include_build_directory: false,
 }
 `,
-		expectedBazelTargets: []string{`cc_library(
-    name = "foo",
-    shared = {
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_library", "foo", attrNameToString{
+				"shared": `{
         "system_dynamic_deps": [":libm"],
-    },
-    system_dynamic_deps = [":libc"],
-)`},
+    }`,
+				"system_dynamic_deps": `[":libc"]`,
+			}),
+		},
 	})
 }
 
@@ -1637,9 +1659,9 @@ cc_library {
     include_build_directory: false,
 }
 `,
-		expectedBazelTargets: []string{`cc_library(
-    name = "foo-lib",
-    srcs = ["base.cpp"] + select({
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_library", "foo-lib", attrNameToString{
+				"srcs": `["base.cpp"] + select({
         "//build/bazel/platforms/os:android": [
             "linux.cpp",
             "bionic.cpp",
@@ -1660,9 +1682,10 @@ cc_library {
         ],
         "//build/bazel/platforms/os:windows": ["windows.cpp"],
         "//conditions:default": [],
-    }),
-)`}})
-
+    })`,
+			}),
+		},
+	})
 }
 
 func TestCcLibraryCppStdWithGnuExtensions_ConvertsToFeatureAttr(t *testing.T) {
@@ -1714,17 +1737,17 @@ func TestCcLibraryCppStdWithGnuExtensions_ConvertsToFeatureAttr(t *testing.T) {
 		{cpp_std: "gnu++17", gnu_extensions: "true", bazel_cpp_std: "gnu++17"},
 	}
 	for _, tc := range testCases {
-		cppStdAttr := ""
+		cppStdProp := ""
 		if tc.cpp_std != "" {
-			cppStdAttr = fmt.Sprintf("    cpp_std: \"%s\",", tc.cpp_std)
+			cppStdProp = fmt.Sprintf("    cpp_std: \"%s\",", tc.cpp_std)
 		}
-		gnuExtensionsAttr := ""
+		gnuExtensionsProp := ""
 		if tc.gnu_extensions != "" {
-			gnuExtensionsAttr = fmt.Sprintf("    gnu_extensions: %s,", tc.gnu_extensions)
+			gnuExtensionsProp = fmt.Sprintf("    gnu_extensions: %s,", tc.gnu_extensions)
 		}
-		bazelCppStdAttr := ""
+		attrs := attrNameToString{}
 		if tc.bazel_cpp_std != "" {
-			bazelCppStdAttr = fmt.Sprintf("\n    cpp_std = \"%s\",", tc.bazel_cpp_std)
+			attrs["cpp_std"] = fmt.Sprintf(`"%s"`, tc.bazel_cpp_std)
 		}
 
 		runCcLibraryTestCase(t, bp2buildTestCase{
@@ -1740,10 +1763,10 @@ cc_library {
 %s // gnu_extensions: *bool
 	include_build_directory: false,
 }
-`, cppStdAttr, gnuExtensionsAttr),
-			expectedBazelTargets: []string{fmt.Sprintf(`cc_library(
-    name = "a",%s
-)`, bazelCppStdAttr)},
+`, cppStdProp, gnuExtensionsProp),
+			expectedBazelTargets: []string{
+				makeBazelTarget("cc_library", "a", attrs),
+			},
 		})
 
 		runCcLibraryStaticTestCase(t, bp2buildTestCase{
@@ -1759,10 +1782,10 @@ cc_library_static {
 %s // gnu_extensions: *bool
 	include_build_directory: false,
 }
-`, cppStdAttr, gnuExtensionsAttr),
-			expectedBazelTargets: []string{fmt.Sprintf(`cc_library_static(
-    name = "a",%s
-)`, bazelCppStdAttr)},
+`, cppStdProp, gnuExtensionsProp),
+			expectedBazelTargets: []string{
+				makeBazelTarget("cc_library_static", "a", attrs),
+			},
 		})
 
 		runCcLibrarySharedTestCase(t, bp2buildTestCase{
@@ -1778,10 +1801,10 @@ cc_library_shared {
 %s // gnu_extensions: *bool
 	include_build_directory: false,
 }
-`, cppStdAttr, gnuExtensionsAttr),
-			expectedBazelTargets: []string{fmt.Sprintf(`cc_library_shared(
-    name = "a",%s
-)`, bazelCppStdAttr)},
+`, cppStdProp, gnuExtensionsProp),
+			expectedBazelTargets: []string{
+				makeBazelTarget("cc_library_shared", "a", attrs),
+			},
 		})
 	}
 }

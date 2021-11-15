@@ -39,15 +39,15 @@ cc_genrule {
 
 func runCcGenruleTestCase(t *testing.T, tc bp2buildTestCase) {
 	t.Helper()
+	(&tc).moduleTypeUnderTest = "cc_genrule"
+	(&tc).moduleTypeUnderTestFactory = cc.GenRuleFactory
+	(&tc).moduleTypeUnderTestBp2BuildMutator = genrule.CcGenruleBp2Build
 	runBp2BuildTestCase(t, func(ctx android.RegistrationContext) {}, tc)
 }
 
 func TestCliVariableReplacement(t *testing.T) {
 	runCcGenruleTestCase(t, bp2buildTestCase{
-		description:                        "cc_genrule with command line variable replacements",
-		moduleTypeUnderTest:                "cc_genrule",
-		moduleTypeUnderTestFactory:         cc.GenRuleFactory,
-		moduleTypeUnderTestBp2BuildMutator: genrule.CcGenruleBp2Build,
+		description: "cc_genrule with command line variable replacements",
 		blueprint: `cc_genrule {
     name: "foo.tool",
     out: ["foo_tool.out"],
@@ -65,29 +65,24 @@ cc_genrule {
     bazel_module: { bp2build_available: true },
 }`,
 		expectedBazelTargets: []string{
-			`genrule(
-    name = "foo",
-    cmd = "$(location :foo.tool) --genDir=$(RULEDIR) arg $(SRCS) $(OUTS)",
-    outs = ["foo.out"],
-    srcs = ["foo.in"],
-    tools = [":foo.tool"],
-)`,
-			`genrule(
-    name = "foo.tool",
-    cmd = "cp $(SRCS) $(OUTS)",
-    outs = ["foo_tool.out"],
-    srcs = ["foo_tool.in"],
-)`,
+			makeBazelTarget("genrule", "foo", attrNameToString{
+				"cmd":   `"$(location :foo.tool) --genDir=$(RULEDIR) arg $(SRCS) $(OUTS)"`,
+				"outs":  `["foo.out"]`,
+				"srcs":  `["foo.in"]`,
+				"tools": `[":foo.tool"]`,
+			}),
+			makeBazelTarget("genrule", "foo.tool", attrNameToString{
+				"cmd":  `"cp $(SRCS) $(OUTS)"`,
+				"outs": `["foo_tool.out"]`,
+				"srcs": `["foo_tool.in"]`,
+			}),
 		},
 	})
 }
 
 func TestUsingLocationsLabel(t *testing.T) {
 	runCcGenruleTestCase(t, bp2buildTestCase{
-		description:                        "cc_genrule using $(locations :label)",
-		moduleTypeUnderTest:                "cc_genrule",
-		moduleTypeUnderTestFactory:         cc.GenRuleFactory,
-		moduleTypeUnderTestBp2BuildMutator: genrule.CcGenruleBp2Build,
+		description: "cc_genrule using $(locations :label)",
 		blueprint: `cc_genrule {
     name: "foo.tools",
     out: ["foo_tool.out", "foo_tool2.out"],
@@ -104,32 +99,28 @@ cc_genrule {
     cmd: "$(locations :foo.tools) -s $(out) $(in)",
     bazel_module: { bp2build_available: true },
 }`,
-		expectedBazelTargets: []string{`genrule(
-    name = "foo",
-    cmd = "$(locations :foo.tools) -s $(OUTS) $(SRCS)",
-    outs = ["foo.out"],
-    srcs = ["foo.in"],
-    tools = [":foo.tools"],
-)`,
-			`genrule(
-    name = "foo.tools",
-    cmd = "cp $(SRCS) $(OUTS)",
-    outs = [
+		expectedBazelTargets: []string{
+			makeBazelTarget("genrule", "foo", attrNameToString{
+				"cmd":   `"$(locations :foo.tools) -s $(OUTS) $(SRCS)"`,
+				"outs":  `["foo.out"]`,
+				"srcs":  `["foo.in"]`,
+				"tools": `[":foo.tools"]`,
+			}),
+			makeBazelTarget("genrule", "foo.tools", attrNameToString{
+				"cmd": `"cp $(SRCS) $(OUTS)"`,
+				"outs": `[
         "foo_tool.out",
         "foo_tool2.out",
-    ],
-    srcs = ["foo_tool.in"],
-)`,
+    ]`,
+				"srcs": `["foo_tool.in"]`,
+			}),
 		},
 	})
 }
 
 func TestUsingLocationsAbsoluteLabel(t *testing.T) {
 	runCcGenruleTestCase(t, bp2buildTestCase{
-		description:                        "cc_genrule using $(locations //absolute:label)",
-		moduleTypeUnderTest:                "cc_genrule",
-		moduleTypeUnderTestFactory:         cc.GenRuleFactory,
-		moduleTypeUnderTestBp2BuildMutator: genrule.CcGenruleBp2Build,
+		description: "cc_genrule using $(locations //absolute:label)",
 		blueprint: `cc_genrule {
     name: "foo",
     out: ["foo.out"],
@@ -138,24 +129,21 @@ func TestUsingLocationsAbsoluteLabel(t *testing.T) {
     cmd: "$(locations :foo.tool) -s $(out) $(in)",
     bazel_module: { bp2build_available: true },
 }`,
-		expectedBazelTargets: []string{`genrule(
-    name = "foo",
-    cmd = "$(locations //other:foo.tool) -s $(OUTS) $(SRCS)",
-    outs = ["foo.out"],
-    srcs = ["foo.in"],
-    tools = ["//other:foo.tool"],
-)`,
-		},
 		filesystem: otherCcGenruleBp,
+		expectedBazelTargets: []string{
+			makeBazelTarget("genrule", "foo", attrNameToString{
+				"cmd":   `"$(locations //other:foo.tool) -s $(OUTS) $(SRCS)"`,
+				"outs":  `["foo.out"]`,
+				"srcs":  `["foo.in"]`,
+				"tools": `["//other:foo.tool"]`,
+			}),
+		},
 	})
 }
 
 func TestSrcsUsingAbsoluteLabel(t *testing.T) {
 	runCcGenruleTestCase(t, bp2buildTestCase{
-		description:                        "cc_genrule srcs using $(locations //absolute:label)",
-		moduleTypeUnderTest:                "cc_genrule",
-		moduleTypeUnderTestFactory:         cc.GenRuleFactory,
-		moduleTypeUnderTestBp2BuildMutator: genrule.CcGenruleBp2Build,
+		description: "cc_genrule srcs using $(locations //absolute:label)",
 		blueprint: `cc_genrule {
     name: "foo",
     out: ["foo.out"],
@@ -164,24 +152,21 @@ func TestSrcsUsingAbsoluteLabel(t *testing.T) {
     cmd: "$(locations :foo.tool) -s $(out) $(location :other.tool)",
     bazel_module: { bp2build_available: true },
 }`,
-		expectedBazelTargets: []string{`genrule(
-    name = "foo",
-    cmd = "$(locations //other:foo.tool) -s $(OUTS) $(location //other:other.tool)",
-    outs = ["foo.out"],
-    srcs = ["//other:other.tool"],
-    tools = ["//other:foo.tool"],
-)`,
-		},
 		filesystem: otherCcGenruleBp,
+		expectedBazelTargets: []string{
+			makeBazelTarget("genrule", "foo", attrNameToString{
+				"cmd":   `"$(locations //other:foo.tool) -s $(OUTS) $(location //other:other.tool)"`,
+				"outs":  `["foo.out"]`,
+				"srcs":  `["//other:other.tool"]`,
+				"tools": `["//other:foo.tool"]`,
+			}),
+		},
 	})
 }
 
 func TestLocationsLabelUsesFirstToolFile(t *testing.T) {
 	runCcGenruleTestCase(t, bp2buildTestCase{
-		description:                        "cc_genrule using $(location) label should substitute first tool label automatically",
-		moduleTypeUnderTest:                "cc_genrule",
-		moduleTypeUnderTestFactory:         cc.GenRuleFactory,
-		moduleTypeUnderTestBp2BuildMutator: genrule.CcGenruleBp2Build,
+		description: "cc_genrule using $(location) label should substitute first tool label automatically",
 		blueprint: `cc_genrule {
     name: "foo",
     out: ["foo.out"],
@@ -190,27 +175,24 @@ func TestLocationsLabelUsesFirstToolFile(t *testing.T) {
     cmd: "$(location) -s $(out) $(in)",
     bazel_module: { bp2build_available: true },
 }`,
-		expectedBazelTargets: []string{`genrule(
-    name = "foo",
-    cmd = "$(location //other:foo.tool) -s $(OUTS) $(SRCS)",
-    outs = ["foo.out"],
-    srcs = ["foo.in"],
-    tools = [
+		filesystem: otherCcGenruleBp,
+		expectedBazelTargets: []string{
+			makeBazelTarget("genrule", "foo", attrNameToString{
+				"cmd":  `"$(location //other:foo.tool) -s $(OUTS) $(SRCS)"`,
+				"outs": `["foo.out"]`,
+				"srcs": `["foo.in"]`,
+				"tools": `[
         "//other:foo.tool",
         "//other:other.tool",
-    ],
-)`,
+    ]`,
+			}),
 		},
-		filesystem: otherCcGenruleBp,
 	})
 }
 
 func TestLocationsLabelUsesFirstTool(t *testing.T) {
 	runCcGenruleTestCase(t, bp2buildTestCase{
-		description:                        "cc_genrule using $(locations) label should substitute first tool label automatically",
-		moduleTypeUnderTest:                "cc_genrule",
-		moduleTypeUnderTestFactory:         cc.GenRuleFactory,
-		moduleTypeUnderTestBp2BuildMutator: genrule.CcGenruleBp2Build,
+		description: "cc_genrule using $(locations) label should substitute first tool label automatically",
 		blueprint: `cc_genrule {
     name: "foo",
     out: ["foo.out"],
@@ -219,27 +201,24 @@ func TestLocationsLabelUsesFirstTool(t *testing.T) {
     cmd: "$(locations) -s $(out) $(in)",
     bazel_module: { bp2build_available: true },
 }`,
-		expectedBazelTargets: []string{`genrule(
-    name = "foo",
-    cmd = "$(locations //other:foo.tool) -s $(OUTS) $(SRCS)",
-    outs = ["foo.out"],
-    srcs = ["foo.in"],
-    tools = [
+		filesystem: otherCcGenruleBp,
+		expectedBazelTargets: []string{
+			makeBazelTarget("genrule", "foo", attrNameToString{
+				"cmd":  `"$(locations //other:foo.tool) -s $(OUTS) $(SRCS)"`,
+				"outs": `["foo.out"]`,
+				"srcs": `["foo.in"]`,
+				"tools": `[
         "//other:foo.tool",
         "//other:other.tool",
-    ],
-)`,
+    ]`,
+			}),
 		},
-		filesystem: otherCcGenruleBp,
 	})
 }
 
 func TestWithoutToolsOrToolFiles(t *testing.T) {
 	runCcGenruleTestCase(t, bp2buildTestCase{
-		description:                        "cc_genrule without tools or tool_files can convert successfully",
-		moduleTypeUnderTest:                "cc_genrule",
-		moduleTypeUnderTestFactory:         cc.GenRuleFactory,
-		moduleTypeUnderTestBp2BuildMutator: genrule.CcGenruleBp2Build,
+		description: "cc_genrule without tools or tool_files can convert successfully",
 		blueprint: `cc_genrule {
     name: "foo",
     out: ["foo.out"],
@@ -247,12 +226,12 @@ func TestWithoutToolsOrToolFiles(t *testing.T) {
     cmd: "cp $(in) $(out)",
     bazel_module: { bp2build_available: true },
 }`,
-		expectedBazelTargets: []string{`genrule(
-    name = "foo",
-    cmd = "cp $(SRCS) $(OUTS)",
-    outs = ["foo.out"],
-    srcs = ["foo.in"],
-)`,
+		expectedBazelTargets: []string{
+			makeBazelTarget("genrule", "foo", attrNameToString{
+				"cmd":  `"cp $(SRCS) $(OUTS)"`,
+				"outs": `["foo.out"]`,
+				"srcs": `["foo.in"]`,
+			}),
 		},
 	})
 }
