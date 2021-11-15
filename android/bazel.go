@@ -200,6 +200,7 @@ var (
 	bp2buildDefaultConfig = Bp2BuildConfig{
 		"bionic":                                             Bp2BuildDefaultTrueRecursively,
 		"build/bazel/examples/apex/minimal":                  Bp2BuildDefaultTrueRecursively,
+		"build/soong/cc/libbuildversion":                     Bp2BuildDefaultTrue, // Skip tests subdir
 		"development/sdk":                                    Bp2BuildDefaultTrueRecursively,
 		"external/arm-optimized-routines":                    Bp2BuildDefaultTrueRecursively,
 		"external/boringssl":                                 Bp2BuildDefaultTrueRecursively,
