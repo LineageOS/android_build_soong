@@ -102,6 +102,7 @@ var knownFunctions = map[string]struct {
 	"addsuffix":                           {baseName + ".addsuffix", starlarkTypeList, hiddenArgNone},
 	"copy-files":                          {baseName + ".copy_files", starlarkTypeList, hiddenArgNone},
 	"dir":                                 {baseName + ".dir", starlarkTypeList, hiddenArgNone},
+	"dist-for-goals":                      {baseName + ".mkdist_for_goals", starlarkTypeVoid, hiddenArgGlobal},
 	"enforce-product-packages-exist":      {baseName + ".enforce_product_packages_exist", starlarkTypeVoid, hiddenArgNone},
 	"error":                               {baseName + ".mkerror", starlarkTypeVoid, hiddenArgNone},
 	"findstring":                          {"!findstring", starlarkTypeInt, hiddenArgNone},

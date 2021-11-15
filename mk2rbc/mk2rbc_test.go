@@ -689,6 +689,7 @@ $(call enforce-product-packages-exist,)
 $(call enforce-product-packages-exist, foo)
 $(call require-artifacts-in-path, foo, bar)
 $(call require-artifacts-in-path-relaxed, foo, bar)
+$(call dist-for-goals, goal, from:to)
 `,
 		expected: `load("//build/make/core:product_config.rbc", "rblf")
 
@@ -698,6 +699,7 @@ def init(g, handle):
   rblf.enforce_product_packages_exist("foo")
   rblf.require_artifacts_in_path("foo", "bar")
   rblf.require_artifacts_in_path_relaxed("foo", "bar")
+  rblf.mkdist_for_goals(g, "goal", "from:to")
 `,
 	},
 	{
