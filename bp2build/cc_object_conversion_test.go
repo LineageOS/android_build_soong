@@ -28,15 +28,15 @@ func registerCcObjectModuleTypes(ctx android.RegistrationContext) {
 
 func runCcObjectTestCase(t *testing.T, tc bp2buildTestCase) {
 	t.Helper()
+	(&tc).moduleTypeUnderTest = "cc_object"
+	(&tc).moduleTypeUnderTestFactory = cc.ObjectFactory
+	(&tc).moduleTypeUnderTestBp2BuildMutator = cc.ObjectBp2Build
 	runBp2BuildTestCase(t, registerCcObjectModuleTypes, tc)
 }
 
 func TestCcObjectSimple(t *testing.T) {
 	runCcObjectTestCase(t, bp2buildTestCase{
-		description:                        "simple cc_object generates cc_object with include header dep",
-		moduleTypeUnderTest:                "cc_object",
-		moduleTypeUnderTestFactory:         cc.ObjectFactory,
-		moduleTypeUnderTestBp2BuildMutator: cc.ObjectBp2Build,
+		description: "simple cc_object generates cc_object with include header dep",
 		filesystem: map[string]string{
 			"a/b/foo.h":     "",
 			"a/b/bar.h":     "",
@@ -58,30 +58,27 @@ func TestCcObjectSimple(t *testing.T) {
     exclude_srcs: ["a/b/exclude.c"],
 }
 `,
-		expectedBazelTargets: []string{`cc_object(
-    name = "foo",
-    copts = [
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_object", "foo", attrNameToString{
+				"copts": `[
         "-fno-addrsig",
         "-Wno-gcc-compat",
         "-Wall",
         "-Werror",
-    ],
-    local_includes = [
+    ]`,
+				"local_includes": `[
         "include",
         ".",
-    ],
-    srcs = ["a/b/c.c"],
-    system_dynamic_deps = [],
-)`,
+    ]`,
+				"srcs":                `["a/b/c.c"]`,
+				"system_dynamic_deps": `[]`,
+			}),
 		},
 	})
 }
 
 func TestCcObjectDefaults(t *testing.T) {
 	runCcObjectTestCase(t, bp2buildTestCase{
-		moduleTypeUnderTest:                "cc_object",
-		moduleTypeUnderTestFactory:         cc.ObjectFactory,
-		moduleTypeUnderTestBp2BuildMutator: cc.ObjectBp2Build,
 		blueprint: `cc_object {
     name: "foo",
     system_shared_libs: [],
@@ -101,33 +98,26 @@ cc_defaults {
 cc_defaults {
     name: "foo_bar_defaults",
     cflags: [
-        "-Wno-gcc-compat",
-        "-Wall",
         "-Werror",
     ],
 }
 `,
-		expectedBazelTargets: []string{`cc_object(
-    name = "foo",
-    copts = [
-        "-Wno-gcc-compat",
-        "-Wall",
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_object", "foo", attrNameToString{
+				"copts": `[
         "-Werror",
         "-fno-addrsig",
-    ],
-    local_includes = ["."],
-    srcs = ["a/b/c.c"],
-    system_dynamic_deps = [],
-)`,
+    ]`,
+				"local_includes":      `["."]`,
+				"srcs":                `["a/b/c.c"]`,
+				"system_dynamic_deps": `[]`,
+			}),
 		}})
 }
 
 func TestCcObjectCcObjetDepsInObjs(t *testing.T) {
 	runCcObjectTestCase(t, bp2buildTestCase{
-		description:                        "cc_object with cc_object deps in objs props",
-		moduleTypeUnderTest:                "cc_object",
-		moduleTypeUnderTestFactory:         cc.ObjectFactory,
-		moduleTypeUnderTestBp2BuildMutator: cc.ObjectBp2Build,
+		description: "cc_object with cc_object deps in objs props",
 		filesystem: map[string]string{
 			"a/b/c.c": "",
 			"x/y/z.c": "",
@@ -147,28 +137,24 @@ cc_object {
     include_build_directory: false,
 }
 `,
-		expectedBazelTargets: []string{`cc_object(
-    name = "bar",
-    copts = ["-fno-addrsig"],
-    srcs = ["x/y/z.c"],
-    system_dynamic_deps = [],
-)`, `cc_object(
-    name = "foo",
-    copts = ["-fno-addrsig"],
-    deps = [":bar"],
-    srcs = ["a/b/c.c"],
-    system_dynamic_deps = [],
-)`,
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_object", "bar", attrNameToString{
+				"copts":               `["-fno-addrsig"]`,
+				"srcs":                `["x/y/z.c"]`,
+				"system_dynamic_deps": `[]`,
+			}), makeBazelTarget("cc_object", "foo", attrNameToString{
+				"copts":               `["-fno-addrsig"]`,
+				"deps":                `[":bar"]`,
+				"srcs":                `["a/b/c.c"]`,
+				"system_dynamic_deps": `[]`,
+			}),
 		},
 	})
 }
 
 func TestCcObjectIncludeBuildDirFalse(t *testing.T) {
 	runCcObjectTestCase(t, bp2buildTestCase{
-		description:                        "cc_object with include_build_dir: false",
-		moduleTypeUnderTest:                "cc_object",
-		moduleTypeUnderTestFactory:         cc.ObjectFactory,
-		moduleTypeUnderTestBp2BuildMutator: cc.ObjectBp2Build,
+		description: "cc_object with include_build_dir: false",
 		filesystem: map[string]string{
 			"a/b/c.c": "",
 			"x/y/z.c": "",
@@ -180,22 +166,19 @@ func TestCcObjectIncludeBuildDirFalse(t *testing.T) {
     include_build_directory: false,
 }
 `,
-		expectedBazelTargets: []string{`cc_object(
-    name = "foo",
-    copts = ["-fno-addrsig"],
-    srcs = ["a/b/c.c"],
-    system_dynamic_deps = [],
-)`,
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_object", "foo", attrNameToString{
+				"copts":               `["-fno-addrsig"]`,
+				"srcs":                `["a/b/c.c"]`,
+				"system_dynamic_deps": `[]`,
+			}),
 		},
 	})
 }
 
 func TestCcObjectProductVariable(t *testing.T) {
 	runCcObjectTestCase(t, bp2buildTestCase{
-		description:                        "cc_object with product variable",
-		moduleTypeUnderTest:                "cc_object",
-		moduleTypeUnderTestFactory:         cc.ObjectFactory,
-		moduleTypeUnderTestBp2BuildMutator: cc.ObjectBp2Build,
+		description: "cc_object with product variable",
 		blueprint: `cc_object {
     name: "foo",
     system_shared_libs: [],
@@ -208,26 +191,23 @@ func TestCcObjectProductVariable(t *testing.T) {
     srcs: ["src.S"],
 }
 `,
-		expectedBazelTargets: []string{`cc_object(
-    name = "foo",
-    asflags = select({
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_object", "foo", attrNameToString{
+				"asflags": `select({
         "//build/bazel/product_variables:platform_sdk_version": ["-DPLATFORM_SDK_VERSION=$(Platform_sdk_version)"],
         "//conditions:default": [],
-    }),
-    copts = ["-fno-addrsig"],
-    srcs_as = ["src.S"],
-    system_dynamic_deps = [],
-)`,
+    })`,
+				"copts":               `["-fno-addrsig"]`,
+				"srcs_as":             `["src.S"]`,
+				"system_dynamic_deps": `[]`,
+			}),
 		},
 	})
 }
 
 func TestCcObjectCflagsOneArch(t *testing.T) {
 	runCcObjectTestCase(t, bp2buildTestCase{
-		description:                        "cc_object setting cflags for one arch",
-		moduleTypeUnderTest:                "cc_object",
-		moduleTypeUnderTestFactory:         cc.ObjectFactory,
-		moduleTypeUnderTestBp2BuildMutator: cc.ObjectBp2Build,
+		description: "cc_object setting cflags for one arch",
 		blueprint: `cc_object {
     name: "foo",
     system_shared_libs: [],
@@ -244,28 +224,24 @@ func TestCcObjectCflagsOneArch(t *testing.T) {
 }
 `,
 		expectedBazelTargets: []string{
-			`cc_object(
-    name = "foo",
-    copts = ["-fno-addrsig"] + select({
+			makeBazelTarget("cc_object", "foo", attrNameToString{
+				"copts": `["-fno-addrsig"] + select({
         "//build/bazel/platforms/arch:x86": ["-fPIC"],
         "//conditions:default": [],
-    }),
-    srcs = ["a.cpp"] + select({
+    })`,
+				"srcs": `["a.cpp"] + select({
         "//build/bazel/platforms/arch:arm": ["arch/arm/file.cpp"],
         "//conditions:default": [],
-    }),
-    system_dynamic_deps = [],
-)`,
+    })`,
+				"system_dynamic_deps": `[]`,
+			}),
 		},
 	})
 }
 
 func TestCcObjectCflagsFourArch(t *testing.T) {
 	runCcObjectTestCase(t, bp2buildTestCase{
-		description:                        "cc_object setting cflags for 4 architectures",
-		moduleTypeUnderTest:                "cc_object",
-		moduleTypeUnderTestFactory:         cc.ObjectFactory,
-		moduleTypeUnderTestBp2BuildMutator: cc.ObjectBp2Build,
+		description: "cc_object setting cflags for 4 architectures",
 		blueprint: `cc_object {
     name: "foo",
     system_shared_libs: [],
@@ -292,34 +268,30 @@ func TestCcObjectCflagsFourArch(t *testing.T) {
 }
 `,
 		expectedBazelTargets: []string{
-			`cc_object(
-    name = "foo",
-    copts = ["-fno-addrsig"] + select({
+			makeBazelTarget("cc_object", "foo", attrNameToString{
+				"copts": `["-fno-addrsig"] + select({
         "//build/bazel/platforms/arch:arm": ["-Wall"],
         "//build/bazel/platforms/arch:arm64": ["-Wall"],
         "//build/bazel/platforms/arch:x86": ["-fPIC"],
         "//build/bazel/platforms/arch:x86_64": ["-fPIC"],
         "//conditions:default": [],
-    }),
-    srcs = ["base.cpp"] + select({
+    })`,
+				"srcs": `["base.cpp"] + select({
         "//build/bazel/platforms/arch:arm": ["arm.cpp"],
         "//build/bazel/platforms/arch:arm64": ["arm64.cpp"],
         "//build/bazel/platforms/arch:x86": ["x86.cpp"],
         "//build/bazel/platforms/arch:x86_64": ["x86_64.cpp"],
         "//conditions:default": [],
-    }),
-    system_dynamic_deps = [],
-)`,
+    })`,
+				"system_dynamic_deps": `[]`,
+			}),
 		},
 	})
 }
 
 func TestCcObjectLinkerScript(t *testing.T) {
 	runCcObjectTestCase(t, bp2buildTestCase{
-		description:                        "cc_object setting linker_script",
-		moduleTypeUnderTest:                "cc_object",
-		moduleTypeUnderTestFactory:         cc.ObjectFactory,
-		moduleTypeUnderTestBp2BuildMutator: cc.ObjectBp2Build,
+		description: "cc_object setting linker_script",
 		blueprint: `cc_object {
     name: "foo",
     srcs: ["base.cpp"],
@@ -328,22 +300,18 @@ func TestCcObjectLinkerScript(t *testing.T) {
 }
 `,
 		expectedBazelTargets: []string{
-			`cc_object(
-    name = "foo",
-    copts = ["-fno-addrsig"],
-    linker_script = "bunny.lds",
-    srcs = ["base.cpp"],
-)`,
+			makeBazelTarget("cc_object", "foo", attrNameToString{
+				"copts":         `["-fno-addrsig"]`,
+				"linker_script": `"bunny.lds"`,
+				"srcs":          `["base.cpp"]`,
+			}),
 		},
 	})
 }
 
 func TestCcObjectDepsAndLinkerScriptSelects(t *testing.T) {
 	runCcObjectTestCase(t, bp2buildTestCase{
-		description:                        "cc_object setting deps and linker_script across archs",
-		moduleTypeUnderTest:                "cc_object",
-		moduleTypeUnderTestFactory:         cc.ObjectFactory,
-		moduleTypeUnderTestBp2BuildMutator: cc.ObjectBp2Build,
+		description: "cc_object setting deps and linker_script across archs",
 		blueprint: `cc_object {
     name: "foo",
     srcs: ["base.cpp"],
@@ -389,33 +357,29 @@ cc_object {
 }
 `,
 		expectedBazelTargets: []string{
-			`cc_object(
-    name = "foo",
-    copts = ["-fno-addrsig"],
-    deps = select({
+			makeBazelTarget("cc_object", "foo", attrNameToString{
+				"copts": `["-fno-addrsig"]`,
+				"deps": `select({
         "//build/bazel/platforms/arch:arm": [":arm_obj"],
         "//build/bazel/platforms/arch:x86": [":x86_obj"],
         "//build/bazel/platforms/arch:x86_64": [":x86_64_obj"],
         "//conditions:default": [],
-    }),
-    linker_script = select({
+    })`,
+				"linker_script": `select({
         "//build/bazel/platforms/arch:arm": "arm.lds",
         "//build/bazel/platforms/arch:x86": "x86.lds",
         "//build/bazel/platforms/arch:x86_64": "x86_64.lds",
         "//conditions:default": None,
-    }),
-    srcs = ["base.cpp"],
-)`,
+    })`,
+				"srcs": `["base.cpp"]`,
+			}),
 		},
 	})
 }
 
 func TestCcObjectSelectOnLinuxAndBionicArchs(t *testing.T) {
 	runCcObjectTestCase(t, bp2buildTestCase{
-		description:                        "cc_object setting srcs based on linux and bionic archs",
-		moduleTypeUnderTest:                "cc_object",
-		moduleTypeUnderTestFactory:         cc.ObjectFactory,
-		moduleTypeUnderTestBp2BuildMutator: cc.ObjectBp2Build,
+		description: "cc_object setting srcs based on linux and bionic archs",
 		blueprint: `cc_object {
     name: "foo",
     srcs: ["base.cpp"],
@@ -434,10 +398,9 @@ func TestCcObjectSelectOnLinuxAndBionicArchs(t *testing.T) {
 }
 `,
 		expectedBazelTargets: []string{
-			`cc_object(
-    name = "foo",
-    copts = ["-fno-addrsig"],
-    srcs = ["base.cpp"] + select({
+			makeBazelTarget("cc_object", "foo", attrNameToString{
+				"copts": `["-fno-addrsig"]`,
+				"srcs": `["base.cpp"] + select({
         "//build/bazel/platforms/os_arch:android_arm64": [
             "linux_arm64.cpp",
             "bionic_arm64.cpp",
@@ -450,8 +413,8 @@ func TestCcObjectSelectOnLinuxAndBionicArchs(t *testing.T) {
         "//build/bazel/platforms/os_arch:linux_glibc_x86": ["linux_x86.cpp"],
         "//build/bazel/platforms/os_arch:linux_musl_x86": ["linux_x86.cpp"],
         "//conditions:default": [],
-    }),
-)`,
+    })`,
+			}),
 		},
 	})
 }
