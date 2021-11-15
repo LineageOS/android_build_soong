@@ -80,7 +80,7 @@ func (c *Module) AndroidMkEntries() []android.AndroidMkEntries {
 		// to be installed. And this is breaking some older devices (like marlin)
 		// where system.img is small.
 		Required: c.Properties.AndroidMkRuntimeLibs,
-		Include:  "$(BUILD_SYSTEM)/soong_cc_prebuilt.mk",
+		Include:  "$(BUILD_SYSTEM)/soong_cc_rust_prebuilt.mk",
 
 		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
 			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
@@ -582,8 +582,8 @@ func (p *prebuiltLinker) AndroidMkEntries(ctx AndroidMkContext, entries *android
 		if p.properties.Check_elf_files != nil {
 			entries.SetBool("LOCAL_CHECK_ELF_FILES", *p.properties.Check_elf_files)
 		} else {
-			// soong_cc_prebuilt.mk does not include check_elf_file.mk by default
-			// because cc_library_shared and cc_binary use soong_cc_prebuilt.mk as well.
+			// soong_cc_rust_prebuilt.mk does not include check_elf_file.mk by default
+			// because cc_library_shared and cc_binary use soong_cc_rust_prebuilt.mk as well.
 			// In order to turn on prebuilt ABI checker, set `LOCAL_CHECK_ELF_FILES` to
 			// true if `p.properties.Check_elf_files` is not specified.
 			entries.SetBool("LOCAL_CHECK_ELF_FILES", true)
