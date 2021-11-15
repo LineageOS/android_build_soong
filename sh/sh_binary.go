@@ -284,7 +284,7 @@ func (s *ShBinary) AndroidMkEntries() []android.AndroidMkEntries {
 	return []android.AndroidMkEntries{android.AndroidMkEntries{
 		Class:      "EXECUTABLES",
 		OutputFile: android.OptionalPathForPath(s.outputFilePath),
-		Include:    "$(BUILD_SYSTEM)/soong_cc_prebuilt.mk",
+		Include:    "$(BUILD_SYSTEM)/soong_cc_rust_prebuilt.mk",
 		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
 			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
 				s.customAndroidMkEntries(entries)
@@ -433,7 +433,7 @@ func (s *ShTest) AndroidMkEntries() []android.AndroidMkEntries {
 	return []android.AndroidMkEntries{android.AndroidMkEntries{
 		Class:      "NATIVE_TESTS",
 		OutputFile: android.OptionalPathForPath(s.outputFilePath),
-		Include:    "$(BUILD_SYSTEM)/soong_cc_prebuilt.mk",
+		Include:    "$(BUILD_SYSTEM)/soong_cc_rust_prebuilt.mk",
 		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
 			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
 				s.customAndroidMkEntries(entries)
