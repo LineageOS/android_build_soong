@@ -17,7 +17,6 @@ MAINLINE_MODULES=(
 MODULES_SDK_AND_EXPORTS=(
   art-module-sdk
   art-module-test-exports
-  compos-module-sdk
   conscrypt-module-host-exports
   conscrypt-module-sdk
   conscrypt-module-test-exports
