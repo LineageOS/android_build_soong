@@ -114,7 +114,7 @@ type AndroidMkEntries struct {
 	// If true, the module is skipped and does not appear on the final Android-<product name>.mk
 	// file. Useful when a module needs to be skipped conditionally.
 	Disabled bool
-	// The postprocessing mk file to include, e.g. $(BUILD_SYSTEM)/soong_cc_prebuilt.mk
+	// The postprocessing mk file to include, e.g. $(BUILD_SYSTEM)/soong_cc_rust_prebuilt.mk
 	// If not set, $(BUILD_SYSTEM)/prebuilt.mk is used.
 	Include string
 	// Required modules that need to be built and included in the final build output when building

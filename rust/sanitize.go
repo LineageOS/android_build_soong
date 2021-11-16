@@ -144,7 +144,7 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 
 		// Global Sanitizers
 		if found, globalSanitizers = android.RemoveFromList("hwaddress", globalSanitizers); found && s.Hwaddress == nil {
-			// TODO(b/180495975): HWASan for static Rust binaries isn't supported yet.
+			// TODO(b/204776996): HWASan for static Rust binaries isn't supported yet.
 			if !ctx.RustModule().StaticExecutable() {
 				s.Hwaddress = proptools.BoolPtr(true)
 			}
@@ -161,7 +161,10 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 		}
 
 		if found, globalSanitizers = android.RemoveFromList("fuzzer", globalSanitizers); found && s.Fuzzer == nil {
-			s.Fuzzer = proptools.BoolPtr(true)
+			// TODO(b/204776996): HWASan for static Rust binaries isn't supported yet, and fuzzer enables HWAsan
+			if !ctx.RustModule().StaticExecutable() {
+				s.Fuzzer = proptools.BoolPtr(true)
+			}
 		}
 
 		// Global Diag Sanitizers
@@ -237,12 +240,10 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags, deps PathDeps) (
 		} else {
 			flags.RustFlags = append(flags.RustFlags, asanFlags...)
 		}
-	}
-	if Bool(sanitize.Properties.Sanitize.Address) {
-		flags.RustFlags = append(flags.RustFlags, asanFlags...)
-	}
-	if Bool(sanitize.Properties.Sanitize.Hwaddress) {
+	} else if Bool(sanitize.Properties.Sanitize.Hwaddress) {
 		flags.RustFlags = append(flags.RustFlags, hwasanFlags...)
+	} else if Bool(sanitize.Properties.Sanitize.Address) {
+		flags.RustFlags = append(flags.RustFlags, asanFlags...)
 	}
 	return flags, deps
 }
@@ -289,7 +290,7 @@ func rustSanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 			deps = []string{config.LibclangRuntimeLibrary(mod.toolchain(mctx), "asan")}
 		} else if mod.IsSanitizerEnabled(cc.Hwasan) ||
 			(mod.IsSanitizerEnabled(cc.Fuzzer) && mctx.Arch().ArchType == android.Arm64) {
-			// TODO(b/180495975): HWASan for static Rust binaries isn't supported yet.
+			// TODO(b/204776996): HWASan for static Rust binaries isn't supported yet.
 			if binary, ok := mod.compiler.(binaryInterface); ok {
 				if binary.staticallyLinked() {
 					mctx.ModuleErrorf("HWASan is not supported for static Rust executables yet.")
