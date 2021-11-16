@@ -197,6 +197,51 @@ func (v *variableRefExpr) emitListVarCopy(gctx *generationContext) {
 	}
 }
 
+type toStringExpr struct {
+	expr starlarkExpr
+}
+
+func (s *toStringExpr) eval(valueMap map[string]starlarkExpr) (res starlarkExpr, same bool) {
+	if x, same := s.expr.eval(valueMap); same {
+		res = s
+	} else {
+		res = &toStringExpr{expr: x}
+	}
+	return
+}
+
+func (s *toStringExpr) emit(ctx *generationContext) {
+	switch s.expr.typ() {
+	case starlarkTypeString, starlarkTypeUnknown:
+		// Assume unknown types are strings already.
+		s.expr.emit(ctx)
+	case starlarkTypeList:
+		ctx.write(`" ".join(`)
+		s.expr.emit(ctx)
+		ctx.write(")")
+	case starlarkTypeInt:
+		ctx.write(`("%d" % (`)
+		s.expr.emit(ctx)
+		ctx.write("))")
+	case starlarkTypeBool:
+		ctx.write("((")
+		s.expr.emit(ctx)
+		ctx.write(`) ? "true" : "")`)
+	case starlarkTypeVoid:
+		ctx.write(`""`)
+	default:
+		panic("Unknown starlark type!")
+	}
+}
+
+func (s *toStringExpr) typ() starlarkType {
+	return starlarkTypeString
+}
+
+func (s *toStringExpr) emitListVarCopy(gctx *generationContext) {
+	s.emit(gctx)
+}
+
 type notExpr struct {
 	expr starlarkExpr
 }
@@ -255,6 +300,12 @@ func (eq *eqExpr) emit(gctx *generationContext) {
 		return
 
 	}
+
+	if eq.left.typ() != eq.right.typ() {
+		eq.left = &toStringExpr{expr: eq.left}
+		eq.right = &toStringExpr{expr: eq.right}
+	}
+
 	// General case
 	eq.left.emit(gctx)
 	if eq.isEq {
