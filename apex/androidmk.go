@@ -103,6 +103,11 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, apexName, mo
 		return moduleNames
 	}
 
+	// Avoid creating duplicate build rules for multi-installed APEXes.
+	if proptools.BoolDefault(a.properties.Multi_install_skip_symbol_files, false) {
+		return moduleNames
+	}
+
 	var postInstallCommands []string
 	for _, fi := range a.filesInfo {
 		if a.linkToSystemLib && fi.transitiveDep && fi.availableToPlatform() {
