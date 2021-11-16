@@ -364,3 +364,16 @@ func simpleModuleDoNotConvertBp2build(typ, name string) string {
 		bazel_module: { bp2build_available: false },
 }`, typ, name)
 }
+
+type attrNameToString map[string]string
+
+func makeBazelTarget(typ, name string, attrs attrNameToString) string {
+	attrStrings := make([]string, 0, len(attrs)+1)
+	attrStrings = append(attrStrings, fmt.Sprintf(`    name = "%s",`, name))
+	for _, k := range android.SortedStringKeys(attrs) {
+		attrStrings = append(attrStrings, fmt.Sprintf("    %s = %s,", k, attrs[k]))
+	}
+	return fmt.Sprintf(`%s(
+%s
+)`, typ, strings.Join(attrStrings, "\n"))
+}
