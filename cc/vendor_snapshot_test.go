@@ -1020,14 +1020,6 @@ func TestVendorSnapshotSanitizer(t *testing.T) {
 	assertString(t, staticCfiModule.outputFile.Path().Base(), "libsnapshot.cfi.a")
 }
 
-func assertExcludeFromRecoverySnapshotIs(t *testing.T, ctx *android.TestContext, name string, expected bool) {
-	t.Helper()
-	m := ctx.ModuleForTests(name, recoveryVariant).Module().(*Module)
-	if m.ExcludeFromRecoverySnapshot() != expected {
-		t.Errorf("expected %q ExcludeFromRecoverySnapshot to be %t", m.String(), expected)
-	}
-}
-
 func TestVendorSnapshotExclude(t *testing.T) {
 
 	// This test verifies that the exclude_from_vendor_snapshot property
@@ -1371,13 +1363,13 @@ func TestRecoverySnapshotExclude(t *testing.T) {
 	android.FailIfErrored(t, errs)
 
 	// Test an include and exclude framework module.
-	assertExcludeFromRecoverySnapshotIs(t, ctx, "libinclude", false)
-	assertExcludeFromRecoverySnapshotIs(t, ctx, "libexclude", true)
-	assertExcludeFromRecoverySnapshotIs(t, ctx, "libavailable_exclude", true)
+	AssertExcludeFromRecoverySnapshotIs(t, ctx, "libinclude", false, recoveryVariant)
+	AssertExcludeFromRecoverySnapshotIs(t, ctx, "libexclude", true, recoveryVariant)
+	AssertExcludeFromRecoverySnapshotIs(t, ctx, "libavailable_exclude", true, recoveryVariant)
 
 	// A recovery module is excluded, but by its path, not the
 	// exclude_from_recovery_snapshot property.
-	assertExcludeFromRecoverySnapshotIs(t, ctx, "librecovery", false)
+	AssertExcludeFromRecoverySnapshotIs(t, ctx, "librecovery", false, recoveryVariant)
 
 	// Verify the content of the recovery snapshot.
 

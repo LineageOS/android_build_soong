@@ -75,6 +75,7 @@ func GatherRequiredDepsForTest() string {
 			apex_available: ["//apex_available:platform", "//apex_available:anyapex"],
 			min_sdk_version: "29",
 			vendor_available: true,
+			recovery_available: true,
 			llndk: {
 				symbol_file: "liblog.map.txt",
 			},
@@ -106,6 +107,7 @@ func GatherRequiredDepsForTest() string {
 			host_supported: true,
 			vendor_available: true,
 			vendor_ramdisk_available: true,
+			recovery_available: true,
 			native_coverage: false,
 			sysroot: true,
 			apex_available: ["//apex_available:platform", "//apex_available:anyapex"],
@@ -118,6 +120,7 @@ func GatherRequiredDepsForTest() string {
 			host_supported: true,
 			vendor_available: true,
 			vendor_ramdisk_available: true,
+			recovery_available: true,
 			native_coverage: false,
 			apex_available: ["//apex_available:platform", "//apex_available:anyapex"],
 			min_sdk_version: "29",
