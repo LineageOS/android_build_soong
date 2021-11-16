@@ -492,36 +492,36 @@ license_kind {
 
 license_kind {
     name: "SPDX-license-identifier-CC-BY-ND",
-    conditions: ["restricted"],
+    conditions: ["by_exception_only"],
 }
 
 license_kind {
     name: "SPDX-license-identifier-CC-BY-ND-1.0",
-    conditions: ["restricted"],
+    conditions: ["by_exception_only"],
     url: "https://spdx.org/licenses/CC-BY-ND-1.0.html",
 }
 
 license_kind {
     name: "SPDX-license-identifier-CC-BY-ND-2.0",
-    conditions: ["restricted"],
+    conditions: ["by_exception_only"],
     url: "https://spdx.org/licenses/CC-BY-ND-2.0.html",
 }
 
 license_kind {
     name: "SPDX-license-identifier-CC-BY-ND-2.5",
-    conditions: ["restricted"],
+    conditions: ["by_exception_only"],
     url: "https://spdx.org/licenses/CC-BY-ND-2.5.html",
 }
 
 license_kind {
     name: "SPDX-license-identifier-CC-BY-ND-3.0",
-    conditions: ["restricted"],
+    conditions: ["by_exception_only"],
     url: "https://spdx.org/licenses/CC-BY-ND-3.0.html",
 }
 
 license_kind {
     name: "SPDX-license-identifier-CC-BY-ND-4.0",
-    conditions: ["restricted"],
+    conditions: ["by_exception_only"],
     url: "https://spdx.org/licenses/CC-BY-ND-4.0.html",
 }
 
@@ -562,7 +562,10 @@ license_kind {
 
 license_kind {
     name: "SPDX-license-identifier-CC-BY-SA-ND",
-    conditions: ["restricted"],
+    conditions: [
+        "restricted",
+        "by_exception_only",
+    ],
 }
 
 license_kind {
