@@ -113,29 +113,30 @@ apex {
 	],
 }
 `,
-		expectedBazelTargets: []string{`apex(
-    name = "com.android.apogee",
-    android_manifest = "ApogeeAndroidManifest.xml",
-    binaries = [
+		expectedBazelTargets: []string{
+			makeBazelTarget("apex", "com.android.apogee", attrNameToString{
+				"android_manifest": `"ApogeeAndroidManifest.xml"`,
+				"binaries": `[
         "binary_1",
         "binary_2",
-    ],
-    certificate = ":com.android.apogee.certificate",
-    file_contexts = ":com.android.apogee-file_contexts",
-    installable = False,
-    key = ":com.android.apogee.key",
-    manifest = "apogee_manifest.json",
-    min_sdk_version = "29",
-    native_shared_libs = [
+    ]`,
+				"certificate":     `":com.android.apogee.certificate"`,
+				"file_contexts":   `":com.android.apogee-file_contexts"`,
+				"installable":     "False",
+				"key":             `":com.android.apogee.key"`,
+				"manifest":        `"apogee_manifest.json"`,
+				"min_sdk_version": `"29"`,
+				"native_shared_libs": `[
         ":native_shared_lib_1",
         ":native_shared_lib_2",
-    ],
-    prebuilts = [
+    ]`,
+				"prebuilts": `[
         ":pretend_prebuilt_1",
         ":pretend_prebuilt_2",
-    ],
-    updatable = False,
-)`}})
+    ]`,
+				"updatable": "False",
+			}),
+		}})
 }
 
 func TestApexBundleDefaultPropertyValues(t *testing.T) {
@@ -151,10 +152,10 @@ apex {
 	manifest: "apogee_manifest.json",
 }
 `,
-		expectedBazelTargets: []string{`apex(
-    name = "com.android.apogee",
-    manifest = "apogee_manifest.json",
-)`}})
+		expectedBazelTargets: []string{makeBazelTarget("apex", "com.android.apogee", attrNameToString{
+			"manifest": `"apogee_manifest.json"`,
+		}),
+		}})
 }
 
 func TestApexBundleHasBazelModuleProps(t *testing.T) {
@@ -171,8 +172,8 @@ apex {
 	bazel_module: { bp2build_available: true },
 }
 `,
-		expectedBazelTargets: []string{`apex(
-    name = "apogee",
-    manifest = "manifest.json",
-)`}})
+		expectedBazelTargets: []string{makeBazelTarget("apex", "apogee", attrNameToString{
+			"manifest": `"manifest.json"`,
+		}),
+		}})
 }

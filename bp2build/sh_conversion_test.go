@@ -64,9 +64,9 @@ func TestShBinarySimple(t *testing.T) {
     src: "foo.sh",
     bazel_module: { bp2build_available: true },
 }`,
-		expectedBazelTargets: []string{`sh_binary(
-    name = "foo",
-    srcs = ["foo.sh"],
-)`},
+		expectedBazelTargets: []string{
+			makeBazelTarget("sh_binary", "foo", attrNameToString{
+				"srcs": `["foo.sh"]`,
+			})},
 	})
 }

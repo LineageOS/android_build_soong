@@ -43,9 +43,9 @@ apex_key {
         private_key: "com.android.apogee.pem",
 }
 `,
-		expectedBazelTargets: []string{`apex_key(
-    name = "com.android.apogee.key",
-    private_key = "com.android.apogee.pem",
-    public_key = "com.android.apogee.avbpubkey",
-)`}})
+		expectedBazelTargets: []string{makeBazelTarget("apex_key", "com.android.apogee.key", attrNameToString{
+			"private_key": `"com.android.apogee.pem"`,
+			"public_key":  `"com.android.apogee.avbpubkey"`,
+		}),
+		}})
 }
