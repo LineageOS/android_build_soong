@@ -502,9 +502,9 @@ func (j *Module) checkPlatformAPI(ctx android.ModuleContext) {
 		usePlatformAPI := proptools.Bool(j.deviceProperties.Platform_apis)
 		sdkVersionSpecified := sc.SdkVersion(ctx).Specified()
 		if usePlatformAPI && sdkVersionSpecified {
-			ctx.PropertyErrorf("platform_apis", "platform_apis must be false when sdk_version is not empty.")
+			ctx.PropertyErrorf("platform_apis", "This module has conflicting settings. sdk_version is not empty, which means this module cannot use platform APIs. However platform_apis is set to true.")
 		} else if !usePlatformAPI && !sdkVersionSpecified {
-			ctx.PropertyErrorf("platform_apis", "platform_apis must be true when sdk_version is empty.")
+			ctx.PropertyErrorf("platform_apis", "This module has conflicting settings. sdk_version is empty, which means that this module is build against platform APIs. However platform_apis is not set to true")
 		}
 
 	}
