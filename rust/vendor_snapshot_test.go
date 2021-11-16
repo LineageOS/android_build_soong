@@ -1028,3 +1028,354 @@ func TestVendorSnapshotUse(t *testing.T) {
 		t.Errorf("wanted memtag_binary AndroidMkStaticLibs %q, got %q", w, g)
 	}
 }
+
+func TestRecoverySnapshotCapture(t *testing.T) {
+	bp := `
+	rust_ffi {
+		name: "librecovery",
+		recovery: true,
+		srcs: ["foo.rs"],
+		crate_name: "recovery",
+	}
+
+	rust_ffi {
+		name: "librecovery_available",
+		recovery_available: true,
+		srcs: ["foo.rs"],
+		crate_name: "recovery_available",
+	}
+
+	rust_library_rlib {
+		name: "librecovery_rlib",
+		recovery: true,
+		srcs: ["foo.rs"],
+		crate_name: "recovery_rlib",
+	}
+
+	rust_library_rlib {
+		name: "librecovery_available_rlib",
+		recovery_available: true,
+		srcs: ["foo.rs"],
+		crate_name: "recovery_available_rlib",
+	}
+
+	rust_binary {
+		name: "recovery_bin",
+		recovery: true,
+		srcs: ["foo.rs"],
+	}
+
+	rust_binary {
+		name: "recovery_available_bin",
+		recovery_available: true,
+		srcs: ["foo.rs"],
+	}
+
+`
+	// Check Recovery snapshot output.
+
+	ctx := testRustRecoveryFsVersions(t, bp, rustMockedFiles, "", "29", "current")
+	snapshotDir := "recovery-snapshot"
+	snapshotVariantPath := filepath.Join("out/soong", snapshotDir, "arm64")
+	snapshotSingleton := ctx.SingletonForTests("recovery-snapshot")
+
+	var jsonFiles []string
+
+	for _, arch := range [][]string{
+		[]string{"arm64", "armv8-a"},
+	} {
+		archType := arch[0]
+		archVariant := arch[1]
+		archDir := fmt.Sprintf("arch-%s-%s", archType, archVariant)
+
+		// For shared libraries, all recovery:true and recovery_available modules are captured.
+		sharedVariant := fmt.Sprintf("android_recovery_%s_%s_shared", archType, archVariant)
+		sharedDir := filepath.Join(snapshotVariantPath, archDir, "shared")
+		cc.CheckSnapshot(t, ctx, snapshotSingleton, "librecovery", "librecovery.so", sharedDir, sharedVariant)
+		cc.CheckSnapshot(t, ctx, snapshotSingleton, "librecovery_available", "librecovery_available.so", sharedDir, sharedVariant)
+		jsonFiles = append(jsonFiles,
+			filepath.Join(sharedDir, "librecovery.so.json"),
+			filepath.Join(sharedDir, "librecovery_available.so.json"))
+
+		// For static libraries, all recovery:true and recovery_available modules are captured.
+		staticVariant := fmt.Sprintf("android_recovery_%s_%s_static", archType, archVariant)
+		staticDir := filepath.Join(snapshotVariantPath, archDir, "static")
+		cc.CheckSnapshot(t, ctx, snapshotSingleton, "librecovery", "librecovery.a", staticDir, staticVariant)
+		cc.CheckSnapshot(t, ctx, snapshotSingleton, "librecovery_available", "librecovery_available.a", staticDir, staticVariant)
+		jsonFiles = append(jsonFiles,
+			filepath.Join(staticDir, "librecovery.a.json"),
+			filepath.Join(staticDir, "librecovery_available.a.json"))
+
+		// For rlib libraries, all recovery:true and recovery_available modules are captured.
+		rlibVariant := fmt.Sprintf("android_recovery_%s_%s_rlib_rlib-std", archType, archVariant)
+		rlibDir := filepath.Join(snapshotVariantPath, archDir, "rlib")
+		cc.CheckSnapshot(t, ctx, snapshotSingleton, "librecovery_rlib", "librecovery_rlib.rlib", rlibDir, rlibVariant)
+		cc.CheckSnapshot(t, ctx, snapshotSingleton, "librecovery_available_rlib", "librecovery_available_rlib.rlib", rlibDir, rlibVariant)
+		jsonFiles = append(jsonFiles,
+			filepath.Join(rlibDir, "librecovery_rlib.rlib.json"),
+			filepath.Join(rlibDir, "librecovery_available_rlib.rlib.json"))
+
+		// For binary executables, all recovery:true and recovery_available modules are captured.
+		if archType == "arm64" {
+			binaryVariant := fmt.Sprintf("android_recovery_%s_%s", archType, archVariant)
+			binaryDir := filepath.Join(snapshotVariantPath, archDir, "binary")
+			cc.CheckSnapshot(t, ctx, snapshotSingleton, "recovery_bin", "recovery_bin", binaryDir, binaryVariant)
+			cc.CheckSnapshot(t, ctx, snapshotSingleton, "recovery_available_bin", "recovery_available_bin", binaryDir, binaryVariant)
+			jsonFiles = append(jsonFiles,
+				filepath.Join(binaryDir, "recovery_bin.json"),
+				filepath.Join(binaryDir, "recovery_available_bin.json"))
+		}
+	}
+
+	for _, jsonFile := range jsonFiles {
+		// verify all json files exist
+		if snapshotSingleton.MaybeOutput(jsonFile).Rule == nil {
+			t.Errorf("%q expected but not found", jsonFile)
+		}
+	}
+}
+
+func TestRecoverySnapshotExclude(t *testing.T) {
+	// This test verifies that the exclude_from_recovery_snapshot property
+	// makes its way from the Android.bp source file into the module data
+	// structure. It also verifies that modules are correctly included or
+	// excluded in the recovery snapshot based on their path (framework or
+	// vendor) and the exclude_from_recovery_snapshot property.
+
+	frameworkBp := `
+		rust_ffi_shared {
+			name: "libinclude",
+			srcs: ["src/include.rs"],
+			recovery_available: true,
+			crate_name: "include",
+		}
+		rust_ffi_shared {
+			name: "libexclude",
+			srcs: ["src/exclude.rs"],
+			recovery: true,
+			exclude_from_recovery_snapshot: true,
+			crate_name: "exclude",
+		}
+		rust_ffi_shared {
+			name: "libavailable_exclude",
+			srcs: ["src/exclude.rs"],
+			recovery_available: true,
+			exclude_from_recovery_snapshot: true,
+			crate_name: "available_exclude",
+		}
+		rust_library_rlib {
+			name: "libinclude_rlib",
+			srcs: ["src/include.rs"],
+			recovery_available: true,
+			crate_name: "include_rlib",
+		}
+		rust_library_rlib {
+			name: "libexclude_rlib",
+			srcs: ["src/exclude.rs"],
+			recovery: true,
+			exclude_from_recovery_snapshot: true,
+			crate_name: "exclude_rlib",
+		}
+		rust_library_rlib {
+			name: "libavailable_exclude_rlib",
+			srcs: ["src/exclude.rs"],
+			recovery_available: true,
+			exclude_from_recovery_snapshot: true,
+			crate_name: "available_exclude_rlib",
+		}
+	`
+
+	vendorProprietaryBp := `
+		rust_ffi_shared {
+			name: "librecovery",
+			srcs: ["recovery.rs"],
+			recovery: true,
+			crate_name: "recovery",
+		}
+		rust_library_rlib {
+			name: "librecovery_rlib",
+			srcs: ["recovery.rs"],
+			recovery: true,
+			crate_name: "recovery_rlib",
+		}
+	`
+
+	mockFS := map[string][]byte{
+		"framework/Android.bp": []byte(frameworkBp),
+		"framework/include.rs": nil,
+		"framework/exclude.rs": nil,
+		"device/Android.bp":    []byte(vendorProprietaryBp),
+		"device/recovery.rs":   nil,
+	}
+
+	ctx := testRustRecoveryFsVersions(t, "", mockFS, "", "29", "current")
+
+	// Test an include and exclude framework module.
+	cc.AssertExcludeFromRecoverySnapshotIs(t, ctx, "libinclude", false, sharedRecoveryVariant)
+	cc.AssertExcludeFromRecoverySnapshotIs(t, ctx, "libexclude", true, sharedRecoveryVariant)
+	cc.AssertExcludeFromRecoverySnapshotIs(t, ctx, "libavailable_exclude", true, sharedRecoveryVariant)
+	cc.AssertExcludeFromRecoverySnapshotIs(t, ctx, "libinclude_rlib", false, rlibRecoveryVariant)
+	cc.AssertExcludeFromRecoverySnapshotIs(t, ctx, "libexclude_rlib", true, rlibRecoveryVariant)
+	cc.AssertExcludeFromRecoverySnapshotIs(t, ctx, "libavailable_exclude_rlib", true, rlibRecoveryVariant)
+
+	// A recovery module is excluded, but by its path not the exclude_from_recovery_snapshot property
+	// ('device/' and 'vendor/' are default excluded). See snapshot/recovery_snapshot.go for more detail.
+	cc.AssertExcludeFromRecoverySnapshotIs(t, ctx, "librecovery", false, sharedRecoveryVariant)
+	cc.AssertExcludeFromRecoverySnapshotIs(t, ctx, "librecovery_rlib", false, rlibRecoveryVariant)
+
+	// Verify the content of the recovery snapshot.
+
+	snapshotDir := "recovery-snapshot"
+	snapshotVariantPath := filepath.Join("out/soong", snapshotDir, "arm64")
+	snapshotSingleton := ctx.SingletonForTests("recovery-snapshot")
+
+	var includeJsonFiles []string
+	var excludeJsonFiles []string
+
+	for _, arch := range [][]string{
+		[]string{"arm64", "armv8-a"},
+	} {
+		archType := arch[0]
+		archVariant := arch[1]
+		archDir := fmt.Sprintf("arch-%s-%s", archType, archVariant)
+
+		sharedVariant := fmt.Sprintf("android_recovery_%s_%s_shared", archType, archVariant)
+		rlibVariant := fmt.Sprintf("android_recovery_%s_%s_rlib_rlib-std", archType, archVariant)
+		sharedDir := filepath.Join(snapshotVariantPath, archDir, "shared")
+		rlibDir := filepath.Join(snapshotVariantPath, archDir, "rlib")
+
+		// Included modules
+		cc.CheckSnapshot(t, ctx, snapshotSingleton, "libinclude", "libinclude.so", sharedDir, sharedVariant)
+		includeJsonFiles = append(includeJsonFiles, filepath.Join(sharedDir, "libinclude.so.json"))
+		cc.CheckSnapshot(t, ctx, snapshotSingleton, "libinclude_rlib", "libinclude_rlib.rlib", rlibDir, rlibVariant)
+		includeJsonFiles = append(includeJsonFiles, filepath.Join(rlibDir, "libinclude_rlib.rlib.json"))
+
+		// Excluded modules
+		cc.CheckSnapshotExclude(t, ctx, snapshotSingleton, "libexclude", "libexclude.so", sharedDir, sharedVariant)
+		excludeJsonFiles = append(excludeJsonFiles, filepath.Join(sharedDir, "libexclude.so.json"))
+		cc.CheckSnapshotExclude(t, ctx, snapshotSingleton, "librecovery", "librecovery.so", sharedDir, sharedVariant)
+		excludeJsonFiles = append(excludeJsonFiles, filepath.Join(sharedDir, "librecovery.so.json"))
+		cc.CheckSnapshotExclude(t, ctx, snapshotSingleton, "libavailable_exclude", "libavailable_exclude.so", sharedDir, sharedVariant)
+		excludeJsonFiles = append(excludeJsonFiles, filepath.Join(sharedDir, "libavailable_exclude.so.json"))
+		cc.CheckSnapshotExclude(t, ctx, snapshotSingleton, "libexclude_rlib", "libexclude_rlib.rlib", rlibDir, rlibVariant)
+		excludeJsonFiles = append(excludeJsonFiles, filepath.Join(rlibDir, "libexclude_rlib.rlib.json"))
+		cc.CheckSnapshotExclude(t, ctx, snapshotSingleton, "librecovery_rlib", "librecovery_rlib.rlib", rlibDir, rlibVariant)
+		excludeJsonFiles = append(excludeJsonFiles, filepath.Join(rlibDir, "librecovery_rlib.rlib.json"))
+		cc.CheckSnapshotExclude(t, ctx, snapshotSingleton, "libavailable_exclude_rlib", "libavailable_exclude_rlib.rlib", rlibDir, rlibVariant)
+		excludeJsonFiles = append(excludeJsonFiles, filepath.Join(rlibDir, "libavailable_exclude_rlib.rlib.json"))
+	}
+
+	// Verify that each json file for an included module has a rule.
+	for _, jsonFile := range includeJsonFiles {
+		if snapshotSingleton.MaybeOutput(jsonFile).Rule == nil {
+			t.Errorf("include json file %q not found", jsonFile)
+		}
+	}
+
+	// Verify that each json file for an excluded module has no rule.
+	for _, jsonFile := range excludeJsonFiles {
+		if snapshotSingleton.MaybeOutput(jsonFile).Rule != nil {
+			t.Errorf("exclude json file %q found", jsonFile)
+		}
+	}
+}
+
+func TestRecoverySnapshotDirected(t *testing.T) {
+	bp := `
+	rust_ffi_shared {
+		name: "librecovery",
+		recovery: true,
+		crate_name: "recovery",
+		srcs: ["foo.rs"],
+	}
+
+	rust_ffi_shared {
+		name: "librecovery_available",
+		recovery_available: true,
+		crate_name: "recovery_available",
+		srcs: ["foo.rs"],
+	}
+
+	rust_library_rlib {
+		name: "librecovery_rlib",
+		recovery: true,
+		crate_name: "recovery",
+		srcs: ["foo.rs"],
+	}
+
+	rust_library_rlib {
+		name: "librecovery_available_rlib",
+		recovery_available: true,
+		crate_name: "recovery_available",
+		srcs: ["foo.rs"],
+	}
+
+	/* TODO: Uncomment when Rust supports the "prefer" property for prebuilts
+	rust_library_rlib {
+		name: "libfoo_rlib",
+		recovery: true,
+		crate_name: "foo",
+	}
+
+	rust_prebuilt_rlib {
+		name: "libfoo_rlib",
+		recovery: true,
+		prefer: true,
+		srcs: ["libfoo.rlib"],
+		crate_name: "foo",
+	}
+	*/
+`
+	ctx := testRustRecoveryFsVersions(t, bp, rustMockedFiles, "current", "29", "current")
+	ctx.Config().TestProductVariables.RecoverySnapshotModules = make(map[string]bool)
+	ctx.Config().TestProductVariables.RecoverySnapshotModules["librecovery"] = true
+	ctx.Config().TestProductVariables.RecoverySnapshotModules["librecovery_rlib"] = true
+	ctx.Config().TestProductVariables.DirectedRecoverySnapshot = true
+
+	// Check recovery snapshot output.
+	snapshotDir := "recovery-snapshot"
+	snapshotVariantPath := filepath.Join("out/soong", snapshotDir, "arm64")
+	snapshotSingleton := ctx.SingletonForTests("recovery-snapshot")
+
+	var includeJsonFiles []string
+
+	for _, arch := range [][]string{
+		[]string{"arm64", "armv8-a"},
+	} {
+		archType := arch[0]
+		archVariant := arch[1]
+		archDir := fmt.Sprintf("arch-%s-%s", archType, archVariant)
+
+		sharedVariant := fmt.Sprintf("android_recovery_%s_%s_shared", archType, archVariant)
+		rlibVariant := fmt.Sprintf("android_recovery_%s_%s_rlib_rlib-std", archType, archVariant)
+		sharedDir := filepath.Join(snapshotVariantPath, archDir, "shared")
+		rlibDir := filepath.Join(snapshotVariantPath, archDir, "rlib")
+
+		// Included modules
+		cc.CheckSnapshot(t, ctx, snapshotSingleton, "librecovery", "librecovery.so", sharedDir, sharedVariant)
+		includeJsonFiles = append(includeJsonFiles, filepath.Join(sharedDir, "librecovery.so.json"))
+		cc.CheckSnapshot(t, ctx, snapshotSingleton, "librecovery_rlib", "librecovery_rlib.rlib", rlibDir, rlibVariant)
+		includeJsonFiles = append(includeJsonFiles, filepath.Join(rlibDir, "librecovery_rlib.rlib.json"))
+
+		// TODO: When Rust supports the "prefer" property for prebuilts, perform this check.
+		/*
+			// Check that snapshot captures "prefer: true" prebuilt
+			cc.CheckSnapshot(t, ctx, snapshotSingleton, "prebuilt_libfoo_rlib", "libfoo_rlib.rlib", rlibDir, rlibVariant)
+			includeJsonFiles = append(includeJsonFiles, filepath.Join(sharedDir, "libfoo_rlib.rlib.json"))
+		*/
+
+		// Excluded modules. Modules not included in the directed recovery snapshot
+		// are still included as fake modules.
+		cc.CheckSnapshotRule(t, ctx, snapshotSingleton, "librecovery_available", "librecovery_available.so", sharedDir, sharedVariant)
+		includeJsonFiles = append(includeJsonFiles, filepath.Join(sharedDir, "librecovery_available.so.json"))
+		cc.CheckSnapshotRule(t, ctx, snapshotSingleton, "librecovery_available_rlib", "librecovery_available_rlib.rlib", rlibDir, rlibVariant)
+		includeJsonFiles = append(includeJsonFiles, filepath.Join(rlibDir, "librecovery_available_rlib.rlib.json"))
+	}
+
+	// Verify that each json file for an included module has a rule.
+	for _, jsonFile := range includeJsonFiles {
+		if snapshotSingleton.MaybeOutput(jsonFile).Rule == nil {
+			t.Errorf("include json file %q not found, %#v", jsonFile, includeJsonFiles)
+		}
+	}
+}
