@@ -494,11 +494,11 @@ type ProductConfigContext interface {
 type ProductConfigProperty struct {
 	// The name of the product variable, e.g. "safestack", "malloc_not_svelte",
 	// "board"
-	ProductConfigVariable string
+	Name string
 
 	// Namespace of the variable, if this is a soong_config_module_type variable
-	// e.g. "acme", "ANDROID", "vendor_nae"
-	Namespace string // for soong config variables
+	// e.g. "acme", "ANDROID", "vendor_name"
+	Namespace string
 
 	// Unique configuration to identify this product config property (i.e. a
 	// primary key), as just using the product variable name is not sufficient.
@@ -565,9 +565,6 @@ type ProductConfigProperty struct {
 	// "acme__board__soc_a", "acme__board__soc_b", and
 	// "acme__board__conditions_default"
 	FullConfig string
-
-	// The actual property value: list, bool, string..
-	Property interface{}
 }
 
 func (p *ProductConfigProperty) ConfigurationAxis() bazel.ConfigurationAxis {
@@ -576,14 +573,43 @@ func (p *ProductConfigProperty) ConfigurationAxis() bazel.ConfigurationAxis {
 	} else {
 		// Soong config variables can be uniquely identified by the namespace
 		// (e.g. acme, android) and the product variable name (e.g. board, size)
-		return bazel.ProductVariableConfigurationAxis(p.Namespace + "__" + p.ProductConfigVariable)
+		return bazel.ProductVariableConfigurationAxis(p.Namespace + "__" + p.Name)
 	}
 }
 
-// ProductConfigProperties is a map of property name to a slice of
-// ProductConfigProperty such that all product variable-specific versions of a
-// property are easily accessed together
-type ProductConfigProperties map[string]map[string]ProductConfigProperty
+// SelectKey returns the literal string that represents this variable in a BUILD
+// select statement.
+func (p *ProductConfigProperty) SelectKey() string {
+	if p.Namespace == "" {
+		return strings.ToLower(p.FullConfig)
+	}
+
+	if p.FullConfig == bazel.ConditionsDefaultConfigKey {
+		return bazel.ConditionsDefaultConfigKey
+	}
+
+	value := p.FullConfig
+	if value == p.Name {
+		value = "enabled"
+	}
+	// e.g. acme__feature1__enabled, android__board__soc_a
+	return strings.ToLower(strings.Join([]string{p.Namespace, p.Name, value}, "__"))
+}
+
+// ProductConfigProperties is a map of maps to group property values according
+// their property name and the product config variable they're set under.
+//
+// The outer map key is the name of the property, like "cflags".
+//
+// The inner map key is a ProductConfigProperty, which is a struct of product
+// variable name, namespace, and the "full configuration" of the product
+// variable.
+//
+// e.g. product variable name: board, namespace: acme, full config: vendor_chip_foo
+//
+// The value of the map is the interface{} representing the value of the
+// property, like ["-DDEFINES"] for cflags.
+type ProductConfigProperties map[string]map[ProductConfigProperty]interface{}
 
 // ProductVariableProperties returns a ProductConfigProperties containing only the properties which
 // have been set for the module in the given context.
@@ -633,19 +659,16 @@ func ProductVariableProperties(ctx BazelConversionPathContext) ProductConfigProp
 func (p *ProductConfigProperties) AddProductConfigProperty(
 	propertyName, namespace, productVariableName, config string, property interface{}) {
 	if (*p)[propertyName] == nil {
-		(*p)[propertyName] = make(map[string]ProductConfigProperty)
+		(*p)[propertyName] = make(map[ProductConfigProperty]interface{})
 	}
 
-	// Normalize config to be all lowercase. It's the "primary key" of this
-	// unique property value. This can be the conditions_default value of the
-	// product variable as well.
-	config = strings.ToLower(config)
-	(*p)[propertyName][config] = ProductConfigProperty{
-		Namespace:             namespace,           // e.g. acme, android
-		ProductConfigVariable: productVariableName, // e.g. size, feature1, feature2, FEATURE3, board
-		FullConfig:            config,              // e.g. size, feature1-x86, size__conditions_default
-		Property:              property,            // e.g. ["-O3"]
+	productConfigProp := ProductConfigProperty{
+		Namespace:  namespace,           // e.g. acme, android
+		Name:       productVariableName, // e.g. size, feature1, feature2, FEATURE3, board
+		FullConfig: config,              // e.g. size, feature1-x86, size__conditions_default
 	}
+
+	(*p)[propertyName][productConfigProp] = property
 }
 
 var (
@@ -786,8 +809,8 @@ func productVariableValues(
 					if field.Field(k).IsZero() {
 						continue
 					}
-					productVariableValue := proptools.PropertyNameForField(propertyName)
-					config := strings.Join([]string{namespace, productVariableName, productVariableValue}, "__")
+					// config can also be "conditions_default".
+					config := proptools.PropertyNameForField(propertyName)
 					actualPropertyName := field.Type().Field(k).Name
 
 					productConfigProperties.AddProductConfigProperty(
@@ -802,9 +825,6 @@ func productVariableValues(
 				// Not a conditions_default or a struct prop, i.e. regular
 				// product variables, or not a string-typed config var.
 				config := productVariableName + suffix
-				if namespace != "" {
-					config = namespace + "__" + config
-				}
 				productConfigProperties.AddProductConfigProperty(
 					propertyName,
 					namespace,

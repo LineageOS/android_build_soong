@@ -19,9 +19,13 @@ package bpfix
 import (
 	"bytes"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
+	"reflect"
+	"sort"
 	"strings"
 
 	"github.com/google/blueprint/parser"
@@ -137,8 +141,32 @@ var fixSteps = []FixStep{
 		Fix:  runPatchListMod(removeObsoleteProperty("sanitize.scudo")),
 	},
 	{
+		Name: "removeAndroidLicenseKinds",
+		Fix:  runPatchListMod(removeIncorrectProperties("android_license_kinds")),
+	},
+	{
+		Name: "removeAndroidLicenseConditions",
+		Fix:  runPatchListMod(removeIncorrectProperties("android_license_conditions")),
+	},
+	{
+		Name: "removeAndroidLicenseFiles",
+		Fix:  runPatchListMod(removeIncorrectProperties("android_license_files")),
+	},
+	{
 		Name: "formatFlagProperties",
 		Fix:  runPatchListMod(formatFlagProperties),
+	},
+}
+
+// for fix that only need to run once
+var fixStepsOnce = []FixStep{
+	{
+		Name: "haveSameLicense",
+		Fix:  haveSameLicense,
+	},
+	{
+		Name: "rewriteLicenseProperties",
+		Fix:  runPatchListMod(rewriteLicenseProperties),
 	},
 }
 
@@ -194,6 +222,16 @@ func (f *Fixer) Fix(config FixRequest) (*parser.File, error) {
 	prevIdentifier, err := f.fingerprint()
 	if err != nil {
 		return nil, err
+	}
+
+	// run fix that is expected to run once first
+	configOnce := NewFixRequest()
+	configOnce.steps = append(configOnce.steps, fixStepsOnce...)
+	if len(configOnce.steps) > 0 {
+		err = f.fixTreeOnce(configOnce)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	maxNumIterations := 20
@@ -1412,4 +1450,305 @@ func formatFlagProperties(mod *parser.Module, buf []byte, patchlist *parser.Patc
 		}
 	}
 	return nil
+}
+
+// rewrite the "android_license_kinds" and "android_license_files" properties to a package module
+// (and a license module when needed).
+func rewriteLicenseProperties(mod *parser.Module, buf []byte, patchList *parser.PatchList) error {
+	// if a package module has been added, no more action is needed.
+	for _, patch := range *patchList {
+		if strings.Contains(patch.Replacement, "package {") {
+			return nil
+		}
+	}
+
+	licenseKindsPropertyName := "android_license_kinds"
+	licenseFilesPropertyName := "android_license_files"
+
+	androidBpFileErr := "// Error: No Android.bp file is found at\n" +
+		"// %s\n" +
+		"// Please add one there with the needed license module first.\n"
+	licenseModuleErr := "// Error: Cannot get the name of the license module in the\n" +
+		"// %s file.\n" +
+		"// If no such license module exists, please add one there first.\n"
+
+	defaultApplicableLicense := "Android-Apache-2.0"
+	var licenseModuleName, licensePatch string
+	var hasFileInParentDir bool
+
+	// when LOCAL_NOTICE_FILE is not empty
+	if hasNonEmptyLiteralListProperty(mod, licenseFilesPropertyName) {
+		hasFileInParentDir = hasValueStartWithTwoDotsLiteralList(mod, licenseFilesPropertyName)
+		// if have LOCAL_NOTICE_FILE outside the current directory, need to find and refer to the license
+		// module in the LOCAL_NOTICE_FILE location directly and no new license module needs to be created
+		if hasFileInParentDir {
+			bpPath, ok := getPathFromProperty(mod, licenseFilesPropertyName)
+			if !ok {
+				bpDir, err := getDirFromProperty(mod, licenseFilesPropertyName)
+				if err != nil {
+					return err
+				}
+				licensePatch += fmt.Sprintf(androidBpFileErr, bpDir)
+			} else {
+				licenseModuleName, _ = getModuleName(bpPath, "license")
+				if len(licenseModuleName) == 0 {
+					licensePatch += fmt.Sprintf(licenseModuleErr, bpPath)
+				}
+				defaultApplicableLicense = licenseModuleName
+			}
+		} else {
+			// if have LOCAL_NOTICE_FILE in the current directory, need to create a new license module
+			relativePath := getModuleRelativePath()
+			if len(relativePath) == 0 {
+				return fmt.Errorf("Cannot obtain the relative path of the Android.mk file")
+			}
+			licenseModuleName = strings.Replace(relativePath, "/", "_", -1) + "_license"
+			defaultApplicableLicense = licenseModuleName
+		}
+	}
+
+	//add the package module
+	if hasNonEmptyLiteralListProperty(mod, licenseKindsPropertyName) {
+		licensePatch += "package {\n" +
+			"    // See: http://go/android-license-faq\n" +
+			"    default_applicable_licenses: [\n" +
+			"         \"" + defaultApplicableLicense + "\",\n" +
+			"    ],\n" +
+			"}\n" +
+			"\n"
+	}
+
+	// append the license module when necessary
+	// when LOCAL_NOTICE_FILE is not empty and in the current directory, create a new license module
+	// otherwise, use the above default license directly
+	if hasNonEmptyLiteralListProperty(mod, licenseFilesPropertyName) && !hasFileInParentDir {
+		licenseKinds, err := mergeLiteralListPropertyValue(mod, licenseKindsPropertyName)
+		if err != nil {
+			return err
+		}
+		licenseFiles, err := mergeLiteralListPropertyValue(mod, licenseFilesPropertyName)
+		if err != nil {
+			return err
+		}
+		licensePatch += "license {\n" +
+			"    name: \"" + licenseModuleName + "\",\n" +
+			"    visibility: [\":__subpackages__\"],\n" +
+			"    license_kinds: [\n" +
+			licenseKinds +
+			"    ],\n" +
+			"    license_text: [\n" +
+			licenseFiles +
+			"    ],\n" +
+			"}\n" +
+			"\n"
+	}
+
+	// add to the patchList
+	pos := mod.Pos().Offset
+	err := patchList.Add(pos, pos, licensePatch)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// merge the string vaules in a list property of a module into one string with expected format
+func mergeLiteralListPropertyValue(mod *parser.Module, property string) (s string, err error) {
+	listValue, ok := getLiteralListPropertyValue(mod, property)
+	if !ok {
+		// if do not find
+		return "", fmt.Errorf("Cannot retrieve the %s.%s field", mod.Type, property)
+	}
+	for i := 0; i < len(listValue); i++ {
+		s += "         \"" + listValue[i] + "\",\n"
+	}
+	return s, nil
+}
+
+// check whether a string list property has any value starting with `../`
+func hasValueStartWithTwoDotsLiteralList(mod *parser.Module, property string) bool {
+	listValue, ok := getLiteralListPropertyValue(mod, property)
+	if ok {
+		for i := 0; i < len(listValue); i++ {
+			if strings.HasPrefix(listValue[i], "../") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// get the relative path from ANDROID_BUILD_TOP to the Android.mk file to be converted
+func getModuleRelativePath() string {
+	// get the absolute path of the top of the tree
+	rootPath := os.Getenv("ANDROID_BUILD_TOP")
+	// get the absolute path of the `Android.mk` file to be converted
+	absPath := getModuleAbsolutePath()
+	// get the relative path of the `Android.mk` file to top of the tree
+	relModulePath, err := filepath.Rel(rootPath, absPath)
+	if err != nil {
+		return ""
+	}
+	return relModulePath
+}
+
+// get the absolute path of the Android.mk file to be converted
+func getModuleAbsolutePath() string {
+	// get the absolute path at where the `androidmk` commend is executed
+	curAbsPath, err := filepath.Abs(".")
+	if err != nil {
+		return ""
+	}
+	// the argument for the `androidmk` command could be
+	// 1. "./a/b/c/Android.mk"; 2. "a/b/c/Android.mk"; 3. "Android.mk"
+	argPath := flag.Arg(0)
+	if strings.HasPrefix(argPath, "./") {
+		argPath = strings.TrimPrefix(argPath, ".")
+	}
+	argPath = strings.TrimSuffix(argPath, "Android.mk")
+	if strings.HasSuffix(argPath, "/") {
+		argPath = strings.TrimSuffix(argPath, "/")
+	}
+	if len(argPath) > 0 && !strings.HasPrefix(argPath, "/") {
+		argPath = "/" + argPath
+	}
+	// get the absolute path of the `Android.mk` file to be converted
+	absPath := curAbsPath + argPath
+	return absPath
+}
+
+// check whether a file exists in a directory
+func hasFile(dir string, fileName string) error {
+	_, err := os.Stat(dir + fileName)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// get the directory where an `Android.bp` file and the property files are expected to locate
+func getDirFromProperty(mod *parser.Module, property string) (string, error) {
+	listValue, ok := getLiteralListPropertyValue(mod, property)
+	if !ok {
+		// if do not find
+		return "", fmt.Errorf("Cannot retrieve the %s.%s property", mod.Type, property)
+	}
+	if len(listValue) == 0 {
+		// if empty
+		return "", fmt.Errorf("Cannot find the value of the %s.%s property", mod.Type, property)
+	}
+	path := getModuleAbsolutePath()
+	for {
+		if !strings.HasPrefix(listValue[0], "../") {
+			break
+		}
+		path = filepath.Dir(path)
+		listValue[0] = strings.TrimPrefix(listValue[0], "../")
+	}
+	return path, nil
+}
+
+// get the path of the `Android.bp` file at the expected location where the property files locate
+func getPathFromProperty(mod *parser.Module, property string) (string, bool) {
+	dir, err := getDirFromProperty(mod, property)
+	if err != nil {
+		return "", false
+	}
+	err = hasFile(dir, "/Android.bp")
+	if err != nil {
+		return "", false
+	}
+	return dir + "/Android.bp", true
+}
+
+// parse an Android.bp file to get the name of the first module with type of moduleType
+func getModuleName(path string, moduleType string) (string, error) {
+	tree, err := parserPath(path)
+	if err != nil {
+		return "", err
+	}
+	for _, def := range tree.Defs {
+		mod, ok := def.(*parser.Module)
+		if !ok || mod.Type != moduleType {
+			continue
+		}
+		prop, ok := mod.GetProperty("name")
+		if !ok {
+			return "", fmt.Errorf("Cannot get the %s."+"name property", mod.Type)
+		}
+		propVal, ok := prop.Value.(*parser.String)
+		if ok {
+			return propVal.Value, nil
+		}
+	}
+	return "", fmt.Errorf("Cannot find the value of the %s."+"name property", moduleType)
+}
+
+// parse an Android.bp file with the specific path
+func parserPath(path string) (tree *parser.File, err error) {
+	fileContent, _ := os.ReadFile(path)
+	tree, err = parse(path, bytes.NewBufferString(string(fileContent)))
+	if err != nil {
+		return tree, err
+	}
+	return tree, nil
+}
+
+// remove the incorrect property that Soong does not support
+func removeIncorrectProperties(propName string) patchListModFunction {
+	return removeObsoleteProperty(propName)
+}
+
+// the modules on the same Android.mk file are expected to have the same license
+func haveSameLicense(f *Fixer) error {
+	androidLicenseProperties := []string{
+		"android_license_kinds",
+		"android_license_conditions",
+		"android_license_files",
+	}
+
+	var prevModuleName string
+	var prevLicenseKindsVals, prevLicenseConditionsVals, prevLicenseFilesVals []string
+	prevLicenseVals := [][]string{
+		prevLicenseKindsVals,
+		prevLicenseConditionsVals,
+		prevLicenseFilesVals,
+	}
+
+	for _, def := range f.tree.Defs {
+		mod, ok := def.(*parser.Module)
+		if !ok {
+			continue
+		}
+		for idx, property := range androidLicenseProperties {
+			curModuleName, ok := getLiteralStringPropertyValue(mod, "name")
+			// some modules in the existing test cases in the androidmk_test.go do not have name property
+			hasNameProperty := hasProperty(mod, "name")
+			if hasNameProperty && (!ok || len(curModuleName) == 0) {
+				return fmt.Errorf("Cannot retrieve the name property of a module of %s type.", mod.Type)
+			}
+			curVals, ok := getLiteralListPropertyValue(mod, property)
+			// some modules in the existing test cases in the androidmk_test.go do not have license-related property
+			hasLicenseProperty := hasProperty(mod, property)
+			if hasLicenseProperty && (!ok || len(curVals) == 0) {
+				// if do not find the property, or no value is found for the property
+				return fmt.Errorf("Cannot retrieve the %s.%s property", mod.Type, property)
+			}
+			if len(prevLicenseVals[idx]) > 0 {
+				if !reflect.DeepEqual(prevLicenseVals[idx], curVals) {
+					return fmt.Errorf("Modules %s and %s are expected to have the same %s property.",
+						prevModuleName, curModuleName, property)
+				}
+			}
+			sort.Strings(curVals)
+			prevLicenseVals[idx] = curVals
+			prevModuleName = curModuleName
+		}
+	}
+	return nil
+}
+
+func hasProperty(mod *parser.Module, propName string) bool {
+	_, ok := mod.GetProperty(propName)
+	return ok
 }

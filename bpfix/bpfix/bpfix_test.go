@@ -125,34 +125,103 @@ func TestSimplifyKnownVariablesDuplicatingEachOther(t *testing.T) {
 	implFilterListTest(t, []string{}, []string{}, []string{})
 }
 
-func runPass(t *testing.T, in, out string, innerTest func(*Fixer) error) {
-	expected, err := Reformat(out)
+func checkError(t *testing.T, in, expectedErr string, innerTest func(*Fixer) error) {
+	expected := preProcessOutErr(expectedErr)
+	runTestOnce(t, in, expected, innerTest)
+}
+
+func runTestOnce(t *testing.T, in, expected string, innerTest func(*Fixer) error) {
+	fixer, err := preProcessIn(in)
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	out, err := runFixerOnce(fixer, innerTest)
+	if err != nil {
+		out = err.Error()
+	}
+
+	compareResult := compareOutExpected(in, out, expected)
+	if len(compareResult) > 0 {
+		t.Errorf(compareResult)
+	}
+}
+
+func preProcessOutErr(expectedErr string) string {
+	expected := strings.TrimSpace(expectedErr)
+	return expected
+}
+
+func preProcessOut(out string) (expected string, err error) {
+	expected, err = Reformat(out)
+	if err != nil {
+		return expected, err
+	}
+	return expected, nil
+}
+
+func preProcessIn(in string) (fixer *Fixer, err error) {
 	in, err = Reformat(in)
 	if err != nil {
-		t.Fatal(err)
+		return fixer, err
 	}
 
 	tree, errs := parser.Parse("<testcase>", bytes.NewBufferString(in), parser.NewScope(nil))
 	if errs != nil {
-		t.Fatal(errs)
+		return fixer, err
 	}
 
-	fixer := NewFixer(tree)
+	fixer = NewFixer(tree)
+
+	return fixer, nil
+}
+
+func runFixerOnce(fixer *Fixer, innerTest func(*Fixer) error) (string, error) {
+	err := innerTest(fixer)
+	if err != nil {
+		return "", err
+	}
+
+	out, err := parser.Print(fixer.tree)
+	if err != nil {
+		return "", err
+	}
+	return string(out), nil
+}
+
+func compareOutExpected(in, out, expected string) string {
+	if out != expected {
+		return fmt.Sprintf("output didn't match:\ninput:\n%s\n\nexpected:\n%s\ngot:\n%s\n",
+			in, expected, out)
+	}
+	return ""
+}
+
+func runPassOnce(t *testing.T, in, out string, innerTest func(*Fixer) error) {
+	expected, err := preProcessOut(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	runTestOnce(t, in, expected, innerTest)
+}
+
+func runPass(t *testing.T, in, out string, innerTest func(*Fixer) error) {
+	expected, err := preProcessOut(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fixer, err := preProcessIn(in)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	got := ""
 	prev := "foo"
 	passes := 0
 	for got != prev && passes < 10 {
-		err := innerTest(fixer)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		out, err := parser.Print(fixer.tree)
+		out, err = runFixerOnce(fixer, innerTest)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -162,9 +231,9 @@ func runPass(t *testing.T, in, out string, innerTest func(*Fixer) error) {
 		passes++
 	}
 
-	if got != expected {
-		t.Errorf("output didn't match:\ninput:\n%s\n\nexpected:\n%s\ngot:\n%s\n",
-			in, expected, got)
+	compareResult := compareOutExpected(in, out, expected)
+	if len(compareResult) > 0 {
+		t.Errorf(compareResult)
 	}
 }
 
@@ -1605,6 +1674,160 @@ func TestFormatFlagProperty(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			runPass(t, test.in, test.out, runPatchListMod(formatFlagProperties))
+		})
+	}
+}
+
+func TestRewriteLicenseProperties(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		out  string
+	}{
+		{
+			name: "license rewriting with one module",
+			in: `
+				android_test {
+					name: "foo",
+					android_license_kinds: ["license_kind"],
+					android_license_conditions: ["license_notice"],
+				}
+			`,
+			out: `
+				package {
+					// See: http://go/android-license-faq
+					default_applicable_licenses: [
+						"Android-Apache-2.0",
+					],
+				}
+
+				android_test {
+					name: "foo",
+					android_license_kinds: ["license_kind"],
+					android_license_conditions: ["license_notice"],
+				}
+			`,
+		},
+		{
+			name: "license rewriting with two modules",
+			in: `
+				android_test {
+					name: "foo1",
+					android_license_kinds: ["license_kind1"],
+					android_license_conditions: ["license_notice1"],
+				}
+
+				android_test {
+					name: "foo2",
+					android_license_kinds: ["license_kind2"],
+					android_license_conditions: ["license_notice2"],
+				}
+			`,
+			out: `
+				package {
+					// See: http://go/android-license-faq
+					default_applicable_licenses: [
+						"Android-Apache-2.0",
+					],
+				}
+
+				android_test {
+					name: "foo1",
+					android_license_kinds: ["license_kind1"],
+					android_license_conditions: ["license_notice1"],
+				}
+
+				android_test {
+					name: "foo2",
+					android_license_kinds: ["license_kind2"],
+					android_license_conditions: ["license_notice2"],
+				}
+			`,
+		},
+		// TODO(b/205615944): When valid "android_license_files" exists, the test requires an Android.mk
+		// file (and an Android.bp file is required as well if the license files locates outside the current
+		// directory). So plan to use a mock file system to mock the Android.mk and Android.bp files.
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			runPassOnce(t, test.in, test.out, runPatchListMod(rewriteLicenseProperties))
+		})
+	}
+}
+
+func TestHaveSameLicense(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		out  string
+	}{
+		{
+			name: "two modules with the same license",
+			in: `
+				android_test {
+					name: "foo1",
+					android_license_kinds: ["license_kind"],
+					android_license_conditions: ["license_notice"],
+				}
+
+				android_test {
+					name: "foo2",
+					android_license_kinds: ["license_kind"],
+					android_license_conditions: ["license_notice"],
+				}
+			`,
+			out: `
+				android_test {
+					name: "foo1",
+					android_license_kinds: ["license_kind"],
+					android_license_conditions: ["license_notice"],
+				}
+
+				android_test {
+					name: "foo2",
+					android_license_kinds: ["license_kind"],
+					android_license_conditions: ["license_notice"],
+				}
+			`,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			runPassOnce(t, test.in, test.out, func(fixer *Fixer) error {
+				return haveSameLicense(fixer)
+			})
+		})
+	}
+	testErrs := []struct {
+		name        string
+		in          string
+		expectedErr string
+	}{
+		{
+			name: "two modules will different licenses",
+			in: `
+				android_test {
+					name: "foo1",
+					android_license_kinds: ["license_kind1"],
+					android_license_conditions: ["license_notice1"],
+				}
+
+				android_test {
+					name: "foo2",
+					android_license_kinds: ["license_kind2"],
+					android_license_conditions: ["license_notice2"],
+				}
+			`,
+			expectedErr: `
+				Modules foo1 and foo2 are expected to have the same android_license_kinds property.
+			`,
+		},
+	}
+	for _, test := range testErrs {
+		t.Run(test.name, func(t *testing.T) {
+			checkError(t, test.in, test.expectedErr, func(fixer *Fixer) error {
+				return haveSameLicense(fixer)
+			})
 		})
 	}
 }
