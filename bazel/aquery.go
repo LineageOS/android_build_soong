@@ -271,7 +271,7 @@ func AqueryBuildStatements(aqueryJsonProto []byte) ([]BuildStatement, error) {
 		}
 
 		buildStatement := BuildStatement{
-			Command:     strings.Join(proptools.ShellEscapeList(actionEntry.Arguments), " "),
+			Command:     strings.Join(proptools.ShellEscapeListIncludingSpaces(actionEntry.Arguments), " "),
 			Depfile:     depfile,
 			OutputPaths: outputPaths,
 			InputPaths:  inputPaths,
