@@ -38,6 +38,7 @@ bootstrap_go_package {
         "strip.go",
         "test.go",
         "testing.go",
+        "toolchain_library.go",
     ],
     testSrcs: [
         "benchmark_test.go",
