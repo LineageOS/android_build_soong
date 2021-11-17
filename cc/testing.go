@@ -763,3 +763,11 @@ func GetOutputPaths(ctx *android.TestContext, variant string, moduleNames []stri
 	}
 	return paths
 }
+
+func AssertExcludeFromRecoverySnapshotIs(t *testing.T, ctx *android.TestContext, name string, expected bool, variant string) {
+	t.Helper()
+	m := ctx.ModuleForTests(name, variant).Module().(LinkableInterface)
+	if m.ExcludeFromRecoverySnapshot() != expected {
+		t.Errorf("expected %q ExcludeFromRecoverySnapshot to be %t", m.String(), expected)
+	}
+}

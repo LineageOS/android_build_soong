@@ -378,31 +378,26 @@ func (test *testBinary) install(ctx ModuleContext, file android.Path) {
 
 	ctx.VisitDirectDepsWithTag(dataLibDepTag, func(dep android.Module) {
 		depName := ctx.OtherModuleName(dep)
-		ccDep, ok := dep.(LinkableInterface)
-
+		linkableDep, ok := dep.(LinkableInterface)
 		if !ok {
-			ctx.ModuleErrorf("data_lib %q is not a linkable cc module", depName)
+			ctx.ModuleErrorf("data_lib %q is not a LinkableInterface module", depName)
 		}
-		ccModule, ok := dep.(*Module)
-		if !ok {
-			ctx.ModuleErrorf("data_lib %q is not a cc module", depName)
-		}
-		if ccDep.OutputFile().Valid() {
+		if linkableDep.OutputFile().Valid() {
 			test.data = append(test.data,
-				android.DataPath{SrcPath: ccDep.OutputFile().Path(),
-					RelativeInstallPath: ccModule.installer.relativeInstallPath()})
+				android.DataPath{SrcPath: linkableDep.OutputFile().Path(),
+					RelativeInstallPath: linkableDep.RelativeInstallPath()})
 		}
 	})
 	ctx.VisitDirectDepsWithTag(dataBinDepTag, func(dep android.Module) {
 		depName := ctx.OtherModuleName(dep)
-		ccModule, ok := dep.(*Module)
+		linkableDep, ok := dep.(LinkableInterface)
 		if !ok {
-			ctx.ModuleErrorf("data_bin %q is not a cc module", depName)
+			ctx.ModuleErrorf("data_bin %q is not a LinkableInterface module", depName)
 		}
-		if ccModule.OutputFile().Valid() {
+		if linkableDep.OutputFile().Valid() {
 			test.data = append(test.data,
-				android.DataPath{SrcPath: ccModule.OutputFile().Path(),
-					RelativeInstallPath: ccModule.installer.relativeInstallPath()})
+				android.DataPath{SrcPath: linkableDep.OutputFile().Path(),
+					RelativeInstallPath: linkableDep.RelativeInstallPath()})
 		}
 	})
 

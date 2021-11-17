@@ -32,6 +32,10 @@ type properties struct {
 	Bazel_module bazel.BazelModuleProperties
 }
 
+// namespacedVariableProperties is a map from a string representing a Soong
+// config variable namespace, like "android" or "vendor_name" to a struct
+// pointer representing the soong_config_variables property of a module created
+// by a soong_config_module_type or soong_config_module_type_import.
 type namespacedVariableProperties map[string]interface{}
 
 // BazelModuleBase contains the property structs with metadata for modules which can be converted to
@@ -328,12 +332,8 @@ var (
 	// Per-module denylist to opt modules out of mixed builds. Such modules will
 	// still be generated via bp2build.
 	mixedBuildsDisabledList = []string{
-		"libbrotli",                            // http://b/198585397, ld.lld: error: bionic/libc/arch-arm64/generic/bionic/memmove.S:95:(.text+0x10): relocation R_AARCH64_CONDBR19 out of range: -1404176 is not in [-1048576, 1048575]; references __memcpy
-		"func_to_syscall_nrs",                  // http://b/200899432, bazel-built cc_genrule does not work in mixed build when it is a dependency of another soong module.
-		"libseccomp_policy_app_zygote_sources", // http://b/200899432, bazel-built cc_genrule does not work in mixed build when it is a dependency of another soong module.
-		"libseccomp_policy_app_sources",        // http://b/200899432, bazel-built cc_genrule does not work in mixed build when it is a dependency of another soong module.
-		"libseccomp_policy_system_sources",     // http://b/200899432, bazel-built cc_genrule does not work in mixed build when it is a dependency of another soong module.
-		"minijail_constants_json",              // http://b/200899432, bazel-built cc_genrule does not work in mixed build when it is a dependency of another soong module.
+		"libbrotli",               // http://b/198585397, ld.lld: error: bionic/libc/arch-arm64/generic/bionic/memmove.S:95:(.text+0x10): relocation R_AARCH64_CONDBR19 out of range: -1404176 is not in [-1048576, 1048575]; references __memcpy
+		"minijail_constants_json", // http://b/200899432, bazel-built cc_genrule does not work in mixed build when it is a dependency of another soong module.
 	}
 
 	// Used for quicker lookups
