@@ -1,0 +1,35 @@
+// Copyright 2021 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package soong_build_bp2build_metrics;
+option go_package = "android/soong/ui/metrics/bp2build_metrics_proto";
+
+message Bp2BuildMetrics {
+  // Total number of Soong modules converted to generated targets
+  uint64 generatedModuleCount = 1;
+
+  // Total number of Soong modules converted to handcrafted targets
+  uint64 handCraftedModuleCount = 2;
+
+  // Total number of unconverted Soong modules
+  uint64 unconvertedModuleCount = 3;
+
+  // Counts of generated Bazel targets per Bazel rule class
+  map<string, uint64> ruleClassCount = 4;
+
+  // List of converted modules
+  repeated string convertedModules = 5;
+}
