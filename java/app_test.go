@@ -144,14 +144,14 @@ func TestPlatformAPIs(t *testing.T) {
 		}
 	`)
 
-	testJavaError(t, "platform_apis must be true when sdk_version is empty.", `
+	testJavaError(t, "This module has conflicting settings. sdk_version is empty, which means that this module is build against platform APIs. However platform_apis is not set to true", `
 		android_app {
 			name: "bar",
 			srcs: ["b.java"],
 		}
 	`)
 
-	testJavaError(t, "platform_apis must be false when sdk_version is not empty.", `
+	testJavaError(t, "This module has conflicting settings. sdk_version is not empty, which means this module cannot use platform APIs. However platform_apis is set to true.", `
 		android_app {
 			name: "bar",
 			srcs: ["b.java"],

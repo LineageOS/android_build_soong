@@ -581,7 +581,7 @@ func (mod *Module) CrateName() string {
 
 func (mod *Module) CcLibrary() bool {
 	if mod.compiler != nil {
-		if _, ok := mod.compiler.(*libraryDecorator); ok {
+		if _, ok := mod.compiler.(libraryInterface); ok {
 			return true
 		}
 	}
@@ -1554,7 +1554,7 @@ func (mod *Module) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Mo
 // Overrides ApexModule.IsInstallabeToApex()
 func (mod *Module) IsInstallableToApex() bool {
 	if mod.compiler != nil {
-		if lib, ok := mod.compiler.(*libraryDecorator); ok && (lib.shared() || lib.dylib()) {
+		if lib, ok := mod.compiler.(libraryInterface); ok && (lib.shared() || lib.dylib()) {
 			return true
 		}
 		if _, ok := mod.compiler.(*binaryDecorator); ok {
