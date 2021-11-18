@@ -368,6 +368,21 @@ def init(g, handle):
 `,
 	},
 	{
+		desc:   "ifeq with $(NATIVE_COVERAGE)",
+		mkname: "product.mk",
+		in: `
+ifeq ($(NATIVE_COVERAGE),true)
+endif
+`,
+		expected: `load("//build/make/core:product_config.rbc", "rblf")
+
+def init(g, handle):
+  cfg = rblf.cfg(handle)
+  if g.get("NATIVE_COVERAGE", False):
+    pass
+`,
+	},
+	{
 		desc:   "Check filter result",
 		mkname: "product.mk",
 		in: `
@@ -1079,6 +1094,7 @@ var known_variables = []struct {
 	class varClass
 	starlarkType
 }{
+	{"NATIVE_COVERAGE", VarClassSoong, starlarkTypeBool},
 	{"PRODUCT_NAME", VarClassConfig, starlarkTypeString},
 	{"PRODUCT_MODEL", VarClassConfig, starlarkTypeString},
 	{"PRODUCT_PACKAGES", VarClassConfig, starlarkTypeList},
