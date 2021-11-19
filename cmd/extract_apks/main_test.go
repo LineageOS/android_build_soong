@@ -15,6 +15,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"reflect"
 	"testing"
@@ -437,8 +438,8 @@ type testCaseWriteApks struct {
 	stem       string
 	partition  string
 	// what we write from what
-	expectedZipEntries map[string]string
-	expectedApkcerts   []string
+	zipEntries       map[string]string
+	expectedApkcerts []string
 }
 
 func TestWriteApks(t *testing.T) {
@@ -448,7 +449,7 @@ func TestWriteApks(t *testing.T) {
 			moduleName: "mybase",
 			stem:       "Foo",
 			partition:  "system",
-			expectedZipEntries: map[string]string{
+			zipEntries: map[string]string{
 				"Foo.apk":       "splits/mybase-master.apk",
 				"Foo-xhdpi.apk": "splits/mybase-xhdpi.apk",
 			},
@@ -462,7 +463,7 @@ func TestWriteApks(t *testing.T) {
 			moduleName: "base",
 			stem:       "Bar",
 			partition:  "product",
-			expectedZipEntries: map[string]string{
+			zipEntries: map[string]string{
 				"Bar.apk": "universal.apk",
 			},
 			expectedApkcerts: []string{
@@ -471,23 +472,46 @@ func TestWriteApks(t *testing.T) {
 		},
 	}
 	for _, testCase := range testCases {
-		apkSet := ApkSet{entries: make(map[string]*zip.File)}
-		sel := SelectionResult{moduleName: testCase.moduleName}
-		for _, in := range testCase.expectedZipEntries {
-			apkSet.entries[in] = &zip.File{FileHeader: zip.FileHeader{Name: in}}
-			sel.entries = append(sel.entries, in)
-		}
-		writer := testZip2ZipWriter{make(map[string]string)}
-		config := TargetConfig{stem: testCase.stem}
-		apkcerts, err := apkSet.writeApks(sel, config, writer, testCase.partition)
-		if err != nil {
-			t.Error(err)
-		}
-		if !reflect.DeepEqual(testCase.expectedZipEntries, writer.entries) {
-			t.Errorf("expected zip entries %v, got %v", testCase.expectedZipEntries, writer.entries)
-		}
-		if !reflect.DeepEqual(testCase.expectedApkcerts, apkcerts) {
-			t.Errorf("expected apkcerts %v, got %v", testCase.expectedApkcerts, apkcerts)
-		}
+		t.Run(testCase.name, func(t *testing.T) {
+			testZipBuf := &bytes.Buffer{}
+			testZip := zip.NewWriter(testZipBuf)
+			for _, in := range testCase.zipEntries {
+				f, _ := testZip.Create(in)
+				f.Write([]byte(in))
+			}
+			testZip.Close()
+
+			zipReader, _ := zip.NewReader(bytes.NewReader(testZipBuf.Bytes()), int64(testZipBuf.Len()))
+
+			apkSet := ApkSet{entries: make(map[string]*zip.File)}
+			sel := SelectionResult{moduleName: testCase.moduleName}
+			for _, f := range zipReader.File {
+				apkSet.entries[f.Name] = f
+				sel.entries = append(sel.entries, f.Name)
+			}
+
+			zipWriter := testZip2ZipWriter{make(map[string]string)}
+			outWriter := &bytes.Buffer{}
+			config := TargetConfig{stem: testCase.stem}
+			apkcerts, err := apkSet.writeApks(sel, config, outWriter, zipWriter, testCase.partition)
+			if err != nil {
+				t.Error(err)
+			}
+			expectedZipEntries := make(map[string]string)
+			for k, v := range testCase.zipEntries {
+				if k != testCase.stem+".apk" {
+					expectedZipEntries[k] = v
+				}
+			}
+			if !reflect.DeepEqual(expectedZipEntries, zipWriter.entries) {
+				t.Errorf("expected zip entries %v, got %v", testCase.zipEntries, zipWriter.entries)
+			}
+			if !reflect.DeepEqual(testCase.expectedApkcerts, apkcerts) {
+				t.Errorf("expected apkcerts %v, got %v", testCase.expectedApkcerts, apkcerts)
+			}
+			if g, w := outWriter.String(), testCase.zipEntries[testCase.stem+".apk"]; !reflect.DeepEqual(g, w) {
+				t.Errorf("expected output file contents %q, got %q", testCase.stem+".apk", outWriter.String())
+			}
+		})
 	}
 }
