@@ -1,0 +1,21 @@
+#! /bin/bash
+# Run given command application and update the contents of a given file.
+# Will not change the file if its contents has not changed.
+[[ $# -gt 1 ]] || { echo "Usage: ${0##*/} FILE COMMAND" >&2; exit 1; }
+set -u
+declare -r outfile="$1"
+shift
+if [[ ! -f $outfile ]]; then
+	$@ >$outfile
+	exit
+fi
+
+declare -r newout=${outfile}.new
+$@ >$newout
+rc=$?
+if cmp -s $newout $outfile; then
+	rm $newout
+else
+	mv -f $newout $outfile
+fi
+exit $rc
