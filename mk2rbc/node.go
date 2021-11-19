@@ -183,6 +183,7 @@ type assignmentNode struct {
 	value    starlarkExpr
 	mkValue  *mkparser.MakeString
 	flavor   assignmentFlavor
+	location ErrorLocation
 	isTraced bool
 	previous *assignmentNode
 }
@@ -223,18 +224,6 @@ func (in *ifNode) emit(gctx *generationContext) {
 	}
 
 	gctx.newLine()
-	if bad, ok := in.expr.(*badExpr); ok {
-		gctx.write("# MK2STAR ERROR converting:")
-		gctx.newLine()
-		gctx.writef("#   %s", bad.node.Dump())
-		gctx.newLine()
-		gctx.writef("# %s", bad.message)
-		gctx.newLine()
-		// The init function emits a warning if the conversion was not
-		// fullly successful, so here we (arbitrarily) take the false path.
-		gctx.writef("%sFalse:", ifElif)
-		return
-	}
 	gctx.write(ifElif)
 	in.expr.emit(gctx)
 	gctx.write(":")
