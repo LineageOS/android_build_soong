@@ -356,7 +356,7 @@ type Zip2ZipWriter interface {
 
 // Writes out selected entries, renaming them as needed
 func (apkSet *ApkSet) writeApks(selected SelectionResult, config TargetConfig,
-	writer Zip2ZipWriter, partition string) ([]string, error) {
+	outFile io.Writer, zipWriter Zip2ZipWriter, partition string) ([]string, error) {
 	// Renaming rules:
 	//  splits/MODULE-master.apk to STEM.apk
 	// else
@@ -406,8 +406,14 @@ func (apkSet *ApkSet) writeApks(selected SelectionResult, config TargetConfig,
 				origin, inName, outName)
 		}
 		entryOrigin[outName] = inName
-		if err := writer.CopyFrom(apkFile, outName); err != nil {
-			return nil, err
+		if outName == config.stem+".apk" {
+			if err := writeZipEntryToFile(outFile, apkFile); err != nil {
+				return nil, err
+			}
+		} else {
+			if err := zipWriter.CopyFrom(apkFile, outName); err != nil {
+				return nil, err
+			}
 		}
 		if partition != "" {
 			apkcerts = append(apkcerts, fmt.Sprintf(
@@ -426,14 +432,13 @@ func (apkSet *ApkSet) extractAndCopySingle(selected SelectionResult, outFile *os
 	if !ok {
 		return fmt.Errorf("Couldn't find apk path %s", selected.entries[0])
 	}
-	inputReader, _ := apk.Open()
-	_, err := io.Copy(outFile, inputReader)
-	return err
+	return writeZipEntryToFile(outFile, apk)
 }
 
 // Arguments parsing
 var (
-	outputFile   = flag.String("o", "", "output file containing extracted entries")
+	outputFile   = flag.String("o", "", "output file for primary entry")
+	zipFile      = flag.String("zip", "", "output file containing additional extracted entries")
 	targetConfig = TargetConfig{
 		screenDpi: map[android_bundle_proto.ScreenDensity_DensityAlias]bool{},
 		abis:      map[android_bundle_proto.Abi_AbiAlias]int{},
@@ -494,7 +499,8 @@ func (s screenDensityFlagValue) Set(densityList string) error {
 
 func processArgs() {
 	flag.Usage = func() {
-		fmt.Fprintln(os.Stderr, `usage: extract_apks -o <output-file> -sdk-version value -abis value `+
+		fmt.Fprintln(os.Stderr, `usage: extract_apks -o <output-file> [-zip <output-zip-file>] `+
+			`-sdk-version value -abis value `+
 			`-screen-densities value {-stem value | -extract-single} [-allow-prereleased] `+
 			`[-apkcerts <apkcerts output file> -partition <partition>] <APK set>`)
 		flag.PrintDefaults()
@@ -510,7 +516,8 @@ func processArgs() {
 	flag.StringVar(&targetConfig.stem, "stem", "", "output entries base name in the output zip file")
 	flag.Parse()
 	if (*outputFile == "") || len(flag.Args()) != 1 || *version == 0 ||
-		(targetConfig.stem == "" && !*extractSingle) || (*apkcertsOutput != "" && *partition == "") {
+		((targetConfig.stem == "" || *zipFile == "") && !*extractSingle) ||
+		(*apkcertsOutput != "" && *partition == "") {
 		flag.Usage()
 	}
 	targetConfig.sdkVersion = int32(*version)
@@ -542,13 +549,20 @@ func main() {
 	if *extractSingle {
 		err = apkSet.extractAndCopySingle(sel, outFile)
 	} else {
-		writer := zip.NewWriter(outFile)
+		zipOutputFile, err := os.Create(*zipFile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer zipOutputFile.Close()
+
+		zipWriter := zip.NewWriter(zipOutputFile)
 		defer func() {
-			if err := writer.Close(); err != nil {
+			if err := zipWriter.Close(); err != nil {
 				log.Fatal(err)
 			}
 		}()
-		apkcerts, err := apkSet.writeApks(sel, targetConfig, writer, *partition)
+
+		apkcerts, err := apkSet.writeApks(sel, targetConfig, outFile, zipWriter, *partition)
 		if err == nil && *apkcertsOutput != "" {
 			apkcertsFile, err := os.Create(*apkcertsOutput)
 			if err != nil {
@@ -566,4 +580,14 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func writeZipEntryToFile(outFile io.Writer, zipEntry *zip.File) error {
+	reader, err := zipEntry.Open()
+	if err != nil {
+		return err
+	}
+	defer reader.Close()
+	_, err = io.Copy(outFile, reader)
+	return err
 }
