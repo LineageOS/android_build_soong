@@ -25,6 +25,8 @@ func CreateSoongInjectionFiles(cfg android.Config, metrics CodegenMetrics) []Baz
 
 	files = append(files, newFile("metrics", "converted_modules.txt", strings.Join(metrics.convertedModules, "\n")))
 
+	files = append(files, newFile("product_config", "soong_config_variables.bzl", cfg.Bp2buildSoongConfigDefinitions.String()))
+
 	return files
 }
 
