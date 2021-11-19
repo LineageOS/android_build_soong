@@ -456,6 +456,9 @@ func (s *makeVarsSingleton) writeInstalls(installs, symlinks []katiInstall) []by
 		for _, dep := range install.implicitDeps {
 			fmt.Fprintf(buf, " %s", dep.String())
 		}
+		if extraFiles := install.extraFiles; extraFiles != nil {
+			fmt.Fprintf(buf, " %s", extraFiles.zip.String())
+		}
 		if len(install.orderOnlyDeps) > 0 {
 			fmt.Fprintf(buf, " |")
 		}
@@ -463,12 +466,14 @@ func (s *makeVarsSingleton) writeInstalls(installs, symlinks []katiInstall) []by
 			fmt.Fprintf(buf, " %s", dep.String())
 		}
 		fmt.Fprintln(buf)
-
-		fmt.Fprintf(buf, "\trm -f $@ && cp -f %s $< $@", preserveSymlinksFlag)
+		fmt.Fprintln(buf, "\t@echo \"Install $@\"")
+		fmt.Fprintf(buf, "\trm -f $@ && cp -f %s $< $@\n", preserveSymlinksFlag)
 		if install.executable {
-			fmt.Fprintf(buf, " && chmod +x $@")
+			fmt.Fprintf(buf, "\tchmod +x $@\n")
 		}
-		fmt.Fprintln(buf)
+		if extraFiles := install.extraFiles; extraFiles != nil {
+			fmt.Fprintf(buf, "\tunzip -qDD -d '%s' '%s'\n", extraFiles.dir.String(), extraFiles.zip.String())
+		}
 		fmt.Fprintln(buf)
 	}
 
@@ -504,6 +509,7 @@ func (s *makeVarsSingleton) writeInstalls(installs, symlinks []katiInstall) []by
 			fromStr = symlink.absFrom
 		}
 
+		fmt.Fprintln(buf, "\t@echo \"Symlink $@\"")
 		fmt.Fprintf(buf, "\trm -f $@ && ln -sfn %s $@", fromStr)
 		fmt.Fprintln(buf)
 		fmt.Fprintln(buf)

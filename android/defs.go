@@ -52,10 +52,10 @@ var (
 	// A copy rule.
 	Cp = pctx.AndroidStaticRule("Cp",
 		blueprint.RuleParams{
-			Command:     "rm -f $out && cp $cpPreserveSymlinks $cpFlags $in $out",
+			Command:     "rm -f $out && cp $cpPreserveSymlinks $cpFlags $in $out$extraCmds",
 			Description: "cp $out",
 		},
-		"cpFlags")
+		"cpFlags", "extraCmds")
 
 	// A copy rule that only updates the output if it changed.
 	CpIfChanged = pctx.AndroidStaticRule("CpIfChanged",
@@ -68,10 +68,10 @@ var (
 
 	CpExecutable = pctx.AndroidStaticRule("CpExecutable",
 		blueprint.RuleParams{
-			Command:     "rm -f $out && cp $cpPreserveSymlinks $cpFlags $in $out && chmod +x $out",
+			Command:     "rm -f $out && cp $cpPreserveSymlinks $cpFlags $in $out && chmod +x $out$extraCmds",
 			Description: "cp $out",
 		},
-		"cpFlags")
+		"cpFlags", "extraCmds")
 
 	// A timestamp touch rule.
 	Touch = pctx.AndroidStaticRule("Touch",
