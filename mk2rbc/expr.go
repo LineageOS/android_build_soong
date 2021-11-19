@@ -18,8 +18,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-
-	mkparser "android/soong/androidmk/parser"
 )
 
 // Represents an expression in the Starlark code. An expression has
@@ -106,7 +104,7 @@ func (xi *interpolateExpr) emit(gctx *generationContext) {
 		format += "%s" + strings.ReplaceAll(chunk, "%", "%%")
 	}
 	gctx.writef("%q %% ", format)
-	emitarg := func(arg starlarkExpr) {
+	emitArg := func(arg starlarkExpr) {
 		if arg.typ() == starlarkTypeList {
 			gctx.write(`" ".join(`)
 			arg.emit(gctx)
@@ -116,12 +114,12 @@ func (xi *interpolateExpr) emit(gctx *generationContext) {
 		}
 	}
 	if len(xi.args) == 1 {
-		emitarg(xi.args[0])
+		emitArg(xi.args[0])
 	} else {
 		sep := "("
 		for _, arg := range xi.args {
 			gctx.write(sep)
-			emitarg(arg)
+			emitArg(arg)
 			sep = ", "
 		}
 		gctx.write(")")
@@ -224,9 +222,9 @@ func (s *toStringExpr) emit(ctx *generationContext) {
 		s.expr.emit(ctx)
 		ctx.write("))")
 	case starlarkTypeBool:
-		ctx.write("((")
+		ctx.write(`("true" if (`)
 		s.expr.emit(ctx)
-		ctx.write(`) ? "true" : "")`)
+		ctx.write(`) else "")`)
 	case starlarkTypeVoid:
 		ctx.write(`""`)
 	default:
@@ -285,20 +283,33 @@ func (eq *eqExpr) eval(valueMap map[string]starlarkExpr) (res starlarkExpr, same
 }
 
 func (eq *eqExpr) emit(gctx *generationContext) {
-	emitSimple := func(expr starlarkExpr) {
-		if eq.isEq {
-			gctx.write("not ")
-		}
-		expr.emit(gctx)
+	var stringOperand string
+	var otherOperand starlarkExpr
+	if s, ok := maybeString(eq.left); ok {
+		stringOperand = s
+		otherOperand = eq.right
+	} else if s, ok := maybeString(eq.right); ok {
+		stringOperand = s
+		otherOperand = eq.left
 	}
-	// Are we checking that a variable is empty?
-	if isEmptyString(eq.left) {
-		emitSimple(eq.right)
-		return
-	} else if isEmptyString(eq.right) {
-		emitSimple(eq.left)
-		return
 
+	// If we've identified one of the operands as being a string literal, check
+	// for some special cases we can do to simplify the resulting expression.
+	if otherOperand != nil {
+		if stringOperand == "" {
+			if eq.isEq {
+				gctx.write("not ")
+			}
+			otherOperand.emit(gctx)
+			return
+		}
+		if stringOperand == "true" && otherOperand.typ() == starlarkTypeBool {
+			if !eq.isEq {
+				gctx.write("not ")
+			}
+			otherOperand.emit(gctx)
+			return
+		}
 	}
 
 	if eq.left.typ() != eq.right.typ() {
@@ -414,7 +425,7 @@ func newStringListExpr(items []string) *listExpr {
 	return &v
 }
 
-// concatExpr generates epxr1 + expr2 + ... + exprN in Starlark.
+// concatExpr generates expr1 + expr2 + ... + exprN in Starlark.
 type concatExpr struct {
 	items []starlarkExpr
 }
@@ -607,8 +618,8 @@ func (cx *callExpr) emitListVarCopy(gctx *generationContext) {
 }
 
 type badExpr struct {
-	node    mkparser.Node
-	message string
+	errorLocation ErrorLocation
+	message       string
 }
 
 func (b *badExpr) eval(_ map[string]starlarkExpr) (res starlarkExpr, same bool) {
@@ -617,15 +628,15 @@ func (b *badExpr) eval(_ map[string]starlarkExpr) (res starlarkExpr, same bool) 
 	return
 }
 
-func (b *badExpr) emit(_ *generationContext) {
-	panic("implement me")
+func (b *badExpr) emit(gctx *generationContext) {
+	gctx.emitConversionError(b.errorLocation, b.message)
 }
 
 func (_ *badExpr) typ() starlarkType {
 	return starlarkTypeUnknown
 }
 
-func (b *badExpr) emitListVarCopy(gctx *generationContext) {
+func (_ *badExpr) emitListVarCopy(_ *generationContext) {
 	panic("implement me")
 }
 
