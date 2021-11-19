@@ -381,6 +381,16 @@ type ModuleContext interface {
 	// for which IsInstallDepNeeded returns true.
 	InstallFile(installPath InstallPath, name string, srcPath Path, deps ...Path) InstallPath
 
+	// InstallFileWithExtraFilesZip creates a rule to copy srcPath to name in the installPath
+	// directory, and also unzip a zip file containing extra files to install into the same
+	// directory.
+	//
+	// The installed file will be returned by FilesToInstall(), and the PackagingSpec for the
+	// installed file will be returned by PackagingSpecs() on this module or by
+	// TransitivePackagingSpecs() on modules that depend on this module through dependency tags
+	// for which IsInstallDepNeeded returns true.
+	InstallFileWithExtraFilesZip(installPath InstallPath, name string, srcPath Path, extraZip Path, deps ...Path) InstallPath
+
 	// InstallSymlink creates a rule to create a symlink from src srcPath to name in the installPath
 	// directory.
 	//
@@ -2235,8 +2245,14 @@ type katiInstall struct {
 	implicitDeps  Paths
 	orderOnlyDeps Paths
 	executable    bool
+	extraFiles    *extraFilesZip
 
 	absFrom string
+}
+
+type extraFilesZip struct {
+	zip Path
+	dir InstallPath
 }
 
 type katiInstalls []katiInstall
@@ -2852,12 +2868,20 @@ func (m *moduleContext) skipInstall() bool {
 
 func (m *moduleContext) InstallFile(installPath InstallPath, name string, srcPath Path,
 	deps ...Path) InstallPath {
-	return m.installFile(installPath, name, srcPath, deps, false)
+	return m.installFile(installPath, name, srcPath, deps, false, nil)
 }
 
 func (m *moduleContext) InstallExecutable(installPath InstallPath, name string, srcPath Path,
 	deps ...Path) InstallPath {
-	return m.installFile(installPath, name, srcPath, deps, true)
+	return m.installFile(installPath, name, srcPath, deps, true, nil)
+}
+
+func (m *moduleContext) InstallFileWithExtraFilesZip(installPath InstallPath, name string, srcPath Path,
+	extraZip Path, deps ...Path) InstallPath {
+	return m.installFile(installPath, name, srcPath, deps, false, &extraFilesZip{
+		zip: extraZip,
+		dir: installPath,
+	})
 }
 
 func (m *moduleContext) PackageFile(installPath InstallPath, name string, srcPath Path) PackagingSpec {
@@ -2878,7 +2902,8 @@ func (m *moduleContext) packageFile(fullInstallPath InstallPath, srcPath Path, e
 	return spec
 }
 
-func (m *moduleContext) installFile(installPath InstallPath, name string, srcPath Path, deps []Path, executable bool) InstallPath {
+func (m *moduleContext) installFile(installPath InstallPath, name string, srcPath Path, deps []Path,
+	executable bool, extraZip *extraFilesZip) InstallPath {
 
 	fullInstallPath := installPath.Join(m, name)
 	m.module.base().hooks.runInstallHooks(m, srcPath, fullInstallPath, false)
@@ -2906,11 +2931,19 @@ func (m *moduleContext) installFile(installPath InstallPath, name string, srcPat
 				implicitDeps:  implicitDeps,
 				orderOnlyDeps: orderOnlyDeps,
 				executable:    executable,
+				extraFiles:    extraZip,
 			})
 		} else {
 			rule := Cp
 			if executable {
 				rule = CpExecutable
+			}
+
+			extraCmds := ""
+			if extraZip != nil {
+				extraCmds += fmt.Sprintf(" && unzip -qDD -d '%s' '%s'",
+					extraZip.dir.String(), extraZip.zip.String())
+				implicitDeps = append(implicitDeps, extraZip.zip)
 			}
 
 			m.Build(pctx, BuildParams{
@@ -2921,6 +2954,9 @@ func (m *moduleContext) installFile(installPath InstallPath, name string, srcPat
 				Implicits:   implicitDeps,
 				OrderOnly:   orderOnlyDeps,
 				Default:     !m.Config().KatiEnabled(),
+				Args: map[string]string{
+					"extraCmds": extraCmds,
+				},
 			})
 		}
 

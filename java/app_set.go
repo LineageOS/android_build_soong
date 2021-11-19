@@ -55,10 +55,10 @@ type AndroidAppSet struct {
 	android.DefaultableModuleBase
 	prebuilt android.Prebuilt
 
-	properties   AndroidAppSetProperties
-	packedOutput android.WritablePath
-	installFile  string
-	apkcertsFile android.ModuleOutPath
+	properties    AndroidAppSetProperties
+	packedOutput  android.WritablePath
+	primaryOutput android.WritablePath
+	apkcertsFile  android.ModuleOutPath
 }
 
 func (as *AndroidAppSet) Name() string {
@@ -78,11 +78,11 @@ func (as *AndroidAppSet) Privileged() bool {
 }
 
 func (as *AndroidAppSet) OutputFile() android.Path {
-	return as.packedOutput
+	return as.primaryOutput
 }
 
-func (as *AndroidAppSet) InstallFile() string {
-	return as.installFile
+func (as *AndroidAppSet) PackedAdditionalOutputs() android.Path {
+	return as.packedOutput
 }
 
 func (as *AndroidAppSet) APKCertsFile() android.Path {
@@ -114,11 +114,11 @@ func SupportedAbis(ctx android.ModuleContext) []string {
 
 func (as *AndroidAppSet) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	as.packedOutput = android.PathForModuleOut(ctx, ctx.ModuleName()+".zip")
+	as.primaryOutput = android.PathForModuleOut(ctx, as.BaseModuleName()+".apk")
 	as.apkcertsFile = android.PathForModuleOut(ctx, "apkcerts.txt")
 	// We are assuming here that the install file in the APK
 	// set has `.apk` suffix. If it doesn't the build will fail.
 	// APK sets containing APEX files are handled elsewhere.
-	as.installFile = as.BaseModuleName() + ".apk"
 	screenDensities := "all"
 	if dpis := ctx.Config().ProductAAPTPrebuiltDPI(); len(dpis) > 0 {
 		screenDensities = strings.ToUpper(strings.Join(dpis, ","))
@@ -127,11 +127,11 @@ func (as *AndroidAppSet) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 	// TODO(asmundak): do we support device features
 	ctx.Build(pctx,
 		android.BuildParams{
-			Rule:           extractMatchingApks,
-			Description:    "Extract APKs from APK set",
-			Output:         as.packedOutput,
-			ImplicitOutput: as.apkcertsFile,
-			Inputs:         android.Paths{as.prebuilt.SingleSourcePath(ctx)},
+			Rule:            extractMatchingApks,
+			Description:     "Extract APKs from APK set",
+			Output:          as.primaryOutput,
+			ImplicitOutputs: android.WritablePaths{as.packedOutput, as.apkcertsFile},
+			Inputs:          android.Paths{as.prebuilt.SingleSourcePath(ctx)},
 			Args: map[string]string{
 				"abis":              strings.Join(SupportedAbis(ctx), ","),
 				"allow-prereleased": strconv.FormatBool(proptools.Bool(as.properties.Prerelease)),
@@ -140,9 +140,20 @@ func (as *AndroidAppSet) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 				"stem":              as.BaseModuleName(),
 				"apkcerts":          as.apkcertsFile.String(),
 				"partition":         as.PartitionTag(ctx.DeviceConfig()),
+				"zip":               as.packedOutput.String(),
 			},
 		})
+
+	var installDir android.InstallPath
+	if as.Privileged() {
+		installDir = android.PathForModuleInstall(ctx, "priv-app", as.BaseModuleName())
+	} else {
+		installDir = android.PathForModuleInstall(ctx, "app", as.BaseModuleName())
+	}
+	ctx.InstallFileWithExtraFilesZip(installDir, as.BaseModuleName()+".apk", as.primaryOutput, as.packedOutput)
 }
+
+func (as *AndroidAppSet) InstallBypassMake() bool { return true }
 
 // android_app_set extracts a set of APKs based on the target device
 // configuration and installs this set as "split APKs".
