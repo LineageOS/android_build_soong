@@ -1066,7 +1066,7 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 	j.compiledSrcJars = srcJars
 
 	enableSharding := false
-	var headerJarFileWithoutJarjar android.Path
+	var headerJarFileWithoutDepsOrJarjar android.Path
 	if ctx.Device() && !ctx.Config().IsEnvFalse("TURBINE_ENABLED") && !deps.disableTurbine {
 		if j.properties.Javac_shard_size != nil && *(j.properties.Javac_shard_size) > 0 {
 			enableSharding = true
@@ -1076,7 +1076,7 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 			// allow for the use of annotation processors that do function correctly
 			// with sharding enabled. See: b/77284273.
 		}
-		headerJarFileWithoutJarjar, j.headerJarFile =
+		headerJarFileWithoutDepsOrJarjar, j.headerJarFile =
 			j.compileJavaHeader(ctx, uniqueSrcFiles, srcJars, deps, flags, jarName, kotlinJars)
 		if ctx.Failed() {
 			return
@@ -1105,7 +1105,9 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 		}
 
 		if enableSharding {
-			flags.classpath = append(flags.classpath, headerJarFileWithoutJarjar)
+			if headerJarFileWithoutDepsOrJarjar != nil {
+				flags.classpath = append(classpath{headerJarFileWithoutDepsOrJarjar}, flags.classpath...)
+			}
 			shardSize := int(*(j.properties.Javac_shard_size))
 			var shardSrcs []android.Paths
 			if len(uniqueSrcFiles) > 0 {
@@ -1508,7 +1510,7 @@ func CheckKotlincFlags(ctx android.ModuleContext, flags []string) {
 
 func (j *Module) compileJavaHeader(ctx android.ModuleContext, srcFiles, srcJars android.Paths,
 	deps deps, flags javaBuilderFlags, jarName string,
-	extraJars android.Paths) (headerJar, jarjarHeaderJar android.Path) {
+	extraJars android.Paths) (headerJar, jarjarAndDepsHeaderJar android.Path) {
 
 	var jars android.Paths
 	if len(srcFiles) > 0 || len(srcJars) > 0 {
@@ -1519,6 +1521,7 @@ func (j *Module) compileJavaHeader(ctx android.ModuleContext, srcFiles, srcJars 
 			return nil, nil
 		}
 		jars = append(jars, turbineJar)
+		headerJar = turbineJar
 	}
 
 	jars = append(jars, extraJars...)
@@ -1532,20 +1535,19 @@ func (j *Module) compileJavaHeader(ctx android.ModuleContext, srcFiles, srcJars 
 	combinedJar := android.PathForModuleOut(ctx, "turbine-combined", jarName)
 	TransformJarsToJar(ctx, combinedJar, "for turbine", jars, android.OptionalPath{},
 		false, nil, []string{"META-INF/TRANSITIVE"})
-	headerJar = combinedJar
-	jarjarHeaderJar = combinedJar
+	jarjarAndDepsHeaderJar = combinedJar
 
 	if j.expandJarjarRules != nil {
 		// Transform classes.jar into classes-jarjar.jar
 		jarjarFile := android.PathForModuleOut(ctx, "turbine-jarjar", jarName)
-		TransformJarJar(ctx, jarjarFile, headerJar, j.expandJarjarRules)
-		jarjarHeaderJar = jarjarFile
+		TransformJarJar(ctx, jarjarFile, jarjarAndDepsHeaderJar, j.expandJarjarRules)
+		jarjarAndDepsHeaderJar = jarjarFile
 		if ctx.Failed() {
 			return nil, nil
 		}
 	}
 
-	return headerJar, jarjarHeaderJar
+	return headerJar, jarjarAndDepsHeaderJar
 }
 
 func (j *Module) instrument(ctx android.ModuleContext, flags javaBuilderFlags,
