@@ -214,8 +214,11 @@ func createMakefileGoalRules() []Rule {
 	return []Rule{
 		NeverAllow().
 			ModuleType("makefile_goal").
+			// TODO(b/33691272): remove this after migrating seapp to Soong
+			Without("product_out_path", "obj/ETC/plat_seapp_contexts_intermediates/plat_seapp_contexts").
+			Without("product_out_path", "obj/ETC/plat_seapp_neverallows_intermediates/plat_seapp_neverallows").
 			WithoutMatcher("product_out_path", Regexp("^boot[0-9a-zA-Z.-]*[.]img$")).
-			Because("Only boot images may be imported as a makefile goal."),
+			Because("Only boot images and seapp contexts may be imported as a makefile goal."),
 	}
 }
 
