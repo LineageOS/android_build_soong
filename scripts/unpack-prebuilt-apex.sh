@@ -29,8 +29,6 @@ OUTPUT_DIR=$4
 shift 4
 REQUIRED_PATHS=$@
 
-set -x 1
-
 rm -fr $OUTPUT_DIR
 mkdir -p $OUTPUT_DIR
 
