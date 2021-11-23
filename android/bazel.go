@@ -245,6 +245,7 @@ var (
 		"packages/modules/adb/proto":                         Bp2BuildDefaultTrueRecursively,
 		"packages/modules/adb/tls":                           Bp2BuildDefaultTrueRecursively,
 		"prebuilts/clang/host/linux-x86":                     Bp2BuildDefaultTrueRecursively,
+		"system/apex":                                        Bp2BuildDefaultTrue,
 		"system/core/diagnose_usb":                           Bp2BuildDefaultTrueRecursively,
 		"system/core/libasyncio":                             Bp2BuildDefaultTrue,
 		"system/core/libcrypto_utils":                        Bp2BuildDefaultTrueRecursively,
