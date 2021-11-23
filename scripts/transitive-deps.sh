@@ -100,7 +100,7 @@ function getDeps() {
         currFileName = ""
         currExt = ""
       }
-      $1 == "outputs:" {
+      $1 == "outputs:" || $1 == "validations:" {
         ininput = 0
       }
       ininput == 0 && $0 ~ /^\S\S*:$/ {
