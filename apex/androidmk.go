@@ -429,7 +429,7 @@ func (a *apexBundle) androidMkForType() android.AndroidMkData {
 				}
 
 				distCoverageFiles(w, "ndk_apis_usedby_apex", a.nativeApisUsedByModuleFile.String())
-				distCoverageFiles(w, "ndk_apis_usedby_apex", a.nativeApisBackedByModuleFile.String())
+				distCoverageFiles(w, "ndk_apis_backedby_apex", a.nativeApisBackedByModuleFile.String())
 				distCoverageFiles(w, "java_apis_used_by_apex", a.javaApisUsedByModuleFile.String())
 			}
 		}}
