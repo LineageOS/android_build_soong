@@ -32,6 +32,8 @@ func registerSoongConfigModuleTypes(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("soong_config_module_type", android.SoongConfigModuleTypeFactory)
 	ctx.RegisterModuleType("soong_config_string_variable", android.SoongConfigStringVariableDummyFactory)
 	ctx.RegisterModuleType("soong_config_bool_variable", android.SoongConfigBoolVariableDummyFactory)
+
+	ctx.RegisterModuleType("cc_library", cc.LibraryFactory)
 }
 
 func TestSoongConfigModuleType(t *testing.T) {
@@ -588,5 +590,272 @@ cc_library_static {
         "//conditions:default": ["-DVENDOR_QUX_DEFAULT"],
     }),
     local_includes = ["."],
+)`}})
+}
+
+func TestSoongConfigModuleType_Defaults(t *testing.T) {
+	bp := `
+soong_config_string_variable {
+    name: "library_linking_strategy",
+    values: [
+        "prefer_static",
+    ],
+}
+
+soong_config_module_type {
+    name: "library_linking_strategy_cc_defaults",
+    module_type: "cc_defaults",
+    config_namespace: "ANDROID",
+    variables: ["library_linking_strategy"],
+    properties: [
+        "shared_libs",
+        "static_libs",
+    ],
+	bazel_module: { bp2build_available: true },
+}
+
+library_linking_strategy_cc_defaults {
+    name: "library_linking_strategy_lib_a_defaults",
+    soong_config_variables: {
+        library_linking_strategy: {
+            prefer_static: {
+                static_libs: [
+                    "lib_a",
+                ],
+            },
+            conditions_default: {
+                shared_libs: [
+                    "lib_a",
+                ],
+            },
+        },
+    },
+}
+
+library_linking_strategy_cc_defaults {
+    name: "library_linking_strategy_merged_defaults",
+    defaults: ["library_linking_strategy_lib_a_defaults"],
+    soong_config_variables: {
+        library_linking_strategy: {
+            prefer_static: {
+                static_libs: [
+                    "lib_b",
+                ],
+            },
+            conditions_default: {
+                shared_libs: [
+                    "lib_b",
+                ],
+            },
+        },
+    },
+}
+
+cc_binary {
+    name: "library_linking_strategy_sample_binary",
+    srcs: ["library_linking_strategy.cc"],
+    defaults: ["library_linking_strategy_merged_defaults"],
+}`
+
+	otherDeps := `
+cc_library { name: "lib_a", bazel_module: { bp2build_available: false } }
+cc_library { name: "lib_b", bazel_module: { bp2build_available: false } }
+cc_library { name: "lib_default", bazel_module: { bp2build_available: false } }
+`
+
+	runSoongConfigModuleTypeTest(t, bp2buildTestCase{
+		description:                        "soong config variables - generates selects for library_linking_strategy",
+		moduleTypeUnderTest:                "cc_binary",
+		moduleTypeUnderTestFactory:         cc.BinaryFactory,
+		moduleTypeUnderTestBp2BuildMutator: cc.BinaryBp2build,
+		blueprint:                          bp,
+		filesystem: map[string]string{
+			"foo/bar/Android.bp": otherDeps,
+		},
+		expectedBazelTargets: []string{`cc_binary(
+    name = "library_linking_strategy_sample_binary",
+    deps = select({
+        "//build/bazel/product_variables:android__library_linking_strategy__prefer_static": [
+            "//foo/bar:lib_b_bp2build_cc_library_static",
+            "//foo/bar:lib_a_bp2build_cc_library_static",
+        ],
+        "//conditions:default": [],
+    }),
+    dynamic_deps = select({
+        "//build/bazel/product_variables:android__library_linking_strategy__prefer_static": [],
+        "//conditions:default": [
+            "//foo/bar:lib_b",
+            "//foo/bar:lib_a",
+        ],
+    }),
+    local_includes = ["."],
+    srcs = ["library_linking_strategy.cc"],
+)`}})
+}
+
+func TestSoongConfigModuleType_Defaults_Another(t *testing.T) {
+	bp := `
+soong_config_string_variable {
+    name: "library_linking_strategy",
+    values: [
+        "prefer_static",
+    ],
+}
+
+soong_config_module_type {
+    name: "library_linking_strategy_cc_defaults",
+    module_type: "cc_defaults",
+    config_namespace: "ANDROID",
+    variables: ["library_linking_strategy"],
+    properties: [
+        "shared_libs",
+        "static_libs",
+    ],
+	bazel_module: { bp2build_available: true },
+}
+
+library_linking_strategy_cc_defaults {
+    name: "library_linking_strategy_sample_defaults",
+    soong_config_variables: {
+        library_linking_strategy: {
+            prefer_static: {
+                static_libs: [
+                    "lib_a",
+                    "lib_b",
+                ],
+            },
+            conditions_default: {
+                shared_libs: [
+                    "lib_a",
+                    "lib_b",
+                ],
+            },
+        },
+    },
+}
+
+cc_binary {
+    name: "library_linking_strategy_sample_binary",
+    srcs: ["library_linking_strategy.cc"],
+    defaults: ["library_linking_strategy_sample_defaults"],
+}`
+
+	otherDeps := `
+cc_library { name: "lib_a", bazel_module: { bp2build_available: false } }
+cc_library { name: "lib_b", bazel_module: { bp2build_available: false } }
+`
+
+	runSoongConfigModuleTypeTest(t, bp2buildTestCase{
+		description:                        "soong config variables - generates selects for library_linking_strategy",
+		moduleTypeUnderTest:                "cc_binary",
+		moduleTypeUnderTestFactory:         cc.BinaryFactory,
+		moduleTypeUnderTestBp2BuildMutator: cc.BinaryBp2build,
+		blueprint:                          bp,
+		filesystem: map[string]string{
+			"foo/bar/Android.bp": otherDeps,
+		},
+		expectedBazelTargets: []string{`cc_binary(
+    name = "library_linking_strategy_sample_binary",
+    deps = select({
+        "//build/bazel/product_variables:android__library_linking_strategy__prefer_static": [
+            "//foo/bar:lib_a_bp2build_cc_library_static",
+            "//foo/bar:lib_b_bp2build_cc_library_static",
+        ],
+        "//conditions:default": [],
+    }),
+    dynamic_deps = select({
+        "//build/bazel/product_variables:android__library_linking_strategy__prefer_static": [],
+        "//conditions:default": [
+            "//foo/bar:lib_a",
+            "//foo/bar:lib_b",
+        ],
+    }),
+    local_includes = ["."],
+    srcs = ["library_linking_strategy.cc"],
+)`}})
+}
+
+func TestSoongConfigModuleType_Defaults_UnusedProps(t *testing.T) {
+	bp := `
+soong_config_string_variable {
+    name: "alphabet",
+    values: [
+        "a",
+        "b",
+        "c", // unused
+    ],
+}
+
+soong_config_module_type {
+    name: "alphabet_cc_defaults",
+    module_type: "cc_defaults",
+    config_namespace: "ANDROID",
+    variables: ["alphabet"],
+    properties: [
+        "cflags", // unused
+        "shared_libs",
+        "static_libs",
+    ],
+    bazel_module: { bp2build_available: true },
+}
+
+alphabet_cc_defaults {
+    name: "alphabet_sample_cc_defaults",
+    soong_config_variables: {
+        alphabet: {
+            a: {
+                shared_libs: [
+                    "lib_a",
+                ],
+            },
+            b: {
+                shared_libs: [
+                    "lib_b",
+                ],
+            },
+            conditions_default: {
+                static_libs: [
+                    "lib_default",
+                ],
+            },
+        },
+    },
+}
+
+cc_binary {
+    name: "alphabet_binary",
+    srcs: ["main.cc"],
+    defaults: ["alphabet_sample_cc_defaults"],
+}`
+
+	otherDeps := `
+cc_library { name: "lib_a", bazel_module: { bp2build_available: false } }
+cc_library { name: "lib_b", bazel_module: { bp2build_available: false } }
+cc_library { name: "lib_default", bazel_module: { bp2build_available: false } }
+`
+
+	runSoongConfigModuleTypeTest(t, bp2buildTestCase{
+		description:                        "soong config variables - generates selects for library_linking_strategy",
+		moduleTypeUnderTest:                "cc_binary",
+		moduleTypeUnderTestFactory:         cc.BinaryFactory,
+		moduleTypeUnderTestBp2BuildMutator: cc.BinaryBp2build,
+		blueprint:                          bp,
+		filesystem: map[string]string{
+			"foo/bar/Android.bp": otherDeps,
+		},
+		expectedBazelTargets: []string{`cc_binary(
+    name = "alphabet_binary",
+    deps = select({
+        "//build/bazel/product_variables:android__alphabet__a": [],
+        "//build/bazel/product_variables:android__alphabet__b": [],
+        "//conditions:default": ["//foo/bar:lib_default_bp2build_cc_library_static"],
+    }),
+    dynamic_deps = select({
+        "//build/bazel/product_variables:android__alphabet__a": ["//foo/bar:lib_a"],
+        "//build/bazel/product_variables:android__alphabet__b": ["//foo/bar:lib_b"],
+        "//conditions:default": [],
+    }),
+    local_includes = ["."],
+    srcs = ["main.cc"],
 )`}})
 }

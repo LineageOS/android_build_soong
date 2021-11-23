@@ -532,8 +532,8 @@ func isStructPtr(t reflect.Type) bool {
 
 // prettyPrint a property value into the equivalent Starlark representation
 // recursively.
-func prettyPrint(propertyValue reflect.Value, indent int) (string, error) {
-	if isZero(propertyValue) {
+func prettyPrint(propertyValue reflect.Value, indent int, emitZeroValues bool) (string, error) {
+	if !emitZeroValues && isZero(propertyValue) {
 		// A property value being set or unset actually matters -- Soong does set default
 		// values for unset properties, like system_shared_libs = ["libc", "libm", "libdl"] at
 		// https://cs.android.com/android/platform/superproject/+/master:build/soong/cc/linker.go;l=281-287;drc=f70926eef0b9b57faf04c17a1062ce50d209e480
@@ -556,7 +556,7 @@ func prettyPrint(propertyValue reflect.Value, indent int) (string, error) {
 	case reflect.Int, reflect.Uint, reflect.Int64:
 		ret = fmt.Sprintf("%v", propertyValue.Interface())
 	case reflect.Ptr:
-		return prettyPrint(propertyValue.Elem(), indent)
+		return prettyPrint(propertyValue.Elem(), indent, emitZeroValues)
 	case reflect.Slice:
 		if propertyValue.Len() == 0 {
 			return "[]", nil
@@ -565,7 +565,7 @@ func prettyPrint(propertyValue reflect.Value, indent int) (string, error) {
 		if propertyValue.Len() == 1 {
 			// Single-line list for list with only 1 element
 			ret += "["
-			indexedValue, err := prettyPrint(propertyValue.Index(0), indent)
+			indexedValue, err := prettyPrint(propertyValue.Index(0), indent, emitZeroValues)
 			if err != nil {
 				return "", err
 			}
@@ -575,7 +575,7 @@ func prettyPrint(propertyValue reflect.Value, indent int) (string, error) {
 			// otherwise, use a multiline list.
 			ret += "[\n"
 			for i := 0; i < propertyValue.Len(); i++ {
-				indexedValue, err := prettyPrint(propertyValue.Index(i), indent+1)
+				indexedValue, err := prettyPrint(propertyValue.Index(i), indent+1, emitZeroValues)
 				if err != nil {
 					return "", err
 				}
@@ -660,7 +660,7 @@ func extractStructProperties(structValue reflect.Value, indent int) map[string]s
 		}
 
 		propertyName := proptools.PropertyNameForField(field.Name)
-		prettyPrintedValue, err := prettyPrint(fieldValue, indent+1)
+		prettyPrintedValue, err := prettyPrint(fieldValue, indent+1, false)
 		if err != nil {
 			panic(
 				fmt.Errorf(
