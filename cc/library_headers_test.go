@@ -15,8 +15,13 @@
 package cc
 
 import (
+	"fmt"
 	"strings"
 	"testing"
+
+	"android/soong/android"
+
+	"github.com/google/blueprint"
 )
 
 func TestLibraryHeaders(t *testing.T) {
@@ -58,5 +63,45 @@ func TestPrebuiltLibraryHeaders(t *testing.T) {
 	cflags := cc.Args["cFlags"]
 	if !strings.Contains(cflags, " -Imy_include ") {
 		t.Errorf("cflags for libsystem must contain -Imy_include, but was %#v.", cflags)
+	}
+}
+
+func TestPrebuiltLibraryHeadersPreferred(t *testing.T) {
+	bp := `
+		cc_library_headers {
+			name: "headers",
+			export_include_dirs: ["my_include"],
+		}
+		cc_prebuilt_library_headers {
+			name: "headers",
+			prefer: %t,
+			export_include_dirs: ["my_include"],
+		}
+		cc_library_static {
+			name: "lib",
+			srcs: ["foo.c"],
+			header_libs: ["headers"],
+		}
+	`
+
+	for _, prebuiltPreferred := range []bool{false, true} {
+		t.Run(fmt.Sprintf("prebuilt prefer %t", prebuiltPreferred), func(t *testing.T) {
+			ctx := testCc(t, fmt.Sprintf(bp, prebuiltPreferred))
+			lib := ctx.ModuleForTests("lib", "android_arm64_armv8-a_static")
+			sourceDep := ctx.ModuleForTests("headers", "android_arm64_armv8-a")
+			prebuiltDep := ctx.ModuleForTests("prebuilt_headers", "android_arm64_armv8-a")
+			hasSourceDep := false
+			hasPrebuiltDep := false
+			ctx.VisitDirectDeps(lib.Module(), func(dep blueprint.Module) {
+				if dep == sourceDep.Module() {
+					hasSourceDep = true
+				}
+				if dep == prebuiltDep.Module() {
+					hasPrebuiltDep = true
+				}
+			})
+			android.AssertBoolEquals(t, "depends on source headers", !prebuiltPreferred, hasSourceDep)
+			android.AssertBoolEquals(t, "depends on prebuilt headers", prebuiltPreferred, hasPrebuiltDep)
+		})
 	}
 }
