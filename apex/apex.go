@@ -111,6 +111,9 @@ type apexBundleProperties struct {
 	// List of java libraries that are embedded inside this APEX bundle.
 	Java_libs []string
 
+	// List of sh binaries that are embedded inside this APEX bundle.
+	Sh_binaries []string
+
 	// List of platform_compat_config files that are embedded inside this APEX bundle.
 	Compat_configs []string
 
@@ -604,6 +607,7 @@ var (
 	sharedLibTag    = dependencyTag{name: "sharedLib", payload: true}
 	testForTag      = dependencyTag{name: "test for"}
 	testTag         = dependencyTag{name: "test", payload: true}
+	shBinaryTag     = dependencyTag{name: "shBinary", payload: true}
 )
 
 // TODO(jiyong): shorten this function signature
@@ -748,6 +752,10 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 		for _, d := range depsList {
 			addDependenciesForNativeModules(ctx, d, target, imageVariation)
 		}
+		ctx.AddFarVariationDependencies([]blueprint.Variation{
+			{Mutator: "os", Variation: target.OsVariation()},
+			{Mutator: "arch", Variation: target.ArchVariation()},
+		}, shBinaryTag, a.properties.Sh_binaries...)
 	}
 
 	// Common-arch dependencies come next
@@ -1468,6 +1476,9 @@ func apexFileForGoBinary(ctx android.BaseModuleContext, depName string, gb boots
 
 func apexFileForShBinary(ctx android.BaseModuleContext, sh *sh.ShBinary) apexFile {
 	dirInApex := filepath.Join("bin", sh.SubDir())
+	if sh.Target().NativeBridge == android.NativeBridgeEnabled {
+		dirInApex = filepath.Join(dirInApex, sh.Target().NativeBridgeRelativePath)
+	}
 	fileToCopy := sh.OutputFile()
 	af := newApexFile(ctx, fileToCopy, sh.BaseModuleName(), dirInApex, shBinary, sh)
 	af.symlinks = sh.Symlinks()
@@ -1708,8 +1719,6 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 				if cc, ok := child.(*cc.Module); ok {
 					filesInfo = append(filesInfo, apexFileForExecutable(ctx, cc))
 					return true // track transitive dependencies
-				} else if sh, ok := child.(*sh.ShBinary); ok {
-					filesInfo = append(filesInfo, apexFileForShBinary(ctx, sh))
 				} else if py, ok := child.(*python.Module); ok && py.HostToolPath().Valid() {
 					filesInfo = append(filesInfo, apexFileForPyBinary(ctx, py))
 				} else if gb, ok := child.(bootstrap.GoBinaryTool); ok && a.Host() {
@@ -1718,7 +1727,13 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					filesInfo = append(filesInfo, apexFileForRustExecutable(ctx, rust))
 					return true // track transitive dependencies
 				} else {
-					ctx.PropertyErrorf("binaries", "%q is neither cc_binary, rust_binary, (embedded) py_binary, (host) blueprint_go_binary, (host) bootstrap_go_binary, nor sh_binary", depName)
+					ctx.PropertyErrorf("binaries", "%q is neither cc_binary, rust_binary, (embedded) py_binary, (host) blueprint_go_binary, nor (host) bootstrap_go_binary", depName)
+				}
+			case shBinaryTag:
+				if sh, ok := child.(*sh.ShBinary); ok {
+					filesInfo = append(filesInfo, apexFileForShBinary(ctx, sh))
+				} else {
+					ctx.PropertyErrorf("sh_binaries", "%q is not a sh_binary module", depName)
 				}
 			case bcpfTag:
 				{

@@ -4248,7 +4248,7 @@ func TestApexWithShBinary(t *testing.T) {
 		apex {
 			name: "myapex",
 			key: "myapex.key",
-			binaries: ["myscript"],
+			sh_binaries: ["myscript"],
 			updatable: false,
 		}
 
