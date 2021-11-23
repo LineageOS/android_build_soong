@@ -417,6 +417,12 @@ type LabelListAttribute struct {
 	// This mode facilitates use of attribute defaults: an empty list should
 	// override the default.
 	ForceSpecifyEmptyList bool
+
+	// If true, signal the intent to the code generator to emit all select keys,
+	// even if the Includes list for that key is empty. This mode facilitates
+	// specific select statements where an empty list for a non-default select
+	// key has a meaning.
+	EmitEmptyList bool
 }
 
 type configurableLabelLists map[ConfigurationAxis]labelListSelectValues
