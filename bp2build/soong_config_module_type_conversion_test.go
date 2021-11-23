@@ -324,3 +324,269 @@ cc_library_static { name: "soc_default_static_dep", bazel_module: { bp2build_ava
     local_includes = ["."],
 )`}})
 }
+
+func TestSoongConfigModuleType_Defaults_SingleNamespace(t *testing.T) {
+	bp := `
+soong_config_module_type {
+	name: "vendor_foo_cc_defaults",
+	module_type: "cc_defaults",
+	config_namespace: "vendor_foo",
+	bool_variables: ["feature"],
+	properties: ["cflags", "cppflags"],
+	bazel_module: { bp2build_available: true },
+}
+
+vendor_foo_cc_defaults {
+	name: "foo_defaults_1",
+	soong_config_variables: {
+		feature: {
+			cflags: ["-cflag_feature_1"],
+			conditions_default: {
+				cflags: ["-cflag_default_1"],
+			},
+		},
+	},
+}
+
+vendor_foo_cc_defaults {
+	name: "foo_defaults_2",
+	defaults: ["foo_defaults_1"],
+	soong_config_variables: {
+		feature: {
+			cflags: ["-cflag_feature_2"],
+			conditions_default: {
+				cflags: ["-cflag_default_2"],
+			},
+		},
+	},
+}
+
+cc_library_static {
+	name: "lib",
+	defaults: ["foo_defaults_2"],
+	bazel_module: { bp2build_available: true },
+}
+`
+
+	runSoongConfigModuleTypeTest(t, bp2buildTestCase{
+		description:                        "soong config variables - defaults with a single namespace",
+		moduleTypeUnderTest:                "cc_library_static",
+		moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
+		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
+		blueprint:                          bp,
+		expectedBazelTargets: []string{`cc_library_static(
+    name = "lib",
+    copts = select({
+        "//build/bazel/product_variables:vendor_foo__feature__enabled": [
+            "-cflag_feature_2",
+            "-cflag_feature_1",
+        ],
+        "//conditions:default": [
+            "-cflag_default_2",
+            "-cflag_default_1",
+        ],
+    }),
+    local_includes = ["."],
+)`}})
+}
+
+func TestSoongConfigModuleType_MultipleDefaults_SingleNamespace(t *testing.T) {
+	bp := `
+soong_config_module_type {
+	name: "foo_cc_defaults",
+	module_type: "cc_defaults",
+	config_namespace: "acme",
+	bool_variables: ["feature"],
+	properties: ["cflags"],
+	bazel_module: { bp2build_available: true },
+}
+
+soong_config_module_type {
+	name: "bar_cc_defaults",
+	module_type: "cc_defaults",
+	config_namespace: "acme",
+	bool_variables: ["feature"],
+	properties: ["cflags", "asflags"],
+	bazel_module: { bp2build_available: true },
+}
+
+foo_cc_defaults {
+	name: "foo_defaults",
+	soong_config_variables: {
+		feature: {
+			cflags: ["-cflag_foo"],
+			conditions_default: {
+				cflags: ["-cflag_default_foo"],
+			},
+		},
+	},
+}
+
+bar_cc_defaults {
+	name: "bar_defaults",
+	srcs: ["file.S"],
+	soong_config_variables: {
+		feature: {
+			cflags: ["-cflag_bar"],
+			asflags: ["-asflag_bar"],
+			conditions_default: {
+				asflags: ["-asflag_default_bar"],
+				cflags: ["-cflag_default_bar"],
+			},
+		},
+	},
+}
+
+cc_library_static {
+	name: "lib",
+	defaults: ["foo_defaults", "bar_defaults"],
+	bazel_module: { bp2build_available: true },
+}
+
+cc_library_static {
+	name: "lib2",
+	defaults: ["bar_defaults", "foo_defaults"],
+	bazel_module: { bp2build_available: true },
+}
+`
+
+	runSoongConfigModuleTypeTest(t, bp2buildTestCase{
+		description:                        "soong config variables - multiple defaults with a single namespace",
+		moduleTypeUnderTest:                "cc_library_static",
+		moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
+		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
+		blueprint:                          bp,
+		expectedBazelTargets: []string{`cc_library_static(
+    name = "lib",
+    asflags = select({
+        "//build/bazel/product_variables:acme__feature__enabled": ["-asflag_bar"],
+        "//conditions:default": ["-asflag_default_bar"],
+    }),
+    copts = select({
+        "//build/bazel/product_variables:acme__feature__enabled": [
+            "-cflag_foo",
+            "-cflag_bar",
+        ],
+        "//conditions:default": [
+            "-cflag_default_foo",
+            "-cflag_default_bar",
+        ],
+    }),
+    local_includes = ["."],
+    srcs_as = ["file.S"],
+)`,
+			`cc_library_static(
+    name = "lib2",
+    asflags = select({
+        "//build/bazel/product_variables:acme__feature__enabled": ["-asflag_bar"],
+        "//conditions:default": ["-asflag_default_bar"],
+    }),
+    copts = select({
+        "//build/bazel/product_variables:acme__feature__enabled": [
+            "-cflag_bar",
+            "-cflag_foo",
+        ],
+        "//conditions:default": [
+            "-cflag_default_bar",
+            "-cflag_default_foo",
+        ],
+    }),
+    local_includes = ["."],
+    srcs_as = ["file.S"],
+)`}})
+}
+
+func TestSoongConfigModuleType_Defaults_MultipleNamespaces(t *testing.T) {
+	bp := `
+soong_config_module_type {
+	name: "vendor_foo_cc_defaults",
+	module_type: "cc_defaults",
+	config_namespace: "vendor_foo",
+	bool_variables: ["feature"],
+	properties: ["cflags"],
+	bazel_module: { bp2build_available: true },
+}
+
+soong_config_module_type {
+	name: "vendor_bar_cc_defaults",
+	module_type: "cc_defaults",
+	config_namespace: "vendor_bar",
+	bool_variables: ["feature"],
+	properties: ["cflags"],
+	bazel_module: { bp2build_available: true },
+}
+
+soong_config_module_type {
+	name: "vendor_qux_cc_defaults",
+	module_type: "cc_defaults",
+	config_namespace: "vendor_qux",
+	bool_variables: ["feature"],
+	properties: ["cflags"],
+	bazel_module: { bp2build_available: true },
+}
+
+vendor_foo_cc_defaults {
+	name: "foo_defaults",
+	soong_config_variables: {
+		feature: {
+			cflags: ["-DVENDOR_FOO_FEATURE"],
+			conditions_default: {
+				cflags: ["-DVENDOR_FOO_DEFAULT"],
+			},
+		},
+	},
+}
+
+vendor_bar_cc_defaults {
+	name: "bar_defaults",
+	soong_config_variables: {
+		feature: {
+			cflags: ["-DVENDOR_BAR_FEATURE"],
+			conditions_default: {
+				cflags: ["-DVENDOR_BAR_DEFAULT"],
+			},
+		},
+	},
+}
+
+vendor_qux_cc_defaults {
+	name: "qux_defaults",
+	defaults: ["bar_defaults"],
+	soong_config_variables: {
+		feature: {
+			cflags: ["-DVENDOR_QUX_FEATURE"],
+			conditions_default: {
+				cflags: ["-DVENDOR_QUX_DEFAULT"],
+			},
+		},
+	},
+}
+
+cc_library_static {
+	name: "lib",
+	defaults: ["foo_defaults", "qux_defaults"],
+	bazel_module: { bp2build_available: true },
+}
+`
+
+	runSoongConfigModuleTypeTest(t, bp2buildTestCase{
+		description:                        "soong config variables - defaults with multiple namespaces",
+		moduleTypeUnderTest:                "cc_library_static",
+		moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
+		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
+		blueprint:                          bp,
+		expectedBazelTargets: []string{`cc_library_static(
+    name = "lib",
+    copts = select({
+        "//build/bazel/product_variables:vendor_bar__feature__enabled": ["-DVENDOR_BAR_FEATURE"],
+        "//conditions:default": ["-DVENDOR_BAR_DEFAULT"],
+    }) + select({
+        "//build/bazel/product_variables:vendor_foo__feature__enabled": ["-DVENDOR_FOO_FEATURE"],
+        "//conditions:default": ["-DVENDOR_FOO_DEFAULT"],
+    }) + select({
+        "//build/bazel/product_variables:vendor_qux__feature__enabled": ["-DVENDOR_QUX_FEATURE"],
+        "//conditions:default": ["-DVENDOR_QUX_DEFAULT"],
+    }),
+    local_includes = ["."],
+)`}})
+}
