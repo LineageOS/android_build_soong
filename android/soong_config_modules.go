@@ -434,7 +434,7 @@ func configModuleFactory(factory blueprint.ModuleFactory, moduleType *soongconfi
 					// Instead of applying all properties, keep the entire conditionalProps struct as
 					// part of the custom module so dependent modules can create the selects accordingly
 					m.setNamespacedVariableProps(namespacedVariableProperties{
-						moduleType.ConfigNamespace: conditionalProps.Interface(),
+						moduleType.ConfigNamespace: []interface{}{conditionalProps.Interface()},
 					})
 				}
 			})
