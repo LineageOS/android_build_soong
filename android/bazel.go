@@ -33,10 +33,10 @@ type properties struct {
 }
 
 // namespacedVariableProperties is a map from a string representing a Soong
-// config variable namespace, like "android" or "vendor_name" to a struct
-// pointer representing the soong_config_variables property of a module created
-// by a soong_config_module_type or soong_config_module_type_import.
-type namespacedVariableProperties map[string]interface{}
+// config variable namespace, like "android" or "vendor_name" to a slice of
+// pointer to a struct containing a single field called Soong_config_variables
+// whose value mirrors the structure in the Blueprint file.
+type namespacedVariableProperties map[string][]interface{}
 
 // BazelModuleBase contains the property structs with metadata for modules which can be converted to
 // Bazel.
@@ -68,11 +68,19 @@ type Bazelable interface {
 	convertWithBp2build(ctx BazelConversionContext, module blueprint.Module) bool
 	GetBazelBuildFileContents(c Config, path, name string) (string, error)
 
-	// For namespaced config variable support
+	// namespacedVariableProps is a map from a soong config variable namespace
+	// (e.g. acme, android) to a map of interfaces{}, which are really
+	// reflect.Struct pointers, representing the value of the
+	// soong_config_variables property of a module. The struct pointer is the
+	// one with the single member called Soong_config_variables, which itself is
+	// a struct containing fields for each supported feature in that namespace.
+	//
+	// The reason for using an slice of interface{} is to support defaults
+	// propagation of the struct pointers.
 	namespacedVariableProps() namespacedVariableProperties
 	setNamespacedVariableProps(props namespacedVariableProperties)
 	BaseModuleType() string
-	SetBaseModuleType(string)
+	SetBaseModuleType(baseModuleType string)
 }
 
 // BazelModule is a lightweight wrapper interface around Module for Bazel-convertible modules.
