@@ -155,9 +155,10 @@ type config struct {
 	fs         pathtools.FileSystem
 	mockBpList string
 
-	runningAsBp2Build        bool
-	bp2buildPackageConfig    Bp2BuildConfig
-	bp2buildModuleTypeConfig map[string]bool
+	runningAsBp2Build              bool
+	bp2buildPackageConfig          Bp2BuildConfig
+	bp2buildModuleTypeConfig       map[string]bool
+	Bp2buildSoongConfigDefinitions soongconfig.Bp2BuildSoongConfigDefinitions
 
 	// If testAllowNonExistentPaths is true then PathForSource and PathForModuleSrc won't error
 	// in tests when a path doesn't exist.
