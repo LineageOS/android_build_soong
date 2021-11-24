@@ -364,3 +364,117 @@ func Test_PropertiesToApply(t *testing.T) {
 		}
 	}
 }
+
+func Test_Bp2BuildSoongConfigDefinitions(t *testing.T) {
+	testCases := []struct {
+		defs     Bp2BuildSoongConfigDefinitions
+		expected string
+	}{
+		{
+			defs: Bp2BuildSoongConfigDefinitions{},
+			expected: `soong_config_bool_variables = {
+}
+
+soong_config_value_variables = {
+}
+
+soong_config_string_variables = {
+}`}, {
+			defs: Bp2BuildSoongConfigDefinitions{
+				BoolVars: map[string]bool{
+					"bool_var": true,
+				},
+			},
+			expected: `soong_config_bool_variables = {
+    "bool_var": True,
+}
+
+soong_config_value_variables = {
+}
+
+soong_config_string_variables = {
+}`}, {
+			defs: Bp2BuildSoongConfigDefinitions{
+				ValueVars: map[string]bool{
+					"value_var": true,
+				},
+			},
+			expected: `soong_config_bool_variables = {
+}
+
+soong_config_value_variables = {
+    "value_var": True,
+}
+
+soong_config_string_variables = {
+}`}, {
+			defs: Bp2BuildSoongConfigDefinitions{
+				StringVars: map[string]map[string]bool{
+					"string_var": map[string]bool{
+						"choice1": true,
+						"choice2": true,
+						"choice3": true,
+					},
+				},
+			},
+			expected: `soong_config_bool_variables = {
+}
+
+soong_config_value_variables = {
+}
+
+soong_config_string_variables = {
+    "string_var": [
+        "choice1",
+        "choice2",
+        "choice3",
+    ],
+}`}, {
+			defs: Bp2BuildSoongConfigDefinitions{
+				BoolVars: map[string]bool{
+					"bool_var_one": true,
+				},
+				ValueVars: map[string]bool{
+					"value_var_one": true,
+					"value_var_two": true,
+				},
+				StringVars: map[string]map[string]bool{
+					"string_var_one": map[string]bool{
+						"choice1": true,
+						"choice2": true,
+						"choice3": true,
+					},
+					"string_var_two": map[string]bool{
+						"foo": true,
+						"bar": true,
+					},
+				},
+			},
+			expected: `soong_config_bool_variables = {
+    "bool_var_one": True,
+}
+
+soong_config_value_variables = {
+    "value_var_one": True,
+    "value_var_two": True,
+}
+
+soong_config_string_variables = {
+    "string_var_one": [
+        "choice1",
+        "choice2",
+        "choice3",
+    ],
+    "string_var_two": [
+        "bar",
+        "foo",
+    ],
+}`},
+	}
+	for _, test := range testCases {
+		actual := test.defs.String()
+		if actual != test.expected {
+			t.Errorf("Expected:\n%s\nbut got:\n%s", test.expected, actual)
+		}
+	}
+}

@@ -2668,7 +2668,6 @@ func makeApexAvailableBaseline() map[string][]string {
 		"libbuildversion",
 		"libmath",
 		"libprocpartition",
-		"libsync",
 	}
 	//
 	// Module separator
@@ -2776,7 +2775,6 @@ func makeApexAvailableBaseline() map[string][]string {
 		"libstagefright_metadatautils",
 		"libstagefright_mpeg2extractor",
 		"libstagefright_mpeg2support",
-		"libsync",
 		"libui",
 		"libui_headers",
 		"libunwindstack",
@@ -2917,7 +2915,6 @@ func makeApexAvailableBaseline() map[string][]string {
 		"libstagefright_m4vh263dec",
 		"libstagefright_m4vh263enc",
 		"libstagefright_mp3dec",
-		"libsync",
 		"libui",
 		"libui_headers",
 		"libunwindstack",
