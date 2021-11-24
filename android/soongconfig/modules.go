@@ -15,7 +15,6 @@
 package soongconfig
 
 import (
-	"android/soong/bazel"
 	"fmt"
 	"io"
 	"reflect"
@@ -121,8 +120,6 @@ type ModuleTypeProperties struct {
 
 	// the list of properties that this module type will extend.
 	Properties []string
-
-	Bazel_module bazel.BazelModuleProperties
 }
 
 func processModuleTypeDef(v *SoongConfigDefinition, def *parser.Module) (errs []error) {
@@ -231,6 +228,96 @@ type SoongConfigDefinition struct {
 	ModuleTypes map[string]*ModuleType
 
 	variables map[string]soongConfigVariable
+}
+
+// Bp2BuildSoongConfigDefinition keeps a global record of all soong config
+// string vars, bool vars and value vars created by every
+// soong_config_module_type in this build.
+type Bp2BuildSoongConfigDefinitions struct {
+	StringVars map[string]map[string]bool
+	BoolVars   map[string]bool
+	ValueVars  map[string]bool
+}
+
+// SoongConfigVariablesForBp2build extracts information from a
+// SoongConfigDefinition that bp2build needs to generate constraint settings and
+// values for, in order to migrate soong_config_module_type usages to Bazel.
+func (defs *Bp2BuildSoongConfigDefinitions) AddVars(mtDef SoongConfigDefinition) {
+	if defs.StringVars == nil {
+		defs.StringVars = make(map[string]map[string]bool)
+	}
+	if defs.BoolVars == nil {
+		defs.BoolVars = make(map[string]bool)
+	}
+	if defs.ValueVars == nil {
+		defs.ValueVars = make(map[string]bool)
+	}
+	for _, moduleType := range mtDef.ModuleTypes {
+		for _, v := range moduleType.Variables {
+			key := strings.Join([]string{moduleType.ConfigNamespace, v.variableProperty()}, "__")
+			if strVar, ok := v.(*stringVariable); ok {
+				if _, ok := defs.StringVars[key]; !ok {
+					defs.StringVars[key] = make(map[string]bool, 0)
+				}
+				for _, value := range strVar.values {
+					defs.StringVars[key][value] = true
+				}
+			} else if _, ok := v.(*boolVariable); ok {
+				defs.BoolVars[key] = true
+			} else if _, ok := v.(*valueVariable); ok {
+				defs.ValueVars[key] = true
+			} else {
+				panic(fmt.Errorf("Unsupported variable type: %+v", v))
+			}
+		}
+	}
+}
+
+// This is a copy of the one available in soong/android/util.go, but depending
+// on the android package causes a cyclic dependency. A refactoring here is to
+// extract common utils out from android/utils.go for other packages like this.
+func sortedStringKeys(m interface{}) []string {
+	v := reflect.ValueOf(m)
+	if v.Kind() != reflect.Map {
+		panic(fmt.Sprintf("%#v is not a map", m))
+	}
+	keys := v.MapKeys()
+	s := make([]string, 0, len(keys))
+	for _, key := range keys {
+		s = append(s, key.String())
+	}
+	sort.Strings(s)
+	return s
+}
+
+// String emits the Soong config variable definitions as Starlark dictionaries.
+func (defs Bp2BuildSoongConfigDefinitions) String() string {
+	ret := ""
+	ret += "soong_config_bool_variables = {\n"
+	for _, boolVar := range sortedStringKeys(defs.BoolVars) {
+		ret += fmt.Sprintf("    \"%s\": True,\n", boolVar)
+	}
+	ret += "}\n"
+	ret += "\n"
+
+	ret += "soong_config_value_variables = {\n"
+	for _, valueVar := range sortedStringKeys(defs.ValueVars) {
+		ret += fmt.Sprintf("    \"%s\": True,\n", valueVar)
+	}
+	ret += "}\n"
+	ret += "\n"
+
+	ret += "soong_config_string_variables = {\n"
+	for _, stringVar := range sortedStringKeys(defs.StringVars) {
+		ret += fmt.Sprintf("    \"%s\": [\n", stringVar)
+		for _, choice := range sortedStringKeys(defs.StringVars[stringVar]) {
+			ret += fmt.Sprintf("        \"%s\",\n", choice)
+		}
+		ret += fmt.Sprintf("    ],\n")
+	}
+	ret += "}"
+
+	return ret
 }
 
 // CreateProperties returns a reflect.Value of a newly constructed type that contains the desired
@@ -436,7 +523,6 @@ type ModuleType struct {
 
 	affectableProperties []string
 	variableNames        []string
-	Bp2buildAvailable    *bool
 }
 
 func newModuleType(props *ModuleTypeProperties) (*ModuleType, []error) {
@@ -445,7 +531,6 @@ func newModuleType(props *ModuleTypeProperties) (*ModuleType, []error) {
 		ConfigNamespace:      props.Config_namespace,
 		BaseModuleType:       props.Module_type,
 		variableNames:        props.Variables,
-		Bp2buildAvailable:    props.Bazel_module.Bp2build_available,
 	}
 
 	for _, name := range props.Bool_variables {

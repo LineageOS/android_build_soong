@@ -567,6 +567,10 @@ type ProductConfigProperty struct {
 	FullConfig string
 }
 
+func (p *ProductConfigProperty) AlwaysEmit() bool {
+	return p.Namespace != ""
+}
+
 func (p *ProductConfigProperty) ConfigurationAxis() bazel.ConfigurationAxis {
 	if p.Namespace == "" {
 		return bazel.ProductVariableConfigurationAxis(p.FullConfig)
@@ -643,17 +647,133 @@ func ProductVariableProperties(ctx BazelConversionPathContext) ProductConfigProp
 	}
 
 	if m, ok := module.(Bazelable); ok && m.namespacedVariableProps() != nil {
-		for namespace, namespacedVariableProp := range m.namespacedVariableProps() {
-			productVariableValues(
-				soongconfig.SoongConfigProperty,
-				namespacedVariableProp,
-				namespace,
-				"",
-				&productConfigProperties)
+		for namespace, namespacedVariableProps := range m.namespacedVariableProps() {
+			for _, namespacedVariableProp := range namespacedVariableProps {
+				productVariableValues(
+					soongconfig.SoongConfigProperty,
+					namespacedVariableProp,
+					namespace,
+					"",
+					&productConfigProperties)
+			}
 		}
 	}
 
+	productConfigProperties.zeroValuesForNamespacedVariables()
+
 	return productConfigProperties
+}
+
+// zeroValuesForNamespacedVariables ensures that selects that contain __only__
+// conditions default values have zero values set for the other non-default
+// values for that select statement.
+//
+// If the ProductConfigProperties map contains these items, as parsed from the .bp file:
+//
+// library_linking_strategy: {
+//     prefer_static: {
+//         static_libs: [
+//             "lib_a",
+//             "lib_b",
+//         ],
+//     },
+//     conditions_default: {
+//         shared_libs: [
+//             "lib_a",
+//             "lib_b",
+//         ],
+//     },
+// },
+//
+// Static_libs {Library_linking_strategy ANDROID prefer_static} [lib_a lib_b]
+// Shared_libs {Library_linking_strategy ANDROID conditions_default} [lib_a lib_b]
+//
+// We need to add this:
+//
+// Shared_libs {Library_linking_strategy ANDROID prefer_static} []
+//
+// so that the following gets generated for the "dynamic_deps" attribute,
+// instead of putting lib_a and lib_b directly into dynamic_deps without a
+// select:
+//
+// dynamic_deps = select({
+//     "//build/bazel/product_variables:android__library_linking_strategy__prefer_static": [],
+//     "//conditions:default": [
+//         "//foo/bar:lib_a",
+//         "//foo/bar:lib_b",
+//     ],
+// }),
+func (props *ProductConfigProperties) zeroValuesForNamespacedVariables() {
+	// A map of product config properties to the zero values of their respective
+	// property value.
+	zeroValues := make(map[ProductConfigProperty]interface{})
+
+	// A map of prop names (e.g. cflags) to product config properties where the
+	// (prop name, ProductConfigProperty) tuple contains a non-conditions_default key.
+	//
+	// e.g.
+	//
+	// prefer_static: {
+	//     static_libs: [
+	//         "lib_a",
+	//         "lib_b",
+	//     ],
+	// },
+	// conditions_default: {
+	//     shared_libs: [
+	//         "lib_a",
+	//         "lib_b",
+	//     ],
+	// },
+	//
+	// The tuple of ("static_libs", prefer_static) would be in this map.
+	hasNonDefaultValue := make(map[string]map[ProductConfigProperty]bool)
+
+	// Iterate over all added soong config variables.
+	for propName, v := range *props {
+		for p, intf := range v {
+			if p.Namespace == "" {
+				// If there's no namespace, this isn't a soong config variable,
+				// i.e. this is a product variable. product variables have no
+				// conditions_defaults, so skip them.
+				continue
+			}
+			if p.FullConfig == bazel.ConditionsDefaultConfigKey {
+				// Skip conditions_defaults.
+				continue
+			}
+			if hasNonDefaultValue[propName] == nil {
+				hasNonDefaultValue[propName] = make(map[ProductConfigProperty]bool)
+				hasNonDefaultValue[propName][p] = false
+			}
+			// Create the zero value of the variable.
+			if _, exists := zeroValues[p]; !exists {
+				zeroValue := reflect.Zero(reflect.ValueOf(intf).Type()).Interface()
+				if zeroValue == nil {
+					panic(fmt.Errorf("Expected non-nil zero value for product/config variable %+v\n", intf))
+				}
+				zeroValues[p] = zeroValue
+			}
+			hasNonDefaultValue[propName][p] = true
+		}
+	}
+
+	for propName := range *props {
+		for p, zeroValue := range zeroValues {
+			// Ignore variables that already have a non-default value for that axis
+			if exists, _ := hasNonDefaultValue[propName][p]; !exists {
+				// fmt.Println(propName, p.Namespace, p.Name, p.FullConfig, zeroValue)
+				// Insert the zero value for this propname + product config value.
+				props.AddProductConfigProperty(
+					propName,
+					p.Namespace,
+					p.Name,
+					p.FullConfig,
+					zeroValue,
+				)
+			}
+		}
+	}
 }
 
 func (p *ProductConfigProperties) AddProductConfigProperty(
@@ -668,7 +788,19 @@ func (p *ProductConfigProperties) AddProductConfigProperty(
 		FullConfig: config,              // e.g. size, feature1-x86, size__conditions_default
 	}
 
-	(*p)[propertyName][productConfigProp] = property
+	if existing, ok := (*p)[propertyName][productConfigProp]; ok && namespace != "" {
+		switch dst := existing.(type) {
+		case []string:
+			if src, ok := property.([]string); ok {
+				dst = append(dst, src...)
+				(*p)[propertyName][productConfigProp] = dst
+			}
+		default:
+			panic(fmt.Errorf("TODO: handle merging value %s", existing))
+		}
+	} else {
+		(*p)[propertyName][productConfigProp] = property
+	}
 }
 
 var (
@@ -704,19 +836,10 @@ func maybeExtractConfigVarProp(v reflect.Value) (reflect.Value, bool) {
 	return v, true
 }
 
-// productVariableValues uses reflection to convert a property struct for
-// product_variables and soong_config_variables to structs that can be generated
-// as select statements.
-func productVariableValues(
-	fieldName string, variableProps interface{}, namespace, suffix string, productConfigProperties *ProductConfigProperties) {
-	if suffix != "" {
-		suffix = "-" + suffix
-	}
-
-	// variableValues represent the product_variables or soong_config_variables
-	// struct.
-	variableValues := reflect.ValueOf(variableProps).Elem().FieldByName(fieldName)
-
+func (productConfigProperties *ProductConfigProperties) AddProductConfigProperties(namespace, suffix string, variableValues reflect.Value) {
+	// variableValues can either be a product_variables or
+	// soong_config_variables struct.
+	//
 	// Example of product_variables:
 	//
 	// product_variables: {
@@ -821,9 +944,10 @@ func productVariableValues(
 						field.Field(k).Interface(), // e.g. ["-DDEFAULT"], ["foo", "bar"]
 					)
 				}
-			} else {
-				// Not a conditions_default or a struct prop, i.e. regular
-				// product variables, or not a string-typed config var.
+			} else if property.Kind() != reflect.Interface {
+				// If not an interface, then this is not a conditions_default or
+				// a struct prop. That is, this is a regular product variable,
+				// or a bool/value config variable.
 				config := productVariableName + suffix
 				productConfigProperties.AddProductConfigProperty(
 					propertyName,
@@ -835,6 +959,20 @@ func productVariableValues(
 			}
 		}
 	}
+}
+
+// productVariableValues uses reflection to convert a property struct for
+// product_variables and soong_config_variables to structs that can be generated
+// as select statements.
+func productVariableValues(
+	fieldName string, variableProps interface{}, namespace, suffix string, productConfigProperties *ProductConfigProperties) {
+	if suffix != "" {
+		suffix = "-" + suffix
+	}
+
+	// variableValues represent the product_variables or soong_config_variables struct.
+	variableValues := reflect.ValueOf(variableProps).Elem().FieldByName(fieldName)
+	productConfigProperties.AddProductConfigProperties(namespace, suffix, variableValues)
 }
 
 func VariableMutator(mctx BottomUpMutatorContext) {

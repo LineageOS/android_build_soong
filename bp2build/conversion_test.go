@@ -82,7 +82,8 @@ func TestCreateBazelFiles_QueryView_AddsTopLevelFiles(t *testing.T) {
 }
 
 func TestCreateBazelFiles_Bp2Build_CreatesDefaultFiles(t *testing.T) {
-	files := CreateSoongInjectionFiles(android.Config{}, CodegenMetrics{})
+	testConfig := android.TestConfig("", make(map[string]string), "", make(map[string][]byte))
+	files := CreateSoongInjectionFiles(testConfig, CodegenMetrics{})
 
 	expectedFilePaths := []bazelFilepath{
 		{
@@ -96,6 +97,10 @@ func TestCreateBazelFiles_Bp2Build_CreatesDefaultFiles(t *testing.T) {
 		{
 			dir:      "metrics",
 			basename: "converted_modules.txt",
+		},
+		{
+			dir:      "product_config",
+			basename: "soong_config_variables.bzl",
 		},
 	}
 

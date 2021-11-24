@@ -854,7 +854,6 @@ var minSdkVersionAllowlist = func(apiMap map[string]int) map[string]ApiLevel {
 	}
 	return list
 }(map[string]int{
-	"adbd":                                                     30,
 	"android.net.ipsec.ike":                                    30,
 	"androidx.annotation_annotation-nodeps":                    29,
 	"androidx.arch.core_core-common-nodeps":                    29,
@@ -879,18 +878,6 @@ var minSdkVersionAllowlist = func(apiMap map[string]int) map[string]ApiLevel {
 	"kotlinx-coroutines-android-nodeps":                        30,
 	"kotlinx-coroutines-core":                                  28,
 	"kotlinx-coroutines-core-nodeps":                           30,
-	"libadb_crypto":                                            30,
-	"libadb_pairing_auth":                                      30,
-	"libadb_pairing_connection":                                30,
-	"libadb_pairing_server":                                    30,
-	"libadb_protos":                                            30,
-	"libadb_tls_connection":                                    30,
-	"libadbconnection_client":                                  30,
-	"libadbconnection_server":                                  30,
-	"libadbd_core":                                             30,
-	"libadbd_services":                                         30,
-	"libadbd":                                                  30,
-	"libapp_processes_protos_lite":                             30,
 	"libasyncio":                                               30,
 	"libbrotli":                                                30,
 	"libbuildversion":                                          30,
