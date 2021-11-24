@@ -1148,7 +1148,7 @@ func (attrs *CommonAttributes) fillCommonBp2BuildModuleAttrs(ctx *topDownMutator
 //         }
 //     }
 //
-//     func NewMyModule() android.Module) {
+//     func NewMyModule() android.Module {
 //         m := &myModule{}
 //         m.AddProperties(&m.properties)
 //         android.InitAndroidModule(m)
