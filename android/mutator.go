@@ -529,10 +529,10 @@ func (t *topDownMutatorContext) CreateBazelTargetModule(
 	mod.base().addBp2buildInfo(info)
 }
 
-func (t *topDownMutatorContext) AppendProperties(props ...interface{}) {
+func (t *topDownMutatorContext) appendPrependHelper(props []interface{},
+	extendFn func([]interface{}, interface{}, proptools.ExtendPropertyFilterFunc) error) {
 	for _, p := range props {
-		err := proptools.AppendMatchingProperties(t.Module().base().customizableProperties,
-			p, nil)
+		err := extendFn(t.Module().base().customizableProperties, p, nil)
 		if err != nil {
 			if propertyErr, ok := err.(*proptools.ExtendPropertyError); ok {
 				t.PropertyErrorf(propertyErr.Property, "%s", propertyErr.Err.Error())
@@ -543,18 +543,12 @@ func (t *topDownMutatorContext) AppendProperties(props ...interface{}) {
 	}
 }
 
+func (t *topDownMutatorContext) AppendProperties(props ...interface{}) {
+	t.appendPrependHelper(props, proptools.AppendMatchingProperties)
+}
+
 func (t *topDownMutatorContext) PrependProperties(props ...interface{}) {
-	for _, p := range props {
-		err := proptools.PrependMatchingProperties(t.Module().base().customizableProperties,
-			p, nil)
-		if err != nil {
-			if propertyErr, ok := err.(*proptools.ExtendPropertyError); ok {
-				t.PropertyErrorf(propertyErr.Property, "%s", propertyErr.Err.Error())
-			} else {
-				panic(err)
-			}
-		}
-	}
+	t.appendPrependHelper(props, proptools.PrependMatchingProperties)
 }
 
 // android.topDownMutatorContext either has to embed blueprint.TopDownMutatorContext, in which case every method that
