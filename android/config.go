@@ -324,7 +324,7 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 			DeviceName:                        stringPtr("test_device"),
 			Platform_sdk_version:              intPtr(30),
 			Platform_sdk_codename:             stringPtr("S"),
-			Platform_version_active_codenames: []string{"S"},
+			Platform_version_active_codenames: []string{"S", "Tiramisu"},
 			DeviceSystemSdkVersions:           []string{"14", "15"},
 			Platform_systemsdk_versions:       []string{"29", "30"},
 			AAPTConfig:                        []string{"normal", "large", "xlarge", "hdpi", "xhdpi", "xxhdpi"},
