@@ -625,7 +625,6 @@ func buildBootImageVariant(ctx android.ModuleContext, image *bootImageVariant, p
 		Flag("--runtime-arg").FlagWithArg("-Xmx", global.Dex2oatImageXmx)
 
 	if profile != nil {
-		cmd.FlagWithArg("--compiler-filter=", "speed-profile")
 		cmd.FlagWithInput("--profile-file=", profile)
 	}
 
