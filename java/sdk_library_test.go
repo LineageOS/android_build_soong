@@ -107,7 +107,7 @@ func TestJavaSdkLibrary(t *testing.T) {
 			libs: ["foo"],
 			sdk_version: "module_30",
 		}
-		`)
+	`)
 
 	// check the existence of the internal modules
 	foo := result.ModuleForTests("foo", "android_common")
@@ -160,6 +160,75 @@ func TestJavaSdkLibrary(t *testing.T) {
 		android.AssertDeepEquals(t, "qux exports (required)", []string{"fred", "quuz", "foo", "bar"}, requiredSdkLibs)
 		android.AssertDeepEquals(t, "qux exports (optional)", []string{}, optionalSdkLibs)
 	}
+}
+
+func TestJavaSdkLibrary_UpdatableLibrary(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		prepareForJavaTest,
+		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithPrebuiltApis(map[string][]string{
+			"28": {"foo"},
+			"29": {"foo"},
+			"30": {"foo", "fooUpdatable", "fooUpdatableErr"},
+		}),
+	).RunTestWithBp(t,
+		`
+		java_sdk_library {
+			name: "fooUpdatable",
+			srcs: ["a.java", "b.java"],
+			api_packages: ["foo"],
+		  on_bootclasspath_since: "29",
+		  on_bootclasspath_before: "30",
+		  min_device_sdk: "R",
+		  max_device_sdk: "current",
+		}
+		java_sdk_library {
+			name: "foo",
+			srcs: ["a.java", "b.java"],
+			api_packages: ["foo"],
+		}
+`)
+	// test that updatability attributes are passed on correctly
+	fooUpdatable := result.ModuleForTests("fooUpdatable.xml", "android_common").Rule("java_sdk_xml")
+	android.AssertStringDoesContain(t, "fooUpdatable.xml java_sdk_xml command", fooUpdatable.RuleParams.Command, `on_bootclasspath_since=\"29\"`)
+	android.AssertStringDoesContain(t, "fooUpdatable.xml java_sdk_xml command", fooUpdatable.RuleParams.Command, `on_bootclasspath_before=\"30\"`)
+	android.AssertStringDoesContain(t, "fooUpdatable.xml java_sdk_xml command", fooUpdatable.RuleParams.Command, `min_device_sdk=\"30\"`)
+	android.AssertStringDoesContain(t, "fooUpdatable.xml java_sdk_xml command", fooUpdatable.RuleParams.Command, `max_device_sdk=\"10000\"`)
+
+	// double check that updatability attributes are not written if they don't exist in the bp file
+	// the permissions file for the foo library defined above
+	fooPermissions := result.ModuleForTests("foo.xml", "android_common").Rule("java_sdk_xml")
+	android.AssertStringDoesNotContain(t, "foo.xml java_sdk_xml command", fooPermissions.RuleParams.Command, `on_bootclasspath_since`)
+	android.AssertStringDoesNotContain(t, "foo.xml java_sdk_xml command", fooPermissions.RuleParams.Command, `on_bootclasspath_before`)
+	android.AssertStringDoesNotContain(t, "foo.xml java_sdk_xml command", fooPermissions.RuleParams.Command, `min_device_sdk`)
+	android.AssertStringDoesNotContain(t, "foo.xml java_sdk_xml command", fooPermissions.RuleParams.Command, `max_device_sdk`)
+}
+
+func TestJavaSdkLibrary_UpdatableLibrary_Validation(t *testing.T) {
+	android.GroupFixturePreparers(
+		prepareForJavaTest,
+		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithPrebuiltApis(map[string][]string{
+			"30": {"fooUpdatable", "fooUpdatableErr"},
+		}),
+	).ExtendWithErrorHandler(android.FixtureExpectsAllErrorsToMatchAPattern(
+		[]string{
+			`on_bootclasspath_since: "aaa" could not be parsed as an integer and is not a recognized codename`,
+			`on_bootclasspath_before: "bbc" could not be parsed as an integer and is not a recognized codename`,
+			`min_device_sdk: "ccc" could not be parsed as an integer and is not a recognized codename`,
+			`max_device_sdk: "ddd" could not be parsed as an integer and is not a recognized codename`,
+		})).RunTestWithBp(t,
+		`
+	java_sdk_library {
+			name: "fooUpdatableErr",
+			srcs: ["a.java", "b.java"],
+			api_packages: ["foo"],
+		  on_bootclasspath_since: "aaa",
+		  on_bootclasspath_before: "bbc",
+		  min_device_sdk: "ccc",
+		  max_device_sdk: "ddd",
+		}
+`)
 }
 
 func TestJavaSdkLibrary_StubOrImplOnlyLibs(t *testing.T) {
