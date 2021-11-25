@@ -215,7 +215,9 @@ var prepareForApexTest = android.GroupFixturePreparers(
 		variables.CertificateOverrides = []string{"myapex_keytest:myapex.certificate.override"}
 		variables.Platform_sdk_codename = proptools.StringPtr("Q")
 		variables.Platform_sdk_final = proptools.BoolPtr(false)
-		variables.Platform_version_active_codenames = []string{"Q"}
+		// "Tiramisu" needs to be in the next line for compatibility with soong code,
+		// not because of these tests specifically (it's not used by the tests)
+		variables.Platform_version_active_codenames = []string{"Q", "Tiramisu"}
 		variables.Platform_vndk_version = proptools.StringPtr("29")
 	}),
 )
