@@ -215,7 +215,9 @@ var prepareForApexTest = android.GroupFixturePreparers(
 		variables.CertificateOverrides = []string{"myapex_keytest:myapex.certificate.override"}
 		variables.Platform_sdk_codename = proptools.StringPtr("Q")
 		variables.Platform_sdk_final = proptools.BoolPtr(false)
-		variables.Platform_version_active_codenames = []string{"Q"}
+		// "Tiramisu" needs to be in the next line for compatibility with soong code,
+		// not because of these tests specifically (it's not used by the tests)
+		variables.Platform_version_active_codenames = []string{"Q", "Tiramisu"}
 		variables.Platform_vndk_version = proptools.StringPtr("29")
 	}),
 )
@@ -6204,7 +6206,7 @@ func TestJavaSDKLibrary(t *testing.T) {
 	})
 	// Permission XML should point to the activated path of impl jar of java_sdk_library
 	sdkLibrary := ctx.ModuleForTests("foo.xml", "android_common_myapex").Rule("java_sdk_xml")
-	ensureContains(t, sdkLibrary.RuleParams.Command, `<library name=\"foo\" file=\"/apex/myapex/javalib/foo.jar\"`)
+	ensureMatches(t, sdkLibrary.RuleParams.Command, `<library\\n\s+name=\\\"foo\\\"\\n\s+file=\\\"/apex/myapex/javalib/foo.jar\\\"`)
 }
 
 func TestJavaSDKLibrary_WithinApex(t *testing.T) {

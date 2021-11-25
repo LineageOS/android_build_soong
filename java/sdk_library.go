@@ -21,6 +21,7 @@ import (
 	"reflect"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -32,25 +33,7 @@ import (
 )
 
 const (
-	sdkXmlFileSuffix    = ".xml"
-	permissionsTemplate = `<?xml version=\"1.0\" encoding=\"utf-8\"?>\n` +
-		`<!-- Copyright (C) 2018 The Android Open Source Project\n` +
-		`\n` +
-		`    Licensed under the Apache License, Version 2.0 (the \"License\");\n` +
-		`    you may not use this file except in compliance with the License.\n` +
-		`    You may obtain a copy of the License at\n` +
-		`\n` +
-		`        http://www.apache.org/licenses/LICENSE-2.0\n` +
-		`\n` +
-		`    Unless required by applicable law or agreed to in writing, software\n` +
-		`    distributed under the License is distributed on an \"AS IS\" BASIS,\n` +
-		`    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n` +
-		`    See the License for the specific language governing permissions and\n` +
-		`    limitations under the License.\n` +
-		`-->\n` +
-		`<permissions>\n` +
-		`    <library name=\"%s\" file=\"%s\"/>\n` +
-		`</permissions>\n`
+	sdkXmlFileSuffix = ".xml"
 )
 
 // A tag to associated a dependency with a specific api scope.
@@ -637,6 +620,33 @@ type commonToSdkLibraryAndImportProperties struct {
 
 	// Files containing information about supported java doc tags.
 	Doctag_files []string `android:"path"`
+
+	// Signals that this shared library is part of the bootclasspath starting
+	// on the version indicated in this attribute.
+	//
+	// This will make platforms at this level and above to ignore
+	// <uses-library> tags with this library name because the library is already
+	// available
+	On_bootclasspath_since *string
+
+	// Signals that this shared library was part of the bootclasspath before
+	// (but not including) the version indicated in this attribute.
+	//
+	// The system will automatically add a <uses-library> tag with this library to
+	// apps that target any SDK less than the version indicated in this attribute.
+	On_bootclasspath_before *string
+
+	// Indicates that PackageManager should ignore this shared library if the
+	// platform is below the version indicated in this attribute.
+	//
+	// This means that the device won't recognise this library as installed.
+	Min_device_sdk *string
+
+	// Indicates that PackageManager should ignore this shared library if the
+	// platform is above the version indicated in this attribute.
+	//
+	// This means that the device won't recognise this library as installed.
+	Max_device_sdk *string
 }
 
 // commonSdkLibraryAndImportModule defines the interface that must be provided by a module that
@@ -1580,14 +1590,29 @@ func (module *SdkLibrary) UniqueApexVariations() bool {
 
 // Creates the xml file that publicizes the runtime library
 func (module *SdkLibrary) createXmlFile(mctx android.DefaultableHookContext) {
+	moduleMinApiLevel := module.Library.MinSdkVersion(mctx).ApiLevel
+	var moduleMinApiLevelStr = moduleMinApiLevel.String()
+	if moduleMinApiLevel == android.NoneApiLevel {
+		moduleMinApiLevelStr = "current"
+	}
 	props := struct {
-		Name           *string
-		Lib_name       *string
-		Apex_available []string
+		Name                      *string
+		Lib_name                  *string
+		Apex_available            []string
+		On_bootclasspath_since    *string
+		On_bootclasspath_before   *string
+		Min_device_sdk            *string
+		Max_device_sdk            *string
+		Sdk_library_min_api_level *string
 	}{
-		Name:           proptools.StringPtr(module.xmlPermissionsModuleName()),
-		Lib_name:       proptools.StringPtr(module.BaseModuleName()),
-		Apex_available: module.ApexProperties.Apex_available,
+		Name:                      proptools.StringPtr(module.xmlPermissionsModuleName()),
+		Lib_name:                  proptools.StringPtr(module.BaseModuleName()),
+		Apex_available:            module.ApexProperties.Apex_available,
+		On_bootclasspath_since:    module.commonSdkLibraryProperties.On_bootclasspath_since,
+		On_bootclasspath_before:   module.commonSdkLibraryProperties.On_bootclasspath_before,
+		Min_device_sdk:            module.commonSdkLibraryProperties.Min_device_sdk,
+		Max_device_sdk:            module.commonSdkLibraryProperties.Max_device_sdk,
+		Sdk_library_min_api_level: &moduleMinApiLevelStr,
 	}
 
 	mctx.CreateModule(sdkLibraryXmlFactory, &props)
@@ -2383,6 +2408,38 @@ type sdkLibraryXml struct {
 type sdkLibraryXmlProperties struct {
 	// canonical name of the lib
 	Lib_name *string
+
+	// Signals that this shared library is part of the bootclasspath starting
+	// on the version indicated in this attribute.
+	//
+	// This will make platforms at this level and above to ignore
+	// <uses-library> tags with this library name because the library is already
+	// available
+	On_bootclasspath_since *string
+
+	// Signals that this shared library was part of the bootclasspath before
+	// (but not including) the version indicated in this attribute.
+	//
+	// The system will automatically add a <uses-library> tag with this library to
+	// apps that target any SDK less than the version indicated in this attribute.
+	On_bootclasspath_before *string
+
+	// Indicates that PackageManager should ignore this shared library if the
+	// platform is below the version indicated in this attribute.
+	//
+	// This means that the device won't recognise this library as installed.
+	Min_device_sdk *string
+
+	// Indicates that PackageManager should ignore this shared library if the
+	// platform is above the version indicated in this attribute.
+	//
+	// This means that the device won't recognise this library as installed.
+	Max_device_sdk *string
+
+	// The SdkLibrary's min api level as a string
+	//
+	// This value comes from the ApiLevel of the MinSdkVersion property.
+	Sdk_library_min_api_level *string
 }
 
 // java_sdk_library_xml builds the permission xml file for a java_sdk_library.
@@ -2459,11 +2516,81 @@ func (module *sdkLibraryXml) implPath(ctx android.ModuleContext) string {
 	return "/" + partition + "/framework/" + implName + ".jar"
 }
 
+func formattedOptionalSdkLevelAttribute(ctx android.ModuleContext, attrName string, value *string) string {
+	if value == nil {
+		return ""
+	}
+	apiLevel, err := android.ApiLevelFromUser(ctx, *value)
+	if err != nil {
+		// attributes in bp files have underscores but in the xml have dashes.
+		ctx.PropertyErrorf(strings.ReplaceAll(attrName, "-", "_"), err.Error())
+		return ""
+	}
+	intStr := strconv.Itoa(apiLevel.FinalOrPreviewInt())
+	return formattedOptionalAttribute(attrName, &intStr)
+}
+
+// formats an attribute for the xml permissions file if the value is not null
+// returns empty string otherwise
+func formattedOptionalAttribute(attrName string, value *string) string {
+	if value == nil {
+		return ""
+	}
+	return fmt.Sprintf(`        %s=\"%s\"\n`, attrName, *value)
+}
+
+func (module *sdkLibraryXml) permissionsContents(ctx android.ModuleContext) string {
+	libName := proptools.String(module.properties.Lib_name)
+	libNameAttr := formattedOptionalAttribute("name", &libName)
+	filePath := module.implPath(ctx)
+	filePathAttr := formattedOptionalAttribute("file", &filePath)
+	implicitFromAttr := formattedOptionalSdkLevelAttribute(ctx, "on-bootclasspath-since", module.properties.On_bootclasspath_since)
+	implicitUntilAttr := formattedOptionalSdkLevelAttribute(ctx, "on-bootclasspath-before", module.properties.On_bootclasspath_before)
+	minSdkAttr := formattedOptionalSdkLevelAttribute(ctx, "min-device-sdk", module.properties.Min_device_sdk)
+	maxSdkAttr := formattedOptionalSdkLevelAttribute(ctx, "max-device-sdk", module.properties.Max_device_sdk)
+	// <library> is understood in all android versions whereas <updatable-library> is only understood from API T (and ignored before that).
+	// similarly, min_device_sdk is only understood from T. So if a library is using that, we need to use the updatable-library to make sure this library is not loaded before T
+	var libraryTag string
+	if module.properties.Min_device_sdk != nil {
+		libraryTag = `    <updatable-library\n`
+	} else {
+		libraryTag = `    <library\n`
+	}
+
+	return strings.Join([]string{
+		`<?xml version=\"1.0\" encoding=\"utf-8\"?>\n`,
+		`<!-- Copyright (C) 2018 The Android Open Source Project\n`,
+		`\n`,
+		`    Licensed under the Apache License, Version 2.0 (the \"License\");\n`,
+		`    you may not use this file except in compliance with the License.\n`,
+		`    You may obtain a copy of the License at\n`,
+		`\n`,
+		`        http://www.apache.org/licenses/LICENSE-2.0\n`,
+		`\n`,
+		`    Unless required by applicable law or agreed to in writing, software\n`,
+		`    distributed under the License is distributed on an \"AS IS\" BASIS,\n`,
+		`    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n`,
+		`    See the License for the specific language governing permissions and\n`,
+		`    limitations under the License.\n`,
+		`-->\n`,
+		`<permissions>\n`,
+		libraryTag,
+		libNameAttr,
+		filePathAttr,
+		implicitFromAttr,
+		implicitUntilAttr,
+		minSdkAttr,
+		maxSdkAttr,
+		`    />\n`,
+		`</permissions>\n`}, "")
+}
+
 func (module *sdkLibraryXml) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	module.hideApexVariantFromMake = !ctx.Provider(android.ApexInfoProvider).(android.ApexInfo).IsForPlatform()
 
 	libName := proptools.String(module.properties.Lib_name)
-	xmlContent := fmt.Sprintf(permissionsTemplate, libName, module.implPath(ctx))
+	module.selfValidate(ctx)
+	xmlContent := module.permissionsContents(ctx)
 
 	module.outputFilePath = android.PathForModuleOut(ctx, libName+".xml").OutputPath
 	rule := android.NewRuleBuilder(pctx, ctx)
@@ -2494,6 +2621,81 @@ func (module *sdkLibraryXml) AndroidMkEntries() []android.AndroidMkEntries {
 			},
 		},
 	}}
+}
+
+func (module *sdkLibraryXml) selfValidate(ctx android.ModuleContext) {
+	module.validateAtLeastTAttributes(ctx)
+	module.validateMinAndMaxDeviceSdk(ctx)
+	module.validateMinMaxDeviceSdkAndModuleMinSdk(ctx)
+	module.validateOnBootclasspathBeforeRequirements(ctx)
+}
+
+func (module *sdkLibraryXml) validateAtLeastTAttributes(ctx android.ModuleContext) {
+	t := android.ApiLevelOrPanic(ctx, "Tiramisu")
+	module.attrAtLeastT(ctx, t, module.properties.Min_device_sdk, "min_device_sdk")
+	module.attrAtLeastT(ctx, t, module.properties.Max_device_sdk, "max_device_sdk")
+	module.attrAtLeastT(ctx, t, module.properties.On_bootclasspath_before, "on_bootclasspath_before")
+	module.attrAtLeastT(ctx, t, module.properties.On_bootclasspath_since, "on_bootclasspath_since")
+}
+
+func (module *sdkLibraryXml) attrAtLeastT(ctx android.ModuleContext, t android.ApiLevel, attr *string, attrName string) {
+	if attr != nil {
+		if level, err := android.ApiLevelFromUser(ctx, *attr); err == nil {
+			// we will inform the user of invalid inputs when we try to write the
+			// permissions xml file so we don't need to do it here
+			if t.GreaterThan(level) {
+				ctx.PropertyErrorf(attrName, "Attribute value needs to be at least T")
+			}
+		}
+	}
+}
+
+func (module *sdkLibraryXml) validateMinAndMaxDeviceSdk(ctx android.ModuleContext) {
+	if module.properties.Min_device_sdk != nil && module.properties.Max_device_sdk != nil {
+		min, minErr := android.ApiLevelFromUser(ctx, *module.properties.Min_device_sdk)
+		max, maxErr := android.ApiLevelFromUser(ctx, *module.properties.Max_device_sdk)
+		if minErr == nil && maxErr == nil {
+			// we will inform the user of invalid inputs when we try to write the
+			// permissions xml file so we don't need to do it here
+			if min.GreaterThan(max) {
+				ctx.ModuleErrorf("min_device_sdk can't be greater than max_device_sdk")
+			}
+		}
+	}
+}
+
+func (module *sdkLibraryXml) validateMinMaxDeviceSdkAndModuleMinSdk(ctx android.ModuleContext) {
+	moduleMinApi := android.ApiLevelOrPanic(ctx, *module.properties.Sdk_library_min_api_level)
+	if module.properties.Min_device_sdk != nil {
+		api, err := android.ApiLevelFromUser(ctx, *module.properties.Min_device_sdk)
+		if err == nil {
+			if moduleMinApi.GreaterThan(api) {
+				ctx.PropertyErrorf("min_device_sdk", "Can't be less than module's min sdk (%s)", moduleMinApi)
+			}
+		}
+	}
+	if module.properties.Max_device_sdk != nil {
+		api, err := android.ApiLevelFromUser(ctx, *module.properties.Max_device_sdk)
+		if err == nil {
+			if moduleMinApi.GreaterThan(api) {
+				ctx.PropertyErrorf("max_device_sdk", "Can't be less than module's min sdk (%s)", moduleMinApi)
+			}
+		}
+	}
+}
+
+func (module *sdkLibraryXml) validateOnBootclasspathBeforeRequirements(ctx android.ModuleContext) {
+	moduleMinApi := android.ApiLevelOrPanic(ctx, *module.properties.Sdk_library_min_api_level)
+	if module.properties.On_bootclasspath_before != nil {
+		t := android.ApiLevelOrPanic(ctx, "Tiramisu")
+		// if we use the attribute, then we need to do this validation
+		if moduleMinApi.LessThan(t) {
+			// if minAPi is < T, then we need to have min_device_sdk (which only accepts T+)
+			if module.properties.Min_device_sdk == nil {
+				ctx.PropertyErrorf("on_bootclasspath_before", "Using this property requires that the module's min_sdk_version or the shared library's min_device_sdk is at least T")
+			}
+		}
+	}
 }
 
 type sdkLibrarySdkMemberType struct {
@@ -2547,6 +2749,33 @@ type sdkLibrarySdkMemberProperties struct {
 	Doctag_paths android.Paths
 
 	Permitted_packages []string
+
+	// Signals that this shared library is part of the bootclasspath starting
+	// on the version indicated in this attribute.
+	//
+	// This will make platforms at this level and above to ignore
+	// <uses-library> tags with this library name because the library is already
+	// available
+	On_bootclasspath_since *string
+
+	// Signals that this shared library was part of the bootclasspath before
+	// (but not including) the version indicated in this attribute.
+	//
+	// The system will automatically add a <uses-library> tag with this library to
+	// apps that target any SDK less than the version indicated in this attribute.
+	On_bootclasspath_before *string
+
+	// Indicates that PackageManager should ignore this shared library if the
+	// platform is below the version indicated in this attribute.
+	//
+	// This means that the device won't recognise this library as installed.
+	Min_device_sdk *string
+
+	// Indicates that PackageManager should ignore this shared library if the
+	// platform is above the version indicated in this attribute.
+	//
+	// This means that the device won't recognise this library as installed.
+	Max_device_sdk *string
 }
 
 type scopeProperties struct {
@@ -2593,6 +2822,10 @@ func (s *sdkLibrarySdkMemberProperties) PopulateFromVariant(ctx android.SdkMembe
 	s.Compile_dex = sdk.dexProperties.Compile_dex
 	s.Doctag_paths = sdk.doctagPaths
 	s.Permitted_packages = sdk.PermittedPackagesForUpdatableBootJars()
+	s.On_bootclasspath_since = sdk.commonSdkLibraryProperties.On_bootclasspath_since
+	s.On_bootclasspath_before = sdk.commonSdkLibraryProperties.On_bootclasspath_before
+	s.Min_device_sdk = sdk.commonSdkLibraryProperties.Min_device_sdk
+	s.Max_device_sdk = sdk.commonSdkLibraryProperties.Max_device_sdk
 }
 
 func (s *sdkLibrarySdkMemberProperties) AddToPropertySet(ctx android.SdkMemberContext, propertySet android.BpPropertySet) {

@@ -15,11 +15,12 @@
 package java
 
 import (
-	"android/soong/android"
 	"fmt"
 	"path/filepath"
 	"regexp"
 	"testing"
+
+	"android/soong/android"
 
 	"github.com/google/blueprint/proptools"
 )
@@ -107,7 +108,7 @@ func TestJavaSdkLibrary(t *testing.T) {
 			libs: ["foo"],
 			sdk_version: "module_30",
 		}
-		`)
+	`)
 
 	// check the existence of the internal modules
 	foo := result.ModuleForTests("foo", "android_common")
@@ -160,6 +161,185 @@ func TestJavaSdkLibrary(t *testing.T) {
 		android.AssertDeepEquals(t, "qux exports (required)", []string{"fred", "quuz", "foo", "bar"}, requiredSdkLibs)
 		android.AssertDeepEquals(t, "qux exports (optional)", []string{}, optionalSdkLibs)
 	}
+}
+
+func TestJavaSdkLibrary_UpdatableLibrary(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		prepareForJavaTest,
+		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithPrebuiltApis(map[string][]string{
+			"28": {"foo"},
+			"29": {"foo"},
+			"30": {"foo", "fooUpdatable", "fooUpdatableErr"},
+		}),
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			variables.Platform_version_active_codenames = []string{"Tiramisu", "U", "V", "W"}
+		}),
+	).RunTestWithBp(t,
+		`
+		java_sdk_library {
+			name: "fooUpdatable",
+			srcs: ["a.java", "b.java"],
+			api_packages: ["foo"],
+			on_bootclasspath_since: "U",
+			on_bootclasspath_before: "V",
+			min_device_sdk: "W",
+			max_device_sdk: "current",
+			min_sdk_version: "S",
+		}
+		java_sdk_library {
+			name: "foo",
+			srcs: ["a.java", "b.java"],
+			api_packages: ["foo"],
+		}
+`)
+	// test that updatability attributes are passed on correctly
+	fooUpdatable := result.ModuleForTests("fooUpdatable.xml", "android_common").Rule("java_sdk_xml")
+	android.AssertStringDoesContain(t, "fooUpdatable.xml java_sdk_xml command", fooUpdatable.RuleParams.Command, `on-bootclasspath-since=\"9001\"`)
+	android.AssertStringDoesContain(t, "fooUpdatable.xml java_sdk_xml command", fooUpdatable.RuleParams.Command, `on-bootclasspath-before=\"9002\"`)
+	android.AssertStringDoesContain(t, "fooUpdatable.xml java_sdk_xml command", fooUpdatable.RuleParams.Command, `min-device-sdk=\"9003\"`)
+	android.AssertStringDoesContain(t, "fooUpdatable.xml java_sdk_xml command", fooUpdatable.RuleParams.Command, `max-device-sdk=\"10000\"`)
+
+	// double check that updatability attributes are not written if they don't exist in the bp file
+	// the permissions file for the foo library defined above
+	fooPermissions := result.ModuleForTests("foo.xml", "android_common").Rule("java_sdk_xml")
+	android.AssertStringDoesNotContain(t, "foo.xml java_sdk_xml command", fooPermissions.RuleParams.Command, `on-bootclasspath-since`)
+	android.AssertStringDoesNotContain(t, "foo.xml java_sdk_xml command", fooPermissions.RuleParams.Command, `on-bootclasspath-before`)
+	android.AssertStringDoesNotContain(t, "foo.xml java_sdk_xml command", fooPermissions.RuleParams.Command, `min-device-sdk`)
+	android.AssertStringDoesNotContain(t, "foo.xml java_sdk_xml command", fooPermissions.RuleParams.Command, `max-device-sdk`)
+}
+
+func TestJavaSdkLibrary_UpdatableLibrary_Validation_ValidVersion(t *testing.T) {
+	android.GroupFixturePreparers(
+		prepareForJavaTest,
+		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithPrebuiltApis(map[string][]string{
+			"30": {"fooUpdatable", "fooUpdatableErr"},
+		}),
+	).ExtendWithErrorHandler(android.FixtureExpectsAllErrorsToMatchAPattern(
+		[]string{
+			`on_bootclasspath_since: "aaa" could not be parsed as an integer and is not a recognized codename`,
+			`on_bootclasspath_before: "bbc" could not be parsed as an integer and is not a recognized codename`,
+			`min_device_sdk: "ccc" could not be parsed as an integer and is not a recognized codename`,
+			`max_device_sdk: "ddd" could not be parsed as an integer and is not a recognized codename`,
+		})).RunTestWithBp(t,
+		`
+	java_sdk_library {
+			name: "fooUpdatableErr",
+			srcs: ["a.java", "b.java"],
+			api_packages: ["foo"],
+			on_bootclasspath_since: "aaa",
+			on_bootclasspath_before: "bbc",
+			min_device_sdk: "ccc",
+			max_device_sdk: "ddd",
+		}
+`)
+}
+
+func TestJavaSdkLibrary_UpdatableLibrary_Validation_AtLeastTAttributes(t *testing.T) {
+	android.GroupFixturePreparers(
+		prepareForJavaTest,
+		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithPrebuiltApis(map[string][]string{
+			"28": {"foo"},
+		}),
+	).ExtendWithErrorHandler(android.FixtureExpectsAllErrorsToMatchAPattern(
+		[]string{
+			"on_bootclasspath_since: Attribute value needs to be at least T",
+			"on_bootclasspath_before: Attribute value needs to be at least T",
+			"min_device_sdk: Attribute value needs to be at least T",
+			"max_device_sdk: Attribute value needs to be at least T",
+		},
+	)).RunTestWithBp(t,
+		`
+		java_sdk_library {
+			name: "foo",
+			srcs: ["a.java", "b.java"],
+			api_packages: ["foo"],
+			on_bootclasspath_since: "S",
+			on_bootclasspath_before: "S",
+			min_device_sdk: "S",
+			max_device_sdk: "S",
+			min_sdk_version: "S",
+		}
+`)
+}
+
+func TestJavaSdkLibrary_UpdatableLibrary_Validation_MinAndMaxDeviceSdk(t *testing.T) {
+	android.GroupFixturePreparers(
+		prepareForJavaTest,
+		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithPrebuiltApis(map[string][]string{
+			"28": {"foo"},
+		}),
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			variables.Platform_version_active_codenames = []string{"Tiramisu", "U", "V"}
+		}),
+	).ExtendWithErrorHandler(android.FixtureExpectsAllErrorsToMatchAPattern(
+		[]string{
+			"min_device_sdk can't be greater than max_device_sdk",
+		},
+	)).RunTestWithBp(t,
+		`
+		java_sdk_library {
+			name: "foo",
+			srcs: ["a.java", "b.java"],
+			api_packages: ["foo"],
+			min_device_sdk: "V",
+			max_device_sdk: "U",
+			min_sdk_version: "S",
+		}
+`)
+}
+
+func TestJavaSdkLibrary_UpdatableLibrary_Validation_MinAndMaxDeviceSdkAndModuleMinSdk(t *testing.T) {
+	android.GroupFixturePreparers(
+		prepareForJavaTest,
+		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithPrebuiltApis(map[string][]string{
+			"28": {"foo"},
+		}),
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			variables.Platform_version_active_codenames = []string{"Tiramisu", "U", "V"}
+		}),
+	).ExtendWithErrorHandler(android.FixtureExpectsAllErrorsToMatchAPattern(
+		[]string{
+			regexp.QuoteMeta("min_device_sdk: Can't be less than module's min sdk (V)"),
+			regexp.QuoteMeta("max_device_sdk: Can't be less than module's min sdk (V)"),
+		},
+	)).RunTestWithBp(t,
+		`
+		java_sdk_library {
+			name: "foo",
+			srcs: ["a.java", "b.java"],
+			api_packages: ["foo"],
+			min_device_sdk: "U",
+			max_device_sdk: "U",
+			min_sdk_version: "V",
+		}
+`)
+}
+
+func TestJavaSdkLibrary_UpdatableLibrary_usesNewTag(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		prepareForJavaTest,
+		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithPrebuiltApis(map[string][]string{
+			"30": {"foo"},
+		}),
+	).RunTestWithBp(t,
+		`
+		java_sdk_library {
+			name: "foo",
+			srcs: ["a.java", "b.java"],
+			min_device_sdk: "Tiramisu",
+			min_sdk_version: "S",
+		}
+`)
+	// test that updatability attributes are passed on correctly
+	fooUpdatable := result.ModuleForTests("foo.xml", "android_common").Rule("java_sdk_xml")
+	android.AssertStringDoesContain(t, "foo.xml java_sdk_xml command", fooUpdatable.RuleParams.Command, `<updatable-library`)
+	android.AssertStringDoesNotContain(t, "foo.xml java_sdk_xml command", fooUpdatable.RuleParams.Command, `<library`)
 }
 
 func TestJavaSdkLibrary_StubOrImplOnlyLibs(t *testing.T) {
