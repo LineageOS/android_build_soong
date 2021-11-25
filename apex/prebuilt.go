@@ -257,8 +257,8 @@ func (p *prebuiltCommon) createEntriesForApexFile(fi apexFile, apexName string) 
 		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
 			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
 				entries.SetString("LOCAL_MODULE_PATH", p.installDir.ToMakePath().String())
-				entries.SetString("LOCAL_SOONG_INSTALLED_MODULE :=", filepath.Join(p.installDir.String(), fi.stem()))
-				entries.SetString("LOCAL_SOONG_INSTALL_PAIRS :=",
+				entries.SetString("LOCAL_SOONG_INSTALLED_MODULE", filepath.Join(p.installDir.String(), fi.stem()))
+				entries.SetString("LOCAL_SOONG_INSTALL_PAIRS",
 					fi.builtFile.String()+":"+filepath.Join(p.installDir.String(), fi.stem()))
 
 				// soong_java_prebuilt.mk sets LOCAL_MODULE_SUFFIX := .jar  Therefore

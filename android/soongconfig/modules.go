@@ -20,6 +20,7 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/parser"
@@ -239,10 +240,18 @@ type Bp2BuildSoongConfigDefinitions struct {
 	ValueVars  map[string]bool
 }
 
+var bp2buildSoongConfigVarsLock sync.Mutex
+
 // SoongConfigVariablesForBp2build extracts information from a
 // SoongConfigDefinition that bp2build needs to generate constraint settings and
 // values for, in order to migrate soong_config_module_type usages to Bazel.
 func (defs *Bp2BuildSoongConfigDefinitions) AddVars(mtDef SoongConfigDefinition) {
+	// In bp2build mode, this method is called concurrently in goroutines from
+	// loadhooks while parsing soong_config_module_type, so add a mutex to
+	// prevent concurrent map writes. See b/207572723
+	bp2buildSoongConfigVarsLock.Lock()
+	defer bp2buildSoongConfigVarsLock.Unlock()
+
 	if defs.StringVars == nil {
 		defs.StringVars = make(map[string]map[string]bool)
 	}
