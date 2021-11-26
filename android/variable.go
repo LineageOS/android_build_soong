@@ -15,12 +15,13 @@
 package android
 
 import (
-	"android/soong/android/soongconfig"
-	"android/soong/bazel"
 	"fmt"
 	"reflect"
 	"runtime"
 	"strings"
+
+	"android/soong/android/soongconfig"
+	"android/soong/bazel"
 
 	"github.com/google/blueprint/proptools"
 )
@@ -248,30 +249,30 @@ type productVariables struct {
 
 	AppsDefaultVersionName *string `json:",omitempty"`
 
-	Allow_missing_dependencies   *bool `json:",omitempty"`
-	Unbundled_build              *bool `json:",omitempty"`
-	Unbundled_build_apps         *bool `json:",omitempty"`
-	Unbundled_build_image        *bool `json:",omitempty"`
-	Always_use_prebuilt_sdks     *bool `json:",omitempty"`
-	Skip_boot_jars_check         *bool `json:",omitempty"`
-	Malloc_not_svelte            *bool `json:",omitempty"`
-	Malloc_zero_contents         *bool `json:",omitempty"`
-	Malloc_pattern_fill_contents *bool `json:",omitempty"`
-	Safestack                    *bool `json:",omitempty"`
-	HostStaticBinaries           *bool `json:",omitempty"`
-	Binder32bit                  *bool `json:",omitempty"`
-	UseGoma                      *bool `json:",omitempty"`
-	UseRBE                       *bool `json:",omitempty"`
-	UseRBEJAVAC                  *bool `json:",omitempty"`
-	UseRBER8                     *bool `json:",omitempty"`
-	UseRBED8                     *bool `json:",omitempty"`
-	Debuggable                   *bool `json:",omitempty"`
-	Eng                          *bool `json:",omitempty"`
-	Treble_linker_namespaces     *bool `json:",omitempty"`
-	Enforce_vintf_manifest       *bool `json:",omitempty"`
-	Uml                          *bool `json:",omitempty"`
-	Arc                          *bool `json:",omitempty"`
-	MinimizeJavaDebugInfo        *bool `json:",omitempty"`
+	Allow_missing_dependencies   *bool    `json:",omitempty"`
+	Unbundled_build              *bool    `json:",omitempty"`
+	Unbundled_build_apps         []string `json:",omitempty"`
+	Unbundled_build_image        *bool    `json:",omitempty"`
+	Always_use_prebuilt_sdks     *bool    `json:",omitempty"`
+	Skip_boot_jars_check         *bool    `json:",omitempty"`
+	Malloc_not_svelte            *bool    `json:",omitempty"`
+	Malloc_zero_contents         *bool    `json:",omitempty"`
+	Malloc_pattern_fill_contents *bool    `json:",omitempty"`
+	Safestack                    *bool    `json:",omitempty"`
+	HostStaticBinaries           *bool    `json:",omitempty"`
+	Binder32bit                  *bool    `json:",omitempty"`
+	UseGoma                      *bool    `json:",omitempty"`
+	UseRBE                       *bool    `json:",omitempty"`
+	UseRBEJAVAC                  *bool    `json:",omitempty"`
+	UseRBER8                     *bool    `json:",omitempty"`
+	UseRBED8                     *bool    `json:",omitempty"`
+	Debuggable                   *bool    `json:",omitempty"`
+	Eng                          *bool    `json:",omitempty"`
+	Treble_linker_namespaces     *bool    `json:",omitempty"`
+	Enforce_vintf_manifest       *bool    `json:",omitempty"`
+	Uml                          *bool    `json:",omitempty"`
+	Arc                          *bool    `json:",omitempty"`
+	MinimizeJavaDebugInfo        *bool    `json:",omitempty"`
 
 	Check_elf_files *bool `json:",omitempty"`
 
