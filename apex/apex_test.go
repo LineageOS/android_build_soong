@@ -7037,6 +7037,7 @@ func testDexpreoptWithApexes(t *testing.T, bp, errmsg string, preparer android.F
 				`, insert))
 			}
 		}),
+		dexpreopt.FixtureSetBootImageProfiles("art/build/boot/boot-image-profile.txt"),
 	).
 		ExtendWithErrorHandler(errorHandler).
 		RunTestWithBp(t, bp)
