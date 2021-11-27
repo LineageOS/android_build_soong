@@ -226,7 +226,8 @@ var (
 
 	// Configure modules in these directories to enable bp2build_available: true or false by default.
 	bp2buildDefaultConfig = Bp2BuildConfig{
-		"bionic":                                             Bp2BuildDefaultTrueRecursively,
+		"bionic": Bp2BuildDefaultTrueRecursively,
+		"build/bazel/examples/soong_config_variables":        Bp2BuildDefaultTrueRecursively,
 		"build/bazel/examples/apex/minimal":                  Bp2BuildDefaultTrueRecursively,
 		"build/soong/cc/libbuildversion":                     Bp2BuildDefaultTrue, // Skip tests subdir
 		"development/sdk":                                    Bp2BuildDefaultTrueRecursively,
