@@ -235,7 +235,7 @@ func (p *prebuiltLibraryLinker) implementationModuleName(name string) string {
 	return android.RemoveOptionalPrebuiltPrefix(name)
 }
 
-func NewPrebuiltLibrary(hod android.HostOrDeviceSupported) (*Module, *libraryDecorator) {
+func NewPrebuiltLibrary(hod android.HostOrDeviceSupported, srcsProperty string) (*Module, *libraryDecorator) {
 	module, library := NewLibrary(hod)
 	module.compiler = nil
 
@@ -247,11 +247,15 @@ func NewPrebuiltLibrary(hod android.HostOrDeviceSupported) (*Module, *libraryDec
 
 	module.AddProperties(&prebuilt.properties)
 
-	srcsSupplier := func(ctx android.BaseModuleContext, _ android.Module) []string {
-		return prebuilt.prebuiltSrcs(ctx)
-	}
+	if srcsProperty == "" {
+		android.InitPrebuiltModuleWithoutSrcs(module)
+	} else {
+		srcsSupplier := func(ctx android.BaseModuleContext, _ android.Module) []string {
+			return prebuilt.prebuiltSrcs(ctx)
+		}
 
-	android.InitPrebuiltModuleWithSrcSupplier(module, srcsSupplier, "srcs")
+		android.InitPrebuiltModuleWithSrcSupplier(module, srcsSupplier, srcsProperty)
+	}
 
 	// Prebuilt libraries can be used in SDKs.
 	android.InitSdkAwareModule(module)
@@ -261,7 +265,7 @@ func NewPrebuiltLibrary(hod android.HostOrDeviceSupported) (*Module, *libraryDec
 // cc_prebuilt_library installs a precompiled shared library that are
 // listed in the srcs property in the device's directory.
 func PrebuiltLibraryFactory() android.Module {
-	module, _ := NewPrebuiltLibrary(android.HostAndDeviceSupported)
+	module, _ := NewPrebuiltLibrary(android.HostAndDeviceSupported, "srcs")
 
 	// Prebuilt shared libraries can be included in APEXes
 	android.InitApexModule(module)
@@ -280,14 +284,14 @@ func PrebuiltSharedLibraryFactory() android.Module {
 // to be used as a data dependency of a test-related module (such as cc_test, or
 // cc_test_library).
 func PrebuiltSharedTestLibraryFactory() android.Module {
-	module, library := NewPrebuiltLibrary(android.HostAndDeviceSupported)
+	module, library := NewPrebuiltLibrary(android.HostAndDeviceSupported, "srcs")
 	library.BuildOnlyShared()
 	library.baseInstaller = NewTestInstaller()
 	return module.Init()
 }
 
 func NewPrebuiltSharedLibrary(hod android.HostOrDeviceSupported) (*Module, *libraryDecorator) {
-	module, library := NewPrebuiltLibrary(hod)
+	module, library := NewPrebuiltLibrary(hod, "srcs")
 	library.BuildOnlyShared()
 
 	// Prebuilt shared libraries can be included in APEXes
@@ -304,7 +308,7 @@ func PrebuiltStaticLibraryFactory() android.Module {
 }
 
 func NewPrebuiltStaticLibrary(hod android.HostOrDeviceSupported) (*Module, *libraryDecorator) {
-	module, library := NewPrebuiltLibrary(hod)
+	module, library := NewPrebuiltLibrary(hod, "srcs")
 	library.BuildOnlyStatic()
 	module.bazelHandler = &prebuiltStaticLibraryBazelHandler{module: module, library: library}
 	return module, library

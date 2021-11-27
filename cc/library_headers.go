@@ -102,7 +102,7 @@ func LibraryHeaderFactory() android.Module {
 
 // cc_prebuilt_library_headers is a prebuilt version of cc_library_headers
 func prebuiltLibraryHeaderFactory() android.Module {
-	module, library := NewPrebuiltLibrary(android.HostAndDeviceSupported)
+	module, library := NewPrebuiltLibrary(android.HostAndDeviceSupported, "")
 	library.HeaderOnly()
 	return module.Init()
 }
