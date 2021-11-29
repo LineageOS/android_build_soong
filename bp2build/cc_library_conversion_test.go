@@ -1691,8 +1691,10 @@ cc_library {
 func TestCcLibraryCppStdWithGnuExtensions_ConvertsToFeatureAttr(t *testing.T) {
 	type testCase struct {
 		cpp_std        string
+		c_std          string
 		gnu_extensions string
 		bazel_cpp_std  string
+		bazel_c_std    string
 	}
 
 	testCases := []testCase{
@@ -1702,44 +1704,57 @@ func TestCcLibraryCppStdWithGnuExtensions_ConvertsToFeatureAttr(t *testing.T) {
 		// not set, only emit if gnu_extensions is disabled. the default (gnu+17
 		// is set in the toolchain.)
 		{cpp_std: "", gnu_extensions: "", bazel_cpp_std: ""},
-		{cpp_std: "", gnu_extensions: "false", bazel_cpp_std: "c++17"},
+		{cpp_std: "", gnu_extensions: "false", bazel_cpp_std: "c++17", bazel_c_std: "c99"},
 		{cpp_std: "", gnu_extensions: "true", bazel_cpp_std: ""},
 		// experimental defaults to gnu++2a
 		{cpp_std: "experimental", gnu_extensions: "", bazel_cpp_std: "gnu++2a"},
-		{cpp_std: "experimental", gnu_extensions: "false", bazel_cpp_std: "c++2a"},
+		{cpp_std: "experimental", gnu_extensions: "false", bazel_cpp_std: "c++2a", bazel_c_std: "c99"},
 		{cpp_std: "experimental", gnu_extensions: "true", bazel_cpp_std: "gnu++2a"},
 		// Explicitly setting a c++ std does not use replace gnu++ std even if
 		// gnu_extensions is true.
 		// "c++11",
 		{cpp_std: "c++11", gnu_extensions: "", bazel_cpp_std: "c++11"},
-		{cpp_std: "c++11", gnu_extensions: "false", bazel_cpp_std: "c++11"},
+		{cpp_std: "c++11", gnu_extensions: "false", bazel_cpp_std: "c++11", bazel_c_std: "c99"},
 		{cpp_std: "c++11", gnu_extensions: "true", bazel_cpp_std: "c++11"},
 		// "c++17",
 		{cpp_std: "c++17", gnu_extensions: "", bazel_cpp_std: "c++17"},
-		{cpp_std: "c++17", gnu_extensions: "false", bazel_cpp_std: "c++17"},
+		{cpp_std: "c++17", gnu_extensions: "false", bazel_cpp_std: "c++17", bazel_c_std: "c99"},
 		{cpp_std: "c++17", gnu_extensions: "true", bazel_cpp_std: "c++17"},
 		// "c++2a",
 		{cpp_std: "c++2a", gnu_extensions: "", bazel_cpp_std: "c++2a"},
-		{cpp_std: "c++2a", gnu_extensions: "false", bazel_cpp_std: "c++2a"},
+		{cpp_std: "c++2a", gnu_extensions: "false", bazel_cpp_std: "c++2a", bazel_c_std: "c99"},
 		{cpp_std: "c++2a", gnu_extensions: "true", bazel_cpp_std: "c++2a"},
 		// "c++98",
 		{cpp_std: "c++98", gnu_extensions: "", bazel_cpp_std: "c++98"},
-		{cpp_std: "c++98", gnu_extensions: "false", bazel_cpp_std: "c++98"},
+		{cpp_std: "c++98", gnu_extensions: "false", bazel_cpp_std: "c++98", bazel_c_std: "c99"},
 		{cpp_std: "c++98", gnu_extensions: "true", bazel_cpp_std: "c++98"},
 		// gnu++ is replaced with c++ if gnu_extensions is explicitly false.
 		// "gnu++11",
 		{cpp_std: "gnu++11", gnu_extensions: "", bazel_cpp_std: "gnu++11"},
-		{cpp_std: "gnu++11", gnu_extensions: "false", bazel_cpp_std: "c++11"},
+		{cpp_std: "gnu++11", gnu_extensions: "false", bazel_cpp_std: "c++11", bazel_c_std: "c99"},
 		{cpp_std: "gnu++11", gnu_extensions: "true", bazel_cpp_std: "gnu++11"},
 		// "gnu++17",
 		{cpp_std: "gnu++17", gnu_extensions: "", bazel_cpp_std: "gnu++17"},
-		{cpp_std: "gnu++17", gnu_extensions: "false", bazel_cpp_std: "c++17"},
+		{cpp_std: "gnu++17", gnu_extensions: "false", bazel_cpp_std: "c++17", bazel_c_std: "c99"},
 		{cpp_std: "gnu++17", gnu_extensions: "true", bazel_cpp_std: "gnu++17"},
+
+		// some c_std test cases
+		{c_std: "experimental", gnu_extensions: "", bazel_c_std: "gnu11"},
+		{c_std: "experimental", gnu_extensions: "false", bazel_cpp_std: "c++17", bazel_c_std: "c11"},
+		{c_std: "experimental", gnu_extensions: "true", bazel_c_std: "gnu11"},
+		{c_std: "gnu11", cpp_std: "gnu++17", gnu_extensions: "", bazel_cpp_std: "gnu++17", bazel_c_std: "gnu11"},
+		{c_std: "gnu11", cpp_std: "gnu++17", gnu_extensions: "false", bazel_cpp_std: "c++17", bazel_c_std: "c11"},
+		{c_std: "gnu11", cpp_std: "gnu++17", gnu_extensions: "true", bazel_cpp_std: "gnu++17", bazel_c_std: "gnu11"},
 	}
-	for _, tc := range testCases {
+	for i, tc := range testCases {
+		name_prefix := fmt.Sprintf("a_%v", i)
 		cppStdProp := ""
 		if tc.cpp_std != "" {
 			cppStdProp = fmt.Sprintf("    cpp_std: \"%s\",", tc.cpp_std)
+		}
+		cStdProp := ""
+		if tc.c_std != "" {
+			cStdProp = fmt.Sprintf("    c_std: \"%s\",", tc.c_std)
 		}
 		gnuExtensionsProp := ""
 		if tc.gnu_extensions != "" {
@@ -1749,61 +1764,67 @@ func TestCcLibraryCppStdWithGnuExtensions_ConvertsToFeatureAttr(t *testing.T) {
 		if tc.bazel_cpp_std != "" {
 			attrs["cpp_std"] = fmt.Sprintf(`"%s"`, tc.bazel_cpp_std)
 		}
+		if tc.bazel_c_std != "" {
+			attrs["c_std"] = fmt.Sprintf(`"%s"`, tc.bazel_c_std)
+		}
 
 		runCcLibraryTestCase(t, bp2buildTestCase{
 			description: fmt.Sprintf(
-				"cc_library with cpp_std: %s and gnu_extensions: %s", tc.cpp_std, tc.gnu_extensions),
+				"cc_library with c_std: %s, cpp_std: %s and gnu_extensions: %s", tc.c_std, tc.cpp_std, tc.gnu_extensions),
 			moduleTypeUnderTest:                "cc_library",
 			moduleTypeUnderTestFactory:         cc.LibraryFactory,
 			moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryBp2Build,
 			blueprint: soongCcLibraryPreamble + fmt.Sprintf(`
 cc_library {
-	name: "a",
+	name: "%s_full",
 %s // cpp_std: *string
+%s // c_std: *string
 %s // gnu_extensions: *bool
 	include_build_directory: false,
 }
-`, cppStdProp, gnuExtensionsProp),
+`, name_prefix, cppStdProp, cStdProp, gnuExtensionsProp),
 			expectedBazelTargets: []string{
-				makeBazelTarget("cc_library", "a", attrs),
+				makeBazelTarget("cc_library", name_prefix+"_full", attrs),
 			},
 		})
 
 		runCcLibraryStaticTestCase(t, bp2buildTestCase{
 			description: fmt.Sprintf(
-				"cc_library_static with cpp_std: %s and gnu_extensions: %s", tc.cpp_std, tc.gnu_extensions),
+				"cc_library_static with c_std: %s, cpp_std: %s and gnu_extensions: %s", tc.c_std, tc.cpp_std, tc.gnu_extensions),
 			moduleTypeUnderTest:                "cc_library_static",
 			moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
 			moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
 			blueprint: soongCcLibraryPreamble + fmt.Sprintf(`
 cc_library_static {
-	name: "a",
+	name: "%s_static",
 %s // cpp_std: *string
+%s // c_std: *string
 %s // gnu_extensions: *bool
 	include_build_directory: false,
 }
-`, cppStdProp, gnuExtensionsProp),
+`, name_prefix, cppStdProp, cStdProp, gnuExtensionsProp),
 			expectedBazelTargets: []string{
-				makeBazelTarget("cc_library_static", "a", attrs),
+				makeBazelTarget("cc_library_static", name_prefix+"_static", attrs),
 			},
 		})
 
 		runCcLibrarySharedTestCase(t, bp2buildTestCase{
 			description: fmt.Sprintf(
-				"cc_library_shared with cpp_std: %s and gnu_extensions: %s", tc.cpp_std, tc.gnu_extensions),
+				"cc_library_shared with c_std: %s, cpp_std: %s and gnu_extensions: %s", tc.c_std, tc.cpp_std, tc.gnu_extensions),
 			moduleTypeUnderTest:                "cc_library_shared",
 			moduleTypeUnderTestFactory:         cc.LibrarySharedFactory,
 			moduleTypeUnderTestBp2BuildMutator: cc.CcLibrarySharedBp2Build,
 			blueprint: soongCcLibraryPreamble + fmt.Sprintf(`
 cc_library_shared {
-	name: "a",
+	name: "%s_shared",
 %s // cpp_std: *string
+%s // c_std: *string
 %s // gnu_extensions: *bool
 	include_build_directory: false,
 }
-`, cppStdProp, gnuExtensionsProp),
+`, name_prefix, cppStdProp, cStdProp, gnuExtensionsProp),
 			expectedBazelTargets: []string{
-				makeBazelTarget("cc_library_shared", "a", attrs),
+				makeBazelTarget("cc_library_shared", name_prefix+"_shared", attrs),
 			},
 		})
 	}
