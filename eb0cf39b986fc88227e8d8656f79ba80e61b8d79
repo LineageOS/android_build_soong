@@ -16,6 +16,23 @@
       "message": "Seems to work.\n\nWe have a similar commit in build/make.\n\nExamples:\nStill needed:\n* 319210: Use generated kernel headers | https://review.lineageos.org/c/LineageOS/android_hardware_knowles_athletico_sound_trigger_hal/+/319210\n\nNo longer needed:\n* 319028: Use generated kernel headers | https://review.lineageos.org/c/LineageOS/android_hardware_qcom_sm8150_data_ipacfg-mgr/+/319028\n* 319315: floral: Switch to generated_kernel_headers | https://review.lineageos.org/c/LineageOS/android_device_google_coral/+/319315 (Android.bp bits)\n\nAny any place where a simple substitution was being done.",
       "revId": "eb0cf39b986fc88227e8d8656f79ba80e61b8d79",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "6774e802_55d65255",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 16185
+      },
+      "writtenOn": "2021-11-29T17:42:29Z",
+      "side": 1,
+      "message": "Verifiable on pixel 2, 3a, 4 series",
+      "revId": "eb0cf39b986fc88227e8d8656f79ba80e61b8d79",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
