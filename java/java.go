@@ -545,6 +545,7 @@ func setUncompressDex(ctx android.ModuleContext, dexpreopter *dexpreopter, dexer
 func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.sdkVersion = j.SdkVersion(ctx)
 	j.minSdkVersion = j.MinSdkVersion(ctx)
+	j.maxSdkVersion = j.MaxSdkVersion(ctx)
 
 	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
 	if !apexInfo.IsForPlatform() {
