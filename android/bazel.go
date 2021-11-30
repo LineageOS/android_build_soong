@@ -226,34 +226,42 @@ var (
 
 	// Configure modules in these directories to enable bp2build_available: true or false by default.
 	bp2buildDefaultConfig = Bp2BuildConfig{
-		"bionic": Bp2BuildDefaultTrueRecursively,
+		"art/libdexfile": Bp2BuildDefaultTrueRecursively,
+		"bionic":         Bp2BuildDefaultTrueRecursively,
 		"build/bazel/examples/soong_config_variables":        Bp2BuildDefaultTrueRecursively,
 		"build/bazel/examples/apex/minimal":                  Bp2BuildDefaultTrueRecursively,
+		"build/soong":                                        Bp2BuildDefaultTrue,
 		"build/soong/cc/libbuildversion":                     Bp2BuildDefaultTrue, // Skip tests subdir
+		"cts/common/device-side/nativetesthelper/jni":        Bp2BuildDefaultTrueRecursively,
 		"development/sdk":                                    Bp2BuildDefaultTrueRecursively,
 		"external/arm-optimized-routines":                    Bp2BuildDefaultTrueRecursively,
 		"external/boringssl":                                 Bp2BuildDefaultTrueRecursively,
 		"external/brotli":                                    Bp2BuildDefaultTrue,
 		"external/fmtlib":                                    Bp2BuildDefaultTrueRecursively,
 		"external/google-benchmark":                          Bp2BuildDefaultTrueRecursively,
-		"external/googletest/googletest":                     Bp2BuildDefaultTrueRecursively,
+		"external/googletest":                                Bp2BuildDefaultTrueRecursively,
 		"external/gwp_asan":                                  Bp2BuildDefaultTrueRecursively,
 		"external/jemalloc_new":                              Bp2BuildDefaultTrueRecursively,
 		"external/jsoncpp":                                   Bp2BuildDefaultTrueRecursively,
 		"external/libcap":                                    Bp2BuildDefaultTrueRecursively,
 		"external/libcxx":                                    Bp2BuildDefaultTrueRecursively,
 		"external/libcxxabi":                                 Bp2BuildDefaultTrueRecursively,
+		"external/libevent":                                  Bp2BuildDefaultTrueRecursively,
 		"external/lz4/lib":                                   Bp2BuildDefaultTrue,
+		"external/lzma/C":                                    Bp2BuildDefaultTrueRecursively,
 		"external/mdnsresponder":                             Bp2BuildDefaultTrueRecursively,
 		"external/minijail":                                  Bp2BuildDefaultTrueRecursively,
 		"external/pcre":                                      Bp2BuildDefaultTrueRecursively,
 		"external/protobuf":                                  Bp2BuildDefaultTrueRecursively,
 		"external/python/six":                                Bp2BuildDefaultTrueRecursively,
+		"external/selinux/libsepol":                          Bp2BuildDefaultTrueRecursively,
 		"external/scudo":                                     Bp2BuildDefaultTrueRecursively,
 		"external/selinux/libselinux":                        Bp2BuildDefaultTrueRecursively,
 		"external/zlib":                                      Bp2BuildDefaultTrueRecursively,
 		"external/zstd":                                      Bp2BuildDefaultTrueRecursively,
 		"frameworks/native/libs/adbd_auth":                   Bp2BuildDefaultTrueRecursively,
+		"frameworks/proto_logging/stats/stats_log_api_gen":   Bp2BuildDefaultTrueRecursively,
+		"libnativehelper":                                    Bp2BuildDefaultTrueRecursively,
 		"packages/modules/adb":                               Bp2BuildDefaultTrue,
 		"packages/modules/adb/crypto":                        Bp2BuildDefaultTrueRecursively,
 		"packages/modules/adb/libs":                          Bp2BuildDefaultTrueRecursively,
@@ -263,6 +271,7 @@ var (
 		"packages/modules/adb/tls":                           Bp2BuildDefaultTrueRecursively,
 		"prebuilts/clang/host/linux-x86":                     Bp2BuildDefaultTrueRecursively,
 		"system/apex":                                        Bp2BuildDefaultFalse, // TODO(b/207466993): flaky failures
+		"system/core/debuggerd":                              Bp2BuildDefaultTrue,
 		"system/core/diagnose_usb":                           Bp2BuildDefaultTrueRecursively,
 		"system/core/libasyncio":                             Bp2BuildDefaultTrue,
 		"system/core/libcrypto_utils":                        Bp2BuildDefaultTrueRecursively,
@@ -271,29 +280,80 @@ var (
 		"system/core/libprocessgroup":                        Bp2BuildDefaultTrue,
 		"system/core/libprocessgroup/cgrouprc":               Bp2BuildDefaultTrue,
 		"system/core/libprocessgroup/cgrouprc_format":        Bp2BuildDefaultTrue,
+		"system/core/libsystem":                              Bp2BuildDefaultTrueRecursively,
+		"system/core/libutils":                               Bp2BuildDefaultTrueRecursively,
+		"system/core/libvndksupport":                         Bp2BuildDefaultTrueRecursively,
 		"system/core/property_service/libpropertyinfoparser": Bp2BuildDefaultTrueRecursively,
 		"system/libbase":                                     Bp2BuildDefaultTrueRecursively,
+		"system/libprocinfo":                                 Bp2BuildDefaultTrue,
 		"system/libziparchive":                               Bp2BuildDefaultTrueRecursively,
 		"system/logging/liblog":                              Bp2BuildDefaultTrueRecursively,
 		"system/sepolicy/apex":                               Bp2BuildDefaultTrueRecursively,
 		"system/timezone/apex":                               Bp2BuildDefaultTrueRecursively,
 		"system/timezone/output_data":                        Bp2BuildDefaultTrueRecursively,
+		"system/unwinding/libbacktrace":                      Bp2BuildDefaultTrueRecursively,
+		"system/unwinding/libunwindstack":                    Bp2BuildDefaultTrueRecursively,
 	}
 
 	// Per-module denylist to always opt modules out of both bp2build and mixed builds.
 	bp2buildModuleDoNotConvertList = []string{
+		"libnativehelper_compat_libc++",              // Broken compile: implicit declaration of function 'strerror_r' is invalid in C99
+		"art_libdexfile_dex_instruction_list_header", // breaks libart_mterp.armng, header not found
+
+		"libandroid_runtime_lazy", // depends on unconverted modules: libbinder_headers
+		"libcmd",                  // depends on unconverted modules: libbinder
+
+		"chkcon", "sefcontext_compile", // depends on unconverted modules: libsepol
+
+		"libsepol", // TODO(b/207408632): Unsupported case of .l sources in cc library rules
+
+		"get_clang_version_test", // depends on unconverted module: get_clang_version
+
+		"libbinder",               // TODO(b/188503688): Disabled for some archs,
+		"libactivitymanager_aidl", // TODO(b/207426160): Depends on activity_manager_procstate_aidl, which is an aidl filegroup.
+
+		"libnativehelper_lazy_mts_jni", // depends on unconverted modules: libgmock_ndk
+		"libnativehelper_mts_jni",      // depends on unconverted modules: libgmock_ndk
+		"libnativetesthelper_jni",      // depends on unconverted modules: libgtest_ndk_c++
+
+		"statslog-framework-java-gen", "statslog.cpp", "statslog.h", "statslog.rs", "statslog_header.rs", // depends on unconverted modules: stats-log-api-gen
+
+		"stats-log-api-gen", // depends on unconverted modules: libstats_proto_host, libprotobuf-cpp-full
+
+		"libstatslog", // depends on unconverted modules: statslog.cpp, statslog.h, ...
+
+		"libgmock_main_ndk", "libgmock_ndk", // depends on unconverted module: libgtest_ndk_c++
+
+		"cmd",                                                        // depends on unconverted module packagemanager_aidl-cpp, of unsupported type aidl_interface
+		"servicedispatcher",                                          // depends on unconverted module android.debug_aidl, of unsupported type aidl_interface
+		"libutilscallstack",                                          // depends on unconverted module libbacktrace
+		"libbacktrace",                                               // depends on unconverted module libunwindstack
+		"libdebuggerd_handler",                                       // depends on unconverted module libdebuggerd_handler_core
+		"libdebuggerd_handler_core", "libdebuggerd_handler_fallback", // depends on unconverted module libdebuggerd
+		"unwind_for_offline",        // depends on unconverted module libunwindstack_utils
+		"libdebuggerd",              // depends on unconverted modules libdexfile_support, libunwindstack, gwp_asan_crash_handler, libtombstone_proto, libprotobuf-cpp-lite
+		"libdexfile_static",         // depends on libartpalette, libartbase, libdexfile, which are of unsupported type: art_cc_library.
+		"host_bionic_linker_asm",    // depends on extract_linker, a go binary.
+		"host_bionic_linker_script", // depends on extract_linker, a go binary.
+
+		"pbtombstone",                                  // depends on libprotobuf-cpp-lite, libtombstone_proto
+		"crash_dump",                                   // depends on unconverted module libprotobuf-cpp-lite
 		"libprotobuf-cpp-full", "libprotobuf-cpp-lite", // Unsupported product&vendor suffix. b/204811222 and b/204810610.
 
-		"libc_malloc_debug", // depends on libunwindstack, which depends on unsupported module art_cc_library_statics
+		"libunwindstack_local", "libunwindstack_utils", // depends on unconverted module libunwindstack
+		"libunwindstack",    // depends on libdexfile_support, of unsupported module type art_cc_library_static
+		"libc_malloc_debug", // depends on unconverted module libunwindstack
 
 		"libbase_ndk", // http://b/186826477, fails to link libctscamera2_jni for device (required for CtsCameraTestCases)
+
+		"lib_linker_config_proto_lite", // contains .proto sources
 
 		"libprotobuf-python",               // contains .proto sources
 		"libprotobuf-internal-protos",      // we don't handle path property for fileegroups
 		"libprotobuf-internal-python-srcs", // we don't handle path property for fileegroups
 
 		"libseccomp_policy", // b/201094425: depends on func_to_syscall_nrs, which depends on py_binary, which is unsupported in mixed builds.
-		"libfdtrack",        // depends on libunwindstack, which depends on unsupported module art_cc_library_statics
+		"libfdtrack",        // depends on unconverted module libunwindstack
 
 		"gwp_asan_crash_handler", // cc_library, ld.lld: error: undefined symbol: memset
 
@@ -334,14 +394,12 @@ var (
 		"libgtest_ndk_c++",      // b/201816222: Requires sdk_version support.
 		"libgtest_main_ndk_c++", // b/201816222: Requires sdk_version support.
 
-		"abb",                     // depends on unconverted modules: libadbd_core, libadbd_services, libcmd, libbinder, libutils, libselinux
-		"adb",                     // depends on unconverted modules: bin2c_fastdeployagent, libadb_crypto, libadb_host, libadb_pairing_connection, libadb_protos, libandroidfw, libapp_processes_protos_full, libfastdeploy_host, libmdnssd, libopenscreen-discovery, libopenscreen-platform-impl, libusb, libutils, libziparchive, libzstd, AdbWinApi
-		"adbd",                    // depends on unconverted modules: libadb_crypto, libadb_pairing_connection, libadb_protos, libadbd, libadbd_core, libapp_processes_protos_lite, libmdnssd, libzstd, libadbd_services, libcap, libminijail, libselinux
-		"bionic_tests_zipalign",   // depends on unconverted modules: libziparchive, libutils
-		"linker",                  // depends on unconverted modules: liblinker_debuggerd_stub, libdebuggerd_handler_fallback, libziparchive, liblinker_main, liblinker_malloc
+		"abb",                     // depends on unconverted modules: libadbd_core, libadbd_services,
+		"adb",                     // depends on unconverted modules: bin2c_fastdeployagent, libadb_crypto, libadb_host, libadb_pairing_connection, libadb_protos, libandroidfw, libapp_processes_protos_full, libfastdeploy_host, libopenscreen-discovery, libopenscreen-platform-impl, libusb, libzstd, AdbWinApi
+		"adbd",                    // depends on unconverted modules: libadb_crypto, libadb_pairing_connection, libadb_protos, libadbd, libadbd_core, libapp_processes_protos_lite, libzstd, libadbd_services, libcap, libminijail
+		"linker",                  // depends on unconverted modules: libdebuggerd_handler_fallback
 		"linker_reloc_bench_main", // depends on unconverted modules: liblinker_reloc_bench_*
-		"sefcontext_compile",      // depends on unconverted modules: libsepol
-		"versioner",               // depends on unconverted modules: libclang_cxx_host, libLLVM_host
+		"versioner",               // depends on unconverted modules: libclang_cxx_host, libLLVM_host, of unsupported type llvm_host_prebuilt_library_shared
 
 		"linkerconfig", // http://b/202876379 has arch-variant static_executable
 		"mdnsd",        // http://b/202876379 has arch-variant static_executable
