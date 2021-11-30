@@ -197,7 +197,13 @@ func (p *prebuiltLibraryLinker) link(ctx ModuleContext,
 	if p.header() {
 		ctx.SetProvider(HeaderLibraryInfoProvider, HeaderLibraryInfo{})
 
-		return nil
+		// Need to return an output path so that the AndroidMk logic doesn't skip
+		// the prebuilt header. For compatibility, in case Android.mk files use a
+		// header lib in LOCAL_STATIC_LIBRARIES, create an empty ar file as
+		// placeholder, just like non-prebuilt header modules do in linkStatic().
+		ph := android.PathForModuleOut(ctx, ctx.ModuleName()+staticLibraryExtension)
+		transformObjToStaticLib(ctx, nil, nil, builderFlags{}, ph, nil, nil)
+		return ph
 	}
 
 	return nil
