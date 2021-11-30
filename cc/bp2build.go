@@ -252,6 +252,7 @@ type compilerAttributes struct {
 
 	// Not affected by arch variants
 	stl    *string
+	cStd   *string
 	cppStd *string
 
 	localIncludes    bazel.StringListAttribute
@@ -278,8 +279,7 @@ func (ca *compilerAttributes) bp2buildForAxisAndConfig(ctx android.BazelConversi
 
 	localIncludeDirs := props.Local_include_dirs
 	if axis == bazel.NoConfigAxis {
-		ca.cppStd = bp2buildResolveCppStdValue(props.Cpp_std, props.Gnu_extensions)
-
+		ca.cStd, ca.cppStd = bp2buildResolveCppStdValue(props.C_std, props.Cpp_std, props.Gnu_extensions)
 		if includeBuildDirectory(props.Include_build_directory) {
 			localIncludeDirs = append(localIncludeDirs, ".")
 		}
@@ -371,24 +371,24 @@ func parseSrcs(ctx android.BazelConversionPathContext, props *BaseCompilerProper
 	return bazel.AppendBazelLabelLists(allSrcsLabelList, generatedSrcsLabelList), anySrcs
 }
 
-func bp2buildResolveCppStdValue(cpp_std *string, gnu_extensions *bool) *string {
-	var cppStd *string
-	// If cpp_std is not specified, don't generate it in the
-	// BUILD file. For readability purposes, cpp_std and gnu_extensions are
-	// combined into a single -std=<version> copt, except in the
-	// default case where cpp_std is nil and gnu_extensions is true or unspecified,
-	// then the toolchain's default "gnu++17" will be used.
+func bp2buildResolveCppStdValue(c_std *string, cpp_std *string, gnu_extensions *bool) (*string, *string) {
+	var cStdVal, cppStdVal string
+	// If c{,pp}std properties are not specified, don't generate them in the BUILD file.
+	// Defaults are handled by the toolchain definition.
+	// However, if gnu_extensions is false, then the default gnu-to-c version must be specified.
 	if cpp_std != nil {
-		// TODO(b/202491296): Handle C_std.
-		// These transformations are shared with compiler.go.
-		cppStdVal := parseCppStd(cpp_std)
-		_, cppStdVal = maybeReplaceGnuToC(gnu_extensions, "", cppStdVal)
-		cppStd = &cppStdVal
+		cppStdVal = parseCppStd(cpp_std)
 	} else if gnu_extensions != nil && !*gnu_extensions {
-		cppStdVal := "c++17"
-		cppStd = &cppStdVal
+		cppStdVal = "c++17"
 	}
-	return cppStd
+	if c_std != nil {
+		cStdVal = parseCStd(c_std)
+	} else if gnu_extensions != nil && !*gnu_extensions {
+		cStdVal = "c99"
+	}
+
+	cStdVal, cppStdVal = maybeReplaceGnuToC(gnu_extensions, cStdVal, cppStdVal)
+	return &cStdVal, &cppStdVal
 }
 
 // bp2BuildParseCompilerProps returns copts, srcs and hdrs and other attributes.
