@@ -253,6 +253,7 @@ type bazelCcLibraryAttributes struct {
 
 	Stl     *string
 	Cpp_std *string
+	C_std   *string
 
 	// This is shared only.
 	Link_crt                 bazel.BoolAttribute
@@ -335,6 +336,7 @@ func CcLibraryBp2Build(ctx android.TopDownMutatorContext) {
 		Rtti:                        compilerAttrs.rtti,
 		Stl:                         compilerAttrs.stl,
 		Cpp_std:                     compilerAttrs.cppStd,
+		C_std:                       compilerAttrs.cStd,
 
 		Additional_linker_inputs: linkerAttrs.additionalLinkerInputs,
 
@@ -2420,6 +2422,7 @@ func ccSharedOrStaticBp2BuildMutatorInternal(ctx android.TopDownMutatorContext, 
 			Rtti:                   compilerAttrs.rtti,
 			Stl:                    compilerAttrs.stl,
 			Cpp_std:                compilerAttrs.cppStd,
+			C_std:                  compilerAttrs.cStd,
 			Export_includes:        exportedIncludes.Includes,
 			Export_system_includes: exportedIncludes.SystemIncludes,
 			Local_includes:         compilerAttrs.localIncludes,
@@ -2445,6 +2448,7 @@ func ccSharedOrStaticBp2BuildMutatorInternal(ctx android.TopDownMutatorContext, 
 			Rtti:       compilerAttrs.rtti,
 			Stl:        compilerAttrs.stl,
 			Cpp_std:    compilerAttrs.cppStd,
+			C_std:      compilerAttrs.cStd,
 
 			Export_includes:          exportedIncludes.Includes,
 			Export_system_includes:   exportedIncludes.SystemIncludes,
@@ -2480,6 +2484,7 @@ type bazelCcLibraryStaticAttributes struct {
 	Rtti       bazel.BoolAttribute
 	Stl        *string
 	Cpp_std    *string
+	C_std      *string
 
 	Export_includes        bazel.StringListAttribute
 	Export_system_includes bazel.StringListAttribute
@@ -2516,6 +2521,7 @@ type bazelCcLibrarySharedAttributes struct {
 	Rtti       bazel.BoolAttribute
 	Stl        *string
 	Cpp_std    *string
+	C_std      *string
 
 	Export_includes        bazel.StringListAttribute
 	Export_system_includes bazel.StringListAttribute
