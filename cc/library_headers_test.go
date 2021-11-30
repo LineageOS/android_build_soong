@@ -16,7 +16,6 @@ package cc
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 
 	"android/soong/android"
@@ -25,44 +24,26 @@ import (
 )
 
 func TestLibraryHeaders(t *testing.T) {
-	ctx := testCc(t, `
-	cc_library_headers {
-		name: "headers",
-		export_include_dirs: ["my_include"],
-	}
-	cc_library_static {
-		name: "lib",
-		srcs: ["foo.c"],
-		header_libs: ["headers"],
-	}
-	`)
+	bp := `
+		%s {
+			name: "headers",
+			export_include_dirs: ["my_include"],
+		}
+		cc_library_static {
+			name: "lib",
+			srcs: ["foo.c"],
+			header_libs: ["headers"],
+		}
+	`
 
-	// test if header search paths are correctly added
-	cc := ctx.ModuleForTests("lib", "android_arm64_armv8-a_static").Rule("cc")
-	cflags := cc.Args["cFlags"]
-	if !strings.Contains(cflags, " -Imy_include ") {
-		t.Errorf("cflags for libsystem must contain -Imy_include, but was %#v.", cflags)
-	}
-}
+	for _, headerModule := range []string{"cc_library_headers", "cc_prebuilt_library_headers"} {
+		t.Run(headerModule, func(t *testing.T) {
+			ctx := testCc(t, fmt.Sprintf(bp, headerModule))
 
-func TestPrebuiltLibraryHeaders(t *testing.T) {
-	ctx := testCc(t, `
-	cc_prebuilt_library_headers {
-		name: "headers",
-		export_include_dirs: ["my_include"],
-	}
-	cc_library_static {
-		name: "lib",
-		srcs: ["foo.c"],
-		header_libs: ["headers"],
-	}
-	`)
-
-	// test if header search paths are correctly added
-	cc := ctx.ModuleForTests("lib", "android_arm64_armv8-a_static").Rule("cc")
-	cflags := cc.Args["cFlags"]
-	if !strings.Contains(cflags, " -Imy_include ") {
-		t.Errorf("cflags for libsystem must contain -Imy_include, but was %#v.", cflags)
+			// test if header search paths are correctly added
+			cc := ctx.ModuleForTests("lib", "android_arm64_armv8-a_static").Rule("cc")
+			android.AssertStringDoesContain(t, "cFlags for lib module", cc.Args["cFlags"], " -Imy_include ")
+		})
 	}
 }
 
