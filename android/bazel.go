@@ -364,10 +364,6 @@ var (
 		"platform_tools_properties",
 		"build_tools_source_properties",
 
-		"libminijail", // b/202491296: Uses unsupported c_std property.
-		"minijail0",   // depends on unconverted modules: libminijail
-		"drop_privs",  // depends on unconverted modules: libminijail
-
 		// Tests. Handle later.
 		"libbionic_tests_headers_posix", // http://b/186024507, cc_library_static, sched.h, time.h not found
 		"libjemalloc5_integrationtest",
