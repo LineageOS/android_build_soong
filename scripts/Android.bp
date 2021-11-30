@@ -47,15 +47,6 @@ python_library_host {
     srcs: [
         "manifest.py",
     ],
-    version: {
-        py2: {
-            // TODO(b/203436762) Remove when system/apex/apexer/apexer.py is converted
-            enabled: true,
-        },
-        py3: {
-            enabled: true,
-        },
-    },
     visibility: ["//system/apex/apexer:__pkg__"],
 }
 
