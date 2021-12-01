@@ -75,12 +75,6 @@ func (p *testDecorator) AndroidMk(base *Module, entries *android.AndroidMkEntrie
 }
 
 func (installer *pythonInstaller) AndroidMk(base *Module, entries *android.AndroidMkEntries) {
-	// Soong installation is only supported for host modules. Have Make
-	// installation trigger Soong installation.
-	if base.Target().Os.Class == android.Host {
-		entries.OutputFile = android.OptionalPathForPath(installer.path)
-	}
-
 	entries.Required = append(entries.Required, "libc++")
 	entries.ExtraEntries = append(entries.ExtraEntries,
 		func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
