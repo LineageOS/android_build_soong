@@ -50,7 +50,9 @@ esac
 
 echo
 echo "Free disk space:"
-df -h
+# Ignore df errors because it errors out on gvfsd file systems
+# but still displays most of the useful info we need
+df -h || true
 
 echo
 echo "Running Bazel smoke test..."
