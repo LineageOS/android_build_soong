@@ -125,6 +125,13 @@ func FixtureSetApexBootJars(bootJars ...string) android.FixturePreparer {
 	})
 }
 
+// FixtureSetStandaloneSystemServerJars sets the StandaloneSystemServerJars property.
+func FixtureSetStandaloneSystemServerJars(jars ...string) android.FixturePreparer {
+	return FixtureModifyGlobalConfig(func(dexpreoptConfig *GlobalConfig) {
+		dexpreoptConfig.StandaloneSystemServerJars = android.CreateTestConfiguredJarList(jars)
+	})
+}
+
 // FixtureSetSystemServerJars sets the SystemServerJars property.
 func FixtureSetSystemServerJars(jars ...string) android.FixturePreparer {
 	return FixtureModifyGlobalConfig(func(dexpreoptConfig *GlobalConfig) {
@@ -136,6 +143,14 @@ func FixtureSetSystemServerJars(jars ...string) android.FixturePreparer {
 func FixtureSetApexSystemServerJars(jars ...string) android.FixturePreparer {
 	return FixtureModifyGlobalConfig(func(dexpreoptConfig *GlobalConfig) {
 		dexpreoptConfig.ApexSystemServerJars = android.CreateTestConfiguredJarList(jars)
+	})
+}
+
+// FixtureSetApexStandaloneSystemServerJars sets the ApexStandaloneSystemServerJars property in the
+// global config.
+func FixtureSetApexStandaloneSystemServerJars(jars ...string) android.FixturePreparer {
+	return FixtureModifyGlobalConfig(func(dexpreoptConfig *GlobalConfig) {
+		dexpreoptConfig.ApexStandaloneSystemServerJars = android.CreateTestConfiguredJarList(jars)
 	})
 }
 

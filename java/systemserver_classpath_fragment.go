@@ -58,12 +58,20 @@ func (p *platformSystemServerClasspathModule) AndroidMkEntries() (entries []andr
 func (p *platformSystemServerClasspathModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	configuredJars := p.configuredJars(ctx)
 	classpathJars := configuredJarListToClasspathJars(ctx, configuredJars, p.classpathType)
+	standaloneConfiguredJars := p.standaloneConfiguredJars(ctx)
+	standaloneClasspathJars := configuredJarListToClasspathJars(ctx, standaloneConfiguredJars, STANDALONE_SYSTEMSERVER_JARS)
+	configuredJars = configuredJars.AppendList(standaloneConfiguredJars)
+	classpathJars = append(classpathJars, standaloneClasspathJars...)
 	p.classpathFragmentBase().generateClasspathProtoBuildActions(ctx, configuredJars, classpathJars)
 }
 
 func (p *platformSystemServerClasspathModule) configuredJars(ctx android.ModuleContext) android.ConfiguredJarList {
 	// TODO(satayev): include any apex jars that don't populate their classpath proto config.
 	return dexpreopt.GetGlobalConfig(ctx).SystemServerJars
+}
+
+func (p *platformSystemServerClasspathModule) standaloneConfiguredJars(ctx android.ModuleContext) android.ConfiguredJarList {
+	return dexpreopt.GetGlobalConfig(ctx).StandaloneSystemServerJars
 }
 
 type SystemServerClasspathModule struct {
@@ -84,10 +92,15 @@ func (s *SystemServerClasspathModule) ShouldSupportSdkVersion(ctx android.BaseMo
 }
 
 type systemServerClasspathFragmentProperties struct {
-	// The contents of this systemserverclasspath_fragment, could be either java_library, or java_sdk_library.
+	// List of system_server classpath jars, could be either java_library, or java_sdk_library.
 	//
 	// The order of this list matters as it is the order that is used in the SYSTEMSERVERCLASSPATH.
 	Contents []string
+
+	// List of jars that system_server loads dynamically using separate classloaders.
+	//
+	// The order does not matter.
+	Standalone_contents []string
 }
 
 func systemServerClasspathFactory() android.Module {
@@ -101,12 +114,16 @@ func systemServerClasspathFactory() android.Module {
 }
 
 func (s *SystemServerClasspathModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	if len(s.properties.Contents) == 0 {
-		ctx.PropertyErrorf("contents", "empty contents are not allowed")
+	if len(s.properties.Contents) == 0 && len(s.properties.Standalone_contents) == 0 {
+		ctx.PropertyErrorf("contents", "Either contents or standalone_contents needs to be non-empty")
 	}
 
 	configuredJars := s.configuredJars(ctx)
 	classpathJars := configuredJarListToClasspathJars(ctx, configuredJars, s.classpathType)
+	standaloneConfiguredJars := s.standaloneConfiguredJars(ctx)
+	standaloneClasspathJars := configuredJarListToClasspathJars(ctx, standaloneConfiguredJars, STANDALONE_SYSTEMSERVER_JARS)
+	configuredJars = configuredJars.AppendList(standaloneConfiguredJars)
+	classpathJars = append(classpathJars, standaloneClasspathJars...)
 	s.classpathFragmentBase().generateClasspathProtoBuildActions(ctx, configuredJars, classpathJars)
 
 	// Collect the module directory for IDE info in java/jdeps.go.
@@ -141,6 +158,17 @@ func (s *SystemServerClasspathModule) configuredJars(ctx android.ModuleContext) 
 		// For non test apexes, make sure that all contents are actually declared in make.
 		ctx.ModuleErrorf("%s in contents must also be declared in PRODUCT_APEX_SYSTEM_SERVER_JARS", unknown)
 	}
+
+	return jars
+}
+
+func (s *SystemServerClasspathModule) standaloneConfiguredJars(ctx android.ModuleContext) android.ConfiguredJarList {
+	global := dexpreopt.GetGlobalConfig(ctx)
+
+	possibleUpdatableModules := gatherPossibleApexModuleNamesAndStems(ctx, s.properties.Standalone_contents, systemServerClasspathFragmentContentDepTag)
+	jars, _ := global.ApexStandaloneSystemServerJars.Filter(possibleUpdatableModules)
+
+	// TODO(jiakaiz): add a check to ensure that the contents are declared in make.
 
 	return jars
 }
@@ -192,8 +220,11 @@ func IsSystemServerClasspathFragmentContentDepTag(tag blueprint.DependencyTag) b
 func (s *SystemServerClasspathModule) ComponentDepsMutator(ctx android.BottomUpMutatorContext) {
 	module := ctx.Module()
 	_, isSourceModule := module.(*SystemServerClasspathModule)
+	var deps []string
+	deps = append(deps, s.properties.Contents...)
+	deps = append(deps, s.properties.Standalone_contents...)
 
-	for _, name := range s.properties.Contents {
+	for _, name := range deps {
 		// A systemserverclasspath_fragment must depend only on other source modules, while the
 		// prebuilt_systemserverclasspath_fragment_fragment must only depend on other prebuilt modules.
 		if !isSourceModule {
@@ -206,6 +237,7 @@ func (s *SystemServerClasspathModule) ComponentDepsMutator(ctx android.BottomUpM
 // Collect information for opening IDE project files in java/jdeps.go.
 func (s *SystemServerClasspathModule) IDEInfo(dpInfo *android.IdeInfo) {
 	dpInfo.Deps = append(dpInfo.Deps, s.properties.Contents...)
+	dpInfo.Deps = append(dpInfo.Deps, s.properties.Standalone_contents...)
 	dpInfo.Paths = append(dpInfo.Paths, s.modulePaths...)
 }
 
@@ -233,14 +265,22 @@ func (s *systemServerClasspathFragmentMemberType) CreateVariantPropertiesStruct(
 type systemServerClasspathFragmentSdkMemberProperties struct {
 	android.SdkMemberPropertiesBase
 
-	// Contents of the systemserverclasspath fragment
+	// List of system_server classpath jars, could be either java_library, or java_sdk_library.
+	//
+	// The order of this list matters as it is the order that is used in the SYSTEMSERVERCLASSPATH.
 	Contents []string
+
+	// List of jars that system_server loads dynamically using separate classloaders.
+	//
+	// The order does not matter.
+	Standalone_contents []string
 }
 
 func (s *systemServerClasspathFragmentSdkMemberProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.Module) {
 	module := variant.(*SystemServerClasspathModule)
 
 	s.Contents = module.properties.Contents
+	s.Standalone_contents = module.properties.Standalone_contents
 }
 
 func (s *systemServerClasspathFragmentSdkMemberProperties) AddToPropertySet(ctx android.SdkMemberContext, propertySet android.BpPropertySet) {
@@ -249,6 +289,10 @@ func (s *systemServerClasspathFragmentSdkMemberProperties) AddToPropertySet(ctx 
 
 	if len(s.Contents) > 0 {
 		propertySet.AddPropertyWithTag("contents", s.Contents, requiredMemberDependency)
+	}
+
+	if len(s.Standalone_contents) > 0 {
+		propertySet.AddPropertyWithTag("standalone_contents", s.Standalone_contents, requiredMemberDependency)
 	}
 }
 
