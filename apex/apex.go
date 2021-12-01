@@ -1710,6 +1710,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					return true // track transitive dependencies
 				} else if r, ok := child.(*rust.Module); ok {
 					fi := apexFileForRustLibrary(ctx, r)
+					fi.isJniLib = isJniLib
 					filesInfo = append(filesInfo, fi)
 				} else {
 					propertyName := "native_shared_libs"
