@@ -157,15 +157,15 @@ func (c *ClasspathFragmentBase) generateClasspathProtoBuildActions(ctx android.M
 		c.outputFilepath = android.PathForModuleOut(ctx, outputFilename).OutputPath
 		c.installDirPath = android.PathForModuleInstall(ctx, "etc", "classpaths")
 
-		generatedJson := android.PathForModuleOut(ctx, outputFilename+".json")
-		writeClasspathsJson(ctx, generatedJson, jars)
+		generatedTextproto := android.PathForModuleOut(ctx, outputFilename+".textproto")
+		writeClasspathsTextproto(ctx, generatedTextproto, jars)
 
 		rule := android.NewRuleBuilder(pctx, ctx)
 		rule.Command().
 			BuiltTool("conv_classpaths_proto").
 			Flag("encode").
-			Flag("--format=json").
-			FlagWithInput("--input=", generatedJson).
+			Flag("--format=textproto").
+			FlagWithInput("--input=", generatedTextproto).
 			FlagWithOutput("--output=", c.outputFilepath)
 
 		rule.Build("classpath_fragment", "Compiling "+c.outputFilepath.String())
@@ -180,39 +180,17 @@ func (c *ClasspathFragmentBase) generateClasspathProtoBuildActions(ctx android.M
 	ctx.SetProvider(ClasspathFragmentProtoContentInfoProvider, classpathProtoInfo)
 }
 
-func writeClasspathsJson(ctx android.ModuleContext, output android.WritablePath, jars []classpathJar) {
+func writeClasspathsTextproto(ctx android.ModuleContext, output android.WritablePath, jars []classpathJar) {
 	var content strings.Builder
 
-	fmt.Fprintf(&content, "{\n")
-	fmt.Fprintf(&content, "\"jars\": [\n")
-	for idx, jar := range jars {
-		fmt.Fprintf(&content, "{\n")
-
-		fmt.Fprintf(&content, "\"path\": \"%s\",\n", jar.path)
-		fmt.Fprintf(&content, "\"classpath\": \"%s\"\n", jar.classpath)
-
-		if jar.minSdkVersion != "" {
-			fmt.Fprintf(&content, ",\n")
-			fmt.Fprintf(&content, "\"minSdkVersion\": \"%s\"\n", jar.minSdkVersion)
-		} else {
-			fmt.Fprintf(&content, "\n")
-		}
-
-		if jar.maxSdkVersion != "" {
-			fmt.Fprintf(&content, ",\n")
-			fmt.Fprintf(&content, "\"maxSdkVersion\": \"%s\"\n", jar.maxSdkVersion)
-		} else {
-			fmt.Fprintf(&content, "\n")
-		}
-
-		if idx < len(jars)-1 {
-			fmt.Fprintf(&content, "},\n")
-		} else {
-			fmt.Fprintf(&content, "}\n")
-		}
+	for _, jar := range jars {
+		fmt.Fprintf(&content, "jars {\n")
+		fmt.Fprintf(&content, "path: \"%s\"\n", jar.path)
+		fmt.Fprintf(&content, "classpath: %s\n", jar.classpath)
+		fmt.Fprintf(&content, "min_sdk_version: \"%s\"\n", jar.minSdkVersion)
+		fmt.Fprintf(&content, "max_sdk_version: \"%s\"\n", jar.maxSdkVersion)
+		fmt.Fprintf(&content, "}\n")
 	}
-	fmt.Fprintf(&content, "]\n")
-	fmt.Fprintf(&content, "}\n")
 
 	android.WriteFileRule(ctx, output, content.String())
 }
