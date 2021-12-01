@@ -447,6 +447,7 @@ const (
 	JAVA_VERSION_7           = 7
 	JAVA_VERSION_8           = 8
 	JAVA_VERSION_9           = 9
+	JAVA_VERSION_11          = 11
 )
 
 func (v javaVersion) String() string {
@@ -459,6 +460,8 @@ func (v javaVersion) String() string {
 		return "1.8"
 	case JAVA_VERSION_9:
 		return "1.9"
+	case JAVA_VERSION_11:
+		return "11"
 	default:
 		return "unsupported"
 	}
@@ -479,8 +482,10 @@ func normalizeJavaVersion(ctx android.BaseModuleContext, javaVersion string) jav
 		return JAVA_VERSION_8
 	case "1.9", "9":
 		return JAVA_VERSION_9
-	case "10", "11":
-		ctx.PropertyErrorf("java_version", "Java language levels above 9 are not supported")
+	case "11":
+		return JAVA_VERSION_11
+	case "10":
+		ctx.PropertyErrorf("java_version", "Java language levels 10 is not supported")
 		return JAVA_VERSION_UNSUPPORTED
 	default:
 		ctx.PropertyErrorf("java_version", "Unrecognized Java language level")
