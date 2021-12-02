@@ -26,28 +26,12 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"android/soong/compliance/license_metadata_proto"
+	"android/soong/response"
 )
 
-var (
-	packageName  = flag.String("p", "", "license package name")
-	moduleType   = newMultiString("mt", "module type")
-	moduleClass  = newMultiString("mc", "module class")
-	kinds        = newMultiString("k", "license kinds")
-	conditions   = newMultiString("c", "license conditions")
-	notices      = newMultiString("n", "license notice file")
-	deps         = newMultiString("d", "license metadata file dependency")
-	sources      = newMultiString("s", "source (input) dependency")
-	built        = newMultiString("t", "built targets")
-	installed    = newMultiString("i", "installed targets")
-	roots        = newMultiString("r", "root directory of project")
-	installedMap = newMultiString("m", "map dependent targets to their installed names")
-	isContainer  = flag.Bool("is_container", false, "preserved dependent target name when given")
-	outFile      = flag.String("o", "", "output file")
-)
-
-func newMultiString(name, usage string) *multiString {
+func newMultiString(flags *flag.FlagSet, name, usage string) *multiString {
 	var f multiString
-	flag.Var(&f, name, usage)
+	flags.Var(&f, name, usage)
 	return &f
 }
 
@@ -57,7 +41,45 @@ func (ms *multiString) String() string     { return strings.Join(*ms, ", ") }
 func (ms *multiString) Set(s string) error { *ms = append(*ms, s); return nil }
 
 func main() {
-	flag.Parse()
+	var expandedArgs []string
+	for _, arg := range os.Args[1:] {
+		if strings.HasPrefix(arg, "@") {
+			f, err := os.Open(strings.TrimPrefix(arg, "@"))
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err.Error())
+				os.Exit(1)
+			}
+
+			respArgs, err := response.ReadRspFile(f)
+			f.Close()
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err.Error())
+				os.Exit(1)
+			}
+			expandedArgs = append(expandedArgs, respArgs...)
+		} else {
+			expandedArgs = append(expandedArgs, arg)
+		}
+	}
+
+	flags := flag.NewFlagSet("flags", flag.ExitOnError)
+
+	packageName := flags.String("p", "", "license package name")
+	moduleType := newMultiString(flags, "mt", "module type")
+	kinds := newMultiString(flags, "k", "license kinds")
+	moduleClass := newMultiString(flags, "mc", "module class")
+	conditions := newMultiString(flags, "c", "license conditions")
+	notices := newMultiString(flags, "n", "license notice file")
+	deps := newMultiString(flags, "d", "license metadata file dependency")
+	sources := newMultiString(flags, "s", "source (input) dependency")
+	built := newMultiString(flags, "t", "built targets")
+	installed := newMultiString(flags, "i", "installed targets")
+	roots := newMultiString(flags, "r", "root directory of project")
+	installedMap := newMultiString(flags, "m", "map dependent targets to their installed names")
+	isContainer := flags.Bool("is_container", false, "preserved dependent target name when given")
+	outFile := flags.String("o", "", "output file")
+
+	flags.Parse(expandedArgs)
 
 	metadata := license_metadata_proto.LicenseMetadata{}
 	metadata.PackageName = proto.String(*packageName)
