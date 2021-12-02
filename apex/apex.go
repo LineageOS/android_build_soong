@@ -3203,7 +3203,7 @@ type bazelApexBundleAttributes struct {
 	File_contexts      bazel.LabelAttribute
 	Key                bazel.LabelAttribute
 	Certificate        bazel.LabelAttribute
-	Min_sdk_version    string
+	Min_sdk_version    *string
 	Updatable          bazel.BoolAttribute
 	Installable        bazel.BoolAttribute
 	Native_shared_libs bazel.LabelListAttribute
@@ -3243,9 +3243,9 @@ func apexBundleBp2BuildInternal(ctx android.TopDownMutatorContext, module *apexB
 		fileContextsLabelAttribute.SetValue(android.BazelLabelForModuleDepSingle(ctx, *module.properties.File_contexts))
 	}
 
-	var minSdkVersion string
+	var minSdkVersion *string
 	if module.properties.Min_sdk_version != nil {
-		minSdkVersion = *module.properties.Min_sdk_version
+		minSdkVersion = module.properties.Min_sdk_version
 	}
 
 	var keyLabelAttribute bazel.LabelAttribute
