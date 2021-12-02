@@ -197,6 +197,10 @@ type DeviceProperties struct {
 	// Defaults to sdk_version if not set. See sdk_version for possible values.
 	Min_sdk_version *string
 
+	// if not blank, set the maximum version of the sdk that the compiled artifacts will run against.
+	// Defaults to empty string "". See sdk_version for possible values.
+	Max_sdk_version *string
+
 	// if not blank, set the targetSdkVersion in the AndroidManifest.xml.
 	// Defaults to sdk_version if not set. See sdk_version for possible values.
 	Target_sdk_version *string
@@ -460,6 +464,7 @@ type Module struct {
 
 	sdkVersion    android.SdkSpec
 	minSdkVersion android.SdkSpec
+	maxSdkVersion android.SdkSpec
 }
 
 func (j *Module) CheckStableSdkVersion(ctx android.BaseModuleContext) error {
@@ -615,6 +620,13 @@ func (j *Module) MinSdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
 		return android.SdkSpecFrom(ctx, *j.deviceProperties.Min_sdk_version)
 	}
 	return j.SdkVersion(ctx)
+}
+
+func (j *Module) MaxSdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
+	maxSdkVersion := proptools.StringDefault(j.deviceProperties.Max_sdk_version, "")
+	// SdkSpecFrom returns SdkSpecPrivate for this, which may be confusing.
+	// TODO(b/208456999): ideally MaxSdkVersion should be an ApiLevel and not SdkSpec.
+	return android.SdkSpecFrom(ctx, maxSdkVersion)
 }
 
 func (j *Module) MinSdkVersionString() string {
