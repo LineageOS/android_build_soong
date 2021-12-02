@@ -192,8 +192,8 @@ var LastWithoutModuleLibCoreSystemModules = uncheckedFinalApiLevel(31)
 // * "30" -> "30"
 // * "R" -> "30"
 // * "S" -> "S"
-func ReplaceFinalizedCodenames(ctx PathContext, raw string) string {
-	num, ok := getFinalCodenamesMap(ctx.Config())[raw]
+func ReplaceFinalizedCodenames(config Config, raw string) string {
+	num, ok := getFinalCodenamesMap(config)[raw]
 	if !ok {
 		return raw
 	}
@@ -201,7 +201,7 @@ func ReplaceFinalizedCodenames(ctx PathContext, raw string) string {
 	return strconv.Itoa(num)
 }
 
-// Converts the given string `raw` to an ApiLevel, possibly returning an error.
+// ApiLevelFromUser converts the given string `raw` to an ApiLevel, possibly returning an error.
 //
 // `raw` must be non-empty. Passing an empty string results in a panic.
 //
@@ -216,6 +216,12 @@ func ReplaceFinalizedCodenames(ctx PathContext, raw string) string {
 // Inputs that are not "current", known previews, or convertible to an integer
 // will return an error.
 func ApiLevelFromUser(ctx PathContext, raw string) (ApiLevel, error) {
+	return ApiLevelFromUserWithConfig(ctx.Config(), raw)
+}
+
+// ApiLevelFromUserWithConfig implements ApiLevelFromUser, see comments for
+// ApiLevelFromUser for more details.
+func ApiLevelFromUserWithConfig(config Config, raw string) (ApiLevel, error) {
 	if raw == "" {
 		panic("API level string must be non-empty")
 	}
@@ -224,13 +230,13 @@ func ApiLevelFromUser(ctx PathContext, raw string) (ApiLevel, error) {
 		return FutureApiLevel, nil
 	}
 
-	for _, preview := range ctx.Config().PreviewApiLevels() {
+	for _, preview := range config.PreviewApiLevels() {
 		if raw == preview.String() {
 			return preview, nil
 		}
 	}
 
-	canonical := ReplaceFinalizedCodenames(ctx, raw)
+	canonical := ReplaceFinalizedCodenames(config, raw)
 	asInt, err := strconv.Atoi(canonical)
 	if err != nil {
 		return NoneApiLevel, fmt.Errorf("%q could not be parsed as an integer and is not a recognized codename", canonical)
