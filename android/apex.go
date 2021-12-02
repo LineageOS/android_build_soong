@@ -903,16 +903,17 @@ var minSdkVersionAllowlist = func(apiMap map[string]int) map[string]ApiLevel {
 //
 // Return true if the `to` module should be visited, false otherwise.
 type PayloadDepsCallback func(ctx ModuleContext, from blueprint.Module, to ApexModule, externalDep bool) bool
+type WalkPayloadDepsFunc func(ctx ModuleContext, do PayloadDepsCallback)
 
-// UpdatableModule represents updatable APEX/APK
-type UpdatableModule interface {
+// ModuleWithMinSdkVersionCheck represents a module that implements min_sdk_version checks
+type ModuleWithMinSdkVersionCheck interface {
 	Module
-	WalkPayloadDeps(ctx ModuleContext, do PayloadDepsCallback)
+	CheckMinSdkVersion(ctx ModuleContext)
 }
 
 // CheckMinSdkVersion checks if every dependency of an updatable module sets min_sdk_version
 // accordingly
-func CheckMinSdkVersion(m UpdatableModule, ctx ModuleContext, minSdkVersion ApiLevel) {
+func CheckMinSdkVersion(ctx ModuleContext, minSdkVersion ApiLevel, walk WalkPayloadDepsFunc) {
 	// do not enforce min_sdk_version for host
 	if ctx.Host() {
 		return
@@ -928,7 +929,7 @@ func CheckMinSdkVersion(m UpdatableModule, ctx ModuleContext, minSdkVersion ApiL
 		return
 	}
 
-	m.WalkPayloadDeps(ctx, func(ctx ModuleContext, from blueprint.Module, to ApexModule, externalDep bool) bool {
+	walk(ctx, func(ctx ModuleContext, from blueprint.Module, to ApexModule, externalDep bool) bool {
 		if externalDep {
 			// external deps are outside the payload boundary, which is "stable"
 			// interface. We don't have to check min_sdk_version for external
