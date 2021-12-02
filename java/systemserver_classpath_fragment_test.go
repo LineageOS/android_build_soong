@@ -99,7 +99,7 @@ func TestPlatformSystemServerClasspathModule_AndroidMkEntries(t *testing.T) {
 func TestSystemServerClasspathFragmentWithoutContents(t *testing.T) {
 	prepareForTestWithSystemServerClasspath.
 		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(
-			`\Qempty contents are not allowed\E`)).
+			`\QEither contents or standalone_contents needs to be non-empty\E`)).
 		RunTestWithBp(t, `
 			systemserverclasspath_fragment {
 				name: "systemserverclasspath-fragment",
