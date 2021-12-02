@@ -21,6 +21,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/bazel"
+
 	"github.com/google/blueprint/proptools"
 )
 
@@ -46,7 +47,7 @@ func PythonLibraryHostFactory() android.Module {
 type bazelPythonLibraryAttributes struct {
 	Srcs         bazel.LabelListAttribute
 	Deps         bazel.LabelListAttribute
-	Srcs_version string
+	Srcs_version *string
 }
 
 func PythonLibraryHostBp2Build(ctx android.TopDownMutatorContext) {
@@ -74,11 +75,11 @@ func pythonLibBp2Build(ctx android.TopDownMutatorContext, modType string) {
 	// Bionic.
 	py3Enabled := proptools.BoolDefault(m.properties.Version.Py3.Enabled, true)
 	py2Enabled := proptools.BoolDefault(m.properties.Version.Py2.Enabled, false)
-	var python_version string
+	var python_version *string
 	if py2Enabled && !py3Enabled {
-		python_version = "PY2"
+		python_version = &pyVersion2
 	} else if !py2Enabled && py3Enabled {
-		python_version = "PY3"
+		python_version = &pyVersion3
 	} else if !py2Enabled && !py3Enabled {
 		panic(fmt.Errorf(
 			"error for '%s' module: bp2build's %s converter doesn't understand having "+
