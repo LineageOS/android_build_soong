@@ -698,9 +698,9 @@ func isZero(value reflect.Value) bool {
 		} else {
 			return true
 		}
-	// Always print bools, if you want a bool attribute to be able to take the default value, use a
-	// bool pointer instead
-	case reflect.Bool:
+	// Always print bool/strings, if you want a bool/string attribute to be able to take the default value, use a
+	// pointer instead
+	case reflect.Bool, reflect.String:
 		return false
 	default:
 		if !value.IsValid() {
