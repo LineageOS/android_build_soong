@@ -149,15 +149,15 @@ func runBp2BuildTestCase(t *testing.T, registerModuleTypes func(ctx android.Regi
 }
 
 type nestedProps struct {
-	Nested_prop string
+	Nested_prop *string
 }
 
 type EmbeddedProps struct {
-	Embedded_prop string
+	Embedded_prop *string
 }
 
 type OtherEmbeddedProps struct {
-	Other_embedded_prop string
+	Other_embedded_prop *string
 }
 
 type customProps struct {
@@ -262,17 +262,17 @@ func customDefaultsModuleFactory() android.Module {
 }
 
 type EmbeddedAttr struct {
-	Embedded_attr string
+	Embedded_attr *string
 }
 
 type OtherEmbeddedAttr struct {
-	Other_embedded_attr string
+	Other_embedded_attr *string
 }
 
 type customBazelModuleAttributes struct {
 	EmbeddedAttr
 	*OtherEmbeddedAttr
-	String_prop      string
+	String_ptr_prop  *string
 	String_list_prop []string
 	Arch_paths       bazel.LabelListAttribute
 }
@@ -296,7 +296,7 @@ func customBp2BuildMutator(ctx android.TopDownMutatorContext) {
 		paths.ResolveExcludes()
 
 		attrs := &customBazelModuleAttributes{
-			String_prop:      m.props.String_prop,
+			String_ptr_prop:  m.props.String_ptr_prop,
 			String_list_prop: m.props.String_list_prop,
 			Arch_paths:       paths,
 		}
