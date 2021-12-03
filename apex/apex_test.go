@@ -7075,6 +7075,23 @@ func TestUpdatableDefault_should_set_min_sdk_version(t *testing.T) {
 	`)
 }
 
+func TestUpdatable_cannot_be_vendor_apex(t *testing.T) {
+	testApexError(t, `"myapex" .*: updatable: vendor APEXes are not updatable`, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			updatable: true,
+			soc_specific: true,
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+	`)
+}
+
 func TestUpdatable_should_not_set_generate_classpaths_proto(t *testing.T) {
 	testApexError(t, `"mysystemserverclasspathfragment" .* it must not set generate_classpaths_proto to false`, `
 		apex {
