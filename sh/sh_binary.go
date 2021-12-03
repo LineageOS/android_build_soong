@@ -516,7 +516,9 @@ func ShTestHostFactory() android.Module {
 }
 
 type bazelShBinaryAttributes struct {
-	Srcs bazel.LabelListAttribute
+	Srcs     bazel.LabelListAttribute
+	Filename string
+	Sub_dir  string
 	// Bazel also supports the attributes below, but (so far) these are not required for Bionic
 	// deps
 	// data
@@ -547,12 +549,25 @@ func ShBinaryBp2Build(ctx android.TopDownMutatorContext) {
 	srcs := bazel.MakeLabelListAttribute(
 		android.BazelLabelForModuleSrc(ctx, []string{*m.properties.Src}))
 
+	var filename string
+	if m.properties.Filename != nil {
+		filename = *m.properties.Filename
+	}
+
+	var subDir string
+	if m.properties.Sub_dir != nil {
+		subDir = *m.properties.Sub_dir
+	}
+
 	attrs := &bazelShBinaryAttributes{
-		Srcs: srcs,
+		Srcs:     srcs,
+		Filename: filename,
+		Sub_dir:  subDir,
 	}
 
 	props := bazel.BazelTargetModuleProperties{
-		Rule_class: "sh_binary",
+		Rule_class:        "sh_binary",
+		Bzl_load_location: "//build/bazel/rules:sh_binary.bzl",
 	}
 
 	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: m.Name()}, attrs)
