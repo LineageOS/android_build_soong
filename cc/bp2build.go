@@ -388,7 +388,15 @@ func bp2buildResolveCppStdValue(c_std *string, cpp_std *string, gnu_extensions *
 	}
 
 	cStdVal, cppStdVal = maybeReplaceGnuToC(gnu_extensions, cStdVal, cppStdVal)
-	return &cStdVal, &cppStdVal
+	var c_std_prop, cpp_std_prop *string
+	if cStdVal != "" {
+		c_std_prop = &cStdVal
+	}
+	if cppStdVal != "" {
+		cpp_std_prop = &cppStdVal
+	}
+
+	return c_std_prop, cpp_std_prop
 }
 
 // bp2BuildParseCompilerProps returns copts, srcs and hdrs and other attributes.

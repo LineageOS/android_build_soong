@@ -122,13 +122,7 @@ func moduleName(ctx android.BaseModuleContext) string {
 }
 
 func (d *dexpreopter) dexpreoptDisabled(ctx android.BaseModuleContext) bool {
-	global := dexpreopt.GetGlobalConfig(ctx)
-
-	if global.DisablePreopt {
-		return true
-	}
-
-	if inList(moduleName(ctx), global.DisablePreoptModules) {
+	if !ctx.Device() {
 		return true
 	}
 
@@ -144,7 +138,17 @@ func (d *dexpreopter) dexpreoptDisabled(ctx android.BaseModuleContext) bool {
 		return true
 	}
 
-	if ctx.Host() {
+	if !android.IsModulePreferred(ctx.Module()) {
+		return true
+	}
+
+	global := dexpreopt.GetGlobalConfig(ctx)
+
+	if global.DisablePreopt {
+		return true
+	}
+
+	if inList(moduleName(ctx), global.DisablePreoptModules) {
 		return true
 	}
 
@@ -159,10 +163,6 @@ func (d *dexpreopter) dexpreoptDisabled(ctx android.BaseModuleContext) bool {
 		if global.ApexSystemServerJars.ContainsJar(moduleName(ctx)) {
 			return true
 		}
-	}
-
-	if !android.IsModulePreferred(ctx.Module()) {
-		return true
 	}
 
 	// TODO: contains no java code

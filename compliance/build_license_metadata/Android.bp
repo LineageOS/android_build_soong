@@ -25,5 +25,6 @@ blueprint_go_binary {
         "license_metadata_proto",
         "golang-protobuf-proto",
         "golang-protobuf-encoding-prototext",
+        "soong-response",
     ],
 }

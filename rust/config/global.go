@@ -47,6 +47,7 @@ var (
 		"-C opt-level=3",
 		"-C relocation-model=pic",
 		"-C overflow-checks=on",
+		"-C force-unwind-tables=yes",
 		// Use v0 mangling to distinguish from C++ symbols
 		"-Z symbol-mangling-version=v0",
 	}
