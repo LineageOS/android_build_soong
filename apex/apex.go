@@ -2245,6 +2245,8 @@ func overrideApexFactory() android.Module {
 //
 // TODO(jiyong): move these checks to a separate go file.
 
+var _ android.ModuleWithMinSdkVersionCheck = (*apexBundle)(nil)
+
 // Entures that min_sdk_version of the included modules are equal or less than the min_sdk_version
 // of this apexBundle.
 func (a *apexBundle) CheckMinSdkVersion(ctx android.ModuleContext) {
@@ -2256,7 +2258,15 @@ func (a *apexBundle) CheckMinSdkVersion(ctx android.ModuleContext) {
 	android.CheckMinSdkVersion(ctx, minSdkVersion, a.WalkPayloadDeps)
 }
 
-func (a *apexBundle) minSdkVersion(ctx android.BaseModuleContext) android.ApiLevel {
+func (a *apexBundle) MinSdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
+	return android.SdkSpec{
+		Kind:     android.SdkNone,
+		ApiLevel: a.minSdkVersion(ctx),
+		Raw:      String(a.properties.Min_sdk_version),
+	}
+}
+
+func (a *apexBundle) minSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel {
 	ver := proptools.String(a.properties.Min_sdk_version)
 	if ver == "" {
 		return android.NoneApiLevel
