@@ -62,11 +62,15 @@ func TestShBinarySimple(t *testing.T) {
 		blueprint: `sh_binary {
     name: "foo",
     src: "foo.sh",
+    filename: "foo.exe",
+    sub_dir: "sub",
     bazel_module: { bp2build_available: true },
 }`,
 		expectedBazelTargets: []string{
 			makeBazelTarget("sh_binary", "foo", attrNameToString{
-				"srcs": `["foo.sh"]`,
+				"srcs":     `["foo.sh"]`,
+				"filename": `"foo.exe"`,
+				"sub_dir":  `"sub"`,
 			})},
 	})
 }

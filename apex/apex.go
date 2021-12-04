@@ -2377,6 +2377,9 @@ func (a *apexBundle) checkUpdatable(ctx android.ModuleContext) {
 		if a.UsePlatformApis() {
 			ctx.PropertyErrorf("updatable", "updatable APEXes can't use platform APIs")
 		}
+		if a.SocSpecific() || a.DeviceSpecific() {
+			ctx.PropertyErrorf("updatable", "vendor APEXes are not updatable")
+		}
 		a.checkJavaStableSdkVersion(ctx)
 		a.checkClasspathFragments(ctx)
 	}
