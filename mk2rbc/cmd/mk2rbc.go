@@ -80,7 +80,6 @@ var backupSuffix string
 var tracedVariables []string
 var errorLogger = errorSink{data: make(map[string]datum)}
 var makefileFinder = &LinuxMakefileFinder{}
-var versionDefaultsMk = filepath.Join("build", "make", "core", "version_defaults.mk")
 
 func main() {
 	flag.Usage = func() {
@@ -168,18 +167,14 @@ func main() {
 		if len(files) != 1 {
 			quit(fmt.Errorf("a launcher can be generated only for a single product"))
 		}
-		versionDefaults, err := generateVersionDefaults()
-		if err != nil {
-			quit(err)
+		if *inputVariables == "" {
+			quit(fmt.Errorf("the product launcher requires an input variables file"))
 		}
-		versionDefaultsPath := outputFilePath(versionDefaultsMk)
-		err = writeGenerated(versionDefaultsPath, versionDefaults)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %s", files[0], err)
-			ok = false
+		if !convertOne(*inputVariables) {
+			quit(fmt.Errorf("the product launcher input variables file failed to convert"))
 		}
 
-		err = writeGenerated(*launcher, mk2rbc.Launcher(outputFilePath(files[0]), versionDefaultsPath,
+		err := writeGenerated(*launcher, mk2rbc.Launcher(outputFilePath(files[0]), outputFilePath(*inputVariables),
 			mk2rbc.MakePath2ModuleName(files[0])))
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s", files[0], err)
@@ -211,15 +206,6 @@ func main() {
 	if !ok {
 		os.Exit(1)
 	}
-}
-
-func generateVersionDefaults() (string, error) {
-	versionSettings, err := mk2rbc.ParseVersionDefaults(filepath.Join(*rootDir, versionDefaultsMk))
-	if err != nil {
-		return "", err
-	}
-	return mk2rbc.VersionDefaults(versionSettings), nil
-
 }
 
 func quit(s interface{}) {
