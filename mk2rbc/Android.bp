@@ -38,7 +38,6 @@ bootstrap_go_package {
         "soong_variables.go",
         "types.go",
         "variable.go",
-        "version_defaults.go",
     ],
     deps: ["androidmk-parser"],
 }
