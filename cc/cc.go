@@ -1713,7 +1713,15 @@ func (c *Module) setSubnameProperty(actx android.ModuleContext) {
 
 // Returns true if Bazel was successfully used for the analysis of this module.
 func (c *Module) maybeGenerateBazelActions(actx android.ModuleContext) bool {
-	bazelModuleLabel := c.GetBazelLabel(actx, c)
+	var bazelModuleLabel string
+	if actx.ModuleType() == "cc_library" && c.static() {
+		// cc_library is a special case in bp2build; two targets are generated -- one for each
+		// of the shared and static variants. The shared variant keeps the module name, but the
+		// static variant uses a different suffixed name.
+		bazelModuleLabel = bazelLabelForStaticModule(actx, c)
+	} else {
+		bazelModuleLabel = c.GetBazelLabel(actx, c)
+	}
 	bazelActionsUsed := false
 	// Mixed builds mode is disabled for modules outside of device OS.
 	// TODO(b/200841190): Support non-device OS in mixed builds.
