@@ -945,6 +945,14 @@ func CheckMinSdkVersion(ctx ModuleContext, minSdkVersion ApiLevel, walk WalkPayl
 		if am, ok := from.(DepIsInSameApex); ok && !am.DepIsInSameApex(ctx, to) {
 			return false
 		}
+		if m, ok := to.(ModuleWithMinSdkVersionCheck); ok {
+			// This dependency performs its own min_sdk_version check, just make sure it sets min_sdk_version
+			// to trigger the check.
+			if !m.MinSdkVersion(ctx).Specified() {
+				ctx.OtherModuleErrorf(m, "must set min_sdk_version")
+			}
+			return false
+		}
 		if err := to.ShouldSupportSdkVersion(ctx, minSdkVersion); err != nil {
 			toName := ctx.OtherModuleName(to)
 			if ver, ok := minSdkVersionAllowlist[toName]; !ok || ver.GreaterThan(minSdkVersion) {
