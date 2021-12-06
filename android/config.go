@@ -1194,10 +1194,6 @@ func (c *deviceConfig) DeviceKernelHeaderDirs() []string {
 	return c.config.productVariables.DeviceKernelHeaders
 }
 
-func (c *deviceConfig) SamplingPGO() bool {
-	return Bool(c.config.productVariables.SamplingPGO)
-}
-
 // JavaCoverageEnabledForPath returns whether Java code coverage is enabled for
 // path. Coverage is enabled by default when the product variable
 // JavaCoveragePaths is empty. If JavaCoveragePaths is not empty, coverage is
