@@ -958,3 +958,87 @@ func TestJavaSdkLibraryDist(t *testing.T) {
 		})
 	}
 }
+
+func TestSdkLibrary_CheckMinSdkVersion(t *testing.T) {
+	preparer := android.GroupFixturePreparers(
+		PrepareForTestWithJavaBuildComponents,
+		PrepareForTestWithJavaDefaultModules,
+		PrepareForTestWithJavaSdkLibraryFiles,
+	)
+
+	preparer.RunTestWithBp(t, `
+		java_sdk_library {
+			name: "sdklib",
+            srcs: ["a.java"],
+            static_libs: ["util"],
+            min_sdk_version: "30",
+			unsafe_ignore_missing_latest_api: true,
+        }
+
+		java_library {
+			name: "util",
+			srcs: ["a.java"],
+			min_sdk_version: "30",
+		}
+	`)
+
+	preparer.
+		RunTestWithBp(t, `
+			java_sdk_library {
+				name: "sdklib",
+				srcs: ["a.java"],
+				libs: ["util"],
+				impl_only_libs: ["util"],
+				stub_only_libs: ["util"],
+				stub_only_static_libs: ["util"],
+				min_sdk_version: "30",
+				unsafe_ignore_missing_latest_api: true,
+			}
+
+			java_library {
+				name: "util",
+				srcs: ["a.java"],
+			}
+		`)
+
+	preparer.ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(`module "util".*should support min_sdk_version\(30\)`)).
+		RunTestWithBp(t, `
+			java_sdk_library {
+				name: "sdklib",
+				srcs: ["a.java"],
+				static_libs: ["util"],
+				min_sdk_version: "30",
+				unsafe_ignore_missing_latest_api: true,
+			}
+
+			java_library {
+				name: "util",
+				srcs: ["a.java"],
+				min_sdk_version: "31",
+			}
+		`)
+
+	preparer.ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(`module "another_util".*should support min_sdk_version\(30\)`)).
+		RunTestWithBp(t, `
+			java_sdk_library {
+				name: "sdklib",
+				srcs: ["a.java"],
+				static_libs: ["util"],
+				min_sdk_version: "30",
+				unsafe_ignore_missing_latest_api: true,
+			}
+
+			java_library {
+				name: "util",
+				srcs: ["a.java"],
+				static_libs: ["another_util"],
+				min_sdk_version: "30",
+			}
+
+			java_library {
+				name: "another_util",
+				srcs: ["a.java"],
+				min_sdk_version: "31",
+			}
+		`)
+}
