@@ -130,6 +130,13 @@ type apexBundleProperties struct {
 	// symlinking to the system libs. Default is true.
 	Updatable *bool
 
+	// Marks that this APEX is designed to be updatable in the future, although it's not
+	// updatable yet. This is used to mimic some of the build behaviors that are applied only to
+	// updatable APEXes. Currently, this disables the size optimization, so that the size of
+	// APEX will not increase when the APEX is actually marked as truly updatable. Default is
+	// false.
+	Future_updatable *bool
+
 	// Whether this APEX can use platform APIs or not. Can be set to true only when `updatable:
 	// false`. Default is false.
 	Platform_apis *bool
@@ -1306,6 +1313,10 @@ func (a *apexBundle) Updatable() bool {
 	return proptools.BoolDefault(a.properties.Updatable, true)
 }
 
+func (a *apexBundle) FutureUpdatable() bool {
+	return proptools.BoolDefault(a.properties.Future_updatable, false)
+}
+
 func (a *apexBundle) UsePlatformApis() bool {
 	return proptools.BoolDefault(a.properties.Platform_apis, false)
 }
@@ -2105,10 +2116,11 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	forced := ctx.Config().ForceApexSymlinkOptimization()
+	updatable := a.Updatable() || a.FutureUpdatable()
 
 	// We don't need the optimization for updatable APEXes, as it might give false signal
 	// to the system health when the APEXes are still bundled (b/149805758).
-	if !forced && a.Updatable() && a.properties.ApexType == imageApex {
+	if !forced && updatable && a.properties.ApexType == imageApex {
 		a.linkToSystemLib = false
 	}
 
@@ -2379,6 +2391,9 @@ func (a *apexBundle) checkUpdatable(ctx android.ModuleContext) {
 		}
 		if a.SocSpecific() || a.DeviceSpecific() {
 			ctx.PropertyErrorf("updatable", "vendor APEXes are not updatable")
+		}
+		if a.FutureUpdatable() {
+			ctx.PropertyErrorf("future_updatable", "Already updatable. Remove `future_updatable: true:`")
 		}
 		a.checkJavaStableSdkVersion(ctx)
 		a.checkClasspathFragments(ctx)
