@@ -33,6 +33,7 @@ func registerCcLibrarySharedModuleTypes(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("toolchain_library", cc.ToolchainLibraryFactory)
 	ctx.RegisterModuleType("cc_library_headers", cc.LibraryHeaderFactory)
 	ctx.RegisterModuleType("cc_library_static", cc.LibraryStaticFactory)
+	ctx.RegisterModuleType("cc_library", cc.LibraryFactory)
 }
 
 func runCcLibrarySharedTestCase(t *testing.T, tc bp2buildTestCase) {
@@ -423,5 +424,29 @@ cc_library_shared {
 }
 `,
 		expectedErr: fmt.Errorf("Android.bp:16:1: module \"foo_shared\": nocrt is not supported for arch variants"),
+	})
+}
+
+func TestCcLibrarySharedProto(t *testing.T) {
+	runCcLibrarySharedTestCase(t, bp2buildTestCase{
+		blueprint: soongCcProtoPreamble + `cc_library_shared {
+	name: "foo",
+	srcs: ["foo.proto"],
+	proto: {
+		canonical_path_from_root: false,
+		export_proto_headers: true,
+	},
+	include_build_directory: false,
+}`,
+		expectedBazelTargets: []string{
+			makeBazelTarget("proto_library", "foo_proto", attrNameToString{
+				"srcs": `["foo.proto"]`,
+			}), makeBazelTarget("cc_lite_proto_library", "foo_cc_proto_lite", attrNameToString{
+				"deps": `[":foo_proto"]`,
+			}), makeBazelTarget("cc_library_shared", "foo", attrNameToString{
+				"dynamic_deps":       `[":libprotobuf-cpp-lite"]`,
+				"whole_archive_deps": `[":foo_cc_proto_lite"]`,
+			}),
+		},
 	})
 }
