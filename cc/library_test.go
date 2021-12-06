@@ -257,8 +257,13 @@ cc_library {
 				CcObjectFiles:        []string{"foo.o"},
 				Includes:             []string{"include"},
 				SystemIncludes:       []string{"system_include"},
-				RootStaticArchives:   []string{"foo.a"},
 				RootDynamicLibraries: []string{"foo.so"},
+			},
+			"//foo/bar:bar_bp2build_cc_library_static": cquery.CcInfo{
+				CcObjectFiles:      []string{"foo.o"},
+				Includes:           []string{"include"},
+				SystemIncludes:     []string{"system_include"},
+				RootStaticArchives: []string{"foo.a"},
 			},
 		},
 	}
