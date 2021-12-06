@@ -1122,6 +1122,8 @@ func (module *SdkLibrary) getGeneratedApiScopes(ctx android.EarlyModuleContext) 
 	return generatedScopes
 }
 
+var _ android.ModuleWithMinSdkVersionCheck = (*SdkLibrary)(nil)
+
 func (module *SdkLibrary) CheckMinSdkVersion(ctx android.ModuleContext) {
 	android.CheckMinSdkVersion(ctx, module.MinSdkVersion(ctx).ApiLevel, func(c android.ModuleContext, do android.PayloadDepsCallback) {
 		ctx.WalkDeps(func(child android.Module, parent android.Module) bool {

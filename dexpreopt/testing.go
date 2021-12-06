@@ -122,6 +122,14 @@ func FixtureSetBootJars(bootJars ...string) android.FixturePreparer {
 func FixtureSetApexBootJars(bootJars ...string) android.FixturePreparer {
 	return FixtureModifyGlobalConfig(func(dexpreoptConfig *GlobalConfig) {
 		dexpreoptConfig.ApexBootJars = android.CreateTestConfiguredJarList(bootJars)
+
+	})
+}
+
+// FixtureSetApexSystemServerJars sets the ApexSystemServerJars property in the global config.
+func FixtureSetApexSystemServerJars(jars ...string) android.FixturePreparer {
+	return FixtureModifyGlobalConfig(func(dexpreoptConfig *GlobalConfig) {
+		dexpreoptConfig.ApexSystemServerJars = android.CreateTestConfiguredJarList(jars)
 	})
 }
 
