@@ -107,6 +107,14 @@ func (ll *LabelList) uniqueParentDirectories() []string {
 	return dirs
 }
 
+// Add inserts the label Label at the end of the LabelList.
+func (ll *LabelList) Add(label *Label) {
+	if label == nil {
+		return
+	}
+	ll.Includes = append(ll.Includes, *label)
+}
+
 // Append appends the fields of other labelList to the corresponding fields of ll.
 func (ll *LabelList) Append(other LabelList) {
 	if len(ll.Includes) > 0 || len(other.Includes) > 0 {
@@ -366,6 +374,17 @@ func (ba *BoolAttribute) SortedConfigurationAxes() []ConfigurationAxis {
 // labelListSelectValues supports config-specific label_list typed Bazel attribute values.
 type labelListSelectValues map[string]LabelList
 
+func (ll labelListSelectValues) addSelects(label labelSelectValues) {
+	for k, v := range label {
+		if label == nil {
+			continue
+		}
+		l := ll[k]
+		(&l).Add(v)
+		ll[k] = l
+	}
+}
+
 func (ll labelListSelectValues) appendSelects(other labelListSelectValues) {
 	for k, v := range other {
 		l := ll[k]
@@ -500,6 +519,25 @@ func (lla *LabelListAttribute) Append(other LabelListAttribute) {
 	lla.ConfigurableValues.Append(other.ConfigurableValues)
 }
 
+// Add inserts the labels for each axis of LabelAttribute at the end of corresponding axis's
+// LabelList within the LabelListAttribute
+func (lla *LabelListAttribute) Add(label *LabelAttribute) {
+	if label == nil {
+		return
+	}
+
+	lla.Value.Add(label.Value)
+	if lla.ConfigurableValues == nil && label.ConfigurableValues != nil {
+		lla.ConfigurableValues = make(configurableLabelLists)
+	}
+	for axis, _ := range label.ConfigurableValues {
+		if _, exists := lla.ConfigurableValues[axis]; !exists {
+			lla.ConfigurableValues[axis] = make(labelListSelectValues)
+		}
+		lla.ConfigurableValues[axis].addSelects(label.ConfigurableValues[axis])
+	}
+}
+
 // HasConfigurableValues returns true if the attribute contains axis-specific label list values.
 func (lla LabelListAttribute) HasConfigurableValues() bool {
 	return len(lla.ConfigurableValues) > 0
@@ -566,7 +604,7 @@ type OtherModuleContext interface {
 
 // LabelMapper is a function that takes a OtherModuleContext and returns a (potentially changed)
 // label and whether it was changed.
-type LabelMapper func(OtherModuleContext, string) (string, bool)
+type LabelMapper func(OtherModuleContext, Label) (string, bool)
 
 // LabelPartition contains descriptions of a partition for labels
 type LabelPartition struct {
@@ -588,7 +626,7 @@ type LabelPartitions map[string]LabelPartition
 // not.
 func (lf LabelPartition) filter(ctx OtherModuleContext, label Label) *Label {
 	if lf.LabelMapper != nil {
-		if newLabel, changed := lf.LabelMapper(ctx, label.Label); changed {
+		if newLabel, changed := lf.LabelMapper(ctx, label); changed {
 			return &Label{newLabel, label.OriginalModuleName}
 		}
 	}

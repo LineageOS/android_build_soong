@@ -313,16 +313,16 @@ func TestResolveExcludes(t *testing.T) {
 // labelAddSuffixForTypeMapper returns a LabelMapper that adds suffix to label name for modules of
 // typ
 func labelAddSuffixForTypeMapper(suffix, typ string) LabelMapper {
-	return func(omc OtherModuleContext, label string) (string, bool) {
-		m, ok := omc.ModuleFromName(label)
+	return func(omc OtherModuleContext, label Label) (string, bool) {
+		m, ok := omc.ModuleFromName(label.Label)
 		if !ok {
-			return label, false
+			return label.Label, false
 		}
 		mTyp := omc.OtherModuleType(m)
 		if typ == mTyp {
-			return label + suffix, true
+			return label.Label + suffix, true
 		}
-		return label, false
+		return label.Label, false
 	}
 }
 

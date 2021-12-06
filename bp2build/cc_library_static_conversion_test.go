@@ -1419,3 +1419,27 @@ cc_library_static {
 		},
 	})
 }
+
+func TestCcLibraryStaticProto(t *testing.T) {
+	runCcLibraryStaticTestCase(t, bp2buildTestCase{
+		blueprint: soongCcProtoPreamble + `cc_library_static {
+	name: "foo",
+	srcs: ["foo.proto"],
+	proto: {
+		canonical_path_from_root: false,
+		export_proto_headers: true,
+	},
+	include_build_directory: false,
+}`,
+		expectedBazelTargets: []string{
+			makeBazelTarget("proto_library", "foo_proto", attrNameToString{
+				"srcs": `["foo.proto"]`,
+			}), makeBazelTarget("cc_lite_proto_library", "foo_cc_proto_lite", attrNameToString{
+				"deps": `[":foo_proto"]`,
+			}), makeBazelTarget("cc_library_static", "foo", attrNameToString{
+				"deps":               `[":libprotobuf-cpp-lite"]`,
+				"whole_archive_deps": `[":foo_cc_proto_lite"]`,
+			}),
+		},
+	})
+}
