@@ -208,7 +208,6 @@ func InitDefaultsModule(module DefaultsModule) {
 	// The applicable licenses property for defaults is 'licenses'.
 	setPrimaryLicensesProperty(module, "licenses", &commonProperties.Licenses)
 
-	base.module = module
 }
 
 var _ Defaults = (*DefaultsModuleBase)(nil)
