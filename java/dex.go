@@ -69,6 +69,9 @@ type DexProperties struct {
 	// This defaults to reasonable value based on module and should not be set.
 	// It exists only to support ART tests.
 	Uncompress_dex *bool
+
+	// Exclude kotlinc generate files: *.kotlin_module, *.kotlin_builtins. Defaults to false.
+	Exclude_kotlinc_generated_files *bool
 }
 
 type dexer struct {
@@ -89,7 +92,7 @@ var d8, d8RE = pctx.MultiCommandRemoteStaticRules("d8",
 		Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
 			`$d8Template${config.D8Cmd} ${config.DexFlags} --output $outDir $d8Flags $in && ` +
 			`$zipTemplate${config.SoongZipCmd} $zipFlags -o $outDir/classes.dex.jar -C $outDir -f "$outDir/classes*.dex" && ` +
-			`${config.MergeZipsCmd} -D -stripFile "**/*.class" $out $outDir/classes.dex.jar $in`,
+			`${config.MergeZipsCmd} -D -stripFile "**/*.class" $mergeZipsFlags $out $outDir/classes.dex.jar $in`,
 		CommandDeps: []string{
 			"${config.D8Cmd}",
 			"${config.SoongZipCmd}",
@@ -110,7 +113,7 @@ var d8, d8RE = pctx.MultiCommandRemoteStaticRules("d8",
 			ExecStrategy: "${config.RED8ExecStrategy}",
 			Platform:     map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
 		},
-	}, []string{"outDir", "d8Flags", "zipFlags"}, nil)
+	}, []string{"outDir", "d8Flags", "zipFlags", "mergeZipsFlags"}, nil)
 
 var r8, r8RE = pctx.MultiCommandRemoteStaticRules("r8",
 	blueprint.RuleParams{
@@ -126,7 +129,7 @@ var r8, r8RE = pctx.MultiCommandRemoteStaticRules("r8",
 			`${config.SoongZipCmd} -o ${outUsageZip} -C ${outUsageDir} -f ${outUsage} && ` +
 			`rm -rf ${outUsageDir} && ` +
 			`$zipTemplate${config.SoongZipCmd} $zipFlags -o $outDir/classes.dex.jar -C $outDir -f "$outDir/classes*.dex" && ` +
-			`${config.MergeZipsCmd} -D -stripFile "**/*.class" $out $outDir/classes.dex.jar $in`,
+			`${config.MergeZipsCmd} -D -stripFile "**/*.class" $mergeZipsFlags $out $outDir/classes.dex.jar $in`,
 		CommandDeps: []string{
 			"${config.R8Cmd}",
 			"${config.SoongZipCmd}",
@@ -156,7 +159,7 @@ var r8, r8RE = pctx.MultiCommandRemoteStaticRules("r8",
 			Platform:     map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
 		},
 	}, []string{"outDir", "outDict", "outUsage", "outUsageZip", "outUsageDir",
-		"r8Flags", "zipFlags"}, []string{"implicits"})
+		"r8Flags", "zipFlags", "mergeZipsFlags"}, []string{"implicits"})
 
 func (d *dexer) dexCommonFlags(ctx android.ModuleContext, minSdkVersion android.SdkSpec) []string {
 	flags := d.dexProperties.Dxflags
@@ -281,6 +284,12 @@ func (d *dexer) compileDex(ctx android.ModuleContext, flags javaBuilderFlags, mi
 
 	commonFlags := d.dexCommonFlags(ctx, minSdkVersion)
 
+	// Exclude kotlinc generated files when "exclude_kotlinc_generated_files" is set to true.
+	mergeZipsFlags := ""
+	if proptools.BoolDefault(d.dexProperties.Exclude_kotlinc_generated_files, false) {
+		mergeZipsFlags = "-stripFile META-INF/*.kotlin_module -stripFile **/*.kotlin_builtins"
+	}
+
 	useR8 := d.effectiveOptimizeEnabled()
 	if useR8 {
 		proguardDictionary := android.PathForModuleOut(ctx, "proguard_dictionary")
@@ -293,13 +302,14 @@ func (d *dexer) compileDex(ctx android.ModuleContext, flags javaBuilderFlags, mi
 		r8Flags, r8Deps := d.r8Flags(ctx, flags)
 		rule := r8
 		args := map[string]string{
-			"r8Flags":     strings.Join(append(commonFlags, r8Flags...), " "),
-			"zipFlags":    zipFlags,
-			"outDict":     proguardDictionary.String(),
-			"outUsageDir": proguardUsageDir.String(),
-			"outUsage":    proguardUsage.String(),
-			"outUsageZip": proguardUsageZip.String(),
-			"outDir":      outDir.String(),
+			"r8Flags":        strings.Join(append(commonFlags, r8Flags...), " "),
+			"zipFlags":       zipFlags,
+			"outDict":        proguardDictionary.String(),
+			"outUsageDir":    proguardUsageDir.String(),
+			"outUsage":       proguardUsage.String(),
+			"outUsageZip":    proguardUsageZip.String(),
+			"outDir":         outDir.String(),
+			"mergeZipsFlags": mergeZipsFlags,
 		}
 		if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_R8") {
 			rule = r8RE
@@ -327,9 +337,10 @@ func (d *dexer) compileDex(ctx android.ModuleContext, flags javaBuilderFlags, mi
 			Input:       classesJar,
 			Implicits:   d8Deps,
 			Args: map[string]string{
-				"d8Flags":  strings.Join(append(commonFlags, d8Flags...), " "),
-				"zipFlags": zipFlags,
-				"outDir":   outDir.String(),
+				"d8Flags":        strings.Join(append(commonFlags, d8Flags...), " "),
+				"zipFlags":       zipFlags,
+				"outDir":         outDir.String(),
+				"mergeZipsFlags": mergeZipsFlags,
 			},
 		})
 	}

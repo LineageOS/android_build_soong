@@ -47,6 +47,7 @@ func TestJavaSdkLibrary(t *testing.T) {
 			name: "bar",
 			srcs: ["a.java", "b.java"],
 			api_packages: ["bar"],
+			exclude_kotlinc_generated_files: true,
 		}
 		java_library {
 			name: "baz",
@@ -159,6 +160,14 @@ func TestJavaSdkLibrary(t *testing.T) {
 		sdkLibs := quxLib.ClassLoaderContexts().UsesLibs()
 		android.AssertDeepEquals(t, "qux exports", []string{"foo", "bar", "fred", "quuz"}, sdkLibs)
 	}
+
+	fooDexJar := result.ModuleForTests("foo", "android_common").Rule("d8")
+	// tests if kotlinc generated files are NOT excluded from output of foo.
+	android.AssertStringDoesNotContain(t, "foo dex", fooDexJar.BuildParams.Args["mergeZipsFlags"], "-stripFile META-INF/*.kotlin_module")
+
+	barDexJar := result.ModuleForTests("bar", "android_common").Rule("d8")
+	// tests if kotlinc generated files are excluded from output of bar.
+	android.AssertStringDoesContain(t, "bar dex", barDexJar.BuildParams.Args["mergeZipsFlags"], "-stripFile META-INF/*.kotlin_module")
 }
 
 func TestJavaSdkLibrary_StubOrImplOnlyLibs(t *testing.T) {
