@@ -27,9 +27,10 @@ import (
 )
 
 const (
-	cSrcPartition   = "c"
-	asSrcPartition  = "as"
-	cppSrcPartition = "cpp"
+	cSrcPartition     = "c"
+	asSrcPartition    = "as"
+	cppSrcPartition   = "cpp"
+	protoSrcPartition = "proto"
 )
 
 // staticOrSharedAttributes are the Bazel-ified versions of StaticOrSharedProperties --
@@ -41,43 +42,43 @@ type staticOrSharedAttributes struct {
 	Hdrs    bazel.LabelListAttribute
 	Copts   bazel.StringListAttribute
 
-	Deps                        bazel.LabelListAttribute
-	Implementation_deps         bazel.LabelListAttribute
-	Dynamic_deps                bazel.LabelListAttribute
-	Implementation_dynamic_deps bazel.LabelListAttribute
-	Whole_archive_deps          bazel.LabelListAttribute
+	Deps                              bazel.LabelListAttribute
+	Implementation_deps               bazel.LabelListAttribute
+	Dynamic_deps                      bazel.LabelListAttribute
+	Implementation_dynamic_deps       bazel.LabelListAttribute
+	Whole_archive_deps                bazel.LabelListAttribute
+	Implementation_whole_archive_deps bazel.LabelListAttribute
 
 	System_dynamic_deps bazel.LabelListAttribute
 }
 
 func groupSrcsByExtension(ctx android.BazelConversionPathContext, srcs bazel.LabelListAttribute) bazel.PartitionToLabelListAttribute {
-	// Check that a module is a filegroup type named <label>.
-	isFilegroupNamed := func(m android.Module, fullLabel string) bool {
-		if ctx.OtherModuleType(m) != "filegroup" {
-			return false
-		}
-		labelParts := strings.Split(fullLabel, ":")
-		if len(labelParts) > 2 {
-			// There should not be more than one colon in a label.
-			ctx.ModuleErrorf("%s is not a valid Bazel label for a filegroup", fullLabel)
-		}
-		return m.Name() == labelParts[len(labelParts)-1]
+	// Check that a module is a filegroup type
+	isFilegroup := func(m blueprint.Module) bool {
+		return ctx.OtherModuleType(m) == "filegroup"
 	}
 
 	// Convert filegroup dependencies into extension-specific filegroups filtered in the filegroup.bzl
 	// macro.
 	addSuffixForFilegroup := func(suffix string) bazel.LabelMapper {
-		return func(ctx bazel.OtherModuleContext, label string) (string, bool) {
-			m, exists := ctx.ModuleFromName(label)
-			if !exists {
-				return label, false
+		return func(ctx bazel.OtherModuleContext, label bazel.Label) (string, bool) {
+			m, exists := ctx.ModuleFromName(label.OriginalModuleName)
+			labelStr := label.Label
+			if !exists || !isFilegroup(m) {
+				return labelStr, false
 			}
-			aModule, _ := m.(android.Module)
-			if !isFilegroupNamed(aModule, label) {
-				return label, false
-			}
-			return label + suffix, true
+			return labelStr + suffix, true
 		}
+	}
+
+	isProtoFilegroup := func(ctx bazel.OtherModuleContext, label bazel.Label) (string, bool) {
+		m, exists := ctx.ModuleFromName(label.OriginalModuleName)
+		labelStr := label.Label
+		if !exists || !isFilegroup(m) {
+			return labelStr, false
+		}
+		likelyProtos := strings.HasSuffix(labelStr, "proto") || strings.HasSuffix(labelStr, "protos")
+		return labelStr, likelyProtos
 	}
 
 	// TODO(b/190006308): Handle language detection of sources in a Bazel rule.
@@ -86,7 +87,8 @@ func groupSrcsByExtension(ctx android.BazelConversionPathContext, srcs bazel.Lab
 		asSrcPartition: bazel.LabelPartition{Extensions: []string{".s", ".S"}, LabelMapper: addSuffixForFilegroup("_as_srcs")},
 		// C++ is the "catch-all" group, and comprises generated sources because we don't
 		// know the language of these sources until the genrule is executed.
-		cppSrcPartition: bazel.LabelPartition{Extensions: []string{".cpp", ".cc", ".cxx", ".mm"}, LabelMapper: addSuffixForFilegroup("_cpp_srcs"), Keep_remainder: true},
+		cppSrcPartition:   bazel.LabelPartition{Extensions: []string{".cpp", ".cc", ".cxx", ".mm"}, LabelMapper: addSuffixForFilegroup("_cpp_srcs"), Keep_remainder: true},
+		protoSrcPartition: bazel.LabelPartition{Extensions: []string{".proto"}, LabelMapper: isProtoFilegroup},
 	})
 
 	return partitioned
@@ -195,6 +197,11 @@ func bp2buildParseStaticOrSharedProps(ctx android.BazelConversionPathContext, mo
 	attrs.Srcs_c = partitionedSrcs[cSrcPartition]
 	attrs.Srcs_as = partitionedSrcs[asSrcPartition]
 
+	if !partitionedSrcs[protoSrcPartition].IsEmpty() {
+		// TODO(b/208815215): determine whether this is used and add support if necessary
+		ctx.ModuleErrorf("Migrating static/shared only proto srcs is not currently supported")
+	}
+
 	return attrs
 }
 
@@ -230,6 +237,8 @@ func Bp2BuildParsePrebuiltLibraryProps(ctx android.BazelConversionPathContext, m
 type baseAttributes struct {
 	compilerAttributes
 	linkerAttributes
+
+	protoDependency *bazel.LabelAttribute
 }
 
 // Convenience struct to hold all attributes parsed from compiler properties.
@@ -257,6 +266,8 @@ type compilerAttributes struct {
 
 	localIncludes    bazel.StringListAttribute
 	absoluteIncludes bazel.StringListAttribute
+
+	protoSrcs bazel.LabelListAttribute
 }
 
 func parseCommandLineFlags(soongFlags []string) []string {
@@ -337,6 +348,8 @@ func (ca *compilerAttributes) finalize(ctx android.BazelConversionPathContext, i
 	ca.srcs.ResolveExcludes()
 	partitionedSrcs := groupSrcsByExtension(ctx, ca.srcs)
 
+	ca.protoSrcs = partitionedSrcs[protoSrcPartition]
+
 	for p, lla := range partitionedSrcs {
 		// if there are no sources, there is no need for headers
 		if lla.IsEmpty() {
@@ -400,7 +413,7 @@ func bp2buildResolveCppStdValue(c_std *string, cpp_std *string, gnu_extensions *
 }
 
 // bp2BuildParseCompilerProps returns copts, srcs and hdrs and other attributes.
-func bp2BuildParseBaseProps(ctx android.BazelConversionPathContext, module *Module) baseAttributes {
+func bp2BuildParseBaseProps(ctx android.Bp2buildMutatorContext, module *Module) baseAttributes {
 	archVariantCompilerProps := module.GetArchVariantProperties(ctx, &BaseCompilerProperties{})
 	archVariantLinkerProps := module.GetArchVariantProperties(ctx, &BaseLinkerProperties{})
 
@@ -456,20 +469,30 @@ func bp2BuildParseBaseProps(ctx android.BazelConversionPathContext, module *Modu
 	(&compilerAttrs).finalize(ctx, implementationHdrs)
 	(&linkerAttrs).finalize()
 
+	protoDep := bp2buildProto(ctx, module, compilerAttrs.protoSrcs)
+
+	// bp2buildProto will only set wholeStaticLib or implementationWholeStaticLib, but we don't know
+	// which. This will add the newly generated proto library to the appropriate attribute and nothing
+	// to the other
+	(&linkerAttrs).wholeArchiveDeps.Add(protoDep.wholeStaticLib)
+	(&linkerAttrs).implementationWholeArchiveDeps.Add(protoDep.implementationWholeStaticLib)
+
 	return baseAttributes{
 		compilerAttrs,
 		linkerAttrs,
+		protoDep.protoDep,
 	}
 }
 
 // Convenience struct to hold all attributes parsed from linker properties.
 type linkerAttributes struct {
-	deps                      bazel.LabelListAttribute
-	implementationDeps        bazel.LabelListAttribute
-	dynamicDeps               bazel.LabelListAttribute
-	implementationDynamicDeps bazel.LabelListAttribute
-	wholeArchiveDeps          bazel.LabelListAttribute
-	systemDynamicDeps         bazel.LabelListAttribute
+	deps                           bazel.LabelListAttribute
+	implementationDeps             bazel.LabelListAttribute
+	dynamicDeps                    bazel.LabelListAttribute
+	implementationDynamicDeps      bazel.LabelListAttribute
+	wholeArchiveDeps               bazel.LabelListAttribute
+	implementationWholeArchiveDeps bazel.LabelListAttribute
+	systemDynamicDeps              bazel.LabelListAttribute
 
 	linkCrt                       bazel.BoolAttribute
 	useLibcrt                     bazel.BoolAttribute

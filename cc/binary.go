@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
 	"android/soong/bazel"
@@ -578,9 +579,16 @@ func binaryBp2build(ctx android.TopDownMutatorContext, typ string) {
 	}
 
 	baseAttrs := bp2BuildParseBaseProps(ctx, m)
+	binaryLinkerAttrs := bp2buildBinaryLinkerProps(ctx, m)
+
+	if proptools.BoolDefault(binaryLinkerAttrs.Linkshared, true) {
+		baseAttrs.implementationDynamicDeps.Add(baseAttrs.protoDependency)
+	} else {
+		baseAttrs.implementationDeps.Add(baseAttrs.protoDependency)
+	}
 
 	attrs := &binaryAttributes{
-		binaryLinkerAttrs: bp2buildBinaryLinkerProps(ctx, m),
+		binaryLinkerAttrs: binaryLinkerAttrs,
 
 		Srcs:    baseAttrs.srcs,
 		Srcs_c:  baseAttrs.cSrcs,
