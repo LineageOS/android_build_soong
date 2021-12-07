@@ -39,6 +39,19 @@ toolchain_library {
     native_bridge_supported: true,
     src: "",
 }`
+
+	soongCcProtoLibraries = `
+cc_library {
+	name: "libprotobuf-cpp-lite",
+	bazel_module: { bp2build_available: false },
+}
+
+cc_library {
+	name: "libprotobuf-cpp-full",
+	bazel_module: { bp2build_available: false },
+}`
+
+	soongCcProtoPreamble = soongCcLibraryPreamble + soongCcProtoLibraries
 )
 
 func runCcLibraryTestCase(t *testing.T, tc bp2buildTestCase) {
@@ -1828,4 +1841,188 @@ cc_library_shared {
 			},
 		})
 	}
+}
+
+func TestCcLibraryProtoSimple(t *testing.T) {
+	runCcLibraryTestCase(t, bp2buildTestCase{
+		moduleTypeUnderTest:                "cc_library",
+		moduleTypeUnderTestFactory:         cc.LibraryFactory,
+		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryBp2Build,
+		blueprint: soongCcProtoPreamble + `cc_library {
+	name: "foo",
+	srcs: ["foo.proto"],
+	include_build_directory: false,
+}`,
+		expectedBazelTargets: []string{
+			makeBazelTarget("proto_library", "foo_proto", attrNameToString{
+				"srcs":                `["foo.proto"]`,
+				"strip_import_prefix": `""`,
+			}), makeBazelTarget("cc_lite_proto_library", "foo_cc_proto_lite", attrNameToString{
+				"deps": `[":foo_proto"]`,
+			}), makeBazelTarget("cc_library", "foo", attrNameToString{
+				"implementation_whole_archive_deps": `[":foo_cc_proto_lite"]`,
+				"shared": `{
+        "dynamic_deps": [":libprotobuf-cpp-lite"],
+    }`,
+				"static": `{
+        "deps": [":libprotobuf-cpp-lite"],
+    }`,
+			}),
+		},
+	})
+}
+
+func TestCcLibraryProtoNoCanonicalPathFromRoot(t *testing.T) {
+	runCcLibraryTestCase(t, bp2buildTestCase{
+		moduleTypeUnderTest:                "cc_library",
+		moduleTypeUnderTestFactory:         cc.LibraryFactory,
+		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryBp2Build,
+		blueprint: soongCcProtoPreamble + `cc_library {
+	name: "foo",
+	srcs: ["foo.proto"],
+	proto: { canonical_path_from_root: false},
+	include_build_directory: false,
+}`,
+		expectedBazelTargets: []string{
+			makeBazelTarget("proto_library", "foo_proto", attrNameToString{
+				"srcs": `["foo.proto"]`,
+			}), makeBazelTarget("cc_lite_proto_library", "foo_cc_proto_lite", attrNameToString{
+				"deps": `[":foo_proto"]`,
+			}), makeBazelTarget("cc_library", "foo", attrNameToString{
+				"implementation_whole_archive_deps": `[":foo_cc_proto_lite"]`,
+				"shared": `{
+        "dynamic_deps": [":libprotobuf-cpp-lite"],
+    }`,
+				"static": `{
+        "deps": [":libprotobuf-cpp-lite"],
+    }`,
+			}),
+		},
+	})
+}
+
+func TestCcLibraryProtoExplicitCanonicalPathFromRoot(t *testing.T) {
+	runCcLibraryTestCase(t, bp2buildTestCase{
+		moduleTypeUnderTest:                "cc_library",
+		moduleTypeUnderTestFactory:         cc.LibraryFactory,
+		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryBp2Build,
+		blueprint: soongCcProtoPreamble + `cc_library {
+	name: "foo",
+	srcs: ["foo.proto"],
+	proto: { canonical_path_from_root: true},
+	include_build_directory: false,
+}`,
+		expectedBazelTargets: []string{
+			makeBazelTarget("proto_library", "foo_proto", attrNameToString{
+				"srcs":                `["foo.proto"]`,
+				"strip_import_prefix": `""`,
+			}), makeBazelTarget("cc_lite_proto_library", "foo_cc_proto_lite", attrNameToString{
+				"deps": `[":foo_proto"]`,
+			}), makeBazelTarget("cc_library", "foo", attrNameToString{
+				"implementation_whole_archive_deps": `[":foo_cc_proto_lite"]`,
+				"shared": `{
+        "dynamic_deps": [":libprotobuf-cpp-lite"],
+    }`,
+				"static": `{
+        "deps": [":libprotobuf-cpp-lite"],
+    }`,
+			}),
+		},
+	})
+}
+
+func TestCcLibraryProtoFull(t *testing.T) {
+	runCcLibraryTestCase(t, bp2buildTestCase{
+		moduleTypeUnderTest:                "cc_library",
+		moduleTypeUnderTestFactory:         cc.LibraryFactory,
+		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryBp2Build,
+		blueprint: soongCcProtoPreamble + `cc_library {
+	name: "foo",
+	srcs: ["foo.proto"],
+	proto: {
+		canonical_path_from_root: false,
+		type: "full",
+	},
+	include_build_directory: false,
+}`,
+		expectedBazelTargets: []string{
+			makeBazelTarget("proto_library", "foo_proto", attrNameToString{
+				"srcs": `["foo.proto"]`,
+			}), makeBazelTarget("cc_proto_library", "foo_cc_proto", attrNameToString{
+				"deps": `[":foo_proto"]`,
+			}), makeBazelTarget("cc_library", "foo", attrNameToString{
+				"implementation_whole_archive_deps": `[":foo_cc_proto"]`,
+				"shared": `{
+        "dynamic_deps": [":libprotobuf-cpp-full"],
+    }`,
+				"static": `{
+        "deps": [":libprotobuf-cpp-full"],
+    }`,
+			}),
+		},
+	})
+}
+
+func TestCcLibraryProtoLite(t *testing.T) {
+	runCcLibraryTestCase(t, bp2buildTestCase{
+		moduleTypeUnderTest:                "cc_library",
+		moduleTypeUnderTestFactory:         cc.LibraryFactory,
+		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryBp2Build,
+		blueprint: soongCcProtoPreamble + `cc_library {
+	name: "foo",
+	srcs: ["foo.proto"],
+	proto: {
+		canonical_path_from_root: false,
+		type: "lite",
+	},
+	include_build_directory: false,
+}`,
+		expectedBazelTargets: []string{
+			makeBazelTarget("proto_library", "foo_proto", attrNameToString{
+				"srcs": `["foo.proto"]`,
+			}), makeBazelTarget("cc_lite_proto_library", "foo_cc_proto_lite", attrNameToString{
+				"deps": `[":foo_proto"]`,
+			}), makeBazelTarget("cc_library", "foo", attrNameToString{
+				"implementation_whole_archive_deps": `[":foo_cc_proto_lite"]`,
+				"shared": `{
+        "dynamic_deps": [":libprotobuf-cpp-lite"],
+    }`,
+				"static": `{
+        "deps": [":libprotobuf-cpp-lite"],
+    }`,
+			}),
+		},
+	})
+}
+
+func TestCcLibraryProtoExportHeaders(t *testing.T) {
+	runCcLibraryTestCase(t, bp2buildTestCase{
+		moduleTypeUnderTest:                "cc_library",
+		moduleTypeUnderTestFactory:         cc.LibraryFactory,
+		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryBp2Build,
+		blueprint: soongCcProtoPreamble + `cc_library {
+	name: "foo",
+	srcs: ["foo.proto"],
+	proto: {
+		canonical_path_from_root: false,
+		export_proto_headers: true,
+	},
+	include_build_directory: false,
+}`,
+		expectedBazelTargets: []string{
+			makeBazelTarget("proto_library", "foo_proto", attrNameToString{
+				"srcs": `["foo.proto"]`,
+			}), makeBazelTarget("cc_lite_proto_library", "foo_cc_proto_lite", attrNameToString{
+				"deps": `[":foo_proto"]`,
+			}), makeBazelTarget("cc_library", "foo", attrNameToString{
+				"whole_archive_deps": `[":foo_cc_proto_lite"]`,
+				"shared": `{
+        "dynamic_deps": [":libprotobuf-cpp-lite"],
+    }`,
+				"static": `{
+        "deps": [":libprotobuf-cpp-lite"],
+    }`,
+			}),
+		},
+	})
 }

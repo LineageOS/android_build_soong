@@ -55,6 +55,8 @@ var (
 	deviceGlobalRustFlags = []string{
 		"-C panic=abort",
 		"-Z link-native-libraries=no",
+		// Generate additional debug info for AutoFDO
+		"-Z debug-info-for-profiling",
 	}
 
 	deviceGlobalLinkFlags = []string{

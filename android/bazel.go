@@ -232,6 +232,8 @@ var (
 		"build/bazel/examples/apex/minimal":                  Bp2BuildDefaultTrueRecursively,
 		"build/soong":                                        Bp2BuildDefaultTrue,
 		"build/soong/cc/libbuildversion":                     Bp2BuildDefaultTrue, // Skip tests subdir
+		"build/soong/cc/ndkstubgen":                          Bp2BuildDefaultTrue,
+		"build/soong/cc/symbolfile":                          Bp2BuildDefaultTrue,
 		"cts/common/device-side/nativetesthelper/jni":        Bp2BuildDefaultTrueRecursively,
 		"development/sdk":                                    Bp2BuildDefaultTrueRecursively,
 		"external/arm-optimized-routines":                    Bp2BuildDefaultTrueRecursively,
@@ -336,9 +338,8 @@ var (
 		"host_bionic_linker_asm",    // depends on extract_linker, a go binary.
 		"host_bionic_linker_script", // depends on extract_linker, a go binary.
 
-		"pbtombstone",                                  // depends on libprotobuf-cpp-lite, libtombstone_proto
-		"crash_dump",                                   // depends on unconverted module libprotobuf-cpp-lite
-		"libprotobuf-cpp-full", "libprotobuf-cpp-lite", // Unsupported product&vendor suffix. b/204811222 and b/204810610.
+		"pbtombstone", // depends on libprotobuf-cpp-lite, libtombstone_proto
+		"crash_dump",  // depends on unconverted module libprotobuf-cpp-lite
 
 		"libunwindstack_local", "libunwindstack_utils", // depends on unconverted module libunwindstack
 		"libunwindstack",    // depends on libdexfile_support, of unsupported module type art_cc_library_static
@@ -373,19 +374,10 @@ var (
 		// APEX support
 		"com.android.runtime", // http://b/194746715, apex, depends on 'libc_malloc_debug'
 
-		"libadb_crypto",                    // Depends on libadb_protos
-		"libadb_crypto_static",             // Depends on libadb_protos_static
-		"libadb_pairing_connection",        // Depends on libadb_protos
-		"libadb_pairing_connection_static", // Depends on libadb_protos_static
-		"libadb_pairing_server",            // Depends on libadb_protos
-		"libadb_pairing_server_static",     // Depends on libadb_protos_static
-		"libadbd",                          // Depends on libadbd_core
-		"libadbd_core",                     // Depends on libadb_protos
-		"libadbd_services",                 // Depends on libadb_protos
+		"libadbd_core",     // http://b/208481704: requijres use_version_lib
+		"libadbd_services", // http://b/208481704: requires use_version_lib
 
-		"libadb_protos_static",         // b/200601772: Requires cc_library proto support
-		"libadb_protos",                // b/200601772: Requires cc_library proto support
-		"libapp_processes_protos_lite", // b/200601772: Requires cc_library proto support
+		"libadbd", // depends on unconverted modules: libadbd_core, libadbd_services
 
 		"libgtest_ndk_c++",      // b/201816222: Requires sdk_version support.
 		"libgtest_main_ndk_c++", // b/201816222: Requires sdk_version support.
@@ -418,6 +410,13 @@ var (
 		"cap_names.h",                                  // TODO(b/204913827) runfiles need to be handled in mixed builds
 		"libcap",                                       // TODO(b/204913827) runfiles need to be handled in mixed builds
 		"libprotobuf-cpp-full", "libprotobuf-cpp-lite", // Unsupported product&vendor suffix. b/204811222 and b/204810610.
+
+		// Depends on libprotobuf-cpp-*
+		"libadb_crypto", "libadb_crypto_static", "libadb_pairing_connection",
+		"libadb_pairing_connection_static",
+		"libadb_pairing_server", "libadb_pairing_server_static",
+		"libadb_protos_static", "libadb_protos",
+		"libapp_processes_protos_lite",
 	}
 
 	// Used for quicker lookups
