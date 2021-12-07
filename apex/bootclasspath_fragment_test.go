@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"android/soong/android"
+	"android/soong/dexpreopt"
 	"android/soong/java"
 
 	"github.com/google/blueprint/proptools"
@@ -35,11 +36,14 @@ var prepareForTestWithBootclasspathFragment = android.GroupFixturePreparers(
 )
 
 // Some additional files needed for the art apex.
-var prepareForTestWithArtApex = android.FixtureMergeMockFs(android.MockFS{
-	"com.android.art.avbpubkey":                          nil,
-	"com.android.art.pem":                                nil,
-	"system/sepolicy/apex/com.android.art-file_contexts": nil,
-})
+var prepareForTestWithArtApex = android.GroupFixturePreparers(
+	android.FixtureMergeMockFs(android.MockFS{
+		"com.android.art.avbpubkey":                          nil,
+		"com.android.art.pem":                                nil,
+		"system/sepolicy/apex/com.android.art-file_contexts": nil,
+	}),
+	dexpreopt.FixtureSetBootImageProfiles("art/build/boot/boot-image-profile.txt"),
+)
 
 func TestBootclasspathFragments(t *testing.T) {
 	result := android.GroupFixturePreparers(
@@ -408,6 +412,7 @@ func TestBootclasspathFragmentInArtApex(t *testing.T) {
 		).RunTest(t)
 
 		ensureExactContents(t, result.TestContext, "com.android.art", "android_common_com.android.art_image", []string{
+			"etc/boot-image.prof",
 			"etc/classpaths/bootclasspath.pb",
 			"javalib/arm/boot.art",
 			"javalib/arm/boot.oat",
@@ -451,6 +456,7 @@ func TestBootclasspathFragmentInArtApex(t *testing.T) {
 		).RunTest(t)
 
 		ensureExactContents(t, result.TestContext, "com.android.art", "android_common_com.android.art_image", []string{
+			"etc/boot-image.prof",
 			"etc/classpaths/bootclasspath.pb",
 			"javalib/arm/boot.art",
 			"javalib/arm/boot.oat",
