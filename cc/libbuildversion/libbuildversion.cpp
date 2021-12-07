@@ -36,7 +36,11 @@ std::string GetBuildNumber() {
     return soong_build_number;
   }
 
+#ifdef __ANDROID_VENDOR__
+  const prop_info* pi = __system_property_find("ro.vendor.build.version.incremental");
+#else
   const prop_info* pi = __system_property_find("ro.build.version.incremental");
+#endif
   if (pi == nullptr) return "";
 
   std::string property_value;
