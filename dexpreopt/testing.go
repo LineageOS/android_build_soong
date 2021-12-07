@@ -85,12 +85,12 @@ var PrepareForTestWithFakeDex2oatd = android.GroupFixturePreparers(
 // Prepares a test fixture by enabling dexpreopt, registering the fake_tool_binary module type and
 // using that to define the `dex2oatd` module.
 var PrepareForTestByEnablingDexpreopt = android.GroupFixturePreparers(
-	FixtureModifyGlobalConfig(func(*GlobalConfig) {}),
+	FixtureModifyGlobalConfig(func(android.PathContext, *GlobalConfig) {}),
 )
 
 // FixtureModifyGlobalConfig enables dexpreopt (unless modified by the mutator) and modifies the
 // configuration.
-func FixtureModifyGlobalConfig(configModifier func(dexpreoptConfig *GlobalConfig)) android.FixturePreparer {
+func FixtureModifyGlobalConfig(configModifier func(ctx android.PathContext, dexpreoptConfig *GlobalConfig)) android.FixturePreparer {
 	return android.FixtureModifyConfig(func(config android.Config) {
 		// Initialize the dexpreopt GlobalConfig to an empty structure. This has no effect if it has
 		// already been set.
@@ -100,48 +100,48 @@ func FixtureModifyGlobalConfig(configModifier func(dexpreoptConfig *GlobalConfig
 
 		// Retrieve the existing configuration and modify it.
 		dexpreoptConfig = GetGlobalConfig(pathCtx)
-		configModifier(dexpreoptConfig)
+		configModifier(pathCtx, dexpreoptConfig)
 	})
 }
 
 // FixtureSetArtBootJars enables dexpreopt and sets the ArtApexJars property.
 func FixtureSetArtBootJars(bootJars ...string) android.FixturePreparer {
-	return FixtureModifyGlobalConfig(func(dexpreoptConfig *GlobalConfig) {
+	return FixtureModifyGlobalConfig(func(_ android.PathContext, dexpreoptConfig *GlobalConfig) {
 		dexpreoptConfig.ArtApexJars = android.CreateTestConfiguredJarList(bootJars)
 	})
 }
 
 // FixtureSetBootJars enables dexpreopt and sets the BootJars property.
 func FixtureSetBootJars(bootJars ...string) android.FixturePreparer {
-	return FixtureModifyGlobalConfig(func(dexpreoptConfig *GlobalConfig) {
+	return FixtureModifyGlobalConfig(func(_ android.PathContext, dexpreoptConfig *GlobalConfig) {
 		dexpreoptConfig.BootJars = android.CreateTestConfiguredJarList(bootJars)
 	})
 }
 
 // FixtureSetApexBootJars sets the ApexBootJars property in the global config.
 func FixtureSetApexBootJars(bootJars ...string) android.FixturePreparer {
-	return FixtureModifyGlobalConfig(func(dexpreoptConfig *GlobalConfig) {
+	return FixtureModifyGlobalConfig(func(_ android.PathContext, dexpreoptConfig *GlobalConfig) {
 		dexpreoptConfig.ApexBootJars = android.CreateTestConfiguredJarList(bootJars)
 	})
 }
 
 // FixtureSetStandaloneSystemServerJars sets the StandaloneSystemServerJars property.
 func FixtureSetStandaloneSystemServerJars(jars ...string) android.FixturePreparer {
-	return FixtureModifyGlobalConfig(func(dexpreoptConfig *GlobalConfig) {
+	return FixtureModifyGlobalConfig(func(_ android.PathContext, dexpreoptConfig *GlobalConfig) {
 		dexpreoptConfig.StandaloneSystemServerJars = android.CreateTestConfiguredJarList(jars)
 	})
 }
 
 // FixtureSetSystemServerJars sets the SystemServerJars property.
 func FixtureSetSystemServerJars(jars ...string) android.FixturePreparer {
-	return FixtureModifyGlobalConfig(func(dexpreoptConfig *GlobalConfig) {
+	return FixtureModifyGlobalConfig(func(_ android.PathContext, dexpreoptConfig *GlobalConfig) {
 		dexpreoptConfig.SystemServerJars = android.CreateTestConfiguredJarList(jars)
 	})
 }
 
 // FixtureSetApexSystemServerJars sets the ApexSystemServerJars property in the global config.
 func FixtureSetApexSystemServerJars(jars ...string) android.FixturePreparer {
-	return FixtureModifyGlobalConfig(func(dexpreoptConfig *GlobalConfig) {
+	return FixtureModifyGlobalConfig(func(_ android.PathContext, dexpreoptConfig *GlobalConfig) {
 		dexpreoptConfig.ApexSystemServerJars = android.CreateTestConfiguredJarList(jars)
 	})
 }
@@ -149,14 +149,21 @@ func FixtureSetApexSystemServerJars(jars ...string) android.FixturePreparer {
 // FixtureSetApexStandaloneSystemServerJars sets the ApexStandaloneSystemServerJars property in the
 // global config.
 func FixtureSetApexStandaloneSystemServerJars(jars ...string) android.FixturePreparer {
-	return FixtureModifyGlobalConfig(func(dexpreoptConfig *GlobalConfig) {
+	return FixtureModifyGlobalConfig(func(_ android.PathContext, dexpreoptConfig *GlobalConfig) {
 		dexpreoptConfig.ApexStandaloneSystemServerJars = android.CreateTestConfiguredJarList(jars)
 	})
 }
 
 // FixtureSetPreoptWithUpdatableBcp sets the PreoptWithUpdatableBcp property in the global config.
 func FixtureSetPreoptWithUpdatableBcp(value bool) android.FixturePreparer {
-	return FixtureModifyGlobalConfig(func(dexpreoptConfig *GlobalConfig) {
+	return FixtureModifyGlobalConfig(func(_ android.PathContext, dexpreoptConfig *GlobalConfig) {
 		dexpreoptConfig.PreoptWithUpdatableBcp = value
+	})
+}
+
+// FixtureSetBootImageProfiles sets the BootImageProfiles property in the global config.
+func FixtureSetBootImageProfiles(profiles ...string) android.FixturePreparer {
+	return FixtureModifyGlobalConfig(func(ctx android.PathContext, dexpreoptConfig *GlobalConfig) {
+		dexpreoptConfig.BootImageProfiles = android.PathsForSource(ctx, profiles)
 	})
 }

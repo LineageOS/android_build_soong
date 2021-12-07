@@ -2186,6 +2186,40 @@ func apexBootclasspathFragmentFiles(ctx android.ModuleContext, module blueprint.
 		filesToAdd = append(filesToAdd, *af)
 	}
 
+	if pathInApex := bootclasspathFragmentInfo.ProfileInstallPathInApex(); pathInApex != "" {
+		pathOnHost := bootclasspathFragmentInfo.ProfilePathOnHost()
+		tempPath := android.PathForModuleOut(ctx, "boot_image_profile", pathInApex)
+
+		if pathOnHost != nil {
+			// We need to copy the profile to a temporary path with the right filename because the apexer
+			// will take the filename as is.
+			ctx.Build(pctx, android.BuildParams{
+				Rule:   android.Cp,
+				Input:  pathOnHost,
+				Output: tempPath,
+			})
+		} else {
+			// At this point, the boot image profile cannot be generated. It is probably because the boot
+			// image profile source file does not exist on the branch, or it is not available for the
+			// current build target.
+			// However, we cannot enforce the boot image profile to be generated because some build
+			// targets (such as module SDK) do not need it. It is only needed when the APEX is being
+			// built. Therefore, we create an error rule so that an error will occur at the ninja phase
+			// only if the APEX is being built.
+			ctx.Build(pctx, android.BuildParams{
+				Rule:   android.ErrorRule,
+				Output: tempPath,
+				Args: map[string]string{
+					"error": "Boot image profile cannot be generated",
+				},
+			})
+		}
+
+		androidMkModuleName := filepath.Base(pathInApex)
+		af := newApexFile(ctx, tempPath, androidMkModuleName, filepath.Dir(pathInApex), etc, nil)
+		filesToAdd = append(filesToAdd, af)
+	}
+
 	return filesToAdd
 }
 
