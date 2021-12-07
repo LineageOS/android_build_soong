@@ -390,6 +390,8 @@ endif
 ifeq (,$(filter barbet coral%,$(TARGET_PRODUCT)))
 else ifneq (,$(filter barbet%,$(TARGET_PRODUCT)))
 endif
+ifeq (,$(filter-out sunfish_kasan, $(TARGET_PRODUCT)))
+endif
 `,
 		expected: `load("//build/make/core:product_config.rbc", "rblf")
 
@@ -408,6 +410,8 @@ def init(g, handle):
   if not rblf.filter("barbet coral%", g["TARGET_PRODUCT"]):
     pass
   elif rblf.filter("barbet%", g["TARGET_PRODUCT"]):
+    pass
+  if not rblf.filter_out("sunfish_kasan", g["TARGET_PRODUCT"]):
     pass
 `,
 	},
