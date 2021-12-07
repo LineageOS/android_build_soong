@@ -94,21 +94,6 @@ func getNdkFullTimestampFile(ctx android.PathContext) android.WritablePath {
 	return android.PathForOutput(ctx, "ndk.timestamp")
 }
 
-// Replace ndk_base.timestamp and ndk.timestamp with ndk_headers.timestamp.
-func skipNdkLibraryDeps(ctx android.ModuleContext, paths android.Paths) android.Paths {
-	var newPaths android.Paths
-	baseTimestamp := getNdkBaseTimestampFile(ctx)
-	fullTimestamp := getNdkFullTimestampFile(ctx)
-	headersTimestamp := getNdkHeadersTimestampFile(ctx)
-	for _, path := range paths {
-		if path == baseTimestamp || path == fullTimestamp {
-			path = headersTimestamp
-		}
-		newPaths = append(newPaths, path)
-	}
-	return newPaths
-}
-
 func NdkSingleton() android.Singleton {
 	return &ndkSingleton{}
 }
