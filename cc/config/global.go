@@ -46,7 +46,6 @@ var (
 
 		"-O2",
 		"-g",
-		"-fdebug-info-for-profiling",
 
 		"-fno-strict-aliasing",
 
@@ -125,6 +124,9 @@ var (
 		"-Werror=sequence-point",
 		"-Werror=format-security",
 		"-nostdlibinc",
+
+		// Emit additional debug info for AutoFDO
+		"-fdebug-info-for-profiling",
 	}
 
 	deviceGlobalCppflags = []string{
