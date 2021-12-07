@@ -412,6 +412,7 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 		linkerDeps = append(linkerDeps, deps.EarlySharedLibsDeps...)
 		linkerDeps = append(linkerDeps, deps.SharedLibsDeps...)
 		linkerDeps = append(linkerDeps, deps.LateSharedLibsDeps...)
+		linkerDeps = append(linkerDeps, ndkSharedLibDeps(ctx)...)
 	}
 
 	validations = append(validations, objs.tidyFiles...)
