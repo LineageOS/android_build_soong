@@ -19,4 +19,5 @@ cc_library_static {
         "//apex_available:platform",
         "//apex_available:anyapex",
     ],
+    vendor_available: true,
 }
