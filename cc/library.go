@@ -236,12 +236,13 @@ type bazelCcLibraryAttributes struct {
 
 	Hdrs bazel.LabelListAttribute
 
-	Deps                        bazel.LabelListAttribute
-	Implementation_deps         bazel.LabelListAttribute
-	Dynamic_deps                bazel.LabelListAttribute
-	Implementation_dynamic_deps bazel.LabelListAttribute
-	Whole_archive_deps          bazel.LabelListAttribute
-	System_dynamic_deps         bazel.LabelListAttribute
+	Deps                              bazel.LabelListAttribute
+	Implementation_deps               bazel.LabelListAttribute
+	Dynamic_deps                      bazel.LabelListAttribute
+	Implementation_dynamic_deps       bazel.LabelListAttribute
+	Whole_archive_deps                bazel.LabelListAttribute
+	Implementation_whole_archive_deps bazel.LabelListAttribute
+	System_dynamic_deps               bazel.LabelListAttribute
 
 	Export_includes        bazel.StringListAttribute
 	Export_system_includes bazel.StringListAttribute
@@ -303,6 +304,9 @@ func CcLibraryBp2Build(ctx android.TopDownMutatorContext) {
 
 	srcs := compilerAttrs.srcs
 
+	sharedAttrs.Dynamic_deps.Add(baseAttributes.protoDependency)
+	staticAttrs.Deps.Add(baseAttributes.protoDependency)
+
 	asFlags := compilerAttrs.asFlags
 	if compilerAttrs.asSrcs.IsEmpty() && sharedAttrs.Srcs_as.IsEmpty() && staticAttrs.Srcs_as.IsEmpty() {
 		// Skip asflags for BUILD file simplicity if there are no assembly sources.
@@ -320,23 +324,24 @@ func CcLibraryBp2Build(ctx android.TopDownMutatorContext) {
 		Conlyflags: compilerAttrs.conlyFlags,
 		Asflags:    asFlags,
 
-		Implementation_deps:         linkerAttrs.implementationDeps,
-		Deps:                        linkerAttrs.deps,
-		Implementation_dynamic_deps: linkerAttrs.implementationDynamicDeps,
-		Dynamic_deps:                linkerAttrs.dynamicDeps,
-		Whole_archive_deps:          linkerAttrs.wholeArchiveDeps,
-		System_dynamic_deps:         linkerAttrs.systemDynamicDeps,
-		Export_includes:             exportedIncludes.Includes,
-		Export_system_includes:      exportedIncludes.SystemIncludes,
-		Local_includes:              compilerAttrs.localIncludes,
-		Absolute_includes:           compilerAttrs.absoluteIncludes,
-		Linkopts:                    linkerAttrs.linkopts,
-		Link_crt:                    linkerAttrs.linkCrt,
-		Use_libcrt:                  linkerAttrs.useLibcrt,
-		Rtti:                        compilerAttrs.rtti,
-		Stl:                         compilerAttrs.stl,
-		Cpp_std:                     compilerAttrs.cppStd,
-		C_std:                       compilerAttrs.cStd,
+		Implementation_deps:               linkerAttrs.implementationDeps,
+		Deps:                              linkerAttrs.deps,
+		Implementation_dynamic_deps:       linkerAttrs.implementationDynamicDeps,
+		Dynamic_deps:                      linkerAttrs.dynamicDeps,
+		Whole_archive_deps:                linkerAttrs.wholeArchiveDeps,
+		Implementation_whole_archive_deps: linkerAttrs.implementationWholeArchiveDeps,
+		System_dynamic_deps:               linkerAttrs.systemDynamicDeps,
+		Export_includes:                   exportedIncludes.Includes,
+		Export_system_includes:            exportedIncludes.SystemIncludes,
+		Local_includes:                    compilerAttrs.localIncludes,
+		Absolute_includes:                 compilerAttrs.absoluteIncludes,
+		Linkopts:                          linkerAttrs.linkopts,
+		Link_crt:                          linkerAttrs.linkCrt,
+		Use_libcrt:                        linkerAttrs.useLibcrt,
+		Rtti:                              compilerAttrs.rtti,
+		Stl:                               compilerAttrs.stl,
+		Cpp_std:                           compilerAttrs.cppStd,
+		C_std:                             compilerAttrs.cStd,
 
 		Additional_linker_inputs: linkerAttrs.additionalLinkerInputs,
 
@@ -2405,16 +2410,18 @@ func ccSharedOrStaticBp2BuildMutatorInternal(ctx android.TopDownMutatorContext, 
 		Copts:   compilerAttrs.copts,
 		Hdrs:    compilerAttrs.hdrs,
 
-		Deps:                        linkerAttrs.deps,
-		Implementation_deps:         linkerAttrs.implementationDeps,
-		Dynamic_deps:                linkerAttrs.dynamicDeps,
-		Implementation_dynamic_deps: linkerAttrs.implementationDynamicDeps,
-		Whole_archive_deps:          linkerAttrs.wholeArchiveDeps,
-		System_dynamic_deps:         linkerAttrs.systemDynamicDeps,
+		Deps:                              linkerAttrs.deps,
+		Implementation_deps:               linkerAttrs.implementationDeps,
+		Dynamic_deps:                      linkerAttrs.dynamicDeps,
+		Implementation_dynamic_deps:       linkerAttrs.implementationDynamicDeps,
+		Whole_archive_deps:                linkerAttrs.wholeArchiveDeps,
+		Implementation_whole_archive_deps: linkerAttrs.implementationWholeArchiveDeps,
+		System_dynamic_deps:               linkerAttrs.systemDynamicDeps,
 	}
 
 	var attrs interface{}
 	if isStatic {
+		commonAttrs.Deps.Add(baseAttributes.protoDependency)
 		attrs = &bazelCcLibraryStaticAttributes{
 			staticOrSharedAttributes: commonAttrs,
 
@@ -2435,6 +2442,8 @@ func ccSharedOrStaticBp2BuildMutatorInternal(ctx android.TopDownMutatorContext, 
 			Features: linkerAttrs.features,
 		}
 	} else {
+		commonAttrs.Dynamic_deps.Add(baseAttributes.protoDependency)
+
 		attrs = &bazelCcLibrarySharedAttributes{
 			staticOrSharedAttributes: commonAttrs,
 

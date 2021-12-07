@@ -35,7 +35,6 @@ var (
 
 	asanCflags = []string{
 		"-fno-omit-frame-pointer",
-		"-fno-experimental-new-pass-manager",
 	}
 	asanLdflags = []string{"-Wl,-u,__asan_preinit"}
 
@@ -665,9 +664,6 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 		// doesn't match the linker script due to the "__emutls_v." prefix).
 		flags.Local.LdFlags = append(flags.Local.LdFlags, "-fno-sanitize-coverage=stack-depth")
 		flags.Local.CFlags = append(flags.Local.CFlags, "-fno-sanitize-coverage=stack-depth")
-
-		// TODO(b/133876586): Experimental PM breaks sanitizer coverage.
-		flags.Local.CFlags = append(flags.Local.CFlags, "-fno-experimental-new-pass-manager")
 
 		// Disable fortify for fuzzing builds. Generally, we'll be building with
 		// UBSan or ASan here and the fortify checks pollute the stack traces.
