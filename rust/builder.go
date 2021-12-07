@@ -216,6 +216,13 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 	// Suppress an implicit sysroot
 	rustcFlags = append(rustcFlags, "--sysroot=/dev/null")
 
+	// Enable incremental compilation if requested by user
+	if ctx.Config().IsEnvTrue("SOONG_RUSTC_INCREMENTAL") {
+		incrementalPath := android.PathForOutput(ctx, "rustc").String()
+
+		rustcFlags = append(rustcFlags, "-C incremental="+incrementalPath)
+	}
+
 	// Collect linker flags
 	linkFlags = append(linkFlags, flags.GlobalLinkFlags...)
 	linkFlags = append(linkFlags, flags.LinkFlags...)
