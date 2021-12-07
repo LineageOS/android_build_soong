@@ -549,10 +549,6 @@ func transformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles, no
 		return "$" + kind + n
 	}
 
-	// clang-tidy checks source files and does not need to link with libraries.
-	// tidyPathDeps should contain pathDeps but not libraries.
-	tidyPathDeps := skipNdkLibraryDeps(ctx, pathDeps)
-
 	for i, srcFile := range srcFiles {
 		objFile := android.ObjPathWithExt(ctx, subdir, srcFile, "o")
 
@@ -676,7 +672,7 @@ func transformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles, no
 				Output:      tidyFile,
 				Input:       srcFile,
 				Implicits:   cFlagsDeps,
-				OrderOnly:   tidyPathDeps,
+				OrderOnly:   pathDeps,
 				Args: map[string]string{
 					"ccCmd":     ccCmd,
 					"cFlags":    shareFlags("cFlags", escapeSingleQuotes(moduleToolingFlags)),
