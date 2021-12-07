@@ -153,7 +153,12 @@ func fileExists(path string) (bool, error) {
 	return true, nil
 }
 
-func primaryBuilderInvocation(config Config, name string, output string, specificArgs []string) bootstrap.PrimaryBuilderInvocation {
+func primaryBuilderInvocation(
+	config Config,
+	name string,
+	output string,
+	specificArgs []string,
+	description string) bootstrap.PrimaryBuilderInvocation {
 	commonArgs := make([]string, 0, 0)
 
 	if !config.skipSoongTests {
@@ -178,9 +183,10 @@ func primaryBuilderInvocation(config Config, name string, output string, specifi
 	allArgs = append(allArgs, "Android.bp")
 
 	return bootstrap.PrimaryBuilderInvocation{
-		Inputs:  []string{"Android.bp"},
-		Outputs: []string{output},
-		Args:    allArgs,
+		Inputs:      []string{"Android.bp"},
+		Outputs:     []string{output},
+		Args:        allArgs,
+		Description: description,
 	}
 }
 
@@ -232,7 +238,9 @@ func bootstrapBlueprint(ctx Context, config Config) {
 		config,
 		soongBuildTag,
 		config.SoongNinjaFile(),
-		mainSoongBuildExtraArgs)
+		mainSoongBuildExtraArgs,
+		fmt.Sprintf("analyzing Android.bp files and generating ninja file at %s", config.SoongNinjaFile()),
+	)
 
 	if config.bazelBuildMode() == mixedBuild {
 		// Mixed builds call Bazel from soong_build and they therefore need the
@@ -248,7 +256,9 @@ func bootstrapBlueprint(ctx Context, config Config) {
 		config.Bp2BuildMarkerFile(),
 		[]string{
 			"--bp2build_marker", config.Bp2BuildMarkerFile(),
-		})
+		},
+		fmt.Sprintf("converting Android.bp files to BUILD files at %s/bp2build", config.SoongOutDir()),
+	)
 
 	jsonModuleGraphInvocation := primaryBuilderInvocation(
 		config,
@@ -256,15 +266,20 @@ func bootstrapBlueprint(ctx Context, config Config) {
 		config.ModuleGraphFile(),
 		[]string{
 			"--module_graph_file", config.ModuleGraphFile(),
-		})
+		},
+		fmt.Sprintf("generating the Soong module graph at %s", config.ModuleGraphFile()),
+	)
 
+	queryviewDir := filepath.Join(config.SoongOutDir(), "queryview")
 	queryviewInvocation := primaryBuilderInvocation(
 		config,
 		queryviewTag,
 		config.QueryviewMarkerFile(),
 		[]string{
-			"--bazel_queryview_dir", filepath.Join(config.SoongOutDir(), "queryview"),
-		})
+			"--bazel_queryview_dir", queryviewDir,
+		},
+		fmt.Sprintf("generating the Soong module graph as a Bazel workspace at %s", queryviewDir),
+	)
 
 	soongDocsInvocation := primaryBuilderInvocation(
 		config,
@@ -272,7 +287,9 @@ func bootstrapBlueprint(ctx Context, config Config) {
 		config.SoongDocsHtml(),
 		[]string{
 			"--soong_docs", config.SoongDocsHtml(),
-		})
+		},
+		fmt.Sprintf("generating Soong docs at %s", config.SoongDocsHtml()),
+	)
 
 	globFiles := []string{
 		config.NamedGlobFile(soongBuildTag),
