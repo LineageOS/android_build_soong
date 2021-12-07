@@ -1114,6 +1114,23 @@ def init(g, handle):
   g["TEST_VAR_3"] = (g["TEST_VAR_LIST"] if g["TEST_VAR"] else [])
 `,
 	},
+	{
+		desc:   "substitution references",
+		mkname: "product.mk",
+		in: `
+SOURCES := foo.c bar.c
+OBJECTS := $(SOURCES:.c=.o)
+OBJECTS2 := $(SOURCES:%.c=%.o)
+`,
+		expected: `load("//build/make/core:product_config.rbc", "rblf")
+
+def init(g, handle):
+  cfg = rblf.cfg(handle)
+  g["SOURCES"] = "foo.c bar.c"
+  g["OBJECTS"] = rblf.mkpatsubst("%.c", "%.o", g["SOURCES"])
+  g["OBJECTS2"] = rblf.mkpatsubst("%.c", "%.o", g["SOURCES"])
+`,
+	},
 }
 
 var known_variables = []struct {
