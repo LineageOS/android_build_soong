@@ -96,10 +96,6 @@ func (props *PgoProperties) addInstrumentationProfileGatherFlags(ctx ModuleConte
 	flags.Local.LdFlags = append(flags.Local.LdFlags, profileInstrumentFlag)
 	return flags
 }
-func (props *PgoProperties) addSamplingProfileGatherFlags(ctx ModuleContext, flags Flags) Flags {
-	flags.Local.CFlags = append(flags.Local.CFlags, props.Pgo.Cflags...)
-	return flags
-}
 
 func (props *PgoProperties) getPgoProfileFile(ctx BaseModuleContext) android.OptionalPath {
 	profileFile := *props.Pgo.Profile_file
@@ -313,10 +309,6 @@ func (pgo *pgo) flags(ctx ModuleContext, flags Flags) Flags {
 	if (props.ShouldProfileModule && props.isInstrumentation()) || props.PgoInstrLink {
 		// Instrumentation PGO use and gather flags cannot coexist.
 		return props.addInstrumentationProfileGatherFlags(ctx, flags)
-	} else if props.ShouldProfileModule && props.isSampling() {
-		flags = props.addSamplingProfileGatherFlags(ctx, flags)
-	} else if ctx.DeviceConfig().SamplingPGO() {
-		flags = props.addSamplingProfileGatherFlags(ctx, flags)
 	}
 
 	if !ctx.Config().IsEnvTrue("ANDROID_PGO_NO_PROFILE_USE") {
