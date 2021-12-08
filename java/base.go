@@ -1643,8 +1643,7 @@ func (j *Module) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Modu
 }
 
 // Implements android.ApexModule
-func (j *Module) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
-	sdkVersion android.ApiLevel) error {
+func (j *Module) ShouldSupportSdkVersion(ctx android.BaseModuleContext, sdkVersion android.ApiLevel) error {
 	sdkSpec := j.MinSdkVersion(ctx)
 	if !sdkSpec.Specified() {
 		return fmt.Errorf("min_sdk_version is not specified")
