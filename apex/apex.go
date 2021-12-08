@@ -2015,6 +2015,8 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					}
 				} else if _, ok := depTag.(android.CopyDirectlyInAnyApexTag); ok {
 					// nothing
+				} else if depTag == android.DarwinUniversalVariantTag {
+					// nothing
 				} else if am.CanHaveApexVariants() && am.IsInstallableToApex() {
 					ctx.ModuleErrorf("unexpected tag %s for indirect dependency %q", android.PrettyPrintTag(depTag), depName)
 				}
