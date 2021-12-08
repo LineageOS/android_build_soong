@@ -594,8 +594,11 @@ func (b *BootclasspathFragmentModule) provideApexContentInfo(ctx android.ModuleC
 
 	if imageConfig != nil {
 		info.modules = imageConfig.modules
-		info.profilePathOnHost = imageConfig.profilePathOnHost
-		info.profileInstallPathInApex = imageConfig.profileInstallPathInApex
+		global := dexpreopt.GetGlobalConfig(ctx)
+		if !global.DisableGenerateProfile {
+			info.profilePathOnHost = imageConfig.profilePathOnHost
+			info.profileInstallPathInApex = imageConfig.profileInstallPathInApex
+		}
 	}
 
 	info.bootImageFilesByArch = bootImageFilesByArch
