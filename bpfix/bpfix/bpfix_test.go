@@ -25,6 +25,7 @@ import (
 	"reflect"
 
 	"github.com/google/blueprint/parser"
+	"github.com/google/blueprint/pathtools"
 )
 
 // TODO(jeffrygaston) remove this when position is removed from ParseNode (in b/38325146) and we can directly do reflect.DeepEqual
@@ -1678,10 +1679,20 @@ func TestFormatFlagProperty(t *testing.T) {
 	}
 }
 
-func TestRewriteLicenseProperties(t *testing.T) {
+func TestRewriteLicenseProperty(t *testing.T) {
+	mockFs := pathtools.MockFs(map[string][]byte{
+		"a/b/c/d/Android.mk": []byte("this is not important."),
+		"a/b/LicenseFile1":   []byte("LicenseFile1"),
+		"a/b/LicenseFile2":   []byte("LicenseFile2"),
+		"a/b/Android.bp":     []byte("license {\n\tname: \"reuse_a_b_license\",\n}\n"),
+	})
+	relativePath := "a/b/c/d"
+	relativePathErr := "a/b/c"
 	tests := []struct {
 		name string
 		in   string
+		fs   pathtools.FileSystem
+		path string
 		out  string
 	}{
 		{
@@ -1744,13 +1755,194 @@ func TestRewriteLicenseProperties(t *testing.T) {
 				}
 			`,
 		},
-		// TODO(b/205615944): When valid "android_license_files" exists, the test requires an Android.mk
-		// file (and an Android.bp file is required as well if the license files locates outside the current
-		// directory). So plan to use a mock file system to mock the Android.mk and Android.bp files.
+		{
+			name: "license rewriting with license files in the current directory",
+			in: `
+				android_test {
+					name: "foo",
+					android_license_kinds: ["license_kind"],
+					android_license_conditions: ["license_notice"],
+					android_license_files: ["LicenseFile1", "LicenseFile2",],
+				}
+			`,
+			fs:   mockFs,
+			path: relativePath,
+			out: `
+			package {
+				// See: http://go/android-license-faq
+				default_applicable_licenses: [
+					"a_b_c_d_license",
+				],
+			}
+
+			license {
+				name: "a_b_c_d_license",
+				visibility: [":__subpackages__"],
+				license_kinds: [
+					"license_kind",
+				],
+				license_text: [
+					"LicenseFile1",
+					"LicenseFile2",
+				],
+			}
+
+			android_test {
+				name: "foo",
+				android_license_kinds: ["license_kind"],
+				android_license_conditions: ["license_notice"],
+				android_license_files: [
+					"LicenseFile1",
+					"LicenseFile2",
+				],
+			}
+			`,
+		},
+		{
+			name: "license rewriting with license files outside the current directory",
+			in: `
+				android_test {
+					name: "foo",
+					android_license_kinds: ["license_kind"],
+					android_license_conditions: ["license_notice"],
+					android_license_files: ["../../LicenseFile1", "../../LicenseFile2",],
+				}
+			`,
+			fs:   mockFs,
+			path: relativePath,
+			out: `
+			package {
+				// See: http://go/android-license-faq
+				default_applicable_licenses: [
+					"reuse_a_b_license",
+				],
+			}
+
+			android_test {
+				name: "foo",
+				android_license_kinds: ["license_kind"],
+				android_license_conditions: ["license_notice"],
+				android_license_files: [
+					"../../LicenseFile1",
+					"../../LicenseFile2",
+				],
+			}
+			`,
+		},
+		{
+			name: "license rewriting with no Android.bp file in the expected location",
+			in: `
+				android_test {
+					name: "foo",
+					android_license_kinds: ["license_kind"],
+					android_license_conditions: ["license_notice"],
+					android_license_files: ["../../LicenseFile1", "../../LicenseFile2",],
+				}
+			`,
+			fs: pathtools.MockFs(map[string][]byte{
+				"a/b/c/d/Android.mk": []byte("this is not important."),
+				"a/b/LicenseFile1":   []byte("LicenseFile1"),
+				"a/b/LicenseFile2":   []byte("LicenseFile2"),
+				"a/Android.bp":       []byte("license {\n\tname: \"reuse_a_b_license\",\n}\n"),
+			}),
+			path: relativePath,
+			out: `
+			// Error: No Android.bp file is found at path
+			// a/b
+			// Please add one there with the needed license module first.
+			// Then reset the default_applicable_licenses property below with the license module name.
+			package {
+				// See: http://go/android-license-faq
+				default_applicable_licenses: [
+					"",
+				],
+			}
+
+			android_test {
+				name: "foo",
+				android_license_kinds: ["license_kind"],
+				android_license_conditions: ["license_notice"],
+				android_license_files: [
+					"../../LicenseFile1",
+					"../../LicenseFile2",
+				],
+			}
+			`,
+		},
+		{
+			name: "license rewriting with an Android.bp file without a license module",
+			in: `
+				android_test {
+					name: "foo",
+					android_license_kinds: ["license_kind"],
+					android_license_conditions: ["license_notice"],
+					android_license_files: ["../../LicenseFile1", "../../LicenseFile2",],
+				}
+			`,
+			fs: pathtools.MockFs(map[string][]byte{
+				"a/b/c/d/Android.mk": []byte("this is not important."),
+				"a/b/LicenseFile1":   []byte("LicenseFile1"),
+				"a/b/LicenseFile2":   []byte("LicenseFile2"),
+				"a/b/Android.bp":     []byte("non_license {\n\tname: \"reuse_a_b_license\",\n}\n"),
+			}),
+			path: relativePath,
+			out: `
+			// Error: Cannot get the name of the license module in the
+			// a/b/Android.bp file.
+			// If no such license module exists, please add one there first.
+			// Then reset the default_applicable_licenses property below with the license module name.
+			package {
+				// See: http://go/android-license-faq
+				default_applicable_licenses: [
+					"",
+				],
+			}
+
+			android_test {
+				name: "foo",
+				android_license_kinds: ["license_kind"],
+				android_license_conditions: ["license_notice"],
+				android_license_files: [
+					"../../LicenseFile1",
+					"../../LicenseFile2",
+				],
+			}
+			`,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			runPassOnce(t, test.in, test.out, runPatchListMod(rewriteLicenseProperties))
+			runPassOnce(t, test.in, test.out, runPatchListMod(rewriteLicenseProperty(test.fs, test.path)))
+		})
+	}
+
+	testErrs := []struct {
+		name        string
+		in          string
+		fs          pathtools.FileSystem
+		path        string
+		expectedErr string
+	}{
+		{
+			name: "license rewriting with a wrong path",
+			in: `
+				android_test {
+					name: "foo",
+					android_license_kinds: ["license_kind"],
+					android_license_conditions: ["license_notice"],
+					android_license_files: ["../../LicenseFile1", "../../LicenseFile2",],
+				}
+			`,
+			fs:   mockFs,
+			path: relativePathErr,
+			expectedErr: `
+				Cannot find an Android.mk file at path a/b/c
+			`,
+		},
+	}
+	for _, test := range testErrs {
+		t.Run(test.name, func(t *testing.T) {
+			checkError(t, test.in, test.expectedErr, runPatchListMod(rewriteLicenseProperty(test.fs, test.path)))
 		})
 	}
 }

@@ -1537,9 +1537,11 @@ android_app {
 	},
 	{
 		desc: "LOCAL_LICENSE_KINDS, LOCAL_LICENSE_CONDITIONS, LOCAL_NOTICE_FILE",
-		// TODO(b/205615944): When valid "android_license_files" exists, the test requires an Android.mk
-		// file (and an Android.bp file is required as well if the license files locates outside the current
-		// directory). So plan to use a mock file system to mock the Android.mk and Android.bp files.
+		// When "android_license_files" is valid, the test requires an Android.mk file
+		// outside the current (and an Android.bp file is required as well if the license
+		// files locates directory), thus a mock file system is needed. The integration
+		// test cases for these scenarios have been added in
+		// $(ANDROID_BUILD_TOP)/build/soong/tests/androidmk_test.sh.
 		in: `
 include $(CLEAR_VARS)
 LOCAL_MODULE := foo
