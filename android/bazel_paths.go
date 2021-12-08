@@ -279,6 +279,16 @@ func transformSubpackagePaths(ctx BazelConversionPathContext, paths bazel.LabelL
 	return newPaths
 }
 
+// Converts root-relative Paths to a list of bazel.Label relative to the module in ctx.
+func RootToModuleRelativePaths(ctx BazelConversionPathContext, paths Paths) []bazel.Label {
+	var newPaths []bazel.Label
+	for _, path := range PathsWithModuleSrcSubDir(ctx, paths, "") {
+		s := path.Rel()
+		newPaths = append(newPaths, bazel.Label{Label: s})
+	}
+	return newPaths
+}
+
 // expandSrcsForBazel returns bazel.LabelList with paths rooted from the module's local source
 // directory and Bazel target labels, excluding those included in the excludes argument (which
 // should already be expanded to resolve references to Soong-modules). Valid elements of paths
@@ -328,12 +338,7 @@ func expandSrcsForBazel(ctx BazelConversionPathContext, paths, expandedExcludes 
 				// e.g. turn "math/*.c" in
 				// external/arm-optimized-routines to external/arm-optimized-routines/math/*.c
 				rootRelativeGlobPath := pathForModuleSrc(ctx, p).String()
-				globbedPaths := GlobFiles(ctx, rootRelativeGlobPath, rootRelativeExpandedExcludes)
-				globbedPaths = PathsWithModuleSrcSubDir(ctx, globbedPaths, "")
-				for _, path := range globbedPaths {
-					s := path.Rel()
-					expandedPaths = append(expandedPaths, bazel.Label{Label: s})
-				}
+				expandedPaths = RootToModuleRelativePaths(ctx, GlobFiles(ctx, rootRelativeGlobPath, rootRelativeExpandedExcludes))
 			} else {
 				if !InList(p, expandedExcludes) {
 					expandedPaths = append(expandedPaths, bazel.Label{Label: p})

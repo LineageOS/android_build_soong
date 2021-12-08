@@ -313,35 +313,74 @@ func CcLibraryBp2Build(ctx android.TopDownMutatorContext) {
 		asFlags = bazel.MakeStringListAttribute(nil)
 	}
 
-	attrs := &bazelCcLibraryAttributes{
-		Srcs:    srcs,
-		Srcs_c:  compilerAttrs.cSrcs,
-		Srcs_as: compilerAttrs.asSrcs,
-		Hdrs:    compilerAttrs.hdrs,
+	staticCommonAttrs := staticOrSharedAttributes{
+		Srcs:    *srcs.Clone().Append(staticAttrs.Srcs),
+		Srcs_c:  *compilerAttrs.cSrcs.Clone().Append(staticAttrs.Srcs_c),
+		Srcs_as: *compilerAttrs.asSrcs.Clone().Append(staticAttrs.Srcs_as),
+		Copts:   *compilerAttrs.copts.Clone().Append(staticAttrs.Copts),
+		Hdrs:    *compilerAttrs.hdrs.Clone().Append(staticAttrs.Hdrs),
 
-		Copts:      compilerAttrs.copts,
+		Deps:                              *linkerAttrs.deps.Clone().Append(staticAttrs.Deps),
+		Implementation_deps:               *linkerAttrs.implementationDeps.Clone().Append(staticAttrs.Implementation_deps),
+		Dynamic_deps:                      *linkerAttrs.dynamicDeps.Clone().Append(staticAttrs.Dynamic_deps),
+		Implementation_dynamic_deps:       *linkerAttrs.implementationDynamicDeps.Clone().Append(staticAttrs.Implementation_dynamic_deps),
+		Implementation_whole_archive_deps: linkerAttrs.implementationWholeArchiveDeps,
+		Whole_archive_deps:                *linkerAttrs.wholeArchiveDeps.Clone().Append(staticAttrs.Whole_archive_deps),
+		System_dynamic_deps:               *linkerAttrs.systemDynamicDeps.Clone().Append(staticAttrs.System_dynamic_deps),
+	}
+
+	sharedCommonAttrs := staticOrSharedAttributes{
+		Srcs:    *srcs.Clone().Append(sharedAttrs.Srcs),
+		Srcs_c:  *compilerAttrs.cSrcs.Clone().Append(sharedAttrs.Srcs_c),
+		Srcs_as: *compilerAttrs.asSrcs.Clone().Append(sharedAttrs.Srcs_as),
+		Copts:   *compilerAttrs.copts.Clone().Append(sharedAttrs.Copts),
+		Hdrs:    *compilerAttrs.hdrs.Clone().Append(sharedAttrs.Hdrs),
+
+		Deps:                        *linkerAttrs.deps.Clone().Append(sharedAttrs.Deps),
+		Implementation_deps:         *linkerAttrs.implementationDeps.Clone().Append(sharedAttrs.Implementation_deps),
+		Dynamic_deps:                *linkerAttrs.dynamicDeps.Clone().Append(sharedAttrs.Dynamic_deps),
+		Implementation_dynamic_deps: *linkerAttrs.implementationDynamicDeps.Clone().Append(sharedAttrs.Implementation_dynamic_deps),
+		Whole_archive_deps:          *linkerAttrs.wholeArchiveDeps.Clone().Append(sharedAttrs.Whole_archive_deps),
+		System_dynamic_deps:         *linkerAttrs.systemDynamicDeps.Clone().Append(sharedAttrs.System_dynamic_deps),
+	}
+
+	staticTargetAttrs := &bazelCcLibraryStaticAttributes{
+		staticOrSharedAttributes: staticCommonAttrs,
+
 		Cppflags:   compilerAttrs.cppFlags,
 		Conlyflags: compilerAttrs.conlyFlags,
 		Asflags:    asFlags,
 
-		Implementation_deps:               linkerAttrs.implementationDeps,
-		Deps:                              linkerAttrs.deps,
-		Implementation_dynamic_deps:       linkerAttrs.implementationDynamicDeps,
-		Dynamic_deps:                      linkerAttrs.dynamicDeps,
-		Whole_archive_deps:                linkerAttrs.wholeArchiveDeps,
-		Implementation_whole_archive_deps: linkerAttrs.implementationWholeArchiveDeps,
-		System_dynamic_deps:               linkerAttrs.systemDynamicDeps,
-		Export_includes:                   exportedIncludes.Includes,
-		Export_system_includes:            exportedIncludes.SystemIncludes,
-		Local_includes:                    compilerAttrs.localIncludes,
-		Absolute_includes:                 compilerAttrs.absoluteIncludes,
-		Linkopts:                          linkerAttrs.linkopts,
-		Link_crt:                          linkerAttrs.linkCrt,
-		Use_libcrt:                        linkerAttrs.useLibcrt,
-		Rtti:                              compilerAttrs.rtti,
-		Stl:                               compilerAttrs.stl,
-		Cpp_std:                           compilerAttrs.cppStd,
-		C_std:                             compilerAttrs.cStd,
+		Export_includes:        exportedIncludes.Includes,
+		Export_system_includes: exportedIncludes.SystemIncludes,
+		Local_includes:         compilerAttrs.localIncludes,
+		Absolute_includes:      compilerAttrs.absoluteIncludes,
+		Use_libcrt:             linkerAttrs.useLibcrt,
+		Rtti:                   compilerAttrs.rtti,
+		Stl:                    compilerAttrs.stl,
+		Cpp_std:                compilerAttrs.cppStd,
+		C_std:                  compilerAttrs.cStd,
+
+		Features: linkerAttrs.features,
+	}
+
+	sharedTargetAttrs := &bazelCcLibrarySharedAttributes{
+		staticOrSharedAttributes: sharedCommonAttrs,
+		Cppflags:                 compilerAttrs.cppFlags,
+		Conlyflags:               compilerAttrs.conlyFlags,
+		Asflags:                  asFlags,
+
+		Export_includes:        exportedIncludes.Includes,
+		Export_system_includes: exportedIncludes.SystemIncludes,
+		Local_includes:         compilerAttrs.localIncludes,
+		Absolute_includes:      compilerAttrs.absoluteIncludes,
+		Linkopts:               linkerAttrs.linkopts,
+		Link_crt:               linkerAttrs.linkCrt,
+		Use_libcrt:             linkerAttrs.useLibcrt,
+		Rtti:                   compilerAttrs.rtti,
+		Stl:                    compilerAttrs.stl,
+		Cpp_std:                compilerAttrs.cppStd,
+		C_std:                  compilerAttrs.cStd,
 
 		Additional_linker_inputs: linkerAttrs.additionalLinkerInputs,
 
@@ -352,20 +391,20 @@ func CcLibraryBp2Build(ctx android.TopDownMutatorContext) {
 			All:                          linkerAttrs.stripAll,
 			None:                         linkerAttrs.stripNone,
 		},
-
-		Shared: sharedAttrs,
-
-		Static: staticAttrs,
-
 		Features: linkerAttrs.features,
 	}
 
-	props := bazel.BazelTargetModuleProperties{
-		Rule_class:        "cc_library",
-		Bzl_load_location: "//build/bazel/rules:full_cc_library.bzl",
+	staticProps := bazel.BazelTargetModuleProperties{
+		Rule_class:        "cc_library_static",
+		Bzl_load_location: "//build/bazel/rules:cc_library_static.bzl",
+	}
+	sharedProps := bazel.BazelTargetModuleProperties{
+		Rule_class:        "cc_library_shared",
+		Bzl_load_location: "//build/bazel/rules:cc_library_shared.bzl",
 	}
 
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: m.Name()}, attrs)
+	ctx.CreateBazelTargetModule(staticProps, android.CommonAttributes{Name: m.Name() + "_bp2build_cc_library_static"}, staticTargetAttrs)
+	ctx.CreateBazelTargetModule(sharedProps, android.CommonAttributes{Name: m.Name()}, sharedTargetAttrs)
 }
 
 // cc_library creates both static and/or shared libraries for a device and/or
@@ -1327,11 +1366,21 @@ func (library *libraryDecorator) linkStatic(ctx ModuleContext,
 	return outputFile
 }
 
+func ndkSharedLibDeps(ctx ModuleContext) android.Paths {
+	if ctx.Module().(*Module).IsSdkVariant() {
+		// The NDK sysroot timestamp file depends on all the NDK
+		// sysroot header and shared library files.
+		return android.Paths{getNdkBaseTimestampFile(ctx)}
+	}
+	return nil
+}
+
 func (library *libraryDecorator) linkShared(ctx ModuleContext,
 	flags Flags, deps PathDeps, objs Objects) android.Path {
 
 	var linkerDeps android.Paths
 	linkerDeps = append(linkerDeps, flags.LdFlagsDeps...)
+	linkerDeps = append(linkerDeps, ndkSharedLibDeps(ctx)...)
 
 	unexportedSymbols := ctx.ExpandOptionalSource(library.Properties.Unexported_symbols_list, "unexported_symbols_list")
 	forceNotWeakSymbols := ctx.ExpandOptionalSource(library.Properties.Force_symbols_not_weak_list, "force_symbols_not_weak_list")

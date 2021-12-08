@@ -1111,10 +1111,8 @@ func (ctx *parseContext) parseCompareSpecialCases(directive *mkparser.Directive,
 	}
 
 	switch call.name {
-	case "filter":
+	case "filter", "filter-out":
 		return ctx.parseCompareFilterFuncResult(directive, call, value, isEq), true
-	case "filter-out":
-		return ctx.parseCompareFilterFuncResult(directive, call, value, !isEq), true
 	case "wildcard":
 		return ctx.parseCompareWildcardFuncResult(directive, call, value, !isEq), true
 	case "findstring":
