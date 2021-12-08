@@ -17,6 +17,7 @@ type CcInfo struct {
 	CcStaticLibraryFiles []string
 	Includes             []string
 	SystemIncludes       []string
+	Headers              []string
 	// Archives owned by the current target (not by its dependencies). These will
 	// be a subset of OutputFiles. (or static libraries, this will be equal to OutputFiles,
 	// but general cc_library will also have dynamic libraries in output files).
@@ -105,6 +106,7 @@ cc_info = providers(target)["CcInfo"]
 
 includes = cc_info.compilation_context.includes.to_list()
 system_includes = cc_info.compilation_context.system_includes.to_list()
+headers = [f.path for f in cc_info.compilation_context.headers.to_list()]
 
 ccObjectFiles = []
 staticLibraries = []
@@ -145,6 +147,7 @@ returns = [
   ccObjectFiles,
   includes,
   system_includes,
+  headers,
   rootStaticArchives,
   rootDynamicLibraries,
   [toc_file]
@@ -161,7 +164,7 @@ func (g getCcInfoType) ParseResult(rawString string) (CcInfo, error) {
 	var ccObjects []string
 
 	splitString := strings.Split(rawString, "|")
-	if expectedLen := 8; len(splitString) != expectedLen {
+	if expectedLen := 9; len(splitString) != expectedLen {
 		return CcInfo{}, fmt.Errorf("Expected %d items, got %q", expectedLen, splitString)
 	}
 	outputFilesString := splitString[0]
@@ -172,15 +175,17 @@ func (g getCcInfoType) ParseResult(rawString string) (CcInfo, error) {
 	ccObjects = splitOrEmpty(ccObjectsString, ", ")
 	includes := splitOrEmpty(splitString[3], ", ")
 	systemIncludes := splitOrEmpty(splitString[4], ", ")
-	rootStaticArchives := splitOrEmpty(splitString[5], ", ")
-	rootDynamicLibraries := splitOrEmpty(splitString[6], ", ")
-	tocFile := splitString[7] // NOTE: Will be the empty string if there wasn't
+	headers := splitOrEmpty(splitString[5], ", ")
+	rootStaticArchives := splitOrEmpty(splitString[6], ", ")
+	rootDynamicLibraries := splitOrEmpty(splitString[7], ", ")
+	tocFile := splitString[8] // NOTE: Will be the empty string if there wasn't
 	return CcInfo{
 		OutputFiles:          outputFiles,
 		CcObjectFiles:        ccObjects,
 		CcStaticLibraryFiles: ccStaticLibraries,
 		Includes:             includes,
 		SystemIncludes:       systemIncludes,
+		Headers:              headers,
 		RootStaticArchives:   rootStaticArchives,
 		RootDynamicLibraries: rootDynamicLibraries,
 		TocFile:              tocFile,
