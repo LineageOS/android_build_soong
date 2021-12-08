@@ -887,6 +887,10 @@ func translateAndroidMkEntriesModule(ctx SingletonContext, w io.Writer, mod blue
 	return nil
 }
 
+func ShouldSkipAndroidMkProcessing(module Module) bool {
+	return shouldSkipAndroidMkProcessing(module.base())
+}
+
 func shouldSkipAndroidMkProcessing(module *ModuleBase) bool {
 	if !module.commonProperties.NamespaceExportedToMake {
 		// TODO(jeffrygaston) do we want to validate that there are no modules being
