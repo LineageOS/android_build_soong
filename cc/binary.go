@@ -345,6 +345,12 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 		flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,--no-dynamic-linker")
 	}
 
+	if ctx.Darwin() && deps.DarwinSecondArchOutput.Valid() {
+		fatOutputFile := outputFile
+		outputFile = android.PathForModuleOut(ctx, "pre-fat", fileName)
+		transformDarwinUniversalBinary(ctx, fatOutputFile, outputFile, deps.DarwinSecondArchOutput.Path())
+	}
+
 	builderFlags := flagsToBuilderFlags(flags)
 	stripFlags := flagsToStripFlags(flags)
 	if binary.stripper.NeedsStrip(ctx) {
