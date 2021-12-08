@@ -71,13 +71,14 @@ func TestGetCcInfoParseResults(t *testing.T) {
 	}{
 		{
 			description: "no result",
-			input:       "|||||||",
+			input:       "||||||||",
 			expectedOutput: CcInfo{
 				OutputFiles:          []string{},
 				CcObjectFiles:        []string{},
 				CcStaticLibraryFiles: []string{},
 				Includes:             []string{},
 				SystemIncludes:       []string{},
+				Headers:              []string{},
 				RootStaticArchives:   []string{},
 				RootDynamicLibraries: []string{},
 				TocFile:              "",
@@ -85,13 +86,14 @@ func TestGetCcInfoParseResults(t *testing.T) {
 		},
 		{
 			description: "only output",
-			input:       "test|||||||",
+			input:       "test||||||||",
 			expectedOutput: CcInfo{
 				OutputFiles:          []string{"test"},
 				CcObjectFiles:        []string{},
 				CcStaticLibraryFiles: []string{},
 				Includes:             []string{},
 				SystemIncludes:       []string{},
+				Headers:              []string{},
 				RootStaticArchives:   []string{},
 				RootDynamicLibraries: []string{},
 				TocFile:              "",
@@ -99,13 +101,14 @@ func TestGetCcInfoParseResults(t *testing.T) {
 		},
 		{
 			description: "all items set",
-			input:       "out1, out2|static_lib1, static_lib2|object1, object2|., dir/subdir|system/dir, system/other/dir|rootstaticarchive1|rootdynamiclibrary1|lib.so.toc",
+			input:       "out1, out2|static_lib1, static_lib2|object1, object2|., dir/subdir|system/dir, system/other/dir|dir/subdir/hdr.h|rootstaticarchive1|rootdynamiclibrary1|lib.so.toc",
 			expectedOutput: CcInfo{
 				OutputFiles:          []string{"out1", "out2"},
 				CcObjectFiles:        []string{"object1", "object2"},
 				CcStaticLibraryFiles: []string{"static_lib1", "static_lib2"},
 				Includes:             []string{".", "dir/subdir"},
 				SystemIncludes:       []string{"system/dir", "system/other/dir"},
+				Headers:              []string{"dir/subdir/hdr.h"},
 				RootStaticArchives:   []string{"rootstaticarchive1"},
 				RootDynamicLibraries: []string{"rootdynamiclibrary1"},
 				TocFile:              "lib.so.toc",
@@ -115,13 +118,13 @@ func TestGetCcInfoParseResults(t *testing.T) {
 			description:          "too few result splits",
 			input:                "|",
 			expectedOutput:       CcInfo{},
-			expectedErrorMessage: fmt.Sprintf("Expected %d items, got %q", 8, []string{"", ""}),
+			expectedErrorMessage: fmt.Sprintf("Expected %d items, got %q", 9, []string{"", ""}),
 		},
 		{
 			description:          "too many result splits",
-			input:                strings.Repeat("|", 8),
+			input:                strings.Repeat("|", 50),
 			expectedOutput:       CcInfo{},
-			expectedErrorMessage: fmt.Sprintf("Expected %d items, got %q", 8, make([]string, 9)),
+			expectedErrorMessage: fmt.Sprintf("Expected %d items, got %q", 9, make([]string, 51)),
 		},
 	}
 	for _, tc := range testCases {
