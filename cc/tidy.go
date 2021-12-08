@@ -15,6 +15,7 @@
 package cc
 
 import (
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -182,4 +183,155 @@ func (tidy *tidyFeature) flags(ctx ModuleContext, flags Flags) Flags {
 		flags.TidyFlags = append(flags.TidyFlags, tidyChecksAsErrors)
 	}
 	return flags
+}
+
+func init() {
+	android.RegisterSingletonType("tidy_phony_targets", TidyPhonySingleton)
+}
+
+// This TidyPhonySingleton generates both tidy-* and obj-* phony targets for C/C++ files.
+func TidyPhonySingleton() android.Singleton {
+	return &tidyPhonySingleton{}
+}
+
+type tidyPhonySingleton struct{}
+
+// Given a final module, add its tidy/obj phony targets to tidy/objModulesInDirGroup.
+func collectTidyObjModuleTargets(ctx android.SingletonContext, module android.Module,
+	tidyModulesInDirGroup, objModulesInDirGroup map[string]map[string]android.Paths) {
+	allObjFileGroups := make(map[string]android.Paths)     // variant group name => obj file Paths
+	allTidyFileGroups := make(map[string]android.Paths)    // variant group name => tidy file Paths
+	subsetObjFileGroups := make(map[string]android.Paths)  // subset group name => obj file Paths
+	subsetTidyFileGroups := make(map[string]android.Paths) // subset group name => tidy file Paths
+
+	// (1) Collect all obj/tidy files into OS-specific groups.
+	ctx.VisitAllModuleVariants(module, func(variant android.Module) {
+		if ctx.Config().KatiEnabled() && android.ShouldSkipAndroidMkProcessing(variant) {
+			return
+		}
+		if m, ok := variant.(*Module); ok {
+			osName := variant.Target().Os.Name
+			addToOSGroup(osName, m.objFiles, allObjFileGroups, subsetObjFileGroups)
+			addToOSGroup(osName, m.tidyFiles, allTidyFileGroups, subsetTidyFileGroups)
+		}
+	})
+
+	// (2) Add an all-OS group, with "" or "subset" name, to include all os-specific phony targets.
+	addAllOSGroup(ctx, module, allObjFileGroups, "", "obj")
+	addAllOSGroup(ctx, module, allTidyFileGroups, "", "tidy")
+	addAllOSGroup(ctx, module, subsetObjFileGroups, "subset", "obj")
+	addAllOSGroup(ctx, module, subsetTidyFileGroups, "subset", "tidy")
+
+	tidyTargetGroups := make(map[string]android.Path)
+	objTargetGroups := make(map[string]android.Path)
+	genObjTidyPhonyTargets(ctx, module, "obj", allObjFileGroups, objTargetGroups)
+	genObjTidyPhonyTargets(ctx, module, "obj", subsetObjFileGroups, objTargetGroups)
+	genObjTidyPhonyTargets(ctx, module, "tidy", allTidyFileGroups, tidyTargetGroups)
+	genObjTidyPhonyTargets(ctx, module, "tidy", subsetTidyFileGroups, tidyTargetGroups)
+
+	moduleDir := ctx.ModuleDir(module)
+	appendToModulesInDirGroup(tidyTargetGroups, moduleDir, tidyModulesInDirGroup)
+	appendToModulesInDirGroup(objTargetGroups, moduleDir, objModulesInDirGroup)
+}
+
+func (m *tidyPhonySingleton) GenerateBuildActions(ctx android.SingletonContext) {
+	// For tidy-* directory phony targets, there are different variant groups.
+	// tidyModulesInDirGroup[G][D] is for group G, directory D, with Paths
+	// of all phony targets to be included into direct dependents of tidy-D_G.
+	tidyModulesInDirGroup := make(map[string]map[string]android.Paths)
+	// Also for obj-* directory phony targets.
+	objModulesInDirGroup := make(map[string]map[string]android.Paths)
+
+	// Collect tidy/obj targets from the 'final' modules.
+	ctx.VisitAllModules(func(module android.Module) {
+		if module == ctx.FinalModule(module) {
+			collectTidyObjModuleTargets(ctx, module, tidyModulesInDirGroup, objModulesInDirGroup)
+		}
+	})
+
+	suffix := ""
+	if ctx.Config().KatiEnabled() {
+		suffix = "-soong"
+	}
+	generateObjTidyPhonyTargets(ctx, suffix, "obj", objModulesInDirGroup)
+	generateObjTidyPhonyTargets(ctx, suffix, "tidy", tidyModulesInDirGroup)
+}
+
+// The name for an obj/tidy module variant group phony target is Name_group-obj/tidy,
+func objTidyModuleGroupName(module android.Module, group string, suffix string) string {
+	if group == "" {
+		return module.Name() + "-" + suffix
+	}
+	return module.Name() + "_" + group + "-" + suffix
+}
+
+// Generate obj-* or tidy-* phony targets.
+func generateObjTidyPhonyTargets(ctx android.SingletonContext, suffix string, prefix string, objTidyModulesInDirGroup map[string]map[string]android.Paths) {
+	// For each variant group, create a <prefix>-<directory>_group target that
+	// depends on all subdirectories and modules in the directory.
+	for group, modulesInDir := range objTidyModulesInDirGroup {
+		groupSuffix := ""
+		if group != "" {
+			groupSuffix = "_" + group
+		}
+		mmTarget := func(dir string) string {
+			return prefix + "-" + strings.Replace(filepath.Clean(dir), "/", "-", -1) + groupSuffix
+		}
+		dirs, topDirs := android.AddAncestors(ctx, modulesInDir, mmTarget)
+		// Create a <prefix>-soong_group target that depends on all <prefix>-dir_group of top level dirs.
+		var topDirPaths android.Paths
+		for _, dir := range topDirs {
+			topDirPaths = append(topDirPaths, android.PathForPhony(ctx, mmTarget(dir)))
+		}
+		ctx.Phony(prefix+suffix+groupSuffix, topDirPaths...)
+		// Create a <prefix>-dir_group target that depends on all targets in modulesInDir[dir]
+		for _, dir := range dirs {
+			if dir != "." && dir != "" {
+				ctx.Phony(mmTarget(dir), modulesInDir[dir]...)
+			}
+		}
+	}
+}
+
+// Append (obj|tidy)TargetGroups[group] into (obj|tidy)ModulesInDirGroups[group][moduleDir].
+func appendToModulesInDirGroup(targetGroups map[string]android.Path, moduleDir string, modulesInDirGroup map[string]map[string]android.Paths) {
+	for group, phonyPath := range targetGroups {
+		if _, found := modulesInDirGroup[group]; !found {
+			modulesInDirGroup[group] = make(map[string]android.Paths)
+		}
+		modulesInDirGroup[group][moduleDir] = append(modulesInDirGroup[group][moduleDir], phonyPath)
+	}
+}
+
+// Add given files to the OS group and subset group.
+func addToOSGroup(osName string, files android.Paths, allGroups, subsetGroups map[string]android.Paths) {
+	if len(files) > 0 {
+		subsetName := osName + "_subset"
+		allGroups[osName] = append(allGroups[osName], files...)
+		// Now include only the first variant in the subsetGroups.
+		// If clang and clang-tidy get faster, we might include more variants.
+		if _, found := subsetGroups[subsetName]; !found {
+			subsetGroups[subsetName] = files
+		}
+	}
+}
+
+// Add an all-OS group, with groupName, to include all os-specific phony targets.
+func addAllOSGroup(ctx android.SingletonContext, module android.Module, phonyTargetGroups map[string]android.Paths, groupName string, objTidyName string) {
+	if len(phonyTargetGroups) > 0 {
+		var targets android.Paths
+		for group, _ := range phonyTargetGroups {
+			targets = append(targets, android.PathForPhony(ctx, objTidyModuleGroupName(module, group, objTidyName)))
+		}
+		phonyTargetGroups[groupName] = targets
+	}
+}
+
+// Create one phony targets for each group and add them to the targetGroups.
+func genObjTidyPhonyTargets(ctx android.SingletonContext, module android.Module, objTidyName string, fileGroups map[string]android.Paths, targetGroups map[string]android.Path) {
+	for group, files := range fileGroups {
+		groupName := objTidyModuleGroupName(module, group, objTidyName)
+		ctx.Phony(groupName, files...)
+		targetGroups[group] = android.PathForPhony(ctx, groupName)
+	}
 }

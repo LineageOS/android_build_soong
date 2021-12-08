@@ -815,6 +815,10 @@ type Module struct {
 	makeLinkType string
 	// Kythe (source file indexer) paths for this compilation module
 	kytheFiles android.Paths
+	// Object .o file output paths for this compilation module
+	objFiles android.Paths
+	// Tidy .tidy file output paths for this compilation module
+	tidyFiles android.Paths
 
 	// For apex variants, this is set as apex.min_sdk_version
 	apexSdkVersion android.ApiLevel
@@ -1835,6 +1839,8 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 			return
 		}
 		c.kytheFiles = objs.kytheFiles
+		c.objFiles = objs.objFiles
+		c.tidyFiles = objs.tidyFiles
 	}
 
 	if c.linker != nil {
