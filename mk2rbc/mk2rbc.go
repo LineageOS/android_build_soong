@@ -112,6 +112,7 @@ var knownFunctions = map[string]struct {
 	"filter-out":                          {baseName + ".filter_out", starlarkTypeList, hiddenArgNone},
 	"firstword":                           {"!firstword", starlarkTypeString, hiddenArgNone},
 	"get-vendor-board-platforms":          {"!get-vendor-board-platforms", starlarkTypeList, hiddenArgNone}, // internal macro, used by is-board-platform, etc.
+	"if":                                  {"!if", starlarkTypeUnknown, hiddenArgNone},
 	"info":                                {baseName + ".mkinfo", starlarkTypeVoid, hiddenArgNone},
 	"is-android-codename":                 {"!is-android-codename", starlarkTypeBool, hiddenArgNone},         // unused by product config
 	"is-android-codename-in-list":         {"!is-android-codename-in-list", starlarkTypeBool, hiddenArgNone}, // unused by product config
@@ -1331,6 +1332,34 @@ func (ctx *parseContext) parseReference(node mkparser.Node, ref *mkparser.MakeSt
 			// TODO (asmundak): if we find many, maybe handle them.
 			return ctx.newBadExpr(node, "SOONG_CONFIG_ variables cannot be referenced, use soong_config_get instead: %s", refDump)
 		}
+		// Handle substitution references: https://www.gnu.org/software/make/manual/html_node/Substitution-Refs.html
+		if strings.Contains(refDump, ":") {
+			parts := strings.SplitN(refDump, ":", 2)
+			substParts := strings.SplitN(parts[1], "=", 2)
+			if len(substParts) < 2 || strings.Count(substParts[0], "%") > 1 {
+				return ctx.newBadExpr(node, "Invalid substitution reference")
+			}
+			if !strings.Contains(substParts[0], "%") {
+				if strings.Contains(substParts[1], "%") {
+					return ctx.newBadExpr(node, "A substitution reference must have a %% in the \"before\" part of the substitution if it has one in the \"after\" part.")
+				}
+				substParts[0] = "%" + substParts[0]
+				substParts[1] = "%" + substParts[1]
+			}
+			v := ctx.addVariable(parts[0])
+			if v == nil {
+				return ctx.newBadExpr(node, "unknown variable %s", refDump)
+			}
+			return &callExpr{
+				name:       "patsubst",
+				returnType: knownFunctions["patsubst"].returnType,
+				args: []starlarkExpr{
+					&stringLiteralExpr{literal: substParts[0]},
+					&stringLiteralExpr{literal: substParts[1]},
+					&variableRefExpr{v, ctx.lastAssignment(v.name()) != nil},
+				},
+			}
+		}
 		if v := ctx.addVariable(refDump); v != nil {
 			return &variableRefExpr{v, ctx.lastAssignment(v.name()) != nil}
 		}
@@ -1368,6 +1397,8 @@ func (ctx *parseContext) parseReference(node mkparser.Node, ref *mkparser.MakeSt
 		return ctx.newBadExpr(node, "cannot handle invoking %s", expr.name)
 	}
 	switch expr.name {
+	case "if":
+		return ctx.parseIfFunc(node, args)
 	case "word":
 		return ctx.parseWordFunc(node, args)
 	case "firstword", "lastword":
@@ -1420,6 +1451,35 @@ func (ctx *parseContext) parseSubstFunc(node mkparser.Node, fname string, args *
 		name:       fname,
 		args:       []starlarkExpr{from, to, obj},
 		returnType: obj.typ(),
+	}
+}
+
+func (ctx *parseContext) parseIfFunc(node mkparser.Node, args *mkparser.MakeString) starlarkExpr {
+	words := args.Split(",")
+	if len(words) != 2 && len(words) != 3 {
+		return ctx.newBadExpr(node, "if function should have 2 or 3 arguments, found "+strconv.Itoa(len(words)))
+	}
+	condition := ctx.parseMakeString(node, words[0])
+	ifTrue := ctx.parseMakeString(node, words[1])
+	var ifFalse starlarkExpr
+	if len(words) == 3 {
+		ifFalse = ctx.parseMakeString(node, words[2])
+	} else {
+		switch ifTrue.typ() {
+		case starlarkTypeList:
+			ifFalse = &listExpr{items: []starlarkExpr{}}
+		case starlarkTypeInt:
+			ifFalse = &intLiteralExpr{literal: 0}
+		case starlarkTypeBool:
+			ifFalse = &boolLiteralExpr{literal: false}
+		default:
+			ifFalse = &stringLiteralExpr{literal: ""}
+		}
+	}
+	return &ifExpr{
+		condition,
+		ifTrue,
+		ifFalse,
 	}
 }
 
