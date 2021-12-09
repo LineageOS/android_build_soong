@@ -892,8 +892,13 @@ func (c *config) Eng() bool {
 	return Bool(c.productVariables.Eng)
 }
 
+// DevicePrimaryArchType returns the ArchType for the first configured device architecture, or
+// Common if there are no device architectures.
 func (c *config) DevicePrimaryArchType() ArchType {
-	return c.Targets[Android][0].Arch.ArchType
+	if androidTargets := c.Targets[Android]; len(androidTargets) > 0 {
+		return androidTargets[0].Arch.ArchType
+	}
+	return Common
 }
 
 func (c *config) SanitizeHost() []string {
