@@ -3461,8 +3461,15 @@ func (c *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 			objectBp2Build(ctx, c)
 		}
 	} else if c.CcLibrary() {
-		static := c.BuildStaticVariant()
-		shared := c.BuildSharedVariant()
+		static := false
+		shared := false
+		if library, ok := c.linker.(*libraryDecorator); ok {
+			static = library.MutatedProperties.BuildStatic
+			shared = library.MutatedProperties.BuildShared
+		} else if library, ok := c.linker.(*prebuiltLibraryLinker); ok {
+			static = library.MutatedProperties.BuildStatic
+			shared = library.MutatedProperties.BuildShared
+		}
 
 		if static && shared {
 			if !prebuilt {

@@ -57,6 +57,8 @@ type staticOrSharedAttributes struct {
 	Implementation_whole_archive_deps bazel.LabelListAttribute
 
 	System_dynamic_deps bazel.LabelListAttribute
+
+	Enabled bazel.BoolAttribute
 }
 
 func groupSrcsByExtension(ctx android.BazelConversionPathContext, srcs bazel.LabelListAttribute) bazel.PartitionToLabelListAttribute {
@@ -175,6 +177,7 @@ func bp2buildParseStaticOrSharedProps(ctx android.BazelConversionPathContext, mo
 		attrs.Implementation_dynamic_deps.SetSelectValue(axis, config, sharedDeps.implementation)
 
 		attrs.Whole_archive_deps.SetSelectValue(axis, config, bazelLabelForWholeDeps(ctx, props.Whole_static_libs))
+		attrs.Enabled.SetSelectValue(axis, config, props.Enabled)
 	}
 	// system_dynamic_deps distinguishes between nil/empty list behavior:
 	//    nil -> use default values
