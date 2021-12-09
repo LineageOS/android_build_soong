@@ -64,6 +64,9 @@ func RegisterCCBuildComponents(ctx android.RegistrationContext) {
 
 		ctx.BottomUp("coverage", coverageMutator).Parallel()
 
+		ctx.TopDown("afdo_deps", afdoDepsMutator)
+		ctx.BottomUp("afdo", afdoMutator).Parallel()
+
 		ctx.TopDown("lto_deps", ltoDepsMutator)
 		ctx.BottomUp("lto", ltoMutator).Parallel()
 
@@ -810,6 +813,7 @@ type Module struct {
 	sabi     *sabi
 	vndkdep  *vndkdep
 	lto      *lto
+	afdo     *afdo
 	pgo      *pgo
 
 	library libraryInterface
@@ -1142,6 +1146,9 @@ func (c *Module) Init() android.Module {
 	}
 	if c.lto != nil {
 		c.AddProperties(c.lto.props()...)
+	}
+	if c.afdo != nil {
+		c.AddProperties(c.afdo.props()...)
 	}
 	if c.pgo != nil {
 		c.AddProperties(c.pgo.props()...)
@@ -1620,6 +1627,7 @@ func newModule(hod android.HostOrDeviceSupported, multilib android.Multilib) *Mo
 	module.sabi = &sabi{}
 	module.vndkdep = &vndkdep{}
 	module.lto = &lto{}
+	module.afdo = &afdo{}
 	module.pgo = &pgo{}
 	return module
 }
@@ -1815,6 +1823,9 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	if c.lto != nil {
 		flags = c.lto.flags(ctx, flags)
 	}
+	if c.afdo != nil {
+		flags = c.afdo.flags(ctx, flags)
+	}
 	if c.pgo != nil {
 		flags = c.pgo.flags(ctx, flags)
 	}
@@ -1941,6 +1952,9 @@ func (c *Module) begin(ctx BaseModuleContext) {
 	}
 	if c.lto != nil {
 		c.lto.begin(ctx)
+	}
+	if c.afdo != nil {
+		c.afdo.begin(ctx)
 	}
 	if c.pgo != nil {
 		c.pgo.begin(ctx)
@@ -3534,6 +3548,7 @@ func DefaultsFactory(props ...interface{}) android.Module {
 		&SAbiProperties{},
 		&VndkProperties{},
 		&LTOProperties{},
+		&AfdoProperties{},
 		&PgoProperties{},
 		&android.ProtoProperties{},
 		// RustBindgenProperties is included here so that cc_defaults can be used for rust_bindgen modules.
