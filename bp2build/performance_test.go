@@ -29,6 +29,10 @@ import (
 	"testing"
 )
 
+const (
+	performance_test_dir = "."
+)
+
 func genCustomModule(i int, convert bool) string {
 	var conversionString string
 	if convert {
@@ -76,34 +80,83 @@ func genCustomModuleBp(pctConverted float64) string {
 	return strings.Join(bp, "\n\n")
 }
 
+type testConfig struct {
+	config     android.Config
+	ctx        *android.TestContext
+	codegenCtx *CodegenContext
+}
+
+func (tc testConfig) parse() []error {
+	_, errs := tc.ctx.ParseFileList(performance_test_dir, []string{"Android.bp"})
+	return errs
+}
+
+func (tc testConfig) resolveDependencies() []error {
+	_, errs := tc.ctx.ResolveDependencies(tc.config)
+	return errs
+}
+
+func (tc testConfig) convert() {
+	generateBazelTargetsForDir(tc.codegenCtx, performance_test_dir)
+}
+
+func setup(builddir string, tcSize float64) testConfig {
+	config := android.TestConfig(buildDir, nil, genCustomModuleBp(tcSize), nil)
+	ctx := android.NewTestContext(config)
+
+	registerCustomModuleForBp2buildConversion(ctx)
+	codegenCtx := NewCodegenContext(config, *ctx.Context, Bp2Build)
+	return testConfig{
+		config,
+		ctx,
+		codegenCtx,
+	}
+}
+
 var pctToConvert = []float64{0.0, 0.01, 0.05, 0.10, 0.25, 0.5, 0.75, 1.0}
 
+// This is not intended to test performance, but to verify performance infra continues to work
+func TestConvertManyModulesFull(t *testing.T) {
+	for _, tcSize := range pctToConvert {
+
+		t.Run(fmt.Sprintf("pctConverted %f", tcSize), func(t *testing.T) {
+			testConfig := setup(buildDir, tcSize)
+
+			errs := testConfig.parse()
+			if len(errs) > 0 {
+				t.Fatalf("Unexpected errors: %s", errs)
+			}
+
+			errs = testConfig.resolveDependencies()
+			if len(errs) > 0 {
+				t.Fatalf("Unexpected errors: %s", errs)
+			}
+
+			testConfig.convert()
+		})
+	}
+}
+
 func BenchmarkManyModulesFull(b *testing.B) {
-	dir := "."
 	for _, tcSize := range pctToConvert {
 
 		b.Run(fmt.Sprintf("pctConverted %f", tcSize), func(b *testing.B) {
 			for n := 0; n < b.N; n++ {
 				b.StopTimer()
-				// setup we don't want to measure
-				config := android.TestConfig(buildDir, nil, genCustomModuleBp(tcSize), nil)
-				ctx := android.NewTestContext(config)
-
-				registerCustomModuleForBp2buildConversion(ctx)
-				codegenCtx := NewCodegenContext(config, *ctx.Context, Bp2Build)
+				testConfig := setup(buildDir, tcSize)
 
 				b.StartTimer()
-				_, errs := ctx.ParseFileList(dir, []string{"Android.bp"})
+				errs := testConfig.parse()
 				if len(errs) > 0 {
 					b.Fatalf("Unexpected errors: %s", errs)
 				}
 
-				_, errs = ctx.ResolveDependencies(config)
+				errs = testConfig.resolveDependencies()
 				if len(errs) > 0 {
 					b.Fatalf("Unexpected errors: %s", errs)
 				}
 
-				generateBazelTargetsForDir(codegenCtx, dir)
+				testConfig.convert()
 				b.StopTimer()
 			}
 		})
@@ -111,63 +164,53 @@ func BenchmarkManyModulesFull(b *testing.B) {
 }
 
 func BenchmarkManyModulesResolveDependencies(b *testing.B) {
-	dir := "."
 	for _, tcSize := range pctToConvert {
 
 		b.Run(fmt.Sprintf("pctConverted %f", tcSize), func(b *testing.B) {
 			for n := 0; n < b.N; n++ {
 				b.StopTimer()
 				// setup we don't want to measure
-				config := android.TestConfig(buildDir, nil, genCustomModuleBp(tcSize), nil)
-				ctx := android.NewTestContext(config)
+				testConfig := setup(buildDir, tcSize)
 
-				registerCustomModuleForBp2buildConversion(ctx)
-				codegenCtx := NewCodegenContext(config, *ctx.Context, Bp2Build)
-
-				_, errs := ctx.ParseFileList(dir, []string{"Android.bp"})
+				errs := testConfig.parse()
 				if len(errs) > 0 {
 					b.Fatalf("Unexpected errors: %s", errs)
 				}
 
 				b.StartTimer()
-				_, errs = ctx.ResolveDependencies(config)
+				errs = testConfig.resolveDependencies()
 				b.StopTimer()
 				if len(errs) > 0 {
 					b.Fatalf("Unexpected errors: %s", errs)
 				}
 
-				generateBazelTargetsForDir(codegenCtx, dir)
+				testConfig.convert()
 			}
 		})
 	}
 }
 
 func BenchmarkManyModulesGenerateBazelTargetsForDir(b *testing.B) {
-	dir := "."
 	for _, tcSize := range pctToConvert {
 
 		b.Run(fmt.Sprintf("pctConverted %f", tcSize), func(b *testing.B) {
 			for n := 0; n < b.N; n++ {
 				b.StopTimer()
 				// setup we don't want to measure
-				config := android.TestConfig(buildDir, nil, genCustomModuleBp(tcSize), nil)
-				ctx := android.NewTestContext(config)
+				testConfig := setup(buildDir, tcSize)
 
-				registerCustomModuleForBp2buildConversion(ctx)
-				codegenCtx := NewCodegenContext(config, *ctx.Context, Bp2Build)
-
-				_, errs := ctx.ParseFileList(dir, []string{"Android.bp"})
+				errs := testConfig.parse()
 				if len(errs) > 0 {
 					b.Fatalf("Unexpected errors: %s", errs)
 				}
 
-				_, errs = ctx.ResolveDependencies(config)
+				errs = testConfig.resolveDependencies()
 				if len(errs) > 0 {
 					b.Fatalf("Unexpected errors: %s", errs)
 				}
 
 				b.StartTimer()
-				generateBazelTargetsForDir(codegenCtx, dir)
+				testConfig.convert()
 				b.StopTimer()
 			}
 		})
