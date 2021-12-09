@@ -87,6 +87,10 @@ func init() {
 		return getMacTools(ctx).arPath
 	})
 
+	pctx.VariableFunc("MacLipoPath", func(ctx android.PackageVarContext) string {
+		return getMacTools(ctx).lipoPath
+	})
+
 	pctx.VariableFunc("MacStripPath", func(ctx android.PackageVarContext) string {
 		return getMacTools(ctx).stripPath
 	})
@@ -118,6 +122,7 @@ type macPlatformTools struct {
 
 	sdkRoot   string
 	arPath    string
+	lipoPath  string
 	stripPath string
 	toolPath  string
 }
@@ -157,6 +162,7 @@ func getMacTools(ctx android.PathContext) *macPlatformTools {
 		macTools.sdkRoot = xcrun("--show-sdk-path")
 
 		macTools.arPath = xcrun("--find", "ar")
+		macTools.lipoPath = xcrun("--find", "lipo")
 		macTools.stripPath = xcrun("--find", "strip")
 		macTools.toolPath = filepath.Dir(xcrun("--find", "ld"))
 	})
