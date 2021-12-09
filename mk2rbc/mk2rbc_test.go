@@ -1091,6 +1091,46 @@ def init(g, handle):
     pass
 `,
 	},
+	{
+		desc:   "if expression",
+		mkname: "product.mk",
+		in: `
+TEST_VAR := foo
+TEST_VAR_LIST := foo
+TEST_VAR_LIST += bar
+TEST_VAR_2 := $(if $(TEST_VAR),bar)
+TEST_VAR_3 := $(if $(TEST_VAR),bar,baz)
+TEST_VAR_3 := $(if $(TEST_VAR),$(TEST_VAR_LIST))
+`,
+		expected: `load("//build/make/core:product_config.rbc", "rblf")
+
+def init(g, handle):
+  cfg = rblf.cfg(handle)
+  g["TEST_VAR"] = "foo"
+  g["TEST_VAR_LIST"] = ["foo"]
+  g["TEST_VAR_LIST"] += ["bar"]
+  g["TEST_VAR_2"] = ("bar" if g["TEST_VAR"] else "")
+  g["TEST_VAR_3"] = ("bar" if g["TEST_VAR"] else "baz")
+  g["TEST_VAR_3"] = (g["TEST_VAR_LIST"] if g["TEST_VAR"] else [])
+`,
+	},
+	{
+		desc:   "substitution references",
+		mkname: "product.mk",
+		in: `
+SOURCES := foo.c bar.c
+OBJECTS := $(SOURCES:.c=.o)
+OBJECTS2 := $(SOURCES:%.c=%.o)
+`,
+		expected: `load("//build/make/core:product_config.rbc", "rblf")
+
+def init(g, handle):
+  cfg = rblf.cfg(handle)
+  g["SOURCES"] = "foo.c bar.c"
+  g["OBJECTS"] = rblf.mkpatsubst("%.c", "%.o", g["SOURCES"])
+  g["OBJECTS2"] = rblf.mkpatsubst("%.c", "%.o", g["SOURCES"])
+`,
+	},
 }
 
 var known_variables = []struct {
