@@ -1131,6 +1131,28 @@ def init(g, handle):
   g["OBJECTS2"] = rblf.mkpatsubst("%.c", "%.o", g["SOURCES"])
 `,
 	},
+	{
+		desc:   "foreach expressions",
+		mkname: "product.mk",
+		in: `
+BOOT_KERNEL_MODULES := foo.ko bar.ko
+BOOT_KERNEL_MODULES_FILTER := $(foreach m,$(BOOT_KERNEL_MODULES),%/$(m))
+BOOT_KERNEL_MODULES_LIST := foo.ko
+BOOT_KERNEL_MODULES_LIST += bar.ko
+BOOT_KERNEL_MODULES_FILTER_2 := $(foreach m,$(BOOT_KERNEL_MODULES_LIST),%/$(m))
+
+`,
+		expected: `load("//build/make/core:product_config.rbc", "rblf")
+
+def init(g, handle):
+  cfg = rblf.cfg(handle)
+  g["BOOT_KERNEL_MODULES"] = "foo.ko bar.ko"
+  g["BOOT_KERNEL_MODULES_FILTER"] = ["%%/%s" % m for m in rblf.words(g["BOOT_KERNEL_MODULES"])]
+  g["BOOT_KERNEL_MODULES_LIST"] = ["foo.ko"]
+  g["BOOT_KERNEL_MODULES_LIST"] += ["bar.ko"]
+  g["BOOT_KERNEL_MODULES_FILTER_2"] = ["%%/%s" % m for m in g["BOOT_KERNEL_MODULES_LIST"]]
+`,
+	},
 }
 
 var known_variables = []struct {
