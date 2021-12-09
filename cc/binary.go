@@ -389,7 +389,7 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 		}
 	}
 
-	var validations android.WritablePaths
+	var validations android.Paths
 
 	// Handle host bionic linker symbols.
 	if ctx.Os() == android.LinuxBionic && !binary.static() {

@@ -257,12 +257,14 @@ cc_library {
 				CcObjectFiles:        []string{"foo.o"},
 				Includes:             []string{"include"},
 				SystemIncludes:       []string{"system_include"},
+				Headers:              []string{"foo.h"},
 				RootDynamicLibraries: []string{"foo.so"},
 			},
 			"//foo/bar:bar_bp2build_cc_library_static": cquery.CcInfo{
 				CcObjectFiles:      []string{"foo.o"},
 				Includes:           []string{"include"},
 				SystemIncludes:     []string{"system_include"},
+				Headers:            []string{"foo.h"},
 				RootStaticArchives: []string{"foo.a"},
 			},
 		},
@@ -278,18 +280,25 @@ cc_library {
 	expectedOutputFiles := []string{"outputbase/execroot/__main__/foo.a"}
 	android.AssertDeepEquals(t, "output files", expectedOutputFiles, outputFiles.Strings())
 
+	flagExporter := ctx.ModuleProvider(staticFoo, FlagExporterInfoProvider).(FlagExporterInfo)
+	android.AssertPathsRelativeToTopEquals(t, "exported include dirs", []string{"outputbase/execroot/__main__/include"}, flagExporter.IncludeDirs)
+	android.AssertPathsRelativeToTopEquals(t, "exported system include dirs", []string{"outputbase/execroot/__main__/system_include"}, flagExporter.SystemIncludeDirs)
+	android.AssertPathsRelativeToTopEquals(t, "exported headers", []string{"outputbase/execroot/__main__/foo.h"}, flagExporter.GeneratedHeaders)
+	android.AssertPathsRelativeToTopEquals(t, "deps", []string{"outputbase/execroot/__main__/foo.h"}, flagExporter.Deps)
+
 	sharedFoo := ctx.ModuleForTests("foo", "android_arm_armv7-a-neon_shared").Module()
 	outputFiles, err = sharedFoo.(android.OutputFileProducer).OutputFiles("")
 	if err != nil {
-		t.Errorf("Unexpected error getting cc_object outputfiles %s", err)
+		t.Errorf("Unexpected error getting cc_library outputfiles %s", err)
 	}
 	expectedOutputFiles = []string{"outputbase/execroot/__main__/foo.so"}
 	android.AssertDeepEquals(t, "output files", expectedOutputFiles, outputFiles.Strings())
 
-	entries := android.AndroidMkEntriesForTest(t, ctx, sharedFoo)[0]
-	expectedFlags := []string{"-Ioutputbase/execroot/__main__/include", "-isystem outputbase/execroot/__main__/system_include"}
-	gotFlags := entries.EntryMap["LOCAL_EXPORT_CFLAGS"]
-	android.AssertDeepEquals(t, "androidmk exported cflags", expectedFlags, gotFlags)
+	flagExporter = ctx.ModuleProvider(sharedFoo, FlagExporterInfoProvider).(FlagExporterInfo)
+	android.AssertPathsRelativeToTopEquals(t, "exported include dirs", []string{"outputbase/execroot/__main__/include"}, flagExporter.IncludeDirs)
+	android.AssertPathsRelativeToTopEquals(t, "exported system include dirs", []string{"outputbase/execroot/__main__/system_include"}, flagExporter.SystemIncludeDirs)
+	android.AssertPathsRelativeToTopEquals(t, "exported headers", []string{"outputbase/execroot/__main__/foo.h"}, flagExporter.GeneratedHeaders)
+	android.AssertPathsRelativeToTopEquals(t, "deps", []string{"outputbase/execroot/__main__/foo.h"}, flagExporter.Deps)
 }
 
 func TestLibraryVersionScript(t *testing.T) {
