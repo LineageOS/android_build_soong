@@ -384,9 +384,13 @@ func flagExporterInfoFromCcInfo(ctx android.ModuleContext, ccInfo cquery.CcInfo)
 
 	includes := android.PathsForBazelOut(ctx, ccInfo.Includes)
 	systemIncludes := android.PathsForBazelOut(ctx, ccInfo.SystemIncludes)
+	headers := android.PathsForBazelOut(ctx, ccInfo.Headers)
 
 	return FlagExporterInfo{
 		IncludeDirs:       android.FirstUniquePaths(includes),
 		SystemIncludeDirs: android.FirstUniquePaths(systemIncludes),
+		GeneratedHeaders:  headers,
+		// necessary to ensure generated headers are considered implicit deps of dependent actions
+		Deps: headers,
 	}
 }

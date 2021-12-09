@@ -211,6 +211,8 @@ func isModuleSupported(ctx android.SingletonContext, module android.Module) (*Mo
 		comp = c.binaryDecorator.baseCompiler
 	case *procMacroDecorator:
 		comp = c.baseCompiler
+	case *toolchainLibraryDecorator:
+		comp = c.baseCompiler
 	default:
 		return nil, nil, false
 	}
