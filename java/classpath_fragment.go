@@ -84,11 +84,10 @@ func initClasspathFragment(c classpathFragment, classpathType classpathType) {
 
 // Matches definition of Jar in packages/modules/SdkExtensions/proto/classpaths.proto
 type classpathJar struct {
-	path      string
-	classpath classpathType
-	// TODO(satayev): propagate min/max sdk versions for the jars
-	minSdkVersion int32
-	maxSdkVersion int32
+	path          string
+	classpath     classpathType
+	minSdkVersion string
+	maxSdkVersion string
 }
 
 // gatherPossibleApexModuleNamesAndStems returns a set of module and stem names from the
@@ -120,10 +119,32 @@ func configuredJarListToClasspathJars(ctx android.ModuleContext, configuredJars 
 	jars := make([]classpathJar, 0, len(paths)*len(classpaths))
 	for i := 0; i < len(paths); i++ {
 		for _, classpathType := range classpaths {
-			jars = append(jars, classpathJar{
+			jar := classpathJar{
 				classpath: classpathType,
 				path:      paths[i],
+			}
+			ctx.VisitDirectDepsIf(func(m android.Module) bool {
+				return m.Name() == configuredJars.Jar(i)
+			}, func(m android.Module) {
+				if s, ok := m.(*SdkLibrary); ok {
+					// TODO(208456999): instead of mapping "current" to latest, min_sdk_version should never be set to "current"
+					if s.minSdkVersion.Specified() {
+						if s.minSdkVersion.ApiLevel.IsCurrent() {
+							jar.minSdkVersion = ctx.Config().LatestPreviewApiLevel().String()
+						} else {
+							jar.minSdkVersion = s.minSdkVersion.ApiLevel.String()
+						}
+					}
+					if s.maxSdkVersion.Specified() {
+						if s.maxSdkVersion.ApiLevel.IsCurrent() {
+							jar.maxSdkVersion = ctx.Config().LatestPreviewApiLevel().String()
+						} else {
+							jar.maxSdkVersion = s.maxSdkVersion.ApiLevel.String()
+						}
+					}
+				}
 			})
+			jars = append(jars, jar)
 		}
 	}
 	return jars
@@ -136,15 +157,15 @@ func (c *ClasspathFragmentBase) generateClasspathProtoBuildActions(ctx android.M
 		c.outputFilepath = android.PathForModuleOut(ctx, outputFilename).OutputPath
 		c.installDirPath = android.PathForModuleInstall(ctx, "etc", "classpaths")
 
-		generatedJson := android.PathForModuleOut(ctx, outputFilename+".json")
-		writeClasspathsJson(ctx, generatedJson, jars)
+		generatedTextproto := android.PathForModuleOut(ctx, outputFilename+".textproto")
+		writeClasspathsTextproto(ctx, generatedTextproto, jars)
 
 		rule := android.NewRuleBuilder(pctx, ctx)
 		rule.Command().
 			BuiltTool("conv_classpaths_proto").
 			Flag("encode").
-			Flag("--format=json").
-			FlagWithInput("--input=", generatedJson).
+			Flag("--format=textproto").
+			FlagWithInput("--input=", generatedTextproto).
 			FlagWithOutput("--output=", c.outputFilepath)
 
 		rule.Build("classpath_fragment", "Compiling "+c.outputFilepath.String())
@@ -159,24 +180,18 @@ func (c *ClasspathFragmentBase) generateClasspathProtoBuildActions(ctx android.M
 	ctx.SetProvider(ClasspathFragmentProtoContentInfoProvider, classpathProtoInfo)
 }
 
-func writeClasspathsJson(ctx android.ModuleContext, output android.WritablePath, jars []classpathJar) {
+func writeClasspathsTextproto(ctx android.ModuleContext, output android.WritablePath, jars []classpathJar) {
 	var content strings.Builder
-	fmt.Fprintf(&content, "{\n")
-	fmt.Fprintf(&content, "\"jars\": [\n")
-	for idx, jar := range jars {
-		fmt.Fprintf(&content, "{\n")
 
-		fmt.Fprintf(&content, "\"path\": \"%s\",\n", jar.path)
-		fmt.Fprintf(&content, "\"classpath\": \"%s\"\n", jar.classpath)
-
-		if idx < len(jars)-1 {
-			fmt.Fprintf(&content, "},\n")
-		} else {
-			fmt.Fprintf(&content, "}\n")
-		}
+	for _, jar := range jars {
+		fmt.Fprintf(&content, "jars {\n")
+		fmt.Fprintf(&content, "path: \"%s\"\n", jar.path)
+		fmt.Fprintf(&content, "classpath: %s\n", jar.classpath)
+		fmt.Fprintf(&content, "min_sdk_version: \"%s\"\n", jar.minSdkVersion)
+		fmt.Fprintf(&content, "max_sdk_version: \"%s\"\n", jar.maxSdkVersion)
+		fmt.Fprintf(&content, "}\n")
 	}
-	fmt.Fprintf(&content, "]\n")
-	fmt.Fprintf(&content, "}\n")
+
 	android.WriteFileRule(ctx, output, content.String())
 }
 

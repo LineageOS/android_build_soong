@@ -698,6 +698,16 @@ func (c *config) PreviewApiLevels() []ApiLevel {
 	return levels
 }
 
+func (c *config) LatestPreviewApiLevel() ApiLevel {
+	level := NoneApiLevel
+	for _, l := range c.PreviewApiLevels() {
+		if l.GreaterThan(level) {
+			level = l
+		}
+	}
+	return level
+}
+
 func (c *config) AllSupportedApiLevels() []ApiLevel {
 	var levels []ApiLevel
 	levels = append(levels, c.FinalApiLevels()...)

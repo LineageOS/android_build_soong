@@ -1632,7 +1632,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// 1) do some validity checks such as apex_available, min_sdk_version, etc.
 	a.checkApexAvailability(ctx)
 	a.checkUpdatable(ctx)
-	a.checkMinSdkVersion(ctx)
+	a.CheckMinSdkVersion(ctx)
 	a.checkStaticLinkingToStubLibraries(ctx)
 	if len(a.properties.Tests) > 0 && !a.testApex {
 		ctx.PropertyErrorf("tests", "property allowed only in apex_test module type")
@@ -2246,18 +2246,28 @@ func overrideApexFactory() android.Module {
 //
 // TODO(jiyong): move these checks to a separate go file.
 
+var _ android.ModuleWithMinSdkVersionCheck = (*apexBundle)(nil)
+
 // Entures that min_sdk_version of the included modules are equal or less than the min_sdk_version
 // of this apexBundle.
-func (a *apexBundle) checkMinSdkVersion(ctx android.ModuleContext) {
+func (a *apexBundle) CheckMinSdkVersion(ctx android.ModuleContext) {
 	if a.testApex || a.vndkApex {
 		return
 	}
 	// apexBundle::minSdkVersion reports its own errors.
 	minSdkVersion := a.minSdkVersion(ctx)
-	android.CheckMinSdkVersion(a, ctx, minSdkVersion)
+	android.CheckMinSdkVersion(ctx, minSdkVersion, a.WalkPayloadDeps)
 }
 
-func (a *apexBundle) minSdkVersion(ctx android.BaseModuleContext) android.ApiLevel {
+func (a *apexBundle) MinSdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
+	return android.SdkSpec{
+		Kind:     android.SdkNone,
+		ApiLevel: a.minSdkVersion(ctx),
+		Raw:      String(a.properties.Min_sdk_version),
+	}
+}
+
+func (a *apexBundle) minSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel {
 	ver := proptools.String(a.properties.Min_sdk_version)
 	if ver == "" {
 		return android.NoneApiLevel

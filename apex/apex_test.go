@@ -7742,6 +7742,184 @@ func TestApexJavaCoverage(t *testing.T) {
 	}
 }
 
+func TestSdkLibraryCanHaveHigherMinSdkVersion(t *testing.T) {
+	preparer := android.GroupFixturePreparers(
+		PrepareForTestWithApexBuildComponents,
+		prepareForTestWithMyapex,
+		java.PrepareForTestWithJavaSdkLibraryFiles,
+		java.PrepareForTestWithJavaDefaultModules,
+		android.PrepareForTestWithAndroidBuildComponents,
+		dexpreopt.FixtureSetApexBootJars("myapex:mybootclasspathlib"),
+		dexpreopt.FixtureSetApexSystemServerJars("myapex:mysystemserverclasspathlib"),
+	)
+
+	// Test java_sdk_library in bootclasspath_fragment may define higher min_sdk_version than the apex
+	t.Run("bootclasspath_fragment jar has higher min_sdk_version than apex", func(t *testing.T) {
+		preparer.RunTestWithBp(t, `
+			apex {
+				name: "myapex",
+				key: "myapex.key",
+				bootclasspath_fragments: ["mybootclasspathfragment"],
+				min_sdk_version: "30",
+				updatable: false,
+			}
+
+			apex_key {
+				name: "myapex.key",
+				public_key: "testkey.avbpubkey",
+				private_key: "testkey.pem",
+			}
+
+			bootclasspath_fragment {
+				name: "mybootclasspathfragment",
+				contents: ["mybootclasspathlib"],
+				apex_available: ["myapex"],
+			}
+
+			java_sdk_library {
+				name: "mybootclasspathlib",
+				srcs: ["mybootclasspathlib.java"],
+				apex_available: ["myapex"],
+				compile_dex: true,
+				unsafe_ignore_missing_latest_api: true,
+				min_sdk_version: "31",
+				static_libs: ["util"],
+			}
+
+			java_library {
+				name: "util",
+                srcs: ["a.java"],
+				apex_available: ["myapex"],
+				min_sdk_version: "31",
+				static_libs: ["another_util"],
+			}
+
+			java_library {
+				name: "another_util",
+                srcs: ["a.java"],
+				min_sdk_version: "31",
+				apex_available: ["myapex"],
+			}
+		`)
+	})
+
+	// Test java_sdk_library in systemserverclasspath_fragment may define higher min_sdk_version than the apex
+	t.Run("systemserverclasspath_fragment jar has higher min_sdk_version than apex", func(t *testing.T) {
+		preparer.RunTestWithBp(t, `
+			apex {
+				name: "myapex",
+				key: "myapex.key",
+				systemserverclasspath_fragments: ["mysystemserverclasspathfragment"],
+				min_sdk_version: "30",
+				updatable: false,
+			}
+
+			apex_key {
+				name: "myapex.key",
+				public_key: "testkey.avbpubkey",
+				private_key: "testkey.pem",
+			}
+
+			systemserverclasspath_fragment {
+				name: "mysystemserverclasspathfragment",
+				contents: ["mysystemserverclasspathlib"],
+				apex_available: ["myapex"],
+			}
+
+			java_sdk_library {
+				name: "mysystemserverclasspathlib",
+				srcs: ["mysystemserverclasspathlib.java"],
+				apex_available: ["myapex"],
+				compile_dex: true,
+				min_sdk_version: "32",
+				unsafe_ignore_missing_latest_api: true,
+				static_libs: ["util"],
+			}
+
+			java_library {
+				name: "util",
+                srcs: ["a.java"],
+				apex_available: ["myapex"],
+				min_sdk_version: "31",
+				static_libs: ["another_util"],
+			}
+
+			java_library {
+				name: "another_util",
+                srcs: ["a.java"],
+				min_sdk_version: "31",
+				apex_available: ["myapex"],
+			}
+		`)
+	})
+
+	t.Run("bootclasspath_fragment jar must set min_sdk_version", func(t *testing.T) {
+		preparer.ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(`module "mybootclasspathlib".*must set min_sdk_version`)).
+			RunTestWithBp(t, `
+				apex {
+					name: "myapex",
+					key: "myapex.key",
+					bootclasspath_fragments: ["mybootclasspathfragment"],
+					min_sdk_version: "30",
+					updatable: false,
+				}
+
+				apex_key {
+					name: "myapex.key",
+					public_key: "testkey.avbpubkey",
+					private_key: "testkey.pem",
+				}
+
+				bootclasspath_fragment {
+					name: "mybootclasspathfragment",
+					contents: ["mybootclasspathlib"],
+					apex_available: ["myapex"],
+				}
+
+				java_sdk_library {
+					name: "mybootclasspathlib",
+					srcs: ["mybootclasspathlib.java"],
+					apex_available: ["myapex"],
+					compile_dex: true,
+					unsafe_ignore_missing_latest_api: true,
+				}
+		`)
+	})
+
+	t.Run("systemserverclasspath_fragment jar must set min_sdk_version", func(t *testing.T) {
+		preparer.ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(`module "mysystemserverclasspathlib".*must set min_sdk_version`)).
+			RunTestWithBp(t, `
+				apex {
+					name: "myapex",
+					key: "myapex.key",
+					systemserverclasspath_fragments: ["mysystemserverclasspathfragment"],
+					min_sdk_version: "30",
+					updatable: false,
+				}
+
+				apex_key {
+					name: "myapex.key",
+					public_key: "testkey.avbpubkey",
+					private_key: "testkey.pem",
+				}
+
+				systemserverclasspath_fragment {
+					name: "mysystemserverclasspathfragment",
+					contents: ["mysystemserverclasspathlib"],
+					apex_available: ["myapex"],
+				}
+
+				java_sdk_library {
+					name: "mysystemserverclasspathlib",
+					srcs: ["mysystemserverclasspathlib.java"],
+					apex_available: ["myapex"],
+					compile_dex: true,
+					unsafe_ignore_missing_latest_api: true,
+				}
+		`)
+	})
+}
+
 func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }

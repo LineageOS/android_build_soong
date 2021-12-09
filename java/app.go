@@ -288,7 +288,7 @@ func (a *AndroidApp) checkAppSdkVersions(ctx android.ModuleContext) {
 
 		if minSdkVersion, err := a.MinSdkVersion(ctx).EffectiveVersion(ctx); err == nil {
 			a.checkJniLibsSdkVersion(ctx, minSdkVersion)
-			android.CheckMinSdkVersion(a, ctx, minSdkVersion)
+			android.CheckMinSdkVersion(ctx, minSdkVersion, a.WalkPayloadDeps)
 		} else {
 			ctx.PropertyErrorf("min_sdk_version", "%s", err.Error())
 		}
