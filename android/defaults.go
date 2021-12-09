@@ -89,10 +89,10 @@ type DefaultableModule interface {
 var _ Defaultable = (*DefaultableModuleBase)(nil)
 
 func InitDefaultableModule(module DefaultableModule) {
-	if module.(Module).base().module == nil {
+	if module.base().module == nil {
 		panic("InitAndroidModule must be called before InitDefaultableModule")
 	}
-	module.setProperties(module.(Module).GetProperties(), module.(Module).base().variableProperties)
+	module.setProperties(module.GetProperties(), module.base().variableProperties)
 
 	module.AddProperties(module.defaults())
 
