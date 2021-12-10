@@ -85,6 +85,31 @@ func (s *intLiteralExpr) emitListVarCopy(gctx *generationContext) {
 	s.emit(gctx)
 }
 
+// Boolean literal
+type boolLiteralExpr struct {
+	literal bool
+}
+
+func (b *boolLiteralExpr) eval(_ map[string]starlarkExpr) (res starlarkExpr, same bool) {
+	return b, true
+}
+
+func (b *boolLiteralExpr) emit(gctx *generationContext) {
+	if b.literal {
+		gctx.write("True")
+	} else {
+		gctx.write("False")
+	}
+}
+
+func (_ *boolLiteralExpr) typ() starlarkType {
+	return starlarkTypeBool
+}
+
+func (b *boolLiteralExpr) emitListVarCopy(gctx *generationContext) {
+	b.emit(gctx)
+}
+
 // interpolateExpr represents Starlark's interpolation operator <string> % list
 // we break <string> into a list of chunks, i.e., "first%second%third" % (X, Y)
 // will have chunks = ["first", "second", "third"] and args = [X, Y]
@@ -615,6 +640,55 @@ func (cx *callExpr) typ() starlarkType {
 
 func (cx *callExpr) emitListVarCopy(gctx *generationContext) {
 	cx.emit(gctx)
+}
+
+type ifExpr struct {
+	condition starlarkExpr
+	ifTrue    starlarkExpr
+	ifFalse   starlarkExpr
+}
+
+func (i *ifExpr) eval(valueMap map[string]starlarkExpr) (res starlarkExpr, same bool) {
+	cond, condSame := i.condition.eval(valueMap)
+	t, tSame := i.ifTrue.eval(valueMap)
+	f, fSame := i.ifFalse.eval(valueMap)
+	same = condSame && tSame && fSame
+	if same {
+		return i, same
+	} else {
+		return &ifExpr{
+			condition: cond,
+			ifTrue:    t,
+			ifFalse:   f,
+		}, same
+	}
+}
+
+func (i *ifExpr) emit(gctx *generationContext) {
+	gctx.write("(")
+	i.ifTrue.emit(gctx)
+	gctx.write(" if ")
+	i.condition.emit(gctx)
+	gctx.write(" else ")
+	i.ifFalse.emit(gctx)
+	gctx.write(")")
+}
+
+func (i *ifExpr) typ() starlarkType {
+	tType := i.ifTrue.typ()
+	fType := i.ifFalse.typ()
+	if tType != fType && tType != starlarkTypeUnknown && fType != starlarkTypeUnknown {
+		panic("Conflicting types in if expression")
+	}
+	if tType != starlarkTypeUnknown {
+		return tType
+	} else {
+		return fType
+	}
+}
+
+func (i *ifExpr) emitListVarCopy(gctx *generationContext) {
+	i.emit(gctx)
 }
 
 type badExpr struct {

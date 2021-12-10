@@ -167,6 +167,10 @@ type PathDeps struct {
 
 	// Path to the dynamic linker binary
 	DynamicLinker android.OptionalPath
+
+	// For Darwin builds, the path to the second architecture's output that should
+	// be combined with this architectures's output into a FAT MachO file.
+	DarwinSecondArchOutput android.OptionalPath
 }
 
 // LocalOrGlobalFlags contains flags that need to have values set globally by the build system or locally by the module
@@ -2583,6 +2587,11 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 	ctx.VisitDirectDeps(func(dep android.Module) {
 		depName := ctx.OtherModuleName(dep)
 		depTag := ctx.OtherModuleDependencyTag(dep)
+
+		if depTag == android.DarwinUniversalVariantTag {
+			depPaths.DarwinSecondArchOutput = dep.(*Module).OutputFile()
+			return
+		}
 
 		ccDep, ok := dep.(LinkableInterface)
 		if !ok {

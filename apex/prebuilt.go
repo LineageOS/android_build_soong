@@ -965,7 +965,7 @@ func (a *ApexSet) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	a.installDir = android.PathForModuleInstall(ctx, "apex")
 	if a.installable() {
-		ctx.InstallFile(a.installDir, a.installFilename, a.outputApex)
+		a.installedFile = ctx.InstallFile(a.installDir, a.installFilename, a.outputApex)
 	}
 
 	// in case that apex_set replaces source apex (using prefer: prop)

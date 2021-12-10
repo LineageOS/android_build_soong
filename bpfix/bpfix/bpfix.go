@@ -22,6 +22,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -29,6 +30,7 @@ import (
 	"strings"
 
 	"github.com/google/blueprint/parser"
+	"github.com/google/blueprint/pathtools"
 )
 
 // Reformat takes a blueprint file as a string and returns a formatted version
@@ -166,7 +168,7 @@ var fixStepsOnce = []FixStep{
 	},
 	{
 		Name: "rewriteLicenseProperties",
-		Fix:  runPatchListMod(rewriteLicenseProperties),
+		Fix:  runPatchListMod(rewriteLicenseProperty(nil, "")),
 	},
 }
 
@@ -1452,9 +1454,16 @@ func formatFlagProperties(mod *parser.Module, buf []byte, patchlist *parser.Patc
 	return nil
 }
 
+func rewriteLicenseProperty(fs pathtools.FileSystem, relativePath string) patchListModFunction {
+	return func(mod *parser.Module, buf []byte, patchList *parser.PatchList) error {
+		return rewriteLicenseProperties(mod, patchList, fs, relativePath)
+	}
+}
+
 // rewrite the "android_license_kinds" and "android_license_files" properties to a package module
 // (and a license module when needed).
-func rewriteLicenseProperties(mod *parser.Module, buf []byte, patchList *parser.PatchList) error {
+func rewriteLicenseProperties(mod *parser.Module, patchList *parser.PatchList, fs pathtools.FileSystem,
+	relativePath string) error {
 	// if a package module has been added, no more action is needed.
 	for _, patch := range *patchList {
 		if strings.Contains(patch.Replacement, "package {") {
@@ -1462,15 +1471,33 @@ func rewriteLicenseProperties(mod *parser.Module, buf []byte, patchList *parser.
 		}
 	}
 
+	// initial the fs
+	if fs == nil {
+		fs = pathtools.NewOsFs(os.Getenv("ANDROID_BUILD_TOP"))
+	}
+
+	// initial the relativePath
+	if len(relativePath) == 0 {
+		relativePath = getModuleRelativePath()
+	}
+	// validate the relativePath
+	ok := hasFile(relativePath+"/Android.mk", fs)
+	// some modules in the existing test cases in the androidmk_test.go do not have a valid path
+	if !ok && len(relativePath) > 0 {
+		return fmt.Errorf("Cannot find an Android.mk file at path %s", relativePath)
+	}
+
 	licenseKindsPropertyName := "android_license_kinds"
 	licenseFilesPropertyName := "android_license_files"
 
-	androidBpFileErr := "// Error: No Android.bp file is found at\n" +
+	androidBpFileErr := "// Error: No Android.bp file is found at path\n" +
 		"// %s\n" +
-		"// Please add one there with the needed license module first.\n"
+		"// Please add one there with the needed license module first.\n" +
+		"// Then reset the default_applicable_licenses property below with the license module name.\n"
 	licenseModuleErr := "// Error: Cannot get the name of the license module in the\n" +
 		"// %s file.\n" +
-		"// If no such license module exists, please add one there first.\n"
+		"// If no such license module exists, please add one there first.\n" +
+		"// Then reset the default_applicable_licenses property below with the license module name.\n"
 
 	defaultApplicableLicense := "Android-Apache-2.0"
 	var licenseModuleName, licensePatch string
@@ -1482,15 +1509,16 @@ func rewriteLicenseProperties(mod *parser.Module, buf []byte, patchList *parser.
 		// if have LOCAL_NOTICE_FILE outside the current directory, need to find and refer to the license
 		// module in the LOCAL_NOTICE_FILE location directly and no new license module needs to be created
 		if hasFileInParentDir {
-			bpPath, ok := getPathFromProperty(mod, licenseFilesPropertyName)
+			bpPath, ok := getPathFromProperty(mod, licenseFilesPropertyName, fs, relativePath)
 			if !ok {
-				bpDir, err := getDirFromProperty(mod, licenseFilesPropertyName)
+				bpDir, err := getDirFromProperty(mod, licenseFilesPropertyName, fs, relativePath)
 				if err != nil {
 					return err
 				}
 				licensePatch += fmt.Sprintf(androidBpFileErr, bpDir)
+				defaultApplicableLicense = ""
 			} else {
-				licenseModuleName, _ = getModuleName(bpPath, "license")
+				licenseModuleName, _ = getModuleName(bpPath, "license", fs)
 				if len(licenseModuleName) == 0 {
 					licensePatch += fmt.Sprintf(licenseModuleErr, bpPath)
 				}
@@ -1498,7 +1526,6 @@ func rewriteLicenseProperties(mod *parser.Module, buf []byte, patchList *parser.
 			}
 		} else {
 			// if have LOCAL_NOTICE_FILE in the current directory, need to create a new license module
-			relativePath := getModuleRelativePath()
 			if len(relativePath) == 0 {
 				return fmt.Errorf("Cannot obtain the relative path of the Android.mk file")
 			}
@@ -1617,17 +1644,14 @@ func getModuleAbsolutePath() string {
 	return absPath
 }
 
-// check whether a file exists in a directory
-func hasFile(dir string, fileName string) error {
-	_, err := os.Stat(dir + fileName)
-	if err != nil {
-		return err
-	}
-	return nil
+// check whether a file exists in a filesystem
+func hasFile(path string, fs pathtools.FileSystem) bool {
+	ok, _, _ := fs.Exists(path)
+	return ok
 }
 
 // get the directory where an `Android.bp` file and the property files are expected to locate
-func getDirFromProperty(mod *parser.Module, property string) (string, error) {
+func getDirFromProperty(mod *parser.Module, property string, fs pathtools.FileSystem, relativePath string) (string, error) {
 	listValue, ok := getLiteralListPropertyValue(mod, property)
 	if !ok {
 		// if do not find
@@ -1637,7 +1661,11 @@ func getDirFromProperty(mod *parser.Module, property string) (string, error) {
 		// if empty
 		return "", fmt.Errorf("Cannot find the value of the %s.%s property", mod.Type, property)
 	}
-	path := getModuleAbsolutePath()
+	_, isDir, _ := fs.Exists(relativePath)
+	if !isDir {
+		return "", fmt.Errorf("Cannot find the path %s", relativePath)
+	}
+	path := relativePath
 	for {
 		if !strings.HasPrefix(listValue[0], "../") {
 			break
@@ -1645,25 +1673,29 @@ func getDirFromProperty(mod *parser.Module, property string) (string, error) {
 		path = filepath.Dir(path)
 		listValue[0] = strings.TrimPrefix(listValue[0], "../")
 	}
+	_, isDir, _ = fs.Exists(path)
+	if !isDir {
+		return "", fmt.Errorf("Cannot find the path %s", path)
+	}
 	return path, nil
 }
 
 // get the path of the `Android.bp` file at the expected location where the property files locate
-func getPathFromProperty(mod *parser.Module, property string) (string, bool) {
-	dir, err := getDirFromProperty(mod, property)
+func getPathFromProperty(mod *parser.Module, property string, fs pathtools.FileSystem, relativePath string) (string, bool) {
+	dir, err := getDirFromProperty(mod, property, fs, relativePath)
 	if err != nil {
 		return "", false
 	}
-	err = hasFile(dir, "/Android.bp")
-	if err != nil {
+	ok := hasFile(dir+"/Android.bp", fs)
+	if !ok {
 		return "", false
 	}
 	return dir + "/Android.bp", true
 }
 
 // parse an Android.bp file to get the name of the first module with type of moduleType
-func getModuleName(path string, moduleType string) (string, error) {
-	tree, err := parserPath(path)
+func getModuleName(path string, moduleType string, fs pathtools.FileSystem) (string, error) {
+	tree, err := parserPath(path, fs)
 	if err != nil {
 		return "", err
 	}
@@ -1685,8 +1717,13 @@ func getModuleName(path string, moduleType string) (string, error) {
 }
 
 // parse an Android.bp file with the specific path
-func parserPath(path string) (tree *parser.File, err error) {
-	fileContent, _ := os.ReadFile(path)
+func parserPath(path string, fs pathtools.FileSystem) (tree *parser.File, err error) {
+	f, err := fs.Open(path)
+	if err != nil {
+		return tree, err
+	}
+	defer f.Close()
+	fileContent, _ := ioutil.ReadAll(f)
 	tree, err = parse(path, bytes.NewBufferString(string(fileContent)))
 	if err != nil {
 		return tree, err
