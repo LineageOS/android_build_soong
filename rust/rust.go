@@ -969,7 +969,6 @@ type dependencyTag struct {
 	name      string
 	library   bool
 	procMacro bool
-	dynamic   bool
 }
 
 // InstallDepNeeded returns true for rlibs, dylibs, and proc macros so that they or their transitive
@@ -980,19 +979,10 @@ func (d dependencyTag) InstallDepNeeded() bool {
 
 var _ android.InstallNeededDependencyTag = dependencyTag{}
 
-func (d dependencyTag) LicenseAnnotations() []android.LicenseAnnotation {
-	if d.library && d.dynamic {
-		return []android.LicenseAnnotation{android.LicenseAnnotationSharedDependency}
-	}
-	return nil
-}
-
-var _ android.LicenseAnnotationsDependencyTag = dependencyTag{}
-
 var (
 	customBindgenDepTag = dependencyTag{name: "customBindgenTag"}
 	rlibDepTag          = dependencyTag{name: "rlibTag", library: true}
-	dylibDepTag         = dependencyTag{name: "dylib", library: true, dynamic: true}
+	dylibDepTag         = dependencyTag{name: "dylib", library: true}
 	procMacroDepTag     = dependencyTag{name: "procMacro", procMacro: true}
 	testPerSrcDepTag    = dependencyTag{name: "rust_unit_tests"}
 	sourceDepTag        = dependencyTag{name: "source"}
