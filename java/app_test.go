@@ -2873,3 +2873,76 @@ func TestExportedProguardFlagFiles(t *testing.T) {
 		t.Errorf("App does not use library proguard config")
 	}
 }
+
+func TestTargetSdkVersionManifestFixer(t *testing.T) {
+	platform_sdk_codename := "Tiramisu"
+	testCases := []struct {
+		name                     string
+		targetSdkVersionInBp     string
+		targetSdkVersionExpected string
+		unbundledBuild           bool
+	}{
+		{
+			name:                     "Non-Unbundled build: Android.bp has targetSdkVersion",
+			targetSdkVersionInBp:     "30",
+			targetSdkVersionExpected: "30",
+			unbundledBuild:           false,
+		},
+		{
+			name:                     "Unbundled build: Android.bp has targetSdkVersion",
+			targetSdkVersionInBp:     "30",
+			targetSdkVersionExpected: "30",
+			unbundledBuild:           true,
+		},
+		{
+			name:                     "Non-Unbundled build: Android.bp has targetSdkVersion equal to platform_sdk_codename",
+			targetSdkVersionInBp:     platform_sdk_codename,
+			targetSdkVersionExpected: platform_sdk_codename,
+			unbundledBuild:           false,
+		},
+		{
+			name:                     "Unbundled build: Android.bp has targetSdkVersion equal to platform_sdk_codename",
+			targetSdkVersionInBp:     platform_sdk_codename,
+			targetSdkVersionExpected: "10000",
+			unbundledBuild:           true,
+		},
+
+		{
+			name:                     "Non-Unbundled build: Android.bp has no targetSdkVersion",
+			targetSdkVersionExpected: platform_sdk_codename,
+			unbundledBuild:           false,
+		},
+		{
+			name:                     "Unbundled build: Android.bp has no targetSdkVersion",
+			targetSdkVersionExpected: "10000",
+			unbundledBuild:           true,
+		},
+	}
+	for _, testCase := range testCases {
+		bp := fmt.Sprintf(`
+			android_app {
+				name: "foo",
+				sdk_version: "current",
+				target_sdk_version: "%v",
+			}
+			`, testCase.targetSdkVersionInBp)
+		fixture := android.GroupFixturePreparers(
+			prepareForJavaTest,
+			android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+				// explicitly set platform_sdk_codename to make the test deterministic
+				variables.Platform_sdk_codename = &platform_sdk_codename
+				variables.Platform_version_active_codenames = []string{platform_sdk_codename}
+				// create a non-empty list if unbundledBuild==true
+				if testCase.unbundledBuild {
+					variables.Unbundled_build_apps = []string{"apex_a", "apex_b"}
+				}
+			}),
+		)
+
+		result := fixture.RunTestWithBp(t, bp)
+		foo := result.ModuleForTests("foo", "android_common")
+
+		manifestFixerArgs := foo.Output("manifest_fixer/AndroidManifest.xml").Args
+		android.AssertStringEquals(t, testCase.name, testCase.targetSdkVersionExpected, manifestFixerArgs["targetSdkVersion"])
+	}
+}
