@@ -682,6 +682,15 @@ func (d libraryDependencyTag) static() bool {
 	return d.Kind == staticLibraryDependency
 }
 
+func (d libraryDependencyTag) LicenseAnnotations() []android.LicenseAnnotation {
+	if d.shared() {
+		return []android.LicenseAnnotation{android.LicenseAnnotationSharedDependency}
+	}
+	return nil
+}
+
+var _ android.LicenseAnnotationsDependencyTag = libraryDependencyTag{}
+
 // InstallDepNeeded returns true for shared libraries so that shared library dependencies of
 // binaries or other shared libraries are installed as dependencies.
 func (d libraryDependencyTag) InstallDepNeeded() bool {
