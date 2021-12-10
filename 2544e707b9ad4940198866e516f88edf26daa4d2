@@ -16,6 +16,24 @@
       "message": "alternative to this is https://review.lineageos.org/c/LineageOS/android_build_soong/+/317306 - but I like this better as it\u0027s from google",
       "revId": "2544e707b9ad4940198866e516f88edf26daa4d2",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "3f40d53b_096944a0",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2021-12-10T16:08:05Z",
+      "side": 1,
+      "message": "Yes.",
+      "parentUuid": "b93495f9_901ae497",
+      "revId": "2544e707b9ad4940198866e516f88edf26daa4d2",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
