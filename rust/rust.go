@@ -901,6 +901,9 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		bloaty.MeasureSizeForPaths(ctx, mod.compiler.strippedOutputFilePath(), android.OptionalPathForPath(mod.compiler.unstrippedOutputFilePath()))
 
 		mod.docTimestampFile = mod.compiler.rustdoc(ctx, flags, deps)
+		if mod.docTimestampFile.Valid() {
+			ctx.CheckbuildFile(mod.docTimestampFile.Path())
+		}
 
 		// glob exported headers for snapshot, if BOARD_VNDK_VERSION is current or
 		// RECOVERY_SNAPSHOT_VERSION is current.
