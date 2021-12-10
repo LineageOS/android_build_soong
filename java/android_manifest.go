@@ -16,6 +16,7 @@ package java
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/google/blueprint"
@@ -41,6 +42,21 @@ var manifestMergerRule = pctx.AndroidStaticRule("manifestMerger",
 		CommandDeps: []string{"${config.ManifestMergerCmd}"},
 	},
 	"args", "libs")
+
+// targetSdkVersion for manifest_fixer
+// When TARGET_BUILD_APPS is not empty, this method returns 10000 for modules targeting an unreleased SDK
+// This enables release builds (that run with TARGET_BUILD_APPS=[val...]) to target APIs that have not yet been finalized as part of an SDK
+func targetSdkVersionForManifestFixer(ctx android.ModuleContext, sdkContext android.SdkContext) string {
+	targetSdkVersionSpec := sdkContext.TargetSdkVersion(ctx)
+	if ctx.Config().UnbundledBuildApps() && targetSdkVersionSpec.ApiLevel.IsPreview() {
+		return strconv.Itoa(android.FutureApiLevel.FinalOrFutureInt())
+	}
+	targetSdkVersion, err := targetSdkVersionSpec.EffectiveVersionString(ctx)
+	if err != nil {
+		ctx.ModuleErrorf("invalid targetSdkVersion: %s", err)
+	}
+	return targetSdkVersion
+}
 
 // Uses manifest_fixer.py to inject minSdkVersion, etc. into an AndroidManifest.xml
 func manifestFixer(ctx android.ModuleContext, manifest android.Path, sdkContext android.SdkContext,
@@ -89,10 +105,8 @@ func manifestFixer(ctx android.ModuleContext, manifest android.Path, sdkContext 
 		args = append(args, "--logging-parent", loggingParent)
 	}
 	var deps android.Paths
-	targetSdkVersion, err := sdkContext.TargetSdkVersion(ctx).EffectiveVersionString(ctx)
-	if err != nil {
-		ctx.ModuleErrorf("invalid targetSdkVersion: %s", err)
-	}
+	targetSdkVersion := targetSdkVersionForManifestFixer(ctx, sdkContext)
+
 	if UseApiFingerprint(ctx) && ctx.ModuleName() != "framework-res" {
 		targetSdkVersion = ctx.Config().PlatformSdkCodename() + fmt.Sprintf(".$$(cat %s)", ApiFingerprintPath(ctx).String())
 		deps = append(deps, ApiFingerprintPath(ctx))
