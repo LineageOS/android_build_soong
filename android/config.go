@@ -1481,6 +1481,10 @@ func (c *deviceConfig) BoardSepolicyVers() string {
 	return c.PlatformSepolicyVersion()
 }
 
+func (c *deviceConfig) BoardPlatVendorPolicy() []string {
+	return c.config.productVariables.BoardPlatVendorPolicy
+}
+
 func (c *deviceConfig) BoardReqdMaskPolicy() []string {
 	return c.config.productVariables.BoardReqdMaskPolicy
 }
