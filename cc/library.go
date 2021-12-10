@@ -1429,6 +1429,12 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 
 	builderFlags := flagsToBuilderFlags(flags)
 
+	if ctx.Darwin() && deps.DarwinSecondArchOutput.Valid() {
+		fatOutputFile := outputFile
+		outputFile = android.PathForModuleOut(ctx, "pre-fat", fileName)
+		transformDarwinUniversalBinary(ctx, fatOutputFile, outputFile, deps.DarwinSecondArchOutput.Path())
+	}
+
 	// Optimize out relinking against shared libraries whose interface hasn't changed by
 	// depending on a table of contents file instead of the library itself.
 	tocFile := outputFile.ReplaceExtension(ctx, flags.Toolchain.ShlibSuffix()[1:]+".toc")
