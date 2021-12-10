@@ -309,17 +309,19 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, apexName, mo
 	return moduleNames
 }
 
-func (a *apexBundle) writeRequiredModules(w io.Writer) {
+func (a *apexBundle) writeRequiredModules(w io.Writer, apexBundleName string) {
 	var required []string
 	var targetRequired []string
 	var hostRequired []string
 	required = append(required, a.RequiredModuleNames()...)
 	targetRequired = append(targetRequired, a.TargetRequiredModuleNames()...)
 	hostRequired = append(hostRequired, a.HostRequiredModuleNames()...)
+	installMapSet := make(map[string]bool) // set of dependency module:location mappings
 	for _, fi := range a.filesInfo {
 		required = append(required, fi.requiredModuleNames...)
 		targetRequired = append(targetRequired, fi.targetRequiredModuleNames...)
 		hostRequired = append(hostRequired, fi.hostRequiredModuleNames...)
+		installMapSet[a.fullModuleName(apexBundleName, &fi)+":"+fi.installDir+"/"+fi.builtFile.Base()] = true
 	}
 
 	if len(required) > 0 {
@@ -330,6 +332,11 @@ func (a *apexBundle) writeRequiredModules(w io.Writer) {
 	}
 	if len(hostRequired) > 0 {
 		fmt.Fprintln(w, "LOCAL_HOST_REQUIRED_MODULES +=", strings.Join(hostRequired, " "))
+	}
+	if len(installMapSet) > 0 {
+		var installs []string
+		installs = append(installs, android.SortedStringKeys(installMapSet)...)
+		fmt.Fprintln(w, "LOCAL_LICENSE_INSTALL_MAP +=", strings.Join(installs, " "))
 	}
 }
 
@@ -352,7 +359,7 @@ func (a *apexBundle) androidMkForType() android.AndroidMkData {
 				if len(moduleNames) > 0 {
 					fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES :=", strings.Join(moduleNames, " "))
 				}
-				a.writeRequiredModules(w)
+				a.writeRequiredModules(w, name)
 				fmt.Fprintln(w, "include $(BUILD_PHONY_PACKAGE)")
 
 			} else {
@@ -394,7 +401,7 @@ func (a *apexBundle) androidMkForType() android.AndroidMkData {
 				if len(a.requiredDeps) > 0 {
 					fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES +=", strings.Join(a.requiredDeps, " "))
 				}
-				a.writeRequiredModules(w)
+				a.writeRequiredModules(w, name)
 
 				if a.mergedNotices.Merged.Valid() {
 					fmt.Fprintln(w, "LOCAL_NOTICE_FILE :=", a.mergedNotices.Merged.Path().String())

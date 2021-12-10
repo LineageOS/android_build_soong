@@ -1222,16 +1222,11 @@ func (module *SdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 
 func (module *SdkLibrary) OutputFiles(tag string) (android.Paths, error) {
 	paths, err := module.commonOutputFiles(tag)
-	if paths != nil || err != nil {
+	if paths == nil && err == nil {
+		return module.Library.OutputFiles(tag)
+	} else {
 		return paths, err
 	}
-	if module.requiresRuntimeImplementationLibrary() {
-		return module.Library.OutputFiles(tag)
-	}
-	if tag == "" {
-		return nil, nil
-	}
-	return nil, fmt.Errorf("unsupported module reference tag %q", tag)
 }
 
 func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
