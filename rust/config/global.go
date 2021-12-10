@@ -41,7 +41,7 @@ var (
 	}
 
 	GlobalRustFlags = []string{
-		"--remap-path-prefix $$(pwd)=",
+		"-Z remap-cwd-prefix=.",
 		"-C codegen-units=1",
 		"-C debuginfo=2",
 		"-C opt-level=3",
