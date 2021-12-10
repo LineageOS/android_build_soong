@@ -300,7 +300,7 @@ func CcLibraryBp2Build(ctx android.TopDownMutatorContext) {
 	baseAttributes := bp2BuildParseBaseProps(ctx, m)
 	compilerAttrs := baseAttributes.compilerAttributes
 	linkerAttrs := baseAttributes.linkerAttributes
-	exportedIncludes := bp2BuildParseExportedIncludes(ctx, m)
+	exportedIncludes := bp2BuildParseExportedIncludes(ctx, m, compilerAttrs.includes)
 
 	srcs := compilerAttrs.srcs
 
@@ -351,15 +351,16 @@ func CcLibraryBp2Build(ctx android.TopDownMutatorContext) {
 		Conlyflags: compilerAttrs.conlyFlags,
 		Asflags:    asFlags,
 
-		Export_includes:        exportedIncludes.Includes,
-		Export_system_includes: exportedIncludes.SystemIncludes,
-		Local_includes:         compilerAttrs.localIncludes,
-		Absolute_includes:      compilerAttrs.absoluteIncludes,
-		Use_libcrt:             linkerAttrs.useLibcrt,
-		Rtti:                   compilerAttrs.rtti,
-		Stl:                    compilerAttrs.stl,
-		Cpp_std:                compilerAttrs.cppStd,
-		C_std:                  compilerAttrs.cStd,
+		Export_includes:          exportedIncludes.Includes,
+		Export_absolute_includes: exportedIncludes.AbsoluteIncludes,
+		Export_system_includes:   exportedIncludes.SystemIncludes,
+		Local_includes:           compilerAttrs.localIncludes,
+		Absolute_includes:        compilerAttrs.absoluteIncludes,
+		Use_libcrt:               linkerAttrs.useLibcrt,
+		Rtti:                     compilerAttrs.rtti,
+		Stl:                      compilerAttrs.stl,
+		Cpp_std:                  compilerAttrs.cppStd,
+		C_std:                    compilerAttrs.cStd,
 
 		Features: linkerAttrs.features,
 	}
@@ -370,17 +371,18 @@ func CcLibraryBp2Build(ctx android.TopDownMutatorContext) {
 		Conlyflags:               compilerAttrs.conlyFlags,
 		Asflags:                  asFlags,
 
-		Export_includes:        exportedIncludes.Includes,
-		Export_system_includes: exportedIncludes.SystemIncludes,
-		Local_includes:         compilerAttrs.localIncludes,
-		Absolute_includes:      compilerAttrs.absoluteIncludes,
-		Linkopts:               linkerAttrs.linkopts,
-		Link_crt:               linkerAttrs.linkCrt,
-		Use_libcrt:             linkerAttrs.useLibcrt,
-		Rtti:                   compilerAttrs.rtti,
-		Stl:                    compilerAttrs.stl,
-		Cpp_std:                compilerAttrs.cppStd,
-		C_std:                  compilerAttrs.cStd,
+		Export_includes:          exportedIncludes.Includes,
+		Export_absolute_includes: exportedIncludes.AbsoluteIncludes,
+		Export_system_includes:   exportedIncludes.SystemIncludes,
+		Local_includes:           compilerAttrs.localIncludes,
+		Absolute_includes:        compilerAttrs.absoluteIncludes,
+		Linkopts:                 linkerAttrs.linkopts,
+		Link_crt:                 linkerAttrs.linkCrt,
+		Use_libcrt:               linkerAttrs.useLibcrt,
+		Rtti:                     compilerAttrs.rtti,
+		Stl:                      compilerAttrs.stl,
+		Cpp_std:                  compilerAttrs.cppStd,
+		C_std:                    compilerAttrs.cStd,
 
 		Additional_linker_inputs: linkerAttrs.additionalLinkerInputs,
 
@@ -2434,7 +2436,7 @@ func ccSharedOrStaticBp2BuildMutatorInternal(ctx android.TopDownMutatorContext, 
 	compilerAttrs := baseAttributes.compilerAttributes
 	linkerAttrs := baseAttributes.linkerAttributes
 
-	exportedIncludes := bp2BuildParseExportedIncludes(ctx, module)
+	exportedIncludes := bp2BuildParseExportedIncludes(ctx, module, compilerAttrs.includes)
 
 	// Append shared/static{} stanza properties. These won't be specified on
 	// cc_library_* itself, but may be specified in cc_defaults that this module
@@ -2483,14 +2485,16 @@ func ccSharedOrStaticBp2BuildMutatorInternal(ctx android.TopDownMutatorContext, 
 			Use_libcrt:      linkerAttrs.useLibcrt,
 			Use_version_lib: linkerAttrs.useVersionLib,
 
-			Rtti:                   compilerAttrs.rtti,
-			Stl:                    compilerAttrs.stl,
-			Cpp_std:                compilerAttrs.cppStd,
-			C_std:                  compilerAttrs.cStd,
-			Export_includes:        exportedIncludes.Includes,
-			Export_system_includes: exportedIncludes.SystemIncludes,
-			Local_includes:         compilerAttrs.localIncludes,
-			Absolute_includes:      compilerAttrs.absoluteIncludes,
+			Rtti:    compilerAttrs.rtti,
+			Stl:     compilerAttrs.stl,
+			Cpp_std: compilerAttrs.cppStd,
+			C_std:   compilerAttrs.cStd,
+
+			Export_includes:          exportedIncludes.Includes,
+			Export_absolute_includes: exportedIncludes.AbsoluteIncludes,
+			Export_system_includes:   exportedIncludes.SystemIncludes,
+			Local_includes:           compilerAttrs.localIncludes,
+			Absolute_includes:        compilerAttrs.absoluteIncludes,
 
 			Cppflags:   compilerAttrs.cppFlags,
 			Conlyflags: compilerAttrs.conlyFlags,
@@ -2519,6 +2523,7 @@ func ccSharedOrStaticBp2BuildMutatorInternal(ctx android.TopDownMutatorContext, 
 			C_std:   compilerAttrs.cStd,
 
 			Export_includes:          exportedIncludes.Includes,
+			Export_absolute_includes: exportedIncludes.AbsoluteIncludes,
 			Export_system_includes:   exportedIncludes.SystemIncludes,
 			Local_includes:           compilerAttrs.localIncludes,
 			Absolute_includes:        compilerAttrs.absoluteIncludes,
@@ -2556,11 +2561,12 @@ type bazelCcLibraryStaticAttributes struct {
 	Cpp_std *string
 	C_std   *string
 
-	Export_includes        bazel.StringListAttribute
-	Export_system_includes bazel.StringListAttribute
-	Local_includes         bazel.StringListAttribute
-	Absolute_includes      bazel.StringListAttribute
-	Hdrs                   bazel.LabelListAttribute
+	Export_includes          bazel.StringListAttribute
+	Export_absolute_includes bazel.StringListAttribute
+	Export_system_includes   bazel.StringListAttribute
+	Local_includes           bazel.StringListAttribute
+	Absolute_includes        bazel.StringListAttribute
+	Hdrs                     bazel.LabelListAttribute
 
 	Cppflags   bazel.StringListAttribute
 	Conlyflags bazel.StringListAttribute
@@ -2596,11 +2602,12 @@ type bazelCcLibrarySharedAttributes struct {
 	Cpp_std *string
 	C_std   *string
 
-	Export_includes        bazel.StringListAttribute
-	Export_system_includes bazel.StringListAttribute
-	Local_includes         bazel.StringListAttribute
-	Absolute_includes      bazel.StringListAttribute
-	Hdrs                   bazel.LabelListAttribute
+	Export_includes          bazel.StringListAttribute
+	Export_absolute_includes bazel.StringListAttribute
+	Export_system_includes   bazel.StringListAttribute
+	Local_includes           bazel.StringListAttribute
+	Absolute_includes        bazel.StringListAttribute
+	Hdrs                     bazel.LabelListAttribute
 
 	Strip                    stripAttributes
 	Additional_linker_inputs bazel.LabelListAttribute
