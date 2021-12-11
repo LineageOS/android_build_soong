@@ -47,6 +47,7 @@ bootstrap_go_package {
         "image.go",
         "license.go",
         "license_kind.go",
+        "license_metadata.go",
         "license_sdk_member.go",
         "licenses.go",
         "makefile_goal.go",
