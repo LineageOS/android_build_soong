@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "77240f0f_bd056b5a",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 4
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2021-12-11T10:59:22Z",
+      "side": 1,
+      "message": "Superseded by https://review.lineageos.org/c/LineageOS/android_build_soong/+/320156.",
+      "revId": "4e4e312ddd62a5562e796c5891c2a7dd329fa10c",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
