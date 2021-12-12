@@ -22,32 +22,41 @@ import (
 )
 
 type simpleStatusOutput struct {
-	writer    io.Writer
-	formatter formatter
-	keepANSI  bool
+	writer      io.Writer
+	formatter   formatter
+	keepANSI    bool
+	outputLevel status.MsgLevel
 }
 
 // NewSimpleStatusOutput returns a StatusOutput that represents the
 // current build status similarly to Ninja's built-in terminal
 // output.
-func NewSimpleStatusOutput(w io.Writer, formatter formatter, keepANSI bool) status.StatusOutput {
+func NewSimpleStatusOutput(w io.Writer, formatter formatter, keepANSI bool, quietBuild bool) status.StatusOutput {
+	level := status.StatusLvl
+	if quietBuild {
+		level = status.PrintLvl
+	}
 	return &simpleStatusOutput{
-		writer:    w,
-		formatter: formatter,
-		keepANSI:  keepANSI,
+		writer:      w,
+		formatter:   formatter,
+		keepANSI:    keepANSI,
+		outputLevel: level,
 	}
 }
 
 func (s *simpleStatusOutput) Message(level status.MsgLevel, message string) {
-	if level >= status.StatusLvl {
+	if level >= s.outputLevel {
 		fmt.Fprintln(s.writer, s.formatter.message(level, message))
 	}
 }
 
-func (s *simpleStatusOutput) StartAction(action *status.Action, counts status.Counts) {
+func (s *simpleStatusOutput) StartAction(_ *status.Action, _ status.Counts) {
 }
 
 func (s *simpleStatusOutput) FinishAction(result status.ActionResult, counts status.Counts) {
+	if s.outputLevel > status.StatusLvl {
+		return
+	}
 	str := result.Description
 	if str == "" {
 		str = result.Command
