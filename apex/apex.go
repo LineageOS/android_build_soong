@@ -3270,7 +3270,7 @@ type bazelApexBundleAttributes struct {
 	Updatable          bazel.BoolAttribute
 	Installable        bazel.BoolAttribute
 	Native_shared_libs bazel.LabelListAttribute
-	Binaries           bazel.StringListAttribute
+	Binaries           bazel.LabelListAttribute
 	Prebuilts          bazel.LabelListAttribute
 }
 
@@ -3329,8 +3329,8 @@ func apexBundleBp2BuildInternal(ctx android.TopDownMutatorContext, module *apexB
 	prebuiltsLabelList := android.BazelLabelForModuleDeps(ctx, prebuilts)
 	prebuiltsLabelListAttribute := bazel.MakeLabelListAttribute(prebuiltsLabelList)
 
-	binaries := module.properties.ApexNativeDependencies.Binaries
-	binariesStringListAttribute := bazel.MakeStringListAttribute(binaries)
+	binaries := android.BazelLabelForModuleDeps(ctx, module.properties.ApexNativeDependencies.Binaries)
+	binariesLabelListAttribute := bazel.MakeLabelListAttribute(binaries)
 
 	var updatableAttribute bazel.BoolAttribute
 	if module.properties.Updatable != nil {
@@ -3352,7 +3352,7 @@ func apexBundleBp2BuildInternal(ctx android.TopDownMutatorContext, module *apexB
 		Updatable:          updatableAttribute,
 		Installable:        installableAttribute,
 		Native_shared_libs: nativeSharedLibsLabelListAttribute,
-		Binaries:           binariesStringListAttribute,
+		Binaries:           binariesLabelListAttribute,
 		Prebuilts:          prebuiltsLabelListAttribute,
 	}
 
