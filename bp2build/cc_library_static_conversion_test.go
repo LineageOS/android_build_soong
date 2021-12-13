@@ -1443,3 +1443,18 @@ func TestCcLibraryStaticProto(t *testing.T) {
 		},
 	})
 }
+
+func TestCcLibraryStaticUseVersionLib(t *testing.T) {
+	runCcLibraryStaticTestCase(t, bp2buildTestCase{
+		blueprint: soongCcProtoPreamble + `cc_library_static {
+	name: "foo",
+	use_version_lib: true,
+	include_build_directory: false,
+}`,
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_library_static", "foo", attrNameToString{
+				"use_version_lib": "True",
+			}),
+		},
+	})
+}
