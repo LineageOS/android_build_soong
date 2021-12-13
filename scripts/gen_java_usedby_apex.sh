@@ -30,9 +30,11 @@ genUsedByList() {
   shift
   rm -f "$out"
   touch "$out"
+  echo "<externals>" >> "$out"
   for x in "$@"; do
     "$dexdeps" "$x" >> "$out" || true
   done
+  echo "</externals>" >> "$out"
 }
 
 if [[ "$1" == "help" ]]
