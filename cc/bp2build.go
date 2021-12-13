@@ -496,6 +496,7 @@ type linkerAttributes struct {
 
 	linkCrt                       bazel.BoolAttribute
 	useLibcrt                     bazel.BoolAttribute
+	useVersionLib                 bazel.BoolAttribute
 	linkopts                      bazel.StringListAttribute
 	additionalLinkerInputs        bazel.LabelListAttribute
 	stripKeepSymbols              bazel.BoolAttribute
@@ -564,6 +565,10 @@ func (la *linkerAttributes) bp2buildForAxisAndConfig(ctx android.BazelConversion
 	}
 	la.linkopts.SetSelectValue(axis, config, linkerFlags)
 	la.useLibcrt.SetSelectValue(axis, config, props.libCrt())
+
+	if axis == bazel.NoConfigAxis {
+		la.useVersionLib.SetSelectValue(axis, config, props.Use_version_lib)
+	}
 
 	// it's very unlikely for nocrt to be arch variant, so bp2build doesn't support it.
 	if props.crt() != nil {
