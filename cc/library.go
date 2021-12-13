@@ -2480,7 +2480,9 @@ func ccSharedOrStaticBp2BuildMutatorInternal(ctx android.TopDownMutatorContext, 
 		attrs = &bazelCcLibraryStaticAttributes{
 			staticOrSharedAttributes: commonAttrs,
 
-			Use_libcrt:             linkerAttrs.useLibcrt,
+			Use_libcrt:      linkerAttrs.useLibcrt,
+			Use_version_lib: linkerAttrs.useVersionLib,
+
 			Rtti:                   compilerAttrs.rtti,
 			Stl:                    compilerAttrs.stl,
 			Cpp_std:                compilerAttrs.cppStd,
@@ -2505,14 +2507,16 @@ func ccSharedOrStaticBp2BuildMutatorInternal(ctx android.TopDownMutatorContext, 
 			Cppflags:   compilerAttrs.cppFlags,
 			Conlyflags: compilerAttrs.conlyFlags,
 			Asflags:    asFlags,
-			Linkopts:   linkerAttrs.linkopts,
 
-			Link_crt:   linkerAttrs.linkCrt,
-			Use_libcrt: linkerAttrs.useLibcrt,
-			Rtti:       compilerAttrs.rtti,
-			Stl:        compilerAttrs.stl,
-			Cpp_std:    compilerAttrs.cppStd,
-			C_std:      compilerAttrs.cStd,
+			Linkopts:        linkerAttrs.linkopts,
+			Link_crt:        linkerAttrs.linkCrt,
+			Use_libcrt:      linkerAttrs.useLibcrt,
+			Use_version_lib: linkerAttrs.useVersionLib,
+
+			Rtti:    compilerAttrs.rtti,
+			Stl:     compilerAttrs.stl,
+			Cpp_std: compilerAttrs.cppStd,
+			C_std:   compilerAttrs.cStd,
 
 			Export_includes:          exportedIncludes.Includes,
 			Export_system_includes:   exportedIncludes.SystemIncludes,
@@ -2544,11 +2548,13 @@ func ccSharedOrStaticBp2BuildMutatorInternal(ctx android.TopDownMutatorContext, 
 type bazelCcLibraryStaticAttributes struct {
 	staticOrSharedAttributes
 
-	Use_libcrt bazel.BoolAttribute
-	Rtti       bazel.BoolAttribute
-	Stl        *string
-	Cpp_std    *string
-	C_std      *string
+	Use_libcrt      bazel.BoolAttribute
+	Use_version_lib bazel.BoolAttribute
+
+	Rtti    bazel.BoolAttribute
+	Stl     *string
+	Cpp_std *string
+	C_std   *string
 
 	Export_includes        bazel.StringListAttribute
 	Export_system_includes bazel.StringListAttribute
@@ -2579,13 +2585,16 @@ func CcLibraryStaticBp2Build(ctx android.TopDownMutatorContext) {
 type bazelCcLibrarySharedAttributes struct {
 	staticOrSharedAttributes
 
-	Linkopts   bazel.StringListAttribute
-	Link_crt   bazel.BoolAttribute // Only for linking shared library (and cc_binary)
-	Use_libcrt bazel.BoolAttribute
-	Rtti       bazel.BoolAttribute
-	Stl        *string
-	Cpp_std    *string
-	C_std      *string
+	Linkopts bazel.StringListAttribute
+	Link_crt bazel.BoolAttribute // Only for linking shared library (and cc_binary)
+
+	Use_libcrt      bazel.BoolAttribute
+	Use_version_lib bazel.BoolAttribute
+
+	Rtti    bazel.BoolAttribute
+	Stl     *string
+	Cpp_std *string
+	C_std   *string
 
 	Export_includes        bazel.StringListAttribute
 	Export_system_includes bazel.StringListAttribute
