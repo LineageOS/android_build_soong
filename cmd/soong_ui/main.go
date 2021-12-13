@@ -67,7 +67,7 @@ type command struct {
 }
 
 // list of supported commands (flags) supported by soong ui
-var commands []command = []command{
+var commands = []command{
 	{
 		flag:        "--make-mode",
 		description: "build the modules by the target name (i.e. soong_docs)",
@@ -562,7 +562,11 @@ func getCommand(args []string) (*command, []string, error) {
 	}
 
 	// command not found
-	return nil, nil, fmt.Errorf("Command not found: %q", args)
+	flags := make([]string, len(commands))
+	for i, c := range commands {
+		flags[i] = c.flag
+	}
+	return nil, nil, fmt.Errorf("Command not found: %q\nDid you mean one of these: %q", args, flags)
 }
 
 // For Bazel support, this moves files and directories from e.g. out/dist/$f to DIST_DIR/$f if necessary.
