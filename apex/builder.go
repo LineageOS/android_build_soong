@@ -1067,6 +1067,11 @@ func (a *apexBundle) buildCannedFsConfig(ctx android.ModuleContext) android.Outp
 		file := appSetFiles[dir]
 		cmd.Text("zipinfo -1").Input(file).Textf(`| sed "s:\(.*\):/%s/\1 1000 1000 0644:";`, dir)
 	}
+	// Custom fs_config is "appended" to the last so that entries from the file are preferred
+	// over default ones set above.
+	if a.properties.Canned_fs_config != nil {
+		cmd.Text("cat").Input(android.PathForModuleSrc(ctx, *a.properties.Canned_fs_config))
+	}
 	cmd.Text(")").FlagWithOutput("> ", cannedFsConfig)
 	builder.Build("generateFsConfig", fmt.Sprintf("Generating canned fs config for %s", a.BaseModuleName()))
 

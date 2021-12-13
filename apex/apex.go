@@ -98,6 +98,14 @@ type apexBundleProperties struct {
 	// /system/sepolicy/apex/<module_name>_file_contexts.
 	File_contexts *string `android:"path"`
 
+	// Path to the canned fs config file for customizing file's uid/gid/mod/capabilities. The
+	// format is /<path_or_glob> <uid> <gid> <mode> [capabilities=0x<cap>], where path_or_glob is a
+	// path or glob pattern for a file or set of files, uid/gid are numerial values of user ID
+	// and group ID, mode is octal value for the file mode, and cap is hexadecimal value for the
+	// capability. If this property is not set, or a file is missing in the file, default config
+	// is used.
+	Canned_fs_config *string `android:"path"`
+
 	ApexNativeDependencies
 
 	Multilib apexMultilibProperties
