@@ -19,6 +19,7 @@ bootstrap_go_package {
     deps: [
         "soong-android",
         "soong-android-soongconfig",
+        "soong-shared",
         "soong-apex",
         "soong-bazel",
         "soong-cc",
@@ -27,6 +28,7 @@ bootstrap_go_package {
         "soong-genrule",
         "soong-python",
         "soong-sh",
+        "soong-ui-metrics",
     ],
     testSrcs: [
         "android_app_certificate_conversion_test.go",

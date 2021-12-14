@@ -373,6 +373,7 @@ func runSoong(ctx Context, config Config) {
 	soongBuildEnv.Set("BAZEL_OUTPUT_BASE", filepath.Join(config.BazelOutDir(), "output"))
 	soongBuildEnv.Set("BAZEL_WORKSPACE", absPath(ctx, "."))
 	soongBuildEnv.Set("BAZEL_METRICS_DIR", config.BazelMetricsDir())
+	soongBuildEnv.Set("LOG_DIR", config.LogsDir())
 
 	// For Soong bootstrapping tests
 	if os.Getenv("ALLOW_MISSING_DEPENDENCIES") == "true" {

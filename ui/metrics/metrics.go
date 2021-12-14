@@ -32,12 +32,12 @@ package metrics
 // of what an event is and how the metrics system is a stack based system.
 
 import (
-	"io/ioutil"
 	"os"
 	"runtime"
 	"strings"
 	"time"
 
+	"android/soong/shared"
 	"google.golang.org/protobuf/proto"
 
 	soong_metrics_proto "android/soong/ui/metrics/metrics_proto"
@@ -196,7 +196,7 @@ func (m *Metrics) Dump(out string) error {
 	}
 	m.metrics.HostOs = proto.String(runtime.GOOS)
 
-	return save(&m.metrics, out)
+	return shared.Save(&m.metrics, out)
 }
 
 // SetSoongBuildMetrics sets the metrics collected from the soong_build
@@ -228,25 +228,5 @@ func (c *CriticalUserJourneysMetrics) Add(name string, metrics *Metrics) {
 
 // Dump saves the collected CUJs metrics to the raw protobuf file.
 func (c *CriticalUserJourneysMetrics) Dump(filename string) (err error) {
-	return save(&c.cujs, filename)
-}
-
-// save takes a protobuf message, marshals to an array of bytes
-// and is then saved to a file.
-func save(pb proto.Message, filename string) (err error) {
-	data, err := proto.Marshal(pb)
-	if err != nil {
-		return err
-	}
-
-	tempFilename := filename + ".tmp"
-	if err := ioutil.WriteFile(tempFilename, []byte(data), 0644 /* rw-r--r-- */); err != nil {
-		return err
-	}
-
-	if err := os.Rename(tempFilename, filename); err != nil {
-		return err
-	}
-
-	return nil
+	return shared.Save(&c.cujs, filename)
 }
