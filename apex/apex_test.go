@@ -7045,6 +7045,75 @@ func testDexpreoptWithApexes(t *testing.T, bp, errmsg string, preparer android.F
 	return result.TestContext
 }
 
+func TestDuplicateDeapexeresFromPrebuiltApexes(t *testing.T) {
+	preparers := android.GroupFixturePreparers(
+		java.PrepareForTestWithJavaDefaultModules,
+		PrepareForTestWithApexBuildComponents,
+	).
+		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(
+			"Multiple installable prebuilt APEXes provide ambiguous deapexers: com.android.myapex and com.mycompany.android.myapex"))
+
+	bpBase := `
+		apex_set {
+			name: "com.android.myapex",
+			installable: true,
+			exported_bootclasspath_fragments: ["my-bootclasspath-fragment"],
+			set: "myapex.apks",
+		}
+
+		apex_set {
+			name: "com.mycompany.android.myapex",
+			apex_name: "com.android.myapex",
+			installable: true,
+			exported_bootclasspath_fragments: ["my-bootclasspath-fragment"],
+			set: "company-myapex.apks",
+		}
+
+		prebuilt_bootclasspath_fragment {
+			name: "my-bootclasspath-fragment",
+			apex_available: ["com.android.myapex"],
+			%s
+		}
+	`
+
+	t.Run("java_import", func(t *testing.T) {
+		_ = preparers.RunTestWithBp(t, fmt.Sprintf(bpBase, `contents: ["libfoo"]`)+`
+			java_import {
+				name: "libfoo",
+				jars: ["libfoo.jar"],
+				apex_available: ["com.android.myapex"],
+			}
+		`)
+	})
+
+	t.Run("java_sdk_library_import", func(t *testing.T) {
+		_ = preparers.RunTestWithBp(t, fmt.Sprintf(bpBase, `contents: ["libfoo"]`)+`
+			java_sdk_library_import {
+				name: "libfoo",
+				public: {
+					jars: ["libbar.jar"],
+				},
+				apex_available: ["com.android.myapex"],
+			}
+		`)
+	})
+
+	t.Run("prebuilt_bootclasspath_fragment", func(t *testing.T) {
+		_ = preparers.RunTestWithBp(t, fmt.Sprintf(bpBase, `
+			image_name: "art",
+			contents: ["libfoo"],
+		`)+`
+			java_sdk_library_import {
+				name: "libfoo",
+				public: {
+					jars: ["libbar.jar"],
+				},
+				apex_available: ["com.android.myapex"],
+			}
+		`)
+	})
+}
+
 func TestUpdatable_should_set_min_sdk_version(t *testing.T) {
 	testApexError(t, `"myapex" .*: updatable: updatable APEXes should set min_sdk_version`, `
 		apex {
