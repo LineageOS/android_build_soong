@@ -970,7 +970,9 @@ cc_library_static {
 }`,
 		expectedBazelTargets: []string{
 			makeBazelTarget("cc_library_static", "foo_static", attrNameToString{
-				"hdrs": `[":export_generated_hdr"]`,
+				"export_includes": `["."]`,
+				"local_includes":  `["."]`,
+				"hdrs":            `[":export_generated_hdr"]`,
 				"srcs": `[
         "cpp_src.cpp",
         ":generated_hdr",
@@ -1044,18 +1046,21 @@ cc_library_static {
     exclude_srcs: ["not-for-everything.cpp"],
     generated_sources: ["generated_src", "generated_src_other_pkg", "generated_src_not_x86"],
     generated_headers: ["generated_hdr", "generated_hdr_other_pkg"],
+    export_generated_headers: ["generated_hdr_other_pkg"],
     arch: {
         x86: {
           srcs: ["for-x86.cpp"],
           exclude_srcs: ["not-for-x86.cpp"],
           generated_headers: ["generated_hdr_other_pkg_x86"],
           exclude_generated_sources: ["generated_src_not_x86"],
+    export_generated_headers: ["generated_hdr_other_pkg_x86"],
         },
     },
     target: {
         android: {
             generated_sources: ["generated_src_android"],
             generated_headers: ["generated_hdr_other_pkg_android"],
+    export_generated_headers: ["generated_hdr_other_pkg_android"],
         },
     },
 
@@ -1069,23 +1074,25 @@ cc_library_static {
         ":generated_src",
         "//dep:generated_src_other_pkg",
         ":generated_hdr",
-        "//dep:generated_hdr_other_pkg",
     ] + select({
-        "//build/bazel/platforms/arch:x86": [
-            "for-x86.cpp",
-            "//dep:generated_hdr_other_pkg_x86",
-        ],
+        "//build/bazel/platforms/arch:x86": ["for-x86.cpp"],
         "//conditions:default": [
             "not-for-x86.cpp",
             ":generated_src_not_x86",
         ],
     }) + select({
-        "//build/bazel/platforms/os:android": [
-            ":generated_src_android",
-            "//dep:generated_hdr_other_pkg_android",
-        ],
+        "//build/bazel/platforms/os:android": [":generated_src_android"],
         "//conditions:default": [],
     })`,
+				"hdrs": `["//dep:generated_hdr_other_pkg"] + select({
+        "//build/bazel/platforms/arch:x86": ["//dep:generated_hdr_other_pkg_x86"],
+        "//conditions:default": [],
+    }) + select({
+        "//build/bazel/platforms/os:android": ["//dep:generated_hdr_other_pkg_android"],
+        "//conditions:default": [],
+    })`,
+				"local_includes":           `["."]`,
+				"export_absolute_includes": `["dep"]`,
 			}),
 		},
 	})
