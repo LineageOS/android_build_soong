@@ -259,7 +259,7 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (convers
 
 	// Simple metrics tracking for bp2build
 	metrics := CodegenMetrics{
-		ruleClassCount: make(map[string]int),
+		ruleClassCount: make(map[string]uint64),
 	}
 
 	dirs := make(map[string]bool)
