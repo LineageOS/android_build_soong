@@ -25,7 +25,6 @@ func init() {
 	// Register sdk member types.
 	android.RegisterSdkMemberType(headersLibrarySdkMemberType)
 
-	android.RegisterBp2BuildMutator("cc_library_headers", CcLibraryHeadersBp2Build)
 }
 
 var headersLibrarySdkMemberType = &librarySdkMemberType{
@@ -96,6 +95,7 @@ func LibraryHeaderFactory() android.Module {
 	module, library := NewLibrary(android.HostAndDeviceSupported)
 	library.HeaderOnly()
 	module.sdkMemberTypes = []android.SdkMemberType{headersLibrarySdkMemberType}
+	module.bazelable = true
 	module.bazelHandler = &libraryHeaderBazelHander{module: module, library: library}
 	return module.Init()
 }
@@ -117,21 +117,7 @@ type bazelCcLibraryHeadersAttributes struct {
 	System_dynamic_deps      bazel.LabelListAttribute
 }
 
-func CcLibraryHeadersBp2Build(ctx android.TopDownMutatorContext) {
-	module, ok := ctx.Module().(*Module)
-	if !ok {
-		// Not a cc module
-		return
-	}
-
-	if !module.ConvertWithBp2build(ctx) {
-		return
-	}
-
-	if ctx.ModuleType() != "cc_library_headers" {
-		return
-	}
-
+func libraryHeadersBp2Build(ctx android.TopDownMutatorContext, module *Module) {
 	baseAttributes := bp2BuildParseBaseProps(ctx, module)
 	exportedIncludes := bp2BuildParseExportedIncludes(ctx, module, baseAttributes.includes)
 	linkerAttrs := baseAttributes.linkerAttributes

@@ -157,7 +157,6 @@ type config struct {
 
 	runningAsBp2Build              bool
 	bp2buildPackageConfig          Bp2BuildConfig
-	bp2buildModuleTypeConfig       map[string]bool
 	Bp2buildSoongConfigDefinitions soongconfig.Bp2BuildSoongConfigDefinitions
 
 	// If testAllowNonExistentPaths is true then PathForSource and PathForModuleSrc won't error
@@ -353,8 +352,6 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 
 	config.mockFileSystem(bp, fs)
 
-	config.bp2buildModuleTypeConfig = map[string]bool{}
-
 	determineBuildOS(config)
 
 	return Config{config}
@@ -522,7 +519,6 @@ func NewConfig(moduleListFile string, runGoTests bool, outDir, soongOutDir strin
 
 	config.BazelContext, err = NewBazelContext(config)
 	config.bp2buildPackageConfig = bp2buildDefaultConfig
-	config.bp2buildModuleTypeConfig = make(map[string]bool)
 
 	return Config{config}, err
 }

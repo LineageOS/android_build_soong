@@ -34,8 +34,6 @@ func init() {
 func registerApexKeyBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("apex_key", ApexKeyFactory)
 	ctx.RegisterSingletonType("apex_keys_text", apexKeysTextFactory)
-
-	android.RegisterBp2BuildMutator("apex_key", ApexKeyBp2Build)
 }
 
 type apexKey struct {
@@ -209,20 +207,9 @@ type bazelApexKeyAttributes struct {
 	Private_key bazel.LabelAttribute
 }
 
-func ApexKeyBp2Build(ctx android.TopDownMutatorContext) {
-	module, ok := ctx.Module().(*apexKey)
-	if !ok {
-		// Not an APEX key
-		return
-	}
-	if !module.ConvertWithBp2build(ctx) {
-		return
-	}
-	if ctx.ModuleType() != "apex_key" {
-		return
-	}
-
-	apexKeyBp2BuildInternal(ctx, module)
+// ConvertWithBp2build performs conversion apexKey for bp2build
+func (m *apexKey) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+	apexKeyBp2BuildInternal(ctx, m)
 }
 
 func apexKeyBp2BuildInternal(ctx android.TopDownMutatorContext, module *apexKey) {
