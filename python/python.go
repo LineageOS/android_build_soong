@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"android/soong/bazel"
+
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
@@ -667,16 +668,23 @@ func (p *Module) createSrcsZip(ctx android.ModuleContext, pkgPath string) androi
 }
 
 // isPythonLibModule returns whether the given module is a Python library Module or not
-// This is distinguished by the fact that Python libraries are not installable, while other Python
-// modules are.
 func isPythonLibModule(module blueprint.Module) bool {
 	if m, ok := module.(*Module); ok {
-		// Python library has no bootstrapper or installer
-		if m.bootstrapper == nil && m.installer == nil {
-			return true
-		}
+		return m.isLibrary()
 	}
 	return false
+}
+
+// This is distinguished by the fact that Python libraries are not installable, while other Python
+// modules are.
+func (p *Module) isLibrary() bool {
+	// Python library has no bootstrapper or installer
+	return p.bootstrapper == nil && p.installer == nil
+}
+
+func (p *Module) isBinary() bool {
+	_, ok := p.bootstrapper.(*binaryDecorator)
+	return ok
 }
 
 // collectPathsFromTransitiveDeps checks for source/data files for duplicate paths
@@ -750,6 +758,14 @@ func checkForDuplicateOutputPath(ctx android.ModuleContext, m map[string]string,
 // InstallInData returns true as Python is not supported in the system partition
 func (p *Module) InstallInData() bool {
 	return true
+}
+
+func (p *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+	if p.isLibrary() {
+		pythonLibBp2Build(ctx, p)
+	} else if p.isBinary() {
+		pythonBinaryBp2Build(ctx, p)
+	}
 }
 
 var Bool = proptools.Bool

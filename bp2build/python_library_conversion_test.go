@@ -18,7 +18,6 @@ func runPythonLibraryTestCase(t *testing.T, tc bp2buildTestCase) {
 	testCase.blueprint = fmt.Sprintf(testCase.blueprint, "python_library")
 	testCase.moduleTypeUnderTest = "python_library"
 	testCase.moduleTypeUnderTestFactory = python.PythonLibraryFactory
-	testCase.moduleTypeUnderTestBp2BuildMutator = python.PythonLibraryBp2Build
 	runBp2BuildTestCaseSimple(t, testCase)
 }
 
@@ -29,7 +28,6 @@ func runPythonLibraryHostTestCase(t *testing.T, tc bp2buildTestCase) {
 	testCase.blueprint = fmt.Sprintf(testCase.blueprint, "python_library_host")
 	testCase.moduleTypeUnderTest = "python_library_host"
 	testCase.moduleTypeUnderTestFactory = python.PythonLibraryHostFactory
-	testCase.moduleTypeUnderTestBp2BuildMutator = python.PythonLibraryHostBp2Build
 	runBp2BuildTestCase(t, func(ctx android.RegistrationContext) {
 		ctx.RegisterModuleType("python_library", python.PythonLibraryFactory)
 	},

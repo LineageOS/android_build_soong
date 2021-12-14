@@ -100,6 +100,7 @@ custom = rule(
         # nested_props_ptr start
 #         "nested_prop": attr.string(),
         # nested_props_ptr end
+        "one_to_many_prop": attr.bool(),
         "other_embedded_prop": attr.string(),
         "string_list_prop": attr.string_list(),
         "string_prop": attr.string(),
@@ -128,6 +129,7 @@ custom_defaults = rule(
         # nested_props_ptr start
 #         "nested_prop": attr.string(),
         # nested_props_ptr end
+        "one_to_many_prop": attr.bool(),
         "other_embedded_prop": attr.string(),
         "string_list_prop": attr.string_list(),
         "string_prop": attr.string(),
@@ -156,6 +158,7 @@ custom_test_ = rule(
         # nested_props_ptr start
 #         "nested_prop": attr.string(),
         # nested_props_ptr end
+        "one_to_many_prop": attr.bool(),
         "other_embedded_prop": attr.string(),
         "string_list_prop": attr.string_list(),
         "string_prop": attr.string(),
