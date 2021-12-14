@@ -233,6 +233,12 @@ var (
 		"-Wno-error=unused-but-set-parameter", // http://b/197240255
 	}
 
+	noOverrideExternalGlobalCflags = []string{
+		// http://b/197240255
+		"-Wno-unused-but-set-variable",
+		"-Wno-unused-but-set-parameter",
+	}
+
 	// Extra cflags for external third-party projects to disable warnings that
 	// are infeasible to fix in all the external projects and their upstream repos.
 	extraExternalCflags = []string{
@@ -346,6 +352,7 @@ func init() {
 
 	exportStringListStaticVariable("HostGlobalCflags", hostGlobalCflags)
 	exportStringListStaticVariable("NoOverrideGlobalCflags", noOverrideGlobalCflags)
+	exportStringListStaticVariable("NoOverrideExternalGlobalCflags", noOverrideExternalGlobalCflags)
 	exportStringListStaticVariable("CommonGlobalCppflags", commonGlobalCppflags)
 	exportStringListStaticVariable("ExternalCflags", extraExternalCflags)
 
