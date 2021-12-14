@@ -173,6 +173,10 @@ func (d *DefaultsModuleBase) productVariableProperties() interface{} {
 func (d *DefaultsModuleBase) GenerateAndroidBuildActions(ctx ModuleContext) {
 }
 
+// ConvertWithBp2build to fulfill Bazelable interface; however, at this time defaults module are
+// *NOT* converted with bp2build
+func (defaultable *DefaultsModuleBase) ConvertWithBp2build(ctx TopDownMutatorContext) {}
+
 func InitDefaultsModule(module DefaultsModule) {
 	commonProperties := &commonProperties{}
 

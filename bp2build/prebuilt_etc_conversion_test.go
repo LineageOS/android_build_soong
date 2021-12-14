@@ -25,7 +25,6 @@ func runPrebuiltEtcTestCase(t *testing.T, tc bp2buildTestCase) {
 	t.Helper()
 	(&tc).moduleTypeUnderTest = "prebuilt_etc"
 	(&tc).moduleTypeUnderTestFactory = etc.PrebuiltEtcFactory
-	(&tc).moduleTypeUnderTestBp2BuildMutator = etc.PrebuiltEtcBp2Build
 	runBp2BuildTestCase(t, registerPrebuiltEtcModuleTypes, tc)
 }
 

@@ -27,7 +27,6 @@ import (
 
 func init() {
 	registerPythonBinaryComponents(android.InitRegistrationContext)
-	android.RegisterBp2BuildMutator("python_binary_host", PythonBinaryBp2Build)
 }
 
 func registerPythonBinaryComponents(ctx android.RegistrationContext) {
@@ -41,17 +40,7 @@ type bazelPythonBinaryAttributes struct {
 	Python_version *string
 }
 
-func PythonBinaryBp2Build(ctx android.TopDownMutatorContext) {
-	m, ok := ctx.Module().(*Module)
-	if !ok || !m.ConvertWithBp2build(ctx) {
-		return
-	}
-
-	// a Module can be something other than a python_binary_host
-	if ctx.ModuleType() != "python_binary_host" {
-		return
-	}
-
+func pythonBinaryBp2Build(ctx android.TopDownMutatorContext, m *Module) {
 	var main *string
 	for _, propIntf := range m.GetProperties() {
 		if props, ok := propIntf.(*BinaryProperties); ok {

@@ -40,7 +40,6 @@ func runCcLibrarySharedTestCase(t *testing.T, tc bp2buildTestCase) {
 	t.Helper()
 	(&tc).moduleTypeUnderTest = "cc_library_shared"
 	(&tc).moduleTypeUnderTestFactory = cc.LibrarySharedFactory
-	(&tc).moduleTypeUnderTestBp2BuildMutator = cc.CcLibrarySharedBp2Build
 	runBp2BuildTestCase(t, registerCcLibrarySharedModuleTypes, tc)
 }
 

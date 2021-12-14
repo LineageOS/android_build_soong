@@ -78,10 +78,9 @@ func runCcLibraryHeadersTestCase(t *testing.T, tc bp2buildTestCase) {
 
 func TestCcLibraryHeadersSimple(t *testing.T) {
 	runCcLibraryHeadersTestCase(t, bp2buildTestCase{
-		description:                        "cc_library_headers test",
-		moduleTypeUnderTest:                "cc_library_headers",
-		moduleTypeUnderTestFactory:         cc.LibraryHeaderFactory,
-		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryHeadersBp2Build,
+		description:                "cc_library_headers test",
+		moduleTypeUnderTest:        "cc_library_headers",
+		moduleTypeUnderTestFactory: cc.LibraryHeaderFactory,
 		filesystem: map[string]string{
 			"lib-1/lib1a.h":                        "",
 			"lib-1/lib1b.h":                        "",
@@ -150,11 +149,10 @@ cc_library_headers {
 
 func TestCcLibraryHeadersOsSpecificHeader(t *testing.T) {
 	runCcLibraryHeadersTestCase(t, bp2buildTestCase{
-		description:                        "cc_library_headers test with os-specific header_libs props",
-		moduleTypeUnderTest:                "cc_library_headers",
-		moduleTypeUnderTestFactory:         cc.LibraryHeaderFactory,
-		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryHeadersBp2Build,
-		filesystem:                         map[string]string{},
+		description:                "cc_library_headers test with os-specific header_libs props",
+		moduleTypeUnderTest:        "cc_library_headers",
+		moduleTypeUnderTestFactory: cc.LibraryHeaderFactory,
+		filesystem:                 map[string]string{},
 		blueprint: soongCcLibraryPreamble + `
 cc_library_headers {
     name: "android-lib",
@@ -209,11 +207,10 @@ cc_library_headers {
 
 func TestCcLibraryHeadersOsSpecficHeaderLibsExportHeaderLibHeaders(t *testing.T) {
 	runCcLibraryHeadersTestCase(t, bp2buildTestCase{
-		description:                        "cc_library_headers test with os-specific header_libs and export_header_lib_headers props",
-		moduleTypeUnderTest:                "cc_library_headers",
-		moduleTypeUnderTestFactory:         cc.LibraryHeaderFactory,
-		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryHeadersBp2Build,
-		filesystem:                         map[string]string{},
+		description:                "cc_library_headers test with os-specific header_libs and export_header_lib_headers props",
+		moduleTypeUnderTest:        "cc_library_headers",
+		moduleTypeUnderTestFactory: cc.LibraryHeaderFactory,
+		filesystem:                 map[string]string{},
 		blueprint: soongCcLibraryPreamble + `
 cc_library_headers {
     name: "android-lib",
@@ -250,11 +247,10 @@ cc_library_headers {
 
 func TestCcLibraryHeadersArchAndTargetExportSystemIncludes(t *testing.T) {
 	runCcLibraryHeadersTestCase(t, bp2buildTestCase{
-		description:                        "cc_library_headers test with arch-specific and target-specific export_system_include_dirs props",
-		moduleTypeUnderTest:                "cc_library_headers",
-		moduleTypeUnderTestFactory:         cc.LibraryHeaderFactory,
-		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryHeadersBp2Build,
-		filesystem:                         map[string]string{},
+		description:                "cc_library_headers test with arch-specific and target-specific export_system_include_dirs props",
+		moduleTypeUnderTest:        "cc_library_headers",
+		moduleTypeUnderTestFactory: cc.LibraryHeaderFactory,
+		filesystem:                 map[string]string{},
 		blueprint: soongCcLibraryPreamble + `cc_library_headers {
     name: "foo_headers",
     export_system_include_dirs: [
@@ -310,10 +306,9 @@ func TestCcLibraryHeadersArchAndTargetExportSystemIncludes(t *testing.T) {
 
 func TestCcLibraryHeadersNoCrtIgnored(t *testing.T) {
 	runCcLibraryHeadersTestCase(t, bp2buildTestCase{
-		description:                        "cc_library_headers test",
-		moduleTypeUnderTest:                "cc_library_headers",
-		moduleTypeUnderTestFactory:         cc.LibraryHeaderFactory,
-		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryHeadersBp2Build,
+		description:                "cc_library_headers test",
+		moduleTypeUnderTest:        "cc_library_headers",
+		moduleTypeUnderTestFactory: cc.LibraryHeaderFactory,
 		filesystem: map[string]string{
 			"lib-1/lib1a.h":                        "",
 			"lib-1/lib1b.h":                        "",

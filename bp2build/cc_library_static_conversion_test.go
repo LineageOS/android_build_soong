@@ -82,7 +82,6 @@ func runCcLibraryStaticTestCase(t *testing.T, tc bp2buildTestCase) {
 
 	(&tc).moduleTypeUnderTest = "cc_library_static"
 	(&tc).moduleTypeUnderTestFactory = cc.LibraryStaticFactory
-	(&tc).moduleTypeUnderTestBp2BuildMutator = cc.CcLibraryStaticBp2Build
 	runBp2BuildTestCase(t, registerCcLibraryStaticModuleTypes, tc)
 }
 
@@ -954,11 +953,13 @@ func TestCcLibraryStaticGeneratedHeadersAllPartitions(t *testing.T) {
 genrule {
     name: "generated_hdr",
     cmd: "nothing to see here",
+    bazel_module: { bp2build_available: false },
 }
 
 genrule {
     name: "export_generated_hdr",
     cmd: "nothing to see here",
+    bazel_module: { bp2build_available: false },
 }
 
 cc_library_static {
@@ -998,48 +999,17 @@ func TestCcLibraryStaticArchSrcsExcludeSrcsGeneratedFiles(t *testing.T) {
 			"for-x86.cpp":            "",
 			"not-for-x86.cpp":        "",
 			"not-for-everything.cpp": "",
-			"dep/Android.bp": `
-genrule {
-  name: "generated_src_other_pkg",
-  cmd: "nothing to see here",
-}
-
-genrule {
-  name: "generated_hdr_other_pkg",
-  cmd: "nothing to see here",
-}
-
-genrule {
-  name: "generated_hdr_other_pkg_x86",
-  cmd: "nothing to see here",
-}
-
-genrule {
-  name: "generated_hdr_other_pkg_android",
-  cmd: "nothing to see here",
-}`,
+			"dep/Android.bp": simpleModuleDoNotConvertBp2build("genrule", "generated_src_other_pkg") +
+				simpleModuleDoNotConvertBp2build("genrule", "generated_hdr_other_pkg") +
+				simpleModuleDoNotConvertBp2build("genrule", "generated_src_other_pkg_x86") +
+				simpleModuleDoNotConvertBp2build("genrule", "generated_hdr_other_pkg_x86") +
+				simpleModuleDoNotConvertBp2build("genrule", "generated_hdr_other_pkg_android"),
 		},
-		blueprint: soongCcLibraryStaticPreamble + `
-genrule {
-    name: "generated_src",
-    cmd: "nothing to see here",
-}
-
-genrule {
-    name: "generated_src_not_x86",
-    cmd: "nothing to see here",
-}
-
-genrule {
-    name: "generated_src_android",
-    cmd: "nothing to see here",
-}
-
-genrule {
-    name: "generated_hdr",
-    cmd: "nothing to see here",
-}
-
+		blueprint: soongCcLibraryStaticPreamble +
+			simpleModuleDoNotConvertBp2build("genrule", "generated_src") +
+			simpleModuleDoNotConvertBp2build("genrule", "generated_src_not_x86") +
+			simpleModuleDoNotConvertBp2build("genrule", "generated_src_android") +
+			simpleModuleDoNotConvertBp2build("genrule", "generated_hdr") + `
 cc_library_static {
     name: "foo_static",
     srcs: ["common.cpp", "not-for-*.cpp"],
@@ -1373,9 +1343,8 @@ cc_library_static {
 func TestStaticLibrary_SystemSharedLibsBionic(t *testing.T) {
 	runCcLibraryStaticTestCase(t, bp2buildTestCase{
 		description: "cc_library_static system_shared_libs set for bionic variant",
-		blueprint: soongCcLibraryStaticPreamble + `
-cc_library{name: "libc"}
-
+		blueprint: soongCcLibraryStaticPreamble +
+			simpleModuleDoNotConvertBp2build("cc_library", "libc") + `
 cc_library_static {
     name: "target_bionic",
     target: {
@@ -1401,10 +1370,9 @@ cc_library_static {
 func TestStaticLibrary_SystemSharedLibsLinuxRootAndLinuxBionic(t *testing.T) {
 	runCcLibraryStaticTestCase(t, bp2buildTestCase{
 		description: "cc_library_static system_shared_libs set for root and linux_bionic variant",
-		blueprint: soongCcLibraryStaticPreamble + `
-cc_library{name: "libc"}
-cc_library{name: "libm"}
-
+		blueprint: soongCcLibraryStaticPreamble +
+			simpleModuleDoNotConvertBp2build("cc_library", "libc") +
+			simpleModuleDoNotConvertBp2build("cc_library", "libm") + `
 cc_library_static {
     name: "target_linux_bionic",
     system_shared_libs: ["libc"],

@@ -52,6 +52,10 @@ type fuzzBinary struct {
 	installedSharedDeps []string
 }
 
+func (fuzz *fuzzBinary) fuzzBinary() bool {
+	return true
+}
+
 func (fuzz *fuzzBinary) linkerProps() []interface{} {
 	props := fuzz.binaryDecorator.linkerProps()
 	props = append(props, &fuzz.fuzzPackagedModule.FuzzProperties)
@@ -234,7 +238,7 @@ func (fuzz *fuzzBinary) install(ctx ModuleContext, file android.Path) {
 }
 
 func NewFuzz(hod android.HostOrDeviceSupported) *Module {
-	module, binary := NewBinary(hod)
+	module, binary := newBinary(hod, false)
 
 	binary.baseInstaller = NewFuzzInstaller()
 	module.sanitize.SetSanitizer(Fuzzer, true)
