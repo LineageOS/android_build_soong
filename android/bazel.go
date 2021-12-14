@@ -316,6 +316,7 @@ var (
 		"packages/apps/HTMLViewer":                           Bp2BuildDefaultTrue,
 		"packages/apps/Protips":                              Bp2BuildDefaultTrue,
 		"packages/modules/adb":                               Bp2BuildDefaultTrue,
+		"packages/modules/adb/apex":                          Bp2BuildDefaultTrue,
 		"packages/modules/adb/crypto":                        Bp2BuildDefaultTrueRecursively,
 		"packages/modules/adb/libs":                          Bp2BuildDefaultTrueRecursively,
 		"packages/modules/adb/pairing_auth":                  Bp2BuildDefaultTrueRecursively,
