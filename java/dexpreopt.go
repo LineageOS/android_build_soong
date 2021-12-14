@@ -152,15 +152,16 @@ func (d *dexpreopter) dexpreoptDisabled(ctx android.BaseModuleContext) bool {
 		return true
 	}
 
+	isApexSystemServerJar := global.AllApexSystemServerJars(ctx).ContainsJar(moduleName(ctx))
 	if isApexVariant(ctx) {
 		// Don't preopt APEX variant module unless the module is an APEX system server jar and we are
 		// building the entire system image.
-		if !global.ApexSystemServerJars.ContainsJar(moduleName(ctx)) || ctx.Config().UnbundledBuild() {
+		if !isApexSystemServerJar || ctx.Config().UnbundledBuild() {
 			return true
 		}
 	} else {
 		// Don't preopt the platform variant of an APEX system server jar to avoid conflicts.
-		if global.ApexSystemServerJars.ContainsJar(moduleName(ctx)) {
+		if isApexSystemServerJar {
 			return true
 		}
 	}
@@ -191,8 +192,8 @@ func (d *dexpreopter) odexOnSystemOther(ctx android.ModuleContext, installPath a
 func (d *dexpreopter) getInstallPath(
 	ctx android.ModuleContext, defaultInstallPath android.InstallPath) android.InstallPath {
 	global := dexpreopt.GetGlobalConfig(ctx)
-	if global.ApexSystemServerJars.ContainsJar(moduleName(ctx)) {
-		dexLocation := dexpreopt.GetSystemServerDexLocation(global, moduleName(ctx))
+	if global.AllApexSystemServerJars(ctx).ContainsJar(moduleName(ctx)) {
+		dexLocation := dexpreopt.GetSystemServerDexLocation(ctx, global, moduleName(ctx))
 		return android.PathForModuleInPartitionInstall(ctx, "", strings.TrimPrefix(dexLocation, "/"))
 	}
 	if !d.dexpreoptDisabled(ctx) && isApexVariant(ctx) &&
@@ -229,8 +230,7 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Wr
 		return
 	}
 
-	isSystemServerJar := global.SystemServerJars.ContainsJar(moduleName(ctx)) ||
-		global.ApexSystemServerJars.ContainsJar(moduleName(ctx))
+	isSystemServerJar := global.AllSystemServerJars(ctx).ContainsJar(moduleName(ctx))
 
 	bootImage := defaultBootImageConfig(ctx)
 	if global.UseArtImage {
@@ -336,6 +336,8 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Wr
 
 	dexpreoptRule.Build("dexpreopt", "dexpreopt")
 
+	isApexSystemServerJar := global.AllApexSystemServerJars(ctx).ContainsJar(moduleName(ctx))
+
 	for _, install := range dexpreoptRule.Installs() {
 		// Remove the "/" prefix because the path should be relative to $ANDROID_PRODUCT_OUT.
 		installDir := strings.TrimPrefix(filepath.Dir(install.To), "/")
@@ -343,7 +345,7 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Wr
 		arch := filepath.Base(installDir)
 		installPath := android.PathForModuleInPartitionInstall(ctx, "", installDir)
 
-		if global.ApexSystemServerJars.ContainsJar(moduleName(ctx)) {
+		if isApexSystemServerJar {
 			// APEX variants of java libraries are hidden from Make, so their dexpreopt
 			// outputs need special handling. Currently, for APEX variants of java
 			// libraries, only those in the system server classpath are handled here.
@@ -362,7 +364,7 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Wr
 		}
 	}
 
-	if !global.ApexSystemServerJars.ContainsJar(moduleName(ctx)) {
+	if !isApexSystemServerJar {
 		d.builtInstalled = dexpreoptRule.Installs().String()
 	}
 }

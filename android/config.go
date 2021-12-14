@@ -1698,7 +1698,7 @@ func (l *ConfiguredJarList) Append(apex string, jar string) ConfiguredJarList {
 }
 
 // Append a list of (apex, jar) pairs to the list.
-func (l *ConfiguredJarList) AppendList(other ConfiguredJarList) ConfiguredJarList {
+func (l *ConfiguredJarList) AppendList(other *ConfiguredJarList) ConfiguredJarList {
 	apexes := make([]string, 0, l.Len()+other.Len())
 	jars := make([]string, 0, l.Len()+other.Len())
 
