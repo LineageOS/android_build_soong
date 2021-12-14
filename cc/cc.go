@@ -3453,10 +3453,15 @@ var _ snapshot.RelativeInstallPath = (*Module)(nil)
 
 // ConvertWithBp2build converts Module to Bazel for bp2build.
 func (c *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+	prebuilt := c.IsPrebuilt()
 	if c.Binary() {
-		binaryBp2build(ctx, c, ctx.ModuleType())
+		if !prebuilt {
+			binaryBp2build(ctx, c, ctx.ModuleType())
+		}
 	} else if c.Object() {
-		objectBp2Build(ctx, c)
+		if !prebuilt {
+			objectBp2Build(ctx, c)
+		}
 	} else if c.CcLibrary() {
 		if c.hod == android.HostSupported {
 			return
@@ -3464,12 +3469,15 @@ func (c *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 
 		static := c.BuildStaticVariant()
 		shared := c.BuildSharedVariant()
-		prebuilt := c.IsPrebuilt()
 
 		if static && shared {
-			libraryBp2Build(ctx, c)
+			if !prebuilt {
+				libraryBp2Build(ctx, c)
+			}
 		} else if !static && !shared {
-			libraryHeadersBp2Build(ctx, c)
+			if !prebuilt {
+				libraryHeadersBp2Build(ctx, c)
+			}
 		} else if static {
 			if prebuilt {
 				prebuiltLibraryStaticBp2Build(ctx, c)
