@@ -303,6 +303,7 @@ genrule {
         ":not_explicitly_exported_whole_static_dep",
         ":whole_static_dep",
     ]`,
+				"local_includes": `["."]`,
 			},
 			},
 		},

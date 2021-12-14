@@ -422,17 +422,11 @@ var (
 		// APEX support
 		"com.android.runtime", // http://b/194746715, apex, depends on 'libc_malloc_debug'
 
-		"libadbd_core",     // http://b/208481704: requijres use_version_lib
-		"libadbd_services", // http://b/208481704: requires use_version_lib
-
-		"libadbd", // depends on unconverted modules: libadbd_core, libadbd_services
-
 		"libgtest_ndk_c++",      // b/201816222: Requires sdk_version support.
 		"libgtest_main_ndk_c++", // b/201816222: Requires sdk_version support.
 
-		"abb",                     // depends on unconverted modules: libadbd_core, libadbd_services,
-		"adb",                     // depends on unconverted modules: bin2c_fastdeployagent, libadb_crypto, libadb_host, libadb_pairing_connection, libadb_protos, libandroidfw, libapp_processes_protos_full, libfastdeploy_host, libopenscreen-discovery, libopenscreen-platform-impl, libusb, libzstd, AdbWinApi
-		"adbd",                    // depends on unconverted modules: libadb_crypto, libadb_pairing_connection, libadb_protos, libadbd, libadbd_core, libapp_processes_protos_lite, libzstd, libadbd_services, libcap, libminijail
+		"abb",                     // depends on unconverted modules: libcmd, libbinder
+		"adb",                     // depends on unconverted modules: AdbWinApi, libadb_host, libandroidfw, libapp_processes_protos_full, libfastdeploy_host, libopenscreen-discovery, libopenscreen-platform-impl, libusb, bin2c_fastdeployagent, AdbWinUsbApi
 		"linker",                  // depends on unconverted modules: libdebuggerd_handler_fallback
 		"linker_reloc_bench_main", // depends on unconverted modules: liblinker_reloc_bench_*
 		"versioner",               // depends on unconverted modules: libclang_cxx_host, libLLVM_host, of unsupported type llvm_host_prebuilt_library_shared

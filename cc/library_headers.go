@@ -108,12 +108,13 @@ func prebuiltLibraryHeaderFactory() android.Module {
 }
 
 type bazelCcLibraryHeadersAttributes struct {
-	Hdrs                   bazel.LabelListAttribute
-	Export_includes        bazel.StringListAttribute
-	Export_system_includes bazel.StringListAttribute
-	Deps                   bazel.LabelListAttribute
-	Implementation_deps    bazel.LabelListAttribute
-	System_dynamic_deps    bazel.LabelListAttribute
+	Hdrs                     bazel.LabelListAttribute
+	Export_includes          bazel.StringListAttribute
+	Export_absolute_includes bazel.StringListAttribute
+	Export_system_includes   bazel.StringListAttribute
+	Deps                     bazel.LabelListAttribute
+	Implementation_deps      bazel.LabelListAttribute
+	System_dynamic_deps      bazel.LabelListAttribute
 }
 
 func CcLibraryHeadersBp2Build(ctx android.TopDownMutatorContext) {
@@ -131,17 +132,18 @@ func CcLibraryHeadersBp2Build(ctx android.TopDownMutatorContext) {
 		return
 	}
 
-	exportedIncludes := bp2BuildParseExportedIncludes(ctx, module)
 	baseAttributes := bp2BuildParseBaseProps(ctx, module)
+	exportedIncludes := bp2BuildParseExportedIncludes(ctx, module, baseAttributes.includes)
 	linkerAttrs := baseAttributes.linkerAttributes
 
 	attrs := &bazelCcLibraryHeadersAttributes{
-		Export_includes:        exportedIncludes.Includes,
-		Export_system_includes: exportedIncludes.SystemIncludes,
-		Implementation_deps:    linkerAttrs.implementationDeps,
-		Deps:                   linkerAttrs.deps,
-		System_dynamic_deps:    linkerAttrs.systemDynamicDeps,
-		Hdrs:                   baseAttributes.hdrs,
+		Export_includes:          exportedIncludes.Includes,
+		Export_absolute_includes: exportedIncludes.AbsoluteIncludes,
+		Export_system_includes:   exportedIncludes.SystemIncludes,
+		Implementation_deps:      linkerAttrs.implementationDeps,
+		Deps:                     linkerAttrs.deps,
+		System_dynamic_deps:      linkerAttrs.systemDynamicDeps,
+		Hdrs:                     baseAttributes.hdrs,
 	}
 
 	props := bazel.BazelTargetModuleProperties{
