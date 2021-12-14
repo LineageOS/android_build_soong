@@ -31,10 +31,9 @@ func registerAndroidAppModuleTypes(ctx android.RegistrationContext) {
 
 func TestMinimalAndroidApp(t *testing.T) {
 	runAndroidAppTestCase(t, bp2buildTestCase{
-		description:                        "Android app - simple example",
-		moduleTypeUnderTest:                "android_app",
-		moduleTypeUnderTestFactory:         java.AndroidAppFactory,
-		moduleTypeUnderTestBp2BuildMutator: java.AppBp2Build,
+		description:                "Android app - simple example",
+		moduleTypeUnderTest:        "android_app",
+		moduleTypeUnderTestFactory: java.AndroidAppFactory,
 		filesystem: map[string]string{
 			"app.java":            "",
 			"res/res.png":         "",
@@ -58,10 +57,9 @@ android_app {
 
 func TestAndroidAppAllSupportedFields(t *testing.T) {
 	runAndroidAppTestCase(t, bp2buildTestCase{
-		description:                        "Android app - all supported fields",
-		moduleTypeUnderTest:                "android_app",
-		moduleTypeUnderTestFactory:         java.AndroidAppFactory,
-		moduleTypeUnderTestBp2BuildMutator: java.AppBp2Build,
+		description:                "Android app - all supported fields",
+		moduleTypeUnderTest:        "android_app",
+		moduleTypeUnderTestFactory: java.AndroidAppFactory,
 		filesystem: map[string]string{
 			"app.java":                     "",
 			"resa/res.png":                 "",

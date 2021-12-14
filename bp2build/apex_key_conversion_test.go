@@ -31,11 +31,10 @@ func registerApexKeyModuleTypes(ctx android.RegistrationContext) {
 
 func TestApexKeySimple(t *testing.T) {
 	runApexKeyTestCase(t, bp2buildTestCase{
-		description:                        "apex key - simple example",
-		moduleTypeUnderTest:                "apex_key",
-		moduleTypeUnderTestFactory:         apex.ApexKeyFactory,
-		moduleTypeUnderTestBp2BuildMutator: apex.ApexKeyBp2Build,
-		filesystem:                         map[string]string{},
+		description:                "apex key - simple example",
+		moduleTypeUnderTest:        "apex_key",
+		moduleTypeUnderTestFactory: apex.ApexKeyFactory,
+		filesystem:                 map[string]string{},
 		blueprint: `
 apex_key {
         name: "com.android.apogee.key",

@@ -16,7 +16,6 @@ package android
 
 import (
 	"reflect"
-	"sync"
 
 	"android/soong/bazel"
 
@@ -34,12 +33,12 @@ import (
 //   continue on to GenerateAndroidBuildActions
 
 // RegisterMutatorsForBazelConversion is a alternate registration pipeline for bp2build. Exported for testing.
-func RegisterMutatorsForBazelConversion(ctx *Context, preArchMutators, bp2buildMutators []RegisterMutatorFunc) {
+func RegisterMutatorsForBazelConversion(ctx *Context, preArchMutators []RegisterMutatorFunc) {
 	mctx := &registerMutatorsContext{
 		bazelConversionMode: true,
 	}
 
-	bp2buildPreArchMutators = append([]RegisterMutatorFunc{
+	bp2buildMutators := append([]RegisterMutatorFunc{
 		RegisterNamespaceMutator,
 		RegisterDefaultsPreArchMutators,
 		// TODO(b/165114590): this is required to resolve deps that are only prebuilts, but we should
@@ -47,10 +46,7 @@ func RegisterMutatorsForBazelConversion(ctx *Context, preArchMutators, bp2buildM
 		RegisterPrebuiltsPreArchMutators,
 	},
 		preArchMutators...)
-
-	for _, f := range bp2buildPreArchMutators {
-		f(mctx)
-	}
+	bp2buildMutators = append(bp2buildMutators, registerBp2buildConversionMutator)
 
 	// Register bp2build mutators
 	for _, f := range bp2buildMutators {
@@ -216,31 +212,12 @@ func FinalDepsMutators(f RegisterMutatorFunc) {
 }
 
 var bp2buildPreArchMutators = []RegisterMutatorFunc{}
-var bp2buildMutators = map[string]RegisterMutatorFunc{}
-
-// See http://b/192523357
-var bp2buildLock sync.Mutex
 
 // A minimal context for Bp2build conversion
 type Bp2buildMutatorContext interface {
 	BazelConversionPathContext
 
 	CreateBazelTargetModule(bazel.BazelTargetModuleProperties, CommonAttributes, interface{})
-}
-
-// RegisterBp2BuildMutator registers specially crafted mutators for
-// converting Blueprint/Android modules into special modules that can
-// be code-generated into Bazel BUILD targets.
-//
-// TODO(b/178068862): bring this into TestContext.
-func RegisterBp2BuildMutator(moduleType string, m func(TopDownMutatorContext)) {
-	f := func(ctx RegisterMutatorsContext) {
-		ctx.TopDown(moduleType, m)
-	}
-	// Use a lock to avoid a concurrent map write if RegisterBp2BuildMutator is called in parallel
-	bp2buildLock.Lock()
-	defer bp2buildLock.Unlock()
-	bp2buildMutators[moduleType] = f
 }
 
 // PreArchBp2BuildMutators adds mutators to be register for converting Android Blueprint modules

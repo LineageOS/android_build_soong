@@ -61,11 +61,10 @@ custom_cc_library_static {
 `
 
 	runSoongConfigModuleTypeTest(t, bp2buildTestCase{
-		description:                        "soong config variables - soong_config_module_type is supported in bp2build",
-		moduleTypeUnderTest:                "cc_library_static",
-		moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
-		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
-		blueprint:                          bp,
+		description:                "soong config variables - soong_config_module_type is supported in bp2build",
+		moduleTypeUnderTest:        "cc_library_static",
+		moduleTypeUnderTestFactory: cc.LibraryStaticFactory,
+		blueprint:                  bp,
 		expectedBazelTargets: []string{`cc_library_static(
     name = "foo",
     copts = select({
@@ -107,10 +106,9 @@ custom_cc_library_static {
 `
 
 	runSoongConfigModuleTypeTest(t, bp2buildTestCase{
-		description:                        "soong config variables - soong_config_module_type_import is supported in bp2build",
-		moduleTypeUnderTest:                "cc_library_static",
-		moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
-		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
+		description:                "soong config variables - soong_config_module_type_import is supported in bp2build",
+		moduleTypeUnderTest:        "cc_library_static",
+		moduleTypeUnderTestFactory: cc.LibraryStaticFactory,
 		filesystem: map[string]string{
 			"foo/bar/SoongConfig.bp": configBp,
 		},
@@ -161,11 +159,10 @@ custom_cc_library_static {
 `
 
 	runSoongConfigModuleTypeTest(t, bp2buildTestCase{
-		description:                        "soong config variables - generates selects for string vars",
-		moduleTypeUnderTest:                "cc_library_static",
-		moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
-		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
-		blueprint:                          bp,
+		description:                "soong config variables - generates selects for string vars",
+		moduleTypeUnderTest:        "cc_library_static",
+		moduleTypeUnderTestFactory: cc.LibraryStaticFactory,
+		blueprint:                  bp,
 		expectedBazelTargets: []string{`cc_library_static(
     name = "foo",
     copts = select({
@@ -232,11 +229,10 @@ custom_cc_library_static {
 }`
 
 	runSoongConfigModuleTypeTest(t, bp2buildTestCase{
-		description:                        "soong config variables - generates selects for multiple variable types",
-		moduleTypeUnderTest:                "cc_library_static",
-		moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
-		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
-		blueprint:                          bp,
+		description:                "soong config variables - generates selects for multiple variable types",
+		moduleTypeUnderTest:        "cc_library_static",
+		moduleTypeUnderTestFactory: cc.LibraryStaticFactory,
+		blueprint:                  bp,
 		expectedBazelTargets: []string{`cc_library_static(
     name = "foo",
     copts = select({
@@ -298,11 +294,10 @@ cc_library_static { name: "soc_default_static_dep", bazel_module: { bp2build_ava
 `
 
 	runSoongConfigModuleTypeTest(t, bp2buildTestCase{
-		description:                        "soong config variables - generates selects for label list attributes",
-		moduleTypeUnderTest:                "cc_library_static",
-		moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
-		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
-		blueprint:                          bp,
+		description:                "soong config variables - generates selects for label list attributes",
+		moduleTypeUnderTest:        "cc_library_static",
+		moduleTypeUnderTestFactory: cc.LibraryStaticFactory,
+		blueprint:                  bp,
 		filesystem: map[string]string{
 			"foo/bar/Android.bp": otherDeps,
 		},
@@ -365,11 +360,10 @@ cc_library_static {
 `
 
 	runSoongConfigModuleTypeTest(t, bp2buildTestCase{
-		description:                        "soong config variables - defaults with a single namespace",
-		moduleTypeUnderTest:                "cc_library_static",
-		moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
-		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
-		blueprint:                          bp,
+		description:                "soong config variables - defaults with a single namespace",
+		moduleTypeUnderTest:        "cc_library_static",
+		moduleTypeUnderTestFactory: cc.LibraryStaticFactory,
+		blueprint:                  bp,
 		expectedBazelTargets: []string{`cc_library_static(
     name = "lib",
     copts = select({
@@ -445,11 +439,10 @@ cc_library_static {
 `
 
 	runSoongConfigModuleTypeTest(t, bp2buildTestCase{
-		description:                        "soong config variables - multiple defaults with a single namespace",
-		moduleTypeUnderTest:                "cc_library_static",
-		moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
-		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
-		blueprint:                          bp,
+		description:                "soong config variables - multiple defaults with a single namespace",
+		moduleTypeUnderTest:        "cc_library_static",
+		moduleTypeUnderTestFactory: cc.LibraryStaticFactory,
+		blueprint:                  bp,
 		expectedBazelTargets: []string{`cc_library_static(
     name = "lib",
     asflags = select({
@@ -561,11 +554,10 @@ cc_library_static {
 `
 
 	runSoongConfigModuleTypeTest(t, bp2buildTestCase{
-		description:                        "soong config variables - defaults with multiple namespaces",
-		moduleTypeUnderTest:                "cc_library_static",
-		moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
-		moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
-		blueprint:                          bp,
+		description:                "soong config variables - defaults with multiple namespaces",
+		moduleTypeUnderTest:        "cc_library_static",
+		moduleTypeUnderTestFactory: cc.LibraryStaticFactory,
+		blueprint:                  bp,
 		expectedBazelTargets: []string{`cc_library_static(
     name = "lib",
     copts = select({
@@ -652,11 +644,10 @@ cc_library { name: "lib_default", bazel_module: { bp2build_available: false } }
 `
 
 	runSoongConfigModuleTypeTest(t, bp2buildTestCase{
-		description:                        "soong config variables - generates selects for library_linking_strategy",
-		moduleTypeUnderTest:                "cc_binary",
-		moduleTypeUnderTestFactory:         cc.BinaryFactory,
-		moduleTypeUnderTestBp2BuildMutator: cc.BinaryBp2build,
-		blueprint:                          bp,
+		description:                "soong config variables - generates selects for library_linking_strategy",
+		moduleTypeUnderTest:        "cc_binary",
+		moduleTypeUnderTestFactory: cc.BinaryFactory,
+		blueprint:                  bp,
 		filesystem: map[string]string{
 			"foo/bar/Android.bp": otherDeps,
 		},
@@ -733,11 +724,10 @@ cc_library { name: "lib_b", bazel_module: { bp2build_available: false } }
 `
 
 	runSoongConfigModuleTypeTest(t, bp2buildTestCase{
-		description:                        "soong config variables - generates selects for library_linking_strategy",
-		moduleTypeUnderTest:                "cc_binary",
-		moduleTypeUnderTestFactory:         cc.BinaryFactory,
-		moduleTypeUnderTestBp2BuildMutator: cc.BinaryBp2build,
-		blueprint:                          bp,
+		description:                "soong config variables - generates selects for library_linking_strategy",
+		moduleTypeUnderTest:        "cc_binary",
+		moduleTypeUnderTestFactory: cc.BinaryFactory,
+		blueprint:                  bp,
 		filesystem: map[string]string{
 			"foo/bar/Android.bp": otherDeps,
 		},
@@ -821,11 +811,10 @@ cc_library { name: "lib_default", bazel_module: { bp2build_available: false } }
 `
 
 	runSoongConfigModuleTypeTest(t, bp2buildTestCase{
-		description:                        "soong config variables - generates selects for library_linking_strategy",
-		moduleTypeUnderTest:                "cc_binary",
-		moduleTypeUnderTestFactory:         cc.BinaryFactory,
-		moduleTypeUnderTestBp2BuildMutator: cc.BinaryBp2build,
-		blueprint:                          bp,
+		description:                "soong config variables - generates selects for library_linking_strategy",
+		moduleTypeUnderTest:        "cc_binary",
+		moduleTypeUnderTestFactory: cc.BinaryFactory,
+		blueprint:                  bp,
 		filesystem: map[string]string{
 			"foo/bar/Android.bp": otherDeps,
 		},

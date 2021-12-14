@@ -19,7 +19,6 @@ import (
 
 	"android/soong/android"
 	"android/soong/cc"
-	"android/soong/genrule"
 )
 
 var otherCcGenruleBp = map[string]string{
@@ -41,7 +40,6 @@ func runCcGenruleTestCase(t *testing.T, tc bp2buildTestCase) {
 	t.Helper()
 	(&tc).moduleTypeUnderTest = "cc_genrule"
 	(&tc).moduleTypeUnderTestFactory = cc.GenRuleFactory
-	(&tc).moduleTypeUnderTestBp2BuildMutator = genrule.CcGenruleBp2Build
 	runBp2BuildTestCase(t, func(ctx android.RegistrationContext) {}, tc)
 }
 
