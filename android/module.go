@@ -1290,7 +1290,7 @@ func (b *baseModuleContext) AddUnconvertedBp2buildDep(dep string) {
 // GetUnconvertedBp2buildDeps returns the list of module names of this module's direct dependencies that
 // were not converted to Bazel.
 func (m *ModuleBase) GetUnconvertedBp2buildDeps() []string {
-	return m.commonProperties.UnconvertedBp2buildDeps
+	return FirstUniqueStrings(m.commonProperties.UnconvertedBp2buildDeps)
 }
 
 func (m *ModuleBase) AddJSONData(d *map[string]interface{}) {
