@@ -9,10 +9,9 @@ import (
 func TestSharedPrebuiltLibrary(t *testing.T) {
 	runBp2BuildTestCaseSimple(t,
 		bp2buildTestCase{
-			description:                        "prebuilt library shared simple",
-			moduleTypeUnderTest:                "cc_prebuilt_library_shared",
-			moduleTypeUnderTestFactory:         cc.PrebuiltSharedLibraryFactory,
-			moduleTypeUnderTestBp2BuildMutator: cc.PrebuiltLibrarySharedBp2Build,
+			description:                "prebuilt library shared simple",
+			moduleTypeUnderTest:        "cc_prebuilt_library_shared",
+			moduleTypeUnderTestFactory: cc.PrebuiltSharedLibraryFactory,
 			filesystem: map[string]string{
 				"libf.so": "",
 			},
@@ -33,10 +32,9 @@ cc_prebuilt_library_shared {
 func TestSharedPrebuiltLibraryWithArchVariance(t *testing.T) {
 	runBp2BuildTestCaseSimple(t,
 		bp2buildTestCase{
-			description:                        "prebuilt library shared with arch variance",
-			moduleTypeUnderTest:                "cc_prebuilt_library_shared",
-			moduleTypeUnderTestFactory:         cc.PrebuiltSharedLibraryFactory,
-			moduleTypeUnderTestBp2BuildMutator: cc.PrebuiltLibrarySharedBp2Build,
+			description:                "prebuilt library shared with arch variance",
+			moduleTypeUnderTest:        "cc_prebuilt_library_shared",
+			moduleTypeUnderTestFactory: cc.PrebuiltSharedLibraryFactory,
 			filesystem: map[string]string{
 				"libf.so": "",
 				"libg.so": "",

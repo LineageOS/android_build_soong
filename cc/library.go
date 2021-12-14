@@ -207,10 +207,6 @@ type FlagExporterProperties struct {
 
 func init() {
 	RegisterLibraryBuildComponents(android.InitRegistrationContext)
-
-	android.RegisterBp2BuildMutator("cc_library_static", CcLibraryStaticBp2Build)
-	android.RegisterBp2BuildMutator("cc_library_shared", CcLibrarySharedBp2Build)
-	android.RegisterBp2BuildMutator("cc_library", CcLibraryBp2Build)
 }
 
 func RegisterLibraryBuildComponents(ctx android.RegistrationContext) {
@@ -277,21 +273,12 @@ type stripAttributes struct {
 	None                         bazel.BoolAttribute
 }
 
-func CcLibraryBp2Build(ctx android.TopDownMutatorContext) {
-	m, ok := ctx.Module().(*Module)
-	if !ok || !m.ConvertWithBp2build(ctx) {
-		return
-	}
-
-	if ctx.ModuleType() != "cc_library" {
-		return
-	}
-
+func libraryBp2Build(ctx android.TopDownMutatorContext, m *Module) {
 	// For some cc_library modules, their static variants are ready to be
 	// converted, but not their shared variants. For these modules, delegate to
 	// the cc_library_static bp2build converter temporarily instead.
 	if android.GenerateCcLibraryStaticOnly(ctx.Module().Name()) {
-		ccSharedOrStaticBp2BuildMutatorInternal(ctx, m, "cc_library_static")
+		sharedOrStaticLibraryBp2Build(ctx, m, true)
 		return
 	}
 
@@ -421,6 +408,7 @@ func LibraryFactory() android.Module {
 		staticLibrarySdkMemberType,
 		staticAndSharedLibrarySdkMemberType,
 	}
+	module.bazelable = true
 	module.bazelHandler = &ccLibraryBazelHandler{module: module}
 	return module.Init()
 }
@@ -430,6 +418,7 @@ func LibraryStaticFactory() android.Module {
 	module, library := NewLibrary(android.HostAndDeviceSupported)
 	library.BuildOnlyStatic()
 	module.sdkMemberTypes = []android.SdkMemberType{staticLibrarySdkMemberType}
+	module.bazelable = true
 	module.bazelHandler = &ccLibraryBazelHandler{module: module}
 	return module.Init()
 }
@@ -439,6 +428,7 @@ func LibrarySharedFactory() android.Module {
 	module, library := NewLibrary(android.HostAndDeviceSupported)
 	library.BuildOnlyShared()
 	module.sdkMemberTypes = []android.SdkMemberType{sharedLibrarySdkMemberType}
+	module.bazelable = true
 	module.bazelHandler = &ccLibraryBazelHandler{module: module}
 	return module.Init()
 }
@@ -2413,25 +2403,7 @@ func maybeInjectBoringSSLHash(ctx android.ModuleContext, outputFile android.Modu
 	return outputFile
 }
 
-func ccSharedOrStaticBp2BuildMutator(ctx android.TopDownMutatorContext, modType string) {
-	module, ok := ctx.Module().(*Module)
-	if !ok {
-		// Not a cc module
-		return
-	}
-	if !module.ConvertWithBp2build(ctx) {
-		return
-	}
-
-	ccSharedOrStaticBp2BuildMutatorInternal(ctx, module, modType)
-}
-
-func ccSharedOrStaticBp2BuildMutatorInternal(ctx android.TopDownMutatorContext, module *Module, modType string) {
-	if modType != "cc_library_static" && modType != "cc_library_shared" {
-		panic("ccSharedOrStaticBp2BuildMutatorInternal only supports cc_library_{static,shared}")
-	}
-	isStatic := modType == "cc_library_static"
-
+func sharedOrStaticLibraryBp2Build(ctx android.TopDownMutatorContext, module *Module, isStatic bool) {
 	baseAttributes := bp2BuildParseBaseProps(ctx, module)
 	compilerAttrs := baseAttributes.compilerAttributes
 	linkerAttrs := baseAttributes.linkerAttributes
@@ -2541,6 +2513,12 @@ func ccSharedOrStaticBp2BuildMutatorInternal(ctx android.TopDownMutatorContext, 
 		}
 	}
 
+	var modType string
+	if isStatic {
+		modType = "cc_library_static"
+	} else {
+		modType = "cc_library_shared"
+	}
 	props := bazel.BazelTargetModuleProperties{
 		Rule_class:        modType,
 		Bzl_load_location: fmt.Sprintf("//build/bazel/rules:%s.bzl", modType),
@@ -2575,18 +2553,6 @@ type bazelCcLibraryStaticAttributes struct {
 	Features bazel.StringListAttribute
 }
 
-func CcLibraryStaticBp2Build(ctx android.TopDownMutatorContext) {
-	isLibraryStatic := ctx.ModuleType() == "cc_library_static"
-	if b, ok := ctx.Module().(android.Bazelable); ok {
-		// This is created by a custom soong config module type, so its ctx.ModuleType() is not
-		// cc_library_static. Check its BaseModuleType.
-		isLibraryStatic = isLibraryStatic || b.BaseModuleType() == "cc_library_static"
-	}
-	if isLibraryStatic {
-		ccSharedOrStaticBp2BuildMutator(ctx, "cc_library_static")
-	}
-}
-
 // TODO(b/199902614): Can this be factored to share with the other Attributes?
 type bazelCcLibrarySharedAttributes struct {
 	staticOrSharedAttributes
@@ -2617,16 +2583,4 @@ type bazelCcLibrarySharedAttributes struct {
 	Asflags    bazel.StringListAttribute
 
 	Features bazel.StringListAttribute
-}
-
-func CcLibrarySharedBp2Build(ctx android.TopDownMutatorContext) {
-	isLibraryShared := ctx.ModuleType() == "cc_library_shared"
-	if b, ok := ctx.Module().(android.Bazelable); ok {
-		// This is created by a custom soong config module type, so its ctx.ModuleType() is not
-		// cc_library_shared. Check its BaseModuleType.
-		isLibraryShared = isLibraryShared || b.BaseModuleType() == "cc_library_shared"
-	}
-	if isLibraryShared {
-		ccSharedOrStaticBp2BuildMutator(ctx, "cc_library_shared")
-	}
 }

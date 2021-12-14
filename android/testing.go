@@ -208,16 +208,6 @@ func (ctx *TestContext) RegisterBp2BuildConfig(config Bp2BuildConfig) {
 	ctx.config.bp2buildPackageConfig = config
 }
 
-// RegisterBp2BuildMutator registers a BazelTargetModule mutator for converting a module
-// type to the equivalent Bazel target.
-func (ctx *TestContext) RegisterBp2BuildMutator(moduleType string, m func(TopDownMutatorContext)) {
-	f := func(ctx RegisterMutatorsContext) {
-		ctx.TopDown(moduleType, m)
-	}
-	ctx.config.bp2buildModuleTypeConfig[moduleType] = true
-	ctx.bp2buildMutators = append(ctx.bp2buildMutators, f)
-}
-
 // PreArchBp2BuildMutators adds mutators to be register for converting Android Blueprint modules
 // into Bazel BUILD targets that should run prior to deps and conversion.
 func (ctx *TestContext) PreArchBp2BuildMutators(f RegisterMutatorFunc) {
@@ -459,7 +449,7 @@ func (ctx *TestContext) Register() {
 // RegisterForBazelConversion prepares a test context for bp2build conversion.
 func (ctx *TestContext) RegisterForBazelConversion() {
 	ctx.SetRunningAsBp2build()
-	RegisterMutatorsForBazelConversion(ctx.Context, ctx.bp2buildPreArch, ctx.bp2buildMutators)
+	RegisterMutatorsForBazelConversion(ctx.Context, ctx.bp2buildPreArch)
 }
 
 func (ctx *TestContext) ParseFileList(rootDir string, filePaths []string) (deps []string, errs []error) {

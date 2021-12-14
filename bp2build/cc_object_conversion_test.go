@@ -30,7 +30,6 @@ func runCcObjectTestCase(t *testing.T, tc bp2buildTestCase) {
 	t.Helper()
 	(&tc).moduleTypeUnderTest = "cc_object"
 	(&tc).moduleTypeUnderTestFactory = cc.ObjectFactory
-	(&tc).moduleTypeUnderTestBp2BuildMutator = cc.ObjectBp2Build
 	runBp2BuildTestCase(t, registerCcObjectModuleTypes, tc)
 }
 

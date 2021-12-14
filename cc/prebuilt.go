@@ -32,8 +32,6 @@ func RegisterPrebuiltBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("cc_prebuilt_test_library_shared", PrebuiltSharedTestLibraryFactory)
 	ctx.RegisterModuleType("cc_prebuilt_object", prebuiltObjectFactory)
 	ctx.RegisterModuleType("cc_prebuilt_binary", prebuiltBinaryFactory)
-
-	android.RegisterBp2BuildMutator("cc_prebuilt_library_shared", PrebuiltLibrarySharedBp2Build)
 }
 
 type prebuiltLinkerInterface interface {
@@ -299,6 +297,7 @@ func PrebuiltSharedTestLibraryFactory() android.Module {
 func NewPrebuiltSharedLibrary(hod android.HostOrDeviceSupported) (*Module, *libraryDecorator) {
 	module, library := NewPrebuiltLibrary(hod, "srcs")
 	library.BuildOnlyShared()
+	module.bazelable = true
 
 	// Prebuilt shared libraries can be included in APEXes
 	android.InitApexModule(module)
@@ -316,31 +315,41 @@ func PrebuiltStaticLibraryFactory() android.Module {
 func NewPrebuiltStaticLibrary(hod android.HostOrDeviceSupported) (*Module, *libraryDecorator) {
 	module, library := NewPrebuiltLibrary(hod, "srcs")
 	library.BuildOnlyStatic()
+	module.bazelable = true
 	module.bazelHandler = &prebuiltStaticLibraryBazelHandler{module: module, library: library}
 	return module, library
+}
+
+type bazelPrebuiltLibraryStaticAttributes struct {
+	Static_library         bazel.LabelAttribute
+	Export_includes        bazel.StringListAttribute
+	Export_system_includes bazel.StringListAttribute
+}
+
+func prebuiltLibraryStaticBp2Build(ctx android.TopDownMutatorContext, module *Module) {
+	prebuiltAttrs := Bp2BuildParsePrebuiltLibraryProps(ctx, module)
+	exportedIncludes := Bp2BuildParseExportedIncludesForPrebuiltLibrary(ctx, module)
+
+	attrs := &bazelPrebuiltLibraryStaticAttributes{
+		Static_library:         prebuiltAttrs.Src,
+		Export_includes:        exportedIncludes.Includes,
+		Export_system_includes: exportedIncludes.SystemIncludes,
+	}
+
+	props := bazel.BazelTargetModuleProperties{
+		Rule_class:        "prebuilt_library_static",
+		Bzl_load_location: "//build/bazel/rules:prebuilt_library_static.bzl",
+	}
+
+	name := android.RemoveOptionalPrebuiltPrefix(module.Name())
+	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: name}, attrs)
 }
 
 type bazelPrebuiltLibrarySharedAttributes struct {
 	Shared_library bazel.LabelAttribute
 }
 
-func PrebuiltLibrarySharedBp2Build(ctx android.TopDownMutatorContext) {
-	module, ok := ctx.Module().(*Module)
-	if !ok {
-		// Not a cc module
-		return
-	}
-	if !module.ConvertWithBp2build(ctx) {
-		return
-	}
-	if ctx.ModuleType() != "cc_prebuilt_library_shared" {
-		return
-	}
-
-	prebuiltLibrarySharedBp2BuildInternal(ctx, module)
-}
-
-func prebuiltLibrarySharedBp2BuildInternal(ctx android.TopDownMutatorContext, module *Module) {
+func prebuiltLibrarySharedBp2Build(ctx android.TopDownMutatorContext, module *Module) {
 	prebuiltAttrs := Bp2BuildParsePrebuiltLibraryProps(ctx, module)
 
 	attrs := &bazelPrebuiltLibrarySharedAttributes{
