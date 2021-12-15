@@ -552,7 +552,7 @@ func prebuiltBinaryFactory() android.Module {
 }
 
 func NewPrebuiltBinary(hod android.HostOrDeviceSupported) (*Module, *binaryDecorator) {
-	module, binary := NewBinary(hod)
+	module, binary := newBinary(hod, false)
 	module.compiler = nil
 
 	prebuilt := &prebuiltBinaryLinker{
