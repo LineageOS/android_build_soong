@@ -2293,22 +2293,21 @@ func TestFilesInSubDir(t *testing.T) {
 	`)
 
 	generateFsRule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("generateFsConfig")
-	dirs := strings.Split(generateFsRule.Args["exec_paths"], " ")
+	cmd := generateFsRule.RuleParams.Command
 
 	// Ensure that the subdirectories are all listed
-	ensureListContains(t, dirs, "etc")
-	ensureListContains(t, dirs, "etc/foo")
-	ensureListContains(t, dirs, "etc/foo/bar")
-	ensureListContains(t, dirs, "lib64")
-	ensureListContains(t, dirs, "lib64/foo")
-	ensureListContains(t, dirs, "lib64/foo/bar")
-	ensureListContains(t, dirs, "lib")
-	ensureListContains(t, dirs, "lib/foo")
-	ensureListContains(t, dirs, "lib/foo/bar")
-
-	ensureListContains(t, dirs, "bin")
-	ensureListContains(t, dirs, "bin/foo")
-	ensureListContains(t, dirs, "bin/foo/bar")
+	ensureContains(t, cmd, "/etc ")
+	ensureContains(t, cmd, "/etc/foo ")
+	ensureContains(t, cmd, "/etc/foo/bar ")
+	ensureContains(t, cmd, "/lib64 ")
+	ensureContains(t, cmd, "/lib64/foo ")
+	ensureContains(t, cmd, "/lib64/foo/bar ")
+	ensureContains(t, cmd, "/lib ")
+	ensureContains(t, cmd, "/lib/foo ")
+	ensureContains(t, cmd, "/lib/foo/bar ")
+	ensureContains(t, cmd, "/bin ")
+	ensureContains(t, cmd, "/bin/foo ")
+	ensureContains(t, cmd, "/bin/foo/bar ")
 }
 
 func TestFilesInSubDirWhenNativeBridgeEnabled(t *testing.T) {
