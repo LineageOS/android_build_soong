@@ -11,7 +11,7 @@ var packageTests = []struct {
 }{
 	// Package default_visibility handling is tested in visibility_test.go
 	{
-		name: "package must not accept visibility and name properties",
+		name: "package must not accept visibility, name or licenses properties",
 		fs: map[string][]byte{
 			"top/Android.bp": []byte(`
 				package {
@@ -48,8 +48,7 @@ var packageTests = []struct {
 					default_visibility: ["//visibility:private"],
 					default_applicable_licenses: ["license"],
 				}
-
-			        package {
+				package {
 				}`),
 		},
 		expectedErrors: []string{
