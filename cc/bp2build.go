@@ -16,6 +16,7 @@ package cc
 import (
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"android/soong/android"
@@ -31,6 +32,12 @@ const (
 	asSrcPartition    = "as"
 	cppSrcPartition   = "cpp"
 	protoSrcPartition = "proto"
+)
+
+var (
+	// ignoring case, checks for proto or protos as an independent word in the name, whether at the
+	// beginning, end, or middle. e.g. "proto.foo", "bar-protos", "baz_proto_srcs" would all match
+	filegroupLikelyProtoPattern = regexp.MustCompile("(?i)(^|[^a-z])proto(s)?([^a-z]|$)")
 )
 
 // staticOrSharedAttributes are the Bazel-ified versions of StaticOrSharedProperties --
@@ -77,18 +84,18 @@ func groupSrcsByExtension(ctx android.BazelConversionPathContext, srcs bazel.Lab
 		if !exists || !isFilegroup(m) {
 			return labelStr, false
 		}
-		likelyProtos := strings.HasSuffix(labelStr, "proto") || strings.HasSuffix(labelStr, "protos")
+		likelyProtos := filegroupLikelyProtoPattern.MatchString(label.OriginalModuleName)
 		return labelStr, likelyProtos
 	}
 
 	// TODO(b/190006308): Handle language detection of sources in a Bazel rule.
 	partitioned := bazel.PartitionLabelListAttribute(ctx, &srcs, bazel.LabelPartitions{
-		cSrcPartition:  bazel.LabelPartition{Extensions: []string{".c"}, LabelMapper: addSuffixForFilegroup("_c_srcs")},
-		asSrcPartition: bazel.LabelPartition{Extensions: []string{".s", ".S"}, LabelMapper: addSuffixForFilegroup("_as_srcs")},
+		protoSrcPartition: bazel.LabelPartition{Extensions: []string{".proto"}, LabelMapper: isProtoFilegroup},
+		cSrcPartition:     bazel.LabelPartition{Extensions: []string{".c"}, LabelMapper: addSuffixForFilegroup("_c_srcs")},
+		asSrcPartition:    bazel.LabelPartition{Extensions: []string{".s", ".S"}, LabelMapper: addSuffixForFilegroup("_as_srcs")},
 		// C++ is the "catch-all" group, and comprises generated sources because we don't
 		// know the language of these sources until the genrule is executed.
-		cppSrcPartition:   bazel.LabelPartition{Extensions: []string{".cpp", ".cc", ".cxx", ".mm"}, LabelMapper: addSuffixForFilegroup("_cpp_srcs"), Keep_remainder: true},
-		protoSrcPartition: bazel.LabelPartition{Extensions: []string{".proto"}, LabelMapper: isProtoFilegroup},
+		cppSrcPartition: bazel.LabelPartition{Extensions: []string{".cpp", ".cc", ".cxx", ".mm"}, LabelMapper: addSuffixForFilegroup("_cpp_srcs"), Keep_remainder: true},
 	})
 
 	return partitioned

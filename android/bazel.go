@@ -333,7 +333,7 @@ var (
 		"packages/services/Car/tests/SampleRearViewCamera":   Bp2BuildDefaultTrue,
 		"prebuilts/clang/host/linux-x86":                     Bp2BuildDefaultTrueRecursively,
 		"system/apex":                                        Bp2BuildDefaultFalse, // TODO(b/207466993): flaky failures
-		"system/core/debuggerd":                              Bp2BuildDefaultTrue,
+		"system/core/debuggerd":                              Bp2BuildDefaultTrueRecursively,
 		"system/core/diagnose_usb":                           Bp2BuildDefaultTrueRecursively,
 		"system/core/libasyncio":                             Bp2BuildDefaultTrue,
 		"system/core/libcrypto_utils":                        Bp2BuildDefaultTrueRecursively,
@@ -394,9 +394,13 @@ var (
 		"libbacktrace",                                               // depends on unconverted module libunwindstack
 		"libdebuggerd_handler",                                       // depends on unconverted module libdebuggerd_handler_core
 		"libdebuggerd_handler_core", "libdebuggerd_handler_fallback", // depends on unconverted module libdebuggerd
-		"unwind_for_offline",        // depends on unconverted module libunwindstack_utils
-		"libdebuggerd",              // depends on unconverted modules libdexfile_support, libunwindstack, gwp_asan_crash_handler, libtombstone_proto, libprotobuf-cpp-lite
-		"libdexfile_static",         // depends on libartpalette, libartbase, libdexfile, which are of unsupported type: art_cc_library.
+		"unwind_for_offline", // depends on unconverted module libunwindstack_utils
+		"libdebuggerd",       // depends on unconverted modules libdexfile_support, libunwindstack, gwp_asan_crash_handler, libtombstone_proto, libprotobuf-cpp-lite
+		"libdexfile_static",  // depends on libartpalette, libartbase, libdexfile, which are of unsupported type: art_cc_library.
+
+		"crasher",        // depends on unconverted modules: libseccomp_policy
+		"static_crasher", // depends on unconverted modules: libdebuggerd_handler, libseccomp_policy
+
 		"host_bionic_linker_asm",    // depends on extract_linker, a go binary.
 		"host_bionic_linker_script", // depends on extract_linker, a go binary.
 
@@ -408,8 +412,6 @@ var (
 		"libc_malloc_debug", // depends on unconverted module libunwindstack
 
 		"libbase_ndk", // http://b/186826477, fails to link libctscamera2_jni for device (required for CtsCameraTestCases)
-
-		"lib_linker_config_proto_lite", // contains .proto sources
 
 		"libprotobuf-python",               // contains .proto sources
 		"libprotobuf-internal-protos",      // b/210751803, we don't handle path property for filegroups
