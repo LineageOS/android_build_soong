@@ -25,7 +25,6 @@ func init() {
 	// Register sdk member types.
 	android.RegisterSdkMemberType(headersLibrarySdkMemberType)
 
-	android.RegisterBp2BuildMutator("cc_library_headers", CcLibraryHeadersBp2Build)
 }
 
 var headersLibrarySdkMemberType = &librarySdkMemberType{
@@ -96,6 +95,7 @@ func LibraryHeaderFactory() android.Module {
 	module, library := NewLibrary(android.HostAndDeviceSupported)
 	library.HeaderOnly()
 	module.sdkMemberTypes = []android.SdkMemberType{headersLibrarySdkMemberType}
+	module.bazelable = true
 	module.bazelHandler = &libraryHeaderBazelHander{module: module, library: library}
 	return module.Init()
 }
@@ -108,40 +108,28 @@ func prebuiltLibraryHeaderFactory() android.Module {
 }
 
 type bazelCcLibraryHeadersAttributes struct {
-	Hdrs                   bazel.LabelListAttribute
-	Export_includes        bazel.StringListAttribute
-	Export_system_includes bazel.StringListAttribute
-	Deps                   bazel.LabelListAttribute
-	Implementation_deps    bazel.LabelListAttribute
-	System_dynamic_deps    bazel.LabelListAttribute
+	Hdrs                     bazel.LabelListAttribute
+	Export_includes          bazel.StringListAttribute
+	Export_absolute_includes bazel.StringListAttribute
+	Export_system_includes   bazel.StringListAttribute
+	Deps                     bazel.LabelListAttribute
+	Implementation_deps      bazel.LabelListAttribute
+	System_dynamic_deps      bazel.LabelListAttribute
 }
 
-func CcLibraryHeadersBp2Build(ctx android.TopDownMutatorContext) {
-	module, ok := ctx.Module().(*Module)
-	if !ok {
-		// Not a cc module
-		return
-	}
-
-	if !module.ConvertWithBp2build(ctx) {
-		return
-	}
-
-	if ctx.ModuleType() != "cc_library_headers" {
-		return
-	}
-
-	exportedIncludes := bp2BuildParseExportedIncludes(ctx, module)
+func libraryHeadersBp2Build(ctx android.TopDownMutatorContext, module *Module) {
 	baseAttributes := bp2BuildParseBaseProps(ctx, module)
+	exportedIncludes := bp2BuildParseExportedIncludes(ctx, module, baseAttributes.includes)
 	linkerAttrs := baseAttributes.linkerAttributes
 
 	attrs := &bazelCcLibraryHeadersAttributes{
-		Export_includes:        exportedIncludes.Includes,
-		Export_system_includes: exportedIncludes.SystemIncludes,
-		Implementation_deps:    linkerAttrs.implementationDeps,
-		Deps:                   linkerAttrs.deps,
-		System_dynamic_deps:    linkerAttrs.systemDynamicDeps,
-		Hdrs:                   baseAttributes.hdrs,
+		Export_includes:          exportedIncludes.Includes,
+		Export_absolute_includes: exportedIncludes.AbsoluteIncludes,
+		Export_system_includes:   exportedIncludes.SystemIncludes,
+		Implementation_deps:      linkerAttrs.implementationDeps,
+		Deps:                     linkerAttrs.deps,
+		System_dynamic_deps:      linkerAttrs.systemDynamicDeps,
+		Hdrs:                     baseAttributes.hdrs,
 	}
 
 	props := bazel.BazelTargetModuleProperties{

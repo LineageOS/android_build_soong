@@ -9,11 +9,13 @@ bootstrap_go_package {
         "env.go",
         "paths.go",
         "debug.go",
+        "proto.go",
     ],
     testSrcs: [
         "paths_test.go",
     ],
     deps: [
         "soong-bazel",
+        "golang-protobuf-proto",
     ],
 }

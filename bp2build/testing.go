@@ -74,16 +74,15 @@ func runBp2BuildTestCaseSimple(t *testing.T, tc bp2buildTestCase) {
 }
 
 type bp2buildTestCase struct {
-	description                        string
-	moduleTypeUnderTest                string
-	moduleTypeUnderTestFactory         android.ModuleFactory
-	moduleTypeUnderTestBp2BuildMutator func(android.TopDownMutatorContext)
-	blueprint                          string
-	expectedBazelTargets               []string
-	filesystem                         map[string]string
-	dir                                string
-	expectedErr                        error
-	unconvertedDepsMode                unconvertedDepsMode
+	description                string
+	moduleTypeUnderTest        string
+	moduleTypeUnderTestFactory android.ModuleFactory
+	blueprint                  string
+	expectedBazelTargets       []string
+	filesystem                 map[string]string
+	dir                        string
+	expectedErr                error
+	unconvertedDepsMode        unconvertedDepsMode
 }
 
 func runBp2BuildTestCase(t *testing.T, registerModuleTypes func(ctx android.RegistrationContext), tc bp2buildTestCase) {
@@ -105,7 +104,6 @@ func runBp2BuildTestCase(t *testing.T, registerModuleTypes func(ctx android.Regi
 	registerModuleTypes(ctx)
 	ctx.RegisterModuleType(tc.moduleTypeUnderTest, tc.moduleTypeUnderTestFactory)
 	ctx.RegisterBp2BuildConfig(bp2buildConfig)
-	ctx.RegisterBp2BuildMutator(tc.moduleTypeUnderTest, tc.moduleTypeUnderTestBp2BuildMutator)
 	ctx.RegisterForBazelConversion()
 
 	_, parseErrs := ctx.ParseFileList(dir, toParse)
@@ -178,6 +176,9 @@ type customProps struct {
 
 	Arch_paths         []string `android:"path,arch_variant"`
 	Arch_paths_exclude []string `android:"path,arch_variant"`
+
+	// Prop used to indicate this conversion should be 1 module -> multiple targets
+	One_to_many_prop *bool
 }
 
 type customModule struct {
@@ -277,71 +278,65 @@ type customBazelModuleAttributes struct {
 	Arch_paths       bazel.LabelListAttribute
 }
 
-func customBp2BuildMutator(ctx android.TopDownMutatorContext) {
-	if m, ok := ctx.Module().(*customModule); ok {
-		if !m.ConvertWithBp2build(ctx) {
-			return
-		}
+func (m *customModule) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+	paths := bazel.LabelListAttribute{}
 
-		paths := bazel.LabelListAttribute{}
+	if p := m.props.One_to_many_prop; p != nil && *p {
+		customBp2buildOneToMany(ctx, m)
+		return
+	}
 
-		for axis, configToProps := range m.GetArchVariantProperties(ctx, &customProps{}) {
-			for config, props := range configToProps {
-				if archProps, ok := props.(*customProps); ok && archProps.Arch_paths != nil {
-					paths.SetSelectValue(axis, config, android.BazelLabelForModuleSrcExcludes(ctx, archProps.Arch_paths, archProps.Arch_paths_exclude))
-				}
+	for axis, configToProps := range m.GetArchVariantProperties(ctx, &customProps{}) {
+		for config, props := range configToProps {
+			if archProps, ok := props.(*customProps); ok && archProps.Arch_paths != nil {
+				paths.SetSelectValue(axis, config, android.BazelLabelForModuleSrcExcludes(ctx, archProps.Arch_paths, archProps.Arch_paths_exclude))
 			}
 		}
-
-		paths.ResolveExcludes()
-
-		attrs := &customBazelModuleAttributes{
-			String_ptr_prop:  m.props.String_ptr_prop,
-			String_list_prop: m.props.String_list_prop,
-			Arch_paths:       paths,
-		}
-		attrs.Embedded_attr = m.props.Embedded_prop
-		if m.props.OtherEmbeddedProps != nil {
-			attrs.OtherEmbeddedAttr = &OtherEmbeddedAttr{Other_embedded_attr: m.props.OtherEmbeddedProps.Other_embedded_prop}
-		}
-
-		props := bazel.BazelTargetModuleProperties{
-			Rule_class: "custom",
-		}
-
-		ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: m.Name()}, attrs)
 	}
+
+	paths.ResolveExcludes()
+
+	attrs := &customBazelModuleAttributes{
+		String_ptr_prop:  m.props.String_ptr_prop,
+		String_list_prop: m.props.String_list_prop,
+		Arch_paths:       paths,
+	}
+	attrs.Embedded_attr = m.props.Embedded_prop
+	if m.props.OtherEmbeddedProps != nil {
+		attrs.OtherEmbeddedAttr = &OtherEmbeddedAttr{Other_embedded_attr: m.props.OtherEmbeddedProps.Other_embedded_prop}
+	}
+
+	props := bazel.BazelTargetModuleProperties{
+		Rule_class: "custom",
+	}
+
+	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: m.Name()}, attrs)
 }
 
 // A bp2build mutator that uses load statements and creates a 1:M mapping from
 // module to target.
-func customBp2BuildMutatorFromStarlark(ctx android.TopDownMutatorContext) {
-	if m, ok := ctx.Module().(*customModule); ok {
-		if !m.ConvertWithBp2build(ctx) {
-			return
-		}
+func customBp2buildOneToMany(ctx android.TopDownMutatorContext, m *customModule) {
 
-		baseName := m.Name()
-		attrs := &customBazelModuleAttributes{}
+	baseName := m.Name()
+	attrs := &customBazelModuleAttributes{}
 
-		myLibraryProps := bazel.BazelTargetModuleProperties{
-			Rule_class:        "my_library",
-			Bzl_load_location: "//build/bazel/rules:rules.bzl",
-		}
-		ctx.CreateBazelTargetModule(myLibraryProps, android.CommonAttributes{Name: baseName}, attrs)
-
-		protoLibraryProps := bazel.BazelTargetModuleProperties{
-			Rule_class:        "proto_library",
-			Bzl_load_location: "//build/bazel/rules:proto.bzl",
-		}
-		ctx.CreateBazelTargetModule(protoLibraryProps, android.CommonAttributes{Name: baseName + "_proto_library_deps"}, attrs)
-
-		myProtoLibraryProps := bazel.BazelTargetModuleProperties{
-			Rule_class:        "my_proto_library",
-			Bzl_load_location: "//build/bazel/rules:proto.bzl",
-		}
-		ctx.CreateBazelTargetModule(myProtoLibraryProps, android.CommonAttributes{Name: baseName + "_my_proto_library_deps"}, attrs)
+	myLibraryProps := bazel.BazelTargetModuleProperties{
+		Rule_class:        "my_library",
+		Bzl_load_location: "//build/bazel/rules:rules.bzl",
 	}
+	ctx.CreateBazelTargetModule(myLibraryProps, android.CommonAttributes{Name: baseName}, attrs)
+
+	protoLibraryProps := bazel.BazelTargetModuleProperties{
+		Rule_class:        "proto_library",
+		Bzl_load_location: "//build/bazel/rules:proto.bzl",
+	}
+	ctx.CreateBazelTargetModule(protoLibraryProps, android.CommonAttributes{Name: baseName + "_proto_library_deps"}, attrs)
+
+	myProtoLibraryProps := bazel.BazelTargetModuleProperties{
+		Rule_class:        "my_proto_library",
+		Bzl_load_location: "//build/bazel/rules:proto.bzl",
+	}
+	ctx.CreateBazelTargetModule(myProtoLibraryProps, android.CommonAttributes{Name: baseName + "_my_proto_library_deps"}, attrs)
 }
 
 // Helper method for tests to easily access the targets in a dir.
@@ -353,7 +348,6 @@ func generateBazelTargetsForDir(codegenCtx *CodegenContext, dir string) (BazelTa
 
 func registerCustomModuleForBp2buildConversion(ctx *android.TestContext) {
 	ctx.RegisterModuleType("custom", customModuleFactory)
-	ctx.RegisterBp2BuildMutator("custom", customBp2BuildMutator)
 	ctx.RegisterForBazelConversion()
 }
 

@@ -29,7 +29,6 @@ func init() {
 	android.RegisterModuleType("cc_object", ObjectFactory)
 	android.RegisterSdkMemberType(ccObjectSdkMemberType)
 
-	android.RegisterBp2BuildMutator("cc_object", ObjectBp2Build)
 }
 
 var ccObjectSdkMemberType = &librarySdkMemberType{
@@ -117,6 +116,7 @@ func ObjectFactory() android.Module {
 
 	module.sdkMemberTypes = []android.SdkMemberType{ccObjectSdkMemberType}
 
+	module.bazelable = true
 	return module.Init()
 }
 
@@ -135,19 +135,9 @@ type bazelObjectAttributes struct {
 	Linker_script       bazel.LabelAttribute
 }
 
-// ObjectBp2Build is the bp2build converter from cc_object modules to the
+// objectBp2Build is the bp2build converter from cc_object modules to the
 // Bazel equivalent target, plus any necessary include deps for the cc_object.
-func ObjectBp2Build(ctx android.TopDownMutatorContext) {
-	m, ok := ctx.Module().(*Module)
-	if !ok || !m.ConvertWithBp2build(ctx) {
-		return
-	}
-
-	// a Module can be something other than a cc_object.
-	if ctx.ModuleType() != "cc_object" {
-		return
-	}
-
+func objectBp2Build(ctx android.TopDownMutatorContext, m *Module) {
 	if m.compiler == nil {
 		// a cc_object must have access to the compiler decorator for its props.
 		ctx.ModuleErrorf("compiler must not be nil for a cc_object module")

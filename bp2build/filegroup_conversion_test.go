@@ -25,7 +25,6 @@ func runFilegroupTestCase(t *testing.T, tc bp2buildTestCase) {
 	t.Helper()
 	(&tc).moduleTypeUnderTest = "filegroup"
 	(&tc).moduleTypeUnderTestFactory = android.FileGroupFactory
-	(&tc).moduleTypeUnderTestBp2BuildMutator = android.FilegroupBp2Build
 	runBp2BuildTestCase(t, registerFilegroupModuleTypes, tc)
 }
 

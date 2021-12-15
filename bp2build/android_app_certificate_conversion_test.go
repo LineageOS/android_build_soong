@@ -31,11 +31,10 @@ func registerAndroidAppCertificateModuleTypes(ctx android.RegistrationContext) {
 
 func TestAndroidAppCertificateSimple(t *testing.T) {
 	runAndroidAppCertificateTestCase(t, bp2buildTestCase{
-		description:                        "Android app certificate - simple example",
-		moduleTypeUnderTest:                "android_app_certificate",
-		moduleTypeUnderTestFactory:         java.AndroidAppCertificateFactory,
-		moduleTypeUnderTestBp2BuildMutator: java.AndroidAppCertificateBp2Build,
-		filesystem:                         map[string]string{},
+		description:                "Android app certificate - simple example",
+		moduleTypeUnderTest:        "android_app_certificate",
+		moduleTypeUnderTestFactory: java.AndroidAppCertificateFactory,
+		filesystem:                 map[string]string{},
 		blueprint: `
 android_app_certificate {
         name: "com.android.apogee.cert",
