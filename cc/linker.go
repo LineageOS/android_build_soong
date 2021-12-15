@@ -94,6 +94,9 @@ type BaseLinkerProperties struct {
 	// vendor variants and this module uses VNDK.
 	Runtime_libs []string `android:"arch_variant"`
 
+	// list of runtime libs that should not be installed along with this module.
+	Exclude_runtime_libs []string `android:"arch_variant"`
+
 	Target struct {
 		Vendor, Product struct {
 			// list of shared libs that only should be used to build vendor or
@@ -116,8 +119,8 @@ type BaseLinkerProperties struct {
 			// product variant of the C/C++ module.
 			Exclude_header_libs []string
 
-			// list of runtime libs that should not be installed along with
-			// vendor or variant of the C/C++ module.
+			// list of runtime libs that should not be installed along with the
+			// vendor or product variant of the C/C++ module.
 			Exclude_runtime_libs []string
 
 			// version script for vendor or product variant
@@ -143,6 +146,10 @@ type BaseLinkerProperties struct {
 			// list of header libs that should not be used to build the recovery variant
 			// of the C/C++ module.
 			Exclude_header_libs []string
+
+			// list of runtime libs that should not be installed along with the
+			// recovery variant of the C/C++ module.
+			Exclude_runtime_libs []string
 		}
 		Ramdisk struct {
 			// list of static libs that only should be used to build the recovery
@@ -156,6 +163,10 @@ type BaseLinkerProperties struct {
 			// list of static libs that should not be used to build
 			// the ramdisk variant of the C/C++ module.
 			Exclude_static_libs []string
+
+			// list of runtime libs that should not be installed along with the
+			// ramdisk variant of the C/C++ module.
+			Exclude_runtime_libs []string
 		}
 		Vendor_ramdisk struct {
 			// list of shared libs that should not be used to build
@@ -165,6 +176,10 @@ type BaseLinkerProperties struct {
 			// list of static libs that should not be used to build
 			// the vendor ramdisk variant of the C/C++ module.
 			Exclude_static_libs []string
+
+			// list of runtime libs that should not be installed along with the
+			// vendor ramdisk variant of the C/C++ module.
+			Exclude_runtime_libs []string
 		}
 		Platform struct {
 			// list of shared libs that should be use to build the platform variant
@@ -178,7 +193,7 @@ type BaseLinkerProperties struct {
 			// the C/C++ module.
 			Exclude_shared_libs []string
 
-			// list of static libs that should not be used to build the apex ramdisk
+			// list of static libs that should not be used to build the apex
 			// variant of the C/C++ module.
 			Exclude_static_libs []string
 		}
@@ -247,6 +262,7 @@ func (linker *baseLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	deps.SharedLibs = removeListFromList(deps.SharedLibs, linker.Properties.Exclude_shared_libs)
 	deps.StaticLibs = removeListFromList(deps.StaticLibs, linker.Properties.Exclude_static_libs)
 	deps.WholeStaticLibs = removeListFromList(deps.WholeStaticLibs, linker.Properties.Exclude_static_libs)
+	deps.RuntimeLibs = removeListFromList(deps.RuntimeLibs, linker.Properties.Exclude_runtime_libs)
 
 	// Record the libraries that need to be excluded when building for APEX. Unlike other
 	// target.*.exclude_* properties, SharedLibs and StaticLibs are not modified here because
@@ -296,6 +312,7 @@ func (linker *baseLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 		deps.ReexportHeaderLibHeaders = removeListFromList(deps.ReexportHeaderLibHeaders, linker.Properties.Target.Recovery.Exclude_header_libs)
 		deps.ReexportStaticLibHeaders = removeListFromList(deps.ReexportStaticLibHeaders, linker.Properties.Target.Recovery.Exclude_static_libs)
 		deps.WholeStaticLibs = removeListFromList(deps.WholeStaticLibs, linker.Properties.Target.Recovery.Exclude_static_libs)
+		deps.RuntimeLibs = removeListFromList(deps.RuntimeLibs, linker.Properties.Target.Recovery.Exclude_runtime_libs)
 	}
 
 	if ctx.inRamdisk() {
@@ -305,6 +322,7 @@ func (linker *baseLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 		deps.StaticLibs = removeListFromList(deps.StaticLibs, linker.Properties.Target.Ramdisk.Exclude_static_libs)
 		deps.ReexportStaticLibHeaders = removeListFromList(deps.ReexportStaticLibHeaders, linker.Properties.Target.Ramdisk.Exclude_static_libs)
 		deps.WholeStaticLibs = removeListFromList(deps.WholeStaticLibs, linker.Properties.Target.Ramdisk.Exclude_static_libs)
+		deps.RuntimeLibs = removeListFromList(deps.RuntimeLibs, linker.Properties.Target.Ramdisk.Exclude_runtime_libs)
 	}
 
 	if ctx.inVendorRamdisk() {
@@ -313,6 +331,7 @@ func (linker *baseLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 		deps.StaticLibs = removeListFromList(deps.StaticLibs, linker.Properties.Target.Vendor_ramdisk.Exclude_static_libs)
 		deps.ReexportStaticLibHeaders = removeListFromList(deps.ReexportStaticLibHeaders, linker.Properties.Target.Vendor_ramdisk.Exclude_static_libs)
 		deps.WholeStaticLibs = removeListFromList(deps.WholeStaticLibs, linker.Properties.Target.Vendor_ramdisk.Exclude_static_libs)
+		deps.RuntimeLibs = removeListFromList(deps.RuntimeLibs, linker.Properties.Target.Vendor_ramdisk.Exclude_runtime_libs)
 	}
 
 	if !ctx.useSdk() {
