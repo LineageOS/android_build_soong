@@ -140,21 +140,5 @@ func makeCompatSymlinks(name string, ctx android.ModuleContext, primaryApex bool
 		addSymlink("/apex/com.android.i18n/etc/icu", dir, "icu")
 	}
 
-	// TODO(b/124106384): Clean up compat symlinks for ART binaries.
-	if name == "com.android.art" {
-		dir := android.PathForModuleInPartitionInstall(ctx, "system", "bin")
-		addSymlink("/apex/com.android.art/bin/dalvikvm", dir, "dalvikvm")
-		dex2oat := "dex2oat32"
-		if ctx.Config().Android64() {
-			dex2oat = "dex2oat64"
-		}
-		addSymlink("/apex/com.android.art/bin/"+dex2oat, dir, "dex2oat")
-	} else if name == "com.android.art" || strings.HasPrefix(name, "com.android.art.") {
-		dir := android.PathForModuleInPartitionInstall(ctx, "system", "bin")
-		symlinks = append(symlinks,
-			dir.Join(ctx, "dalvikvm"),
-			dir.Join(ctx, "dex2oat"))
-	}
-
 	return symlinks
 }
