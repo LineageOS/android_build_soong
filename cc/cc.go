@@ -3458,10 +3458,6 @@ func (c *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 	} else if c.Object() {
 		objectBp2Build(ctx, c)
 	} else if c.CcLibrary() {
-		if c.hod == android.HostSupported {
-			return
-		}
-
 		static := c.BuildStaticVariant()
 		shared := c.BuildSharedVariant()
 		prebuilt := c.IsPrebuilt()
