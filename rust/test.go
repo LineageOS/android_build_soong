@@ -210,6 +210,12 @@ func init() {
 
 func RustTestFactory() android.Module {
 	module, _ := NewRustTest(android.HostAndDeviceSupported)
+
+	// NewRustTest will set MultilibBoth true, however the host variant
+	// cannot produce the non-primary target. Therefore, add the
+	// rustTestHostMultilib load hook to set MultilibFirst for the
+	// host target.
+	android.AddLoadHook(module, rustTestHostMultilib)
 	return module.Init()
 }
 
@@ -235,4 +241,17 @@ func (test *testDecorator) compilerDeps(ctx DepsContext, deps Deps) Deps {
 
 func (test *testDecorator) testBinary() bool {
 	return true
+}
+
+func rustTestHostMultilib(ctx android.LoadHookContext) {
+	type props struct {
+		Target struct {
+			Host struct {
+				Compile_multilib *string
+			}
+		}
+	}
+	p := &props{}
+	p.Target.Host.Compile_multilib = proptools.StringPtr("first")
+	ctx.AppendProperties(p)
 }
