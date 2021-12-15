@@ -2096,18 +2096,18 @@ func (e *earlyModuleContext) GlobFiles(globPattern string, excludes []string) Pa
 	return GlobFiles(e, globPattern, excludes)
 }
 
-func (b *earlyModuleContext) IsSymlink(path Path) bool {
-	fileInfo, err := b.config.fs.Lstat(path.String())
+func (e *earlyModuleContext) IsSymlink(path Path) bool {
+	fileInfo, err := e.config.fs.Lstat(path.String())
 	if err != nil {
-		b.ModuleErrorf("os.Lstat(%q) failed: %s", path.String(), err)
+		e.ModuleErrorf("os.Lstat(%q) failed: %s", path.String(), err)
 	}
 	return fileInfo.Mode()&os.ModeSymlink == os.ModeSymlink
 }
 
-func (b *earlyModuleContext) Readlink(path Path) string {
-	dest, err := b.config.fs.Readlink(path.String())
+func (e *earlyModuleContext) Readlink(path Path) string {
+	dest, err := e.config.fs.Readlink(path.String())
 	if err != nil {
-		b.ModuleErrorf("os.Readlink(%q) failed: %s", path.String(), err)
+		e.ModuleErrorf("os.Readlink(%q) failed: %s", path.String(), err)
 	}
 	return dest
 }
