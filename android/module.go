@@ -320,6 +320,9 @@ type BaseModuleContext interface {
 	// AddUnconvertedBp2buildDep stores module name of a direct dependency that was not converted via bp2build
 	AddUnconvertedBp2buildDep(dep string)
 
+	// AddMissingBp2buildDep stores the module name of a direct dependency that was not found.
+	AddMissingBp2buildDep(dep string)
+
 	Target() Target
 	TargetPrimary() bool
 
@@ -516,6 +519,7 @@ type Module interface {
 	// Bp2buildTargets returns the target(s) generated for Bazel via bp2build for this module
 	Bp2buildTargets() []bp2buildInfo
 	GetUnconvertedBp2buildDeps() []string
+	GetMissingBp2buildDeps() []string
 
 	BuildParamsForTests() []BuildParams
 	RuleParamsForTests() map[blueprint.Rule]blueprint.RuleParams
@@ -857,6 +861,9 @@ type commonProperties struct {
 	// UnconvertedBp2buildDep stores the module names of direct dependency that were not converted to
 	// Bazel
 	UnconvertedBp2buildDeps []string `blueprint:"mutated"`
+
+	// MissingBp2buildDep stores the module names of direct dependency that were not found
+	MissingBp2buildDeps []string `blueprint:"mutated"`
 }
 
 // CommonAttributes represents the common Bazel attributes from which properties
@@ -1325,10 +1332,21 @@ func (b *baseModuleContext) AddUnconvertedBp2buildDep(dep string) {
 	*unconvertedDeps = append(*unconvertedDeps, dep)
 }
 
+// AddMissingBp2buildDep stores module name of a dependency that was not found in a Android.bp file.
+func (b *baseModuleContext) AddMissingBp2buildDep(dep string) {
+	missingDeps := &b.Module().base().commonProperties.MissingBp2buildDeps
+	*missingDeps = append(*missingDeps, dep)
+}
+
 // GetUnconvertedBp2buildDeps returns the list of module names of this module's direct dependencies that
 // were not converted to Bazel.
 func (m *ModuleBase) GetUnconvertedBp2buildDeps() []string {
 	return FirstUniqueStrings(m.commonProperties.UnconvertedBp2buildDeps)
+}
+
+// GetMissingBp2buildDeps eturns the list of module names that were not found in Android.bp files.
+func (m *ModuleBase) GetMissingBp2buildDeps() []string {
+	return FirstUniqueStrings(m.commonProperties.MissingBp2buildDeps)
 }
 
 func (m *ModuleBase) AddJSONData(d *map[string]interface{}) {
