@@ -15,6 +15,8 @@
 package android
 
 import (
+	"bufio"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
@@ -206,7 +208,8 @@ var (
 		"build/bazel/platforms":/* recursive = */ true,
 		"build/bazel/product_variables":/* recursive = */ true,
 		"build/bazel_common_rules":/* recursive = */ true,
-		"build/make/tools":/* recursive = */ true,
+		// build/make/tools/signapk BUILD file is generated, so build/make/tools is not recursive.
+		"build/make/tools":/* recursive = */ false,
 		"build/pesto":/* recursive = */ true,
 
 		// external/bazelbuild-rules_android/... is needed by mixed builds, otherwise mixed builds analysis fails
@@ -237,6 +240,7 @@ var (
 		"bootable/recovery/tools/recovery_l10n": Bp2BuildDefaultTrue,
 		"build/bazel/examples/soong_config_variables":        Bp2BuildDefaultTrueRecursively,
 		"build/bazel/examples/apex/minimal":                  Bp2BuildDefaultTrueRecursively,
+		"build/make/tools/signapk":                           Bp2BuildDefaultTrue,
 		"build/soong":                                        Bp2BuildDefaultTrue,
 		"build/soong/cc/libbuildversion":                     Bp2BuildDefaultTrue, // Skip tests subdir
 		"build/soong/cc/ndkstubgen":                          Bp2BuildDefaultTrue,
@@ -279,7 +283,9 @@ var (
 		"development/sdk":                                    Bp2BuildDefaultTrueRecursively,
 		"external/arm-optimized-routines":                    Bp2BuildDefaultTrueRecursively,
 		"external/boringssl":                                 Bp2BuildDefaultTrueRecursively,
+		"external/bouncycastle":                              Bp2BuildDefaultTrue,
 		"external/brotli":                                    Bp2BuildDefaultTrue,
+		"external/conscrypt":                                 Bp2BuildDefaultTrue,
 		"external/fmtlib":                                    Bp2BuildDefaultTrueRecursively,
 		"external/google-benchmark":                          Bp2BuildDefaultTrueRecursively,
 		"external/googletest":                                Bp2BuildDefaultTrueRecursively,
@@ -349,6 +355,8 @@ var (
 		"system/timezone/output_data":                        Bp2BuildDefaultTrueRecursively,
 		"system/unwinding/libbacktrace":                      Bp2BuildDefaultTrueRecursively,
 		"system/unwinding/libunwindstack":                    Bp2BuildDefaultTrueRecursively,
+		"tools/apksig":                                       Bp2BuildDefaultTrue,
+		"tools/platform-compat/java/android/compat":          Bp2BuildDefaultTrueRecursively,
 	}
 
 	// Per-module denylist to always opt modules out of both bp2build and mixed builds.
@@ -404,8 +412,11 @@ var (
 		"lib_linker_config_proto_lite", // contains .proto sources
 
 		"libprotobuf-python",               // contains .proto sources
-		"libprotobuf-internal-protos",      // we don't handle path property for fileegroups
-		"libprotobuf-internal-python-srcs", // we don't handle path property for fileegroups
+		"libprotobuf-internal-protos",      // b/210751803, we don't handle path property for filegroups
+		"libprotobuf-internal-python-srcs", // b/210751803, we don't handle path property for filegroups
+		"libprotobuf-java-full",            // b/210751803, we don't handle path property for filegroups
+		"libprotobuf-java-util-full",       // b/210751803, we don't handle path property for filegroups
+		"conscrypt",                        // b/210751803, we don't handle path property for filegroups
 
 		"libseccomp_policy", // b/201094425: depends on func_to_syscall_nrs, which depends on py_binary, which is unsupported in mixed builds.
 		"libfdtrack",        // depends on unconverted module libunwindstack
@@ -639,4 +650,23 @@ func convertWithBp2build(ctx TopDownMutatorContext) {
 	}
 
 	bModule.ConvertWithBp2build(ctx)
+}
+
+// GetMainClassInManifest scans the manifest file specified in filepath and returns
+// the value of attribute Main-Class in the manifest file if it exists, or returns error.
+// WARNING: this is for bp2build converters of java_* modules only.
+func GetMainClassInManifest(c Config, filepath string) (string, error) {
+	file, err := c.fs.Open(filepath)
+	if err != nil {
+		return "", err
+	}
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "Main-Class:") {
+			return strings.TrimSpace(line[len("Main-Class:"):]), nil
+		}
+	}
+
+	return "", errors.New("Main-Class is not found.")
 }
