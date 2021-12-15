@@ -21,7 +21,9 @@ package java
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 
+	"android/soong/bazel"
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
@@ -756,6 +758,7 @@ func LibraryFactory() android.Module {
 
 	android.InitApexModule(module)
 	android.InitSdkAwareModule(module)
+	android.InitBazelModule(module)
 	InitJavaModule(module, android.HostAndDeviceSupported)
 	return module
 }
@@ -778,6 +781,7 @@ func LibraryHostFactory() android.Module {
 
 	android.InitApexModule(module)
 	android.InitSdkAwareModule(module)
+	android.InitBazelModule(module)
 	InitJavaModule(module, android.HostSupported)
 	return module
 }
@@ -1228,6 +1232,8 @@ func BinaryFactory() android.Module {
 
 	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibCommonFirst)
 	android.InitDefaultableModule(module)
+	android.InitBazelModule(module)
+
 	return module
 }
 
@@ -1245,6 +1251,7 @@ func BinaryHostFactory() android.Module {
 
 	android.InitAndroidArchModule(module, android.HostSupported, android.MultilibCommonFirst)
 	android.InitDefaultableModule(module)
+	android.InitBazelModule(module)
 	return module
 }
 
@@ -1960,4 +1967,104 @@ func addCLCFromDep(ctx android.ModuleContext, depModule android.Module,
 	} else {
 		clcMap.AddContextMap(dep.ClassLoaderContexts(), depName)
 	}
+}
+
+type javaLibraryAttributes struct {
+	Srcs      bazel.LabelListAttribute
+	Deps      bazel.LabelListAttribute
+	Javacopts bazel.StringListAttribute
+}
+
+func javaLibraryBp2Build(ctx android.TopDownMutatorContext, m *Library) {
+	srcs := bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrcExcludes(ctx, m.properties.Srcs, m.properties.Exclude_srcs))
+	attrs := &javaLibraryAttributes{
+		Srcs: srcs,
+	}
+
+	if m.properties.Javacflags != nil {
+		attrs.Javacopts = bazel.MakeStringListAttribute(m.properties.Javacflags)
+	}
+
+	if m.properties.Libs != nil {
+		attrs.Deps = bazel.MakeLabelListAttribute(android.BazelLabelForModuleDeps(ctx, m.properties.Libs))
+	}
+
+	props := bazel.BazelTargetModuleProperties{
+		Rule_class:        "java_library",
+		Bzl_load_location: "//build/bazel/rules/java:library.bzl",
+	}
+
+	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: m.Name()}, attrs)
+}
+
+type javaBinaryHostAttributes struct {
+	Srcs       bazel.LabelListAttribute
+	Deps       bazel.LabelListAttribute
+	Main_class string
+	Jvm_flags  bazel.StringListAttribute
+}
+
+// JavaBinaryHostBp2Build is for java_binary_host bp2build.
+func javaBinaryHostBp2Build(ctx android.TopDownMutatorContext, m *Binary) {
+	mainClass := ""
+	if m.binaryProperties.Main_class != nil {
+		mainClass = *m.binaryProperties.Main_class
+	}
+	if m.properties.Manifest != nil {
+		mainClassInManifest, err := android.GetMainClassInManifest(ctx.Config(), android.PathForModuleSrc(ctx, *m.properties.Manifest).String())
+		if err != nil {
+			return
+		}
+		mainClass = mainClassInManifest
+	}
+	srcs := bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrcExcludes(ctx, m.properties.Srcs, m.properties.Exclude_srcs))
+	attrs := &javaBinaryHostAttributes{
+		Srcs:       srcs,
+		Main_class: mainClass,
+	}
+
+	// Attribute deps
+	deps := []string{}
+	if m.properties.Static_libs != nil {
+		deps = append(deps, m.properties.Static_libs...)
+	}
+	if m.binaryProperties.Jni_libs != nil {
+		deps = append(deps, m.binaryProperties.Jni_libs...)
+	}
+	if len(deps) > 0 {
+		attrs.Deps = bazel.MakeLabelListAttribute(android.BazelLabelForModuleDeps(ctx, deps))
+	}
+
+	// Attribute jvm_flags
+	if m.binaryProperties.Jni_libs != nil {
+		jniLibPackages := map[string]bool{}
+		for _, jniLibLabel := range android.BazelLabelForModuleDeps(ctx, m.binaryProperties.Jni_libs).Includes {
+			jniLibPackage := jniLibLabel.Label
+			indexOfColon := strings.Index(jniLibLabel.Label, ":")
+			if indexOfColon > 0 {
+				// JNI lib from other package
+				jniLibPackage = jniLibLabel.Label[2:indexOfColon]
+			} else if indexOfColon == 0 {
+				// JNI lib in the same package of java_binary
+				packageOfCurrentModule := m.GetBazelLabel(ctx, m)
+				jniLibPackage = packageOfCurrentModule[2:strings.Index(packageOfCurrentModule, ":")]
+			}
+			if _, inMap := jniLibPackages[jniLibPackage]; !inMap {
+				jniLibPackages[jniLibPackage] = true
+			}
+		}
+		jniLibPaths := []string{}
+		for jniLibPackage, _ := range jniLibPackages {
+			// See cs/f:.*/third_party/bazel/.*java_stub_template.txt for the use of RUNPATH
+			jniLibPaths = append(jniLibPaths, "$${RUNPATH}"+jniLibPackage)
+		}
+		attrs.Jvm_flags = bazel.MakeStringListAttribute([]string{"-Djava.library.path=" + strings.Join(jniLibPaths, ":")})
+	}
+
+	props := bazel.BazelTargetModuleProperties{
+		Rule_class: "java_binary",
+	}
+
+	// Create the BazelTargetModule.
+	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: m.Name()}, attrs)
 }

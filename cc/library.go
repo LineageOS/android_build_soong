@@ -447,6 +447,8 @@ func LibraryHostSharedFactory() android.Module {
 	module, library := NewLibrary(android.HostSupported)
 	library.BuildOnlyShared()
 	module.sdkMemberTypes = []android.SdkMemberType{sharedLibrarySdkMemberType}
+	module.bazelable = true
+	module.bazelHandler = &ccLibraryBazelHandler{module: module}
 	return module.Init()
 }
 
