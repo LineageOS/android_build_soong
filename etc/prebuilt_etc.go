@@ -63,7 +63,6 @@ func RegisterPrebuiltEtcBuildComponents(ctx android.RegistrationContext) {
 
 	ctx.RegisterModuleType("prebuilt_defaults", defaultsFactory)
 
-	android.RegisterBp2BuildMutator("prebuilt_etc", PrebuiltEtcBp2Build)
 }
 
 var PrepareForTestWithPrebuiltEtc = android.FixtureRegisterWithContext(RegisterPrebuiltEtcBuildComponents)
@@ -663,20 +662,14 @@ type bazelPrebuiltEtcAttributes struct {
 	Installable bazel.BoolAttribute
 }
 
-func PrebuiltEtcBp2Build(ctx android.TopDownMutatorContext) {
-	module, ok := ctx.Module().(*PrebuiltEtc)
-	if !ok {
-		// Not an prebuilt_etc
-		return
-	}
-	if !module.ConvertWithBp2build(ctx) {
-		return
-	}
+// ConvertWithBp2build performs bp2build conversion of PrebuiltEtc
+func (p *PrebuiltEtc) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+	// All prebuilt_* modules are PrebuiltEtc, but at this time, we only convert prebuilt_etc modules.
 	if ctx.ModuleType() != "prebuilt_etc" {
 		return
 	}
 
-	prebuiltEtcBp2BuildInternal(ctx, module)
+	prebuiltEtcBp2BuildInternal(ctx, p)
 }
 
 func prebuiltEtcBp2BuildInternal(ctx android.TopDownMutatorContext, module *PrebuiltEtc) {
