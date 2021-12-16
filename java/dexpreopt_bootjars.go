@@ -506,8 +506,18 @@ func copyBootJarsToPredefinedLocations(ctx android.ModuleContext, srcBootDexJars
 		dst := dstBootJarsByModule[name]
 
 		if src == nil {
+			// A dex boot jar should be provided by the source java module. It needs to be installable or
+			// have compile_dex=true - cf. assignments to java.Module.dexJarFile.
+			//
+			// However, the source java module may be either replaced or overridden (using prefer:true) by
+			// a prebuilt java module with the same name. In that case the dex boot jar needs to be
+			// provided by the corresponding prebuilt APEX module. That APEX is the one that refers
+			// through a exported_(boot|systemserver)classpath_fragments property to a
+			// prebuilt_(boot|systemserver)classpath_fragment module, which in turn lists the prebuilt
+			// java module in the contents property. If that chain is broken then this dependency will
+			// fail.
 			if !ctx.Config().AllowMissingDependencies() {
-				ctx.ModuleErrorf("module %s does not provide a dex boot jar", name)
+				ctx.ModuleErrorf("module %s does not provide a dex boot jar (see comment next to this message in Soong for details)", name)
 			} else {
 				ctx.AddMissingDependencies([]string{name})
 			}
