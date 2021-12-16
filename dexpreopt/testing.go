@@ -167,3 +167,10 @@ func FixtureSetBootImageProfiles(profiles ...string) android.FixturePreparer {
 		dexpreoptConfig.BootImageProfiles = android.PathsForSource(ctx, profiles)
 	})
 }
+
+// FixtureDisableGenerateProfile sets the DisableGenerateProfile property in the global config.
+func FixtureDisableGenerateProfile(disable bool) android.FixturePreparer {
+	return FixtureModifyGlobalConfig(func(_ android.PathContext, dexpreoptConfig *GlobalConfig) {
+		dexpreoptConfig.DisableGenerateProfile = disable
+	})
+}
