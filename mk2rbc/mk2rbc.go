@@ -111,6 +111,7 @@ var knownFunctions = map[string]struct {
 	"filter":                              {baseName + ".filter", starlarkTypeList, hiddenArgNone},
 	"filter-out":                          {baseName + ".filter_out", starlarkTypeList, hiddenArgNone},
 	"firstword":                           {"!firstword", starlarkTypeString, hiddenArgNone},
+	"foreach":                             {"!foreach", starlarkTypeList, hiddenArgNone},
 	"get-vendor-board-platforms":          {"!get-vendor-board-platforms", starlarkTypeList, hiddenArgNone}, // internal macro, used by is-board-platform, etc.
 	"if":                                  {"!if", starlarkTypeUnknown, hiddenArgNone},
 	"info":                                {baseName + ".mkinfo", starlarkTypeVoid, hiddenArgNone},
@@ -147,14 +148,10 @@ var knownFunctions = map[string]struct {
 	"warning":    {baseName + ".mkwarning", starlarkTypeVoid, hiddenArgNone},
 	"word":       {baseName + "!word", starlarkTypeString, hiddenArgNone},
 	"wildcard":   {baseName + ".expand_wildcard", starlarkTypeList, hiddenArgNone},
+	"words":      {baseName + ".words", starlarkTypeList, hiddenArgNone},
 }
 
-var builtinFuncRex = regexp.MustCompile(
-	"^(addprefix|addsuffix|abspath|and|basename|call|dir|error|eval" +
-		"|flavor|foreach|file|filter|filter-out|findstring|firstword|guile" +
-		"|if|info|join|lastword|notdir|or|origin|patsubst|realpath" +
-		"|shell|sort|strip|subst|suffix|value|warning|word|wordlist|words" +
-		"|wildcard)")
+var identifierFullMatchRegex = regexp.MustCompile("^[a-zA-Z_][a-zA-Z0-9_]*$")
 
 // Conversion request parameters
 type Request struct {
@@ -1412,6 +1409,8 @@ func (ctx *parseContext) parseReference(node mkparser.Node, ref *mkparser.MakeSt
 	switch expr.name {
 	case "if":
 		return ctx.parseIfFunc(node, args)
+	case "foreach":
+		return ctx.parseForeachFunc(node, args)
 	case "word":
 		return ctx.parseWordFunc(node, args)
 	case "firstword", "lastword":
@@ -1496,6 +1495,38 @@ func (ctx *parseContext) parseIfFunc(node mkparser.Node, args *mkparser.MakeStri
 	}
 }
 
+func (ctx *parseContext) parseForeachFunc(node mkparser.Node, args *mkparser.MakeString) starlarkExpr {
+	words := args.Split(",")
+	if len(words) != 3 {
+		return ctx.newBadExpr(node, "foreach function should have 3 arguments, found "+strconv.Itoa(len(words)))
+	}
+	if !words[0].Const() || words[0].Empty() || !identifierFullMatchRegex.MatchString(words[0].Strings[0]) {
+		return ctx.newBadExpr(node, "first argument to foreach function must be a simple string identifier")
+	}
+	loopVarName := words[0].Strings[0]
+	list := ctx.parseMakeString(node, words[1])
+	action := ctx.parseMakeString(node, words[2]).transform(func(expr starlarkExpr) starlarkExpr {
+		if varRefExpr, ok := expr.(*variableRefExpr); ok && varRefExpr.ref.name() == loopVarName {
+			return &identifierExpr{loopVarName}
+		}
+		return nil
+	})
+
+	if list.typ() != starlarkTypeList {
+		list = &callExpr{
+			name:       "words",
+			returnType: knownFunctions["words"].returnType,
+			args:       []starlarkExpr{list},
+		}
+	}
+
+	return &foreachExpr{
+		varName: loopVarName,
+		list:    list,
+		action:  action,
+	}
+}
+
 func (ctx *parseContext) parseWordFunc(node mkparser.Node, args *mkparser.MakeString) starlarkExpr {
 	words := args.Split(",")
 	if len(words) != 2 {
@@ -1517,7 +1548,7 @@ func (ctx *parseContext) parseWordFunc(node mkparser.Node, args *mkparser.MakeSt
 	if array.typ() != starlarkTypeList {
 		array = &callExpr{object: array, name: "split", returnType: starlarkTypeList}
 	}
-	return indexExpr{array, &intLiteralExpr{int(index - 1)}}
+	return &indexExpr{array, &intLiteralExpr{int(index - 1)}}
 }
 
 func (ctx *parseContext) parseFirstOrLastwordFunc(node mkparser.Node, name string, args *mkparser.MakeString) starlarkExpr {
