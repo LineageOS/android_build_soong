@@ -105,7 +105,7 @@ var knownFunctions = map[string]struct {
 	"dist-for-goals":                      {baseName + ".mkdist_for_goals", starlarkTypeVoid, hiddenArgGlobal},
 	"enforce-product-packages-exist":      {baseName + ".enforce_product_packages_exist", starlarkTypeVoid, hiddenArgNone},
 	"error":                               {baseName + ".mkerror", starlarkTypeVoid, hiddenArgNone},
-	"findstring":                          {"!findstring", starlarkTypeInt, hiddenArgNone},
+	"findstring":                          {baseName + ".findstring", starlarkTypeString, hiddenArgNone},
 	"find-copy-subdir-files":              {baseName + ".find_and_copy", starlarkTypeList, hiddenArgNone},
 	"find-word-in-list":                   {"!find-word-in-list", starlarkTypeUnknown, hiddenArgNone}, // internal macro
 	"filter":                              {baseName + ".filter", starlarkTypeList, hiddenArgNone},
@@ -1288,8 +1288,21 @@ func (ctx *parseContext) parseCheckFindstringFuncResult(directive *mkparser.Dire
 			right: &intLiteralExpr{-1},
 			isEq:  !negate,
 		}
+	} else if s, ok := maybeString(xValue); ok {
+		if s2, ok := maybeString(xCall.args[0]); ok && s == s2 {
+			return &eqExpr{
+				left: &callExpr{
+					object:     xCall.args[1],
+					name:       "find",
+					args:       []starlarkExpr{xCall.args[0]},
+					returnType: starlarkTypeInt,
+				},
+				right: &intLiteralExpr{-1},
+				isEq:  negate,
+			}
+		}
 	}
-	return ctx.newBadExpr(directive, "findstring result can be compared only to empty: %s", xValue)
+	return ctx.newBadExpr(directive, "$(findstring) can only be compared to nothing or its first argument")
 }
 
 func (ctx *parseContext) parseCompareStripFuncResult(directive *mkparser.Directive,
