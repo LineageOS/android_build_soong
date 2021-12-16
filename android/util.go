@@ -65,22 +65,6 @@ func JoinWithSuffix(strs []string, suffix string, separator string) string {
 	return buf.String()
 }
 
-// SortedIntKeys returns the keys of the given integer-keyed map in the ascending order
-// TODO(asmundak): once Go has generics, combine this with SortedStringKeys below.
-func SortedIntKeys(m interface{}) []int {
-	v := reflect.ValueOf(m)
-	if v.Kind() != reflect.Map {
-		panic(fmt.Sprintf("%#v is not a map", m))
-	}
-	keys := v.MapKeys()
-	s := make([]int, 0, len(keys))
-	for _, key := range keys {
-		s = append(s, int(key.Int()))
-	}
-	sort.Ints(s)
-	return s
-}
-
 // SorterStringKeys returns the keys of the given string-keyed map in the ascending order
 func SortedStringKeys(m interface{}) []string {
 	v := reflect.ValueOf(m)
@@ -91,21 +75,6 @@ func SortedStringKeys(m interface{}) []string {
 	s := make([]string, 0, len(keys))
 	for _, key := range keys {
 		s = append(s, key.String())
-	}
-	sort.Strings(s)
-	return s
-}
-
-// SortedStringMapValues returns the values of the string-values map in the ascending order
-func SortedStringMapValues(m interface{}) []string {
-	v := reflect.ValueOf(m)
-	if v.Kind() != reflect.Map {
-		panic(fmt.Sprintf("%#v is not a map", m))
-	}
-	keys := v.MapKeys()
-	s := make([]string, 0, len(keys))
-	for _, key := range keys {
-		s = append(s, v.MapIndex(key).String())
 	}
 	sort.Strings(s)
 	return s
