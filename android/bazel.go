@@ -245,6 +245,7 @@ var (
 		"build/soong/cc/libbuildversion":                     Bp2BuildDefaultTrue, // Skip tests subdir
 		"build/soong/cc/ndkstubgen":                          Bp2BuildDefaultTrue,
 		"build/soong/cc/symbolfile":                          Bp2BuildDefaultTrue,
+		"build/soong/scripts":                                Bp2BuildDefaultTrueRecursively,
 		"cts/common/device-side/nativetesthelper/jni":        Bp2BuildDefaultTrueRecursively,
 		"development/apps/DevelopmentSettings":               Bp2BuildDefaultTrue,
 		"development/apps/Fallback":                          Bp2BuildDefaultTrue,
@@ -363,8 +364,7 @@ var (
 
 	// Per-module denylist to always opt modules out of both bp2build and mixed builds.
 	bp2buildModuleDoNotConvertList = []string{
-		"libnativehelper_compat_libc++",              // Broken compile: implicit declaration of function 'strerror_r' is invalid in C99
-		"art_libdexfile_dex_instruction_list_header", // breaks libart_mterp.armng, header not found
+		"libnativehelper_compat_libc", // Broken compile: implicit declaration of function 'strerror_r' is invalid in C99
 
 		"libandroid_runtime_lazy", // depends on unconverted modules: libbinder_headers
 		"libcmd",                  // depends on unconverted modules: libbinder
@@ -373,22 +373,19 @@ var (
 
 		"libsepol", // TODO(b/207408632): Unsupported case of .l sources in cc library rules
 
-		"get_clang_version_test", // depends on unconverted module: get_clang_version
+		"gen-kotlin-build-file.py", // module has same name as source
 
 		"libbinder",               // TODO(b/188503688): Disabled for some archs,
 		"libactivitymanager_aidl", // TODO(b/207426160): Depends on activity_manager_procstate_aidl, which is an aidl filegroup.
 
-		"libnativehelper_lazy_mts_jni", // depends on unconverted modules: libgmock_ndk
-		"libnativehelper_mts_jni",      // depends on unconverted modules: libgmock_ndk
-		"libnativetesthelper_jni",      // depends on unconverted modules: libgtest_ndk_c++
+		"libnativehelper_lazy_mts_jni", "libnativehelper_mts_jni", // depends on unconverted modules: libgmock_ndk
+		"libnativetesthelper_jni", "libgmock_main_ndk", "libgmock_ndk", // depends on unconverted module: libgtest_ndk_c++
 
 		"statslog-framework-java-gen", "statslog.cpp", "statslog.h", "statslog.rs", "statslog_header.rs", // depends on unconverted modules: stats-log-api-gen
 
 		"stats-log-api-gen", // depends on unconverted modules: libstats_proto_host, libprotobuf-cpp-full
 
 		"libstatslog", // depends on unconverted modules: statslog.cpp, statslog.h, ...
-
-		"libgmock_main_ndk", "libgmock_ndk", // depends on unconverted module: libgtest_ndk_c++
 
 		"cmd",                                                        // depends on unconverted module packagemanager_aidl-cpp, of unsupported type aidl_interface
 		"servicedispatcher",                                          // depends on unconverted module android.debug_aidl, of unsupported type aidl_interface
@@ -400,18 +397,11 @@ var (
 		"libdebuggerd",       // depends on unconverted modules libdexfile_support, libunwindstack, gwp_asan_crash_handler, libtombstone_proto, libprotobuf-cpp-lite
 		"libdexfile_static",  // depends on libartpalette, libartbase, libdexfile, which are of unsupported type: art_cc_library.
 
-		"crasher",        // depends on unconverted modules: libseccomp_policy
-		"static_crasher", // depends on unconverted modules: libdebuggerd_handler, libseccomp_policy
-
 		"host_bionic_linker_asm",    // depends on extract_linker, a go binary.
 		"host_bionic_linker_script", // depends on extract_linker, a go binary.
+		"static_crasher",            // depends on unconverted modules: libdebuggerd_handler
 
-		"pbtombstone", // depends on libprotobuf-cpp-lite, libtombstone_proto
-		"crash_dump",  // depends on unconverted module libprotobuf-cpp-lite
-
-		"libunwindstack_local", "libunwindstack_utils", // depends on unconverted module libunwindstack
-		"libunwindstack",    // depends on libdexfile_support, of unsupported module type art_cc_library_static
-		"libc_malloc_debug", // depends on unconverted module libunwindstack
+		"pbtombstone", "crash_dump", // depends on libdebuggerd, libunwindstack
 
 		"libbase_ndk", // http://b/186826477, fails to link libctscamera2_jni for device (required for CtsCameraTestCases)
 
@@ -422,10 +412,7 @@ var (
 		"libprotobuf-java-util-full",       // b/210751803, we don't handle path property for filegroups
 		"conscrypt",                        // b/210751803, we don't handle path property for filegroups
 
-		"libseccomp_policy", // b/201094425: depends on func_to_syscall_nrs, which depends on py_binary, which is unsupported in mixed builds.
-		"libfdtrack",        // depends on unconverted module libunwindstack
-
-		"gwp_asan_crash_handler", // cc_library, ld.lld: error: undefined symbol: memset
+		"conv_linker_config", // depends on linker_config_proto, a python lib with proto sources
 
 		"brotli-fuzzer-corpus", // b/202015218: outputs are in location incompatible with bazel genrule handling.
 
@@ -434,14 +421,8 @@ var (
 		"platform_tools_properties",
 		"build_tools_source_properties",
 
-		// Tests. Handle later.
-		"libbionic_tests_headers_posix", // http://b/186024507, cc_library_static, sched.h, time.h not found
-		"libjemalloc5_integrationtest",
-		"libjemalloc5_stresstestlib",
-		"libjemalloc5_unittest",
-
 		// APEX support
-		"com.android.runtime", // http://b/194746715, apex, depends on 'libc_malloc_debug'
+		"com.android.runtime", // depends on unconverted modules: bionic-linker-config, linkerconfig
 
 		"libgtest_ndk_c++",      // b/201816222: Requires sdk_version support.
 		"libgtest_main_ndk_c++", // b/201816222: Requires sdk_version support.
@@ -471,6 +452,8 @@ var (
 	// Per-module denylist to opt modules out of mixed builds. Such modules will
 	// still be generated via bp2build.
 	mixedBuildsDisabledList = []string{
+		"art_libdexfile_dex_instruction_list_header", // breaks libart_mterp.armng, header not found
+
 		"libbrotli",               // http://b/198585397, ld.lld: error: bionic/libc/arch-arm64/generic/bionic/memmove.S:95:(.text+0x10): relocation R_AARCH64_CONDBR19 out of range: -1404176 is not in [-1048576, 1048575]; references __memcpy
 		"minijail_constants_json", // http://b/200899432, bazel-built cc_genrule does not work in mixed build when it is a dependency of another soong module.
 
