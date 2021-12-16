@@ -2041,3 +2041,121 @@ func TestCcLibraryProtoExportHeaders(t *testing.T) {
 		},
 	})
 }
+
+func TestCcLibraryProtoFilegroups(t *testing.T) {
+	runCcLibraryTestCase(t, bp2buildTestCase{
+		moduleTypeUnderTest:        "cc_library",
+		moduleTypeUnderTestFactory: cc.LibraryFactory,
+		blueprint: soongCcProtoPreamble +
+			simpleModuleDoNotConvertBp2build("filegroup", "a_fg_proto") +
+			simpleModuleDoNotConvertBp2build("filegroup", "b_protos") +
+			simpleModuleDoNotConvertBp2build("filegroup", "c-proto-srcs") +
+			simpleModuleDoNotConvertBp2build("filegroup", "proto-srcs-d") + `
+cc_library {
+	name: "a",
+	srcs: [":a_fg_proto"],
+	proto: {
+		canonical_path_from_root: false,
+		export_proto_headers: true,
+	},
+	include_build_directory: false,
+}
+
+cc_library {
+	name: "b",
+	srcs: [":b_protos"],
+	proto: {
+		canonical_path_from_root: false,
+		export_proto_headers: true,
+	},
+	include_build_directory: false,
+}
+
+cc_library {
+	name: "c",
+	srcs: [":c-proto-srcs"],
+	proto: {
+		canonical_path_from_root: false,
+		export_proto_headers: true,
+	},
+	include_build_directory: false,
+}
+
+cc_library {
+	name: "d",
+	srcs: [":proto-srcs-d"],
+	proto: {
+		canonical_path_from_root: false,
+		export_proto_headers: true,
+	},
+	include_build_directory: false,
+}`,
+		expectedBazelTargets: []string{
+			makeBazelTarget("proto_library", "a_proto", attrNameToString{
+				"srcs": `[":a_fg_proto"]`,
+			}), makeBazelTarget("cc_lite_proto_library", "a_cc_proto_lite", attrNameToString{
+				"deps": `[":a_proto"]`,
+			}), makeBazelTarget("cc_library_static", "a_bp2build_cc_library_static", attrNameToString{
+				"deps":               `[":libprotobuf-cpp-lite"]`,
+				"whole_archive_deps": `[":a_cc_proto_lite"]`,
+				"srcs":               `[":a_fg_proto_cpp_srcs"]`,
+				"srcs_as":            `[":a_fg_proto_as_srcs"]`,
+				"srcs_c":             `[":a_fg_proto_c_srcs"]`,
+			}), makeBazelTarget("cc_library_shared", "a", attrNameToString{
+				"dynamic_deps":       `[":libprotobuf-cpp-lite"]`,
+				"whole_archive_deps": `[":a_cc_proto_lite"]`,
+				"srcs":               `[":a_fg_proto_cpp_srcs"]`,
+				"srcs_as":            `[":a_fg_proto_as_srcs"]`,
+				"srcs_c":             `[":a_fg_proto_c_srcs"]`,
+			}), makeBazelTarget("proto_library", "b_proto", attrNameToString{
+				"srcs": `[":b_protos"]`,
+			}), makeBazelTarget("cc_lite_proto_library", "b_cc_proto_lite", attrNameToString{
+				"deps": `[":b_proto"]`,
+			}), makeBazelTarget("cc_library_static", "b_bp2build_cc_library_static", attrNameToString{
+				"deps":               `[":libprotobuf-cpp-lite"]`,
+				"whole_archive_deps": `[":b_cc_proto_lite"]`,
+				"srcs":               `[":b_protos_cpp_srcs"]`,
+				"srcs_as":            `[":b_protos_as_srcs"]`,
+				"srcs_c":             `[":b_protos_c_srcs"]`,
+			}), makeBazelTarget("cc_library_shared", "b", attrNameToString{
+				"dynamic_deps":       `[":libprotobuf-cpp-lite"]`,
+				"whole_archive_deps": `[":b_cc_proto_lite"]`,
+				"srcs":               `[":b_protos_cpp_srcs"]`,
+				"srcs_as":            `[":b_protos_as_srcs"]`,
+				"srcs_c":             `[":b_protos_c_srcs"]`,
+			}), makeBazelTarget("proto_library", "c_proto", attrNameToString{
+				"srcs": `[":c-proto-srcs"]`,
+			}), makeBazelTarget("cc_lite_proto_library", "c_cc_proto_lite", attrNameToString{
+				"deps": `[":c_proto"]`,
+			}), makeBazelTarget("cc_library_static", "c_bp2build_cc_library_static", attrNameToString{
+				"deps":               `[":libprotobuf-cpp-lite"]`,
+				"whole_archive_deps": `[":c_cc_proto_lite"]`,
+				"srcs":               `[":c-proto-srcs_cpp_srcs"]`,
+				"srcs_as":            `[":c-proto-srcs_as_srcs"]`,
+				"srcs_c":             `[":c-proto-srcs_c_srcs"]`,
+			}), makeBazelTarget("cc_library_shared", "c", attrNameToString{
+				"dynamic_deps":       `[":libprotobuf-cpp-lite"]`,
+				"whole_archive_deps": `[":c_cc_proto_lite"]`,
+				"srcs":               `[":c-proto-srcs_cpp_srcs"]`,
+				"srcs_as":            `[":c-proto-srcs_as_srcs"]`,
+				"srcs_c":             `[":c-proto-srcs_c_srcs"]`,
+			}), makeBazelTarget("proto_library", "d_proto", attrNameToString{
+				"srcs": `[":proto-srcs-d"]`,
+			}), makeBazelTarget("cc_lite_proto_library", "d_cc_proto_lite", attrNameToString{
+				"deps": `[":d_proto"]`,
+			}), makeBazelTarget("cc_library_static", "d_bp2build_cc_library_static", attrNameToString{
+				"deps":               `[":libprotobuf-cpp-lite"]`,
+				"whole_archive_deps": `[":d_cc_proto_lite"]`,
+				"srcs":               `[":proto-srcs-d_cpp_srcs"]`,
+				"srcs_as":            `[":proto-srcs-d_as_srcs"]`,
+				"srcs_c":             `[":proto-srcs-d_c_srcs"]`,
+			}), makeBazelTarget("cc_library_shared", "d", attrNameToString{
+				"dynamic_deps":       `[":libprotobuf-cpp-lite"]`,
+				"whole_archive_deps": `[":d_cc_proto_lite"]`,
+				"srcs":               `[":proto-srcs-d_cpp_srcs"]`,
+				"srcs_as":            `[":proto-srcs-d_as_srcs"]`,
+				"srcs_c":             `[":proto-srcs-d_c_srcs"]`,
+			}),
+		},
+	})
+}
