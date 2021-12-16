@@ -168,7 +168,7 @@ func newArch(name, multilib string) ArchType {
 	return archType
 }
 
-// ArchTypeList returns the a slice copy of the 4 supported ArchTypes for arm,
+// ArchTypeList returns a slice copy of the 4 supported ArchTypes for arm,
 // arm64, x86 and x86_64.
 func ArchTypeList() []ArchType {
 	return append([]ArchType(nil), archTypeList...)
@@ -408,7 +408,7 @@ func bp2buildArchPathDepsMutator(ctx BottomUpMutatorContext) {
 
 	// addPathDepsForProps does not descend into sub structs, so we need to descend into the
 	// arch-specific properties ourselves
-	properties := []interface{}{}
+	var properties []interface{}
 	for _, archProperties := range m.archProperties {
 		for _, archProps := range archProperties {
 			archPropValues := reflect.ValueOf(archProps).Elem()
@@ -995,8 +995,11 @@ func initArchModule(m Module) {
 
 	// Store the original list of top level property structs
 	base.generalProperties = m.GetProperties()
+	if len(base.archProperties) != 0 {
+		panic(fmt.Errorf("module %s already has archProperties", m.Name()))
+	}
 
-	for _, properties := range base.generalProperties {
+	getStructType := func(properties interface{}) reflect.Type {
 		propertiesValue := reflect.ValueOf(properties)
 		t := propertiesValue.Type()
 		if propertiesValue.Kind() != reflect.Ptr {
@@ -1006,10 +1009,14 @@ func initArchModule(m Module) {
 
 		propertiesValue = propertiesValue.Elem()
 		if propertiesValue.Kind() != reflect.Struct {
-			panic(fmt.Errorf("properties must be a pointer to a struct, got %T",
+			panic(fmt.Errorf("properties must be a pointer to a struct, got a pointer to %T",
 				propertiesValue.Interface()))
 		}
+		return t
+	}
 
+	for _, properties := range base.generalProperties {
+		t := getStructType(properties)
 		// Get or create the arch-specific property struct types for this property struct type.
 		archPropTypes := archPropTypeMap.Once(NewCustomOnceKey(t), func() interface{} {
 			return createArchPropTypeDesc(t)
