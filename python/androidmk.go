@@ -78,7 +78,7 @@ func (installer *pythonInstaller) AndroidMk(base *Module, entries *android.Andro
 	entries.Required = append(entries.Required, "libc++")
 	entries.ExtraEntries = append(entries.ExtraEntries,
 		func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
-			path, file := filepath.Split(installer.path.ToMakePath().String())
+			path, file := filepath.Split(installer.path.String())
 			stem := strings.TrimSuffix(file, filepath.Ext(file))
 
 			entries.SetString("LOCAL_MODULE_SUFFIX", filepath.Ext(file))
