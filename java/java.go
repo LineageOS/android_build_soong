@@ -267,8 +267,6 @@ func (j *Module) XrefJavaFiles() android.Paths {
 	return j.kytheFiles
 }
 
-func (j *Module) InstallBypassMake() bool { return true }
-
 type dependencyTag struct {
 	blueprint.BaseDependencyTag
 	name string
