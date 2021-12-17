@@ -453,7 +453,7 @@ func (installer *baseInstaller) AndroidMkEntries(ctx AndroidMkContext, entries *
 	}
 
 	entries.ExtraEntries = append(entries.ExtraEntries, func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
-		path, file := filepath.Split(installer.path.ToMakePath().String())
+		path, file := filepath.Split(installer.path.String())
 		stem, suffix, _ := android.SplitFileExt(file)
 		entries.SetString("LOCAL_MODULE_SUFFIX", suffix)
 		entries.SetString("LOCAL_MODULE_PATH", path)
@@ -532,7 +532,7 @@ func (c *snapshotLibraryDecorator) AndroidMkEntries(ctx AndroidMkContext, entrie
 		c.libraryDecorator.androidMkWriteExportedFlags(entries)
 
 		if c.shared() || c.static() {
-			path, file := filepath.Split(c.path.ToMakePath().String())
+			path, file := filepath.Split(c.path.String())
 			stem, suffix, ext := android.SplitFileExt(file)
 			entries.SetString("LOCAL_BUILT_MODULE_STEM", "$(LOCAL_MODULE)"+ext)
 			entries.SetString("LOCAL_MODULE_SUFFIX", suffix)

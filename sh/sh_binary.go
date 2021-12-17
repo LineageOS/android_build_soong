@@ -166,10 +166,6 @@ type ShBinary struct {
 
 var _ android.HostToolProvider = (*ShBinary)(nil)
 
-func (s *ShBinary) InstallBypassMake() bool {
-	return true
-}
-
 type ShTest struct {
 	ShBinary
 
@@ -435,7 +431,7 @@ func (s *ShTest) AndroidMkEntries() []android.AndroidMkEntries {
 		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
 			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
 				s.customAndroidMkEntries(entries)
-				entries.SetPath("LOCAL_MODULE_PATH", s.installDir.ToMakePath())
+				entries.SetPath("LOCAL_MODULE_PATH", s.installDir)
 				entries.AddCompatibilityTestSuites(s.testProperties.Test_suites...)
 				if s.testConfig != nil {
 					entries.SetPath("LOCAL_FULL_TEST_CONFIG", s.testConfig)

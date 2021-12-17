@@ -59,7 +59,7 @@ func dexpreoptSystemserverCheckFactory() android.SingletonModule {
 
 func getInstallPath(ctx android.ModuleContext, location string) android.InstallPath {
 	return android.PathForModuleInPartitionInstall(
-		ctx, "", strings.TrimPrefix(location, "/")).ToMakePath()
+		ctx, "", strings.TrimPrefix(location, "/"))
 }
 
 func (m *dexpreoptSystemserverCheck) GenerateAndroidBuildActions(ctx android.ModuleContext) {
