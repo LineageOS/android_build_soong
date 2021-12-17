@@ -411,7 +411,6 @@ type parseContext struct {
 	ifNestLevel      int
 	moduleNameCount  map[string]int // count of imported modules with given basename
 	fatalError       error
-	builtinMakeVars  map[string]starlarkExpr
 	outputSuffix     string
 	errorLogger      ErrorLogger
 	tracedVariables  map[string]bool // variables to be traced in the generated script
@@ -464,7 +463,6 @@ func newParseContext(ss *StarlarkScript, nodes []mkparser.Node) *parseContext {
 		currentNodeIndex: 0,
 		ifNestLevel:      0,
 		moduleNameCount:  make(map[string]int),
-		builtinMakeVars:  map[string]starlarkExpr{},
 		variables:        make(map[string]variable),
 		dependentModules: make(map[string]*moduleInfo),
 		soongNamespaces:  make(map[string]map[string]bool),
@@ -600,9 +598,6 @@ func (ctx *parseContext) handleAssignment(a *mkparser.Assignment) {
 		}
 	}
 
-	// TODO(asmundak): move evaluation to a separate pass
-	asgn.value, _ = asgn.value.eval(ctx.builtinMakeVars)
-
 	asgn.previous = ctx.lastAssignment(name)
 	ctx.setLastAssignment(name, asgn)
 	switch a.Type {
@@ -629,7 +624,6 @@ func (ctx *parseContext) handleSoongNsAssignment(name string, asgn *mkparser.Ass
 		ctx.wrapBadExpr(xBad)
 		return
 	}
-	val, _ = val.eval(ctx.builtinMakeVars)
 
 	// Unfortunately, Soong namespaces can be set up by directly setting corresponding Make
 	// variables instead of via add_soong_config_namespace + add_soong_config_var_value.
@@ -785,7 +779,6 @@ func (ctx *parseContext) newDependentModule(path string, optional bool) *moduleI
 
 func (ctx *parseContext) handleSubConfig(
 	v mkparser.Node, pathExpr starlarkExpr, loadAlways bool, processModule func(inheritedModule)) {
-	pathExpr, _ = pathExpr.eval(ctx.builtinMakeVars)
 
 	// In a simple case, the name of a module to inherit/include is known statically.
 	if path, ok := maybeString(pathExpr); ok {
@@ -1122,7 +1115,7 @@ func (ctx *parseContext) parseCompareSpecialCases(directive *mkparser.Directive,
 			return xBad, true
 		}
 		return &eqExpr{
-			left:  &variableRefExpr{ctx.addVariable("TARGET_BOARD_PLATFORM"), false},
+			left:  NewVariableRefExpr(ctx.addVariable("TARGET_BOARD_PLATFORM"), false),
 			right: call.args[0],
 			isEq:  isEq,
 		}, true
@@ -1131,7 +1124,7 @@ func (ctx *parseContext) parseCompareSpecialCases(directive *mkparser.Directive,
 			return xBad, true
 		}
 		return &inExpr{
-			expr:  &variableRefExpr{ctx.addVariable("TARGET_BOARD_PLATFORM"), false},
+			expr:  NewVariableRefExpr(ctx.addVariable("TARGET_BOARD_PLATFORM"), false),
 			list:  maybeConvertToStringList(call.args[0]),
 			isNot: !isEq,
 		}, true
@@ -1140,7 +1133,7 @@ func (ctx *parseContext) parseCompareSpecialCases(directive *mkparser.Directive,
 			return xBad, true
 		}
 		return &inExpr{
-			expr:  &variableRefExpr{ctx.addVariable("TARGET_PRODUCT"), true},
+			expr:  NewVariableRefExpr(ctx.addVariable("TARGET_PRODUCT"), true),
 			list:  maybeConvertToStringList(call.args[0]),
 			isNot: !isEq,
 		}, true
@@ -1153,8 +1146,8 @@ func (ctx *parseContext) parseCompareSpecialCases(directive *mkparser.Directive,
 			return ctx.newBadExpr(directive, "cannot handle non-constant argument to is-vendor-board-platform"), true
 		}
 		return &inExpr{
-			expr:  &variableRefExpr{ctx.addVariable("TARGET_BOARD_PLATFORM"), false},
-			list:  &variableRefExpr{ctx.addVariable(s + "_BOARD_PLATFORMS"), true},
+			expr:  NewVariableRefExpr(ctx.addVariable("TARGET_BOARD_PLATFORM"), false),
+			list:  NewVariableRefExpr(ctx.addVariable(s+"_BOARD_PLATFORMS"), true),
 			isNot: !isEq,
 		}, true
 
@@ -1183,8 +1176,8 @@ func (ctx *parseContext) parseCompareSpecialCases(directive *mkparser.Directive,
 		// if the expression is ifneq (,$(call is-vendor-board-platform,...)), negate==true,
 		// so we should set inExpr.isNot to false
 		return &inExpr{
-			expr:  &variableRefExpr{ctx.addVariable("TARGET_BOARD_PLATFORM"), false},
-			list:  &variableRefExpr{ctx.addVariable("QCOM_BOARD_PLATFORMS"), true},
+			expr:  NewVariableRefExpr(ctx.addVariable("TARGET_BOARD_PLATFORM"), false),
+			list:  NewVariableRefExpr(ctx.addVariable("QCOM_BOARD_PLATFORMS"), true),
 			isNot: isEq,
 		}, true
 	}
@@ -1366,12 +1359,12 @@ func (ctx *parseContext) parseReference(node mkparser.Node, ref *mkparser.MakeSt
 				args: []starlarkExpr{
 					&stringLiteralExpr{literal: substParts[0]},
 					&stringLiteralExpr{literal: substParts[1]},
-					&variableRefExpr{v, ctx.lastAssignment(v.name()) != nil},
+					NewVariableRefExpr(v, ctx.lastAssignment(v.name()) != nil),
 				},
 			}
 		}
 		if v := ctx.addVariable(refDump); v != nil {
-			return &variableRefExpr{v, ctx.lastAssignment(v.name()) != nil}
+			return NewVariableRefExpr(v, ctx.lastAssignment(v.name()) != nil)
 		}
 		return ctx.newBadExpr(node, "unknown variable %s", refDump)
 	}
@@ -1416,7 +1409,7 @@ func (ctx *parseContext) parseReference(node mkparser.Node, ref *mkparser.MakeSt
 	case "firstword", "lastword":
 		return ctx.parseFirstOrLastwordFunc(node, expr.name, args)
 	case "my-dir":
-		return &variableRefExpr{ctx.addVariable("LOCAL_PATH"), true}
+		return NewVariableRefExpr(ctx.addVariable("LOCAL_PATH"), true)
 	case "subst", "patsubst":
 		return ctx.parseSubstFunc(node, expr.name, args)
 	default:
@@ -1579,16 +1572,18 @@ func (ctx *parseContext) parseMakeString(node mkparser.Node, mk *mkparser.MakeSt
 	// If we reached here, it's neither string literal nor a simple variable,
 	// we need a full-blown interpolation node that will generate
 	// "a%b%c" % (X, Y) for a$(X)b$(Y)c
-	xInterp := &interpolateExpr{args: make([]starlarkExpr, len(mk.Variables))}
-	for i, ref := range mk.Variables {
-		arg := ctx.parseReference(node, ref.Name)
-		if x, ok := arg.(*badExpr); ok {
-			return x
+	parts := make([]starlarkExpr, len(mk.Variables)+len(mk.Strings))
+	for i := 0; i < len(parts); i++ {
+		if i%2 == 0 {
+			parts[i] = &stringLiteralExpr{literal: mk.Strings[i/2]}
+		} else {
+			parts[i] = ctx.parseReference(node, mk.Variables[i/2].Name)
+			if x, ok := parts[i].(*badExpr); ok {
+				return x
+			}
 		}
-		xInterp.args[i] = arg
 	}
-	xInterp.chunks = append(xInterp.chunks, mk.Strings...)
-	return xInterp
+	return NewInterpolateExpr(parts)
 }
 
 // Handles the statements whose treatment is the same in all contexts: comment,
