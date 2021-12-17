@@ -224,8 +224,6 @@ var (
 		"-Wno-pessimizing-move",                     // http://b/154270751
 		// New warnings to be fixed after clang-r399163
 		"-Wno-non-c-typedef-for-linkage", // http://b/161304145
-		// New warnings to be fixed after clang-r407598
-		"-Wno-string-concatenation", // http://b/175068488
 		// New warnings to be fixed after clang-r428724
 		"-Wno-align-mismatch", // http://b/193679946
 		// New warnings to be fixed after clang-r433403
@@ -265,6 +263,9 @@ var (
 
 		// http://b/199369603
 		"-Wno-null-pointer-subtraction",
+
+		// http://b/175068488
+		"-Wno-string-concatenation",
 	}
 
 	IllegalFlags = []string{
