@@ -204,10 +204,6 @@ type depsModule struct {
 	}
 }
 
-func (m *depsModule) InstallBypassMake() bool {
-	return true
-}
-
 func (m *depsModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 	outputFile := PathForModuleOut(ctx, ctx.ModuleName())
 	ctx.Build(pctx, BuildParams{
@@ -450,7 +446,7 @@ func TestInstall(t *testing.T) {
 	assertOrderOnlys(symlinkRule("foo"))
 }
 
-func TestInstallBypassMake(t *testing.T) {
+func TestInstallKatiEnabled(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		t.Skip("requires linux")
 	}

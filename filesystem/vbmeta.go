@@ -247,7 +247,7 @@ func (v *vbmeta) AndroidMkEntries() []android.AndroidMkEntries {
 		OutputFile: android.OptionalPathForPath(v.output),
 		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
 			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
-				entries.SetString("LOCAL_MODULE_PATH", v.installDir.ToMakePath().String())
+				entries.SetString("LOCAL_MODULE_PATH", v.installDir.String())
 				entries.SetString("LOCAL_INSTALLED_MODULE_STEM", v.installFileName())
 			},
 		},

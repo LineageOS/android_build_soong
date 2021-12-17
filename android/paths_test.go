@@ -1486,7 +1486,8 @@ func TestPathRelativeToTop(t *testing.T) {
 		AssertPathRelativeToTopEquals(t, "install path for soong", "out/soong/target/product/test_device/system/install/path", p)
 	})
 	t.Run("install for make", func(t *testing.T) {
-		p := PathForModuleInstall(ctx, "install/path").ToMakePath()
+		p := PathForModuleInstall(ctx, "install/path")
+		p.makePath = true
 		AssertPathRelativeToTopEquals(t, "install path for make", "out/target/product/test_device/system/install/path", p)
 	})
 	t.Run("output", func(t *testing.T) {
@@ -1500,14 +1501,12 @@ func TestPathRelativeToTop(t *testing.T) {
 	t.Run("mixture", func(t *testing.T) {
 		paths := Paths{
 			PathForModuleInstall(ctx, "install/path"),
-			PathForModuleInstall(ctx, "install/path").ToMakePath(),
 			PathForOutput(ctx, "output/path"),
 			PathForSource(ctx, "source/path"),
 		}
 
 		expected := []string{
 			"out/soong/target/product/test_device/system/install/path",
-			"out/target/product/test_device/system/install/path",
 			"out/soong/output/path",
 			"source/path",
 		}

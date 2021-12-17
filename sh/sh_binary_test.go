@@ -42,7 +42,10 @@ func testShBinary(t *testing.T, bp string) (*android.TestContext, android.Config
 }
 
 func TestShTestSubDir(t *testing.T) {
-	ctx, config := testShBinary(t, `
+	result := android.GroupFixturePreparers(
+		prepareForShTest,
+		android.FixtureModifyConfig(android.SetKatiEnabledForTests),
+	).RunTestWithBp(t, `
 		sh_test {
 			name: "foo",
 			src: "test.sh",
@@ -50,17 +53,20 @@ func TestShTestSubDir(t *testing.T) {
 		}
 	`)
 
-	mod := ctx.ModuleForTests("foo", "android_arm64_armv8-a").Module().(*ShTest)
+	mod := result.ModuleForTests("foo", "android_arm64_armv8-a").Module().(*ShTest)
 
-	entries := android.AndroidMkEntriesForTest(t, ctx, mod)[0]
+	entries := android.AndroidMkEntriesForTest(t, result.TestContext, mod)[0]
 
 	expectedPath := "out/target/product/test_device/data/nativetest64/foo_test"
 	actualPath := entries.EntryMap["LOCAL_MODULE_PATH"][0]
-	android.AssertStringPathRelativeToTopEquals(t, "LOCAL_MODULE_PATH[0]", config, expectedPath, actualPath)
+	android.AssertStringPathRelativeToTopEquals(t, "LOCAL_MODULE_PATH[0]", result.Config, expectedPath, actualPath)
 }
 
 func TestShTest(t *testing.T) {
-	ctx, config := testShBinary(t, `
+	result := android.GroupFixturePreparers(
+		prepareForShTest,
+		android.FixtureModifyConfig(android.SetKatiEnabledForTests),
+	).RunTestWithBp(t, `
 		sh_test {
 			name: "foo",
 			src: "test.sh",
@@ -72,13 +78,13 @@ func TestShTest(t *testing.T) {
 		}
 	`)
 
-	mod := ctx.ModuleForTests("foo", "android_arm64_armv8-a").Module().(*ShTest)
+	mod := result.ModuleForTests("foo", "android_arm64_armv8-a").Module().(*ShTest)
 
-	entries := android.AndroidMkEntriesForTest(t, ctx, mod)[0]
+	entries := android.AndroidMkEntriesForTest(t, result.TestContext, mod)[0]
 
 	expectedPath := "out/target/product/test_device/data/nativetest64/foo"
 	actualPath := entries.EntryMap["LOCAL_MODULE_PATH"][0]
-	android.AssertStringPathRelativeToTopEquals(t, "LOCAL_MODULE_PATH[0]", config, expectedPath, actualPath)
+	android.AssertStringPathRelativeToTopEquals(t, "LOCAL_MODULE_PATH[0]", result.Config, expectedPath, actualPath)
 
 	expectedData := []string{":testdata/data1", ":testdata/sub/data2"}
 	actualData := entries.EntryMap["LOCAL_TEST_DATA"]
