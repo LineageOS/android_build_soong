@@ -2657,7 +2657,10 @@ func TestFilesInSubDirWhenNativeBridgeEnabled(t *testing.T) {
 }
 
 func TestVendorApex(t *testing.T) {
-	ctx := testApex(t, `
+	result := android.GroupFixturePreparers(
+		prepareForApexTest,
+		android.FixtureModifyConfig(android.SetKatiEnabledForTests),
+	).RunTestWithBp(t, `
 		apex {
 			name: "myapex",
 			key: "myapex.key",
@@ -2681,24 +2684,24 @@ func TestVendorApex(t *testing.T) {
 		}
 	`)
 
-	ensureExactContents(t, ctx, "myapex", "android_common_myapex_image", []string{
+	ensureExactContents(t, result.TestContext, "myapex", "android_common_myapex_image", []string{
 		"bin/mybin",
 		"lib64/libfoo.so",
 		// TODO(b/159195575): Add an option to use VNDK libs from VNDK APEX
 		"lib64/libc++.so",
 	})
 
-	apexBundle := ctx.ModuleForTests("myapex", "android_common_myapex_image").Module().(*apexBundle)
-	data := android.AndroidMkDataForTest(t, ctx, apexBundle)
+	apexBundle := result.ModuleForTests("myapex", "android_common_myapex_image").Module().(*apexBundle)
+	data := android.AndroidMkDataForTest(t, result.TestContext, apexBundle)
 	name := apexBundle.BaseModuleName()
 	prefix := "TARGET_"
 	var builder strings.Builder
 	data.Custom(&builder, name, prefix, "", data)
-	androidMk := android.StringRelativeToTop(ctx.Config(), builder.String())
+	androidMk := android.StringRelativeToTop(result.Config, builder.String())
 	installPath := "out/target/product/test_device/vendor/apex"
 	ensureContains(t, androidMk, "LOCAL_MODULE_PATH := "+installPath)
 
-	apexManifestRule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("apexManifestRule")
+	apexManifestRule := result.ModuleForTests("myapex", "android_common_myapex_image").Rule("apexManifestRule")
 	requireNativeLibs := names(apexManifestRule.Args["requireNativeLibs"])
 	ensureListNotContains(t, requireNativeLibs, ":vndk")
 }

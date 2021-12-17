@@ -685,7 +685,7 @@ func (r *RuntimeResourceOverlay) AndroidMkEntries() []android.AndroidMkEntries {
 		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
 			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
 				entries.SetString("LOCAL_CERTIFICATE", r.certificate.AndroidMkString())
-				entries.SetPath("LOCAL_MODULE_PATH", r.installDir.ToMakePath())
+				entries.SetPath("LOCAL_MODULE_PATH", r.installDir)
 				entries.AddStrings("LOCAL_OVERRIDES_PACKAGES", r.properties.Overrides...)
 			},
 		},

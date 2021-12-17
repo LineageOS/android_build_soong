@@ -458,10 +458,6 @@ type apexBundle struct {
 	modulePaths []string
 }
 
-func (*apexBundle) InstallBypassMake() bool {
-	return true
-}
-
 // apexFileClass represents a type of file that can be included in APEX.
 type apexFileClass int
 
