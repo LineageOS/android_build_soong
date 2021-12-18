@@ -633,14 +633,41 @@ def init(g, handle):
 		desc:   "findstring call",
 		mkname: "product.mk",
 		in: `
+result := $(findstring a,a b c)
+result := $(findstring b,x y z)
+`,
+		expected: `load("//build/make/core:product_config.rbc", "rblf")
+
+def init(g, handle):
+  cfg = rblf.cfg(handle)
+  _result = rblf.findstring("a", "a b c")
+  _result = rblf.findstring("b", "x y z")
+`,
+	},
+	{
+		desc:   "findstring in if statement",
+		mkname: "product.mk",
+		in: `
+ifeq ($(findstring foo,$(PRODUCT_PACKAGES)),)
+endif
 ifneq ($(findstring foo,$(PRODUCT_PACKAGES)),)
+endif
+ifeq ($(findstring foo,$(PRODUCT_PACKAGES)),foo)
+endif
+ifneq ($(findstring foo,$(PRODUCT_PACKAGES)),foo)
 endif
 `,
 		expected: `load("//build/make/core:product_config.rbc", "rblf")
 
 def init(g, handle):
   cfg = rblf.cfg(handle)
+  if (cfg.get("PRODUCT_PACKAGES", [])).find("foo") == -1:
+    pass
   if (cfg.get("PRODUCT_PACKAGES", [])).find("foo") != -1:
+    pass
+  if (cfg.get("PRODUCT_PACKAGES", [])).find("foo") != -1:
+    pass
+  if (cfg.get("PRODUCT_PACKAGES", [])).find("foo") == -1:
     pass
 `,
 	},
@@ -1129,6 +1156,28 @@ def init(g, handle):
   g["SOURCES"] = "foo.c bar.c"
   g["OBJECTS"] = rblf.mkpatsubst("%.c", "%.o", g["SOURCES"])
   g["OBJECTS2"] = rblf.mkpatsubst("%.c", "%.o", g["SOURCES"])
+`,
+	},
+	{
+		desc:   "foreach expressions",
+		mkname: "product.mk",
+		in: `
+BOOT_KERNEL_MODULES := foo.ko bar.ko
+BOOT_KERNEL_MODULES_FILTER := $(foreach m,$(BOOT_KERNEL_MODULES),%/$(m))
+BOOT_KERNEL_MODULES_LIST := foo.ko
+BOOT_KERNEL_MODULES_LIST += bar.ko
+BOOT_KERNEL_MODULES_FILTER_2 := $(foreach m,$(BOOT_KERNEL_MODULES_LIST),%/$(m))
+
+`,
+		expected: `load("//build/make/core:product_config.rbc", "rblf")
+
+def init(g, handle):
+  cfg = rblf.cfg(handle)
+  g["BOOT_KERNEL_MODULES"] = "foo.ko bar.ko"
+  g["BOOT_KERNEL_MODULES_FILTER"] = ["%%/%s" % m for m in rblf.words(g["BOOT_KERNEL_MODULES"])]
+  g["BOOT_KERNEL_MODULES_LIST"] = ["foo.ko"]
+  g["BOOT_KERNEL_MODULES_LIST"] += ["bar.ko"]
+  g["BOOT_KERNEL_MODULES_FILTER_2"] = ["%%/%s" % m for m in g["BOOT_KERNEL_MODULES_LIST"]]
 `,
 	},
 }

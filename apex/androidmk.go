@@ -149,7 +149,7 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, apexName, mo
 		var modulePath string
 		if apexType == flattenedApex {
 			// /system/apex/<name>/{lib|framework|...}
-			modulePath = filepath.Join(a.installDir.ToMakePath().String(), apexBundleName, fi.installDir)
+			modulePath = filepath.Join(a.installDir.String(), apexBundleName, fi.installDir)
 			fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", modulePath)
 			if a.primaryApexType && !symbolFilesNotNeeded {
 				fmt.Fprintln(w, "LOCAL_SOONG_SYMBOL_PATH :=", pathWhenActivated)
@@ -362,7 +362,7 @@ func (a *apexBundle) androidMkForType() android.AndroidMkData {
 				data.Entries.WriteLicenseVariables(w)
 				fmt.Fprintln(w, "LOCAL_MODULE_CLASS := ETC") // do we need a new class?
 				fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE :=", a.outputFile.String())
-				fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", a.installDir.ToMakePath().String())
+				fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", a.installDir.String())
 				stemSuffix := apexType.suffix()
 				if a.isCompressed {
 					stemSuffix = imageCapexSuffix

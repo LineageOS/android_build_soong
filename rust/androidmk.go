@@ -193,7 +193,7 @@ func (compiler *baseCompiler) AndroidMk(ctx AndroidMkContext, ret *android.Andro
 	ret.ExtraEntries = append(ret.ExtraEntries,
 		func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
 			entries.SetPath("LOCAL_SOONG_UNSTRIPPED_BINARY", compiler.unstrippedOutputFile)
-			path, file := filepath.Split(compiler.path.ToMakePath().String())
+			path, file := filepath.Split(compiler.path.String())
 			stem, suffix, _ := android.SplitFileExt(file)
 			entries.SetString("LOCAL_MODULE_SUFFIX", suffix)
 			entries.SetString("LOCAL_MODULE_PATH", path)

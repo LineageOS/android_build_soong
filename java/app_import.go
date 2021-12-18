@@ -111,8 +111,6 @@ func (a *AndroidAppImport) IsInstallable() bool {
 	return true
 }
 
-func (a *AndroidAppImport) InstallBypassMake() bool { return true }
-
 // Updates properties with variant-specific values.
 func (a *AndroidAppImport) processVariants(ctx android.LoadHookContext) {
 	config := ctx.Config()

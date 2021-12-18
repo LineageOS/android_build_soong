@@ -63,6 +63,7 @@ func TestRuntimeResourceOverlay(t *testing.T) {
 	result := android.GroupFixturePreparers(
 		PrepareForTestWithJavaDefaultModules,
 		PrepareForTestWithOverlayBuildComponents,
+		android.FixtureModifyConfig(android.SetKatiEnabledForTests),
 		fs.AddToFixture(),
 	).RunTestWithBp(t, bp)
 
@@ -129,7 +130,10 @@ func TestRuntimeResourceOverlay(t *testing.T) {
 }
 
 func TestRuntimeResourceOverlay_JavaDefaults(t *testing.T) {
-	ctx, config := testJava(t, `
+	result := android.GroupFixturePreparers(
+		PrepareForTestWithJavaDefaultModules,
+		android.FixtureModifyConfig(android.SetKatiEnabledForTests),
+	).RunTestWithBp(t, `
 		java_defaults {
 			name: "rro_defaults",
 			theme: "default_theme",
@@ -150,7 +154,7 @@ func TestRuntimeResourceOverlay_JavaDefaults(t *testing.T) {
 	//
 	// RRO module with defaults
 	//
-	m := ctx.ModuleForTests("foo_with_defaults", "android_common")
+	m := result.ModuleForTests("foo_with_defaults", "android_common")
 
 	// Check AAPT2 link flags.
 	aapt2Flags := strings.Split(m.Output("package-res.apk").Args["flags"], " ")
@@ -161,14 +165,14 @@ func TestRuntimeResourceOverlay_JavaDefaults(t *testing.T) {
 	}
 
 	// Check device location.
-	path := android.AndroidMkEntriesForTest(t, ctx, m.Module())[0].EntryMap["LOCAL_MODULE_PATH"]
+	path := android.AndroidMkEntriesForTest(t, result.TestContext, m.Module())[0].EntryMap["LOCAL_MODULE_PATH"]
 	expectedPath := []string{shared.JoinPath("out/target/product/test_device/product/overlay/default_theme")}
-	android.AssertStringPathsRelativeToTopEquals(t, "LOCAL_MODULE_PATH", config, expectedPath, path)
+	android.AssertStringPathsRelativeToTopEquals(t, "LOCAL_MODULE_PATH", result.Config, expectedPath, path)
 
 	//
 	// RRO module without defaults
 	//
-	m = ctx.ModuleForTests("foo_barebones", "android_common")
+	m = result.ModuleForTests("foo_barebones", "android_common")
 
 	// Check AAPT2 link flags.
 	aapt2Flags = strings.Split(m.Output("package-res.apk").Args["flags"], " ")
@@ -178,9 +182,9 @@ func TestRuntimeResourceOverlay_JavaDefaults(t *testing.T) {
 	}
 
 	// Check device location.
-	path = android.AndroidMkEntriesForTest(t, ctx, m.Module())[0].EntryMap["LOCAL_MODULE_PATH"]
+	path = android.AndroidMkEntriesForTest(t, result.TestContext, m.Module())[0].EntryMap["LOCAL_MODULE_PATH"]
 	expectedPath = []string{shared.JoinPath("out/target/product/test_device/product/overlay")}
-	android.AssertStringPathsRelativeToTopEquals(t, "LOCAL_MODULE_PATH", config, expectedPath, path)
+	android.AssertStringPathsRelativeToTopEquals(t, "LOCAL_MODULE_PATH", result.Config, expectedPath, path)
 }
 
 func TestOverrideRuntimeResourceOverlay(t *testing.T) {

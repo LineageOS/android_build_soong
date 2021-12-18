@@ -569,9 +569,6 @@ func (c *config) HostToolDir() string {
 
 func (c *config) HostToolPath(ctx PathContext, tool string) Path {
 	path := pathForInstall(ctx, ctx.Config().BuildOS, ctx.Config().BuildArch, "bin", false, tool)
-	if ctx.Config().KatiEnabled() {
-		path = path.ToMakePath()
-	}
 	return path
 }
 
@@ -581,17 +578,11 @@ func (c *config) HostJNIToolPath(ctx PathContext, lib string) Path {
 		ext = ".dylib"
 	}
 	path := pathForInstall(ctx, ctx.Config().BuildOS, ctx.Config().BuildArch, "lib64", false, lib+ext)
-	if ctx.Config().KatiEnabled() {
-		path = path.ToMakePath()
-	}
 	return path
 }
 
 func (c *config) HostJavaToolPath(ctx PathContext, tool string) Path {
 	path := pathForInstall(ctx, ctx.Config().BuildOS, ctx.Config().BuildArch, "framework", false, tool)
-	if ctx.Config().KatiEnabled() {
-		path = path.ToMakePath()
-	}
 	return path
 }
 

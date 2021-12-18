@@ -105,12 +105,13 @@ var knownFunctions = map[string]struct {
 	"dist-for-goals":                      {baseName + ".mkdist_for_goals", starlarkTypeVoid, hiddenArgGlobal},
 	"enforce-product-packages-exist":      {baseName + ".enforce_product_packages_exist", starlarkTypeVoid, hiddenArgNone},
 	"error":                               {baseName + ".mkerror", starlarkTypeVoid, hiddenArgNone},
-	"findstring":                          {"!findstring", starlarkTypeInt, hiddenArgNone},
+	"findstring":                          {baseName + ".findstring", starlarkTypeString, hiddenArgNone},
 	"find-copy-subdir-files":              {baseName + ".find_and_copy", starlarkTypeList, hiddenArgNone},
 	"find-word-in-list":                   {"!find-word-in-list", starlarkTypeUnknown, hiddenArgNone}, // internal macro
 	"filter":                              {baseName + ".filter", starlarkTypeList, hiddenArgNone},
 	"filter-out":                          {baseName + ".filter_out", starlarkTypeList, hiddenArgNone},
 	"firstword":                           {"!firstword", starlarkTypeString, hiddenArgNone},
+	"foreach":                             {"!foreach", starlarkTypeList, hiddenArgNone},
 	"get-vendor-board-platforms":          {"!get-vendor-board-platforms", starlarkTypeList, hiddenArgNone}, // internal macro, used by is-board-platform, etc.
 	"if":                                  {"!if", starlarkTypeUnknown, hiddenArgNone},
 	"info":                                {baseName + ".mkinfo", starlarkTypeVoid, hiddenArgNone},
@@ -147,14 +148,10 @@ var knownFunctions = map[string]struct {
 	"warning":    {baseName + ".mkwarning", starlarkTypeVoid, hiddenArgNone},
 	"word":       {baseName + "!word", starlarkTypeString, hiddenArgNone},
 	"wildcard":   {baseName + ".expand_wildcard", starlarkTypeList, hiddenArgNone},
+	"words":      {baseName + ".words", starlarkTypeList, hiddenArgNone},
 }
 
-var builtinFuncRex = regexp.MustCompile(
-	"^(addprefix|addsuffix|abspath|and|basename|call|dir|error|eval" +
-		"|flavor|foreach|file|filter|filter-out|findstring|firstword|guile" +
-		"|if|info|join|lastword|notdir|or|origin|patsubst|realpath" +
-		"|shell|sort|strip|subst|suffix|value|warning|word|wordlist|words" +
-		"|wildcard)")
+var identifierFullMatchRegex = regexp.MustCompile("^[a-zA-Z_][a-zA-Z0-9_]*$")
 
 // Conversion request parameters
 type Request struct {
@@ -414,7 +411,6 @@ type parseContext struct {
 	ifNestLevel      int
 	moduleNameCount  map[string]int // count of imported modules with given basename
 	fatalError       error
-	builtinMakeVars  map[string]starlarkExpr
 	outputSuffix     string
 	errorLogger      ErrorLogger
 	tracedVariables  map[string]bool // variables to be traced in the generated script
@@ -467,7 +463,6 @@ func newParseContext(ss *StarlarkScript, nodes []mkparser.Node) *parseContext {
 		currentNodeIndex: 0,
 		ifNestLevel:      0,
 		moduleNameCount:  make(map[string]int),
-		builtinMakeVars:  map[string]starlarkExpr{},
 		variables:        make(map[string]variable),
 		dependentModules: make(map[string]*moduleInfo),
 		soongNamespaces:  make(map[string]map[string]bool),
@@ -603,9 +598,6 @@ func (ctx *parseContext) handleAssignment(a *mkparser.Assignment) {
 		}
 	}
 
-	// TODO(asmundak): move evaluation to a separate pass
-	asgn.value, _ = asgn.value.eval(ctx.builtinMakeVars)
-
 	asgn.previous = ctx.lastAssignment(name)
 	ctx.setLastAssignment(name, asgn)
 	switch a.Type {
@@ -632,7 +624,6 @@ func (ctx *parseContext) handleSoongNsAssignment(name string, asgn *mkparser.Ass
 		ctx.wrapBadExpr(xBad)
 		return
 	}
-	val, _ = val.eval(ctx.builtinMakeVars)
 
 	// Unfortunately, Soong namespaces can be set up by directly setting corresponding Make
 	// variables instead of via add_soong_config_namespace + add_soong_config_var_value.
@@ -788,7 +779,6 @@ func (ctx *parseContext) newDependentModule(path string, optional bool) *moduleI
 
 func (ctx *parseContext) handleSubConfig(
 	v mkparser.Node, pathExpr starlarkExpr, loadAlways bool, processModule func(inheritedModule)) {
-	pathExpr, _ = pathExpr.eval(ctx.builtinMakeVars)
 
 	// In a simple case, the name of a module to inherit/include is known statically.
 	if path, ok := maybeString(pathExpr); ok {
@@ -1125,7 +1115,7 @@ func (ctx *parseContext) parseCompareSpecialCases(directive *mkparser.Directive,
 			return xBad, true
 		}
 		return &eqExpr{
-			left:  &variableRefExpr{ctx.addVariable("TARGET_BOARD_PLATFORM"), false},
+			left:  NewVariableRefExpr(ctx.addVariable("TARGET_BOARD_PLATFORM"), false),
 			right: call.args[0],
 			isEq:  isEq,
 		}, true
@@ -1134,7 +1124,7 @@ func (ctx *parseContext) parseCompareSpecialCases(directive *mkparser.Directive,
 			return xBad, true
 		}
 		return &inExpr{
-			expr:  &variableRefExpr{ctx.addVariable("TARGET_BOARD_PLATFORM"), false},
+			expr:  NewVariableRefExpr(ctx.addVariable("TARGET_BOARD_PLATFORM"), false),
 			list:  maybeConvertToStringList(call.args[0]),
 			isNot: !isEq,
 		}, true
@@ -1143,7 +1133,7 @@ func (ctx *parseContext) parseCompareSpecialCases(directive *mkparser.Directive,
 			return xBad, true
 		}
 		return &inExpr{
-			expr:  &variableRefExpr{ctx.addVariable("TARGET_PRODUCT"), true},
+			expr:  NewVariableRefExpr(ctx.addVariable("TARGET_PRODUCT"), true),
 			list:  maybeConvertToStringList(call.args[0]),
 			isNot: !isEq,
 		}, true
@@ -1156,8 +1146,8 @@ func (ctx *parseContext) parseCompareSpecialCases(directive *mkparser.Directive,
 			return ctx.newBadExpr(directive, "cannot handle non-constant argument to is-vendor-board-platform"), true
 		}
 		return &inExpr{
-			expr:  &variableRefExpr{ctx.addVariable("TARGET_BOARD_PLATFORM"), false},
-			list:  &variableRefExpr{ctx.addVariable(s + "_BOARD_PLATFORMS"), true},
+			expr:  NewVariableRefExpr(ctx.addVariable("TARGET_BOARD_PLATFORM"), false),
+			list:  NewVariableRefExpr(ctx.addVariable(s+"_BOARD_PLATFORMS"), true),
 			isNot: !isEq,
 		}, true
 
@@ -1186,8 +1176,8 @@ func (ctx *parseContext) parseCompareSpecialCases(directive *mkparser.Directive,
 		// if the expression is ifneq (,$(call is-vendor-board-platform,...)), negate==true,
 		// so we should set inExpr.isNot to false
 		return &inExpr{
-			expr:  &variableRefExpr{ctx.addVariable("TARGET_BOARD_PLATFORM"), false},
-			list:  &variableRefExpr{ctx.addVariable("QCOM_BOARD_PLATFORMS"), true},
+			expr:  NewVariableRefExpr(ctx.addVariable("TARGET_BOARD_PLATFORM"), false),
+			list:  NewVariableRefExpr(ctx.addVariable("QCOM_BOARD_PLATFORMS"), true),
 			isNot: isEq,
 		}, true
 	}
@@ -1288,8 +1278,21 @@ func (ctx *parseContext) parseCheckFindstringFuncResult(directive *mkparser.Dire
 			right: &intLiteralExpr{-1},
 			isEq:  !negate,
 		}
+	} else if s, ok := maybeString(xValue); ok {
+		if s2, ok := maybeString(xCall.args[0]); ok && s == s2 {
+			return &eqExpr{
+				left: &callExpr{
+					object:     xCall.args[1],
+					name:       "find",
+					args:       []starlarkExpr{xCall.args[0]},
+					returnType: starlarkTypeInt,
+				},
+				right: &intLiteralExpr{-1},
+				isEq:  negate,
+			}
+		}
 	}
-	return ctx.newBadExpr(directive, "findstring result can be compared only to empty: %s", xValue)
+	return ctx.newBadExpr(directive, "$(findstring) can only be compared to nothing or its first argument")
 }
 
 func (ctx *parseContext) parseCompareStripFuncResult(directive *mkparser.Directive,
@@ -1356,12 +1359,12 @@ func (ctx *parseContext) parseReference(node mkparser.Node, ref *mkparser.MakeSt
 				args: []starlarkExpr{
 					&stringLiteralExpr{literal: substParts[0]},
 					&stringLiteralExpr{literal: substParts[1]},
-					&variableRefExpr{v, ctx.lastAssignment(v.name()) != nil},
+					NewVariableRefExpr(v, ctx.lastAssignment(v.name()) != nil),
 				},
 			}
 		}
 		if v := ctx.addVariable(refDump); v != nil {
-			return &variableRefExpr{v, ctx.lastAssignment(v.name()) != nil}
+			return NewVariableRefExpr(v, ctx.lastAssignment(v.name()) != nil)
 		}
 		return ctx.newBadExpr(node, "unknown variable %s", refDump)
 	}
@@ -1399,12 +1402,14 @@ func (ctx *parseContext) parseReference(node mkparser.Node, ref *mkparser.MakeSt
 	switch expr.name {
 	case "if":
 		return ctx.parseIfFunc(node, args)
+	case "foreach":
+		return ctx.parseForeachFunc(node, args)
 	case "word":
 		return ctx.parseWordFunc(node, args)
 	case "firstword", "lastword":
 		return ctx.parseFirstOrLastwordFunc(node, expr.name, args)
 	case "my-dir":
-		return &variableRefExpr{ctx.addVariable("LOCAL_PATH"), true}
+		return NewVariableRefExpr(ctx.addVariable("LOCAL_PATH"), true)
 	case "subst", "patsubst":
 		return ctx.parseSubstFunc(node, expr.name, args)
 	default:
@@ -1483,6 +1488,38 @@ func (ctx *parseContext) parseIfFunc(node mkparser.Node, args *mkparser.MakeStri
 	}
 }
 
+func (ctx *parseContext) parseForeachFunc(node mkparser.Node, args *mkparser.MakeString) starlarkExpr {
+	words := args.Split(",")
+	if len(words) != 3 {
+		return ctx.newBadExpr(node, "foreach function should have 3 arguments, found "+strconv.Itoa(len(words)))
+	}
+	if !words[0].Const() || words[0].Empty() || !identifierFullMatchRegex.MatchString(words[0].Strings[0]) {
+		return ctx.newBadExpr(node, "first argument to foreach function must be a simple string identifier")
+	}
+	loopVarName := words[0].Strings[0]
+	list := ctx.parseMakeString(node, words[1])
+	action := ctx.parseMakeString(node, words[2]).transform(func(expr starlarkExpr) starlarkExpr {
+		if varRefExpr, ok := expr.(*variableRefExpr); ok && varRefExpr.ref.name() == loopVarName {
+			return &identifierExpr{loopVarName}
+		}
+		return nil
+	})
+
+	if list.typ() != starlarkTypeList {
+		list = &callExpr{
+			name:       "words",
+			returnType: knownFunctions["words"].returnType,
+			args:       []starlarkExpr{list},
+		}
+	}
+
+	return &foreachExpr{
+		varName: loopVarName,
+		list:    list,
+		action:  action,
+	}
+}
+
 func (ctx *parseContext) parseWordFunc(node mkparser.Node, args *mkparser.MakeString) starlarkExpr {
 	words := args.Split(",")
 	if len(words) != 2 {
@@ -1504,7 +1541,7 @@ func (ctx *parseContext) parseWordFunc(node mkparser.Node, args *mkparser.MakeSt
 	if array.typ() != starlarkTypeList {
 		array = &callExpr{object: array, name: "split", returnType: starlarkTypeList}
 	}
-	return indexExpr{array, &intLiteralExpr{int(index - 1)}}
+	return &indexExpr{array, &intLiteralExpr{int(index - 1)}}
 }
 
 func (ctx *parseContext) parseFirstOrLastwordFunc(node mkparser.Node, name string, args *mkparser.MakeString) starlarkExpr {
@@ -1535,16 +1572,18 @@ func (ctx *parseContext) parseMakeString(node mkparser.Node, mk *mkparser.MakeSt
 	// If we reached here, it's neither string literal nor a simple variable,
 	// we need a full-blown interpolation node that will generate
 	// "a%b%c" % (X, Y) for a$(X)b$(Y)c
-	xInterp := &interpolateExpr{args: make([]starlarkExpr, len(mk.Variables))}
-	for i, ref := range mk.Variables {
-		arg := ctx.parseReference(node, ref.Name)
-		if x, ok := arg.(*badExpr); ok {
-			return x
+	parts := make([]starlarkExpr, len(mk.Variables)+len(mk.Strings))
+	for i := 0; i < len(parts); i++ {
+		if i%2 == 0 {
+			parts[i] = &stringLiteralExpr{literal: mk.Strings[i/2]}
+		} else {
+			parts[i] = ctx.parseReference(node, mk.Variables[i/2].Name)
+			if x, ok := parts[i].(*badExpr); ok {
+				return x
+			}
 		}
-		xInterp.args[i] = arg
 	}
-	xInterp.chunks = append(xInterp.chunks, mk.Strings...)
-	return xInterp
+	return NewInterpolateExpr(parts)
 }
 
 // Handles the statements whose treatment is the same in all contexts: comment,

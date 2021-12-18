@@ -529,6 +529,14 @@ func transformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles, no
 	cppflags += " ${config.NoOverrideGlobalCflags}"
 	toolingCppflags += " ${config.NoOverrideGlobalCflags}"
 
+	modulePath := android.PathForModuleSrc(ctx).String()
+	if android.IsThirdPartyPath(modulePath) {
+		cflags += " ${config.NoOverrideExternalGlobalCflags}"
+		toolingCflags += " ${config.NoOverrideExternalGlobalCflags}"
+		cppflags += " ${config.NoOverrideExternalGlobalCflags}"
+		toolingCppflags += " ${config.NoOverrideExternalGlobalCflags}"
+	}
+
 	// Multiple source files have build rules usually share the same cFlags or tidyFlags.
 	// Define only one version in this module and share it in multiple build rules.
 	// To simplify the code, the shared variables are all named as $flags<nnn>.
