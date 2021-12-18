@@ -222,7 +222,7 @@ func (p *prebuiltCommon) AndroidMkEntries() []android.AndroidMkEntries {
 			Host_required: p.hostRequired,
 			ExtraEntries: []android.AndroidMkExtraEntriesFunc{
 				func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
-					entries.SetString("LOCAL_MODULE_PATH", p.installDir.ToMakePath().String())
+					entries.SetString("LOCAL_MODULE_PATH", p.installDir.String())
 					entries.SetString("LOCAL_MODULE_STEM", p.installFilename)
 					entries.SetPath("LOCAL_SOONG_INSTALLED_MODULE", p.installedFile)
 					entries.SetString("LOCAL_SOONG_INSTALL_PAIRS", p.outputApex.String()+":"+p.installedFile.String())
@@ -256,7 +256,7 @@ func (p *prebuiltCommon) createEntriesForApexFile(fi apexFile, apexName string) 
 		Include:      "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
 		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
 			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
-				entries.SetString("LOCAL_MODULE_PATH", p.installDir.ToMakePath().String())
+				entries.SetString("LOCAL_MODULE_PATH", p.installDir.String())
 				entries.SetString("LOCAL_SOONG_INSTALLED_MODULE", filepath.Join(p.installDir.String(), fi.stem()))
 				entries.SetString("LOCAL_SOONG_INSTALL_PAIRS",
 					fi.builtFile.String()+":"+filepath.Join(p.installDir.String(), fi.stem()))
@@ -470,10 +470,6 @@ type Prebuilt struct {
 	properties PrebuiltProperties
 
 	inputApex android.Path
-}
-
-func (p *Prebuilt) InstallBypassMake() bool {
-	return true
 }
 
 type ApexFileProperties struct {

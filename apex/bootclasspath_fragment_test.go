@@ -16,6 +16,7 @@ package apex
 
 import (
 	"fmt"
+	"path"
 	"sort"
 	"strings"
 	"testing"
@@ -440,6 +441,24 @@ func TestBootclasspathFragmentInArtApex(t *testing.T) {
 		// locations for the art image.
 		module := result.ModuleForTests("mybootclasspathfragment", "android_common_apex10000")
 		checkCopiesToPredefinedLocationForArt(t, result.Config, module, "bar", "foo")
+	})
+
+	t.Run("boot image disable generate profile", func(t *testing.T) {
+		result := android.GroupFixturePreparers(
+			commonPreparer,
+
+			// Configure some libraries in the art bootclasspath_fragment that match the source
+			// bootclasspath_fragment's contents property.
+			java.FixtureConfigureBootJars("com.android.art:foo", "com.android.art:bar"),
+			addSource("foo", "bar"),
+			dexpreopt.FixtureDisableGenerateProfile(true),
+		).RunTest(t)
+
+		files := getFiles(t, result.TestContext, "com.android.art", "android_common_com.android.art_image")
+		for _, file := range files {
+			matched, _ := path.Match("etc/boot-image.prof", file.path)
+			android.AssertBoolEquals(t, "\"etc/boot-image.prof\" should not be in the APEX", matched, false)
+		}
 	})
 
 	t.Run("boot image files with preferred prebuilt", func(t *testing.T) {

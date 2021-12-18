@@ -721,10 +721,6 @@ func (c *configImpl) Arguments() []string {
 }
 
 func (c *configImpl) SoongBuildInvocationNeeded() bool {
-	if c.Dist() {
-		return true
-	}
-
 	if len(c.Arguments()) > 0 {
 		// Explicit targets requested that are not special targets like b2pbuild
 		// or the JSON module graph
@@ -733,6 +729,11 @@ func (c *configImpl) SoongBuildInvocationNeeded() bool {
 
 	if !c.JsonModuleGraph() && !c.Bp2Build() && !c.Queryview() && !c.SoongDocs() {
 		// Command line was empty, the default Ninja target is built
+		return true
+	}
+
+	// bp2build + dist may be used to dist bp2build logs but does not require SoongBuildInvocation
+	if c.Dist() && !c.Bp2Build() {
 		return true
 	}
 

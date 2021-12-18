@@ -92,6 +92,7 @@ func InitDefaultableModule(module DefaultableModule) {
 	if module.base().module == nil {
 		panic("InitAndroidModule must be called before InitDefaultableModule")
 	}
+
 	module.setProperties(module.GetProperties(), module.base().variableProperties)
 
 	module.AddProperties(module.defaults())
@@ -118,6 +119,11 @@ type DefaultsVisibilityProperties struct {
 
 type DefaultsModuleBase struct {
 	DefaultableModuleBase
+
+	// Included to support setting bazel_module.label for multiple Soong modules to the same Bazel
+	// target. This is primarily useful for modules that were architecture specific and instead are
+	// handled in Bazel as a select().
+	BazelModuleBase
 }
 
 // The common pattern for defaults modules is to register separate instances of
@@ -160,6 +166,7 @@ func (d *DefaultsModuleBase) isDefaults() bool {
 type DefaultsModule interface {
 	Module
 	Defaults
+	Bazelable
 }
 
 func (d *DefaultsModuleBase) properties() []interface{} {
@@ -170,8 +177,7 @@ func (d *DefaultsModuleBase) productVariableProperties() interface{} {
 	return d.defaultableVariableProperties
 }
 
-func (d *DefaultsModuleBase) GenerateAndroidBuildActions(ctx ModuleContext) {
-}
+func (d *DefaultsModuleBase) GenerateAndroidBuildActions(ctx ModuleContext) {}
 
 // ConvertWithBp2build to fulfill Bazelable interface; however, at this time defaults module are
 // *NOT* converted with bp2build
@@ -186,6 +192,8 @@ func InitDefaultsModule(module DefaultsModule) {
 		&ApexProperties{},
 		&distProperties{})
 
+	// Bazel module must be initialized _before_ Defaults to be included in cc_defaults module.
+	InitBazelModule(module)
 	initAndroidModuleBase(module)
 	initProductVariableModule(module)
 	initArchModule(module)

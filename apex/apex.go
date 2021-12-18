@@ -458,10 +458,6 @@ type apexBundle struct {
 	modulePaths []string
 }
 
-func (*apexBundle) InstallBypassMake() bool {
-	return true
-}
-
 // apexFileClass represents a type of file that can be included in APEX.
 type apexFileClass int
 
@@ -2647,7 +2643,7 @@ func makeApexAvailableBaseline() map[string][]string {
 	//
 	// Module separator
 	//
-	m["com.android.bluetooth.updatable"] = []string{
+	m["com.android.bluetooth"] = []string{
 		"android.hardware.audio.common@5.0",
 		"android.hardware.bluetooth.a2dp@1.0",
 		"android.hardware.bluetooth.audio@2.0",

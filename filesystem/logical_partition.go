@@ -215,7 +215,7 @@ func (l *logicalPartition) AndroidMkEntries() []android.AndroidMkEntries {
 		OutputFile: android.OptionalPathForPath(l.output),
 		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
 			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
-				entries.SetString("LOCAL_MODULE_PATH", l.installDir.ToMakePath().String())
+				entries.SetString("LOCAL_MODULE_PATH", l.installDir.String())
 				entries.SetString("LOCAL_INSTALLED_MODULE_STEM", l.installFileName())
 			},
 		},

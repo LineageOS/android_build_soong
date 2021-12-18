@@ -60,7 +60,7 @@ func robolectricTestSuite(ctx SingletonContext, files map[string]InstallPaths) W
 	for _, module := range SortedStringKeys(files) {
 		installedPaths = append(installedPaths, files[module]...)
 	}
-	testCasesDir := pathForInstall(ctx, ctx.Config().BuildOS, X86, "testcases", false).ToMakePath()
+	testCasesDir := pathForInstall(ctx, ctx.Config().BuildOS, X86, "testcases", false)
 
 	outputFile := PathForOutput(ctx, "packaging", "robolectric-tests.zip")
 	rule := NewRuleBuilder(pctx, ctx)
