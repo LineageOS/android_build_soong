@@ -681,6 +681,12 @@ func LibraryMutator(mctx android.BottomUpMutatorContext) {
 			}
 
 			variation := v.(*Module).ModuleBase.ImageVariation().Variation
+			if strings.HasPrefix(variation, cc.VendorVariationPrefix) {
+				// TODO(b/204303985)
+				// Disable vendor dylibs until they are supported
+				v.(*Module).Disable()
+			}
+
 			if strings.HasPrefix(variation, cc.VendorVariationPrefix) &&
 				m.HasVendorVariant() &&
 				!snapshot.IsVendorProprietaryModule(mctx) &&
