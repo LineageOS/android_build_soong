@@ -60,7 +60,7 @@ func (p *platformSystemServerClasspathModule) GenerateAndroidBuildActions(ctx an
 	classpathJars := configuredJarListToClasspathJars(ctx, configuredJars, p.classpathType)
 	standaloneConfiguredJars := p.standaloneConfiguredJars(ctx)
 	standaloneClasspathJars := configuredJarListToClasspathJars(ctx, standaloneConfiguredJars, STANDALONE_SYSTEMSERVER_JARS)
-	configuredJars = configuredJars.AppendList(standaloneConfiguredJars)
+	configuredJars = configuredJars.AppendList(&standaloneConfiguredJars)
 	classpathJars = append(classpathJars, standaloneClasspathJars...)
 	p.classpathFragmentBase().generateClasspathProtoBuildActions(ctx, configuredJars, classpathJars)
 }
@@ -122,7 +122,7 @@ func (s *SystemServerClasspathModule) GenerateAndroidBuildActions(ctx android.Mo
 	classpathJars := configuredJarListToClasspathJars(ctx, configuredJars, s.classpathType)
 	standaloneConfiguredJars := s.standaloneConfiguredJars(ctx)
 	standaloneClasspathJars := configuredJarListToClasspathJars(ctx, standaloneConfiguredJars, STANDALONE_SYSTEMSERVER_JARS)
-	configuredJars = configuredJars.AppendList(standaloneConfiguredJars)
+	configuredJars = configuredJars.AppendList(&standaloneConfiguredJars)
 	classpathJars = append(classpathJars, standaloneClasspathJars...)
 	s.classpathFragmentBase().generateClasspathProtoBuildActions(ctx, configuredJars, classpathJars)
 
