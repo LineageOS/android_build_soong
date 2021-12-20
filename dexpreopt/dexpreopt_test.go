@@ -50,6 +50,15 @@ func testApexModuleConfig(ctx android.PathContext, name, apexName string) *Modul
 		android.PathForOutput(ctx, fmt.Sprintf("%s/enforce_uses_libraries.status", name)))
 }
 
+func testPlatformSystemServerModuleConfig(ctx android.PathContext, name string) *ModuleConfig {
+	return createTestModuleConfig(
+		name,
+		fmt.Sprintf("/system/framework/%s.jar", name),
+		android.PathForOutput(ctx, fmt.Sprintf("%s/dexpreopt/%s.jar", name, name)),
+		android.PathForOutput(ctx, fmt.Sprintf("%s/aligned/%s.jar", name, name)),
+		android.PathForOutput(ctx, fmt.Sprintf("%s/enforce_uses_libraries.status", name)))
+}
+
 func createTestModuleConfig(name, dexLocation string, buildPath, dexPath, enforceUsesLibrariesStatusFile android.OutputPath) *ModuleConfig {
 	return &ModuleConfig{
 		Name:                            name,
@@ -166,6 +175,52 @@ func TestDexPreoptApexSystemServerJars(t *testing.T) {
 	module := testApexModuleConfig(ctx, "service-A", "com.android.apex1")
 
 	global.ApexSystemServerJars = android.CreateTestConfiguredJarList(
+		[]string{"com.android.apex1:service-A"})
+
+	rule, err := GenerateDexpreoptRule(ctx, globalSoong, global, module)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	wantInstalls := android.RuleBuilderInstalls{
+		{android.PathForOutput(ctx, "service-A/dexpreopt/oat/arm/javalib.odex"), "/system/framework/oat/arm/apex@com.android.apex1@javalib@service-A.jar@classes.odex"},
+		{android.PathForOutput(ctx, "service-A/dexpreopt/oat/arm/javalib.vdex"), "/system/framework/oat/arm/apex@com.android.apex1@javalib@service-A.jar@classes.vdex"},
+	}
+
+	android.AssertStringEquals(t, "installs", wantInstalls.String(), rule.Installs().String())
+}
+
+func TestDexPreoptStandaloneSystemServerJars(t *testing.T) {
+	config := android.TestConfig("out", nil, "", nil)
+	ctx := android.BuilderContextForTesting(config)
+	globalSoong := globalSoongConfigForTests()
+	global := GlobalConfigForTests(ctx)
+	module := testPlatformSystemServerModuleConfig(ctx, "service-A")
+
+	global.StandaloneSystemServerJars = android.CreateTestConfiguredJarList(
+		[]string{"platform:service-A"})
+
+	rule, err := GenerateDexpreoptRule(ctx, globalSoong, global, module)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	wantInstalls := android.RuleBuilderInstalls{
+		{android.PathForOutput(ctx, "service-A/dexpreopt/oat/arm/javalib.odex"), "/system/framework/oat/arm/service-A.odex"},
+		{android.PathForOutput(ctx, "service-A/dexpreopt/oat/arm/javalib.vdex"), "/system/framework/oat/arm/service-A.vdex"},
+	}
+
+	android.AssertStringEquals(t, "installs", wantInstalls.String(), rule.Installs().String())
+}
+
+func TestDexPreoptApexStandaloneSystemServerJars(t *testing.T) {
+	config := android.TestConfig("out", nil, "", nil)
+	ctx := android.BuilderContextForTesting(config)
+	globalSoong := globalSoongConfigForTests()
+	global := GlobalConfigForTests(ctx)
+	module := testApexModuleConfig(ctx, "service-A", "com.android.apex1")
+
+	global.ApexStandaloneSystemServerJars = android.CreateTestConfiguredJarList(
 		[]string{"com.android.apex1:service-A"})
 
 	rule, err := GenerateDexpreoptRule(ctx, globalSoong, global, module)
