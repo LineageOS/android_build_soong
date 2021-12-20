@@ -8500,7 +8500,7 @@ func TestAndroidMk_DexpreoptBuiltInstalledForApex_Prebuilt(t *testing.T) {
 		java_import {
 			name: "foo",
 			jars: ["foo.jar"],
-			installable: true,
+			apex_available: ["myapex"],
 		}
 	`,
 		dexpreopt.FixtureSetApexSystemServerJars("myapex:foo"),

@@ -115,6 +115,11 @@ func isApexVariant(ctx android.BaseModuleContext) bool {
 	return !apexInfo.IsForPlatform()
 }
 
+func forPrebuiltApex(ctx android.BaseModuleContext) bool {
+	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
+	return apexInfo.ForPrebuiltApex
+}
+
 func moduleName(ctx android.BaseModuleContext) string {
 	// Remove the "prebuilt_" prefix if the module is from a prebuilt because the prefix is not
 	// expected by dexpreopter.
@@ -134,7 +139,9 @@ func (d *dexpreopter) dexpreoptDisabled(ctx android.BaseModuleContext) bool {
 		return true
 	}
 
-	if !ctx.Module().(DexpreopterInterface).IsInstallable() {
+	// If the module is from a prebuilt APEX, it shouldn't be installable, but it can still be
+	// dexpreopted.
+	if !ctx.Module().(DexpreopterInterface).IsInstallable() && !forPrebuiltApex(ctx) {
 		return true
 	}
 

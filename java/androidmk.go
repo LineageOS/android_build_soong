@@ -182,7 +182,14 @@ func (j *TestHelperLibrary) AndroidMkEntries() []android.AndroidMkEntries {
 }
 
 func (prebuilt *Import) AndroidMkEntries() []android.AndroidMkEntries {
-	if prebuilt.hideApexVariantFromMake || !prebuilt.ContainingSdk().Unversioned() {
+	if prebuilt.hideApexVariantFromMake {
+		// For a library imported from a prebuilt APEX, we don't need a Make module for itself, as we
+		// don't need to install it. However, we need to add its dexpreopt outputs as sub-modules, if it
+		// is preopted.
+		dexpreoptEntries := prebuilt.dexpreopter.AndroidMkEntriesForApex()
+		return append(dexpreoptEntries, android.AndroidMkEntries{Disabled: true})
+	}
+	if !prebuilt.ContainingSdk().Unversioned() {
 		return []android.AndroidMkEntries{android.AndroidMkEntries{
 			Disabled: true,
 		}}
