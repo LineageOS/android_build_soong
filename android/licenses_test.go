@@ -780,7 +780,6 @@ func newMockLicensesBadModule() Module {
 	m.AddProperties(&base.nameProperties, &m.properties)
 
 	base.generalProperties = m.GetProperties()
-	base.customizableProperties = m.GetProperties()
 
 	// The default_visibility property needs to be checked and parsed by the visibility module during
 	// its checking and parsing phases so make it the primary visibility property.

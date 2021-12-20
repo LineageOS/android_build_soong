@@ -54,7 +54,6 @@ func LicenseKindFactory() Module {
 	module.AddProperties(&base.nameProperties, &module.properties)
 
 	base.generalProperties = module.GetProperties()
-	base.customizableProperties = module.GetProperties()
 
 	// The visibility property needs to be checked and parsed by the visibility module.
 	setPrimaryVisibilityProperty(module, "visibility", &module.properties.Visibility)
