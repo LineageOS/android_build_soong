@@ -1566,6 +1566,25 @@ android_app {
 }
 `,
 	},
+	{
+		desc: "LOCAL_CHECK_ELF_FILES",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := foo
+LOCAL_SRC_FILES := test.c
+LOCAL_MODULE_CLASS := SHARED_LIBRARIES
+LOCAL_CHECK_ELF_FILES := false
+include $(BUILD_PREBUILT)
+		`,
+		expected: `
+cc_prebuilt_library_shared {
+	name: "foo",
+	srcs: ["test.c"],
+
+	check_elf_files: false,
+}
+`,
+	},
 }
 
 func TestEndToEnd(t *testing.T) {
