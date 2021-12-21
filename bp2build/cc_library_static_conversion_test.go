@@ -1433,3 +1433,21 @@ func TestCcLibraryStaticUseVersionLib(t *testing.T) {
 		},
 	})
 }
+
+func TestCcLibraryStaticStdInFlags(t *testing.T) {
+	runCcLibraryStaticTestCase(t, bp2buildTestCase{
+		blueprint: soongCcProtoPreamble + `cc_library_static {
+	name: "foo",
+	cflags: ["-std=candcpp"],
+	conlyflags: ["-std=conly"],
+	cppflags: ["-std=cpp"],
+	include_build_directory: false,
+}`,
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_library_static", "foo", attrNameToString{
+				"conlyflags": `["-std=conly"]`,
+				"cppflags":   `["-std=cpp"]`,
+			}),
+		},
+	})
+}
