@@ -229,6 +229,8 @@ func init() {
 			"LOCAL_IS_UNIT_TEST": "unit_test",
 
 			"LOCAL_ENFORCE_USES_LIBRARIES": "enforce_uses_libs",
+
+			"LOCAL_CHECK_ELF_FILES": "check_elf_files",
 		})
 }
 
