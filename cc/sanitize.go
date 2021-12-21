@@ -539,11 +539,6 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 	if Bool(s.Hwaddress) {
 		s.Address = nil
 		s.Thread = nil
-		// Disable ubsan diagnosic as a workaround for a compiler bug.
-		// TODO(b/191808836): re-enable.
-		s.Diag.Undefined = nil
-		s.Diag.Integer_overflow = nil
-		s.Diag.Misc_undefined = nil
 	}
 
 	// TODO(b/131771163): CFI transiently depends on LTO, and thus Fuzzer is
