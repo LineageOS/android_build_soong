@@ -392,8 +392,12 @@ func libraryBp2Build(ctx android.TopDownMutatorContext, m *Module) {
 		Bzl_load_location: "//build/bazel/rules:cc_library_shared.bzl",
 	}
 
-	ctx.CreateBazelTargetModule(staticProps, android.CommonAttributes{Name: m.Name() + "_bp2build_cc_library_static"}, staticTargetAttrs)
-	ctx.CreateBazelTargetModule(sharedProps, android.CommonAttributes{Name: m.Name()}, sharedTargetAttrs)
+	ctx.CreateBazelTargetModuleWithRestrictions(staticProps,
+		android.CommonAttributes{Name: m.Name() + "_bp2build_cc_library_static"},
+		staticTargetAttrs, staticAttrs.Enabled)
+	ctx.CreateBazelTargetModuleWithRestrictions(sharedProps,
+		android.CommonAttributes{Name: m.Name()},
+		sharedTargetAttrs, sharedAttrs.Enabled)
 }
 
 // cc_library creates both static and/or shared libraries for a device and/or
