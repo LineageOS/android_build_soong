@@ -1629,6 +1629,13 @@ func (ctx *parseContext) maybeHandleAnnotation(cnode *mkparser.Comment) {
 		return
 	}
 	if p, ok := maybeTrim(annotation, "include_top"); ok {
+		// Don't allow duplicate include tops, because then we will generate
+		// invalid starlark code. (duplicate keys in the _entry dictionary)
+		for _, top := range ctx.includeTops {
+			if top == p {
+				return
+			}
+		}
 		ctx.includeTops = append(ctx.includeTops, p)
 		return
 	}
