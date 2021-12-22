@@ -110,7 +110,9 @@ func (i inheritedDynamicModule) emitSelect(gctx *generationContext) {
 		gctx.writef("if not %s:", i.entryName())
 		gctx.indentLevel++
 		gctx.newLine()
-		gctx.write(`rblf.mkerror("cannot")`)
+		gctx.write(`rblf.mkerror("`, gctx.starScript.mkFile, `", "Cannot find %s" % (`)
+		i.path.emit(gctx)
+		gctx.write("))")
 		gctx.indentLevel--
 	}
 }
