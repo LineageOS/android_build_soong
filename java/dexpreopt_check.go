@@ -72,8 +72,7 @@ func (m *dexpreoptSystemserverCheck) GenerateAndroidBuildActions(ctx android.Mod
 		return
 	}
 
-	// TODO(b/203198541): Check all system server jars.
-	systemServerJars := global.AllSystemServerClasspathJars(ctx)
+	systemServerJars := global.AllSystemServerJars(ctx)
 	for _, jar := range systemServerJars.CopyOfJars() {
 		dexLocation := dexpreopt.GetSystemServerDexLocation(ctx, global, jar)
 		odexLocation := dexpreopt.ToOdexPath(dexLocation, targets[0].Arch.ArchType)
