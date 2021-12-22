@@ -1982,3 +1982,8 @@ func (c *config) ApexBootJars() ConfiguredJarList {
 func (c *config) RBEWrapper() string {
 	return c.GetenvWithDefault("RBE_WRAPPER", remoteexec.DefaultWrapperPath)
 }
+
+// UseHostMusl returns true if the host target has been configured to build against musl libc.
+func (c *config) UseHostMusl() bool {
+	return Bool(c.productVariables.HostMusl)
+}
