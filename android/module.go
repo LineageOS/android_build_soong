@@ -869,6 +869,13 @@ type CommonAttributes struct {
 	Data bazel.LabelListAttribute
 }
 
+// constraintAttributes represents Bazel attributes pertaining to build constraints,
+// which make restrict building a Bazel target for some set of platforms.
+type constraintAttributes struct {
+	// Constraint values this target can be built for.
+	Target_compatible_with bazel.LabelListAttribute
+}
+
 type distProperties struct {
 	// configuration to distribute output files from this module to the distribution
 	// directory (default: $OUT/dist, configurable with $DIST_DIR)
@@ -1089,7 +1096,8 @@ func InitCommonOSAndroidMultiTargetsArchModule(m Module, hod HostOrDeviceSupport
 	m.base().commonProperties.CreateCommonOSVariant = true
 }
 
-func (attrs *CommonAttributes) fillCommonBp2BuildModuleAttrs(ctx *topDownMutatorContext) {
+func (attrs *CommonAttributes) fillCommonBp2BuildModuleAttrs(ctx *topDownMutatorContext,
+	enabledPropertyOverrides bazel.BoolAttribute) constraintAttributes {
 	// Assert passed-in attributes include Name
 	name := attrs.Name
 	if len(name) == 0 {
@@ -1107,14 +1115,45 @@ func (attrs *CommonAttributes) fillCommonBp2BuildModuleAttrs(ctx *topDownMutator
 
 	required := depsToLabelList(props.Required)
 	archVariantProps := mod.GetArchVariantProperties(ctx, &commonProperties{})
+
+	var enabledProperty bazel.BoolAttribute
+	if props.Enabled != nil {
+		enabledProperty.Value = props.Enabled
+	}
+
 	for axis, configToProps := range archVariantProps {
 		for config, _props := range configToProps {
 			if archProps, ok := _props.(*commonProperties); ok {
 				required.SetSelectValue(axis, config, depsToLabelList(archProps.Required).Value)
+				if archProps.Enabled != nil {
+					enabledProperty.SetSelectValue(axis, config, archProps.Enabled)
+				}
 			}
 		}
 	}
+
+	if enabledPropertyOverrides.Value != nil {
+		enabledProperty.Value = enabledPropertyOverrides.Value
+	}
+	for _, axis := range enabledPropertyOverrides.SortedConfigurationAxes() {
+		configToBools := enabledPropertyOverrides.ConfigurableValues[axis]
+		for cfg, val := range configToBools {
+			enabledProperty.SetSelectValue(axis, cfg, &val)
+		}
+	}
+
 	data.Append(required)
+
+	var err error
+	constraints := constraintAttributes{}
+	constraints.Target_compatible_with, err = enabledProperty.ToLabelListAttribute(
+		bazel.LabelList{[]bazel.Label{bazel.Label{Label: "@platforms//:incompatible"}}, nil},
+		bazel.LabelList{[]bazel.Label{}, nil})
+
+	if err != nil {
+		ctx.ModuleErrorf("Error processing enabled attribute: %s", err)
+	}
+	return constraints
 }
 
 // A ModuleBase object contains the properties that are common to all Android
@@ -1233,10 +1272,11 @@ type ModuleBase struct {
 
 // A struct containing all relevant information about a Bazel target converted via bp2build.
 type bp2buildInfo struct {
-	Dir         string
-	BazelProps  bazel.BazelTargetModuleProperties
-	CommonAttrs CommonAttributes
-	Attrs       interface{}
+	Dir             string
+	BazelProps      bazel.BazelTargetModuleProperties
+	CommonAttrs     CommonAttributes
+	ConstraintAttrs constraintAttributes
+	Attrs           interface{}
 }
 
 // TargetName returns the Bazel target name of a bp2build converted target.
@@ -1262,7 +1302,7 @@ func (b bp2buildInfo) BazelRuleLoadLocation() string {
 
 // BazelAttributes returns the Bazel attributes of a bp2build converted target.
 func (b bp2buildInfo) BazelAttributes() []interface{} {
-	return []interface{}{&b.CommonAttrs, b.Attrs}
+	return []interface{}{&b.CommonAttrs, &b.ConstraintAttrs, b.Attrs}
 }
 
 func (m *ModuleBase) addBp2buildInfo(info bp2buildInfo) {

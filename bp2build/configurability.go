@@ -1,10 +1,11 @@
 package bp2build
 
 import (
-	"android/soong/android"
-	"android/soong/bazel"
 	"fmt"
 	"reflect"
+
+	"android/soong/android"
+	"android/soong/bazel"
 )
 
 // Configurability support for bp2build.
@@ -89,13 +90,15 @@ func getLabelListValues(list bazel.LabelListAttribute) (reflect.Value, []selects
 		}
 		archSelects := map[string]reflect.Value{}
 		defaultVal := configToLabels[bazel.ConditionsDefaultConfigKey]
+		// Skip empty list values unless ether EmitEmptyList is true, or these values differ from the default.
+		emitEmptyList := list.EmitEmptyList || len(defaultVal.Includes) > 0
 		for config, labels := range configToLabels {
 			// Omit any entries in the map which match the default value, for brevity.
 			if config != bazel.ConditionsDefaultConfigKey && labels.Equals(defaultVal) {
 				continue
 			}
 			selectKey := axis.SelectKey(config)
-			if use, value := labelListSelectValue(selectKey, labels, list.EmitEmptyList); use {
+			if use, value := labelListSelectValue(selectKey, labels, emitEmptyList); use {
 				archSelects[selectKey] = value
 			}
 		}
@@ -144,9 +147,15 @@ func prettyPrintAttribute(v bazel.Attribute, indent int) (string, error) {
 			shouldPrintDefault = true
 		}
 	case bazel.LabelAttribute:
+		if err := list.Collapse(); err != nil {
+			return "", err
+		}
 		value, configurableAttrs = getLabelValue(list)
 		defaultSelectValue = &bazelNone
 	case bazel.BoolAttribute:
+		if err := list.Collapse(); err != nil {
+			return "", err
+		}
 		value, configurableAttrs = getBoolValue(list)
 		defaultSelectValue = &bazelNone
 	default:
@@ -204,11 +213,12 @@ func prettyPrintSelectMap(selectMap map[string]reflect.Value, defaultValue *stri
 			continue
 		}
 		value := selectMap[selectKey]
-		if isZero(value) && !emitZeroValues {
-			// Ignore zero values to not generate empty lists.
+		if isZero(value) && !emitZeroValues && isZero(selectMap[bazel.ConditionsDefaultSelectKey]) {
+			// Ignore zero values to not generate empty lists. However, always note zero values if
+			// the default value is non-zero.
 			continue
 		}
-		s, err := prettyPrintSelectEntry(value, selectKey, indent, emitZeroValues)
+		s, err := prettyPrintSelectEntry(value, selectKey, indent, true)
 		if err != nil {
 			return "", err
 		}
