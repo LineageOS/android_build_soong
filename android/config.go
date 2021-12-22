@@ -658,6 +658,10 @@ func (c *config) IsEnvFalse(key string) bool {
 	return value == "0" || value == "n" || value == "no" || value == "off" || value == "false"
 }
 
+func (c *config) TargetsJava11() bool {
+	return c.IsEnvTrue("EXPERIMENTAL_TARGET_JAVA_VERSION_11")
+}
+
 // EnvDeps returns the environment variables this build depends on. The first
 // call to this function blocks future reads from the environment.
 func (c *config) EnvDeps() map[string]string {
@@ -1474,6 +1478,22 @@ func (c *deviceConfig) BoardPlatVendorPolicy() []string {
 
 func (c *deviceConfig) BoardReqdMaskPolicy() []string {
 	return c.config.productVariables.BoardReqdMaskPolicy
+}
+
+func (c *deviceConfig) BoardSystemExtPublicPrebuiltDirs() []string {
+	return c.config.productVariables.BoardSystemExtPublicPrebuiltDirs
+}
+
+func (c *deviceConfig) BoardSystemExtPrivatePrebuiltDirs() []string {
+	return c.config.productVariables.BoardSystemExtPrivatePrebuiltDirs
+}
+
+func (c *deviceConfig) BoardProductPublicPrebuiltDirs() []string {
+	return c.config.productVariables.BoardProductPublicPrebuiltDirs
+}
+
+func (c *deviceConfig) BoardProductPrivatePrebuiltDirs() []string {
+	return c.config.productVariables.BoardProductPrivatePrebuiltDirs
 }
 
 func (c *deviceConfig) DirectedVendorSnapshot() bool {
