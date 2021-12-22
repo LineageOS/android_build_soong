@@ -2573,11 +2573,11 @@ func (module *sdkLibraryXml) permissionsContents(ctx android.ModuleContext) stri
 	implicitUntilAttr := formattedOptionalSdkLevelAttribute(ctx, "on-bootclasspath-before", module.properties.On_bootclasspath_before)
 	minSdkAttr := formattedOptionalSdkLevelAttribute(ctx, "min-device-sdk", module.properties.Min_device_sdk)
 	maxSdkAttr := formattedOptionalSdkLevelAttribute(ctx, "max-device-sdk", module.properties.Max_device_sdk)
-	// <library> is understood in all android versions whereas <updatable-library> is only understood from API T (and ignored before that).
-	// similarly, min_device_sdk is only understood from T. So if a library is using that, we need to use the updatable-library to make sure this library is not loaded before T
+	// <library> is understood in all android versions whereas <apex-library> is only understood from API T (and ignored before that).
+	// similarly, min_device_sdk is only understood from T. So if a library is using that, we need to use the apex-library to make sure this library is not loaded before T
 	var libraryTag string
 	if module.properties.Min_device_sdk != nil {
-		libraryTag = `    <updatable-library\n`
+		libraryTag = `    <apex-library\n`
 	} else {
 		libraryTag = `    <library\n`
 	}
