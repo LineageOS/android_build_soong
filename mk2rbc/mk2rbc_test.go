@@ -1049,7 +1049,7 @@ def init(g, handle):
   }.get("vendor/%s/cfg.mk" % g["MY_PATH"])
   (_varmod, _varmod_init) = _entry if _entry else (None, None)
   if not _varmod_init:
-    rblf.mkerror("cannot")
+    rblf.mkerror("product.mk", "Cannot find %s" % ("vendor/%s/cfg.mk" % g["MY_PATH"]))
   rblf.inherit(handle, _varmod, _varmod_init)
 `,
 	},
@@ -1073,7 +1073,7 @@ def init(g, handle):
   }.get("%s/cfg.mk" % g["MY_PATH"])
   (_varmod, _varmod_init) = _entry if _entry else (None, None)
   if not _varmod_init:
-    rblf.mkerror("cannot")
+    rblf.mkerror("product.mk", "Cannot find %s" % ("%s/cfg.mk" % g["MY_PATH"]))
   rblf.inherit(handle, _varmod, _varmod_init)
 `,
 	},
@@ -1099,7 +1099,7 @@ def init(g, handle):
   }.get("%s/cfg.mk" % g["MY_PATH"])
   (_varmod, _varmod_init) = _entry if _entry else (None, None)
   if not _varmod_init:
-    rblf.mkerror("cannot")
+    rblf.mkerror("product.mk", "Cannot find %s" % ("%s/cfg.mk" % g["MY_PATH"]))
   rblf.inherit(handle, _varmod, _varmod_init)
   #RBC# include_top vendor/foo1
   _entry = {
@@ -1107,7 +1107,7 @@ def init(g, handle):
   }.get("%s/cfg.mk" % g["MY_PATH"])
   (_varmod, _varmod_init) = _entry if _entry else (None, None)
   if not _varmod_init:
-    rblf.mkerror("cannot")
+    rblf.mkerror("product.mk", "Cannot find %s" % ("%s/cfg.mk" % g["MY_PATH"]))
   rblf.inherit(handle, _varmod, _varmod_init)
 `,
 	},
