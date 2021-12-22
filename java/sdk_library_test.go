@@ -338,7 +338,7 @@ func TestJavaSdkLibrary_UpdatableLibrary_usesNewTag(t *testing.T) {
 `)
 	// test that updatability attributes are passed on correctly
 	fooUpdatable := result.ModuleForTests("foo.xml", "android_common").Rule("java_sdk_xml")
-	android.AssertStringDoesContain(t, "foo.xml java_sdk_xml command", fooUpdatable.RuleParams.Command, `<updatable-library`)
+	android.AssertStringDoesContain(t, "foo.xml java_sdk_xml command", fooUpdatable.RuleParams.Command, `<apex-library`)
 	android.AssertStringDoesNotContain(t, "foo.xml java_sdk_xml command", fooUpdatable.RuleParams.Command, `<library`)
 }
 
