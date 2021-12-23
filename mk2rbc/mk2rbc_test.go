@@ -1214,6 +1214,33 @@ def init(g, handle):
   g["BOOT_KERNEL_MODULES_FILTER_2"] = ["%%/%s" % m for m in g["BOOT_KERNEL_MODULES_LIST"]]
 `,
 	},
+	{
+		desc:   "List appended to string",
+		mkname: "product.mk",
+		in: `
+NATIVE_BRIDGE_PRODUCT_PACKAGES := \
+    libnative_bridge_vdso.native_bridge \
+    native_bridge_guest_app_process.native_bridge \
+    native_bridge_guest_linker.native_bridge
+
+NATIVE_BRIDGE_MODIFIED_GUEST_LIBS := \
+    libaaudio \
+    libamidi \
+    libandroid \
+    libandroid_runtime
+
+NATIVE_BRIDGE_PRODUCT_PACKAGES += \
+    $(addsuffix .native_bridge,$(NATIVE_BRIDGE_ORIG_GUEST_LIBS))
+`,
+		expected: `load("//build/make/core:product_config.rbc", "rblf")
+
+def init(g, handle):
+  cfg = rblf.cfg(handle)
+  g["NATIVE_BRIDGE_PRODUCT_PACKAGES"] = "libnative_bridge_vdso.native_bridge      native_bridge_guest_app_process.native_bridge      native_bridge_guest_linker.native_bridge"
+  g["NATIVE_BRIDGE_MODIFIED_GUEST_LIBS"] = "libaaudio      libamidi      libandroid      libandroid_runtime"
+  g["NATIVE_BRIDGE_PRODUCT_PACKAGES"] += " " + " ".join(rblf.addsuffix(".native_bridge", g.get("NATIVE_BRIDGE_ORIG_GUEST_LIBS", "")))
+`,
+	},
 }
 
 var known_variables = []struct {
