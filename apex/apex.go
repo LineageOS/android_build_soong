@@ -3041,10 +3041,9 @@ func createApexPermittedPackagesRules(modules_packages map[string][]string) []an
 			BootclasspathJar().
 			With("apex_available", module_name).
 			WithMatcher("permitted_packages", android.NotInList(module_packages)).
-			WithMatcher("min_sdk_version", android.LessThanSdkVersion("Tiramisu")).
 			Because("jars that are part of the " + module_name +
 				" module may only use these package prefixes: " + strings.Join(module_packages, ",") +
-				" with min_sdk < T. Please consider the following alternatives:\n" +
+				". Please consider the following alternatives:\n" +
 				"    1. If the offending code is from a statically linked library, consider " +
 				"removing that dependency and using an alternative already in the " +
 				"bootclasspath, or perhaps a shared library." +
@@ -3057,7 +3056,7 @@ func createApexPermittedPackagesRules(modules_packages map[string][]string) []an
 	return rules
 }
 
-// DO NOT EDIT! These are the package prefixes that are exempted from being AOT'ed by ART on Q/R/S.
+// DO NOT EDIT! These are the package prefixes that are exempted from being AOT'ed by ART.
 // Adding code to the bootclasspath in new packages will cause issues on module update.
 func qModulesPackages() map[string][]string {
 	return map[string][]string{
@@ -3071,7 +3070,7 @@ func qModulesPackages() map[string][]string {
 	}
 }
 
-// DO NOT EDIT! These are the package prefixes that are exempted from being AOT'ed by ART on R/S.
+// DO NOT EDIT! These are the package prefixes that are exempted from being AOT'ed by ART.
 // Adding code to the bootclasspath in new packages will cause issues on module update.
 func rModulesPackages() map[string][]string {
 	return map[string][]string{
