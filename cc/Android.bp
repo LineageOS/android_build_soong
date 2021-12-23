@@ -19,10 +19,11 @@ bootstrap_go_package {
         "soong-tradefed",
     ],
     srcs: [
+        "afdo.go",
         "androidmk.go",
         "api_level.go",
-        "builder.go",
         "bp2build.go",
+        "builder.go",
         "cc.go",
         "ccdeps.go",
         "check.go",

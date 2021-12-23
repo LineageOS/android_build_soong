@@ -1245,6 +1245,10 @@ func (c *deviceConfig) NativeCoverageEnabledForPath(path string) bool {
 	return coverage
 }
 
+func (c *deviceConfig) AfdoAdditionalProfileDirs() []string {
+	return c.config.productVariables.AfdoAdditionalProfileDirs
+}
+
 func (c *deviceConfig) PgoAdditionalProfileDirs() []string {
 	return c.config.productVariables.PgoAdditionalProfileDirs
 }
