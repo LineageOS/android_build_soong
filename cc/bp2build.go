@@ -57,6 +57,8 @@ type staticOrSharedAttributes struct {
 	Implementation_whole_archive_deps bazel.LabelListAttribute
 
 	System_dynamic_deps bazel.LabelListAttribute
+
+	Enabled bazel.BoolAttribute
 }
 
 func groupSrcsByExtension(ctx android.BazelConversionPathContext, srcs bazel.LabelListAttribute) bazel.PartitionToLabelListAttribute {
@@ -162,7 +164,7 @@ func bp2buildParseStaticOrSharedProps(ctx android.BazelConversionPathContext, mo
 	attrs := staticOrSharedAttributes{}
 
 	setAttrs := func(axis bazel.ConfigurationAxis, config string, props StaticOrSharedProperties) {
-		attrs.Copts.SetSelectValue(axis, config, props.Cflags)
+		attrs.Copts.SetSelectValue(axis, config, parseCommandLineFlags(props.Cflags, filterOutStdFlag))
 		attrs.Srcs.SetSelectValue(axis, config, android.BazelLabelForModuleSrc(ctx, props.Srcs))
 		attrs.System_dynamic_deps.SetSelectValue(axis, config, bazelLabelForSharedDeps(ctx, props.System_shared_libs))
 
@@ -175,6 +177,7 @@ func bp2buildParseStaticOrSharedProps(ctx android.BazelConversionPathContext, mo
 		attrs.Implementation_dynamic_deps.SetSelectValue(axis, config, sharedDeps.implementation)
 
 		attrs.Whole_archive_deps.SetSelectValue(axis, config, bazelLabelForWholeDeps(ctx, props.Whole_static_libs))
+		attrs.Enabled.SetSelectValue(axis, config, props.Enabled)
 	}
 	// system_dynamic_deps distinguishes between nil/empty list behavior:
 	//    nil -> use default values
@@ -279,9 +282,18 @@ type compilerAttributes struct {
 	protoSrcs bazel.LabelListAttribute
 }
 
-func parseCommandLineFlags(soongFlags []string) []string {
+type filterOutFn func(string) bool
+
+func filterOutStdFlag(flag string) bool {
+	return strings.HasPrefix(flag, "-std=")
+}
+
+func parseCommandLineFlags(soongFlags []string, filterOut filterOutFn) []string {
 	var result []string
 	for _, flag := range soongFlags {
+		if filterOut != nil && filterOut(flag) {
+			continue
+		}
 		// Soong's cflags can contain spaces, like `-include header.h`. For
 		// Bazel's copts, split them up to be compatible with the
 		// no_copts_tokenization feature.
@@ -308,10 +320,14 @@ func (ca *compilerAttributes) bp2buildForAxisAndConfig(ctx android.BazelConversi
 	ca.absoluteIncludes.SetSelectValue(axis, config, props.Include_dirs)
 	ca.localIncludes.SetSelectValue(axis, config, localIncludeDirs)
 
-	ca.copts.SetSelectValue(axis, config, parseCommandLineFlags(props.Cflags))
-	ca.asFlags.SetSelectValue(axis, config, parseCommandLineFlags(props.Asflags))
-	ca.conlyFlags.SetSelectValue(axis, config, parseCommandLineFlags(props.Conlyflags))
-	ca.cppFlags.SetSelectValue(axis, config, parseCommandLineFlags(props.Cppflags))
+	// In Soong, cflags occur on the command line before -std=<val> flag, resulting in the value being
+	// overridden. In Bazel we always allow overriding, via flags; however, this can cause
+	// incompatibilities, so we remove "-std=" flags from Cflag properties while leaving it in other
+	// cases.
+	ca.copts.SetSelectValue(axis, config, parseCommandLineFlags(props.Cflags, filterOutStdFlag))
+	ca.asFlags.SetSelectValue(axis, config, parseCommandLineFlags(props.Asflags, nil))
+	ca.conlyFlags.SetSelectValue(axis, config, parseCommandLineFlags(props.Conlyflags, nil))
+	ca.cppFlags.SetSelectValue(axis, config, parseCommandLineFlags(props.Cppflags, nil))
 	ca.rtti.SetSelectValue(axis, config, props.Rtti)
 }
 

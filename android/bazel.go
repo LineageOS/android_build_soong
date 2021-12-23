@@ -364,10 +364,17 @@ var (
 
 	// Per-module denylist to always opt modules out of both bp2build and mixed builds.
 	bp2buildModuleDoNotConvertList = []string{
-		"libnativehelper_compat_libc++", // Broken compile: implicit declaration of function 'strerror_r' is invalid in C99
-
 		"libandroid_runtime_lazy", // depends on unconverted modules: libbinder_headers
 		"libcmd",                  // depends on unconverted modules: libbinder
+
+		"libdexfile_support_static",                                                       // Depends on unconverted module: libdexfile_external_headers
+		"libunwindstack_local", "libunwindstack_utils", "libc_malloc_debug", "libfdtrack", // Depends on unconverted module: libunwindstack
+
+		"libdexfile_support",          // TODO(b/210546943): Enabled based on product variables.
+		"libdexfile_external_headers", // TODO(b/210546943): Enabled based on product variables.
+
+		"libunwindstack",                // Depends on unconverted module libdexfile_support.
+		"libnativehelper_compat_libc++", // Broken compile: implicit declaration of function 'strerror_r' is invalid in C99
 
 		"chkcon", "sefcontext_compile", // depends on unconverted modules: libsepol
 
@@ -375,7 +382,6 @@ var (
 
 		"gen-kotlin-build-file.py", // module has same name as source
 
-		"libbinder",               // TODO(b/188503688): Disabled for some archs,
 		"libactivitymanager_aidl", // TODO(b/207426160): Depends on activity_manager_procstate_aidl, which is an aidl filegroup.
 
 		"libnativehelper_lazy_mts_jni", "libnativehelper_mts_jni", // depends on unconverted modules: libgmock_ndk
@@ -436,8 +442,7 @@ var (
 		"linkerconfig", // http://b/202876379 has arch-variant static_executable
 		"mdnsd",        // http://b/202876379 has arch-variant static_executable
 
-		"acvp_modulewrapper", // disabled for android x86/x86_64
-		"CarHTMLViewer",      // depends on unconverted modules android.car-stubs, car-ui-lib
+		"CarHTMLViewer", // depends on unconverted modules android.car-stubs, car-ui-lib
 
 		"libdexfile",  // depends on unconverted modules: dexfile_operator_srcs, libartbase, libartpalette,
 		"libdexfiled", // depends on unconverted modules: dexfile_operator_srcs, libartbased, libartpalette
@@ -445,9 +450,7 @@ var (
 
 	// Per-module denylist of cc_library modules to only generate the static
 	// variant if their shared variant isn't ready or buildable by Bazel.
-	bp2buildCcLibraryStaticOnlyList = []string{
-		"libjemalloc5", // http://b/188503688, cc_library, `target: { android: { enabled: false } }` for android targets.
-	}
+	bp2buildCcLibraryStaticOnlyList = []string{}
 
 	// Per-module denylist to opt modules out of mixed builds. Such modules will
 	// still be generated via bp2build.
@@ -513,6 +516,9 @@ func ShouldKeepExistingBuildFileForDir(dir string) bool {
 func (b *BazelModuleBase) MixedBuildsEnabled(ctx ModuleContext) bool {
 	if ctx.Os() == Windows {
 		// Windows toolchains are not currently supported.
+		return false
+	}
+	if !ctx.Module().Enabled() {
 		return false
 	}
 	if !ctx.Config().BazelContext.BazelEnabled() {
