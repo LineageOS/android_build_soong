@@ -73,3 +73,20 @@ func TestShBinarySimple(t *testing.T) {
 			})},
 	})
 }
+
+func TestShBinaryDefaults(t *testing.T) {
+	runShBinaryTestCase(t, bp2buildTestCase{
+		description:                "sh_binary test",
+		moduleTypeUnderTest:        "sh_binary",
+		moduleTypeUnderTestFactory: sh.ShBinaryFactory,
+		blueprint: `sh_binary {
+    name: "foo",
+    src: "foo.sh",
+    bazel_module: { bp2build_available: true },
+}`,
+		expectedBazelTargets: []string{
+			makeBazelTarget("sh_binary", "foo", attrNameToString{
+				"srcs": `["foo.sh"]`,
+			})},
+	})
+}

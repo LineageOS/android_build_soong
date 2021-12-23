@@ -681,7 +681,8 @@ func prebuiltEtcBp2BuildInternal(ctx android.TopDownMutatorContext, module *Preb
 				continue
 			}
 			if props.Src != nil {
-				srcLabelAttribute.SetSelectValue(axis, config, android.BazelLabelForModuleSrcSingle(ctx, *props.Src))
+				label := android.BazelLabelForModuleSrcSingle(ctx, *props.Src)
+				srcLabelAttribute.SetSelectValue(axis, config, label)
 			}
 		}
 	}
