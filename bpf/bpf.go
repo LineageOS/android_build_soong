@@ -86,7 +86,6 @@ func (bpf *bpf) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		"-I       frameworks/libs/net/common/native/bpf_headers/include/bpf",
 		// TODO(b/149785767): only give access to specific file with AID_* constants
 		"-I       system/core/libcutils/include",
-		"-I       system/bpf/progs/include",
 		"-I " + ctx.ModuleDir(),
 	}
 
