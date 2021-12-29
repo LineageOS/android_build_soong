@@ -293,7 +293,7 @@ var neverallowTests = []struct {
 			`),
 		},
 		expectedErrors: []string{
-			"Only boot images and seapp contexts may be imported as a makefile goal.",
+			"Only boot images may be imported as a makefile goal.",
 		},
 	},
 }
