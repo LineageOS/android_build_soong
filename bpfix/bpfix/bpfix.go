@@ -641,7 +641,7 @@ func rewriteAndroidmkPrebuiltEtc(f *Fixer) error {
 		// 'srcs' --> 'src' conversion
 		convertToSingleSource(mod, "src")
 
-		renameProperty(mod, "sub_dir", "relative_install_dir")
+		renameProperty(mod, "sub_dir", "relative_install_path")
 
 		// The rewriter converts LOCAL_MODULE_PATH attribute into a struct attribute
 		// 'local_module_path'. Analyze its contents and create the correct sub_dir:,
