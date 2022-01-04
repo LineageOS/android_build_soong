@@ -188,6 +188,12 @@ func (proto *protobufDecorator) genModFileContents() string {
 			lines,
 			"pub mod empty {",
 			"    pub use protobuf::well_known_types::Empty;",
+			"}",
+			"pub mod wrappers {",
+			"    pub use protobuf::well_known_types::{",
+			"        DoubleValue, FloatValue, Int64Value, UInt64Value, Int32Value, UInt32Value,",
+			"        BoolValue, StringValue, BytesValue",
+			"    };",
 			"}")
 	}
 
