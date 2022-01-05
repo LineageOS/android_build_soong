@@ -1036,9 +1036,7 @@ func initArchModule(m Module) {
 		m.AddProperties(archProperties...)
 	}
 
-	// Update the list of properties that can be set by a defaults module or a call to
-	// AppendMatchingProperties or PrependMatchingProperties.
-	base.customizableProperties = m.GetProperties()
+	base.generalProperties = m.GetProperties()
 }
 
 func maybeBlueprintEmbed(src reflect.Value) reflect.Value {
@@ -1111,7 +1109,7 @@ func getChildPropertyStruct(ctx ArchVariantContext,
 func (m *ModuleBase) setOSProperties(ctx BottomUpMutatorContext) {
 	os := m.commonProperties.CompileOS
 
-	for i := range m.generalProperties {
+	for i := range m.archProperties {
 		genProps := m.generalProperties[i]
 		if m.archProperties[i] == nil {
 			continue
@@ -1439,7 +1437,7 @@ func (m *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 	arch := m.Arch()
 	os := m.Os()
 
-	for i := range m.generalProperties {
+	for i := range m.archProperties {
 		genProps := m.generalProperties[i]
 		if m.archProperties[i] == nil {
 			continue
