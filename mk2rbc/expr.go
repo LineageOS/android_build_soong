@@ -119,6 +119,29 @@ func (b *boolLiteralExpr) transform(transformer func(expr starlarkExpr) starlark
 	}
 }
 
+type globalsExpr struct {
+}
+
+func (g *globalsExpr) emit(gctx *generationContext) {
+	gctx.write("g")
+}
+
+func (g *globalsExpr) typ() starlarkType {
+	return starlarkTypeUnknown
+}
+
+func (g *globalsExpr) emitListVarCopy(gctx *generationContext) {
+	g.emit(gctx)
+}
+
+func (g *globalsExpr) transform(transformer func(expr starlarkExpr) starlarkExpr) starlarkExpr {
+	if replacement := transformer(g); replacement != nil {
+		return replacement
+	} else {
+		return g
+	}
+}
+
 // interpolateExpr represents Starlark's interpolation operator <string> % list
 // we break <string> into a list of chunks, i.e., "first%second%third" % (X, Y)
 // will have chunks = ["first", "second", "third"] and args = [X, Y]
@@ -322,35 +345,6 @@ type eqExpr struct {
 }
 
 func (eq *eqExpr) emit(gctx *generationContext) {
-	var stringOperand string
-	var otherOperand starlarkExpr
-	if s, ok := maybeString(eq.left); ok {
-		stringOperand = s
-		otherOperand = eq.right
-	} else if s, ok := maybeString(eq.right); ok {
-		stringOperand = s
-		otherOperand = eq.left
-	}
-
-	// If we've identified one of the operands as being a string literal, check
-	// for some special cases we can do to simplify the resulting expression.
-	if otherOperand != nil {
-		if stringOperand == "" {
-			if eq.isEq {
-				gctx.write("not ")
-			}
-			otherOperand.emit(gctx)
-			return
-		}
-		if stringOperand == "true" && otherOperand.typ() == starlarkTypeBool {
-			if !eq.isEq {
-				gctx.write("not ")
-			}
-			otherOperand.emit(gctx)
-			return
-		}
-	}
-
 	if eq.left.typ() != eq.right.typ() {
 		eq.left = &toStringExpr{expr: eq.left}
 		eq.right = &toStringExpr{expr: eq.right}
@@ -594,29 +588,15 @@ type callExpr struct {
 }
 
 func (cx *callExpr) emit(gctx *generationContext) {
-	sep := ""
 	if cx.object != nil {
 		gctx.write("(")
 		cx.object.emit(gctx)
 		gctx.write(")")
 		gctx.write(".", cx.name, "(")
 	} else {
-		kf, found := knownFunctions[cx.name]
-		if !found {
-			panic(fmt.Errorf("callExpr with unknown function %q", cx.name))
-		}
-		if kf.runtimeName[0] == '!' {
-			panic(fmt.Errorf("callExpr for %q should not be there", cx.name))
-		}
-		gctx.write(kf.runtimeName, "(")
-		if kf.hiddenArg == hiddenArgGlobal {
-			gctx.write("g")
-			sep = ", "
-		} else if kf.hiddenArg == hiddenArgConfig {
-			gctx.write("cfg")
-			sep = ", "
-		}
+		gctx.write(cx.name, "(")
 	}
+	sep := ""
 	for _, arg := range cx.args {
 		gctx.write(sep)
 		arg.emit(gctx)
