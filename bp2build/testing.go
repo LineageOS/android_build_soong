@@ -43,7 +43,7 @@ func checkError(t *testing.T, errs []error, expectedErr error) bool {
 	if len(errs) != 1 {
 		return false
 	}
-	if errs[0].Error() == expectedErr.Error() {
+	if strings.Contains(errs[0].Error(), expectedErr.Error()) {
 		return true
 	}
 
@@ -127,8 +127,12 @@ func runBp2BuildTestCase(t *testing.T, registerModuleTypes func(ctx android.Regi
 	codegenCtx := NewCodegenContext(config, *ctx.Context, Bp2Build)
 	codegenCtx.unconvertedDepMode = tc.unconvertedDepsMode
 	bazelTargets, errs := generateBazelTargetsForDir(codegenCtx, checkDir)
-	if tc.expectedErr != nil && checkError(t, errs, tc.expectedErr) {
-		return
+	if tc.expectedErr != nil {
+		if checkError(t, errs, tc.expectedErr) {
+			return
+		} else {
+			t.Errorf("Expected error: %q, got: %q", tc.expectedErr, errs)
+		}
 	} else {
 		android.FailIfErrored(t, errs)
 	}
