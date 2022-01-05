@@ -824,7 +824,7 @@ func TestRewritePrebuiltEtc(t *testing.T) {
 			out: `prebuilt_etc {
 			name: "foo",
 			src: "bar",
-			relative_install_dir: "baz",
+			relative_install_path: "baz",
 		}
 		`,
 		},
