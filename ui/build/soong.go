@@ -187,6 +187,11 @@ func primaryBuilderInvocation(
 		Outputs:     []string{output},
 		Args:        allArgs,
 		Description: description,
+		// NB: Changing the value of this environment variable will not result in a
+		// rebuild. The bootstrap Ninja file will change, but apparently Ninja does
+		// not consider changing the pool specified in a statement a change that's
+		// worth rebuilding for.
+		Console: os.Getenv("SOONG_UNBUFFERED_OUTPUT") == "1",
 	}
 }
 
