@@ -1936,7 +1936,7 @@ func TestRewriteLicenseProperty(t *testing.T) {
 			fs:   mockFs,
 			path: relativePathErr,
 			expectedErr: `
-				Cannot find an Android.mk file at path a/b/c
+				Cannot find an Android.mk file at path "a/b/c"
 			`,
 		},
 	}
