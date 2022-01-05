@@ -54,7 +54,6 @@ const (
 	cfnMain            = baseName + ".product_configuration"
 	cfnBoardMain       = baseName + ".board_configuration"
 	cfnPrintVars       = baseName + ".printvars"
-	cfnPrintGlobals    = baseName + ".printglobals"
 	cfnWarning         = baseName + ".warning"
 	cfnLocalAppend     = baseName + ".local_append"
 	cfnLocalSetDefault = baseName + ".local_set_default"
@@ -63,92 +62,73 @@ const (
 )
 
 const (
-	// Phony makefile functions, they are eventually rewritten
-	// according to knownFunctions map
-	fileExistsPhony = "$file_exists"
-	// The following two macros are obsolete, and will we deleted once
-	// there are deleted from the makefiles:
-	soongConfigNamespaceOld = "add_soong_config_namespace"
-	soongConfigVarSetOld    = "add_soong_config_var_value"
-	soongConfigAppend       = "soong_config_append"
-	soongConfigAssign       = "soong_config_set"
-	soongConfigGet          = "soong_config_get"
-	wildcardExistsPhony     = "$wildcard_exists"
+	soongConfigAppend = "soong_config_append"
+	soongConfigAssign = "soong_config_set"
 )
 
-const (
-	callLoadAlways = "inherit-product"
-	callLoadIf     = "inherit-product-if-exists"
-)
-
-var knownFunctions = map[string]struct {
-	// The name of the runtime function this function call in makefiles maps to.
-	// If it starts with !, then this makefile function call is rewritten to
-	// something else.
-	runtimeName string
-	returnType  starlarkType
-	hiddenArg   hiddenArgType
+var knownFunctions = map[string]interface {
+	parse(ctx *parseContext, node mkparser.Node, args *mkparser.MakeString) starlarkExpr
 }{
-	"abspath":                             {baseName + ".abspath", starlarkTypeString, hiddenArgNone},
-	fileExistsPhony:                       {baseName + ".file_exists", starlarkTypeBool, hiddenArgNone},
-	wildcardExistsPhony:                   {baseName + ".file_wildcard_exists", starlarkTypeBool, hiddenArgNone},
-	soongConfigNamespaceOld:               {baseName + ".soong_config_namespace", starlarkTypeVoid, hiddenArgGlobal},
-	soongConfigVarSetOld:                  {baseName + ".soong_config_set", starlarkTypeVoid, hiddenArgGlobal},
-	soongConfigAssign:                     {baseName + ".soong_config_set", starlarkTypeVoid, hiddenArgGlobal},
-	soongConfigAppend:                     {baseName + ".soong_config_append", starlarkTypeVoid, hiddenArgGlobal},
-	soongConfigGet:                        {baseName + ".soong_config_get", starlarkTypeString, hiddenArgGlobal},
-	"add-to-product-copy-files-if-exists": {baseName + ".copy_if_exists", starlarkTypeList, hiddenArgNone},
-	"addprefix":                           {baseName + ".addprefix", starlarkTypeList, hiddenArgNone},
-	"addsuffix":                           {baseName + ".addsuffix", starlarkTypeList, hiddenArgNone},
-	"copy-files":                          {baseName + ".copy_files", starlarkTypeList, hiddenArgNone},
-	"dir":                                 {baseName + ".dir", starlarkTypeList, hiddenArgNone},
-	"dist-for-goals":                      {baseName + ".mkdist_for_goals", starlarkTypeVoid, hiddenArgGlobal},
-	"enforce-product-packages-exist":      {baseName + ".enforce_product_packages_exist", starlarkTypeVoid, hiddenArgNone},
-	"error":                               {baseName + ".mkerror", starlarkTypeVoid, hiddenArgNone},
-	"findstring":                          {baseName + ".findstring", starlarkTypeString, hiddenArgNone},
-	"find-copy-subdir-files":              {baseName + ".find_and_copy", starlarkTypeList, hiddenArgNone},
-	"find-word-in-list":                   {"!find-word-in-list", starlarkTypeUnknown, hiddenArgNone}, // internal macro
-	"filter":                              {baseName + ".filter", starlarkTypeList, hiddenArgNone},
-	"filter-out":                          {baseName + ".filter_out", starlarkTypeList, hiddenArgNone},
-	"firstword":                           {"!firstword", starlarkTypeString, hiddenArgNone},
-	"foreach":                             {"!foreach", starlarkTypeList, hiddenArgNone},
-	"get-vendor-board-platforms":          {"!get-vendor-board-platforms", starlarkTypeList, hiddenArgNone}, // internal macro, used by is-board-platform, etc.
-	"if":                                  {"!if", starlarkTypeUnknown, hiddenArgNone},
-	"info":                                {baseName + ".mkinfo", starlarkTypeVoid, hiddenArgNone},
-	"is-android-codename":                 {"!is-android-codename", starlarkTypeBool, hiddenArgNone},         // unused by product config
-	"is-android-codename-in-list":         {"!is-android-codename-in-list", starlarkTypeBool, hiddenArgNone}, // unused by product config
-	"is-board-platform":                   {"!is-board-platform", starlarkTypeBool, hiddenArgNone},
-	"is-board-platform2":                  {baseName + ".board_platform_is", starlarkTypeBool, hiddenArgGlobal},
-	"is-board-platform-in-list":           {"!is-board-platform-in-list", starlarkTypeBool, hiddenArgNone},
-	"is-board-platform-in-list2":          {baseName + ".board_platform_in", starlarkTypeBool, hiddenArgGlobal},
-	"is-chipset-in-board-platform":        {"!is-chipset-in-board-platform", starlarkTypeUnknown, hiddenArgNone},     // unused by product config
-	"is-chipset-prefix-in-board-platform": {"!is-chipset-prefix-in-board-platform", starlarkTypeBool, hiddenArgNone}, // unused by product config
-	"is-not-board-platform":               {"!is-not-board-platform", starlarkTypeBool, hiddenArgNone},               // defined but never used
-	"is-platform-sdk-version-at-least":    {"!is-platform-sdk-version-at-least", starlarkTypeBool, hiddenArgNone},    // unused by product config
-	"is-product-in-list":                  {"!is-product-in-list", starlarkTypeBool, hiddenArgNone},
-	"is-vendor-board-platform":            {"!is-vendor-board-platform", starlarkTypeBool, hiddenArgNone},
-	"is-vendor-board-qcom":                {"!is-vendor-board-qcom", starlarkTypeBool, hiddenArgNone},
-	callLoadAlways:                        {"!inherit-product", starlarkTypeVoid, hiddenArgNone},
-	callLoadIf:                            {"!inherit-product-if-exists", starlarkTypeVoid, hiddenArgNone},
-	"lastword":                            {"!lastword", starlarkTypeString, hiddenArgNone},
-	"match-prefix":                        {"!match-prefix", starlarkTypeUnknown, hiddenArgNone},       // internal macro
-	"match-word":                          {"!match-word", starlarkTypeUnknown, hiddenArgNone},         // internal macro
-	"match-word-in-list":                  {"!match-word-in-list", starlarkTypeUnknown, hiddenArgNone}, // internal macro
-	"notdir":                              {baseName + ".notdir", starlarkTypeString, hiddenArgNone},
-	"my-dir":                              {"!my-dir", starlarkTypeString, hiddenArgNone},
-	"patsubst":                            {baseName + ".mkpatsubst", starlarkTypeString, hiddenArgNone},
-	"product-copy-files-by-pattern":       {baseName + ".product_copy_files_by_pattern", starlarkTypeList, hiddenArgNone},
-	"require-artifacts-in-path":           {baseName + ".require_artifacts_in_path", starlarkTypeVoid, hiddenArgNone},
-	"require-artifacts-in-path-relaxed":   {baseName + ".require_artifacts_in_path_relaxed", starlarkTypeVoid, hiddenArgNone},
+	"abspath":                             &simpleCallParser{name: baseName + ".abspath", returnType: starlarkTypeString, addGlobals: false},
+	"add_soong_config_namespace":          &simpleCallParser{name: baseName + ".soong_config_namespace", returnType: starlarkTypeVoid, addGlobals: true},
+	"add_soong_config_var_value":          &simpleCallParser{name: baseName + ".soong_config_set", returnType: starlarkTypeVoid, addGlobals: true},
+	soongConfigAssign:                     &simpleCallParser{name: baseName + ".soong_config_set", returnType: starlarkTypeVoid, addGlobals: true},
+	soongConfigAppend:                     &simpleCallParser{name: baseName + ".soong_config_append", returnType: starlarkTypeVoid, addGlobals: true},
+	"soong_config_get":                    &simpleCallParser{name: baseName + ".soong_config_get", returnType: starlarkTypeString, addGlobals: true},
+	"add-to-product-copy-files-if-exists": &simpleCallParser{name: baseName + ".copy_if_exists", returnType: starlarkTypeList, addGlobals: false},
+	"addprefix":                           &simpleCallParser{name: baseName + ".addprefix", returnType: starlarkTypeList, addGlobals: false},
+	"addsuffix":                           &simpleCallParser{name: baseName + ".addsuffix", returnType: starlarkTypeList, addGlobals: false},
+	"copy-files":                          &simpleCallParser{name: baseName + ".copy_files", returnType: starlarkTypeList, addGlobals: false},
+	"dir":                                 &simpleCallParser{name: baseName + ".dir", returnType: starlarkTypeList, addGlobals: false},
+	"dist-for-goals":                      &simpleCallParser{name: baseName + ".mkdist_for_goals", returnType: starlarkTypeVoid, addGlobals: true},
+	"enforce-product-packages-exist":      &simpleCallParser{name: baseName + ".enforce_product_packages_exist", returnType: starlarkTypeVoid, addGlobals: false},
+	"error":                               &makeControlFuncParser{name: baseName + ".mkerror"},
+	"findstring":                          &simpleCallParser{name: baseName + ".findstring", returnType: starlarkTypeInt, addGlobals: false},
+	"find-copy-subdir-files":              &simpleCallParser{name: baseName + ".find_and_copy", returnType: starlarkTypeList, addGlobals: false},
+	"filter":                              &simpleCallParser{name: baseName + ".filter", returnType: starlarkTypeList, addGlobals: false},
+	"filter-out":                          &simpleCallParser{name: baseName + ".filter_out", returnType: starlarkTypeList, addGlobals: false},
+	"firstword":                           &firstOrLastwordCallParser{isLastWord: false},
+	"foreach":                             &foreachCallPaser{},
+	"if":                                  &ifCallParser{},
+	"info":                                &makeControlFuncParser{name: baseName + ".mkinfo"},
+	"is-board-platform":                   &isBoardPlatformCallParser{},
+	"is-board-platform2":                  &simpleCallParser{name: baseName + ".board_platform_is", returnType: starlarkTypeBool, addGlobals: true},
+	"is-board-platform-in-list":           &isBoardPlatformInListCallParser{},
+	"is-board-platform-in-list2":          &simpleCallParser{name: baseName + ".board_platform_in", returnType: starlarkTypeBool, addGlobals: true},
+	"is-product-in-list":                  &isProductInListCallParser{},
+	"is-vendor-board-platform":            &isVendorBoardPlatformCallParser{},
+	"is-vendor-board-qcom":                &isVendorBoardQcomCallParser{},
+	"lastword":                            &firstOrLastwordCallParser{isLastWord: true},
+	"notdir":                              &simpleCallParser{name: baseName + ".notdir", returnType: starlarkTypeString, addGlobals: false},
+	"my-dir":                              &myDirCallParser{},
+	"patsubst":                            &substCallParser{fname: "patsubst"},
+	"product-copy-files-by-pattern":       &simpleCallParser{name: baseName + ".product_copy_files_by_pattern", returnType: starlarkTypeList, addGlobals: false},
+	"require-artifacts-in-path":           &simpleCallParser{name: baseName + ".require_artifacts_in_path", returnType: starlarkTypeVoid, addGlobals: false},
+	"require-artifacts-in-path-relaxed":   &simpleCallParser{name: baseName + ".require_artifacts_in_path_relaxed", returnType: starlarkTypeVoid, addGlobals: false},
 	// TODO(asmundak): remove it once all calls are removed from configuration makefiles. see b/183161002
-	"shell":      {baseName + ".shell", starlarkTypeString, hiddenArgNone},
-	"strip":      {baseName + ".mkstrip", starlarkTypeString, hiddenArgNone},
-	"tb-modules": {"!tb-modules", starlarkTypeUnknown, hiddenArgNone}, // defined in hardware/amlogic/tb_modules/tb_detect.mk, unused
-	"subst":      {baseName + ".mksubst", starlarkTypeString, hiddenArgNone},
-	"warning":    {baseName + ".mkwarning", starlarkTypeVoid, hiddenArgNone},
-	"word":       {baseName + "!word", starlarkTypeString, hiddenArgNone},
-	"wildcard":   {baseName + ".expand_wildcard", starlarkTypeList, hiddenArgNone},
-	"words":      {baseName + ".words", starlarkTypeList, hiddenArgNone},
+	"shell":    &shellCallParser{},
+	"strip":    &simpleCallParser{name: baseName + ".mkstrip", returnType: starlarkTypeString, addGlobals: false},
+	"subst":    &substCallParser{fname: "subst"},
+	"warning":  &makeControlFuncParser{name: baseName + ".mkwarning"},
+	"word":     &wordCallParser{},
+	"wildcard": &simpleCallParser{name: baseName + ".expand_wildcard", returnType: starlarkTypeList, addGlobals: false},
+}
+
+// These are functions that we don't implement conversions for, but
+// we allow seeing their definitions in the product config files.
+var ignoredDefines = map[string]bool{
+	"find-word-in-list":                   true, // internal macro
+	"get-vendor-board-platforms":          true, // internal macro, used by is-board-platform, etc.
+	"is-android-codename":                 true, // unused by product config
+	"is-android-codename-in-list":         true, // unused by product config
+	"is-chipset-in-board-platform":        true, // unused by product config
+	"is-chipset-prefix-in-board-platform": true, // unused by product config
+	"is-not-board-platform":               true, // defined but never used
+	"is-platform-sdk-version-at-least":    true, // unused by product config
+	"match-prefix":                        true, // internal macro
+	"match-word":                          true, // internal macro
+	"match-word-in-list":                  true, // internal macro
+	"tb-modules":                          true, // defined in hardware/amlogic/tb_modules/tb_detect.mk, unused
 }
 
 var identifierFullMatchRegex = regexp.MustCompile("^[a-zA-Z_][a-zA-Z0-9_]*$")
@@ -641,8 +621,8 @@ func (ctx *parseContext) handleSoongNsAssignment(name string, asgn *mkparser.Ass
 		for _, ns := range strings.Fields(s) {
 			ctx.addSoongNamespace(ns)
 			ctx.receiver.newNode(&exprNode{&callExpr{
-				name:       soongConfigNamespaceOld,
-				args:       []starlarkExpr{&stringLiteralExpr{ns}},
+				name:       baseName + ".soong_config_namespace",
+				args:       []starlarkExpr{&globalsExpr{}, &stringLiteralExpr{ns}},
 				returnType: starlarkTypeVoid,
 			}})
 		}
@@ -691,13 +671,13 @@ func (ctx *parseContext) handleSoongNsAssignment(name string, asgn *mkparser.Ass
 			ctx.errorf(asgn, "no %s variable in %s namespace, please use add_soong_config_var_value instead", varName, namespaceName)
 			return
 		}
-		fname := soongConfigAssign
+		fname := baseName + "." + soongConfigAssign
 		if asgn.Type == "+=" {
-			fname = soongConfigAppend
+			fname = baseName + "." + soongConfigAppend
 		}
 		ctx.receiver.newNode(&exprNode{&callExpr{
 			name:       fname,
-			args:       []starlarkExpr{&stringLiteralExpr{namespaceName}, &stringLiteralExpr{varName}, val},
+			args:       []starlarkExpr{&globalsExpr{}, &stringLiteralExpr{namespaceName}, &stringLiteralExpr{varName}, val},
 			returnType: starlarkTypeVoid,
 		}})
 	}
@@ -878,7 +858,13 @@ func (ctx *parseContext) findMatchingPaths(pattern []string) []string {
 	return res
 }
 
-func (ctx *parseContext) handleInheritModule(v mkparser.Node, pathExpr starlarkExpr, loadAlways bool) {
+func (ctx *parseContext) handleInheritModule(v mkparser.Node, args *mkparser.MakeString, loadAlways bool) {
+	args.TrimLeftSpaces()
+	args.TrimRightSpaces()
+	pathExpr := ctx.parseMakeString(v, args)
+	if _, ok := pathExpr.(*badExpr); ok {
+		ctx.errorf(v, "Unable to parse argument to inherit")
+	}
 	ctx.handleSubConfig(v, pathExpr, loadAlways, func(im inheritedModule) {
 		ctx.receiver.newNode(&inheritNode{im, loadAlways})
 	})
@@ -897,36 +883,40 @@ func (ctx *parseContext) handleVariable(v *mkparser.Variable) {
 	//   $(info xxx)
 	//   $(warning xxx)
 	//   $(error xxx)
+	//   $(call other-custom-functions,...)
+
+	// inherit-product(-if-exists) gets converted to a series of statements,
+	// not just a single expression like parseReference returns. So handle it
+	// separately at the beginning here.
+	if strings.HasPrefix(v.Name.Dump(), "call inherit-product,") {
+		args := v.Name.Clone()
+		args.ReplaceLiteral("call inherit-product,", "")
+		ctx.handleInheritModule(v, args, true)
+		return
+	}
+	if strings.HasPrefix(v.Name.Dump(), "call inherit-product-if-exists,") {
+		args := v.Name.Clone()
+		args.ReplaceLiteral("call inherit-product-if-exists,", "")
+		ctx.handleInheritModule(v, args, false)
+		return
+	}
 	expr := ctx.parseReference(v, v.Name)
 	switch x := expr.(type) {
 	case *callExpr:
-		if x.name == callLoadAlways || x.name == callLoadIf {
-			ctx.handleInheritModule(v, x.args[0], x.name == callLoadAlways)
-		} else if isMakeControlFunc(x.name) {
-			// File name is the first argument
-			args := []starlarkExpr{
-				&stringLiteralExpr{ctx.script.mkFile},
-				x.args[0],
-			}
-			ctx.receiver.newNode(&exprNode{
-				&callExpr{name: x.name, args: args, returnType: starlarkTypeUnknown},
-			})
-		} else {
-			ctx.receiver.newNode(&exprNode{expr})
-		}
+		ctx.receiver.newNode(&exprNode{expr})
 	case *badExpr:
 		ctx.wrapBadExpr(x)
-		return
 	default:
 		ctx.errorf(v, "cannot handle %s", v.Dump())
-		return
 	}
 }
 
 func (ctx *parseContext) handleDefine(directive *mkparser.Directive) {
 	macro_name := strings.Fields(directive.Args.Strings[0])[0]
 	// Ignore the macros that we handle
-	if _, ok := knownFunctions[macro_name]; !ok {
+	_, ignored := ignoredDefines[macro_name]
+	_, known := knownFunctions[macro_name]
+	if !ignored && !known {
 		ctx.errorf(directive, "define is not supported: %s", macro_name)
 	}
 }
@@ -1056,6 +1046,48 @@ func (ctx *parseContext) parseCompare(cond *mkparser.Directive) starlarkExpr {
 		return expr
 	}
 
+	var stringOperand string
+	var otherOperand starlarkExpr
+	if s, ok := maybeString(xLeft); ok {
+		stringOperand = s
+		otherOperand = xRight
+	} else if s, ok := maybeString(xRight); ok {
+		stringOperand = s
+		otherOperand = xLeft
+	}
+
+	not := func(expr starlarkExpr) starlarkExpr {
+		switch typedExpr := expr.(type) {
+		case *inExpr:
+			typedExpr.isNot = !typedExpr.isNot
+			return typedExpr
+		case *eqExpr:
+			typedExpr.isEq = !typedExpr.isEq
+			return typedExpr
+		default:
+			return &notExpr{expr: expr}
+		}
+	}
+
+	// If we've identified one of the operands as being a string literal, check
+	// for some special cases we can do to simplify the resulting expression.
+	if otherOperand != nil {
+		if stringOperand == "" {
+			if isEq {
+				return not(otherOperand)
+			} else {
+				return otherOperand
+			}
+		}
+		if stringOperand == "true" && otherOperand.typ() == starlarkTypeBool {
+			if !isEq {
+				return not(otherOperand)
+			} else {
+				return otherOperand
+			}
+		}
+	}
+
 	return &eqExpr{left: xLeft, right: xRight, isEq: isEq}
 }
 
@@ -1089,97 +1121,15 @@ func (ctx *parseContext) parseCompareSpecialCases(directive *mkparser.Directive,
 		return nil, false
 	}
 
-	checkIsSomethingFunction := func(xCall *callExpr) starlarkExpr {
-		s, ok := maybeString(value)
-		if !ok || s != "true" {
-			return ctx.newBadExpr(directive,
-				fmt.Sprintf("the result of %s can be compared only to 'true'", xCall.name))
-		}
-		if len(xCall.args) < 1 {
-			return ctx.newBadExpr(directive, "%s requires an argument", xCall.name)
-		}
-		return nil
-	}
-
 	switch call.name {
-	case "filter", "filter-out":
+	case baseName + ".filter", baseName + ".filter-out":
 		return ctx.parseCompareFilterFuncResult(directive, call, value, isEq), true
-	case "wildcard":
+	case baseName + ".expand_wildcard":
 		return ctx.parseCompareWildcardFuncResult(directive, call, value, !isEq), true
-	case "findstring":
+	case baseName + ".findstring":
 		return ctx.parseCheckFindstringFuncResult(directive, call, value, !isEq), true
-	case "strip":
+	case baseName + ".strip":
 		return ctx.parseCompareStripFuncResult(directive, call, value, !isEq), true
-	case "is-board-platform":
-		if xBad := checkIsSomethingFunction(call); xBad != nil {
-			return xBad, true
-		}
-		return &eqExpr{
-			left:  NewVariableRefExpr(ctx.addVariable("TARGET_BOARD_PLATFORM"), false),
-			right: call.args[0],
-			isEq:  isEq,
-		}, true
-	case "is-board-platform-in-list":
-		if xBad := checkIsSomethingFunction(call); xBad != nil {
-			return xBad, true
-		}
-		return &inExpr{
-			expr:  NewVariableRefExpr(ctx.addVariable("TARGET_BOARD_PLATFORM"), false),
-			list:  maybeConvertToStringList(call.args[0]),
-			isNot: !isEq,
-		}, true
-	case "is-product-in-list":
-		if xBad := checkIsSomethingFunction(call); xBad != nil {
-			return xBad, true
-		}
-		return &inExpr{
-			expr:  NewVariableRefExpr(ctx.addVariable("TARGET_PRODUCT"), true),
-			list:  maybeConvertToStringList(call.args[0]),
-			isNot: !isEq,
-		}, true
-	case "is-vendor-board-platform":
-		if xBad := checkIsSomethingFunction(call); xBad != nil {
-			return xBad, true
-		}
-		s, ok := maybeString(call.args[0])
-		if !ok {
-			return ctx.newBadExpr(directive, "cannot handle non-constant argument to is-vendor-board-platform"), true
-		}
-		return &inExpr{
-			expr:  NewVariableRefExpr(ctx.addVariable("TARGET_BOARD_PLATFORM"), false),
-			list:  NewVariableRefExpr(ctx.addVariable(s+"_BOARD_PLATFORMS"), true),
-			isNot: !isEq,
-		}, true
-
-	case "is-board-platform2", "is-board-platform-in-list2":
-		if s, ok := maybeString(value); !ok || s != "" {
-			return ctx.newBadExpr(directive,
-				fmt.Sprintf("the result of %s can be compared only to empty", call.name)), true
-		}
-		if len(call.args) != 1 {
-			return ctx.newBadExpr(directive, "%s requires an argument", call.name), true
-		}
-		cc := &callExpr{
-			name:       call.name,
-			args:       []starlarkExpr{call.args[0]},
-			returnType: starlarkTypeBool,
-		}
-		if isEq {
-			return &notExpr{cc}, true
-		}
-		return cc, true
-	case "is-vendor-board-qcom":
-		if s, ok := maybeString(value); !ok || s != "" {
-			return ctx.newBadExpr(directive,
-				fmt.Sprintf("the result of %s can be compared only to empty", call.name)), true
-		}
-		// if the expression is ifneq (,$(call is-vendor-board-platform,...)), negate==true,
-		// so we should set inExpr.isNot to false
-		return &inExpr{
-			expr:  NewVariableRefExpr(ctx.addVariable("TARGET_BOARD_PLATFORM"), false),
-			list:  NewVariableRefExpr(ctx.addVariable("QCOM_BOARD_PLATFORMS"), true),
-			isNot: isEq,
-		}, true
 	}
 	return nil, false
 }
@@ -1254,9 +1204,9 @@ func (ctx *parseContext) parseCompareWildcardFuncResult(directive *mkparser.Dire
 	if !isEmptyString(xValue) {
 		return ctx.newBadExpr(directive, "wildcard result can be compared only to empty: %s", xValue)
 	}
-	callFunc := wildcardExistsPhony
+	callFunc := baseName + ".file_wildcard_exists"
 	if s, ok := xCall.args[0].(*stringLiteralExpr); ok && !strings.ContainsAny(s.literal, "*?{[") {
-		callFunc = fileExistsPhony
+		callFunc = baseName + ".file_exists"
 	}
 	var cc starlarkExpr = &callExpr{name: callFunc, args: xCall.args, returnType: starlarkTypeBool}
 	if !negate {
@@ -1323,14 +1273,7 @@ func (ctx *parseContext) parseReference(node mkparser.Node, ref *mkparser.MakeSt
 
 	// If it is a single word, it can be a simple variable
 	// reference or a function call
-	if len(words) == 1 {
-		if isMakeControlFunc(refDump) || refDump == "shell" {
-			return &callExpr{
-				name:       refDump,
-				args:       []starlarkExpr{&stringLiteralExpr{""}},
-				returnType: starlarkTypeUnknown,
-			}
-		}
+	if len(words) == 1 && !isMakeControlFunc(refDump) && refDump != "shell" {
 		if strings.HasPrefix(refDump, soongNsPrefix) {
 			// TODO (asmundak): if we find many, maybe handle them.
 			return ctx.newBadExpr(node, "SOONG_CONFIG_ variables cannot be referenced, use soong_config_get instead: %s", refDump)
@@ -1354,8 +1297,8 @@ func (ctx *parseContext) parseReference(node mkparser.Node, ref *mkparser.MakeSt
 				return ctx.newBadExpr(node, "unknown variable %s", refDump)
 			}
 			return &callExpr{
-				name:       "patsubst",
-				returnType: knownFunctions["patsubst"].returnType,
+				name:       baseName + ".mkpatsubst",
+				returnType: starlarkTypeString,
 				args: []starlarkExpr{
 					&stringLiteralExpr{literal: substParts[0]},
 					&stringLiteralExpr{literal: substParts[1]},
@@ -1370,18 +1313,11 @@ func (ctx *parseContext) parseReference(node mkparser.Node, ref *mkparser.MakeSt
 	}
 
 	expr := &callExpr{name: words[0].Dump(), returnType: starlarkTypeUnknown}
-	args := words[1]
-	args.TrimLeftSpaces()
-	// Make control functions and shell need special treatment as everything
-	// after the name is a single text argument
-	if isMakeControlFunc(expr.name) || expr.name == "shell" {
-		x := ctx.parseMakeString(node, args)
-		if xBad, ok := x.(*badExpr); ok {
-			return xBad
-		}
-		expr.args = []starlarkExpr{x}
-		return expr
+	args := mkparser.SimpleMakeString("", words[0].Pos())
+	if len(words) >= 2 {
+		args = words[1]
 	}
+	args.TrimLeftSpaces()
 	if expr.name == "call" {
 		words = args.SplitN(",", 2)
 		if words[0].Empty() || !words[0].Const() {
@@ -1395,41 +1331,154 @@ func (ctx *parseContext) parseReference(node mkparser.Node, ref *mkparser.MakeSt
 		}
 	}
 	if kf, found := knownFunctions[expr.name]; found {
-		expr.returnType = kf.returnType
+		return kf.parse(ctx, node, args)
 	} else {
 		return ctx.newBadExpr(node, "cannot handle invoking %s", expr.name)
 	}
-	switch expr.name {
-	case "if":
-		return ctx.parseIfFunc(node, args)
-	case "foreach":
-		return ctx.parseForeachFunc(node, args)
-	case "word":
-		return ctx.parseWordFunc(node, args)
-	case "firstword", "lastword":
-		return ctx.parseFirstOrLastwordFunc(node, expr.name, args)
-	case "my-dir":
-		return NewVariableRefExpr(ctx.addVariable("LOCAL_PATH"), true)
-	case "subst", "patsubst":
-		return ctx.parseSubstFunc(node, expr.name, args)
-	default:
-		for _, arg := range args.Split(",") {
-			arg.TrimLeftSpaces()
-			arg.TrimRightSpaces()
-			x := ctx.parseMakeString(node, arg)
-			if xBad, ok := x.(*badExpr); ok {
-				return xBad
-			}
-			expr.args = append(expr.args, x)
+}
+
+type simpleCallParser struct {
+	name       string
+	returnType starlarkType
+	addGlobals bool
+}
+
+func (p *simpleCallParser) parse(ctx *parseContext, node mkparser.Node, args *mkparser.MakeString) starlarkExpr {
+	expr := &callExpr{name: p.name, returnType: p.returnType}
+	if p.addGlobals {
+		expr.args = append(expr.args, &globalsExpr{})
+	}
+	for _, arg := range args.Split(",") {
+		arg.TrimLeftSpaces()
+		arg.TrimRightSpaces()
+		x := ctx.parseMakeString(node, arg)
+		if xBad, ok := x.(*badExpr); ok {
+			return xBad
 		}
+		expr.args = append(expr.args, x)
 	}
 	return expr
 }
 
-func (ctx *parseContext) parseSubstFunc(node mkparser.Node, fname string, args *mkparser.MakeString) starlarkExpr {
+type makeControlFuncParser struct {
+	name string
+}
+
+func (p *makeControlFuncParser) parse(ctx *parseContext, node mkparser.Node, args *mkparser.MakeString) starlarkExpr {
+	// Make control functions need special treatment as everything
+	// after the name is a single text argument
+	x := ctx.parseMakeString(node, args)
+	if xBad, ok := x.(*badExpr); ok {
+		return xBad
+	}
+	return &callExpr{
+		name: p.name,
+		args: []starlarkExpr{
+			&stringLiteralExpr{ctx.script.mkFile},
+			x,
+		},
+		returnType: starlarkTypeUnknown,
+	}
+}
+
+type shellCallParser struct{}
+
+func (p *shellCallParser) parse(ctx *parseContext, node mkparser.Node, args *mkparser.MakeString) starlarkExpr {
+	// Shell functions need special treatment as everything
+	// after the name is a single text argument
+	x := ctx.parseMakeString(node, args)
+	if xBad, ok := x.(*badExpr); ok {
+		return xBad
+	}
+	return &callExpr{
+		name:       baseName + ".shell",
+		args:       []starlarkExpr{x},
+		returnType: starlarkTypeUnknown,
+	}
+}
+
+type myDirCallParser struct{}
+
+func (p *myDirCallParser) parse(ctx *parseContext, node mkparser.Node, args *mkparser.MakeString) starlarkExpr {
+	if !args.Empty() {
+		return ctx.newBadExpr(node, "my-dir function cannot have any arguments passed to it.")
+	}
+	return &variableRefExpr{ctx.addVariable("LOCAL_PATH"), true}
+}
+
+type isBoardPlatformCallParser struct{}
+
+func (p *isBoardPlatformCallParser) parse(ctx *parseContext, node mkparser.Node, args *mkparser.MakeString) starlarkExpr {
+	if args.Empty() {
+		return ctx.newBadExpr(node, "is-board-platform requires an argument")
+	}
+	return &eqExpr{
+		left:  &variableRefExpr{ctx.addVariable("TARGET_BOARD_PLATFORM"), false},
+		right: ctx.parseMakeString(node, args),
+		isEq:  true,
+	}
+}
+
+type isBoardPlatformInListCallParser struct{}
+
+func (p *isBoardPlatformInListCallParser) parse(ctx *parseContext, node mkparser.Node, args *mkparser.MakeString) starlarkExpr {
+	if args.Empty() {
+		return ctx.newBadExpr(node, "is-board-platform-in-list requires an argument")
+	}
+	return &inExpr{
+		expr:  &variableRefExpr{ctx.addVariable("TARGET_BOARD_PLATFORM"), false},
+		list:  maybeConvertToStringList(ctx.parseMakeString(node, args)),
+		isNot: false,
+	}
+}
+
+type isProductInListCallParser struct{}
+
+func (p *isProductInListCallParser) parse(ctx *parseContext, node mkparser.Node, args *mkparser.MakeString) starlarkExpr {
+	if args.Empty() {
+		return ctx.newBadExpr(node, "is-product-in-list requires an argument")
+	}
+	return &inExpr{
+		expr:  &variableRefExpr{ctx.addVariable("TARGET_PRODUCT"), true},
+		list:  maybeConvertToStringList(ctx.parseMakeString(node, args)),
+		isNot: false,
+	}
+}
+
+type isVendorBoardPlatformCallParser struct{}
+
+func (p *isVendorBoardPlatformCallParser) parse(ctx *parseContext, node mkparser.Node, args *mkparser.MakeString) starlarkExpr {
+	if args.Empty() || !identifierFullMatchRegex.MatchString(args.Dump()) {
+		return ctx.newBadExpr(node, "cannot handle non-constant argument to is-vendor-board-platform")
+	}
+	return &inExpr{
+		expr:  &variableRefExpr{ctx.addVariable("TARGET_BOARD_PLATFORM"), false},
+		list:  &variableRefExpr{ctx.addVariable(args.Dump() + "_BOARD_PLATFORMS"), true},
+		isNot: false,
+	}
+}
+
+type isVendorBoardQcomCallParser struct{}
+
+func (p *isVendorBoardQcomCallParser) parse(ctx *parseContext, node mkparser.Node, args *mkparser.MakeString) starlarkExpr {
+	if !args.Empty() {
+		return ctx.newBadExpr(node, "is-vendor-board-qcom does not accept any arguments")
+	}
+	return &inExpr{
+		expr:  &variableRefExpr{ctx.addVariable("TARGET_BOARD_PLATFORM"), false},
+		list:  &variableRefExpr{ctx.addVariable("QCOM_BOARD_PLATFORMS"), true},
+		isNot: false,
+	}
+}
+
+type substCallParser struct {
+	fname string
+}
+
+func (p *substCallParser) parse(ctx *parseContext, node mkparser.Node, args *mkparser.MakeString) starlarkExpr {
 	words := args.Split(",")
 	if len(words) != 3 {
-		return ctx.newBadExpr(node, "%s function should have 3 arguments", fname)
+		return ctx.newBadExpr(node, "%s function should have 3 arguments", p.fname)
 	}
 	from := ctx.parseMakeString(node, words[0])
 	if xBad, ok := from.(*badExpr); ok {
@@ -1443,7 +1492,7 @@ func (ctx *parseContext) parseSubstFunc(node mkparser.Node, fname string, args *
 	words[2].TrimRightSpaces()
 	obj := ctx.parseMakeString(node, words[2])
 	typ := obj.typ()
-	if typ == starlarkTypeString && fname == "subst" {
+	if typ == starlarkTypeString && p.fname == "subst" {
 		// Optimization: if it's $(subst from, to, string), emit string.replace(from, to)
 		return &callExpr{
 			object:     obj,
@@ -1453,13 +1502,15 @@ func (ctx *parseContext) parseSubstFunc(node mkparser.Node, fname string, args *
 		}
 	}
 	return &callExpr{
-		name:       fname,
+		name:       baseName + ".mk" + p.fname,
 		args:       []starlarkExpr{from, to, obj},
 		returnType: obj.typ(),
 	}
 }
 
-func (ctx *parseContext) parseIfFunc(node mkparser.Node, args *mkparser.MakeString) starlarkExpr {
+type ifCallParser struct{}
+
+func (p *ifCallParser) parse(ctx *parseContext, node mkparser.Node, args *mkparser.MakeString) starlarkExpr {
 	words := args.Split(",")
 	if len(words) != 2 && len(words) != 3 {
 		return ctx.newBadExpr(node, "if function should have 2 or 3 arguments, found "+strconv.Itoa(len(words)))
@@ -1488,7 +1539,9 @@ func (ctx *parseContext) parseIfFunc(node mkparser.Node, args *mkparser.MakeStri
 	}
 }
 
-func (ctx *parseContext) parseForeachFunc(node mkparser.Node, args *mkparser.MakeString) starlarkExpr {
+type foreachCallPaser struct{}
+
+func (p *foreachCallPaser) parse(ctx *parseContext, node mkparser.Node, args *mkparser.MakeString) starlarkExpr {
 	words := args.Split(",")
 	if len(words) != 3 {
 		return ctx.newBadExpr(node, "foreach function should have 3 arguments, found "+strconv.Itoa(len(words)))
@@ -1507,8 +1560,8 @@ func (ctx *parseContext) parseForeachFunc(node mkparser.Node, args *mkparser.Mak
 
 	if list.typ() != starlarkTypeList {
 		list = &callExpr{
-			name:       "words",
-			returnType: knownFunctions["words"].returnType,
+			name:       baseName + ".words",
+			returnType: starlarkTypeList,
 			args:       []starlarkExpr{list},
 		}
 	}
@@ -1520,7 +1573,9 @@ func (ctx *parseContext) parseForeachFunc(node mkparser.Node, args *mkparser.Mak
 	}
 }
 
-func (ctx *parseContext) parseWordFunc(node mkparser.Node, args *mkparser.MakeString) starlarkExpr {
+type wordCallParser struct{}
+
+func (p *wordCallParser) parse(ctx *parseContext, node mkparser.Node, args *mkparser.MakeString) starlarkExpr {
 	words := args.Split(",")
 	if len(words) != 2 {
 		return ctx.newBadExpr(node, "word function should have 2 arguments")
@@ -1544,13 +1599,17 @@ func (ctx *parseContext) parseWordFunc(node mkparser.Node, args *mkparser.MakeSt
 	return &indexExpr{array, &intLiteralExpr{int(index - 1)}}
 }
 
-func (ctx *parseContext) parseFirstOrLastwordFunc(node mkparser.Node, name string, args *mkparser.MakeString) starlarkExpr {
+type firstOrLastwordCallParser struct {
+	isLastWord bool
+}
+
+func (p *firstOrLastwordCallParser) parse(ctx *parseContext, node mkparser.Node, args *mkparser.MakeString) starlarkExpr {
 	arg := ctx.parseMakeString(node, args)
 	if bad, ok := arg.(*badExpr); ok {
 		return bad
 	}
 	index := &intLiteralExpr{0}
-	if name == "lastword" {
+	if p.isLastWord {
 		if v, ok := arg.(*variableRefExpr); ok && v.ref.name() == "MAKEFILE_LIST" {
 			return &stringLiteralExpr{ctx.script.mkFile}
 		}
