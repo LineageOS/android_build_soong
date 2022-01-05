@@ -531,7 +531,7 @@ func bp2BuildParseBaseProps(ctx android.Bp2buildMutatorContext, module *Module) 
 	(&linkerAttrs).convertProductVariables(ctx, productVariableProps)
 
 	(&compilerAttrs).finalize(ctx, implementationHdrs)
-	(&linkerAttrs).finalize()
+	(&linkerAttrs).finalize(ctx)
 
 	protoDep := bp2buildProto(ctx, module, compilerAttrs.protoSrcs)
 
@@ -550,13 +550,14 @@ func bp2BuildParseBaseProps(ctx android.Bp2buildMutatorContext, module *Module) 
 
 // Convenience struct to hold all attributes parsed from linker properties.
 type linkerAttributes struct {
-	deps                           bazel.LabelListAttribute
-	implementationDeps             bazel.LabelListAttribute
-	dynamicDeps                    bazel.LabelListAttribute
-	implementationDynamicDeps      bazel.LabelListAttribute
-	wholeArchiveDeps               bazel.LabelListAttribute
-	implementationWholeArchiveDeps bazel.LabelListAttribute
-	systemDynamicDeps              bazel.LabelListAttribute
+	deps                             bazel.LabelListAttribute
+	implementationDeps               bazel.LabelListAttribute
+	dynamicDeps                      bazel.LabelListAttribute
+	implementationDynamicDeps        bazel.LabelListAttribute
+	wholeArchiveDeps                 bazel.LabelListAttribute
+	implementationWholeArchiveDeps   bazel.LabelListAttribute
+	systemDynamicDeps                bazel.LabelListAttribute
+	usedSystemDynamicDepAsDynamicDep map[string]bool
 
 	linkCrt                       bazel.BoolAttribute
 	useLibcrt                     bazel.BoolAttribute
@@ -570,6 +571,10 @@ type linkerAttributes struct {
 	stripNone                     bazel.BoolAttribute
 	features                      bazel.StringListAttribute
 }
+
+var (
+	soongSystemSharedLibs = []string{"libc", "libm", "libdl"}
+)
 
 func (la *linkerAttributes) bp2buildForAxisAndConfig(ctx android.BazelConversionPathContext, isBinary bool, axis bazel.ConfigurationAxis, config string, props *BaseLinkerProperties) {
 	// Use a single variable to capture usage of nocrt in arch variants, so there's only 1 error message for this module
@@ -602,6 +607,17 @@ func (la *linkerAttributes) bp2buildForAxisAndConfig(ctx android.BazelConversion
 	la.systemDynamicDeps.SetSelectValue(axis, config, bazelLabelForSharedDeps(ctx, systemSharedLibs))
 
 	sharedLibs := android.FirstUniqueStrings(props.Shared_libs)
+	excludeSharedLibs := props.Exclude_shared_libs
+	usedSystem := android.FilterListPred(sharedLibs, func(s string) bool {
+		return android.InList(s, soongSystemSharedLibs) && !android.InList(s, excludeSharedLibs)
+	})
+	for _, el := range usedSystem {
+		if la.usedSystemDynamicDepAsDynamicDep == nil {
+			la.usedSystemDynamicDepAsDynamicDep = map[string]bool{}
+		}
+		la.usedSystemDynamicDepAsDynamicDep[el] = true
+	}
+
 	sharedDeps := maybePartitionExportedAndImplementationsDepsExcludes(ctx, !isBinary, sharedLibs, props.Exclude_shared_libs, props.Export_shared_lib_headers, bazelLabelForSharedDepsExcludes)
 	la.dynamicDeps.SetSelectValue(axis, config, sharedDeps.export)
 	la.implementationDynamicDeps.SetSelectValue(axis, config, sharedDeps.implementation)
@@ -721,13 +737,25 @@ func (la *linkerAttributes) convertProductVariables(ctx android.BazelConversionP
 	}
 }
 
-func (la *linkerAttributes) finalize() {
+func (la *linkerAttributes) finalize(ctx android.BazelConversionPathContext) {
+	// if system dynamic deps have the default value, any use of a system dynamic library used will
+	// result in duplicate library errors for bionic OSes. Here, we explicitly exclude those libraries
+	// from bionic OSes.
+	if la.systemDynamicDeps.IsNil() && len(la.usedSystemDynamicDepAsDynamicDep) > 0 {
+		toRemove := bazelLabelForSharedDeps(ctx, android.SortedStringKeys(la.usedSystemDynamicDepAsDynamicDep))
+		la.dynamicDeps.Exclude(bazel.OsConfigurationAxis, "android", toRemove)
+		la.dynamicDeps.Exclude(bazel.OsConfigurationAxis, "linux_bionic", toRemove)
+		la.implementationDynamicDeps.Exclude(bazel.OsConfigurationAxis, "android", toRemove)
+		la.implementationDynamicDeps.Exclude(bazel.OsConfigurationAxis, "linux_bionic", toRemove)
+	}
+
 	la.deps.ResolveExcludes()
 	la.implementationDeps.ResolveExcludes()
 	la.dynamicDeps.ResolveExcludes()
 	la.implementationDynamicDeps.ResolveExcludes()
 	la.wholeArchiveDeps.ResolveExcludes()
 	la.systemDynamicDeps.ForceSpecifyEmptyList = true
+
 }
 
 // Relativize a list of root-relative paths with respect to the module's
