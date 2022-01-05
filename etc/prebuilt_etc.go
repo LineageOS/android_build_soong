@@ -439,6 +439,7 @@ func PrebuiltEtcHostFactory() android.Module {
 	// This module is host-only
 	android.InitAndroidArchModule(module, android.HostSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
+	android.InitBazelModule(module)
 	return module
 }
 
@@ -665,7 +666,7 @@ type bazelPrebuiltEtcAttributes struct {
 // ConvertWithBp2build performs bp2build conversion of PrebuiltEtc
 func (p *PrebuiltEtc) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 	// All prebuilt_* modules are PrebuiltEtc, but at this time, we only convert prebuilt_etc modules.
-	if ctx.ModuleType() != "prebuilt_etc" {
+	if p.installDirBase != "etc" {
 		return
 	}
 
