@@ -616,6 +616,7 @@ type AARImport struct {
 	exportPackage         android.WritablePath
 	extraAaptPackagesFile android.WritablePath
 	manifest              android.WritablePath
+	assetsPackage         android.WritablePath
 
 	exportedStaticPackages android.Paths
 
@@ -686,9 +687,8 @@ func (a *AARImport) ExportedManifests() android.Paths {
 	return android.Paths{a.manifest}
 }
 
-// TODO(jungjw): Decide whether we want to implement this.
 func (a *AARImport) ExportedAssets() android.OptionalPath {
-	return android.OptionalPath{}
+	return android.OptionalPathForPath(a.assetsPackage)
 }
 
 // RRO enforcement is not available on aar_import since its RRO dirs are not
@@ -732,10 +732,11 @@ var unzipAAR = pctx.AndroidStaticRule("unzipAAR",
 	blueprint.RuleParams{
 		Command: `rm -rf $outDir && mkdir -p $outDir && ` +
 			`unzip -qoDD -d $outDir $in && rm -rf $outDir/res && touch $out && ` +
+			`${config.Zip2ZipCmd} -i $in -o $assetsPackage 'assets/**/*' && ` +
 			`${config.MergeZipsCmd} $combinedClassesJar $$(ls $outDir/classes.jar 2> /dev/null) $$(ls $outDir/libs/*.jar 2> /dev/null)`,
-		CommandDeps: []string{"${config.MergeZipsCmd}"},
+		CommandDeps: []string{"${config.MergeZipsCmd}", "${config.Zip2ZipCmd}"},
 	},
-	"outDir", "combinedClassesJar")
+	"outDir", "combinedClassesJar", "assetsPackage")
 
 func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	if len(a.properties.Aars) != 1 {
@@ -761,15 +762,17 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.classpathFile = extractedAARDir.Join(ctx, "classes-combined.jar")
 	a.proguardFlags = extractedAARDir.Join(ctx, "proguard.txt")
 	a.manifest = extractedAARDir.Join(ctx, "AndroidManifest.xml")
+	a.assetsPackage = android.PathForModuleOut(ctx, "assets.zip")
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        unzipAAR,
 		Input:       a.aarPath,
-		Outputs:     android.WritablePaths{a.classpathFile, a.proguardFlags, a.manifest},
+		Outputs:     android.WritablePaths{a.classpathFile, a.proguardFlags, a.manifest, a.assetsPackage},
 		Description: "unzip AAR",
 		Args: map[string]string{
 			"outDir":             extractedAARDir.String(),
 			"combinedClassesJar": a.classpathFile.String(),
+			"assetsPackage":      a.assetsPackage.String(),
 		},
 	})
 
@@ -811,6 +814,19 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	aapt2Link(ctx, a.exportPackage, srcJar, proguardOptionsFile, rTxt, a.extraAaptPackagesFile,
 		linkFlags, linkDeps, nil, overlayRes, transitiveAssets, nil)
+
+	// Merge this import's assets with its dependencies' assets (if there are any).
+	if len(transitiveAssets) > 0 {
+		mergedAssets := android.PathForModuleOut(ctx, "merged-assets.zip")
+		inputZips := append(android.Paths{a.assetsPackage}, transitiveAssets...)
+		ctx.Build(pctx, android.BuildParams{
+			Rule:        mergeAssetsRule,
+			Inputs:      inputZips,
+			Output:      mergedAssets,
+			Description: "merge assets from dependencies and self",
+		})
+		a.assetsPackage = mergedAssets
+	}
 
 	ctx.SetProvider(JavaInfoProvider, JavaInfo{
 		HeaderJars:                     android.PathsIfNonNil(a.classpathFile),
