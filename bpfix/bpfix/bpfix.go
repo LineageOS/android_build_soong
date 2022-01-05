@@ -1484,7 +1484,7 @@ func rewriteLicenseProperties(mod *parser.Module, patchList *parser.PatchList, f
 	ok := hasFile(relativePath+"/Android.mk", fs)
 	// some modules in the existing test cases in the androidmk_test.go do not have a valid path
 	if !ok && len(relativePath) > 0 {
-		return fmt.Errorf("Cannot find an Android.mk file at path %s", relativePath)
+		return fmt.Errorf("Cannot find an Android.mk file at path %q", relativePath)
 	}
 
 	licenseKindsPropertyName := "android_license_kinds"
@@ -1661,9 +1661,12 @@ func getDirFromProperty(mod *parser.Module, property string, fs pathtools.FileSy
 		// if empty
 		return "", fmt.Errorf("Cannot find the value of the %s.%s property", mod.Type, property)
 	}
+	if relativePath == "" {
+		relativePath = "."
+	}
 	_, isDir, _ := fs.Exists(relativePath)
 	if !isDir {
-		return "", fmt.Errorf("Cannot find the path %s", relativePath)
+		return "", fmt.Errorf("Cannot find the path %q", relativePath)
 	}
 	path := relativePath
 	for {
@@ -1675,7 +1678,7 @@ func getDirFromProperty(mod *parser.Module, property string, fs pathtools.FileSy
 	}
 	_, isDir, _ = fs.Exists(path)
 	if !isDir {
-		return "", fmt.Errorf("Cannot find the path %s", path)
+		return "", fmt.Errorf("Cannot find the path %q", path)
 	}
 	return path, nil
 }
