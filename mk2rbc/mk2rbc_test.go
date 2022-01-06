@@ -1241,6 +1241,63 @@ def init(g, handle):
   g["NATIVE_BRIDGE_PRODUCT_PACKAGES"] += " " + " ".join(rblf.addsuffix(".native_bridge", g.get("NATIVE_BRIDGE_ORIG_GUEST_LIBS", "")))
 `,
 	},
+	{
+		desc:   "Math functions",
+		mkname: "product.mk",
+		in: `
+# Test the math functions defined in build/make/common/math.mk
+ifeq ($(call math_max,2,5),5)
+endif
+ifeq ($(call math_min,2,5),2)
+endif
+ifeq ($(call math_gt_or_eq,2,5),true)
+endif
+ifeq ($(call math_gt,2,5),true)
+endif
+ifeq ($(call math_lt,2,5),true)
+endif
+ifeq ($(call math_gt_or_eq,2,5),)
+endif
+ifeq ($(call math_gt,2,5),)
+endif
+ifeq ($(call math_lt,2,5),)
+endif
+ifeq ($(call math_gt_or_eq,$(MY_VAR), 5),true)
+endif
+ifeq ($(call math_gt_or_eq,$(MY_VAR),$(MY_OTHER_VAR)),true)
+endif
+ifeq ($(call math_gt_or_eq,100$(MY_VAR),10),true)
+endif
+`,
+		expected: `# Test the math functions defined in build/make/common/math.mk
+load("//build/make/core:product_config.rbc", "rblf")
+
+def init(g, handle):
+  cfg = rblf.cfg(handle)
+  if max(2, 5) == 5:
+    pass
+  if min(2, 5) == 2:
+    pass
+  if 2 >= 5:
+    pass
+  if 2 > 5:
+    pass
+  if 2 < 5:
+    pass
+  if 2 < 5:
+    pass
+  if 2 <= 5:
+    pass
+  if 2 >= 5:
+    pass
+  if int(g.get("MY_VAR", "")) >= 5:
+    pass
+  if int(g.get("MY_VAR", "")) >= int(g.get("MY_OTHER_VAR", "")):
+    pass
+  if int("100%s" % g.get("MY_VAR", "")) >= 10:
+    pass
+`,
+	},
 }
 
 var known_variables = []struct {
