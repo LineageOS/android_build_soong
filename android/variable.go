@@ -1029,7 +1029,7 @@ func (m *ModuleBase) setVariableProperties(ctx BottomUpMutatorContext,
 
 	printfIntoProperties(ctx, prefix, productVariablePropertyValue, variableValue)
 
-	err := proptools.AppendMatchingProperties(m.generalProperties,
+	err := proptools.AppendMatchingProperties(m.GetProperties(),
 		productVariablePropertyValue.Addr().Interface(), nil)
 	if err != nil {
 		if propertyErr, ok := err.(*proptools.ExtendPropertyError); ok {
