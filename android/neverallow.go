@@ -134,7 +134,6 @@ func createTrebleRules() []Rule {
 		NeverAllow().
 			Without("name", "libhidlbase-combined-impl").
 			Without("name", "libhidlbase").
-			Without("name", "libhidlbase_pgo").
 			With("product_variables.enforce_vintf_manifest.cflags", "*").
 			Because("manifest enforcement should be independent of ."),
 
