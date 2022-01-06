@@ -91,6 +91,7 @@ var VndkMustUseVendorVariantList = []string{
 	"android.hardware.security.sharedsecret-V1-ndk_platform",
 	"android.hardware.security.sharedsecret-ndk_platform",
 	"android.hardware.security.sharedsecret-unstable-ndk_platform",
+	"android.hardware.sensors-V1-ndk",
 	"android.hardware.soundtrigger3-V1-ndk",
 	"android.hardware.soundtrigger3-V1-ndk_platform",
 	"android.hardware.uwb-V1-ndk",

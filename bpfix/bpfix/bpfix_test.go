@@ -824,7 +824,7 @@ func TestRewritePrebuiltEtc(t *testing.T) {
 			out: `prebuilt_etc {
 			name: "foo",
 			src: "bar",
-			relative_install_dir: "baz",
+			relative_install_path: "baz",
 		}
 		`,
 		},
@@ -1936,7 +1936,7 @@ func TestRewriteLicenseProperty(t *testing.T) {
 			fs:   mockFs,
 			path: relativePathErr,
 			expectedErr: `
-				Cannot find an Android.mk file at path a/b/c
+				Cannot find an Android.mk file at path "a/b/c"
 			`,
 		},
 	}
