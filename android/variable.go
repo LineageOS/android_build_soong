@@ -124,6 +124,7 @@ type variableProperties struct {
 			Shared_libs       []string
 
 			Cmdline []string
+
 			Srcs         []string
 			Exclude_srcs []string
 		}
