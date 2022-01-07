@@ -601,10 +601,16 @@ func (p *ProductConfigProperty) SelectKey() string {
 
 	value := p.FullConfig
 	if value == p.Name {
-		value = "enabled"
+		value = ""
 	}
-	// e.g. acme__feature1__enabled, android__board__soc_a
-	return strings.ToLower(strings.Join([]string{p.Namespace, p.Name, value}, "__"))
+
+	// e.g. acme__feature1, android__board__soc_a
+	selectKey := strings.ToLower(strings.Join([]string{p.Namespace, p.Name}, "__"))
+	if value != "" {
+		selectKey = strings.ToLower(strings.Join([]string{selectKey, value}, "__"))
+	}
+
+	return selectKey
 }
 
 // ProductConfigProperties is a map of maps to group property values according
