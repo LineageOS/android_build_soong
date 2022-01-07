@@ -91,9 +91,9 @@ var knownFunctions = map[string]interface {
 	"foreach":                             &foreachCallPaser{},
 	"if":                                  &ifCallParser{},
 	"info":                                &makeControlFuncParser{name: baseName + ".mkinfo"},
-	"is-board-platform":                   &isBoardPlatformCallParser{},
+	"is-board-platform":                   &simpleCallParser{name: baseName + ".board_platform_is", returnType: starlarkTypeBool, addGlobals: true},
 	"is-board-platform2":                  &simpleCallParser{name: baseName + ".board_platform_is", returnType: starlarkTypeBool, addGlobals: true},
-	"is-board-platform-in-list":           &isBoardPlatformInListCallParser{},
+	"is-board-platform-in-list":           &simpleCallParser{name: baseName + ".board_platform_in", returnType: starlarkTypeBool, addGlobals: true},
 	"is-board-platform-in-list2":          &simpleCallParser{name: baseName + ".board_platform_in", returnType: starlarkTypeBool, addGlobals: true},
 	"is-product-in-list":                  &isProductInListCallParser{},
 	"is-vendor-board-platform":            &isVendorBoardPlatformCallParser{},
@@ -1404,32 +1404,6 @@ func (p *myDirCallParser) parse(ctx *parseContext, node mkparser.Node, args *mkp
 		return ctx.newBadExpr(node, "my-dir function cannot have any arguments passed to it.")
 	}
 	return &variableRefExpr{ctx.addVariable("LOCAL_PATH"), true}
-}
-
-type isBoardPlatformCallParser struct{}
-
-func (p *isBoardPlatformCallParser) parse(ctx *parseContext, node mkparser.Node, args *mkparser.MakeString) starlarkExpr {
-	if args.Empty() {
-		return ctx.newBadExpr(node, "is-board-platform requires an argument")
-	}
-	return &eqExpr{
-		left:  &variableRefExpr{ctx.addVariable("TARGET_BOARD_PLATFORM"), false},
-		right: ctx.parseMakeString(node, args),
-		isEq:  true,
-	}
-}
-
-type isBoardPlatformInListCallParser struct{}
-
-func (p *isBoardPlatformInListCallParser) parse(ctx *parseContext, node mkparser.Node, args *mkparser.MakeString) starlarkExpr {
-	if args.Empty() {
-		return ctx.newBadExpr(node, "is-board-platform-in-list requires an argument")
-	}
-	return &inExpr{
-		expr:  &variableRefExpr{ctx.addVariable("TARGET_BOARD_PLATFORM"), false},
-		list:  maybeConvertToStringList(ctx.parseMakeString(node, args)),
-		isNot: false,
-	}
 }
 
 type isProductInListCallParser struct{}

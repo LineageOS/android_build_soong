@@ -598,9 +598,9 @@ endif
 
 def init(g, handle):
   cfg = rblf.cfg(handle)
-  if g.get("TARGET_BOARD_PLATFORM", "") in ["msm8998"]:
+  if rblf.board_platform_in(g, "msm8998"):
     pass
-  elif g.get("TARGET_BOARD_PLATFORM", "") != "copper":
+  elif not rblf.board_platform_is(g, "copper"):
     pass
   elif g.get("TARGET_BOARD_PLATFORM", "") not in g["QCOM_BOARD_PLATFORMS"]:
     pass
