@@ -44,6 +44,7 @@ bootstrap_go_package {
         "dexpreopt_config.go",
         "droiddoc.go",
         "droidstubs.go",
+        "fuzz.go",
         "gen.go",
         "genrule.go",
         "hiddenapi.go",
