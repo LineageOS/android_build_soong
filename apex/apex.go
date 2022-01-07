@@ -3079,8 +3079,6 @@ func rBcpPackages() map[string][]string {
 		},
 		"framework-permission": []string{
 			"android.permission",
-			//TODO(b/205719989): remove, do not cherry-pick anywhere
-			"android.safetycenter",
 			"android.app.role",
 			"com.android.permission",
 			"com.android.role",
