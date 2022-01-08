@@ -104,6 +104,8 @@ func LibraryHeaderFactory() android.Module {
 func prebuiltLibraryHeaderFactory() android.Module {
 	module, library := NewPrebuiltLibrary(android.HostAndDeviceSupported, "")
 	library.HeaderOnly()
+	module.bazelable = true
+	module.bazelHandler = &ccLibraryBazelHandler{module: module}
 	return module.Init()
 }
 
