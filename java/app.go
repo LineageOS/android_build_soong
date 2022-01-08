@@ -1163,7 +1163,10 @@ func (i *OverrideAndroidApp) GenerateAndroidBuildActions(_ android.ModuleContext
 // some of its properties.
 func OverrideAndroidAppModuleFactory() android.Module {
 	m := &OverrideAndroidApp{}
-	m.AddProperties(&overridableAppProperties{})
+	m.AddProperties(
+		&OverridableDeviceProperties{},
+		&overridableAppProperties{},
+	)
 
 	android.InitAndroidMultiTargetsArchModule(m, android.DeviceSupported, android.MultilibCommon)
 	android.InitOverrideModule(m)

@@ -1981,6 +1981,80 @@ func TestOverrideAndroidApp(t *testing.T) {
 	}
 }
 
+func TestOverrideAndroidAppStem(t *testing.T) {
+	ctx, _ := testJava(t, `
+		android_app {
+			name: "foo",
+			srcs: ["a.java"],
+			sdk_version: "current",
+		}
+		override_android_app {
+			name: "bar",
+			base: "foo",
+		}
+		override_android_app {
+			name: "baz",
+			base: "foo",
+			stem: "baz_stem",
+		}
+		android_app {
+			name: "foo2",
+			srcs: ["a.java"],
+			sdk_version: "current",
+			stem: "foo2_stem",
+		}
+		override_android_app {
+			name: "bar2",
+			base: "foo2",
+		}
+		override_android_app {
+			name: "baz2",
+			base: "foo2",
+			stem: "baz2_stem",
+		}
+	`)
+	for _, expected := range []struct {
+		moduleName  string
+		variantName string
+		apkPath     string
+	}{
+		{
+			moduleName:  "foo",
+			variantName: "android_common",
+			apkPath:     "out/soong/target/product/test_device/system/app/foo/foo.apk",
+		},
+		{
+			moduleName:  "foo",
+			variantName: "android_common_bar",
+			apkPath:     "out/soong/target/product/test_device/system/app/bar/bar.apk",
+		},
+		{
+			moduleName:  "foo",
+			variantName: "android_common_baz",
+			apkPath:     "out/soong/target/product/test_device/system/app/baz_stem/baz_stem.apk",
+		},
+		{
+			moduleName:  "foo2",
+			variantName: "android_common",
+			apkPath:     "out/soong/target/product/test_device/system/app/foo2_stem/foo2_stem.apk",
+		},
+		{
+			moduleName:  "foo2",
+			variantName: "android_common_bar2",
+			// Note that this may cause the duplicate output error.
+			apkPath: "out/soong/target/product/test_device/system/app/foo2_stem/foo2_stem.apk",
+		},
+		{
+			moduleName:  "foo2",
+			variantName: "android_common_baz2",
+			apkPath:     "out/soong/target/product/test_device/system/app/baz2_stem/baz2_stem.apk",
+		},
+	} {
+		variant := ctx.ModuleForTests(expected.moduleName, expected.variantName)
+		variant.Output(expected.apkPath)
+	}
+}
+
 func TestOverrideAndroidAppDependency(t *testing.T) {
 	ctx, _ := testJava(t, `
 		android_app {
