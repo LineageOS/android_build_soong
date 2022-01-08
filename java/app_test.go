@@ -1707,7 +1707,7 @@ func TestPackageNameOverride(t *testing.T) {
 			},
 		},
 		{
-			name: "overridden",
+			name: "overridden via PRODUCT_PACKAGE_NAME_OVERRIDES",
 			bp: `
 				android_app {
 					name: "foo",
@@ -1718,6 +1718,22 @@ func TestPackageNameOverride(t *testing.T) {
 			packageNameOverride: "foo:bar",
 			expected: []string{
 				// The package apk should be still be the original name for test dependencies.
+				"out/soong/.intermediates/foo/android_common/bar.apk",
+				"out/soong/target/product/test_device/system/app/bar/bar.apk",
+			},
+		},
+		{
+			name: "overridden via stem",
+			bp: `
+				android_app {
+					name: "foo",
+					srcs: ["a.java"],
+					sdk_version: "current",
+					stem: "bar",
+				}
+			`,
+			packageNameOverride: "",
+			expected: []string{
 				"out/soong/.intermediates/foo/android_common/bar.apk",
 				"out/soong/target/product/test_device/system/app/bar/bar.apk",
 			},
