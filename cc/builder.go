@@ -387,10 +387,11 @@ type builderFlags struct {
 	toolchain     config.Toolchain
 
 	// True if these extra features are enabled.
-	tidy         bool
-	gcovCoverage bool
-	sAbiDump     bool
-	emitXrefs    bool
+	tidy          bool
+	needTidyFiles bool
+	gcovCoverage  bool
+	sAbiDump      bool
+	emitXrefs     bool
 
 	assemblerWithCpp bool // True if .s files should be processed with the c preprocessor.
 
@@ -420,6 +421,7 @@ type StripFlags struct {
 type Objects struct {
 	objFiles      android.Paths
 	tidyFiles     android.Paths
+	tidyDepFiles  android.Paths // link dependent .tidy files
 	coverageFiles android.Paths
 	sAbiDumpFiles android.Paths
 	kytheFiles    android.Paths
@@ -429,6 +431,7 @@ func (a Objects) Copy() Objects {
 	return Objects{
 		objFiles:      append(android.Paths{}, a.objFiles...),
 		tidyFiles:     append(android.Paths{}, a.tidyFiles...),
+		tidyDepFiles:  append(android.Paths{}, a.tidyDepFiles...),
 		coverageFiles: append(android.Paths{}, a.coverageFiles...),
 		sAbiDumpFiles: append(android.Paths{}, a.sAbiDumpFiles...),
 		kytheFiles:    append(android.Paths{}, a.kytheFiles...),
@@ -439,6 +442,7 @@ func (a Objects) Append(b Objects) Objects {
 	return Objects{
 		objFiles:      append(a.objFiles, b.objFiles...),
 		tidyFiles:     append(a.tidyFiles, b.tidyFiles...),
+		tidyDepFiles:  append(a.tidyDepFiles, b.tidyDepFiles...),
 		coverageFiles: append(a.coverageFiles, b.coverageFiles...),
 		sAbiDumpFiles: append(a.sAbiDumpFiles, b.sAbiDumpFiles...),
 		kytheFiles:    append(a.kytheFiles, b.kytheFiles...),
@@ -452,9 +456,8 @@ func escapeSingleQuotes(s string) string {
 }
 
 // Generate rules for compiling multiple .c, .cpp, or .S files to individual .o files
-func transformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles, noTidySrcs android.Paths,
+func transformSourceToObj(ctx ModuleContext, subdir string, srcFiles, noTidySrcs android.Paths,
 	flags builderFlags, pathDeps android.Paths, cFlagsDeps android.Paths) Objects {
-
 	// Source files are one-to-one with tidy, coverage, or kythe files, if enabled.
 	objFiles := make(android.Paths, len(srcFiles))
 	var tidyFiles android.Paths
@@ -540,8 +543,7 @@ func transformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles, no
 	// Multiple source files have build rules usually share the same cFlags or tidyFlags.
 	// Define only one version in this module and share it in multiple build rules.
 	// To simplify the code, the shared variables are all named as $flags<nnn>.
-	numSharedFlags := 0
-	flagsMap := make(map[string]string)
+	shared := ctx.getSharedFlags()
 
 	// Share flags only when there are multiple files or tidy rules.
 	var hasMultipleRules = len(srcFiles) > 1 || flags.tidy
@@ -553,11 +555,11 @@ func transformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles, no
 			return flags
 		}
 		mapKey := kind + flags
-		n, ok := flagsMap[mapKey]
+		n, ok := shared.flagsMap[mapKey]
 		if !ok {
-			numSharedFlags += 1
-			n = strconv.Itoa(numSharedFlags)
-			flagsMap[mapKey] = n
+			shared.numSharedFlags += 1
+			n = strconv.Itoa(shared.numSharedFlags)
+			shared.flagsMap[mapKey] = n
 			ctx.Variable(pctx, kind+n, flags)
 		}
 		return "$" + kind + n
@@ -720,9 +722,14 @@ func transformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles, no
 
 	}
 
+	var tidyDepFiles android.Paths
+	if flags.needTidyFiles {
+		tidyDepFiles = tidyFiles
+	}
 	return Objects{
 		objFiles:      objFiles,
 		tidyFiles:     tidyFiles,
+		tidyDepFiles:  tidyDepFiles,
 		coverageFiles: coverageFiles,
 		sAbiDumpFiles: sAbiDumpFiles,
 		kytheFiles:    kytheFiles,
