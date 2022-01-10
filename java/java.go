@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"android/soong/bazel"
+
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
@@ -2000,6 +2001,7 @@ type javaBinaryHostAttributes struct {
 	Deps       bazel.LabelListAttribute
 	Main_class string
 	Jvm_flags  bazel.StringListAttribute
+	Javacopts  bazel.StringListAttribute
 }
 
 // JavaBinaryHostBp2Build is for java_binary_host bp2build.
@@ -2019,6 +2021,10 @@ func javaBinaryHostBp2Build(ctx android.TopDownMutatorContext, m *Binary) {
 	attrs := &javaBinaryHostAttributes{
 		Srcs:       srcs,
 		Main_class: mainClass,
+	}
+
+	if m.properties.Javacflags != nil {
+		attrs.Javacopts = bazel.MakeStringListAttribute(m.properties.Javacflags)
 	}
 
 	// Attribute deps
