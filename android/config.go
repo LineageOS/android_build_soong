@@ -1469,6 +1469,10 @@ func (c *deviceConfig) TotSepolicyVersion() string {
 	return String(c.config.productVariables.TotSepolicyVersion)
 }
 
+func (c *deviceConfig) PlatformSepolicyCompatVersions() []string {
+	return c.config.productVariables.PlatformSepolicyCompatVersions
+}
+
 func (c *deviceConfig) BoardSepolicyVers() string {
 	if ver := String(c.config.productVariables.BoardSepolicyVers); ver != "" {
 		return ver
