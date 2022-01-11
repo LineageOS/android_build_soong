@@ -433,8 +433,10 @@ func (a *AndroidApp) getOverriddenPackages() []string {
 	if len(a.appProperties.Overrides) > 0 {
 		overridden = append(overridden, a.appProperties.Overrides...)
 	}
-	if a.Name() != a.installApkName {
-		overridden = append(overridden, a.Name())
+	// When APK name is overridden via PRODUCT_PACKAGE_NAME_OVERRIDES
+	// ensure that the original name is overridden.
+	if a.Stem() != a.installApkName {
+		overridden = append(overridden, a.Stem())
 	}
 	return overridden
 }
