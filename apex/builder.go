@@ -72,19 +72,6 @@ func init() {
 }
 
 var (
-	// Create a canned fs config file where all files and directories are
-	// by default set to (uid/gid/mode) = (1000/1000/0644)
-	// TODO(b/113082813) make this configurable using config.fs syntax
-	generateFsConfig = pctx.StaticRule("generateFsConfig", blueprint.RuleParams{
-		Command: `( echo '/ 1000 1000 0755' ` +
-			`&& for i in ${ro_paths}; do echo "/$$i 1000 1000 0644"; done ` +
-			`&& for i in  ${exec_paths}; do echo "/$$i 0 2000 0755"; done ` +
-			`&& ( tr ' ' '\n' <${out}.apklist | for i in ${apk_paths}; do read apk; echo "/$$i 0 2000 0755"; zipinfo -1 $$apk | sed "s:\(.*\):/$$i/\1 1000 1000 0644:"; done ) ) > ${out}`,
-		Description:    "fs_config ${out}",
-		Rspfile:        "$out.apklist",
-		RspfileContent: "$in",
-	}, "ro_paths", "exec_paths", "apk_paths")
-
 	apexManifestRule = pctx.StaticRule("apexManifestRule", blueprint.RuleParams{
 		Command: `rm -f $out && ${jsonmodify} $in ` +
 			`-a provideNativeLibs ${provideNativeLibs} ` +
@@ -521,55 +508,11 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 	// Figure out if need to compress apex.
 	compressionEnabled := ctx.Config().CompressedApex() && proptools.BoolDefault(a.properties.Compressible, false) && !a.testApex && !ctx.Config().UnbundledBuildApps()
 	if apexType == imageApex {
+
 		////////////////////////////////////////////////////////////////////////////////////
 		// Step 2: create canned_fs_config which encodes filemode,uid,gid of each files
 		// in this APEX. The file will be used by apexer in later steps.
-		// TODO(jiyong): make this as a function
-		// TODO(jiyong): use the RuleBuilder
-		var readOnlyPaths = []string{"apex_manifest.json", "apex_manifest.pb"}
-		var executablePaths []string // this also includes dirs
-		var extractedAppSetPaths android.Paths
-		var extractedAppSetDirs []string
-		for _, f := range a.filesInfo {
-			pathInApex := f.path()
-			if f.installDir == "bin" || strings.HasPrefix(f.installDir, "bin/") {
-				executablePaths = append(executablePaths, pathInApex)
-				for _, d := range f.dataPaths {
-					readOnlyPaths = append(readOnlyPaths, filepath.Join(f.installDir, d.RelativeInstallPath, d.SrcPath.Rel()))
-				}
-				for _, s := range f.symlinks {
-					executablePaths = append(executablePaths, filepath.Join(f.installDir, s))
-				}
-			} else if f.class == appSet {
-				extractedAppSetPaths = append(extractedAppSetPaths, f.builtFile)
-				extractedAppSetDirs = append(extractedAppSetDirs, f.installDir)
-			} else {
-				readOnlyPaths = append(readOnlyPaths, pathInApex)
-			}
-			dir := f.installDir
-			for !android.InList(dir, executablePaths) && dir != "" {
-				executablePaths = append(executablePaths, dir)
-				dir, _ = filepath.Split(dir) // move up to the parent
-				if len(dir) > 0 {
-					// remove trailing slash
-					dir = dir[:len(dir)-1]
-				}
-			}
-		}
-		sort.Strings(readOnlyPaths)
-		sort.Strings(executablePaths)
-		cannedFsConfig := android.PathForModuleOut(ctx, "canned_fs_config")
-		ctx.Build(pctx, android.BuildParams{
-			Rule:        generateFsConfig,
-			Output:      cannedFsConfig,
-			Description: "generate fs config",
-			Inputs:      extractedAppSetPaths,
-			Args: map[string]string{
-				"ro_paths":   strings.Join(readOnlyPaths, " "),
-				"exec_paths": strings.Join(executablePaths, " "),
-				"apk_paths":  strings.Join(extractedAppSetDirs, " "),
-			},
-		})
+		cannedFsConfig := a.buildCannedFsConfig(ctx)
 		implicitInputs = append(implicitInputs, cannedFsConfig)
 
 		////////////////////////////////////////////////////////////////////////////////////
@@ -1004,4 +947,66 @@ func (a *apexBundle) buildLintReports(ctx android.ModuleContext) {
 	}
 
 	a.lintReports = java.BuildModuleLintReportZips(ctx, depSetsBuilder.Build())
+}
+
+func (a *apexBundle) buildCannedFsConfig(ctx android.ModuleContext) android.OutputPath {
+	var readOnlyPaths = []string{"apex_manifest.json", "apex_manifest.pb"}
+	var executablePaths []string // this also includes dirs
+	var appSetDirs []string
+	appSetFiles := make(map[string]android.Path)
+	for _, f := range a.filesInfo {
+		pathInApex := f.path()
+		if f.installDir == "bin" || strings.HasPrefix(f.installDir, "bin/") {
+			executablePaths = append(executablePaths, pathInApex)
+			for _, d := range f.dataPaths {
+				readOnlyPaths = append(readOnlyPaths, filepath.Join(f.installDir, d.RelativeInstallPath, d.SrcPath.Rel()))
+			}
+			for _, s := range f.symlinks {
+				executablePaths = append(executablePaths, filepath.Join(f.installDir, s))
+			}
+		} else if f.class == appSet {
+			appSetDirs = append(appSetDirs, f.installDir)
+			appSetFiles[f.installDir] = f.builtFile
+		} else {
+			readOnlyPaths = append(readOnlyPaths, pathInApex)
+		}
+		dir := f.installDir
+		for !android.InList(dir, executablePaths) && dir != "" {
+			executablePaths = append(executablePaths, dir)
+			dir, _ = filepath.Split(dir) // move up to the parent
+			if len(dir) > 0 {
+				// remove trailing slash
+				dir = dir[:len(dir)-1]
+			}
+		}
+	}
+	sort.Strings(readOnlyPaths)
+	sort.Strings(executablePaths)
+	sort.Strings(appSetDirs)
+
+	cannedFsConfig := android.PathForModuleOut(ctx, "canned_fs_config")
+	builder := android.NewRuleBuilder(pctx, ctx)
+	cmd := builder.Command()
+	cmd.Text("(")
+	cmd.Text("echo '/ 1000 1000 0755';")
+	for _, p := range readOnlyPaths {
+		cmd.Textf("echo '/%s 1000 1000 0644';", p)
+	}
+	for _, p := range executablePaths {
+		cmd.Textf("echo '/%s 0 2000 0755';", p)
+	}
+	for _, dir := range appSetDirs {
+		cmd.Textf("echo '/%s 0 2000 0755';", dir)
+		file := appSetFiles[dir]
+		cmd.Text("zipinfo -1").Input(file).Textf(`| sed "s:\(.*\):/%s/\1 1000 1000 0644:";`, dir)
+	}
+	// Custom fs_config is "appended" to the last so that entries from the file are preferred
+	// over default ones set above.
+	if a.properties.Canned_fs_config != nil {
+		cmd.Text("cat").Input(android.PathForModuleSrc(ctx, *a.properties.Canned_fs_config))
+	}
+	cmd.Text(")").FlagWithOutput("> ", cannedFsConfig)
+	builder.Build("generateFsConfig", fmt.Sprintf("Generating canned fs config for %s", a.BaseModuleName()))
+
+	return cannedFsConfig.OutputPath
 }
