@@ -3476,9 +3476,7 @@ func (c *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 				libraryBp2Build(ctx, c)
 			}
 		} else if !static && !shared {
-			if !prebuilt {
-				libraryHeadersBp2Build(ctx, c)
-			}
+			libraryHeadersBp2Build(ctx, c)
 		} else if static {
 			if prebuilt {
 				prebuiltLibraryStaticBp2Build(ctx, c)
