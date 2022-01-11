@@ -446,7 +446,7 @@ func newParseContext(ss *StarlarkScript, nodes []mkparser.Node) *parseContext {
 		variables:        make(map[string]variable),
 		dependentModules: make(map[string]*moduleInfo),
 		soongNamespaces:  make(map[string]map[string]bool),
-		includeTops:      []string{"vendor/google-devices"},
+		includeTops:      []string{},
 	}
 	ctx.pushVarAssignments()
 	for _, item := range predefined {
@@ -809,6 +809,10 @@ func (ctx *parseContext) handleSubConfig(
 		}
 	}
 	if pathPattern[0] == "" {
+		if len(ctx.includeTops) == 0 {
+			ctx.errorf(v, "inherit-product/include statements must not be prefixed with a variable, or must include a #RBC# include_top comment beforehand giving a root directory to search.")
+			return
+		}
 		// If pattern starts from the top. restrict it to the directories where
 		// we know inherit-product uses dynamically calculated path.
 		for _, p := range ctx.includeTops {
@@ -1670,6 +1674,13 @@ func (ctx *parseContext) handleSimpleStatement(node mkparser.Node) {
 		}
 	default:
 		ctx.errorf(x, "unsupported line %s", strings.ReplaceAll(x.Dump(), "\n", "\n#"))
+	}
+
+	// Clear the includeTops after each non-comment statement
+	// so that include annotations placed on certain statements don't apply
+	// globally for the rest of the makefile was well.
+	if _, wasComment := node.(*mkparser.Comment); !wasComment && len(ctx.includeTops) > 0 {
+		ctx.includeTops = []string{}
 	}
 }
 
