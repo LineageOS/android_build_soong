@@ -728,6 +728,36 @@ func (f *foreachExpr) transform(transformer func(expr starlarkExpr) starlarkExpr
 	}
 }
 
+type binaryOpExpr struct {
+	left, right starlarkExpr
+	op          string
+	returnType  starlarkType
+}
+
+func (b *binaryOpExpr) emit(gctx *generationContext) {
+	b.left.emit(gctx)
+	gctx.write(" " + b.op + " ")
+	b.right.emit(gctx)
+}
+
+func (b *binaryOpExpr) typ() starlarkType {
+	return b.returnType
+}
+
+func (b *binaryOpExpr) emitListVarCopy(gctx *generationContext) {
+	b.emit(gctx)
+}
+
+func (b *binaryOpExpr) transform(transformer func(expr starlarkExpr) starlarkExpr) starlarkExpr {
+	b.left = b.left.transform(transformer)
+	b.right = b.right.transform(transformer)
+	if replacement := transformer(b); replacement != nil {
+		return replacement
+	} else {
+		return b
+	}
+}
+
 type badExpr struct {
 	errorLocation ErrorLocation
 	message       string
