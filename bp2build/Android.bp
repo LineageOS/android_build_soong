@@ -38,7 +38,6 @@ bootstrap_go_package {
         "build_conversion_test.go",
         "bzl_conversion_test.go",
         "cc_binary_conversion_test.go",
-        "cc_genrule_conversion_test.go",
         "cc_library_conversion_test.go",
         "cc_library_headers_conversion_test.go",
         "cc_library_shared_conversion_test.go",
