@@ -100,6 +100,11 @@ var knownFunctions = map[string]interface {
 	"is-vendor-board-qcom":                &isVendorBoardQcomCallParser{},
 	"lastword":                            &firstOrLastwordCallParser{isLastWord: true},
 	"notdir":                              &simpleCallParser{name: baseName + ".notdir", returnType: starlarkTypeString, addGlobals: false},
+	"math_max":                            &mathMaxOrMinCallParser{function: "max"},
+	"math_min":                            &mathMaxOrMinCallParser{function: "min"},
+	"math_gt_or_eq":                       &mathComparisonCallParser{op: ">="},
+	"math_gt":                             &mathComparisonCallParser{op: ">"},
+	"math_lt":                             &mathComparisonCallParser{op: "<"},
 	"my-dir":                              &myDirCallParser{},
 	"patsubst":                            &substCallParser{fname: "patsubst"},
 	"product-copy-files-by-pattern":       &simpleCallParser{name: baseName + ".product_copy_files_by_pattern", returnType: starlarkTypeList, addGlobals: false},
@@ -1068,6 +1073,23 @@ func (ctx *parseContext) parseCompare(cond *mkparser.Directive) starlarkExpr {
 		case *eqExpr:
 			typedExpr.isEq = !typedExpr.isEq
 			return typedExpr
+		case *binaryOpExpr:
+			switch typedExpr.op {
+			case ">":
+				typedExpr.op = "<="
+				return typedExpr
+			case "<":
+				typedExpr.op = ">="
+				return typedExpr
+			case ">=":
+				typedExpr.op = "<"
+				return typedExpr
+			case "<=":
+				typedExpr.op = ">"
+				return typedExpr
+			default:
+				return &notExpr{expr: expr}
+			}
 		default:
 			return &notExpr{expr: expr}
 		}
@@ -1088,6 +1110,13 @@ func (ctx *parseContext) parseCompare(cond *mkparser.Directive) starlarkExpr {
 				return not(otherOperand)
 			} else {
 				return otherOperand
+			}
+		}
+		if intOperand, err := strconv.Atoi(strings.TrimSpace(stringOperand)); err == nil && otherOperand.typ() == starlarkTypeInt {
+			return &eqExpr{
+				left:  otherOperand,
+				right: &intLiteralExpr{literal: intOperand},
+				isEq:  isEq,
 			}
 		}
 	}
@@ -1623,6 +1652,68 @@ func (p *firstOrLastwordCallParser) parse(ctx *parseContext, node mkparser.Node,
 		return &indexExpr{arg, index}
 	}
 	return &indexExpr{&callExpr{object: arg, name: "split", returnType: starlarkTypeList}, index}
+}
+
+func parseIntegerArguments(ctx *parseContext, node mkparser.Node, args *mkparser.MakeString, expectedArgs int) ([]starlarkExpr, error) {
+	parsedArgs := make([]starlarkExpr, 0)
+	for _, arg := range args.Split(",") {
+		expr := ctx.parseMakeString(node, arg)
+		if expr.typ() == starlarkTypeList {
+			return nil, fmt.Errorf("argument to math argument has type list, which cannot be converted to int")
+		}
+		if s, ok := maybeString(expr); ok {
+			intVal, err := strconv.Atoi(strings.TrimSpace(s))
+			if err != nil {
+				return nil, err
+			}
+			expr = &intLiteralExpr{literal: intVal}
+		} else if expr.typ() != starlarkTypeInt {
+			expr = &callExpr{
+				name:       "int",
+				args:       []starlarkExpr{expr},
+				returnType: starlarkTypeInt,
+			}
+		}
+		parsedArgs = append(parsedArgs, expr)
+	}
+	if len(parsedArgs) != expectedArgs {
+		return nil, fmt.Errorf("function should have %d arguments", expectedArgs)
+	}
+	return parsedArgs, nil
+}
+
+type mathComparisonCallParser struct {
+	op string
+}
+
+func (p *mathComparisonCallParser) parse(ctx *parseContext, node mkparser.Node, args *mkparser.MakeString) starlarkExpr {
+	parsedArgs, err := parseIntegerArguments(ctx, node, args, 2)
+	if err != nil {
+		return ctx.newBadExpr(node, err.Error())
+	}
+	return &binaryOpExpr{
+		left:       parsedArgs[0],
+		right:      parsedArgs[1],
+		op:         p.op,
+		returnType: starlarkTypeBool,
+	}
+}
+
+type mathMaxOrMinCallParser struct {
+	function string
+}
+
+func (p *mathMaxOrMinCallParser) parse(ctx *parseContext, node mkparser.Node, args *mkparser.MakeString) starlarkExpr {
+	parsedArgs, err := parseIntegerArguments(ctx, node, args, 2)
+	if err != nil {
+		return ctx.newBadExpr(node, err.Error())
+	}
+	return &callExpr{
+		object:     nil,
+		name:       p.function,
+		args:       parsedArgs,
+		returnType: starlarkTypeInt,
+	}
 }
 
 func (ctx *parseContext) parseMakeString(node mkparser.Node, mk *mkparser.MakeString) starlarkExpr {
