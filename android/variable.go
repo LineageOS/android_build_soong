@@ -364,6 +364,8 @@ type productVariables struct {
 	PlatformSepolicyVersion *string `json:",omitempty"`
 	TotSepolicyVersion      *string `json:",omitempty"`
 
+	PlatformSepolicyCompatVersions []string `json:",omitempty"`
+
 	VendorVars map[string]map[string]string `json:",omitempty"`
 
 	Ndk_abis *bool `json:",omitempty"`
@@ -1029,7 +1031,7 @@ func (m *ModuleBase) setVariableProperties(ctx BottomUpMutatorContext,
 
 	printfIntoProperties(ctx, prefix, productVariablePropertyValue, variableValue)
 
-	err := proptools.AppendMatchingProperties(m.generalProperties,
+	err := proptools.AppendMatchingProperties(m.GetProperties(),
 		productVariablePropertyValue.Addr().Interface(), nil)
 	if err != nil {
 		if propertyErr, ok := err.(*proptools.ExtendPropertyError); ok {

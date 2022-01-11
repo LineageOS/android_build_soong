@@ -993,8 +993,6 @@ func initArchModule(m Module) {
 
 	base := m.base()
 
-	// Store the original list of top level property structs
-	base.generalProperties = m.GetProperties()
 	if len(base.archProperties) != 0 {
 		panic(fmt.Errorf("module %s already has archProperties", m.Name()))
 	}
@@ -1015,7 +1013,7 @@ func initArchModule(m Module) {
 		return t
 	}
 
-	for _, properties := range base.generalProperties {
+	for _, properties := range m.GetProperties() {
 		t := getStructType(properties)
 		// Get or create the arch-specific property struct types for this property struct type.
 		archPropTypes := archPropTypeMap.Once(NewCustomOnceKey(t), func() interface{} {
@@ -1036,7 +1034,6 @@ func initArchModule(m Module) {
 		m.AddProperties(archProperties...)
 	}
 
-	base.generalProperties = m.GetProperties()
 }
 
 func maybeBlueprintEmbed(src reflect.Value) reflect.Value {
@@ -1110,7 +1107,7 @@ func (m *ModuleBase) setOSProperties(ctx BottomUpMutatorContext) {
 	os := m.commonProperties.CompileOS
 
 	for i := range m.archProperties {
-		genProps := m.generalProperties[i]
+		genProps := m.GetProperties()[i]
 		if m.archProperties[i] == nil {
 			continue
 		}
@@ -1438,7 +1435,7 @@ func (m *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 	os := m.Os()
 
 	for i := range m.archProperties {
-		genProps := m.generalProperties[i]
+		genProps := m.GetProperties()[i]
 		if m.archProperties[i] == nil {
 			continue
 		}
@@ -2016,8 +2013,8 @@ func (m *ModuleBase) GetArchVariantProperties(ctx ArchVariantContext, propertySe
 	var archProperties []interface{}
 
 	// First find the property set in the module that corresponds to the requested
-	// one. m.archProperties[i] corresponds to m.generalProperties[i].
-	for i, generalProp := range m.generalProperties {
+	// one. m.archProperties[i] corresponds to m.GetProperties()[i].
+	for i, generalProp := range m.GetProperties() {
 		srcType := reflect.ValueOf(generalProp).Type()
 		if srcType == dstType {
 			archProperties = m.archProperties[i]

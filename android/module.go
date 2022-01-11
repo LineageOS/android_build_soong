@@ -1032,8 +1032,6 @@ func InitAndroidModule(m Module) {
 
 	initProductVariableModule(m)
 
-	base.generalProperties = m.GetProperties()
-
 	// The default_visibility property needs to be checked and parsed by the visibility module during
 	// its checking and parsing phases so make it the primary visibility property.
 	setPrimaryVisibilityProperty(m, "visibility", &base.commonProperties.Visibility)
@@ -1207,13 +1205,12 @@ type ModuleBase struct {
 	distProperties          distProperties
 	variableProperties      interface{}
 	hostAndDeviceProperties hostAndDeviceProperties
-	generalProperties       []interface{}
 
-	// Arch specific versions of structs in generalProperties. The outer index
-	// has the same order as generalProperties as initialized in
-	// InitAndroidArchModule, and the inner index chooses the props specific to
-	// the architecture. The interface{} value is an archPropRoot that is
-	// filled with arch specific values by the arch mutator.
+	// Arch specific versions of structs in GetProperties() prior to
+	// initialization in InitAndroidArchModule, lets call it `generalProperties`.
+	// The outer index has the same order as generalProperties and the inner index
+	// chooses the props specific to the architecture. The interface{} value is an
+	// archPropRoot that is filled with arch specific values by the arch mutator.
 	archProperties [][]interface{}
 
 	// Properties specific to the Blueprint to BUILD migration.
