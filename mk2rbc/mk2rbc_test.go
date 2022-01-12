@@ -598,9 +598,9 @@ endif
 
 def init(g, handle):
   cfg = rblf.cfg(handle)
-  if g.get("TARGET_BOARD_PLATFORM", "") in ["msm8998"]:
+  if rblf.board_platform_in(g, "msm8998"):
     pass
-  elif g.get("TARGET_BOARD_PLATFORM", "") != "copper":
+  elif not rblf.board_platform_is(g, "copper"):
     pass
   elif g.get("TARGET_BOARD_PLATFORM", "") not in g["QCOM_BOARD_PLATFORMS"]:
     pass
@@ -1112,6 +1112,46 @@ def init(g, handle):
 `,
 	},
 	{
+		desc:   "Dynamic inherit path that lacks necessary hint",
+		mkname: "product.mk",
+		in: `
+#RBC# include_top foo
+$(call inherit-product,$(MY_VAR)/font.mk)
+
+#RBC# include_top foo
+
+# There's some space and even this comment between the include_top and the inherit-product
+
+$(call inherit-product,$(MY_VAR)/font.mk)
+
+$(call inherit-product,$(MY_VAR)/font.mk)
+`,
+		expected: `#RBC# include_top foo
+load("//build/make/core:product_config.rbc", "rblf")
+load("//foo:font.star|init", _font_init = "init")
+
+def init(g, handle):
+  cfg = rblf.cfg(handle)
+  _entry = {
+    "foo/font.mk": ("_font", _font_init),
+  }.get("%s/font.mk" % g.get("MY_VAR", ""))
+  (_varmod, _varmod_init) = _entry if _entry else (None, None)
+  if not _varmod_init:
+    rblf.mkerror("product.mk", "Cannot find %s" % ("%s/font.mk" % g.get("MY_VAR", "")))
+  rblf.inherit(handle, _varmod, _varmod_init)
+  #RBC# include_top foo
+  # There's some space and even this comment between the include_top and the inherit-product
+  _entry = {
+    "foo/font.mk": ("_font", _font_init),
+  }.get("%s/font.mk" % g.get("MY_VAR", ""))
+  (_varmod, _varmod_init) = _entry if _entry else (None, None)
+  if not _varmod_init:
+    rblf.mkerror("product.mk", "Cannot find %s" % ("%s/font.mk" % g.get("MY_VAR", "")))
+  rblf.inherit(handle, _varmod, _varmod_init)
+  rblf.mk2rbc_error("product.mk:11", "inherit-product/include statements must not be prefixed with a variable, or must include a #RBC# include_top comment beforehand giving a root directory to search.")
+`,
+	},
+	{
 		desc:   "Ignore make rules",
 		mkname: "product.mk",
 		in: `
@@ -1239,6 +1279,63 @@ def init(g, handle):
   g["NATIVE_BRIDGE_PRODUCT_PACKAGES"] = "libnative_bridge_vdso.native_bridge      native_bridge_guest_app_process.native_bridge      native_bridge_guest_linker.native_bridge"
   g["NATIVE_BRIDGE_MODIFIED_GUEST_LIBS"] = "libaaudio      libamidi      libandroid      libandroid_runtime"
   g["NATIVE_BRIDGE_PRODUCT_PACKAGES"] += " " + " ".join(rblf.addsuffix(".native_bridge", g.get("NATIVE_BRIDGE_ORIG_GUEST_LIBS", "")))
+`,
+	},
+	{
+		desc:   "Math functions",
+		mkname: "product.mk",
+		in: `
+# Test the math functions defined in build/make/common/math.mk
+ifeq ($(call math_max,2,5),5)
+endif
+ifeq ($(call math_min,2,5),2)
+endif
+ifeq ($(call math_gt_or_eq,2,5),true)
+endif
+ifeq ($(call math_gt,2,5),true)
+endif
+ifeq ($(call math_lt,2,5),true)
+endif
+ifeq ($(call math_gt_or_eq,2,5),)
+endif
+ifeq ($(call math_gt,2,5),)
+endif
+ifeq ($(call math_lt,2,5),)
+endif
+ifeq ($(call math_gt_or_eq,$(MY_VAR), 5),true)
+endif
+ifeq ($(call math_gt_or_eq,$(MY_VAR),$(MY_OTHER_VAR)),true)
+endif
+ifeq ($(call math_gt_or_eq,100$(MY_VAR),10),true)
+endif
+`,
+		expected: `# Test the math functions defined in build/make/common/math.mk
+load("//build/make/core:product_config.rbc", "rblf")
+
+def init(g, handle):
+  cfg = rblf.cfg(handle)
+  if max(2, 5) == 5:
+    pass
+  if min(2, 5) == 2:
+    pass
+  if 2 >= 5:
+    pass
+  if 2 > 5:
+    pass
+  if 2 < 5:
+    pass
+  if 2 < 5:
+    pass
+  if 2 <= 5:
+    pass
+  if 2 >= 5:
+    pass
+  if int(g.get("MY_VAR", "")) >= 5:
+    pass
+  if int(g.get("MY_VAR", "")) >= int(g.get("MY_OTHER_VAR", "")):
+    pass
+  if int("100%s" % g.get("MY_VAR", "")) >= 10:
+    pass
 `,
 	},
 }
