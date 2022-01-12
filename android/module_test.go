@@ -615,3 +615,204 @@ func parseMkRules(t *testing.T, config Config, nodes []mkparser.Node) []installM
 
 	return rules
 }
+
+type PropsTestModuleEmbedded struct {
+	Embedded_prop *string
+}
+
+type propsTestModule struct {
+	ModuleBase
+	DefaultableModuleBase
+	props struct {
+		A string `android:"arch_variant"`
+		B *bool
+		C []string
+	}
+	otherProps struct {
+		PropsTestModuleEmbedded
+
+		D      *int64
+		Nested struct {
+			E *string
+		}
+		F *string `blueprint:"mutated"`
+	}
+}
+
+func propsTestModuleFactory() Module {
+	module := &propsTestModule{}
+	module.AddProperties(&module.props, &module.otherProps)
+	InitAndroidArchModule(module, HostAndDeviceSupported, MultilibBoth)
+	InitDefaultableModule(module)
+	return module
+}
+
+type propsTestModuleDefaults struct {
+	ModuleBase
+	DefaultsModuleBase
+}
+
+func propsTestModuleDefaultsFactory() Module {
+	defaults := &propsTestModuleDefaults{}
+	module := propsTestModule{}
+	defaults.AddProperties(&module.props, &module.otherProps)
+	InitDefaultsModule(defaults)
+	return defaults
+}
+
+func (p *propsTestModule) GenerateAndroidBuildActions(ctx ModuleContext) {
+	str := "abc"
+	p.otherProps.F = &str
+}
+
+func TestUsedProperties(t *testing.T) {
+	testCases := []struct {
+		desc          string
+		bp            string
+		expectedProps []propInfo
+	}{
+		{
+			desc: "only name",
+			bp: `test {
+			name: "foo",
+		}
+	`,
+			expectedProps: []propInfo{
+				propInfo{"Name", "string"},
+			},
+		},
+		{
+			desc: "some props",
+			bp: `test {
+			name: "foo",
+			a: "abc",
+			b: true,
+			d: 123,
+		}
+	`,
+			expectedProps: []propInfo{
+				propInfo{"A", "string"},
+				propInfo{"B", "bool"},
+				propInfo{"D", "int64"},
+				propInfo{"Name", "string"},
+			},
+		},
+		{
+			desc: "unused non-pointer prop",
+			bp: `test {
+			name: "foo",
+			b: true,
+			d: 123,
+		}
+	`,
+			expectedProps: []propInfo{
+				// for non-pointer cannot distinguish between unused and intentionally set to empty
+				propInfo{"A", "string"},
+				propInfo{"B", "bool"},
+				propInfo{"D", "int64"},
+				propInfo{"Name", "string"},
+			},
+		},
+		{
+			desc: "nested props",
+			bp: `test {
+			name: "foo",
+			nested: {
+				e: "abc",
+			}
+		}
+	`,
+			expectedProps: []propInfo{
+				propInfo{"Nested.E", "string"},
+				propInfo{"Name", "string"},
+			},
+		},
+		{
+			desc: "arch props",
+			bp: `test {
+			name: "foo",
+			arch: {
+				x86_64: {
+					a: "abc",
+				},
+			}
+		}
+	`,
+			expectedProps: []propInfo{
+				propInfo{"Name", "string"},
+				propInfo{"Arch.X86_64.A", "string"},
+			},
+		},
+		{
+			desc: "embedded props",
+			bp: `test {
+			name: "foo",
+			embedded_prop: "a",
+		}
+	`,
+			expectedProps: []propInfo{
+				propInfo{"Embedded_prop", "string"},
+				propInfo{"Name", "string"},
+			},
+		},
+		{
+			desc: "defaults",
+			bp: `
+test_defaults {
+	name: "foo_defaults",
+	a: "a",
+	b: true,
+	embedded_prop:"a",
+	arch: {
+		x86_64: {
+			a: "a",
+		},
+	},
+}
+test {
+	name: "foo",
+	defaults: ["foo_defaults"],
+	c: ["a"],
+	nested: {
+		e: "d",
+	},
+	target: {
+		linux: {
+			a: "a",
+		},
+	},
+}
+	`,
+			expectedProps: []propInfo{
+				propInfo{"A", "string"},
+				propInfo{"B", "bool"},
+				propInfo{"C", "string slice"},
+				propInfo{"Embedded_prop", "string"},
+				propInfo{"Nested.E", "string"},
+				propInfo{"Name", "string"},
+				propInfo{"Arch.X86_64.A", "string"},
+				propInfo{"Target.Linux.A", "string"},
+				propInfo{"Defaults", "string slice"},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			result := GroupFixturePreparers(
+				PrepareForTestWithAllowMissingDependencies,
+				PrepareForTestWithDefaults,
+				FixtureRegisterWithContext(func(ctx RegistrationContext) {
+					ctx.RegisterModuleType("test", propsTestModuleFactory)
+					ctx.RegisterModuleType("test_defaults", propsTestModuleDefaultsFactory)
+				}),
+				FixtureWithRootAndroidBp(tc.bp),
+			).RunTest(t)
+
+			foo := result.ModuleForTests("foo", "").Module().base()
+
+			AssertDeepEquals(t, "foo ", tc.expectedProps, foo.propertiesWithValues())
+
+		})
+	}
+}

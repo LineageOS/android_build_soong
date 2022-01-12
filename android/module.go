@@ -19,6 +19,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strings"
 	"text/scanner"
@@ -1326,7 +1327,64 @@ func (m *ModuleBase) GetUnconvertedBp2buildDeps() []string {
 }
 
 func (m *ModuleBase) AddJSONData(d *map[string]interface{}) {
-	(*d)["Android"] = map[string]interface{}{}
+	(*d)["Android"] = map[string]interface{}{
+		// Properties set in Blueprint or in blueprint of a defaults modules
+		"SetProperties": m.propertiesWithValues(),
+	}
+}
+
+type propInfo struct {
+	Name string
+	Type string
+}
+
+func (m *ModuleBase) propertiesWithValues() []propInfo {
+	var info []propInfo
+	props := m.GetProperties()
+
+	var propsWithValues func(name string, v reflect.Value)
+	propsWithValues = func(name string, v reflect.Value) {
+		kind := v.Kind()
+		switch kind {
+		case reflect.Ptr, reflect.Interface:
+			if v.IsNil() {
+				return
+			}
+			propsWithValues(name, v.Elem())
+		case reflect.Struct:
+			if v.IsZero() {
+				return
+			}
+			for i := 0; i < v.NumField(); i++ {
+				namePrefix := name
+				sTyp := v.Type().Field(i)
+				if proptools.ShouldSkipProperty(sTyp) {
+					continue
+				}
+				if name != "" && !strings.HasSuffix(namePrefix, ".") {
+					namePrefix += "."
+				}
+				if !proptools.IsEmbedded(sTyp) {
+					namePrefix += sTyp.Name
+				}
+				sVal := v.Field(i)
+				propsWithValues(namePrefix, sVal)
+			}
+		case reflect.Array, reflect.Slice:
+			if v.IsNil() {
+				return
+			}
+			elKind := v.Type().Elem().Kind()
+			info = append(info, propInfo{name, elKind.String() + " " + kind.String()})
+		default:
+			info = append(info, propInfo{name, kind.String()})
+		}
+	}
+
+	for _, p := range props {
+		propsWithValues("", reflect.ValueOf(p).Elem())
+	}
+	return info
 }
 
 func (m *ModuleBase) ComponentDepsMutator(BottomUpMutatorContext) {}
