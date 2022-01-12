@@ -435,6 +435,8 @@ var (
 
 		"abb",                     // depends on unconverted modules: libcmd, libbinder
 		"adb",                     // depends on unconverted modules: AdbWinApi, libadb_host, libandroidfw, libapp_processes_protos_full, libfastdeploy_host, libopenscreen-discovery, libopenscreen-platform-impl, libusb, bin2c_fastdeployagent, AdbWinUsbApi
+		"libadb_host",             // depends on unconverted modules: libopenscreen-discovery, libopenscreen-platform-impl, libusb, AdbWinApi
+		"libfastdeploy_host",      // depends on unconverted modules: libandroidfw, libusb, AdbWinApi
 		"linker",                  // depends on unconverted modules: libdebuggerd_handler_fallback
 		"linker_reloc_bench_main", // depends on unconverted modules: liblinker_reloc_bench_*
 		"versioner",               // depends on unconverted modules: libclang_cxx_host, libLLVM_host, of unsupported type llvm_host_prebuilt_library_shared
