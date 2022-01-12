@@ -59,7 +59,7 @@ func genBootImageConfigRaw(ctx android.PathContext) map[string]*bootImageConfig 
 			name:                     artBootImageName,
 			stem:                     "boot",
 			installDirOnHost:         "apex/art_boot_images/javalib",
-			installDirOnDevice:       "apex/com.android.art/javalib",
+			installDirOnDevice:       "system/framework",
 			profileInstallPathInApex: "etc/boot-image.prof",
 			modules:                  artModules,
 		}
