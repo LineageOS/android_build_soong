@@ -244,17 +244,14 @@ func TestAddJSONData(t *testing.T) {
 	}
 	jsonData := map[string]interface{}{}
 	prebuiltStubsSources.AddJSONData(&jsonData)
-	if fmt.Sprint(jsonData) != fmt.Sprint(
+	expectedOut := []map[string]interface{}{
 		map[string]interface{}{
-			"Android": map[string]interface{}{},
-			"Actions": []map[string]interface{}{
-				map[string]interface{}{
-					"Inputs":  []string{},
-					"Outputs": []string{},
-				},
-			},
-		}) {
-		t.Errorf("The JSON data map isn't as expected %s.", jsonData)
+			"Inputs":  []string{},
+			"Outputs": []string{},
+		},
+	}
+	if !reflect.DeepEqual(jsonData["Actions"], expectedOut) {
+		t.Errorf("The JSON action data %#v isn't as expected %#v.", jsonData["Actions"], expectedOut)
 	}
 }
 
