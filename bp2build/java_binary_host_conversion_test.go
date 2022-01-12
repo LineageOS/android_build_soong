@@ -41,7 +41,7 @@ var fs = map[string]string{
 
 func TestJavaBinaryHost(t *testing.T) {
 	runJavaBinaryHostTestCase(t, bp2buildTestCase{
-		description: "java_binary_host with srcs, exclude_srcs, jni_libs and manifest.",
+		description: "java_binary_host with srcs, exclude_srcs, jni_libs, javacflags, and manifest.",
 		filesystem:  fs,
 		blueprint: `java_binary_host {
     name: "java-binary-host-1",
@@ -49,6 +49,7 @@ func TestJavaBinaryHost(t *testing.T) {
     exclude_srcs: ["b.java"],
     manifest: "test.mf",
     jni_libs: ["jni-lib-1"],
+    javacflags: ["-Xdoclint:all/protected"],
     bazel_module: { bp2build_available: true },
 }`,
 		expectedBazelTargets: []string{
@@ -57,6 +58,7 @@ func TestJavaBinaryHost(t *testing.T) {
 				"main_class": `"com.android.test.MainClass"`,
 				"deps":       `["//other:jni-lib-1"]`,
 				"jvm_flags":  `["-Djava.library.path=$${RUNPATH}other"]`,
+				"javacopts":  `["-Xdoclint:all/protected"]`,
 			}),
 		},
 	})

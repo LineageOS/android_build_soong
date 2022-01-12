@@ -91,15 +91,20 @@ var knownFunctions = map[string]interface {
 	"foreach":                             &foreachCallPaser{},
 	"if":                                  &ifCallParser{},
 	"info":                                &makeControlFuncParser{name: baseName + ".mkinfo"},
-	"is-board-platform":                   &isBoardPlatformCallParser{},
+	"is-board-platform":                   &simpleCallParser{name: baseName + ".board_platform_is", returnType: starlarkTypeBool, addGlobals: true},
 	"is-board-platform2":                  &simpleCallParser{name: baseName + ".board_platform_is", returnType: starlarkTypeBool, addGlobals: true},
-	"is-board-platform-in-list":           &isBoardPlatformInListCallParser{},
+	"is-board-platform-in-list":           &simpleCallParser{name: baseName + ".board_platform_in", returnType: starlarkTypeBool, addGlobals: true},
 	"is-board-platform-in-list2":          &simpleCallParser{name: baseName + ".board_platform_in", returnType: starlarkTypeBool, addGlobals: true},
 	"is-product-in-list":                  &isProductInListCallParser{},
 	"is-vendor-board-platform":            &isVendorBoardPlatformCallParser{},
 	"is-vendor-board-qcom":                &isVendorBoardQcomCallParser{},
 	"lastword":                            &firstOrLastwordCallParser{isLastWord: true},
 	"notdir":                              &simpleCallParser{name: baseName + ".notdir", returnType: starlarkTypeString, addGlobals: false},
+	"math_max":                            &mathMaxOrMinCallParser{function: "max"},
+	"math_min":                            &mathMaxOrMinCallParser{function: "min"},
+	"math_gt_or_eq":                       &mathComparisonCallParser{op: ">="},
+	"math_gt":                             &mathComparisonCallParser{op: ">"},
+	"math_lt":                             &mathComparisonCallParser{op: "<"},
 	"my-dir":                              &myDirCallParser{},
 	"patsubst":                            &substCallParser{fname: "patsubst"},
 	"product-copy-files-by-pattern":       &simpleCallParser{name: baseName + ".product_copy_files_by_pattern", returnType: starlarkTypeList, addGlobals: false},
@@ -446,7 +451,7 @@ func newParseContext(ss *StarlarkScript, nodes []mkparser.Node) *parseContext {
 		variables:        make(map[string]variable),
 		dependentModules: make(map[string]*moduleInfo),
 		soongNamespaces:  make(map[string]map[string]bool),
-		includeTops:      []string{"vendor/google-devices"},
+		includeTops:      []string{},
 	}
 	ctx.pushVarAssignments()
 	for _, item := range predefined {
@@ -809,6 +814,10 @@ func (ctx *parseContext) handleSubConfig(
 		}
 	}
 	if pathPattern[0] == "" {
+		if len(ctx.includeTops) == 0 {
+			ctx.errorf(v, "inherit-product/include statements must not be prefixed with a variable, or must include a #RBC# include_top comment beforehand giving a root directory to search.")
+			return
+		}
 		// If pattern starts from the top. restrict it to the directories where
 		// we know inherit-product uses dynamically calculated path.
 		for _, p := range ctx.includeTops {
@@ -1064,6 +1073,23 @@ func (ctx *parseContext) parseCompare(cond *mkparser.Directive) starlarkExpr {
 		case *eqExpr:
 			typedExpr.isEq = !typedExpr.isEq
 			return typedExpr
+		case *binaryOpExpr:
+			switch typedExpr.op {
+			case ">":
+				typedExpr.op = "<="
+				return typedExpr
+			case "<":
+				typedExpr.op = ">="
+				return typedExpr
+			case ">=":
+				typedExpr.op = "<"
+				return typedExpr
+			case "<=":
+				typedExpr.op = ">"
+				return typedExpr
+			default:
+				return &notExpr{expr: expr}
+			}
 		default:
 			return &notExpr{expr: expr}
 		}
@@ -1084,6 +1110,13 @@ func (ctx *parseContext) parseCompare(cond *mkparser.Directive) starlarkExpr {
 				return not(otherOperand)
 			} else {
 				return otherOperand
+			}
+		}
+		if intOperand, err := strconv.Atoi(strings.TrimSpace(stringOperand)); err == nil && otherOperand.typ() == starlarkTypeInt {
+			return &eqExpr{
+				left:  otherOperand,
+				right: &intLiteralExpr{literal: intOperand},
+				isEq:  isEq,
 			}
 		}
 	}
@@ -1406,32 +1439,6 @@ func (p *myDirCallParser) parse(ctx *parseContext, node mkparser.Node, args *mkp
 	return &variableRefExpr{ctx.addVariable("LOCAL_PATH"), true}
 }
 
-type isBoardPlatformCallParser struct{}
-
-func (p *isBoardPlatformCallParser) parse(ctx *parseContext, node mkparser.Node, args *mkparser.MakeString) starlarkExpr {
-	if args.Empty() {
-		return ctx.newBadExpr(node, "is-board-platform requires an argument")
-	}
-	return &eqExpr{
-		left:  &variableRefExpr{ctx.addVariable("TARGET_BOARD_PLATFORM"), false},
-		right: ctx.parseMakeString(node, args),
-		isEq:  true,
-	}
-}
-
-type isBoardPlatformInListCallParser struct{}
-
-func (p *isBoardPlatformInListCallParser) parse(ctx *parseContext, node mkparser.Node, args *mkparser.MakeString) starlarkExpr {
-	if args.Empty() {
-		return ctx.newBadExpr(node, "is-board-platform-in-list requires an argument")
-	}
-	return &inExpr{
-		expr:  &variableRefExpr{ctx.addVariable("TARGET_BOARD_PLATFORM"), false},
-		list:  maybeConvertToStringList(ctx.parseMakeString(node, args)),
-		isNot: false,
-	}
-}
-
 type isProductInListCallParser struct{}
 
 func (p *isProductInListCallParser) parse(ctx *parseContext, node mkparser.Node, args *mkparser.MakeString) starlarkExpr {
@@ -1621,6 +1628,68 @@ func (p *firstOrLastwordCallParser) parse(ctx *parseContext, node mkparser.Node,
 	return &indexExpr{&callExpr{object: arg, name: "split", returnType: starlarkTypeList}, index}
 }
 
+func parseIntegerArguments(ctx *parseContext, node mkparser.Node, args *mkparser.MakeString, expectedArgs int) ([]starlarkExpr, error) {
+	parsedArgs := make([]starlarkExpr, 0)
+	for _, arg := range args.Split(",") {
+		expr := ctx.parseMakeString(node, arg)
+		if expr.typ() == starlarkTypeList {
+			return nil, fmt.Errorf("argument to math argument has type list, which cannot be converted to int")
+		}
+		if s, ok := maybeString(expr); ok {
+			intVal, err := strconv.Atoi(strings.TrimSpace(s))
+			if err != nil {
+				return nil, err
+			}
+			expr = &intLiteralExpr{literal: intVal}
+		} else if expr.typ() != starlarkTypeInt {
+			expr = &callExpr{
+				name:       "int",
+				args:       []starlarkExpr{expr},
+				returnType: starlarkTypeInt,
+			}
+		}
+		parsedArgs = append(parsedArgs, expr)
+	}
+	if len(parsedArgs) != expectedArgs {
+		return nil, fmt.Errorf("function should have %d arguments", expectedArgs)
+	}
+	return parsedArgs, nil
+}
+
+type mathComparisonCallParser struct {
+	op string
+}
+
+func (p *mathComparisonCallParser) parse(ctx *parseContext, node mkparser.Node, args *mkparser.MakeString) starlarkExpr {
+	parsedArgs, err := parseIntegerArguments(ctx, node, args, 2)
+	if err != nil {
+		return ctx.newBadExpr(node, err.Error())
+	}
+	return &binaryOpExpr{
+		left:       parsedArgs[0],
+		right:      parsedArgs[1],
+		op:         p.op,
+		returnType: starlarkTypeBool,
+	}
+}
+
+type mathMaxOrMinCallParser struct {
+	function string
+}
+
+func (p *mathMaxOrMinCallParser) parse(ctx *parseContext, node mkparser.Node, args *mkparser.MakeString) starlarkExpr {
+	parsedArgs, err := parseIntegerArguments(ctx, node, args, 2)
+	if err != nil {
+		return ctx.newBadExpr(node, err.Error())
+	}
+	return &callExpr{
+		object:     nil,
+		name:       p.function,
+		args:       parsedArgs,
+		returnType: starlarkTypeInt,
+	}
+}
+
 func (ctx *parseContext) parseMakeString(node mkparser.Node, mk *mkparser.MakeString) starlarkExpr {
 	if mk.Const() {
 		return &stringLiteralExpr{mk.Dump()}
@@ -1670,6 +1739,13 @@ func (ctx *parseContext) handleSimpleStatement(node mkparser.Node) {
 		}
 	default:
 		ctx.errorf(x, "unsupported line %s", strings.ReplaceAll(x.Dump(), "\n", "\n#"))
+	}
+
+	// Clear the includeTops after each non-comment statement
+	// so that include annotations placed on certain statements don't apply
+	// globally for the rest of the makefile was well.
+	if _, wasComment := node.(*mkparser.Comment); !wasComment && len(ctx.includeTops) > 0 {
+		ctx.includeTops = []string{}
 	}
 }
 

@@ -443,8 +443,6 @@ func LibraryHostStaticFactory() android.Module {
 	module, library := NewLibrary(android.HostSupported)
 	library.BuildOnlyStatic()
 	module.sdkMemberTypes = []android.SdkMemberType{staticLibrarySdkMemberType}
-	module.bazelable = true
-	module.bazelHandler = &ccLibraryBazelHandler{module: module}
 	return module.Init()
 }
 
