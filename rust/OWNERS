@@ -2,4 +2,4 @@
 per-file * = chh@google.com, ivanlozano@google.com, jeffv@google.com, mmaurer@google.com, srhines@google.com
 
 # Limited owners/reviewers of the allowed list.
-per-file allowed_list.go = chh@google.com, ivanlozano@google.com, jeffv@google.com, jgalenson@google.com, mmaurer@google.com, srhines@google.com
+per-file allowed_list.go = chh@google.com, ivanlozano@google.com, jeffv@google.com, mmaurer@google.com, srhines@google.com
