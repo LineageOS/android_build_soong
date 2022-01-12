@@ -224,6 +224,9 @@ const (
 	// LicenseAnnotationSharedDependency should be returned by LicenseAnnotations implementations
 	// of dependency tags when the usage of the dependency is dynamic, for example a shared library
 	// linkage for native modules or as a classpath library for java modules.
+	//
+	// Dependency tags that need to always return LicenseAnnotationSharedDependency
+	// can embed LicenseAnnotationSharedDependencyTag to implement LicenseAnnotations.
 	LicenseAnnotationSharedDependency LicenseAnnotation = "dynamic"
 
 	// LicenseAnnotationToolchain should be returned by LicenseAnnotations implementations of
@@ -233,6 +236,14 @@ const (
 	// can embed LicenseAnnotationToolchainDependencyTag to implement LicenseAnnotations.
 	LicenseAnnotationToolchain LicenseAnnotation = "toolchain"
 )
+
+// LicenseAnnotationSharedDependencyTag can be embedded in a dependency tag to implement
+// LicenseAnnotations that always returns LicenseAnnotationSharedDependency.
+type LicenseAnnotationSharedDependencyTag struct{}
+
+func (LicenseAnnotationSharedDependencyTag) LicenseAnnotations() []LicenseAnnotation {
+	return []LicenseAnnotation{LicenseAnnotationSharedDependency}
+}
 
 // LicenseAnnotationToolchainDependencyTag can be embedded in a dependency tag to implement
 // LicenseAnnotations that always returns LicenseAnnotationToolchain.
