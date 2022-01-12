@@ -45,9 +45,18 @@ func buildLicenseMetadata(ctx ModuleContext) {
 		return
 	}
 
+	var outputFiles Paths
+	if outputFileProducer, ok := ctx.Module().(OutputFileProducer); ok {
+		outputFiles, _ = outputFileProducer.OutputFiles("")
+		outputFiles = PathsIfNonNil(outputFiles...)
+	}
+
+	isContainer := isContainerFromFileExtensions(base.installFiles, outputFiles)
+
 	var allDepMetadataFiles Paths
 	var allDepMetadataArgs []string
 	var allDepOutputFiles Paths
+	var allDepMetadataDepSets []*PathsDepSet
 
 	ctx.VisitDirectDepsBlueprint(func(bpdep blueprint.Module) {
 		dep, _ := bpdep.(Module)
@@ -61,6 +70,9 @@ func buildLicenseMetadata(ctx ModuleContext) {
 		if ctx.OtherModuleHasProvider(dep, LicenseMetadataProvider) {
 			info := ctx.OtherModuleProvider(dep, LicenseMetadataProvider).(*LicenseMetadataInfo)
 			allDepMetadataFiles = append(allDepMetadataFiles, info.LicenseMetadataPath)
+			if isContainer || IsInstallDepNeeded(ctx.OtherModuleDependencyTag(dep)) {
+				allDepMetadataDepSets = append(allDepMetadataDepSets, info.LicenseMetadataDepSet)
+			}
 
 			depAnnotations := licenseAnnotationsFromTag(ctx.OtherModuleDependencyTag(dep))
 
@@ -105,9 +117,14 @@ func buildLicenseMetadata(ctx ModuleContext) {
 	args = append(args,
 		JoinWithPrefix(proptools.NinjaAndShellEscapeListIncludingSpaces(base.commonProperties.Effective_license_text.Strings()), "-n "))
 
-	args = append(args,
-		JoinWithPrefix(proptools.NinjaAndShellEscapeListIncludingSpaces(allDepMetadataArgs), "-d "))
-	orderOnlyDeps = append(orderOnlyDeps, allDepMetadataFiles...)
+	if isContainer {
+		args = append(args,
+			JoinWithPrefix(proptools.NinjaAndShellEscapeListIncludingSpaces(newPathsDepSet(nil, allDepMetadataDepSets).ToList().Strings()), "-d "))
+	} else {
+		args = append(args,
+			JoinWithPrefix(proptools.NinjaAndShellEscapeListIncludingSpaces(allDepMetadataArgs), "-d "))
+		orderOnlyDeps = append(orderOnlyDeps, allDepMetadataFiles...)
+	}
 
 	args = append(args,
 		JoinWithPrefix(proptools.NinjaAndShellEscapeListIncludingSpaces(allDepOutputFiles.Strings()), "-s "))
@@ -117,12 +134,6 @@ func buildLicenseMetadata(ctx ModuleContext) {
 		JoinWithPrefix(proptools.NinjaAndShellEscapeListIncludingSpaces(base.licenseInstallMap), "-m "))
 
 	// Built files
-	var outputFiles Paths
-	if outputFileProducer, ok := ctx.Module().(OutputFileProducer); ok {
-		outputFiles, _ = outputFileProducer.OutputFiles("")
-		outputFiles = PathsIfNonNil(outputFiles...)
-	}
-
 	if len(outputFiles) > 0 {
 		args = append(args,
 			JoinWithPrefix(proptools.NinjaAndShellEscapeListIncludingSpaces(outputFiles.Strings()), "-t "))
@@ -134,7 +145,6 @@ func buildLicenseMetadata(ctx ModuleContext) {
 	args = append(args,
 		JoinWithPrefix(proptools.NinjaAndShellEscapeListIncludingSpaces(base.installFiles.Strings()), "-i "))
 
-	isContainer := isContainerFromFileExtensions(base.installFiles, outputFiles)
 	if isContainer {
 		args = append(args, "--is_container")
 	}
@@ -152,7 +162,8 @@ func buildLicenseMetadata(ctx ModuleContext) {
 	})
 
 	ctx.SetProvider(LicenseMetadataProvider, &LicenseMetadataInfo{
-		LicenseMetadataPath: licenseMetadataFile,
+		LicenseMetadataPath:   licenseMetadataFile,
+		LicenseMetadataDepSet: newPathsDepSet(Paths{licenseMetadataFile}, allDepMetadataDepSets),
 	})
 }
 
@@ -179,7 +190,8 @@ var LicenseMetadataProvider = blueprint.NewProvider(&LicenseMetadataInfo{})
 
 // LicenseMetadataInfo stores the license metadata path for a module.
 type LicenseMetadataInfo struct {
-	LicenseMetadataPath Path
+	LicenseMetadataPath   Path
+	LicenseMetadataDepSet *PathsDepSet
 }
 
 // licenseAnnotationsFromTag returns the LicenseAnnotations for a tag (if any) converted into
