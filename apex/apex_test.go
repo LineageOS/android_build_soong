@@ -8739,6 +8739,22 @@ func TestSdkLibraryCanHaveHigherMinSdkVersion(t *testing.T) {
 	})
 }
 
+// Verifies that the APEX depends on all the Make modules in the list.
+func ensureContainsRequiredDeps(t *testing.T, ctx *android.TestContext, moduleName, variant string, deps []string) {
+	a := ctx.ModuleForTests(moduleName, variant).Module().(*apexBundle)
+	for _, dep := range deps {
+		android.AssertStringListContains(t, "", a.requiredDeps, dep)
+	}
+}
+
+// Verifies that the APEX does not depend on any of the Make modules in the list.
+func ensureDoesNotContainRequiredDeps(t *testing.T, ctx *android.TestContext, moduleName, variant string, deps []string) {
+	a := ctx.ModuleForTests(moduleName, variant).Module().(*apexBundle)
+	for _, dep := range deps {
+		android.AssertStringListDoesNotContain(t, "", a.requiredDeps, dep)
+	}
+}
+
 func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
