@@ -30,6 +30,10 @@ type CodegenMetrics struct {
 	// NOTE: NOT in the .proto
 	moduleWithUnconvertedDepsMsgs []string
 
+	// List of modules with missing deps
+	// NOTE: NOT in the .proto
+	moduleWithMissingDepsMsgs []string
+
 	// List of converted modules
 	convertedModules []string
 }
@@ -54,13 +58,21 @@ func (metrics *CodegenMetrics) Print() {
 		generatedTargetCount += count
 	}
 	fmt.Printf(
-		"[bp2build] Converted %d Android.bp modules to %d total generated BUILD targets. Included %d handcrafted BUILD targets. There are %d total Android.bp modules.\n%d converted modules have unconverted deps: \n\t%s",
+		`[bp2build] Converted %d Android.bp modules to %d total generated BUILD targets. Included %d handcrafted BUILD targets. There are %d total Android.bp modules.
+%d converted modules have unconverted deps:
+	%s
+%d converted modules have missing deps:
+	%s
+`,
 		metrics.generatedModuleCount,
 		generatedTargetCount,
 		metrics.handCraftedModuleCount,
 		metrics.TotalModuleCount(),
 		len(metrics.moduleWithUnconvertedDepsMsgs),
-		strings.Join(metrics.moduleWithUnconvertedDepsMsgs, "\n\t"))
+		strings.Join(metrics.moduleWithUnconvertedDepsMsgs, "\n\t"),
+		len(metrics.moduleWithMissingDepsMsgs),
+		strings.Join(metrics.moduleWithMissingDepsMsgs, "\n\t"),
+	)
 }
 
 const bp2buildMetricsFilename = "bp2build_metrics.pb"
