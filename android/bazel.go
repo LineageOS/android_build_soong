@@ -281,7 +281,6 @@ var (
 		"development/samples/USB/MissileLauncher":            Bp2BuildDefaultTrue,
 		"development/samples/VoiceRecognitionService":        Bp2BuildDefaultTrue,
 		"development/samples/VoicemailProviderDemo":          Bp2BuildDefaultTrue,
-		"development/samples/WiFiDirectDemo":                 Bp2BuildDefaultTrue,
 		"development/sdk":                                    Bp2BuildDefaultTrueRecursively,
 		"external/arm-optimized-routines":                    Bp2BuildDefaultTrueRecursively,
 		"external/boringssl":                                 Bp2BuildDefaultTrueRecursively,
