@@ -675,7 +675,7 @@ func (compiler *baseCompiler) compile(ctx ModuleContext, flags Flags, deps PathD
 }
 
 // Compile a list of source files into objects a specified subdirectory
-func compileObjs(ctx android.ModuleContext, flags builderFlags, subdir string,
+func compileObjs(ctx ModuleContext, flags builderFlags, subdir string,
 	srcFiles, noTidySrcs, pathDeps android.Paths, cFlagsDeps android.Paths) Objects {
 
 	return transformSourceToObj(ctx, subdir, srcFiles, noTidySrcs, flags, pathDeps, cFlagsDeps)
