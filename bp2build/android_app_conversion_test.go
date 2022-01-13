@@ -66,7 +66,7 @@ func TestAndroidAppAllSupportedFields(t *testing.T) {
 			"resb/res.png":                 "",
 			"manifest/AndroidManifest.xml": "",
 		},
-		blueprint: simpleModuleDoNotConvertBp2build("android_app", "static_lib_dep") + `
+		blueprint: `
 android_app {
         name: "TestApp",
         srcs: ["app.java"],
@@ -74,7 +74,6 @@ android_app {
         package_name: "com.google",
         resource_dirs: ["resa", "resb"],
         manifest: "manifest/AndroidManifest.xml",
-        static_libs: ["static_lib_dep"]
 }
 `,
 		expectedBazelTargets: []string{
@@ -86,7 +85,6 @@ android_app {
         "resb/res.png",
     ]`,
 				"custom_package": `"com.google"`,
-				"deps":           `[":static_lib_dep"]`,
 			}),
 		}})
 }
