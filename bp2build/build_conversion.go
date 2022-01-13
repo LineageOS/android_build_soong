@@ -324,6 +324,15 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (convers
 						return
 					}
 				}
+				if unconvertedDeps := aModule.GetMissingBp2buildDeps(); len(unconvertedDeps) > 0 {
+					msg := fmt.Sprintf("%q depends on missing modules: %s", m.Name(), strings.Join(unconvertedDeps, ", "))
+					if ctx.unconvertedDepMode == warnUnconvertedDeps {
+						metrics.moduleWithMissingDepsMsgs = append(metrics.moduleWithMissingDepsMsgs, msg)
+					} else if ctx.unconvertedDepMode == errorModulesUnconvertedDeps {
+						errs = append(errs, fmt.Errorf(msg))
+						return
+					}
+				}
 				targets = generateBazelTargets(bpCtx, aModule)
 				for _, t := range targets {
 					// A module can potentially generate more than 1 Bazel
