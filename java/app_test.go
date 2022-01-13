@@ -2258,8 +2258,31 @@ func TestAndroidTest_FixTestConfig(t *testing.T) {
 				t.Errorf("test_config_fixer was not expected to run, but did: %q", params.RuleParams.Command)
 			}
 		}
-
 	}
+}
+
+func TestInstrumentationTargetPrebuilt(t *testing.T) {
+	bp := `
+		android_app_import {
+			name: "foo",
+			apk: "foo.apk",
+			presigned: true,
+		}
+
+		android_test {
+			name: "bar",
+			srcs: ["a.java"],
+			instrumentation_for: "foo",
+			sdk_version: "current",
+		}
+		`
+
+	android.GroupFixturePreparers(
+		PrepareForTestWithJavaDefaultModules,
+	).ExtendWithErrorHandler(
+		android.FixtureExpectsAtLeastOneErrorMatchingPattern(
+			"instrumentation_for: dependency \"foo\" of type \"android_app_import\" does not provide JavaInfo so is unsuitable for use with this property")).
+		RunTestWithBp(t, bp)
 }
 
 func TestStl(t *testing.T) {
