@@ -301,6 +301,19 @@ custom {
 			},
 		},
 		{
+			description: "non-existent dep",
+			blueprint: `custom {
+  name: "has_dep",
+  arch_paths: [":dep"],
+  bazel_module: { bp2build_available: true },
+}`,
+			expectedBazelTargets: []string{
+				makeBazelTarget("custom", "has_dep", attrNameToString{
+					"arch_paths": `[":dep__BP2BUILD__MISSING__DEP"]`,
+				}),
+			},
+		},
+		{
 			description: "arch-variant srcs",
 			blueprint: `custom {
     name: "arch_paths",

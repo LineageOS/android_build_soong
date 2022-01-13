@@ -236,6 +236,8 @@ var (
 	// Configure modules in these directories to enable bp2build_available: true or false by default.
 	bp2buildDefaultConfig = Bp2BuildConfig{
 		"art/libdexfile":                        Bp2BuildDefaultTrueRecursively,
+		"art/runtime":                           Bp2BuildDefaultTrueRecursively,
+		"art/tools":                             Bp2BuildDefaultTrue,
 		"bionic":                                Bp2BuildDefaultTrueRecursively,
 		"bootable/recovery/tools/recovery_l10n": Bp2BuildDefaultTrue,
 		"build/bazel/examples/soong_config_variables":        Bp2BuildDefaultTrueRecursively,
@@ -245,6 +247,7 @@ var (
 		"build/soong/cc/libbuildversion":                     Bp2BuildDefaultTrue, // Skip tests subdir
 		"build/soong/cc/ndkstubgen":                          Bp2BuildDefaultTrue,
 		"build/soong/cc/symbolfile":                          Bp2BuildDefaultTrue,
+		"build/soong/linkerconfig":                           Bp2BuildDefaultTrueRecursively,
 		"build/soong/scripts":                                Bp2BuildDefaultTrueRecursively,
 		"cts/common/device-side/nativetesthelper/jni":        Bp2BuildDefaultTrueRecursively,
 		"development/apps/DevelopmentSettings":               Bp2BuildDefaultTrue,
@@ -323,6 +326,7 @@ var (
 		"packages/apps/DevCamera":                            Bp2BuildDefaultTrue,
 		"packages/apps/HTMLViewer":                           Bp2BuildDefaultTrue,
 		"packages/apps/Protips":                              Bp2BuildDefaultTrue,
+		"packages/modules/StatsD/lib/libstatssocket":         Bp2BuildDefaultTrueRecursively,
 		"packages/modules/adb":                               Bp2BuildDefaultTrue,
 		"packages/modules/adb/apex":                          Bp2BuildDefaultTrue,
 		"packages/modules/adb/crypto":                        Bp2BuildDefaultTrueRecursively,
@@ -336,6 +340,8 @@ var (
 		"packages/services/Car/tests/SampleRearViewCamera":   Bp2BuildDefaultTrue,
 		"prebuilts/clang/host/linux-x86":                     Bp2BuildDefaultTrueRecursively,
 		"system/apex":                                        Bp2BuildDefaultFalse, // TODO(b/207466993): flaky failures
+		"system/apex/proto":                                  Bp2BuildDefaultTrueRecursively,
+		"system/apex/libs":                                   Bp2BuildDefaultTrueRecursively,
 		"system/core/debuggerd":                              Bp2BuildDefaultTrueRecursively,
 		"system/core/diagnose_usb":                           Bp2BuildDefaultTrueRecursively,
 		"system/core/libasyncio":                             Bp2BuildDefaultTrue,
@@ -364,6 +370,16 @@ var (
 
 	// Per-module denylist to always opt modules out of both bp2build and mixed builds.
 	bp2buildModuleDoNotConvertList = []string{
+		"libnativehelper_compat_libc", // Broken compile: implicit declaration of function 'strerror_r' is invalid in C99
+
+		"libart",                             // depends on unconverted modules: art_operator_srcs, libodrstatslog, libelffile, art_cmdlineparser_headers, cpp-define-generator-definitions, libcpu_features, libdexfile, libartpalette, libbacktrace, libnativebridge, libnativeloader, libsigchain, libunwindstack, libartbase, libprofile, cpp-define-generator-asm-support, apex-info-list-tinyxml, libtinyxml2, libnativeloader-headers, libstatssocket, heapprofd_client_api
+		"libart-runtime-gtest",               // depends on unconverted modules: libgtest_isolated, libart-compiler, libdexfile, libprofile, libartbase, libbacktrace, libartbase-art-gtest
+		"libart_headers",                     // depends on unconverted modules: art_libartbase_headers
+		"libartd",                            // depends on unconverted modules: apex-info-list-tinyxml, libtinyxml2, libnativeloader-headers, libstatssocket, heapprofd_client_api, art_operator_srcs, libodrstatslog, libelffiled, art_cmdlineparser_headers, cpp-define-generator-definitions, libcpu_features, libdexfiled, libartpalette, libbacktrace, libnativebridge, libnativeloader, libsigchain, libunwindstack, libartbased, libprofiled, cpp-define-generator-asm-support
+		"libartd-runtime-gtest",              // depends on unconverted modules: libgtest_isolated, libartd-compiler, libdexfiled, libprofiled, libartbased, libbacktrace, libartbased-art-gtest
+		"libstatslog_art",                    // depends on unconverted modules: statslog_art.cpp, statslog_art.h
+		"statslog_art.h", "statslog_art.cpp", // depends on unconverted modules: stats-log-api-gen
+
 		"libandroid_runtime_lazy", // depends on unconverted modules: libbinder_headers
 		"libcmd",                  // depends on unconverted modules: libbinder
 
@@ -403,22 +419,23 @@ var (
 		"libdebuggerd",       // depends on unconverted modules libdexfile_support, libunwindstack, gwp_asan_crash_handler, libtombstone_proto, libprotobuf-cpp-lite
 		"libdexfile_static",  // depends on libartpalette, libartbase, libdexfile, which are of unsupported type: art_cc_library.
 
-		"host_bionic_linker_asm",    // depends on extract_linker, a go binary.
-		"host_bionic_linker_script", // depends on extract_linker, a go binary.
-		"static_crasher",            // depends on unconverted modules: libdebuggerd_handler
+		"static_crasher", // depends on unconverted modules: libdebuggerd_handler
 
 		"pbtombstone", "crash_dump", // depends on libdebuggerd, libunwindstack
 
 		"libbase_ndk", // http://b/186826477, fails to link libctscamera2_jni for device (required for CtsCameraTestCases)
 
-		"libprotobuf-python",               // contains .proto sources
 		"libprotobuf-internal-protos",      // b/210751803, we don't handle path property for filegroups
 		"libprotobuf-internal-python-srcs", // b/210751803, we don't handle path property for filegroups
 		"libprotobuf-java-full",            // b/210751803, we don't handle path property for filegroups
 		"libprotobuf-java-util-full",       // b/210751803, we don't handle path property for filegroups
 		"conscrypt",                        // b/210751803, we don't handle path property for filegroups
 
-		"conv_linker_config", // depends on linker_config_proto, a python lib with proto sources
+		// python protos
+		"libprotobuf-python",                           // contains .proto sources
+		"conv_linker_config",                           // depends on linker_config_proto, a python lib with proto sources
+		"apex_build_info_proto", "apex_manifest_proto", // a python lib with proto sources
+		"linker_config_proto", // contains .proto sources
 
 		"brotli-fuzzer-corpus", // b/202015218: outputs are in location incompatible with bazel genrule handling.
 
@@ -448,6 +465,11 @@ var (
 
 		"libdexfile",  // depends on unconverted modules: dexfile_operator_srcs, libartbase, libartpalette,
 		"libdexfiled", // depends on unconverted modules: dexfile_operator_srcs, libartbased, libartpalette
+
+		// go deps:
+		"apex-protos",               // depends on unconverted modules: soong_zip
+		"host_bionic_linker_asm",    // depends on extract_linker, a go binary.
+		"host_bionic_linker_script", // depends on extract_linker, a go binary.
 	}
 
 	// Per-module denylist of cc_library modules to only generate the static
