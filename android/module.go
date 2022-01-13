@@ -19,6 +19,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strings"
 	"text/scanner"
@@ -1139,18 +1140,69 @@ func (attrs *CommonAttributes) fillCommonBp2BuildModuleAttrs(ctx *topDownMutator
 		}
 	}
 
-	data.Append(required)
+	productConfigEnabledLabels := []bazel.Label{}
+	if !proptools.BoolDefault(enabledProperty.Value, true) {
+		// If the module is not enabled by default, then we can check if a
+		// product variable enables it
+		productConfigEnabledLabels = productVariableConfigEnableLabels(ctx)
 
-	var err error
-	constraints := constraintAttributes{}
-	constraints.Target_compatible_with, err = enabledProperty.ToLabelListAttribute(
+		if len(productConfigEnabledLabels) > 0 {
+			// In this case, an existing product variable configuration overrides any
+			// module-level `enable: false` definition
+			newValue := true
+			enabledProperty.Value = &newValue
+		}
+	}
+
+	productConfigEnabledAttribute := bazel.MakeLabelListAttribute(bazel.LabelList{
+		productConfigEnabledLabels, nil,
+	})
+
+	platformEnabledAttribute, err := enabledProperty.ToLabelListAttribute(
 		bazel.LabelList{[]bazel.Label{bazel.Label{Label: "@platforms//:incompatible"}}, nil},
 		bazel.LabelList{[]bazel.Label{}, nil})
-
 	if err != nil {
-		ctx.ModuleErrorf("Error processing enabled attribute: %s", err)
+		ctx.ModuleErrorf("Error processing platform enabled attribute: %s", err)
 	}
+
+	data.Append(required)
+
+	constraints := constraintAttributes{}
+	moduleEnableConstraints := bazel.LabelListAttribute{}
+	moduleEnableConstraints.Append(platformEnabledAttribute)
+	moduleEnableConstraints.Append(productConfigEnabledAttribute)
+	constraints.Target_compatible_with = moduleEnableConstraints
+
 	return constraints
+}
+
+// Check product variables for `enabled: true` flag override.
+// Returns a list of the constraint_value targets who enable this override.
+func productVariableConfigEnableLabels(ctx *topDownMutatorContext) []bazel.Label {
+	productVariableProps := ProductVariableProperties(ctx)
+	productConfigEnablingTargets := []bazel.Label{}
+	const propName = "Enabled"
+	if productConfigProps, exists := productVariableProps[propName]; exists {
+		for productConfigProp, prop := range productConfigProps {
+			flag, ok := prop.(*bool)
+			if !ok {
+				ctx.ModuleErrorf("Could not convert product variable %s property", proptools.PropertyNameForField(propName))
+			}
+
+			if *flag {
+				axis := productConfigProp.ConfigurationAxis()
+				targetLabel := axis.SelectKey(productConfigProp.SelectKey())
+				productConfigEnablingTargets = append(productConfigEnablingTargets, bazel.Label{
+					Label: targetLabel,
+				})
+			} else {
+				// TODO(b/210546943): handle negative case where `enabled: false`
+				ctx.ModuleErrorf("`enabled: false` is not currently supported for configuration variables. See b/210546943", proptools.PropertyNameForField(propName))
+			}
+		}
+	}
+
+	return productConfigEnablingTargets
 }
 
 // A ModuleBase object contains the properties that are common to all Android
@@ -1326,7 +1378,64 @@ func (m *ModuleBase) GetUnconvertedBp2buildDeps() []string {
 }
 
 func (m *ModuleBase) AddJSONData(d *map[string]interface{}) {
-	(*d)["Android"] = map[string]interface{}{}
+	(*d)["Android"] = map[string]interface{}{
+		// Properties set in Blueprint or in blueprint of a defaults modules
+		"SetProperties": m.propertiesWithValues(),
+	}
+}
+
+type propInfo struct {
+	Name string
+	Type string
+}
+
+func (m *ModuleBase) propertiesWithValues() []propInfo {
+	var info []propInfo
+	props := m.GetProperties()
+
+	var propsWithValues func(name string, v reflect.Value)
+	propsWithValues = func(name string, v reflect.Value) {
+		kind := v.Kind()
+		switch kind {
+		case reflect.Ptr, reflect.Interface:
+			if v.IsNil() {
+				return
+			}
+			propsWithValues(name, v.Elem())
+		case reflect.Struct:
+			if v.IsZero() {
+				return
+			}
+			for i := 0; i < v.NumField(); i++ {
+				namePrefix := name
+				sTyp := v.Type().Field(i)
+				if proptools.ShouldSkipProperty(sTyp) {
+					continue
+				}
+				if name != "" && !strings.HasSuffix(namePrefix, ".") {
+					namePrefix += "."
+				}
+				if !proptools.IsEmbedded(sTyp) {
+					namePrefix += sTyp.Name
+				}
+				sVal := v.Field(i)
+				propsWithValues(namePrefix, sVal)
+			}
+		case reflect.Array, reflect.Slice:
+			if v.IsNil() {
+				return
+			}
+			elKind := v.Type().Elem().Kind()
+			info = append(info, propInfo{name, elKind.String() + " " + kind.String()})
+		default:
+			info = append(info, propInfo{name, kind.String()})
+		}
+	}
+
+	for _, p := range props {
+		propsWithValues("", reflect.ValueOf(p).Elem())
+	}
+	return info
 }
 
 func (m *ModuleBase) ComponentDepsMutator(BottomUpMutatorContext) {}
