@@ -51,6 +51,7 @@ var (
 	// It should be assumed that any warning lint will be promoted to a
 	// deny.
 	defaultClippyLints = []string{
+		"-A clippy::non-send-fields-in-send-ty",
 		"-A clippy::type-complexity",
 		"-A clippy::unnecessary-wraps",
 		"-A clippy::unusual-byte-groupings",
