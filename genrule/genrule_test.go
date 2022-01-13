@@ -34,7 +34,9 @@ var prepareForGenRuleTest = android.GroupFixturePreparers(
 	android.PrepareForTestWithFilegroup,
 	PrepareForTestWithGenRuleBuildComponents,
 	android.FixtureRegisterWithContext(func(ctx android.RegistrationContext) {
+		android.RegisterPrebuiltMutators(ctx)
 		ctx.RegisterModuleType("tool", toolFactory)
+		ctx.RegisterModuleType("prebuilt_tool", prebuiltToolFactory)
 		ctx.RegisterModuleType("output", outputProducerFactory)
 		ctx.RegisterModuleType("use_source", useSourceFactory)
 	}),
@@ -720,6 +722,69 @@ func TestGenruleOutputFiles(t *testing.T) {
 		result.ModuleForTests("gen_all", "").Module().(*useSource).srcs)
 }
 
+func TestPrebuiltTool(t *testing.T) {
+	testcases := []struct {
+		name             string
+		bp               string
+		expectedToolName string
+	}{
+		{
+			name: "source only",
+			bp: `
+				tool { name: "tool" }
+			`,
+			expectedToolName: "bin/tool",
+		},
+		{
+			name: "prebuilt only",
+			bp: `
+				prebuilt_tool { name: "tool" }
+			`,
+			expectedToolName: "prebuilt_bin/tool",
+		},
+		{
+			name: "source preferred",
+			bp: `
+				tool { name: "tool" }
+				prebuilt_tool { name: "tool" }
+			`,
+			expectedToolName: "bin/tool",
+		},
+		{
+			name: "prebuilt preferred",
+			bp: `
+				tool { name: "tool" }
+				prebuilt_tool { name: "tool", prefer: true }
+			`,
+			expectedToolName: "prebuilt_bin/prebuilt_tool",
+		},
+		{
+			name: "source disabled",
+			bp: `
+				tool { name: "tool", enabled: false }
+				prebuilt_tool { name: "tool" }
+      `,
+			expectedToolName: "prebuilt_bin/prebuilt_tool",
+		},
+	}
+
+	for _, test := range testcases {
+		t.Run(test.name, func(t *testing.T) {
+			result := prepareForGenRuleTest.RunTestWithBp(t, test.bp+`
+				genrule {
+					name: "gen",
+					tools: ["tool"],
+					out: ["foo"],
+					cmd: "$(location tool)",
+				}
+			`)
+			gen := result.Module("gen", "").(*Module)
+			expectedCmd := "__SBOX_SANDBOX_DIR__/tools/out/" + test.expectedToolName
+			android.AssertStringEquals(t, "command", expectedCmd, gen.rawCommands[0])
+		})
+	}
+}
+
 func TestGenruleWithBazel(t *testing.T) {
 	bp := `
 		genrule {
@@ -764,7 +829,33 @@ func (t *testTool) HostToolPath() android.OptionalPath {
 	return android.OptionalPathForPath(t.outputFile)
 }
 
+type prebuiltTestTool struct {
+	android.ModuleBase
+	prebuilt android.Prebuilt
+	testTool
+}
+
+func (p *prebuiltTestTool) Name() string {
+	return p.prebuilt.Name(p.ModuleBase.Name())
+}
+
+func (p *prebuiltTestTool) Prebuilt() *android.Prebuilt {
+	return &p.prebuilt
+}
+
+func (t *prebuiltTestTool) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	t.outputFile = ctx.InstallFile(android.PathForModuleInstall(ctx, "prebuilt_bin"), ctx.ModuleName(), android.PathForOutput(ctx, ctx.ModuleName()))
+}
+
+func prebuiltToolFactory() android.Module {
+	module := &prebuiltTestTool{}
+	android.InitPrebuiltModuleWithoutSrcs(module)
+	android.InitAndroidArchModule(module, android.HostSupported, android.MultilibFirst)
+	return module
+}
+
 var _ android.HostToolProvider = (*testTool)(nil)
+var _ android.HostToolProvider = (*prebuiltTestTool)(nil)
 
 type testOutputProducer struct {
 	android.ModuleBase
