@@ -84,11 +84,6 @@ func (d *dexer) effectiveOptimizeEnabled() bool {
 	return BoolDefault(d.dexProperties.Optimize.Enabled, d.dexProperties.Optimize.EnabledByDefault)
 }
 
-func init() {
-	pctx.HostBinToolVariable("runWithTimeoutCmd", "run_with_timeout")
-	pctx.SourcePathVariable("jstackCmd", "${config.JavaToolchain}/jstack")
-}
-
 var d8, d8RE = pctx.MultiCommandRemoteStaticRules("d8",
 	blueprint.RuleParams{
 		Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
@@ -122,10 +117,7 @@ var r8, r8RE = pctx.MultiCommandRemoteStaticRules("r8",
 		Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
 			`rm -f "$outDict" && rm -rf "${outUsageDir}" && ` +
 			`mkdir -p $$(dirname ${outUsage}) && ` +
-			// TODO(b/181095653): remove R8 timeout and go back to config.R8Cmd.
-			`${runWithTimeoutCmd} -timeout 30m -on_timeout '${jstackCmd} $$PID' -- ` +
-			`$r8Template${config.JavaCmd} ${config.DexJavaFlags} -cp ${config.R8Jar} ` +
-			`com.android.tools.r8.compatproguard.CompatProguard -injars $in --output $outDir ` +
+			`$r8Template${config.R8Cmd} ${config.DexFlags} -injars $in --output $outDir ` +
 			`--no-data-resources ` +
 			`-printmapping ${outDict} ` +
 			`-printusage ${outUsage} ` +
@@ -136,10 +128,9 @@ var r8, r8RE = pctx.MultiCommandRemoteStaticRules("r8",
 			`$zipTemplate${config.SoongZipCmd} $zipFlags -o $outDir/classes.dex.jar -C $outDir -f "$outDir/classes*.dex" && ` +
 			`${config.MergeZipsCmd} -D -stripFile "**/*.class" $out $outDir/classes.dex.jar $in`,
 		CommandDeps: []string{
-			"${config.R8Jar}",
+			"${config.R8Cmd}",
 			"${config.SoongZipCmd}",
 			"${config.MergeZipsCmd}",
-			"${runWithTimeoutCmd}",
 		},
 	}, map[string]*remoteexec.REParams{
 		"$r8Template": &remoteexec.REParams{
