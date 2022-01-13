@@ -68,7 +68,7 @@ custom_cc_library_static {
 		expectedBazelTargets: []string{`cc_library_static(
     name = "foo",
     copts = select({
-        "//build/bazel/product_variables:acme__feature1__enabled": ["-DFEATURE1"],
+        "//build/bazel/product_variables:acme__feature1": ["-DFEATURE1"],
         "//conditions:default": ["-DDEFAULT1"],
     }),
     local_includes = ["."],
@@ -116,7 +116,7 @@ custom_cc_library_static {
 		expectedBazelTargets: []string{`cc_library_static(
     name = "foo",
     copts = select({
-        "//build/bazel/product_variables:acme__feature1__enabled": ["-DFEATURE1"],
+        "//build/bazel/product_variables:acme__feature1": ["-DFEATURE1"],
         "//conditions:default": ["-DDEFAULT1"],
     }),
     local_includes = ["."],
@@ -240,10 +240,10 @@ custom_cc_library_static {
         "//build/bazel/product_variables:acme__board__soc_b": ["-DSOC_B"],
         "//conditions:default": ["-DSOC_DEFAULT"],
     }) + select({
-        "//build/bazel/product_variables:acme__feature1__enabled": ["-DFEATURE1"],
+        "//build/bazel/product_variables:acme__feature1": ["-DFEATURE1"],
         "//conditions:default": ["-DDEFAULT1"],
     }) + select({
-        "//build/bazel/product_variables:acme__feature2__enabled": ["-DFEATURE2"],
+        "//build/bazel/product_variables:acme__feature2": ["-DFEATURE2"],
         "//conditions:default": ["-DDEFAULT2"],
     }),
     local_includes = ["."],
@@ -367,7 +367,7 @@ cc_library_static {
 		expectedBazelTargets: []string{`cc_library_static(
     name = "lib",
     copts = select({
-        "//build/bazel/product_variables:vendor_foo__feature__enabled": [
+        "//build/bazel/product_variables:vendor_foo__feature": [
             "-cflag_feature_2",
             "-cflag_feature_1",
         ],
@@ -446,11 +446,11 @@ cc_library_static {
 		expectedBazelTargets: []string{`cc_library_static(
     name = "lib",
     asflags = select({
-        "//build/bazel/product_variables:acme__feature__enabled": ["-asflag_bar"],
+        "//build/bazel/product_variables:acme__feature": ["-asflag_bar"],
         "//conditions:default": ["-asflag_default_bar"],
     }),
     copts = select({
-        "//build/bazel/product_variables:acme__feature__enabled": [
+        "//build/bazel/product_variables:acme__feature": [
             "-cflag_foo",
             "-cflag_bar",
         ],
@@ -465,11 +465,11 @@ cc_library_static {
 			`cc_library_static(
     name = "lib2",
     asflags = select({
-        "//build/bazel/product_variables:acme__feature__enabled": ["-asflag_bar"],
+        "//build/bazel/product_variables:acme__feature": ["-asflag_bar"],
         "//conditions:default": ["-asflag_default_bar"],
     }),
     copts = select({
-        "//build/bazel/product_variables:acme__feature__enabled": [
+        "//build/bazel/product_variables:acme__feature": [
             "-cflag_bar",
             "-cflag_foo",
         ],
@@ -561,13 +561,13 @@ cc_library_static {
 		expectedBazelTargets: []string{`cc_library_static(
     name = "lib",
     copts = select({
-        "//build/bazel/product_variables:vendor_bar__feature__enabled": ["-DVENDOR_BAR_FEATURE"],
+        "//build/bazel/product_variables:vendor_bar__feature": ["-DVENDOR_BAR_FEATURE"],
         "//conditions:default": ["-DVENDOR_BAR_DEFAULT"],
     }) + select({
-        "//build/bazel/product_variables:vendor_foo__feature__enabled": ["-DVENDOR_FOO_FEATURE"],
+        "//build/bazel/product_variables:vendor_foo__feature": ["-DVENDOR_FOO_FEATURE"],
         "//conditions:default": ["-DVENDOR_FOO_DEFAULT"],
     }) + select({
-        "//build/bazel/product_variables:vendor_qux__feature__enabled": ["-DVENDOR_QUX_FEATURE"],
+        "//build/bazel/product_variables:vendor_qux__feature": ["-DVENDOR_QUX_FEATURE"],
         "//conditions:default": ["-DVENDOR_QUX_DEFAULT"],
     }),
     local_includes = ["."],
@@ -830,6 +830,155 @@ cc_library { name: "lib_default", bazel_module: { bp2build_available: false } }
         "//build/bazel/product_variables:android__alphabet__b": ["//foo/bar:lib_b"],
         "//conditions:default": [],
     }),
+    local_includes = ["."],
+    srcs = ["main.cc"],
+)`}})
+}
+
+func TestSoongConfigModuleType_ProductVariableConfigWithPlatformConfig(t *testing.T) {
+	bp := `
+soong_config_bool_variable {
+    name: "special_build",
+}
+
+soong_config_module_type {
+    name: "alphabet_cc_defaults",
+    module_type: "cc_defaults",
+    config_namespace: "alphabet_module",
+    bool_variables: ["special_build"],
+    properties: ["enabled"],
+}
+
+alphabet_cc_defaults {
+    name: "alphabet_sample_cc_defaults",
+    soong_config_variables: {
+        special_build: {
+            enabled: true,
+        },
+    },
+}
+
+cc_binary {
+    name: "alphabet_binary",
+    srcs: ["main.cc"],
+    defaults: ["alphabet_sample_cc_defaults"],
+    enabled: false,
+    arch: {
+        x86_64: {
+            enabled: false,
+        },
+    },
+    target: {
+        darwin: {
+            enabled: false,
+        },
+    },
+}`
+
+	runSoongConfigModuleTypeTest(t, bp2buildTestCase{
+		description:                "soong config variables - generates selects for library_linking_strategy",
+		moduleTypeUnderTest:        "cc_binary",
+		moduleTypeUnderTestFactory: cc.BinaryFactory,
+		blueprint:                  bp,
+		filesystem:                 map[string]string{},
+		expectedBazelTargets: []string{`cc_binary(
+    name = "alphabet_binary",
+    local_includes = ["."],
+    srcs = ["main.cc"],
+    target_compatible_with = ["//build/bazel/product_variables:alphabet_module__special_build"] + select({
+        "//build/bazel/platforms/os_arch:android_x86_64": ["@platforms//:incompatible"],
+        "//build/bazel/platforms/os_arch:darwin_arm64": ["@platforms//:incompatible"],
+        "//build/bazel/platforms/os_arch:darwin_x86_64": ["@platforms//:incompatible"],
+        "//build/bazel/platforms/os_arch:linux_bionic_x86_64": ["@platforms//:incompatible"],
+        "//build/bazel/platforms/os_arch:linux_glibc_x86_64": ["@platforms//:incompatible"],
+        "//build/bazel/platforms/os_arch:linux_musl_x86_64": ["@platforms//:incompatible"],
+        "//build/bazel/platforms/os_arch:windows_x86_64": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),
+)`}})
+}
+
+func TestSoongConfigModuleType_ProductVariableConfigOverridesEnable(t *testing.T) {
+	bp := `
+soong_config_bool_variable {
+    name: "special_build",
+}
+
+soong_config_module_type {
+    name: "alphabet_cc_defaults",
+    module_type: "cc_defaults",
+    config_namespace: "alphabet_module",
+    bool_variables: ["special_build"],
+    properties: ["enabled"],
+}
+
+alphabet_cc_defaults {
+    name: "alphabet_sample_cc_defaults",
+    soong_config_variables: {
+        special_build: {
+            enabled: true,
+        },
+    },
+}
+
+cc_binary {
+    name: "alphabet_binary",
+    srcs: ["main.cc"],
+    defaults: ["alphabet_sample_cc_defaults"],
+    enabled: false,
+}`
+
+	runSoongConfigModuleTypeTest(t, bp2buildTestCase{
+		description:                "soong config variables - generates selects for library_linking_strategy",
+		moduleTypeUnderTest:        "cc_binary",
+		moduleTypeUnderTestFactory: cc.BinaryFactory,
+		blueprint:                  bp,
+		filesystem:                 map[string]string{},
+		expectedBazelTargets: []string{`cc_binary(
+    name = "alphabet_binary",
+    local_includes = ["."],
+    srcs = ["main.cc"],
+    target_compatible_with = ["//build/bazel/product_variables:alphabet_module__special_build"],
+)`}})
+}
+
+func TestSoongConfigModuleType_ProductVariableIgnoredIfEnabledByDefault(t *testing.T) {
+	bp := `
+soong_config_bool_variable {
+    name: "special_build",
+}
+
+soong_config_module_type {
+    name: "alphabet_cc_defaults",
+    module_type: "cc_defaults",
+    config_namespace: "alphabet_module",
+    bool_variables: ["special_build"],
+    properties: ["enabled"],
+}
+
+alphabet_cc_defaults {
+    name: "alphabet_sample_cc_defaults",
+    soong_config_variables: {
+        special_build: {
+            enabled: true,
+        },
+    },
+}
+
+cc_binary {
+    name: "alphabet_binary",
+    srcs: ["main.cc"],
+    defaults: ["alphabet_sample_cc_defaults"],
+}`
+
+	runSoongConfigModuleTypeTest(t, bp2buildTestCase{
+		description:                "soong config variables - generates selects for library_linking_strategy",
+		moduleTypeUnderTest:        "cc_binary",
+		moduleTypeUnderTestFactory: cc.BinaryFactory,
+		blueprint:                  bp,
+		filesystem:                 map[string]string{},
+		expectedBazelTargets: []string{`cc_binary(
+    name = "alphabet_binary",
     local_includes = ["."],
     srcs = ["main.cc"],
 )`}})
