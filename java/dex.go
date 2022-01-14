@@ -73,7 +73,7 @@ type DexProperties struct {
 	// It exists only to support ART tests.
 	Uncompress_dex *bool
 
-	// Exclude kotlinc generate files: *.kotlin_module, *.kotlin_builtins. Defaults to true.
+	// Exclude kotlinc generate files: *.kotlin_module, *.kotlin_builtins. Defaults to false.
 	Exclude_kotlinc_generated_files *bool
 }
 
