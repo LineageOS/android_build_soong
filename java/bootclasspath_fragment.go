@@ -219,6 +219,11 @@ type BootclasspathFragmentModule struct {
 
 	// Collect the module directory for IDE info in java/jdeps.go.
 	modulePaths []string
+
+	// Installs for on-device boot image files. This list has entries only if the installs should be
+	// handled by Make (e.g., the boot image should be installed on the system partition, rather than
+	// in the APEX).
+	bootImageDeviceInstalls []dexpreopterInstall
 }
 
 // commonBootclasspathFragment defines the methods that are implemented by both source and prebuilt
@@ -387,6 +392,9 @@ type BootclasspathFragmentApexContentInfo struct {
 	// Map from arch type to the boot image files.
 	bootImageFilesByArch bootImageFilesByArch
 
+	// True if the boot image should be installed in the APEX.
+	shouldInstallBootImageInApex bool
+
 	// Map from the base module name (without prebuilt_ prefix) of a fragment's contents module to the
 	// hidden API encoded dex jar path.
 	contentModuleDexJarPaths bootDexJarByModule
@@ -408,6 +416,11 @@ func (i BootclasspathFragmentApexContentInfo) Modules() android.ConfiguredJarLis
 // Extension boot images only return their own files, not the files of the boot images they extend.
 func (i BootclasspathFragmentApexContentInfo) AndroidBootImageFilesByArchType() bootImageFilesByArch {
 	return i.bootImageFilesByArch
+}
+
+// Return true if the boot image should be installed in the APEX.
+func (i *BootclasspathFragmentApexContentInfo) ShouldInstallBootImageInApex() bool {
+	return i.shouldInstallBootImageInApex
 }
 
 // DexBootJarPathForContentModule returns the path to the dex boot jar for specified module.
@@ -550,6 +563,24 @@ func (b *BootclasspathFragmentModule) GenerateAndroidBuildActions(ctx android.Mo
 				// Copy the dex jars of this fragment's content modules to their predefined locations.
 				copyBootJarsToPredefinedLocations(ctx, hiddenAPIOutput.EncodedBootDexFilesByModule, imageConfig.dexPathsByModule)
 			}
+
+			for _, variant := range imageConfig.apexVariants() {
+				arch := variant.target.Arch.ArchType.String()
+				for _, install := range variant.deviceInstalls {
+					// Remove the "/" prefix because the path should be relative to $ANDROID_PRODUCT_OUT.
+					installDir := strings.TrimPrefix(filepath.Dir(install.To), "/")
+					installBase := filepath.Base(install.To)
+					installPath := android.PathForModuleInPartitionInstall(ctx, "", installDir)
+
+					b.bootImageDeviceInstalls = append(b.bootImageDeviceInstalls, dexpreopterInstall{
+						name:                arch + "-" + installBase,
+						moduleName:          b.Name(),
+						outputPathOnHost:    install.From,
+						installDirOnDevice:  installPath,
+						installFileOnDevice: installBase,
+					})
+				}
+			}
 		}
 
 		// A prebuilt fragment cannot contribute to an apex.
@@ -599,6 +630,8 @@ func (b *BootclasspathFragmentModule) provideApexContentInfo(ctx android.ModuleC
 			info.profilePathOnHost = imageConfig.profilePathOnHost
 			info.profileInstallPathInApex = imageConfig.profileInstallPathInApex
 		}
+
+		info.shouldInstallBootImageInApex = imageConfig.shouldInstallInApex()
 	}
 
 	info.bootImageFilesByArch = bootImageFilesByArch
@@ -811,6 +844,23 @@ func (b *BootclasspathFragmentModule) generateBootImageBuildActions(ctx android.
 	// Return the boot image files for the android variants for inclusion in an APEX and to be zipped
 	// up for the dist.
 	return androidBootImageFilesByArch
+}
+
+func (b *BootclasspathFragmentModule) AndroidMkEntries() []android.AndroidMkEntries {
+	var entriesList []android.AndroidMkEntries
+	for _, install := range b.bootImageDeviceInstalls {
+		entriesList = append(entriesList, install.ToMakeEntries())
+	}
+	return entriesList
+}
+
+// Returns the names of all Make modules that handle the installation of the boot image.
+func (b *BootclasspathFragmentModule) BootImageDeviceInstallMakeModules() []string {
+	var makeModules []string
+	for _, install := range b.bootImageDeviceInstalls {
+		makeModules = append(makeModules, install.FullModuleName())
+	}
+	return makeModules
 }
 
 // Collect information for opening IDE project files in java/jdeps.go.

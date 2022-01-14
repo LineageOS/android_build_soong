@@ -57,6 +57,25 @@ func (install *dexpreopterInstall) SubModuleName() string {
 	return "-dexpreopt-" + install.name
 }
 
+// Returns Make entries for installing the file.
+//
+// This function uses a value receiver rather than a pointer receiver to ensure that the object is
+// safe to use in `android.AndroidMkExtraEntriesFunc`.
+func (install dexpreopterInstall) ToMakeEntries() android.AndroidMkEntries {
+	return android.AndroidMkEntries{
+		Class:      "ETC",
+		SubName:    install.SubModuleName(),
+		OutputFile: android.OptionalPathForPath(install.outputPathOnHost),
+		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
+			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
+				entries.SetString("LOCAL_MODULE_PATH", install.installDirOnDevice.String())
+				entries.SetString("LOCAL_INSTALLED_MODULE_STEM", install.installFileOnDevice)
+				entries.SetString("LOCAL_NOT_AVAILABLE_FOR_PLATFORM", "false")
+			},
+		},
+	}
+}
+
 type dexpreopter struct {
 	dexpreoptProperties DexpreoptProperties
 
@@ -383,19 +402,7 @@ func (d *dexpreopter) DexpreoptBuiltInstalledForApex() []dexpreopterInstall {
 func (d *dexpreopter) AndroidMkEntriesForApex() []android.AndroidMkEntries {
 	var entries []android.AndroidMkEntries
 	for _, install := range d.builtInstalledForApex {
-		install := install
-		entries = append(entries, android.AndroidMkEntries{
-			Class:      "ETC",
-			SubName:    install.SubModuleName(),
-			OutputFile: android.OptionalPathForPath(install.outputPathOnHost),
-			ExtraEntries: []android.AndroidMkExtraEntriesFunc{
-				func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
-					entries.SetString("LOCAL_MODULE_PATH", install.installDirOnDevice.String())
-					entries.SetString("LOCAL_INSTALLED_MODULE_STEM", install.installFileOnDevice)
-					entries.SetString("LOCAL_NOT_AVAILABLE_FOR_PLATFORM", "false")
-				},
-			},
-		})
+		entries = append(entries, install.ToMakeEntries())
 	}
 	return entries
 }
