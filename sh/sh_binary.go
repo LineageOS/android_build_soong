@@ -268,6 +268,9 @@ func (s *ShBinary) generateAndroidBuildActions(ctx android.ModuleContext) {
 func (s *ShBinary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	s.generateAndroidBuildActions(ctx)
 	installDir := android.PathForModuleInstall(ctx, "bin", proptools.String(s.properties.Sub_dir))
+	if !s.Installable() {
+		s.SkipInstall()
+	}
 	s.installedFile = ctx.InstallExecutable(installDir, s.outputFilePath.Base(), s.outputFilePath)
 	for _, symlink := range s.Symlinks() {
 		ctx.InstallSymlink(installDir, symlink, s.installedFile)
@@ -283,6 +286,7 @@ func (s *ShBinary) AndroidMkEntries() []android.AndroidMkEntries {
 			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
 				s.customAndroidMkEntries(entries)
 				entries.SetString("LOCAL_MODULE_RELATIVE_PATH", proptools.String(s.properties.Sub_dir))
+				entries.SetBoolIfTrue("LOCAL_UNINSTALLABLE_MODULE", !s.Installable())
 			},
 		},
 	}}
