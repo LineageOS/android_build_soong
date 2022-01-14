@@ -506,3 +506,19 @@ func fakeApexMutator(mctx android.BottomUpMutatorContext) {
 		}
 	}
 }
+
+// Applies the given modifier on the boot image config with the given name.
+func FixtureModifyBootImageConfig(name string, configModifier func(*bootImageConfig)) android.FixturePreparer {
+	return android.FixtureModifyConfig(func(androidConfig android.Config) {
+		pathCtx := android.PathContextForTesting(androidConfig)
+		config := genBootImageConfigRaw(pathCtx)
+		configModifier(config[name])
+	})
+}
+
+// Sets the value of `installDirOnDevice` of the boot image config with the given name.
+func FixtureSetBootImageInstallDirOnDevice(name string, installDir string) android.FixturePreparer {
+	return FixtureModifyBootImageConfig(name, func(config *bootImageConfig) {
+		config.installDirOnDevice = installDir
+	})
+}

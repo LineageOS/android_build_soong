@@ -313,10 +313,13 @@ type bootImageVariant struct {
 	// This is only set for a variant of an image that extends another image.
 	primaryImagesDeps android.Paths
 
-	// Rules which should be used in make to install the outputs.
+	// Rules which should be used in make to install the outputs on host.
 	installs           android.RuleBuilderInstalls
 	vdexInstalls       android.RuleBuilderInstalls
 	unstrippedInstalls android.RuleBuilderInstalls
+
+	// Rules which should be used in make to install the outputs on device.
+	deviceInstalls android.RuleBuilderInstalls
 }
 
 // Get target-specific boot image variant for the given boot image config and target.
@@ -386,6 +389,11 @@ func (image *bootImageConfig) apexVariants() []*bootImageVariant {
 		}
 	}
 	return variants
+}
+
+// Returns true if the boot image should be installed in the APEX.
+func (image *bootImageConfig) shouldInstallInApex() bool {
+	return strings.HasPrefix(image.installDirOnDevice, "apex/")
 }
 
 // Return boot image locations (as a list of symbolic paths).
@@ -710,6 +718,7 @@ func buildBootImageVariant(ctx android.ModuleContext, image *bootImageVariant, p
 
 	var vdexInstalls android.RuleBuilderInstalls
 	var unstrippedInstalls android.RuleBuilderInstalls
+	var deviceInstalls android.RuleBuilderInstalls
 
 	for _, artOrOat := range image.moduleFiles(ctx, outputDir, ".art", ".oat") {
 		cmd.ImplicitOutput(artOrOat)
@@ -735,12 +744,21 @@ func buildBootImageVariant(ctx android.ModuleContext, image *bootImageVariant, p
 			android.RuleBuilderInstall{unstrippedOat, filepath.Join(installDir, unstrippedOat.Base())})
 	}
 
+	if image.installDirOnHost != image.installDirOnDevice && !image.shouldInstallInApex() && !ctx.Config().UnbundledBuild() {
+		installDirOnDevice := filepath.Join("/", image.installDirOnDevice, arch.String())
+		for _, file := range image.moduleFiles(ctx, outputDir, ".art", ".oat", ".vdex") {
+			deviceInstalls = append(deviceInstalls,
+				android.RuleBuilderInstall{file, filepath.Join(installDirOnDevice, file.Base())})
+		}
+	}
+
 	rule.Build(image.name+"JarsDexpreopt_"+image.target.String(), "dexpreopt "+image.name+" jars "+arch.String())
 
 	// save output and installed files for makevars
 	image.installs = rule.Installs()
 	image.vdexInstalls = vdexInstalls
 	image.unstrippedInstalls = unstrippedInstalls
+	image.deviceInstalls = deviceInstalls
 }
 
 const failureMessage = `ERROR: Dex2oat failed to compile a boot image.
