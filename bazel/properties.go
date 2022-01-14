@@ -492,7 +492,7 @@ func (ba *BoolAttribute) Collapse() error {
 		// Verify post-condition; this should never fail, provided no additional
 		// axes are introduced.
 		if len(ba.ConfigurableValues) > 1 {
-			panic(fmt.Errorf("error in collapsing attribute: %s", ba))
+			panic(fmt.Errorf("error in collapsing attribute: %#v", ba))
 		}
 	}
 	return nil
