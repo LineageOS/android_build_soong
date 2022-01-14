@@ -1945,6 +1945,9 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 				sm := module.(SystemModulesProvider)
 				outputDir, outputDeps := sm.OutputDirAndDeps()
 				deps.systemModules = &systemModules{outputDir, outputDeps}
+
+			case instrumentationForTag:
+				ctx.PropertyErrorf("instrumentation_for", "dependency %q of type %q does not provide JavaInfo so is unsuitable for use with this property", ctx.OtherModuleName(module), ctx.OtherModuleType(module))
 			}
 		}
 
