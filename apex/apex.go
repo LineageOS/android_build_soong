@@ -76,6 +76,8 @@ func RegisterPostDepsMutators(ctx android.RegisterMutatorsContext) {
 	ctx.BottomUp("apex", apexMutator).Parallel()
 	ctx.BottomUp("apex_directly_in_any", apexDirectlyInAnyMutator).Parallel()
 	ctx.BottomUp("apex_flattened", apexFlattenedMutator).Parallel()
+	// Register after apex_info mutator so that it can use ApexVariationName
+	ctx.TopDown("apex_strict_updatability_lint", apexStrictUpdatibilityLintMutator).Parallel()
 }
 
 type apexBundleProperties struct {
@@ -998,6 +1000,23 @@ func apexInfoMutator(mctx android.TopDownMutatorContext) {
 	if a, ok := mctx.Module().(ApexInfoMutator); ok {
 		a.ApexInfoMutator(mctx)
 		return
+	}
+}
+
+// apexStrictUpdatibilityLintMutator propagates strict_updatability_linting to transitive deps of a mainline module
+// This check is enforced for updatable modules
+func apexStrictUpdatibilityLintMutator(mctx android.TopDownMutatorContext) {
+	if !mctx.Module().Enabled() {
+		return
+	}
+	if apex, ok := mctx.Module().(*apexBundle); ok && apex.Updatable() {
+		mctx.WalkDeps(func(child, parent android.Module) bool {
+			if lintable, ok := child.(java.LintDepSetsIntf); ok {
+				lintable.SetStrictUpdatabilityLinting(true)
+			}
+			// visit transitive deps
+			return true
+		})
 	}
 }
 
