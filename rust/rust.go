@@ -366,10 +366,6 @@ func (mod *Module) SdkVersion() string {
 	return ""
 }
 
-func (mod *Module) MinSdkVersion() string {
-	return ""
-}
-
 func (mod *Module) AlwaysSdk() bool {
 	return false
 }
@@ -1497,15 +1493,13 @@ func (mod *Module) HostToolPath() android.OptionalPath {
 
 var _ android.ApexModule = (*Module)(nil)
 
-func (mod *Module) minSdkVersion() string {
+func (mod *Module) MinSdkVersion() string {
 	return String(mod.Properties.Min_sdk_version)
 }
 
-var _ android.ApexModule = (*Module)(nil)
-
 // Implements android.ApexModule
 func (mod *Module) ShouldSupportSdkVersion(ctx android.BaseModuleContext, sdkVersion android.ApiLevel) error {
-	minSdkVersion := mod.minSdkVersion()
+	minSdkVersion := mod.MinSdkVersion()
 	if minSdkVersion == "apex_inherit" {
 		return nil
 	}

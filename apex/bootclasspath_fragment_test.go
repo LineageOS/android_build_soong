@@ -410,6 +410,7 @@ func TestBootclasspathFragmentInArtApex(t *testing.T) {
 			// bootclasspath_fragment's contents property.
 			java.FixtureConfigureBootJars("com.android.art:foo", "com.android.art:bar"),
 			addSource("foo", "bar"),
+			java.FixtureSetBootImageInstallDirOnDevice("art", "apex/com.android.art/javalib"),
 		).RunTest(t)
 
 		ensureExactContents(t, result.TestContext, "com.android.art", "android_common_com.android.art_image", []string{
@@ -437,10 +438,60 @@ func TestBootclasspathFragmentInArtApex(t *testing.T) {
 			`mybootclasspathfragment`,
 		})
 
+		// The boot images are installed in the APEX by Soong, so there shouldn't be any dexpreopt-related Make modules.
+		ensureDoesNotContainRequiredDeps(t, result.TestContext, "com.android.art", "android_common_com.android.art_image", []string{
+			"mybootclasspathfragment-dexpreopt-arm64-boot.art",
+			"mybootclasspathfragment-dexpreopt-arm64-boot.oat",
+			"mybootclasspathfragment-dexpreopt-arm64-boot.vdex",
+			"mybootclasspathfragment-dexpreopt-arm64-boot-bar.art",
+			"mybootclasspathfragment-dexpreopt-arm64-boot-bar.oat",
+			"mybootclasspathfragment-dexpreopt-arm64-boot-bar.vdex",
+			"mybootclasspathfragment-dexpreopt-arm-boot.art",
+			"mybootclasspathfragment-dexpreopt-arm-boot.oat",
+			"mybootclasspathfragment-dexpreopt-arm-boot.vdex",
+			"mybootclasspathfragment-dexpreopt-arm-boot-bar.art",
+			"mybootclasspathfragment-dexpreopt-arm-boot-bar.oat",
+			"mybootclasspathfragment-dexpreopt-arm-boot-bar.vdex",
+		})
+
 		// Make sure that the source bootclasspath_fragment copies its dex files to the predefined
 		// locations for the art image.
 		module := result.ModuleForTests("mybootclasspathfragment", "android_common_apex10000")
 		checkCopiesToPredefinedLocationForArt(t, result.Config, module, "bar", "foo")
+	})
+
+	t.Run("boot image files from source no boot image in apex", func(t *testing.T) {
+		result := android.GroupFixturePreparers(
+			commonPreparer,
+
+			// Configure some libraries in the art bootclasspath_fragment that match the source
+			// bootclasspath_fragment's contents property.
+			java.FixtureConfigureBootJars("com.android.art:foo", "com.android.art:bar"),
+			addSource("foo", "bar"),
+			java.FixtureSetBootImageInstallDirOnDevice("art", "system/framework"),
+		).RunTest(t)
+
+		ensureExactContents(t, result.TestContext, "com.android.art", "android_common_com.android.art_image", []string{
+			"etc/boot-image.prof",
+			"etc/classpaths/bootclasspath.pb",
+			"javalib/bar.jar",
+			"javalib/foo.jar",
+		})
+
+		ensureContainsRequiredDeps(t, result.TestContext, "com.android.art", "android_common_com.android.art_image", []string{
+			"mybootclasspathfragment-dexpreopt-arm64-boot.art",
+			"mybootclasspathfragment-dexpreopt-arm64-boot.oat",
+			"mybootclasspathfragment-dexpreopt-arm64-boot.vdex",
+			"mybootclasspathfragment-dexpreopt-arm64-boot-bar.art",
+			"mybootclasspathfragment-dexpreopt-arm64-boot-bar.oat",
+			"mybootclasspathfragment-dexpreopt-arm64-boot-bar.vdex",
+			"mybootclasspathfragment-dexpreopt-arm-boot.art",
+			"mybootclasspathfragment-dexpreopt-arm-boot.oat",
+			"mybootclasspathfragment-dexpreopt-arm-boot.vdex",
+			"mybootclasspathfragment-dexpreopt-arm-boot-bar.art",
+			"mybootclasspathfragment-dexpreopt-arm-boot-bar.oat",
+			"mybootclasspathfragment-dexpreopt-arm-boot-bar.vdex",
+		})
 	})
 
 	t.Run("boot image disable generate profile", func(t *testing.T) {
@@ -472,6 +523,8 @@ func TestBootclasspathFragmentInArtApex(t *testing.T) {
 
 			// Make sure that a preferred prebuilt with consistent contents doesn't affect the apex.
 			addPrebuilt(true, "foo", "bar"),
+
+			java.FixtureSetBootImageInstallDirOnDevice("art", "apex/com.android.art/javalib"),
 		).RunTest(t)
 
 		ensureExactContents(t, result.TestContext, "com.android.art", "android_common_com.android.art_image", []string{
