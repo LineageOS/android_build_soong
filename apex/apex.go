@@ -1765,13 +1765,17 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 				}
 			case bcpfTag:
 				{
-					if _, ok := child.(*java.BootclasspathFragmentModule); !ok {
+					bcpfModule, ok := child.(*java.BootclasspathFragmentModule)
+					if !ok {
 						ctx.PropertyErrorf("bootclasspath_fragments", "%q is not a bootclasspath_fragment module", depName)
 						return false
 					}
 
 					filesToAdd := apexBootclasspathFragmentFiles(ctx, child)
 					filesInfo = append(filesInfo, filesToAdd...)
+					for _, makeModuleName := range bcpfModule.BootImageDeviceInstallMakeModules() {
+						a.requiredDeps = append(a.requiredDeps, makeModuleName)
+					}
 					return true
 				}
 			case sscpfTag:
@@ -2175,13 +2179,15 @@ func apexBootclasspathFragmentFiles(ctx android.ModuleContext, module blueprint.
 	var filesToAdd []apexFile
 
 	// Add the boot image files, e.g. .art, .oat and .vdex files.
-	for arch, files := range bootclasspathFragmentInfo.AndroidBootImageFilesByArchType() {
-		dirInApex := filepath.Join("javalib", arch.String())
-		for _, f := range files {
-			androidMkModuleName := "javalib_" + arch.String() + "_" + filepath.Base(f.String())
-			// TODO(b/177892522) - consider passing in the bootclasspath fragment module here instead of nil
-			af := newApexFile(ctx, f, androidMkModuleName, dirInApex, etc, nil)
-			filesToAdd = append(filesToAdd, af)
+	if bootclasspathFragmentInfo.ShouldInstallBootImageInApex() {
+		for arch, files := range bootclasspathFragmentInfo.AndroidBootImageFilesByArchType() {
+			dirInApex := filepath.Join("javalib", arch.String())
+			for _, f := range files {
+				androidMkModuleName := "javalib_" + arch.String() + "_" + filepath.Base(f.String())
+				// TODO(b/177892522) - consider passing in the bootclasspath fragment module here instead of nil
+				af := newApexFile(ctx, f, androidMkModuleName, dirInApex, etc, nil)
+				filesToAdd = append(filesToAdd, af)
+			}
 		}
 	}
 
