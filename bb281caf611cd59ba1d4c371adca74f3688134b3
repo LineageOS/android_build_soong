@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "c60dc0a3_787dbfdf",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 10067
+      },
+      "writtenOn": "2022-01-16T21:48:59Z",
+      "side": 1,
+      "message": "alternative solution — https://gist.github.com/luca020400/b99028333d532c59c4e8b176d931bf94",
+      "revId": "bb281caf611cd59ba1d4c371adca74f3688134b3",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
