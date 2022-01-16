@@ -136,6 +136,9 @@ func (r *NameResolver) addNamespace(namespace *Namespace) (err error) {
 			return fmt.Errorf("a namespace must be the first module in the file")
 		}
 	}
+	if (namespace.exportToKati) {
+		r.rootNamespace.visibleNamespaces = append(r.rootNamespace.visibleNamespaces, namespace)
+	}
 	r.sortedNamespaces.add(namespace)
 
 	r.namespacesByDir.Store(namespace.Path, namespace)
