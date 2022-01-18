@@ -226,6 +226,7 @@ var (
 		"packages/apps/WallpaperPicker":/* recursive = */ false,
 
 		"prebuilts/gcc":/* recursive = */ true,
+		"prebuilts/build-tools":/* recursive = */ false,
 		"prebuilts/sdk":/* recursive = */ false,
 		"prebuilts/sdk/current/extras/app-toolkit":/* recursive = */ false,
 		"prebuilts/sdk/current/support":/* recursive = */ false,
