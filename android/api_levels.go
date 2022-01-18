@@ -344,7 +344,7 @@ func getFinalCodenamesMap(config Config) map[string]int {
 
 var apiLevelsMapKey = NewOnceKey("ApiLevelsMap")
 
-func getApiLevelsMap(config Config) map[string]int {
+func GetApiLevelsMap(config Config) map[string]int {
 	return config.Once(apiLevelsMapKey, func() interface{} {
 		apiLevelsMap := map[string]int{
 			"G":     9,
@@ -374,7 +374,7 @@ func getApiLevelsMap(config Config) map[string]int {
 }
 
 func (a *apiLevelsSingleton) GenerateBuildActions(ctx SingletonContext) {
-	apiLevelsMap := getApiLevelsMap(ctx.Config())
+	apiLevelsMap := GetApiLevelsMap(ctx.Config())
 	apiLevelsJson := GetApiLevelsJson(ctx)
 	createApiLevelsJson(ctx, apiLevelsJson, apiLevelsMap)
 }

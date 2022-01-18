@@ -1297,6 +1297,8 @@ func makeCcLibraryTargets(name string, attrs attrNameToString) []string {
 		"additional_linker_inputs": true,
 		"linkopts":                 true,
 		"strip":                    true,
+		"stubs_symbol_file":        true,
+		"stubs_versions":           true,
 	}
 	sharedAttrs := attrNameToString{}
 	staticAttrs := attrNameToString{}
@@ -2389,4 +2391,33 @@ func TestCcLibraryStaticDisabledForSomeArch(t *testing.T) {
     })`,
 		}),
 		}})
+}
+
+func TestCcLibraryStubs(t *testing.T) {
+	runCcLibraryTestCase(t, bp2buildTestCase{
+		description:                "cc_library stubs",
+		moduleTypeUnderTest:        "cc_library",
+		moduleTypeUnderTestFactory: cc.LibraryFactory,
+		dir:                        "foo/bar",
+		filesystem: map[string]string{
+			"foo/bar/Android.bp": `
+cc_library {
+    name: "a",
+    stubs: { symbol_file: "a.map.txt", versions: ["28", "29", "current"] },
+    bazel_module: { bp2build_available: true },
+    include_build_directory: false,
+}
+`,
+		},
+		blueprint: soongCcLibraryPreamble,
+		expectedBazelTargets: makeCcLibraryTargets("a", attrNameToString{
+			"stubs_symbol_file": `"a.map.txt"`,
+			"stubs_versions": `[
+        "28",
+        "29",
+        "current",
+    ]`,
+		}),
+	},
+	)
 }

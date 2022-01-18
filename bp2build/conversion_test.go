@@ -102,6 +102,14 @@ func TestCreateBazelFiles_Bp2Build_CreatesDefaultFiles(t *testing.T) {
 			dir:      "product_config",
 			basename: "soong_config_variables.bzl",
 		},
+		{
+			dir:      "api_levels",
+			basename: GeneratedBuildFileName,
+		},
+		{
+			dir:      "api_levels",
+			basename: "api_levels.json",
+		},
 	}
 
 	if len(files) != len(expectedFilePaths) {
