@@ -1,6 +1,7 @@
 package bp2build
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
@@ -26,6 +27,13 @@ func CreateSoongInjectionFiles(cfg android.Config, metrics CodegenMetrics) []Baz
 	files = append(files, newFile("metrics", "converted_modules.txt", strings.Join(metrics.convertedModules, "\n")))
 
 	files = append(files, newFile("product_config", "soong_config_variables.bzl", cfg.Bp2buildSoongConfigDefinitions.String()))
+
+	apiLevelsContent, err := json.Marshal(android.GetApiLevelsMap(cfg))
+	if err != nil {
+		panic(err)
+	}
+	files = append(files, newFile("api_levels", GeneratedBuildFileName, `exports_files(["api_levels.json"])`))
+	files = append(files, newFile("api_levels", "api_levels.json", string(apiLevelsContent)))
 
 	return files
 }
