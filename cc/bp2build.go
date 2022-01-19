@@ -280,6 +280,9 @@ type compilerAttributes struct {
 	includes BazelIncludes
 
 	protoSrcs bazel.LabelListAttribute
+
+	stubsSymbolFile *string
+	stubsVersions   bazel.StringListAttribute
 }
 
 type filterOutFn func(string) bool
@@ -464,10 +467,11 @@ func includesFromLabelList(labelList bazel.LabelList) (relative, absolute []stri
 	return relative, absolute
 }
 
-// bp2BuildParseCompilerProps returns copts, srcs and hdrs and other attributes.
+// bp2BuildParseBaseProps returns all compiler, linker, library attributes of a cc module..
 func bp2BuildParseBaseProps(ctx android.Bp2buildMutatorContext, module *Module) baseAttributes {
 	archVariantCompilerProps := module.GetArchVariantProperties(ctx, &BaseCompilerProperties{})
 	archVariantLinkerProps := module.GetArchVariantProperties(ctx, &BaseLinkerProperties{})
+	archVariantLibraryProperties := module.GetArchVariantProperties(ctx, &LibraryProperties{})
 
 	var implementationHdrs bazel.LabelListAttribute
 
@@ -484,6 +488,7 @@ func bp2BuildParseBaseProps(ctx android.Bp2buildMutatorContext, module *Module) 
 	}
 	allAxesAndConfigs(archVariantCompilerProps)
 	allAxesAndConfigs(archVariantLinkerProps)
+	allAxesAndConfigs(archVariantLibraryProperties)
 
 	compilerAttrs := compilerAttributes{}
 	linkerAttrs := linkerAttributes{}
@@ -519,6 +524,13 @@ func bp2BuildParseBaseProps(ctx android.Bp2buildMutatorContext, module *Module) 
 			currIncludes := compilerAttrs.localIncludes.SelectValue(axis, config)
 			currIncludes = android.FirstUniqueStrings(append(currIncludes, includes...))
 			compilerAttrs.localIncludes.SetSelectValue(axis, config, currIncludes)
+
+			if libraryProps, ok := archVariantLibraryProperties[axis][config].(*LibraryProperties); ok {
+				if axis == bazel.NoConfigAxis {
+					compilerAttrs.stubsSymbolFile = libraryProps.Stubs.Symbol_file
+					compilerAttrs.stubsVersions.SetSelectValue(axis, config, libraryProps.Stubs.Versions)
+				}
+			}
 		}
 	}
 
