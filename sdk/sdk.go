@@ -257,7 +257,13 @@ func newSdkModule(moduleExports bool) *sdk {
 	// Create an instance of the dynamically created struct that contains all the
 	// properties for the member type specific list properties.
 	s.dynamicMemberTypeListProperties = s.dynamicSdkMemberTypes.createMemberListProperties()
-	s.AddProperties(&s.properties, s.dynamicMemberTypeListProperties)
+
+	ignoredProperties := struct {
+		// `systemserverclasspath_fragments` is for T and above.
+		Systemserverclasspath_fragments []string
+	}{}
+
+	s.AddProperties(&s.properties, s.dynamicMemberTypeListProperties, &ignoredProperties)
 
 	// Make sure that the prebuilt visibility property is verified for errors.
 	android.AddVisibilityProperty(s, "prebuilt_visibility", &s.properties.Prebuilt_visibility)

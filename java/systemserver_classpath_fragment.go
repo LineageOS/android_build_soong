@@ -72,10 +72,15 @@ func (s *SystemServerClasspathModule) ShouldSupportSdkVersion(ctx android.BaseMo
 }
 
 type systemServerClasspathFragmentProperties struct {
-	// The contents of this systemserverclasspath_fragment, could be either java_library, or java_sdk_library.
+	// List of system_server classpath jars, could be either java_library, or java_sdk_library.
 	//
 	// The order of this list matters as it is the order that is used in the SYSTEMSERVERCLASSPATH.
 	Contents []string
+
+	// List of jars that system_server loads dynamically using separate classloaders.
+	//
+	// The order does not matter.
+	Standalone_contents []string
 }
 
 func systemServerClasspathFactory() android.Module {
@@ -88,8 +93,12 @@ func systemServerClasspathFactory() android.Module {
 }
 
 func (s *SystemServerClasspathModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	if len(s.properties.Contents) == 0 {
-		ctx.PropertyErrorf("contents", "empty contents are not allowed")
+	if len(s.properties.Contents) == 0 && len(s.properties.Standalone_contents) == 0 {
+		ctx.PropertyErrorf("contents", "Either contents or standalone_contents needs to be non-empty")
+	}
+
+	if s.ShouldIgnore() {
+		return
 	}
 
 	configuredJars := s.configuredJars(ctx)
@@ -128,8 +137,17 @@ func IsSystemServerClasspathFragmentContentDepTag(tag blueprint.DependencyTag) b
 
 func (s *SystemServerClasspathModule) ComponentDepsMutator(ctx android.BottomUpMutatorContext) {
 	module := ctx.Module()
+	var deps []string
+	deps = append(deps, s.properties.Contents...)
+	deps = append(deps, s.properties.Standalone_contents...)
 
-	for _, name := range s.properties.Contents {
+	for _, name := range deps {
 		ctx.AddDependency(module, systemServerClasspathFragmentContentDepTag, name)
 	}
+}
+
+func (s *SystemServerClasspathModule) ShouldIgnore() bool {
+	// Ignore this `systemserverclasspath_fragment` if it only contains `standalone_contents` because
+	// it is for T and above.
+	return len(s.properties.Contents) == 0
 }
