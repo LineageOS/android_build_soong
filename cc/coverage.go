@@ -22,7 +22,6 @@ import (
 	"android/soong/android"
 )
 
-// Add '%c' to default specifier after we resolve http://b/210012154
 const profileInstrFlag = "-fprofile-instr-generate=/data/misc/trace/clang-%p-%m.profraw"
 
 type CoverageProperties struct {
@@ -78,11 +77,6 @@ func (cov *coverage) deps(ctx DepsContext, deps Deps) Deps {
 	return deps
 }
 
-func EnableContinuousCoverage(ctx android.BaseModuleContext) bool {
-	// http://b/210012154 Disable continuous coverage if we're instrumenting bionic/libc.
-	return !ctx.DeviceConfig().NativeCoverageEnabledForPath("bionic/libc")
-}
-
 func (cov *coverage) flags(ctx ModuleContext, flags Flags, deps PathDeps) (Flags, PathDeps) {
 	clangCoverage := ctx.DeviceConfig().ClangCoverageEnabled()
 	gcovCoverage := ctx.DeviceConfig().GcovCoverageEnabled()
@@ -104,11 +98,6 @@ func (cov *coverage) flags(ctx ModuleContext, flags Flags, deps PathDeps) (Flags
 		} else if clangCoverage {
 			flags.Local.CommonFlags = append(flags.Local.CommonFlags, profileInstrFlag,
 				"-fcoverage-mapping", "-Wno-pass-failed", "-D__ANDROID_CLANG_COVERAGE__")
-			// Override -Wframe-larger-than that a module may use.
-			flags.Local.CFlags = append(flags.Local.CFlags, "-Wno-frame-larger-than=")
-			if EnableContinuousCoverage(ctx) {
-				flags.Local.CommonFlags = append(flags.Local.CommonFlags, "-mllvm", "-runtime-counter-relocation")
-			}
 		}
 	}
 
@@ -160,9 +149,6 @@ func (cov *coverage) flags(ctx ModuleContext, flags Flags, deps PathDeps) (Flags
 			flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,--wrap,getenv")
 		} else if clangCoverage {
 			flags.Local.LdFlags = append(flags.Local.LdFlags, profileInstrFlag)
-			if EnableContinuousCoverage(ctx) {
-				flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,-mllvm=-runtime-counter-relocation")
-			}
 
 			coverage := ctx.GetDirectDepWithTag(getClangProfileLibraryName(ctx), CoverageDepTag).(*Module)
 			deps.WholeStaticLibs = append(deps.WholeStaticLibs, coverage.OutputFile().Path())
