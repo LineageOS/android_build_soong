@@ -298,6 +298,7 @@ func NewPrebuiltSharedLibrary(hod android.HostOrDeviceSupported) (*Module, *libr
 	module, library := NewPrebuiltLibrary(hod, "srcs")
 	library.BuildOnlyShared()
 	module.bazelable = true
+	module.bazelHandler = &prebuiltSharedLibraryBazelHandler{module: module, library: library}
 
 	// Prebuilt shared libraries can be included in APEXes
 	android.InitApexModule(module)
@@ -422,6 +423,69 @@ func (h *prebuiltStaticLibraryBazelHandler) GenerateBazelBuildActions(ctx androi
 
 		TransitiveStaticLibrariesForOrdering: depSet,
 	})
+
+	return true
+}
+
+type prebuiltSharedLibraryBazelHandler struct {
+	android.BazelHandler
+
+	module  *Module
+	library *libraryDecorator
+}
+
+func (h *prebuiltSharedLibraryBazelHandler) GenerateBazelBuildActions(ctx android.ModuleContext, label string) bool {
+	bazelCtx := ctx.Config().BazelContext
+	ccInfo, ok, err := bazelCtx.GetCcInfo(label, android.GetConfigKey(ctx))
+	if err != nil {
+		ctx.ModuleErrorf("Error getting Bazel CcInfo for %s: %s", label, err)
+	}
+	if !ok {
+		return false
+	}
+	sharedLibs := ccInfo.CcSharedLibraryFiles
+	if len(sharedLibs) != 1 {
+		ctx.ModuleErrorf("expected 1 shared library from bazel target %s, got %q", label, sharedLibs)
+		return false
+	}
+
+	// TODO(b/184543518): cc_prebuilt_library_shared may have properties for re-exporting flags
+
+	// TODO(eakammer):Add stub-related flags if this library is a stub library.
+	// h.library.exportVersioningMacroIfNeeded(ctx)
+
+	// Dependencies on this library will expect collectedSnapshotHeaders to be set, otherwise
+	// validation will fail. For now, set this to an empty list.
+	// TODO(cparsons): More closely mirror the collectHeadersForSnapshot implementation.
+	h.library.collectedSnapshotHeaders = android.Paths{}
+
+	if len(sharedLibs) == 0 {
+		h.module.outputFile = android.OptionalPath{}
+		return true
+	}
+
+	out := android.PathForBazelOut(ctx, sharedLibs[0])
+	h.module.outputFile = android.OptionalPathForPath(out)
+
+	// FIXME(b/214600441): We don't yet strip prebuilt shared libraries
+	h.library.unstrippedOutputFile = out
+
+	var toc android.Path
+	if len(ccInfo.TocFile) > 0 {
+		toc = android.PathForBazelOut(ctx, ccInfo.TocFile)
+	} else {
+		toc = out // Just reuse `out` so ninja still gets an input but won't matter
+	}
+
+	info := SharedLibraryInfo{
+		SharedLibrary:   out,
+		TableOfContents: android.OptionalPathForPath(toc),
+		Target:          ctx.Target(),
+	}
+	ctx.SetProvider(SharedLibraryInfoProvider, info)
+
+	h.library.setFlagExporterInfoFromCcInfo(ctx, ccInfo)
+	h.module.maybeUnhideFromMake()
 
 	return true
 }
