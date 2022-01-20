@@ -1932,6 +1932,10 @@ func (m *ModuleBase) VintfFragments() Paths {
 	return append(Paths{}, m.vintfFragmentsPaths...)
 }
 
+func (m *ModuleBase) CompileMultilib() *string {
+	return m.base().commonProperties.Compile_multilib
+}
+
 // SetLicenseInstallMap stores the set of dependency module:location mappings for files in an
 // apex container for use when generation the license metadata file.
 func (m *ModuleBase) SetLicenseInstallMap(installMap []string) {
