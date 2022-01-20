@@ -450,8 +450,14 @@ func getJavaVersion(ctx android.ModuleContext, javaVersion string, sdkContext an
 		return normalizeJavaVersion(ctx, javaVersion)
 	} else if ctx.Device() {
 		return defaultJavaLanguageVersion(ctx, sdkContext.SdkVersion(ctx))
-	} else {
+	} else if ctx.Config().TargetsJava11() {
+		// Temporary experimental flag to be able to try and build with
+		// java version 11 options.  The flag, if used, just sets Java
+		// 11 as the default version, leaving any components that
+		// target an older version intact.
 		return JAVA_VERSION_11
+	} else {
+		return JAVA_VERSION_9
 	}
 }
 
