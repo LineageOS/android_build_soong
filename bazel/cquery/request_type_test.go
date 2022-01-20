@@ -63,6 +63,8 @@ func TestGetPythonBinaryParseResults(t *testing.T) {
 }
 
 func TestGetCcInfoParseResults(t *testing.T) {
+	const expectedSplits = 10
+	noResult := strings.Repeat("|", expectedSplits-1)
 	testCases := []struct {
 		description          string
 		input                string
@@ -71,10 +73,11 @@ func TestGetCcInfoParseResults(t *testing.T) {
 	}{
 		{
 			description: "no result",
-			input:       "||||||||",
+			input:       noResult,
 			expectedOutput: CcInfo{
 				OutputFiles:          []string{},
 				CcObjectFiles:        []string{},
+				CcSharedLibraryFiles: []string{},
 				CcStaticLibraryFiles: []string{},
 				Includes:             []string{},
 				SystemIncludes:       []string{},
@@ -86,10 +89,11 @@ func TestGetCcInfoParseResults(t *testing.T) {
 		},
 		{
 			description: "only output",
-			input:       "test||||||||",
+			input:       "test" + noResult,
 			expectedOutput: CcInfo{
 				OutputFiles:          []string{"test"},
 				CcObjectFiles:        []string{},
+				CcSharedLibraryFiles: []string{},
 				CcStaticLibraryFiles: []string{},
 				Includes:             []string{},
 				SystemIncludes:       []string{},
@@ -100,11 +104,37 @@ func TestGetCcInfoParseResults(t *testing.T) {
 			},
 		},
 		{
+			description: "only ToC",
+			input:       noResult + "test",
+			expectedOutput: CcInfo{
+				OutputFiles:          []string{},
+				CcObjectFiles:        []string{},
+				CcSharedLibraryFiles: []string{},
+				CcStaticLibraryFiles: []string{},
+				Includes:             []string{},
+				SystemIncludes:       []string{},
+				Headers:              []string{},
+				RootStaticArchives:   []string{},
+				RootDynamicLibraries: []string{},
+				TocFile:              "test",
+			},
+		},
+		{
 			description: "all items set",
-			input:       "out1, out2|static_lib1, static_lib2|object1, object2|., dir/subdir|system/dir, system/other/dir|dir/subdir/hdr.h|rootstaticarchive1|rootdynamiclibrary1|lib.so.toc",
+			input: "out1, out2" +
+				"|object1, object2" +
+				"|shared_lib1, shared_lib2" +
+				"|static_lib1, static_lib2" +
+				"|., dir/subdir" +
+				"|system/dir, system/other/dir" +
+				"|dir/subdir/hdr.h" +
+				"|rootstaticarchive1" +
+				"|rootdynamiclibrary1" +
+				"|lib.so.toc",
 			expectedOutput: CcInfo{
 				OutputFiles:          []string{"out1", "out2"},
 				CcObjectFiles:        []string{"object1", "object2"},
+				CcSharedLibraryFiles: []string{"shared_lib1", "shared_lib2"},
 				CcStaticLibraryFiles: []string{"static_lib1", "static_lib2"},
 				Includes:             []string{".", "dir/subdir"},
 				SystemIncludes:       []string{"system/dir", "system/other/dir"},
@@ -118,22 +148,22 @@ func TestGetCcInfoParseResults(t *testing.T) {
 			description:          "too few result splits",
 			input:                "|",
 			expectedOutput:       CcInfo{},
-			expectedErrorMessage: fmt.Sprintf("Expected %d items, got %q", 9, []string{"", ""}),
+			expectedErrorMessage: fmt.Sprintf("Expected %d items, got %q", expectedSplits, []string{"", ""}),
 		},
 		{
 			description:          "too many result splits",
-			input:                strings.Repeat("|", 50),
+			input:                strings.Repeat("|", expectedSplits+1), // 2 too many
 			expectedOutput:       CcInfo{},
-			expectedErrorMessage: fmt.Sprintf("Expected %d items, got %q", 9, make([]string, 51)),
+			expectedErrorMessage: fmt.Sprintf("Expected %d items, got %q", expectedSplits, make([]string, expectedSplits+2)),
 		},
 	}
 	for _, tc := range testCases {
 		actualOutput, err := GetCcInfo.ParseResult(tc.input)
 		if (err == nil && tc.expectedErrorMessage != "") ||
 			(err != nil && err.Error() != tc.expectedErrorMessage) {
-			t.Errorf("%q: expected Error %s, got %s", tc.description, tc.expectedErrorMessage, err)
+			t.Errorf("%q:\nexpected Error %s\n, got %s", tc.description, tc.expectedErrorMessage, err)
 		} else if err == nil && !reflect.DeepEqual(tc.expectedOutput, actualOutput) {
-			t.Errorf("%q: expected %#v != actual %#v", tc.description, tc.expectedOutput, actualOutput)
+			t.Errorf("%q:\n expected %#v\n!= actual %#v", tc.description, tc.expectedOutput, actualOutput)
 		}
 	}
 }
