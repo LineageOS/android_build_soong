@@ -658,10 +658,6 @@ func (c *config) IsEnvFalse(key string) bool {
 	return value == "0" || value == "n" || value == "no" || value == "off" || value == "false"
 }
 
-func (c *config) TargetsJava11() bool {
-	return c.IsEnvTrue("EXPERIMENTAL_TARGET_JAVA_VERSION_11")
-}
-
 // EnvDeps returns the environment variables this build depends on. The first
 // call to this function blocks future reads from the environment.
 func (c *config) EnvDeps() map[string]string {
