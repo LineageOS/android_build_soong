@@ -468,9 +468,13 @@ var (
 		"libdexfiled", // depends on unconverted modules: dexfile_operator_srcs, libartbased, libartpalette
 
 		// go deps:
-		"apex-protos",               // depends on unconverted modules: soong_zip
+		"apex-protos",               // depends on soong_zip, a go binary
+		"robolectric_tzdata",        // depends on soong_zip, a go binary
 		"host_bionic_linker_asm",    // depends on extract_linker, a go binary.
 		"host_bionic_linker_script", // depends on extract_linker, a go binary.
+
+		// java deps
+		"bin2c_fastdeployagent", // depends on deployagent, a java binary
 	}
 
 	// Per-module denylist of cc_library modules to only generate the static
