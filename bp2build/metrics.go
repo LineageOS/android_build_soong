@@ -9,6 +9,7 @@ import (
 	"android/soong/android"
 	"android/soong/shared"
 	"android/soong/ui/metrics/bp2build_metrics_proto"
+	"github.com/google/blueprint"
 )
 
 // Simple metrics struct to collect information about a Blueprint to BUILD
@@ -36,16 +37,24 @@ type CodegenMetrics struct {
 
 	// List of converted modules
 	convertedModules []string
+
+	// Counts of converted modules by module type.
+	convertedModuleTypeCount map[string]uint64
+
+	// Counts of total modules by module type.
+	totalModuleTypeCount map[string]uint64
 }
 
 // Serialize returns the protoized version of CodegenMetrics: bp2build_metrics_proto.Bp2BuildMetrics
 func (metrics *CodegenMetrics) Serialize() bp2build_metrics_proto.Bp2BuildMetrics {
 	return bp2build_metrics_proto.Bp2BuildMetrics{
-		GeneratedModuleCount:   metrics.generatedModuleCount,
-		HandCraftedModuleCount: metrics.handCraftedModuleCount,
-		UnconvertedModuleCount: metrics.unconvertedModuleCount,
-		RuleClassCount:         metrics.ruleClassCount,
-		ConvertedModules:       metrics.convertedModules,
+		GeneratedModuleCount:     metrics.generatedModuleCount,
+		HandCraftedModuleCount:   metrics.handCraftedModuleCount,
+		UnconvertedModuleCount:   metrics.unconvertedModuleCount,
+		RuleClassCount:           metrics.ruleClassCount,
+		ConvertedModules:         metrics.convertedModules,
+		ConvertedModuleTypeCount: metrics.convertedModuleTypeCount,
+		TotalModuleTypeCount:     metrics.totalModuleTypeCount,
 	}
 }
 
@@ -113,8 +122,9 @@ func (metrics *CodegenMetrics) IncrementRuleClassCount(ruleClass string) {
 	metrics.ruleClassCount[ruleClass] += 1
 }
 
-func (metrics *CodegenMetrics) IncrementUnconvertedCount() {
+func (metrics *CodegenMetrics) AddUnconvertedModule(moduleType string) {
 	metrics.unconvertedModuleCount += 1
+	metrics.totalModuleTypeCount[moduleType] += 1
 }
 
 func (metrics *CodegenMetrics) TotalModuleCount() uint64 {
@@ -136,10 +146,12 @@ const (
 	Handcrafted
 )
 
-func (metrics *CodegenMetrics) AddConvertedModule(moduleName string, conversionType ConversionType) {
+func (metrics *CodegenMetrics) AddConvertedModule(m blueprint.Module, moduleType string, conversionType ConversionType) {
 	// Undo prebuilt_ module name prefix modifications
-	moduleName = android.RemoveOptionalPrebuiltPrefix(moduleName)
+	moduleName := android.RemoveOptionalPrebuiltPrefix(m.Name())
 	metrics.convertedModules = append(metrics.convertedModules, moduleName)
+	metrics.convertedModuleTypeCount[moduleType] += 1
+	metrics.totalModuleTypeCount[moduleType] += 1
 
 	if conversionType == Handcrafted {
 		metrics.handCraftedModuleCount += 1
