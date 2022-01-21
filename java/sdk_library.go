@@ -1392,10 +1392,6 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.DefaultableHookContext
 			Srcs       []string
 			Javacflags []string
 		}
-		Openjdk11 struct {
-			Srcs       []string
-			Javacflags []string
-		}
 		Dist struct {
 			Targets []string
 			Dest    *string
@@ -1422,8 +1418,6 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.DefaultableHookContext
 	}
 	props.Openjdk9.Srcs = module.properties.Openjdk9.Srcs
 	props.Openjdk9.Javacflags = module.properties.Openjdk9.Javacflags
-	props.Openjdk11.Srcs = module.properties.Openjdk11.Srcs
-	props.Openjdk11.Javacflags = module.properties.Openjdk11.Javacflags
 	// We compile the stubs for 1.8 in line with the main android.jar stubs, and potential
 	// interop with older developer tools that don't support 1.9.
 	props.Java_version = proptools.StringPtr("1.8")
