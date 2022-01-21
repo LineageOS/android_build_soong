@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"android/soong/android"
+
 	"github.com/google/blueprint"
 )
 
@@ -159,6 +160,10 @@ func exportSourcePathVariable(name string, value string) {
 // Convenience function to declare a static variable and export it to Bazel's cc_toolchain.
 func exportStringListStaticVariable(name string, value []string) {
 	pctx.StaticVariable(name, strings.Join(value, " "))
+	exportedStringListVars.Set(name, value)
+}
+
+func ExportStringList(name string, value []string) {
 	exportedStringListVars.Set(name, value)
 }
 
