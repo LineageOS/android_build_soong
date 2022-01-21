@@ -1009,7 +1009,7 @@ func apexStrictUpdatibilityLintMutator(mctx android.TopDownMutatorContext) {
 	if !mctx.Module().Enabled() {
 		return
 	}
-	if apex, ok := mctx.Module().(*apexBundle); ok && apex.Updatable() {
+	if apex, ok := mctx.Module().(*apexBundle); ok && apex.checkStrictUpdatabilityLinting() {
 		mctx.WalkDeps(func(child, parent android.Module) bool {
 			if lintable, ok := child.(java.LintDepSetsIntf); ok {
 				lintable.SetStrictUpdatabilityLinting(true)
@@ -1018,6 +1018,27 @@ func apexStrictUpdatibilityLintMutator(mctx android.TopDownMutatorContext) {
 			return true
 		})
 	}
+}
+
+// TODO: b/215736885 Whittle the denylist
+// Transitive deps of certain mainline modules baseline NewApi errors
+// Skip these mainline modules for now
+var (
+	skipStrictUpdatabilityLintAllowlist = []string{
+		"com.android.art",
+		"com.android.art.debug",
+		"com.android.conscrypt",
+		"com.android.media",
+		// test apexes
+		"test_com.android.art",
+		"test_com.android.conscrypt",
+		"test_com.android.media",
+		"test_jitzygote_com.android.art",
+	}
+)
+
+func (a *apexBundle) checkStrictUpdatabilityLinting() bool {
+	return a.Updatable() && !android.InList(a.ApexVariationName(), skipStrictUpdatabilityLintAllowlist)
 }
 
 // apexUniqueVariationsMutator checks if any dependencies use unique apex variations. If so, use
