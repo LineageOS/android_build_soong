@@ -567,8 +567,8 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 	outHostBinDir := ctx.Config().HostToolPath(ctx, "").String()
 	prebuiltSdkToolsBinDir := filepath.Join("prebuilts", "sdk", "tools", runtime.GOOS, "bin")
 
-	// Figure out if need to compress apex.
-	compressionEnabled := ctx.Config().CompressedApex() && proptools.BoolDefault(a.properties.Compressible, false) && !a.testApex && !ctx.Config().UnbundledBuildApps()
+	// Figure out if we need to compress the apex.
+	compressionEnabled := ctx.Config().CompressedApex() && proptools.BoolDefault(a.overridableProperties.Compressible, false) && !a.testApex && !ctx.Config().UnbundledBuildApps()
 	if apexType == imageApex {
 
 		////////////////////////////////////////////////////////////////////////////////////
