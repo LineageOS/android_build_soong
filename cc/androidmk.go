@@ -15,6 +15,8 @@
 package cc
 
 import (
+	"github.com/google/blueprint/proptools"
+
 	"fmt"
 	"io"
 	"path/filepath"
@@ -532,7 +534,13 @@ func (c *snapshotLibraryDecorator) AndroidMkEntries(ctx AndroidMkContext, entrie
 		c.libraryDecorator.androidMkWriteExportedFlags(entries)
 
 		if c.shared() || c.static() {
-			path, file := filepath.Split(c.path.String())
+			src := c.path.String()
+			// For static libraries which aren't installed, directly use Src to extract filename.
+			// This is safe: generated snapshot modules have a real path as Src, not a module
+			if c.static() {
+				src = proptools.String(c.properties.Src)
+			}
+			path, file := filepath.Split(src)
 			stem, suffix, ext := android.SplitFileExt(file)
 			entries.SetString("LOCAL_BUILT_MODULE_STEM", "$(LOCAL_MODULE)"+ext)
 			entries.SetString("LOCAL_MODULE_SUFFIX", suffix)
