@@ -14,6 +14,7 @@ bootstrap_go_package {
         "soong-snapshot",
     ],
     srcs: [
+        "afdo.go",
         "androidmk.go",
         "benchmark.go",
         "binary.go",
