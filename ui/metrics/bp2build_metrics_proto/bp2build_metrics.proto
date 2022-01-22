@@ -32,4 +32,10 @@ message Bp2BuildMetrics {
 
   // List of converted modules
   repeated string convertedModules = 5;
+
+  // Counts of converted modules by module type.
+  map<string, uint64> convertedModuleTypeCount = 6;
+
+  // Counts of total modules by module type.
+  map<string, uint64> totalModuleTypeCount = 7;
 }
