@@ -40,7 +40,7 @@ func getAfdoProfileProjects(config android.DeviceConfig) []string {
 	})
 }
 
-func recordMissingAfdoProfileFile(ctx BaseModuleContext, missing string) {
+func recordMissingAfdoProfileFile(ctx android.BaseModuleContext, missing string) {
 	getNamedMapForConfig(ctx.Config(), modulesMissingProfileFileKey).Store(missing, true)
 }
 
@@ -67,14 +67,14 @@ func (afdo *afdo) AfdoEnabled() bool {
 //   1. libfoo_arm64.afdo
 //   2. libfoo.afdo
 // Add more specialisation as needed.
-func getProfileFiles(ctx BaseModuleContext, moduleName string) []string {
+func getProfileFiles(ctx android.BaseModuleContext, moduleName string) []string {
 	var files []string
 	files = append(files, moduleName+"_"+ctx.Arch().ArchType.String()+".afdo")
 	files = append(files, moduleName+".afdo")
 	return files
 }
 
-func (props *AfdoProperties) getAfdoProfileFile(ctx BaseModuleContext, module string) android.OptionalPath {
+func (props *AfdoProperties) GetAfdoProfileFile(ctx android.BaseModuleContext, module string) android.OptionalPath {
 	// Test if the profile_file is present in any of the Afdo profile projects
 	for _, profileFile := range getProfileFiles(ctx, module) {
 		for _, profileProject := range getAfdoProfileProjects(ctx.DeviceConfig()) {
@@ -95,7 +95,7 @@ func (props *AfdoProperties) getAfdoProfileFile(ctx BaseModuleContext, module st
 func (afdo *afdo) begin(ctx BaseModuleContext) {
 	if afdo.Properties.Afdo && !ctx.static() && !ctx.Host() {
 		module := ctx.ModuleName()
-		if afdo.Properties.getAfdoProfileFile(ctx, module).Valid() {
+		if afdo.Properties.GetAfdoProfileFile(ctx, module).Valid() {
 			afdo.Properties.AfdoTarget = proptools.StringPtr(module)
 		}
 	}
@@ -103,7 +103,7 @@ func (afdo *afdo) begin(ctx BaseModuleContext) {
 
 func (afdo *afdo) flags(ctx ModuleContext, flags Flags) Flags {
 	if profile := afdo.Properties.AfdoTarget; profile != nil {
-		if profileFile := afdo.Properties.getAfdoProfileFile(ctx, *profile); profileFile.Valid() {
+		if profileFile := afdo.Properties.GetAfdoProfileFile(ctx, *profile); profileFile.Valid() {
 			profileFilePath := profileFile.Path()
 
 			profileUseFlag := fmt.Sprintf(afdoCFlagsFormat, profileFile)
