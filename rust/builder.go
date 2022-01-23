@@ -245,6 +245,7 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 	implicits = append(implicits, deps.StaticLibs...)
 	implicits = append(implicits, deps.SharedLibDeps...)
 	implicits = append(implicits, deps.srcProviderFiles...)
+	implicits = append(implicits, deps.AfdoProfiles...)
 
 	if deps.CrtBegin.Valid() {
 		implicits = append(implicits, deps.CrtBegin.Path(), deps.CrtEnd.Path())
