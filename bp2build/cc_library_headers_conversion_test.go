@@ -26,17 +26,6 @@ const (
 	soongCcLibraryHeadersPreamble = `
 cc_defaults {
     name: "linux_bionic_supported",
-}
-
-toolchain_library {
-    name: "libclang_rt.builtins-x86_64-android",
-    defaults: ["linux_bionic_supported"],
-    vendor_available: true,
-    vendor_ramdisk_available: true,
-    product_available: true,
-    recovery_available: true,
-    native_bridge_supported: true,
-    src: "",
 }`
 )
 
@@ -68,7 +57,6 @@ func TestCcLibraryHeadersLoadStatement(t *testing.T) {
 
 func registerCcLibraryHeadersModuleTypes(ctx android.RegistrationContext) {
 	cc.RegisterCCBuildComponents(ctx)
-	ctx.RegisterModuleType("toolchain_library", cc.ToolchainLibraryFactory)
 }
 
 func runCcLibraryHeadersTestCase(t *testing.T, tc bp2buildTestCase) {
