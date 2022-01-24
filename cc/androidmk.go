@@ -441,14 +441,6 @@ func (test *testLibrary) AndroidMkEntries(ctx AndroidMkContext, entries *android
 	ctx.subAndroidMk(entries, test.libraryDecorator)
 }
 
-func (library *toolchainLibraryDecorator) AndroidMkEntries(ctx AndroidMkContext, entries *android.AndroidMkEntries) {
-	entries.Class = "STATIC_LIBRARIES"
-	entries.ExtraEntries = append(entries.ExtraEntries, func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
-		_, suffix, _ := android.SplitFileExt(entries.OutputFile.Path().Base())
-		entries.SetString("LOCAL_MODULE_SUFFIX", suffix)
-	})
-}
-
 func (installer *baseInstaller) AndroidMkEntries(ctx AndroidMkContext, entries *android.AndroidMkEntries) {
 	if installer.path == (android.InstallPath{}) {
 		return

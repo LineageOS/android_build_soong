@@ -65,10 +65,13 @@ func TestVendorSnapshotCapture(t *testing.T) {
 		nocrt: true,
 	}
 
-	toolchain_library {
+	cc_prebuilt_library_static {
 		name: "libb",
 		vendor_available: true,
-		src: "libb.a",
+		srcs: ["libb.a"],
+		nocrt: true,
+		no_libcrt: true,
+		stl: "none",
 	}
 
 	cc_object {
@@ -1222,10 +1225,13 @@ func TestRecoverySnapshotCapture(t *testing.T) {
 		nocrt: true,
 	}
 
-	toolchain_library {
+	cc_prebuilt_library_static {
 		name: "libb",
 		recovery_available: true,
-		src: "libb.a",
+		srcs: ["libb.a"],
+		nocrt: true,
+		no_libcrt: true,
+		stl: "none",
 	}
 
 	cc_object {

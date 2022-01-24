@@ -27,17 +27,6 @@ const (
 	soongCcLibraryPreamble = `
 cc_defaults {
     name: "linux_bionic_supported",
-}
-
-toolchain_library {
-    name: "libclang_rt.builtins-x86_64-android",
-    defaults: ["linux_bionic_supported"],
-    vendor_available: true,
-    vendor_ramdisk_available: true,
-    product_available: true,
-    recovery_available: true,
-    native_bridge_supported: true,
-    src: "",
 }`
 
 	soongCcProtoLibraries = `
@@ -64,7 +53,6 @@ func registerCcLibraryModuleTypes(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
 	ctx.RegisterModuleType("cc_library_static", cc.LibraryStaticFactory)
 	ctx.RegisterModuleType("cc_prebuilt_library_static", cc.PrebuiltStaticLibraryFactory)
-	ctx.RegisterModuleType("toolchain_library", cc.ToolchainLibraryFactory)
 	ctx.RegisterModuleType("cc_library_headers", cc.LibraryHeaderFactory)
 }
 
@@ -1264,7 +1252,7 @@ cc_library {
     include_build_directory: false,
 }
 `,
-		expectedErr: fmt.Errorf("Android.bp:16:1: module \"foo-lib\": nocrt is not supported for arch variants"),
+		expectedErr: fmt.Errorf("module \"foo-lib\": nocrt is not supported for arch variants"),
 	})
 }
 

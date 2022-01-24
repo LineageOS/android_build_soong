@@ -548,8 +548,7 @@ type feature interface {
 }
 
 // compiler is the interface for a compiler helper object. Different module decorators may implement
-// this helper differently. For example, compiling a `cc_library` may use a different build
-// statement than building a `toolchain_library`.
+// this helper differently.
 type compiler interface {
 	compilerInit(ctx BaseModuleContext)
 	compilerDeps(ctx DepsContext, deps Deps) Deps
@@ -977,13 +976,6 @@ func (c *Module) SelectedStl() string {
 		return c.stl.Properties.SelectedStl
 	}
 	return ""
-}
-
-func (c *Module) ToolchainLibrary() bool {
-	if _, ok := c.linker.(*toolchainLibraryDecorator); ok {
-		return true
-	}
-	return false
 }
 
 func (c *Module) NdkPrebuiltStl() bool {
@@ -2450,10 +2442,6 @@ func checkLinkType(ctx android.BaseModuleContext, from LinkableInterface, to Lin
 		return
 	}
 	if c, ok := to.(*Module); ok {
-		if c.ToolchainLibrary() {
-			// These are always allowed
-			return
-		}
 		if c.NdkPrebuiltStl() {
 			// These are allowed, but they don't set sdk_version
 			return
@@ -3437,10 +3425,6 @@ func (c *Module) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
 	sdkVersion android.ApiLevel) error {
 	// We ignore libclang_rt.* prebuilt libs since they declare sdk_version: 14(b/121358700)
 	if strings.HasPrefix(ctx.OtherModuleName(c), "libclang_rt") {
-		return nil
-	}
-	// b/154569636: set min_sdk_version correctly for toolchain_libraries
-	if c.ToolchainLibrary() {
 		return nil
 	}
 	// We don't check for prebuilt modules
