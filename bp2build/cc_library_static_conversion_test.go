@@ -27,17 +27,6 @@ const (
 	soongCcLibraryStaticPreamble = `
 cc_defaults {
     name: "linux_bionic_supported",
-}
-
-toolchain_library {
-    name: "libclang_rt.builtins-x86_64-android",
-    defaults: ["linux_bionic_supported"],
-    vendor_available: true,
-    vendor_ramdisk_available: true,
-    product_available: true,
-    recovery_available: true,
-    native_bridge_supported: true,
-    src: "",
 }`
 )
 
@@ -69,7 +58,6 @@ func TestCcLibraryStaticLoadStatement(t *testing.T) {
 
 func registerCcLibraryStaticModuleTypes(ctx android.RegistrationContext) {
 	cc.RegisterCCBuildComponents(ctx)
-	ctx.RegisterModuleType("toolchain_library", cc.ToolchainLibraryFactory)
 	ctx.RegisterModuleType("cc_library_headers", cc.LibraryHeaderFactory)
 	ctx.RegisterModuleType("genrule", genrule.GenRuleFactory)
 	// Required for system_shared_libs dependencies.

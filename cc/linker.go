@@ -427,7 +427,7 @@ func (linker *baseLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 
 	deps.LateSharedLibs = append(deps.LateSharedLibs, deps.SystemSharedLibs...)
 
-	if ctx.Windows() {
+	if ctx.Windows() && ctx.ModuleName() != "libwinpthread" {
 		deps.LateStaticLibs = append(deps.LateStaticLibs, "libwinpthread")
 	}
 

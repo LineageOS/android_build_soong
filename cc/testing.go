@@ -30,7 +30,6 @@ func RegisterRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
 	RegisterLibraryBuildComponents(ctx)
 	RegisterLibraryHeadersBuildComponents(ctx)
 
-	ctx.RegisterModuleType("toolchain_library", ToolchainLibraryFactory)
 	ctx.RegisterModuleType("cc_benchmark", BenchmarkFactory)
 	ctx.RegisterModuleType("cc_object", ObjectFactory)
 	ctx.RegisterModuleType("cc_genrule", GenRuleFactory)
@@ -63,41 +62,14 @@ func GatherRequiredDepsForTest(oses ...android.OsType) string {
 
 func commonDefaultModules() string {
 	return `
-		toolchain_library {
-			name: "libcompiler_rt-extras",
+		cc_defaults {
+			name: "toolchain_libs_defaults",
 			vendor_available: true,
-			vendor_ramdisk_available: true,
 			product_available: true,
 			recovery_available: true,
-			src: "",
-		}
-
-		toolchain_library {
-			name: "libclang_rt.builtins-arm-android",
-			vendor_available: true,
-			vendor_ramdisk_available: true,
-			product_available: true,
-			recovery_available: true,
-			native_bridge_supported: true,
-			src: "",
-		}
-
-		toolchain_library {
-			name: "libclang_rt.builtins-aarch64-android",
-			vendor_available: true,
-			vendor_ramdisk_available: true,
-			product_available: true,
-			recovery_available: true,
-			native_bridge_supported: true,
-			src: "",
-		}
-
-		cc_prebuilt_library_shared {
-			name: "libclang_rt.hwasan-aarch64-android",
+			no_libcrt: true,
+			sdk_version: "minimum",
 			nocrt: true,
-			vendor_available: true,
-			product_available: true,
-			recovery_available: true,
 			system_shared_libs: [],
 			stl: "none",
 			srcs: [""],
@@ -107,87 +79,93 @@ func commonDefaultModules() string {
 			},
 		}
 
-		toolchain_library {
+		cc_prebuilt_library_static {
+			name: "libcompiler_rt-extras",
+			defaults: ["toolchain_libs_defaults"],
+			vendor_ramdisk_available: true,
+		}
+
+		cc_prebuilt_library_static {
+			name: "libclang_rt.builtins-arm-android",
+			defaults: ["toolchain_libs_defaults"],
+			native_bridge_supported: true,
+			vendor_ramdisk_available: true,
+		}
+
+		cc_prebuilt_library_static {
+			name: "libclang_rt.builtins-aarch64-android",
+			defaults: ["toolchain_libs_defaults"],
+			native_bridge_supported: true,
+			vendor_ramdisk_available: true,
+		}
+
+		cc_prebuilt_library_shared {
+			name: "libclang_rt.hwasan-aarch64-android",
+			defaults: ["toolchain_libs_defaults"],
+		}
+
+		cc_prebuilt_library_static {
 			name: "libclang_rt.builtins-i686-android",
-			vendor_available: true,
+			defaults: ["toolchain_libs_defaults"],
 			vendor_ramdisk_available: true,
-			product_available: true,
-			recovery_available: true,
 			native_bridge_supported: true,
-			src: "",
 		}
 
-		toolchain_library {
+		cc_prebuilt_library_static {
 			name: "libclang_rt.builtins-x86_64-android",
-			defaults: ["linux_bionic_supported"],
-			vendor_available: true,
-			vendor_ramdisk_available: true,
-			product_available: true,
-			recovery_available: true,
+			defaults: [
+				"linux_bionic_supported",
+				"toolchain_libs_defaults",
+			],
 			native_bridge_supported: true,
-			src: "",
+			vendor_ramdisk_available: true,
 		}
 
-		toolchain_library {
+		cc_prebuilt_library_static {
 			name: "libunwind",
-			defaults: ["linux_bionic_supported"],
-			vendor_available: true,
+			defaults: [
+				"linux_bionic_supported",
+				"toolchain_libs_defaults",
+			],
 			vendor_ramdisk_available: true,
-			product_available: true,
-			recovery_available: true,
 			native_bridge_supported: true,
-			src: "",
 		}
 
-		toolchain_library {
+		cc_prebuilt_library_static {
 			name: "libclang_rt.fuzzer-arm-android",
-			vendor_available: true,
-			product_available: true,
-			recovery_available: true,
-			src: "",
+			defaults: ["toolchain_libs_defaults"],
 		}
 
-		toolchain_library {
+		cc_prebuilt_library_static {
 			name: "libclang_rt.fuzzer-aarch64-android",
-			vendor_available: true,
-			product_available: true,
-			recovery_available: true,
-			src: "",
+			defaults: ["toolchain_libs_defaults"],
 		}
 
-		toolchain_library {
+		cc_prebuilt_library_static {
 			name: "libclang_rt.fuzzer-i686-android",
-			vendor_available: true,
-			product_available: true,
-			recovery_available: true,
-			src: "",
+			defaults: ["toolchain_libs_defaults"],
 		}
 
-		toolchain_library {
+		cc_prebuilt_library_static {
 			name: "libclang_rt.fuzzer-x86_64-android",
-			defaults: ["linux_bionic_supported"],
-			vendor_available: true,
-			product_available: true,
-			recovery_available: true,
-			src: "",
+			defaults: [
+				"linux_bionic_supported",
+				"toolchain_libs_defaults",
+			],
 		}
 
-		toolchain_library {
+		cc_prebuilt_library_static {
 			name: "libclang_rt.fuzzer-x86_64",
-			vendor_available: true,
-			product_available: true,
-			recovery_available: true,
-			src: "",
+			defaults: [
+				"linux_bionic_supported",
+				"toolchain_libs_defaults",
+			],
 		}
 
 		// Needed for sanitizer
 		cc_prebuilt_library_shared {
 			name: "libclang_rt.ubsan_standalone-aarch64-android",
-			vendor_available: true,
-			product_available: true,
-			recovery_available: true,
-			system_shared_libs: [],
-			srcs: [""],
+			defaults: ["toolchain_libs_defaults"],
 		}
 
 		cc_library {
@@ -480,7 +458,7 @@ func commonDefaultModules() string {
 
 func withWindowsModules() string {
 	return `
-		toolchain_library {
+		cc_prebuilt_library_static {
 			name: "libwinpthread",
 			host_supported: true,
 			enabled: false,
@@ -489,7 +467,8 @@ func withWindowsModules() string {
 					enabled: true,
 				},
 			},
-			src: "",
+			stl: "none",
+			srcs:[""],
 		}
 		`
 }
