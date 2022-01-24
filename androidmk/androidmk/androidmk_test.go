@@ -1121,6 +1121,25 @@ prebuilt_usr_share_host {
 `,
 	},
 	{
+		desc: "prebuilt_root_host",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := foo
+LOCAL_MODULE_CLASS := ETC
+LOCAL_MODULE_PATH := $(HOST_OUT)/subdir
+LOCAL_SRC_FILES := foo.txt
+include $(BUILD_PREBUILT)
+`,
+		expected: `
+prebuilt_root_host {
+	name: "foo",
+
+	src: "foo.txt",
+	relative_install_path: "subdir",
+}
+`,
+	},
+	{
 		desc: "prebuilt_font",
 		in: `
 include $(CLEAR_VARS)
