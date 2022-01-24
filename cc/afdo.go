@@ -93,7 +93,13 @@ func (props *AfdoProperties) GetAfdoProfileFile(ctx android.BaseModuleContext, m
 }
 
 func (afdo *afdo) begin(ctx BaseModuleContext) {
-	if afdo.Properties.Afdo && !ctx.static() && !ctx.Host() {
+	if ctx.Host() {
+		return
+	}
+	if ctx.static() && !ctx.staticBinary() {
+		return
+	}
+	if afdo.Properties.Afdo {
 		module := ctx.ModuleName()
 		if afdo.Properties.GetAfdoProfileFile(ctx, module).Valid() {
 			afdo.Properties.AfdoTarget = proptools.StringPtr(module)
