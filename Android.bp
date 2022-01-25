@@ -46,25 +46,6 @@ cc_defaults {
 // C static libraries extracted from the gcc toolchain
 //
 
-toolchain_library {
-    name: "libwinpthread",
-    host_supported: true,
-    enabled: false,
-    target: {
-        windows: {
-            enabled: true,
-        },
-        windows_x86: {
-            src: "prebuilts/gcc/linux-x86/host/x86_64-w64-mingw32-4.8/x86_64-w64-mingw32/lib32/libwinpthread.a",
-        },
-        windows_x86_64: {
-            src: "prebuilts/gcc/linux-x86/host/x86_64-w64-mingw32-4.8/x86_64-w64-mingw32/lib/libwinpthread.a",
-        },
-    },
-    notice: ":mingw-libwinpthread-notice",
-    licenses: ["winpthreads_license"],
-}
-
 kernel_headers {
     name: "device_kernel_headers",
     vendor: true,

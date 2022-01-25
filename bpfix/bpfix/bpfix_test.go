@@ -828,6 +828,46 @@ func TestRewritePrebuiltEtc(t *testing.T) {
 		}
 		`,
 		},
+		{
+			name: "prebuilt_etc sub_dir",
+			in: `
+			prebuilt_etc_host {
+			name: "foo",
+			src: "bar",
+			local_module_path: {
+				var: "HOST_OUT",
+				fixed: "/etc/baz",
+			},
+		}
+		`,
+			out: `prebuilt_etc_host {
+			name: "foo",
+			src: "bar",
+			relative_install_path: "baz",
+
+		}
+		`,
+		},
+		{
+			name: "prebuilt_etc sub_dir",
+			in: `
+			prebuilt_etc_host {
+			name: "foo",
+			src: "bar",
+			local_module_path: {
+				var: "HOST_OUT",
+				fixed: "/baz/sub",
+			},
+		}
+		`,
+			out: `prebuilt_root_host {
+			name: "foo",
+			src: "bar",
+			relative_install_path: "baz/sub",
+
+		}
+		`,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

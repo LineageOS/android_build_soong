@@ -610,7 +610,11 @@ func (f etcPrebuiltModuleUpdate) update(m *parser.Module, path string) bool {
 }
 
 var localModuleUpdate = map[string][]etcPrebuiltModuleUpdate{
-	"HOST_OUT":    {{prefix: "/etc", modType: "prebuilt_etc_host"}, {prefix: "/usr/share", modType: "prebuilt_usr_share_host"}},
+	"HOST_OUT": {
+		{prefix: "/etc", modType: "prebuilt_etc_host"},
+		{prefix: "/usr/share", modType: "prebuilt_usr_share_host"},
+		{prefix: "", modType: "prebuilt_root_host"},
+	},
 	"PRODUCT_OUT": {{prefix: "/system/etc"}, {prefix: "/vendor/etc", flags: []string{"proprietary"}}},
 	"TARGET_OUT": {{prefix: "/usr/share", modType: "prebuilt_usr_share"}, {prefix: "/fonts", modType: "prebuilt_font"},
 		{prefix: "/etc/firmware", modType: "prebuilt_firmware"}, {prefix: "/vendor/firmware", modType: "prebuilt_firmware", flags: []string{"proprietary"}},
