@@ -34,4 +34,16 @@ message LinkerConfig {
 
   // Required libs from the module
   repeated string requireLibs = 4;
+
+  message Contribution {
+    // Target namespace where this module contributes the search paths.
+    string namespace = 1;
+    // Search paths (inc. permitted paths) that this module contributes.
+    // Paths should be related to the current module and can use "${LIB}" variable which is
+    // expanded to "lib" or "lib64".
+    // e.g. ${LIB}/subdir
+    repeated string paths = 2;
+  }
+  // APEX can contribute search paths to specified namespaces.
+  repeated Contribution contributions = 5;
 }
