@@ -2620,7 +2620,7 @@ func (b *baseModuleContext) validateAndroidModule(module blueprint.Module, tag b
 	}
 
 	if aModule == nil {
-		b.ModuleErrorf("module %q not an android module", b.OtherModuleName(module))
+		b.ModuleErrorf("module %q (%#v) not an android module", b.OtherModuleName(module), tag)
 		return nil
 	}
 
@@ -2742,8 +2742,8 @@ func (b *baseModuleContext) VisitDirectDeps(visit func(Module)) {
 
 func (b *baseModuleContext) VisitDirectDepsWithTag(tag blueprint.DependencyTag, visit func(Module)) {
 	b.bp.VisitDirectDeps(func(module blueprint.Module) {
-		if aModule := b.validateAndroidModule(module, b.bp.OtherModuleDependencyTag(module), b.strictVisitDeps); aModule != nil {
-			if b.bp.OtherModuleDependencyTag(aModule) == tag {
+		if b.bp.OtherModuleDependencyTag(module) == tag {
+			if aModule := b.validateAndroidModule(module, b.bp.OtherModuleDependencyTag(module), b.strictVisitDeps); aModule != nil {
 				visit(aModule)
 			}
 		}
