@@ -104,6 +104,7 @@ apex {
 	certificate: "com.android.apogee.certificate",
 	updatable: false,
 	installable: false,
+	compressible: false,
 	native_shared_libs: [
 	    "native_shared_lib_1",
 	    "native_shared_lib_2",
@@ -150,7 +151,8 @@ apex {
         ":pretend_prebuilt_1",
         ":pretend_prebuilt_2",
     ]`,
-				"updatable": "False",
+				"updatable":    "False",
+				"compressible": "False",
 			}),
 		}})
 }
