@@ -426,10 +426,16 @@ func (library *libraryDecorator) compilerProps() []interface{} {
 func (library *libraryDecorator) compilerDeps(ctx DepsContext, deps Deps) Deps {
 	deps = library.baseCompiler.compilerDeps(ctx, deps)
 
-	if ctx.toolchain().Bionic() && (library.dylib() || library.shared()) {
-		deps = bionicDeps(ctx, deps, false)
-		deps.CrtBegin = []string{"crtbegin_so"}
-		deps.CrtEnd = []string{"crtend_so"}
+	if library.dylib() || library.shared() {
+		if ctx.toolchain().Bionic() {
+			deps = bionicDeps(ctx, deps, false)
+			deps.CrtBegin = []string{"crtbegin_so"}
+			deps.CrtEnd = []string{"crtend_so"}
+		} else if ctx.Os() == android.LinuxMusl {
+			deps = muslDeps(ctx, deps, false)
+			deps.CrtBegin = []string{"libc_musl_crtbegin_so"}
+			deps.CrtEnd = []string{"libc_musl_crtend_so"}
+		}
 	}
 
 	return deps
