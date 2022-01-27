@@ -1234,6 +1234,13 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				lib.exportLinkDirs(linkPath)
 				lib.exportLinkObjects(linkObject.String())
 			}
+		} else {
+			switch {
+			case depTag == cc.CrtBeginDepTag:
+				depPaths.CrtBegin = append(depPaths.CrtBegin, android.OutputFileForModule(ctx, dep, ""))
+			case depTag == cc.CrtEndDepTag:
+				depPaths.CrtEnd = append(depPaths.CrtEnd, android.OutputFileForModule(ctx, dep, ""))
+			}
 		}
 
 		if srcDep, ok := dep.(android.SourceFileProducer); ok {
