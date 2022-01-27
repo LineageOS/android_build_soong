@@ -364,7 +364,7 @@ func (compiler *baseCompiler) compilerDeps(ctx DepsContext, deps Deps) Deps {
 	if !Bool(compiler.Properties.No_stdlibs) {
 		for _, stdlib := range config.Stdlibs {
 			// If we're building for the build host, use the prebuilt stdlibs
-			if ctx.Target().Os == ctx.Config().BuildOS {
+			if ctx.Target().Os == android.Linux || ctx.Target().Os == android.Darwin {
 				stdlib = "prebuilt_" + stdlib
 			}
 			deps.Stdlibs = append(deps.Stdlibs, stdlib)
@@ -391,6 +391,20 @@ func bionicDeps(ctx DepsContext, deps Deps, static bool) Deps {
 	if libRuntimeBuiltins := config.BuiltinsRuntimeLibrary(ctx.toolchain()); libRuntimeBuiltins != "" {
 		deps.StaticLibs = append(deps.StaticLibs, libRuntimeBuiltins)
 	}
+	return deps
+}
+
+func muslDeps(ctx DepsContext, deps Deps, static bool) Deps {
+	muslLibs := []string{"libc_musl"}
+	if static {
+		deps.StaticLibs = append(deps.StaticLibs, muslLibs...)
+	} else {
+		deps.SharedLibs = append(deps.SharedLibs, muslLibs...)
+	}
+	if libRuntimeBuiltins := config.BuiltinsRuntimeLibrary(ctx.toolchain()); libRuntimeBuiltins != "" {
+		deps.StaticLibs = append(deps.StaticLibs, libRuntimeBuiltins)
+	}
+
 	return deps
 }
 
