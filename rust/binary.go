@@ -92,14 +92,23 @@ func (binary *binaryDecorator) compilerFlags(ctx ModuleContext, flags Flags) Fla
 func (binary *binaryDecorator) compilerDeps(ctx DepsContext, deps Deps) Deps {
 	deps = binary.baseCompiler.compilerDeps(ctx, deps)
 
+	static := Bool(binary.Properties.Static_executable)
 	if ctx.toolchain().Bionic() {
-		deps = bionicDeps(ctx, deps, Bool(binary.Properties.Static_executable))
-		if Bool(binary.Properties.Static_executable) {
-			deps.CrtBegin = "crtbegin_static"
+		deps = bionicDeps(ctx, deps, static)
+		if static {
+			deps.CrtBegin = []string{"crtbegin_static"}
 		} else {
-			deps.CrtBegin = "crtbegin_dynamic"
+			deps.CrtBegin = []string{"crtbegin_dynamic"}
 		}
-		deps.CrtEnd = "crtend_android"
+		deps.CrtEnd = []string{"crtend_android"}
+	} else if ctx.Os() == android.LinuxMusl {
+		deps = muslDeps(ctx, deps, static)
+		if static {
+			deps.CrtBegin = []string{"libc_musl_crtbegin_static"}
+		} else {
+			deps.CrtBegin = []string{"libc_musl_crtbegin_dynamic", "musl_linker_script"}
+		}
+		deps.CrtEnd = []string{"libc_musl_crtend"}
 	}
 
 	return deps
