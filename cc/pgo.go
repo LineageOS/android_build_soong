@@ -208,6 +208,10 @@ func (props *PgoProperties) isPGO(ctx BaseModuleContext) bool {
 		ctx.ModuleErrorf("Instrumentation PGO specification is missing benchmark property")
 	}
 
+	if isSampling {
+		ctx.ModuleErrorf("Sampling PGO is deprecated, use AFDO instead")
+	}
+
 	if isSampling && isInstrumentation {
 		ctx.PropertyErrorf("pgo", "Exactly one of \"instrumentation\" and \"sampling\" properties must be set")
 	}
