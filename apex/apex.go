@@ -3291,6 +3291,7 @@ type bazelApexBundleAttributes struct {
 	Prebuilts             bazel.LabelListAttribute
 	Native_shared_libs_32 bazel.LabelListAttribute
 	Native_shared_libs_64 bazel.LabelListAttribute
+	Compressible          bazel.BoolAttribute
 }
 
 type convertedNativeSharedLibs struct {
@@ -3368,6 +3369,11 @@ func (a *apexBundle) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 		installableAttribute.Value = a.properties.Installable
 	}
 
+	var compressibleAttribute bazel.BoolAttribute
+	if a.overridableProperties.Compressible != nil {
+		compressibleAttribute.Value = a.overridableProperties.Compressible
+	}
+
 	attrs := &bazelApexBundleAttributes{
 		Manifest:              manifestLabelAttribute,
 		Android_manifest:      androidManifestLabelAttribute,
@@ -3381,6 +3387,7 @@ func (a *apexBundle) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 		Native_shared_libs_64: nativeSharedLibs.Native_shared_libs_64,
 		Binaries:              binariesLabelListAttribute,
 		Prebuilts:             prebuiltsLabelListAttribute,
+		Compressible:          compressibleAttribute,
 	}
 
 	props := bazel.BazelTargetModuleProperties{

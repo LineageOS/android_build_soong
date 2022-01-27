@@ -156,6 +156,9 @@ func (tidy *tidyFeature) flags(ctx ModuleContext, flags Flags) Flags {
 	// Too many existing functions trigger this rule, and fixing it requires large code
 	// refactoring. The cost of maintaining this tidy rule outweighs the benefit it brings.
 	tidyChecks = tidyChecks + ",-bugprone-easily-swappable-parameters"
+	// http://b/216364337 - TODO: Follow-up after compiler update to
+	// disable or fix individual instances.
+	tidyChecks = tidyChecks + ",-cert-err33-c"
 	flags.TidyFlags = append(flags.TidyFlags, tidyChecks)
 
 	if ctx.Config().IsEnvTrue("WITH_TIDY") {
