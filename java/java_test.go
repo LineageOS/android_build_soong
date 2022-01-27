@@ -1460,3 +1460,64 @@ func TestErrorproneEnabledOnlyByEnvironmentVariable(t *testing.T) {
 		t.Errorf("expected errorprone to contain %q, got %q", expectedSubstring, javac.Args["javacFlags"])
 	}
 }
+
+func TestDataDeviceBinsBuildsDeviceBinary(t *testing.T) {
+	bp := `
+		java_test_host {
+			name: "foo",
+			srcs: ["test.java"],
+			data_device_bins: ["bar"],
+		}
+
+		cc_binary {
+			name: "bar",
+		}
+	`
+
+	ctx := android.GroupFixturePreparers(
+		PrepareForIntegrationTestWithJava,
+	).RunTestWithBp(t, bp)
+
+	buildOS := ctx.Config.BuildOS.String()
+	fooVariant := ctx.ModuleForTests("foo", buildOS+"_common")
+	barVariant := ctx.ModuleForTests("bar", "android_arm64_armv8-a")
+	fooMod := fooVariant.Module().(*TestHost)
+
+	relocated := barVariant.Output("bar")
+	expectedInput := "out/soong/.intermediates/bar/android_arm64_armv8-a/unstripped/bar"
+	android.AssertPathRelativeToTopEquals(t, "relocation input", expectedInput, relocated.Input)
+
+	entries := android.AndroidMkEntriesForTest(t, ctx.TestContext, fooMod)[0]
+	expectedData := []string{
+		"out/soong/.intermediates/bar/android_arm64_armv8-a/bar:bar",
+	}
+	actualData := entries.EntryMap["LOCAL_COMPATIBILITY_SUPPORT_FILES"]
+	android.AssertStringPathsRelativeToTopEquals(t, "LOCAL_TEST_DATA", ctx.Config, expectedData, actualData)
+}
+
+func TestDataDeviceBinsAutogenTradefedConfig(t *testing.T) {
+	bp := `
+		java_test_host {
+			name: "foo",
+			srcs: ["test.java"],
+			data_device_bins: ["bar"],
+		}
+
+		cc_binary {
+			name: "bar",
+		}
+	`
+
+	ctx := android.GroupFixturePreparers(
+		PrepareForIntegrationTestWithJava,
+	).RunTestWithBp(t, bp)
+
+	buildOS := ctx.Config.BuildOS.String()
+	fooModule := ctx.ModuleForTests("foo", buildOS+"_common")
+	expectedAutogenConfig := `<option name="push-file" key="bar" value="/data/local/tests/unrestricted/foo/bar" />`
+
+	autogen := fooModule.Rule("autogen")
+	if !strings.Contains(autogen.Args["extraConfigs"], expectedAutogenConfig) {
+		t.Errorf("foo extraConfigs %v does not contain %q", autogen.Args["extraConfigs"], expectedAutogenConfig)
+	}
+}
