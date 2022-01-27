@@ -24,6 +24,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strconv"
 	"strings"
@@ -273,15 +274,45 @@ func saveToBazelConfigFile(config *productVariables, outDir string) error {
 		return fmt.Errorf("Could not create dir %s: %s", dir, err)
 	}
 
-	data, err := json.MarshalIndent(&config, "", "    ")
+	nonArchVariantProductVariables := []string{}
+	archVariantProductVariables := []string{}
+	p := variableProperties{}
+	t := reflect.TypeOf(p.Product_variables)
+	for i := 0; i < t.NumField(); i++ {
+		f := t.Field(i)
+		nonArchVariantProductVariables = append(nonArchVariantProductVariables, strings.ToLower(f.Name))
+		if proptools.HasTag(f, "android", "arch_variant") {
+			archVariantProductVariables = append(archVariantProductVariables, strings.ToLower(f.Name))
+		}
+	}
+
+	//TODO(b/216168792) should use common function to print Starlark code
+	nonArchVariantProductVariablesJson, err := json.MarshalIndent(&nonArchVariantProductVariables, "", "    ")
+	if err != nil {
+		return fmt.Errorf("cannot marshal product variable data: %s", err.Error())
+	}
+
+	//TODO(b/216168792) should use common function to print Starlark code
+	archVariantProductVariablesJson, err := json.MarshalIndent(&archVariantProductVariables, "", "    ")
+	if err != nil {
+		return fmt.Errorf("cannot marshal arch variant product variable data: %s", err.Error())
+	}
+
+	configJson, err := json.MarshalIndent(&config, "", "    ")
 	if err != nil {
 		return fmt.Errorf("cannot marshal config data: %s", err.Error())
 	}
 
 	bzl := []string{
 		bazel.GeneratedBazelFileWarning,
-		fmt.Sprintf(`_product_vars = json.decode("""%s""")`, data),
-		"product_vars = _product_vars\n",
+		fmt.Sprintf(`_product_vars = json.decode("""%s""")`, configJson),
+		fmt.Sprintf(`_product_var_constraints = %s`, nonArchVariantProductVariablesJson),
+		fmt.Sprintf(`_arch_variant_product_var_constraints = %s`, archVariantProductVariablesJson),
+		"\n", `
+product_vars = _product_vars
+product_var_constraints = _product_var_constraints
+arch_variant_product_var_constraints = _arch_variant_product_var_constraints
+`,
 	}
 	err = ioutil.WriteFile(filepath.Join(dir, "product_variables.bzl"), []byte(strings.Join(bzl, "\n")), 0644)
 	if err != nil {
