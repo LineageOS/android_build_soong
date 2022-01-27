@@ -2755,7 +2755,7 @@ type sdkLibrarySdkMemberProperties struct {
 	android.SdkMemberPropertiesBase
 
 	// Scope to per scope properties.
-	Scopes map[*apiScope]scopeProperties
+	Scopes map[*apiScope]*scopeProperties
 
 	// The Java stubs source files.
 	Stub_srcs []string
@@ -2815,7 +2815,7 @@ type scopeProperties struct {
 func (s *sdkLibrarySdkMemberProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.Module) {
 	sdk := variant.(*SdkLibrary)
 
-	s.Scopes = make(map[*apiScope]scopeProperties)
+	s.Scopes = make(map[*apiScope]*scopeProperties)
 	for _, apiScope := range allApiScopes {
 		paths := sdk.findScopePaths(apiScope)
 		if paths == nil {
@@ -2838,7 +2838,7 @@ func (s *sdkLibrarySdkMemberProperties) PopulateFromVariant(ctx android.SdkMembe
 			if paths.annotationsZip.Valid() {
 				properties.AnnotationsZip = paths.annotationsZip.Path()
 			}
-			s.Scopes[apiScope] = properties
+			s.Scopes[apiScope] = &properties
 		}
 	}
 
