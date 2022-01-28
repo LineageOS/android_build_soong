@@ -34,7 +34,7 @@ var (
 	}, "args")
 )
 
-func buildLicenseMetadata(ctx ModuleContext) {
+func buildLicenseMetadata(ctx ModuleContext, licenseMetadataFile WritablePath) {
 	base := ctx.Module().base()
 
 	if !base.Enabled() {
@@ -118,8 +118,10 @@ func buildLicenseMetadata(ctx ModuleContext) {
 		JoinWithPrefix(proptools.NinjaAndShellEscapeListIncludingSpaces(base.commonProperties.Effective_license_text.Strings()), "-n "))
 
 	if isContainer {
+		transitiveDeps := newPathsDepSet(nil, allDepMetadataDepSets).ToList()
 		args = append(args,
-			JoinWithPrefix(proptools.NinjaAndShellEscapeListIncludingSpaces(newPathsDepSet(nil, allDepMetadataDepSets).ToList().Strings()), "-d "))
+			JoinWithPrefix(proptools.NinjaAndShellEscapeListIncludingSpaces(transitiveDeps.Strings()), "-d "))
+		orderOnlyDeps = append(orderOnlyDeps, transitiveDeps...)
 	} else {
 		args = append(args,
 			JoinWithPrefix(proptools.NinjaAndShellEscapeListIncludingSpaces(allDepMetadataArgs), "-d "))
@@ -148,8 +150,6 @@ func buildLicenseMetadata(ctx ModuleContext) {
 	if isContainer {
 		args = append(args, "--is_container")
 	}
-
-	licenseMetadataFile := PathForModuleOut(ctx, "meta_lic")
 
 	ctx.Build(pctx, BuildParams{
 		Rule:        licenseMetadataRule,
