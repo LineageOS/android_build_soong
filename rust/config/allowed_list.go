@@ -19,6 +19,7 @@ var (
 		"frameworks/native/libs/binder/rust",
 		"frameworks/proto_logging/stats",
 		"hardware/interfaces/security",
+		"hardware/interfaces/uwb",
 		"packages/modules/Bluetooth",
 		"packages/modules/DnsResolver",
 		"packages/modules/Uwb",
