@@ -158,6 +158,10 @@ var fixSteps = []FixStep{
 		Name: "formatFlagProperties",
 		Fix:  runPatchListMod(formatFlagProperties),
 	},
+	{
+		Name: "removeResourcesAndAssetsIfDefault",
+		Fix:  removeResourceAndAssetsIfDefault,
+	},
 }
 
 // for fix that only need to run once
@@ -883,6 +887,24 @@ func removeSoongConfigBoolVariable(f *Fixer) error {
 		return nil
 	})(f)
 
+	return nil
+}
+
+func removeResourceAndAssetsIfDefault(f *Fixer) error {
+	for _, def := range f.tree.Defs {
+		mod, ok := def.(*parser.Module)
+		if !ok {
+			continue
+		}
+		resourceDirList, resourceDirFound := getLiteralListPropertyValue(mod, "resource_dirs")
+		if resourceDirFound && len(resourceDirList) == 1 && resourceDirList[0] == "res" {
+			removeProperty(mod, "resource_dirs")
+		}
+		assetDirList, assetDirFound := getLiteralListPropertyValue(mod, "asset_dirs")
+		if assetDirFound && len(assetDirList) == 1 && assetDirList[0] == "assets" {
+			removeProperty(mod, "asset_dirs")
+		}
+	}
 	return nil
 }
 
