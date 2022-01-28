@@ -19,7 +19,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
@@ -807,8 +806,7 @@ type PrebuiltStubsSources struct {
 
 	properties PrebuiltStubsSourcesProperties
 
-	stubsSrcJar     android.Path
-	jsonDataActions []blueprint.JSONDataAction
+	stubsSrcJar android.Path
 }
 
 func (p *PrebuiltStubsSources) OutputFiles(tag string) (android.Paths, error) {
@@ -824,13 +822,6 @@ func (d *PrebuiltStubsSources) StubsSrcJar() android.Path {
 	return d.stubsSrcJar
 }
 
-// AddJSONData is a temporary solution for droidstubs module to put action
-// related data into the module json graph.
-func (p *PrebuiltStubsSources) AddJSONData(d *map[string]interface{}) {
-	p.ModuleBase.AddJSONData(d)
-	(*d)["Actions"] = blueprint.FormatJSONDataActions(p.jsonDataActions)
-}
-
 func (p *PrebuiltStubsSources) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	if len(p.properties.Srcs) != 1 {
 		ctx.PropertyErrorf("srcs", "must only specify one directory path or srcjar, contains %d paths", len(p.properties.Srcs))
@@ -838,12 +829,9 @@ func (p *PrebuiltStubsSources) GenerateAndroidBuildActions(ctx android.ModuleCon
 	}
 
 	src := p.properties.Srcs[0]
-	var jsonDataAction blueprint.JSONDataAction
 	if filepath.Ext(src) == ".srcjar" {
 		// This is a srcjar. We can use it directly.
 		p.stubsSrcJar = android.PathForModuleSrc(ctx, src)
-		jsonDataAction.Inputs = []string{src}
-		jsonDataAction.Outputs = []string{src}
 	} else {
 		outPath := android.PathForModuleOut(ctx, ctx.ModuleName()+"-"+"stubs.srcjar")
 
@@ -867,10 +855,7 @@ func (p *PrebuiltStubsSources) GenerateAndroidBuildActions(ctx android.ModuleCon
 		rule.Restat()
 		rule.Build("zip src", "Create srcjar from prebuilt source")
 		p.stubsSrcJar = outPath
-		jsonDataAction.Inputs = srcPaths.Strings()
-		jsonDataAction.Outputs = []string{outPath.String()}
 	}
-	p.jsonDataActions = []blueprint.JSONDataAction{jsonDataAction}
 }
 
 func (p *PrebuiltStubsSources) Prebuilt() *android.Prebuilt {
