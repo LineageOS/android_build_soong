@@ -818,6 +818,10 @@ func (c *configImpl) ModuleGraphFile() string {
 	return shared.JoinPath(c.SoongOutDir(), "module-graph.json")
 }
 
+func (c *configImpl) ModuleActionsFile() string {
+	return shared.JoinPath(c.SoongOutDir(), "module-actions.json")
+}
+
 func (c *configImpl) TempDir() string {
 	return shared.TempDirForOutDir(c.SoongOutDir())
 }
