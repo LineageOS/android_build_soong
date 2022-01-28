@@ -1071,7 +1071,7 @@ type prebuiltBootclasspathFragmentProperties struct {
 // At the moment this is basically just a bootclasspath_fragment module that can be used as a
 // prebuilt. Eventually as more functionality is migrated into the bootclasspath_fragment module
 // type from the various singletons then this will diverge.
-type prebuiltBootclasspathFragmentModule struct {
+type PrebuiltBootclasspathFragmentModule struct {
 	BootclasspathFragmentModule
 	prebuilt android.Prebuilt
 
@@ -1079,16 +1079,16 @@ type prebuiltBootclasspathFragmentModule struct {
 	prebuiltProperties prebuiltBootclasspathFragmentProperties
 }
 
-func (module *prebuiltBootclasspathFragmentModule) Prebuilt() *android.Prebuilt {
+func (module *PrebuiltBootclasspathFragmentModule) Prebuilt() *android.Prebuilt {
 	return &module.prebuilt
 }
 
-func (module *prebuiltBootclasspathFragmentModule) Name() string {
+func (module *PrebuiltBootclasspathFragmentModule) Name() string {
 	return module.prebuilt.Name(module.ModuleBase.Name())
 }
 
 // produceHiddenAPIOutput returns a path to the prebuilt all-flags.csv or nil if none is specified.
-func (module *prebuiltBootclasspathFragmentModule) produceHiddenAPIOutput(ctx android.ModuleContext, contents []android.Module, input HiddenAPIFlagInput) *HiddenAPIOutput {
+func (module *PrebuiltBootclasspathFragmentModule) produceHiddenAPIOutput(ctx android.ModuleContext, contents []android.Module, input HiddenAPIFlagInput) *HiddenAPIOutput {
 	pathForOptionalSrc := func(src *string, defaultPath android.Path) android.Path {
 		if src == nil {
 			return defaultPath
@@ -1129,7 +1129,7 @@ func (module *prebuiltBootclasspathFragmentModule) produceHiddenAPIOutput(ctx an
 }
 
 // produceBootImageFiles extracts the boot image files from the APEX if available.
-func (module *prebuiltBootclasspathFragmentModule) produceBootImageFiles(ctx android.ModuleContext, imageConfig *bootImageConfig) bootImageFilesByArch {
+func (module *PrebuiltBootclasspathFragmentModule) produceBootImageFiles(ctx android.ModuleContext, imageConfig *bootImageConfig) bootImageFilesByArch {
 	if !shouldCopyBootFilesToPredefinedLocations(ctx, imageConfig) {
 		return nil
 	}
@@ -1139,37 +1139,53 @@ func (module *prebuiltBootclasspathFragmentModule) produceBootImageFiles(ctx and
 		return nil // An error has been reported by FindDeapexerProviderForModule.
 	}
 
-	files := bootImageFilesByArch{}
-	for _, variant := range imageConfig.apexVariants() {
-		arch := variant.target.Arch.ArchType
-		for _, toPath := range variant.imagesDeps {
-			apexRelativePath := apexRootRelativePathToBootImageFile(arch, toPath.Base())
-			// Get the path to the file that the deapexer extracted from the prebuilt apex file.
-			fromPath := di.PrebuiltExportPath(apexRelativePath)
-
-			// Return the toPath as the calling code expects the paths in the returned map to be the
-			// paths predefined in the bootImageConfig.
-			files[arch] = append(files[arch], toPath)
-
-			// Copy the file to the predefined location.
-			ctx.Build(pctx, android.BuildParams{
-				Rule:   android.Cp,
-				Input:  fromPath,
-				Output: toPath,
-			})
-		}
+	profile := (android.WritablePath)(nil)
+	if imageConfig.profileInstallPathInApex != "" {
+		profile = di.PrebuiltExportPath(imageConfig.profileInstallPathInApex)
 	}
 
-	// Build the boot image files for the host variants. These are built from the dex files provided
-	// by the contents of this module as prebuilt versions of the host boot image files are not
-	// available, i.e. there is no host specific prebuilt apex containing them. This has to be built
-	// without a profile as the prebuilt modules do not provide a profile.
-	buildBootImageVariantsForBuildOs(ctx, imageConfig, nil)
+	// Build the boot image files for the host variants. These are always built from the dex files
+	// provided by the contents of this module as prebuilt versions of the host boot image files are
+	// not available, i.e. there is no host specific prebuilt apex containing them. This has to be
+	// built without a profile as the prebuilt modules do not provide a profile.
+	buildBootImageVariantsForBuildOs(ctx, imageConfig, profile)
 
-	return files
+	if imageConfig.shouldInstallInApex() {
+		// If the boot image files for the android variants are in the prebuilt apex, we must use those
+		// rather than building new ones because those boot image files are going to be used on device.
+		files := bootImageFilesByArch{}
+		for _, variant := range imageConfig.apexVariants() {
+			arch := variant.target.Arch.ArchType
+			for _, toPath := range variant.imagesDeps {
+				apexRelativePath := apexRootRelativePathToBootImageFile(arch, toPath.Base())
+				// Get the path to the file that the deapexer extracted from the prebuilt apex file.
+				fromPath := di.PrebuiltExportPath(apexRelativePath)
+
+				// Return the toPath as the calling code expects the paths in the returned map to be the
+				// paths predefined in the bootImageConfig.
+				files[arch] = append(files[arch], toPath)
+
+				// Copy the file to the predefined location.
+				ctx.Build(pctx, android.BuildParams{
+					Rule:   android.Cp,
+					Input:  fromPath,
+					Output: toPath,
+				})
+			}
+		}
+		return files
+	} else {
+		if profile == nil {
+			ctx.ModuleErrorf("Unable to produce boot image files: neither boot image files nor profiles exists in the prebuilt apex")
+			return nil
+		}
+		// Build boot image files for the android variants from the dex files provided by the contents
+		// of this module.
+		return buildBootImageVariantsForAndroidOs(ctx, imageConfig, profile)
+	}
 }
 
-var _ commonBootclasspathFragment = (*prebuiltBootclasspathFragmentModule)(nil)
+var _ commonBootclasspathFragment = (*PrebuiltBootclasspathFragmentModule)(nil)
 
 // createBootImageTag creates the tag to uniquely identify the boot image file among all of the
 // files that a module requires from the prebuilt .apex file.
@@ -1183,16 +1199,22 @@ func createBootImageTag(arch android.ArchType, baseName string) string {
 //
 // If there is no image config associated with this fragment then it returns nil. Otherwise, it
 // returns the files that are listed in the image config.
-func (module *prebuiltBootclasspathFragmentModule) RequiredFilesFromPrebuiltApex(ctx android.BaseModuleContext) []string {
+func (module *PrebuiltBootclasspathFragmentModule) RequiredFilesFromPrebuiltApex(ctx android.BaseModuleContext) []string {
 	imageConfig := module.getImageConfig(ctx)
 	if imageConfig != nil {
-		// Add the boot image files, e.g. .art, .oat and .vdex files.
 		files := []string{}
-		for _, variant := range imageConfig.apexVariants() {
-			arch := variant.target.Arch.ArchType
-			for _, path := range variant.imagesDeps.Paths() {
-				base := path.Base()
-				files = append(files, apexRootRelativePathToBootImageFile(arch, base))
+		if imageConfig.profileInstallPathInApex != "" {
+			// Add the boot image profile.
+			files = append(files, imageConfig.profileInstallPathInApex)
+		}
+		if imageConfig.shouldInstallInApex() {
+			// Add the boot image files, e.g. .art, .oat and .vdex files.
+			for _, variant := range imageConfig.apexVariants() {
+				arch := variant.target.Arch.ArchType
+				for _, path := range variant.imagesDeps.Paths() {
+					base := path.Base()
+					files = append(files, apexRootRelativePathToBootImageFile(arch, base))
+				}
 			}
 		}
 		return files
@@ -1204,10 +1226,10 @@ func apexRootRelativePathToBootImageFile(arch android.ArchType, base string) str
 	return filepath.Join("javalib", arch.String(), base)
 }
 
-var _ android.RequiredFilesFromPrebuiltApex = (*prebuiltBootclasspathFragmentModule)(nil)
+var _ android.RequiredFilesFromPrebuiltApex = (*PrebuiltBootclasspathFragmentModule)(nil)
 
 func prebuiltBootclasspathFragmentFactory() android.Module {
-	m := &prebuiltBootclasspathFragmentModule{}
+	m := &PrebuiltBootclasspathFragmentModule{}
 	m.AddProperties(&m.properties, &m.prebuiltProperties)
 	// This doesn't actually have any prebuilt files of its own so pass a placeholder for the srcs
 	// array.
