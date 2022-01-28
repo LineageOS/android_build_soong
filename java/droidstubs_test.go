@@ -21,8 +21,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/blueprint"
-
 	"android/soong/android"
 )
 
@@ -232,27 +230,6 @@ func TestDroidstubsWithSystemModules(t *testing.T) {
 	checkSystemModulesUseByDroidstubs(t, ctx, "stubs-source-system-modules", "source-jar.jar")
 
 	checkSystemModulesUseByDroidstubs(t, ctx, "stubs-prebuilt-system-modules", "prebuilt-jar.jar")
-}
-
-func TestAddJSONData(t *testing.T) {
-	prebuiltStubsSources := PrebuiltStubsSources{}
-	prebuiltStubsSources.jsonDataActions = []blueprint.JSONDataAction{
-		blueprint.JSONDataAction{
-			Inputs:  []string{},
-			Outputs: []string{},
-		},
-	}
-	jsonData := map[string]interface{}{}
-	prebuiltStubsSources.AddJSONData(&jsonData)
-	expectedOut := []map[string]interface{}{
-		map[string]interface{}{
-			"Inputs":  []string{},
-			"Outputs": []string{},
-		},
-	}
-	if !reflect.DeepEqual(jsonData["Actions"], expectedOut) {
-		t.Errorf("The JSON action data %#v isn't as expected %#v.", jsonData["Actions"], expectedOut)
-	}
 }
 
 func checkSystemModulesUseByDroidstubs(t *testing.T, ctx *android.TestContext, moduleName string, systemJar string) {
