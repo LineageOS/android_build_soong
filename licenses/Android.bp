@@ -18,6 +18,11 @@ package {
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
+filegroup {
+    name: "Apache-2.0-License-Text",
+    srcs: ["LICENSE"],
+}
+
 license {
     name: "Android-Apache-2.0",
     package_name: "Android",
