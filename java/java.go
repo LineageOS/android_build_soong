@@ -1328,6 +1328,7 @@ type Import struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
 	android.ApexModuleBase
+	android.BazelModuleBase
 	prebuilt android.Prebuilt
 	android.SdkBase
 
@@ -1683,6 +1684,7 @@ func ImportFactory() android.Module {
 	android.InitPrebuiltModule(module, &module.properties.Jars)
 	android.InitApexModule(module)
 	android.InitSdkAwareModule(module)
+	android.InitBazelModule(module)
 	InitJavaModule(module, android.HostAndDeviceSupported)
 	return module
 }
@@ -2100,4 +2102,22 @@ func javaBinaryHostBp2Build(ctx android.TopDownMutatorContext, m *Binary) {
 
 	// Create the BazelTargetModule.
 	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: m.Name()}, attrs)
+}
+
+type bazelJavaImportAttributes struct {
+	Jars bazel.LabelListAttribute
+}
+
+// java_import bp2Build converter.
+func (i *Import) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+	//TODO(b/209577426): Support multiple arch variants
+	jars := bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrcExcludes(ctx, i.properties.Jars, []string(nil)))
+
+	attrs := &bazelJavaImportAttributes{
+		Jars: jars,
+	}
+	props := bazel.BazelTargetModuleProperties{Rule_class: "java_import"}
+
+	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: android.RemoveOptionalPrebuiltPrefix(i.Name())}, attrs)
+
 }
