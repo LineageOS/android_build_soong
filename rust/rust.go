@@ -394,7 +394,7 @@ type Deps struct {
 	DataLibs []string
 	DataBins []string
 
-	CrtBegin, CrtEnd string
+	CrtBegin, CrtEnd []string
 }
 
 type PathDeps struct {
@@ -421,8 +421,8 @@ type PathDeps struct {
 	depGeneratedHeaders   android.Paths
 	depSystemIncludePaths android.Paths
 
-	CrtBegin android.OptionalPath
-	CrtEnd   android.OptionalPath
+	CrtBegin android.Paths
+	CrtEnd   android.Paths
 
 	// Paths to generated source files
 	SrcDeps          android.Paths
@@ -1224,15 +1224,22 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				depPaths.depSystemIncludePaths = append(depPaths.depSystemIncludePaths, exportedInfo.SystemIncludeDirs...)
 				depPaths.depGeneratedHeaders = append(depPaths.depGeneratedHeaders, exportedInfo.GeneratedHeaders...)
 			case depTag == cc.CrtBeginDepTag:
-				depPaths.CrtBegin = linkObject
+				depPaths.CrtBegin = append(depPaths.CrtBegin, linkObject.Path())
 			case depTag == cc.CrtEndDepTag:
-				depPaths.CrtEnd = linkObject
+				depPaths.CrtEnd = append(depPaths.CrtEnd, linkObject.Path())
 			}
 
 			// Make sure these dependencies are propagated
 			if lib, ok := mod.compiler.(exportedFlagsProducer); ok && exportDep {
 				lib.exportLinkDirs(linkPath)
 				lib.exportLinkObjects(linkObject.String())
+			}
+		} else {
+			switch {
+			case depTag == cc.CrtBeginDepTag:
+				depPaths.CrtBegin = append(depPaths.CrtBegin, android.OutputFileForModule(ctx, dep, ""))
+			case depTag == cc.CrtEndDepTag:
+				depPaths.CrtEnd = append(depPaths.CrtEnd, android.OutputFileForModule(ctx, dep, ""))
 			}
 		}
 
@@ -1432,13 +1439,13 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	actx.AddVariationDependencies(nil, cc.HeaderDepTag(), deps.HeaderLibs...)
 
 	crtVariations := cc.GetCrtVariations(ctx, mod)
-	if deps.CrtBegin != "" {
+	for _, crt := range deps.CrtBegin {
 		actx.AddVariationDependencies(crtVariations, cc.CrtBeginDepTag,
-			cc.RewriteSnapshotLib(deps.CrtBegin, cc.GetSnapshot(mod, &snapshotInfo, actx).Objects))
+			cc.RewriteSnapshotLib(crt, cc.GetSnapshot(mod, &snapshotInfo, actx).Objects))
 	}
-	if deps.CrtEnd != "" {
+	for _, crt := range deps.CrtEnd {
 		actx.AddVariationDependencies(crtVariations, cc.CrtEndDepTag,
-			cc.RewriteSnapshotLib(deps.CrtEnd, cc.GetSnapshot(mod, &snapshotInfo, actx).Objects))
+			cc.RewriteSnapshotLib(crt, cc.GetSnapshot(mod, &snapshotInfo, actx).Objects))
 	}
 
 	if mod.sourceProvider != nil {
