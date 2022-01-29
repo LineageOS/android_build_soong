@@ -267,7 +267,7 @@ type BaseModuleContext interface {
 	//
 	// The Modules passed to the visit function should not be retained outside of the visit function, they may be
 	// invalidated by future mutators.
-	WalkDeps(visit func(Module, Module) bool)
+	WalkDeps(visit func(child, parent Module) bool)
 
 	// WalkDepsBlueprint calls visit for each transitive dependency, traversing the dependency
 	// tree in top down order.  visit may be called multiple times for the same (child, parent)
