@@ -54,6 +54,10 @@ func (im moduleInfo) entryName() string {
 	return im.moduleLocalName + "_init"
 }
 
+func (mi moduleInfo) name() string {
+	return fmt.Sprintf("%q", MakePath2ModuleName(mi.originalPath))
+}
+
 type inheritedModule interface {
 	name() string
 	entryName() string
@@ -65,10 +69,6 @@ type inheritedModule interface {
 type inheritedStaticModule struct {
 	*moduleInfo
 	loadAlways bool
-}
-
-func (im inheritedStaticModule) name() string {
-	return fmt.Sprintf("%q", MakePath2ModuleName(im.originalPath))
 }
 
 func (im inheritedStaticModule) emitSelect(_ *generationContext) {
@@ -102,7 +102,7 @@ func (i inheritedDynamicModule) emitSelect(gctx *generationContext) {
 	gctx.indentLevel++
 	for _, mi := range i.candidateModules {
 		gctx.newLine()
-		gctx.writef(`"%s": (%q, %s),`, mi.originalPath, mi.moduleLocalName, mi.entryName())
+		gctx.writef(`"%s": (%s, %s),`, mi.originalPath, mi.name(), mi.entryName())
 	}
 	gctx.indentLevel--
 	gctx.newLine()
