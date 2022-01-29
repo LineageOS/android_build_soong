@@ -1048,8 +1048,8 @@ def init(g, handle):
   cfg = rblf.cfg(handle)
   g["MY_PATH"] = "foo"
   _entry = {
-    "vendor/foo1/cfg.mk": ("_cfg", _cfg_init),
-    "vendor/bar/baz/cfg.mk": ("_cfg1", _cfg1_init),
+    "vendor/foo1/cfg.mk": ("vendor/foo1/cfg", _cfg_init),
+    "vendor/bar/baz/cfg.mk": ("vendor/bar/baz/cfg", _cfg1_init),
   }.get("vendor/%s/cfg.mk" % g["MY_PATH"])
   (_varmod, _varmod_init) = _entry if _entry else (None, None)
   if not _varmod_init:
@@ -1073,7 +1073,7 @@ def init(g, handle):
   g["MY_PATH"] = "foo"
   #RBC# include_top vendor/foo1
   _entry = {
-    "vendor/foo1/cfg.mk": ("_cfg", _cfg_init),
+    "vendor/foo1/cfg.mk": ("vendor/foo1/cfg", _cfg_init),
   }.get("%s/cfg.mk" % g["MY_PATH"])
   (_varmod, _varmod_init) = _entry if _entry else (None, None)
   if not _varmod_init:
@@ -1099,7 +1099,7 @@ def init(g, handle):
   g["MY_PATH"] = "foo"
   #RBC# include_top vendor/foo1
   _entry = {
-    "vendor/foo1/cfg.mk": ("_cfg", _cfg_init),
+    "vendor/foo1/cfg.mk": ("vendor/foo1/cfg", _cfg_init),
   }.get("%s/cfg.mk" % g["MY_PATH"])
   (_varmod, _varmod_init) = _entry if _entry else (None, None)
   if not _varmod_init:
@@ -1107,7 +1107,7 @@ def init(g, handle):
   rblf.inherit(handle, _varmod, _varmod_init)
   #RBC# include_top vendor/foo1
   _entry = {
-    "vendor/foo1/cfg.mk": ("_cfg", _cfg_init),
+    "vendor/foo1/cfg.mk": ("vendor/foo1/cfg", _cfg_init),
   }.get("%s/cfg.mk" % g["MY_PATH"])
   (_varmod, _varmod_init) = _entry if _entry else (None, None)
   if not _varmod_init:
@@ -1137,7 +1137,7 @@ load("//foo:font.star|init", _font_init = "init")
 def init(g, handle):
   cfg = rblf.cfg(handle)
   _entry = {
-    "foo/font.mk": ("_font", _font_init),
+    "foo/font.mk": ("foo/font", _font_init),
   }.get("%s/font.mk" % g.get("MY_VAR", ""))
   (_varmod, _varmod_init) = _entry if _entry else (None, None)
   if not _varmod_init:
@@ -1146,7 +1146,7 @@ def init(g, handle):
   #RBC# include_top foo
   # There's some space and even this comment between the include_top and the inherit-product
   _entry = {
-    "foo/font.mk": ("_font", _font_init),
+    "foo/font.mk": ("foo/font", _font_init),
   }.get("%s/font.mk" % g.get("MY_VAR", ""))
   (_varmod, _varmod_init) = _entry if _entry else (None, None)
   if not _varmod_init:
