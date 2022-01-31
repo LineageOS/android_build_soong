@@ -297,6 +297,7 @@ func hiddenAPIEncodeDex(ctx android.ModuleContext, dexInput, flagsCSV android.Pa
 
 type hiddenApiAnnotationsDependencyTag struct {
 	blueprint.BaseDependencyTag
+	android.LicenseAnnotationSharedDependencyTag
 }
 
 // Tag used to mark dependencies on java_library instances that contains Java source files whose
