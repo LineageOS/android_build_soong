@@ -129,7 +129,7 @@ type variableProperties struct {
 			Exclude_srcs []string
 		}
 
-		// eng is true for -eng builds, and can be used to turn on additionaly heavyweight debugging
+		// eng is true for -eng builds, and can be used to turn on additional heavyweight debugging
 		// features.
 		Eng struct {
 			Cflags   []string
