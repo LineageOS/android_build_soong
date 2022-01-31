@@ -15,10 +15,12 @@
 package build
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -35,6 +37,9 @@ import (
 const (
 	envConfigDir  = "vendor/google/tools/soong_config"
 	jsonSuffix    = "json"
+
+	configFetcher = "vendor/google/tools/soong/expconfigfetcher"
+	envConfigFetchTimeout = 10 * time.Second
 )
 
 type Config struct{ *configImpl }
@@ -135,40 +140,82 @@ func checkTopDir(ctx Context) {
 	}
 }
 
-func loadEnvConfig(config *configImpl) error {
+// fetchEnvConfig optionally fetches environment config from an
+// experiments system to control Soong features dynamically.
+func fetchEnvConfig(ctx Context, config *configImpl, envConfigName string) error {
+	s, err := os.Stat(configFetcher)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	if s.Mode()&0111 == 0 {
+		return fmt.Errorf("configuration fetcher binary %v is not executable: %v", configFetcher, s.Mode())
+	}
+
+	configExists := false
+	outConfigFilePath := filepath.Join(config.OutDir(), envConfigName + jsonSuffix)
+	if _, err := os.Stat(outConfigFilePath); err == nil {
+		configExists = true
+	}
+
+	tCtx, cancel := context.WithTimeout(ctx, envConfigFetchTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(tCtx, configFetcher, "-output_config_dir", config.OutDir())
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+
+	// If a config file already exists, return immediately and run the config file
+	// fetch in the background. Otherwise, wait for the config file to be fetched.
+	if configExists {
+		go cmd.Wait()
+		return nil
+	}
+	if err := cmd.Wait(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func loadEnvConfig(ctx Context, config *configImpl) error {
 	bc := os.Getenv("ANDROID_BUILD_ENVIRONMENT_CONFIG")
 	if bc == "" {
 		return nil
 	}
+
+	if err := fetchEnvConfig(ctx, config, bc); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to fetch config file: %v", err)
+	}
+
 	configDirs := []string{
-		os.Getenv("ANDROID_BUILD_ENVIRONMENT_CONFIG_DIR"),
 		config.OutDir(),
+		os.Getenv("ANDROID_BUILD_ENVIRONMENT_CONFIG_DIR"),
 		envConfigDir,
 	}
-	var cfgFile string
 	for _, dir := range configDirs {
-		cfgFile = filepath.Join(os.Getenv("TOP"), dir, fmt.Sprintf("%s.%s", bc, jsonSuffix))
-		if _, err := os.Stat(cfgFile); err == nil {
-			break
-		}
-	}
-
-	envVarsJSON, err := ioutil.ReadFile(cfgFile)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "\033[33mWARNING:\033[0m failed to open config file %s: %s\n", cfgFile, err.Error())
-		return nil
-	}
-
-	var envVars map[string]map[string]string
-	if err := json.Unmarshal(envVarsJSON, &envVars); err != nil {
-		return fmt.Errorf("env vars config file: %s did not parse correctly: %s", cfgFile, err.Error())
-	}
-	for k, v := range envVars["env"] {
-		if os.Getenv(k) != "" {
+		cfgFile := filepath.Join(os.Getenv("TOP"), dir, fmt.Sprintf("%s.%s", bc, jsonSuffix))
+		envVarsJSON, err := ioutil.ReadFile(cfgFile)
+		if err != nil {
 			continue
 		}
-		config.Environment().Set(k, v)
+		ctx.Verbosef("Loading config file %v\n", cfgFile)
+		var envVars map[string]map[string]string
+		if err := json.Unmarshal(envVarsJSON, &envVars); err != nil {
+			fmt.Fprintf(os.Stderr, "Env vars config file %s did not parse correctly: %s", cfgFile, err.Error())
+			continue
+		}
+		for k, v := range envVars["env"] {
+			if os.Getenv(k) != "" {
+				continue
+			}
+			config.environ.Set(k, v)
+		}
+		ctx.Verbosef("Finished loading config file %v\n", cfgFile)
+		break
 	}
+
 	return nil
 }
 
@@ -203,7 +250,7 @@ func NewConfig(ctx Context, args ...string) Config {
 
 	// loadEnvConfig needs to know what the OUT_DIR is, so it should
 	// be called after we determine the appropriate out directory.
-	if err := loadEnvConfig(ret); err != nil {
+	if err := loadEnvConfig(ctx, ret); err != nil {
 		ctx.Fatalln("Failed to parse env config files: %v", err)
 	}
 
