@@ -74,7 +74,7 @@ func (s *sortedNamespaces) index(namespace *Namespace) int {
 
 // A NameResolver implements blueprint.NameInterface, and implements the logic to
 // find a module from namespaces based on a query string.
-// A query string can be a module name or can be be "//namespace_path:module_path"
+// A query string can be a module name or can be "//namespace_path:module_path"
 type NameResolver struct {
 	rootNamespace *Namespace
 
