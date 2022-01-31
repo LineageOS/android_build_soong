@@ -31,7 +31,7 @@ import (
 type sortableComponent interface {
 	// componentName returns the name of the component.
 	//
-	// Uniquely identifies the components within the set of components used at runtimr and during
+	// Uniquely identifies the components within the set of components used at runtime and during
 	// tests.
 	componentName() string
 
