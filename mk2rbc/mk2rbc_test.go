@@ -131,7 +131,7 @@ load(":part1.star|init", _part1_init = "init")
 def init(g, handle):
   cfg = rblf.cfg(handle)
   rblf.inherit(handle, "part", _part_init)
-  if g.get("PRODUCT_NAME") != None:
+  if cfg.get("PRODUCT_NAME", ""):
     if not _part1_init:
       rblf.mkerror("product.mk", "Cannot find %s" % (":part1.star"))
     rblf.inherit(handle, "part1", _part1_init)
@@ -174,7 +174,7 @@ load(":part1.star|init", _part1_init = "init")
 def init(g, handle):
   cfg = rblf.cfg(handle)
   _part_init(g, handle)
-  if g.get("PRODUCT_NAME") != None:
+  if cfg.get("PRODUCT_NAME", ""):
     if not _part1_init:
       rblf.mkerror("product.mk", "Cannot find %s" % (":part1.star"))
     _part1_init(g, handle)
@@ -231,7 +231,7 @@ endif
 
 def init(g, handle):
   cfg = rblf.cfg(handle)
-  if g.get("PRODUCT_NAME") != None:
+  if cfg.get("PRODUCT_NAME", ""):
     cfg["PRODUCT_NAME"] = "gizmo"
   else:
     pass
@@ -275,7 +275,7 @@ endif
 
 def init(g, handle):
   cfg = rblf.cfg(handle)
-  if g.get("PRODUCT_NAME") != None:
+  if cfg.get("PRODUCT_NAME", ""):
     # Comment
     pass
   else:
@@ -296,7 +296,7 @@ endif
 
 def init(g, handle):
   cfg = rblf.cfg(handle)
-  if not g.get("PRODUCT_NAME") != None:
+  if not cfg.get("PRODUCT_NAME", ""):
     cfg["PRODUCT_NAME"] = "gizmo1"
   else:
     cfg["PRODUCT_NAME"] = "gizmo2"
@@ -315,9 +315,9 @@ endif
 
 def init(g, handle):
   cfg = rblf.cfg(handle)
-  if g.get("PRODUCT_NAME") != None:
+  if cfg.get("PRODUCT_NAME", ""):
     cfg["PRODUCT_NAME"] = "gizmo"
-  elif not g.get("PRODUCT_PACKAGES") != None:
+  elif not cfg.get("PRODUCT_PACKAGES", []):
     # Comment
     pass
 `,
@@ -509,11 +509,11 @@ endif
 
 def init(g, handle):
   cfg = rblf.cfg(handle)
-  if g.get("PRODUCT_NAME") != None:
+  if cfg.get("PRODUCT_NAME", ""):
     cfg["PRODUCT_PACKAGES"] = ["pack-if0"]
-    if g.get("PRODUCT_MODEL") != None:
+    if cfg.get("PRODUCT_MODEL", ""):
       cfg["PRODUCT_PACKAGES"] = ["pack-if-if"]
-    elif g.get("PRODUCT_NAME") != None:
+    elif cfg.get("PRODUCT_NAME", ""):
       cfg["PRODUCT_PACKAGES"] = ["pack-if-elif"]
     else:
       cfg["PRODUCT_PACKAGES"] = ["pack-if-else"]
