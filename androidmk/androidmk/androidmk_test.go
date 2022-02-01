@@ -1620,6 +1620,31 @@ android_app {
 }
 `,
 	},
+	{
+		desc: "LOCAL_GENERATED_SOURCES",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := foo
+LOCAL_SRC_FILES := src1, src2, src3
+LOCAL_GENERATED_SOURCES := gen_src1, gen_src2, gen_src3
+include $(BUILD_PACKAGE)
+		`,
+		expected: `
+android_app {
+	name: "foo",
+	srcs: [
+		"src1,",
+		"src2,",
+		"src3",
+	],
+	generated_sources: [
+		"gen_src1,",
+		"gen_src2,",
+		"gen_src3",
+	],
+}
+`,
+	},
 }
 
 func TestEndToEnd(t *testing.T) {
