@@ -122,17 +122,10 @@ func (s *sdkRepoHost) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	s.CopySpecsToDir(ctx, builder, packageSpecs, dir)
 
-	// Collect licenses to write into NOTICE.txt
-	noticeMap := map[string]android.Paths{}
-	for path, pkgSpec := range packageSpecs {
-		licenseFiles := pkgSpec.EffectiveLicenseFiles()
-		if len(licenseFiles) > 0 {
-			noticeMap[path] = pkgSpec.EffectiveLicenseFiles()
-		}
-	}
-	notices := android.BuildNotices(ctx, noticeMap)
+	noticeFile := android.PathForModuleOut(ctx, "NOTICES.txt")
+	android.BuildNoticeTextOutputFromLicenseMetadata(ctx, noticeFile)
 	builder.Command().Text("cp").
-		Input(notices.TxtOutput.Path()).
+		Input(noticeFile).
 		Text(filepath.Join(dir.String(), "NOTICE.txt"))
 
 	// Handle `merge_zips` by extracting their contents into our tmpdir

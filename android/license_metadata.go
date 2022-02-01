@@ -34,7 +34,7 @@ var (
 	}, "args")
 )
 
-func buildLicenseMetadata(ctx ModuleContext) {
+func buildLicenseMetadata(ctx ModuleContext, licenseMetadataFile WritablePath) {
 	base := ctx.Module().base()
 
 	if !base.Enabled() {
@@ -45,9 +45,18 @@ func buildLicenseMetadata(ctx ModuleContext) {
 		return
 	}
 
+	var outputFiles Paths
+	if outputFileProducer, ok := ctx.Module().(OutputFileProducer); ok {
+		outputFiles, _ = outputFileProducer.OutputFiles("")
+		outputFiles = PathsIfNonNil(outputFiles...)
+	}
+
+	isContainer := isContainerFromFileExtensions(base.installFiles, outputFiles)
+
 	var allDepMetadataFiles Paths
 	var allDepMetadataArgs []string
 	var allDepOutputFiles Paths
+	var allDepMetadataDepSets []*PathsDepSet
 
 	ctx.VisitDirectDepsBlueprint(func(bpdep blueprint.Module) {
 		dep, _ := bpdep.(Module)
@@ -61,6 +70,9 @@ func buildLicenseMetadata(ctx ModuleContext) {
 		if ctx.OtherModuleHasProvider(dep, LicenseMetadataProvider) {
 			info := ctx.OtherModuleProvider(dep, LicenseMetadataProvider).(*LicenseMetadataInfo)
 			allDepMetadataFiles = append(allDepMetadataFiles, info.LicenseMetadataPath)
+			if isContainer || IsInstallDepNeeded(ctx.OtherModuleDependencyTag(dep)) {
+				allDepMetadataDepSets = append(allDepMetadataDepSets, info.LicenseMetadataDepSet)
+			}
 
 			depAnnotations := licenseAnnotationsFromTag(ctx.OtherModuleDependencyTag(dep))
 
@@ -105,9 +117,16 @@ func buildLicenseMetadata(ctx ModuleContext) {
 	args = append(args,
 		JoinWithPrefix(proptools.NinjaAndShellEscapeListIncludingSpaces(base.commonProperties.Effective_license_text.Strings()), "-n "))
 
-	args = append(args,
-		JoinWithPrefix(proptools.NinjaAndShellEscapeListIncludingSpaces(allDepMetadataArgs), "-d "))
-	orderOnlyDeps = append(orderOnlyDeps, allDepMetadataFiles...)
+	if isContainer {
+		transitiveDeps := newPathsDepSet(nil, allDepMetadataDepSets).ToList()
+		args = append(args,
+			JoinWithPrefix(proptools.NinjaAndShellEscapeListIncludingSpaces(transitiveDeps.Strings()), "-d "))
+		orderOnlyDeps = append(orderOnlyDeps, transitiveDeps...)
+	} else {
+		args = append(args,
+			JoinWithPrefix(proptools.NinjaAndShellEscapeListIncludingSpaces(allDepMetadataArgs), "-d "))
+		orderOnlyDeps = append(orderOnlyDeps, allDepMetadataFiles...)
+	}
 
 	args = append(args,
 		JoinWithPrefix(proptools.NinjaAndShellEscapeListIncludingSpaces(allDepOutputFiles.Strings()), "-s "))
@@ -117,12 +136,6 @@ func buildLicenseMetadata(ctx ModuleContext) {
 		JoinWithPrefix(proptools.NinjaAndShellEscapeListIncludingSpaces(base.licenseInstallMap), "-m "))
 
 	// Built files
-	var outputFiles Paths
-	if outputFileProducer, ok := ctx.Module().(OutputFileProducer); ok {
-		outputFiles, _ = outputFileProducer.OutputFiles("")
-		outputFiles = PathsIfNonNil(outputFiles...)
-	}
-
 	if len(outputFiles) > 0 {
 		args = append(args,
 			JoinWithPrefix(proptools.NinjaAndShellEscapeListIncludingSpaces(outputFiles.Strings()), "-t "))
@@ -134,12 +147,9 @@ func buildLicenseMetadata(ctx ModuleContext) {
 	args = append(args,
 		JoinWithPrefix(proptools.NinjaAndShellEscapeListIncludingSpaces(base.installFiles.Strings()), "-i "))
 
-	isContainer := isContainerFromFileExtensions(base.installFiles, outputFiles)
 	if isContainer {
 		args = append(args, "--is_container")
 	}
-
-	licenseMetadataFile := PathForModuleOut(ctx, "meta_lic")
 
 	ctx.Build(pctx, BuildParams{
 		Rule:        licenseMetadataRule,
@@ -152,7 +162,8 @@ func buildLicenseMetadata(ctx ModuleContext) {
 	})
 
 	ctx.SetProvider(LicenseMetadataProvider, &LicenseMetadataInfo{
-		LicenseMetadataPath: licenseMetadataFile,
+		LicenseMetadataPath:   licenseMetadataFile,
+		LicenseMetadataDepSet: newPathsDepSet(Paths{licenseMetadataFile}, allDepMetadataDepSets),
 	})
 }
 
@@ -179,7 +190,8 @@ var LicenseMetadataProvider = blueprint.NewProvider(&LicenseMetadataInfo{})
 
 // LicenseMetadataInfo stores the license metadata path for a module.
 type LicenseMetadataInfo struct {
-	LicenseMetadataPath Path
+	LicenseMetadataPath   Path
+	LicenseMetadataDepSet *PathsDepSet
 }
 
 // licenseAnnotationsFromTag returns the LicenseAnnotations for a tag (if any) converted into
@@ -212,6 +224,9 @@ const (
 	// LicenseAnnotationSharedDependency should be returned by LicenseAnnotations implementations
 	// of dependency tags when the usage of the dependency is dynamic, for example a shared library
 	// linkage for native modules or as a classpath library for java modules.
+	//
+	// Dependency tags that need to always return LicenseAnnotationSharedDependency
+	// can embed LicenseAnnotationSharedDependencyTag to implement LicenseAnnotations.
 	LicenseAnnotationSharedDependency LicenseAnnotation = "dynamic"
 
 	// LicenseAnnotationToolchain should be returned by LicenseAnnotations implementations of
@@ -221,6 +236,14 @@ const (
 	// can embed LicenseAnnotationToolchainDependencyTag to implement LicenseAnnotations.
 	LicenseAnnotationToolchain LicenseAnnotation = "toolchain"
 )
+
+// LicenseAnnotationSharedDependencyTag can be embedded in a dependency tag to implement
+// LicenseAnnotations that always returns LicenseAnnotationSharedDependency.
+type LicenseAnnotationSharedDependencyTag struct{}
+
+func (LicenseAnnotationSharedDependencyTag) LicenseAnnotations() []LicenseAnnotation {
+	return []LicenseAnnotation{LicenseAnnotationSharedDependency}
+}
 
 // LicenseAnnotationToolchainDependencyTag can be embedded in a dependency tag to implement
 // LicenseAnnotations that always returns LicenseAnnotationToolchain.
