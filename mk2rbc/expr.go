@@ -378,32 +378,6 @@ func (eq *eqExpr) transform(transformer func(expr starlarkExpr) starlarkExpr) st
 	}
 }
 
-// variableDefinedExpr corresponds to Make's ifdef VAR
-type variableDefinedExpr struct {
-	v variable
-}
-
-func (v *variableDefinedExpr) emit(gctx *generationContext) {
-	if v.v != nil {
-		v.v.emitDefined(gctx)
-		return
-	}
-	gctx.writef("%s(%q)", cfnWarning, "TODO(VAR)")
-}
-
-func (_ *variableDefinedExpr) typ() starlarkType {
-	return starlarkTypeBool
-}
-
-func (v *variableDefinedExpr) emitListVarCopy(gctx *generationContext) {
-	v.emit(gctx)
-}
-
-func (v *variableDefinedExpr) transform(transformer func(expr starlarkExpr) starlarkExpr) starlarkExpr {
-	// TODO: VariableDefinedExpr isn't really an expression?
-	return v
-}
-
 type listExpr struct {
 	items []starlarkExpr
 }
