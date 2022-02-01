@@ -2512,7 +2512,7 @@ func TestUsesLibraries(t *testing.T) {
 		`--uses-library qux ` +
 		`--uses-library quuz ` +
 		`--uses-library runtime-library`
-	android.AssertStringEquals(t, "manifest_fixer args", expectManifestFixerArgs, actualManifestFixerArgs)
+	android.AssertStringDoesContain(t, "manifest_fixer args", actualManifestFixerArgs, expectManifestFixerArgs)
 
 	// Test that all libraries are verified (library order matters).
 	verifyCmd := app.Rule("verify_uses_libraries").RuleParams.Command
@@ -3055,7 +3055,7 @@ func TestTargetSdkVersionManifestFixer(t *testing.T) {
 		result := fixture.RunTestWithBp(t, bp)
 		foo := result.ModuleForTests("foo", "android_common")
 
-		manifestFixerArgs := foo.Output("manifest_fixer/AndroidManifest.xml").Args
-		android.AssertStringEquals(t, testCase.name, testCase.targetSdkVersionExpected, manifestFixerArgs["targetSdkVersion"])
+		manifestFixerArgs := foo.Output("manifest_fixer/AndroidManifest.xml").Args["args"]
+		android.AssertStringDoesContain(t, testCase.name, manifestFixerArgs, "--targetSdkVersion  "+testCase.targetSdkVersionExpected)
 	}
 }
