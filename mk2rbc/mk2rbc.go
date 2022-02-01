@@ -1003,19 +1003,14 @@ func (ctx *parseContext) processBranch(check *mkparser.Directive) {
 	ctx.popReceiver()
 }
 
-func (ctx *parseContext) newIfDefinedNode(check *mkparser.Directive) (starlarkExpr, bool) {
-	if !check.Args.Const() {
-		return ctx.newBadExpr(check, "ifdef variable ref too complex: %s", check.Args.Dump()), false
-	}
-	v := ctx.addVariable(check.Args.Strings[0])
-	return &variableDefinedExpr{v}, true
-}
-
 func (ctx *parseContext) parseCondition(check *mkparser.Directive) starlarkNode {
 	switch check.Name {
 	case "ifdef", "ifndef", "elifdef", "elifndef":
-		v, ok := ctx.newIfDefinedNode(check)
-		if ok && strings.HasSuffix(check.Name, "ndef") {
+		if !check.Args.Const() {
+			return &exprNode{expr: ctx.newBadExpr(check, "ifdef variable ref too complex: %s", check.Args.Dump())}
+		}
+		v := NewVariableRefExpr(ctx.addVariable(check.Args.Strings[0]), false)
+		if strings.HasSuffix(check.Name, "ndef") {
 			v = &notExpr{v}
 		}
 		return &ifNode{
