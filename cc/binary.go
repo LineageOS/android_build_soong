@@ -76,7 +76,6 @@ func BinaryFactory() android.Module {
 // cc_binary_host produces a binary that is runnable on a host.
 func BinaryHostFactory() android.Module {
 	module, _ := newBinary(android.HostSupported, true)
-	module.bazelable = true
 	return module.Init()
 }
 
