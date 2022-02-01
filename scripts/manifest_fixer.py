@@ -65,6 +65,9 @@ def parse_args():
   parser.add_argument('--has-no-code', dest='has_no_code', action='store_true',
                       help=('adds hasCode="false" attribute to application. Ignored if application elem '
                             'already has a hasCode attribute.'))
+  parser.add_argument('--test-only', dest='test_only', action='store_true',
+                      help=('adds testOnly="true" attribute to application. Assign true value if application elem '
+                            'already has a testOnly attribute.'))
   parser.add_argument('input', help='input AndroidManifest.xml file')
   parser.add_argument('output', help='output AndroidManifest.xml file')
   return parser.parse_args()
@@ -318,6 +321,26 @@ def set_has_code_to_false(doc):
   attr.value = 'false'
   application.setAttributeNode(attr)
 
+def set_test_only_flag_to_true(doc):
+  manifest = parse_manifest(doc)
+  elems = get_children_with_tag(manifest, 'application')
+  application = elems[0] if len(elems) == 1 else None
+  if len(elems) > 1:
+    raise RuntimeError('found multiple <application> tags')
+  elif not elems:
+    application = doc.createElement('application')
+    indent = get_indent(manifest.firstChild, 1)
+    first = manifest.firstChild
+    manifest.insertBefore(doc.createTextNode(indent), first)
+    manifest.insertBefore(application, first)
+
+  attr = application.getAttributeNodeNS(android_ns, 'testOnly')
+  if attr is not None:
+    # Do nothing If the application already has a testOnly attribute.
+    return
+  attr = doc.createAttributeNS(android_ns, 'android:testOnly')
+  attr.value = 'true'
+  application.setAttributeNode(attr)
 
 def main():
   """Program entry point."""
@@ -348,6 +371,9 @@ def main():
 
     if args.has_no_code:
       set_has_code_to_false(doc)
+
+    if args.test_only:
+      set_test_only_flag_to_true(doc)
 
     if args.extract_native_libs is not None:
       add_extract_native_libs(doc, args.extract_native_libs)
