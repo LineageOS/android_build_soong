@@ -1387,7 +1387,6 @@ func TestGood(t *testing.T) {
 				ss, err := Convert(Request{
 					MkFile:         test.mkname,
 					Reader:         bytes.NewBufferString(test.in),
-					RootDir:        ".",
 					OutputSuffix:   ".star",
 					SourceFS:       fs,
 					MakefileFinder: &testMakefileFinder{fs: fs},
