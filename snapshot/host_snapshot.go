@@ -58,7 +58,7 @@ type hostSnapshot struct {
 	android.ModuleBase
 	android.PackagingBase
 
-	zipFile    android.OptionalPath
+	outputFile android.OutputPath
 	installDir android.InstallPath
 }
 
@@ -141,7 +141,7 @@ func (f *hostSnapshot) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// Create a zip file for the binaries, and a zip of the meta data, then merge zips
 	depsZipFile := android.PathForModuleOut(ctx, f.Name()+"_deps.zip").OutputPath
 	modsZipFile := android.PathForModuleOut(ctx, f.Name()+"_mods.zip").OutputPath
-	outputFile := android.PathForModuleOut(ctx, f.installFileName()).OutputPath
+	f.outputFile = android.PathForModuleOut(ctx, f.installFileName()).OutputPath
 
 	f.installDir = android.PathForModuleInstall(ctx)
 
@@ -158,26 +158,21 @@ func (f *hostSnapshot) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	builder.Command().
 		BuiltTool("merge_zips").
-		Output(outputFile).
+		Output(f.outputFile).
 		Input(metaZipFile).
 		Input(modsZipFile)
 
 	builder.Build("manifest", fmt.Sprintf("Adding manifest %s", f.installFileName()))
-	zip := ctx.InstallFile(f.installDir, f.installFileName(), outputFile)
-	f.zipFile = android.OptionalPathForPath(zip)
+	ctx.InstallFile(f.installDir, f.installFileName(), f.outputFile)
 
 }
 
 // Implements android.AndroidMkEntriesProvider
 func (f *hostSnapshot) AndroidMkEntries() []android.AndroidMkEntries {
-	if !f.zipFile.Valid() {
-		return []android.AndroidMkEntries{}
-	}
-
 	return []android.AndroidMkEntries{android.AndroidMkEntries{
 		Class:      "ETC",
-		OutputFile: f.zipFile,
-		DistFiles:  android.MakeDefaultDistFiles(f.zipFile.Path()),
+		OutputFile: android.OptionalPathForPath(f.outputFile),
+		DistFiles:  android.MakeDefaultDistFiles(f.outputFile),
 		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
 			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
 				entries.SetString("LOCAL_MODULE_PATH", f.installDir.String())

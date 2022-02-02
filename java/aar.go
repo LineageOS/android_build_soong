@@ -276,9 +276,19 @@ func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext android.SdkCon
 	manifestFile := proptools.StringDefault(a.aaptProperties.Manifest, "AndroidManifest.xml")
 	manifestSrcPath := android.PathForModuleSrc(ctx, manifestFile)
 
-	manifestPath := manifestFixer(ctx, manifestSrcPath, sdkContext, classLoaderContexts,
-		a.isLibrary, a.useEmbeddedNativeLibs, a.usesNonSdkApis, a.useEmbeddedDex, a.hasNoCode,
-		a.LoggingParent)
+	manifestPath := ManifestFixer(ManifestFixerParams{
+		Ctx:                   ctx,
+		Manifest:              manifestSrcPath,
+		SdkContext:            sdkContext,
+		ClassLoaderContexts:   classLoaderContexts,
+		IsLibrary:             a.isLibrary,
+		UseEmbeddedNativeLibs: a.useEmbeddedNativeLibs,
+		UsesNonSdkApis:        a.usesNonSdkApis,
+		UseEmbeddedDex:        a.useEmbeddedDex,
+		HasNoCode:             a.hasNoCode,
+		TestOnly:              false,
+		LoggingParent:         a.LoggingParent,
+	})
 
 	// Add additional manifest files to transitive manifests.
 	additionalManifests := android.PathsForModuleSrc(ctx, a.aaptProperties.Additional_manifests)

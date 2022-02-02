@@ -188,7 +188,7 @@ a functionally equivalent module. Enter Soong namespaces.
 
 #### Namespaces
 
-A presense of the `soong_namespace {..}` in an Android.bp file defines a
+The presence of the `soong_namespace {..}` in an Android.bp file defines a
 **namespace**. For instance, having
 
 ```

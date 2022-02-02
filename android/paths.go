@@ -2149,3 +2149,23 @@ func IsThirdPartyPath(path string) bool {
 	}
 	return false
 }
+
+// PathsDepSet is a thin type-safe wrapper around the generic depSet.  It always uses
+// topological order.
+type PathsDepSet struct {
+	depSet
+}
+
+// newPathsDepSet returns an immutable PathsDepSet with the given direct and
+// transitive contents.
+func newPathsDepSet(direct Paths, transitive []*PathsDepSet) *PathsDepSet {
+	return &PathsDepSet{*newDepSet(TOPOLOGICAL, direct, transitive)}
+}
+
+// ToList returns the PathsDepSet flattened to a list in topological order.
+func (d *PathsDepSet) ToList() Paths {
+	if d == nil {
+		return nil
+	}
+	return d.depSet.ToList().(Paths)
+}
