@@ -15,6 +15,7 @@
 package sdk
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 
@@ -132,54 +133,73 @@ func TestPropertyPrunerByBuildRelease(t *testing.T) {
 		Nested       nested
 	}
 
-	input := testBuildReleasePruner{
-		Default:      "Default",
-		S_and_T_only: "S_and_T_only",
-		T_later:      "T_later",
-		Nested: nested{
-			F1_only: "F1_only",
-		},
+	inputFactory := func() testBuildReleasePruner {
+		return testBuildReleasePruner{
+			Default:      "Default",
+			S_and_T_only: "S_and_T_only",
+			T_later:      "T_later",
+			Nested: nested{
+				F1_only: "F1_only",
+			},
+		}
+	}
+
+	marshal := func(t interface{}) string {
+		bytes, err := json.MarshalIndent(t, "", "  ")
+		if err != nil {
+			panic(err)
+		}
+		return string(bytes)
+	}
+
+	assertJsonEquals := func(t *testing.T, expected, actual interface{}) {
+		t.Helper()
+		expectedJson := marshal(expected)
+		actualJson := marshal(actual)
+		if actualJson != expectedJson {
+			t.Errorf("test struct: expected:\n%s\n got:\n%s", expectedJson, actualJson)
+		}
 	}
 
 	t.Run("target S", func(t *testing.T) {
-		testStruct := input
+		testStruct := inputFactory()
 		pruner := newPropertyPrunerByBuildRelease(&testStruct, buildReleaseS)
 		pruner.pruneProperties(&testStruct)
 
-		expected := input
+		expected := inputFactory()
 		expected.T_later = ""
 		expected.Nested.F1_only = ""
-		android.AssertDeepEquals(t, "test struct", expected, testStruct)
+		assertJsonEquals(t, expected, testStruct)
 	})
 
 	t.Run("target T", func(t *testing.T) {
-		testStruct := input
+		testStruct := inputFactory()
 		pruner := newPropertyPrunerByBuildRelease(&testStruct, buildReleaseT)
 		pruner.pruneProperties(&testStruct)
 
-		expected := input
+		expected := inputFactory()
 		expected.Nested.F1_only = ""
-		android.AssertDeepEquals(t, "test struct", expected, testStruct)
+		assertJsonEquals(t, expected, testStruct)
 	})
 
 	t.Run("target F1", func(t *testing.T) {
-		testStruct := input
+		testStruct := inputFactory()
 		pruner := newPropertyPrunerByBuildRelease(&testStruct, buildReleaseFuture1)
 		pruner.pruneProperties(&testStruct)
 
-		expected := input
+		expected := inputFactory()
 		expected.S_and_T_only = ""
-		android.AssertDeepEquals(t, "test struct", expected, testStruct)
+		assertJsonEquals(t, expected, testStruct)
 	})
 
 	t.Run("target F2", func(t *testing.T) {
-		testStruct := input
+		testStruct := inputFactory()
 		pruner := newPropertyPrunerByBuildRelease(&testStruct, buildReleaseFuture2)
 		pruner.pruneProperties(&testStruct)
 
-		expected := input
+		expected := inputFactory()
 		expected.S_and_T_only = ""
 		expected.Nested.F1_only = ""
-		android.AssertDeepEquals(t, "test struct", expected, testStruct)
+		assertJsonEquals(t, expected, testStruct)
 	})
 }
