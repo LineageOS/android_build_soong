@@ -126,11 +126,17 @@ func TestPropertyPrunerByBuildRelease(t *testing.T) {
 		F1_only string `supported_build_releases:"F1"`
 	}
 
+	type mapped struct {
+		Default string
+		T_only  string `supported_build_releases:"T"`
+	}
+
 	type testBuildReleasePruner struct {
 		Default      string
 		S_and_T_only string `supported_build_releases:"S-T"`
 		T_later      string `supported_build_releases:"T+"`
 		Nested       nested
+		Mapped       map[string]*mapped
 	}
 
 	inputFactory := func() testBuildReleasePruner {
@@ -140,6 +146,16 @@ func TestPropertyPrunerByBuildRelease(t *testing.T) {
 			T_later:      "T_later",
 			Nested: nested{
 				F1_only: "F1_only",
+			},
+			Mapped: map[string]*mapped{
+				"one": {
+					Default: "one-default",
+					T_only:  "one-t-only",
+				},
+				"two": {
+					Default: "two-default",
+					T_only:  "two-t-only",
+				},
 			},
 		}
 	}
@@ -169,6 +185,8 @@ func TestPropertyPrunerByBuildRelease(t *testing.T) {
 		expected := inputFactory()
 		expected.T_later = ""
 		expected.Nested.F1_only = ""
+		expected.Mapped["one"].T_only = ""
+		expected.Mapped["two"].T_only = ""
 		assertJsonEquals(t, expected, testStruct)
 	})
 
@@ -189,6 +207,8 @@ func TestPropertyPrunerByBuildRelease(t *testing.T) {
 
 		expected := inputFactory()
 		expected.S_and_T_only = ""
+		expected.Mapped["one"].T_only = ""
+		expected.Mapped["two"].T_only = ""
 		assertJsonEquals(t, expected, testStruct)
 	})
 
@@ -200,6 +220,8 @@ func TestPropertyPrunerByBuildRelease(t *testing.T) {
 		expected := inputFactory()
 		expected.S_and_T_only = ""
 		expected.Nested.F1_only = ""
+		expected.Mapped["one"].T_only = ""
+		expected.Mapped["two"].T_only = ""
 		assertJsonEquals(t, expected, testStruct)
 	})
 }
