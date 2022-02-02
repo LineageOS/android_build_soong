@@ -291,7 +291,7 @@ var (
 		"external/bouncycastle":                              Bp2BuildDefaultTrue,
 		"external/brotli":                                    Bp2BuildDefaultTrue,
 		"external/conscrypt":                                 Bp2BuildDefaultTrue,
-		"external/error_prone":                               Bp2BuildDefaultTrue,
+		"external/error_prone":                               Bp2BuildDefaultTrueRecursively,
 		"external/fmtlib":                                    Bp2BuildDefaultTrueRecursively,
 		"external/google-benchmark":                          Bp2BuildDefaultTrueRecursively,
 		"external/googletest":                                Bp2BuildDefaultTrueRecursively,
@@ -431,8 +431,19 @@ var (
 		"libprotobuf-internal-protos",      // b/210751803, we don't handle path property for filegroups
 		"libprotobuf-internal-python-srcs", // b/210751803, we don't handle path property for filegroups
 		"libprotobuf-java-full",            // b/210751803, we don't handle path property for filegroups
+		"host-libprotobuf-java-full",       // b/210751803, we don't handle path property for filegroups
 		"libprotobuf-java-util-full",       // b/210751803, we don't handle path property for filegroups
-		"conscrypt",                        // b/210751803, we don't handle path property for filegroups
+
+		"conscrypt",          // b/210751803, we don't handle path property for filegroups
+		"conscrypt-for-host", // b/210751803, we don't handle path property for filegroups
+
+		"host-libprotobuf-java-lite",  // b/217236083, java_library cannot have deps without srcs
+		"host-libprotobuf-java-micro", // b/217236083, java_library cannot have deps without srcs
+		"host-libprotobuf-java-nano",  // b/217236083, java_library cannot have deps without srcs
+		"error_prone_core",            // b/217236083, java_library cannot have deps without srcs
+		"bouncycastle-host",           // b/217236083, java_library cannot have deps without srcs
+
+		"apex_manifest_proto_java", // b/215230097, we don't handle .proto files in java_library srcs attribute
 
 		// python protos
 		"libprotobuf-python",                           // contains .proto sources
