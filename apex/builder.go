@@ -397,6 +397,22 @@ func (a *apexBundle) buildBundleConfig(ctx android.ModuleContext) android.Output
 	return output.OutputPath
 }
 
+func markManifestTestOnly(ctx android.ModuleContext, androidManifestFile android.Path) android.Path {
+	return java.ManifestFixer(java.ManifestFixerParams{
+		Ctx:                   ctx,
+		Manifest:              androidManifestFile,
+		SdkContext:            nil,
+		ClassLoaderContexts:   nil,
+		IsLibrary:             false,
+		UseEmbeddedNativeLibs: false,
+		UsesNonSdkApis:        false,
+		UseEmbeddedDex:        false,
+		HasNoCode:             false,
+		TestOnly:              true,
+		LoggingParent:         "",
+	})
+}
+
 // buildUnflattendApex creates build rules to build an APEX using apexer.
 func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 	apexType := a.properties.ApexType
@@ -595,6 +611,11 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 
 		if a.properties.AndroidManifest != nil {
 			androidManifestFile := android.PathForModuleSrc(ctx, proptools.String(a.properties.AndroidManifest))
+
+			if a.testApex {
+				androidManifestFile = markManifestTestOnly(ctx, androidManifestFile)
+			}
+
 			implicitInputs = append(implicitInputs, androidManifestFile)
 			optFlags = append(optFlags, "--android_manifest "+androidManifestFile.String())
 		}
