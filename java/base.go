@@ -1969,7 +1969,7 @@ var _ ModuleWithStem = (*Module)(nil)
 
 func (j *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 	switch ctx.ModuleType() {
-	case "java_library", "java_library_host":
+	case "java_library", "java_library_host", "java_library_static":
 		if lib, ok := ctx.Module().(*Library); ok {
 			javaLibraryBp2Build(ctx, lib)
 		}
@@ -1978,5 +1978,4 @@ func (j *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 			javaBinaryHostBp2Build(ctx, binary)
 		}
 	}
-
 }
