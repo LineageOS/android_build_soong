@@ -288,6 +288,8 @@ var (
 		"development/samples/WiFiDirectDemo":                 Bp2BuildDefaultTrue,
 		"development/sdk":                                    Bp2BuildDefaultTrueRecursively,
 		"external/arm-optimized-routines":                    Bp2BuildDefaultTrueRecursively,
+		"external/auto/common":                               Bp2BuildDefaultTrueRecursively,
+		"external/auto/service":                              Bp2BuildDefaultTrueRecursively,
 		"external/boringssl":                                 Bp2BuildDefaultTrueRecursively,
 		"external/bouncycastle":                              Bp2BuildDefaultTrue,
 		"external/brotli":                                    Bp2BuildDefaultTrue,
@@ -300,6 +302,7 @@ var (
 		"external/icu":                                       Bp2BuildDefaultTrueRecursively,
 		"external/icu/android_icu4j":                         Bp2BuildDefaultFalse, // java rules incomplete
 		"external/icu/icu4j":                                 Bp2BuildDefaultFalse, // java rules incomplete
+		"external/javapoet":                                  Bp2BuildDefaultTrueRecursively,
 		"external/jemalloc_new":                              Bp2BuildDefaultTrueRecursively,
 		"external/jsoncpp":                                   Bp2BuildDefaultTrueRecursively,
 		"external/libcap":                                    Bp2BuildDefaultTrueRecursively,
