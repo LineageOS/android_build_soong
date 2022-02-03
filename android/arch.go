@@ -1522,10 +1522,12 @@ func hasArmAbi(arch Arch) bool {
 	return PrefixInList(arch.Abi, "arm")
 }
 
-// hasArmArch returns true if targets has at least non-native_bridge arm Android arch
+// hasArmAndroidArch returns true if targets has at least
+// one arm Android arch (possibly native bridged)
 func hasArmAndroidArch(targets []Target) bool {
 	for _, target := range targets {
-		if target.Os == Android && target.Arch.ArchType == Arm {
+		if target.Os == Android &&
+			(target.Arch.ArchType == Arm || target.Arch.ArchType == Arm64) {
 			return true
 		}
 	}
