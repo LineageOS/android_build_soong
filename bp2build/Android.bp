@@ -28,6 +28,7 @@ bootstrap_go_package {
         "soong-genrule",
         "soong-python",
         "soong-sh",
+        "soong-starlark-format",
         "soong-ui-metrics",
     ],
     testSrcs: [
