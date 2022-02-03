@@ -2011,6 +2011,7 @@ type javaLibraryAttributes struct {
 }
 
 func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext) *javaLibraryAttributes {
+	//TODO(b/209577426): Support multiple arch variants
 	srcs := bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrcExcludes(ctx, m.properties.Srcs, m.properties.Exclude_srcs))
 	attrs := &javaLibraryAttributes{
 		Srcs: srcs,
