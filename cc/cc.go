@@ -1751,7 +1751,7 @@ func (c *Module) setSubnameProperty(actx android.ModuleContext) {
 // Returns true if Bazel was successfully used for the analysis of this module.
 func (c *Module) maybeGenerateBazelActions(actx android.ModuleContext) bool {
 	var bazelModuleLabel string
-	if actx.ModuleType() == "cc_library" && c.static() {
+	if c.typ() == fullLibrary && c.static() {
 		// cc_library is a special case in bp2build; two targets are generated -- one for each
 		// of the shared and static variants. The shared variant keeps the module name, but the
 		// static variant uses a different suffixed name.
@@ -1759,6 +1759,7 @@ func (c *Module) maybeGenerateBazelActions(actx android.ModuleContext) bool {
 	} else {
 		bazelModuleLabel = c.GetBazelLabel(actx, c)
 	}
+
 	bazelActionsUsed := false
 	// Mixed builds mode is disabled for modules outside of device OS.
 	// TODO(b/200841190): Support non-device OS in mixed builds.
@@ -3466,17 +3467,23 @@ func (c *Module) AlwaysRequiresPlatformApexVariant() bool {
 
 var _ snapshot.RelativeInstallPath = (*Module)(nil)
 
-// ConvertWithBp2build converts Module to Bazel for bp2build.
-func (c *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
-	prebuilt := c.IsPrebuilt()
+type moduleType int
+
+const (
+	unknownType moduleType = iota
+	binary
+	object
+	fullLibrary
+	staticLibrary
+	sharedLibrary
+	headerLibrary
+)
+
+func (c *Module) typ() moduleType {
 	if c.Binary() {
-		if !prebuilt {
-			binaryBp2build(ctx, c, ctx.ModuleType())
-		}
+		return binary
 	} else if c.Object() {
-		if !prebuilt {
-			objectBp2Build(ctx, c)
-		}
+		return object
 	} else if c.CcLibrary() {
 		static := false
 		shared := false
@@ -3487,25 +3494,48 @@ func (c *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 			static = library.MutatedProperties.BuildStatic
 			shared = library.MutatedProperties.BuildShared
 		}
-
 		if static && shared {
-			if !prebuilt {
-				libraryBp2Build(ctx, c)
-			}
+			return fullLibrary
 		} else if !static && !shared {
-			libraryHeadersBp2Build(ctx, c)
+			return headerLibrary
 		} else if static {
-			if prebuilt {
-				prebuiltLibraryStaticBp2Build(ctx, c)
-			} else {
-				sharedOrStaticLibraryBp2Build(ctx, c, true)
-			}
-		} else if shared {
-			if prebuilt {
-				prebuiltLibrarySharedBp2Build(ctx, c)
-			} else {
-				sharedOrStaticLibraryBp2Build(ctx, c, false)
-			}
+			return staticLibrary
+		}
+		return sharedLibrary
+	}
+	return unknownType
+}
+
+// ConvertWithBp2build converts Module to Bazel for bp2build.
+func (c *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+	prebuilt := c.IsPrebuilt()
+	switch c.typ() {
+	case binary:
+		if !prebuilt {
+			binaryBp2build(ctx, c, ctx.ModuleType())
+		}
+	case object:
+		if !prebuilt {
+			objectBp2Build(ctx, c)
+		}
+	case fullLibrary:
+		if !prebuilt {
+			libraryBp2Build(ctx, c)
+		}
+	case headerLibrary:
+		libraryHeadersBp2Build(ctx, c)
+	case staticLibrary:
+
+		if prebuilt {
+			prebuiltLibraryStaticBp2Build(ctx, c)
+		} else {
+			sharedOrStaticLibraryBp2Build(ctx, c, true)
+		}
+	case sharedLibrary:
+		if prebuilt {
+			prebuiltLibrarySharedBp2Build(ctx, c)
+		} else {
+			sharedOrStaticLibraryBp2Build(ctx, c, false)
 		}
 	}
 }
