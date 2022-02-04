@@ -84,13 +84,13 @@ func runCcHostBinaryTestCase(t *testing.T, tc ccBinaryBp2buildTestCase) {
 	t.Helper()
 	testCase := tc
 	for i, tar := range testCase.targets {
-		if tar.typ != "cc_binary" {
-			continue
-		}
-		tar.attrs["target_compatible_with"] = `select({
+		switch tar.typ {
+		case "cc_binary", "proto_library", "cc_lite_proto_library":
+			tar.attrs["target_compatible_with"] = `select({
         "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
     })`
+		}
 		testCase.targets[i] = tar
 	}
 	moduleTypeUnderTest := "cc_binary_host"
