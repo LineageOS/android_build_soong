@@ -2713,6 +2713,23 @@ func TestVendorApex(t *testing.T) {
 	ensureListNotContains(t, requireNativeLibs, ":vndk")
 }
 
+func TestVendorApex_use_vndk_as_stable_TryingToIncludeVNDKLib(t *testing.T) {
+	testApexError(t, `Trying to include a VNDK library`, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			native_shared_libs: ["libc++"], // libc++ is a VNDK lib
+			vendor: true,
+			use_vndk_as_stable: true,
+			updatable: false,
+		}
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}`)
+}
+
 func TestVendorApex_use_vndk_as_stable(t *testing.T) {
 	ctx := testApex(t, `
 		apex {
