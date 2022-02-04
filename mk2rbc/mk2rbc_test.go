@@ -1071,7 +1071,6 @@ load("//vendor/foo1:cfg.star|init", _cfg_init = "init")
 def init(g, handle):
   cfg = rblf.cfg(handle)
   g["MY_PATH"] = "foo"
-  #RBC# include_top vendor/foo1
   rblf.inherit(handle, "vendor/foo1/cfg", _cfg_init)
 `,
 	},
@@ -1083,6 +1082,7 @@ MY_PATH:=foo
 #RBC# include_top vendor/foo1
 $(call inherit-product,$(MY_PATH)/cfg.mk)
 #RBC# include_top vendor/foo1
+#RBC# include_top vendor/foo1
 $(call inherit-product,$(MY_PATH)/cfg.mk)
 `,
 		expected: `load("//build/make/core:product_config.rbc", "rblf")
@@ -1091,9 +1091,7 @@ load("//vendor/foo1:cfg.star|init", _cfg_init = "init")
 def init(g, handle):
   cfg = rblf.cfg(handle)
   g["MY_PATH"] = "foo"
-  #RBC# include_top vendor/foo1
   rblf.inherit(handle, "vendor/foo1/cfg", _cfg_init)
-  #RBC# include_top vendor/foo1
   rblf.inherit(handle, "vendor/foo1/cfg", _cfg_init)
 `,
 	},
@@ -1112,15 +1110,13 @@ $(call inherit-product,$(MY_VAR)/font.mk)
 
 $(call inherit-product,$(MY_VAR)/font.mk)
 `,
-		expected: `#RBC# include_top foo
-load("//build/make/core:product_config.rbc", "rblf")
+		expected: `load("//build/make/core:product_config.rbc", "rblf")
 load("//foo:font.star|init", _font_init = "init")
 load("//bar:font.star|init", _font1_init = "init")
 
 def init(g, handle):
   cfg = rblf.cfg(handle)
   rblf.inherit(handle, "foo/font", _font_init)
-  #RBC# include_top foo
   # There's some space and even this comment between the include_top and the inherit-product
   rblf.inherit(handle, "foo/font", _font_init)
   rblf.mkwarning("product.mk:11", "Including a path with a non-constant prefix, please convert this to a simple literal to generate cleaner starlark.")
@@ -1157,7 +1153,6 @@ override FOO:=`,
 def init(g, handle):
   cfg = rblf.cfg(handle)
   rblf.mk2rbc_error("product.mk:2", "cannot handle override directive")
-  g["override FOO"] = ""
 `,
 	},
 	{
