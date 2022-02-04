@@ -17,8 +17,6 @@ package java
 import (
 	"android/soong/android"
 	"android/soong/bazel"
-
-	"github.com/google/blueprint/proptools"
 )
 
 func init() {
@@ -78,12 +76,9 @@ func (p *Plugin) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 		attrs.Processor_class = p.pluginProperties.Processor_class
 	}
 
-	var enabledProperty bazel.BoolAttribute
-	enabledProperty.SetSelectValue(bazel.OsConfigurationAxis, android.Android.Name, proptools.BoolPtr(false))
-
 	props := bazel.BazelTargetModuleProperties{
 		Rule_class: "java_plugin",
 	}
 
-	ctx.CreateBazelTargetModuleWithRestrictions(props, android.CommonAttributes{Name: p.Name()}, attrs, enabledProperty)
+	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: p.Name()}, attrs)
 }

@@ -48,9 +48,17 @@ java_library_host {
 			makeBazelTarget("java_library", "java-lib-host-1", attrNameToString{
 				"srcs": `["a.java"]`,
 				"deps": `[":java-lib-host-2"]`,
+				"target_compatible_with": `select({
+        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    })`,
 			}),
 			makeBazelTarget("java_library", "java-lib-host-2", attrNameToString{
 				"srcs": `["c.java"]`,
+				"target_compatible_with": `select({
+        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    })`,
 			}),
 		},
 	})

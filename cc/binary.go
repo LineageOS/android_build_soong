@@ -605,19 +605,12 @@ func binaryBp2build(ctx android.TopDownMutatorContext, m *Module, typ string) {
 		Features: baseAttrs.features,
 	}
 
-	var enabledProperty bazel.BoolAttribute
-	if typ == "cc_binary_host" {
-		falseVal := false
-		enabledProperty.SetSelectValue(bazel.OsConfigurationAxis, android.Android.Name, &falseVal)
-	}
-
-	ctx.CreateBazelTargetModuleWithRestrictions(bazel.BazelTargetModuleProperties{
+	ctx.CreateBazelTargetModule(bazel.BazelTargetModuleProperties{
 		Rule_class:        "cc_binary",
 		Bzl_load_location: "//build/bazel/rules:cc_binary.bzl",
 	},
 		android.CommonAttributes{Name: m.Name()},
-		attrs,
-		enabledProperty)
+		attrs)
 }
 
 // binaryAttributes contains Bazel attributes corresponding to a cc binary
