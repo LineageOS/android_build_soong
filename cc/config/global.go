@@ -95,6 +95,9 @@ var (
 		// Nested and array designated initialization is nice to have.
 		"-Wno-c99-designator",
 
+		// Many old files still have GNU designator syntax.
+		"-Wno-gnu-designator",
+
 		// Warnings from clang-12
 		"-Wno-gnu-folding-constant",
 

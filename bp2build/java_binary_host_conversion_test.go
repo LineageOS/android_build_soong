@@ -59,6 +59,10 @@ func TestJavaBinaryHost(t *testing.T) {
 				"deps":       `["//other:jni-lib-1"]`,
 				"jvm_flags":  `["-Djava.library.path=$${RUNPATH}other"]`,
 				"javacopts":  `["-Xdoclint:all/protected"]`,
+				"target_compatible_with": `select({
+        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    })`,
 			}),
 		},
 	})

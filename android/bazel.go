@@ -235,6 +235,7 @@ var (
 
 	// Configure modules in these directories to enable bp2build_available: true or false by default.
 	bp2buildDefaultConfig = Bp2BuildConfig{
+		"art/libartpalette":                     Bp2BuildDefaultTrueRecursively,
 		"art/libdexfile":                        Bp2BuildDefaultTrueRecursively,
 		"art/runtime":                           Bp2BuildDefaultTrueRecursively,
 		"art/tools":                             Bp2BuildDefaultTrue,
@@ -296,6 +297,9 @@ var (
 		"external/google-benchmark":                          Bp2BuildDefaultTrueRecursively,
 		"external/googletest":                                Bp2BuildDefaultTrueRecursively,
 		"external/gwp_asan":                                  Bp2BuildDefaultTrueRecursively,
+		"external/icu":                                       Bp2BuildDefaultTrueRecursively,
+		"external/icu/android_icu4j":                         Bp2BuildDefaultFalse, // java rules incomplete
+		"external/icu/icu4j":                                 Bp2BuildDefaultFalse, // java rules incomplete
 		"external/jemalloc_new":                              Bp2BuildDefaultTrueRecursively,
 		"external/jsoncpp":                                   Bp2BuildDefaultTrueRecursively,
 		"external/libcap":                                    Bp2BuildDefaultTrueRecursively,
@@ -481,14 +485,27 @@ var (
 		"libdexfiled", // depends on unconverted modules: dexfile_operator_srcs, libartbased, libartpalette
 
 		// go deps:
-		"apex-protos",                    // depends on soong_zip, a go binary
-		"robolectric_tzdata",             // depends on soong_zip, a go binary
-		"robolectric-sqlite4java-native", // depends on soong_zip, a go binary
+		"apex-protos",                                                                                // depends on soong_zip, a go binary
+		"generated_android_icu4j_src_files", "generated_android_icu4j_test_files", "icu4c_test_data", // depends on unconverted modules: soong_zip
 		"host_bionic_linker_asm",         // depends on extract_linker, a go binary.
 		"host_bionic_linker_script",      // depends on extract_linker, a go binary.
+		"robolectric-sqlite4java-native", // depends on soong_zip, a go binary
+		"robolectric_tzdata",             // depends on soong_zip, a go binary
+
+		"android_icu4j_srcgen_binary", // Bazel build error: deps not allowed without srcs; move to runtime_deps
+		"core-icu4j-for-host",         // Bazel build error: deps not allowed without srcs; move to runtime_deps
 
 		// java deps
-		"bin2c_fastdeployagent", // depends on deployagent, a java binary
+		"android_icu4j_srcgen",          // depends on unconverted modules: currysrc
+		"currysrc",                      // depends on unconverted modules: currysrc_org.eclipse, guavalib, jopt-simple-4.9
+		"bin2c_fastdeployagent",         // depends on unconverted module: deployagent
+		"timezone-host",                 // depends on unconverted modules: art.module.api.annotations
+		"robolectric-sqlite4java-0.282", // depends on unconverted modules: robolectric-sqlite4java-import, robolectric-sqlite4java-native
+		"truth-prebuilt",                // depends on unconverted modules: asm-7.0, guava
+		"truth-host-prebuilt",           // depends on unconverted modules: truth-prebuilt
+
+		"generated_android_icu4j_resources",      // depends on unconverted modules: android_icu4j_srcgen_binary, soong_zip
+		"generated_android_icu4j_test_resources", // depends on unconverted modules: android_icu4j_srcgen_binary, soong_zip
 	}
 
 	// Per-module denylist of cc_library modules to only generate the static
