@@ -1438,17 +1438,15 @@ func androidAppCertificateBp2Build(ctx android.TopDownMutatorContext, module *An
 }
 
 type bazelAndroidAppAttributes struct {
-	Srcs           bazel.LabelListAttribute
+	*javaLibraryAttributes
 	Manifest       bazel.Label
 	Custom_package *string
 	Resource_files bazel.LabelListAttribute
-	Deps           bazel.LabelListAttribute
 }
 
 // ConvertWithBp2build is used to convert android_app to Bazel.
 func (a *AndroidApp) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
-	//TODO(b/209577426): Support multiple arch variants
-	srcs := bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrcExcludes(ctx, a.properties.Srcs, a.properties.Exclude_srcs))
+	libAttrs := a.convertLibraryAttrsBp2Build(ctx)
 
 	manifest := proptools.StringDefault(a.aaptProperties.Manifest, "AndroidManifest.xml")
 
@@ -1460,15 +1458,12 @@ func (a *AndroidApp) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 		resourceFiles.Includes = append(resourceFiles.Includes, files...)
 	}
 
-	deps := bazel.MakeLabelListAttribute(android.BazelLabelForModuleDeps(ctx, a.properties.Static_libs))
-
 	attrs := &bazelAndroidAppAttributes{
-		Srcs:     srcs,
-		Manifest: android.BazelLabelForModuleSrcSingle(ctx, manifest),
+		libAttrs,
+		android.BazelLabelForModuleSrcSingle(ctx, manifest),
 		// TODO(b/209576404): handle package name override by product variable PRODUCT_MANIFEST_PACKAGE_NAME_OVERRIDES
-		Custom_package: a.overridableAppProperties.Package_name,
-		Resource_files: bazel.MakeLabelListAttribute(resourceFiles),
-		Deps:           deps,
+		a.overridableAppProperties.Package_name,
+		bazel.MakeLabelListAttribute(resourceFiles),
 	}
 	props := bazel.BazelTargetModuleProperties{Rule_class: "android_binary",
 		Bzl_load_location: "@rules_android//rules:rules.bzl"}
