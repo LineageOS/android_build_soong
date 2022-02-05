@@ -102,6 +102,12 @@ func (tidy *tidyFeature) flags(ctx ModuleContext, flags Flags) Flags {
 		}
 		flags.TidyFlags = append(flags.TidyFlags, headerFilter)
 	}
+	// Work around RBE bug in parsing clang-tidy flags, replace "--flag" with "-flag".
+	// Some C/C++ modules added local tidy flags like --header-filter= and --extra-arg-before=.
+	doubleDash := regexp.MustCompile("^('?)--(.*)$")
+	for i, s := range flags.TidyFlags {
+		flags.TidyFlags[i] = doubleDash.ReplaceAllString(s, "$1-$2")
+	}
 
 	// If clang-tidy is not enabled globally, add the -quiet flag.
 	if !ctx.Config().ClangTidy() {
