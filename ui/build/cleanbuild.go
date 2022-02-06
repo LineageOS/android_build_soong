@@ -171,6 +171,7 @@ func installClean(ctx Context, config Config) {
 		productOut("recovery"),
 		productOut("root"),
 		productOut("system"),
+		productOut("system_dlkm"),
 		productOut("system_other"),
 		productOut("vendor"),
 		productOut("vendor_dlkm"),
