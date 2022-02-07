@@ -425,7 +425,8 @@ func (a *AndroidApp) aaptBuildActions(ctx android.ModuleContext) {
 
 	a.aapt.splitNames = a.appProperties.Package_splits
 	a.aapt.LoggingParent = String(a.overridableAppProperties.Logging_parent)
-	a.aapt.buildActions(ctx, android.SdkContext(a), a.classLoaderContexts, aaptLinkFlags...)
+	a.aapt.buildActions(ctx, android.SdkContext(a), a.classLoaderContexts,
+		a.usesLibraryProperties.Exclude_uses_libs, aaptLinkFlags...)
 
 	// apps manifests are handled by aapt, don't let Module see them
 	a.properties.Manifest = nil
@@ -1211,6 +1212,23 @@ type UsesLibraryProperties struct {
 	// libraries, because SDK ones are automatically picked up by Soong. The <uses-library> name
 	// normally is the same as the module name, but there are exceptions.
 	Provides_uses_lib *string
+
+	// A list of shared library names to exclude from the classpath of the APK. Adding a library here
+	// will prevent it from being used when precompiling the APK and prevent it from being implicitly
+	// added to the APK's manifest's <uses-library> elements.
+	//
+	// Care must be taken when using this as it could result in runtime errors if the APK actually
+	// uses classes provided by the library and which are not provided in any other way.
+	//
+	// This is primarily intended for use by various CTS tests that check the runtime handling of the
+	// android.test.base shared library (and related libraries) but which depend on some common
+	// libraries that depend on the android.test.base library. Without this those tests will end up
+	// with a <uses-library android:name="android.test.base"/> in their manifest which would either
+	// render the tests worthless (as they would be testing the wrong behavior), or would break the
+	// test altogether by providing access to classes that the tests were not expecting. Those tests
+	// provide the android.test.base statically and use jarjar to rename them so they do not collide
+	// with the classes provided by the android.test.base library.
+	Exclude_uses_libs []string
 }
 
 // usesLibrary provides properties and helper functions for AndroidApp and AndroidAppImport to verify that the
