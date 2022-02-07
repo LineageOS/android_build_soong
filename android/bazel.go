@@ -713,6 +713,7 @@ func GetMainClassInManifest(c Config, filepath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	defer file.Close()
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
