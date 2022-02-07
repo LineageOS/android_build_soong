@@ -757,9 +757,10 @@ func GlobHeadersForSnapshot(ctx android.ModuleContext, paths android.Paths) andr
 		if dir == "external/eigen" {
 			// Only these two directories contains exported headers.
 			for _, subdir := range []string{"Eigen", "unsupported/Eigen"} {
-				glob, err := ctx.GlobWithDeps("external/eigen/"+subdir+"/**/*", nil)
+				globDir := "external/eigen/" + subdir + "/**/*"
+				glob, err := ctx.GlobWithDeps(globDir, nil)
 				if err != nil {
-					ctx.ModuleErrorf("glob failed: %#v", err)
+					ctx.ModuleErrorf("glob of %q failed: %s", globDir, err)
 					return nil
 				}
 				for _, header := range glob {
@@ -775,9 +776,10 @@ func GlobHeadersForSnapshot(ctx android.ModuleContext, paths android.Paths) andr
 			}
 			continue
 		}
-		glob, err := ctx.GlobWithDeps(dir+"/**/*", nil)
+		globDir := dir + "/**/*"
+		glob, err := ctx.GlobWithDeps(globDir, nil)
 		if err != nil {
-			ctx.ModuleErrorf("glob failed: %#v", err)
+			ctx.ModuleErrorf("glob of %q failed: %s", globDir, err)
 			return nil
 		}
 		isLibcxx := strings.HasPrefix(dir, "external/libcxx/include")

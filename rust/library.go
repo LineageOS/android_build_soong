@@ -773,9 +773,10 @@ func (l *libraryDecorator) collectHeadersForSnapshot(ctx android.ModuleContext, 
 	// Glob together the headers from the modules include_dirs property
 	for _, path := range android.CopyOfPaths(l.includeDirs) {
 		dir := path.String()
-		glob, err := ctx.GlobWithDeps(dir+"/**/*", nil)
+		globDir := dir + "/**/*"
+		glob, err := ctx.GlobWithDeps(globDir, nil)
 		if err != nil {
-			ctx.ModuleErrorf("glob failed: %#v", err)
+			ctx.ModuleErrorf("glob of %q failed: %s", globDir, err)
 			return
 		}
 
