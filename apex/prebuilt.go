@@ -65,7 +65,8 @@ type prebuiltCommon struct {
 	// Installed locations of symlinks for backward compatibility.
 	compatSymlinks android.InstallPaths
 
-	hostRequired []string
+	hostRequired        []string
+	requiredModuleNames []string
 }
 
 type sanitizedPrebuilt interface {
@@ -195,9 +196,19 @@ func (p *prebuiltCommon) initApexFilesForAndroidMk(ctx android.ModuleContext) {
 				}
 				p.apexFilesForAndroidMk = append(p.apexFilesForAndroidMk, af)
 			}
-		} else if tag == exportedBootclasspathFragmentTag ||
-			tag == exportedSystemserverclasspathFragmentTag {
-			// Visit the children of the bootclasspath_fragment and systemserver_fragment.
+		} else if tag == exportedBootclasspathFragmentTag {
+			bcpfModule, ok := child.(*java.PrebuiltBootclasspathFragmentModule)
+			if !ok {
+				ctx.PropertyErrorf("exported_bootclasspath_fragments", "%q is not a prebuilt_bootclasspath_fragment module", name)
+				return false
+			}
+			for _, makeModuleName := range bcpfModule.BootImageDeviceInstallMakeModules() {
+				p.requiredModuleNames = append(p.requiredModuleNames, makeModuleName)
+			}
+			// Visit the children of the bootclasspath_fragment.
+			return true
+		} else if tag == exportedSystemserverclasspathFragmentTag {
+			// Visit the children of the systemserver_fragment.
 			return true
 		}
 
@@ -211,6 +222,7 @@ func (p *prebuiltCommon) addRequiredModules(entries *android.AndroidMkEntries) {
 		entries.AddStrings("LOCAL_TARGET_REQUIRED_MODULES", fi.targetRequiredModuleNames...)
 		entries.AddStrings("LOCAL_HOST_REQUIRED_MODULES", fi.hostRequiredModuleNames...)
 	}
+	entries.AddStrings("LOCAL_REQUIRED_MODULES", p.requiredModuleNames...)
 }
 
 func (p *prebuiltCommon) AndroidMkEntries() []android.AndroidMkEntries {
