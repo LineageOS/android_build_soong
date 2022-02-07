@@ -139,7 +139,7 @@ func (r *RuntimeResourceOverlay) GenerateAndroidBuildActions(ctx android.ModuleC
 		aaptLinkFlags = append(aaptLinkFlags,
 			"--rename-overlay-target-package "+*r.overridableProperties.Target_package_name)
 	}
-	r.aapt.buildActions(ctx, r, nil, aaptLinkFlags...)
+	r.aapt.buildActions(ctx, r, nil, nil, aaptLinkFlags...)
 
 	// Sign the built package
 	_, certificates := collectAppDeps(ctx, r, false, false)
