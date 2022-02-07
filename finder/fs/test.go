@@ -74,6 +74,7 @@ func Read(t *testing.T, path string, filesystem *MockFs) string {
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
+	defer reader.Close()
 	bytes, err := ioutil.ReadAll(reader)
 	if err != nil {
 		t.Fatal(err.Error())
