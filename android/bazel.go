@@ -497,15 +497,18 @@ var (
 
 		// java deps
 		"android_icu4j_srcgen",          // depends on unconverted modules: currysrc
+		"bin2c_fastdeployagent",         // depends on deployagent, a java binary
 		"currysrc",                      // depends on unconverted modules: currysrc_org.eclipse, guavalib, jopt-simple-4.9
-		"bin2c_fastdeployagent",         // depends on unconverted module: deployagent
-		"timezone-host",                 // depends on unconverted modules: art.module.api.annotations
 		"robolectric-sqlite4java-0.282", // depends on unconverted modules: robolectric-sqlite4java-import, robolectric-sqlite4java-native
-		"truth-prebuilt",                // depends on unconverted modules: asm-7.0, guava
+		"timezone-host",                 // depends on unconverted modules: art.module.api.annotations
 		"truth-host-prebuilt",           // depends on unconverted modules: truth-prebuilt
+		"truth-prebuilt",                // depends on unconverted modules: asm-7.0, guava
 
 		"generated_android_icu4j_resources",      // depends on unconverted modules: android_icu4j_srcgen_binary, soong_zip
 		"generated_android_icu4j_test_resources", // depends on unconverted modules: android_icu4j_srcgen_binary, soong_zip
+
+		"art-script",     // depends on unconverted modules: dalvikvm, dex2oat
+		"dex2oat-script", // depends on unconverted modules: dex2oat
 	}
 
 	// Per-module denylist of cc_library modules to only generate the static
