@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"android/soong/shared"
@@ -203,6 +204,15 @@ func main() {
 	buildCtx.Verbosef("Detected %.3v GB total RAM", float32(config.TotalRAM())/(1024*1024*1024))
 	buildCtx.Verbosef("Parallelism (local/remote/highmem): %v/%v/%v",
 		config.Parallel(), config.RemoteParallel(), config.HighmemParallel())
+
+	{
+		var limits syscall.Rlimit
+		err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &limits)
+		if err != nil {
+			buildCtx.Verbosef("Failed to get file limit:", err)
+		}
+		buildCtx.Verbosef("Current file limits: %d soft, %d hard", limits.Cur, limits.Max)
+	}
 
 	{
 		// The order of the function calls is important. The last defer function call
