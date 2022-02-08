@@ -101,7 +101,7 @@ func (i inheritedDynamicModule) entryName() string {
 func (i inheritedDynamicModule) emitSelect(gctx *generationContext) {
 	if i.needsWarning {
 		gctx.newLine()
-		gctx.writef("%s.mkwarning(%q, %q)", baseName, i.location, "Including a path with a non-constant prefix, please convert this to a simple literal to generate cleaner starlark.")
+		gctx.writef("%s.mkwarning(%q, %q)", baseName, i.location, "Including a path with a non-constant prefix, please convert this to a simple literal to generate cleaner starlark. See https://source.android.com/setup/build/bazel/product_config/issues/includes for details.")
 	}
 	gctx.newLine()
 	gctx.writef("_entry = {")
