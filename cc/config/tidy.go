@@ -62,8 +62,9 @@ func init() {
 		}, ",")
 		// clang-analyzer-* checks are too slow to be in the default for WITH_TIDY=1.
 		// nightly builds add CLANG_ANALYZER_CHECKS=1 to run those checks.
+		// The insecureAPI.DeprecatedOrUnsafeBufferHandling warning does not apply to Android.
 		if ctx.Config().IsEnvTrue("CLANG_ANALYZER_CHECKS") {
-			checks += ",clang-analyzer-*"
+			checks += ",clang-analyzer-*,-clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling"
 		}
 		return checks
 	})
