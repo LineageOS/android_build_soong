@@ -284,6 +284,111 @@ func TestCLCSdkVersionOrder(t *testing.T) {
 	})
 }
 
+func TestCLCMExcludeLibs(t *testing.T) {
+	ctx := testContext()
+	const optional = false
+	const implicit = true
+
+	excludeLibs := func(t *testing.T, m ClassLoaderContextMap, excluded_libs ...string) ClassLoaderContextMap {
+		// Dump the CLCM before creating a new copy that excludes a specific set of libraries.
+		before := m.Dump()
+
+		// Create a new CLCM that excludes some libraries.
+		c := m.ExcludeLibs(excluded_libs)
+
+		// Make sure that the original CLCM was not changed.
+		after := m.Dump()
+		android.AssertStringEquals(t, "input CLCM modified", before, after)
+
+		return c
+	}
+
+	t.Run("exclude nothing", func(t *testing.T) {
+		m := make(ClassLoaderContextMap)
+		m.AddContext(ctx, 28, "a", optional, implicit, buildPath(ctx, "a"), installPath(ctx, "a"), nil)
+
+		a := excludeLibs(t, m)
+
+		android.AssertStringEquals(t, "output CLCM ", `{
+  "28": [
+    {
+      "Name": "a",
+      "Optional": false,
+      "Implicit": true,
+      "Host": "out/soong/a.jar",
+      "Device": "/system/a.jar",
+      "Subcontexts": []
+    }
+  ]
+}`, a.Dump())
+	})
+
+	t.Run("one item from list", func(t *testing.T) {
+		m := make(ClassLoaderContextMap)
+		m.AddContext(ctx, 28, "a", optional, implicit, buildPath(ctx, "a"), installPath(ctx, "a"), nil)
+		m.AddContext(ctx, 28, "b", optional, implicit, buildPath(ctx, "b"), installPath(ctx, "b"), nil)
+
+		a := excludeLibs(t, m, "a")
+
+		expected := `{
+  "28": [
+    {
+      "Name": "b",
+      "Optional": false,
+      "Implicit": true,
+      "Host": "out/soong/b.jar",
+      "Device": "/system/b.jar",
+      "Subcontexts": []
+    }
+  ]
+}`
+		android.AssertStringEquals(t, "output CLCM ", expected, a.Dump())
+	})
+
+	t.Run("all items from a list", func(t *testing.T) {
+		m := make(ClassLoaderContextMap)
+		m.AddContext(ctx, 28, "a", optional, implicit, buildPath(ctx, "a"), installPath(ctx, "a"), nil)
+		m.AddContext(ctx, 28, "b", optional, implicit, buildPath(ctx, "b"), installPath(ctx, "b"), nil)
+
+		a := excludeLibs(t, m, "a", "b")
+
+		android.AssertStringEquals(t, "output CLCM ", `{}`, a.Dump())
+	})
+
+	t.Run("items from a subcontext", func(t *testing.T) {
+		s := make(ClassLoaderContextMap)
+		s.AddContext(ctx, AnySdkVersion, "b", optional, implicit, buildPath(ctx, "b"), installPath(ctx, "b"), nil)
+		s.AddContext(ctx, AnySdkVersion, "c", optional, implicit, buildPath(ctx, "c"), installPath(ctx, "c"), nil)
+
+		m := make(ClassLoaderContextMap)
+		m.AddContext(ctx, 28, "a", optional, implicit, buildPath(ctx, "a"), installPath(ctx, "a"), s)
+
+		a := excludeLibs(t, m, "b")
+
+		android.AssertStringEquals(t, "output CLCM ", `{
+  "28": [
+    {
+      "Name": "a",
+      "Optional": false,
+      "Implicit": true,
+      "Host": "out/soong/a.jar",
+      "Device": "/system/a.jar",
+      "Subcontexts": [
+        {
+          "Name": "c",
+          "Optional": false,
+          "Implicit": true,
+          "Host": "out/soong/c.jar",
+          "Device": "/system/c.jar",
+          "Subcontexts": []
+        }
+      ]
+    }
+  ]
+}`, a.Dump())
+	})
+}
+
 func checkError(t *testing.T, have error, want string) {
 	if have == nil {
 		t.Errorf("\nwant error: '%s'\nhave: none", want)
