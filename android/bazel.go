@@ -537,6 +537,31 @@ var (
 		"libadb_pairing_connection",
 		"libadb_pairing_connection_static",
 		"libadb_pairing_server", "libadb_pairing_server_static",
+
+		// TODO(b/204811222) support suffix in cc_binary
+		"acvp_modulewrapper",
+		"android.hardware.media.c2@1.0-service-v4l2",
+		"app_process",
+		"bar_test",
+		"bench_cxa_atexit",
+		"bench_noop",
+		"bench_noop_nostl",
+		"bench_noop_static",
+		"boringssl_self_test",
+		"boringssl_self_test_vendor",
+		"bssl",
+		"cavp",
+		"crash_dump",
+		"crasher",
+		"libcxx_test_template",
+		"linker",
+		"memory_replay",
+		"native_bridge_guest_linker",
+		"native_bridge_stub_library_defaults",
+		"noop",
+		"simpleperf_ndk",
+		"toybox-static",
+		"zlib_bench",
 	}
 
 	// Used for quicker lookups
