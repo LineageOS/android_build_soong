@@ -1287,6 +1287,7 @@ func makeCcLibraryTargets(name string, attrs attrNameToString) []string {
 		"strip":                    true,
 		"stubs_symbol_file":        true,
 		"stubs_versions":           true,
+		"inject_bssl_hash":         true,
 	}
 	sharedAttrs := attrNameToString{}
 	staticAttrs := attrNameToString{}
@@ -1816,6 +1817,33 @@ cc_library {
         ],
         "//build/bazel/platforms/os:windows": ["windows.cpp"],
         "//conditions:default": [],
+    })`,
+		}),
+	},
+	)
+}
+
+func TestLibcryptoHashInjection(t *testing.T) {
+	runCcLibraryTestCase(t, bp2buildTestCase{
+		description:                "cc_library - libcrypto hash injection",
+		moduleTypeUnderTest:        "cc_library",
+		moduleTypeUnderTestFactory: cc.LibraryFactory,
+		filesystem:                 map[string]string{},
+		blueprint: soongCcLibraryPreamble + `
+cc_library {
+    name: "libcrypto",
+    target: {
+        android: {
+            inject_bssl_hash: true,
+        },
+    },
+    include_build_directory: false,
+}
+`,
+		expectedBazelTargets: makeCcLibraryTargets("libcrypto", attrNameToString{
+			"inject_bssl_hash": `select({
+        "//build/bazel/platforms/os:android": True,
+        "//conditions:default": None,
     })`,
 		}),
 	},
