@@ -40,7 +40,6 @@ import (
 )
 
 var (
-	rootDir = flag.String("root", ".", "the value of // for load paths")
 	// TODO(asmundak): remove this option once there is a consensus on suffix
 	suffix   = flag.String("suffix", ".rbc", "generated files' suffix")
 	dryRun   = flag.Bool("dry_run", false, "dry run")
@@ -71,7 +70,6 @@ func init() {
 		quit("cannot alias unknown flag " + target)
 	}
 	flagAlias("suffix", "s")
-	flagAlias("root", "d")
 	flagAlias("dry_run", "n")
 	flagAlias("convert_dependents", "r")
 	flagAlias("error_stat", "e")
@@ -90,6 +88,10 @@ func main() {
 		flag.PrintDefaults()
 	}
 	flag.Parse()
+
+	if _, err := os.Stat("build/soong/mk2rbc"); err != nil {
+		quit("Must be run from the root of the android tree. (build/soong/mk2rbc does not exist)")
+	}
 
 	// Delouse
 	if *suffix == ".mk" {
@@ -228,17 +230,16 @@ func buildProductConfigMap() map[string]string {
 	const androidProductsMk = "AndroidProducts.mk"
 	// Build the list of AndroidProducts.mk files: it's
 	// build/make/target/product/AndroidProducts.mk + device/**/AndroidProducts.mk plus + vendor/**/AndroidProducts.mk
-	targetAndroidProductsFile := filepath.Join(*rootDir, "build", "make", "target", "product", androidProductsMk)
+	targetAndroidProductsFile := filepath.Join("build", "make", "target", "product", androidProductsMk)
 	if _, err := os.Stat(targetAndroidProductsFile); err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n(hint: %s is not a source tree root)\n",
-			targetAndroidProductsFile, err, *rootDir)
+		fmt.Fprintf(os.Stderr, "%s: %s\n", targetAndroidProductsFile, err)
 	}
 	productConfigMap := make(map[string]string)
 	if err := mk2rbc.UpdateProductConfigMap(productConfigMap, targetAndroidProductsFile); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", targetAndroidProductsFile, err)
 	}
 	for _, t := range []string{"device", "vendor"} {
-		_ = filepath.WalkDir(filepath.Join(*rootDir, t),
+		_ = filepath.WalkDir(t,
 			func(path string, d os.DirEntry, err error) error {
 				if err != nil || d.IsDir() || filepath.Base(path) != androidProductsMk {
 					return nil
@@ -254,10 +255,9 @@ func buildProductConfigMap() map[string]string {
 }
 
 func getConfigVariables() {
-	path := filepath.Join(*rootDir, "build", "make", "core", "product.mk")
+	path := filepath.Join("build", "make", "core", "product.mk")
 	if err := mk2rbc.FindConfigVariables(path, mk2rbc.KnownVariables); err != nil {
-		quit(fmt.Errorf("%s\n(check --root[=%s], it should point to the source root)",
-			err, *rootDir))
+		quit(err)
 	}
 }
 
@@ -270,11 +270,11 @@ func (s fileNameScope) Get(name string) string {
 	if name != "BUILD_SYSTEM" {
 		return fmt.Sprintf("$(%s)", name)
 	}
-	return filepath.Join(*rootDir, "build", "make", "core")
+	return filepath.Join("build", "make", "core")
 }
 
 func getSoongVariables() {
-	path := filepath.Join(*rootDir, "build", "make", "core", "soong_config.mk")
+	path := filepath.Join("build", "make", "core", "soong_config.mk")
 	err := mk2rbc.FindSoongVariables(path, fileNameScope{}, mk2rbc.KnownVariables)
 	if err != nil {
 		quit(err)
@@ -325,12 +325,11 @@ func convertOne(mkFile string) (ok bool) {
 	mk2starRequest := mk2rbc.Request{
 		MkFile:          mkFile,
 		Reader:          nil,
-		RootDir:         *rootDir,
 		OutputDir:       *outputTop,
 		OutputSuffix:    *suffix,
 		TracedVariables: tracedVariables,
 		TraceCalls:      *traceCalls,
-		SourceFS:        os.DirFS(*rootDir),
+		SourceFS:        os.DirFS("."),
 		MakefileFinder:  makefileFinder,
 		ErrorLogger:     errorLogger,
 	}
@@ -587,7 +586,7 @@ type FileListMakefileFinder struct {
 
 func (l *FileListMakefileFinder) Find(root string) []string {
 	root, err1 := filepath.Abs(root)
-	wd, err2 := filepath.Abs(*rootDir)
+	wd, err2 := os.Getwd()
 	if root != wd || err1 != nil || err2 != nil {
 		return l.FindCommandMakefileFinder.Find(root)
 	}
