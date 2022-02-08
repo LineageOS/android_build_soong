@@ -316,4 +316,7 @@ func init() {
 func licensesMakeVarsProvider(ctx MakeVarsContext) {
 	ctx.Strict("BUILD_LICENSE_METADATA",
 		ctx.Config().HostToolPath(ctx, "build_license_metadata").String())
+	ctx.Strict("HTMLNOTICE", ctx.Config().HostToolPath(ctx, "htmlnotice").String())
+	ctx.Strict("XMLNOTICE", ctx.Config().HostToolPath(ctx, "xmlnotice").String())
+	ctx.Strict("TEXTNOTICE", ctx.Config().HostToolPath(ctx, "textnotice").String())
 }
