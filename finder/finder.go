@@ -847,6 +847,7 @@ func (f *Finder) startFromExternalCache() (err error) {
 	if err != nil {
 		return errors.New("No data to load from database\n")
 	}
+	defer reader.Close()
 	bufferedReader := bufio.NewReader(reader)
 	if !f.validateCacheHeader(bufferedReader) {
 		return errors.New("Cache header does not match")

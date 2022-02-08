@@ -267,10 +267,14 @@ var extractAssetsRule = pctx.AndroidStaticRule("extractAssets",
 	})
 
 func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext android.SdkContext,
-	classLoaderContexts dexpreopt.ClassLoaderContextMap, extraLinkFlags ...string) {
+	classLoaderContexts dexpreopt.ClassLoaderContextMap, excludedLibs []string,
+	extraLinkFlags ...string) {
 
 	transitiveStaticLibs, transitiveStaticLibManifests, staticRRODirs, assetPackages, libDeps, libFlags :=
 		aaptLibs(ctx, sdkContext, classLoaderContexts)
+
+	// Exclude any libraries from the supplied list.
+	classLoaderContexts = classLoaderContexts.ExcludeLibs(excludedLibs)
 
 	// App manifest file
 	manifestFile := proptools.StringDefault(a.aaptProperties.Manifest, "AndroidManifest.xml")
@@ -530,7 +534,7 @@ func (a *AndroidLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 func (a *AndroidLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.aapt.isLibrary = true
 	a.classLoaderContexts = a.usesLibrary.classLoaderContextForUsesLibDeps(ctx)
-	a.aapt.buildActions(ctx, android.SdkContext(a), a.classLoaderContexts)
+	a.aapt.buildActions(ctx, android.SdkContext(a), a.classLoaderContexts, nil)
 
 	a.hideApexVariantFromMake = !ctx.Provider(android.ApexInfoProvider).(android.ApexInfo).IsForPlatform()
 
