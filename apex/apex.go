@@ -888,9 +888,18 @@ func (a *apexBundle) ApexInfoMutator(mctx android.TopDownMutatorContext) {
 	// APEX, but shared across APEXes via the VNDK APEX.
 	useVndk := a.SocSpecific() || a.DeviceSpecific() || (a.ProductSpecific() && mctx.Config().EnforceProductPartitionInterface())
 	excludeVndkLibs := useVndk && proptools.Bool(a.properties.Use_vndk_as_stable)
-	if !useVndk && proptools.Bool(a.properties.Use_vndk_as_stable) {
-		mctx.PropertyErrorf("use_vndk_as_stable", "not supported for system/system_ext APEXes")
-		return
+	if proptools.Bool(a.properties.Use_vndk_as_stable) {
+		if !useVndk {
+			mctx.PropertyErrorf("use_vndk_as_stable", "not supported for system/system_ext APEXes")
+		}
+		mctx.VisitDirectDepsWithTag(sharedLibTag, func(dep android.Module) {
+			if c, ok := dep.(*cc.Module); ok && c.IsVndk() {
+				mctx.PropertyErrorf("use_vndk_as_stable", "Trying to include a VNDK library(%s) while use_vndk_as_stable is true.", dep.Name())
+			}
+		})
+		if mctx.Failed() {
+			return
+		}
 	}
 
 	continueApexDepsWalk := func(child, parent android.Module) bool {
