@@ -644,7 +644,7 @@ func (la *linkerAttributes) bp2buildForAxisAndConfig(ctx android.BazelConversion
 
 	var linkerFlags []string
 	if len(props.Ldflags) > 0 {
-		linkerFlags = append(linkerFlags, props.Ldflags...)
+		linkerFlags = append(linkerFlags, proptools.NinjaEscapeList(props.Ldflags)...)
 		// binaries remove static flag if -shared is in the linker flags
 		if isBinary && android.InList("-shared", linkerFlags) {
 			axisFeatures = append(axisFeatures, "-static_flag")
