@@ -90,7 +90,10 @@ func (p *licenseSdkMemberProperties) PopulateFromVariant(_ SdkMemberContext, var
 	// Populate the properties from the variant.
 	l := variant.(*licenseModule)
 	p.License_kinds = l.properties.License_kinds
-	p.License_text = l.base().commonProperties.Effective_license_text
+	p.License_text = make(Paths, 0, len(l.base().commonProperties.Effective_license_text))
+	for _, np := range l.base().commonProperties.Effective_license_text {
+		p.License_text = append(p.License_text, np.Path)
+	}
 }
 
 func (p *licenseSdkMemberProperties) AddToPropertySet(ctx SdkMemberContext, propertySet BpPropertySet) {
