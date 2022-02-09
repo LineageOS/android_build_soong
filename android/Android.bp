@@ -16,7 +16,9 @@ bootstrap_go_package {
         "soong-remoteexec",
         "soong-response",
         "soong-shared",
+        "soong-starlark-format",
         "soong-ui-metrics_proto",
+
         "golang-protobuf-proto",
         "golang-protobuf-encoding-prototext",
 

@@ -27,6 +27,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/bazel"
+	"android/soong/starlark_fmt"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
@@ -559,48 +560,27 @@ func prettyPrint(propertyValue reflect.Value, indent int, emitZeroValues bool) (
 		return "", nil
 	}
 
-	var ret string
 	switch propertyValue.Kind() {
 	case reflect.String:
-		ret = fmt.Sprintf("\"%v\"", escapeString(propertyValue.String()))
+		return fmt.Sprintf("\"%v\"", escapeString(propertyValue.String())), nil
 	case reflect.Bool:
-		ret = strings.Title(fmt.Sprintf("%v", propertyValue.Interface()))
+		return starlark_fmt.PrintBool(propertyValue.Bool()), nil
 	case reflect.Int, reflect.Uint, reflect.Int64:
-		ret = fmt.Sprintf("%v", propertyValue.Interface())
+		return fmt.Sprintf("%v", propertyValue.Interface()), nil
 	case reflect.Ptr:
 		return prettyPrint(propertyValue.Elem(), indent, emitZeroValues)
 	case reflect.Slice:
-		if propertyValue.Len() == 0 {
-			return "[]", nil
-		}
-
-		if propertyValue.Len() == 1 {
-			// Single-line list for list with only 1 element
-			ret += "["
-			indexedValue, err := prettyPrint(propertyValue.Index(0), indent, emitZeroValues)
+		elements := make([]string, 0, propertyValue.Len())
+		for i := 0; i < propertyValue.Len(); i++ {
+			val, err := prettyPrint(propertyValue.Index(i), indent, emitZeroValues)
 			if err != nil {
 				return "", err
 			}
-			ret += indexedValue
-			ret += "]"
-		} else {
-			// otherwise, use a multiline list.
-			ret += "[\n"
-			for i := 0; i < propertyValue.Len(); i++ {
-				indexedValue, err := prettyPrint(propertyValue.Index(i), indent+1, emitZeroValues)
-				if err != nil {
-					return "", err
-				}
-
-				if indexedValue != "" {
-					ret += makeIndent(indent + 1)
-					ret += indexedValue
-					ret += ",\n"
-				}
+			if val != "" {
+				elements = append(elements, val)
 			}
-			ret += makeIndent(indent)
-			ret += "]"
 		}
+		return starlark_fmt.PrintList(elements, indent, "%s"), nil
 
 	case reflect.Struct:
 		// Special cases where the bp2build sends additional information to the codegenerator
@@ -611,18 +591,12 @@ func prettyPrint(propertyValue reflect.Value, indent int, emitZeroValues bool) (
 			return fmt.Sprintf("%q", label.Label), nil
 		}
 
-		ret = "{\n"
 		// Sort and print the struct props by the key.
 		structProps := extractStructProperties(propertyValue, indent)
 		if len(structProps) == 0 {
 			return "", nil
 		}
-		for _, k := range android.SortedStringKeys(structProps) {
-			ret += makeIndent(indent + 1)
-			ret += fmt.Sprintf("%q: %s,\n", k, structProps[k])
-		}
-		ret += makeIndent(indent)
-		ret += "}"
+		return starlark_fmt.PrintDict(structProps, indent), nil
 	case reflect.Interface:
 		// TODO(b/164227191): implement pretty print for interfaces.
 		// Interfaces are used for for arch, multilib and target properties.
@@ -631,7 +605,6 @@ func prettyPrint(propertyValue reflect.Value, indent int, emitZeroValues bool) (
 		return "", fmt.Errorf(
 			"unexpected kind for property struct field: %s", propertyValue.Kind())
 	}
-	return ret, nil
 }
 
 // Converts a reflected property struct value into a map of property names and property values,
@@ -734,13 +707,6 @@ func escapeString(s string) string {
 	s = strings.ReplaceAll(s, "\r", "\\r")
 
 	return strings.ReplaceAll(s, "\"", "\\\"")
-}
-
-func makeIndent(indent int) string {
-	if indent < 0 {
-		panic(fmt.Errorf("indent column cannot be less than 0, but got %d", indent))
-	}
-	return strings.Repeat("    ", indent)
 }
 
 func targetNameWithVariant(c bpToBuildContext, logicModule blueprint.Module) string {
