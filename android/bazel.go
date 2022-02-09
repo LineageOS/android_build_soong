@@ -449,6 +449,9 @@ var (
 
 		"apex_manifest_proto_java", // b/215230097, we don't handle .proto files in java_library srcs attribute
 
+		"libc_musl_sysroot_bionic_arch_headers", // b/218405924, depends on soong_zip
+		"libc_musl_sysroot_bionic_headers",      // b/218405924, depends on soong_zip and generates duplicate srcs
+
 		// python protos
 		"libprotobuf-python",                           // contains .proto sources
 		"conv_linker_config",                           // depends on linker_config_proto, a python lib with proto sources
@@ -716,6 +719,7 @@ func GetMainClassInManifest(c Config, filepath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	defer file.Close()
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
