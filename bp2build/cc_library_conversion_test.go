@@ -2437,3 +2437,18 @@ cc_library {
 	},
 	)
 }
+
+func TestCcLibraryEscapeLdflags(t *testing.T) {
+	runCcLibraryTestCase(t, bp2buildTestCase{
+		moduleTypeUnderTest:        "cc_library",
+		moduleTypeUnderTestFactory: cc.LibraryFactory,
+		blueprint: soongCcProtoPreamble + `cc_library {
+	name: "foo",
+	ldflags: ["-Wl,--rpath,${ORIGIN}"],
+	include_build_directory: false,
+}`,
+		expectedBazelTargets: makeCcLibraryTargets("foo", attrNameToString{
+			"linkopts": `["-Wl,--rpath,$${ORIGIN}"]`,
+		}),
+	})
+}
