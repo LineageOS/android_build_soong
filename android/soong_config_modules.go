@@ -378,6 +378,7 @@ func loadSoongConfigModuleTypeDefinition(ctx LoadHookContext, from string) map[s
 			ctx.PropertyErrorf("from", "failed to open %q: %s", from, err)
 			return (map[string]blueprint.ModuleFactory)(nil)
 		}
+		defer r.Close()
 
 		mtDef, errs := soongconfig.Parse(r, from)
 		if ctx.Config().runningAsBp2Build {

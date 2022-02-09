@@ -3465,6 +3465,14 @@ func (c *Module) AlwaysRequiresPlatformApexVariant() bool {
 	return c.IsStubs() || c.Target().NativeBridge == android.NativeBridgeEnabled
 }
 
+// Overrides android.ApexModuleBase.UniqueApexVariations
+func (c *Module) UniqueApexVariations() bool {
+	// When a vendor APEX needs a VNDK lib in it (use_vndk_as_stable: false), it should be a unique
+	// APEX variation. Otherwise, another vendor APEX with use_vndk_as_stable:true may use a wrong
+	// variation of the VNDK lib because APEX variations are merged/grouped.
+	return c.UseVndk() && c.IsVndk()
+}
+
 var _ snapshot.RelativeInstallPath = (*Module)(nil)
 
 type moduleType int
