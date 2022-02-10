@@ -931,13 +931,13 @@ type bootclasspathFragmentSdkMemberProperties struct {
 	All_flags_path android.OptionalPath `supported_build_releases:"S"`
 
 	// The path to the generated signature-patterns.csv file.
-	Signature_patterns_path android.OptionalPath `supported_build_releases:"T+"`
+	Signature_patterns_path android.OptionalPath `supported_build_releases:"Tiramisu+"`
 
 	// The path to the generated filtered-stub-flags.csv file.
-	Filtered_stub_flags_path android.OptionalPath `supported_build_releases:"T+"`
+	Filtered_stub_flags_path android.OptionalPath `supported_build_releases:"Tiramisu+"`
 
 	// The path to the generated filtered-flags.csv file.
-	Filtered_flags_path android.OptionalPath `supported_build_releases:"T+"`
+	Filtered_flags_path android.OptionalPath `supported_build_releases:"Tiramisu+"`
 }
 
 func (b *bootclasspathFragmentSdkMemberProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.Module) {
