@@ -22,12 +22,9 @@ import (
 	"strings"
 
 	"android/soong/android"
+	"android/soong/starlark_fmt"
 
 	"github.com/google/blueprint"
-)
-
-const (
-	bazelIndent = 4
 )
 
 type bazelVarExporter interface {
@@ -71,21 +68,6 @@ type exportedStringVariables map[string]string
 
 func (m exportedStringVariables) Set(k string, v string) {
 	m[k] = v
-}
-
-func bazelIndention(level int) string {
-	return strings.Repeat(" ", level*bazelIndent)
-}
-
-func printBazelList(items []string, indentLevel int) string {
-	list := make([]string, 0, len(items)+2)
-	list = append(list, "[")
-	innerIndent := bazelIndention(indentLevel + 1)
-	for _, item := range items {
-		list = append(list, fmt.Sprintf(`%s"%s",`, innerIndent, item))
-	}
-	list = append(list, bazelIndention(indentLevel)+"]")
-	return strings.Join(list, "\n")
 }
 
 func (m exportedStringVariables) asBazel(config android.Config,
@@ -139,7 +121,7 @@ func (m exportedStringListVariables) asBazel(config android.Config,
 		// out through a constants struct later.
 		ret = append(ret, bazelConstant{
 			variableName:       k,
-			internalDefinition: printBazelList(expandedVars, 0),
+			internalDefinition: starlark_fmt.PrintStringList(expandedVars, 0),
 		})
 	}
 	return ret
@@ -173,17 +155,6 @@ func (m exportedStringListDictVariables) Set(k string, v map[string][]string) {
 	m[k] = v
 }
 
-func printBazelStringListDict(dict map[string][]string) string {
-	bazelDict := make([]string, 0, len(dict)+2)
-	bazelDict = append(bazelDict, "{")
-	for k, v := range dict {
-		bazelDict = append(bazelDict,
-			fmt.Sprintf(`%s"%s": %s,`, bazelIndention(1), k, printBazelList(v, 1)))
-	}
-	bazelDict = append(bazelDict, "}")
-	return strings.Join(bazelDict, "\n")
-}
-
 // Since dictionaries are not supported in Ninja, we do not expand variables for dictionaries
 func (m exportedStringListDictVariables) asBazel(_ android.Config, _ exportedStringVariables,
 	_ exportedStringListVariables, _ exportedConfigDependingVariables) []bazelConstant {
@@ -191,7 +162,7 @@ func (m exportedStringListDictVariables) asBazel(_ android.Config, _ exportedStr
 	for k, dict := range m {
 		ret = append(ret, bazelConstant{
 			variableName:       k,
-			internalDefinition: printBazelStringListDict(dict),
+			internalDefinition: starlark_fmt.PrintStringListDict(dict, 0),
 		})
 	}
 	return ret
@@ -223,7 +194,7 @@ func bazelToolchainVars(config android.Config, vars ...bazelVarExporter) string 
 		definitions = append(definitions,
 			fmt.Sprintf("_%s = %s", b.variableName, b.internalDefinition))
 		constants = append(constants,
-			fmt.Sprintf("%[1]s%[2]s = _%[2]s,", bazelIndention(1), b.variableName))
+			fmt.Sprintf("%[1]s%[2]s = _%[2]s,", starlark_fmt.Indention(1), b.variableName))
 	}
 
 	// Build the exported constants struct.

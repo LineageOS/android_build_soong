@@ -6,6 +6,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/bazel"
+	"android/soong/starlark_fmt"
 )
 
 // Configurability support for bp2build.
@@ -250,10 +251,10 @@ func prettyPrintSelectMap(selectMap map[string]reflect.Value, defaultValue *stri
 	} else if defaultValue != nil {
 		// Print an explicit empty list (the default value) even if the value is
 		// empty, to avoid errors about not finding a configuration that matches.
-		ret += fmt.Sprintf("%s\"%s\": %s,\n", makeIndent(indent+1), bazel.ConditionsDefaultSelectKey, *defaultValue)
+		ret += fmt.Sprintf("%s\"%s\": %s,\n", starlark_fmt.Indention(indent+1), bazel.ConditionsDefaultSelectKey, *defaultValue)
 	}
 
-	ret += makeIndent(indent)
+	ret += starlark_fmt.Indention(indent)
 	ret += "})"
 
 	return ret, nil
@@ -262,7 +263,7 @@ func prettyPrintSelectMap(selectMap map[string]reflect.Value, defaultValue *stri
 // prettyPrintSelectEntry converts a reflect.Value into an entry in a select map
 // with a provided key.
 func prettyPrintSelectEntry(value reflect.Value, key string, indent int, emitZeroValues bool) (string, error) {
-	s := makeIndent(indent + 1)
+	s := starlark_fmt.Indention(indent + 1)
 	v, err := prettyPrint(value, indent+1, emitZeroValues)
 	if err != nil {
 		return "", err

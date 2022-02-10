@@ -386,6 +386,46 @@ func TestNonExistentPropertyInSoongConfigModule(t *testing.T) {
 	})).RunTest(t)
 }
 
+func TestDuplicateStringValueInSoongConfigStringVariable(t *testing.T) {
+	bp := `
+		soong_config_string_variable {
+			name: "board",
+			values: ["soc_a", "soc_b", "soc_c", "soc_a"],
+		}
+
+		soong_config_module_type {
+			name: "acme_test",
+			module_type: "test",
+			config_namespace: "acme",
+			variables: ["board"],
+			properties: ["cflags", "srcs", "defaults"],
+		}
+    `
+
+	fixtureForVendorVars := func(vars map[string]map[string]string) FixturePreparer {
+		return FixtureModifyProductVariables(func(variables FixtureProductVariables) {
+			variables.VendorVars = vars
+		})
+	}
+
+	GroupFixturePreparers(
+		fixtureForVendorVars(map[string]map[string]string{"acme": {"feature1": "1"}}),
+		PrepareForTestWithDefaults,
+		FixtureRegisterWithContext(func(ctx RegistrationContext) {
+			ctx.RegisterModuleType("soong_config_module_type_import", SoongConfigModuleTypeImportFactory)
+			ctx.RegisterModuleType("soong_config_module_type", SoongConfigModuleTypeFactory)
+			ctx.RegisterModuleType("soong_config_string_variable", SoongConfigStringVariableDummyFactory)
+			ctx.RegisterModuleType("soong_config_bool_variable", SoongConfigBoolVariableDummyFactory)
+			ctx.RegisterModuleType("test_defaults", soongConfigTestDefaultsModuleFactory)
+			ctx.RegisterModuleType("test", soongConfigTestModuleFactory)
+		}),
+		FixtureWithRootAndroidBp(bp),
+	).ExtendWithErrorHandler(FixtureExpectsAllErrorsToMatchAPattern([]string{
+		// TODO(b/171232169): improve the error message for non-existent properties
+		`Android.bp: soong_config_string_variable: values property error: duplicate value: "soc_a"`,
+	})).RunTest(t)
+}
+
 func testConfigWithVendorVars(buildDir, bp string, fs map[string][]byte, vendorVars map[string]map[string]string) Config {
 	config := TestConfig(buildDir, nil, bp, fs)
 
