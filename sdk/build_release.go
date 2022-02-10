@@ -85,7 +85,7 @@ var (
 
 	// Add the build releases from oldest to newest.
 	buildReleaseS = initBuildRelease("S")
-	buildReleaseT = initBuildRelease("T")
+	buildReleaseT = initBuildRelease("Tiramisu")
 )
 
 // initBuildRelease creates a new build release with the specified name.
