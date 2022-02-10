@@ -238,8 +238,6 @@ var (
 		// http://b/197240255
 		"-Wno-unused-but-set-variable",
 		"-Wno-unused-but-set-parameter",
-		// http://b/215753485
-		"-Wno-bitwise-instead-of-logical",
 	}
 
 	// Extra cflags for external third-party projects to disable warnings that
@@ -284,8 +282,8 @@ var (
 
 	// prebuilts/clang default settings.
 	ClangDefaultBase         = "prebuilts/clang/host"
-	ClangDefaultVersion      = "clang-r445002"
-	ClangDefaultShortVersion = "14.0.2"
+	ClangDefaultVersion      = "clang-r437112b"
+	ClangDefaultShortVersion = "14.0.1"
 
 	// Directories with warnings from Android.bp files.
 	WarningAllowedProjects = []string{
