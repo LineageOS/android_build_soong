@@ -8937,6 +8937,64 @@ func TestApexStrictUpdtabilityLint(t *testing.T) {
 	}
 }
 
+func TestUpdatabilityLintSkipLibcore(t *testing.T) {
+	bp := `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			java_libs: ["myjavalib"],
+			updatable: true,
+			min_sdk_version: "29",
+		}
+		apex_key {
+			name: "myapex.key",
+		}
+		java_library {
+			name: "myjavalib",
+			srcs: ["MyClass.java"],
+			apex_available: [ "myapex" ],
+			sdk_version: "current",
+			min_sdk_version: "29",
+		}
+		`
+
+	testCases := []struct {
+		testCaseName           string
+		moduleDirectory        string
+		disallowedFlagExpected bool
+	}{
+		{
+			testCaseName:           "lintable module defined outside libcore",
+			moduleDirectory:        "",
+			disallowedFlagExpected: true,
+		},
+		{
+			testCaseName:           "lintable module defined in libcore root directory",
+			moduleDirectory:        "libcore/",
+			disallowedFlagExpected: false,
+		},
+		{
+			testCaseName:           "lintable module defined in libcore child directory",
+			moduleDirectory:        "libcore/childdir/",
+			disallowedFlagExpected: true,
+		},
+	}
+
+	for _, testCase := range testCases {
+		lintFileCreator := android.FixtureAddTextFile(testCase.moduleDirectory+"lint-baseline.xml", "")
+		bpFileCreator := android.FixtureAddTextFile(testCase.moduleDirectory+"Android.bp", bp)
+		result := testApex(t, "", lintFileCreator, bpFileCreator)
+		myjavalib := result.ModuleForTests("myjavalib", "android_common_apex29")
+		sboxProto := android.RuleBuilderSboxProtoForTests(t, myjavalib.Output("lint.sbox.textproto"))
+		cmdFlags := fmt.Sprintf("--baseline %vlint-baseline.xml --disallowed_issues NewApi", testCase.moduleDirectory)
+		disallowedFlagActual := strings.Contains(*sboxProto.Commands[0].Command, cmdFlags)
+
+		if disallowedFlagActual != testCase.disallowedFlagExpected {
+			t.Errorf("Failed testcase: %v \nActual lint cmd: %v", testCase.testCaseName, *sboxProto.Commands[0].Command)
+		}
+	}
+}
+
 // checks transtive deps of an apex coming from bootclasspath_fragment
 func TestApexStrictUpdtabilityLintBcpFragmentDeps(t *testing.T) {
 	bp := `

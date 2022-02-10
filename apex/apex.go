@@ -1011,6 +1011,14 @@ func apexStrictUpdatibilityLintMutator(mctx android.TopDownMutatorContext) {
 	}
 	if apex, ok := mctx.Module().(*apexBundle); ok && apex.checkStrictUpdatabilityLinting() {
 		mctx.WalkDeps(func(child, parent android.Module) bool {
+			// b/208656169 Do not propagate strict updatability linting to libcore/
+			// These libs are available on the classpath during compilation
+			// These libs are transitive deps of the sdk. See java/sdk.go:decodeSdkDep
+			// Only skip libraries defined in libcore root, not subdirectories
+			if mctx.OtherModuleDir(child) == "libcore" {
+				// Do not traverse transitive deps of libcore/ libs
+				return false
+			}
 			if lintable, ok := child.(java.LintDepSetsIntf); ok {
 				lintable.SetStrictUpdatabilityLinting(true)
 			}
