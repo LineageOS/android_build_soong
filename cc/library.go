@@ -32,7 +32,7 @@ import (
 	"github.com/google/blueprint/pathtools"
 )
 
-// LibraryProperties is a collection of properties shared by cc library rules.
+// LibraryProperties is a collection of properties shared by cc library rules/cc.
 type LibraryProperties struct {
 	// local file name to pass to the linker as -unexported_symbols_list
 	Unexported_symbols_list *string `android:"path,arch_variant"`
@@ -403,11 +403,11 @@ func libraryBp2Build(ctx android.TopDownMutatorContext, m *Module) {
 
 	staticProps := bazel.BazelTargetModuleProperties{
 		Rule_class:        "cc_library_static",
-		Bzl_load_location: "//build/bazel/rules:cc_library_static.bzl",
+		Bzl_load_location: "//build/bazel/rules/cc:cc_library_static.bzl",
 	}
 	sharedProps := bazel.BazelTargetModuleProperties{
 		Rule_class:        "cc_library_shared",
-		Bzl_load_location: "//build/bazel/rules:cc_library_shared.bzl",
+		Bzl_load_location: "//build/bazel/rules/cc:cc_library_shared.bzl",
 	}
 
 	ctx.CreateBazelTargetModuleWithRestrictions(staticProps,
@@ -2552,7 +2552,7 @@ func sharedOrStaticLibraryBp2Build(ctx android.TopDownMutatorContext, module *Mo
 	}
 	props := bazel.BazelTargetModuleProperties{
 		Rule_class:        modType,
-		Bzl_load_location: fmt.Sprintf("//build/bazel/rules:%s.bzl", modType),
+		Bzl_load_location: fmt.Sprintf("//build/bazel/rules/cc:%s.bzl", modType),
 	}
 
 	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: module.Name()}, attrs)

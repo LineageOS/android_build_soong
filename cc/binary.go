@@ -607,7 +607,7 @@ func binaryBp2build(ctx android.TopDownMutatorContext, m *Module, typ string) {
 
 	ctx.CreateBazelTargetModule(bazel.BazelTargetModuleProperties{
 		Rule_class:        "cc_binary",
-		Bzl_load_location: "//build/bazel/rules:cc_binary.bzl",
+		Bzl_load_location: "//build/bazel/rules/cc:cc_binary.bzl",
 	},
 		android.CommonAttributes{Name: m.Name()},
 		attrs)
