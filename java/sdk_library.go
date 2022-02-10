@@ -2562,7 +2562,7 @@ type scopeProperties struct {
 	StubsSrcJar    android.Path
 	CurrentApiFile android.Path
 	RemovedApiFile android.Path
-	AnnotationsZip android.Path `supported_build_releases:"T+"`
+	AnnotationsZip android.Path `supported_build_releases:"Tiramisu+"`
 	SdkVersion     string
 }
 
