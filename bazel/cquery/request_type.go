@@ -114,7 +114,7 @@ staticLibraries = []
 rootStaticArchives = []
 linker_inputs = cc_info.linking_context.linker_inputs.to_list()
 
-static_info_tag = "//build/bazel/rules:cc_library_static.bzl%CcStaticLibraryInfo"
+static_info_tag = "//build/bazel/rules/cc:cc_library_static.bzl%CcStaticLibraryInfo"
 if static_info_tag in providers(target):
   static_info = providers(target)[static_info_tag]
   ccObjectFiles = [f.path for f in static_info.objects]
@@ -149,7 +149,7 @@ else:
           rootSharedLibraries.append(path)
 
 toc_file = ""
-toc_file_tag = "//build/bazel/rules:generate_toc.bzl%CcTocInfo"
+toc_file_tag = "//build/bazel/rules/cc:generate_toc.bzl%CcTocInfo"
 if toc_file_tag in providers(target):
   toc_file = providers(target)[toc_file_tag].toc.path
 else:
