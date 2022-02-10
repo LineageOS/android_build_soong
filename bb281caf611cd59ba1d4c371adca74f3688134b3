@@ -16,6 +16,23 @@
       "message": "alternative solution — https://gist.github.com/luca020400/b99028333d532c59c4e8b176d931bf94",
       "revId": "bb281caf611cd59ba1d4c371adca74f3688134b3",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "bb2bfe5e_4a05064d",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2022-02-10T21:56:15Z",
+      "side": 1,
+      "message": "I believe that this approach is more clean. Ship?",
+      "revId": "bb281caf611cd59ba1d4c371adca74f3688134b3",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
