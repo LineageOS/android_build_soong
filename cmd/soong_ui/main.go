@@ -205,14 +205,7 @@ func main() {
 	buildCtx.Verbosef("Parallelism (local/remote/highmem): %v/%v/%v",
 		config.Parallel(), config.RemoteParallel(), config.HighmemParallel())
 
-	{
-		var limits syscall.Rlimit
-		err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &limits)
-		if err != nil {
-			buildCtx.Verbosef("Failed to get file limit:", err)
-		}
-		buildCtx.Verbosef("Current file limits: %d soft, %d hard", limits.Cur, limits.Max)
-	}
+	setMaxFiles(buildCtx)
 
 	{
 		// The order of the function calls is important. The last defer function call
@@ -612,5 +605,26 @@ func populateExternalDistDirHelper(ctx build.Context, config build.Config, inter
 		if err := os.Rename(internalFilePath, externalFilePath); err != nil {
 			ctx.Fatalf("Unable to rename %s -> %s due to error %s", internalFilePath, externalFilePath, err)
 		}
+	}
+}
+
+func setMaxFiles(ctx build.Context) {
+	var limits syscall.Rlimit
+
+	err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &limits)
+	if err != nil {
+		ctx.Println("Failed to get file limit:", err)
+		return
+	}
+
+	ctx.Verbosef("Current file limits: %d soft, %d hard", limits.Cur, limits.Max)
+	if limits.Cur == limits.Max {
+		return
+	}
+
+	limits.Cur = limits.Max
+	err = syscall.Setrlimit(syscall.RLIMIT_NOFILE, &limits)
+	if err != nil {
+		ctx.Println("Failed to increase file limit:", err)
 	}
 }
