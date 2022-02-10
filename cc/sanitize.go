@@ -705,19 +705,22 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 
 	if len(sanitize.Properties.Sanitizers) > 0 {
 		sanitizeArg := "-fsanitize=" + strings.Join(sanitize.Properties.Sanitizers, ",")
-
 		flags.Local.CFlags = append(flags.Local.CFlags, sanitizeArg)
 		flags.Local.AsFlags = append(flags.Local.AsFlags, sanitizeArg)
-		if ctx.Host() {
+		flags.Local.LdFlags = append(flags.Local.LdFlags, sanitizeArg)
+
+		if ctx.toolchain().Bionic() {
+			// Bionic sanitizer runtimes have already been added as dependencies so that
+			// the right variant of the runtime will be used (with the "-android"
+			// suffix), so don't let clang the runtime library.
+			flags.Local.LdFlags = append(flags.Local.LdFlags, "-fno-sanitize-link-runtime")
+		} else {
 			// Host sanitizers only link symbols in the final executable, so
 			// there will always be undefined symbols in intermediate libraries.
 			_, flags.Global.LdFlags = removeFromList("-Wl,--no-undefined", flags.Global.LdFlags)
-			flags.Local.LdFlags = append(flags.Local.LdFlags, sanitizeArg)
 
-			// non-Bionic toolchain prebuilts are missing UBSan's vptr and function sanitizers
-			if !ctx.toolchain().Bionic() {
-				flags.Local.CFlags = append(flags.Local.CFlags, "-fno-sanitize=vptr,function")
-			}
+			// non-Bionic toolchain prebuilts are missing UBSan's vptr and function san
+			flags.Local.CFlags = append(flags.Local.CFlags, "-fno-sanitize=vptr,function")
 		}
 
 		if enableMinimalRuntime(sanitize) {

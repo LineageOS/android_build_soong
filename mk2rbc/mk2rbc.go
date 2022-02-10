@@ -142,7 +142,6 @@ var identifierFullMatchRegex = regexp.MustCompile("^[a-zA-Z_][a-zA-Z0-9_]*$")
 type Request struct {
 	MkFile          string    // file to convert
 	Reader          io.Reader // if set, read input from this stream instead
-	RootDir         string    // root directory path used to resolve included files
 	OutputSuffix    string    // generated Starlark files suffix
 	OutputDir       string    // if set, root of the output hierarchy
 	ErrorLogger     ErrorLogger
@@ -378,7 +377,6 @@ type StarlarkScript struct {
 	nodes          []starlarkNode
 	inherited      []*moduleInfo
 	hasErrors      bool
-	topDir         string
 	traceCalls     bool // print enter/exit each init function
 	sourceFS       fs.FS
 	makefileFinder MakefileFinder
@@ -414,11 +412,10 @@ type parseContext struct {
 }
 
 func newParseContext(ss *StarlarkScript, nodes []mkparser.Node) *parseContext {
-	topdir, _ := filepath.Split(filepath.Join(ss.topDir, "foo"))
 	predefined := []struct{ name, value string }{
 		{"SRC_TARGET_DIR", filepath.Join("build", "make", "target")},
 		{"LOCAL_PATH", filepath.Dir(ss.mkFile)},
-		{"TOPDIR", topdir},
+		{"TOPDIR", ""}, // TOPDIR is just set to an empty string in cleanbuild.mk and core.mk
 		// TODO(asmundak): maybe read it from build/make/core/envsetup.mk?
 		{"TARGET_COPY_OUT_SYSTEM", "system"},
 		{"TARGET_COPY_OUT_SYSTEM_OTHER", "system_other"},
@@ -827,7 +824,7 @@ func (ctx *parseContext) handleSubConfig(
 }
 
 func (ctx *parseContext) findMatchingPaths(pattern []string) []string {
-	files := ctx.script.makefileFinder.Find(ctx.script.topDir)
+	files := ctx.script.makefileFinder.Find(".")
 	if len(pattern) == 0 {
 		return files
 	}
@@ -1864,7 +1861,6 @@ func Convert(req Request) (*StarlarkScript, error) {
 	starScript := &StarlarkScript{
 		moduleName:     moduleNameForFile(req.MkFile),
 		mkFile:         req.MkFile,
-		topDir:         req.RootDir,
 		traceCalls:     req.TraceCalls,
 		sourceFS:       req.SourceFS,
 		makefileFinder: req.MakefileFinder,
