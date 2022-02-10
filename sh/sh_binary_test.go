@@ -37,6 +37,8 @@ var prepareForShTest = android.GroupFixturePreparers(
 //
 // deprecated
 func testShBinary(t *testing.T, bp string) (*android.TestContext, android.Config) {
+	bp = bp + cc.GatherRequiredDepsForTest(android.Android)
+
 	result := prepareForShTest.RunTestWithBp(t, bp)
 
 	return result.TestContext, result.Config
