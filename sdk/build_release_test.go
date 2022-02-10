@@ -60,7 +60,7 @@ func TestParseBuildReleaseSet(t *testing.T) {
 	t.Run("closed range", func(t *testing.T) {
 		set, err := parseBuildReleaseSet("S-F1")
 		android.AssertDeepEquals(t, "errors", nil, err)
-		android.AssertStringEquals(t, "set", "[S,T,F1]", set.String())
+		android.AssertStringEquals(t, "set", "[S,Tiramisu,F1]", set.String())
 	})
 	invalidAReleaseMessage := `unknown release "A", expected one of ` + allBuildReleaseSet.String()
 	t.Run("invalid release", func(t *testing.T) {
@@ -79,7 +79,7 @@ func TestParseBuildReleaseSet(t *testing.T) {
 		android.AssertStringDoesContain(t, "errors", fmt.Sprint(err), invalidAReleaseMessage)
 	})
 	t.Run("invalid release in closed range end", func(t *testing.T) {
-		set, err := parseBuildReleaseSet("T-A")
+		set, err := parseBuildReleaseSet("Tiramisu-A")
 		android.AssertDeepEquals(t, "set", (*buildReleaseSet)(nil), set)
 		android.AssertStringDoesContain(t, "errors", fmt.Sprint(err), invalidAReleaseMessage)
 	})
@@ -128,13 +128,13 @@ func TestPropertyPrunerByBuildRelease(t *testing.T) {
 
 	type mapped struct {
 		Default string
-		T_only  string `supported_build_releases:"T"`
+		T_only  string `supported_build_releases:"Tiramisu"`
 	}
 
 	type testBuildReleasePruner struct {
 		Default      string
-		S_and_T_only string `supported_build_releases:"S-T"`
-		T_later      string `supported_build_releases:"T+"`
+		S_and_T_only string `supported_build_releases:"S-Tiramisu"`
+		T_later      string `supported_build_releases:"Tiramisu+"`
 		Nested       nested
 		Mapped       map[string]*mapped
 	}
