@@ -618,6 +618,8 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 
 			implicitInputs = append(implicitInputs, androidManifestFile)
 			optFlags = append(optFlags, "--android_manifest "+androidManifestFile.String())
+		} else if a.testApex {
+			optFlags = append(optFlags, "--test_only")
 		}
 
 		// Determine target/min sdk version from the context
