@@ -15,12 +15,9 @@
 package android
 
 import (
-	"bytes"
 	"path/filepath"
 	"runtime"
 	"testing"
-
-	mkparser "android/soong/androidmk/parser"
 )
 
 func TestSrcIsModule(t *testing.T) {
@@ -475,21 +472,10 @@ func TestInstallKatiEnabled(t *testing.T) {
 		prepareForModuleTests,
 		PrepareForTestWithArchMutator,
 		FixtureModifyConfig(SetKatiEnabledForTests),
-		FixtureRegisterWithContext(func(ctx RegistrationContext) {
-			ctx.RegisterSingletonType("makevars", makeVarsSingletonFunc)
-		}),
+		PrepareForTestWithMakevars,
 	).RunTestWithBp(t, bp)
 
-	installs := result.SingletonForTests("makevars").Singleton().(*makeVarsSingleton).installsForTesting
-	buf := bytes.NewBuffer(append([]byte(nil), installs...))
-	parser := mkparser.NewParser("makevars", buf)
-
-	nodes, errs := parser.Parse()
-	if len(errs) > 0 {
-		t.Fatalf("error parsing install rules: %s", errs[0])
-	}
-
-	rules := parseMkRules(t, result.Config, nodes)
+	rules := result.InstallMakeRulesForTesting(t)
 
 	module := func(name string, host bool) TestingModule {
 		variant := "android_common"
@@ -501,119 +487,76 @@ func TestInstallKatiEnabled(t *testing.T) {
 
 	outputRule := func(name string) TestingBuildParams { return module(name, false).Output(name) }
 
-	ruleForOutput := func(output string) installMakeRule {
+	ruleForOutput := func(output string) InstallMakeRule {
 		for _, rule := range rules {
-			if rule.target == output {
+			if rule.Target == output {
 				return rule
 			}
 		}
 		t.Fatalf("no make install rule for %s", output)
-		return installMakeRule{}
+		return InstallMakeRule{}
 	}
 
-	installRule := func(name string) installMakeRule {
+	installRule := func(name string) InstallMakeRule {
 		return ruleForOutput(filepath.Join("out/target/product/test_device/system", name))
 	}
 
-	symlinkRule := func(name string) installMakeRule {
+	symlinkRule := func(name string) InstallMakeRule {
 		return ruleForOutput(filepath.Join("out/target/product/test_device/system/symlinks", name))
 	}
 
 	hostOutputRule := func(name string) TestingBuildParams { return module(name, true).Output(name) }
 
-	hostInstallRule := func(name string) installMakeRule {
+	hostInstallRule := func(name string) InstallMakeRule {
 		return ruleForOutput(filepath.Join("out/host/linux-x86", name))
 	}
 
-	hostSymlinkRule := func(name string) installMakeRule {
+	hostSymlinkRule := func(name string) InstallMakeRule {
 		return ruleForOutput(filepath.Join("out/host/linux-x86/symlinks", name))
 	}
 
-	assertDeps := func(rule installMakeRule, deps ...string) {
+	assertDeps := func(rule InstallMakeRule, deps ...string) {
 		t.Helper()
-		AssertArrayString(t, "expected inputs", deps, rule.deps)
+		AssertArrayString(t, "expected inputs", deps, rule.Deps)
 	}
 
-	assertOrderOnlys := func(rule installMakeRule, orderonlys ...string) {
+	assertOrderOnlys := func(rule InstallMakeRule, orderonlys ...string) {
 		t.Helper()
-		AssertArrayString(t, "expected orderonly dependencies", orderonlys, rule.orderOnlyDeps)
+		AssertArrayString(t, "expected orderonly dependencies", orderonlys, rule.OrderOnlyDeps)
 	}
 
 	// Check host install rule dependencies
 	assertDeps(hostInstallRule("foo"),
 		hostOutputRule("foo").Output.String(),
-		hostInstallRule("bar").target,
-		hostSymlinkRule("bar").target,
-		hostInstallRule("baz").target,
-		hostSymlinkRule("baz").target,
-		hostInstallRule("qux").target,
-		hostSymlinkRule("qux").target,
+		hostInstallRule("bar").Target,
+		hostSymlinkRule("bar").Target,
+		hostInstallRule("baz").Target,
+		hostSymlinkRule("baz").Target,
+		hostInstallRule("qux").Target,
+		hostSymlinkRule("qux").Target,
 	)
 	assertOrderOnlys(hostInstallRule("foo"))
 
 	// Check host symlink rule dependencies.  Host symlinks must use a normal dependency, not an
 	// order-only dependency, so that the tool gets updated when the symlink is depended on.
-	assertDeps(hostSymlinkRule("foo"), hostInstallRule("foo").target)
+	assertDeps(hostSymlinkRule("foo"), hostInstallRule("foo").Target)
 	assertOrderOnlys(hostSymlinkRule("foo"))
 
 	// Check device install rule dependencies
 	assertDeps(installRule("foo"), outputRule("foo").Output.String())
 	assertOrderOnlys(installRule("foo"),
-		installRule("bar").target,
-		symlinkRule("bar").target,
-		installRule("baz").target,
-		symlinkRule("baz").target,
-		installRule("qux").target,
-		symlinkRule("qux").target,
+		installRule("bar").Target,
+		symlinkRule("bar").Target,
+		installRule("baz").Target,
+		symlinkRule("baz").Target,
+		installRule("qux").Target,
+		symlinkRule("qux").Target,
 	)
 
 	// Check device symlink rule dependencies.  Device symlinks could use an order-only dependency,
 	// but the current implementation uses a normal dependency.
-	assertDeps(symlinkRule("foo"), installRule("foo").target)
+	assertDeps(symlinkRule("foo"), installRule("foo").Target)
 	assertOrderOnlys(symlinkRule("foo"))
-}
-
-type installMakeRule struct {
-	target        string
-	deps          []string
-	orderOnlyDeps []string
-}
-
-func parseMkRules(t *testing.T, config Config, nodes []mkparser.Node) []installMakeRule {
-	var rules []installMakeRule
-	for _, node := range nodes {
-		if mkParserRule, ok := node.(*mkparser.Rule); ok {
-			var rule installMakeRule
-
-			if targets := mkParserRule.Target.Words(); len(targets) == 0 {
-				t.Fatalf("no targets for rule %s", mkParserRule.Dump())
-			} else if len(targets) > 1 {
-				t.Fatalf("unsupported multiple targets for rule %s", mkParserRule.Dump())
-			} else if !targets[0].Const() {
-				t.Fatalf("unsupported non-const target for rule %s", mkParserRule.Dump())
-			} else {
-				rule.target = normalizeStringRelativeToTop(config, targets[0].Value(nil))
-			}
-
-			prereqList := &rule.deps
-			for _, prereq := range mkParserRule.Prerequisites.Words() {
-				if !prereq.Const() {
-					t.Fatalf("unsupported non-const prerequisite for rule %s", mkParserRule.Dump())
-				}
-
-				if prereq.Value(nil) == "|" {
-					prereqList = &rule.orderOnlyDeps
-					continue
-				}
-
-				*prereqList = append(*prereqList, normalizeStringRelativeToTop(config, prereq.Value(nil)))
-			}
-
-			rules = append(rules, rule)
-		}
-	}
-
-	return rules
 }
 
 type PropsTestModuleEmbedded struct {
