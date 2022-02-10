@@ -210,7 +210,7 @@ func bp2buildProto(ctx android.Bp2buildMutatorContext, m *Module, protoSrcs baze
 	ctx.CreateBazelTargetModule(
 		bazel.BazelTargetModuleProperties{
 			Rule_class:        rule_class,
-			Bzl_load_location: "//build/bazel/rules:cc_proto.bzl",
+			Bzl_load_location: "//build/bazel/rules/cc:cc_proto.bzl",
 		},
 		android.CommonAttributes{Name: name},
 		&protoAttrs)

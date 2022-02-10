@@ -195,7 +195,7 @@ func objectBp2Build(ctx android.TopDownMutatorContext, m *Module) {
 
 	props := bazel.BazelTargetModuleProperties{
 		Rule_class:        "cc_object",
-		Bzl_load_location: "//build/bazel/rules:cc_object.bzl",
+		Bzl_load_location: "//build/bazel/rules/cc:cc_object.bzl",
 	}
 
 	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: m.Name()}, attrs)
