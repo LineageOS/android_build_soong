@@ -136,7 +136,7 @@ func libraryHeadersBp2Build(ctx android.TopDownMutatorContext, module *Module) {
 
 	props := bazel.BazelTargetModuleProperties{
 		Rule_class:        "cc_library_headers",
-		Bzl_load_location: "//build/bazel/rules:cc_library_headers.bzl",
+		Bzl_load_location: "//build/bazel/rules/cc:cc_library_headers.bzl",
 	}
 
 	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: module.Name()}, attrs)
