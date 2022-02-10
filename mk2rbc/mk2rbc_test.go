@@ -1119,7 +1119,7 @@ def init(g, handle):
   rblf.inherit(handle, "foo/font", _font_init)
   # There's some space and even this comment between the include_top and the inherit-product
   rblf.inherit(handle, "foo/font", _font_init)
-  rblf.mkwarning("product.mk:11", "Including a path with a non-constant prefix, please convert this to a simple literal to generate cleaner starlark.")
+  rblf.mkwarning("product.mk:11", "Please avoid starting an include path with a variable. See https://source.android.com/setup/build/bazel/product_config/issues/includes for details.")
   _entry = {
     "foo/font.mk": ("foo/font", _font_init),
     "bar/font.mk": ("bar/font", _font1_init),
