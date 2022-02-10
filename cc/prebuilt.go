@@ -339,7 +339,7 @@ func prebuiltLibraryStaticBp2Build(ctx android.TopDownMutatorContext, module *Mo
 
 	props := bazel.BazelTargetModuleProperties{
 		Rule_class:        "prebuilt_library_static",
-		Bzl_load_location: "//build/bazel/rules:prebuilt_library_static.bzl",
+		Bzl_load_location: "//build/bazel/rules/cc:prebuilt_library_static.bzl",
 	}
 
 	name := android.RemoveOptionalPrebuiltPrefix(module.Name())
@@ -359,7 +359,7 @@ func prebuiltLibrarySharedBp2Build(ctx android.TopDownMutatorContext, module *Mo
 
 	props := bazel.BazelTargetModuleProperties{
 		Rule_class:        "prebuilt_library_shared",
-		Bzl_load_location: "//build/bazel/rules:prebuilt_library_shared.bzl",
+		Bzl_load_location: "//build/bazel/rules/cc:prebuilt_library_shared.bzl",
 	}
 
 	name := android.RemoveOptionalPrebuiltPrefix(module.Name())
