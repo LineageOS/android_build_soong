@@ -917,7 +917,8 @@ func createArchPropTypeDesc(props reflect.Type) []archPropTypeDesc {
 			for _, archType := range osArchTypeMap[os] {
 				targets = append(targets, GetCompoundTargetField(os, archType))
 
-				// Also add the special "linux_<arch>" and "bionic_<arch>" property structs.
+				// Also add the special "linux_<arch>", "bionic_<arch>" , "glibc_<arch>", and
+				// "musl_<arch>" property structs.
 				if os.Linux() {
 					target := "Linux_" + archType.Name
 					if !InList(target, targets) {
@@ -926,6 +927,18 @@ func createArchPropTypeDesc(props reflect.Type) []archPropTypeDesc {
 				}
 				if os.Bionic() {
 					target := "Bionic_" + archType.Name
+					if !InList(target, targets) {
+						targets = append(targets, target)
+					}
+				}
+				if os == Linux {
+					target := "Glibc_" + archType.Name
+					if !InList(target, targets) {
+						targets = append(targets, target)
+					}
+				}
+				if os == LinuxMusl {
+					target := "Musl_" + archType.Name
 					if !InList(target, targets) {
 						targets = append(targets, target)
 					}
@@ -1379,11 +1392,25 @@ func getArchProperties(ctx BaseMutatorContext, archProperties interface{}, arch 
 			result = append(result, osArchProperties)
 		}
 
+		if os == Linux {
+			field := "Glibc_" + archType.Name
+			userFriendlyField := "target.glibc_" + "_" + archType.Name
+			if osArchProperties, ok := getChildPropertyStruct(ctx, targetProp, field, userFriendlyField); ok {
+				result = append(result, osArchProperties)
+			}
+		}
+
 		if os == LinuxMusl {
+			field := "Musl_" + archType.Name
+			userFriendlyField := "target.musl_" + "_" + archType.Name
+			if osArchProperties, ok := getChildPropertyStruct(ctx, targetProp, field, userFriendlyField); ok {
+				result = append(result, osArchProperties)
+			}
+
 			// Special case:  to ease the transition from glibc to musl, apply linux_glibc
 			// properties (which has historically mean host linux) to musl variants.
-			field := "Linux_glibc_" + archType.Name
-			userFriendlyField := "target.linux_glibc_" + archType.Name
+			field = "Linux_glibc_" + archType.Name
+			userFriendlyField = "target.linux_glibc_" + archType.Name
 			if osArchProperties, ok := getChildPropertyStruct(ctx, targetProp, field, userFriendlyField); ok {
 				result = append(result, osArchProperties)
 			}
