@@ -47,6 +47,7 @@ var (
 		"-D_LIBCPP_HAS_MUSL_LIBC",
 		"-DANDROID_HOST_MUSL",
 		"-nostdlibinc",
+		"--sysroot /dev/null",
 	}
 
 	linuxLdflags = []string{
@@ -65,6 +66,7 @@ var (
 	linuxMuslLdflags = []string{
 		"-nostdlib",
 		"-lgcc", "-lgcc_eh",
+		"--sysroot /dev/null",
 	}
 
 	// Extended cflags
