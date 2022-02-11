@@ -16,11 +16,13 @@ package android
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"sort"
 	"strings"
 	"text/scanner"
 
@@ -616,6 +618,53 @@ type Dist struct {
 	Tag *string `android:"arch_variant"`
 }
 
+// NamedPath associates a path with a name. e.g. a license text path with a package name
+type NamedPath struct {
+	Path Path
+	Name string
+}
+
+// String returns an escaped string representing the `NamedPath`.
+func (p NamedPath) String() string {
+	if len(p.Name) > 0 {
+		return p.Path.String() + ":" + url.QueryEscape(p.Name)
+	}
+	return p.Path.String()
+}
+
+// NamedPaths describes a list of paths each associated with a name.
+type NamedPaths []NamedPath
+
+// Strings returns a list of escaped strings representing each `NamedPath` in the list.
+func (l NamedPaths) Strings() []string {
+	result := make([]string, 0, len(l))
+	for _, p := range l {
+		result = append(result, p.String())
+	}
+	return result
+}
+
+// SortedUniqueNamedPaths modifies `l` in place to return the sorted unique subset.
+func SortedUniqueNamedPaths(l NamedPaths) NamedPaths {
+	if len(l) == 0 {
+		return l
+	}
+	sort.Slice(l, func(i, j int) bool {
+		return l[i].String() < l[j].String()
+	})
+	k := 0
+	for i := 1; i < len(l); i++ {
+		if l[i].String() == l[k].String() {
+			continue
+		}
+		k++
+		if k < i {
+			l[k] = l[i]
+		}
+	}
+	return l[:k+1]
+}
+
 type nameProperties struct {
 	// The name of the module.  Must be unique across all modules.
 	Name *string
@@ -684,7 +733,7 @@ type commonProperties struct {
 	// Override of module name when reporting licenses
 	Effective_package_name *string `blueprint:"mutated"`
 	// Notice files
-	Effective_license_text Paths `blueprint:"mutated"`
+	Effective_license_text NamedPaths `blueprint:"mutated"`
 	// License names
 	Effective_license_kinds []string `blueprint:"mutated"`
 	// License conditions
@@ -1801,7 +1850,11 @@ func (m *ModuleBase) ExportedToMake() bool {
 }
 
 func (m *ModuleBase) EffectiveLicenseFiles() Paths {
-	return m.commonProperties.Effective_license_text
+	result := make(Paths, 0, len(m.commonProperties.Effective_license_text))
+	for _, p := range m.commonProperties.Effective_license_text {
+		result = append(result, p.Path)
+	}
+	return result
 }
 
 // computeInstallDeps finds the installed paths of all dependencies that have a dependency
