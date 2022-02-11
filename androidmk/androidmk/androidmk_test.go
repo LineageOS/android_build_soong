@@ -1645,6 +1645,36 @@ android_app {
 }
 `,
 	},
+	{
+		desc: "LOCAL_DISABLE_AUTO_GENERATE_TEST_CONFIG is true",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := foo
+LOCAL_DISABLE_AUTO_GENERATE_TEST_CONFIG := true
+include $(BUILD_PACKAGE)
+		`,
+		expected: `
+android_app {
+	name: "foo",
+	auto_gen_config: false,
+}
+`,
+	},
+	{
+		desc: "LOCAL_DISABLE_AUTO_GENERATE_TEST_CONFIG is false",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := foo
+LOCAL_DISABLE_AUTO_GENERATE_TEST_CONFIG := false
+include $(BUILD_PACKAGE)
+		`,
+		expected: `
+android_app {
+	name: "foo",
+	auto_gen_config: true,
+}
+`,
+	},
 }
 
 func TestEndToEnd(t *testing.T) {
