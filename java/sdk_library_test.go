@@ -182,7 +182,7 @@ func TestJavaSdkLibrary_UpdatableLibrary(t *testing.T) {
 			"30": {"foo", "fooUpdatable", "fooUpdatableErr"},
 		}),
 		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
-			variables.Platform_version_active_codenames = []string{"Tiramisu", "U", "V", "W"}
+			variables.Platform_version_active_codenames = []string{"Tiramisu", "U", "V", "W", "X"}
 		}),
 	).RunTestWithBp(t,
 		`
@@ -193,7 +193,7 @@ func TestJavaSdkLibrary_UpdatableLibrary(t *testing.T) {
 			on_bootclasspath_since: "U",
 			on_bootclasspath_before: "V",
 			min_device_sdk: "W",
-			max_device_sdk: "current",
+			max_device_sdk: "X",
 			min_sdk_version: "S",
 		}
 		java_sdk_library {
@@ -202,12 +202,13 @@ func TestJavaSdkLibrary_UpdatableLibrary(t *testing.T) {
 			api_packages: ["foo"],
 		}
 `)
+
 	// test that updatability attributes are passed on correctly
 	fooUpdatable := result.ModuleForTests("fooUpdatable.xml", "android_common").Rule("java_sdk_xml")
-	android.AssertStringDoesContain(t, "fooUpdatable.xml java_sdk_xml command", fooUpdatable.RuleParams.Command, `on-bootclasspath-since=\"9001\"`)
-	android.AssertStringDoesContain(t, "fooUpdatable.xml java_sdk_xml command", fooUpdatable.RuleParams.Command, `on-bootclasspath-before=\"9002\"`)
-	android.AssertStringDoesContain(t, "fooUpdatable.xml java_sdk_xml command", fooUpdatable.RuleParams.Command, `min-device-sdk=\"9003\"`)
-	android.AssertStringDoesContain(t, "fooUpdatable.xml java_sdk_xml command", fooUpdatable.RuleParams.Command, `max-device-sdk=\"10000\"`)
+	android.AssertStringDoesContain(t, "fooUpdatable.xml java_sdk_xml command", fooUpdatable.RuleParams.Command, `on-bootclasspath-since=\"U\"`)
+	android.AssertStringDoesContain(t, "fooUpdatable.xml java_sdk_xml command", fooUpdatable.RuleParams.Command, `on-bootclasspath-before=\"V\"`)
+	android.AssertStringDoesContain(t, "fooUpdatable.xml java_sdk_xml command", fooUpdatable.RuleParams.Command, `min-device-sdk=\"W\"`)
+	android.AssertStringDoesContain(t, "fooUpdatable.xml java_sdk_xml command", fooUpdatable.RuleParams.Command, `max-device-sdk=\"X\"`)
 
 	// double check that updatability attributes are not written if they don't exist in the bp file
 	// the permissions file for the foo library defined above
@@ -230,7 +231,7 @@ func TestJavaSdkLibrary_UpdatableLibrary_Validation_ValidVersion(t *testing.T) {
 			`on_bootclasspath_since: "aaa" could not be parsed as an integer and is not a recognized codename`,
 			`on_bootclasspath_before: "bbc" could not be parsed as an integer and is not a recognized codename`,
 			`min_device_sdk: "ccc" could not be parsed as an integer and is not a recognized codename`,
-			`max_device_sdk: "ddd" could not be parsed as an integer and is not a recognized codename`,
+			`max_device_sdk: "current" is not an allowed value for this attribute`,
 		})).RunTestWithBp(t,
 		`
 	java_sdk_library {
@@ -240,7 +241,7 @@ func TestJavaSdkLibrary_UpdatableLibrary_Validation_ValidVersion(t *testing.T) {
 			on_bootclasspath_since: "aaa",
 			on_bootclasspath_before: "bbc",
 			min_device_sdk: "ccc",
-			max_device_sdk: "ddd",
+			max_device_sdk: "current",
 		}
 `)
 }

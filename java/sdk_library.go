@@ -21,7 +21,6 @@ import (
 	"reflect"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -2551,8 +2550,14 @@ func formattedOptionalSdkLevelAttribute(ctx android.ModuleContext, attrName stri
 		ctx.PropertyErrorf(strings.ReplaceAll(attrName, "-", "_"), err.Error())
 		return ""
 	}
-	intStr := strconv.Itoa(apiLevel.FinalOrPreviewInt())
-	return formattedOptionalAttribute(attrName, &intStr)
+	if apiLevel.IsCurrent() {
+		// passing "current" would always mean a future release, never the current (or the current in
+		// progress) which means some conditions would never be triggered.
+		ctx.PropertyErrorf(strings.ReplaceAll(attrName, "-", "_"),
+			`"current" is not an allowed value for this attribute`)
+		return ""
+	}
+	return formattedOptionalAttribute(attrName, value)
 }
 
 // formats an attribute for the xml permissions file if the value is not null
