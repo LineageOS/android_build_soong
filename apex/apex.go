@@ -2772,27 +2772,7 @@ func makeApexAvailableBaseline() map[string][]string {
 	// Module separator
 	//
 	m["com.android.media.swcodec"] = []string{
-		"android.hardware.graphics.allocator@2.0",
-		"android.hardware.graphics.allocator@3.0",
-		"android.hardware.graphics.allocator@4.0",
-		"android.hardware.graphics.common@1.0",
-		"android.hardware.graphics.common@1.1",
-		"android.hardware.graphics.common@1.2",
-		"android.hardware.graphics.mapper@2.0",
-		"android.hardware.graphics.mapper@2.1",
-		"android.hardware.graphics.mapper@3.0",
-		"android.hardware.graphics.mapper@4.0",
-		"libLibGuiProperties",
-		"libfmq",
-		"libgrallocusage",
-		"libgui_headers",
-		"libhardware",
-		"libhardware_headers",
-		"libion",
-		"libnativebase_headers",
-		"libnativewindow_headers",
-		"libui",
-		"libui_headers",
+		// empty
 	}
 	//
 	// Module separator
