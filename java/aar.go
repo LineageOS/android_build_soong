@@ -280,9 +280,7 @@ func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext android.SdkCon
 	manifestFile := proptools.StringDefault(a.aaptProperties.Manifest, "AndroidManifest.xml")
 	manifestSrcPath := android.PathForModuleSrc(ctx, manifestFile)
 
-	manifestPath := ManifestFixer(ManifestFixerParams{
-		Ctx:                   ctx,
-		Manifest:              manifestSrcPath,
+	manifestPath := ManifestFixer(ctx, manifestSrcPath, ManifestFixerParams{
 		SdkContext:            sdkContext,
 		ClassLoaderContexts:   classLoaderContexts,
 		IsLibrary:             a.isLibrary,
@@ -290,7 +288,6 @@ func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext android.SdkCon
 		UsesNonSdkApis:        a.usesNonSdkApis,
 		UseEmbeddedDex:        a.useEmbeddedDex,
 		HasNoCode:             a.hasNoCode,
-		TestOnly:              false,
 		LoggingParent:         a.LoggingParent,
 	})
 

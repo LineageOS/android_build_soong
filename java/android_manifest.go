@@ -56,8 +56,6 @@ func targetSdkVersionForManifestFixer(ctx android.ModuleContext, sdkContext andr
 }
 
 type ManifestFixerParams struct {
-	Ctx                   android.ModuleContext
-	Manifest              android.Path
 	SdkContext            android.SdkContext
 	ClassLoaderContexts   dexpreopt.ClassLoaderContextMap
 	IsLibrary             bool
@@ -70,20 +68,21 @@ type ManifestFixerParams struct {
 }
 
 // Uses manifest_fixer.py to inject minSdkVersion, etc. into an AndroidManifest.xml
-func ManifestFixer(params ManifestFixerParams) android.Path {
+func ManifestFixer(ctx android.ModuleContext, manifest android.Path,
+	params ManifestFixerParams) android.Path {
 	var args []string
 
 	if params.IsLibrary {
 		args = append(args, "--library")
 	} else if params.SdkContext != nil {
-		minSdkVersion, err := params.SdkContext.MinSdkVersion(params.Ctx).EffectiveVersion(params.Ctx)
+		minSdkVersion, err := params.SdkContext.MinSdkVersion(ctx).EffectiveVersion(ctx)
 		if err != nil {
-			params.Ctx.ModuleErrorf("invalid minSdkVersion: %s", err)
+			ctx.ModuleErrorf("invalid minSdkVersion: %s", err)
 		}
 		if minSdkVersion.FinalOrFutureInt() >= 23 {
 			args = append(args, fmt.Sprintf("--extract-native-libs=%v", !params.UseEmbeddedNativeLibs))
 		} else if params.UseEmbeddedNativeLibs {
-			params.Ctx.ModuleErrorf("module attempted to store uncompressed native libraries, but minSdkVersion=%d doesn't support it",
+			ctx.ModuleErrorf("module attempted to store uncompressed native libraries, but minSdkVersion=%d doesn't support it",
 				minSdkVersion)
 		}
 	}
@@ -124,38 +123,38 @@ func ManifestFixer(params ManifestFixerParams) android.Path {
 	var argsMapper = make(map[string]string)
 
 	if params.SdkContext != nil {
-		targetSdkVersion := targetSdkVersionForManifestFixer(params.Ctx, params.SdkContext)
+		targetSdkVersion := targetSdkVersionForManifestFixer(ctx, params.SdkContext)
 		args = append(args, "--targetSdkVersion ", targetSdkVersion)
 
-		if UseApiFingerprint(params.Ctx) && params.Ctx.ModuleName() != "framework-res" {
-			targetSdkVersion = params.Ctx.Config().PlatformSdkCodename() + fmt.Sprintf(".$$(cat %s)", ApiFingerprintPath(params.Ctx).String())
-			deps = append(deps, ApiFingerprintPath(params.Ctx))
+		if UseApiFingerprint(ctx) && ctx.ModuleName() != "framework-res" {
+			targetSdkVersion = ctx.Config().PlatformSdkCodename() + fmt.Sprintf(".$$(cat %s)", ApiFingerprintPath(ctx).String())
+			deps = append(deps, ApiFingerprintPath(ctx))
 		}
 
-		minSdkVersion, err := params.SdkContext.MinSdkVersion(params.Ctx).EffectiveVersionString(params.Ctx)
+		minSdkVersion, err := params.SdkContext.MinSdkVersion(ctx).EffectiveVersionString(ctx)
 		if err != nil {
-			params.Ctx.ModuleErrorf("invalid minSdkVersion: %s", err)
+			ctx.ModuleErrorf("invalid minSdkVersion: %s", err)
 		}
 
-		if UseApiFingerprint(params.Ctx) && params.Ctx.ModuleName() != "framework-res" {
-			minSdkVersion = params.Ctx.Config().PlatformSdkCodename() + fmt.Sprintf(".$$(cat %s)", ApiFingerprintPath(params.Ctx).String())
-			deps = append(deps, ApiFingerprintPath(params.Ctx))
+		if UseApiFingerprint(ctx) && ctx.ModuleName() != "framework-res" {
+			minSdkVersion = ctx.Config().PlatformSdkCodename() + fmt.Sprintf(".$$(cat %s)", ApiFingerprintPath(ctx).String())
+			deps = append(deps, ApiFingerprintPath(ctx))
 		}
 
 		if err != nil {
-			params.Ctx.ModuleErrorf("invalid minSdkVersion: %s", err)
+			ctx.ModuleErrorf("invalid minSdkVersion: %s", err)
 		}
 		args = append(args, "--minSdkVersion ", minSdkVersion)
 		args = append(args, "--raise-min-sdk-version")
 	}
 
-	fixedManifest := android.PathForModuleOut(params.Ctx, "manifest_fixer", "AndroidManifest.xml")
+	fixedManifest := android.PathForModuleOut(ctx, "manifest_fixer", "AndroidManifest.xml")
 	argsMapper["args"] = strings.Join(args, " ")
 
-	params.Ctx.Build(pctx, android.BuildParams{
+	ctx.Build(pctx, android.BuildParams{
 		Rule:        manifestFixerRule,
 		Description: "fix manifest",
-		Input:       params.Manifest,
+		Input:       manifest,
 		Implicits:   deps,
 		Output:      fixedManifest,
 		Args:        argsMapper,

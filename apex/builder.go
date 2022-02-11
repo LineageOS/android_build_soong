@@ -398,18 +398,8 @@ func (a *apexBundle) buildBundleConfig(ctx android.ModuleContext) android.Output
 }
 
 func markManifestTestOnly(ctx android.ModuleContext, androidManifestFile android.Path) android.Path {
-	return java.ManifestFixer(java.ManifestFixerParams{
-		Ctx:                   ctx,
-		Manifest:              androidManifestFile,
-		SdkContext:            nil,
-		ClassLoaderContexts:   nil,
-		IsLibrary:             false,
-		UseEmbeddedNativeLibs: false,
-		UsesNonSdkApis:        false,
-		UseEmbeddedDex:        false,
-		HasNoCode:             false,
-		TestOnly:              true,
-		LoggingParent:         "",
+	return java.ManifestFixer(ctx, androidManifestFile, java.ManifestFixerParams{
+		TestOnly: true,
 	})
 }
 
@@ -618,6 +608,8 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 
 			implicitInputs = append(implicitInputs, androidManifestFile)
 			optFlags = append(optFlags, "--android_manifest "+androidManifestFile.String())
+		} else if a.testApex {
+			optFlags = append(optFlags, "--test_only")
 		}
 
 		// Determine target/min sdk version from the context
