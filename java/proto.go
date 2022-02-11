@@ -73,13 +73,15 @@ func genProto(ctx android.ModuleContext, protoFiles android.Paths, flags android
 }
 
 func protoDeps(ctx android.BottomUpMutatorContext, p *android.ProtoProperties) {
+	const unspecifiedProtobufPluginType = ""
 	if String(p.Proto.Plugin) == "" {
 		switch String(p.Proto.Type) {
+		case "stream": // does not require additional dependencies
 		case "micro":
 			ctx.AddVariationDependencies(nil, staticLibTag, "libprotobuf-java-micro")
 		case "nano":
 			ctx.AddVariationDependencies(nil, staticLibTag, "libprotobuf-java-nano")
-		case "lite", "":
+		case "lite", unspecifiedProtobufPluginType:
 			ctx.AddVariationDependencies(nil, staticLibTag, "libprotobuf-java-lite")
 		case "full":
 			if ctx.Host() || ctx.BazelConversionMode() {
