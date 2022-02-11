@@ -816,3 +816,120 @@ test {
 		})
 	}
 }
+
+func TestSortedUniqueNamedPaths(t *testing.T) {
+	type np struct {
+		path, name string
+	}
+	makePaths := func(l []np) NamedPaths {
+		result := make(NamedPaths, 0, len(l))
+		for _, p := range l {
+			result = append(result, NamedPath{PathForTesting(p.path), p.name})
+		}
+		return result
+	}
+
+	tests := []struct {
+		name        string
+		in          []np
+		expectedOut []np
+	}{
+		{
+			name:        "empty",
+			in:          []np{},
+			expectedOut: []np{},
+		},
+		{
+			name: "all_same",
+			in: []np{
+				{"a.txt", "A"},
+				{"a.txt", "A"},
+				{"a.txt", "A"},
+				{"a.txt", "A"},
+				{"a.txt", "A"},
+			},
+			expectedOut: []np{
+				{"a.txt", "A"},
+			},
+		},
+		{
+			name: "same_path_different_names",
+			in: []np{
+				{"a.txt", "C"},
+				{"a.txt", "A"},
+				{"a.txt", "D"},
+				{"a.txt", "B"},
+				{"a.txt", "E"},
+			},
+			expectedOut: []np{
+				{"a.txt", "A"},
+				{"a.txt", "B"},
+				{"a.txt", "C"},
+				{"a.txt", "D"},
+				{"a.txt", "E"},
+			},
+		},
+		{
+			name: "different_paths_same_name",
+			in: []np{
+				{"b/b.txt", "A"},
+				{"a/a.txt", "A"},
+				{"a/txt", "A"},
+				{"b", "A"},
+				{"a/b/d", "A"},
+			},
+			expectedOut: []np{
+				{"a/a.txt", "A"},
+				{"a/b/d", "A"},
+				{"a/txt", "A"},
+				{"b/b.txt", "A"},
+				{"b", "A"},
+			},
+		},
+		{
+			name: "all_different",
+			in: []np{
+				{"b/b.txt", "A"},
+				{"a/a.txt", "B"},
+				{"a/txt", "D"},
+				{"b", "C"},
+				{"a/b/d", "E"},
+			},
+			expectedOut: []np{
+				{"a/a.txt", "B"},
+				{"a/b/d", "E"},
+				{"a/txt", "D"},
+				{"b/b.txt", "A"},
+				{"b", "C"},
+			},
+		},
+		{
+			name: "some_different",
+			in: []np{
+				{"b/b.txt", "A"},
+				{"a/a.txt", "B"},
+				{"a/txt", "D"},
+				{"a/b/d", "E"},
+				{"b", "C"},
+				{"a/a.txt", "B"},
+				{"a/b/d", "E"},
+			},
+			expectedOut: []np{
+				{"a/a.txt", "B"},
+				{"a/b/d", "E"},
+				{"a/txt", "D"},
+				{"b/b.txt", "A"},
+				{"b", "C"},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actual := SortedUniqueNamedPaths(makePaths(tt.in))
+			expected := makePaths(tt.expectedOut)
+			t.Logf("actual: %v", actual)
+			t.Logf("expected: %v", expected)
+			AssertDeepEquals(t, "SortedUniqueNamedPaths ", expected, actual)
+		})
+	}
+}
