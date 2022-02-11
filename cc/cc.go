@@ -2795,6 +2795,8 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 						// dependency.
 						depPaths.WholeStaticLibsFromPrebuilts = append(depPaths.WholeStaticLibsFromPrebuilts, linkFile.Path())
 					}
+					depPaths.WholeStaticLibsFromPrebuilts = append(depPaths.WholeStaticLibsFromPrebuilts,
+						staticLibraryInfo.WholeStaticLibsFromPrebuilts...)
 				} else {
 					switch libDepTag.Order {
 					case earlyLibraryDependency:
