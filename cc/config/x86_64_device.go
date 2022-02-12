@@ -15,6 +15,7 @@
 package config
 
 import (
+	"fmt"
 	"strings"
 
 	"android/soong/android"
@@ -190,6 +191,11 @@ func (toolchainX86_64) LibclangRuntimeLibraryArch() string {
 }
 
 func x86_64ToolchainFactory(arch android.Arch) Toolchain {
+	// Error now rather than having a confusing Ninja error
+	if _, ok := x86_64ArchVariantCflags[arch.ArchVariant]; !ok {
+		panic(fmt.Sprintf("Unknown x86_64 architecture version: %q", arch.ArchVariant))
+	}
+
 	toolchainCflags := []string{
 		"${config.X86_64ToolchainCflags}",
 		"${config.X86_64" + arch.ArchVariant + "VariantCflags}",

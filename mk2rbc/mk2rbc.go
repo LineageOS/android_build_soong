@@ -1092,7 +1092,7 @@ func (ctx *parseContext) parseCompare(cond *mkparser.Directive) starlarkExpr {
 
 // Given an if statement's directive and the left/right starlarkExprs,
 // check if the starlarkExprs are one of a few hardcoded special cases
-// that can be converted to a simpler equalify expression than simply comparing
+// that can be converted to a simpler equality expression than simply comparing
 // the two.
 func (ctx *parseContext) parseCompareSpecialCases(directive *mkparser.Directive, left starlarkExpr,
 	right starlarkExpr) (starlarkExpr, bool) {
@@ -1121,8 +1121,8 @@ func (ctx *parseContext) parseCompareSpecialCases(directive *mkparser.Directive,
 	}
 
 	switch call.name {
-	case baseName + ".filter", baseName + ".filter-out":
-		return ctx.parseCompareFilterFuncResult(directive, call, value, isEq), true
+	case baseName + ".filter":
+		return ctx.parseCompareFilterFuncResult(directive, call, value, isEq)
 	case baseName + ".expand_wildcard":
 		return ctx.parseCompareWildcardFuncResult(directive, call, value, !isEq), true
 	case baseName + ".findstring":
@@ -1134,68 +1134,39 @@ func (ctx *parseContext) parseCompareSpecialCases(directive *mkparser.Directive,
 }
 
 func (ctx *parseContext) parseCompareFilterFuncResult(cond *mkparser.Directive,
-	filterFuncCall *callExpr, xValue starlarkExpr, negate bool) starlarkExpr {
+	filterFuncCall *callExpr, xValue starlarkExpr, negate bool) (starlarkExpr, bool) {
 	// We handle:
 	// *  ifeq/ifneq (,$(filter v1 v2 ..., EXPR) becomes if EXPR not in/in ["v1", "v2", ...]
 	// *  ifeq/ifneq (,$(filter EXPR, v1 v2 ...) becomes if EXPR not in/in ["v1", "v2", ...]
-	// *  ifeq/ifneq ($(VAR),$(filter $(VAR), v1 v2 ...) becomes if VAR in/not in ["v1", "v2"]
-	// TODO(Asmundak): check the last case works for filter-out, too.
+	if x, ok := xValue.(*stringLiteralExpr); !ok || x.literal != "" {
+		return nil, false
+	}
 	xPattern := filterFuncCall.args[0]
 	xText := filterFuncCall.args[1]
 	var xInList *stringLiteralExpr
 	var expr starlarkExpr
 	var ok bool
-	switch x := xValue.(type) {
-	case *stringLiteralExpr:
-		if x.literal != "" {
-			return ctx.newBadExpr(cond, "filter comparison to non-empty value: %s", xValue)
-		}
-		// Either pattern or text should be const, and the
-		// non-const one should be varRefExpr
-		if xInList, ok = xPattern.(*stringLiteralExpr); ok && !strings.ContainsRune(xInList.literal, '%') && xText.typ() == starlarkTypeList {
-			expr = xText
-		} else if xInList, ok = xText.(*stringLiteralExpr); ok {
-			expr = xPattern
-		} else {
-			expr = &callExpr{
-				object:     nil,
-				name:       filterFuncCall.name,
-				args:       filterFuncCall.args,
-				returnType: starlarkTypeBool,
-			}
-			if negate {
-				expr = &notExpr{expr: expr}
-			}
-			return expr
-		}
-	case *variableRefExpr:
-		if v, ok := xPattern.(*variableRefExpr); ok {
-			if xInList, ok = xText.(*stringLiteralExpr); ok && v.ref.name() == x.ref.name() {
-				// ifeq/ifneq ($(VAR),$(filter $(VAR), v1 v2 ...), flip negate,
-				// it's the opposite to what is done when comparing to empty.
-				expr = xPattern
-				negate = !negate
-			}
-		}
+	if xInList, ok = xPattern.(*stringLiteralExpr); ok && !strings.ContainsRune(xInList.literal, '%') && xText.typ() == starlarkTypeList {
+		expr = xText
+	} else if xInList, ok = xText.(*stringLiteralExpr); ok {
+		expr = xPattern
+	} else {
+		return nil, false
 	}
-	if expr != nil && xInList != nil {
-		slExpr := newStringListExpr(strings.Fields(xInList.literal))
-		// Generate simpler code for the common cases:
-		if expr.typ() == starlarkTypeList {
-			if len(slExpr.items) == 1 {
-				// Checking that a string belongs to list
-				return &inExpr{isNot: negate, list: expr, expr: slExpr.items[0]}
-			} else {
-				// TODO(asmundak):
-				panic("TBD")
-			}
-		} else if len(slExpr.items) == 1 {
-			return &eqExpr{left: expr, right: slExpr.items[0], isEq: !negate}
+	slExpr := newStringListExpr(strings.Fields(xInList.literal))
+	// Generate simpler code for the common cases:
+	if expr.typ() == starlarkTypeList {
+		if len(slExpr.items) == 1 {
+			// Checking that a string belongs to list
+			return &inExpr{isNot: negate, list: expr, expr: slExpr.items[0]}, true
 		} else {
-			return &inExpr{isNot: negate, list: newStringListExpr(strings.Fields(xInList.literal)), expr: expr}
+			return nil, false
 		}
+	} else if len(slExpr.items) == 1 {
+		return &eqExpr{left: expr, right: slExpr.items[0], isEq: !negate}, true
+	} else {
+		return &inExpr{isNot: negate, list: newStringListExpr(strings.Fields(xInList.literal)), expr: expr}, true
 	}
-	return ctx.newBadExpr(cond, "filter arguments are too complex: %s", cond.Dump())
 }
 
 func (ctx *parseContext) parseCompareWildcardFuncResult(directive *mkparser.Directive,

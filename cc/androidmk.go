@@ -108,6 +108,9 @@ func (c *Module) AndroidMkEntries() []android.AndroidMkEntries {
 				if len(c.Properties.AndroidMkHeaderLibs) > 0 {
 					entries.AddStrings("LOCAL_HEADER_LIBRARIES", c.Properties.AndroidMkHeaderLibs...)
 				}
+				if len(c.Properties.AndroidMkRuntimeLibs) > 0 {
+					entries.AddStrings("LOCAL_RUNTIME_LIBRARIES", c.Properties.AndroidMkRuntimeLibs...)
+				}
 				entries.SetString("LOCAL_SOONG_LINK_TYPE", c.makeLinkType)
 				if c.UseVndk() {
 					entries.SetBool("LOCAL_USE_VNDK", true)
