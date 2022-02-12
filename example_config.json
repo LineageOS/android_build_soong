@@ -1,0 +1,6 @@
+{
+    "env": {
+	"ENV_VAR_1": "Value1",
+	"ENV_VAR_2": "Value2"
+    }
+}

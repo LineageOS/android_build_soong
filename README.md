@@ -550,6 +550,26 @@ logic receives module definitions parsed into Go structures using reflection
 and produces build rules.  The build rules are collected by blueprint and
 written to a [ninja](http://ninja-build.org) build file.
 
+## Environment Variables Config File
+
+Soong can optionally load environment variables from a pre-specified
+configuration file during startup. These environment variables can be used
+to control the behavior of the build. For example, these variables can determine
+whether remote-execution should be used for the build or not.
+
+The `ANDROID_BUILD_ENVIRONMENT_CONFIG_DIR` environment variable specifies the
+directory in which the config file should be searched for. The
+`ANDROID_BUILD_ENVIRONMENT_CONFIG` variable determines the name of the config
+file to be searched for within the config directory. For example, the following
+build comand will load `ENV_VAR_1` and `ENV_VAR_2` environment variables from
+the `example_config.json` file inside the `build/soong` directory.
+
+```
+ANDROID_BUILD_ENVIRONMENT_CONFIG_DIR=build/soong \
+  ANDROID_BUILD_ENVIRONMENT_CONFIG=example_config \
+  build/soong/soong_ui.bash
+```
+
 ## Other documentation
 
 * [Best Practices](docs/best_practices.md)
