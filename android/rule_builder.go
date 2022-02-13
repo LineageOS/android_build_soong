@@ -470,7 +470,7 @@ var _ BuilderContext = SingletonContext(nil)
 
 func (r *RuleBuilder) depFileMergerCmd(depFiles WritablePaths) *RuleBuilderCommand {
 	return r.Command().
-		BuiltTool("dep_fixer").
+		builtToolWithoutDeps("dep_fixer").
 		Inputs(depFiles.Paths())
 }
 
@@ -638,7 +638,7 @@ func (r *RuleBuilder) Build(name string, desc string) {
 		}
 		sboxCmd.Text("rm -rf").Output(r.outDir)
 		sboxCmd.Text("&&")
-		sboxCmd.BuiltTool("sbox").
+		sboxCmd.builtToolWithoutDeps("sbox").
 			Flag("--sandbox-path").Text(shared.TempDirForOutDir(PathForOutput(r.ctx).String())).
 			Flag("--manifest").Input(r.sboxManifestPath)
 
@@ -1040,6 +1040,19 @@ func (c *RuleBuilderCommand) ImplicitTools(paths Paths) *RuleBuilderCommand {
 // It is equivalent to:
 //  cmd.Tool(ctx.Config().HostToolPath(ctx, tool))
 func (c *RuleBuilderCommand) BuiltTool(tool string) *RuleBuilderCommand {
+	if c.rule.ctx.Config().UseHostMusl() {
+		// If the host is using musl, assume that the tool was built against musl libc and include
+		// libc_musl.so in the sandbox.
+		// TODO(ccross): if we supported adding new dependencies during GenerateAndroidBuildActions
+		// this could be a dependency + TransitivePackagingSpecs.
+		c.ImplicitTool(c.rule.ctx.Config().HostJNIToolPath(c.rule.ctx, "libc_musl"))
+	}
+	return c.builtToolWithoutDeps(tool)
+}
+
+// builtToolWithoutDeps is similar to BuiltTool, but doesn't add any dependencies.  It is used
+// internally by RuleBuilder for helper tools that are known to be compiled statically.
+func (c *RuleBuilderCommand) builtToolWithoutDeps(tool string) *RuleBuilderCommand {
 	return c.Tool(c.rule.ctx.Config().HostToolPath(c.rule.ctx, tool))
 }
 

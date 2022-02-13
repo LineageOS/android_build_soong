@@ -68,6 +68,8 @@ var rewriteProperties = map[string](func(variableAssignmentContext) error){
 	"LOCAL_MODULE_PATH":                    prebuiltModulePath,
 	"LOCAL_REPLACE_PREBUILT_APK_INSTALLED": prebuiltPreprocessed,
 
+	"LOCAL_DISABLE_AUTO_GENERATE_TEST_CONFIG": invert("auto_gen_config"),
+
 	// composite functions
 	"LOCAL_MODULE_TAGS": includeVariableIf(bpVariable{"tags", bpparser.ListType}, not(valueDumpEquals("optional"))),
 
