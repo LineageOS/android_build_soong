@@ -203,25 +203,34 @@ var (
 		"clangBin", "format")
 
 	// Rule for invoking clang-tidy (a clang-based linter).
+	clangTidyDep, clangTidyDepRE = pctx.RemoteStaticRules("clangTidyDep",
+		blueprint.RuleParams{
+			Depfile: "$out",
+			Deps:    blueprint.DepsGCC,
+			Command: "${config.CcWrapper}$ccCmd $cFlags -E -o /dev/null $in " +
+				"-MQ $tidyFile -MD -MF $out",
+			CommandDeps: []string{"$ccCmd"},
+		},
+		&remoteexec.REParams{
+			Labels:       map[string]string{"type": "lint", "tool": "clang-tidy", "lang": "cpp"},
+			ExecStrategy: "${config.REClangTidyExecStrategy}",
+			Inputs:       []string{"$in"},
+			Platform:     map[string]string{remoteexec.PoolKey: "${config.REClangTidyPool}"},
+		}, []string{"ccCmd", "cFlags", "tidyFile"}, []string{})
+
 	clangTidy, clangTidyRE = pctx.RemoteStaticRules("clangTidy",
 		blueprint.RuleParams{
 			Depfile: "${out}.d",
 			Deps:    blueprint.DepsGCC,
-			// Pick bash because some machines with old /bin/sh cannot handle arrays.
-			// All $cFlags and $tidyFlags should have single quotes escaped.
-			// Assume no single quotes in other parameters like $in, $out, $ccCmd.
-			Command: "/bin/bash -c 'SRCF=$in; TIDYF=$out; CLANGFLAGS=($cFlags); " +
-				"rm -f $$TIDYF $${TIDYF}.d && " +
-				"${config.CcWrapper}$ccCmd \"$${CLANGFLAGS[@]}\" -E -o /dev/null $$SRCF " +
-				"-MQ $$TIDYF -MD -MF $${TIDYF}.d && " +
-				"$tidyVars $reTemplate${config.ClangBin}/clang-tidy $tidyFlags $$SRCF " +
-				"-- \"$${CLANGFLAGS[@]}\" && touch $$TIDYF'",
-			CommandDeps: []string{"${config.ClangBin}/clang-tidy", "$ccCmd"},
+			Command: "cp ${out}.dep ${out}.d && " +
+				"$tidyVars$reTemplate${config.ClangBin}/clang-tidy $tidyFlags $in -- $cFlags && " +
+				"touch $out",
+			CommandDeps: []string{"${config.ClangBin}/clang-tidy"},
 		},
 		&remoteexec.REParams{
 			Labels:               map[string]string{"type": "lint", "tool": "clang-tidy", "lang": "cpp"},
 			ExecStrategy:         "${config.REClangTidyExecStrategy}",
-			Inputs:               []string{"$in"},
+			Inputs:               []string{"$in", "${out}.dep"},
 			EnvironmentVariables: []string{"TIDY_TIMEOUT"},
 			// Although clang-tidy has an option to "fix" source files, that feature is hardly useable
 			// under parallel compilation and RBE. So we assume no OutputFiles here.
@@ -230,7 +239,7 @@ var (
 			// (1) New timestamps trigger clang and clang-tidy compilations again.
 			// (2) Changing source files caused concurrent clang or clang-tidy jobs to crash.
 			Platform: map[string]string{remoteexec.PoolKey: "${config.REClangTidyPool}"},
-		}, []string{"ccCmd", "cFlags", "tidyFlags", "tidyVars"}, []string{})
+		}, []string{"cFlags", "tidyFlags", "tidyVars"}, []string{})
 
 	_ = pctx.SourcePathVariable("yasmCmd", "prebuilts/misc/${config.HostPrebuiltTag}/yasm/yasm")
 
@@ -449,12 +458,6 @@ func (a Objects) Append(b Objects) Objects {
 	}
 }
 
-func escapeSingleQuotes(s string) string {
-	// Replace single quotes to work when embedded in a single quoted string for bash.
-	// Relying on string concatenation of bash to get A'B from quoted 'A'\''B'.
-	return strings.Replace(s, `'`, `'\''`, -1)
-}
-
 // Generate rules for compiling multiple .c, .cpp, or .S files to individual .o files
 func transformSourceToObj(ctx ModuleContext, subdir string, srcFiles, noTidySrcs android.Paths,
 	flags builderFlags, pathDeps android.Paths, cFlagsDeps android.Paths) Objects {
@@ -470,7 +473,7 @@ func transformSourceToObj(ctx ModuleContext, subdir string, srcFiles, noTidySrcs
 		}
 		tidyTimeout := ctx.Config().Getenv("TIDY_TIMEOUT")
 		if len(tidyTimeout) > 0 {
-			tidyVars += "TIDY_TIMEOUT=" + tidyTimeout
+			tidyVars += "TIDY_TIMEOUT=" + tidyTimeout + " "
 		}
 	}
 	var coverageFiles android.Paths
@@ -674,24 +677,44 @@ func transformSourceToObj(ctx ModuleContext, subdir string, srcFiles, noTidySrcs
 		//  Even with tidy, some src file could be skipped by noTidySrcsMap.
 		if tidy && !noTidySrcsMap[srcFile] {
 			tidyFile := android.ObjPathWithExt(ctx, subdir, srcFile, "tidy")
+			tidyDepFile := android.ObjPathWithExt(ctx, subdir, srcFile, "tidy.dep")
 			tidyFiles = append(tidyFiles, tidyFile)
 
+			ruleDep := clangTidyDep
 			rule := clangTidy
 			if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_CLANG_TIDY") {
+				ruleDep = clangTidyDepRE
 				rule = clangTidyRE
 			}
 
+			sharedCFlags := shareFlags("cFlags", moduleFlags)
+			srcRelPath := srcFile.Rel()
+
+			// Add the .tidy.d rule
 			ctx.Build(pctx, android.BuildParams{
-				Rule:        rule,
-				Description: "clang-tidy " + srcFile.Rel(),
-				Output:      tidyFile,
+				Rule:        ruleDep,
+				Description: "clang-tidy-dep " + srcRelPath,
+				Output:      tidyDepFile,
 				Input:       srcFile,
 				Implicits:   cFlagsDeps,
 				OrderOnly:   pathDeps,
 				Args: map[string]string{
-					"ccCmd":     ccCmd,
-					"cFlags":    shareFlags("cFlags", escapeSingleQuotes(moduleToolingFlags)),
-					"tidyFlags": shareFlags("tidyFlags", escapeSingleQuotes(config.TidyFlagsForSrcFile(srcFile, flags.tidyFlags))),
+					"ccCmd":    ccCmd,
+					"cFlags":   sharedCFlags,
+					"tidyFile": tidyFile.String(),
+				},
+			})
+			// Add the .tidy rule with order only dependency on the .tidy.d file
+			ctx.Build(pctx, android.BuildParams{
+				Rule:        rule,
+				Description: "clang-tidy " + srcRelPath,
+				Output:      tidyFile,
+				Input:       srcFile,
+				Implicits:   cFlagsDeps,
+				OrderOnly:   append(android.Paths{}, tidyDepFile),
+				Args: map[string]string{
+					"cFlags":    sharedCFlags,
+					"tidyFlags": shareFlags("tidyFlags", config.TidyFlagsForSrcFile(srcFile, flags.tidyFlags)),
 					"tidyVars":  tidyVars, // short and not shared
 				},
 			})
