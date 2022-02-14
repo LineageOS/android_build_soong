@@ -505,6 +505,7 @@ type ModuleContextIntf interface {
 	selectedStl() string
 	baseModuleName() string
 	getVndkExtendsModuleName() string
+	isAfdoCompile() bool
 	isPgoCompile() bool
 	isNDKStubLibrary() bool
 	useClangLld(actx ModuleContext) bool
@@ -1259,6 +1260,13 @@ func (c *Module) IsVndk() bool {
 	return false
 }
 
+func (c *Module) isAfdoCompile() bool {
+	if afdo := c.afdo; afdo != nil {
+		return afdo.Properties.AfdoTarget != nil
+	}
+	return false
+}
+
 func (c *Module) isPgoCompile() bool {
 	if pgo := c.pgo; pgo != nil {
 		return pgo.Properties.PgoCompile
@@ -1534,6 +1542,10 @@ func (ctx *moduleContextImpl) IsVndkPrivate() bool {
 
 func (ctx *moduleContextImpl) isVndk() bool {
 	return ctx.mod.IsVndk()
+}
+
+func (ctx *moduleContextImpl) isAfdoCompile() bool {
+	return ctx.mod.isAfdoCompile()
 }
 
 func (ctx *moduleContextImpl) isPgoCompile() bool {
