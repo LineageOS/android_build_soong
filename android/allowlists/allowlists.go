@@ -169,6 +169,7 @@ var (
 		"packages/apps/DevCamera":                                Bp2BuildDefaultTrue,
 		"packages/apps/HTMLViewer":                               Bp2BuildDefaultTrue,
 		"packages/apps/Protips":                                  Bp2BuildDefaultTrue,
+		"packages/apps/WallpaperPicker":                          Bp2BuildDefaultTrue,
 		"packages/modules/StatsD/lib/libstatssocket":             Bp2BuildDefaultTrueRecursively,
 		"packages/modules/adb":                                   Bp2BuildDefaultTrue,
 		"packages/modules/adb/apex":                              Bp2BuildDefaultTrue,
@@ -182,6 +183,8 @@ var (
 		"packages/screensavers/Basic":                            Bp2BuildDefaultTrue,
 		"packages/services/Car/tests/SampleRearViewCamera":       Bp2BuildDefaultTrue,
 		"prebuilts/clang/host/linux-x86":                         Bp2BuildDefaultTrueRecursively,
+		"prebuilts/sdk/current/extras/app-toolkit":               Bp2BuildDefaultTrue,
+		"prebuilts/sdk/current/support":                          Bp2BuildDefaultTrue,
 		"prebuilts/tools/common/m2":                              Bp2BuildDefaultTrue,
 		"system/apex":                                            Bp2BuildDefaultFalse, // TODO(b/207466993): flaky failures
 		"system/apex/apexer":                                     Bp2BuildDefaultTrue,
@@ -258,7 +261,6 @@ var (
 
 		"packages/apps/Music":/* recursive = */ true,
 		"packages/apps/QuickSearchBox":/* recursive = */ true,
-		"packages/apps/WallpaperPicker":/* recursive = */ false,
 
 		"prebuilts/bazel":/* recursive = */ true,
 		"prebuilts/bundletool":/* recursive = */ true,
@@ -267,8 +269,6 @@ var (
 		"prebuilts/jdk/jdk11":/* recursive = */ false,
 		"prebuilts/misc":/* recursive = */ false, // not recursive because we need bp2build converted build files in prebuilts/misc/common/asm
 		"prebuilts/sdk":/* recursive = */ false,
-		"prebuilts/sdk/current/extras/app-toolkit":/* recursive = */ false,
-		"prebuilts/sdk/current/support":/* recursive = */ false,
 		"prebuilts/sdk/tools":/* recursive = */ false,
 		"prebuilts/r8":/* recursive = */ false,
 	}
