@@ -27,17 +27,6 @@ const (
 	soongCcLibraryStaticPreamble = `
 cc_defaults {
     name: "linux_bionic_supported",
-}
-
-toolchain_library {
-    name: "libclang_rt.builtins-x86_64-android",
-    defaults: ["linux_bionic_supported"],
-    vendor_available: true,
-    vendor_ramdisk_available: true,
-    product_available: true,
-    recovery_available: true,
-    native_bridge_supported: true,
-    src: "",
 }`
 )
 
@@ -65,12 +54,10 @@ func TestCcLibraryStaticLoadStatement(t *testing.T) {
 			t.Fatalf("Expected load statements to be %s, got %s", expected, actual)
 		}
 	}
-
 }
 
 func registerCcLibraryStaticModuleTypes(ctx android.RegistrationContext) {
 	cc.RegisterCCBuildComponents(ctx)
-	ctx.RegisterModuleType("toolchain_library", cc.ToolchainLibraryFactory)
 	ctx.RegisterModuleType("cc_library_headers", cc.LibraryHeaderFactory)
 	ctx.RegisterModuleType("genrule", genrule.GenRuleFactory)
 	// Required for system_shared_libs dependencies.
@@ -1395,6 +1382,54 @@ cc_library_static {
 	})
 }
 
+func TestCcLibrarystatic_SystemSharedLibUsedAsDep(t *testing.T) {
+	runCcLibraryStaticTestCase(t, bp2buildTestCase{
+		description: "cc_library_static system_shared_lib empty for linux_bionic variant",
+		blueprint: soongCcLibraryStaticPreamble +
+			simpleModuleDoNotConvertBp2build("cc_library", "libc") + `
+cc_library_static {
+    name: "used_in_bionic_oses",
+    target: {
+        android: {
+            shared_libs: ["libc"],
+        },
+        linux_bionic: {
+            shared_libs: ["libc"],
+        },
+    },
+    include_build_directory: false,
+}
+
+cc_library_static {
+    name: "all",
+    shared_libs: ["libc"],
+    include_build_directory: false,
+}
+
+cc_library_static {
+    name: "keep_for_empty_system_shared_libs",
+    shared_libs: ["libc"],
+		system_shared_libs: [],
+    include_build_directory: false,
+}
+`,
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_library_static", "all", attrNameToString{
+				"implementation_dynamic_deps": `select({
+        "//build/bazel/platforms/os:android": [],
+        "//build/bazel/platforms/os:linux_bionic": [],
+        "//conditions:default": [":libc"],
+    })`,
+			}),
+			makeBazelTarget("cc_library_static", "keep_for_empty_system_shared_libs", attrNameToString{
+				"implementation_dynamic_deps": `[":libc"]`,
+				"system_dynamic_deps":         `[]`,
+			}),
+			makeBazelTarget("cc_library_static", "used_in_bionic_oses", attrNameToString{}),
+		},
+	})
+}
+
 func TestCcLibraryStaticProto(t *testing.T) {
 	runCcLibraryStaticTestCase(t, bp2buildTestCase{
 		blueprint: soongCcProtoPreamble + `cc_library_static {
@@ -1429,6 +1464,24 @@ func TestCcLibraryStaticUseVersionLib(t *testing.T) {
 		expectedBazelTargets: []string{
 			makeBazelTarget("cc_library_static", "foo", attrNameToString{
 				"use_version_lib": "True",
+			}),
+		},
+	})
+}
+
+func TestCcLibraryStaticStdInFlags(t *testing.T) {
+	runCcLibraryStaticTestCase(t, bp2buildTestCase{
+		blueprint: soongCcProtoPreamble + `cc_library_static {
+	name: "foo",
+	cflags: ["-std=candcpp"],
+	conlyflags: ["-std=conly"],
+	cppflags: ["-std=cpp"],
+	include_build_directory: false,
+}`,
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_library_static", "foo", attrNameToString{
+				"conlyflags": `["-std=conly"]`,
+				"cppflags":   `["-std=cpp"]`,
 			}),
 		},
 	})

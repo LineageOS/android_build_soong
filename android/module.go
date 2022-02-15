@@ -16,10 +16,13 @@ package android
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
+	"reflect"
 	"regexp"
+	"sort"
 	"strings"
 	"text/scanner"
 
@@ -266,7 +269,7 @@ type BaseModuleContext interface {
 	//
 	// The Modules passed to the visit function should not be retained outside of the visit function, they may be
 	// invalidated by future mutators.
-	WalkDeps(visit func(Module, Module) bool)
+	WalkDeps(visit func(child, parent Module) bool)
 
 	// WalkDepsBlueprint calls visit for each transitive dependency, traversing the dependency
 	// tree in top down order.  visit may be called multiple times for the same (child, parent)
@@ -319,6 +322,9 @@ type BaseModuleContext interface {
 
 	// AddUnconvertedBp2buildDep stores module name of a direct dependency that was not converted via bp2build
 	AddUnconvertedBp2buildDep(dep string)
+
+	// AddMissingBp2buildDep stores the module name of a direct dependency that was not found.
+	AddMissingBp2buildDep(dep string)
 
 	Target() Target
 	TargetPrimary() bool
@@ -429,7 +435,6 @@ type ModuleContext interface {
 	InstallInRecovery() bool
 	InstallInRoot() bool
 	InstallInVendor() bool
-	InstallBypassMake() bool
 	InstallForceOS() (*OsType, *ArchType)
 
 	RequiredModuleNames() []string
@@ -496,7 +501,6 @@ type Module interface {
 	InstallInRecovery() bool
 	InstallInRoot() bool
 	InstallInVendor() bool
-	InstallBypassMake() bool
 	InstallForceOS() (*OsType, *ArchType)
 	HideFromMake()
 	IsHideFromMake() bool
@@ -518,6 +522,7 @@ type Module interface {
 	// Bp2buildTargets returns the target(s) generated for Bazel via bp2build for this module
 	Bp2buildTargets() []bp2buildInfo
 	GetUnconvertedBp2buildDeps() []string
+	GetMissingBp2buildDeps() []string
 
 	BuildParamsForTests() []BuildParams
 	RuleParamsForTests() map[blueprint.Rule]blueprint.RuleParams
@@ -613,6 +618,53 @@ type Dist struct {
 	Tag *string `android:"arch_variant"`
 }
 
+// NamedPath associates a path with a name. e.g. a license text path with a package name
+type NamedPath struct {
+	Path Path
+	Name string
+}
+
+// String returns an escaped string representing the `NamedPath`.
+func (p NamedPath) String() string {
+	if len(p.Name) > 0 {
+		return p.Path.String() + ":" + url.QueryEscape(p.Name)
+	}
+	return p.Path.String()
+}
+
+// NamedPaths describes a list of paths each associated with a name.
+type NamedPaths []NamedPath
+
+// Strings returns a list of escaped strings representing each `NamedPath` in the list.
+func (l NamedPaths) Strings() []string {
+	result := make([]string, 0, len(l))
+	for _, p := range l {
+		result = append(result, p.String())
+	}
+	return result
+}
+
+// SortedUniqueNamedPaths modifies `l` in place to return the sorted unique subset.
+func SortedUniqueNamedPaths(l NamedPaths) NamedPaths {
+	if len(l) == 0 {
+		return l
+	}
+	sort.Slice(l, func(i, j int) bool {
+		return l[i].String() < l[j].String()
+	})
+	k := 0
+	for i := 1; i < len(l); i++ {
+		if l[i].String() == l[k].String() {
+			continue
+		}
+		k++
+		if k < i {
+			l[k] = l[i]
+		}
+	}
+	return l[:k+1]
+}
+
 type nameProperties struct {
 	// The name of the module.  Must be unique across all modules.
 	Name *string
@@ -681,7 +733,7 @@ type commonProperties struct {
 	// Override of module name when reporting licenses
 	Effective_package_name *string `blueprint:"mutated"`
 	// Notice files
-	Effective_license_text Paths `blueprint:"mutated"`
+	Effective_license_text NamedPaths `blueprint:"mutated"`
 	// License names
 	Effective_license_kinds []string `blueprint:"mutated"`
 	// License conditions
@@ -859,6 +911,9 @@ type commonProperties struct {
 	// UnconvertedBp2buildDep stores the module names of direct dependency that were not converted to
 	// Bazel
 	UnconvertedBp2buildDeps []string `blueprint:"mutated"`
+
+	// MissingBp2buildDep stores the module names of direct dependency that were not found
+	MissingBp2buildDeps []string `blueprint:"mutated"`
 }
 
 // CommonAttributes represents the common Bazel attributes from which properties
@@ -869,6 +924,13 @@ type CommonAttributes struct {
 	Name string
 	// Data mapped from: Required
 	Data bazel.LabelListAttribute
+}
+
+// constraintAttributes represents Bazel attributes pertaining to build constraints,
+// which make restrict building a Bazel target for some set of platforms.
+type constraintAttributes struct {
+	// Constraint values this target can be built for.
+	Target_compatible_with bazel.LabelListAttribute
 }
 
 type distProperties struct {
@@ -1027,9 +1089,6 @@ func InitAndroidModule(m Module) {
 
 	initProductVariableModule(m)
 
-	base.generalProperties = m.GetProperties()
-	base.customizableProperties = m.GetProperties()
-
 	// The default_visibility property needs to be checked and parsed by the visibility module during
 	// its checking and parsing phases so make it the primary visibility property.
 	setPrimaryVisibilityProperty(m, "visibility", &base.commonProperties.Visibility)
@@ -1091,7 +1150,8 @@ func InitCommonOSAndroidMultiTargetsArchModule(m Module, hod HostOrDeviceSupport
 	m.base().commonProperties.CreateCommonOSVariant = true
 }
 
-func (attrs *CommonAttributes) fillCommonBp2BuildModuleAttrs(ctx *topDownMutatorContext) {
+func (attrs *CommonAttributes) fillCommonBp2BuildModuleAttrs(ctx *topDownMutatorContext,
+	enabledPropertyOverrides bazel.BoolAttribute) constraintAttributes {
 	// Assert passed-in attributes include Name
 	name := attrs.Name
 	if len(name) == 0 {
@@ -1109,14 +1169,101 @@ func (attrs *CommonAttributes) fillCommonBp2BuildModuleAttrs(ctx *topDownMutator
 
 	required := depsToLabelList(props.Required)
 	archVariantProps := mod.GetArchVariantProperties(ctx, &commonProperties{})
+
+	var enabledProperty bazel.BoolAttribute
+	if props.Enabled != nil {
+		enabledProperty.Value = props.Enabled
+	}
+
 	for axis, configToProps := range archVariantProps {
 		for config, _props := range configToProps {
 			if archProps, ok := _props.(*commonProperties); ok {
 				required.SetSelectValue(axis, config, depsToLabelList(archProps.Required).Value)
+				if archProps.Enabled != nil {
+					enabledProperty.SetSelectValue(axis, config, archProps.Enabled)
+				}
 			}
 		}
 	}
+
+	if enabledPropertyOverrides.Value != nil {
+		enabledProperty.Value = enabledPropertyOverrides.Value
+	}
+	for _, axis := range enabledPropertyOverrides.SortedConfigurationAxes() {
+		configToBools := enabledPropertyOverrides.ConfigurableValues[axis]
+		for cfg, val := range configToBools {
+			enabledProperty.SetSelectValue(axis, cfg, &val)
+		}
+	}
+
+	productConfigEnabledLabels := []bazel.Label{}
+	if !proptools.BoolDefault(enabledProperty.Value, true) {
+		// If the module is not enabled by default, then we can check if a
+		// product variable enables it
+		productConfigEnabledLabels = productVariableConfigEnableLabels(ctx)
+
+		if len(productConfigEnabledLabels) > 0 {
+			// In this case, an existing product variable configuration overrides any
+			// module-level `enable: false` definition
+			newValue := true
+			enabledProperty.Value = &newValue
+		}
+	}
+
+	productConfigEnabledAttribute := bazel.MakeLabelListAttribute(bazel.LabelList{
+		productConfigEnabledLabels, nil,
+	})
+
+	moduleSupportsDevice := mod.commonProperties.HostOrDeviceSupported&deviceSupported == deviceSupported
+	if mod.commonProperties.HostOrDeviceSupported != NeitherHostNorDeviceSupported && !moduleSupportsDevice {
+		enabledProperty.SetSelectValue(bazel.OsConfigurationAxis, Android.Name, proptools.BoolPtr(false))
+	}
+
+	platformEnabledAttribute, err := enabledProperty.ToLabelListAttribute(
+		bazel.LabelList{[]bazel.Label{bazel.Label{Label: "@platforms//:incompatible"}}, nil},
+		bazel.LabelList{[]bazel.Label{}, nil})
+	if err != nil {
+		ctx.ModuleErrorf("Error processing platform enabled attribute: %s", err)
+	}
+
 	data.Append(required)
+
+	constraints := constraintAttributes{}
+	moduleEnableConstraints := bazel.LabelListAttribute{}
+	moduleEnableConstraints.Append(platformEnabledAttribute)
+	moduleEnableConstraints.Append(productConfigEnabledAttribute)
+	constraints.Target_compatible_with = moduleEnableConstraints
+
+	return constraints
+}
+
+// Check product variables for `enabled: true` flag override.
+// Returns a list of the constraint_value targets who enable this override.
+func productVariableConfigEnableLabels(ctx *topDownMutatorContext) []bazel.Label {
+	productVariableProps := ProductVariableProperties(ctx)
+	productConfigEnablingTargets := []bazel.Label{}
+	const propName = "Enabled"
+	if productConfigProps, exists := productVariableProps[propName]; exists {
+		for productConfigProp, prop := range productConfigProps {
+			flag, ok := prop.(*bool)
+			if !ok {
+				ctx.ModuleErrorf("Could not convert product variable %s property", proptools.PropertyNameForField(propName))
+			}
+
+			if *flag {
+				axis := productConfigProp.ConfigurationAxis()
+				targetLabel := axis.SelectKey(productConfigProp.SelectKey())
+				productConfigEnablingTargets = append(productConfigEnablingTargets, bazel.Label{
+					Label: targetLabel,
+				})
+			} else {
+				// TODO(b/210546943): handle negative case where `enabled: false`
+				ctx.ModuleErrorf("`enabled: false` is not currently supported for configuration variables. See b/210546943", proptools.PropertyNameForField(propName))
+			}
+		}
+	}
+
+	return productConfigEnablingTargets
 }
 
 // A ModuleBase object contains the properties that are common to all Android
@@ -1171,16 +1318,13 @@ type ModuleBase struct {
 	distProperties          distProperties
 	variableProperties      interface{}
 	hostAndDeviceProperties hostAndDeviceProperties
-	generalProperties       []interface{}
 
-	// Arch specific versions of structs in generalProperties. The outer index
-	// has the same order as generalProperties as initialized in
-	// InitAndroidArchModule, and the inner index chooses the props specific to
-	// the architecture. The interface{} value is an archPropRoot that is
-	// filled with arch specific values by the arch mutator.
+	// Arch specific versions of structs in GetProperties() prior to
+	// initialization in InitAndroidArchModule, lets call it `generalProperties`.
+	// The outer index has the same order as generalProperties and the inner index
+	// chooses the props specific to the architecture. The interface{} value is an
+	// archPropRoot that is filled with arch specific values by the arch mutator.
 	archProperties [][]interface{}
-
-	customizableProperties []interface{}
 
 	// Properties specific to the Blueprint to BUILD migration.
 	bazelTargetModuleProperties bazel.BazelTargetModuleProperties
@@ -1231,14 +1375,18 @@ type ModuleBase struct {
 	// set of dependency module:location mappings used to populate the license metadata for
 	// apex containers.
 	licenseInstallMap []string
+
+	// The path to the generated license metadata file for the module.
+	licenseMetadataFile WritablePath
 }
 
 // A struct containing all relevant information about a Bazel target converted via bp2build.
 type bp2buildInfo struct {
-	Dir         string
-	BazelProps  bazel.BazelTargetModuleProperties
-	CommonAttrs CommonAttributes
-	Attrs       interface{}
+	Dir             string
+	BazelProps      bazel.BazelTargetModuleProperties
+	CommonAttrs     CommonAttributes
+	ConstraintAttrs constraintAttributes
+	Attrs           interface{}
 }
 
 // TargetName returns the Bazel target name of a bp2build converted target.
@@ -1264,7 +1412,7 @@ func (b bp2buildInfo) BazelRuleLoadLocation() string {
 
 // BazelAttributes returns the Bazel attributes of a bp2build converted target.
 func (b bp2buildInfo) BazelAttributes() []interface{} {
-	return []interface{}{&b.CommonAttrs, b.Attrs}
+	return []interface{}{&b.CommonAttrs, &b.ConstraintAttrs, b.Attrs}
 }
 
 func (m *ModuleBase) addBp2buildInfo(info bp2buildInfo) {
@@ -1287,14 +1435,82 @@ func (b *baseModuleContext) AddUnconvertedBp2buildDep(dep string) {
 	*unconvertedDeps = append(*unconvertedDeps, dep)
 }
 
+// AddMissingBp2buildDep stores module name of a dependency that was not found in a Android.bp file.
+func (b *baseModuleContext) AddMissingBp2buildDep(dep string) {
+	missingDeps := &b.Module().base().commonProperties.MissingBp2buildDeps
+	*missingDeps = append(*missingDeps, dep)
+}
+
 // GetUnconvertedBp2buildDeps returns the list of module names of this module's direct dependencies that
 // were not converted to Bazel.
 func (m *ModuleBase) GetUnconvertedBp2buildDeps() []string {
 	return FirstUniqueStrings(m.commonProperties.UnconvertedBp2buildDeps)
 }
 
+// GetMissingBp2buildDeps eturns the list of module names that were not found in Android.bp files.
+func (m *ModuleBase) GetMissingBp2buildDeps() []string {
+	return FirstUniqueStrings(m.commonProperties.MissingBp2buildDeps)
+}
+
 func (m *ModuleBase) AddJSONData(d *map[string]interface{}) {
-	(*d)["Android"] = map[string]interface{}{}
+	(*d)["Android"] = map[string]interface{}{
+		// Properties set in Blueprint or in blueprint of a defaults modules
+		"SetProperties": m.propertiesWithValues(),
+	}
+}
+
+type propInfo struct {
+	Name string
+	Type string
+}
+
+func (m *ModuleBase) propertiesWithValues() []propInfo {
+	var info []propInfo
+	props := m.GetProperties()
+
+	var propsWithValues func(name string, v reflect.Value)
+	propsWithValues = func(name string, v reflect.Value) {
+		kind := v.Kind()
+		switch kind {
+		case reflect.Ptr, reflect.Interface:
+			if v.IsNil() {
+				return
+			}
+			propsWithValues(name, v.Elem())
+		case reflect.Struct:
+			if v.IsZero() {
+				return
+			}
+			for i := 0; i < v.NumField(); i++ {
+				namePrefix := name
+				sTyp := v.Type().Field(i)
+				if proptools.ShouldSkipProperty(sTyp) {
+					continue
+				}
+				if name != "" && !strings.HasSuffix(namePrefix, ".") {
+					namePrefix += "."
+				}
+				if !proptools.IsEmbedded(sTyp) {
+					namePrefix += sTyp.Name
+				}
+				sVal := v.Field(i)
+				propsWithValues(namePrefix, sVal)
+			}
+		case reflect.Array, reflect.Slice:
+			if v.IsNil() {
+				return
+			}
+			elKind := v.Type().Elem().Kind()
+			info = append(info, propInfo{name, elKind.String() + " " + kind.String()})
+		default:
+			info = append(info, propInfo{name, kind.String()})
+		}
+	}
+
+	for _, p := range props {
+		propsWithValues("", reflect.ValueOf(p).Elem())
+	}
+	return info
 }
 
 func (m *ModuleBase) ComponentDepsMutator(BottomUpMutatorContext) {}
@@ -1634,7 +1850,11 @@ func (m *ModuleBase) ExportedToMake() bool {
 }
 
 func (m *ModuleBase) EffectiveLicenseFiles() Paths {
-	return m.commonProperties.Effective_license_text
+	result := make(Paths, 0, len(m.commonProperties.Effective_license_text))
+	for _, p := range m.commonProperties.Effective_license_text {
+		result = append(result, p.Path)
+	}
+	return result
 }
 
 // computeInstallDeps finds the installed paths of all dependencies that have a dependency
@@ -1704,10 +1924,6 @@ func (m *ModuleBase) InstallInRoot() bool {
 	return false
 }
 
-func (m *ModuleBase) InstallBypassMake() bool {
-	return true
-}
-
 func (m *ModuleBase) InstallForceOS() (*OsType, *ArchType) {
 	return nil, nil
 }
@@ -1775,6 +1991,10 @@ func (m *ModuleBase) InitRc() Paths {
 
 func (m *ModuleBase) VintfFragments() Paths {
 	return append(Paths{}, m.vintfFragmentsPaths...)
+}
+
+func (m *ModuleBase) CompileMultilib() *string {
+	return m.base().commonProperties.Compile_multilib
 }
 
 // SetLicenseInstallMap stores the set of dependency module:location mappings for files in an
@@ -1917,6 +2137,8 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 		variables:         make(map[string]string),
 	}
 
+	m.licenseMetadataFile = PathForModuleOut(ctx, "meta_lic")
+
 	dependencyInstallFiles, dependencyPackagingSpecs := m.computeInstallDeps(ctx)
 	// set m.installFilesDepSet to only the transitive dependencies to be used as the dependencies
 	// of installed files of this module.  It will be replaced by a depset including the installed
@@ -2048,7 +2270,7 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 	m.installFilesDepSet = newInstallPathsDepSet(m.installFiles, dependencyInstallFiles)
 	m.packagingSpecsDepSet = newPackagingSpecsDepSet(m.packagingSpecs, dependencyPackagingSpecs)
 
-	buildLicenseMetadata(ctx)
+	buildLicenseMetadata(ctx, m.licenseMetadataFile)
 
 	m.buildParams = ctx.buildParams
 	m.ruleParams = ctx.ruleParams
@@ -2096,18 +2318,18 @@ func (e *earlyModuleContext) GlobFiles(globPattern string, excludes []string) Pa
 	return GlobFiles(e, globPattern, excludes)
 }
 
-func (b *earlyModuleContext) IsSymlink(path Path) bool {
-	fileInfo, err := b.config.fs.Lstat(path.String())
+func (e *earlyModuleContext) IsSymlink(path Path) bool {
+	fileInfo, err := e.config.fs.Lstat(path.String())
 	if err != nil {
-		b.ModuleErrorf("os.Lstat(%q) failed: %s", path.String(), err)
+		e.ModuleErrorf("os.Lstat(%q) failed: %s", path.String(), err)
 	}
 	return fileInfo.Mode()&os.ModeSymlink == os.ModeSymlink
 }
 
-func (b *earlyModuleContext) Readlink(path Path) string {
-	dest, err := b.config.fs.Readlink(path.String())
+func (e *earlyModuleContext) Readlink(path Path) string {
+	dest, err := e.config.fs.Readlink(path.String())
 	if err != nil {
-		b.ModuleErrorf("os.Readlink(%q) failed: %s", path.String(), err)
+		e.ModuleErrorf("os.Readlink(%q) failed: %s", path.String(), err)
 	}
 	return dest
 }
@@ -2461,7 +2683,7 @@ func (b *baseModuleContext) validateAndroidModule(module blueprint.Module, tag b
 	}
 
 	if aModule == nil {
-		b.ModuleErrorf("module %q not an android module", b.OtherModuleName(module))
+		b.ModuleErrorf("module %q (%#v) not an android module", b.OtherModuleName(module), tag)
 		return nil
 	}
 
@@ -2583,8 +2805,8 @@ func (b *baseModuleContext) VisitDirectDeps(visit func(Module)) {
 
 func (b *baseModuleContext) VisitDirectDepsWithTag(tag blueprint.DependencyTag, visit func(Module)) {
 	b.bp.VisitDirectDeps(func(module blueprint.Module) {
-		if aModule := b.validateAndroidModule(module, b.bp.OtherModuleDependencyTag(module), b.strictVisitDeps); aModule != nil {
-			if b.bp.OtherModuleDependencyTag(aModule) == tag {
+		if b.bp.OtherModuleDependencyTag(module) == tag {
+			if aModule := b.validateAndroidModule(module, b.bp.OtherModuleDependencyTag(module), b.strictVisitDeps); aModule != nil {
 				visit(aModule)
 			}
 		}
@@ -2829,10 +3051,6 @@ func (m *moduleContext) InstallInRoot() bool {
 	return m.module.InstallInRoot()
 }
 
-func (m *moduleContext) InstallBypassMake() bool {
-	return m.module.InstallBypassMake()
-}
-
 func (m *moduleContext) InstallForceOS() (*OsType, *ArchType) {
 	return m.module.InstallForceOS()
 }
@@ -2855,12 +3073,6 @@ func (m *moduleContext) skipInstall() bool {
 	// list of namespaces to install in a Soong-only build.
 	if !m.module.base().commonProperties.NamespaceExportedToMake {
 		return true
-	}
-
-	if m.Device() {
-		if m.Config().KatiEnabled() && !m.InstallBypassMake() {
-			return true
-		}
 	}
 
 	return false
@@ -2921,7 +3133,7 @@ func (m *moduleContext) installFile(installPath InstallPath, name string, srcPat
 			orderOnlyDeps = deps
 		}
 
-		if m.Config().KatiEnabled() && m.InstallBypassMake() {
+		if m.Config().KatiEnabled() {
 			// When creating the install rule in Soong but embedding in Make, write the rule to a
 			// makefile instead of directly to the ninja file so that main.mk can add the
 			// dependencies from the `required` property that are hard to resolve in Soong.
@@ -2980,7 +3192,7 @@ func (m *moduleContext) InstallSymlink(installPath InstallPath, name string, src
 	}
 	if !m.skipInstall() {
 
-		if m.Config().KatiEnabled() && m.InstallBypassMake() {
+		if m.Config().KatiEnabled() {
 			// When creating the symlink rule in Soong but embedding in Make, write the rule to a
 			// makefile instead of directly to the ninja file so that main.mk can add the
 			// dependencies from the `required` property that are hard to resolve in Soong.
@@ -3026,7 +3238,7 @@ func (m *moduleContext) InstallAbsoluteSymlink(installPath InstallPath, name str
 	m.module.base().hooks.runInstallHooks(m, nil, fullInstallPath, true)
 
 	if !m.skipInstall() {
-		if m.Config().KatiEnabled() && m.InstallBypassMake() {
+		if m.Config().KatiEnabled() {
 			// When creating the symlink rule in Soong but embedding in Make, write the rule to a
 			// makefile instead of directly to the ninja file so that main.mk can add the
 			// dependencies from the `required` property that are hard to resolve in Soong.

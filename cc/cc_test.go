@@ -3980,9 +3980,9 @@ func TestIncludeDirectoryOrdering(t *testing.T) {
 	conly := []string{"-fPIC", "${config.CommonGlobalConlyflags}"}
 	cppOnly := []string{"-fPIC", "${config.CommonGlobalCppflags}", "${config.DeviceGlobalCppflags}", "${config.ArmCppflags}"}
 
-	cflags := []string{"-Wall", "-Werror"}
-	cstd := []string{"-std=gnu99"}
-	cppstd := []string{"-std=gnu++17", "-fno-rtti"}
+	cflags := []string{"-Wall", "-Werror", "-std=candcpp"}
+	cstd := []string{"-std=gnu99", "-std=conly"}
+	cppstd := []string{"-std=gnu++17", "-std=cpp", "-fno-rtti"}
 
 	lastIncludes := []string{
 		"out/soong/ndk/sysroot/usr/include",
@@ -4005,12 +4005,12 @@ func TestIncludeDirectoryOrdering(t *testing.T) {
 		{
 			name:     "c",
 			src:      "foo.c",
-			expected: combineSlices(baseExpectedFlags, conly, expectedIncludes, cflags, cstd, lastIncludes, []string{"${config.NoOverrideGlobalCflags}"}),
+			expected: combineSlices(baseExpectedFlags, conly, expectedIncludes, cflags, cstd, lastIncludes, []string{"${config.NoOverrideGlobalCflags}", "${config.NoOverrideExternalGlobalCflags}"}),
 		},
 		{
 			name:     "cc",
 			src:      "foo.cc",
-			expected: combineSlices(baseExpectedFlags, cppOnly, expectedIncludes, cflags, cppstd, lastIncludes, []string{"${config.NoOverrideGlobalCflags}"}),
+			expected: combineSlices(baseExpectedFlags, cppOnly, expectedIncludes, cflags, cppstd, lastIncludes, []string{"${config.NoOverrideGlobalCflags}", "${config.NoOverrideExternalGlobalCflags}"}),
 		},
 		{
 			name:     "assemble",
@@ -4025,6 +4025,9 @@ func TestIncludeDirectoryOrdering(t *testing.T) {
 		cc_library {
 			name: "libfoo",
 			srcs: ["%s"],
+			cflags: ["-std=candcpp"],
+			conlyflags: ["-std=conly"],
+			cppflags: ["-std=cpp"],
 			local_include_dirs: ["local_include_dirs"],
 			export_include_dirs: ["export_include_dirs"],
 			export_system_include_dirs: ["export_system_include_dirs"],

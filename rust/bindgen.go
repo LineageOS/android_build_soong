@@ -30,7 +30,7 @@ var (
 	defaultBindgenFlags = []string{""}
 
 	// bindgen should specify its own Clang revision so updating Clang isn't potentially blocked on bindgen failures.
-	bindgenClangVersion = "clang-r437112"
+	bindgenClangVersion = "clang-r437112b"
 
 	_ = pctx.VariableFunc("bindgenClangVersion", func(ctx android.PackageVarContext) string {
 		if override := ctx.Config().Getenv("LLVM_BINDGEN_PREBUILTS_VERSION"); override != "" {
@@ -288,6 +288,8 @@ func (b *bindgenDecorator) SourceProviderDeps(ctx DepsContext, deps Deps) Deps {
 	deps = b.BaseSourceProvider.SourceProviderDeps(ctx, deps)
 	if ctx.toolchain().Bionic() {
 		deps = bionicDeps(ctx, deps, false)
+	} else if ctx.Os() == android.LinuxMusl {
+		deps = muslDeps(ctx, deps, false)
 	}
 
 	deps.SharedLibs = append(deps.SharedLibs, b.ClangProperties.Shared_libs...)

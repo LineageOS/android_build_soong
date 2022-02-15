@@ -188,7 +188,7 @@ a functionally equivalent module. Enter Soong namespaces.
 
 #### Namespaces
 
-A presense of the `soong_namespace {..}` in an Android.bp file defines a
+The presence of the `soong_namespace {..}` in an Android.bp file defines a
 **namespace**. For instance, having
 
 ```
@@ -452,10 +452,9 @@ used. To specify that no properties should be amended for `soc_b`, you can set
 
 The values of the variables can be set from a product's `BoardConfig.mk` file:
 ```
-$(call add_soong_config_namespace, acme)
-$(call add_soong_config_var_value, acme, board, soc_a)
-$(call add_soong_config_var_value, acme, feature, true)
-$(call add_soong_config_var_value, acme, width, 200)
+$(call soong_config_set,acme,board,soc_a)
+$(call soong_config_set,acme,feature,true)
+$(call soong_config_set,acme,width,200)
 ```
 
 The `acme_cc_defaults` module type can be used anywhere after the definition in
@@ -550,6 +549,26 @@ The build logic is written in Go using the
 logic receives module definitions parsed into Go structures using reflection
 and produces build rules.  The build rules are collected by blueprint and
 written to a [ninja](http://ninja-build.org) build file.
+
+## Environment Variables Config File
+
+Soong can optionally load environment variables from a pre-specified
+configuration file during startup. These environment variables can be used
+to control the behavior of the build. For example, these variables can determine
+whether remote-execution should be used for the build or not.
+
+The `ANDROID_BUILD_ENVIRONMENT_CONFIG_DIR` environment variable specifies the
+directory in which the config file should be searched for. The
+`ANDROID_BUILD_ENVIRONMENT_CONFIG` variable determines the name of the config
+file to be searched for within the config directory. For example, the following
+build comand will load `ENV_VAR_1` and `ENV_VAR_2` environment variables from
+the `example_config.json` file inside the `build/soong` directory.
+
+```
+ANDROID_BUILD_ENVIRONMENT_CONFIG_DIR=build/soong \
+  ANDROID_BUILD_ENVIRONMENT_CONFIG=example_config \
+  build/soong/soong_ui.bash
+```
 
 ## Other documentation
 

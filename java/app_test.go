@@ -1709,7 +1709,7 @@ func TestPackageNameOverride(t *testing.T) {
 			},
 		},
 		{
-			name: "overridden",
+			name: "overridden via PRODUCT_PACKAGE_NAME_OVERRIDES",
 			bp: `
 				android_app {
 					name: "foo",
@@ -1720,6 +1720,22 @@ func TestPackageNameOverride(t *testing.T) {
 			packageNameOverride: "foo:bar",
 			expected: []string{
 				// The package apk should be still be the original name for test dependencies.
+				"out/soong/.intermediates/foo/android_common/bar.apk",
+				"out/soong/target/product/test_device/system/app/bar/bar.apk",
+			},
+		},
+		{
+			name: "overridden via stem",
+			bp: `
+				android_app {
+					name: "foo",
+					srcs: ["a.java"],
+					sdk_version: "current",
+					stem: "bar",
+				}
+			`,
+			packageNameOverride: "",
+			expected: []string{
 				"out/soong/.intermediates/foo/android_common/bar.apk",
 				"out/soong/target/product/test_device/system/app/bar/bar.apk",
 			},
@@ -1968,6 +1984,80 @@ func TestOverrideAndroidApp(t *testing.T) {
 	}
 }
 
+func TestOverrideAndroidAppStem(t *testing.T) {
+	ctx, _ := testJava(t, `
+		android_app {
+			name: "foo",
+			srcs: ["a.java"],
+			sdk_version: "current",
+		}
+		override_android_app {
+			name: "bar",
+			base: "foo",
+		}
+		override_android_app {
+			name: "baz",
+			base: "foo",
+			stem: "baz_stem",
+		}
+		android_app {
+			name: "foo2",
+			srcs: ["a.java"],
+			sdk_version: "current",
+			stem: "foo2_stem",
+		}
+		override_android_app {
+			name: "bar2",
+			base: "foo2",
+		}
+		override_android_app {
+			name: "baz2",
+			base: "foo2",
+			stem: "baz2_stem",
+		}
+	`)
+	for _, expected := range []struct {
+		moduleName  string
+		variantName string
+		apkPath     string
+	}{
+		{
+			moduleName:  "foo",
+			variantName: "android_common",
+			apkPath:     "out/soong/target/product/test_device/system/app/foo/foo.apk",
+		},
+		{
+			moduleName:  "foo",
+			variantName: "android_common_bar",
+			apkPath:     "out/soong/target/product/test_device/system/app/bar/bar.apk",
+		},
+		{
+			moduleName:  "foo",
+			variantName: "android_common_baz",
+			apkPath:     "out/soong/target/product/test_device/system/app/baz_stem/baz_stem.apk",
+		},
+		{
+			moduleName:  "foo2",
+			variantName: "android_common",
+			apkPath:     "out/soong/target/product/test_device/system/app/foo2_stem/foo2_stem.apk",
+		},
+		{
+			moduleName:  "foo2",
+			variantName: "android_common_bar2",
+			// Note that this may cause the duplicate output error.
+			apkPath: "out/soong/target/product/test_device/system/app/foo2_stem/foo2_stem.apk",
+		},
+		{
+			moduleName:  "foo2",
+			variantName: "android_common_baz2",
+			apkPath:     "out/soong/target/product/test_device/system/app/baz2_stem/baz2_stem.apk",
+		},
+	} {
+		variant := ctx.ModuleForTests(expected.moduleName, expected.variantName)
+		variant.Output(expected.apkPath)
+	}
+}
+
 func TestOverrideAndroidAppDependency(t *testing.T) {
 	ctx, _ := testJava(t, `
 		android_app {
@@ -2171,8 +2261,31 @@ func TestAndroidTest_FixTestConfig(t *testing.T) {
 				t.Errorf("test_config_fixer was not expected to run, but did: %q", params.RuleParams.Command)
 			}
 		}
-
 	}
+}
+
+func TestInstrumentationTargetPrebuilt(t *testing.T) {
+	bp := `
+		android_app_import {
+			name: "foo",
+			apk: "foo.apk",
+			presigned: true,
+		}
+
+		android_test {
+			name: "bar",
+			srcs: ["a.java"],
+			instrumentation_for: "foo",
+			sdk_version: "current",
+		}
+		`
+
+	android.GroupFixturePreparers(
+		PrepareForTestWithJavaDefaultModules,
+	).ExtendWithErrorHandler(
+		android.FixtureExpectsAtLeastOneErrorMatchingPattern(
+			"instrumentation_for: dependency \"foo\" of type \"android_app_import\" does not provide JavaInfo so is unsuitable for use with this property")).
+		RunTestWithBp(t, bp)
 }
 
 func TestStl(t *testing.T) {
@@ -2402,7 +2515,7 @@ func TestUsesLibraries(t *testing.T) {
 		`--uses-library qux ` +
 		`--uses-library quuz ` +
 		`--uses-library runtime-library`
-	android.AssertStringEquals(t, "manifest_fixer args", expectManifestFixerArgs, actualManifestFixerArgs)
+	android.AssertStringDoesContain(t, "manifest_fixer args", actualManifestFixerArgs, expectManifestFixerArgs)
 
 	// Test that all libraries are verified (library order matters).
 	verifyCmd := app.Rule("verify_uses_libraries").RuleParams.Command
@@ -2945,7 +3058,7 @@ func TestTargetSdkVersionManifestFixer(t *testing.T) {
 		result := fixture.RunTestWithBp(t, bp)
 		foo := result.ModuleForTests("foo", "android_common")
 
-		manifestFixerArgs := foo.Output("manifest_fixer/AndroidManifest.xml").Args
-		android.AssertStringEquals(t, testCase.name, testCase.targetSdkVersionExpected, manifestFixerArgs["targetSdkVersion"])
+		manifestFixerArgs := foo.Output("manifest_fixer/AndroidManifest.xml").Args["args"]
+		android.AssertStringDoesContain(t, testCase.name, manifestFixerArgs, "--targetSdkVersion  "+testCase.targetSdkVersionExpected)
 	}
 }

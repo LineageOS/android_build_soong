@@ -71,12 +71,16 @@ func (tidy *tidyFeature) flags(ctx ModuleContext, flags Flags) Flags {
 		return flags
 	}
 
-	// If not explicitly set, check the global tidy flag
-	if tidy.Properties.Tidy == nil && !ctx.Config().ClangTidy() {
-		return flags
-	}
-
+	// If not explicitly disabled, set flags.Tidy to generate .tidy rules.
+	// Note that libraries and binaries will depend on .tidy files ONLY if
+	// the global WITH_TIDY or module 'tidy' property is true.
 	flags.Tidy = true
+
+	// If explicitly enabled, by global default or local tidy property,
+	// set flags.NeedTidyFiles to make this module depend on .tidy files.
+	if ctx.Config().ClangTidy() || Bool(tidy.Properties.Tidy) {
+		flags.NeedTidyFiles = true
+	}
 
 	// Add global WITH_TIDY_FLAGS and local tidy_flags.
 	withTidyFlags := ctx.Config().Getenv("WITH_TIDY_FLAGS")
@@ -97,6 +101,12 @@ func (tidy *tidyFeature) flags(ctx ModuleContext, flags Flags) Flags {
 			headerFilter += "\"(" + ctx.ModuleDir() + "/|" + defaultDirs + ")\""
 		}
 		flags.TidyFlags = append(flags.TidyFlags, headerFilter)
+	}
+	// Work around RBE bug in parsing clang-tidy flags, replace "--flag" with "-flag".
+	// Some C/C++ modules added local tidy flags like --header-filter= and --extra-arg-before=.
+	doubleDash := regexp.MustCompile("^('?)--(.*)$")
+	for i, s := range flags.TidyFlags {
+		flags.TidyFlags[i] = doubleDash.ReplaceAllString(s, "$1-$2")
 	}
 
 	// If clang-tidy is not enabled globally, add the -quiet flag.
@@ -152,6 +162,9 @@ func (tidy *tidyFeature) flags(ctx ModuleContext, flags Flags) Flags {
 	// Too many existing functions trigger this rule, and fixing it requires large code
 	// refactoring. The cost of maintaining this tidy rule outweighs the benefit it brings.
 	tidyChecks = tidyChecks + ",-bugprone-easily-swappable-parameters"
+	// http://b/216364337 - TODO: Follow-up after compiler update to
+	// disable or fix individual instances.
+	tidyChecks = tidyChecks + ",-cert-err33-c"
 	flags.TidyFlags = append(flags.TidyFlags, tidyChecks)
 
 	if ctx.Config().IsEnvTrue("WITH_TIDY") {

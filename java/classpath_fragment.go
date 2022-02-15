@@ -204,7 +204,7 @@ func (c *ClasspathFragmentBase) androidMkEntries() []android.AndroidMkEntries {
 		OutputFile: android.OptionalPathForPath(c.outputFilepath),
 		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
 			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
-				entries.SetString("LOCAL_MODULE_PATH", c.installDirPath.ToMakePath().String())
+				entries.SetString("LOCAL_MODULE_PATH", c.installDirPath.String())
 				entries.SetString("LOCAL_INSTALLED_MODULE_STEM", c.outputFilepath.Base())
 			},
 		},

@@ -168,7 +168,7 @@ func newArch(name, multilib string) ArchType {
 	return archType
 }
 
-// ArchTypeList returns the a slice copy of the 4 supported ArchTypes for arm,
+// ArchTypeList returns a slice copy of the 4 supported ArchTypes for arm,
 // arm64, x86 and x86_64.
 func ArchTypeList() []ArchType {
 	return append([]ArchType(nil), archTypeList...)
@@ -408,7 +408,7 @@ func bp2buildArchPathDepsMutator(ctx BottomUpMutatorContext) {
 
 	// addPathDepsForProps does not descend into sub structs, so we need to descend into the
 	// arch-specific properties ourselves
-	properties := []interface{}{}
+	var properties []interface{}
 	for _, archProperties := range m.archProperties {
 		for _, archProps := range archProperties {
 			archPropValues := reflect.ValueOf(archProps).Elem()
@@ -917,7 +917,8 @@ func createArchPropTypeDesc(props reflect.Type) []archPropTypeDesc {
 			for _, archType := range osArchTypeMap[os] {
 				targets = append(targets, GetCompoundTargetField(os, archType))
 
-				// Also add the special "linux_<arch>" and "bionic_<arch>" property structs.
+				// Also add the special "linux_<arch>", "bionic_<arch>" , "glibc_<arch>", and
+				// "musl_<arch>" property structs.
 				if os.Linux() {
 					target := "Linux_" + archType.Name
 					if !InList(target, targets) {
@@ -926,6 +927,18 @@ func createArchPropTypeDesc(props reflect.Type) []archPropTypeDesc {
 				}
 				if os.Bionic() {
 					target := "Bionic_" + archType.Name
+					if !InList(target, targets) {
+						targets = append(targets, target)
+					}
+				}
+				if os == Linux {
+					target := "Glibc_" + archType.Name
+					if !InList(target, targets) {
+						targets = append(targets, target)
+					}
+				}
+				if os == LinuxMusl {
+					target := "Musl_" + archType.Name
 					if !InList(target, targets) {
 						targets = append(targets, target)
 					}
@@ -993,10 +1006,11 @@ func initArchModule(m Module) {
 
 	base := m.base()
 
-	// Store the original list of top level property structs
-	base.generalProperties = m.GetProperties()
+	if len(base.archProperties) != 0 {
+		panic(fmt.Errorf("module %s already has archProperties", m.Name()))
+	}
 
-	for _, properties := range base.generalProperties {
+	getStructType := func(properties interface{}) reflect.Type {
 		propertiesValue := reflect.ValueOf(properties)
 		t := propertiesValue.Type()
 		if propertiesValue.Kind() != reflect.Ptr {
@@ -1006,10 +1020,14 @@ func initArchModule(m Module) {
 
 		propertiesValue = propertiesValue.Elem()
 		if propertiesValue.Kind() != reflect.Struct {
-			panic(fmt.Errorf("properties must be a pointer to a struct, got %T",
+			panic(fmt.Errorf("properties must be a pointer to a struct, got a pointer to %T",
 				propertiesValue.Interface()))
 		}
+		return t
+	}
 
+	for _, properties := range m.GetProperties() {
+		t := getStructType(properties)
 		// Get or create the arch-specific property struct types for this property struct type.
 		archPropTypes := archPropTypeMap.Once(NewCustomOnceKey(t), func() interface{} {
 			return createArchPropTypeDesc(t)
@@ -1029,9 +1047,6 @@ func initArchModule(m Module) {
 		m.AddProperties(archProperties...)
 	}
 
-	// Update the list of properties that can be set by a defaults module or a call to
-	// AppendMatchingProperties or PrependMatchingProperties.
-	base.customizableProperties = m.GetProperties()
 }
 
 func maybeBlueprintEmbed(src reflect.Value) reflect.Value {
@@ -1104,8 +1119,8 @@ func getChildPropertyStruct(ctx ArchVariantContext,
 func (m *ModuleBase) setOSProperties(ctx BottomUpMutatorContext) {
 	os := m.commonProperties.CompileOS
 
-	for i := range m.generalProperties {
-		genProps := m.generalProperties[i]
+	for i := range m.archProperties {
+		genProps := m.GetProperties()[i]
 		if m.archProperties[i] == nil {
 			continue
 		}
@@ -1377,11 +1392,25 @@ func getArchProperties(ctx BaseMutatorContext, archProperties interface{}, arch 
 			result = append(result, osArchProperties)
 		}
 
+		if os == Linux {
+			field := "Glibc_" + archType.Name
+			userFriendlyField := "target.glibc_" + "_" + archType.Name
+			if osArchProperties, ok := getChildPropertyStruct(ctx, targetProp, field, userFriendlyField); ok {
+				result = append(result, osArchProperties)
+			}
+		}
+
 		if os == LinuxMusl {
+			field := "Musl_" + archType.Name
+			userFriendlyField := "target.musl_" + "_" + archType.Name
+			if osArchProperties, ok := getChildPropertyStruct(ctx, targetProp, field, userFriendlyField); ok {
+				result = append(result, osArchProperties)
+			}
+
 			// Special case:  to ease the transition from glibc to musl, apply linux_glibc
 			// properties (which has historically mean host linux) to musl variants.
-			field := "Linux_glibc_" + archType.Name
-			userFriendlyField := "target.linux_glibc_" + archType.Name
+			field = "Linux_glibc_" + archType.Name
+			userFriendlyField = "target.linux_glibc_" + archType.Name
 			if osArchProperties, ok := getChildPropertyStruct(ctx, targetProp, field, userFriendlyField); ok {
 				result = append(result, osArchProperties)
 			}
@@ -1432,8 +1461,8 @@ func (m *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 	arch := m.Arch()
 	os := m.Os()
 
-	for i := range m.generalProperties {
-		genProps := m.generalProperties[i]
+	for i := range m.archProperties {
+		genProps := m.GetProperties()[i]
 		if m.archProperties[i] == nil {
 			continue
 		}
@@ -2011,8 +2040,8 @@ func (m *ModuleBase) GetArchVariantProperties(ctx ArchVariantContext, propertySe
 	var archProperties []interface{}
 
 	// First find the property set in the module that corresponds to the requested
-	// one. m.archProperties[i] corresponds to m.generalProperties[i].
-	for i, generalProp := range m.generalProperties {
+	// one. m.archProperties[i] corresponds to m.GetProperties()[i].
+	for i, generalProp := range m.GetProperties() {
 		srcType := reflect.ValueOf(generalProp).Type()
 		if srcType == dstType {
 			archProperties = m.archProperties[i]

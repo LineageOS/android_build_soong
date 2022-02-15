@@ -19,10 +19,11 @@ bootstrap_go_package {
         "soong-tradefed",
     ],
     srcs: [
+        "afdo.go",
         "androidmk.go",
         "api_level.go",
-        "builder.go",
         "bp2build.go",
+        "builder.go",
         "cc.go",
         "ccdeps.go",
         "check.go",
@@ -67,7 +68,6 @@ bootstrap_go_package {
         "native_bridge_sdk_trait.go",
         "object.go",
         "test.go",
-        "toolchain_library.go",
 
         "ndk_abi.go",
         "ndk_headers.go",
@@ -88,6 +88,7 @@ bootstrap_go_package {
         "stub_library.go",
     ],
     testSrcs: [
+        "afdo_test.go",
         "cc_test.go",
         "compiler_test.go",
         "gen_test.go",

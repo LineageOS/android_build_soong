@@ -211,15 +211,11 @@ constants = struct(
 			expectedOut: `# GENERATED FOR BAZEL FROM SOONG. DO NOT EDIT.
 
 _a = {
-    "b1": [
-        "b2",
-    ],
+    "b1": ["b2"],
 }
 
 _c = {
-    "d1": [
-        "d2",
-    ],
+    "d1": ["d2"],
 }
 
 constants = struct(
@@ -246,27 +242,19 @@ constants = struct(
 			expectedOut: `# GENERATED FOR BAZEL FROM SOONG. DO NOT EDIT.
 
 _a = {
-    "a1": [
-        "a2",
-    ],
+    "a1": ["a2"],
 }
 
 _b = "b-val"
 
-_c = [
-    "c-val",
-]
+_c = ["c-val"]
 
 _d = "d-val"
 
-_e = [
-    "e-val",
-]
+_e = ["e-val"]
 
 _f = {
-    "f1": [
-        "f2",
-    ],
+    "f1": ["f2"],
 }
 
 constants = struct(

@@ -27,17 +27,6 @@ const (
 	soongCcLibraryPreamble = `
 cc_defaults {
     name: "linux_bionic_supported",
-}
-
-toolchain_library {
-    name: "libclang_rt.builtins-x86_64-android",
-    defaults: ["linux_bionic_supported"],
-    vendor_available: true,
-    vendor_ramdisk_available: true,
-    product_available: true,
-    recovery_available: true,
-    native_bridge_supported: true,
-    src: "",
 }`
 
 	soongCcProtoLibraries = `
@@ -64,7 +53,6 @@ func registerCcLibraryModuleTypes(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
 	ctx.RegisterModuleType("cc_library_static", cc.LibraryStaticFactory)
 	ctx.RegisterModuleType("cc_prebuilt_library_static", cc.PrebuiltStaticLibraryFactory)
-	ctx.RegisterModuleType("toolchain_library", cc.ToolchainLibraryFactory)
 	ctx.RegisterModuleType("cc_library_headers", cc.LibraryHeaderFactory)
 }
 
@@ -1264,7 +1252,7 @@ cc_library {
     include_build_directory: false,
 }
 `,
-		expectedErr: fmt.Errorf("Android.bp:16:1: module \"foo-lib\": nocrt is not supported for arch variants"),
+		expectedErr: fmt.Errorf("module \"foo-lib\": nocrt is not supported for arch variants"),
 	})
 }
 
@@ -1297,6 +1285,9 @@ func makeCcLibraryTargets(name string, attrs attrNameToString) []string {
 		"additional_linker_inputs": true,
 		"linkopts":                 true,
 		"strip":                    true,
+		"stubs_symbol_file":        true,
+		"stubs_versions":           true,
+		"inject_bssl_hash":         true,
 	}
 	sharedAttrs := attrNameToString{}
 	staticAttrs := attrNameToString{}
@@ -1363,6 +1354,94 @@ cc_library {
 			"use_libcrt": `select({
         "//build/bazel/platforms/arch:arm": False,
         "//build/bazel/platforms/arch:x86": False,
+        "//conditions:default": None,
+    })`,
+		}),
+	})
+}
+
+func TestCCLibraryNoLibCrtArchAndTargetVariant(t *testing.T) {
+	runCcLibraryTestCase(t, bp2buildTestCase{
+		moduleTypeUnderTest:        "cc_library",
+		moduleTypeUnderTestFactory: cc.LibraryFactory,
+		filesystem: map[string]string{
+			"impl.cpp": "",
+		},
+		blueprint: soongCcLibraryPreamble + `
+cc_library {
+    name: "foo-lib",
+    srcs: ["impl.cpp"],
+    arch: {
+        arm: {
+            no_libcrt: true,
+        },
+        x86: {
+            no_libcrt: true,
+        },
+    },
+    target: {
+        darwin: {
+            no_libcrt: true,
+        }
+    },
+    include_build_directory: false,
+}
+`,
+		expectedBazelTargets: makeCcLibraryTargets("foo-lib", attrNameToString{
+			"srcs": `["impl.cpp"]`,
+			"use_libcrt": `select({
+        "//build/bazel/platforms/os_arch:android_arm": False,
+        "//build/bazel/platforms/os_arch:android_x86": False,
+        "//build/bazel/platforms/os_arch:darwin_arm64": False,
+        "//build/bazel/platforms/os_arch:darwin_x86_64": False,
+        "//build/bazel/platforms/os_arch:linux_glibc_x86": False,
+        "//build/bazel/platforms/os_arch:linux_musl_x86": False,
+        "//build/bazel/platforms/os_arch:windows_x86": False,
+        "//conditions:default": None,
+    })`,
+		}),
+	})
+}
+
+func TestCCLibraryNoLibCrtArchAndTargetVariantConflict(t *testing.T) {
+	runCcLibraryTestCase(t, bp2buildTestCase{
+		moduleTypeUnderTest:        "cc_library",
+		moduleTypeUnderTestFactory: cc.LibraryFactory,
+		filesystem: map[string]string{
+			"impl.cpp": "",
+		},
+		blueprint: soongCcLibraryPreamble + `
+cc_library {
+    name: "foo-lib",
+    srcs: ["impl.cpp"],
+    arch: {
+        arm: {
+            no_libcrt: true,
+        },
+        // This is expected to override the value for darwin_x86_64.
+        x86_64: {
+            no_libcrt: true,
+        },
+    },
+    target: {
+        darwin: {
+            no_libcrt: false,
+        }
+    },
+    include_build_directory: false,
+}
+`,
+		expectedBazelTargets: makeCcLibraryTargets("foo-lib", attrNameToString{
+			"srcs": `["impl.cpp"]`,
+			"use_libcrt": `select({
+        "//build/bazel/platforms/os_arch:android_arm": False,
+        "//build/bazel/platforms/os_arch:android_x86_64": False,
+        "//build/bazel/platforms/os_arch:darwin_arm64": True,
+        "//build/bazel/platforms/os_arch:darwin_x86_64": False,
+        "//build/bazel/platforms/os_arch:linux_bionic_x86_64": False,
+        "//build/bazel/platforms/os_arch:linux_glibc_x86_64": False,
+        "//build/bazel/platforms/os_arch:linux_musl_x86_64": False,
+        "//build/bazel/platforms/os_arch:windows_x86_64": False,
         "//conditions:default": None,
     })`,
 		}),
@@ -1744,6 +1823,33 @@ cc_library {
 	)
 }
 
+func TestLibcryptoHashInjection(t *testing.T) {
+	runCcLibraryTestCase(t, bp2buildTestCase{
+		description:                "cc_library - libcrypto hash injection",
+		moduleTypeUnderTest:        "cc_library",
+		moduleTypeUnderTestFactory: cc.LibraryFactory,
+		filesystem:                 map[string]string{},
+		blueprint: soongCcLibraryPreamble + `
+cc_library {
+    name: "libcrypto",
+    target: {
+        android: {
+            inject_bssl_hash: true,
+        },
+    },
+    include_build_directory: false,
+}
+`,
+		expectedBazelTargets: makeCcLibraryTargets("libcrypto", attrNameToString{
+			"inject_bssl_hash": `select({
+        "//build/bazel/platforms/os:android": True,
+        "//conditions:default": None,
+    })`,
+		}),
+	},
+	)
+}
+
 func TestCcLibraryCppStdWithGnuExtensions_ConvertsToFeatureAttr(t *testing.T) {
 	type testCase struct {
 		cpp_std        string
@@ -2039,5 +2145,310 @@ func TestCcLibraryProtoExportHeaders(t *testing.T) {
 				"whole_archive_deps": `[":foo_cc_proto_lite"]`,
 			}),
 		},
+	})
+}
+
+func TestCcLibraryProtoFilegroups(t *testing.T) {
+	runCcLibraryTestCase(t, bp2buildTestCase{
+		moduleTypeUnderTest:        "cc_library",
+		moduleTypeUnderTestFactory: cc.LibraryFactory,
+		blueprint: soongCcProtoPreamble +
+			simpleModuleDoNotConvertBp2build("filegroup", "a_fg_proto") +
+			simpleModuleDoNotConvertBp2build("filegroup", "b_protos") +
+			simpleModuleDoNotConvertBp2build("filegroup", "c-proto-srcs") +
+			simpleModuleDoNotConvertBp2build("filegroup", "proto-srcs-d") + `
+cc_library {
+	name: "a",
+	srcs: [":a_fg_proto"],
+	proto: {
+		canonical_path_from_root: false,
+		export_proto_headers: true,
+	},
+	include_build_directory: false,
+}
+
+cc_library {
+	name: "b",
+	srcs: [":b_protos"],
+	proto: {
+		canonical_path_from_root: false,
+		export_proto_headers: true,
+	},
+	include_build_directory: false,
+}
+
+cc_library {
+	name: "c",
+	srcs: [":c-proto-srcs"],
+	proto: {
+		canonical_path_from_root: false,
+		export_proto_headers: true,
+	},
+	include_build_directory: false,
+}
+
+cc_library {
+	name: "d",
+	srcs: [":proto-srcs-d"],
+	proto: {
+		canonical_path_from_root: false,
+		export_proto_headers: true,
+	},
+	include_build_directory: false,
+}`,
+		expectedBazelTargets: []string{
+			makeBazelTarget("proto_library", "a_proto", attrNameToString{
+				"srcs": `[":a_fg_proto"]`,
+			}), makeBazelTarget("cc_lite_proto_library", "a_cc_proto_lite", attrNameToString{
+				"deps": `[":a_proto"]`,
+			}), makeBazelTarget("cc_library_static", "a_bp2build_cc_library_static", attrNameToString{
+				"deps":               `[":libprotobuf-cpp-lite"]`,
+				"whole_archive_deps": `[":a_cc_proto_lite"]`,
+				"srcs":               `[":a_fg_proto_cpp_srcs"]`,
+				"srcs_as":            `[":a_fg_proto_as_srcs"]`,
+				"srcs_c":             `[":a_fg_proto_c_srcs"]`,
+			}), makeBazelTarget("cc_library_shared", "a", attrNameToString{
+				"dynamic_deps":       `[":libprotobuf-cpp-lite"]`,
+				"whole_archive_deps": `[":a_cc_proto_lite"]`,
+				"srcs":               `[":a_fg_proto_cpp_srcs"]`,
+				"srcs_as":            `[":a_fg_proto_as_srcs"]`,
+				"srcs_c":             `[":a_fg_proto_c_srcs"]`,
+			}), makeBazelTarget("proto_library", "b_proto", attrNameToString{
+				"srcs": `[":b_protos"]`,
+			}), makeBazelTarget("cc_lite_proto_library", "b_cc_proto_lite", attrNameToString{
+				"deps": `[":b_proto"]`,
+			}), makeBazelTarget("cc_library_static", "b_bp2build_cc_library_static", attrNameToString{
+				"deps":               `[":libprotobuf-cpp-lite"]`,
+				"whole_archive_deps": `[":b_cc_proto_lite"]`,
+				"srcs":               `[":b_protos_cpp_srcs"]`,
+				"srcs_as":            `[":b_protos_as_srcs"]`,
+				"srcs_c":             `[":b_protos_c_srcs"]`,
+			}), makeBazelTarget("cc_library_shared", "b", attrNameToString{
+				"dynamic_deps":       `[":libprotobuf-cpp-lite"]`,
+				"whole_archive_deps": `[":b_cc_proto_lite"]`,
+				"srcs":               `[":b_protos_cpp_srcs"]`,
+				"srcs_as":            `[":b_protos_as_srcs"]`,
+				"srcs_c":             `[":b_protos_c_srcs"]`,
+			}), makeBazelTarget("proto_library", "c_proto", attrNameToString{
+				"srcs": `[":c-proto-srcs"]`,
+			}), makeBazelTarget("cc_lite_proto_library", "c_cc_proto_lite", attrNameToString{
+				"deps": `[":c_proto"]`,
+			}), makeBazelTarget("cc_library_static", "c_bp2build_cc_library_static", attrNameToString{
+				"deps":               `[":libprotobuf-cpp-lite"]`,
+				"whole_archive_deps": `[":c_cc_proto_lite"]`,
+				"srcs":               `[":c-proto-srcs_cpp_srcs"]`,
+				"srcs_as":            `[":c-proto-srcs_as_srcs"]`,
+				"srcs_c":             `[":c-proto-srcs_c_srcs"]`,
+			}), makeBazelTarget("cc_library_shared", "c", attrNameToString{
+				"dynamic_deps":       `[":libprotobuf-cpp-lite"]`,
+				"whole_archive_deps": `[":c_cc_proto_lite"]`,
+				"srcs":               `[":c-proto-srcs_cpp_srcs"]`,
+				"srcs_as":            `[":c-proto-srcs_as_srcs"]`,
+				"srcs_c":             `[":c-proto-srcs_c_srcs"]`,
+			}), makeBazelTarget("proto_library", "d_proto", attrNameToString{
+				"srcs": `[":proto-srcs-d"]`,
+			}), makeBazelTarget("cc_lite_proto_library", "d_cc_proto_lite", attrNameToString{
+				"deps": `[":d_proto"]`,
+			}), makeBazelTarget("cc_library_static", "d_bp2build_cc_library_static", attrNameToString{
+				"deps":               `[":libprotobuf-cpp-lite"]`,
+				"whole_archive_deps": `[":d_cc_proto_lite"]`,
+				"srcs":               `[":proto-srcs-d_cpp_srcs"]`,
+				"srcs_as":            `[":proto-srcs-d_as_srcs"]`,
+				"srcs_c":             `[":proto-srcs-d_c_srcs"]`,
+			}), makeBazelTarget("cc_library_shared", "d", attrNameToString{
+				"dynamic_deps":       `[":libprotobuf-cpp-lite"]`,
+				"whole_archive_deps": `[":d_cc_proto_lite"]`,
+				"srcs":               `[":proto-srcs-d_cpp_srcs"]`,
+				"srcs_as":            `[":proto-srcs-d_as_srcs"]`,
+				"srcs_c":             `[":proto-srcs-d_c_srcs"]`,
+			}),
+		},
+	})
+}
+
+func TestCcLibraryDisabledArchAndTarget(t *testing.T) {
+	runCcLibraryTestCase(t, bp2buildTestCase{
+		moduleTypeUnderTest:        "cc_library",
+		moduleTypeUnderTestFactory: cc.LibraryFactory,
+		blueprint: soongCcProtoPreamble + `cc_library {
+	name: "foo",
+	srcs: ["foo.cpp"],
+	target: {
+		darwin: {
+			enabled: false,
+		},
+		windows: {
+			enabled: false,
+		},
+		linux_glibc_x86: {
+			enabled: false,
+		},
+	},
+	include_build_directory: false,
+}`,
+		expectedBazelTargets: makeCcLibraryTargets("foo", attrNameToString{
+			"srcs": `["foo.cpp"]`,
+			"target_compatible_with": `select({
+        "//build/bazel/platforms/os_arch:darwin_arm64": ["@platforms//:incompatible"],
+        "//build/bazel/platforms/os_arch:darwin_x86_64": ["@platforms//:incompatible"],
+        "//build/bazel/platforms/os_arch:linux_glibc_x86": ["@platforms//:incompatible"],
+        "//build/bazel/platforms/os_arch:windows_x86": ["@platforms//:incompatible"],
+        "//build/bazel/platforms/os_arch:windows_x86_64": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    })`,
+		}),
+	})
+}
+
+func TestCcLibraryDisabledArchAndTargetWithDefault(t *testing.T) {
+	runCcLibraryTestCase(t, bp2buildTestCase{
+		moduleTypeUnderTest:        "cc_library",
+		moduleTypeUnderTestFactory: cc.LibraryFactory,
+		blueprint: soongCcProtoPreamble + `cc_library {
+	name: "foo",
+	srcs: ["foo.cpp"],
+  enabled: false,
+	target: {
+		darwin: {
+			enabled: true,
+		},
+		windows: {
+			enabled: false,
+		},
+		linux_glibc_x86: {
+			enabled: false,
+		},
+	},
+	include_build_directory: false,
+}`,
+		expectedBazelTargets: makeCcLibraryTargets("foo", attrNameToString{
+			"srcs": `["foo.cpp"]`,
+			"target_compatible_with": `select({
+        "//build/bazel/platforms/os_arch:darwin_arm64": [],
+        "//build/bazel/platforms/os_arch:darwin_x86_64": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    })`,
+		}),
+	})
+}
+
+func TestCcLibrarySharedDisabled(t *testing.T) {
+	runCcLibraryTestCase(t, bp2buildTestCase{
+		moduleTypeUnderTest:        "cc_library",
+		moduleTypeUnderTestFactory: cc.LibraryFactory,
+		blueprint: soongCcProtoPreamble + `cc_library {
+	name: "foo",
+	srcs: ["foo.cpp"],
+	enabled: false,
+	shared: {
+		enabled: true,
+	},
+	target: {
+		android: {
+			shared: {
+				enabled: false,
+			},
+		}
+  },
+	include_build_directory: false,
+}`,
+		expectedBazelTargets: []string{makeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", attrNameToString{
+			"srcs":                   `["foo.cpp"]`,
+			"target_compatible_with": `["@platforms//:incompatible"]`,
+		}), makeBazelTarget("cc_library_shared", "foo", attrNameToString{
+			"srcs": `["foo.cpp"]`,
+			"target_compatible_with": `select({
+        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    })`,
+		}),
+		},
+	})
+}
+
+func TestCcLibraryStaticDisabledForSomeArch(t *testing.T) {
+	runCcLibraryTestCase(t, bp2buildTestCase{
+		moduleTypeUnderTest:        "cc_library",
+		moduleTypeUnderTestFactory: cc.LibraryFactory,
+		blueprint: soongCcProtoPreamble + `cc_library {
+	name: "foo",
+	srcs: ["foo.cpp"],
+	shared: {
+		enabled: false
+	},
+	target: {
+		darwin: {
+			enabled: true,
+		},
+		windows: {
+			enabled: false,
+		},
+		linux_glibc_x86: {
+			shared: {
+				enabled: true,
+			},
+		},
+	},
+	include_build_directory: false,
+}`,
+		expectedBazelTargets: []string{makeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", attrNameToString{
+			"srcs": `["foo.cpp"]`,
+			"target_compatible_with": `select({
+        "//build/bazel/platforms/os:windows": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    })`,
+		}), makeBazelTarget("cc_library_shared", "foo", attrNameToString{
+			"srcs": `["foo.cpp"]`,
+			"target_compatible_with": `select({
+        "//build/bazel/platforms/os_arch:darwin_arm64": [],
+        "//build/bazel/platforms/os_arch:darwin_x86_64": [],
+        "//build/bazel/platforms/os_arch:linux_glibc_x86": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    })`,
+		}),
+		}})
+}
+
+func TestCcLibraryStubs(t *testing.T) {
+	runCcLibraryTestCase(t, bp2buildTestCase{
+		description:                "cc_library stubs",
+		moduleTypeUnderTest:        "cc_library",
+		moduleTypeUnderTestFactory: cc.LibraryFactory,
+		dir:                        "foo/bar",
+		filesystem: map[string]string{
+			"foo/bar/Android.bp": `
+cc_library {
+    name: "a",
+    stubs: { symbol_file: "a.map.txt", versions: ["28", "29", "current"] },
+    bazel_module: { bp2build_available: true },
+    include_build_directory: false,
+}
+`,
+		},
+		blueprint: soongCcLibraryPreamble,
+		expectedBazelTargets: makeCcLibraryTargets("a", attrNameToString{
+			"stubs_symbol_file": `"a.map.txt"`,
+			"stubs_versions": `[
+        "28",
+        "29",
+        "current",
+    ]`,
+		}),
+	},
+	)
+}
+
+func TestCcLibraryEscapeLdflags(t *testing.T) {
+	runCcLibraryTestCase(t, bp2buildTestCase{
+		moduleTypeUnderTest:        "cc_library",
+		moduleTypeUnderTestFactory: cc.LibraryFactory,
+		blueprint: soongCcProtoPreamble + `cc_library {
+	name: "foo",
+	ldflags: ["-Wl,--rpath,${ORIGIN}"],
+	include_build_directory: false,
+}`,
+		expectedBazelTargets: makeCcLibraryTargets("foo", attrNameToString{
+			"linkopts": `["-Wl,--rpath,$${ORIGIN}"]`,
+		}),
 	})
 }

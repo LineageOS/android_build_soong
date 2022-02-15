@@ -25,6 +25,7 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
+	"android/soong/cc/config"
 )
 
 func init() {
@@ -208,20 +209,26 @@ func (c *stubDecorator) compilerInit(ctx BaseModuleContext) {
 	*ndkKnownLibs = append(*ndkKnownLibs, name)
 }
 
+var stubLibraryCompilerFlags = []string{
+	// We're knowingly doing some otherwise unsightly things with builtin
+	// functions here. We're just generating stub libraries, so ignore it.
+	"-Wno-incompatible-library-redeclaration",
+	"-Wno-incomplete-setjmp-declaration",
+	"-Wno-builtin-requires-header",
+	"-Wno-invalid-noreturn",
+	"-Wall",
+	"-Werror",
+	// These libraries aren't actually used. Don't worry about unwinding
+	// (avoids the need to link an unwinder into a fake library).
+	"-fno-unwind-tables",
+}
+
+func init() {
+	config.ExportStringList("StubLibraryCompilerFlags", stubLibraryCompilerFlags)
+}
+
 func addStubLibraryCompilerFlags(flags Flags) Flags {
-	flags.Global.CFlags = append(flags.Global.CFlags,
-		// We're knowingly doing some otherwise unsightly things with builtin
-		// functions here. We're just generating stub libraries, so ignore it.
-		"-Wno-incompatible-library-redeclaration",
-		"-Wno-incomplete-setjmp-declaration",
-		"-Wno-builtin-requires-header",
-		"-Wno-invalid-noreturn",
-		"-Wall",
-		"-Werror",
-		// These libraries aren't actually used. Don't worry about unwinding
-		// (avoids the need to link an unwinder into a fake library).
-		"-fno-unwind-tables",
-	)
+	flags.Global.CFlags = append(flags.Global.CFlags, stubLibraryCompilerFlags...)
 	// All symbols in the stubs library should be visible.
 	if inList("-fvisibility=hidden", flags.Local.CFlags) {
 		flags.Local.CFlags = append(flags.Local.CFlags, "-fvisibility=default")

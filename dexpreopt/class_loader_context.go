@@ -210,6 +210,34 @@ type ClassLoaderContext struct {
 	Subcontexts []*ClassLoaderContext
 }
 
+// excludeLibs excludes the libraries from this ClassLoaderContext.
+//
+// This treats the supplied context as being immutable (as it may come from a dependency). So, it
+// implements copy-on-exclusion logic. That means that if any of the excluded libraries are used
+// within this context then this will return a deep copy of this without those libraries.
+//
+// If this ClassLoaderContext matches one of the libraries to exclude then this returns (nil, true)
+// to indicate that this context should be excluded from the containing list.
+//
+// If any of this ClassLoaderContext's Subcontexts reference the excluded libraries then this
+// returns a pointer to a copy of this without the excluded libraries and true to indicate that this
+// was copied.
+//
+// Otherwise, this returns a pointer to this and false to indicate that this was not copied.
+func (c *ClassLoaderContext) excludeLibs(excludedLibs []string) (*ClassLoaderContext, bool) {
+	if android.InList(c.Name, excludedLibs) {
+		return nil, true
+	}
+
+	if excludedList, modified := excludeLibsFromCLCList(c.Subcontexts, excludedLibs); modified {
+		clcCopy := *c
+		clcCopy.Subcontexts = excludedList
+		return &clcCopy, true
+	}
+
+	return c, false
+}
+
 // ClassLoaderContextMap is a map from SDK version to CLC. There is a special entry with key
 // AnySdkVersion that stores unconditional CLC that is added regardless of the target SDK version.
 //
@@ -406,6 +434,67 @@ func (clcMap ClassLoaderContextMap) Dump() string {
 		panic(err)
 	}
 	return string(bytes)
+}
+
+// excludeLibsFromCLCList excludes the libraries from the ClassLoaderContext in this list.
+//
+// This treats the supplied list as being immutable (as it may come from a dependency). So, it
+// implements copy-on-exclusion logic. That means that if any of the excluded libraries are used
+// within the contexts in the list then this will return a deep copy of the list without those
+// libraries.
+//
+// If any of the ClassLoaderContext in the list reference the excluded libraries then this returns a
+// copy of this list without the excluded libraries and true to indicate that this was copied.
+//
+// Otherwise, this returns the list and false to indicate that this was not copied.
+func excludeLibsFromCLCList(clcList []*ClassLoaderContext, excludedLibs []string) ([]*ClassLoaderContext, bool) {
+	modifiedList := false
+	copiedList := make([]*ClassLoaderContext, 0, len(clcList))
+	for _, clc := range clcList {
+		resultClc, modifiedClc := clc.excludeLibs(excludedLibs)
+		if resultClc != nil {
+			copiedList = append(copiedList, resultClc)
+		}
+		modifiedList = modifiedList || modifiedClc
+	}
+
+	if modifiedList {
+		return copiedList, true
+	} else {
+		return clcList, false
+	}
+}
+
+// ExcludeLibs excludes the libraries from the ClassLoaderContextMap.
+//
+// If the list o libraries is empty then this returns the ClassLoaderContextMap.
+//
+// This treats the ClassLoaderContextMap as being immutable (as it may come from a dependency). So,
+// it implements copy-on-exclusion logic. That means that if any of the excluded libraries are used
+// within the contexts in the map then this will return a deep copy of the map without those
+// libraries.
+//
+// Otherwise, this returns the map unchanged.
+func (clcMap ClassLoaderContextMap) ExcludeLibs(excludedLibs []string) ClassLoaderContextMap {
+	if len(excludedLibs) == 0 {
+		return clcMap
+	}
+
+	excludedClcMap := make(ClassLoaderContextMap)
+	modifiedMap := false
+	for sdkVersion, clcList := range clcMap {
+		excludedList, modifiedList := excludeLibsFromCLCList(clcList, excludedLibs)
+		if len(excludedList) != 0 {
+			excludedClcMap[sdkVersion] = excludedList
+		}
+		modifiedMap = modifiedMap || modifiedList
+	}
+
+	if modifiedMap {
+		return excludedClcMap
+	} else {
+		return clcMap
+	}
 }
 
 // Now that the full unconditional context is known, reconstruct conditional context.

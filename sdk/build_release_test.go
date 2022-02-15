@@ -15,6 +15,7 @@
 package sdk
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 
@@ -59,7 +60,7 @@ func TestParseBuildReleaseSet(t *testing.T) {
 	t.Run("closed range", func(t *testing.T) {
 		set, err := parseBuildReleaseSet("S-F1")
 		android.AssertDeepEquals(t, "errors", nil, err)
-		android.AssertStringEquals(t, "set", "[S,T,F1]", set.String())
+		android.AssertStringEquals(t, "set", "[S,Tiramisu,F1]", set.String())
 	})
 	invalidAReleaseMessage := `unknown release "A", expected one of ` + allBuildReleaseSet.String()
 	t.Run("invalid release", func(t *testing.T) {
@@ -78,7 +79,7 @@ func TestParseBuildReleaseSet(t *testing.T) {
 		android.AssertStringDoesContain(t, "errors", fmt.Sprint(err), invalidAReleaseMessage)
 	})
 	t.Run("invalid release in closed range end", func(t *testing.T) {
-		set, err := parseBuildReleaseSet("T-A")
+		set, err := parseBuildReleaseSet("Tiramisu-A")
 		android.AssertDeepEquals(t, "set", (*buildReleaseSet)(nil), set)
 		android.AssertStringDoesContain(t, "errors", fmt.Sprint(err), invalidAReleaseMessage)
 	})
@@ -125,61 +126,102 @@ func TestPropertyPrunerByBuildRelease(t *testing.T) {
 		F1_only string `supported_build_releases:"F1"`
 	}
 
-	type testBuildReleasePruner struct {
-		Default      string
-		S_and_T_only string `supported_build_releases:"S-T"`
-		T_later      string `supported_build_releases:"T+"`
-		Nested       nested
+	type mapped struct {
+		Default string
+		T_only  string `supported_build_releases:"Tiramisu"`
 	}
 
-	input := testBuildReleasePruner{
-		Default:      "Default",
-		S_and_T_only: "S_and_T_only",
-		T_later:      "T_later",
-		Nested: nested{
-			F1_only: "F1_only",
-		},
+	type testBuildReleasePruner struct {
+		Default      string
+		S_and_T_only string `supported_build_releases:"S-Tiramisu"`
+		T_later      string `supported_build_releases:"Tiramisu+"`
+		Nested       nested
+		Mapped       map[string]*mapped
+	}
+
+	inputFactory := func() testBuildReleasePruner {
+		return testBuildReleasePruner{
+			Default:      "Default",
+			S_and_T_only: "S_and_T_only",
+			T_later:      "T_later",
+			Nested: nested{
+				F1_only: "F1_only",
+			},
+			Mapped: map[string]*mapped{
+				"one": {
+					Default: "one-default",
+					T_only:  "one-t-only",
+				},
+				"two": {
+					Default: "two-default",
+					T_only:  "two-t-only",
+				},
+			},
+		}
+	}
+
+	marshal := func(t interface{}) string {
+		bytes, err := json.MarshalIndent(t, "", "  ")
+		if err != nil {
+			panic(err)
+		}
+		return string(bytes)
+	}
+
+	assertJsonEquals := func(t *testing.T, expected, actual interface{}) {
+		t.Helper()
+		expectedJson := marshal(expected)
+		actualJson := marshal(actual)
+		if actualJson != expectedJson {
+			t.Errorf("test struct: expected:\n%s\n got:\n%s", expectedJson, actualJson)
+		}
 	}
 
 	t.Run("target S", func(t *testing.T) {
-		testStruct := input
+		testStruct := inputFactory()
 		pruner := newPropertyPrunerByBuildRelease(&testStruct, buildReleaseS)
 		pruner.pruneProperties(&testStruct)
 
-		expected := input
+		expected := inputFactory()
 		expected.T_later = ""
 		expected.Nested.F1_only = ""
-		android.AssertDeepEquals(t, "test struct", expected, testStruct)
+		expected.Mapped["one"].T_only = ""
+		expected.Mapped["two"].T_only = ""
+		assertJsonEquals(t, expected, testStruct)
 	})
 
 	t.Run("target T", func(t *testing.T) {
-		testStruct := input
+		testStruct := inputFactory()
 		pruner := newPropertyPrunerByBuildRelease(&testStruct, buildReleaseT)
 		pruner.pruneProperties(&testStruct)
 
-		expected := input
+		expected := inputFactory()
 		expected.Nested.F1_only = ""
-		android.AssertDeepEquals(t, "test struct", expected, testStruct)
+		assertJsonEquals(t, expected, testStruct)
 	})
 
 	t.Run("target F1", func(t *testing.T) {
-		testStruct := input
+		testStruct := inputFactory()
 		pruner := newPropertyPrunerByBuildRelease(&testStruct, buildReleaseFuture1)
 		pruner.pruneProperties(&testStruct)
 
-		expected := input
+		expected := inputFactory()
 		expected.S_and_T_only = ""
-		android.AssertDeepEquals(t, "test struct", expected, testStruct)
+		expected.Mapped["one"].T_only = ""
+		expected.Mapped["two"].T_only = ""
+		assertJsonEquals(t, expected, testStruct)
 	})
 
 	t.Run("target F2", func(t *testing.T) {
-		testStruct := input
+		testStruct := inputFactory()
 		pruner := newPropertyPrunerByBuildRelease(&testStruct, buildReleaseFuture2)
 		pruner.pruneProperties(&testStruct)
 
-		expected := input
+		expected := inputFactory()
 		expected.S_and_T_only = ""
 		expected.Nested.F1_only = ""
-		android.AssertDeepEquals(t, "test struct", expected, testStruct)
+		expected.Mapped["one"].T_only = ""
+		expected.Mapped["two"].T_only = ""
+		assertJsonEquals(t, expected, testStruct)
 	})
 }

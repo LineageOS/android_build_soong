@@ -81,10 +81,12 @@ func (pcv productConfigVariable) emitSet(gctx *generationContext, asgn *assignme
 	emitAppend := func() {
 		pcv.emitGet(gctx, true)
 		gctx.write(" += ")
+		value := asgn.value
 		if pcv.valueType() == starlarkTypeString {
 			gctx.writef(`" " + `)
+			value = &toStringExpr{expr: value}
 		}
-		asgn.value.emit(gctx)
+		value.emit(gctx)
 	}
 
 	switch asgn.flavor {
@@ -136,10 +138,12 @@ func (scv otherGlobalVariable) emitSet(gctx *generationContext, asgn *assignment
 	emitAppend := func() {
 		scv.emitGet(gctx, true)
 		gctx.write(" += ")
+		value := asgn.value
 		if scv.valueType() == starlarkTypeString {
 			gctx.writef(`" " + `)
+			value = &toStringExpr{expr: value}
 		}
-		asgn.value.emit(gctx)
+		value.emit(gctx)
 	}
 
 	switch asgn.flavor {
@@ -193,10 +197,12 @@ func (lv localVariable) emitSet(gctx *generationContext, asgn *assignmentNode) {
 	case asgnAppend:
 		lv.emitGet(gctx, false)
 		gctx.write(" += ")
+		value := asgn.value
 		if lv.valueType() == starlarkTypeString {
 			gctx.writef(`" " + `)
+			value = &toStringExpr{expr: value}
 		}
-		asgn.value.emit(gctx)
+		value.emit(gctx)
 	case asgnMaybeAppend:
 		gctx.writef("%s(%q, ", cfnLocalAppend, lv)
 		asgn.value.emit(gctx)

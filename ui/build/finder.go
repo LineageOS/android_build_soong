@@ -87,8 +87,8 @@ func NewSourceFinder(ctx Context, config Config) (f *finder.Finder) {
 			// Bazel top-level file to mark a directory as a Bazel workspace.
 			"WORKSPACE",
 		},
-		// Bazel Starlark configuration files.
-		IncludeSuffixes: []string{".bzl"},
+		// Bazel Starlark configuration files and all .mk files for product/board configuration.
+		IncludeSuffixes: []string{".bzl", ".mk"},
 	}
 	dumpDir := config.FileListDir()
 	f, err = finder.New(cacheParams, filesystem, logger.New(ioutil.Discard),
@@ -104,6 +104,19 @@ func findBazelFiles(entries finder.DirEntries) (dirNames []string, fileNames []s
 	matches := []string{}
 	for _, foundName := range entries.FileNames {
 		if foundName == "BUILD.bazel" || foundName == "BUILD" || foundName == "WORKSPACE" || strings.HasSuffix(foundName, ".bzl") {
+			matches = append(matches, foundName)
+		}
+	}
+	return entries.DirNames, matches
+}
+
+func findProductAndBoardConfigFiles(entries finder.DirEntries) (dirNames []string, fileNames []string) {
+	matches := []string{}
+	for _, foundName := range entries.FileNames {
+		if foundName != "Android.mk" &&
+			foundName != "AndroidProducts.mk" &&
+			foundName != "CleanSpec.mk" &&
+			strings.HasSuffix(foundName, ".mk") {
 			matches = append(matches, foundName)
 		}
 	}
@@ -170,6 +183,13 @@ func FindSources(ctx Context, config Config, f *finder.Finder) {
 	err = dumpListToFile(ctx, config, androidBps, filepath.Join(dumpDir, "Android.bp.list"))
 	if err != nil {
 		ctx.Fatalf("Could not find modules: %v", err)
+	}
+
+	// Recursively look for all product/board config files.
+	configurationFiles := f.FindMatching(".", findProductAndBoardConfigFiles)
+	err = dumpListToFile(ctx, config, configurationFiles, filepath.Join(dumpDir, "configuration.list"))
+	if err != nil {
+		ctx.Fatalf("Could not export product/board configuration list: %v", err)
 	}
 
 	if config.Dist() {

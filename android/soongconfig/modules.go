@@ -25,6 +25,8 @@ import (
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/parser"
 	"github.com/google/blueprint/proptools"
+
+	"android/soong/starlark_fmt"
 )
 
 const conditionsDefault = "conditions_default"
@@ -177,10 +179,14 @@ func processStringVariableDef(v *SoongConfigDefinition, def *parser.Module) (err
 		return []error{fmt.Errorf("values property must be set")}
 	}
 
+	vals := make(map[string]bool, len(stringProps.Values))
 	for _, name := range stringProps.Values {
 		if err := checkVariableName(name); err != nil {
 			return []error{fmt.Errorf("soong_config_string_variable: values property error %s", err)}
+		} else if _, ok := vals[name]; ok {
+			return []error{fmt.Errorf("soong_config_string_variable: values property error: duplicate value: %q", name)}
 		}
+		vals[name] = true
 	}
 
 	v.variables[base.variable] = &stringVariable{
@@ -235,7 +241,12 @@ type SoongConfigDefinition struct {
 // string vars, bool vars and value vars created by every
 // soong_config_module_type in this build.
 type Bp2BuildSoongConfigDefinitions struct {
-	StringVars map[string]map[string]bool
+	// varCache contains a cache of string variables namespace + property
+	// The same variable may be used in multiple module types (for example, if need support
+	// for cc_default and java_default), only need to process once
+	varCache map[string]bool
+
+	StringVars map[string][]string
 	BoolVars   map[string]bool
 	ValueVars  map[string]bool
 }
@@ -253,7 +264,7 @@ func (defs *Bp2BuildSoongConfigDefinitions) AddVars(mtDef SoongConfigDefinition)
 	defer bp2buildSoongConfigVarsLock.Unlock()
 
 	if defs.StringVars == nil {
-		defs.StringVars = make(map[string]map[string]bool)
+		defs.StringVars = make(map[string][]string)
 	}
 	if defs.BoolVars == nil {
 		defs.BoolVars = make(map[string]bool)
@@ -261,15 +272,24 @@ func (defs *Bp2BuildSoongConfigDefinitions) AddVars(mtDef SoongConfigDefinition)
 	if defs.ValueVars == nil {
 		defs.ValueVars = make(map[string]bool)
 	}
+	if defs.varCache == nil {
+		defs.varCache = make(map[string]bool)
+	}
 	for _, moduleType := range mtDef.ModuleTypes {
 		for _, v := range moduleType.Variables {
 			key := strings.Join([]string{moduleType.ConfigNamespace, v.variableProperty()}, "__")
+
+			// The same variable may be used in multiple module types (for example, if need support
+			// for cc_default and java_default), only need to process once
+			if _, keyInCache := defs.varCache[key]; keyInCache {
+				continue
+			} else {
+				defs.varCache[key] = true
+			}
+
 			if strVar, ok := v.(*stringVariable); ok {
-				if _, ok := defs.StringVars[key]; !ok {
-					defs.StringVars[key] = make(map[string]bool, 0)
-				}
 				for _, value := range strVar.values {
-					defs.StringVars[key][value] = true
+					defs.StringVars[key] = append(defs.StringVars[key], value)
 				}
 			} else if _, ok := v.(*boolVariable); ok {
 				defs.BoolVars[key] = true
@@ -302,29 +322,16 @@ func sortedStringKeys(m interface{}) []string {
 // String emits the Soong config variable definitions as Starlark dictionaries.
 func (defs Bp2BuildSoongConfigDefinitions) String() string {
 	ret := ""
-	ret += "soong_config_bool_variables = {\n"
-	for _, boolVar := range sortedStringKeys(defs.BoolVars) {
-		ret += fmt.Sprintf("    \"%s\": True,\n", boolVar)
-	}
-	ret += "}\n"
-	ret += "\n"
+	ret += "soong_config_bool_variables = "
+	ret += starlark_fmt.PrintBoolDict(defs.BoolVars, 0)
+	ret += "\n\n"
 
-	ret += "soong_config_value_variables = {\n"
-	for _, valueVar := range sortedStringKeys(defs.ValueVars) {
-		ret += fmt.Sprintf("    \"%s\": True,\n", valueVar)
-	}
-	ret += "}\n"
-	ret += "\n"
+	ret += "soong_config_value_variables = "
+	ret += starlark_fmt.PrintBoolDict(defs.ValueVars, 0)
+	ret += "\n\n"
 
-	ret += "soong_config_string_variables = {\n"
-	for _, stringVar := range sortedStringKeys(defs.StringVars) {
-		ret += fmt.Sprintf("    \"%s\": [\n", stringVar)
-		for _, choice := range sortedStringKeys(defs.StringVars[stringVar]) {
-			ret += fmt.Sprintf("        \"%s\",\n", choice)
-		}
-		ret += fmt.Sprintf("    ],\n")
-	}
-	ret += "}"
+	ret += "soong_config_string_variables = "
+	ret += starlark_fmt.PrintStringListDict(defs.StringVars, 0)
 
 	return ret
 }

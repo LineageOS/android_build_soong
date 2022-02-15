@@ -129,7 +129,7 @@ type variableProperties struct {
 			Exclude_srcs []string
 		}
 
-		// eng is true for -eng builds, and can be used to turn on additionaly heavyweight debugging
+		// eng is true for -eng builds, and can be used to turn on additional heavyweight debugging
 		// features.
 		Eng struct {
 			Cflags   []string
@@ -330,7 +330,8 @@ type productVariables struct {
 
 	NamespacesToExport []string `json:",omitempty"`
 
-	PgoAdditionalProfileDirs []string `json:",omitempty"`
+	AfdoAdditionalProfileDirs []string `json:",omitempty"`
+	PgoAdditionalProfileDirs  []string `json:",omitempty"`
 
 	VndkUseCoreVariant         *bool `json:",omitempty"`
 	VndkSnapshotBuildArtifacts *bool `json:",omitempty"`
@@ -347,17 +348,23 @@ type productVariables struct {
 	RecoverySnapshotDirsIncluded []string `json:",omitempty"`
 	HostFakeSnapshotEnabled      bool     `json:",omitempty"`
 
-	BoardVendorSepolicyDirs      []string `json:",omitempty"`
-	BoardOdmSepolicyDirs         []string `json:",omitempty"`
-	BoardReqdMaskPolicy          []string `json:",omitempty"`
-	BoardPlatVendorPolicy        []string `json:",omitempty"`
-	SystemExtPublicSepolicyDirs  []string `json:",omitempty"`
-	SystemExtPrivateSepolicyDirs []string `json:",omitempty"`
-	BoardSepolicyM4Defs          []string `json:",omitempty"`
+	BoardVendorSepolicyDirs           []string `json:",omitempty"`
+	BoardOdmSepolicyDirs              []string `json:",omitempty"`
+	BoardReqdMaskPolicy               []string `json:",omitempty"`
+	BoardPlatVendorPolicy             []string `json:",omitempty"`
+	BoardSystemExtPublicPrebuiltDirs  []string `json:",omitempty"`
+	BoardSystemExtPrivatePrebuiltDirs []string `json:",omitempty"`
+	BoardProductPublicPrebuiltDirs    []string `json:",omitempty"`
+	BoardProductPrivatePrebuiltDirs   []string `json:",omitempty"`
+	SystemExtPublicSepolicyDirs       []string `json:",omitempty"`
+	SystemExtPrivateSepolicyDirs      []string `json:",omitempty"`
+	BoardSepolicyM4Defs               []string `json:",omitempty"`
 
 	BoardSepolicyVers       *string `json:",omitempty"`
 	PlatformSepolicyVersion *string `json:",omitempty"`
 	TotSepolicyVersion      *string `json:",omitempty"`
+
+	PlatformSepolicyCompatVersions []string `json:",omitempty"`
 
 	VendorVars map[string]map[string]string `json:",omitempty"`
 
@@ -594,10 +601,16 @@ func (p *ProductConfigProperty) SelectKey() string {
 
 	value := p.FullConfig
 	if value == p.Name {
-		value = "enabled"
+		value = ""
 	}
-	// e.g. acme__feature1__enabled, android__board__soc_a
-	return strings.ToLower(strings.Join([]string{p.Namespace, p.Name, value}, "__"))
+
+	// e.g. acme__feature1, android__board__soc_a
+	selectKey := strings.ToLower(strings.Join([]string{p.Namespace, p.Name}, "__"))
+	if value != "" {
+		selectKey = strings.ToLower(strings.Join([]string{selectKey, value}, "__"))
+	}
+
+	return selectKey
 }
 
 // ProductConfigProperties is a map of maps to group property values according
@@ -1024,7 +1037,7 @@ func (m *ModuleBase) setVariableProperties(ctx BottomUpMutatorContext,
 
 	printfIntoProperties(ctx, prefix, productVariablePropertyValue, variableValue)
 
-	err := proptools.AppendMatchingProperties(m.generalProperties,
+	err := proptools.AppendMatchingProperties(m.GetProperties(),
 		productVariablePropertyValue.Addr().Interface(), nil)
 	if err != nil {
 		if propertyErr, ok := err.(*proptools.ExtendPropertyError); ok {

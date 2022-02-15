@@ -699,7 +699,7 @@ include $(call all-makefiles-under,$(LOCAL_PATH))
 		expected: `
 			android_library {
 				srcs: ["test.java"],
-				resource_dirs: ["res"],
+
 				jacoco: {
 					include_filter: ["foo.*"],
 				},
@@ -1121,6 +1121,25 @@ prebuilt_usr_share_host {
 `,
 	},
 	{
+		desc: "prebuilt_root_host",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := foo
+LOCAL_MODULE_CLASS := ETC
+LOCAL_MODULE_PATH := $(HOST_OUT)/subdir
+LOCAL_SRC_FILES := foo.txt
+include $(BUILD_PREBUILT)
+`,
+		expected: `
+prebuilt_root_host {
+	name: "foo",
+
+	src: "foo.txt",
+	relative_install_path: "subdir",
+}
+`,
+	},
+	{
 		desc: "prebuilt_font",
 		in: `
 include $(CLEAR_VARS)
@@ -1439,7 +1458,7 @@ include $(BUILD_RRO_PACKAGE)
 runtime_resource_overlay {
 	name: "foo",
 	product_specific: true,
-	resource_dirs: ["res"],
+
 	sdk_version: "current",
 	theme: "FooTheme",
 
@@ -1563,6 +1582,96 @@ android_app {
     // ANDROIDMK TRANSLATION ERROR: Only $(LOCAL_PATH)/.. values are allowed
     // LOCAL_NOTICE_FILE := license_notice
 
+}
+`,
+	},
+	{
+		desc: "LOCAL_CHECK_ELF_FILES",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := foo
+LOCAL_SRC_FILES := test.c
+LOCAL_MODULE_CLASS := SHARED_LIBRARIES
+LOCAL_CHECK_ELF_FILES := false
+include $(BUILD_PREBUILT)
+		`,
+		expected: `
+cc_prebuilt_library_shared {
+	name: "foo",
+	srcs: ["test.c"],
+
+	check_elf_files: false,
+}
+`,
+	},
+	{
+		desc: "Drop default resource and asset dirs from bp",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := foo
+LOCAL_ASSET_DIR := $(LOCAL_PATH)/assets
+LOCAL_RESOURCE_DIR := $(LOCAL_PATH)/res
+include $(BUILD_PACKAGE)
+`,
+		expected: `
+android_app {
+		name: "foo",
+
+}
+`,
+	},
+	{
+		desc: "LOCAL_GENERATED_SOURCES",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := foo
+LOCAL_SRC_FILES := src1, src2, src3
+LOCAL_GENERATED_SOURCES := gen_src1, gen_src2, gen_src3
+include $(BUILD_PACKAGE)
+		`,
+		expected: `
+android_app {
+	name: "foo",
+	srcs: [
+		"src1,",
+		"src2,",
+		"src3",
+	],
+	generated_sources: [
+		"gen_src1,",
+		"gen_src2,",
+		"gen_src3",
+	],
+}
+`,
+	},
+	{
+		desc: "LOCAL_DISABLE_AUTO_GENERATE_TEST_CONFIG is true",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := foo
+LOCAL_DISABLE_AUTO_GENERATE_TEST_CONFIG := true
+include $(BUILD_PACKAGE)
+		`,
+		expected: `
+android_app {
+	name: "foo",
+	auto_gen_config: false,
+}
+`,
+	},
+	{
+		desc: "LOCAL_DISABLE_AUTO_GENERATE_TEST_CONFIG is false",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := foo
+LOCAL_DISABLE_AUTO_GENERATE_TEST_CONFIG := false
+include $(BUILD_PACKAGE)
+		`,
+		expected: `
+android_app {
+	name: "foo",
+	auto_gen_config: true,
 }
 `,
 	},

@@ -98,6 +98,9 @@ func (cov *coverage) flags(ctx ModuleContext, flags Flags, deps PathDeps) (Flags
 		} else if clangCoverage {
 			flags.Local.CommonFlags = append(flags.Local.CommonFlags, profileInstrFlag,
 				"-fcoverage-mapping", "-Wno-pass-failed", "-D__ANDROID_CLANG_COVERAGE__")
+			// Override -Wframe-larger-than.  We can expect frame size increase after
+			// coverage instrumentation.
+			flags.Local.CFlags = append(flags.Local.CFlags, "-Wno-frame-larger-than=")
 		}
 	}
 

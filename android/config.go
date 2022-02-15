@@ -24,6 +24,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strconv"
 	"strings"
@@ -37,6 +38,7 @@ import (
 	"android/soong/android/soongconfig"
 	"android/soong/bazel"
 	"android/soong/remoteexec"
+	"android/soong/starlark_fmt"
 )
 
 // Bool re-exports proptools.Bool for the android package.
@@ -273,15 +275,43 @@ func saveToBazelConfigFile(config *productVariables, outDir string) error {
 		return fmt.Errorf("Could not create dir %s: %s", dir, err)
 	}
 
-	data, err := json.MarshalIndent(&config, "", "    ")
+	nonArchVariantProductVariables := []string{}
+	archVariantProductVariables := []string{}
+	p := variableProperties{}
+	t := reflect.TypeOf(p.Product_variables)
+	for i := 0; i < t.NumField(); i++ {
+		f := t.Field(i)
+		nonArchVariantProductVariables = append(nonArchVariantProductVariables, strings.ToLower(f.Name))
+		if proptools.HasTag(f, "android", "arch_variant") {
+			archVariantProductVariables = append(archVariantProductVariables, strings.ToLower(f.Name))
+		}
+	}
+
+	nonArchVariantProductVariablesJson := starlark_fmt.PrintStringList(nonArchVariantProductVariables, 0)
+	if err != nil {
+		return fmt.Errorf("cannot marshal product variable data: %s", err.Error())
+	}
+
+	archVariantProductVariablesJson := starlark_fmt.PrintStringList(archVariantProductVariables, 0)
+	if err != nil {
+		return fmt.Errorf("cannot marshal arch variant product variable data: %s", err.Error())
+	}
+
+	configJson, err := json.MarshalIndent(&config, "", "    ")
 	if err != nil {
 		return fmt.Errorf("cannot marshal config data: %s", err.Error())
 	}
 
 	bzl := []string{
 		bazel.GeneratedBazelFileWarning,
-		fmt.Sprintf(`_product_vars = json.decode("""%s""")`, data),
-		"product_vars = _product_vars\n",
+		fmt.Sprintf(`_product_vars = json.decode("""%s""")`, configJson),
+		fmt.Sprintf(`_product_var_constraints = %s`, nonArchVariantProductVariablesJson),
+		fmt.Sprintf(`_arch_variant_product_var_constraints = %s`, archVariantProductVariablesJson),
+		"\n", `
+product_vars = _product_vars
+product_var_constraints = _product_var_constraints
+arch_variant_product_var_constraints = _arch_variant_product_var_constraints
+`,
 	}
 	err = ioutil.WriteFile(filepath.Join(dir, "product_variables.bzl"), []byte(strings.Join(bzl, "\n")), 0644)
 	if err != nil {
@@ -569,9 +599,6 @@ func (c *config) HostToolDir() string {
 
 func (c *config) HostToolPath(ctx PathContext, tool string) Path {
 	path := pathForInstall(ctx, ctx.Config().BuildOS, ctx.Config().BuildArch, "bin", false, tool)
-	if ctx.Config().KatiEnabled() {
-		path = path.ToMakePath()
-	}
 	return path
 }
 
@@ -581,17 +608,11 @@ func (c *config) HostJNIToolPath(ctx PathContext, lib string) Path {
 		ext = ".dylib"
 	}
 	path := pathForInstall(ctx, ctx.Config().BuildOS, ctx.Config().BuildArch, "lib64", false, lib+ext)
-	if ctx.Config().KatiEnabled() {
-		path = path.ToMakePath()
-	}
 	return path
 }
 
 func (c *config) HostJavaToolPath(ctx PathContext, tool string) Path {
 	path := pathForInstall(ctx, ctx.Config().BuildOS, ctx.Config().BuildArch, "framework", false, tool)
-	if ctx.Config().KatiEnabled() {
-		path = path.ToMakePath()
-	}
 	return path
 }
 
@@ -1250,6 +1271,10 @@ func (c *deviceConfig) NativeCoverageEnabledForPath(path string) bool {
 	return coverage
 }
 
+func (c *deviceConfig) AfdoAdditionalProfileDirs() []string {
+	return c.config.productVariables.AfdoAdditionalProfileDirs
+}
+
 func (c *deviceConfig) PgoAdditionalProfileDirs() []string {
 	return c.config.productVariables.PgoAdditionalProfileDirs
 }
@@ -1470,6 +1495,10 @@ func (c *deviceConfig) TotSepolicyVersion() string {
 	return String(c.config.productVariables.TotSepolicyVersion)
 }
 
+func (c *deviceConfig) PlatformSepolicyCompatVersions() []string {
+	return c.config.productVariables.PlatformSepolicyCompatVersions
+}
+
 func (c *deviceConfig) BoardSepolicyVers() string {
 	if ver := String(c.config.productVariables.BoardSepolicyVers); ver != "" {
 		return ver
@@ -1483,6 +1512,22 @@ func (c *deviceConfig) BoardPlatVendorPolicy() []string {
 
 func (c *deviceConfig) BoardReqdMaskPolicy() []string {
 	return c.config.productVariables.BoardReqdMaskPolicy
+}
+
+func (c *deviceConfig) BoardSystemExtPublicPrebuiltDirs() []string {
+	return c.config.productVariables.BoardSystemExtPublicPrebuiltDirs
+}
+
+func (c *deviceConfig) BoardSystemExtPrivatePrebuiltDirs() []string {
+	return c.config.productVariables.BoardSystemExtPrivatePrebuiltDirs
+}
+
+func (c *deviceConfig) BoardProductPublicPrebuiltDirs() []string {
+	return c.config.productVariables.BoardProductPublicPrebuiltDirs
+}
+
+func (c *deviceConfig) BoardProductPrivatePrebuiltDirs() []string {
+	return c.config.productVariables.BoardProductPrivatePrebuiltDirs
 }
 
 func (c *deviceConfig) DirectedVendorSnapshot() bool {
@@ -1698,7 +1743,7 @@ func (l *ConfiguredJarList) Append(apex string, jar string) ConfiguredJarList {
 }
 
 // Append a list of (apex, jar) pairs to the list.
-func (l *ConfiguredJarList) AppendList(other ConfiguredJarList) ConfiguredJarList {
+func (l *ConfiguredJarList) AppendList(other *ConfiguredJarList) ConfiguredJarList {
 	apexes := make([]string, 0, l.Len()+other.Len())
 	jars := make([]string, 0, l.Len()+other.Len())
 
@@ -1936,4 +1981,9 @@ func (c *config) ApexBootJars() ConfiguredJarList {
 
 func (c *config) RBEWrapper() string {
 	return c.GetenvWithDefault("RBE_WRAPPER", remoteexec.DefaultWrapperPath)
+}
+
+// UseHostMusl returns true if the host target has been configured to build against musl libc.
+func (c *config) UseHostMusl() bool {
+	return Bool(c.productVariables.HostMusl)
 }

@@ -24,8 +24,8 @@ func init() {
 }
 
 func RegisterGenRuleBuildComponents(ctx android.RegistrationContext) {
-	ctx.RegisterModuleType("java_genrule", genRuleFactory)
-	ctx.RegisterModuleType("java_genrule_host", genRuleFactoryHost)
+	ctx.RegisterModuleType("java_genrule", GenRuleFactory)
+	ctx.RegisterModuleType("java_genrule_host", GenRuleFactoryHost)
 }
 
 // java_genrule is a genrule that can depend on other java_* objects.
@@ -33,7 +33,7 @@ func RegisterGenRuleBuildComponents(ctx android.RegistrationContext) {
 // By default a java_genrule has a single variant that will run against the device variant of its dependencies and
 // produce an output that can be used as an input to a device java rule.
 //
-// Specifying `host_supported: true` will produce two variants, one that uses device dependencie sand one that uses
+// Specifying `host_supported: true` will produce two variants, one that uses device dependencies and one that uses
 // host dependencies.  Each variant will run the command.
 //
 // Use a java_genrule instead of a genrule when it needs to depend on or be depended on by other java modules, unless
@@ -44,7 +44,7 @@ func RegisterGenRuleBuildComponents(ctx android.RegistrationContext) {
 // Use a java_genrule to package generated java resources:
 //
 //     java_genrule {
-//     name: "generated_resources",
+//         name: "generated_resources",
 //         tools: [
 //             "generator",
 //             "soong_zip",
@@ -60,11 +60,12 @@ func RegisterGenRuleBuildComponents(ctx android.RegistrationContext) {
 //         srcs: ["src/**/*.java"],
 //         static_libs: ["generated_resources"],
 //     }
-func genRuleFactory() android.Module {
+func GenRuleFactory() android.Module {
 	module := genrule.NewGenRule()
 
 	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
+	android.InitBazelModule(module)
 
 	return module
 }
@@ -73,11 +74,12 @@ func genRuleFactory() android.Module {
 //
 // A java_genrule_host has a single variant that will run against the host variant of its dependencies and
 // produce an output that can be used as an input to a host java rule.
-func genRuleFactoryHost() android.Module {
+func GenRuleFactoryHost() android.Module {
 	module := genrule.NewGenRule()
 
 	android.InitAndroidArchModule(module, android.HostSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
+	android.InitBazelModule(module)
 
 	return module
 }

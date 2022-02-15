@@ -166,10 +166,6 @@ type ShBinary struct {
 
 var _ android.HostToolProvider = (*ShBinary)(nil)
 
-func (s *ShBinary) InstallBypassMake() bool {
-	return true
-}
-
 type ShTest struct {
 	ShBinary
 
@@ -272,6 +268,9 @@ func (s *ShBinary) generateAndroidBuildActions(ctx android.ModuleContext) {
 func (s *ShBinary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	s.generateAndroidBuildActions(ctx)
 	installDir := android.PathForModuleInstall(ctx, "bin", proptools.String(s.properties.Sub_dir))
+	if !s.Installable() {
+		s.SkipInstall()
+	}
 	s.installedFile = ctx.InstallExecutable(installDir, s.outputFilePath.Base(), s.outputFilePath)
 	for _, symlink := range s.Symlinks() {
 		ctx.InstallSymlink(installDir, symlink, s.installedFile)
@@ -287,6 +286,7 @@ func (s *ShBinary) AndroidMkEntries() []android.AndroidMkEntries {
 			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
 				s.customAndroidMkEntries(entries)
 				entries.SetString("LOCAL_MODULE_RELATIVE_PATH", proptools.String(s.properties.Sub_dir))
+				entries.SetBoolIfTrue("LOCAL_UNINSTALLABLE_MODULE", !s.Installable())
 			},
 		},
 	}}
@@ -435,7 +435,7 @@ func (s *ShTest) AndroidMkEntries() []android.AndroidMkEntries {
 		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
 			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
 				s.customAndroidMkEntries(entries)
-				entries.SetPath("LOCAL_MODULE_PATH", s.installDir.ToMakePath())
+				entries.SetPath("LOCAL_MODULE_PATH", s.installDir)
 				entries.AddCompatibilityTestSuites(s.testProperties.Test_suites...)
 				if s.testConfig != nil {
 					entries.SetPath("LOCAL_FULL_TEST_CONFIG", s.testConfig)
@@ -515,8 +515,8 @@ func ShTestHostFactory() android.Module {
 
 type bazelShBinaryAttributes struct {
 	Srcs     bazel.LabelListAttribute
-	Filename string
-	Sub_dir  string
+	Filename *string
+	Sub_dir  *string
 	// Bazel also supports the attributes below, but (so far) these are not required for Bionic
 	// deps
 	// data
@@ -542,14 +542,14 @@ func (m *ShBinary) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 	srcs := bazel.MakeLabelListAttribute(
 		android.BazelLabelForModuleSrc(ctx, []string{*m.properties.Src}))
 
-	var filename string
+	var filename *string
 	if m.properties.Filename != nil {
-		filename = *m.properties.Filename
+		filename = m.properties.Filename
 	}
 
-	var subDir string
+	var subDir *string
 	if m.properties.Sub_dir != nil {
-		subDir = *m.properties.Sub_dir
+		subDir = m.properties.Sub_dir
 	}
 
 	attrs := &bazelShBinaryAttributes{

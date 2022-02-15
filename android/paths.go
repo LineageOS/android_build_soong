@@ -112,7 +112,6 @@ type ModuleInstallPathContext interface {
 	InstallInDebugRamdisk() bool
 	InstallInRecovery() bool
 	InstallInRoot() bool
-	InstallBypassMake() bool
 	InstallForceOS() (*OsType, *ArchType)
 }
 
@@ -465,9 +464,6 @@ func (p OutputPaths) Strings() []string {
 // PathForGoBinary returns the path to the installed location of a bootstrap_go_binary module.
 func PathForGoBinary(ctx PathContext, goBinary bootstrap.GoBinaryTool) Path {
 	goBinaryInstallDir := pathForInstall(ctx, ctx.Config().BuildOS, ctx.Config().BuildArch, "bin", false)
-	if ctx.Config().KatiEnabled() {
-		goBinaryInstallDir = goBinaryInstallDir.ToMakePath()
-	}
 	rel := Rel(ctx, goBinaryInstallDir.String(), goBinary.InstallPath())
 	return goBinaryInstallDir.Join(ctx, rel)
 }
@@ -1646,8 +1642,8 @@ func (p InstallPath) withRel(rel string) InstallPath {
 	return p
 }
 
-// ToMakePath returns a new InstallPath that points to Make's install directory instead of Soong's,
-// i.e. out/ instead of out/soong/.
+// Deprecated: ToMakePath is a noop, PathForModuleInstall always returns Make paths when building
+// embedded in Make.
 func (p InstallPath) ToMakePath() InstallPath {
 	p.makePath = true
 	return p
@@ -1688,9 +1684,6 @@ func osAndArch(ctx ModuleInstallPathContext) (OsType, ArchType) {
 
 func makePathForInstall(ctx ModuleInstallPathContext, os OsType, arch ArchType, partition string, debug bool, pathComponents ...string) InstallPath {
 	ret := pathForInstall(ctx, os, arch, partition, debug, pathComponents...)
-	if ctx.InstallBypassMake() && ctx.Config().KatiEnabled() {
-		ret = ret.ToMakePath()
-	}
 	return ret
 }
 
@@ -1732,7 +1725,10 @@ func pathForInstall(ctx PathContext, os OsType, arch ArchType, partition string,
 		soongOutDir:  ctx.Config().soongOutDir,
 		partitionDir: partionPath,
 		partition:    partition,
-		makePath:     false,
+	}
+
+	if ctx.Config().KatiEnabled() {
+		base.makePath = true
 	}
 
 	return base.Join(ctx, pathComponents...)
@@ -2008,10 +2004,6 @@ func (m testModuleInstallPathContext) InstallInRoot() bool {
 	return m.inRoot
 }
 
-func (m testModuleInstallPathContext) InstallBypassMake() bool {
-	return false
-}
-
 func (m testModuleInstallPathContext) InstallForceOS() (*OsType, *ArchType) {
 	return m.forceOS, m.forceArch
 }
@@ -2156,4 +2148,24 @@ func IsThirdPartyPath(path string) bool {
 		return true
 	}
 	return false
+}
+
+// PathsDepSet is a thin type-safe wrapper around the generic depSet.  It always uses
+// topological order.
+type PathsDepSet struct {
+	depSet
+}
+
+// newPathsDepSet returns an immutable PathsDepSet with the given direct and
+// transitive contents.
+func newPathsDepSet(direct Paths, transitive []*PathsDepSet) *PathsDepSet {
+	return &PathsDepSet{*newDepSet(TOPOLOGICAL, direct, transitive)}
+}
+
+// ToList returns the PathsDepSet flattened to a list in topological order.
+func (d *PathsDepSet) ToList() Paths {
+	if d == nil {
+		return nil
+	}
+	return d.depSet.ToList().(Paths)
 }

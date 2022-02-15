@@ -68,6 +68,8 @@ var rewriteProperties = map[string](func(variableAssignmentContext) error){
 	"LOCAL_MODULE_PATH":                    prebuiltModulePath,
 	"LOCAL_REPLACE_PREBUILT_APK_INSTALLED": prebuiltPreprocessed,
 
+	"LOCAL_DISABLE_AUTO_GENERATE_TEST_CONFIG": invert("auto_gen_config"),
+
 	// composite functions
 	"LOCAL_MODULE_TAGS": includeVariableIf(bpVariable{"tags", bpparser.ListType}, not(valueDumpEquals("optional"))),
 
@@ -191,6 +193,7 @@ func init() {
 			// will be removed later by byfix
 			// TODO: does this property matter in the license module?
 			"LOCAL_LICENSE_CONDITIONS": "android_license_conditions",
+			"LOCAL_GENERATED_SOURCES":  "generated_sources",
 		})
 
 	addStandardProperties(bpparser.BoolType,
@@ -229,6 +232,8 @@ func init() {
 			"LOCAL_IS_UNIT_TEST": "unit_test",
 
 			"LOCAL_ENFORCE_USES_LIBRARIES": "enforce_uses_libs",
+
+			"LOCAL_CHECK_ELF_FILES": "check_elf_files",
 		})
 }
 

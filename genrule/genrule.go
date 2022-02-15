@@ -106,6 +106,16 @@ type hostToolDependencyTag struct {
 	android.LicenseAnnotationToolchainDependencyTag
 	label string
 }
+
+func (t hostToolDependencyTag) AllowDisabledModuleDependency(target android.Module) bool {
+	// Allow depending on a disabled module if it's replaced by a prebuilt
+	// counterpart. We get the prebuilt through android.PrebuiltGetPreferred in
+	// GenerateAndroidBuildActions.
+	return target.IsReplacedByPrebuilt()
+}
+
+var _ android.AllowDisabledModuleDependency = (*hostToolDependencyTag)(nil)
+
 type generatorProperties struct {
 	// The command to run on one or more input files. Cmd supports substitution of a few variables.
 	//
@@ -298,6 +308,12 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			switch tag := ctx.OtherModuleDependencyTag(module).(type) {
 			case hostToolDependencyTag:
 				tool := ctx.OtherModuleName(module)
+				if m, ok := module.(android.Module); ok {
+					// Necessary to retrieve any prebuilt replacement for the tool, since
+					// toolDepsMutator runs too late for the prebuilt mutators to have
+					// replaced the dependency.
+					module = android.PrebuiltGetPreferred(ctx, m)
+				}
 
 				switch t := module.(type) {
 				case android.HostToolProvider:
@@ -846,7 +862,7 @@ func (m *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 		cmd = strings.Replace(*m.properties.Cmd, "$(in)", "$(SRCS)", -1)
 		cmd = strings.Replace(cmd, "$(out)", "$(OUTS)", -1)
 		genDir := "$(GENDIR)"
-		if ctx.ModuleType() == "cc_genrule" {
+		if t := ctx.ModuleType(); t == "cc_genrule" || t == "java_genrule" || t == "java_genrule_host" {
 			genDir = "$(RULEDIR)"
 		}
 		cmd = strings.Replace(cmd, "$(genDir)", genDir, -1)

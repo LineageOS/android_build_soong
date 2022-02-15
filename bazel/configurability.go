@@ -109,6 +109,21 @@ var (
 		osArchWindowsX86_64:        "//build/bazel/platforms/os_arch:windows_x86_64",
 		ConditionsDefaultConfigKey: ConditionsDefaultSelectKey, // The default condition of an os select map.
 	}
+
+	// Map where keys are OsType names, and values are slices containing the archs
+	// that that OS supports.
+	// These definitions copied from arch.go.
+	// TODO(cparsons): Source from arch.go; this task is nontrivial, as it currently results
+	// in a cyclic dependency.
+	osToArchMap = map[string][]string{
+		osAndroid:     {archArm, archArm64, archX86, archX86_64},
+		osLinux:       {archX86, archX86_64},
+		osLinuxMusl:   {archX86, archX86_64},
+		osDarwin:      {archArm64, archX86_64},
+		osLinuxBionic: {archArm64, archX86_64},
+		// TODO(cparsons): According to arch.go, this should contain archArm, archArm64, as well.
+		osWindows: {archX86, archX86_64},
+	}
 )
 
 // basic configuration types
@@ -121,6 +136,10 @@ const (
 	osArch
 	productVariables
 )
+
+func osArchString(os string, arch string) string {
+	return fmt.Sprintf("%s_%s", os, arch)
+}
 
 func (ct configurationType) String() string {
 	return map[configurationType]string{

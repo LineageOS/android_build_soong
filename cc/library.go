@@ -32,7 +32,7 @@ import (
 	"github.com/google/blueprint/pathtools"
 )
 
-// LibraryProperties is a collection of properties shared by cc library rules.
+// LibraryProperties is a collection of properties shared by cc library rules/cc.
 type LibraryProperties struct {
 	// local file name to pass to the linker as -unexported_symbols_list
 	Unexported_symbols_list *string `android:"path,arch_variant"`
@@ -381,19 +381,41 @@ func libraryBp2Build(ctx android.TopDownMutatorContext, m *Module) {
 			None:                         linkerAttrs.stripNone,
 		},
 		Features: linkerAttrs.features,
+
+		Stubs_symbol_file: compilerAttrs.stubsSymbolFile,
+		Stubs_versions:    compilerAttrs.stubsVersions,
+	}
+
+	for axis, configToProps := range m.GetArchVariantProperties(ctx, &LibraryProperties{}) {
+		for config, props := range configToProps {
+			if props, ok := props.(*LibraryProperties); ok {
+				if props.Inject_bssl_hash != nil {
+					// This is an edge case applies only to libcrypto
+					if m.Name() == "libcrypto" {
+						sharedTargetAttrs.Inject_bssl_hash.SetSelectValue(axis, config, props.Inject_bssl_hash)
+					} else {
+						ctx.PropertyErrorf("inject_bssl_hash", "only applies to libcrypto")
+					}
+				}
+			}
+		}
 	}
 
 	staticProps := bazel.BazelTargetModuleProperties{
 		Rule_class:        "cc_library_static",
-		Bzl_load_location: "//build/bazel/rules:cc_library_static.bzl",
+		Bzl_load_location: "//build/bazel/rules/cc:cc_library_static.bzl",
 	}
 	sharedProps := bazel.BazelTargetModuleProperties{
 		Rule_class:        "cc_library_shared",
-		Bzl_load_location: "//build/bazel/rules:cc_library_shared.bzl",
+		Bzl_load_location: "//build/bazel/rules/cc:cc_library_shared.bzl",
 	}
 
-	ctx.CreateBazelTargetModule(staticProps, android.CommonAttributes{Name: m.Name() + "_bp2build_cc_library_static"}, staticTargetAttrs)
-	ctx.CreateBazelTargetModule(sharedProps, android.CommonAttributes{Name: m.Name()}, sharedTargetAttrs)
+	ctx.CreateBazelTargetModuleWithRestrictions(staticProps,
+		android.CommonAttributes{Name: m.Name() + "_bp2build_cc_library_static"},
+		staticTargetAttrs, staticAttrs.Enabled)
+	ctx.CreateBazelTargetModuleWithRestrictions(sharedProps,
+		android.CommonAttributes{Name: m.Name()},
+		sharedTargetAttrs, sharedAttrs.Enabled)
 }
 
 // cc_library creates both static and/or shared libraries for a device and/or
@@ -439,6 +461,8 @@ func LibraryHostStaticFactory() android.Module {
 	module, library := NewLibrary(android.HostSupported)
 	library.BuildOnlyStatic()
 	module.sdkMemberTypes = []android.SdkMemberType{staticLibrarySdkMemberType}
+	module.bazelable = true
+	module.bazelHandler = &ccLibraryBazelHandler{module: module}
 	return module.Init()
 }
 
@@ -447,6 +471,8 @@ func LibraryHostSharedFactory() android.Module {
 	module, library := NewLibrary(android.HostSupported)
 	library.BuildOnlyShared()
 	module.sdkMemberTypes = []android.SdkMemberType{sharedLibrarySdkMemberType}
+	module.bazelable = true
+	module.bazelHandler = &ccLibraryBazelHandler{module: module}
 	return module.Init()
 }
 
@@ -746,9 +772,10 @@ func GlobHeadersForSnapshot(ctx android.ModuleContext, paths android.Paths) andr
 		if dir == "external/eigen" {
 			// Only these two directories contains exported headers.
 			for _, subdir := range []string{"Eigen", "unsupported/Eigen"} {
-				glob, err := ctx.GlobWithDeps("external/eigen/"+subdir+"/**/*", nil)
+				globDir := "external/eigen/" + subdir + "/**/*"
+				glob, err := ctx.GlobWithDeps(globDir, nil)
 				if err != nil {
-					ctx.ModuleErrorf("glob failed: %#v", err)
+					ctx.ModuleErrorf("glob of %q failed: %s", globDir, err)
 					return nil
 				}
 				for _, header := range glob {
@@ -764,9 +791,10 @@ func GlobHeadersForSnapshot(ctx android.ModuleContext, paths android.Paths) andr
 			}
 			continue
 		}
-		glob, err := ctx.GlobWithDeps(dir+"/**/*", nil)
+		globDir := dir + "/**/*"
+		glob, err := ctx.GlobWithDeps(globDir, nil)
 		if err != nil {
-			ctx.ModuleErrorf("glob failed: %#v", err)
+			ctx.ModuleErrorf("glob of %q failed: %s", globDir, err)
 			return nil
 		}
 		isLibcxx := strings.HasPrefix(dir, "external/libcxx/include")
@@ -1332,7 +1360,7 @@ func (library *libraryDecorator) linkStatic(ctx ModuleContext,
 		}
 	}
 
-	transformObjToStaticLib(ctx, library.objects.objFiles, deps.WholeStaticLibsFromPrebuilts, builderFlags, outputFile, nil, objs.tidyFiles)
+	transformObjToStaticLib(ctx, library.objects.objFiles, deps.WholeStaticLibsFromPrebuilts, builderFlags, outputFile, nil, objs.tidyDepFiles)
 
 	library.coverageOutputFile = transformCoverageFilesToZip(ctx, library.objects, ctx.ModuleName())
 
@@ -1479,7 +1507,7 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 	linkerDeps = append(linkerDeps, deps.LateSharedLibsDeps...)
 	transformObjToDynamicBinary(ctx, objs.objFiles, sharedLibs,
 		deps.StaticLibs, deps.LateStaticLibs, deps.WholeStaticLibs,
-		linkerDeps, deps.CrtBegin, deps.CrtEnd, false, builderFlags, outputFile, implicitOutputs, objs.tidyFiles)
+		linkerDeps, deps.CrtBegin, deps.CrtEnd, false, builderFlags, outputFile, implicitOutputs, objs.tidyDepFiles)
 
 	objs.coverageFiles = append(objs.coverageFiles, deps.StaticLibObjs.coverageFiles...)
 	objs.coverageFiles = append(objs.coverageFiles, deps.WholeStaticLibObjs.coverageFiles...)
@@ -2510,6 +2538,9 @@ func sharedOrStaticLibraryBp2Build(ctx android.TopDownMutatorContext, module *Mo
 			},
 
 			Features: linkerAttrs.features,
+
+			Stubs_symbol_file: compilerAttrs.stubsSymbolFile,
+			Stubs_versions:    compilerAttrs.stubsVersions,
 		}
 	}
 
@@ -2521,7 +2552,7 @@ func sharedOrStaticLibraryBp2Build(ctx android.TopDownMutatorContext, module *Mo
 	}
 	props := bazel.BazelTargetModuleProperties{
 		Rule_class:        modType,
-		Bzl_load_location: fmt.Sprintf("//build/bazel/rules:%s.bzl", modType),
+		Bzl_load_location: fmt.Sprintf("//build/bazel/rules/cc:%s.bzl", modType),
 	}
 
 	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: module.Name()}, attrs)
@@ -2583,4 +2614,8 @@ type bazelCcLibrarySharedAttributes struct {
 	Asflags    bazel.StringListAttribute
 
 	Features bazel.StringListAttribute
+
+	Stubs_symbol_file *string
+	Stubs_versions    bazel.StringListAttribute
+	Inject_bssl_hash  bazel.BoolAttribute
 }

@@ -245,9 +245,6 @@ type DeviceProperties struct {
 	// otherwise provides defaults libraries to add to the bootclasspath.
 	System_modules *string
 
-	// set the name of the output
-	Stem *string
-
 	IsSDKLibrary bool `blueprint:"mutated"`
 
 	// If true, generate the signature file of APK Signing Scheme V4, along side the signed APK file.
@@ -257,6 +254,15 @@ type DeviceProperties struct {
 	// Only for libraries created by a sysprop_library module, SyspropPublicStub is the name of the
 	// public stubs library.
 	SyspropPublicStub string `blueprint:"mutated"`
+}
+
+// Device properties that can be overridden by overriding module (e.g. override_android_app)
+type OverridableDeviceProperties struct {
+	// set the name of the output. If not set, `name` is used.
+	// To override a module with this property set, overriding module might need to set this as well.
+	// Otherwise, both the overridden and the overriding modules will have the same output name, which
+	// can cause the duplicate output error.
+	Stem *string
 }
 
 // Functionality common to Module and Import
@@ -372,6 +378,7 @@ type Module struct {
 	android.DefaultableModuleBase
 	android.ApexModuleBase
 	android.SdkBase
+	android.BazelModuleBase
 
 	// Functionality common to Module and Import.
 	embeddableInModuleAndImport
@@ -379,6 +386,8 @@ type Module struct {
 	properties       CommonProperties
 	protoProperties  android.ProtoProperties
 	deviceProperties DeviceProperties
+
+	overridableDeviceProperties OverridableDeviceProperties
 
 	// jar file containing header classes including static library dependencies, suitable for
 	// inserting into the bootclasspath/classpath of another compile
@@ -535,6 +544,7 @@ func (j *Module) addHostAndDeviceProperties() {
 	j.addHostProperties()
 	j.AddProperties(
 		&j.deviceProperties,
+		&j.overridableDeviceProperties,
 		&j.dexer.dexProperties,
 		&j.dexpreoptProperties,
 		&j.linter.properties,
@@ -958,6 +968,7 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 	if flags.javaVersion.usesJavaModules() {
 		j.properties.Srcs = append(j.properties.Srcs, j.properties.Openjdk9.Srcs...)
 	}
+
 	srcFiles := android.PathsForModuleSrcExcludes(ctx, j.properties.Srcs, j.properties.Exclude_srcs)
 	if hasSrcExt(srcFiles.Strings(), ".proto") {
 		flags = protoFlags(ctx, &j.properties, &j.protoProperties, flags)
@@ -1658,7 +1669,7 @@ func (j *Module) ShouldSupportSdkVersion(ctx android.BaseModuleContext, sdkVersi
 }
 
 func (j *Module) Stem() string {
-	return proptools.StringDefault(j.deviceProperties.Stem, j.Name())
+	return proptools.StringDefault(j.overridableDeviceProperties.Stem, j.Name())
 }
 
 func (j *Module) JacocoReportClassesFile() android.Path {
@@ -1923,6 +1934,9 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 				sm := module.(SystemModulesProvider)
 				outputDir, outputDeps := sm.OutputDirAndDeps()
 				deps.systemModules = &systemModules{outputDir, outputDeps}
+
+			case instrumentationForTag:
+				ctx.PropertyErrorf("instrumentation_for", "dependency %q of type %q does not provide JavaInfo so is unsuitable for use with this property", ctx.OtherModuleName(module), ctx.OtherModuleType(module))
 			}
 		}
 
@@ -1952,3 +1966,16 @@ type ModuleWithStem interface {
 }
 
 var _ ModuleWithStem = (*Module)(nil)
+
+func (j *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+	switch ctx.ModuleType() {
+	case "java_library", "java_library_host", "java_library_static":
+		if lib, ok := ctx.Module().(*Library); ok {
+			javaLibraryBp2Build(ctx, lib)
+		}
+	case "java_binary_host":
+		if binary, ok := ctx.Module().(*Binary); ok {
+			javaBinaryHostBp2Build(ctx, binary)
+		}
+	}
+}

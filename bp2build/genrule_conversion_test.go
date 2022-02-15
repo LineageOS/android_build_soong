@@ -16,7 +16,10 @@ package bp2build
 
 import (
 	"android/soong/android"
+	"android/soong/cc"
 	"android/soong/genrule"
+	"android/soong/java"
+	"fmt"
 	"testing"
 )
 
@@ -31,58 +34,123 @@ func runGenruleTestCase(t *testing.T, tc bp2buildTestCase) {
 	runBp2BuildTestCase(t, registerGenruleModuleTypes, tc)
 }
 
-func TestGenruleBp2Build(t *testing.T) {
-	otherGenruleBp := map[string]string{
-		"other/Android.bp": `genrule {
+func otherGenruleBp(genruleTarget string) map[string]string {
+	return map[string]string{
+		"other/Android.bp": fmt.Sprintf(`%s {
     name: "foo.tool",
     out: ["foo_tool.out"],
     srcs: ["foo_tool.in"],
     cmd: "cp $(in) $(out)",
 }
-genrule {
+%s {
     name: "other.tool",
     out: ["other_tool.out"],
     srcs: ["other_tool.in"],
     cmd: "cp $(in) $(out)",
-}`,
+}`, genruleTarget, genruleTarget),
+	}
+}
+
+func TestGenruleCliVariableReplacement(t *testing.T) {
+	testCases := []struct {
+		moduleType string
+		factory    android.ModuleFactory
+		genDir     string
+	}{
+		{
+			moduleType: "genrule",
+			factory:    genrule.GenRuleFactory,
+			genDir:     "$(GENDIR)",
+		},
+		{
+			moduleType: "cc_genrule",
+			factory:    cc.GenRuleFactory,
+			genDir:     "$(RULEDIR)",
+		},
+		{
+			moduleType: "java_genrule",
+			factory:    java.GenRuleFactory,
+			genDir:     "$(RULEDIR)",
+		},
+		{
+			moduleType: "java_genrule_host",
+			factory:    java.GenRuleFactoryHost,
+			genDir:     "$(RULEDIR)",
+		},
 	}
 
-	testCases := []bp2buildTestCase{
-		{
-			description: "genrule with command line variable replacements",
-			blueprint: `genrule {
+	bp := `%s {
     name: "foo.tool",
     out: ["foo_tool.out"],
     srcs: ["foo_tool.in"],
     cmd: "cp $(in) $(out)",
-    bazel_module: { bp2build_available: true },
+    bazel_module: { bp2build_available: false },
 }
 
-genrule {
+%s {
     name: "foo",
     out: ["foo.out"],
     srcs: ["foo.in"],
     tools: [":foo.tool"],
     cmd: "$(location :foo.tool) --genDir=$(genDir) arg $(in) $(out)",
     bazel_module: { bp2build_available: true },
-}`,
-			expectedBazelTargets: []string{
-				makeBazelTarget("genrule", "foo", attrNameToString{
-					"cmd":   `"$(location :foo.tool) --genDir=$(GENDIR) arg $(SRCS) $(OUTS)"`,
-					"outs":  `["foo.out"]`,
-					"srcs":  `["foo.in"]`,
-					"tools": `[":foo.tool"]`,
-				}),
-				makeBazelTarget("genrule", "foo.tool", attrNameToString{
-					"cmd":  `"cp $(SRCS) $(OUTS)"`,
-					"outs": `["foo_tool.out"]`,
-					"srcs": `["foo_tool.in"]`,
-				}),
-			},
+}`
+
+	for _, tc := range testCases {
+		moduleAttrs := attrNameToString{
+			"cmd":   fmt.Sprintf(`"$(location :foo.tool) --genDir=%s arg $(SRCS) $(OUTS)"`, tc.genDir),
+			"outs":  `["foo.out"]`,
+			"srcs":  `["foo.in"]`,
+			"tools": `[":foo.tool"]`,
+		}
+
+		if tc.moduleType == "java_genrule_host" {
+			moduleAttrs["target_compatible_with"] = `select({
+        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    })`
+		}
+
+		expectedBazelTargets := []string{
+			makeBazelTarget("genrule", "foo", moduleAttrs),
+		}
+
+		t.Run(tc.moduleType, func(t *testing.T) {
+			runBp2BuildTestCase(t, func(ctx android.RegistrationContext) {},
+				bp2buildTestCase{
+					moduleTypeUnderTest:        tc.moduleType,
+					moduleTypeUnderTestFactory: tc.factory,
+					blueprint:                  fmt.Sprintf(bp, tc.moduleType, tc.moduleType),
+					expectedBazelTargets:       expectedBazelTargets,
+				})
+		})
+	}
+}
+
+func TestGenruleLocationsLabel(t *testing.T) {
+	testCases := []struct {
+		moduleType string
+		factory    android.ModuleFactory
+	}{
+		{
+			moduleType: "genrule",
+			factory:    genrule.GenRuleFactory,
 		},
 		{
-			description: "genrule using $(locations :label)",
-			blueprint: `genrule {
+			moduleType: "cc_genrule",
+			factory:    cc.GenRuleFactory,
+		},
+		{
+			moduleType: "java_genrule",
+			factory:    java.GenRuleFactory,
+		},
+		{
+			moduleType: "java_genrule_host",
+			factory:    java.GenRuleFactoryHost,
+		},
+	}
+
+	bp := `%s {
     name: "foo.tools",
     out: ["foo_tool.out", "foo_tool2.out"],
     srcs: ["foo_tool.in"],
@@ -90,144 +158,381 @@ genrule {
     bazel_module: { bp2build_available: true },
 }
 
-genrule {
+%s {
     name: "foo",
     out: ["foo.out"],
     srcs: ["foo.in"],
     tools: [":foo.tools"],
     cmd: "$(locations :foo.tools) -s $(out) $(in)",
     bazel_module: { bp2build_available: true },
-}`,
-			expectedBazelTargets: []string{
-				makeBazelTarget("genrule", "foo", attrNameToString{
-					"cmd":   `"$(locations :foo.tools) -s $(OUTS) $(SRCS)"`,
-					"outs":  `["foo.out"]`,
-					"srcs":  `["foo.in"]`,
-					"tools": `[":foo.tools"]`,
-				}),
-				makeBazelTarget("genrule", "foo.tools", attrNameToString{
-					"cmd": `"cp $(SRCS) $(OUTS)"`,
-					"outs": `[
+}`
+
+	for _, tc := range testCases {
+		fooAttrs := attrNameToString{
+			"cmd":   `"$(locations :foo.tools) -s $(OUTS) $(SRCS)"`,
+			"outs":  `["foo.out"]`,
+			"srcs":  `["foo.in"]`,
+			"tools": `[":foo.tools"]`,
+		}
+		fooToolsAttrs := attrNameToString{
+			"cmd": `"cp $(SRCS) $(OUTS)"`,
+			"outs": `[
         "foo_tool.out",
         "foo_tool2.out",
     ]`,
-					"srcs": `["foo_tool.in"]`,
-				}),
-			},
+			"srcs": `["foo_tool.in"]`,
+		}
+
+		if tc.moduleType == "java_genrule_host" {
+			compatibilityAttrs := `select({
+        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    })`
+			fooAttrs["target_compatible_with"] = compatibilityAttrs
+			fooToolsAttrs["target_compatible_with"] = compatibilityAttrs
+		}
+
+		expectedBazelTargets := []string{
+			makeBazelTarget("genrule", "foo", fooAttrs),
+			makeBazelTarget("genrule", "foo.tools", fooToolsAttrs),
+		}
+
+		t.Run(tc.moduleType, func(t *testing.T) {
+			runBp2BuildTestCase(t, func(ctx android.RegistrationContext) {},
+				bp2buildTestCase{
+					moduleTypeUnderTest:        tc.moduleType,
+					moduleTypeUnderTestFactory: tc.factory,
+					blueprint:                  fmt.Sprintf(bp, tc.moduleType, tc.moduleType),
+					expectedBazelTargets:       expectedBazelTargets,
+				})
+		})
+	}
+}
+
+func TestGenruleLocationsAbsoluteLabel(t *testing.T) {
+	testCases := []struct {
+		moduleType string
+		factory    android.ModuleFactory
+	}{
+		{
+			moduleType: "genrule",
+			factory:    genrule.GenRuleFactory,
 		},
 		{
-			description: "genrule using $(locations //absolute:label)",
-			blueprint: `genrule {
+			moduleType: "cc_genrule",
+			factory:    cc.GenRuleFactory,
+		},
+		{
+			moduleType: "java_genrule",
+			factory:    java.GenRuleFactory,
+		},
+		{
+			moduleType: "java_genrule_host",
+			factory:    java.GenRuleFactoryHost,
+		},
+	}
+
+	bp := `%s {
     name: "foo",
     out: ["foo.out"],
     srcs: ["foo.in"],
     tool_files: [":foo.tool"],
     cmd: "$(locations :foo.tool) -s $(out) $(in)",
     bazel_module: { bp2build_available: true },
-}`,
-			expectedBazelTargets: []string{
-				makeBazelTarget("genrule", "foo", attrNameToString{
-					"cmd":   `"$(locations //other:foo.tool) -s $(OUTS) $(SRCS)"`,
-					"outs":  `["foo.out"]`,
-					"srcs":  `["foo.in"]`,
-					"tools": `["//other:foo.tool"]`,
-				}),
-			},
-			filesystem: otherGenruleBp,
+}`
+
+	for _, tc := range testCases {
+		moduleAttrs := attrNameToString{
+			"cmd":   `"$(locations //other:foo.tool) -s $(OUTS) $(SRCS)"`,
+			"outs":  `["foo.out"]`,
+			"srcs":  `["foo.in"]`,
+			"tools": `["//other:foo.tool"]`,
+		}
+
+		if tc.moduleType == "java_genrule_host" {
+			moduleAttrs["target_compatible_with"] = `select({
+        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    })`
+		}
+
+		expectedBazelTargets := []string{
+			makeBazelTarget("genrule", "foo", moduleAttrs),
+		}
+
+		t.Run(tc.moduleType, func(t *testing.T) {
+			runBp2BuildTestCase(t, func(ctx android.RegistrationContext) {},
+				bp2buildTestCase{
+					moduleTypeUnderTest:        tc.moduleType,
+					moduleTypeUnderTestFactory: tc.factory,
+					blueprint:                  fmt.Sprintf(bp, tc.moduleType),
+					expectedBazelTargets:       expectedBazelTargets,
+					filesystem:                 otherGenruleBp(tc.moduleType),
+				})
+		})
+	}
+}
+
+func TestGenruleSrcsLocationsAbsoluteLabel(t *testing.T) {
+	testCases := []struct {
+		moduleType string
+		factory    android.ModuleFactory
+	}{
+		{
+			moduleType: "genrule",
+			factory:    genrule.GenRuleFactory,
 		},
 		{
-			description: "genrule srcs using $(locations //absolute:label)",
-			blueprint: `genrule {
+			moduleType: "cc_genrule",
+			factory:    cc.GenRuleFactory,
+		},
+		{
+			moduleType: "java_genrule",
+			factory:    java.GenRuleFactory,
+		},
+		{
+			moduleType: "java_genrule_host",
+			factory:    java.GenRuleFactoryHost,
+		},
+	}
+
+	bp := `%s {
     name: "foo",
     out: ["foo.out"],
     srcs: [":other.tool"],
     tool_files: [":foo.tool"],
     cmd: "$(locations :foo.tool) -s $(out) $(location :other.tool)",
     bazel_module: { bp2build_available: true },
-}`,
-			expectedBazelTargets: []string{
-				makeBazelTarget("genrule", "foo", attrNameToString{
-					"cmd":   `"$(locations //other:foo.tool) -s $(OUTS) $(location //other:other.tool)"`,
-					"outs":  `["foo.out"]`,
-					"srcs":  `["//other:other.tool"]`,
-					"tools": `["//other:foo.tool"]`,
-				}),
-			},
-			filesystem: otherGenruleBp,
+}`
+
+	for _, tc := range testCases {
+		moduleAttrs := attrNameToString{
+			"cmd":   `"$(locations //other:foo.tool) -s $(OUTS) $(location //other:other.tool)"`,
+			"outs":  `["foo.out"]`,
+			"srcs":  `["//other:other.tool"]`,
+			"tools": `["//other:foo.tool"]`,
+		}
+
+		if tc.moduleType == "java_genrule_host" {
+			moduleAttrs["target_compatible_with"] = `select({
+        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    })`
+		}
+
+		expectedBazelTargets := []string{
+			makeBazelTarget("genrule", "foo", moduleAttrs),
+		}
+
+		t.Run(tc.moduleType, func(t *testing.T) {
+			runBp2BuildTestCase(t, func(ctx android.RegistrationContext) {},
+				bp2buildTestCase{
+					moduleTypeUnderTest:        tc.moduleType,
+					moduleTypeUnderTestFactory: tc.factory,
+					blueprint:                  fmt.Sprintf(bp, tc.moduleType),
+					expectedBazelTargets:       expectedBazelTargets,
+					filesystem:                 otherGenruleBp(tc.moduleType),
+				})
+		})
+	}
+}
+
+func TestGenruleLocationLabelShouldSubstituteFirstToolLabel(t *testing.T) {
+	testCases := []struct {
+		moduleType string
+		factory    android.ModuleFactory
+	}{
+		{
+			moduleType: "genrule",
+			factory:    genrule.GenRuleFactory,
 		},
 		{
-			description: "genrule using $(location) label should substitute first tool label automatically",
-			blueprint: `genrule {
+			moduleType: "cc_genrule",
+			factory:    cc.GenRuleFactory,
+		},
+		{
+			moduleType: "java_genrule",
+			factory:    java.GenRuleFactory,
+		},
+		{
+			moduleType: "java_genrule_host",
+			factory:    java.GenRuleFactoryHost,
+		},
+	}
+
+	bp := `%s {
     name: "foo",
     out: ["foo.out"],
     srcs: ["foo.in"],
     tool_files: [":foo.tool", ":other.tool"],
     cmd: "$(location) -s $(out) $(in)",
     bazel_module: { bp2build_available: true },
-}`,
-			expectedBazelTargets: []string{
-				makeBazelTarget("genrule", "foo", attrNameToString{
-					"cmd":  `"$(location //other:foo.tool) -s $(OUTS) $(SRCS)"`,
-					"outs": `["foo.out"]`,
-					"srcs": `["foo.in"]`,
-					"tools": `[
+}`
+
+	for _, tc := range testCases {
+		moduleAttrs := attrNameToString{
+			"cmd":  `"$(location //other:foo.tool) -s $(OUTS) $(SRCS)"`,
+			"outs": `["foo.out"]`,
+			"srcs": `["foo.in"]`,
+			"tools": `[
         "//other:foo.tool",
         "//other:other.tool",
     ]`,
-				}),
-			},
-			filesystem: otherGenruleBp,
+		}
+
+		if tc.moduleType == "java_genrule_host" {
+			moduleAttrs["target_compatible_with"] = `select({
+        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    })`
+		}
+
+		expectedBazelTargets := []string{
+			makeBazelTarget("genrule", "foo", moduleAttrs),
+		}
+
+		t.Run(tc.moduleType, func(t *testing.T) {
+			runBp2BuildTestCase(t, func(ctx android.RegistrationContext) {},
+				bp2buildTestCase{
+					moduleTypeUnderTest:        tc.moduleType,
+					moduleTypeUnderTestFactory: tc.factory,
+					blueprint:                  fmt.Sprintf(bp, tc.moduleType),
+					expectedBazelTargets:       expectedBazelTargets,
+					filesystem:                 otherGenruleBp(tc.moduleType),
+				})
+		})
+	}
+}
+
+func TestGenruleLocationsLabelShouldSubstituteFirstToolLabel(t *testing.T) {
+	testCases := []struct {
+		moduleType string
+		factory    android.ModuleFactory
+	}{
+		{
+			moduleType: "genrule",
+			factory:    genrule.GenRuleFactory,
 		},
 		{
-			description: "genrule using $(locations) label should substitute first tool label automatically",
-			blueprint: `genrule {
+			moduleType: "cc_genrule",
+			factory:    cc.GenRuleFactory,
+		},
+		{
+			moduleType: "java_genrule",
+			factory:    java.GenRuleFactory,
+		},
+		{
+			moduleType: "java_genrule_host",
+			factory:    java.GenRuleFactoryHost,
+		},
+	}
+
+	bp := `%s {
     name: "foo",
     out: ["foo.out"],
     srcs: ["foo.in"],
-    tools: [":foo.tool", ":other.tool"],
+    tool_files: [":foo.tool", ":other.tool"],
     cmd: "$(locations) -s $(out) $(in)",
     bazel_module: { bp2build_available: true },
-}`,
-			expectedBazelTargets: []string{
-				makeBazelTarget("genrule", "foo", attrNameToString{
-					"cmd":  `"$(locations //other:foo.tool) -s $(OUTS) $(SRCS)"`,
-					"outs": `["foo.out"]`,
-					"srcs": `["foo.in"]`,
-					"tools": `[
+}`
+
+	for _, tc := range testCases {
+		moduleAttrs := attrNameToString{
+			"cmd":  `"$(locations //other:foo.tool) -s $(OUTS) $(SRCS)"`,
+			"outs": `["foo.out"]`,
+			"srcs": `["foo.in"]`,
+			"tools": `[
         "//other:foo.tool",
         "//other:other.tool",
     ]`,
-				}),
-			},
-			filesystem: otherGenruleBp,
+		}
+
+		if tc.moduleType == "java_genrule_host" {
+			moduleAttrs["target_compatible_with"] = `select({
+        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    })`
+		}
+
+		expectedBazelTargets := []string{
+			makeBazelTarget("genrule", "foo", moduleAttrs),
+		}
+
+		t.Run(tc.moduleType, func(t *testing.T) {
+			runBp2BuildTestCase(t, func(ctx android.RegistrationContext) {},
+				bp2buildTestCase{
+					moduleTypeUnderTest:        tc.moduleType,
+					moduleTypeUnderTestFactory: tc.factory,
+					blueprint:                  fmt.Sprintf(bp, tc.moduleType),
+					expectedBazelTargets:       expectedBazelTargets,
+					filesystem:                 otherGenruleBp(tc.moduleType),
+				})
+		})
+	}
+}
+
+func TestGenruleWithoutToolsOrToolFiles(t *testing.T) {
+	testCases := []struct {
+		moduleType string
+		factory    android.ModuleFactory
+	}{
+		{
+			moduleType: "genrule",
+			factory:    genrule.GenRuleFactory,
 		},
 		{
-			description: "genrule without tools or tool_files can convert successfully",
-			blueprint: `genrule {
+			moduleType: "cc_genrule",
+			factory:    cc.GenRuleFactory,
+		},
+		{
+			moduleType: "java_genrule",
+			factory:    java.GenRuleFactory,
+		},
+		{
+			moduleType: "java_genrule_host",
+			factory:    java.GenRuleFactoryHost,
+		},
+	}
+
+	bp := `%s {
     name: "foo",
     out: ["foo.out"],
     srcs: ["foo.in"],
     cmd: "cp $(in) $(out)",
     bazel_module: { bp2build_available: true },
-}`,
-			expectedBazelTargets: []string{
-				makeBazelTarget("genrule", "foo", attrNameToString{
-					"cmd":  `"cp $(SRCS) $(OUTS)"`,
-					"outs": `["foo.out"]`,
-					"srcs": `["foo.in"]`,
-				}),
-			},
-		},
-	}
+}`
 
-	for _, testCase := range testCases {
-		t.Run(testCase.description, func(t *testing.T) {
-			runGenruleTestCase(t, testCase)
+	for _, tc := range testCases {
+		moduleAttrs := attrNameToString{
+			"cmd":  `"cp $(SRCS) $(OUTS)"`,
+			"outs": `["foo.out"]`,
+			"srcs": `["foo.in"]`,
+		}
+
+		if tc.moduleType == "java_genrule_host" {
+			moduleAttrs["target_compatible_with"] = `select({
+        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    })`
+		}
+
+		expectedBazelTargets := []string{
+			makeBazelTarget("genrule", "foo", moduleAttrs),
+		}
+
+		t.Run(tc.moduleType, func(t *testing.T) {
+			runBp2BuildTestCase(t, func(ctx android.RegistrationContext) {},
+				bp2buildTestCase{
+					moduleTypeUnderTest:        tc.moduleType,
+					moduleTypeUnderTestFactory: tc.factory,
+					blueprint:                  fmt.Sprintf(bp, tc.moduleType),
+					expectedBazelTargets:       expectedBazelTargets,
+				})
 		})
 	}
 }
 
-func TestBp2BuildInlinesDefaults(t *testing.T) {
+func TestGenruleBp2BuildInlinesDefaults(t *testing.T) {
 	testCases := []bp2buildTestCase{
 		{
 			description: "genrule applies properties from a genrule_defaults dependency if not specified",

@@ -155,7 +155,8 @@ func objectBp2Build(ctx android.TopDownMutatorContext, m *Module) {
 		for config, props := range configToProps {
 			if objectLinkerProps, ok := props.(*ObjectLinkerProperties); ok {
 				if objectLinkerProps.Linker_script != nil {
-					linkerScript.SetSelectValue(axis, config, android.BazelLabelForModuleSrcSingle(ctx, *objectLinkerProps.Linker_script))
+					label := android.BazelLabelForModuleSrcSingle(ctx, *objectLinkerProps.Linker_script)
+					linkerScript.SetSelectValue(axis, config, label)
 				}
 				deps.SetSelectValue(axis, config, android.BazelLabelForModuleDeps(ctx, objectLinkerProps.Objs))
 				systemSharedLibs := objectLinkerProps.System_shared_libs
@@ -194,7 +195,7 @@ func objectBp2Build(ctx android.TopDownMutatorContext, m *Module) {
 
 	props := bazel.BazelTargetModuleProperties{
 		Rule_class:        "cc_object",
-		Bzl_load_location: "//build/bazel/rules:cc_object.bzl",
+		Bzl_load_location: "//build/bazel/rules/cc:cc_object.bzl",
 	}
 
 	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: m.Name()}, attrs)

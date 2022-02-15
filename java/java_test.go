@@ -997,60 +997,6 @@ func TestSharding(t *testing.T) {
 	}
 }
 
-func TestJarGenrules(t *testing.T) {
-	ctx, _ := testJava(t, `
-		java_library {
-			name: "foo",
-			srcs: ["a.java"],
-		}
-
-		java_genrule {
-			name: "jargen",
-			tool_files: ["b.java"],
-			cmd: "$(location b.java) $(in) $(out)",
-			out: ["jargen.jar"],
-			srcs: [":foo"],
-		}
-
-		java_library {
-			name: "bar",
-			static_libs: ["jargen"],
-			srcs: ["c.java"],
-		}
-
-		java_library {
-			name: "baz",
-			libs: ["jargen"],
-			srcs: ["c.java"],
-		}
-	`)
-
-	foo := ctx.ModuleForTests("foo", "android_common").Output("javac/foo.jar")
-	jargen := ctx.ModuleForTests("jargen", "android_common").Output("jargen.jar")
-	bar := ctx.ModuleForTests("bar", "android_common").Output("javac/bar.jar")
-	baz := ctx.ModuleForTests("baz", "android_common").Output("javac/baz.jar")
-	barCombined := ctx.ModuleForTests("bar", "android_common").Output("combined/bar.jar")
-
-	if g, w := jargen.Implicits.Strings(), foo.Output.String(); !android.InList(w, g) {
-		t.Errorf("expected jargen inputs [%q], got %q", w, g)
-	}
-
-	if !strings.Contains(bar.Args["classpath"], jargen.Output.String()) {
-		t.Errorf("bar classpath %v does not contain %q", bar.Args["classpath"], jargen.Output.String())
-	}
-
-	if !strings.Contains(baz.Args["classpath"], jargen.Output.String()) {
-		t.Errorf("baz classpath %v does not contain %q", baz.Args["classpath"], jargen.Output.String())
-	}
-
-	if len(barCombined.Inputs) != 2 ||
-		barCombined.Inputs[0].String() != bar.Output.String() ||
-		barCombined.Inputs[1].String() != jargen.Output.String() {
-		t.Errorf("bar combined jar inputs %v is not [%q, %q]",
-			barCombined.Inputs.Strings(), bar.Output.String(), jargen.Output.String())
-	}
-}
-
 func TestExcludeFileGroupInSrcs(t *testing.T) {
 	ctx, _ := testJava(t, `
 		java_library {
@@ -1512,5 +1458,66 @@ func TestErrorproneEnabledOnlyByEnvironmentVariable(t *testing.T) {
 	// Check that the errorprone plugin is enabled
 	if !strings.Contains(errorprone.Args["javacFlags"], expectedSubstring) {
 		t.Errorf("expected errorprone to contain %q, got %q", expectedSubstring, javac.Args["javacFlags"])
+	}
+}
+
+func TestDataDeviceBinsBuildsDeviceBinary(t *testing.T) {
+	bp := `
+		java_test_host {
+			name: "foo",
+			srcs: ["test.java"],
+			data_device_bins: ["bar"],
+		}
+
+		cc_binary {
+			name: "bar",
+		}
+	`
+
+	ctx := android.GroupFixturePreparers(
+		PrepareForIntegrationTestWithJava,
+	).RunTestWithBp(t, bp)
+
+	buildOS := ctx.Config.BuildOS.String()
+	fooVariant := ctx.ModuleForTests("foo", buildOS+"_common")
+	barVariant := ctx.ModuleForTests("bar", "android_arm64_armv8-a")
+	fooMod := fooVariant.Module().(*TestHost)
+
+	relocated := barVariant.Output("bar")
+	expectedInput := "out/soong/.intermediates/bar/android_arm64_armv8-a/unstripped/bar"
+	android.AssertPathRelativeToTopEquals(t, "relocation input", expectedInput, relocated.Input)
+
+	entries := android.AndroidMkEntriesForTest(t, ctx.TestContext, fooMod)[0]
+	expectedData := []string{
+		"out/soong/.intermediates/bar/android_arm64_armv8-a/bar:bar",
+	}
+	actualData := entries.EntryMap["LOCAL_COMPATIBILITY_SUPPORT_FILES"]
+	android.AssertStringPathsRelativeToTopEquals(t, "LOCAL_TEST_DATA", ctx.Config, expectedData, actualData)
+}
+
+func TestDataDeviceBinsAutogenTradefedConfig(t *testing.T) {
+	bp := `
+		java_test_host {
+			name: "foo",
+			srcs: ["test.java"],
+			data_device_bins: ["bar"],
+		}
+
+		cc_binary {
+			name: "bar",
+		}
+	`
+
+	ctx := android.GroupFixturePreparers(
+		PrepareForIntegrationTestWithJava,
+	).RunTestWithBp(t, bp)
+
+	buildOS := ctx.Config.BuildOS.String()
+	fooModule := ctx.ModuleForTests("foo", buildOS+"_common")
+	expectedAutogenConfig := `<option name="push-file" key="bar" value="/data/local/tests/unrestricted/foo/bar" />`
+
+	autogen := fooModule.Rule("autogen")
+	if !strings.Contains(autogen.Args["extraConfigs"], expectedAutogenConfig) {
+		t.Errorf("foo extraConfigs %v does not contain %q", autogen.Args["extraConfigs"], expectedAutogenConfig)
 	}
 }

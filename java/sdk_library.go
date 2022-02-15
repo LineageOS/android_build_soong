@@ -21,7 +21,6 @@ import (
 	"reflect"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -2551,8 +2550,14 @@ func formattedOptionalSdkLevelAttribute(ctx android.ModuleContext, attrName stri
 		ctx.PropertyErrorf(strings.ReplaceAll(attrName, "-", "_"), err.Error())
 		return ""
 	}
-	intStr := strconv.Itoa(apiLevel.FinalOrPreviewInt())
-	return formattedOptionalAttribute(attrName, &intStr)
+	if apiLevel.IsCurrent() {
+		// passing "current" would always mean a future release, never the current (or the current in
+		// progress) which means some conditions would never be triggered.
+		ctx.PropertyErrorf(strings.ReplaceAll(attrName, "-", "_"),
+			`"current" is not an allowed value for this attribute`)
+		return ""
+	}
+	return formattedOptionalAttribute(attrName, value)
 }
 
 // formats an attribute for the xml permissions file if the value is not null
@@ -2573,11 +2578,11 @@ func (module *sdkLibraryXml) permissionsContents(ctx android.ModuleContext) stri
 	implicitUntilAttr := formattedOptionalSdkLevelAttribute(ctx, "on-bootclasspath-before", module.properties.On_bootclasspath_before)
 	minSdkAttr := formattedOptionalSdkLevelAttribute(ctx, "min-device-sdk", module.properties.Min_device_sdk)
 	maxSdkAttr := formattedOptionalSdkLevelAttribute(ctx, "max-device-sdk", module.properties.Max_device_sdk)
-	// <library> is understood in all android versions whereas <updatable-library> is only understood from API T (and ignored before that).
-	// similarly, min_device_sdk is only understood from T. So if a library is using that, we need to use the updatable-library to make sure this library is not loaded before T
+	// <library> is understood in all android versions whereas <apex-library> is only understood from API T (and ignored before that).
+	// similarly, min_device_sdk is only understood from T. So if a library is using that, we need to use the apex-library to make sure this library is not loaded before T
 	var libraryTag string
 	if module.properties.Min_device_sdk != nil {
-		libraryTag = `    <updatable-library\n`
+		libraryTag = `    <apex-library\n`
 	} else {
 		libraryTag = `    <library\n`
 	}
@@ -2641,7 +2646,7 @@ func (module *sdkLibraryXml) AndroidMkEntries() []android.AndroidMkEntries {
 		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
 			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
 				entries.SetString("LOCAL_MODULE_TAGS", "optional")
-				entries.SetString("LOCAL_MODULE_PATH", module.installDirPath.ToMakePath().String())
+				entries.SetString("LOCAL_MODULE_PATH", module.installDirPath.String())
 				entries.SetString("LOCAL_INSTALLED_MODULE_STEM", module.outputFilePath.Base())
 			},
 		},
@@ -2755,7 +2760,7 @@ type sdkLibrarySdkMemberProperties struct {
 	android.SdkMemberPropertiesBase
 
 	// Scope to per scope properties.
-	Scopes map[*apiScope]scopeProperties
+	Scopes map[*apiScope]*scopeProperties
 
 	// The Java stubs source files.
 	Stub_srcs []string
@@ -2808,14 +2813,14 @@ type scopeProperties struct {
 	StubsSrcJar    android.Path
 	CurrentApiFile android.Path
 	RemovedApiFile android.Path
-	AnnotationsZip android.Path
+	AnnotationsZip android.Path `supported_build_releases:"Tiramisu+"`
 	SdkVersion     string
 }
 
 func (s *sdkLibrarySdkMemberProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.Module) {
 	sdk := variant.(*SdkLibrary)
 
-	s.Scopes = make(map[*apiScope]scopeProperties)
+	s.Scopes = make(map[*apiScope]*scopeProperties)
 	for _, apiScope := range allApiScopes {
 		paths := sdk.findScopePaths(apiScope)
 		if paths == nil {
@@ -2838,7 +2843,7 @@ func (s *sdkLibrarySdkMemberProperties) PopulateFromVariant(ctx android.SdkMembe
 			if paths.annotationsZip.Valid() {
 				properties.AnnotationsZip = paths.annotationsZip.Path()
 			}
-			s.Scopes[apiScope] = properties
+			s.Scopes[apiScope] = &properties
 		}
 	}
 

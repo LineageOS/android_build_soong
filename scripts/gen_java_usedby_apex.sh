@@ -32,7 +32,7 @@ genUsedByList() {
   touch "$out"
   echo "<externals>" >> "$out"
   for x in "$@"; do
-    "$dexdeps" "$x" >> "$out" || true
+    "$dexdeps" "$x" >> "$out" || echo "</external>" >> "$out"
   done
   echo "</externals>" >> "$out"
 }

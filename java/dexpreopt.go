@@ -57,6 +57,25 @@ func (install *dexpreopterInstall) SubModuleName() string {
 	return "-dexpreopt-" + install.name
 }
 
+// Returns Make entries for installing the file.
+//
+// This function uses a value receiver rather than a pointer receiver to ensure that the object is
+// safe to use in `android.AndroidMkExtraEntriesFunc`.
+func (install dexpreopterInstall) ToMakeEntries() android.AndroidMkEntries {
+	return android.AndroidMkEntries{
+		Class:      "ETC",
+		SubName:    install.SubModuleName(),
+		OutputFile: android.OptionalPathForPath(install.outputPathOnHost),
+		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
+			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
+				entries.SetString("LOCAL_MODULE_PATH", install.installDirOnDevice.String())
+				entries.SetString("LOCAL_INSTALLED_MODULE_STEM", install.installFileOnDevice)
+				entries.SetString("LOCAL_NOT_AVAILABLE_FOR_PLATFORM", "false")
+			},
+		},
+	}
+}
+
 type dexpreopter struct {
 	dexpreoptProperties DexpreoptProperties
 
@@ -115,6 +134,11 @@ func isApexVariant(ctx android.BaseModuleContext) bool {
 	return !apexInfo.IsForPlatform()
 }
 
+func forPrebuiltApex(ctx android.BaseModuleContext) bool {
+	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
+	return apexInfo.ForPrebuiltApex
+}
+
 func moduleName(ctx android.BaseModuleContext) string {
 	// Remove the "prebuilt_" prefix if the module is from a prebuilt because the prefix is not
 	// expected by dexpreopter.
@@ -134,7 +158,9 @@ func (d *dexpreopter) dexpreoptDisabled(ctx android.BaseModuleContext) bool {
 		return true
 	}
 
-	if !ctx.Module().(DexpreopterInterface).IsInstallable() {
+	// If the module is from a prebuilt APEX, it shouldn't be installable, but it can still be
+	// dexpreopted.
+	if !ctx.Module().(DexpreopterInterface).IsInstallable() && !forPrebuiltApex(ctx) {
 		return true
 	}
 
@@ -152,15 +178,16 @@ func (d *dexpreopter) dexpreoptDisabled(ctx android.BaseModuleContext) bool {
 		return true
 	}
 
+	isApexSystemServerJar := global.AllApexSystemServerJars(ctx).ContainsJar(moduleName(ctx))
 	if isApexVariant(ctx) {
 		// Don't preopt APEX variant module unless the module is an APEX system server jar and we are
 		// building the entire system image.
-		if !global.ApexSystemServerJars.ContainsJar(moduleName(ctx)) || ctx.Config().UnbundledBuild() {
+		if !isApexSystemServerJar || ctx.Config().UnbundledBuild() {
 			return true
 		}
 	} else {
 		// Don't preopt the platform variant of an APEX system server jar to avoid conflicts.
-		if global.ApexSystemServerJars.ContainsJar(moduleName(ctx)) {
+		if isApexSystemServerJar {
 			return true
 		}
 	}
@@ -191,8 +218,8 @@ func (d *dexpreopter) odexOnSystemOther(ctx android.ModuleContext, installPath a
 func (d *dexpreopter) getInstallPath(
 	ctx android.ModuleContext, defaultInstallPath android.InstallPath) android.InstallPath {
 	global := dexpreopt.GetGlobalConfig(ctx)
-	if global.ApexSystemServerJars.ContainsJar(moduleName(ctx)) {
-		dexLocation := dexpreopt.GetSystemServerDexLocation(global, moduleName(ctx))
+	if global.AllApexSystemServerJars(ctx).ContainsJar(moduleName(ctx)) {
+		dexLocation := dexpreopt.GetSystemServerDexLocation(ctx, global, moduleName(ctx))
 		return android.PathForModuleInPartitionInstall(ctx, "", strings.TrimPrefix(dexLocation, "/"))
 	}
 	if !d.dexpreoptDisabled(ctx) && isApexVariant(ctx) &&
@@ -229,8 +256,7 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Wr
 		return
 	}
 
-	isSystemServerJar := global.SystemServerJars.ContainsJar(moduleName(ctx)) ||
-		global.ApexSystemServerJars.ContainsJar(moduleName(ctx))
+	isSystemServerJar := global.AllSystemServerJars(ctx).ContainsJar(moduleName(ctx))
 
 	bootImage := defaultBootImageConfig(ctx)
 	if global.UseArtImage {
@@ -336,6 +362,8 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Wr
 
 	dexpreoptRule.Build("dexpreopt", "dexpreopt")
 
+	isApexSystemServerJar := global.AllApexSystemServerJars(ctx).ContainsJar(moduleName(ctx))
+
 	for _, install := range dexpreoptRule.Installs() {
 		// Remove the "/" prefix because the path should be relative to $ANDROID_PRODUCT_OUT.
 		installDir := strings.TrimPrefix(filepath.Dir(install.To), "/")
@@ -343,7 +371,7 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Wr
 		arch := filepath.Base(installDir)
 		installPath := android.PathForModuleInPartitionInstall(ctx, "", installDir)
 
-		if global.ApexSystemServerJars.ContainsJar(moduleName(ctx)) {
+		if isApexSystemServerJar {
 			// APEX variants of java libraries are hidden from Make, so their dexpreopt
 			// outputs need special handling. Currently, for APEX variants of java
 			// libraries, only those in the system server classpath are handled here.
@@ -362,7 +390,7 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Wr
 		}
 	}
 
-	if !global.ApexSystemServerJars.ContainsJar(moduleName(ctx)) {
+	if !isApexSystemServerJar {
 		d.builtInstalled = dexpreoptRule.Installs().String()
 	}
 }
@@ -374,19 +402,7 @@ func (d *dexpreopter) DexpreoptBuiltInstalledForApex() []dexpreopterInstall {
 func (d *dexpreopter) AndroidMkEntriesForApex() []android.AndroidMkEntries {
 	var entries []android.AndroidMkEntries
 	for _, install := range d.builtInstalledForApex {
-		install := install
-		entries = append(entries, android.AndroidMkEntries{
-			Class:      "ETC",
-			SubName:    install.SubModuleName(),
-			OutputFile: android.OptionalPathForPath(install.outputPathOnHost),
-			ExtraEntries: []android.AndroidMkExtraEntriesFunc{
-				func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
-					entries.SetString("LOCAL_MODULE_PATH", install.installDirOnDevice.ToMakePath().String())
-					entries.SetString("LOCAL_INSTALLED_MODULE_STEM", install.installFileOnDevice)
-					entries.SetString("LOCAL_NOT_AVAILABLE_FOR_PLATFORM", "false")
-				},
-			},
-		})
+		entries = append(entries, install.ToMakeEntries())
 	}
 	return entries
 }

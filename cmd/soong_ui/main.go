@@ -16,7 +16,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -24,6 +23,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"android/soong/shared"
@@ -34,11 +34,6 @@ import (
 	"android/soong/ui/status"
 	"android/soong/ui/terminal"
 	"android/soong/ui/tracer"
-)
-
-const (
-	configDir  = "vendor/google/tools/soong_config"
-	jsonSuffix = "json"
 )
 
 // A command represents an operation to be executed in the soong build
@@ -67,7 +62,7 @@ type command struct {
 }
 
 // list of supported commands (flags) supported by soong ui
-var commands []command = []command{
+var commands = []command{
 	{
 		flag:        "--make-mode",
 		description: "build the modules by the target name (i.e. soong_docs)",
@@ -115,34 +110,6 @@ func indexList(s string, list []string) int {
 // inList returns true if one or more of s is in the list.
 func inList(s string, list []string) bool {
 	return indexList(s, list) != -1
-}
-
-func loadEnvConfig() error {
-	bc := os.Getenv("ANDROID_BUILD_ENVIRONMENT_CONFIG")
-	if bc == "" {
-		return nil
-	}
-	cfgFile := filepath.Join(os.Getenv("TOP"), configDir, fmt.Sprintf("%s.%s", bc, jsonSuffix))
-
-	envVarsJSON, err := ioutil.ReadFile(cfgFile)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "\033[33mWARNING:\033[0m failed to open config file %s: %s\n", cfgFile, err.Error())
-		return nil
-	}
-
-	var envVars map[string]map[string]string
-	if err := json.Unmarshal(envVarsJSON, &envVars); err != nil {
-		return fmt.Errorf("env vars config file: %s did not parse correctly: %s", cfgFile, err.Error())
-	}
-	for k, v := range envVars["env"] {
-		if os.Getenv(k) != "" {
-			continue
-		}
-		if err := os.Setenv(k, v); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // Main execution of soong_ui. The command format is as follows:
@@ -207,11 +174,6 @@ func main() {
 		Status:  stat,
 	}}
 
-	if err := loadEnvConfig(); err != nil {
-		fmt.Fprintf(os.Stderr, "failed to parse env config files: %v", err)
-		os.Exit(1)
-	}
-
 	config := c.config(buildCtx, args...)
 
 	build.SetupOutDir(buildCtx, config)
@@ -242,6 +204,8 @@ func main() {
 	buildCtx.Verbosef("Detected %.3v GB total RAM", float32(config.TotalRAM())/(1024*1024*1024))
 	buildCtx.Verbosef("Parallelism (local/remote/highmem): %v/%v/%v",
 		config.Parallel(), config.RemoteParallel(), config.HighmemParallel())
+
+	setMaxFiles(buildCtx)
 
 	{
 		// The order of the function calls is important. The last defer function call
@@ -562,7 +526,11 @@ func getCommand(args []string) (*command, []string, error) {
 	}
 
 	// command not found
-	return nil, nil, fmt.Errorf("Command not found: %q", args)
+	flags := make([]string, len(commands))
+	for i, c := range commands {
+		flags[i] = c.flag
+	}
+	return nil, nil, fmt.Errorf("Command not found: %q\nDid you mean one of these: %q", args, flags)
 }
 
 // For Bazel support, this moves files and directories from e.g. out/dist/$f to DIST_DIR/$f if necessary.
@@ -637,5 +605,26 @@ func populateExternalDistDirHelper(ctx build.Context, config build.Config, inter
 		if err := os.Rename(internalFilePath, externalFilePath); err != nil {
 			ctx.Fatalf("Unable to rename %s -> %s due to error %s", internalFilePath, externalFilePath, err)
 		}
+	}
+}
+
+func setMaxFiles(ctx build.Context) {
+	var limits syscall.Rlimit
+
+	err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &limits)
+	if err != nil {
+		ctx.Println("Failed to get file limit:", err)
+		return
+	}
+
+	ctx.Verbosef("Current file limits: %d soft, %d hard", limits.Cur, limits.Max)
+	if limits.Cur == limits.Max {
+		return
+	}
+
+	limits.Cur = limits.Max
+	err = syscall.Setrlimit(syscall.RLIMIT_NOFILE, &limits)
+	if err != nil {
+		ctx.Println("Failed to increase file limit:", err)
 	}
 }

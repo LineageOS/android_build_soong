@@ -27,6 +27,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/bazel"
+	"android/soong/starlark_fmt"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
@@ -259,7 +260,9 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (convers
 
 	// Simple metrics tracking for bp2build
 	metrics := CodegenMetrics{
-		ruleClassCount: make(map[string]uint64),
+		ruleClassCount:           make(map[string]uint64),
+		convertedModuleTypeCount: make(map[string]uint64),
+		totalModuleTypeCount:     make(map[string]uint64),
 	}
 
 	dirs := make(map[string]bool)
@@ -269,6 +272,7 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (convers
 	bpCtx := ctx.Context()
 	bpCtx.VisitAllModules(func(m blueprint.Module) {
 		dir := bpCtx.ModuleDir(m)
+		moduleType := bpCtx.ModuleType(m)
 		dirs[dir] = true
 
 		var targets []BazelTarget
@@ -292,7 +296,7 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (convers
 				// targets in the same BUILD file (or package).
 
 				// Log the module.
-				metrics.AddConvertedModule(m.Name(), Handcrafted)
+				metrics.AddConvertedModule(m, moduleType, Handcrafted)
 
 				pathToBuildFile := getBazelPackagePath(b)
 				if _, exists := buildFileToAppend[pathToBuildFile]; exists {
@@ -312,13 +316,22 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (convers
 				// Handle modules converted to generated targets.
 
 				// Log the module.
-				metrics.AddConvertedModule(m.Name(), Generated)
+				metrics.AddConvertedModule(aModule, moduleType, Generated)
 
 				// Handle modules with unconverted deps. By default, emit a warning.
 				if unconvertedDeps := aModule.GetUnconvertedBp2buildDeps(); len(unconvertedDeps) > 0 {
 					msg := fmt.Sprintf("%q depends on unconverted modules: %s", m.Name(), strings.Join(unconvertedDeps, ", "))
 					if ctx.unconvertedDepMode == warnUnconvertedDeps {
 						metrics.moduleWithUnconvertedDepsMsgs = append(metrics.moduleWithUnconvertedDepsMsgs, msg)
+					} else if ctx.unconvertedDepMode == errorModulesUnconvertedDeps {
+						errs = append(errs, fmt.Errorf(msg))
+						return
+					}
+				}
+				if unconvertedDeps := aModule.GetMissingBp2buildDeps(); len(unconvertedDeps) > 0 {
+					msg := fmt.Sprintf("%q depends on missing modules: %s", m.Name(), strings.Join(unconvertedDeps, ", "))
+					if ctx.unconvertedDepMode == warnUnconvertedDeps {
+						metrics.moduleWithMissingDepsMsgs = append(metrics.moduleWithMissingDepsMsgs, msg)
 					} else if ctx.unconvertedDepMode == errorModulesUnconvertedDeps {
 						errs = append(errs, fmt.Errorf(msg))
 						return
@@ -331,7 +344,7 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (convers
 					metrics.IncrementRuleClassCount(t.ruleClass)
 				}
 			} else {
-				metrics.IncrementUnconvertedCount()
+				metrics.AddUnconvertedModule(moduleType)
 				return
 			}
 		case QueryView:
@@ -547,48 +560,27 @@ func prettyPrint(propertyValue reflect.Value, indent int, emitZeroValues bool) (
 		return "", nil
 	}
 
-	var ret string
 	switch propertyValue.Kind() {
 	case reflect.String:
-		ret = fmt.Sprintf("\"%v\"", escapeString(propertyValue.String()))
+		return fmt.Sprintf("\"%v\"", escapeString(propertyValue.String())), nil
 	case reflect.Bool:
-		ret = strings.Title(fmt.Sprintf("%v", propertyValue.Interface()))
+		return starlark_fmt.PrintBool(propertyValue.Bool()), nil
 	case reflect.Int, reflect.Uint, reflect.Int64:
-		ret = fmt.Sprintf("%v", propertyValue.Interface())
+		return fmt.Sprintf("%v", propertyValue.Interface()), nil
 	case reflect.Ptr:
 		return prettyPrint(propertyValue.Elem(), indent, emitZeroValues)
 	case reflect.Slice:
-		if propertyValue.Len() == 0 {
-			return "[]", nil
-		}
-
-		if propertyValue.Len() == 1 {
-			// Single-line list for list with only 1 element
-			ret += "["
-			indexedValue, err := prettyPrint(propertyValue.Index(0), indent, emitZeroValues)
+		elements := make([]string, 0, propertyValue.Len())
+		for i := 0; i < propertyValue.Len(); i++ {
+			val, err := prettyPrint(propertyValue.Index(i), indent, emitZeroValues)
 			if err != nil {
 				return "", err
 			}
-			ret += indexedValue
-			ret += "]"
-		} else {
-			// otherwise, use a multiline list.
-			ret += "[\n"
-			for i := 0; i < propertyValue.Len(); i++ {
-				indexedValue, err := prettyPrint(propertyValue.Index(i), indent+1, emitZeroValues)
-				if err != nil {
-					return "", err
-				}
-
-				if indexedValue != "" {
-					ret += makeIndent(indent + 1)
-					ret += indexedValue
-					ret += ",\n"
-				}
+			if val != "" {
+				elements = append(elements, val)
 			}
-			ret += makeIndent(indent)
-			ret += "]"
 		}
+		return starlark_fmt.PrintList(elements, indent, "%s"), nil
 
 	case reflect.Struct:
 		// Special cases where the bp2build sends additional information to the codegenerator
@@ -599,18 +591,12 @@ func prettyPrint(propertyValue reflect.Value, indent int, emitZeroValues bool) (
 			return fmt.Sprintf("%q", label.Label), nil
 		}
 
-		ret = "{\n"
 		// Sort and print the struct props by the key.
 		structProps := extractStructProperties(propertyValue, indent)
 		if len(structProps) == 0 {
 			return "", nil
 		}
-		for _, k := range android.SortedStringKeys(structProps) {
-			ret += makeIndent(indent + 1)
-			ret += fmt.Sprintf("%q: %s,\n", k, structProps[k])
-		}
-		ret += makeIndent(indent)
-		ret += "}"
+		return starlark_fmt.PrintDict(structProps, indent), nil
 	case reflect.Interface:
 		// TODO(b/164227191): implement pretty print for interfaces.
 		// Interfaces are used for for arch, multilib and target properties.
@@ -619,7 +605,6 @@ func prettyPrint(propertyValue reflect.Value, indent int, emitZeroValues bool) (
 		return "", fmt.Errorf(
 			"unexpected kind for property struct field: %s", propertyValue.Kind())
 	}
-	return ret, nil
 }
 
 // Converts a reflected property struct value into a map of property names and property values,
@@ -722,13 +707,6 @@ func escapeString(s string) string {
 	s = strings.ReplaceAll(s, "\r", "\\r")
 
 	return strings.ReplaceAll(s, "\"", "\\\"")
-}
-
-func makeIndent(indent int) string {
-	if indent < 0 {
-		panic(fmt.Errorf("indent column cannot be less than 0, but got %d", indent))
-	}
-	return strings.Repeat("    ", indent)
 }
 
 func targetNameWithVariant(c bpToBuildContext, logicModule blueprint.Module) string {

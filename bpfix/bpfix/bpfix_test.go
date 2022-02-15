@@ -19,10 +19,9 @@ package bpfix
 import (
 	"bytes"
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
-
-	"reflect"
 
 	"github.com/google/blueprint/parser"
 	"github.com/google/blueprint/pathtools"
@@ -824,7 +823,47 @@ func TestRewritePrebuiltEtc(t *testing.T) {
 			out: `prebuilt_etc {
 			name: "foo",
 			src: "bar",
-			relative_install_dir: "baz",
+			relative_install_path: "baz",
+		}
+		`,
+		},
+		{
+			name: "prebuilt_etc sub_dir",
+			in: `
+			prebuilt_etc_host {
+			name: "foo",
+			src: "bar",
+			local_module_path: {
+				var: "HOST_OUT",
+				fixed: "/etc/baz",
+			},
+		}
+		`,
+			out: `prebuilt_etc_host {
+			name: "foo",
+			src: "bar",
+			relative_install_path: "baz",
+
+		}
+		`,
+		},
+		{
+			name: "prebuilt_etc sub_dir",
+			in: `
+			prebuilt_etc_host {
+			name: "foo",
+			src: "bar",
+			local_module_path: {
+				var: "HOST_OUT",
+				fixed: "/baz/sub",
+			},
+		}
+		`,
+			out: `prebuilt_root_host {
+			name: "foo",
+			src: "bar",
+			relative_install_path: "baz/sub",
+
 		}
 		`,
 		},
@@ -1936,7 +1975,7 @@ func TestRewriteLicenseProperty(t *testing.T) {
 			fs:   mockFs,
 			path: relativePathErr,
 			expectedErr: `
-				Cannot find an Android.mk file at path a/b/c
+				Cannot find an Android.mk file at path "a/b/c"
 			`,
 		},
 	}
@@ -2019,6 +2058,127 @@ func TestHaveSameLicense(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			checkError(t, test.in, test.expectedErr, func(fixer *Fixer) error {
 				return haveSameLicense(fixer)
+			})
+		})
+	}
+}
+
+func TestRemoveResourceAndAssetsIfDefault(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		out  string
+	}{
+		{
+			name: "resource_dirs default",
+			in: `
+			android_app {
+				name: "foo",
+				resource_dirs: ["res"],
+			}
+			`,
+			out: `
+			android_app {
+				name: "foo",
+
+			}
+			`,
+		},
+		{
+			name: "resource_dirs not default",
+			in: `
+			android_app {
+				name: "foo",
+				resource_dirs: ["reso"],
+			}
+			`,
+			out: `
+			android_app {
+				name: "foo",
+				resource_dirs: ["reso"],
+			}
+			`,
+		},
+		{
+			name: "resource_dirs includes not default",
+			in: `
+			android_app {
+				name: "foo",
+				resource_dirs: ["res", "reso"],
+			}
+			`,
+			out: `
+			android_app {
+				name: "foo",
+				resource_dirs: ["res", "reso"],
+			}
+			`,
+		}, {
+			name: "asset_dirs default",
+			in: `
+			android_app {
+				name: "foo",
+				asset_dirs: ["assets"],
+			}
+			`,
+			out: `
+			android_app {
+				name: "foo",
+
+			}
+			`,
+		},
+		{
+			name: "asset_dirs not default",
+			in: `
+			android_app {
+				name: "foo",
+				asset_dirs: ["assety"],
+			}
+			`,
+			out: `
+			android_app {
+				name: "foo",
+				asset_dirs: ["assety"],
+			}
+			`,
+		},
+		{
+			name: "asset_dirs includes not default",
+			in: `
+			android_app {
+				name: "foo",
+				asset_dirs: ["assets", "assety"],
+			}
+			`,
+			out: `
+			android_app {
+				name: "foo",
+				asset_dirs: ["assets", "assety"],
+			}
+			`,
+		},
+		{
+			name: "resource_dirs and asset_dirs both default",
+			in: `
+			android_app {
+				name: "foo",
+				asset_dirs: ["assets"],
+				resource_dirs: ["res"],
+			}
+			`,
+			out: `
+			android_app {
+				name: "foo",
+
+			}
+			`,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			runPassOnce(t, test.in, test.out, func(fixer *Fixer) error {
+				return removeResourceAndAssetsIfDefault(fixer)
 			})
 		})
 	}

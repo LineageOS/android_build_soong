@@ -121,7 +121,7 @@ $(call inherit-product, part.mk)
 ifdef PRODUCT_NAME
 $(call inherit-product, part1.mk)
 else # Comment
-$(call inherit-product, $(LOCAL_PATH)/part1.mk)
+$(call inherit-product, $(LOCAL_PATH)/part.mk)
 endif
 `,
 		expected: `load("//build/make/core:product_config.rbc", "rblf")
@@ -131,11 +131,13 @@ load(":part1.star|init", _part1_init = "init")
 def init(g, handle):
   cfg = rblf.cfg(handle)
   rblf.inherit(handle, "part", _part_init)
-  if g.get("PRODUCT_NAME") != None:
+  if cfg.get("PRODUCT_NAME", ""):
+    if not _part1_init:
+      rblf.mkerror("product.mk", "Cannot find %s" % (":part1.star"))
     rblf.inherit(handle, "part1", _part1_init)
   else:
     # Comment
-    rblf.inherit(handle, "part1", _part1_init)
+    rblf.inherit(handle, "part", _part_init)
 `,
 	},
 	{
@@ -172,7 +174,9 @@ load(":part1.star|init", _part1_init = "init")
 def init(g, handle):
   cfg = rblf.cfg(handle)
   _part_init(g, handle)
-  if g.get("PRODUCT_NAME") != None:
+  if cfg.get("PRODUCT_NAME", ""):
+    if not _part1_init:
+      rblf.mkerror("product.mk", "Cannot find %s" % (":part1.star"))
     _part1_init(g, handle)
   else:
     if _part1_init != None:
@@ -227,7 +231,7 @@ endif
 
 def init(g, handle):
   cfg = rblf.cfg(handle)
-  if g.get("PRODUCT_NAME") != None:
+  if cfg.get("PRODUCT_NAME", ""):
     cfg["PRODUCT_NAME"] = "gizmo"
   else:
     pass
@@ -271,7 +275,7 @@ endif
 
 def init(g, handle):
   cfg = rblf.cfg(handle)
-  if g.get("PRODUCT_NAME") != None:
+  if cfg.get("PRODUCT_NAME", ""):
     # Comment
     pass
   else:
@@ -292,7 +296,7 @@ endif
 
 def init(g, handle):
   cfg = rblf.cfg(handle)
-  if not g.get("PRODUCT_NAME") != None:
+  if not cfg.get("PRODUCT_NAME", ""):
     cfg["PRODUCT_NAME"] = "gizmo1"
   else:
     cfg["PRODUCT_NAME"] = "gizmo2"
@@ -311,9 +315,9 @@ endif
 
 def init(g, handle):
   cfg = rblf.cfg(handle)
-  if g.get("PRODUCT_NAME") != None:
+  if cfg.get("PRODUCT_NAME", ""):
     cfg["PRODUCT_NAME"] = "gizmo"
-  elif not g.get("PRODUCT_PACKAGES") != None:
+  elif not cfg.get("PRODUCT_PACKAGES", []):
     # Comment
     pass
 `,
@@ -385,6 +389,10 @@ ifneq (,$(filter plaf,$(PLATFORM_LIST)))
 endif
 ifeq ($(TARGET_BUILD_VARIANT), $(filter $(TARGET_BUILD_VARIANT), userdebug eng))
 endif
+ifneq (, $(filter $(TARGET_BUILD_VARIANT), userdebug eng))
+endif
+ifneq (,$(filter userdebug eng, $(TARGET_BUILD_VARIANT)))
+endif
 ifneq (,$(filter true, $(v1)$(v2)))
 endif
 ifeq (,$(filter barbet coral%,$(TARGET_PRODUCT)))
@@ -403,7 +411,11 @@ def init(g, handle):
     pass
   if "plaf" in g.get("PLATFORM_LIST", []):
     pass
+  if g["TARGET_BUILD_VARIANT"] == " ".join(rblf.filter(g["TARGET_BUILD_VARIANT"], "userdebug eng")):
+    pass
   if g["TARGET_BUILD_VARIANT"] in ["userdebug", "eng"]:
+    pass
+  if rblf.filter("userdebug eng", g["TARGET_BUILD_VARIANT"]):
     pass
   if rblf.filter("true", "%s%s" % (_v1, _v2)):
     pass
@@ -505,11 +517,11 @@ endif
 
 def init(g, handle):
   cfg = rblf.cfg(handle)
-  if g.get("PRODUCT_NAME") != None:
+  if cfg.get("PRODUCT_NAME", ""):
     cfg["PRODUCT_PACKAGES"] = ["pack-if0"]
-    if g.get("PRODUCT_MODEL") != None:
+    if cfg.get("PRODUCT_MODEL", ""):
       cfg["PRODUCT_PACKAGES"] = ["pack-if-if"]
-    elif g.get("PRODUCT_NAME") != None:
+    elif cfg.get("PRODUCT_NAME", ""):
       cfg["PRODUCT_PACKAGES"] = ["pack-if-elif"]
     else:
       cfg["PRODUCT_PACKAGES"] = ["pack-if-else"]
@@ -598,9 +610,9 @@ endif
 
 def init(g, handle):
   cfg = rblf.cfg(handle)
-  if g.get("TARGET_BOARD_PLATFORM", "") in ["msm8998"]:
+  if rblf.board_platform_in(g, "msm8998"):
     pass
-  elif g.get("TARGET_BOARD_PLATFORM", "") != "copper":
+  elif not rblf.board_platform_is(g, "copper"):
     pass
   elif g.get("TARGET_BOARD_PLATFORM", "") not in g["QCOM_BOARD_PLATFORMS"]:
     pass
@@ -633,14 +645,41 @@ def init(g, handle):
 		desc:   "findstring call",
 		mkname: "product.mk",
 		in: `
+result := $(findstring a,a b c)
+result := $(findstring b,x y z)
+`,
+		expected: `load("//build/make/core:product_config.rbc", "rblf")
+
+def init(g, handle):
+  cfg = rblf.cfg(handle)
+  _result = rblf.findstring("a", "a b c")
+  _result = rblf.findstring("b", "x y z")
+`,
+	},
+	{
+		desc:   "findstring in if statement",
+		mkname: "product.mk",
+		in: `
+ifeq ($(findstring foo,$(PRODUCT_PACKAGES)),)
+endif
 ifneq ($(findstring foo,$(PRODUCT_PACKAGES)),)
+endif
+ifeq ($(findstring foo,$(PRODUCT_PACKAGES)),foo)
+endif
+ifneq ($(findstring foo,$(PRODUCT_PACKAGES)),foo)
 endif
 `,
 		expected: `load("//build/make/core:product_config.rbc", "rblf")
 
 def init(g, handle):
   cfg = rblf.cfg(handle)
+  if (cfg.get("PRODUCT_PACKAGES", [])).find("foo") == -1:
+    pass
   if (cfg.get("PRODUCT_PACKAGES", [])).find("foo") != -1:
+    pass
+  if (cfg.get("PRODUCT_PACKAGES", [])).find("foo") != -1:
+    pass
+  if (cfg.get("PRODUCT_PACKAGES", [])).find("foo") == -1:
     pass
 `,
 	},
@@ -1017,12 +1056,12 @@ def init(g, handle):
   cfg = rblf.cfg(handle)
   g["MY_PATH"] = "foo"
   _entry = {
-    "vendor/foo1/cfg.mk": ("_cfg", _cfg_init),
-    "vendor/bar/baz/cfg.mk": ("_cfg1", _cfg1_init),
+    "vendor/foo1/cfg.mk": ("vendor/foo1/cfg", _cfg_init),
+    "vendor/bar/baz/cfg.mk": ("vendor/bar/baz/cfg", _cfg1_init),
   }.get("vendor/%s/cfg.mk" % g["MY_PATH"])
   (_varmod, _varmod_init) = _entry if _entry else (None, None)
   if not _varmod_init:
-    rblf.mkerror("cannot")
+    rblf.mkerror("product.mk", "Cannot find %s" % ("vendor/%s/cfg.mk" % g["MY_PATH"]))
   rblf.inherit(handle, _varmod, _varmod_init)
 `,
 	},
@@ -1040,13 +1079,62 @@ load("//vendor/foo1:cfg.star|init", _cfg_init = "init")
 def init(g, handle):
   cfg = rblf.cfg(handle)
   g["MY_PATH"] = "foo"
-  #RBC# include_top vendor/foo1
+  rblf.inherit(handle, "vendor/foo1/cfg", _cfg_init)
+`,
+	},
+	{
+		desc:   "Dynamic inherit with duplicated hint",
+		mkname: "product.mk",
+		in: `
+MY_PATH:=foo
+#RBC# include_top vendor/foo1
+$(call inherit-product,$(MY_PATH)/cfg.mk)
+#RBC# include_top vendor/foo1
+#RBC# include_top vendor/foo1
+$(call inherit-product,$(MY_PATH)/cfg.mk)
+`,
+		expected: `load("//build/make/core:product_config.rbc", "rblf")
+load("//vendor/foo1:cfg.star|init", _cfg_init = "init")
+
+def init(g, handle):
+  cfg = rblf.cfg(handle)
+  g["MY_PATH"] = "foo"
+  rblf.inherit(handle, "vendor/foo1/cfg", _cfg_init)
+  rblf.inherit(handle, "vendor/foo1/cfg", _cfg_init)
+`,
+	},
+	{
+		desc:   "Dynamic inherit path that lacks hint",
+		mkname: "product.mk",
+		in: `
+#RBC# include_top foo
+$(call inherit-product,$(MY_VAR)/font.mk)
+
+#RBC# include_top foo
+
+# There's some space and even this comment between the include_top and the inherit-product
+
+$(call inherit-product,$(MY_VAR)/font.mk)
+
+$(call inherit-product,$(MY_VAR)/font.mk)
+`,
+		expected: `load("//build/make/core:product_config.rbc", "rblf")
+load("//foo:font.star|init", _font_init = "init")
+load("//bar:font.star|init", _font1_init = "init")
+
+def init(g, handle):
+  cfg = rblf.cfg(handle)
+  rblf.inherit(handle, "foo/font", _font_init)
+  # There's some space and even this comment between the include_top and the inherit-product
+  rblf.inherit(handle, "foo/font", _font_init)
+  rblf.mkwarning("product.mk:11", "Please avoid starting an include path with a variable. See https://source.android.com/setup/build/bazel/product_config/issues/includes for details.")
   _entry = {
-    "vendor/foo1/cfg.mk": ("_cfg", _cfg_init),
-  }.get("%s/cfg.mk" % g["MY_PATH"])
+    "foo/font.mk": ("foo/font", _font_init),
+    "bar/font.mk": ("bar/font", _font1_init),
+  }.get("%s/font.mk" % g.get("MY_VAR", ""))
   (_varmod, _varmod_init) = _entry if _entry else (None, None)
   if not _varmod_init:
-    rblf.mkerror("cannot")
+    rblf.mkerror("product.mk", "Cannot find %s" % ("%s/font.mk" % g.get("MY_VAR", "")))
   rblf.inherit(handle, _varmod, _varmod_init)
 `,
 	},
@@ -1073,7 +1161,6 @@ override FOO:=`,
 def init(g, handle):
   cfg = rblf.cfg(handle)
   rblf.mk2rbc_error("product.mk:2", "cannot handle override directive")
-  g["override FOO"] = ""
 `,
 	},
 	{
@@ -1129,6 +1216,112 @@ def init(g, handle):
   g["SOURCES"] = "foo.c bar.c"
   g["OBJECTS"] = rblf.mkpatsubst("%.c", "%.o", g["SOURCES"])
   g["OBJECTS2"] = rblf.mkpatsubst("%.c", "%.o", g["SOURCES"])
+`,
+	},
+	{
+		desc:   "foreach expressions",
+		mkname: "product.mk",
+		in: `
+BOOT_KERNEL_MODULES := foo.ko bar.ko
+BOOT_KERNEL_MODULES_FILTER := $(foreach m,$(BOOT_KERNEL_MODULES),%/$(m))
+BOOT_KERNEL_MODULES_LIST := foo.ko
+BOOT_KERNEL_MODULES_LIST += bar.ko
+BOOT_KERNEL_MODULES_FILTER_2 := $(foreach m,$(BOOT_KERNEL_MODULES_LIST),%/$(m))
+
+`,
+		expected: `load("//build/make/core:product_config.rbc", "rblf")
+
+def init(g, handle):
+  cfg = rblf.cfg(handle)
+  g["BOOT_KERNEL_MODULES"] = "foo.ko bar.ko"
+  g["BOOT_KERNEL_MODULES_FILTER"] = ["%%/%s" % m for m in rblf.words(g["BOOT_KERNEL_MODULES"])]
+  g["BOOT_KERNEL_MODULES_LIST"] = ["foo.ko"]
+  g["BOOT_KERNEL_MODULES_LIST"] += ["bar.ko"]
+  g["BOOT_KERNEL_MODULES_FILTER_2"] = ["%%/%s" % m for m in g["BOOT_KERNEL_MODULES_LIST"]]
+`,
+	},
+	{
+		desc:   "List appended to string",
+		mkname: "product.mk",
+		in: `
+NATIVE_BRIDGE_PRODUCT_PACKAGES := \
+    libnative_bridge_vdso.native_bridge \
+    native_bridge_guest_app_process.native_bridge \
+    native_bridge_guest_linker.native_bridge
+
+NATIVE_BRIDGE_MODIFIED_GUEST_LIBS := \
+    libaaudio \
+    libamidi \
+    libandroid \
+    libandroid_runtime
+
+NATIVE_BRIDGE_PRODUCT_PACKAGES += \
+    $(addsuffix .native_bridge,$(NATIVE_BRIDGE_ORIG_GUEST_LIBS))
+`,
+		expected: `load("//build/make/core:product_config.rbc", "rblf")
+
+def init(g, handle):
+  cfg = rblf.cfg(handle)
+  g["NATIVE_BRIDGE_PRODUCT_PACKAGES"] = "libnative_bridge_vdso.native_bridge      native_bridge_guest_app_process.native_bridge      native_bridge_guest_linker.native_bridge"
+  g["NATIVE_BRIDGE_MODIFIED_GUEST_LIBS"] = "libaaudio      libamidi      libandroid      libandroid_runtime"
+  g["NATIVE_BRIDGE_PRODUCT_PACKAGES"] += " " + " ".join(rblf.addsuffix(".native_bridge", g.get("NATIVE_BRIDGE_ORIG_GUEST_LIBS", "")))
+`,
+	},
+	{
+		desc:   "Math functions",
+		mkname: "product.mk",
+		in: `
+# Test the math functions defined in build/make/common/math.mk
+ifeq ($(call math_max,2,5),5)
+endif
+ifeq ($(call math_min,2,5),2)
+endif
+ifeq ($(call math_gt_or_eq,2,5),true)
+endif
+ifeq ($(call math_gt,2,5),true)
+endif
+ifeq ($(call math_lt,2,5),true)
+endif
+ifeq ($(call math_gt_or_eq,2,5),)
+endif
+ifeq ($(call math_gt,2,5),)
+endif
+ifeq ($(call math_lt,2,5),)
+endif
+ifeq ($(call math_gt_or_eq,$(MY_VAR), 5),true)
+endif
+ifeq ($(call math_gt_or_eq,$(MY_VAR),$(MY_OTHER_VAR)),true)
+endif
+ifeq ($(call math_gt_or_eq,100$(MY_VAR),10),true)
+endif
+`,
+		expected: `# Test the math functions defined in build/make/common/math.mk
+load("//build/make/core:product_config.rbc", "rblf")
+
+def init(g, handle):
+  cfg = rblf.cfg(handle)
+  if max(2, 5) == 5:
+    pass
+  if min(2, 5) == 2:
+    pass
+  if 2 >= 5:
+    pass
+  if 2 > 5:
+    pass
+  if 2 < 5:
+    pass
+  if 2 < 5:
+    pass
+  if 2 <= 5:
+    pass
+  if 2 >= 5:
+    pass
+  if int(g.get("MY_VAR", "")) >= 5:
+    pass
+  if int(g.get("MY_VAR", "")) >= int(g.get("MY_OTHER_VAR", "")):
+    pass
+  if int("100%s" % g.get("MY_VAR", "")) >= 10:
+    pass
 `,
 	},
 }
@@ -1202,7 +1395,6 @@ func TestGood(t *testing.T) {
 				ss, err := Convert(Request{
 					MkFile:         test.mkname,
 					Reader:         bytes.NewBufferString(test.in),
-					RootDir:        ".",
 					OutputSuffix:   ".star",
 					SourceFS:       fs,
 					MakefileFinder: &testMakefileFinder{fs: fs},

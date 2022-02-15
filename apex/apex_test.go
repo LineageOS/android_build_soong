@@ -623,7 +623,7 @@ func TestDefaults(t *testing.T) {
 			java_libs: ["myjar"],
 			apps: ["AppFoo"],
 			rros: ["rro"],
-			bpfs: ["bpf"],
+			bpfs: ["bpf", "netd_test"],
 			updatable: false,
 		}
 
@@ -676,6 +676,12 @@ func TestDefaults(t *testing.T) {
 			srcs: ["bpf.c", "bpf2.c"],
 		}
 
+		bpf {
+			name: "netd_test",
+			srcs: ["netd_test.c"],
+			sub_dir: "netd",
+		}
+
 	`)
 	ensureExactContents(t, ctx, "myapex", "android_common_myapex_image", []string{
 		"etc/myetc",
@@ -685,6 +691,7 @@ func TestDefaults(t *testing.T) {
 		"overlay/blue/rro.apk",
 		"etc/bpf/bpf.o",
 		"etc/bpf/bpf2.o",
+		"etc/bpf/netd/netd_test.o",
 	})
 }
 
@@ -2581,22 +2588,21 @@ func TestFilesInSubDir(t *testing.T) {
 	`)
 
 	generateFsRule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("generateFsConfig")
-	dirs := strings.Split(generateFsRule.Args["exec_paths"], " ")
+	cmd := generateFsRule.RuleParams.Command
 
 	// Ensure that the subdirectories are all listed
-	ensureListContains(t, dirs, "etc")
-	ensureListContains(t, dirs, "etc/foo")
-	ensureListContains(t, dirs, "etc/foo/bar")
-	ensureListContains(t, dirs, "lib64")
-	ensureListContains(t, dirs, "lib64/foo")
-	ensureListContains(t, dirs, "lib64/foo/bar")
-	ensureListContains(t, dirs, "lib")
-	ensureListContains(t, dirs, "lib/foo")
-	ensureListContains(t, dirs, "lib/foo/bar")
-
-	ensureListContains(t, dirs, "bin")
-	ensureListContains(t, dirs, "bin/foo")
-	ensureListContains(t, dirs, "bin/foo/bar")
+	ensureContains(t, cmd, "/etc ")
+	ensureContains(t, cmd, "/etc/foo ")
+	ensureContains(t, cmd, "/etc/foo/bar ")
+	ensureContains(t, cmd, "/lib64 ")
+	ensureContains(t, cmd, "/lib64/foo ")
+	ensureContains(t, cmd, "/lib64/foo/bar ")
+	ensureContains(t, cmd, "/lib ")
+	ensureContains(t, cmd, "/lib/foo ")
+	ensureContains(t, cmd, "/lib/foo/bar ")
+	ensureContains(t, cmd, "/bin ")
+	ensureContains(t, cmd, "/bin/foo ")
+	ensureContains(t, cmd, "/bin/foo/bar ")
 }
 
 func TestFilesInSubDirWhenNativeBridgeEnabled(t *testing.T) {
@@ -2658,7 +2664,10 @@ func TestFilesInSubDirWhenNativeBridgeEnabled(t *testing.T) {
 }
 
 func TestVendorApex(t *testing.T) {
-	ctx := testApex(t, `
+	result := android.GroupFixturePreparers(
+		prepareForApexTest,
+		android.FixtureModifyConfig(android.SetKatiEnabledForTests),
+	).RunTestWithBp(t, `
 		apex {
 			name: "myapex",
 			key: "myapex.key",
@@ -2682,29 +2691,55 @@ func TestVendorApex(t *testing.T) {
 		}
 	`)
 
-	ensureExactContents(t, ctx, "myapex", "android_common_myapex_image", []string{
+	ensureExactContents(t, result.TestContext, "myapex", "android_common_myapex_image", []string{
 		"bin/mybin",
 		"lib64/libfoo.so",
 		// TODO(b/159195575): Add an option to use VNDK libs from VNDK APEX
 		"lib64/libc++.so",
 	})
 
-	apexBundle := ctx.ModuleForTests("myapex", "android_common_myapex_image").Module().(*apexBundle)
-	data := android.AndroidMkDataForTest(t, ctx, apexBundle)
+	apexBundle := result.ModuleForTests("myapex", "android_common_myapex_image").Module().(*apexBundle)
+	data := android.AndroidMkDataForTest(t, result.TestContext, apexBundle)
 	name := apexBundle.BaseModuleName()
 	prefix := "TARGET_"
 	var builder strings.Builder
 	data.Custom(&builder, name, prefix, "", data)
-	androidMk := android.StringRelativeToTop(ctx.Config(), builder.String())
+	androidMk := android.StringRelativeToTop(result.Config, builder.String())
 	installPath := "out/target/product/test_device/vendor/apex"
 	ensureContains(t, androidMk, "LOCAL_MODULE_PATH := "+installPath)
 
-	apexManifestRule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("apexManifestRule")
+	apexManifestRule := result.ModuleForTests("myapex", "android_common_myapex_image").Rule("apexManifestRule")
 	requireNativeLibs := names(apexManifestRule.Args["requireNativeLibs"])
 	ensureListNotContains(t, requireNativeLibs, ":vndk")
 }
 
+func TestVendorApex_use_vndk_as_stable_TryingToIncludeVNDKLib(t *testing.T) {
+	testApexError(t, `Trying to include a VNDK library`, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			native_shared_libs: ["libc++"], // libc++ is a VNDK lib
+			vendor: true,
+			use_vndk_as_stable: true,
+			updatable: false,
+		}
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}`)
+}
+
 func TestVendorApex_use_vndk_as_stable(t *testing.T) {
+	//   myapex                  myapex2
+	//    |                       |
+	//  mybin ------.           mybin2
+	//   \           \          /  |
+	// (stable)   .---\--------`   |
+	//     \     /     \           |
+	//      \   /       \         /
+	//      libvndk       libvendor
+	//      (vndk)
 	ctx := testApex(t, `
 		apex {
 			name: "myapex",
@@ -2735,28 +2770,95 @@ func TestVendorApex_use_vndk_as_stable(t *testing.T) {
 		cc_library {
 			name: "libvendor",
 			vendor: true,
+			stl: "none",
+		}
+		apex {
+			name: "myapex2",
+			key: "myapex.key",
+			binaries: ["mybin2"],
+			vendor: true,
+			use_vndk_as_stable: false,
+			updatable: false,
+		}
+		cc_binary {
+			name: "mybin2",
+			vendor: true,
+			shared_libs: ["libvndk", "libvendor"],
 		}
 	`)
 
 	vendorVariant := "android_vendor.29_arm64_armv8-a"
 
-	ldRule := ctx.ModuleForTests("mybin", vendorVariant+"_apex10000").Rule("ld")
-	libs := names(ldRule.Args["libFlags"])
-	// VNDK libs(libvndk/libc++) as they are
-	ensureListContains(t, libs, "out/soong/.intermediates/libvndk/"+vendorVariant+"_shared/libvndk.so")
-	ensureListContains(t, libs, "out/soong/.intermediates/"+cc.DefaultCcCommonTestModulesDir+"libc++/"+vendorVariant+"_shared/libc++.so")
-	// non-stable Vendor libs as APEX variants
-	ensureListContains(t, libs, "out/soong/.intermediates/libvendor/"+vendorVariant+"_shared_apex10000/libvendor.so")
+	for _, tc := range []struct {
+		name                 string
+		apexName             string
+		moduleName           string
+		moduleVariant        string
+		libs                 []string
+		contents             []string
+		requireVndkNamespace bool
+	}{
+		{
+			name:          "use_vndk_as_stable",
+			apexName:      "myapex",
+			moduleName:    "mybin",
+			moduleVariant: vendorVariant + "_apex10000",
+			libs: []string{
+				// should link with vendor variants of VNDK libs(libvndk/libc++)
+				"out/soong/.intermediates/libvndk/" + vendorVariant + "_shared/libvndk.so",
+				"out/soong/.intermediates/" + cc.DefaultCcCommonTestModulesDir + "libc++/" + vendorVariant + "_shared/libc++.so",
+				// unstable Vendor libs as APEX variant
+				"out/soong/.intermediates/libvendor/" + vendorVariant + "_shared_apex10000/libvendor.so",
+			},
+			contents: []string{
+				"bin/mybin",
+				"lib64/libvendor.so",
+				// VNDK libs (libvndk/libc++) are not included
+			},
+			requireVndkNamespace: true,
+		},
+		{
+			name:          "!use_vndk_as_stable",
+			apexName:      "myapex2",
+			moduleName:    "mybin2",
+			moduleVariant: vendorVariant + "_myapex2",
+			libs: []string{
+				// should link with "unique" APEX(myapex2) variant of VNDK libs(libvndk/libc++)
+				"out/soong/.intermediates/libvndk/" + vendorVariant + "_shared_myapex2/libvndk.so",
+				"out/soong/.intermediates/" + cc.DefaultCcCommonTestModulesDir + "libc++/" + vendorVariant + "_shared_myapex2/libc++.so",
+				// unstable vendor libs have "merged" APEX variants
+				"out/soong/.intermediates/libvendor/" + vendorVariant + "_shared_apex10000/libvendor.so",
+			},
+			contents: []string{
+				"bin/mybin2",
+				"lib64/libvendor.so",
+				// VNDK libs are included as well
+				"lib64/libvndk.so",
+				"lib64/libc++.so",
+			},
+			requireVndkNamespace: false,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// Check linked libs
+			ldRule := ctx.ModuleForTests(tc.moduleName, tc.moduleVariant).Rule("ld")
+			libs := names(ldRule.Args["libFlags"])
+			for _, lib := range tc.libs {
+				ensureListContains(t, libs, lib)
+			}
+			// Check apex contents
+			ensureExactContents(t, ctx, tc.apexName, "android_common_"+tc.apexName+"_image", tc.contents)
 
-	// VNDK libs are not included when use_vndk_as_stable: true
-	ensureExactContents(t, ctx, "myapex", "android_common_myapex_image", []string{
-		"bin/mybin",
-		"lib64/libvendor.so",
-	})
-
-	apexManifestRule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("apexManifestRule")
-	requireNativeLibs := names(apexManifestRule.Args["requireNativeLibs"])
-	ensureListContains(t, requireNativeLibs, ":vndk")
+			// Check "requireNativeLibs"
+			apexManifestRule := ctx.ModuleForTests(tc.apexName, "android_common_"+tc.apexName+"_image").Rule("apexManifestRule")
+			requireNativeLibs := names(apexManifestRule.Args["requireNativeLibs"])
+			if tc.requireVndkNamespace {
+				ensureListContains(t, requireNativeLibs, ":vndk")
+			} else {
+				ensureListNotContains(t, requireNativeLibs, ":vndk")
+			}
+		})
+	}
 }
 
 func TestProductVariant(t *testing.T) {
@@ -2787,7 +2889,7 @@ func TestProductVariant(t *testing.T) {
 	)
 
 	cflags := strings.Fields(
-		ctx.ModuleForTests("foo", "android_product.29_arm64_armv8-a_apex10000").Rule("cc").Args["cFlags"])
+		ctx.ModuleForTests("foo", "android_product.29_arm64_armv8-a_myapex").Rule("cc").Args["cFlags"])
 	ensureListContains(t, cflags, "-D__ANDROID_VNDK__")
 	ensureListContains(t, cflags, "-D__ANDROID_APEX__")
 	ensureListContains(t, cflags, "-D__ANDROID_PRODUCT__")
@@ -7455,7 +7557,7 @@ func TestApexPermittedPackagesRules(t *testing.T) {
 		},
 		{
 			name:          "Bootclasspath apex jar not satisfying allowed module packages on Q.",
-			expectedError: `module "bcp_lib2" .* which is restricted because jars that are part of the myapex module may only allow these packages: foo.bar with min_sdk < T. Please jarjar or move code around.`,
+			expectedError: `(?s)module "bcp_lib2" .* which is restricted because jars that are part of the myapex module may only use these package prefixes: foo.bar with min_sdk < T. Please consider the following alternatives:\n    1. If the offending code is from a statically linked library, consider removing that dependency and using an alternative already in the bootclasspath, or perhaps a shared library.    2. Move the offending code into an allowed package.\n    3. Jarjar the offending code. Please be mindful of the potential system health implications of bundling that code, particularly if the offending jar is part of the bootclasspath.`,
 			bp: `
 				java_library {
 					name: "bcp_lib1",
@@ -7492,7 +7594,7 @@ func TestApexPermittedPackagesRules(t *testing.T) {
 		},
 		{
 			name:          "Bootclasspath apex jar not satisfying allowed module packages on R.",
-			expectedError: `module "bcp_lib2" .* which is restricted because jars that are part of the myapex module may only allow these packages: foo.bar with min_sdk < T. Please jarjar or move code around.`,
+			expectedError: `(?s)module "bcp_lib2" .* which is restricted because jars that are part of the myapex module may only use these package prefixes: foo.bar with min_sdk < T. Please consider the following alternatives:\n    1. If the offending code is from a statically linked library, consider removing that dependency and using an alternative already in the bootclasspath, or perhaps a shared library.    2. Move the offending code into an allowed package.\n    3. Jarjar the offending code. Please be mindful of the potential system health implications of bundling that code, particularly if the offending jar is part of the bootclasspath.`,
 			bp: `
 				java_library {
 					name: "bcp_lib1",
@@ -8501,7 +8603,7 @@ func TestAndroidMk_DexpreoptBuiltInstalledForApex_Prebuilt(t *testing.T) {
 		java_import {
 			name: "foo",
 			jars: ["foo.jar"],
-			installable: true,
+			apex_available: ["myapex"],
 		}
 	`,
 		dexpreopt.FixtureSetApexSystemServerJars("myapex:foo"),
@@ -8735,6 +8837,22 @@ func TestSdkLibraryCanHaveHigherMinSdkVersion(t *testing.T) {
 				}
 		`)
 	})
+}
+
+// Verifies that the APEX depends on all the Make modules in the list.
+func ensureContainsRequiredDeps(t *testing.T, ctx *android.TestContext, moduleName, variant string, deps []string) {
+	a := ctx.ModuleForTests(moduleName, variant).Module().(*apexBundle)
+	for _, dep := range deps {
+		android.AssertStringListContains(t, "", a.requiredDeps, dep)
+	}
+}
+
+// Verifies that the APEX does not depend on any of the Make modules in the list.
+func ensureDoesNotContainRequiredDeps(t *testing.T, ctx *android.TestContext, moduleName, variant string, deps []string) {
+	a := ctx.ModuleForTests(moduleName, variant).Module().(*apexBundle)
+	for _, dep := range deps {
+		android.AssertStringListDoesNotContain(t, "", a.requiredDeps, dep)
+	}
 }
 
 func TestMain(m *testing.M) {

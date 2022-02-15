@@ -182,7 +182,14 @@ func (j *TestHelperLibrary) AndroidMkEntries() []android.AndroidMkEntries {
 }
 
 func (prebuilt *Import) AndroidMkEntries() []android.AndroidMkEntries {
-	if prebuilt.hideApexVariantFromMake || !prebuilt.ContainingSdk().Unversioned() {
+	if prebuilt.hideApexVariantFromMake {
+		// For a library imported from a prebuilt APEX, we don't need a Make module for itself, as we
+		// don't need to install it. However, we need to add its dexpreopt outputs as sub-modules, if it
+		// is preopted.
+		dexpreoptEntries := prebuilt.dexpreopter.AndroidMkEntriesForApex()
+		return append(dexpreoptEntries, android.AndroidMkEntries{Disabled: true})
+	}
+	if !prebuilt.ContainingSdk().Unversioned() {
 		return []android.AndroidMkEntries{android.AndroidMkEntries{
 			Disabled: true,
 		}}
@@ -426,8 +433,10 @@ func (a *AndroidApp) getOverriddenPackages() []string {
 	if len(a.appProperties.Overrides) > 0 {
 		overridden = append(overridden, a.appProperties.Overrides...)
 	}
-	if a.Name() != a.installApkName {
-		overridden = append(overridden, a.Name())
+	// When APK name is overridden via PRODUCT_PACKAGE_NAME_OVERRIDES
+	// ensure that the original name is overridden.
+	if a.Stem() != a.installApkName {
+		overridden = append(overridden, a.Stem())
 	}
 	return overridden
 }
@@ -685,7 +694,7 @@ func (r *RuntimeResourceOverlay) AndroidMkEntries() []android.AndroidMkEntries {
 		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
 			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
 				entries.SetString("LOCAL_CERTIFICATE", r.certificate.AndroidMkString())
-				entries.SetPath("LOCAL_MODULE_PATH", r.installDir.ToMakePath())
+				entries.SetPath("LOCAL_MODULE_PATH", r.installDir)
 				entries.AddStrings("LOCAL_OVERRIDES_PACKAGES", r.properties.Overrides...)
 			},
 		},

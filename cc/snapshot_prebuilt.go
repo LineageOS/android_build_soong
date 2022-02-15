@@ -506,7 +506,7 @@ func (p *snapshotLibraryDecorator) link(ctx ModuleContext, flags Flags, deps Pat
 }
 
 func (p *snapshotLibraryDecorator) install(ctx ModuleContext, file android.Path) {
-	if p.MatchesWithDevice(ctx.DeviceConfig()) && (p.shared() || p.static()) {
+	if p.MatchesWithDevice(ctx.DeviceConfig()) && p.shared() {
 		p.baseInstaller.install(ctx, file)
 	}
 }

@@ -245,10 +245,10 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 	implicits = append(implicits, deps.StaticLibs...)
 	implicits = append(implicits, deps.SharedLibDeps...)
 	implicits = append(implicits, deps.srcProviderFiles...)
+	implicits = append(implicits, deps.AfdoProfiles...)
 
-	if deps.CrtBegin.Valid() {
-		implicits = append(implicits, deps.CrtBegin.Path(), deps.CrtEnd.Path())
-	}
+	implicits = append(implicits, deps.CrtBegin...)
+	implicits = append(implicits, deps.CrtEnd...)
 
 	if len(deps.SrcDeps) > 0 {
 		moduleGenDir := ctx.RustModule().compiler.CargoOutDir()
@@ -318,8 +318,8 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 			"rustcFlags": strings.Join(rustcFlags, " "),
 			"linkFlags":  strings.Join(linkFlags, " "),
 			"libFlags":   strings.Join(libFlags, " "),
-			"crtBegin":   deps.CrtBegin.String(),
-			"crtEnd":     deps.CrtEnd.String(),
+			"crtBegin":   strings.Join(deps.CrtBegin.Strings(), " "),
+			"crtEnd":     strings.Join(deps.CrtEnd.Strings(), " "),
 			"envVars":    strings.Join(envVars, " "),
 		},
 	})

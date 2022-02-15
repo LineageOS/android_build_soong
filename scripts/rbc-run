@@ -9,9 +9,10 @@ declare -r output_root="${OUT_DIR:-out}"
 declare -r runner="${output_root}/soong/rbcrun"
 declare -r converter="${output_root}/soong/mk2rbc"
 declare -r launcher="${output_root}/rbc/launcher.rbc"
+declare -r makefile_list="${output_root}/.module_paths/configuration.list"
 declare -r makefile="$1"
 declare -r input_variables="$2"
 shift 2
-"${converter}" -mode=write -r --outdir "${output_root}/rbc" --input_variables "${input_variables}" --launcher="${launcher}" "${makefile}"
+"${converter}" -mode=write -r --outdir "${output_root}/rbc" --input_variables "${input_variables}" --launcher="${launcher}" --makefile_list="${makefile_list}" "${makefile}"
 "${runner}" RBC_OUT="make,global" RBC_DEBUG="${RBC_DEBUG:-}" $@ "${launcher}"
 

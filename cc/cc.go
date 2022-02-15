@@ -64,6 +64,9 @@ func RegisterCCBuildComponents(ctx android.RegistrationContext) {
 
 		ctx.BottomUp("coverage", coverageMutator).Parallel()
 
+		ctx.TopDown("afdo_deps", afdoDepsMutator)
+		ctx.BottomUp("afdo", afdoMutator).Parallel()
+
 		ctx.TopDown("lto_deps", ltoDepsMutator)
 		ctx.BottomUp("lto", ltoMutator).Parallel()
 
@@ -207,11 +210,12 @@ type Flags struct {
 	// These must be after any module include flags, which will be in CommonFlags.
 	SystemIncludeFlags []string
 
-	Toolchain    config.Toolchain
-	Tidy         bool // True if clang-tidy is enabled.
-	GcovCoverage bool // True if coverage files should be generated.
-	SAbiDump     bool // True if header abi dumps should be generated.
-	EmitXrefs    bool // If true, generate Ninja rules to generate emitXrefs input files for Kythe
+	Toolchain     config.Toolchain
+	Tidy          bool // True if ninja .tidy rules should be generated.
+	NeedTidyFiles bool // True if module link should depend on .tidy files
+	GcovCoverage  bool // True if coverage files should be generated.
+	SAbiDump      bool // True if header abi dumps should be generated.
+	EmitXrefs     bool // If true, generate Ninja rules to generate emitXrefs input files for Kythe
 
 	// The instruction set required for clang ("arm" or "thumb").
 	RequiredInstructionSet string
@@ -501,6 +505,7 @@ type ModuleContextIntf interface {
 	selectedStl() string
 	baseModuleName() string
 	getVndkExtendsModuleName() string
+	isAfdoCompile() bool
 	isPgoCompile() bool
 	isNDKStubLibrary() bool
 	useClangLld(actx ModuleContext) bool
@@ -513,6 +518,12 @@ type ModuleContextIntf interface {
 	directlyInAnyApex() bool
 	isPreventInstall() bool
 	isCfiAssemblySupportEnabled() bool
+	getSharedFlags() *SharedFlags
+}
+
+type SharedFlags struct {
+	numSharedFlags int
+	flagsMap       map[string]string
 }
 
 type ModuleContext interface {
@@ -538,8 +549,7 @@ type feature interface {
 }
 
 // compiler is the interface for a compiler helper object. Different module decorators may implement
-// this helper differently. For example, compiling a `cc_library` may use a different build
-// statement than building a `toolchain_library`.
+// this helper differently.
 type compiler interface {
 	compilerInit(ctx BaseModuleContext)
 	compilerDeps(ctx DepsContext, deps Deps) Deps
@@ -810,6 +820,7 @@ type Module struct {
 	sabi     *sabi
 	vndkdep  *vndkdep
 	lto      *lto
+	afdo     *afdo
 	pgo      *pgo
 
 	library libraryInterface
@@ -822,6 +833,9 @@ type Module struct {
 
 	// Flags used to compile this module
 	flags Flags
+
+	// Shared flags among build rules of this module
+	sharedFlags SharedFlags
 
 	// only non-nil when this is a shared library that reuses the objects of a static library
 	staticAnalogue *StaticLibraryInfo
@@ -963,13 +977,6 @@ func (c *Module) SelectedStl() string {
 		return c.stl.Properties.SelectedStl
 	}
 	return ""
-}
-
-func (c *Module) ToolchainLibrary() bool {
-	if _, ok := c.linker.(*toolchainLibraryDecorator); ok {
-		return true
-	}
-	return false
 }
 
 func (c *Module) NdkPrebuiltStl() bool {
@@ -1143,6 +1150,9 @@ func (c *Module) Init() android.Module {
 	if c.lto != nil {
 		c.AddProperties(c.lto.props()...)
 	}
+	if c.afdo != nil {
+		c.AddProperties(c.afdo.props()...)
+	}
 	if c.pgo != nil {
 		c.AddProperties(c.pgo.props()...)
 	}
@@ -1246,6 +1256,13 @@ func (c *Module) IsVndkPrivate() bool {
 func (c *Module) IsVndk() bool {
 	if vndkdep := c.vndkdep; vndkdep != nil {
 		return vndkdep.isVndk()
+	}
+	return false
+}
+
+func (c *Module) isAfdoCompile() bool {
+	if afdo := c.afdo; afdo != nil {
+		return afdo.Properties.AfdoTarget != nil
 	}
 	return false
 }
@@ -1384,8 +1401,6 @@ func (c *Module) isCfiAssemblySupportEnabled() bool {
 func (c *Module) InstallInRoot() bool {
 	return c.installer != nil && c.installer.installInRoot()
 }
-
-func (c *Module) InstallBypassMake() bool { return true }
 
 type baseModuleContext struct {
 	android.BaseModuleContext
@@ -1529,6 +1544,10 @@ func (ctx *moduleContextImpl) isVndk() bool {
 	return ctx.mod.IsVndk()
 }
 
+func (ctx *moduleContextImpl) isAfdoCompile() bool {
+	return ctx.mod.isAfdoCompile()
+}
+
 func (ctx *moduleContextImpl) isPgoCompile() bool {
 	return ctx.mod.isPgoCompile()
 }
@@ -1600,6 +1619,15 @@ func (ctx *moduleContextImpl) isPreventInstall() bool {
 	return ctx.mod.Properties.PreventInstall
 }
 
+func (ctx *moduleContextImpl) getSharedFlags() *SharedFlags {
+	shared := &ctx.mod.sharedFlags
+	if shared.flagsMap == nil {
+		shared.numSharedFlags = 0
+		shared.flagsMap = make(map[string]string)
+	}
+	return shared
+}
+
 func (ctx *moduleContextImpl) isCfiAssemblySupportEnabled() bool {
 	return ctx.mod.isCfiAssemblySupportEnabled()
 }
@@ -1622,6 +1650,7 @@ func newModule(hod android.HostOrDeviceSupported, multilib android.Multilib) *Mo
 	module.sabi = &sabi{}
 	module.vndkdep = &vndkdep{}
 	module.lto = &lto{}
+	module.afdo = &afdo{}
 	module.pgo = &pgo{}
 	return module
 }
@@ -1734,7 +1763,7 @@ func (c *Module) setSubnameProperty(actx android.ModuleContext) {
 // Returns true if Bazel was successfully used for the analysis of this module.
 func (c *Module) maybeGenerateBazelActions(actx android.ModuleContext) bool {
 	var bazelModuleLabel string
-	if actx.ModuleType() == "cc_library" && c.static() {
+	if c.typ() == fullLibrary && c.static() {
 		// cc_library is a special case in bp2build; two targets are generated -- one for each
 		// of the shared and static variants. The shared variant keeps the module name, but the
 		// static variant uses a different suffixed name.
@@ -1742,6 +1771,7 @@ func (c *Module) maybeGenerateBazelActions(actx android.ModuleContext) bool {
 	} else {
 		bazelModuleLabel = c.GetBazelLabel(actx, c)
 	}
+
 	bazelActionsUsed := false
 	// Mixed builds mode is disabled for modules outside of device OS.
 	// TODO(b/200841190): Support non-device OS in mixed builds.
@@ -1816,6 +1846,9 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	}
 	if c.lto != nil {
 		flags = c.lto.flags(ctx, flags)
+	}
+	if c.afdo != nil {
+		flags = c.afdo.flags(ctx, flags)
 	}
 	if c.pgo != nil {
 		flags = c.pgo.flags(ctx, flags)
@@ -1943,6 +1976,9 @@ func (c *Module) begin(ctx BaseModuleContext) {
 	}
 	if c.lto != nil {
 		c.lto.begin(ctx)
+	}
+	if c.afdo != nil {
+		c.afdo.begin(ctx)
 	}
 	if c.pgo != nil {
 		c.pgo.begin(ctx)
@@ -2419,10 +2455,6 @@ func checkLinkType(ctx android.BaseModuleContext, from LinkableInterface, to Lin
 		return
 	}
 	if c, ok := to.(*Module); ok {
-		if c.ToolchainLibrary() {
-			// These are always allowed
-			return
-		}
 		if c.NdkPrebuiltStl() {
 			// These are allowed, but they don't set sdk_version
 			return
@@ -3408,10 +3440,6 @@ func (c *Module) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
 	if strings.HasPrefix(ctx.OtherModuleName(c), "libclang_rt") {
 		return nil
 	}
-	// b/154569636: set min_sdk_version correctly for toolchain_libraries
-	if c.ToolchainLibrary() {
-		return nil
-	}
 	// We don't check for prebuilt modules
 	if _, ok := c.linker.(prebuiltLinkerInterface); ok {
 		return nil
@@ -3449,39 +3477,85 @@ func (c *Module) AlwaysRequiresPlatformApexVariant() bool {
 	return c.IsStubs() || c.Target().NativeBridge == android.NativeBridgeEnabled
 }
 
+// Overrides android.ApexModuleBase.UniqueApexVariations
+func (c *Module) UniqueApexVariations() bool {
+	// When a vendor APEX needs a VNDK lib in it (use_vndk_as_stable: false), it should be a unique
+	// APEX variation. Otherwise, another vendor APEX with use_vndk_as_stable:true may use a wrong
+	// variation of the VNDK lib because APEX variations are merged/grouped.
+	return c.UseVndk() && c.IsVndk()
+}
+
 var _ snapshot.RelativeInstallPath = (*Module)(nil)
+
+type moduleType int
+
+const (
+	unknownType moduleType = iota
+	binary
+	object
+	fullLibrary
+	staticLibrary
+	sharedLibrary
+	headerLibrary
+)
+
+func (c *Module) typ() moduleType {
+	if c.Binary() {
+		return binary
+	} else if c.Object() {
+		return object
+	} else if c.CcLibrary() {
+		static := false
+		shared := false
+		if library, ok := c.linker.(*libraryDecorator); ok {
+			static = library.MutatedProperties.BuildStatic
+			shared = library.MutatedProperties.BuildShared
+		} else if library, ok := c.linker.(*prebuiltLibraryLinker); ok {
+			static = library.MutatedProperties.BuildStatic
+			shared = library.MutatedProperties.BuildShared
+		}
+		if static && shared {
+			return fullLibrary
+		} else if !static && !shared {
+			return headerLibrary
+		} else if static {
+			return staticLibrary
+		}
+		return sharedLibrary
+	}
+	return unknownType
+}
 
 // ConvertWithBp2build converts Module to Bazel for bp2build.
 func (c *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
-	if c.Binary() {
-		binaryBp2build(ctx, c, ctx.ModuleType())
-	} else if c.Object() {
-		objectBp2Build(ctx, c)
-	} else if c.CcLibrary() {
-		if c.hod == android.HostSupported {
-			return
+	prebuilt := c.IsPrebuilt()
+	switch c.typ() {
+	case binary:
+		if !prebuilt {
+			binaryBp2build(ctx, c, ctx.ModuleType())
 		}
-
-		static := c.BuildStaticVariant()
-		shared := c.BuildSharedVariant()
-		prebuilt := c.IsPrebuilt()
-
-		if static && shared {
+	case object:
+		if !prebuilt {
+			objectBp2Build(ctx, c)
+		}
+	case fullLibrary:
+		if !prebuilt {
 			libraryBp2Build(ctx, c)
-		} else if !static && !shared {
-			libraryHeadersBp2Build(ctx, c)
-		} else if static {
-			if prebuilt {
-				prebuiltLibraryStaticBp2Build(ctx, c)
-			} else {
-				sharedOrStaticLibraryBp2Build(ctx, c, true)
-			}
-		} else if shared {
-			if prebuilt {
-				prebuiltLibrarySharedBp2Build(ctx, c)
-			} else {
-				sharedOrStaticLibraryBp2Build(ctx, c, false)
-			}
+		}
+	case headerLibrary:
+		libraryHeadersBp2Build(ctx, c)
+	case staticLibrary:
+
+		if prebuilt {
+			prebuiltLibraryStaticBp2Build(ctx, c)
+		} else {
+			sharedOrStaticLibraryBp2Build(ctx, c, true)
+		}
+	case sharedLibrary:
+		if prebuilt {
+			prebuiltLibrarySharedBp2Build(ctx, c)
+		} else {
+			sharedOrStaticLibraryBp2Build(ctx, c, false)
 		}
 	}
 }
@@ -3492,10 +3566,6 @@ func (c *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 type Defaults struct {
 	android.ModuleBase
 	android.DefaultsModuleBase
-	// Included to support setting bazel_module.label for multiple Soong modules to the same Bazel
-	// target. This is primarily useful for modules that were architecture specific and instead are
-	// handled in Bazel as a select().
-	android.BazelModuleBase
 	android.ApexModuleBase
 }
 
@@ -3536,6 +3606,7 @@ func DefaultsFactory(props ...interface{}) android.Module {
 		&SAbiProperties{},
 		&VndkProperties{},
 		&LTOProperties{},
+		&AfdoProperties{},
 		&PgoProperties{},
 		&android.ProtoProperties{},
 		// RustBindgenProperties is included here so that cc_defaults can be used for rust_bindgen modules.
@@ -3543,8 +3614,6 @@ func DefaultsFactory(props ...interface{}) android.Module {
 		&prebuiltLinkerProperties{},
 	)
 
-	// Bazel module must be initialized _before_ Defaults to be included in cc_defaults module.
-	android.InitBazelModule(module)
 	android.InitDefaultsModule(module)
 
 	return module

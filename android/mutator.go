@@ -254,6 +254,14 @@ type TopDownMutatorContext interface {
 	// BazelTargetModuleProperties containing additional metadata for the
 	// bp2build codegenerator.
 	CreateBazelTargetModule(bazel.BazelTargetModuleProperties, CommonAttributes, interface{})
+
+	// CreateBazelTargetModuleWithRestrictions creates a BazelTargetModule by calling the
+	// factory method, just like in CreateModule, but also requires
+	// BazelTargetModuleProperties containing additional metadata for the
+	// bp2build codegenerator. The generated target is restricted to only be buildable for certain
+	// platforms, as dictated by a given bool attribute: the target will not be buildable in
+	// any platform for which this bool attribute is false.
+	CreateBazelTargetModuleWithRestrictions(bazel.BazelTargetModuleProperties, CommonAttributes, interface{}, bazel.BoolAttribute)
 }
 
 type topDownMutatorContext struct {
@@ -315,13 +323,13 @@ type BottomUpMutatorContext interface {
 	// AddVariationDependencies adds deps as dependencies of the current module, but uses the variations
 	// argument to select which variant of the dependency to use.  It returns a slice of modules for
 	// each dependency (some entries may be nil).  A variant of the dependency must exist that matches
-	// the all of the non-local variations of the current module, plus the variations argument.
+	// all the non-local variations of the current module, plus the variations argument.
 	//
 	// If the mutator is parallel (see MutatorHandle.Parallel), this method will pause until the
 	// new dependencies have had the current mutator called on them.  If the mutator is not
 	// parallel this method does not affect the ordering of the current mutator pass, but will
 	// be ordered correctly for all future mutator passes.
-	AddVariationDependencies([]blueprint.Variation, blueprint.DependencyTag, ...string) []blueprint.Module
+	AddVariationDependencies(variations []blueprint.Variation, tag blueprint.DependencyTag, names ...string) []blueprint.Module
 
 	// AddFarVariationDependencies adds deps as dependencies of the current module, but uses the
 	// variations argument to select which variant of the dependency to use.  It returns a slice of
@@ -502,13 +510,30 @@ func (t *topDownMutatorContext) CreateBazelTargetModule(
 	bazelProps bazel.BazelTargetModuleProperties,
 	commonAttrs CommonAttributes,
 	attrs interface{}) {
-	commonAttrs.fillCommonBp2BuildModuleAttrs(t)
+	t.createBazelTargetModule(bazelProps, commonAttrs, attrs, bazel.BoolAttribute{})
+}
+
+func (t *topDownMutatorContext) CreateBazelTargetModuleWithRestrictions(
+	bazelProps bazel.BazelTargetModuleProperties,
+	commonAttrs CommonAttributes,
+	attrs interface{},
+	enabledProperty bazel.BoolAttribute) {
+	t.createBazelTargetModule(bazelProps, commonAttrs, attrs, enabledProperty)
+}
+
+func (t *topDownMutatorContext) createBazelTargetModule(
+	bazelProps bazel.BazelTargetModuleProperties,
+	commonAttrs CommonAttributes,
+	attrs interface{},
+	enabledProperty bazel.BoolAttribute) {
+	constraintAttributes := commonAttrs.fillCommonBp2BuildModuleAttrs(t, enabledProperty)
 	mod := t.Module()
 	info := bp2buildInfo{
-		Dir:         t.OtherModuleDir(mod),
-		BazelProps:  bazelProps,
-		CommonAttrs: commonAttrs,
-		Attrs:       attrs,
+		Dir:             t.OtherModuleDir(mod),
+		BazelProps:      bazelProps,
+		CommonAttrs:     commonAttrs,
+		ConstraintAttrs: constraintAttributes,
+		Attrs:           attrs,
 	}
 	mod.base().addBp2buildInfo(info)
 }

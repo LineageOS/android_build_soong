@@ -30,7 +30,6 @@ const (
 
 func registerCcLibrarySharedModuleTypes(ctx android.RegistrationContext) {
 	cc.RegisterCCBuildComponents(ctx)
-	ctx.RegisterModuleType("toolchain_library", cc.ToolchainLibraryFactory)
 	ctx.RegisterModuleType("cc_library_headers", cc.LibraryHeaderFactory)
 	ctx.RegisterModuleType("cc_library_static", cc.LibraryStaticFactory)
 	ctx.RegisterModuleType("cc_library", cc.LibraryFactory)
@@ -422,7 +421,7 @@ cc_library_shared {
     include_build_directory: false,
 }
 `,
-		expectedErr: fmt.Errorf("Android.bp:16:1: module \"foo_shared\": nocrt is not supported for arch variants"),
+		expectedErr: fmt.Errorf("module \"foo_shared\": nocrt is not supported for arch variants"),
 	})
 }
 
@@ -463,4 +462,34 @@ func TestCcLibrarySharedUseVersionLib(t *testing.T) {
 			}),
 		},
 	})
+}
+
+func TestCcLibrarySharedStubs(t *testing.T) {
+	runCcLibrarySharedTestCase(t, bp2buildTestCase{
+		description:                "cc_library_shared stubs",
+		moduleTypeUnderTest:        "cc_library_shared",
+		moduleTypeUnderTestFactory: cc.LibrarySharedFactory,
+		dir:                        "foo/bar",
+		filesystem: map[string]string{
+			"foo/bar/Android.bp": `
+cc_library_shared {
+	name: "a",
+	stubs: { symbol_file: "a.map.txt", versions: ["28", "29", "current"] },
+	bazel_module: { bp2build_available: true },
+	include_build_directory: false,
+}
+`,
+		},
+		blueprint: soongCcLibraryPreamble,
+		expectedBazelTargets: []string{makeBazelTarget("cc_library_shared", "a", attrNameToString{
+			"stubs_symbol_file": `"a.map.txt"`,
+			"stubs_versions": `[
+        "28",
+        "29",
+        "current",
+    ]`,
+		}),
+		},
+	},
+	)
 }

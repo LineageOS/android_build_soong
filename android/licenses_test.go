@@ -90,9 +90,9 @@ var licensesTests = []struct {
 			"libother":    []string{"shownotice"},
 		},
 		effectiveNotices: map[string][]string{
-			"libexample1": []string{"top/LICENSE", "top/NOTICE"},
-			"libnested":   []string{"top/LICENSE", "top/NOTICE"},
-			"libother":    []string{"top/LICENSE", "top/NOTICE"},
+			"libexample1": []string{"top/LICENSE:topDog", "top/NOTICE:topDog"},
+			"libnested":   []string{"top/LICENSE:topDog", "top/NOTICE:topDog"},
+			"libother":    []string{"top/LICENSE:topDog", "top/NOTICE:topDog"},
 		},
 	},
 
@@ -778,9 +778,6 @@ func newMockLicensesBadModule() Module {
 
 	base := m.base()
 	m.AddProperties(&base.nameProperties, &m.properties)
-
-	base.generalProperties = m.GetProperties()
-	base.customizableProperties = m.GetProperties()
 
 	// The default_visibility property needs to be checked and parsed by the visibility module during
 	// its checking and parsing phases so make it the primary visibility property.

@@ -54,6 +54,7 @@ func RegisterPrebuiltEtcBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("prebuilt_etc", PrebuiltEtcFactory)
 	ctx.RegisterModuleType("prebuilt_etc_host", PrebuiltEtcHostFactory)
 	ctx.RegisterModuleType("prebuilt_root", PrebuiltRootFactory)
+	ctx.RegisterModuleType("prebuilt_root_host", PrebuiltRootHostFactory)
 	ctx.RegisterModuleType("prebuilt_usr_share", PrebuiltUserShareFactory)
 	ctx.RegisterModuleType("prebuilt_usr_share_host", PrebuiltUserShareHostFactory)
 	ctx.RegisterModuleType("prebuilt_font", PrebuiltFontFactory)
@@ -376,7 +377,7 @@ func (p *PrebuiltEtc) AndroidMkEntries() []android.AndroidMkEntries {
 		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
 			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
 				entries.SetString("LOCAL_MODULE_TAGS", "optional")
-				entries.SetString("LOCAL_MODULE_PATH", p.installDirPath.ToMakePath().String())
+				entries.SetString("LOCAL_MODULE_PATH", p.installDirPath.String())
 				entries.SetString("LOCAL_INSTALLED_MODULE_STEM", p.outputFilePath.Base())
 				if len(p.properties.Symlinks) > 0 {
 					entries.AddStrings("LOCAL_MODULE_SYMLINKS", p.properties.Symlinks...)
@@ -439,6 +440,7 @@ func PrebuiltEtcHostFactory() android.Module {
 	// This module is host-only
 	android.InitAndroidArchModule(module, android.HostSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
+	android.InitBazelModule(module)
 	return module
 }
 
@@ -449,6 +451,17 @@ func PrebuiltRootFactory() android.Module {
 	InitPrebuiltRootModule(module)
 	// This module is device-only
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
+	android.InitDefaultableModule(module)
+	return module
+}
+
+// prebuilt_root_host is for a host prebuilt artifact that is installed in $(HOST_OUT)/<sub_dir>
+// directory.
+func PrebuiltRootHostFactory() android.Module {
+	module := &PrebuiltEtc{}
+	InitPrebuiltEtcModule(module, ".")
+	// This module is host-only
+	android.InitAndroidArchModule(module, android.HostSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
 	return module
 }
@@ -665,7 +678,7 @@ type bazelPrebuiltEtcAttributes struct {
 // ConvertWithBp2build performs bp2build conversion of PrebuiltEtc
 func (p *PrebuiltEtc) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 	// All prebuilt_* modules are PrebuiltEtc, but at this time, we only convert prebuilt_etc modules.
-	if ctx.ModuleType() != "prebuilt_etc" {
+	if p.installDirBase != "etc" {
 		return
 	}
 
@@ -681,7 +694,8 @@ func prebuiltEtcBp2BuildInternal(ctx android.TopDownMutatorContext, module *Preb
 				continue
 			}
 			if props.Src != nil {
-				srcLabelAttribute.SetSelectValue(axis, config, android.BazelLabelForModuleSrcSingle(ctx, *props.Src))
+				label := android.BazelLabelForModuleSrcSingle(ctx, *props.Src)
+				srcLabelAttribute.SetSelectValue(axis, config, label)
 			}
 		}
 	}

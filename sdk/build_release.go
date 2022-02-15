@@ -85,7 +85,7 @@ var (
 
 	// Add the build releases from oldest to newest.
 	buildReleaseS = initBuildRelease("S")
-	buildReleaseT = initBuildRelease("T")
+	buildReleaseT = initBuildRelease("Tiramisu")
 )
 
 // initBuildRelease creates a new build release with the specified name.
@@ -230,51 +230,108 @@ func (p *propertyPruner) gatherFields(structType reflect.Type, containingStructA
 			return container.Field(fieldIndex)
 		}
 
-		zeroValue := reflect.Zero(field.Type)
-		fieldPruner := func(container reflect.Value) {
-			if containingStructAccessor != nil {
-				// This is an embedded structure so first access the field for the embedded
-				// structure.
-				container = containingStructAccessor(container)
+		fieldType := field.Type
+		if selector(name, field) {
+			zeroValue := reflect.Zero(fieldType)
+			fieldPruner := func(container reflect.Value) {
+				if containingStructAccessor != nil {
+					// This is an embedded structure so first access the field for the embedded
+					// structure.
+					container = containingStructAccessor(container)
+				}
+
+				// Skip through interface and pointer values to find the structure.
+				container = getStructValue(container)
+
+				defer func() {
+					if r := recover(); r != nil {
+						panic(fmt.Errorf("%s\n\tfor field (index %d, name %s)", r, fieldIndex, name))
+					}
+				}()
+
+				// Set the field.
+				container.Field(fieldIndex).Set(zeroValue)
 			}
 
-			// Skip through interface and pointer values to find the structure.
-			container = getStructValue(container)
-
-			defer func() {
-				if r := recover(); r != nil {
-					panic(fmt.Errorf("%s for fieldIndex %d of field %s of container %#v", r, fieldIndex, name, container.Interface()))
-				}
-			}()
-
-			// Set the field.
-			container.Field(fieldIndex).Set(zeroValue)
-		}
-
-		if selector(name, field) {
 			property := prunerProperty{
 				name,
 				fieldPruner,
 			}
 			p.properties = append(p.properties, property)
-		} else if field.Type.Kind() == reflect.Struct {
-			// Gather fields from the nested or embedded structure.
-			var subNamePrefix string
-			if field.Anonymous {
-				subNamePrefix = namePrefix
-			} else {
-				subNamePrefix = name + "."
+		} else {
+			switch fieldType.Kind() {
+			case reflect.Struct:
+				// Gather fields from the nested or embedded structure.
+				var subNamePrefix string
+				if field.Anonymous {
+					subNamePrefix = namePrefix
+				} else {
+					subNamePrefix = name + "."
+				}
+				p.gatherFields(fieldType, fieldGetter, subNamePrefix, selector)
+
+			case reflect.Map:
+				// Get the type of the values stored in the map.
+				valueType := fieldType.Elem()
+				// Skip over * types.
+				if valueType.Kind() == reflect.Ptr {
+					valueType = valueType.Elem()
+				}
+				if valueType.Kind() == reflect.Struct {
+					// If this is not referenced by a pointer then it is an error as it is impossible to
+					// modify a struct that is stored directly as a value in a map.
+					if fieldType.Elem().Kind() != reflect.Ptr {
+						panic(fmt.Errorf("Cannot prune struct %s stored by value in map %s, map values must"+
+							" be pointers to structs",
+							fieldType.Elem(), name))
+					}
+
+					// Create a new pruner for the values of the map.
+					valuePruner := newPropertyPrunerForStructType(valueType, selector)
+
+					// Create a new fieldPruner that will iterate over all the items in the map and call the
+					// pruner on them.
+					fieldPruner := func(container reflect.Value) {
+						mapValue := fieldGetter(container)
+
+						for _, keyValue := range mapValue.MapKeys() {
+							itemValue := mapValue.MapIndex(keyValue)
+
+							defer func() {
+								if r := recover(); r != nil {
+									panic(fmt.Errorf("%s\n\tfor key %q", r, keyValue))
+								}
+							}()
+
+							valuePruner.pruneProperties(itemValue.Interface())
+						}
+					}
+
+					// Add the map field pruner to the list of property pruners.
+					property := prunerProperty{
+						name + "[*]",
+						fieldPruner,
+					}
+					p.properties = append(p.properties, property)
+				}
 			}
-			p.gatherFields(field.Type, fieldGetter, subNamePrefix, selector)
 		}
 	}
 }
 
-// pruneProperties will prune (set to zero value) any properties in the supplied struct.
+// pruneProperties will prune (set to zero value) any properties in the struct referenced by the
+// supplied struct pointer.
 //
 // The struct must be of the same type as was originally passed to newPropertyPruner to create this
 // propertyPruner.
 func (p *propertyPruner) pruneProperties(propertiesStruct interface{}) {
+
+	defer func() {
+		if r := recover(); r != nil {
+			panic(fmt.Errorf("%s\n\tof container %#v", r, propertiesStruct))
+		}
+	}()
+
 	structValue := reflect.ValueOf(propertiesStruct)
 	for _, property := range p.properties {
 		property.prunerFunc(structValue)
@@ -292,6 +349,13 @@ type fieldSelectorFunc func(name string, field reflect.StructField) bool
 // of properties.
 func newPropertyPruner(propertiesStruct interface{}, selector fieldSelectorFunc) *propertyPruner {
 	structType := getStructValue(reflect.ValueOf(propertiesStruct)).Type()
+	return newPropertyPrunerForStructType(structType, selector)
+}
+
+// newPropertyPruner creates a new property pruner for the supplied properties struct type.
+//
+// The returned pruner can be used on any properties structure of the supplied type.
+func newPropertyPrunerForStructType(structType reflect.Type, selector fieldSelectorFunc) *propertyPruner {
 	pruner := &propertyPruner{}
 	pruner.gatherFields(structType, nil, "", selector)
 	return pruner

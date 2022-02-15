@@ -104,6 +104,7 @@ apex {
 	certificate: "com.android.apogee.certificate",
 	updatable: false,
 	installable: false,
+	compressible: false,
 	native_shared_libs: [
 	    "native_shared_lib_1",
 	    "native_shared_lib_2",
@@ -131,15 +132,147 @@ apex {
 				"key":             `":com.android.apogee.key"`,
 				"manifest":        `"apogee_manifest.json"`,
 				"min_sdk_version": `"29"`,
-				"native_shared_libs": `[
+				"native_shared_libs_32": `[
         ":native_shared_lib_1",
         ":native_shared_lib_2",
     ]`,
+				"native_shared_libs_64": `select({
+        "//build/bazel/platforms/arch:arm64": [
+            ":native_shared_lib_1",
+            ":native_shared_lib_2",
+        ],
+        "//build/bazel/platforms/arch:x86_64": [
+            ":native_shared_lib_1",
+            ":native_shared_lib_2",
+        ],
+        "//conditions:default": [],
+    })`,
 				"prebuilts": `[
         ":pretend_prebuilt_1",
         ":pretend_prebuilt_2",
     ]`,
-				"updatable": "False",
+				"updatable":    "False",
+				"compressible": "False",
+			}),
+		}})
+}
+
+func TestApexBundleCompileMultilibBoth(t *testing.T) {
+	runApexTestCase(t, bp2buildTestCase{
+		description:                "apex - example with compile_multilib=both",
+		moduleTypeUnderTest:        "apex",
+		moduleTypeUnderTestFactory: apex.BundleFactory,
+		filesystem:                 map[string]string{},
+		blueprint:                  createMultilibBlueprint("both"),
+		expectedBazelTargets: []string{
+			makeBazelTarget("apex", "com.android.apogee", attrNameToString{
+				"native_shared_libs_32": `[
+        ":native_shared_lib_1",
+        ":native_shared_lib_3",
+    ] + select({
+        "//build/bazel/platforms/arch:arm": [":native_shared_lib_2"],
+        "//build/bazel/platforms/arch:x86": [":native_shared_lib_2"],
+        "//conditions:default": [],
+    })`,
+				"native_shared_libs_64": `select({
+        "//build/bazel/platforms/arch:arm64": [
+            ":native_shared_lib_1",
+            ":native_shared_lib_4",
+            ":native_shared_lib_2",
+        ],
+        "//build/bazel/platforms/arch:x86_64": [
+            ":native_shared_lib_1",
+            ":native_shared_lib_4",
+            ":native_shared_lib_2",
+        ],
+        "//conditions:default": [],
+    })`,
+			}),
+		}})
+}
+
+func TestApexBundleCompileMultilibFirst(t *testing.T) {
+	runApexTestCase(t, bp2buildTestCase{
+		description:                "apex - example with compile_multilib=first",
+		moduleTypeUnderTest:        "apex",
+		moduleTypeUnderTestFactory: apex.BundleFactory,
+		filesystem:                 map[string]string{},
+		blueprint:                  createMultilibBlueprint("first"),
+		expectedBazelTargets: []string{
+			makeBazelTarget("apex", "com.android.apogee", attrNameToString{
+				"native_shared_libs_32": `select({
+        "//build/bazel/platforms/arch:arm": [
+            ":native_shared_lib_1",
+            ":native_shared_lib_3",
+            ":native_shared_lib_2",
+        ],
+        "//build/bazel/platforms/arch:x86": [
+            ":native_shared_lib_1",
+            ":native_shared_lib_3",
+            ":native_shared_lib_2",
+        ],
+        "//conditions:default": [],
+    })`,
+				"native_shared_libs_64": `select({
+        "//build/bazel/platforms/arch:arm64": [
+            ":native_shared_lib_1",
+            ":native_shared_lib_4",
+            ":native_shared_lib_2",
+        ],
+        "//build/bazel/platforms/arch:x86_64": [
+            ":native_shared_lib_1",
+            ":native_shared_lib_4",
+            ":native_shared_lib_2",
+        ],
+        "//conditions:default": [],
+    })`,
+			}),
+		}})
+}
+
+func TestApexBundleCompileMultilib32(t *testing.T) {
+	runApexTestCase(t, bp2buildTestCase{
+		description:                "apex - example with compile_multilib=32",
+		moduleTypeUnderTest:        "apex",
+		moduleTypeUnderTestFactory: apex.BundleFactory,
+		filesystem:                 map[string]string{},
+		blueprint:                  createMultilibBlueprint("32"),
+		expectedBazelTargets: []string{
+			makeBazelTarget("apex", "com.android.apogee", attrNameToString{
+				"native_shared_libs_32": `[
+        ":native_shared_lib_1",
+        ":native_shared_lib_3",
+    ] + select({
+        "//build/bazel/platforms/arch:arm": [":native_shared_lib_2"],
+        "//build/bazel/platforms/arch:x86": [":native_shared_lib_2"],
+        "//conditions:default": [],
+    })`,
+			}),
+		}})
+}
+
+func TestApexBundleCompileMultilib64(t *testing.T) {
+	runApexTestCase(t, bp2buildTestCase{
+		description:                "apex - example with compile_multilib=64",
+		moduleTypeUnderTest:        "apex",
+		moduleTypeUnderTestFactory: apex.BundleFactory,
+		filesystem:                 map[string]string{},
+		blueprint:                  createMultilibBlueprint("64"),
+		expectedBazelTargets: []string{
+			makeBazelTarget("apex", "com.android.apogee", attrNameToString{
+				"native_shared_libs_64": `select({
+        "//build/bazel/platforms/arch:arm64": [
+            ":native_shared_lib_1",
+            ":native_shared_lib_4",
+            ":native_shared_lib_2",
+        ],
+        "//build/bazel/platforms/arch:x86_64": [
+            ":native_shared_lib_1",
+            ":native_shared_lib_4",
+            ":native_shared_lib_2",
+        ],
+        "//conditions:default": [],
+    })`,
 			}),
 		}})
 }
@@ -179,4 +312,54 @@ apex {
 			"manifest": `"manifest.json"`,
 		}),
 		}})
+}
+
+func createMultilibBlueprint(compile_multilib string) string {
+	return `
+cc_library {
+	name: "native_shared_lib_1",
+	bazel_module: { bp2build_available: false },
+}
+
+cc_library {
+	name: "native_shared_lib_2",
+	bazel_module: { bp2build_available: false },
+}
+
+cc_library {
+	name: "native_shared_lib_3",
+	bazel_module: { bp2build_available: false },
+}
+
+cc_library {
+	name: "native_shared_lib_4",
+	bazel_module: { bp2build_available: false },
+}
+
+apex {
+	name: "com.android.apogee",
+	compile_multilib: "` + compile_multilib + `",
+	multilib: {
+		both: {
+			native_shared_libs: [
+				"native_shared_lib_1",
+			],
+		},
+		first: {
+			native_shared_libs: [
+				"native_shared_lib_2",
+			],
+		},
+		lib32: {
+			native_shared_libs: [
+				"native_shared_lib_3",
+			],
+		},
+		lib64: {
+			native_shared_libs: [
+				"native_shared_lib_4",
+			],
+		},
+	},
+}`
 }

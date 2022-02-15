@@ -100,6 +100,48 @@ type GlobalConfig struct {
 	RelaxUsesLibraryCheck bool
 }
 
+var allPlatformSystemServerJarsKey = android.NewOnceKey("allPlatformSystemServerJars")
+
+// Returns all jars on the platform that system_server loads, including those on classpath and those
+// loaded dynamically.
+func (g *GlobalConfig) AllPlatformSystemServerJars(ctx android.PathContext) *android.ConfiguredJarList {
+	return ctx.Config().Once(allPlatformSystemServerJarsKey, func() interface{} {
+		res := g.SystemServerJars.AppendList(&g.StandaloneSystemServerJars)
+		return &res
+	}).(*android.ConfiguredJarList)
+}
+
+var allApexSystemServerJarsKey = android.NewOnceKey("allApexSystemServerJars")
+
+// Returns all jars delivered via apex that system_server loads, including those on classpath and
+// those loaded dynamically.
+func (g *GlobalConfig) AllApexSystemServerJars(ctx android.PathContext) *android.ConfiguredJarList {
+	return ctx.Config().Once(allApexSystemServerJarsKey, func() interface{} {
+		res := g.ApexSystemServerJars.AppendList(&g.ApexStandaloneSystemServerJars)
+		return &res
+	}).(*android.ConfiguredJarList)
+}
+
+var allSystemServerClasspathJarsKey = android.NewOnceKey("allSystemServerClasspathJars")
+
+// Returns all system_server classpath jars.
+func (g *GlobalConfig) AllSystemServerClasspathJars(ctx android.PathContext) *android.ConfiguredJarList {
+	return ctx.Config().Once(allSystemServerClasspathJarsKey, func() interface{} {
+		res := g.SystemServerJars.AppendList(&g.ApexSystemServerJars)
+		return &res
+	}).(*android.ConfiguredJarList)
+}
+
+var allSystemServerJarsKey = android.NewOnceKey("allSystemServerJars")
+
+// Returns all jars that system_server loads.
+func (g *GlobalConfig) AllSystemServerJars(ctx android.PathContext) *android.ConfiguredJarList {
+	return ctx.Config().Once(allSystemServerJarsKey, func() interface{} {
+		res := g.AllPlatformSystemServerJars(ctx).AppendList(g.AllApexSystemServerJars(ctx))
+		return &res
+	}).(*android.ConfiguredJarList)
+}
+
 // GlobalSoongConfig contains the global config that is generated from Soong,
 // stored in dexpreopt_soong.config.
 type GlobalSoongConfig struct {
@@ -366,6 +408,7 @@ func dex2oatModuleName(config android.Config) string {
 
 type dex2oatDependencyTag struct {
 	blueprint.BaseDependencyTag
+	android.LicenseAnnotationToolchainDependencyTag
 }
 
 func (d dex2oatDependencyTag) ExcludeFromVisibilityEnforcement() {

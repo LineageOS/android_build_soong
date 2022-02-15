@@ -166,10 +166,22 @@ func primaryBuilderInvocation(
 	}
 
 	commonArgs = append(commonArgs, "-l", filepath.Join(config.FileListDir(), "Android.bp.list"))
+	invocationEnv := make(map[string]string)
+	debugMode := os.Getenv("SOONG_DELVE") != ""
 
-	if os.Getenv("SOONG_DELVE") != "" {
+	if debugMode {
 		commonArgs = append(commonArgs, "--delve_listen", os.Getenv("SOONG_DELVE"))
 		commonArgs = append(commonArgs, "--delve_path", shared.ResolveDelveBinary())
+		// GODEBUG=asyncpreemptoff=1 disables the preemption of goroutines. This
+		// is useful because the preemption happens by sending SIGURG to the OS
+		// thread hosting the goroutine in question and each signal results in
+		// work that needs to be done by Delve; it uses ptrace to debug the Go
+		// process and the tracer process must deal with every signal (it is not
+		// possible to selectively ignore SIGURG). This makes debugging slower,
+		// sometimes by an order of magnitude depending on luck.
+		// The original reason for adding async preemption to Go is here:
+		// https://github.com/golang/proposal/blob/master/design/24543-non-cooperative-preemption.md
+		invocationEnv["GODEBUG"] = "asyncpreemptoff=1"
 	}
 
 	allArgs := make([]string, 0, 0)
@@ -187,6 +199,12 @@ func primaryBuilderInvocation(
 		Outputs:     []string{output},
 		Args:        allArgs,
 		Description: description,
+		// NB: Changing the value of this environment variable will not result in a
+		// rebuild. The bootstrap Ninja file will change, but apparently Ninja does
+		// not consider changing the pool specified in a statement a change that's
+		// worth rebuilding for.
+		Console: os.Getenv("SOONG_UNBUFFERED_OUTPUT") == "1",
+		Env:     invocationEnv,
 	}
 }
 
@@ -266,6 +284,7 @@ func bootstrapBlueprint(ctx Context, config Config) {
 		config.ModuleGraphFile(),
 		[]string{
 			"--module_graph_file", config.ModuleGraphFile(),
+			"--module_actions_file", config.ModuleActionsFile(),
 		},
 		fmt.Sprintf("generating the Soong module graph at %s", config.ModuleGraphFile()),
 	)

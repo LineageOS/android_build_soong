@@ -19,6 +19,7 @@ var (
 		"frameworks/native/libs/binder/rust",
 		"frameworks/proto_logging/stats",
 		"hardware/interfaces/security",
+		"hardware/interfaces/uwb",
 		"packages/modules/Bluetooth",
 		"packages/modules/DnsResolver",
 		"packages/modules/Uwb",
@@ -36,6 +37,8 @@ var (
 		"system/tools/aidl",
 		"tools/security/fuzzing/example_rust_fuzzer",
 		"tools/security/fuzzing/orphans",
+		"tools/security/remote_provisioning/cert_validator",
+		"tools/vendor",
 		"vendor/",
 	}
 

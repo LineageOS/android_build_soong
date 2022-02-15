@@ -781,19 +781,21 @@ func (b baseTestingComponent) buildParamsFromRule(rule string) TestingBuildParam
 	return p
 }
 
-func (b baseTestingComponent) maybeBuildParamsFromDescription(desc string) TestingBuildParams {
+func (b baseTestingComponent) maybeBuildParamsFromDescription(desc string) (TestingBuildParams, []string) {
+	var searchedDescriptions []string
 	for _, p := range b.provider.BuildParamsForTests() {
+		searchedDescriptions = append(searchedDescriptions, p.Description)
 		if strings.Contains(p.Description, desc) {
-			return b.newTestingBuildParams(p)
+			return b.newTestingBuildParams(p), searchedDescriptions
 		}
 	}
-	return TestingBuildParams{}
+	return TestingBuildParams{}, searchedDescriptions
 }
 
 func (b baseTestingComponent) buildParamsFromDescription(desc string) TestingBuildParams {
-	p := b.maybeBuildParamsFromDescription(desc)
+	p, searchedDescriptions := b.maybeBuildParamsFromDescription(desc)
 	if p.Rule == nil {
-		panic(fmt.Errorf("couldn't find description %q", desc))
+		panic(fmt.Errorf("couldn't find description %q\nall descriptions:\n%s", desc, strings.Join(searchedDescriptions, "\n")))
 	}
 	return p
 }
@@ -860,7 +862,8 @@ func (b baseTestingComponent) Rule(rule string) TestingBuildParams {
 // MaybeDescription finds a call to ctx.Build with BuildParams.Description set to a the given string.  Returns an empty
 // BuildParams if no rule is found.
 func (b baseTestingComponent) MaybeDescription(desc string) TestingBuildParams {
-	return b.maybeBuildParamsFromDescription(desc)
+	p, _ := b.maybeBuildParamsFromDescription(desc)
+	return p
 }
 
 // Description finds a call to ctx.Build with BuildParams.Description set to a the given string.  Panics if no rule is

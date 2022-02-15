@@ -76,7 +76,6 @@ func BinaryFactory() android.Module {
 // cc_binary_host produces a binary that is runnable on a host.
 func BinaryHostFactory() android.Module {
 	module, _ := newBinary(android.HostSupported, true)
-	module.bazelable = true
 	return module.Init()
 }
 
@@ -427,7 +426,7 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 		linkerDeps = append(linkerDeps, ndkSharedLibDeps(ctx)...)
 	}
 
-	validations = append(validations, objs.tidyFiles...)
+	validations = append(validations, objs.tidyDepFiles...)
 	linkerDeps = append(linkerDeps, flags.LdFlagsDeps...)
 
 	// Register link action.
@@ -558,13 +557,6 @@ func (binary *binaryDecorator) verifyHostBionicLinker(ctx ModuleContext, in, lin
 }
 
 func binaryBp2build(ctx android.TopDownMutatorContext, m *Module, typ string) {
-	var compatibleWith bazel.StringListAttribute
-	if typ == "cc_binary_host" {
-		//incompatible with android OS
-		compatibleWith.SetSelectValue(bazel.OsConfigurationAxis, android.Android.Name, []string{"@platforms//:incompatible"})
-		compatibleWith.SetSelectValue(bazel.OsConfigurationAxis, bazel.ConditionsDefaultConfigKey, []string{})
-	}
-
 	baseAttrs := bp2BuildParseBaseProps(ctx, m)
 	binaryLinkerAttrs := bp2buildBinaryLinkerProps(ctx, m)
 
@@ -610,13 +602,12 @@ func binaryBp2build(ctx android.TopDownMutatorContext, m *Module, typ string) {
 			None:                         baseAttrs.stripNone,
 		},
 
-		Target_compatible_with: compatibleWith,
-		Features:               baseAttrs.features,
+		Features: baseAttrs.features,
 	}
 
 	ctx.CreateBazelTargetModule(bazel.BazelTargetModuleProperties{
 		Rule_class:        "cc_binary",
-		Bzl_load_location: "//build/bazel/rules:cc_binary.bzl",
+		Bzl_load_location: "//build/bazel/rules/cc:cc_binary.bzl",
 	},
 		android.CommonAttributes{Name: m.Name()},
 		attrs)
@@ -655,6 +646,4 @@ type binaryAttributes struct {
 	Strip stripAttributes
 
 	Features bazel.StringListAttribute
-
-	Target_compatible_with bazel.StringListAttribute
 }

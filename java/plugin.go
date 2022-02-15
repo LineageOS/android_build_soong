@@ -14,7 +14,10 @@
 
 package java
 
-import "android/soong/android"
+import (
+	"android/soong/android"
+	"android/soong/bazel"
+)
 
 func init() {
 	registerJavaPluginBuildComponents(android.InitRegistrationContext)
@@ -24,7 +27,6 @@ func registerJavaPluginBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("java_plugin", PluginFactory)
 }
 
-// A java_plugin module describes a host java library that will be used by javac as an annotation processor.
 func PluginFactory() android.Module {
 	module := &Plugin{}
 
@@ -32,9 +34,13 @@ func PluginFactory() android.Module {
 	module.AddProperties(&module.pluginProperties)
 
 	InitJavaModule(module, android.HostSupported)
+
+	android.InitBazelModule(module)
+
 	return module
 }
 
+// Plugin describes a java_plugin module, a host java library that will be used by javac as an annotation processor.
 type Plugin struct {
 	Library
 
@@ -49,4 +55,30 @@ type PluginProperties struct {
 	// This necessitates disabling the turbine optimization on modules that use this plugin, which will reduce
 	// parallelism and cause more recompilation for modules that depend on modules that use this plugin.
 	Generates_api *bool
+}
+
+type pluginAttributes struct {
+	*javaLibraryAttributes
+	Processor_class        *string
+	Target_compatible_with bazel.LabelListAttribute
+}
+
+// ConvertWithBp2build is used to convert android_app to Bazel.
+func (p *Plugin) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+	libAttrs := p.convertLibraryAttrsBp2Build(ctx)
+	attrs := &pluginAttributes{
+		libAttrs,
+		nil,
+		bazel.LabelListAttribute{},
+	}
+
+	if p.pluginProperties.Processor_class != nil {
+		attrs.Processor_class = p.pluginProperties.Processor_class
+	}
+
+	props := bazel.BazelTargetModuleProperties{
+		Rule_class: "java_plugin",
+	}
+
+	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: p.Name()}, attrs)
 }

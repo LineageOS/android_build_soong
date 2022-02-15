@@ -59,7 +59,7 @@ func dexpreoptSystemserverCheckFactory() android.SingletonModule {
 
 func getInstallPath(ctx android.ModuleContext, location string) android.InstallPath {
 	return android.PathForModuleInPartitionInstall(
-		ctx, "", strings.TrimPrefix(location, "/")).ToMakePath()
+		ctx, "", strings.TrimPrefix(location, "/"))
 }
 
 func (m *dexpreoptSystemserverCheck) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -72,9 +72,9 @@ func (m *dexpreoptSystemserverCheck) GenerateAndroidBuildActions(ctx android.Mod
 		return
 	}
 
-	systemServerJars := dexpreopt.AllSystemServerJars(ctx, global)
+	systemServerJars := global.AllSystemServerJars(ctx)
 	for _, jar := range systemServerJars.CopyOfJars() {
-		dexLocation := dexpreopt.GetSystemServerDexLocation(global, jar)
+		dexLocation := dexpreopt.GetSystemServerDexLocation(ctx, global, jar)
 		odexLocation := dexpreopt.ToOdexPath(dexLocation, targets[0].Arch.ArchType)
 		odexPath := getInstallPath(ctx, odexLocation)
 		vdexPath := getInstallPath(ctx, pathtools.ReplaceExtension(odexLocation, "vdex"))

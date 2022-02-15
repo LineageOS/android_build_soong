@@ -15,6 +15,8 @@
 package android
 
 import (
+	"bufio"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
@@ -206,7 +208,8 @@ var (
 		"build/bazel/platforms":/* recursive = */ true,
 		"build/bazel/product_variables":/* recursive = */ true,
 		"build/bazel_common_rules":/* recursive = */ true,
-		"build/make/tools":/* recursive = */ true,
+		// build/make/tools/signapk BUILD file is generated, so build/make/tools is not recursive.
+		"build/make/tools":/* recursive = */ false,
 		"build/pesto":/* recursive = */ true,
 
 		// external/bazelbuild-rules_android/... is needed by mixed builds, otherwise mixed builds analysis fails
@@ -214,7 +217,6 @@ var (
 		"external/bazelbuild-rules_android":/* recursive = */ true,
 		"external/bazel-skylib":/* recursive = */ true,
 		"external/guava":/* recursive = */ true,
-		"external/error_prone":/* recursive = */ true,
 		"external/jsr305":/* recursive = */ true,
 		"frameworks/ex/common":/* recursive = */ true,
 
@@ -223,6 +225,7 @@ var (
 		"packages/apps/WallpaperPicker":/* recursive = */ false,
 
 		"prebuilts/gcc":/* recursive = */ true,
+		"prebuilts/build-tools":/* recursive = */ false,
 		"prebuilts/sdk":/* recursive = */ false,
 		"prebuilts/sdk/current/extras/app-toolkit":/* recursive = */ false,
 		"prebuilts/sdk/current/support":/* recursive = */ false,
@@ -232,15 +235,21 @@ var (
 
 	// Configure modules in these directories to enable bp2build_available: true or false by default.
 	bp2buildDefaultConfig = Bp2BuildConfig{
+		"art/libartpalette":                     Bp2BuildDefaultTrueRecursively,
 		"art/libdexfile":                        Bp2BuildDefaultTrueRecursively,
+		"art/runtime":                           Bp2BuildDefaultTrueRecursively,
+		"art/tools":                             Bp2BuildDefaultTrue,
 		"bionic":                                Bp2BuildDefaultTrueRecursively,
 		"bootable/recovery/tools/recovery_l10n": Bp2BuildDefaultTrue,
 		"build/bazel/examples/soong_config_variables":        Bp2BuildDefaultTrueRecursively,
 		"build/bazel/examples/apex/minimal":                  Bp2BuildDefaultTrueRecursively,
+		"build/make/tools/signapk":                           Bp2BuildDefaultTrue,
 		"build/soong":                                        Bp2BuildDefaultTrue,
 		"build/soong/cc/libbuildversion":                     Bp2BuildDefaultTrue, // Skip tests subdir
 		"build/soong/cc/ndkstubgen":                          Bp2BuildDefaultTrue,
 		"build/soong/cc/symbolfile":                          Bp2BuildDefaultTrue,
+		"build/soong/linkerconfig":                           Bp2BuildDefaultTrueRecursively,
+		"build/soong/scripts":                                Bp2BuildDefaultTrueRecursively,
 		"cts/common/device-side/nativetesthelper/jni":        Bp2BuildDefaultTrueRecursively,
 		"development/apps/DevelopmentSettings":               Bp2BuildDefaultTrue,
 		"development/apps/Fallback":                          Bp2BuildDefaultTrue,
@@ -276,20 +285,31 @@ var (
 		"development/samples/USB/MissileLauncher":            Bp2BuildDefaultTrue,
 		"development/samples/VoiceRecognitionService":        Bp2BuildDefaultTrue,
 		"development/samples/VoicemailProviderDemo":          Bp2BuildDefaultTrue,
+		"development/samples/WiFiDirectDemo":                 Bp2BuildDefaultTrue,
 		"development/sdk":                                    Bp2BuildDefaultTrueRecursively,
 		"external/arm-optimized-routines":                    Bp2BuildDefaultTrueRecursively,
+		"external/auto/common":                               Bp2BuildDefaultTrueRecursively,
+		"external/auto/service":                              Bp2BuildDefaultTrueRecursively,
 		"external/boringssl":                                 Bp2BuildDefaultTrueRecursively,
+		"external/bouncycastle":                              Bp2BuildDefaultTrue,
 		"external/brotli":                                    Bp2BuildDefaultTrue,
+		"external/conscrypt":                                 Bp2BuildDefaultTrue,
+		"external/error_prone":                               Bp2BuildDefaultTrueRecursively,
 		"external/fmtlib":                                    Bp2BuildDefaultTrueRecursively,
 		"external/google-benchmark":                          Bp2BuildDefaultTrueRecursively,
 		"external/googletest":                                Bp2BuildDefaultTrueRecursively,
 		"external/gwp_asan":                                  Bp2BuildDefaultTrueRecursively,
+		"external/icu":                                       Bp2BuildDefaultTrueRecursively,
+		"external/icu/android_icu4j":                         Bp2BuildDefaultFalse, // java rules incomplete
+		"external/icu/icu4j":                                 Bp2BuildDefaultFalse, // java rules incomplete
+		"external/javapoet":                                  Bp2BuildDefaultTrueRecursively,
 		"external/jemalloc_new":                              Bp2BuildDefaultTrueRecursively,
 		"external/jsoncpp":                                   Bp2BuildDefaultTrueRecursively,
 		"external/libcap":                                    Bp2BuildDefaultTrueRecursively,
 		"external/libcxx":                                    Bp2BuildDefaultTrueRecursively,
 		"external/libcxxabi":                                 Bp2BuildDefaultTrueRecursively,
 		"external/libevent":                                  Bp2BuildDefaultTrueRecursively,
+		"external/libpng":                                    Bp2BuildDefaultTrueRecursively,
 		"external/lz4/lib":                                   Bp2BuildDefaultTrue,
 		"external/lzma/C":                                    Bp2BuildDefaultTrueRecursively,
 		"external/mdnsresponder":                             Bp2BuildDefaultTrueRecursively,
@@ -297,9 +317,9 @@ var (
 		"external/pcre":                                      Bp2BuildDefaultTrueRecursively,
 		"external/protobuf":                                  Bp2BuildDefaultTrueRecursively,
 		"external/python/six":                                Bp2BuildDefaultTrueRecursively,
-		"external/selinux/libsepol":                          Bp2BuildDefaultTrueRecursively,
 		"external/scudo":                                     Bp2BuildDefaultTrueRecursively,
 		"external/selinux/libselinux":                        Bp2BuildDefaultTrueRecursively,
+		"external/selinux/libsepol":                          Bp2BuildDefaultTrueRecursively,
 		"external/zlib":                                      Bp2BuildDefaultTrueRecursively,
 		"external/zstd":                                      Bp2BuildDefaultTrueRecursively,
 		"frameworks/base/media/tests/MediaDump":              Bp2BuildDefaultTrue,
@@ -315,7 +335,9 @@ var (
 		"packages/apps/DevCamera":                            Bp2BuildDefaultTrue,
 		"packages/apps/HTMLViewer":                           Bp2BuildDefaultTrue,
 		"packages/apps/Protips":                              Bp2BuildDefaultTrue,
+		"packages/modules/StatsD/lib/libstatssocket":         Bp2BuildDefaultTrueRecursively,
 		"packages/modules/adb":                               Bp2BuildDefaultTrue,
+		"packages/modules/adb/apex":                          Bp2BuildDefaultTrue,
 		"packages/modules/adb/crypto":                        Bp2BuildDefaultTrueRecursively,
 		"packages/modules/adb/libs":                          Bp2BuildDefaultTrueRecursively,
 		"packages/modules/adb/pairing_auth":                  Bp2BuildDefaultTrueRecursively,
@@ -326,8 +348,11 @@ var (
 		"packages/screensavers/Basic":                        Bp2BuildDefaultTrue,
 		"packages/services/Car/tests/SampleRearViewCamera":   Bp2BuildDefaultTrue,
 		"prebuilts/clang/host/linux-x86":                     Bp2BuildDefaultTrueRecursively,
+		"prebuilts/tools/common/m2":                          Bp2BuildDefaultTrue,
 		"system/apex":                                        Bp2BuildDefaultFalse, // TODO(b/207466993): flaky failures
-		"system/core/debuggerd":                              Bp2BuildDefaultTrue,
+		"system/apex/proto":                                  Bp2BuildDefaultTrueRecursively,
+		"system/apex/libs":                                   Bp2BuildDefaultTrueRecursively,
+		"system/core/debuggerd":                              Bp2BuildDefaultTrueRecursively,
 		"system/core/diagnose_usb":                           Bp2BuildDefaultTrueRecursively,
 		"system/core/libasyncio":                             Bp2BuildDefaultTrue,
 		"system/core/libcrypto_utils":                        Bp2BuildDefaultTrueRecursively,
@@ -349,28 +374,44 @@ var (
 		"system/timezone/output_data":                        Bp2BuildDefaultTrueRecursively,
 		"system/unwinding/libbacktrace":                      Bp2BuildDefaultTrueRecursively,
 		"system/unwinding/libunwindstack":                    Bp2BuildDefaultTrueRecursively,
+		"tools/apksig":                                       Bp2BuildDefaultTrue,
+		"tools/platform-compat/java/android/compat":          Bp2BuildDefaultTrueRecursively,
 	}
 
 	// Per-module denylist to always opt modules out of both bp2build and mixed builds.
 	bp2buildModuleDoNotConvertList = []string{
-		"libnativehelper_compat_libc++",              // Broken compile: implicit declaration of function 'strerror_r' is invalid in C99
-		"art_libdexfile_dex_instruction_list_header", // breaks libart_mterp.armng, header not found
+		"libnativehelper_compat_libc", // Broken compile: implicit declaration of function 'strerror_r' is invalid in C99
+
+		"libart",                             // depends on unconverted modules: art_operator_srcs, libodrstatslog, libelffile, art_cmdlineparser_headers, cpp-define-generator-definitions, libcpu_features, libdexfile, libartpalette, libbacktrace, libnativebridge, libnativeloader, libsigchain, libunwindstack, libartbase, libprofile, cpp-define-generator-asm-support, apex-info-list-tinyxml, libtinyxml2, libnativeloader-headers, libstatssocket, heapprofd_client_api
+		"libart-runtime-gtest",               // depends on unconverted modules: libgtest_isolated, libart-compiler, libdexfile, libprofile, libartbase, libbacktrace, libartbase-art-gtest
+		"libart_headers",                     // depends on unconverted modules: art_libartbase_headers
+		"libartd",                            // depends on unconverted modules: apex-info-list-tinyxml, libtinyxml2, libnativeloader-headers, libstatssocket, heapprofd_client_api, art_operator_srcs, libodrstatslog, libelffiled, art_cmdlineparser_headers, cpp-define-generator-definitions, libcpu_features, libdexfiled, libartpalette, libbacktrace, libnativebridge, libnativeloader, libsigchain, libunwindstack, libartbased, libprofiled, cpp-define-generator-asm-support
+		"libartd-runtime-gtest",              // depends on unconverted modules: libgtest_isolated, libartd-compiler, libdexfiled, libprofiled, libartbased, libbacktrace, libartbased-art-gtest
+		"libstatslog_art",                    // depends on unconverted modules: statslog_art.cpp, statslog_art.h
+		"statslog_art.h", "statslog_art.cpp", // depends on unconverted modules: stats-log-api-gen
 
 		"libandroid_runtime_lazy", // depends on unconverted modules: libbinder_headers
 		"libcmd",                  // depends on unconverted modules: libbinder
+
+		"libdexfile_support_static",                                                       // Depends on unconverted module: libdexfile_external_headers
+		"libunwindstack_local", "libunwindstack_utils", "libc_malloc_debug", "libfdtrack", // Depends on unconverted module: libunwindstack
+
+		"libdexfile_support",          // TODO(b/210546943): Enabled based on product variables.
+		"libdexfile_external_headers", // TODO(b/210546943): Enabled based on product variables.
+
+		"libunwindstack",                // Depends on unconverted module libdexfile_support.
+		"libnativehelper_compat_libc++", // Broken compile: implicit declaration of function 'strerror_r' is invalid in C99
 
 		"chkcon", "sefcontext_compile", // depends on unconverted modules: libsepol
 
 		"libsepol", // TODO(b/207408632): Unsupported case of .l sources in cc library rules
 
-		"get_clang_version_test", // depends on unconverted module: get_clang_version
+		"gen-kotlin-build-file.py", // module has same name as source
 
-		"libbinder",               // TODO(b/188503688): Disabled for some archs,
 		"libactivitymanager_aidl", // TODO(b/207426160): Depends on activity_manager_procstate_aidl, which is an aidl filegroup.
 
-		"libnativehelper_lazy_mts_jni", // depends on unconverted modules: libgmock_ndk
-		"libnativehelper_mts_jni",      // depends on unconverted modules: libgmock_ndk
-		"libnativetesthelper_jni",      // depends on unconverted modules: libgtest_ndk_c++
+		"libnativehelper_lazy_mts_jni", "libnativehelper_mts_jni", // depends on unconverted modules: libgmock_ndk
+		"libnativetesthelper_jni", "libgmock_main_ndk", "libgmock_ndk", // depends on unconverted module: libgtest_ndk_c++
 
 		"statslog-framework-java-gen", "statslog.cpp", "statslog.h", "statslog.rs", "statslog_header.rs", // depends on unconverted modules: stats-log-api-gen
 
@@ -378,39 +419,47 @@ var (
 
 		"libstatslog", // depends on unconverted modules: statslog.cpp, statslog.h, ...
 
-		"libgmock_main_ndk", "libgmock_ndk", // depends on unconverted module: libgtest_ndk_c++
-
 		"cmd",                                                        // depends on unconverted module packagemanager_aidl-cpp, of unsupported type aidl_interface
 		"servicedispatcher",                                          // depends on unconverted module android.debug_aidl, of unsupported type aidl_interface
 		"libutilscallstack",                                          // depends on unconverted module libbacktrace
 		"libbacktrace",                                               // depends on unconverted module libunwindstack
 		"libdebuggerd_handler",                                       // depends on unconverted module libdebuggerd_handler_core
 		"libdebuggerd_handler_core", "libdebuggerd_handler_fallback", // depends on unconverted module libdebuggerd
-		"unwind_for_offline",        // depends on unconverted module libunwindstack_utils
-		"libdebuggerd",              // depends on unconverted modules libdexfile_support, libunwindstack, gwp_asan_crash_handler, libtombstone_proto, libprotobuf-cpp-lite
-		"libdexfile_static",         // depends on libartpalette, libartbase, libdexfile, which are of unsupported type: art_cc_library.
-		"host_bionic_linker_asm",    // depends on extract_linker, a go binary.
-		"host_bionic_linker_script", // depends on extract_linker, a go binary.
+		"unwind_for_offline", // depends on unconverted module libunwindstack_utils
+		"libdebuggerd",       // depends on unconverted modules libdexfile_support, libunwindstack, gwp_asan_crash_handler, libtombstone_proto, libprotobuf-cpp-lite
+		"libdexfile_static",  // depends on libartpalette, libartbase, libdexfile, which are of unsupported type: art_cc_library.
 
-		"pbtombstone", // depends on libprotobuf-cpp-lite, libtombstone_proto
-		"crash_dump",  // depends on unconverted module libprotobuf-cpp-lite
+		"static_crasher", // depends on unconverted modules: libdebuggerd_handler
 
-		"libunwindstack_local", "libunwindstack_utils", // depends on unconverted module libunwindstack
-		"libunwindstack",    // depends on libdexfile_support, of unsupported module type art_cc_library_static
-		"libc_malloc_debug", // depends on unconverted module libunwindstack
+		"pbtombstone", "crash_dump", // depends on libdebuggerd, libunwindstack
 
 		"libbase_ndk", // http://b/186826477, fails to link libctscamera2_jni for device (required for CtsCameraTestCases)
 
-		"lib_linker_config_proto_lite", // contains .proto sources
+		"libprotobuf-internal-protos",      // b/210751803, we don't handle path property for filegroups
+		"libprotobuf-internal-python-srcs", // b/210751803, we don't handle path property for filegroups
+		"libprotobuf-java-full",            // b/210751803, we don't handle path property for filegroups
+		"host-libprotobuf-java-full",       // b/210751803, we don't handle path property for filegroups
+		"libprotobuf-java-util-full",       // b/210751803, we don't handle path property for filegroups
 
-		"libprotobuf-python",               // contains .proto sources
-		"libprotobuf-internal-protos",      // we don't handle path property for fileegroups
-		"libprotobuf-internal-python-srcs", // we don't handle path property for fileegroups
+		"conscrypt",          // b/210751803, we don't handle path property for filegroups
+		"conscrypt-for-host", // b/210751803, we don't handle path property for filegroups
 
-		"libseccomp_policy", // b/201094425: depends on func_to_syscall_nrs, which depends on py_binary, which is unsupported in mixed builds.
-		"libfdtrack",        // depends on unconverted module libunwindstack
+		"host-libprotobuf-java-lite",  // b/217236083, java_library cannot have deps without srcs
+		"host-libprotobuf-java-micro", // b/217236083, java_library cannot have deps without srcs
+		"host-libprotobuf-java-nano",  // b/217236083, java_library cannot have deps without srcs
+		"error_prone_core",            // b/217236083, java_library cannot have deps without srcs
+		"bouncycastle-host",           // b/217236083, java_library cannot have deps without srcs
 
-		"gwp_asan_crash_handler", // cc_library, ld.lld: error: undefined symbol: memset
+		"apex_manifest_proto_java", // b/215230097, we don't handle .proto files in java_library srcs attribute
+
+		"libc_musl_sysroot_bionic_arch_headers", // b/218405924, depends on soong_zip
+		"libc_musl_sysroot_bionic_headers",      // b/218405924, depends on soong_zip and generates duplicate srcs
+
+		// python protos
+		"libprotobuf-python",                           // contains .proto sources
+		"conv_linker_config",                           // depends on linker_config_proto, a python lib with proto sources
+		"apex_build_info_proto", "apex_manifest_proto", // a python lib with proto sources
+		"linker_config_proto", // contains .proto sources
 
 		"brotli-fuzzer-corpus", // b/202015218: outputs are in location incompatible with bazel genrule handling.
 
@@ -419,20 +468,16 @@ var (
 		"platform_tools_properties",
 		"build_tools_source_properties",
 
-		// Tests. Handle later.
-		"libbionic_tests_headers_posix", // http://b/186024507, cc_library_static, sched.h, time.h not found
-		"libjemalloc5_integrationtest",
-		"libjemalloc5_stresstestlib",
-		"libjemalloc5_unittest",
-
 		// APEX support
-		"com.android.runtime", // http://b/194746715, apex, depends on 'libc_malloc_debug'
+		"com.android.runtime", // depends on unconverted modules: bionic-linker-config, linkerconfig
 
 		"libgtest_ndk_c++",      // b/201816222: Requires sdk_version support.
 		"libgtest_main_ndk_c++", // b/201816222: Requires sdk_version support.
 
 		"abb",                     // depends on unconverted modules: libcmd, libbinder
 		"adb",                     // depends on unconverted modules: AdbWinApi, libadb_host, libandroidfw, libapp_processes_protos_full, libfastdeploy_host, libopenscreen-discovery, libopenscreen-platform-impl, libusb, bin2c_fastdeployagent, AdbWinUsbApi
+		"libadb_host",             // depends on unconverted modules: libopenscreen-discovery, libopenscreen-platform-impl, libusb, AdbWinApi
+		"libfastdeploy_host",      // depends on unconverted modules: libandroidfw, libusb, AdbWinApi
 		"linker",                  // depends on unconverted modules: libdebuggerd_handler_fallback
 		"linker_reloc_bench_main", // depends on unconverted modules: liblinker_reloc_bench_*
 		"versioner",               // depends on unconverted modules: libclang_cxx_host, libLLVM_host, of unsupported type llvm_host_prebuilt_library_shared
@@ -440,22 +485,47 @@ var (
 		"linkerconfig", // http://b/202876379 has arch-variant static_executable
 		"mdnsd",        // http://b/202876379 has arch-variant static_executable
 
-		"acvp_modulewrapper", // disabled for android x86/x86_64
-		"CarHTMLViewer",      // depends on unconverted modules android.car-stubs, car-ui-lib
+		"CarHTMLViewer", // depends on unconverted modules android.car-stubs, car-ui-lib
 
 		"libdexfile",  // depends on unconverted modules: dexfile_operator_srcs, libartbase, libartpalette,
 		"libdexfiled", // depends on unconverted modules: dexfile_operator_srcs, libartbased, libartpalette
+
+		// go deps:
+		"apex-protos",                                                                                // depends on soong_zip, a go binary
+		"generated_android_icu4j_src_files", "generated_android_icu4j_test_files", "icu4c_test_data", // depends on unconverted modules: soong_zip
+		"host_bionic_linker_asm",         // depends on extract_linker, a go binary.
+		"host_bionic_linker_script",      // depends on extract_linker, a go binary.
+		"robolectric-sqlite4java-native", // depends on soong_zip, a go binary
+		"robolectric_tzdata",             // depends on soong_zip, a go binary
+
+		"android_icu4j_srcgen_binary", // Bazel build error: deps not allowed without srcs; move to runtime_deps
+		"core-icu4j-for-host",         // Bazel build error: deps not allowed without srcs; move to runtime_deps
+
+		// java deps
+		"android_icu4j_srcgen",          // depends on unconverted modules: currysrc
+		"bin2c_fastdeployagent",         // depends on deployagent, a java binary
+		"currysrc",                      // depends on unconverted modules: currysrc_org.eclipse, guavalib, jopt-simple-4.9
+		"robolectric-sqlite4java-0.282", // depends on unconverted modules: robolectric-sqlite4java-import, robolectric-sqlite4java-native
+		"timezone-host",                 // depends on unconverted modules: art.module.api.annotations
+		"truth-host-prebuilt",           // depends on unconverted modules: truth-prebuilt
+		"truth-prebuilt",                // depends on unconverted modules: asm-7.0, guava
+
+		"generated_android_icu4j_resources",      // depends on unconverted modules: android_icu4j_srcgen_binary, soong_zip
+		"generated_android_icu4j_test_resources", // depends on unconverted modules: android_icu4j_srcgen_binary, soong_zip
+
+		"art-script",     // depends on unconverted modules: dalvikvm, dex2oat
+		"dex2oat-script", // depends on unconverted modules: dex2oat
 	}
 
 	// Per-module denylist of cc_library modules to only generate the static
 	// variant if their shared variant isn't ready or buildable by Bazel.
-	bp2buildCcLibraryStaticOnlyList = []string{
-		"libjemalloc5", // http://b/188503688, cc_library, `target: { android: { enabled: false } }` for android targets.
-	}
+	bp2buildCcLibraryStaticOnlyList = []string{}
 
 	// Per-module denylist to opt modules out of mixed builds. Such modules will
 	// still be generated via bp2build.
 	mixedBuildsDisabledList = []string{
+		"art_libdexfile_dex_instruction_list_header", // breaks libart_mterp.armng, header not found
+
 		"libbrotli",               // http://b/198585397, ld.lld: error: bionic/libc/arch-arm64/generic/bionic/memmove.S:95:(.text+0x10): relocation R_AARCH64_CONDBR19 out of range: -1404176 is not in [-1048576, 1048575]; references __memcpy
 		"minijail_constants_json", // http://b/200899432, bazel-built cc_genrule does not work in mixed build when it is a dependency of another soong module.
 
@@ -515,6 +585,9 @@ func ShouldKeepExistingBuildFileForDir(dir string) bool {
 func (b *BazelModuleBase) MixedBuildsEnabled(ctx ModuleContext) bool {
 	if ctx.Os() == Windows {
 		// Windows toolchains are not currently supported.
+		return false
+	}
+	if !ctx.Module().Enabled() {
 		return false
 	}
 	if !ctx.Config().BazelContext.BazelEnabled() {
@@ -639,4 +712,24 @@ func convertWithBp2build(ctx TopDownMutatorContext) {
 	}
 
 	bModule.ConvertWithBp2build(ctx)
+}
+
+// GetMainClassInManifest scans the manifest file specified in filepath and returns
+// the value of attribute Main-Class in the manifest file if it exists, or returns error.
+// WARNING: this is for bp2build converters of java_* modules only.
+func GetMainClassInManifest(c Config, filepath string) (string, error) {
+	file, err := c.fs.Open(filepath)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "Main-Class:") {
+			return strings.TrimSpace(line[len("Main-Class:"):]), nil
+		}
+	}
+
+	return "", errors.New("Main-Class is not found.")
 }

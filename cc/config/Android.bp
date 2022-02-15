@@ -8,6 +8,7 @@ bootstrap_go_package {
     deps: [
         "soong-android",
         "soong-remoteexec",
+        "soong-starlark-format",
     ],
     srcs: [
         "bp2build.go",

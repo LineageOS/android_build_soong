@@ -47,17 +47,23 @@ type moduleInfo struct {
 	originalPath    string // Makefile file path
 	moduleLocalName string
 	optional        bool
+	missing         bool // a module may not exist if a module that depends on it is loaded dynamically
 }
 
 func (im moduleInfo) entryName() string {
 	return im.moduleLocalName + "_init"
 }
 
+func (mi moduleInfo) name() string {
+	return fmt.Sprintf("%q", MakePath2ModuleName(mi.originalPath))
+}
+
 type inheritedModule interface {
 	name() string
 	entryName() string
 	emitSelect(gctx *generationContext)
-	shouldExist() bool
+	pathExpr() starlarkExpr
+	needsLoadCheck() bool
 }
 
 type inheritedStaticModule struct {
@@ -65,21 +71,23 @@ type inheritedStaticModule struct {
 	loadAlways bool
 }
 
-func (im inheritedStaticModule) name() string {
-	return fmt.Sprintf("%q", MakePath2ModuleName(im.originalPath))
-}
-
 func (im inheritedStaticModule) emitSelect(_ *generationContext) {
 }
 
-func (im inheritedStaticModule) shouldExist() bool {
-	return im.loadAlways
+func (im inheritedStaticModule) pathExpr() starlarkExpr {
+	return &stringLiteralExpr{im.path}
+}
+
+func (im inheritedStaticModule) needsLoadCheck() bool {
+	return im.missing
 }
 
 type inheritedDynamicModule struct {
 	path             interpolateExpr
 	candidateModules []*moduleInfo
 	loadAlways       bool
+	location         ErrorLocation
+	needsWarning     bool
 }
 
 func (i inheritedDynamicModule) name() string {
@@ -91,12 +99,16 @@ func (i inheritedDynamicModule) entryName() string {
 }
 
 func (i inheritedDynamicModule) emitSelect(gctx *generationContext) {
+	if i.needsWarning {
+		gctx.newLine()
+		gctx.writef("%s.mkwarning(%q, %q)", baseName, i.location, "Please avoid starting an include path with a variable. See https://source.android.com/setup/build/bazel/product_config/issues/includes for details.")
+	}
 	gctx.newLine()
 	gctx.writef("_entry = {")
 	gctx.indentLevel++
 	for _, mi := range i.candidateModules {
 		gctx.newLine()
-		gctx.writef(`"%s": (%q, %s),`, mi.originalPath, mi.moduleLocalName, mi.entryName())
+		gctx.writef(`"%s": (%s, %s),`, mi.originalPath, mi.name(), mi.entryName())
 	}
 	gctx.indentLevel--
 	gctx.newLine()
@@ -105,18 +117,14 @@ func (i inheritedDynamicModule) emitSelect(gctx *generationContext) {
 	gctx.write(")")
 	gctx.newLine()
 	gctx.writef("(%s, %s) = _entry if _entry else (None, None)", i.name(), i.entryName())
-	if i.loadAlways {
-		gctx.newLine()
-		gctx.writef("if not %s:", i.entryName())
-		gctx.indentLevel++
-		gctx.newLine()
-		gctx.write(`rblf.mkerror("cannot")`)
-		gctx.indentLevel--
-	}
 }
 
-func (i inheritedDynamicModule) shouldExist() bool {
-	return i.loadAlways
+func (i inheritedDynamicModule) pathExpr() starlarkExpr {
+	return &i.path
+}
+
+func (i inheritedDynamicModule) needsLoadCheck() bool {
+	return true
 }
 
 type inheritNode struct {
@@ -126,20 +134,22 @@ type inheritNode struct {
 
 func (inn *inheritNode) emit(gctx *generationContext) {
 	// Unconditional case:
+	//    maybe check that loaded
 	//    rblf.inherit(handle, <module>, module_init)
 	// Conditional case:
 	//    if <module>_init != None:
 	//      same as above
 	inn.module.emitSelect(gctx)
-
 	name := inn.module.name()
 	entry := inn.module.entryName()
-	gctx.newLine()
 	if inn.loadAlways {
+		gctx.emitLoadCheck(inn.module)
+		gctx.newLine()
 		gctx.writef("%s(handle, %s, %s)", cfnInherit, name, entry)
 		return
 	}
 
+	gctx.newLine()
 	gctx.writef("if %s:", entry)
 	gctx.indentLevel++
 	gctx.newLine()
@@ -155,12 +165,14 @@ type includeNode struct {
 func (inn *includeNode) emit(gctx *generationContext) {
 	inn.module.emitSelect(gctx)
 	entry := inn.module.entryName()
-	gctx.newLine()
 	if inn.loadAlways {
+		gctx.emitLoadCheck(inn.module)
+		gctx.newLine()
 		gctx.writef("%s(g, handle)", entry)
 		return
 	}
 
+	gctx.newLine()
 	gctx.writef("if %s != None:", entry)
 	gctx.indentLevel++
 	gctx.newLine()
@@ -243,29 +255,17 @@ type switchCase struct {
 	nodes []starlarkNode
 }
 
-func (cb *switchCase) newNode(node starlarkNode) {
-	cb.nodes = append(cb.nodes, node)
-}
-
 func (cb *switchCase) emit(gctx *generationContext) {
 	cb.gate.emit(gctx)
 	gctx.indentLevel++
 	hasStatements := false
-	emitNode := func(node starlarkNode) {
+	for _, node := range cb.nodes {
 		if _, ok := node.(*commentNode); !ok {
 			hasStatements = true
 		}
 		node.emit(gctx)
 	}
-	if len(cb.nodes) > 0 {
-		emitNode(cb.nodes[0])
-		for _, node := range cb.nodes[1:] {
-			emitNode(node)
-		}
-		if !hasStatements {
-			gctx.emitPass()
-		}
-	} else {
+	if !hasStatements {
 		gctx.emitPass()
 	}
 	gctx.indentLevel--
@@ -276,22 +276,8 @@ type switchNode struct {
 	ssCases []*switchCase
 }
 
-func (ssw *switchNode) newNode(node starlarkNode) {
-	switch br := node.(type) {
-	case *switchCase:
-		ssw.ssCases = append(ssw.ssCases, br)
-	default:
-		panic(fmt.Errorf("expected switchCase node, got %t", br))
-	}
-}
-
 func (ssw *switchNode) emit(gctx *generationContext) {
-	if len(ssw.ssCases) == 0 {
-		gctx.emitPass()
-	} else {
-		ssw.ssCases[0].emit(gctx)
-		for _, ssCase := range ssw.ssCases[1:] {
-			ssCase.emit(gctx)
-		}
+	for _, ssCase := range ssw.ssCases {
+		ssCase.emit(gctx)
 	}
 }
