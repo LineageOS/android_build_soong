@@ -407,10 +407,10 @@ func main() {
 
 	s.Finish()
 
-	if failures == 1 {
+	if failures.count == 1 {
 		log.Fatal("1 failure")
-	} else if failures > 1 {
-		log.Fatalf("%d failures", failures)
+	} else if failures.count > 1 {
+		log.Fatalf("%d failures %q", failures.count, failures.fails)
 	} else {
 		fmt.Fprintln(output, "Success")
 	}
@@ -522,19 +522,23 @@ func runSoongUiForProduct(mpctx *mpContext, product string) {
 	})
 }
 
-type failureCount int
+type failureCount struct {
+	count int
+	fails []string
+}
 
 func (f *failureCount) StartAction(action *status.Action, counts status.Counts) {}
 
 func (f *failureCount) FinishAction(result status.ActionResult, counts status.Counts) {
 	if result.Error != nil {
-		*f += 1
+		f.count += 1
+		f.fails = append(f.fails, result.Action.Description)
 	}
 }
 
 func (f *failureCount) Message(level status.MsgLevel, message string) {
 	if level >= status.ErrorLvl {
-		*f += 1
+		f.count += 1
 	}
 }
 
