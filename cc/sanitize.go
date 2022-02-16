@@ -582,18 +582,10 @@ func toDisableUnsignedShiftBaseChange(flags []string) bool {
 
 func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 	minimalRuntimeLib := config.UndefinedBehaviorSanitizerMinimalRuntimeLibrary(ctx.toolchain()) + ".a"
-	minimalRuntimePath := "${config.ClangAsanLibDir}/" + minimalRuntimeLib
-	builtinsRuntimeLib := config.BuiltinsRuntimeLibrary(ctx.toolchain()) + ".a"
-	builtinsRuntimePath := "${config.ClangAsanLibDir}/" + builtinsRuntimeLib
 
 	if sanitize.Properties.MinimalRuntimeDep {
 		flags.Local.LdFlags = append(flags.Local.LdFlags,
-			minimalRuntimePath,
 			"-Wl,--exclude-libs,"+minimalRuntimeLib)
-	}
-
-	if sanitize.Properties.BuiltinsDep {
-		flags.libFlags = append([]string{builtinsRuntimePath}, flags.libFlags...)
 	}
 
 	if !sanitize.Properties.SanitizerEnabled && !sanitize.Properties.UbsanRuntimeDep {
@@ -725,11 +717,7 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 
 		if enableMinimalRuntime(sanitize) {
 			flags.Local.CFlags = append(flags.Local.CFlags, strings.Join(minimalRuntimeFlags, " "))
-			flags.libFlags = append([]string{minimalRuntimePath}, flags.libFlags...)
 			flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,--exclude-libs,"+minimalRuntimeLib)
-			if !ctx.toolchain().Bionic() {
-				flags.libFlags = append([]string{builtinsRuntimePath}, flags.libFlags...)
-			}
 		}
 
 		if Bool(sanitize.Properties.Sanitize.Fuzzer) {
@@ -1198,6 +1186,36 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 			}
 		}
 
+		addStaticDeps := func(deps ...string) {
+			// If we're using snapshots, redirect to snapshot whenever possible
+			snapshot := mctx.Provider(SnapshotInfoProvider).(SnapshotInfo)
+			for idx, dep := range deps {
+				if lib, ok := snapshot.StaticLibs[dep]; ok {
+					deps[idx] = lib
+				}
+			}
+
+			// static executable gets static runtime libs
+			depTag := libraryDependencyTag{Kind: staticLibraryDependency}
+			variations := append(mctx.Target().Variations(),
+				blueprint.Variation{Mutator: "link", Variation: "static"})
+			if c.Device() {
+				variations = append(variations, c.ImageVariation())
+			}
+			if c.UseSdk() {
+				variations = append(variations,
+					blueprint.Variation{Mutator: "sdk", Variation: "sdk"})
+			}
+			mctx.AddFarVariationDependencies(variations, depTag, deps...)
+
+		}
+		if enableMinimalRuntime(c.sanitize) || c.sanitize.Properties.MinimalRuntimeDep {
+			addStaticDeps(config.UndefinedBehaviorSanitizerMinimalRuntimeLibrary(toolchain))
+		}
+		if c.sanitize.Properties.BuiltinsDep {
+			addStaticDeps(config.BuiltinsRuntimeLibrary(toolchain))
+		}
+
 		if runtimeLibrary != "" && (toolchain.Bionic() || c.sanitize.Properties.UbsanRuntimeDep) {
 			// UBSan is supported on non-bionic linux host builds as well
 
@@ -1209,23 +1227,8 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 			// Note that by adding dependency with {static|shared}DepTag, the lib is
 			// added to libFlags and LOCAL_SHARED_LIBRARIES by cc.Module
 			if c.staticBinary() {
-				deps := append(extraStaticDeps, runtimeLibrary)
-				// If we're using snapshots, redirect to snapshot whenever possible
-				snapshot := mctx.Provider(SnapshotInfoProvider).(SnapshotInfo)
-				for idx, dep := range deps {
-					if lib, ok := snapshot.StaticLibs[dep]; ok {
-						deps[idx] = lib
-					}
-				}
-
-				// static executable gets static runtime libs
-				depTag := libraryDependencyTag{Kind: staticLibraryDependency}
-				variations := append(mctx.Target().Variations(),
-					blueprint.Variation{Mutator: "link", Variation: "static"})
-				if c.Device() {
-					variations = append(variations, c.ImageVariation())
-				}
-				mctx.AddFarVariationDependencies(variations, depTag, deps...)
+				addStaticDeps(runtimeLibrary)
+				addStaticDeps(extraStaticDeps...)
 			} else if !c.static() && !c.Header() {
 				// If we're using snapshots, redirect to snapshot whenever possible
 				snapshot := mctx.Provider(SnapshotInfoProvider).(SnapshotInfo)
@@ -1249,6 +1252,10 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 					blueprint.Variation{Mutator: "link", Variation: "shared"})
 				if c.Device() {
 					variations = append(variations, c.ImageVariation())
+				}
+				if c.UseSdk() {
+					variations = append(variations,
+						blueprint.Variation{Mutator: "sdk", Variation: "sdk"})
 				}
 				AddSharedLibDependenciesWithVersions(mctx, c, variations, depTag, runtimeLibrary, "", true)
 			}
