@@ -39,6 +39,10 @@ var (
 
 	armLldflags = armLdflags
 
+	armFixCortexA8LdFlags = []string{"-Wl,--fix-cortex-a8"}
+
+	armNoFixCortexA8LdFlags = []string{"-Wl,--no-fix-cortex-a8"}
+
 	armArmCflags = []string{
 		"-fstrict-aliasing",
 	}
@@ -179,6 +183,9 @@ func init() {
 	exportStringListStaticVariable("ArmLdflags", armLdflags)
 	exportStringListStaticVariable("ArmLldflags", armLldflags)
 
+	exportStringListStaticVariable("ArmFixCortexA8LdFlags", armFixCortexA8LdFlags)
+	exportStringListStaticVariable("ArmNoFixCortexA8LdFlags", armNoFixCortexA8LdFlags)
+
 	// Clang cflags
 	exportStringListStaticVariable("ArmToolchainCflags", armToolchainCflags)
 	exportStringListStaticVariable("ArmCflags", armCflags)
@@ -188,8 +195,8 @@ func init() {
 	exportStringListStaticVariable("ArmArmCflags", armArmCflags)
 	exportStringListStaticVariable("ArmThumbCflags", armThumbCflags)
 
-	exportedStringListDictVars.Set("ArmArchVariantCflags", armArchVariantCflags)
-	exportedStringListDictVars.Set("ArmCpuVariantCflags", armCpuVariantCflags)
+	exportedVariableReferenceDictVars.Set("ArmArchVariantCflags", armArchVariantCflagsVar)
+	exportedVariableReferenceDictVars.Set("ArmCpuVariantCflags", armCpuVariantCflagsVar)
 
 	// Clang arch variant cflags
 	exportStringListStaticVariable("ArmArmv7ACflags", armArchVariantCflags["armv7-a"])
@@ -324,12 +331,12 @@ func armToolchainFactory(arch android.Arch) Toolchain {
 		switch arch.CpuVariant {
 		case "cortex-a8", "":
 			// Generic ARM might be a Cortex A8 -- better safe than sorry
-			fixCortexA8 = "-Wl,--fix-cortex-a8"
+			fixCortexA8 = "${config.ArmFixCortexA8LdFlags}"
 		default:
-			fixCortexA8 = "-Wl,--no-fix-cortex-a8"
+			fixCortexA8 = "${config.ArmNoFixCortexA8LdFlags}"
 		}
 	case "armv7-a":
-		fixCortexA8 = "-Wl,--fix-cortex-a8"
+		fixCortexA8 = "${config.ArmFixCortexA8LdFlags}"
 	case "armv8-a", "armv8-2a":
 		// Nothing extra for armv8-a/armv8-2a
 	default:

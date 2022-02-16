@@ -48,6 +48,14 @@ func TestExpandVars(t *testing.T) {
 			expectedValues: []string{"bar"},
 		},
 		{
+			description: "single level expansion with short-name for string var",
+			stringScope: exportedStringVariables{
+				"foo": "bar",
+			},
+			toExpand:       "${config.foo}",
+			expectedValues: []string{"bar"},
+		},
+		{
 			description: "single level expansion string list var",
 			stringListScope: exportedStringListVariables{
 				"foo": []string{"bar"},
@@ -224,7 +232,30 @@ constants = struct(
 )`,
 		},
 		{
-			name: "sorts across types",
+			name: "exports dict with var refs",
+			vars: []bazelVarExporter{
+				exportedVariableReferenceDictVariables{
+					"a": map[string]string{"b1": "${b2}"},
+					"c": map[string]string{"d1": "${config.d2}"},
+				},
+			},
+			expectedOut: `# GENERATED FOR BAZEL FROM SOONG. DO NOT EDIT.
+
+_a = {
+    "b1": _b2,
+}
+
+_c = {
+    "d1": _d2,
+}
+
+constants = struct(
+    a = _a,
+    c = _c,
+)`,
+		},
+		{
+			name: "sorts across types with variable references last",
 			vars: []bazelVarExporter{
 				exportedStringVariables{
 					"b": "b-val",
@@ -237,6 +268,10 @@ constants = struct(
 				exportedStringListDictVariables{
 					"a": map[string][]string{"a1": []string{"a2"}},
 					"f": map[string][]string{"f1": []string{"f2"}},
+				},
+				exportedVariableReferenceDictVariables{
+					"aa": map[string]string{"b1": "${b}"},
+					"cc": map[string]string{"d1": "${config.d}"},
 				},
 			},
 			expectedOut: `# GENERATED FOR BAZEL FROM SOONG. DO NOT EDIT.
@@ -257,6 +292,14 @@ _f = {
     "f1": ["f2"],
 }
 
+_aa = {
+    "b1": _b,
+}
+
+_cc = {
+    "d1": _d,
+}
+
 constants = struct(
     a = _a,
     b = _b,
@@ -264,6 +307,8 @@ constants = struct(
     d = _d,
     e = _e,
     f = _f,
+    aa = _aa,
+    cc = _cc,
 )`,
 		},
 	}
