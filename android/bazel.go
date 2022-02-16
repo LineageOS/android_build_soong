@@ -515,6 +515,8 @@ var (
 
 		"art-script",     // depends on unconverted modules: dalvikvm, dex2oat
 		"dex2oat-script", // depends on unconverted modules: dex2oat
+
+		"error_prone_checkerframework_dataflow_nullaway", // TODO(b/219908977): "Error in fail: deps not allowed without srcs; move to runtime_deps?"
 	}
 
 	// Per-module denylist of cc_library modules to only generate the static
