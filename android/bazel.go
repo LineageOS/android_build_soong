@@ -198,6 +198,7 @@ var (
 		// build/bazel is not recursive. Instead list each subdirectory under
 		// build/bazel explicitly.
 		"build/bazel":/* recursive = */ false,
+		"build/bazel/ci/dist":/* recursive = */ false,
 		"build/bazel/examples/android_app":/* recursive = */ true,
 		"build/bazel/examples/java":/* recursive = */ true,
 		"build/bazel/bazel_skylib":/* recursive = */ true,
