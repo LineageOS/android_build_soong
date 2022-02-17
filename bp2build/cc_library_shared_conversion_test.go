@@ -431,7 +431,6 @@ func TestCcLibrarySharedProto(t *testing.T) {
 	name: "foo",
 	srcs: ["foo.proto"],
 	proto: {
-		canonical_path_from_root: false,
 		export_proto_headers: true,
 	},
 	include_build_directory: false,

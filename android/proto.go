@@ -187,7 +187,7 @@ func Bp2buildProtoProperties(ctx Bp2buildMutatorContext, module Module, srcs baz
 			if axis == bazel.NoConfigAxis {
 				info.Type = props.Proto.Type
 
-				if proptools.BoolDefault(props.Proto.Canonical_path_from_root, canonicalPathFromRootDefault) {
+				if !proptools.BoolDefault(props.Proto.Canonical_path_from_root, canonicalPathFromRootDefault) {
 					// an empty string indicates to strips the package path
 					path := ""
 					attrs.Strip_import_prefix = &path
