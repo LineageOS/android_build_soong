@@ -1530,6 +1530,18 @@ func (c *deviceConfig) BoardProductPrivatePrebuiltDirs() []string {
 	return c.config.productVariables.BoardProductPrivatePrebuiltDirs
 }
 
+func (c *deviceConfig) SystemExtSepolicyPrebuiltApiDir() string {
+	return String(c.config.productVariables.SystemExtSepolicyPrebuiltApiDir)
+}
+
+func (c *deviceConfig) ProductSepolicyPrebuiltApiDir() string {
+	return String(c.config.productVariables.ProductSepolicyPrebuiltApiDir)
+}
+
+func (c *deviceConfig) IsPartnerTrebleSepolicyTestEnabled() bool {
+	return c.SystemExtSepolicyPrebuiltApiDir() != "" || c.ProductSepolicyPrebuiltApiDir() != ""
+}
+
 func (c *deviceConfig) DirectedVendorSnapshot() bool {
 	return c.config.productVariables.DirectedVendorSnapshot
 }
