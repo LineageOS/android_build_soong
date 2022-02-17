@@ -450,11 +450,9 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 		}
 	}
 
-	gccPrefix := "-B" + config.ToolPath(tc)
-
-	flags.Global.CFlags = append(flags.Global.CFlags, target, gccPrefix)
-	flags.Global.AsFlags = append(flags.Global.AsFlags, target, gccPrefix)
-	flags.Global.LdFlags = append(flags.Global.LdFlags, target, gccPrefix)
+	flags.Global.CFlags = append(flags.Global.CFlags, target)
+	flags.Global.AsFlags = append(flags.Global.AsFlags, target)
+	flags.Global.LdFlags = append(flags.Global.LdFlags, target)
 
 	hod := "Host"
 	if ctx.Os().Class == android.Device {
