@@ -459,7 +459,6 @@ func TestCcBinarySharedProto(t *testing.T) {
 	name: "foo",
 	srcs: ["foo.proto"],
 	proto: {
-		canonical_path_from_root: false,
 	},
 	include_build_directory: false,
 }`,
@@ -483,7 +482,6 @@ func TestCcBinaryStaticProto(t *testing.T) {
 	srcs: ["foo.proto"],
 	static_executable: true,
 	proto: {
-		canonical_path_from_root: false,
 	},
 	include_build_directory: false,
 }`,

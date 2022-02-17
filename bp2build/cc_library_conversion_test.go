@@ -1998,8 +1998,7 @@ func TestCcLibraryProtoSimple(t *testing.T) {
 }`,
 		expectedBazelTargets: []string{
 			makeBazelTarget("proto_library", "foo_proto", attrNameToString{
-				"srcs":                `["foo.proto"]`,
-				"strip_import_prefix": `""`,
+				"srcs": `["foo.proto"]`,
 			}), makeBazelTarget("cc_lite_proto_library", "foo_cc_proto_lite", attrNameToString{
 				"deps": `[":foo_proto"]`,
 			}), makeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", attrNameToString{
@@ -2024,7 +2023,8 @@ func TestCcLibraryProtoNoCanonicalPathFromRoot(t *testing.T) {
 }`,
 		expectedBazelTargets: []string{
 			makeBazelTarget("proto_library", "foo_proto", attrNameToString{
-				"srcs": `["foo.proto"]`,
+				"srcs":                `["foo.proto"]`,
+				"strip_import_prefix": `""`,
 			}), makeBazelTarget("cc_lite_proto_library", "foo_cc_proto_lite", attrNameToString{
 				"deps": `[":foo_proto"]`,
 			}), makeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", attrNameToString{
@@ -2049,8 +2049,7 @@ func TestCcLibraryProtoExplicitCanonicalPathFromRoot(t *testing.T) {
 }`,
 		expectedBazelTargets: []string{
 			makeBazelTarget("proto_library", "foo_proto", attrNameToString{
-				"srcs":                `["foo.proto"]`,
-				"strip_import_prefix": `""`,
+				"srcs": `["foo.proto"]`,
 			}), makeBazelTarget("cc_lite_proto_library", "foo_cc_proto_lite", attrNameToString{
 				"deps": `[":foo_proto"]`,
 			}), makeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", attrNameToString{
@@ -2071,7 +2070,6 @@ func TestCcLibraryProtoFull(t *testing.T) {
 	name: "foo",
 	srcs: ["foo.proto"],
 	proto: {
-		canonical_path_from_root: false,
 		type: "full",
 	},
 	include_build_directory: false,
@@ -2099,7 +2097,6 @@ func TestCcLibraryProtoLite(t *testing.T) {
 	name: "foo",
 	srcs: ["foo.proto"],
 	proto: {
-		canonical_path_from_root: false,
 		type: "lite",
 	},
 	include_build_directory: false,
@@ -2127,7 +2124,6 @@ func TestCcLibraryProtoExportHeaders(t *testing.T) {
 	name: "foo",
 	srcs: ["foo.proto"],
 	proto: {
-		canonical_path_from_root: false,
 		export_proto_headers: true,
 	},
 	include_build_directory: false,
@@ -2161,7 +2157,6 @@ cc_library {
 	name: "a",
 	srcs: [":a_fg_proto"],
 	proto: {
-		canonical_path_from_root: false,
 		export_proto_headers: true,
 	},
 	include_build_directory: false,
@@ -2171,7 +2166,6 @@ cc_library {
 	name: "b",
 	srcs: [":b_protos"],
 	proto: {
-		canonical_path_from_root: false,
 		export_proto_headers: true,
 	},
 	include_build_directory: false,
@@ -2181,7 +2175,6 @@ cc_library {
 	name: "c",
 	srcs: [":c-proto-srcs"],
 	proto: {
-		canonical_path_from_root: false,
 		export_proto_headers: true,
 	},
 	include_build_directory: false,
@@ -2191,7 +2184,6 @@ cc_library {
 	name: "d",
 	srcs: [":proto-srcs-d"],
 	proto: {
-		canonical_path_from_root: false,
 		export_proto_headers: true,
 	},
 	include_build_directory: false,
