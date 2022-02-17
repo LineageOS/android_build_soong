@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "b0e26e41_148596b1",
+        "filename": "ui/build/dumpvars.go",
+        "patchSetId": 3
+      },
+      "lineNbr": 169,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2022-02-17T22:38:22Z",
+      "side": 1,
+      "message": "There\u0027s no support for this in vendor/lineage @ lineage-18.1",
+      "range": {
+        "startLine": 169,
+        "startChar": 2,
+        "endLine": 169,
+        "endChar": 14
+      },
+      "revId": "f4eba0f4fafcc3a706f781435c627d1b54e6884e",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
