@@ -364,6 +364,9 @@ type productVariables struct {
 	PlatformSepolicyVersion *string `json:",omitempty"`
 	TotSepolicyVersion      *string `json:",omitempty"`
 
+	SystemExtSepolicyPrebuiltApiDir *string `json:",omitempty"`
+	ProductSepolicyPrebuiltApiDir   *string `json:",omitempty"`
+
 	PlatformSepolicyCompatVersions []string `json:",omitempty"`
 
 	VendorVars map[string]map[string]string `json:",omitempty"`
