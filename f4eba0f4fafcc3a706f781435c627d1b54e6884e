@@ -1,6 +1,23 @@
 {
   "comments": [
     {
+      "unresolved": false,
+      "key": {
+        "uuid": "ebaf809b_739877d2",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 3
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 16185
+      },
+      "writtenOn": "2022-02-18T04:41:17Z",
+      "side": 1,
+      "message": "We support automotive GSI\u0027s on 18.1, so should GMS as well.",
+      "revId": "f4eba0f4fafcc3a706f781435c627d1b54e6884e",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
       "unresolved": true,
       "key": {
         "uuid": "b0e26e41_148596b1",
@@ -14,6 +31,30 @@
       "writtenOn": "2022-02-17T22:38:22Z",
       "side": 1,
       "message": "There\u0027s no support for this in vendor/lineage @ lineage-18.1",
+      "range": {
+        "startLine": 169,
+        "startChar": 2,
+        "endLine": 169,
+        "endChar": 14
+      },
+      "revId": "f4eba0f4fafcc3a706f781435c627d1b54e6884e",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "afc71bd9_5c9d7f5e",
+        "filename": "ui/build/dumpvars.go",
+        "patchSetId": 3
+      },
+      "lineNbr": 169,
+      "author": {
+        "id": 16185
+      },
+      "writtenOn": "2022-02-18T04:41:17Z",
+      "side": 1,
+      "message": "https://review.lineageos.org/c/LineageOS/android_vendor_lineage/+/324693",
+      "parentUuid": "b0e26e41_148596b1",
       "range": {
         "startLine": 169,
         "startChar": 2,
