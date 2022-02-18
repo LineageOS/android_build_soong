@@ -294,7 +294,7 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		if _, exists := locationLabels[label]; !exists {
 			locationLabels[label] = loc
 		} else {
-			ctx.ModuleErrorf("multiple labels for %q, %q and %q",
+			ctx.ModuleErrorf("multiple locations for label %q: %q and %q (do you have duplicate srcs entries?)",
 				label, locationLabels[label], loc)
 		}
 	}
