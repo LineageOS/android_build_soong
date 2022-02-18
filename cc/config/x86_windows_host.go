@@ -15,6 +15,7 @@
 package config
 
 import (
+	"path/filepath"
 	"strings"
 
 	"android/soong/android"
@@ -178,6 +179,14 @@ func (t *toolchainWindows) GccRoot() string {
 
 func (t *toolchainWindows) GccTriple() string {
 	return "${config.WindowsGccTriple}"
+}
+
+func (t *toolchainWindows) ToolchainCflags() string {
+	return "-B" + filepath.Join(t.GccRoot(), t.GccTriple(), "bin")
+}
+
+func (t *toolchainWindows) ToolchainLdflags() string {
+	return "-B" + filepath.Join(t.GccRoot(), t.GccTriple(), "bin")
 }
 
 func (t *toolchainWindows) GccVersion() string {
