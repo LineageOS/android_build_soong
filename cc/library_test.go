@@ -379,3 +379,77 @@ cc_library_shared {
 	gotFlags := entries.EntryMap["LOCAL_EXPORT_CFLAGS"]
 	android.AssertDeepEquals(t, "androidmk exported cflags", expectedFlags, gotFlags)
 }
+
+func TestWholeStaticLibPrebuilts(t *testing.T) {
+	result := PrepareForIntegrationTestWithCc.RunTestWithBp(t, `
+		cc_prebuilt_library_static {
+			name: "libprebuilt",
+			srcs: ["foo.a"],
+		}
+
+		cc_library_static {
+			name: "libdirect",
+			whole_static_libs: ["libprebuilt"],
+		}
+
+		cc_library_static {
+			name: "libtransitive",
+			whole_static_libs: ["libdirect"],
+		}
+
+		cc_library_static {
+			name: "libdirect_with_srcs",
+			srcs: ["bar.c"],
+			whole_static_libs: ["libprebuilt"],
+		}
+
+		cc_library_static {
+			name: "libtransitive_with_srcs",
+			srcs: ["baz.c"],
+			whole_static_libs: ["libdirect_with_srcs"],
+		}
+	`)
+
+	libdirect := result.ModuleForTests("libdirect", "android_arm64_armv8-a_static").Rule("arWithLibs")
+	libtransitive := result.ModuleForTests("libtransitive", "android_arm64_armv8-a_static").Rule("arWithLibs")
+
+	libdirectWithSrcs := result.ModuleForTests("libdirect_with_srcs", "android_arm64_armv8-a_static").Rule("arWithLibs")
+	libtransitiveWithSrcs := result.ModuleForTests("libtransitive_with_srcs", "android_arm64_armv8-a_static").Rule("arWithLibs")
+
+	barObj := result.ModuleForTests("libdirect_with_srcs", "android_arm64_armv8-a_static").Rule("cc")
+	bazObj := result.ModuleForTests("libtransitive_with_srcs", "android_arm64_armv8-a_static").Rule("cc")
+
+	android.AssertStringListContains(t, "missing dependency on foo.a",
+		libdirect.Inputs.Strings(), "foo.a")
+	android.AssertStringDoesContain(t, "missing flag for foo.a",
+		libdirect.Args["arLibs"], "foo.a")
+
+	android.AssertStringListContains(t, "missing dependency on foo.a",
+		libtransitive.Inputs.Strings(), "foo.a")
+	android.AssertStringDoesContain(t, "missing flag for foo.a",
+		libtransitive.Args["arLibs"], "foo.a")
+
+	android.AssertStringListContains(t, "missing dependency on foo.a",
+		libdirectWithSrcs.Inputs.Strings(), "foo.a")
+	android.AssertStringDoesContain(t, "missing flag for foo.a",
+		libdirectWithSrcs.Args["arLibs"], "foo.a")
+	android.AssertStringListContains(t, "missing dependency on bar.o",
+		libdirectWithSrcs.Inputs.Strings(), barObj.Output.String())
+	android.AssertStringDoesContain(t, "missing flag for bar.o",
+		libdirectWithSrcs.Args["arObjs"], barObj.Output.String())
+
+	android.AssertStringListContains(t, "missing dependency on foo.a",
+		libtransitiveWithSrcs.Inputs.Strings(), "foo.a")
+	android.AssertStringDoesContain(t, "missing flag for foo.a",
+		libtransitiveWithSrcs.Args["arLibs"], "foo.a")
+
+	android.AssertStringListContains(t, "missing dependency on bar.o",
+		libtransitiveWithSrcs.Inputs.Strings(), barObj.Output.String())
+	android.AssertStringDoesContain(t, "missing flag for bar.o",
+		libtransitiveWithSrcs.Args["arObjs"], barObj.Output.String())
+
+	android.AssertStringListContains(t, "missing dependency on baz.o",
+		libtransitiveWithSrcs.Inputs.Strings(), bazObj.Output.String())
+	android.AssertStringDoesContain(t, "missing flag for baz.o",
+		libtransitiveWithSrcs.Args["arObjs"], bazObj.Output.String())
+}

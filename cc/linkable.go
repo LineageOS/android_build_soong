@@ -352,6 +352,11 @@ type StaticLibraryInfo struct {
 	Objects       Objects
 	ReuseObjects  Objects
 
+	// A static library may contain prebuilt static libraries included with whole_static_libs
+	// that won't appear in Objects.  They are transitively available in
+	// WholeStaticLibsFromPrebuilts.
+	WholeStaticLibsFromPrebuilts android.Paths
+
 	// This isn't the actual transitive DepSet, shared library dependencies have been
 	// converted into static library analogues.  It is only used to order the static
 	// library dependencies that were specified for the current module.
