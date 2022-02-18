@@ -225,6 +225,16 @@ This 90-second limit is actually the default time limit
 in several Android continuous builds where `WITH_TIDY=1` and
 `CLANG_ANALYZER_CHECKS=1` are set.
 
+Similar to `tidy_disabled_srcs` a `tidy_timeout_srcs` list
+can be used to include all source files that took too much time to compile
+with clang-tidy. Files listed in `tidy_timeout_srcs` will not
+be compiled by clang-tidy when `TIDY_TIMEOUT` is defined.
+This can save global build time, when it is necessary to set some
+time limit globally to finish in an acceptable time.
+For developers who want to find all clang-tidy warnings and
+are willing to spend more time on all files in a project,
+they should not define `TIDY_TIMEOUT` and build only the wanted project directories.
+
 ## Capabilities for Android.bp and Android.mk
 
 Some of the previously mentioned features are defined only
