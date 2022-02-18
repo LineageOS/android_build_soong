@@ -106,6 +106,9 @@ func (test *testDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidM
 			}
 			entries.SetBoolIfTrue("LOCAL_DISABLE_AUTO_GENERATE_TEST_CONFIG", !BoolDefault(test.Properties.Auto_gen_config, true))
 			entries.SetBoolIfTrue("LOCAL_IS_UNIT_TEST", Bool(test.Properties.Test_options.Unit_test))
+			if test.Properties.Data_bins != nil {
+				entries.AddStrings("LOCAL_TEST_DATA_BINS", test.Properties.Data_bins...)
+			}
 		})
 
 	cc.AndroidMkWriteTestData(test.data, ret)

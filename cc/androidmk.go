@@ -399,6 +399,9 @@ func (test *testBinary) AndroidMkEntries(ctx AndroidMkContext, entries *android.
 		}
 
 		entries.SetBoolIfTrue("LOCAL_COMPATIBILITY_PER_TESTCASE_DIRECTORY", Bool(test.Properties.Per_testcase_directory))
+		if len(test.Properties.Data_bins) > 0 {
+			entries.AddStrings("LOCAL_TEST_DATA_BINS", test.Properties.Data_bins...)
+		}
 	})
 
 	AndroidMkWriteTestData(test.data, entries)
