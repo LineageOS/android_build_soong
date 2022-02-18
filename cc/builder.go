@@ -459,7 +459,7 @@ func (a Objects) Append(b Objects) Objects {
 }
 
 // Generate rules for compiling multiple .c, .cpp, or .S files to individual .o files
-func transformSourceToObj(ctx ModuleContext, subdir string, srcFiles, noTidySrcs android.Paths,
+func transformSourceToObj(ctx ModuleContext, subdir string, srcFiles, noTidySrcs, timeoutTidySrcs android.Paths,
 	flags builderFlags, pathDeps android.Paths, cFlagsDeps android.Paths) Objects {
 	// Source files are one-to-one with tidy, coverage, or kythe files, if enabled.
 	objFiles := make(android.Paths, len(srcFiles))
@@ -474,6 +474,10 @@ func transformSourceToObj(ctx ModuleContext, subdir string, srcFiles, noTidySrcs
 		tidyTimeout := ctx.Config().Getenv("TIDY_TIMEOUT")
 		if len(tidyTimeout) > 0 {
 			tidyVars += "TIDY_TIMEOUT=" + tidyTimeout + " "
+			// add timeoutTidySrcs into noTidySrcsMap if TIDY_TIMEOUT is set
+			for _, path := range timeoutTidySrcs {
+				noTidySrcsMap[path.String()] = true
+			}
 		}
 	}
 	var coverageFiles android.Paths
