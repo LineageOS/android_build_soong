@@ -145,6 +145,8 @@ type StaticOrSharedProperties struct {
 
 	Tidy_disabled_srcs []string `android:"path,arch_variant"`
 
+	Tidy_timeout_srcs []string `android:"path,arch_variant"`
+
 	Sanitized Sanitized `android:"arch_variant"`
 
 	Cflags []string `android:"arch_variant"`
@@ -1079,11 +1081,13 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 		srcs := android.PathsForModuleSrc(ctx, library.StaticProperties.Static.Srcs)
 		objs = objs.Append(compileObjs(ctx, buildFlags, android.DeviceStaticLibrary, srcs,
 			android.PathsForModuleSrc(ctx, library.StaticProperties.Static.Tidy_disabled_srcs),
+			android.PathsForModuleSrc(ctx, library.StaticProperties.Static.Tidy_timeout_srcs),
 			library.baseCompiler.pathDeps, library.baseCompiler.cFlagsDeps))
 	} else if library.shared() {
 		srcs := android.PathsForModuleSrc(ctx, library.SharedProperties.Shared.Srcs)
 		objs = objs.Append(compileObjs(ctx, buildFlags, android.DeviceSharedLibrary, srcs,
 			android.PathsForModuleSrc(ctx, library.SharedProperties.Shared.Tidy_disabled_srcs),
+			android.PathsForModuleSrc(ctx, library.SharedProperties.Shared.Tidy_timeout_srcs),
 			library.baseCompiler.pathDeps, library.baseCompiler.cFlagsDeps))
 	}
 

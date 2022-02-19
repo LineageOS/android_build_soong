@@ -458,6 +458,9 @@ func (s *ShTest) AndroidMkEntries() []android.AndroidMkEntries {
 					dir := strings.TrimSuffix(s.dataModules[relPath].String(), relPath)
 					entries.AddStrings("LOCAL_TEST_DATA", dir+":"+relPath)
 				}
+				if s.testProperties.Data_bins != nil {
+					entries.AddStrings("LOCAL_TEST_DATA_BINS", s.testProperties.Data_bins...)
+				}
 				if Bool(s.testProperties.Test_options.Unit_test) {
 					entries.SetBool("LOCAL_IS_UNIT_TEST", true)
 				}
