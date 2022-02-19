@@ -227,7 +227,6 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 	}
 
 	clangPrefix := secondPrefix + "CLANG_" + typePrefix
-	clangExtras := "-B" + config.ToolPath(toolchain)
 
 	ctx.Strict(clangPrefix+"TRIPLE", toolchain.ClangTriple())
 	ctx.Strict(clangPrefix+"GLOBAL_CFLAGS", strings.Join([]string{
@@ -235,7 +234,6 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 		"${config.CommonGlobalCflags}",
 		fmt.Sprintf("${config.%sGlobalCflags}", hod),
 		toolchain.ToolchainCflags(),
-		clangExtras,
 		productExtraCflags,
 	}, " "))
 	ctx.Strict(clangPrefix+"GLOBAL_CPPFLAGS", strings.Join([]string{
@@ -248,25 +246,52 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 		toolchain.Ldflags(),
 		toolchain.ToolchainLdflags(),
 		productExtraLdflags,
-		clangExtras,
 	}, " "))
 	ctx.Strict(clangPrefix+"GLOBAL_LLDFLAGS", strings.Join([]string{
 		fmt.Sprintf("${config.%sGlobalLldflags}", hod),
 		toolchain.Lldflags(),
 		toolchain.ToolchainLdflags(),
 		productExtraLdflags,
-		clangExtras,
 	}, " "))
 
 	if target.Os.Class == android.Device {
-		ctx.Strict(secondPrefix+"ADDRESS_SANITIZER_RUNTIME_LIBRARY", strings.TrimSuffix(config.AddressSanitizerRuntimeLibrary(toolchain), ".so"))
-		ctx.Strict(secondPrefix+"HWADDRESS_SANITIZER_RUNTIME_LIBRARY", strings.TrimSuffix(config.HWAddressSanitizerRuntimeLibrary(toolchain), ".so"))
-		ctx.Strict(secondPrefix+"HWADDRESS_SANITIZER_STATIC_LIBRARY", strings.TrimSuffix(config.HWAddressSanitizerStaticLibrary(toolchain), ".a"))
-		ctx.Strict(secondPrefix+"UBSAN_RUNTIME_LIBRARY", strings.TrimSuffix(config.UndefinedBehaviorSanitizerRuntimeLibrary(toolchain), ".so"))
-		ctx.Strict(secondPrefix+"UBSAN_MINIMAL_RUNTIME_LIBRARY", strings.TrimSuffix(config.UndefinedBehaviorSanitizerMinimalRuntimeLibrary(toolchain), ".a"))
-		ctx.Strict(secondPrefix+"TSAN_RUNTIME_LIBRARY", strings.TrimSuffix(config.ThreadSanitizerRuntimeLibrary(toolchain), ".so"))
-		ctx.Strict(secondPrefix+"SCUDO_RUNTIME_LIBRARY", strings.TrimSuffix(config.ScudoRuntimeLibrary(toolchain), ".so"))
-		ctx.Strict(secondPrefix+"SCUDO_MINIMAL_RUNTIME_LIBRARY", strings.TrimSuffix(config.ScudoMinimalRuntimeLibrary(toolchain), ".so"))
+		sanitizerVariables := map[string]string{
+			"ADDRESS_SANITIZER_RUNTIME_LIBRARY":   config.AddressSanitizerRuntimeLibrary(toolchain),
+			"HWADDRESS_SANITIZER_RUNTIME_LIBRARY": config.HWAddressSanitizerRuntimeLibrary(toolchain),
+			"HWADDRESS_SANITIZER_STATIC_LIBRARY":  config.HWAddressSanitizerStaticLibrary(toolchain),
+			"UBSAN_RUNTIME_LIBRARY":               config.UndefinedBehaviorSanitizerRuntimeLibrary(toolchain),
+			"UBSAN_MINIMAL_RUNTIME_LIBRARY":       config.UndefinedBehaviorSanitizerMinimalRuntimeLibrary(toolchain),
+			"TSAN_RUNTIME_LIBRARY":                config.ThreadSanitizerRuntimeLibrary(toolchain),
+			"SCUDO_RUNTIME_LIBRARY":               config.ScudoRuntimeLibrary(toolchain),
+			"SCUDO_MINIMAL_RUNTIME_LIBRARY":       config.ScudoMinimalRuntimeLibrary(toolchain),
+		}
+
+		for variable, value := range sanitizerVariables {
+			ctx.Strict(secondPrefix+variable, value)
+		}
+
+		sanitizerLibs := android.SortedStringValues(sanitizerVariables)
+		var sanitizerLibStems []string
+		ctx.VisitAllModules(func(m android.Module) {
+			if !m.Enabled() {
+				return
+			}
+
+			ccModule, _ := m.(*Module)
+			if ccModule == nil || ccModule.library == nil || !ccModule.library.shared() {
+				return
+			}
+
+			if android.InList(strings.TrimPrefix(ctx.ModuleName(m), "prebuilt_"), sanitizerLibs) &&
+				m.Target().Os == target.Os && m.Target().Arch.ArchType == target.Arch.ArchType {
+				outputFile := ccModule.outputFile
+				if outputFile.Valid() {
+					sanitizerLibStems = append(sanitizerLibStems, outputFile.Path().Base())
+				}
+			}
+		})
+		sanitizerLibStems = android.SortedUniqueStrings(sanitizerLibStems)
+		ctx.Strict(secondPrefix+"SANITIZER_STEMS", strings.Join(sanitizerLibStems, " "))
 	}
 
 	// This is used by external/gentoo/...
