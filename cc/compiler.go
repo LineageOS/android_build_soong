@@ -406,6 +406,10 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 		flags.Global.CommonFlags = append(flags.Global.CommonFlags, "-D__ANDROID_RECOVERY__")
 	}
 
+	if ctx.inRecovery() || ctx.inRamdisk() || ctx.inVendorRamdisk() {
+		flags.Global.CommonFlags = append(flags.Global.CommonFlags, "-D__ANDROID_RAMDISK__")
+	}
+
 	if ctx.apexVariationName() != "" {
 		flags.Global.CommonFlags = append(flags.Global.CommonFlags, "-D__ANDROID_APEX__")
 		if ctx.Device() {
