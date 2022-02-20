@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "59d792f6_d59dd860",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 10258
+      },
+      "writtenOn": "2022-02-20T15:58:44Z",
+      "side": 1,
+      "message": "required by https://review.lineageos.org/c/LineageOS/android_system_core/+/324784, forgot to push before",
+      "revId": "9363cb86c8a9f3ae664adc2cd0c182add550344c",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
