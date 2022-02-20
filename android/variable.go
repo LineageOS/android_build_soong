@@ -142,6 +142,7 @@ type variableProperties struct {
 			Cflags   []string
 			Cppflags []string
 			Flags    []string
+			Init_rc  []string
 			Lto      struct {
 				Never *bool
 			}
