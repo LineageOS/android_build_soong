@@ -23,6 +23,7 @@ TOP=$(pwd)
 
 source build/envsetup.sh
 PLATFORM_SDK_VERSION=$(get_build_var PLATFORM_SDK_VERSION)
+PLATFORM_BASE_SDK_EXTENSION_VERSION=$(get_build_var PLATFORM_BASE_SDK_EXTENSION_VERSION)
 PLATFORM_VERSION_ALL_CODENAMES=$(get_build_var PLATFORM_VERSION_ALL_CODENAMES)
 
 # PLATFORM_VERSION_ALL_CODENAMES is a comma separated list like O,P. We need to
@@ -46,6 +47,7 @@ mkdir -p ${SOONG_OUT}
 cat > ${SOONG_OUT}/soong.variables << EOF
 {
     "Platform_sdk_version": ${PLATFORM_SDK_VERSION},
+    "Platform_base_sdk_extension_version": ${PLATFORM_BASE_SDK_EXTENSION_VERSION},
     "Platform_version_active_codenames": ${PLATFORM_VERSION_ALL_CODENAMES},
 
     "DeviceName": "generic_arm64",
