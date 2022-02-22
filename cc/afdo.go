@@ -32,7 +32,7 @@ var (
 
 var afdoProfileProjectsConfigKey = android.NewOnceKey("AfdoProfileProjects")
 
-const afdoCFlagsFormat = "-fprofile-sample-accurate -fprofile-sample-use=%s"
+const afdoCFlagsFormat = "-funique-internal-linkage-names -fprofile-sample-accurate -fprofile-sample-use=%s"
 
 func getAfdoProfileProjects(config android.DeviceConfig) []string {
 	return config.OnceStringSlice(afdoProfileProjectsConfigKey, func() []string {
