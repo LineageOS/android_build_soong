@@ -829,7 +829,7 @@ func createArchPropTypeDesc(props reflect.Type) []archPropTypeDesc {
 	const maxArchTypeNameSize = 500
 
 	// Convert the type to a new set of types that contains only the arch-specific properties
-	// (those that are tagged with `android:"arch_specific"`), and sharded into multiple types
+	// (those that are tagged with `android:"arch_variant"`), and sharded into multiple types
 	// to keep the runtime-generated names under the limit.
 	propShards, _ := proptools.FilterPropertyStructSharded(props, maxArchTypeNameSize, filterArchStruct)
 

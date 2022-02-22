@@ -73,7 +73,7 @@ type BazelHandler interface {
 }
 
 type BazelContext interface {
-	// The below methods involve queuing cquery requests to be later invoked
+	// The methods below involve queuing cquery requests to be later invoked
 	// by bazel. If any of these methods return (_, false), then the request
 	// has been queued to be run later.
 
@@ -561,7 +561,7 @@ def %s(target):
     return id_string + ">>" + %s(target)
 `
 
-	for requestType, _ := range requestTypeToCqueryIdEntries {
+	for requestType := range requestTypeToCqueryIdEntries {
 		labelMapName := requestType.Name() + "_Labels"
 		functionName := requestType.Name() + "_Fn"
 		labelRegistrationMapSection += fmt.Sprintf(mapDeclarationFormatString,
