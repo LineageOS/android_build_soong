@@ -350,18 +350,19 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 
 	config := &config{
 		productVariables: productVariables{
-			DeviceName:                        stringPtr("test_device"),
-			Platform_sdk_version:              intPtr(30),
-			Platform_sdk_codename:             stringPtr("S"),
-			Platform_version_active_codenames: []string{"S", "Tiramisu"},
-			DeviceSystemSdkVersions:           []string{"14", "15"},
-			Platform_systemsdk_versions:       []string{"29", "30"},
-			AAPTConfig:                        []string{"normal", "large", "xlarge", "hdpi", "xhdpi", "xxhdpi"},
-			AAPTPreferredConfig:               stringPtr("xhdpi"),
-			AAPTCharacteristics:               stringPtr("nosdcard"),
-			AAPTPrebuiltDPI:                   []string{"xhdpi", "xxhdpi"},
-			UncompressPrivAppDex:              boolPtr(true),
-			ShippingApiLevel:                  stringPtr("30"),
+			DeviceName:                          stringPtr("test_device"),
+			Platform_sdk_version:                intPtr(30),
+			Platform_sdk_codename:               stringPtr("S"),
+			Platform_base_sdk_extension_version: intPtr(1),
+			Platform_version_active_codenames:   []string{"S", "Tiramisu"},
+			DeviceSystemSdkVersions:             []string{"14", "15"},
+			Platform_systemsdk_versions:         []string{"29", "30"},
+			AAPTConfig:                          []string{"normal", "large", "xlarge", "hdpi", "xhdpi", "xxhdpi"},
+			AAPTPreferredConfig:                 stringPtr("xhdpi"),
+			AAPTCharacteristics:                 stringPtr("nosdcard"),
+			AAPTPrebuiltDPI:                     []string{"xhdpi", "xxhdpi"},
+			UncompressPrivAppDex:                boolPtr(true),
+			ShippingApiLevel:                    stringPtr("30"),
 		},
 
 		outDir:       buildDir,
@@ -740,6 +741,14 @@ func (c *config) PlatformSdkVersion() ApiLevel {
 
 func (c *config) PlatformSdkCodename() string {
 	return String(c.productVariables.Platform_sdk_codename)
+}
+
+func (c *config) PlatformSdkExtensionVersion() int {
+	return *c.productVariables.Platform_sdk_extension_version
+}
+
+func (c *config) PlatformBaseSdkExtensionVersion() int {
+	return *c.productVariables.Platform_base_sdk_extension_version
 }
 
 func (c *config) PlatformSecurityPatch() string {
