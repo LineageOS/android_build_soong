@@ -393,8 +393,6 @@ var (
 	// A module can either be in this list or its directory allowlisted entirely
 	// in bp2buildDefaultConfig, but not both at the same time.
 	bp2buildModuleAlwaysConvertList = []string{
-		"prebuilt_junit-params-assertj-core",
-
 		//external/avb
 		"avbtool",
 		"libavb",
@@ -419,9 +417,11 @@ var (
 		"fec",
 	}
 
-	// Per-module-type allowlist to always opt modules in of both bp2build and mixed builds
+	// Per-module-type allowlist to always opt modules in to both bp2build and mixed builds
 	// when they have the same type as one listed.
-	bp2buildModuleTypeAlwaysConvertList = []string{}
+	bp2buildModuleTypeAlwaysConvertList = []string{
+		"java_import",
+	}
 
 	// Per-module denylist to always opt modules out of both bp2build and mixed builds.
 	bp2buildModuleDoNotConvertList = []string{
@@ -556,6 +556,24 @@ var (
 
 		"art-script",     // depends on unconverted modules: dalvikvm, dex2oat
 		"dex2oat-script", // depends on unconverted modules: dex2oat
+
+		// TODO(b/221082840) convert java_imports in //packages/apps/Car/libs/car-ui-lib/...
+		"prebuilt_car-ui-androidx-annotation",
+		"prebuilt_car-ui-androidx-annotation-nodeps",
+		"prebuilt_car-ui-androidx-collection",
+		"prebuilt_car-ui-androidx-collection-nodeps",
+		"prebuilt_car-ui-androidx-core-common",
+		"prebuilt_car-ui-androidx-core-common-nodeps",
+		"prebuilt_car-ui-androidx-lifecycle-common",
+		"prebuilt_car-ui-androidx-lifecycle-common-nodeps",
+		"prebuilt_car-ui-androidx-constraintlayout-solver",
+		"prebuilt_car-ui-androidx-constraintlayout-solver-nodeps",
+
+		"prebuilt_art-module-host-exports_okhttp-norepackage@current",        // aosp/1999250, needs Jars (arch variant)
+		"prebuilt_conscrypt-unbundled",                                       // aosp/1999250, needs Jars (arch variant)
+		"prebuilt_conscrypt-module-host-exports_conscrypt-unbundled@current", // aosp/1999250, needs Jars (arch variant)
+		"prebuilt_platform-robolectric-4.4-prebuilt",                         // aosp/1999250, needs .aar support in Jars
+		"prebuilt_platform-robolectric-4.5.1-prebuilt",                       // aosp/1999250, needs .aar support in Jars
 	}
 
 	// Per-module denylist of cc_library modules to only generate the static
