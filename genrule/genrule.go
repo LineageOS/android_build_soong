@@ -496,7 +496,7 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 						}
 						return paths[0], nil
 					} else {
-						return reportError("unknown location label %q", label)
+						return reportError("unknown location label %q is not in srcs, out, tools or tool_files.", label)
 					}
 				} else if strings.HasPrefix(name, "locations ") {
 					label := strings.TrimSpace(strings.TrimPrefix(name, "locations "))
@@ -507,7 +507,7 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 						}
 						return strings.Join(paths, " "), nil
 					} else {
-						return reportError("unknown locations label %q", label)
+						return reportError("unknown locations label %q is not in srcs, out, tools or tool_files.", label)
 					}
 				} else {
 					return reportError("unknown variable '$(%s)'", name)
