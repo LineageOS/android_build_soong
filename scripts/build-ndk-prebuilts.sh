@@ -19,56 +19,9 @@ if [ -z "${OUT_DIR}" ]; then
     exit 1
 fi
 
-TOP=$(pwd)
-
-source build/envsetup.sh
-PLATFORM_SDK_VERSION=$(get_build_var PLATFORM_SDK_VERSION)
-PLATFORM_BASE_SDK_EXTENSION_VERSION=$(get_build_var PLATFORM_BASE_SDK_EXTENSION_VERSION)
-PLATFORM_VERSION_ALL_CODENAMES=$(get_build_var PLATFORM_VERSION_ALL_CODENAMES)
-
-# PLATFORM_VERSION_ALL_CODENAMES is a comma separated list like O,P. We need to
-# turn this into ["O","P"].
-PLATFORM_VERSION_ALL_CODENAMES=${PLATFORM_VERSION_ALL_CODENAMES/,/'","'}
-PLATFORM_VERSION_ALL_CODENAMES="[\"${PLATFORM_VERSION_ALL_CODENAMES}\"]"
-
-# Get the list of missing <uses-library> modules and convert it to a JSON array
-# (quote module names, add comma separator and wrap in brackets).
-MISSING_USES_LIBRARIES="$(get_build_var INTERNAL_PLATFORM_MISSING_USES_LIBRARIES)"
-MISSING_USES_LIBRARIES="[$(echo $MISSING_USES_LIBRARIES | sed -e 's/\([^ ]\+\)/\"\1\"/g' -e 's/[ ]\+/, /g')]"
-
-SOONG_OUT=${OUT_DIR}/soong
-SOONG_NDK_OUT=${OUT_DIR}/soong/ndk
-rm -rf ${SOONG_OUT}
-mkdir -p ${SOONG_OUT}
-
-# We only really need to set some of these variables, but soong won't merge this
-# with the defaults, so we need to write out all the defaults with our values
-# added.
-cat > ${SOONG_OUT}/soong.variables << EOF
-{
-    "Platform_sdk_version": ${PLATFORM_SDK_VERSION},
-    "Platform_base_sdk_extension_version": ${PLATFORM_BASE_SDK_EXTENSION_VERSION},
-    "Platform_version_active_codenames": ${PLATFORM_VERSION_ALL_CODENAMES},
-
-    "DeviceName": "generic_arm64",
-    "HostArch": "x86_64",
-    "Malloc_not_svelte": false,
-    "Safestack": false,
-
-    "Ndk_abis": true,
-
-    "VendorVars": {
-        "art_module": {
-            "source_build": "true"
-        }
-    },
-
-    "MissingUsesLibraries": ${MISSING_USES_LIBRARIES}
-}
-EOF
-m --soong-only --skip-config ${SOONG_OUT}/ndk.timestamp
+TARGET_PRODUCT=ndk build/soong/soong_ui.bash --make-mode --soong-only ${OUT_DIR}/soong/ndk.timestamp
 
 if [ -n "${DIST_DIR}" ]; then
     mkdir -p ${DIST_DIR} || true
-    tar cjf ${DIST_DIR}/ndk_platform.tar.bz2 -C ${SOONG_OUT} ndk
+    tar cjf ${DIST_DIR}/ndk_platform.tar.bz2 -C ${OUT_DIR}/soong ndk
 fi
