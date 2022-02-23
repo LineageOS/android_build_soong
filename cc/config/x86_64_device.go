@@ -37,10 +37,10 @@ var (
 		"": []string{
 			"-march=x86-64",
 		},
+
 		"broadwell": []string{
 			"-march=broadwell",
 		},
-
 		"haswell": []string{
 			"-march=core-avx2",
 		},
