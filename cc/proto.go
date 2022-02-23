@@ -177,7 +177,7 @@ type bp2buildProtoDeps struct {
 func bp2buildProto(ctx android.Bp2buildMutatorContext, m *Module, protoSrcs bazel.LabelListAttribute) bp2buildProtoDeps {
 	var ret bp2buildProtoDeps
 
-	protoInfo, ok := android.Bp2buildProtoProperties(ctx, m, protoSrcs)
+	protoInfo, ok := android.Bp2buildProtoProperties(ctx, &m.ModuleBase, protoSrcs)
 	if !ok {
 		return ret
 	}
