@@ -341,7 +341,7 @@ func TestGenruleCmd(t *testing.T) {
 				out: ["out"],
 				cmd: "echo foo > $(location missing)",
 			`,
-			err: `unknown location label "missing"`,
+			err: `unknown location label "missing" is not in srcs, out, tools or tool_files.`,
 		},
 		{
 			name: "error locations",
@@ -349,7 +349,7 @@ func TestGenruleCmd(t *testing.T) {
 					out: ["out"],
 					cmd: "echo foo > $(locations missing)",
 			`,
-			err: `unknown locations label "missing"`,
+			err: `unknown locations label "missing" is not in srcs, out, tools or tool_files`,
 		},
 		{
 			name: "error location no files",
