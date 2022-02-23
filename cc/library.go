@@ -408,6 +408,8 @@ func libraryBp2Build(ctx android.TopDownMutatorContext, m *Module) {
 		sharedTargetAttrs.Has_stubs.SetValue(&hasStubs)
 	}
 
+	sharedTargetAttrs.Suffix = compilerAttrs.suffix
+
 	for axis, configToProps := range m.GetArchVariantProperties(ctx, &LibraryProperties{}) {
 		for config, props := range configToProps {
 			if props, ok := props.(*LibraryProperties); ok {
@@ -2647,6 +2649,8 @@ func sharedOrStaticLibraryBp2Build(ctx android.TopDownMutatorContext, module *Mo
 			},
 
 			Features: baseAttributes.features,
+
+			Suffix: compilerAttrs.suffix,
 		}
 		if compilerAttrs.stubsSymbolFile != nil && len(compilerAttrs.stubsVersions.Value) > 0 {
 			hasStubs := true
@@ -2729,6 +2733,8 @@ type bazelCcLibrarySharedAttributes struct {
 	Has_stubs bazel.BoolAttribute
 
 	Inject_bssl_hash bazel.BoolAttribute
+
+	Suffix bazel.StringAttribute
 }
 
 type bazelCcStubSuiteAttributes struct {
