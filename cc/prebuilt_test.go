@@ -20,6 +20,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/bazel/cquery"
+
 	"github.com/google/blueprint"
 )
 
@@ -29,6 +30,7 @@ var prepareForPrebuiltTest = android.GroupFixturePreparers(
 )
 
 func testPrebuilt(t *testing.T, bp string, fs android.MockFS, handlers ...android.FixturePreparer) *android.TestContext {
+	t.Helper()
 	result := android.GroupFixturePreparers(
 		prepareForPrebuiltTest,
 		fs.AddToFixture(),
@@ -448,4 +450,73 @@ cc_prebuilt_library_shared {
 	}
 	expectedOutputFiles := []string{pathPrefix + "foo.so"}
 	android.AssertDeepEquals(t, "output files", expectedOutputFiles, outputFiles.Strings())
+}
+
+func TestPrebuiltStubNoinstall(t *testing.T) {
+	testFunc := func(t *testing.T, bp string) {
+		result := android.GroupFixturePreparers(
+			prepareForPrebuiltTest,
+			android.PrepareForTestWithMakevars,
+		).RunTestWithBp(t, bp)
+
+		installRules := result.InstallMakeRulesForTesting(t)
+		var installedlibRule *android.InstallMakeRule
+		for i, rule := range installRules {
+			if rule.Target == "out/target/product/test_device/system/lib/installedlib.so" {
+				if installedlibRule != nil {
+					t.Errorf("Duplicate install rules for %s", rule.Target)
+				}
+				installedlibRule = &installRules[i]
+			}
+		}
+		if installedlibRule == nil {
+			t.Errorf("No install rule found for installedlib")
+			return
+		}
+
+		android.AssertStringListDoesNotContain(t,
+			"installedlib has install dependency on stub",
+			installedlibRule.Deps,
+			"out/target/product/test_device/system/lib/stublib.so")
+		android.AssertStringListDoesNotContain(t,
+			"installedlib has order-only install dependency on stub",
+			installedlibRule.OrderOnlyDeps,
+			"out/target/product/test_device/system/lib/stublib.so")
+	}
+
+	const prebuiltStublibBp = `
+		cc_prebuilt_library {
+			name: "stublib",
+			prefer: true,
+			srcs: ["foo.so"],
+			stubs: {
+				versions: ["1"],
+			},
+		}
+	`
+
+	const installedlibBp = `
+		cc_library {
+			name: "installedlib",
+			shared_libs: ["stublib"],
+		}
+	`
+
+	t.Run("prebuilt without source", func(t *testing.T) {
+		testFunc(t, prebuiltStublibBp+installedlibBp)
+	})
+
+	const disabledSourceStublibBp = `
+		cc_library {
+			name: "stublib",
+			enabled: false,
+			stubs: {
+				versions: ["1"],
+			},
+		}
+	`
+
+	t.Run("prebuilt with disabled source", func(t *testing.T) {
+		testFunc(t, disabledSourceStublibBp+prebuiltStublibBp+installedlibBp)
+	})
 }
