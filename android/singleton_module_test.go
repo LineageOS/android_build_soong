@@ -46,8 +46,8 @@ var prepareForSingletonModuleTest = GroupFixturePreparers(
 	PrepareForTestWithAndroidMk,
 	FixtureRegisterWithContext(func(ctx RegistrationContext) {
 		ctx.RegisterSingletonModuleType("test_singleton_module", testSingletonModuleFactory)
-		ctx.RegisterSingletonType("makevars", makeVarsSingletonFunc)
 	}),
+	PrepareForTestWithMakevars,
 )
 
 func TestSingletonModule(t *testing.T) {
