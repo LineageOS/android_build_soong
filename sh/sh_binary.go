@@ -149,6 +149,9 @@ type TestProperties struct {
 	// Only available for host sh_test modules.
 	Data_device_libs []string `android:"path,arch_variant"`
 
+	// Install the test into a folder named for the module in all test suites.
+	Per_testcase_directory *bool
+
 	// Test options.
 	Test_options TestOptions
 }
@@ -464,6 +467,7 @@ func (s *ShTest) AndroidMkEntries() []android.AndroidMkEntries {
 				if Bool(s.testProperties.Test_options.Unit_test) {
 					entries.SetBool("LOCAL_IS_UNIT_TEST", true)
 				}
+				entries.SetBoolIfTrue("LOCAL_COMPATIBILITY_PER_TESTCASE_DIRECTORY", Bool(s.testProperties.Per_testcase_directory))
 			},
 		},
 	}}
