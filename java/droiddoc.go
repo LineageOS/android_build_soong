@@ -330,7 +330,7 @@ func (j *Javadoc) genSources(ctx android.ModuleContext, srcFiles android.Paths,
 
 	// Process all aidl files together to support sharding them into one or more rules that produce srcjars.
 	if len(aidlSrcs) > 0 {
-		srcJarFiles := genAidl(ctx, aidlSrcs, flags.aidlFlags+aidlIncludeFlags, flags.aidlDeps)
+		srcJarFiles := genAidl(ctx, aidlSrcs, flags.aidlFlags+aidlIncludeFlags, nil, flags.aidlDeps)
 		outSrcFiles = append(outSrcFiles, srcJarFiles...)
 	}
 
