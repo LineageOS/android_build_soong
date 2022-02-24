@@ -2013,8 +2013,16 @@ type javaLibraryAttributes struct {
 func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext) *javaLibraryAttributes {
 	//TODO(b/209577426): Support multiple arch variants
 	srcs := bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrcExcludes(ctx, m.properties.Srcs, m.properties.Exclude_srcs))
+
+	javaSrcPartition := "java"
+	protoSrcPartition := "proto"
+	srcPartitions := bazel.PartitionLabelListAttribute(ctx, &srcs, bazel.LabelPartitions{
+		javaSrcPartition:  bazel.LabelPartition{Extensions: []string{".java"}, Keep_remainder: true},
+		protoSrcPartition: android.ProtoSrcLabelPartition,
+	})
+
 	attrs := &javaLibraryAttributes{
-		Srcs: srcs,
+		Srcs: srcPartitions[javaSrcPartition],
 	}
 
 	if m.properties.Javacflags != nil {
@@ -2029,6 +2037,12 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext)
 		//TODO(b/217236083) handle static libs similarly to Soong
 		deps.Append(android.BazelLabelForModuleDeps(ctx, m.properties.Static_libs))
 	}
+
+	protoDeps := bp2buildProto(ctx, &m.Module, srcPartitions[protoSrcPartition])
+	if protoDeps != nil {
+		deps.Add(protoDeps)
+	}
+
 	attrs.Deps = bazel.MakeLabelListAttribute(deps)
 
 	return attrs

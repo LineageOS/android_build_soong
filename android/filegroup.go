@@ -18,6 +18,8 @@ import (
 	"strings"
 
 	"android/soong/bazel"
+
+	"github.com/google/blueprint"
 )
 
 func init() {
@@ -27,6 +29,11 @@ func init() {
 var PrepareForTestWithFilegroup = FixtureRegisterWithContext(func(ctx RegistrationContext) {
 	ctx.RegisterModuleType("filegroup", FileGroupFactory)
 })
+
+// IsFilegroup checks that a module is a filegroup type
+func IsFilegroup(ctx bazel.OtherModuleContext, m blueprint.Module) bool {
+	return ctx.OtherModuleType(m) == "filegroup"
+}
 
 // https://docs.bazel.build/versions/master/be/general.html#filegroup
 type bazelFilegroupAttributes struct {
