@@ -8661,6 +8661,54 @@ func TestAndroidMk_RequiredModules(t *testing.T) {
 	ensureContains(t, androidMk, "LOCAL_REQUIRED_MODULES += otherapex")
 }
 
+func TestApexOutputFileProducer(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		ref           string
+		expected_data []string
+	}{
+		{
+			name:          "test_using_output",
+			ref:           ":myapex",
+			expected_data: []string{"out/soong/.intermediates/myapex/android_common_myapex_image/myapex.capex:myapex.capex"},
+		},
+		{
+			name:          "test_using_apex",
+			ref:           ":myapex{.apex}",
+			expected_data: []string{"out/soong/.intermediates/myapex/android_common_myapex_image/myapex.apex:myapex.apex"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := testApex(t, `
+					apex {
+						name: "myapex",
+						key: "myapex.key",
+						compressible: true,
+						updatable: false,
+					}
+
+					apex_key {
+						name: "myapex.key",
+						public_key: "testkey.avbpubkey",
+						private_key: "testkey.pem",
+					}
+
+					java_test {
+						name: "`+tc.name+`",
+						srcs: ["a.java"],
+						data: ["`+tc.ref+`"],
+					}
+				`,
+				android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+					variables.CompressedApex = proptools.BoolPtr(true)
+				}))
+			javaTest := ctx.ModuleForTests(tc.name, "android_common").Module().(*java.Test)
+			data := android.AndroidMkEntriesForTest(t, ctx, javaTest)[0].EntryMap["LOCAL_COMPATIBILITY_SUPPORT_FILES"]
+			android.AssertStringPathsRelativeToTopEquals(t, "data", ctx.Config(), tc.expected_data, data)
+		})
+	}
+}
+
 func TestSdkLibraryCanHaveHigherMinSdkVersion(t *testing.T) {
 	preparer := android.GroupFixturePreparers(
 		PrepareForTestWithApexBuildComponents,
