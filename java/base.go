@@ -227,6 +227,12 @@ type DeviceProperties struct {
 		// whether to generate Binder#GetTransaction name method.
 		Generate_get_transaction_name *bool
 
+		// whether all interfaces should be annotated with required permissions.
+		Enforce_permissions *bool
+
+		// allowlist for interfaces that (temporarily) do not require annotation for permissions.
+		Enforce_permissions_exceptions []string `android:"path"`
+
 		// list of flags that will be passed to the AIDL compiler
 		Flags []string
 	}
@@ -418,7 +424,8 @@ type Module struct {
 	outputFile       android.Path
 	extraOutputFiles android.Paths
 
-	exportAidlIncludeDirs android.Paths
+	exportAidlIncludeDirs     android.Paths
+	ignoredAidlPermissionList android.Paths
 
 	logtagsSrcs android.Paths
 
@@ -772,6 +779,17 @@ func (j *Module) hasSrcExt(ext string) bool {
 	return hasSrcExt(j.properties.Srcs, ext)
 }
 
+func (j *Module) individualAidlFlags(ctx android.ModuleContext, aidlFile android.Path) string {
+	var flags string
+
+	if Bool(j.deviceProperties.Aidl.Enforce_permissions) {
+		if !android.InList(aidlFile.String(), j.ignoredAidlPermissionList.Strings()) {
+			flags = "-Wmissing-permission-annotation -Werror"
+		}
+	}
+	return flags
+}
+
 func (j *Module) aidlFlags(ctx android.ModuleContext, aidlPreprocess android.OptionalPath,
 	aidlIncludeDirs android.Paths) (string, android.Paths) {
 
@@ -812,6 +830,11 @@ func (j *Module) aidlFlags(ctx android.ModuleContext, aidlPreprocess android.Opt
 
 	if Bool(j.deviceProperties.Aidl.Generate_get_transaction_name) {
 		flags = append(flags, "--transaction_names")
+	}
+
+	if Bool(j.deviceProperties.Aidl.Enforce_permissions) {
+		exceptions := j.deviceProperties.Aidl.Enforce_permissions_exceptions
+		j.ignoredAidlPermissionList = android.PathsForModuleSrcExcludes(ctx, exceptions, nil)
 	}
 
 	aidlMinSdkVersion := j.MinSdkVersion(ctx).ApiLevel.String()

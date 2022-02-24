@@ -1333,6 +1333,42 @@ func TestAidlFlagsWithMinSdkVersion(t *testing.T) {
 	}
 }
 
+func TestAidlEnforcePermissions(t *testing.T) {
+	ctx, _ := testJava(t, `
+		java_library {
+			name: "foo",
+			srcs: ["aidl/foo/IFoo.aidl"],
+			aidl: { enforce_permissions: true },
+		}
+	`)
+
+	aidlCommand := ctx.ModuleForTests("foo", "android_common").Rule("aidl").RuleParams.Command
+	expectedAidlFlag := "-Wmissing-permission-annotation -Werror"
+	if !strings.Contains(aidlCommand, expectedAidlFlag) {
+		t.Errorf("aidl command %q does not contain %q", aidlCommand, expectedAidlFlag)
+	}
+}
+
+func TestAidlEnforcePermissionsException(t *testing.T) {
+	ctx, _ := testJava(t, `
+		java_library {
+			name: "foo",
+			srcs: ["aidl/foo/IFoo.aidl", "aidl/foo/IFoo2.aidl"],
+			aidl: { enforce_permissions: true, enforce_permissions_exceptions: ["aidl/foo/IFoo2.aidl"] },
+		}
+	`)
+
+	aidlCommand := ctx.ModuleForTests("foo", "android_common").Rule("aidl").RuleParams.Command
+	expectedAidlFlag := "$$FLAGS -Wmissing-permission-annotation -Werror aidl/foo/IFoo.aidl"
+	if !strings.Contains(aidlCommand, expectedAidlFlag) {
+		t.Errorf("aidl command %q does not contain %q", aidlCommand, expectedAidlFlag)
+	}
+	expectedAidlFlag = "$$FLAGS  aidl/foo/IFoo2.aidl"
+	if !strings.Contains(aidlCommand, expectedAidlFlag) {
+		t.Errorf("aidl command %q does not contain %q", aidlCommand, expectedAidlFlag)
+	}
+}
+
 func TestDataNativeBinaries(t *testing.T) {
 	ctx, _ := testJava(t, `
 		java_test_host {
