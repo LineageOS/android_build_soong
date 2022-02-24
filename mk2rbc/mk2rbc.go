@@ -430,7 +430,6 @@ func newParseContext(ss *StarlarkScript, nodes []mkparser.Node) *parseContext {
 		{"TARGET_COPY_OUT_RECOVERY", "recovery"},
 		{"TARGET_COPY_OUT_VENDOR_RAMDISK", "vendor_ramdisk"},
 		// TODO(asmundak): to process internal config files, we need the following variables:
-		//    BOARD_CONFIG_VENDOR_PATH
 		//    TARGET_VENDOR
 		//    target_base_product
 		//
