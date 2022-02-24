@@ -441,6 +441,16 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 
 	// Need to determine symlinks early since some targets (ie APEX) need this
 	// information but will not call 'install'
+	binary.setSymlinkList(ctx)
+
+	return ret
+}
+
+func (binary *binaryDecorator) unstrippedOutputFilePath() android.Path {
+	return binary.unstrippedOutputFile
+}
+
+func (binary *binaryDecorator) setSymlinkList(ctx ModuleContext) {
 	for _, symlink := range binary.Properties.Symlinks {
 		binary.symlinks = append(binary.symlinks,
 			symlink+String(binary.Properties.Suffix)+ctx.toolchain().ExecutableSuffix())
@@ -457,12 +467,6 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 			binary.preferredArchSymlink = symlinkName
 		}
 	}
-
-	return ret
-}
-
-func (binary *binaryDecorator) unstrippedOutputFilePath() android.Path {
-	return binary.unstrippedOutputFile
 }
 
 func (binary *binaryDecorator) symlinkList() []string {
