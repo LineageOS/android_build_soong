@@ -1415,7 +1415,7 @@ func (a *apexBundle) AddSanitizerDependencies(ctx android.BottomUpMutatorContext
 		for _, target := range ctx.MultiTargets() {
 			if target.Arch.ArchType.Multilib == "lib64" {
 				addDependenciesForNativeModules(ctx, ApexNativeDependencies{
-					Native_shared_libs: []string{"libclang_rt.hwasan-aarch64-android"},
+					Native_shared_libs: []string{"libclang_rt.hwasan"},
 					Tests:              nil,
 					Jni_libs:           nil,
 					Binaries:           nil,

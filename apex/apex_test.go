@@ -1412,13 +1412,14 @@ func TestRuntimeApexShouldInstallHwasanIfLibcDependsOnIt(t *testing.T) {
 		}
 
 		cc_prebuilt_library_shared {
-			name: "libclang_rt.hwasan-aarch64-android",
+			name: "libclang_rt.hwasan",
 			no_libcrt: true,
 			nocrt: true,
 			stl: "none",
 			system_shared_libs: [],
 			srcs: [""],
 			stubs: { versions: ["1"] },
+			stem: "libclang_rt.hwasan-aarch64-android",
 
 			sanitize: {
 				never: true,
@@ -1431,7 +1432,7 @@ func TestRuntimeApexShouldInstallHwasanIfLibcDependsOnIt(t *testing.T) {
 		"lib64/bionic/libclang_rt.hwasan-aarch64-android.so",
 	})
 
-	hwasan := ctx.ModuleForTests("libclang_rt.hwasan-aarch64-android", "android_arm64_armv8-a_shared")
+	hwasan := ctx.ModuleForTests("libclang_rt.hwasan", "android_arm64_armv8-a_shared")
 
 	installed := hwasan.Description("install libclang_rt.hwasan")
 	ensureContains(t, installed.Output.String(), "/system/lib64/bootstrap/libclang_rt.hwasan-aarch64-android.so")
@@ -1459,13 +1460,14 @@ func TestRuntimeApexShouldInstallHwasanIfHwaddressSanitized(t *testing.T) {
 		}
 
 		cc_prebuilt_library_shared {
-			name: "libclang_rt.hwasan-aarch64-android",
+			name: "libclang_rt.hwasan",
 			no_libcrt: true,
 			nocrt: true,
 			stl: "none",
 			system_shared_libs: [],
 			srcs: [""],
 			stubs: { versions: ["1"] },
+			stem: "libclang_rt.hwasan-aarch64-android",
 
 			sanitize: {
 				never: true,
@@ -1479,7 +1481,7 @@ func TestRuntimeApexShouldInstallHwasanIfHwaddressSanitized(t *testing.T) {
 		"lib64/bionic/libclang_rt.hwasan-aarch64-android.so",
 	})
 
-	hwasan := ctx.ModuleForTests("libclang_rt.hwasan-aarch64-android", "android_arm64_armv8-a_shared")
+	hwasan := ctx.ModuleForTests("libclang_rt.hwasan", "android_arm64_armv8-a_shared")
 
 	installed := hwasan.Description("install libclang_rt.hwasan")
 	ensureContains(t, installed.Output.String(), "/system/lib64/bootstrap/libclang_rt.hwasan-aarch64-android.so")
