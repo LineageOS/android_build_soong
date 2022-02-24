@@ -810,6 +810,9 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 		Implicits:   implicits,
 		Args:        args,
 	})
+	if suffix == imageApexSuffix {
+		a.outputApexFile = signedOutputFile
+	}
 	a.outputFile = signedOutputFile
 
 	if ctx.ModuleDir() != "system/apex/apexd/apexd_testdata" && a.testOnlyShouldForceCompression() {
