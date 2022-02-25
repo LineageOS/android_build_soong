@@ -1755,6 +1755,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					fi := apexFileForRustLibrary(ctx, r)
 					fi.isJniLib = isJniLib
 					filesInfo = append(filesInfo, fi)
+					return true // track transitive dependencies
 				} else {
 					propertyName := "native_shared_libs"
 					if isJniLib {
