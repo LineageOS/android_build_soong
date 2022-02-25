@@ -485,18 +485,12 @@ var (
 		"libprotobuf-java-full",            // b/210751803, we don't handle path property for filegroups
 		"host-libprotobuf-java-full",       // b/210751803, we don't handle path property for filegroups
 		"libprotobuf-java-util-full",       // b/210751803, we don't handle path property for filegroups
+		"apex_manifest_proto_java",         // b/210751803, depends on libprotobuf-java-full
+		"conscrypt",                        // b/210751803, we don't handle path property for filegroups
+		"conscrypt-for-host",               // b/210751803, we don't handle path property for filegroups
 
-		"conscrypt",          // b/210751803, we don't handle path property for filegroups
-		"conscrypt-for-host", // b/210751803, we don't handle path property for filegroups
-
-		"host-libprotobuf-java-lite",   // b/217236083, java_library cannot have deps without srcs
-		"host-libprotobuf-java-micro",  // b/217236083, java_library cannot have deps without srcs
-		"host-libprotobuf-java-nano",   // b/217236083, java_library cannot have deps without srcs
-		"error_prone_core",             // b/217236083, java_library cannot have deps without srcs
-		"bouncycastle-host",            // b/217236083, java_library cannot have deps without srcs
-		"mockito-robolectric-prebuilt", // b/217236083, java_library cannot have deps without srcs
-
-		"apex_manifest_proto_java", // b/215230097, we don't handle .proto files in java_library srcs attribute
+		"libprotobuf-java-nano",      // b/220869005, depends on non-public_current SDK
+		"host-libprotobuf-java-nano", // b/220869005, depends on libprotobuf-java-nano
 
 		"libc_musl_sysroot_bionic_arch_headers", // b/218405924, depends on soong_zip
 		"libc_musl_sysroot_bionic_headers",      // b/218405924, depends on soong_zip and generates duplicate srcs
@@ -562,10 +556,6 @@ var (
 
 		"art-script",     // depends on unconverted modules: dalvikvm, dex2oat
 		"dex2oat-script", // depends on unconverted modules: dex2oat
-
-		"error_prone_checkerframework_dataflow_nullaway", // TODO(b/219908977): "Error in fail: deps not allowed without srcs; move to runtime_deps?"
-
-		"libprotobuf-java-nano", // b/220869005, depends on non-public_current SDK
 	}
 
 	// Per-module denylist of cc_library modules to only generate the static
