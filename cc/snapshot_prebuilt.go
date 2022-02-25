@@ -680,6 +680,9 @@ func (p *snapshotBinaryDecorator) link(ctx ModuleContext, flags Flags, deps Path
 		Input:       in,
 	})
 
+	// binary snapshots need symlinking
+	p.setSymlinkList(ctx)
+
 	return outputFile
 }
 
