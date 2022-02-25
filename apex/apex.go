@@ -416,7 +416,11 @@ type apexBundle struct {
 	mergedNotices android.NoticeOutputs
 
 	// The built APEX file. This is the main product.
+	// Could be .apex or .capex
 	outputFile android.WritablePath
+
+	// The built uncompressed .apex file.
+	outputApexFile android.WritablePath
 
 	// The built APEX file in app bundle format. This file is not directly installed to the
 	// device. For an APEX, multiple app bundles are created each of which is for a specific ABI
@@ -1284,6 +1288,12 @@ func (a *apexBundle) OutputFiles(tag string) (android.Paths, error) {
 	case "", android.DefaultDistTag:
 		// This is the default dist path.
 		return android.Paths{a.outputFile}, nil
+	case imageApexSuffix:
+		// uncompressed one
+		if a.outputApexFile != nil {
+			return android.Paths{a.outputApexFile}, nil
+		}
+		fallthrough
 	default:
 		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
 	}
@@ -1405,7 +1415,7 @@ func (a *apexBundle) AddSanitizerDependencies(ctx android.BottomUpMutatorContext
 		for _, target := range ctx.MultiTargets() {
 			if target.Arch.ArchType.Multilib == "lib64" {
 				addDependenciesForNativeModules(ctx, ApexNativeDependencies{
-					Native_shared_libs: []string{"libclang_rt.hwasan-aarch64-android"},
+					Native_shared_libs: []string{"libclang_rt.hwasan"},
 					Tests:              nil,
 					Jni_libs:           nil,
 					Binaries:           nil,

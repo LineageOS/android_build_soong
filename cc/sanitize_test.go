@@ -24,11 +24,7 @@ import (
 
 var prepareForAsanTest = android.FixtureAddFile("asan/Android.bp", []byte(`
 	cc_library_shared {
-		name: "libclang_rt.asan-aarch64-android",
-	}
-
-	cc_library_shared {
-		name: "libclang_rt.asan-arm-android",
+		name: "libclang_rt.asan",
 	}
 `))
 
