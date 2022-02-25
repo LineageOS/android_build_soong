@@ -676,14 +676,21 @@ func (b *BazelModuleBase) shouldConvertWithBp2build(ctx BazelConversionContext, 
 	}
 
 	packagePath := ctx.OtherModuleDir(module)
-	config := ctx.Config().bp2buildPackageConfig
+	if alwaysConvert && ShouldKeepExistingBuildFileForDir(packagePath) {
+		ctx.(BaseModuleContext).ModuleErrorf("A module cannot be in a directory listed in bp2buildKeepExistingBuildFile"+
+			" and also be in bp2buildModuleAlwaysConvert. Directory: '%s'", packagePath)
 
+		return false
+	}
+
+	config := ctx.Config().bp2buildPackageConfig
 	// This is a tristate value: true, false, or unset.
 	propValue := b.bazelProperties.Bazel_module.Bp2build_available
 	if bp2buildDefaultTrueRecursively(packagePath, config) {
 		if alwaysConvert {
-			ctx.(BaseModuleContext).ModuleErrorf("a module cannot be in a directory marked Bp2BuildDefaultTrue" +
-				" or Bp2BuildDefaultTrueRecursively and also be in bp2buildModuleAlwaysConvert")
+			ctx.(BaseModuleContext).ModuleErrorf("A module cannot be in a directory marked Bp2BuildDefaultTrue"+
+				" or Bp2BuildDefaultTrueRecursively and also be in bp2buildModuleAlwaysConvert. Directory: '%s'",
+				packagePath)
 		}
 
 		// Allow modules to explicitly opt-out.
