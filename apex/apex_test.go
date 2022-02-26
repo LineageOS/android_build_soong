@@ -971,6 +971,9 @@ func TestApexWithStubs(t *testing.T) {
 	rustDeps := ctx.ModuleForTests("foo.rust", "android_arm64_armv8-a_apex10000").Rule("rustc").Args["linkFlags"]
 	ensureContains(t, rustDeps, "libfoo.shared_from_rust/android_arm64_armv8-a_shared_current/libfoo.shared_from_rust.so")
 	ensureNotContains(t, rustDeps, "libfoo.shared_from_rust/android_arm64_armv8-a_shared/libfoo.shared_from_rust.so")
+
+	apexManifestRule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("apexManifestRule")
+	ensureListContains(t, names(apexManifestRule.Args["requireNativeLibs"]), "libfoo.shared_from_rust.so")
 }
 
 func TestApexCanUsePrivateApis(t *testing.T) {
@@ -6832,7 +6835,7 @@ func TestApexWithJniLibs(t *testing.T) {
 		apex {
 			name: "myapex",
 			key: "myapex.key",
-			jni_libs: ["mylib"],
+			jni_libs: ["mylib", "libfoo.rust"],
 			updatable: false,
 		}
 
@@ -6858,15 +6861,41 @@ func TestApexWithJniLibs(t *testing.T) {
 			stl: "none",
 			apex_available: [ "myapex" ],
 		}
+
+		rust_ffi_shared {
+			name: "libfoo.rust",
+			crate_name: "foo",
+			srcs: ["foo.rs"],
+			shared_libs: ["libfoo.shared_from_rust"],
+			prefer_rlib: true,
+			apex_available: ["myapex"],
+		}
+
+		cc_library_shared {
+			name: "libfoo.shared_from_rust",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+			stubs: {
+				versions: ["10", "11", "12"],
+			},
+		}
+
 	`)
 
 	rule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("apexManifestRule")
 	// Notice mylib2.so (transitive dep) is not added as a jni_lib
-	ensureEquals(t, rule.Args["opt"], "-a jniLibs mylib.so")
+	ensureEquals(t, rule.Args["opt"], "-a jniLibs libfoo.rust.so mylib.so")
 	ensureExactContents(t, ctx, "myapex", "android_common_myapex_image", []string{
 		"lib64/mylib.so",
 		"lib64/mylib2.so",
+		"lib64/libfoo.rust.so",
+		"lib64/libc++.so", // auto-added to libfoo.rust by Soong
+		"lib64/liblog.so", // auto-added to libfoo.rust by Soong
 	})
+
+	// b/220397949
+	ensureListContains(t, names(rule.Args["requireNativeLibs"]), "libfoo.shared_from_rust.so")
 }
 
 func TestApexMutatorsDontRunIfDisabled(t *testing.T) {
