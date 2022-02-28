@@ -561,7 +561,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 				static_libs: [
 					"libvendor",
 					"libvndk",
-					"libclang_rt.builtins-aarch64-android",
+					"libclang_rt.builtins",
 					"note_memtag_heap_sync",
 				],
 				shared_libs: [
@@ -589,7 +589,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 				static_libs: [
 					"libvendor",
 					"libvndk",
-					"libclang_rt.builtins-arm-android",
+					"libclang_rt.builtins",
 				],
 				shared_libs: [
 					"libvendor_available",
@@ -731,25 +731,16 @@ func TestVendorSnapshotUse(t *testing.T) {
 	}
 
 	vendor_snapshot_static {
-		name: "libclang_rt.builtins-aarch64-android",
-		version: "30",
-		target_arch: "arm64",
-		vendor: true,
-		arch: {
-			arm64: {
-				src: "libclang_rt.builtins-aarch64-android.a",
-			},
-		},
-    }
-
-    vendor_snapshot_static {
-		name: "libclang_rt.builtins-arm-android",
+		name: "libclang_rt.builtins",
 		version: "30",
 		target_arch: "arm64",
 		vendor: true,
 		arch: {
 			arm: {
 				src: "libclang_rt.builtins-arm-android.a",
+			},
+			arm64: {
+				src: "libclang_rt.builtins-aarch64-android.a",
 			},
 		},
     }
@@ -967,7 +958,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 	}
 
 	libclientAndroidMkStaticLibs := ctx.ModuleForTests("libclient", sharedVariant).Module().(*Module).Properties.AndroidMkStaticLibs
-	if g, w := libclientAndroidMkStaticLibs, []string{"libvendor", "libvendor_without_snapshot", "libclang_rt.builtins-aarch64-android.vendor"}; !reflect.DeepEqual(g, w) {
+	if g, w := libclientAndroidMkStaticLibs, []string{"libvendor", "libvendor_without_snapshot", "libclang_rt.builtins.vendor"}; !reflect.DeepEqual(g, w) {
 		t.Errorf("wanted libclient AndroidMkStaticLibs %q, got %q", w, g)
 	}
 
@@ -1024,7 +1015,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 	}
 
 	memtagStaticLibs := ctx.ModuleForTests("memtag_binary", "android_vendor.30_arm64_armv8-a").Module().(*Module).Properties.AndroidMkStaticLibs
-	if g, w := memtagStaticLibs, []string{"libclang_rt.builtins-aarch64-android.vendor", "note_memtag_heap_sync.vendor"}; !reflect.DeepEqual(g, w) {
+	if g, w := memtagStaticLibs, []string{"libclang_rt.builtins.vendor", "note_memtag_heap_sync.vendor"}; !reflect.DeepEqual(g, w) {
 		t.Errorf("wanted memtag_binary AndroidMkStaticLibs %q, got %q", w, g)
 	}
 }
