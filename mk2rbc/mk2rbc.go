@@ -1871,9 +1871,7 @@ func BoardLauncher(mainModuleUri string, inputVariablesUri string) string {
 	fmt.Fprintf(&buf, "load(%q, %q)\n", baseUri, baseName)
 	fmt.Fprintf(&buf, "load(%q, \"init\")\n", mainModuleUri)
 	fmt.Fprintf(&buf, "load(%q, input_variables_init = \"init\")\n", inputVariablesUri)
-	fmt.Fprintf(&buf, "globals, cfg, globals_base = %s(init, input_variables_init)\n", cfnBoardMain)
-	fmt.Fprintf(&buf, "# TODO: Some product config variables need to be printed, but most are readonly so we can't just print cfg here.\n")
-	fmt.Fprintf(&buf, "%s((globals, cfg, globals_base))\n", cfnPrintVars)
+	fmt.Fprintf(&buf, "%s(%s(init, input_variables_init))\n", cfnPrintVars, cfnBoardMain)
 	return buf.String()
 }
 
