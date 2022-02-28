@@ -116,7 +116,7 @@ func main() {
 
 	// Discard the PT_INTERP section so that the linker doesn't need to be passed the
 	// --no-dynamic-linker flag.
-	fmt.Println(script, "    /DISCARD/ : { *(.interp) }")
+	fmt.Fprintln(script, "  /DISCARD/ : { *(.interp) }")
 
 	fmt.Fprintln(script, "}")
 	fmt.Fprintln(script, "INSERT BEFORE .note.android.embedded_linker;")
