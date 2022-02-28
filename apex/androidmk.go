@@ -309,7 +309,14 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, apexName, mo
 	return moduleNames
 }
 
-func (a *apexBundle) writeRequiredModules(w io.Writer) {
+func (a *apexBundle) writeRequiredModules(w io.Writer, moduleNames []string) {
+	if len(moduleNames) > 0 {
+		fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES +=", strings.Join(moduleNames, " "))
+	}
+	if len(a.requiredDeps) > 0 {
+		fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES +=", strings.Join(a.requiredDeps, " "))
+	}
+
 	var required []string
 	var targetRequired []string
 	var hostRequired []string
@@ -349,10 +356,7 @@ func (a *apexBundle) androidMkForType() android.AndroidMkData {
 				fmt.Fprintln(w, "LOCAL_PATH :=", moduleDir)
 				fmt.Fprintln(w, "LOCAL_MODULE :=", name+a.suffix)
 				data.Entries.WriteLicenseVariables(w)
-				if len(moduleNames) > 0 {
-					fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES :=", strings.Join(moduleNames, " "))
-				}
-				a.writeRequiredModules(w)
+				a.writeRequiredModules(w, moduleNames)
 				fmt.Fprintln(w, "include $(BUILD_PHONY_PACKAGE)")
 
 			} else {
@@ -388,13 +392,7 @@ func (a *apexBundle) androidMkForType() android.AndroidMkData {
 				if len(a.overridableProperties.Overrides) > 0 {
 					fmt.Fprintln(w, "LOCAL_OVERRIDES_MODULES :=", strings.Join(a.overridableProperties.Overrides, " "))
 				}
-				if len(moduleNames) > 0 {
-					fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES +=", strings.Join(moduleNames, " "))
-				}
-				if len(a.requiredDeps) > 0 {
-					fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES +=", strings.Join(a.requiredDeps, " "))
-				}
-				a.writeRequiredModules(w)
+				a.writeRequiredModules(w, moduleNames)
 
 				if a.mergedNotices.Merged.Valid() {
 					fmt.Fprintln(w, "LOCAL_NOTICE_FILE :=", a.mergedNotices.Merged.Path().String())
