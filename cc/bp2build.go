@@ -52,6 +52,8 @@ type staticOrSharedAttributes struct {
 	System_dynamic_deps bazel.LabelListAttribute
 
 	Enabled bazel.BoolAttribute
+
+	sdkAttributes
 }
 
 // groupSrcsByExtension partitions `srcs` into groups based on file extension.
@@ -537,6 +539,18 @@ func bp2BuildParseBaseProps(ctx android.Bp2buildMutatorContext, module *Module) 
 		linkerAttrs,
 		protoDep.protoDep,
 	}
+}
+
+func bp2BuildParseSdkAttributes(module *Module) sdkAttributes {
+	return sdkAttributes {
+		Sdk_version: module.Properties.Sdk_version,
+		Min_sdk_version: module.Properties.Min_sdk_version,
+	}
+}
+
+type sdkAttributes struct {
+	Sdk_version     *string
+	Min_sdk_version *string
 }
 
 // Convenience struct to hold all attributes parsed from linker properties.

@@ -630,6 +630,8 @@ func binaryBp2build(ctx android.TopDownMutatorContext, m *Module, typ string) {
 		},
 
 		Features: baseAttrs.features,
+
+		sdkAttributes: bp2BuildParseSdkAttributes(m),
 	}
 
 	ctx.CreateBazelTargetModule(bazel.BazelTargetModuleProperties{
@@ -673,4 +675,6 @@ type binaryAttributes struct {
 	Strip stripAttributes
 
 	Features bazel.StringListAttribute
+
+	sdkAttributes
 }

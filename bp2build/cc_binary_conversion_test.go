@@ -15,12 +15,13 @@
 package bp2build
 
 import (
-	"android/soong/android"
-	"android/soong/cc"
-	"android/soong/genrule"
 	"fmt"
 	"strings"
 	"testing"
+
+	"android/soong/android"
+	"android/soong/cc"
+	"android/soong/genrule"
 )
 
 const (
@@ -127,6 +128,8 @@ func TestBasicCcBinary(t *testing.T) {
         keep_symbols_list: ["symbol"],
         none: true,
     },
+    sdk_version: "current",
+    min_sdk_version: "29",
 }
 `,
 		targets: []testBazelTarget{
@@ -150,6 +153,8 @@ func TestBasicCcBinary(t *testing.T) {
         "keep_symbols_list": ["symbol"],
         "none": True,
     }`,
+        "sdk_version": `"current"`,
+        "min_sdk_version": `"29"`,
 			},
 			},
 		},
