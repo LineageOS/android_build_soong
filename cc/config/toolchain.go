@@ -227,14 +227,7 @@ func addPrefix(list []string, prefix string) []string {
 }
 
 func LibclangRuntimeLibrary(t Toolchain, library string) string {
-	arch := t.LibclangRuntimeLibraryArch()
-	if arch == "" {
-		return ""
-	}
-	if !t.Bionic() {
-		return "libclang_rt." + library + "-" + arch
-	}
-	return "libclang_rt." + library + "-" + arch + "-android"
+	return "libclang_rt." + library
 }
 
 func BuiltinsRuntimeLibrary(t Toolchain) string {

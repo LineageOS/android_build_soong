@@ -450,7 +450,7 @@ var _ android.OutputFileProducer = &vndkLibrariesTxt{}
 // Therefore, by removing the library here, we cause it to only be installed if libc
 // depends on it.
 func llndkLibrariesTxtFactory() android.SingletonModule {
-	return newVndkLibrariesWithMakeVarFilter(llndkLibraries, "LLNDK_LIBRARIES", "libclang_rt.hwasan-")
+	return newVndkLibrariesWithMakeVarFilter(llndkLibraries, "LLNDK_LIBRARIES", "libclang_rt.hwasan")
 }
 
 // vndksp_libraries_txt is a singleton module whose content is a list of VNDKSP libraries
