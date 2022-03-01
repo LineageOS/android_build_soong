@@ -494,10 +494,11 @@ var (
 		// go deps:
 		"apex-protos",                                                                                // depends on soong_zip, a go binary
 		"generated_android_icu4j_src_files", "generated_android_icu4j_test_files", "icu4c_test_data", // depends on unconverted modules: soong_zip
-		"host_bionic_linker_asm",         // depends on extract_linker, a go binary.
-		"host_bionic_linker_script",      // depends on extract_linker, a go binary.
-		"robolectric-sqlite4java-native", // depends on soong_zip, a go binary
-		"robolectric_tzdata",             // depends on soong_zip, a go binary
+		"host_bionic_linker_asm",                                                  // depends on extract_linker, a go binary.
+		"host_bionic_linker_script",                                               // depends on extract_linker, a go binary.
+		"robolectric-sqlite4java-native",                                          // depends on soong_zip, a go binary
+		"robolectric_tzdata",                                                      // depends on soong_zip, a go binary
+		"libc_musl_sysroot_libc++_headers", "libc_musl_sysroot_libc++abi_headers", // depends on soong_zip, zip2zip
 
 		"android_icu4j_srcgen_binary", // Bazel build error: deps not allowed without srcs; move to runtime_deps
 		"core-icu4j-for-host",         // Bazel build error: deps not allowed without srcs; move to runtime_deps
