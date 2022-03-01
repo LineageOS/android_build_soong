@@ -68,6 +68,12 @@ func init() {
 
 	pctx.StaticVariable("JavacHeapSize", "2048M")
 	pctx.StaticVariable("JavacHeapFlags", "-J-Xmx${JavacHeapSize}")
+
+	// ErrorProne can use significantly more memory than javac alone, give it a higher heap
+	// size (b/221480398).
+	pctx.StaticVariable("ErrorProneHeapSize", "4096M")
+	pctx.StaticVariable("ErrorProneHeapFlags", "-J-Xmx${ErrorProneHeapSize}")
+
 	pctx.StaticVariable("DexFlags", "-JXX:OnError='cat hs_err_pid%p.log' -JXX:CICompilerCount=6 -JXX:+UseDynamicNumberOfGCThreads")
 
 	pctx.StaticVariable("CommonJdkFlags", strings.Join([]string{
