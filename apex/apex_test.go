@@ -8692,6 +8692,38 @@ func TestAndroidMk_RequiredModules(t *testing.T) {
 	ensureContains(t, androidMk, "LOCAL_REQUIRED_MODULES += otherapex")
 }
 
+func TestAndroidMk_RequiredDeps(t *testing.T) {
+	ctx := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			updatable: false,
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+	`)
+
+	bundle := ctx.ModuleForTests("myapex", "android_common_myapex_image").Module().(*apexBundle)
+	bundle.requiredDeps = append(bundle.requiredDeps, "foo")
+	data := android.AndroidMkDataForTest(t, ctx, bundle)
+	var builder strings.Builder
+	data.Custom(&builder, bundle.BaseModuleName(), "TARGET_", "", data)
+	androidMk := builder.String()
+	ensureContains(t, androidMk, "LOCAL_REQUIRED_MODULES += foo")
+
+	flattenedBundle := ctx.ModuleForTests("myapex", "android_common_myapex_flattened").Module().(*apexBundle)
+	flattenedBundle.requiredDeps = append(flattenedBundle.requiredDeps, "foo")
+	flattenedData := android.AndroidMkDataForTest(t, ctx, flattenedBundle)
+	var flattenedBuilder strings.Builder
+	flattenedData.Custom(&flattenedBuilder, flattenedBundle.BaseModuleName(), "TARGET_", "", flattenedData)
+	flattenedAndroidMk := flattenedBuilder.String()
+	ensureContains(t, flattenedAndroidMk, "LOCAL_REQUIRED_MODULES += foo")
+}
+
 func TestApexOutputFileProducer(t *testing.T) {
 	for _, tc := range []struct {
 		name          string
