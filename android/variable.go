@@ -421,9 +421,10 @@ type productVariables struct {
 
 	ShippingApiLevel *string `json:",omitempty"`
 
-	BuildBrokenEnforceSyspropOwner     bool `json:",omitempty"`
-	BuildBrokenTrebleSyspropNeverallow bool `json:",omitempty"`
-	BuildBrokenVendorPropertyNamespace bool `json:",omitempty"`
+	BuildBrokenEnforceSyspropOwner     bool     `json:",omitempty"`
+	BuildBrokenTrebleSyspropNeverallow bool     `json:",omitempty"`
+	BuildBrokenVendorPropertyNamespace bool     `json:",omitempty"`
+	BuildBrokenInputDirModules         []string `json:",omitempty"`
 
 	BuildDebugfsRestrictionsEnabled bool `json:",omitempty"`
 
