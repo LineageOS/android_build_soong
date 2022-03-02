@@ -739,6 +739,7 @@ $(call enforce-product-packages-exist, foo)
 $(call require-artifacts-in-path, foo, bar)
 $(call require-artifacts-in-path-relaxed, foo, bar)
 $(call dist-for-goals, goal, from:to)
+$(call add-product-dex-preopt-module-config,MyModule,disable)
 `,
 		expected: `load("//build/make/core:product_config.rbc", "rblf")
 
@@ -749,6 +750,7 @@ def init(g, handle):
   rblf.require_artifacts_in_path("foo", "bar")
   rblf.require_artifacts_in_path_relaxed("foo", "bar")
   rblf.mkdist_for_goals(g, "goal", "from:to")
+  rblf.add_product_dex_preopt_module_config(handle, "MyModule", "disable")
 `,
 	},
 	{
