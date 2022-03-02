@@ -520,7 +520,7 @@ func NewConfig(moduleListFile string, runGoTests bool, outDir, soongOutDir strin
 	}
 
 	if archConfig != nil {
-		androidTargets, err := decodeArchSettings(Android, archConfig)
+		androidTargets, err := decodeAndroidArchSettings(archConfig)
 		if err != nil {
 			return Config{}, err
 		}
