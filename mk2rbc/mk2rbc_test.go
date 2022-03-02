@@ -1228,6 +1228,9 @@ BOOT_KERNEL_MODULES_LIST := foo.ko
 BOOT_KERNEL_MODULES_LIST += bar.ko
 BOOT_KERNEL_MODULES_FILTER_2 := $(foreach m,$(BOOT_KERNEL_MODULES_LIST),%/$(m))
 
+FOREACH_WITH_IF := $(foreach module,\
+  $(BOOT_KERNEL_MODULES_LIST),\
+  $(if $(filter $(module),foo.ko),,$(error module "$(module)" has an error!)))
 `,
 		expected: `load("//build/make/core:product_config.rbc", "rblf")
 
@@ -1238,6 +1241,7 @@ def init(g, handle):
   g["BOOT_KERNEL_MODULES_LIST"] = ["foo.ko"]
   g["BOOT_KERNEL_MODULES_LIST"] += ["bar.ko"]
   g["BOOT_KERNEL_MODULES_FILTER_2"] = ["%%/%s" % m for m in g["BOOT_KERNEL_MODULES_LIST"]]
+  g["FOREACH_WITH_IF"] = [("" if rblf.filter(module, "foo.ko") else rblf.mkerror("product.mk", "module \"%s\" has an error!" % module)) for module in g["BOOT_KERNEL_MODULES_LIST"]]
 `,
 	},
 	{
