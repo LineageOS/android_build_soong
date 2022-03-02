@@ -540,6 +540,12 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 		s.Address = nil
 		s.Thread = nil
 	}
+
+	// TODO(b/131771163): CFI transiently depends on LTO, and thus Fuzzer is
+	// mutually incompatible.
+	if Bool(s.Fuzzer) {
+		s.Cfi = nil
+	}
 }
 
 func toDisableImplicitIntegerChange(flags []string) bool {
@@ -641,6 +647,12 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 
 	if Bool(sanitize.Properties.Sanitize.Fuzzer) {
 		flags.Local.CFlags = append(flags.Local.CFlags, "-fsanitize=fuzzer-no-link")
+
+		// TODO(b/131771163): LTO and Fuzzer support is mutually incompatible.
+		_, flags.Local.LdFlags = removeFromList("-flto", flags.Local.LdFlags)
+		_, flags.Local.CFlags = removeFromList("-flto", flags.Local.CFlags)
+		flags.Local.LdFlags = append(flags.Local.LdFlags, "-fno-lto")
+		flags.Local.CFlags = append(flags.Local.CFlags, "-fno-lto")
 
 		// TODO(b/142430592): Upstream linker scripts for sanitizer runtime libraries
 		// discard the sancov_lowest_stack symbol, because it's emulated TLS (and thus
