@@ -1651,6 +1651,10 @@ func (c *deviceConfig) BuildBrokenVendorPropertyNamespace() bool {
 	return c.config.productVariables.BuildBrokenVendorPropertyNamespace
 }
 
+func (c *deviceConfig) BuildBrokenInputDir(name string) bool {
+	return InList(name, c.config.productVariables.BuildBrokenInputDirModules)
+}
+
 func (c *deviceConfig) RequiresInsecureExecmemForSwiftshader() bool {
 	return c.config.productVariables.RequiresInsecureExecmemForSwiftshader
 }

@@ -86,51 +86,17 @@ func commonDefaultModules() string {
 		}
 
 		cc_prebuilt_library_static {
-			name: "libclang_rt.builtins-arm-android",
-			defaults: ["toolchain_libs_defaults"],
-			native_bridge_supported: true,
-			vendor_ramdisk_available: true,
-		}
-
-		cc_prebuilt_library_static {
-			name: "libclang_rt.builtins-aarch64-android",
-			defaults: ["toolchain_libs_defaults"],
-			native_bridge_supported: true,
-			vendor_ramdisk_available: true,
-		}
-
-		cc_prebuilt_library_static {
-			name: "libclang_rt.builtins-x86_64",
+			name: "libclang_rt.builtins",
 			defaults: ["toolchain_libs_defaults"],
 			host_supported: true,
-		}
-
-		cc_prebuilt_library_static {
-			name: "libclang_rt.builtins-i386",
-			defaults: ["toolchain_libs_defaults"],
-			host_supported: true,
+	        vendor_available: true,
+			vendor_ramdisk_available: true,
+			native_bridge_supported: true,
 		}
 
 		cc_prebuilt_library_shared {
-			name: "libclang_rt.hwasan-aarch64-android",
+			name: "libclang_rt.hwasan",
 			defaults: ["toolchain_libs_defaults"],
-		}
-
-		cc_prebuilt_library_static {
-			name: "libclang_rt.builtins-i686-android",
-			defaults: ["toolchain_libs_defaults"],
-			vendor_ramdisk_available: true,
-			native_bridge_supported: true,
-		}
-
-		cc_prebuilt_library_static {
-			name: "libclang_rt.builtins-x86_64-android",
-			defaults: [
-				"linux_bionic_supported",
-				"toolchain_libs_defaults",
-			],
-			native_bridge_supported: true,
-			vendor_ramdisk_available: true,
 		}
 
 		cc_prebuilt_library_static {
@@ -144,30 +110,7 @@ func commonDefaultModules() string {
 		}
 
 		cc_prebuilt_library_static {
-			name: "libclang_rt.fuzzer-arm-android",
-			defaults: ["toolchain_libs_defaults"],
-		}
-
-		cc_prebuilt_library_static {
-			name: "libclang_rt.fuzzer-aarch64-android",
-			defaults: ["toolchain_libs_defaults"],
-		}
-
-		cc_prebuilt_library_static {
-			name: "libclang_rt.fuzzer-i686-android",
-			defaults: ["toolchain_libs_defaults"],
-		}
-
-		cc_prebuilt_library_static {
-			name: "libclang_rt.fuzzer-x86_64-android",
-			defaults: [
-				"linux_bionic_supported",
-				"toolchain_libs_defaults",
-			],
-		}
-
-		cc_prebuilt_library_static {
-			name: "libclang_rt.fuzzer-x86_64",
+			name: "libclang_rt.fuzzer",
 			defaults: [
 				"linux_bionic_supported",
 				"toolchain_libs_defaults",
@@ -176,17 +119,12 @@ func commonDefaultModules() string {
 
 		// Needed for sanitizer
 		cc_prebuilt_library_shared {
-			name: "libclang_rt.ubsan_standalone-aarch64-android",
+			name: "libclang_rt.ubsan_standalone",
 			defaults: ["toolchain_libs_defaults"],
 		}
 
 		cc_prebuilt_library_static {
-			name: "libclang_rt.ubsan_minimal-aarch64-android",
-			defaults: ["toolchain_libs_defaults"],
-		}
-
-		cc_prebuilt_library_static {
-			name: "libclang_rt.ubsan_minimal-arm-android",
+			name: "libclang_rt.ubsan_minimal",
 			defaults: ["toolchain_libs_defaults"],
 		}
 
