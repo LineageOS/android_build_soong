@@ -382,9 +382,12 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		addLocationLabel(toolFile, toolLocation{paths})
 	}
 
+	includeDirInPaths := ctx.DeviceConfig().BuildBrokenInputDir(g.Name())
 	var srcFiles android.Paths
 	for _, in := range g.properties.Srcs {
-		paths, missingDeps := android.PathsAndMissingDepsForModuleSrcExcludes(ctx, []string{in}, g.properties.Exclude_srcs)
+		paths, missingDeps := android.PathsAndMissingDepsRelativeToModuleSourceDir(android.SourceInput{
+			Context: ctx, Paths: []string{in}, ExcludePaths: g.properties.Exclude_srcs, IncludeDirs: includeDirInPaths,
+		})
 		if len(missingDeps) > 0 {
 			if !ctx.Config().AllowMissingDependencies() {
 				panic(fmt.Errorf("should never get here, the missing dependencies %q should have been reported in DepsMutator",

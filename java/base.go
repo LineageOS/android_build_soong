@@ -862,7 +862,7 @@ func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaB
 		}
 		errorProneFlags = append(errorProneFlags, j.properties.Errorprone.Javacflags...)
 
-		flags.errorProneExtraJavacFlags = "${config.ErrorProneFlags} " +
+		flags.errorProneExtraJavacFlags = "${config.ErrorProneHeapFlags} ${config.ErrorProneFlags} " +
 			"'" + strings.Join(errorProneFlags, " ") + "'"
 		flags.errorProneProcessorPath = classpath(android.PathsForSource(ctx, config.ErrorProneClasspath))
 	}
