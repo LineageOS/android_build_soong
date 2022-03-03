@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"android/soong/bazel"
+	"android/soong/starlark_fmt"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/bootstrap"
@@ -1794,14 +1795,9 @@ func decodeArch(os OsType, arch string, archVariant, cpuVariant *string, abi []s
 		}
 	}
 
-	if a.ArchVariant == "" {
-		// Set ArchFeatures from the default arch features.
-		if featureMap, ok := defaultArchFeatureMap[os]; ok {
-			a.ArchFeatures = featureMap[archType]
-		}
-	} else {
-		// Set ArchFeatures from the arch type.
-		if featureMap, ok := archFeatureMap[archType]; ok {
+	// Set ArchFeatures from the arch type. for Android OS, other os-es do not specify features
+	if os == Android {
+		if featureMap, ok := androidArchFeatureMap[archType]; ok {
 			a.ArchFeatures = featureMap[a.ArchVariant]
 		}
 	}
@@ -2238,4 +2234,41 @@ func mergeStructs(ctx ArchVariantContext, propertyStructs []reflect.Value, prope
 	}
 
 	return value
+}
+
+func printArchTypeStarlarkDict(dict map[ArchType][]string) string {
+	valDict := make(map[string]string, len(dict))
+	for k, v := range dict {
+		valDict[k.String()] = starlark_fmt.PrintStringList(v, 1)
+	}
+	return starlark_fmt.PrintDict(valDict, 0)
+}
+
+func printArchTypeNestedStarlarkDict(dict map[ArchType]map[string][]string) string {
+	valDict := make(map[string]string, len(dict))
+	for k, v := range dict {
+		valDict[k.String()] = starlark_fmt.PrintStringListDict(v, 1)
+	}
+	return starlark_fmt.PrintDict(valDict, 0)
+}
+
+func StarlarkArchConfigurations() string {
+	return fmt.Sprintf(`
+_arch_to_variants = %s
+
+_arch_to_cpu_variants = %s
+
+_arch_to_features = %s
+
+_android_arch_feature_for_arch_variant = %s
+
+arch_to_variants = _arch_to_variants
+arch_to_cpu_variants = _arch_to_cpu_variants
+arch_to_features = _arch_to_features
+android_arch_feature_for_arch_variants = _android_arch_feature_for_arch_variant
+`, printArchTypeStarlarkDict(archVariants),
+		printArchTypeStarlarkDict(cpuVariants),
+		printArchTypeStarlarkDict(archFeatures),
+		printArchTypeNestedStarlarkDict(androidArchFeatureMap),
+	)
 }
