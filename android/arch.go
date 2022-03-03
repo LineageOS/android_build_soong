@@ -1518,23 +1518,32 @@ func decodeTargetProductVariables(config *config) (map[OsType][]Target, error) {
 	targets := make(map[OsType][]Target)
 	var targetErr error
 
-	addTarget := func(os OsType, archName string, archVariant, cpuVariant *string, abi []string,
-		nativeBridgeEnabled NativeBridgeSupport, nativeBridgeHostArchName *string,
-		nativeBridgeRelativePath *string) {
+	type targetConfig struct {
+		os                       OsType
+		archName                 string
+		archVariant              *string
+		cpuVariant               *string
+		abi                      []string
+		nativeBridgeEnabled      NativeBridgeSupport
+		nativeBridgeHostArchName *string
+		nativeBridgeRelativePath *string
+	}
+
+	addTarget := func(target targetConfig) {
 		if targetErr != nil {
 			return
 		}
 
-		arch, err := decodeArch(os, archName, archVariant, cpuVariant, abi)
+		arch, err := decodeArch(target.os, target.archName, target.archVariant, target.cpuVariant, target.abi)
 		if err != nil {
 			targetErr = err
 			return
 		}
-		nativeBridgeRelativePathStr := String(nativeBridgeRelativePath)
-		nativeBridgeHostArchNameStr := String(nativeBridgeHostArchName)
+		nativeBridgeRelativePathStr := String(target.nativeBridgeRelativePath)
+		nativeBridgeHostArchNameStr := String(target.nativeBridgeHostArchName)
 
 		// Use guest arch as relative install path by default
-		if nativeBridgeEnabled && nativeBridgeRelativePathStr == "" {
+		if target.nativeBridgeEnabled && nativeBridgeRelativePathStr == "" {
 			nativeBridgeRelativePathStr = arch.ArchType.String()
 		}
 
@@ -1542,11 +1551,11 @@ func decodeTargetProductVariables(config *config) (map[OsType][]Target, error) {
 		// the currently configured build machine (either because the OS is different or because of
 		// the unsupported arch)
 		hostCross := false
-		if os.Class == Host {
+		if target.os.Class == Host {
 			var osSupported bool
-			if os == config.BuildOS {
+			if target.os == config.BuildOS {
 				osSupported = true
-			} else if config.BuildOS.Linux() && os.Linux() {
+			} else if config.BuildOS.Linux() && target.os.Linux() {
 				// LinuxBionic and Linux are compatible
 				osSupported = true
 			} else {
@@ -1568,11 +1577,11 @@ func decodeTargetProductVariables(config *config) (map[OsType][]Target, error) {
 			}
 		}
 
-		targets[os] = append(targets[os],
+		targets[target.os] = append(targets[target.os],
 			Target{
-				Os:                       os,
+				Os:                       target.os,
 				Arch:                     arch,
-				NativeBridge:             nativeBridgeEnabled,
+				NativeBridge:             target.nativeBridgeEnabled,
 				NativeBridgeHostArchName: nativeBridgeHostArchNameStr,
 				NativeBridgeRelativePath: nativeBridgeRelativePathStr,
 				HostCross:                hostCross,
@@ -1584,11 +1593,11 @@ func decodeTargetProductVariables(config *config) (map[OsType][]Target, error) {
 	}
 
 	// The primary host target, which must always exist.
-	addTarget(config.BuildOS, *variables.HostArch, nil, nil, nil, NativeBridgeDisabled, nil, nil)
+	addTarget(targetConfig{os: config.BuildOS, archName: *variables.HostArch, nativeBridgeEnabled: NativeBridgeDisabled})
 
 	// An optional secondary host target.
 	if variables.HostSecondaryArch != nil && *variables.HostSecondaryArch != "" {
-		addTarget(config.BuildOS, *variables.HostSecondaryArch, nil, nil, nil, NativeBridgeDisabled, nil, nil)
+		addTarget(targetConfig{os: config.BuildOS, archName: *variables.HostSecondaryArch, nativeBridgeEnabled: NativeBridgeDisabled})
 	}
 
 	// Optional cross-compiled host targets, generally Windows.
@@ -1603,45 +1612,65 @@ func decodeTargetProductVariables(config *config) (map[OsType][]Target, error) {
 		}
 
 		// The primary cross-compiled host target.
-		addTarget(crossHostOs, *variables.CrossHostArch, nil, nil, nil, NativeBridgeDisabled, nil, nil)
+		addTarget(targetConfig{os: crossHostOs, archName: *variables.CrossHostArch, nativeBridgeEnabled: NativeBridgeDisabled})
 
 		// An optional secondary cross-compiled host target.
 		if variables.CrossHostSecondaryArch != nil && *variables.CrossHostSecondaryArch != "" {
-			addTarget(crossHostOs, *variables.CrossHostSecondaryArch, nil, nil, nil, NativeBridgeDisabled, nil, nil)
+			addTarget(targetConfig{os: crossHostOs, archName: *variables.CrossHostSecondaryArch, nativeBridgeEnabled: NativeBridgeDisabled})
 		}
 	}
 
 	// Optional device targets
 	if variables.DeviceArch != nil && *variables.DeviceArch != "" {
 		// The primary device target.
-		addTarget(Android, *variables.DeviceArch, variables.DeviceArchVariant,
-			variables.DeviceCpuVariant, variables.DeviceAbi, NativeBridgeDisabled, nil, nil)
+		addTarget(targetConfig{
+			os:                  Android,
+			archName:            *variables.DeviceArch,
+			archVariant:         variables.DeviceArchVariant,
+			cpuVariant:          variables.DeviceCpuVariant,
+			abi:                 variables.DeviceAbi,
+			nativeBridgeEnabled: NativeBridgeDisabled,
+		})
 
 		// An optional secondary device target.
 		if variables.DeviceSecondaryArch != nil && *variables.DeviceSecondaryArch != "" {
-			addTarget(Android, *variables.DeviceSecondaryArch,
-				variables.DeviceSecondaryArchVariant, variables.DeviceSecondaryCpuVariant,
-				variables.DeviceSecondaryAbi, NativeBridgeDisabled, nil, nil)
+			addTarget(targetConfig{
+				os:                  Android,
+				archName:            *variables.DeviceSecondaryArch,
+				archVariant:         variables.DeviceSecondaryArchVariant,
+				cpuVariant:          variables.DeviceSecondaryCpuVariant,
+				abi:                 variables.DeviceSecondaryAbi,
+				nativeBridgeEnabled: NativeBridgeDisabled,
+			})
 		}
 
 		// An optional NativeBridge device target.
 		if variables.NativeBridgeArch != nil && *variables.NativeBridgeArch != "" {
-			addTarget(Android, *variables.NativeBridgeArch,
-				variables.NativeBridgeArchVariant, variables.NativeBridgeCpuVariant,
-				variables.NativeBridgeAbi, NativeBridgeEnabled, variables.DeviceArch,
-				variables.NativeBridgeRelativePath)
+			addTarget(targetConfig{
+				os:                       Android,
+				archName:                 *variables.NativeBridgeArch,
+				archVariant:              variables.NativeBridgeArchVariant,
+				cpuVariant:               variables.NativeBridgeCpuVariant,
+				abi:                      variables.NativeBridgeAbi,
+				nativeBridgeEnabled:      NativeBridgeEnabled,
+				nativeBridgeHostArchName: variables.DeviceArch,
+				nativeBridgeRelativePath: variables.NativeBridgeRelativePath,
+			})
 		}
 
 		// An optional secondary NativeBridge device target.
 		if variables.DeviceSecondaryArch != nil && *variables.DeviceSecondaryArch != "" &&
 			variables.NativeBridgeSecondaryArch != nil && *variables.NativeBridgeSecondaryArch != "" {
-			addTarget(Android, *variables.NativeBridgeSecondaryArch,
-				variables.NativeBridgeSecondaryArchVariant,
-				variables.NativeBridgeSecondaryCpuVariant,
-				variables.NativeBridgeSecondaryAbi,
-				NativeBridgeEnabled,
-				variables.DeviceSecondaryArch,
-				variables.NativeBridgeSecondaryRelativePath)
+			addTarget(targetConfig{
+				os:                       Android,
+				archName:                 *variables.NativeBridgeSecondaryArch,
+				archVariant:              variables.NativeBridgeSecondaryArchVariant,
+				cpuVariant:               variables.NativeBridgeSecondaryCpuVariant,
+				abi:                      variables.NativeBridgeSecondaryAbi,
+				nativeBridgeEnabled:      NativeBridgeEnabled,
+				nativeBridgeHostArchName: variables.DeviceSecondaryArch,
+				nativeBridgeRelativePath: variables.NativeBridgeSecondaryRelativePath,
+			})
 		}
 	}
 
@@ -1701,11 +1730,11 @@ func getAmlAbisConfig() []archConfig {
 }
 
 // decodeArchSettings converts a list of archConfigs into a list of Targets for the given OsType.
-func decodeArchSettings(os OsType, archConfigs []archConfig) ([]Target, error) {
+func decodeAndroidArchSettings(archConfigs []archConfig) ([]Target, error) {
 	var ret []Target
 
 	for _, config := range archConfigs {
-		arch, err := decodeArch(os, config.arch, &config.archVariant,
+		arch, err := decodeArch(Android, config.arch, &config.archVariant,
 			&config.cpuVariant, config.abi)
 		if err != nil {
 			return nil, err
