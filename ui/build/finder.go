@@ -138,6 +138,17 @@ func FindSources(ctx Context, config Config, f *finder.Finder) {
 		ctx.Fatalf("Could not export module list: %v", err)
 	}
 
+	// Gate collecting/reporting mk metrics on builds that specifically request
+	// it, as identifying the total number of mk files adds 4-5ms onto null
+	// builds.
+	if config.reportMkMetrics {
+		androidMksTotal := f.FindNamedAt(".", "Android.mk")
+
+		ctx.Metrics.SetToplevelMakefiles(len(androidMks))
+		ctx.Metrics.SetTotalMakefiles(len(androidMksTotal))
+		ctx.Metrics.DumpMkMetrics(config.MkMetrics())
+	}
+
 	// Stop searching a subdirectory recursively after finding a CleanSpec.mk.
 	cleanSpecs := f.FindFirstNamedAt(".", "CleanSpec.mk")
 	err = dumpListToFile(ctx, config, cleanSpecs, filepath.Join(dumpDir, "CleanSpec.mk.list"))

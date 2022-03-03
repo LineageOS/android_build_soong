@@ -41,6 +41,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	soong_metrics_proto "android/soong/ui/metrics/metrics_proto"
+	mk_metrics_proto "android/soong/ui/metrics/mk_metrics_proto"
 )
 
 const (
@@ -62,13 +63,21 @@ const (
 	Total = "total"
 )
 
-// Metrics is a struct that stores collected metrics during the course
-// of a build which later is dumped to a MetricsBase protobuf file.
-// See ui/metrics/metrics_proto/metrics.proto for further details
-// on what information is collected.
+// Metrics is a struct that stores collected metrics during the course of a
+// build. It is later dumped to protobuf files. See underlying metrics protos
+// for further details on what information is collected.
 type Metrics struct {
-	// The protobuf message that is later written to the file.
+	// Protobuf containing various top-level build metrics. These include:
+	// 1. Build identifiers (ex: branch ID, requested product, hostname,
+	//    originating command)
+	// 2. Per-subprocess top-level metrics (ex: ninja process IO and runtime).
+	//    Note that, since these metrics are reported by soong_ui, there is little
+	//    insight that can be provided into performance breakdowns of individual
+	//    subprocesses.
 	metrics soong_metrics_proto.MetricsBase
+
+	// Protobuf containing metrics pertaining to number of makefiles in a build.
+	mkMetrics mk_metrics_proto.MkMetrics
 
 	// A list of pending build events.
 	EventTracer *EventTracer
@@ -78,9 +87,22 @@ type Metrics struct {
 func New() (metrics *Metrics) {
 	m := &Metrics{
 		metrics:     soong_metrics_proto.MetricsBase{},
+		mkMetrics:   mk_metrics_proto.MkMetrics{},
 		EventTracer: &EventTracer{},
 	}
 	return m
+}
+
+func (m *Metrics) SetTotalMakefiles(total int) {
+	m.mkMetrics.TotalMakefiles = uint32(total)
+}
+
+func (m *Metrics) SetToplevelMakefiles(total int) {
+	m.mkMetrics.ToplevelMakefiles = uint32(total)
+}
+
+func (m *Metrics) DumpMkMetrics(outPath string) {
+	shared.Save(&m.mkMetrics, outPath)
 }
 
 // SetTimeMetrics stores performance information from an executed block of
