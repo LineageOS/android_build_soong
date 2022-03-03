@@ -57,7 +57,7 @@ type SanitizeProperties struct {
 }
 
 var fuzzerFlags = []string{
-	"-C passes='sancov'",
+	"-C passes='sancov-module'",
 
 	"--cfg fuzzing",
 	"-C llvm-args=-sanitizer-coverage-level=3",
@@ -70,7 +70,7 @@ var fuzzerFlags = []string{
 	"-C link-dead-code",
 
 	// Sancov breaks with lto
-	// TODO: Remove when https://bugs.llvm.org/show_bug.cgi?id=41734 is resolved and sancov works with LTO
+	// TODO: Remove when https://bugs.llvm.org/show_bug.cgi?id=41734 is resolved and sancov-module works with LTO
 	"-C lto=no",
 }
 
