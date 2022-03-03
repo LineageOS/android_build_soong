@@ -807,20 +807,16 @@ func (ctx *parseContext) handleSubConfig(
 	if len(matchingPaths) > maxMatchingFiles {
 		return []starlarkNode{ctx.newBadNode(v, "there are >%d files matching the pattern, please rewrite it", maxMatchingFiles)}
 	}
-	if len(matchingPaths) == 1 {
-		res := inheritedStaticModule{ctx.newDependentModule(matchingPaths[0], loadAlways && ctx.ifNestLevel == 0), loadAlways}
-		return []starlarkNode{processModule(res)}
-	} else {
-		needsWarning := pathPattern[0] == "" && len(ctx.includeTops) == 0
-		res := inheritedDynamicModule{*varPath, []*moduleInfo{}, loadAlways, ctx.errorLocation(v), needsWarning}
-		for _, p := range matchingPaths {
-			// A product configuration files discovered dynamically may attempt to inherit
-			// from another one which does not exist in this source tree. Prevent load errors
-			// by always loading the dynamic files as optional.
-			res.candidateModules = append(res.candidateModules, ctx.newDependentModule(p, true))
-		}
-		return []starlarkNode{processModule(res)}
+
+	needsWarning := pathPattern[0] == "" && len(ctx.includeTops) == 0
+	res := inheritedDynamicModule{*varPath, []*moduleInfo{}, loadAlways, ctx.errorLocation(v), needsWarning}
+	for _, p := range matchingPaths {
+		// A product configuration files discovered dynamically may attempt to inherit
+		// from another one which does not exist in this source tree. Prevent load errors
+		// by always loading the dynamic files as optional.
+		res.candidateModules = append(res.candidateModules, ctx.newDependentModule(p, true))
 	}
+	return []starlarkNode{processModule(res)}
 }
 
 func (ctx *parseContext) findMatchingPaths(pattern []string) []string {
