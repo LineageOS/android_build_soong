@@ -14,8 +14,6 @@
 
 package android
 
-import "fmt"
-
 var archVariants = map[ArchType][]string{
 	Arm: {
 		"armv7-a",
@@ -128,7 +126,7 @@ var archFeatures = map[ArchType][]string{
 	},
 }
 
-var archFeatureMap = map[ArchType]map[string][]string{
+var androidArchFeatureMap = map[ArchType]map[string][]string{
 	Arm: {
 		"armv7-a-neon": {
 			"neon",
@@ -279,6 +277,13 @@ var archFeatureMap = map[ArchType]map[string][]string{
 		},
 	},
 	X86_64: {
+		"" /*default */ : {
+			"ssse3",
+			"sse4",
+			"sse4_1",
+			"sse4_2",
+			"popcnt",
+		},
 		"amberlake": {
 			"ssse3",
 			"sse4",
@@ -397,24 +402,4 @@ var archFeatureMap = map[ArchType]map[string][]string{
 			"popcnt",
 		},
 	},
-}
-
-var defaultArchFeatureMap = map[OsType]map[ArchType][]string{}
-
-// RegisterDefaultArchVariantFeatures is called by files that define Toolchains to specify the
-// arch features that are available for the default arch variant.  It must be called from an
-// init() function.
-func RegisterDefaultArchVariantFeatures(os OsType, arch ArchType, features ...string) {
-	checkCalledFromInit()
-
-	for _, feature := range features {
-		if !InList(feature, archFeatures[arch]) {
-			panic(fmt.Errorf("Invalid feature %q for arch %q variant \"\"", feature, arch))
-		}
-	}
-
-	if defaultArchFeatureMap[os] == nil {
-		defaultArchFeatureMap[os] = make(map[ArchType][]string)
-	}
-	defaultArchFeatureMap[os][arch] = features
 }
