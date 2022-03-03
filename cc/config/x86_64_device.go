@@ -78,14 +78,6 @@ var (
 		"popcnt": []string{"-mpopcnt"},
 		"aes_ni": []string{"-maes"},
 	}
-
-	x86_64DefaultArchVariantFeatures = []string{
-		"ssse3",
-		"sse4",
-		"sse4_1",
-		"sse4_2",
-		"popcnt",
-	}
 )
 
 const (
@@ -93,8 +85,6 @@ const (
 )
 
 func init() {
-	android.RegisterDefaultArchVariantFeatures(android.Android, android.X86_64, x86_64DefaultArchVariantFeatures...)
-	exportedStringListVars.Set("X86_64DefaultArchVariantFeatures", x86_64DefaultArchVariantFeatures)
 
 	pctx.StaticVariable("x86_64GccVersion", x86_64GccVersion)
 
