@@ -595,6 +595,7 @@ func (cx *callExpr) transform(transformer func(expr starlarkExpr) starlarkExpr) 
 	for i, arg := range cx.args {
 		argsCopy[i] = arg.transform(transformer)
 	}
+	cx.args = argsCopy
 	if replacement := transformer(cx); replacement != nil {
 		return replacement
 	} else {
