@@ -24,7 +24,7 @@ import (
 var pctx = android.NewPackageContext("android/soong/rust/config")
 
 var (
-	RustDefaultVersion = "1.58.1"
+	RustDefaultVersion = "1.59.0"
 	RustDefaultBase    = "prebuilts/rust/"
 	DefaultEdition     = "2021"
 	Stdlibs            = []string{
@@ -49,7 +49,7 @@ var (
 		"-C overflow-checks=on",
 		"-C force-unwind-tables=yes",
 		// Use v0 mangling to distinguish from C++ symbols
-		"-Z symbol-mangling-version=v0",
+		"-C symbol-mangling-version=v0",
 	}
 
 	deviceGlobalRustFlags = []string{
