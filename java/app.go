@@ -1443,7 +1443,7 @@ func androidAppCertificateBp2Build(ctx android.TopDownMutatorContext, module *An
 
 	props := bazel.BazelTargetModuleProperties{
 		Rule_class:        "android_app_certificate",
-		Bzl_load_location: "//build/bazel/rules:android_app_certificate.bzl",
+		Bzl_load_location: "//build/bazel/rules/android:android_app_certificate.bzl",
 	}
 
 	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: module.Name()}, attrs)
@@ -1451,9 +1451,11 @@ func androidAppCertificateBp2Build(ctx android.TopDownMutatorContext, module *An
 
 type bazelAndroidAppAttributes struct {
 	*javaLibraryAttributes
-	Manifest       bazel.Label
-	Custom_package *string
-	Resource_files bazel.LabelListAttribute
+	Manifest         bazel.Label
+	Custom_package   *string
+	Resource_files   bazel.LabelListAttribute
+	Certificate      *bazel.Label
+	Certificate_name *string
 }
 
 // ConvertWithBp2build is used to convert android_app to Bazel.
@@ -1470,15 +1472,30 @@ func (a *AndroidApp) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 		resourceFiles.Includes = append(resourceFiles.Includes, files...)
 	}
 
+	var certificate *bazel.Label
+	certificateNamePtr := a.overridableAppProperties.Certificate
+	certificateName := proptools.StringDefault(certificateNamePtr, "")
+	certModule := android.SrcIsModule(certificateName)
+	if certModule != "" {
+		c := android.BazelLabelForModuleDepSingle(ctx, certificateName)
+		certificate = &c
+		certificateNamePtr = nil
+	}
+
 	attrs := &bazelAndroidAppAttributes{
 		libAttrs,
 		android.BazelLabelForModuleSrcSingle(ctx, manifest),
 		// TODO(b/209576404): handle package name override by product variable PRODUCT_MANIFEST_PACKAGE_NAME_OVERRIDES
 		a.overridableAppProperties.Package_name,
 		bazel.MakeLabelListAttribute(resourceFiles),
+		certificate,
+		certificateNamePtr,
 	}
-	props := bazel.BazelTargetModuleProperties{Rule_class: "android_binary",
-		Bzl_load_location: "@rules_android//rules:rules.bzl"}
+
+	props := bazel.BazelTargetModuleProperties{
+		Rule_class:        "android_binary",
+		Bzl_load_location: "//build/bazel/rules/android:android_binary.bzl",
+	}
 
 	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: a.Name()}, attrs)
 
