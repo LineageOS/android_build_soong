@@ -664,7 +664,12 @@ func (context *bazelContext) InvokeBazel() error {
 	if err != nil {
 		return err
 	}
-
+	if metricsDir := context.paths.BazelMetricsDir(); metricsDir != "" {
+		err = os.MkdirAll(metricsDir, 0777)
+		if err != nil {
+			return err
+		}
+	}
 	err = ioutil.WriteFile(filepath.Join(soongInjectionPath, "WORKSPACE.bazel"), []byte{}, 0666)
 	if err != nil {
 		return err
@@ -716,9 +721,9 @@ func (context *bazelContext) InvokeBazel() error {
 		}
 	}
 
-	for val, _ := range context.requests {
+	for val := range context.requests {
 		if cqueryResult, ok := cqueryResults[getCqueryId(val)]; ok {
-			context.results[val] = string(cqueryResult)
+			context.results[val] = cqueryResult
 		} else {
 			return fmt.Errorf("missing result for bazel target %s. query output: [%s], cquery err: [%s]",
 				getCqueryId(val), cqueryOutput, cqueryErr)
