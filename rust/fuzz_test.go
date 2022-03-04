@@ -47,17 +47,17 @@ func TestRustFuzz(t *testing.T) {
 	// Check that compiler flags are set appropriately .
 	fuzz_libtest := ctx.ModuleForTests("fuzz_libtest", "android_arm64_armv8-a_fuzzer").Rule("rustc")
 	if !strings.Contains(fuzz_libtest.Args["rustcFlags"], "-Z sanitizer=hwaddress") ||
-		!strings.Contains(fuzz_libtest.Args["rustcFlags"], "-C passes='sancov'") ||
+		!strings.Contains(fuzz_libtest.Args["rustcFlags"], "-C passes='sancov-module'") ||
 		!strings.Contains(fuzz_libtest.Args["rustcFlags"], "--cfg fuzzing") {
-		t.Errorf("rust_fuzz module does not contain the expected flags (sancov, cfg fuzzing, hwaddress sanitizer).")
+		t.Errorf("rust_fuzz module does not contain the expected flags (sancov-module, cfg fuzzing, hwaddress sanitizer).")
 
 	}
 
 	// Check that dependencies have 'fuzzer' variants produced for them as well.
 	libtest_fuzzer := ctx.ModuleForTests("libtest_fuzzing", "android_arm64_armv8-a_rlib_rlib-std_fuzzer").Output("libtest_fuzzing.rlib")
 	if !strings.Contains(libtest_fuzzer.Args["rustcFlags"], "-Z sanitizer=hwaddress") ||
-		!strings.Contains(libtest_fuzzer.Args["rustcFlags"], "-C passes='sancov'") ||
+		!strings.Contains(libtest_fuzzer.Args["rustcFlags"], "-C passes='sancov-module'") ||
 		!strings.Contains(libtest_fuzzer.Args["rustcFlags"], "--cfg fuzzing") {
-		t.Errorf("rust_fuzz dependent library does not contain the expected flags (sancov, cfg fuzzing, hwaddress sanitizer).")
+		t.Errorf("rust_fuzz dependent library does not contain the expected flags (sancov-module, cfg fuzzing, hwaddress sanitizer).")
 	}
 }
