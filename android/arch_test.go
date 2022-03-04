@@ -491,11 +491,9 @@ func TestArchProperties(t *testing.T) {
 			arch: {
 				arm: {
 					a:  ["arm"],
-					armv7_a_neon: { a: ["armv7_a_neon"] },
 				},
 				arm64: {
 					a:  ["arm64"],
-					armv8_a: { a: ["armv8_a"] },
 				},
 				x86: { a:  ["x86"] },
 				x86_64: { a:  ["x86_64"] },
@@ -552,12 +550,12 @@ func TestArchProperties(t *testing.T) {
 				{
 					module:   "foo",
 					variant:  "android_arm64_armv8-a",
-					property: []string{"root", "linux", "bionic", "android", "android64", "arm64", "armv8_a", "lib64", "android_arm64"},
+					property: []string{"root", "linux", "bionic", "android", "android64", "arm64", "lib64", "android_arm64"},
 				},
 				{
 					module:   "foo",
 					variant:  "android_arm_armv7-a-neon",
-					property: []string{"root", "linux", "bionic", "android", "android64", "arm", "armv7_a_neon", "lib32", "android_arm"},
+					property: []string{"root", "linux", "bionic", "android", "android64", "arm", "lib32", "android_arm"},
 				},
 			},
 		},
