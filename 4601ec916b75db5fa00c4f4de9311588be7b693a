@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "70273096_e3d987ad",
+        "filename": "scripts/check_boot_jars/package_allowed_list.txt",
+        "patchSetId": 3
+      },
+      "lineNbr": 255,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2022-03-05T13:24:39Z",
+      "side": 1,
+      "message": "I guess we should escape those.",
+      "revId": "4601ec916b75db5fa00c4f4de9311588be7b693a",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
