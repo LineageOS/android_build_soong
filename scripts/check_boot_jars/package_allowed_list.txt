@@ -247,6 +247,9 @@ com\.google\.i18n\.phonenumbers
 org\.chromium\.arc
 org\.chromium\.arc\..*
 
+# NV adds
+com.nvidia
+
 # QC adds
 com.qualcomm.qti
 com.quicinc.tcmiface
