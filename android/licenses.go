@@ -333,4 +333,6 @@ func licensesMakeVarsProvider(ctx MakeVarsContext) {
 	ctx.Strict("HTMLNOTICE", ctx.Config().HostToolPath(ctx, "htmlnotice").String())
 	ctx.Strict("XMLNOTICE", ctx.Config().HostToolPath(ctx, "xmlnotice").String())
 	ctx.Strict("TEXTNOTICE", ctx.Config().HostToolPath(ctx, "textnotice").String())
+	ctx.Strict("COMPLIANCENOTICE_BOM", ctx.Config().HostToolPath(ctx, "compliancenotice_bom").String())
+	ctx.Strict("COMPLIANCENOTICE_SHIPPEDLIBS", ctx.Config().HostToolPath(ctx, "compliancenotice_shippedlibs").String())
 }
