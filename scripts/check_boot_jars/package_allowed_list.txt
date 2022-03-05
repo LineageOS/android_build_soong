@@ -213,6 +213,10 @@ com\.google\.wear\..*
 vendor\.google_clockwork\.displayoffload3
 vendor\.google_clockwork\.displayoffload3\..*
 
+# NV adds
+com\.nvidia
+com\.nvidia\..*
+
 # QC adds
 com.qualcomm.qti
 com.quicinc.tcmiface
