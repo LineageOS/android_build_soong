@@ -208,6 +208,7 @@ var (
 		"build/bazel/tests":/* recursive = */ true,
 		"build/bazel/platforms":/* recursive = */ true,
 		"build/bazel/product_variables":/* recursive = */ true,
+		"build/bazel/vendor/google":/* recursive = */ true,
 		"build/bazel_common_rules":/* recursive = */ true,
 		// build/make/tools/signapk BUILD file is generated, so build/make/tools is not recursive.
 		"build/make/tools":/* recursive = */ false,
@@ -225,8 +226,10 @@ var (
 		"packages/apps/QuickSearchBox":/* recursive = */ true,
 		"packages/apps/WallpaperPicker":/* recursive = */ false,
 
+		"prebuilts/bundletool":/* recursive = */ true,
 		"prebuilts/gcc":/* recursive = */ true,
 		"prebuilts/build-tools":/* recursive = */ false,
+		"prebuilts/jdk/jdk11":/* recursive = */ false,
 		"prebuilts/sdk":/* recursive = */ false,
 		"prebuilts/sdk/current/extras/app-toolkit":/* recursive = */ false,
 		"prebuilts/sdk/current/support":/* recursive = */ false,
@@ -245,6 +248,7 @@ var (
 		"build/bazel/examples/soong_config_variables":        Bp2BuildDefaultTrueRecursively,
 		"build/bazel/examples/apex/minimal":                  Bp2BuildDefaultTrueRecursively,
 		"build/make/tools/signapk":                           Bp2BuildDefaultTrue,
+		"build/make/target/product/security":                 Bp2BuildDefaultTrue,
 		"build/soong":                                        Bp2BuildDefaultTrue,
 		"build/soong/cc/libbuildversion":                     Bp2BuildDefaultTrue, // Skip tests subdir
 		"build/soong/cc/ndkstubgen":                          Bp2BuildDefaultTrue,
@@ -325,6 +329,7 @@ var (
 		"external/zstd":                                      Bp2BuildDefaultTrueRecursively,
 		"frameworks/base/media/tests/MediaDump":              Bp2BuildDefaultTrue,
 		"frameworks/base/startop/apps/test":                  Bp2BuildDefaultTrue,
+		"frameworks/base/tests/appwidgets/AppWidgetHostTest": Bp2BuildDefaultTrueRecursively,
 		"frameworks/native/libs/adbd_auth":                   Bp2BuildDefaultTrueRecursively,
 		"frameworks/native/opengl/tests/gl2_cameraeye":       Bp2BuildDefaultTrue,
 		"frameworks/native/opengl/tests/gl2_java":            Bp2BuildDefaultTrue,
@@ -676,14 +681,21 @@ func (b *BazelModuleBase) shouldConvertWithBp2build(ctx BazelConversionContext, 
 	}
 
 	packagePath := ctx.OtherModuleDir(module)
-	config := ctx.Config().bp2buildPackageConfig
+	if alwaysConvert && ShouldKeepExistingBuildFileForDir(packagePath) {
+		ctx.(BaseModuleContext).ModuleErrorf("A module cannot be in a directory listed in bp2buildKeepExistingBuildFile"+
+			" and also be in bp2buildModuleAlwaysConvert. Directory: '%s'", packagePath)
 
+		return false
+	}
+
+	config := ctx.Config().bp2buildPackageConfig
 	// This is a tristate value: true, false, or unset.
 	propValue := b.bazelProperties.Bazel_module.Bp2build_available
 	if bp2buildDefaultTrueRecursively(packagePath, config) {
 		if alwaysConvert {
-			ctx.(BaseModuleContext).ModuleErrorf("a module cannot be in a directory marked Bp2BuildDefaultTrue" +
-				" or Bp2BuildDefaultTrueRecursively and also be in bp2buildModuleAlwaysConvert")
+			ctx.(BaseModuleContext).ModuleErrorf("A module cannot be in a directory marked Bp2BuildDefaultTrue"+
+				" or Bp2BuildDefaultTrueRecursively and also be in bp2buildModuleAlwaysConvert. Directory: '%s'",
+				packagePath)
 		}
 
 		// Allow modules to explicitly opt-out.
