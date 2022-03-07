@@ -121,6 +121,12 @@ type BaseCompilerProperties struct {
 	// include all of the static libraries symbols in any dylibs or binaries which use this rlib as well.
 	Whole_static_libs []string `android:"arch_variant"`
 
+	// list of Rust system library dependencies.
+	//
+	// This is usually only needed when `no_stdlibs` is true, in which case it can be used to depend on system crates
+	// like `core` and `alloc`.
+	Stdlibs []string `android:"arch_variant"`
+
 	// crate name, required for modules which produce Rust libraries: rust_library, rust_ffi and SourceProvider
 	// modules which create library variants (rust_bindgen). This must be the expected extern crate name used in
 	// source, and is required to conform to an enforced format matching library output files (if the output file is
@@ -360,6 +366,7 @@ func (compiler *baseCompiler) compilerDeps(ctx DepsContext, deps Deps) Deps {
 	deps.StaticLibs = append(deps.StaticLibs, compiler.Properties.Static_libs...)
 	deps.WholeStaticLibs = append(deps.WholeStaticLibs, compiler.Properties.Whole_static_libs...)
 	deps.SharedLibs = append(deps.SharedLibs, compiler.Properties.Shared_libs...)
+	deps.Stdlibs = append(deps.Stdlibs, compiler.Properties.Stdlibs...)
 
 	if !Bool(compiler.Properties.No_stdlibs) {
 		for _, stdlib := range config.Stdlibs {
