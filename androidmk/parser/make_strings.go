@@ -24,14 +24,24 @@ import (
 // A MakeString is a string that may contain variable substitutions in it.
 // It can be considered as an alternating list of raw Strings and variable
 // substitutions, where the first and last entries in the list must be raw
-// Strings (possibly empty).  A MakeString that starts with a variable
-// will have an empty first raw string, and a MakeString that ends with a
-// variable will have an empty last raw string.  Two sequential Variables
-// will have an empty raw string between them.
+// Strings (possibly empty). The entirety of the text before the first variable,
+// between two variables, and after the last variable will be considered a
+// single String value. A MakeString that starts with a variable will have an
+// empty first raw string, and a MakeString that ends with a  variable will have
+// an empty last raw string.  Two sequential Variables will have an empty raw
+// string between them.
 //
 // The MakeString is stored as two lists, a list of raw Strings and a list
 // of Variables.  The raw string list is always one longer than the variable
 // list.
+//
+// For example, "$(FOO)/bar/baz" will be represented as the
+// following lists:
+//
+// {
+//   Strings: ["", "/bar/baz"],
+//   Variables: ["FOO"]
+// }
 type MakeString struct {
 	StringPos Pos
 	Strings   []string
