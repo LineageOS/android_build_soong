@@ -1,0 +1,24 @@
+{
+    "env": {
+        "USE_RBE": "1",
+
+        "RBE_R8_EXEC_STRATEGY": "remote_local_fallback",
+        "RBE_CXX_EXEC_STRATEGY": "remote_local_fallback",
+        "RBE_D8_EXEC_STRATEGY": "remote_local_fallback",
+        "RBE_JAVAC_EXEC_STRATEGY": "remote_local_fallback",
+        "RBE_JAVAC": "1",
+        "RBE_R8": "1",
+        "RBE_D8": "1",
+
+        "RBE_instance": "[replace with your RBE instance]",
+        "RBE_service": "[replace with your RBE service endpoint]",
+
+        "RBE_DIR": "prebuilts/remoteexecution-client/live",
+
+        "RBE_use_application_default_credentials": "true",
+
+        "RBE_log_dir": "/tmp",
+        "RBE_output_dir": "/tmp",
+        "RBE_proxy_log_dir": "/tmp"
+    }
+}
