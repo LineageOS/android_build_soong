@@ -51,6 +51,7 @@ android_app {
 				"srcs":           `["app.java"]`,
 				"manifest":       `"AndroidManifest.xml"`,
 				"resource_files": `["res/res.png"]`,
+				"deps":           `["//prebuilts/sdk:public_current_android_sdk_java_import"]`,
 			}),
 		}})
 }
@@ -86,7 +87,10 @@ android_app {
         "resb/res.png",
     ]`,
 				"custom_package": `"com.google"`,
-				"deps":           `[":static_lib_dep"]`,
+				"deps": `[
+        "//prebuilts/sdk:public_current_android_sdk_java_import",
+        ":static_lib_dep",
+    ]`,
 			}),
 		}})
 }
