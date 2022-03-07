@@ -71,8 +71,7 @@ func TestJavaProto(t *testing.T) {
 }`
 
 	protoLibrary := makeBazelTarget("proto_library", "java-protos_proto", attrNameToString{
-		"srcs":                `["a.proto"]`,
-		"strip_import_prefix": `""`,
+		"srcs": `["a.proto"]`,
 	})
 
 	for _, tc := range testCases {
@@ -107,8 +106,7 @@ func TestJavaProtoDefault(t *testing.T) {
 `,
 		expectedBazelTargets: []string{
 			makeBazelTarget("proto_library", "java-protos_proto", attrNameToString{
-				"srcs":                `["a.proto"]`,
-				"strip_import_prefix": `""`,
+				"srcs": `["a.proto"]`,
 			}),
 			makeBazelTarget(
 				"java_lite_proto_library",
