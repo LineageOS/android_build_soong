@@ -306,10 +306,11 @@ type productVariables struct {
 	JavaCoveragePaths        []string `json:",omitempty"`
 	JavaCoverageExcludePaths []string `json:",omitempty"`
 
-	GcovCoverage               *bool    `json:",omitempty"`
-	ClangCoverage              *bool    `json:",omitempty"`
-	NativeCoveragePaths        []string `json:",omitempty"`
-	NativeCoverageExcludePaths []string `json:",omitempty"`
+	GcovCoverage                *bool    `json:",omitempty"`
+	ClangCoverage               *bool    `json:",omitempty"`
+	NativeCoveragePaths         []string `json:",omitempty"`
+	NativeCoverageExcludePaths  []string `json:",omitempty"`
+	ClangCoverageContinuousMode *bool    `json:",omitempty"`
 
 	// Set by NewConfig
 	Native_coverage *bool `json:",omitempty"`
