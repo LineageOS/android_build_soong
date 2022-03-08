@@ -146,6 +146,7 @@ type snapshotJsonFlags struct {
 	// binary flags
 	Symlinks         []string `json:",omitempty"`
 	StaticExecutable bool     `json:",omitempty"`
+	InstallInRoot    bool     `json:",omitempty"`
 
 	// dependencies
 	SharedLibs  []string `json:",omitempty"`
@@ -320,6 +321,7 @@ var ccSnapshotAction snapshot.GenerateSnapshotAction = func(s snapshot.SnapshotS
 			// binary flags
 			prop.Symlinks = m.Symlinks()
 			prop.StaticExecutable = m.StaticExecutable()
+			prop.InstallInRoot = m.InstallInRoot()
 			prop.SharedLibs = m.SnapshotSharedLibs()
 			// static libs dependencies are required to collect the NOTICE files.
 			prop.StaticLibs = m.SnapshotStaticLibs()
