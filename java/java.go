@@ -2030,6 +2030,11 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext)
 	}
 
 	var deps bazel.LabelList
+	sdkVersion := m.SdkVersion(ctx)
+	if sdkVersion.Kind == android.SdkPublic && sdkVersion.ApiLevel == android.FutureApiLevel {
+		// TODO(b/220869005) remove forced dependency on current public android.jar
+		deps.Add(&bazel.Label{Label: "//prebuilts/sdk:public_current_android_sdk_java_import"})
+	}
 	if m.properties.Libs != nil {
 		deps.Append(android.BazelLabelForModuleDeps(ctx, m.properties.Libs))
 	}

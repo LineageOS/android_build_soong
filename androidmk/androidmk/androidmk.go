@@ -411,6 +411,24 @@ func makeVariableToBlueprint(file *bpFile, val *mkparser.MakeString,
 	return exp, nil
 }
 
+// If local is set to true, then the variable will be added as a part of the
+// variable at file.bpPos. For example, if file.bpPos references a module,
+// then calling this method will set a property on that module if local is set
+// to true. Otherwise, the Variable will be created at the root of the file.
+//
+// prefix should be populated with the top level value to be assigned, and
+// name with a sub-value. If prefix is empty, then name is the top level value.
+// For example, if prefix is "foo" and name is "bar" with a value of "baz", then
+// the following variable will be generated:
+//
+// foo {
+//   bar: "baz"
+// }
+//
+// If prefix is the empty string and name is "foo" with a value of "bar", the
+// following variable will be generated (if it is a property):
+//
+// foo: "bar"
 func setVariable(file *bpFile, plusequals bool, prefix, name string, value bpparser.Expression, local bool) error {
 	if prefix != "" {
 		name = prefix + "." + name
