@@ -856,6 +856,10 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 		installSuffix = imageCapexSuffix
 	}
 
+	if !a.installable() {
+		a.SkipInstall()
+	}
+
 	// Install to $OUT/soong/{target,host}/.../apex.
 	a.installedFile = ctx.InstallFile(a.installDir, a.Name()+installSuffix, a.outputFile,
 		a.compatSymlinks.Paths()...)
