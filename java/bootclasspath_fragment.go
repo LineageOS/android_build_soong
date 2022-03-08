@@ -16,6 +16,7 @@ package java
 
 import (
 	"fmt"
+	"io"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -588,6 +589,19 @@ func (b *BootclasspathFragmentModule) GenerateAndroidBuildActions(ctx android.Mo
 			// Provide the apex content info.
 			b.provideApexContentInfo(ctx, imageConfig, hiddenAPIOutput, bootImageFilesByArch)
 		}
+	} else {
+		// Versioned fragments are not needed by make.
+		b.HideFromMake()
+	}
+
+	// In order for information about bootclasspath_fragment modules to be added to module-info.json
+	// it is necessary to output an entry to Make. As bootclasspath_fragment modules are part of an
+	// APEX there can be multiple variants, including the default/platform variant and only one can
+	// be output to Make but it does not really matter which variant is output. The default/platform
+	// variant is the first (ctx.PrimaryModule()) and is usually hidden from make so this just picks
+	// the last variant (ctx.FinalModule()).
+	if ctx.Module() != ctx.FinalModule() {
+		b.HideFromMake()
 	}
 }
 
@@ -849,7 +863,22 @@ func (b *BootclasspathFragmentModule) generateBootImageBuildActions(ctx android.
 }
 
 func (b *BootclasspathFragmentModule) AndroidMkEntries() []android.AndroidMkEntries {
-	var entriesList []android.AndroidMkEntries
+	// Use the generated classpath proto as the output.
+	outputFile := b.outputFilepath
+	// Create a fake entry that will cause this to be added to the module-info.json file.
+	entriesList := []android.AndroidMkEntries{{
+		Class:      "FAKE",
+		OutputFile: android.OptionalPathForPath(outputFile),
+		Include:    "$(BUILD_PHONY_PACKAGE)",
+		ExtraFooters: []android.AndroidMkExtraFootersFunc{
+			func(w io.Writer, name, prefix, moduleDir string) {
+				// Allow the bootclasspath_fragment to be built by simply passing its name on the command
+				// line.
+				fmt.Fprintln(w, ".PHONY:", b.Name())
+				fmt.Fprintln(w, b.Name()+":", outputFile.String())
+			},
+		},
+	}}
 	for _, install := range b.bootImageDeviceInstalls {
 		entriesList = append(entriesList, install.ToMakeEntries())
 	}
