@@ -299,6 +299,7 @@ var (
 		"external/bouncycastle":                              Bp2BuildDefaultTrue,
 		"external/brotli":                                    Bp2BuildDefaultTrue,
 		"external/conscrypt":                                 Bp2BuildDefaultTrue,
+		"external/e2fsprogs/lib":                             Bp2BuildDefaultTrueRecursively,
 		"external/error_prone":                               Bp2BuildDefaultTrueRecursively,
 		"external/fmtlib":                                    Bp2BuildDefaultTrueRecursively,
 		"external/google-benchmark":                          Bp2BuildDefaultTrueRecursively,
@@ -385,8 +386,36 @@ var (
 	}
 
 	// Per-module allowlist to always opt modules in of both bp2build and mixed builds.
+	// These modules are usually in directories with many other modules that are not ready for
+	// conversion.
+	//
+	// A module can either be in this list or its directory allowlisted entirely
+	// in bp2buildDefaultConfig, but not both at the same time.
 	bp2buildModuleAlwaysConvertList = []string{
 		"junit-params-assertj-core",
+
+		//external/avb
+		"avbtool",
+		"libavb",
+		"avb_headers",
+
+		//external/fec
+		"libfec_rs",
+
+		//system/core/libsparse
+		"libsparse",
+
+		//system/extras/ext4_utils
+		"libext4_utils",
+
+		//system/extras/libfec
+		"libfec",
+
+		//system/extras/squashfs_utils
+		"libsquashfs_utils",
+
+		//system/extras/verity/fec
+		"fec",
 	}
 
 	// Per-module denylist to always opt modules out of both bp2build and mixed builds.
