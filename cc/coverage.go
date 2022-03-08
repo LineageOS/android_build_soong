@@ -77,6 +77,10 @@ func (cov *coverage) deps(ctx DepsContext, deps Deps) Deps {
 	return deps
 }
 
+func EnableContinuousCoverage(ctx android.BaseModuleContext) bool {
+	return ctx.DeviceConfig().ClangCoverageContinuousMode()
+}
+
 func (cov *coverage) flags(ctx ModuleContext, flags Flags, deps PathDeps) (Flags, PathDeps) {
 	clangCoverage := ctx.DeviceConfig().ClangCoverageEnabled()
 	gcovCoverage := ctx.DeviceConfig().GcovCoverageEnabled()
@@ -101,6 +105,9 @@ func (cov *coverage) flags(ctx ModuleContext, flags Flags, deps PathDeps) (Flags
 			// Override -Wframe-larger-than.  We can expect frame size increase after
 			// coverage instrumentation.
 			flags.Local.CFlags = append(flags.Local.CFlags, "-Wno-frame-larger-than=")
+			if EnableContinuousCoverage(ctx) {
+				flags.Local.CommonFlags = append(flags.Local.CommonFlags, "-mllvm", "-runtime-counter-relocation")
+			}
 		}
 	}
 
@@ -152,6 +159,9 @@ func (cov *coverage) flags(ctx ModuleContext, flags Flags, deps PathDeps) (Flags
 			flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,--wrap,getenv")
 		} else if clangCoverage {
 			flags.Local.LdFlags = append(flags.Local.LdFlags, profileInstrFlag)
+			if EnableContinuousCoverage(ctx) {
+				flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,-mllvm=-runtime-counter-relocation")
+			}
 
 			coverage := ctx.GetDirectDepWithTag(getClangProfileLibraryName(ctx), CoverageDepTag).(*Module)
 			deps.WholeStaticLibs = append(deps.WholeStaticLibs, coverage.OutputFile().Path())
