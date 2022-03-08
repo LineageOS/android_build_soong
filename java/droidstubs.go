@@ -336,7 +336,9 @@ func (d *Droidstubs) annotationsFlags(ctx android.ModuleContext, cmd *android.Ru
 			FlagWithArg("--hide ", "SuperfluousPrefix").
 			FlagWithArg("--hide ", "AnnotationExtraction").
 			// b/222738070
-			FlagWithArg("--hide ", "BannedThrow")
+			FlagWithArg("--hide ", "BannedThrow").
+			// b/223382732
+			FlagWithArg("--hide ", "ChangedDefault")
 	}
 }
 
