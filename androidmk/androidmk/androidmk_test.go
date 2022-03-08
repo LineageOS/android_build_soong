@@ -1675,6 +1675,21 @@ android_app {
 }
 `,
 	},
+	{
+		desc: "privileged app",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := foo
+LOCAL_MODULE_PATH := $(PRODUCT_OUT)/system/priv-app
+include $(BUILD_PACKAGE)
+		`,
+		expected: `
+android_app {
+	name: "foo",
+	privileged: true
+}
+`,
+	},
 }
 
 func TestEndToEnd(t *testing.T) {
