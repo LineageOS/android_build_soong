@@ -2179,6 +2179,16 @@ func (m *ModuleBase) GetArchVariantProperties(ctx ArchVariantContext, propertySe
 				targetStructs := getTargetStructs(ctx, archProperties, targetField)
 				osArchStructs = append(osArchStructs, targetStructs...)
 			}
+			if os == LinuxMusl {
+				targetField := "Musl_" + arch.Name
+				targetStructs := getTargetStructs(ctx, archProperties, targetField)
+				osArchStructs = append(osArchStructs, targetStructs...)
+			}
+			if os == Linux {
+				targetField := "Glibc_" + arch.Name
+				targetStructs := getTargetStructs(ctx, archProperties, targetField)
+				osArchStructs = append(osArchStructs, targetStructs...)
+			}
 
 			targetField := GetCompoundTargetField(os, arch)
 			targetName := fmt.Sprintf("%s_%s", os.Name, arch.Name)
