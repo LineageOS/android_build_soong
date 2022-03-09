@@ -1256,6 +1256,10 @@ func (c *deviceConfig) ClangCoverageEnabled() bool {
 	return Bool(c.config.productVariables.ClangCoverage)
 }
 
+func (c *deviceConfig) ClangCoverageContinuousMode() bool {
+	return Bool(c.config.productVariables.ClangCoverageContinuousMode)
+}
+
 func (c *deviceConfig) GcovCoverageEnabled() bool {
 	return Bool(c.config.productVariables.GcovCoverage)
 }
