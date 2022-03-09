@@ -1474,14 +1474,11 @@ func pathForModuleOut(ctx ModuleOutPathContext) OutputPath {
 func PathForVndkRefAbiDump(ctx ModuleInstallPathContext, version, fileName string,
 	isNdk, isLlndkOrVndk, isGzip bool) OptionalPath {
 
-	arches := ctx.DeviceConfig().Arches()
-	if len(arches) == 0 {
-		panic("device build with no primary arch")
-	}
-	currentArch := ctx.Arch()
-	archNameAndVariant := currentArch.ArchType.String()
-	if currentArch.ArchVariant != "" {
-		archNameAndVariant += "_" + currentArch.ArchVariant
+	currentArchType := ctx.Arch().ArchType
+	primaryArchType := ctx.Config().DevicePrimaryArchType()
+	archName := currentArchType.String()
+	if currentArchType != primaryArchType {
+		archName += "_" + primaryArchType.String()
 	}
 
 	var dirName string
@@ -1503,7 +1500,7 @@ func PathForVndkRefAbiDump(ctx ModuleInstallPathContext, version, fileName strin
 	}
 
 	return ExistentPathForSource(ctx, "prebuilts", "abi-dumps", dirName,
-		version, binderBitness, archNameAndVariant, "source-based",
+		version, binderBitness, archName, "source-based",
 		fileName+ext)
 }
 
