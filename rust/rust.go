@@ -968,6 +968,7 @@ func (mod *Module) deps(ctx DepsContext) Deps {
 	deps.ProcMacros = android.LastUniqueStrings(deps.ProcMacros)
 	deps.SharedLibs = android.LastUniqueStrings(deps.SharedLibs)
 	deps.StaticLibs = android.LastUniqueStrings(deps.StaticLibs)
+	deps.Stdlibs = android.LastUniqueStrings(deps.Stdlibs)
 	deps.WholeStaticLibs = android.LastUniqueStrings(deps.WholeStaticLibs)
 	return deps
 
