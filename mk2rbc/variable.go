@@ -278,6 +278,14 @@ var presetVariables = map[string]bool{
 // addVariable returns a variable with a given name. A variable is
 // added if it does not exist yet.
 func (ctx *parseContext) addVariable(name string) variable {
+	// Heuristics: if variable's name is all lowercase, consider it local
+	// string variable.
+	isLocalVariable := name == strings.ToLower(name)
+	// Local variables can't have special characters in them, because they
+	// will be used as starlark identifiers
+	if isLocalVariable {
+		name = strings.ReplaceAll(strings.TrimSpace(name), "-", "_")
+	}
 	v, found := ctx.variables[name]
 	if !found {
 		_, preset := presetVariables[name]
@@ -288,9 +296,7 @@ func (ctx *parseContext) addVariable(name string) variable {
 			case VarClassSoong:
 				v = &otherGlobalVariable{baseVariable{nam: name, typ: vi.valueType, preset: preset}}
 			}
-		} else if name == strings.ToLower(name) {
-			// Heuristics: if variable's name is all lowercase, consider it local
-			// string variable.
+		} else if isLocalVariable {
 			v = &localVariable{baseVariable{nam: name, typ: starlarkTypeUnknown}}
 		} else {
 			vt := starlarkTypeUnknown
