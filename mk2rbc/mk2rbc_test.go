@@ -993,6 +993,7 @@ endif
 def init(g, handle):
   cfg = rblf.cfg(handle)
   if "hwaddress" not in cfg.get("PRODUCT_PACKAGES", []):
+    rblf.setdefault(handle, "PRODUCT_PACKAGES")
     cfg["PRODUCT_PACKAGES"] = (rblf.mkstrip("%s hwaddress" % " ".join(cfg.get("PRODUCT_PACKAGES", [])))).split()
 `,
 	},
