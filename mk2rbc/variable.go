@@ -88,20 +88,33 @@ func (pcv productConfigVariable) emitSet(gctx *generationContext, asgn *assignme
 		}
 		value.emit(gctx)
 	}
-
-	switch asgn.flavor {
-	case asgnSet:
-		emitAssignment()
-	case asgnAppend:
-		emitAppend()
-	case asgnMaybeAppend:
-		// If we are not sure variable has been assigned before, emit setdefault
+	emitSetDefault := func() {
 		if pcv.typ == starlarkTypeList {
 			gctx.writef("%s(handle, %q)", cfnSetListDefault, pcv.name())
 		} else {
 			gctx.writef("cfg.setdefault(%q, %s)", pcv.name(), pcv.defaultValueString())
 		}
 		gctx.newLine()
+	}
+
+	switch asgn.flavor {
+	case asgnSet:
+		isSelfReferential := false
+		asgn.value.transform(func(expr starlarkExpr) starlarkExpr {
+			if ref, ok := expr.(*variableRefExpr); ok && ref.ref.name() == pcv.name() {
+				isSelfReferential = true
+			}
+			return nil
+		})
+		if isSelfReferential {
+			emitSetDefault()
+		}
+		emitAssignment()
+	case asgnAppend:
+		emitAppend()
+	case asgnMaybeAppend:
+		// If we are not sure variable has been assigned before, emit setdefault
+		emitSetDefault()
 		emitAppend()
 	case asgnMaybeSet:
 		gctx.writef("if cfg.get(%q) == None:", pcv.nam)
