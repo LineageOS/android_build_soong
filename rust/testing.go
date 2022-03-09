@@ -162,12 +162,10 @@ func GatherRequiredDepsForTest() string {
 			name: "libtest",
 			crate_name: "test",
 			srcs: ["foo.rs"],
-			no_stdlibs: true,
 			host_supported: true,
 			vendor_available: true,
 			vendor_ramdisk_available: true,
 			native_coverage: false,
-			sysroot: true,
 			apex_available: ["//apex_available:platform", "//apex_available:anyapex"],
 			min_sdk_version: "29",
 		}

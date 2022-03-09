@@ -29,7 +29,6 @@ var (
 	DefaultEdition     = "2018"
 	Stdlibs            = []string{
 		"libstd",
-		"libtest",
 	}
 
 	// Mapping between Soong internal arch types and std::env constants.
