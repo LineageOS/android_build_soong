@@ -59,6 +59,7 @@ func (t moduleType) register(ctx *Context) {
 
 var moduleTypes []moduleType
 var moduleTypesForDocs = map[string]reflect.Value{}
+var moduleTypeByFactory = map[reflect.Value]string{}
 
 type singleton struct {
 	// True if this should be registered as a pre-singleton, false otherwise.
@@ -140,6 +141,7 @@ func RegisterModuleType(name string, factory ModuleFactory) {
 // RegisterModuleType was a lambda.
 func RegisterModuleTypeForDocs(name string, factory reflect.Value) {
 	moduleTypesForDocs[name] = factory
+	moduleTypeByFactory[factory] = name
 }
 
 func RegisterSingletonType(name string, factory SingletonFactory) {
@@ -226,6 +228,10 @@ func ModuleTypeFactories() map[string]ModuleFactory {
 
 func ModuleTypeFactoriesForDocs() map[string]reflect.Value {
 	return moduleTypesForDocs
+}
+
+func ModuleTypeByFactory() map[reflect.Value]string {
+	return moduleTypeByFactory
 }
 
 // Interface for registering build components.
