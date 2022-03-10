@@ -336,7 +336,9 @@ func (d *Droidstubs) annotationsFlags(ctx android.ModuleContext, cmd *android.Ru
 			FlagWithArg("--hide ", "SuperfluousPrefix").
 			FlagWithArg("--hide ", "AnnotationExtraction").
 			// b/222738070
-			FlagWithArg("--hide ", "BannedThrow")
+			FlagWithArg("--hide ", "BannedThrow").
+			// b/223382732
+			FlagWithArg("--hide ", "ChangedDefault")
 	}
 }
 
@@ -475,7 +477,9 @@ func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, javaVersi
 		Flag("--format=v2").
 		FlagWithArg("--repeat-errors-max ", "10").
 		FlagWithArg("--hide ", "UnresolvedImport").
-		FlagWithArg("--hide ", "InvalidNullability")
+		FlagWithArg("--hide ", "InvalidNullability").
+		// b/223382732
+		FlagWithArg("--hide ", "ChangedDefault")
 
 	return cmd
 }
