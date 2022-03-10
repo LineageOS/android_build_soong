@@ -65,6 +65,10 @@ def init(g, handle):
 PRODUCT_NAME := Pixel 3
 PRODUCT_MODEL :=
 local_var = foo
+local-var-with-dashes := bar
+$(warning local-var-with-dashes: $(local-var-with-dashes))
+GLOBAL-VAR-WITH-DASHES := baz
+$(warning GLOBAL-VAR-WITH-DASHES: $(GLOBAL-VAR-WITH-DASHES))
 `,
 		expected: `load("//build/make/core:product_config.rbc", "rblf")
 
@@ -73,6 +77,10 @@ def init(g, handle):
   cfg["PRODUCT_NAME"] = "Pixel 3"
   cfg["PRODUCT_MODEL"] = ""
   _local_var = "foo"
+  _local_var_with_dashes = "bar"
+  rblf.mkwarning("pixel3.mk", "local-var-with-dashes: %s" % _local_var_with_dashes)
+  g["GLOBAL-VAR-WITH-DASHES"] = "baz"
+  rblf.mkwarning("pixel3.mk", "GLOBAL-VAR-WITH-DASHES: %s" % g["GLOBAL-VAR-WITH-DASHES"])
 `,
 	},
 	{
@@ -985,6 +993,7 @@ endif
 def init(g, handle):
   cfg = rblf.cfg(handle)
   if "hwaddress" not in cfg.get("PRODUCT_PACKAGES", []):
+    rblf.setdefault(handle, "PRODUCT_PACKAGES")
     cfg["PRODUCT_PACKAGES"] = (rblf.mkstrip("%s hwaddress" % " ".join(cfg.get("PRODUCT_PACKAGES", [])))).split()
 `,
 	},

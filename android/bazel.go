@@ -293,6 +293,7 @@ var (
 		"development/samples/WiFiDirectDemo":                 Bp2BuildDefaultTrue,
 		"development/sdk":                                    Bp2BuildDefaultTrueRecursively,
 		"external/arm-optimized-routines":                    Bp2BuildDefaultTrueRecursively,
+		"external/auto/android-annotation-stubs":             Bp2BuildDefaultTrueRecursively,
 		"external/auto/common":                               Bp2BuildDefaultTrueRecursively,
 		"external/auto/service":                              Bp2BuildDefaultTrueRecursively,
 		"external/boringssl":                                 Bp2BuildDefaultTrueRecursively,
