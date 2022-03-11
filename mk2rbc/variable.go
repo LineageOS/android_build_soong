@@ -97,29 +97,27 @@ func (pcv productConfigVariable) emitSet(gctx *generationContext, asgn *assignme
 		gctx.newLine()
 	}
 
+	// If we are not sure variable has been assigned before, emit setdefault
+	needsSetDefault := asgn.previous == nil && !pcv.isPreset() && asgn.isSelfReferential()
+
 	switch asgn.flavor {
 	case asgnSet:
-		isSelfReferential := false
-		asgn.value.transform(func(expr starlarkExpr) starlarkExpr {
-			if ref, ok := expr.(*variableRefExpr); ok && ref.ref.name() == pcv.name() {
-				isSelfReferential = true
-			}
-			return nil
-		})
-		if isSelfReferential {
+		if needsSetDefault {
 			emitSetDefault()
 		}
 		emitAssignment()
 	case asgnAppend:
-		emitAppend()
-	case asgnMaybeAppend:
-		// If we are not sure variable has been assigned before, emit setdefault
-		emitSetDefault()
+		if needsSetDefault {
+			emitSetDefault()
+		}
 		emitAppend()
 	case asgnMaybeSet:
 		gctx.writef("if cfg.get(%q) == None:", pcv.nam)
 		gctx.indentLevel++
 		gctx.newLine()
+		if needsSetDefault {
+			emitSetDefault()
+		}
 		emitAssignment()
 		gctx.indentLevel--
 	}
@@ -134,7 +132,7 @@ func (pcv productConfigVariable) emitGet(gctx *generationContext, isDefined bool
 }
 
 func (pcv productConfigVariable) emitDefined(gctx *generationContext) {
-	gctx.writef("g.get(%q) != None", pcv.name())
+	gctx.writef("cfg.get(%q) != None", pcv.name())
 }
 
 type otherGlobalVariable struct {
@@ -159,20 +157,30 @@ func (scv otherGlobalVariable) emitSet(gctx *generationContext, asgn *assignment
 		value.emit(gctx)
 	}
 
+	// If we are not sure variable has been assigned before, emit setdefault
+	needsSetDefault := asgn.previous == nil && !scv.isPreset() && asgn.isSelfReferential()
+
 	switch asgn.flavor {
 	case asgnSet:
+		if needsSetDefault {
+			gctx.writef("g.setdefault(%q, %s)", scv.name(), scv.defaultValueString())
+			gctx.newLine()
+		}
 		emitAssignment()
 	case asgnAppend:
-		emitAppend()
-	case asgnMaybeAppend:
-		// If we are not sure variable has been assigned before, emit setdefault
-		gctx.writef("g.setdefault(%q, %s)", scv.name(), scv.defaultValueString())
-		gctx.newLine()
+		if needsSetDefault {
+			gctx.writef("g.setdefault(%q, %s)", scv.name(), scv.defaultValueString())
+			gctx.newLine()
+		}
 		emitAppend()
 	case asgnMaybeSet:
 		gctx.writef("if g.get(%q) == None:", scv.nam)
 		gctx.indentLevel++
 		gctx.newLine()
+		if needsSetDefault {
+			gctx.writef("g.setdefault(%q, %s)", scv.name(), scv.defaultValueString())
+			gctx.newLine()
+		}
 		emitAssignment()
 		gctx.indentLevel--
 	}
@@ -204,7 +212,7 @@ func (lv localVariable) String() string {
 
 func (lv localVariable) emitSet(gctx *generationContext, asgn *assignmentNode) {
 	switch asgn.flavor {
-	case asgnSet:
+	case asgnSet, asgnMaybeSet:
 		gctx.writef("%s = ", lv)
 		asgn.value.emitListVarCopy(gctx)
 	case asgnAppend:
@@ -216,14 +224,6 @@ func (lv localVariable) emitSet(gctx *generationContext, asgn *assignmentNode) {
 			value = &toStringExpr{expr: value}
 		}
 		value.emit(gctx)
-	case asgnMaybeAppend:
-		gctx.writef("%s(%q, ", cfnLocalAppend, lv)
-		asgn.value.emit(gctx)
-		gctx.write(")")
-	case asgnMaybeSet:
-		gctx.writef("%s(%q, ", cfnLocalSetDefault, lv)
-		asgn.value.emit(gctx)
-		gctx.write(")")
 	}
 }
 
