@@ -184,10 +184,9 @@ type assignmentFlavor int
 
 const (
 	// Assignment flavors
-	asgnSet         assignmentFlavor = iota // := or =
-	asgnMaybeSet    assignmentFlavor = iota // ?= and variable may be unset
-	asgnAppend      assignmentFlavor = iota // += and variable has been set before
-	asgnMaybeAppend assignmentFlavor = iota // += and variable may be unset
+	asgnSet      assignmentFlavor = iota // := or =
+	asgnMaybeSet assignmentFlavor = iota // ?=
+	asgnAppend   assignmentFlavor = iota // +=
 )
 
 type assignmentNode struct {
@@ -213,6 +212,20 @@ func (asgn *assignmentNode) emit(gctx *generationContext) {
 		asgn.lhs.emitGet(gctx, true)
 		gctx.writef(")")
 	}
+}
+
+func (asgn *assignmentNode) isSelfReferential() bool {
+	if asgn.flavor == asgnAppend {
+		return true
+	}
+	isSelfReferential := false
+	asgn.value.transform(func(expr starlarkExpr) starlarkExpr {
+		if ref, ok := expr.(*variableRefExpr); ok && ref.ref.name() == asgn.lhs.name() {
+			isSelfReferential = true
+		}
+		return nil
+	})
+	return isSelfReferential
 }
 
 type exprNode struct {
