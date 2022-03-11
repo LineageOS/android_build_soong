@@ -901,6 +901,43 @@ def init(g, handle):
 `,
 	},
 	{
+		desc:   "assigment setdefaults",
+		mkname: "product.mk",
+		in: `
+# All of these should have a setdefault because they're self-referential and not defined before
+PRODUCT_LIST1 = a $(PRODUCT_LIST1)
+PRODUCT_LIST2 ?= a $(PRODUCT_LIST2)
+PRODUCT_LIST3 += a
+
+# Now doing them again should not have a setdefault because they've already been set
+PRODUCT_LIST1 = a $(PRODUCT_LIST1)
+PRODUCT_LIST2 ?= a $(PRODUCT_LIST2)
+PRODUCT_LIST3 += a
+`,
+		expected: `# All of these should have a setdefault because they're self-referential and not defined before
+load("//build/make/core:product_config.rbc", "rblf")
+
+def init(g, handle):
+  cfg = rblf.cfg(handle)
+  rblf.setdefault(handle, "PRODUCT_LIST1")
+  cfg["PRODUCT_LIST1"] = (["a"] +
+      cfg.get("PRODUCT_LIST1", []))
+  if cfg.get("PRODUCT_LIST2") == None:
+    rblf.setdefault(handle, "PRODUCT_LIST2")
+    cfg["PRODUCT_LIST2"] = (["a"] +
+        cfg.get("PRODUCT_LIST2", []))
+  rblf.setdefault(handle, "PRODUCT_LIST3")
+  cfg["PRODUCT_LIST3"] += ["a"]
+  # Now doing them again should not have a setdefault because they've already been set
+  cfg["PRODUCT_LIST1"] = (["a"] +
+      cfg["PRODUCT_LIST1"])
+  if cfg.get("PRODUCT_LIST2") == None:
+    cfg["PRODUCT_LIST2"] = (["a"] +
+        cfg["PRODUCT_LIST2"])
+  cfg["PRODUCT_LIST3"] += ["a"]
+`,
+	},
+	{
 		desc:   "soong namespace assignments",
 		mkname: "product.mk",
 		in: `
