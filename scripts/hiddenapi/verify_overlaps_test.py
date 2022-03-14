@@ -17,53 +17,8 @@
 import io
 import unittest
 
-from verify_overlaps import * #pylint: disable=unused-wildcard-import,wildcard-import
+from verify_overlaps import *  #pylint: disable=unused-wildcard-import,wildcard-import
 
-
-class TestSignatureToElements(unittest.TestCase):
-
-    def signatureToElements(self, signature):
-        return InteriorNode().signatureToElements(signature)
-
-    def test_signatureToElements_1(self):
-        expected = [
-            'package:java',
-            'package:lang',
-            'class:ProcessBuilder',
-            'class:Redirect',
-            'class:1',
-            'member:<init>()V',
-        ]
-        self.assertEqual(
-            expected,
-            self.signatureToElements(
-                'Ljava/lang/ProcessBuilder$Redirect$1;-><init>()V'))
-
-    def test_signatureToElements_2(self):
-        expected = [
-            'package:java',
-            'package:lang',
-            'class:Object',
-            'member:hashCode()I',
-        ]
-        self.assertEqual(
-            expected,
-            self.signatureToElements('Ljava/lang/Object;->hashCode()I'))
-
-    def test_signatureToElements_3(self):
-        expected = [
-            'package:java',
-            'package:lang',
-            'class:CharSequence',
-            'class:',
-            'class:ExternalSyntheticLambda0',
-            'member:<init>(Ljava/lang/CharSequence;)V',
-        ]
-        self.assertEqual(
-            expected,
-            self.signatureToElements(
-                'Ljava/lang/CharSequence$$ExternalSyntheticLambda0;'
-                '-><init>(Ljava/lang/CharSequence;)V'))
 
 #pylint: disable=line-too-long
 class TestDetectOverlaps(unittest.TestCase):
@@ -239,18 +194,6 @@ Ljava/lang/ProcessBuilder$Redirect$1;-><init>()V,blocked
         }
         self.assertEqual(expected, subset)
 
-    def test_extract_subset_invalid_pattern_wildcard_and_member(self):
-        monolithic = self.read_flag_trie_from_string(
-            TestDetectOverlaps.extractInput)
-
-        patterns = 'Ljava/lang/*;->hashCode()I'
-
-        with self.assertRaises(Exception) as context:
-            self.extract_subset_from_monolithic_flags_as_dict_from_string(
-                monolithic, patterns)
-        self.assertTrue('contains wildcard * and member signature hashCode()I'
-                        in str(context.exception))
-
     def test_read_trie_duplicate(self):
         with self.assertRaises(Exception) as context:
             self.read_flag_trie_from_string("""
@@ -369,6 +312,8 @@ Ljava/lang/Object;->hashCode()I,blocked
         mismatches = compare_signature_flags(monolithic, modular)
         expected = []
         self.assertEqual(expected, mismatches)
+
+
 #pylint: enable=line-too-long
 
 if __name__ == '__main__':
