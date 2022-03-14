@@ -14,12 +14,44 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Verify that one set of hidden API flags is a subset of another."""
+import dataclasses
+import typing
 
 from itertools import chain
 
 
+@dataclasses.dataclass()
+class Node:
+
+    def values(self, selector):
+        """Get the values from a set of selected nodes.
+
+        :param selector: a function that can be applied to a key in the nodes
+            attribute to determine whether to return its values.
+
+        :return: A list of iterables of all the values associated with
+            this node and its children.
+        """
+        raise NotImplementedError("Please Implement this method")
+
+    def append_values(self, values, selector):
+        """Append the values associated with this node and its children.
+
+        For each item (key, child) in nodes the child node's values are returned
+        if and only if the selector returns True when called on its key. A child
+        node's values are all the values associated with it and all its
+        descendant nodes.
+
+        :param selector: a function that can be applied to a key in the nodes
+        attribute to determine whether to return its values.
+        :param values: a list of a iterables of values.
+        """
+        raise NotImplementedError("Please Implement this method")
+
+
 # pylint: disable=line-too-long
-class InteriorNode:
+@dataclasses.dataclass()
+class InteriorNode(Node):
     """An interior node in a trie.
 
     Each interior node has a dict that maps from an element of a signature to
@@ -45,16 +77,13 @@ class InteriorNode:
               ^- class:UnicodeScript -> Node()
                  ^- member:of(I)Ljava/lang/Character$UnicodeScript;
                     -> Leaf([blocked,core-platform-api])
-
-    Attributes:
-        nodes: a dict from an element of the signature to the Node/Leaf
-          containing the next element/value.
     """
 
     # pylint: enable=line-too-long
 
-    def __init__(self):
-        self.nodes = {}
+    # A dict from an element of the signature to the Node/Leaf containing the
+    # next element/value.
+    nodes: typing.Dict[str, Node] = dataclasses.field(default_factory=dict)
 
     # pylint: disable=line-too-long
     @staticmethod
@@ -198,53 +227,28 @@ class InteriorNode:
         return chain.from_iterable(node.values(selector))
 
     def values(self, selector):
-        """:param selector: a function that can be applied to a key in the nodes
-
-        attribute to determine whether to return its values.
-
-        :return: A list of iterables of all the values associated with
-        this node and its children.
-        """
         values = []
         self.append_values(values, selector)
         return values
 
     def append_values(self, values, selector):
-        """Append the values associated with this node and its children.
-
-        For each item (key, child) in nodes the child node's values are returned
-        if and only if the selector returns True when called on its key. A child
-        node's values are all the values associated with it and all its
-        descendant nodes.
-
-        :param selector: a function that can be applied to a key in the nodes
-        attribute to determine whether to return its values.
-        :param values: a list of a iterables of values.
-        """
         for key, node in self.nodes.items():
             if selector(key):
                 node.append_values(values, lambda x: True)
 
 
-class Leaf:
-    """A leaf of the trie
 
-    Attributes:
-        value: the value associated with this leaf.
-    """
+@dataclasses.dataclass()
+class Leaf(Node):
+    """A leaf of the trie"""
 
-    def __init__(self, value):
-        self.value = value
+    # The value associated with this leaf.
+    value: typing.Any
 
-    def values(self, selector):  # pylint: disable=unused-argument
-        """:return: A list of a list of the value associated with this node."""
+    def values(self, selector):
         return [[self.value]]
 
-    def append_values(self, values, selector):  # pylint: disable=unused-argument
-        """Appends a list of the value associated with this node to the list.
-
-        :param values: a list of a iterables of values.
-        """
+    def append_values(self, values, selector):
         values.append([self.value])
 
 
