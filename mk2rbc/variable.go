@@ -291,6 +291,12 @@ var presetVariables = map[string]bool{
 // addVariable returns a variable with a given name. A variable is
 // added if it does not exist yet.
 func (ctx *parseContext) addVariable(name string) variable {
+	// Get the hintType before potentially changing the variable name
+	var hintType starlarkType
+	var ok bool
+	if hintType, ok = ctx.typeHints[name]; !ok {
+		hintType = starlarkTypeUnknown
+	}
 	// Heuristics: if variable's name is all lowercase, consider it local
 	// string variable.
 	isLocalVariable := name == strings.ToLower(name)
@@ -301,8 +307,8 @@ func (ctx *parseContext) addVariable(name string) variable {
 	}
 	v, found := ctx.variables[name]
 	if !found {
-		_, preset := presetVariables[name]
 		if vi, found := KnownVariables[name]; found {
+			_, preset := presetVariables[name]
 			switch vi.class {
 			case VarClassConfig:
 				v = &productConfigVariable{baseVariable{nam: name, typ: vi.valueType, preset: preset}}
@@ -310,10 +316,10 @@ func (ctx *parseContext) addVariable(name string) variable {
 				v = &otherGlobalVariable{baseVariable{nam: name, typ: vi.valueType, preset: preset}}
 			}
 		} else if isLocalVariable {
-			v = &localVariable{baseVariable{nam: name, typ: starlarkTypeUnknown}}
+			v = &localVariable{baseVariable{nam: name, typ: hintType}}
 		} else {
-			vt := starlarkTypeUnknown
-			if strings.HasPrefix(name, "LOCAL_") {
+			vt := hintType
+			if strings.HasPrefix(name, "LOCAL_") && vt == starlarkTypeUnknown {
 				// Heuristics: local variables that contribute to corresponding config variables
 				if cfgVarName, found := localProductConfigVariables[name]; found {
 					vi, found2 := KnownVariables[cfgVarName]

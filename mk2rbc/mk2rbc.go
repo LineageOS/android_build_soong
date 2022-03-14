@@ -410,6 +410,8 @@ type parseContext struct {
 	dependentModules map[string]*moduleInfo
 	soongNamespaces  map[string]map[string]bool
 	includeTops      []string
+	typeHints        map[string]starlarkType
+	atTopOfMakefile  bool
 }
 
 func newParseContext(ss *StarlarkScript, nodes []mkparser.Node) *parseContext {
@@ -453,6 +455,8 @@ func newParseContext(ss *StarlarkScript, nodes []mkparser.Node) *parseContext {
 		dependentModules: make(map[string]*moduleInfo),
 		soongNamespaces:  make(map[string]map[string]bool),
 		includeTops:      []string{},
+		typeHints:        make(map[string]starlarkType),
+		atTopOfMakefile:  true,
 	}
 	ctx.pushVarAssignments()
 	for _, item := range predefined {
@@ -1687,7 +1691,8 @@ func (ctx *parseContext) handleSimpleStatement(node mkparser.Node) []starlarkNod
 	// Clear the includeTops after each non-comment statement
 	// so that include annotations placed on certain statements don't apply
 	// globally for the rest of the makefile was well.
-	if _, wasComment := node.(*mkparser.Comment); !wasComment && len(ctx.includeTops) > 0 {
+	if _, wasComment := node.(*mkparser.Comment); !wasComment {
+		ctx.atTopOfMakefile = false
 		ctx.includeTops = []string{}
 	}
 
@@ -1695,6 +1700,12 @@ func (ctx *parseContext) handleSimpleStatement(node mkparser.Node) []starlarkNod
 		result = []starlarkNode{}
 	}
 	return result
+}
+
+// The types allowed in a type_hint
+var typeHintMap = map[string]starlarkType{
+	"string": starlarkTypeString,
+	"list":   starlarkTypeList,
 }
 
 // Processes annotation. An annotation is a comment that starts with #RBC# and provides
@@ -1720,6 +1731,35 @@ func (ctx *parseContext) maybeHandleAnnotation(cnode *mkparser.Comment) (starlar
 			}
 		}
 		ctx.includeTops = append(ctx.includeTops, p)
+		return nil, true
+	} else if p, ok := maybeTrim(annotation, "type_hint"); ok {
+		// Type hints must come at the beginning the file, to avoid confusion
+		// if a type hint was specified later and thus only takes effect for half
+		// of the file.
+		if !ctx.atTopOfMakefile {
+			return ctx.newBadNode(cnode, "type_hint annotations must come before the first Makefile statement"), true
+		}
+
+		parts := strings.Fields(p)
+		if len(parts) <= 1 {
+			return ctx.newBadNode(cnode, "Invalid type_hint annotation: %s. Must be a variable type followed by a list of variables of that type", p), true
+		}
+
+		var varType starlarkType
+		if varType, ok = typeHintMap[parts[0]]; !ok {
+			varType = starlarkTypeUnknown
+		}
+		if varType == starlarkTypeUnknown {
+			return ctx.newBadNode(cnode, "Invalid type_hint annotation. Only list/string types are accepted, found %s", parts[0]), true
+		}
+
+		for _, name := range parts[1:] {
+			// Don't allow duplicate type hints
+			if _, ok := ctx.typeHints[name]; ok {
+				return ctx.newBadNode(cnode, "Duplicate type hint for variable %s", name), true
+			}
+			ctx.typeHints[name] = varType
+		}
 		return nil, true
 	}
 	return ctx.newBadNode(cnode, "unsupported annotation %s", cnode.Comment), true

@@ -1369,6 +1369,53 @@ def init(g, handle):
     pass
 `,
 	},
+	{
+		desc:   "Type hints",
+		mkname: "product.mk",
+		in: `
+# Test type hints
+#RBC# type_hint list MY_VAR MY_VAR_2
+# Unsupported type
+#RBC# type_hint bool MY_VAR_3
+# Invalid syntax
+#RBC# type_hint list
+# Duplicated variable
+#RBC# type_hint list MY_VAR_2
+#RBC# type_hint list my-local-var-with-dashes
+
+MY_VAR := foo
+MY_VAR_UNHINTED := foo
+
+# Vars set after other statements still get the hint
+MY_VAR_2 := foo
+
+# You can't specify a type hint after the first statement
+#RBC# type_hint list MY_VAR_4
+MY_VAR_4 := foo
+
+my-local-var-with-dashes := foo
+`,
+		expected: `# Test type hints
+# Unsupported type
+load("//build/make/core:product_config.rbc", "rblf")
+
+def init(g, handle):
+  cfg = rblf.cfg(handle)
+  rblf.mk2rbc_error("product.mk:5", "Invalid type_hint annotation. Only list/string types are accepted, found bool")
+  # Invalid syntax
+  rblf.mk2rbc_error("product.mk:7", "Invalid type_hint annotation: list. Must be a variable type followed by a list of variables of that type")
+  # Duplicated variable
+  rblf.mk2rbc_error("product.mk:9", "Duplicate type hint for variable MY_VAR_2")
+  g["MY_VAR"] = ["foo"]
+  g["MY_VAR_UNHINTED"] = "foo"
+  # Vars set after other statements still get the hint
+  g["MY_VAR_2"] = ["foo"]
+  # You can't specify a type hint after the first statement
+  rblf.mk2rbc_error("product.mk:19", "type_hint annotations must come before the first Makefile statement")
+  g["MY_VAR_4"] = "foo"
+  _my_local_var_with_dashes = ["foo"]
+`,
+	},
 }
 
 var known_variables = []struct {
