@@ -69,10 +69,37 @@ python_test_host {
     },
 }
 
+python_library_host {
+    name: "signature_trie",
+    srcs: ["signature_trie.py"],
+}
+
+python_test_host {
+    name: "signature_trie_test",
+    main: "signature_trie_test.py",
+    srcs: ["signature_trie_test.py"],
+    libs: ["signature_trie"],
+    version: {
+        py2: {
+            enabled: false,
+        },
+        py3: {
+            enabled: true,
+            embedded_launcher: true,
+        },
+    },
+    test_options: {
+        unit_test: true,
+    },
+}
+
 python_binary_host {
     name: "verify_overlaps",
     main: "verify_overlaps.py",
     srcs: ["verify_overlaps.py"],
+    libs: [
+        "signature_trie",
+    ],
     version: {
         py2: {
             enabled: false,
@@ -90,6 +117,9 @@ python_test_host {
     srcs: [
         "verify_overlaps.py",
         "verify_overlaps_test.py",
+    ],
+    libs: [
+        "signature_trie",
     ],
     version: {
         py2: {
