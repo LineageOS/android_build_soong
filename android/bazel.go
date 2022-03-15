@@ -485,11 +485,12 @@ var (
 		"conscrypt",          // b/210751803, we don't handle path property for filegroups
 		"conscrypt-for-host", // b/210751803, we don't handle path property for filegroups
 
-		"host-libprotobuf-java-lite",  // b/217236083, java_library cannot have deps without srcs
-		"host-libprotobuf-java-micro", // b/217236083, java_library cannot have deps without srcs
-		"host-libprotobuf-java-nano",  // b/217236083, java_library cannot have deps without srcs
-		"error_prone_core",            // b/217236083, java_library cannot have deps without srcs
-		"bouncycastle-host",           // b/217236083, java_library cannot have deps without srcs
+		"host-libprotobuf-java-lite",   // b/217236083, java_library cannot have deps without srcs
+		"host-libprotobuf-java-micro",  // b/217236083, java_library cannot have deps without srcs
+		"host-libprotobuf-java-nano",   // b/217236083, java_library cannot have deps without srcs
+		"error_prone_core",             // b/217236083, java_library cannot have deps without srcs
+		"bouncycastle-host",            // b/217236083, java_library cannot have deps without srcs
+		"mockito-robolectric-prebuilt", // b/217236083, java_library cannot have deps without srcs
 
 		"apex_manifest_proto_java", // b/215230097, we don't handle .proto files in java_library srcs attribute
 
@@ -559,6 +560,8 @@ var (
 		"dex2oat-script", // depends on unconverted modules: dex2oat
 
 		"error_prone_checkerframework_dataflow_nullaway", // TODO(b/219908977): "Error in fail: deps not allowed without srcs; move to runtime_deps?"
+
+		"libprotobuf-java-nano", // b/220869005, depends on non-public_current SDK
 	}
 
 	// Per-module denylist of cc_library modules to only generate the static
