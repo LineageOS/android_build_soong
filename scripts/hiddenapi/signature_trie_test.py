@@ -77,7 +77,7 @@ class TestSignatureToElements(unittest.TestCase):
         elements = [
             "package:java",
             "package:lang",
-            "*",
+            "wildcard:*",
         ]
         signature = "java/lang/*"
         self.assertEqual(elements, self.signature_to_elements(signature))
@@ -86,24 +86,32 @@ class TestSignatureToElements(unittest.TestCase):
         elements = [
             "package:java",
             "package:lang",
-            "**",
+            "wildcard:**",
         ]
         signature = "java/lang/**"
         self.assertEqual(elements, self.signature_to_elements(signature))
 
     def test_no_packages_wildcard(self):
         elements = [
-            "*",
+            "wildcard:*",
         ]
         signature = "*"
         self.assertEqual(elements, self.signature_to_elements(signature))
 
     def test_no_packages_recursive_wildcard(self):
         elements = [
-            "**",
+            "wildcard:**",
         ]
         signature = "**"
         self.assertEqual(elements, self.signature_to_elements(signature))
+
+    def test_invalid_no_class_or_wildcard(self):
+        signature = "java/lang"
+        with self.assertRaises(Exception) as context:
+            self.signature_to_elements(signature)
+        self.assertIn(
+            "last element 'lang' is lower case but should be an "
+            "upper case class name or wildcard", str(context.exception))
 
     def test_non_standard_class_name(self):
         elements = [
@@ -114,12 +122,19 @@ class TestSignatureToElements(unittest.TestCase):
         signature = "Ljavax/crypto/extObjectInputStream"
         self.assertEqual(elements, self.signature_to_elements(signature))
 
+    def test_invalid_pattern_wildcard(self):
+        pattern = "Ljava/lang/Class*"
+        with self.assertRaises(Exception) as context:
+            self.signature_to_elements(pattern)
+        self.assertIn("invalid wildcard 'Class*'", str(context.exception))
+
     def test_invalid_pattern_wildcard_and_member(self):
         pattern = "Ljava/lang/*;->hashCode()I"
         with self.assertRaises(Exception) as context:
             self.signature_to_elements(pattern)
-        self.assertIn("contains wildcard * and member signature hashCode()I",
-                      str(context.exception))
+        self.assertIn(
+            "contains wildcard '*' and member signature 'hashCode()I'",
+            str(context.exception))
 
 
 class TestGetMatchingRows(unittest.TestCase):
