@@ -110,45 +110,68 @@ class InteriorNode(Node):
         #  0 - java/lang/Character$UnicodeScript
         #  1 - of(I)Ljava/lang/Character$UnicodeScript;
         parts = text.split(";->")
+        # If there is no member then this will be an empty list.
         member = parts[1:]
         # Split the qualified class name into packages, and class name.
         #  0 - java
         #  1 - lang
         #  2 - Character$UnicodeScript
         elements = parts[0].split("/")
-        packages = elements[0:-1]
-        class_name = elements[-1]
-        if class_name in ("*", "**"):  # pylint: disable=no-else-return
+        last_element = elements[-1]
+        wildcard = []
+        classes = []
+        if "*" in last_element:
+            if last_element not in ("*", "**"):
+                raise Exception(f"Invalid signature '{signature}': invalid "
+                                f"wildcard '{last_element}'")
+            packages = elements[0:-1]
             # Cannot specify a wildcard and target a specific member
-            if len(member) != 0:
-                raise Exception(f"Invalid signature {signature}: contains "
-                                f"wildcard {class_name} and "
-                                f"member signature {member[0]}")
-            wildcard = [class_name]
-            # Assemble the parts into a single list, adding prefixes to identify
-            # the different parts.
-            #  0 - package:java
-            #  1 - package:lang
-            #  2 - *
-            return list(chain(["package:" + x for x in packages], wildcard))
+            if member:
+                raise Exception(f"Invalid signature '{signature}': contains "
+                                f"wildcard '{last_element}' and "
+                                f"member signature '{member[0]}'")
+            wildcard = [last_element]
+        elif last_element.islower():
+            raise Exception(f"Invalid signature '{signature}': last element "
+                            f"'{last_element}' is lower case but should be an "
+                            f"upper case class name or wildcard")
         else:
+            packages = elements[0:-1]
             # Split the class name into outer / inner classes
             #  0 - Character
             #  1 - UnicodeScript
-            classes = class_name.split("$")
-            # Assemble the parts into a single list, adding prefixes to identify
-            # the different parts.
-            #  0 - package:java
-            #  1 - package:lang
-            #  2 - class:Character
-            #  3 - class:UnicodeScript
-            #  4 - member:of(I)Ljava/lang/Character$UnicodeScript;
-            return list(
-                chain(["package:" + x for x in packages],
-                      ["class:" + x for x in classes],
-                      ["member:" + x for x in member]))
+            classes = last_element.removesuffix(";").split("$")
+
+        # Assemble the parts into a single list, adding prefixes to identify
+        # the different parts. If a wildcard is provided then it looks something
+        # like this:
+        #  0 - package:java
+        #  1 - package:lang
+        #  2 - *
+        #
+        # Otherwise, it looks something like this:
+        #  0 - package:java
+        #  1 - package:lang
+        #  2 - class:Character
+        #  3 - class:UnicodeScript
+        #  4 - member:of(I)Ljava/lang/Character$UnicodeScript;
+        return list(
+            chain([f"package:{x}" for x in packages],
+                  [f"class:{x}" for x in classes],
+                  [f"member:{x}" for x in member],
+                  [f"wildcard:{x}" for x in wildcard]))
 
     # pylint: enable=line-too-long
+
+    @staticmethod
+    def split_element(element):
+        element_type, element_value = element.split(":", 1)
+        return element_type, element_value
+
+    @staticmethod
+    def element_type(element):
+        element_type, _ = InteriorNode.split_element(element)
+        return element_type
 
     def add(self, signature, value):
         """Associate the value with the specific signature.
@@ -171,7 +194,8 @@ class InteriorNode(Node):
         # Add a Leaf containing the value and associate it with the member
         # signature within the class.
         last_element = elements[-1]
-        if not last_element.startswith("member:"):
+        last_element_type = self.element_type(last_element)
+        if last_element_type != "member":
             raise Exception(
                 f"Invalid signature: {signature}, does not identify a "
                 "specific member")
@@ -213,11 +237,12 @@ class InteriorNode(Node):
         selector = lambda x: True
 
         last_element = elements[-1]
-        if last_element in ("*", "**"):
+        last_element_type, last_element_value = self.split_element(last_element)
+        if last_element_type == "wildcard":
             elements = elements[:-1]
-            if last_element == "*":
+            if last_element_value == "*":
                 # Do not include values from sub-packages.
-                selector = lambda x: not x.startswith("package:")
+                selector = lambda x: InteriorNode.element_type(x) != "package"
 
         for element in elements:
             if element in node.nodes:
@@ -235,7 +260,6 @@ class InteriorNode(Node):
         for key, node in self.nodes.items():
             if selector(key):
                 node.append_values(values, lambda x: True)
-
 
 
 @dataclasses.dataclass()
