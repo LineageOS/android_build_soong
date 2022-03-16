@@ -158,7 +158,6 @@ func (l *linkerConfig) AndroidMkEntries() []android.AndroidMkEntries {
 				entries.SetString("LOCAL_MODULE_PATH", l.installDirPath.String())
 				entries.SetString("LOCAL_INSTALLED_MODULE_STEM", l.outputFilePath.Base())
 				entries.SetBoolIfTrue("LOCAL_UNINSTALLABLE_MODULE", !installable)
-				entries.SetString("LINKER_CONFIG_PATH_"+l.Name(), l.OutputFile().String())
 			},
 		},
 	}}
