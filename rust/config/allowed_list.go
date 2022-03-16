@@ -24,6 +24,7 @@ var (
 		"packages/modules/DnsResolver",
 		"packages/modules/Uwb",
 		"packages/modules/Virtualization",
+		"platform_testing/tests/codecoverage/native/rust",
 		"prebuilts/rust",
 		"system/core/libstats/pull_rust",
 		"system/extras/profcollectd",
