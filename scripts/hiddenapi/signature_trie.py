@@ -156,16 +156,16 @@ class InteriorNode(Node):
         #  3 - class:UnicodeScript
         #  4 - member:of(I)Ljava/lang/Character$UnicodeScript;
         return list(
-            chain([f"package:{x}" for x in packages],
-                  [f"class:{x}" for x in classes],
-                  [f"member:{x}" for x in member],
-                  [f"wildcard:{x}" for x in wildcard]))
+            chain([("package", x) for x in packages],
+                  [("class", x) for x in classes],
+                  [("member", x) for x in member],
+                  [("wildcard", x) for x in wildcard]))
 
     # pylint: enable=line-too-long
 
     @staticmethod
     def split_element(element):
-        element_type, element_value = element.split(":", 1)
+        element_type, element_value = element
         return element_type, element_value
 
     @staticmethod
