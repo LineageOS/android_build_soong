@@ -29,34 +29,34 @@ class TestSignatureToElements(unittest.TestCase):
 
     def test_nested_inner_classes(self):
         elements = [
-            "package:java",
-            "package:lang",
-            "class:ProcessBuilder",
-            "class:Redirect",
-            "class:1",
-            "member:<init>()V",
+            ("package", "java"),
+            ("package", "lang"),
+            ("class", "ProcessBuilder"),
+            ("class", "Redirect"),
+            ("class", "1"),
+            ("member", "<init>()V"),
         ]
         signature = "Ljava/lang/ProcessBuilder$Redirect$1;-><init>()V"
         self.assertEqual(elements, self.signature_to_elements(signature))
 
     def test_basic_member(self):
         elements = [
-            "package:java",
-            "package:lang",
-            "class:Object",
-            "member:hashCode()I",
+            ("package", "java"),
+            ("package", "lang"),
+            ("class", "Object"),
+            ("member", "hashCode()I"),
         ]
         signature = "Ljava/lang/Object;->hashCode()I"
         self.assertEqual(elements, self.signature_to_elements(signature))
 
     def test_double_dollar_class(self):
         elements = [
-            "package:java",
-            "package:lang",
-            "class:CharSequence",
-            "class:",
-            "class:ExternalSyntheticLambda0",
-            "member:<init>(Ljava/lang/CharSequence;)V",
+            ("package", "java"),
+            ("package", "lang"),
+            ("class", "CharSequence"),
+            ("class", ""),
+            ("class", "ExternalSyntheticLambda0"),
+            ("member", "<init>(Ljava/lang/CharSequence;)V"),
         ]
         signature = "Ljava/lang/CharSequence$$ExternalSyntheticLambda0;" \
                     "-><init>(Ljava/lang/CharSequence;)V"
@@ -64,43 +64,43 @@ class TestSignatureToElements(unittest.TestCase):
 
     def test_no_member(self):
         elements = [
-            "package:java",
-            "package:lang",
-            "class:CharSequence",
-            "class:",
-            "class:ExternalSyntheticLambda0",
+            ("package", "java"),
+            ("package", "lang"),
+            ("class", "CharSequence"),
+            ("class", ""),
+            ("class", "ExternalSyntheticLambda0"),
         ]
         signature = "Ljava/lang/CharSequence$$ExternalSyntheticLambda0"
         self.assertEqual(elements, self.signature_to_elements(signature))
 
     def test_wildcard(self):
         elements = [
-            "package:java",
-            "package:lang",
-            "wildcard:*",
+            ("package", "java"),
+            ("package", "lang"),
+            ("wildcard", "*"),
         ]
         signature = "java/lang/*"
         self.assertEqual(elements, self.signature_to_elements(signature))
 
     def test_recursive_wildcard(self):
         elements = [
-            "package:java",
-            "package:lang",
-            "wildcard:**",
+            ("package", "java"),
+            ("package", "lang"),
+            ("wildcard", "**"),
         ]
         signature = "java/lang/**"
         self.assertEqual(elements, self.signature_to_elements(signature))
 
     def test_no_packages_wildcard(self):
         elements = [
-            "wildcard:*",
+            ("wildcard", "*"),
         ]
         signature = "*"
         self.assertEqual(elements, self.signature_to_elements(signature))
 
     def test_no_packages_recursive_wildcard(self):
         elements = [
-            "wildcard:**",
+            ("wildcard", "**"),
         ]
         signature = "**"
         self.assertEqual(elements, self.signature_to_elements(signature))
@@ -115,9 +115,9 @@ class TestSignatureToElements(unittest.TestCase):
 
     def test_non_standard_class_name(self):
         elements = [
-            "package:javax",
-            "package:crypto",
-            "class:extObjectInputStream",
+            ("package", "javax"),
+            ("package", "crypto"),
+            ("class", "extObjectInputStream"),
         ]
         signature = "Ljavax/crypto/extObjectInputStream"
         self.assertEqual(elements, self.signature_to_elements(signature))
