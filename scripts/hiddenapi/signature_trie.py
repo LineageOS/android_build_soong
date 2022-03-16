@@ -22,6 +22,19 @@ from itertools import chain
 
 @dataclasses.dataclass()
 class Node:
+    """A node in the signature trie."""
+
+    # The type of the node.
+    #
+    # Leaf nodes are of type "member".
+    # Interior nodes can be either "package", or "class".
+    type: str
+
+    # The selector of the node.
+    #
+    # That is a string that can be used to select the node, e.g. in a pattern
+    # that is passed to InteriorNode.get_matching_rows().
+    selector: str
 
     def values(self, selector):
         """Get the values from a set of selected nodes.
@@ -46,6 +59,10 @@ class Node:
         attribute to determine whether to return its values.
         :param values: a list of a iterables of values.
         """
+        raise NotImplementedError("Please Implement this method")
+
+    def child_nodes(self):
+        """Get an iterable of the child nodes of this node."""
         raise NotImplementedError("Please Implement this method")
 
 
@@ -173,22 +190,68 @@ class InteriorNode(Node):
         element_type, _ = InteriorNode.split_element(element)
         return element_type
 
-    def add(self, signature, value):
+    @staticmethod
+    def elements_to_selector(elements):
+        """Compute a selector for a set of elements.
+
+        A selector uniquely identifies a specific Node in the trie. It is
+        essentially a prefix of a signature (without the leading L).
+
+        e.g. a trie containing "Ljava/lang/Object;->String()Ljava/lang/String;"
+        would contain nodes with the following selectors:
+        * "java"
+        * "java/lang"
+        * "java/lang/Object"
+        * "java/lang/Object;->String()Ljava/lang/String;"
+        """
+        signature = ""
+        preceding_type = ""
+        for element in elements:
+            element_type, element_value = InteriorNode.split_element(element)
+            separator = ""
+            if element_type == "package":
+                separator = "/"
+            elif element_type == "class":
+                if preceding_type == "class":
+                    separator = "$"
+                else:
+                    separator = "/"
+            elif element_type == "wildcard":
+                separator = "/"
+            elif element_type == "member":
+                separator += ";->"
+
+            if signature:
+                signature += separator
+
+            signature += element_value
+
+            preceding_type = element_type
+
+        return signature
+
+    def add(self, signature, value, only_if_matches=False):
         """Associate the value with the specific signature.
 
         :param signature: the member signature
         :param value: the value to associated with the signature
+        :param only_if_matches: True if the value is added only if the signature
+             matches at least one of the existing top level packages.
         :return: n/a
         """
         # Split the signature into elements.
         elements = self.signature_to_elements(signature)
         # Find the Node associated with the deepest class.
         node = self
-        for element in elements[:-1]:
+        for index, element in enumerate(elements[:-1]):
             if element in node.nodes:
                 node = node.nodes[element]
+            elif only_if_matches and index == 0:
+                return
             else:
-                next_node = InteriorNode()
+                selector = self.elements_to_selector(elements[0:index + 1])
+                next_node = InteriorNode(
+                    type=InteriorNode.element_type(element), selector=selector)
                 node.nodes[element] = next_node
                 node = next_node
         # Add a Leaf containing the value and associate it with the member
@@ -201,7 +264,12 @@ class InteriorNode(Node):
                 "specific member")
         if last_element in node.nodes:
             raise Exception(f"Duplicate signature: {signature}")
-        node.nodes[last_element] = Leaf(value)
+        leaf = Leaf(
+            type=last_element_type,
+            selector=signature,
+            value=value,
+        )
+        node.nodes[last_element] = leaf
 
     def get_matching_rows(self, pattern):
         """Get the values (plural) associated with the pattern.
@@ -211,10 +279,6 @@ class InteriorNode(Node):
 
         If the pattern is a class then this will return a list containing the
         values associated with all members of that class.
-
-        If the pattern is a package then this will return a list containing the
-        values associated with all the members of all the classes in that
-        package and sub-packages.
 
         If the pattern ends with "*" then the preceding part is treated as a
         package and this will return a list containing the values associated
@@ -261,6 +325,9 @@ class InteriorNode(Node):
             if selector(key):
                 node.append_values(values, lambda x: True)
 
+    def child_nodes(self):
+        return self.nodes.values()
+
 
 @dataclasses.dataclass()
 class Leaf(Node):
@@ -275,6 +342,9 @@ class Leaf(Node):
     def append_values(self, values, selector):
         values.append([self.value])
 
+    def child_nodes(self):
+        return []
+
 
 def signature_trie():
-    return InteriorNode()
+    return InteriorNode(type="root", selector="")

@@ -27,6 +27,10 @@ class TestSignatureToElements(unittest.TestCase):
     def signature_to_elements(signature):
         return InteriorNode.signature_to_elements(signature)
 
+    @staticmethod
+    def elements_to_signature(elements):
+        return InteriorNode.elements_to_selector(elements)
+
     def test_nested_inner_classes(self):
         elements = [
             ("package", "java"),
@@ -38,6 +42,7 @@ class TestSignatureToElements(unittest.TestCase):
         ]
         signature = "Ljava/lang/ProcessBuilder$Redirect$1;-><init>()V"
         self.assertEqual(elements, self.signature_to_elements(signature))
+        self.assertEqual(signature, "L" + self.elements_to_signature(elements))
 
     def test_basic_member(self):
         elements = [
@@ -48,6 +53,7 @@ class TestSignatureToElements(unittest.TestCase):
         ]
         signature = "Ljava/lang/Object;->hashCode()I"
         self.assertEqual(elements, self.signature_to_elements(signature))
+        self.assertEqual(signature, "L" + self.elements_to_signature(elements))
 
     def test_double_dollar_class(self):
         elements = [
@@ -61,6 +67,7 @@ class TestSignatureToElements(unittest.TestCase):
         signature = "Ljava/lang/CharSequence$$ExternalSyntheticLambda0;" \
                     "-><init>(Ljava/lang/CharSequence;)V"
         self.assertEqual(elements, self.signature_to_elements(signature))
+        self.assertEqual(signature, "L" + self.elements_to_signature(elements))
 
     def test_no_member(self):
         elements = [
@@ -72,6 +79,7 @@ class TestSignatureToElements(unittest.TestCase):
         ]
         signature = "Ljava/lang/CharSequence$$ExternalSyntheticLambda0"
         self.assertEqual(elements, self.signature_to_elements(signature))
+        self.assertEqual(signature, "L" + self.elements_to_signature(elements))
 
     def test_wildcard(self):
         elements = [
@@ -81,6 +89,7 @@ class TestSignatureToElements(unittest.TestCase):
         ]
         signature = "java/lang/*"
         self.assertEqual(elements, self.signature_to_elements(signature))
+        self.assertEqual(signature, self.elements_to_signature(elements))
 
     def test_recursive_wildcard(self):
         elements = [
@@ -90,6 +99,7 @@ class TestSignatureToElements(unittest.TestCase):
         ]
         signature = "java/lang/**"
         self.assertEqual(elements, self.signature_to_elements(signature))
+        self.assertEqual(signature, self.elements_to_signature(elements))
 
     def test_no_packages_wildcard(self):
         elements = [
@@ -97,6 +107,7 @@ class TestSignatureToElements(unittest.TestCase):
         ]
         signature = "*"
         self.assertEqual(elements, self.signature_to_elements(signature))
+        self.assertEqual(signature, self.elements_to_signature(elements))
 
     def test_no_packages_recursive_wildcard(self):
         elements = [
@@ -104,6 +115,7 @@ class TestSignatureToElements(unittest.TestCase):
         ]
         signature = "**"
         self.assertEqual(elements, self.signature_to_elements(signature))
+        self.assertEqual(signature, self.elements_to_signature(elements))
 
     def test_invalid_no_class_or_wildcard(self):
         signature = "java/lang"
@@ -121,6 +133,7 @@ class TestSignatureToElements(unittest.TestCase):
         ]
         signature = "Ljavax/crypto/extObjectInputStream"
         self.assertEqual(elements, self.signature_to_elements(signature))
+        self.assertEqual(signature, "L" + self.elements_to_signature(elements))
 
     def test_invalid_pattern_wildcard(self):
         pattern = "Ljava/lang/Class*"
@@ -192,6 +205,18 @@ Ljava/util/zip/ZipFile;-><clinit>()V
 
     def test_recursive_wildcard(self):
         self.check_patterns("java/**", [
+            "Ljava/lang/Character$UnicodeScript;->of(I)Ljava/lang/Character$UnicodeScript;",
+            "Ljava/lang/Character;->serialVersionUID:J",
+            "Ljava/lang/Object;->hashCode()I",
+            "Ljava/lang/Object;->toString()Ljava/lang/String;",
+            "Ljava/lang/ProcessBuilder$Redirect$1;-><init>()V",
+            "Ljava/util/zip/ZipFile;-><clinit>()V",
+        ])
+
+    def test_node_wildcard(self):
+        trie = self.read_trie()
+        node = list(trie.child_nodes())[0]
+        self.check_node_patterns(node, "**", [
             "Ljava/lang/Character$UnicodeScript;->of(I)Ljava/lang/Character$UnicodeScript;",
             "Ljava/lang/Character;->serialVersionUID:J",
             "Ljava/lang/Object;->hashCode()I",
