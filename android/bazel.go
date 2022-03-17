@@ -417,6 +417,12 @@ var (
 
 		//system/extras/verity/fec
 		"fec",
+
+		//external/e2fsprogs
+		"e2fsdroid",
+
+		//external/e2fsprogs/misc
+		"libext2_misc",
 	}
 
 	// Per-module denylist to always opt modules out of both bp2build and mixed builds.
