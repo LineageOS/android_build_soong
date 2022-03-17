@@ -566,6 +566,12 @@ func (ctx *parseContext) handleAssignment(a *mkparser.Assignment) []starlarkNode
 		}
 	}
 
+	if asgn.lhs.valueType() == starlarkTypeString &&
+		asgn.value.typ() != starlarkTypeUnknown &&
+		asgn.value.typ() != starlarkTypeString {
+		asgn.value = &toStringExpr{expr: asgn.value}
+	}
+
 	asgn.previous = ctx.lastAssignment(lhs)
 	ctx.setLastAssignment(lhs, asgn)
 	switch a.Type {
