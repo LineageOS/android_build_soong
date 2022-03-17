@@ -456,6 +456,10 @@ type ModuleContext interface {
 	// GetMissingDependencies returns the list of dependencies that were passed to AddDependencies or related methods,
 	// but do not exist.
 	GetMissingDependencies() []string
+
+	// LicenseMetadataFile returns the path where the license metadata for this module will be
+	// generated.
+	LicenseMetadataFile() Path
 }
 
 type Module interface {
@@ -3277,6 +3281,10 @@ func (m *moduleContext) CheckbuildFile(srcPath Path) {
 
 func (m *moduleContext) blueprintModuleContext() blueprint.ModuleContext {
 	return m.bp
+}
+
+func (m *moduleContext) LicenseMetadataFile() Path {
+	return m.module.base().licenseMetadataFile
 }
 
 // SrcIsModule decodes module references in the format ":unqualified-name" or "//namespace:name"
