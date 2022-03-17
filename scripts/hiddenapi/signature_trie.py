@@ -22,6 +22,19 @@ from itertools import chain
 
 @dataclasses.dataclass()
 class Node:
+    """A node in the signature trie."""
+
+    # The type of the node.
+    #
+    # Leaf nodes are of type "member".
+    # Interior nodes can be either "package", or "class".
+    type: str
+
+    # The selector of the node.
+    #
+    # That is a string that can be used to select the node, e.g. in a pattern
+    # that is passed to InteriorNode.get_matching_rows().
+    selector: str
 
     def values(self, selector):
         """Get the values from a set of selected nodes.
@@ -46,6 +59,10 @@ class Node:
         attribute to determine whether to return its values.
         :param values: a list of a iterables of values.
         """
+        raise NotImplementedError("Please Implement this method")
+
+    def child_nodes(self):
+        """Get an iterable of the child nodes of this node."""
         raise NotImplementedError("Please Implement this method")
 
 
@@ -110,74 +127,149 @@ class InteriorNode(Node):
         #  0 - java/lang/Character$UnicodeScript
         #  1 - of(I)Ljava/lang/Character$UnicodeScript;
         parts = text.split(";->")
+        # If there is no member then this will be an empty list.
         member = parts[1:]
         # Split the qualified class name into packages, and class name.
         #  0 - java
         #  1 - lang
         #  2 - Character$UnicodeScript
         elements = parts[0].split("/")
-        packages = elements[0:-1]
-        class_name = elements[-1]
-        if class_name in ("*", "**"):  # pylint: disable=no-else-return
+        last_element = elements[-1]
+        wildcard = []
+        classes = []
+        if "*" in last_element:
+            if last_element not in ("*", "**"):
+                raise Exception(f"Invalid signature '{signature}': invalid "
+                                f"wildcard '{last_element}'")
+            packages = elements[0:-1]
             # Cannot specify a wildcard and target a specific member
-            if len(member) != 0:
-                raise Exception(f"Invalid signature {signature}: contains "
-                                f"wildcard {class_name} and "
-                                f"member signature {member[0]}")
-            wildcard = [class_name]
-            # Assemble the parts into a single list, adding prefixes to identify
-            # the different parts.
-            #  0 - package:java
-            #  1 - package:lang
-            #  2 - *
-            return list(chain(["package:" + x for x in packages], wildcard))
+            if member:
+                raise Exception(f"Invalid signature '{signature}': contains "
+                                f"wildcard '{last_element}' and "
+                                f"member signature '{member[0]}'")
+            wildcard = [last_element]
+        elif last_element.islower():
+            raise Exception(f"Invalid signature '{signature}': last element "
+                            f"'{last_element}' is lower case but should be an "
+                            f"upper case class name or wildcard")
         else:
+            packages = elements[0:-1]
             # Split the class name into outer / inner classes
             #  0 - Character
             #  1 - UnicodeScript
-            classes = class_name.split("$")
-            # Assemble the parts into a single list, adding prefixes to identify
-            # the different parts.
-            #  0 - package:java
-            #  1 - package:lang
-            #  2 - class:Character
-            #  3 - class:UnicodeScript
-            #  4 - member:of(I)Ljava/lang/Character$UnicodeScript;
-            return list(
-                chain(["package:" + x for x in packages],
-                      ["class:" + x for x in classes],
-                      ["member:" + x for x in member]))
+            classes = last_element.removesuffix(";").split("$")
+
+        # Assemble the parts into a single list, adding prefixes to identify
+        # the different parts. If a wildcard is provided then it looks something
+        # like this:
+        #  0 - package:java
+        #  1 - package:lang
+        #  2 - *
+        #
+        # Otherwise, it looks something like this:
+        #  0 - package:java
+        #  1 - package:lang
+        #  2 - class:Character
+        #  3 - class:UnicodeScript
+        #  4 - member:of(I)Ljava/lang/Character$UnicodeScript;
+        return list(
+            chain([("package", x) for x in packages],
+                  [("class", x) for x in classes],
+                  [("member", x) for x in member],
+                  [("wildcard", x) for x in wildcard]))
 
     # pylint: enable=line-too-long
 
-    def add(self, signature, value):
+    @staticmethod
+    def split_element(element):
+        element_type, element_value = element
+        return element_type, element_value
+
+    @staticmethod
+    def element_type(element):
+        element_type, _ = InteriorNode.split_element(element)
+        return element_type
+
+    @staticmethod
+    def elements_to_selector(elements):
+        """Compute a selector for a set of elements.
+
+        A selector uniquely identifies a specific Node in the trie. It is
+        essentially a prefix of a signature (without the leading L).
+
+        e.g. a trie containing "Ljava/lang/Object;->String()Ljava/lang/String;"
+        would contain nodes with the following selectors:
+        * "java"
+        * "java/lang"
+        * "java/lang/Object"
+        * "java/lang/Object;->String()Ljava/lang/String;"
+        """
+        signature = ""
+        preceding_type = ""
+        for element in elements:
+            element_type, element_value = InteriorNode.split_element(element)
+            separator = ""
+            if element_type == "package":
+                separator = "/"
+            elif element_type == "class":
+                if preceding_type == "class":
+                    separator = "$"
+                else:
+                    separator = "/"
+            elif element_type == "wildcard":
+                separator = "/"
+            elif element_type == "member":
+                separator += ";->"
+
+            if signature:
+                signature += separator
+
+            signature += element_value
+
+            preceding_type = element_type
+
+        return signature
+
+    def add(self, signature, value, only_if_matches=False):
         """Associate the value with the specific signature.
 
         :param signature: the member signature
         :param value: the value to associated with the signature
+        :param only_if_matches: True if the value is added only if the signature
+             matches at least one of the existing top level packages.
         :return: n/a
         """
         # Split the signature into elements.
         elements = self.signature_to_elements(signature)
         # Find the Node associated with the deepest class.
         node = self
-        for element in elements[:-1]:
+        for index, element in enumerate(elements[:-1]):
             if element in node.nodes:
                 node = node.nodes[element]
+            elif only_if_matches and index == 0:
+                return
             else:
-                next_node = InteriorNode()
+                selector = self.elements_to_selector(elements[0:index + 1])
+                next_node = InteriorNode(
+                    type=InteriorNode.element_type(element), selector=selector)
                 node.nodes[element] = next_node
                 node = next_node
         # Add a Leaf containing the value and associate it with the member
         # signature within the class.
         last_element = elements[-1]
-        if not last_element.startswith("member:"):
+        last_element_type = self.element_type(last_element)
+        if last_element_type != "member":
             raise Exception(
                 f"Invalid signature: {signature}, does not identify a "
                 "specific member")
         if last_element in node.nodes:
             raise Exception(f"Duplicate signature: {signature}")
-        node.nodes[last_element] = Leaf(value)
+        leaf = Leaf(
+            type=last_element_type,
+            selector=signature,
+            value=value,
+        )
+        node.nodes[last_element] = leaf
 
     def get_matching_rows(self, pattern):
         """Get the values (plural) associated with the pattern.
@@ -187,10 +279,6 @@ class InteriorNode(Node):
 
         If the pattern is a class then this will return a list containing the
         values associated with all members of that class.
-
-        If the pattern is a package then this will return a list containing the
-        values associated with all the members of all the classes in that
-        package and sub-packages.
 
         If the pattern ends with "*" then the preceding part is treated as a
         package and this will return a list containing the values associated
@@ -213,11 +301,12 @@ class InteriorNode(Node):
         selector = lambda x: True
 
         last_element = elements[-1]
-        if last_element in ("*", "**"):
+        last_element_type, last_element_value = self.split_element(last_element)
+        if last_element_type == "wildcard":
             elements = elements[:-1]
-            if last_element == "*":
+            if last_element_value == "*":
                 # Do not include values from sub-packages.
-                selector = lambda x: not x.startswith("package:")
+                selector = lambda x: InteriorNode.element_type(x) != "package"
 
         for element in elements:
             if element in node.nodes:
@@ -236,6 +325,8 @@ class InteriorNode(Node):
             if selector(key):
                 node.append_values(values, lambda x: True)
 
+    def child_nodes(self):
+        return self.nodes.values()
 
 
 @dataclasses.dataclass()
@@ -251,6 +342,9 @@ class Leaf(Node):
     def append_values(self, values, selector):
         values.append([self.value])
 
+    def child_nodes(self):
+        return []
+
 
 def signature_trie():
-    return InteriorNode()
+    return InteriorNode(type="root", selector="")
