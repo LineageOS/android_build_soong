@@ -2026,6 +2026,7 @@ func addCLCFromDep(ctx android.ModuleContext, depModule android.Module,
 
 type javaCommonAttributes struct {
 	Srcs      bazel.LabelListAttribute
+	Plugins   bazel.LabelListAttribute
 	Javacopts bazel.StringListAttribute
 }
 
@@ -2061,6 +2062,9 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext)
 
 	commonAttrs := &javaCommonAttributes{
 		Srcs: srcPartitions[javaSrcPartition],
+		Plugins: bazel.MakeLabelListAttribute(
+			android.BazelLabelForModuleDeps(ctx, m.properties.Plugins),
+		),
 	}
 
 	if m.properties.Javacflags != nil {
