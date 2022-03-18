@@ -216,7 +216,6 @@ func main() {
 		}
 		defer build.UploadMetrics(buildCtx, config, c.simpleOutput, buildStarted, files...)
 		defer met.Dump(soongMetricsFile)
-		defer build.DumpRBEMetrics(buildCtx, config, rbeMetricsFile)
 	}
 
 	// Read the time at the starting point.
