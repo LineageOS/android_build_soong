@@ -1453,6 +1453,19 @@ def init(g, handle):
   _my_local_var_with_dashes = ["foo"]
 `,
 	},
+	{
+		desc:   "Set LOCAL_PATH to my-dir",
+		mkname: "product.mk",
+		in: `
+LOCAL_PATH := $(call my-dir)
+`,
+		expected: `load("//build/make/core:product_config.rbc", "rblf")
+
+def init(g, handle):
+  cfg = rblf.cfg(handle)
+  
+`,
+	},
 }
 
 var known_variables = []struct {

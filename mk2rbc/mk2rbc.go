@@ -1370,7 +1370,7 @@ func (p *myDirCallParser) parse(ctx *parseContext, node mkparser.Node, args *mkp
 	if !args.Empty() {
 		return ctx.newBadExpr(node, "my-dir function cannot have any arguments passed to it.")
 	}
-	return &variableRefExpr{ctx.addVariable("LOCAL_PATH"), true}
+	return &stringLiteralExpr{literal: filepath.Dir(ctx.script.mkFile)}
 }
 
 type isProductInListCallParser struct{}
