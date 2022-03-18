@@ -284,6 +284,9 @@ type bootImageConfig struct {
 
 	// Target-dependent fields.
 	variants []*bootImageVariant
+
+	// Path of the preloaded classes file.
+	preloadedClassesFile string
 }
 
 // Target-dependent description of a boot image.
@@ -684,6 +687,13 @@ func buildBootImageVariant(ctx android.ModuleContext, image *bootImageVariant, p
 	} else {
 		// It is a primary image, so it needs a base address.
 		cmd.FlagWithArg("--base=", ctx.Config().LibartImgDeviceBaseAddress())
+	}
+
+	// We always expect a preloaded classes file to be available. However, if we cannot find it, it's
+	// OK to not pass the flag to dex2oat.
+	preloadedClassesPath := android.ExistentPathForSource(ctx, image.preloadedClassesFile)
+	if preloadedClassesPath.Valid() {
+		cmd.FlagWithInput("--preloaded-classes=", preloadedClassesPath.Path())
 	}
 
 	cmd.
