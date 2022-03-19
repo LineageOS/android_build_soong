@@ -18,6 +18,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+
+	"android/soong/starlark_fmt"
 )
 
 func init() {
@@ -379,4 +381,22 @@ func (a *apiLevelsSingleton) GenerateBuildActions(ctx SingletonContext) {
 	apiLevelsMap := GetApiLevelsMap(ctx.Config())
 	apiLevelsJson := GetApiLevelsJson(ctx)
 	createApiLevelsJson(ctx, apiLevelsJson, apiLevelsMap)
+}
+
+func printApiLevelsStarlarkDict(config Config) string {
+	apiLevelsMap := GetApiLevelsMap(config)
+	valDict := make(map[string]string, len(apiLevelsMap))
+	for k, v := range apiLevelsMap {
+		valDict[k] = strconv.Itoa(v)
+	}
+	return starlark_fmt.PrintDict(valDict, 0)
+}
+
+func StarlarkApiLevelConfigs(config Config) string {
+	return fmt.Sprintf(`# GENERATED FOR BAZEL FROM SOONG. DO NOT EDIT.
+_api_levels = %s
+
+api_levels = _api_levels
+`, printApiLevelsStarlarkDict(config),
+	)
 }

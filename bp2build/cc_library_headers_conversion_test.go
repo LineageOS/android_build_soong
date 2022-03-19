@@ -112,6 +112,8 @@ cc_library_headers {
             export_include_dirs: ["arch_x86_64_exported_include_dir"],
         },
     },
+    sdk_version: "current",
+    min_sdk_version: "29",
 
     // TODO: Also support export_header_lib_headers
 }`,
@@ -130,6 +132,8 @@ cc_library_headers {
         ":lib-1",
         ":lib-2",
     ]`,
+        "sdk_version": `"current"`,
+        "min_sdk_version": `"29"`,
 			}),
 		},
 	})
