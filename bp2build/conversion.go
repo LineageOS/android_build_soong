@@ -36,6 +36,7 @@ func CreateSoongInjectionFiles(cfg android.Config, metrics CodegenMetrics) []Baz
 	}
 	files = append(files, newFile("api_levels", GeneratedBuildFileName, `exports_files(["api_levels.json"])`))
 	files = append(files, newFile("api_levels", "api_levels.json", string(apiLevelsContent)))
+	files = append(files, newFile("api_levels", "api_levels.bzl", android.StarlarkApiLevelConfigs(cfg)))
 
 	return files
 }

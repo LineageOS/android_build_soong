@@ -114,6 +114,10 @@ func TestCreateBazelFiles_Bp2Build_CreatesDefaultFiles(t *testing.T) {
 			dir:      "api_levels",
 			basename: "api_levels.json",
 		},
+		{
+			dir:      "api_levels",
+			basename: "api_levels.bzl",
+		},
 	}
 
 	if len(files) != len(expectedFilePaths) {
