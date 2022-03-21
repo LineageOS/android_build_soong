@@ -40,6 +40,8 @@ type PackagingSpec struct {
 	executable bool
 
 	effectiveLicenseFiles *Paths
+
+	partition string
 }
 
 // Get file name of installed package
@@ -65,6 +67,10 @@ func (p *PackagingSpec) EffectiveLicenseFiles() Paths {
 		return Paths{}
 	}
 	return *p.effectiveLicenseFiles
+}
+
+func (p *PackagingSpec) Partition() string {
+	return p.partition
 }
 
 type PackageModule interface {
