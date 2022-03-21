@@ -351,6 +351,7 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 	config := &config{
 		productVariables: productVariables{
 			DeviceName:                          stringPtr("test_device"),
+			DeviceProduct:                       stringPtr("test_product"),
 			Platform_sdk_version:                intPtr(30),
 			Platform_sdk_codename:               stringPtr("S"),
 			Platform_base_sdk_extension_version: intPtr(1),
@@ -721,6 +722,15 @@ func (c *config) BuildNumberFile(ctx PathContext) Path {
 // TODO: take an AndroidModuleContext to select the device name for multi-device builds
 func (c *config) DeviceName() string {
 	return *c.productVariables.DeviceName
+}
+
+// DeviceProduct returns the current product target. There could be multiple of
+// these per device type.
+//
+// NOTE: Do not base conditional logic on this value. It may break product
+//       inheritance.
+func (c *config) DeviceProduct() string {
+	return *c.productVariables.DeviceProduct
 }
 
 func (c *config) DeviceResourceOverlays() []string {
