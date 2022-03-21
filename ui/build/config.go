@@ -187,7 +187,7 @@ func loadEnvConfig(ctx Context, config *configImpl) error {
 	}
 
 	if err := fetchEnvConfig(ctx, config, bc); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to fetch config file: %v", err)
+		fmt.Fprintf(os.Stderr, "Failed to fetch config file: %v\n", err)
 	}
 
 	configDirs := []string{
@@ -1191,7 +1191,12 @@ func (c *configImpl) rbeReproxy() string {
 }
 
 func (c *configImpl) rbeAuth() (string, string) {
-	credFlags := []string{"use_application_default_credentials", "use_gce_credentials", "credential_file"}
+	credFlags := []string{
+		"use_application_default_credentials",
+		"use_gce_credentials",
+		"credential_file",
+		"use_google_prod_creds",
+	}
 	for _, cf := range credFlags {
 		for _, f := range []string{"RBE_" + cf, "FLAG_" + cf} {
 			if v, ok := c.environ.Get(f); ok {
