@@ -1,6 +1,8 @@
 # Treat LintError as fatal to catch invocation errors
 --fatal_check LintError
 
+--fatal_check ExtraText # 225341614
+
 # Checks which do not apply to the platform (implementation
 # in lint assumes that it's running on app code)
 
