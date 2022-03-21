@@ -421,9 +421,25 @@ func sdkDeps(ctx android.BottomUpMutatorContext, sdkContext android.SdkContext, 
 }
 
 type deps struct {
-	classpath               classpath
-	java9Classpath          classpath
-	bootClasspath           classpath
+	// bootClasspath is the list of jars that form the boot classpath (generally the java.* and
+	// android.* classes) for tools that still use it.  javac targeting 1.9 or higher uses
+	// systemModules and java9Classpath instead.
+	bootClasspath classpath
+
+	// classpath is the list of jars that form the classpath for javac and kotlinc rules.  It
+	// contains header jars for all static and non-static dependencies.
+	classpath classpath
+
+	// dexClasspath is the list of jars that form the classpath for d8 and r8 rules.  It contains
+	// header jars for all non-static dependencies.  Static dependencies have already been
+	// combined into the program jar.
+	dexClasspath classpath
+
+	// java9Classpath is the list of jars that will be added to the classpath when targeting
+	// 1.9 or higher.  It generally contains the android.* classes, while the java.* classes
+	// are provided by systemModules.
+	java9Classpath classpath
+
 	processorPath           classpath
 	errorProneProcessorPath classpath
 	processorClasses        []string
@@ -1458,7 +1474,10 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		if ctx.OtherModuleHasProvider(module, JavaInfoProvider) {
 			dep := ctx.OtherModuleProvider(module, JavaInfoProvider).(JavaInfo)
 			switch tag {
-			case libTag, staticLibTag:
+			case libTag:
+				flags.classpath = append(flags.classpath, dep.HeaderJars...)
+				flags.dexClasspath = append(flags.dexClasspath, dep.HeaderJars...)
+			case staticLibTag:
 				flags.classpath = append(flags.classpath, dep.HeaderJars...)
 			case bootClasspathTag:
 				flags.bootClasspath = append(flags.bootClasspath, dep.HeaderJars...)
