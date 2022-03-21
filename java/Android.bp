@@ -81,6 +81,7 @@ bootstrap_go_package {
         "app_test.go",
         "bootclasspath_fragment_test.go",
         "device_host_converter_test.go",
+        "dex_test.go",
         "dexpreopt_test.go",
         "dexpreopt_bootjars_test.go",
         "droiddoc_test.go",
