@@ -393,7 +393,7 @@ var (
 	// A module can either be in this list or its directory allowlisted entirely
 	// in bp2buildDefaultConfig, but not both at the same time.
 	bp2buildModuleAlwaysConvertList = []string{
-		"junit-params-assertj-core",
+		"prebuilt_junit-params-assertj-core",
 
 		//external/avb
 		"avbtool",
@@ -418,6 +418,10 @@ var (
 		//system/extras/verity/fec
 		"fec",
 	}
+
+	// Per-module-type allowlist to always opt modules in of both bp2build and mixed builds
+	// when they have the same type as one listed.
+	bp2buildModuleTypeAlwaysConvertList = []string{}
 
 	// Per-module denylist to always opt modules out of both bp2build and mixed builds.
 	bp2buildModuleDoNotConvertList = []string{
@@ -612,15 +616,20 @@ var (
 	}
 
 	// Used for quicker lookups
-	bp2buildModuleDoNotConvert  = map[string]bool{}
-	bp2buildModuleAlwaysConvert = map[string]bool{}
-	bp2buildCcLibraryStaticOnly = map[string]bool{}
-	mixedBuildsDisabled         = map[string]bool{}
+	bp2buildModuleDoNotConvert      = map[string]bool{}
+	bp2buildModuleAlwaysConvert     = map[string]bool{}
+	bp2buildModuleTypeAlwaysConvert = map[string]bool{}
+	bp2buildCcLibraryStaticOnly     = map[string]bool{}
+	mixedBuildsDisabled             = map[string]bool{}
 )
 
 func init() {
 	for _, moduleName := range bp2buildModuleAlwaysConvertList {
 		bp2buildModuleAlwaysConvert[moduleName] = true
+	}
+
+	for _, moduleType := range bp2buildModuleTypeAlwaysConvertList {
+		bp2buildModuleTypeAlwaysConvert[moduleType] = true
 	}
 
 	for _, moduleName := range bp2buildModuleDoNotConvertList {
@@ -698,11 +707,17 @@ func (b *BazelModuleBase) ShouldConvertWithBp2build(ctx BazelConversionContext) 
 }
 
 func (b *BazelModuleBase) shouldConvertWithBp2build(ctx BazelConversionContext, module blueprint.Module) bool {
-	moduleNameNoPrefix := RemoveOptionalPrebuiltPrefix(module.Name())
-	alwaysConvert := bp2buildModuleAlwaysConvert[moduleNameNoPrefix]
+	moduleName := module.Name()
+	moduleNameAllowed := bp2buildModuleAlwaysConvert[moduleName]
+	moduleTypeAllowed := bp2buildModuleTypeAlwaysConvert[ctx.OtherModuleType(module)]
+	allowlistConvert := moduleNameAllowed || moduleTypeAllowed
+	if moduleNameAllowed && moduleTypeAllowed {
+		ctx.(BaseModuleContext).ModuleErrorf("A module cannot be in bp2buildModuleAlwaysConvert and also be" +
+			" in bp2buildModuleTypeAlwaysConvert")
+	}
 
-	if bp2buildModuleDoNotConvert[moduleNameNoPrefix] {
-		if alwaysConvert {
+	if bp2buildModuleDoNotConvert[moduleName] {
+		if moduleNameAllowed {
 			ctx.(BaseModuleContext).ModuleErrorf("a module cannot be in bp2buildModuleDoNotConvert" +
 				" and also be in bp2buildModuleAlwaysConvert")
 		}
@@ -713,19 +728,23 @@ func (b *BazelModuleBase) shouldConvertWithBp2build(ctx BazelConversionContext, 
 		return false
 	}
 
+	propValue := b.bazelProperties.Bazel_module.Bp2build_available
 	packagePath := ctx.OtherModuleDir(module)
-	if alwaysConvert && ShouldKeepExistingBuildFileForDir(packagePath) {
-		ctx.(BaseModuleContext).ModuleErrorf("A module cannot be in a directory listed in bp2buildKeepExistingBuildFile"+
-			" and also be in bp2buildModuleAlwaysConvert. Directory: '%s'", packagePath)
-
+	// Modules in unit tests which are enabled in the allowlist by type or name
+	// trigger this conditional because unit tests run under the "." package path
+	isTestModule := packagePath == "." && proptools.BoolDefault(propValue, false)
+	if allowlistConvert && !isTestModule && ShouldKeepExistingBuildFileForDir(packagePath) {
+		if moduleNameAllowed {
+			ctx.(BaseModuleContext).ModuleErrorf("A module cannot be in a directory listed in bp2buildKeepExistingBuildFile"+
+				" and also be in bp2buildModuleAlwaysConvert. Directory: '%s'", packagePath)
+		}
 		return false
 	}
 
 	config := ctx.Config().bp2buildPackageConfig
 	// This is a tristate value: true, false, or unset.
-	propValue := b.bazelProperties.Bazel_module.Bp2build_available
 	if bp2buildDefaultTrueRecursively(packagePath, config) {
-		if alwaysConvert {
+		if moduleNameAllowed {
 			ctx.(BaseModuleContext).ModuleErrorf("A module cannot be in a directory marked Bp2BuildDefaultTrue"+
 				" or Bp2BuildDefaultTrueRecursively and also be in bp2buildModuleAlwaysConvert. Directory: '%s'",
 				packagePath)
@@ -736,7 +755,7 @@ func (b *BazelModuleBase) shouldConvertWithBp2build(ctx BazelConversionContext, 
 	}
 
 	// Allow modules to explicitly opt-in.
-	return proptools.BoolDefault(propValue, alwaysConvert)
+	return proptools.BoolDefault(propValue, allowlistConvert)
 }
 
 // bp2buildDefaultTrueRecursively checks that the package contains a prefix from the
