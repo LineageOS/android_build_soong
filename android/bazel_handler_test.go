@@ -9,9 +9,9 @@ import (
 
 func TestRequestResultsAfterInvokeBazel(t *testing.T) {
 	label := "//foo:bar"
-	cfg := configKey{Arm64, Android}
+	cfg := configKey{"arm64_armv8-a", Android}
 	bazelContext, _ := testBazelContext(t, map[bazelCommand]string{
-		bazelCommand{command: "cquery", expression: "deps(@soong_injection//mixed_builds:buildroot, 2)"}: `//foo:bar|arm64|android>>out/foo/bar.txt`,
+		bazelCommand{command: "cquery", expression: "deps(@soong_injection//mixed_builds:buildroot, 2)"}: `//foo:bar|arm64_armv8-a|android>>out/foo/bar.txt`,
 	})
 	g, ok := bazelContext.GetOutputFiles(label, cfg)
 	if ok {
