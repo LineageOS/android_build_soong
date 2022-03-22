@@ -50,8 +50,8 @@ type cqueryRequest interface {
 
 // Portion of cquery map key to describe target configuration.
 type configKey struct {
-	archType ArchType
-	osType   OsType
+	arch   string
+	osType OsType
 }
 
 // Map key to describe bazel cquery requests.
@@ -862,7 +862,7 @@ func getCqueryId(key cqueryKey) string {
 }
 
 func getConfigString(key cqueryKey) string {
-	arch := key.configKey.archType.Name
+	arch := key.configKey.arch
 	if len(arch) == 0 || arch == "common" {
 		// Use host platform, which is currently hardcoded to be x86_64.
 		arch = "x86_64"
@@ -876,5 +876,9 @@ func getConfigString(key cqueryKey) string {
 }
 
 func GetConfigKey(ctx ModuleContext) configKey {
-	return configKey{archType: ctx.Arch().ArchType, osType: ctx.Os()}
+	return configKey{
+		// use string because Arch is not a valid key in go
+		arch:   ctx.Arch().String(),
+		osType: ctx.Os(),
+	}
 }
