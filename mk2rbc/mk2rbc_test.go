@@ -254,6 +254,8 @@ def init(g, handle):
 		in: `
 $(warning this is the warning)
 $(warning)
+$(warning # this warning starts with a pound)
+$(warning this warning has a # in the middle)
 $(info this is the info)
 $(error this is the error)
 PRODUCT_NAME:=$(shell echo *)
@@ -264,6 +266,8 @@ def init(g, handle):
   cfg = rblf.cfg(handle)
   rblf.mkwarning("product.mk", "this is the warning")
   rblf.mkwarning("product.mk", "")
+  rblf.mkwarning("product.mk", "# this warning starts with a pound")
+  rblf.mkwarning("product.mk", "this warning has a # in the middle")
   rblf.mkinfo("product.mk", "this is the info")
   rblf.mkerror("product.mk", "this is the error")
   cfg["PRODUCT_NAME"] = rblf.shell("echo *")
