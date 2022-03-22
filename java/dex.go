@@ -132,12 +132,15 @@ var r8, r8RE = pctx.MultiCommandRemoteStaticRules("r8",
 			`--no-data-resources ` +
 			`-printmapping ${outDict} ` +
 			`-printusage ${outUsage} ` +
+			`--deps-file ${out}.d ` +
 			`$r8Flags && ` +
 			`touch "${outDict}" "${outUsage}" && ` +
 			`${config.SoongZipCmd} -o ${outUsageZip} -C ${outUsageDir} -f ${outUsage} && ` +
 			`rm -rf ${outUsageDir} && ` +
 			`$zipTemplate${config.SoongZipCmd} $zipFlags -o $outDir/classes.dex.jar -C $outDir -f "$outDir/classes*.dex" && ` +
 			`${config.MergeZipsCmd} -D -stripFile "**/*.class" $mergeZipsFlags $out $outDir/classes.dex.jar $in`,
+		Depfile: "${out}.d",
+		Deps:    blueprint.DepsGCC,
 		CommandDeps: []string{
 			"${config.R8Cmd}",
 			"${config.Zip2ZipCmd}",
