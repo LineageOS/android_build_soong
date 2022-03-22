@@ -319,15 +319,13 @@ func (ctx *parseContext) addVariable(name string) variable {
 			v = &localVariable{baseVariable{nam: name, typ: hintType}}
 		} else {
 			vt := hintType
-			if strings.HasPrefix(name, "LOCAL_") && vt == starlarkTypeUnknown {
-				// Heuristics: local variables that contribute to corresponding config variables
-				if cfgVarName, found := localProductConfigVariables[name]; found {
-					vi, found2 := KnownVariables[cfgVarName]
-					if !found2 {
-						panic(fmt.Errorf("unknown config variable %s for %s", cfgVarName, name))
-					}
-					vt = vi.valueType
+			// Heuristics: local variables that contribute to corresponding config variables
+			if cfgVarName, found := localProductConfigVariables[name]; found && vt == starlarkTypeUnknown {
+				vi, found2 := KnownVariables[cfgVarName]
+				if !found2 {
+					panic(fmt.Errorf("unknown config variable %s for %s", cfgVarName, name))
 				}
+				vt = vi.valueType
 			}
 			if strings.HasSuffix(name, "_LIST") && vt == starlarkTypeUnknown {
 				// Heuristics: Variables with "_LIST" suffix are lists
