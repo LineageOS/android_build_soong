@@ -755,8 +755,8 @@ def init(g, handle):
   cfg = rblf.cfg(handle)
   rblf.enforce_product_packages_exist("")
   rblf.enforce_product_packages_exist("foo")
-  rblf.require_artifacts_in_path("foo", "bar")
-  rblf.require_artifacts_in_path_relaxed("foo", "bar")
+  rblf.require_artifacts_in_path(handle, "foo", "bar")
+  rblf.require_artifacts_in_path_relaxed(handle, "foo", "bar")
   rblf.mkdist_for_goals(g, "goal", "from:to")
   rblf.add_product_dex_preopt_module_config(handle, "MyModule", "disable")
 `,
