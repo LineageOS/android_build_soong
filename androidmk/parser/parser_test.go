@@ -34,6 +34,56 @@ var parserTestCases = []struct {
 			},
 		},
 	},
+	{
+		name: "Simple warning",
+		in:   `$(warning A warning)`,
+		out: []Node{
+			&Variable{
+				Name: SimpleMakeString("warning A warning", NoPos),
+			},
+		},
+	},
+	{
+		name: "Warning with #",
+		in:   `$(warning # A warning)`,
+		out: []Node{
+			&Variable{
+				Name: SimpleMakeString("warning # A warning", NoPos),
+			},
+		},
+	},
+	{
+		name: "Findstring with #",
+		in:   `$(findstring x,x a #)`,
+		out: []Node{
+			&Variable{
+				Name: SimpleMakeString("findstring x,x a #", NoPos),
+			},
+		},
+	},
+	{
+		name: "If statement",
+		in: `ifeq (a,b) # comment
+endif`,
+		out: []Node{
+			&Directive{
+				NamePos: NoPos,
+				Name:    "ifeq",
+				Args:    SimpleMakeString("(a,b) ", NoPos),
+				EndPos:  NoPos,
+			},
+			&Comment{
+				CommentPos: NoPos,
+				Comment:    " comment",
+			},
+			&Directive{
+				NamePos: NoPos,
+				Name:    "endif",
+				Args:    SimpleMakeString("", NoPos),
+				EndPos:  NoPos,
+			},
+		},
+	},
 }
 
 func TestParse(t *testing.T) {
