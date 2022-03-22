@@ -247,16 +247,33 @@ func init() {
 }
 
 type javaBuilderFlags struct {
-	javacFlags     string
-	bootClasspath  classpath
-	classpath      classpath
+	javacFlags string
+
+	// bootClasspath is the list of jars that form the boot classpath (generally the java.* and
+	// android.* classes) for tools that still use it.  javac targeting 1.9 or higher uses
+	// systemModules and java9Classpath instead.
+	bootClasspath classpath
+
+	// classpath is the list of jars that form the classpath for javac and kotlinc rules.  It
+	// contains header jars for all static and non-static dependencies.
+	classpath classpath
+
+	// dexClasspath is the list of jars that form the classpath for d8 and r8 rules.  It contains
+	// header jars for all non-static dependencies.  Static dependencies have already been
+	// combined into the program jar.
+	dexClasspath classpath
+
+	// java9Classpath is the list of jars that will be added to the classpath when targeting
+	// 1.9 or higher.  It generally contains the android.* classes, while the java.* classes
+	// are provided by systemModules.
 	java9Classpath classpath
-	processorPath  classpath
-	processors     []string
-	systemModules  *systemModules
-	aidlFlags      string
-	aidlDeps       android.Paths
-	javaVersion    javaVersion
+
+	processorPath classpath
+	processors    []string
+	systemModules *systemModules
+	aidlFlags     string
+	aidlDeps      android.Paths
+	javaVersion   javaVersion
 
 	errorProneExtraJavacFlags string
 	errorProneProcessorPath   classpath
