@@ -86,6 +86,7 @@ function create_mock_soong {
 
   symlink_directory prebuilts/go
   symlink_directory prebuilts/build-tools
+  symlink_directory prebuilts/clang/host
   symlink_directory external/go-cmp
   symlink_directory external/golang-protobuf
 
