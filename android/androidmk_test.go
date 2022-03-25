@@ -148,6 +148,9 @@ func buildContextAndCustomModuleFoo(t *testing.T, bp string) (*TestContext, *cus
 		FixtureRegisterWithContext(func(ctx RegistrationContext) {
 			ctx.RegisterModuleType("custom", customModuleFactory)
 		}),
+		FixtureModifyProductVariables(func(variables FixtureProductVariables) {
+			variables.DeviceProduct = proptools.StringPtr("bar")
+		}),
 		FixtureWithRootAndroidBp(bp),
 	).RunTest(t)
 
@@ -399,6 +402,25 @@ func TestGetDistContributions(t *testing.T) {
 				},
 			},
 		})
+
+	testHelper(t, "append-artifact-with-product", `
+			custom {
+				name: "foo",
+				dist: {
+					targets: ["my_goal"],
+					append_artifact_with_product: true,
+				}
+			}
+`, &distContributions{
+		copiesForGoals: []*copiesForGoals{
+			{
+				goals: "my_goal",
+				copies: []distCopy{
+					distCopyForTest("one.out", "one_bar.out"),
+				},
+			},
+		},
+	})
 
 	testHelper(t, "dists-with-tag", `
 			custom {
