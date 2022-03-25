@@ -15,13 +15,24 @@
 package java
 
 import (
-	"github.com/google/blueprint/proptools"
 	"sort"
 	"strings"
 
+	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
+
 	"android/soong/android"
+	"android/soong/cc"
 	"android/soong/fuzz"
 )
+
+type jniProperties struct {
+	// list of jni libs
+	Jni_libs []string
+
+	// sanitization
+	Sanitizers []string
+}
 
 func init() {
 	RegisterJavaFuzzBuildComponents(android.InitRegistrationContext)
@@ -35,11 +46,60 @@ func RegisterJavaFuzzBuildComponents(ctx android.RegistrationContext) {
 type JavaFuzzLibrary struct {
 	Library
 	fuzzPackagedModule fuzz.FuzzPackagedModule
+	jniProperties      jniProperties
+	jniFilePaths       android.Paths
+}
+
+// IsSanitizerEnabled implemented to make JavaFuzzLibrary implement
+// cc.Sanitizeable
+func (j *JavaFuzzLibrary) IsSanitizerEnabled(ctx android.BaseModuleContext, sanitizerName string) bool {
+	for _, s := range j.jniProperties.Sanitizers {
+		if sanitizerName == s {
+			return true
+		}
+	}
+	return false
+}
+
+// IsSanitizerEnabledForJni implemented to make JavaFuzzLibrary implement
+// cc.JniSanitizeable. It returns a bool for whether a cc dependency should be
+// sanitized for the given sanitizer or not.
+func (j *JavaFuzzLibrary) IsSanitizerEnabledForJni(ctx android.BaseModuleContext, sanitizerName string) bool {
+	return j.IsSanitizerEnabled(ctx, sanitizerName)
+}
+
+// EnableSanitizer implemented to make JavaFuzzLibrary implement
+// cc.Sanitizeable
+func (j *JavaFuzzLibrary) EnableSanitizer(sanitizerName string) {
+}
+
+// AddSanitizerDependencies implemented to make JavaFuzzLibrary implement
+// cc.Sanitizeable
+func (j *JavaFuzzLibrary) AddSanitizerDependencies(mctx android.BottomUpMutatorContext, sanitizerName string) {
+}
+
+// To verify that JavaFuzzLibrary implements cc.Sanitizeable
+var _ cc.Sanitizeable = (*JavaFuzzLibrary)(nil)
+
+func (j *JavaFuzzLibrary) DepsMutator(mctx android.BottomUpMutatorContext) {
+	if len(j.jniProperties.Jni_libs) > 0 {
+		if j.fuzzPackagedModule.FuzzProperties.Fuzz_config == nil {
+			config := &fuzz.FuzzConfig{}
+			j.fuzzPackagedModule.FuzzProperties.Fuzz_config = config
+		}
+		// this will be used by the ingestion pipeline to determine the version
+		// of jazzer to add to the fuzzer package
+		j.fuzzPackagedModule.FuzzProperties.Fuzz_config.IsJni = proptools.BoolPtr(true)
+
+		for _, target := range mctx.MultiTargets() {
+			sharedLibVariations := append(target.Variations(), blueprint.Variation{Mutator: "link", Variation: "shared"})
+			mctx.AddFarVariationDependencies(sharedLibVariations, cc.JniFuzzLibTag, j.jniProperties.Jni_libs...)
+		}
+	}
+	j.Library.DepsMutator(mctx)
 }
 
 func (j *JavaFuzzLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	j.Library.GenerateAndroidBuildActions(ctx)
-
 	if j.fuzzPackagedModule.FuzzProperties.Corpus != nil {
 		j.fuzzPackagedModule.Corpus = android.PathsForModuleSrc(ctx, j.fuzzPackagedModule.FuzzProperties.Corpus)
 	}
@@ -55,6 +115,23 @@ func (j *JavaFuzzLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext)
 		android.WriteFileRule(ctx, configPath, j.fuzzPackagedModule.FuzzProperties.Fuzz_config.String())
 		j.fuzzPackagedModule.Config = configPath
 	}
+
+	ctx.VisitDirectDepsWithTag(cc.JniFuzzLibTag, func(dep android.Module) {
+		sharedLibInfo := ctx.OtherModuleProvider(dep, cc.SharedLibraryInfoProvider).(cc.SharedLibraryInfo)
+		if sharedLibInfo.SharedLibrary != nil {
+			libPath := android.PathForModuleOut(ctx, sharedLibInfo.SharedLibrary.Base())
+			ctx.Build(pctx, android.BuildParams{
+				Rule:   android.Cp,
+				Input:  sharedLibInfo.SharedLibrary,
+				Output: libPath,
+			})
+			j.jniFilePaths = append(j.jniFilePaths, libPath)
+		} else {
+			ctx.PropertyErrorf("jni_libs", "%q of type %q is not supported", dep.Name(), ctx.OtherModuleType(dep))
+		}
+	})
+
+	j.Library.GenerateAndroidBuildActions(ctx)
 }
 
 // java_fuzz builds and links sources into a `.jar` file for the host.
@@ -65,7 +142,8 @@ func FuzzFactory() android.Module {
 	module := &JavaFuzzLibrary{}
 
 	module.addHostProperties()
-	module.Module.properties.Installable = proptools.BoolPtr(false)
+	module.AddProperties(&module.jniProperties)
+	module.Module.properties.Installable = proptools.BoolPtr(true)
 	module.AddProperties(&module.fuzzPackagedModule.FuzzProperties)
 
 	// java_fuzz packaging rules collide when both linux_glibc and linux_bionic are enabled, disable the linux_bionic variants.
@@ -83,7 +161,7 @@ func FuzzFactory() android.Module {
 
 	module.initModuleAndImport(module)
 	android.InitSdkAwareModule(module)
-	InitJavaModule(module, android.HostSupported)
+	InitJavaModuleMultiTargets(module, android.HostSupported)
 	return module
 }
 
@@ -106,26 +184,26 @@ func (s *javaFuzzPackager) GenerateBuildActions(ctx android.SingletonContext) {
 
 	ctx.VisitAllModules(func(module android.Module) {
 		// Discard non-fuzz targets.
-		javaModule, ok := module.(*JavaFuzzLibrary)
+		javaFuzzModule, ok := module.(*JavaFuzzLibrary)
 		if !ok {
 			return
 		}
 
 		fuzzModuleValidator := fuzz.FuzzModule{
-			javaModule.ModuleBase,
-			javaModule.DefaultableModuleBase,
-			javaModule.ApexModuleBase,
+			javaFuzzModule.ModuleBase,
+			javaFuzzModule.DefaultableModuleBase,
+			javaFuzzModule.ApexModuleBase,
 		}
 
-		if ok := fuzz.IsValid(fuzzModuleValidator); !ok || *javaModule.Module.properties.Installable {
+		if ok := fuzz.IsValid(fuzzModuleValidator); !ok {
 			return
 		}
 
 		hostOrTargetString := "target"
-		if javaModule.Host() {
+		if javaFuzzModule.Host() {
 			hostOrTargetString = "host"
 		}
-		archString := javaModule.Arch().ArchType.String()
+		archString := javaFuzzModule.Arch().ArchType.String()
 
 		archDir := android.PathForIntermediates(ctx, "fuzz", hostOrTargetString, archString)
 		archOs := fuzz.ArchOs{HostOrTarget: hostOrTargetString, Arch: archString, Dir: archDir.String()}
@@ -134,12 +212,17 @@ func (s *javaFuzzPackager) GenerateBuildActions(ctx android.SingletonContext) {
 		builder := android.NewRuleBuilder(pctx, ctx)
 
 		// Package the artifacts (data, corpus, config and dictionary into a zipfile.
-		files = s.PackageArtifacts(ctx, module, javaModule.fuzzPackagedModule, archDir, builder)
+		files = s.PackageArtifacts(ctx, module, javaFuzzModule.fuzzPackagedModule, archDir, builder)
 
 		// Add .jar
-		files = append(files, fuzz.FileToZip{javaModule.outputFile, ""})
+		files = append(files, fuzz.FileToZip{javaFuzzModule.outputFile, ""})
 
-		archDirs[archOs], ok = s.BuildZipFile(ctx, module, javaModule.fuzzPackagedModule, files, builder, archDir, archString, "host", archOs, archDirs)
+		// Add jni .so files
+		for _, fPath := range javaFuzzModule.jniFilePaths {
+			files = append(files, fuzz.FileToZip{fPath, ""})
+		}
+
+		archDirs[archOs], ok = s.BuildZipFile(ctx, module, javaFuzzModule.fuzzPackagedModule, files, builder, archDir, archString, hostOrTargetString, archOs, archDirs)
 		if !ok {
 			return
 		}

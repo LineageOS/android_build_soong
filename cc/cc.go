@@ -746,6 +746,7 @@ var (
 	runtimeDepTag         = installDependencyTag{name: "runtime lib"}
 	testPerSrcDepTag      = dependencyTag{name: "test_per_src"}
 	stubImplDepTag        = dependencyTag{name: "stub_impl"}
+	JniFuzzLibTag         = dependencyTag{name: "jni_fuzz_lib_tag"}
 )
 
 func IsSharedDepTag(depTag blueprint.DependencyTag) bool {

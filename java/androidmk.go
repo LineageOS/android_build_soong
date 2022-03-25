@@ -132,6 +132,16 @@ func (library *Library) AndroidMkEntries() []android.AndroidMkEntries {
 	return entriesList
 }
 
+func (j *JavaFuzzLibrary) AndroidMkEntries() []android.AndroidMkEntries {
+	entriesList := j.Library.AndroidMkEntries()
+	entries := &entriesList[0]
+	entries.ExtraEntries = append(entries.ExtraEntries, func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
+		entries.AddStrings("LOCAL_COMPATIBILITY_SUITE", "null-suite")
+		androidMkWriteTestData(j.jniFilePaths, entries)
+	})
+	return entriesList
+}
+
 // Called for modules that are a component of a test suite.
 func testSuiteComponent(entries *android.AndroidMkEntries, test_suites []string, perTestcaseDirectory bool) {
 	entries.SetString("LOCAL_MODULE_TAGS", "tests")
