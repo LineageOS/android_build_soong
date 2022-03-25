@@ -145,7 +145,7 @@ func (f *hostSnapshot) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	f.installDir = android.PathForModuleInstall(ctx)
 
-	f.CopyDepsToZip(ctx, depsZipFile)
+	f.CopyDepsToZip(ctx, f.GatherPackagingSpecs(ctx), depsZipFile)
 
 	builder := android.NewRuleBuilder(pctx, ctx)
 	builder.Command().
