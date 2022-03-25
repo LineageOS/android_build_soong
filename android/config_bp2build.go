@@ -101,6 +101,17 @@ func (ev ExportedVariables) ExportSourcePathVariable(name string, value string) 
 	ev.exportedStringVars.set(name, value)
 }
 
+// ExportVariableFuncVariable declares a variable whose value is evaluated at
+// runtime via a function and exports it to Bazel's toolchain.
+func (ev ExportedVariables) ExportVariableFuncVariable(name string, f func() string) {
+	ev.exportedConfigDependingVars.set(name, func(config Config) string {
+		return f()
+	})
+	ev.pctx.VariableFunc(name, func(PackageVarContext) string {
+		return f()
+	})
+}
+
 // ExportString only exports a variable to Bazel, but does not declare it in Soong
 func (ev ExportedVariables) ExportString(name string, value string) {
 	ev.exportedStringVars.set(name, value)
@@ -403,7 +414,8 @@ func expandVar(config Config, toExpand string, stringScope ExportedStringVariabl
 		return ret, nil
 	}
 	var ret []string
-	for _, v := range strings.Split(toExpand, " ") {
+	stringFields := splitStringKeepingQuotedSubstring(toExpand, ' ')
+	for _, v := range stringFields {
 		val, err := expandVarInternal(v, map[string]bool{})
 		if err != nil {
 			return ret, err
@@ -412,6 +424,46 @@ func expandVar(config Config, toExpand string, stringScope ExportedStringVariabl
 	}
 
 	return ret, nil
+}
+
+// splitStringKeepingQuotedSubstring splits a string on a provided separator,
+// but it will not split substrings inside unescaped double quotes. If the double
+// quotes are escaped, then the returned string will only include the quote, and
+// not the escape.
+func splitStringKeepingQuotedSubstring(s string, delimiter byte) []string {
+	var ret []string
+	quote := byte('"')
+
+	var substring []byte
+	quoted := false
+	escaped := false
+
+	for i := range s {
+		if !quoted && s[i] == delimiter {
+			ret = append(ret, string(substring))
+			substring = []byte{}
+			continue
+		}
+
+		characterIsEscape := i < len(s)-1 && s[i] == '\\' && s[i+1] == quote
+		if characterIsEscape {
+			escaped = true
+			continue
+		}
+
+		if s[i] == quote {
+			if !escaped {
+				quoted = !quoted
+			}
+			escaped = false
+		}
+
+		substring = append(substring, s[i])
+	}
+
+	ret = append(ret, string(substring))
+
+	return ret
 }
 
 func validateVariableMethod(name string, methodValue reflect.Value) {

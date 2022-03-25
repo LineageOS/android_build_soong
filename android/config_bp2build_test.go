@@ -321,3 +321,134 @@ constants = struct(
 		})
 	}
 }
+
+func TestSplitStringKeepingQuotedSubstring(t *testing.T) {
+	testCases := []struct {
+		description string
+		s           string
+		delimiter   byte
+		split       []string
+	}{
+		{
+			description: "empty string returns single empty string",
+			s:           "",
+			delimiter:   ' ',
+			split: []string{
+				"",
+			},
+		},
+		{
+			description: "string with single space returns two empty strings",
+			s:           " ",
+			delimiter:   ' ',
+			split: []string{
+				"",
+				"",
+			},
+		},
+		{
+			description: "string with two spaces returns three empty strings",
+			s:           "  ",
+			delimiter:   ' ',
+			split: []string{
+				"",
+				"",
+				"",
+			},
+		},
+		{
+			description: "string with four words returns four word string",
+			s:           "hello world with words",
+			delimiter:   ' ',
+			split: []string{
+				"hello",
+				"world",
+				"with",
+				"words",
+			},
+		},
+		{
+			description: "string with words and nested quote returns word strings and quote string",
+			s:           `hello "world with" words`,
+			delimiter:   ' ',
+			split: []string{
+				"hello",
+				`"world with"`,
+				"words",
+			},
+		},
+		{
+			description: "string with escaped quote inside real quotes",
+			s:           `hello \"world "with\" words"`,
+			delimiter:   ' ',
+			split: []string{
+				"hello",
+				`"world`,
+				`"with" words"`,
+			},
+		},
+		{
+			description: "string with words and escaped quotes returns word strings",
+			s:           `hello \"world with\" words`,
+			delimiter:   ' ',
+			split: []string{
+				"hello",
+				`"world`,
+				`with"`,
+				"words",
+			},
+		},
+		{
+			description: "string which is single quoted substring returns only substring",
+			s:           `"hello world with words"`,
+			delimiter:   ' ',
+			split: []string{
+				`"hello world with words"`,
+			},
+		},
+		{
+			description: "string starting with quote returns quoted string",
+			s:           `"hello world with" words`,
+			delimiter:   ' ',
+			split: []string{
+				`"hello world with"`,
+				"words",
+			},
+		},
+		{
+			description: "string with starting quote and no ending quote returns quote to end of string",
+			s:           `hello "world with words`,
+			delimiter:   ' ',
+			split: []string{
+				"hello",
+				`"world with words`,
+			},
+		},
+		{
+			description: "quoted string is treated as a single \"word\" unless separated by delimiter",
+			s:           `hello "world"with words`,
+			delimiter:   ' ',
+			split: []string{
+				"hello",
+				`"world"with`,
+				"words",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			split := splitStringKeepingQuotedSubstring(tc.s, tc.delimiter)
+			if len(split) != len(tc.split) {
+				t.Fatalf("number of split string elements (%d) differs from expected (%d): split string (%v), expected (%v)",
+					len(split), len(tc.split), split, tc.split,
+				)
+			}
+			for i := range split {
+				if split[i] != tc.split[i] {
+					t.Errorf("split string element (%d), %v, differs from expected, %v", i, split[i], tc.split[i])
+				}
+			}
+		})
+	}
+}
