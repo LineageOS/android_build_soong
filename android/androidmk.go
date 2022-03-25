@@ -148,6 +148,14 @@ type AndroidMkEntries struct {
 	// without worrying about the variables being mixed up in the actual mk file.
 	// 3. Makes troubleshooting and spotting errors easier.
 	entryOrder []string
+
+	// Provides data typically stored by Context objects that are commonly needed by
+	//AndroidMkEntries objects.
+	entryContext AndroidMkEntriesContext
+}
+
+type AndroidMkEntriesContext interface {
+	Config() Config
 }
 
 type AndroidMkExtraEntriesContext interface {
@@ -408,10 +416,19 @@ func (a *AndroidMkEntries) getDistContributions(mod blueprint.Module) *distContr
 				}
 			}
 
+			ext := filepath.Ext(dest)
+			suffix := ""
 			if dist.Suffix != nil {
-				ext := filepath.Ext(dest)
-				suffix := *dist.Suffix
-				dest = strings.TrimSuffix(dest, ext) + suffix + ext
+				suffix = *dist.Suffix
+			}
+
+			productString := ""
+			if dist.Append_artifact_with_product != nil && *dist.Append_artifact_with_product {
+				productString = fmt.Sprintf("_%s", a.entryContext.Config().DeviceProduct())
+			}
+
+			if suffix != "" || productString != "" {
+				dest = strings.TrimSuffix(dest, ext) + suffix + productString + ext
 			}
 
 			if dist.Dir != nil {
@@ -478,6 +495,7 @@ type fillInEntriesContext interface {
 }
 
 func (a *AndroidMkEntries) fillInEntries(ctx fillInEntriesContext, mod blueprint.Module) {
+	a.entryContext = ctx
 	a.EntryMap = make(map[string][]string)
 	amod := mod.(Module)
 	base := amod.base()
