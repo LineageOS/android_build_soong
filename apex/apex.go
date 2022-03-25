@@ -1023,6 +1023,9 @@ func apexStrictUpdatibilityLintMutator(mctx android.TopDownMutatorContext) {
 				// Do not traverse transitive deps of libcore/ libs
 				return false
 			}
+			if android.InList(child.Name(), skipLintJavalibAllowlist) {
+				return false
+			}
 			if lintable, ok := child.(java.LintDepSetsIntf); ok {
 				lintable.SetStrictUpdatabilityLinting(true)
 			}
@@ -1046,6 +1049,17 @@ var (
 		"test_com.android.conscrypt",
 		"test_com.android.media",
 		"test_jitzygote_com.android.art",
+	}
+
+	// TODO: b/215736885 Remove this list
+	skipLintJavalibAllowlist = []string{
+		"conscrypt.module.platform.api.stubs",
+		"conscrypt.module.public.api.stubs",
+		"conscrypt.module.public.api.stubs.system",
+		"conscrypt.module.public.api.stubs.module_lib",
+		"framework-media.stubs",
+		"framework-media.stubs.system",
+		"framework-media.stubs.module_lib",
 	}
 )
 
