@@ -12,25 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package config
+package android
 
 import (
+	"android/soong/bazel"
 	"testing"
-
-	"android/soong/android"
 )
 
 func TestExpandVars(t *testing.T) {
-	android_arm64_config := android.TestConfig("out", nil, "", nil)
-	android_arm64_config.BuildOS = android.Android
-	android_arm64_config.BuildArch = android.Arm64
+	android_arm64_config := TestConfig("out", nil, "", nil)
+	android_arm64_config.BuildOS = Android
+	android_arm64_config.BuildArch = Arm64
 
 	testCases := []struct {
 		description     string
-		config          android.Config
-		stringScope     exportedStringVariables
-		stringListScope exportedStringListVariables
-		configVars      exportedConfigDependingVariables
+		config          Config
+		stringScope     ExportedStringVariables
+		stringListScope ExportedStringListVariables
+		configVars      ExportedConfigDependingVariables
 		toExpand        string
 		expectedValues  []string
 	}{
@@ -41,7 +40,7 @@ func TestExpandVars(t *testing.T) {
 		},
 		{
 			description: "single level expansion for string var",
-			stringScope: exportedStringVariables{
+			stringScope: ExportedStringVariables{
 				"foo": "bar",
 			},
 			toExpand:       "${foo}",
@@ -49,7 +48,7 @@ func TestExpandVars(t *testing.T) {
 		},
 		{
 			description: "single level expansion with short-name for string var",
-			stringScope: exportedStringVariables{
+			stringScope: ExportedStringVariables{
 				"foo": "bar",
 			},
 			toExpand:       "${config.foo}",
@@ -57,7 +56,7 @@ func TestExpandVars(t *testing.T) {
 		},
 		{
 			description: "single level expansion string list var",
-			stringListScope: exportedStringListVariables{
+			stringListScope: ExportedStringListVariables{
 				"foo": []string{"bar"},
 			},
 			toExpand:       "${foo}",
@@ -65,11 +64,11 @@ func TestExpandVars(t *testing.T) {
 		},
 		{
 			description: "mixed level expansion for string list var",
-			stringScope: exportedStringVariables{
+			stringScope: ExportedStringVariables{
 				"foo": "${bar}",
 				"qux": "hello",
 			},
-			stringListScope: exportedStringListVariables{
+			stringListScope: ExportedStringListVariables{
 				"bar": []string{"baz", "${qux}"},
 			},
 			toExpand:       "${foo}",
@@ -77,7 +76,7 @@ func TestExpandVars(t *testing.T) {
 		},
 		{
 			description: "double level expansion",
-			stringListScope: exportedStringListVariables{
+			stringListScope: ExportedStringListVariables{
 				"foo": []string{"${bar}"},
 				"bar": []string{"baz"},
 			},
@@ -86,7 +85,7 @@ func TestExpandVars(t *testing.T) {
 		},
 		{
 			description: "double level expansion with a literal",
-			stringListScope: exportedStringListVariables{
+			stringListScope: ExportedStringListVariables{
 				"a": []string{"${b}", "c"},
 				"b": []string{"d"},
 			},
@@ -95,7 +94,7 @@ func TestExpandVars(t *testing.T) {
 		},
 		{
 			description: "double level expansion, with two variables in a string",
-			stringListScope: exportedStringListVariables{
+			stringListScope: ExportedStringListVariables{
 				"a": []string{"${b} ${c}"},
 				"b": []string{"d"},
 				"c": []string{"e"},
@@ -105,7 +104,7 @@ func TestExpandVars(t *testing.T) {
 		},
 		{
 			description: "triple level expansion with two variables in a string",
-			stringListScope: exportedStringListVariables{
+			stringListScope: ExportedStringListVariables{
 				"a": []string{"${b} ${c}"},
 				"b": []string{"${c}", "${d}"},
 				"c": []string{"${d}"},
@@ -116,9 +115,9 @@ func TestExpandVars(t *testing.T) {
 		},
 		{
 			description: "expansion with config depending vars",
-			configVars: exportedConfigDependingVariables{
-				"a": func(c android.Config) string { return c.BuildOS.String() },
-				"b": func(c android.Config) string { return c.BuildArch.String() },
+			configVars: ExportedConfigDependingVariables{
+				"a": func(c Config) string { return c.BuildOS.String() },
+				"b": func(c Config) string { return c.BuildArch.String() },
 			},
 			config:         android_arm64_config,
 			toExpand:       "${a}-${b}",
@@ -126,14 +125,14 @@ func TestExpandVars(t *testing.T) {
 		},
 		{
 			description: "double level multi type expansion",
-			stringListScope: exportedStringListVariables{
+			stringListScope: ExportedStringListVariables{
 				"platform": []string{"${os}-${arch}"},
 				"const":    []string{"const"},
 			},
-			configVars: exportedConfigDependingVariables{
-				"os":   func(c android.Config) string { return c.BuildOS.String() },
-				"arch": func(c android.Config) string { return c.BuildArch.String() },
-				"foo":  func(c android.Config) string { return "foo" },
+			configVars: ExportedConfigDependingVariables{
+				"os":   func(c Config) string { return c.BuildOS.String() },
+				"arch": func(c Config) string { return c.BuildArch.String() },
+				"foo":  func(c Config) string { return "foo" },
 			},
 			config:         android_arm64_config,
 			toExpand:       "${const}/${platform}/${foo}",
@@ -160,19 +159,19 @@ func TestExpandVars(t *testing.T) {
 func TestBazelToolchainVars(t *testing.T) {
 	testCases := []struct {
 		name        string
-		config      android.Config
-		vars        []bazelVarExporter
+		config      Config
+		vars        ExportedVariables
 		expectedOut string
 	}{
 		{
 			name: "exports strings",
-			vars: []bazelVarExporter{
-				exportedStringVariables{
+			vars: ExportedVariables{
+				exportedStringVars: ExportedStringVariables{
 					"a": "b",
 					"c": "d",
 				},
 			},
-			expectedOut: `# GENERATED FOR BAZEL FROM SOONG. DO NOT EDIT.
+			expectedOut: bazel.GeneratedBazelFileWarning + `
 
 _a = "b"
 
@@ -185,13 +184,13 @@ constants = struct(
 		},
 		{
 			name: "exports string lists",
-			vars: []bazelVarExporter{
-				exportedStringListVariables{
+			vars: ExportedVariables{
+				exportedStringListVars: ExportedStringListVariables{
 					"a": []string{"b1", "b2"},
 					"c": []string{"d1", "d2"},
 				},
 			},
-			expectedOut: `# GENERATED FOR BAZEL FROM SOONG. DO NOT EDIT.
+			expectedOut: bazel.GeneratedBazelFileWarning + `
 
 _a = [
     "b1",
@@ -210,13 +209,13 @@ constants = struct(
 		},
 		{
 			name: "exports string lists dicts",
-			vars: []bazelVarExporter{
-				exportedStringListDictVariables{
-					"a": map[string][]string{"b1": []string{"b2"}},
-					"c": map[string][]string{"d1": []string{"d2"}},
+			vars: ExportedVariables{
+				exportedStringListDictVars: ExportedStringListDictVariables{
+					"a": map[string][]string{"b1": {"b2"}},
+					"c": map[string][]string{"d1": {"d2"}},
 				},
 			},
-			expectedOut: `# GENERATED FOR BAZEL FROM SOONG. DO NOT EDIT.
+			expectedOut: bazel.GeneratedBazelFileWarning + `
 
 _a = {
     "b1": ["b2"],
@@ -233,13 +232,13 @@ constants = struct(
 		},
 		{
 			name: "exports dict with var refs",
-			vars: []bazelVarExporter{
-				exportedVariableReferenceDictVariables{
+			vars: ExportedVariables{
+				exportedVariableReferenceDictVars: ExportedVariableReferenceDictVariables{
 					"a": map[string]string{"b1": "${b2}"},
 					"c": map[string]string{"d1": "${config.d2}"},
 				},
 			},
-			expectedOut: `# GENERATED FOR BAZEL FROM SOONG. DO NOT EDIT.
+			expectedOut: bazel.GeneratedBazelFileWarning + `
 
 _a = {
     "b1": _b2,
@@ -256,25 +255,25 @@ constants = struct(
 		},
 		{
 			name: "sorts across types with variable references last",
-			vars: []bazelVarExporter{
-				exportedStringVariables{
+			vars: ExportedVariables{
+				exportedStringVars: ExportedStringVariables{
 					"b": "b-val",
 					"d": "d-val",
 				},
-				exportedStringListVariables{
+				exportedStringListVars: ExportedStringListVariables{
 					"c": []string{"c-val"},
 					"e": []string{"e-val"},
 				},
-				exportedStringListDictVariables{
-					"a": map[string][]string{"a1": []string{"a2"}},
-					"f": map[string][]string{"f1": []string{"f2"}},
+				exportedStringListDictVars: ExportedStringListDictVariables{
+					"a": map[string][]string{"a1": {"a2"}},
+					"f": map[string][]string{"f1": {"f2"}},
 				},
-				exportedVariableReferenceDictVariables{
+				exportedVariableReferenceDictVars: ExportedVariableReferenceDictVariables{
 					"aa": map[string]string{"b1": "${b}"},
 					"cc": map[string]string{"d1": "${config.d}"},
 				},
 			},
-			expectedOut: `# GENERATED FOR BAZEL FROM SOONG. DO NOT EDIT.
+			expectedOut: bazel.GeneratedBazelFileWarning + `
 
 _a = {
     "a1": ["a2"],
@@ -315,7 +314,7 @@ constants = struct(
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			out := bazelToolchainVars(tc.config, tc.vars...)
+			out := BazelToolchainVars(tc.config, tc.vars)
 			if out != tc.expectedOut {
 				t.Errorf("Expected \n%s, got \n%s", tc.expectedOut, out)
 			}

@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"android/soong/bazel"
 	"android/soong/starlark_fmt"
 )
 
@@ -393,7 +394,7 @@ func printApiLevelsStarlarkDict(config Config) string {
 }
 
 func StarlarkApiLevelConfigs(config Config) string {
-	return fmt.Sprintf(`# GENERATED FOR BAZEL FROM SOONG. DO NOT EDIT.
+	return fmt.Sprintf(bazel.GeneratedBazelFileWarning+`
 _api_levels = %s
 
 api_levels = _api_levels
