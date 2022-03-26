@@ -235,4 +235,7 @@ message SoongBuildMetrics {
 
   // The approximate maximum size of the heap in soong_build in bytes.
   optional uint64 max_heap_size = 5;
+
+  // Runtime metrics for soong_build execution.
+  repeated PerfInfo events = 6;
 }

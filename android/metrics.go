@@ -18,6 +18,7 @@ import (
 	"io/ioutil"
 	"runtime"
 
+	"github.com/google/blueprint/metrics"
 	"google.golang.org/protobuf/proto"
 
 	soong_metrics_proto "android/soong/ui/metrics/metrics_proto"
@@ -55,7 +56,7 @@ func (soongMetricsSingleton) GenerateBuildActions(ctx SingletonContext) {
 	})
 }
 
-func collectMetrics(config Config) *soong_metrics_proto.SoongBuildMetrics {
+func collectMetrics(config Config, eventHandler metrics.EventHandler) *soong_metrics_proto.SoongBuildMetrics {
 	metrics := &soong_metrics_proto.SoongBuildMetrics{}
 
 	soongMetrics := ReadSoongMetrics(config)
@@ -68,11 +69,21 @@ func collectMetrics(config Config) *soong_metrics_proto.SoongBuildMetrics {
 	metrics.TotalAllocCount = proto.Uint64(memStats.Mallocs)
 	metrics.TotalAllocSize = proto.Uint64(memStats.TotalAlloc)
 
+	for _, event := range eventHandler.CompletedEvents() {
+		perfInfo := soong_metrics_proto.PerfInfo{
+			Description: proto.String(event.Id),
+			Name:        proto.String("soong_build"),
+			StartTime:   proto.Uint64(uint64(event.Start.UnixNano())),
+			RealTime:    proto.Uint64(event.RuntimeNanoseconds()),
+		}
+		metrics.Events = append(metrics.Events, &perfInfo)
+	}
+
 	return metrics
 }
 
-func WriteMetrics(config Config, metricsFile string) error {
-	metrics := collectMetrics(config)
+func WriteMetrics(config Config, eventHandler metrics.EventHandler, metricsFile string) error {
+	metrics := collectMetrics(config, eventHandler)
 
 	buf, err := proto.Marshal(metrics)
 	if err != nil {
