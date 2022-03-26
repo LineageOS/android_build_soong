@@ -43,6 +43,8 @@ type CodegenMetrics struct {
 
 	// Counts of total modules by module type.
 	totalModuleTypeCount map[string]uint64
+
+	Events []*bp2build_metrics_proto.Event
 }
 
 // Serialize returns the protoized version of CodegenMetrics: bp2build_metrics_proto.Bp2BuildMetrics
@@ -55,6 +57,7 @@ func (metrics *CodegenMetrics) Serialize() bp2build_metrics_proto.Bp2BuildMetric
 		ConvertedModules:         metrics.convertedModules,
 		ConvertedModuleTypeCount: metrics.convertedModuleTypeCount,
 		TotalModuleTypeCount:     metrics.totalModuleTypeCount,
+		Events:                   metrics.Events,
 	}
 }
 
