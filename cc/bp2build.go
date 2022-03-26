@@ -585,9 +585,12 @@ func (la *linkerAttributes) bp2buildForAxisAndConfig(ctx android.BazelConversion
 	// Use a single variable to capture usage of nocrt in arch variants, so there's only 1 error message for this module
 	var axisFeatures []string
 
+	wholeStaticLibs := android.FirstUniqueStrings(props.Whole_static_libs)
+	la.wholeArchiveDeps.SetSelectValue(axis, config, bazelLabelForWholeDepsExcludes(ctx, wholeStaticLibs, props.Exclude_static_libs))
 	// Excludes to parallel Soong:
 	// https://cs.android.com/android/platform/superproject/+/master:build/soong/cc/linker.go;l=247-249;drc=088b53577dde6e40085ffd737a1ae96ad82fc4b0
-	staticLibs := android.FirstUniqueStrings(props.Static_libs)
+	staticLibs := android.FirstUniqueStrings(android.RemoveListFromList(props.Static_libs, wholeStaticLibs))
+
 	staticDeps := maybePartitionExportedAndImplementationsDepsExcludes(ctx, !isBinary, staticLibs, props.Exclude_static_libs, props.Export_static_lib_headers, bazelLabelForStaticDepsExcludes)
 
 	headerLibs := android.FirstUniqueStrings(props.Header_libs)
@@ -598,9 +601,6 @@ func (la *linkerAttributes) bp2buildForAxisAndConfig(ctx android.BazelConversion
 
 	(&hDeps.implementation).Append(staticDeps.implementation)
 	la.implementationDeps.SetSelectValue(axis, config, hDeps.implementation)
-
-	wholeStaticLibs := android.FirstUniqueStrings(props.Whole_static_libs)
-	la.wholeArchiveDeps.SetSelectValue(axis, config, bazelLabelForWholeDepsExcludes(ctx, wholeStaticLibs, props.Exclude_static_libs))
 
 	systemSharedLibs := props.System_shared_libs
 	// systemSharedLibs distinguishes between nil/empty list behavior:
