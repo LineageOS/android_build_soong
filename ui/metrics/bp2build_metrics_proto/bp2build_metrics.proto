@@ -38,4 +38,22 @@ message Bp2BuildMetrics {
 
   // Counts of total modules by module type.
   map<string, uint64> totalModuleTypeCount = 7;
+
+  // List of traced runtime events of bp2build, useful for tracking bp2build
+  // runtime.
+  repeated Event events = 8;
+}
+
+// Traced runtime event of bp2build.
+message Event {
+  // The event name.
+  string name = 1;
+
+  // The absolute start time of the event
+  // The number of nanoseconds elapsed since January 1, 1970 UTC.
+  uint64 start_time = 2;
+
+  // The real running time.
+  // The number of nanoseconds elapsed since start_time.
+  uint64 real_time = 3;
 }
