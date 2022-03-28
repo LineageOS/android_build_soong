@@ -211,7 +211,7 @@ func (ctx *TestContext) FinalDepsMutators(f RegisterMutatorFunc) {
 	ctx.finalDeps = append(ctx.finalDeps, f)
 }
 
-func (ctx *TestContext) RegisterBp2BuildConfig(config Bp2BuildConfig) {
+func (ctx *TestContext) RegisterBp2BuildConfig(config bp2BuildConversionAllowlist) {
 	ctx.config.bp2buildPackageConfig = config
 }
 
