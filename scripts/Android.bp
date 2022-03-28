@@ -188,11 +188,3 @@ python_binary_host {
         "get_clang_version.py",
     ],
 }
-
-python_binary_host {
-    name: "list_image",
-    main: "list_image.py",
-    srcs: [
-        "list_image.py",
-    ],
-}
