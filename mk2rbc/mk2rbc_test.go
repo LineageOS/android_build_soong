@@ -1313,6 +1313,11 @@ BOOT_KERNEL_MODULES_FILTER_2 := $(foreach m,$(BOOT_KERNEL_MODULES_LIST),%/$(m))
 FOREACH_WITH_IF := $(foreach module,\
   $(BOOT_KERNEL_MODULES_LIST),\
   $(if $(filter $(module),foo.ko),,$(error module "$(module)" has an error!)))
+
+# Same as above, but not assigning it to a variable allows it to be converted to statements
+$(foreach module,\
+  $(BOOT_KERNEL_MODULES_LIST),\
+  $(if $(filter $(module),foo.ko),,$(error module "$(module)" has an error!)))
 `,
 		expected: `load("//build/make/core:product_config.rbc", "rblf")
 
@@ -1324,6 +1329,10 @@ def init(g, handle):
   g["BOOT_KERNEL_MODULES_LIST"] += ["bar.ko"]
   g["BOOT_KERNEL_MODULES_FILTER_2"] = ["%%/%s" % m for m in g["BOOT_KERNEL_MODULES_LIST"]]
   g["FOREACH_WITH_IF"] = [("" if rblf.filter(module, "foo.ko") else rblf.mkerror("product.mk", "module \"%s\" has an error!" % module)) for module in g["BOOT_KERNEL_MODULES_LIST"]]
+  # Same as above, but not assigning it to a variable allows it to be converted to statements
+  for module in g["BOOT_KERNEL_MODULES_LIST"]:
+    if not rblf.filter(module, "foo.ko"):
+      rblf.mkerror("product.mk", "module \"%s\" has an error!" % module)
 `,
 	},
 	{
@@ -1472,6 +1481,34 @@ LOCAL_PATH := $(call my-dir)
 def init(g, handle):
   cfg = rblf.cfg(handle)
   
+`,
+	},
+	{
+		desc:   "Evals",
+		mkname: "product.mk",
+		in: `
+$(eval)
+$(eval MY_VAR := foo)
+$(eval # This is a test of eval functions)
+$(eval $(TOO_COMPLICATED) := bar)
+$(foreach x,$(MY_LIST_VAR), \
+  $(eval PRODUCT_COPY_FILES += foo/bar/$(x):$(TARGET_COPY_OUT_VENDOR)/etc/$(x)) \
+  $(if $(MY_OTHER_VAR),$(eval PRODUCT_COPY_FILES += $(MY_OTHER_VAR):foo/bar/$(x))) \
+)
+
+`,
+		expected: `load("//build/make/core:product_config.rbc", "rblf")
+
+def init(g, handle):
+  cfg = rblf.cfg(handle)
+  g["MY_VAR"] = "foo"
+  # This is a test of eval functions
+  rblf.mk2rbc_error("product.mk:5", "Eval expression too complex; only assignments and comments are supported")
+  for x in rblf.words(g.get("MY_LIST_VAR", "")):
+    rblf.setdefault(handle, "PRODUCT_COPY_FILES")
+    cfg["PRODUCT_COPY_FILES"] += ("foo/bar/%s:%s/etc/%s" % (x, g.get("TARGET_COPY_OUT_VENDOR", ""), x)).split()
+    if g.get("MY_OTHER_VAR", ""):
+      cfg["PRODUCT_COPY_FILES"] += ("%s:foo/bar/%s" % (g.get("MY_OTHER_VAR", ""), x)).split()
 `,
 	},
 }
