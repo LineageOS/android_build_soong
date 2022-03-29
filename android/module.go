@@ -1470,8 +1470,10 @@ func (m *ModuleBase) AddJSONData(d *map[string]interface{}) {
 }
 
 type propInfo struct {
-	Name string
-	Type string
+	Name   string
+	Type   string
+	Value  string
+	Values []string
 }
 
 func (m *ModuleBase) propertiesWithValues() []propInfo {
@@ -1511,16 +1513,58 @@ func (m *ModuleBase) propertiesWithValues() []propInfo {
 				return
 			}
 			elKind := v.Type().Elem().Kind()
-			info = append(info, propInfo{name, elKind.String() + " " + kind.String()})
+			info = append(info, propInfo{Name: name, Type: elKind.String() + " " + kind.String(), Values: sliceReflectionValue(v)})
 		default:
-			info = append(info, propInfo{name, kind.String()})
+			info = append(info, propInfo{Name: name, Type: kind.String(), Value: reflectionValue(v)})
 		}
 	}
 
 	for _, p := range props {
 		propsWithValues("", reflect.ValueOf(p).Elem())
 	}
+	sort.Slice(info, func(i, j int) bool {
+		return info[i].Name < info[j].Name
+	})
 	return info
+}
+
+func reflectionValue(value reflect.Value) string {
+	switch value.Kind() {
+	case reflect.Bool:
+		return fmt.Sprintf("%t", value.Bool())
+	case reflect.Int64:
+		return fmt.Sprintf("%d", value.Int())
+	case reflect.String:
+		return fmt.Sprintf("%s", value.String())
+	case reflect.Struct:
+		if value.IsZero() {
+			return "{}"
+		}
+		length := value.NumField()
+		vals := make([]string, length, length)
+		for i := 0; i < length; i++ {
+			sTyp := value.Type().Field(i)
+			if proptools.ShouldSkipProperty(sTyp) {
+				continue
+			}
+			name := sTyp.Name
+			vals[i] = fmt.Sprintf("%s: %s", name, reflectionValue(value.Field(i)))
+		}
+		return fmt.Sprintf("%s{%s}", value.Type(), strings.Join(vals, ", "))
+	case reflect.Array, reflect.Slice:
+		vals := sliceReflectionValue(value)
+		return fmt.Sprintf("[%s]", strings.Join(vals, ", "))
+	}
+	return ""
+}
+
+func sliceReflectionValue(value reflect.Value) []string {
+	length := value.Len()
+	vals := make([]string, length, length)
+	for i := 0; i < length; i++ {
+		vals[i] = reflectionValue(value.Index(i))
+	}
+	return vals
 }
 
 func (m *ModuleBase) ComponentDepsMutator(BottomUpMutatorContext) {}
