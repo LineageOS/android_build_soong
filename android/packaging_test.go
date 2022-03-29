@@ -95,7 +95,7 @@ func (m *packageTestModule) DepsMutator(ctx BottomUpMutatorContext) {
 
 func (m *packageTestModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 	zipFile := PathForModuleOut(ctx, "myzip.zip")
-	m.entries = m.CopyDepsToZip(ctx, zipFile)
+	m.entries = m.CopyDepsToZip(ctx, m.GatherPackagingSpecs(ctx), zipFile)
 }
 
 func runPackagingTest(t *testing.T, multitarget bool, bp string, expected []string) {
