@@ -40,6 +40,8 @@ type PackagingSpec struct {
 	executable bool
 
 	effectiveLicenseFiles *Paths
+
+	partition string
 }
 
 // Get file name of installed package
@@ -67,6 +69,10 @@ func (p *PackagingSpec) EffectiveLicenseFiles() Paths {
 	return *p.effectiveLicenseFiles
 }
 
+func (p *PackagingSpec) Partition() string {
+	return p.partition
+}
+
 type PackageModule interface {
 	Module
 	packagingBase() *PackagingBase
@@ -76,11 +82,14 @@ type PackageModule interface {
 	// be copied to a zip in CopyDepsToZip, `depTag` should implement PackagingItem marker interface.
 	AddDeps(ctx BottomUpMutatorContext, depTag blueprint.DependencyTag)
 
+	// GatherPackagingSpecs gathers PackagingSpecs of transitive dependencies.
+	GatherPackagingSpecs(ctx ModuleContext) map[string]PackagingSpec
+
 	// CopyDepsToZip zips the built artifacts of the dependencies into the given zip file and
 	// returns zip entries in it. This is expected to be called in GenerateAndroidBuildActions,
 	// followed by a build rule that unzips it and creates the final output (img, zip, tar.gz,
 	// etc.) from the extracted files
-	CopyDepsToZip(ctx ModuleContext, zipOut WritablePath) []string
+	CopyDepsToZip(ctx ModuleContext, specs map[string]PackagingSpec, zipOut WritablePath) []string
 }
 
 // PackagingBase provides basic functionality for packaging dependencies. A module is expected to
@@ -211,7 +220,7 @@ func (p *PackagingBase) AddDeps(ctx BottomUpMutatorContext, depTag blueprint.Dep
 	}
 }
 
-// Returns transitive PackagingSpecs from deps
+// See PackageModule.GatherPackagingSpecs
 func (p *PackagingBase) GatherPackagingSpecs(ctx ModuleContext) map[string]PackagingSpec {
 	m := make(map[string]PackagingSpec)
 	ctx.VisitDirectDeps(func(child Module) {
@@ -229,10 +238,10 @@ func (p *PackagingBase) GatherPackagingSpecs(ctx ModuleContext) map[string]Packa
 
 // CopySpecsToDir is a helper that will add commands to the rule builder to copy the PackagingSpec
 // entries into the specified directory.
-func (p *PackagingBase) CopySpecsToDir(ctx ModuleContext, builder *RuleBuilder, m map[string]PackagingSpec, dir ModuleOutPath) (entries []string) {
+func (p *PackagingBase) CopySpecsToDir(ctx ModuleContext, builder *RuleBuilder, specs map[string]PackagingSpec, dir ModuleOutPath) (entries []string) {
 	seenDir := make(map[string]bool)
-	for _, k := range SortedStringKeys(m) {
-		ps := m[k]
+	for _, k := range SortedStringKeys(specs) {
+		ps := specs[k]
 		destPath := dir.Join(ctx, ps.relPathInPackage).String()
 		destDir := filepath.Dir(destPath)
 		entries = append(entries, ps.relPathInPackage)
@@ -254,14 +263,13 @@ func (p *PackagingBase) CopySpecsToDir(ctx ModuleContext, builder *RuleBuilder, 
 }
 
 // See PackageModule.CopyDepsToZip
-func (p *PackagingBase) CopyDepsToZip(ctx ModuleContext, zipOut WritablePath) (entries []string) {
-	m := p.GatherPackagingSpecs(ctx)
+func (p *PackagingBase) CopyDepsToZip(ctx ModuleContext, specs map[string]PackagingSpec, zipOut WritablePath) (entries []string) {
 	builder := NewRuleBuilder(pctx, ctx)
 
 	dir := PathForModuleOut(ctx, ".zip")
 	builder.Command().Text("rm").Flag("-rf").Text(dir.String())
 	builder.Command().Text("mkdir").Flag("-p").Text(dir.String())
-	entries = p.CopySpecsToDir(ctx, builder, m, dir)
+	entries = p.CopySpecsToDir(ctx, builder, specs, dir)
 
 	builder.Command().
 		BuiltTool("soong_zip").
