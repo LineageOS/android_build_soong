@@ -226,7 +226,7 @@ func (f *filesystem) buildRootZip(ctx android.ModuleContext) android.OutputPath 
 
 func (f *filesystem) buildImageUsingBuildImage(ctx android.ModuleContext) android.OutputPath {
 	depsZipFile := android.PathForModuleOut(ctx, "deps.zip").OutputPath
-	f.CopyDepsToZip(ctx, depsZipFile)
+	f.CopyDepsToZip(ctx, f.GatherPackagingSpecs(ctx), depsZipFile)
 
 	builder := android.NewRuleBuilder(pctx, ctx)
 	depsBase := proptools.StringDefault(f.properties.Base_dir, ".")
@@ -345,7 +345,7 @@ func (f *filesystem) buildCpioImage(ctx android.ModuleContext, compressed bool) 
 	}
 
 	depsZipFile := android.PathForModuleOut(ctx, "deps.zip").OutputPath
-	f.CopyDepsToZip(ctx, depsZipFile)
+	f.CopyDepsToZip(ctx, f.GatherPackagingSpecs(ctx), depsZipFile)
 
 	builder := android.NewRuleBuilder(pctx, ctx)
 	depsBase := proptools.StringDefault(f.properties.Base_dir, ".")

@@ -3163,6 +3163,7 @@ func (m *moduleContext) packageFile(fullInstallPath InstallPath, srcPath Path, e
 		symlinkTarget:         "",
 		executable:            executable,
 		effectiveLicenseFiles: &licenseFiles,
+		partition:             fullInstallPath.partition,
 	}
 	m.packagingSpecs = append(m.packagingSpecs, spec)
 	return spec
@@ -3280,6 +3281,7 @@ func (m *moduleContext) InstallSymlink(installPath InstallPath, name string, src
 		srcPath:          nil,
 		symlinkTarget:    relPath,
 		executable:       false,
+		partition:        fullInstallPath.partition,
 	})
 
 	return fullInstallPath
@@ -3320,6 +3322,7 @@ func (m *moduleContext) InstallAbsoluteSymlink(installPath InstallPath, name str
 		srcPath:          nil,
 		symlinkTarget:    absPath,
 		executable:       false,
+		partition:        fullInstallPath.partition,
 	})
 
 	return fullInstallPath
