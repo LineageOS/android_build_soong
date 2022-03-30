@@ -358,6 +358,39 @@ Lacme/items/Lever;->size:I
                 self.assertEqual(
                     expected_contents, contents, msg=f"{path} contents")
 
+    def test_compute_hiddenapi_package_properties(self):
+        fs = {
+            "out/soong/.intermediates/bcpf-dir/bcpf/all-flags.csv":
+                """
+La/b/C;->m()V
+La/b/c/D;->m()V
+La/b/c/E;->m()V
+Lb/c/D;->m()V
+Lb/c/E;->m()V
+Lb/c/d/E;->m()V
+""",
+            "out/soong/hiddenapi/hiddenapi-flags.csv":
+                """
+La/b/C;->m()V
+La/b/D;->m()V
+La/b/E;->m()V
+La/b/c/D;->m()V
+La/b/c/E;->m()V
+La/b/c/d/E;->m()V
+Lb/c/D;->m()V
+Lb/c/E;->m()V
+Lb/c/d/E;->m()V
+"""
+        }
+        analyzer = self.create_analyzer_for_test(fs)
+        analyzer.load_all_flags()
+
+        split_packages, single_packages, package_prefixes = \
+            analyzer.compute_hiddenapi_package_properties()
+        self.assertEqual(["a.b"], split_packages)
+        self.assertEqual(["a.b.c"], single_packages)
+        self.assertEqual(["b"], package_prefixes)
+
 
 class TestHiddenApiPropertyChange(unittest.TestCase):
 
@@ -481,6 +514,133 @@ bootclasspath_fragment {
             "android.system",
         ],
 
+    },
+}
+""")
+
+    def test_set_property_with_value_and_comment(self):
+        change = ab.HiddenApiPropertyChange(
+            property_name="split_packages",
+            values=["another.provider", "other.system"],
+            property_comment=_MULTI_LINE_COMMENT,
+            action=ab.PropertyChangeAction.REPLACE,
+        )
+
+        self.check_change_snippet(
+            change, """
+        // Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut arcu
+        // justo, bibendum eu malesuada vel, fringilla in odio. Etiam gravida
+        // ultricies sem tincidunt luctus.
+        split_packages: [
+            "another.provider",
+            "other.system",
+        ],
+""")
+
+        self.check_change_fix(
+            change, """
+bootclasspath_fragment {
+    name: "bcpf",
+
+    // modified by the Soong or platform compat team.
+    hidden_api: {
+        max_target_o_low_priority: ["hiddenapi/hiddenapi-max-target-o-low-priority.txt"],
+        split_packages: [
+            "another.provider",
+            "other.system",
+        ],
+    },
+}
+""", """
+bootclasspath_fragment {
+    name: "bcpf",
+
+    // modified by the Soong or platform compat team.
+    hidden_api: {
+        max_target_o_low_priority: ["hiddenapi/hiddenapi-max-target-o-low-priority.txt"],
+
+        // Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut arcu
+        // justo, bibendum eu malesuada vel, fringilla in odio. Etiam gravida
+        // ultricies sem tincidunt luctus.
+        split_packages: [
+            "another.provider",
+            "other.system",
+        ],
+    },
+}
+""")
+
+    def test_set_property_with_no_value_or_comment(self):
+        change = ab.HiddenApiPropertyChange(
+            property_name="split_packages",
+            values=[],
+            action=ab.PropertyChangeAction.REPLACE,
+        )
+
+        self.check_change_snippet(change, """
+        split_packages: [],
+""")
+
+        self.check_change_fix(
+            change, """
+bootclasspath_fragment {
+    name: "bcpf",
+
+    // modified by the Soong or platform compat team.
+    hidden_api: {
+        max_target_o_low_priority: ["hiddenapi/hiddenapi-max-target-o-low-priority.txt"],
+        split_packages: [
+            "another.provider",
+            "other.system",
+        ],
+        package_prefixes: ["android.provider"],
+    },
+}
+""", """
+bootclasspath_fragment {
+    name: "bcpf",
+
+    // modified by the Soong or platform compat team.
+    hidden_api: {
+        max_target_o_low_priority: ["hiddenapi/hiddenapi-max-target-o-low-priority.txt"],
+        split_packages: [],
+        package_prefixes: ["android.provider"],
+    },
+}
+""")
+
+    def test_set_empty_property_with_no_value_or_comment(self):
+        change = ab.HiddenApiPropertyChange(
+            property_name="split_packages",
+            values=[],
+            action=ab.PropertyChangeAction.REPLACE,
+        )
+
+        self.check_change_snippet(change, """
+        split_packages: [],
+""")
+
+        self.check_change_fix(
+            change, """
+bootclasspath_fragment {
+    name: "bcpf",
+
+    // modified by the Soong or platform compat team.
+    hidden_api: {
+        max_target_o_low_priority: ["hiddenapi/hiddenapi-max-target-o-low-priority.txt"],
+        split_packages: [],
+        package_prefixes: ["android.provider"],
+    },
+}
+""", """
+bootclasspath_fragment {
+    name: "bcpf",
+
+    // modified by the Soong or platform compat team.
+    hidden_api: {
+        max_target_o_low_priority: ["hiddenapi/hiddenapi-max-target-o-low-priority.txt"],
+        split_packages: [],
+        package_prefixes: ["android.provider"],
     },
 }
 """)
