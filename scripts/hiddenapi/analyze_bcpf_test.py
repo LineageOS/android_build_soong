@@ -20,6 +20,8 @@ import tempfile
 import unittest
 import unittest.mock
 
+import sys
+
 import analyze_bcpf as ab
 
 _FRAMEWORK_HIDDENAPI = "frameworks/base/boot/hiddenapi"
@@ -73,7 +75,8 @@ class TestAnalyzeBcpf(unittest.TestCase):
                                  fs=None,
                                  bcpf="bcpf",
                                  apex="apex",
-                                 sdk="sdk"):
+                                 sdk="sdk",
+                                 fix=False):
         if fs:
             self.populate_fs(fs)
 
@@ -86,12 +89,14 @@ class TestAnalyzeBcpf(unittest.TestCase):
         module_info = ab.ModuleInfo(modules)
 
         analyzer = ab.BcpfAnalyzer(
+            tool_path=os.path.join(out_dir, "bin"),
             top_dir=top_dir,
             out_dir=out_dir,
             product_out_dir=product_out_dir,
             bcpf=bcpf,
             apex=apex,
             sdk=sdk,
+            fix=fix,
             module_info=module_info,
         )
         analyzer.load_all_flags()
@@ -114,7 +119,7 @@ that traverses multiple lines.
    that should not be reformatted.
 """, reformatted)
 
-    def test_build_flags(self):
+    def do_test_build_flags(self, fix):
         lines = """
 ERROR: Hidden API flags are inconsistent:
 < out/soong/.intermediates/bcpf-dir/bcpf-dir/filtered-flags.csv
@@ -169,7 +174,7 @@ Lacme/test/Other;->getThing()Z,blocked
 """,
         }
 
-        analyzer = self.create_analyzer_for_test(fs)
+        analyzer = self.create_analyzer_for_test(fs, fix=fix)
 
         # Override the build_file_read_output() method to just return a fake
         # build operation.
@@ -213,6 +218,11 @@ Lacme/test/Other;->getThing()Z,blocked
             expected_property_changes,
             result.property_changes,
             msg="property changes")
+
+        return result
+
+    def test_build_flags_report(self):
+        result = self.do_test_build_flags(fix=False)
 
         expected_file_changes = [
             ab.FileChange(
@@ -268,6 +278,86 @@ Lacme/test/Other;->getThing()Z,blocked
         self.assertEqual(
             expected_file_changes, result.file_changes, msg="file_changes")
 
+    def test_build_flags_fix(self):
+        result = self.do_test_build_flags(fix=True)
+
+        expected_file_changes = [
+            ab.FileChange(
+                path="bcpf-dir/hiddenapi/"
+                "hiddenapi-max-target-o-low-priority.txt",
+                description="Created with 'bcpf' specific entries"),
+            ab.FileChange(
+                path="bcpf-dir/hiddenapi/hiddenapi-max-target-p.txt",
+                description="Added 'bcpf' specific entries"),
+            ab.FileChange(
+                path="bcpf-dir/hiddenapi/hiddenapi-max-target-q.txt",
+                description="Created with 'bcpf' specific entries"),
+            ab.FileChange(
+                path="bcpf-dir/hiddenapi/"
+                "hiddenapi-max-target-r-low-priority.txt",
+                description="Created with 'bcpf' specific entries"),
+            ab.FileChange(
+                path=_MAX_TARGET_O,
+                description="Removed 'bcpf' specific entries"),
+            ab.FileChange(
+                path=_MAX_TARGET_P,
+                description="Removed 'bcpf' specific entries"),
+            ab.FileChange(
+                path=_MAX_TARGET_Q,
+                description="Removed 'bcpf' specific entries"),
+            ab.FileChange(
+                path=_MAX_TARGET_R,
+                description="Removed 'bcpf' specific entries")
+        ]
+
+        result.file_changes.sort()
+        self.assertEqual(
+            expected_file_changes, result.file_changes, msg="file_changes")
+
+        expected_file_contents = {
+            "bcpf-dir/hiddenapi/hiddenapi-max-target-o-low-priority.txt":
+                """
+Lacme/test/Class;-><init>()V
+""",
+            "bcpf-dir/hiddenapi/hiddenapi-max-target-p.txt":
+                """
+Lacme/old/Class;->getWidget()Lacme/test/Widget;
+Lacme/test/Other;->getThing()Z
+""",
+            "bcpf-dir/hiddenapi/hiddenapi-max-target-q.txt":
+                """
+Lacme/test/Widget;-><init()V
+""",
+            "bcpf-dir/hiddenapi/hiddenapi-max-target-r-low-priority.txt":
+                """
+Lacme/test/Gadget;->NAME:Ljava/lang/String;
+""",
+            _MAX_TARGET_O:
+                """
+Lacme/items/Magnet;->size:I
+""",
+            _MAX_TARGET_P:
+                """
+Lacme/items/Rocket;->size:I
+""",
+            _MAX_TARGET_Q:
+                """
+Lacme/items/Rock;->size:I
+""",
+            _MAX_TARGET_R:
+                """
+Lacme/items/Lever;->size:I
+""",
+        }
+        for file_change in result.file_changes:
+            path = file_change.path
+            expected_contents = expected_file_contents[path].lstrip()
+            abs_path = os.path.join(self.test_dir, path)
+            with open(abs_path, "r", encoding="utf8") as tio:
+                contents = tio.read()
+                self.assertEqual(
+                    expected_contents, contents, msg=f"{path} contents")
+
 
 class TestHiddenApiPropertyChange(unittest.TestCase):
 
@@ -278,6 +368,20 @@ class TestHiddenApiPropertyChange(unittest.TestCase):
     def tearDown(self):
         # Remove the directory after the test
         shutil.rmtree(self.test_dir)
+
+    def check_change_fix(self, change, bpmodify_output, expected):
+        file = os.path.join(self.test_dir, "Android.bp")
+
+        with open(file, "w", encoding="utf8") as tio:
+            tio.write(bpmodify_output.strip("\n"))
+
+        bpmodify_runner = ab.BpModifyRunner(
+            os.path.join(os.path.dirname(sys.argv[0]), "bpmodify"))
+        change.fix_bp_file(file, "bcpf", bpmodify_runner)
+
+        with open(file, "r", encoding="utf8") as tio:
+            contents = tio.read()
+            self.assertEqual(expected.lstrip("\n"), contents)
 
     def check_change_snippet(self, change, expected):
         snippet = change.snippet("        ")
@@ -294,6 +398,33 @@ class TestHiddenApiPropertyChange(unittest.TestCase):
         split_packages: [
             "android.provider",
         ],
+""")
+
+        self.check_change_fix(
+            change, """
+bootclasspath_fragment {
+    name: "bcpf",
+
+    // modified by the Soong or platform compat team.
+    hidden_api: {
+        max_target_o_low_priority: ["hiddenapi/hiddenapi-max-target-o-low-priority.txt"],
+        split_packages: [
+            "android.provider",
+        ],
+    },
+}
+""", """
+bootclasspath_fragment {
+    name: "bcpf",
+
+    // modified by the Soong or platform compat team.
+    hidden_api: {
+        max_target_o_low_priority: ["hiddenapi/hiddenapi-max-target-o-low-priority.txt"],
+        split_packages: [
+            "android.provider",
+        ],
+    },
+}
 """)
 
     def test_change_property_with_value_and_comment(self):
@@ -313,17 +444,45 @@ class TestHiddenApiPropertyChange(unittest.TestCase):
         ],
 """)
 
-    def test_change_without_value_or_empty_comment(self):
-        change = ab.HiddenApiPropertyChange(
-            property_name="split_packages",
-            values=[],
-            property_comment="Single line comment.",
-        )
-
-        self.check_change_snippet(
+        self.check_change_fix(
             change, """
-        // Single line comment.
-        split_packages: [],
+bootclasspath_fragment {
+    name: "bcpf",
+
+    // modified by the Soong or platform compat team.
+    hidden_api: {
+        max_target_o_low_priority: ["hiddenapi/hiddenapi-max-target-o-low-priority.txt"],
+        split_packages: [
+            "android.provider",
+        ],
+
+        single_packages: [
+            "android.system",
+        ],
+
+    },
+}
+""", """
+bootclasspath_fragment {
+    name: "bcpf",
+
+    // modified by the Soong or platform compat team.
+    hidden_api: {
+        max_target_o_low_priority: ["hiddenapi/hiddenapi-max-target-o-low-priority.txt"],
+
+        // Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut arcu
+        // justo, bibendum eu malesuada vel, fringilla in odio. Etiam gravida
+        // ultricies sem tincidunt luctus.
+        split_packages: [
+            "android.provider",
+        ],
+
+        single_packages: [
+            "android.system",
+        ],
+
+    },
+}
 """)
 
 
