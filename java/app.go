@@ -1456,7 +1456,8 @@ func androidAppCertificateBp2Build(ctx android.TopDownMutatorContext, module *An
 }
 
 type bazelAndroidAppAttributes struct {
-	*javaLibraryAttributes
+	*javaCommonAttributes
+	Deps             bazel.LabelListAttribute
 	Manifest         bazel.Label
 	Custom_package   *string
 	Resource_files   bazel.LabelListAttribute
@@ -1466,7 +1467,16 @@ type bazelAndroidAppAttributes struct {
 
 // ConvertWithBp2build is used to convert android_app to Bazel.
 func (a *AndroidApp) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
-	libAttrs := a.convertLibraryAttrsBp2Build(ctx)
+	commonAttrs, depLabels := a.convertLibraryAttrsBp2Build(ctx)
+
+	deps := depLabels.Deps
+	if !commonAttrs.Srcs.IsEmpty() {
+		deps.Append(depLabels.StaticDeps) // we should only append these if there are sources to use them
+	} else if !deps.IsEmpty() || !depLabels.StaticDeps.IsEmpty() {
+		ctx.ModuleErrorf("android_app has dynamic or static dependencies but no sources." +
+			" Bazel does not allow direct dependencies without sources nor exported" +
+			" dependencies on android_binary rule.")
+	}
 
 	manifest := proptools.StringDefault(a.aaptProperties.Manifest, "AndroidManifest.xml")
 
@@ -1489,7 +1499,8 @@ func (a *AndroidApp) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 	}
 
 	attrs := &bazelAndroidAppAttributes{
-		libAttrs,
+		commonAttrs,
+		deps,
 		android.BazelLabelForModuleSrcSingle(ctx, manifest),
 		// TODO(b/209576404): handle package name override by product variable PRODUCT_MANIFEST_PACKAGE_NAME_OVERRIDES
 		a.overridableAppProperties.Package_name,
