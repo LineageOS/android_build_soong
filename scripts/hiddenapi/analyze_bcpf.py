@@ -98,6 +98,33 @@ class ModuleInfo:
         return paths[0]
 
 
+def extract_indent(line):
+    return re.match(r"([ \t]*)", line).group(1)
+
+
+_SPECIAL_PLACEHOLDER: str = "SPECIAL_PLACEHOLDER"
+
+
+@dataclasses.dataclass
+class BpModifyRunner:
+
+    bpmodify_path: str
+
+    def add_values_to_property(self, property_name, values, module_name,
+                               bp_file):
+        cmd = [
+            self.bpmodify_path, "-a", values, "-property", property_name, "-m",
+            module_name, "-w", bp_file, bp_file
+        ]
+
+        logging.debug(" ".join(cmd))
+        subprocess.run(
+            cmd,
+            stderr=subprocess.STDOUT,
+            stdout=log_stream_for_subprocess(),
+            check=True)
+
+
 @dataclasses.dataclass
 class FileChange:
     path: str
@@ -129,6 +156,95 @@ class HiddenApiPropertyChange:
         snippet += "],\n"
         return snippet
 
+    def fix_bp_file(self, bcpf_bp_file, bcpf, bpmodify_runner: BpModifyRunner):
+        # Add an additional placeholder value to identify the modification that
+        # bpmodify makes.
+        bpmodify_values = [_SPECIAL_PLACEHOLDER]
+        bpmodify_values.extend(self.values)
+
+        packages = ",".join(bpmodify_values)
+        bpmodify_runner.add_values_to_property(
+            f"hidden_api.{self.property_name}", packages, bcpf, bcpf_bp_file)
+
+        with open(bcpf_bp_file, "r", encoding="utf8") as tio:
+            lines = tio.readlines()
+            lines = [line.rstrip("\n") for line in lines]
+
+        if self.fixup_bpmodify_changes(bcpf_bp_file, lines):
+            with open(bcpf_bp_file, "w", encoding="utf8") as tio:
+                for line in lines:
+                    print(line, file=tio)
+
+    def fixup_bpmodify_changes(self, bcpf_bp_file, lines):
+        # Find the line containing the placeholder that has been inserted.
+        place_holder_index = -1
+        for i, line in enumerate(lines):
+            if _SPECIAL_PLACEHOLDER in line:
+                place_holder_index = i
+                break
+        if place_holder_index == -1:
+            logging.debug("Could not find %s in %s", _SPECIAL_PLACEHOLDER,
+                          bcpf_bp_file)
+            return False
+
+        # Remove the place holder. Do this before inserting the comment as that
+        # would change the location of the place holder in the list.
+        place_holder_line = lines[place_holder_index]
+        if place_holder_line.endswith("],"):
+            place_holder_line = place_holder_line.replace(
+                f'"{_SPECIAL_PLACEHOLDER}"', "")
+            lines[place_holder_index] = place_holder_line
+        else:
+            del lines[place_holder_index]
+
+        # Scan forward to the end of the property block to remove a blank line
+        # that bpmodify inserts.
+        end_property_array_index = -1
+        for i in range(place_holder_index, len(lines)):
+            line = lines[i]
+            if line.endswith("],"):
+                end_property_array_index = i
+                break
+        if end_property_array_index == -1:
+            logging.debug("Could not find end of property array in %s",
+                          bcpf_bp_file)
+            return False
+
+        # If bdmodify inserted a blank line afterwards then remove it.
+        if (not lines[end_property_array_index + 1] and
+                lines[end_property_array_index + 2].endswith("},")):
+            del lines[end_property_array_index + 1]
+
+        # Scan back to find the preceding property line.
+        property_line_index = -1
+        for i in range(place_holder_index, 0, -1):
+            line = lines[i]
+            if line.lstrip().startswith(f"{self.property_name}: ["):
+                property_line_index = i
+                break
+        if property_line_index == -1:
+            logging.debug("Could not find property line in %s", bcpf_bp_file)
+            return False
+
+        # Only insert a comment if the property does not already have a comment.
+        line_preceding_property = lines[(property_line_index - 1)]
+        if (self.property_comment and
+                not re.match("([ \t]+)// ", line_preceding_property)):
+            # Extract the indent from the property line and use it to format the
+            # comment.
+            indent = extract_indent(lines[property_line_index])
+            comment_lines = format_comment_as_lines(self.property_comment,
+                                                    indent)
+
+            # If the line before the comment is not blank then insert an extra
+            # blank line at the beginning of the comment.
+            if line_preceding_property:
+                comment_lines.insert(0, "")
+
+            # Insert the comment before the property.
+            lines[property_line_index:property_line_index] = comment_lines
+        return True
+
 
 @dataclasses.dataclass()
 class Result:
@@ -148,6 +264,9 @@ class Result:
 
 @dataclasses.dataclass()
 class BcpfAnalyzer:
+    # Path to this tool.
+    tool_path: str
+
     # Directory pointed to by ANDROID_BUILD_OUT
     top_dir: str
 
@@ -167,6 +286,10 @@ class BcpfAnalyzer:
     # The name of the sdk module containing {bcpf}, only used for
     # informational purposes.
     sdk: str
+
+    # If true then this will attempt to automatically fix any issues that are
+    # found.
+    fix: bool = False
 
     # All the signatures, loaded from all-flags.csv, initialized by
     # load_all_flags().
@@ -354,20 +477,34 @@ Cleaning potentially stale files.
         self.build_monolithic_flags(result)
 
         # If there were any changes that need to be made to the Android.bp
-        # file then report them.
+        # file then either apply or report them.
         if result.property_changes:
             bcpf_dir = self.module_info.module_path(self.bcpf)
             bcpf_bp_file = os.path.join(self.top_dir, bcpf_dir, "Android.bp")
-            hiddenapi_snippet = ""
-            for property_change in result.property_changes:
-                hiddenapi_snippet += property_change.snippet("        ")
+            if self.fix:
+                tool_dir = os.path.dirname(self.tool_path)
+                bpmodify_path = os.path.join(tool_dir, "bpmodify")
+                bpmodify_runner = BpModifyRunner(bpmodify_path)
+                for property_change in result.property_changes:
+                    property_change.fix_bp_file(bcpf_bp_file, self.bcpf,
+                                                bpmodify_runner)
 
-            # Remove leading and trailing blank lines.
-            hiddenapi_snippet = hiddenapi_snippet.strip("\n")
+                result.file_changes.append(
+                    self.new_file_change(
+                        bcpf_bp_file,
+                        f"Updated hidden_api properties of '{self.bcpf}'"))
 
-            result.file_changes.append(
-                self.new_file_change(
-                    bcpf_bp_file, f"""
+            else:
+                hiddenapi_snippet = ""
+                for property_change in result.property_changes:
+                    hiddenapi_snippet += property_change.snippet("        ")
+
+                # Remove leading and trailing blank lines.
+                hiddenapi_snippet = hiddenapi_snippet.strip("\n")
+
+                result.file_changes.append(
+                    self.new_file_change(
+                        bcpf_bp_file, f"""
 Add the following snippet into the {self.bcpf} bootclasspath_fragment module
 in the {bcpf_dir}/Android.bp file. If the hidden_api block already exists then
 merge these properties into it.
@@ -378,14 +515,27 @@ merge these properties into it.
 """))
 
         if result.file_changes:
-            self.report("""
-The following modifications need to be made:""")
+            if self.fix:
+                file_change_message = """
+The following files were modified by this script:"""
+            else:
+                file_change_message = """
+The following modifications need to be made:"""
+
+            self.report(f"""
+{file_change_message}""")
             result.file_changes.sort()
             for file_change in result.file_changes:
                 self.report(f"""
     {file_change.path}
         {file_change.description}
 """.lstrip("\n"))
+
+            if not self.fix:
+                self.report("""
+Run the command again with the --fix option to automatically make the above
+changes.
+""".lstrip())
 
     def new_file_change(self, file, description):
         return FileChange(
@@ -665,6 +815,81 @@ Checking custom hidden API flags....
                     values=[rel_bcpf_flags_file],
                 ))
 
+    def fix_hidden_api_flag_files(self, result, property_name, flags_file,
+                                  rel_bcpf_flags_file, bcpf_flags_file):
+        # Read the file in frameworks/base/boot/hiddenapi/<file> copy any
+        # flags that relate to the bootclasspath_fragment into a local
+        # file in the hiddenapi subdirectory.
+        tmp_flags_file = flags_file + ".tmp"
+
+        # Make sure the directory containing the bootclasspath_fragment specific
+        # hidden api flags exists.
+        os.makedirs(os.path.dirname(bcpf_flags_file), exist_ok=True)
+
+        bcpf_flags_file_exists = os.path.exists(bcpf_flags_file)
+
+        matched_signatures = set()
+        # Open the flags file to read the flags from.
+        with open(flags_file, "r", encoding="utf8") as f:
+            # Open a temporary file to write the flags (minus any removed
+            # flags).
+            with open(tmp_flags_file, "w", encoding="utf8") as t:
+                # Open the bootclasspath_fragment file for append just in
+                # case it already exists.
+                with open(bcpf_flags_file, "a", encoding="utf8") as b:
+                    for line in iter(f.readline, ""):
+                        signature = line.rstrip()
+                        if signature in self.signatures:
+                            # The signature is provided by the
+                            # bootclasspath_fragment so write it to the new
+                            # bootclasspath_fragment specific file.
+                            print(line, file=b, end="")
+                            matched_signatures.add(signature)
+                        else:
+                            # The signature is NOT provided by the
+                            # bootclasspath_fragment. Copy it to the new
+                            # monolithic file.
+                            print(line, file=t, end="")
+
+        # If the bootclasspath_fragment specific flags file is not empty
+        # then it contains flags. That could either be new flags just moved
+        # from frameworks/base or previous contents of the file. In either
+        # case the file must not be removed.
+        if matched_signatures:
+            # There are custom flags related to the bootclasspath_fragment
+            # so replace the frameworks/base/boot/hiddenapi file with the
+            # file that does not contain those flags.
+            shutil.move(tmp_flags_file, flags_file)
+
+            result.file_changes.append(
+                self.new_file_change(flags_file,
+                                     f"Removed '{self.bcpf}' specific entries"))
+
+            result.property_changes.append(
+                HiddenApiPropertyChange(
+                    property_name=property_name,
+                    values=[rel_bcpf_flags_file],
+                ))
+
+            # Make sure that the files are sorted.
+            self.run_command([
+                "tools/platform-compat/hiddenapi/sort_api.sh",
+                bcpf_flags_file,
+            ])
+
+            if bcpf_flags_file_exists:
+                desc = f"Added '{self.bcpf}' specific entries"
+            else:
+                desc = f"Created with '{self.bcpf}' specific entries"
+            result.file_changes.append(
+                self.new_file_change(bcpf_flags_file, desc))
+        else:
+            # There are no custom flags related to the
+            # bootclasspath_fragment so clean up the working files.
+            os.remove(tmp_flags_file)
+            if not bcpf_flags_file_exists:
+                os.remove(bcpf_flags_file)
+
     def check_frameworks_base_boot_hidden_api_files(self, result):
         hiddenapi_dir = os.path.join(self.top_dir,
                                      "frameworks/base/boot/hiddenapi")
@@ -695,10 +920,14 @@ Checking custom hidden API flags....
             bcpf_flags_file = os.path.join(self.top_dir, bcpf_dir,
                                            rel_bcpf_flags_file)
 
-            self.report_hidden_api_flag_file_changes(result, property_name,
-                                                     flags_file,
-                                                     rel_bcpf_flags_file,
-                                                     bcpf_flags_file)
+            if self.fix:
+                self.fix_hidden_api_flag_files(result, property_name,
+                                               flags_file, rel_bcpf_flags_file,
+                                               bcpf_flags_file)
+            else:
+                self.report_hidden_api_flag_file_changes(
+                    result, property_name, flags_file, rel_bcpf_flags_file,
+                    bcpf_flags_file)
 
 
 def newline_stripping_iter(iterator):
@@ -750,6 +979,11 @@ def main(argv):
         "allow this script to give more useful messages and it may be"
         "required in future.",
         default="SPECIFY-SDK-OPTION")
+    args_parser.add_argument(
+        "--fix",
+        help="Attempt to fix any issues found automatically.",
+        action="store_true",
+        default=False)
     args = args_parser.parse_args(argv[1:])
     top_dir = os.environ["ANDROID_BUILD_TOP"] + "/"
     out_dir = os.environ.get("OUT_DIR", os.path.join(top_dir, "out"))
@@ -778,12 +1012,14 @@ def main(argv):
         print(f"Writing log to {abs_log_file}")
         try:
             analyzer = BcpfAnalyzer(
+                tool_path=argv[0],
                 top_dir=top_dir,
                 out_dir=out_dir,
                 product_out_dir=product_out_dir,
                 bcpf=args.bcpf,
                 apex=args.apex,
                 sdk=args.sdk,
+                fix=args.fix,
             )
             analyzer.analyze()
         finally:
