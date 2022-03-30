@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
@@ -62,6 +63,11 @@ type hostSnapshot struct {
 	installDir android.InstallPath
 }
 
+type ProcMacro interface {
+	ProcMacro() bool
+	CrateName() string
+}
+
 func hostSnapshotFactory() android.Module {
 	module := &hostSnapshot{}
 	initHostToolsModule(module)
@@ -94,7 +100,7 @@ func (f *hostSnapshot) CreateMetaData(ctx android.ModuleContext, fileName string
 
 	// Create JSON file based on the direct dependencies
 	ctx.VisitDirectDeps(func(dep android.Module) {
-		desc := hostBinJsonDesc(dep)
+		desc := hostJsonDesc(dep)
 		if desc != nil {
 			jsonData = append(jsonData, *desc)
 		}
@@ -145,7 +151,7 @@ func (f *hostSnapshot) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	f.installDir = android.PathForModuleInstall(ctx)
 
-	f.CopyDepsToZip(ctx, depsZipFile)
+	f.CopyDepsToZip(ctx, f.GatherPackagingSpecs(ctx), depsZipFile)
 
 	builder := android.NewRuleBuilder(pctx, ctx)
 	builder.Command().
@@ -183,7 +189,7 @@ func (f *hostSnapshot) AndroidMkEntries() []android.AndroidMkEntries {
 }
 
 // Get host tools path and relative install string helpers
-func hostBinToolPath(m android.Module) android.OptionalPath {
+func hostToolPath(m android.Module) android.OptionalPath {
 	if provider, ok := m.(android.HostToolProvider); ok {
 		return provider.HostToolPath()
 	}
@@ -198,18 +204,30 @@ func hostRelativePathString(m android.Module) string {
 	return outString
 }
 
-// Create JSON description for given module, only create descriptions for binary modueles which
-// provide a valid HostToolPath
-func hostBinJsonDesc(m android.Module) *SnapshotJsonFlags {
-	path := hostBinToolPath(m)
+// Create JSON description for given module, only create descriptions for binary modules
+// and rust_proc_macro modules which provide a valid HostToolPath
+func hostJsonDesc(m android.Module) *SnapshotJsonFlags {
+	path := hostToolPath(m)
 	relPath := hostRelativePathString(m)
+	procMacro := false
+	moduleStem := filepath.Base(path.String())
+	crateName := ""
+
+	if pm, ok := m.(ProcMacro); ok && pm.ProcMacro() {
+		procMacro = pm.ProcMacro()
+		moduleStem = strings.TrimSuffix(moduleStem, filepath.Ext(moduleStem))
+		crateName = pm.CrateName()
+	}
+
 	if path.Valid() && path.String() != "" {
 		return &SnapshotJsonFlags{
 			ModuleName:          m.Name(),
-			ModuleStemName:      filepath.Base(path.String()),
+			ModuleStemName:      moduleStem,
 			Filename:            path.String(),
 			Required:            append(m.HostRequiredModuleNames(), m.RequiredModuleNames()...),
 			RelativeInstallPath: relPath,
+			RustProcMacro:       procMacro,
+			CrateName:           crateName,
 		}
 	}
 	return nil
