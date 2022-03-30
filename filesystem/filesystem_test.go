@@ -45,11 +45,11 @@ func TestFileSystemDeps(t *testing.T) {
 
 func TestFileSystemFillsLinkerConfigWithStubLibs(t *testing.T) {
 	result := fixture.RunTestWithBp(t, `
-	        android_system_image {
+		android_system_image {
 			name: "myfilesystem",
 			deps: [
 				"libfoo",
-                                "libbar",
+				"libbar",
 			],
 			linker_config_src: "linker.config.json",
 		}
@@ -73,4 +73,55 @@ func TestFileSystemFillsLinkerConfigWithStubLibs(t *testing.T) {
 		output.RuleParams.Command, "libfoo.so")
 	android.AssertStringDoesNotContain(t, "linker.config.pb should not have libbar",
 		output.RuleParams.Command, "libbar.so")
+}
+
+func registerComponent(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("component", componentFactory)
+}
+
+func componentFactory() android.Module {
+	m := &component{}
+	m.AddProperties(&m.properties)
+	android.InitAndroidArchModule(m, android.DeviceSupported, android.MultilibCommon)
+	return m
+}
+
+type component struct {
+	android.ModuleBase
+	properties struct {
+		Install_copy_in_data []string
+	}
+}
+
+func (c *component) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	output := android.PathForModuleOut(ctx, c.Name())
+	dir := android.PathForModuleInstall(ctx, "components")
+	ctx.InstallFile(dir, c.Name(), output)
+
+	dataDir := android.PathForModuleInPartitionInstall(ctx, "data", "components")
+	for _, d := range c.properties.Install_copy_in_data {
+		ctx.InstallFile(dataDir, d, output)
+	}
+}
+
+func TestFileSystemGathersItemsOnlyInSystemPartition(t *testing.T) {
+	f := android.GroupFixturePreparers(fixture, android.FixtureRegisterWithContext(registerComponent))
+	result := f.RunTestWithBp(t, `
+		android_system_image {
+			name: "myfilesystem",
+			multilib: {
+				common: {
+					deps: ["foo"],
+				},
+			},
+			linker_config_src: "linker.config.json",
+		}
+		component {
+			name: "foo",
+			install_copy_in_data: ["bar"],
+		}
+	`)
+
+	module := result.ModuleForTests("myfilesystem", "android_common").Module().(*systemImage)
+	android.AssertDeepEquals(t, "entries should have foo only", []string{"components/foo"}, module.entries)
 }
