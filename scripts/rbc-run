@@ -6,8 +6,8 @@
 set -eu
 
 declare -r output_root="${OUT_DIR:-out}"
-declare -r runner="${output_root}/soong/rbcrun"
-declare -r converter="${output_root}/soong/mk2rbc"
+declare -r runner="${output_root}/rbcrun"
+declare -r converter="${output_root}/mk2rbc"
 declare -r launcher="${output_root}/rbc/launcher.rbc"
 declare -r makefile_list="${output_root}/.module_paths/configuration.list"
 declare -r makefile="$1"
