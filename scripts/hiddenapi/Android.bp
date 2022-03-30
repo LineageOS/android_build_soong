@@ -22,6 +22,8 @@ python_binary_host {
     name: "analyze_bcpf",
     main: "analyze_bcpf.py",
     srcs: ["analyze_bcpf.py"],
+    // Make sure that the bpmodify tool is built.
+    data: [":bpmodify"],
     libs: [
         "signature_trie",
     ],
@@ -43,6 +45,8 @@ python_test_host {
         "analyze_bcpf.py",
         "analyze_bcpf_test.py",
     ],
+    // Make sure that the bpmodify tool is built.
+    data: [":bpmodify"],
     libs: [
         "signature_trie",
     ],

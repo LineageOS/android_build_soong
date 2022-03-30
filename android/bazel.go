@@ -509,6 +509,9 @@ var (
 
 		"brotli-fuzzer-corpus", // b/202015218: outputs are in location incompatible with bazel genrule handling.
 
+		// python modules
+		"analyze_bcpf", // depends on bpmodify a blueprint_go_binary.
+
 		// b/203369847: multiple genrules in the same package creating the same file
 		// //development/sdk/...
 		"platform_tools_properties",
