@@ -65,6 +65,14 @@ type LabelList struct {
 	Excludes []Label
 }
 
+// MakeLabelList creates a LabelList from a list Label
+func MakeLabelList(labels []Label) LabelList {
+	return LabelList{
+		Includes: labels,
+		Excludes: nil,
+	}
+}
+
 func (ll *LabelList) Equals(other LabelList) bool {
 	if len(ll.Includes) != len(other.Includes) || len(ll.Excludes) != len(other.Excludes) {
 		return false
@@ -352,6 +360,15 @@ func (la *LabelAttribute) SortedConfigurationAxes() []ConfigurationAxis {
 
 	sort.Slice(keys, func(i, j int) bool { return keys[i].less(keys[j]) })
 	return keys
+}
+
+// MakeLabelAttribute turns a string into a LabelAttribute
+func MakeLabelAttribute(label string) *LabelAttribute {
+	return &LabelAttribute{
+		Value: &Label{
+			Label: label,
+		},
+	}
 }
 
 type configToBools map[string]bool
