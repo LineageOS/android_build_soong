@@ -58,27 +58,32 @@ type PluginProperties struct {
 }
 
 type pluginAttributes struct {
-	*javaLibraryAttributes
-	Processor_class        *string
-	Target_compatible_with bazel.LabelListAttribute
+	*javaCommonAttributes
+	Deps            bazel.LabelListAttribute
+	Processor_class *string
 }
 
 // ConvertWithBp2build is used to convert android_app to Bazel.
 func (p *Plugin) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
-	libAttrs := p.convertLibraryAttrsBp2Build(ctx)
-	attrs := &pluginAttributes{
-		libAttrs,
-		nil,
-		bazel.LabelListAttribute{},
+	pluginName := p.Name()
+	commonAttrs, depLabels := p.convertLibraryAttrsBp2Build(ctx)
+
+	deps := depLabels.Deps
+	deps.Append(depLabels.StaticDeps)
+
+	var processorClass *string
+	if p.pluginProperties.Processor_class != nil {
+		processorClass = p.pluginProperties.Processor_class
 	}
 
-	if p.pluginProperties.Processor_class != nil {
-		attrs.Processor_class = p.pluginProperties.Processor_class
+	attrs := &pluginAttributes{
+		javaCommonAttributes: commonAttrs,
+		Deps:                 deps,
+		Processor_class:      processorClass,
 	}
 
 	props := bazel.BazelTargetModuleProperties{
 		Rule_class: "java_plugin",
 	}
-
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: p.Name()}, attrs)
+	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: pluginName}, attrs)
 }
