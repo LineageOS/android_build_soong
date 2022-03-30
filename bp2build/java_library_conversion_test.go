@@ -22,11 +22,15 @@ import (
 	"android/soong/java"
 )
 
-func runJavaLibraryTestCase(t *testing.T, tc bp2buildTestCase) {
+func runJavaLibraryTestCaseWithRegistrationCtxFunc(t *testing.T, tc bp2buildTestCase, registrationCtxFunc func(ctx android.RegistrationContext)) {
 	t.Helper()
 	(&tc).moduleTypeUnderTest = "java_library"
 	(&tc).moduleTypeUnderTestFactory = java.LibraryFactory
-	runBp2BuildTestCase(t, func(ctx android.RegistrationContext) {}, tc)
+	runBp2BuildTestCase(t, registrationCtxFunc, tc)
+}
+
+func runJavaLibraryTestCase(t *testing.T, tc bp2buildTestCase) {
+	runJavaLibraryTestCaseWithRegistrationCtxFunc(t, tc, func(ctx android.RegistrationContext) {})
 }
 
 func TestJavaLibrary(t *testing.T) {
@@ -127,5 +131,28 @@ java_library {
     bazel_module: { bp2build_available: false },
 }`,
 		expectedBazelTargets: []string{},
+	})
+}
+
+func TestJavaLibraryPlugins(t *testing.T) {
+	runJavaLibraryTestCaseWithRegistrationCtxFunc(t, bp2buildTestCase{
+		blueprint: `java_library {
+    name: "java-lib-1",
+    plugins: ["java-plugin-1"],
+    bazel_module: { bp2build_available: true },
+}
+
+java_plugin {
+    name: "java-plugin-1",
+    srcs: ["a.java"],
+    bazel_module: { bp2build_available: false },
+}`,
+		expectedBazelTargets: []string{
+			makeBazelTarget("java_library", "java-lib-1", attrNameToString{
+				"plugins": `[":java-plugin-1"]`,
+			}),
+		},
+	}, func(ctx android.RegistrationContext) {
+		ctx.RegisterModuleType("java_plugin", java.PluginFactory)
 	})
 }
