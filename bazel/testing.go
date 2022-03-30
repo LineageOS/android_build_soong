@@ -20,86 +20,86 @@ import (
 	"github.com/google/blueprint"
 )
 
-// testModuleInfo implements blueprint.Module interface with sufficient information to mock a subset of
+// TestModuleInfo implements blueprint.Module interface with sufficient information to mock a subset of
 // a blueprint ModuleContext
-type testModuleInfo struct {
-	name string
-	typ  string
-	dir  string
+type TestModuleInfo struct {
+	ModuleName string
+	Typ        string
+	Dir        string
 }
 
 // Name returns name for testModuleInfo -- required to implement blueprint.Module
-func (mi testModuleInfo) Name() string {
-	return mi.name
+func (mi TestModuleInfo) Name() string {
+	return mi.ModuleName
 }
 
 // GenerateBuildActions unused, but required to implmeent blueprint.Module
-func (mi testModuleInfo) GenerateBuildActions(blueprint.ModuleContext) {}
+func (mi TestModuleInfo) GenerateBuildActions(blueprint.ModuleContext) {}
 
-func (mi testModuleInfo) equals(other testModuleInfo) bool {
-	return mi.name == other.name && mi.typ == other.typ && mi.dir == other.dir
+func (mi TestModuleInfo) equals(other TestModuleInfo) bool {
+	return mi.ModuleName == other.ModuleName && mi.Typ == other.Typ && mi.Dir == other.Dir
 }
 
 // ensure testModuleInfo implements blueprint.Module
-var _ blueprint.Module = testModuleInfo{}
+var _ blueprint.Module = TestModuleInfo{}
 
-// otherModuleTestContext is a mock context that implements OtherModuleContext
-type otherModuleTestContext struct {
-	modules []testModuleInfo
+// OtherModuleTestContext is a mock context that implements OtherModuleContext
+type OtherModuleTestContext struct {
+	Modules []TestModuleInfo
 	errors  []string
 }
 
 // ModuleFromName retrieves the testModuleInfo corresponding to name, if it exists
-func (omc *otherModuleTestContext) ModuleFromName(name string) (blueprint.Module, bool) {
-	for _, m := range omc.modules {
-		if m.name == name {
+func (omc *OtherModuleTestContext) ModuleFromName(name string) (blueprint.Module, bool) {
+	for _, m := range omc.Modules {
+		if m.ModuleName == name {
 			return m, true
 		}
 	}
-	return testModuleInfo{}, false
+	return TestModuleInfo{}, false
 }
 
 // testModuleInfo returns the testModuleInfo corresponding to a blueprint.Module if it exists in omc
-func (omc *otherModuleTestContext) testModuleInfo(m blueprint.Module) (testModuleInfo, bool) {
-	mi, ok := m.(testModuleInfo)
+func (omc *OtherModuleTestContext) testModuleInfo(m blueprint.Module) (TestModuleInfo, bool) {
+	mi, ok := m.(TestModuleInfo)
 	if !ok {
-		return testModuleInfo{}, false
+		return TestModuleInfo{}, false
 	}
-	for _, other := range omc.modules {
+	for _, other := range omc.Modules {
 		if other.equals(mi) {
 			return mi, true
 		}
 	}
-	return testModuleInfo{}, false
+	return TestModuleInfo{}, false
 }
 
 // OtherModuleType returns type of m if it exists in omc
-func (omc *otherModuleTestContext) OtherModuleType(m blueprint.Module) string {
+func (omc *OtherModuleTestContext) OtherModuleType(m blueprint.Module) string {
 	if mi, ok := omc.testModuleInfo(m); ok {
-		return mi.typ
+		return mi.Typ
 	}
 	return ""
 }
 
 // OtherModuleName returns name of m if it exists in omc
-func (omc *otherModuleTestContext) OtherModuleName(m blueprint.Module) string {
+func (omc *OtherModuleTestContext) OtherModuleName(m blueprint.Module) string {
 	if mi, ok := omc.testModuleInfo(m); ok {
-		return mi.name
+		return mi.ModuleName
 	}
 	return ""
 }
 
 // OtherModuleDir returns dir of m if it exists in omc
-func (omc *otherModuleTestContext) OtherModuleDir(m blueprint.Module) string {
+func (omc *OtherModuleTestContext) OtherModuleDir(m blueprint.Module) string {
 	if mi, ok := omc.testModuleInfo(m); ok {
-		return mi.dir
+		return mi.Dir
 	}
 	return ""
 }
 
-func (omc *otherModuleTestContext) ModuleErrorf(format string, args ...interface{}) {
+func (omc *OtherModuleTestContext) ModuleErrorf(format string, args ...interface{}) {
 	omc.errors = append(omc.errors, fmt.Sprintf(format, args...))
 }
 
 // Ensure otherModuleTestContext implements OtherModuleContext
-var _ OtherModuleContext = &otherModuleTestContext{}
+var _ OtherModuleContext = &OtherModuleTestContext{}
