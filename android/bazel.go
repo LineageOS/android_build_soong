@@ -393,8 +393,6 @@ var (
 	// A module can either be in this list or its directory allowlisted entirely
 	// in bp2buildDefaultConfig, but not both at the same time.
 	bp2buildModuleAlwaysConvertList = []string{
-		"prebuilt_junit-params-assertj-core",
-
 		//external/avb
 		"avbtool",
 		"libavb",
@@ -419,9 +417,11 @@ var (
 		"fec",
 	}
 
-	// Per-module-type allowlist to always opt modules in of both bp2build and mixed builds
+	// Per-module-type allowlist to always opt modules in to both bp2build and mixed builds
 	// when they have the same type as one listed.
-	bp2buildModuleTypeAlwaysConvertList = []string{}
+	bp2buildModuleTypeAlwaysConvertList = []string{
+		"java_import",
+	}
 
 	// Per-module denylist to always opt modules out of both bp2build and mixed builds.
 	bp2buildModuleDoNotConvertList = []string{
@@ -485,18 +485,12 @@ var (
 		"libprotobuf-java-full",            // b/210751803, we don't handle path property for filegroups
 		"host-libprotobuf-java-full",       // b/210751803, we don't handle path property for filegroups
 		"libprotobuf-java-util-full",       // b/210751803, we don't handle path property for filegroups
+		"apex_manifest_proto_java",         // b/210751803, depends on libprotobuf-java-full
+		"conscrypt",                        // b/210751803, we don't handle path property for filegroups
+		"conscrypt-for-host",               // b/210751803, we don't handle path property for filegroups
 
-		"conscrypt",          // b/210751803, we don't handle path property for filegroups
-		"conscrypt-for-host", // b/210751803, we don't handle path property for filegroups
-
-		"host-libprotobuf-java-lite",   // b/217236083, java_library cannot have deps without srcs
-		"host-libprotobuf-java-micro",  // b/217236083, java_library cannot have deps without srcs
-		"host-libprotobuf-java-nano",   // b/217236083, java_library cannot have deps without srcs
-		"error_prone_core",             // b/217236083, java_library cannot have deps without srcs
-		"bouncycastle-host",            // b/217236083, java_library cannot have deps without srcs
-		"mockito-robolectric-prebuilt", // b/217236083, java_library cannot have deps without srcs
-
-		"apex_manifest_proto_java", // b/215230097, we don't handle .proto files in java_library srcs attribute
+		"libprotobuf-java-nano",      // b/220869005, depends on non-public_current SDK
+		"host-libprotobuf-java-nano", // b/220869005, depends on libprotobuf-java-nano
 
 		"libc_musl_sysroot_bionic_arch_headers", // b/218405924, depends on soong_zip
 		"libc_musl_sysroot_bionic_headers",      // b/218405924, depends on soong_zip and generates duplicate srcs
@@ -566,9 +560,23 @@ var (
 		"art-script",     // depends on unconverted modules: dalvikvm, dex2oat
 		"dex2oat-script", // depends on unconverted modules: dex2oat
 
-		"error_prone_checkerframework_dataflow_nullaway", // TODO(b/219908977): "Error in fail: deps not allowed without srcs; move to runtime_deps?"
+		// TODO(b/221082840) convert java_imports in //packages/apps/Car/libs/car-ui-lib/...
+		"prebuilt_car-ui-androidx-annotation",
+		"prebuilt_car-ui-androidx-annotation-nodeps",
+		"prebuilt_car-ui-androidx-collection",
+		"prebuilt_car-ui-androidx-collection-nodeps",
+		"prebuilt_car-ui-androidx-core-common",
+		"prebuilt_car-ui-androidx-core-common-nodeps",
+		"prebuilt_car-ui-androidx-lifecycle-common",
+		"prebuilt_car-ui-androidx-lifecycle-common-nodeps",
+		"prebuilt_car-ui-androidx-constraintlayout-solver",
+		"prebuilt_car-ui-androidx-constraintlayout-solver-nodeps",
 
-		"libprotobuf-java-nano", // b/220869005, depends on non-public_current SDK
+		"prebuilt_art-module-host-exports_okhttp-norepackage@current",        // aosp/1999250, needs Jars (arch variant)
+		"prebuilt_conscrypt-unbundled",                                       // aosp/1999250, needs Jars (arch variant)
+		"prebuilt_conscrypt-module-host-exports_conscrypt-unbundled@current", // aosp/1999250, needs Jars (arch variant)
+		"prebuilt_platform-robolectric-4.4-prebuilt",                         // aosp/1999250, needs .aar support in Jars
+		"prebuilt_platform-robolectric-4.5.1-prebuilt",                       // aosp/1999250, needs .aar support in Jars
 	}
 
 	// Per-module denylist of cc_library modules to only generate the static
