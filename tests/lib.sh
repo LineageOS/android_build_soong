@@ -83,12 +83,14 @@ function symlink_directory() {
 function create_mock_soong {
   copy_directory build/blueprint
   copy_directory build/soong
+  copy_directory build/make/tools/rbcrun
 
   symlink_directory prebuilts/go
   symlink_directory prebuilts/build-tools
   symlink_directory prebuilts/clang/host
   symlink_directory external/go-cmp
   symlink_directory external/golang-protobuf
+  symlink_directory external/starlark-go
 
   touch "$MOCK_TOP/Android.bp"
 }
