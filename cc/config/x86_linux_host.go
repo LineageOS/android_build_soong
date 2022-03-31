@@ -65,7 +65,6 @@ var (
 
 	linuxMuslLdflags = []string{
 		"-nostdlib",
-		"-lgcc", "-lgcc_eh",
 		"--sysroot /dev/null",
 	}
 

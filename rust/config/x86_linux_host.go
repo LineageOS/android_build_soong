@@ -42,8 +42,6 @@ var (
 		"-nodefaultlibs",
 		"-nostdlib",
 		"-Wl,--no-dynamic-linker",
-		// for unwind
-		"-lgcc", "-lgcc_eh",
 	}
 	linuxX86Rustflags   = []string{}
 	linuxX86Linkflags   = []string{}

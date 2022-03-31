@@ -68,6 +68,12 @@ func init() {
 	registerHostSnapshotComponents(android.InitRegistrationContext)
 }
 
+// Add prebuilt information to snapshot data
+type hostSnapshotFakeJsonFlags struct {
+	SnapshotJsonFlags
+	Prebuilt bool `json:",omitempty"`
+}
+
 func registerHostSnapshotComponents(ctx android.RegistrationContext) {
 	ctx.RegisterSingletonType("host-fake-snapshot", HostToolsFakeAndroidSingleton)
 }
@@ -94,7 +100,9 @@ func (c *hostFakeSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 	// Find all host binary modules add 'fake' versions to snapshot
 	var outputs android.Paths
 	seen := make(map[string]bool)
-	var jsonData []SnapshotJsonFlags
+	var jsonData []hostSnapshotFakeJsonFlags
+	prebuilts := make(map[string]bool)
+
 	ctx.VisitAllModules(func(module android.Module) {
 		if module.Target().Os != ctx.Config().BuildOSTarget.Os {
 			return
@@ -104,9 +112,10 @@ func (c *hostFakeSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 		}
 
 		if android.IsModulePrebuilt(module) {
+			// Add non-prebuilt module name to map of prebuilts
+			prebuilts[android.RemoveOptionalPrebuiltPrefix(module.Name())] = true
 			return
 		}
-
 		if !module.Enabled() || module.IsHideFromMake() {
 			return
 		}
@@ -120,11 +129,17 @@ func (c *hostFakeSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 			if !seen[outFile] {
 				seen[outFile] = true
 				outputs = append(outputs, WriteStringToFileRule(ctx, "", outFile))
-				jsonData = append(jsonData, *hostJsonDesc(module))
+				jsonData = append(jsonData, hostSnapshotFakeJsonFlags{*hostJsonDesc(module), false})
 			}
 		}
 	})
-
+	// Update any module prebuilt information
+	for idx, _ := range jsonData {
+		if _, ok := prebuilts[jsonData[idx].ModuleName]; ok {
+			// Prebuilt exists for this module
+			jsonData[idx].Prebuilt = true
+		}
+	}
 	marsh, err := json.Marshal(jsonData)
 	if err != nil {
 		ctx.Errorf("host fake snapshot json marshal failure: %#v", err)
