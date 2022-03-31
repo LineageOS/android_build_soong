@@ -70,3 +70,39 @@ java_library {
 		},
 	})
 }
+
+func TestJavaPluginNoSrcs(t *testing.T) {
+	runJavaPluginTestCase(t, bp2buildTestCase{
+		description: "java_plugin without srcs converts (static) libs to deps",
+		blueprint: `java_plugin {
+    name: "java-plug-1",
+    libs: ["java-lib-1"],
+    static_libs: ["java-lib-2"],
+    bazel_module: { bp2build_available: true },
+}
+
+java_library {
+    name: "java-lib-1",
+    srcs: ["b.java"],
+    bazel_module: { bp2build_available: false },
+}
+
+java_library {
+    name: "java-lib-2",
+    srcs: ["c.java"],
+    bazel_module: { bp2build_available: false },
+}`,
+		expectedBazelTargets: []string{
+			makeBazelTarget("java_plugin", "java-plug-1", attrNameToString{
+				"target_compatible_with": `select({
+        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    })`,
+				"deps": `[
+        ":java-lib-1",
+        ":java-lib-2",
+    ]`,
+			}),
+		},
+	})
+}
