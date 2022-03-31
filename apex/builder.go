@@ -305,32 +305,6 @@ func (a *apexBundle) buildFileContexts(ctx android.ModuleContext) android.Output
 	return output.OutputPath
 }
 
-// buildNoticeFiles creates a buile rule for aggregating notice files from the modules that
-// contributes to this APEX. The notice files are merged into a big notice file.
-func (a *apexBundle) buildNoticeFiles(ctx android.ModuleContext, apexFileName string) android.NoticeOutputs {
-	var noticeFiles android.Paths
-
-	a.WalkPayloadDeps(ctx, func(ctx android.ModuleContext, from blueprint.Module, to android.ApexModule, externalDep bool) bool {
-		if externalDep {
-			// As soon as the dependency graph crosses the APEX boundary, don't go further.
-			return false
-		}
-		noticeFiles = append(noticeFiles, to.NoticeFiles()...)
-		return true
-	})
-
-	// TODO(jiyong): why do we need this? WalkPayloadDeps should have already covered this.
-	for _, fi := range a.filesInfo {
-		noticeFiles = append(noticeFiles, fi.noticeFiles...)
-	}
-
-	if len(noticeFiles) == 0 {
-		return android.NoticeOutputs{}
-	}
-
-	return android.BuildNoticeOutput(ctx, a.installDir, apexFileName, android.SortedUniquePaths(noticeFiles))
-}
-
 // buildInstalledFilesFile creates a build rule for the installed-files.txt file where the list of
 // files included in this APEX is shown. The text file is dist'ed so that people can see what's
 // included in the APEX without actually downloading and extracting it.
@@ -642,12 +616,11 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 			optFlags = append(optFlags, "--logging_parent ", a.overridableProperties.Logging_parent)
 		}
 
-		a.mergedNotices = a.buildNoticeFiles(ctx, a.Name()+suffix)
-		if a.mergedNotices.HtmlGzOutput.Valid() {
-			// If there's a NOTICE file, embed it as an asset file in the APEX.
-			implicitInputs = append(implicitInputs, a.mergedNotices.HtmlGzOutput.Path())
-			optFlags = append(optFlags, "--assets_dir "+filepath.Dir(a.mergedNotices.HtmlGzOutput.String()))
-		}
+		// Create a NOTICE file, and embed it as an asset file in the APEX.
+		a.htmlGzNotice = android.PathForModuleOut(ctx, "NOTICE/NOTICES.html.gz")
+		android.BuildNoticeHtmlOutputFromLicenseMetadata(ctx, a.htmlGzNotice)
+		implicitInputs = append(implicitInputs, a.htmlGzNotice)
+		optFlags = append(optFlags, "--assets_dir "+filepath.Dir(a.htmlGzNotice.String()))
 
 		if (moduleMinSdkVersion.GreaterThan(android.SdkVersion_Android10) && !a.shouldGenerateHashtree()) && !compressionEnabled {
 			// Apexes which are supposed to be installed in builtin dirs(/system, etc)

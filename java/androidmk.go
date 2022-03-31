@@ -409,22 +409,6 @@ func (app *AndroidApp) AndroidMkEntries() []android.AndroidMkEntries {
 				entries.SetOptionalPaths("LOCAL_SOONG_LINT_REPORTS", app.linter.reports)
 			},
 		},
-		ExtraFooters: []android.AndroidMkExtraFootersFunc{
-			func(w io.Writer, name, prefix, moduleDir string) {
-				if app.noticeOutputs.Merged.Valid() {
-					fmt.Fprintf(w, "$(call dist-for-goals,%s,%s:%s)\n",
-						app.installApkName, app.noticeOutputs.Merged.String(), app.installApkName+"_NOTICE")
-				}
-				if app.noticeOutputs.TxtOutput.Valid() {
-					fmt.Fprintf(w, "$(call dist-for-goals,%s,%s:%s)\n",
-						app.installApkName, app.noticeOutputs.TxtOutput.String(), app.installApkName+"_NOTICE.txt")
-				}
-				if app.noticeOutputs.HtmlOutput.Valid() {
-					fmt.Fprintf(w, "$(call dist-for-goals,%s,%s:%s)\n",
-						app.installApkName, app.noticeOutputs.HtmlOutput.String(), app.installApkName+"_NOTICE.html")
-				}
-			},
-		},
 	}}
 }
 
