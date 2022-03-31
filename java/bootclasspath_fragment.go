@@ -858,11 +858,18 @@ func (b *BootclasspathFragmentModule) produceHiddenAPIOutput(ctx android.ModuleC
 	packagePrefixes := b.sourceOnlyProperties.Hidden_api.Package_prefixes
 	singlePackages := b.sourceOnlyProperties.Hidden_api.Single_packages
 	if splitPackages != nil || packagePrefixes != nil || singlePackages != nil {
-		if splitPackages == nil {
-			splitPackages = []string{"*"}
-		}
 		output.SignaturePatternsPath = buildRuleSignaturePatternsFile(
 			ctx, output.AllFlagsPath, splitPackages, packagePrefixes, singlePackages)
+	} else if !b.isTestFragment() {
+		ctx.ModuleErrorf(`Must specify at least one of the split_packages, package_prefixes and single_packages properties
+  If this is a new bootclasspath_fragment or you are unsure what to do add the
+  the following to the bootclasspath_fragment:
+      hidden_api: {split_packages: ["*"]},
+  and then run the following:
+      m analyze_bcpf && analyze_bcpf --bcpf %q
+  it will analyze the bootclasspath_fragment and provide hints as to what you
+  should specify here. If you are happy with its suggestions then you can add
+  the --fix option and it will fix them for you.`, b.BaseModuleName())
 	}
 
 	return output
