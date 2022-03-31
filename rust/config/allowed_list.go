@@ -26,6 +26,7 @@ var (
 		"packages/modules/Virtualization",
 		"platform_testing/tests/codecoverage/native/rust",
 		"prebuilts/rust",
+		"system/core/debuggerd/rust",
 		"system/core/libstats/pull_rust",
 		"system/extras/profcollectd",
 		"system/extras/simpleperf",
