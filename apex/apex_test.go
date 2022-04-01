@@ -592,6 +592,15 @@ func TestBasicApex(t *testing.T) {
 		t.Errorf("Could not find all expected symlinks! foo: %t, foo_link_64: %t. Command was %s", found_foo, found_foo_link_64, copyCmds)
 	}
 
+	mergeNoticesRule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("mergeNoticesRule")
+	noticeInputs := mergeNoticesRule.Inputs.Strings()
+	if len(noticeInputs) != 3 {
+		t.Errorf("number of input notice files: expected = 3, actual = %q", len(noticeInputs))
+	}
+	ensureListContains(t, noticeInputs, "NOTICE")
+	ensureListContains(t, noticeInputs, "custom_notice")
+	ensureListContains(t, noticeInputs, "custom_notice_for_static_lib")
+
 	fullDepsInfo := strings.Split(ctx.ModuleForTests("myapex", "android_common_myapex_image").Output("depsinfo/fulllist.txt").Args["content"], "\\n")
 	ensureListContains(t, fullDepsInfo, "  myjar(minSdkVersion:(no version)) <- myapex")
 	ensureListContains(t, fullDepsInfo, "  mylib2(minSdkVersion:(no version)) <- mylib")

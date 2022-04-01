@@ -415,8 +415,8 @@ type apexBundle struct {
 	// Processed file_contexts files
 	fileContexts android.WritablePath
 
-	// Path to notice file in html.gz format.
-	htmlGzNotice android.WritablePath
+	// Struct holding the merged notice file paths in different formats
+	mergedNotices android.NoticeOutputs
 
 	// The built APEX file. This is the main product.
 	// Could be .apex or .capex
@@ -488,10 +488,11 @@ const (
 // for each of the files in case when the APEX is flattened.
 type apexFile struct {
 	// buildFile is put in the installDir inside the APEX.
-	builtFile  android.Path
-	installDir string
-	customStem string
-	symlinks   []string // additional symlinks
+	builtFile   android.Path
+	noticeFiles android.Paths
+	installDir  string
+	customStem  string
+	symlinks    []string // additional symlinks
 
 	// Info for Android.mk Module name of `module` in AndroidMk. Note the generated AndroidMk
 	// module for apexFile is named something like <AndroidMk module name>.<apex name>[<apex
@@ -528,6 +529,7 @@ func newApexFile(ctx android.BaseModuleContext, builtFile android.Path, androidM
 		module:              module,
 	}
 	if module != nil {
+		ret.noticeFiles = module.NoticeFiles()
 		ret.moduleDir = ctx.OtherModuleDir(module)
 		ret.requiredModuleNames = module.RequiredModuleNames()
 		ret.targetRequiredModuleNames = module.TargetRequiredModuleNames()
