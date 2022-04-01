@@ -423,6 +423,10 @@ func (app *AndroidApp) AndroidMkEntries() []android.AndroidMkEntries {
 					fmt.Fprintf(w, "$(call dist-for-goals,%s,%s:%s)\n",
 						app.installApkName, app.noticeOutputs.HtmlOutput.String(), app.installApkName+"_NOTICE.html")
 				}
+				if app.javaApiUsedByOutputFile.String() != "" {
+					fmt.Fprintf(w, "$(call dist-for-goals,%s,%s:%s/$(notdir %s))\n",
+						app.installApkName, app.javaApiUsedByOutputFile.String(), "java_apis_used_by_apex", app.javaApiUsedByOutputFile.String())
+				}
 			},
 		},
 	}}

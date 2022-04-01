@@ -254,6 +254,18 @@ func TransformJniLibsToJar(ctx android.ModuleContext, outputFile android.Writabl
 	})
 }
 
+func (a *AndroidApp) generateJavaUsedByApex(ctx android.ModuleContext) {
+	javaApiUsedByOutputFile := android.PathForModuleOut(ctx, a.installApkName+"_using.xml")
+	javaUsedByRule := android.NewRuleBuilder(pctx, ctx)
+	javaUsedByRule.Command().
+		Tool(android.PathForSource(ctx, "build/soong/scripts/gen_java_usedby_apex.sh")).
+		BuiltTool("dexdeps").
+		Output(javaApiUsedByOutputFile).
+		Input(a.Library.Module.outputFile)
+	javaUsedByRule.Build("java_usedby_list", "Generate Java APIs used by Apex")
+	a.javaApiUsedByOutputFile = javaApiUsedByOutputFile
+}
+
 func targetToJniDir(target android.Target) string {
 	return filepath.Join("lib", target.Arch.Abi[0])
 }
