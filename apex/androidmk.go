@@ -396,6 +396,10 @@ func (a *apexBundle) androidMkForType() android.AndroidMkData {
 				}
 				a.writeRequiredModules(w, moduleNames)
 
+				if a.mergedNotices.Merged.Valid() {
+					fmt.Fprintln(w, "LOCAL_NOTICE_FILE :=", a.mergedNotices.Merged.Path().String())
+				}
+
 				fmt.Fprintln(w, "include $(BUILD_PREBUILT)")
 
 				if apexType == imageApex {
