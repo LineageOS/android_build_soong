@@ -589,7 +589,7 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 	a.onDeviceDir = android.InstallPathToOnDevicePath(ctx, a.installDir)
 
-	noticeFile := android.PathForModuleOut(ctx, "NOTICES.html.gz")
+	noticeFile := android.PathForModuleOut(ctx, "NOTICE", "NOTICE.html.gz")
 	android.BuildNoticeHtmlOutputFromLicenseMetadata(ctx, noticeFile)
 	if Bool(a.appProperties.Embed_notices) || ctx.Config().IsEnvTrue("ALWAYS_EMBED_NOTICES") {
 		a.aapt.noticeFile = android.OptionalPathForPath(noticeFile)
