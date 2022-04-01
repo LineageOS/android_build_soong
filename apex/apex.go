@@ -414,8 +414,8 @@ type apexBundle struct {
 	// Processed file_contexts files
 	fileContexts android.WritablePath
 
-	// Struct holding the merged notice file paths in different formats
-	mergedNotices android.NoticeOutputs
+	// Path to notice file in html.gz format.
+	htmlGzNotice android.WritablePath
 
 	// The built APEX file. This is the main product.
 	// Could be .apex or .capex
@@ -487,11 +487,10 @@ const (
 // for each of the files in case when the APEX is flattened.
 type apexFile struct {
 	// buildFile is put in the installDir inside the APEX.
-	builtFile   android.Path
-	noticeFiles android.Paths
-	installDir  string
-	customStem  string
-	symlinks    []string // additional symlinks
+	builtFile  android.Path
+	installDir string
+	customStem string
+	symlinks   []string // additional symlinks
 
 	// Info for Android.mk Module name of `module` in AndroidMk. Note the generated AndroidMk
 	// module for apexFile is named something like <AndroidMk module name>.<apex name>[<apex
@@ -528,7 +527,6 @@ func newApexFile(ctx android.BaseModuleContext, builtFile android.Path, androidM
 		module:              module,
 	}
 	if module != nil {
-		ret.noticeFiles = module.NoticeFiles()
 		ret.moduleDir = ctx.OtherModuleDir(module)
 		ret.requiredModuleNames = module.RequiredModuleNames()
 		ret.targetRequiredModuleNames = module.TargetRequiredModuleNames()
@@ -2733,31 +2731,8 @@ func makeApexAvailableBaseline() map[string][]string {
 	// Module separator
 	//
 	m["com.android.bluetooth"] = []string{
-		"android.hardware.audio.common@5.0",
-		"android.hardware.bluetooth.a2dp@1.0",
-		"android.hardware.bluetooth.audio@2.0",
-		"android.hardware.bluetooth@1.0",
-		"android.hardware.bluetooth@1.1",
-		"android.hardware.graphics.bufferqueue@1.0",
-		"android.hardware.graphics.bufferqueue@2.0",
-		"android.hardware.graphics.common@1.0",
-		"android.hardware.graphics.common@1.1",
-		"android.hardware.graphics.common@1.2",
-		"android.hidl.safe_union@1.0",
-		"android.hidl.token@1.0",
-		"android.hidl.token@1.0-utils",
-		"avrcp-target-service",
-		"avrcp_headers",
 		"bluetooth-protos-lite",
-		"bluetooth.mapsapi",
-		"com.android.vcard",
-		"dnsresolver_aidl_interface-V2-java",
-		"ipmemorystore-aidl-interfaces-V5-java",
-		"ipmemorystore-aidl-interfaces-java",
 		"internal_include_headers",
-		"lib-bt-packets",
-		"lib-bt-packets-avrcp",
-		"lib-bt-packets-base",
 		"libaudio-a2dp-hw-utils",
 		"libaudio-hearing-aid-hw-utils",
 		"libbluetooth",
@@ -2781,25 +2756,6 @@ func makeApexAvailableBaseline() map[string][]string {
 		"libbte",
 		"libbtif",
 		"libchrome",
-		"libevent",
-		"libfmq",
-		"libg722codec",
-		"libgui_headers",
-		"libmodpb64",
-		"libosi",
-		"libstatslog",
-		"libstatssocket",
-		"libtinyxml2",
-		"libudrv-uipc",
-		"libz",
-		"media_plugin_headers",
-		"net-utils-services-common",
-		"netd_aidl_interface-unstable-java",
-		"netd_event_listener_interface-java",
-		"netlink-client",
-		"networkstack-client",
-		"sap-api-java-static",
-		"services.net",
 	}
 	//
 	// Module separator
