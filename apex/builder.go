@@ -617,7 +617,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 		}
 
 		// Create a NOTICE file, and embed it as an asset file in the APEX.
-		a.htmlGzNotice = android.PathForModuleOut(ctx, "NOTICE/NOTICES.html.gz")
+		a.htmlGzNotice = android.PathForModuleOut(ctx, "NOTICE", "NOTICE.html.gz")
 		android.BuildNoticeHtmlOutputFromLicenseMetadata(ctx, a.htmlGzNotice)
 		implicitInputs = append(implicitInputs, a.htmlGzNotice)
 		optFlags = append(optFlags, "--assets_dir "+filepath.Dir(a.htmlGzNotice.String()))
