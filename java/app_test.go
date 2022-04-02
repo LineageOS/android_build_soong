@@ -27,7 +27,6 @@ import (
 	"android/soong/android"
 	"android/soong/cc"
 	"android/soong/dexpreopt"
-	"android/soong/genrule"
 )
 
 // testApp runs tests using the prepareForJavaTest
@@ -2780,116 +2779,6 @@ func TestCodelessApp(t *testing.T) {
 				t.Errorf("unexpected manifest_fixer args: %q", manifestFixerArgs)
 			}
 		})
-	}
-}
-
-func TestEmbedNotice(t *testing.T) {
-	result := android.GroupFixturePreparers(
-		PrepareForTestWithJavaDefaultModules,
-		cc.PrepareForTestWithCcDefaultModules,
-		genrule.PrepareForTestWithGenRuleBuildComponents,
-		android.MockFS{
-			"APP_NOTICE":     nil,
-			"GENRULE_NOTICE": nil,
-			"LIB_NOTICE":     nil,
-			"TOOL_NOTICE":    nil,
-		}.AddToFixture(),
-	).RunTestWithBp(t, `
-		android_app {
-			name: "foo",
-			srcs: ["a.java"],
-			static_libs: ["javalib"],
-			jni_libs: ["libjni"],
-			notice: "APP_NOTICE",
-			embed_notices: true,
-			sdk_version: "current",
-		}
-
-		// No embed_notice flag
-		android_app {
-			name: "bar",
-			srcs: ["a.java"],
-			jni_libs: ["libjni"],
-			notice: "APP_NOTICE",
-			sdk_version: "current",
-		}
-
-		// No NOTICE files
-		android_app {
-			name: "baz",
-			srcs: ["a.java"],
-			embed_notices: true,
-			sdk_version: "current",
-		}
-
-		cc_library {
-			name: "libjni",
-			system_shared_libs: [],
-			stl: "none",
-			notice: "LIB_NOTICE",
-			sdk_version: "current",
-		}
-
-		java_library {
-			name: "javalib",
-			srcs: [
-				":gen",
-			],
-			sdk_version: "current",
-		}
-
-		genrule {
-			name: "gen",
-			tools: ["gentool"],
-			out: ["gen.java"],
-			notice: "GENRULE_NOTICE",
-		}
-
-		java_binary_host {
-			name: "gentool",
-			srcs: ["b.java"],
-			notice: "TOOL_NOTICE",
-		}
-	`)
-
-	// foo has NOTICE files to process, and embed_notices is true.
-	foo := result.ModuleForTests("foo", "android_common")
-	// verify merge notices rule.
-	mergeNotices := foo.Rule("mergeNoticesRule")
-	noticeInputs := mergeNotices.Inputs.Strings()
-	// TOOL_NOTICE should be excluded as it's a host module.
-	if len(mergeNotices.Inputs) != 3 {
-		t.Errorf("number of input notice files: expected = 3, actual = %q", noticeInputs)
-	}
-	if !inList("APP_NOTICE", noticeInputs) {
-		t.Errorf("APP_NOTICE is missing from notice files, %q", noticeInputs)
-	}
-	if !inList("LIB_NOTICE", noticeInputs) {
-		t.Errorf("LIB_NOTICE is missing from notice files, %q", noticeInputs)
-	}
-	if !inList("GENRULE_NOTICE", noticeInputs) {
-		t.Errorf("GENRULE_NOTICE is missing from notice files, %q", noticeInputs)
-	}
-	// aapt2 flags should include -A <NOTICE dir> so that its contents are put in the APK's /assets.
-	res := foo.Output("package-res.apk")
-	aapt2Flags := res.Args["flags"]
-	e := "-A out/soong/.intermediates/foo/android_common/NOTICE"
-	android.AssertStringDoesContain(t, "expected.apkPath", aapt2Flags, e)
-
-	// bar has NOTICE files to process, but embed_notices is not set.
-	bar := result.ModuleForTests("bar", "android_common")
-	res = bar.Output("package-res.apk")
-	aapt2Flags = res.Args["flags"]
-	e = "-A out/soong/.intermediates/bar/android_common/NOTICE"
-	android.AssertStringDoesNotContain(t, "bar shouldn't have the asset dir flag for NOTICE", aapt2Flags, e)
-
-	// baz's embed_notice is true, but it doesn't have any NOTICE files.
-	baz := result.ModuleForTests("baz", "android_common")
-	res = baz.Output("package-res.apk")
-	aapt2Flags = res.Args["flags"]
-	e = "-A out/soong/.intermediates/baz/android_common/NOTICE"
-	if strings.Contains(aapt2Flags, e) {
-		t.Errorf("baz shouldn't have the asset dir flag for NOTICE: %q", e)
 	}
 }
 
