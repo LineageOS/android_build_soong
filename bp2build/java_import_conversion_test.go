@@ -29,7 +29,7 @@ func runJavaImportTestCase(t *testing.T, tc bp2buildTestCase) {
 func registerJavaImportModuleTypes(ctx android.RegistrationContext) {
 }
 
-func TestMinimalJavaImport(t *testing.T) {
+func TestJavaImportMinimal(t *testing.T) {
 	runJavaImportTestCase(t, bp2buildTestCase{
 		description:                "Java import - simple example",
 		moduleTypeUnderTest:        "java_import",
@@ -47,6 +47,39 @@ java_import {
 		expectedBazelTargets: []string{
 			makeBazelTarget("java_import", "example_import", attrNameToString{
 				"jars": `["import.jar"]`,
+			}),
+		}})
+}
+
+func TestJavaImportArchVariant(t *testing.T) {
+	runJavaImportTestCase(t, bp2buildTestCase{
+		description:                "Java import - simple example",
+		moduleTypeUnderTest:        "java_import",
+		moduleTypeUnderTestFactory: java.ImportFactory,
+		filesystem: map[string]string{
+			"import.jar": "",
+		},
+		blueprint: `
+java_import {
+        name: "example_import",
+		target: {
+			android: {
+				jars: ["android.jar"],
+			},
+			linux_glibc: {
+				jars: ["linux.jar"],
+			},
+		},
+        bazel_module: { bp2build_available: true },
+}
+`,
+		expectedBazelTargets: []string{
+			makeBazelTarget("java_import", "example_import", attrNameToString{
+				"jars": `select({
+        "//build/bazel/platforms/os:android": ["android.jar"],
+        "//build/bazel/platforms/os:linux": ["linux.jar"],
+        "//conditions:default": [],
+    })`,
 			}),
 		}})
 }
