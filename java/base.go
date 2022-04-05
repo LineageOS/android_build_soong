@@ -1048,6 +1048,12 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 		}
 	}
 
+	// We don't currently run annotation processors in turbine, which means we can't use turbine
+	// generated header jars when an annotation processor that generates API is enabled.  One
+	// exception (handled further below) is when kotlin sources are enabled, in which case turbine
+	//  is used to run all of the annotation processors.
+	disableTurbine := deps.disableTurbine
+
 	// Collect .java files for AIDEGen
 	j.expandIDEInfoCompiledSrcs = append(j.expandIDEInfoCompiledSrcs, uniqueSrcFiles.Strings()...)
 
@@ -1055,6 +1061,11 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 	var kotlinHeaderJars android.Paths
 
 	if srcFiles.HasExt(".kt") {
+		// When using kotlin sources turbine is used to generate annotation processor sources,
+		// including for annotation processors that generate API, so we can use turbine for
+		// java sources too.
+		disableTurbine = false
+
 		// user defined kotlin flags.
 		kotlincFlags := j.properties.Kotlincflags
 		CheckKotlincFlags(ctx, kotlincFlags)
@@ -1139,7 +1150,7 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 
 	enableSharding := false
 	var headerJarFileWithoutDepsOrJarjar android.Path
-	if ctx.Device() && !ctx.Config().IsEnvFalse("TURBINE_ENABLED") && !deps.disableTurbine {
+	if ctx.Device() && !ctx.Config().IsEnvFalse("TURBINE_ENABLED") && !disableTurbine {
 		if j.properties.Javac_shard_size != nil && *(j.properties.Javac_shard_size) > 0 {
 			enableSharding = true
 			// Formerly, there was a check here that prevented annotation processors
