@@ -2075,7 +2075,7 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext)
 		ctx.CreateBazelTargetModule(
 			bazel.BazelTargetModuleProperties{
 				Rule_class:        "event_log_tags",
-				Bzl_load_location: "//build/make/tools:event_log_tags.bzl",
+				Bzl_load_location: "//build/bazel/rules/java:event_log_tags.bzl",
 			},
 			android.CommonAttributes{Name: logtagsLibName},
 			&eventLogTagsAttributes{
