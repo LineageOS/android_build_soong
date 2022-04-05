@@ -1,0 +1,34 @@
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
+blueprint_go_binary {
+    name: "symbols_map",
+    srcs: [
+        "elf.go",
+        "r8.go",
+        "symbols_map.go",
+    ],
+    testSrcs: [
+        "elf_test.go",
+        "r8_test.go",
+    ],
+    deps: [
+        "blueprint-pathtools",
+        "golang-protobuf-encoding-prototext",
+        "soong-response",
+        "symbols_map_proto",
+    ],
+}
+
+bootstrap_go_package {
+    name: "symbols_map_proto",
+    pkgPath: "android/soong/cmd/symbols_map/symbols_map_proto",
+    deps: [
+        "golang-protobuf-reflect-protoreflect",
+        "golang-protobuf-runtime-protoimpl",
+    ],
+    srcs: [
+        "symbols_map_proto/symbols_map.pb.go",
+    ],
+}
