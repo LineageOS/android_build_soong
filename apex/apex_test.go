@@ -7580,7 +7580,7 @@ func TestDexpreoptAccessDexFilesFromPrebuiltApex(t *testing.T) {
 	})
 }
 
-func testApexPermittedPackagesRules(t *testing.T, errmsg, bp string, bootJars []string, rules []android.Rule) {
+func testBootJarPermittedPackagesRules(t *testing.T, errmsg, bp string, bootJars []string, rules []android.Rule) {
 	t.Helper()
 	bp += `
 	apex_key {
@@ -7619,11 +7619,11 @@ func testApexPermittedPackagesRules(t *testing.T, errmsg, bp string, bootJars []
 
 func TestApexPermittedPackagesRules(t *testing.T) {
 	testcases := []struct {
-		name            string
-		expectedError   string
-		bp              string
-		bootJars        []string
-		modulesPackages map[string][]string
+		name                 string
+		expectedError        string
+		bp                   string
+		bootJars             []string
+		bcpPermittedPackages map[string][]string
 	}{
 
 		{
@@ -7653,15 +7653,15 @@ func TestApexPermittedPackagesRules(t *testing.T) {
 					updatable: false,
 				}`,
 			bootJars: []string{"bcp_lib1"},
-			modulesPackages: map[string][]string{
-				"myapex": []string{
+			bcpPermittedPackages: map[string][]string{
+				"bcp_lib1": []string{
 					"foo.bar",
 				},
 			},
 		},
 		{
 			name:          "Bootclasspath apex jar not satisfying allowed module packages.",
-			expectedError: `(?s)module "bcp_lib2" .* which is restricted because jars that are part of the myapex module may only use these package prefixes: foo.bar. Please consider the following alternatives:\n    1. If the offending code is from a statically linked library, consider removing that dependency and using an alternative already in the bootclasspath, or perhaps a shared library.    2. Move the offending code into an allowed package.\n    3. Jarjar the offending code. Please be mindful of the potential system health implications of bundling that code, particularly if the offending jar is part of the bootclasspath.`,
+			expectedError: `(?s)module "bcp_lib2" .* which is restricted because bcp_lib2 bootjar may only use these package prefixes: foo.bar. Please consider the following alternatives:\n    1. If the offending code is from a statically linked library, consider removing that dependency and using an alternative already in the bootclasspath, or perhaps a shared library.    2. Move the offending code into an allowed package.\n    3. Jarjar the offending code. Please be mindful of the potential system health implications of bundling that code, particularly if the offending jar is part of the bootclasspath.`,
 			bp: `
 				java_library {
 					name: "bcp_lib1",
@@ -7687,17 +7687,58 @@ func TestApexPermittedPackagesRules(t *testing.T) {
 				}
 			`,
 			bootJars: []string{"bcp_lib1", "bcp_lib2"},
-			modulesPackages: map[string][]string{
-				"myapex": []string{
+			bcpPermittedPackages: map[string][]string{
+				"bcp_lib1": []string{
 					"foo.bar",
 				},
+				"bcp_lib2": []string{
+					"foo.bar",
+				},
+			},
+		},
+		{
+			name:          "Updateable Bootclasspath apex jar not satisfying allowed module packages.",
+			expectedError: "",
+			bp: `
+				java_library {
+					name: "bcp_lib_restricted",
+					srcs: ["lib1/src/*.java"],
+					apex_available: ["myapex"],
+					permitted_packages: ["foo.bar"],
+					sdk_version: "none",
+					min_sdk_version: "29",
+					system_modules: "none",
+				}
+				java_library {
+					name: "bcp_lib_unrestricted",
+					srcs: ["lib2/src/*.java"],
+					apex_available: ["myapex"],
+					permitted_packages: ["foo.bar", "bar.baz"],
+					sdk_version: "none",
+					min_sdk_version: "29",
+					system_modules: "none",
+				}
+				apex {
+					name: "myapex",
+					key: "myapex.key",
+					java_libs: ["bcp_lib_restricted", "bcp_lib_unrestricted"],
+					updatable: true,
+					min_sdk_version: "29",
+				}
+			`,
+			bootJars: []string{"bcp_lib1", "bcp_lib2"},
+			bcpPermittedPackages: map[string][]string{
+				"bcp_lib1_non_updateable": []string{
+					"foo.bar",
+				},
+				// bcp_lib2_updateable has no entry here since updateable bcp can contain new packages - tracking via an allowlist is not necessary
 			},
 		},
 	}
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			rules := createApexPermittedPackagesRules(tc.modulesPackages)
-			testApexPermittedPackagesRules(t, tc.expectedError, tc.bp, tc.bootJars, rules)
+			rules := createBcpPermittedPackagesRules(tc.bcpPermittedPackages)
+			testBootJarPermittedPackagesRules(t, tc.expectedError, tc.bp, tc.bootJars, rules)
 		})
 	}
 }
