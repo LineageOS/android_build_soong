@@ -409,7 +409,15 @@ func (app *AndroidApp) AndroidMkEntries() []android.AndroidMkEntries {
 				entries.SetOptionalPaths("LOCAL_SOONG_LINT_REPORTS", app.linter.reports)
 			},
 		},
-	}}
+		ExtraFooters: []android.AndroidMkExtraFootersFunc{
+			func(w io.Writer, name, prefix, moduleDir string) {
+				if app.javaApiUsedByOutputFile.String() != "" {
+					fmt.Fprintf(w, "$(call dist-for-goals,%s,%s:%s/$(notdir %s))\n",
+						app.installApkName, app.javaApiUsedByOutputFile.String(), "java_apis_used_by_apex", app.javaApiUsedByOutputFile.String())
+				}
+			},
+		}},
+	}
 }
 
 func (a *AndroidApp) getOverriddenPackages() []string {

@@ -169,6 +169,8 @@ type AndroidApp struct {
 	overriddenManifestPackageName string
 
 	android.ApexBundleDepsInfo
+
+	javaApiUsedByOutputFile android.ModuleOutPath
 }
 
 func (a *AndroidApp) IsInstallable() bool {
@@ -277,6 +279,7 @@ func (a *AndroidTestHelperApp) GenerateAndroidBuildActions(ctx android.ModuleCon
 func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.checkAppSdkVersions(ctx)
 	a.generateAndroidBuildActions(ctx)
+	a.generateJavaUsedByApex(ctx)
 }
 
 func (a *AndroidApp) checkAppSdkVersions(ctx android.ModuleContext) {
