@@ -779,6 +779,68 @@ func TestDataLibsRelativeInstallPath(t *testing.T) {
 	}
 }
 
+func TestTestBinaryTestSuites(t *testing.T) {
+	bp := `
+		cc_test {
+			name: "main_test",
+			srcs: ["main_test.cpp"],
+			test_suites: [
+				"suite_1",
+				"suite_2",
+			],
+			gtest: false,
+		}
+	`
+
+	ctx := prepareForCcTest.RunTestWithBp(t, bp).TestContext
+	module := ctx.ModuleForTests("main_test", "android_arm_armv7-a-neon").Module()
+
+	entries := android.AndroidMkEntriesForTest(t, ctx, module)[0]
+	compatEntries := entries.EntryMap["LOCAL_COMPATIBILITY_SUITE"]
+	if len(compatEntries) != 2 {
+		t.Errorf("expected two elements in LOCAL_COMPATIBILITY_SUITE. got %d", len(compatEntries))
+	}
+	if compatEntries[0] != "suite_1" {
+		t.Errorf("expected LOCAL_COMPATIBILITY_SUITE to be`suite_1`,"+
+			" but was '%s'", compatEntries[0])
+	}
+	if compatEntries[1] != "suite_2" {
+		t.Errorf("expected LOCAL_COMPATIBILITY_SUITE to be`suite_2`,"+
+			" but was '%s'", compatEntries[1])
+	}
+}
+
+func TestTestLibraryTestSuites(t *testing.T) {
+	bp := `
+		cc_test_library {
+			name: "main_test_lib",
+			srcs: ["main_test_lib.cpp"],
+			test_suites: [
+				"suite_1",
+				"suite_2",
+			],
+			gtest: false,
+		}
+	`
+
+	ctx := prepareForCcTest.RunTestWithBp(t, bp).TestContext
+	module := ctx.ModuleForTests("main_test_lib", "android_arm_armv7-a-neon_shared").Module()
+
+	entries := android.AndroidMkEntriesForTest(t, ctx, module)[0]
+	compatEntries := entries.EntryMap["LOCAL_COMPATIBILITY_SUITE"]
+	if len(compatEntries) != 2 {
+		t.Errorf("expected two elements in LOCAL_COMPATIBILITY_SUITE. got %d", len(compatEntries))
+	}
+	if compatEntries[0] != "suite_1" {
+		t.Errorf("expected LOCAL_COMPATIBILITY_SUITE to be`suite_1`,"+
+			" but was '%s'", compatEntries[0])
+	}
+	if compatEntries[1] != "suite_2" {
+		t.Errorf("expected LOCAL_COMPATIBILITY_SUITE to be`suite_2`,"+
+			" but was '%s'", compatEntries[1])
+	}
+}
+
 func TestVndkWhenVndkVersionIsNotSet(t *testing.T) {
 	ctx := testCcNoVndk(t, `
 		cc_library {
