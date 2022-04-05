@@ -261,10 +261,6 @@ func neverallowMutator(ctx BottomUpMutatorContext) {
 			continue
 		}
 
-		if !n.appliesToBootclasspathJar(ctx) {
-			continue
-		}
-
 		ctx.ModuleErrorf("violates " + n.String())
 	}
 }
@@ -379,8 +375,6 @@ type Rule interface {
 	ModuleType(types ...string) Rule
 
 	NotModuleType(types ...string) Rule
-
-	BootclasspathJar() Rule
 
 	With(properties, value string) Rule
 
@@ -497,12 +491,6 @@ func (r *rule) Because(reason string) Rule {
 	return r
 }
 
-// BootclasspathJar whether this rule only applies to Jars in the Bootclasspath
-func (r *rule) BootclasspathJar() Rule {
-	r.onlyBootclasspathJar = true
-	return r
-}
-
 func (r *rule) String() string {
 	s := []string{"neverallow requirements. Not allowed:"}
 	if len(r.paths) > 0 {
@@ -519,9 +507,6 @@ func (r *rule) String() string {
 	}
 	if len(r.osClasses) > 0 {
 		s = append(s, fmt.Sprintf("os class(es): %q", r.osClasses))
-	}
-	if r.onlyBootclasspathJar {
-		s = append(s, "in bootclasspath jar")
 	}
 	if len(r.unlessPaths) > 0 {
 		s = append(s, fmt.Sprintf("EXCEPT in dirs: %q", r.unlessPaths))
@@ -561,14 +546,6 @@ func (r *rule) appliesToDirectDeps(ctx BottomUpMutatorContext) bool {
 	})
 
 	return matches
-}
-
-func (r *rule) appliesToBootclasspathJar(ctx BottomUpMutatorContext) bool {
-	if !r.onlyBootclasspathJar {
-		return true
-	}
-
-	return InList(ctx.ModuleName(), ctx.Config().BootJars())
 }
 
 func (r *rule) appliesToOsClass(osClass OsClass) bool {
