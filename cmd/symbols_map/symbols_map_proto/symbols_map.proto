@@ -1,0 +1,44 @@
+// Copyright 2022 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto2";
+
+package symbols_map;
+option go_package = "android/soong/cmd/symbols_map/symbols_map_proto";
+
+message Mapping {
+  // identifier is a unique identifier of a location, generally the hash of the file.  For an
+  // elf file it is the elf build ID, for an R8 dictionary it is the hash from the comments in the
+  // top of the file.  It may be empty if no hash could be extracted from the file.
+  optional string identifier = 1;
+
+  // location is the path to the file with the given identifier.  The location should be valid
+  // both on the local disk and in the distributed symbols.zip or proguard_dict.zip files.
+  optional string location = 2;
+
+  // Type is the valid types of a mapping.
+  enum Type {
+    // ELF denotes a mapping from an elf build ID to an unstripped elf file.
+    ELF = 0;
+    // R8 denotes a mapping from an R8 dictionary hash to an R8 dictionary.
+    R8 = 1;
+  }
+
+  // type is the type of the mapping, either ELF or R8.
+  optional Type type = 3;
+}
+
+message Mappings {
+  repeated Mapping mappings = 4;
+}
