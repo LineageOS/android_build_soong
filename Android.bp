@@ -61,6 +61,9 @@ cc_genrule {
         linux_bionic: {
             enabled: true,
         },
+        linux_musl: {
+            enabled: false,
+        },
         linux_glibc: {
             enabled: false,
         },
@@ -81,6 +84,9 @@ cc_genrule {
     target: {
         linux_bionic: {
             enabled: true,
+        },
+        linux_musl: {
+            enabled: false,
         },
         linux_glibc: {
             enabled: false,
