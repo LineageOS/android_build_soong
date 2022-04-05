@@ -30,6 +30,7 @@ func runJavaLibraryTestCaseWithRegistrationCtxFunc(t *testing.T, tc bp2buildTest
 }
 
 func runJavaLibraryTestCase(t *testing.T, tc bp2buildTestCase) {
+	t.Helper()
 	runJavaLibraryTestCaseWithRegistrationCtxFunc(t, tc, func(ctx android.RegistrationContext) {})
 }
 
@@ -154,5 +155,67 @@ java_plugin {
 		},
 	}, func(ctx android.RegistrationContext) {
 		ctx.RegisterModuleType("java_plugin", java.PluginFactory)
+	})
+}
+
+func TestJavaLibraryErrorproneJavacflagsEnabledManually(t *testing.T) {
+	runJavaLibraryTestCase(t, bp2buildTestCase{
+		blueprint: `java_library {
+    name: "java-lib-1",
+    srcs: ["a.java"],
+    javacflags: ["-Xsuper-fast"],
+    errorprone: {
+        enabled: true,
+        javacflags: ["-Xep:SpeedLimit:OFF"],
+    },
+}`,
+		expectedBazelTargets: []string{
+			makeBazelTarget("java_library", "java-lib-1", attrNameToString{
+				"javacopts": `[
+        "-Xsuper-fast",
+        "-Xep:SpeedLimit:OFF",
+    ]`,
+				"srcs": `["a.java"]`,
+			}),
+		},
+	})
+}
+
+func TestJavaLibraryErrorproneJavacflagsErrorproneDisabledByDefault(t *testing.T) {
+	runJavaLibraryTestCase(t, bp2buildTestCase{
+		blueprint: `java_library {
+    name: "java-lib-1",
+    srcs: ["a.java"],
+    javacflags: ["-Xsuper-fast"],
+    errorprone: {
+        javacflags: ["-Xep:SpeedLimit:OFF"],
+    },
+}`,
+		expectedBazelTargets: []string{
+			makeBazelTarget("java_library", "java-lib-1", attrNameToString{
+				"javacopts": `["-Xsuper-fast"]`,
+				"srcs":      `["a.java"]`,
+			}),
+		},
+	})
+}
+
+func TestJavaLibraryErrorproneJavacflagsErrorproneDisabledManually(t *testing.T) {
+	runJavaLibraryTestCase(t, bp2buildTestCase{
+		blueprint: `java_library {
+    name: "java-lib-1",
+    srcs: ["a.java"],
+    javacflags: ["-Xsuper-fast"],
+    errorprone: {
+		enabled: false,
+        javacflags: ["-Xep:SpeedLimit:OFF"],
+    },
+}`,
+		expectedBazelTargets: []string{
+			makeBazelTarget("java_library", "java-lib-1", attrNameToString{
+				"javacopts": `["-Xsuper-fast"]`,
+				"srcs":      `["a.java"]`,
+			}),
+		},
 	})
 }
