@@ -319,11 +319,47 @@ class HiddenApiPropertyChange:
 
 
 @dataclasses.dataclass()
+class PackagePropertyReason:
+    """Provides the reasons why a package was added to a specific property.
+
+    A split package is one that contains classes from the bootclasspath_fragment
+    and other bootclasspath modules. So, for a split package this contains the
+    corresponding lists of classes.
+
+    A single package is one that contains classes sub-packages from the
+    For a split package this contains a list of classes in that package that are
+    provided by the bootclasspath_fragment and a list of classes
+    """
+
+    # The list of classes/sub-packages that is provided by the
+    # bootclasspath_fragment.
+    bcpf: typing.List[str]
+
+    # The list of classes/sub-packages that is provided by other modules on the
+    # bootclasspath.
+    other: typing.List[str]
+
+
+@dataclasses.dataclass()
 class Result:
     """Encapsulates the result of the analysis."""
 
     # The diffs in the flags.
     diffs: typing.Optional[FlagDiffs] = None
+
+    # A map from package name to the reason why it belongs in the
+    # split_packages property.
+    split_packages: typing.Dict[str, PackagePropertyReason] = dataclasses.field(
+        default_factory=dict)
+
+    # A map from package name to the reason why it belongs in the
+    # single_packages property.
+    single_packages: typing.Dict[str,
+                                 PackagePropertyReason] = dataclasses.field(
+                                     default_factory=dict)
+
+    # The list of packages to add to the package_prefixes property.
+    package_prefixes: typing.List[str] = dataclasses.field(default_factory=list)
 
     # The bootclasspath_fragment hidden API properties changes.
     property_changes: typing.List[HiddenApiPropertyChange] = dataclasses.field(
@@ -1053,13 +1089,16 @@ merge these properties into it.
         """).strip("\n")
 
     def analyze_hiddenapi_package_properties(self, result):
-        split_packages, single_packages, package_prefixes = \
-            self.compute_hiddenapi_package_properties()
+        self.compute_hiddenapi_package_properties(result)
+
+        def indent_lines(lines):
+            return "\n".join([f"        {cls}" for cls in lines])
 
         # TODO(b/202154151): Find those classes in split packages that are not
         #  part of an API, i.e. are an internal implementation class, and so
         #  can, and should, be safely moved out of the split packages.
 
+        split_packages = result.split_packages.keys()
         result.property_changes.append(
             HiddenApiPropertyChange(
                 property_name="split_packages",
@@ -1090,6 +1129,19 @@ merge these properties into it.
                 details.
                 """)
 
+            for package in split_packages:
+                reason = result.split_packages[package]
+                self.report(f"""
+    Package {package} is split because while this bootclasspath_fragment
+    provides the following classes:
+{indent_lines(reason.bcpf)}
+
+    Other module(s) on the bootclasspath provides the following classes in
+    that package:
+{indent_lines(reason.other)}
+""")
+
+        single_packages = result.single_packages.keys()
         if single_packages:
             result.property_changes.append(
                 HiddenApiPropertyChange(
@@ -1105,6 +1157,30 @@ merge these properties into it.
                     action=PropertyChangeAction.REPLACE,
                 ))
 
+            self.report_dedent(f"""
+                bootclasspath_fragment {self.bcpf} contains classes from
+                packages that has sub-packages which contain classes provided by
+                other bootclasspath modules. Those packages are called single
+                packages. Single packages should be avoided where possible but
+                are often unavoidable when modularizing existing code.
+
+                Because some sub-packages contains classes from other
+                bootclasspath modules it is not possible to use the package as a
+                package prefix as that treats the package and all its
+                sub-packages as being provided by this module.  
+                """)
+            for package in single_packages:
+                reason = result.single_packages[package]
+                self.report(f"""
+    Package {package} is not a package prefix because while this
+    bootclasspath_fragment provides the following sub-packages:
+{indent_lines(reason.bcpf)}
+
+    Other module(s) on the bootclasspath provide the following sub-packages:
+{indent_lines(reason.other)}
+""")
+
+        package_prefixes = result.package_prefixes
         if package_prefixes:
             result.property_changes.append(
                 HiddenApiPropertyChange(
@@ -1154,7 +1230,7 @@ merge these properties into it.
                 by another module will end with .../*.
                 """)
 
-    def compute_hiddenapi_package_properties(self):
+    def compute_hiddenapi_package_properties(self, result):
         trie = signature_trie()
         # Populate the trie with the classes that are provided by the
         # bootclasspath_fragment tagging them to make it clear where they
@@ -1163,6 +1239,7 @@ merge these properties into it.
         for class_name in sorted_classes:
             trie.add(class_name + _FAKE_MEMBER, ClassProvider.BCPF)
 
+        # Now the same for monolithic classes.
         monolithic_classes = set()
         abs_flags_file = os.path.join(self.top_dir, _FLAGS_FILE)
         with open(abs_flags_file, "r", encoding="utf8") as f:
@@ -1177,15 +1254,54 @@ merge these properties into it.
                         only_if_matches=True)
                     monolithic_classes.add(class_name)
 
-        split_packages = []
-        single_packages = []
-        package_prefixes = []
-        self.recurse_hiddenapi_packages_trie(trie, split_packages,
-                                             single_packages, package_prefixes)
-        return split_packages, single_packages, package_prefixes
+        self.recurse_hiddenapi_packages_trie(trie, result)
 
-    def recurse_hiddenapi_packages_trie(self, node, split_packages,
-                                        single_packages, package_prefixes):
+    @staticmethod
+    def selector_to_java_reference(node):
+        return node.selector.replace("/", ".")
+
+    @staticmethod
+    def determine_reason_for_single_package(node):
+        bcpf_packages = []
+        other_packages = []
+
+        def recurse(n):
+            if n.type != "package":
+                return
+
+            providers = n.get_matching_rows("*")
+            package_ref = BcpfAnalyzer.selector_to_java_reference(n)
+            if ClassProvider.BCPF in providers:
+                bcpf_packages.append(package_ref)
+            else:
+                other_packages.append(package_ref)
+
+            children = n.child_nodes()
+            if children:
+                for child in children:
+                    recurse(child)
+
+        recurse(node)
+        return PackagePropertyReason(bcpf=bcpf_packages, other=other_packages)
+
+    @staticmethod
+    def determine_reason_for_split_package(node):
+        bcpf_classes = []
+        other_classes = []
+        for child in node.child_nodes():
+            if child.type != "class":
+                continue
+
+            providers = child.values(lambda _: True)
+            class_ref = BcpfAnalyzer.selector_to_java_reference(child)
+            if ClassProvider.BCPF in providers:
+                bcpf_classes.append(class_ref)
+            else:
+                other_classes.append(class_ref)
+
+        return PackagePropertyReason(bcpf=bcpf_classes, other=other_classes)
+
+    def recurse_hiddenapi_packages_trie(self, node, result):
         nodes = node.child_nodes()
         if nodes:
             for child in nodes:
@@ -1193,7 +1309,7 @@ merge these properties into it.
                 if child.type != "package":
                     continue
 
-                package = child.selector.replace("/", ".")
+                package = self.selector_to_java_reference(child)
 
                 providers = set(child.get_matching_rows("**"))
                 if not providers:
@@ -1204,7 +1320,7 @@ merge these properties into it.
                     # The package and all its sub packages only contain
                     # classes provided by the bootclasspath_fragment.
                     logging.debug("Package '%s.**' is not split", package)
-                    package_prefixes.append(package)
+                    result.package_prefixes.append(package)
                     # There is no point traversing into the sub packages.
                     continue
                 elif providers == {ClassProvider.OTHER}:
@@ -1229,8 +1345,17 @@ merge these properties into it.
                 elif providers == {ClassProvider.BCPF}:
                     # The package only contains classes provided by the
                     # bootclasspath_fragment.
-                    logging.debug("Package '%s.*' is not split", package)
-                    single_packages.append(package)
+                    logging.debug(
+                        "Package '%s.*' is not split but does have "
+                        "sub-packages from other modules", package)
+
+                    # Partition the sub-packages into those that are provided by
+                    # this bootclasspath_fragment and those provided by other
+                    # modules. They can be used to explain the reason for the
+                    # single package to developers.
+                    reason = self.determine_reason_for_single_package(child)
+                    result.single_packages[package] = reason
+
                 elif providers == {ClassProvider.OTHER}:
                     # The package contains no classes provided by the
                     # bootclasspath_fragment. Child nodes make contain such
@@ -1241,11 +1366,15 @@ merge these properties into it.
                     # The package contains classes provided by both the
                     # bootclasspath_fragment and some other source.
                     logging.debug("Package '%s.*' is split", package)
-                    split_packages.append(package)
 
-                self.recurse_hiddenapi_packages_trie(child, split_packages,
-                                                     single_packages,
-                                                     package_prefixes)
+                    # Partition the classes in this split package into those
+                    # that come from this bootclasspath_fragment and those that
+                    # come from other modules. That can be used to explain the
+                    # reason for the split package to developers.
+                    reason = self.determine_reason_for_split_package(child)
+                    result.split_packages[package] = reason
+
+                self.recurse_hiddenapi_packages_trie(child, result)
 
 
 def newline_stripping_iter(iterator):
