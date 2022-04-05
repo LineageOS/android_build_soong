@@ -2218,8 +2218,16 @@ type bazelJavaImportAttributes struct {
 
 // java_import bp2Build converter.
 func (i *Import) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
-	//TODO(b/209577426): Support multiple arch variants
-	jars := bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrcExcludes(ctx, i.properties.Jars, []string(nil)))
+	var jars bazel.LabelListAttribute
+	archVariantProps := i.GetArchVariantProperties(ctx, &ImportProperties{})
+	for axis, configToProps := range archVariantProps {
+		for config, _props := range configToProps {
+			if archProps, ok := _props.(*ImportProperties); ok {
+				archJars := android.BazelLabelForModuleSrcExcludes(ctx, archProps.Jars, []string(nil))
+				jars.SetSelectValue(axis, config, archJars)
+			}
+		}
+	}
 
 	attrs := &bazelJavaImportAttributes{
 		Jars: jars,
