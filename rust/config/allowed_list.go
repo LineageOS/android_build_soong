@@ -28,6 +28,7 @@ var (
 		"prebuilts/rust",
 		"system/core/debuggerd/rust",
 		"system/core/libstats/pull_rust",
+		"system/core/trusty/libtrusty-rs",
 		"system/extras/profcollectd",
 		"system/extras/simpleperf",
 		"system/hardware/interfaces/keystore2",
