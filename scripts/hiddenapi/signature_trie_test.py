@@ -150,6 +150,27 @@ class TestSignatureToElements(unittest.TestCase):
             str(context.exception))
 
 
+class TestValues(unittest.TestCase):
+    def test_add_then_get(self):
+        trie = signature_trie()
+        trie.add("La/b/C;->l()", 1)
+        trie.add("La/b/C$D;->m()", "A")
+        trie.add("La/b/C$D;->n()", {})
+
+        package_a_node = next(iter(trie.child_nodes()))
+        self.assertEqual("package", package_a_node.type)
+        self.assertEqual("a", package_a_node.selector)
+
+        package_b_node = next(iter(package_a_node.child_nodes()))
+        self.assertEqual("package", package_b_node.type)
+        self.assertEqual("a/b", package_b_node.selector)
+
+        class_c_node = next(iter(package_b_node.child_nodes()))
+        self.assertEqual("class", class_c_node.type)
+        self.assertEqual("a/b/C", class_c_node.selector)
+
+        self.assertEqual([1, "A", {}], class_c_node.values(lambda _: True))
+
 class TestGetMatchingRows(unittest.TestCase):
     extractInput = """
 Ljava/lang/Character$UnicodeScript;->of(I)Ljava/lang/Character$UnicodeScript;
