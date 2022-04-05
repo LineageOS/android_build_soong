@@ -1022,12 +1022,13 @@ def init(g, handle):
 `,
 	},
 	{
-		desc:   "strip function",
+		desc:   "strip/sort functions",
 		mkname: "product.mk",
 		in: `
 ifeq ($(filter hwaddress,$(PRODUCT_PACKAGES)),)
    PRODUCT_PACKAGES := $(strip $(PRODUCT_PACKAGES) hwaddress)
 endif
+MY_VAR := $(sort b a c)
 `,
 		expected: `load("//build/make/core:product_config.rbc", "rblf")
 
@@ -1036,6 +1037,7 @@ def init(g, handle):
   if "hwaddress" not in cfg.get("PRODUCT_PACKAGES", []):
     rblf.setdefault(handle, "PRODUCT_PACKAGES")
     cfg["PRODUCT_PACKAGES"] = (rblf.mkstrip("%s hwaddress" % " ".join(cfg.get("PRODUCT_PACKAGES", [])))).split()
+  g["MY_VAR"] = rblf.mksort("b a c")
 `,
 	},
 	{
