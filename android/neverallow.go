@@ -57,6 +57,7 @@ func init() {
 	AddNeverAllowRules(createUncompressDexRules()...)
 	AddNeverAllowRules(createMakefileGoalRules()...)
 	AddNeverAllowRules(createInitFirstStageRules()...)
+	AddNeverAllowRules(createProhibitFrameworkAccessRules()...)
 }
 
 // Add a NeverAllow rule to the set of rules to apply.
@@ -225,6 +226,15 @@ func createInitFirstStageRules() []Rule {
 			Without("name", "init_first_stage").
 			With("install_in_root", "true").
 			Because("install_in_root is only for init_first_stage."),
+	}
+}
+
+func createProhibitFrameworkAccessRules() []Rule {
+	return []Rule{
+		NeverAllow().
+			With("libs", "framework").
+			WithoutMatcher("sdk_version", Regexp("(core_.*|^$)")).
+			Because("framework can't be used when building against SDK"),
 	}
 }
 
