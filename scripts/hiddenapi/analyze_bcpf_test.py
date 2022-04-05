@@ -377,6 +377,7 @@ La/b/E;->m()V
 La/b/c/D;->m()V
 La/b/c/E;->m()V
 La/b/c/d/E;->m()V
+La/b/c/d/e/F;->m()V
 Lb/c/D;->m()V
 Lb/c/E;->m()V
 Lb/c/d/E;->m()V
@@ -385,11 +386,21 @@ Lb/c/d/E;->m()V
         analyzer = self.create_analyzer_for_test(fs)
         analyzer.load_all_flags()
 
-        split_packages, single_packages, package_prefixes = \
-            analyzer.compute_hiddenapi_package_properties()
-        self.assertEqual(["a.b"], split_packages)
-        self.assertEqual(["a.b.c"], single_packages)
-        self.assertEqual(["b"], package_prefixes)
+        result = ab.Result()
+        analyzer.compute_hiddenapi_package_properties(result)
+        self.assertEqual(["a.b"], list(result.split_packages.keys()))
+
+        reason = result.split_packages["a.b"]
+        self.assertEqual(["a.b.C"], reason.bcpf)
+        self.assertEqual(["a.b.D", "a.b.E"], reason.other)
+
+        self.assertEqual(["a.b.c"], list(result.single_packages.keys()))
+
+        reason = result.single_packages["a.b.c"]
+        self.assertEqual(["a.b.c"], reason.bcpf)
+        self.assertEqual(["a.b.c.d", "a.b.c.d.e"], reason.other)
+
+        self.assertEqual(["b"], result.package_prefixes)
 
 
 class TestHiddenApiPropertyChange(unittest.TestCase):
