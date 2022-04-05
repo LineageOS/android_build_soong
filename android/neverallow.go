@@ -249,7 +249,7 @@ func neverallowMutator(ctx BottomUpMutatorContext) {
 			continue
 		}
 
-		if !n.appliesToProperties(ctx, properties) {
+		if !n.appliesToProperties(properties) {
 			continue
 		}
 
@@ -261,20 +261,12 @@ func neverallowMutator(ctx BottomUpMutatorContext) {
 			continue
 		}
 
-		if !n.appliesToBootclasspathJar(ctx) {
-			continue
-		}
-
 		ctx.ModuleErrorf("violates " + n.String())
 	}
 }
 
-type ValueMatcherContext interface {
-	Config() Config
-}
-
 type ValueMatcher interface {
-	Test(ValueMatcherContext, string) bool
+	Test(string) bool
 	String() string
 }
 
@@ -282,7 +274,7 @@ type equalMatcher struct {
 	expected string
 }
 
-func (m *equalMatcher) Test(ctx ValueMatcherContext, value string) bool {
+func (m *equalMatcher) Test(value string) bool {
 	return m.expected == value
 }
 
@@ -293,7 +285,7 @@ func (m *equalMatcher) String() string {
 type anyMatcher struct {
 }
 
-func (m *anyMatcher) Test(ctx ValueMatcherContext, value string) bool {
+func (m *anyMatcher) Test(value string) bool {
 	return true
 }
 
@@ -307,7 +299,7 @@ type startsWithMatcher struct {
 	prefix string
 }
 
-func (m *startsWithMatcher) Test(ctx ValueMatcherContext, value string) bool {
+func (m *startsWithMatcher) Test(value string) bool {
 	return strings.HasPrefix(value, m.prefix)
 }
 
@@ -319,7 +311,7 @@ type regexMatcher struct {
 	re *regexp.Regexp
 }
 
-func (m *regexMatcher) Test(ctx ValueMatcherContext, value string) bool {
+func (m *regexMatcher) Test(value string) bool {
 	return m.re.MatchString(value)
 }
 
@@ -331,7 +323,7 @@ type notInListMatcher struct {
 	allowed []string
 }
 
-func (m *notInListMatcher) Test(ctx ValueMatcherContext, value string) bool {
+func (m *notInListMatcher) Test(value string) bool {
 	return !InList(value, m.allowed)
 }
 
@@ -341,7 +333,7 @@ func (m *notInListMatcher) String() string {
 
 type isSetMatcher struct{}
 
-func (m *isSetMatcher) Test(ctx ValueMatcherContext, value string) bool {
+func (m *isSetMatcher) Test(value string) bool {
 	return value != ""
 }
 
@@ -350,19 +342,6 @@ func (m *isSetMatcher) String() string {
 }
 
 var isSetMatcherInstance = &isSetMatcher{}
-
-type sdkVersionMatcher struct {
-	condition   func(ctx ValueMatcherContext, spec SdkSpec) bool
-	description string
-}
-
-func (m *sdkVersionMatcher) Test(ctx ValueMatcherContext, value string) bool {
-	return m.condition(ctx, SdkSpecFromWithConfig(ctx.Config(), value))
-}
-
-func (m *sdkVersionMatcher) String() string {
-	return ".sdk-version(" + m.description + ")"
-}
 
 type ruleProperty struct {
 	fields  []string // e.x.: Vndk.Enabled
@@ -396,8 +375,6 @@ type Rule interface {
 	ModuleType(types ...string) Rule
 
 	NotModuleType(types ...string) Rule
-
-	BootclasspathJar() Rule
 
 	With(properties, value string) Rule
 
@@ -514,12 +491,6 @@ func (r *rule) Because(reason string) Rule {
 	return r
 }
 
-// BootclasspathJar whether this rule only applies to Jars in the Bootclasspath
-func (r *rule) BootclasspathJar() Rule {
-	r.onlyBootclasspathJar = true
-	return r
-}
-
 func (r *rule) String() string {
 	s := []string{"neverallow requirements. Not allowed:"}
 	if len(r.paths) > 0 {
@@ -536,9 +507,6 @@ func (r *rule) String() string {
 	}
 	if len(r.osClasses) > 0 {
 		s = append(s, fmt.Sprintf("os class(es): %q", r.osClasses))
-	}
-	if r.onlyBootclasspathJar {
-		s = append(s, "in bootclasspath jar")
 	}
 	if len(r.unlessPaths) > 0 {
 		s = append(s, fmt.Sprintf("EXCEPT in dirs: %q", r.unlessPaths))
@@ -580,14 +548,6 @@ func (r *rule) appliesToDirectDeps(ctx BottomUpMutatorContext) bool {
 	return matches
 }
 
-func (r *rule) appliesToBootclasspathJar(ctx BottomUpMutatorContext) bool {
-	if !r.onlyBootclasspathJar {
-		return true
-	}
-
-	return InList(ctx.ModuleName(), ctx.Config().BootJars())
-}
-
 func (r *rule) appliesToOsClass(osClass OsClass) bool {
 	if len(r.osClasses) == 0 {
 		return true
@@ -606,10 +566,9 @@ func (r *rule) appliesToModuleType(moduleType string) bool {
 	return (len(r.moduleTypes) == 0 || InList(moduleType, r.moduleTypes)) && !InList(moduleType, r.unlessModuleTypes)
 }
 
-func (r *rule) appliesToProperties(ctx ValueMatcherContext,
-	properties []interface{}) bool {
-	includeProps := hasAllProperties(ctx, properties, r.props)
-	excludeProps := hasAnyProperty(ctx, properties, r.unlessProps)
+func (r *rule) appliesToProperties(properties []interface{}) bool {
+	includeProps := hasAllProperties(properties, r.props)
+	excludeProps := hasAnyProperty(properties, r.unlessProps)
 	return includeProps && !excludeProps
 }
 
@@ -627,16 +586,6 @@ func Regexp(re string) ValueMatcher {
 
 func NotInList(allowed []string) ValueMatcher {
 	return &notInListMatcher{allowed}
-}
-
-func LessThanSdkVersion(sdk string) ValueMatcher {
-	return &sdkVersionMatcher{
-		condition: func(ctx ValueMatcherContext, spec SdkSpec) bool {
-			return spec.ApiLevel.LessThan(
-				SdkSpecFromWithConfig(ctx.Config(), sdk).ApiLevel)
-		},
-		description: "lessThan=" + sdk,
-	}
 }
 
 // assorted utils
@@ -657,28 +606,25 @@ func fieldNamesForProperties(propertyNames string) []string {
 	return names
 }
 
-func hasAnyProperty(ctx ValueMatcherContext, properties []interface{},
-	props []ruleProperty) bool {
+func hasAnyProperty(properties []interface{}, props []ruleProperty) bool {
 	for _, v := range props {
-		if hasProperty(ctx, properties, v) {
+		if hasProperty(properties, v) {
 			return true
 		}
 	}
 	return false
 }
 
-func hasAllProperties(ctx ValueMatcherContext, properties []interface{},
-	props []ruleProperty) bool {
+func hasAllProperties(properties []interface{}, props []ruleProperty) bool {
 	for _, v := range props {
-		if !hasProperty(ctx, properties, v) {
+		if !hasProperty(properties, v) {
 			return false
 		}
 	}
 	return true
 }
 
-func hasProperty(ctx ValueMatcherContext, properties []interface{},
-	prop ruleProperty) bool {
+func hasProperty(properties []interface{}, prop ruleProperty) bool {
 	for _, propertyStruct := range properties {
 		propertiesValue := reflect.ValueOf(propertyStruct).Elem()
 		for _, v := range prop.fields {
@@ -692,7 +638,7 @@ func hasProperty(ctx ValueMatcherContext, properties []interface{},
 		}
 
 		check := func(value string) bool {
-			return prop.matcher.Test(ctx, value)
+			return prop.matcher.Test(value)
 		}
 
 		if matchValue(propertiesValue, check) {
