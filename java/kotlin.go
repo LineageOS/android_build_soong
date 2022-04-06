@@ -163,11 +163,11 @@ var kaptStubs = pctx.AndroidRemoteStaticRule("kaptStubs", android.RemoteRuleSupp
 	"classpath", "srcJars", "commonSrcFilesArg", "srcJarDir", "kaptDir", "kotlinJvmTarget",
 	"kotlinBuildFile", "name", "classesJarOut")
 
-// kotlinKapt performs Kotlin-compatible annotation processing.  It takes .kt and .java sources and srcjars, and runs
+// kotlinTurbineApt performs Kotlin-compatible annotation processing.  It takes .kt and .java sources and srcjars, and runs
 // annotation processors over all of them, producing a srcjar of generated code in outputFile.  The srcjar should be
 // added as an additional input to kotlinc and javac rules, and the javac rule should have annotation processing
 // disabled.
-func kotlinKapt(ctx android.ModuleContext, srcJarOutputFile, resJarOutputFile android.WritablePath,
+func kotlinTurbineApt(ctx android.ModuleContext, headerJarOutputFile, srcJarOutputFile, resJarOutputFile android.WritablePath,
 	srcFiles, commonSrcFiles, srcJars android.Paths,
 	flags javaBuilderFlags) {
 
@@ -231,7 +231,7 @@ func kotlinKapt(ctx android.ModuleContext, srcJarOutputFile, resJarOutputFile an
 	// Then run turbine to perform annotation processing on the stubs and any .java srcFiles.
 	javaSrcFiles := srcFiles.FilterByExt(".java")
 	turbineSrcJars := append(android.Paths{kaptStubsJar}, srcJars...)
-	TurbineApt(ctx, srcJarOutputFile, resJarOutputFile, javaSrcFiles, turbineSrcJars, flags)
+	TurbineApt(ctx, headerJarOutputFile, srcJarOutputFile, resJarOutputFile, javaSrcFiles, turbineSrcJars, flags)
 }
 
 // kapt converts a list of key, value pairs into a base64 encoded Java serialization, which is what kapt expects.
