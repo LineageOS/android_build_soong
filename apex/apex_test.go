@@ -113,6 +113,12 @@ func withManifestPackageNameOverrides(specs []string) android.FixturePreparer {
 	})
 }
 
+func withApexGlobalMinSdkVersionOverride(minSdkOverride *string) android.FixturePreparer {
+	return android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+		variables.ApexGlobalMinSdkVersionOverride = minSdkOverride
+	})
+}
+
 var withBinder32bit = android.FixtureModifyProductVariables(
 	func(variables android.FixtureProductVariables) {
 		variables.Binder32bit = proptools.BoolPtr(true)
@@ -6343,6 +6349,124 @@ func TestOverrideApex(t *testing.T) {
 	ensureNotContains(t, androidMk, "LOCAL_MODULE := override_systemserverlib.myapex")
 	ensureNotContains(t, androidMk, "LOCAL_MODULE := override_java_library.pb.myapex")
 	ensureNotContains(t, androidMk, "LOCAL_MODULE_STEM := myapex.apex")
+}
+
+func TestMinSdkVersionOverride(t *testing.T) {
+	// Override from 29 to 31
+	minSdkOverride31 := "31"
+	ctx := testApex(t, `
+			apex {
+					name: "myapex",
+					key: "myapex.key",
+					native_shared_libs: ["mylib"],
+					updatable: true,
+					min_sdk_version: "29"
+			}
+
+			override_apex {
+					name: "override_myapex",
+					base: "myapex",
+					logging_parent: "com.foo.bar",
+					package_name: "test.overridden.package"
+			}
+
+			apex_key {
+					name: "myapex.key",
+					public_key: "testkey.avbpubkey",
+					private_key: "testkey.pem",
+			}
+
+			cc_library {
+					name: "mylib",
+					srcs: ["mylib.cpp"],
+					runtime_libs: ["libbar"],
+					system_shared_libs: [],
+					stl: "none",
+					apex_available: [ "myapex" ],
+					min_sdk_version: "apex_inherit"
+			}
+
+			cc_library {
+					name: "libbar",
+					srcs: ["mylib.cpp"],
+					system_shared_libs: [],
+					stl: "none",
+					apex_available: [ "myapex" ],
+					min_sdk_version: "apex_inherit"
+			}
+
+	`, withApexGlobalMinSdkVersionOverride(&minSdkOverride31))
+
+	apexRule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("apexRule")
+	copyCmds := apexRule.Args["copy_commands"]
+
+	// Ensure that direct non-stubs dep is always included
+	ensureContains(t, copyCmds, "image.apex/lib64/mylib.so")
+
+	// Ensure that runtime_libs dep in included
+	ensureContains(t, copyCmds, "image.apex/lib64/libbar.so")
+
+	// Ensure libraries target overridden min_sdk_version value
+	ensureListContains(t, ctx.ModuleVariantsForTests("libbar"), "android_arm64_armv8-a_shared_apex31")
+}
+
+func TestMinSdkVersionOverrideToLowerVersionNoOp(t *testing.T) {
+	// Attempt to override from 31 to 29, should be a NOOP
+	minSdkOverride29 := "29"
+	ctx := testApex(t, `
+			apex {
+					name: "myapex",
+					key: "myapex.key",
+					native_shared_libs: ["mylib"],
+					updatable: true,
+					min_sdk_version: "31"
+			}
+
+			override_apex {
+					name: "override_myapex",
+					base: "myapex",
+					logging_parent: "com.foo.bar",
+					package_name: "test.overridden.package"
+			}
+
+			apex_key {
+					name: "myapex.key",
+					public_key: "testkey.avbpubkey",
+					private_key: "testkey.pem",
+			}
+
+			cc_library {
+					name: "mylib",
+					srcs: ["mylib.cpp"],
+					runtime_libs: ["libbar"],
+					system_shared_libs: [],
+					stl: "none",
+					apex_available: [ "myapex" ],
+					min_sdk_version: "apex_inherit"
+			}
+
+			cc_library {
+					name: "libbar",
+					srcs: ["mylib.cpp"],
+					system_shared_libs: [],
+					stl: "none",
+					apex_available: [ "myapex" ],
+					min_sdk_version: "apex_inherit"
+			}
+
+	`, withApexGlobalMinSdkVersionOverride(&minSdkOverride29))
+
+	apexRule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("apexRule")
+	copyCmds := apexRule.Args["copy_commands"]
+
+	// Ensure that direct non-stubs dep is always included
+	ensureContains(t, copyCmds, "image.apex/lib64/mylib.so")
+
+	// Ensure that runtime_libs dep in included
+	ensureContains(t, copyCmds, "image.apex/lib64/libbar.so")
+
+	// Ensure libraries target the original min_sdk_version value rather than the overridden
+	ensureListContains(t, ctx.ModuleVariantsForTests("libbar"), "android_arm64_armv8-a_shared_apex31")
 }
 
 func TestLegacyAndroid10Support(t *testing.T) {
