@@ -319,11 +319,47 @@ class HiddenApiPropertyChange:
 
 
 @dataclasses.dataclass()
+class PackagePropertyReason:
+    """Provides the reasons why a package was added to a specific property.
+
+    A split package is one that contains classes from the bootclasspath_fragment
+    and other bootclasspath modules. So, for a split package this contains the
+    corresponding lists of classes.
+
+    A single package is one that contains classes sub-packages from the
+    For a split package this contains a list of classes in that package that are
+    provided by the bootclasspath_fragment and a list of classes
+    """
+
+    # The list of classes/sub-packages that is provided by the
+    # bootclasspath_fragment.
+    bcpf: typing.List[str]
+
+    # The list of classes/sub-packages that is provided by other modules on the
+    # bootclasspath.
+    other: typing.List[str]
+
+
+@dataclasses.dataclass()
 class Result:
     """Encapsulates the result of the analysis."""
 
     # The diffs in the flags.
     diffs: typing.Optional[FlagDiffs] = None
+
+    # A map from package name to the reason why it belongs in the
+    # split_packages property.
+    split_packages: typing.Dict[str, PackagePropertyReason] = dataclasses.field(
+        default_factory=dict)
+
+    # A map from package name to the reason why it belongs in the
+    # single_packages property.
+    single_packages: typing.Dict[str,
+                                 PackagePropertyReason] = dataclasses.field(
+                                     default_factory=dict)
+
+    # The list of packages to add to the package_prefixes property.
+    package_prefixes: typing.List[str] = dataclasses.field(default_factory=list)
 
     # The bootclasspath_fragment hidden API properties changes.
     property_changes: typing.List[HiddenApiPropertyChange] = dataclasses.field(
@@ -394,12 +430,16 @@ class BcpfAnalyzer:
     def reformat_report_test(text):
         return re.sub(r"(.)\n([^\s])", r"\1 \2", text)
 
-    def report(self, text, **kwargs):
+    def report(self, text="", **kwargs):
         # Concatenate lines that are not separated by a blank line together to
         # eliminate formatting applied to the supplied text to adhere to python
         # line length limitations.
         text = self.reformat_report_test(text)
         logging.info("%s", text, **kwargs)
+
+    def report_dedent(self, text, **kwargs):
+        text = textwrap.dedent(text)
+        self.report(text, **kwargs)
 
     def run_command(self, cmd, *args, **kwargs):
         cmd_line = " ".join(cmd)
@@ -442,9 +482,7 @@ class BcpfAnalyzer:
     def load_module_info(self):
         module_info_file = os.path.join(self.product_out_dir,
                                         "module-info.json")
-        self.report(f"""
-Making sure that {module_info_file} is up to date.
-""")
+        self.report(f"\nMaking sure that {module_info_file} is up to date.\n")
         output = self.build_file_read_output(module_info_file)
         lines = output.lines()
         for line in lines:
@@ -496,61 +534,62 @@ Making sure that {module_info_file} is up to date.
         optimizations that can be applied.
         """
         self.report(f"Analyzing bootclasspath_fragment module {self.bcpf}")
-        self.report(f"""
-Run this tool to help initialize a bootclasspath_fragment module. Before you
-start make sure that:
+        self.report_dedent(f"""
+            Run this tool to help initialize a bootclasspath_fragment module.
+            Before you start make sure that:
 
-1. The current checkout is up to date.
+            1. The current checkout is up to date.
 
-2. The environment has been initialized using lunch, e.g.
-   lunch aosp_arm64-userdebug
+            2. The environment has been initialized using lunch, e.g.
+               lunch aosp_arm64-userdebug
 
-3. You have added a bootclasspath_fragment module to the appropriate Android.bp
-file. Something like this:
+            3. You have added a bootclasspath_fragment module to the appropriate
+            Android.bp file. Something like this:
 
-   bootclasspath_fragment {{
-     name: "{self.bcpf}",
-     contents: [
-       "...",
-     ],
+               bootclasspath_fragment {{
+                 name: "{self.bcpf}",
+                 contents: [
+                   "...",
+                 ],
+            
+                 // The bootclasspath_fragments that provide APIs on which this
+                 // depends.
+                 fragments: [
+                   {{
+                     apex: "com.android.art",
+                     module: "art-bootclasspath-fragment",
+                   }},
+                 ],
+               }}
+            
+            4. You have added it to the platform_bootclasspath module in
+            frameworks/base/boot/Android.bp. Something like this:
 
-     // The bootclasspath_fragments that provide APIs on which this depends.
-     fragments: [
-       {{
-         apex: "com.android.art",
-         module: "art-bootclasspath-fragment",
-       }},
-     ],
-   }}
+               platform_bootclasspath {{
+                 name: "platform-bootclasspath",
+                 fragments: [
+                   ...
+                   {{
+                     apex: "{self.apex}",
+                     module: "{self.bcpf}",
+                   }},
+                 ],
+               }}
 
-4. You have added it to the platform_bootclasspath module in
-frameworks/base/boot/Android.bp. Something like this:
+            5. You have added an sdk module. Something like this:
 
-   platform_bootclasspath {{
-     name: "platform-bootclasspath",
-     fragments: [
-       ...
-       {{
-         apex: "{self.apex}",
-         module: "{self.bcpf}",
-       }},
-     ],
-   }}
-
-5. You have added an sdk module. Something like this:
-
-   sdk {{
-     name: "{self.sdk}",
-     bootclasspath_fragments: ["{self.bcpf}"],
-   }}
-""")
+               sdk {{
+                 name: "{self.sdk}",
+                 bootclasspath_fragments: ["{self.bcpf}"],
+               }}
+            """)
 
         # Make sure that the module-info.json file is up to date.
         self.load_module_info()
 
-        self.report("""
-Cleaning potentially stale files.
-""")
+        self.report_dedent("""
+            Cleaning potentially stale files.
+            """)
         # Remove the out/soong/hiddenapi files.
         shutil.rmtree(f"{self.out_dir}/soong/hiddenapi", ignore_errors=True)
 
@@ -605,26 +644,26 @@ merge these properties into it.
 
         if result.file_changes:
             if self.fix:
-                file_change_message = """
-The following files were modified by this script:"""
+                file_change_message = textwrap.dedent("""
+                    The following files were modified by this script:
+                    """)
             else:
-                file_change_message = """
-The following modifications need to be made:"""
+                file_change_message = textwrap.dedent("""
+                    The following modifications need to be made:
+                    """)
 
-            self.report(f"""
-{file_change_message}""")
+            self.report(file_change_message)
             result.file_changes.sort()
             for file_change in result.file_changes:
-                self.report(f"""
-    {file_change.path}
-        {file_change.description}
-""".lstrip("\n"))
+                self.report(f"    {file_change.path}")
+                self.report(f"        {file_change.description}")
+                self.report()
 
             if not self.fix:
-                self.report("""
-Run the command again with the --fix option to automatically make the above
-changes.
-""".lstrip())
+                self.report_dedent("""
+                    Run the command again with the --fix option to automatically
+                    make the above changes.
+                    """.lstrip("\n"))
 
     def new_file_change(self, file, description):
         return FileChange(
@@ -635,11 +674,10 @@ changes.
         if not (module_line.startswith("< ") and
                 monolithic_line.startswith("> ") and not separator_line):
             # Something went wrong.
-            self.report(f"""Invalid build output detected:
-  module_line: "{module_line}"
-  monolithic_line: "{monolithic_line}"
-  separator_line: "{separator_line}"
-""")
+            self.report("Invalid build output detected:")
+            self.report(f"  module_line: '{module_line}'")
+            self.report(f"  monolithic_line: '{monolithic_line}'")
+            self.report(f"  separator_line: '{separator_line}'")
             sys.exit(1)
 
         if significant:
@@ -698,10 +736,9 @@ changes.
 
             if module_signature != monolithic_signature:
                 # Something went wrong.
-                self.report(f"""Inconsistent signatures detected:
-  module_signature: "{module_signature}"
-  monolithic_signature: "{monolithic_signature}"
-""")
+                self.report("Inconsistent signatures detected:")
+                self.report(f"  module_signature: '{module_signature}'")
+                self.report(f"  monolithic_signature: '{monolithic_signature}'")
                 sys.exit(1)
 
             diffs[module_signature] = (module_flags, monolithic_flags)
@@ -749,85 +786,91 @@ changes.
         return diffs
 
     def build_monolithic_stubs_flags(self):
-        self.report(f"""
-Attempting to build {_STUB_FLAGS_FILE} to verify that the
-bootclasspath_fragment has the correct API stubs available...
-""")
+        self.report_dedent(f"""
+            Attempting to build {_STUB_FLAGS_FILE} to verify that the
+            bootclasspath_fragment has the correct API stubs available...
+            """)
 
         # Build the hiddenapi-stubs-flags.txt file.
         diffs = self.build_hiddenapi_flags(_STUB_FLAGS_FILE)
         if diffs:
-            self.report(f"""
-There is a discrepancy between the stub API derived flags created by the
-bootclasspath_fragment and the platform_bootclasspath. See preceding error
-messages to see which flags are inconsistent. The inconsistencies can occur for
-a couple of reasons:
+            self.report_dedent(f"""
+                There is a discrepancy between the stub API derived flags
+                created by the bootclasspath_fragment and the
+                platform_bootclasspath. See preceding error messages to see
+                which flags are inconsistent. The inconsistencies can occur for
+                a couple of reasons:
 
-If you are building against prebuilts of the Android SDK, e.g. by using
-TARGET_BUILD_APPS then the prebuilt versions of the APIs this
-bootclasspath_fragment depends upon are out of date and need updating. See
-go/update-prebuilts for help.
+                If you are building against prebuilts of the Android SDK, e.g.
+                by using TARGET_BUILD_APPS then the prebuilt versions of the
+                APIs this bootclasspath_fragment depends upon are out of date
+                and need updating. See go/update-prebuilts for help.
 
-Otherwise, this is happening because there are some stub APIs that are either
-provided by or used by the contents of the bootclasspath_fragment but which are
-not available to it. There are 4 ways to handle this:
+                Otherwise, this is happening because there are some stub APIs
+                that are either provided by or used by the contents of the
+                bootclasspath_fragment but which are not available to it. There
+                are 4 ways to handle this:
 
-1. A java_sdk_library in the contents property will automatically make its stub
-   APIs available to the bootclasspath_fragment so nothing needs to be done.
+                1. A java_sdk_library in the contents property will
+                automatically make its stub APIs available to the
+                bootclasspath_fragment so nothing needs to be done.
 
-2. If the API provided by the bootclasspath_fragment is created by an api_only
-   java_sdk_library (or a java_library that compiles files generated by a
-   separate droidstubs module then it cannot be added to the contents and
-   instead must be added to the api.stubs property, e.g.
+                2. If the API provided by the bootclasspath_fragment is created
+                by an api_only java_sdk_library (or a java_library that compiles
+                files generated by a separate droidstubs module then it cannot
+                be added to the contents and instead must be added to the
+                api.stubs property, e.g.
 
-   bootclasspath_fragment {{
-     name: "{self.bcpf}",
-     ...
-     api: {{
-       stubs: ["$MODULE-api-only"],"
-     }},
-   }}
+                   bootclasspath_fragment {{
+                     name: "{self.bcpf}",
+                     ...
+                     api: {{
+                       stubs: ["$MODULE-api-only"],"
+                     }},
+                   }}
 
-3. If the contents use APIs provided by another bootclasspath_fragment then
-   it needs to be added to the fragments property, e.g.
+                3. If the contents use APIs provided by another
+                bootclasspath_fragment then it needs to be added to the
+                fragments property, e.g.
+                
+                   bootclasspath_fragment {{
+                     name: "{self.bcpf}",
+                     ...
+                     // The bootclasspath_fragments that provide APIs on which this depends.
+                     fragments: [
+                       ...
+                       {{
+                         apex: "com.android.other",
+                         module: "com.android.other-bootclasspath-fragment",
+                       }},
+                     ],
+                   }}
+                
+                4. If the contents use APIs from a module that is not part of
+                another bootclasspath_fragment then it must be added to the
+                additional_stubs property, e.g.
 
-   bootclasspath_fragment {{
-     name: "{self.bcpf}",
-     ...
-     // The bootclasspath_fragments that provide APIs on which this depends.
-     fragments: [
-       ...
-       {{
-         apex: "com.android.other",
-         module: "com.android.other-bootclasspath-fragment",
-       }},
-     ],
-   }}
+                   bootclasspath_fragment {{
+                     name: "{self.bcpf}",
+                     ...
+                     additional_stubs: ["android-non-updatable"],
+                   }}
 
-4. If the contents use APIs from a module that is not part of another
-   bootclasspath_fragment then it must be added to the additional_stubs
-   property, e.g.
+                   Like the api.stubs property these are typically
+                   java_sdk_library modules but can be java_library too.
 
-   bootclasspath_fragment {{
-     name: "{self.bcpf}",
-     ...
-     additional_stubs: ["android-non-updatable"],
-   }}
-
-   Like the api.stubs property these are typically java_sdk_library modules but
-   can be java_library too.
-
-   Note: The "android-non-updatable" is treated as if it was a java_sdk_library
-   which it is not at the moment but will be in future.
-""")
+                   Note: The "android-non-updatable" is treated as if it was a
+                   java_sdk_library which it is not at the moment but will be in
+                   future.
+                """)
 
         return diffs
 
     def build_monolithic_flags(self, result):
-        self.report(f"""
-Attempting to build {_FLAGS_FILE} to verify that the
-bootclasspath_fragment has the correct hidden API flags...
-""")
+        self.report_dedent(f"""
+            Attempting to build {_FLAGS_FILE} to verify that the
+            bootclasspath_fragment has the correct hidden API flags...
+            """)
 
         # Build the hiddenapi-flags.csv file and extract any differences in
         # the flags between this bootclasspath_fragment and the monolithic
@@ -838,32 +881,34 @@ bootclasspath_fragment has the correct hidden API flags...
         self.load_all_flags()
 
         if result.diffs:
-            self.report(f"""
-There is a discrepancy between the hidden API flags created by the
-bootclasspath_fragment and the platform_bootclasspath. See preceding error
-messages to see which flags are inconsistent. The inconsistencies can occur for
-a couple of reasons:
+            self.report_dedent(f"""
+                There is a discrepancy between the hidden API flags created by
+                the bootclasspath_fragment and the platform_bootclasspath. See
+                preceding error messages to see which flags are inconsistent.
+                The inconsistencies can occur for a couple of reasons:
 
-If you are building against prebuilts of this bootclasspath_fragment then the
-prebuilt version of the sdk snapshot (specifically the hidden API flag files)
-are inconsistent with the prebuilt version of the apex {self.apex}. Please
-ensure that they are both updated from the same build.
+                If you are building against prebuilts of this
+                bootclasspath_fragment then the prebuilt version of the sdk
+                snapshot (specifically the hidden API flag files) are
+                inconsistent with the prebuilt version of the apex {self.apex}.
+                Please ensure that they are both updated from the same build.
 
-1. There are custom hidden API flags specified in the one of the files in
-   frameworks/base/boot/hiddenapi which apply to the bootclasspath_fragment but
-   which are not supplied to the bootclasspath_fragment module.
+                1. There are custom hidden API flags specified in the one of the
+                files in frameworks/base/boot/hiddenapi which apply to the
+                bootclasspath_fragment but which are not supplied to the
+                bootclasspath_fragment module.
 
-2. The bootclasspath_fragment specifies invalid "package_prefixes" or
-   "split_packages" properties that match packages and classes that it does not
-   provide.
-
-""")
+                2. The bootclasspath_fragment specifies invalid
+                "split_packages", "single_packages" and/of "package_prefixes"
+                properties that match packages and classes that it does not
+                provide.
+                """)
 
             # Check to see if there are any hiddenapi related properties that
             # need to be added to the
-            self.report("""
-Checking custom hidden API flags....
-""")
+            self.report_dedent("""
+                Checking custom hidden API flags....
+                """)
             self.check_frameworks_base_boot_hidden_api_files(result)
 
     def report_hidden_api_flag_file_changes(self, result, property_name,
@@ -1044,13 +1089,16 @@ Checking custom hidden API flags....
         """).strip("\n")
 
     def analyze_hiddenapi_package_properties(self, result):
-        split_packages, single_packages, package_prefixes = \
-            self.compute_hiddenapi_package_properties()
+        self.compute_hiddenapi_package_properties(result)
+
+        def indent_lines(lines):
+            return "\n".join([f"        {cls}" for cls in lines])
 
         # TODO(b/202154151): Find those classes in split packages that are not
         #  part of an API, i.e. are an internal implementation class, and so
         #  can, and should, be safely moved out of the split packages.
 
+        split_packages = result.split_packages.keys()
         result.property_changes.append(
             HiddenApiPropertyChange(
                 property_name="split_packages",
@@ -1060,26 +1108,40 @@ Checking custom hidden API flags....
             ))
 
         if split_packages:
-            self.report(f"""
-bootclasspath_fragment {self.bcpf} contains classes in packages that also
-contain classes provided by other sources, those packages are called split
-packages. Split packages should be avoided where possible but are often
-unavoidable when modularizing existing code.
+            self.report_dedent(f"""
+                bootclasspath_fragment {self.bcpf} contains classes in packages
+                that also contain classes provided by other bootclasspath
+                modules. Those packages are called split packages. Split
+                packages should be avoided where possible but are often
+                unavoidable when modularizing existing code.
 
-The hidden api processing needs to know which packages are split (and conversely
-which are not) so that it can optimize the hidden API flags to remove
-unnecessary implementation details.
+                The hidden api processing needs to know which packages are split
+                (and conversely which are not) so that it can optimize the
+                hidden API flags to remove unnecessary implementation details.
+
+                By default (for backwards compatibility) the
+                bootclasspath_fragment assumes that all packages are split
+                unless one of the package_prefixes or split_packages properties
+                are specified. While that is safe it is not optimal and can lead
+                to unnecessary implementation details leaking into the hidden
+                API flags. Adding an empty split_packages property allows the
+                flags to be optimized and remove any unnecessary implementation
+                details.
+                """)
+
+            for package in split_packages:
+                reason = result.split_packages[package]
+                self.report(f"""
+    Package {package} is split because while this bootclasspath_fragment
+    provides the following classes:
+{indent_lines(reason.bcpf)}
+
+    Other module(s) on the bootclasspath provides the following classes in
+    that package:
+{indent_lines(reason.other)}
 """)
 
-        self.report("""
-By default (for backwards compatibility) the bootclasspath_fragment assumes that
-all packages are split unless one of the package_prefixes or split_packages
-properties are specified. While that is safe it is not optimal and can lead to
-unnecessary implementation details leaking into the hidden API flags. Adding an
-empty split_packages property allows the flags to be optimized and remove any
-unnecessary implementation details.
-""")
-
+        single_packages = result.single_packages.keys()
         if single_packages:
             result.property_changes.append(
                 HiddenApiPropertyChange(
@@ -1091,10 +1153,34 @@ unnecessary implementation details.
                     contain classes from other bootclasspath modules. Packages
                     should only be listed here when necessary for legacy
                     purposes, new packages should match a package prefix.
-                """),
+                    """),
                     action=PropertyChangeAction.REPLACE,
                 ))
 
+            self.report_dedent(f"""
+                bootclasspath_fragment {self.bcpf} contains classes from
+                packages that has sub-packages which contain classes provided by
+                other bootclasspath modules. Those packages are called single
+                packages. Single packages should be avoided where possible but
+                are often unavoidable when modularizing existing code.
+
+                Because some sub-packages contains classes from other
+                bootclasspath modules it is not possible to use the package as a
+                package prefix as that treats the package and all its
+                sub-packages as being provided by this module.  
+                """)
+            for package in single_packages:
+                reason = result.single_packages[package]
+                self.report(f"""
+    Package {package} is not a package prefix because while this
+    bootclasspath_fragment provides the following sub-packages:
+{indent_lines(reason.bcpf)}
+
+    Other module(s) on the bootclasspath provide the following sub-packages:
+{indent_lines(reason.other)}
+""")
+
+        package_prefixes = result.package_prefixes
         if package_prefixes:
             result.property_changes.append(
                 HiddenApiPropertyChange(
@@ -1111,38 +1197,40 @@ unnecessary implementation details.
             signature_patterns_files = signature_patterns_files.removeprefix(
                 self.top_dir)
 
-            self.report(f"""
-The purpose of the hiddenapi split_packages and package_prefixes properties is
-to allow the removal of implementation details from the hidden API flags to
-reduce the coupling between sdk snapshots and the APEX runtime. It cannot
-eliminate that coupling completely though. Doing so may require changes to the
-code.
+            self.report_dedent(f"""
+                The purpose of the hiddenapi split_packages and package_prefixes
+                properties is to allow the removal of implementation details
+                from the hidden API flags to reduce the coupling between sdk
+                snapshots and the APEX runtime. It cannot eliminate that
+                coupling completely though. Doing so may require changes to the
+                code.
 
-This tool provides support for managing those properties but it cannot decide
-whether the set of package prefixes suggested is appropriate that needs the
-input of the developer.
+                This tool provides support for managing those properties but it
+                cannot decide whether the set of package prefixes suggested is
+                appropriate that needs the input of the developer.
 
-Please run the following command:
-    m {signature_patterns_files}
+                Please run the following command:
+                    m {signature_patterns_files}
 
-And then check the '{signature_patterns_files}' for any mention of
-implementation classes and packages (i.e. those classes/packages that do not
-contain any part of an API surface, including the hidden API). If they are
-found then the code should ideally be moved to a package unique to this module
-that is contained within a package that is part of an API surface.
+                And then check the '{signature_patterns_files}' for any mention
+                of implementation classes and packages (i.e. those
+                classes/packages that do not contain any part of an API surface,
+                including the hidden API). If they are found then the code
+                should ideally be moved to a package unique to this module that
+                is contained within a package that is part of an API surface.
 
-The format of the file is a list of patterns:
+                The format of the file is a list of patterns:
 
-* Patterns for split packages will list every class in that package.
+                * Patterns for split packages will list every class in that package.
 
-* Patterns for package prefixes will end with .../**.
+                * Patterns for package prefixes will end with .../**.
 
-* Patterns for packages which are not split but cannot use a package prefix
-because there are sub-packages which are provided by another module will end
-with .../*.
-""")
+                * Patterns for packages which are not split but cannot use a
+                package prefix because there are sub-packages which are provided
+                by another module will end with .../*.
+                """)
 
-    def compute_hiddenapi_package_properties(self):
+    def compute_hiddenapi_package_properties(self, result):
         trie = signature_trie()
         # Populate the trie with the classes that are provided by the
         # bootclasspath_fragment tagging them to make it clear where they
@@ -1151,6 +1239,7 @@ with .../*.
         for class_name in sorted_classes:
             trie.add(class_name + _FAKE_MEMBER, ClassProvider.BCPF)
 
+        # Now the same for monolithic classes.
         monolithic_classes = set()
         abs_flags_file = os.path.join(self.top_dir, _FLAGS_FILE)
         with open(abs_flags_file, "r", encoding="utf8") as f:
@@ -1165,15 +1254,54 @@ with .../*.
                         only_if_matches=True)
                     monolithic_classes.add(class_name)
 
-        split_packages = []
-        single_packages = []
-        package_prefixes = []
-        self.recurse_hiddenapi_packages_trie(trie, split_packages,
-                                             single_packages, package_prefixes)
-        return split_packages, single_packages, package_prefixes
+        self.recurse_hiddenapi_packages_trie(trie, result)
 
-    def recurse_hiddenapi_packages_trie(self, node, split_packages,
-                                        single_packages, package_prefixes):
+    @staticmethod
+    def selector_to_java_reference(node):
+        return node.selector.replace("/", ".")
+
+    @staticmethod
+    def determine_reason_for_single_package(node):
+        bcpf_packages = []
+        other_packages = []
+
+        def recurse(n):
+            if n.type != "package":
+                return
+
+            providers = n.get_matching_rows("*")
+            package_ref = BcpfAnalyzer.selector_to_java_reference(n)
+            if ClassProvider.BCPF in providers:
+                bcpf_packages.append(package_ref)
+            else:
+                other_packages.append(package_ref)
+
+            children = n.child_nodes()
+            if children:
+                for child in children:
+                    recurse(child)
+
+        recurse(node)
+        return PackagePropertyReason(bcpf=bcpf_packages, other=other_packages)
+
+    @staticmethod
+    def determine_reason_for_split_package(node):
+        bcpf_classes = []
+        other_classes = []
+        for child in node.child_nodes():
+            if child.type != "class":
+                continue
+
+            providers = child.values(lambda _: True)
+            class_ref = BcpfAnalyzer.selector_to_java_reference(child)
+            if ClassProvider.BCPF in providers:
+                bcpf_classes.append(class_ref)
+            else:
+                other_classes.append(class_ref)
+
+        return PackagePropertyReason(bcpf=bcpf_classes, other=other_classes)
+
+    def recurse_hiddenapi_packages_trie(self, node, result):
         nodes = node.child_nodes()
         if nodes:
             for child in nodes:
@@ -1181,7 +1309,7 @@ with .../*.
                 if child.type != "package":
                     continue
 
-                package = child.selector.replace("/", ".")
+                package = self.selector_to_java_reference(child)
 
                 providers = set(child.get_matching_rows("**"))
                 if not providers:
@@ -1192,7 +1320,7 @@ with .../*.
                     # The package and all its sub packages only contain
                     # classes provided by the bootclasspath_fragment.
                     logging.debug("Package '%s.**' is not split", package)
-                    package_prefixes.append(package)
+                    result.package_prefixes.append(package)
                     # There is no point traversing into the sub packages.
                     continue
                 elif providers == {ClassProvider.OTHER}:
@@ -1217,8 +1345,17 @@ with .../*.
                 elif providers == {ClassProvider.BCPF}:
                     # The package only contains classes provided by the
                     # bootclasspath_fragment.
-                    logging.debug("Package '%s.*' is not split", package)
-                    single_packages.append(package)
+                    logging.debug(
+                        "Package '%s.*' is not split but does have "
+                        "sub-packages from other modules", package)
+
+                    # Partition the sub-packages into those that are provided by
+                    # this bootclasspath_fragment and those provided by other
+                    # modules. They can be used to explain the reason for the
+                    # single package to developers.
+                    reason = self.determine_reason_for_single_package(child)
+                    result.single_packages[package] = reason
+
                 elif providers == {ClassProvider.OTHER}:
                     # The package contains no classes provided by the
                     # bootclasspath_fragment. Child nodes make contain such
@@ -1229,11 +1366,15 @@ with .../*.
                     # The package contains classes provided by both the
                     # bootclasspath_fragment and some other source.
                     logging.debug("Package '%s.*' is split", package)
-                    split_packages.append(package)
 
-                self.recurse_hiddenapi_packages_trie(child, split_packages,
-                                                     single_packages,
-                                                     package_prefixes)
+                    # Partition the classes in this split package into those
+                    # that come from this bootclasspath_fragment and those that
+                    # come from other modules. That can be used to explain the
+                    # reason for the split package to developers.
+                    reason = self.determine_reason_for_split_package(child)
+                    result.split_packages[package] = reason
+
+                self.recurse_hiddenapi_packages_trie(child, result)
 
 
 def newline_stripping_iter(iterator):

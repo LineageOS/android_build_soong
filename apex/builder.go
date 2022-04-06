@@ -617,10 +617,16 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 		}
 
 		// Create a NOTICE file, and embed it as an asset file in the APEX.
-		a.htmlGzNotice = android.PathForModuleOut(ctx, "NOTICE", "NOTICE.html.gz")
+		a.htmlGzNotice = android.PathForModuleOut(ctx, "NOTICE.html.gz")
 		android.BuildNoticeHtmlOutputFromLicenseMetadata(ctx, a.htmlGzNotice)
-		implicitInputs = append(implicitInputs, a.htmlGzNotice)
-		optFlags = append(optFlags, "--assets_dir "+filepath.Dir(a.htmlGzNotice.String()))
+		noticeAssetPath := android.PathForModuleOut(ctx, "NOTICE", "NOTICE.html.gz")
+		builder := android.NewRuleBuilder(pctx, ctx)
+		builder.Command().Text("cp").
+			Input(a.htmlGzNotice).
+			Output(noticeAssetPath)
+		builder.Build("notice_dir", "Building notice dir")
+		implicitInputs = append(implicitInputs, noticeAssetPath)
+		optFlags = append(optFlags, "--assets_dir "+filepath.Dir(noticeAssetPath.String()))
 
 		if (moduleMinSdkVersion.GreaterThan(android.SdkVersion_Android10) && !a.shouldGenerateHashtree()) && !compressionEnabled {
 			// Apexes which are supposed to be installed in builtin dirs(/system, etc)
