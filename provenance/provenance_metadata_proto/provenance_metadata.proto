@@ -1,0 +1,47 @@
+/*
+ * Copyright (C) 2022 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+
+package provenance_metadata_proto;
+option go_package = "android/soong/provenance/provenance_metadata_proto";
+
+// Provenance metadata of artifacts.
+message ProvenanceMetadata {
+  // Name of the module/target that creates the artifact.
+  // It is either a Soong module name or Bazel target label.
+  string module_name = 1;
+
+  // The path to the prebuilt artifacts, which is relative to the source tree
+  // directory. For example, “prebuilts/runtime/mainline/i18n/apex/com.android.i18n-arm.apex”.
+  string artifact_path = 2;
+
+  // The SHA256 hash of the artifact.
+  string artifact_sha256 = 3;
+
+  // The install path of the artifact in filesystem images.
+  // This is the absolute path of the artifact on the device.
+  string artifact_install_path = 4;
+
+  // Path of the attestation file of a prebuilt artifact, which is relative to
+  // the source tree directory. This is for prebuilt artifacts which have
+  // corresponding attestation files checked in the source tree.
+  string attestation_path = 5;
+}
+
+message ProvenanceMetaDataList {
+  repeated ProvenanceMetadata metadata = 1;
+}

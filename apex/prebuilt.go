@@ -23,7 +23,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/java"
-
+	"android/soong/provenance"
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 )
@@ -482,6 +482,8 @@ type Prebuilt struct {
 	properties PrebuiltProperties
 
 	inputApex android.Path
+
+	provenanceMetaDataFile android.OutputPath
 }
 
 type ApexFileProperties struct {
@@ -778,7 +780,12 @@ func (p *Prebuilt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	if p.installable() {
 		p.installedFile = ctx.InstallFile(p.installDir, p.installFilename, p.inputApex, p.compatSymlinks.Paths()...)
+		p.provenanceMetaDataFile = provenance.GenerateArtifactProvenanceMetaData(ctx, p.inputApex, p.installedFile)
 	}
+}
+
+func (p *Prebuilt) ProvenanceMetaDataFile() android.OutputPath {
+	return p.provenanceMetaDataFile
 }
 
 // prebuiltApexExtractorModule is a private module type that is only created by the prebuilt_apex
