@@ -16,10 +16,45 @@ package main
 
 import (
 	"bytes"
+	"debug/elf"
 	"encoding/binary"
 	"reflect"
 	"testing"
 )
+
+func Test_elfIdentifierFromReaderAt_BadElfFile(t *testing.T) {
+	tests := []struct {
+		name     string
+		contents string
+	}{
+		{
+			name:     "empty",
+			contents: "",
+		},
+		{
+			name:     "text",
+			contents: "#!/bin/bash\necho foobar",
+		},
+		{
+			name:     "empty elf",
+			contents: emptyElfFile(),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := bytes.NewReader([]byte(tt.contents))
+			_, err := elfIdentifierFromReaderAt(buf, "<>", false)
+			if err == nil {
+				t.Errorf("expected error reading bad elf file without allowMissing")
+			}
+			_, err = elfIdentifierFromReaderAt(buf, "<>", true)
+			if err != nil {
+				t.Errorf("expected no error reading bad elf file with allowMissing, got %q", err.Error())
+			}
+		})
+	}
+}
 
 func Test_readNote(t *testing.T) {
 	note := []byte{
@@ -42,4 +77,37 @@ func Test_readNote(t *testing.T) {
 	if !reflect.DeepEqual(descs, expectedDescs) {
 		t.Errorf("incorrect return, want %#v got %#v", expectedDescs, descs)
 	}
+}
+
+// emptyElfFile returns an elf file header with no program headers or sections.
+func emptyElfFile() string {
+	ident := [elf.EI_NIDENT]byte{}
+	identBuf := bytes.NewBuffer(ident[0:0:elf.EI_NIDENT])
+	binary.Write(identBuf, binary.LittleEndian, []byte("\x7fELF"))
+	binary.Write(identBuf, binary.LittleEndian, elf.ELFCLASS64)
+	binary.Write(identBuf, binary.LittleEndian, elf.ELFDATA2LSB)
+	binary.Write(identBuf, binary.LittleEndian, elf.EV_CURRENT)
+	binary.Write(identBuf, binary.LittleEndian, elf.ELFOSABI_LINUX)
+	binary.Write(identBuf, binary.LittleEndian, make([]byte, 8))
+
+	header := elf.Header64{
+		Ident:     ident,
+		Type:      uint16(elf.ET_EXEC),
+		Machine:   uint16(elf.EM_X86_64),
+		Version:   uint32(elf.EV_CURRENT),
+		Entry:     0,
+		Phoff:     uint64(binary.Size(elf.Header64{})),
+		Shoff:     uint64(binary.Size(elf.Header64{})),
+		Flags:     0,
+		Ehsize:    uint16(binary.Size(elf.Header64{})),
+		Phentsize: 0x38,
+		Phnum:     0,
+		Shentsize: 0x40,
+		Shnum:     0,
+		Shstrndx:  0,
+	}
+
+	buf := &bytes.Buffer{}
+	binary.Write(buf, binary.LittleEndian, header)
+	return buf.String()
 }
