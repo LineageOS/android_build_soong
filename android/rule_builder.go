@@ -101,12 +101,7 @@ func (r *RuleBuilder) MissingDeps(missingDeps []string) {
 }
 
 // Restat marks the rule as a restat rule, which will be passed to ModuleContext.Rule in BuildParams.Restat.
-//
-// Restat is not compatible with Sbox()
 func (r *RuleBuilder) Restat() *RuleBuilder {
-	if r.sbox {
-		panic("Restat() is not compatible with Sbox()")
-	}
 	r.restat = true
 	return r
 }
@@ -141,17 +136,12 @@ func (r *RuleBuilder) Rewrapper(params *remoteexec.REParams) *RuleBuilder {
 // point to a location where sbox's manifest will be written and must be outside outputDir. sbox
 // will ensure that all outputs have been written, and will discard any output files that were not
 // specified.
-//
-// Sbox is not compatible with Restat()
 func (r *RuleBuilder) Sbox(outputDir WritablePath, manifestPath WritablePath) *RuleBuilder {
 	if r.sbox {
 		panic("Sbox() may not be called more than once")
 	}
 	if len(r.commands) > 0 {
 		panic("Sbox() may not be called after Command()")
-	}
-	if r.restat {
-		panic("Sbox() is not compatible with Restat()")
 	}
 	r.sbox = true
 	r.outDir = outputDir
@@ -636,11 +626,14 @@ func (r *RuleBuilder) Build(name string, desc string) {
 				ctx: r.ctx,
 			},
 		}
-		sboxCmd.Text("rm -rf").Output(r.outDir)
-		sboxCmd.Text("&&")
 		sboxCmd.builtToolWithoutDeps("sbox").
-			Flag("--sandbox-path").Text(shared.TempDirForOutDir(PathForOutput(r.ctx).String())).
-			Flag("--manifest").Input(r.sboxManifestPath)
+			FlagWithArg("--sandbox-path ", shared.TempDirForOutDir(PathForOutput(r.ctx).String())).
+			FlagWithArg("--output-dir ", r.outDir.String()).
+			FlagWithInput("--manifest ", r.sboxManifestPath)
+
+		if r.restat {
+			sboxCmd.Flag("--write-if-changed")
+		}
 
 		// Replace the command string, and add the sbox tool and manifest textproto to the
 		// dependencies of the final sbox rule.
