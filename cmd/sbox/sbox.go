@@ -203,23 +203,19 @@ func run() error {
 // createCommandScript will create and return an exec.Cmd that runs rawCommand.
 //
 // rawCommand is executed via a script in the sandbox.
-// tempDir is the temporary where the script is created.
-// toDirInSandBox is the path containing the script in the sbox environment.
-// toDirInSandBox is the path containing the script in the sbox environment.
-// seed is a unique integer used to distinguish different scripts that might be at location.
+// scriptPath is the temporary where the script is created.
+// scriptPathInSandbox is the path to the script in the sbox environment.
 //
 // returns an exec.Cmd that can be ran from within sbox context if no error, or nil if error.
 // caller must ensure script is cleaned up if function succeeds.
 //
-func createCommandScript(rawCommand string, tempDir, toDirInSandbox string, seed int) (*exec.Cmd, error) {
-	scriptName := fmt.Sprintf("sbox_command.%d.bash", seed)
-	scriptPathAndName := joinPath(tempDir, scriptName)
-	err := os.WriteFile(scriptPathAndName, []byte(rawCommand), 0644)
+func createCommandScript(rawCommand, scriptPath, scriptPathInSandbox string) (*exec.Cmd, error) {
+	err := os.WriteFile(scriptPath, []byte(rawCommand), 0644)
 	if err != nil {
 		return nil, fmt.Errorf("failed to write command %s... to %s",
-			rawCommand[0:40], scriptPathAndName)
+			rawCommand[0:40], scriptPath)
 	}
-	return exec.Command("bash", joinPath(toDirInSandbox, filepath.Base(scriptName))), nil
+	return exec.Command("bash", scriptPathInSandbox), nil
 }
 
 // readManifest reads an sbox manifest from a textproto file.
@@ -289,7 +285,10 @@ func runCommand(command *sbox_proto.Command, tempDir string, commandIndex int) (
 		return "", err
 	}
 
-	cmd, err := createCommandScript(rawCommand, tempDir, pathToTempDirInSbox, commandIndex)
+	scriptName := fmt.Sprintf("sbox_command.%d.bash", commandIndex)
+	scriptPath := joinPath(tempDir, scriptName)
+	scriptPathInSandbox := joinPath(pathToTempDirInSbox, scriptName)
+	cmd, err := createCommandScript(rawCommand, scriptPath, scriptPathInSandbox)
 	if err != nil {
 		return "", err
 	}
@@ -327,9 +326,9 @@ func runCommand(command *sbox_proto.Command, tempDir string, commandIndex int) (
 		fmt.Fprintf(os.Stderr,
 			"The failing command was run inside an sbox sandbox in temporary directory\n"+
 				"%s\n"+
-				"The failing command line was:\n"+
+				"The failing command line can be found in\n"+
 				"%s\n",
-			tempDir, rawCommand)
+			tempDir, scriptPath)
 	}
 
 	// Write the command's combined stdout/stderr.
