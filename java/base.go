@@ -1052,6 +1052,7 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 	j.expandIDEInfoCompiledSrcs = append(j.expandIDEInfoCompiledSrcs, uniqueSrcFiles.Strings()...)
 
 	var kotlinJars android.Paths
+	var kotlinHeaderJars android.Paths
 
 	if srcFiles.HasExt(".kt") {
 		// user defined kotlin flags.
@@ -1109,18 +1110,22 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 		}
 
 		kotlinJar := android.PathForModuleOut(ctx, "kotlin", jarName)
-		kotlinCompile(ctx, kotlinJar, kotlinSrcFiles, kotlinCommonSrcFiles, srcJars, flags)
+		kotlinHeaderJar := android.PathForModuleOut(ctx, "kotlin_headers", jarName)
+		kotlinCompile(ctx, kotlinJar, kotlinHeaderJar, kotlinSrcFiles, kotlinCommonSrcFiles, srcJars, flags)
 		if ctx.Failed() {
 			return
 		}
 
 		// Make javac rule depend on the kotlinc rule
-		flags.classpath = append(flags.classpath, kotlinJar)
+		flags.classpath = append(classpath{kotlinHeaderJar}, flags.classpath...)
 
 		kotlinJars = append(kotlinJars, kotlinJar)
+		kotlinHeaderJars = append(kotlinHeaderJars, kotlinHeaderJar)
+
 		// Jar kotlin classes into the final jar after javac
 		if BoolDefault(j.properties.Static_kotlin_stdlib, true) {
 			kotlinJars = append(kotlinJars, deps.kotlinStdlib...)
+			kotlinHeaderJars = append(kotlinHeaderJars, deps.kotlinStdlib...)
 		} else {
 			flags.dexClasspath = append(flags.dexClasspath, deps.kotlinStdlib...)
 		}
@@ -1144,7 +1149,7 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 			// with sharding enabled. See: b/77284273.
 		}
 		headerJarFileWithoutDepsOrJarjar, j.headerJarFile =
-			j.compileJavaHeader(ctx, uniqueSrcFiles, srcJars, deps, flags, jarName, kotlinJars)
+			j.compileJavaHeader(ctx, uniqueSrcFiles, srcJars, deps, flags, jarName, kotlinHeaderJars)
 		if ctx.Failed() {
 			return
 		}

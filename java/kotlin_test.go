@@ -45,6 +45,10 @@ func TestKotlin(t *testing.T) {
 	fooKotlinc := ctx.ModuleForTests("foo", "android_common").Rule("kotlinc")
 	fooJavac := ctx.ModuleForTests("foo", "android_common").Rule("javac")
 	fooJar := ctx.ModuleForTests("foo", "android_common").Output("combined/foo.jar")
+	fooHeaderJar := ctx.ModuleForTests("foo", "android_common").Output("turbine-combined/foo.jar")
+
+	fooKotlincClasses := fooKotlinc.Output
+	fooKotlincHeaderClasses := fooKotlinc.ImplicitOutput
 
 	if len(fooKotlinc.Inputs) != 2 || fooKotlinc.Inputs[0].String() != "a.java" ||
 		fooKotlinc.Inputs[1].String() != "b.kt" {
@@ -55,17 +59,21 @@ func TestKotlin(t *testing.T) {
 		t.Errorf(`foo inputs %v != ["a.java"]`, fooJavac.Inputs)
 	}
 
-	if !strings.Contains(fooJavac.Args["classpath"], fooKotlinc.Output.String()) {
+	if !strings.Contains(fooJavac.Args["classpath"], fooKotlincHeaderClasses.String()) {
 		t.Errorf("foo classpath %v does not contain %q",
-			fooJavac.Args["classpath"], fooKotlinc.Output.String())
+			fooJavac.Args["classpath"], fooKotlincHeaderClasses.String())
 	}
 
-	if !inList(fooKotlinc.Output.String(), fooJar.Inputs.Strings()) {
+	if !inList(fooKotlincClasses.String(), fooJar.Inputs.Strings()) {
 		t.Errorf("foo jar inputs %v does not contain %q",
-			fooJar.Inputs.Strings(), fooKotlinc.Output.String())
+			fooJar.Inputs.Strings(), fooKotlincClasses.String())
 	}
 
-	fooHeaderJar := ctx.ModuleForTests("foo", "android_common").Output("turbine-combined/foo.jar")
+	if !inList(fooKotlincHeaderClasses.String(), fooHeaderJar.Inputs.Strings()) {
+		t.Errorf("foo header jar inputs %v does not contain %q",
+			fooHeaderJar.Inputs.Strings(), fooKotlincHeaderClasses.String())
+	}
+
 	bazHeaderJar := ctx.ModuleForTests("baz", "android_common").Output("turbine-combined/baz.jar")
 	barKotlinc := ctx.ModuleForTests("bar", "android_common").Rule("kotlinc")
 
