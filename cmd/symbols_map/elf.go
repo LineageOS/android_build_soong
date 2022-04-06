@@ -18,8 +18,10 @@ import (
 	"debug/elf"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
+	"os"
 )
 
 const gnuBuildID = "GNU\x00"
@@ -27,9 +29,30 @@ const gnuBuildID = "GNU\x00"
 // elfIdentifier extracts the elf build ID from an elf file.  If allowMissing is true it returns
 // an empty identifier if the file exists but the build ID note does not.
 func elfIdentifier(filename string, allowMissing bool) (string, error) {
-	f, err := elf.Open(filename)
+	f, err := os.Open(filename)
 	if err != nil {
 		return "", fmt.Errorf("failed to open %s: %w", filename, err)
+	}
+	defer f.Close()
+
+	return elfIdentifierFromReaderAt(f, filename, allowMissing)
+}
+
+// elfIdentifier extracts the elf build ID from a ReaderAt.  If allowMissing is true it returns
+// an empty identifier if the file exists but the build ID note does not.
+func elfIdentifierFromReaderAt(r io.ReaderAt, filename string, allowMissing bool) (string, error) {
+	f, err := elf.NewFile(r)
+	if err != nil {
+		if allowMissing {
+			if errors.Is(err, io.EOF) {
+				return "", nil
+			}
+			if _, ok := err.(*elf.FormatError); ok {
+				// The file was not an elf file.
+				return "", nil
+			}
+		}
+		return "", fmt.Errorf("failed to parse elf file %s: %w", filename, err)
 	}
 	defer f.Close()
 
