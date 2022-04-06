@@ -327,6 +327,21 @@ var neverallowTests = []struct {
 			"Only boot images may be imported as a makefile goal.",
 		},
 	},
+	// Tests for the rule prohibiting the use of framework
+	{
+		name: "prohibit framework",
+		fs: map[string][]byte{
+			"Android.bp": []byte(`
+				java_library {
+					name: "foo",
+					libs: ["framework"],
+					sdk_version: "current",
+				}`),
+		},
+		expectedErrors: []string{
+			"framework can't be used when building against SDK",
+		},
+	},
 }
 
 var prepareForNeverAllowTest = GroupFixturePreparers(
