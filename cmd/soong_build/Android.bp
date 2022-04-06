@@ -25,6 +25,7 @@ blueprint_go_binary {
         "golang-protobuf-android",
         "soong",
         "soong-android",
+        "soong-provenance",
         "soong-bp2build",
         "soong-ui-metrics_proto",
     ],

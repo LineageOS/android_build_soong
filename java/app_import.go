@@ -22,6 +22,7 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
+	"android/soong/provenance"
 )
 
 func init() {
@@ -57,6 +58,8 @@ type AndroidAppImport struct {
 	installPath android.InstallPath
 
 	hideApexVariantFromMake bool
+
+	provenanceMetaDataFile android.OutputPath
 }
 
 type AndroidAppImportProperties struct {
@@ -343,6 +346,8 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 
 	if apexInfo.IsForPlatform() {
 		a.installPath = ctx.InstallFile(installDir, apkFilename, a.outputFile)
+		artifactPath := android.PathForModuleSrc(ctx, *a.properties.Apk)
+		a.provenanceMetaDataFile = provenance.GenerateArtifactProvenanceMetaData(ctx, artifactPath, a.installPath)
 	}
 
 	// TODO: androidmk converter jni libs
@@ -366,6 +371,10 @@ func (a *AndroidAppImport) JacocoReportClassesFile() android.Path {
 
 func (a *AndroidAppImport) Certificate() Certificate {
 	return a.certificate
+}
+
+func (a *AndroidAppImport) ProvenanceMetaDataFile() android.OutputPath {
+	return a.provenanceMetaDataFile
 }
 
 var dpiVariantGroupType reflect.Type
