@@ -1108,23 +1108,13 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 		flags.kotlincClasspath = append(flags.kotlincClasspath, flags.bootClasspath...)
 		flags.kotlincClasspath = append(flags.kotlincClasspath, flags.classpath...)
 
-		useTurbineApt := len(flags.processorPath) > 0
-		if useTurbineApt {
+		if len(flags.processorPath) > 0 {
 			// Use kapt for annotation processing
-			kotlinTurbineAptHeaderJar := android.PathForModuleOut(ctx, "turbine-apt", "stubs-header.jar")
-			kotlinTurbineAptSrcJar := android.PathForModuleOut(ctx, "turbine-apt", "anno-sources.jar")
-			kotlinTurbineAptResJar := android.PathForModuleOut(ctx, "turbine-apt", "anno-res.jar")
-			kotlinTurbineApt(ctx, kotlinTurbineAptHeaderJar, kotlinTurbineAptSrcJar, kotlinTurbineAptResJar,
-				kotlinSrcFiles, kotlinCommonSrcFiles, srcJars, flags)
-			srcJars = append(srcJars, kotlinTurbineAptSrcJar)
-			kotlinJars = append(kotlinJars, kotlinTurbineAptResJar)
-			// When annotation processors are enabled we've already created java stubs for
-			// kotlin files using kapt and compiled them in turbine-apt while running the
-			// annotation processors, reuse the result as the kotlin header jar for the javac
-			// action.  It can't be used as the header jar for downstream modules to compile
-			// against because it doesn't contain the kotlin-specific metadata that kotlinc
-			// needs.
-			flags.classpath = append(classpath{kotlinTurbineAptHeaderJar}, flags.classpath...)
+			kaptSrcJar := android.PathForModuleOut(ctx, "kapt", "kapt-sources.jar")
+			kaptResJar := android.PathForModuleOut(ctx, "kapt", "kapt-res.jar")
+			kotlinKapt(ctx, kaptSrcJar, kaptResJar, kotlinSrcFiles, kotlinCommonSrcFiles, srcJars, flags)
+			srcJars = append(srcJars, kaptSrcJar)
+			kotlinJars = append(kotlinJars, kaptResJar)
 			// Disable annotation processing in javac, it's already been handled by kapt
 			flags.processorPath = nil
 			flags.processors = nil
@@ -1137,13 +1127,11 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 			return
 		}
 
+		// Make javac rule depend on the kotlinc rule
+		flags.classpath = append(classpath{kotlinHeaderJar}, flags.classpath...)
+
 		kotlinJars = append(kotlinJars, kotlinJar)
 		kotlinHeaderJars = append(kotlinHeaderJars, kotlinHeaderJar)
-		if !useTurbineApt {
-			// When annotation processors are not enabled use the kotlinc gen-jvm-abi plugin
-			// output as the header jar for javac in this module.
-			flags.classpath = append(classpath{kotlinHeaderJar}, flags.classpath...)
-		}
 
 		// Jar kotlin classes into the final jar after javac
 		if BoolDefault(j.properties.Static_kotlin_stdlib, true) {
