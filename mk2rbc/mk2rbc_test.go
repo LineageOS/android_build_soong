@@ -197,15 +197,31 @@ def init(g, handle):
 		mkname: "path/product.mk",
 		in: `
 $(call inherit-product, */font.mk)
+$(call inherit-product, $(sort $(wildcard */font.mk)))
+$(call inherit-product, $(wildcard */font.mk))
+
+include */font.mk
+include $(sort $(wildcard */font.mk))
+include $(wildcard */font.mk)
 `,
 		expected: `load("//build/make/core:product_config.rbc", "rblf")
-load("//foo:font.star", _font_init = "init")
-load("//bar:font.star", _font1_init = "init")
+load("//bar:font.star", _font_init = "init")
+load("//foo:font.star", _font1_init = "init")
 
 def init(g, handle):
   cfg = rblf.cfg(handle)
-  rblf.inherit(handle, "foo/font", _font_init)
-  rblf.inherit(handle, "bar/font", _font1_init)
+  rblf.inherit(handle, "bar/font", _font_init)
+  rblf.inherit(handle, "foo/font", _font1_init)
+  rblf.inherit(handle, "bar/font", _font_init)
+  rblf.inherit(handle, "foo/font", _font1_init)
+  rblf.inherit(handle, "bar/font", _font_init)
+  rblf.inherit(handle, "foo/font", _font1_init)
+  _font_init(g, handle)
+  _font1_init(g, handle)
+  _font_init(g, handle)
+  _font1_init(g, handle)
+  _font_init(g, handle)
+  _font1_init(g, handle)
 `,
 	},
 	{
