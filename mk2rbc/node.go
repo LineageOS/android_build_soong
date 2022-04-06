@@ -294,3 +294,28 @@ func (ssw *switchNode) emit(gctx *generationContext) {
 		ssCase.emit(gctx)
 	}
 }
+
+type foreachNode struct {
+	varName string
+	list    starlarkExpr
+	actions []starlarkNode
+}
+
+func (f *foreachNode) emit(gctx *generationContext) {
+	gctx.newLine()
+	gctx.writef("for %s in ", f.varName)
+	f.list.emit(gctx)
+	gctx.write(":")
+	gctx.indentLevel++
+	hasStatements := false
+	for _, a := range f.actions {
+		if _, ok := a.(*commentNode); !ok {
+			hasStatements = true
+		}
+		a.emit(gctx)
+	}
+	if !hasStatements {
+		gctx.emitPass()
+	}
+	gctx.indentLevel--
+}

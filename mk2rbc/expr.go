@@ -221,11 +221,9 @@ func (xi *interpolateExpr) emitListVarCopy(gctx *generationContext) {
 }
 
 func (xi *interpolateExpr) transform(transformer func(expr starlarkExpr) starlarkExpr) starlarkExpr {
-	argsCopy := make([]starlarkExpr, len(xi.args))
-	for i, arg := range xi.args {
-		argsCopy[i] = arg.transform(transformer)
+	for i := range xi.args {
+		xi.args[i] = xi.args[i].transform(transformer)
 	}
-	xi.args = argsCopy
 	if replacement := transformer(xi); replacement != nil {
 		return replacement
 	} else {
@@ -591,11 +589,9 @@ func (cx *callExpr) transform(transformer func(expr starlarkExpr) starlarkExpr) 
 	if cx.object != nil {
 		cx.object = cx.object.transform(transformer)
 	}
-	argsCopy := make([]starlarkExpr, len(cx.args))
-	for i, arg := range cx.args {
-		argsCopy[i] = arg.transform(transformer)
+	for i := range cx.args {
+		cx.args[i] = cx.args[i].transform(transformer)
 	}
-	cx.args = argsCopy
 	if replacement := transformer(cx); replacement != nil {
 		return replacement
 	} else {
@@ -768,4 +764,36 @@ func maybeConvertToStringList(expr starlarkExpr) starlarkExpr {
 func isEmptyString(expr starlarkExpr) bool {
 	x, ok := expr.(*stringLiteralExpr)
 	return ok && x.literal == ""
+}
+
+func negateExpr(expr starlarkExpr) starlarkExpr {
+	switch typedExpr := expr.(type) {
+	case *notExpr:
+		return typedExpr.expr
+	case *inExpr:
+		typedExpr.isNot = !typedExpr.isNot
+		return typedExpr
+	case *eqExpr:
+		typedExpr.isEq = !typedExpr.isEq
+		return typedExpr
+	case *binaryOpExpr:
+		switch typedExpr.op {
+		case ">":
+			typedExpr.op = "<="
+			return typedExpr
+		case "<":
+			typedExpr.op = ">="
+			return typedExpr
+		case ">=":
+			typedExpr.op = "<"
+			return typedExpr
+		case "<=":
+			typedExpr.op = ">"
+			return typedExpr
+		default:
+			return &notExpr{expr: expr}
+		}
+	default:
+		return &notExpr{expr: expr}
+	}
 }
