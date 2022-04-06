@@ -224,7 +224,6 @@ var (
 		"-Wno-deprecated-anon-enum-enum-conversion", // http://b/153746485
 		"-Wno-deprecated-enum-enum-conversion",      // http://b/153746563
 		"-Wno-string-compare",                       // http://b/153764102
-		"-Wno-enum-enum-conversion",                 // http://b/154138986
 		"-Wno-pessimizing-move",                     // http://b/154270751
 		// New warnings to be fixed after clang-r399163
 		"-Wno-non-c-typedef-for-linkage", // http://b/161304145
