@@ -415,7 +415,7 @@ func TransformJavaToHeaderClasses(ctx android.ModuleContext, outputFile android.
 }
 
 // TurbineApt produces a rule to run annotation processors using turbine.
-func TurbineApt(ctx android.ModuleContext, outputJar, outputSrcJar, outputResJar android.WritablePath,
+func TurbineApt(ctx android.ModuleContext, outputSrcJar, outputResJar android.WritablePath,
 	srcFiles, srcJars android.Paths, flags javaBuilderFlags) {
 
 	turbineFlags, deps := turbineFlags(ctx, flags)
@@ -426,9 +426,8 @@ func TurbineApt(ctx android.ModuleContext, outputJar, outputSrcJar, outputResJar
 	turbineFlags += " " + flags.processorPath.FormTurbineClassPath("--processorpath ")
 	turbineFlags += " --processors " + strings.Join(flags.processors, " ")
 
-	outputs := android.WritablePaths{outputJar, outputSrcJar, outputResJar}
-	outputFlags := "--output " + outputJar.String() + ".tmp " +
-		"--gensrc_output " + outputSrcJar.String() + ".tmp " +
+	outputs := android.WritablePaths{outputSrcJar, outputResJar}
+	outputFlags := "--gensrc_output " + outputSrcJar.String() + ".tmp " +
 		"--resource_output " + outputResJar.String() + ".tmp"
 
 	rule := turbine
@@ -443,9 +442,7 @@ func TurbineApt(ctx android.ModuleContext, outputJar, outputSrcJar, outputResJar
 	if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_TURBINE") {
 		rule = turbineRE
 		args["implicits"] = strings.Join(deps.Strings(), ",")
-		args["rbeOutputs"] = outputJar.String() + ".tmp," +
-			outputSrcJar.String() + ".tmp," +
-			outputResJar.String() + ".tmp"
+		args["rbeOutputs"] = outputSrcJar.String() + ".tmp," + outputResJar.String() + ".tmp"
 	}
 	ctx.Build(pctx, android.BuildParams{
 		Rule:            rule,
