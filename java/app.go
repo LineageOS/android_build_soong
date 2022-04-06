@@ -169,6 +169,8 @@ type AndroidApp struct {
 	overriddenManifestPackageName string
 
 	android.ApexBundleDepsInfo
+
+	javaApiUsedByOutputFile android.ModuleOutPath
 }
 
 func (a *AndroidApp) IsInstallable() bool {
@@ -277,6 +279,7 @@ func (a *AndroidTestHelperApp) GenerateAndroidBuildActions(ctx android.ModuleCon
 func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.checkAppSdkVersions(ctx)
 	a.generateAndroidBuildActions(ctx)
+	a.generateJavaUsedByApex(ctx)
 }
 
 func (a *AndroidApp) checkAppSdkVersions(ctx android.ModuleContext) {
@@ -589,10 +592,16 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 	a.onDeviceDir = android.InstallPathToOnDevicePath(ctx, a.installDir)
 
-	noticeFile := android.PathForModuleOut(ctx, "NOTICE", "NOTICE.html.gz")
-	android.BuildNoticeHtmlOutputFromLicenseMetadata(ctx, noticeFile)
 	if Bool(a.appProperties.Embed_notices) || ctx.Config().IsEnvTrue("ALWAYS_EMBED_NOTICES") {
-		a.aapt.noticeFile = android.OptionalPathForPath(noticeFile)
+		noticeFile := android.PathForModuleOut(ctx, "NOTICE.html.gz")
+		android.BuildNoticeHtmlOutputFromLicenseMetadata(ctx, noticeFile)
+		noticeAssetPath := android.PathForModuleOut(ctx, "NOTICE", "NOTICE.html.gz")
+		builder := android.NewRuleBuilder(pctx, ctx)
+		builder.Command().Text("cp").
+			Input(noticeFile).
+			Output(noticeAssetPath)
+		builder.Build("notice_dir", "Building notice dir")
+		a.aapt.noticeFile = android.OptionalPathForPath(noticeAssetPath)
 	}
 
 	a.classLoaderContexts = a.usesLibrary.classLoaderContextForUsesLibDeps(ctx)

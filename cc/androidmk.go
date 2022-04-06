@@ -331,6 +331,14 @@ func (object *objectLinker) AndroidMkEntries(ctx AndroidMkContext, entries *andr
 		})
 }
 
+func (test *testDecorator) AndroidMkEntries(ctx AndroidMkContext, entries *android.AndroidMkEntries) {
+	entries.ExtraEntries = append(entries.ExtraEntries, func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
+		if len(test.InstallerProperties.Test_suites) > 0 {
+			entries.AddCompatibilityTestSuites(test.InstallerProperties.Test_suites...)
+		}
+	})
+}
+
 func (binary *binaryDecorator) AndroidMkEntries(ctx AndroidMkContext, entries *android.AndroidMkEntries) {
 	ctx.subAndroidMk(entries, binary.baseInstaller)
 
@@ -379,14 +387,13 @@ func (benchmark *benchmarkDecorator) AndroidMkEntries(ctx AndroidMkContext, entr
 
 func (test *testBinary) AndroidMkEntries(ctx AndroidMkContext, entries *android.AndroidMkEntries) {
 	ctx.subAndroidMk(entries, test.binaryDecorator)
+	ctx.subAndroidMk(entries, test.testDecorator)
+
 	entries.Class = "NATIVE_TESTS"
 	if Bool(test.Properties.Test_per_src) {
 		entries.SubName = "_" + String(test.binaryDecorator.Properties.Stem)
 	}
 	entries.ExtraEntries = append(entries.ExtraEntries, func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
-		if len(test.Properties.Test_suites) > 0 {
-			entries.AddCompatibilityTestSuites(test.Properties.Test_suites...)
-		}
 		if test.testConfig != nil {
 			entries.SetString("LOCAL_FULL_TEST_CONFIG", test.testConfig.String())
 		}
@@ -445,6 +452,7 @@ func (fuzz *fuzzBinary) AndroidMkEntries(ctx AndroidMkContext, entries *android.
 
 func (test *testLibrary) AndroidMkEntries(ctx AndroidMkContext, entries *android.AndroidMkEntries) {
 	ctx.subAndroidMk(entries, test.libraryDecorator)
+	ctx.subAndroidMk(entries, test.testDecorator)
 }
 
 func (installer *baseInstaller) AndroidMkEntries(ctx AndroidMkContext, entries *android.AndroidMkEntries) {
