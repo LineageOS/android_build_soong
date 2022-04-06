@@ -45,7 +45,9 @@ class Node:
         :return: A list of iterables of all the values associated with
             this node and its children.
         """
-        raise NotImplementedError("Please Implement this method")
+        values = []
+        self.append_values(values, selector)
+        return values
 
     def append_values(self, values, selector):
         """Append the values associated with this node and its children.
@@ -313,12 +315,8 @@ class InteriorNode(Node):
                 node = node.nodes[element]
             else:
                 return []
-        return chain.from_iterable(node.values(selector))
 
-    def values(self, selector):
-        values = []
-        self.append_values(values, selector)
-        return values
+        return node.values(selector)
 
     def append_values(self, values, selector):
         for key, node in self.nodes.items():
@@ -336,11 +334,8 @@ class Leaf(Node):
     # The value associated with this leaf.
     value: typing.Any
 
-    def values(self, selector):
-        return [[self.value]]
-
     def append_values(self, values, selector):
-        values.append([self.value])
+        values.append(self.value)
 
     def child_nodes(self):
         return []
