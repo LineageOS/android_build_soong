@@ -19,6 +19,52 @@ package {
 }
 
 python_binary_host {
+    name: "analyze_bcpf",
+    main: "analyze_bcpf.py",
+    srcs: ["analyze_bcpf.py"],
+    // Make sure that the bpmodify tool is built.
+    data: [":bpmodify"],
+    libs: [
+        "signature_trie",
+    ],
+    version: {
+        py2: {
+            enabled: false,
+        },
+        py3: {
+            enabled: true,
+            embedded_launcher: true,
+        },
+    },
+}
+
+python_test_host {
+    name: "analyze_bcpf_test",
+    main: "analyze_bcpf_test.py",
+    srcs: [
+        "analyze_bcpf.py",
+        "analyze_bcpf_test.py",
+    ],
+    // Make sure that the bpmodify tool is built.
+    data: [":bpmodify"],
+    libs: [
+        "signature_trie",
+    ],
+    version: {
+        py2: {
+            enabled: false,
+        },
+        py3: {
+            enabled: true,
+            embedded_launcher: true,
+        },
+    },
+    test_options: {
+        unit_test: true,
+    },
+}
+
+python_binary_host {
     name: "merge_csv",
     main: "merge_csv.py",
     srcs: ["merge_csv.py"],
@@ -69,10 +115,37 @@ python_test_host {
     },
 }
 
+python_library_host {
+    name: "signature_trie",
+    srcs: ["signature_trie.py"],
+}
+
+python_test_host {
+    name: "signature_trie_test",
+    main: "signature_trie_test.py",
+    srcs: ["signature_trie_test.py"],
+    libs: ["signature_trie"],
+    version: {
+        py2: {
+            enabled: false,
+        },
+        py3: {
+            enabled: true,
+            embedded_launcher: true,
+        },
+    },
+    test_options: {
+        unit_test: true,
+    },
+}
+
 python_binary_host {
     name: "verify_overlaps",
     main: "verify_overlaps.py",
     srcs: ["verify_overlaps.py"],
+    libs: [
+        "signature_trie",
+    ],
     version: {
         py2: {
             enabled: false,
@@ -90,6 +163,9 @@ python_test_host {
     srcs: [
         "verify_overlaps.py",
         "verify_overlaps_test.py",
+    ],
+    libs: [
+        "signature_trie",
     ],
     version: {
         py2: {

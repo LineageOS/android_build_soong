@@ -45,6 +45,10 @@ func TestKotlin(t *testing.T) {
 	fooKotlinc := ctx.ModuleForTests("foo", "android_common").Rule("kotlinc")
 	fooJavac := ctx.ModuleForTests("foo", "android_common").Rule("javac")
 	fooJar := ctx.ModuleForTests("foo", "android_common").Output("combined/foo.jar")
+	fooHeaderJar := ctx.ModuleForTests("foo", "android_common").Output("turbine-combined/foo.jar")
+
+	fooKotlincClasses := fooKotlinc.Output
+	fooKotlincHeaderClasses := fooKotlinc.ImplicitOutput
 
 	if len(fooKotlinc.Inputs) != 2 || fooKotlinc.Inputs[0].String() != "a.java" ||
 		fooKotlinc.Inputs[1].String() != "b.kt" {
@@ -55,17 +59,21 @@ func TestKotlin(t *testing.T) {
 		t.Errorf(`foo inputs %v != ["a.java"]`, fooJavac.Inputs)
 	}
 
-	if !strings.Contains(fooJavac.Args["classpath"], fooKotlinc.Output.String()) {
+	if !strings.Contains(fooJavac.Args["classpath"], fooKotlincHeaderClasses.String()) {
 		t.Errorf("foo classpath %v does not contain %q",
-			fooJavac.Args["classpath"], fooKotlinc.Output.String())
+			fooJavac.Args["classpath"], fooKotlincHeaderClasses.String())
 	}
 
-	if !inList(fooKotlinc.Output.String(), fooJar.Inputs.Strings()) {
+	if !inList(fooKotlincClasses.String(), fooJar.Inputs.Strings()) {
 		t.Errorf("foo jar inputs %v does not contain %q",
-			fooJar.Inputs.Strings(), fooKotlinc.Output.String())
+			fooJar.Inputs.Strings(), fooKotlincClasses.String())
 	}
 
-	fooHeaderJar := ctx.ModuleForTests("foo", "android_common").Output("turbine-combined/foo.jar")
+	if !inList(fooKotlincHeaderClasses.String(), fooHeaderJar.Inputs.Strings()) {
+		t.Errorf("foo header jar inputs %v does not contain %q",
+			fooHeaderJar.Inputs.Strings(), fooKotlincHeaderClasses.String())
+	}
+
 	bazHeaderJar := ctx.ModuleForTests("baz", "android_common").Output("turbine-combined/baz.jar")
 	barKotlinc := ctx.ModuleForTests("bar", "android_common").Rule("kotlinc")
 
@@ -117,51 +125,71 @@ func TestKapt(t *testing.T) {
 
 		buildOS := ctx.Config().BuildOS.String()
 
-		kapt := ctx.ModuleForTests("foo", "android_common").Rule("kapt")
-		kotlinc := ctx.ModuleForTests("foo", "android_common").Rule("kotlinc")
-		javac := ctx.ModuleForTests("foo", "android_common").Rule("javac")
+		foo := ctx.ModuleForTests("foo", "android_common")
+		kaptStubs := foo.Rule("kapt")
+		turbineApt := foo.Description("turbine apt")
+		kotlinc := foo.Rule("kotlinc")
+		javac := foo.Rule("javac")
 
 		bar := ctx.ModuleForTests("bar", buildOS+"_common").Rule("javac").Output.String()
 		baz := ctx.ModuleForTests("baz", buildOS+"_common").Rule("javac").Output.String()
 
 		// Test that the kotlin and java sources are passed to kapt and kotlinc
-		if len(kapt.Inputs) != 2 || kapt.Inputs[0].String() != "a.java" || kapt.Inputs[1].String() != "b.kt" {
-			t.Errorf(`foo kapt inputs %v != ["a.java", "b.kt"]`, kapt.Inputs)
+		if len(kaptStubs.Inputs) != 2 || kaptStubs.Inputs[0].String() != "a.java" || kaptStubs.Inputs[1].String() != "b.kt" {
+			t.Errorf(`foo kapt inputs %v != ["a.java", "b.kt"]`, kaptStubs.Inputs)
 		}
 		if len(kotlinc.Inputs) != 2 || kotlinc.Inputs[0].String() != "a.java" || kotlinc.Inputs[1].String() != "b.kt" {
 			t.Errorf(`foo kotlinc inputs %v != ["a.java", "b.kt"]`, kotlinc.Inputs)
 		}
 
-		// Test that only the java sources are passed to javac
+		// Test that only the java sources are passed to turbine-apt and javac
+		if len(turbineApt.Inputs) != 1 || turbineApt.Inputs[0].String() != "a.java" {
+			t.Errorf(`foo turbine apt inputs %v != ["a.java"]`, turbineApt.Inputs)
+		}
 		if len(javac.Inputs) != 1 || javac.Inputs[0].String() != "a.java" {
 			t.Errorf(`foo inputs %v != ["a.java"]`, javac.Inputs)
 		}
 
-		// Test that the kapt srcjar is a dependency of kotlinc and javac rules
-		if !inList(kapt.Output.String(), kotlinc.Implicits.Strings()) {
-			t.Errorf("expected %q in kotlinc implicits %v", kapt.Output.String(), kotlinc.Implicits.Strings())
-		}
-		if !inList(kapt.Output.String(), javac.Implicits.Strings()) {
-			t.Errorf("expected %q in javac implicits %v", kapt.Output.String(), javac.Implicits.Strings())
+		// Test that the kapt stubs jar is a dependency of turbine-apt
+		if !inList(kaptStubs.Output.String(), turbineApt.Implicits.Strings()) {
+			t.Errorf("expected %q in turbine-apt implicits %v", kaptStubs.Output.String(), kotlinc.Implicits.Strings())
 		}
 
-		// Test that the kapt srcjar is extracted by the kotlinc and javac rules
-		if kotlinc.Args["srcJars"] != kapt.Output.String() {
-			t.Errorf("expected %q in kotlinc srcjars %v", kapt.Output.String(), kotlinc.Args["srcJars"])
+		// Test that the turbine-apt srcjar is a dependency of kotlinc and javac rules
+		if !inList(turbineApt.Output.String(), kotlinc.Implicits.Strings()) {
+			t.Errorf("expected %q in kotlinc implicits %v", turbineApt.Output.String(), kotlinc.Implicits.Strings())
 		}
-		if javac.Args["srcJars"] != kapt.Output.String() {
-			t.Errorf("expected %q in javac srcjars %v", kapt.Output.String(), kotlinc.Args["srcJars"])
+		if !inList(turbineApt.Output.String(), javac.Implicits.Strings()) {
+			t.Errorf("expected %q in javac implicits %v", turbineApt.Output.String(), javac.Implicits.Strings())
+		}
+
+		// Test that the turbine-apt srcjar is extracted by the kotlinc and javac rules
+		if kotlinc.Args["srcJars"] != turbineApt.Output.String() {
+			t.Errorf("expected %q in kotlinc srcjars %v", turbineApt.Output.String(), kotlinc.Args["srcJars"])
+		}
+		if javac.Args["srcJars"] != turbineApt.Output.String() {
+			t.Errorf("expected %q in javac srcjars %v", turbineApt.Output.String(), kotlinc.Args["srcJars"])
 		}
 
 		// Test that the processors are passed to kapt
 		expectedProcessorPath := "-P plugin:org.jetbrains.kotlin.kapt3:apclasspath=" + bar +
 			" -P plugin:org.jetbrains.kotlin.kapt3:apclasspath=" + baz
-		if kapt.Args["kaptProcessorPath"] != expectedProcessorPath {
-			t.Errorf("expected kaptProcessorPath %q, got %q", expectedProcessorPath, kapt.Args["kaptProcessorPath"])
+		if kaptStubs.Args["kaptProcessorPath"] != expectedProcessorPath {
+			t.Errorf("expected kaptProcessorPath %q, got %q", expectedProcessorPath, kaptStubs.Args["kaptProcessorPath"])
 		}
 		expectedProcessor := "-P plugin:org.jetbrains.kotlin.kapt3:processors=com.bar -P plugin:org.jetbrains.kotlin.kapt3:processors=com.baz"
-		if kapt.Args["kaptProcessor"] != expectedProcessor {
-			t.Errorf("expected kaptProcessor %q, got %q", expectedProcessor, kapt.Args["kaptProcessor"])
+		if kaptStubs.Args["kaptProcessor"] != expectedProcessor {
+			t.Errorf("expected kaptProcessor %q, got %q", expectedProcessor, kaptStubs.Args["kaptProcessor"])
+		}
+
+		// Test that the processors are passed to turbine-apt
+		expectedProcessorPath = "--processorpath " + bar + " " + baz
+		if !strings.Contains(turbineApt.Args["turbineFlags"], expectedProcessorPath) {
+			t.Errorf("expected turbine-apt processorpath %q, got %q", expectedProcessorPath, turbineApt.Args["turbineFlags"])
+		}
+		expectedProcessor = "--processors com.bar com.baz"
+		if !strings.Contains(turbineApt.Args["turbineFlags"], expectedProcessor) {
+			t.Errorf("expected turbine-apt processor %q, got %q", expectedProcessor, turbineApt.Args["turbineFlags"])
 		}
 
 		// Test that the processors are not passed to javac

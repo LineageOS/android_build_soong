@@ -16,6 +16,7 @@ package java
 
 import (
 	"fmt"
+	"io"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -139,7 +140,7 @@ type bootclasspathFragmentProperties struct {
 	BootclasspathFragmentsDepsProperties
 }
 
-type SourceOnlyBootclasspathProperties struct {
+type HiddenApiPackageProperties struct {
 	Hidden_api struct {
 		// Contains prefixes of a package hierarchy that is provided solely by this
 		// bootclasspath_fragment.
@@ -147,6 +148,14 @@ type SourceOnlyBootclasspathProperties struct {
 		// This affects the signature patterns file that is used to select the subset of monolithic
 		// hidden API flags. See split_packages property for more details.
 		Package_prefixes []string
+
+		// A list of individual packages that are provided solely by this
+		// bootclasspath_fragment but which cannot be listed in package_prefixes
+		// because there are sub-packages which are provided by other modules.
+		//
+		// This should only be used for legacy packages. New packages should be
+		// covered by a package prefix.
+		Single_packages []string
 
 		// The list of split packages provided by this bootclasspath_fragment.
 		//
@@ -205,6 +214,11 @@ type SourceOnlyBootclasspathProperties struct {
 		// implementation details to be excluded from the snapshot.
 		Split_packages []string
 	}
+}
+
+type SourceOnlyBootclasspathProperties struct {
+	HiddenApiPackageProperties
+	Coverage HiddenApiPackageProperties
 }
 
 type BootclasspathFragmentModule struct {
@@ -268,6 +282,12 @@ func bootclasspathFragmentFactory() android.Module {
 			err := proptools.AppendProperties(&m.properties.BootclasspathFragmentCoverageAffectedProperties, &m.properties.Coverage, nil)
 			if err != nil {
 				ctx.PropertyErrorf("coverage", "error trying to append coverage specific properties: %s", err)
+				return
+			}
+
+			err = proptools.AppendProperties(&m.sourceOnlyProperties.HiddenApiPackageProperties, &m.sourceOnlyProperties.Coverage, nil)
+			if err != nil {
+				ctx.PropertyErrorf("coverage", "error trying to append hidden api coverage specific properties: %s", err)
 				return
 			}
 		}
@@ -588,6 +608,19 @@ func (b *BootclasspathFragmentModule) GenerateAndroidBuildActions(ctx android.Mo
 			// Provide the apex content info.
 			b.provideApexContentInfo(ctx, imageConfig, hiddenAPIOutput, bootImageFilesByArch)
 		}
+	} else {
+		// Versioned fragments are not needed by make.
+		b.HideFromMake()
+	}
+
+	// In order for information about bootclasspath_fragment modules to be added to module-info.json
+	// it is necessary to output an entry to Make. As bootclasspath_fragment modules are part of an
+	// APEX there can be multiple variants, including the default/platform variant and only one can
+	// be output to Make but it does not really matter which variant is output. The default/platform
+	// variant is the first (ctx.PrimaryModule()) and is usually hidden from make so this just picks
+	// the last variant (ctx.FinalModule()).
+	if ctx.Module() != ctx.FinalModule() {
+		b.HideFromMake()
 	}
 }
 
@@ -721,7 +754,8 @@ func (b *BootclasspathFragmentModule) generateHiddenAPIBuildActions(ctx android.
 	// TODO(b/192868581): Remove once the source and prebuilts provide a signature patterns file of
 	//  their own.
 	if output.SignaturePatternsPath == nil {
-		output.SignaturePatternsPath = buildRuleSignaturePatternsFile(ctx, output.AllFlagsPath, []string{"*"}, nil)
+		output.SignaturePatternsPath = buildRuleSignaturePatternsFile(
+			ctx, output.AllFlagsPath, []string{"*"}, nil, nil)
 	}
 
 	// Initialize a HiddenAPIInfo structure.
@@ -796,11 +830,13 @@ func (b *BootclasspathFragmentModule) produceHiddenAPIOutput(ctx android.ModuleC
 	// signature patterns.
 	splitPackages := b.sourceOnlyProperties.Hidden_api.Split_packages
 	packagePrefixes := b.sourceOnlyProperties.Hidden_api.Package_prefixes
-	if splitPackages != nil || packagePrefixes != nil {
+	singlePackages := b.sourceOnlyProperties.Hidden_api.Single_packages
+	if splitPackages != nil || packagePrefixes != nil || singlePackages != nil {
 		if splitPackages == nil {
 			splitPackages = []string{"*"}
 		}
-		output.SignaturePatternsPath = buildRuleSignaturePatternsFile(ctx, output.AllFlagsPath, splitPackages, packagePrefixes)
+		output.SignaturePatternsPath = buildRuleSignaturePatternsFile(
+			ctx, output.AllFlagsPath, splitPackages, packagePrefixes, singlePackages)
 	}
 
 	return output
@@ -853,7 +889,22 @@ func (b *BootclasspathFragmentModule) generateBootImageBuildActions(ctx android.
 }
 
 func (b *BootclasspathFragmentModule) AndroidMkEntries() []android.AndroidMkEntries {
-	var entriesList []android.AndroidMkEntries
+	// Use the generated classpath proto as the output.
+	outputFile := b.outputFilepath
+	// Create a fake entry that will cause this to be added to the module-info.json file.
+	entriesList := []android.AndroidMkEntries{{
+		Class:      "FAKE",
+		OutputFile: android.OptionalPathForPath(outputFile),
+		Include:    "$(BUILD_PHONY_PACKAGE)",
+		ExtraFooters: []android.AndroidMkExtraFootersFunc{
+			func(w io.Writer, name, prefix, moduleDir string) {
+				// Allow the bootclasspath_fragment to be built by simply passing its name on the command
+				// line.
+				fmt.Fprintln(w, ".PHONY:", b.Name())
+				fmt.Fprintln(w, b.Name()+":", outputFile.String())
+			},
+		},
+	}}
 	for _, install := range b.bootImageDeviceInstalls {
 		entriesList = append(entriesList, install.ToMakeEntries())
 	}

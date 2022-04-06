@@ -149,6 +149,10 @@ func (mod *Module) InRecovery() bool {
 	return mod.ModuleBase.InRecovery() || mod.ModuleBase.InstallInRecovery()
 }
 
+func (mod *Module) InRamdisk() bool {
+	return mod.ModuleBase.InRamdisk() || mod.ModuleBase.InstallInRamdisk()
+}
+
 func (mod *Module) InVendorRamdisk() bool {
 	return mod.ModuleBase.InVendorRamdisk() || mod.ModuleBase.InstallInVendorRamdisk()
 }

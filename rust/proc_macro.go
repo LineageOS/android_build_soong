@@ -33,6 +33,7 @@ type procMacroDecorator struct {
 }
 
 type procMacroInterface interface {
+	ProcMacro() bool
 }
 
 var _ compiler = (*procMacroDecorator)(nil)
@@ -88,6 +89,10 @@ func (procMacro *procMacroDecorator) getStem(ctx ModuleContext) string {
 
 func (procMacro *procMacroDecorator) autoDep(ctx android.BottomUpMutatorContext) autoDep {
 	return rlibAutoDep
+}
+
+func (procMacro *procMacroDecorator) ProcMacro() bool {
+	return true
 }
 
 func (procMacro *procMacroDecorator) everInstallable() bool {

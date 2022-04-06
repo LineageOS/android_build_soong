@@ -909,6 +909,7 @@ func createArchPropTypeDesc(props reflect.Type) []archPropTypeDesc {
 			"Glibc",
 			"Musl",
 			"Linux",
+			"Host_linux",
 			"Not_windows",
 			"Arm_on_x86",
 			"Arm_on_x86_64",
@@ -926,6 +927,12 @@ func createArchPropTypeDesc(props reflect.Type) []archPropTypeDesc {
 				// "musl_<arch>" property structs.
 				if os.Linux() {
 					target := "Linux_" + archType.Name
+					if !InList(target, targets) {
+						targets = append(targets, target)
+					}
+				}
+				if os.Linux() && os.Class == Host {
+					target := "Host_linux_" + archType.Name
 					if !InList(target, targets) {
 						targets = append(targets, target)
 					}
@@ -1157,6 +1164,14 @@ func (m *ModuleBase) setOSProperties(ctx BottomUpMutatorContext) {
 			if os.Linux() {
 				field := "Linux"
 				prefix := "target.linux"
+				if linuxProperties, ok := getChildPropertyStruct(ctx, targetProp, field, prefix); ok {
+					mergePropertyStruct(ctx, genProps, linuxProperties)
+				}
+			}
+
+			if os.Linux() && os.Class == Host {
+				field := "Host_linux"
+				prefix := "target.host_linux"
 				if linuxProperties, ok := getChildPropertyStruct(ctx, targetProp, field, prefix); ok {
 					mergePropertyStruct(ctx, genProps, linuxProperties)
 				}
@@ -2127,6 +2142,7 @@ func (m *ModuleBase) GetArchVariantProperties(ctx ArchVariantContext, propertySe
 	linuxStructs := getTargetStructs(ctx, archProperties, "Linux")
 	bionicStructs := getTargetStructs(ctx, archProperties, "Bionic")
 	hostStructs := getTargetStructs(ctx, archProperties, "Host")
+	hostLinuxStructs := getTargetStructs(ctx, archProperties, "Host_linux")
 	hostNotWindowsStructs := getTargetStructs(ctx, archProperties, "Not_windows")
 
 	// For android, linux, ...
@@ -2146,6 +2162,9 @@ func (m *ModuleBase) GetArchVariantProperties(ctx ArchVariantContext, propertySe
 		}
 		if os.Bionic() {
 			osStructs = append(osStructs, bionicStructs...)
+		}
+		if os.Linux() && os.Class == Host {
+			osStructs = append(osStructs, hostLinuxStructs...)
 		}
 
 		if os == LinuxMusl {

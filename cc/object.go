@@ -133,6 +133,7 @@ type bazelObjectAttributes struct {
 	Absolute_includes   bazel.StringListAttribute
 	Stl                 *string
 	Linker_script       bazel.LabelAttribute
+	sdkAttributes
 }
 
 // objectBp2Build is the bp2build converter from cc_object modules to the
@@ -191,6 +192,7 @@ func objectBp2Build(ctx android.TopDownMutatorContext, m *Module) {
 		Absolute_includes:   compilerAttrs.absoluteIncludes,
 		Stl:                 compilerAttrs.stl,
 		Linker_script:       linkerScript,
+		sdkAttributes:       bp2BuildParseSdkAttributes(m),
 	}
 
 	props := bazel.BazelTargetModuleProperties{

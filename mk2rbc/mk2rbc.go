@@ -50,15 +50,12 @@ const (
 	soongNsPrefix = "SOONG_CONFIG_"
 
 	// And here are the functions and variables:
-	cfnGetCfg          = baseName + ".cfg"
-	cfnMain            = baseName + ".product_configuration"
-	cfnBoardMain       = baseName + ".board_configuration"
-	cfnPrintVars       = baseName + ".printvars"
-	cfnWarning         = baseName + ".warning"
-	cfnLocalAppend     = baseName + ".local_append"
-	cfnLocalSetDefault = baseName + ".local_set_default"
-	cfnInherit         = baseName + ".inherit"
-	cfnSetListDefault  = baseName + ".setdefault"
+	cfnGetCfg         = baseName + ".cfg"
+	cfnMain           = baseName + ".product_configuration"
+	cfnBoardMain      = baseName + ".board_configuration"
+	cfnPrintVars      = baseName + ".printvars"
+	cfnInherit        = baseName + ".inherit"
+	cfnSetListDefault = baseName + ".setdefault"
 )
 
 const (
@@ -80,7 +77,7 @@ var knownFunctions = map[string]interface {
 	"addprefix":                            &simpleCallParser{name: baseName + ".addprefix", returnType: starlarkTypeList},
 	"addsuffix":                            &simpleCallParser{name: baseName + ".addsuffix", returnType: starlarkTypeList},
 	"copy-files":                           &simpleCallParser{name: baseName + ".copy_files", returnType: starlarkTypeList},
-	"dir":                                  &simpleCallParser{name: baseName + ".dir", returnType: starlarkTypeList},
+	"dir":                                  &simpleCallParser{name: baseName + ".dir", returnType: starlarkTypeString},
 	"dist-for-goals":                       &simpleCallParser{name: baseName + ".mkdist_for_goals", returnType: starlarkTypeVoid, addGlobals: true},
 	"enforce-product-packages-exist":       &simpleCallParser{name: baseName + ".enforce_product_packages_exist", returnType: starlarkTypeVoid},
 	"error":                                &makeControlFuncParser{name: baseName + ".mkerror"},
@@ -89,7 +86,7 @@ var knownFunctions = map[string]interface {
 	"filter":                               &simpleCallParser{name: baseName + ".filter", returnType: starlarkTypeList},
 	"filter-out":                           &simpleCallParser{name: baseName + ".filter_out", returnType: starlarkTypeList},
 	"firstword":                            &firstOrLastwordCallParser{isLastWord: false},
-	"foreach":                              &foreachCallPaser{},
+	"foreach":                              &foreachCallParser{},
 	"if":                                   &ifCallParser{},
 	"info":                                 &makeControlFuncParser{name: baseName + ".mkinfo"},
 	"is-board-platform":                    &simpleCallParser{name: baseName + ".board_platform_is", returnType: starlarkTypeBool, addGlobals: true},
@@ -118,6 +115,17 @@ var knownFunctions = map[string]interface {
 	"warning":  &makeControlFuncParser{name: baseName + ".mkwarning"},
 	"word":     &wordCallParser{},
 	"wildcard": &simpleCallParser{name: baseName + ".expand_wildcard", returnType: starlarkTypeList},
+}
+
+// The same as knownFunctions, but returns a []starlarkNode instead of a starlarkExpr
+var knownNodeFunctions = map[string]interface {
+	parse(ctx *parseContext, node mkparser.Node, args *mkparser.MakeString) []starlarkNode
+}{
+	"eval":                      &evalNodeParser{},
+	"if":                        &ifCallNodeParser{},
+	"inherit-product":           &inheritProductCallParser{loadAlways: true},
+	"inherit-product-if-exists": &inheritProductCallParser{loadAlways: false},
+	"foreach":                   &foreachCallNodeParser{},
 }
 
 // These are functions that we don't implement conversions for, but
@@ -410,6 +418,8 @@ type parseContext struct {
 	dependentModules map[string]*moduleInfo
 	soongNamespaces  map[string]map[string]bool
 	includeTops      []string
+	typeHints        map[string]starlarkType
+	atTopOfMakefile  bool
 }
 
 func newParseContext(ss *StarlarkScript, nodes []mkparser.Node) *parseContext {
@@ -453,6 +463,8 @@ func newParseContext(ss *StarlarkScript, nodes []mkparser.Node) *parseContext {
 		dependentModules: make(map[string]*moduleInfo),
 		soongNamespaces:  make(map[string]map[string]bool),
 		includeTops:      []string{},
+		typeHints:        make(map[string]starlarkType),
+		atTopOfMakefile:  true,
 	}
 	ctx.pushVarAssignments()
 	for _, item := range predefined {
@@ -465,17 +477,17 @@ func newParseContext(ss *StarlarkScript, nodes []mkparser.Node) *parseContext {
 	return ctx
 }
 
-func (ctx *parseContext) lastAssignment(name string) *assignmentNode {
+func (ctx *parseContext) lastAssignment(v variable) *assignmentNode {
 	for va := ctx.varAssignments; va != nil; va = va.outer {
-		if v, ok := va.vars[name]; ok {
+		if v, ok := va.vars[v.name()]; ok {
 			return v
 		}
 	}
 	return nil
 }
 
-func (ctx *parseContext) setLastAssignment(name string, asgn *assignmentNode) {
-	ctx.varAssignments.vars[name] = asgn
+func (ctx *parseContext) setLastAssignment(v variable, asgn *assignmentNode) {
+	ctx.varAssignments.vars[v.name()] = asgn
 }
 
 func (ctx *parseContext) pushVarAssignments() {
@@ -532,7 +544,7 @@ func (ctx *parseContext) handleAssignment(a *mkparser.Assignment) []starlarkNode
 	if lhs == nil {
 		return []starlarkNode{ctx.newBadNode(a, "unknown variable %s", name)}
 	}
-	_, isTraced := ctx.tracedVariables[name]
+	_, isTraced := ctx.tracedVariables[lhs.name()]
 	asgn := &assignmentNode{lhs: lhs, mkValue: a.Value, isTraced: isTraced, location: ctx.errorLocation(a)}
 	if lhs.valueType() == starlarkTypeUnknown {
 		// Try to divine variable type from the RHS
@@ -565,17 +577,19 @@ func (ctx *parseContext) handleAssignment(a *mkparser.Assignment) []starlarkNode
 		}
 	}
 
-	asgn.previous = ctx.lastAssignment(name)
-	ctx.setLastAssignment(name, asgn)
+	if asgn.lhs.valueType() == starlarkTypeString &&
+		asgn.value.typ() != starlarkTypeUnknown &&
+		asgn.value.typ() != starlarkTypeString {
+		asgn.value = &toStringExpr{expr: asgn.value}
+	}
+
+	asgn.previous = ctx.lastAssignment(lhs)
+	ctx.setLastAssignment(lhs, asgn)
 	switch a.Type {
 	case "=", ":=":
 		asgn.flavor = asgnSet
 	case "+=":
-		if asgn.previous == nil && !asgn.lhs.isPreset() {
-			asgn.flavor = asgnMaybeAppend
-		} else {
-			asgn.flavor = asgnAppend
-		}
+		asgn.flavor = asgnAppend
 	case "?=":
 		asgn.flavor = asgnMaybeSet
 	default:
@@ -843,15 +857,19 @@ func (ctx *parseContext) findMatchingPaths(pattern []string) []string {
 	return res
 }
 
-func (ctx *parseContext) handleInheritModule(v mkparser.Node, args *mkparser.MakeString, loadAlways bool) []starlarkNode {
+type inheritProductCallParser struct {
+	loadAlways bool
+}
+
+func (p *inheritProductCallParser) parse(ctx *parseContext, v mkparser.Node, args *mkparser.MakeString) []starlarkNode {
 	args.TrimLeftSpaces()
 	args.TrimRightSpaces()
 	pathExpr := ctx.parseMakeString(v, args)
 	if _, ok := pathExpr.(*badExpr); ok {
 		return []starlarkNode{ctx.newBadNode(v, "Unable to parse argument to inherit")}
 	}
-	return ctx.handleSubConfig(v, pathExpr, loadAlways, func(im inheritedModule) starlarkNode {
-		return &inheritNode{im, loadAlways}
+	return ctx.handleSubConfig(v, pathExpr, p.loadAlways, func(im inheritedModule) starlarkNode {
+		return &inheritNode{im, p.loadAlways}
 	})
 }
 
@@ -870,19 +888,12 @@ func (ctx *parseContext) handleVariable(v *mkparser.Variable) []starlarkNode {
 	//   $(error xxx)
 	//   $(call other-custom-functions,...)
 
-	// inherit-product(-if-exists) gets converted to a series of statements,
-	// not just a single expression like parseReference returns. So handle it
-	// separately at the beginning here.
-	if strings.HasPrefix(v.Name.Dump(), "call inherit-product,") {
-		args := v.Name.Clone()
-		args.ReplaceLiteral("call inherit-product,", "")
-		return ctx.handleInheritModule(v, args, true)
+	if name, args, ok := ctx.maybeParseFunctionCall(v, v.Name); ok {
+		if kf, ok := knownNodeFunctions[name]; ok {
+			return kf.parse(ctx, v, args)
+		}
 	}
-	if strings.HasPrefix(v.Name.Dump(), "call inherit-product-if-exists,") {
-		args := v.Name.Clone()
-		args.ReplaceLiteral("call inherit-product-if-exists,", "")
-		return ctx.handleInheritModule(v, args, false)
-	}
+
 	return []starlarkNode{&exprNode{expr: ctx.parseReference(v, v.Name)}}
 }
 
@@ -1027,49 +1038,19 @@ func (ctx *parseContext) parseCompare(cond *mkparser.Directive) starlarkExpr {
 		otherOperand = xLeft
 	}
 
-	not := func(expr starlarkExpr) starlarkExpr {
-		switch typedExpr := expr.(type) {
-		case *inExpr:
-			typedExpr.isNot = !typedExpr.isNot
-			return typedExpr
-		case *eqExpr:
-			typedExpr.isEq = !typedExpr.isEq
-			return typedExpr
-		case *binaryOpExpr:
-			switch typedExpr.op {
-			case ">":
-				typedExpr.op = "<="
-				return typedExpr
-			case "<":
-				typedExpr.op = ">="
-				return typedExpr
-			case ">=":
-				typedExpr.op = "<"
-				return typedExpr
-			case "<=":
-				typedExpr.op = ">"
-				return typedExpr
-			default:
-				return &notExpr{expr: expr}
-			}
-		default:
-			return &notExpr{expr: expr}
-		}
-	}
-
 	// If we've identified one of the operands as being a string literal, check
 	// for some special cases we can do to simplify the resulting expression.
 	if otherOperand != nil {
 		if stringOperand == "" {
 			if isEq {
-				return not(otherOperand)
+				return negateExpr(otherOperand)
 			} else {
 				return otherOperand
 			}
 		}
 		if stringOperand == "true" && otherOperand.typ() == starlarkTypeBool {
 			if !isEq {
-				return not(otherOperand)
+				return negateExpr(otherOperand)
 			} else {
 				return otherOperand
 			}
@@ -1225,6 +1206,37 @@ func (ctx *parseContext) parseCompareStripFuncResult(directive *mkparser.Directi
 		right: xValue, isEq: !negate}
 }
 
+func (ctx *parseContext) maybeParseFunctionCall(node mkparser.Node, ref *mkparser.MakeString) (name string, args *mkparser.MakeString, ok bool) {
+	ref.TrimLeftSpaces()
+	ref.TrimRightSpaces()
+
+	words := ref.SplitN(" ", 2)
+	if !words[0].Const() {
+		return "", nil, false
+	}
+
+	name = words[0].Dump()
+	args = mkparser.SimpleMakeString("", words[0].Pos())
+	if len(words) >= 2 {
+		args = words[1]
+	}
+	args.TrimLeftSpaces()
+	if name == "call" {
+		words = args.SplitN(",", 2)
+		if words[0].Empty() || !words[0].Const() {
+			return "", nil, false
+		}
+		name = words[0].Dump()
+		if len(words) < 2 {
+			args = &mkparser.MakeString{}
+		} else {
+			args = words[1]
+		}
+	}
+	ok = true
+	return
+}
+
 // parses $(...), returning an expression
 func (ctx *parseContext) parseReference(node mkparser.Node, ref *mkparser.MakeString) starlarkExpr {
 	ref.TrimLeftSpaces()
@@ -1239,7 +1251,7 @@ func (ctx *parseContext) parseReference(node mkparser.Node, ref *mkparser.MakeSt
 
 	// If it is a single word, it can be a simple variable
 	// reference or a function call
-	if len(words) == 1 && !isMakeControlFunc(refDump) && refDump != "shell" {
+	if len(words) == 1 && !isMakeControlFunc(refDump) && refDump != "shell" && refDump != "eval" {
 		if strings.HasPrefix(refDump, soongNsPrefix) {
 			// TODO (asmundak): if we find many, maybe handle them.
 			return ctx.newBadExpr(node, "SOONG_CONFIG_ variables cannot be referenced, use soong_config_get instead: %s", refDump)
@@ -1268,38 +1280,24 @@ func (ctx *parseContext) parseReference(node mkparser.Node, ref *mkparser.MakeSt
 				args: []starlarkExpr{
 					&stringLiteralExpr{literal: substParts[0]},
 					&stringLiteralExpr{literal: substParts[1]},
-					NewVariableRefExpr(v, ctx.lastAssignment(v.name()) != nil),
+					NewVariableRefExpr(v, ctx.lastAssignment(v) != nil),
 				},
 			}
 		}
 		if v := ctx.addVariable(refDump); v != nil {
-			return NewVariableRefExpr(v, ctx.lastAssignment(v.name()) != nil)
+			return NewVariableRefExpr(v, ctx.lastAssignment(v) != nil)
 		}
 		return ctx.newBadExpr(node, "unknown variable %s", refDump)
 	}
 
-	expr := &callExpr{name: words[0].Dump(), returnType: starlarkTypeUnknown}
-	args := mkparser.SimpleMakeString("", words[0].Pos())
-	if len(words) >= 2 {
-		args = words[1]
-	}
-	args.TrimLeftSpaces()
-	if expr.name == "call" {
-		words = args.SplitN(",", 2)
-		if words[0].Empty() || !words[0].Const() {
-			return ctx.newBadExpr(node, "cannot handle %s", refDump)
-		}
-		expr.name = words[0].Dump()
-		if len(words) < 2 {
-			args = &mkparser.MakeString{}
+	if name, args, ok := ctx.maybeParseFunctionCall(node, ref); ok {
+		if kf, found := knownFunctions[name]; found {
+			return kf.parse(ctx, node, args)
 		} else {
-			args = words[1]
+			return ctx.newBadExpr(node, "cannot handle invoking %s", name)
 		}
-	}
-	if kf, found := knownFunctions[expr.name]; found {
-		return kf.parse(ctx, node, args)
 	} else {
-		return ctx.newBadExpr(node, "cannot handle invoking %s", expr.name)
+		return ctx.newBadExpr(node, "cannot handle %s", refDump)
 	}
 }
 
@@ -1373,7 +1371,7 @@ func (p *myDirCallParser) parse(ctx *parseContext, node mkparser.Node, args *mkp
 	if !args.Empty() {
 		return ctx.newBadExpr(node, "my-dir function cannot have any arguments passed to it.")
 	}
-	return &variableRefExpr{ctx.addVariable("LOCAL_PATH"), true}
+	return &stringLiteralExpr{literal: filepath.Dir(ctx.script.mkFile)}
 }
 
 type isProductInListCallParser struct{}
@@ -1483,9 +1481,46 @@ func (p *ifCallParser) parse(ctx *parseContext, node mkparser.Node, args *mkpars
 	}
 }
 
-type foreachCallPaser struct{}
+type ifCallNodeParser struct{}
 
-func (p *foreachCallPaser) parse(ctx *parseContext, node mkparser.Node, args *mkparser.MakeString) starlarkExpr {
+func (p *ifCallNodeParser) parse(ctx *parseContext, node mkparser.Node, args *mkparser.MakeString) []starlarkNode {
+	words := args.Split(",")
+	if len(words) != 2 && len(words) != 3 {
+		return []starlarkNode{ctx.newBadNode(node, "if function should have 2 or 3 arguments, found "+strconv.Itoa(len(words)))}
+	}
+
+	ifn := &ifNode{expr: ctx.parseMakeString(node, words[0])}
+	cases := []*switchCase{
+		{
+			gate:  ifn,
+			nodes: ctx.parseNodeMakeString(node, words[1]),
+		},
+	}
+	if len(words) == 3 {
+		cases = append(cases, &switchCase{
+			gate:  &elseNode{},
+			nodes: ctx.parseNodeMakeString(node, words[2]),
+		})
+	}
+	if len(cases) == 2 {
+		if len(cases[1].nodes) == 0 {
+			// Remove else branch if it has no contents
+			cases = cases[:1]
+		} else if len(cases[0].nodes) == 0 {
+			// If the if branch has no contents but the else does,
+			// move them to the if and negate its condition
+			ifn.expr = negateExpr(ifn.expr)
+			cases[0].nodes = cases[1].nodes
+			cases = cases[:1]
+		}
+	}
+
+	return []starlarkNode{&switchNode{ssCases: cases}}
+}
+
+type foreachCallParser struct{}
+
+func (p *foreachCallParser) parse(ctx *parseContext, node mkparser.Node, args *mkparser.MakeString) starlarkExpr {
 	words := args.Split(",")
 	if len(words) != 3 {
 		return ctx.newBadExpr(node, "foreach function should have 3 arguments, found "+strconv.Itoa(len(words)))
@@ -1515,6 +1550,71 @@ func (p *foreachCallPaser) parse(ctx *parseContext, node mkparser.Node, args *mk
 		list:    list,
 		action:  action,
 	}
+}
+
+func transformNode(node starlarkNode, transformer func(expr starlarkExpr) starlarkExpr) {
+	switch a := node.(type) {
+	case *ifNode:
+		a.expr = a.expr.transform(transformer)
+	case *switchCase:
+		transformNode(a.gate, transformer)
+		for _, n := range a.nodes {
+			transformNode(n, transformer)
+		}
+	case *switchNode:
+		for _, n := range a.ssCases {
+			transformNode(n, transformer)
+		}
+	case *exprNode:
+		a.expr = a.expr.transform(transformer)
+	case *assignmentNode:
+		a.value = a.value.transform(transformer)
+	case *foreachNode:
+		a.list = a.list.transform(transformer)
+		for _, n := range a.actions {
+			transformNode(n, transformer)
+		}
+	}
+}
+
+type foreachCallNodeParser struct{}
+
+func (p *foreachCallNodeParser) parse(ctx *parseContext, node mkparser.Node, args *mkparser.MakeString) []starlarkNode {
+	words := args.Split(",")
+	if len(words) != 3 {
+		return []starlarkNode{ctx.newBadNode(node, "foreach function should have 3 arguments, found "+strconv.Itoa(len(words)))}
+	}
+	if !words[0].Const() || words[0].Empty() || !identifierFullMatchRegex.MatchString(words[0].Strings[0]) {
+		return []starlarkNode{ctx.newBadNode(node, "first argument to foreach function must be a simple string identifier")}
+	}
+
+	loopVarName := words[0].Strings[0]
+
+	list := ctx.parseMakeString(node, words[1])
+	if list.typ() != starlarkTypeList {
+		list = &callExpr{
+			name:       baseName + ".words",
+			returnType: starlarkTypeList,
+			args:       []starlarkExpr{list},
+		}
+	}
+
+	actions := ctx.parseNodeMakeString(node, words[2])
+	// TODO(colefaust): Replace transforming code with something more elegant
+	for _, action := range actions {
+		transformNode(action, func(expr starlarkExpr) starlarkExpr {
+			if varRefExpr, ok := expr.(*variableRefExpr); ok && varRefExpr.ref.name() == loopVarName {
+				return &identifierExpr{loopVarName}
+			}
+			return nil
+		})
+	}
+
+	return []starlarkNode{&foreachNode{
+		varName: loopVarName,
+		list:    list,
+		actions: actions,
+	}}
 }
 
 type wordCallParser struct{}
@@ -1627,6 +1727,31 @@ func (p *mathMaxOrMinCallParser) parse(ctx *parseContext, node mkparser.Node, ar
 	}
 }
 
+type evalNodeParser struct{}
+
+func (p *evalNodeParser) parse(ctx *parseContext, node mkparser.Node, args *mkparser.MakeString) []starlarkNode {
+	parser := mkparser.NewParser("Eval expression", strings.NewReader(args.Dump()))
+	nodes, errs := parser.Parse()
+	if errs != nil {
+		return []starlarkNode{ctx.newBadNode(node, "Unable to parse eval statement")}
+	}
+
+	if len(nodes) == 0 {
+		return []starlarkNode{}
+	} else if len(nodes) == 1 {
+		switch n := nodes[0].(type) {
+		case *mkparser.Assignment:
+			if n.Name.Const() {
+				return ctx.handleAssignment(n)
+			}
+		case *mkparser.Comment:
+			return []starlarkNode{&commentNode{strings.TrimSpace("#" + n.Comment)}}
+		}
+	}
+
+	return []starlarkNode{ctx.newBadNode(node, "Eval expression too complex; only assignments and comments are supported")}
+}
+
 func (ctx *parseContext) parseMakeString(node mkparser.Node, mk *mkparser.MakeString) starlarkExpr {
 	if mk.Const() {
 		return &stringLiteralExpr{mk.Dump()}
@@ -1649,6 +1774,16 @@ func (ctx *parseContext) parseMakeString(node mkparser.Node, mk *mkparser.MakeSt
 		}
 	}
 	return NewInterpolateExpr(parts)
+}
+
+func (ctx *parseContext) parseNodeMakeString(node mkparser.Node, mk *mkparser.MakeString) []starlarkNode {
+	// Discard any constant values in the make string, as they would be top level
+	// string literals and do nothing.
+	result := make([]starlarkNode, 0, len(mk.Variables))
+	for i := range mk.Variables {
+		result = append(result, ctx.handleVariable(&mk.Variables[i])...)
+	}
+	return result
 }
 
 // Handles the statements whose treatment is the same in all contexts: comment,
@@ -1687,14 +1822,22 @@ func (ctx *parseContext) handleSimpleStatement(node mkparser.Node) []starlarkNod
 	// Clear the includeTops after each non-comment statement
 	// so that include annotations placed on certain statements don't apply
 	// globally for the rest of the makefile was well.
-	if _, wasComment := node.(*mkparser.Comment); !wasComment && len(ctx.includeTops) > 0 {
+	if _, wasComment := node.(*mkparser.Comment); !wasComment {
+		ctx.atTopOfMakefile = false
 		ctx.includeTops = []string{}
 	}
 
 	if result == nil {
 		result = []starlarkNode{}
 	}
+
 	return result
+}
+
+// The types allowed in a type_hint
+var typeHintMap = map[string]starlarkType{
+	"string": starlarkTypeString,
+	"list":   starlarkTypeList,
 }
 
 // Processes annotation. An annotation is a comment that starts with #RBC# and provides
@@ -1720,6 +1863,35 @@ func (ctx *parseContext) maybeHandleAnnotation(cnode *mkparser.Comment) (starlar
 			}
 		}
 		ctx.includeTops = append(ctx.includeTops, p)
+		return nil, true
+	} else if p, ok := maybeTrim(annotation, "type_hint"); ok {
+		// Type hints must come at the beginning the file, to avoid confusion
+		// if a type hint was specified later and thus only takes effect for half
+		// of the file.
+		if !ctx.atTopOfMakefile {
+			return ctx.newBadNode(cnode, "type_hint annotations must come before the first Makefile statement"), true
+		}
+
+		parts := strings.Fields(p)
+		if len(parts) <= 1 {
+			return ctx.newBadNode(cnode, "Invalid type_hint annotation: %s. Must be a variable type followed by a list of variables of that type", p), true
+		}
+
+		var varType starlarkType
+		if varType, ok = typeHintMap[parts[0]]; !ok {
+			varType = starlarkTypeUnknown
+		}
+		if varType == starlarkTypeUnknown {
+			return ctx.newBadNode(cnode, "Invalid type_hint annotation. Only list/string types are accepted, found %s", parts[0]), true
+		}
+
+		for _, name := range parts[1:] {
+			// Don't allow duplicate type hints
+			if _, ok := ctx.typeHints[name]; ok {
+				return ctx.newBadNode(cnode, "Duplicate type hint for variable %s", name), true
+			}
+			ctx.typeHints[name] = varType
+		}
 		return nil, true
 	}
 	return ctx.newBadNode(cnode, "unsupported annotation %s", cnode.Comment), true

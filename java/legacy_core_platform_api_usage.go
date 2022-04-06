@@ -81,7 +81,6 @@ var legacyCorePlatformApiModules = []string{
 	"ds-car-docs", // for AAOS API documentation only
 	"DynamicSystemInstallationService",
 	"EmergencyInfo-lib",
-	"ethernet-service",
 	"EthernetServiceTests",
 	"ExternalStorageProvider",
 	"face-V1-0-javalib",

@@ -76,7 +76,7 @@ var (
 	minimalRuntimeFlags = []string{"-fsanitize-minimal-runtime", "-fno-sanitize-trap=integer,undefined",
 		"-fno-sanitize-recover=integer,undefined"}
 	hwasanGlobalOptions = []string{"heap_history_size=1023", "stack_history_size=512",
-		"export_memory_stats=0", "max_malloc_fill_size=0"}
+		"export_memory_stats=0", "max_malloc_fill_size=4096", "malloc_fill_byte=0"}
 )
 
 type SanitizerType int
@@ -480,14 +480,20 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 		s.Diag.Cfi = nil
 	}
 
-	// Disable sanitizers that depend on the UBSan runtime for windows/darwin/musl builds.
-	if !ctx.Os().Linux() || ctx.Os() == android.LinuxMusl {
+	// Disable sanitizers that depend on the UBSan runtime for windows/darwin builds.
+	if !ctx.Os().Linux() {
 		s.Cfi = nil
 		s.Diag.Cfi = nil
 		s.Misc_undefined = nil
 		s.Undefined = nil
 		s.All_undefined = nil
 		s.Integer_overflow = nil
+	}
+
+	// Disable CFI for musl
+	if ctx.toolchain().Musl() {
+		s.Cfi = nil
+		s.Diag.Cfi = nil
 	}
 
 	// Also disable CFI for VNDK variants of components
@@ -702,10 +708,10 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 		flags.Local.AsFlags = append(flags.Local.AsFlags, sanitizeArg)
 		flags.Local.LdFlags = append(flags.Local.LdFlags, sanitizeArg)
 
-		if ctx.toolchain().Bionic() {
-			// Bionic sanitizer runtimes have already been added as dependencies so that
-			// the right variant of the runtime will be used (with the "-android"
-			// suffix), so don't let clang the runtime library.
+		if ctx.toolchain().Bionic() || ctx.toolchain().Musl() {
+			// Bionic and musl sanitizer runtimes have already been added as dependencies so that
+			// the right variant of the runtime will be used (with the "-android" or "-musl"
+			// suffixes), so don't let clang the runtime library.
 			flags.Local.LdFlags = append(flags.Local.LdFlags, "-fno-sanitize-link-runtime")
 		} else {
 			// Host sanitizers only link symbols in the final executable, so
@@ -1217,7 +1223,7 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 			addStaticDeps(config.BuiltinsRuntimeLibrary(toolchain))
 		}
 
-		if runtimeLibrary != "" && (toolchain.Bionic() || c.sanitize.Properties.UbsanRuntimeDep) {
+		if runtimeLibrary != "" && (toolchain.Bionic() || toolchain.Musl() || c.sanitize.Properties.UbsanRuntimeDep) {
 			// UBSan is supported on non-bionic linux host builds as well
 
 			// Adding dependency to the runtime library. We are using *FarVariation*

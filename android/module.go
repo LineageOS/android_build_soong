@@ -456,6 +456,10 @@ type ModuleContext interface {
 	// GetMissingDependencies returns the list of dependencies that were passed to AddDependencies or related methods,
 	// but do not exist.
 	GetMissingDependencies() []string
+
+	// LicenseMetadataFile returns the path where the license metadata for this module will be
+	// generated.
+	LicenseMetadataFile() Path
 }
 
 type Module interface {
@@ -608,6 +612,12 @@ type Dist struct {
 
 	// A suffix to add to the artifact file name (before any extension).
 	Suffix *string `android:"arch_variant"`
+
+	// If true, then the artifact file will be appended with _<product name>. For
+	// example, if the product is coral and the module is an android_app module
+	// of name foo, then the artifact would be foo_coral.apk. If false, there is
+	// no change to the artifact file name.
+	Append_artifact_with_product *bool `android:"arch_variant"`
 
 	// A string tag to select the OutputFiles associated with the tag.
 	//
@@ -1460,8 +1470,10 @@ func (m *ModuleBase) AddJSONData(d *map[string]interface{}) {
 }
 
 type propInfo struct {
-	Name string
-	Type string
+	Name   string
+	Type   string
+	Value  string
+	Values []string
 }
 
 func (m *ModuleBase) propertiesWithValues() []propInfo {
@@ -1501,16 +1513,58 @@ func (m *ModuleBase) propertiesWithValues() []propInfo {
 				return
 			}
 			elKind := v.Type().Elem().Kind()
-			info = append(info, propInfo{name, elKind.String() + " " + kind.String()})
+			info = append(info, propInfo{Name: name, Type: elKind.String() + " " + kind.String(), Values: sliceReflectionValue(v)})
 		default:
-			info = append(info, propInfo{name, kind.String()})
+			info = append(info, propInfo{Name: name, Type: kind.String(), Value: reflectionValue(v)})
 		}
 	}
 
 	for _, p := range props {
 		propsWithValues("", reflect.ValueOf(p).Elem())
 	}
+	sort.Slice(info, func(i, j int) bool {
+		return info[i].Name < info[j].Name
+	})
 	return info
+}
+
+func reflectionValue(value reflect.Value) string {
+	switch value.Kind() {
+	case reflect.Bool:
+		return fmt.Sprintf("%t", value.Bool())
+	case reflect.Int64:
+		return fmt.Sprintf("%d", value.Int())
+	case reflect.String:
+		return fmt.Sprintf("%s", value.String())
+	case reflect.Struct:
+		if value.IsZero() {
+			return "{}"
+		}
+		length := value.NumField()
+		vals := make([]string, length, length)
+		for i := 0; i < length; i++ {
+			sTyp := value.Type().Field(i)
+			if proptools.ShouldSkipProperty(sTyp) {
+				continue
+			}
+			name := sTyp.Name
+			vals[i] = fmt.Sprintf("%s: %s", name, reflectionValue(value.Field(i)))
+		}
+		return fmt.Sprintf("%s{%s}", value.Type(), strings.Join(vals, ", "))
+	case reflect.Array, reflect.Slice:
+		vals := sliceReflectionValue(value)
+		return fmt.Sprintf("[%s]", strings.Join(vals, ", "))
+	}
+	return ""
+}
+
+func sliceReflectionValue(value reflect.Value) []string {
+	length := value.Len()
+	vals := make([]string, length, length)
+	for i := 0; i < length; i++ {
+		vals[i] = reflectionValue(value.Index(i))
+	}
+	return vals
 }
 
 func (m *ModuleBase) ComponentDepsMutator(BottomUpMutatorContext) {}
@@ -3109,6 +3163,7 @@ func (m *moduleContext) packageFile(fullInstallPath InstallPath, srcPath Path, e
 		symlinkTarget:         "",
 		executable:            executable,
 		effectiveLicenseFiles: &licenseFiles,
+		partition:             fullInstallPath.partition,
 	}
 	m.packagingSpecs = append(m.packagingSpecs, spec)
 	return spec
@@ -3226,6 +3281,7 @@ func (m *moduleContext) InstallSymlink(installPath InstallPath, name string, src
 		srcPath:          nil,
 		symlinkTarget:    relPath,
 		executable:       false,
+		partition:        fullInstallPath.partition,
 	})
 
 	return fullInstallPath
@@ -3266,6 +3322,7 @@ func (m *moduleContext) InstallAbsoluteSymlink(installPath InstallPath, name str
 		srcPath:          nil,
 		symlinkTarget:    absPath,
 		executable:       false,
+		partition:        fullInstallPath.partition,
 	})
 
 	return fullInstallPath
@@ -3277,6 +3334,10 @@ func (m *moduleContext) CheckbuildFile(srcPath Path) {
 
 func (m *moduleContext) blueprintModuleContext() blueprint.ModuleContext {
 	return m.bp
+}
+
+func (m *moduleContext) LicenseMetadataFile() Path {
+	return m.module.base().licenseMetadataFile
 }
 
 // SrcIsModule decodes module references in the format ":unqualified-name" or "//namespace:name"

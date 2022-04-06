@@ -114,6 +114,8 @@ type SnapshotJsonFlags struct {
 	RelativeInstallPath string `json:",omitempty"`
 	Filename            string `json:",omitempty"`
 	ModuleStemName      string `json:",omitempty"`
+	RustProcMacro       bool   `json:",omitempty"`
+	CrateName           string `json:",omitempty"`
 
 	// dependencies
 	Required []string `json:",omitempty"`

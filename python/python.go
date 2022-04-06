@@ -423,6 +423,9 @@ func (p *Module) DepsMutator(ctx android.BottomUpMutatorContext) {
 		if ctx.Target().Os.Bionic() {
 			launcherSharedLibDeps = append(launcherSharedLibDeps, "libc", "libdl", "libm")
 		}
+		if ctx.Target().Os == android.LinuxMusl && !ctx.Config().HostStaticBinaries() {
+			launcherSharedLibDeps = append(launcherSharedLibDeps, "libc_musl")
+		}
 
 		switch p.properties.Actual_version {
 		case pyVersion2:
@@ -432,6 +435,7 @@ func (p *Module) DepsMutator(ctx android.BottomUpMutatorContext) {
 			if p.bootstrapper.autorun() {
 				launcherModule = "py2-launcher-autorun"
 			}
+
 			launcherSharedLibDeps = append(launcherSharedLibDeps, "libc++")
 
 		case pyVersion3:
@@ -440,6 +444,9 @@ func (p *Module) DepsMutator(ctx android.BottomUpMutatorContext) {
 			launcherModule = "py3-launcher"
 			if p.bootstrapper.autorun() {
 				launcherModule = "py3-launcher-autorun"
+			}
+			if ctx.Config().HostStaticBinaries() && ctx.Target().Os == android.LinuxMusl {
+				launcherModule += "-static"
 			}
 
 			if ctx.Device() {

@@ -201,6 +201,7 @@ type productVariables struct {
 	Platform_base_os                          *string  `json:",omitempty"`
 
 	DeviceName                            *string  `json:",omitempty"`
+	DeviceProduct                         *string  `json:",omitempty"`
 	DeviceArch                            *string  `json:",omitempty"`
 	DeviceArchVariant                     *string  `json:",omitempty"`
 	DeviceCpuVariant                      *string  `json:",omitempty"`
@@ -467,6 +468,7 @@ func (v *productVariables) SetDefaultConfig() {
 		HostArch:                   stringPtr("x86_64"),
 		HostSecondaryArch:          stringPtr("x86"),
 		DeviceName:                 stringPtr("generic_arm64"),
+		DeviceProduct:              stringPtr("aosp_arm-eng"),
 		DeviceArch:                 stringPtr("arm64"),
 		DeviceArchVariant:          stringPtr("armv8-a"),
 		DeviceCpuVariant:           stringPtr("generic"),

@@ -117,6 +117,7 @@ type bazelCcLibraryHeadersAttributes struct {
 	Deps                     bazel.LabelListAttribute
 	Implementation_deps      bazel.LabelListAttribute
 	System_dynamic_deps      bazel.LabelListAttribute
+	sdkAttributes
 }
 
 func libraryHeadersBp2Build(ctx android.TopDownMutatorContext, module *Module) {
@@ -132,6 +133,7 @@ func libraryHeadersBp2Build(ctx android.TopDownMutatorContext, module *Module) {
 		Deps:                     linkerAttrs.deps,
 		System_dynamic_deps:      linkerAttrs.systemDynamicDeps,
 		Hdrs:                     baseAttributes.hdrs,
+		sdkAttributes:            bp2BuildParseSdkAttributes(module),
 	}
 
 	props := bazel.BazelTargetModuleProperties{

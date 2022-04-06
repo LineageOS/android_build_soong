@@ -293,13 +293,14 @@ var (
 		"development/samples/WiFiDirectDemo":                 Bp2BuildDefaultTrue,
 		"development/sdk":                                    Bp2BuildDefaultTrueRecursively,
 		"external/arm-optimized-routines":                    Bp2BuildDefaultTrueRecursively,
+		"external/auto/android-annotation-stubs":             Bp2BuildDefaultTrueRecursively,
 		"external/auto/common":                               Bp2BuildDefaultTrueRecursively,
 		"external/auto/service":                              Bp2BuildDefaultTrueRecursively,
 		"external/boringssl":                                 Bp2BuildDefaultTrueRecursively,
 		"external/bouncycastle":                              Bp2BuildDefaultTrue,
 		"external/brotli":                                    Bp2BuildDefaultTrue,
 		"external/conscrypt":                                 Bp2BuildDefaultTrue,
-		"external/e2fsprogs/lib":                             Bp2BuildDefaultTrueRecursively,
+		"external/e2fsprogs":                                 Bp2BuildDefaultTrueRecursively,
 		"external/error_prone":                               Bp2BuildDefaultTrueRecursively,
 		"external/fmtlib":                                    Bp2BuildDefaultTrueRecursively,
 		"external/google-benchmark":                          Bp2BuildDefaultTrueRecursively,
@@ -356,6 +357,7 @@ var (
 		"packages/services/Car/tests/SampleRearViewCamera":   Bp2BuildDefaultTrue,
 		"prebuilts/clang/host/linux-x86":                     Bp2BuildDefaultTrueRecursively,
 		"prebuilts/tools/common/m2":                          Bp2BuildDefaultTrue,
+		"prebuilts/sdk/tools/jetifier/jetifier-standalone":   Bp2BuildDefaultTrue,
 		"system/apex":                                        Bp2BuildDefaultFalse, // TODO(b/207466993): flaky failures
 		"system/apex/proto":                                  Bp2BuildDefaultTrueRecursively,
 		"system/apex/libs":                                   Bp2BuildDefaultTrueRecursively,
@@ -392,8 +394,6 @@ var (
 	// A module can either be in this list or its directory allowlisted entirely
 	// in bp2buildDefaultConfig, but not both at the same time.
 	bp2buildModuleAlwaysConvertList = []string{
-		"junit-params-assertj-core",
-
 		//external/avb
 		"avbtool",
 		"libavb",
@@ -416,6 +416,21 @@ var (
 
 		//system/extras/verity/fec
 		"fec",
+
+		//packages/apps/Car/libs/car-ui-lib/car-ui-androidx
+		// genrule dependencies for java_imports
+		"car-ui-androidx-annotation-nodeps",
+		"car-ui-androidx-collection-nodeps",
+		"car-ui-androidx-core-common-nodeps",
+		"car-ui-androidx-lifecycle-common-nodeps",
+		"car-ui-androidx-constraintlayout-solver-nodeps",
+	}
+
+	// Per-module-type allowlist to always opt modules in to both bp2build and mixed builds
+	// when they have the same type as one listed.
+	bp2buildModuleTypeAlwaysConvertList = []string{
+		"java_import",
+		"java_import_host",
 	}
 
 	// Per-module denylist to always opt modules out of both bp2build and mixed builds.
@@ -480,17 +495,12 @@ var (
 		"libprotobuf-java-full",            // b/210751803, we don't handle path property for filegroups
 		"host-libprotobuf-java-full",       // b/210751803, we don't handle path property for filegroups
 		"libprotobuf-java-util-full",       // b/210751803, we don't handle path property for filegroups
+		"apex_manifest_proto_java",         // b/210751803, depends on libprotobuf-java-full
+		"conscrypt",                        // b/210751803, we don't handle path property for filegroups
+		"conscrypt-for-host",               // b/210751803, we don't handle path property for filegroups
 
-		"conscrypt",          // b/210751803, we don't handle path property for filegroups
-		"conscrypt-for-host", // b/210751803, we don't handle path property for filegroups
-
-		"host-libprotobuf-java-lite",  // b/217236083, java_library cannot have deps without srcs
-		"host-libprotobuf-java-micro", // b/217236083, java_library cannot have deps without srcs
-		"host-libprotobuf-java-nano",  // b/217236083, java_library cannot have deps without srcs
-		"error_prone_core",            // b/217236083, java_library cannot have deps without srcs
-		"bouncycastle-host",           // b/217236083, java_library cannot have deps without srcs
-
-		"apex_manifest_proto_java", // b/215230097, we don't handle .proto files in java_library srcs attribute
+		"libprotobuf-java-nano",      // b/220869005, depends on non-public_current SDK
+		"host-libprotobuf-java-nano", // b/220869005, depends on libprotobuf-java-nano
 
 		"libc_musl_sysroot_bionic_arch_headers", // b/218405924, depends on soong_zip
 		"libc_musl_sysroot_bionic_headers",      // b/218405924, depends on soong_zip and generates duplicate srcs
@@ -502,6 +512,9 @@ var (
 		"linker_config_proto", // contains .proto sources
 
 		"brotli-fuzzer-corpus", // b/202015218: outputs are in location incompatible with bazel genrule handling.
+
+		// python modules
+		"analyze_bcpf", // depends on bpmodify a blueprint_go_binary.
 
 		// b/203369847: multiple genrules in the same package creating the same file
 		// //development/sdk/...
@@ -557,7 +570,11 @@ var (
 		"art-script",     // depends on unconverted modules: dalvikvm, dex2oat
 		"dex2oat-script", // depends on unconverted modules: dex2oat
 
-		"error_prone_checkerframework_dataflow_nullaway", // TODO(b/219908977): "Error in fail: deps not allowed without srcs; move to runtime_deps?"
+		"prebuilt_car-ui-androidx-core-common",         // b/224773339, genrule dependency creates an .aar, not a .jar
+		"prebuilt_platform-robolectric-4.4-prebuilt",   // aosp/1999250, needs .aar support in Jars
+		"prebuilt_platform-robolectric-4.5.1-prebuilt", // aosp/1999250, needs .aar support in Jars
+
+		"libtombstoned_client_rust_bridge_code", "libtombstoned_client_wrapper", // rust conversions are not supported
 	}
 
 	// Per-module denylist of cc_library modules to only generate the static
@@ -608,15 +625,20 @@ var (
 	}
 
 	// Used for quicker lookups
-	bp2buildModuleDoNotConvert  = map[string]bool{}
-	bp2buildModuleAlwaysConvert = map[string]bool{}
-	bp2buildCcLibraryStaticOnly = map[string]bool{}
-	mixedBuildsDisabled         = map[string]bool{}
+	bp2buildModuleDoNotConvert      = map[string]bool{}
+	bp2buildModuleAlwaysConvert     = map[string]bool{}
+	bp2buildModuleTypeAlwaysConvert = map[string]bool{}
+	bp2buildCcLibraryStaticOnly     = map[string]bool{}
+	mixedBuildsDisabled             = map[string]bool{}
 )
 
 func init() {
 	for _, moduleName := range bp2buildModuleAlwaysConvertList {
 		bp2buildModuleAlwaysConvert[moduleName] = true
+	}
+
+	for _, moduleType := range bp2buildModuleTypeAlwaysConvertList {
+		bp2buildModuleTypeAlwaysConvert[moduleType] = true
 	}
 
 	for _, moduleName := range bp2buildModuleDoNotConvertList {
@@ -694,11 +716,17 @@ func (b *BazelModuleBase) ShouldConvertWithBp2build(ctx BazelConversionContext) 
 }
 
 func (b *BazelModuleBase) shouldConvertWithBp2build(ctx BazelConversionContext, module blueprint.Module) bool {
-	moduleNameNoPrefix := RemoveOptionalPrebuiltPrefix(module.Name())
-	alwaysConvert := bp2buildModuleAlwaysConvert[moduleNameNoPrefix]
+	moduleName := module.Name()
+	moduleNameAllowed := bp2buildModuleAlwaysConvert[moduleName]
+	moduleTypeAllowed := bp2buildModuleTypeAlwaysConvert[ctx.OtherModuleType(module)]
+	allowlistConvert := moduleNameAllowed || moduleTypeAllowed
+	if moduleNameAllowed && moduleTypeAllowed {
+		ctx.(BaseModuleContext).ModuleErrorf("A module cannot be in bp2buildModuleAlwaysConvert and also be" +
+			" in bp2buildModuleTypeAlwaysConvert")
+	}
 
-	if bp2buildModuleDoNotConvert[moduleNameNoPrefix] {
-		if alwaysConvert {
+	if bp2buildModuleDoNotConvert[moduleName] {
+		if moduleNameAllowed {
 			ctx.(BaseModuleContext).ModuleErrorf("a module cannot be in bp2buildModuleDoNotConvert" +
 				" and also be in bp2buildModuleAlwaysConvert")
 		}
@@ -709,19 +737,23 @@ func (b *BazelModuleBase) shouldConvertWithBp2build(ctx BazelConversionContext, 
 		return false
 	}
 
+	propValue := b.bazelProperties.Bazel_module.Bp2build_available
 	packagePath := ctx.OtherModuleDir(module)
-	if alwaysConvert && ShouldKeepExistingBuildFileForDir(packagePath) {
-		ctx.(BaseModuleContext).ModuleErrorf("A module cannot be in a directory listed in bp2buildKeepExistingBuildFile"+
-			" and also be in bp2buildModuleAlwaysConvert. Directory: '%s'", packagePath)
-
+	// Modules in unit tests which are enabled in the allowlist by type or name
+	// trigger this conditional because unit tests run under the "." package path
+	isTestModule := packagePath == "." && proptools.BoolDefault(propValue, false)
+	if allowlistConvert && !isTestModule && ShouldKeepExistingBuildFileForDir(packagePath) {
+		if moduleNameAllowed {
+			ctx.(BaseModuleContext).ModuleErrorf("A module cannot be in a directory listed in bp2buildKeepExistingBuildFile"+
+				" and also be in bp2buildModuleAlwaysConvert. Directory: '%s'", packagePath)
+		}
 		return false
 	}
 
 	config := ctx.Config().bp2buildPackageConfig
 	// This is a tristate value: true, false, or unset.
-	propValue := b.bazelProperties.Bazel_module.Bp2build_available
 	if bp2buildDefaultTrueRecursively(packagePath, config) {
-		if alwaysConvert {
+		if moduleNameAllowed {
 			ctx.(BaseModuleContext).ModuleErrorf("A module cannot be in a directory marked Bp2BuildDefaultTrue"+
 				" or Bp2BuildDefaultTrueRecursively and also be in bp2buildModuleAlwaysConvert. Directory: '%s'",
 				packagePath)
@@ -732,7 +764,7 @@ func (b *BazelModuleBase) shouldConvertWithBp2build(ctx BazelConversionContext, 
 	}
 
 	// Allow modules to explicitly opt-in.
-	return proptools.BoolDefault(propValue, alwaysConvert)
+	return proptools.BoolDefault(propValue, allowlistConvert)
 }
 
 // bp2buildDefaultTrueRecursively checks that the package contains a prefix from the

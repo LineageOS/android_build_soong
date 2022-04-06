@@ -34,6 +34,7 @@ func init() {
 	pctx.SourcePathVariable("KotlinKaptJar", "external/kotlinc/lib/kotlin-annotation-processing.jar")
 	pctx.SourcePathVariable("KotlinAnnotationJar", "external/kotlinc/lib/annotations-13.0.jar")
 	pctx.SourcePathVariable("KotlinStdlibJar", KotlinStdlibJar)
+	pctx.SourcePathVariable("KotlinAbiGenPluginJar", "external/kotlinc/lib/jvm-abi-gen.jar")
 
 	// These flags silence "Illegal reflective access" warnings when running kapt in OpenJDK9+
 	pctx.StaticVariable("KaptSuppressJDK9Warnings", strings.Join([]string{
@@ -46,5 +47,10 @@ func init() {
 	// These flags silence "Illegal reflective access" warnings when running kotlinc in OpenJDK9+
 	pctx.StaticVariable("KotlincSuppressJDK9Warnings", strings.Join([]string{
 		"-J--add-opens=java.base/java.util=ALL-UNNAMED", // https://youtrack.jetbrains.com/issue/KT-43704
+	}, " "))
+
+	pctx.StaticVariable("KotlincGlobalFlags", strings.Join([]string{
+		// b/222162908: prevent kotlinc from reading /tmp/build.txt
+		"-Didea.plugins.compatible.build=999.SNAPSHOT",
 	}, " "))
 }

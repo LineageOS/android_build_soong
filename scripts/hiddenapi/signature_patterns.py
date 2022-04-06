@@ -25,92 +25,138 @@ import csv
 import sys
 
 
-def dict_reader(csvfile):
+def dict_reader(csv_file):
     return csv.DictReader(
-        csvfile, delimiter=',', quotechar='|', fieldnames=['signature'])
+        csv_file, delimiter=',', quotechar='|', fieldnames=['signature'])
 
 
-def dotPackageToSlashPackage(pkg):
+def dot_package_to_slash_package(pkg):
     return pkg.replace('.', '/')
 
 
-def slashPackageToDotPackage(pkg):
+def dot_packages_to_slash_packages(pkgs):
+    return [dot_package_to_slash_package(p) for p in pkgs]
+
+
+def slash_package_to_dot_package(pkg):
     return pkg.replace('/', '.')
 
 
-def isSplitPackage(splitPackages, pkg):
-    return splitPackages and (pkg in splitPackages or '*' in splitPackages)
+def slash_packages_to_dot_packages(pkgs):
+    return [slash_package_to_dot_package(p) for p in pkgs]
 
 
-def matchedByPackagePrefixPattern(packagePrefixes, prefix):
-    for packagePrefix in packagePrefixes:
+def is_split_package(split_packages, pkg):
+    return split_packages and (pkg in split_packages or '*' in split_packages)
+
+
+def matched_by_package_prefix_pattern(package_prefixes, prefix):
+    for packagePrefix in package_prefixes:
         if prefix == packagePrefix:
             return packagePrefix
-        elif prefix.startswith(packagePrefix) and prefix[len(
-                packagePrefix)] == '/':
+        if (prefix.startswith(packagePrefix) and
+                prefix[len(packagePrefix)] == '/'):
             return packagePrefix
     return False
 
 
-def validate_package_prefixes(splitPackages, packagePrefixes):
+def validate_package_is_not_matched_by_package_prefix(package_type, pkg,
+                                                      package_prefixes):
+    package_prefix = matched_by_package_prefix_pattern(package_prefixes, pkg)
+    if package_prefix:
+        # A package prefix matches the package.
+        package_for_output = slash_package_to_dot_package(pkg)
+        package_prefix_for_output = slash_package_to_dot_package(package_prefix)
+        return [
+            f'{package_type} {package_for_output} is matched by '
+            f'package prefix {package_prefix_for_output}'
+        ]
+    return []
+
+
+def validate_package_prefixes(split_packages, single_packages,
+                              package_prefixes):
     # If there are no package prefixes then there is no possible conflict
     # between them and the split packages.
-    if len(packagePrefixes) == 0:
-        return
+    if len(package_prefixes) == 0:
+        return []
 
     # Check to make sure that the split packages and package prefixes do not
     # overlap.
     errors = []
-    for splitPackage in splitPackages:
-        if splitPackage == '*':
+    for split_package in split_packages:
+        if split_package == '*':
             # A package prefix matches a split package.
-            packagePrefixesForOutput = ', '.join(
-                map(slashPackageToDotPackage, packagePrefixes))
+            package_prefixes_for_output = ', '.join(
+                slash_packages_to_dot_packages(package_prefixes))
             errors.append(
-                'split package "*" conflicts with all package prefixes %s\n'
-                '    add split_packages:[] to fix' % packagePrefixesForOutput)
+                "split package '*' conflicts with all package prefixes "
+                f'{package_prefixes_for_output}\n'
+                '    add split_packages:[] to fix')
         else:
-            packagePrefix = matchedByPackagePrefixPattern(
-                packagePrefixes, splitPackage)
-            if packagePrefix:
-                # A package prefix matches a split package.
-                splitPackageForOutput = slashPackageToDotPackage(splitPackage)
-                packagePrefixForOutput = slashPackageToDotPackage(packagePrefix)
-                errors.append(
-                    'split package %s is matched by package prefix %s' %
-                    (splitPackageForOutput, packagePrefixForOutput))
+            errs = validate_package_is_not_matched_by_package_prefix(
+                'split package', split_package, package_prefixes)
+            errors.extend(errs)
+
+    # Check to make sure that the single packages and package prefixes do not
+    # overlap.
+    for single_package in single_packages:
+        errs = validate_package_is_not_matched_by_package_prefix(
+            'single package', single_package, package_prefixes)
+        errors.extend(errs)
     return errors
 
 
-def validate_split_packages(splitPackages):
+def validate_split_packages(split_packages):
     errors = []
-    if '*' in splitPackages and len(splitPackages) > 1:
+    if '*' in split_packages and len(split_packages) > 1:
         errors.append('split packages are invalid as they contain both the'
                       ' wildcard (*) and specific packages, use the wildcard or'
                       ' specific packages, not a mixture')
     return errors
 
 
-def produce_patterns_from_file(file, splitPackages=None, packagePrefixes=None):
-    with open(file, 'r') as f:
-        return produce_patterns_from_stream(f, splitPackages, packagePrefixes)
+def validate_single_packages(split_packages, single_packages):
+    overlaps = []
+    for single_package in single_packages:
+        if single_package in split_packages:
+            overlaps.append(single_package)
+    if overlaps:
+        indented = ''.join([f'\n    {o}' for o in overlaps])
+        return [
+            f'single_packages and split_packages overlap, please ensure the '
+            f'following packages are only present in one:{indented}'
+        ]
+    return []
+
+
+def produce_patterns_from_file(file,
+                               split_packages=None,
+                               single_packages=None,
+                               package_prefixes=None):
+    with open(file, 'r', encoding='utf8') as f:
+        return produce_patterns_from_stream(f, split_packages, single_packages,
+                                            package_prefixes)
 
 
 def produce_patterns_from_stream(stream,
-                                 splitPackages=None,
-                                 packagePrefixes=None):
-    splitPackages = set(splitPackages or [])
-    packagePrefixes = list(packagePrefixes or [])
+                                 split_packages=None,
+                                 single_packages=None,
+                                 package_prefixes=None):
+    split_packages = set(split_packages or [])
+    single_packages = set(single_packages or [])
+    package_prefixes = list(package_prefixes or [])
     # Read in all the signatures into a list and remove any unnecessary class
     # and member names.
     patterns = set()
+    unmatched_packages = set()
     for row in dict_reader(stream):
         signature = row['signature']
         text = signature.removeprefix('L')
         # Remove the class specific member signature
         pieces = text.split(';->')
-        qualifiedClassName = pieces[0]
-        pieces = qualifiedClassName.rsplit('/', maxsplit=1)
+        qualified_class_name = pieces[0]
+        pieces = qualified_class_name.rsplit('/', maxsplit=1)
         pkg = pieces[0]
         # If the package is split across multiple modules then it cannot be used
         # to select the subset of the monolithic flags that this module
@@ -121,27 +167,54 @@ def produce_patterns_from_stream(stream,
         # If the package is not split then every class in the package must be
         # provided by this module so there is no need to list the classes
         # explicitly so just use the package name instead.
-        if isSplitPackage(splitPackages, pkg):
+        if is_split_package(split_packages, pkg):
             # Remove inner class names.
-            pieces = qualifiedClassName.split('$', maxsplit=1)
+            pieces = qualified_class_name.split('$', maxsplit=1)
             pattern = pieces[0]
-        else:
+            patterns.add(pattern)
+        elif pkg in single_packages:
             # Add a * to ensure that the pattern matches the classes in that
             # package.
             pattern = pkg + '/*'
-        patterns.add(pattern)
+            patterns.add(pattern)
+        else:
+            unmatched_packages.add(pkg)
+
+    # Remove any unmatched packages that would be matched by a package prefix
+    # pattern.
+    unmatched_packages = [
+        p for p in unmatched_packages
+        if not matched_by_package_prefix_pattern(package_prefixes, p)
+    ]
+    errors = []
+    if unmatched_packages:
+        unmatched_packages.sort()
+        indented = ''.join([
+            f'\n    {slash_package_to_dot_package(p)}'
+            for p in unmatched_packages
+        ])
+        errors.append('The following packages were unexpected, please add them '
+                      'to one of the hidden_api properties, split_packages, '
+                      f'single_packages or package_prefixes:{indented}')
 
     # Remove any patterns that would be matched by a package prefix pattern.
-    patterns = list(
-        filter(lambda p: not matchedByPackagePrefixPattern(packagePrefixes, p),
-               patterns))
+    patterns = [
+        p for p in patterns
+        if not matched_by_package_prefix_pattern(package_prefixes, p)
+    ]
     # Add the package prefix patterns to the list. Add a ** to ensure that each
     # package prefix pattern will match the classes in that package and all
     # sub-packages.
-    patterns = patterns + list(map(lambda x: x + '/**', packagePrefixes))
+    patterns = patterns + [f'{p}/**' for p in package_prefixes]
     # Sort the patterns.
     patterns.sort()
-    return patterns
+    return patterns, errors
+
+
+def print_and_exit(errors):
+    for error in errors:
+        print(error)
+    sys.exit(1)
 
 
 def main(args):
@@ -155,35 +228,50 @@ def main(args):
     args_parser.add_argument(
         '--split-package',
         action='append',
-        help='A package that is split across multiple bootclasspath_fragment modules'
-    )
+        help='A package that is split across multiple bootclasspath_fragment '
+        'modules')
     args_parser.add_argument(
         '--package-prefix',
         action='append',
         help='A package prefix unique to this set of flags')
+    args_parser.add_argument(
+        '--single-package',
+        action='append',
+        help='A single package unique to this set of flags')
     args_parser.add_argument('--output', help='Generated signature prefixes')
     args = args_parser.parse_args(args)
 
-    splitPackages = set(map(dotPackageToSlashPackage, args.split_package or []))
-    errors = validate_split_packages(splitPackages)
+    split_packages = set(
+        dot_packages_to_slash_packages(args.split_package or []))
+    errors = validate_split_packages(split_packages)
+    if errors:
+        print_and_exit(errors)
 
-    packagePrefixes = list(
-        map(dotPackageToSlashPackage, args.package_prefix or []))
+    single_packages = list(
+        dot_packages_to_slash_packages(args.single_package or []))
 
-    if not errors:
-        errors = validate_package_prefixes(splitPackages, packagePrefixes)
+    errors = validate_single_packages(split_packages, single_packages)
+    if errors:
+        print_and_exit(errors)
+
+    package_prefixes = dot_packages_to_slash_packages(args.package_prefix or [])
+
+    errors = validate_package_prefixes(split_packages, single_packages,
+                                       package_prefixes)
+    if errors:
+        print_and_exit(errors)
+
+    patterns = []
+    # Read in all the patterns into a list.
+    patterns, errors = produce_patterns_from_file(args.flags, split_packages,
+                                                  single_packages,
+                                                  package_prefixes)
 
     if errors:
-        for error in errors:
-            print(error)
-        sys.exit(1)
-
-    # Read in all the patterns into a list.
-    patterns = produce_patterns_from_file(args.flags, splitPackages,
-                                          packagePrefixes)
+        print_and_exit(errors)
 
     # Write out all the patterns.
-    with open(args.output, 'w') as outputFile:
+    with open(args.output, 'w', encoding='utf8') as outputFile:
         for pattern in patterns:
             outputFile.write(pattern)
             outputFile.write('\n')

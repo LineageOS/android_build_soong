@@ -19,7 +19,6 @@ package java
 
 import (
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/google/blueprint"
@@ -166,8 +165,6 @@ type AndroidApp struct {
 	onDeviceDir string
 
 	additionalAaptFlags []string
-
-	noticeOutputs android.NoticeOutputs
 
 	overriddenManifestPackageName string
 
@@ -526,53 +523,6 @@ func (a *AndroidApp) JNISymbolsInstalls(installPath string) android.RuleBuilderI
 	return jniSymbols
 }
 
-func (a *AndroidApp) noticeBuildActions(ctx android.ModuleContext) {
-	// Collect NOTICE files from all dependencies.
-	seenModules := make(map[android.Module]bool)
-	noticePathSet := make(map[android.Path]bool)
-
-	ctx.WalkDeps(func(child android.Module, parent android.Module) bool {
-		// Have we already seen this?
-		if _, ok := seenModules[child]; ok {
-			return false
-		}
-		seenModules[child] = true
-
-		// Skip host modules.
-		if child.Target().Os.Class == android.Host {
-			return false
-		}
-
-		paths := child.(android.Module).NoticeFiles()
-		if len(paths) > 0 {
-			for _, path := range paths {
-				noticePathSet[path] = true
-			}
-		}
-		return true
-	})
-
-	// If the app has one, add it too.
-	if len(a.NoticeFiles()) > 0 {
-		for _, path := range a.NoticeFiles() {
-			noticePathSet[path] = true
-		}
-	}
-
-	if len(noticePathSet) == 0 {
-		return
-	}
-	var noticePaths []android.Path
-	for path := range noticePathSet {
-		noticePaths = append(noticePaths, path)
-	}
-	sort.Slice(noticePaths, func(i, j int) bool {
-		return noticePaths[i].String() < noticePaths[j].String()
-	})
-
-	a.noticeOutputs = android.BuildNoticeOutput(ctx, a.installDir, a.installApkName+".apk", noticePaths)
-}
-
 // Reads and prepends a main cert from the default cert dir if it hasn't been set already, i.e. it
 // isn't a cert module reference. Also checks and enforces system cert restriction if applicable.
 func processMainCert(m android.ModuleBase, certPropValue string, certificates []Certificate, ctx android.ModuleContext) []Certificate {
@@ -639,9 +589,16 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 	a.onDeviceDir = android.InstallPathToOnDevicePath(ctx, a.installDir)
 
-	a.noticeBuildActions(ctx)
 	if Bool(a.appProperties.Embed_notices) || ctx.Config().IsEnvTrue("ALWAYS_EMBED_NOTICES") {
-		a.aapt.noticeFile = a.noticeOutputs.HtmlGzOutput
+		noticeFile := android.PathForModuleOut(ctx, "NOTICE.html.gz")
+		android.BuildNoticeHtmlOutputFromLicenseMetadata(ctx, noticeFile)
+		noticeAssetPath := android.PathForModuleOut(ctx, "NOTICE", "NOTICE.html.gz")
+		builder := android.NewRuleBuilder(pctx, ctx)
+		builder.Command().Text("cp").
+			Input(noticeFile).
+			Output(noticeAssetPath)
+		builder.Build("notice_dir", "Building notice dir")
+		a.aapt.noticeFile = android.OptionalPathForPath(noticeAssetPath)
 	}
 
 	a.classLoaderContexts = a.usesLibrary.classLoaderContextForUsesLibDeps(ctx)
@@ -1456,7 +1413,8 @@ func androidAppCertificateBp2Build(ctx android.TopDownMutatorContext, module *An
 }
 
 type bazelAndroidAppAttributes struct {
-	*javaLibraryAttributes
+	*javaCommonAttributes
+	Deps             bazel.LabelListAttribute
 	Manifest         bazel.Label
 	Custom_package   *string
 	Resource_files   bazel.LabelListAttribute
@@ -1466,7 +1424,16 @@ type bazelAndroidAppAttributes struct {
 
 // ConvertWithBp2build is used to convert android_app to Bazel.
 func (a *AndroidApp) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
-	libAttrs := a.convertLibraryAttrsBp2Build(ctx)
+	commonAttrs, depLabels := a.convertLibraryAttrsBp2Build(ctx)
+
+	deps := depLabels.Deps
+	if !commonAttrs.Srcs.IsEmpty() {
+		deps.Append(depLabels.StaticDeps) // we should only append these if there are sources to use them
+	} else if !deps.IsEmpty() || !depLabels.StaticDeps.IsEmpty() {
+		ctx.ModuleErrorf("android_app has dynamic or static dependencies but no sources." +
+			" Bazel does not allow direct dependencies without sources nor exported" +
+			" dependencies on android_binary rule.")
+	}
 
 	manifest := proptools.StringDefault(a.aaptProperties.Manifest, "AndroidManifest.xml")
 
@@ -1489,7 +1456,8 @@ func (a *AndroidApp) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 	}
 
 	attrs := &bazelAndroidAppAttributes{
-		libAttrs,
+		commonAttrs,
+		deps,
 		android.BazelLabelForModuleSrcSingle(ctx, manifest),
 		// TODO(b/209576404): handle package name override by product variable PRODUCT_MANIFEST_PACKAGE_NAME_OVERRIDES
 		a.overridableAppProperties.Package_name,

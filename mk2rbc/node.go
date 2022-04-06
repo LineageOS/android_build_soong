@@ -184,10 +184,9 @@ type assignmentFlavor int
 
 const (
 	// Assignment flavors
-	asgnSet         assignmentFlavor = iota // := or =
-	asgnMaybeSet    assignmentFlavor = iota // ?= and variable may be unset
-	asgnAppend      assignmentFlavor = iota // += and variable has been set before
-	asgnMaybeAppend assignmentFlavor = iota // += and variable may be unset
+	asgnSet      assignmentFlavor = iota // := or =
+	asgnMaybeSet assignmentFlavor = iota // ?=
+	asgnAppend   assignmentFlavor = iota // +=
 )
 
 type assignmentNode struct {
@@ -213,6 +212,20 @@ func (asgn *assignmentNode) emit(gctx *generationContext) {
 		asgn.lhs.emitGet(gctx, true)
 		gctx.writef(")")
 	}
+}
+
+func (asgn *assignmentNode) isSelfReferential() bool {
+	if asgn.flavor == asgnAppend {
+		return true
+	}
+	isSelfReferential := false
+	asgn.value.transform(func(expr starlarkExpr) starlarkExpr {
+		if ref, ok := expr.(*variableRefExpr); ok && ref.ref.name() == asgn.lhs.name() {
+			isSelfReferential = true
+		}
+		return nil
+	})
+	return isSelfReferential
 }
 
 type exprNode struct {
@@ -280,4 +293,29 @@ func (ssw *switchNode) emit(gctx *generationContext) {
 	for _, ssCase := range ssw.ssCases {
 		ssCase.emit(gctx)
 	}
+}
+
+type foreachNode struct {
+	varName string
+	list    starlarkExpr
+	actions []starlarkNode
+}
+
+func (f *foreachNode) emit(gctx *generationContext) {
+	gctx.newLine()
+	gctx.writef("for %s in ", f.varName)
+	f.list.emit(gctx)
+	gctx.write(":")
+	gctx.indentLevel++
+	hasStatements := false
+	for _, a := range f.actions {
+		if _, ok := a.(*commentNode); !ok {
+			hasStatements = true
+		}
+		a.emit(gctx)
+	}
+	if !hasStatements {
+		gctx.emitPass()
+	}
+	gctx.indentLevel--
 }

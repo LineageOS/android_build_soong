@@ -327,46 +327,19 @@ var neverallowTests = []struct {
 			"Only boot images may be imported as a makefile goal.",
 		},
 	},
+	// Tests for the rule prohibiting the use of framework
 	{
-		name: "min_sdk too low",
+		name: "prohibit framework",
 		fs: map[string][]byte{
 			"Android.bp": []byte(`
 				java_library {
-					name: "min_sdk_too_low",
-					min_sdk_version: "30",
+					name: "foo",
+					libs: ["framework"],
+					sdk_version: "current",
 				}`),
-		},
-		rules: []Rule{
-			NeverAllow().WithMatcher("min_sdk_version", LessThanSdkVersion("31")),
 		},
 		expectedErrors: []string{
-			"module \"min_sdk_too_low\": violates neverallow",
-		},
-	},
-	{
-		name: "min_sdk high enough",
-		fs: map[string][]byte{
-			"Android.bp": []byte(`
-				java_library {
-					name: "min_sdk_high_enough",
-					min_sdk_version: "31",
-				}`),
-		},
-		rules: []Rule{
-			NeverAllow().WithMatcher("min_sdk_version", LessThanSdkVersion("31")),
-		},
-	},
-	{
-		name: "current min_sdk high enough",
-		fs: map[string][]byte{
-			"Android.bp": []byte(`
-				java_library {
-					name: "current_min_sdk_high_enough",
-					min_sdk_version: "current",
-				}`),
-		},
-		rules: []Rule{
-			NeverAllow().WithMatcher("min_sdk_version", LessThanSdkVersion("31")),
+			"framework can't be used when building against SDK",
 		},
 	},
 }
@@ -452,10 +425,9 @@ func (p *mockCcLibraryModule) GenerateAndroidBuildActions(ModuleContext) {
 }
 
 type mockJavaLibraryProperties struct {
-	Libs            []string
-	Min_sdk_version *string
-	Sdk_version     *string
-	Uncompress_dex  *bool
+	Libs           []string
+	Sdk_version    *string
+	Uncompress_dex *bool
 }
 
 type mockJavaLibraryModule struct {

@@ -88,25 +88,36 @@ func (pcv productConfigVariable) emitSet(gctx *generationContext, asgn *assignme
 		}
 		value.emit(gctx)
 	}
-
-	switch asgn.flavor {
-	case asgnSet:
-		emitAssignment()
-	case asgnAppend:
-		emitAppend()
-	case asgnMaybeAppend:
-		// If we are not sure variable has been assigned before, emit setdefault
+	emitSetDefault := func() {
 		if pcv.typ == starlarkTypeList {
 			gctx.writef("%s(handle, %q)", cfnSetListDefault, pcv.name())
 		} else {
 			gctx.writef("cfg.setdefault(%q, %s)", pcv.name(), pcv.defaultValueString())
 		}
 		gctx.newLine()
+	}
+
+	// If we are not sure variable has been assigned before, emit setdefault
+	needsSetDefault := asgn.previous == nil && !pcv.isPreset() && asgn.isSelfReferential()
+
+	switch asgn.flavor {
+	case asgnSet:
+		if needsSetDefault {
+			emitSetDefault()
+		}
+		emitAssignment()
+	case asgnAppend:
+		if needsSetDefault {
+			emitSetDefault()
+		}
 		emitAppend()
 	case asgnMaybeSet:
 		gctx.writef("if cfg.get(%q) == None:", pcv.nam)
 		gctx.indentLevel++
 		gctx.newLine()
+		if needsSetDefault {
+			emitSetDefault()
+		}
 		emitAssignment()
 		gctx.indentLevel--
 	}
@@ -121,7 +132,7 @@ func (pcv productConfigVariable) emitGet(gctx *generationContext, isDefined bool
 }
 
 func (pcv productConfigVariable) emitDefined(gctx *generationContext) {
-	gctx.writef("g.get(%q) != None", pcv.name())
+	gctx.writef("cfg.get(%q) != None", pcv.name())
 }
 
 type otherGlobalVariable struct {
@@ -146,20 +157,30 @@ func (scv otherGlobalVariable) emitSet(gctx *generationContext, asgn *assignment
 		value.emit(gctx)
 	}
 
+	// If we are not sure variable has been assigned before, emit setdefault
+	needsSetDefault := asgn.previous == nil && !scv.isPreset() && asgn.isSelfReferential()
+
 	switch asgn.flavor {
 	case asgnSet:
+		if needsSetDefault {
+			gctx.writef("g.setdefault(%q, %s)", scv.name(), scv.defaultValueString())
+			gctx.newLine()
+		}
 		emitAssignment()
 	case asgnAppend:
-		emitAppend()
-	case asgnMaybeAppend:
-		// If we are not sure variable has been assigned before, emit setdefault
-		gctx.writef("g.setdefault(%q, %s)", scv.name(), scv.defaultValueString())
-		gctx.newLine()
+		if needsSetDefault {
+			gctx.writef("g.setdefault(%q, %s)", scv.name(), scv.defaultValueString())
+			gctx.newLine()
+		}
 		emitAppend()
 	case asgnMaybeSet:
 		gctx.writef("if g.get(%q) == None:", scv.nam)
 		gctx.indentLevel++
 		gctx.newLine()
+		if needsSetDefault {
+			gctx.writef("g.setdefault(%q, %s)", scv.name(), scv.defaultValueString())
+			gctx.newLine()
+		}
 		emitAssignment()
 		gctx.indentLevel--
 	}
@@ -191,7 +212,7 @@ func (lv localVariable) String() string {
 
 func (lv localVariable) emitSet(gctx *generationContext, asgn *assignmentNode) {
 	switch asgn.flavor {
-	case asgnSet:
+	case asgnSet, asgnMaybeSet:
 		gctx.writef("%s = ", lv)
 		asgn.value.emitListVarCopy(gctx)
 	case asgnAppend:
@@ -203,14 +224,6 @@ func (lv localVariable) emitSet(gctx *generationContext, asgn *assignmentNode) {
 			value = &toStringExpr{expr: value}
 		}
 		value.emit(gctx)
-	case asgnMaybeAppend:
-		gctx.writef("%s(%q, ", cfnLocalAppend, lv)
-		asgn.value.emit(gctx)
-		gctx.write(")")
-	case asgnMaybeSet:
-		gctx.writef("%s(%q, ", cfnLocalSetDefault, lv)
-		asgn.value.emit(gctx)
-		gctx.write(")")
 	}
 }
 
@@ -278,31 +291,41 @@ var presetVariables = map[string]bool{
 // addVariable returns a variable with a given name. A variable is
 // added if it does not exist yet.
 func (ctx *parseContext) addVariable(name string) variable {
+	// Get the hintType before potentially changing the variable name
+	var hintType starlarkType
+	var ok bool
+	if hintType, ok = ctx.typeHints[name]; !ok {
+		hintType = starlarkTypeUnknown
+	}
+	// Heuristics: if variable's name is all lowercase, consider it local
+	// string variable.
+	isLocalVariable := name == strings.ToLower(name)
+	// Local variables can't have special characters in them, because they
+	// will be used as starlark identifiers
+	if isLocalVariable {
+		name = strings.ReplaceAll(strings.TrimSpace(name), "-", "_")
+	}
 	v, found := ctx.variables[name]
 	if !found {
-		_, preset := presetVariables[name]
 		if vi, found := KnownVariables[name]; found {
+			_, preset := presetVariables[name]
 			switch vi.class {
 			case VarClassConfig:
 				v = &productConfigVariable{baseVariable{nam: name, typ: vi.valueType, preset: preset}}
 			case VarClassSoong:
 				v = &otherGlobalVariable{baseVariable{nam: name, typ: vi.valueType, preset: preset}}
 			}
-		} else if name == strings.ToLower(name) {
-			// Heuristics: if variable's name is all lowercase, consider it local
-			// string variable.
-			v = &localVariable{baseVariable{nam: name, typ: starlarkTypeUnknown}}
+		} else if isLocalVariable {
+			v = &localVariable{baseVariable{nam: name, typ: hintType}}
 		} else {
-			vt := starlarkTypeUnknown
-			if strings.HasPrefix(name, "LOCAL_") {
-				// Heuristics: local variables that contribute to corresponding config variables
-				if cfgVarName, found := localProductConfigVariables[name]; found {
-					vi, found2 := KnownVariables[cfgVarName]
-					if !found2 {
-						panic(fmt.Errorf("unknown config variable %s for %s", cfgVarName, name))
-					}
-					vt = vi.valueType
+			vt := hintType
+			// Heuristics: local variables that contribute to corresponding config variables
+			if cfgVarName, found := localProductConfigVariables[name]; found && vt == starlarkTypeUnknown {
+				vi, found2 := KnownVariables[cfgVarName]
+				if !found2 {
+					panic(fmt.Errorf("unknown config variable %s for %s", cfgVarName, name))
 				}
+				vt = vi.valueType
 			}
 			if strings.HasSuffix(name, "_LIST") && vt == starlarkTypeUnknown {
 				// Heuristics: Variables with "_LIST" suffix are lists

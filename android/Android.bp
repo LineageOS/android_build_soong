@@ -8,6 +8,7 @@ bootstrap_go_package {
     deps: [
         "blueprint",
         "blueprint-bootstrap",
+        "blueprint-metrics",
         "sbox_proto",
         "soong",
         "soong-android-soongconfig",
