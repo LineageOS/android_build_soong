@@ -155,33 +155,21 @@ func TestKapt(t *testing.T) {
 			t.Errorf("expected %q in turbine-apt implicits %v", kaptStubs.Output.String(), kotlinc.Implicits.Strings())
 		}
 
-		turbineAptSrcjarOutput := turbineApt.ImplicitOutputs[0]
-
 		// Test that the turbine-apt srcjar is a dependency of kotlinc and javac rules
-		if !inList(turbineAptSrcjarOutput.String(), kotlinc.Implicits.Strings()) {
-			t.Errorf("expected %q in kotlinc implicits %v", turbineAptSrcjarOutput.String(), kotlinc.Implicits.Strings())
+		if !inList(turbineApt.Output.String(), kotlinc.Implicits.Strings()) {
+			t.Errorf("expected %q in kotlinc implicits %v", turbineApt.Output.String(), kotlinc.Implicits.Strings())
 		}
-		if !inList(turbineAptSrcjarOutput.String(), javac.Implicits.Strings()) {
-			t.Errorf("expected %q in javac implicits %v", turbineAptSrcjarOutput.String(), javac.Implicits.Strings())
+		if !inList(turbineApt.Output.String(), javac.Implicits.Strings()) {
+			t.Errorf("expected %q in javac implicits %v", turbineApt.Output.String(), javac.Implicits.Strings())
 		}
 
 		// Test that the turbine-apt srcjar is extracted by the kotlinc and javac rules
-		if kotlinc.Args["srcJars"] != turbineAptSrcjarOutput.String() {
-			t.Errorf("expected %q in kotlinc srcjars %v", turbineAptSrcjarOutput.String(), kotlinc.Args["srcJars"])
+		if kotlinc.Args["srcJars"] != turbineApt.Output.String() {
+			t.Errorf("expected %q in kotlinc srcjars %v", turbineApt.Output.String(), kotlinc.Args["srcJars"])
 		}
-		if javac.Args["srcJars"] != turbineAptSrcjarOutput.String() {
-			t.Errorf("expected %q in javac srcjars %v", turbineAptSrcjarOutput.String(), kotlinc.Args["srcJars"])
+		if javac.Args["srcJars"] != turbineApt.Output.String() {
+			t.Errorf("expected %q in javac srcjars %v", turbineApt.Output.String(), kotlinc.Args["srcJars"])
 		}
-
-		// Test that the turbine-apt header jar is a dependency of the javac rules
-		turbineAptHeaderjarOutput := turbineApt.Output
-		android.AssertStringListContains(t, "javac dependency", javac.Implicits.Strings(), turbineAptHeaderjarOutput.String())
-		android.AssertStringDoesContain(t, "javac classpath", javac.Args["classpath"], turbineAptHeaderjarOutput.String())
-
-		// Test that the kotlinc header jar is a not a dependency of the javac rules
-		kotlincHeaderJarOutput := kotlinc.ImplicitOutput
-		android.AssertStringListDoesNotContain(t, "javac dependency", javac.Implicits.Strings(), kotlincHeaderJarOutput.String())
-		android.AssertStringDoesNotContain(t, "javac classpath", javac.Args["classpath"], kotlincHeaderJarOutput.String())
 
 		// Test that the processors are passed to kapt
 		expectedProcessorPath := "-P plugin:org.jetbrains.kotlin.kapt3:apclasspath=" + bar +
