@@ -1436,6 +1436,38 @@ func TestRewriteTestModuleTypes(t *testing.T) {
 				}
 			`,
 		},
+		{
+			name: "android_app with android_test",
+			in: `
+				android_app {
+					name: "foo",
+					srcs: ["srcs"],
+					test_suites: ["test_suite1"],
+				}
+			`,
+			out: `
+				android_test {
+					name: "foo",
+					srcs: ["srcs"],
+					test_suites: ["test_suite1"],
+				}
+			`,
+		},
+		{
+			name: "android_app without test_suites",
+			in: `
+				android_app {
+					name: "foo",
+					srcs: ["srcs"],
+				}
+			`,
+			out: `
+				android_app {
+					name: "foo",
+					srcs: ["srcs"],
+				}
+			`,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
