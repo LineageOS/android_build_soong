@@ -24,7 +24,6 @@ var PrepareForTestWithApexBuildComponents = android.GroupFixturePreparers(
 	android.MockFS{
 		// Needed by apex.
 		"system/core/rootdir/etc/public.libraries.android.txt": nil,
-		"build/soong/scripts/gen_java_usedby_apex.sh":          nil,
 		"build/soong/scripts/gen_ndk_backedby_apex.sh":         nil,
 		// Needed by prebuilt_apex.
 		"build/soong/scripts/unpack-prebuilt-apex.sh": nil,
