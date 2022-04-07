@@ -34,6 +34,7 @@ func init() {
 	pctx.SourcePathVariable("KotlinKaptJar", "external/kotlinc/lib/kotlin-annotation-processing.jar")
 	pctx.SourcePathVariable("KotlinAnnotationJar", "external/kotlinc/lib/annotations-13.0.jar")
 	pctx.SourcePathVariable("KotlinStdlibJar", KotlinStdlibJar)
+	pctx.SourcePathVariable("KotlinAbiGenPluginJar", "external/kotlinc/lib/jvm-abi-gen.jar")
 
 	// These flags silence "Illegal reflective access" warnings when running kapt in OpenJDK9+
 	pctx.StaticVariable("KaptSuppressJDK9Warnings", strings.Join([]string{

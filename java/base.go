@@ -1048,12 +1048,24 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 		}
 	}
 
+	// We don't currently run annotation processors in turbine, which means we can't use turbine
+	// generated header jars when an annotation processor that generates API is enabled.  One
+	// exception (handled further below) is when kotlin sources are enabled, in which case turbine
+	//  is used to run all of the annotation processors.
+	disableTurbine := deps.disableTurbine
+
 	// Collect .java files for AIDEGen
 	j.expandIDEInfoCompiledSrcs = append(j.expandIDEInfoCompiledSrcs, uniqueSrcFiles.Strings()...)
 
 	var kotlinJars android.Paths
+	var kotlinHeaderJars android.Paths
 
 	if srcFiles.HasExt(".kt") {
+		// When using kotlin sources turbine is used to generate annotation processor sources,
+		// including for annotation processors that generate API, so we can use turbine for
+		// java sources too.
+		disableTurbine = false
+
 		// user defined kotlin flags.
 		kotlincFlags := j.properties.Kotlincflags
 		CheckKotlincFlags(ctx, kotlincFlags)
@@ -1109,18 +1121,22 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 		}
 
 		kotlinJar := android.PathForModuleOut(ctx, "kotlin", jarName)
-		kotlinCompile(ctx, kotlinJar, kotlinSrcFiles, kotlinCommonSrcFiles, srcJars, flags)
+		kotlinHeaderJar := android.PathForModuleOut(ctx, "kotlin_headers", jarName)
+		kotlinCompile(ctx, kotlinJar, kotlinHeaderJar, kotlinSrcFiles, kotlinCommonSrcFiles, srcJars, flags)
 		if ctx.Failed() {
 			return
 		}
 
 		// Make javac rule depend on the kotlinc rule
-		flags.classpath = append(flags.classpath, kotlinJar)
+		flags.classpath = append(classpath{kotlinHeaderJar}, flags.classpath...)
 
 		kotlinJars = append(kotlinJars, kotlinJar)
+		kotlinHeaderJars = append(kotlinHeaderJars, kotlinHeaderJar)
+
 		// Jar kotlin classes into the final jar after javac
 		if BoolDefault(j.properties.Static_kotlin_stdlib, true) {
 			kotlinJars = append(kotlinJars, deps.kotlinStdlib...)
+			kotlinHeaderJars = append(kotlinHeaderJars, deps.kotlinStdlib...)
 		} else {
 			flags.dexClasspath = append(flags.dexClasspath, deps.kotlinStdlib...)
 		}
@@ -1134,7 +1150,7 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 
 	enableSharding := false
 	var headerJarFileWithoutDepsOrJarjar android.Path
-	if ctx.Device() && !ctx.Config().IsEnvFalse("TURBINE_ENABLED") && !deps.disableTurbine {
+	if ctx.Device() && !ctx.Config().IsEnvFalse("TURBINE_ENABLED") && !disableTurbine {
 		if j.properties.Javac_shard_size != nil && *(j.properties.Javac_shard_size) > 0 {
 			enableSharding = true
 			// Formerly, there was a check here that prevented annotation processors
@@ -1144,7 +1160,7 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 			// with sharding enabled. See: b/77284273.
 		}
 		headerJarFileWithoutDepsOrJarjar, j.headerJarFile =
-			j.compileJavaHeader(ctx, uniqueSrcFiles, srcJars, deps, flags, jarName, kotlinJars)
+			j.compileJavaHeader(ctx, uniqueSrcFiles, srcJars, deps, flags, jarName, kotlinHeaderJars)
 		if ctx.Failed() {
 			return
 		}

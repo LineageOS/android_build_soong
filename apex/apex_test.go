@@ -219,6 +219,7 @@ var prepareForApexTest = android.GroupFixturePreparers(
 		// not because of these tests specifically (it's not used by the tests)
 		variables.Platform_version_active_codenames = []string{"Q", "Tiramisu"}
 		variables.Platform_vndk_version = proptools.StringPtr("29")
+		variables.BuildId = proptools.StringPtr("TEST.BUILD_ID")
 	}),
 )
 
@@ -678,7 +679,7 @@ func TestDefaults(t *testing.T) {
 		"etc/myetc",
 		"javalib/myjar.jar",
 		"lib64/mylib.so",
-		"app/AppFoo/AppFoo.apk",
+		"app/AppFoo@TEST.BUILD_ID/AppFoo.apk",
 		"overlay/blue/rro.apk",
 		"etc/bpf/bpf.o",
 		"etc/bpf/bpf2.o",
@@ -3889,7 +3890,7 @@ func TestVndkApexWithBinder32(t *testing.T) {
 		}),
 		withBinder32bit,
 		withTargets(map[android.OsType][]android.Target{
-			android.Android: []android.Target{
+			android.Android: {
 				{Os: android.Android, Arch: android.Arch{ArchType: android.Arm, ArchVariant: "armv7-a-neon", Abi: []string{"armeabi-v7a"}},
 					NativeBridge: android.NativeBridgeDisabled, NativeBridgeHostArchName: "", NativeBridgeRelativePath: ""},
 			},
@@ -4570,12 +4571,20 @@ func TestPrebuilt(t *testing.T) {
 		}
 	`)
 
-	prebuilt := ctx.ModuleForTests("myapex", "android_common_myapex").Module().(*Prebuilt)
+	testingModule := ctx.ModuleForTests("myapex", "android_common_myapex")
+	prebuilt := testingModule.Module().(*Prebuilt)
 
 	expectedInput := "myapex-arm64.apex"
 	if prebuilt.inputApex.String() != expectedInput {
 		t.Errorf("inputApex invalid. expected: %q, actual: %q", expectedInput, prebuilt.inputApex.String())
 	}
+	android.AssertStringDoesContain(t, "Invalid provenance metadata file",
+		prebuilt.ProvenanceMetaDataFile().String(), "soong/.intermediates/provenance_metadata/myapex/provenance_metadata.textproto")
+	rule := testingModule.Rule("genProvenanceMetaData")
+	android.AssertStringEquals(t, "Invalid input", "myapex-arm64.apex", rule.Inputs[0].String())
+	android.AssertStringEquals(t, "Invalid output", "out/soong/.intermediates/provenance_metadata/myapex/provenance_metadata.textproto", rule.Output.String())
+	android.AssertStringEquals(t, "Invalid args", "myapex", rule.Args["module_name"])
+	android.AssertStringEquals(t, "Invalid args", "/system/apex/myapex.apex", rule.Args["install_path"])
 }
 
 func TestPrebuiltMissingSrc(t *testing.T) {
@@ -4595,12 +4604,18 @@ func TestPrebuiltFilenameOverride(t *testing.T) {
 		}
 	`)
 
-	p := ctx.ModuleForTests("myapex", "android_common_myapex").Module().(*Prebuilt)
+	testingModule := ctx.ModuleForTests("myapex", "android_common_myapex")
+	p := testingModule.Module().(*Prebuilt)
 
 	expected := "notmyapex.apex"
 	if p.installFilename != expected {
 		t.Errorf("installFilename invalid. expected: %q, actual: %q", expected, p.installFilename)
 	}
+	rule := testingModule.Rule("genProvenanceMetaData")
+	android.AssertStringEquals(t, "Invalid input", "myapex-arm.apex", rule.Inputs[0].String())
+	android.AssertStringEquals(t, "Invalid output", "out/soong/.intermediates/provenance_metadata/myapex/provenance_metadata.textproto", rule.Output.String())
+	android.AssertStringEquals(t, "Invalid args", "myapex", rule.Args["module_name"])
+	android.AssertStringEquals(t, "Invalid args", "/system/apex/notmyapex.apex", rule.Args["install_path"])
 }
 
 func TestApexSetFilenameOverride(t *testing.T) {
@@ -4643,13 +4658,19 @@ func TestPrebuiltOverrides(t *testing.T) {
 		}
 	`)
 
-	p := ctx.ModuleForTests("myapex.prebuilt", "android_common_myapex.prebuilt").Module().(*Prebuilt)
+	testingModule := ctx.ModuleForTests("myapex.prebuilt", "android_common_myapex.prebuilt")
+	p := testingModule.Module().(*Prebuilt)
 
 	expected := []string{"myapex"}
 	actual := android.AndroidMkEntriesForTest(t, ctx, p)[0].EntryMap["LOCAL_OVERRIDES_MODULES"]
 	if !reflect.DeepEqual(actual, expected) {
 		t.Errorf("Incorrect LOCAL_OVERRIDES_MODULES value '%s', expected '%s'", actual, expected)
 	}
+	rule := testingModule.Rule("genProvenanceMetaData")
+	android.AssertStringEquals(t, "Invalid input", "myapex-arm.apex", rule.Inputs[0].String())
+	android.AssertStringEquals(t, "Invalid output", "out/soong/.intermediates/provenance_metadata/myapex.prebuilt/provenance_metadata.textproto", rule.Output.String())
+	android.AssertStringEquals(t, "Invalid args", "myapex.prebuilt", rule.Args["module_name"])
+	android.AssertStringEquals(t, "Invalid args", "/system/apex/myapex.prebuilt.apex", rule.Args["install_path"])
 }
 
 func TestPrebuiltApexName(t *testing.T) {
@@ -5658,8 +5679,8 @@ func TestApexWithApps(t *testing.T) {
 	apexRule := module.Rule("apexRule")
 	copyCmds := apexRule.Args["copy_commands"]
 
-	ensureContains(t, copyCmds, "image.apex/app/AppFoo/AppFoo.apk")
-	ensureContains(t, copyCmds, "image.apex/priv-app/AppFooPriv/AppFooPriv.apk")
+	ensureContains(t, copyCmds, "image.apex/app/AppFoo@TEST.BUILD_ID/AppFoo.apk")
+	ensureContains(t, copyCmds, "image.apex/priv-app/AppFooPriv@TEST.BUILD_ID/AppFooPriv.apk")
 
 	appZipRule := ctx.ModuleForTests("AppFoo", "android_common_apex10000").Description("zip jni libs")
 	// JNI libraries are uncompressed
@@ -5673,6 +5694,36 @@ func TestApexWithApps(t *testing.T) {
 		ensureListContains(t, appZipRule.Implicits.Strings(), jniOutput.String())
 		// ... and not directly inside the APEX
 		ensureNotContains(t, copyCmds, "image.apex/lib64/"+jni+".so")
+	}
+}
+
+func TestApexWithAppImportBuildId(t *testing.T) {
+	invalidBuildIds := []string{"../", "a b", "a/b", "a/b/../c", "/a"}
+	for _, id := range invalidBuildIds {
+		message := fmt.Sprintf("Unable to use build id %s as filename suffix", id)
+		fixture := android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			variables.BuildId = proptools.StringPtr(id)
+		})
+		testApexError(t, message, `apex {
+			name: "myapex",
+			key: "myapex.key",
+			apps: ["AppFooPrebuilt"],
+			updatable: false,
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		android_app_import {
+			name: "AppFooPrebuilt",
+			apk: "PrebuiltAppFoo.apk",
+			presigned: true,
+			apex_available: ["myapex"],
+		}
+	`, fixture)
 	}
 }
 
@@ -5721,8 +5772,8 @@ func TestApexWithAppImports(t *testing.T) {
 	apexRule := module.Rule("apexRule")
 	copyCmds := apexRule.Args["copy_commands"]
 
-	ensureContains(t, copyCmds, "image.apex/app/AppFooPrebuilt/AppFooPrebuilt.apk")
-	ensureContains(t, copyCmds, "image.apex/priv-app/AppFooPrivPrebuilt/AwesomePrebuiltAppFooPriv.apk")
+	ensureContains(t, copyCmds, "image.apex/app/AppFooPrebuilt@TEST.BUILD_ID/AppFooPrebuilt.apk")
+	ensureContains(t, copyCmds, "image.apex/priv-app/AppFooPrivPrebuilt@TEST.BUILD_ID/AwesomePrebuiltAppFooPriv.apk")
 }
 
 func TestApexWithAppImportsPrefer(t *testing.T) {
@@ -5763,7 +5814,7 @@ func TestApexWithAppImportsPrefer(t *testing.T) {
 	}))
 
 	ensureExactContents(t, ctx, "myapex", "android_common_myapex_image", []string{
-		"app/AppFoo/AppFooPrebuilt.apk",
+		"app/AppFoo@TEST.BUILD_ID/AppFooPrebuilt.apk",
 	})
 }
 
@@ -5796,7 +5847,7 @@ func TestApexWithTestHelperApp(t *testing.T) {
 	apexRule := module.Rule("apexRule")
 	copyCmds := apexRule.Args["copy_commands"]
 
-	ensureContains(t, copyCmds, "image.apex/app/TesterHelpAppFoo/TesterHelpAppFoo.apk")
+	ensureContains(t, copyCmds, "image.apex/app/TesterHelpAppFoo@TEST.BUILD_ID/TesterHelpAppFoo.apk")
 }
 
 func TestApexPropertiesShouldBeDefaultable(t *testing.T) {
@@ -6239,8 +6290,8 @@ func TestOverrideApex(t *testing.T) {
 	apexRule := module.Rule("apexRule")
 	copyCmds := apexRule.Args["copy_commands"]
 
-	ensureNotContains(t, copyCmds, "image.apex/app/app/app.apk")
-	ensureContains(t, copyCmds, "image.apex/app/override_app/override_app.apk")
+	ensureNotContains(t, copyCmds, "image.apex/app/app@TEST.BUILD_ID/app.apk")
+	ensureContains(t, copyCmds, "image.apex/app/override_app@TEST.BUILD_ID/override_app.apk")
 
 	ensureNotContains(t, copyCmds, "image.apex/etc/bpf/bpf.o")
 	ensureContains(t, copyCmds, "image.apex/etc/bpf/override_bpf.o")
@@ -7026,7 +7077,7 @@ func TestAppBundle(t *testing.T) {
 	content := bundleConfigRule.Args["content"]
 
 	ensureContains(t, content, `"compression":{"uncompressed_glob":["apex_payload.img","apex_manifest.*"]}`)
-	ensureContains(t, content, `"apex_config":{"apex_embedded_apk_config":[{"package_name":"com.android.foo","path":"app/AppFoo/AppFoo.apk"}]}`)
+	ensureContains(t, content, `"apex_config":{"apex_embedded_apk_config":[{"package_name":"com.android.foo","path":"app/AppFoo@TEST.BUILD_ID/AppFoo.apk"}]}`)
 }
 
 func TestAppSetBundle(t *testing.T) {
@@ -7057,9 +7108,9 @@ func TestAppSetBundle(t *testing.T) {
 	if len(copyCmds) != 3 {
 		t.Fatalf("Expected 3 commands, got %d in:\n%s", len(copyCmds), s)
 	}
-	ensureMatches(t, copyCmds[0], "^rm -rf .*/app/AppSet$")
-	ensureMatches(t, copyCmds[1], "^mkdir -p .*/app/AppSet$")
-	ensureMatches(t, copyCmds[2], "^unzip .*-d .*/app/AppSet .*/AppSet.zip$")
+	ensureMatches(t, copyCmds[0], "^rm -rf .*/app/AppSet@TEST.BUILD_ID$")
+	ensureMatches(t, copyCmds[1], "^mkdir -p .*/app/AppSet@TEST.BUILD_ID$")
+	ensureMatches(t, copyCmds[2], "^unzip .*-d .*/app/AppSet@TEST.BUILD_ID .*/AppSet.zip$")
 }
 
 func TestAppSetBundlePrebuilt(t *testing.T) {
