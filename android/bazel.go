@@ -573,6 +573,8 @@ var (
 		"prebuilt_car-ui-androidx-core-common",         // b/224773339, genrule dependency creates an .aar, not a .jar
 		"prebuilt_platform-robolectric-4.4-prebuilt",   // aosp/1999250, needs .aar support in Jars
 		"prebuilt_platform-robolectric-4.5.1-prebuilt", // aosp/1999250, needs .aar support in Jars
+
+		"libtombstoned_client_rust_bridge_code", "libtombstoned_client_wrapper", // rust conversions are not supported
 	}
 
 	// Per-module denylist of cc_library modules to only generate the static
