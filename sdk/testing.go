@@ -25,6 +25,8 @@ import (
 	"android/soong/cc"
 	"android/soong/genrule"
 	"android/soong/java"
+
+	"github.com/google/blueprint/proptools"
 )
 
 // Prepare for running an sdk test with an apex.
@@ -79,6 +81,11 @@ var prepareForSdkTest = android.GroupFixturePreparers(
 		config.Targets[android.Windows] = []android.Target{
 			{android.Windows, android.Arch{ArchType: android.X86_64}, android.NativeBridgeDisabled, "", "", true},
 		}
+	}),
+
+	// Add a build number file.
+	android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+		variables.BuildNumberFile = proptools.StringPtr(BUILD_NUMBER_FILE)
 	}),
 
 	// Make sure that every test provides all the source files.
@@ -143,6 +150,8 @@ func getSdkSnapshotBuildInfo(t *testing.T, result *android.TestResult, sdk *sdk)
 	copyRules := &strings.Builder{}
 	otherCopyRules := &strings.Builder{}
 	snapshotDirPrefix := sdk.builderForTests.snapshotDir.String() + "/"
+
+	seenBuildNumberFile := false
 	for _, bp := range buildParams {
 		switch bp.Rule.String() {
 		case android.Cp.String():
@@ -152,8 +161,14 @@ func getSdkSnapshotBuildInfo(t *testing.T, result *android.TestResult, sdk *sdk)
 			src := android.NormalizePathForTesting(bp.Input)
 			// We differentiate between copy rules for the snapshot, and copy rules for the install file.
 			if strings.HasPrefix(output.String(), snapshotDirPrefix) {
-				// Get source relative to build directory.
-				_, _ = fmt.Fprintf(copyRules, "%s -> %s\n", src, dest)
+				// Don't include the build-number.txt file in the copy rules as that would break lots of
+				// tests, just verify that it is copied here as it should appear in every snapshot.
+				if output.Base() == BUILD_NUMBER_FILE {
+					seenBuildNumberFile = true
+				} else {
+					// Get source relative to build directory.
+					_, _ = fmt.Fprintf(copyRules, "%s -> %s\n", src, dest)
+				}
 				info.snapshotContents = append(info.snapshotContents, dest)
 			} else {
 				_, _ = fmt.Fprintf(otherCopyRules, "%s -> %s\n", src, dest)
@@ -187,6 +202,10 @@ func getSdkSnapshotBuildInfo(t *testing.T, result *android.TestResult, sdk *sdk)
 			// Save the zips to be merged into the intermediate zip.
 			info.mergeZips = android.NormalizePathsForTesting(bp.Inputs)
 		}
+	}
+
+	if !seenBuildNumberFile {
+		panic(fmt.Sprintf("Every snapshot must include the %s file", BUILD_NUMBER_FILE))
 	}
 
 	info.copyRules = copyRules.String()
