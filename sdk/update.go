@@ -281,6 +281,10 @@ func appendUniqueVariants(variants []android.SdkAware, newVariant android.SdkAwa
 	return append(variants, newVariant)
 }
 
+// BUILD_NUMBER_FILE is the name of the file in the snapshot zip that will contain the number of
+// the build from which the snapshot was produced.
+const BUILD_NUMBER_FILE = "snapshot-creation-build-number.txt"
+
 // SDK directory structure
 // <sdk_root>/
 //     Android.bp   : definition of a 'sdk' module is here. This is a hand-made one.
@@ -478,6 +482,9 @@ be unnecessary as every module in the sdk already has its own licenses property.
 	}
 
 	bp.build(pctx, ctx, nil)
+
+	// Copy the build number file into the snapshot.
+	builder.CopyToSnapshot(ctx.Config().BuildNumberFile(ctx), BUILD_NUMBER_FILE)
 
 	filesToZip := builder.filesToZip
 
