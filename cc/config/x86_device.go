@@ -98,25 +98,25 @@ func init() {
 	pctx.SourcePathVariable("X86GccRoot",
 		"prebuilts/gcc/${HostPrebuiltTag}/x86/x86_64-linux-android-${x86GccVersion}")
 
-	exportStringListStaticVariable("X86ToolchainCflags", []string{"-m32"})
-	exportStringListStaticVariable("X86ToolchainLdflags", []string{"-m32"})
+	exportedVars.ExportStringListStaticVariable("X86ToolchainCflags", []string{"-m32"})
+	exportedVars.ExportStringListStaticVariable("X86ToolchainLdflags", []string{"-m32"})
 
-	exportStringListStaticVariable("X86Ldflags", x86Ldflags)
-	exportStringListStaticVariable("X86Lldflags", x86Ldflags)
+	exportedVars.ExportStringListStaticVariable("X86Ldflags", x86Ldflags)
+	exportedVars.ExportStringListStaticVariable("X86Lldflags", x86Ldflags)
 
 	// Clang cflags
-	exportStringListStaticVariable("X86Cflags", x86Cflags)
-	exportStringListStaticVariable("X86Cppflags", x86Cppflags)
+	exportedVars.ExportStringListStaticVariable("X86Cflags", x86Cflags)
+	exportedVars.ExportStringListStaticVariable("X86Cppflags", x86Cppflags)
 
 	// Yasm flags
-	exportStringListStaticVariable("X86YasmFlags", []string{
+	exportedVars.ExportStringListStaticVariable("X86YasmFlags", []string{
 		"-f elf32",
 		"-m x86",
 	})
 
 	// Extended cflags
-	exportedStringListDictVars.Set("X86ArchVariantCflags", x86ArchVariantCflags)
-	exportedStringListDictVars.Set("X86ArchFeatureCflags", x86ArchFeatureCflags)
+	exportedVars.ExportStringListDict("X86ArchVariantCflags", x86ArchVariantCflags)
+	exportedVars.ExportStringListDict("X86ArchFeatureCflags", x86ArchFeatureCflags)
 
 	// Architecture variant cflags
 	for variant, cflags := range x86ArchVariantCflags {

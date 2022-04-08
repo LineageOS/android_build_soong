@@ -98,28 +98,28 @@ func init() {
 	pctx.SourcePathVariable("Arm64GccRoot",
 		"prebuilts/gcc/${HostPrebuiltTag}/aarch64/aarch64-linux-android-${arm64GccVersion}")
 
-	exportStringListStaticVariable("Arm64Ldflags", arm64Ldflags)
-	exportStringListStaticVariable("Arm64Lldflags", arm64Lldflags)
+	exportedVars.ExportStringListStaticVariable("Arm64Ldflags", arm64Ldflags)
+	exportedVars.ExportStringListStaticVariable("Arm64Lldflags", arm64Lldflags)
 
-	exportStringListStaticVariable("Arm64Cflags", arm64Cflags)
-	exportStringListStaticVariable("Arm64Cppflags", arm64Cppflags)
+	exportedVars.ExportStringListStaticVariable("Arm64Cflags", arm64Cflags)
+	exportedVars.ExportStringListStaticVariable("Arm64Cppflags", arm64Cppflags)
 
-	exportedVariableReferenceDictVars.Set("Arm64ArchVariantCflags", arm64ArchVariantCflagsVar)
-	exportedVariableReferenceDictVars.Set("Arm64CpuVariantCflags", arm64CpuVariantCflagsVar)
-	exportedVariableReferenceDictVars.Set("Arm64CpuVariantLdflags", arm64CpuVariantLdflags)
+	exportedVars.ExportVariableReferenceDict("Arm64ArchVariantCflags", arm64ArchVariantCflagsVar)
+	exportedVars.ExportVariableReferenceDict("Arm64CpuVariantCflags", arm64CpuVariantCflagsVar)
+	exportedVars.ExportVariableReferenceDict("Arm64CpuVariantLdflags", arm64CpuVariantLdflags)
 
-	exportStringListStaticVariable("Arm64Armv8ACflags", arm64ArchVariantCflags["armv8-a"])
-	exportStringListStaticVariable("Arm64Armv8ABranchProtCflags", arm64ArchVariantCflags["armv8-a-branchprot"])
-	exportStringListStaticVariable("Arm64Armv82ACflags", arm64ArchVariantCflags["armv8-2a"])
-	exportStringListStaticVariable("Arm64Armv82ADotprodCflags", arm64ArchVariantCflags["armv8-2a-dotprod"])
+	exportedVars.ExportStringListStaticVariable("Arm64Armv8ACflags", arm64ArchVariantCflags["armv8-a"])
+	exportedVars.ExportStringListStaticVariable("Arm64Armv8ABranchProtCflags", arm64ArchVariantCflags["armv8-a-branchprot"])
+	exportedVars.ExportStringListStaticVariable("Arm64Armv82ACflags", arm64ArchVariantCflags["armv8-2a"])
+	exportedVars.ExportStringListStaticVariable("Arm64Armv82ADotprodCflags", arm64ArchVariantCflags["armv8-2a-dotprod"])
 
-	exportStringListStaticVariable("Arm64CortexA53Cflags", arm64CpuVariantCflags["cortex-a53"])
-	exportStringListStaticVariable("Arm64CortexA55Cflags", arm64CpuVariantCflags["cortex-a55"])
-	exportStringListStaticVariable("Arm64KryoCflags", arm64CpuVariantCflags["kryo"])
-	exportStringListStaticVariable("Arm64ExynosM1Cflags", arm64CpuVariantCflags["exynos-m1"])
-	exportStringListStaticVariable("Arm64ExynosM2Cflags", arm64CpuVariantCflags["exynos-m2"])
+	exportedVars.ExportStringListStaticVariable("Arm64CortexA53Cflags", arm64CpuVariantCflags["cortex-a53"])
+	exportedVars.ExportStringListStaticVariable("Arm64CortexA55Cflags", arm64CpuVariantCflags["cortex-a55"])
+	exportedVars.ExportStringListStaticVariable("Arm64KryoCflags", arm64CpuVariantCflags["kryo"])
+	exportedVars.ExportStringListStaticVariable("Arm64ExynosM1Cflags", arm64CpuVariantCflags["exynos-m1"])
+	exportedVars.ExportStringListStaticVariable("Arm64ExynosM2Cflags", arm64CpuVariantCflags["exynos-m2"])
 
-	exportStringListStaticVariable("Arm64FixCortexA53Ldflags", []string{"-Wl,--fix-cortex-a53-843419"})
+	exportedVars.ExportStringListStaticVariable("Arm64FixCortexA53Ldflags", []string{"-Wl,--fix-cortex-a53-843419"})
 }
 
 var (
