@@ -21,7 +21,7 @@ const (
 
 	SoongInjectionDirName = "soong_injection"
 
-	GeneratedBazelFileWarning = "# GENERATED FOR BAZEL FROM SOONG. DO NOT EDIT"
+	GeneratedBazelFileWarning = "# GENERATED FOR BAZEL FROM SOONG. DO NOT EDIT."
 )
 
 // String returns the name of the run.

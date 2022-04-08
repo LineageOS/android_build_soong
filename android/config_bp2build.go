@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package config
+package android
 
 import (
 	"fmt"
@@ -21,33 +21,123 @@ import (
 	"sort"
 	"strings"
 
-	"android/soong/android"
+	"android/soong/bazel"
 	"android/soong/starlark_fmt"
 
 	"github.com/google/blueprint"
 )
 
-type bazelVarExporter interface {
-	asBazel(android.Config, exportedStringVariables, exportedStringListVariables, exportedConfigDependingVariables) []bazelConstant
+// BazelVarExporter is a collection of configuration variables that can be exported for use in Bazel rules
+type BazelVarExporter interface {
+	// asBazel expands strings of configuration variables into their concrete values
+	asBazel(Config, ExportedStringVariables, ExportedStringListVariables, ExportedConfigDependingVariables) []bazelConstant
 }
 
-// Helpers for exporting cc configuration information to Bazel.
-var (
+// ExportedVariables is a collection of interdependent configuration variables
+type ExportedVariables struct {
 	// Maps containing toolchain variables that are independent of the
 	// environment variables of the build.
-	exportedStringListVars     = exportedStringListVariables{}
-	exportedStringVars         = exportedStringVariables{}
-	exportedStringListDictVars = exportedStringListDictVariables{}
-	// Note: these can only contain references to other variables and must be printed last
-	exportedVariableReferenceDictVars = exportedVariableReferenceDictVariables{}
+	exportedStringVars         ExportedStringVariables
+	exportedStringListVars     ExportedStringListVariables
+	exportedStringListDictVars ExportedStringListDictVariables
+
+	exportedVariableReferenceDictVars ExportedVariableReferenceDictVariables
 
 	/// Maps containing variables that are dependent on the build config.
-	exportedConfigDependingVars = exportedConfigDependingVariables{}
-)
+	exportedConfigDependingVars ExportedConfigDependingVariables
 
-type exportedConfigDependingVariables map[string]interface{}
+	pctx PackageContext
+}
 
-func (m exportedConfigDependingVariables) Set(k string, v interface{}) {
+// NewExportedVariables creats an empty ExportedVariables struct with non-nil maps
+func NewExportedVariables(pctx PackageContext) ExportedVariables {
+	return ExportedVariables{
+		exportedStringVars:                ExportedStringVariables{},
+		exportedStringListVars:            ExportedStringListVariables{},
+		exportedStringListDictVars:        ExportedStringListDictVariables{},
+		exportedVariableReferenceDictVars: ExportedVariableReferenceDictVariables{},
+		exportedConfigDependingVars:       ExportedConfigDependingVariables{},
+		pctx:                              pctx,
+	}
+}
+
+func (ev ExportedVariables) asBazel(config Config,
+	stringVars ExportedStringVariables, stringListVars ExportedStringListVariables, cfgDepVars ExportedConfigDependingVariables) []bazelConstant {
+	ret := []bazelConstant{}
+	ret = append(ret, ev.exportedStringVars.asBazel(config, stringVars, stringListVars, cfgDepVars)...)
+	ret = append(ret, ev.exportedStringListVars.asBazel(config, stringVars, stringListVars, cfgDepVars)...)
+	ret = append(ret, ev.exportedStringListDictVars.asBazel(config, stringVars, stringListVars, cfgDepVars)...)
+	// Note: ExportedVariableReferenceDictVars collections can only contain references to other variables and must be printed last
+	ret = append(ret, ev.exportedVariableReferenceDictVars.asBazel(config, stringVars, stringListVars, cfgDepVars)...)
+	return ret
+}
+
+// ExportStringStaticVariable declares a static string variable and exports it to
+// Bazel's toolchain.
+func (ev ExportedVariables) ExportStringStaticVariable(name string, value string) {
+	ev.pctx.StaticVariable(name, value)
+	ev.exportedStringVars.set(name, value)
+}
+
+// ExportStringListStaticVariable declares a static variable and exports it to
+// Bazel's toolchain.
+func (ev ExportedVariables) ExportStringListStaticVariable(name string, value []string) {
+	ev.pctx.StaticVariable(name, strings.Join(value, " "))
+	ev.exportedStringListVars.set(name, value)
+}
+
+// ExportVariableConfigMethod declares a variable whose value is evaluated at
+// runtime via a function with access to the Config and exports it to Bazel's
+// toolchain.
+func (ev ExportedVariables) ExportVariableConfigMethod(name string, method interface{}) blueprint.Variable {
+	ev.exportedConfigDependingVars.set(name, method)
+	return ev.pctx.VariableConfigMethod(name, method)
+}
+
+// ExportSourcePathVariable declares a static "source path" variable and exports
+// it to Bazel's toolchain.
+func (ev ExportedVariables) ExportSourcePathVariable(name string, value string) {
+	ev.pctx.SourcePathVariable(name, value)
+	ev.exportedStringVars.set(name, value)
+}
+
+// ExportVariableFuncVariable declares a variable whose value is evaluated at
+// runtime via a function and exports it to Bazel's toolchain.
+func (ev ExportedVariables) ExportVariableFuncVariable(name string, f func() string) {
+	ev.exportedConfigDependingVars.set(name, func(config Config) string {
+		return f()
+	})
+	ev.pctx.VariableFunc(name, func(PackageVarContext) string {
+		return f()
+	})
+}
+
+// ExportString only exports a variable to Bazel, but does not declare it in Soong
+func (ev ExportedVariables) ExportString(name string, value string) {
+	ev.exportedStringVars.set(name, value)
+}
+
+// ExportStringList only exports a variable to Bazel, but does not declare it in Soong
+func (ev ExportedVariables) ExportStringList(name string, value []string) {
+	ev.exportedStringListVars.set(name, value)
+}
+
+// ExportStringListDict only exports a variable to Bazel, but does not declare it in Soong
+func (ev ExportedVariables) ExportStringListDict(name string, value map[string][]string) {
+	ev.exportedStringListDictVars.set(name, value)
+}
+
+// ExportVariableReferenceDict only exports a variable to Bazel, but does not declare it in Soong
+func (ev ExportedVariables) ExportVariableReferenceDict(name string, value map[string]string) {
+	ev.exportedVariableReferenceDictVars.set(name, value)
+}
+
+// ExportedConfigDependingVariables is a mapping of variable names to functions
+// of type func(config Config) string which return the runtime-evaluated string
+// value of a particular variable
+type ExportedConfigDependingVariables map[string]interface{}
+
+func (m ExportedConfigDependingVariables) set(k string, v interface{}) {
 	m[k] = v
 }
 
@@ -67,14 +157,15 @@ type bazelConstant struct {
 	sortLast           bool
 }
 
-type exportedStringVariables map[string]string
+// ExportedStringVariables is a mapping of variable names to string values
+type ExportedStringVariables map[string]string
 
-func (m exportedStringVariables) Set(k string, v string) {
+func (m ExportedStringVariables) set(k string, v string) {
 	m[k] = v
 }
 
-func (m exportedStringVariables) asBazel(config android.Config,
-	stringVars exportedStringVariables, stringListVars exportedStringListVariables, cfgDepVars exportedConfigDependingVariables) []bazelConstant {
+func (m ExportedStringVariables) asBazel(config Config,
+	stringVars ExportedStringVariables, stringListVars ExportedStringListVariables, cfgDepVars ExportedConfigDependingVariables) []bazelConstant {
 	ret := make([]bazelConstant, 0, len(m))
 	for k, variableValue := range m {
 		expandedVar, err := expandVar(config, variableValue, stringVars, stringListVars, cfgDepVars)
@@ -92,21 +183,16 @@ func (m exportedStringVariables) asBazel(config android.Config,
 	return ret
 }
 
-// Convenience function to declare a static variable and export it to Bazel's cc_toolchain.
-func exportStringStaticVariable(name string, value string) {
-	pctx.StaticVariable(name, value)
-	exportedStringVars.Set(name, value)
-}
+// ExportedStringListVariables is a mapping of variable names to a list of strings
+type ExportedStringListVariables map[string][]string
 
-type exportedStringListVariables map[string][]string
-
-func (m exportedStringListVariables) Set(k string, v []string) {
+func (m ExportedStringListVariables) set(k string, v []string) {
 	m[k] = v
 }
 
-func (m exportedStringListVariables) asBazel(config android.Config,
-	stringScope exportedStringVariables, stringListScope exportedStringListVariables,
-	exportedVars exportedConfigDependingVariables) []bazelConstant {
+func (m ExportedStringListVariables) asBazel(config Config,
+	stringScope ExportedStringVariables, stringListScope ExportedStringListVariables,
+	exportedVars ExportedConfigDependingVariables) []bazelConstant {
 	ret := make([]bazelConstant, 0, len(m))
 	// For each exported variable, recursively expand elements in the variableValue
 	// list to ensure that interpolated variables are expanded according to their values
@@ -130,37 +216,17 @@ func (m exportedStringListVariables) asBazel(config android.Config,
 	return ret
 }
 
-// Convenience function to declare a static "source path" variable and export it to Bazel's cc_toolchain.
-func exportVariableConfigMethod(name string, method interface{}) blueprint.Variable {
-	exportedConfigDependingVars.Set(name, method)
-	return pctx.VariableConfigMethod(name, method)
-}
+// ExportedStringListDictVariables is a mapping from variable names to a
+// dictionary which maps keys to lists of strings
+type ExportedStringListDictVariables map[string]map[string][]string
 
-// Convenience function to declare a static "source path" variable and export it to Bazel's cc_toolchain.
-func exportSourcePathVariable(name string, value string) {
-	pctx.SourcePathVariable(name, value)
-	exportedStringVars.Set(name, value)
-}
-
-// Convenience function to declare a static variable and export it to Bazel's cc_toolchain.
-func exportStringListStaticVariable(name string, value []string) {
-	pctx.StaticVariable(name, strings.Join(value, " "))
-	exportedStringListVars.Set(name, value)
-}
-
-func ExportStringList(name string, value []string) {
-	exportedStringListVars.Set(name, value)
-}
-
-type exportedStringListDictVariables map[string]map[string][]string
-
-func (m exportedStringListDictVariables) Set(k string, v map[string][]string) {
+func (m ExportedStringListDictVariables) set(k string, v map[string][]string) {
 	m[k] = v
 }
 
 // Since dictionaries are not supported in Ninja, we do not expand variables for dictionaries
-func (m exportedStringListDictVariables) asBazel(_ android.Config, _ exportedStringVariables,
-	_ exportedStringListVariables, _ exportedConfigDependingVariables) []bazelConstant {
+func (m ExportedStringListDictVariables) asBazel(_ Config, _ ExportedStringVariables,
+	_ ExportedStringListVariables, _ ExportedConfigDependingVariables) []bazelConstant {
 	ret := make([]bazelConstant, 0, len(m))
 	for k, dict := range m {
 		ret = append(ret, bazelConstant{
@@ -171,14 +237,23 @@ func (m exportedStringListDictVariables) asBazel(_ android.Config, _ exportedStr
 	return ret
 }
 
-type exportedVariableReferenceDictVariables map[string]map[string]string
+// ExportedVariableReferenceDictVariables is a mapping from variable names to a
+// dictionary which references previously defined variables. This is used to
+// create a Starlark output such as:
+// 		string_var1 = "string1
+// 		var_ref_dict_var1 = {
+// 			"key1": string_var1
+// 		}
+// This type of variable collection must be expanded last so that it recognizes
+// previously defined variables.
+type ExportedVariableReferenceDictVariables map[string]map[string]string
 
-func (m exportedVariableReferenceDictVariables) Set(k string, v map[string]string) {
+func (m ExportedVariableReferenceDictVariables) set(k string, v map[string]string) {
 	m[k] = v
 }
 
-func (m exportedVariableReferenceDictVariables) asBazel(_ android.Config, _ exportedStringVariables,
-	_ exportedStringListVariables, _ exportedConfigDependingVariables) []bazelConstant {
+func (m ExportedVariableReferenceDictVariables) asBazel(_ Config, _ ExportedStringVariables,
+	_ ExportedStringListVariables, _ ExportedConfigDependingVariables) []bazelConstant {
 	ret := make([]bazelConstant, 0, len(m))
 	for n, dict := range m {
 		for k, v := range dict {
@@ -201,24 +276,15 @@ func (m exportedVariableReferenceDictVariables) asBazel(_ android.Config, _ expo
 	return ret
 }
 
-// BazelCcToolchainVars generates bzl file content containing variables for
-// Bazel's cc_toolchain configuration.
-func BazelCcToolchainVars(config android.Config) string {
-	return bazelToolchainVars(
+// BazelToolchainVars expands an ExportedVariables collection and returns a string
+// of formatted Starlark variable definitions
+func BazelToolchainVars(config Config, exportedVars ExportedVariables) string {
+	results := exportedVars.asBazel(
 		config,
-		exportedStringListDictVars,
-		exportedStringListVars,
-		exportedStringVars,
-		exportedVariableReferenceDictVars)
-}
-
-func bazelToolchainVars(config android.Config, vars ...bazelVarExporter) string {
-	ret := "# GENERATED FOR BAZEL FROM SOONG. DO NOT EDIT.\n\n"
-
-	results := []bazelConstant{}
-	for _, v := range vars {
-		results = append(results, v.asBazel(config, exportedStringVars, exportedStringListVars, exportedConfigDependingVars)...)
-	}
+		exportedVars.exportedStringVars,
+		exportedVars.exportedStringListVars,
+		exportedVars.exportedConfigDependingVars,
+	)
 
 	sort.Slice(results, func(i, j int) bool {
 		if results[i].sortLast != results[j].sortLast {
@@ -237,6 +303,8 @@ func bazelToolchainVars(config android.Config, vars ...bazelVarExporter) string 
 	}
 
 	// Build the exported constants struct.
+	ret := bazel.GeneratedBazelFileWarning
+	ret += "\n\n"
 	ret += strings.Join(definitions, "\n\n")
 	ret += "\n\n"
 	ret += "constants = struct(\n"
@@ -279,8 +347,8 @@ func variableReference(input string) (match, error) {
 // string slice than to handle a pass-by-referenced map, which would make it
 // quite complex to track depth-first interpolations. It's also unlikely the
 // interpolation stacks are deep (n > 1).
-func expandVar(config android.Config, toExpand string, stringScope exportedStringVariables,
-	stringListScope exportedStringListVariables, exportedVars exportedConfigDependingVariables) ([]string, error) {
+func expandVar(config Config, toExpand string, stringScope ExportedStringVariables,
+	stringListScope ExportedStringListVariables, exportedVars ExportedConfigDependingVariables) ([]string, error) {
 
 	// Internal recursive function.
 	var expandVarInternal func(string, map[string]bool) (string, error)
@@ -346,7 +414,8 @@ func expandVar(config android.Config, toExpand string, stringScope exportedStrin
 		return ret, nil
 	}
 	var ret []string
-	for _, v := range strings.Split(toExpand, " ") {
+	stringFields := splitStringKeepingQuotedSubstring(toExpand, ' ')
+	for _, v := range stringFields {
 		val, err := expandVarInternal(v, map[string]bool{})
 		if err != nil {
 			return ret, err
@@ -355,6 +424,46 @@ func expandVar(config android.Config, toExpand string, stringScope exportedStrin
 	}
 
 	return ret, nil
+}
+
+// splitStringKeepingQuotedSubstring splits a string on a provided separator,
+// but it will not split substrings inside unescaped double quotes. If the double
+// quotes are escaped, then the returned string will only include the quote, and
+// not the escape.
+func splitStringKeepingQuotedSubstring(s string, delimiter byte) []string {
+	var ret []string
+	quote := byte('"')
+
+	var substring []byte
+	quoted := false
+	escaped := false
+
+	for i := range s {
+		if !quoted && s[i] == delimiter {
+			ret = append(ret, string(substring))
+			substring = []byte{}
+			continue
+		}
+
+		characterIsEscape := i < len(s)-1 && s[i] == '\\' && s[i+1] == quote
+		if characterIsEscape {
+			escaped = true
+			continue
+		}
+
+		if s[i] == quote {
+			if !escaped {
+				quoted = !quoted
+			}
+			escaped = false
+		}
+
+		substring = append(substring, s[i])
+	}
+
+	ret = append(ret, string(substring))
+
+	return ret
 }
 
 func validateVariableMethod(name string, methodValue reflect.Value) {

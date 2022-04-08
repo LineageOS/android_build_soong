@@ -7,7 +7,8 @@ import (
 	"strings"
 
 	"android/soong/android"
-	"android/soong/cc/config"
+	cc_config "android/soong/cc/config"
+	java_config "android/soong/java/config"
 
 	"github.com/google/blueprint/proptools"
 )
@@ -22,7 +23,10 @@ func CreateSoongInjectionFiles(cfg android.Config, metrics CodegenMetrics) []Baz
 	var files []BazelFile
 
 	files = append(files, newFile("cc_toolchain", GeneratedBuildFileName, "")) // Creates a //cc_toolchain package.
-	files = append(files, newFile("cc_toolchain", "constants.bzl", config.BazelCcToolchainVars(cfg)))
+	files = append(files, newFile("cc_toolchain", "constants.bzl", cc_config.BazelCcToolchainVars(cfg)))
+
+	files = append(files, newFile("java_toolchain", GeneratedBuildFileName, "")) // Creates a //java_toolchain package.
+	files = append(files, newFile("java_toolchain", "constants.bzl", java_config.BazelJavaToolchainVars(cfg)))
 
 	files = append(files, newFile("metrics", "converted_modules.txt", strings.Join(metrics.convertedModules, "\n")))
 
