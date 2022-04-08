@@ -449,6 +449,7 @@ func rewriteTestModuleTypes(f *Fixer) error {
 		}
 
 		hasInstrumentationFor := hasNonEmptyLiteralStringProperty(mod, "instrumentation_for")
+		hasTestSuites := hasNonEmptyLiteralListProperty(mod, "test_suites")
 		tags, _ := getLiteralListPropertyValue(mod, "tags")
 
 		var hasTestsTag bool
@@ -458,7 +459,7 @@ func rewriteTestModuleTypes(f *Fixer) error {
 			}
 		}
 
-		isTest := hasInstrumentationFor || hasTestsTag
+		isTest := hasInstrumentationFor || hasTestsTag || hasTestSuites
 
 		if isTest {
 			switch mod.Type {
@@ -470,13 +471,7 @@ func rewriteTestModuleTypes(f *Fixer) error {
 				mod.Type = "java_test"
 			case "java_library_host":
 				mod.Type = "java_test_host"
-			}
-		}
-
-		// when a cc_binary module has a nonempty test_suites field, modify the type to cc_test
-		if mod.Type == "cc_binary" {
-			hasTestSuites := hasNonEmptyLiteralListProperty(mod, "test_suites")
-			if hasTestSuites {
+			case "cc_binary":
 				mod.Type = "cc_test"
 			}
 		}

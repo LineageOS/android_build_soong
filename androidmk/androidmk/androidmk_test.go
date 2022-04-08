@@ -1690,6 +1690,21 @@ android_app {
 }
 `,
 	},
+	{
+		desc: "convert android_app to android_test when having test_suites",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := foo
+LOCAL_COMPATIBILITY_SUITE := bar
+include $(BUILD_PACKAGE)
+		`,
+		expected: `
+android_test {
+	name: "foo",
+	test_suites: ["bar"],
+}
+`,
+	},
 }
 
 func TestEndToEnd(t *testing.T) {
