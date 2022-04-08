@@ -435,146 +435,103 @@ var (
 
 	// Per-module denylist to always opt modules out of both bp2build and mixed builds.
 	bp2buildModuleDoNotConvertList = []string{
-		"libnativehelper_compat_libc", // Broken compile: implicit declaration of function 'strerror_r' is invalid in C99
+		// cc bugs
+		"libsepol",                                  // TODO(b/207408632): Unsupported case of .l sources in cc library rules
+		"libactivitymanager_aidl",                   // TODO(b/207426160): Unsupported use of aidl sources (via Dactivity_manager_procstate_aidl) in a cc_library
+		"gen-kotlin-build-file.py",                  // TODO(b/198619163) module has same name as source
+		"libgtest_ndk_c++", "libgtest_main_ndk_c++", // TODO(b/201816222): Requires sdk_version support.
+		"linkerconfig", "mdnsd", // TODO(b/202876379): has arch-variant static_executable
+		"linker",       // TODO(b/228316882): cc_binary uses link_crt
+		"libdebuggerd", // TODO(b/228314770): support product variable-specific header_libs
+		"versioner",    // TODO(b/228313961):  depends on prebuilt shared library libclang-cpp_host as a shared library, which does not supply expected providers for a shared library
 
-		"libart",                             // depends on unconverted modules: art_operator_srcs, libodrstatslog, libelffile, art_cmdlineparser_headers, cpp-define-generator-definitions, libcpu_features, libdexfile, libartpalette, libbacktrace, libnativebridge, libnativeloader, libsigchain, libunwindstack, libartbase, libprofile, cpp-define-generator-asm-support, apex-info-list-tinyxml, libtinyxml2, libnativeloader-headers, libstatssocket, heapprofd_client_api
-		"libart-runtime-gtest",               // depends on unconverted modules: libgtest_isolated, libart-compiler, libdexfile, libprofile, libartbase, libbacktrace, libartbase-art-gtest
-		"libart_headers",                     // depends on unconverted modules: art_libartbase_headers
-		"libartd",                            // depends on unconverted modules: apex-info-list-tinyxml, libtinyxml2, libnativeloader-headers, libstatssocket, heapprofd_client_api, art_operator_srcs, libodrstatslog, libelffiled, art_cmdlineparser_headers, cpp-define-generator-definitions, libcpu_features, libdexfiled, libartpalette, libbacktrace, libnativebridge, libnativeloader, libsigchain, libunwindstack, libartbased, libprofiled, cpp-define-generator-asm-support
-		"libartd-runtime-gtest",              // depends on unconverted modules: libgtest_isolated, libartd-compiler, libdexfiled, libprofiled, libartbased, libbacktrace, libartbased-art-gtest
-		"libstatslog_art",                    // depends on unconverted modules: statslog_art.cpp, statslog_art.h
-		"statslog_art.h", "statslog_art.cpp", // depends on unconverted modules: stats-log-api-gen
-
-		"libandroid_runtime_lazy", // depends on unconverted modules: libbinder_headers
-		"libcmd",                  // depends on unconverted modules: libbinder
-
-		"libdexfile_support_static",                                                       // Depends on unconverted module: libdexfile_external_headers
-		"libunwindstack_local", "libunwindstack_utils", "libc_malloc_debug", "libfdtrack", // Depends on unconverted module: libunwindstack
-
-		"libdexfile_support",          // TODO(b/210546943): Enabled based on product variables.
-		"libdexfile_external_headers", // TODO(b/210546943): Enabled based on product variables.
-
-		"libunwindstack",                // Depends on unconverted module libdexfile_support.
-		"libnativehelper_compat_libc++", // Broken compile: implicit declaration of function 'strerror_r' is invalid in C99
-
-		"chkcon", "sefcontext_compile", // depends on unconverted modules: libsepol
-
-		"libsepol", // TODO(b/207408632): Unsupported case of .l sources in cc library rules
-
-		"gen-kotlin-build-file.py", // module has same name as source
-
-		"libactivitymanager_aidl", // TODO(b/207426160): Depends on activity_manager_procstate_aidl, which is an aidl filegroup.
-
-		"libnativehelper_lazy_mts_jni", "libnativehelper_mts_jni", // depends on unconverted modules: libgmock_ndk
-		"libnativetesthelper_jni", "libgmock_main_ndk", "libgmock_ndk", // depends on unconverted module: libgtest_ndk_c++
-
-		"statslog-framework-java-gen", "statslog.cpp", "statslog.h", "statslog.rs", "statslog_header.rs", // depends on unconverted modules: stats-log-api-gen
-
-		"stats-log-api-gen", // depends on unconverted modules: libstats_proto_host, libprotobuf-cpp-full
-
-		"libstatslog", // depends on unconverted modules: statslog.cpp, statslog.h, ...
-
-		"cmd",                                                        // depends on unconverted module packagemanager_aidl-cpp, of unsupported type aidl_interface
-		"servicedispatcher",                                          // depends on unconverted module android.debug_aidl, of unsupported type aidl_interface
-		"libutilscallstack",                                          // depends on unconverted module libbacktrace
-		"libbacktrace",                                               // depends on unconverted module libunwindstack
-		"libdebuggerd_handler",                                       // depends on unconverted module libdebuggerd_handler_core
-		"libdebuggerd_handler_core", "libdebuggerd_handler_fallback", // depends on unconverted module libdebuggerd
-		"unwind_for_offline", // depends on unconverted module libunwindstack_utils
-		"libdebuggerd",       // depends on unconverted modules libdexfile_support, libunwindstack, gwp_asan_crash_handler, libtombstone_proto, libprotobuf-cpp-lite
-		"libdexfile_static",  // depends on libartpalette, libartbase, libdexfile, which are of unsupported type: art_cc_library.
-
-		"static_crasher", // depends on unconverted modules: libdebuggerd_handler
-
-		"pbtombstone", "crash_dump", // depends on libdebuggerd, libunwindstack
-
-		"libbase_ndk", // http://b/186826477, fails to link libctscamera2_jni for device (required for CtsCameraTestCases)
-
-		"libprotobuf-internal-protos",      // b/210751803, we don't handle path property for filegroups
-		"libprotobuf-internal-python-srcs", // b/210751803, we don't handle path property for filegroups
-		"libprotobuf-java-full",            // b/210751803, we don't handle path property for filegroups
-		"host-libprotobuf-java-full",       // b/210751803, we don't handle path property for filegroups
-		"libprotobuf-java-util-full",       // b/210751803, we don't handle path property for filegroups
-		"apex_manifest_proto_java",         // b/210751803, depends on libprotobuf-java-full
-		"conscrypt",                        // b/210751803, we don't handle path property for filegroups
-		"conscrypt-for-host",               // b/210751803, we don't handle path property for filegroups
-
-		"libprotobuf-java-nano",      // b/220869005, depends on non-public_current SDK
-		"host-libprotobuf-java-nano", // b/220869005, depends on libprotobuf-java-nano
-
-		"libc_musl_sysroot_bionic_arch_headers", // b/218405924, depends on soong_zip
-		"libc_musl_sysroot_bionic_headers",      // b/218405924, depends on soong_zip and generates duplicate srcs
+		// java bugs
+		"libbase_ndk", // TODO(b/186826477): fails to link libctscamera2_jni for device (required for CtsCameraTestCases)
 
 		// python protos
-		"libprotobuf-python",                           // contains .proto sources
-		"conv_linker_config",                           // depends on linker_config_proto, a python lib with proto sources
-		"apex_build_info_proto", "apex_manifest_proto", // a python lib with proto sources
-		"linker_config_proto", // contains .proto sources
+		"libprotobuf-python",                           // TODO(b/196084681): contains .proto sources
+		"apex_build_info_proto", "apex_manifest_proto", // TODO(b/196084681): a python lib with proto sources
+		"linker_config_proto", // TODO(b/196084681): contains .proto sources
 
-		"brotli-fuzzer-corpus", // b/202015218: outputs are in location incompatible with bazel genrule handling.
+		// genrule incompatibilities
+		"brotli-fuzzer-corpus",                                       // TODO(b/202015218): outputs are in location incompatible with bazel genrule handling.
+		"platform_tools_properties", "build_tools_source_properties", // TODO(b/203369847): multiple genrules in the same package creating the same file
 
-		// python modules
-		"analyze_bcpf", // depends on bpmodify a blueprint_go_binary.
+		// aar support
+		"prebuilt_car-ui-androidx-core-common",         // TODO(b/224773339), genrule dependency creates an .aar, not a .jar
+		"prebuilt_platform-robolectric-4.4-prebuilt",   // aosp/1999250, needs .aar support in Jars
+		"prebuilt_platform-robolectric-4.5.1-prebuilt", // aosp/1999250, needs .aar support in Jars
 
-		// b/203369847: multiple genrules in the same package creating the same file
-		// //development/sdk/...
-		"platform_tools_properties",
-		"build_tools_source_properties",
-
-		// APEX support
-		"com.android.runtime", // depends on unconverted modules: bionic-linker-config, linkerconfig
-
-		"libgtest_ndk_c++",      // b/201816222: Requires sdk_version support.
-		"libgtest_main_ndk_c++", // b/201816222: Requires sdk_version support.
-
-		"abb",                     // depends on unconverted modules: libcmd, libbinder
-		"adb",                     // depends on unconverted modules: AdbWinApi, libadb_host, libandroidfw, libapp_processes_protos_full, libfastdeploy_host, libopenscreen-discovery, libopenscreen-platform-impl, libusb, bin2c_fastdeployagent, AdbWinUsbApi
-		"libadb_host",             // depends on unconverted modules: libopenscreen-discovery, libopenscreen-platform-impl, libusb, AdbWinApi
-		"libfastdeploy_host",      // depends on unconverted modules: libandroidfw, libusb, AdbWinApi
-		"linker",                  // depends on unconverted modules: libdebuggerd_handler_fallback
-		"linker_reloc_bench_main", // depends on unconverted modules: liblinker_reloc_bench_*
-		"versioner",               // depends on unconverted modules: libclang_cxx_host, libLLVM_host, of unsupported type llvm_host_prebuilt_library_shared
-
-		"linkerconfig", // http://b/202876379 has arch-variant static_executable
-		"mdnsd",        // http://b/202876379 has arch-variant static_executable
-
-		"CarHTMLViewer", // depends on unconverted modules android.car-stubs, car-ui-lib
-
-		"libdexfile",  // depends on unconverted modules: dexfile_operator_srcs, libartbase, libartpalette,
-		"libdexfiled", // depends on unconverted modules: dexfile_operator_srcs, libartbased, libartpalette
+		// path property for filegroups
+		"conscrypt",                        // TODO(b/210751803), we don't handle path property for filegroups
+		"conscrypt-for-host",               // TODO(b/210751803), we don't handle path property for filegroups
+		"host-libprotobuf-java-full",       // TODO(b/210751803), we don't handle path property for filegroups
+		"libprotobuf-internal-protos",      // TODO(b/210751803), we don't handle path property for filegroups
+		"libprotobuf-internal-python-srcs", // TODO(b/210751803), we don't handle path property for filegroups
+		"libprotobuf-java-full",            // TODO(b/210751803), we don't handle path property for filegroups
+		"libprotobuf-java-util-full",       // TODO(b/210751803), we don't handle path property for filegroups
 
 		// go deps:
+		"analyze_bcpf",                                                                               // depends on bpmodify a blueprint_go_binary.
 		"apex-protos",                                                                                // depends on soong_zip, a go binary
 		"generated_android_icu4j_src_files", "generated_android_icu4j_test_files", "icu4c_test_data", // depends on unconverted modules: soong_zip
 		"host_bionic_linker_asm",                                                  // depends on extract_linker, a go binary.
 		"host_bionic_linker_script",                                               // depends on extract_linker, a go binary.
-		"robolectric-sqlite4java-native",                                          // depends on soong_zip, a go binary
-		"robolectric_tzdata",                                                      // depends on soong_zip, a go binary
+		"libc_musl_sysroot_bionic_arch_headers",                                   // depends on soong_zip
+		"libc_musl_sysroot_bionic_headers",                                        // 218405924, depends on soong_zip and generates duplicate srcs
 		"libc_musl_sysroot_libc++_headers", "libc_musl_sysroot_libc++abi_headers", // depends on soong_zip, zip2zip
+		"robolectric-sqlite4java-native", // depends on soong_zip, a go binary
+		"robolectric_tzdata",             // depends on soong_zip, a go binary
 
-		"android_icu4j_srcgen_binary", // Bazel build error: deps not allowed without srcs; move to runtime_deps
-		"core-icu4j-for-host",         // Bazel build error: deps not allowed without srcs; move to runtime_deps
-
-		// java deps
-		"android_icu4j_srcgen",          // depends on unconverted modules: currysrc
-		"bin2c_fastdeployagent",         // depends on deployagent, a java binary
-		"currysrc",                      // depends on unconverted modules: currysrc_org.eclipse, guavalib, jopt-simple-4.9
-		"robolectric-sqlite4java-0.282", // depends on unconverted modules: robolectric-sqlite4java-import, robolectric-sqlite4java-native
-		"timezone-host",                 // depends on unconverted modules: art.module.api.annotations
-		"truth-host-prebuilt",           // depends on unconverted modules: truth-prebuilt
-		"truth-prebuilt",                // depends on unconverted modules: asm-7.0, guava
-
-		"generated_android_icu4j_resources",      // depends on unconverted modules: android_icu4j_srcgen_binary, soong_zip
-		"generated_android_icu4j_test_resources", // depends on unconverted modules: android_icu4j_srcgen_binary, soong_zip
-
-		"art-script",     // depends on unconverted modules: dalvikvm, dex2oat
-		"dex2oat-script", // depends on unconverted modules: dex2oat
-
-		"prebuilt_car-ui-androidx-core-common",         // b/224773339, genrule dependency creates an .aar, not a .jar
-		"prebuilt_platform-robolectric-4.4-prebuilt",   // aosp/1999250, needs .aar support in Jars
-		"prebuilt_platform-robolectric-4.5.1-prebuilt", // aosp/1999250, needs .aar support in Jars
-
+		// rust support
 		"libtombstoned_client_rust_bridge_code", "libtombstoned_client_wrapper", // rust conversions are not supported
+
+		// unconverted deps
+		"CarHTMLViewer",                // depends on unconverted modules android.car-stubs, car-ui-lib
+		"abb",                          // depends on unconverted modules: libcmd, libbinder
+		"adb",                          // depends on unconverted modules: AdbWinApi, libandroidfw, libopenscreen-discovery, libopenscreen-platform-impl, libusb, bin2c_fastdeployagent, AdbWinUsbApi
+		"android_icu4j_srcgen",         // depends on unconverted modules: currysrc
+		"android_icu4j_srcgen_binary",  // depends on unconverted modules: android_icu4j_srcgen, currysrc
+		"apex_manifest_proto_java",     // b/210751803, depends on libprotobuf-java-full
+		"art-script",                   // depends on unconverted modules: dalvikvm, dex2oat
+		"bin2c_fastdeployagent",        // depends on unconverted modules: deployagent
+		"chkcon", "sefcontext_compile", // depends on unconverted modules: libsepol
+		"com.android.runtime",                                        // depends on unconverted modules: bionic-linker-config, linkerconfig
+		"conv_linker_config",                                         // depends on unconverted modules: linker_config_proto
+		"currysrc",                                                   // depends on unconverted modules: currysrc_org.eclipse, guavalib, jopt-simple-4.9
+		"dex2oat-script",                                             // depends on unconverted modules: dex2oat
+		"generated_android_icu4j_resources",                          // depends on unconverted modules: android_icu4j_srcgen_binary, soong_zip
+		"generated_android_icu4j_test_resources",                     // depends on unconverted modules: android_icu4j_srcgen_binary, soong_zip
+		"host-libprotobuf-java-nano",                                 // b/220869005, depends on libprotobuf-java-nano
+		"libadb_host",                                                // depends on unconverted modules: AdbWinApi, libopenscreen-discovery, libopenscreen-platform-impl, libusb
+		"libart",                                                     // depends on unconverted modules: apex-info-list-tinyxml, libtinyxml2, libnativeloader-headers, heapprofd_client_api, art_operator_srcs, libcpu_features, libodrstatslog, libelffile, art_cmdlineparser_headers, cpp-define-generator-definitions, libdexfile, libnativebridge, libnativeloader, libsigchain, libartbase, libprofile, cpp-define-generator-asm-support
+		"libart-runtime-gtest",                                       // depends on unconverted modules: libgtest_isolated, libart-compiler, libdexfile, libprofile, libartbase, libartbase-art-gtest
+		"libart_headers",                                             // depends on unconverted modules: art_libartbase_headers
+		"libartd",                                                    // depends on unconverted modules: art_operator_srcs, libcpu_features, libodrstatslog, libelffiled, art_cmdlineparser_headers, cpp-define-generator-definitions, libdexfiled, libnativebridge, libnativeloader, libsigchain, libartbased, libprofiled, cpp-define-generator-asm-support, apex-info-list-tinyxml, libtinyxml2, libnativeloader-headers, heapprofd_client_api
+		"libartd-runtime-gtest",                                      // depends on unconverted modules: libgtest_isolated, libartd-compiler, libdexfiled, libprofiled, libartbased, libartbased-art-gtest
+		"libdebuggerd_handler",                                       // depends on unconverted module libdebuggerd_handler_core
+		"libdebuggerd_handler_core", "libdebuggerd_handler_fallback", // depends on unconverted module libdebuggerd
+		"libdexfile",                                              // depends on unconverted modules: dexfile_operator_srcs, libartbase, libartpalette,
+		"libdexfile_static",                                       // depends on unconverted modules: libartbase, libdexfile
+		"libdexfiled",                                             // depends on unconverted modules: dexfile_operator_srcs, libartbased, libartpalette
+		"libfastdeploy_host",                                      // depends on unconverted modules: libandroidfw, libusb, AdbWinApi
+		"libgmock_main_ndk",                                       // depends on unconverted modules: libgtest_ndk_c++
+		"libgmock_ndk",                                            // depends on unconverted modules: libgtest_ndk_c++
+		"libnativehelper_lazy_mts_jni", "libnativehelper_mts_jni", // depends on unconverted modules: libnativetesthelper_jni, libgmock_ndk
+		"libnativetesthelper_jni",   // depends on unconverted modules: libgtest_ndk_c++
+		"libprotobuf-java-nano",     // b/220869005, depends on non-public_current SDK
+		"libstatslog",               // depends on unconverted modules: libstatspull, statsd-aidl-ndk, libbinder_ndk
+		"libstatslog_art",           // depends on unconverted modules: statslog_art.cpp, statslog_art.h
+		"linker_reloc_bench_main",   // depends on unconverted modules: liblinker_reloc_bench_*
+		"pbtombstone", "crash_dump", // depends on libdebuggerd, libunwindstack
+		"robolectric-sqlite4java-0.282",             // depends on unconverted modules: robolectric-sqlite4java-import, robolectric-sqlite4java-native
+		"static_crasher",                            // depends on unconverted modules: libdebuggerd_handler
+		"stats-log-api-gen",                         // depends on unconverted modules: libstats_proto_host
+		"statslog.cpp", "statslog.h", "statslog.rs", // depends on unconverted modules: stats-log-api-gen
+		"statslog_art.cpp", "statslog_art.h", "statslog_header.rs", // depends on unconverted modules: stats-log-api-gen
+		"timezone-host",       // depends on unconverted modules: art.module.api.annotations
+		"truth-host-prebuilt", // depends on unconverted modules: truth-prebuilt
+		"truth-prebuilt",      // depends on unconverted modules: asm-7.0, guava
 	}
 
 	// Per-module denylist of cc_library modules to only generate the static
