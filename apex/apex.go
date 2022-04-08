@@ -2475,20 +2475,43 @@ func (a *apexBundle) CheckMinSdkVersion(ctx android.ModuleContext) {
 	android.CheckMinSdkVersion(ctx, minSdkVersion, a.WalkPayloadDeps)
 }
 
+// Returns apex's min_sdk_version string value, honoring overrides
+func (a *apexBundle) minSdkVersionValue(ctx android.EarlyModuleContext) string {
+	// Only override the minSdkVersion value on Apexes which already specify
+	// a min_sdk_version (it's optional for non-updatable apexes), and that its
+	// min_sdk_version value is lower than the one to override with.
+	overrideMinSdkValue := ctx.DeviceConfig().ApexGlobalMinSdkVersionOverride()
+	overrideApiLevel := minSdkVersionFromValue(ctx, overrideMinSdkValue)
+	originalMinApiLevel := minSdkVersionFromValue(ctx, proptools.String(a.properties.Min_sdk_version))
+	isMinSdkSet := a.properties.Min_sdk_version != nil
+	isOverrideValueHigher := overrideApiLevel.CompareTo(originalMinApiLevel) > 0
+	if overrideMinSdkValue != "" && isMinSdkSet && isOverrideValueHigher {
+		return overrideMinSdkValue
+	}
+
+	return proptools.String(a.properties.Min_sdk_version)
+}
+
+// Returns apex's min_sdk_version SdkSpec, honoring overrides
 func (a *apexBundle) MinSdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
 	return android.SdkSpec{
 		Kind:     android.SdkNone,
 		ApiLevel: a.minSdkVersion(ctx),
-		Raw:      String(a.properties.Min_sdk_version),
+		Raw:      a.minSdkVersionValue(ctx),
 	}
 }
 
+// Returns apex's min_sdk_version ApiLevel, honoring overrides
 func (a *apexBundle) minSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel {
-	ver := proptools.String(a.properties.Min_sdk_version)
-	if ver == "" {
+	return minSdkVersionFromValue(ctx, a.minSdkVersionValue(ctx))
+}
+
+// Construct ApiLevel object from min_sdk_version string value
+func minSdkVersionFromValue(ctx android.EarlyModuleContext, value string) android.ApiLevel {
+	if value == "" {
 		return android.NoneApiLevel
 	}
-	apiLevel, err := android.ApiLevelFromUser(ctx, ver)
+	apiLevel, err := android.ApiLevelFromUser(ctx, value)
 	if err != nil {
 		ctx.PropertyErrorf("min_sdk_version", "%s", err.Error())
 		return android.NoneApiLevel
@@ -2543,7 +2566,7 @@ func (a *apexBundle) checkStaticLinkingToStubLibraries(ctx android.ModuleContext
 // checkUpdatable enforces APEX and its transitive dep properties to have desired values for updatable APEXes.
 func (a *apexBundle) checkUpdatable(ctx android.ModuleContext) {
 	if a.Updatable() {
-		if String(a.properties.Min_sdk_version) == "" {
+		if a.minSdkVersionValue(ctx) == "" {
 			ctx.PropertyErrorf("updatable", "updatable APEXes should set min_sdk_version as well")
 		}
 		if a.UsePlatformApis() {
@@ -3131,6 +3154,8 @@ func (a *apexBundle) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 		fileContextsLabelAttribute.SetValue(android.BazelLabelForModuleDepSingle(ctx, *a.properties.File_contexts))
 	}
 
+	// TODO(b/219503907) this would need to be set to a.MinSdkVersionValue(ctx) but
+	// given it's coming via config, we probably don't want to put it in here.
 	var minSdkVersion *string
 	if a.properties.Min_sdk_version != nil {
 		minSdkVersion = a.properties.Min_sdk_version
