@@ -994,10 +994,11 @@ func buildRuleValidateOverlappingCsvFiles(ctx android.BuilderContext, name strin
 	rule := android.NewRuleBuilder(pctx, ctx)
 	command := rule.Command().
 		BuiltTool("verify_overlaps").
-		Input(monolithicFilePath)
+		FlagWithInput("--monolithic-flags ", monolithicFilePath)
 
 	for _, subset := range csvSubsets {
 		command.
+			Flag("--module-flags ").
 			Textf("%s:%s", subset.CsvFile, subset.SignaturePatternsFile).
 			Implicit(subset.CsvFile).Implicit(subset.SignaturePatternsFile)
 	}
