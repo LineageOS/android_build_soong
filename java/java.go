@@ -2041,6 +2041,10 @@ type javaDependencyLabels struct {
 // and also separates dependencies into dynamic dependencies and static dependencies.
 // Each corresponding Bazel target type, can have a different method for handling
 // dynamic vs. static dependencies, and so these are returned to the calling function.
+type eventLogTagsAttributes struct {
+	Srcs bazel.LabelListAttribute
+}
+
 func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext) (*javaCommonAttributes, *javaDependencyLabels) {
 	var srcs bazel.LabelListAttribute
 	archVariantProps := m.GetArchVariantProperties(ctx, &CommonProperties{})
@@ -2055,10 +2059,31 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext)
 
 	javaSrcPartition := "java"
 	protoSrcPartition := "proto"
+	logtagSrcPartition := "logtag"
 	srcPartitions := bazel.PartitionLabelListAttribute(ctx, &srcs, bazel.LabelPartitions{
-		javaSrcPartition:  bazel.LabelPartition{Extensions: []string{".java"}, Keep_remainder: true},
-		protoSrcPartition: android.ProtoSrcLabelPartition,
+		javaSrcPartition:   bazel.LabelPartition{Extensions: []string{".java"}, Keep_remainder: true},
+		logtagSrcPartition: bazel.LabelPartition{Extensions: []string{".logtags", ".logtag"}},
+		protoSrcPartition:  android.ProtoSrcLabelPartition,
 	})
+
+	javaSrcs := srcPartitions[javaSrcPartition]
+
+	var logtagsSrcs bazel.LabelList
+	if !srcPartitions[logtagSrcPartition].IsEmpty() {
+		logtagsLibName := m.Name() + "_logtags"
+		logtagsSrcs = bazel.MakeLabelList([]bazel.Label{{Label: ":" + logtagsLibName}})
+		ctx.CreateBazelTargetModule(
+			bazel.BazelTargetModuleProperties{
+				Rule_class:        "event_log_tags",
+				Bzl_load_location: "//build/make/tools:event_log_tags.bzl",
+			},
+			android.CommonAttributes{Name: logtagsLibName},
+			&eventLogTagsAttributes{
+				Srcs: srcPartitions[logtagSrcPartition],
+			},
+		)
+	}
+	javaSrcs.Append(bazel.MakeLabelListAttribute(logtagsSrcs))
 
 	var javacopts []string
 	if m.properties.Javacflags != nil {
@@ -2071,7 +2096,7 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext)
 	}
 
 	commonAttrs := &javaCommonAttributes{
-		Srcs: srcPartitions[javaSrcPartition],
+		Srcs: javaSrcs,
 		Plugins: bazel.MakeLabelListAttribute(
 			android.BazelLabelForModuleDeps(ctx, m.properties.Plugins),
 		),
