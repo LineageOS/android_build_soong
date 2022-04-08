@@ -141,22 +141,26 @@ def main(argv):
     args_parser = argparse.ArgumentParser(
         description="Verify that sets of hidden API flags are each a subset of "
         "the monolithic flag file.")
-    args_parser.add_argument("monolithicFlags", help="The monolithic flag file")
     args_parser.add_argument(
-        "modularFlags",
-        nargs=argparse.REMAINDER,
-        help="Flags produced by individual bootclasspath_fragment modules")
+        "--monolithic-flags", help="The monolithic flag file")
+    args_parser.add_argument(
+        "--module-flags",
+        action="append",
+        help="A colon separated pair of paths. The first is a path to a "
+        "filtered set of flags, and the second is a path to a set of "
+        "signature patterns that identify the set of classes belonging to "
+        "a single bootclasspath_fragment module, ")
     args = args_parser.parse_args(argv[1:])
 
     # Read in all the flags into the trie
-    monolithic_flags_path = args.monolithicFlags
+    monolithic_flags_path = args.monolithic_flags
     monolithic_trie = read_flag_trie_from_file(monolithic_flags_path)
 
     # For each subset specified on the command line, create dicts for the flags
     # provided by the subset and the corresponding flags from the complete set
     # of flags and compare them.
     failed = False
-    for modular_pair in args.modularFlags:
+    for modular_pair in args.module_flags:
         parts = modular_pair.split(":")
         modular_flags_path = parts[0]
         modular_patterns_path = parts[1]
