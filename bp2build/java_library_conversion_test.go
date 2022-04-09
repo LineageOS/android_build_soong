@@ -219,3 +219,35 @@ func TestJavaLibraryErrorproneJavacflagsErrorproneDisabledManually(t *testing.T)
 		},
 	})
 }
+
+func TestJavaLibraryLogTags(t *testing.T) {
+	runJavaLibraryTestCase(t, bp2buildTestCase{
+		description:                "Java library - logtags creates separate dependency",
+		moduleTypeUnderTest:        "java_library",
+		moduleTypeUnderTestFactory: java.LibraryFactory,
+		blueprint: `java_library {
+        name: "example_lib",
+        srcs: [
+			"a.java",
+			"b.java",
+			"a.logtag",
+			"b.logtag",
+		],
+        bazel_module: { bp2build_available: true },
+}`,
+		expectedBazelTargets: []string{
+			makeBazelTarget("event_log_tags", "example_lib_logtags", attrNameToString{
+				"srcs": `[
+        "a.logtag",
+        "b.logtag",
+    ]`,
+			}),
+			makeBazelTarget("java_library", "example_lib", attrNameToString{
+				"srcs": `[
+        "a.java",
+        "b.java",
+        ":example_lib_logtags",
+    ]`,
+			}),
+		}})
+}

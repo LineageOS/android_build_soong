@@ -1360,6 +1360,10 @@ func findOverrideValue(overrides []string, name string, errorMsg string) (newVal
 	return "", false
 }
 
+func (c *deviceConfig) ApexGlobalMinSdkVersionOverride() string {
+	return String(c.config.productVariables.ApexGlobalMinSdkVersionOverride)
+}
+
 func (c *config) IntegerOverflowDisabledForPath(path string) bool {
 	if len(c.productVariables.IntegerOverflowExcludePaths) == 0 {
 		return false

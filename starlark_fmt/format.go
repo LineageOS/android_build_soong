@@ -39,21 +39,26 @@ func PrintBool(item bool) string {
 
 // PrintsStringList returns a Starlark-compatible string of a list of Strings/Labels.
 func PrintStringList(items []string, indentLevel int) string {
-	return PrintList(items, indentLevel, `"%s"`)
+	return PrintList(items, indentLevel, func(s string) string {
+		if strings.Contains(s, "\"") {
+			return `'''%s'''`
+		}
+		return `"%s"`
+	})
 }
 
 // PrintList returns a Starlark-compatible string of list formmated as requested.
-func PrintList(items []string, indentLevel int, formatString string) string {
+func PrintList(items []string, indentLevel int, formatString func(string) string) string {
 	if len(items) == 0 {
 		return "[]"
 	} else if len(items) == 1 {
-		return fmt.Sprintf("["+formatString+"]", items[0])
+		return fmt.Sprintf("["+formatString(items[0])+"]", items[0])
 	}
 	list := make([]string, 0, len(items)+2)
 	list = append(list, "[")
 	innerIndent := Indention(indentLevel + 1)
 	for _, item := range items {
-		list = append(list, fmt.Sprintf(`%s`+formatString+`,`, innerIndent, item))
+		list = append(list, fmt.Sprintf(`%s`+formatString(item)+`,`, innerIndent, item))
 	}
 	list = append(list, Indention(indentLevel)+"]")
 	return strings.Join(list, "\n")

@@ -18,6 +18,10 @@ import (
 	"testing"
 )
 
+func simpleFormat(s string) string {
+	return "%s"
+}
+
 func TestPrintEmptyStringList(t *testing.T) {
 	in := []string{}
 	indentLevel := 0
@@ -54,7 +58,7 @@ func TestPrintMultiElementStringList(t *testing.T) {
 func TestPrintEmptyList(t *testing.T) {
 	in := []string{}
 	indentLevel := 0
-	out := PrintList(in, indentLevel, "%s")
+	out := PrintList(in, indentLevel, simpleFormat)
 	expectedOut := "[]"
 	if out != expectedOut {
 		t.Errorf("Expected %q, got %q", expectedOut, out)
@@ -64,7 +68,7 @@ func TestPrintEmptyList(t *testing.T) {
 func TestPrintSingleElementList(t *testing.T) {
 	in := []string{"1"}
 	indentLevel := 0
-	out := PrintList(in, indentLevel, "%s")
+	out := PrintList(in, indentLevel, simpleFormat)
 	expectedOut := `[1]`
 	if out != expectedOut {
 		t.Errorf("Expected %q, got %q", expectedOut, out)
@@ -74,7 +78,7 @@ func TestPrintSingleElementList(t *testing.T) {
 func TestPrintMultiElementList(t *testing.T) {
 	in := []string{"1", "2"}
 	indentLevel := 0
-	out := PrintList(in, indentLevel, "%s")
+	out := PrintList(in, indentLevel, simpleFormat)
 	expectedOut := `[
     1,
     2,
@@ -87,7 +91,7 @@ func TestPrintMultiElementList(t *testing.T) {
 func TestListWithNonZeroIndent(t *testing.T) {
 	in := []string{"1", "2"}
 	indentLevel := 1
-	out := PrintList(in, indentLevel, "%s")
+	out := PrintList(in, indentLevel, simpleFormat)
 	expectedOut := `[
         1,
         2,

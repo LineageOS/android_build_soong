@@ -95,6 +95,14 @@ func TestCreateBazelFiles_Bp2Build_CreatesDefaultFiles(t *testing.T) {
 			basename: "constants.bzl",
 		},
 		{
+			dir:      "java_toolchain",
+			basename: GeneratedBuildFileName,
+		},
+		{
+			dir:      "java_toolchain",
+			basename: "constants.bzl",
+		},
+		{
 			dir:      "metrics",
 			basename: "converted_modules.txt",
 		},
