@@ -580,7 +580,9 @@ func prettyPrint(propertyValue reflect.Value, indent int, emitZeroValues bool) (
 				elements = append(elements, val)
 			}
 		}
-		return starlark_fmt.PrintList(elements, indent, "%s"), nil
+		return starlark_fmt.PrintList(elements, indent, func(s string) string {
+			return "%s"
+		}), nil
 
 	case reflect.Struct:
 		// Special cases where the bp2build sends additional information to the codegenerator
