@@ -197,15 +197,31 @@ def init(g, handle):
 		mkname: "path/product.mk",
 		in: `
 $(call inherit-product, */font.mk)
+$(call inherit-product, $(sort $(wildcard */font.mk)))
+$(call inherit-product, $(wildcard */font.mk))
+
+include */font.mk
+include $(sort $(wildcard */font.mk))
+include $(wildcard */font.mk)
 `,
 		expected: `load("//build/make/core:product_config.rbc", "rblf")
-load("//foo:font.star", _font_init = "init")
-load("//bar:font.star", _font1_init = "init")
+load("//bar:font.star", _font_init = "init")
+load("//foo:font.star", _font1_init = "init")
 
 def init(g, handle):
   cfg = rblf.cfg(handle)
-  rblf.inherit(handle, "foo/font", _font_init)
-  rblf.inherit(handle, "bar/font", _font1_init)
+  rblf.inherit(handle, "bar/font", _font_init)
+  rblf.inherit(handle, "foo/font", _font1_init)
+  rblf.inherit(handle, "bar/font", _font_init)
+  rblf.inherit(handle, "foo/font", _font1_init)
+  rblf.inherit(handle, "bar/font", _font_init)
+  rblf.inherit(handle, "foo/font", _font1_init)
+  _font_init(g, handle)
+  _font1_init(g, handle)
+  _font_init(g, handle)
+  _font1_init(g, handle)
+  _font_init(g, handle)
+  _font1_init(g, handle)
 `,
 	},
 	{
@@ -759,8 +775,8 @@ def init(g, handle):
   cfg = rblf.cfg(handle)
   rblf.enforce_product_packages_exist("")
   rblf.enforce_product_packages_exist("foo")
-  rblf.require_artifacts_in_path("foo", "bar")
-  rblf.require_artifacts_in_path_relaxed("foo", "bar")
+  rblf.require_artifacts_in_path(handle, "foo", "bar")
+  rblf.require_artifacts_in_path_relaxed(handle, "foo", "bar")
   rblf.mkdist_for_goals(g, "goal", "from:to")
   rblf.add_product_dex_preopt_module_config(handle, "MyModule", "disable")
 `,
@@ -1022,12 +1038,13 @@ def init(g, handle):
 `,
 	},
 	{
-		desc:   "strip function",
+		desc:   "strip/sort functions",
 		mkname: "product.mk",
 		in: `
 ifeq ($(filter hwaddress,$(PRODUCT_PACKAGES)),)
    PRODUCT_PACKAGES := $(strip $(PRODUCT_PACKAGES) hwaddress)
 endif
+MY_VAR := $(sort b a c)
 `,
 		expected: `load("//build/make/core:product_config.rbc", "rblf")
 
@@ -1036,6 +1053,7 @@ def init(g, handle):
   if "hwaddress" not in cfg.get("PRODUCT_PACKAGES", []):
     rblf.setdefault(handle, "PRODUCT_PACKAGES")
     cfg["PRODUCT_PACKAGES"] = (rblf.mkstrip("%s hwaddress" % " ".join(cfg.get("PRODUCT_PACKAGES", [])))).split()
+  g["MY_VAR"] = rblf.mksort("b a c")
 `,
 	},
 	{
