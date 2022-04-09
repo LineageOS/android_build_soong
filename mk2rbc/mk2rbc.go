@@ -32,6 +32,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"text/scanner"
@@ -106,10 +107,11 @@ var knownFunctions = map[string]interface {
 	"my-dir":                               &myDirCallParser{},
 	"patsubst":                             &substCallParser{fname: "patsubst"},
 	"product-copy-files-by-pattern":        &simpleCallParser{name: baseName + ".product_copy_files_by_pattern", returnType: starlarkTypeList},
-	"require-artifacts-in-path":            &simpleCallParser{name: baseName + ".require_artifacts_in_path", returnType: starlarkTypeVoid},
-	"require-artifacts-in-path-relaxed":    &simpleCallParser{name: baseName + ".require_artifacts_in_path_relaxed", returnType: starlarkTypeVoid},
+	"require-artifacts-in-path":            &simpleCallParser{name: baseName + ".require_artifacts_in_path", returnType: starlarkTypeVoid, addHandle: true},
+	"require-artifacts-in-path-relaxed":    &simpleCallParser{name: baseName + ".require_artifacts_in_path_relaxed", returnType: starlarkTypeVoid, addHandle: true},
 	// TODO(asmundak): remove it once all calls are removed from configuration makefiles. see b/183161002
 	"shell":    &shellCallParser{},
+	"sort":     &simpleCallParser{name: baseName + ".mksort", returnType: starlarkTypeList},
 	"strip":    &simpleCallParser{name: baseName + ".mkstrip", returnType: starlarkTypeString},
 	"subst":    &substCallParser{fname: "subst"},
 	"warning":  &makeControlFuncParser{name: baseName + ".mkwarning"},
@@ -758,6 +760,16 @@ func (ctx *parseContext) newDependentModule(path string, optional bool) *moduleI
 func (ctx *parseContext) handleSubConfig(
 	v mkparser.Node, pathExpr starlarkExpr, loadAlways bool, processModule func(inheritedModule) starlarkNode) []starlarkNode {
 
+	// Allow seeing $(sort $(wildcard realPathExpr)) or $(wildcard realPathExpr)
+	// because those are functionally the same as not having the sort/wildcard calls.
+	if ce, ok := pathExpr.(*callExpr); ok && ce.name == "rblf.mksort" && len(ce.args) == 1 {
+		if ce2, ok2 := ce.args[0].(*callExpr); ok2 && ce2.name == "rblf.expand_wildcard" && len(ce2.args) == 1 {
+			pathExpr = ce2.args[0]
+		}
+	} else if ce2, ok2 := pathExpr.(*callExpr); ok2 && ce2.name == "rblf.expand_wildcard" && len(ce2.args) == 1 {
+		pathExpr = ce2.args[0]
+	}
+
 	// In a simple case, the name of a module to inherit/include is known statically.
 	if path, ok := maybeString(pathExpr); ok {
 		// Note that even if this directive loads a module unconditionally, a module may be
@@ -765,6 +777,7 @@ func (ctx *parseContext) handleSubConfig(
 		moduleShouldExist := loadAlways && ctx.ifNestLevel == 0
 		if strings.Contains(path, "*") {
 			if paths, err := fs.Glob(ctx.script.sourceFS, path); err == nil {
+				sort.Strings(paths)
 				result := make([]starlarkNode, 0)
 				for _, p := range paths {
 					mi := ctx.newDependentModule(p, !moduleShouldExist)
