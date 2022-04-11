@@ -45,6 +45,8 @@ func recordMissingAfdoProfileFile(ctx android.BaseModuleContext, missing string)
 }
 
 type AfdoProperties struct {
+	// Afdo allows developers self-service enroll for
+	// automatic feedback-directed optimization using profile data.
 	Afdo bool
 
 	AfdoTarget *string  `blueprint:"mutated"`
