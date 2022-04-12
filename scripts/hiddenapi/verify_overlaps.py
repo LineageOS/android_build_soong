@@ -107,7 +107,8 @@ def read_signature_csv_from_file_as_dict(csv_file):
         return read_signature_csv_from_stream_as_dict(f)
 
 
-def compare_signature_flags(monolithic_flags_dict, modular_flags_dict):
+def compare_signature_flags(monolithic_flags_dict, modular_flags_dict,
+                            implementation_flags):
     """Compare the signature flags between the two dicts.
 
     :param monolithic_flags_dict: the dict containing the subset of the
@@ -130,7 +131,7 @@ def compare_signature_flags(monolithic_flags_dict, modular_flags_dict):
             modular_row = modular_flags_dict.get(signature, {})
             modular_flags = modular_row.get(None, [])
         else:
-            modular_flags = ["blocked"]
+            modular_flags = implementation_flags
         if monolithic_flags != modular_flags:
             mismatching_signatures.append(
                 (signature, modular_flags, monolithic_flags))
@@ -140,7 +141,13 @@ def compare_signature_flags(monolithic_flags_dict, modular_flags_dict):
 def main(argv):
     args_parser = argparse.ArgumentParser(
         description="Verify that sets of hidden API flags are each a subset of "
-        "the monolithic flag file.")
+        "the monolithic flag file. For each module this uses the provided "
+        "signature patterns to select a subset of the monolithic flags and "
+        "then it compares that subset against the filtered flags provided by "
+        "the module. If the module's filtered flags does not contain flags for "
+        "a signature then it is assumed to have been filtered out because it "
+        "was not part of an API and so is assumed to have the implementation "
+        "flags.")
     args_parser.add_argument(
         "--monolithic-flags", help="The monolithic flag file")
     args_parser.add_argument(
@@ -149,18 +156,30 @@ def main(argv):
         help="A colon separated pair of paths. The first is a path to a "
         "filtered set of flags, and the second is a path to a set of "
         "signature patterns that identify the set of classes belonging to "
-        "a single bootclasspath_fragment module, ")
+        "a single bootclasspath_fragment module. Specify once for each module "
+        "that needs to be checked.")
+    args_parser.add_argument(
+        "--implementation-flag",
+        action="append",
+        help="A flag in the set of flags that identifies a signature which is "
+        "not part of an API, i.e. is the signature of a private implementation "
+        "member. Specify as many times as necessary to define the "
+        "implementation flag set. If this is not specified then the "
+        "implementation flag set is empty.")
     args = args_parser.parse_args(argv[1:])
 
     # Read in all the flags into the trie
     monolithic_flags_path = args.monolithic_flags
     monolithic_trie = read_flag_trie_from_file(monolithic_flags_path)
 
+    implementation_flags = args.implementation_flag or []
+
     # For each subset specified on the command line, create dicts for the flags
     # provided by the subset and the corresponding flags from the complete set
     # of flags and compare them.
     failed = False
-    for modular_pair in args.module_flags:
+    module_pairs = args.module_flags or []
+    for modular_pair in module_pairs:
         parts = modular_pair.split(":")
         modular_flags_path = parts[0]
         modular_patterns_path = parts[1]
@@ -170,7 +189,8 @@ def main(argv):
             extract_subset_from_monolithic_flags_as_dict_from_file(
                 monolithic_trie, modular_patterns_path)
         mismatching_signatures = compare_signature_flags(
-            monolithic_flags_subset_dict, modular_flags_dict)
+            monolithic_flags_subset_dict, modular_flags_dict,
+            implementation_flags)
         if mismatching_signatures:
             failed = True
             print("ERROR: Hidden API flags are inconsistent:")

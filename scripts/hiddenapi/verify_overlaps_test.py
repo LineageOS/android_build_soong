@@ -221,7 +221,8 @@ Ljava/lang/Object;->hashCode()I,public-api,system-api,test-api
         modular = self.read_signature_csv_from_string_as_dict("""
 Ljava/lang/Object;->hashCode()I,public-api,system-api,test-api
 """)
-        mismatches = vo.compare_signature_flags(monolithic, modular)
+        mismatches = vo.compare_signature_flags(monolithic, modular,
+                                                ["blocked"])
         expected = []
         self.assertEqual(expected, mismatches)
 
@@ -232,7 +233,8 @@ Ljava/lang/Object;->toString()Ljava/lang/String;,public-api
         modular = self.read_signature_csv_from_string_as_dict("""
 Ljava/lang/Object;->toString()Ljava/lang/String;,public-api,system-api,test-api
 """)
-        mismatches = vo.compare_signature_flags(monolithic, modular)
+        mismatches = vo.compare_signature_flags(monolithic, modular,
+                                                ["blocked"])
         expected = [
             (
                 "Ljava/lang/Object;->toString()Ljava/lang/String;",
@@ -249,7 +251,8 @@ Ljava/lang/Object;->toString()Ljava/lang/String;,blocked
         modular = self.read_signature_csv_from_string_as_dict("""
 Ljava/lang/Object;->toString()Ljava/lang/String;,public-api,system-api,test-api
 """)
-        mismatches = vo.compare_signature_flags(monolithic, modular)
+        mismatches = vo.compare_signature_flags(monolithic, modular,
+                                                ["blocked"])
         expected = [
             (
                 "Ljava/lang/Object;->toString()Ljava/lang/String;",
@@ -266,7 +269,8 @@ Ljava/lang/Object;->toString()Ljava/lang/String;,public-api,system-api,test-api
         modular = self.read_signature_csv_from_string_as_dict("""
 Ljava/lang/Object;->toString()Ljava/lang/String;,blocked
 """)
-        mismatches = vo.compare_signature_flags(monolithic, modular)
+        mismatches = vo.compare_signature_flags(monolithic, modular,
+                                                ["blocked"])
         expected = [
             (
                 "Ljava/lang/Object;->toString()Ljava/lang/String;",
@@ -281,7 +285,8 @@ Ljava/lang/Object;->toString()Ljava/lang/String;,blocked
         modular = self.read_signature_csv_from_string_as_dict("""
 Ljava/lang/Object;->toString()Ljava/lang/String;,public-api,system-api,test-api
 """)
-        mismatches = vo.compare_signature_flags(monolithic, modular)
+        mismatches = vo.compare_signature_flags(monolithic, modular,
+                                                ["blocked"])
         expected = [
             (
                 "Ljava/lang/Object;->toString()Ljava/lang/String;",
@@ -296,7 +301,8 @@ Ljava/lang/Object;->toString()Ljava/lang/String;,public-api,system-api,test-api
 Ljava/lang/Object;->hashCode()I,public-api,system-api,test-api
 """)
         modular = {}
-        mismatches = vo.compare_signature_flags(monolithic, modular)
+        mismatches = vo.compare_signature_flags(monolithic, modular,
+                                                ["blocked"])
         expected = [
             (
                 "Ljava/lang/Object;->hashCode()I",
@@ -311,7 +317,47 @@ Ljava/lang/Object;->hashCode()I,public-api,system-api,test-api
 Ljava/lang/Object;->hashCode()I,blocked
 """)
         modular = {}
-        mismatches = vo.compare_signature_flags(monolithic, modular)
+        mismatches = vo.compare_signature_flags(monolithic, modular,
+                                                ["blocked"])
+        expected = []
+        self.assertEqual(expected, mismatches)
+
+    def test_match_treat_missing_from_modular_as_empty(self):
+        monolithic = self.read_signature_csv_from_string_as_dict("")
+        modular = self.read_signature_csv_from_string_as_dict("""
+Ljava/lang/Object;->toString()Ljava/lang/String;,public-api,system-api,test-api
+""")
+        mismatches = vo.compare_signature_flags(monolithic, modular, [])
+        expected = [
+            (
+                "Ljava/lang/Object;->toString()Ljava/lang/String;",
+                ["public-api", "system-api", "test-api"],
+                [],
+            ),
+        ]
+        self.assertEqual(expected, mismatches)
+
+    def test_mismatch_treat_missing_from_modular_as_empty(self):
+        monolithic = self.read_signature_csv_from_string_as_dict("""
+Ljava/lang/Object;->hashCode()I,public-api,system-api,test-api
+""")
+        modular = {}
+        mismatches = vo.compare_signature_flags(monolithic, modular, [])
+        expected = [
+            (
+                "Ljava/lang/Object;->hashCode()I",
+                [],
+                ["public-api", "system-api", "test-api"],
+            ),
+        ]
+        self.assertEqual(expected, mismatches)
+
+    def test_empty_missing_from_modular(self):
+        monolithic = self.read_signature_csv_from_string_as_dict("""
+Ljava/lang/Object;->hashCode()I
+""")
+        modular = {}
+        mismatches = vo.compare_signature_flags(monolithic, modular, [])
         expected = []
         self.assertEqual(expected, mismatches)
 
