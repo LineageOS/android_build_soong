@@ -3009,3 +3009,24 @@ func TestTargetSdkVersionManifestFixer(t *testing.T) {
 		android.AssertStringDoesContain(t, testCase.name, manifestFixerArgs, "--targetSdkVersion  "+testCase.targetSdkVersionExpected)
 	}
 }
+
+func TestAppMissingCertificateAllowMissingDependencies(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		PrepareForTestWithJavaDefaultModules,
+		android.PrepareForTestWithAllowMissingDependencies,
+		android.PrepareForTestWithAndroidMk,
+	).RunTestWithBp(t, `
+		android_app {
+			name: "foo",
+			srcs: ["a.java"],
+			certificate: ":missing_certificate",
+			sdk_version: "current",
+		}`)
+
+	foo := result.ModuleForTests("foo", "android_common")
+	fooApk := foo.Output("foo.apk")
+	if fooApk.Rule != android.ErrorRule {
+		t.Fatalf("expected ErrorRule for foo.apk, got %s", fooApk.Rule.String())
+	}
+	android.AssertStringDoesContain(t, "expected error rule message", fooApk.Args["error"], "missing dependencies: missing_certificate\n")
+}
