@@ -144,6 +144,12 @@ func checkTopDir(ctx Context) {
 // fetchEnvConfig optionally fetches environment config from an
 // experiments system to control Soong features dynamically.
 func fetchEnvConfig(ctx Context, config *configImpl, envConfigName string) error {
+	configName := envConfigName + "." + jsonSuffix
+	expConfigFetcher := &smpb.ExpConfigFetcher{}
+	defer func() {
+		ctx.Metrics.ExpConfigFetcher(expConfigFetcher)
+	}()
+
 	s, err := os.Stat(configFetcher)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -152,30 +158,37 @@ func fetchEnvConfig(ctx Context, config *configImpl, envConfigName string) error
 		return err
 	}
 	if s.Mode()&0111 == 0 {
+		status := smpb.ExpConfigFetcher_ERROR
+		expConfigFetcher.Status = &status
 		return fmt.Errorf("configuration fetcher binary %v is not executable: %v", configFetcher, s.Mode())
-	}
-
-	configExists := false
-	outConfigFilePath := filepath.Join(config.OutDir(), envConfigName+jsonSuffix)
-	if _, err := os.Stat(outConfigFilePath); err == nil {
-		configExists = true
 	}
 
 	tCtx, cancel := context.WithTimeout(ctx, envConfigFetchTimeout)
 	defer cancel()
-	cmd := exec.CommandContext(tCtx, configFetcher, "-output_config_dir", config.OutDir())
+	fetchStart := time.Now()
+	cmd := exec.CommandContext(tCtx, configFetcher, "-output_config_dir", config.OutDir(),
+		"-output_config_name", configName)
 	if err := cmd.Start(); err != nil {
+		status := smpb.ExpConfigFetcher_ERROR
+		expConfigFetcher.Status = &status
 		return err
 	}
 
-	// If a config file already exists, return immediately and run the config file
-	// fetch in the background. Otherwise, wait for the config file to be fetched.
-	if configExists {
-		go cmd.Wait()
-		return nil
-	}
 	if err := cmd.Wait(); err != nil {
+		status := smpb.ExpConfigFetcher_ERROR
+		expConfigFetcher.Status = &status
 		return err
+	}
+	fetchEnd := time.Now()
+	expConfigFetcher.Micros = proto.Uint64(uint64(fetchEnd.Sub(fetchStart).Microseconds()))
+	outConfigFilePath := filepath.Join(config.OutDir(), configName)
+	expConfigFetcher.Filename = proto.String(outConfigFilePath)
+	if _, err := os.Stat(outConfigFilePath); err == nil {
+		status := smpb.ExpConfigFetcher_CONFIG
+		expConfigFetcher.Status = &status
+	} else {
+		status := smpb.ExpConfigFetcher_NO_CONFIG
+		expConfigFetcher.Status = &status
 	}
 	return nil
 }
