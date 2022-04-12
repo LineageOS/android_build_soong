@@ -38,6 +38,7 @@ import (
 	"time"
 
 	"android/soong/shared"
+
 	"google.golang.org/protobuf/proto"
 
 	soong_metrics_proto "android/soong/ui/metrics/metrics_proto"
@@ -133,6 +134,11 @@ func (m *Metrics) BuildConfig(b *soong_metrics_proto.BuildConfig) {
 // as total CPU and memory.
 func (m *Metrics) SystemResourceInfo(b *soong_metrics_proto.SystemResourceInfo) {
 	m.metrics.SystemResourceInfo = b
+}
+
+// ExpConfigFetcher stores information about the expconfigfetcher.
+func (m *Metrics) ExpConfigFetcher(b *soong_metrics_proto.ExpConfigFetcher) {
+	m.metrics.ExpConfigFetcher = b
 }
 
 // SetMetadataMetrics sets information about the build such as the target
