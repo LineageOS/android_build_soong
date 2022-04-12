@@ -113,9 +113,6 @@ func (i ApexInfo) mergedName(ctx PathContext) string {
 	for _, sdk := range i.RequiredSdks {
 		name += "_" + sdk.Name + "_" + sdk.Version
 	}
-	if i.UsePlatformApis {
-		name += "_private"
-	}
 	return name
 }
 
@@ -546,10 +543,9 @@ func mergeApexVariations(ctx PathContext, apexInfos []ApexInfo) (merged []ApexIn
 			merged[index].InApexModules = append(merged[index].InApexModules, apexInfo.InApexModules...)
 			merged[index].ApexContents = append(merged[index].ApexContents, apexInfo.ApexContents...)
 			merged[index].Updatable = merged[index].Updatable || apexInfo.Updatable
-			if merged[index].UsePlatformApis != apexInfo.UsePlatformApis {
-				panic(fmt.Errorf("variants having different UsePlatformApis can't be merged"))
-			}
-			merged[index].UsePlatformApis = apexInfo.UsePlatformApis
+			// Platform APIs is allowed for this module only when all APEXes containing
+			// the module are with `use_platform_apis: true`.
+			merged[index].UsePlatformApis = merged[index].UsePlatformApis && apexInfo.UsePlatformApis
 		} else {
 			seen[mergedName] = len(merged)
 			apexInfo.ApexVariationName = mergedName
