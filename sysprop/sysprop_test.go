@@ -98,9 +98,6 @@ func test(t *testing.T, bp string) *android.TestResult {
 
 		"build/soong/scripts/jar-wrapper.sh": nil,
 
-		"build/make/core/proguard.flags":             nil,
-		"build/make/core/proguard_basic_keeps.flags": nil,
-
 		"jdk8/jre/lib/jce.jar": nil,
 		"jdk8/jre/lib/rt.jar":  nil,
 		"jdk8/lib/tools.jar":   nil,
