@@ -1218,6 +1218,17 @@ func (c *Module) IsVendorPublicLibrary() bool {
 	return c.VendorProperties.IsVendorPublicLibrary
 }
 
+func (c *Module) IsVndkPrebuiltLibrary() bool {
+	if _, ok := c.linker.(*vndkPrebuiltLibraryDecorator); ok {
+		return true
+	}
+	return false
+}
+
+func (c *Module) SdkAndPlatformVariantVisibleToMake() bool {
+	return c.Properties.SdkAndPlatformVariantVisibleToMake
+}
+
 func (c *Module) HasLlndkStubs() bool {
 	lib := moduleLibraryInterface(c)
 	return lib != nil && lib.hasLLNDKStubs()
@@ -1699,7 +1710,7 @@ func (c *Module) DataPaths() []android.DataPath {
 	return nil
 }
 
-func (c *Module) getNameSuffixWithVndkVersion(ctx android.ModuleContext) string {
+func getNameSuffixWithVndkVersion(ctx android.ModuleContext, c LinkableInterface) string {
 	// Returns the name suffix for product and vendor variants. If the VNDK version is not
 	// "current", it will append the VNDK version to the name suffix.
 	var vndkVersion string
@@ -1719,19 +1730,19 @@ func (c *Module) getNameSuffixWithVndkVersion(ctx android.ModuleContext) string 
 	if vndkVersion == "current" {
 		vndkVersion = ctx.DeviceConfig().PlatformVndkVersion()
 	}
-	if c.Properties.VndkVersion != vndkVersion && c.Properties.VndkVersion != "" {
+	if c.VndkVersion() != vndkVersion && c.VndkVersion() != "" {
 		// add version suffix only if the module is using different vndk version than the
 		// version in product or vendor partition.
-		nameSuffix += "." + c.Properties.VndkVersion
+		nameSuffix += "." + c.VndkVersion()
 	}
 	return nameSuffix
 }
 
-func (c *Module) setSubnameProperty(actx android.ModuleContext) {
-	c.Properties.SubName = ""
+func GetSubnameProperty(actx android.ModuleContext, c LinkableInterface) string {
+	var subName = ""
 
 	if c.Target().NativeBridge == android.NativeBridgeEnabled {
-		c.Properties.SubName += NativeBridgeSuffix
+		subName += NativeBridgeSuffix
 	}
 
 	llndk := c.IsLlndk()
@@ -1739,25 +1750,27 @@ func (c *Module) setSubnameProperty(actx android.ModuleContext) {
 		// .vendor.{version} suffix is added for vendor variant or .product.{version} suffix is
 		// added for product variant only when we have vendor and product variants with core
 		// variant. The suffix is not added for vendor-only or product-only module.
-		c.Properties.SubName += c.getNameSuffixWithVndkVersion(actx)
+		subName += getNameSuffixWithVndkVersion(actx, c)
 	} else if c.IsVendorPublicLibrary() {
-		c.Properties.SubName += vendorPublicLibrarySuffix
-	} else if _, ok := c.linker.(*vndkPrebuiltLibraryDecorator); ok {
+		subName += vendorPublicLibrarySuffix
+	} else if c.IsVndkPrebuiltLibrary() {
 		// .vendor suffix is added for backward compatibility with VNDK snapshot whose names with
 		// such suffixes are already hard-coded in prebuilts/vndk/.../Android.bp.
-		c.Properties.SubName += VendorSuffix
+		subName += VendorSuffix
 	} else if c.InRamdisk() && !c.OnlyInRamdisk() {
-		c.Properties.SubName += RamdiskSuffix
+		subName += RamdiskSuffix
 	} else if c.InVendorRamdisk() && !c.OnlyInVendorRamdisk() {
-		c.Properties.SubName += VendorRamdiskSuffix
+		subName += VendorRamdiskSuffix
 	} else if c.InRecovery() && !c.OnlyInRecovery() {
-		c.Properties.SubName += RecoverySuffix
-	} else if c.IsSdkVariant() && (c.Properties.SdkAndPlatformVariantVisibleToMake || c.SplitPerApiLevel()) {
-		c.Properties.SubName += sdkSuffix
+		subName += RecoverySuffix
+	} else if c.IsSdkVariant() && (c.SdkAndPlatformVariantVisibleToMake() || c.SplitPerApiLevel()) {
+		subName += sdkSuffix
 		if c.SplitPerApiLevel() {
-			c.Properties.SubName += "." + c.SdkVersion()
+			subName += "." + c.SdkVersion()
 		}
 	}
+
+	return subName
 }
 
 // Returns true if Bazel was successfully used for the analysis of this module.
@@ -1795,7 +1808,7 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		return
 	}
 
-	c.setSubnameProperty(actx)
+	c.Properties.SubName = GetSubnameProperty(actx, c)
 	apexInfo := actx.Provider(android.ApexInfoProvider).(android.ApexInfo)
 	if !apexInfo.IsForPlatform() {
 		c.hideApexVariantFromMake = true
