@@ -86,12 +86,7 @@ func init() {
 		return "${RustDefaultBase}"
 	})
 
-	pctx.VariableFunc("RustVersion", func(ctx android.PackageVarContext) string {
-		if override := ctx.Config().Getenv("RUST_PREBUILTS_VERSION"); override != "" {
-			return override
-		}
-		return RustDefaultVersion
-	})
+	pctx.VariableFunc("RustVersion", getRustVersionPctx)
 
 	pctx.StaticVariable("RustPath", "${RustBase}/${HostPrebuiltTag}/${RustVersion}")
 	pctx.StaticVariable("RustBin", "${RustPath}/bin")
@@ -102,4 +97,15 @@ func init() {
 
 	pctx.StaticVariable("DeviceGlobalLinkFlags", strings.Join(deviceGlobalLinkFlags, " "))
 
+}
+
+func getRustVersionPctx(ctx android.PackageVarContext) string {
+	return GetRustVersion(ctx)
+}
+
+func GetRustVersion(ctx android.PathContext) string {
+	if override := ctx.Config().Getenv("RUST_PREBUILTS_VERSION"); override != "" {
+		return override
+	}
+	return RustDefaultVersion
 }
