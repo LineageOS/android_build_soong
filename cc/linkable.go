@@ -176,10 +176,14 @@ type LinkableInterface interface {
 	IsVndk() bool
 	IsVndkExt() bool
 	IsVndkPrivate() bool
+	IsVendorPublicLibrary() bool
+	IsVndkPrebuiltLibrary() bool
 	HasVendorVariant() bool
 	HasProductVariant() bool
 	HasNonSystemVariants() bool
+	ProductSpecific() bool
 	InProduct() bool
+	SdkAndPlatformVariantVisibleToMake() bool
 
 	// SubName returns the modules SubName, used for image and NDK/SDK variations.
 	SubName() string
