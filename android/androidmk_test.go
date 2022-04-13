@@ -50,6 +50,8 @@ const (
 
 func (m *customModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 
+	m.base().licenseMetadataFile = PathForOutput(ctx, "meta_lic")
+
 	// If the dist_output_file: true then create an output file that is stored in
 	// the OutputFile property of the AndroidMkEntry.
 	if proptools.BoolDefault(m.properties.Dist_output_file, true) {
@@ -198,10 +200,13 @@ func TestGenerateDistContributionsForMake(t *testing.T) {
 		},
 	}
 
+	dc.licenseMetadataFile = PathForTesting("meta_lic")
 	makeOutput := generateDistContributionsForMake(dc)
 
 	assertStringEquals(t, `.PHONY: my_goal
+$(if $(strip $(ALL_TARGETS.one.out.META_LIC)),,$(eval ALL_TARGETS.one.out.META_LIC := meta_lic))
 $(call dist-for-goals,my_goal,one.out:one.out)
+$(if $(strip $(ALL_TARGETS.two.out.META_LIC)),,$(eval ALL_TARGETS.two.out.META_LIC := meta_lic))
 $(call dist-for-goals,my_goal,two.out:other.out)
 `, strings.Join(makeOutput, ""))
 }
@@ -243,18 +248,26 @@ func TestGetDistForGoals(t *testing.T) {
 
 	expectedAndroidMkLines := []string{
 		".PHONY: my_second_goal\n",
+		"$(if $(strip $(ALL_TARGETS.two.out.META_LIC)),,$(eval ALL_TARGETS.two.out.META_LIC := meta_lic))\n",
 		"$(call dist-for-goals,my_second_goal,two.out:two.out)\n",
+		"$(if $(strip $(ALL_TARGETS.three/four.out.META_LIC)),,$(eval ALL_TARGETS.three/four.out.META_LIC := meta_lic))\n",
 		"$(call dist-for-goals,my_second_goal,three/four.out:four.out)\n",
 		".PHONY: my_third_goal\n",
+		"$(if $(strip $(ALL_TARGETS.one.out.META_LIC)),,$(eval ALL_TARGETS.one.out.META_LIC := meta_lic))\n",
 		"$(call dist-for-goals,my_third_goal,one.out:test/dir/one.out)\n",
 		".PHONY: my_fourth_goal\n",
+		"$(if $(strip $(ALL_TARGETS.one.out.META_LIC)),,$(eval ALL_TARGETS.one.out.META_LIC := meta_lic))\n",
 		"$(call dist-for-goals,my_fourth_goal,one.out:one.suffix.out)\n",
 		".PHONY: my_fifth_goal\n",
+		"$(if $(strip $(ALL_TARGETS.one.out.META_LIC)),,$(eval ALL_TARGETS.one.out.META_LIC := meta_lic))\n",
 		"$(call dist-for-goals,my_fifth_goal,one.out:new-name)\n",
 		".PHONY: my_sixth_goal\n",
+		"$(if $(strip $(ALL_TARGETS.one.out.META_LIC)),,$(eval ALL_TARGETS.one.out.META_LIC := meta_lic))\n",
 		"$(call dist-for-goals,my_sixth_goal,one.out:some/dir/new-name.suffix)\n",
 		".PHONY: my_goal my_other_goal\n",
+		"$(if $(strip $(ALL_TARGETS.two.out.META_LIC)),,$(eval ALL_TARGETS.two.out.META_LIC := meta_lic))\n",
 		"$(call dist-for-goals,my_goal my_other_goal,two.out:two.out)\n",
+		"$(if $(strip $(ALL_TARGETS.three/four.out.META_LIC)),,$(eval ALL_TARGETS.three/four.out.META_LIC := meta_lic))\n",
 		"$(call dist-for-goals,my_goal my_other_goal,three/four.out:four.out)\n",
 	}
 
@@ -274,7 +287,7 @@ func TestGetDistForGoals(t *testing.T) {
 		)
 	}
 	for idx, line := range androidMkLines {
-		expectedLine := expectedAndroidMkLines[idx]
+		expectedLine := strings.ReplaceAll(expectedAndroidMkLines[idx], "meta_lic", module.base().licenseMetadataFile.String())
 		if line != expectedLine {
 			t.Errorf(
 				"Expected AndroidMk line to be '%s', got '%s'",
