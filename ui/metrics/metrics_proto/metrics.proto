@@ -108,6 +108,9 @@ message MetricsBase {
 
   // The metrics for calling Bazel.
   repeated PerfInfo bazel_runs = 27;
+
+  // The metrics of the experiment config fetcher
+  optional ExpConfigFetcher exp_config_fetcher = 28;
 }
 
 message BuildConfig {
@@ -238,4 +241,23 @@ message SoongBuildMetrics {
 
   // Runtime metrics for soong_build execution.
   repeated PerfInfo events = 6;
+}
+
+message ExpConfigFetcher {
+  enum ConfigStatus {
+    NO_CONFIG = 0;
+    CONFIG = 1;
+    ERROR = 2;
+  }
+  // The result of the call to expconfigfetcher
+  // NO_CONFIG - Not part of experiment
+  // CONFIG - Part of experiment, config copied successfully
+  // ERROR - expconfigfetcher failed
+  optional ConfigStatus status = 1;
+
+  // The output config filename
+  optional string filename = 2;
+
+  // Time, in microseconds, taken by the expconfigfetcher
+  optional uint64 micros = 3;
 }

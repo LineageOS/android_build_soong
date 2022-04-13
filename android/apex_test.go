@@ -118,17 +118,30 @@ func Test_mergeApexVariations(t *testing.T) {
 			},
 		},
 		{
-			name: "don't merge different UsePlatformApis",
+			name: "merge different UsePlatformApis but don't allow using platform api",
 			in: []ApexInfo{
 				{"foo", FutureApiLevel, false, false, nil, []string{"foo"}, []string{"foo"}, nil, NotForPrebuiltApex},
 				{"bar", FutureApiLevel, false, true, nil, []string{"bar"}, []string{"bar"}, nil, NotForPrebuiltApex},
 			},
 			wantMerged: []ApexInfo{
-				{"apex10000_private", FutureApiLevel, false, true, nil, []string{"bar"}, []string{"bar"}, nil, NotForPrebuiltApex},
-				{"apex10000", FutureApiLevel, false, false, nil, []string{"foo"}, []string{"foo"}, nil, NotForPrebuiltApex},
+				{"apex10000", FutureApiLevel, false, false, nil, []string{"bar", "foo"}, []string{"bar", "foo"}, nil, NotForPrebuiltApex},
 			},
 			wantAliases: [][2]string{
-				{"bar", "apex10000_private"},
+				{"bar", "apex10000"},
+				{"foo", "apex10000"},
+			},
+		},
+		{
+			name: "merge same UsePlatformApis and allow using platform api",
+			in: []ApexInfo{
+				{"foo", FutureApiLevel, false, true, nil, []string{"foo"}, []string{"foo"}, nil, NotForPrebuiltApex},
+				{"bar", FutureApiLevel, false, true, nil, []string{"bar"}, []string{"bar"}, nil, NotForPrebuiltApex},
+			},
+			wantMerged: []ApexInfo{
+				{"apex10000", FutureApiLevel, false, true, nil, []string{"bar", "foo"}, []string{"bar", "foo"}, nil, NotForPrebuiltApex},
+			},
+			wantAliases: [][2]string{
+				{"bar", "apex10000"},
 				{"foo", "apex10000"},
 			},
 		},
