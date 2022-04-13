@@ -750,7 +750,7 @@ func filesHaveSameContents(a, b string) bool {
 		return false
 	}
 	defer fileA.Close()
-	fileB, err := os.Open(a)
+	fileB, err := os.Open(b)
 	if err != nil {
 		return false
 	}
