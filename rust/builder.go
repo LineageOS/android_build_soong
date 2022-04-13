@@ -274,7 +274,7 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 		implicits = append(implicits, outputs.Paths()...)
 	}
 
-	envVars = append(envVars, "ANDROID_RUST_VERSION="+config.RustDefaultVersion)
+	envVars = append(envVars, "ANDROID_RUST_VERSION="+config.GetRustVersion(ctx))
 
 	if ctx.RustModule().compiler.CargoEnvCompat() {
 		if _, ok := ctx.RustModule().compiler.(*binaryDecorator); ok {
