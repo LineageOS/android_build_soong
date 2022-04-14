@@ -80,7 +80,7 @@ var knownFunctions = map[string]interface {
 	"copy-files":                           &simpleCallParser{name: baseName + ".copy_files", returnType: starlarkTypeList},
 	"dir":                                  &simpleCallParser{name: baseName + ".dir", returnType: starlarkTypeString},
 	"dist-for-goals":                       &simpleCallParser{name: baseName + ".mkdist_for_goals", returnType: starlarkTypeVoid, addGlobals: true},
-	"enforce-product-packages-exist":       &simpleCallParser{name: baseName + ".enforce_product_packages_exist", returnType: starlarkTypeVoid},
+	"enforce-product-packages-exist":       &simpleCallParser{name: baseName + ".enforce_product_packages_exist", returnType: starlarkTypeVoid, addHandle: true},
 	"error":                                &makeControlFuncParser{name: baseName + ".mkerror"},
 	"findstring":                           &simpleCallParser{name: baseName + ".findstring", returnType: starlarkTypeInt},
 	"find-copy-subdir-files":               &simpleCallParser{name: baseName + ".find_and_copy", returnType: starlarkTypeList},
@@ -1241,7 +1241,7 @@ func (ctx *parseContext) maybeParseFunctionCall(node mkparser.Node, ref *mkparse
 		}
 		name = words[0].Dump()
 		if len(words) < 2 {
-			args = &mkparser.MakeString{}
+			args = mkparser.SimpleMakeString("", words[0].Pos())
 		} else {
 			args = words[1]
 		}
