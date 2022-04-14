@@ -13,59 +13,62 @@
 // limitations under the License.
 package android
 
-import "testing"
+import (
+	"android/soong/android/allowlists"
+	"testing"
+)
 
 func TestConvertAllModulesInPackage(t *testing.T) {
 	testCases := []struct {
-		prefixes   Bp2BuildConfig
+		prefixes   allowlists.Bp2BuildConfig
 		packageDir string
 	}{
 		{
-			prefixes: Bp2BuildConfig{
-				"a": Bp2BuildDefaultTrueRecursively,
+			prefixes: allowlists.Bp2BuildConfig{
+				"a": allowlists.Bp2BuildDefaultTrueRecursively,
 			},
 			packageDir: "a",
 		},
 		{
-			prefixes: Bp2BuildConfig{
-				"a/b": Bp2BuildDefaultTrueRecursively,
+			prefixes: allowlists.Bp2BuildConfig{
+				"a/b": allowlists.Bp2BuildDefaultTrueRecursively,
 			},
 			packageDir: "a/b",
 		},
 		{
-			prefixes: Bp2BuildConfig{
-				"a/b":   Bp2BuildDefaultTrueRecursively,
-				"a/b/c": Bp2BuildDefaultTrueRecursively,
+			prefixes: allowlists.Bp2BuildConfig{
+				"a/b":   allowlists.Bp2BuildDefaultTrueRecursively,
+				"a/b/c": allowlists.Bp2BuildDefaultTrueRecursively,
 			},
 			packageDir: "a/b",
 		},
 		{
-			prefixes: Bp2BuildConfig{
-				"a":     Bp2BuildDefaultTrueRecursively,
-				"d/e/f": Bp2BuildDefaultTrueRecursively,
+			prefixes: allowlists.Bp2BuildConfig{
+				"a":     allowlists.Bp2BuildDefaultTrueRecursively,
+				"d/e/f": allowlists.Bp2BuildDefaultTrueRecursively,
 			},
 			packageDir: "a/b",
 		},
 		{
-			prefixes: Bp2BuildConfig{
-				"a":     Bp2BuildDefaultFalse,
-				"a/b":   Bp2BuildDefaultTrueRecursively,
-				"a/b/c": Bp2BuildDefaultFalse,
+			prefixes: allowlists.Bp2BuildConfig{
+				"a":     allowlists.Bp2BuildDefaultFalse,
+				"a/b":   allowlists.Bp2BuildDefaultTrueRecursively,
+				"a/b/c": allowlists.Bp2BuildDefaultFalse,
 			},
 			packageDir: "a/b",
 		},
 		{
-			prefixes: Bp2BuildConfig{
-				"a":     Bp2BuildDefaultTrueRecursively,
-				"a/b":   Bp2BuildDefaultFalse,
-				"a/b/c": Bp2BuildDefaultTrueRecursively,
+			prefixes: allowlists.Bp2BuildConfig{
+				"a":     allowlists.Bp2BuildDefaultTrueRecursively,
+				"a/b":   allowlists.Bp2BuildDefaultFalse,
+				"a/b/c": allowlists.Bp2BuildDefaultTrueRecursively,
 			},
 			packageDir: "a",
 		},
 	}
 
 	for _, test := range testCases {
-		if !bp2buildDefaultTrueRecursively(test.packageDir, test.prefixes) {
+		if ok, _ := bp2buildDefaultTrueRecursively(test.packageDir, test.prefixes); !ok {
 			t.Errorf("Expected to convert all modules in %s based on %v, but failed.", test.packageDir, test.prefixes)
 		}
 	}
@@ -73,61 +76,61 @@ func TestConvertAllModulesInPackage(t *testing.T) {
 
 func TestModuleOptIn(t *testing.T) {
 	testCases := []struct {
-		prefixes   Bp2BuildConfig
+		prefixes   allowlists.Bp2BuildConfig
 		packageDir string
 	}{
 		{
-			prefixes: Bp2BuildConfig{
-				"a/b": Bp2BuildDefaultFalse,
+			prefixes: allowlists.Bp2BuildConfig{
+				"a/b": allowlists.Bp2BuildDefaultFalse,
 			},
 			packageDir: "a/b",
 		},
 		{
-			prefixes: Bp2BuildConfig{
-				"a":   Bp2BuildDefaultFalse,
-				"a/b": Bp2BuildDefaultTrueRecursively,
+			prefixes: allowlists.Bp2BuildConfig{
+				"a":   allowlists.Bp2BuildDefaultFalse,
+				"a/b": allowlists.Bp2BuildDefaultTrueRecursively,
 			},
 			packageDir: "a",
 		},
 		{
-			prefixes: Bp2BuildConfig{
-				"a/b": Bp2BuildDefaultTrueRecursively,
+			prefixes: allowlists.Bp2BuildConfig{
+				"a/b": allowlists.Bp2BuildDefaultTrueRecursively,
 			},
 			packageDir: "a", // opt-in by default
 		},
 		{
-			prefixes: Bp2BuildConfig{
-				"a/b/c": Bp2BuildDefaultTrueRecursively,
+			prefixes: allowlists.Bp2BuildConfig{
+				"a/b/c": allowlists.Bp2BuildDefaultTrueRecursively,
 			},
 			packageDir: "a/b",
 		},
 		{
-			prefixes: Bp2BuildConfig{
-				"a":     Bp2BuildDefaultTrueRecursively,
-				"d/e/f": Bp2BuildDefaultTrueRecursively,
+			prefixes: allowlists.Bp2BuildConfig{
+				"a":     allowlists.Bp2BuildDefaultTrueRecursively,
+				"d/e/f": allowlists.Bp2BuildDefaultTrueRecursively,
 			},
 			packageDir: "foo/bar",
 		},
 		{
-			prefixes: Bp2BuildConfig{
-				"a":     Bp2BuildDefaultTrueRecursively,
-				"a/b":   Bp2BuildDefaultFalse,
-				"a/b/c": Bp2BuildDefaultTrueRecursively,
+			prefixes: allowlists.Bp2BuildConfig{
+				"a":     allowlists.Bp2BuildDefaultTrueRecursively,
+				"a/b":   allowlists.Bp2BuildDefaultFalse,
+				"a/b/c": allowlists.Bp2BuildDefaultTrueRecursively,
 			},
 			packageDir: "a/b",
 		},
 		{
-			prefixes: Bp2BuildConfig{
-				"a":     Bp2BuildDefaultFalse,
-				"a/b":   Bp2BuildDefaultTrueRecursively,
-				"a/b/c": Bp2BuildDefaultFalse,
+			prefixes: allowlists.Bp2BuildConfig{
+				"a":     allowlists.Bp2BuildDefaultFalse,
+				"a/b":   allowlists.Bp2BuildDefaultTrueRecursively,
+				"a/b/c": allowlists.Bp2BuildDefaultFalse,
 			},
 			packageDir: "a",
 		},
 	}
 
 	for _, test := range testCases {
-		if bp2buildDefaultTrueRecursively(test.packageDir, test.prefixes) {
+		if ok, _ := bp2buildDefaultTrueRecursively(test.packageDir, test.prefixes); ok {
 			t.Errorf("Expected to allow module opt-in in %s based on %v, but failed.", test.packageDir, test.prefixes)
 		}
 	}
