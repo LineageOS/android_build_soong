@@ -38,13 +38,13 @@ func elfIdentifier(filename string, allowMissing bool) (string, error) {
 	return elfIdentifierFromReaderAt(f, filename, allowMissing)
 }
 
-// elfIdentifier extracts the elf build ID from a ReaderAt.  If allowMissing is true it returns
-// an empty identifier if the file exists but the build ID note does not.
+// elfIdentifierFromReaderAt extracts the elf build ID from a ReaderAt.  If allowMissing is true it
+// returns an empty identifier if the file exists but the build ID note does not.
 func elfIdentifierFromReaderAt(r io.ReaderAt, filename string, allowMissing bool) (string, error) {
 	f, err := elf.NewFile(r)
 	if err != nil {
 		if allowMissing {
-			if errors.Is(err, io.EOF) {
+			if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
 				return "", nil
 			}
 			if _, ok := err.(*elf.FormatError); ok {
