@@ -598,16 +598,26 @@ func AndroidLibraryFactory() android.Module {
 // AAR (android library) prebuilts
 //
 
+// Properties for android_library_import
 type AARImportProperties struct {
+	// ARR (android library prebuilt) filepath. Exactly one ARR is required.
 	Aars []string `android:"path"`
-
-	Sdk_version     *string
+	// If not blank, set to the version of the sdk to compile against.
+	// Defaults to private.
+	// Values are of one of the following forms:
+	// 1) numerical API level, "current", "none", or "core_platform"
+	// 2) An SDK kind with an API level: "<sdk kind>_<API level>"
+	// See build/soong/android/sdk_version.go for the complete and up to date list of SDK kinds.
+	// If the SDK kind is empty, it will be set to public
+	Sdk_version *string
+	// If not blank, set the minimum version of the sdk that the compiled artifacts will run against.
+	// Defaults to sdk_version if not set. See sdk_version for possible values.
 	Min_sdk_version *string
-
+	// List of java static libraries that the included ARR (android library prebuilts) has dependencies to.
 	Static_libs []string
-	Libs        []string
-
-	// if set to true, run Jetifier against .aar file. Defaults to false.
+	// List of java libraries that the included ARR (android library prebuilts) has dependencies to.
+	Libs []string
+	// If set to true, run Jetifier against .aar file. Defaults to false.
 	Jetifier *bool
 }
 
