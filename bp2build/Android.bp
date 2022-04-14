@@ -18,6 +18,7 @@ bootstrap_go_package {
     ],
     deps: [
         "soong-android",
+        "soong-android-allowlists",
         "soong-android-soongconfig",
         "soong-shared",
         "soong-apex",
