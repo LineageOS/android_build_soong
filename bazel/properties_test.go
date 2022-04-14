@@ -329,7 +329,7 @@ func labelAddSuffixForTypeMapper(suffix, typ string) LabelMapper {
 func TestPartitionLabelListAttribute(t *testing.T) {
 	testCases := []struct {
 		name           string
-		ctx            *otherModuleTestContext
+		ctx            *OtherModuleTestContext
 		labelList      LabelListAttribute
 		filters        LabelPartitions
 		expected       PartitionToLabelListAttribute
@@ -337,7 +337,7 @@ func TestPartitionLabelListAttribute(t *testing.T) {
 	}{
 		{
 			name: "no configurable values",
-			ctx:  &otherModuleTestContext{},
+			ctx:  &OtherModuleTestContext{},
 			labelList: LabelListAttribute{
 				Value: makeLabelList([]string{"a.a", "b.b", "c.c", "d.d", "e.e"}, []string{}),
 			},
@@ -354,7 +354,7 @@ func TestPartitionLabelListAttribute(t *testing.T) {
 		},
 		{
 			name: "no configurable values, remainder partition",
-			ctx:  &otherModuleTestContext{},
+			ctx:  &OtherModuleTestContext{},
 			labelList: LabelListAttribute{
 				Value: makeLabelList([]string{"a.a", "b.b", "c.c", "d.d", "e.e"}, []string{}),
 			},
@@ -371,7 +371,7 @@ func TestPartitionLabelListAttribute(t *testing.T) {
 		},
 		{
 			name: "no configurable values, empty partition",
-			ctx:  &otherModuleTestContext{},
+			ctx:  &OtherModuleTestContext{},
 			labelList: LabelListAttribute{
 				Value: makeLabelList([]string{"a.a", "c.c"}, []string{}),
 			},
@@ -387,8 +387,8 @@ func TestPartitionLabelListAttribute(t *testing.T) {
 		},
 		{
 			name: "no configurable values, has map",
-			ctx: &otherModuleTestContext{
-				modules: []testModuleInfo{testModuleInfo{name: "srcs", typ: "fg", dir: "dir"}},
+			ctx: &OtherModuleTestContext{
+				Modules: []TestModuleInfo{{ModuleName: "srcs", Typ: "fg", Dir: "dir"}},
 			},
 			labelList: LabelListAttribute{
 				Value: makeLabelList([]string{"a.a", "srcs", "b.b", "c.c"}, []string{}),
@@ -406,7 +406,7 @@ func TestPartitionLabelListAttribute(t *testing.T) {
 		},
 		{
 			name: "configurable values, keeps empty if excludes",
-			ctx:  &otherModuleTestContext{},
+			ctx:  &OtherModuleTestContext{},
 			labelList: LabelListAttribute{
 				ConfigurableValues: configurableLabelLists{
 					ArchConfigurationAxis: labelListSelectValues{
@@ -450,7 +450,7 @@ func TestPartitionLabelListAttribute(t *testing.T) {
 		},
 		{
 			name: "error for multiple partitions same value",
-			ctx:  &otherModuleTestContext{},
+			ctx:  &OtherModuleTestContext{},
 			labelList: LabelListAttribute{
 				Value: makeLabelList([]string{"a.a", "b.b", "c.c", "d.d", "e.e"}, []string{}),
 			},
