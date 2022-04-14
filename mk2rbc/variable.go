@@ -21,9 +21,8 @@ import (
 
 type variable interface {
 	name() string
-	emitGet(gctx *generationContext, isDefined bool)
+	emitGet(gctx *generationContext)
 	emitSet(gctx *generationContext, asgn *assignmentNode)
-	emitDefined(gctx *generationContext)
 	valueType() starlarkType
 	setValueType(t starlarkType)
 	defaultValueString() string
@@ -74,13 +73,11 @@ type productConfigVariable struct {
 
 func (pcv productConfigVariable) emitSet(gctx *generationContext, asgn *assignmentNode) {
 	emitAssignment := func() {
-		pcv.emitGet(gctx, true)
-		gctx.write(" = ")
+		gctx.writef("cfg[%q] = ", pcv.nam)
 		asgn.value.emitListVarCopy(gctx)
 	}
 	emitAppend := func() {
-		pcv.emitGet(gctx, true)
-		gctx.write(" += ")
+		gctx.writef("cfg[%q] += ", pcv.nam)
 		value := asgn.value
 		if pcv.valueType() == starlarkTypeString {
 			gctx.writef(`" " + `)
@@ -98,7 +95,7 @@ func (pcv productConfigVariable) emitSet(gctx *generationContext, asgn *assignme
 	}
 
 	// If we are not sure variable has been assigned before, emit setdefault
-	needsSetDefault := asgn.previous == nil && !pcv.isPreset() && asgn.isSelfReferential()
+	needsSetDefault := !gctx.hasBeenAssigned(&pcv) && !pcv.isPreset() && asgn.isSelfReferential()
 
 	switch asgn.flavor {
 	case asgnSet:
@@ -121,18 +118,16 @@ func (pcv productConfigVariable) emitSet(gctx *generationContext, asgn *assignme
 		emitAssignment()
 		gctx.indentLevel--
 	}
+
+	gctx.setHasBeenAssigned(&pcv)
 }
 
-func (pcv productConfigVariable) emitGet(gctx *generationContext, isDefined bool) {
-	if isDefined || pcv.isPreset() {
+func (pcv productConfigVariable) emitGet(gctx *generationContext) {
+	if gctx.hasBeenAssigned(&pcv) || pcv.isPreset() {
 		gctx.writef("cfg[%q]", pcv.nam)
 	} else {
 		gctx.writef("cfg.get(%q, %s)", pcv.nam, pcv.defaultValueString())
 	}
-}
-
-func (pcv productConfigVariable) emitDefined(gctx *generationContext) {
-	gctx.writef("cfg.get(%q) != None", pcv.name())
 }
 
 type otherGlobalVariable struct {
@@ -141,14 +136,12 @@ type otherGlobalVariable struct {
 
 func (scv otherGlobalVariable) emitSet(gctx *generationContext, asgn *assignmentNode) {
 	emitAssignment := func() {
-		scv.emitGet(gctx, true)
-		gctx.write(" = ")
+		gctx.writef("g[%q] = ", scv.nam)
 		asgn.value.emitListVarCopy(gctx)
 	}
 
 	emitAppend := func() {
-		scv.emitGet(gctx, true)
-		gctx.write(" += ")
+		gctx.writef("g[%q] += ", scv.nam)
 		value := asgn.value
 		if scv.valueType() == starlarkTypeString {
 			gctx.writef(`" " + `)
@@ -158,7 +151,7 @@ func (scv otherGlobalVariable) emitSet(gctx *generationContext, asgn *assignment
 	}
 
 	// If we are not sure variable has been assigned before, emit setdefault
-	needsSetDefault := asgn.previous == nil && !scv.isPreset() && asgn.isSelfReferential()
+	needsSetDefault := !gctx.hasBeenAssigned(&scv) && !scv.isPreset() && asgn.isSelfReferential()
 
 	switch asgn.flavor {
 	case asgnSet:
@@ -184,26 +177,20 @@ func (scv otherGlobalVariable) emitSet(gctx *generationContext, asgn *assignment
 		emitAssignment()
 		gctx.indentLevel--
 	}
+
+	gctx.setHasBeenAssigned(&scv)
 }
 
-func (scv otherGlobalVariable) emitGet(gctx *generationContext, isDefined bool) {
-	if isDefined || scv.isPreset() {
+func (scv otherGlobalVariable) emitGet(gctx *generationContext) {
+	if gctx.hasBeenAssigned(&scv) || scv.isPreset() {
 		gctx.writef("g[%q]", scv.nam)
 	} else {
 		gctx.writef("g.get(%q, %s)", scv.nam, scv.defaultValueString())
 	}
 }
 
-func (scv otherGlobalVariable) emitDefined(gctx *generationContext) {
-	gctx.writef("g.get(%q) != None", scv.name())
-}
-
 type localVariable struct {
 	baseVariable
-}
-
-func (lv localVariable) emitDefined(gctx *generationContext) {
-	gctx.writef(lv.String())
 }
 
 func (lv localVariable) String() string {
@@ -216,8 +203,7 @@ func (lv localVariable) emitSet(gctx *generationContext, asgn *assignmentNode) {
 		gctx.writef("%s = ", lv)
 		asgn.value.emitListVarCopy(gctx)
 	case asgnAppend:
-		lv.emitGet(gctx, false)
-		gctx.write(" += ")
+		gctx.writef("%s += ", lv)
 		value := asgn.value
 		if lv.valueType() == starlarkTypeString {
 			gctx.writef(`" " + `)
@@ -227,7 +213,7 @@ func (lv localVariable) emitSet(gctx *generationContext, asgn *assignmentNode) {
 	}
 }
 
-func (lv localVariable) emitGet(gctx *generationContext, _ bool) {
+func (lv localVariable) emitGet(gctx *generationContext) {
 	gctx.writef("%s", lv)
 }
 
@@ -236,7 +222,7 @@ type predefinedVariable struct {
 	value starlarkExpr
 }
 
-func (pv predefinedVariable) emitGet(gctx *generationContext, _ bool) {
+func (pv predefinedVariable) emitGet(gctx *generationContext) {
 	pv.value.emit(gctx)
 }
 
@@ -255,10 +241,6 @@ func (pv predefinedVariable) emitSet(gctx *generationContext, asgn *assignmentNo
 		}
 	}
 	panic(fmt.Errorf("cannot set predefined variable %s to %q", pv.name(), asgn.mkValue.Dump()))
-}
-
-func (pv predefinedVariable) emitDefined(gctx *generationContext) {
-	gctx.write("True")
 }
 
 var localProductConfigVariables = map[string]string{
