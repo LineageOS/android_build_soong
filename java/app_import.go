@@ -466,7 +466,7 @@ func createVariantGroupType(variants []string, variantGroupName string) reflect.
 //                 apk: "prebuilts/example_xhdpi.apk",
 //             },
 //         },
-//         certificate: "PRESIGNED",
+//         presigned: true,
 //     }
 func AndroidAppImportFactory() android.Module {
 	module := &AndroidAppImport{}
