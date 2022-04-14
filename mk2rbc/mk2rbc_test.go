@@ -642,7 +642,7 @@ def init(g, handle):
     pass
   elif not rblf.board_platform_is(g, "copper"):
     pass
-  elif g.get("TARGET_BOARD_PLATFORM", "") not in g["QCOM_BOARD_PLATFORMS"]:
+  elif g.get("TARGET_BOARD_PLATFORM", "") not in g.get("QCOM_BOARD_PLATFORMS", ""):
     pass
   elif g["TARGET_PRODUCT"] in g.get("PLATFORM_LIST", []):
     pass
@@ -665,7 +665,7 @@ def init(g, handle):
     pass
   elif not rblf.board_platform_is(g, "copper"):
     pass
-  elif g.get("TARGET_BOARD_PLATFORM", "") in g["QCOM_BOARD_PLATFORMS"]:
+  elif g.get("TARGET_BOARD_PLATFORM", "") in g.get("QCOM_BOARD_PLATFORMS", ""):
     pass
 `,
 	},

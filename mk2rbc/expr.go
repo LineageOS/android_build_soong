@@ -232,19 +232,18 @@ func (xi *interpolateExpr) transform(transformer func(expr starlarkExpr) starlar
 }
 
 type variableRefExpr struct {
-	ref       variable
-	isDefined bool
+	ref variable
 }
 
-func NewVariableRefExpr(ref variable, isDefined bool) starlarkExpr {
+func NewVariableRefExpr(ref variable) starlarkExpr {
 	if predefined, ok := ref.(*predefinedVariable); ok {
 		return predefined.value
 	}
-	return &variableRefExpr{ref, isDefined}
+	return &variableRefExpr{ref}
 }
 
 func (v *variableRefExpr) emit(gctx *generationContext) {
-	v.ref.emitGet(gctx, v.isDefined)
+	v.ref.emitGet(gctx)
 }
 
 func (v *variableRefExpr) typ() starlarkType {
