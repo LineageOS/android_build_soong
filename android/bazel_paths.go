@@ -79,6 +79,7 @@ type BazelConversionContext interface {
 	OtherModuleType(m blueprint.Module) string
 	OtherModuleName(m blueprint.Module) string
 	OtherModuleDir(m blueprint.Module) string
+	ModuleErrorf(format string, args ...interface{})
 }
 
 // A subset of the ModuleContext methods which are sufficient to resolve references to paths/deps in

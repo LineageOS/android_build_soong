@@ -19,6 +19,7 @@ bootstrap_go_package {
         "soong-shared",
         "soong-starlark-format",
         "soong-ui-metrics_proto",
+        "soong-android-allowlists",
 
         "golang-protobuf-proto",
         "golang-protobuf-encoding-prototext",
