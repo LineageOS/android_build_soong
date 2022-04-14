@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"android/soong/android"
+	"android/soong/android/allowlists"
 	"android/soong/python"
 )
 
@@ -922,7 +923,7 @@ func TestAllowlistingBp2buildTargetsWithConfig(t *testing.T) {
 		moduleTypeUnderTestFactory android.ModuleFactory
 		expectedCount              map[string]int
 		description                string
-		bp2buildConfig             android.Bp2BuildConfig
+		bp2buildConfig             allowlists.Bp2BuildConfig
 		checkDir                   string
 		fs                         map[string]string
 	}{
@@ -937,10 +938,10 @@ func TestAllowlistingBp2buildTargetsWithConfig(t *testing.T) {
 				"not_migrated":                       0,
 				"also_not_migrated":                  0,
 			},
-			bp2buildConfig: android.Bp2BuildConfig{
-				"migrated":                android.Bp2BuildDefaultTrueRecursively,
-				"migrated/but_not_really": android.Bp2BuildDefaultFalse,
-				"not_migrated":            android.Bp2BuildDefaultFalse,
+			bp2buildConfig: allowlists.Bp2BuildConfig{
+				"migrated":                allowlists.Bp2BuildDefaultTrueRecursively,
+				"migrated/but_not_really": allowlists.Bp2BuildDefaultFalse,
+				"not_migrated":            allowlists.Bp2BuildDefaultFalse,
 			},
 			fs: map[string]string{
 				"migrated/Android.bp":                           `filegroup { name: "a" }`,
@@ -960,9 +961,9 @@ func TestAllowlistingBp2buildTargetsWithConfig(t *testing.T) {
 				"package-opt-out":            1,
 				"package-opt-out/subpackage": 0,
 			},
-			bp2buildConfig: android.Bp2BuildConfig{
-				"package-opt-in":  android.Bp2BuildDefaultFalse,
-				"package-opt-out": android.Bp2BuildDefaultTrueRecursively,
+			bp2buildConfig: allowlists.Bp2BuildConfig{
+				"package-opt-in":  allowlists.Bp2BuildDefaultFalse,
+				"package-opt-out": allowlists.Bp2BuildDefaultTrueRecursively,
 			},
 			fs: map[string]string{
 				"package-opt-in/Android.bp": `
@@ -1004,7 +1005,8 @@ filegroup { name: "opt-out-h", bazel_module: { bp2build_available: false } }
 		config := android.TestConfig(buildDir, nil, "", fs)
 		ctx := android.NewTestContext(config)
 		ctx.RegisterModuleType(testCase.moduleTypeUnderTest, testCase.moduleTypeUnderTestFactory)
-		ctx.RegisterBp2BuildConfig(testCase.bp2buildConfig)
+		allowlist := android.NewBp2BuildAllowlist().SetDefaultConfig(testCase.bp2buildConfig)
+		ctx.RegisterBp2BuildConfig(allowlist)
 		ctx.RegisterForBazelConversion()
 
 		_, errs := ctx.ParseFileList(dir, toParse)
