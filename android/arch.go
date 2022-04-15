@@ -1199,14 +1199,6 @@ func (m *ModuleBase) setOSProperties(ctx BottomUpMutatorContext) {
 				if bionicProperties, ok := getChildPropertyStruct(ctx, targetProp, field, prefix); ok {
 					mergePropertyStruct(ctx, genProps, bionicProperties)
 				}
-
-				// Special case:  to ease the transition from glibc to musl, apply linux_glibc
-				// properties (which has historically mean host linux) to musl variants.
-				field = "Linux_glibc"
-				prefix = "target.linux_glibc"
-				if bionicProperties, ok := getChildPropertyStruct(ctx, targetProp, field, prefix); ok {
-					mergePropertyStruct(ctx, genProps, bionicProperties)
-				}
 			}
 
 			// Handle target OS properties in the form:
@@ -1423,14 +1415,6 @@ func getArchProperties(ctx BaseMutatorContext, archProperties interface{}, arch 
 		if os == LinuxMusl {
 			field := "Musl_" + archType.Name
 			userFriendlyField := "target.musl_" + "_" + archType.Name
-			if osArchProperties, ok := getChildPropertyStruct(ctx, targetProp, field, userFriendlyField); ok {
-				result = append(result, osArchProperties)
-			}
-
-			// Special case:  to ease the transition from glibc to musl, apply linux_glibc
-			// properties (which has historically mean host linux) to musl variants.
-			field = "Linux_glibc_" + archType.Name
-			userFriendlyField = "target.linux_glibc_" + archType.Name
 			if osArchProperties, ok := getChildPropertyStruct(ctx, targetProp, field, userFriendlyField); ok {
 				result = append(result, osArchProperties)
 			}
