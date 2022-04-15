@@ -642,7 +642,7 @@ def init(g, handle):
     pass
   elif not rblf.board_platform_is(g, "copper"):
     pass
-  elif g.get("TARGET_BOARD_PLATFORM", "") not in g["QCOM_BOARD_PLATFORMS"]:
+  elif g.get("TARGET_BOARD_PLATFORM", "") not in g.get("QCOM_BOARD_PLATFORMS", ""):
     pass
   elif g["TARGET_PRODUCT"] in g.get("PLATFORM_LIST", []):
     pass
@@ -665,7 +665,7 @@ def init(g, handle):
     pass
   elif not rblf.board_platform_is(g, "copper"):
     pass
-  elif g.get("TARGET_BOARD_PLATFORM", "") in g["QCOM_BOARD_PLATFORMS"]:
+  elif g.get("TARGET_BOARD_PLATFORM", "") in g.get("QCOM_BOARD_PLATFORMS", ""):
     pass
 `,
 	},
@@ -773,8 +773,8 @@ $(call add-product-dex-preopt-module-config,MyModule,disable)
 
 def init(g, handle):
   cfg = rblf.cfg(handle)
-  rblf.enforce_product_packages_exist("")
-  rblf.enforce_product_packages_exist("foo")
+  rblf.enforce_product_packages_exist(handle, "")
+  rblf.enforce_product_packages_exist(handle, "foo")
   rblf.require_artifacts_in_path(handle, "foo", "bar")
   rblf.require_artifacts_in_path_relaxed(handle, "foo", "bar")
   rblf.mkdist_for_goals(g, "goal", "from:to")
