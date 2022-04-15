@@ -80,7 +80,7 @@ var knownFunctions = map[string]interface {
 	"copy-files":                           &simpleCallParser{name: baseName + ".copy_files", returnType: starlarkTypeList},
 	"dir":                                  &simpleCallParser{name: baseName + ".dir", returnType: starlarkTypeString},
 	"dist-for-goals":                       &simpleCallParser{name: baseName + ".mkdist_for_goals", returnType: starlarkTypeVoid, addGlobals: true},
-	"enforce-product-packages-exist":       &simpleCallParser{name: baseName + ".enforce_product_packages_exist", returnType: starlarkTypeVoid},
+	"enforce-product-packages-exist":       &simpleCallParser{name: baseName + ".enforce_product_packages_exist", returnType: starlarkTypeVoid, addHandle: true},
 	"error":                                &makeControlFuncParser{name: baseName + ".mkerror"},
 	"findstring":                           &simpleCallParser{name: baseName + ".findstring", returnType: starlarkTypeInt},
 	"find-copy-subdir-files":               &simpleCallParser{name: baseName + ".find_and_copy", returnType: starlarkTypeList},
@@ -197,17 +197,57 @@ func isMakeControlFunc(s string) bool {
 	return s == "error" || s == "warning" || s == "info"
 }
 
+// varAssignmentScope points to the last assignment for each variable
+// in the current block. It is used during the parsing to chain
+// the assignments to a variable together.
+type varAssignmentScope struct {
+	outer *varAssignmentScope
+	vars  map[string]bool
+}
+
 // Starlark output generation context
 type generationContext struct {
-	buf          strings.Builder
-	starScript   *StarlarkScript
-	indentLevel  int
-	inAssignment bool
-	tracedCount  int
+	buf            strings.Builder
+	starScript     *StarlarkScript
+	indentLevel    int
+	inAssignment   bool
+	tracedCount    int
+	varAssignments *varAssignmentScope
 }
 
 func NewGenerateContext(ss *StarlarkScript) *generationContext {
-	return &generationContext{starScript: ss}
+	return &generationContext{
+		starScript: ss,
+		varAssignments: &varAssignmentScope{
+			outer: nil,
+			vars:  make(map[string]bool),
+		},
+	}
+}
+
+func (gctx *generationContext) pushVariableAssignments() {
+	va := &varAssignmentScope{
+		outer: gctx.varAssignments,
+		vars:  make(map[string]bool),
+	}
+	gctx.varAssignments = va
+}
+
+func (gctx *generationContext) popVariableAssignments() {
+	gctx.varAssignments = gctx.varAssignments.outer
+}
+
+func (gctx *generationContext) hasBeenAssigned(v variable) bool {
+	for va := gctx.varAssignments; va != nil; va = va.outer {
+		if _, ok := va.vars[v.name()]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+func (gctx *generationContext) setHasBeenAssigned(v variable) {
+	gctx.varAssignments.vars[v.name()] = true
 }
 
 // emit returns generated script
@@ -394,14 +434,6 @@ type StarlarkScript struct {
 	nodeLocator    func(pos mkparser.Pos) int
 }
 
-// varAssignmentScope points to the last assignment for each variable
-// in the current block. It is used during the parsing to chain
-// the assignments to a variable together.
-type varAssignmentScope struct {
-	outer *varAssignmentScope
-	vars  map[string]*assignmentNode
-}
-
 // parseContext holds the script we are generating and all the ephemeral data
 // needed during the parsing.
 type parseContext struct {
@@ -415,7 +447,6 @@ type parseContext struct {
 	errorLogger      ErrorLogger
 	tracedVariables  map[string]bool // variables to be traced in the generated script
 	variables        map[string]variable
-	varAssignments   *varAssignmentScope
 	outputDir        string
 	dependentModules map[string]*moduleInfo
 	soongNamespaces  map[string]map[string]bool
@@ -468,7 +499,6 @@ func newParseContext(ss *StarlarkScript, nodes []mkparser.Node) *parseContext {
 		typeHints:        make(map[string]starlarkType),
 		atTopOfMakefile:  true,
 	}
-	ctx.pushVarAssignments()
 	for _, item := range predefined {
 		ctx.variables[item.name] = &predefinedVariable{
 			baseVariable: baseVariable{nam: item.name, typ: starlarkTypeString},
@@ -477,31 +507,6 @@ func newParseContext(ss *StarlarkScript, nodes []mkparser.Node) *parseContext {
 	}
 
 	return ctx
-}
-
-func (ctx *parseContext) lastAssignment(v variable) *assignmentNode {
-	for va := ctx.varAssignments; va != nil; va = va.outer {
-		if v, ok := va.vars[v.name()]; ok {
-			return v
-		}
-	}
-	return nil
-}
-
-func (ctx *parseContext) setLastAssignment(v variable, asgn *assignmentNode) {
-	ctx.varAssignments.vars[v.name()] = asgn
-}
-
-func (ctx *parseContext) pushVarAssignments() {
-	va := &varAssignmentScope{
-		outer: ctx.varAssignments,
-		vars:  make(map[string]*assignmentNode),
-	}
-	ctx.varAssignments = va
-}
-
-func (ctx *parseContext) popVarAssignments() {
-	ctx.varAssignments = ctx.varAssignments.outer
 }
 
 func (ctx *parseContext) hasNodes() bool {
@@ -585,8 +590,6 @@ func (ctx *parseContext) handleAssignment(a *mkparser.Assignment) []starlarkNode
 		asgn.value = &toStringExpr{expr: asgn.value}
 	}
 
-	asgn.previous = ctx.lastAssignment(lhs)
-	ctx.setLastAssignment(lhs, asgn)
 	switch a.Type {
 	case "=", ":=":
 		asgn.flavor = asgnSet
@@ -952,11 +955,8 @@ func (ctx *parseContext) handleIfBlock(ifDirective *mkparser.Directive) starlark
 func (ctx *parseContext) processBranch(check *mkparser.Directive) *switchCase {
 	block := &switchCase{gate: ctx.parseCondition(check)}
 	defer func() {
-		ctx.popVarAssignments()
 		ctx.ifNestLevel--
-
 	}()
-	ctx.pushVarAssignments()
 	ctx.ifNestLevel++
 
 	for ctx.hasNodes() {
@@ -980,7 +980,7 @@ func (ctx *parseContext) parseCondition(check *mkparser.Directive) starlarkNode 
 		if !check.Args.Const() {
 			return ctx.newBadNode(check, "ifdef variable ref too complex: %s", check.Args.Dump())
 		}
-		v := NewVariableRefExpr(ctx.addVariable(check.Args.Strings[0]), false)
+		v := NewVariableRefExpr(ctx.addVariable(check.Args.Strings[0]))
 		if strings.HasSuffix(check.Name, "ndef") {
 			v = &notExpr{v}
 		}
@@ -1241,7 +1241,7 @@ func (ctx *parseContext) maybeParseFunctionCall(node mkparser.Node, ref *mkparse
 		}
 		name = words[0].Dump()
 		if len(words) < 2 {
-			args = &mkparser.MakeString{}
+			args = mkparser.SimpleMakeString("", words[0].Pos())
 		} else {
 			args = words[1]
 		}
@@ -1293,12 +1293,12 @@ func (ctx *parseContext) parseReference(node mkparser.Node, ref *mkparser.MakeSt
 				args: []starlarkExpr{
 					&stringLiteralExpr{literal: substParts[0]},
 					&stringLiteralExpr{literal: substParts[1]},
-					NewVariableRefExpr(v, ctx.lastAssignment(v) != nil),
+					NewVariableRefExpr(v),
 				},
 			}
 		}
 		if v := ctx.addVariable(refDump); v != nil {
-			return NewVariableRefExpr(v, ctx.lastAssignment(v) != nil)
+			return NewVariableRefExpr(v)
 		}
 		return ctx.newBadExpr(node, "unknown variable %s", refDump)
 	}
@@ -1394,7 +1394,7 @@ func (p *isProductInListCallParser) parse(ctx *parseContext, node mkparser.Node,
 		return ctx.newBadExpr(node, "is-product-in-list requires an argument")
 	}
 	return &inExpr{
-		expr:  &variableRefExpr{ctx.addVariable("TARGET_PRODUCT"), true},
+		expr:  NewVariableRefExpr(ctx.addVariable("TARGET_PRODUCT")),
 		list:  maybeConvertToStringList(ctx.parseMakeString(node, args)),
 		isNot: false,
 	}
@@ -1407,8 +1407,8 @@ func (p *isVendorBoardPlatformCallParser) parse(ctx *parseContext, node mkparser
 		return ctx.newBadExpr(node, "cannot handle non-constant argument to is-vendor-board-platform")
 	}
 	return &inExpr{
-		expr:  &variableRefExpr{ctx.addVariable("TARGET_BOARD_PLATFORM"), false},
-		list:  &variableRefExpr{ctx.addVariable(args.Dump() + "_BOARD_PLATFORMS"), true},
+		expr:  NewVariableRefExpr(ctx.addVariable("TARGET_BOARD_PLATFORM")),
+		list:  NewVariableRefExpr(ctx.addVariable(args.Dump() + "_BOARD_PLATFORMS")),
 		isNot: false,
 	}
 }
@@ -1420,8 +1420,8 @@ func (p *isVendorBoardQcomCallParser) parse(ctx *parseContext, node mkparser.Nod
 		return ctx.newBadExpr(node, "is-vendor-board-qcom does not accept any arguments")
 	}
 	return &inExpr{
-		expr:  &variableRefExpr{ctx.addVariable("TARGET_BOARD_PLATFORM"), false},
-		list:  &variableRefExpr{ctx.addVariable("QCOM_BOARD_PLATFORMS"), true},
+		expr:  NewVariableRefExpr(ctx.addVariable("TARGET_BOARD_PLATFORM")),
+		list:  NewVariableRefExpr(ctx.addVariable("QCOM_BOARD_PLATFORMS")),
 		isNot: false,
 	}
 }
