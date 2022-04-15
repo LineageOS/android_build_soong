@@ -606,12 +606,12 @@ func TestArchProperties(t *testing.T) {
 				{
 					module:   "foo",
 					variant:  "linux_musl_x86_64",
-					property: []string{"root", "host", "linux", "host_linux", "musl", "linux_glibc", "linux_musl", "not_windows", "x86_64", "lib64", "linux_x86_64", "linux_musl_x86_64", "linux_glibc_x86_64"},
+					property: []string{"root", "host", "linux", "host_linux", "musl", "linux_musl", "not_windows", "x86_64", "lib64", "linux_x86_64", "linux_musl_x86_64"},
 				},
 				{
 					module:   "foo",
 					variant:  "linux_musl_x86",
-					property: []string{"root", "host", "linux", "host_linux", "musl", "linux_glibc", "linux_musl", "not_windows", "x86", "lib32", "linux_x86", "linux_musl_x86", "linux_glibc_x86"},
+					property: []string{"root", "host", "linux", "host_linux", "musl", "linux_musl", "not_windows", "x86", "lib32", "linux_x86", "linux_musl_x86"},
 				},
 			},
 		},
