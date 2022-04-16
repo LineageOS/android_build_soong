@@ -185,12 +185,12 @@ type CommonProperties struct {
 // constructing a new module.
 type DeviceProperties struct {
 	// If not blank, set to the version of the sdk to compile against.
-	// Defaults to compiling against the current platform.
+	// Defaults to private.
 	// Values are of one of the following forms:
-	// 1) numerical API level or "current"
-	// 2) An SDK kind with an API level: "<sdk kind>_<API level>". See
-	// build/soong/android/sdk_version.go for the complete and up to date list of
-	// SDK kinds. If the SDK kind value is empty, it will be set to public.
+	// 1) numerical API level, "current", "none", or "core_platform"
+	// 2) An SDK kind with an API level: "<sdk kind>_<API level>"
+	// See build/soong/android/sdk_version.go for the complete and up to date list of SDK kinds.
+	// If the SDK kind is empty, it will be set to public.
 	Sdk_version *string
 
 	// if not blank, set the minimum version of the sdk that the compiled artifacts will run against.
