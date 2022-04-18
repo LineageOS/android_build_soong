@@ -200,23 +200,34 @@ func TestStaticLibraryLinkage(t *testing.T) {
 func TestAutoDeps(t *testing.T) {
 
 	ctx := testRust(t, `
-                rust_library_host {
-                        name: "libbar",
-                        srcs: ["bar.rs"],
-                        crate_name: "bar",
-                }
+		rust_library_host {
+			name: "libbar",
+			srcs: ["bar.rs"],
+			crate_name: "bar",
+		}
+		rust_library_host_rlib {
+			name: "librlib_only",
+			srcs: ["bar.rs"],
+			crate_name: "rlib_only",
+		}
 		rust_library_host {
 			name: "libfoo",
 			srcs: ["foo.rs"],
 			crate_name: "foo",
-                        rustlibs: ["libbar"],
+			rustlibs: [
+				"libbar",
+				"librlib_only",
+			],
 		}
-                rust_ffi_host {
-                        name: "libfoo.ffi",
-                        srcs: ["foo.rs"],
-                        crate_name: "foo",
-                        rustlibs: ["libbar"],
-                }`)
+		rust_ffi_host {
+			name: "libfoo.ffi",
+			srcs: ["foo.rs"],
+			crate_name: "foo",
+			rustlibs: [
+				"libbar",
+				"librlib_only",
+			],
+		}`)
 
 	libfooRlib := ctx.ModuleForTests("libfoo", "linux_glibc_x86_64_rlib_rlib-std")
 	libfooDylib := ctx.ModuleForTests("libfoo", "linux_glibc_x86_64_dylib")
@@ -239,7 +250,9 @@ func TestAutoDeps(t *testing.T) {
 		if android.InList("libbar.dylib-std", dyn.Module().(*Module).Properties.AndroidMkRlibs) {
 			t.Errorf("libbar present as rlib dependency in dynamic lib")
 		}
-
+		if !android.InList("librlib_only.dylib-std", dyn.Module().(*Module).Properties.AndroidMkRlibs) {
+			t.Errorf("librlib_only should be selected by rustlibs as an rlib.")
+		}
 	}
 }
 
