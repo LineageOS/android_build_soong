@@ -71,6 +71,8 @@ func (j *jdepsGeneratorSingleton) GenerateBuildActions(ctx android.SingletonCont
 		dpInfo.Jars = android.FirstUniqueStrings(dpInfo.Jars)
 		dpInfo.SrcJars = android.FirstUniqueStrings(dpInfo.SrcJars)
 		dpInfo.Paths = android.FirstUniqueStrings(dpInfo.Paths)
+		dpInfo.Static_libs = android.FirstUniqueStrings(dpInfo.Static_libs)
+		dpInfo.Libs = android.FirstUniqueStrings(dpInfo.Libs)
 		moduleInfos[name] = dpInfo
 
 		mkProvider, ok := module.(android.AndroidMkDataProvider)
