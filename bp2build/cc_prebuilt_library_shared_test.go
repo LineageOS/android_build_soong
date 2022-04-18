@@ -1,6 +1,7 @@
 package bp2build
 
 import (
+	"fmt"
 	"testing"
 
 	"android/soong/cc"
@@ -57,5 +58,28 @@ cc_prebuilt_library_shared {
     })`,
 				}),
 			},
+		})
+}
+
+func TestSharedPrebuiltLibrarySharedStanzaFails(t *testing.T) {
+	runBp2BuildTestCaseSimple(t,
+		bp2buildTestCase{
+			description:                "prebuilt library shared with shared stanza fails because multiple sources",
+			moduleTypeUnderTest:        "cc_prebuilt_library_shared",
+			moduleTypeUnderTestFactory: cc.PrebuiltSharedLibraryFactory,
+			filesystem: map[string]string{
+				"libf.so": "",
+				"libg.so": "",
+			},
+			blueprint: `
+cc_prebuilt_library_shared {
+	name: "libtest",
+	srcs: ["libf.so"],
+	shared: {
+		srcs: ["libg.so"],
+	},
+	bazel_module: { bp2build_available: true},
+}`,
+			expectedErr: fmt.Errorf("Expected at most one source file"),
 		})
 }
