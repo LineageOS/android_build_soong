@@ -253,6 +253,7 @@ func (p *prebuiltLibraryLinker) implementationModuleName(name string) string {
 func NewPrebuiltLibrary(hod android.HostOrDeviceSupported, srcsProperty string) (*Module, *libraryDecorator) {
 	module, library := NewLibrary(hod)
 	module.compiler = nil
+	module.bazelable = true
 
 	prebuilt := &prebuiltLibraryLinker{
 		libraryDecorator: library,
@@ -338,8 +339,21 @@ type bazelPrebuiltLibraryStaticAttributes struct {
 	Export_system_includes bazel.StringListAttribute
 }
 
-func prebuiltLibraryStaticBp2Build(ctx android.TopDownMutatorContext, module *Module) {
-	prebuiltAttrs := Bp2BuildParsePrebuiltLibraryProps(ctx, module)
+// TODO(b/228623543): The below is not entirely true until the bug is fixed. For now, both targets are always generated
+// Implements bp2build for cc_prebuilt_library modules. This will generate:
+// * Only a prebuilt_library_static if the shared.enabled property is set to false across all variants.
+// * Only a prebuilt_library_shared if the static.enabled property is set to false across all variants
+// * Both a prebuilt_library_static and prebuilt_library_shared if the aforementioned properties are not false across
+//   all variants
+//
+// In all cases, prebuilt_library_static target names will be appended with "_bp2build_cc_library_static".
+func prebuiltLibraryBp2Build(ctx android.TopDownMutatorContext, module *Module) {
+	prebuiltLibraryStaticBp2Build(ctx, module, true)
+	prebuiltLibrarySharedBp2Build(ctx, module)
+}
+
+func prebuiltLibraryStaticBp2Build(ctx android.TopDownMutatorContext, module *Module, fullBuild bool) {
+	prebuiltAttrs := Bp2BuildParsePrebuiltLibraryProps(ctx, module, true)
 	exportedIncludes := Bp2BuildParseExportedIncludesForPrebuiltLibrary(ctx, module)
 
 	attrs := &bazelPrebuiltLibraryStaticAttributes{
@@ -354,7 +368,10 @@ func prebuiltLibraryStaticBp2Build(ctx android.TopDownMutatorContext, module *Mo
 	}
 
 	name := android.RemoveOptionalPrebuiltPrefix(module.Name())
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: name}, attrs)
+	if fullBuild {
+		name += "_bp2build_cc_library_static"
+	}
+	ctx.CreateBazelTargetModuleWithRestrictions(props, android.CommonAttributes{Name: name}, attrs, prebuiltAttrs.Enabled)
 }
 
 type bazelPrebuiltLibrarySharedAttributes struct {
@@ -362,7 +379,7 @@ type bazelPrebuiltLibrarySharedAttributes struct {
 }
 
 func prebuiltLibrarySharedBp2Build(ctx android.TopDownMutatorContext, module *Module) {
-	prebuiltAttrs := Bp2BuildParsePrebuiltLibraryProps(ctx, module)
+	prebuiltAttrs := Bp2BuildParsePrebuiltLibraryProps(ctx, module, false)
 
 	attrs := &bazelPrebuiltLibrarySharedAttributes{
 		Shared_library: prebuiltAttrs.Src,
@@ -374,7 +391,7 @@ func prebuiltLibrarySharedBp2Build(ctx android.TopDownMutatorContext, module *Mo
 	}
 
 	name := android.RemoveOptionalPrebuiltPrefix(module.Name())
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: name}, attrs)
+	ctx.CreateBazelTargetModuleWithRestrictions(props, android.CommonAttributes{Name: name}, attrs, prebuiltAttrs.Enabled)
 }
 
 type prebuiltObjectProperties struct {

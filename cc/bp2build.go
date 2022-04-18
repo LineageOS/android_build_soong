@@ -141,6 +141,7 @@ func maybePartitionExportedAndImplementationsDepsExcludes(ctx android.BazelConve
 	}
 }
 
+// Parses properties common to static and shared libraries. Also used for prebuilt libraries.
 func bp2buildParseStaticOrSharedProps(ctx android.BazelConversionPathContext, module *Module, lib *libraryDecorator, isStatic bool) staticOrSharedAttributes {
 	attrs := staticOrSharedAttributes{}
 
@@ -198,30 +199,72 @@ func bp2buildParseStaticOrSharedProps(ctx android.BazelConversionPathContext, mo
 
 // Convenience struct to hold all attributes parsed from prebuilt properties.
 type prebuiltAttributes struct {
-	Src bazel.LabelAttribute
+	Src     bazel.LabelAttribute
+	Enabled bazel.BoolAttribute
 }
 
 // NOTE: Used outside of Soong repo project, in the clangprebuilts.go bootstrap_go_package
-func Bp2BuildParsePrebuiltLibraryProps(ctx android.BazelConversionPathContext, module *Module) prebuiltAttributes {
+func Bp2BuildParsePrebuiltLibraryProps(ctx android.BazelConversionPathContext, module *Module, isStatic bool) prebuiltAttributes {
+	manySourceFileError := func(axis bazel.ConfigurationAxis, config string) {
+		ctx.ModuleErrorf("Bp2BuildParsePrebuiltLibraryProps: Expected at most one source file for %s %s\n", axis, config)
+	}
 	var srcLabelAttribute bazel.LabelAttribute
 
-	for axis, configToProps := range module.GetArchVariantProperties(ctx, &prebuiltLinkerProperties{}) {
-		for config, props := range configToProps {
-			if prebuiltLinkerProperties, ok := props.(*prebuiltLinkerProperties); ok {
-				if len(prebuiltLinkerProperties.Srcs) > 1 {
-					ctx.ModuleErrorf("Bp2BuildParsePrebuiltLibraryProps: Expected at most once source file for %s %s\n", axis, config)
-					continue
-				} else if len(prebuiltLinkerProperties.Srcs) == 0 {
-					continue
-				}
-				src := android.BazelLabelForModuleSrcSingle(ctx, prebuiltLinkerProperties.Srcs[0])
-				srcLabelAttribute.SetSelectValue(axis, config, src)
-			}
+	parseSrcs := func(ctx android.BazelConversionPathContext, axis bazel.ConfigurationAxis, config string, srcs []string) {
+		if len(srcs) > 1 {
+			manySourceFileError(axis, config)
+			return
+		} else if len(srcs) == 0 {
+			return
 		}
+		if srcLabelAttribute.SelectValue(axis, config) != nil {
+			manySourceFileError(axis, config)
+			return
+		}
+
+		src := android.BazelLabelForModuleSrcSingle(ctx, srcs[0])
+		srcLabelAttribute.SetSelectValue(axis, config, src)
+	}
+
+	bp2BuildPropParseHelper(ctx, module, &prebuiltLinkerProperties{}, func(axis bazel.ConfigurationAxis, config string, props interface{}) {
+		if prebuiltLinkerProperties, ok := props.(*prebuiltLinkerProperties); ok {
+			parseSrcs(ctx, axis, config, prebuiltLinkerProperties.Srcs)
+		}
+	})
+
+	var enabledLabelAttribute bazel.BoolAttribute
+	parseAttrs := func(axis bazel.ConfigurationAxis, config string, props StaticOrSharedProperties) {
+		if props.Enabled != nil {
+			enabledLabelAttribute.SetSelectValue(axis, config, props.Enabled)
+		}
+		parseSrcs(ctx, axis, config, props.Srcs)
+	}
+
+	if isStatic {
+		bp2BuildPropParseHelper(ctx, module, &StaticProperties{}, func(axis bazel.ConfigurationAxis, config string, props interface{}) {
+			if staticProperties, ok := props.(*StaticProperties); ok {
+				parseAttrs(axis, config, staticProperties.Static)
+			}
+		})
+	} else {
+		bp2BuildPropParseHelper(ctx, module, &SharedProperties{}, func(axis bazel.ConfigurationAxis, config string, props interface{}) {
+			if sharedProperties, ok := props.(*SharedProperties); ok {
+				parseAttrs(axis, config, sharedProperties.Shared)
+			}
+		})
 	}
 
 	return prebuiltAttributes{
-		Src: srcLabelAttribute,
+		Src:     srcLabelAttribute,
+		Enabled: enabledLabelAttribute,
+	}
+}
+
+func bp2BuildPropParseHelper(ctx android.ArchVariantContext, module *Module, propsType interface{}, parseFunc func(axis bazel.ConfigurationAxis, config string, props interface{})) {
+	for axis, configToProps := range module.GetArchVariantProperties(ctx, propsType) {
+		for config, props := range configToProps {
+			parseFunc(axis, config, props)
+		}
 	}
 }
 
@@ -542,8 +585,8 @@ func bp2BuildParseBaseProps(ctx android.Bp2buildMutatorContext, module *Module) 
 }
 
 func bp2BuildParseSdkAttributes(module *Module) sdkAttributes {
-	return sdkAttributes {
-		Sdk_version: module.Properties.Sdk_version,
+	return sdkAttributes{
+		Sdk_version:     module.Properties.Sdk_version,
 		Min_sdk_version: module.Properties.Min_sdk_version,
 	}
 }
