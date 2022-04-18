@@ -84,8 +84,9 @@ type bp2buildTestCase struct {
 	expectedBazelTargets       []string
 	filesystem                 map[string]string
 	dir                        string
-	expectedErr                error
-	unconvertedDepsMode        unconvertedDepsMode
+	// An error with a string contained within the string of the expected error
+	expectedErr         error
+	unconvertedDepsMode unconvertedDepsMode
 }
 
 func runBp2BuildTestCase(t *testing.T, registerModuleTypes func(ctx android.RegistrationContext), tc bp2buildTestCase) {
