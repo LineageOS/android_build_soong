@@ -1694,6 +1694,8 @@ func (j *Module) IDEInfo(dpInfo *android.IdeInfo) {
 		dpInfo.Jarjar_rules = append(dpInfo.Jarjar_rules, j.expandJarjarRules.String())
 	}
 	dpInfo.Paths = append(dpInfo.Paths, j.modulePaths...)
+	dpInfo.Static_libs = append(dpInfo.Static_libs, j.properties.Static_libs...)
+	dpInfo.Libs = append(dpInfo.Libs, j.properties.Libs...)
 }
 
 func (j *Module) CompilerDeps() []string {
