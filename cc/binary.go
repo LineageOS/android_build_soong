@@ -615,6 +615,7 @@ func binaryBp2build(ctx android.TopDownMutatorContext, m *Module, typ string) {
 		Linkopts:          baseAttrs.linkopts,
 		Link_crt:          baseAttrs.linkCrt,
 		Use_libcrt:        baseAttrs.useLibcrt,
+		Use_version_lib:   baseAttrs.useVersionLib,
 		Rtti:              baseAttrs.rtti,
 		Stl:               baseAttrs.stl,
 		Cpp_std:           baseAttrs.cppStd,
@@ -665,8 +666,9 @@ type binaryAttributes struct {
 	Linkopts                 bazel.StringListAttribute
 	Additional_linker_inputs bazel.LabelListAttribute
 
-	Link_crt   bazel.BoolAttribute
-	Use_libcrt bazel.BoolAttribute
+	Link_crt        bazel.BoolAttribute
+	Use_libcrt      bazel.BoolAttribute
+	Use_version_lib bazel.BoolAttribute
 
 	Rtti    bazel.BoolAttribute
 	Stl     *string

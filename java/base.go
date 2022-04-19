@@ -207,7 +207,7 @@ type DeviceProperties struct {
 
 	// Whether to compile against the platform APIs instead of an SDK.
 	// If true, then sdk_version must be empty. The value of this field
-	// is ignored when module's type isn't android_app.
+	// is ignored when module's type isn't android_app, android_test, or android_test_helper_app.
 	Platform_apis *bool
 
 	Aidl struct {
@@ -1694,6 +1694,8 @@ func (j *Module) IDEInfo(dpInfo *android.IdeInfo) {
 		dpInfo.Jarjar_rules = append(dpInfo.Jarjar_rules, j.expandJarjarRules.String())
 	}
 	dpInfo.Paths = append(dpInfo.Paths, j.modulePaths...)
+	dpInfo.Static_libs = append(dpInfo.Static_libs, j.properties.Static_libs...)
+	dpInfo.Libs = append(dpInfo.Libs, j.properties.Libs...)
 }
 
 func (j *Module) CompilerDeps() []string {
