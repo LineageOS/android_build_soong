@@ -3556,13 +3556,14 @@ func (c *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 	case fullLibrary:
 		if !prebuilt {
 			libraryBp2Build(ctx, c)
+		} else {
+			prebuiltLibraryBp2Build(ctx, c)
 		}
 	case headerLibrary:
 		libraryHeadersBp2Build(ctx, c)
 	case staticLibrary:
-
 		if prebuilt {
-			prebuiltLibraryStaticBp2Build(ctx, c)
+			prebuiltLibraryStaticBp2Build(ctx, c, false)
 		} else {
 			sharedOrStaticLibraryBp2Build(ctx, c, true)
 		}
