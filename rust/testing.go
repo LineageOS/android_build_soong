@@ -194,6 +194,7 @@ func registerRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
 		ctx.BottomUp("rust_begin", BeginMutator).Parallel()
 	})
 	ctx.RegisterSingletonType("rust_project_generator", rustProjectGeneratorSingleton)
+	ctx.RegisterSingletonType("kythe_rust_extract", kytheExtractRustFactory)
 	ctx.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.BottomUp("rust_sanitizers", rustSanitizerRuntimeMutator).Parallel()
 	})
