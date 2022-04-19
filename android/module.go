@@ -3734,6 +3734,8 @@ type IdeInfo struct {
 	Installed_paths   []string `json:"installed,omitempty"`
 	SrcJars           []string `json:"srcjars,omitempty"`
 	Paths             []string `json:"path,omitempty"`
+	Static_libs       []string `json:"static_libs,omitempty"`
+	Libs              []string `json:"libs,omitempty"`
 }
 
 func CheckBlueprintSyntax(ctx BaseModuleContext, filename string, contents string) []error {
