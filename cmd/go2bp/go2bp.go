@@ -335,12 +335,15 @@ Usage: %s [--rewrite <pkg-prefix>=<replace>] [-exclude <package>] [-regen <file>
 	}
 
 	cmd := exec.Command("go", "list", "-json", "./...")
-	output, err := cmd.Output()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to dump the go packages: %v\n", err)
+	var stdoutb, stderrb bytes.Buffer
+	cmd.Stdout = &stdoutb
+	cmd.Stderr = &stderrb
+	if err := cmd.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "Running %q to dump the Go packages failed: %v, stderr:\n%s\n",
+			cmd.String(), err, stderrb.Bytes())
 		os.Exit(1)
 	}
-	decoder := json.NewDecoder(bytes.NewReader(output))
+	decoder := json.NewDecoder(bytes.NewReader(stdoutb.Bytes()))
 
 	pkgs := []*GoPackage{}
 	pkgMap := map[string]*GoPackage{}
