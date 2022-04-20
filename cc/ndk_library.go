@@ -53,9 +53,9 @@ var (
 
 	abitidy = pctx.AndroidStaticRule("abitidy",
 		blueprint.RuleParams{
-			Command:     "$abitidy --all -i $in -o $out",
+			Command:     "$abitidy --all $flags -i $in -o $out",
 			CommandDeps: []string{"$abitidy"},
-		})
+		}, "flags")
 
 	abidiff = pctx.AndroidStaticRule("abidiff",
 		blueprint.RuleParams{
@@ -104,6 +104,12 @@ type libraryProperties struct {
 	// used. This is only needed to work around platform bugs like
 	// https://github.com/android-ndk/ndk/issues/265.
 	Unversioned_until *string
+
+	// If true, does not emit errors when APIs lacking type information are
+	// found. This is false by default and should not be enabled outside bionic,
+	// where it is enabled pending a fix for http://b/190554910 (no debug info
+	// for asm implemented symbols).
+	Allow_untyped_symbols *bool
 }
 
 type stubDecorator struct {
@@ -339,14 +345,22 @@ func (this *stubDecorator) dumpAbi(ctx ModuleContext, symbolList android.Path) {
 			"symbolList": symbolList.String(),
 		},
 	})
+
 	this.abiDumpPath = getNdkAbiDumpInstallBase(ctx).Join(ctx,
 		this.apiLevel.String(), ctx.Arch().ArchType.String(),
 		this.libraryName(ctx), "abi.xml")
+	untypedFlag := "--abort-on-untyped-symbols"
+	if proptools.BoolDefault(this.properties.Allow_untyped_symbols, false) {
+		untypedFlag = ""
+	}
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        abitidy,
 		Description: fmt.Sprintf("abitidy %s", implementationLibrary),
 		Input:       abiRawPath,
 		Output:      this.abiDumpPath,
+		Args: map[string]string{
+			"flags": untypedFlag,
+		},
 	})
 }
 
