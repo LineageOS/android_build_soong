@@ -169,6 +169,9 @@ func runNinjaForBuild(ctx Context, config Config) {
 			"CCACHE_BASEDIR",
 			"CCACHE_CPP2",
 			"CCACHE_DIR",
+
+			// LLVM compiler wrapper options
+			"TOOLCHAIN_RUSAGE_OUTPUT",
 		}, config.BuildBrokenNinjaUsesEnvVars()...)...)
 	}
 
