@@ -168,6 +168,7 @@ var BannerVars = []string{
 	"WITH_GMS",
 	"WITH_GMS_CAR",
 	"WITH_GMS_TV",
+        "WITH_GMS_MINIMAL",
 }
 
 func Banner(make_vars map[string]string) string {
