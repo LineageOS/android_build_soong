@@ -46,7 +46,7 @@ func (n *ndkAbiDumpSingleton) GenerateBuildActions(ctx android.SingletonContext)
 
 		if m, ok := module.(*Module); ok {
 			if installer, ok := m.installer.(*stubDecorator); ok {
-				if canDumpAbi() {
+				if canDumpAbi(ctx.Config()) {
 					depPaths = append(depPaths, installer.abiDumpPath)
 				}
 			}
