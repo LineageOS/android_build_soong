@@ -527,7 +527,16 @@ var _ prebuiltLinkerInterface = (*prebuiltObjectLinker)(nil)
 func (p *prebuiltObjectLinker) link(ctx ModuleContext,
 	flags Flags, deps PathDeps, objs Objects) android.Path {
 	if len(p.properties.Srcs) > 0 {
-		return p.Prebuilt.SingleSourcePath(ctx)
+		// Copy objects to a name matching the final installed name
+		in := p.Prebuilt.SingleSourcePath(ctx)
+		outputFile := android.PathForModuleOut(ctx, ctx.ModuleName()+".o")
+		ctx.Build(pctx, android.BuildParams{
+			Rule:        android.CpExecutable,
+			Description: "prebuilt",
+			Output:      outputFile,
+			Input:       in,
+		})
+		return outputFile
 	}
 	return nil
 }
