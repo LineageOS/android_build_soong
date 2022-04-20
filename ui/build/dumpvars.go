@@ -205,6 +205,9 @@ func runMakeProductConfig(ctx Context, config Config) {
 		"CCACHE_SLOPPINESS",
 		"CCACHE_BASEDIR",
 		"CCACHE_CPP2",
+
+		// LLVM compiler wrapper options
+		"TOOLCHAIN_RUSAGE_OUTPUT",
 	}
 
 	allVars := append(append([]string{
