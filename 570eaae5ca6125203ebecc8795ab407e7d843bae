@@ -16,6 +16,24 @@
       "message": "You gotta kill it in 19.1, since partner_gms.mk no longer takes it into account.",
       "revId": "570eaae5ca6125203ebecc8795ab407e7d843bae",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "4ca1c32c_cf1a195c",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2022-04-20T19:19:06Z",
+      "side": 1,
+      "message": "Hmmm, \"match 19.1\" was misleading. The var is not there.",
+      "parentUuid": "795ae101_3981dbdf",
+      "revId": "570eaae5ca6125203ebecc8795ab407e7d843bae",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
