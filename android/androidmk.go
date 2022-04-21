@@ -578,7 +578,7 @@ func (a *AndroidMkEntries) fillInEntries(ctx fillInEntriesContext, mod blueprint
 			}
 		}
 
-		if !base.InRamdisk() && !base.InVendorRamdisk() {
+		if !base.InVendorRamdisk() {
 			a.AddPaths("LOCAL_FULL_INIT_RC", base.initRcPaths)
 		}
 		if len(base.vintfFragmentsPaths) > 0 {
