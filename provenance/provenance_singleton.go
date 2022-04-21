@@ -83,6 +83,8 @@ func (b *provenanceInfoSingleton) GenerateBuildActions(context android.Singleton
 		Inputs:      []android.Path{mergedMetaDataFile},
 		Output:      android.PathForPhony(context, "provenance_metadata"),
 	})
+
+	context.Phony("droidcore", android.PathForPhony(context, "provenance_metadata"))
 }
 
 func moduleFilter(module android.Module) bool {
