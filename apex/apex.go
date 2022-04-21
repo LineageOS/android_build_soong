@@ -158,12 +158,6 @@ type apexBundleProperties struct {
 	// or else conflicting build rules may be created.
 	Multi_install_skip_symbol_files *bool
 
-	// List of SDKs that are used to build this APEX. A reference to an SDK should be either
-	// `name#version` or `name` which is an alias for `name#current`. If left empty,
-	// `platform#current` is implied. This value affects all modules included in this APEX. In
-	// other words, they are also built with the SDKs specified here.
-	Uses_sdks []string
-
 	// The type of APEX to build. Controls what the APEX payload is. Either 'image', 'zip' or
 	// 'both'. When set to image, contents are stored in a filesystem image inside a zip
 	// container. When set to zip, contents are stored in a zip container directly. This type is
@@ -789,19 +783,6 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 	commonVariation := ctx.Config().AndroidCommonTarget.Variations()
 	ctx.AddFarVariationDependencies(commonVariation, fsTag, a.properties.Filesystems...)
 	ctx.AddFarVariationDependencies(commonVariation, compatConfigTag, a.properties.Compat_configs...)
-
-	// Marks that this APEX (in fact all the modules in it) has to be built with the given SDKs.
-	// This field currently isn't used.
-	// TODO(jiyong): consider dropping this feature
-	// TODO(jiyong): ensure that all apexes are with non-empty uses_sdks
-	if len(a.properties.Uses_sdks) > 0 {
-		sdkRefs := []android.SdkRef{}
-		for _, str := range a.properties.Uses_sdks {
-			parsed := android.ParseSdkRef(ctx, str, "uses_sdks")
-			sdkRefs = append(sdkRefs, parsed)
-		}
-		a.BuildWithSdks(sdkRefs)
-	}
 }
 
 // DepsMutator for the overridden properties.
@@ -966,7 +947,6 @@ func (a *apexBundle) ApexInfoMutator(mctx android.TopDownMutatorContext) {
 	apexInfo := android.ApexInfo{
 		ApexVariationName: apexVariationName,
 		MinSdkVersion:     minSdkVersion,
-		RequiredSdks:      a.RequiredSdks(),
 		Updatable:         a.Updatable(),
 		UsePlatformApis:   a.UsePlatformApis(),
 		InApexVariants:    []string{apexVariationName},
