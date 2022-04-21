@@ -167,21 +167,17 @@ func bp2buildParseStaticOrSharedProps(ctx android.BazelConversionPathContext, mo
 	attrs.System_dynamic_deps.ForceSpecifyEmptyList = true
 
 	if isStatic {
-		for axis, configToProps := range module.GetArchVariantProperties(ctx, &StaticProperties{}) {
-			for config, props := range configToProps {
-				if staticOrSharedProps, ok := props.(*StaticProperties); ok {
-					setAttrs(axis, config, staticOrSharedProps.Static)
-				}
+		bp2BuildPropParseHelper(ctx, module, &StaticProperties{}, func(axis bazel.ConfigurationAxis, config string, props interface{}) {
+			if staticOrSharedProps, ok := props.(*StaticProperties); ok {
+				setAttrs(axis, config, staticOrSharedProps.Static)
 			}
-		}
+		})
 	} else {
-		for axis, configToProps := range module.GetArchVariantProperties(ctx, &SharedProperties{}) {
-			for config, props := range configToProps {
-				if staticOrSharedProps, ok := props.(*SharedProperties); ok {
-					setAttrs(axis, config, staticOrSharedProps.Shared)
-				}
+		bp2BuildPropParseHelper(ctx, module, &SharedProperties{}, func(axis bazel.ConfigurationAxis, config string, props interface{}) {
+			if staticOrSharedProps, ok := props.(*SharedProperties); ok {
+				setAttrs(axis, config, staticOrSharedProps.Shared)
 			}
-		}
+		})
 	}
 
 	partitionedSrcs := groupSrcsByExtension(ctx, attrs.Srcs)
@@ -359,21 +355,18 @@ func (ca *compilerAttributes) bp2buildForAxisAndConfig(ctx android.BazelConversi
 }
 
 func (ca *compilerAttributes) convertStlProps(ctx android.ArchVariantContext, module *Module) {
-	stlPropsByArch := module.GetArchVariantProperties(ctx, &StlProperties{})
-	for _, configToProps := range stlPropsByArch {
-		for _, props := range configToProps {
-			if stlProps, ok := props.(*StlProperties); ok {
-				if stlProps.Stl == nil {
-					continue
-				}
-				if ca.stl == nil {
-					ca.stl = stlProps.Stl
-				} else if ca.stl != stlProps.Stl {
-					ctx.ModuleErrorf("Unsupported conversion: module with different stl for different variants: %s and %s", *ca.stl, stlProps.Stl)
-				}
+	bp2BuildPropParseHelper(ctx, module, &StlProperties{}, func(axis bazel.ConfigurationAxis, config string, props interface{}) {
+		if stlProps, ok := props.(*StlProperties); ok {
+			if stlProps.Stl == nil {
+				return
+			}
+			if ca.stl == nil {
+				ca.stl = stlProps.Stl
+			} else if ca.stl != stlProps.Stl {
+				ctx.ModuleErrorf("Unsupported conversion: module with different stl for different variants: %s and %s", *ca.stl, stlProps.Stl)
 			}
 		}
-	}
+	})
 }
 
 func (ca *compilerAttributes) convertProductVariables(ctx android.BazelConversionPathContext, productVariableProps android.ProductConfigProperties) {
@@ -713,17 +706,15 @@ func (la *linkerAttributes) bp2buildForAxisAndConfig(ctx android.BazelConversion
 }
 
 func (la *linkerAttributes) convertStripProps(ctx android.BazelConversionPathContext, module *Module) {
-	for axis, configToProps := range module.GetArchVariantProperties(ctx, &StripProperties{}) {
-		for config, props := range configToProps {
-			if stripProperties, ok := props.(*StripProperties); ok {
-				la.stripKeepSymbols.SetSelectValue(axis, config, stripProperties.Strip.Keep_symbols)
-				la.stripKeepSymbolsList.SetSelectValue(axis, config, stripProperties.Strip.Keep_symbols_list)
-				la.stripKeepSymbolsAndDebugFrame.SetSelectValue(axis, config, stripProperties.Strip.Keep_symbols_and_debug_frame)
-				la.stripAll.SetSelectValue(axis, config, stripProperties.Strip.All)
-				la.stripNone.SetSelectValue(axis, config, stripProperties.Strip.None)
-			}
+	bp2BuildPropParseHelper(ctx, module, &StripProperties{}, func(axis bazel.ConfigurationAxis, config string, props interface{}) {
+		if stripProperties, ok := props.(*StripProperties); ok {
+			la.stripKeepSymbols.SetSelectValue(axis, config, stripProperties.Strip.Keep_symbols)
+			la.stripKeepSymbolsList.SetSelectValue(axis, config, stripProperties.Strip.Keep_symbols_list)
+			la.stripKeepSymbolsAndDebugFrame.SetSelectValue(axis, config, stripProperties.Strip.Keep_symbols_and_debug_frame)
+			la.stripAll.SetSelectValue(axis, config, stripProperties.Strip.All)
+			la.stripNone.SetSelectValue(axis, config, stripProperties.Strip.None)
 		}
-	}
+	})
 }
 
 func (la *linkerAttributes) convertProductVariables(ctx android.BazelConversionPathContext, productVariableProps android.ProductConfigProperties) {
@@ -859,18 +850,16 @@ func bp2BuildParseExportedIncludesHelper(ctx android.BazelConversionPathContext,
 	} else {
 		exported = BazelIncludes{}
 	}
-	for axis, configToProps := range module.GetArchVariantProperties(ctx, &FlagExporterProperties{}) {
-		for config, props := range configToProps {
-			if flagExporterProperties, ok := props.(*FlagExporterProperties); ok {
-				if len(flagExporterProperties.Export_include_dirs) > 0 {
-					exported.Includes.SetSelectValue(axis, config, android.FirstUniqueStrings(append(exported.Includes.SelectValue(axis, config), flagExporterProperties.Export_include_dirs...)))
-				}
-				if len(flagExporterProperties.Export_system_include_dirs) > 0 {
-					exported.SystemIncludes.SetSelectValue(axis, config, android.FirstUniqueStrings(append(exported.SystemIncludes.SelectValue(axis, config), flagExporterProperties.Export_system_include_dirs...)))
-				}
+	bp2BuildPropParseHelper(ctx, module, &FlagExporterProperties{}, func(axis bazel.ConfigurationAxis, config string, props interface{}) {
+		if flagExporterProperties, ok := props.(*FlagExporterProperties); ok {
+			if len(flagExporterProperties.Export_include_dirs) > 0 {
+				exported.Includes.SetSelectValue(axis, config, android.FirstUniqueStrings(append(exported.Includes.SelectValue(axis, config), flagExporterProperties.Export_include_dirs...)))
+			}
+			if len(flagExporterProperties.Export_system_include_dirs) > 0 {
+				exported.SystemIncludes.SetSelectValue(axis, config, android.FirstUniqueStrings(append(exported.SystemIncludes.SelectValue(axis, config), flagExporterProperties.Export_system_include_dirs...)))
 			}
 		}
-	}
+	})
 	exported.AbsoluteIncludes.DeduplicateAxesFromBase()
 	exported.Includes.DeduplicateAxesFromBase()
 	exported.SystemIncludes.DeduplicateAxesFromBase()
@@ -938,22 +927,19 @@ type binaryLinkerAttrs struct {
 
 func bp2buildBinaryLinkerProps(ctx android.BazelConversionPathContext, m *Module) binaryLinkerAttrs {
 	attrs := binaryLinkerAttrs{}
-	archVariantProps := m.GetArchVariantProperties(ctx, &BinaryLinkerProperties{})
-	for axis, configToProps := range archVariantProps {
-		for _, p := range configToProps {
-			props := p.(*BinaryLinkerProperties)
-			staticExecutable := props.Static_executable
-			if axis == bazel.NoConfigAxis {
-				if linkBinaryShared := !proptools.Bool(staticExecutable); !linkBinaryShared {
-					attrs.Linkshared = &linkBinaryShared
-				}
-			} else if staticExecutable != nil {
-				// TODO(b/202876379): Static_executable is arch-variant; however, linkshared is a
-				// nonconfigurable attribute. Only 4 AOSP modules use this feature, defer handling
-				ctx.ModuleErrorf("bp2build cannot migrate a module with arch/target-specific static_executable values")
+	bp2BuildPropParseHelper(ctx, m, &BinaryLinkerProperties{}, func(axis bazel.ConfigurationAxis, config string, props interface{}) {
+		linkerProps := props.(*BinaryLinkerProperties)
+		staticExecutable := linkerProps.Static_executable
+		if axis == bazel.NoConfigAxis {
+			if linkBinaryShared := !proptools.Bool(staticExecutable); !linkBinaryShared {
+				attrs.Linkshared = &linkBinaryShared
 			}
+		} else if staticExecutable != nil {
+			// TODO(b/202876379): Static_executable is arch-variant; however, linkshared is a
+			// nonconfigurable attribute. Only 4 AOSP modules use this feature, defer handling
+			ctx.ModuleErrorf("bp2build cannot migrate a module with arch/target-specific static_executable values")
 		}
-	}
+	})
 
 	return attrs
 }
