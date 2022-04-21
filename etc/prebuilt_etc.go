@@ -723,8 +723,8 @@ func prebuiltEtcBp2BuildInternal(ctx android.TopDownMutatorContext, module *Preb
 	}
 
 	props := bazel.BazelTargetModuleProperties{
-		Rule_class:        "prebuilt_etc",
-		Bzl_load_location: "//build/bazel/rules:prebuilt_etc.bzl",
+		Rule_class:        "prebuilt_file",
+		Bzl_load_location: "//build/bazel/rules:prebuilt_file.bzl",
 	}
 
 	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: module.Name()}, attrs)
