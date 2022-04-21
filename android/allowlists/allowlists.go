@@ -367,6 +367,10 @@ var (
 		"timezone-host",       // depends on unconverted modules: art.module.api.annotations
 		"truth-host-prebuilt", // depends on unconverted modules: truth-prebuilt
 		"truth-prebuilt",      // depends on unconverted modules: asm-7.0, guava
+
+		// b/215723302; awaiting tz{data,_version} to then rename targets conflicting with srcs
+		"tzdata",
+		"tz_version",
 	}
 
 	Bp2buildCcLibraryStaticOnlyList = []string{}
