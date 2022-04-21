@@ -45,7 +45,7 @@ prebuilt_etc {
 }
 `,
 		expectedBazelTargets: []string{
-			makeBazelTarget("prebuilt_etc", "apex_tz_version", attrNameToString{
+			makeBazelTarget("prebuilt_file", "apex_tz_version", attrNameToString{
 				"filename":    `"tz_version"`,
 				"installable": `False`,
 				"src":         `"version/tz_version"`,
@@ -75,7 +75,7 @@ prebuilt_etc {
 }
 `,
 		expectedBazelTargets: []string{
-			makeBazelTarget("prebuilt_etc", "apex_tz_version", attrNameToString{
+			makeBazelTarget("prebuilt_file", "apex_tz_version", attrNameToString{
 				"filename":    `"tz_version"`,
 				"installable": `False`,
 				"src": `select({
@@ -114,7 +114,7 @@ prebuilt_etc {
 }
 `,
 		expectedBazelTargets: []string{
-			makeBazelTarget("prebuilt_etc", "apex_tz_version", attrNameToString{
+			makeBazelTarget("prebuilt_file", "apex_tz_version", attrNameToString{
 				"filename":    `"tz_version"`,
 				"installable": `False`,
 				"src": `select({
