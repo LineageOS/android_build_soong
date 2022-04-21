@@ -282,23 +282,3 @@ func (p *PackagingBase) CopyDepsToZip(ctx ModuleContext, specs map[string]Packag
 	builder.Build("zip_deps", fmt.Sprintf("Zipping deps for %s", ctx.ModuleName()))
 	return entries
 }
-
-// packagingSpecsDepSet is a thin type-safe wrapper around the generic depSet.  It always uses
-// topological order.
-type packagingSpecsDepSet struct {
-	depSet
-}
-
-// newPackagingSpecsDepSet returns an immutable packagingSpecsDepSet with the given direct and
-// transitive contents.
-func newPackagingSpecsDepSet(direct []PackagingSpec, transitive []*packagingSpecsDepSet) *packagingSpecsDepSet {
-	return &packagingSpecsDepSet{*newDepSet(TOPOLOGICAL, direct, transitive)}
-}
-
-// ToList returns the packagingSpecsDepSet flattened to a list in topological order.
-func (d *packagingSpecsDepSet) ToList() []PackagingSpec {
-	if d == nil {
-		return nil
-	}
-	return d.depSet.ToList().([]PackagingSpec)
-}

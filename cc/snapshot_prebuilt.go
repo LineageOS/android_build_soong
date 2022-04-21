@@ -499,7 +499,7 @@ func (p *snapshotLibraryDecorator) link(ctx ModuleContext, flags Flags, deps Pat
 	}
 
 	if p.static() {
-		depSet := android.NewDepSetBuilder(android.TOPOLOGICAL).Direct(in).Build()
+		depSet := android.NewDepSetBuilder[android.Path](android.TOPOLOGICAL).Direct(in).Build()
 		ctx.SetProvider(StaticLibraryInfoProvider, StaticLibraryInfo{
 			StaticLibrary: in,
 

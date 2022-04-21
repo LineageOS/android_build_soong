@@ -108,17 +108,17 @@ type AidlLibraryInfo struct {
 	// The direct aidl files of the module
 	Srcs android.Paths
 	// The include dirs to the direct aidl files and those provided from transitive aidl_library deps
-	IncludeDirs android.DepSet
+	IncludeDirs android.DepSet[android.Path]
 	// The direct hdrs and hdrs from transitive deps
-	Hdrs android.DepSet
+	Hdrs android.DepSet[android.Path]
 }
 
 // AidlLibraryProvider provides the srcs and the transitive include dirs
 var AidlLibraryProvider = blueprint.NewProvider(AidlLibraryInfo{})
 
 func (lib *AidlLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	includeDirsDepSetBuilder := android.NewDepSetBuilder(android.PREORDER)
-	hdrsDepSetBuilder := android.NewDepSetBuilder(android.PREORDER)
+	includeDirsDepSetBuilder := android.NewDepSetBuilder[android.Path](android.PREORDER)
+	hdrsDepSetBuilder := android.NewDepSetBuilder[android.Path](android.PREORDER)
 
 	if len(lib.properties.Srcs) == 0 && len(lib.properties.Hdrs) == 0 {
 		ctx.ModuleErrorf("at least srcs or hdrs prop must be non-empty")

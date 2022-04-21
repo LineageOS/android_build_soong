@@ -48,7 +48,6 @@ bootstrap_go_package {
         "defaults.go",
         "defs.go",
         "depset_generic.go",
-        "depset_paths.go",
         "deptag.go",
         "expand.go",
         "filegroup.go",
