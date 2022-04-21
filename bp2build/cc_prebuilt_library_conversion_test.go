@@ -136,7 +136,7 @@ cc_prebuilt_library {
 	},
 	bazel_module: { bp2build_available: true },
 }`,
-			expectedErr: fmt.Errorf("Expected at most once source file"),
+			expectedErr: fmt.Errorf("Expected at most one source file"),
 		})
 }
 
@@ -159,7 +159,7 @@ cc_prebuilt_library {
 	},
 	bazel_module: { bp2build_available: true },
 }`,
-			expectedErr: fmt.Errorf("Expected at most once source file"),
+			expectedErr: fmt.Errorf("Expected at most one source file"),
 		})
 }
 

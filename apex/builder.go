@@ -388,7 +388,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 
 	imageDir := android.PathForModuleOut(ctx, "image"+suffix)
 
-	installSymbolFiles := !ctx.Config().KatiEnabled() || a.ExportedToMake()
+	installSymbolFiles := (!ctx.Config().KatiEnabled() || a.ExportedToMake()) && a.installable()
 
 	// b/140136207. When there are overriding APEXes for a VNDK APEX, the symbols file for the overridden
 	// APEX and the overriding APEX will have the same installation paths at /apex/com.android.vndk.v<ver>
