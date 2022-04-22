@@ -70,7 +70,7 @@ class OverwritePackageNameTest(unittest.TestCase):
 class OverwriteTestFileNameTest(unittest.TestCase):
   """ Unit tests for overwrite_test_file_name function """
 
-  test_config = (
+  test_config_test_app_install_setup = (
       '<?xml version="1.0" encoding="utf-8"?>\n'
       '<configuration description="Runs some tests.">\n'
       '    <target_preparer class="com.android.tradefed.targetprep.TestAppInstallSetup">\n'
@@ -82,15 +82,38 @@ class OverwriteTestFileNameTest(unittest.TestCase):
       '    </test>\n'
       '</configuration>\n')
 
-  def test_all(self):
-    doc = minidom.parseString(self.test_config % ("foo.apk"))
+  test_config_suite_apk_installer = (
+      '<?xml version="1.0" encoding="utf-8"?>\n'
+      '<configuration description="Runs some tests.">\n'
+      '    <target_preparer class="com.android.tradefed.targetprep.suite.SuiteApkInstaller">\n'
+      '        <option name="test-file-name" value="%s"/>\n'
+      '    </target_preparer>\n'
+      '    <test class="com.android.tradefed.testtype.AndroidJUnitTest">\n'
+      '        <option name="package" value="com.android.foo"/>\n'
+      '        <option name="runtime-hint" value="20s"/>\n'
+      '    </test>\n'
+      '</configuration>\n')
+
+  def test_testappinstallsetup(self):
+    doc = minidom.parseString(self.test_config_test_app_install_setup % ("foo.apk"))
 
     test_config_fixer.overwrite_test_file_name(doc, "bar.apk")
     output = io.StringIO()
     test_config_fixer.write_xml(output, doc)
 
     # Only the matching package name in a test node should be updated.
-    expected = self.test_config % ("bar.apk")
+    expected = self.test_config_test_app_install_setup % ("bar.apk")
+    self.assertEqual(expected, output.getvalue())
+
+  def test_suiteapkinstaller(self):
+    doc = minidom.parseString(self.test_config_suite_apk_installer % ("foo.apk"))
+
+    test_config_fixer.overwrite_test_file_name(doc, "bar.apk")
+    output = io.StringIO()
+    test_config_fixer.write_xml(output, doc)
+
+    # Only the matching package name in a test node should be updated.
+    expected = self.test_config_suite_apk_installer % ("bar.apk")
     self.assertEqual(expected, output.getvalue())
 
 
