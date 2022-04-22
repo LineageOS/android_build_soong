@@ -104,12 +104,14 @@ var (
 		"external/google-benchmark":                          Bp2BuildDefaultTrueRecursively,
 		"external/googletest":                                Bp2BuildDefaultTrueRecursively,
 		"external/gwp_asan":                                  Bp2BuildDefaultTrueRecursively,
+		"external/hamcrest":                                  Bp2BuildDefaultTrueRecursively,
 		"external/icu":                                       Bp2BuildDefaultTrueRecursively,
 		"external/icu/android_icu4j":                         Bp2BuildDefaultFalse, // java rules incomplete
 		"external/icu/icu4j":                                 Bp2BuildDefaultFalse, // java rules incomplete
 		"external/javapoet":                                  Bp2BuildDefaultTrueRecursively,
 		"external/jemalloc_new":                              Bp2BuildDefaultTrueRecursively,
 		"external/jsoncpp":                                   Bp2BuildDefaultTrueRecursively,
+		"external/junit":                                     Bp2BuildDefaultTrueRecursively,
 		"external/libcap":                                    Bp2BuildDefaultTrueRecursively,
 		"external/libcxx":                                    Bp2BuildDefaultTrueRecursively,
 		"external/libcxxabi":                                 Bp2BuildDefaultTrueRecursively,
@@ -122,6 +124,7 @@ var (
 		"external/pcre":                                      Bp2BuildDefaultTrueRecursively,
 		"external/protobuf":                                  Bp2BuildDefaultTrueRecursively,
 		"external/python/six":                                Bp2BuildDefaultTrueRecursively,
+		"external/rappor":                                    Bp2BuildDefaultTrueRecursively,
 		"external/scudo":                                     Bp2BuildDefaultTrueRecursively,
 		"external/selinux/libselinux":                        Bp2BuildDefaultTrueRecursively,
 		"external/selinux/libsepol":                          Bp2BuildDefaultTrueRecursively,

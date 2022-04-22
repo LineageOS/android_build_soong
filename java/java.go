@@ -2089,6 +2089,11 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext)
 	if m.properties.Javacflags != nil {
 		javacopts = append(javacopts, m.properties.Javacflags...)
 	}
+	if m.properties.Java_version != nil {
+		javaVersion := normalizeJavaVersion(ctx, *m.properties.Java_version).String()
+		javacopts = append(javacopts, fmt.Sprintf("-source %s -target %s", javaVersion, javaVersion))
+	}
+
 	epEnabled := m.properties.Errorprone.Enabled
 	//TODO(b/227504307) add configuration that depends on RUN_ERROR_PRONE environment variable
 	if Bool(epEnabled) {

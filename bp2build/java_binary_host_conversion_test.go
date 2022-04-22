@@ -52,6 +52,7 @@ func TestJavaBinaryHost(t *testing.T) {
     jni_libs: ["jni-lib-1"],
     javacflags: ["-Xdoclint:all/protected"],
     bazel_module: { bp2build_available: true },
+    java_version: "8",
 }`,
 		expectedBazelTargets: []string{
 			makeBazelTarget("java_binary", "java-binary-host-1", attrNameToString{
@@ -59,7 +60,10 @@ func TestJavaBinaryHost(t *testing.T) {
 				"main_class": `"com.android.test.MainClass"`,
 				"deps":       `["//other:jni-lib-1"]`,
 				"jvm_flags":  `["-Djava.library.path=$${RUNPATH}other"]`,
-				"javacopts":  `["-Xdoclint:all/protected"]`,
+				"javacopts": `[
+        "-Xdoclint:all/protected",
+        "-source 1.8 -target 1.8",
+    ]`,
 				"target_compatible_with": `select({
         "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
