@@ -95,7 +95,7 @@ var d8, d8RE = pctx.MultiCommandRemoteStaticRules("d8",
 		Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
 			`mkdir -p $$(dirname $tmpJar) && ` +
 			`${config.Zip2ZipCmd} -i $in -o $tmpJar -x '**/*.dex' && ` +
-			`$d8Template${config.D8Cmd} ${config.DexFlags} --output $outDir $d8Flags $tmpJar && ` +
+			`$d8Template${config.D8Cmd} ${config.D8Flags} --output $outDir $d8Flags $tmpJar && ` +
 			`$zipTemplate${config.SoongZipCmd} $zipFlags -o $outDir/classes.dex.jar -C $outDir -f "$outDir/classes*.dex" && ` +
 			`${config.MergeZipsCmd} -D -stripFile "**/*.class" $mergeZipsFlags $out $outDir/classes.dex.jar $in`,
 		CommandDeps: []string{
@@ -128,7 +128,7 @@ var r8, r8RE = pctx.MultiCommandRemoteStaticRules("r8",
 			`mkdir -p $$(dirname ${outUsage}) && ` +
 			`mkdir -p $$(dirname $tmpJar) && ` +
 			`${config.Zip2ZipCmd} -i $in -o $tmpJar -x '**/*.dex' && ` +
-			`$r8Template${config.R8Cmd} ${config.DexFlags} -injars $tmpJar --output $outDir ` +
+			`$r8Template${config.R8Cmd} ${config.R8Flags} -injars $tmpJar --output $outDir ` +
 			`--no-data-resources ` +
 			`-printmapping ${outDict} ` +
 			`-printusage ${outUsage} ` +
