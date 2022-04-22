@@ -474,6 +474,7 @@ func PrebuiltUserShareFactory() android.Module {
 	// This module is device-only
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
 	android.InitDefaultableModule(module)
+	android.InitBazelModule(module)
 	return module
 }
 
@@ -668,25 +669,17 @@ func generatePrebuiltSnapshot(s snapshot.SnapshotSingleton, ctx android.Singleto
 
 // For Bazel / bp2build
 
-type bazelPrebuiltEtcAttributes struct {
+type bazelPrebuiltFileAttributes struct {
 	Src         bazel.LabelAttribute
 	Filename    string
-	Sub_dir     string
+	Dir         string
 	Installable bazel.BoolAttribute
 }
 
 // ConvertWithBp2build performs bp2build conversion of PrebuiltEtc
-func (p *PrebuiltEtc) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
-	// All prebuilt_* modules are PrebuiltEtc, but at this time, we only convert prebuilt_etc modules.
-	if p.installDirBase != "etc" {
-		return
-	}
-
-	prebuiltEtcBp2BuildInternal(ctx, p)
-}
-
-func prebuiltEtcBp2BuildInternal(ctx android.TopDownMutatorContext, module *PrebuiltEtc) {
-	var srcLabelAttribute bazel.LabelAttribute
+// All prebuilt_* modules are PrebuiltEtc, which we treat uniformily as *PrebuiltFile*
+func (module *PrebuiltEtc) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+	var src bazel.LabelAttribute
 	for axis, configToProps := range module.GetArchVariantProperties(ctx, &prebuiltEtcProperties{}) {
 		for config, p := range configToProps {
 			props, ok := p.(*prebuiltEtcProperties)
@@ -695,7 +688,7 @@ func prebuiltEtcBp2BuildInternal(ctx android.TopDownMutatorContext, module *Preb
 			}
 			if props.Src != nil {
 				label := android.BazelLabelForModuleSrcSingle(ctx, *props.Src)
-				srcLabelAttribute.SetSelectValue(axis, config, label)
+				src.SetSelectValue(axis, config, label)
 			}
 		}
 	}
@@ -705,26 +698,30 @@ func prebuiltEtcBp2BuildInternal(ctx android.TopDownMutatorContext, module *Preb
 		filename = *module.properties.Filename
 	}
 
-	var subDir string
-	if module.subdirProperties.Sub_dir != nil {
-		subDir = *module.subdirProperties.Sub_dir
+	var dir = module.installDirBase
+	// prebuilt_file supports only `etc` or `usr/share`
+	if !(dir == "etc" || dir == "usr/share") {
+		return
+	}
+	if subDir := module.subdirProperties.Sub_dir; subDir != nil {
+		dir = dir + "/" + *subDir
 	}
 
-	var installableBoolAttribute bazel.BoolAttribute
-	if module.properties.Installable != nil {
-		installableBoolAttribute.Value = module.properties.Installable
+	var installable bazel.BoolAttribute
+	if install := module.properties.Installable; install != nil {
+		installable.Value = install
 	}
 
-	attrs := &bazelPrebuiltEtcAttributes{
-		Src:         srcLabelAttribute,
+	attrs := &bazelPrebuiltFileAttributes{
+		Src:         src,
 		Filename:    filename,
-		Sub_dir:     subDir,
-		Installable: installableBoolAttribute,
+		Dir:         dir,
+		Installable: installable,
 	}
 
 	props := bazel.BazelTargetModuleProperties{
-		Rule_class:        "prebuilt_etc",
-		Bzl_load_location: "//build/bazel/rules:prebuilt_etc.bzl",
+		Rule_class:        "prebuilt_file",
+		Bzl_load_location: "//build/bazel/rules:prebuilt_file.bzl",
 	}
 
 	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: module.Name()}, attrs)
