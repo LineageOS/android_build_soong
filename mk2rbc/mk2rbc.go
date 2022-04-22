@@ -889,8 +889,9 @@ func (p *inheritProductCallParser) parse(ctx *parseContext, v mkparser.Node, arg
 	})
 }
 
-func (ctx *parseContext) handleInclude(v mkparser.Node, pathExpr starlarkExpr, loadAlways bool) []starlarkNode {
-	return ctx.handleSubConfig(v, pathExpr, loadAlways, func(im inheritedModule) starlarkNode {
+func (ctx *parseContext) handleInclude(v *mkparser.Directive) []starlarkNode {
+	loadAlways := v.Name[0] != '-'
+	return ctx.handleSubConfig(v, ctx.parseMakeString(v, v.Args), loadAlways, func(im inheritedModule) starlarkNode {
 		return &includeNode{im, loadAlways}
 	})
 }
@@ -1759,10 +1760,23 @@ func (p *evalNodeParser) parse(ctx *parseContext, node mkparser.Node, args *mkpa
 			}
 		case *mkparser.Comment:
 			return []starlarkNode{&commentNode{strings.TrimSpace("#" + n.Comment)}}
+		case *mkparser.Directive:
+			if n.Name == "include" || n.Name == "-include" {
+				return ctx.handleInclude(n)
+			}
+		case *mkparser.Variable:
+			// Technically inherit-product(-if-exists) don't need to be put inside
+			// an eval, but some makefiles do it, presumably because they copy+pasted
+			// from a $(eval include ...)
+			if name, _, ok := ctx.maybeParseFunctionCall(n, n.Name); ok {
+				if name == "inherit-product" || name == "inherit-product-if-exists" {
+					return ctx.handleVariable(n)
+				}
+			}
 		}
 	}
 
-	return []starlarkNode{ctx.newBadNode(node, "Eval expression too complex; only assignments and comments are supported")}
+	return []starlarkNode{ctx.newBadNode(node, "Eval expression too complex; only assignments, comments, includes, and inherit-products are supported")}
 }
 
 func (ctx *parseContext) parseMakeString(node mkparser.Node, mk *mkparser.MakeString) starlarkExpr {
@@ -1822,7 +1836,7 @@ func (ctx *parseContext) handleSimpleStatement(node mkparser.Node) []starlarkNod
 				result = []starlarkNode{res}
 			}
 		case "include", "-include":
-			result = ctx.handleInclude(node, ctx.parseMakeString(node, x.Args), x.Name[0] != '-')
+			result = ctx.handleInclude(x)
 		case "ifeq", "ifneq", "ifdef", "ifndef":
 			result = []starlarkNode{ctx.handleIfBlock(x)}
 		default:

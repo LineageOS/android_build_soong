@@ -1509,24 +1509,40 @@ $(eval)
 $(eval MY_VAR := foo)
 $(eval # This is a test of eval functions)
 $(eval $(TOO_COMPLICATED) := bar)
+$(eval include foo/font.mk)
+$(eval $(call inherit-product,vendor/foo1/cfg.mk))
+
 $(foreach x,$(MY_LIST_VAR), \
   $(eval PRODUCT_COPY_FILES += foo/bar/$(x):$(TARGET_COPY_OUT_VENDOR)/etc/$(x)) \
-  $(if $(MY_OTHER_VAR),$(eval PRODUCT_COPY_FILES += $(MY_OTHER_VAR):foo/bar/$(x))) \
-)
+  $(if $(MY_OTHER_VAR),$(eval PRODUCT_COPY_FILES += $(MY_OTHER_VAR):foo/bar/$(x))))
 
+$(foreach x,$(MY_LIST_VAR), \
+  $(eval include foo/$(x).mk))
 `,
 		expected: `load("//build/make/core:product_config.rbc", "rblf")
+load("//foo:font.star", _font_init = "init")
+load("//vendor/foo1:cfg.star", _cfg_init = "init")
 
 def init(g, handle):
   cfg = rblf.cfg(handle)
   g["MY_VAR"] = "foo"
   # This is a test of eval functions
-  rblf.mk2rbc_error("product.mk:5", "Eval expression too complex; only assignments and comments are supported")
+  rblf.mk2rbc_error("product.mk:5", "Eval expression too complex; only assignments, comments, includes, and inherit-products are supported")
+  _font_init(g, handle)
+  rblf.inherit(handle, "vendor/foo1/cfg", _cfg_init)
   for x in rblf.words(g.get("MY_LIST_VAR", "")):
     rblf.setdefault(handle, "PRODUCT_COPY_FILES")
     cfg["PRODUCT_COPY_FILES"] += ("foo/bar/%s:%s/etc/%s" % (x, g.get("TARGET_COPY_OUT_VENDOR", ""), x)).split()
     if g.get("MY_OTHER_VAR", ""):
       cfg["PRODUCT_COPY_FILES"] += ("%s:foo/bar/%s" % (g.get("MY_OTHER_VAR", ""), x)).split()
+  for x in rblf.words(g.get("MY_LIST_VAR", "")):
+    _entry = {
+      "foo/font.mk": ("foo/font", _font_init),
+    }.get("foo/%s.mk" % _x)
+    (_varmod, _varmod_init) = _entry if _entry else (None, None)
+    if not _varmod_init:
+      rblf.mkerror("product.mk", "Cannot find %s" % ("foo/%s.mk" % _x))
+    _varmod_init(g, handle)
 `,
 	},
 }
