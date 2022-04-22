@@ -228,6 +228,15 @@ func (b *bootimg) signImage(ctx android.ModuleContext, unsignedImage android.Out
 	return output
 }
 
+// Calculates avb_salt from some input for deterministic output.
+func (b *bootimg) salt() string {
+	var input []string
+	input = append(input, b.properties.Cmdline...)
+	input = append(input, proptools.StringDefault(b.properties.Partition_name, b.Name()))
+	input = append(input, proptools.String(b.properties.Header_version))
+	return sha1sum(input)
+}
+
 func (b *bootimg) buildPropFile(ctx android.ModuleContext) (propFile android.OutputPath, toolDeps android.Paths) {
 	var sb strings.Builder
 	var deps android.Paths
@@ -248,6 +257,7 @@ func (b *bootimg) buildPropFile(ctx android.ModuleContext) (propFile android.Out
 	addStr("avb_add_hash_footer_args", "") // TODO(jiyong): add --rollback_index
 	partitionName := proptools.StringDefault(b.properties.Partition_name, b.Name())
 	addStr("partition_name", partitionName)
+	addStr("avb_salt", b.salt())
 
 	propFile = android.PathForModuleOut(ctx, "prop").OutputPath
 	android.WriteFileRule(ctx, propFile, sb.String())

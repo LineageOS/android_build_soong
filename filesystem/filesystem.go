@@ -15,7 +15,9 @@
 package filesystem
 
 import (
+	"crypto/sha256"
 	"fmt"
+	"io"
 	"path/filepath"
 	"strings"
 
@@ -88,6 +90,13 @@ type filesystemProperties struct {
 
 	// Symbolic links to be created under root with "ln -sf <target> <name>".
 	Symlinks []symlinkDefinition
+
+	// Seconds since unix epoch to override timestamps of file entries
+	Fake_timestamp *string
+
+	// When set, passed to mkuserimg_mke2fs --mke2fs_uuid & --mke2fs_hash_seed.
+	// Otherwise, they'll be set as random which might cause indeterministic build output.
+	Uuid *string
 }
 
 // android_filesystem packages a set of modules and their transitive dependencies into a filesystem
@@ -276,6 +285,11 @@ func (f *filesystem) buildFileContexts(ctx android.ModuleContext) android.Output
 	return fcBin.OutputPath
 }
 
+// Calculates avb_salt from entry list (sorted) for deterministic output.
+func (f *filesystem) salt() string {
+	return sha1sum(f.entries)
+}
+
 func (f *filesystem) buildPropFile(ctx android.ModuleContext) (propFile android.OutputPath, toolDeps android.Paths) {
 	type prop struct {
 		name  string
@@ -321,12 +335,19 @@ func (f *filesystem) buildPropFile(ctx android.ModuleContext) (propFile android.
 		addStr("avb_add_hashtree_footer_args", "--do_not_generate_fec")
 		partitionName := proptools.StringDefault(f.properties.Partition_name, f.Name())
 		addStr("partition_name", partitionName)
+		addStr("avb_salt", f.salt())
 	}
 
 	if proptools.String(f.properties.File_contexts) != "" {
 		addPath("selinux_fc", f.buildFileContexts(ctx))
 	}
-
+	if timestamp := proptools.String(f.properties.Fake_timestamp); timestamp != "" {
+		addStr("timestamp", timestamp)
+	}
+	if uuid := proptools.String(f.properties.Uuid); uuid != "" {
+		addStr("uuid", uuid)
+		addStr("hash_seed", uuid)
+	}
 	propFile = android.PathForModuleOut(ctx, "prop").OutputPath
 	builder := android.NewRuleBuilder(pctx, ctx)
 	builder.Command().Text("rm").Flag("-rf").Output(propFile)
@@ -450,4 +471,12 @@ func (f *filesystem) gatherFilteredPackagingSpecs(ctx android.ModuleContext) map
 		f.filterPackagingSpecs(specs)
 	}
 	return specs
+}
+
+func sha1sum(values []string) string {
+	h := sha256.New()
+	for _, value := range values {
+		io.WriteString(h, value)
+	}
+	return fmt.Sprintf("%x", h.Sum(nil))
 }
