@@ -81,7 +81,17 @@ func init() {
 	exportedVars.ExportStringStaticVariable("ErrorProneHeapSize", "4096M")
 	exportedVars.ExportStringStaticVariable("ErrorProneHeapFlags", "-J-Xmx${ErrorProneHeapSize}")
 
-	exportedVars.ExportStringListStaticVariable("DexFlags", []string{
+	// D8 invocations are shorter lived, so we restrict their JIT tiering relative to R8.
+	// Note that the `-JXX` prefix syntax is specific to the R8/D8 invocation wrappers.
+	exportedVars.ExportStringListStaticVariable("D8Flags", []string{
+		`-JXX:OnError="cat hs_err_pid%p.log"`,
+		"-JXX:CICompilerCount=6",
+		"-JXX:+UseDynamicNumberOfGCThreads",
+		"-JXX:+TieredCompilation",
+		"-JXX:TieredStopAtLevel=1",
+	})
+
+	exportedVars.ExportStringListStaticVariable("R8Flags", []string{
 		`-JXX:OnError="cat hs_err_pid%p.log"`,
 		"-JXX:CICompilerCount=6",
 		"-JXX:+UseDynamicNumberOfGCThreads",
