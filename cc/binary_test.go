@@ -49,3 +49,23 @@ cc_binary {
 	expectedUnStrippedFile := "outputbase/execroot/__main__/foo"
 	android.AssertStringEquals(t, "Unstripped output file", expectedUnStrippedFile, unStrippedFilePath.String())
 }
+
+func TestBinaryLinkerScripts(t *testing.T) {
+	result := PrepareForIntegrationTestWithCc.RunTestWithBp(t, `
+		cc_binary {
+			name: "foo",
+			srcs: ["foo.cc"],
+			linker_scripts: ["foo.ld", "bar.ld"],
+		}`)
+
+	binFoo := result.ModuleForTests("foo", "android_arm64_armv8-a").Rule("ld")
+
+	android.AssertStringListContains(t, "missing dependency on linker_scripts",
+		binFoo.Implicits.Strings(), "foo.ld")
+	android.AssertStringListContains(t, "missing dependency on linker_scripts",
+		binFoo.Implicits.Strings(), "bar.ld")
+	android.AssertStringDoesContain(t, "missing flag for linker_scripts",
+		libfoo.Args["ldFlags"], "-Wl,--script,foo.ld")
+	android.AssertStringDoesContain(t, "missing flag for linker_scripts",
+		libfoo.Args["ldFlags"], "-Wl,--script,bar.ld")
+}
