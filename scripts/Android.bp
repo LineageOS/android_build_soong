@@ -188,3 +188,8 @@ python_binary_host {
         "get_clang_version.py",
     ],
 }
+
+sh_binary_host {
+    name: "list_image",
+    src: "list_image.sh",
+}
