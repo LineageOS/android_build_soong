@@ -808,6 +808,10 @@ def init(g, handle):
 PRODUCT_COPY_FILES := $(addprefix pfx-,a b c)
 PRODUCT_COPY_FILES := $(addsuffix .sff, a b c)
 PRODUCT_NAME := $(word 1, $(subst ., ,$(TARGET_BOARD_PLATFORM)))
+ifeq (1,$(words $(SOME_UNKNOWN_VARIABLE)))
+endif
+ifeq ($(words $(SOME_OTHER_VARIABLE)),$(SOME_INT_VARIABLE))
+endif
 $(info $(patsubst %.pub,$(PRODUCT_NAME)%,$(PRODUCT_ADB_KEYS)))
 $(info $$(dir foo/bar): $(dir foo/bar))
 $(info $(firstword $(PRODUCT_COPY_FILES)))
@@ -830,7 +834,11 @@ def init(g, handle):
   cfg = rblf.cfg(handle)
   cfg["PRODUCT_COPY_FILES"] = rblf.addprefix("pfx-", "a b c")
   cfg["PRODUCT_COPY_FILES"] = rblf.addsuffix(".sff", "a b c")
-  cfg["PRODUCT_NAME"] = ((g.get("TARGET_BOARD_PLATFORM", "")).replace(".", " ")).split()[0]
+  cfg["PRODUCT_NAME"] = rblf.words((g.get("TARGET_BOARD_PLATFORM", "")).replace(".", " "))[0]
+  if len(rblf.words(g.get("SOME_UNKNOWN_VARIABLE", ""))) == 1:
+    pass
+  if ("%d" % (len(rblf.words(g.get("SOME_OTHER_VARIABLE", ""))))) == g.get("SOME_INT_VARIABLE", ""):
+    pass
   rblf.mkinfo("product.mk", rblf.mkpatsubst("%.pub", "%s%%" % cfg["PRODUCT_NAME"], g.get("PRODUCT_ADB_KEYS", "")))
   rblf.mkinfo("product.mk", "$(dir foo/bar): %s" % rblf.dir("foo/bar"))
   rblf.mkinfo("product.mk", cfg["PRODUCT_COPY_FILES"][0])
