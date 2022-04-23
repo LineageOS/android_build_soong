@@ -78,7 +78,8 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	ctx.Strict("CLASS2NONSDKLIST", "${Class2NonSdkList}")
 	ctx.Strict("HIDDENAPI", "${HiddenAPI}")
 
-	ctx.Strict("DEX_FLAGS", "${DexFlags}")
+	ctx.Strict("D8_FLAGS", "${D8Flags}")
+	ctx.Strict("R8_FLAGS", "${R8Flags}")
 
 	ctx.Strict("AIDL", "${AidlCmd}")
 	ctx.Strict("AAPT2", "${Aapt2Cmd}")
