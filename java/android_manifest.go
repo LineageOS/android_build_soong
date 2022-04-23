@@ -82,8 +82,8 @@ func ManifestFixer(ctx android.ModuleContext, manifest android.Path,
 		if minSdkVersion.FinalOrFutureInt() >= 23 {
 			args = append(args, fmt.Sprintf("--extract-native-libs=%v", !params.UseEmbeddedNativeLibs))
 		} else if params.UseEmbeddedNativeLibs {
-			ctx.ModuleErrorf("module attempted to store uncompressed native libraries, but minSdkVersion=%d doesn't support it",
-				minSdkVersion)
+			ctx.ModuleErrorf("module attempted to store uncompressed native libraries, but minSdkVersion=%s doesn't support it",
+				minSdkVersion.String())
 		}
 	}
 
