@@ -25,7 +25,8 @@
 
 # Products that are broken or otherwise don't work with multiproduct_kati
 SKIPPED_PRODUCTS=(
-    # Both of these products are for soong-only builds, and will fail the kati stage.
+    # These products are for soong-only builds, and will fail the kati stage.
+    linux_bionic
     mainline_sdk
     ndk
 )
