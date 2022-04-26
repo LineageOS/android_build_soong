@@ -2031,12 +2031,6 @@ func (c *Module) deps(ctx DepsContext) Deps {
 	deps.HeaderLibs = android.LastUniqueStrings(deps.HeaderLibs)
 	deps.RuntimeLibs = android.LastUniqueStrings(deps.RuntimeLibs)
 
-	// In Bazel conversion mode, we dependency and build validations will occur in Bazel, so there is
-	// no need to do so in Soong.
-	if ctx.BazelConversionMode() {
-		return deps
-	}
-
 	for _, lib := range deps.ReexportSharedLibHeaders {
 		if !inList(lib, deps.SharedLibs) {
 			ctx.PropertyErrorf("export_shared_lib_headers", "Shared library not in shared_libs: '%s'", lib)
