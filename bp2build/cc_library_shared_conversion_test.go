@@ -176,8 +176,8 @@ cc_library_shared {
         ":whole_static_lib_1",
         ":whole_static_lib_2",
     ]`,
-        "sdk_version": `"current"`,
-        "min_sdk_version": `"29"`,
+				"sdk_version":     `"current"`,
+				"min_sdk_version": `"29"`,
 			}),
 		},
 	})
@@ -495,4 +495,28 @@ cc_library_shared {
 		},
 	},
 	)
+}
+
+func TestCcLibrarySharedSystemSharedLibsSharedEmpty(t *testing.T) {
+	runCcLibrarySharedTestCase(t, bp2buildTestCase{
+		description:                "cc_library_shared system_shared_libs empty shared default",
+		moduleTypeUnderTest:        "cc_library_shared",
+		moduleTypeUnderTestFactory: cc.LibrarySharedFactory,
+		blueprint: soongCcLibrarySharedPreamble + `
+cc_defaults {
+    name: "empty_defaults",
+    shared: {
+        system_shared_libs: [],
+    },
+    include_build_directory: false,
+}
+cc_library_shared {
+    name: "empty",
+    defaults: ["empty_defaults"],
+}
+`,
+		expectedBazelTargets: []string{makeBazelTarget("cc_library_shared", "empty", attrNameToString{
+			"system_dynamic_deps": "[]",
+		})},
+	})
 }
