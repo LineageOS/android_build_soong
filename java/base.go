@@ -1908,6 +1908,9 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 			case bootClasspathTag:
 				deps.bootClasspath = append(deps.bootClasspath, dep.HeaderJars...)
 			case libTag, instrumentationForTag:
+				if _, ok := module.(*Plugin); ok {
+					ctx.ModuleErrorf("a java_plugin (%s) cannot be used as a libs dependency", otherName)
+				}
 				deps.classpath = append(deps.classpath, dep.HeaderJars...)
 				deps.dexClasspath = append(deps.dexClasspath, dep.HeaderJars...)
 				deps.aidlIncludeDirs = append(deps.aidlIncludeDirs, dep.AidlIncludeDirs...)
@@ -1916,6 +1919,9 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 			case java9LibTag:
 				deps.java9Classpath = append(deps.java9Classpath, dep.HeaderJars...)
 			case staticLibTag:
+				if _, ok := module.(*Plugin); ok {
+					ctx.ModuleErrorf("a java_plugin (%s) cannot be used as a static_libs dependency", otherName)
+				}
 				deps.classpath = append(deps.classpath, dep.HeaderJars...)
 				deps.staticJars = append(deps.staticJars, dep.ImplementationJars...)
 				deps.staticHeaderJars = append(deps.staticHeaderJars, dep.HeaderJars...)
