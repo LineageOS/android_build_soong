@@ -130,6 +130,14 @@ var knownNodeFunctions = map[string]interface {
 	"foreach":                   &foreachCallNodeParser{},
 }
 
+// These look like variables, but are actually functions, and would give
+// undefined variable errors if we converted them as variables. Instead,
+// emit an error instead of converting them.
+var unsupportedFunctions = map[string]bool{
+	"local-generated-sources-dir": true,
+	"local-intermediates-dir":     true,
+}
+
 // These are functions that we don't implement conversions for, but
 // we allow seeing their definitions in the product config files.
 var ignoredDefines = map[string]bool{
@@ -556,9 +564,6 @@ func (ctx *parseContext) handleAssignment(a *mkparser.Assignment) []starlarkNode
 	if lhs.valueType() == starlarkTypeUnknown {
 		// Try to divine variable type from the RHS
 		asgn.value = ctx.parseMakeString(a, a.Value)
-		if xBad, ok := asgn.value.(*badExpr); ok {
-			return []starlarkNode{&exprNode{xBad}}
-		}
 		inferred_type := asgn.value.typ()
 		if inferred_type != starlarkTypeUnknown {
 			lhs.setValueType(inferred_type)
@@ -567,21 +572,19 @@ func (ctx *parseContext) handleAssignment(a *mkparser.Assignment) []starlarkNode
 	if lhs.valueType() == starlarkTypeList {
 		xConcat, xBad := ctx.buildConcatExpr(a)
 		if xBad != nil {
-			return []starlarkNode{&exprNode{expr: xBad}}
-		}
-		switch len(xConcat.items) {
-		case 0:
-			asgn.value = &listExpr{}
-		case 1:
-			asgn.value = xConcat.items[0]
-		default:
-			asgn.value = xConcat
+			asgn.value = xBad
+		} else {
+			switch len(xConcat.items) {
+			case 0:
+				asgn.value = &listExpr{}
+			case 1:
+				asgn.value = xConcat.items[0]
+			default:
+				asgn.value = xConcat
+			}
 		}
 	} else {
 		asgn.value = ctx.parseMakeString(a, a.Value)
-		if xBad, ok := asgn.value.(*badExpr); ok {
-			return []starlarkNode{&exprNode{expr: xBad}}
-		}
 	}
 
 	if asgn.lhs.valueType() == starlarkTypeString &&
@@ -1262,6 +1265,12 @@ func (ctx *parseContext) parseReference(node mkparser.Node, ref *mkparser.MakeSt
 		return ctx.newBadExpr(node, "reference is too complex: %s", refDump)
 	}
 
+	if name, _, ok := ctx.maybeParseFunctionCall(node, ref); ok {
+		if _, unsupported := unsupportedFunctions[name]; unsupported {
+			return ctx.newBadExpr(node, "%s is not supported", refDump)
+		}
+	}
+
 	// If it is a single word, it can be a simple variable
 	// reference or a function call
 	if len(words) == 1 && !isMakeControlFunc(refDump) && refDump != "shell" && refDump != "eval" {
@@ -1309,9 +1318,8 @@ func (ctx *parseContext) parseReference(node mkparser.Node, ref *mkparser.MakeSt
 		} else {
 			return ctx.newBadExpr(node, "cannot handle invoking %s", name)
 		}
-	} else {
-		return ctx.newBadExpr(node, "cannot handle %s", refDump)
 	}
+	return ctx.newBadExpr(node, "cannot handle %s", refDump)
 }
 
 type simpleCallParser struct {

@@ -117,8 +117,8 @@ PRODUCT_NAME := $(call foo0)
 
 def init(g, handle):
   cfg = rblf.cfg(handle)
-  rblf.mk2rbc_error("product.mk:2", "cannot handle invoking foo1")
-  rblf.mk2rbc_error("product.mk:3", "cannot handle invoking foo0")
+  cfg["PRODUCT_NAME"] = rblf.mk2rbc_error("product.mk:2", "cannot handle invoking foo1")
+  cfg["PRODUCT_NAME"] = rblf.mk2rbc_error("product.mk:3", "cannot handle invoking foo0")
 `,
 	},
 	{
@@ -975,7 +975,7 @@ def init(g, handle):
   rblf.soong_config_namespace(g, "cvd")
   rblf.soong_config_set(g, "cvd", "launch_configs", "cvd_config_auto.json")
   rblf.soong_config_append(g, "cvd", "grub_config", "grub.cfg")
-  rblf.mk2rbc_error("product.mk:7", "SOONG_CONFIG_ variables cannot be referenced, use soong_config_get instead: SOONG_CONFIG_cvd_grub_config")
+  _x = rblf.mk2rbc_error("product.mk:7", "SOONG_CONFIG_ variables cannot be referenced, use soong_config_get instead: SOONG_CONFIG_cvd_grub_config")
 `,
 	}, {
 		desc:   "soong namespace accesses",
@@ -1269,6 +1269,7 @@ def init(g, handle):
 		in: `
 ifeq (,$(call foobar))
 endif
+my_sources := $(local-generated-sources-dir)
 `,
 		expected: `load("//build/make/core:product_config.rbc", "rblf")
 
@@ -1276,6 +1277,7 @@ def init(g, handle):
   cfg = rblf.cfg(handle)
   if rblf.mk2rbc_error("build/product.mk:2", "cannot handle invoking foobar"):
     pass
+  _my_sources = rblf.mk2rbc_error("build/product.mk:4", "local-generated-sources-dir is not supported")
 `,
 	},
 	{
