@@ -811,35 +811,40 @@ func (ctx *parseContext) handleSubConfig(
 	//       rblf.inherit(handle, _e[0], _e[1])
 	//
 	var matchingPaths []string
-	varPath, ok := pathExpr.(*interpolateExpr)
-	if !ok {
+	var needsWarning = false
+	if interpolate, ok := pathExpr.(*interpolateExpr); ok {
+		pathPattern := []string{interpolate.chunks[0]}
+		for _, chunk := range interpolate.chunks[1:] {
+			if chunk != "" {
+				pathPattern = append(pathPattern, chunk)
+			}
+		}
+		if pathPattern[0] == "" && len(ctx.includeTops) > 0 {
+			// If pattern starts from the top. restrict it to the directories where
+			// we know inherit-product uses dynamically calculated path.
+			for _, p := range ctx.includeTops {
+				pathPattern[0] = p
+				matchingPaths = append(matchingPaths, ctx.findMatchingPaths(pathPattern)...)
+			}
+		} else {
+			matchingPaths = ctx.findMatchingPaths(pathPattern)
+		}
+		needsWarning = pathPattern[0] == "" && len(ctx.includeTops) == 0
+	} else if len(ctx.includeTops) > 0 {
+		for _, p := range ctx.includeTops {
+			matchingPaths = append(matchingPaths, ctx.findMatchingPaths([]string{p, ""})...)
+		}
+	} else {
 		return []starlarkNode{ctx.newBadNode(v, "inherit-product/include argument is too complex")}
 	}
 
-	pathPattern := []string{varPath.chunks[0]}
-	for _, chunk := range varPath.chunks[1:] {
-		if chunk != "" {
-			pathPattern = append(pathPattern, chunk)
-		}
-	}
-	if pathPattern[0] == "" && len(ctx.includeTops) > 0 {
-		// If pattern starts from the top. restrict it to the directories where
-		// we know inherit-product uses dynamically calculated path.
-		for _, p := range ctx.includeTops {
-			pathPattern[0] = p
-			matchingPaths = append(matchingPaths, ctx.findMatchingPaths(pathPattern)...)
-		}
-	} else {
-		matchingPaths = ctx.findMatchingPaths(pathPattern)
-	}
 	// Safeguard against $(call inherit-product,$(PRODUCT_PATH))
 	const maxMatchingFiles = 150
 	if len(matchingPaths) > maxMatchingFiles {
 		return []starlarkNode{ctx.newBadNode(v, "there are >%d files matching the pattern, please rewrite it", maxMatchingFiles)}
 	}
 
-	needsWarning := pathPattern[0] == "" && len(ctx.includeTops) == 0
-	res := inheritedDynamicModule{*varPath, []*moduleInfo{}, loadAlways, ctx.errorLocation(v), needsWarning}
+	res := inheritedDynamicModule{pathExpr, []*moduleInfo{}, loadAlways, ctx.errorLocation(v), needsWarning}
 	for _, p := range matchingPaths {
 		// A product configuration files discovered dynamically may attempt to inherit
 		// from another one which does not exist in this source tree. Prevent load errors
@@ -1586,6 +1591,16 @@ func transformNode(node starlarkNode, transformer func(expr starlarkExpr) starla
 		a.list = a.list.transform(transformer)
 		for _, n := range a.actions {
 			transformNode(n, transformer)
+		}
+	case *inheritNode:
+		if b, ok := a.module.(inheritedDynamicModule); ok {
+			b.path = b.path.transform(transformer)
+			a.module = b
+		}
+	case *includeNode:
+		if b, ok := a.module.(inheritedDynamicModule); ok {
+			b.path = b.path.transform(transformer)
+			a.module = b
 		}
 	}
 }
