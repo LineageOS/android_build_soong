@@ -28,6 +28,7 @@ import (
 
 	"android/soong/bazel/cquery"
 	"android/soong/shared"
+	"github.com/google/blueprint"
 
 	"android/soong/bazel"
 )
@@ -101,6 +102,9 @@ type BazelContext interface {
 
 	// Returns build statements which should get registered to reflect Bazel's outputs.
 	BuildStatementsToRegister() []bazel.BuildStatement
+
+	// Returns the depsets defined in Bazel's aquery response.
+	AqueryDepsets() []bazel.AqueryDepset
 }
 
 type bazelRunner interface {
@@ -128,6 +132,9 @@ type bazelContext struct {
 
 	// Build statements which should get registered to reflect Bazel's outputs.
 	buildStatements []bazel.BuildStatement
+
+	// Depsets which should be used for Bazel's build statements.
+	depsets []bazel.AqueryDepset
 }
 
 var _ BazelContext = &bazelContext{}
@@ -173,6 +180,10 @@ func (m MockBazelContext) OutputBase() string { return m.OutputBaseDir }
 
 func (m MockBazelContext) BuildStatementsToRegister() []bazel.BuildStatement {
 	return []bazel.BuildStatement{}
+}
+
+func (m MockBazelContext) AqueryDepsets() []bazel.AqueryDepset {
+	return []bazel.AqueryDepset{}
 }
 
 var _ BazelContext = MockBazelContext{}
@@ -234,6 +245,10 @@ func (n noopBazelContext) BazelEnabled() bool {
 
 func (m noopBazelContext) BuildStatementsToRegister() []bazel.BuildStatement {
 	return []bazel.BuildStatement{}
+}
+
+func (m noopBazelContext) AqueryDepsets() []bazel.AqueryDepset {
+	return []bazel.AqueryDepset{}
 }
 
 func NewBazelContext(c *config) (BazelContext, error) {
@@ -746,7 +761,7 @@ func (context *bazelContext) InvokeBazel() error {
 		return err
 	}
 
-	context.buildStatements, err = bazel.AqueryBuildStatements([]byte(aqueryOutput))
+	context.buildStatements, context.depsets, err = bazel.AqueryBuildStatements([]byte(aqueryOutput))
 	if err != nil {
 		return err
 	}
@@ -770,6 +785,10 @@ func (context *bazelContext) InvokeBazel() error {
 
 func (context *bazelContext) BuildStatementsToRegister() []bazel.BuildStatement {
 	return context.buildStatements
+}
+
+func (context *bazelContext) AqueryDepsets() []bazel.AqueryDepset {
+	return context.depsets
 }
 
 func (context *bazelContext) OutputBase() string {
@@ -802,6 +821,23 @@ func (c *bazelSingleton) GenerateBuildActions(ctx SingletonContext) {
 	files := strings.Split(strings.TrimSpace(string(data)), "\n")
 	for _, file := range files {
 		ctx.AddNinjaFileDeps(file)
+	}
+
+	for _, depset := range ctx.Config().BazelContext.AqueryDepsets() {
+		var outputs []Path
+		for _, depsetDepId := range depset.TransitiveDepSetIds {
+			otherDepsetName := bazelDepsetName(depsetDepId)
+			outputs = append(outputs, PathForPhony(ctx, otherDepsetName))
+		}
+		for _, artifactPath := range depset.DirectArtifacts {
+			outputs = append(outputs, PathForBazelOut(ctx, artifactPath))
+		}
+		thisDepsetName := bazelDepsetName(depset.Id)
+		ctx.Build(pctx, BuildParams{
+			Rule:      blueprint.Phony,
+			Outputs:   []WritablePath{PathForPhony(ctx, thisDepsetName)},
+			Implicits: outputs,
+		})
 	}
 
 	// Register bazel-owned build statements (obtained from the aquery invocation).
@@ -837,6 +873,10 @@ func (c *bazelSingleton) GenerateBuildActions(ctx SingletonContext) {
 		}
 		for _, inputPath := range buildStatement.InputPaths {
 			cmd.Implicit(PathForBazelOut(ctx, inputPath))
+		}
+		for _, inputDepsetId := range buildStatement.InputDepsetIds {
+			otherDepsetName := bazelDepsetName(inputDepsetId)
+			cmd.Implicit(PathForPhony(ctx, otherDepsetName))
 		}
 
 		if depfile := buildStatement.Depfile; depfile != nil {
@@ -881,4 +921,8 @@ func GetConfigKey(ctx ModuleContext) configKey {
 		arch:   ctx.Arch().String(),
 		osType: ctx.Os(),
 	}
+}
+
+func bazelDepsetName(depsetId int) string {
+	return fmt.Sprintf("bazel_depset_%d", depsetId)
 }
