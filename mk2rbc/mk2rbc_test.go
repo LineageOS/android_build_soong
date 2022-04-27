@@ -1242,13 +1242,15 @@ def init(g, handle):
 		desc:   "Ignore make rules",
 		mkname: "product.mk",
 		in: `
+foo: PRIVATE_VARIABLE = some_tool $< $@
 foo: foo.c
 	gcc -o $@ $*`,
 		expected: `load("//build/make/core:product_config.rbc", "rblf")
 
 def init(g, handle):
   cfg = rblf.cfg(handle)
-  rblf.mk2rbc_error("product.mk:2", "unsupported line rule:       foo: foo.c\n#gcc -o $@ $*")
+  rblf.mk2rbc_error("product.mk:2", "Only simple variables are handled")
+  rblf.mk2rbc_error("product.mk:3", "unsupported line rule:       foo: foo.c\n#gcc -o $@ $*")
 `,
 	},
 	{
