@@ -100,6 +100,7 @@ bootstrap_go_package {
         "proto_test.go",
         "sanitize_test.go",
         "test_data_test.go",
+        "tidy_test.go",
         "vendor_public_library_test.go",
         "vendor_snapshot_test.go",
     ],

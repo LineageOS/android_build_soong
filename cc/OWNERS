@@ -1,4 +1,4 @@
 per-file ndk_*.go = danalbert@google.com
-per-file tidy.go = srhines@google.com, chh@google.com
+per-file tidy*.go = srhines@google.com, chh@google.com
 per-file afdo.go,afdo_test.go,lto.go,pgo.go = srhines@google.com, pirama@google.com, yikong@google.com
 per-file coverage.go = pirama@google.com, srhines@google.com, allenhair@google.com
