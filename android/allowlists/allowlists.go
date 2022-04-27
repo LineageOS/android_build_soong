@@ -313,6 +313,7 @@ var (
 		"host_bionic_linker_asm",                                                  // depends on extract_linker, a go binary.
 		"host_bionic_linker_script",                                               // depends on extract_linker, a go binary.
 		"libc_musl_sysroot_bionic_arch_headers",                                   // depends on soong_zip
+		"libc_musl_sysroot_zlib_headers",                                          // depends on soong_zip and zip2zip
 		"libc_musl_sysroot_bionic_headers",                                        // 218405924, depends on soong_zip and generates duplicate srcs
 		"libc_musl_sysroot_libc++_headers", "libc_musl_sysroot_libc++abi_headers", // depends on soong_zip, zip2zip
 		"robolectric-sqlite4java-native", // depends on soong_zip, a go binary
