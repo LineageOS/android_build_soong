@@ -1529,6 +1529,20 @@ def init(g, handle):
       cfg["PRODUCT_COPY_FILES"] += ("%s:foo/bar/%s" % (g.get("MY_OTHER_VAR", ""), x)).split()
 `,
 	},
+	{
+		desc:   ".KATI_READONLY",
+		mkname: "product.mk",
+		in: `
+MY_VAR := foo
+.KATI_READONLY := MY_VAR
+`,
+		expected: `load("//build/make/core:product_config.rbc", "rblf")
+
+def init(g, handle):
+  cfg = rblf.cfg(handle)
+  g["MY_VAR"] = "foo"
+`,
+	},
 }
 
 var known_variables = []struct {

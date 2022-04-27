@@ -542,6 +542,12 @@ func (ctx *parseContext) handleAssignment(a *mkparser.Assignment) []starlarkNode
 	if strings.HasPrefix(name, "override ") {
 		return []starlarkNode{ctx.newBadNode(a, "cannot handle override directive")}
 	}
+	if name == ".KATI_READONLY" {
+		// Skip assignments to .KATI_READONLY. If it was in the output file, it
+		// would be an error because it would be sorted before the definition of
+		// the variable it's trying to make readonly.
+		return []starlarkNode{}
+	}
 
 	// Soong configuration
 	if strings.HasPrefix(name, soongNsPrefix) {
