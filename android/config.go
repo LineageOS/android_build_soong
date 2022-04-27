@@ -778,7 +778,7 @@ func (c *config) PlatformBaseOS() string {
 }
 
 func (c *config) MinSupportedSdkVersion() ApiLevel {
-	return uncheckedFinalApiLevel(16)
+	return uncheckedFinalApiLevel(19)
 }
 
 func (c *config) FinalApiLevels() []ApiLevel {
