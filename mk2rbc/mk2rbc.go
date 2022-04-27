@@ -531,7 +531,7 @@ func (ctx *parseContext) backNode() {
 
 func (ctx *parseContext) handleAssignment(a *mkparser.Assignment) []starlarkNode {
 	// Handle only simple variables
-	if !a.Name.Const() {
+	if !a.Name.Const() || a.Target != nil {
 		return []starlarkNode{ctx.newBadNode(a, "Only simple variables are handled")}
 	}
 	name := a.Name.Strings[0]
