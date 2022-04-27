@@ -279,7 +279,7 @@ func (ms *MakeString) TrimRightOne() {
 
 func (ms *MakeString) EndsWith(ch rune) bool {
 	s := ms.Strings[len(ms.Strings)-1]
-	return s[len(s)-1] == uint8(ch)
+	return len(s) > 0 && s[len(s)-1] == uint8(ch)
 }
 
 func (ms *MakeString) ReplaceLiteral(input string, output string) {
