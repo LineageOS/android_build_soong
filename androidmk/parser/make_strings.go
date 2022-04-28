@@ -234,10 +234,10 @@ func (ms *MakeString) splitNFunc(n int, splitFunc func(s string, n int) []string
 		if n != 0 {
 			split := splitFunc(s, n)
 			if n != -1 {
-				if len(split) > n {
+				if len(split) > n || len(split) == 0 {
 					panic("oops!")
 				} else {
-					n -= len(split)
+					n -= len(split) - 1
 				}
 			}
 			curMs.appendString(split[0])

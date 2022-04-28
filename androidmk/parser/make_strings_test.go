@@ -75,6 +75,16 @@ var splitNTestCases = []struct {
 			genMakeString(""),
 		},
 	},
+	{
+		// "x$(var1)y bar"
+		in:  genMakeString("x", "var1", "y bar"),
+		sep: " ",
+		n:   2,
+		expected: []*MakeString{
+			genMakeString("x", "var1", "y"),
+			genMakeString("bar"),
+		},
+	},
 }
 
 func TestMakeStringSplitN(t *testing.T) {
