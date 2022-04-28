@@ -1074,6 +1074,18 @@ func (ctx *parseContext) parseCompare(cond *mkparser.Directive) starlarkExpr {
 				return otherOperand
 			}
 		}
+		if otherOperand.typ() == starlarkTypeList {
+			fields := strings.Fields(stringOperand)
+			elements := make([]starlarkExpr, len(fields))
+			for i, s := range fields {
+				elements[i] = &stringLiteralExpr{literal: s}
+			}
+			return &eqExpr{
+				left:  otherOperand,
+				right: &listExpr{elements},
+				isEq:  isEq,
+			}
+		}
 		if intOperand, err := strconv.Atoi(strings.TrimSpace(stringOperand)); err == nil && otherOperand.typ() == starlarkTypeInt {
 			return &eqExpr{
 				left:  otherOperand,
@@ -1119,8 +1131,6 @@ func (ctx *parseContext) parseCompareSpecialCases(directive *mkparser.Directive,
 	switch call.name {
 	case baseName + ".filter":
 		return ctx.parseCompareFilterFuncResult(directive, call, value, isEq)
-	case baseName + ".expand_wildcard":
-		return ctx.parseCompareWildcardFuncResult(directive, call, value, !isEq), true
 	case baseName + ".findstring":
 		return ctx.parseCheckFindstringFuncResult(directive, call, value, !isEq), true
 	case baseName + ".strip":
@@ -1163,22 +1173,6 @@ func (ctx *parseContext) parseCompareFilterFuncResult(cond *mkparser.Directive,
 	} else {
 		return &inExpr{isNot: negate, list: newStringListExpr(strings.Fields(xInList.literal)), expr: expr}, true
 	}
-}
-
-func (ctx *parseContext) parseCompareWildcardFuncResult(directive *mkparser.Directive,
-	xCall *callExpr, xValue starlarkExpr, negate bool) starlarkExpr {
-	if !isEmptyString(xValue) {
-		return ctx.newBadExpr(directive, "wildcard result can be compared only to empty: %s", xValue)
-	}
-	callFunc := baseName + ".file_wildcard_exists"
-	if s, ok := xCall.args[0].(*stringLiteralExpr); ok && !strings.ContainsAny(s.literal, "*?{[") {
-		callFunc = baseName + ".file_exists"
-	}
-	var cc starlarkExpr = &callExpr{name: callFunc, args: xCall.args, returnType: starlarkTypeBool}
-	if !negate {
-		cc = &notExpr{cc}
-	}
-	return cc
 }
 
 func (ctx *parseContext) parseCheckFindstringFuncResult(directive *mkparser.Directive,
