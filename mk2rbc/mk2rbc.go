@@ -86,7 +86,7 @@ var knownFunctions = map[string]interface {
 	"find-copy-subdir-files":               &simpleCallParser{name: baseName + ".find_and_copy", returnType: starlarkTypeList},
 	"filter":                               &simpleCallParser{name: baseName + ".filter", returnType: starlarkTypeList},
 	"filter-out":                           &simpleCallParser{name: baseName + ".filter_out", returnType: starlarkTypeList},
-	"firstword":                            &firstOrLastwordCallParser{isLastWord: false},
+	"firstword":                            &simpleCallParser{name: baseName + ".first_word", returnType: starlarkTypeString},
 	"foreach":                              &foreachCallParser{},
 	"if":                                   &ifCallParser{},
 	"info":                                 &makeControlFuncParser{name: baseName + ".mkinfo"},
@@ -97,7 +97,7 @@ var knownFunctions = map[string]interface {
 	"is-product-in-list":                   &isProductInListCallParser{},
 	"is-vendor-board-platform":             &isVendorBoardPlatformCallParser{},
 	"is-vendor-board-qcom":                 &isVendorBoardQcomCallParser{},
-	"lastword":                             &firstOrLastwordCallParser{isLastWord: true},
+	"lastword":                             &simpleCallParser{name: baseName + ".last_word", returnType: starlarkTypeString},
 	"notdir":                               &simpleCallParser{name: baseName + ".notdir", returnType: starlarkTypeString},
 	"math_max":                             &mathMaxOrMinCallParser{function: "max"},
 	"math_min":                             &mathMaxOrMinCallParser{function: "min"},
@@ -459,6 +459,7 @@ func newParseContext(ss *StarlarkScript, nodes []mkparser.Node) *parseContext {
 	predefined := []struct{ name, value string }{
 		{"SRC_TARGET_DIR", filepath.Join("build", "make", "target")},
 		{"LOCAL_PATH", filepath.Dir(ss.mkFile)},
+		{"MAKEFILE_LIST", ss.mkFile},
 		{"TOPDIR", ""}, // TOPDIR is just set to an empty string in cleanbuild.mk and core.mk
 		// TODO(asmundak): maybe read it from build/make/core/envsetup.mk?
 		{"TARGET_COPY_OUT_SYSTEM", "system"},
@@ -1660,28 +1661,6 @@ func (p *wordCallParser) parse(ctx *parseContext, node mkparser.Node, args *mkpa
 		array = &callExpr{object: array, name: "split", returnType: starlarkTypeList}
 	}
 	return &indexExpr{array, &intLiteralExpr{int(index - 1)}}
-}
-
-type firstOrLastwordCallParser struct {
-	isLastWord bool
-}
-
-func (p *firstOrLastwordCallParser) parse(ctx *parseContext, node mkparser.Node, args *mkparser.MakeString) starlarkExpr {
-	arg := ctx.parseMakeString(node, args)
-	if bad, ok := arg.(*badExpr); ok {
-		return bad
-	}
-	index := &intLiteralExpr{0}
-	if p.isLastWord {
-		if v, ok := arg.(*variableRefExpr); ok && v.ref.name() == "MAKEFILE_LIST" {
-			return &stringLiteralExpr{ctx.script.mkFile}
-		}
-		index.literal = -1
-	}
-	if arg.typ() == starlarkTypeList {
-		return &indexExpr{arg, index}
-	}
-	return &indexExpr{&callExpr{object: arg, name: "split", returnType: starlarkTypeList}, index}
 }
 
 func parseIntegerArguments(ctx *parseContext, node mkparser.Node, args *mkparser.MakeString, expectedArgs int) ([]starlarkExpr, error) {
