@@ -35,6 +35,16 @@ cc_defaults {
                 dir: "host/",
             },
         },
+        linux_musl_x86: {
+            dist: {
+                dir: "host32/",
+            },
+        },
+        linux_musl_x86_64: {
+            dist: {
+                dir: "host/",
+            },
+        },
         linux_glibc_x86: {
             dist: {
                 dir: "host32/",
