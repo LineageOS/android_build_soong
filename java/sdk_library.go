@@ -2211,6 +2211,13 @@ func (module *SdkLibraryImport) UniqueApexVariations() bool {
 	return module.uniqueApexVariations()
 }
 
+// MinSdkVersion - Implements hiddenAPIModule
+func (module *SdkLibraryImport) MinSdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
+	return android.SdkSpecNone
+}
+
+var _ hiddenAPIModule = (*SdkLibraryImport)(nil)
+
 func (module *SdkLibraryImport) OutputFiles(tag string) (android.Paths, error) {
 	return module.commonOutputFiles(tag)
 }
