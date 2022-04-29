@@ -217,6 +217,36 @@ func TestMakeStringWords(t *testing.T) {
 	}
 }
 
+var endsWithTestCases = []struct {
+	in       *MakeString
+	endsWith rune
+	expected bool
+}{
+	{
+		in:       genMakeString("foo", "X", "bar ="),
+		endsWith: '=',
+		expected: true,
+	},
+	{
+		in:       genMakeString("foo", "X", "bar ="),
+		endsWith: ':',
+		expected: false,
+	},
+	{
+		in:       genMakeString("foo", "X", ""),
+		endsWith: '=',
+		expected: false,
+	},
+}
+
+func TestMakeStringEndsWith(t *testing.T) {
+	for _, test := range endsWithTestCases {
+		if test.in.EndsWith(test.endsWith) != test.expected {
+			t.Errorf("with:\n%q\nexpected:\n%t\ngot:\n%t", test.in.Dump(), test.expected, !test.expected)
+		}
+	}
+}
+
 func dumpArray(a []*MakeString) string {
 	ret := make([]string, len(a))
 
