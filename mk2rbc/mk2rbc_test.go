@@ -568,14 +568,18 @@ ifeq (,$(wildcard foo.mk))
 endif
 ifneq (,$(wildcard foo*.mk))
 endif
+ifeq (foo1.mk foo2.mk barxyz.mk,$(wildcard foo*.mk bar*.mk))
+endif
 `,
 		expected: `load("//build/make/core:product_config.rbc", "rblf")
 
 def init(g, handle):
   cfg = rblf.cfg(handle)
-  if not rblf.file_exists("foo.mk"):
+  if not rblf.expand_wildcard("foo.mk"):
     pass
-  if rblf.file_wildcard_exists("foo*.mk"):
+  if rblf.expand_wildcard("foo*.mk"):
+    pass
+  if rblf.expand_wildcard("foo*.mk bar*.mk") == ["foo1.mk", "foo2.mk", "barxyz.mk"]:␤
     pass
 `,
 	},
