@@ -82,6 +82,9 @@ type FuzzConfig struct {
 	Hwasan_options []string `json:"hwasan_options,omitempty"`
 	// Additional options to be passed to HWASAN when running on host in Haiku.
 	Asan_options []string `json:"asan_options,omitempty"`
+	// If there's a Java fuzzer with JNI, a different version of Jazzer would
+	// need to be added to the fuzzer package than one without JNI
+	IsJni *bool `json:"is_jni,omitempty"`
 }
 
 type FuzzProperties struct {
