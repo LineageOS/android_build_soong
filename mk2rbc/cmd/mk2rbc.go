@@ -173,7 +173,7 @@ func main() {
 	}
 	ok := true
 	for _, mkFile := range files {
-		ok = convertOne(mkFile) && ok
+		ok = convertOne(mkFile, []string{}) && ok
 	}
 
 	if *launcher != "" {
@@ -183,7 +183,7 @@ func main() {
 		if *inputVariables == "" {
 			quit(fmt.Errorf("the product launcher requires an input variables file"))
 		}
-		if !convertOne(*inputVariables) {
+		if !convertOne(*inputVariables, []string{}) {
 			quit(fmt.Errorf("the product launcher input variables file failed to convert"))
 		}
 
@@ -201,7 +201,7 @@ func main() {
 		if *inputVariables == "" {
 			quit(fmt.Errorf("the board launcher requires an input variables file"))
 		}
-		if !convertOne(*inputVariables) {
+		if !convertOne(*inputVariables, []string{}) {
 			quit(fmt.Errorf("the board launcher input variables file failed to convert"))
 		}
 		err := writeGenerated(*boardlauncher, mk2rbc.BoardLauncher(
@@ -310,9 +310,13 @@ const copyright = `#
 // the output hierarchy, or to the stdout.
 // Optionally, recursively convert the files this one includes by
 // $(call inherit-product) or an include statement.
-func convertOne(mkFile string) (ok bool) {
+func convertOne(mkFile string, loadStack []string) (ok bool) {
 	if v, ok := converted[mkFile]; ok {
-		return v != nil
+		if v == nil {
+			fmt.Fprintf(os.Stderr, "Cycle in load graph:\n%s\n%s\n\n", strings.Join(loadStack, "\n"), mkFile)
+			return false
+		}
+		return true
 	}
 	converted[mkFile] = nil
 	defer func() {
@@ -356,6 +360,7 @@ func convertOne(mkFile string) (ok bool) {
 			return false
 		}
 	}
+	loadStack = append(loadStack, mkFile)
 	ok = true
 	if *recurse {
 		for _, sub := range ss.SubConfigFiles() {
@@ -363,7 +368,7 @@ func convertOne(mkFile string) (ok bool) {
 			if _, err := os.Stat(sub); os.IsNotExist(err) {
 				continue
 			}
-			ok = convertOne(sub) && ok
+			ok = convertOne(sub, loadStack) && ok
 		}
 	}
 	converted[mkFile] = ss
