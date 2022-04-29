@@ -741,8 +741,8 @@ func (_ *badExpr) typ() starlarkType {
 	return starlarkTypeUnknown
 }
 
-func (_ *badExpr) emitListVarCopy(_ *generationContext) {
-	panic("implement me")
+func (b *badExpr) emitListVarCopy(gctx *generationContext) {
+	b.emit(gctx)
 }
 
 func (b *badExpr) transform(transformer func(expr starlarkExpr) starlarkExpr) starlarkExpr {
