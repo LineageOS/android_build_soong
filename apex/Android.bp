@@ -14,6 +14,7 @@ bootstrap_go_package {
         "soong-cc",
         "soong-filesystem",
         "soong-java",
+        "soong-multitree",
         "soong-provenance",
         "soong-python",
         "soong-rust",

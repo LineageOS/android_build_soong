@@ -33,6 +33,7 @@ import (
 	prebuilt_etc "android/soong/etc"
 	"android/soong/filesystem"
 	"android/soong/java"
+	"android/soong/multitree"
 	"android/soong/python"
 	"android/soong/rust"
 	"android/soong/sh"
@@ -358,6 +359,7 @@ type apexBundle struct {
 	android.OverridableModuleBase
 	android.SdkBase
 	android.BazelModuleBase
+	multitree.ExportableModuleBase
 
 	// Properties
 	properties            apexBundleProperties
@@ -1357,6 +1359,21 @@ func (a *apexBundle) OutputFiles(tag string) (android.Paths, error) {
 	default:
 		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
 	}
+}
+
+var _ multitree.Exportable = (*apexBundle)(nil)
+
+func (a *apexBundle) Exportable() bool {
+	if a.properties.ApexType == flattenedApex {
+		return false
+	}
+	return true
+}
+
+func (a *apexBundle) TaggedOutputs() map[string]android.Paths {
+	ret := make(map[string]android.Paths)
+	ret["apex"] = android.Paths{a.outputFile}
+	return ret
 }
 
 var _ cc.Coverage = (*apexBundle)(nil)
@@ -2372,6 +2389,7 @@ func newApexBundle() *apexBundle {
 	android.InitSdkAwareModule(module)
 	android.InitOverridableModule(module, &module.overridableProperties.Overrides)
 	android.InitBazelModule(module)
+	multitree.InitExportableModule(module)
 	return module
 }
 
