@@ -36,8 +36,6 @@ type GlobalConfig struct {
 
 	PreoptWithUpdatableBcp bool // If updatable boot jars are included in dexpreopt or not.
 
-	UseArtImage bool // use the art image (use other boot class path dex files without image)
-
 	HasSystemOther        bool     // store odex files that match PatternsOnSystemOther on the system_other partition
 	PatternsOnSystemOther []string // patterns (using '%' to denote a prefix match) to put odex on the system_other partition
 
