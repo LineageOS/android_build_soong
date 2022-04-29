@@ -389,6 +389,38 @@ func TestCLCMExcludeLibs(t *testing.T) {
 	})
 }
 
+// Test that CLC is correctly serialized to JSON.
+func TestCLCtoJSON(t *testing.T) {
+	ctx := testContext()
+	optional := false
+	implicit := true
+	m := make(ClassLoaderContextMap)
+	m.AddContext(ctx, 28, "a", optional, implicit, buildPath(ctx, "a"), installPath(ctx, "a"), nil)
+	m.AddContext(ctx, AnySdkVersion, "b", optional, implicit, buildPath(ctx, "b"), installPath(ctx, "b"), nil)
+	android.AssertStringEquals(t, "output CLCM ", `{
+  "28": [
+    {
+      "Name": "a",
+      "Optional": false,
+      "Implicit": true,
+      "Host": "out/soong/a.jar",
+      "Device": "/system/a.jar",
+      "Subcontexts": []
+    }
+  ],
+  "any": [
+    {
+      "Name": "b",
+      "Optional": false,
+      "Implicit": true,
+      "Host": "out/soong/b.jar",
+      "Device": "/system/b.jar",
+      "Subcontexts": []
+    }
+  ]
+}`, m.Dump())
+}
+
 func checkError(t *testing.T, have error, want string) {
 	if have == nil {
 		t.Errorf("\nwant error: '%s'\nhave: none", want)
