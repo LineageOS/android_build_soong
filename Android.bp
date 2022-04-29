@@ -119,3 +119,14 @@ genrule {
 dexpreopt_systemserver_check {
     name: "dexpreopt_systemserver_check",
 }
+
+// buildinfo.prop contains common properties for system/build.prop, like ro.build.version.*
+buildinfo_prop {
+    name: "buildinfo.prop",
+
+    // not installable because this will be included to system/build.prop
+    installable: false,
+
+    // Currently, only microdroid can refer to buildinfo.prop
+    visibility: ["//packages/modules/Virtualization/microdroid"],
+}
