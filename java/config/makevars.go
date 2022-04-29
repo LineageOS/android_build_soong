@@ -43,9 +43,10 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	ctx.Strict("JAVADOC", "${JavadocCmd}")
 	ctx.Strict("COMMON_JDK_FLAGS", "${CommonJdkFlags}")
 
-	ctx.Strict("DX", "${D8Cmd}")
-	ctx.Strict("DX_COMMAND", "${D8Cmd} -JXms16M -JXmx2048M")
-	ctx.Strict("R8_COMPAT_PROGUARD", "${R8Cmd}")
+	ctx.Strict("D8", "${D8Cmd}")
+	ctx.Strict("R8", "${R8Cmd}")
+	ctx.Strict("D8_COMMAND", "${D8Cmd} ${D8Flags}")
+	ctx.Strict("R8_COMMAND", "${R8Cmd} ${R8Flags}")
 
 	ctx.Strict("TURBINE", "${TurbineJar}")
 
@@ -77,9 +78,6 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 
 	ctx.Strict("CLASS2NONSDKLIST", "${Class2NonSdkList}")
 	ctx.Strict("HIDDENAPI", "${HiddenAPI}")
-
-	ctx.Strict("D8_FLAGS", "${D8Flags}")
-	ctx.Strict("R8_FLAGS", "${R8Flags}")
 
 	ctx.Strict("AIDL", "${AidlCmd}")
 	ctx.Strict("AAPT2", "${Aapt2Cmd}")
