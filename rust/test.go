@@ -15,6 +15,8 @@
 package rust
 
 import (
+	"path/filepath"
+
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
@@ -151,9 +153,15 @@ func (test *testDecorator) install(ctx ModuleContext) {
 			ctx.ModuleErrorf("data_lib %q is not a linkable module", depName)
 		}
 		if linkableDep.OutputFile().Valid() {
+			// Copy the output in "lib[64]" so that it's compatible with
+			// the default rpath values.
+			libDir := "lib"
+			if linkableDep.Target().Arch.ArchType.Multilib == "lib64" {
+				libDir = "lib64"
+			}
 			test.data = append(test.data,
 				android.DataPath{SrcPath: linkableDep.OutputFile().Path(),
-					RelativeInstallPath: linkableDep.RelativeInstallPath()})
+					RelativeInstallPath: filepath.Join(libDir, linkableDep.RelativeInstallPath())})
 		}
 	})
 
