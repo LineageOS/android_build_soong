@@ -442,9 +442,6 @@ type Module struct {
 	// manifest file to use instead of properties.Manifest
 	overrideManifest android.OptionalPath
 
-	// map of SDK version to class loader context
-	classLoaderContexts dexpreopt.ClassLoaderContextMap
-
 	// list of plugins that this java module is exporting
 	exportedPluginJars android.Paths
 
