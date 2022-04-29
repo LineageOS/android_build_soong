@@ -1,0 +1,19 @@
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
+bootstrap_go_package {
+    name: "soong-multitree",
+    pkgPath: "android/soong/multitree",
+    deps: [
+        "blueprint",
+        "soong-android",
+    ],
+    srcs: [
+        "api_surface.go",
+        "export.go",
+        "metadata.go",
+        "import.go",
+    ],
+    pluginFor: ["soong_build"],
+}
