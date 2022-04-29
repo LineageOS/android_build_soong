@@ -116,6 +116,7 @@ var knownFunctions = map[string]interface {
 	"subst":    &substCallParser{fname: "subst"},
 	"warning":  &makeControlFuncParser{name: baseName + ".mkwarning"},
 	"word":     &wordCallParser{},
+	"words":    &wordsCallParser{},
 	"wildcard": &simpleCallParser{name: baseName + ".expand_wildcard", returnType: starlarkTypeList},
 }
 
@@ -1653,9 +1654,11 @@ func (p *wordCallParser) parse(ctx *parseContext, node mkparser.Node, args *mkpa
 	if len(words) != 2 {
 		return ctx.newBadExpr(node, "word function should have 2 arguments")
 	}
-	var index uint64 = 0
+	var index = 0
 	if words[0].Const() {
-		index, _ = strconv.ParseUint(strings.TrimSpace(words[0].Strings[0]), 10, 64)
+		if i, err := strconv.Atoi(strings.TrimSpace(words[0].Strings[0])); err == nil {
+			index = i
+		}
 	}
 	if index < 1 {
 		return ctx.newBadExpr(node, "word index should be constant positive integer")
@@ -1663,13 +1666,40 @@ func (p *wordCallParser) parse(ctx *parseContext, node mkparser.Node, args *mkpa
 	words[1].TrimLeftSpaces()
 	words[1].TrimRightSpaces()
 	array := ctx.parseMakeString(node, words[1])
-	if xBad, ok := array.(*badExpr); ok {
-		return xBad
+	if bad, ok := array.(*badExpr); ok {
+		return bad
 	}
 	if array.typ() != starlarkTypeList {
-		array = &callExpr{object: array, name: "split", returnType: starlarkTypeList}
+		array = &callExpr{
+			name:       baseName + ".words",
+			args:       []starlarkExpr{array},
+			returnType: starlarkTypeList,
+		}
 	}
-	return &indexExpr{array, &intLiteralExpr{int(index - 1)}}
+	return &indexExpr{array, &intLiteralExpr{index - 1}}
+}
+
+type wordsCallParser struct{}
+
+func (p *wordsCallParser) parse(ctx *parseContext, node mkparser.Node, args *mkparser.MakeString) starlarkExpr {
+	args.TrimLeftSpaces()
+	args.TrimRightSpaces()
+	array := ctx.parseMakeString(node, args)
+	if bad, ok := array.(*badExpr); ok {
+		return bad
+	}
+	if array.typ() != starlarkTypeList {
+		array = &callExpr{
+			name:       baseName + ".words",
+			args:       []starlarkExpr{array},
+			returnType: starlarkTypeList,
+		}
+	}
+	return &callExpr{
+		name:       "len",
+		args:       []starlarkExpr{array},
+		returnType: starlarkTypeInt,
+	}
 }
 
 type firstOrLastwordCallParser struct {
