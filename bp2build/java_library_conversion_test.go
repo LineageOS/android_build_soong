@@ -158,6 +158,22 @@ java_plugin {
 	})
 }
 
+func TestJavaLibraryJavaVersion(t *testing.T) {
+	runJavaLibraryTestCase(t, bp2buildTestCase{
+		blueprint: `java_library {
+    name: "java-lib-1",
+    srcs: ["a.java"],
+    java_version: "11",
+}`,
+		expectedBazelTargets: []string{
+			makeBazelTarget("java_library", "java-lib-1", attrNameToString{
+				"srcs":      `["a.java"]`,
+				"javacopts": `["-source 11 -target 11"]`,
+			}),
+		},
+	})
+}
+
 func TestJavaLibraryErrorproneJavacflagsEnabledManually(t *testing.T) {
 	runJavaLibraryTestCase(t, bp2buildTestCase{
 		blueprint: `java_library {

@@ -74,7 +74,8 @@ android_app {
         package_name: "com.google",
         resource_dirs: ["resa", "resb"],
         manifest: "manifest/AndroidManifest.xml",
-        static_libs: ["static_lib_dep"]
+        static_libs: ["static_lib_dep"],
+        java_version: "7",
 }
 `,
 		expectedBazelTargets: []string{
@@ -87,6 +88,7 @@ android_app {
     ]`,
 				"custom_package": `"com.google"`,
 				"deps":           `[":static_lib_dep"]`,
+				"javacopts":      `["-source 1.7 -target 1.7"]`,
 			}),
 		}})
 }

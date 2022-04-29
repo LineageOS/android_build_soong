@@ -39,6 +39,7 @@ func TestJavaPlugin(t *testing.T) {
     libs: ["java-lib-1"],
     static_libs: ["java-lib-2"],
     bazel_module: { bp2build_available: true },
+    java_version: "7",
 }
 
 java_library {
@@ -66,6 +67,7 @@ java_library {
         "a.java",
         "b.java",
     ]`,
+				"javacopts": `["-source 1.7 -target 1.7"]`,
 			}),
 		},
 	})

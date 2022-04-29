@@ -102,6 +102,7 @@ func TestJavaProtoDefault(t *testing.T) {
 		blueprint: `java_library_static {
     name: "java-protos",
     srcs: ["a.proto"],
+    java_version: "7",
 }
 `,
 		expectedBazelTargets: []string{
@@ -115,7 +116,8 @@ func TestJavaProtoDefault(t *testing.T) {
 					"deps": `[":java-protos_proto"]`,
 				}),
 			makeBazelTarget("java_library", "java-protos", attrNameToString{
-				"exports": `[":java-protos_java_proto_lite"]`,
+				"exports":   `[":java-protos_java_proto_lite"]`,
+				"javacopts": `["-source 1.7 -target 1.7"]`,
 			}),
 		},
 	})
