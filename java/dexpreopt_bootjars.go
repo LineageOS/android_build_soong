@@ -213,12 +213,6 @@ import (
 // writes out a few DEXPREOPT_IMAGE_* variables for Make; these variables contain boot image names,
 // paths and so on.
 //
-// 2.5. JIT-Zygote configuration
-// -----------------------------
-//
-// One special configuration is JIT-Zygote build, when the primary ART image is used for compiling
-// apps instead of the Framework boot image extension (see DEXPREOPT_USE_ART_IMAGE and UseArtImage).
-//
 
 var artApexNames = []string{
 	"com.android.art",
@@ -938,11 +932,8 @@ func (d *dexpreoptBootJars) MakeVars(ctx android.MakeVarsContext) {
 		ctx.Strict("DEXPREOPT_BOOTCLASSPATH_DEX_LOCATIONS", strings.Join(dexLocations, " "))
 
 		var imageNames []string
-		// TODO: the primary ART boot image should not be exposed to Make, as it is installed in a
-		// different way as a part of the ART APEX. However, there is a special JIT-Zygote build
-		// configuration which uses the primary ART image instead of the Framework boot image
-		// extension, and it relies on the ART image being exposed to Make. To fix this, it is
-		// necessary to rework the logic in makefiles.
+		// The primary ART boot image is exposed to Make for testing (gtests) and benchmarking
+		// (golem) purposes.
 		for _, current := range append(d.otherImages, image) {
 			imageNames = append(imageNames, current.name)
 			for _, variant := range current.variants {
