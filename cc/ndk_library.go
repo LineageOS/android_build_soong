@@ -284,6 +284,10 @@ func parseNativeAbiDefinition(ctx ModuleContext, symbolFile string,
 }
 
 func compileStubLibrary(ctx ModuleContext, flags Flags, src android.Path) Objects {
+	// libc/libm stubs libraries end up mismatching with clang's internal definition of these
+	// functions (which have noreturn attributes and other things). Because we just want to create a
+	// stub with symbol definitions, and types aren't important in C, ignore the mismatch.
+	flags.Local.ConlyFlags = append(flags.Local.ConlyFlags, "-fno-builtin")
 	return compileObjs(ctx, flagsToBuilderFlags(flags), "",
 		android.Paths{src}, nil, nil, nil, nil)
 }
