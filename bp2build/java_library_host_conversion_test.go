@@ -43,6 +43,7 @@ java_library_host {
     name: "java-lib-host-2",
     srcs: ["c.java"],
     bazel_module: { bp2build_available: true },
+    java_version: "9",
 }`,
 		expectedBazelTargets: []string{
 			makeBazelTarget("java_library", "java-lib-host-1", attrNameToString{
@@ -54,7 +55,8 @@ java_library_host {
     })`,
 			}),
 			makeBazelTarget("java_library", "java-lib-host-2", attrNameToString{
-				"srcs": `["c.java"]`,
+				"javacopts": `["-source 1.9 -target 1.9"]`,
+				"srcs":      `["c.java"]`,
 				"target_compatible_with": `select({
         "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
