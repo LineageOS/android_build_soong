@@ -855,13 +855,24 @@ func transformObjToDynamicBinary(ctx android.ModuleContext,
 	deps = append(deps, crtBegin...)
 	deps = append(deps, crtEnd...)
 
+	var depFile android.WritablePath
+	var depFileLdFlags string
+	depsType := blueprint.DepsNone
+	if !ctx.Windows() && !ctx.Darwin() {
+		// lld only supports --dependency-file for elf files
+		depFile = outputFile.ReplaceExtension(ctx, "d")
+		depFileLdFlags = " -Wl,--dependency-file=" + depFile.String()
+		depsType = blueprint.DepsGCC
+		implicitOutputs = append(implicitOutputs, depFile)
+	}
+
 	rule := ld
 	args := map[string]string{
 		"ldCmd":         ldCmd,
 		"crtBegin":      strings.Join(crtBegin.Strings(), " "),
 		"libFlags":      strings.Join(libFlagsList, " "),
 		"extraLibFlags": flags.extraLibFlags,
-		"ldFlags":       flags.globalLdFlags + " " + flags.localLdFlags,
+		"ldFlags":       flags.globalLdFlags + " " + flags.localLdFlags + depFileLdFlags,
 		"crtEnd":        strings.Join(crtEnd.Strings(), " "),
 	}
 	if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_CXX_LINKS") {
@@ -872,6 +883,8 @@ func transformObjToDynamicBinary(ctx android.ModuleContext,
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:            rule,
+		Deps:            depsType,
+		Depfile:         depFile,
 		Description:     "link " + outputFile.Base(),
 		Output:          outputFile,
 		ImplicitOutputs: implicitOutputs,
@@ -1025,18 +1038,33 @@ func transformObjsToObj(ctx android.ModuleContext, objFiles android.Paths,
 
 	ldCmd := "${config.ClangBin}/clang++"
 
+	var implicitOutputs android.WritablePaths
+	var depFile android.WritablePath
+	var depFileLdFlags string
+	depsType := blueprint.DepsNone
+	if !ctx.Windows() && !ctx.Darwin() {
+		// lld only supports --dependency-file for elf files
+		depFile = outputFile.ReplaceExtension(ctx, "d")
+		depFileLdFlags = " -Wl,--dependency-file=" + depFile.String()
+		depsType = blueprint.DepsGCC
+		implicitOutputs = append(implicitOutputs, depFile)
+	}
+
 	rule := partialLd
 	args := map[string]string{
 		"ldCmd":   ldCmd,
-		"ldFlags": flags.globalLdFlags + " " + flags.localLdFlags,
+		"ldFlags": flags.globalLdFlags + " " + flags.localLdFlags + depFileLdFlags,
 	}
 	if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_CXX_LINKS") {
 		rule = partialLdRE
 		args["inCommaList"] = strings.Join(objFiles.Strings(), ",")
 		args["implicitInputs"] = strings.Join(deps.Strings(), ",")
+		args["implicitOutputs"] = strings.Join(implicitOutputs.Strings(), ",")
 	}
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        rule,
+		Deps:        depsType,
+		Depfile:     depFile,
 		Description: "link " + outputFile.Base(),
 		Output:      outputFile,
 		Inputs:      objFiles,
