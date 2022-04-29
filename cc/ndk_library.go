@@ -93,7 +93,7 @@ var (
 type libraryProperties struct {
 	// Relative path to the symbol map.
 	// An example file can be seen here: TODO(danalbert): Make an example.
-	Symbol_file *string
+	Symbol_file *string `android:"path"`
 
 	// The first API level a library was available. A library will be generated
 	// for every API level beginning with this one.
