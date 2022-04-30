@@ -3523,7 +3523,7 @@ func (a *apexBundle) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 
 	props := bazel.BazelTargetModuleProperties{
 		Rule_class:        "apex",
-		Bzl_load_location: "//build/bazel/rules:apex.bzl",
+		Bzl_load_location: "//build/bazel/rules/apex:apex.bzl",
 	}
 
 	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: a.Name()}, attrs)
