@@ -1104,7 +1104,7 @@ func hiddenAPIRulesForBootclasspathFragment(ctx android.ModuleContext, contents 
 	for _, name := range android.SortedStringKeys(bootDexInfoByModule) {
 		bootDexInfo := bootDexInfoByModule[name]
 		unencodedDex := bootDexInfo.path
-		encodedDex := hiddenAPIEncodeDex(ctx, unencodedDex, allFlagsCSV, bootDexInfo.uncompressDex, outputDir)
+		encodedDex := hiddenAPIEncodeDex(ctx, unencodedDex, allFlagsCSV, bootDexInfo.uncompressDex, bootDexInfo.minSdkVersion, outputDir)
 		encodedBootDexJarsByModule[name] = encodedDex
 	}
 
@@ -1188,6 +1188,9 @@ type bootDexInfo struct {
 
 	// Indicates whether the dex jar needs uncompressing before encoding.
 	uncompressDex bool
+
+	// The minimum sdk version that the dex jar will be used on.
+	minSdkVersion android.SdkSpec
 }
 
 // bootDexInfoByModule is a map from module name (as returned by module.Name()) to the boot dex
@@ -1213,6 +1216,7 @@ func extractBootDexInfoFromModules(ctx android.ModuleContext, contents []android
 		bootDexJarsByModule[module.Name()] = bootDexInfo{
 			path:          bootDexJar,
 			uncompressDex: *hiddenAPIModule.uncompressDex(),
+			minSdkVersion: hiddenAPIModule.MinSdkVersion(ctx),
 		}
 	}
 
