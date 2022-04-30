@@ -377,6 +377,9 @@ type sdkLibraryProperties struct {
 	// List of Java libraries that will be in the classpath when building the implementation lib
 	Impl_only_libs []string `android:"arch_variant"`
 
+	// List of Java libraries that will included in the implementation lib.
+	Impl_only_static_libs []string `android:"arch_variant"`
+
 	// List of Java libraries that will be in the classpath when building stubs
 	Stub_only_libs []string `android:"arch_variant"`
 
@@ -1346,10 +1349,12 @@ func (module *SdkLibrary) createImplLibrary(mctx android.DefaultableHookContext)
 	visibility := childModuleVisibility(module.sdkLibraryProperties.Impl_library_visibility)
 
 	props := struct {
-		Name       *string
-		Visibility []string
-		Instrument bool
-		Libs       []string
+		Name           *string
+		Visibility     []string
+		Instrument     bool
+		Libs           []string
+		Static_libs    []string
+		Apex_available []string
 	}{
 		Name:       proptools.StringPtr(module.implLibraryModuleName()),
 		Visibility: visibility,
@@ -1358,6 +1363,12 @@ func (module *SdkLibrary) createImplLibrary(mctx android.DefaultableHookContext)
 		// Set the impl_only libs. Note that the module's "Libs" get appended as well, via the
 		// addition of &module.properties below.
 		Libs: module.sdkLibraryProperties.Impl_only_libs,
+		// Set the impl_only static libs. Note that the module's "static_libs" get appended as well, via the
+		// addition of &module.properties below.
+		Static_libs: module.sdkLibraryProperties.Impl_only_static_libs,
+		// Pass the apex_available settings down so that the impl library can be statically
+		// embedded within a library that is added to an APEX. Needed for updatable-media.
+		Apex_available: module.ApexAvailable(),
 	}
 
 	properties := []interface{}{
@@ -1814,8 +1825,9 @@ func (module *SdkLibrary) CreateInternalModules(mctx android.DefaultableHookCont
 		*javaSdkLibraries = append(*javaSdkLibraries, module.BaseModuleName())
 	}
 
-	// Add the impl_only_libs *after* we're done using the Libs prop in submodules.
+	// Add the impl_only_libs and impl_only_static_libs *after* we're done using them in submodules.
 	module.properties.Libs = append(module.properties.Libs, module.sdkLibraryProperties.Impl_only_libs...)
+	module.properties.Static_libs = append(module.properties.Static_libs, module.sdkLibraryProperties.Impl_only_static_libs...)
 }
 
 func (module *SdkLibrary) InitSdkLibraryProperties() {
@@ -2211,8 +2223,23 @@ func (module *SdkLibraryImport) UniqueApexVariations() bool {
 	return module.uniqueApexVariations()
 }
 
+// MinSdkVersion - Implements hiddenAPIModule
+func (module *SdkLibraryImport) MinSdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
+	return android.SdkSpecNone
+}
+
+var _ hiddenAPIModule = (*SdkLibraryImport)(nil)
+
 func (module *SdkLibraryImport) OutputFiles(tag string) (android.Paths, error) {
-	return module.commonOutputFiles(tag)
+	paths, err := module.commonOutputFiles(tag)
+	if paths != nil || err != nil {
+		return paths, err
+	}
+	if module.implLibraryModule != nil {
+		return module.implLibraryModule.OutputFiles(tag)
+	} else {
+		return nil, nil
+	}
 }
 
 func (module *SdkLibraryImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
