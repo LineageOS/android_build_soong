@@ -777,6 +777,10 @@ func (c *config) PlatformBaseOS() string {
 	return String(c.productVariables.Platform_base_os)
 }
 
+func (c *config) PlatformVersionLastStable() string {
+	return String(c.productVariables.Platform_version_last_stable)
+}
+
 func (c *config) MinSupportedSdkVersion() ApiLevel {
 	return uncheckedFinalApiLevel(19)
 }

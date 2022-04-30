@@ -15,13 +15,17 @@
 package java
 
 import (
-	"android/soong/android"
 	"path/filepath"
+	"runtime"
 	"testing"
+
+	"android/soong/android"
+	"android/soong/cc"
 )
 
 var prepForJavaFuzzTest = android.GroupFixturePreparers(
 	PrepareForTestWithJavaDefaultModules,
+	cc.PrepareForTestWithCcBuildComponents,
 	android.FixtureRegisterWithContext(RegisterJavaFuzzBuildComponents),
 )
 
@@ -32,6 +36,13 @@ func TestJavaFuzz(t *testing.T) {
 			srcs: ["a.java"],
 			libs: ["bar"],
 			static_libs: ["baz"],
+            jni_libs: [
+                "libjni",
+            ],
+            sanitizers: [
+                "address",
+                "fuzzer",
+            ],
 		}
 
 		java_library_host {
@@ -42,11 +53,21 @@ func TestJavaFuzz(t *testing.T) {
 		java_library_host {
 			name: "baz",
 			srcs: ["c.java"],
-		}`)
+		}
+
+		cc_library_shared {
+			name: "libjni",
+			host_supported: true,
+			device_supported: false,
+			stl: "none",
+		}
+		`)
 
 	osCommonTarget := result.Config.BuildOSCommonTarget.String()
-	javac := result.ModuleForTests("foo", osCommonTarget).Rule("javac")
-	combineJar := result.ModuleForTests("foo", osCommonTarget).Description("for javac")
+
+	osCommonTargetWithSan := osCommonTarget + "_asan" + "_fuzzer"
+	javac := result.ModuleForTests("foo", osCommonTargetWithSan).Rule("javac")
+	combineJar := result.ModuleForTests("foo", osCommonTargetWithSan).Description("for javac")
 
 	if len(javac.Inputs) != 1 || javac.Inputs[0].String() != "a.java" {
 		t.Errorf(`foo inputs %v != ["a.java"]`, javac.Inputs)
@@ -61,5 +82,19 @@ func TestJavaFuzz(t *testing.T) {
 
 	if len(combineJar.Inputs) != 2 || combineJar.Inputs[1].String() != baz {
 		t.Errorf("foo combineJar inputs %v does not contain %q", combineJar.Inputs, baz)
+	}
+
+	ctx := result.TestContext
+	foo := ctx.ModuleForTests("foo", osCommonTargetWithSan).Module().(*JavaFuzzLibrary)
+
+	expected := "libjni.so"
+	if runtime.GOOS == "darwin" {
+		expected = "libjni.dylib"
+	}
+
+	fooJniFilePaths := foo.jniFilePaths
+	if len(fooJniFilePaths) != 1 || fooJniFilePaths[0].Rel() != expected {
+		t.Errorf(`expected foo test data relative path [%q], got %q`,
+			expected, fooJniFilePaths.Strings())
 	}
 }
