@@ -352,6 +352,8 @@ type productVariables struct {
 	RecoverySnapshotDirsIncluded []string `json:",omitempty"`
 	HostFakeSnapshotEnabled      bool     `json:",omitempty"`
 
+	MultitreeUpdateMeta bool `json:",omitempty"`
+
 	BoardVendorSepolicyDirs           []string `json:",omitempty"`
 	BoardOdmSepolicyDirs              []string `json:",omitempty"`
 	BoardReqdMaskPolicy               []string `json:",omitempty"`
