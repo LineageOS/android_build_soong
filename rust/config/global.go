@@ -50,6 +50,7 @@ var (
 		"-C force-unwind-tables=yes",
 		// Use v0 mangling to distinguish from C++ symbols
 		"-C symbol-mangling-version=v0",
+		"--color always",
 	}
 
 	deviceGlobalRustFlags = []string{
