@@ -678,6 +678,9 @@ func toJsonClassLoaderContext(clcMap ClassLoaderContextMap) jsonClassLoaderConte
 	jClcMap := make(jsonClassLoaderContextMap)
 	for sdkVer, clcs := range clcMap {
 		sdkVerStr := fmt.Sprintf("%d", sdkVer)
+		if sdkVer == AnySdkVersion {
+			sdkVerStr = "any"
+		}
 		jClcMap[sdkVerStr] = toJsonClassLoaderContextRec(clcs)
 	}
 	return jClcMap
