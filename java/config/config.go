@@ -68,6 +68,11 @@ var (
 		"-J-XX:+TieredCompilation",
 		"-J-XX:TieredStopAtLevel=1",
 	}
+	dexerJavaVmFlagsList = []string{
+		`-JXX:OnError="cat hs_err_pid%p.log"`,
+		"-JXX:CICompilerCount=6",
+		"-JXX:+UseDynamicNumberOfGCThreads",
+	}
 )
 
 func init() {
@@ -83,19 +88,14 @@ func init() {
 
 	// D8 invocations are shorter lived, so we restrict their JIT tiering relative to R8.
 	// Note that the `-JXX` prefix syntax is specific to the R8/D8 invocation wrappers.
-	exportedVars.ExportStringListStaticVariable("D8Flags", []string{
-		`-JXX:OnError="cat hs_err_pid%p.log"`,
-		"-JXX:CICompilerCount=6",
-		"-JXX:+UseDynamicNumberOfGCThreads",
+	exportedVars.ExportStringListStaticVariable("D8Flags", append([]string{
+		"-JXmx2048M",
 		"-JXX:+TieredCompilation",
 		"-JXX:TieredStopAtLevel=1",
-	})
-
-	exportedVars.ExportStringListStaticVariable("R8Flags", []string{
-		`-JXX:OnError="cat hs_err_pid%p.log"`,
-		"-JXX:CICompilerCount=6",
-		"-JXX:+UseDynamicNumberOfGCThreads",
-	})
+	}, dexerJavaVmFlagsList...))
+	exportedVars.ExportStringListStaticVariable("R8Flags", append([]string{
+		"-JXmx2048M",
+	}, dexerJavaVmFlagsList...))
 
 	exportedVars.ExportStringListStaticVariable("CommonJdkFlags", []string{
 		`-Xmaxerrs 9999999`,
