@@ -90,6 +90,7 @@ func runSimpleTest(t *testing.T, existentPaths []string, expectedMatches []strin
 		CacheParams{
 			"/cwd",
 			[]string{root},
+			false,
 			nil,
 			nil,
 			[]string{"findme.txt", "skipme.txt"},
@@ -121,6 +122,7 @@ func runTestWithSuffixes(t *testing.T, existentPaths []string, expectedMatches [
 		CacheParams{
 			"/cwd",
 			[]string{root},
+			false,
 			nil,
 			nil,
 			[]string{"findme.txt", "skipme.txt"},
