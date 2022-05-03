@@ -145,7 +145,7 @@ func (prebuilt *prebuiltLibraryDecorator) compilerProps() []interface{} {
 		&prebuilt.Properties)
 }
 
-func (prebuilt *prebuiltLibraryDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) android.Path {
+func (prebuilt *prebuiltLibraryDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) buildOutput {
 	prebuilt.flagExporter.exportLinkDirs(android.PathsForModuleSrc(ctx, prebuilt.Properties.Link_dirs).Strings()...)
 	prebuilt.flagExporter.setProvider(ctx)
 
@@ -154,7 +154,7 @@ func (prebuilt *prebuiltLibraryDecorator) compile(ctx ModuleContext, flags Flags
 		ctx.PropertyErrorf("srcs", "prebuilt libraries can only have one entry in srcs (the prebuilt path)")
 	}
 	prebuilt.baseCompiler.unstrippedOutputFile = srcPath
-	return srcPath
+	return buildOutput{outputFile: srcPath}
 }
 
 func (prebuilt *prebuiltLibraryDecorator) rustdoc(ctx ModuleContext, flags Flags,
@@ -202,7 +202,7 @@ func (prebuilt *prebuiltProcMacroDecorator) compilerProps() []interface{} {
 		&prebuilt.Properties)
 }
 
-func (prebuilt *prebuiltProcMacroDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) android.Path {
+func (prebuilt *prebuiltProcMacroDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) buildOutput {
 	prebuilt.flagExporter.exportLinkDirs(android.PathsForModuleSrc(ctx, prebuilt.Properties.Link_dirs).Strings()...)
 	prebuilt.flagExporter.setProvider(ctx)
 
@@ -211,7 +211,7 @@ func (prebuilt *prebuiltProcMacroDecorator) compile(ctx ModuleContext, flags Fla
 		ctx.PropertyErrorf("srcs", "prebuilt libraries can only have one entry in srcs (the prebuilt path)")
 	}
 	prebuilt.baseCompiler.unstrippedOutputFile = srcPath
-	return srcPath
+	return buildOutput{outputFile: srcPath}
 }
 
 func (prebuilt *prebuiltProcMacroDecorator) rustdoc(ctx ModuleContext, flags Flags,
