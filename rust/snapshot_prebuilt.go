@@ -69,7 +69,7 @@ func snapshotLibraryFactory(image cc.SnapshotImage, moduleSuffix string) (*Modul
 	return module, prebuilt
 }
 
-func (library *snapshotLibraryDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) android.Path {
+func (library *snapshotLibraryDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) buildOutput {
 	var variant string
 	if library.static() {
 		variant = cc.SnapshotStaticSuffix
@@ -85,11 +85,11 @@ func (library *snapshotLibraryDecorator) compile(ctx ModuleContext, flags Flags,
 	}
 
 	if !library.MatchesWithDevice(ctx.DeviceConfig()) {
-		return nil
+		return buildOutput{}
 	}
 	outputFile := android.PathForModuleSrc(ctx, *library.properties.Src)
 	library.unstrippedOutputFile = outputFile
-	return outputFile
+	return buildOutput{outputFile: outputFile}
 }
 
 func (library *snapshotLibraryDecorator) rustdoc(ctx ModuleContext, flags Flags, deps PathDeps) android.OptionalPath {
