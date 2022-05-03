@@ -2344,7 +2344,7 @@ func createPerApiVersionVariations(mctx android.BottomUpMutatorContext, minSdkVe
 	}
 }
 
-func CanBeOrLinkAgainstVersionVariants(module interface {
+func canBeOrLinkAgainstVersionVariants(module interface {
 	Host() bool
 	InRamdisk() bool
 	InVendorRamdisk() bool
@@ -2352,15 +2352,14 @@ func CanBeOrLinkAgainstVersionVariants(module interface {
 	return !module.Host() && !module.InRamdisk() && !module.InVendorRamdisk()
 }
 
-func CanBeVersionVariant(module interface {
+func canBeVersionVariant(module interface {
 	Host() bool
 	InRamdisk() bool
 	InVendorRamdisk() bool
-	InRecovery() bool
 	CcLibraryInterface() bool
 	Shared() bool
 }) bool {
-	return CanBeOrLinkAgainstVersionVariants(module) &&
+	return canBeOrLinkAgainstVersionVariants(module) &&
 		module.CcLibraryInterface() && module.Shared()
 }
 
@@ -2371,37 +2370,41 @@ func moduleLibraryInterface(module blueprint.Module) libraryInterface {
 	return nil
 }
 
-// versionSelector normalizes the versions in the Stubs.Versions property into MutatedProperties.AllStubsVersions.
-func versionSelectorMutator(mctx android.BottomUpMutatorContext) {
-	if library := moduleLibraryInterface(mctx.Module()); library != nil && CanBeVersionVariant(mctx.Module().(*Module)) {
-		if library.buildShared() {
-			versions := library.stubsVersions(mctx)
-			if len(versions) > 0 {
-				normalizeVersions(mctx, versions)
-				if mctx.Failed() {
-					return
-				}
-				// Set the versions on the pre-mutated module so they can be read by any llndk modules that
-				// depend on the implementation library and haven't been mutated yet.
-				library.setAllStubsVersions(versions)
-			}
-		}
+// setStubsVersions normalizes the versions in the Stubs.Versions property into MutatedProperties.AllStubsVersions.
+func setStubsVersions(mctx android.BottomUpMutatorContext, library libraryInterface, module *Module) {
+	if !library.buildShared() || !canBeVersionVariant(module) {
+		return
 	}
+	versions := library.stubsVersions(mctx)
+	if len(versions) <= 0 {
+		return
+	}
+	normalizeVersions(mctx, versions)
+	if mctx.Failed() {
+		return
+	}
+	// Set the versions on the pre-mutated module so they can be read by any llndk modules that
+	// depend on the implementation library and haven't been mutated yet.
+	library.setAllStubsVersions(versions)
 }
 
 // versionMutator splits a module into the mandatory non-stubs variant
 // (which is unnamed) and zero or more stubs variants.
 func versionMutator(mctx android.BottomUpMutatorContext) {
-	if library := moduleLibraryInterface(mctx.Module()); library != nil && CanBeVersionVariant(mctx.Module().(*Module)) {
+	if mctx.Os() != android.Android {
+		return
+	}
+
+	m, ok := mctx.Module().(*Module)
+	if library := moduleLibraryInterface(mctx.Module()); library != nil && canBeVersionVariant(m) {
+		setStubsVersions(mctx, library, m)
+
 		createVersionVariations(mctx, library.allStubsVersions())
 		return
 	}
 
-	if m, ok := mctx.Module().(*Module); ok {
+	if ok {
 		if m.SplitPerApiLevel() && m.IsSdkVariant() {
-			if mctx.Os() != android.Android {
-				return
-			}
 			createPerApiVersionVariations(mctx, m.MinSdkVersion())
 		}
 	}
