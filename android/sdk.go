@@ -23,24 +23,8 @@ import (
 	"github.com/google/blueprint/proptools"
 )
 
-// RequiredSdks provides access to the set of SDKs required by an APEX and its contents.
-//
-// Extracted from SdkAware to make it easier to define custom subsets of the
-// SdkAware interface and improve code navigation within the IDE.
-//
-// In addition to its use in SdkAware this interface must also be implemented by
-// APEX to specify the SDKs required by that module and its contents. e.g. APEX
-// is expected to implement RequiredSdks() by reading its own properties like
-// `uses_sdks`.
-type RequiredSdks interface {
-	// RequiredSdks returns the set of SDKs required by an APEX and its contents.
-	RequiredSdks() SdkRefs
-}
-
 // sdkAwareWithoutModule is provided simply to improve code navigation with the IDE.
 type sdkAwareWithoutModule interface {
-	RequiredSdks
-
 	// SdkMemberComponentName will return the name to use for a component of this module based on the
 	// base name of this module.
 	//
@@ -81,7 +65,6 @@ type sdkAwareWithoutModule interface {
 
 	ContainingSdk() SdkRef
 	MemberName() string
-	BuildWithSdks(sdks SdkRefs)
 }
 
 // SdkAware is the interface that must be supported by any module to become a member of SDK or to be
@@ -150,9 +133,6 @@ type sdkProperties struct {
 	// The SDK that this module is a member of. nil if it is not a member of any SDK
 	ContainingSdk *SdkRef `blueprint:"mutated"`
 
-	// The list of SDK names and versions that are used to build this module
-	RequiredSdks SdkRefs `blueprint:"mutated"`
-
 	// Name of the module that this sdk member is representing
 	Sdk_member_name *string
 }
@@ -206,16 +186,6 @@ func (s *SdkBase) ContainingSdk() SdkRef {
 // MemberName returns the name of the module that this SDK member is overriding
 func (s *SdkBase) MemberName() string {
 	return proptools.String(s.properties.Sdk_member_name)
-}
-
-// BuildWithSdks is used to mark that this module has to be built with the given SDK(s).
-func (s *SdkBase) BuildWithSdks(sdks SdkRefs) {
-	s.properties.RequiredSdks = sdks
-}
-
-// RequiredSdks returns the SDK(s) that this module has to be built with
-func (s *SdkBase) RequiredSdks() SdkRefs {
-	return s.properties.RequiredSdks
 }
 
 // InitSdkAwareModule initializes the SdkBase struct. This must be called by all modules including
