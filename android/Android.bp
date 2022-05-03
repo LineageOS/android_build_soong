@@ -36,6 +36,7 @@ bootstrap_go_package {
         "bazel.go",
         "bazel_handler.go",
         "bazel_paths.go",
+        "buildinfo_prop.go",
         "config.go",
         "config_bp2build.go",
         "csuite_config.go",

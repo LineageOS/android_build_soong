@@ -199,6 +199,7 @@ type productVariables struct {
 	Platform_preview_sdk_version              *string  `json:",omitempty"`
 	Platform_min_supported_target_sdk_version *string  `json:",omitempty"`
 	Platform_base_os                          *string  `json:",omitempty"`
+	Platform_version_last_stable              *string  `json:",omitempty"`
 
 	DeviceName                            *string  `json:",omitempty"`
 	DeviceProduct                         *string  `json:",omitempty"`
