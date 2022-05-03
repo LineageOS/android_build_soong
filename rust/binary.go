@@ -128,11 +128,11 @@ func (binary *binaryDecorator) preferRlib() bool {
 	return Bool(binary.baseCompiler.Properties.Prefer_rlib) || Bool(binary.Properties.Static_executable)
 }
 
-func (binary *binaryDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) android.Path {
+func (binary *binaryDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) buildOutput {
 	fileName := binary.getStem(ctx) + ctx.toolchain().ExecutableSuffix()
 	srcPath, _ := srcPathFromModuleSrcs(ctx, binary.baseCompiler.Properties.Srcs)
 	outputFile := android.PathForModuleOut(ctx, fileName)
-	ret := outputFile
+	ret := buildOutput{outputFile: outputFile}
 
 	flags.RustFlags = append(flags.RustFlags, deps.depFlags...)
 	flags.LinkFlags = append(flags.LinkFlags, deps.depLinkFlags...)
@@ -147,8 +147,7 @@ func (binary *binaryDecorator) compile(ctx ModuleContext, flags Flags, deps Path
 	}
 	binary.baseCompiler.unstrippedOutputFile = outputFile
 
-	TransformSrcToBinary(ctx, srcPath, deps, flags, outputFile)
-
+	ret.kytheFile = TransformSrcToBinary(ctx, srcPath, deps, flags, outputFile).kytheFile
 	return ret
 }
 

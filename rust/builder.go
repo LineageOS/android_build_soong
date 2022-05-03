@@ -83,10 +83,37 @@ var (
 			RspfileContent: "$in",
 		},
 		"outDir")
+
+	// Cross-referencing:
+	_ = pctx.SourcePathVariable("rustExtractor",
+		"prebuilts/build-tools/${config.HostPrebuiltTag}/bin/rust_extractor")
+	_ = pctx.VariableFunc("kytheCorpus",
+		func(ctx android.PackageVarContext) string { return ctx.Config().XrefCorpusName() })
+	_ = pctx.VariableFunc("kytheCuEncoding",
+		func(ctx android.PackageVarContext) string { return ctx.Config().XrefCuEncoding() })
+	_            = pctx.SourcePathVariable("kytheVnames", "build/soong/vnames.json")
+	kytheExtract = pctx.AndroidStaticRule("kythe",
+		blueprint.RuleParams{
+			Command: `KYTHE_CORPUS=${kytheCorpus} ` +
+				`KYTHE_OUTPUT_FILE=$out ` +
+				`KYTHE_VNAMES=$kytheVnames ` +
+				`KYTHE_KZIP_ENCODING=${kytheCuEncoding} ` +
+				`KYTHE_CANONICALIZE_VNAME_PATHS=prefer-relative ` +
+				`$rustExtractor $envVars ` +
+				`$rustcCmd ` +
+				`-C linker=${config.RustLinker} ` +
+				`-C link-args="${crtBegin} ${config.RustLinkerArgs} ${linkFlags} ${crtEnd}" ` +
+				`$in ${libFlags} $rustcFlags`,
+			CommandDeps:    []string{"$rustExtractor", "$kytheVnames"},
+			Rspfile:        "${out}.rsp",
+			RspfileContent: "$in",
+		},
+		"rustcFlags", "linkFlags", "libFlags", "crtBegin", "crtEnd", "envVars")
 )
 
 type buildOutput struct {
 	outputFile android.Path
+	kytheFile  android.Path
 }
 
 func init() {
@@ -324,6 +351,25 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 		},
 	})
 
+	if flags.EmitXrefs {
+		kytheFile := android.PathForModuleOut(ctx, outputFile.Base()+".kzip")
+		ctx.Build(pctx, android.BuildParams{
+			Rule:        kytheExtract,
+			Description: "Xref Rust extractor " + main.Rel(),
+			Output:      kytheFile,
+			Inputs:      inputs,
+			Implicits:   implicits,
+			Args: map[string]string{
+				"rustcFlags": strings.Join(rustcFlags, " "),
+				"linkFlags":  strings.Join(linkFlags, " "),
+				"libFlags":   strings.Join(libFlags, " "),
+				"crtBegin":   strings.Join(deps.CrtBegin.Strings(), " "),
+				"crtEnd":     strings.Join(deps.CrtEnd.Strings(), " "),
+				"envVars":    strings.Join(envVars, " "),
+			},
+		})
+		output.kytheFile = kytheFile
+	}
 	return output
 }
 

@@ -36,7 +36,7 @@ export KYTHE_JAVA_SOURCE_BATCH_SIZE KYTHE_KZIP_ENCODING
 declare -r out="${OUT_DIR:-out}"
 
 # Build extraction files for C++ and Java. Build `merge_zips` which we use later.
-build/soong/soong_ui.bash --build-mode --all-modules --dir=$PWD -k merge_zips xref_cxx xref_java
+build/soong/soong_ui.bash --build-mode --all-modules --dir=$PWD -k merge_zips xref_cxx xref_java xref_rust
 
 # Build extraction file for Go the files in build/{blueprint,soong} directories.
 declare -r abspath_out=$(realpath "${out}")
@@ -44,7 +44,7 @@ declare -r go_extractor=$(realpath prebuilts/build-tools/linux-x86/bin/go_extrac
 declare -r go_root=$(realpath prebuilts/go/linux-x86)
 declare -r source_root=$PWD
 
-# TODO(asmundak): Until b/182183061 is fixed, default corpus has to be specified 
+# TODO(asmundak): Until b/182183061 is fixed, default corpus has to be specified
 # in the rules file. Generate this file on the fly with corpus value set from the
 # environment variable.
 for dir in blueprint soong; do
