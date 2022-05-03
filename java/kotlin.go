@@ -175,6 +175,7 @@ func kotlinKapt(ctx android.ModuleContext, srcJarOutputFile, resJarOutputFile an
 
 	var deps android.Paths
 	deps = append(deps, flags.kotlincClasspath...)
+	deps = append(deps, flags.kotlincDeps...)
 	deps = append(deps, srcJars...)
 	deps = append(deps, flags.processorPath...)
 	deps = append(deps, commonSrcFiles...)
