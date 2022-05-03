@@ -37,64 +37,6 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func TestDepNotInRequiredSdks(t *testing.T) {
-	testSdkError(t, `module "myjavalib".*depends on "otherlib".*that isn't part of the required SDKs:.*`, `
-		sdk {
-			name: "mysdk",
-			java_header_libs: ["sdkmember"],
-		}
-
-		sdk_snapshot {
-			name: "mysdk@1",
-			java_header_libs: ["sdkmember_mysdk_1"],
-		}
-
-		java_import {
-			name: "sdkmember",
-			prefer: false,
-			host_supported: true,
-		}
-
-		java_import {
-			name: "sdkmember_mysdk_1",
-			sdk_member_name: "sdkmember",
-			host_supported: true,
-		}
-
-		java_library {
-			name: "myjavalib",
-			srcs: ["Test.java"],
-			libs: [
-				"sdkmember",
-				"otherlib",
-			],
-			system_modules: "none",
-			sdk_version: "none",
-			compile_dex: true,
-			host_supported: true,
-			apex_available: ["myapex"],
-		}
-
-		// this lib is no in mysdk
-		java_library {
-			name: "otherlib",
-			srcs: ["Test.java"],
-			system_modules: "none",
-			sdk_version: "none",
-			compile_dex: true,
-			host_supported: true,
-		}
-
-		apex {
-			name: "myapex",
-			java_libs: ["myjavalib"],
-			uses_sdks: ["mysdk@1"],
-			key: "myapex.key",
-			certificate: ":myapex.cert",
-		}
-	`)
-}
-
 // Ensure that prebuilt modules have the same effective visibility as the source
 // modules.
 func TestSnapshotVisibility(t *testing.T) {
