@@ -170,6 +170,9 @@ type CommonProperties struct {
 	}
 
 	Instrument bool `blueprint:"mutated"`
+	// If true, then the module supports statically including the jacocoagent
+	// into the library.
+	Supports_static_instrumentation bool `blueprint:"mutated"`
 
 	// List of files to include in the META-INF/services folder of the resulting jar.
 	Services []string `android:"path,arch_variant"`
@@ -602,7 +605,8 @@ func (j *Module) shouldInstrument(ctx android.BaseModuleContext) bool {
 }
 
 func (j *Module) shouldInstrumentStatic(ctx android.BaseModuleContext) bool {
-	return j.shouldInstrument(ctx) &&
+	return j.properties.Supports_static_instrumentation &&
+		j.shouldInstrument(ctx) &&
 		(ctx.Config().IsEnvTrue("EMMA_INSTRUMENT_STATIC") ||
 			ctx.Config().UnbundledBuild())
 }
