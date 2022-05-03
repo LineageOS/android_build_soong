@@ -193,114 +193,6 @@ sdk_snapshot {
 `))
 }
 
-func TestBasicSdkWithCc(t *testing.T) {
-	result := testSdkWithCc(t, `
-		sdk {
-			name: "mysdk",
-			native_shared_libs: ["sdkmember"],
-		}
-
-		cc_library_shared {
-			name: "sdkmember",
-			system_shared_libs: [],
-			stl: "none",
-			apex_available: ["mysdkapex"],
-		}
-
-		sdk_snapshot {
-			name: "mysdk@1",
-			native_shared_libs: ["sdkmember_mysdk@1"],
-		}
-
-		sdk_snapshot {
-			name: "mysdk@2",
-			native_shared_libs: ["sdkmember_mysdk@2"],
-		}
-
-		cc_prebuilt_library_shared {
-			name: "sdkmember",
-			srcs: ["libfoo.so"],
-			prefer: false,
-			system_shared_libs: [],
-			stl: "none",
-		}
-
-		cc_prebuilt_library_shared {
-			name: "sdkmember_mysdk@1",
-			sdk_member_name: "sdkmember",
-			srcs: ["libfoo.so"],
-			system_shared_libs: [],
-			stl: "none",
-			// TODO: remove //apex_available:platform
-			apex_available: [
-				"//apex_available:platform",
-				"myapex",
-			],
-		}
-
-		cc_prebuilt_library_shared {
-			name: "sdkmember_mysdk@2",
-			sdk_member_name: "sdkmember",
-			srcs: ["libfoo.so"],
-			system_shared_libs: [],
-			stl: "none",
-			// TODO: remove //apex_available:platform
-			apex_available: [
-				"//apex_available:platform",
-				"myapex2",
-			],
-		}
-
-		cc_library_shared {
-			name: "mycpplib",
-			srcs: ["Test.cpp"],
-			shared_libs: ["sdkmember"],
-			system_shared_libs: [],
-			stl: "none",
-			apex_available: [
-				"myapex",
-				"myapex2",
-			],
-		}
-
-		apex {
-			name: "myapex",
-			native_shared_libs: ["mycpplib"],
-			uses_sdks: ["mysdk@1"],
-			key: "myapex.key",
-			certificate: ":myapex.cert",
-			updatable: false,
-		}
-
-		apex {
-			name: "myapex2",
-			native_shared_libs: ["mycpplib"],
-			uses_sdks: ["mysdk@2"],
-			key: "myapex.key",
-			certificate: ":myapex.cert",
-			updatable: false,
-		}
-
-		apex {
-			name: "mysdkapex",
-			native_shared_libs: ["sdkmember"],
-			key: "myapex.key",
-			certificate: ":myapex.cert",
-			updatable: false,
-		}
-	`)
-
-	sdkMemberV1 := result.ModuleForTests("sdkmember_mysdk@1", "android_arm64_armv8-a_shared_apex10000_mysdk_1").Rule("toc").Output
-	sdkMemberV2 := result.ModuleForTests("sdkmember_mysdk@2", "android_arm64_armv8-a_shared_apex10000_mysdk_2").Rule("toc").Output
-
-	cpplibForMyApex := result.ModuleForTests("mycpplib", "android_arm64_armv8-a_shared_apex10000_mysdk_1")
-	cpplibForMyApex2 := result.ModuleForTests("mycpplib", "android_arm64_armv8-a_shared_apex10000_mysdk_2")
-
-	// Depending on the uses_sdks value, different libs are linked
-	ensureListContains(t, pathsToStrings(cpplibForMyApex.Rule("ld").Implicits), sdkMemberV1.String())
-	ensureListContains(t, pathsToStrings(cpplibForMyApex2.Rule("ld").Implicits), sdkMemberV2.String())
-}
-
 // Make sure the sdk can use host specific cc libraries static/shared and both.
 func TestHostSdkWithCc(t *testing.T) {
 	testSdkWithCc(t, `
@@ -2835,11 +2727,6 @@ func TestNoSanitizerMembers(t *testing.T) {
 		}
 	`)
 
-	// Mixing the snapshot with the source (irrespective of which one is preferred) causes a problem
-	// due to missing variants.
-	// TODO(b/183204176): Remove this and fix the cause.
-	snapshotWithSourceErrorHandler := android.FixtureExpectsAtLeastOneErrorMatchingPattern(`\QReplaceDependencies could not find identical variant {os:android,image:,arch:arm64_armv8-a,sdk:,link:shared,version:} for module mynativelib\E`)
-
 	CheckSnapshot(t, result, "mysdk", "",
 		checkUnversionedAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
@@ -2866,7 +2753,5 @@ myinclude/Test.h -> include/myinclude/Test.h
 arm64/include/Arm64Test.h -> arm64/include/arm64/include/Arm64Test.h
 .intermediates/mynativelib/android_arm_armv7-a-neon_shared/mynativelib.so -> arm/lib/mynativelib.so
 `),
-		snapshotTestErrorHandler(checkSnapshotWithSourcePreferred, snapshotWithSourceErrorHandler),
-		snapshotTestErrorHandler(checkSnapshotPreferredWithSource, snapshotWithSourceErrorHandler),
 	)
 }
