@@ -93,7 +93,7 @@ var (
 type libraryProperties struct {
 	// Relative path to the symbol map.
 	// An example file can be seen here: TODO(danalbert): Make an example.
-	Symbol_file *string
+	Symbol_file *string `android:"path"`
 
 	// The first API level a library was available. A library will be generated
 	// for every API level beginning with this one.
@@ -284,6 +284,10 @@ func parseNativeAbiDefinition(ctx ModuleContext, symbolFile string,
 }
 
 func compileStubLibrary(ctx ModuleContext, flags Flags, src android.Path) Objects {
+	// libc/libm stubs libraries end up mismatching with clang's internal definition of these
+	// functions (which have noreturn attributes and other things). Because we just want to create a
+	// stub with symbol definitions, and types aren't important in C, ignore the mismatch.
+	flags.Local.ConlyFlags = append(flags.Local.ConlyFlags, "-fno-builtin")
 	return compileObjs(ctx, flagsToBuilderFlags(flags), "",
 		android.Paths{src}, nil, nil, nil, nil)
 }

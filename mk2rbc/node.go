@@ -83,7 +83,7 @@ func (im inheritedStaticModule) needsLoadCheck() bool {
 }
 
 type inheritedDynamicModule struct {
-	path             interpolateExpr
+	path             starlarkExpr
 	candidateModules []*moduleInfo
 	loadAlways       bool
 	location         ErrorLocation
@@ -120,7 +120,7 @@ func (i inheritedDynamicModule) emitSelect(gctx *generationContext) {
 }
 
 func (i inheritedDynamicModule) pathExpr() starlarkExpr {
-	return &i.path
+	return i.path
 }
 
 func (i inheritedDynamicModule) needsLoadCheck() bool {
