@@ -58,9 +58,6 @@ type ApexInfo struct {
 	// to true.
 	UsePlatformApis bool
 
-	// The list of SDK modules that the containing apexBundle depends on.
-	RequiredSdks SdkRefs
-
 	// List of Apex variant names that this module is associated with. This initially is the
 	// same as the `ApexVariationName` field.  Then when multiple apex variants are merged in
 	// mergeApexVariations, ApexInfo struct of the merged variant holds the list of apexBundles
@@ -110,9 +107,6 @@ func (i ApexInfo) AddJSONData(d *map[string]interface{}) {
 // thus wouldn't be merged.
 func (i ApexInfo) mergedName(ctx PathContext) string {
 	name := "apex" + strconv.Itoa(i.MinSdkVersion.FinalOrFutureInt())
-	for _, sdk := range i.RequiredSdks {
-		name += "_" + sdk.Name + "_" + sdk.Version
-	}
 	return name
 }
 
