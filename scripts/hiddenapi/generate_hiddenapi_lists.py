@@ -27,7 +27,6 @@ FLAG_MAX_TARGET_O = 'max-target-o'
 FLAG_MAX_TARGET_P = 'max-target-p'
 FLAG_MAX_TARGET_Q = 'max-target-q'
 FLAG_MAX_TARGET_R = 'max-target-r'
-FLAG_MAX_TARGET_S = 'max-target-s'
 FLAG_CORE_PLATFORM_API = 'core-platform-api'
 FLAG_PUBLIC_API = 'public-api'
 FLAG_SYSTEM_API = 'system-api'
@@ -42,7 +41,6 @@ FLAGS_API_LIST = [
     FLAG_MAX_TARGET_P,
     FLAG_MAX_TARGET_Q,
     FLAG_MAX_TARGET_R,
-    FLAG_MAX_TARGET_S,
 ]
 ALL_FLAGS = FLAGS_API_LIST + [
     FLAG_CORE_PLATFORM_API,
