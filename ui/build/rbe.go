@@ -119,7 +119,6 @@ func startRBE(ctx Context, config Config) {
 }
 
 func stopRBE(ctx Context, config Config) {
-	defer checkProdCreds(ctx, config)
 	cmd := Command(ctx, config, "stopRBE bootstrap", rbeCommand(ctx, config, bootstrapCmd), "-shutdown")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -130,15 +129,6 @@ func stopRBE(ctx Context, config Config) {
 		fmt.Fprintln(ctx.Writer, "")
 		fmt.Fprintln(ctx.Writer, fmt.Sprintf("%s", output))
 	}
-}
-
-func checkProdCreds(ctx Context, config Config) {
-	if !config.IsGooglerEnvironment() || config.GoogleProdCredsExist() {
-		return
-	}
-	fmt.Fprintln(ctx.Writer, "")
-	fmt.Fprintln(ctx.Writer, "\033[33mWARNING: Missing LOAS credentials, please run `gcert`. This will result in failing RBE builds in the future, see go/build-fast#authentication.\033[0m")
-	fmt.Fprintln(ctx.Writer, "")
 }
 
 // DumpRBEMetrics creates a metrics protobuf file containing RBE related metrics.

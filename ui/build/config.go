@@ -1205,21 +1205,6 @@ func (c *configImpl) rbeAuth() (string, string) {
 	return "RBE_use_application_default_credentials", "true"
 }
 
-func (c *configImpl) IsGooglerEnvironment() bool {
-	cf := "ANDROID_BUILD_ENVIRONMENT_CONFIG"
-	if v, ok := c.environ.Get(cf); ok {
-		return v == "googler"
-	}
-	return false
-}
-
-func (c *configImpl) GoogleProdCredsExist() bool {
-	if _, err := exec.Command("/usr/bin/prodcertstatus", "--simple_output", "--nocheck_loas").Output(); err != nil {
-		return false
-	}
-	return true
-}
-
 func (c *configImpl) UseRemoteBuild() bool {
 	return c.UseGoma() || c.UseRBE()
 }
