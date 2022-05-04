@@ -300,19 +300,11 @@ var _ android.LicenseAnnotationsDependencyTag = dependencyTag{}
 
 type usesLibraryDependencyTag struct {
 	dependencyTag
-
-	// SDK version in which the library appared as a standalone library.
-	sdkVersion int
-
-	// If the dependency is optional or required.
-	optional bool
-
-	// Whether this is an implicit dependency inferred by Soong, or an explicit one added via
-	// `uses_libs`/`optional_uses_libs` properties.
-	implicit bool
+	sdkVersion int  // SDK version in which the library appared as a standalone library.
+	optional   bool // If the dependency is optional or required.
 }
 
-func makeUsesLibraryDependencyTag(sdkVersion int, optional bool, implicit bool) usesLibraryDependencyTag {
+func makeUsesLibraryDependencyTag(sdkVersion int, optional bool) usesLibraryDependencyTag {
 	return usesLibraryDependencyTag{
 		dependencyTag: dependencyTag{
 			name:          fmt.Sprintf("uses-library-%d", sdkVersion),
@@ -320,7 +312,6 @@ func makeUsesLibraryDependencyTag(sdkVersion int, optional bool, implicit bool) 
 		},
 		sdkVersion: sdkVersion,
 		optional:   optional,
-		implicit:   implicit,
 	}
 }
 
@@ -351,6 +342,11 @@ var (
 	syspropPublicStubDepTag = dependencyTag{name: "sysprop public stub"}
 	jniInstallTag           = installDependencyTag{name: "jni install"}
 	binaryInstallTag        = installDependencyTag{name: "binary install"}
+	usesLibReqTag           = makeUsesLibraryDependencyTag(dexpreopt.AnySdkVersion, false)
+	usesLibOptTag           = makeUsesLibraryDependencyTag(dexpreopt.AnySdkVersion, true)
+	usesLibCompat28OptTag   = makeUsesLibraryDependencyTag(28, true)
+	usesLibCompat29ReqTag   = makeUsesLibraryDependencyTag(29, false)
+	usesLibCompat30OptTag   = makeUsesLibraryDependencyTag(30, true)
 )
 
 func IsLibDepTag(depTag blueprint.DependencyTag) bool {
@@ -1996,10 +1992,8 @@ func addCLCFromDep(ctx android.ModuleContext, depModule android.Module,
 	depTag := ctx.OtherModuleDependencyTag(depModule)
 	if depTag == libTag {
 		// Ok, propagate <uses-library> through non-static library dependencies.
-	} else if tag, ok := depTag.(usesLibraryDependencyTag); ok &&
-		tag.sdkVersion == dexpreopt.AnySdkVersion && tag.implicit {
-		// Ok, propagate <uses-library> through non-compatibility implicit <uses-library>
-		// dependencies.
+	} else if tag, ok := depTag.(usesLibraryDependencyTag); ok && tag.sdkVersion == dexpreopt.AnySdkVersion {
+		// Ok, propagate <uses-library> through non-compatibility <uses-library> dependencies.
 	} else if depTag == staticLibTag {
 		// Propagate <uses-library> through static library dependencies, unless it is a component
 		// library (such as stubs). Component libraries have a dependency on their SDK library,
@@ -2017,7 +2011,7 @@ func addCLCFromDep(ctx android.ModuleContext, depModule android.Module,
 	// <uses_library> and should not be added to CLC, but the transitive <uses-library> dependencies
 	// from its CLC should be added to the current CLC.
 	if sdkLib != nil {
-		clcMap.AddContext(ctx, dexpreopt.AnySdkVersion, *sdkLib, false, true,
+		clcMap.AddContext(ctx, dexpreopt.AnySdkVersion, *sdkLib, false,
 			dep.DexJarBuildPath().PathOrNil(), dep.DexJarInstallPath(), dep.ClassLoaderContexts())
 	} else {
 		clcMap.AddContextMap(dep.ClassLoaderContexts(), depName)
