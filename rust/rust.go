@@ -15,6 +15,7 @@
 package rust
 
 import (
+	"android/soong/bloaty"
 	"fmt"
 	"strings"
 
@@ -22,7 +23,6 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
-	"android/soong/bloaty"
 	"android/soong/cc"
 	cc_config "android/soong/cc/config"
 	"android/soong/fuzz"
@@ -52,6 +52,7 @@ func init() {
 	})
 	pctx.Import("android/soong/rust/config")
 	pctx.ImportAs("cc_config", "android/soong/cc/config")
+	android.InitRegistrationContext.RegisterSingletonType("kythe_rust_extract", kytheExtractRustFactory)
 }
 
 type Flags struct {
@@ -64,6 +65,7 @@ type Flags struct {
 	Toolchain       config.Toolchain
 	Coverage        bool
 	Clippy          bool
+	EmitXrefs       bool // If true, emit rules to aid cross-referencing
 }
 
 type BaseProperties struct {
@@ -160,6 +162,9 @@ type Module struct {
 
 	// Output file to be installed, may be stripped or unstripped.
 	outputFile android.OptionalPath
+
+	// Cross-reference input file
+	kytheFiles android.Paths
 
 	docTimestampFile android.OptionalPath
 
@@ -394,6 +399,10 @@ func (mod *Module) SplitPerApiLevel() bool {
 	return false
 }
 
+func (mod *Module) XrefRustFiles() android.Paths {
+	return mod.kytheFiles
+}
+
 type Deps struct {
 	Dylibs          []string
 	Rlibs           []string
@@ -457,7 +466,7 @@ type compiler interface {
 	cfgFlags(ctx ModuleContext, flags Flags) Flags
 	featureFlags(ctx ModuleContext, flags Flags) Flags
 	compilerProps() []interface{}
-	compile(ctx ModuleContext, flags Flags, deps PathDeps) android.Path
+	compile(ctx ModuleContext, flags Flags, deps PathDeps) buildOutput
 	compilerDeps(ctx DepsContext, deps Deps) Deps
 	crateName() string
 	rustdoc(ctx ModuleContext, flags Flags, deps PathDeps) android.OptionalPath
@@ -491,6 +500,10 @@ type compiler interface {
 type exportedFlagsProducer interface {
 	exportLinkDirs(...string)
 	exportLinkObjects(...string)
+}
+
+type xref interface {
+	XrefRustFiles() android.Paths
 }
 
 type flagExporter struct {
@@ -904,11 +917,14 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 
 	if mod.compiler != nil && !mod.compiler.Disabled() {
 		mod.compiler.initialize(ctx)
-		outputFile := mod.compiler.compile(ctx, flags, deps)
+		buildOutput := mod.compiler.compile(ctx, flags, deps)
 		if ctx.Failed() {
 			return
 		}
-		mod.outputFile = android.OptionalPathForPath(outputFile)
+		mod.outputFile = android.OptionalPathForPath(buildOutput.outputFile)
+		if buildOutput.kytheFile != nil {
+			mod.kytheFiles = append(mod.kytheFiles, buildOutput.kytheFile)
+		}
 		bloaty.MeasureSizeForPaths(ctx, mod.compiler.strippedOutputFilePath(), android.OptionalPathForPath(mod.compiler.unstrippedOutputFilePath()))
 
 		mod.docTimestampFile = mod.compiler.rustdoc(ctx, flags, deps)
@@ -1616,6 +1632,25 @@ func libNameFromFilePath(filepath android.Path) (string, bool) {
 		return libName, true
 	}
 	return "", false
+}
+
+func kytheExtractRustFactory() android.Singleton {
+	return &kytheExtractRustSingleton{}
+}
+
+type kytheExtractRustSingleton struct {
+}
+
+func (k kytheExtractRustSingleton) GenerateBuildActions(ctx android.SingletonContext) {
+	var xrefTargets android.Paths
+	ctx.VisitAllModules(func(module android.Module) {
+		if rustModule, ok := module.(xref); ok {
+			xrefTargets = append(xrefTargets, rustModule.XrefRustFiles()...)
+		}
+	})
+	if len(xrefTargets) > 0 {
+		ctx.Phony("xref_rust", xrefTargets...)
+	}
 }
 
 var Bool = proptools.Bool
