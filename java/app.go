@@ -1227,28 +1227,17 @@ func (u *usesLibrary) addLib(lib string, optional bool) {
 
 func (u *usesLibrary) deps(ctx android.BottomUpMutatorContext, hasFrameworkLibs bool) {
 	if !ctx.Config().UnbundledBuild() || ctx.Config().UnbundledBuildImage() {
-		reqTag := makeUsesLibraryDependencyTag(dexpreopt.AnySdkVersion, false, false)
-		ctx.AddVariationDependencies(nil, reqTag, u.usesLibraryProperties.Uses_libs...)
-
-		optTag := makeUsesLibraryDependencyTag(dexpreopt.AnySdkVersion, true, false)
-		ctx.AddVariationDependencies(nil, optTag, u.presentOptionalUsesLibs(ctx)...)
-
+		ctx.AddVariationDependencies(nil, usesLibReqTag, u.usesLibraryProperties.Uses_libs...)
+		ctx.AddVariationDependencies(nil, usesLibOptTag, u.presentOptionalUsesLibs(ctx)...)
 		// Only add these extra dependencies if the module depends on framework libs. This avoids
 		// creating a cyclic dependency:
 		//     e.g. framework-res -> org.apache.http.legacy -> ... -> framework-res.
 		if hasFrameworkLibs {
-			// Add implicit <uses-library> dependencies on compatibility libraries. Some of them are
-			// optional, and some required --- this depends on the most common usage of the library
-			// and may be wrong for some apps (they need explicit `uses_libs`/`optional_uses_libs`).
-
-			compat28OptTag := makeUsesLibraryDependencyTag(28, true, true)
-			ctx.AddVariationDependencies(nil, compat28OptTag, dexpreopt.OptionalCompatUsesLibs28...)
-
-			compat29ReqTag := makeUsesLibraryDependencyTag(29, false, true)
-			ctx.AddVariationDependencies(nil, compat29ReqTag, dexpreopt.CompatUsesLibs29...)
-
-			compat30OptTag := makeUsesLibraryDependencyTag(30, true, true)
-			ctx.AddVariationDependencies(nil, compat30OptTag, dexpreopt.OptionalCompatUsesLibs30...)
+			// Dexpreopt needs paths to the dex jars of these libraries in order to construct
+			// class loader context for dex2oat. Add them as a dependency with a special tag.
+			ctx.AddVariationDependencies(nil, usesLibCompat29ReqTag, dexpreopt.CompatUsesLibs29...)
+			ctx.AddVariationDependencies(nil, usesLibCompat28OptTag, dexpreopt.OptionalCompatUsesLibs28...)
+			ctx.AddVariationDependencies(nil, usesLibCompat30OptTag, dexpreopt.OptionalCompatUsesLibs30...)
 		}
 	}
 }
@@ -1307,7 +1296,7 @@ func (u *usesLibrary) classLoaderContextForUsesLibDeps(ctx android.ModuleContext
 				replaceInList(u.usesLibraryProperties.Uses_libs, dep, libName)
 				replaceInList(u.usesLibraryProperties.Optional_uses_libs, dep, libName)
 			}
-			clcMap.AddContext(ctx, tag.sdkVersion, libName, tag.optional, tag.implicit,
+			clcMap.AddContext(ctx, tag.sdkVersion, libName, tag.optional,
 				lib.DexJarBuildPath().PathOrNil(), lib.DexJarInstallPath(),
 				lib.ClassLoaderContexts())
 		} else if ctx.Config().AllowMissingDependencies() {
