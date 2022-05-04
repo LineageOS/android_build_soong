@@ -115,3 +115,57 @@ EOF
 }
 
 test_bp2build_generates_all_buildfiles
+
+function test_cc_correctness {
+  setup
+  create_mock_bazel
+
+  mkdir -p a
+  cat > a/Android.bp <<EOF
+cc_object {
+  name: "qq",
+  srcs: ["qq.cc"],
+  bazel_module: {
+    bp2build_available: true,
+  },
+  stl: "none",
+  system_shared_libs: [],
+}
+EOF
+
+  cat > a/qq.cc <<EOF
+#include "qq.h"
+int qq() {
+  return QQ;
+}
+EOF
+
+  cat > a/qq.h <<EOF
+#define QQ 1
+EOF
+
+  run_soong bp2build
+
+  run_bazel build --package_path=out/soong/workspace //a:qq
+  local output_mtime1=$(stat -c "%y" bazel-bin/a/_objs/qq/qq.o)
+
+  run_bazel build --package_path=out/soong/workspace //a:qq
+  local output_mtime2=$(stat -c "%y" bazel-bin/a/_objs/qq/qq.o)
+
+  if [[ "$output_mtime1" != "$output_mtime2" ]]; then
+    fail "output changed on null build"
+  fi
+
+  cat > a/qq.h <<EOF
+#define QQ 2
+EOF
+
+  run_bazel build --package_path=out/soong/workspace //a:qq
+  local output_mtime3=$(stat -c "%y" bazel-bin/a/_objs/qq/qq.o)
+
+  if [[ "$output_mtime1" == "$output_mtime3" ]]; then
+    fail "output not changed when included header changed"
+  fi
+}
+
+test_cc_correctness
