@@ -94,6 +94,10 @@ type CacheParams struct {
 	// RootDirs are the root directories used to initiate the search
 	RootDirs []string
 
+	// Whether symlinks are followed. If set, symlinks back to their own parent
+	// directory don't work.
+	FollowSymlinks bool
+
 	// ExcludeDirs are directory names that if encountered are removed from the search
 	ExcludeDirs []string
 
@@ -1415,9 +1419,14 @@ func (f *Finder) listDirSync(dir *pathMap) {
 				// If stat fails this is probably a broken or dangling symlink, treat it as a file.
 				subfiles = append(subfiles, child.Name())
 			} else if childStat.IsDir() {
-				// Skip symlink dirs.
-				// We don't have to support symlink dirs because
-				// that would cause duplicates.
+				// Skip symlink dirs if not requested otherwise. Android has a number
+				// of symlinks creating infinite source trees which would otherwise get
+				// us in an infinite loop.
+				// TODO(b/197349722): Revisit this once symlink loops are banned in the
+				// source tree.
+				if f.cacheMetadata.Config.FollowSymlinks {
+					subdirs = append(subdirs, child.Name())
+				}
 			} else {
 				// We do have to support symlink files because the link name might be
 				// different than the target name
