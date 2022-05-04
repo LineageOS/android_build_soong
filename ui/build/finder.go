@@ -64,6 +64,7 @@ func NewSourceFinder(ctx Context, config Config) (f *finder.Finder) {
 	cacheParams := finder.CacheParams{
 		WorkingDirectory: dir,
 		RootDirs:         []string{"."},
+		FollowSymlinks:   config.environ.IsEnvTrue("ALLOW_BP_UNDER_SYMLINKS"),
 		ExcludeDirs:      []string{".git", ".repo"},
 		PruneFiles:       pruneFiles,
 		IncludeFiles: []string{
