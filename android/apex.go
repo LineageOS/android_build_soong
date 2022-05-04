@@ -58,9 +58,6 @@ type ApexInfo struct {
 	// to true.
 	UsePlatformApis bool
 
-	// The list of SDK modules that the containing apexBundle depends on.
-	RequiredSdks SdkRefs
-
 	// List of Apex variant names that this module is associated with. This initially is the
 	// same as the `ApexVariationName` field.  Then when multiple apex variants are merged in
 	// mergeApexVariations, ApexInfo struct of the merged variant holds the list of apexBundles
@@ -110,9 +107,6 @@ func (i ApexInfo) AddJSONData(d *map[string]interface{}) {
 // thus wouldn't be merged.
 func (i ApexInfo) mergedName(ctx PathContext) string {
 	name := "apex" + strconv.Itoa(i.MinSdkVersion.FinalOrFutureInt())
-	for _, sdk := range i.RequiredSdks {
-		name += "_" + sdk.Name + "_" + sdk.Version
-	}
 	return name
 }
 
@@ -850,25 +844,12 @@ var minSdkVersionAllowlist = func(apiMap map[string]int) map[string]ApiLevel {
 	}
 	return list
 }(map[string]int{
-	"android.net.ipsec.ike":                                    30,
-	"androidx.annotation_annotation-nodeps":                    29,
-	"androidx.arch.core_core-common-nodeps":                    29,
-	"androidx.collection_collection-nodeps":                    29,
-	"androidx.collection_collection-ktx-nodeps":                30,
-	"androidx.concurrent_concurrent-futures-nodeps":            30,
-	"androidx.lifecycle_lifecycle-common-java8-nodeps":         30,
-	"androidx.lifecycle_lifecycle-common-nodeps":               29,
-	"androidx.room_room-common-nodeps":                         30,
 	"androidx-constraintlayout_constraintlayout-solver-nodeps": 29,
 	"apache-commons-compress":                                  29,
 	"bouncycastle_ike_digests":                                 30,
 	"brotli-java":                                              29,
-	"captiveportal-lib":                                        28,
-	"error_prone_annotations":                                  30,
 	"flatbuffer_headers":                                       30,
-	"framework-permission":                                     30,
 	"gemmlowp_headers":                                         30,
-	"guava-listenablefuture-prebuilt-jar":                      30,
 	"ike-internals":                                            30,
 	"libbrotli":                                                30,
 	"libcrypto_static":                                         30,
@@ -884,14 +865,11 @@ var minSdkVersionAllowlist = func(apiMap map[string]int) map[string]ApiLevel {
 	"libtextclassifier_hash_headers":                           30,
 	"libtextclassifier_hash_static":                            30,
 	"libtflite_kernel_utils":                                   30,
-	"libwatchdog":                                              29,
 	"libzstd":                                                  30,
-	"metrics-constants-protos":                                 28,
 	"net-utils-framework-common":                               29,
 	"permissioncontroller-statsd":                              28,
 	"philox_random_headers":                                    30,
 	"philox_random":                                            30,
-	"service-permission":                                       30,
 	"tensorflow_headers":                                       30,
 	"xz-java":                                                  29,
 })
