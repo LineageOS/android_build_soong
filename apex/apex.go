@@ -19,6 +19,7 @@ package apex
 import (
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -1656,7 +1657,20 @@ type androidApp interface {
 var _ androidApp = (*java.AndroidApp)(nil)
 var _ androidApp = (*java.AndroidAppImport)(nil)
 
-const APEX_VERSION_PLACEHOLDER = "__APEX_VERSION_PLACEHOLDER__"
+func sanitizedBuildIdForPath(ctx android.BaseModuleContext) string {
+	buildId := ctx.Config().BuildId()
+
+	// The build ID is used as a suffix for a filename, so ensure that
+	// the set of characters being used are sanitized.
+	// - any word character: [a-zA-Z0-9_]
+	// - dots: .
+	// - dashes: -
+	validRegex := regexp.MustCompile(`^[\w\.\-\_]+$`)
+	if !validRegex.MatchString(buildId) {
+		ctx.ModuleErrorf("Unable to use build id %s as filename suffix, valid characters are [a-z A-Z 0-9 _ . -].", buildId)
+	}
+	return buildId
+}
 
 func apexFileForAndroidApp(ctx android.BaseModuleContext, aapp androidApp) apexFile {
 	appDir := "app"
@@ -1667,7 +1681,7 @@ func apexFileForAndroidApp(ctx android.BaseModuleContext, aapp androidApp) apexF
 	// TODO(b/224589412, b/226559955): Ensure that the subdirname is suffixed
 	// so that PackageManager correctly invalidates the existing installed apk
 	// in favour of the new APK-in-APEX.  See bugs for more information.
-	dirInApex := filepath.Join(appDir, aapp.InstallApkName()+"@"+APEX_VERSION_PLACEHOLDER)
+	dirInApex := filepath.Join(appDir, aapp.InstallApkName()+"@"+sanitizedBuildIdForPath(ctx))
 	fileToCopy := aapp.OutputFile()
 
 	af := newApexFile(ctx, fileToCopy, aapp.BaseModuleName(), dirInApex, app, aapp)
@@ -1906,7 +1920,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					// suffixed so that PackageManager correctly invalidates the
 					// existing installed apk in favour of the new APK-in-APEX.
 					// See bugs for more information.
-					appDirName := filepath.Join(appDir, ap.BaseModuleName()+"@"+APEX_VERSION_PLACEHOLDER)
+					appDirName := filepath.Join(appDir, ap.BaseModuleName()+"@"+sanitizedBuildIdForPath(ctx))
 					af := newApexFile(ctx, ap.OutputFile(), ap.BaseModuleName(), appDirName, appSet, ap)
 					af.certificate = java.PresignedCertificate
 					filesInfo = append(filesInfo, af)
