@@ -122,6 +122,7 @@ var DefaultLocalTidyChecks = []PathBasedTidyCheck{
 	{"hardware/qcom", tidyExternalVendor},
 	{"vendor/", tidyExternalVendor},
 	{"vendor/google", tidyDefault},
+	{"vendor/google_arc/libs/org.chromium.arc.mojom", tidyExternalVendor},
 	{"vendor/google_devices", tidyExternalVendor},
 }
 
