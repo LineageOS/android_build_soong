@@ -115,7 +115,7 @@ func FileGroupFactory() Module {
 }
 
 func (fg *fileGroup) maybeGenerateBazelBuildActions(ctx ModuleContext) {
-	if !fg.MixedBuildsEnabled(ctx) {
+	if !MixedBuildsEnabled(ctx) {
 		return
 	}
 

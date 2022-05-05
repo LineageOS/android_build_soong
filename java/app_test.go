@@ -2566,12 +2566,20 @@ func TestUsesLibraries(t *testing.T) {
 	prebuilt := result.ModuleForTests("prebuilt", "android_common")
 
 	// Test that implicit dependencies on java_sdk_library instances are passed to the manifest.
-	// This should not include explicit `uses_libs`/`optional_uses_libs` entries.
+	// These also include explicit `uses_libs`/`optional_uses_libs` entries, as they may be
+	// propagated from dependencies.
 	actualManifestFixerArgs := app.Output("manifest_fixer/AndroidManifest.xml").Args["args"]
 	expectManifestFixerArgs := `--extract-native-libs=true ` +
 		`--uses-library qux ` +
 		`--uses-library quuz ` +
-		`--uses-library runtime-library`
+		`--uses-library foo ` +
+		`--uses-library com.non.sdk.lib ` +
+		`--uses-library runtime-library ` +
+		`--uses-library runtime-required-x ` +
+		`--uses-library runtime-required-y ` +
+		`--optional-uses-library bar ` +
+		`--optional-uses-library runtime-optional-x ` +
+		`--optional-uses-library runtime-optional-y`
 	android.AssertStringDoesContain(t, "manifest_fixer args", actualManifestFixerArgs, expectManifestFixerArgs)
 
 	// Test that all libraries are verified (library order matters).
