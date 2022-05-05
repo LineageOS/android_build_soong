@@ -87,6 +87,8 @@ func CheckBadLinkerFlags(ctx BaseModuleContext, prop string, flags []string) {
 			ctx.PropertyErrorf(prop, "Bad flag: `%s` is not allowed", flag)
 		} else if strings.HasPrefix(flag, "-Wl,--version-script") {
 			ctx.PropertyErrorf(prop, "Bad flag: `%s`, use version_script instead", flag)
+		} else if flag == "-T" || strings.HasPrefix(flag, "--script") {
+			ctx.PropertyErrorf(prop, "Bad flag: `%s`, use linker_scripts instead", flag)
 		} else if flag == "--coverage" {
 			ctx.PropertyErrorf(prop, "Bad flag: `%s`, use native_coverage instead", flag)
 		} else if strings.Contains(flag, " ") {
