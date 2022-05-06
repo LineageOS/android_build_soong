@@ -107,16 +107,14 @@ var (
 			`--canned_fs_config ${canned_fs_config} ` +
 			`--include_build_info ` +
 			`--payload_type image ` +
-			`--key ${key} ` +
-			`--apex_version_placeholder ${apex_version_placeholder} ` +
-			`${opt_flags} ${image_dir} ${out} `,
+			`--key ${key} ${opt_flags} ${image_dir} ${out} `,
 		CommandDeps: []string{"${apexer}", "${avbtool}", "${e2fsdroid}", "${merge_zips}",
 			"${mke2fs}", "${resize2fs}", "${sefcontext_compile}", "${make_f2fs}", "${sload_f2fs}", "${make_erofs}",
 			"${soong_zip}", "${zipalign}", "${aapt2}", "prebuilts/sdk/current/public/android.jar"},
 		Rspfile:        "${out}.copy_commands",
 		RspfileContent: "${copy_commands}",
 		Description:    "APEX ${image_dir} => ${out}",
-	}, "tool_path", "image_dir", "copy_commands", "file_contexts", "canned_fs_config", "key", "opt_flags", "manifest", "payload_fs_type", "apex_version_placeholder")
+	}, "tool_path", "image_dir", "copy_commands", "file_contexts", "canned_fs_config", "key", "opt_flags", "manifest", "payload_fs_type")
 
 	zipApexRule = pctx.StaticRule("zipApexRule", blueprint.RuleParams{
 		Command: `rm -rf ${image_dir} && mkdir -p ${image_dir} && ` +
@@ -124,13 +122,12 @@ var (
 			`APEXER_TOOL_PATH=${tool_path} ` +
 			`${apexer} --force --manifest ${manifest} ` +
 			`--payload_type zip ` +
-			`--apex_version_placeholder ${apex_version_placeholder} ` +
 			`${image_dir} ${out} `,
 		CommandDeps:    []string{"${apexer}", "${merge_zips}", "${soong_zip}", "${zipalign}", "${aapt2}"},
 		Rspfile:        "${out}.copy_commands",
 		RspfileContent: "${copy_commands}",
 		Description:    "ZipAPEX ${image_dir} => ${out}",
-	}, "tool_path", "image_dir", "copy_commands", "manifest", "apex_version_placeholder")
+	}, "tool_path", "image_dir", "copy_commands", "manifest")
 
 	apexProtoConvertRule = pctx.AndroidStaticRule("apexProtoConvertRule",
 		blueprint.RuleParams{
@@ -661,15 +658,14 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 			Output:      unsignedOutputFile,
 			Description: "apex (" + apexType.name() + ")",
 			Args: map[string]string{
-				"tool_path":                outHostBinDir + ":" + prebuiltSdkToolsBinDir,
-				"image_dir":                imageDir.String(),
-				"copy_commands":            strings.Join(copyCommands, " && "),
-				"manifest":                 a.manifestPbOut.String(),
-				"file_contexts":            fileContexts.String(),
-				"canned_fs_config":         cannedFsConfig.String(),
-				"key":                      a.privateKeyFile.String(),
-				"opt_flags":                strings.Join(optFlags, " "),
-				"apex_version_placeholder": APEX_VERSION_PLACEHOLDER,
+				"tool_path":        outHostBinDir + ":" + prebuiltSdkToolsBinDir,
+				"image_dir":        imageDir.String(),
+				"copy_commands":    strings.Join(copyCommands, " && "),
+				"manifest":         a.manifestPbOut.String(),
+				"file_contexts":    fileContexts.String(),
+				"canned_fs_config": cannedFsConfig.String(),
+				"key":              a.privateKeyFile.String(),
+				"opt_flags":        strings.Join(optFlags, " "),
 			},
 		})
 
@@ -761,11 +757,10 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 			Output:      unsignedOutputFile,
 			Description: "apex (" + apexType.name() + ")",
 			Args: map[string]string{
-				"tool_path":                outHostBinDir + ":" + prebuiltSdkToolsBinDir,
-				"image_dir":                imageDir.String(),
-				"copy_commands":            strings.Join(copyCommands, " && "),
-				"manifest":                 a.manifestPbOut.String(),
-				"apex_version_placeholder": APEX_VERSION_PLACEHOLDER,
+				"tool_path":     outHostBinDir + ":" + prebuiltSdkToolsBinDir,
+				"image_dir":     imageDir.String(),
+				"copy_commands": strings.Join(copyCommands, " && "),
+				"manifest":      a.manifestPbOut.String(),
 			},
 		})
 	}
