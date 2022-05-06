@@ -76,6 +76,8 @@ type sdk struct {
 
 	snapshotFile android.OptionalPath
 
+	infoFile android.OptionalPath
+
 	// The builder, preserved for testing.
 	builderForTests *snapshotBuilder
 }
@@ -192,27 +194,32 @@ func (s *sdk) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		}
 
 		// Generate the snapshot from the member info.
-		p := s.buildSnapshot(ctx, sdkVariants)
-		zip := ctx.InstallFile(android.PathForMainlineSdksInstall(ctx), p.Base(), p)
-		s.snapshotFile = android.OptionalPathForPath(zip)
+		s.buildSnapshot(ctx, sdkVariants)
 	}
 }
 
 func (s *sdk) AndroidMkEntries() []android.AndroidMkEntries {
-	if !s.snapshotFile.Valid() {
+	if !s.snapshotFile.Valid() != !s.infoFile.Valid() {
+		panic("Snapshot (%q) and info file (%q) should both be set or neither should be set.")
+	} else if !s.snapshotFile.Valid() {
 		return []android.AndroidMkEntries{}
 	}
 
 	return []android.AndroidMkEntries{android.AndroidMkEntries{
 		Class:      "FAKE",
 		OutputFile: s.snapshotFile,
-		DistFiles:  android.MakeDefaultDistFiles(s.snapshotFile.Path()),
+		DistFiles:  android.MakeDefaultDistFiles(s.snapshotFile.Path(), s.infoFile.Path()),
 		Include:    "$(BUILD_PHONY_PACKAGE)",
 		ExtraFooters: []android.AndroidMkExtraFootersFunc{
 			func(w io.Writer, name, prefix, moduleDir string) {
 				// Allow the sdk to be built by simply passing its name on the command line.
 				fmt.Fprintln(w, ".PHONY:", s.Name())
 				fmt.Fprintln(w, s.Name()+":", s.snapshotFile.String())
+
+				// Allow the sdk info to be built by simply passing its name on the command line.
+				infoTarget := s.Name() + ".info"
+				fmt.Fprintln(w, ".PHONY:", infoTarget)
+				fmt.Fprintln(w, infoTarget+":", s.infoFile.String())
 			},
 		},
 	}}

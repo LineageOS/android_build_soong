@@ -321,7 +321,10 @@ func TestSdkInstall(t *testing.T) {
 	result := testSdkWithFs(t, sdk, nil)
 
 	CheckSnapshot(t, result, "mysdk", "",
-		checkAllOtherCopyRules(`.intermediates/mysdk/common_os/mysdk-current.zip -> mysdk-current.zip`))
+		checkAllOtherCopyRules(`
+.intermediates/mysdk/common_os/mysdk-current.info -> mysdk-current.info
+.intermediates/mysdk/common_os/mysdk-current.zip -> mysdk-current.zip
+`))
 }
 
 type EmbeddedPropertiesStruct struct {

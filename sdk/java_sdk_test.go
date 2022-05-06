@@ -880,6 +880,44 @@ sdk_snapshot {
 .intermediates/myjavalib.stubs.source/android_common/metalava/myjavalib.stubs.source_api.txt -> sdk_library/public/myjavalib.txt
 .intermediates/myjavalib.stubs.source/android_common/metalava/myjavalib.stubs.source_removed.txt -> sdk_library/public/myjavalib-removed.txt
 `),
+		checkInfoContents(`
+[
+  {
+    "@type": "sdk",
+    "@name": "mysdk",
+    "java_header_libs": [
+      "exported-system-module",
+      "system-module"
+    ],
+    "java_sdk_libs": [
+      "myjavalib"
+    ],
+    "java_system_modules": [
+      "my-system-modules"
+    ]
+  },
+  {
+    "@type": "java_library",
+    "@name": "exported-system-module"
+  },
+  {
+    "@type": "java_system_modules",
+    "@name": "my-system-modules",
+    "@deps": [
+      "exported-system-module",
+      "system-module"
+    ]
+  },
+  {
+    "@type": "java_sdk_library",
+    "@name": "myjavalib"
+  },
+  {
+    "@type": "java_library",
+    "@name": "system-module"
+  }
+]
+`),
 	)
 }
 
