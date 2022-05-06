@@ -31,7 +31,7 @@ type InstallerProperties struct {
 	Install_in_root *bool `android:"arch_variant"`
 
 	// Install output directly in {partition}/xbin
-	Install_in_xbin *bool `android:"arch_vvariant"`
+	Install_in_xbin *bool `android:"arch_variant"`
 }
 
 type installLocation int
