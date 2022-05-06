@@ -15,6 +15,7 @@ bootstrap_go_package {
         "bootimg.go",
         "filesystem.go",
         "logical_partition.go",
+        "raw_binary.go",
         "system_image.go",
         "vbmeta.go",
         "testing.go",
