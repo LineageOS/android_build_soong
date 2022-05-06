@@ -2393,6 +2393,7 @@ func TestApexMinSdkVersion_ErrorIfDepIsNewer_Java(t *testing.T) {
 			key: "myapex.key",
 			apps: ["AppFoo"],
 			min_sdk_version: "29",
+			updatable: false,
 		}
 
 		apex_key {
@@ -9321,6 +9322,69 @@ func TestApexStrictUpdtabilityLintBcpFragmentDeps(t *testing.T) {
 	sboxProto := android.RuleBuilderSboxProtoForTests(t, myjavalib.Output("lint.sbox.textproto"))
 	if !strings.Contains(*sboxProto.Commands[0].Command, "--baseline lint-baseline.xml --disallowed_issues NewApi") {
 		t.Errorf("Strict updabality lint missing in myjavalib coming from bootclasspath_fragment mybootclasspath-fragment\nActual lint cmd: %v", *sboxProto.Commands[0].Command)
+	}
+}
+
+// updatable apexes should propagate updatable=true to its apps
+func TestUpdatableApexEnforcesAppUpdatability(t *testing.T) {
+	bp := `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			updatable: %v,
+			apps: [
+				"myapp",
+			],
+			min_sdk_version: "30",
+		}
+		apex_key {
+			name: "myapex.key",
+		}
+		android_app {
+			name: "myapp",
+			updatable: %v,
+			apex_available: [
+				"myapex",
+			],
+			sdk_version: "current",
+			min_sdk_version: "30",
+		}
+		`
+	testCases := []struct {
+		name                      string
+		apex_is_updatable_bp      bool
+		app_is_updatable_bp       bool
+		app_is_updatable_expected bool
+	}{
+		{
+			name:                      "Non-updatable apex respects updatable property of non-updatable app",
+			apex_is_updatable_bp:      false,
+			app_is_updatable_bp:       false,
+			app_is_updatable_expected: false,
+		},
+		{
+			name:                      "Non-updatable apex respects updatable property of updatable app",
+			apex_is_updatable_bp:      false,
+			app_is_updatable_bp:       true,
+			app_is_updatable_expected: true,
+		},
+		{
+			name:                      "Updatable apex respects updatable property of updatable app",
+			apex_is_updatable_bp:      true,
+			app_is_updatable_bp:       true,
+			app_is_updatable_expected: true,
+		},
+		{
+			name:                      "Updatable apex sets updatable=true on non-updatable app",
+			apex_is_updatable_bp:      true,
+			app_is_updatable_bp:       false,
+			app_is_updatable_expected: true,
+		},
+	}
+	for _, testCase := range testCases {
+		result := testApex(t, fmt.Sprintf(bp, testCase.apex_is_updatable_bp, testCase.app_is_updatable_bp))
+		myapp := result.ModuleForTests("myapp", "android_common").Module().(*java.AndroidApp)
+		android.AssertBoolEquals(t, testCase.name, testCase.app_is_updatable_expected, myapp.Updatable())
 	}
 }
 

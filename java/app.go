@@ -847,6 +847,10 @@ func (a *AndroidApp) Updatable() bool {
 	return Bool(a.appProperties.Updatable)
 }
 
+func (a *AndroidApp) SetUpdatable(val bool) {
+	a.appProperties.Updatable = &val
+}
+
 func (a *AndroidApp) getCertString(ctx android.BaseModuleContext) string {
 	certificate, overridden := ctx.DeviceConfig().OverrideCertificateFor(ctx.ModuleName())
 	if overridden {
