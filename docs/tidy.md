@@ -31,7 +31,7 @@ The default global clang-tidy checks and flags are defined in
 
 The global default can be overwritten by module properties in Android.bp.
 
-### `tidy` and `tidy_checks`
+### `tidy`, `tidy_checks`, and `ALLOW_LOCAL_TIDY_TRUE`
 
 For example, in
 [system/bpf/Android.bp](https://android.googlesource.com/platform/system/bpf/+/refs/heads/master/Android.bp),
@@ -52,8 +52,16 @@ cc_defaults {
 }
 ```
 That means in normal builds, even without `WITH_TIDY=1`,
-the modules that use `bpf_defaults` will run clang-tidy
+the modules that use `bpf_defaults` _should_ run clang-tidy
 over C/C++ source files with the given `tidy_checks`.
+
+However since clang-tidy warnings and its runtime cost might
+not be wanted by all people, the default is to ignore the
+`tidy:true` property unless the environment variable
+`ALLOW_LOCAL_TIDY_TRUE` is set to true or 1.
+To run clang-tidy on all modules that should be tested with clang-tidy,
+`ALLOW_LOCAL_TIDY_TRUE` or `WITH_TIDY` should be set to true or 1.
+
 Note that `clang-analyzer-security*` is included in `tidy_checks`
 but not all `clang-analyzer-*` checks. Check `cert-err34-c` is
 disabled, although `cert-*` is selected.
@@ -79,6 +87,9 @@ cc_test_library {
     tidy: false,
 }
 ```
+
+Note that `tidy:false` always disables clang-tidy, no matter
+`ALLOW_LOCAL_TIDY_TRUE` is set or not.
 
 ### `tidy_checks_as_errors`
 
