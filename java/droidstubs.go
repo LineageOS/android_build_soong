@@ -379,8 +379,7 @@ func (d *Droidstubs) apiLevelsAnnotationsFlags(ctx android.ModuleContext, cmd *a
 	cmd.FlagWithOutput("--generate-api-levels ", d.apiVersionsXml)
 	cmd.FlagWithInput("--apply-api-levels ", d.apiVersionsXml)
 	cmd.FlagWithArg("--current-version ", ctx.Config().PlatformSdkVersion().String())
-	// STOPSHIP: RESTORE THIS LOGIC WHEN DECLARING "REL" BUILD
-	// cmd.FlagWithArg("--current-codename ", ctx.Config().PlatformSdkCodename())
+	cmd.FlagWithArg("--current-codename ", ctx.Config().PlatformSdkCodename())
 
 	filename := proptools.StringDefault(d.properties.Api_levels_jar_filename, "android.jar")
 
