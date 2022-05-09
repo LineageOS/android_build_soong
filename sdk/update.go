@@ -15,6 +15,8 @@
 package sdk
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"sort"
@@ -219,9 +221,19 @@ func (s *sdk) collectMembers(ctx android.ModuleContext) {
 				exportedComponentsInfo = ctx.OtherModuleProvider(child, android.ExportedComponentsInfoProvider).(android.ExportedComponentsInfo)
 			}
 
+			var container android.SdkAware
+			if parent != ctx.Module() {
+				container = parent.(android.SdkAware)
+			}
+
 			export := memberTag.ExportMember()
 			s.memberVariantDeps = append(s.memberVariantDeps, sdkMemberVariantDep{
-				s, memberType, child.(android.SdkAware), export, exportedComponentsInfo,
+				sdkVariant:             s,
+				memberType:             memberType,
+				variant:                child.(android.SdkAware),
+				container:              container,
+				export:                 export,
+				exportedComponentsInfo: exportedComponentsInfo,
 			})
 
 			// Recurse down into the member's dependencies as it may have dependencies that need to be
@@ -311,7 +323,7 @@ func versionedSdkMemberName(ctx android.ModuleContext, memberName string, versio
 
 // buildSnapshot is the main function in this source file. It creates rules to copy
 // the contents (header files, stub libraries, etc) into the zip file.
-func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) android.OutputPath {
+func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) {
 
 	// Aggregate all the sdkMemberVariantDep instances from all the sdk variants.
 	hasLicenses := false
@@ -370,9 +382,9 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) andro
 	// Unversioned modules are not required in that case because the numbered version will be a
 	// finalized version of the snapshot that is intended to be kept separate from the
 	generateUnversioned := version == soongSdkSnapshotVersionUnversioned || version == soongSdkSnapshotVersionCurrent
-	snapshotZipFileSuffix := ""
+	snapshotFileSuffix := ""
 	if generateVersioned {
-		snapshotZipFileSuffix = "-" + version
+		snapshotFileSuffix = "-" + version
 	}
 
 	currentBuildRelease := latestBuildRelease()
@@ -489,7 +501,7 @@ be unnecessary as every module in the sdk already has its own licenses property.
 	filesToZip := builder.filesToZip
 
 	// zip them all
-	zipPath := fmt.Sprintf("%s%s.zip", ctx.ModuleName(), snapshotZipFileSuffix)
+	zipPath := fmt.Sprintf("%s%s.zip", ctx.ModuleName(), snapshotFileSuffix)
 	outputZipFile := android.PathForModuleOut(ctx, zipPath).OutputPath
 	outputDesc := "Building snapshot for " + ctx.ModuleName()
 
@@ -502,7 +514,7 @@ be unnecessary as every module in the sdk already has its own licenses property.
 		zipFile = outputZipFile
 		desc = outputDesc
 	} else {
-		intermediatePath := fmt.Sprintf("%s%s.unmerged.zip", ctx.ModuleName(), snapshotZipFileSuffix)
+		intermediatePath := fmt.Sprintf("%s%s.unmerged.zip", ctx.ModuleName(), snapshotFileSuffix)
 		zipFile = android.PathForModuleOut(ctx, intermediatePath).OutputPath
 		desc = "Building intermediate snapshot for " + ctx.ModuleName()
 	}
@@ -527,7 +539,120 @@ be unnecessary as every module in the sdk already has its own licenses property.
 		})
 	}
 
-	return outputZipFile
+	modules := s.generateInfoData(ctx, memberVariantDeps)
+
+	// Output the modules information as pretty printed JSON.
+	info := newGeneratedFile(ctx, fmt.Sprintf("%s%s.info", ctx.ModuleName(), snapshotFileSuffix))
+	output, err := json.MarshalIndent(modules, "", "  ")
+	if err != nil {
+		ctx.ModuleErrorf("error generating %q: %s", info, err)
+	}
+	builder.infoContents = string(output)
+	info.generatedContents.UnindentedPrintf("%s", output)
+	info.build(pctx, ctx, nil)
+	infoPath := info.path
+	installedInfo := ctx.InstallFile(android.PathForMainlineSdksInstall(ctx), infoPath.Base(), infoPath)
+	s.infoFile = android.OptionalPathForPath(installedInfo)
+
+	// Install the zip, making sure that the info file has been installed as well.
+	installedZip := ctx.InstallFile(android.PathForMainlineSdksInstall(ctx), outputZipFile.Base(), outputZipFile, installedInfo)
+	s.snapshotFile = android.OptionalPathForPath(installedZip)
+}
+
+type moduleInfo struct {
+	// The type of the module, e.g. java_sdk_library
+	moduleType string
+	// The name of the module.
+	name string
+	// A list of additional dependencies of the module.
+	deps []string
+	// Additional dynamic properties.
+	dynamic map[string]interface{}
+}
+
+func (m *moduleInfo) MarshalJSON() ([]byte, error) {
+	buffer := bytes.Buffer{}
+
+	separator := ""
+	writeObjectPair := func(key string, value interface{}) {
+		buffer.WriteString(fmt.Sprintf("%s%q: ", separator, key))
+		b, err := json.Marshal(value)
+		if err != nil {
+			panic(err)
+		}
+		buffer.Write(b)
+		separator = ","
+	}
+
+	buffer.WriteString("{")
+	writeObjectPair("@type", m.moduleType)
+	writeObjectPair("@name", m.name)
+	if m.deps != nil {
+		writeObjectPair("@deps", m.deps)
+	}
+	for _, k := range android.SortedStringKeys(m.dynamic) {
+		v := m.dynamic[k]
+		writeObjectPair(k, v)
+	}
+	buffer.WriteString("}")
+	return buffer.Bytes(), nil
+}
+
+var _ json.Marshaler = (*moduleInfo)(nil)
+
+// generateInfoData creates a list of moduleInfo structures that will be marshalled into JSON.
+func (s *sdk) generateInfoData(ctx android.ModuleContext, memberVariantDeps []sdkMemberVariantDep) interface{} {
+	modules := []*moduleInfo{}
+	sdkInfo := moduleInfo{
+		moduleType: "sdk",
+		name:       ctx.ModuleName(),
+		dynamic:    map[string]interface{}{},
+	}
+	modules = append(modules, &sdkInfo)
+
+	name2Info := map[string]*moduleInfo{}
+	getModuleInfo := func(module android.Module) *moduleInfo {
+		name := module.Name()
+		info := name2Info[name]
+		if info == nil {
+			moduleType := ctx.OtherModuleType(module)
+			// Remove any suffix added when creating modules dynamically.
+			moduleType = strings.Split(moduleType, "__")[0]
+			info = &moduleInfo{
+				moduleType: moduleType,
+				name:       name,
+			}
+			name2Info[name] = info
+		}
+		return info
+	}
+
+	for _, memberVariantDep := range memberVariantDeps {
+		propertyName := memberVariantDep.memberType.SdkPropertyName()
+		var list []string
+		if v, ok := sdkInfo.dynamic[propertyName]; ok {
+			list = v.([]string)
+		}
+
+		memberName := memberVariantDep.variant.Name()
+		list = append(list, memberName)
+		sdkInfo.dynamic[propertyName] = android.SortedUniqueStrings(list)
+
+		if memberVariantDep.container != nil {
+			containerInfo := getModuleInfo(memberVariantDep.container)
+			containerInfo.deps = android.SortedUniqueStrings(append(containerInfo.deps, memberName))
+		}
+
+		// Make sure that the module info is created for each module.
+		getModuleInfo(memberVariantDep.variant)
+	}
+
+	for _, memberName := range android.SortedStringKeys(name2Info) {
+		info := name2Info[memberName]
+		modules = append(modules, info)
+	}
+
+	return modules
 }
 
 // filterOutComponents removes any item from the deps list that is a component of another item in
@@ -1033,6 +1158,10 @@ func (s *sdk) GetAndroidBpContentsForTests() string {
 	return contents.content.String()
 }
 
+func (s *sdk) GetInfoContentsForTests() string {
+	return s.builderForTests.infoContents
+}
+
 func (s *sdk) GetUnversionedAndroidBpContentsForTests() string {
 	contents := &generatedContents{}
 	generateFilteredBpContents(contents, s.builderForTests.bpFile, func(module *bpModule) bool {
@@ -1087,6 +1216,8 @@ type snapshotBuilder struct {
 
 	// The target build release for which the snapshot is to be generated.
 	targetBuildRelease *buildRelease
+
+	infoContents string
 }
 
 func (s *snapshotBuilder) CopyToSnapshot(src android.Path, dest string) {
@@ -1321,6 +1452,11 @@ type sdkMemberVariantDep struct {
 
 	// The variant that is added to the sdk.
 	variant android.SdkAware
+
+	// The optional container of this member, i.e. the module that is depended upon by the sdk
+	// (possibly transitively) and whose dependency on this module is why it was added to the sdk.
+	// Is nil if this a direct dependency of the sdk.
+	container android.SdkAware
 
 	// True if the member should be exported, i.e. accessible, from outside the sdk.
 	export bool

@@ -142,6 +142,7 @@ func getSdkSnapshotBuildInfo(t *testing.T, result *android.TestResult, sdk *sdk)
 		androidBpContents:            sdk.GetAndroidBpContentsForTests(),
 		androidUnversionedBpContents: sdk.GetUnversionedAndroidBpContentsForTests(),
 		androidVersionedBpContents:   sdk.GetVersionedAndroidBpContentsForTests(),
+		infoContents:                 sdk.GetInfoContentsForTests(),
 		snapshotTestCustomizations:   map[snapshotTest]*snapshotTestCustomization{},
 		targetBuildRelease:           sdk.builderForTests.targetBuildRelease,
 	}
@@ -402,6 +403,17 @@ func checkMergeZips(expected ...string) snapshotBuildInfoChecker {
 	}
 }
 
+// Check that the snapshot's info contents are ciorrect.
+//
+// Both the expected and actual string are both trimmed before comparing.
+func checkInfoContents(expected string) snapshotBuildInfoChecker {
+	return func(info *snapshotBuildInfo) {
+		info.t.Helper()
+		android.AssertTrimmedStringEquals(info.t, "info contents do not match",
+			expected, info.infoContents)
+	}
+}
+
 type resultChecker func(t *testing.T, result *android.TestResult)
 
 // snapshotTestPreparer registers a preparer that will be used to customize the specified
@@ -478,6 +490,9 @@ type snapshotBuildInfo struct {
 
 	// The contents of the versioned Android.bp file
 	androidVersionedBpContents string
+
+	// The contents of the info file.
+	infoContents string
 
 	// The paths, relative to the snapshot root, of all files and directories copied into the
 	// snapshot.
