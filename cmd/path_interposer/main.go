@@ -12,6 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// This tool tries to prohibit access to tools on the system on which the build
+// is run.
+//
+// The rationale is that if the build uses a binary that is not shipped in the
+// source tree, it is unknowable which version of that binary will be installed
+// and therefore the output of the build will be unpredictable. Therefore, we
+// should make every effort to use only tools under our control.
+//
+// This is currently implemented by a "sandbox" that sets $PATH to a specific,
+// single directory and creates a symlink for every binary in $PATH in it. That
+// symlink will point to path_interposer, which then uses an embedded
+// configuration to determine whether to allow access to the binary (in which
+// case it calls the original executable) or not (in which case it fails). It
+// can also optionally log invocations.
+//
+// This, of course, does not help if one invokes the tool in question with its
+// full path.
 package main
 
 import (
