@@ -31,18 +31,25 @@ type PathConfig struct {
 	LinuxOnlyPrebuilt bool
 }
 
+// These binaries can be run from $PATH, nonhermetically. There should be as
+// few as possible of these, since this means that the build depends on tools
+// that are not shipped in the source tree and whose behavior is therefore
+// unpredictable.
 var Allowed = PathConfig{
 	Symlink: true,
 	Log:     false,
 	Error:   false,
 }
 
+// This tool is specifically disallowed and calling it will result in an
+// "executable no found" error.
 var Forbidden = PathConfig{
 	Symlink: false,
 	Log:     true,
 	Error:   true,
 }
 
+// This tool is allowed, but access to it will be logged.
 var Log = PathConfig{
 	Symlink: true,
 	Log:     true,
@@ -52,13 +59,16 @@ var Log = PathConfig{
 // The configuration used if the tool is not listed in the config below.
 // Currently this will create the symlink, but log and error when it's used. In
 // the future, I expect the symlink to be removed, and this will be equivalent
-// to Forbidden.
+// to Forbidden. This applies to every tool not specifically mentioned in the
+// configuration.
 var Missing = PathConfig{
 	Symlink: true,
 	Log:     true,
 	Error:   true,
 }
 
+// This is used for binaries for which we have prebuilt versions, but only for
+// Linux. Thus, their execution from $PATH is only allowed on Mac OS.
 var LinuxOnlyPrebuilt = PathConfig{
 	Symlink:           false,
 	Log:               true,
@@ -73,6 +83,8 @@ func GetConfig(name string) PathConfig {
 	return Missing
 }
 
+// This list specifies whether a particular binary from $PATH is allowed to be
+// run during the build. For more documentation, see path_interposer.go .
 var Configuration = map[string]PathConfig{
 	"bash":    Allowed,
 	"dd":      Allowed,
