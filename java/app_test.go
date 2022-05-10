@@ -427,7 +427,8 @@ func TestUpdatableApps_JniLibShouldBeBuiltAgainstMinSdkVersion(t *testing.T) {
 			name: "libjni",
 			stl: "none",
 			system_shared_libs: [],
-			sdk_version: "29",
+			sdk_version: "current",
+			min_sdk_version: "29",
 		}
 	`
 	fs := map[string][]byte{
@@ -481,12 +482,13 @@ func TestUpdatableApps_ErrorIfJniLibDoesntSupportMinSdkVersion(t *testing.T) {
 			name: "libjni",
 			stl: "none",
 			sdk_version: "current",
+			min_sdk_version: "current",
 		}
 	`
-	testJavaError(t, `"libjni" .*: sdk_version\(current\) is higher than min_sdk_version\(29\)`, bp)
+	testJavaError(t, `"libjni" .*: min_sdk_version\(current\) is higher than min_sdk_version\(29\)`, bp)
 }
 
-func TestUpdatableApps_ErrorIfDepSdkVersionIsHigher(t *testing.T) {
+func TestUpdatableApps_ErrorIfDepMinSdkVersionIsHigher(t *testing.T) {
 	bp := cc.GatherRequiredDepsForTest(android.Android) + `
 		android_app {
 			name: "foo",
@@ -503,6 +505,7 @@ func TestUpdatableApps_ErrorIfDepSdkVersionIsHigher(t *testing.T) {
 			shared_libs: ["libbar"],
 			system_shared_libs: [],
 			sdk_version: "27",
+			min_sdk_version: "27",
 		}
 
 		cc_library {
@@ -510,6 +513,7 @@ func TestUpdatableApps_ErrorIfDepSdkVersionIsHigher(t *testing.T) {
 			stl: "none",
 			system_shared_libs: [],
 			sdk_version: "current",
+			min_sdk_version: "current",
 		}
 	`
 	testJavaError(t, `"libjni" .*: links "libbar" built against newer API version "current"`, bp)
