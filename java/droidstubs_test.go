@@ -46,6 +46,12 @@ func TestDroidstubs(t *testing.T) {
 			api_levels_annotations_enabled: true,
 			api_levels_jar_filename: "android.other.jar",
 		}
+
+		droidstubs {
+			name: "stubs-applying-api-versions",
+			srcs: ["bar-doc/a.java"],
+			api_levels_module: "bar-stubs-other",
+		}
 		`,
 		map[string][]byte{
 			"bar-doc/a.java": nil,
@@ -53,26 +59,37 @@ func TestDroidstubs(t *testing.T) {
 	testcases := []struct {
 		moduleName          string
 		expectedJarFilename string
+		generate_xml        bool
 		high_mem            bool
 	}{
 		{
 			moduleName:          "bar-stubs",
+			generate_xml:        true,
 			expectedJarFilename: "android.jar",
 			high_mem:            false,
 		},
 		{
 			moduleName:          "bar-stubs-other",
+			generate_xml:        true,
 			expectedJarFilename: "android.other.jar",
 			high_mem:            true,
+		},
+		{
+			moduleName:   "stubs-applying-api-versions",
+			generate_xml: false,
 		},
 	}
 	for _, c := range testcases {
 		m := ctx.ModuleForTests(c.moduleName, "android_common")
 		manifest := m.Output("metalava.sbox.textproto")
 		sboxProto := android.RuleBuilderSboxProtoForTests(t, manifest)
-		expected := "--android-jar-pattern ./%/public/" + c.expectedJarFilename
-		if actual := String(sboxProto.Commands[0].Command); !strings.Contains(actual, expected) {
-			t.Errorf("For %q, expected metalava argument %q, but was not found %q", c.moduleName, expected, actual)
+		cmdline := String(sboxProto.Commands[0].Command)
+		android.AssertStringContainsEquals(t, "api-versions generation flag", cmdline, "--generate-api-levels", c.generate_xml)
+		if c.expectedJarFilename != "" {
+			expected := "--android-jar-pattern ./%/public/" + c.expectedJarFilename
+			if !strings.Contains(cmdline, expected) {
+				t.Errorf("For %q, expected metalava argument %q, but was not found %q", c.moduleName, expected, cmdline)
+			}
 		}
 
 		metalava := m.Rule("metalava")
