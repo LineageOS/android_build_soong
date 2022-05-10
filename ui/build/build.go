@@ -18,6 +18,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sync"
 	"text/template"
 
 	"android/soong/ui/metrics"
@@ -205,6 +206,8 @@ func Build(ctx Context, config Config) {
 		return
 	}
 
+	defer waitForDist(ctx)
+
 	// checkProblematicFiles aborts the build if Android.mk or CleanSpec.mk are found at the root of the tree.
 	checkProblematicFiles(ctx)
 
@@ -329,8 +332,18 @@ func Build(ctx Context, config Config) {
 	}
 }
 
+var distWaitGroup sync.WaitGroup
+
+// waitForDist waits for all backgrounded distGzipFile and distFile writes to finish
+func waitForDist(ctx Context) {
+	ctx.BeginTrace("soong_ui", "dist")
+	defer ctx.EndTrace()
+
+	distWaitGroup.Wait()
+}
+
 // distGzipFile writes a compressed copy of src to the distDir if dist is enabled.  Failures
-// are printed but non-fatal.
+// are printed but non-fatal. Uses the distWaitGroup func for backgrounding (optimization).
 func distGzipFile(ctx Context, config Config, src string, subDirs ...string) {
 	if !config.Dist() {
 		return
@@ -343,13 +356,17 @@ func distGzipFile(ctx Context, config Config, src string, subDirs ...string) {
 		ctx.Printf("failed to mkdir %s: %s", destDir, err.Error())
 	}
 
-	if err := gzipFileToDir(src, destDir); err != nil {
-		ctx.Printf("failed to dist %s: %s", filepath.Base(src), err.Error())
-	}
+	distWaitGroup.Add(1)
+	go func() {
+		defer distWaitGroup.Done()
+		if err := gzipFileToDir(src, destDir); err != nil {
+			ctx.Printf("failed to dist %s: %s", filepath.Base(src), err.Error())
+		}
+	}()
 }
 
 // distFile writes a copy of src to the distDir if dist is enabled.  Failures are printed but
-// non-fatal.
+// non-fatal. Uses the distWaitGroup func for backgrounding (optimization).
 func distFile(ctx Context, config Config, src string, subDirs ...string) {
 	if !config.Dist() {
 		return
@@ -362,7 +379,11 @@ func distFile(ctx Context, config Config, src string, subDirs ...string) {
 		ctx.Printf("failed to mkdir %s: %s", destDir, err.Error())
 	}
 
-	if _, err := copyFile(src, filepath.Join(destDir, filepath.Base(src))); err != nil {
-		ctx.Printf("failed to dist %s: %s", filepath.Base(src), err.Error())
-	}
+	distWaitGroup.Add(1)
+	go func() {
+		defer distWaitGroup.Done()
+		if _, err := copyFile(src, filepath.Join(destDir, filepath.Base(src))); err != nil {
+			ctx.Printf("failed to dist %s: %s", filepath.Base(src), err.Error())
+		}
+	}()
 }
