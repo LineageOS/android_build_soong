@@ -2275,7 +2275,11 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 			return
 		}
 
-		m.module.GenerateAndroidBuildActions(ctx)
+		if mixedBuildMod, handled := m.isHandledByBazel(ctx); handled {
+			mixedBuildMod.ProcessBazelQueryResponse(ctx)
+		} else {
+			m.module.GenerateAndroidBuildActions(ctx)
+		}
 		if ctx.Failed() {
 			return
 		}
@@ -2329,6 +2333,18 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 	m.buildParams = ctx.buildParams
 	m.ruleParams = ctx.ruleParams
 	m.variables = ctx.variables
+}
+
+func (m *ModuleBase) isHandledByBazel(ctx ModuleContext) (MixedBuildBuildable, bool) {
+	if !ctx.Config().BazelContext.BazelEnabled() {
+		return nil, false
+	}
+	if mixedBuildMod, ok := m.module.(MixedBuildBuildable); ok {
+		if mixedBuildMod.IsMixedBuildSupported(ctx) && MixedBuildsEnabled(ctx) {
+			return mixedBuildMod, true
+		}
+	}
+	return nil, false
 }
 
 // Check the supplied dist structure to make sure that it is valid.
