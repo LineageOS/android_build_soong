@@ -36,7 +36,8 @@ var (
 	mergeProvenanceMetaData = pctx.AndroidStaticRule("mergeProvenanceMetaData",
 		blueprint.RuleParams{
 			Command: `rm -rf $out $out.temp && ` +
-				`echo -e "# proto-file: build/soong/provenance/proto/provenance_metadata.proto\n# proto-message: ProvenanceMetaDataList" > $out && ` +
+				`echo "# proto-file: build/soong/provenance/proto/provenance_metadata.proto" > $out && ` +
+				`echo "# proto-message: ProvenanceMetaDataList" >> $out && ` +
 				`touch $out.temp && cat $out.temp $in | grep -v "^#.*" >> $out && rm -rf $out.temp`,
 		})
 )
