@@ -91,6 +91,7 @@ bootstrap_go_package {
     ],
     testSrcs: [
         "afdo_test.go",
+        "binary_test.go",
         "cc_test.go",
         "compiler_test.go",
         "gen_test.go",
