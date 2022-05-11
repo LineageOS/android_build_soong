@@ -524,10 +524,10 @@ func (l *lintSingleton) copyLintDependencies(ctx android.SingletonContext) {
 		return
 	}
 
-	frameworkDocStubs := findModuleOrErr(ctx, "framework-doc-stubs")
-	if frameworkDocStubs == nil {
+	apiVersionsDb := findModuleOrErr(ctx, "api_versions_public")
+	if apiVersionsDb == nil {
 		if !ctx.Config().AllowMissingDependencies() {
-			ctx.Errorf("lint: missing framework-doc-stubs")
+			ctx.Errorf("lint: missing module api_versions_public")
 		}
 		return
 	}
@@ -556,7 +556,7 @@ func (l *lintSingleton) copyLintDependencies(ctx android.SingletonContext) {
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:   android.CpIfChanged,
-		Input:  android.OutputFileForModule(ctx, frameworkDocStubs, ".api_versions.xml"),
+		Input:  android.OutputFileForModule(ctx, apiVersionsDb, ".api_versions.xml"),
 		Output: copiedAPIVersionsXmlPath(ctx, "api_versions.xml"),
 	})
 
