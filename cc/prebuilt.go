@@ -354,7 +354,7 @@ func prebuiltLibraryBp2Build(ctx android.TopDownMutatorContext, module *Module) 
 
 func prebuiltLibraryStaticBp2Build(ctx android.TopDownMutatorContext, module *Module, fullBuild bool) {
 	prebuiltAttrs := Bp2BuildParsePrebuiltLibraryProps(ctx, module, true)
-	exportedIncludes := Bp2BuildParseExportedIncludesForPrebuiltLibrary(ctx, module)
+	exportedIncludes := bp2BuildParseExportedIncludes(ctx, module, nil)
 
 	attrs := &bazelPrebuiltLibraryStaticAttributes{
 		Static_library:         prebuiltAttrs.Src,
