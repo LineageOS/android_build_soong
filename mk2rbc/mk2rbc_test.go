@@ -1599,6 +1599,27 @@ def init(g, handle):
   g["MY_VAR"] = "foo"
 `,
 	},
+	{
+		desc:   "Complicated variable references",
+		mkname: "product.mk",
+		in: `
+MY_VAR := foo
+MY_VAR_2 := MY_VAR
+MY_VAR_3 := $($(MY_VAR_2))
+MY_VAR_4 := $(foo bar)
+MY_VAR_5 := $($(MY_VAR_2) bar)
+`,
+		expected: `load("//build/make/core:product_config.rbc", "rblf")
+
+def init(g, handle):
+  cfg = rblf.cfg(handle)
+  g["MY_VAR"] = "foo"
+  g["MY_VAR_2"] = "MY_VAR"
+  g["MY_VAR_3"] = (cfg).get(g["MY_VAR_2"], (g).get(g["MY_VAR_2"], ""))
+  g["MY_VAR_4"] = rblf.mk2rbc_error("product.mk:5", "cannot handle invoking foo")
+  g["MY_VAR_5"] = rblf.mk2rbc_error("product.mk:6", "reference is too complex: $(MY_VAR_2) bar")
+`,
+	},
 }
 
 var known_variables = []struct {
