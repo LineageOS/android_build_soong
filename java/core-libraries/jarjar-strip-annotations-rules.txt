@@ -1,0 +1,4 @@
+strip-annotation android.annotation.NotNull
+strip-annotation android.annotation.Nullable
+strip-annotation androidx.annotation.RecentlyNonNull
+strip-annotation androidx.annotation.RecentlyNullable
