@@ -2018,7 +2018,49 @@ func addCLCFromDep(ctx android.ModuleContext, depModule android.Module,
 	}
 }
 
+type javaResourcesAttributes struct {
+	Resources             bazel.LabelListAttribute
+	Resource_strip_prefix *string
+}
+
+func (m *Library) convertJavaResourcesAttributes(ctx android.TopDownMutatorContext) *javaResourcesAttributes {
+	var resources bazel.LabelList
+	var resourceStripPrefix *string
+
+	if m.properties.Java_resources != nil {
+		resources.Append(android.BazelLabelForModuleSrc(ctx, m.properties.Java_resources))
+	}
+
+	//TODO(b/179889880) handle case where glob includes files outside package
+	resDeps := ResourceDirsToFiles(
+		ctx,
+		m.properties.Java_resource_dirs,
+		m.properties.Exclude_java_resource_dirs,
+		m.properties.Exclude_java_resources,
+	)
+
+	for i, resDep := range resDeps {
+		dir, files := resDep.dir, resDep.files
+
+		resources.Append(bazel.MakeLabelList(android.RootToModuleRelativePaths(ctx, files)))
+
+		// Bazel includes the relative path from the WORKSPACE root when placing the resource
+		// inside the JAR file, so we need to remove that prefix
+		resourceStripPrefix = proptools.StringPtr(dir.String())
+		if i > 0 {
+			// TODO(b/226423379) allow multiple resource prefixes
+			ctx.ModuleErrorf("bp2build does not support more than one directory in java_resource_dirs (b/226423379)")
+		}
+	}
+
+	return &javaResourcesAttributes{
+		Resources:             bazel.MakeLabelListAttribute(resources),
+		Resource_strip_prefix: resourceStripPrefix,
+	}
+}
+
 type javaCommonAttributes struct {
+	*javaResourcesAttributes
 	Srcs      bazel.LabelListAttribute
 	Plugins   bazel.LabelListAttribute
 	Javacopts bazel.StringListAttribute
@@ -2095,7 +2137,8 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext)
 	}
 
 	commonAttrs := &javaCommonAttributes{
-		Srcs: javaSrcs,
+		Srcs:                    javaSrcs,
+		javaResourcesAttributes: m.convertJavaResourcesAttributes(ctx),
 		Plugins: bazel.MakeLabelListAttribute(
 			android.BazelLabelForModuleDeps(ctx, m.properties.Plugins),
 		),
