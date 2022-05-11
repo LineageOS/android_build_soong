@@ -273,7 +273,7 @@ func bootclasspathFragmentFactory() android.Module {
 	android.InitApexModule(m)
 	android.InitSdkAwareModule(m)
 	initClasspathFragment(m, BOOTCLASSPATH)
-	android.InitAndroidArchModule(m, android.HostAndDeviceSupported, android.MultilibCommon)
+	android.InitAndroidArchModule(m, android.DeviceSupported, android.MultilibCommon)
 
 	android.AddLoadHook(m, func(ctx android.LoadHookContext) {
 		// If code coverage has been enabled for the framework then append the properties with
