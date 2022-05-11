@@ -977,6 +977,7 @@ type ApexInfoMutator interface {
 
 // apexInfoMutator delegates the work of identifying which modules need an ApexInfo and apex
 // specific variant to modules that support the ApexInfoMutator.
+// It also propagates updatable=true to apps of updatable apexes
 func apexInfoMutator(mctx android.TopDownMutatorContext) {
 	if !mctx.Module().Enabled() {
 		return
@@ -984,8 +985,8 @@ func apexInfoMutator(mctx android.TopDownMutatorContext) {
 
 	if a, ok := mctx.Module().(ApexInfoMutator); ok {
 		a.ApexInfoMutator(mctx)
-		return
 	}
+	enforceAppUpdatability(mctx)
 }
 
 // apexStrictUpdatibilityLintMutator propagates strict_updatability_linting to transitive deps of a mainline module
@@ -1012,6 +1013,22 @@ func apexStrictUpdatibilityLintMutator(mctx android.TopDownMutatorContext) {
 			}
 			// visit transitive deps
 			return true
+		})
+	}
+}
+
+// enforceAppUpdatability propagates updatable=true to apps of updatable apexes
+func enforceAppUpdatability(mctx android.TopDownMutatorContext) {
+	if !mctx.Module().Enabled() {
+		return
+	}
+	if apex, ok := mctx.Module().(*apexBundle); ok && apex.Updatable() {
+		// checking direct deps is sufficient since apex->apk is a direct edge, even when inherited via apex_defaults
+		mctx.VisitDirectDeps(func(module android.Module) {
+			// ignore android_test_app
+			if app, ok := module.(*java.AndroidApp); ok {
+				app.SetUpdatable(true)
+			}
 		})
 	}
 }
