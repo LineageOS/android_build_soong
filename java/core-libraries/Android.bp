@@ -138,11 +138,29 @@ java_library {
     },
 }
 
+// Same as core-module-lib-stubs-for-system-modules, but android annotations are
+// stripped. This is used by the Java toolchain, while the annotated stub is to
+// be used by Kotlin one.
+java_library {
+    name: "core-module-lib-stubs-for-system-modules-no-annotations",
+    visibility: ["//visibility:private"],
+    static_libs: [
+        "core-module-lib-stubs-for-system-modules",
+    ],
+    sdk_version: "none",
+    system_modules: "none",
+    dist: {
+        dest: "system-modules/module-lib/core-for-system-modules-no-annotations.jar",
+        targets: dist_targets,
+    },
+    jarjar_rules: "jarjar-strip-annotations-rules.txt",
+}
+
 // Used when compiling higher-level code with sdk_version "module_current"
 java_system_modules {
     name: "core-module-lib-stubs-system-modules",
     libs: [
-        "core-module-lib-stubs-for-system-modules",
+        "core-module-lib-stubs-for-system-modules-no-annotations",
     ],
     visibility: ["//visibility:public"],
 }
@@ -174,6 +192,24 @@ java_library {
     patch_module: "java.base",
 }
 
+// Same as legacy.core.platform.api.stubs, but android annotations are
+// stripped. This is used by the Java toolchain, while the annotated stub is to
+// be used by Kotlin one.
+java_library {
+    name: "legacy.core.platform.api.no.annotations.stubs",
+    visibility: core_platform_visibility,
+    hostdex: true,
+    compile_dex: true,
+
+    sdk_version: "none",
+    system_modules: "none",
+    static_libs: [
+        "legacy.core.platform.api.stubs",
+    ],
+    patch_module: "java.base",
+    jarjar_rules: "jarjar-strip-annotations-rules.txt",
+}
+
 java_library {
     name: "stable.core.platform.api.stubs",
     visibility: core_platform_visibility,
@@ -191,12 +227,30 @@ java_library {
     patch_module: "java.base",
 }
 
+// Same as stable.core.platform.api.stubs, but android annotations are
+// stripped. This is used by the Java toolchain, while the annotated stub is to
+// be used by Kotlin one.
+java_library {
+    name: "stable.core.platform.api.no.annotations.stubs",
+    visibility: core_platform_visibility,
+    hostdex: true,
+    compile_dex: true,
+
+    sdk_version: "none",
+    system_modules: "none",
+    static_libs: [
+        "stable.core.platform.api.stubs",
+    ],
+    patch_module: "java.base",
+    jarjar_rules: "jarjar-strip-annotations-rules.txt",
+}
+
 // Used when compiling higher-level code against *.core.platform.api.stubs.
 java_system_modules {
     name: "legacy-core-platform-api-stubs-system-modules",
     visibility: core_platform_visibility,
     libs: [
-        "legacy.core.platform.api.stubs",
+        "legacy.core.platform.api.no.annotations.stubs",
         // This one is not on device but it's needed when javac compiles code
         // containing lambdas.
         "core-lambda-stubs-for-system-modules",
@@ -212,7 +266,7 @@ java_system_modules {
     name: "stable-core-platform-api-stubs-system-modules",
     visibility: core_platform_visibility,
     libs: [
-        "stable.core.platform.api.stubs",
+        "stable.core.platform.api.no.annotations.stubs",
         // This one is not on device but it's needed when javac compiles code
         // containing lambdas.
         "core-lambda-stubs-for-system-modules",
