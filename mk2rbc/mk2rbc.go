@@ -1574,11 +1574,21 @@ func (p *foreachCallParser) parse(ctx *parseContext, node mkparser.Node, args *m
 		}
 	}
 
-	return &foreachExpr{
+	var result starlarkExpr = &foreachExpr{
 		varName: loopVarName,
 		list:    list,
 		action:  action,
 	}
+
+	if action.typ() == starlarkTypeList {
+		result = &callExpr{
+			name:       baseName + ".flatten_2d_list",
+			args:       []starlarkExpr{result},
+			returnType: starlarkTypeList,
+		}
+	}
+
+	return result
 }
 
 func transformNode(node starlarkNode, transformer func(expr starlarkExpr) starlarkExpr) {
