@@ -532,6 +532,14 @@ func (l *lintSingleton) copyLintDependencies(ctx android.SingletonContext) {
 		return
 	}
 
+	sdkAnnotations := findModuleOrErr(ctx, "sdk-annotations.zip")
+	if sdkAnnotations == nil {
+		if !ctx.Config().AllowMissingDependencies() {
+			ctx.Errorf("lint: missing module sdk-annotations.zip")
+		}
+		return
+	}
+
 	filteredDb := findModuleOrErr(ctx, "api-versions-xml-public-filtered")
 	if filteredDb == nil {
 		if !ctx.Config().AllowMissingDependencies() {
@@ -542,7 +550,7 @@ func (l *lintSingleton) copyLintDependencies(ctx android.SingletonContext) {
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:   android.CpIfChanged,
-		Input:  android.OutputFileForModule(ctx, frameworkDocStubs, ".annotations.zip"),
+		Input:  android.OutputFileForModule(ctx, sdkAnnotations, ""),
 		Output: copiedAnnotationsZipPath(ctx),
 	})
 
