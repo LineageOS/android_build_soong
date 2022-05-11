@@ -579,7 +579,7 @@ def init(g, handle):
     pass
   if rblf.expand_wildcard("foo*.mk"):
     pass
-  if rblf.expand_wildcard("foo*.mk bar*.mk") == ["foo1.mk", "foo2.mk", "barxyz.mk"]:␤
+  if rblf.expand_wildcard("foo*.mk bar*.mk") == ["foo1.mk", "foo2.mk", "barxyz.mk"]:
     pass
 `,
 	},
@@ -1363,6 +1363,8 @@ BOOT_KERNEL_MODULES_FILTER := $(foreach m,$(BOOT_KERNEL_MODULES),%/$(m))
 BOOT_KERNEL_MODULES_LIST := foo.ko
 BOOT_KERNEL_MODULES_LIST += bar.ko
 BOOT_KERNEL_MODULES_FILTER_2 := $(foreach m,$(BOOT_KERNEL_MODULES_LIST),%/$(m))
+NESTED_LISTS := $(foreach m,$(SOME_VAR),$(BOOT_KERNEL_MODULES_LIST))
+NESTED_LISTS_2 := $(foreach x,$(SOME_VAR),$(foreach y,$(x),prefix$(y)))
 
 FOREACH_WITH_IF := $(foreach module,\
   $(BOOT_KERNEL_MODULES_LIST),\
@@ -1382,6 +1384,8 @@ def init(g, handle):
   g["BOOT_KERNEL_MODULES_LIST"] = ["foo.ko"]
   g["BOOT_KERNEL_MODULES_LIST"] += ["bar.ko"]
   g["BOOT_KERNEL_MODULES_FILTER_2"] = ["%%/%s" % m for m in g["BOOT_KERNEL_MODULES_LIST"]]
+  g["NESTED_LISTS"] = rblf.flatten_2d_list([g["BOOT_KERNEL_MODULES_LIST"] for m in rblf.words(g.get("SOME_VAR", ""))])
+  g["NESTED_LISTS_2"] = rblf.flatten_2d_list([["prefix%s" % y for y in rblf.words(x)] for x in rblf.words(g.get("SOME_VAR", ""))])
   g["FOREACH_WITH_IF"] = [("" if rblf.filter(module, "foo.ko") else rblf.mkerror("product.mk", "module \"%s\" has an error!" % module)) for module in g["BOOT_KERNEL_MODULES_LIST"]]
   # Same as above, but not assigning it to a variable allows it to be converted to statements
   for module in g["BOOT_KERNEL_MODULES_LIST"]:
@@ -1574,10 +1578,10 @@ def init(g, handle):
   for x in rblf.words(g.get("MY_LIST_VAR", "")):
     _entry = {
       "foo/font.mk": ("foo/font", _font_init),
-    }.get("foo/%s.mk" % _x)
+    }.get("foo/%s.mk" % x)
     (_varmod, _varmod_init) = _entry if _entry else (None, None)
     if not _varmod_init:
-      rblf.mkerror("product.mk", "Cannot find %s" % ("foo/%s.mk" % _x))
+      rblf.mkerror("product.mk", "Cannot find %s" % ("foo/%s.mk" % x))
     _varmod_init(g, handle)
 `,
 	},
