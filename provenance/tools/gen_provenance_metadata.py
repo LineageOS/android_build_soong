@@ -16,6 +16,7 @@
 
 import argparse
 import hashlib
+import os.path
 import sys
 
 import google.protobuf.text_format as text_format
@@ -50,6 +51,11 @@ def main(argv):
   with open(args.artifact_path, "rb") as artifact_file:
     h.update(artifact_file.read())
   provenance_metadata.artifact_sha256 = h.hexdigest()
+
+  Log("Check if there is attestation for the artifact")
+  attestation_file_name = args.artifact_path + ".intoto.jsonl"
+  if os.path.isfile(attestation_file_name):
+    provenance_metadata.attestation_path = attestation_file_name
 
   text_proto = [
       "# proto-file: build/soong/provenance/proto/provenance_metadata.proto",

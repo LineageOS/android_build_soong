@@ -100,6 +100,11 @@ class ProvenanceMetaDataToolTest(unittest.TestCase):
     artifact_file = tempfile.mktemp()
     with open(artifact_file,"wt") as f:
       f.write(artifact_content)
+
+    attestation_file = artifact_file + ".intoto.jsonl"
+    with open(attestation_file, "wt") as af:
+      af.write("attestation file")
+
     metadata_file = tempfile.mktemp()
     cmd = ["gen_provenance_metadata"]
     cmd.extend(["--module_name", "a"])
@@ -117,9 +122,11 @@ class ProvenanceMetaDataToolTest(unittest.TestCase):
       self.assertEqual(provenance_metadata.artifact_path, artifact_file)
       self.assertEqual(provenance_metadata.artifact_install_path, "b")
       self.assertEqual(provenance_metadata.artifact_sha256, sha256(artifact_content))
+      self.assertEqual(provenance_metadata.attestation_path, attestation_file)
 
     os.remove(artifact_file)
     os.remove(metadata_file)
+    os.remove(attestation_file)
 
 if __name__ == '__main__':
   unittest.main(verbosity=2)
