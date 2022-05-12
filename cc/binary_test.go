@@ -65,7 +65,7 @@ func TestBinaryLinkerScripts(t *testing.T) {
 	android.AssertStringListContains(t, "missing dependency on linker_scripts",
 		binFoo.Implicits.Strings(), "bar.ld")
 	android.AssertStringDoesContain(t, "missing flag for linker_scripts",
-		libfoo.Args["ldFlags"], "-Wl,--script,foo.ld")
+		binFoo.Args["ldFlags"], "-Wl,--script,foo.ld")
 	android.AssertStringDoesContain(t, "missing flag for linker_scripts",
-		libfoo.Args["ldFlags"], "-Wl,--script,bar.ld")
+		binFoo.Args["ldFlags"], "-Wl,--script,bar.ld")
 }
