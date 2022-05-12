@@ -550,6 +550,9 @@ func (dstubs *Droidstubs) AndroidMkEntries() []android.AndroidMkEntries {
 	if !outputFile.Valid() {
 		outputFile = android.OptionalPathForPath(dstubs.apiFile)
 	}
+	if !outputFile.Valid() {
+		outputFile = android.OptionalPathForPath(dstubs.apiVersionsXml)
+	}
 	return []android.AndroidMkEntries{android.AndroidMkEntries{
 		Class:      "JAVA_LIBRARIES",
 		OutputFile: outputFile,
