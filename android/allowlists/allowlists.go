@@ -179,6 +179,7 @@ var (
 		"system/libprocinfo":                                 Bp2BuildDefaultTrue,
 		"system/libziparchive":                               Bp2BuildDefaultTrueRecursively,
 		"system/logging/liblog":                              Bp2BuildDefaultTrueRecursively,
+		"system/memory/libmemunreachable":                    Bp2BuildDefaultTrueRecursively,
 		"system/sepolicy/apex":                               Bp2BuildDefaultTrueRecursively,
 		"system/timezone/apex":                               Bp2BuildDefaultTrueRecursively,
 		"system/timezone/output_data":                        Bp2BuildDefaultTrueRecursively,
