@@ -33,8 +33,13 @@ var resourceExcludes = []string{
 	"**/*~",
 }
 
-func ResourceDirsToJarArgs(ctx android.ModuleContext,
-	resourceDirs, excludeResourceDirs, excludeResourceFiles []string) (args []string, deps android.Paths) {
+type resourceDeps struct {
+	dir   android.Path
+	files android.Paths
+}
+
+func ResourceDirsToFiles(ctx android.BaseModuleContext,
+	resourceDirs, excludeResourceDirs, excludeResourceFiles []string) (deps []resourceDeps) {
 	var excludeDirs []string
 	var excludeFiles []string
 
@@ -55,21 +60,36 @@ func ResourceDirsToJarArgs(ctx android.ModuleContext,
 		dirs := ctx.Glob(android.PathForSource(ctx, ctx.ModuleDir()).Join(ctx, resourceDir).String(), excludeDirs)
 		for _, dir := range dirs {
 			files := ctx.GlobFiles(filepath.Join(dir.String(), "**/*"), excludeFiles)
+			deps = append(deps, resourceDeps{
+				dir:   dir,
+				files: files,
+			})
+		}
+	}
 
+	return deps
+}
+
+func ResourceDirsToJarArgs(ctx android.ModuleContext,
+	resourceDirs, excludeResourceDirs, excludeResourceFiles []string) (args []string, deps android.Paths) {
+	resDeps := ResourceDirsToFiles(ctx, resourceDirs, excludeResourceDirs, excludeResourceFiles)
+
+	for _, resDep := range resDeps {
+		dir, files := resDep.dir, resDep.files
+
+		if len(files) > 0 {
+			args = append(args, "-C", dir.String())
 			deps = append(deps, files...)
 
-			if len(files) > 0 {
-				args = append(args, "-C", dir.String())
-
-				for _, f := range files {
-					path := f.String()
-					if !strings.HasPrefix(path, dir.String()) {
-						panic(fmt.Errorf("path %q does not start with %q", path, dir))
-					}
-					args = append(args, "-f", pathtools.MatchEscape(path))
+			for _, f := range files {
+				path := f.String()
+				if !strings.HasPrefix(path, dir.String()) {
+					panic(fmt.Errorf("path %q does not start with %q", path, dir))
 				}
+				args = append(args, "-f", pathtools.MatchEscape(path))
 			}
 		}
+
 	}
 
 	return args, deps
