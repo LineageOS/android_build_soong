@@ -135,6 +135,9 @@ type DroidstubsProperties struct {
 	// if set to true, Metalava will allow framework SDK to contain API levels annotations.
 	Api_levels_annotations_enabled *bool
 
+	// Apply the api levels database created by this module rather than generating one in this droidstubs.
+	Api_levels_module *string
+
 	// the dirs which Metalava extracts API levels annotations from.
 	Api_levels_annotations_dirs []string
 
@@ -234,6 +237,7 @@ func (d *Droidstubs) StubsSrcJar() android.Path {
 var metalavaMergeAnnotationsDirTag = dependencyTag{name: "metalava-merge-annotations-dir"}
 var metalavaMergeInclusionAnnotationsDirTag = dependencyTag{name: "metalava-merge-inclusion-annotations-dir"}
 var metalavaAPILevelsAnnotationsDirTag = dependencyTag{name: "metalava-api-levels-annotations-dir"}
+var metalavaAPILevelsModuleTag = dependencyTag{name: "metalava-api-levels-module-tag"}
 
 func (d *Droidstubs) DepsMutator(ctx android.BottomUpMutatorContext) {
 	d.Javadoc.addDeps(ctx)
@@ -254,6 +258,10 @@ func (d *Droidstubs) DepsMutator(ctx android.BottomUpMutatorContext) {
 		for _, apiLevelsAnnotationsDir := range d.properties.Api_levels_annotations_dirs {
 			ctx.AddDependency(ctx.Module(), metalavaAPILevelsAnnotationsDirTag, apiLevelsAnnotationsDir)
 		}
+	}
+
+	if d.properties.Api_levels_module != nil {
+		ctx.AddDependency(ctx.Module(), metalavaAPILevelsModuleTag, proptools.String(d.properties.Api_levels_module))
 	}
 }
 
@@ -365,21 +373,35 @@ func (d *Droidstubs) inclusionAnnotationsFlags(ctx android.ModuleContext, cmd *a
 }
 
 func (d *Droidstubs) apiLevelsAnnotationsFlags(ctx android.ModuleContext, cmd *android.RuleBuilderCommand) {
-	if !Bool(d.properties.Api_levels_annotations_enabled) {
-		return
+	var apiVersions android.Path
+	if proptools.Bool(d.properties.Api_levels_annotations_enabled) {
+		d.apiLevelsGenerationFlags(ctx, cmd)
+		apiVersions = d.apiVersionsXml
+	} else {
+		ctx.VisitDirectDepsWithTag(metalavaAPILevelsModuleTag, func(m android.Module) {
+			if s, ok := m.(*Droidstubs); ok {
+				apiVersions = s.apiVersionsXml
+			} else {
+				ctx.PropertyErrorf("api_levels_module",
+					"module %q is not a droidstubs module", ctx.OtherModuleName(m))
+			}
+		})
 	}
+	if apiVersions != nil {
+		cmd.FlagWithArg("--current-version ", ctx.Config().PlatformSdkVersion().String())
+		cmd.FlagWithArg("--current-codename ", ctx.Config().PlatformSdkCodename())
+		cmd.FlagWithInput("--apply-api-levels ", apiVersions)
+	}
+}
 
-	d.apiVersionsXml = android.PathForModuleOut(ctx, "metalava", "api-versions.xml")
-
+func (d *Droidstubs) apiLevelsGenerationFlags(ctx android.ModuleContext, cmd *android.RuleBuilderCommand) {
 	if len(d.properties.Api_levels_annotations_dirs) == 0 {
 		ctx.PropertyErrorf("api_levels_annotations_dirs",
 			"has to be non-empty if api levels annotations was enabled!")
 	}
 
+	d.apiVersionsXml = android.PathForModuleOut(ctx, "metalava", "api-versions.xml")
 	cmd.FlagWithOutput("--generate-api-levels ", d.apiVersionsXml)
-	cmd.FlagWithInput("--apply-api-levels ", d.apiVersionsXml)
-	cmd.FlagWithArg("--current-version ", ctx.Config().PlatformSdkVersion().String())
-	cmd.FlagWithArg("--current-codename ", ctx.Config().PlatformSdkCodename())
 
 	filename := proptools.StringDefault(d.properties.Api_levels_jar_filename, "android.jar")
 
