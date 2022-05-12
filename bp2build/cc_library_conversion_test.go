@@ -1914,9 +1914,9 @@ func TestCcLibraryCppStdWithGnuExtensions_ConvertsToFeatureAttr(t *testing.T) {
 		{cpp_std: "gnu++17", gnu_extensions: "true", bazel_cpp_std: "gnu++17"},
 
 		// some c_std test cases
-		{c_std: "experimental", gnu_extensions: "", bazel_c_std: "gnu11"},
-		{c_std: "experimental", gnu_extensions: "false", bazel_cpp_std: "c++17", bazel_c_std: "c11"},
-		{c_std: "experimental", gnu_extensions: "true", bazel_c_std: "gnu11"},
+		{c_std: "experimental", gnu_extensions: "", bazel_c_std: "gnu17"},
+		{c_std: "experimental", gnu_extensions: "false", bazel_cpp_std: "c++17", bazel_c_std: "c17"},
+		{c_std: "experimental", gnu_extensions: "true", bazel_c_std: "gnu17"},
 		{c_std: "gnu11", cpp_std: "gnu++17", gnu_extensions: "", bazel_cpp_std: "gnu++17", bazel_c_std: "gnu11"},
 		{c_std: "gnu11", cpp_std: "gnu++17", gnu_extensions: "false", bazel_cpp_std: "c++17", bazel_c_std: "c11"},
 		{c_std: "gnu11", cpp_std: "gnu++17", gnu_extensions: "true", bazel_cpp_std: "gnu++17", bazel_c_std: "gnu11"},
