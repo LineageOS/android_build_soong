@@ -207,6 +207,29 @@ func (m *Module) makeArchVariantBaseAttributes(ctx android.TopDownMutatorContext
 			}
 		}
 	}
+
+	partitionedSrcs := bazel.PartitionLabelListAttribute(ctx, &attrs.Srcs, bazel.LabelPartitions{
+		"proto": android.ProtoSrcLabelPartition,
+		"py":    bazel.LabelPartition{Keep_remainder: true},
+	})
+	attrs.Srcs = partitionedSrcs["py"]
+
+	if !partitionedSrcs["proto"].IsEmpty() {
+		protoInfo, _ := android.Bp2buildProtoProperties(ctx, &m.ModuleBase, partitionedSrcs["proto"])
+		protoLabel := bazel.Label{Label: ":" + protoInfo.Name}
+
+		pyProtoLibraryName := m.Name() + "_py_proto"
+		ctx.CreateBazelTargetModule(bazel.BazelTargetModuleProperties{
+			Rule_class:        "py_proto_library",
+			Bzl_load_location: "//build/bazel/rules/python:py_proto.bzl",
+		}, android.CommonAttributes{
+			Name: pyProtoLibraryName,
+		}, &bazelPythonProtoLibraryAttributes{
+			Deps: bazel.MakeSingleLabelListAttribute(protoLabel),
+		})
+
+		attrs.Deps.Add(bazel.MakeLabelAttribute(":" + pyProtoLibraryName))
+	}
 	return attrs
 }
 
