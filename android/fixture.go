@@ -586,6 +586,18 @@ func FixtureExpectsAllErrorsToMatchAPattern(patterns []string) FixtureErrorHandl
 	})
 }
 
+// FixtureExpectsOneErrorPattern returns an error handler that will cause the test to fail
+// if there is more than one error or the error does not match the pattern.
+//
+// If the test fails this handler will call `result.FailNow()` which will exit the goroutine within
+// which the test is being run which means that the RunTest() method will not return.
+func FixtureExpectsOneErrorPattern(pattern string) FixtureErrorHandler {
+	return FixtureCustomErrorHandler(func(t *testing.T, result *TestResult) {
+		t.Helper()
+		CheckErrorsAgainstExpectations(t, result.Errs, []string{pattern})
+	})
+}
+
 // FixtureCustomErrorHandler creates a custom error handler
 func FixtureCustomErrorHandler(function func(t *testing.T, result *TestResult)) FixtureErrorHandler {
 	return simpleErrorHandler{
