@@ -46,6 +46,7 @@ func init() {
 			"-misc-no-recursion",
 			"-misc-non-private-member-variables-in-classes",
 			"-misc-unused-parameters",
+			"-performance-no-int-to-ptr",
 			// the following groups are excluded by -*
 			// -altera-*
 			// -cppcoreguidelines-*
