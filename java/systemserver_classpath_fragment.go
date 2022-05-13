@@ -24,21 +24,24 @@ import (
 func init() {
 	registerSystemserverClasspathBuildComponents(android.InitRegistrationContext)
 
-	android.RegisterSdkMemberType(&systemServerClasspathFragmentMemberType{
-		SdkMemberTypeBase: android.SdkMemberTypeBase{
-			PropertyName: "systemserverclasspath_fragments",
-			SupportsSdk:  true,
-
-			// This was only added in Tiramisu.
-			SupportedBuildReleaseSpecification: "Tiramisu+",
-		},
-	})
+	android.RegisterSdkMemberType(SystemServerClasspathFragmentSdkMemberType)
 }
 
 func registerSystemserverClasspathBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("platform_systemserverclasspath", platformSystemServerClasspathFactory)
 	ctx.RegisterModuleType("systemserverclasspath_fragment", systemServerClasspathFactory)
 	ctx.RegisterModuleType("prebuilt_systemserverclasspath_fragment", prebuiltSystemServerClasspathModuleFactory)
+}
+
+var SystemServerClasspathFragmentSdkMemberType = &systemServerClasspathFragmentMemberType{
+	SdkMemberTypeBase: android.SdkMemberTypeBase{
+		PropertyName: "systemserverclasspath_fragments",
+		SupportsSdk:  true,
+
+		// Support for adding systemserverclasspath_fragments to the sdk snapshot was only added in
+		// Tiramisu.
+		SupportedBuildReleaseSpecification: "Tiramisu+",
+	},
 }
 
 type platformSystemServerClasspathModule struct {

@@ -32,17 +32,21 @@ import (
 func init() {
 	registerBootclasspathFragmentBuildComponents(android.InitRegistrationContext)
 
-	android.RegisterSdkMemberType(&bootclasspathFragmentMemberType{
-		SdkMemberTypeBase: android.SdkMemberTypeBase{
-			PropertyName: "bootclasspath_fragments",
-			SupportsSdk:  true,
-		},
-	})
+	android.RegisterSdkMemberType(BootclasspathFragmentSdkMemberType)
 }
 
 func registerBootclasspathFragmentBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("bootclasspath_fragment", bootclasspathFragmentFactory)
 	ctx.RegisterModuleType("prebuilt_bootclasspath_fragment", prebuiltBootclasspathFragmentFactory)
+}
+
+// BootclasspathFragmentSdkMemberType is the member type used to add bootclasspath_fragments to
+// the SDK snapshot. It is exported for use by apex.
+var BootclasspathFragmentSdkMemberType = &bootclasspathFragmentMemberType{
+	SdkMemberTypeBase: android.SdkMemberTypeBase{
+		PropertyName: "bootclasspath_fragments",
+		SupportsSdk:  true,
+	},
 }
 
 type bootclasspathFragmentContentDependencyTag struct {

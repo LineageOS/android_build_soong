@@ -187,7 +187,7 @@ func checkBootJarsPackageCheckRule(t *testing.T, result *android.TestResult, exp
 	android.AssertStringDoesContain(t, "boot jars package check", command, expectedCommandArgs)
 }
 
-func TestSnapshotWithBootClasspathFragment_Contents(t *testing.T) {
+func testSnapshotWithBootClasspathFragment_Contents(t *testing.T, sdk string, copyRules string) {
 	result := android.GroupFixturePreparers(
 		prepareForSdkTestWithJava,
 		java.PrepareForTestWithJavaDefaultModules,
@@ -199,19 +199,7 @@ func TestSnapshotWithBootClasspathFragment_Contents(t *testing.T) {
 		// Add a platform_bootclasspath that depends on the fragment.
 		fixtureAddPlatformBootclasspathForBootclasspathFragment("myapex", "mybootclasspathfragment"),
 
-		android.FixtureWithRootAndroidBp(`
-			sdk {
-				name: "mysdk",
-				bootclasspath_fragments: ["mybootclasspathfragment"],
-				java_sdk_libs: [
-					// This is not strictly needed as it should be automatically added to the sdk_snapshot as
-					// a java_sdk_libs module because it is used in the mybootclasspathfragment's
-					// api.stub_libs property. However, it is specified here to ensure that duplicates are
-					// correctly deduped.
-					"mysdklibrary",
-				],
-			}
-
+		android.FixtureWithRootAndroidBp(sdk+`
 			apex {
 				name: "myapex",
 				key: "myapex.key",
@@ -367,24 +355,7 @@ java_sdk_library_import {
     },
 }
 		`),
-		checkAllCopyRules(`
-.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/annotation-flags.csv -> hiddenapi/annotation-flags.csv
-.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/metadata.csv -> hiddenapi/metadata.csv
-.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/index.csv -> hiddenapi/index.csv
-.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/signature-patterns.csv -> hiddenapi/signature-patterns.csv
-.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/filtered-stub-flags.csv -> hiddenapi/filtered-stub-flags.csv
-.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/filtered-flags.csv -> hiddenapi/filtered-flags.csv
-.intermediates/mysdk/common_os/empty -> java_boot_libs/snapshot/jars/are/invalid/mybootlib.jar
-.intermediates/myothersdklibrary.stubs/android_common/javac/myothersdklibrary.stubs.jar -> sdk_library/public/myothersdklibrary-stubs.jar
-.intermediates/myothersdklibrary.stubs.source/android_common/metalava/myothersdklibrary.stubs.source_api.txt -> sdk_library/public/myothersdklibrary.txt
-.intermediates/myothersdklibrary.stubs.source/android_common/metalava/myothersdklibrary.stubs.source_removed.txt -> sdk_library/public/myothersdklibrary-removed.txt
-.intermediates/mysdklibrary.stubs/android_common/javac/mysdklibrary.stubs.jar -> sdk_library/public/mysdklibrary-stubs.jar
-.intermediates/mysdklibrary.stubs.source/android_common/metalava/mysdklibrary.stubs.source_api.txt -> sdk_library/public/mysdklibrary.txt
-.intermediates/mysdklibrary.stubs.source/android_common/metalava/mysdklibrary.stubs.source_removed.txt -> sdk_library/public/mysdklibrary-removed.txt
-.intermediates/mycoreplatform.stubs/android_common/javac/mycoreplatform.stubs.jar -> sdk_library/public/mycoreplatform-stubs.jar
-.intermediates/mycoreplatform.stubs.source/android_common/metalava/mycoreplatform.stubs.source_api.txt -> sdk_library/public/mycoreplatform.txt
-.intermediates/mycoreplatform.stubs.source/android_common/metalava/mycoreplatform.stubs.source_removed.txt -> sdk_library/public/mycoreplatform-removed.txt
-`),
+		checkAllCopyRules(copyRules),
 		snapshotTestPreparer(checkSnapshotWithoutSource, preparerForSnapshot),
 		snapshotTestChecker(checkSnapshotWithoutSource, func(t *testing.T, result *android.TestResult) {
 			module := result.ModuleForTests("platform-bootclasspath", "android_common")
@@ -419,6 +390,89 @@ java_sdk_library_import {
 		}),
 		snapshotTestPreparer(checkSnapshotPreferredWithSource, preparerForSnapshot),
 	)
+}
+
+func TestSnapshotWithBootClasspathFragment_Contents(t *testing.T) {
+	t.Run("added-directly", func(t *testing.T) {
+		testSnapshotWithBootClasspathFragment_Contents(t, `
+			sdk {
+				name: "mysdk",
+				bootclasspath_fragments: ["mybootclasspathfragment"],
+				java_sdk_libs: [
+					// This is not strictly needed as it should be automatically added to the sdk_snapshot as
+					// a java_sdk_libs module because it is used in the mybootclasspathfragment's
+					// api.stub_libs property. However, it is specified here to ensure that duplicates are
+					// correctly deduped.
+					"mysdklibrary",
+				],
+			}
+		`, `
+.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/annotation-flags.csv -> hiddenapi/annotation-flags.csv
+.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/metadata.csv -> hiddenapi/metadata.csv
+.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/index.csv -> hiddenapi/index.csv
+.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/signature-patterns.csv -> hiddenapi/signature-patterns.csv
+.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/filtered-stub-flags.csv -> hiddenapi/filtered-stub-flags.csv
+.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/filtered-flags.csv -> hiddenapi/filtered-flags.csv
+.intermediates/mysdk/common_os/empty -> java_boot_libs/snapshot/jars/are/invalid/mybootlib.jar
+.intermediates/myothersdklibrary.stubs/android_common/javac/myothersdklibrary.stubs.jar -> sdk_library/public/myothersdklibrary-stubs.jar
+.intermediates/myothersdklibrary.stubs.source/android_common/metalava/myothersdklibrary.stubs.source_api.txt -> sdk_library/public/myothersdklibrary.txt
+.intermediates/myothersdklibrary.stubs.source/android_common/metalava/myothersdklibrary.stubs.source_removed.txt -> sdk_library/public/myothersdklibrary-removed.txt
+.intermediates/mysdklibrary.stubs/android_common/javac/mysdklibrary.stubs.jar -> sdk_library/public/mysdklibrary-stubs.jar
+.intermediates/mysdklibrary.stubs.source/android_common/metalava/mysdklibrary.stubs.source_api.txt -> sdk_library/public/mysdklibrary.txt
+.intermediates/mysdklibrary.stubs.source/android_common/metalava/mysdklibrary.stubs.source_removed.txt -> sdk_library/public/mysdklibrary-removed.txt
+.intermediates/mycoreplatform.stubs/android_common/javac/mycoreplatform.stubs.jar -> sdk_library/public/mycoreplatform-stubs.jar
+.intermediates/mycoreplatform.stubs.source/android_common/metalava/mycoreplatform.stubs.source_api.txt -> sdk_library/public/mycoreplatform.txt
+.intermediates/mycoreplatform.stubs.source/android_common/metalava/mycoreplatform.stubs.source_removed.txt -> sdk_library/public/mycoreplatform-removed.txt
+`)
+	})
+
+	copyBootclasspathFragmentFromApexVariantRules := `
+.intermediates/mybootclasspathfragment/android_common_myapex/modular-hiddenapi/annotation-flags.csv -> hiddenapi/annotation-flags.csv
+.intermediates/mybootclasspathfragment/android_common_myapex/modular-hiddenapi/metadata.csv -> hiddenapi/metadata.csv
+.intermediates/mybootclasspathfragment/android_common_myapex/modular-hiddenapi/index.csv -> hiddenapi/index.csv
+.intermediates/mybootclasspathfragment/android_common_myapex/modular-hiddenapi/signature-patterns.csv -> hiddenapi/signature-patterns.csv
+.intermediates/mybootclasspathfragment/android_common_myapex/modular-hiddenapi/filtered-stub-flags.csv -> hiddenapi/filtered-stub-flags.csv
+.intermediates/mybootclasspathfragment/android_common_myapex/modular-hiddenapi/filtered-flags.csv -> hiddenapi/filtered-flags.csv
+.intermediates/mysdk/common_os/empty -> java_boot_libs/snapshot/jars/are/invalid/mybootlib.jar
+.intermediates/myothersdklibrary.stubs/android_common/javac/myothersdklibrary.stubs.jar -> sdk_library/public/myothersdklibrary-stubs.jar
+.intermediates/myothersdklibrary.stubs.source/android_common/metalava/myothersdklibrary.stubs.source_api.txt -> sdk_library/public/myothersdklibrary.txt
+.intermediates/myothersdklibrary.stubs.source/android_common/metalava/myothersdklibrary.stubs.source_removed.txt -> sdk_library/public/myothersdklibrary-removed.txt
+.intermediates/mysdklibrary.stubs/android_common/javac/mysdklibrary.stubs.jar -> sdk_library/public/mysdklibrary-stubs.jar
+.intermediates/mysdklibrary.stubs.source/android_common/metalava/mysdklibrary.stubs.source_api.txt -> sdk_library/public/mysdklibrary.txt
+.intermediates/mysdklibrary.stubs.source/android_common/metalava/mysdklibrary.stubs.source_removed.txt -> sdk_library/public/mysdklibrary-removed.txt
+.intermediates/mycoreplatform.stubs/android_common/javac/mycoreplatform.stubs.jar -> sdk_library/public/mycoreplatform-stubs.jar
+.intermediates/mycoreplatform.stubs.source/android_common/metalava/mycoreplatform.stubs.source_api.txt -> sdk_library/public/mycoreplatform.txt
+.intermediates/mycoreplatform.stubs.source/android_common/metalava/mycoreplatform.stubs.source_removed.txt -> sdk_library/public/mycoreplatform-removed.txt
+`
+	t.Run("added-via-apex", func(t *testing.T) {
+		testSnapshotWithBootClasspathFragment_Contents(t, `
+			sdk {
+				name: "mysdk",
+				apexes: ["myapex"],
+			}
+		`, copyBootclasspathFragmentFromApexVariantRules)
+	})
+
+	t.Run("added-directly-and-indirectly", func(t *testing.T) {
+		testSnapshotWithBootClasspathFragment_Contents(t, `
+			sdk {
+				name: "mysdk",
+				apexes: ["myapex"],
+				// This is not strictly needed as it should be automatically added to the sdk_snapshot as
+				// a bootclasspath_fragments module because it is used in the myapex's
+				// bootclasspath_fragments property. However, it is specified here to ensure that duplicates
+				// are correctly deduped.
+				bootclasspath_fragments: ["mybootclasspathfragment"],
+				java_sdk_libs: [
+					// This is not strictly needed as it should be automatically added to the sdk_snapshot as
+					// a java_sdk_libs module because it is used in the mybootclasspathfragment's
+					// api.stub_libs property. However, it is specified here to ensure that duplicates are
+					// correctly deduped.
+					"mysdklibrary",
+				],
+			}
+		`, copyBootclasspathFragmentFromApexVariantRules)
+	})
 }
 
 // TestSnapshotWithBootClasspathFragment_Fragments makes sure that the fragments property of a
