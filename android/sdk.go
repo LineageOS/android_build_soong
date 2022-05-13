@@ -670,6 +670,9 @@ type SdkMemberType interface {
 	// host OS variant explicitly and disable all other host OS'es.
 	IsHostOsDependent() bool
 
+	// SupportedLinkages returns the names of the linkage variants supported by this module.
+	SupportedLinkages() []string
+
 	// AddDependencies adds dependencies from the SDK module to all the module variants the member
 	// type contributes to the SDK. `names` is the list of module names given in the member type
 	// property (as returned by SdkPropertyName()) in the SDK module. The exact set of variants
@@ -733,6 +736,9 @@ type SdkMemberType interface {
 
 	// SupportedTraits returns the set of traits supported by this member type.
 	SupportedTraits() SdkMemberTraitSet
+
+	// Overrides returns whether type overrides other SdkMemberType
+	Overrides(SdkMemberType) bool
 }
 
 var _ sdkRegisterable = (SdkMemberType)(nil)
@@ -755,6 +761,13 @@ type SdkDependencyContext interface {
 // struct that implements SdkMemberType.
 type SdkMemberTypeBase struct {
 	PropertyName string
+
+	// Property names that this SdkMemberTypeBase can override, this is useful when a module type is a
+	// superset of another module type.
+	OverridesPropertyNames map[string]bool
+
+	// The names of linkage variants supported by this module.
+	SupportedLinkageNames []string
 
 	// When set to true BpPropertyNotRequired indicates that the member type does not require the
 	// property to be specifiable in an Android.bp file.
@@ -794,6 +807,14 @@ func (b *SdkMemberTypeBase) UsesSourceModuleTypeInSnapshot() bool {
 
 func (b *SdkMemberTypeBase) SupportedTraits() SdkMemberTraitSet {
 	return NewSdkMemberTraitSet(b.Traits)
+}
+
+func (b *SdkMemberTypeBase) Overrides(other SdkMemberType) bool {
+	return b.OverridesPropertyNames[other.SdkPropertyName()]
+}
+
+func (b *SdkMemberTypeBase) SupportedLinkages() []string {
+	return b.SupportedLinkageNames
 }
 
 // registeredModuleExportsMemberTypes is the set of registered SdkMemberTypes for module_exports
