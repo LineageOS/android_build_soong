@@ -864,7 +864,6 @@ var minSdkVersionAllowlist = func(apiMap map[string]int) map[string]ApiLevel {
 	"libtflite_kernel_utils":                                   30,
 	"libzstd":                                                  30,
 	"net-utils-framework-common":                               29,
-	"permissioncontroller-statsd":                              28,
 	"philox_random_headers":                                    30,
 	"philox_random":                                            30,
 	"tensorflow_headers":                                       30,
