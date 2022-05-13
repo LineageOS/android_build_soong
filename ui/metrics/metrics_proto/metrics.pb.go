@@ -1303,7 +1303,7 @@ type MixedBuildsInfo struct {
 
 	// Modules that are enabled for Mixed Builds.
 	MixedBuildEnabledModules []string `protobuf:"bytes,1,rep,name=mixed_build_enabled_modules,json=mixedBuildEnabledModules" json:"mixed_build_enabled_modules,omitempty"`
-	// Modules that are not currently eligible for MixedBuilds
+	// Modules that are not enabled for MixedBuilds
 	MixedBuildDisabledModules []string `protobuf:"bytes,2,rep,name=mixed_build_disabled_modules,json=mixedBuildDisabledModules" json:"mixed_build_disabled_modules,omitempty"`
 }
 

@@ -50,7 +50,7 @@ func registerApexBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("apex_vndk", vndkApexBundleFactory)
 	ctx.RegisterModuleType("apex_defaults", defaultsFactory)
 	ctx.RegisterModuleType("prebuilt_apex", PrebuiltFactory)
-	ctx.RegisterModuleType("override_apex", overrideApexFactory)
+	ctx.RegisterModuleType("override_apex", OverrideApexFactory)
 	ctx.RegisterModuleType("apex_set", apexSetFactory)
 
 	ctx.PreArchMutators(registerPreArchMutators)
@@ -977,6 +977,7 @@ type ApexInfoMutator interface {
 
 // apexInfoMutator delegates the work of identifying which modules need an ApexInfo and apex
 // specific variant to modules that support the ApexInfoMutator.
+// It also propagates updatable=true to apps of updatable apexes
 func apexInfoMutator(mctx android.TopDownMutatorContext) {
 	if !mctx.Module().Enabled() {
 		return
@@ -984,8 +985,8 @@ func apexInfoMutator(mctx android.TopDownMutatorContext) {
 
 	if a, ok := mctx.Module().(ApexInfoMutator); ok {
 		a.ApexInfoMutator(mctx)
-		return
 	}
+	enforceAppUpdatability(mctx)
 }
 
 // apexStrictUpdatibilityLintMutator propagates strict_updatability_linting to transitive deps of a mainline module
@@ -1012,6 +1013,22 @@ func apexStrictUpdatibilityLintMutator(mctx android.TopDownMutatorContext) {
 			}
 			// visit transitive deps
 			return true
+		})
+	}
+}
+
+// enforceAppUpdatability propagates updatable=true to apps of updatable apexes
+func enforceAppUpdatability(mctx android.TopDownMutatorContext) {
+	if !mctx.Module().Enabled() {
+		return
+	}
+	if apex, ok := mctx.Module().(*apexBundle); ok && apex.Updatable() {
+		// checking direct deps is sufficient since apex->apk is a direct edge, even when inherited via apex_defaults
+		mctx.VisitDirectDeps(func(module android.Module) {
+			// ignore android_test_app
+			if app, ok := module.(*java.AndroidApp); ok {
+				app.SetUpdatable(true)
+			}
 		})
 	}
 }
@@ -2434,6 +2451,7 @@ func DefaultsFactory(props ...interface{}) android.Module {
 type OverrideApex struct {
 	android.ModuleBase
 	android.OverrideModuleBase
+	android.BazelModuleBase
 }
 
 func (o *OverrideApex) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -2442,14 +2460,62 @@ func (o *OverrideApex) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 // override_apex is used to create an apex module based on another apex module by overriding some of
 // its properties.
-func overrideApexFactory() android.Module {
+func OverrideApexFactory() android.Module {
 	m := &OverrideApex{}
 
 	m.AddProperties(&overridableProperties{})
 
 	android.InitAndroidMultiTargetsArchModule(m, android.DeviceSupported, android.MultilibCommon)
 	android.InitOverrideModule(m)
+	android.InitBazelModule(m)
 	return m
+}
+
+func (o *OverrideApex) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+	if ctx.ModuleType() != "override_apex" {
+		return
+	}
+
+	baseApexModuleName := o.OverrideModuleBase.GetOverriddenModuleName()
+	baseModule, baseApexExists := ctx.ModuleFromName(baseApexModuleName)
+	if !baseApexExists {
+		panic(fmt.Errorf("Base apex module doesn't exist: %s", baseApexModuleName))
+	}
+
+	a, baseModuleIsApex := baseModule.(*apexBundle)
+	if !baseModuleIsApex {
+		panic(fmt.Errorf("Base module is not apex module: %s", baseApexModuleName))
+	}
+	attrs, props := convertWithBp2build(a, ctx)
+
+	for _, p := range o.GetProperties() {
+		overridableProperties, ok := p.(*overridableProperties)
+		if !ok {
+			continue
+		}
+		// Key
+		if overridableProperties.Key != nil {
+			attrs.Key = bazel.LabelAttribute{}
+			attrs.Key.SetValue(android.BazelLabelForModuleDepSingle(ctx, *overridableProperties.Key))
+		}
+
+		// Certificate
+		if overridableProperties.Certificate != nil {
+			attrs.Certificate = bazel.LabelAttribute{}
+			attrs.Certificate.SetValue(android.BazelLabelForModuleDepSingle(ctx, *overridableProperties.Certificate))
+		}
+
+		// Prebuilts
+		prebuiltsLabelList := android.BazelLabelForModuleDeps(ctx, overridableProperties.Prebuilts)
+		attrs.Prebuilts = bazel.MakeLabelListAttribute(prebuiltsLabelList)
+
+		// Compressible
+		if overridableProperties.Compressible != nil {
+			attrs.Compressible = bazel.BoolAttribute{Value: overridableProperties.Compressible}
+		}
+	}
+
+	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: o.Name()}, &attrs)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3137,6 +3203,11 @@ func (a *apexBundle) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 		return
 	}
 
+	attrs, props := convertWithBp2build(a, ctx)
+	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: a.Name()}, &attrs)
+}
+
+func convertWithBp2build(a *apexBundle, ctx android.TopDownMutatorContext) (bazelApexBundleAttributes, bazel.BazelTargetModuleProperties) {
 	var manifestLabelAttribute bazel.LabelAttribute
 	if a.properties.Manifest != nil {
 		manifestLabelAttribute.SetValue(android.BazelLabelForModuleSrcSingle(ctx, *a.properties.Manifest))
@@ -3148,8 +3219,15 @@ func (a *apexBundle) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 	}
 
 	var fileContextsLabelAttribute bazel.LabelAttribute
-	if a.properties.File_contexts != nil {
+	if a.properties.File_contexts == nil {
+		// See buildFileContexts(), if file_contexts is not specified the default one is used, which is //system/sepolicy/apex:<module name>-file_contexts
+		fileContextsLabelAttribute.SetValue(android.BazelLabelForModuleDepSingle(ctx, a.Name()+"-file_contexts"))
+	} else if strings.HasPrefix(*a.properties.File_contexts, ":") {
+		// File_contexts is a module
 		fileContextsLabelAttribute.SetValue(android.BazelLabelForModuleDepSingle(ctx, *a.properties.File_contexts))
+	} else {
+		// File_contexts is a file
+		fileContextsLabelAttribute.SetValue(android.BazelLabelForModuleSrcSingle(ctx, *a.properties.File_contexts))
 	}
 
 	// TODO(b/219503907) this would need to be set to a.MinSdkVersionValue(ctx) but
@@ -3207,7 +3285,7 @@ func (a *apexBundle) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 		compressibleAttribute.Value = a.overridableProperties.Compressible
 	}
 
-	attrs := &bazelApexBundleAttributes{
+	attrs := bazelApexBundleAttributes{
 		Manifest:              manifestLabelAttribute,
 		Android_manifest:      androidManifestLabelAttribute,
 		File_contexts:         fileContextsLabelAttribute,
@@ -3228,7 +3306,7 @@ func (a *apexBundle) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 		Bzl_load_location: "//build/bazel/rules/apex:apex.bzl",
 	}
 
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: a.Name()}, attrs)
+	return attrs, props
 }
 
 // The following conversions are based on this table where the rows are the compile_multilib
