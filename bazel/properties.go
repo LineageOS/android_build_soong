@@ -409,6 +409,11 @@ func (ba BoolAttribute) HasConfigurableValues() bool {
 	return false
 }
 
+// SetValue sets value for the no config axis
+func (ba *BoolAttribute) SetValue(value *bool) {
+	ba.SetSelectValue(NoConfigAxis, "", value)
+}
+
 // SetSelectValue sets value for the given axis/config.
 func (ba *BoolAttribute) SetSelectValue(axis ConfigurationAxis, config string, value *bool) {
 	axis.validateConfig(config)

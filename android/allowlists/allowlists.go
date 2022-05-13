@@ -196,6 +196,7 @@ var (
 		"system/libziparchive":                               Bp2BuildDefaultTrueRecursively,
 		"system/logging/liblog":                              Bp2BuildDefaultTrueRecursively,
 		"system/media/audio":                                 Bp2BuildDefaultTrueRecursively,
+		"system/memory/libion":                               Bp2BuildDefaultTrueRecursively,
 		"system/memory/libmemunreachable":                    Bp2BuildDefaultTrueRecursively,
 		"system/sepolicy/apex":                               Bp2BuildDefaultTrueRecursively,
 		"system/timezone/apex":                               Bp2BuildDefaultTrueRecursively,
@@ -255,21 +256,23 @@ var (
 
 	Bp2buildModuleAlwaysConvertList = []string{
 		// cc mainline modules
-		"libnativeloader-headers",
-		"libgui_bufferqueue_sources",
 		"code_coverage.policy",
 		"code_coverage.policy.other",
 		"codec2_soft_exports",
 		"com.android.media.swcodec-ld.config.txt",
-		"libcodec2_headers",
-		"libcodec2_internal",
 		"com.android.media.swcodec-mediaswcodec.rc",
 		"flatbuffer_headers",
 		"gemmlowp_headers",
 		"gl_headers",
-		"libbluetooth-types-header",
 		"libaudioclient_aidl_conversion_util",
 		"libaudioutils_fixedfft",
+		"libbluetooth-types-header",
+		"libcodec2_headers",
+		"libcodec2_internal",
+		"libdmabufheap",
+		"libgui_bufferqueue_sources",
+		"libnativeloader-headers",
+		"libsync",
 
 		//external/avb
 		"avbtool",
