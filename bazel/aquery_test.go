@@ -234,7 +234,6 @@ func TestAqueryMultiArchGenrule(t *testing.T) {
 				OutputPaths: []string{
 					fmt.Sprintf("bazel-out/sourceroot/k8-fastbuild/bin/bionic/libc/syscalls-%s.S", arch),
 				},
-				InputDepsetIds: []int{1},
 				Env: []KeyValuePair{
 					KeyValuePair{Key: "PATH", Value: "/bin:/usr/bin:/usr/local/bin"},
 				},
@@ -248,9 +247,12 @@ func TestAqueryMultiArchGenrule(t *testing.T) {
 		"../sourceroot/bionic/libc/tools/gensyscalls.py",
 		"../bazel_tools/tools/genrule/genrule-setup.sh",
 	}
-	actualFlattenedInputs := flattenDepsets([]int{1}, actualDepsets)
-	if !reflect.DeepEqual(actualFlattenedInputs, expectedFlattenedInputs) {
-		t.Errorf("Expected flattened inputs %v, but got %v", expectedFlattenedInputs, actualFlattenedInputs)
+	// In this example, each depset should have the same expected inputs.
+	for _, actualDepset := range actualDepsets {
+		actualFlattenedInputs := flattenDepsets([]string{actualDepset.ContentHash}, actualDepsets)
+		if !reflect.DeepEqual(actualFlattenedInputs, expectedFlattenedInputs) {
+			t.Errorf("Expected flattened inputs %v, but got %v", expectedFlattenedInputs, actualFlattenedInputs)
+		}
 	}
 }
 
@@ -746,10 +748,9 @@ func TestTransitiveInputDepsets(t *testing.T) {
 
 	expectedBuildStatements := []BuildStatement{
 		BuildStatement{
-			Command:        "/bin/bash -c 'touch bazel-out/sourceroot/k8-fastbuild/bin/testpkg/test_out'",
-			OutputPaths:    []string{"bazel-out/sourceroot/k8-fastbuild/bin/testpkg/test_out"},
-			InputDepsetIds: []int{1},
-			Mnemonic:       "Action",
+			Command:     "/bin/bash -c 'touch bazel-out/sourceroot/k8-fastbuild/bin/testpkg/test_out'",
+			OutputPaths: []string{"bazel-out/sourceroot/k8-fastbuild/bin/testpkg/test_out"},
+			Mnemonic:    "Action",
 		},
 	}
 	assertBuildStatements(t, expectedBuildStatements, actualbuildStatements)
@@ -763,7 +764,8 @@ func TestTransitiveInputDepsets(t *testing.T) {
 	}
 	expectedFlattenedInputs = append(expectedFlattenedInputs, "bazel-out/sourceroot/k8-fastbuild/bin/testpkg/test_root")
 
-	actualFlattenedInputs := flattenDepsets([]int{1}, actualDepsets)
+	actualDepsetHashes := actualbuildStatements[0].InputDepsetHashes
+	actualFlattenedInputs := flattenDepsets(actualDepsetHashes, actualDepsets)
 	if !reflect.DeepEqual(actualFlattenedInputs, expectedFlattenedInputs) {
 		t.Errorf("Expected flattened inputs %v, but got %v", expectedFlattenedInputs, actualFlattenedInputs)
 	}
@@ -844,14 +846,15 @@ func TestMiddlemenAction(t *testing.T) {
 		t.Fatalf("Expected %d build statements, got %d", expected, len(actualBuildStatements))
 	}
 
+	expectedDepsetFiles := [][]string{
+		[]string{"middleinput_one", "middleinput_two"},
+		[]string{"middleinput_one", "middleinput_two", "maininput_one", "maininput_two"},
+	}
+	assertFlattenedDepsets(t, actualDepsets, expectedDepsetFiles)
+
 	bs := actualBuildStatements[0]
 	if len(bs.InputPaths) > 0 {
 		t.Errorf("Expected main action raw inputs to be empty, but got %q", bs.InputPaths)
-	}
-
-	expectedInputDepsets := []int{2}
-	if !reflect.DeepEqual(bs.InputDepsetIds, expectedInputDepsets) {
-		t.Errorf("Expected main action depset IDs %v, but got %v", expectedInputDepsets, bs.InputDepsetIds)
 	}
 
 	expectedOutputs := []string{"output"}
@@ -859,23 +862,8 @@ func TestMiddlemenAction(t *testing.T) {
 		t.Errorf("Expected main action outputs %q, but got %q", expectedOutputs, bs.OutputPaths)
 	}
 
-	expectedAllDepsets := []AqueryDepset{
-		{
-			Id:              1,
-			DirectArtifacts: []string{"middleinput_one", "middleinput_two"},
-		},
-		{
-			Id:                  2,
-			DirectArtifacts:     []string{"maininput_one", "maininput_two"},
-			TransitiveDepSetIds: []int{1},
-		},
-	}
-	if !reflect.DeepEqual(actualDepsets, expectedAllDepsets) {
-		t.Errorf("Expected depsets %v, but got %v", expectedAllDepsets, actualDepsets)
-	}
-
 	expectedFlattenedInputs := []string{"middleinput_one", "middleinput_two", "maininput_one", "maininput_two"}
-	actualFlattenedInputs := flattenDepsets(bs.InputDepsetIds, actualDepsets)
+	actualFlattenedInputs := flattenDepsets(bs.InputDepsetHashes, actualDepsets)
 
 	if !reflect.DeepEqual(actualFlattenedInputs, expectedFlattenedInputs) {
 		t.Errorf("Expected flattened inputs %v, but got %v", expectedFlattenedInputs, actualFlattenedInputs)
@@ -883,27 +871,40 @@ func TestMiddlemenAction(t *testing.T) {
 }
 
 // Returns the contents of given depsets in concatenated post order.
-func flattenDepsets(depsetIdsToFlatten []int, allDepsets []AqueryDepset) []string {
-	depsetsById := map[int]AqueryDepset{}
+func flattenDepsets(depsetHashesToFlatten []string, allDepsets []AqueryDepset) []string {
+	depsetsByHash := map[string]AqueryDepset{}
 	for _, depset := range allDepsets {
-		depsetsById[depset.Id] = depset
+		depsetsByHash[depset.ContentHash] = depset
 	}
 	result := []string{}
-	for _, depsetId := range depsetIdsToFlatten {
-		result = append(result, flattenDepset(depsetId, depsetsById)...)
+	for _, depsetId := range depsetHashesToFlatten {
+		result = append(result, flattenDepset(depsetId, depsetsByHash)...)
 	}
 	return result
 }
 
 // Returns the contents of a given depset in post order.
-func flattenDepset(depsetIdToFlatten int, allDepsets map[int]AqueryDepset) []string {
-	depset := allDepsets[depsetIdToFlatten]
+func flattenDepset(depsetHashToFlatten string, allDepsets map[string]AqueryDepset) []string {
+	depset := allDepsets[depsetHashToFlatten]
 	result := []string{}
-	for _, depsetId := range depset.TransitiveDepSetIds {
+	for _, depsetId := range depset.TransitiveDepSetHashes {
 		result = append(result, flattenDepset(depsetId, allDepsets)...)
 	}
 	result = append(result, depset.DirectArtifacts...)
 	return result
+}
+
+func assertFlattenedDepsets(t *testing.T, actualDepsets []AqueryDepset, expectedDepsetFiles [][]string) {
+	t.Helper()
+	if len(actualDepsets) != len(expectedDepsetFiles) {
+		t.Errorf("Expected %d depsets, but got %d depsets", expectedDepsetFiles, actualDepsets)
+	}
+	for i, actualDepset := range actualDepsets {
+		actualFlattenedInputs := flattenDepsets([]string{actualDepset.ContentHash}, actualDepsets)
+		if !reflect.DeepEqual(actualFlattenedInputs, expectedDepsetFiles[i]) {
+			t.Errorf("Expected depset files: %v, but got %v", expectedDepsetFiles[i], actualFlattenedInputs)
+		}
+	}
 }
 
 func TestSimpleSymlink(t *testing.T) {
