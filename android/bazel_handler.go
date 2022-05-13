@@ -825,14 +825,14 @@ func (c *bazelSingleton) GenerateBuildActions(ctx SingletonContext) {
 
 	for _, depset := range ctx.Config().BazelContext.AqueryDepsets() {
 		var outputs []Path
-		for _, depsetDepId := range depset.TransitiveDepSetIds {
-			otherDepsetName := bazelDepsetName(depsetDepId)
+		for _, depsetDepHash := range depset.TransitiveDepSetHashes {
+			otherDepsetName := bazelDepsetName(depsetDepHash)
 			outputs = append(outputs, PathForPhony(ctx, otherDepsetName))
 		}
 		for _, artifactPath := range depset.DirectArtifacts {
 			outputs = append(outputs, PathForBazelOut(ctx, artifactPath))
 		}
-		thisDepsetName := bazelDepsetName(depset.Id)
+		thisDepsetName := bazelDepsetName(depset.ContentHash)
 		ctx.Build(pctx, BuildParams{
 			Rule:      blueprint.Phony,
 			Outputs:   []WritablePath{PathForPhony(ctx, thisDepsetName)},
@@ -874,8 +874,8 @@ func (c *bazelSingleton) GenerateBuildActions(ctx SingletonContext) {
 		for _, inputPath := range buildStatement.InputPaths {
 			cmd.Implicit(PathForBazelOut(ctx, inputPath))
 		}
-		for _, inputDepsetId := range buildStatement.InputDepsetIds {
-			otherDepsetName := bazelDepsetName(inputDepsetId)
+		for _, inputDepsetHash := range buildStatement.InputDepsetHashes {
+			otherDepsetName := bazelDepsetName(inputDepsetHash)
 			cmd.Implicit(PathForPhony(ctx, otherDepsetName))
 		}
 
@@ -924,6 +924,6 @@ func GetConfigKey(ctx ModuleContext) configKey {
 	}
 }
 
-func bazelDepsetName(depsetId int) string {
-	return fmt.Sprintf("bazel_depset_%d", depsetId)
+func bazelDepsetName(contentHash string) string {
+	return fmt.Sprintf("bazel_depset_%s", contentHash)
 }
