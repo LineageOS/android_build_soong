@@ -558,7 +558,7 @@ func NewConfig(moduleListFile string, runGoTests bool, outDir, soongOutDir strin
 	}
 
 	config.BazelContext, err = NewBazelContext(config)
-	config.bp2buildPackageConfig = bp2buildAllowlist
+	config.bp2buildPackageConfig = getBp2BuildAllowList()
 
 	return Config{config}, err
 }
