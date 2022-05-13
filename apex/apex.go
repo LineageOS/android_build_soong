@@ -3221,33 +3221,6 @@ func makeApexAvailableBaseline() map[string][]string {
 	//
 	// Module separator
 	//
-	m["com.android.permission"] = []string{
-		"car-ui-lib",
-		"iconloader",
-		"kotlin-annotations",
-		"kotlin-stdlib",
-		"kotlin-stdlib-jdk7",
-		"kotlin-stdlib-jdk8",
-		"kotlinx-coroutines-android",
-		"kotlinx-coroutines-android-nodeps",
-		"kotlinx-coroutines-core",
-		"kotlinx-coroutines-core-nodeps",
-		"permissioncontroller-statsd",
-		"GooglePermissionController",
-		"PermissionController",
-		"SettingsLibActionBarShadow",
-		"SettingsLibAppPreference",
-		"SettingsLibBarChartPreference",
-		"SettingsLibLayoutPreference",
-		"SettingsLibProgressBar",
-		"SettingsLibSearchWidget",
-		"SettingsLibSettingsTheme",
-		"SettingsLibRestrictedLockUtils",
-		"SettingsLibHelpUtils",
-	}
-	//
-	// Module separator
-	//
 	m["com.android.runtime"] = []string{
 		"bionic_libc_platform_headers",
 		"libarm-optimized-routines-math",
