@@ -310,7 +310,6 @@ var (
 
 	Bp2buildModuleDoNotConvertList = []string{
 		// cc bugs
-		"libsepol",                                  // TODO(b/207408632): Unsupported case of .l sources in cc library rules
 		"libactivitymanager_aidl",                   // TODO(b/207426160): Unsupported use of aidl sources (via Dactivity_manager_procstate_aidl) in a cc_library
 		"gen-kotlin-build-file.py",                  // TODO(b/198619163) module has same name as source
 		"libgtest_ndk_c++", "libgtest_main_ndk_c++", // TODO(b/201816222): Requires sdk_version support.
@@ -363,15 +362,14 @@ var (
 		"libtombstoned_client_rust_bridge_code", "libtombstoned_client_wrapper", // rust conversions are not supported
 
 		// unconverted deps
-		"CarHTMLViewer",                // depends on unconverted modules android.car-stubs, car-ui-lib
-		"abb",                          // depends on unconverted modules: libcmd, libbinder
-		"adb",                          // depends on unconverted modules: AdbWinApi, libandroidfw, libopenscreen-discovery, libopenscreen-platform-impl, libusb, bin2c_fastdeployagent, AdbWinUsbApi
-		"android_icu4j_srcgen",         // depends on unconverted modules: currysrc
-		"android_icu4j_srcgen_binary",  // depends on unconverted modules: android_icu4j_srcgen, currysrc
-		"apex_manifest_proto_java",     // b/210751803, depends on libprotobuf-java-full
-		"art-script",                   // depends on unconverted modules: dalvikvm, dex2oat
-		"bin2c_fastdeployagent",        // depends on unconverted modules: deployagent
-		"chkcon", "sefcontext_compile", // depends on unconverted modules: libsepol
+		"CarHTMLViewer",                                              // depends on unconverted modules android.car-stubs, car-ui-lib
+		"abb",                                                        // depends on unconverted modules: libcmd, libbinder
+		"adb",                                                        // depends on unconverted modules: AdbWinApi, libandroidfw, libopenscreen-discovery, libopenscreen-platform-impl, libusb, bin2c_fastdeployagent, AdbWinUsbApi
+		"android_icu4j_srcgen",                                       // depends on unconverted modules: currysrc
+		"android_icu4j_srcgen_binary",                                // depends on unconverted modules: android_icu4j_srcgen, currysrc
+		"apex_manifest_proto_java",                                   // b/210751803, depends on libprotobuf-java-full
+		"art-script",                                                 // depends on unconverted modules: dalvikvm, dex2oat
+		"bin2c_fastdeployagent",                                      // depends on unconverted modules: deployagent
 		"com.android.runtime",                                        // depends on unconverted modules: bionic-linker-config, linkerconfig
 		"conv_linker_config",                                         // depends on unconverted modules: linker_config_proto
 		"currysrc",                                                   // depends on unconverted modules: currysrc_org.eclipse, guavalib, jopt-simple-4.9
