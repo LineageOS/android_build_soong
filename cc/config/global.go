@@ -281,7 +281,7 @@ var (
 
 	CStdVersion               = "gnu11"
 	CppStdVersion             = "gnu++17"
-	ExperimentalCStdVersion   = "gnu11"
+	ExperimentalCStdVersion   = "gnu17"
 	ExperimentalCppStdVersion = "gnu++2a"
 
 	// prebuilts/clang default settings.
