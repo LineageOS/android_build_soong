@@ -651,7 +651,19 @@ module_exports_snapshot {
 }
 
 func TestSnapshotWithJavaSystemModules(t *testing.T) {
-	result := android.GroupFixturePreparers(prepareForSdkTestWithJavaSdkLibrary).RunTestWithBp(t, `
+	result := android.GroupFixturePreparers(
+		prepareForSdkTestWithJava,
+		java.PrepareForTestWithJavaDefaultModules,
+		java.PrepareForTestWithJavaSdkLibraryFiles,
+		java.FixtureWithPrebuiltApisAndExtensions(map[string][]string{
+			"31":      {"myjavalib"},
+			"32":      {"myjavalib"},
+			"current": {"myjavalib"},
+		}, map[string][]string{
+			"1": {"myjavalib"},
+			"2": {"myjavalib"},
+		}),
+	).RunTestWithBp(t, `
 		sdk {
 			name: "mysdk",
 			java_header_libs: ["exported-system-module"],
@@ -796,7 +808,7 @@ sdk_snapshot {
 .intermediates/myjavalib.stubs.source/android_common/metalava/myjavalib.stubs.source_api.txt -> sdk_library/public/myjavalib.txt
 .intermediates/myjavalib.stubs.source/android_common/metalava/myjavalib.stubs.source_removed.txt -> sdk_library/public/myjavalib-removed.txt
 `),
-		checkInfoContents(`
+		checkInfoContents(result.Config, `
 [
   {
     "@type": "sdk",
@@ -826,7 +838,16 @@ sdk_snapshot {
   },
   {
     "@type": "java_sdk_library",
-    "@name": "myjavalib"
+    "@name": "myjavalib",
+    "dist_stem": "myjavalib",
+    "scopes": {
+      "public": {
+        "current_api": "sdk_library/public/myjavalib.txt",
+        "latest_api": "out/soong/.intermediates/prebuilts/sdk/myjavalib.api.public.latest/gen/myjavalib.api.public.latest",
+        "latest_removed_api": "out/soong/.intermediates/prebuilts/sdk/myjavalib-removed.api.public.latest/gen/myjavalib-removed.api.public.latest",
+        "removed_api": "sdk_library/public/myjavalib-removed.txt"
+      }
+    }
   },
   {
     "@type": "java_library",
