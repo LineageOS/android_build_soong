@@ -20,6 +20,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/bazel"
+	"android/soong/cc/config"
 
 	"github.com/google/blueprint"
 
@@ -156,7 +157,7 @@ func bp2buildParseStaticOrSharedProps(ctx android.BazelConversionPathContext, mo
 	attrs := staticOrSharedAttributes{}
 
 	setAttrs := func(axis bazel.ConfigurationAxis, config string, props StaticOrSharedProperties) {
-		attrs.Copts.SetSelectValue(axis, config, parseCommandLineFlags(props.Cflags, filterOutStdFlag))
+		attrs.Copts.SetSelectValue(axis, config, parseCommandLineFlags(props.Cflags, true, filterOutStdFlag))
 		attrs.Srcs.SetSelectValue(axis, config, android.BazelLabelForModuleSrc(ctx, props.Srcs))
 		attrs.System_dynamic_deps.SetSelectValue(axis, config, bazelLabelForSharedDeps(ctx, props.System_shared_libs))
 
@@ -326,16 +327,39 @@ func filterOutStdFlag(flag string) bool {
 	return strings.HasPrefix(flag, "-std=")
 }
 
-func parseCommandLineFlags(soongFlags []string, filterOut filterOutFn) []string {
+func filterOutClangUnknownCflags(flag string) bool {
+	for _, f := range config.ClangUnknownCflags {
+		if f == flag {
+			return true
+		}
+	}
+	return false
+}
+
+func parseCommandLineFlags(soongFlags []string, noCoptsTokenization bool, filterOut ...filterOutFn) []string {
 	var result []string
 	for _, flag := range soongFlags {
-		if filterOut != nil && filterOut(flag) {
+		skipFlag := false
+		for _, filter := range filterOut {
+			if filter != nil && filter(flag) {
+				skipFlag = true
+			}
+		}
+		if skipFlag {
 			continue
 		}
 		// Soong's cflags can contain spaces, like `-include header.h`. For
 		// Bazel's copts, split them up to be compatible with the
 		// no_copts_tokenization feature.
-		result = append(result, strings.Split(flag, " ")...)
+		if noCoptsTokenization {
+			result = append(result, strings.Split(flag, " ")...)
+		} else {
+			// Soong's Version Script and Dynamic List Properties are added as flags
+			// to Bazel's linkopts using "($location label)" syntax.
+			// Splitting on spaces would separate this into two different flags
+			// "($ location" and "label)"
+			result = append(result, flag)
+		}
 	}
 	return result
 }
@@ -362,10 +386,10 @@ func (ca *compilerAttributes) bp2buildForAxisAndConfig(ctx android.BazelConversi
 	// overridden. In Bazel we always allow overriding, via flags; however, this can cause
 	// incompatibilities, so we remove "-std=" flags from Cflag properties while leaving it in other
 	// cases.
-	ca.copts.SetSelectValue(axis, config, parseCommandLineFlags(props.Cflags, filterOutStdFlag))
-	ca.asFlags.SetSelectValue(axis, config, parseCommandLineFlags(props.Asflags, nil))
-	ca.conlyFlags.SetSelectValue(axis, config, parseCommandLineFlags(props.Conlyflags, nil))
-	ca.cppFlags.SetSelectValue(axis, config, parseCommandLineFlags(props.Cppflags, nil))
+	ca.copts.SetSelectValue(axis, config, parseCommandLineFlags(props.Cflags, true, filterOutStdFlag, filterOutClangUnknownCflags))
+	ca.asFlags.SetSelectValue(axis, config, parseCommandLineFlags(props.Asflags, true, nil))
+	ca.conlyFlags.SetSelectValue(axis, config, parseCommandLineFlags(props.Conlyflags, true, filterOutClangUnknownCflags))
+	ca.cppFlags.SetSelectValue(axis, config, parseCommandLineFlags(props.Cppflags, true, filterOutClangUnknownCflags))
 	ca.rtti.SetSelectValue(axis, config, props.Rtti)
 }
 
@@ -721,7 +745,7 @@ func (la *linkerAttributes) bp2buildForAxisAndConfig(ctx android.BazelConversion
 		linkerFlags = append(linkerFlags, fmt.Sprintf("-Wl,--dynamic-list,$(location %s)", label.Label))
 	}
 
-	la.linkopts.SetSelectValue(axis, config, linkerFlags)
+	la.linkopts.SetSelectValue(axis, config, parseCommandLineFlags(linkerFlags, false, filterOutClangUnknownCflags))
 	la.useLibcrt.SetSelectValue(axis, config, props.libCrt())
 
 	if axis == bazel.NoConfigAxis {
