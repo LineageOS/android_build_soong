@@ -2038,6 +2038,41 @@ func TestOverrideAndroidAppOverrides(t *testing.T) {
 	}
 }
 
+func TestOverrideAndroidAppWithPrebuilt(t *testing.T) {
+	result := PrepareForTestWithJavaDefaultModules.RunTestWithBp(
+		t, `
+		android_app {
+			name: "foo",
+			srcs: ["a.java"],
+			sdk_version: "current",
+		}
+
+		override_android_app {
+			name: "bar",
+			base: "foo",
+		}
+
+		android_app_import {
+			name: "bar",
+			prefer: true,
+			apk: "bar.apk",
+			presigned: true,
+		}
+		`)
+
+	// An app that has an override that also has a prebuilt should not be hidden.
+	foo := result.ModuleForTests("foo", "android_common")
+	if foo.Module().IsHideFromMake() {
+		t.Errorf("expected foo to have HideFromMake false")
+	}
+
+	// An override that also has a prebuilt should be hidden.
+	barOverride := result.ModuleForTests("foo", "android_common_bar")
+	if !barOverride.Module().IsHideFromMake() {
+		t.Errorf("expected bar override variant of foo to have HideFromMake true")
+	}
+}
+
 func TestOverrideAndroidAppStem(t *testing.T) {
 	ctx, _ := testJava(t, `
 		android_app {
