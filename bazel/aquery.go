@@ -49,7 +49,7 @@ type KeyValuePair struct {
 // AqueryDepset is a depset definition from Bazel's aquery response. This is
 // akin to the `depSetOfFiles` in the response proto, except:
 //   * direct artifacts are enumerated by full path instead of by ID
-//   * has a hash of the depset contents, instead of an int ID (for determinism)
+//   * it has a hash of the depset contents, instead of an int ID (for determinism)
 // A depset is a data structure for efficient transitive handling of artifact
 // paths. A single depset consists of one or more artifact paths and one or
 // more "child" depsets.
