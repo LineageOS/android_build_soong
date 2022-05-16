@@ -99,7 +99,6 @@ type appProperties struct {
 
 	// cc.Coverage related properties
 	PreventInstall    bool `blueprint:"mutated"`
-	HideFromMake      bool `blueprint:"mutated"`
 	IsCoverageVariant bool `blueprint:"mutated"`
 
 	// Whether this app is considered mainline updatable or not. When set to true, this will enforce
@@ -887,10 +886,6 @@ func (a *AndroidApp) IsNativeCoverageNeeded(ctx android.BaseModuleContext) bool 
 
 func (a *AndroidApp) SetPreventInstall() {
 	a.appProperties.PreventInstall = true
-}
-
-func (a *AndroidApp) HideFromMake() {
-	a.appProperties.HideFromMake = true
 }
 
 func (a *AndroidApp) MarkAsCoverageVariant(coverage bool) {
