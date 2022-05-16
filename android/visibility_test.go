@@ -135,7 +135,49 @@ var visibilityTests = []struct {
 					name: "libexample",
 					visibility: ["//visibility:public"],
 				}
-	
+
+				mock_library {
+					name: "libsamepackage",
+					deps: ["libexample"],
+				}
+
+				gen_notice {
+					name: "libexample-notice",
+					for: ["libexample"],
+				}`),
+			"top/nested/Android.bp": []byte(`
+				mock_library {
+					name: "libnested",
+					deps: ["libexample"],
+				}
+
+				gen_notice {
+					name: "nested-notice",
+					for: ["libexample"],
+				}`),
+			"other/Android.bp": []byte(`
+				mock_library {
+					name: "libother",
+					deps: ["libexample"],
+				}
+
+				gen_notice {
+					name: "other-notice",
+					for: ["libexample"],
+				}`),
+		},
+	},
+	{
+		// Verify that //visibility:private allows the module to be referenced from the current
+		// directory only.
+		name: "//visibility:private",
+		fs: MockFS{
+			"top/Android.bp": []byte(`
+				mock_library {
+					name: "libexample",
+					visibility: ["//visibility:private"],
+				}
+
 				mock_library {
 					name: "libsamepackage",
 					deps: ["libexample"],
@@ -151,18 +193,61 @@ var visibilityTests = []struct {
 					deps: ["libexample"],
 				}`),
 		},
+		expectedErrors: []string{
+			`module "libnested" variant "android_common": depends on //top:libexample which is not` +
+				` visible to this module`,
+			`module "libother" variant "android_common": depends on //top:libexample which is not` +
+				` visible to this module`,
+		},
 	},
 	{
 		// Verify that //visibility:private allows the module to be referenced from the current
 		// directory only.
-		name: "//visibility:private",
+		name: "//visibility:private (notices)",
 		fs: MockFS{
 			"top/Android.bp": []byte(`
 				mock_library {
 					name: "libexample",
 					visibility: ["//visibility:private"],
 				}
-	
+
+				mock_library {
+					name: "libsamepackage",
+					deps: ["libexample"],
+				}
+
+				gen_notice {
+					name: "libexample-notice",
+					for: ["libexample"],
+				}`),
+			"top/nested/Android.bp": []byte(`
+				gen_notice {
+					name: "nested-notice",
+					for: ["libexample"],
+				}`),
+			"other/Android.bp": []byte(`
+				gen_notice {
+					name: "other-notice",
+					for: ["libexample"],
+				}`),
+		},
+		expectedErrors: []string{
+			`module "nested-notice" references "//top:libexample" which is not visible to this` +
+				` module\nYou may need to add "//top/nested" to its visibility`,
+			`module "other-notice" references "//top:libexample" which is not visible to this module\n` +
+				`You may need to add "//other" to its visibility`,
+		},
+	},
+	{
+		// Verify that :__pkg__ allows the module to be referenced from the current directory only.
+		name: ":__pkg__",
+		fs: MockFS{
+			"top/Android.bp": []byte(`
+				mock_library {
+					name: "libexample",
+					visibility: [":__pkg__"],
+				}
+
 				mock_library {
 					name: "libsamepackage",
 					deps: ["libexample"],
@@ -187,34 +272,32 @@ var visibilityTests = []struct {
 	},
 	{
 		// Verify that :__pkg__ allows the module to be referenced from the current directory only.
-		name: ":__pkg__",
+		name: ":__pkg__ (notices)",
 		fs: MockFS{
 			"top/Android.bp": []byte(`
 				mock_library {
 					name: "libexample",
 					visibility: [":__pkg__"],
 				}
-	
-				mock_library {
-					name: "libsamepackage",
-					deps: ["libexample"],
+
+				gen_notice {
+					name: "libexample-notice",
+					for: ["libexample"],
 				}`),
 			"top/nested/Android.bp": []byte(`
-				mock_library {
-					name: "libnested",
-					deps: ["libexample"],
+				gen_notice {
+					name: "nested-notice",
+					for: ["libexample"],
 				}`),
 			"other/Android.bp": []byte(`
-				mock_library {
-					name: "libother",
-					deps: ["libexample"],
+				gen_notice {
+					name: "other-notice",
+					for: ["libexample"],
 				}`),
 		},
 		expectedErrors: []string{
-			`module "libnested" variant "android_common": depends on //top:libexample which is not` +
-				` visible to this module`,
-			`module "libother" variant "android_common": depends on //top:libexample which is not` +
-				` visible to this module`,
+			`module "nested-notice" references "//top:libexample" which is not visible to this module`,
+			`module "other-notice" references "//top:libexample" which is not visible to this module`,
 		},
 	},
 	{
@@ -227,7 +310,7 @@ var visibilityTests = []struct {
 					name: "libexample",
 					visibility: ["//top/nested"],
 				}
-	
+
 				mock_library {
 					name: "libsamepackage",
 					deps: ["libexample"],
@@ -256,6 +339,42 @@ var visibilityTests = []struct {
 		},
 	},
 	{
+		// Verify that //top/nested allows the module to be referenced from the current directory and
+		// the top/nested directory only, not a subdirectory of top/nested and not peak directory.
+		name: "//top/nested (notices)",
+		fs: MockFS{
+			"top/Android.bp": []byte(`
+				mock_library {
+					name: "libexample",
+					visibility: ["//top/nested"],
+				}
+
+				gen_notice {
+					name: "libexample-notice",
+					for: ["libexample"],
+				}`),
+			"top/nested/Android.bp": []byte(`
+				gen_notice {
+					name: "nested-notice",
+					for: ["libexample"],
+				}`),
+			"top/nested/again/Android.bp": []byte(`
+				gen_notice {
+					name: "nestedagain-notice",
+					for: ["libexample"],
+				}`),
+			"peak/Android.bp": []byte(`
+				gen_notice {
+					name: "other-notice",
+					for: ["libexample"],
+				}`),
+		},
+		expectedErrors: []string{
+			`module "other-notice" references "//top:libexample" which is not visible to this module`,
+			`module "nestedagain-notice" references "//top:libexample" which is not visible to this module`,
+		},
+	},
+	{
 		// Verify that :__subpackages__ allows the module to be referenced from the current directory
 		// and sub directories but nowhere else.
 		name: ":__subpackages__",
@@ -265,7 +384,7 @@ var visibilityTests = []struct {
 					name: "libexample",
 					visibility: [":__subpackages__"],
 				}
-	
+
 				mock_library {
 					name: "libsamepackage",
 					deps: ["libexample"],
@@ -287,6 +406,36 @@ var visibilityTests = []struct {
 		},
 	},
 	{
+		// Verify that :__subpackages__ allows the module to be referenced from the current directory
+		// and sub directories but nowhere else.
+		name: ":__subpackages__ (notices)",
+		fs: MockFS{
+			"top/Android.bp": []byte(`
+				mock_library {
+					name: "libexample",
+					visibility: [":__subpackages__"],
+				}
+
+				gen_notice {
+					name: "libexample-notice",
+					for: ["libexample"],
+				}`),
+			"top/nested/Android.bp": []byte(`
+				gen_notice {
+					name: "nested-notice",
+					for: ["libexample"],
+				}`),
+			"peak/other/Android.bp": []byte(`
+				gen_notice {
+					name: "other-notice",
+					for: ["libexample"],
+				}`),
+		},
+		expectedErrors: []string{
+			`module "other-notice" references "//top:libexample" which is not visible to this module`,
+		},
+	},
+	{
 		// Verify that //top/nested:__subpackages__ allows the module to be referenced from the current
 		// directory and sub directories but nowhere else.
 		name: "//top/nested:__subpackages__",
@@ -296,7 +445,7 @@ var visibilityTests = []struct {
 					name: "libexample",
 					visibility: ["//top/nested:__subpackages__", "//other"],
 				}
-	
+
 				mock_library {
 					name: "libsamepackage",
 					deps: ["libexample"],
@@ -318,6 +467,36 @@ var visibilityTests = []struct {
 		},
 	},
 	{
+		// Verify that //top/nested:__subpackages__ allows the module to be referenced from the current
+		// directory and sub directories but nowhere else.
+		name: "//top/nested:__subpackages__ (notices)",
+		fs: MockFS{
+			"top/Android.bp": []byte(`
+				mock_library {
+					name: "libexample",
+					visibility: ["//top/nested:__subpackages__", "//other"],
+				}
+
+				gen_notice {
+					name: "libexample-notice",
+					for: ["libexample"],
+				}`),
+			"top/nested/Android.bp": []byte(`
+				gen_notice {
+					name: "nested-notice",
+					for: ["libexample"],
+				}`),
+			"top/other/Android.bp": []byte(`
+				gen_notice {
+					name: "other-notice",
+					for: ["libexample"],
+				}`),
+		},
+		expectedErrors: []string{
+			`module "other-notice" references "//top:libexample" which is not visible to this module`,
+		},
+	},
+	{
 		// Verify that ["//top/nested", "//peak:__subpackages"] allows the module to be referenced from
 		// the current directory, top/nested and peak and all its subpackages.
 		name: `["//top/nested", "//peak:__subpackages__"]`,
@@ -327,7 +506,7 @@ var visibilityTests = []struct {
 					name: "libexample",
 					visibility: ["//top/nested", "//peak:__subpackages__"],
 				}
-	
+
 				mock_library {
 					name: "libsamepackage",
 					deps: ["libexample"],
@@ -345,6 +524,33 @@ var visibilityTests = []struct {
 		},
 	},
 	{
+		// Verify that ["//top/nested", "//peak:__subpackages"] allows the module to be referenced from
+		// the current directory, top/nested and peak and all its subpackages.
+		name: `["//top/nested", "//peak:__subpackages__ (notices)"]`,
+		fs: MockFS{
+			"top/Android.bp": []byte(`
+				mock_library {
+					name: "libexample",
+					visibility: ["//top/nested", "//peak:__subpackages__"],
+				}
+
+				gen_notice {
+					name: "libexample-notice",
+					for: ["libexample"],
+				}`),
+			"top/nested/Android.bp": []byte(`
+				gen_notice {
+					name: "nested-notice",
+					for: ["libexample"],
+				}`),
+			"peak/other/Android.bp": []byte(`
+				gen_notice {
+					name: "other-notice",
+					for: ["libexample"],
+				}`),
+		},
+	},
+	{
 		// Verify that //vendor... cannot be used outside vendor apart from //vendor:__subpackages__
 		name: `//vendor`,
 		fs: MockFS{
@@ -353,7 +559,7 @@ var visibilityTests = []struct {
 					name: "libexample",
 					visibility: ["//vendor:__subpackages__"],
 				}
-	
+
 				mock_library {
 					name: "libsamepackage",
 					visibility: ["//vendor/apps/AcmeSettings"],
@@ -418,6 +624,45 @@ var visibilityTests = []struct {
 		},
 	},
 	{
+		// Check that visibility is the union of the defaults modules.
+		name: "defaults union, basic (notices)",
+		fs: MockFS{
+			"top/Android.bp": []byte(`
+				mock_defaults {
+					name: "libexample_defaults",
+					visibility: ["//other"],
+				}
+				mock_library {
+					name: "libexample",
+					visibility: ["//top/nested"],
+					defaults: ["libexample_defaults"],
+				}
+
+				gen_notice {
+					name: "libexample-notice",
+					for: ["libexample"],
+				}`),
+			"top/nested/Android.bp": []byte(`
+				gen_notice {
+					name: "nested-notice",
+					for: ["libexample"],
+				}`),
+			"other/Android.bp": []byte(`
+				gen_notice {
+					name: "other-notice",
+					for: ["libexample"],
+				}`),
+			"outsider/Android.bp": []byte(`
+				gen_notice {
+					name: "outsider-notice",
+					for: ["libexample"],
+				}`),
+		},
+		expectedErrors: []string{
+			`module "outsider-notice" references "//top:libexample" which is not visible to this module`,
+		},
+	},
+	{
 		name: "defaults union, multiple defaults",
 		fs: MockFS{
 			"top/Android.bp": []byte(`
@@ -456,6 +701,47 @@ var visibilityTests = []struct {
 		expectedErrors: []string{
 			`module "liboutsider" variant "android_common": depends on //top:libexample which is not` +
 				` visible to this module`,
+		},
+	},
+	{
+		name: "defaults union, multiple defaults (notices)",
+		fs: MockFS{
+			"top/Android.bp": []byte(`
+				mock_defaults {
+					name: "libexample_defaults_1",
+					visibility: ["//other"],
+				}
+				mock_defaults {
+					name: "libexample_defaults_2",
+					visibility: ["//top/nested"],
+				}
+				mock_library {
+					name: "libexample",
+					defaults: ["libexample_defaults_1", "libexample_defaults_2"],
+				}
+
+				gen_notice {
+					name: "libexample-notice",
+					for: ["libexample"],
+				}`),
+			"top/nested/Android.bp": []byte(`
+				gen_notice {
+					name: "nested-notice",
+					for: ["libexample"],
+				}`),
+			"other/Android.bp": []byte(`
+				gen_notice {
+					name: "other-notice",
+					for: ["libexample"],
+				}`),
+			"outsider/Android.bp": []byte(`
+				gen_notice {
+					name: "outsider-notice",
+					for: ["libexample"],
+				}`),
+		},
+		expectedErrors: []string{
+			`module "outsider-notice" references "//top:libexample" which is not visible to this module`,
 		},
 	},
 	{
@@ -500,6 +786,29 @@ var visibilityTests = []struct {
 		},
 	},
 	{
+		name: "//visibility:public overriding defaults (notices)",
+		fs: MockFS{
+			"top/Android.bp": []byte(`
+				mock_defaults {
+					name: "libexample_defaults",
+					visibility: ["//namespace"],
+				}
+				mock_library {
+					name: "libexample",
+					visibility: ["//visibility:public"],
+					defaults: ["libexample_defaults"],
+				}`),
+			"outsider/Android.bp": []byte(`
+				gen_notice {
+					name: "outsider-notice",
+					for: ["libexample"],
+				}`),
+		},
+		effectiveVisibility: map[qualifiedModuleName][]string{
+			qualifiedModuleName{pkg: "top", name: "libexample"}: {"//visibility:public"},
+		},
+	},
+	{
 		name: "//visibility:public mixed with other from different defaults 1",
 		fs: MockFS{
 			"top/Android.bp": []byte(`
@@ -523,6 +832,34 @@ var visibilityTests = []struct {
 		},
 	},
 	{
+		name: "//visibility:public mixed with other from different defaults 1",
+		fs: MockFS{
+			"top/Android.bp": []byte(`
+				mock_defaults {
+					name: "libexample_defaults_1",
+					visibility: ["//namespace"],
+				}
+				mock_defaults {
+					name: "libexample_defaults_2",
+					visibility: ["//visibility:public"],
+				}
+				mock_library {
+					name: "libexample",
+					defaults: ["libexample_defaults_1", "libexample_defaults_2"],
+				}
+
+				gen_notice {
+					name: "libexample-notice",
+					for: ["libexample"],
+				}`),
+			"outsider/Android.bp": []byte(`
+				gen_notice {
+					name: "outsider-notice",
+					for: ["libexample"],
+				}`),
+		},
+	},
+	{
 		name: "//visibility:public mixed with other from different defaults 2",
 		fs: MockFS{
 			"top/Android.bp": []byte(`
@@ -542,6 +879,29 @@ var visibilityTests = []struct {
 				mock_library {
 					name: "liboutsider",
 					deps: ["libexample"],
+				}`),
+		},
+	},
+	{
+		name: "//visibility:public mixed with other from different defaults 2 (notices)",
+		fs: MockFS{
+			"top/Android.bp": []byte(`
+				mock_defaults {
+					name: "libexample_defaults_1",
+					visibility: ["//visibility:public"],
+				}
+				mock_defaults {
+					name: "libexample_defaults_2",
+					visibility: ["//namespace"],
+				}
+				mock_library {
+					name: "libexample",
+					defaults: ["libexample_defaults_1", "libexample_defaults_2"],
+				}`),
+			"outsider/Android.bp": []byte(`
+				gen_notice {
+					name: "outsider-notice",
+					for: ["libexample"],
 				}`),
 		},
 	},
@@ -577,6 +937,39 @@ var visibilityTests = []struct {
 				` visible to this module`,
 			`module "libother" variant "android_common": depends on //top:libexample which is not` +
 				` visible to this module`,
+		},
+	},
+	{
+		name: "//visibility:private in defaults (notices)",
+		fs: MockFS{
+			"top/Android.bp": []byte(`
+				mock_defaults {
+					name: "libexample_defaults",
+					visibility: ["//visibility:private"],
+				}
+				mock_library {
+					name: "libexample",
+					defaults: ["libexample_defaults"],
+				}
+
+				gen_notice {
+					name: "libexample-notice",
+					for: ["libexample"],
+				}`),
+			"top/nested/Android.bp": []byte(`
+				gen_notice {
+					name: "nested-notice",
+					for: ["libexample"],
+				}`),
+			"other/Android.bp": []byte(`
+				gen_notice {
+					name: "other-notice",
+					for: ["libexample"],
+				}`),
+		},
+		expectedErrors: []string{
+			`module "nested-notice" references "//top:libexample" which is not visible to this module`,
+			`module "other-notice" references "//top:libexample" which is not visible to this module`,
 		},
 	},
 	{
@@ -706,6 +1099,27 @@ var visibilityTests = []struct {
 		},
 	},
 	{
+		name: "//visibility:override discards //visibility:private (notices)",
+		fs: MockFS{
+			"top/Android.bp": []byte(`
+				mock_defaults {
+					name: "libexample_defaults",
+					visibility: ["//visibility:private"],
+				}
+				mock_library {
+					name: "libexample",
+					// Make this visibility to //other but not //visibility:private
+					visibility: ["//visibility:override", "//other"],
+					defaults: ["libexample_defaults"],
+				}`),
+			"other/Android.bp": []byte(`
+				gen_notice {
+					name: "other-notice",
+					for: ["libexample"],
+				}`),
+		},
+	},
+	{
 		name: "//visibility:override discards //visibility:public",
 		fs: MockFS{
 			"top/Android.bp": []byte(`
@@ -732,6 +1146,35 @@ var visibilityTests = []struct {
 		},
 		expectedErrors: []string{
 			`module "libnamespace" variant "android_common": depends on //top:libexample which is not visible to this module\nYou may need to add "//namespace" to its visibility`,
+		},
+	},
+	{
+		name: "//visibility:override discards //visibility:public (notices)",
+		fs: MockFS{
+			"top/Android.bp": []byte(`
+				mock_defaults {
+					name: "libexample_defaults",
+					visibility: ["//visibility:public"],
+				}
+				mock_library {
+					name: "libexample",
+					// Make this visibility to //other but not //visibility:public
+					visibility: ["//visibility:override", "//other"],
+					defaults: ["libexample_defaults"],
+				}`),
+			"other/Android.bp": []byte(`
+				gen_notice {
+					name: "other-notice",
+					for: ["libexample"],
+				}`),
+			"namespace/Android.bp": []byte(`
+				gen_notice {
+					name: "namespace-notice",
+					for: ["libexample"],
+				}`),
+		},
+		expectedErrors: []string{
+			`module "namespace-notice" references "//top:libexample" which is not visible to this module\nYou may need to add "//namespace" to its visibility`,
 		},
 	},
 	{
@@ -764,6 +1207,35 @@ var visibilityTests = []struct {
 		},
 	},
 	{
+		name: "//visibility:override discards defaults supplied rules (notices)",
+		fs: MockFS{
+			"top/Android.bp": []byte(`
+				mock_defaults {
+					name: "libexample_defaults",
+					visibility: ["//namespace"],
+				}
+				mock_library {
+					name: "libexample",
+					// Make this visibility to //other but not //namespace
+					visibility: ["//visibility:override", "//other"],
+					defaults: ["libexample_defaults"],
+				}`),
+			"other/Android.bp": []byte(`
+				gen_notice {
+					name: "other-notice",
+					for: ["libexample"],
+				}`),
+			"namespace/Android.bp": []byte(`
+				gen_notice {
+					name: "namespace-notice",
+					for: ["libexample"],
+				}`),
+		},
+		expectedErrors: []string{
+			`module "namespace-notice" references "//top:libexample" which is not visible to this module\nYou may need to add "//namespace" to its visibility`,
+		},
+	},
+	{
 		name: "//visibility:override can override //visibility:public with //visibility:private",
 		fs: MockFS{
 			"top/Android.bp": []byte(`
@@ -787,6 +1259,29 @@ var visibilityTests = []struct {
 		},
 	},
 	{
+		name: "//visibility:override can override //visibility:public with //visibility:private (notices)",
+		fs: MockFS{
+			"top/Android.bp": []byte(`
+				mock_defaults {
+					name: "libexample_defaults",
+					visibility: ["//visibility:public"],
+				}
+				mock_library {
+					name: "libexample",
+					visibility: ["//visibility:override", "//visibility:private"],
+					defaults: ["libexample_defaults"],
+				}`),
+			"namespace/Android.bp": []byte(`
+				gen_notice {
+					name: "namespace-notice",
+					for: ["libexample"],
+				}`),
+		},
+		expectedErrors: []string{
+			`module "namespace-notice" references "//top:libexample" which is not visible to this module`,
+		},
+	},
+	{
 		name: "//visibility:override can override //visibility:private with //visibility:public",
 		fs: MockFS{
 			"top/Android.bp": []byte(`
@@ -803,6 +1298,26 @@ var visibilityTests = []struct {
 				mock_library {
 					name: "libnamespace",
 					deps: ["libexample"],
+				}`),
+		},
+	},
+	{
+		name: "//visibility:override can override //visibility:private with //visibility:public (notices)",
+		fs: MockFS{
+			"top/Android.bp": []byte(`
+				mock_defaults {
+					name: "libexample_defaults",
+					visibility: ["//visibility:private"],
+				}
+				mock_library {
+					name: "libexample",
+					visibility: ["//visibility:override", "//visibility:public"],
+					defaults: ["libexample_defaults"],
+				}`),
+			"namespace/Android.bp": []byte(`
+				gen_notice {
+					name: "namespace-notice",
+					for: ["libexample"],
 				}`),
 		},
 	},
@@ -832,6 +1347,33 @@ var visibilityTests = []struct {
 		expectedErrors: []string{
 			`module "liboutsider" variant "android_common": depends on //top:libexample which is not` +
 				` visible to this module`,
+		},
+	},
+	{
+		name: "//visibility:private mixed with itself (notices)",
+		fs: MockFS{
+			"top/Android.bp": []byte(`
+				mock_defaults {
+					name: "libexample_defaults_1",
+					visibility: ["//visibility:private"],
+				}
+				mock_defaults {
+					name: "libexample_defaults_2",
+					visibility: ["//visibility:private"],
+				}
+				mock_library {
+					name: "libexample",
+					visibility: ["//visibility:private"],
+					defaults: ["libexample_defaults_1", "libexample_defaults_2"],
+				}`),
+			"outsider/Android.bp": []byte(`
+				gen_notice {
+					name: "outsider-notice",
+					for: ["libexample"],
+				}`),
+		},
+		expectedErrors: []string{
+			`module "outsider-notice" references "//top:libexample" which is not visible to this module`,
 		},
 	},
 
@@ -903,6 +1445,28 @@ var visibilityTests = []struct {
 		},
 	},
 	{
+		// This test relies on the default visibility being legacy_public.
+		name: "package default_visibility property used when no visibility specified (notices)",
+		fs: MockFS{
+			"top/Android.bp": []byte(`
+				package {
+					default_visibility: ["//visibility:private"],
+				}
+
+				mock_library {
+					name: "libexample",
+				}`),
+			"outsider/Android.bp": []byte(`
+				gen_notice {
+					name: "outsider-notice",
+					for: ["libexample"],
+				}`),
+		},
+		expectedErrors: []string{
+			`module "outsider-notice" references "//top:libexample" which is not visible to this module`,
+		},
+	},
+	{
 		name: "package default_visibility public does not override visibility private",
 		fs: MockFS{
 			"top/Android.bp": []byte(`
@@ -926,6 +1490,28 @@ var visibilityTests = []struct {
 		},
 	},
 	{
+		name: "package default_visibility public does not override visibility private (notices)",
+		fs: MockFS{
+			"top/Android.bp": []byte(`
+				package {
+					default_visibility: ["//visibility:public"],
+				}
+
+				mock_library {
+					name: "libexample",
+					visibility: ["//visibility:private"],
+				}`),
+			"outsider/Android.bp": []byte(`
+				gen_notice {
+					name: "outsider-notice",
+					for: ["libexample"],
+				}`),
+		},
+		expectedErrors: []string{
+			`module "outsider-notice" references "//top:libexample" which is not visible to this module`,
+		},
+	},
+	{
 		name: "package default_visibility private does not override visibility public",
 		fs: MockFS{
 			"top/Android.bp": []byte(`
@@ -941,6 +1527,25 @@ var visibilityTests = []struct {
 				mock_library {
 					name: "liboutsider",
 					deps: ["libexample"],
+				}`),
+		},
+	},
+	{
+		name: "package default_visibility private does not override visibility public (notices)",
+		fs: MockFS{
+			"top/Android.bp": []byte(`
+				package {
+					default_visibility: ["//visibility:private"],
+				}
+
+				mock_library {
+					name: "libexample",
+					visibility: ["//visibility:public"],
+				}`),
+			"outsider/Android.bp": []byte(`
+				gen_notice {
+					name: "outsider-notice",
+					for: ["libexample"],
 				}`),
 		},
 	},
@@ -972,6 +1577,32 @@ var visibilityTests = []struct {
 		},
 	},
 	{
+		name: "package default_visibility :__subpackages__ (notices)",
+		fs: MockFS{
+			"top/Android.bp": []byte(`
+				package {
+					default_visibility: [":__subpackages__"],
+				}
+
+				mock_library {
+					name: "libexample",
+				}`),
+			"top/nested/Android.bp": []byte(`
+				gen_notice {
+					name: "nested-notice",
+					for: ["libexample"],
+				}`),
+			"outsider/Android.bp": []byte(`
+				gen_notice {
+					name: "outsider-notice",
+					for: ["libexample"],
+				}`),
+		},
+		expectedErrors: []string{
+			`module "outsider-notice" references "//top:libexample" which is not visible to this module`,
+		},
+	},
+	{
 		name: "package default_visibility inherited to subpackages",
 		fs: MockFS{
 			"top/Android.bp": []byte(`
@@ -981,7 +1612,7 @@ var visibilityTests = []struct {
 
 				mock_library {
 					name: "libexample",
-          visibility: [":__subpackages__"],
+					visibility: [":__subpackages__"],
 				}`),
 			"top/nested/Android.bp": []byte(`
 				mock_library {
@@ -997,6 +1628,38 @@ var visibilityTests = []struct {
 		expectedErrors: []string{
 			`module "liboutsider" variant "android_common": depends on //top:libexample which is not` +
 				` visible to this module`,
+		},
+	},
+	{
+		name: "package default_visibility inherited to subpackages (notices)",
+		fs: MockFS{
+			"top/Android.bp": []byte(`
+				package {
+					default_visibility: ["//outsider"],
+				}
+
+				mock_library {
+					name: "libexample",
+					visibility: [":__subpackages__"],
+				}`),
+			"top/nested/Android.bp": []byte(`
+				mock_library {
+					name: "libnested",
+					deps: ["libexample"],
+				}
+
+				gen_notice {
+					name: "nested-notice",
+					for: ["libexample"],
+				}`),
+			"outsider/Android.bp": []byte(`
+				gen_notice {
+					name: "outsider-notice",
+					for: ["libexample", "libnested"],
+				}`),
+		},
+		expectedErrors: []string{
+			`module "outsider-notice" references "//top:libexample" which is not visible to this module`,
 		},
 	},
 	{
@@ -1030,6 +1693,41 @@ var visibilityTests = []struct {
 		},
 	},
 	{
+		name: "package default_visibility inherited to subpackages (notices)",
+		fs: MockFS{
+			"top/Android.bp": []byte(`
+				package {
+					default_visibility: ["//visibility:private"],
+				}`),
+			"top/nested/Android.bp": []byte(`
+				package {
+					default_visibility: ["//outsider"],
+				}
+
+				mock_library {
+					name: "libnested",
+				}`),
+			"top/other/Android.bp": []byte(`
+				mock_library {
+					name: "libother",
+				}
+
+				gen_notice {
+					name: "other-notice",
+					for: ["libother"],
+				}`),
+			"outsider/Android.bp": []byte(`
+				gen_notice {
+					name: "outsider-notice",
+					for: ["libother", "libnested"],
+				}`),
+		},
+		expectedErrors: []string{
+			`module "outsider-notice" references "//top/other:libother" which is not visible to this` +
+				` module\nYou may need to add "//outsider" to its visibility`,
+		},
+	},
+	{
 		name: "verify that prebuilt dependencies are ignored for visibility reasons (not preferred)",
 		fs: MockFS{
 			"prebuilts/Android.bp": []byte(`
@@ -1048,6 +1746,28 @@ var visibilityTests = []struct {
 				source {
 					name: "other",
 					deps: [":module"],
+				}`),
+		},
+	},
+	{
+		name: "verify that prebuilt dependencies are ignored for visibility reasons (not preferred) (notices)",
+		fs: MockFS{
+			"prebuilts/Android.bp": []byte(`
+				prebuilt {
+					name: "module",
+					visibility: ["//top/other"],
+				}`),
+			"top/sources/source_file": nil,
+			"top/sources/Android.bp": []byte(`
+				source {
+					name: "module",
+					visibility: ["//top/other"],
+				}`),
+			"top/other/source_file": nil,
+			"top/other/Android.bp": []byte(`
+				gen_notice {
+					name: "other-notice",
+					for: ["module"],
 				}`),
 		},
 	},
@@ -1071,6 +1791,29 @@ var visibilityTests = []struct {
 				source {
 					name: "other",
 					deps: [":module"],
+				}`),
+		},
+	},
+	{
+		name: "verify that prebuilt dependencies are ignored for visibility reasons (preferred) (notices)",
+		fs: MockFS{
+			"prebuilts/Android.bp": []byte(`
+				prebuilt {
+					name: "module",
+					visibility: ["//top/other"],
+					prefer: true,
+				}`),
+			"top/sources/source_file": nil,
+			"top/sources/Android.bp": []byte(`
+				source {
+					name: "module",
+					visibility: ["//top/other"],
+				}`),
+			"top/other/source_file": nil,
+			"top/other/Android.bp": []byte(`
+				gen_notice {
+					name: "other-notice",
+					for: ["module"],
 				}`),
 		},
 	},
@@ -1137,6 +1880,30 @@ var visibilityTests = []struct {
 				}`),
 		},
 	},
+	{
+		name: "automatic visibility inheritance enabled (notices)",
+		fs: MockFS{
+			"top/Android.bp": []byte(`
+				mock_parent {
+					name: "parent",
+					visibility: ["//top/nested"],
+					child: {
+						name: "libchild",
+						visibility: ["//top/other"],
+					},
+				}`),
+			"top/nested/Android.bp": []byte(`
+				gen_notice {
+					name: "nested-notice",
+					for: ["libchild"],
+				}`),
+			"top/other/Android.bp": []byte(`
+				gen_notice {
+					name: "other-notice",
+					for: ["libchild"],
+				}`),
+		},
+	},
 }
 
 func TestVisibility(t *testing.T) {
@@ -1147,6 +1914,7 @@ func TestVisibility(t *testing.T) {
 				// registration order.
 				PrepareForTestWithArchMutator,
 				PrepareForTestWithDefaults,
+				PrepareForTestWithGenNotice,
 				PrepareForTestWithOverrides,
 				PrepareForTestWithPackageModule,
 				PrepareForTestWithPrebuilts,

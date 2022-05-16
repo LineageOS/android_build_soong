@@ -303,6 +303,7 @@ func exemptFromRequiredApplicableLicensesProperty(module Module) bool {
 	switch reflect.TypeOf(module).String() {
 	case "*android.licenseModule": // is a license, doesn't need one
 	case "*android.licenseKindModule": // is a license, doesn't need one
+	case "*android.genNoticeModule": // contains license texts as data
 	case "*android.NamespaceModule": // just partitions things, doesn't add anything
 	case "*android.soongConfigModuleTypeModule": // creates aliases for modules with licenses
 	case "*android.soongConfigModuleTypeImport": // creates aliases for modules with licenses
