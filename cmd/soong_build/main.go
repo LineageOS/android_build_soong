@@ -139,7 +139,7 @@ func runMixedModeBuild(configuration android.Config, ctx *android.Context, extra
 	bazelHook := func() error {
 		ctx.EventHandler.Begin("bazel")
 		defer ctx.EventHandler.End("bazel")
-		return configuration.BazelContext.InvokeBazel()
+		return configuration.BazelContext.InvokeBazel(configuration)
 	}
 	ctx.SetBeforePrepareBuildActionsHook(bazelHook)
 

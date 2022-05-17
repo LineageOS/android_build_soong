@@ -55,6 +55,8 @@ type staticOrSharedAttributes struct {
 
 	Enabled bazel.BoolAttribute
 
+	Native_coverage bazel.BoolAttribute
+
 	sdkAttributes
 }
 
@@ -567,9 +569,14 @@ func bp2BuildParseBaseProps(ctx android.Bp2buildMutatorContext, module *Module) 
 			}
 		}
 	}
-
 	compilerAttrs.convertStlProps(ctx, module)
 	(&linkerAttrs).convertStripProps(ctx, module)
+
+	if module.coverage != nil && module.coverage.Properties.Native_coverage != nil &&
+		!Bool(module.coverage.Properties.Native_coverage) {
+		// Native_coverage is arch neutral
+		(&linkerAttrs).features.Append(bazel.MakeStringListAttribute([]string{"-coverage"}))
+	}
 
 	productVariableProps := android.ProductVariableProperties(ctx)
 

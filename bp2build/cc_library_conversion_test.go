@@ -959,11 +959,12 @@ func TestCcLibraryFeatures(t *testing.T) {
 		"features": `[
         "disable_pack_relocations",
         "-no_undefined_symbols",
+        "-coverage",
     ]`,
 		"srcs": `["a.cpp"]`,
 	})...)
 	expected_targets = append(expected_targets, makeCcLibraryTargets("b", attrNameToString{
-		"features": `select({
+		"features": `["-coverage"] + select({
         "//build/bazel/platforms/arch:x86_64": [
             "disable_pack_relocations",
             "-no_undefined_symbols",
@@ -994,6 +995,7 @@ cc_library {
     pack_relocations: false,
     allow_undefined_symbols: true,
     include_build_directory: false,
+    native_coverage: false,
 }
 
 cc_library {
@@ -1006,6 +1008,7 @@ cc_library {
         },
     },
     include_build_directory: false,
+    native_coverage: false,
 }
 
 cc_library {
