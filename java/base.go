@@ -204,6 +204,10 @@ type DeviceProperties struct {
 	// Defaults to empty string "". See sdk_version for possible values.
 	Max_sdk_version *string
 
+	// if not blank, set the maxSdkVersion properties of permission and uses-permission tags.
+	// Defaults to empty string "". See sdk_version for possible values.
+	Replace_max_sdk_version_placeholder *string
+
 	// if not blank, set the targetSdkVersion in the AndroidManifest.xml.
 	// Defaults to sdk_version if not set. See sdk_version for possible values.
 	Target_sdk_version *string
@@ -647,6 +651,11 @@ func (j *Module) MaxSdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
 	// SdkSpecFrom returns SdkSpecPrivate for this, which may be confusing.
 	// TODO(b/208456999): ideally MaxSdkVersion should be an ApiLevel and not SdkSpec.
 	return android.SdkSpecFrom(ctx, maxSdkVersion)
+}
+
+func (j *Module) ReplaceMaxSdkVersionPlaceholder(ctx android.EarlyModuleContext) android.SdkSpec {
+	replaceMaxSdkVersionPlaceholder := proptools.StringDefault(j.deviceProperties.Replace_max_sdk_version_placeholder, "")
+	return android.SdkSpecFrom(ctx, replaceMaxSdkVersionPlaceholder)
 }
 
 func (j *Module) MinSdkVersionString() string {
