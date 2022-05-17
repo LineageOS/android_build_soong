@@ -110,6 +110,18 @@ func RemoveOptionalPrebuiltPrefix(name string) string {
 	return strings.TrimPrefix(name, "prebuilt_")
 }
 
+// RemoveOptionalPrebuiltPrefixFromBazelLabel removes the "prebuilt_" prefix from the *target name* of a Bazel label.
+// This differs from RemoveOptionalPrebuiltPrefix in that it does not remove it from the start of the string, but
+// instead removes it from the target name itself.
+func RemoveOptionalPrebuiltPrefixFromBazelLabel(label string) string {
+	splitLabel := strings.Split(label, ":")
+	bazelModuleNameNoPrebuilt := RemoveOptionalPrebuiltPrefix(splitLabel[1])
+	return strings.Join([]string{
+		splitLabel[0],
+		bazelModuleNameNoPrebuilt,
+	}, ":")
+}
+
 func (p *Prebuilt) Name(name string) string {
 	return PrebuiltNameFromSource(name)
 }
