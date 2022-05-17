@@ -169,3 +169,29 @@ EOF
 }
 
 test_cc_correctness
+
+# Regression test for the following failure during symlink forest creation:
+#
+#   Cannot stat '/tmp/st.rr054/foo/bar/unresolved_symlink': stat /tmp/st.rr054/foo/bar/unresolved_symlink: no such file or directory
+#
+function test_bp2build_null_build_with_unresolved_symlink_in_source() {
+  setup
+
+  mkdir -p foo/bar
+  ln -s /tmp/non-existent foo/bar/unresolved_symlink
+  cat > foo/bar/Android.bp <<'EOF'
+filegroup {
+    name: "fg",
+    srcs: ["unresolved_symlink/non-existent-file.txt"],
+  }
+EOF
+
+  run_soong bp2build
+
+  dest=$(readlink -f out/soong/workspace/foo/bar/unresolved_symlink)
+  if [[ "$dest" != "/tmp/non-existent" ]]; then
+    fail "expected to plant an unresolved symlink out/soong/workspace/foo/bar/unresolved_symlink that resolves to /tmp/non-existent"
+  fi
+}
+
+test_bp2build_null_build_with_unresolved_symlink_in_source

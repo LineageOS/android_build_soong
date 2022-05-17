@@ -127,6 +127,10 @@ function create_mock_bazel() {
 }
 
 run_bazel() {
+  # Remove the ninja_build output marker file to communicate to buildbot that this is not a regular Ninja build, and its
+  # output should not be parsed as such.
+  rm -rf out/ninja_build
+
   tools/bazel "$@"
 }
 

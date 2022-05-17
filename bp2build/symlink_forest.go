@@ -95,13 +95,19 @@ func isDir(path string, fi os.FileInfo) bool {
 		return fi.IsDir()
 	}
 
-	fi2, err := os.Stat(path)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Cannot stat '%s': %s\n", path, err)
+	fi2, statErr := os.Stat(path)
+	if statErr == nil {
+		return fi2.IsDir()
+	}
+
+	// Check if this is a dangling symlink. If so, treat it like a file, not a dir.
+	_, lstatErr := os.Lstat(path)
+	if lstatErr != nil {
+		fmt.Fprintf(os.Stderr, "Cannot stat or lstat '%s': %s\n%s\n", path, statErr, lstatErr)
 		os.Exit(1)
 	}
 
-	return fi2.IsDir()
+	return false
 }
 
 // Recursively plants a symlink forest at forestDir. The symlink tree will
