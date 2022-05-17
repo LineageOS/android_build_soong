@@ -206,3 +206,49 @@ func TestAndroidTestHelperApp_LocalDisableTestConfig(t *testing.T) {
 		t.Errorf("Unexpected flag value - expected: %q, actual: %q", expected, actual)
 	}
 }
+
+func TestGetOverriddenPackages(t *testing.T) {
+	ctx, _ := testJava(
+		t, `
+		android_app {
+			name: "foo",
+			srcs: ["a.java"],
+			sdk_version: "current",
+			overrides: ["qux"]
+		}
+
+		override_android_app {
+			name: "foo_override",
+			base: "foo",
+			overrides: ["bar"]
+		}
+		`)
+
+	expectedVariants := []struct {
+		name        string
+		moduleName  string
+		variantName string
+		overrides   []string
+	}{
+		{
+			name:        "foo",
+			moduleName:  "foo",
+			variantName: "android_common",
+			overrides:   []string{"qux"},
+		},
+		{
+			name:        "foo",
+			moduleName:  "foo_override",
+			variantName: "android_common_foo_override",
+			overrides:   []string{"bar", "foo"},
+		},
+	}
+
+	for _, expected := range expectedVariants {
+		mod := ctx.ModuleForTests(expected.name, expected.variantName).Module()
+		entries := android.AndroidMkEntriesForTest(t, ctx, mod)[0]
+		actual := entries.EntryMap["LOCAL_OVERRIDES_PACKAGES"]
+
+		android.AssertDeepEquals(t, "overrides property", expected.overrides, actual)
+	}
+}

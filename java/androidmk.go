@@ -424,8 +424,8 @@ func (app *AndroidApp) AndroidMkEntries() []android.AndroidMkEntries {
 
 func (a *AndroidApp) getOverriddenPackages() []string {
 	var overridden []string
-	if len(a.appProperties.Overrides) > 0 {
-		overridden = append(overridden, a.appProperties.Overrides...)
+	if len(a.overridableAppProperties.Overrides) > 0 {
+		overridden = append(overridden, a.overridableAppProperties.Overrides...)
 	}
 	// When APK name is overridden via PRODUCT_PACKAGE_NAME_OVERRIDES
 	// ensure that the original name is overridden.
