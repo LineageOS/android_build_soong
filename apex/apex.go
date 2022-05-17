@@ -623,6 +623,7 @@ func makeApexAvailableBaseline() map[string][]string {
 		"android.hardware.wifi.supplicant-V1.1-java",
 		"android.hardware.wifi.supplicant-V1.2-java",
 		"android.hardware.wifi.supplicant-V1.3-java",
+		"vendor.nvidia.hardware.nvwifi-V2.0-java",
 		"android.hidl.base-V1.0-java",
 		"android.hidl.manager-V1.0-java",
 		"android.hidl.manager-V1.1-java",
