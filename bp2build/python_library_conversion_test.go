@@ -2,6 +2,7 @@ package bp2build
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"android/soong/android"
@@ -16,6 +17,8 @@ type pythonLibBp2BuildTestCase struct {
 	filesystem           map[string]string
 	blueprint            string
 	expectedBazelTargets []testBazelTarget
+	dir                  string
+	expectedError        error
 }
 
 func convertPythonLibTestCaseToBp2build_Host(tc pythonLibBp2BuildTestCase) bp2buildTestCase {
@@ -34,11 +37,19 @@ func convertPythonLibTestCaseToBp2build(tc pythonLibBp2BuildTestCase) bp2buildTe
 	for _, t := range tc.expectedBazelTargets {
 		bp2BuildTargets = append(bp2BuildTargets, makeBazelTarget(t.typ, t.name, t.attrs))
 	}
+	// Copy the filesystem so that we can change stuff in it later without it
+	// affecting the original pythonLibBp2BuildTestCase
+	filesystemCopy := make(map[string]string)
+	for k, v := range tc.filesystem {
+		filesystemCopy[k] = v
+	}
 	return bp2buildTestCase{
 		description:          tc.description,
-		filesystem:           tc.filesystem,
+		filesystem:           filesystemCopy,
 		blueprint:            tc.blueprint,
 		expectedBazelTargets: bp2BuildTargets,
+		dir:                  tc.dir,
+		expectedErr:          tc.expectedError,
 	}
 }
 
@@ -47,6 +58,11 @@ func runPythonLibraryTestCase(t *testing.T, tc pythonLibBp2BuildTestCase) {
 	testCase := convertPythonLibTestCaseToBp2build(tc)
 	testCase.description = fmt.Sprintf(testCase.description, "python_library")
 	testCase.blueprint = fmt.Sprintf(testCase.blueprint, "python_library")
+	for name, contents := range testCase.filesystem {
+		if strings.HasSuffix(name, "Android.bp") {
+			testCase.filesystem[name] = fmt.Sprintf(contents, "python_library")
+		}
+	}
 	testCase.moduleTypeUnderTest = "python_library"
 	testCase.moduleTypeUnderTestFactory = python.PythonLibraryFactory
 
@@ -58,6 +74,11 @@ func runPythonLibraryHostTestCase(t *testing.T, tc pythonLibBp2BuildTestCase) {
 	testCase := convertPythonLibTestCaseToBp2build_Host(tc)
 	testCase.description = fmt.Sprintf(testCase.description, "python_library_host")
 	testCase.blueprint = fmt.Sprintf(testCase.blueprint, "python_library_host")
+	for name, contents := range testCase.filesystem {
+		if strings.HasSuffix(name, "Android.bp") {
+			testCase.filesystem[name] = fmt.Sprintf(contents, "python_library_host")
+		}
+	}
 	testCase.moduleTypeUnderTest = "python_library_host"
 	testCase.moduleTypeUnderTestFactory = python.PythonLibraryHostFactory
 	runBp2BuildTestCase(t, func(ctx android.RegistrationContext) {
@@ -109,6 +130,7 @@ func TestSimplePythonLib(t *testing.T) {
         "b/d.py",
     ]`,
 						"srcs_version": `"PY3"`,
+						"imports":      `["."]`,
 					},
 				},
 			},
@@ -136,6 +158,7 @@ func TestSimplePythonLib(t *testing.T) {
 					attrs: attrNameToString{
 						"srcs":         `["a.py"]`,
 						"srcs_version": `"PY2"`,
+						"imports":      `["."]`,
 					},
 				},
 			},
@@ -163,6 +186,7 @@ func TestSimplePythonLib(t *testing.T) {
 					attrs: attrNameToString{
 						"srcs":         `["a.py"]`,
 						"srcs_version": `"PY3"`,
+						"imports":      `["."]`,
 					},
 				},
 			},
@@ -189,10 +213,53 @@ func TestSimplePythonLib(t *testing.T) {
 					typ:  "py_library",
 					name: "foo",
 					attrs: attrNameToString{
-						"srcs": `["a.py"]`,
+						"srcs":    `["a.py"]`,
+						"imports": `["."]`,
 					},
 				},
 			},
+		},
+		{
+			description: "%s: pkg_path in a subdirectory of the same name converts correctly",
+			dir:         "mylib/subpackage",
+			filesystem: map[string]string{
+				"mylib/subpackage/a.py": "",
+				"mylib/subpackage/Android.bp": `%s {
+				name: "foo",
+				srcs: ["a.py"],
+				pkg_path: "mylib/subpackage",
+
+				bazel_module: { bp2build_available: true },
+			}`,
+			},
+			blueprint: `%s {name: "bar"}`,
+			expectedBazelTargets: []testBazelTarget{
+				{
+					// srcs_version is PY2ANDPY3 by default.
+					typ:  "py_library",
+					name: "foo",
+					attrs: attrNameToString{
+						"srcs":         `["a.py"]`,
+						"imports":      `["../.."]`,
+						"srcs_version": `"PY3"`,
+					},
+				},
+			},
+		},
+		{
+			description: "%s: pkg_path in a subdirectory of a different name fails",
+			dir:         "mylib/subpackage",
+			filesystem: map[string]string{
+				"mylib/subpackage/a.py": "",
+				"mylib/subpackage/Android.bp": `%s {
+				name: "foo",
+				srcs: ["a.py"],
+				pkg_path: "mylib/subpackage2",
+				bazel_module: { bp2build_available: true },
+			}`,
+			},
+			blueprint:     `%s {name: "bar"}`,
+			expectedError: fmt.Errorf("Currently, bp2build only supports pkg_paths that are the same as the folders the Android.bp file is in."),
 		},
 	}
 
@@ -232,6 +299,7 @@ func TestPythonArchVariance(t *testing.T) {
         "//conditions:default": [],
     })`,
 					"srcs_version": `"PY3"`,
+					"imports":      `["."]`,
 				},
 			},
 		},
