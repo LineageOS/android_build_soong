@@ -968,23 +968,21 @@ func sanitizerDepsMutator(t SanitizerType) func(android.TopDownMutatorContext) {
 					return true
 				})
 			}
-		} else if sanitizeable, ok := mctx.Module().(Sanitizeable); ok {
+		} else if jniSanitizeable, ok := mctx.Module().(JniSanitizeable); ok {
 			// If it's a Java module with native dependencies through jni,
 			// set the sanitizer for them
-			if jniSanitizeable, ok := mctx.Module().(JniSanitizeable); ok {
-				if jniSanitizeable.IsSanitizerEnabledForJni(mctx, t.name()) {
-					mctx.VisitDirectDeps(func(child android.Module) {
-						if c, ok := child.(PlatformSanitizeable); ok &&
-							mctx.OtherModuleDependencyTag(child) == JniFuzzLibTag &&
-							c.SanitizePropDefined() &&
-							!c.SanitizeNever() &&
-							!c.IsSanitizerExplicitlyDisabled(t) {
-							c.SetSanitizeDep(true)
-						}
-					})
-				}
+			if jniSanitizeable.IsSanitizerEnabledForJni(mctx, t.name()) {
+				mctx.VisitDirectDeps(func(child android.Module) {
+					if c, ok := child.(PlatformSanitizeable); ok &&
+						mctx.OtherModuleDependencyTag(child) == JniFuzzLibTag &&
+						c.SanitizePropDefined() &&
+						!c.SanitizeNever() &&
+						!c.IsSanitizerExplicitlyDisabled(t) {
+						c.SetSanitizeDep(true)
+					}
+				})
 			}
-
+		} else if sanitizeable, ok := mctx.Module().(Sanitizeable); ok {
 			// If an APEX module includes a lib which is enabled for a sanitizer T, then
 			// the APEX module is also enabled for the same sanitizer type.
 			mctx.VisitDirectDeps(func(child android.Module) {
@@ -1529,12 +1527,10 @@ func enableMinimalRuntime(sanitize *sanitize) bool {
 	if !Bool(sanitize.Properties.Sanitize.Address) &&
 		!Bool(sanitize.Properties.Sanitize.Hwaddress) &&
 		!Bool(sanitize.Properties.Sanitize.Fuzzer) &&
-
 		(Bool(sanitize.Properties.Sanitize.Integer_overflow) ||
 			len(sanitize.Properties.Sanitize.Misc_undefined) > 0 ||
 			Bool(sanitize.Properties.Sanitize.Undefined) ||
 			Bool(sanitize.Properties.Sanitize.All_undefined)) &&
-
 		!(Bool(sanitize.Properties.Sanitize.Diag.Integer_overflow) ||
 			Bool(sanitize.Properties.Sanitize.Diag.Cfi) ||
 			Bool(sanitize.Properties.Sanitize.Diag.Undefined) ||
