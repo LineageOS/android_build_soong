@@ -49,6 +49,7 @@ bootstrap_go_package {
         "expand.go",
         "filegroup.go",
         "fixture.go",
+        "gen_notice.go",
         "hooks.go",
         "image.go",
         "license.go",
