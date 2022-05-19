@@ -49,8 +49,8 @@ type SanitizeProperties struct {
 			Memtag_heap *bool `android:"arch_variant"`
 		}
 	}
-	SanitizerEnabled bool `blueprint:"mutated"`
-	SanitizeDep      bool `blueprint:"mutated"`
+	SanitizerEnabled bool               `blueprint:"mutated"`
+	SanitizeDepTypes []cc.SanitizerType `blueprint:"mutated"`
 
 	// Used when we need to place libraries in their own directory, such as ASAN.
 	InSanitizerDir bool `blueprint:"mutated"`
@@ -444,8 +444,14 @@ func (mod *Module) IsSanitizerExplicitlyDisabled(t cc.SanitizerType) bool {
 	return mod.sanitize.isSanitizerExplicitlyDisabled(t)
 }
 
-func (mod *Module) SanitizeDep() bool {
-	return mod.sanitize.Properties.SanitizeDep
+func (mod *Module) SanitizeDep(t cc.SanitizerType) bool {
+	for _, e := range mod.sanitize.Properties.SanitizeDepTypes {
+		if t == e {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (mod *Module) SetSanitizer(t cc.SanitizerType, b bool) {
@@ -454,8 +460,10 @@ func (mod *Module) SetSanitizer(t cc.SanitizerType, b bool) {
 	}
 }
 
-func (mod *Module) SetSanitizeDep(b bool) {
-	mod.sanitize.Properties.SanitizeDep = b
+func (c *Module) SetSanitizeDep(t cc.SanitizerType) {
+	if !c.SanitizeDep(t) {
+		c.sanitize.Properties.SanitizeDepTypes = append(c.sanitize.Properties.SanitizeDepTypes, t)
+	}
 }
 
 func (mod *Module) StaticallyLinked() bool {
