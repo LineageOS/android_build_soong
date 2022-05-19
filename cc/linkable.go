@@ -22,15 +22,15 @@ type PlatformSanitizeable interface {
 	// than left undefined.
 	IsSanitizerExplicitlyDisabled(t SanitizerType) bool
 
-	// SanitizeDep returns the value of the SanitizeDep flag, which is set if a module is a dependency of a
-	// sanitized module.
-	SanitizeDep() bool
+	// SanitizeDep returns true if the module is statically linked into another that is sanitized
+	// with the given sanitizer.
+	SanitizeDep(t SanitizerType) bool
+
+	// SetSanitizeDep marks a module as a static dependency of another module to be sanitized.
+	SetSanitizeDep(t SanitizerType)
 
 	// SetSanitizer enables or disables the specified sanitizer type if it's supported, otherwise this should panic.
 	SetSanitizer(t SanitizerType, b bool)
-
-	// SetSanitizerDep returns true if the module is statically linked.
-	SetSanitizeDep(b bool)
 
 	// StaticallyLinked returns true if the module is statically linked.
 	StaticallyLinked() bool
