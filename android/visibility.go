@@ -234,7 +234,7 @@ func RegisterVisibilityRuleEnforcer(ctx RegisterMutatorsContext) {
 
 // Checks the per-module visibility rule lists before defaults expansion.
 func visibilityRuleChecker(ctx BottomUpMutatorContext) {
-	qualified := createQualifiedModuleName(ctx)
+	qualified := createQualifiedModuleName(ctx.ModuleName(), ctx.ModuleDir())
 	if m, ok := ctx.Module().(Module); ok {
 		visibilityProperties := m.visibilityProperties()
 		for _, p := range visibilityProperties {
@@ -435,7 +435,7 @@ func visibilityRuleEnforcer(ctx TopDownMutatorContext) {
 		return
 	}
 
-	qualified := createQualifiedModuleName(ctx)
+	qualified := createQualifiedModuleName(ctx.ModuleName(), ctx.ModuleDir())
 
 	// Visit all the dependencies making sure that this module has access to them all.
 	ctx.VisitDirectDeps(func(dep Module) {
@@ -486,9 +486,7 @@ func effectiveVisibilityRules(config Config, qualified qualifiedModuleName) comp
 	return rule
 }
 
-func createQualifiedModuleName(ctx BaseModuleContext) qualifiedModuleName {
-	moduleName := ctx.ModuleName()
-	dir := ctx.ModuleDir()
+func createQualifiedModuleName(moduleName, dir string) qualifiedModuleName {
 	qualified := qualifiedModuleName{dir, moduleName}
 	return qualified
 }
