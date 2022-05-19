@@ -592,12 +592,14 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	j.checkSdkVersions(ctx)
-	j.dexpreopter.installPath = j.dexpreopter.getInstallPath(
-		ctx, android.PathForModuleInstall(ctx, "framework", j.Stem()+".jar"))
-	j.dexpreopter.isSDKLibrary = j.deviceProperties.IsSDKLibrary
-	setUncompressDex(ctx, &j.dexpreopter, &j.dexer)
-	j.dexpreopter.uncompressedDex = *j.dexProperties.Uncompress_dex
-	j.classLoaderContexts = j.usesLibrary.classLoaderContextForUsesLibDeps(ctx)
+	if ctx.Device() {
+		j.dexpreopter.installPath = j.dexpreopter.getInstallPath(
+			ctx, android.PathForModuleInstall(ctx, "framework", j.Stem()+".jar"))
+		j.dexpreopter.isSDKLibrary = j.deviceProperties.IsSDKLibrary
+		setUncompressDex(ctx, &j.dexpreopter, &j.dexer)
+		j.dexpreopter.uncompressedDex = *j.dexProperties.Uncompress_dex
+		j.classLoaderContexts = j.usesLibrary.classLoaderContextForUsesLibDeps(ctx)
+	}
 	j.compile(ctx, nil)
 
 	// Collect the module directory for IDE info in java/jdeps.go.
