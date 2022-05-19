@@ -957,9 +957,10 @@ func unzipRefDump(ctx android.ModuleContext, zippedRefDump android.Path, baseNam
 	return outputFile
 }
 
-// sourceAbiDiff registers a build statement to compare linked sAbi dump files (.ldump).
+// sourceAbiDiff registers a build statement to compare linked sAbi dump files (.lsdump).
 func sourceAbiDiff(ctx android.ModuleContext, inputDump android.Path, referenceDump android.Path,
-	baseName, exportedHeaderFlags string, checkAllApis, isLlndk, isNdk, isVndkExt bool) android.OptionalPath {
+	baseName, exportedHeaderFlags string, diffFlags []string,
+	checkAllApis, isLlndk, isNdk, isVndkExt bool) android.OptionalPath {
 
 	outputFile := android.PathForModuleOut(ctx, baseName+".abidiff")
 	libName := strings.TrimSuffix(baseName, filepath.Ext(baseName))
@@ -990,6 +991,8 @@ func sourceAbiDiff(ctx android.ModuleContext, inputDump android.Path, referenceD
 	if isVndkExt {
 		extraFlags = append(extraFlags, "-allow-extensions")
 	}
+	// TODO(b/232891473): Simplify the above logic with diffFlags.
+	extraFlags = append(extraFlags, diffFlags...)
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        sAbiDiff,
