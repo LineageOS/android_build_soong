@@ -17,6 +17,7 @@ package cc
 import (
 	"path/filepath"
 
+	"android/soong/bazel/cquery"
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
@@ -562,25 +563,32 @@ func (binary *binaryDecorator) verifyHostBionicLinker(ctx ModuleContext, in, lin
 }
 
 type ccBinaryBazelHandler struct {
-	android.BazelHandler
+	BazelHandler
 
 	module *Module
 }
 
-func (handler *ccBinaryBazelHandler) GenerateBazelBuildActions(ctx android.ModuleContext, label string) bool {
+func (handler *ccBinaryBazelHandler) QueueBazelCall(ctx android.BaseModuleContext, label string) {
 	bazelCtx := ctx.Config().BazelContext
-	filePaths, ok := bazelCtx.GetOutputFiles(label, android.GetConfigKey(ctx))
-	if ok {
-		if len(filePaths) != 1 {
-			ctx.ModuleErrorf("expected exactly one output file for '%s', but got %s", label, filePaths)
-			return false
-		}
-		outputFilePath := android.PathForBazelOut(ctx, filePaths[0])
-		handler.module.outputFile = android.OptionalPathForPath(outputFilePath)
-		// TODO(b/220164721): We need to decide if we should return the stripped as the unstripped.
-		handler.module.linker.(*binaryDecorator).unstrippedOutputFile = outputFilePath
+	bazelCtx.QueueBazelRequest(label, cquery.GetOutputFiles, android.GetConfigKey(ctx))
+}
+
+func (handler *ccBinaryBazelHandler) ProcessBazelQueryResponse(ctx android.ModuleContext, label string) {
+	bazelCtx := ctx.Config().BazelContext
+	filePaths, err := bazelCtx.GetOutputFiles(label, android.GetConfigKey(ctx))
+	if err != nil {
+		ctx.ModuleErrorf(err.Error())
+		return
 	}
-	return ok
+
+	if len(filePaths) != 1 {
+		ctx.ModuleErrorf("expected exactly one output file for '%s', but got %s", label, filePaths)
+		return
+	}
+	outputFilePath := android.PathForBazelOut(ctx, filePaths[0])
+	handler.module.outputFile = android.OptionalPathForPath(outputFilePath)
+	// TODO(b/220164721): We need to decide if we should return the stripped as the unstripped.
+	handler.module.linker.(*binaryDecorator).unstrippedOutputFile = outputFilePath
 }
 
 func binaryBp2build(ctx android.TopDownMutatorContext, m *Module, typ string) {
