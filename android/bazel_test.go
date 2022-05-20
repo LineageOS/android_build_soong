@@ -14,10 +14,11 @@
 package android
 
 import (
-	"android/soong/android/allowlists"
-	"android/soong/bazel"
 	"fmt"
 	"testing"
+
+	"android/soong/android/allowlists"
+	"android/soong/bazel"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
@@ -384,5 +385,39 @@ func TestBp2BuildAllowlist(t *testing.T) {
 				t.Errorf("Expected errors to be: %v, but were: %v", test.expectedErrors, bcc.errors)
 			}
 		})
+	}
+}
+
+func TestBp2buildAllowList(t *testing.T) {
+	allowlist := getBp2BuildAllowList()
+	for k, v := range allowlists.Bp2buildDefaultConfig {
+		if allowlist.defaultConfig[k] != v {
+			t.Errorf("bp2build default config of %s: expected: %v, got: %v", k, v, allowlist.defaultConfig[k])
+		}
+	}
+	for k, v := range allowlists.Bp2buildKeepExistingBuildFile {
+		if allowlist.keepExistingBuildFile[k] != v {
+			t.Errorf("bp2build keep existing build file of %s: expected: %v, got: %v", k, v, allowlist.keepExistingBuildFile[k])
+		}
+	}
+	for _, k := range allowlists.Bp2buildModuleTypeAlwaysConvertList {
+		if !allowlist.moduleTypeAlwaysConvert[k] {
+			t.Errorf("bp2build module type always convert of %s: expected: true, got: %v", k, allowlist.moduleTypeAlwaysConvert[k])
+		}
+	}
+	for _, k := range allowlists.Bp2buildModuleDoNotConvertList {
+		if !allowlist.moduleDoNotConvert[k] {
+			t.Errorf("bp2build module do not convert of %s: expected: true, got: %v", k, allowlist.moduleDoNotConvert[k])
+		}
+	}
+	for _, k := range allowlists.Bp2buildCcLibraryStaticOnlyList {
+		if !allowlist.ccLibraryStaticOnly[k] {
+			t.Errorf("bp2build cc library static only of %s: expected: true, got: %v", k, allowlist.ccLibraryStaticOnly[k])
+		}
+	}
+	for _, k := range allowlists.MixedBuildsDisabledList {
+		if !allowlist.mixedBuildsDisabled[k] {
+			t.Errorf("bp2build mix build disabled of %s: expected: true, got: %v", k, allowlist.mixedBuildsDisabled[k])
+		}
 	}
 }
