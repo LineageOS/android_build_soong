@@ -961,3 +961,10 @@ type ExportedComponentsInfo struct {
 }
 
 var ExportedComponentsInfoProvider = blueprint.NewProvider(ExportedComponentsInfo{})
+
+// AdditionalSdkInfo contains additional properties to add to the generated SDK info file.
+type AdditionalSdkInfo struct {
+	Properties map[string]interface{}
+}
+
+var AdditionalSdkInfoProvider = blueprint.NewProvider(AdditionalSdkInfo{})
