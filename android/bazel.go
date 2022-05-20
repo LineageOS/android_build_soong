@@ -321,25 +321,31 @@ func (a bp2BuildConversionAllowlist) SetMixedBuildsDisabledList(mixedBuildsDisab
 	return a
 }
 
-var bp2buildAllowlist = NewBp2BuildAllowlist().
-	SetDefaultConfig(allowlists.Bp2buildDefaultConfig).
-	SetKeepExistingBuildFile(allowlists.Bp2buildKeepExistingBuildFile).
-	SetModuleAlwaysConvertList(allowlists.Bp2buildModuleAlwaysConvertList).
-	SetModuleTypeAlwaysConvertList(allowlists.Bp2buildModuleTypeAlwaysConvertList).
-	SetModuleDoNotConvertList(allowlists.Bp2buildModuleDoNotConvertList).
-	SetCcLibraryStaticOnlyList(allowlists.Bp2buildCcLibraryStaticOnlyList).
-	SetMixedBuildsDisabledList(allowlists.MixedBuildsDisabledList)
+var bp2BuildAllowListKey = NewOnceKey("Bp2BuildAllowlist")
+var bp2buildAllowlist OncePer
+
+func getBp2BuildAllowList() bp2BuildConversionAllowlist {
+	return bp2buildAllowlist.Once(bp2BuildAllowListKey, func() interface{} {
+		return NewBp2BuildAllowlist().SetDefaultConfig(allowlists.Bp2buildDefaultConfig).
+			SetKeepExistingBuildFile(allowlists.Bp2buildKeepExistingBuildFile).
+			SetModuleAlwaysConvertList(allowlists.Bp2buildModuleAlwaysConvertList).
+			SetModuleTypeAlwaysConvertList(allowlists.Bp2buildModuleTypeAlwaysConvertList).
+			SetModuleDoNotConvertList(allowlists.Bp2buildModuleDoNotConvertList).
+			SetCcLibraryStaticOnlyList(allowlists.Bp2buildCcLibraryStaticOnlyList).
+			SetMixedBuildsDisabledList(allowlists.MixedBuildsDisabledList)
+	}).(bp2BuildConversionAllowlist)
+}
 
 // GenerateCcLibraryStaticOnly returns whether a cc_library module should only
 // generate a static version of itself based on the current global configuration.
 func GenerateCcLibraryStaticOnly(moduleName string) bool {
-	return bp2buildAllowlist.ccLibraryStaticOnly[moduleName]
+	return getBp2BuildAllowList().ccLibraryStaticOnly[moduleName]
 }
 
 // ShouldKeepExistingBuildFileForDir returns whether an existing BUILD file should be
 // added to the build symlink forest based on the current global configuration.
 func ShouldKeepExistingBuildFileForDir(dir string) bool {
-	return shouldKeepExistingBuildFileForDir(bp2buildAllowlist, dir)
+	return shouldKeepExistingBuildFileForDir(getBp2BuildAllowList(), dir)
 }
 
 func shouldKeepExistingBuildFileForDir(allowlist bp2BuildConversionAllowlist, dir string) bool {
@@ -392,7 +398,7 @@ func mixedBuildPossible(ctx BaseModuleContext) bool {
 		// variants of a cc_library.
 		return false
 	}
-	return !bp2buildAllowlist.mixedBuildsDisabled[ctx.Module().Name()]
+	return !getBp2BuildAllowList().mixedBuildsDisabled[ctx.Module().Name()]
 }
 
 // ConvertedToBazel returns whether this module has been converted (with bp2build or manually) to Bazel.
