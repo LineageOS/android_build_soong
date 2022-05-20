@@ -406,11 +406,11 @@ func checkMergeZips(expected ...string) snapshotBuildInfoChecker {
 // Check that the snapshot's info contents are ciorrect.
 //
 // Both the expected and actual string are both trimmed before comparing.
-func checkInfoContents(expected string) snapshotBuildInfoChecker {
+func checkInfoContents(config android.Config, expected string) snapshotBuildInfoChecker {
 	return func(info *snapshotBuildInfo) {
 		info.t.Helper()
 		android.AssertTrimmedStringEquals(info.t, "info contents do not match",
-			expected, info.infoContents)
+			expected, android.StringRelativeToTop(config, info.infoContents))
 	}
 }
 
