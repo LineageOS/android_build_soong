@@ -281,7 +281,6 @@ var _ android.SdkDependencyContext = (*dependencyContext)(nil)
 func RegisterPreDepsMutators(ctx android.RegisterMutatorsContext) {
 	ctx.BottomUp("SdkMember", memberMutator).Parallel()
 	ctx.TopDown("SdkMember_deps", memberDepsMutator).Parallel()
-	ctx.BottomUp("SdkMemberInterVersion", memberInterVersionMutator).Parallel()
 }
 
 type dependencyTag struct {
@@ -380,22 +379,6 @@ func memberDepsMutator(mctx android.TopDownMutatorContext) {
 				member.MakeMemberOf(mySdkRef)
 			}
 		})
-	}
-}
-
-// Step 3: create dependencies from the unversioned SDK member to snapshot versions
-// of the same member. By having these dependencies, they are mutated for multiple Mainline modules
-// (apex and apk), each of which might want different sdks to be built with. For example, if both
-// apex A and B are referencing libfoo which is a member of sdk 'mysdk', the two APEXes can be
-// built with libfoo.mysdk.11 and libfoo.mysdk.12, respectively depending on which sdk they are
-// using.
-func memberInterVersionMutator(mctx android.BottomUpMutatorContext) {
-	if m, ok := mctx.Module().(android.SdkAware); ok && m.IsInAnySdk() && m.IsVersioned() {
-		if !m.ContainingSdk().Unversioned() {
-			memberName := m.MemberName()
-			tag := sdkMemberVersionedDepTag{member: memberName, version: m.ContainingSdk().Version}
-			mctx.AddReverseDependency(mctx.Module(), tag, memberName)
-		}
 	}
 }
 
