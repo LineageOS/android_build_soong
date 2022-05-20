@@ -67,7 +67,7 @@ func (s *genNoticeBuildRules) GenerateBuildActions(ctx SingletonContext) {
 		if ctx.Failed() {
 			return
 		}
-		out(ctx, gm.output, proptools.StringDefault(gm.properties.ArtifactName, defaultName), "", modules...)
+		out(ctx, gm.output, ctx.ModuleName(gm), proptools.StringDefault(gm.properties.ArtifactName, defaultName), "", modules...)
 	})
 }
 
