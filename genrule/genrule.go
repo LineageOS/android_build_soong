@@ -25,6 +25,7 @@ import (
 	"strconv"
 	"strings"
 
+	"android/soong/bazel/cquery"
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/bootstrap"
 	"github.com/google/blueprint/proptools"
@@ -189,6 +190,8 @@ type Module struct {
 	modulePaths []string
 }
 
+var _ android.MixedBuildBuildable = (*Module)(nil)
+
 type taskFunc func(ctx android.ModuleContext, rawCommand string, srcFiles android.Paths) []generateTask
 
 type generateTask struct {
@@ -249,27 +252,36 @@ func toolDepsMutator(ctx android.BottomUpMutatorContext) {
 	}
 }
 
-// Returns true if information was available from Bazel, false if bazel invocation still needs to occur.
-func (c *Module) GenerateBazelBuildActions(ctx android.ModuleContext, label string) bool {
+func (g *Module) ProcessBazelQueryResponse(ctx android.ModuleContext) {
+	g.generateCommonBuildActions(ctx)
+
+	label := g.GetBazelLabel(ctx, g)
 	bazelCtx := ctx.Config().BazelContext
-	filePaths, ok := bazelCtx.GetOutputFiles(label, android.GetConfigKey(ctx))
-	if ok {
-		var bazelOutputFiles android.Paths
-		exportIncludeDirs := map[string]bool{}
-		for _, bazelOutputFile := range filePaths {
-			bazelOutputFiles = append(bazelOutputFiles, android.PathForBazelOut(ctx, bazelOutputFile))
-			exportIncludeDirs[filepath.Dir(bazelOutputFile)] = true
-		}
-		c.outputFiles = bazelOutputFiles
-		c.outputDeps = bazelOutputFiles
-		for includePath, _ := range exportIncludeDirs {
-			c.exportedIncludeDirs = append(c.exportedIncludeDirs, android.PathForBazelOut(ctx, includePath))
-		}
+	filePaths, err := bazelCtx.GetOutputFiles(label, android.GetConfigKey(ctx))
+	if err != nil {
+		ctx.ModuleErrorf(err.Error())
+		return
 	}
-	return ok
+
+	var bazelOutputFiles android.Paths
+	exportIncludeDirs := map[string]bool{}
+	for _, bazelOutputFile := range filePaths {
+		bazelOutputFiles = append(bazelOutputFiles, android.PathForBazelOut(ctx, bazelOutputFile))
+		exportIncludeDirs[filepath.Dir(bazelOutputFile)] = true
+	}
+	g.outputFiles = bazelOutputFiles
+	g.outputDeps = bazelOutputFiles
+	for includePath, _ := range exportIncludeDirs {
+		g.exportedIncludeDirs = append(g.exportedIncludeDirs, android.PathForBazelOut(ctx, includePath))
+	}
 }
 
-func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+// generateCommonBuildActions contains build action generation logic
+// common to both the mixed build case and the legacy case of genrule processing.
+// To fully support genrule in mixed builds, the contents of this function should
+// approach zero; there should be no genrule action registration done directly
+// by Soong logic in the mixed-build case.
+func (g *Module) generateCommonBuildActions(ctx android.ModuleContext) {
 	g.subName = ctx.ModuleSubDir()
 
 	// Collect the module directory for IDE info in java/jdeps.go.
@@ -575,29 +587,35 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	g.outputFiles = outputFiles.Paths()
+}
 
-	bazelModuleLabel := g.GetBazelLabel(ctx, g)
-	bazelActionsUsed := false
-	if android.MixedBuildsEnabled(ctx) {
-		bazelActionsUsed = g.GenerateBazelBuildActions(ctx, bazelModuleLabel)
+func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	g.generateCommonBuildActions(ctx)
+
+	// For <= 6 outputs, just embed those directly in the users. Right now, that covers >90% of
+	// the genrules on AOSP. That will make things simpler to look at the graph in the common
+	// case. For larger sets of outputs, inject a phony target in between to limit ninja file
+	// growth.
+	if len(g.outputFiles) <= 6 {
+		g.outputDeps = g.outputFiles
+	} else {
+		phonyFile := android.PathForModuleGen(ctx, "genrule-phony")
+		ctx.Build(pctx, android.BuildParams{
+			Rule:   blueprint.Phony,
+			Output: phonyFile,
+			Inputs: g.outputFiles,
+		})
+		g.outputDeps = android.Paths{phonyFile}
 	}
-	if !bazelActionsUsed {
-		// For <= 6 outputs, just embed those directly in the users. Right now, that covers >90% of
-		// the genrules on AOSP. That will make things simpler to look at the graph in the common
-		// case. For larger sets of outputs, inject a phony target in between to limit ninja file
-		// growth.
-		if len(g.outputFiles) <= 6 {
-			g.outputDeps = g.outputFiles
-		} else {
-			phonyFile := android.PathForModuleGen(ctx, "genrule-phony")
-			ctx.Build(pctx, android.BuildParams{
-				Rule:   blueprint.Phony,
-				Output: phonyFile,
-				Inputs: g.outputFiles,
-			})
-			g.outputDeps = android.Paths{phonyFile}
-		}
-	}
+}
+
+func (g *Module) QueueBazelCall(ctx android.BaseModuleContext) {
+	bazelCtx := ctx.Config().BazelContext
+	bazelCtx.QueueBazelRequest(g.GetBazelLabel(ctx, g), cquery.GetOutputFiles, android.GetConfigKey(ctx))
+}
+
+func (g *Module) IsMixedBuildSupported(ctx android.BaseModuleContext) bool {
+	return true
 }
 
 // Collect information for opening IDE project files in java/jdeps.go.

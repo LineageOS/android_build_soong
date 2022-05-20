@@ -129,44 +129,26 @@ func newConfig(availableEnv map[string]string) android.Config {
 	return configuration
 }
 
-// Bazel-enabled mode. Soong runs in two passes.
-// First pass: Analyze the build tree, but only store all bazel commands
-// needed to correctly evaluate the tree in the second pass.
-// TODO(cparsons): Don't output any ninja file, as the second pass will overwrite
-// the incorrect results from the first pass, and file I/O is expensive.
-func runMixedModeBuild(configuration android.Config, firstCtx *android.Context, extraNinjaDeps []string) {
-	firstCtx.EventHandler.Begin("mixed_build")
-	defer firstCtx.EventHandler.End("mixed_build")
+// Bazel-enabled mode. Attaches a mutator to queue Bazel requests, adds a
+// BeforePrepareBuildActionsHook to invoke Bazel, and then uses Bazel metadata
+// for modules that should be handled by Bazel.
+func runMixedModeBuild(configuration android.Config, ctx *android.Context, extraNinjaDeps []string) {
+	ctx.EventHandler.Begin("mixed_build")
+	defer ctx.EventHandler.End("mixed_build")
 
-	firstCtx.EventHandler.Begin("prepare")
-	bootstrap.RunBlueprint(cmdlineArgs, bootstrap.StopBeforeWriteNinja, firstCtx.Context, configuration)
-	firstCtx.EventHandler.End("prepare")
-
-	firstCtx.EventHandler.Begin("bazel")
-	// Invoke bazel commands and save results for second pass.
-	if err := configuration.BazelContext.InvokeBazel(); err != nil {
-		fmt.Fprintf(os.Stderr, "%s", err)
-		os.Exit(1)
+	bazelHook := func() error {
+		ctx.EventHandler.Begin("bazel")
+		defer ctx.EventHandler.End("bazel")
+		return configuration.BazelContext.InvokeBazel()
 	}
-	// Second pass: Full analysis, using the bazel command results. Output ninja file.
-	secondConfig, err := android.ConfigForAdditionalRun(configuration)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s", err)
-		os.Exit(1)
-	}
-	firstCtx.EventHandler.End("bazel")
+	ctx.SetBeforePrepareBuildActionsHook(bazelHook)
 
-	secondCtx := newContext(secondConfig)
-	secondCtx.EventHandler = firstCtx.EventHandler
-	secondCtx.EventHandler.Begin("analyze")
-	ninjaDeps := bootstrap.RunBlueprint(cmdlineArgs, bootstrap.DoEverything, secondCtx.Context, secondConfig)
-	ninjaDeps = append(ninjaDeps, extraNinjaDeps...)
-	secondCtx.EventHandler.End("analyze")
+	ninjaDeps := bootstrap.RunBlueprint(cmdlineArgs, bootstrap.DoEverything, ctx.Context, configuration)
 
-	globListFiles := writeBuildGlobsNinjaFile(secondCtx, configuration.SoongOutDir(), configuration)
+	globListFiles := writeBuildGlobsNinjaFile(ctx, configuration.SoongOutDir(), configuration)
 	ninjaDeps = append(ninjaDeps, globListFiles...)
 
-	writeDepFile(cmdlineArgs.OutFile, *secondCtx.EventHandler, ninjaDeps)
+	writeDepFile(cmdlineArgs.OutFile, *ctx.EventHandler, ninjaDeps)
 }
 
 // Run the code-generation phase to convert BazelTargetModules to BUILD files.
