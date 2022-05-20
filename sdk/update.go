@@ -566,8 +566,9 @@ type moduleInfo struct {
 	name string
 	// A list of additional dependencies of the module.
 	deps []string
-	// Additional dynamic properties.
-	dynamic map[string]interface{}
+	// Additional member specific properties.
+	// These will be added into the generated JSON alongside the above properties.
+	memberSpecific map[string]interface{}
 }
 
 func (m *moduleInfo) MarshalJSON() ([]byte, error) {
@@ -590,8 +591,8 @@ func (m *moduleInfo) MarshalJSON() ([]byte, error) {
 	if m.deps != nil {
 		writeObjectPair("@deps", m.deps)
 	}
-	for _, k := range android.SortedStringKeys(m.dynamic) {
-		v := m.dynamic[k]
+	for _, k := range android.SortedStringKeys(m.memberSpecific) {
+		v := m.memberSpecific[k]
 		writeObjectPair(k, v)
 	}
 	buffer.WriteString("}")
@@ -604,9 +605,9 @@ var _ json.Marshaler = (*moduleInfo)(nil)
 func (s *sdk) generateInfoData(ctx android.ModuleContext, memberVariantDeps []sdkMemberVariantDep) interface{} {
 	modules := []*moduleInfo{}
 	sdkInfo := moduleInfo{
-		moduleType: "sdk",
-		name:       ctx.ModuleName(),
-		dynamic:    map[string]interface{}{},
+		moduleType:     "sdk",
+		name:           ctx.ModuleName(),
+		memberSpecific: map[string]interface{}{},
 	}
 	modules = append(modules, &sdkInfo)
 
@@ -622,6 +623,10 @@ func (s *sdk) generateInfoData(ctx android.ModuleContext, memberVariantDeps []sd
 				moduleType: moduleType,
 				name:       name,
 			}
+
+			additionalSdkInfo := ctx.OtherModuleProvider(module, android.AdditionalSdkInfoProvider).(android.AdditionalSdkInfo)
+			info.memberSpecific = additionalSdkInfo.Properties
+
 			name2Info[name] = info
 		}
 		return info
@@ -630,13 +635,13 @@ func (s *sdk) generateInfoData(ctx android.ModuleContext, memberVariantDeps []sd
 	for _, memberVariantDep := range memberVariantDeps {
 		propertyName := memberVariantDep.memberType.SdkPropertyName()
 		var list []string
-		if v, ok := sdkInfo.dynamic[propertyName]; ok {
+		if v, ok := sdkInfo.memberSpecific[propertyName]; ok {
 			list = v.([]string)
 		}
 
 		memberName := memberVariantDep.variant.Name()
 		list = append(list, memberName)
-		sdkInfo.dynamic[propertyName] = android.SortedUniqueStrings(list)
+		sdkInfo.memberSpecific[propertyName] = android.SortedUniqueStrings(list)
 
 		if memberVariantDep.container != nil {
 			containerInfo := getModuleInfo(memberVariantDep.container)
@@ -1217,6 +1222,7 @@ type snapshotBuilder struct {
 	// The target build release for which the snapshot is to be generated.
 	targetBuildRelease *buildRelease
 
+	// The contents of the .info file that describes the sdk contents.
 	infoContents string
 }
 
