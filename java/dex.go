@@ -36,8 +36,8 @@ type DexProperties struct {
 	Main_dex_rules []string `android:"path"`
 
 	Optimize struct {
-		// If false, disable all optimization.  Defaults to true for android_app and android_test
-		// modules, false for java_library and java_test modules.
+		// If false, disable all optimization.  Defaults to true for android_app and
+		// android_test_helper_app modules, false for android_test, java_library, and java_test modules.
 		Enabled *bool
 		// True if the module containing this has it set by default.
 		EnabledByDefault bool `blueprint:"mutated"`
