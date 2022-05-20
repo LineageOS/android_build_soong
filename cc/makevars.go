@@ -25,7 +25,7 @@ import (
 )
 
 var (
-	modulesAddedWallKey          = android.NewOnceKey("ModulesAddedWall")
+	modulesWarningsAllowedKey    = android.NewOnceKey("ModulesWarningsAllowed")
 	modulesUsingWnoErrorKey      = android.NewOnceKey("ModulesUsingWnoError")
 	modulesMissingProfileFileKey = android.NewOnceKey("ModulesMissingProfileFile")
 )
@@ -119,7 +119,7 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	ctx.Strict("LSDUMP_PATHS", strings.Join(lsdumpPaths, " "))
 
 	ctx.Strict("ANDROID_WARNING_ALLOWED_PROJECTS", makeStringOfWarningAllowedProjects())
-	ctx.Strict("SOONG_MODULES_ADDED_WALL", makeStringOfKeys(ctx, modulesAddedWallKey))
+	ctx.Strict("SOONG_MODULES_WARNINGS_ALLOWED", makeStringOfKeys(ctx, modulesWarningsAllowedKey))
 	ctx.Strict("SOONG_MODULES_USING_WNO_ERROR", makeStringOfKeys(ctx, modulesUsingWnoErrorKey))
 	ctx.Strict("SOONG_MODULES_MISSING_PGO_PROFILE_FILE", makeStringOfKeys(ctx, modulesMissingProfileFileKey))
 
