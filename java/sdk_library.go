@@ -97,6 +97,13 @@ type apiScope struct {
 	// The tag to use to depend on the stubs source and API module.
 	stubsSourceAndApiTag scopeDependencyTag
 
+	// The tag to use to depend on the module that provides the latest version of the API .txt file.
+	latestApiModuleTag scopeDependencyTag
+
+	// The tag to use to depend on the module that provides the latest version of the API removed.txt
+	// file.
+	latestRemovedApiModuleTag scopeDependencyTag
+
 	// The scope specific prefix to add to the api file base of "current.txt" or "removed.txt".
 	apiFilePrefix string
 
@@ -158,6 +165,16 @@ func initApiScope(scope *apiScope) *apiScope {
 		apiScope:         scope,
 		depInfoExtractor: (*scopePaths).extractStubsSourceAndApiInfoFromApiStubsProvider,
 	}
+	scope.latestApiModuleTag = scopeDependencyTag{
+		name:             name + "-latest-api",
+		apiScope:         scope,
+		depInfoExtractor: (*scopePaths).extractLatestApiPath,
+	}
+	scope.latestRemovedApiModuleTag = scopeDependencyTag{
+		name:             name + "-latest-removed-api",
+		apiScope:         scope,
+		depInfoExtractor: (*scopePaths).extractLatestRemovedApiPath,
+	}
 
 	// To get the args needed to generate the stubs source append all the args from
 	// this scope and all the scopes it extends as each set of args adds additional
@@ -201,6 +218,24 @@ func (scope *apiScope) apiModuleName(baseName string) string {
 
 func (scope *apiScope) String() string {
 	return scope.name
+}
+
+// snapshotRelativeDir returns the snapshot directory into which the files related to scopes will
+// be stored.
+func (scope *apiScope) snapshotRelativeDir() string {
+	return filepath.Join("sdk_library", scope.name)
+}
+
+// snapshotRelativeCurrentApiTxtPath returns the snapshot path to the API .txt file for the named
+// library.
+func (scope *apiScope) snapshotRelativeCurrentApiTxtPath(name string) string {
+	return filepath.Join(scope.snapshotRelativeDir(), name+".txt")
+}
+
+// snapshotRelativeRemovedApiTxtPath returns the snapshot path to the removed API .txt file for the
+// named library.
+func (scope *apiScope) snapshotRelativeRemovedApiTxtPath(name string) string {
+	return filepath.Join(scope.snapshotRelativeDir(), name+"-removed.txt")
 }
 
 type apiScopes []*apiScope
@@ -539,6 +574,12 @@ type scopePaths struct {
 
 	// Extracted annotations.
 	annotationsZip android.OptionalPath
+
+	// The path to the latest API file.
+	latestApiPath android.OptionalPath
+
+	// The path to the latest removed API file.
+	latestRemovedApiPath android.OptionalPath
 }
 
 func (paths *scopePaths) extractStubsLibraryInfoFromDependency(ctx android.ModuleContext, dep android.Module) error {
@@ -600,6 +641,31 @@ func (paths *scopePaths) extractStubsSourceAndApiInfoFromApiStubsProvider(ctx an
 		paths.extractApiInfoFromApiStubsProvider(provider)
 		paths.extractStubsSourceInfoFromApiStubsProviders(provider)
 	})
+}
+
+func extractSingleOptionalOutputPath(dep android.Module) (android.OptionalPath, error) {
+	var paths android.Paths
+	if sourceFileProducer, ok := dep.(android.SourceFileProducer); ok {
+		paths = sourceFileProducer.Srcs()
+	} else {
+		return android.OptionalPath{}, fmt.Errorf("module %q does not produce source files", dep)
+	}
+	if len(paths) != 1 {
+		return android.OptionalPath{}, fmt.Errorf("expected one path from %q, got %q", dep, paths)
+	}
+	return android.OptionalPathForPath(paths[0]), nil
+}
+
+func (paths *scopePaths) extractLatestApiPath(ctx android.ModuleContext, dep android.Module) error {
+	outputPath, err := extractSingleOptionalOutputPath(dep)
+	paths.latestApiPath = outputPath
+	return err
+}
+
+func (paths *scopePaths) extractLatestRemovedApiPath(ctx android.ModuleContext, dep android.Module) error {
+	outputPath, err := extractSingleOptionalOutputPath(dep)
+	paths.latestRemovedApiPath = outputPath
+	return err
 }
 
 type commonToSdkLibraryAndImportProperties struct {
@@ -1174,6 +1240,16 @@ func (module *SdkLibrary) ComponentDepsMutator(ctx android.BottomUpMutatorContex
 
 		// Add a dependency on the stubs source in order to access both stubs source and api information.
 		ctx.AddVariationDependencies(nil, apiScope.stubsSourceAndApiTag, module.stubsSourceModuleName(apiScope))
+
+		if module.compareAgainstLatestApi(apiScope) {
+			// Add dependencies on the latest finalized version of the API .txt file.
+			latestApiModuleName := module.latestApiModuleName(apiScope)
+			ctx.AddDependency(module, apiScope.latestApiModuleTag, latestApiModuleName)
+
+			// Add dependencies on the latest finalized version of the remove API .txt file.
+			latestRemovedApiModuleName := module.latestRemovedApiModuleName(apiScope)
+			ctx.AddDependency(module, apiScope.latestRemovedApiModuleTag, latestRemovedApiModuleName)
+		}
 	}
 
 	if module.requiresRuntimeImplementationLibrary() {
@@ -1194,13 +1270,13 @@ func (module *SdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 		if apiScope.unstable {
 			continue
 		}
-		if m := android.SrcIsModule(module.latestApiFilegroupName(apiScope)); !ctx.OtherModuleExists(m) {
+		if m := module.latestApiModuleName(apiScope); !ctx.OtherModuleExists(m) {
 			missingApiModules = append(missingApiModules, m)
 		}
-		if m := android.SrcIsModule(module.latestRemovedApiFilegroupName(apiScope)); !ctx.OtherModuleExists(m) {
+		if m := module.latestRemovedApiModuleName(apiScope); !ctx.OtherModuleExists(m) {
 			missingApiModules = append(missingApiModules, m)
 		}
-		if m := android.SrcIsModule(module.latestIncompatibilitiesFilegroupName(apiScope)); !ctx.OtherModuleExists(m) {
+		if m := module.latestIncompatibilitiesModuleName(apiScope); !ctx.OtherModuleExists(m) {
 			missingApiModules = append(missingApiModules, m)
 		}
 	}
@@ -1274,6 +1350,26 @@ func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext)
 	// Make the set of components exported by this module available for use elsewhere.
 	exportedComponentInfo := android.ExportedComponentsInfo{Components: android.SortedStringKeys(exportedComponents)}
 	ctx.SetProvider(android.ExportedComponentsInfoProvider, exportedComponentInfo)
+
+	// Provide additional information for inclusion in an sdk's generated .info file.
+	additionalSdkInfo := map[string]interface{}{}
+	additionalSdkInfo["dist_stem"] = module.distStem()
+	baseModuleName := module.BaseModuleName()
+	scopes := map[string]interface{}{}
+	additionalSdkInfo["scopes"] = scopes
+	for scope, scopePaths := range module.scopePaths {
+		scopeInfo := map[string]interface{}{}
+		scopes[scope.name] = scopeInfo
+		scopeInfo["current_api"] = scope.snapshotRelativeCurrentApiTxtPath(baseModuleName)
+		scopeInfo["removed_api"] = scope.snapshotRelativeRemovedApiTxtPath(baseModuleName)
+		if p := scopePaths.latestApiPath; p.Valid() {
+			scopeInfo["latest_api"] = p.Path().String()
+		}
+		if p := scopePaths.latestRemovedApiPath; p.Valid() {
+			scopeInfo["latest_removed_api"] = p.Path().String()
+		}
+	}
+	ctx.SetProvider(android.AdditionalSdkInfoProvider, android.AdditionalSdkInfo{additionalSdkInfo})
 }
 
 func (module *SdkLibrary) AndroidMkEntries() []android.AndroidMkEntries {
@@ -1319,16 +1415,32 @@ func (module *SdkLibrary) distGroup() string {
 	return proptools.StringDefault(module.sdkLibraryProperties.Dist_group, "unknown")
 }
 
+func latestPrebuiltApiModuleName(name string, apiScope *apiScope) string {
+	return PrebuiltApiModuleName(name, apiScope.name, "latest")
+}
+
 func (module *SdkLibrary) latestApiFilegroupName(apiScope *apiScope) string {
-	return ":" + module.distStem() + ".api." + apiScope.name + ".latest"
+	return ":" + module.latestApiModuleName(apiScope)
+}
+
+func (module *SdkLibrary) latestApiModuleName(apiScope *apiScope) string {
+	return latestPrebuiltApiModuleName(module.distStem(), apiScope)
 }
 
 func (module *SdkLibrary) latestRemovedApiFilegroupName(apiScope *apiScope) string {
-	return ":" + module.distStem() + "-removed.api." + apiScope.name + ".latest"
+	return ":" + module.latestRemovedApiModuleName(apiScope)
+}
+
+func (module *SdkLibrary) latestRemovedApiModuleName(apiScope *apiScope) string {
+	return latestPrebuiltApiModuleName(module.distStem()+"-removed", apiScope)
 }
 
 func (module *SdkLibrary) latestIncompatibilitiesFilegroupName(apiScope *apiScope) string {
-	return ":" + module.distStem() + "-incompatibilities.api." + apiScope.name + ".latest"
+	return ":" + module.latestIncompatibilitiesModuleName(apiScope)
+}
+
+func (module *SdkLibrary) latestIncompatibilitiesModuleName(apiScope *apiScope) string {
+	return latestPrebuiltApiModuleName(module.distStem()+"-incompatibilities", apiScope)
 }
 
 func childModuleVisibility(childVisibility []string) []string {
@@ -1557,7 +1669,7 @@ func (module *SdkLibrary) createStubsSourcesAndApi(mctx android.DefaultableHookC
 	props.Check_api.Current.Api_file = proptools.StringPtr(currentApiFileName)
 	props.Check_api.Current.Removed_api_file = proptools.StringPtr(removedApiFileName)
 
-	if !(apiScope.unstable || module.sdkLibraryProperties.Unsafe_ignore_missing_latest_api) {
+	if module.compareAgainstLatestApi(apiScope) {
 		// check against the latest released API
 		latestApiFilegroupName := proptools.StringPtr(module.latestApiFilegroupName(apiScope))
 		props.Previous_api = latestApiFilegroupName
@@ -1607,6 +1719,10 @@ func (module *SdkLibrary) createStubsSourcesAndApi(mctx android.DefaultableHookC
 	}
 
 	mctx.CreateModule(DroidstubsFactory, &props)
+}
+
+func (module *SdkLibrary) compareAgainstLatestApi(apiScope *apiScope) bool {
+	return !(apiScope.unstable || module.sdkLibraryProperties.Unsafe_ignore_missing_latest_api)
 }
 
 // Implements android.ApexModule
@@ -2903,7 +3019,7 @@ func (s *sdkLibrarySdkMemberProperties) AddToPropertySet(ctx android.SdkMemberCo
 		if properties, ok := s.Scopes[apiScope]; ok {
 			scopeSet := propertySet.AddPropertySet(apiScope.propertyName)
 
-			scopeDir := filepath.Join("sdk_library", s.OsPrefix(), apiScope.name)
+			scopeDir := apiScope.snapshotRelativeDir()
 
 			var jars []string
 			for _, p := range properties.Jars {
@@ -2927,13 +3043,13 @@ func (s *sdkLibrarySdkMemberProperties) AddToPropertySet(ctx android.SdkMemberCo
 			}
 
 			if properties.CurrentApiFile != nil {
-				currentApiSnapshotPath := filepath.Join(scopeDir, ctx.Name()+".txt")
+				currentApiSnapshotPath := apiScope.snapshotRelativeCurrentApiTxtPath(ctx.Name())
 				ctx.SnapshotBuilder().CopyToSnapshot(properties.CurrentApiFile, currentApiSnapshotPath)
 				scopeSet.AddProperty("current_api", currentApiSnapshotPath)
 			}
 
 			if properties.RemovedApiFile != nil {
-				removedApiSnapshotPath := filepath.Join(scopeDir, ctx.Name()+"-removed.txt")
+				removedApiSnapshotPath := apiScope.snapshotRelativeRemovedApiTxtPath(ctx.Name())
 				ctx.SnapshotBuilder().CopyToSnapshot(properties.RemovedApiFile, removedApiSnapshotPath)
 				scopeSet.AddProperty("removed_api", removedApiSnapshotPath)
 			}
