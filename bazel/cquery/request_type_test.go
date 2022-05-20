@@ -148,13 +148,13 @@ func TestGetCcInfoParseResults(t *testing.T) {
 			description:          "too few result splits",
 			input:                "|",
 			expectedOutput:       CcInfo{},
-			expectedErrorMessage: fmt.Sprintf("Expected %d items, got %q", expectedSplits, []string{"", ""}),
+			expectedErrorMessage: fmt.Sprintf("expected %d items, got %q", expectedSplits, []string{"", ""}),
 		},
 		{
 			description:          "too many result splits",
 			input:                strings.Repeat("|", expectedSplits+1), // 2 too many
 			expectedOutput:       CcInfo{},
-			expectedErrorMessage: fmt.Sprintf("Expected %d items, got %q", expectedSplits, make([]string, expectedSplits+2)),
+			expectedErrorMessage: fmt.Sprintf("expected %d items, got %q", expectedSplits, make([]string, expectedSplits+2)),
 		},
 	}
 	for _, tc := range testCases {
@@ -164,6 +164,43 @@ func TestGetCcInfoParseResults(t *testing.T) {
 			t.Errorf("%q:\nexpected Error %s\n, got %s", tc.description, tc.expectedErrorMessage, err)
 		} else if err == nil && !reflect.DeepEqual(tc.expectedOutput, actualOutput) {
 			t.Errorf("%q:\n expected %#v\n!= actual %#v", tc.description, tc.expectedOutput, actualOutput)
+		}
+	}
+}
+
+func TestGetApexInfoParseResults(t *testing.T) {
+	testCases := []struct {
+		description    string
+		input          string
+		expectedOutput ApexCqueryInfo
+	}{
+		{
+			description:    "no result",
+			input:          "{}",
+			expectedOutput: ApexCqueryInfo{},
+		},
+		{
+			description: "one result",
+			input: `{"signed_output":"my.apex",` +
+				`"unsigned_output":"my.apex.unsigned",` +
+				`"requires_native_libs":["//bionic/libc:libc","//bionic/libdl:libdl"],` +
+				`"bundle_key_pair":["foo.pem","foo.privkey"],` +
+				`"container_key_pair":["foo.x509.pem", "foo.pk8"],` +
+				`"provides_native_libs":[]}`,
+			expectedOutput: ApexCqueryInfo{
+				SignedOutput:     "my.apex",
+				UnsignedOutput:   "my.apex.unsigned",
+				RequiresLibs:     []string{"//bionic/libc:libc", "//bionic/libdl:libdl"},
+				ProvidesLibs:     []string{},
+				BundleKeyPair:    []string{"foo.pem", "foo.privkey"},
+				ContainerKeyPair: []string{"foo.x509.pem", "foo.pk8"},
+			},
+		},
+	}
+	for _, tc := range testCases {
+		actualOutput := GetApexInfo.ParseResult(tc.input)
+		if !reflect.DeepEqual(tc.expectedOutput, actualOutput) {
+			t.Errorf("%q: expected %#v != actual %#v", tc.description, tc.expectedOutput, actualOutput)
 		}
 	}
 }
