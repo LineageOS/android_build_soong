@@ -563,10 +563,10 @@ func (binary *binaryDecorator) verifyHostBionicLinker(ctx ModuleContext, in, lin
 }
 
 type ccBinaryBazelHandler struct {
-	BazelHandler
-
 	module *Module
 }
+
+var _ BazelHandler = (*ccBinaryBazelHandler)(nil)
 
 func (handler *ccBinaryBazelHandler) QueueBazelCall(ctx android.BaseModuleContext, label string) {
 	bazelCtx := ctx.Config().BazelContext
