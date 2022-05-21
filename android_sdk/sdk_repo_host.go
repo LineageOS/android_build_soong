@@ -124,7 +124,7 @@ func (s *sdkRepoHost) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	s.CopySpecsToDir(ctx, builder, packageSpecs, dir)
 
 	noticeFile := android.PathForModuleOut(ctx, "NOTICES.txt")
-	android.BuildNoticeTextOutputFromLicenseMetadata(ctx, noticeFile, "", outputZipFile.String())
+	android.BuildNoticeTextOutputFromLicenseMetadata(ctx, noticeFile, "", "", outputZipFile.String())
 	builder.Command().Text("cp").
 		Input(noticeFile).
 		Text(filepath.Join(dir.String(), "NOTICE.txt"))
