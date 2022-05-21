@@ -48,6 +48,7 @@ var (
 		"build/bazel/examples/soong_config_variables":        Bp2BuildDefaultTrueRecursively,
 		"build/make/target/product/security":                 Bp2BuildDefaultTrue,
 		"build/make/tools/signapk":                           Bp2BuildDefaultTrue,
+		"build/make/tools/zipalign":                          Bp2BuildDefaultTrueRecursively,
 		"build/soong":                                        Bp2BuildDefaultTrue,
 		"build/soong/cc/libbuildversion":                     Bp2BuildDefaultTrue, // Skip tests subdir
 		"build/soong/cc/ndkstubgen":                          Bp2BuildDefaultTrue,
@@ -102,7 +103,9 @@ var (
 		"external/conscrypt":                                 Bp2BuildDefaultTrue,
 		"external/e2fsprogs":                                 Bp2BuildDefaultTrueRecursively,
 		"external/eigen":                                     Bp2BuildDefaultTrueRecursively,
+		"external/erofs-utils":                               Bp2BuildDefaultTrueRecursively,
 		"external/error_prone":                               Bp2BuildDefaultTrueRecursively,
+		"external/f2fs-tools":                                Bp2BuildDefaultTrue,
 		"external/flac":                                      Bp2BuildDefaultTrueRecursively,
 		"external/fmtlib":                                    Bp2BuildDefaultTrueRecursively,
 		"external/google-benchmark":                          Bp2BuildDefaultTrueRecursively,
@@ -138,6 +141,7 @@ var (
 		"external/selinux/libselinux":                        Bp2BuildDefaultTrueRecursively,
 		"external/selinux/libsepol":                          Bp2BuildDefaultTrueRecursively,
 		"external/zlib":                                      Bp2BuildDefaultTrueRecursively,
+		"external/zopfli":                                    Bp2BuildDefaultTrueRecursively,
 		"external/zstd":                                      Bp2BuildDefaultTrueRecursively,
 		"frameworks/av/media/codecs/g711/decoder":            Bp2BuildDefaultTrueRecursively,
 		"frameworks/av/services/minijail":                    Bp2BuildDefaultTrueRecursively,
@@ -317,6 +321,7 @@ var (
 		"linker",       // TODO(b/228316882): cc_binary uses link_crt
 		"libdebuggerd", // TODO(b/228314770): support product variable-specific header_libs
 		"versioner",    // TODO(b/228313961):  depends on prebuilt shared library libclang-cpp_host as a shared library, which does not supply expected providers for a shared library
+		"f2fs.fibmap",  // ld.lld: error: undefined symbol: _IO
 
 		// java bugs
 		"libbase_ndk", // TODO(b/186826477): fails to link libctscamera2_jni for device (required for CtsCameraTestCases)
