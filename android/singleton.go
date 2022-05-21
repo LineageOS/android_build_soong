@@ -272,7 +272,8 @@ func (s *singletonContextAdaptor) ModuleVariantsFromName(referer Module, name st
 			if depQualified.pkg != qualified.pkg {
 				rule := effectiveVisibilityRules(s.Config(), depQualified)
 				if !rule.matches(qualified) {
-					s.ModuleErrorf(referer, "references %s which is not visible to this module\nYou may need to add %q to its visibility", depQualified, "//"+s.ModuleDir(m))
+					s.ModuleErrorf(referer, "module %q references %q which is not visible to this module\nYou may need to add %q to its visibility",
+						referer.Name(), depQualified, "//"+s.ModuleDir(referer))
 					continue
 				}
 			}
