@@ -589,7 +589,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 			addToModuleList(ctx, modulesUsingWnoErrorKey, module)
 		} else if !inList("-Werror", flags.Local.CFlags) && !inList("-Werror", flags.Local.CppFlags) {
 			if warningsAreAllowed(ctx.ModuleDir()) {
-				addToModuleList(ctx, modulesAddedWallKey, module)
+				addToModuleList(ctx, modulesWarningsAllowedKey, module)
 			} else {
 				flags.Local.CFlags = append([]string{"-Werror"}, flags.Local.CFlags...)
 			}

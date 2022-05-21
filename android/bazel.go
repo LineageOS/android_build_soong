@@ -115,6 +115,27 @@ type Bazelable interface {
 	SetBaseModuleType(baseModuleType string)
 }
 
+// MixedBuildBuildable is an interface that module types should implement in order
+// to be "handled by Bazel" in a mixed build.
+type MixedBuildBuildable interface {
+	// IsMixedBuildSupported returns true if and only if this module should be
+	// "handled by Bazel" in a mixed build.
+	// This "escape hatch" allows modules with corner-case scenarios to opt out
+	// of being built with Bazel.
+	IsMixedBuildSupported(ctx BaseModuleContext) bool
+
+	// QueueBazelCall invokes request-queueing functions on the BazelContext
+	// so that these requests are handled when Bazel's cquery is invoked.
+	QueueBazelCall(ctx BaseModuleContext)
+
+	// ProcessBazelQueryResponse uses Bazel information (obtained from the BazelContext)
+	// to set module fields and providers to propagate this module's metadata upstream.
+	// This effectively "bridges the gap" between Bazel and Soong in a mixed build.
+	// Soong modules depending on this module should be oblivious to the fact that
+	// this module was handled by Bazel.
+	ProcessBazelQueryResponse(ctx ModuleContext)
+}
+
 // BazelModule is a lightweight wrapper interface around Module for Bazel-convertible modules.
 type BazelModule interface {
 	Module
@@ -342,7 +363,7 @@ func shouldKeepExistingBuildFileForDir(allowlist bp2BuildConversionAllowlist, di
 // converted or handcrafted Bazel target. As a side effect, calling this
 // method will also log whether this module is mixed build enabled for
 // metrics reporting.
-func MixedBuildsEnabled(ctx ModuleContext) bool {
+func MixedBuildsEnabled(ctx BaseModuleContext) bool {
 	mixedBuildEnabled := mixedBuildPossible(ctx)
 	ctx.Config().LogMixedBuild(ctx, mixedBuildEnabled)
 	return mixedBuildEnabled
@@ -350,7 +371,7 @@ func MixedBuildsEnabled(ctx ModuleContext) bool {
 
 // mixedBuildPossible returns true if a module is ready to be replaced by a
 // converted or handcrafted Bazel target.
-func mixedBuildPossible(ctx ModuleContext) bool {
+func mixedBuildPossible(ctx BaseModuleContext) bool {
 	if ctx.Os() == Windows {
 		// Windows toolchains are not currently supported.
 		return false

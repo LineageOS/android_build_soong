@@ -17,6 +17,7 @@ package cc
 import (
 	"android/soong/android"
 	"android/soong/bazel"
+	"android/soong/bazel/cquery"
 )
 
 func init() {
@@ -47,28 +48,30 @@ func RegisterLibraryHeadersBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("cc_prebuilt_library_headers", prebuiltLibraryHeaderFactory)
 }
 
-type libraryHeaderBazelHander struct {
-	android.BazelHandler
+type libraryHeaderBazelHandler struct {
+	BazelHandler
 
 	module  *Module
 	library *libraryDecorator
 }
 
-func (h *libraryHeaderBazelHander) GenerateBazelBuildActions(ctx android.ModuleContext, label string) bool {
+func (handler *libraryHeaderBazelHandler) QueueBazelCall(ctx android.BaseModuleContext, label string) {
 	bazelCtx := ctx.Config().BazelContext
-	ccInfo, ok, err := bazelCtx.GetCcInfo(label, android.GetConfigKey(ctx))
+	bazelCtx.QueueBazelRequest(label, cquery.GetCcInfo, android.GetConfigKey(ctx))
+}
+
+func (h *libraryHeaderBazelHandler) ProcessBazelQueryResponse(ctx android.ModuleContext, label string) {
+	bazelCtx := ctx.Config().BazelContext
+	ccInfo, err := bazelCtx.GetCcInfo(label, android.GetConfigKey(ctx))
 	if err != nil {
-		ctx.ModuleErrorf("Error getting Bazel CcInfo: %s", err)
-		return false
-	}
-	if !ok {
-		return false
+		ctx.ModuleErrorf(err.Error())
+		return
 	}
 
 	outputPaths := ccInfo.OutputFiles
 	if len(outputPaths) != 1 {
 		ctx.ModuleErrorf("expected exactly one output file for %q, but got %q", label, outputPaths)
-		return false
+		return
 	}
 
 	outputPath := android.PathForBazelOut(ctx, outputPaths[0])
@@ -83,8 +86,6 @@ func (h *libraryHeaderBazelHander) GenerateBazelBuildActions(ctx android.ModuleC
 	// validation will fail. For now, set this to an empty list.
 	// TODO(cparsons): More closely mirror the collectHeadersForSnapshot implementation.
 	h.library.collectedSnapshotHeaders = android.Paths{}
-
-	return true
 }
 
 // cc_library_headers contains a set of c/c++ headers which are imported by
@@ -96,7 +97,7 @@ func LibraryHeaderFactory() android.Module {
 	library.HeaderOnly()
 	module.sdkMemberTypes = []android.SdkMemberType{headersLibrarySdkMemberType}
 	module.bazelable = true
-	module.bazelHandler = &libraryHeaderBazelHander{module: module, library: library}
+	module.bazelHandler = &libraryHeaderBazelHandler{module: module, library: library}
 	return module.Init()
 }
 

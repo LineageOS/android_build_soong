@@ -259,7 +259,7 @@ func (test *testDecorator) gtest() bool {
 
 func (test *testDecorator) isolated(ctx BaseModuleContext) bool {
 	if !ctx.Windows() {
-		return BoolDefault(test.LinkerProperties.Isolated, true)
+		return BoolDefault(test.LinkerProperties.Isolated, false)
 	}
 	return BoolDefault(test.LinkerProperties.Isolated, false)
 }
