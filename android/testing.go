@@ -83,6 +83,8 @@ var PrepareForTestWithLicenses = GroupFixturePreparers(
 	FixtureRegisterWithContext(registerLicenseMutators),
 )
 
+var PrepareForTestWithGenNotice = FixtureRegisterWithContext(RegisterGenNoticeBuildComponents)
+
 func registerLicenseMutators(ctx RegistrationContext) {
 	ctx.PreArchMutators(RegisterLicensesPackageMapper)
 	ctx.PreArchMutators(RegisterLicensesPropertyGatherer)
