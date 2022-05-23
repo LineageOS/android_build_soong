@@ -289,7 +289,7 @@ func libraryBp2Build(ctx android.TopDownMutatorContext, m *Module) {
 	baseAttributes := bp2BuildParseBaseProps(ctx, m)
 	compilerAttrs := baseAttributes.compilerAttributes
 	linkerAttrs := baseAttributes.linkerAttributes
-	exportedIncludes := bp2BuildParseExportedIncludes(ctx, m, compilerAttrs.includes)
+	exportedIncludes := bp2BuildParseExportedIncludes(ctx, m, &compilerAttrs.includes)
 
 	srcs := compilerAttrs.srcs
 
@@ -2446,7 +2446,7 @@ func sharedOrStaticLibraryBp2Build(ctx android.TopDownMutatorContext, module *Mo
 	compilerAttrs := baseAttributes.compilerAttributes
 	linkerAttrs := baseAttributes.linkerAttributes
 
-	exportedIncludes := bp2BuildParseExportedIncludes(ctx, module, compilerAttrs.includes)
+	exportedIncludes := bp2BuildParseExportedIncludes(ctx, module, &compilerAttrs.includes)
 
 	// Append shared/static{} stanza properties. These won't be specified on
 	// cc_library_* itself, but may be specified in cc_defaults that this module
