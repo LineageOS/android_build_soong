@@ -323,7 +323,7 @@ func (s *ShTest) DepsMutator(ctx android.BottomUpMutatorContext) {
 	ctx.AddFarVariationDependencies(ctx.Target().Variations(), shTestDataBinsTag, s.testProperties.Data_bins...)
 	ctx.AddFarVariationDependencies(append(ctx.Target().Variations(), sharedLibVariations...),
 		shTestDataLibsTag, s.testProperties.Data_libs...)
-	if (ctx.Target().Os.Class == android.Host || ctx.BazelConversionMode()) && len(ctx.Config().Targets[android.Android]) > 0 {
+	if ctx.Target().Os.Class == android.Host && len(ctx.Config().Targets[android.Android]) > 0 {
 		deviceVariations := ctx.Config().AndroidFirstDeviceTarget.Variations()
 		ctx.AddFarVariationDependencies(deviceVariations, shTestDataDeviceBinsTag, s.testProperties.Data_device_bins...)
 		ctx.AddFarVariationDependencies(append(deviceVariations, sharedLibVariations...),
