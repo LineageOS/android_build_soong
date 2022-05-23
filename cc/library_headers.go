@@ -49,11 +49,11 @@ func RegisterLibraryHeadersBuildComponents(ctx android.RegistrationContext) {
 }
 
 type libraryHeaderBazelHandler struct {
-	BazelHandler
-
 	module  *Module
 	library *libraryDecorator
 }
+
+var _ BazelHandler = (*libraryHeaderBazelHandler)(nil)
 
 func (handler *libraryHeaderBazelHandler) QueueBazelCall(ctx android.BaseModuleContext, label string) {
 	bazelCtx := ctx.Config().BazelContext
