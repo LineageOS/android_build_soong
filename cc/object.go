@@ -47,10 +47,10 @@ type objectLinker struct {
 }
 
 type objectBazelHandler struct {
-	BazelHandler
-
 	module *Module
 }
+
+var _ BazelHandler = (*objectBazelHandler)(nil)
 
 func (handler *objectBazelHandler) QueueBazelCall(ctx android.BaseModuleContext, label string) {
 	bazelCtx := ctx.Config().BazelContext
