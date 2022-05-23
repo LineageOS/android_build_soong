@@ -642,10 +642,10 @@ type libraryDecorator struct {
 }
 
 type ccLibraryBazelHandler struct {
-	BazelHandler
-
 	module *Module
 }
+
+var _ BazelHandler = (*ccLibraryBazelHandler)(nil)
 
 // generateStaticBazelBuildActions constructs the StaticLibraryInfo Soong
 // provider from a Bazel shared library's CcInfo provider.
