@@ -123,7 +123,7 @@ type bazelCcLibraryHeadersAttributes struct {
 
 func libraryHeadersBp2Build(ctx android.TopDownMutatorContext, module *Module) {
 	baseAttributes := bp2BuildParseBaseProps(ctx, module)
-	exportedIncludes := bp2BuildParseExportedIncludes(ctx, module, baseAttributes.includes)
+	exportedIncludes := bp2BuildParseExportedIncludes(ctx, module, &baseAttributes.includes)
 	linkerAttrs := baseAttributes.linkerAttributes
 
 	attrs := &bazelCcLibraryHeadersAttributes{
