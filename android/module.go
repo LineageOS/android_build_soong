@@ -2462,7 +2462,7 @@ type baseModuleContext struct {
 	bazelConversionMode bool
 }
 
-func (b *baseModuleContext) BazelConversionMode() bool {
+func (b *baseModuleContext) isBazelConversionMode() bool {
 	return b.bazelConversionMode
 }
 func (b *baseModuleContext) OtherModuleName(m blueprint.Module) string {
@@ -2851,7 +2851,7 @@ func (b *baseModuleContext) GetDirectDep(name string) (blueprint.Module, bluepri
 }
 
 func (b *baseModuleContext) ModuleFromName(name string) (blueprint.Module, bool) {
-	if !b.BazelConversionMode() {
+	if !b.isBazelConversionMode() {
 		panic("cannot call ModuleFromName if not in bazel conversion mode")
 	}
 	if moduleName, _ := SrcIsModuleWithTag(name); moduleName != "" {
