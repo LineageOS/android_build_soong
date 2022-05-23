@@ -723,9 +723,9 @@ func TestDefaults(t *testing.T) {
 		t.Errorf("atestNoOptimize should not optimize APK")
 	}
 
-	atestDefault := ctx.ModuleForTests("atestDefault", "android_common").MaybeRule("d8")
+	atestDefault := ctx.ModuleForTests("atestDefault", "android_common").MaybeRule("r8")
 	if atestDefault.Output == nil {
-		t.Errorf("atestDefault should not optimize APK")
+		t.Errorf("atestDefault should optimize APK")
 	}
 }
 
