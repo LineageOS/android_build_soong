@@ -246,10 +246,6 @@ func (library *libraryDecorator) autoDep(ctx android.BottomUpMutatorContext) aut
 		return rlibAutoDep
 	} else if library.dylib() || library.shared() {
 		return dylibAutoDep
-	} else if ctx.BazelConversionMode() {
-		// In Bazel conversion mode, we are currently ignoring the deptag, so we just need to supply a
-		// compatible tag in order to add the dependency.
-		return rlibAutoDep
 	} else {
 		panic(fmt.Errorf("autoDep called on library %q that has no enabled variants.", ctx.ModuleName()))
 	}
