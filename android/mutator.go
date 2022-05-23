@@ -232,9 +232,6 @@ type BaseMutatorContext interface {
 	// Rename all variants of a module.  The new name is not visible to calls to ModuleName,
 	// AddDependency or OtherModuleName until after this mutator pass is complete.
 	Rename(name string)
-
-	// BazelConversionMode returns whether this mutator is being run as part of Bazel Conversion.
-	BazelConversionMode() bool
 }
 
 type TopDownMutator func(TopDownMutatorContext)
@@ -626,28 +623,11 @@ func (b *bottomUpMutatorContext) SetDefaultDependencyVariation(variation *string
 
 func (b *bottomUpMutatorContext) AddVariationDependencies(variations []blueprint.Variation, tag blueprint.DependencyTag,
 	names ...string) []blueprint.Module {
-	if b.bazelConversionMode {
-		_, noSelfDeps := RemoveFromList(b.ModuleName(), names)
-		if len(noSelfDeps) == 0 {
-			return []blueprint.Module(nil)
-		}
-		// In Bazel conversion mode, mutators should not have created any variants. So, when adding a
-		// dependency, the variations would not exist and the dependency could not be added, by
-		// specifying no variations, we will allow adding the dependency to succeed.
-		return b.bp.AddFarVariationDependencies(nil, tag, noSelfDeps...)
-	}
-
 	return b.bp.AddVariationDependencies(variations, tag, names...)
 }
 
 func (b *bottomUpMutatorContext) AddFarVariationDependencies(variations []blueprint.Variation,
 	tag blueprint.DependencyTag, names ...string) []blueprint.Module {
-	if b.bazelConversionMode {
-		// In Bazel conversion mode, mutators should not have created any variants. So, when adding a
-		// dependency, the variations would not exist and the dependency could not be added, by
-		// specifying no variations, we will allow adding the dependency to succeed.
-		return b.bp.AddFarVariationDependencies(nil, tag, names...)
-	}
 
 	return b.bp.AddFarVariationDependencies(variations, tag, names...)
 }
