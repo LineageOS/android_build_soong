@@ -144,6 +144,7 @@ func runMixedModeBuild(configuration android.Config, ctx *android.Context, extra
 	ctx.SetBeforePrepareBuildActionsHook(bazelHook)
 
 	ninjaDeps := bootstrap.RunBlueprint(cmdlineArgs, bootstrap.DoEverything, ctx.Context, configuration)
+	ninjaDeps = append(ninjaDeps, extraNinjaDeps...)
 
 	globListFiles := writeBuildGlobsNinjaFile(ctx, configuration.SoongOutDir(), configuration)
 	ninjaDeps = append(ninjaDeps, globListFiles...)
