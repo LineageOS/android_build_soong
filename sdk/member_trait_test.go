@@ -134,7 +134,7 @@ func TestBasicTrait_WithoutTrait(t *testing.T) {
 	).RunTest(t)
 
 	CheckSnapshot(t, result, "mysdk", "",
-		checkUnversionedAndroidBpContents(`
+		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
 java_import {
@@ -143,23 +143,6 @@ java_import {
     visibility: ["//visibility:public"],
     apex_available: ["//apex_available:platform"],
     jars: ["javalibs/myjavalib.jar"],
-}
-`),
-		checkVersionedAndroidBpContents(`
-// This is auto-generated. DO NOT EDIT.
-
-java_import {
-    name: "mysdk_myjavalib@current",
-    sdk_member_name: "myjavalib",
-    visibility: ["//visibility:public"],
-    apex_available: ["//apex_available:platform"],
-    jars: ["javalibs/myjavalib.jar"],
-}
-
-sdk_snapshot {
-    name: "mysdk@current",
-    visibility: ["//visibility:public"],
-    fake_members: ["mysdk_myjavalib@current"],
 }
 `),
 	)
@@ -216,7 +199,7 @@ func TestBasicTrait_MultipleTraits(t *testing.T) {
 	).RunTest(t)
 
 	CheckSnapshot(t, result, "mysdk", "",
-		checkUnversionedAndroidBpContents(`
+		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
 java_test_import {
