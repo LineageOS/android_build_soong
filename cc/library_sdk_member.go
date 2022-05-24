@@ -27,32 +27,33 @@ import (
 
 var sharedLibrarySdkMemberType = &librarySdkMemberType{
 	SdkMemberTypeBase: android.SdkMemberTypeBase{
-		PropertyName:    "native_shared_libs",
-		SupportsSdk:     true,
-		HostOsDependent: true,
+		PropertyName:          "native_shared_libs",
+		SupportsSdk:           true,
+		HostOsDependent:       true,
+		SupportedLinkageNames: []string{"shared"},
 	},
 	prebuiltModuleType: "cc_prebuilt_library_shared",
-	linkTypes:          []string{"shared"},
 }
 
 var staticLibrarySdkMemberType = &librarySdkMemberType{
 	SdkMemberTypeBase: android.SdkMemberTypeBase{
-		PropertyName:    "native_static_libs",
-		SupportsSdk:     true,
-		HostOsDependent: true,
+		PropertyName:          "native_static_libs",
+		SupportsSdk:           true,
+		HostOsDependent:       true,
+		SupportedLinkageNames: []string{"static"},
 	},
 	prebuiltModuleType: "cc_prebuilt_library_static",
-	linkTypes:          []string{"static"},
 }
 
 var staticAndSharedLibrarySdkMemberType = &librarySdkMemberType{
 	SdkMemberTypeBase: android.SdkMemberTypeBase{
-		PropertyName:    "native_libs",
-		SupportsSdk:     true,
-		HostOsDependent: true,
+		PropertyName:           "native_libs",
+		OverridesPropertyNames: map[string]bool{"native_shared_libs": true, "native_static_libs": true},
+		SupportsSdk:            true,
+		HostOsDependent:        true,
+		SupportedLinkageNames:  []string{"static", "shared"},
 	},
 	prebuiltModuleType: "cc_prebuilt_library",
-	linkTypes:          []string{"static", "shared"},
 }
 
 func init() {
@@ -69,9 +70,6 @@ type librarySdkMemberType struct {
 
 	noOutputFiles bool // True if there are no srcs files.
 
-	// The set of link types supported. A set of "static", "shared", or nil to
-	// skip link type variations.
-	linkTypes []string
 }
 
 func (mt *librarySdkMemberType) AddDependencies(ctx android.SdkDependencyContext, dependencyTag blueprint.DependencyTag, names []string) {
@@ -165,12 +163,12 @@ func (mt *librarySdkMemberType) AddDependencies(ctx android.SdkDependencyContext
 				// Add any additional dependencies needed.
 				variations = append(variations, dependency.imageVariations...)
 
-				if mt.linkTypes == nil {
+				if mt.SupportedLinkageNames == nil {
 					// No link types are supported so add a dependency directly.
 					ctx.AddFarVariationDependencies(variations, dependencyTag, name)
 				} else {
 					// Otherwise, add a dependency on each supported link type in turn.
-					for _, linkType := range mt.linkTypes {
+					for _, linkType := range mt.SupportedLinkageNames {
 						libVariations := append(variations,
 							blueprint.Variation{Mutator: "link", Variation: linkType})
 						// If this is for the device and a shared link type then add a dependency onto the

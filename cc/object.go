@@ -38,7 +38,6 @@ var ccObjectSdkMemberType = &librarySdkMemberType{
 		SupportsSdk:  true,
 	},
 	prebuiltModuleType: "cc_prebuilt_object",
-	linkTypes:          nil,
 }
 
 type objectLinker struct {
