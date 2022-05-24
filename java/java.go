@@ -468,6 +468,12 @@ func getJavaVersion(ctx android.ModuleContext, javaVersion string, sdkContext an
 		return normalizeJavaVersion(ctx, javaVersion)
 	} else if ctx.Device() {
 		return defaultJavaLanguageVersion(ctx, sdkContext.SdkVersion(ctx))
+	} else if ctx.Config().TargetsJava17() {
+		// Temporary experimental flag to be able to try and build with
+		// java version 17 options.  The flag, if used, just sets Java
+		// 17 as the default version, leaving any components that
+		// target an older version intact.
+		return JAVA_VERSION_17
 	} else {
 		return JAVA_VERSION_11
 	}
@@ -482,6 +488,7 @@ const (
 	JAVA_VERSION_8           = 8
 	JAVA_VERSION_9           = 9
 	JAVA_VERSION_11          = 11
+	JAVA_VERSION_17          = 17
 )
 
 func (v javaVersion) String() string {
@@ -496,6 +503,8 @@ func (v javaVersion) String() string {
 		return "1.9"
 	case JAVA_VERSION_11:
 		return "11"
+	case JAVA_VERSION_17:
+		return "17"
 	default:
 		return "unsupported"
 	}
@@ -518,8 +527,10 @@ func normalizeJavaVersion(ctx android.BaseModuleContext, javaVersion string) jav
 		return JAVA_VERSION_9
 	case "11":
 		return JAVA_VERSION_11
-	case "10":
-		ctx.PropertyErrorf("java_version", "Java language levels 10 is not supported")
+	case "17":
+		return JAVA_VERSION_11
+	case "10", "12", "13", "14", "15", "16":
+		ctx.PropertyErrorf("java_version", "Java language level %s is not supported", javaVersion)
 		return JAVA_VERSION_UNSUPPORTED
 	default:
 		ctx.PropertyErrorf("java_version", "Unrecognized Java language level")
