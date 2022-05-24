@@ -22,7 +22,7 @@ import (
 	"android/soong/java"
 )
 
-func testSnapshotWithSystemServerClasspathFragment(t *testing.T, targetBuildRelease string, expectedUnversionedSdkSnapshot string, expectedVersionedSdkSnapshot string) {
+func testSnapshotWithSystemServerClasspathFragment(t *testing.T, targetBuildRelease string, expectedSdkSnapshot string) {
 	result := android.GroupFixturePreparers(
 		prepareForSdkTestWithJava,
 		java.PrepareForTestWithJavaDefaultModules,
@@ -86,8 +86,7 @@ func testSnapshotWithSystemServerClasspathFragment(t *testing.T, targetBuildRele
 	).RunTest(t)
 
 	CheckSnapshot(t, result, "mysdk", "",
-		checkUnversionedAndroidBpContents(expectedUnversionedSdkSnapshot),
-		checkVersionedAndroidBpContents(expectedVersionedSdkSnapshot),
+		checkAndroidBpContents(expectedSdkSnapshot),
 	)
 }
 
@@ -109,29 +108,6 @@ java_sdk_library_import {
         removed_api: "sdk_library/public/mysdklibrary-removed.txt",
         sdk_version: "current",
     },
-}
-`, `
-// This is auto-generated. DO NOT EDIT.
-
-java_sdk_library_import {
-    name: "mysdk_mysdklibrary@current",
-    sdk_member_name: "mysdklibrary",
-    visibility: ["//visibility:public"],
-    apex_available: ["myapex"],
-    shared_library: false,
-    public: {
-        jars: ["sdk_library/public/mysdklibrary-stubs.jar"],
-        stub_srcs: ["sdk_library/public/mysdklibrary_stub_sources"],
-        current_api: "sdk_library/public/mysdklibrary.txt",
-        removed_api: "sdk_library/public/mysdklibrary-removed.txt",
-        sdk_version: "current",
-    },
-}
-
-sdk_snapshot {
-    name: "mysdk@current",
-    visibility: ["//visibility:public"],
-    java_sdk_libs: ["mysdk_mysdklibrary@current"],
 }
 `)
 	})
@@ -173,51 +149,6 @@ prebuilt_systemserverclasspath_fragment {
         "mylib",
         "mysdklibrary",
     ],
-}
-`, `
-// This is auto-generated. DO NOT EDIT.
-
-java_sdk_library_import {
-    name: "mysdk_mysdklibrary@current",
-    sdk_member_name: "mysdklibrary",
-    visibility: ["//visibility:public"],
-    apex_available: ["myapex"],
-    shared_library: false,
-    public: {
-        jars: ["sdk_library/public/mysdklibrary-stubs.jar"],
-        stub_srcs: ["sdk_library/public/mysdklibrary_stub_sources"],
-        current_api: "sdk_library/public/mysdklibrary.txt",
-        removed_api: "sdk_library/public/mysdklibrary-removed.txt",
-        sdk_version: "current",
-    },
-}
-
-java_import {
-    name: "mysdk_mylib@current",
-    sdk_member_name: "mylib",
-    visibility: ["//visibility:public"],
-    apex_available: ["myapex"],
-    jars: ["java_systemserver_libs/snapshot/jars/are/invalid/mylib.jar"],
-    permitted_packages: ["mylib"],
-}
-
-prebuilt_systemserverclasspath_fragment {
-    name: "mysdk_mysystemserverclasspathfragment@current",
-    sdk_member_name: "mysystemserverclasspathfragment",
-    visibility: ["//visibility:public"],
-    apex_available: ["myapex"],
-    contents: [
-        "mysdk_mylib@current",
-        "mysdk_mysdklibrary@current",
-    ],
-}
-
-sdk_snapshot {
-    name: "mysdk@current",
-    visibility: ["//visibility:public"],
-    java_sdk_libs: ["mysdk_mysdklibrary@current"],
-    java_systemserver_libs: ["mysdk_mylib@current"],
-    systemserverclasspath_fragments: ["mysdk_mysystemserverclasspathfragment@current"],
 }
 `)
 	})

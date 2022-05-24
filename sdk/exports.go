@@ -31,7 +31,7 @@ func ModuleExportsFactory() android.Module {
 	return newSdkModule(true)
 }
 
-// module_exports_snapshot is a versioned snapshot of prebuilt versions of all the exports
+// module_exports_snapshot is a snapshot of prebuilt versions of all the exports
 // of a mainline module.
 func ModuleExportsSnapshotsFactory() android.Module {
 	s := newSdkModule(true)
