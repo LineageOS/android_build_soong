@@ -2497,6 +2497,19 @@ func (o *OverrideApex) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 		if !ok {
 			continue
 		}
+
+		// Manifest is either empty or a file in the directory of base APEX and is not overridable.
+		// After it is converted in convertWithBp2build(baseApex, ctx),
+		// the attrs.Manifest.Value.Label is the file path relative to the directory
+		// of base apex. So the following code converts it to a label that looks like
+		// <package of base apex>:<path of manifest file> if base apex and override
+		// apex are not in the same package.
+		baseApexPackage := ctx.OtherModuleDir(a)
+		overrideApexPackage := ctx.ModuleDir()
+		if baseApexPackage != overrideApexPackage {
+			attrs.Manifest.Value.Label = "//" + baseApexPackage + ":" + attrs.Manifest.Value.Label
+		}
+
 		// Key
 		if overridableProperties.Key != nil {
 			attrs.Key = bazel.LabelAttribute{}
@@ -2760,7 +2773,7 @@ func (a *apexBundle) checkStaticExecutables(ctx android.ModuleContext) {
 // A small list of exceptions where static executables are allowed in APEXes.
 func isStaticExecutableAllowed(apex string, exec string) bool {
 	m := map[string][]string{
-		"com.android.runtime": []string{
+		"com.android.runtime": {
 			"linker",
 			"linkerconfig",
 		},
@@ -3105,11 +3118,11 @@ func createBcpPermittedPackagesRules(bcpPermittedPackages map[string][]string) [
 // Adding code to the bootclasspath in new packages will cause issues on module update.
 func qBcpPackages() map[string][]string {
 	return map[string][]string{
-		"conscrypt": []string{
+		"conscrypt": {
 			"android.net.ssl",
 			"com.android.org.conscrypt",
 		},
-		"updatable-media": []string{
+		"updatable-media": {
 			"android.media",
 		},
 	}
@@ -3119,32 +3132,32 @@ func qBcpPackages() map[string][]string {
 // Adding code to the bootclasspath in new packages will cause issues on module update.
 func rBcpPackages() map[string][]string {
 	return map[string][]string{
-		"framework-mediaprovider": []string{
+		"framework-mediaprovider": {
 			"android.provider",
 		},
-		"framework-permission": []string{
+		"framework-permission": {
 			"android.permission",
 			"android.app.role",
 			"com.android.permission",
 			"com.android.role",
 		},
-		"framework-sdkextensions": []string{
+		"framework-sdkextensions": {
 			"android.os.ext",
 		},
-		"framework-statsd": []string{
+		"framework-statsd": {
 			"android.app",
 			"android.os",
 			"android.util",
 			"com.android.internal.statsd",
 			"com.android.server.stats",
 		},
-		"framework-wifi": []string{
+		"framework-wifi": {
 			"com.android.server.wifi",
 			"com.android.wifi.x",
 			"android.hardware.wifi",
 			"android.net.wifi",
 		},
-		"framework-tethering": []string{
+		"framework-tethering": {
 			"android.net",
 		},
 	}
@@ -3186,9 +3199,7 @@ func (a *apexBundle) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 
 func convertWithBp2build(a *apexBundle, ctx android.TopDownMutatorContext) (bazelApexBundleAttributes, bazel.BazelTargetModuleProperties) {
 	var manifestLabelAttribute bazel.LabelAttribute
-	if a.properties.Manifest != nil {
-		manifestLabelAttribute.SetValue(android.BazelLabelForModuleSrcSingle(ctx, *a.properties.Manifest))
-	}
+	manifestLabelAttribute.SetValue(android.BazelLabelForModuleSrcSingle(ctx, proptools.StringDefault(a.properties.Manifest, "apex_manifest.json")))
 
 	var androidManifestLabelAttribute bazel.LabelAttribute
 	if a.properties.AndroidManifest != nil {

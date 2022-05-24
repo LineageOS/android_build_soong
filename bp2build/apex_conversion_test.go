@@ -198,6 +198,7 @@ apex {
 		expectedBazelTargets: []string{
 			makeBazelTarget("apex", "com.android.apogee", attrNameToString{
 				"file_contexts": `"//a/b:com.android.apogee-file_contexts"`,
+				"manifest":      `"apex_manifest.json"`,
 			}),
 		}})
 }
@@ -217,6 +218,7 @@ apex {
 		expectedBazelTargets: []string{
 			makeBazelTarget("apex", "com.android.apogee", attrNameToString{
 				"file_contexts": `"file_contexts_file"`,
+				"manifest":      `"apex_manifest.json"`,
 			}),
 		}})
 }
@@ -245,6 +247,7 @@ apex {
 		expectedBazelTargets: []string{
 			makeBazelTarget("apex", "com.android.apogee", attrNameToString{
 				"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
+				"manifest":      `"apex_manifest.json"`,
 			}),
 		}})
 }
@@ -288,6 +291,7 @@ filegroup {
         "//conditions:default": [],
     })`,
 				"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
+				"manifest":      `"apex_manifest.json"`,
 			}),
 		}})
 }
@@ -336,6 +340,7 @@ filegroup {
         "//conditions:default": [],
     })`,
 				"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
+				"manifest":      `"apex_manifest.json"`,
 			}),
 		}})
 }
@@ -366,6 +371,7 @@ filegroup {
         "//conditions:default": [],
     })`,
 				"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
+				"manifest":      `"apex_manifest.json"`,
 			}),
 		}})
 }
@@ -401,6 +407,7 @@ filegroup {
         "//conditions:default": [],
     })`,
 				"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
+				"manifest":      `"apex_manifest.json"`,
 			}),
 		}})
 }
@@ -640,6 +647,138 @@ override_apex {
 				"prebuilts":    `[]`,
 				"updatable":    "False",
 				"compressible": "True",
+			}),
+		}})
+}
+
+func TestApexBundleSimple_manifestIsEmpty_baseApexOverrideApexInDifferentAndroidBp(t *testing.T) {
+	runOverrideApexTestCase(t, bp2buildTestCase{
+		description:                "override_apex - manifest of base apex is empty, base apex and override_apex is in different Android.bp",
+		moduleTypeUnderTest:        "override_apex",
+		moduleTypeUnderTestFactory: apex.OverrideApexFactory,
+		filesystem: map[string]string{
+			"system/sepolicy/apex/Android.bp": `
+filegroup {
+	name: "com.android.apogee-file_contexts",
+	srcs: [ "apogee-file_contexts", ],
+	bazel_module: { bp2build_available: false },
+}`,
+			"a/b/Android.bp": `
+apex {
+	name: "com.android.apogee",
+	bazel_module: { bp2build_available: false },
+}
+`,
+		},
+		blueprint: `
+override_apex {
+	name: "com.google.android.apogee",
+	base: ":com.android.apogee",
+}
+`,
+		expectedBazelTargets: []string{
+			makeBazelTarget("apex", "com.google.android.apogee", attrNameToString{
+				"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
+				"manifest":      `"//a/b:apex_manifest.json"`,
+			}),
+		}})
+}
+
+func TestApexBundleSimple_manifestIsSet_baseApexOverrideApexInDifferentAndroidBp(t *testing.T) {
+	runOverrideApexTestCase(t, bp2buildTestCase{
+		description:                "override_apex - manifest of base apex is set, base apex and override_apex is in different Android.bp",
+		moduleTypeUnderTest:        "override_apex",
+		moduleTypeUnderTestFactory: apex.OverrideApexFactory,
+		filesystem: map[string]string{
+			"system/sepolicy/apex/Android.bp": `
+filegroup {
+	name: "com.android.apogee-file_contexts",
+	srcs: [ "apogee-file_contexts", ],
+	bazel_module: { bp2build_available: false },
+}`,
+			"a/b/Android.bp": `
+apex {
+	name: "com.android.apogee",
+  manifest: "apogee_manifest.json",
+	bazel_module: { bp2build_available: false },
+}
+`,
+		},
+		blueprint: `
+override_apex {
+	name: "com.google.android.apogee",
+  base: ":com.android.apogee",
+}
+`,
+		expectedBazelTargets: []string{
+			makeBazelTarget("apex", "com.google.android.apogee", attrNameToString{
+				"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
+				"manifest":      `"//a/b:apogee_manifest.json"`,
+			}),
+		}})
+}
+
+func TestApexBundleSimple_manifestIsEmpty_baseApexOverrideApexInSameAndroidBp(t *testing.T) {
+	runOverrideApexTestCase(t, bp2buildTestCase{
+		description:                "override_apex - manifest of base apex is empty, base apex and override_apex is in same Android.bp",
+		moduleTypeUnderTest:        "override_apex",
+		moduleTypeUnderTestFactory: apex.OverrideApexFactory,
+		filesystem: map[string]string{
+			"system/sepolicy/apex/Android.bp": `
+filegroup {
+	name: "com.android.apogee-file_contexts",
+	srcs: [ "apogee-file_contexts", ],
+	bazel_module: { bp2build_available: false },
+}`,
+		},
+		blueprint: `
+apex {
+	name: "com.android.apogee",
+	bazel_module: { bp2build_available: false },
+}
+
+override_apex {
+	name: "com.google.android.apogee",
+  base: ":com.android.apogee",
+}
+`,
+		expectedBazelTargets: []string{
+			makeBazelTarget("apex", "com.google.android.apogee", attrNameToString{
+				"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
+				"manifest":      `"apex_manifest.json"`,
+			}),
+		}})
+}
+
+func TestApexBundleSimple_manifestIsSet_baseApexOverrideApexInSameAndroidBp(t *testing.T) {
+	runOverrideApexTestCase(t, bp2buildTestCase{
+		description:                "override_apex - manifest of base apex is set, base apex and override_apex is in same Android.bp",
+		moduleTypeUnderTest:        "override_apex",
+		moduleTypeUnderTestFactory: apex.OverrideApexFactory,
+		filesystem: map[string]string{
+			"system/sepolicy/apex/Android.bp": `
+filegroup {
+	name: "com.android.apogee-file_contexts",
+	srcs: [ "apogee-file_contexts", ],
+	bazel_module: { bp2build_available: false },
+}`,
+		},
+		blueprint: `
+apex {
+	name: "com.android.apogee",
+  manifest: "apogee_manifest.json",
+	bazel_module: { bp2build_available: false },
+}
+
+override_apex {
+	name: "com.google.android.apogee",
+  base: ":com.android.apogee",
+}
+`,
+		expectedBazelTargets: []string{
+			makeBazelTarget("apex", "com.google.android.apogee", attrNameToString{
+				"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
+				"manifest":      `"apogee_manifest.json"`,
 			}),
 		}})
 }
