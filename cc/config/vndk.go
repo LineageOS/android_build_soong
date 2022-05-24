@@ -30,6 +30,7 @@ var VndkMustUseVendorVariantList = []string{
 	"android.hardware.dumpstate-V1-ndk",
 	"android.hardware.gnss-V1-ndk",
 	"android.hardware.gnss-V1-ndk_platform",
+	"android.hardware.gnss-V2-ndk",
 	"android.hardware.gnss-ndk_platform",
 	"android.hardware.gnss-unstable-ndk_platform",
 	"android.hardware.health-V1-ndk",
