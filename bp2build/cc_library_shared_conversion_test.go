@@ -520,3 +520,52 @@ cc_library_shared {
 		})},
 	})
 }
+
+func TestCcLibrarySharedConvertLex(t *testing.T) {
+	runCcLibrarySharedTestCase(t, bp2buildTestCase{
+		description:                "cc_library_shared with lex files",
+		moduleTypeUnderTest:        "cc_library_shared",
+		moduleTypeUnderTestFactory: cc.LibrarySharedFactory,
+		filesystem: map[string]string{
+			"foo.c":   "",
+			"bar.cc":  "",
+			"foo1.l":  "",
+			"bar1.ll": "",
+			"foo2.l":  "",
+			"bar2.ll": "",
+		},
+		blueprint: `cc_library_shared {
+	name: "foo_lib",
+	srcs: ["foo.c", "bar.cc", "foo1.l", "foo2.l", "bar1.ll", "bar2.ll"],
+	lex: { flags: ["--foo_flags"] },
+	include_build_directory: false,
+	bazel_module: { bp2build_available: true },
+}`,
+		expectedBazelTargets: []string{
+			makeBazelTarget("genlex", "foo_lib_genlex_l", attrNameToString{
+				"srcs": `[
+        "foo1.l",
+        "foo2.l",
+    ]`,
+				"lexopts": `["--foo_flags"]`,
+			}),
+			makeBazelTarget("genlex", "foo_lib_genlex_ll", attrNameToString{
+				"srcs": `[
+        "bar1.ll",
+        "bar2.ll",
+    ]`,
+				"lexopts": `["--foo_flags"]`,
+			}),
+			makeBazelTarget("cc_library_shared", "foo_lib", attrNameToString{
+				"srcs": `[
+        "bar.cc",
+        ":foo_lib_genlex_ll",
+    ]`,
+				"srcs_c": `[
+        "foo.c",
+        ":foo_lib_genlex_l",
+    ]`,
+			}),
+		},
+	})
+}
