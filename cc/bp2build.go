@@ -29,6 +29,8 @@ import (
 const (
 	cSrcPartition     = "c"
 	asSrcPartition    = "as"
+	lSrcPartition     = "l"
+	llSrcPartition    = "ll"
 	cppSrcPartition   = "cpp"
 	protoSrcPartition = "proto"
 )
@@ -76,6 +78,12 @@ func groupSrcsByExtension(ctx android.BazelConversionPathContext, srcs bazel.Lab
 		protoSrcPartition: android.ProtoSrcLabelPartition,
 		cSrcPartition:     bazel.LabelPartition{Extensions: []string{".c"}, LabelMapper: addSuffixForFilegroup("_c_srcs")},
 		asSrcPartition:    bazel.LabelPartition{Extensions: []string{".s", ".S"}, LabelMapper: addSuffixForFilegroup("_as_srcs")},
+		// TODO(http://b/231968910): If there is ever a filegroup target that
+		// 		contains .l or .ll files we will need to find a way to add a
+		// 		LabelMapper for these that identifies these filegroups and
+		//		converts them appropriately
+		lSrcPartition:  bazel.LabelPartition{Extensions: []string{".l"}},
+		llSrcPartition: bazel.LabelPartition{Extensions: []string{".ll"}},
 		// C++ is the "catch-all" group, and comprises generated sources because we don't
 		// know the language of these sources until the genrule is executed.
 		cppSrcPartition: bazel.LabelPartition{Extensions: []string{".cpp", ".cc", ".cxx", ".mm"}, LabelMapper: addSuffixForFilegroup("_cpp_srcs"), Keep_remainder: true},
@@ -285,6 +293,11 @@ type compilerAttributes struct {
 	cppFlags bazel.StringListAttribute
 	srcs     bazel.LabelListAttribute
 
+	// Lex sources and options
+	lSrcs   bazel.LabelListAttribute
+	llSrcs  bazel.LabelListAttribute
+	lexopts bazel.StringListAttribute
+
 	hdrs bazel.LabelListAttribute
 
 	rtti bazel.BoolAttribute
@@ -407,6 +420,8 @@ func (ca *compilerAttributes) finalize(ctx android.BazelConversionPathContext, i
 	ca.srcs = partitionedSrcs[cppSrcPartition]
 	ca.cSrcs = partitionedSrcs[cSrcPartition]
 	ca.asSrcs = partitionedSrcs[asSrcPartition]
+	ca.lSrcs = partitionedSrcs[lSrcPartition]
+	ca.llSrcs = partitionedSrcs[llSrcPartition]
 
 	ca.absoluteIncludes.DeduplicateAxesFromBase()
 	ca.localIncludes.DeduplicateAxesFromBase()
@@ -515,7 +530,9 @@ func bp2BuildParseBaseProps(ctx android.Bp2buildMutatorContext, module *Module) 
 			var allHdrs []string
 			if baseCompilerProps, ok := archVariantCompilerProps[axis][config].(*BaseCompilerProperties); ok {
 				allHdrs = baseCompilerProps.Generated_headers
-
+				if baseCompilerProps.Lex != nil {
+					compilerAttrs.lexopts.SetSelectValue(axis, config, baseCompilerProps.Lex.Flags)
+				}
 				(&compilerAttrs).bp2buildForAxisAndConfig(ctx, axis, config, baseCompilerProps)
 			}
 
@@ -569,6 +586,10 @@ func bp2BuildParseBaseProps(ctx android.Bp2buildMutatorContext, module *Module) 
 	// to the other
 	(&linkerAttrs).wholeArchiveDeps.Add(protoDep.wholeStaticLib)
 	(&linkerAttrs).implementationWholeArchiveDeps.Add(protoDep.implementationWholeStaticLib)
+
+	convertedLSrcs := bp2BuildLex(ctx, module.Name(), compilerAttrs)
+	(&compilerAttrs).srcs.Add(&convertedLSrcs.srcName)
+	(&compilerAttrs).cSrcs.Add(&convertedLSrcs.cSrcName)
 
 	return baseAttributes{
 		compilerAttrs,
