@@ -54,11 +54,12 @@ type JavaFuzzLibrary struct {
 // cc.JniSanitizeable. It returns a bool for whether a cc dependency should be
 // sanitized for the given sanitizer or not.
 func (j *JavaFuzzLibrary) IsSanitizerEnabledForJni(ctx android.BaseModuleContext, sanitizerName string) bool {
-	for _, s := range j.jniProperties.Sanitizers {
-		if sanitizerName == s {
-			return true
-		}
-	}
+	// TODO: once b/231370928 is resolved, please uncomment the loop
+	// 	for _, s := range j.jniProperties.Sanitizers {
+	// 		if sanitizerName == s {
+	// 			return true
+	// 		}
+	// 	}
 	return false
 }
 
