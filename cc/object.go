@@ -38,7 +38,6 @@ var ccObjectSdkMemberType = &librarySdkMemberType{
 		SupportsSdk:  true,
 	},
 	prebuiltModuleType: "cc_prebuilt_object",
-	linkTypes:          nil,
 }
 
 type objectLinker struct {
@@ -47,10 +46,10 @@ type objectLinker struct {
 }
 
 type objectBazelHandler struct {
-	BazelHandler
-
 	module *Module
 }
+
+var _ BazelHandler = (*objectBazelHandler)(nil)
 
 func (handler *objectBazelHandler) QueueBazelCall(ctx android.BaseModuleContext, label string) {
 	bazelCtx := ctx.Config().BazelContext

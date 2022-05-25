@@ -183,7 +183,7 @@ func (binary *binaryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 		}
 	}
 
-	if !binary.static() && inList("libc", deps.StaticLibs) && !ctx.BazelConversionMode() {
+	if !binary.static() && inList("libc", deps.StaticLibs) {
 		ctx.ModuleErrorf("statically linking libc to dynamic executable, please remove libc\n" +
 			"from static libs or set static_executable: true")
 	}
@@ -563,10 +563,10 @@ func (binary *binaryDecorator) verifyHostBionicLinker(ctx ModuleContext, in, lin
 }
 
 type ccBinaryBazelHandler struct {
-	BazelHandler
-
 	module *Module
 }
+
+var _ BazelHandler = (*ccBinaryBazelHandler)(nil)
 
 func (handler *ccBinaryBazelHandler) QueueBazelCall(ctx android.BaseModuleContext, label string) {
 	bazelCtx := ctx.Config().BazelContext

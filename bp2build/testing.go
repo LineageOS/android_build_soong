@@ -119,8 +119,8 @@ func runBp2BuildTestCase(t *testing.T, registerModuleTypes func(ctx android.Regi
 		return
 	}
 
-	errs := append(parseErrs, resolveDepsErrs...)
-	if tc.expectedErr != nil && checkError(t, errs, tc.expectedErr) {
+	parseAndResolveErrs := append(parseErrs, resolveDepsErrs...)
+	if tc.expectedErr != nil && checkError(t, parseAndResolveErrs, tc.expectedErr) {
 		return
 	}
 
@@ -135,7 +135,7 @@ func runBp2BuildTestCase(t *testing.T, registerModuleTypes func(ctx android.Regi
 		if checkError(t, errs, tc.expectedErr) {
 			return
 		} else {
-			t.Errorf("Expected error: %q, got: %q", tc.expectedErr, errs)
+			t.Errorf("Expected error: %q, got: %q and %q", tc.expectedErr, errs, parseAndResolveErrs)
 		}
 	} else {
 		android.FailIfErrored(t, errs)

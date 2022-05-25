@@ -49,11 +49,11 @@ func RegisterLibraryHeadersBuildComponents(ctx android.RegistrationContext) {
 }
 
 type libraryHeaderBazelHandler struct {
-	BazelHandler
-
 	module  *Module
 	library *libraryDecorator
 }
+
+var _ BazelHandler = (*libraryHeaderBazelHandler)(nil)
 
 func (handler *libraryHeaderBazelHandler) QueueBazelCall(ctx android.BaseModuleContext, label string) {
 	bazelCtx := ctx.Config().BazelContext
@@ -123,7 +123,7 @@ type bazelCcLibraryHeadersAttributes struct {
 
 func libraryHeadersBp2Build(ctx android.TopDownMutatorContext, module *Module) {
 	baseAttributes := bp2BuildParseBaseProps(ctx, module)
-	exportedIncludes := bp2BuildParseExportedIncludes(ctx, module, baseAttributes.includes)
+	exportedIncludes := bp2BuildParseExportedIncludes(ctx, module, &baseAttributes.includes)
 	linkerAttrs := baseAttributes.linkerAttributes
 
 	attrs := &bazelCcLibraryHeadersAttributes{

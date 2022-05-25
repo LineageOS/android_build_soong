@@ -355,7 +355,7 @@ func prebuiltLibraryBp2Build(ctx android.TopDownMutatorContext, module *Module) 
 
 func prebuiltLibraryStaticBp2Build(ctx android.TopDownMutatorContext, module *Module, fullBuild bool) {
 	prebuiltAttrs := Bp2BuildParsePrebuiltLibraryProps(ctx, module, true)
-	exportedIncludes := Bp2BuildParseExportedIncludesForPrebuiltLibrary(ctx, module)
+	exportedIncludes := bp2BuildParseExportedIncludes(ctx, module, nil)
 
 	attrs := &bazelPrebuiltLibraryStaticAttributes{
 		Static_library:         prebuiltAttrs.Src,
@@ -407,11 +407,11 @@ type prebuiltObjectLinker struct {
 }
 
 type prebuiltStaticLibraryBazelHandler struct {
-	BazelHandler
-
 	module  *Module
 	library *libraryDecorator
 }
+
+var _ BazelHandler = (*prebuiltStaticLibraryBazelHandler)(nil)
 
 func (h *prebuiltStaticLibraryBazelHandler) QueueBazelCall(ctx android.BaseModuleContext, label string) {
 	bazelCtx := ctx.Config().BazelContext
@@ -458,11 +458,11 @@ func (h *prebuiltStaticLibraryBazelHandler) ProcessBazelQueryResponse(ctx androi
 }
 
 type prebuiltSharedLibraryBazelHandler struct {
-	BazelHandler
-
 	module  *Module
 	library *libraryDecorator
 }
+
+var _ BazelHandler = (*prebuiltSharedLibraryBazelHandler)(nil)
 
 func (h *prebuiltSharedLibraryBazelHandler) QueueBazelCall(ctx android.BaseModuleContext, label string) {
 	bazelCtx := ctx.Config().BazelContext

@@ -36,19 +36,10 @@ type toolchainContext interface {
 	Arch() android.Arch
 }
 
-type conversionContext interface {
-	BazelConversionMode() bool
-}
-
 func FindToolchainWithContext(ctx toolchainContext) Toolchain {
 	t, err := findToolchain(ctx.Os(), ctx.Arch())
 	if err != nil {
-		if c, ok := ctx.(conversionContext); ok && c.BazelConversionMode() {
-			// TODO(b/179123288): determine conversion for toolchain
-			return &toolchainX86_64{}
-		} else {
-			panic(err)
-		}
+		panic(err)
 	}
 	return t
 }
