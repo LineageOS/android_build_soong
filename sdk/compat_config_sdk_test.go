@@ -37,23 +37,7 @@ func TestSnapshotWithCompatConfig(t *testing.T) {
 	`)
 
 	CheckSnapshot(t, result, "mysdk", "",
-		checkVersionedAndroidBpContents(`
-// This is auto-generated. DO NOT EDIT.
-
-prebuilt_platform_compat_config {
-    name: "mysdk_myconfig@current",
-    sdk_member_name: "myconfig",
-    visibility: ["//visibility:public"],
-    metadata: "compat_configs/myconfig/myconfig_meta.xml",
-}
-
-sdk_snapshot {
-    name: "mysdk@current",
-    visibility: ["//visibility:public"],
-    compat_configs: ["mysdk_myconfig@current"],
-}
-`),
-		checkUnversionedAndroidBpContents(`
+		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
 prebuilt_platform_compat_config {
