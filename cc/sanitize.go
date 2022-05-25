@@ -1428,8 +1428,11 @@ func sanitizerMutator(t SanitizerType) func(android.BottomUpMutatorContext) {
 				}
 			}
 		} else if sanitizeable, ok := mctx.Module().(Sanitizeable); ok && sanitizeable.IsSanitizerEnabled(mctx, t.name()) {
-			// APEX and Java fuzz modules fall here
+			// APEX fuzz modules fall here
 			sanitizeable.AddSanitizerDependencies(mctx, t.name())
+			mctx.CreateVariations(t.variationName())
+		} else if _, ok := mctx.Module().(JniSanitizeable); ok {
+			// Java fuzz modules fall here
 			mctx.CreateVariations(t.variationName())
 		} else if c, ok := mctx.Module().(*Module); ok {
 			//TODO: When Rust modules have vendor support, enable this path for PlatformSanitizeable
