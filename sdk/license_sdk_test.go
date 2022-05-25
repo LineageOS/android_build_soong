@@ -60,7 +60,7 @@ func TestSnapshotWithPackageDefaultLicense(t *testing.T) {
 	`)
 
 	CheckSnapshot(t, result, "mysdk", "",
-		checkUnversionedAndroidBpContents(`
+		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
 package {
@@ -89,44 +89,6 @@ license {
         "licenses/NOTICE1",
         "licenses/NOTICE2",
     ],
-}
-		`),
-		checkVersionedAndroidBpContents(`
-// This is auto-generated. DO NOT EDIT.
-
-package {
-    // A default list here prevents the license LSC from adding its own list which would
-    // be unnecessary as every module in the sdk already has its own licenses property.
-    default_applicable_licenses: ["Android-Apache-2.0"],
-}
-
-java_import {
-    name: "mysdk_myjavalib@current",
-    sdk_member_name: "myjavalib",
-    visibility: ["//visibility:public"],
-    apex_available: ["//apex_available:platform"],
-    licenses: ["mysdk_mylicense@current"],
-    jars: ["java/myjavalib.jar"],
-}
-
-license {
-    name: "mysdk_mylicense@current",
-    sdk_member_name: "mylicense",
-    visibility: ["//visibility:private"],
-    license_kinds: [
-        "SPDX-license-identifier-Apache-2.0",
-        "legacy_unencumbered",
-    ],
-    license_text: [
-        "licenses/NOTICE1",
-        "licenses/NOTICE2",
-    ],
-}
-
-sdk_snapshot {
-    name: "mysdk@current",
-    visibility: ["//visibility:public"],
-    java_header_libs: ["mysdk_myjavalib@current"],
 }
 		`),
 		checkAllCopyRules(`
