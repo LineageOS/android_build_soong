@@ -26,7 +26,8 @@ import (
 var (
 	toRawBinary = pctx.AndroidStaticRule("toRawBinary",
 		blueprint.RuleParams{
-			Command:     "${objcopy} --output-target=binary ${in} ${out}",
+			Command: "${objcopy} --output-target=binary ${in} ${out} &&" +
+				"chmod -x ${out}",
 			CommandDeps: []string{"$objcopy"},
 		},
 		"objcopy")
@@ -76,7 +77,7 @@ func (r *rawBinary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        toRawBinary,
-		Description: "prefix symbols " + outputFile.Base(),
+		Description: "raw binary " + outputFile.Base(),
 		Output:      outputFile,
 		Input:       inputFile,
 		Args: map[string]string{
@@ -93,7 +94,7 @@ var _ android.AndroidMkEntriesProvider = (*rawBinary)(nil)
 
 // Implements android.AndroidMkEntriesProvider
 func (r *rawBinary) AndroidMkEntries() []android.AndroidMkEntries {
-	return []android.AndroidMkEntries{android.AndroidMkEntries{
+	return []android.AndroidMkEntries{{
 		Class:      "ETC",
 		OutputFile: android.OptionalPathForPath(r.output),
 	}}
