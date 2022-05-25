@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"android/soong/bazel"
 	"github.com/google/blueprint"
 
 	"android/soong/android"
@@ -167,6 +168,41 @@ func genLex(ctx android.ModuleContext, lexFile android.Path, outFile android.Mod
 		Input:       lexFile,
 		Args:        map[string]string{"flags": flagsString},
 	})
+}
+
+type LexAttrs struct {
+	Srcs    bazel.LabelListAttribute
+	Lexopts bazel.StringListAttribute
+}
+
+type LexNames struct {
+	cSrcName bazel.LabelAttribute
+	srcName  bazel.LabelAttribute
+}
+
+func bp2BuildLex(ctx android.Bp2buildMutatorContext, moduleName string, ca compilerAttributes) LexNames {
+	names := LexNames{}
+	if !ca.lSrcs.IsEmpty() {
+		names.cSrcName = createLexTargetModule(ctx, moduleName+"_genlex_l", ca.lSrcs, ca.lexopts)
+	}
+	if !ca.llSrcs.IsEmpty() {
+		names.srcName = createLexTargetModule(ctx, moduleName+"_genlex_ll", ca.llSrcs, ca.lexopts)
+	}
+	return names
+}
+
+func createLexTargetModule(ctx android.Bp2buildMutatorContext, name string, srcs bazel.LabelListAttribute, opts bazel.StringListAttribute) bazel.LabelAttribute {
+	ctx.CreateBazelTargetModule(
+		bazel.BazelTargetModuleProperties{
+			Rule_class:        "genlex",
+			Bzl_load_location: "//build/bazel/rules/cc:flex.bzl",
+		},
+		android.CommonAttributes{Name: name},
+		&LexAttrs{
+			Srcs:    srcs,
+			Lexopts: opts,
+		})
+	return bazel.LabelAttribute{Value: &bazel.Label{Label: ":" + name}}
 }
 
 func genSysprop(ctx android.ModuleContext, syspropFile android.Path) (android.Path, android.Paths) {
