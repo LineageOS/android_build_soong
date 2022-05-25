@@ -628,7 +628,7 @@ func addCommandForPyBinaryRunfilesDir(oldCommand string, zipperCommandPath, zipF
 }
 
 func isSymlinkAction(a action) bool {
-	return a.Mnemonic == "Symlink" || a.Mnemonic == "SolibSymlink"
+	return a.Mnemonic == "Symlink" || a.Mnemonic == "SolibSymlink" || a.Mnemonic == "ExecutableSymlink"
 }
 
 func isTemplateExpandAction(a action) bool {
