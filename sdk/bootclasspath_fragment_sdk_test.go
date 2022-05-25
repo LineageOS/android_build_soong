@@ -124,7 +124,7 @@ func TestSnapshotWithBootclasspathFragment_ImageName(t *testing.T) {
 	preparerForSnapshot := fixtureAddPrebuiltApexForBootclasspathFragment("com.android.art", "mybootclasspathfragment")
 
 	CheckSnapshot(t, result, "mysdk", "",
-		checkUnversionedAndroidBpContents(`
+		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
 prebuilt_bootclasspath_fragment {
@@ -150,41 +150,6 @@ java_import {
     visibility: ["//visibility:public"],
     apex_available: ["com.android.art"],
     jars: ["java_boot_libs/snapshot/jars/are/invalid/mybootlib.jar"],
-}
-`),
-		checkVersionedAndroidBpContents(`
-// This is auto-generated. DO NOT EDIT.
-
-prebuilt_bootclasspath_fragment {
-    name: "mysdk_mybootclasspathfragment@current",
-    sdk_member_name: "mybootclasspathfragment",
-    visibility: ["//visibility:public"],
-    apex_available: ["com.android.art"],
-    image_name: "art",
-    contents: ["mysdk_mybootlib@current"],
-    hidden_api: {
-        annotation_flags: "hiddenapi/annotation-flags.csv",
-        metadata: "hiddenapi/metadata.csv",
-        index: "hiddenapi/index.csv",
-        signature_patterns: "hiddenapi/signature-patterns.csv",
-        filtered_stub_flags: "hiddenapi/filtered-stub-flags.csv",
-        filtered_flags: "hiddenapi/filtered-flags.csv",
-    },
-}
-
-java_import {
-    name: "mysdk_mybootlib@current",
-    sdk_member_name: "mybootlib",
-    visibility: ["//visibility:public"],
-    apex_available: ["com.android.art"],
-    jars: ["java_boot_libs/snapshot/jars/are/invalid/mybootlib.jar"],
-}
-
-sdk_snapshot {
-    name: "mysdk@current",
-    visibility: ["//visibility:public"],
-    bootclasspath_fragments: ["mysdk_mybootclasspathfragment@current"],
-    java_boot_libs: ["mysdk_mybootlib@current"],
 }
 `),
 		checkAllCopyRules(`
@@ -317,7 +282,7 @@ func TestSnapshotWithBootClasspathFragment_Contents(t *testing.T) {
 	preparerForSnapshot := fixtureAddPrebuiltApexForBootclasspathFragment("myapex", "mybootclasspathfragment")
 
 	CheckSnapshot(t, result, "mysdk", "",
-		checkUnversionedAndroidBpContents(`
+		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
 prebuilt_bootclasspath_fragment {
@@ -400,103 +365,6 @@ java_sdk_library_import {
         removed_api: "sdk_library/public/mycoreplatform-removed.txt",
         sdk_version: "current",
     },
-}
-		`),
-		checkVersionedAndroidBpContents(`
-// This is auto-generated. DO NOT EDIT.
-
-prebuilt_bootclasspath_fragment {
-    name: "mysdk_mybootclasspathfragment@current",
-    sdk_member_name: "mybootclasspathfragment",
-    visibility: ["//visibility:public"],
-    apex_available: ["myapex"],
-    contents: [
-        "mysdk_mybootlib@current",
-        "mysdk_myothersdklibrary@current",
-    ],
-    api: {
-        stub_libs: ["mysdk_mysdklibrary@current"],
-    },
-    core_platform_api: {
-        stub_libs: ["mysdk_mycoreplatform@current"],
-    },
-    hidden_api: {
-        annotation_flags: "hiddenapi/annotation-flags.csv",
-        metadata: "hiddenapi/metadata.csv",
-        index: "hiddenapi/index.csv",
-        signature_patterns: "hiddenapi/signature-patterns.csv",
-        filtered_stub_flags: "hiddenapi/filtered-stub-flags.csv",
-        filtered_flags: "hiddenapi/filtered-flags.csv",
-    },
-}
-
-java_import {
-    name: "mysdk_mybootlib@current",
-    sdk_member_name: "mybootlib",
-    visibility: ["//visibility:public"],
-    apex_available: ["myapex"],
-    jars: ["java_boot_libs/snapshot/jars/are/invalid/mybootlib.jar"],
-    permitted_packages: ["mybootlib"],
-}
-
-java_sdk_library_import {
-    name: "mysdk_myothersdklibrary@current",
-    sdk_member_name: "myothersdklibrary",
-    visibility: ["//visibility:public"],
-    apex_available: ["myapex"],
-    shared_library: true,
-    compile_dex: true,
-    permitted_packages: ["myothersdklibrary"],
-    public: {
-        jars: ["sdk_library/public/myothersdklibrary-stubs.jar"],
-        stub_srcs: ["sdk_library/public/myothersdklibrary_stub_sources"],
-        current_api: "sdk_library/public/myothersdklibrary.txt",
-        removed_api: "sdk_library/public/myothersdklibrary-removed.txt",
-        sdk_version: "current",
-    },
-}
-
-java_sdk_library_import {
-    name: "mysdk_mysdklibrary@current",
-    sdk_member_name: "mysdklibrary",
-    visibility: ["//visibility:public"],
-    apex_available: ["myapex"],
-    shared_library: false,
-    public: {
-        jars: ["sdk_library/public/mysdklibrary-stubs.jar"],
-        stub_srcs: ["sdk_library/public/mysdklibrary_stub_sources"],
-        current_api: "sdk_library/public/mysdklibrary.txt",
-        removed_api: "sdk_library/public/mysdklibrary-removed.txt",
-        sdk_version: "current",
-    },
-}
-
-java_sdk_library_import {
-    name: "mysdk_mycoreplatform@current",
-    sdk_member_name: "mycoreplatform",
-    visibility: ["//visibility:public"],
-    apex_available: ["myapex"],
-    shared_library: true,
-    compile_dex: true,
-    public: {
-        jars: ["sdk_library/public/mycoreplatform-stubs.jar"],
-        stub_srcs: ["sdk_library/public/mycoreplatform_stub_sources"],
-        current_api: "sdk_library/public/mycoreplatform.txt",
-        removed_api: "sdk_library/public/mycoreplatform-removed.txt",
-        sdk_version: "current",
-    },
-}
-
-sdk_snapshot {
-    name: "mysdk@current",
-    visibility: ["//visibility:public"],
-    bootclasspath_fragments: ["mysdk_mybootclasspathfragment@current"],
-    java_boot_libs: ["mysdk_mybootlib@current"],
-    java_sdk_libs: [
-        "mysdk_myothersdklibrary@current",
-        "mysdk_mysdklibrary@current",
-        "mysdk_mycoreplatform@current",
-    ],
 }
 		`),
 		checkAllCopyRules(`
@@ -630,7 +498,7 @@ func TestSnapshotWithBootClasspathFragment_Fragments(t *testing.T) {
 	preparerForSnapshot := fixtureAddPrebuiltApexForBootclasspathFragment("myapex", "mybootclasspathfragment")
 
 	CheckSnapshot(t, result, "mysdk", "",
-		checkUnversionedAndroidBpContents(`
+		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
 prebuilt_bootclasspath_fragment {
@@ -828,7 +696,7 @@ func TestSnapshotWithBootclasspathFragment_HiddenAPI(t *testing.T) {
 	preparerForSnapshot := fixtureAddPrebuiltApexForBootclasspathFragment("myapex", "mybootclasspathfragment")
 
 	CheckSnapshot(t, result, "mysdk", "",
-		checkUnversionedAndroidBpContents(`
+		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
 prebuilt_bootclasspath_fragment {
