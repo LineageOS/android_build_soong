@@ -86,7 +86,7 @@ func runCcHostBinaryTestCase(t *testing.T, tc ccBinaryBp2buildTestCase) {
 	testCase := tc
 	for i, tar := range testCase.targets {
 		switch tar.typ {
-		case "cc_binary", "proto_library", "cc_lite_proto_library":
+		case "cc_binary", "proto_library", "cc_lite_proto_library", "genlex":
 			tar.attrs["target_compatible_with"] = `select({
         "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
@@ -501,6 +501,52 @@ func TestCcBinaryStaticProto(t *testing.T) {
 				"deps":               `[":libprotobuf-cpp-lite"]`,
 				"whole_archive_deps": `[":foo_cc_proto_lite"]`,
 				"linkshared":         `False`,
+			}},
+		},
+	})
+}
+
+func TestCcBinaryConvertLex(t *testing.T) {
+	runCcBinaryTests(t, ccBinaryBp2buildTestCase{
+		description: `.l and .ll sources converted to .c and .cc`,
+		blueprint: `
+{rule_name} {
+    name: "foo",
+		srcs: ["foo.c", "bar.cc", "foo1.l", "foo2.l", "bar1.ll", "bar2.ll"],
+		lex: { flags: ["--foo_opt", "--bar_opt"] },
+		include_build_directory: false,
+}
+`,
+		targets: []testBazelTarget{
+			{"genlex", "foo_genlex_l", attrNameToString{
+				"srcs": `[
+        "foo1.l",
+        "foo2.l",
+    ]`,
+				"lexopts": `[
+        "--foo_opt",
+        "--bar_opt",
+    ]`,
+			}},
+			{"genlex", "foo_genlex_ll", attrNameToString{
+				"srcs": `[
+        "bar1.ll",
+        "bar2.ll",
+    ]`,
+				"lexopts": `[
+        "--foo_opt",
+        "--bar_opt",
+    ]`,
+			}},
+			{"cc_binary", "foo", attrNameToString{
+				"srcs": `[
+        "bar.cc",
+        ":foo_genlex_ll",
+    ]`,
+				"srcs_c": `[
+        "foo.c",
+        ":foo_genlex_l",
+    ]`,
 			}},
 		},
 	})
