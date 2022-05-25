@@ -120,7 +120,7 @@ func TestSdkCompileMultilibOverride(t *testing.T) {
 	`)
 
 	CheckSnapshot(t, result, "mysdk", "",
-		checkUnversionedAndroidBpContents(`
+		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
 cc_prebuilt_library_shared {
@@ -141,48 +141,6 @@ cc_prebuilt_library_shared {
         linux_glibc_x86_64: {
             enabled: true,
             srcs: ["linux_glibc/x86_64/lib/sdkmember.so"],
-        },
-    },
-}
-`),
-		checkVersionedAndroidBpContents(`
-// This is auto-generated. DO NOT EDIT.
-
-cc_prebuilt_library_shared {
-    name: "mysdk_sdkmember@current",
-    sdk_member_name: "sdkmember",
-    visibility: ["//visibility:public"],
-    apex_available: ["//apex_available:platform"],
-    host_supported: true,
-    installable: false,
-    stl: "none",
-    compile_multilib: "64",
-    target: {
-        host: {
-            enabled: false,
-        },
-        android_arm64: {
-            srcs: ["android/arm64/lib/sdkmember.so"],
-        },
-        linux_glibc_x86_64: {
-            enabled: true,
-            srcs: ["linux_glibc/x86_64/lib/sdkmember.so"],
-        },
-    },
-}
-
-sdk_snapshot {
-    name: "mysdk@current",
-    visibility: ["//visibility:public"],
-    host_supported: true,
-    compile_multilib: "64",
-    native_shared_libs: ["mysdk_sdkmember@current"],
-    target: {
-        host: {
-            enabled: false,
-        },
-        linux_glibc_x86_64: {
-            enabled: true,
         },
     },
 }
@@ -265,7 +223,7 @@ func TestSnapshotWithObject(t *testing.T) {
 	`)
 
 	CheckSnapshot(t, result, "mysdk", "",
-		checkUnversionedAndroidBpContents(`
+		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
 cc_prebuilt_object {
@@ -287,37 +245,6 @@ cc_prebuilt_object {
             srcs: ["arm/lib/crtobj.o"],
         },
     },
-}
-`),
-		// Make sure that the generated sdk_snapshot uses the native_objects property.
-		checkVersionedAndroidBpContents(`
-// This is auto-generated. DO NOT EDIT.
-
-cc_prebuilt_object {
-    name: "mysdk_crtobj@current",
-    sdk_member_name: "crtobj",
-    visibility: ["//visibility:public"],
-    apex_available: ["//apex_available:platform"],
-    stl: "none",
-    compile_multilib: "both",
-    system_shared_libs: [],
-    sanitize: {
-        never: true,
-    },
-    arch: {
-        arm64: {
-            srcs: ["arm64/lib/crtobj.o"],
-        },
-        arm: {
-            srcs: ["arm/lib/crtobj.o"],
-        },
-    },
-}
-
-sdk_snapshot {
-    name: "mysdk@current",
-    visibility: ["//visibility:public"],
-    native_objects: ["mysdk_crtobj@current"],
 }
 `),
 		checkAllCopyRules(`
@@ -403,7 +330,7 @@ func TestSnapshotWithCcExportGeneratedHeaders(t *testing.T) {
 	errorHandler := android.FixtureExpectsAtLeastOneErrorMatchingPattern(`module source path "snapshot/include_gen/generated_foo/gen/protos" does not exist`)
 
 	CheckSnapshot(t, result, "mysdk", "",
-		checkUnversionedAndroidBpContents(`
+		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
 cc_prebuilt_library_shared {
@@ -476,7 +403,7 @@ func TestSnapshotWithCcSharedLibraryCommonProperties(t *testing.T) {
 	`)
 
 	CheckSnapshot(t, result, "mysdk", "",
-		checkUnversionedAndroidBpContents(`
+		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
 cc_prebuilt_library_shared {
@@ -535,7 +462,7 @@ func TestSnapshotWithCcBinary(t *testing.T) {
 	`)
 
 	CheckSnapshot(t, result, "mymodule_exports", "",
-		checkUnversionedAndroidBpContents(`
+		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
 cc_prebuilt_binary {
@@ -552,33 +479,6 @@ cc_prebuilt_binary {
             srcs: ["arm/bin/mynativebinary"],
         },
     },
-}
-`),
-		// Make sure that the generated sdk_snapshot uses the native_binaries property.
-		checkVersionedAndroidBpContents(`
-// This is auto-generated. DO NOT EDIT.
-
-cc_prebuilt_binary {
-    name: "mymodule_exports_mynativebinary@current",
-    sdk_member_name: "mynativebinary",
-    visibility: ["//visibility:public"],
-    apex_available: ["//apex_available:platform"],
-    installable: false,
-    compile_multilib: "both",
-    arch: {
-        arm64: {
-            srcs: ["arm64/bin/mynativebinary"],
-        },
-        arm: {
-            srcs: ["arm/bin/mynativebinary"],
-        },
-    },
-}
-
-module_exports_snapshot {
-    name: "mymodule_exports@current",
-    visibility: ["//visibility:public"],
-    native_binaries: ["mymodule_exports_mynativebinary@current"],
 }
 `),
 		checkAllCopyRules(`
@@ -620,7 +520,7 @@ func TestMultipleHostOsTypesSnapshotWithCcBinary(t *testing.T) {
 	`)
 
 	CheckSnapshot(t, result, "myexports", "",
-		checkUnversionedAndroidBpContents(`
+		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
 cc_prebuilt_binary {
@@ -652,68 +552,6 @@ cc_prebuilt_binary {
         windows_x86_64: {
             enabled: true,
             srcs: ["windows/x86_64/bin/mynativebinary.exe"],
-        },
-    },
-}
-`),
-		checkVersionedAndroidBpContents(`
-// This is auto-generated. DO NOT EDIT.
-
-cc_prebuilt_binary {
-    name: "myexports_mynativebinary@current",
-    sdk_member_name: "mynativebinary",
-    visibility: ["//visibility:public"],
-    apex_available: ["//apex_available:platform"],
-    device_supported: false,
-    host_supported: true,
-    installable: false,
-    stl: "none",
-    target: {
-        host: {
-            enabled: false,
-        },
-        linux_glibc: {
-            compile_multilib: "both",
-        },
-        linux_glibc_x86_64: {
-            enabled: true,
-            srcs: ["linux_glibc/x86_64/bin/mynativebinary"],
-        },
-        linux_glibc_x86: {
-            enabled: true,
-            srcs: ["linux_glibc/x86/bin/mynativebinary"],
-        },
-        windows: {
-            compile_multilib: "64",
-        },
-        windows_x86_64: {
-            enabled: true,
-            srcs: ["windows/x86_64/bin/mynativebinary.exe"],
-        },
-    },
-}
-
-module_exports_snapshot {
-    name: "myexports@current",
-    visibility: ["//visibility:public"],
-    device_supported: false,
-    host_supported: true,
-    native_binaries: ["myexports_mynativebinary@current"],
-    target: {
-        windows: {
-            compile_multilib: "64",
-        },
-        host: {
-            enabled: false,
-        },
-        linux_glibc_x86_64: {
-            enabled: true,
-        },
-        linux_glibc_x86: {
-            enabled: true,
-        },
-        windows_x86_64: {
-            enabled: true,
         },
     },
 }
@@ -780,7 +618,7 @@ func TestSnapshotWithSingleHostOsType(t *testing.T) {
 	`)
 
 	CheckSnapshot(t, result, "myexports", "",
-		checkUnversionedAndroidBpContents(`
+		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
 cc_prebuilt_binary {
@@ -823,69 +661,6 @@ cc_prebuilt_library_shared {
     },
 }
 `),
-		checkVersionedAndroidBpContents(`
-// This is auto-generated. DO NOT EDIT.
-
-cc_prebuilt_binary {
-    name: "myexports_mynativebinary@current",
-    sdk_member_name: "mynativebinary",
-    visibility: ["//visibility:public"],
-    apex_available: ["//apex_available:platform"],
-    device_supported: false,
-    host_supported: true,
-    installable: false,
-    stl: "none",
-    compile_multilib: "64",
-    target: {
-        host: {
-            enabled: false,
-        },
-        linux_bionic_x86_64: {
-            enabled: true,
-            srcs: ["x86_64/bin/mynativebinary"],
-        },
-    },
-}
-
-cc_prebuilt_library_shared {
-    name: "myexports_mynativelib@current",
-    sdk_member_name: "mynativelib",
-    visibility: ["//visibility:public"],
-    apex_available: ["//apex_available:platform"],
-    device_supported: false,
-    host_supported: true,
-    installable: false,
-    stl: "none",
-    compile_multilib: "64",
-    target: {
-        host: {
-            enabled: false,
-        },
-        linux_bionic_x86_64: {
-            enabled: true,
-            srcs: ["x86_64/lib/mynativelib.so"],
-        },
-    },
-}
-
-module_exports_snapshot {
-    name: "myexports@current",
-    visibility: ["//visibility:public"],
-    device_supported: false,
-    host_supported: true,
-    compile_multilib: "64",
-    native_binaries: ["myexports_mynativebinary@current"],
-    native_shared_libs: ["myexports_mynativelib@current"],
-    target: {
-        host: {
-            enabled: false,
-        },
-        linux_bionic_x86_64: {
-            enabled: true,
-        },
-    },
-}
-`),
 		checkAllCopyRules(`
 .intermediates/mynativebinary/linux_bionic_x86_64/mynativebinary -> x86_64/bin/mynativebinary
 .intermediates/mynativelib/linux_bionic_x86_64_shared/mynativelib.so -> x86_64/lib/mynativelib.so
@@ -918,7 +693,7 @@ func TestSnapshotWithCcStaticNocrtBinary(t *testing.T) {
 	`)
 
 	CheckSnapshot(t, result, "mymodule_exports", "",
-		checkUnversionedAndroidBpContents(`
+		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
 cc_prebuilt_binary {
@@ -943,55 +718,6 @@ cc_prebuilt_binary {
         linux_glibc_x86: {
             enabled: true,
             srcs: ["x86/bin/linker"],
-        },
-    },
-}
-`),
-		checkVersionedAndroidBpContents(`
-// This is auto-generated. DO NOT EDIT.
-
-cc_prebuilt_binary {
-    name: "mymodule_exports_linker@current",
-    sdk_member_name: "linker",
-    visibility: ["//visibility:public"],
-    apex_available: ["//apex_available:platform"],
-    device_supported: false,
-    host_supported: true,
-    installable: false,
-    stl: "none",
-    compile_multilib: "both",
-    static_executable: true,
-    nocrt: true,
-    target: {
-        host: {
-            enabled: false,
-        },
-        linux_glibc_x86_64: {
-            enabled: true,
-            srcs: ["x86_64/bin/linker"],
-        },
-        linux_glibc_x86: {
-            enabled: true,
-            srcs: ["x86/bin/linker"],
-        },
-    },
-}
-
-module_exports_snapshot {
-    name: "mymodule_exports@current",
-    visibility: ["//visibility:public"],
-    device_supported: false,
-    host_supported: true,
-    native_binaries: ["mymodule_exports_linker@current"],
-    target: {
-        host: {
-            enabled: false,
-        },
-        linux_glibc_x86_64: {
-            enabled: true,
-        },
-        linux_glibc_x86: {
-            enabled: true,
         },
     },
 }
@@ -1026,7 +752,7 @@ func TestSnapshotWithCcSharedLibrary(t *testing.T) {
 	`)
 
 	CheckSnapshot(t, result, "mysdk", "",
-		checkUnversionedAndroidBpContents(`
+		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
 cc_prebuilt_library_shared {
@@ -1127,7 +853,7 @@ func TestSnapshotWithCcSharedLibrarySharedLibs(t *testing.T) {
 	`)
 
 	CheckSnapshot(t, result, "mysdk", "",
-		checkUnversionedAndroidBpContents(`
+		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
 cc_prebuilt_library_shared {
@@ -1224,7 +950,7 @@ func TestHostSnapshotWithCcSharedLibrary(t *testing.T) {
 	`)
 
 	CheckSnapshot(t, result, "mysdk", "",
-		checkUnversionedAndroidBpContents(`
+		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
 cc_prebuilt_library_shared {
@@ -1251,57 +977,6 @@ cc_prebuilt_library_shared {
             enabled: true,
             srcs: ["x86/lib/mynativelib.so"],
             export_include_dirs: ["x86/include_gen/mynativelib/linux_glibc_x86_shared/gen/aidl"],
-        },
-    },
-}
-`),
-		checkVersionedAndroidBpContents(`
-// This is auto-generated. DO NOT EDIT.
-
-cc_prebuilt_library_shared {
-    name: "mysdk_mynativelib@current",
-    sdk_member_name: "mynativelib",
-    visibility: ["//visibility:public"],
-    apex_available: ["//apex_available:platform"],
-    device_supported: false,
-    host_supported: true,
-    installable: false,
-    sdk_version: "minimum",
-    stl: "none",
-    compile_multilib: "both",
-    export_include_dirs: ["include/myinclude"],
-    target: {
-        host: {
-            enabled: false,
-        },
-        linux_glibc_x86_64: {
-            enabled: true,
-            srcs: ["x86_64/lib/mynativelib.so"],
-            export_include_dirs: ["x86_64/include_gen/mynativelib/linux_glibc_x86_64_shared/gen/aidl"],
-        },
-        linux_glibc_x86: {
-            enabled: true,
-            srcs: ["x86/lib/mynativelib.so"],
-            export_include_dirs: ["x86/include_gen/mynativelib/linux_glibc_x86_shared/gen/aidl"],
-        },
-    },
-}
-
-sdk_snapshot {
-    name: "mysdk@current",
-    visibility: ["//visibility:public"],
-    device_supported: false,
-    host_supported: true,
-    native_shared_libs: ["mysdk_mynativelib@current"],
-    target: {
-        host: {
-            enabled: false,
-        },
-        linux_glibc_x86_64: {
-            enabled: true,
-        },
-        linux_glibc_x86: {
-            enabled: true,
         },
     },
 }
@@ -1351,7 +1026,7 @@ func TestMultipleHostOsTypesSnapshotWithCcSharedLibrary(t *testing.T) {
 	`)
 
 	CheckSnapshot(t, result, "mysdk", "",
-		checkUnversionedAndroidBpContents(`
+		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
 cc_prebuilt_library_shared {
@@ -1387,68 +1062,6 @@ cc_prebuilt_library_shared {
     },
 }
 `),
-		checkVersionedAndroidBpContents(`
-// This is auto-generated. DO NOT EDIT.
-
-cc_prebuilt_library_shared {
-    name: "mysdk_mynativelib@current",
-    sdk_member_name: "mynativelib",
-    visibility: ["//visibility:public"],
-    apex_available: ["//apex_available:platform"],
-    device_supported: false,
-    host_supported: true,
-    installable: false,
-    stl: "none",
-    target: {
-        host: {
-            enabled: false,
-        },
-        linux_glibc: {
-            compile_multilib: "both",
-        },
-        linux_glibc_x86_64: {
-            enabled: true,
-            srcs: ["linux_glibc/x86_64/lib/mynativelib.so"],
-        },
-        linux_glibc_x86: {
-            enabled: true,
-            srcs: ["linux_glibc/x86/lib/mynativelib.so"],
-        },
-        windows: {
-            compile_multilib: "64",
-        },
-        windows_x86_64: {
-            enabled: true,
-            srcs: ["windows/x86_64/lib/mynativelib.dll"],
-        },
-    },
-}
-
-sdk_snapshot {
-    name: "mysdk@current",
-    visibility: ["//visibility:public"],
-    device_supported: false,
-    host_supported: true,
-    native_shared_libs: ["mysdk_mynativelib@current"],
-    target: {
-        windows: {
-            compile_multilib: "64",
-        },
-        host: {
-            enabled: false,
-        },
-        linux_glibc_x86_64: {
-            enabled: true,
-        },
-        linux_glibc_x86: {
-            enabled: true,
-        },
-        windows_x86_64: {
-            enabled: true,
-        },
-    },
-}
-`),
 		checkAllCopyRules(`
 .intermediates/mynativelib/linux_glibc_x86_64_shared/mynativelib.so -> linux_glibc/x86_64/lib/mynativelib.so
 .intermediates/mynativelib/linux_glibc_x86_shared/mynativelib.so -> linux_glibc/x86/lib/mynativelib.so
@@ -1479,7 +1092,7 @@ func TestSnapshotWithCcStaticLibrary(t *testing.T) {
 	`)
 
 	CheckSnapshot(t, result, "myexports", "",
-		checkUnversionedAndroidBpContents(`
+		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
 cc_prebuilt_library_static {
@@ -1542,7 +1155,7 @@ func TestHostSnapshotWithCcStaticLibrary(t *testing.T) {
 	`)
 
 	CheckSnapshot(t, result, "myexports", "",
-		checkUnversionedAndroidBpContents(`
+		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
 cc_prebuilt_library_static {
@@ -1568,56 +1181,6 @@ cc_prebuilt_library_static {
             enabled: true,
             srcs: ["x86/lib/mynativelib.a"],
             export_include_dirs: ["x86/include_gen/mynativelib/linux_glibc_x86_static/gen/aidl"],
-        },
-    },
-}
-`),
-		checkVersionedAndroidBpContents(`
-// This is auto-generated. DO NOT EDIT.
-
-cc_prebuilt_library_static {
-    name: "myexports_mynativelib@current",
-    sdk_member_name: "mynativelib",
-    visibility: ["//visibility:public"],
-    apex_available: ["//apex_available:platform"],
-    device_supported: false,
-    host_supported: true,
-    installable: false,
-    stl: "none",
-    compile_multilib: "both",
-    export_include_dirs: ["include/myinclude"],
-    target: {
-        host: {
-            enabled: false,
-        },
-        linux_glibc_x86_64: {
-            enabled: true,
-            srcs: ["x86_64/lib/mynativelib.a"],
-            export_include_dirs: ["x86_64/include_gen/mynativelib/linux_glibc_x86_64_static/gen/aidl"],
-        },
-        linux_glibc_x86: {
-            enabled: true,
-            srcs: ["x86/lib/mynativelib.a"],
-            export_include_dirs: ["x86/include_gen/mynativelib/linux_glibc_x86_static/gen/aidl"],
-        },
-    },
-}
-
-module_exports_snapshot {
-    name: "myexports@current",
-    visibility: ["//visibility:public"],
-    device_supported: false,
-    host_supported: true,
-    native_static_libs: ["myexports_mynativelib@current"],
-    target: {
-        host: {
-            enabled: false,
-        },
-        linux_glibc_x86_64: {
-            enabled: true,
-        },
-        linux_glibc_x86: {
-            enabled: true,
         },
     },
 }
@@ -1656,7 +1219,7 @@ func TestSnapshotWithCcLibrary(t *testing.T) {
 	`)
 
 	CheckSnapshot(t, result, "myexports", "",
-		checkUnversionedAndroidBpContents(`
+		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
 cc_prebuilt_library {
@@ -1686,46 +1249,6 @@ cc_prebuilt_library {
             },
         },
     },
-}
-`),
-		// Make sure that the generated sdk_snapshot uses the native_libs property.
-		checkVersionedAndroidBpContents(`
-// This is auto-generated. DO NOT EDIT.
-
-cc_prebuilt_library {
-    name: "myexports_mynativelib@current",
-    sdk_member_name: "mynativelib",
-    visibility: ["//visibility:public"],
-    apex_available: ["//apex_available:platform"],
-    installable: false,
-    vendor_available: true,
-    stl: "none",
-    compile_multilib: "both",
-    export_include_dirs: ["include/myinclude"],
-    arch: {
-        arm64: {
-            static: {
-                srcs: ["arm64/lib/mynativelib.a"],
-            },
-            shared: {
-                srcs: ["arm64/lib/mynativelib.so"],
-            },
-        },
-        arm: {
-            static: {
-                srcs: ["arm/lib/mynativelib.a"],
-            },
-            shared: {
-                srcs: ["arm/lib/mynativelib.so"],
-            },
-        },
-    },
-}
-
-module_exports_snapshot {
-    name: "myexports@current",
-    visibility: ["//visibility:public"],
-    native_libs: ["myexports_mynativelib@current"],
 }
 `),
 		checkAllCopyRules(`
@@ -1772,7 +1295,7 @@ func TestSnapshotSameLibraryWithNativeLibsAndNativeSharedLib(t *testing.T) {
 	`)
 
 	CheckSnapshot(t, result, "myexports", "",
-		checkUnversionedAndroidBpContents(`
+		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
 cc_prebuilt_library {
@@ -1868,7 +1391,7 @@ func TestSnapshotSameLibraryWithAndroidNativeLibsAndHostNativeSharedLib(t *testi
 	`)
 
 	CheckSnapshot(t, result, "myexports", "",
-		checkUnversionedAndroidBpContents(`
+		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
 cc_prebuilt_library {
@@ -1994,7 +1517,7 @@ func TestHostSnapshotWithMultiLib64(t *testing.T) {
 	`)
 
 	CheckSnapshot(t, result, "myexports", "",
-		checkUnversionedAndroidBpContents(`
+		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
 cc_prebuilt_library_static {
@@ -2017,51 +1540,6 @@ cc_prebuilt_library_static {
         linux_glibc_x86_64: {
             enabled: true,
             srcs: ["x86_64/lib/mynativelib.a"],
-        },
-    },
-}
-`),
-		checkVersionedAndroidBpContents(`
-// This is auto-generated. DO NOT EDIT.
-
-cc_prebuilt_library_static {
-    name: "myexports_mynativelib@current",
-    sdk_member_name: "mynativelib",
-    visibility: ["//visibility:public"],
-    apex_available: ["//apex_available:platform"],
-    device_supported: false,
-    host_supported: true,
-    installable: false,
-    stl: "none",
-    compile_multilib: "64",
-    export_include_dirs: [
-        "include/myinclude",
-        "include_gen/mynativelib/linux_glibc_x86_64_static/gen/aidl",
-    ],
-    target: {
-        host: {
-            enabled: false,
-        },
-        linux_glibc_x86_64: {
-            enabled: true,
-            srcs: ["x86_64/lib/mynativelib.a"],
-        },
-    },
-}
-
-module_exports_snapshot {
-    name: "myexports@current",
-    visibility: ["//visibility:public"],
-    device_supported: false,
-    host_supported: true,
-    compile_multilib: "64",
-    native_static_libs: ["myexports_mynativelib@current"],
-    target: {
-        host: {
-            enabled: false,
-        },
-        linux_glibc_x86_64: {
-            enabled: true,
         },
     },
 }
@@ -2091,7 +1569,7 @@ func TestSnapshotWithCcHeadersLibrary(t *testing.T) {
 	`)
 
 	CheckSnapshot(t, result, "mysdk", "",
-		checkUnversionedAndroidBpContents(`
+		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
 cc_prebuilt_library_headers {
@@ -2135,7 +1613,7 @@ func TestSnapshotWithCcHeadersLibraryAndNativeBridgeSupport(t *testing.T) {
 	`)
 
 	CheckSnapshot(t, result, "mysdk", "",
-		checkUnversionedAndroidBpContents(`
+		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
 cc_prebuilt_library_headers {
@@ -2220,7 +1698,7 @@ func TestSnapshotWithCcHeadersLibraryAndImageVariants(t *testing.T) {
 	`, trait, property))
 
 		CheckSnapshot(t, result, "mysdk", "",
-			checkUnversionedAndroidBpContents(fmt.Sprintf(`
+			checkAndroidBpContents(fmt.Sprintf(`
 // This is auto-generated. DO NOT EDIT.
 
 cc_prebuilt_library_headers {
@@ -2269,7 +1747,7 @@ func TestHostSnapshotWithCcHeadersLibrary(t *testing.T) {
 	`)
 
 	CheckSnapshot(t, result, "mysdk", "",
-		checkUnversionedAndroidBpContents(`
+		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
 cc_prebuilt_library_headers {
@@ -2282,51 +1760,6 @@ cc_prebuilt_library_headers {
     stl: "none",
     compile_multilib: "both",
     export_include_dirs: ["include/myinclude"],
-    target: {
-        host: {
-            enabled: false,
-        },
-        linux_glibc_x86_64: {
-            enabled: true,
-        },
-        linux_glibc_x86: {
-            enabled: true,
-        },
-    },
-}
-`),
-		checkVersionedAndroidBpContents(`
-// This is auto-generated. DO NOT EDIT.
-
-cc_prebuilt_library_headers {
-    name: "mysdk_mynativeheaders@current",
-    sdk_member_name: "mynativeheaders",
-    visibility: ["//visibility:public"],
-    apex_available: ["//apex_available:platform"],
-    device_supported: false,
-    host_supported: true,
-    stl: "none",
-    compile_multilib: "both",
-    export_include_dirs: ["include/myinclude"],
-    target: {
-        host: {
-            enabled: false,
-        },
-        linux_glibc_x86_64: {
-            enabled: true,
-        },
-        linux_glibc_x86: {
-            enabled: true,
-        },
-    },
-}
-
-sdk_snapshot {
-    name: "mysdk@current",
-    visibility: ["//visibility:public"],
-    device_supported: false,
-    host_supported: true,
-    native_header_libs: ["mysdk_mynativeheaders@current"],
     target: {
         host: {
             enabled: false,
@@ -2371,7 +1804,7 @@ func TestDeviceAndHostSnapshotWithCcHeadersLibrary(t *testing.T) {
 	`)
 
 	CheckSnapshot(t, result, "mysdk", "",
-		checkUnversionedAndroidBpContents(`
+		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
 cc_prebuilt_library_headers {
@@ -2392,55 +1825,6 @@ cc_prebuilt_library_headers {
         },
         linux_glibc: {
             export_include_dirs: ["linux_glibc/include/myinclude-host"],
-        },
-        linux_glibc_x86_64: {
-            enabled: true,
-        },
-        linux_glibc_x86: {
-            enabled: true,
-        },
-    },
-}
-`),
-		checkVersionedAndroidBpContents(`
-// This is auto-generated. DO NOT EDIT.
-
-cc_prebuilt_library_headers {
-    name: "mysdk_mynativeheaders@current",
-    sdk_member_name: "mynativeheaders",
-    visibility: ["//visibility:public"],
-    apex_available: ["//apex_available:platform"],
-    host_supported: true,
-    stl: "none",
-    compile_multilib: "both",
-    export_system_include_dirs: ["common_os/include/myinclude"],
-    target: {
-        host: {
-            enabled: false,
-        },
-        android: {
-            export_include_dirs: ["android/include/myinclude-android"],
-        },
-        linux_glibc: {
-            export_include_dirs: ["linux_glibc/include/myinclude-host"],
-        },
-        linux_glibc_x86_64: {
-            enabled: true,
-        },
-        linux_glibc_x86: {
-            enabled: true,
-        },
-    },
-}
-
-sdk_snapshot {
-    name: "mysdk@current",
-    visibility: ["//visibility:public"],
-    host_supported: true,
-    native_header_libs: ["mysdk_mynativeheaders@current"],
-    target: {
-        host: {
-            enabled: false,
         },
         linux_glibc_x86_64: {
             enabled: true,
@@ -2483,7 +1867,7 @@ func TestSystemSharedLibPropagation(t *testing.T) {
 	`)
 
 	CheckSnapshot(t, result, "mysdk", "",
-		checkUnversionedAndroidBpContents(`
+		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
 cc_prebuilt_library_shared {
@@ -2556,7 +1940,7 @@ cc_prebuilt_library_shared {
 	`)
 
 	CheckSnapshot(t, result, "mysdk", "",
-		checkUnversionedAndroidBpContents(`
+		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
 cc_prebuilt_library_shared {
@@ -2590,59 +1974,7 @@ cc_prebuilt_library_shared {
     },
 }
 `),
-		checkVersionedAndroidBpContents(`
-// This is auto-generated. DO NOT EDIT.
-
-cc_prebuilt_library_shared {
-    name: "mysdk_sslvariants@current",
-    sdk_member_name: "sslvariants",
-    visibility: ["//visibility:public"],
-    apex_available: ["//apex_available:platform"],
-    host_supported: true,
-    installable: false,
-    compile_multilib: "both",
-    target: {
-        host: {
-            enabled: false,
-        },
-        android: {
-            system_shared_libs: [],
-        },
-        android_arm64: {
-            srcs: ["android/arm64/lib/sslvariants.so"],
-        },
-        android_arm: {
-            srcs: ["android/arm/lib/sslvariants.so"],
-        },
-        linux_glibc_x86_64: {
-            enabled: true,
-            srcs: ["linux_glibc/x86_64/lib/sslvariants.so"],
-        },
-        linux_glibc_x86: {
-            enabled: true,
-            srcs: ["linux_glibc/x86/lib/sslvariants.so"],
-        },
-    },
-}
-
-sdk_snapshot {
-    name: "mysdk@current",
-    visibility: ["//visibility:public"],
-    host_supported: true,
-    native_shared_libs: ["mysdk_sslvariants@current"],
-    target: {
-        host: {
-            enabled: false,
-        },
-        linux_glibc_x86_64: {
-            enabled: true,
-        },
-        linux_glibc_x86: {
-            enabled: true,
-        },
-    },
-}
-`))
+	)
 }
 
 func TestStubsLibrary(t *testing.T) {
@@ -2667,7 +1999,7 @@ func TestStubsLibrary(t *testing.T) {
 	`)
 
 	CheckSnapshot(t, result, "mysdk", "",
-		checkUnversionedAndroidBpContents(`
+		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
 cc_prebuilt_library_shared {
@@ -2721,7 +2053,7 @@ func TestDeviceAndHostSnapshotWithStubsLibrary(t *testing.T) {
 	`)
 
 	CheckSnapshot(t, result, "mysdk", "",
-		checkUnversionedAndroidBpContents(`
+		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
 cc_prebuilt_library_shared {
@@ -2760,64 +2092,7 @@ cc_prebuilt_library_shared {
     },
 }
 `),
-		checkVersionedAndroidBpContents(`
-// This is auto-generated. DO NOT EDIT.
-
-cc_prebuilt_library_shared {
-    name: "mysdk_stubslib@current",
-    sdk_member_name: "stubslib",
-    visibility: ["//visibility:public"],
-    apex_available: ["//apex_available:platform"],
-    host_supported: true,
-    installable: false,
-    compile_multilib: "both",
-    stubs: {
-        versions: [
-            "1",
-            "2",
-            "3",
-            "current",
-        ],
-    },
-    target: {
-        host: {
-            enabled: false,
-        },
-        android_arm64: {
-            srcs: ["android/arm64/lib/stubslib.so"],
-        },
-        android_arm: {
-            srcs: ["android/arm/lib/stubslib.so"],
-        },
-        linux_glibc_x86_64: {
-            enabled: true,
-            srcs: ["linux_glibc/x86_64/lib/stubslib.so"],
-        },
-        linux_glibc_x86: {
-            enabled: true,
-            srcs: ["linux_glibc/x86/lib/stubslib.so"],
-        },
-    },
-}
-
-sdk_snapshot {
-    name: "mysdk@current",
-    visibility: ["//visibility:public"],
-    host_supported: true,
-    native_shared_libs: ["mysdk_stubslib@current"],
-    target: {
-        host: {
-            enabled: false,
-        },
-        linux_glibc_x86_64: {
-            enabled: true,
-        },
-        linux_glibc_x86: {
-            enabled: true,
-        },
-    },
-}
-`))
+	)
 }
 
 func TestUniqueHostSoname(t *testing.T) {
@@ -2836,7 +2111,7 @@ func TestUniqueHostSoname(t *testing.T) {
 	`)
 
 	CheckSnapshot(t, result, "mysdk", "",
-		checkUnversionedAndroidBpContents(`
+		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
 cc_prebuilt_library_shared {
@@ -2864,57 +2139,6 @@ cc_prebuilt_library_shared {
         linux_glibc_x86: {
             enabled: true,
             srcs: ["linux_glibc/x86/lib/mylib-host.so"],
-        },
-    },
-}
-`),
-		checkVersionedAndroidBpContents(`
-// This is auto-generated. DO NOT EDIT.
-
-cc_prebuilt_library_shared {
-    name: "mysdk_mylib@current",
-    sdk_member_name: "mylib",
-    visibility: ["//visibility:public"],
-    apex_available: ["//apex_available:platform"],
-    host_supported: true,
-    installable: false,
-    unique_host_soname: true,
-    compile_multilib: "both",
-    target: {
-        host: {
-            enabled: false,
-        },
-        android_arm64: {
-            srcs: ["android/arm64/lib/mylib.so"],
-        },
-        android_arm: {
-            srcs: ["android/arm/lib/mylib.so"],
-        },
-        linux_glibc_x86_64: {
-            enabled: true,
-            srcs: ["linux_glibc/x86_64/lib/mylib-host.so"],
-        },
-        linux_glibc_x86: {
-            enabled: true,
-            srcs: ["linux_glibc/x86/lib/mylib-host.so"],
-        },
-    },
-}
-
-sdk_snapshot {
-    name: "mysdk@current",
-    visibility: ["//visibility:public"],
-    host_supported: true,
-    native_shared_libs: ["mysdk_mylib@current"],
-    target: {
-        host: {
-            enabled: false,
-        },
-        linux_glibc_x86_64: {
-            enabled: true,
-        },
-        linux_glibc_x86: {
-            enabled: true,
         },
     },
 }
@@ -2951,7 +2175,7 @@ func TestNoSanitizerMembers(t *testing.T) {
 	`)
 
 	CheckSnapshot(t, result, "mysdk", "",
-		checkUnversionedAndroidBpContents(`
+		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
 cc_prebuilt_library_shared {
