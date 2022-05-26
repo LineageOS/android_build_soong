@@ -33,6 +33,7 @@ var (
 		"system/extras/profcollectd",
 		"system/extras/simpleperf",
 		"system/hardware/interfaces/keystore2",
+		"system/keymint",
 		"system/librustutils",
 		"system/logging/liblog",
 		"system/logging/rust",
