@@ -372,6 +372,11 @@ func init() {
 	exportedVars.ExportStringListStaticVariable("CommonGlobalCppflags", commonGlobalCppflags)
 	exportedVars.ExportStringListStaticVariable("ExternalCflags", extraExternalCflags)
 
+	exportedVars.ExportString("CStdVersion", CStdVersion)
+	exportedVars.ExportString("CppStdVersion", CppStdVersion)
+	exportedVars.ExportString("ExperimentalCStdVersion", ExperimentalCStdVersion)
+	exportedVars.ExportString("ExperimentalCppStdVersion", ExperimentalCppStdVersion)
+
 	// Everything in these lists is a crime against abstraction and dependency tracking.
 	// Do not add anything to this list.
 	commonGlobalIncludes := []string{
