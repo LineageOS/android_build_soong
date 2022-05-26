@@ -122,29 +122,18 @@ func ensureListContains(t *testing.T, result []string, expected string) {
 	}
 }
 
-func pathsToStrings(paths android.Paths) []string {
-	var ret []string
-	for _, p := range paths {
-		ret = append(ret, p.String())
-	}
-	return ret
-}
-
 // Analyse the sdk build rules to extract information about what it is doing.
 //
 // e.g. find the src/dest pairs from each cp command, the various zip files
 // generated, etc.
 func getSdkSnapshotBuildInfo(t *testing.T, result *android.TestResult, sdk *sdk) *snapshotBuildInfo {
 	info := &snapshotBuildInfo{
-		t:                            t,
-		r:                            result,
-		version:                      sdk.builderForTests.version,
-		androidBpContents:            sdk.GetAndroidBpContentsForTests(),
-		androidUnversionedBpContents: sdk.GetUnversionedAndroidBpContentsForTests(),
-		androidVersionedBpContents:   sdk.GetVersionedAndroidBpContentsForTests(),
-		infoContents:                 sdk.GetInfoContentsForTests(),
-		snapshotTestCustomizations:   map[snapshotTest]*snapshotTestCustomization{},
-		targetBuildRelease:           sdk.builderForTests.targetBuildRelease,
+		t:                          t,
+		r:                          result,
+		androidBpContents:          sdk.GetAndroidBpContentsForTests(),
+		infoContents:               sdk.GetInfoContentsForTests(),
+		snapshotTestCustomizations: map[snapshotTest]*snapshotTestCustomization{},
+		targetBuildRelease:         sdk.builderForTests.targetBuildRelease,
 	}
 
 	buildParams := sdk.BuildParamsForTests()
@@ -258,10 +247,7 @@ func CheckSnapshot(t *testing.T, result *android.TestResult, name string, dir st
 	if dir != "" {
 		dir = filepath.Clean(dir) + "/"
 	}
-	suffix := ""
-	if snapshotBuildInfo.version != soongSdkSnapshotVersionUnversioned {
-		suffix = "-" + snapshotBuildInfo.version
-	}
+	suffix := "-" + soongSdkSnapshotVersionCurrent
 
 	expectedZipPath := fmt.Sprintf(".intermediates/%s%s/%s/%s%s.zip", dir, name, variant, name, suffix)
 	android.AssertStringEquals(t, "Snapshot zip file in wrong place", expectedZipPath, actual)
@@ -342,33 +328,6 @@ func checkAndroidBpContents(expected string) snapshotBuildInfoChecker {
 	return func(info *snapshotBuildInfo) {
 		info.t.Helper()
 		android.AssertTrimmedStringEquals(info.t, "Android.bp contents do not match", expected, info.androidBpContents)
-	}
-}
-
-// Check that the snapshot's unversioned generated Android.bp is correct.
-//
-// This func should be used to check the general snapshot generation code.
-//
-// Both the expected and actual string are both trimmed before comparing.
-func checkUnversionedAndroidBpContents(expected string) snapshotBuildInfoChecker {
-	return func(info *snapshotBuildInfo) {
-		info.t.Helper()
-		android.AssertTrimmedStringEquals(info.t, "unversioned Android.bp contents do not match", expected, info.androidUnversionedBpContents)
-	}
-}
-
-// Check that the snapshot's versioned generated Android.bp is correct.
-//
-// This func should only be used to check the version specific snapshot generation code,
-// i.e. the encoding of version into module names and the generation of the _snapshot module. The
-// general snapshot generation code should be checked using the checkUnversionedAndroidBpContents()
-// func.
-//
-// Both the expected and actual string are both trimmed before comparing.
-func checkVersionedAndroidBpContents(expected string) snapshotBuildInfoChecker {
-	return func(info *snapshotBuildInfo) {
-		info.t.Helper()
-		android.AssertTrimmedStringEquals(info.t, "versioned Android.bp contents do not match", expected, info.androidVersionedBpContents)
 	}
 }
 
@@ -477,19 +436,8 @@ type snapshotBuildInfo struct {
 	// The result from RunTest()
 	r *android.TestResult
 
-	// The version of the generated snapshot.
-	//
-	// See snapshotBuilder.version for more information about this field.
-	version string
-
 	// The contents of the generated Android.bp file
 	androidBpContents string
-
-	// The contents of the unversioned Android.bp file
-	androidUnversionedBpContents string
-
-	// The contents of the versioned Android.bp file
-	androidVersionedBpContents string
 
 	// The contents of the info file.
 	infoContents string

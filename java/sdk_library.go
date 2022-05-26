@@ -437,7 +437,7 @@ type sdkLibraryProperties struct {
 	// Determines whether a runtime implementation library is built; defaults to false.
 	//
 	// If true then it also prevents the module from being used as a shared module, i.e.
-	// it is as is shared_library: false, was set.
+	// it is as if shared_library: false, was set.
 	Api_only *bool
 
 	// local files that are used within user customized droiddoc options.
