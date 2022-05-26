@@ -110,6 +110,9 @@ type LibraryProperties struct {
 		// Run checks on all APIs (in addition to the ones referred by
 		// one of exported ELF symbols.)
 		Check_all_apis *bool
+
+		// Extra flags passed to header-abi-diff
+		Diff_flags []string
 	}
 
 	// Inject boringssl hash into the shared library.  This is only intended for use by external/boringssl.
@@ -1638,6 +1641,7 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objec
 		if refAbiDumpFile != nil {
 			library.sAbiDiff = sourceAbiDiff(ctx, library.sAbiOutputFile.Path(),
 				refAbiDumpFile, fileName, exportedHeaderFlags,
+				library.Properties.Header_abi_checker.Diff_flags,
 				Bool(library.Properties.Header_abi_checker.Check_all_apis),
 				ctx.IsLlndk(), ctx.isNdk(ctx.Config()), ctx.IsVndkExt())
 		}
