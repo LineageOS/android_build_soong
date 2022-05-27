@@ -56,7 +56,8 @@ func TestDumpRBEMetrics(t *testing.T) {
 			env := Environment(tt.env)
 			env.Set("OUT_DIR", tmpDir)
 			env.Set("RBE_DIR", tmpDir)
-			env.Set("RBE_output_dir", t.TempDir())
+			env.Set("RBE_output_dir", tmpDir)
+			env.Set("RBE_proxy_log_dir", tmpDir)
 			config := Config{&configImpl{
 				environ: &env,
 			}}
