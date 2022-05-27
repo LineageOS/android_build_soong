@@ -116,6 +116,23 @@ func FileGroupFactory() Module {
 	return module
 }
 
+var _ blueprint.JSONActionSupplier = (*fileGroup)(nil)
+
+func (fg *fileGroup) JSONActions() []blueprint.JSONAction {
+	ins := make([]string, 0, len(fg.srcs))
+	outs := make([]string, 0, len(fg.srcs))
+	for _, p := range fg.srcs {
+		ins = append(ins, p.String())
+		outs = append(outs, p.Rel())
+	}
+	return []blueprint.JSONAction{
+		blueprint.JSONAction{
+			Inputs:  ins,
+			Outputs: outs,
+		},
+	}
+}
+
 func (fg *fileGroup) GenerateAndroidBuildActions(ctx ModuleContext) {
 	fg.srcs = PathsForModuleSrcExcludes(ctx, fg.properties.Srcs, fg.properties.Exclude_srcs)
 	if fg.properties.Path != nil {
