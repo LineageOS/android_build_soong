@@ -391,10 +391,10 @@ func depsetContentHash(directPaths []string, transitiveDepsetHashes []string) st
 	return fullHash
 }
 
-func (aqueryHandler *aqueryArtifactHandler) depsetContentHashes(inputDepsetIds []int) ([]string, error) {
+func (a *aqueryArtifactHandler) depsetContentHashes(inputDepsetIds []int) ([]string, error) {
 	hashes := []string{}
 	for _, depsetId := range inputDepsetIds {
-		if aqueryDepset, exists := aqueryHandler.depsetIdToAqueryDepset[depsetId]; !exists {
+		if aqueryDepset, exists := a.depsetIdToAqueryDepset[depsetId]; !exists {
 			return nil, fmt.Errorf("undefined input depsetId %d", depsetId)
 		} else {
 			hashes = append(hashes, aqueryDepset.ContentHash)
@@ -403,13 +403,13 @@ func (aqueryHandler *aqueryArtifactHandler) depsetContentHashes(inputDepsetIds [
 	return hashes, nil
 }
 
-func (aqueryHandler *aqueryArtifactHandler) normalActionBuildStatement(actionEntry action) (BuildStatement, error) {
+func (a *aqueryArtifactHandler) normalActionBuildStatement(actionEntry action) (BuildStatement, error) {
 	command := strings.Join(proptools.ShellEscapeListIncludingSpaces(actionEntry.Arguments), " ")
-	inputDepsetHashes, err := aqueryHandler.depsetContentHashes(actionEntry.InputDepSetIds)
+	inputDepsetHashes, err := a.depsetContentHashes(actionEntry.InputDepSetIds)
 	if err != nil {
 		return BuildStatement{}, err
 	}
-	outputPaths, depfile, err := aqueryHandler.getOutputPaths(actionEntry)
+	outputPaths, depfile, err := a.getOutputPaths(actionEntry)
 	if err != nil {
 		return BuildStatement{}, err
 	}
@@ -425,12 +425,12 @@ func (aqueryHandler *aqueryArtifactHandler) normalActionBuildStatement(actionEnt
 	return buildStatement, nil
 }
 
-func (aqueryHandler *aqueryArtifactHandler) pythonZipperActionBuildStatement(actionEntry action, prevBuildStatements []BuildStatement) (BuildStatement, error) {
-	inputPaths, err := aqueryHandler.getInputPaths(actionEntry.InputDepSetIds)
+func (a *aqueryArtifactHandler) pythonZipperActionBuildStatement(actionEntry action, prevBuildStatements []BuildStatement) (BuildStatement, error) {
+	inputPaths, err := a.getInputPaths(actionEntry.InputDepSetIds)
 	if err != nil {
 		return BuildStatement{}, err
 	}
-	outputPaths, depfile, err := aqueryHandler.getOutputPaths(actionEntry)
+	outputPaths, depfile, err := a.getOutputPaths(actionEntry)
 	if err != nil {
 		return BuildStatement{}, err
 	}
@@ -473,8 +473,8 @@ func (aqueryHandler *aqueryArtifactHandler) pythonZipperActionBuildStatement(act
 	return buildStatement, nil
 }
 
-func (aqueryHandler *aqueryArtifactHandler) templateExpandActionBuildStatement(actionEntry action) (BuildStatement, error) {
-	outputPaths, depfile, err := aqueryHandler.getOutputPaths(actionEntry)
+func (a *aqueryArtifactHandler) templateExpandActionBuildStatement(actionEntry action) (BuildStatement, error) {
+	outputPaths, depfile, err := a.getOutputPaths(actionEntry)
 	if err != nil {
 		return BuildStatement{}, err
 	}
@@ -489,7 +489,7 @@ func (aqueryHandler *aqueryArtifactHandler) templateExpandActionBuildStatement(a
 	// See go/python-binary-host-mixed-build for more details.
 	command := fmt.Sprintf(`/bin/bash -c 'echo "%[1]s" | sed "s/\\\\n/\\n/g" > %[2]s && chmod a+x %[2]s'`,
 		escapeCommandlineArgument(expandedTemplateContent), outputPaths[0])
-	inputDepsetHashes, err := aqueryHandler.depsetContentHashes(actionEntry.InputDepSetIds)
+	inputDepsetHashes, err := a.depsetContentHashes(actionEntry.InputDepSetIds)
 	if err != nil {
 		return BuildStatement{}, err
 	}
@@ -505,13 +505,13 @@ func (aqueryHandler *aqueryArtifactHandler) templateExpandActionBuildStatement(a
 	return buildStatement, nil
 }
 
-func (aqueryHandler *aqueryArtifactHandler) symlinkActionBuildStatement(actionEntry action) (BuildStatement, error) {
-	outputPaths, depfile, err := aqueryHandler.getOutputPaths(actionEntry)
+func (a *aqueryArtifactHandler) symlinkActionBuildStatement(actionEntry action) (BuildStatement, error) {
+	outputPaths, depfile, err := a.getOutputPaths(actionEntry)
 	if err != nil {
 		return BuildStatement{}, err
 	}
 
-	inputPaths, err := aqueryHandler.getInputPaths(actionEntry.InputDepSetIds)
+	inputPaths, err := a.getInputPaths(actionEntry.InputDepSetIds)
 	if err != nil {
 		return BuildStatement{}, err
 	}
@@ -538,9 +538,9 @@ func (aqueryHandler *aqueryArtifactHandler) symlinkActionBuildStatement(actionEn
 	return buildStatement, nil
 }
 
-func (aqueryHandler *aqueryArtifactHandler) getOutputPaths(actionEntry action) (outputPaths []string, depfile *string, err error) {
+func (a *aqueryArtifactHandler) getOutputPaths(actionEntry action) (outputPaths []string, depfile *string, err error) {
 	for _, outputId := range actionEntry.OutputIds {
-		outputPath, exists := aqueryHandler.artifactIdToPath[outputId]
+		outputPath, exists := a.artifactIdToPath[outputId]
 		if !exists {
 			err = fmt.Errorf("undefined outputId %d", outputId)
 			return
