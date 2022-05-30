@@ -42,6 +42,7 @@ func init() {
 
 func registerBootclasspathFragmentBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("bootclasspath_fragment", bootclasspathFragmentFactory)
+	ctx.RegisterModuleType("bootclasspath_fragment_test", testBootclasspathFragmentFactory)
 	ctx.RegisterModuleType("prebuilt_bootclasspath_fragment", prebuiltBootclasspathFragmentFactory)
 }
 
@@ -227,6 +228,9 @@ type BootclasspathFragmentModule struct {
 	android.SdkBase
 	ClasspathFragmentBase
 
+	// True if this fragment is for testing purposes.
+	testFragment bool
+
 	properties bootclasspathFragmentProperties
 
 	sourceOnlyProperties SourceOnlyBootclasspathProperties
@@ -295,6 +299,12 @@ func bootclasspathFragmentFactory() android.Module {
 		// Initialize the contents property from the image_name.
 		bootclasspathFragmentInitContentsFromImage(ctx, m)
 	})
+	return m
+}
+
+func testBootclasspathFragmentFactory() android.Module {
+	m := bootclasspathFragmentFactory().(*BootclasspathFragmentModule)
+	m.testFragment = true
 	return m
 }
 
@@ -817,6 +827,26 @@ func (b *BootclasspathFragmentModule) createHiddenAPIFlagInput(ctx android.Modul
 	input.DependencyStubDexJarsByScope.addStubDexJarsByModule(dependencyHiddenApiInfo.TransitiveStubDexJarsByScope)
 
 	return input
+}
+
+// isTestFragment returns true if the current module is a test bootclasspath_fragment.
+func (b *BootclasspathFragmentModule) isTestFragment() bool {
+	if b.testFragment {
+		return true
+	}
+
+	// TODO(b/194063708): Once test fragments all use bootclasspath_fragment_test
+	// Some temporary exceptions until all test fragments use the
+	// bootclasspath_fragment_test module type.
+	name := b.BaseModuleName()
+	if strings.HasPrefix(name, "test_") {
+		return true
+	}
+	if name == "apex.apexd_test_bootclasspath-fragment" {
+		return true
+	}
+
+	return false
 }
 
 // produceHiddenAPIOutput produces the hidden API all-flags.csv file (and supporting files)
