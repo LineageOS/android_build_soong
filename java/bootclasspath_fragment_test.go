@@ -278,3 +278,64 @@ func TestBootclasspathFragment_StubLibs(t *testing.T) {
 
 	android.AssertPathsRelativeToTopEquals(t, "widest dex stubs jar", expectedWidestPaths, info.TransitiveStubDexJarsByScope.StubDexJarsForWidestAPIScope())
 }
+
+func TestBootclasspathFragment_Test(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		prepareForTestWithBootclasspathFragment,
+		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithLastReleaseApis("mysdklibrary"),
+	).RunTestWithBp(t, `
+		bootclasspath_fragment {
+			name: "myfragment",
+			contents: ["mysdklibrary"],
+			hidden_api: {
+				split_packages: [],
+			},
+		}
+
+		bootclasspath_fragment {
+			name: "test_fragment",
+			contents: ["mysdklibrary"],
+			hidden_api: {
+				split_packages: [],
+			},
+		}
+
+		bootclasspath_fragment {
+			name: "apex.apexd_test_bootclasspath-fragment",
+			contents: ["mysdklibrary"],
+			hidden_api: {
+				split_packages: [],
+			},
+		}
+
+		bootclasspath_fragment_test {
+			name: "a_test_fragment",
+			contents: ["mysdklibrary"],
+			hidden_api: {
+				split_packages: [],
+			},
+		}
+
+
+		java_sdk_library {
+			name: "mysdklibrary",
+			srcs: ["a.java"],
+			shared_library: false,
+			public: {enabled: true},
+			system: {enabled: true},
+		}
+	`)
+
+	fragment := result.Module("myfragment", "android_common").(*BootclasspathFragmentModule)
+	android.AssertBoolEquals(t, "not a test fragment", false, fragment.isTestFragment())
+
+	fragment = result.Module("test_fragment", "android_common").(*BootclasspathFragmentModule)
+	android.AssertBoolEquals(t, "is a test fragment by prefix", true, fragment.isTestFragment())
+
+	fragment = result.Module("a_test_fragment", "android_common").(*BootclasspathFragmentModule)
+	android.AssertBoolEquals(t, "is a test fragment by type", true, fragment.isTestFragment())
+
+	fragment = result.Module("apex.apexd_test_bootclasspath-fragment", "android_common").(*BootclasspathFragmentModule)
+	android.AssertBoolEquals(t, "is a test fragment by name", true, fragment.isTestFragment())
+}
