@@ -46,6 +46,7 @@ var (
 		"bootable/recovery/tools/recovery_l10n": Bp2BuildDefaultTrue,
 		"build/bazel/examples/apex/minimal":     Bp2BuildDefaultTrueRecursively,
 		"build/bazel/examples/soong_config_variables":        Bp2BuildDefaultTrueRecursively,
+		"build/bazel/examples/python":                        Bp2BuildDefaultTrueRecursively,
 		"build/make/target/product/security":                 Bp2BuildDefaultTrue,
 		"build/make/tools/signapk":                           Bp2BuildDefaultTrue,
 		"build/make/tools/zipalign":                          Bp2BuildDefaultTrueRecursively,
@@ -328,9 +329,7 @@ var (
 		"libbase_ndk", // TODO(b/186826477): fails to link libctscamera2_jni for device (required for CtsCameraTestCases)
 
 		// python protos
-		"libprotobuf-python",                           // TODO(b/196084681): contains .proto sources
-		"apex_build_info_proto", "apex_manifest_proto", // TODO(b/196084681): a python lib with proto sources
-		"linker_config_proto", // TODO(b/196084681): contains .proto sources
+		"libprotobuf-python", // Has a handcrafted alternative
 
 		// genrule incompatibilities
 		"brotli-fuzzer-corpus",                                       // TODO(b/202015218): outputs are in location incompatible with bazel genrule handling.
