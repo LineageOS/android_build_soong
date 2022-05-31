@@ -50,6 +50,10 @@ type bazelPythonLibraryAttributes struct {
 	Srcs_version *string
 }
 
+type bazelPythonProtoLibraryAttributes struct {
+	Deps bazel.LabelListAttribute
+}
+
 func pythonLibBp2Build(ctx android.TopDownMutatorContext, m *Module) {
 	// TODO(b/182306917): this doesn't fully handle all nested props versioned
 	// by the python version, which would have been handled by the version split
@@ -96,6 +100,7 @@ func pythonLibBp2Build(ctx android.TopDownMutatorContext, m *Module) {
 	}
 
 	baseAttrs := m.makeArchVariantBaseAttributes(ctx)
+
 	attrs := &bazelPythonLibraryAttributes{
 		Srcs:         baseAttrs.Srcs,
 		Deps:         baseAttrs.Deps,

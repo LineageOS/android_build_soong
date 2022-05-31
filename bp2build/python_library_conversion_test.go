@@ -305,3 +305,46 @@ func TestPythonArchVariance(t *testing.T) {
 		},
 	})
 }
+
+func TestPythonLibraryWithProtobufs(t *testing.T) {
+	runPythonLibraryTestCases(t, pythonLibBp2BuildTestCase{
+		description: "test %s protobuf",
+		filesystem: map[string]string{
+			"dir/mylib.py":      "",
+			"dir/myproto.proto": "",
+		},
+		blueprint: `%s {
+					 name: "foo",
+					 srcs: [
+						"dir/mylib.py",
+						"dir/myproto.proto",
+					 ],
+				 }`,
+		expectedBazelTargets: []testBazelTarget{
+			{
+				typ:  "proto_library",
+				name: "foo_proto",
+				attrs: attrNameToString{
+					"srcs": `["dir/myproto.proto"]`,
+				},
+			},
+			{
+				typ:  "py_proto_library",
+				name: "foo_py_proto",
+				attrs: attrNameToString{
+					"deps": `[":foo_proto"]`,
+				},
+			},
+			{
+				typ:  "py_library",
+				name: "foo",
+				attrs: attrNameToString{
+					"srcs":         `["dir/mylib.py"]`,
+					"srcs_version": `"PY3"`,
+					"imports":      `["."]`,
+					"deps":         `[":foo_py_proto"]`,
+				},
+			},
+		},
+	})
+}
