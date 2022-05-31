@@ -322,6 +322,7 @@ var (
 		"libdebuggerd", // TODO(b/228314770): support product variable-specific header_libs
 		"versioner",    // TODO(b/228313961):  depends on prebuilt shared library libclang-cpp_host as a shared library, which does not supply expected providers for a shared library
 		"f2fs.fibmap",  // ld.lld: error: undefined symbol: _IO
+		"f2fscrypt",    // TODO(b/234340806):  error: incompatible integer to pointer conversion initializing 'FILE *' (aka 'struct _IO_FILE *') with an expression of type 'int', and  error: incomplete definition of type 'struct mntent'
 
 		// java bugs
 		"libbase_ndk", // TODO(b/186826477): fails to link libctscamera2_jni for device (required for CtsCameraTestCases)
