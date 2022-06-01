@@ -652,6 +652,11 @@ func MakeLabelListAttribute(value LabelList) LabelListAttribute {
 	}
 }
 
+// MakeSingleLabelListAttribute initializes a LabelListAttribute as a non-arch specific list with 1 element, the given Label.
+func MakeSingleLabelListAttribute(value Label) LabelListAttribute {
+	return MakeLabelListAttribute(MakeLabelList([]Label{value}))
+}
+
 func (lla *LabelListAttribute) SetValue(list LabelList) {
 	lla.SetSelectValue(NoConfigAxis, "", list)
 }
