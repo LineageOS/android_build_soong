@@ -178,8 +178,10 @@ var (
 		"prebuilts/clang/host/linux-x86":                     Bp2BuildDefaultTrueRecursively,
 		"prebuilts/tools/common/m2":                          Bp2BuildDefaultTrue,
 		"system/apex":                                        Bp2BuildDefaultFalse, // TODO(b/207466993): flaky failures
+		"system/apex/apexer":                                 Bp2BuildDefaultTrue,
 		"system/apex/libs":                                   Bp2BuildDefaultTrueRecursively,
 		"system/apex/proto":                                  Bp2BuildDefaultTrueRecursively,
+		"system/apex/tools":                                  Bp2BuildDefaultTrueRecursively,
 		"system/core/debuggerd":                              Bp2BuildDefaultTrueRecursively,
 		"system/core/diagnose_usb":                           Bp2BuildDefaultTrueRecursively,
 		"system/core/libasyncio":                             Bp2BuildDefaultTrue,
@@ -319,11 +321,14 @@ var (
 		"gen-kotlin-build-file.py",                  // TODO(b/198619163) module has same name as source
 		"libgtest_ndk_c++", "libgtest_main_ndk_c++", // TODO(b/201816222): Requires sdk_version support.
 		"linkerconfig", "mdnsd", // TODO(b/202876379): has arch-variant static_executable
-		"linker",       // TODO(b/228316882): cc_binary uses link_crt
-		"libdebuggerd", // TODO(b/228314770): support product variable-specific header_libs
-		"versioner",    // TODO(b/228313961):  depends on prebuilt shared library libclang-cpp_host as a shared library, which does not supply expected providers for a shared library
-		"f2fs.fibmap",  // ld.lld: error: undefined symbol: _IO
-		"f2fscrypt",    // TODO(b/234340806):  error: incompatible integer to pointer conversion initializing 'FILE *' (aka 'struct _IO_FILE *') with an expression of type 'int', and  error: incomplete definition of type 'struct mntent'
+		"linker",                // TODO(b/228316882): cc_binary uses link_crt
+		"libdebuggerd",          // TODO(b/228314770): support product variable-specific header_libs
+		"versioner",             // TODO(b/228313961):  depends on prebuilt shared library libclang-cpp_host as a shared library, which does not supply expected providers for a shared library
+		"f2fs.fibmap",           // ld.lld: error: undefined symbol: _IO
+		"f2fscrypt",             // TODO(b/234340806):  error: incompatible integer to pointer conversion initializing 'FILE *' (aka 'struct _IO_FILE *') with an expression of type 'int', and  error: incomplete definition of type 'struct mntent'
+		"apexer", "apexer_test", // Requires aapt2
+		"apexer_test_host_tools",
+		"host_apex_verifier",
 
 		// java bugs
 		"libbase_ndk", // TODO(b/186826477): fails to link libctscamera2_jni for device (required for CtsCameraTestCases)
