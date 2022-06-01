@@ -95,6 +95,8 @@ func init() {
 	}, dexerJavaVmFlagsList...))
 	exportedVars.ExportStringListStaticVariable("R8Flags", append([]string{
 		"-JXmx2048M",
+		// Disable this optimization as it can impact weak reference semantics. See b/233432839.
+		"-JDcom.android.tools.r8.disableEnqueuerDeferredTracing=true",
 	}, dexerJavaVmFlagsList...))
 
 	exportedVars.ExportStringListStaticVariable("CommonJdkFlags", []string{
