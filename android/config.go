@@ -410,7 +410,7 @@ func modifyTestConfigToSupportArchMutator(testConfig Config) {
 	config.BuildOSTarget = config.Targets[config.BuildOS][0]
 	config.BuildOSCommonTarget = getCommonTargets(config.Targets[config.BuildOS])[0]
 	config.AndroidCommonTarget = getCommonTargets(config.Targets[Android])[0]
-	config.AndroidFirstDeviceTarget = firstTarget(config.Targets[Android], "lib64", "lib32")[0]
+	config.AndroidFirstDeviceTarget = FirstTarget(config.Targets[Android], "lib64", "lib32")[0]
 	config.TestProductVariables.DeviceArch = proptools.StringPtr("arm64")
 	config.TestProductVariables.DeviceArchVariant = proptools.StringPtr("armv8-a")
 	config.TestProductVariables.DeviceSecondaryArch = proptools.StringPtr("arm")
@@ -546,7 +546,7 @@ func NewConfig(moduleListFile string, runGoTests bool, outDir, soongOutDir strin
 	// Compilation targets for Android.
 	if len(config.Targets[Android]) > 0 {
 		config.AndroidCommonTarget = getCommonTargets(config.Targets[Android])[0]
-		config.AndroidFirstDeviceTarget = firstTarget(config.Targets[Android], "lib64", "lib32")[0]
+		config.AndroidFirstDeviceTarget = FirstTarget(config.Targets[Android], "lib64", "lib32")[0]
 	}
 
 	config.BazelContext, err = NewBazelContext(config)
