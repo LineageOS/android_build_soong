@@ -42,7 +42,7 @@ android_app_certificate {
 }
 `,
 		expectedBazelTargets: []string{
-			makeBazelTarget("android_app_certificate", "com.android.apogee.cert", attrNameToString{
+			makeBazelTargetNoRestrictions("android_app_certificate", "com.android.apogee.cert", attrNameToString{
 				"certificate": `"chamber_of_secrets_dir"`,
 			}),
 		}})

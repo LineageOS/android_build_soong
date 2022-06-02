@@ -56,6 +56,7 @@ func TestGenruleCliVariableReplacement(t *testing.T) {
 		moduleType string
 		factory    android.ModuleFactory
 		genDir     string
+		hod        android.HostOrDeviceSupported
 	}{
 		{
 			moduleType: "genrule",
@@ -66,16 +67,19 @@ func TestGenruleCliVariableReplacement(t *testing.T) {
 			moduleType: "cc_genrule",
 			factory:    cc.GenRuleFactory,
 			genDir:     "$(RULEDIR)",
+			hod:        android.DeviceSupported,
 		},
 		{
 			moduleType: "java_genrule",
 			factory:    java.GenRuleFactory,
 			genDir:     "$(RULEDIR)",
+			hod:        android.DeviceSupported,
 		},
 		{
 			moduleType: "java_genrule_host",
 			factory:    java.GenRuleFactoryHost,
 			genDir:     "$(RULEDIR)",
+			hod:        android.HostSupported,
 		},
 	}
 
@@ -104,15 +108,8 @@ func TestGenruleCliVariableReplacement(t *testing.T) {
 			"tools": `[":foo.tool"]`,
 		}
 
-		if tc.moduleType == "java_genrule_host" {
-			moduleAttrs["target_compatible_with"] = `select({
-        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
-        "//conditions:default": [],
-    })`
-		}
-
 		expectedBazelTargets := []string{
-			makeBazelTarget("genrule", "foo", moduleAttrs),
+			makeBazelTargetHostOrDevice("genrule", "foo", moduleAttrs, tc.hod),
 		}
 
 		t.Run(tc.moduleType, func(t *testing.T) {
@@ -131,6 +128,7 @@ func TestGenruleLocationsLabel(t *testing.T) {
 	testCases := []struct {
 		moduleType string
 		factory    android.ModuleFactory
+		hod        android.HostOrDeviceSupported
 	}{
 		{
 			moduleType: "genrule",
@@ -139,14 +137,17 @@ func TestGenruleLocationsLabel(t *testing.T) {
 		{
 			moduleType: "cc_genrule",
 			factory:    cc.GenRuleFactory,
+			hod:        android.DeviceSupported,
 		},
 		{
 			moduleType: "java_genrule",
 			factory:    java.GenRuleFactory,
+			hod:        android.DeviceSupported,
 		},
 		{
 			moduleType: "java_genrule_host",
 			factory:    java.GenRuleFactoryHost,
+			hod:        android.HostSupported,
 		},
 	}
 
@@ -183,18 +184,9 @@ func TestGenruleLocationsLabel(t *testing.T) {
 			"srcs": `["foo_tool.in"]`,
 		}
 
-		if tc.moduleType == "java_genrule_host" {
-			compatibilityAttrs := `select({
-        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
-        "//conditions:default": [],
-    })`
-			fooAttrs["target_compatible_with"] = compatibilityAttrs
-			fooToolsAttrs["target_compatible_with"] = compatibilityAttrs
-		}
-
 		expectedBazelTargets := []string{
-			makeBazelTarget("genrule", "foo", fooAttrs),
-			makeBazelTarget("genrule", "foo.tools", fooToolsAttrs),
+			makeBazelTargetHostOrDevice("genrule", "foo", fooAttrs, tc.hod),
+			makeBazelTargetHostOrDevice("genrule", "foo.tools", fooToolsAttrs, tc.hod),
 		}
 
 		t.Run(tc.moduleType, func(t *testing.T) {
@@ -213,6 +205,7 @@ func TestGenruleLocationsAbsoluteLabel(t *testing.T) {
 	testCases := []struct {
 		moduleType string
 		factory    android.ModuleFactory
+		hod        android.HostOrDeviceSupported
 	}{
 		{
 			moduleType: "genrule",
@@ -221,14 +214,17 @@ func TestGenruleLocationsAbsoluteLabel(t *testing.T) {
 		{
 			moduleType: "cc_genrule",
 			factory:    cc.GenRuleFactory,
+			hod:        android.DeviceSupported,
 		},
 		{
 			moduleType: "java_genrule",
 			factory:    java.GenRuleFactory,
+			hod:        android.DeviceSupported,
 		},
 		{
 			moduleType: "java_genrule_host",
 			factory:    java.GenRuleFactoryHost,
+			hod:        android.HostSupported,
 		},
 	}
 
@@ -249,15 +245,8 @@ func TestGenruleLocationsAbsoluteLabel(t *testing.T) {
 			"tools": `["//other:foo.tool"]`,
 		}
 
-		if tc.moduleType == "java_genrule_host" {
-			moduleAttrs["target_compatible_with"] = `select({
-        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
-        "//conditions:default": [],
-    })`
-		}
-
 		expectedBazelTargets := []string{
-			makeBazelTarget("genrule", "foo", moduleAttrs),
+			makeBazelTargetHostOrDevice("genrule", "foo", moduleAttrs, tc.hod),
 		}
 
 		t.Run(tc.moduleType, func(t *testing.T) {
@@ -277,6 +266,7 @@ func TestGenruleSrcsLocationsAbsoluteLabel(t *testing.T) {
 	testCases := []struct {
 		moduleType string
 		factory    android.ModuleFactory
+		hod        android.HostOrDeviceSupported
 	}{
 		{
 			moduleType: "genrule",
@@ -285,14 +275,17 @@ func TestGenruleSrcsLocationsAbsoluteLabel(t *testing.T) {
 		{
 			moduleType: "cc_genrule",
 			factory:    cc.GenRuleFactory,
+			hod:        android.DeviceSupported,
 		},
 		{
 			moduleType: "java_genrule",
 			factory:    java.GenRuleFactory,
+			hod:        android.DeviceSupported,
 		},
 		{
 			moduleType: "java_genrule_host",
 			factory:    java.GenRuleFactoryHost,
+			hod:        android.HostSupported,
 		},
 	}
 
@@ -313,15 +306,8 @@ func TestGenruleSrcsLocationsAbsoluteLabel(t *testing.T) {
 			"tools": `["//other:foo.tool"]`,
 		}
 
-		if tc.moduleType == "java_genrule_host" {
-			moduleAttrs["target_compatible_with"] = `select({
-        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
-        "//conditions:default": [],
-    })`
-		}
-
 		expectedBazelTargets := []string{
-			makeBazelTarget("genrule", "foo", moduleAttrs),
+			makeBazelTargetHostOrDevice("genrule", "foo", moduleAttrs, tc.hod),
 		}
 
 		t.Run(tc.moduleType, func(t *testing.T) {
@@ -341,6 +327,7 @@ func TestGenruleLocationLabelShouldSubstituteFirstToolLabel(t *testing.T) {
 	testCases := []struct {
 		moduleType string
 		factory    android.ModuleFactory
+		hod        android.HostOrDeviceSupported
 	}{
 		{
 			moduleType: "genrule",
@@ -349,14 +336,17 @@ func TestGenruleLocationLabelShouldSubstituteFirstToolLabel(t *testing.T) {
 		{
 			moduleType: "cc_genrule",
 			factory:    cc.GenRuleFactory,
+			hod:        android.DeviceSupported,
 		},
 		{
 			moduleType: "java_genrule",
 			factory:    java.GenRuleFactory,
+			hod:        android.DeviceSupported,
 		},
 		{
 			moduleType: "java_genrule_host",
 			factory:    java.GenRuleFactoryHost,
+			hod:        android.HostSupported,
 		},
 	}
 
@@ -380,15 +370,8 @@ func TestGenruleLocationLabelShouldSubstituteFirstToolLabel(t *testing.T) {
     ]`,
 		}
 
-		if tc.moduleType == "java_genrule_host" {
-			moduleAttrs["target_compatible_with"] = `select({
-        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
-        "//conditions:default": [],
-    })`
-		}
-
 		expectedBazelTargets := []string{
-			makeBazelTarget("genrule", "foo", moduleAttrs),
+			makeBazelTargetHostOrDevice("genrule", "foo", moduleAttrs, tc.hod),
 		}
 
 		t.Run(tc.moduleType, func(t *testing.T) {
@@ -408,6 +391,7 @@ func TestGenruleLocationsLabelShouldSubstituteFirstToolLabel(t *testing.T) {
 	testCases := []struct {
 		moduleType string
 		factory    android.ModuleFactory
+		hod        android.HostOrDeviceSupported
 	}{
 		{
 			moduleType: "genrule",
@@ -416,14 +400,17 @@ func TestGenruleLocationsLabelShouldSubstituteFirstToolLabel(t *testing.T) {
 		{
 			moduleType: "cc_genrule",
 			factory:    cc.GenRuleFactory,
+			hod:        android.DeviceSupported,
 		},
 		{
 			moduleType: "java_genrule",
 			factory:    java.GenRuleFactory,
+			hod:        android.DeviceSupported,
 		},
 		{
 			moduleType: "java_genrule_host",
 			factory:    java.GenRuleFactoryHost,
+			hod:        android.HostSupported,
 		},
 	}
 
@@ -447,15 +434,8 @@ func TestGenruleLocationsLabelShouldSubstituteFirstToolLabel(t *testing.T) {
     ]`,
 		}
 
-		if tc.moduleType == "java_genrule_host" {
-			moduleAttrs["target_compatible_with"] = `select({
-        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
-        "//conditions:default": [],
-    })`
-		}
-
 		expectedBazelTargets := []string{
-			makeBazelTarget("genrule", "foo", moduleAttrs),
+			makeBazelTargetHostOrDevice("genrule", "foo", moduleAttrs, tc.hod),
 		}
 
 		t.Run(tc.moduleType, func(t *testing.T) {
@@ -475,6 +455,7 @@ func TestGenruleWithoutToolsOrToolFiles(t *testing.T) {
 	testCases := []struct {
 		moduleType string
 		factory    android.ModuleFactory
+		hod        android.HostOrDeviceSupported
 	}{
 		{
 			moduleType: "genrule",
@@ -483,14 +464,17 @@ func TestGenruleWithoutToolsOrToolFiles(t *testing.T) {
 		{
 			moduleType: "cc_genrule",
 			factory:    cc.GenRuleFactory,
+			hod:        android.DeviceSupported,
 		},
 		{
 			moduleType: "java_genrule",
 			factory:    java.GenRuleFactory,
+			hod:        android.DeviceSupported,
 		},
 		{
 			moduleType: "java_genrule_host",
 			factory:    java.GenRuleFactoryHost,
+			hod:        android.HostSupported,
 		},
 	}
 
@@ -509,15 +493,8 @@ func TestGenruleWithoutToolsOrToolFiles(t *testing.T) {
 			"srcs": `["foo.in"]`,
 		}
 
-		if tc.moduleType == "java_genrule_host" {
-			moduleAttrs["target_compatible_with"] = `select({
-        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
-        "//conditions:default": [],
-    })`
-		}
-
 		expectedBazelTargets := []string{
-			makeBazelTarget("genrule", "foo", moduleAttrs),
+			makeBazelTargetHostOrDevice("genrule", "foo", moduleAttrs, tc.hod),
 		}
 
 		t.Run(tc.moduleType, func(t *testing.T) {
@@ -549,7 +526,7 @@ genrule {
 }
 `,
 			expectedBazelTargets: []string{
-				makeBazelTarget("genrule", "gen", attrNameToString{
+				makeBazelTargetNoRestrictions("genrule", "gen", attrNameToString{
 					"cmd":  `"do-something $(SRCS) $(OUTS)"`,
 					"outs": `["out"]`,
 					"srcs": `["in1"]`,
@@ -574,7 +551,7 @@ genrule {
 }
 `,
 			expectedBazelTargets: []string{
-				makeBazelTarget("genrule", "gen", attrNameToString{
+				makeBazelTargetNoRestrictions("genrule", "gen", attrNameToString{
 					"cmd": `"do-something $(SRCS) $(OUTS)"`,
 					"outs": `[
         "out-from-defaults",
@@ -607,7 +584,7 @@ genrule {
 }
 `,
 			expectedBazelTargets: []string{
-				makeBazelTarget("genrule", "gen", attrNameToString{
+				makeBazelTargetNoRestrictions("genrule", "gen", attrNameToString{
 					"cmd":  `"cp $(SRCS) $(OUTS)"`,
 					"outs": `["out"]`,
 					"srcs": `["in1"]`,
@@ -644,7 +621,7 @@ genrule {
 }
 `,
 			expectedBazelTargets: []string{
-				makeBazelTarget("genrule", "gen", attrNameToString{
+				makeBazelTargetNoRestrictions("genrule", "gen", attrNameToString{
 					"cmd": `"cmd1 $(SRCS) $(OUTS)"`,
 					"outs": `[
         "out-from-3",
