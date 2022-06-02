@@ -93,7 +93,7 @@ func TestInvokeBazelPopulatesBuildStatements(t *testing.T) {
     "label": "two"
   }]
 }`,
-			"cd 'er' && rm -f one && touch foo",
+			"cd 'test/exec_root' && rm -f 'one' && touch foo",
 		}, {`
 {
   "artifacts": [{
@@ -124,17 +124,17 @@ func TestInvokeBazelPopulatesBuildStatements(t *testing.T) {
     "label": "parent"
   }]
 }`,
-			`cd 'er' && rm -f parent/one && bogus command && sed -i'' -E 's@(^|\s|")bazel-out/@\1bo/@g' 'parent/one.d'`,
+			`cd 'test/exec_root' && rm -f 'parent/one' && bogus command && sed -i'' -E 's@(^|\s|")bazel-out/@\1test/bazel_out/@g' 'parent/one.d'`,
 		},
 	}
 
-	for _, testCase := range testCases {
+	for i, testCase := range testCases {
 		bazelContext, _ := testBazelContext(t, map[bazelCommand]string{
 			bazelCommand{command: "aquery", expression: "deps(@soong_injection//mixed_builds:buildroot)"}: testCase.input})
 
 		err := bazelContext.InvokeBazel(testConfig)
 		if err != nil {
-			t.Fatalf("Did not expect error invoking Bazel, but got %s", err)
+			t.Fatalf("testCase #%d: did not expect error invoking Bazel, but got %s", i+1, err)
 		}
 
 		got := bazelContext.BuildStatementsToRegister()
@@ -143,9 +143,9 @@ func TestInvokeBazelPopulatesBuildStatements(t *testing.T) {
 		}
 
 		cmd := RuleBuilderCommand{}
-		createCommand(&cmd, got[0], "er", "bo", PathContextForTesting(TestConfig("out", nil, "", nil)))
-		if actual := cmd.buf.String(); testCase.command != actual {
-			t.Errorf("expected: [%s], actual: [%s]", testCase.command, actual)
+		createCommand(&cmd, got[0], "test/exec_root", "test/bazel_out", PathContextForTesting(TestConfig("out", nil, "", nil)))
+		if actual, expected := cmd.buf.String(), testCase.command; expected != actual {
+			t.Errorf("expected: [%s], actual: [%s]", expected, actual)
 		}
 	}
 }
