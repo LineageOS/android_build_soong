@@ -2437,7 +2437,6 @@ func maybeInjectBoringSSLHash(ctx android.ModuleContext, outputFile android.Modu
 		rule := android.NewRuleBuilder(pctx, ctx)
 		rule.Command().
 			BuiltTool("bssl_inject_hash").
-			Flag("-sha256").
 			FlagWithInput("-in-object ", outputFile).
 			FlagWithOutput("-o ", hashedOutputfile)
 		rule.Build("injectCryptoHash", "inject crypto hash")
