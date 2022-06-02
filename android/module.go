@@ -1181,33 +1181,89 @@ func (attrs *CommonAttributes) fillCommonBp2BuildModuleAttrs(ctx *topDownMutator
 	archVariantProps := mod.GetArchVariantProperties(ctx, &commonProperties{})
 
 	var enabledProperty bazel.BoolAttribute
-	if props.Enabled != nil {
-		enabledProperty.Value = props.Enabled
+
+	onlyAndroid := false
+	neitherHostNorDevice := false
+
+	osSupport := map[string]bool{}
+
+	// if the target is enabled and supports arch variance, determine the defaults based on the module
+	// type's host or device property and host_supported/device_supported properties
+	if mod.commonProperties.ArchSpecific {
+		moduleSupportsDevice := mod.DeviceSupported()
+		moduleSupportsHost := mod.HostSupported()
+		if moduleSupportsHost && !moduleSupportsDevice {
+			// for host only, we specify as unsupported on android rather than listing all host osSupport
+			// TODO(b/220874839): consider replacing this with a constraint that covers all host osSupport
+			// instead
+			enabledProperty.SetSelectValue(bazel.OsConfigurationAxis, Android.Name, proptools.BoolPtr(false))
+		} else if moduleSupportsDevice && !moduleSupportsHost {
+			enabledProperty.SetSelectValue(bazel.OsConfigurationAxis, Android.Name, proptools.BoolPtr(true))
+			// specify as a positive to ensure any target-specific enabled can be resolved
+			// also save that a target is only android, as if there is only the positive restriction on
+			// android, it'll be dropped, so we may need to add it back later
+			onlyAndroid = true
+		} else if !moduleSupportsHost && !moduleSupportsDevice {
+			neitherHostNorDevice = true
+		}
+
+		for _, os := range OsTypeList() {
+			if os.Class == Host {
+				osSupport[os.Name] = moduleSupportsHost
+			} else if os.Class == Device {
+				osSupport[os.Name] = moduleSupportsDevice
+			}
+		}
+	}
+
+	if neitherHostNorDevice {
+		// we can't build this, disable
+		enabledProperty.Value = proptools.BoolPtr(false)
+	} else if props.Enabled != nil {
+		enabledProperty.SetValue(props.Enabled)
+		if !*props.Enabled {
+			for os, enabled := range osSupport {
+				if val := enabledProperty.SelectValue(bazel.OsConfigurationAxis, os); enabled && val != nil && *val {
+					// if this should be disabled by default, clear out any enabling we've done
+					enabledProperty.SetSelectValue(bazel.OsConfigurationAxis, os, nil)
+				}
+			}
+		}
 	}
 
 	for axis, configToProps := range archVariantProps {
 		for config, _props := range configToProps {
 			if archProps, ok := _props.(*commonProperties); ok {
 				required.SetSelectValue(axis, config, depsToLabelList(archProps.Required).Value)
-				if archProps.Enabled != nil {
-					enabledProperty.SetSelectValue(axis, config, archProps.Enabled)
+				if !neitherHostNorDevice {
+					if archProps.Enabled != nil {
+						if axis != bazel.OsConfigurationAxis || osSupport[config] {
+							enabledProperty.SetSelectValue(axis, config, archProps.Enabled)
+						}
+					}
 				}
 			}
 		}
 	}
 
-	if enabledPropertyOverrides.Value != nil {
-		enabledProperty.Value = enabledPropertyOverrides.Value
-	}
-	for _, axis := range enabledPropertyOverrides.SortedConfigurationAxes() {
-		configToBools := enabledPropertyOverrides.ConfigurableValues[axis]
-		for cfg, val := range configToBools {
-			enabledProperty.SetSelectValue(axis, cfg, &val)
+	if !neitherHostNorDevice {
+		if enabledPropertyOverrides.Value != nil {
+			enabledProperty.Value = enabledPropertyOverrides.Value
+		}
+		for _, axis := range enabledPropertyOverrides.SortedConfigurationAxes() {
+			configToBools := enabledPropertyOverrides.ConfigurableValues[axis]
+			for cfg, val := range configToBools {
+				if axis != bazel.OsConfigurationAxis || osSupport[cfg] {
+					enabledProperty.SetSelectValue(axis, cfg, &val)
+				}
+			}
 		}
 	}
 
 	productConfigEnabledLabels := []bazel.Label{}
-	if !proptools.BoolDefault(enabledProperty.Value, true) {
+	// TODO(b/234497586): Soong config variables and product variables have different overriding behavior, we
+	// should handle it correctly
+	if !proptools.BoolDefault(enabledProperty.Value, true) && !neitherHostNorDevice {
 		// If the module is not enabled by default, then we can check if a
 		// product variable enables it
 		productConfigEnabledLabels = productVariableConfigEnableLabels(ctx)
@@ -1224,16 +1280,18 @@ func (attrs *CommonAttributes) fillCommonBp2BuildModuleAttrs(ctx *topDownMutator
 		productConfigEnabledLabels, nil,
 	})
 
-	moduleSupportsDevice := mod.commonProperties.HostOrDeviceSupported&deviceSupported == deviceSupported
-	if mod.commonProperties.HostOrDeviceSupported != NeitherHostNorDeviceSupported && !moduleSupportsDevice {
-		enabledProperty.SetSelectValue(bazel.OsConfigurationAxis, Android.Name, proptools.BoolPtr(false))
-	}
-
 	platformEnabledAttribute, err := enabledProperty.ToLabelListAttribute(
 		bazel.LabelList{[]bazel.Label{bazel.Label{Label: "@platforms//:incompatible"}}, nil},
 		bazel.LabelList{[]bazel.Label{}, nil})
 	if err != nil {
 		ctx.ModuleErrorf("Error processing platform enabled attribute: %s", err)
+	}
+
+	// if android is the only arch/os enabled, then add a restriction to only be compatible with android
+	if platformEnabledAttribute.IsNil() && onlyAndroid {
+		l := bazel.LabelAttribute{}
+		l.SetValue(bazel.Label{Label: bazel.OsConfigurationAxis.SelectKey(Android.Name)})
+		platformEnabledAttribute.Add(&l)
 	}
 
 	data.Append(required)
