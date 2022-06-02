@@ -47,6 +47,7 @@ var (
 		"build/bazel/examples/apex/minimal":     Bp2BuildDefaultTrueRecursively,
 		"build/bazel/examples/soong_config_variables":        Bp2BuildDefaultTrueRecursively,
 		"build/bazel/examples/python":                        Bp2BuildDefaultTrueRecursively,
+		"build/bazel/examples/gensrcs":                       Bp2BuildDefaultTrueRecursively,
 		"build/make/target/product/security":                 Bp2BuildDefaultTrue,
 		"build/make/tools/signapk":                           Bp2BuildDefaultTrue,
 		"build/make/tools/zipalign":                          Bp2BuildDefaultTrueRecursively,
