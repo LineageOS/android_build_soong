@@ -49,6 +49,7 @@ soong_config_module_type {
 custom_cc_library_static {
 	name: "foo",
 	bazel_module: { bp2build_available: true },
+	host_supported: true,
 	soong_config_variables: {
 		feature1: {
 			conditions_default: {
@@ -94,6 +95,7 @@ soong_config_module_type_import {
 custom_cc_library_static {
 	name: "foo",
 	bazel_module: { bp2build_available: true },
+	host_supported: true,
 	soong_config_variables: {
 		feature1: {
 			conditions_default: {
@@ -141,6 +143,7 @@ soong_config_module_type {
 custom_cc_library_static {
 	name: "foo",
 	bazel_module: { bp2build_available: true },
+	host_supported: true,
 	soong_config_variables: {
 		board: {
 			soc_a: {
@@ -200,6 +203,7 @@ soong_config_module_type {
 custom_cc_library_static {
 	name: "foo",
 	bazel_module: { bp2build_available: true },
+	host_supported: true,
 	soong_config_variables: {
 		feature1: {
 			conditions_default: {
@@ -268,6 +272,7 @@ soong_config_module_type {
 custom_cc_library_static {
 	name: "foo",
 	bazel_module: { bp2build_available: true },
+	host_supported: true,
 	soong_config_variables: {
 		board: {
 			soc_a: {
@@ -356,6 +361,7 @@ cc_library_static {
 	name: "lib",
 	defaults: ["foo_defaults_2"],
 	bazel_module: { bp2build_available: true },
+	host_supported: true,
 }
 `
 
@@ -429,12 +435,14 @@ cc_library_static {
 	name: "lib",
 	defaults: ["foo_defaults", "bar_defaults"],
 	bazel_module: { bp2build_available: true },
+	host_supported: true,
 }
 
 cc_library_static {
 	name: "lib2",
 	defaults: ["bar_defaults", "foo_defaults"],
 	bazel_module: { bp2build_available: true },
+	host_supported: true,
 }
 `
 
@@ -550,6 +558,7 @@ cc_library_static {
 	name: "lib",
 	defaults: ["foo_defaults", "qux_defaults"],
 	bazel_module: { bp2build_available: true },
+	host_supported: true,
 }
 `
 
@@ -615,6 +624,7 @@ library_linking_strategy_cc_defaults {
 library_linking_strategy_cc_defaults {
     name: "library_linking_strategy_merged_defaults",
     defaults: ["library_linking_strategy_lib_a_defaults"],
+    host_supported: true,
     soong_config_variables: {
         library_linking_strategy: {
             prefer_static: {
@@ -714,6 +724,7 @@ library_linking_strategy_cc_defaults {
 
 cc_binary {
     name: "library_linking_strategy_sample_binary",
+    host_supported: true,
     srcs: ["library_linking_strategy.cc"],
     defaults: ["library_linking_strategy_sample_defaults"],
 }`
@@ -800,6 +811,7 @@ alphabet_cc_defaults {
 
 cc_binary {
     name: "alphabet_binary",
+    host_supported: true,
     srcs: ["main.cc"],
     defaults: ["alphabet_sample_cc_defaults"],
 }`
@@ -861,6 +873,7 @@ alphabet_cc_defaults {
 cc_binary {
     name: "alphabet_binary",
     srcs: ["main.cc"],
+    host_supported: true,
     defaults: ["alphabet_sample_cc_defaults"],
     enabled: false,
     arch: {
@@ -958,6 +971,7 @@ soong_config_module_type {
 
 alphabet_cc_defaults {
     name: "alphabet_sample_cc_defaults",
+    host_supported: true,
     soong_config_variables: {
         special_build: {
             enabled: true,
