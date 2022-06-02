@@ -363,6 +363,7 @@ var (
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
+		"linker_config",
 		"java_import",
 		"java_import_host",
 	}
@@ -437,7 +438,6 @@ var (
 		"art-script",                                                 // depends on unconverted modules: dalvikvm, dex2oat
 		"bin2c_fastdeployagent",                                      // depends on unconverted modules: deployagent
 		"com.android.runtime",                                        // depends on unconverted modules: bionic-linker-config, linkerconfig
-		"conv_linker_config",                                         // depends on unconverted modules: linker_config_proto
 		"currysrc",                                                   // depends on unconverted modules: currysrc_org.eclipse, guavalib, jopt-simple-4.9
 		"dex2oat-script",                                             // depends on unconverted modules: dex2oat
 		"generated_android_icu4j_resources",                          // depends on unconverted modules: android_icu4j_srcgen_binary, soong_zip
