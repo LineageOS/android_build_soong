@@ -213,9 +213,33 @@ func customModuleFactoryBase() android.Module {
 	return module
 }
 
-func customModuleFactory() android.Module {
+func customModuleFactoryHostAndDevice() android.Module {
 	m := customModuleFactoryBase()
 	android.InitAndroidArchModule(m, android.HostAndDeviceSupported, android.MultilibBoth)
+	return m
+}
+
+func customModuleFactoryDeviceSupported() android.Module {
+	m := customModuleFactoryBase()
+	android.InitAndroidArchModule(m, android.DeviceSupported, android.MultilibBoth)
+	return m
+}
+
+func customModuleFactoryHostSupported() android.Module {
+	m := customModuleFactoryBase()
+	android.InitAndroidArchModule(m, android.HostSupported, android.MultilibBoth)
+	return m
+}
+
+func customModuleFactoryHostAndDeviceDefault() android.Module {
+	m := customModuleFactoryBase()
+	android.InitAndroidArchModule(m, android.HostAndDeviceDefault, android.MultilibBoth)
+	return m
+}
+
+func customModuleFactoryNeitherHostNorDeviceSupported() android.Module {
+	m := customModuleFactoryBase()
+	android.InitAndroidArchModule(m, android.NeitherHostNorDeviceSupported, android.MultilibBoth)
 	return m
 }
 
@@ -355,7 +379,7 @@ func generateBazelTargetsForDir(codegenCtx *CodegenContext, dir string) (BazelTa
 }
 
 func registerCustomModuleForBp2buildConversion(ctx *android.TestContext) {
-	ctx.RegisterModuleType("custom", customModuleFactory)
+	ctx.RegisterModuleType("custom", customModuleFactoryHostAndDevice)
 	ctx.RegisterForBazelConversion()
 }
 
@@ -369,7 +393,29 @@ func simpleModuleDoNotConvertBp2build(typ, name string) string {
 
 type attrNameToString map[string]string
 
-func makeBazelTarget(typ, name string, attrs attrNameToString) string {
+func (a attrNameToString) clone() attrNameToString {
+	newAttrs := make(attrNameToString, len(a))
+	for k, v := range a {
+		newAttrs[k] = v
+	}
+	return newAttrs
+}
+
+// makeBazelTargetNoRestrictions returns bazel target build file definition that can be host or
+// device specific, or independent of host/device.
+func makeBazelTargetHostOrDevice(typ, name string, attrs attrNameToString, hod android.HostOrDeviceSupported) string {
+	if _, ok := attrs["target_compatible_with"]; !ok {
+		switch hod {
+		case android.HostSupported:
+			attrs["target_compatible_with"] = `select({
+        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    })`
+		case android.DeviceSupported:
+			attrs["target_compatible_with"] = `["//build/bazel/platforms/os:android"]`
+		}
+	}
+
 	attrStrings := make([]string, 0, len(attrs)+1)
 	attrStrings = append(attrStrings, fmt.Sprintf(`    name = "%s",`, name))
 	for _, k := range android.SortedStringKeys(attrs) {
@@ -378,4 +424,17 @@ func makeBazelTarget(typ, name string, attrs attrNameToString) string {
 	return fmt.Sprintf(`%s(
 %s
 )`, typ, strings.Join(attrStrings, "\n"))
+}
+
+// makeBazelTargetNoRestrictions returns bazel target build file definition that does not add a
+// target_compatible_with.  This is useful for module types like filegroup and genrule that arch not
+// arch variant
+func makeBazelTargetNoRestrictions(typ, name string, attrs attrNameToString) string {
+	return makeBazelTargetHostOrDevice(typ, name, attrs, android.HostAndDeviceDefault)
+}
+
+// makeBazelTargetNoRestrictions returns bazel target build file definition that is device specific
+// as this is the most common default in Soong.
+func makeBazelTarget(typ, name string, attrs attrNameToString) string {
+	return makeBazelTargetHostOrDevice(typ, name, attrs, android.DeviceSupported)
 }
