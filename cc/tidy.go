@@ -144,8 +144,23 @@ func (tidy *tidyFeature) flags(ctx ModuleContext, flags Flags) Flags {
 		tidyChecks += config.TidyChecksForDir(ctx.ModuleDir())
 	}
 	if len(tidy.Properties.Tidy_checks) > 0 {
-		tidyChecks = tidyChecks + "," + strings.Join(esc(ctx, "tidy_checks",
-			config.ClangRewriteTidyChecks(tidy.Properties.Tidy_checks)), ",")
+		// If Tidy_checks contains "-*", ignore all checks before "-*".
+		localChecks := tidy.Properties.Tidy_checks
+		ignoreGlobalChecks := false
+		for n, check := range tidy.Properties.Tidy_checks {
+			if check == "-*" {
+				ignoreGlobalChecks = true
+				localChecks = tidy.Properties.Tidy_checks[n:]
+			}
+		}
+		if ignoreGlobalChecks {
+			tidyChecks = "-checks=" + strings.Join(esc(ctx, "tidy_checks",
+				config.ClangRewriteTidyChecks(localChecks)), ",")
+		} else {
+			tidyChecks = tidyChecks + "," + strings.Join(esc(ctx, "tidy_checks",
+				config.ClangRewriteTidyChecks(localChecks)), ",")
+		}
+
 	}
 	if ctx.Windows() {
 		// https://b.corp.google.com/issues/120614316
