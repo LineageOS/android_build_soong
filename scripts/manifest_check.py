@@ -20,9 +20,11 @@ from __future__ import print_function
 
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
+from collections import OrderedDict
 from xml.dom import minidom
 
 from manifest import android_ns
@@ -43,11 +45,13 @@ def parse_args():
         '--uses-library',
         dest='uses_libraries',
         action='append',
+        default=[],
         help='specify uses-library entries known to the build system')
     parser.add_argument(
         '--optional-uses-library',
         dest='optional_uses_libraries',
         action='append',
+        default=[],
         help='specify uses-library entries known to the build system with '
         'required:false'
     )
@@ -74,9 +78,14 @@ def parse_args():
         help='print the targetSdkVersion from the manifest')
     parser.add_argument(
         '--dexpreopt-config',
-        dest='dexpreopt_configs',
+        dest='dexpreopt_config',
+        help='a path to dexpreopt.config file for this library/app')
+    parser.add_argument(
+        '--dexpreopt-dep-config',
+        dest='dexpreopt_dep_configs',
         action='append',
-        help='a paths to a dexpreopt.config of some library')
+        default=[],
+        help='a path to dexpreopt.config file for a dependency library')
     parser.add_argument('--aapt', dest='aapt', help='path to aapt executable')
     parser.add_argument(
         '--output', '-o', dest='output', help='output AndroidManifest.xml file')
@@ -295,25 +304,53 @@ def extract_target_sdk_version_xml(xml):
     return target_attr.value
 
 
-def load_dexpreopt_configs(configs):
+def remove_duplicates(l):
+    return list(OrderedDict.fromkeys(l))
+
+
+def load_dexpreopt_configs(args):
     """Load dexpreopt.config files and map module names to library names."""
     module_to_libname = {}
 
-    if configs is None:
-        configs = []
+    # Go over dexpreopt.config files for uses-library dependencies and create
+    # a mapping from module name to real library name (they may differ).
+    for config in args.dexpreopt_dep_configs:
+        # Empty dexpreopt.config files are expected for some dependencies.
+        if os.stat(config).st_size != 0:
+            with open(config, 'r') as f:
+                contents = json.load(f)
+            module_to_libname[contents['Name']] = contents['ProvidesUsesLibrary']
 
-    for config in configs:
-        with open(config, 'r') as f:
+    required = translate_libnames(args.uses_libraries, module_to_libname)
+    optional = translate_libnames(args.optional_uses_libraries, module_to_libname)
+
+    # Add extra uses-libraries from the library/app's own dexpreopt.config.
+    # Extra libraries may be propagated via dependencies' dexpreopt.config files
+    # (not only uses-library ones, but also transitively via static libraries).
+    if args.dexpreopt_config:
+        with open(args.dexpreopt_config, 'r') as f:
             contents = json.load(f)
-        module_to_libname[contents['Name']] = contents['ProvidesUsesLibrary']
+            for clc in contents['ClassLoaderContexts']['any']:
+                ulib = clc['Name']
+                if clc['Optional']:
+                    optional.append(ulib)
+                else:
+                    required.append(ulib)
 
-    return module_to_libname
+    required = remove_duplicates(required)
+    optional = remove_duplicates(optional)
+
+    # If the same library is both in optional and required, prefer required.
+    # This may happen for compatibility libraries, e.g. org.apache.http.legacy.
+    for lib in required:
+        if lib in optional:
+            optional.remove(lib)
+
+    return required, optional
 
 
 def translate_libnames(modules, module_to_libname):
     """Translate module names into library names using the mapping."""
-    if modules is None:
-        modules = []
 
     libnames = []
     for name in modules:
@@ -346,10 +383,7 @@ def main():
             # `optional_uses_libs`, `LOCAL_USES_LIBRARIES`,
             # `LOCAL_OPTIONAL_LIBRARY_NAMES` all contain module names), while
             # the manifest addresses libraries by their name.
-            mod_to_lib = load_dexpreopt_configs(args.dexpreopt_configs)
-            required = translate_libnames(args.uses_libraries, mod_to_lib)
-            optional = translate_libnames(args.optional_uses_libraries,
-                                          mod_to_lib)
+            required, optional = load_dexpreopt_configs(args)
 
             # Check if the <uses-library> lists in the build system agree with
             # those in the manifest. Raise an exception on mismatch, unless the
