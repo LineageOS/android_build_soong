@@ -878,7 +878,7 @@ func (c *bazelSingleton) GenerateBuildActions(ctx SingletonContext) {
 		}
 
 		// The actual Bazel action.
-		cmd.Text(" " + buildStatement.Command)
+		cmd.Text(buildStatement.Command)
 
 		for _, outputPath := range buildStatement.OutputPaths {
 			cmd.ImplicitOutput(PathForBazelOut(ctx, outputPath))
