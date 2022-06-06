@@ -444,32 +444,33 @@ func parseSrcs(ctx android.BazelConversionPathContext, props *BaseCompilerProper
 	return bazel.AppendBazelLabelLists(allSrcsLabelList, generatedSrcsLabelList), anySrcs
 }
 
-func bp2buildResolveCppStdValue(c_std *string, cpp_std *string, gnu_extensions *bool) (*string, *string) {
-	var cStdVal, cppStdVal string
+func bp2buildStdVal(std *string, prefix string, useGnu bool) *string {
+	defaultVal := prefix + "_std_default"
 	// If c{,pp}std properties are not specified, don't generate them in the BUILD file.
 	// Defaults are handled by the toolchain definition.
 	// However, if gnu_extensions is false, then the default gnu-to-c version must be specified.
-	if cpp_std != nil {
-		cppStdVal = parseCppStd(cpp_std)
-	} else if gnu_extensions != nil && !*gnu_extensions {
-		cppStdVal = "c++17"
-	}
-	if c_std != nil {
-		cStdVal = parseCStd(c_std)
-	} else if gnu_extensions != nil && !*gnu_extensions {
-		cStdVal = "c99"
-	}
-
-	cStdVal, cppStdVal = maybeReplaceGnuToC(gnu_extensions, cStdVal, cppStdVal)
-	var c_std_prop, cpp_std_prop *string
-	if cStdVal != "" {
-		c_std_prop = &cStdVal
-	}
-	if cppStdVal != "" {
-		cpp_std_prop = &cppStdVal
+	stdVal := proptools.StringDefault(std, defaultVal)
+	if stdVal == "experimental" || stdVal == defaultVal {
+		if stdVal == "experimental" {
+			stdVal = prefix + "_std_experimental"
+		}
+		if !useGnu {
+			stdVal += "_no_gnu"
+		}
+	} else if !useGnu {
+		stdVal = gnuToCReplacer.Replace(stdVal)
 	}
 
-	return c_std_prop, cpp_std_prop
+	if stdVal == defaultVal {
+		return nil
+	}
+	return &stdVal
+}
+
+func bp2buildResolveCppStdValue(c_std *string, cpp_std *string, gnu_extensions *bool) (*string, *string) {
+	useGnu := useGnuExtensions(gnu_extensions)
+
+	return bp2buildStdVal(c_std, "c", useGnu), bp2buildStdVal(cpp_std, "cpp", useGnu)
 }
 
 // packageFromLabel extracts package from a fully-qualified or relative Label and whether the label
