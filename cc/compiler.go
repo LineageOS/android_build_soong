@@ -295,8 +295,12 @@ func addToModuleList(ctx ModuleContext, key android.OnceKey, module string) {
 	getNamedMapForConfig(ctx.Config(), key).Store(module, true)
 }
 
+func useGnuExtensions(gnuExtensions *bool) bool {
+	return proptools.BoolDefault(gnuExtensions, true)
+}
+
 func maybeReplaceGnuToC(gnuExtensions *bool, cStd string, cppStd string) (string, string) {
-	if gnuExtensions != nil && *gnuExtensions == false {
+	if !useGnuExtensions(gnuExtensions) {
 		cStd = gnuToCReplacer.Replace(cStd)
 		cppStd = gnuToCReplacer.Replace(cppStd)
 	}
