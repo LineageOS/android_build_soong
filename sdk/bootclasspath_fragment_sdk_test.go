@@ -101,6 +101,9 @@ func TestSnapshotWithBootclasspathFragment_ImageName(t *testing.T) {
 				image_name: "art",
 				contents: ["mybootlib"],
 				apex_available: ["com.android.art"],
+				hidden_api: {
+					split_packages: ["*"],
+				},
 			}
 
 			apex_key {
@@ -234,6 +237,9 @@ func TestSnapshotWithBootClasspathFragment_Contents(t *testing.T) {
 				core_platform_api: {
 					// This should be automatically added to the sdk_snapshot as a java_sdk_libs module.
 					stub_libs: ["mycoreplatform"],
+				},
+				hidden_api: {
+					split_packages: ["*"],
 				},
 			}
 
@@ -453,6 +459,9 @@ func TestSnapshotWithBootClasspathFragment_Fragments(t *testing.T) {
 				contents: [
 					"myotherlib",
 				],
+				hidden_api: {
+					split_packages: ["*"],
+				},
 			}
 
 			java_library {
@@ -482,6 +491,9 @@ func TestSnapshotWithBootClasspathFragment_Fragments(t *testing.T) {
 						module: "myotherbootclasspathfragment"
 					},
 				],
+				hidden_api: {
+					split_packages: ["*"],
+				},
 			}
 
 			java_sdk_library {
@@ -561,6 +573,9 @@ func TestBasicSdkWithBootclasspathFragment(t *testing.T) {
 			image_name: "art",
 			contents: ["mybootlib"],
 			apex_available: ["myapex"],
+			hidden_api: {
+				split_packages: ["*"],
+			},
 		}
 
 		java_library {
@@ -668,6 +683,7 @@ func TestSnapshotWithBootclasspathFragment_HiddenAPI(t *testing.T) {
 					unsupported_packages: [
 							"my-unsupported-packages.txt",
 					],
+					split_packages: ["*"],
 				},
 			}
 

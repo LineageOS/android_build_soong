@@ -121,6 +121,9 @@ func TestBootclasspathFragment_Coverage(t *testing.T) {
 					],
 				},
 			},
+			hidden_api: {
+				split_packages: ["*"],
+			},
 		}
 
 		java_library {
@@ -200,6 +203,9 @@ func TestBootclasspathFragment_StubLibs(t *testing.T) {
 			},
 			core_platform_api: {
 				stub_libs: ["mycoreplatform.stubs"],
+			},
+			hidden_api: {
+				split_packages: ["*"],
 			},
 		}
 

@@ -88,6 +88,9 @@ func TestCreateClasspathElements(t *testing.T) {
 				"baz",
 				"quuz",
 			],
+			hidden_api: {
+				split_packages: ["*"],
+			},
 		}
 
 		java_library {
@@ -134,6 +137,9 @@ func TestCreateClasspathElements(t *testing.T) {
 			contents: [
 				"bar",
 			],
+			hidden_api: {
+				split_packages: ["*"],
+			},
 		}
 
 		java_library {
