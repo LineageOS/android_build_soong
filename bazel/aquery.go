@@ -16,6 +16,7 @@ package bazel
 
 import (
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"path/filepath"
@@ -295,7 +296,7 @@ func (a *aqueryArtifactHandler) artifactPathsFromDepsetHash(depsetHash string) (
 		a.depsetHashToArtifactPathsCache[depsetHash] = result
 		return result, nil
 	} else {
-		return nil, fmt.Errorf("undefined input depset hash %d", depsetHash)
+		return nil, fmt.Errorf("undefined input depset hash %s", depsetHash)
 	}
 }
 
@@ -390,8 +391,8 @@ func depsetContentHash(directPaths []string, transitiveDepsetHashes []string) st
 	h := sha256.New()
 	// Use newline as delimiter, as paths cannot contain newline.
 	h.Write([]byte(strings.Join(directPaths, "\n")))
-	h.Write([]byte(strings.Join(transitiveDepsetHashes, "\n")))
-	fullHash := fmt.Sprintf("%016x", h.Sum(nil))
+	h.Write([]byte(strings.Join(transitiveDepsetHashes, "")))
+	fullHash := base64.RawURLEncoding.EncodeToString(h.Sum(nil))
 	return fullHash
 }
 
