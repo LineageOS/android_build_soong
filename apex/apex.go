@@ -2530,6 +2530,22 @@ func (o *OverrideApex) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 		if overridableProperties.Compressible != nil {
 			attrs.Compressible = bazel.BoolAttribute{Value: overridableProperties.Compressible}
 		}
+
+		// Package name
+		//
+		// e.g. com.android.adbd's package name is com.android.adbd, but
+		// com.google.android.adbd overrides the package name to com.google.android.adbd
+		//
+		// TODO: this can be overridden from the product configuration, see
+		// getOverrideManifestPackageName and
+		// PRODUCT_MANIFEST_PACKAGE_NAME_OVERRIDES.
+		//
+		// Instead of generating the BUILD files differently based on the product config
+		// at the point of conversion, this should be handled by the BUILD file loading
+		// from the soong_injection's product_vars, so product config is decoupled from bp2build.
+		if overridableProperties.Package_name != "" {
+			attrs.Package_name = &overridableProperties.Package_name
+		}
 	}
 
 	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: o.Name()}, &attrs)
@@ -3179,6 +3195,7 @@ type bazelApexBundleAttributes struct {
 	Native_shared_libs_32 bazel.LabelListAttribute
 	Native_shared_libs_64 bazel.LabelListAttribute
 	Compressible          bazel.BoolAttribute
+	Package_name          *string
 }
 
 type convertedNativeSharedLibs struct {
@@ -3273,6 +3290,11 @@ func convertWithBp2build(a *apexBundle, ctx android.TopDownMutatorContext) (baze
 		compressibleAttribute.Value = a.overridableProperties.Compressible
 	}
 
+	var packageName *string
+	if a.overridableProperties.Package_name != "" {
+		packageName = &a.overridableProperties.Package_name
+	}
+
 	attrs := bazelApexBundleAttributes{
 		Manifest:              manifestLabelAttribute,
 		Android_manifest:      androidManifestLabelAttribute,
@@ -3287,6 +3309,7 @@ func convertWithBp2build(a *apexBundle, ctx android.TopDownMutatorContext) (baze
 		Binaries:              binariesLabelListAttribute,
 		Prebuilts:             prebuiltsLabelListAttribute,
 		Compressible:          compressibleAttribute,
+		Package_name:          packageName,
 	}
 
 	props := bazel.BazelTargetModuleProperties{
