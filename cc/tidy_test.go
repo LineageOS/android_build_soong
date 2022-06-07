@@ -16,10 +16,82 @@ package cc
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"android/soong/android"
 )
+
+func TestTidyChecks(t *testing.T) {
+	// The "tidy_checks" property defines additional checks appended
+	// to global default. But there are some checks disabled after
+	// the local tidy_checks.
+	bp := `
+		cc_library_shared { // has global checks + extraGlobalChecks
+			name: "libfoo_1",
+			srcs: ["foo.c"],
+		}
+		cc_library_shared { // has only local checks + extraGlobalChecks
+			name: "libfoo_2",
+			srcs: ["foo.c"],
+			tidy_checks: ["-*", "xyz-*"],
+		}
+		cc_library_shared { // has global checks + local checks + extraGlobalChecks
+			name: "libfoo_3",
+			srcs: ["foo.c"],
+			tidy_checks: ["-abc*", "xyz-*", "mycheck"],
+		}
+		cc_library_shared { // has only local checks after "-*" + extraGlobalChecks
+			name: "libfoo_4",
+			srcs: ["foo.c"],
+			tidy_checks: ["-abc*", "xyz-*", "mycheck", "-*", "xyz-*"],
+		}`
+	ctx := testCc(t, bp)
+
+	globalChecks := "-checks=${config.TidyDefaultGlobalChecks},"
+	firstXyzChecks := "-checks='-*','xyz-*',"
+	localXyzChecks := "'-*','xyz-*'"
+	localAbcChecks := "'-abc*','xyz-*',mycheck"
+	extraGlobalChecks := ",-bugprone-easily-swappable-parameters,"
+	testCases := []struct {
+		libNumber int      // 1,2,3,...
+		checks    []string // must have substrings in -checks
+		noChecks  []string // must not have substrings in -checks
+	}{
+		{1, []string{globalChecks, extraGlobalChecks}, []string{localXyzChecks, localAbcChecks}},
+		{2, []string{firstXyzChecks, extraGlobalChecks}, []string{globalChecks, localAbcChecks}},
+		{3, []string{globalChecks, localAbcChecks, extraGlobalChecks}, []string{localXyzChecks}},
+		{4, []string{firstXyzChecks, extraGlobalChecks}, []string{globalChecks, localAbcChecks}},
+	}
+	t.Run("caseTidyChecks", func(t *testing.T) {
+		variant := "android_arm64_armv8-a_shared"
+		for _, test := range testCases {
+			libName := fmt.Sprintf("libfoo_%d", test.libNumber)
+			flags := ctx.ModuleForTests(libName, variant).Rule("clangTidy").Args["tidyFlags"]
+			splitFlags := strings.Split(flags, " ")
+			foundCheckFlag := false
+			for _, flag := range splitFlags {
+				if strings.HasPrefix(flag, "-checks=") {
+					foundCheckFlag = true
+					for _, check := range test.checks {
+						if !strings.Contains(flag, check) {
+							t.Errorf("tidyFlags for %s does not contain %s.", libName, check)
+						}
+					}
+					for _, check := range test.noChecks {
+						if strings.Contains(flag, check) {
+							t.Errorf("tidyFlags for %s should not contain %s.", libName, check)
+						}
+					}
+					break
+				}
+			}
+			if !foundCheckFlag {
+				t.Errorf("tidyFlags for %s does not contain -checks=.", libName)
+			}
+		}
+	})
+}
 
 func TestWithTidy(t *testing.T) {
 	// When WITH_TIDY=1 or (ALLOW_LOCAL_TIDY_TRUE=1 and local tidy:true)
