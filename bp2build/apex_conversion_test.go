@@ -133,6 +133,7 @@ apex {
 	    "pretend_prebuilt_1",
 	    "pretend_prebuilt_2",
 	],
+	package_name: "com.android.apogee.test.package",
 }
 `,
 		expectedBazelTargets: []string{
@@ -169,6 +170,7 @@ apex {
     ]`,
 				"updatable":    "False",
 				"compressible": "False",
+				"package_name": `"com.android.apogee.test.package"`,
 			}),
 		}})
 }
@@ -779,6 +781,40 @@ override_apex {
 			makeBazelTarget("apex", "com.google.android.apogee", attrNameToString{
 				"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
 				"manifest":      `"apogee_manifest.json"`,
+			}),
+		}})
+}
+
+func TestApexBundleSimple_packageNameOverride(t *testing.T) {
+	runOverrideApexTestCase(t, bp2buildTestCase{
+		description:                "override_apex - override package name",
+		moduleTypeUnderTest:        "override_apex",
+		moduleTypeUnderTestFactory: apex.OverrideApexFactory,
+		filesystem: map[string]string{
+			"system/sepolicy/apex/Android.bp": `
+filegroup {
+	name: "com.android.apogee-file_contexts",
+	srcs: [ "apogee-file_contexts", ],
+	bazel_module: { bp2build_available: false },
+}`,
+		},
+		blueprint: `
+apex {
+	name: "com.android.apogee",
+	bazel_module: { bp2build_available: false },
+}
+
+override_apex {
+	name: "com.google.android.apogee",
+	base: ":com.android.apogee",
+	package_name: "com.google.android.apogee",
+}
+`,
+		expectedBazelTargets: []string{
+			makeBazelTarget("apex", "com.google.android.apogee", attrNameToString{
+				"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
+				"manifest":      `"apex_manifest.json"`,
+				"package_name":  `"com.google.android.apogee"`,
 			}),
 		}})
 }
