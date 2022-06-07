@@ -41,7 +41,6 @@ var pgoProfileProjectsConfigKey = android.NewOnceKey("PgoProfileProjects")
 
 const profileInstrumentFlag = "-fprofile-generate=/data/local/tmp"
 const profileUseInstrumentFormat = "-fprofile-use=%s"
-const profileUseSamplingFormat = "-fprofile-sample-accurate -fprofile-sample-use=%s"
 
 func getPgoProfileProjects(config android.DeviceConfig) []string {
 	return config.OnceStringSlice(pgoProfileProjectsConfigKey, func() []string {
@@ -56,12 +55,11 @@ func recordMissingProfileFile(ctx BaseModuleContext, missing string) {
 type PgoProperties struct {
 	Pgo struct {
 		Instrumentation    *bool
-		Sampling           *bool   `android:"arch_variant"`
 		Profile_file       *string `android:"arch_variant"`
 		Benchmarks         []string
 		Enable_profile_use *bool `android:"arch_variant"`
 		// Additional compiler flags to use when building this module
-		// for profiling (either instrumentation or sampling).
+		// for profiling.
 		Cflags []string `android:"arch_variant"`
 	} `android:"arch_variant"`
 
@@ -77,10 +75,6 @@ type pgo struct {
 
 func (props *PgoProperties) isInstrumentation() bool {
 	return props.Pgo.Instrumentation != nil && *props.Pgo.Instrumentation == true
-}
-
-func (props *PgoProperties) isSampling() bool {
-	return props.Pgo.Sampling != nil && *props.Pgo.Sampling == true
 }
 
 func (pgo *pgo) props() []interface{} {
@@ -135,18 +129,8 @@ func (props *PgoProperties) getPgoProfileFile(ctx BaseModuleContext) android.Opt
 	return android.OptionalPathForPath(nil)
 }
 
-func (props *PgoProperties) profileUseFlag(ctx ModuleContext, file string) string {
-	if props.isInstrumentation() {
-		return fmt.Sprintf(profileUseInstrumentFormat, file)
-	}
-	if props.isSampling() {
-		return fmt.Sprintf(profileUseSamplingFormat, file)
-	}
-	return ""
-}
-
 func (props *PgoProperties) profileUseFlags(ctx ModuleContext, file string) []string {
-	flags := []string{props.profileUseFlag(ctx, file)}
+	flags := []string{fmt.Sprintf(profileUseInstrumentFormat, file)}
 	flags = append(flags, profileUseOtherFlags...)
 	return flags
 }
@@ -169,19 +153,14 @@ func (props *PgoProperties) addProfileUseFlags(ctx ModuleContext, flags Flags) F
 		// if profileFile gets updated
 		flags.CFlagsDeps = append(flags.CFlagsDeps, profileFilePath)
 		flags.LdFlagsDeps = append(flags.LdFlagsDeps, profileFilePath)
-
-		if props.isSampling() {
-			flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,-mllvm,-no-warn-sample-unused=true")
-		}
 	}
 	return flags
 }
 
 func (props *PgoProperties) isPGO(ctx BaseModuleContext) bool {
 	isInstrumentation := props.isInstrumentation()
-	isSampling := props.isSampling()
 
-	profileKindPresent := isInstrumentation || isSampling
+	profileKindPresent := isInstrumentation
 	filePresent := props.Pgo.Profile_file != nil
 	benchmarksPresent := len(props.Pgo.Benchmarks) > 0
 
@@ -194,7 +173,7 @@ func (props *PgoProperties) isPGO(ctx BaseModuleContext) bool {
 	if !profileKindPresent || !filePresent {
 		var missing []string
 		if !profileKindPresent {
-			missing = append(missing, "profile kind (either \"instrumentation\" or \"sampling\" property)")
+			missing = append(missing, "profile kind")
 		}
 		if !filePresent {
 			missing = append(missing, "profile_file property")
@@ -206,14 +185,6 @@ func (props *PgoProperties) isPGO(ctx BaseModuleContext) bool {
 	// Benchmark property is mandatory for instrumentation PGO.
 	if isInstrumentation && !benchmarksPresent {
 		ctx.ModuleErrorf("Instrumentation PGO specification is missing benchmark property")
-	}
-
-	if isSampling {
-		ctx.ModuleErrorf("Sampling PGO is deprecated, use AFDO instead")
-	}
-
-	if isSampling && isInstrumentation {
-		ctx.PropertyErrorf("pgo", "Exactly one of \"instrumentation\" and \"sampling\" properties must be set")
 	}
 
 	return true
