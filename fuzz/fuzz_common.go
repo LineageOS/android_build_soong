@@ -26,12 +26,13 @@ import (
 	"android/soong/android"
 )
 
-type Lang string
+type FuzzType string
 
 const (
-	Cc   Lang = ""
-	Rust Lang = "rust"
-	Java Lang = "java"
+	Cc   FuzzType = ""
+	Rust FuzzType = "rust"
+	Java FuzzType = "java"
+	AFL  FuzzType = "AFL"
 )
 
 var BoolDefault = proptools.BoolDefault
@@ -46,6 +47,7 @@ type FuzzPackager struct {
 	Packages                android.Paths
 	FuzzTargets             map[string]bool
 	SharedLibInstallStrings []string
+	FuzzType                FuzzType
 }
 
 type FileToZip struct {
@@ -208,7 +210,7 @@ func (f *FuzzConfig) String() string {
 	return string(b)
 }
 
-func (s *FuzzPackager) CreateFuzzPackage(ctx android.SingletonContext, archDirs map[ArchOs][]FileToZip, lang Lang, pctx android.PackageContext) {
+func (s *FuzzPackager) CreateFuzzPackage(ctx android.SingletonContext, archDirs map[ArchOs][]FileToZip, fuzzType FuzzType, pctx android.PackageContext) {
 	var archOsList []ArchOs
 	for archOs := range archDirs {
 		archOsList = append(archOsList, archOs)
@@ -221,11 +223,14 @@ func (s *FuzzPackager) CreateFuzzPackage(ctx android.SingletonContext, archDirs 
 		hostOrTarget := archOs.HostOrTarget
 		builder := android.NewRuleBuilder(pctx, ctx)
 		zipFileName := "fuzz-" + hostOrTarget + "-" + arch + ".zip"
-		if lang == Rust {
+		if fuzzType == Rust {
 			zipFileName = "fuzz-rust-" + hostOrTarget + "-" + arch + ".zip"
 		}
-		if lang == Java {
+		if fuzzType == Java {
 			zipFileName = "fuzz-java-" + hostOrTarget + "-" + arch + ".zip"
+		}
+		if fuzzType == AFL {
+			zipFileName = "fuzz-afl-" + hostOrTarget + "-" + arch + ".zip"
 		}
 		outputFile := android.PathForOutput(ctx, zipFileName)
 
@@ -237,7 +242,6 @@ func (s *FuzzPackager) CreateFuzzPackage(ctx android.SingletonContext, archDirs 
 			Flag("-L 0") // No need to try and re-compress the zipfiles.
 
 		for _, fileToZip := range filesToZip {
-
 			if fileToZip.DestinationPathPrefix != "" {
 				command.FlagWithArg("-P ", fileToZip.DestinationPathPrefix)
 			} else {
@@ -256,6 +260,7 @@ func (s *FuzzPackager) PreallocateSlice(ctx android.MakeVarsContext, targets str
 	for target, _ := range s.FuzzTargets {
 		fuzzTargets = append(fuzzTargets, target)
 	}
+
 	sort.Strings(fuzzTargets)
 	ctx.Strict(targets, strings.Join(fuzzTargets, " "))
 }
