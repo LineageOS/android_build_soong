@@ -923,7 +923,6 @@ func sourceAbiDiff(ctx android.ModuleContext, inputDump android.Path, referenceD
 
 	outputFile := android.PathForModuleOut(ctx, baseName+".abidiff")
 	libName := strings.TrimSuffix(baseName, filepath.Ext(baseName))
-	createReferenceDumpFlags := ""
 
 	var extraFlags []string
 	if checkAllApis {
@@ -934,18 +933,8 @@ func sourceAbiDiff(ctx android.ModuleContext, inputDump android.Path, referenceD
 			"-allow-unreferenced-elf-symbol-changes")
 	}
 
-	if exportedHeaderFlags == "" {
-		extraFlags = append(extraFlags, "-advice-only")
-	}
-
 	if isLlndk || isNdk {
-		createReferenceDumpFlags = "--llndk"
-		if isLlndk {
-			// TODO(b/130324828): "-consider-opaque-types-different" should apply to
-			// both LLNDK and NDK shared libs. However, a known issue in header-abi-diff
-			// breaks libaaudio. Remove the if-guard after the issue is fixed.
-			extraFlags = append(extraFlags, "-consider-opaque-types-different")
-		}
+		extraFlags = append(extraFlags, "-consider-opaque-types-different")
 	}
 	if isVndkExt {
 		extraFlags = append(extraFlags, "-allow-extensions")
@@ -964,7 +953,7 @@ func sourceAbiDiff(ctx android.ModuleContext, inputDump android.Path, referenceD
 			"libName":                  libName,
 			"arch":                     ctx.Arch().ArchType.Name,
 			"extraFlags":               strings.Join(extraFlags, " "),
-			"createReferenceDumpFlags": createReferenceDumpFlags,
+			"createReferenceDumpFlags": "",
 		},
 	})
 	return android.OptionalPathForPath(outputFile)
