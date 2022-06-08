@@ -56,7 +56,7 @@ func TestCoverageFlags(t *testing.T) {
 	fizzCov := ctx.ModuleForTests("fizz_cov", "android_arm64_armv8-a_cov").Rule("rustc")
 	buzzNoCov := ctx.ModuleForTests("buzzNoCov", "android_arm64_armv8-a").Rule("rustc")
 
-	rustcCoverageFlags := []string{"-Z instrument-coverage", " -g "}
+	rustcCoverageFlags := []string{"-C instrument-coverage", " -g "}
 	for _, flag := range rustcCoverageFlags {
 		missingErrorStr := "missing rustc flag '%s' for '%s' module with coverage enabled; rustcFlags: %#v"
 		containsErrorStr := "contains rustc flag '%s' for '%s' module with coverage disabled; rustcFlags: %#v"

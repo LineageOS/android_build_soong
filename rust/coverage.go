@@ -56,7 +56,7 @@ func (cov *coverage) flags(ctx ModuleContext, flags Flags, deps PathDeps) (Flags
 		flags.Coverage = true
 		coverage := ctx.GetDirectDepWithTag(CovLibraryName, cc.CoverageDepTag).(cc.LinkableInterface)
 		flags.RustFlags = append(flags.RustFlags,
-			"-Z instrument-coverage", "-g")
+			"-C instrument-coverage", "-g")
 		flags.LinkFlags = append(flags.LinkFlags,
 			profileInstrFlag, "-g", coverage.OutputFile().Path().String(), "-Wl,--wrap,open")
 		deps.StaticLibs = append(deps.StaticLibs, coverage.OutputFile().Path())
