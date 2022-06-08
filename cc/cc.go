@@ -1789,13 +1789,20 @@ func GetSubnameProperty(actx android.ModuleContext, c LinkableInterface) string 
 var _ android.MixedBuildBuildable = (*Module)(nil)
 
 func (c *Module) getBazelModuleLabel(ctx android.BaseModuleContext) string {
+	var bazelModuleLabel string
 	if c.typ() == fullLibrary && c.static() {
 		// cc_library is a special case in bp2build; two targets are generated -- one for each
 		// of the shared and static variants. The shared variant keeps the module name, but the
 		// static variant uses a different suffixed name.
-		return bazelLabelForStaticModule(ctx, c)
+		bazelModuleLabel = bazelLabelForStaticModule(ctx, c)
+	} else {
+		bazelModuleLabel = c.GetBazelLabel(ctx, c)
 	}
-	return c.GetBazelLabel(ctx, c)
+	labelNoPrebuilt := bazelModuleLabel
+	if c.IsPrebuilt() {
+		labelNoPrebuilt = android.RemoveOptionalPrebuiltPrefixFromBazelLabel(bazelModuleLabel)
+	}
+	return labelNoPrebuilt
 }
 
 func (c *Module) QueueBazelCall(ctx android.BaseModuleContext) {
