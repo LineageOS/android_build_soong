@@ -1498,62 +1498,172 @@ func TestErrorproneEnabledOnlyByEnvironmentVariable(t *testing.T) {
 }
 
 func TestDataDeviceBinsBuildsDeviceBinary(t *testing.T) {
-	bp := `
-		java_test_host {
-			name: "foo",
-			srcs: ["test.java"],
-			data_device_bins: ["bar"],
-		}
-
-		cc_binary {
-			name: "bar",
-		}
-	`
-
-	ctx := android.GroupFixturePreparers(
-		PrepareForIntegrationTestWithJava,
-	).RunTestWithBp(t, bp)
-
-	buildOS := ctx.Config.BuildOS.String()
-	fooVariant := ctx.ModuleForTests("foo", buildOS+"_common")
-	barVariant := ctx.ModuleForTests("bar", "android_arm64_armv8-a")
-	fooMod := fooVariant.Module().(*TestHost)
-
-	relocated := barVariant.Output("bar")
-	expectedInput := "out/soong/.intermediates/bar/android_arm64_armv8-a/unstripped/bar"
-	android.AssertPathRelativeToTopEquals(t, "relocation input", expectedInput, relocated.Input)
-
-	entries := android.AndroidMkEntriesForTest(t, ctx.TestContext, fooMod)[0]
-	expectedData := []string{
-		"out/soong/.intermediates/bar/android_arm64_armv8-a/bar:bar",
+	testCases := []struct {
+		dataDeviceBinType  string
+		depCompileMultilib string
+		variants           []string
+		expectedError      string
+	}{
+		{
+			dataDeviceBinType:  "first",
+			depCompileMultilib: "first",
+			variants:           []string{"android_arm64_armv8-a"},
+		},
+		{
+			dataDeviceBinType:  "first",
+			depCompileMultilib: "both",
+			variants:           []string{"android_arm64_armv8-a"},
+		},
+		{
+			// this is true because our testing framework is set up with
+			// Targets ~ [<64bit target>, <32bit target>], where 64bit is "first"
+			dataDeviceBinType:  "first",
+			depCompileMultilib: "32",
+			expectedError:      `Android.bp:2:3: dependency "bar" of "foo" missing variant`,
+		},
+		{
+			dataDeviceBinType:  "first",
+			depCompileMultilib: "64",
+			variants:           []string{"android_arm64_armv8-a"},
+		},
+		{
+			dataDeviceBinType:  "both",
+			depCompileMultilib: "both",
+			variants: []string{
+				"android_arm_armv7-a-neon",
+				"android_arm64_armv8-a",
+			},
+		},
+		{
+			dataDeviceBinType:  "both",
+			depCompileMultilib: "32",
+			expectedError:      `Android.bp:2:3: dependency "bar" of "foo" missing variant`,
+		},
+		{
+			dataDeviceBinType:  "both",
+			depCompileMultilib: "64",
+			expectedError:      `Android.bp:2:3: dependency "bar" of "foo" missing variant`,
+		},
+		{
+			dataDeviceBinType:  "both",
+			depCompileMultilib: "first",
+			expectedError:      `Android.bp:2:3: dependency "bar" of "foo" missing variant`,
+		},
+		{
+			dataDeviceBinType:  "32",
+			depCompileMultilib: "32",
+			variants:           []string{"android_arm_armv7-a-neon"},
+		},
+		{
+			dataDeviceBinType:  "32",
+			depCompileMultilib: "first",
+			expectedError:      `Android.bp:2:3: dependency "bar" of "foo" missing variant`,
+		},
+		{
+			dataDeviceBinType:  "32",
+			depCompileMultilib: "both",
+			variants:           []string{"android_arm_armv7-a-neon"},
+		},
+		{
+			dataDeviceBinType:  "32",
+			depCompileMultilib: "64",
+			expectedError:      `Android.bp:2:3: dependency "bar" of "foo" missing variant`,
+		},
+		{
+			dataDeviceBinType:  "64",
+			depCompileMultilib: "64",
+			variants:           []string{"android_arm64_armv8-a"},
+		},
+		{
+			dataDeviceBinType:  "64",
+			depCompileMultilib: "both",
+			variants:           []string{"android_arm64_armv8-a"},
+		},
+		{
+			dataDeviceBinType:  "64",
+			depCompileMultilib: "first",
+			variants:           []string{"android_arm64_armv8-a"},
+		},
+		{
+			dataDeviceBinType:  "64",
+			depCompileMultilib: "32",
+			expectedError:      `Android.bp:2:3: dependency "bar" of "foo" missing variant`,
+		},
+		{
+			dataDeviceBinType:  "prefer32",
+			depCompileMultilib: "32",
+			variants:           []string{"android_arm_armv7-a-neon"},
+		},
+		{
+			dataDeviceBinType:  "prefer32",
+			depCompileMultilib: "both",
+			variants:           []string{"android_arm_armv7-a-neon"},
+		},
+		{
+			dataDeviceBinType:  "prefer32",
+			depCompileMultilib: "first",
+			expectedError:      `Android.bp:2:3: dependency "bar" of "foo" missing variant`,
+		},
+		{
+			dataDeviceBinType:  "prefer32",
+			depCompileMultilib: "64",
+			expectedError:      `Android.bp:2:3: dependency "bar" of "foo" missing variant`,
+		},
 	}
-	actualData := entries.EntryMap["LOCAL_COMPATIBILITY_SUPPORT_FILES"]
-	android.AssertStringPathsRelativeToTopEquals(t, "LOCAL_TEST_DATA", ctx.Config, expectedData, actualData)
-}
 
-func TestDataDeviceBinsAutogenTradefedConfig(t *testing.T) {
-	bp := `
+	bpTemplate := `
 		java_test_host {
 			name: "foo",
 			srcs: ["test.java"],
-			data_device_bins: ["bar"],
+			data_device_bins_%s: ["bar"],
 		}
 
 		cc_binary {
 			name: "bar",
+			compile_multilib: "%s",
 		}
 	`
 
-	ctx := android.GroupFixturePreparers(
-		PrepareForIntegrationTestWithJava,
-	).RunTestWithBp(t, bp)
+	for _, tc := range testCases {
+		bp := fmt.Sprintf(bpTemplate, tc.dataDeviceBinType, tc.depCompileMultilib)
 
-	buildOS := ctx.Config.BuildOS.String()
-	fooModule := ctx.ModuleForTests("foo", buildOS+"_common")
-	expectedAutogenConfig := `<option name="push-file" key="bar" value="/data/local/tests/unrestricted/foo/bar" />`
+		errorHandler := android.FixtureExpectsNoErrors
+		if tc.expectedError != "" {
+			errorHandler = android.FixtureExpectsAtLeastOneErrorMatchingPattern(tc.expectedError)
+		}
 
-	autogen := fooModule.Rule("autogen")
-	if !strings.Contains(autogen.Args["extraConfigs"], expectedAutogenConfig) {
-		t.Errorf("foo extraConfigs %v does not contain %q", autogen.Args["extraConfigs"], expectedAutogenConfig)
+		testName := fmt.Sprintf(`data_device_bins_%s with compile_multilib:"%s"`, tc.dataDeviceBinType, tc.depCompileMultilib)
+		t.Run(testName, func(t *testing.T) {
+			ctx := android.GroupFixturePreparers(PrepareForIntegrationTestWithJava).
+				ExtendWithErrorHandler(errorHandler).
+				RunTestWithBp(t, bp)
+			if tc.expectedError != "" {
+				return
+			}
+
+			buildOS := ctx.Config.BuildOS.String()
+			fooVariant := ctx.ModuleForTests("foo", buildOS+"_common")
+			fooMod := fooVariant.Module().(*TestHost)
+			entries := android.AndroidMkEntriesForTest(t, ctx.TestContext, fooMod)[0]
+
+			expectedAutogenConfig := `<option name="push-file" key="bar" value="/data/local/tests/unrestricted/foo/bar" />`
+			autogen := fooVariant.Rule("autogen")
+			if !strings.Contains(autogen.Args["extraConfigs"], expectedAutogenConfig) {
+				t.Errorf("foo extraConfigs %v does not contain %q", autogen.Args["extraConfigs"], expectedAutogenConfig)
+			}
+
+			expectedData := []string{}
+			for _, variant := range tc.variants {
+				barVariant := ctx.ModuleForTests("bar", variant)
+				relocated := barVariant.Output("bar")
+				expectedInput := fmt.Sprintf("out/soong/.intermediates/bar/%s/unstripped/bar", variant)
+				android.AssertPathRelativeToTopEquals(t, "relocation input", expectedInput, relocated.Input)
+
+				expectedData = append(expectedData, fmt.Sprintf("out/soong/.intermediates/bar/%s/bar:bar", variant))
+			}
+
+			actualData := entries.EntryMap["LOCAL_COMPATIBILITY_SUPPORT_FILES"]
+			android.AssertStringPathsRelativeToTopEquals(t, "LOCAL_TEST_DATA", ctx.Config, expectedData, actualData)
+		})
 	}
 }
