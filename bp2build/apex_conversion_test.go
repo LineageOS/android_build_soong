@@ -18,6 +18,7 @@ import (
 	"android/soong/android"
 	"android/soong/apex"
 	"android/soong/cc"
+	"android/soong/etc"
 	"android/soong/java"
 	"android/soong/sh"
 
@@ -57,6 +58,7 @@ func registerOverrideApexModuleTypes(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("android_app_certificate", java.AndroidAppCertificateFactory)
 	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
 	ctx.RegisterModuleType("apex", apex.BundleFactory)
+	ctx.RegisterModuleType("prebuilt_etc", etc.PrebuiltEtcFactory)
 }
 
 func TestApexBundleSimple(t *testing.T) {
@@ -815,6 +817,130 @@ override_apex {
 				"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
 				"manifest":      `"apex_manifest.json"`,
 				"package_name":  `"com.google.android.apogee"`,
+			}),
+		}})
+}
+
+func TestApexBundleSimple_NoPrebuiltsOverride(t *testing.T) {
+	runOverrideApexTestCase(t, bp2buildTestCase{
+		description:                "override_apex - no override",
+		moduleTypeUnderTest:        "override_apex",
+		moduleTypeUnderTestFactory: apex.OverrideApexFactory,
+		filesystem: map[string]string{
+			"system/sepolicy/apex/Android.bp": `
+filegroup {
+	name: "com.android.apogee-file_contexts",
+	srcs: [ "apogee-file_contexts", ],
+	bazel_module: { bp2build_available: false },
+}`,
+		},
+		blueprint: `
+prebuilt_etc {
+	name: "prebuilt_file",
+	bazel_module: { bp2build_available: false },
+}
+
+apex {
+	name: "com.android.apogee",
+	bazel_module: { bp2build_available: false },
+    prebuilts: ["prebuilt_file"]
+}
+
+override_apex {
+	name: "com.google.android.apogee",
+	base: ":com.android.apogee",
+}
+`,
+		expectedBazelTargets: []string{
+			makeBazelTarget("apex", "com.google.android.apogee", attrNameToString{
+				"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
+				"manifest":      `"apex_manifest.json"`,
+				"prebuilts":     `[":prebuilt_file"]`,
+			}),
+		}})
+}
+
+func TestApexBundleSimple_PrebuiltsOverride(t *testing.T) {
+	runOverrideApexTestCase(t, bp2buildTestCase{
+		description:                "override_apex - ooverride",
+		moduleTypeUnderTest:        "override_apex",
+		moduleTypeUnderTestFactory: apex.OverrideApexFactory,
+		filesystem: map[string]string{
+			"system/sepolicy/apex/Android.bp": `
+filegroup {
+	name: "com.android.apogee-file_contexts",
+	srcs: [ "apogee-file_contexts", ],
+	bazel_module: { bp2build_available: false },
+}`,
+		},
+		blueprint: `
+prebuilt_etc {
+	name: "prebuilt_file",
+	bazel_module: { bp2build_available: false },
+}
+
+prebuilt_etc {
+	name: "prebuilt_file2",
+	bazel_module: { bp2build_available: false },
+}
+
+apex {
+	name: "com.android.apogee",
+	bazel_module: { bp2build_available: false },
+    prebuilts: ["prebuilt_file"]
+}
+
+override_apex {
+	name: "com.google.android.apogee",
+	base: ":com.android.apogee",
+    prebuilts: ["prebuilt_file2"]
+}
+`,
+		expectedBazelTargets: []string{
+			makeBazelTarget("apex", "com.google.android.apogee", attrNameToString{
+				"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
+				"manifest":      `"apex_manifest.json"`,
+				"prebuilts":     `[":prebuilt_file2"]`,
+			}),
+		}})
+}
+
+func TestApexBundleSimple_PrebuiltsOverrideEmptyList(t *testing.T) {
+	runOverrideApexTestCase(t, bp2buildTestCase{
+		description:                "override_apex - override with empty list",
+		moduleTypeUnderTest:        "override_apex",
+		moduleTypeUnderTestFactory: apex.OverrideApexFactory,
+		filesystem: map[string]string{
+			"system/sepolicy/apex/Android.bp": `
+filegroup {
+	name: "com.android.apogee-file_contexts",
+	srcs: [ "apogee-file_contexts", ],
+	bazel_module: { bp2build_available: false },
+}`,
+		},
+		blueprint: `
+prebuilt_etc {
+	name: "prebuilt_file",
+	bazel_module: { bp2build_available: false },
+}
+
+apex {
+	name: "com.android.apogee",
+	bazel_module: { bp2build_available: false },
+    prebuilts: ["prebuilt_file"]
+}
+
+override_apex {
+	name: "com.google.android.apogee",
+	base: ":com.android.apogee",
+    prebuilts: [],
+}
+`,
+		expectedBazelTargets: []string{
+			makeBazelTarget("apex", "com.google.android.apogee", attrNameToString{
+				"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
+				"manifest":      `"apex_manifest.json"`,
+				"prebuilts":     `[]`,
 			}),
 		}})
 }
