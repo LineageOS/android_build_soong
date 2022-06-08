@@ -47,7 +47,9 @@ func modulesLicenseMetadata(ctx BuilderContext, modules ...Module) Paths {
 }
 
 // buildNoticeOutputFromLicenseMetadata writes out a notice file.
-func buildNoticeOutputFromLicenseMetadata(ctx BuilderContext, tool, ruleName string, outputFile WritablePath, libraryName, stripPrefix string, modules ...Module) {
+func buildNoticeOutputFromLicenseMetadata(
+	ctx BuilderContext, tool, ruleName string, outputFile WritablePath,
+	libraryName string, stripPrefix []string, modules ...Module) {
 	depsFile := outputFile.ReplaceExtension(ctx, strings.TrimPrefix(outputFile.Ext()+".d", "."))
 	rule := NewRuleBuilder(pctx, ctx)
 	if len(modules) == 0 {
@@ -64,8 +66,8 @@ func buildNoticeOutputFromLicenseMetadata(ctx BuilderContext, tool, ruleName str
 		BuiltTool(tool).
 		FlagWithOutput("-o ", outputFile).
 		FlagWithDepFile("-d ", depsFile)
-	if stripPrefix != "" {
-		cmd = cmd.FlagWithArg("--strip_prefix ", stripPrefix)
+	if len(stripPrefix) > 0 {
+		cmd = cmd.FlagForEachArg("--strip_prefix ", stripPrefix)
 	}
 	outputs := modulesOutputDirs(ctx, modules...)
 	if len(outputs) > 0 {
@@ -81,20 +83,29 @@ func buildNoticeOutputFromLicenseMetadata(ctx BuilderContext, tool, ruleName str
 // BuildNoticeTextOutputFromLicenseMetadata writes out a notice text file based
 // on the license metadata files for the input `modules` defaulting to the
 // current context module if none given.
-func BuildNoticeTextOutputFromLicenseMetadata(ctx BuilderContext, outputFile WritablePath, ruleName, libraryName, stripPrefix string, modules ...Module) {
-	buildNoticeOutputFromLicenseMetadata(ctx, "textnotice", "text_notice_"+ruleName, outputFile, libraryName, stripPrefix, modules...)
+func BuildNoticeTextOutputFromLicenseMetadata(
+	ctx BuilderContext, outputFile WritablePath, ruleName, libraryName string,
+	stripPrefix []string, modules ...Module) {
+	buildNoticeOutputFromLicenseMetadata(ctx, "textnotice", "text_notice_"+ruleName,
+		outputFile, libraryName, stripPrefix, modules...)
 }
 
 // BuildNoticeHtmlOutputFromLicenseMetadata writes out a notice text file based
 // on the license metadata files for the input `modules` defaulting to the
 // current context module if none given.
-func BuildNoticeHtmlOutputFromLicenseMetadata(ctx BuilderContext, outputFile WritablePath, ruleName, libraryName, stripPrefix string, modules ...Module) {
-	buildNoticeOutputFromLicenseMetadata(ctx, "htmlnotice", "html_notice_"+ruleName, outputFile, libraryName, stripPrefix, modules...)
+func BuildNoticeHtmlOutputFromLicenseMetadata(
+	ctx BuilderContext, outputFile WritablePath, ruleName, libraryName string,
+	stripPrefix []string, modules ...Module) {
+	buildNoticeOutputFromLicenseMetadata(ctx, "htmlnotice", "html_notice_"+ruleName,
+		outputFile, libraryName, stripPrefix, modules...)
 }
 
 // BuildNoticeXmlOutputFromLicenseMetadata writes out a notice text file based
 // on the license metadata files for the input `modules` defaulting to the
 // current context module if none given.
-func BuildNoticeXmlOutputFromLicenseMetadata(ctx BuilderContext, outputFile WritablePath, ruleName, libraryName, stripPrefix string, modules ...Module) {
-	buildNoticeOutputFromLicenseMetadata(ctx, "xmlnotice", "xml_notice_"+ruleName, outputFile, libraryName, stripPrefix, modules...)
+func BuildNoticeXmlOutputFromLicenseMetadata(
+	ctx BuilderContext, outputFile WritablePath, ruleName, libraryName string,
+	stripPrefix []string, modules ...Module) {
+	buildNoticeOutputFromLicenseMetadata(ctx, "xmlnotice", "xml_notice_"+ruleName,
+		outputFile, libraryName, stripPrefix, modules...)
 }

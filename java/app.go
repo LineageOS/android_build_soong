@@ -656,7 +656,13 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 
 	if Bool(a.appProperties.Embed_notices) || ctx.Config().IsEnvTrue("ALWAYS_EMBED_NOTICES") {
 		noticeFile := android.PathForModuleOut(ctx, "NOTICE.html.gz")
-		android.BuildNoticeHtmlOutputFromLicenseMetadata(ctx, noticeFile, "", "", a.outputFile.String())
+		android.BuildNoticeHtmlOutputFromLicenseMetadata(
+			ctx, noticeFile, "", "",
+			[]string{
+				a.installDir.String() + "/",
+				android.PathForModuleInstall(ctx).String() + "/",
+				a.outputFile.String(),
+			})
 		noticeAssetPath := android.PathForModuleOut(ctx, "NOTICE", "NOTICE.html.gz")
 		builder := android.NewRuleBuilder(pctx, ctx)
 		builder.Command().Text("cp").
