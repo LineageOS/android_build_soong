@@ -65,7 +65,7 @@ func TestGensrcs(t *testing.T) {
 
 	for _, test := range testcases {
 		expectedBazelTargets := []string{
-			makeBazelTarget("gensrcs", "foo", test.expectedBazelAttrs),
+			makeBazelTargetNoRestrictions("gensrcs", "foo", test.expectedBazelAttrs),
 		}
 		t.Run(test.name, func(t *testing.T) {
 			runBp2BuildTestCase(t, func(ctx android.RegistrationContext) {},
