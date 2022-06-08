@@ -40,6 +40,7 @@ func registerApexModuleTypes(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("apex_key", apex.ApexKeyFactory)
 	ctx.RegisterModuleType("android_app_certificate", java.AndroidAppCertificateFactory)
 	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
+	ctx.RegisterModuleType("prebuilt_etc", etc.PrebuiltEtcFactory)
 }
 
 func runOverrideApexTestCase(t *testing.T, tc bp2buildTestCase) {
@@ -91,13 +92,13 @@ cc_library {
 	bazel_module: { bp2build_available: false },
 }
 
-cc_library {
-	name: "pretend_prebuilt_1",
+prebuilt_etc {
+	name: "prebuilt_1",
 	bazel_module: { bp2build_available: false },
 }
 
-cc_library {
-	name: "pretend_prebuilt_2",
+prebuilt_etc {
+	name: "prebuilt_2",
 	bazel_module: { bp2build_available: false },
 }
 
@@ -132,8 +133,8 @@ apex {
 		"sh_binary_2",
 	],
 	prebuilts: [
-	    "pretend_prebuilt_1",
-	    "pretend_prebuilt_2",
+	    "prebuilt_1",
+	    "prebuilt_2",
 	],
 	package_name: "com.android.apogee.test.package",
 }
@@ -167,8 +168,8 @@ apex {
         "//conditions:default": [],
     })`,
 				"prebuilts": `[
-        ":pretend_prebuilt_1",
-        ":pretend_prebuilt_2",
+        ":prebuilt_1",
+        ":prebuilt_2",
     ]`,
 				"updatable":    "False",
 				"compressible": "False",
@@ -551,13 +552,13 @@ cc_library {
 	bazel_module: { bp2build_available: false },
 }
 
-cc_library {
-	name: "pretend_prebuilt_1",
+prebuilt_etc {
+	name: "prebuilt_1",
 	bazel_module: { bp2build_available: false },
 }
 
-cc_library {
-	name: "pretend_prebuilt_2",
+prebuilt_etc {
+	name: "prebuilt_2",
 	bazel_module: { bp2build_available: false },
 }
 
@@ -592,8 +593,8 @@ apex {
 		"sh_binary_2",
 	],
 	prebuilts: [
-	    "pretend_prebuilt_1",
-	    "pretend_prebuilt_2",
+	    "prebuilt_1",
+	    "prebuilt_2",
 	],
 	bazel_module: { bp2build_available: false },
 }
