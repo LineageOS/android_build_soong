@@ -178,8 +178,7 @@ func (fg *fileGroup) ProcessBazelQueryResponse(ctx ModuleContext) {
 
 	bazelOuts := make(Paths, 0, len(filePaths))
 	for _, p := range filePaths {
-		src := PathForBazelOut(ctx, p)
-		bazelOuts = append(bazelOuts, src)
+		bazelOuts = append(bazelOuts, PathForBazelOutRelative(ctx, ctx.ModuleDir(), p))
 	}
 
 	fg.srcs = bazelOuts

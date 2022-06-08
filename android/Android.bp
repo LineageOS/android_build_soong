@@ -98,6 +98,7 @@ bootstrap_go_package {
         "apex_test.go",
         "arch_test.go",
         "bazel_handler_test.go",
+        "bazel_paths_test.go",
         "bazel_test.go",
         "config_test.go",
         "config_bp2build_test.go",
