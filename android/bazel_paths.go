@@ -449,23 +449,49 @@ func (p BazelOutPath) objPathWithExt(ctx ModuleOutPathContext, subdir, ext strin
 	return PathForModuleObj(ctx, subdir, pathtools.ReplaceExtension(p.path, ext))
 }
 
-// PathForBazelOut returns a Path representing the paths... under an output directory dedicated to
-// bazel-owned outputs.
-func PathForBazelOut(ctx PathContext, paths ...string) BazelOutPath {
-	execRootPathComponents := append([]string{"execroot", "__main__"}, paths...)
-	execRootPath := filepath.Join(execRootPathComponents...)
-	validatedExecRootPath, err := validatePath(execRootPath)
+// PathForBazelOutRelative returns a BazelOutPath representing the path under an output directory dedicated to
+// bazel-owned outputs. Calling .Rel() on the result will give the input path as relative to the given
+// relativeRoot.
+func PathForBazelOutRelative(ctx PathContext, relativeRoot string, path string) BazelOutPath {
+	validatedPath, err := validatePath(filepath.Join("execroot", "__main__", path))
 	if err != nil {
 		reportPathError(ctx, err)
 	}
+	relativeRootPath := filepath.Join("execroot", "__main__", relativeRoot)
+	if pathComponents := strings.Split(path, "/"); len(pathComponents) >= 3 &&
+		pathComponents[0] == "bazel-out" && pathComponents[2] == "bin" {
+		// If the path starts with something like: bazel-out/linux_x86_64-fastbuild-ST-b4ef1c4402f9/bin/
+		// make it relative to that folder. bazel-out/volatile-status.txt is an example
+		// of something that starts with bazel-out but is not relative to the bin folder
+		relativeRootPath = filepath.Join("execroot", "__main__", pathComponents[0], pathComponents[1], pathComponents[2], relativeRoot)
+	}
 
-	outputPath := OutputPath{basePath{"", ""},
+	var relPath string
+	if relPath, err = filepath.Rel(relativeRootPath, validatedPath); err != nil || strings.HasPrefix(relPath, "../") {
+		// We failed to make this path relative to execroot/__main__, fall back to a non-relative path
+		// One case where this happens is when path is ../bazel_tools/something
+		relativeRootPath = ""
+		relPath = validatedPath
+	}
+
+	outputPath := OutputPath{
+		basePath{"", ""},
 		ctx.Config().soongOutDir,
-		ctx.Config().BazelContext.OutputBase()}
+		ctx.Config().BazelContext.OutputBase(),
+	}
 
 	return BazelOutPath{
-		OutputPath: outputPath.withRel(validatedExecRootPath),
+		// .withRel() appends its argument onto the current path, and only the most
+		// recently appended part is returned by outputPath.rel().
+		// So outputPath.rel() will return relPath.
+		OutputPath: outputPath.withRel(relativeRootPath).withRel(relPath),
 	}
+}
+
+// PathForBazelOut returns a BazelOutPath representing the path under an output directory dedicated to
+// bazel-owned outputs.
+func PathForBazelOut(ctx PathContext, path string) BazelOutPath {
+	return PathForBazelOutRelative(ctx, "", path)
 }
 
 // PathsForBazelOut returns a list of paths representing the paths under an output directory
