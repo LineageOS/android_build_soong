@@ -446,6 +446,8 @@ func getTemporaryExcludes() []string {
 
 	// FIXME: 'autotest_lib' is a symlink back to external/autotest, and this causes an infinite symlink expansion error for Bazel
 	excludes = append(excludes, "external/autotest/venv/autotest_lib")
+	excludes = append(excludes, "external/autotest/autotest_lib")
+	excludes = append(excludes, "external/autotest/client/autotest_lib/client")
 
 	// FIXME: The external/google-fruit/extras/bazel_root/third_party/fruit dir is poison
 	// It contains several symlinks back to real source dirs, and those source dirs contain BUILD files we want to ignore
