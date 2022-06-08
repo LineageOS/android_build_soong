@@ -37,14 +37,15 @@ const (
 
 var (
 	Bp2buildDefaultConfig = Bp2BuildConfig{
-		"art/libartpalette":                     Bp2BuildDefaultTrueRecursively,
-		"art/libdexfile":                        Bp2BuildDefaultTrueRecursively,
-		"art/libnativebridge":                   Bp2BuildDefaultTrueRecursively,
-		"art/runtime":                           Bp2BuildDefaultTrueRecursively,
-		"art/tools":                             Bp2BuildDefaultTrue,
-		"bionic":                                Bp2BuildDefaultTrueRecursively,
-		"bootable/recovery/tools/recovery_l10n": Bp2BuildDefaultTrue,
-		"build/bazel/examples/apex/minimal":     Bp2BuildDefaultTrueRecursively,
+		"prebuilts/runtime/mainline/platform/sdk":            Bp2BuildDefaultTrueRecursively,
+		"art/libartpalette":                                  Bp2BuildDefaultTrueRecursively,
+		"art/libdexfile":                                     Bp2BuildDefaultTrueRecursively,
+		"art/libnativebridge":                                Bp2BuildDefaultTrueRecursively,
+		"art/runtime":                                        Bp2BuildDefaultTrueRecursively,
+		"art/tools":                                          Bp2BuildDefaultTrue,
+		"bionic":                                             Bp2BuildDefaultTrueRecursively,
+		"bootable/recovery/tools/recovery_l10n":              Bp2BuildDefaultTrue,
+		"build/bazel/examples/apex/minimal":                  Bp2BuildDefaultTrueRecursively,
 		"build/bazel/examples/soong_config_variables":        Bp2BuildDefaultTrueRecursively,
 		"build/bazel/examples/python":                        Bp2BuildDefaultTrueRecursively,
 		"build/bazel/examples/gensrcs":                       Bp2BuildDefaultTrueRecursively,
