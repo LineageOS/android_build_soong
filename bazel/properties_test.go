@@ -247,13 +247,13 @@ func TestResolveExcludes(t *testing.T) {
 			OsArchConfigurationAxis: labelListSelectValues{
 				"linux_x86": makeLabelList([]string{"linux_x86_include"}, []string{}),
 			},
-			ProductVariableConfigurationAxis("product_with_defaults"): labelListSelectValues{
+			ProductVariableConfigurationAxis("product_with_defaults", NoConfigAxis): labelListSelectValues{
 				"a":                        makeLabelList([]string{}, []string{"not_in_value"}),
 				"b":                        makeLabelList([]string{"b_val"}, []string{}),
 				"c":                        makeLabelList([]string{"c_val"}, []string{}),
 				ConditionsDefaultConfigKey: makeLabelList([]string{"c_val", "default", "default2"}, []string{}),
 			},
-			ProductVariableConfigurationAxis("product_only_with_excludes"): labelListSelectValues{
+			ProductVariableConfigurationAxis("product_only_with_excludes", NoConfigAxis): labelListSelectValues{
 				"a": makeLabelList([]string{}, []string{"not_in_value"}),
 			},
 		},
@@ -281,7 +281,7 @@ func TestResolveExcludes(t *testing.T) {
 			"linux_x86":                makeLabels("linux_x86_include"),
 			ConditionsDefaultConfigKey: nilLabels,
 		},
-		ProductVariableConfigurationAxis("product_with_defaults"): {
+		ProductVariableConfigurationAxis("product_with_defaults", NoConfigAxis): {
 			"a":                        nilLabels,
 			"b":                        makeLabels("b_val"),
 			"c":                        makeLabels("c_val"),
@@ -674,7 +674,7 @@ func TestDeduplicateAxesFromBase(t *testing.T) {
 			OsArchConfigurationAxis: stringListSelectValues{
 				"linux_x86": {"linux_x86_include"},
 			},
-			ProductVariableConfigurationAxis("a"): stringListSelectValues{
+			ProductVariableConfigurationAxis("a", NoConfigAxis): stringListSelectValues{
 				"a": []string{"not_in_value"},
 			},
 		},
@@ -699,7 +699,7 @@ func TestDeduplicateAxesFromBase(t *testing.T) {
 			"linux": []string{"linux_include"},
 		},
 		OsArchConfigurationAxis: stringListSelectValues{},
-		ProductVariableConfigurationAxis("a"): stringListSelectValues{
+		ProductVariableConfigurationAxis("a", NoConfigAxis): stringListSelectValues{
 			"a": []string{"not_in_value"},
 		},
 	}
