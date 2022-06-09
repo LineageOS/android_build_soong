@@ -16,12 +16,9 @@ package build
 
 import (
 	"fmt"
-	"math/rand"
 	"os"
 	"path/filepath"
 	"runtime"
-	"syscall"
-	"time"
 
 	"android/soong/ui/metrics"
 )
@@ -54,34 +51,16 @@ func rbeCommand(ctx Context, config Config, rbeCmd string) string {
 	return cmdPath
 }
 
-func sockAddr(dir string) (string, error) {
-	maxNameLen := len(syscall.RawSockaddrUnix{}.Path)
-	rand.Seed(time.Now().UnixNano())
-	base := fmt.Sprintf("reproxy_%v.sock", rand.Intn(1000))
-
-	name := filepath.Join(dir, base)
-	if len(name) < maxNameLen {
-		return name, nil
-	}
-
-	name = filepath.Join("/tmp", base)
-	if len(name) < maxNameLen {
-		return name, nil
-	}
-
-	return "", fmt.Errorf("cannot generate a proxy socket address shorter than the limit of %v", maxNameLen)
-}
-
 func getRBEVars(ctx Context, config Config) map[string]string {
 	vars := map[string]string{
-		"RBE_log_path":   config.rbeLogPath(),
-		"RBE_log_dir":    config.rbeLogDir(),
+		"RBE_log_dir":    config.rbeProxyLogsDir(),
 		"RBE_re_proxy":   config.rbeReproxy(),
 		"RBE_exec_root":  config.rbeExecRoot(),
-		"RBE_output_dir": config.rbeStatsOutputDir(),
+		"RBE_output_dir": config.rbeProxyLogsDir(),
+		"RBE_proxy_log_dir": config.rbeProxyLogsDir(),
 	}
 	if config.StartRBE() {
-		name, err := sockAddr(absPath(ctx, config.TempDir()))
+		name, err := config.rbeSockAddr(absPath(ctx, config.TempDir()))
 		if err != nil {
 			ctx.Fatalf("Error retrieving socket address: %v", err)
 			return nil
@@ -100,6 +79,17 @@ func getRBEVars(ctx Context, config Config) map[string]string {
 	return vars
 }
 
+func cleanupRBELogsDir(ctx Context, config Config) {
+	if !config.shouldCleanupRBELogsDir() {
+		return
+	}
+
+	rbeTmpDir := config.rbeProxyLogsDir()
+	if err := os.RemoveAll(rbeTmpDir); err != nil {
+		fmt.Fprintln(ctx.Writer, "\033[33mUnable to remove RBE log directory: ", err, "\033[0m")
+	}
+}
+
 func startRBE(ctx Context, config Config) {
 	ctx.BeginTrace(metrics.RunSetupTool, "rbe_bootstrap")
 	defer ctx.EndTrace()
@@ -110,6 +100,11 @@ func startRBE(ctx Context, config Config) {
 	if n := ulimitOrFatal(ctx, config, "-n"); n < rbeLeastNFiles {
 		ctx.Fatalf("max open files is insufficient: %d; want >= %d.\n", n, rbeLeastNFiles)
 	}
+	if _, err := os.Stat(config.rbeProxyLogsDir()); os.IsNotExist(err) {
+		if err := os.MkdirAll(config.rbeProxyLogsDir(), 0744); err != nil {
+			ctx.Fatalf("Unable to create logs dir (%v) for RBE: %v", config.rbeProxyLogsDir, err)
+		}
+	}
 
 	cmd := Command(ctx, config, "startRBE bootstrap", rbeCommand(ctx, config, bootstrapCmd))
 
@@ -119,7 +114,6 @@ func startRBE(ctx Context, config Config) {
 }
 
 func stopRBE(ctx Context, config Config) {
-	defer checkProdCreds(ctx, config)
 	cmd := Command(ctx, config, "stopRBE bootstrap", rbeCommand(ctx, config, bootstrapCmd), "-shutdown")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -130,15 +124,6 @@ func stopRBE(ctx Context, config Config) {
 		fmt.Fprintln(ctx.Writer, "")
 		fmt.Fprintln(ctx.Writer, fmt.Sprintf("%s", output))
 	}
-}
-
-func checkProdCreds(ctx Context, config Config) {
-	if !config.IsGooglerEnvironment() || config.GoogleProdCredsExist() {
-		return
-	}
-	fmt.Fprintln(ctx.Writer, "")
-	fmt.Fprintln(ctx.Writer, "\033[33mWARNING: Missing LOAS credentials, please run `gcert`. This will result in failing RBE builds in the future, see go/build-fast#authentication.\033[0m")
-	fmt.Fprintln(ctx.Writer, "")
 }
 
 // DumpRBEMetrics creates a metrics protobuf file containing RBE related metrics.
@@ -161,7 +146,7 @@ func DumpRBEMetrics(ctx Context, config Config, filename string) {
 		return
 	}
 
-	outputDir := config.rbeStatsOutputDir()
+	outputDir := config.rbeProxyLogsDir()
 	if outputDir == "" {
 		ctx.Fatal("RBE output dir variable not defined. Aborting metrics dumping.")
 	}
