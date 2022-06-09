@@ -2523,8 +2523,10 @@ func (o *OverrideApex) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 		}
 
 		// Prebuilts
-		prebuiltsLabelList := android.BazelLabelForModuleDeps(ctx, overridableProperties.Prebuilts)
-		attrs.Prebuilts = bazel.MakeLabelListAttribute(prebuiltsLabelList)
+		if overridableProperties.Prebuilts != nil {
+			prebuiltsLabelList := android.BazelLabelForModuleDeps(ctx, overridableProperties.Prebuilts)
+			attrs.Prebuilts = bazel.MakeLabelListAttribute(prebuiltsLabelList)
+		}
 
 		// Compressible
 		if overridableProperties.Compressible != nil {
