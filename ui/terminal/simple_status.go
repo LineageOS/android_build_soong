@@ -46,7 +46,11 @@ func NewSimpleStatusOutput(w io.Writer, formatter formatter, keepANSI bool, quie
 
 func (s *simpleStatusOutput) Message(level status.MsgLevel, message string) {
 	if level >= s.outputLevel {
-		fmt.Fprintln(s.writer, s.formatter.message(level, message))
+		output := s.formatter.message(level, message)
+		if !s.keepANSI {
+			output = string(stripAnsiEscapes([]byte(output)))
+		}
+		fmt.Fprintln(s.writer, output)
 	}
 }
 
