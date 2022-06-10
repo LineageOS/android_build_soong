@@ -650,6 +650,8 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 			optFlags = append(optFlags, "--manifest_json "+a.manifestJsonOut.String())
 		}
 
+		optFlags = append(optFlags, "--apex_version "+defaultManifestVersion)
+
 		optFlags = append(optFlags, "--payload_fs_type "+a.payloadFsType.string())
 
 		ctx.Build(pctx, android.BuildParams{
