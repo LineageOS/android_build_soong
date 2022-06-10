@@ -81,9 +81,9 @@ func TestStatusOutput(t *testing.T) {
 		},
 		{
 			name:   "action with output with ansi codes",
-			calls:  actionWithOuptutWithAnsiCodes,
-			smart:  "\r\x1b[1m[  0% 0/1] action1\x1b[0m\x1b[K\r\x1b[1m[100% 1/1] action1\x1b[0m\x1b[K\n\x1b[31mcolor\x1b[0m\n",
-			simple: "[100% 1/1] action1\ncolor\n",
+			calls:  actionWithOutputWithAnsiCodes,
+			smart:  "\r\x1b[1m[  0% 0/1] action1\x1b[0m\x1b[K\r\x1b[1m[100% 1/1] action1\x1b[0m\x1b[K\n\x1b[31mcolor\x1b[0m\n\x1b[31mcolor message\x1b[0m\n",
+			simple: "[100% 1/1] action1\ncolor\ncolor message\n",
 		},
 	}
 
@@ -257,12 +257,14 @@ func actionWithLongDescription(stat status.StatusOutput) {
 	runner.finishAction(result1)
 }
 
-func actionWithOuptutWithAnsiCodes(stat status.StatusOutput) {
+func actionWithOutputWithAnsiCodes(stat status.StatusOutput) {
 	result1WithOutputWithAnsiCodes := status.ActionResult{Action: action1, Output: "\x1b[31mcolor\x1b[0m"}
 
 	runner := newRunner(stat, 1)
 	runner.startAction(action1)
 	runner.finishAction(result1WithOutputWithAnsiCodes)
+
+	stat.Message(status.PrintLvl, "\x1b[31mcolor message\x1b[0m")
 }
 
 func TestSmartStatusOutputWidthChange(t *testing.T) {
