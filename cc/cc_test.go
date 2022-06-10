@@ -4076,7 +4076,7 @@ func TestIncludeDirectoryOrdering(t *testing.T) {
 		{
 			name:     "assemble",
 			src:      "foo.s",
-			expected: combineSlices(baseExpectedFlags, []string{"-D__ASSEMBLY__"}, expectedIncludes, lastIncludes),
+			expected: combineSlices(baseExpectedFlags, []string{"-D__ASSEMBLY__", "-fdebug-default-version=4"}, expectedIncludes, lastIncludes),
 		},
 	}
 
