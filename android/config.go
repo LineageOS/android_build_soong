@@ -749,6 +749,10 @@ func (c *config) PlatformSdkVersion() ApiLevel {
 	return uncheckedFinalApiLevel(*c.productVariables.Platform_sdk_version)
 }
 
+func (c *config) PlatformSdkFinal() bool {
+	return Bool(c.productVariables.Platform_sdk_final)
+}
+
 func (c *config) PlatformSdkCodename() string {
 	return String(c.productVariables.Platform_sdk_codename)
 }
