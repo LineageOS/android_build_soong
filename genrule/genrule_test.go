@@ -15,6 +15,7 @@
 package genrule
 
 import (
+	"fmt"
 	"os"
 	"regexp"
 	"testing"
@@ -623,6 +624,73 @@ func TestGenSrcs(t *testing.T) {
 
 			android.AssertPathsRelativeToTopEquals(t, "files", test.files, gen.outputFiles)
 		})
+	}
+}
+
+func TestGensrcsBuildBrokenDepfile(t *testing.T) {
+	tests := []struct {
+		name               string
+		prop               string
+		BuildBrokenDepfile *bool
+		err                string
+	}{
+		{
+			name: `error when BuildBrokenDepfile is set to false`,
+			prop: `
+				depfile: true,
+				cmd: "cat $(in) > $(out) && cat $(depfile)",
+			`,
+			BuildBrokenDepfile: proptools.BoolPtr(false),
+			err:                "depfile: Deprecated to ensure the module type is convertible to Bazel",
+		},
+		{
+			name: `error when BuildBrokenDepfile is not set`,
+			prop: `
+				depfile: true,
+				cmd: "cat $(in) > $(out) && cat $(depfile)",
+			`,
+			err: "depfile: Deprecated to ensure the module type is convertible to Bazel.",
+		},
+		{
+			name: `no error when BuildBrokenDepfile is explicitly set to true`,
+			prop: `
+				depfile: true,
+				cmd: "cat $(in) > $(out) && cat $(depfile)",
+			`,
+			BuildBrokenDepfile: proptools.BoolPtr(true),
+		},
+		{
+			name: `no error if depfile is not set`,
+			prop: `
+				cmd: "cat $(in) > $(out)",
+			`,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			bp := fmt.Sprintf(`
+			gensrcs {
+			   name: "foo",
+			   srcs: ["data.txt"],
+			   %s
+			}`, test.prop)
+
+			var expectedErrors []string
+			if test.err != "" {
+				expectedErrors = append(expectedErrors, test.err)
+			}
+			android.GroupFixturePreparers(
+				prepareForGenRuleTest,
+				android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+					if test.BuildBrokenDepfile != nil {
+						variables.BuildBrokenDepfile = test.BuildBrokenDepfile
+					}
+				}),
+			).
+				ExtendWithErrorHandler(android.FixtureExpectsAllErrorsToMatchAPattern(expectedErrors)).
+				RunTestWithBp(t, bp)
+		})
+
 	}
 }
 
