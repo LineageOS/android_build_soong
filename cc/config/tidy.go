@@ -94,6 +94,31 @@ func init() {
 		}, ",")
 	})
 
+	// Some clang-tidy checks have bugs or not work for Android.
+	// They are disabled here, overriding any locally selected checks.
+	pctx.VariableFunc("TidyGlobalNoChecks", func(ctx android.PackageVarContext) string {
+		return strings.Join([]string{
+			// https://b.corp.google.com/issues/153464409
+			// many local projects enable cert-* checks, which
+			// trigger bugprone-reserved-identifier.
+			"-bugprone-reserved-identifier*,-cert-dcl51-cpp,-cert-dcl37-c",
+			// http://b/153757728
+			"-readability-qualified-auto",
+			// http://b/155034563
+			"-bugprone-signed-char-misuse",
+			// http://b/155034972
+			"-bugprone-branch-clone",
+			// http://b/193716442
+			"-bugprone-implicit-widening-of-multiplication-result",
+			// Too many existing functions trigger this rule, and fixing it requires large code
+			// refactoring. The cost of maintaining this tidy rule outweighs the benefit it brings.
+			"-bugprone-easily-swappable-parameters",
+			// http://b/216364337 - TODO: Follow-up after compiler update to
+			// disable or fix individual instances.
+			"-cert-err33-c",
+		}, ",")
+	})
+
 	// To reduce duplicate warnings from the same header files,
 	// header-filter will contain only the module directory and
 	// those specified by DEFAULT_TIDY_HEADER_DIRS.
@@ -115,6 +140,7 @@ type PathBasedTidyCheck struct {
 const tidyDefault = "${config.TidyDefaultGlobalChecks}"
 const tidyExternalVendor = "${config.TidyExternalVendorChecks}"
 const tidyDefaultNoAnalyzer = "${config.TidyDefaultGlobalChecks},-clang-analyzer-*"
+const tidyGlobalNoChecks = "${config.TidyGlobalNoChecks}"
 
 // This is a map of local path prefixes to the set of default clang-tidy checks
 // to be used.
@@ -150,6 +176,11 @@ func TidyChecksForDir(dir string) string {
 		}
 	}
 	return tidyDefault
+}
+
+// Returns a globally disabled tidy checks, overriding locally selected checks.
+func TidyGlobalNoChecks() string {
+	return tidyGlobalNoChecks
 }
 
 func TidyFlagsForSrcFile(srcFile android.Path, flags string) string {

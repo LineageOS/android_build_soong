@@ -122,7 +122,7 @@ func TestTidyChecks(t *testing.T) {
 	firstXyzChecks := "-checks='-*','xyz-*',"
 	localXyzChecks := "'-*','xyz-*'"
 	localAbcChecks := "'-abc*','xyz-*',mycheck"
-	extraGlobalChecks := ",-bugprone-easily-swappable-parameters,"
+	extraGlobalChecks := ",${config.TidyGlobalNoChecks}"
 	testCases := []struct {
 		libNumber int      // 1,2,3,...
 		checks    []string // must have substrings in -checks

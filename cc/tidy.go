@@ -160,32 +160,15 @@ func (tidy *tidyFeature) flags(ctx ModuleContext, flags Flags) Flags {
 			tidyChecks = tidyChecks + "," + strings.Join(esc(ctx, "tidy_checks",
 				config.ClangRewriteTidyChecks(localChecks)), ",")
 		}
-
 	}
+	tidyChecks = tidyChecks + "," + config.TidyGlobalNoChecks()
 	if ctx.Windows() {
 		// https://b.corp.google.com/issues/120614316
 		// mingw32 has cert-dcl16-c warning in NO_ERROR,
 		// which is used in many Android files.
 		tidyChecks = tidyChecks + ",-cert-dcl16-c"
 	}
-	// https://b.corp.google.com/issues/153464409
-	// many local projects enable cert-* checks, which
-	// trigger bugprone-reserved-identifier.
-	tidyChecks = tidyChecks + ",-bugprone-reserved-identifier*,-cert-dcl51-cpp,-cert-dcl37-c"
-	// http://b/153757728
-	tidyChecks = tidyChecks + ",-readability-qualified-auto"
-	// http://b/155034563
-	tidyChecks = tidyChecks + ",-bugprone-signed-char-misuse"
-	// http://b/155034972
-	tidyChecks = tidyChecks + ",-bugprone-branch-clone"
-	// http://b/193716442
-	tidyChecks = tidyChecks + ",-bugprone-implicit-widening-of-multiplication-result"
-	// Too many existing functions trigger this rule, and fixing it requires large code
-	// refactoring. The cost of maintaining this tidy rule outweighs the benefit it brings.
-	tidyChecks = tidyChecks + ",-bugprone-easily-swappable-parameters"
-	// http://b/216364337 - TODO: Follow-up after compiler update to
-	// disable or fix individual instances.
-	tidyChecks = tidyChecks + ",-cert-err33-c"
+
 	flags.TidyFlags = append(flags.TidyFlags, tidyChecks)
 
 	// Embedding -warnings-as-errors in tidy_flags is error-prone.
