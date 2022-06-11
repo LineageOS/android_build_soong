@@ -105,7 +105,7 @@ func buildLicenseMetadata(ctx ModuleContext, licenseMetadataFile WritablePath) {
 
 	if p := base.commonProperties.Effective_package_name; p != nil {
 		args = append(args,
-			"-p "+proptools.NinjaAndShellEscape(*p))
+			`-p "`+proptools.NinjaAndShellEscape(*p)+`"`)
 	}
 
 	args = append(args,
