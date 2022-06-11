@@ -137,6 +137,7 @@ apex {
 	    "prebuilt_2",
 	],
 	package_name: "com.android.apogee.test.package",
+	logging_parent: "logging.parent",
 }
 `,
 		expectedBazelTargets: []string{
@@ -171,9 +172,10 @@ apex {
         ":prebuilt_1",
         ":prebuilt_2",
     ]`,
-				"updatable":    "False",
-				"compressible": "False",
-				"package_name": `"com.android.apogee.test.package"`,
+				"updatable":      "False",
+				"compressible":   "False",
+				"package_name":   `"com.android.apogee.test.package"`,
+				"logging_parent": `"logging.parent"`,
 			}),
 		}})
 }
@@ -942,6 +944,75 @@ override_apex {
 				"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
 				"manifest":      `"apex_manifest.json"`,
 				"prebuilts":     `[]`,
+			}),
+		}})
+}
+
+func TestApexBundleSimple_NoLoggingParentOverride(t *testing.T) {
+	runOverrideApexTestCase(t, bp2buildTestCase{
+		description:                "override_apex - logging_parent - no override",
+		moduleTypeUnderTest:        "override_apex",
+		moduleTypeUnderTestFactory: apex.OverrideApexFactory,
+		filesystem: map[string]string{
+			"system/sepolicy/apex/Android.bp": `
+filegroup {
+	name: "com.android.apogee-file_contexts",
+	srcs: [ "apogee-file_contexts", ],
+	bazel_module: { bp2build_available: false },
+}`,
+		},
+		blueprint: `
+apex {
+	name: "com.android.apogee",
+	bazel_module: { bp2build_available: false },
+	logging_parent: "foo.bar.baz",
+}
+
+override_apex {
+	name: "com.google.android.apogee",
+	base: ":com.android.apogee",
+}
+`,
+		expectedBazelTargets: []string{
+			makeBazelTarget("apex", "com.google.android.apogee", attrNameToString{
+				"file_contexts":  `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
+				"manifest":       `"apex_manifest.json"`,
+				"logging_parent": `"foo.bar.baz"`,
+			}),
+		}})
+}
+
+func TestApexBundleSimple_LoggingParentOverride(t *testing.T) {
+	runOverrideApexTestCase(t, bp2buildTestCase{
+		description:                "override_apex - logging_parent - override",
+		moduleTypeUnderTest:        "override_apex",
+		moduleTypeUnderTestFactory: apex.OverrideApexFactory,
+		filesystem: map[string]string{
+			"system/sepolicy/apex/Android.bp": `
+filegroup {
+	name: "com.android.apogee-file_contexts",
+	srcs: [ "apogee-file_contexts", ],
+	bazel_module: { bp2build_available: false },
+}`,
+		},
+		blueprint: `
+apex {
+	name: "com.android.apogee",
+	bazel_module: { bp2build_available: false },
+	logging_parent: "foo.bar.baz",
+}
+
+override_apex {
+	name: "com.google.android.apogee",
+	base: ":com.android.apogee",
+	logging_parent: "foo.bar.baz.override",
+}
+`,
+		expectedBazelTargets: []string{
+			makeBazelTarget("apex", "com.google.android.apogee", attrNameToString{
+				"file_contexts":  `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
+				"manifest":       `"apex_manifest.json"`,
+				"logging_parent": `"foo.bar.baz.override"`,
 			}),
 		}})
 }
