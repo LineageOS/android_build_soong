@@ -15,6 +15,8 @@
 package android
 
 import (
+	"strings"
+
 	"github.com/google/blueprint"
 )
 
@@ -148,12 +150,19 @@ type RequiresFilesFromPrebuiltApexTag interface {
 func FindDeapexerProviderForModule(ctx ModuleContext) *DeapexerInfo {
 	var di *DeapexerInfo
 	ctx.VisitDirectDepsWithTag(DeapexerTag, func(m Module) {
-		p := ctx.OtherModuleProvider(m, DeapexerProvider).(DeapexerInfo)
+		c := ctx.OtherModuleProvider(m, DeapexerProvider).(DeapexerInfo)
+		p := &c
 		if di != nil {
+			// If two DeapexerInfo providers have been found then check if they are
+			// equivalent. If they are then use the selected one, otherwise fail.
+			if selected := equivalentDeapexerInfoProviders(di, p); selected != nil {
+				di = selected
+				return
+			}
 			ctx.ModuleErrorf("Multiple installable prebuilt APEXes provide ambiguous deapexers: %s and %s",
 				di.ApexModuleName(), p.ApexModuleName())
 		}
-		di = &p
+		di = p
 	})
 	if di != nil {
 		return di
@@ -161,4 +170,34 @@ func FindDeapexerProviderForModule(ctx ModuleContext) *DeapexerInfo {
 	ai := ctx.Provider(ApexInfoProvider).(ApexInfo)
 	ctx.ModuleErrorf("No prebuilt APEX provides a deapexer module for APEX variant %s", ai.ApexVariationName)
 	return nil
+}
+
+// removeCompressedApexSuffix removes the _compressed suffix from the name if present.
+func removeCompressedApexSuffix(name string) string {
+	return strings.TrimSuffix(name, "_compressed")
+}
+
+// equivalentDeapexerInfoProviders checks to make sure that the two DeapexerInfo structures are
+// equivalent.
+//
+// At the moment <x> and <x>_compressed APEXes are treated as being equivalent.
+//
+// If they are not equivalent then this returns nil, otherwise, this returns the DeapexerInfo that
+// should be used by the build, which is always the uncompressed one. That ensures that the behavior
+// of the build is not dependent on which prebuilt APEX is visited first.
+func equivalentDeapexerInfoProviders(p1 *DeapexerInfo, p2 *DeapexerInfo) *DeapexerInfo {
+	n1 := removeCompressedApexSuffix(p1.ApexModuleName())
+	n2 := removeCompressedApexSuffix(p2.ApexModuleName())
+
+	// If the names don't match then they are not equivalent.
+	if n1 != n2 {
+		return nil
+	}
+
+	// Select the uncompressed APEX.
+	if n1 == removeCompressedApexSuffix(n1) {
+		return p1
+	} else {
+		return p2
+	}
 }
