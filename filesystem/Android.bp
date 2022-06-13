@@ -12,6 +12,7 @@ bootstrap_go_package {
         "soong-linkerconfig",
     ],
     srcs: [
+        "avb_add_hash_footer.go",
         "bootimg.go",
         "filesystem.go",
         "logical_partition.go",
