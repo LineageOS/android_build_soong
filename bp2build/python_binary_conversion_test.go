@@ -43,9 +43,10 @@ func TestPythonBinaryHostSimple(t *testing.T) {
     }`,
 		expectedBazelTargets: []string{
 			makeBazelTarget("py_binary", "foo", attrNameToString{
-				"data": `["files/data.txt"]`,
-				"deps": `[":bar"]`,
-				"main": `"a.py"`,
+				"data":    `["files/data.txt"]`,
+				"deps":    `[":bar"]`,
+				"main":    `"a.py"`,
+				"imports": `["."]`,
 				"srcs": `[
         "a.py",
         "b/c.py",
@@ -83,6 +84,7 @@ func TestPythonBinaryHostPy2(t *testing.T) {
 		expectedBazelTargets: []string{
 			makeBazelTarget("py_binary", "foo", attrNameToString{
 				"python_version": `"PY2"`,
+				"imports":        `["."]`,
 				"srcs":           `["a.py"]`,
 				"target_compatible_with": `select({
         "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
@@ -116,7 +118,8 @@ func TestPythonBinaryHostPy3(t *testing.T) {
 		expectedBazelTargets: []string{
 			// python_version is PY3 by default.
 			makeBazelTarget("py_binary", "foo", attrNameToString{
-				"srcs": `["a.py"]`,
+				"imports": `["."]`,
+				"srcs":    `["a.py"]`,
 				"target_compatible_with": `select({
         "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
@@ -148,6 +151,7 @@ func TestPythonBinaryHostArchVariance(t *testing.T) {
 				 }`,
 		expectedBazelTargets: []string{
 			makeBazelTarget("py_binary", "foo-arm", attrNameToString{
+				"imports": `["."]`,
 				"srcs": `select({
         "//build/bazel/platforms/arch:arm": ["arm.py"],
         "//build/bazel/platforms/arch:x86": ["x86.py"],
