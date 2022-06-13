@@ -5,7 +5,7 @@ set -o pipefail
 # How to run: bash path-to-script/androidmk_test.sh
 # Tests of converting license functionality of the androidmk tool
 REAL_TOP="$(readlink -f "$(dirname "$0")"/../../..)"
-$REAL_TOP/build/soong/soong_ui.bash --make-mode androidmk
+"$REAL_TOP/build/soong/soong_ui.bash" --make-mode androidmk
 
 source "$(dirname "$0")/lib.sh"
 
@@ -113,11 +113,14 @@ EOF
   run_androidmk_test "a/b/c/d/Android.mk" "a/b/c/d/Android.bp"
 }
 
-run_androidmk_test () {
+function run_androidmk_test {
   export ANDROID_BUILD_TOP="$MOCK_TOP"
-
-  local out=$($REAL_TOP/*/host/*/bin/androidmk "$1")
-  local expected=$(<"$2")
+  local -r androidmk=("$REAL_TOP"/*/host/*/bin/androidmk)
+  if [[ ${#androidmk[@]} -ne 1 ]]; then
+    fail "Multiple androidmk binaries found: ${androidmk[*]}"
+  fi
+  local -r out=$("${androidmk[0]}" "$1")
+  local -r expected=$(<"$2")
 
   if [[ "$out" != "$expected" ]]; then
     ANDROID_BUILD_TOP="$REAL_TOP"
