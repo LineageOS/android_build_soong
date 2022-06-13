@@ -22,6 +22,82 @@ import (
 	"android/soong/android"
 )
 
+func TestTidyFlagsWarningsAsErrors(t *testing.T) {
+	// The "tidy_flags" property should not contain -warnings-as-errors.
+	type testCase struct {
+		libName, bp string
+		errorMsg    string   // a negative test; must have error message
+		flags       []string // must have substrings in tidyFlags
+		noFlags     []string // must not have substrings in tidyFlags
+	}
+
+	testCases := []testCase{
+		{
+			"libfoo1",
+			`cc_library_shared { // no warnings-as-errors, good tidy_flags
+			  name: "libfoo1",
+			  srcs: ["foo.c"],
+              tidy_flags: ["-header-filter=dir1/"],
+		    }`,
+			"",
+			[]string{"-header-filter=dir1/"},
+			[]string{"-warnings-as-errors"},
+		},
+		{
+			"libfoo2",
+			`cc_library_shared { // good use of tidy_checks_as_errors
+			  name: "libfoo2",
+			  srcs: ["foo.c"],
+			  tidy_checks_as_errors: ["xyz-*", "abc"],
+		    }`,
+			"",
+			[]string{
+				"-header-filter=^", // there is a default header filter
+				"-warnings-as-errors='xyz-*',abc,${config.TidyGlobalNoErrorChecks}",
+			},
+			[]string{},
+		},
+	}
+	if NoWarningsAsErrorsInTidyFlags {
+		testCases = append(testCases, testCase{
+			"libfoo3",
+			`cc_library_shared { // bad use of -warnings-as-errors in tidy_flags
+					  name: "libfoo3",
+					  srcs: ["foo.c"],
+		              tidy_flags: [
+		                "-header-filters=.*",
+					    "-warnings-as-errors=xyz-*",
+		              ],
+				    }`,
+			`module "libfoo3" .*: tidy_flags: should not contain .*;` +
+				` use tidy_checks_as_errors instead`,
+			[]string{},
+			[]string{},
+		})
+	}
+	for _, test := range testCases {
+		if test.errorMsg != "" {
+			testCcError(t, test.errorMsg, test.bp)
+			continue
+		}
+		variant := "android_arm64_armv8-a_shared"
+		ctx := testCc(t, test.bp)
+		t.Run("caseTidyFlags", func(t *testing.T) {
+			flags := ctx.ModuleForTests(test.libName, variant).Rule("clangTidy").Args["tidyFlags"]
+			for _, flag := range test.flags {
+				if !strings.Contains(flags, flag) {
+					t.Errorf("tidyFlags %v for %s does not contain %s.", flags, test.libName, flag)
+				}
+			}
+			for _, flag := range test.noFlags {
+				if strings.Contains(flags, flag) {
+					t.Errorf("tidyFlags %v for %s should not contain %s.", flags, test.libName, flag)
+				}
+			}
+		})
+	}
+}
+
 func TestTidyChecks(t *testing.T) {
 	// The "tidy_checks" property defines additional checks appended
 	// to global default. But there are some checks disabled after
