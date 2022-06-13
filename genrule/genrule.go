@@ -266,7 +266,7 @@ func (g *Module) ProcessBazelQueryResponse(ctx android.ModuleContext) {
 	var bazelOutputFiles android.Paths
 	exportIncludeDirs := map[string]bool{}
 	for _, bazelOutputFile := range filePaths {
-		bazelOutputFiles = append(bazelOutputFiles, android.PathForBazelOut(ctx, bazelOutputFile))
+		bazelOutputFiles = append(bazelOutputFiles, android.PathForBazelOutRelative(ctx, ctx.ModuleDir(), bazelOutputFile))
 		exportIncludeDirs[filepath.Dir(bazelOutputFile)] = true
 	}
 	g.outputFiles = bazelOutputFiles
