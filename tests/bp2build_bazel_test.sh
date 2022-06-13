@@ -11,10 +11,10 @@ readonly GENERATED_BUILD_FILE_NAME="BUILD.bazel"
 function test_bp2build_null_build() {
   setup
   run_soong bp2build
-  local output_mtime1=$(stat -c "%y" out/soong/bp2build_workspace_marker)
+  local -r output_mtime1=$(stat -c "%y" out/soong/bp2build_workspace_marker)
 
   run_soong bp2build
-  local output_mtime2=$(stat -c "%y" out/soong/bp2build_workspace_marker)
+  local -r output_mtime2=$(stat -c "%y" out/soong/bp2build_workspace_marker)
 
   if [[ "$output_mtime1" != "$output_mtime2" ]]; then
     fail "Output bp2build marker file changed on null build"
@@ -36,10 +36,10 @@ EOF
   touch foo/bar/a.txt foo/bar/b.txt
 
   run_soong bp2build
-  local output_mtime1=$(stat -c "%y" out/soong/bp2build_workspace_marker)
+  local -r output_mtime1=$(stat -c "%y" out/soong/bp2build_workspace_marker)
 
   run_soong bp2build
-  local output_mtime2=$(stat -c "%y" out/soong/bp2build_workspace_marker)
+  local -r output_mtime2=$(stat -c "%y" out/soong/bp2build_workspace_marker)
 
   if [[ "$output_mtime1" != "$output_mtime2" ]]; then
     fail "Output bp2build marker file changed on null build"
@@ -147,10 +147,10 @@ EOF
   run_soong bp2build
 
   run_bazel build --package_path=out/soong/workspace //a:qq
-  local output_mtime1=$(stat -c "%y" bazel-bin/a/_objs/qq/qq.o)
+  local -r output_mtime1=$(stat -c "%y" bazel-bin/a/_objs/qq/qq.o)
 
   run_bazel build --package_path=out/soong/workspace //a:qq
-  local output_mtime2=$(stat -c "%y" bazel-bin/a/_objs/qq/qq.o)
+  local -r output_mtime2=$(stat -c "%y" bazel-bin/a/_objs/qq/qq.o)
 
   if [[ "$output_mtime1" != "$output_mtime2" ]]; then
     fail "output changed on null build"
@@ -161,7 +161,7 @@ EOF
 EOF
 
   run_bazel build --package_path=out/soong/workspace //a:qq
-  local output_mtime3=$(stat -c "%y" bazel-bin/a/_objs/qq/qq.o)
+  local -r output_mtime3=$(stat -c "%y" bazel-bin/a/_objs/qq/qq.o)
 
   if [[ "$output_mtime1" == "$output_mtime3" ]]; then
     fail "output not changed when included header changed"
