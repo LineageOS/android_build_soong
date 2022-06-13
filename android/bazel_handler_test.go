@@ -4,10 +4,13 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"android/soong/bazel/cquery"
 )
+
+var testConfig = TestConfig("out", nil, "", nil)
 
 func TestRequestResultsAfterInvokeBazel(t *testing.T) {
 	label := "//foo:bar"
@@ -16,7 +19,7 @@ func TestRequestResultsAfterInvokeBazel(t *testing.T) {
 		bazelCommand{command: "cquery", expression: "deps(@soong_injection//mixed_builds:buildroot, 2)"}: `//foo:bar|arm64_armv8-a|android>>out/foo/bar.txt`,
 	})
 	bazelContext.QueueBazelRequest(label, cquery.GetOutputFiles, cfg)
-	err := bazelContext.InvokeBazel()
+	err := bazelContext.InvokeBazel(testConfig)
 	if err != nil {
 		t.Fatalf("Did not expect error invoking Bazel, but got %s", err)
 	}
@@ -30,7 +33,7 @@ func TestRequestResultsAfterInvokeBazel(t *testing.T) {
 
 func TestInvokeBazelWritesBazelFiles(t *testing.T) {
 	bazelContext, baseDir := testBazelContext(t, map[bazelCommand]string{})
-	err := bazelContext.InvokeBazel()
+	err := bazelContext.InvokeBazel(testConfig)
 	if err != nil {
 		t.Fatalf("Did not expect error invoking Bazel, but got %s", err)
 	}
@@ -86,7 +89,7 @@ func TestInvokeBazelPopulatesBuildStatements(t *testing.T) {
   }]
 }`,
 	})
-	err := bazelContext.InvokeBazel()
+	err := bazelContext.InvokeBazel(testConfig)
 	if err != nil {
 		t.Fatalf("Did not expect error invoking Bazel, but got %s", err)
 	}
@@ -95,6 +98,54 @@ func TestInvokeBazelPopulatesBuildStatements(t *testing.T) {
 	if want := 1; len(got) != want {
 		t.Errorf("Expected %d registered build statements, got %#v", want, got)
 	}
+}
+
+func TestCoverageFlagsAfterInvokeBazel(t *testing.T) {
+	testConfig.productVariables.ClangCoverage = boolPtr(true)
+
+	testConfig.productVariables.NativeCoveragePaths = []string{"foo1", "foo2"}
+	testConfig.productVariables.NativeCoverageExcludePaths = []string{"bar1", "bar2"}
+	verifyExtraFlags(t, testConfig, `--collect_code_coverage --instrumentation_filter=+foo1,+foo2,-bar1,-bar2`)
+
+	testConfig.productVariables.NativeCoveragePaths = []string{"foo1"}
+	testConfig.productVariables.NativeCoverageExcludePaths = []string{"bar1"}
+	verifyExtraFlags(t, testConfig, `--collect_code_coverage --instrumentation_filter=+foo1,-bar1`)
+
+	testConfig.productVariables.NativeCoveragePaths = []string{"foo1"}
+	testConfig.productVariables.NativeCoverageExcludePaths = nil
+	verifyExtraFlags(t, testConfig, `--collect_code_coverage --instrumentation_filter=+foo1`)
+
+	testConfig.productVariables.NativeCoveragePaths = nil
+	testConfig.productVariables.NativeCoverageExcludePaths = []string{"bar1"}
+	verifyExtraFlags(t, testConfig, `--collect_code_coverage --instrumentation_filter=-bar1`)
+
+	testConfig.productVariables.ClangCoverage = boolPtr(false)
+	actual := verifyExtraFlags(t, testConfig, ``)
+	if strings.Contains(actual, "--collect_code_coverage") ||
+		strings.Contains(actual, "--instrumentation_filter=") {
+		t.Errorf("Expected code coverage disabled, but got %#v", actual)
+	}
+}
+
+func verifyExtraFlags(t *testing.T, config Config, expected string) string {
+	bazelContext, _ := testBazelContext(t, map[bazelCommand]string{})
+
+	err := bazelContext.InvokeBazel(config)
+	if err != nil {
+		t.Fatalf("Did not expect error invoking Bazel, but got %s", err)
+	}
+
+	flags := bazelContext.bazelRunner.(*mockBazelRunner).extraFlags
+	if expected := 3; len(flags) != expected {
+		t.Errorf("Expected %d extra flags got %#v", expected, flags)
+	}
+
+	actual := flags[1]
+	if !strings.Contains(actual, expected) {
+		t.Errorf("Expected %#v got %#v", expected, actual)
+	}
+
+	return actual
 }
 
 func testBazelContext(t *testing.T, bazelCommandResults map[bazelCommand]string) (*bazelContext, string) {
