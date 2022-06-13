@@ -131,7 +131,8 @@ type baseAttributes struct {
 	Srcs bazel.LabelListAttribute
 	Deps bazel.LabelListAttribute
 	// Combines Data and Java_data (invariant)
-	Data bazel.LabelListAttribute
+	Data    bazel.LabelListAttribute
+	Imports bazel.StringListAttribute
 }
 
 // Used to store files of current module after expanding dependencies
@@ -230,6 +231,33 @@ func (m *Module) makeArchVariantBaseAttributes(ctx android.TopDownMutatorContext
 
 		attrs.Deps.Add(bazel.MakeLabelAttribute(":" + pyProtoLibraryName))
 	}
+
+	// Bazel normally requires `import path.from.top.of.tree` statements in
+	// python code, but with soong you can directly import modules from libraries.
+	// Add "imports" attributes to the bazel library so it matches soong's behavior.
+	imports := "."
+	if m.properties.Pkg_path != nil {
+		// TODO(b/215119317) This is a hack to handle the fact that we don't convert
+		// pkg_path properly right now. If the folder structure that contains this
+		// Android.bp file matches pkg_path, we can set imports to an appropriate
+		// number of ../..s to emulate moving the files under a pkg_path folder.
+		pkg_path := filepath.Clean(*m.properties.Pkg_path)
+		if strings.HasPrefix(pkg_path, "/") {
+			ctx.ModuleErrorf("pkg_path cannot start with a /: %s", pkg_path)
+		}
+
+		if !strings.HasSuffix(ctx.ModuleDir(), "/"+pkg_path) && ctx.ModuleDir() != pkg_path {
+			ctx.ModuleErrorf("Currently, bp2build only supports pkg_paths that are the same as the folders the Android.bp file is in. pkg_path: %s, module directory: %s", pkg_path, ctx.ModuleDir())
+		}
+		numFolders := strings.Count(pkg_path, "/") + 1
+		dots := make([]string, numFolders)
+		for i := 0; i < numFolders; i++ {
+			dots[i] = ".."
+		}
+		imports = strings.Join(dots, "/")
+	}
+	attrs.Imports = bazel.MakeStringListAttribute([]string{imports})
+
 	return attrs
 }
 
@@ -654,7 +682,8 @@ func (p *Module) createSrcsZip(ctx android.ModuleContext, pkgPath string) androi
 		// in order to keep stable order of soong_zip params, we sort the keys here.
 		roots := android.SortedStringKeys(relativeRootMap)
 
-		parArgs := []string{}
+		// Use -symlinks=false so that the symlinks in the bazel output directory are followed
+		parArgs := []string{"-symlinks=false"}
 		if pkgPath != "" {
 			// use package path as path prefix
 			parArgs = append(parArgs, `-P `+pkgPath)
