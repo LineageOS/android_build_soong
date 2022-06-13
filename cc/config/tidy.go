@@ -20,7 +20,7 @@ import (
 )
 
 var (
-	// Some clang-tidy checks have bugs or not work for Android.
+	// Some clang-tidy checks have bugs or don't work for Android.
 	// They are disabled here, overriding any locally selected checks.
 	globalNoCheckList = []string{
 		// https://b.corp.google.com/issues/153464409

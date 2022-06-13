@@ -66,7 +66,7 @@ func (tidy *tidyFeature) props() []interface{} {
 // Set this const to true when all -warnings-as-errors in tidy_flags
 // are replaced with tidy_checks_as_errors.
 // Then, that old style usage will be obsolete and an error.
-const NoWarningsAsErrorsInTidyFlags = false
+const NoWarningsAsErrorsInTidyFlags = true
 
 func (tidy *tidyFeature) flags(ctx ModuleContext, flags Flags) Flags {
 	CheckBadTidyFlags(ctx, "tidy_flags", tidy.Properties.Tidy_flags)
