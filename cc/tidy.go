@@ -15,6 +15,7 @@
 package cc
 
 import (
+	"fmt"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -61,6 +62,11 @@ func checkNinjaAndShellEscapeList(ctx ModuleContext, prop string, slice []string
 func (tidy *tidyFeature) props() []interface{} {
 	return []interface{}{&tidy.Properties}
 }
+
+// Set this const to true when all -warnings-as-errors in tidy_flags
+// are replaced with tidy_checks_as_errors.
+// Then, that old style usage will be obsolete and an error.
+const NoWarningsAsErrorsInTidyFlags = false
 
 func (tidy *tidyFeature) flags(ctx ModuleContext, flags Flags) Flags {
 	CheckBadTidyFlags(ctx, "tidy_flags", tidy.Properties.Tidy_flags)
@@ -161,42 +167,37 @@ func (tidy *tidyFeature) flags(ctx ModuleContext, flags Flags) Flags {
 				config.ClangRewriteTidyChecks(localChecks)), ",")
 		}
 	}
-	tidyChecks = tidyChecks + "," + config.TidyGlobalNoChecks()
+	tidyChecks = tidyChecks + config.TidyGlobalNoChecks()
 	if ctx.Windows() {
 		// https://b.corp.google.com/issues/120614316
 		// mingw32 has cert-dcl16-c warning in NO_ERROR,
 		// which is used in many Android files.
-		tidyChecks = tidyChecks + ",-cert-dcl16-c"
+		tidyChecks += ",-cert-dcl16-c"
 	}
 
 	flags.TidyFlags = append(flags.TidyFlags, tidyChecks)
 
-	if ctx.Config().IsEnvTrue("WITH_TIDY") {
-		// WITH_TIDY=1 enables clang-tidy globally. There could be many unexpected
-		// warnings from new checks and many local tidy_checks_as_errors and
-		// -warnings-as-errors can break a global build.
-		// So allow all clang-tidy warnings.
-		inserted := false
-		for i, s := range flags.TidyFlags {
-			if strings.Contains(s, "-warnings-as-errors=") {
-				// clang-tidy accepts only one -warnings-as-errors
-				// replace the old one
-				re := regexp.MustCompile(`'?-?-warnings-as-errors=[^ ]* *`)
-				newFlag := re.ReplaceAllString(s, "")
-				if newFlag == "" {
-					flags.TidyFlags[i] = "-warnings-as-errors=-*"
-				} else {
-					flags.TidyFlags[i] = newFlag + " -warnings-as-errors=-*"
-				}
-				inserted = true
-				break
+	// Embedding -warnings-as-errors in tidy_flags is error-prone.
+	// It should be replaced with the tidy_checks_as_errors list.
+	for i, s := range flags.TidyFlags {
+		if strings.Contains(s, "-warnings-as-errors=") {
+			if NoWarningsAsErrorsInTidyFlags {
+				ctx.PropertyErrorf("tidy_flags", "should not contain "+s+"; use tidy_checks_as_errors instead.")
+			} else {
+				fmt.Printf("%s: warning: module %s's tidy_flags should not contain %s, which is replaced with -warnings-as-errors=-*; use tidy_checks_as_errors for your own as-error warnings instead.\n",
+					ctx.BlueprintsFile(), ctx.ModuleName(), s)
+				flags.TidyFlags[i] = "-warnings-as-errors=-*"
 			}
+			break // there is at most one -warnings-as-errors
 		}
-		if !inserted {
-			flags.TidyFlags = append(flags.TidyFlags, "-warnings-as-errors=-*")
-		}
-	} else if len(tidy.Properties.Tidy_checks_as_errors) > 0 {
-		tidyChecksAsErrors := "-warnings-as-errors=" + strings.Join(esc(ctx, "tidy_checks_as_errors", tidy.Properties.Tidy_checks_as_errors), ",")
+	}
+	// Default clang-tidy flags does not contain -warning-as-errors.
+	// If a module has tidy_checks_as_errors, add the list to -warnings-as-errors
+	// and then append the TidyGlobalNoErrorChecks.
+	if len(tidy.Properties.Tidy_checks_as_errors) > 0 {
+		tidyChecksAsErrors := "-warnings-as-errors=" +
+			strings.Join(esc(ctx, "tidy_checks_as_errors", tidy.Properties.Tidy_checks_as_errors), ",") +
+			config.TidyGlobalNoErrorChecks()
 		flags.TidyFlags = append(flags.TidyFlags, tidyChecksAsErrors)
 	}
 	return flags
