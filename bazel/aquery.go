@@ -664,6 +664,9 @@ func shouldSkipAction(a action) bool {
 	if a.Mnemonic == "FileWrite" {
 		return true
 	}
+	if a.Mnemonic == "BaselineCoverage" {
+		return true
+	}
 	return false
 }
 
