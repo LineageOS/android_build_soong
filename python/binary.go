@@ -38,6 +38,7 @@ type bazelPythonBinaryAttributes struct {
 	Srcs           bazel.LabelListAttribute
 	Deps           bazel.LabelListAttribute
 	Python_version *string
+	Imports        bazel.StringListAttribute
 }
 
 func pythonBinaryBp2Build(ctx android.TopDownMutatorContext, m *Module) {
@@ -75,6 +76,7 @@ func pythonBinaryBp2Build(ctx android.TopDownMutatorContext, m *Module) {
 		Srcs:           baseAttrs.Srcs,
 		Deps:           baseAttrs.Deps,
 		Python_version: python_version,
+		Imports:        baseAttrs.Imports,
 	}
 
 	props := bazel.BazelTargetModuleProperties{

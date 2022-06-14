@@ -32,6 +32,12 @@ func CopyOf(s []string) []string {
 // JoinWithPrefix prepends the prefix to each string in the list and
 // returns them joined together with " " as separator.
 func JoinWithPrefix(strs []string, prefix string) string {
+	return JoinWithPrefixAndSeparator(strs, prefix, " ")
+}
+
+// JoinWithPrefixAndSeparator prepends the prefix to each string in the list and
+// returns them joined together with the given separator.
+func JoinWithPrefixAndSeparator(strs []string, prefix string, sep string) string {
 	if len(strs) == 0 {
 		return ""
 	}
@@ -40,7 +46,7 @@ func JoinWithPrefix(strs []string, prefix string) string {
 	buf.WriteString(prefix)
 	buf.WriteString(strs[0])
 	for i := 1; i < len(strs); i++ {
-		buf.WriteString(" ")
+		buf.WriteString(sep)
 		buf.WriteString(prefix)
 		buf.WriteString(strs[i])
 	}
