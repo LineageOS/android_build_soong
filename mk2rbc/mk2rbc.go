@@ -830,21 +830,13 @@ func (ctx *parseContext) handleSubConfig(
 				pathPattern = append(pathPattern, chunk)
 			}
 		}
-		if pathPattern[0] == "" && len(ctx.includeTops) > 0 {
-			// If pattern starts from the top. restrict it to the directories where
-			// we know inherit-product uses dynamically calculated path.
-			for _, p := range ctx.includeTops {
-				pathPattern[0] = p
-				matchingPaths = append(matchingPaths, ctx.findMatchingPaths(pathPattern)...)
-			}
-		} else {
-			matchingPaths = ctx.findMatchingPaths(pathPattern)
+		if len(pathPattern) == 1 {
+			pathPattern = append(pathPattern, "")
 		}
+		matchingPaths = ctx.findMatchingPaths(pathPattern)
 		needsWarning = pathPattern[0] == "" && len(ctx.includeTops) == 0
 	} else if len(ctx.includeTops) > 0 {
-		for _, p := range ctx.includeTops {
-			matchingPaths = append(matchingPaths, ctx.findMatchingPaths([]string{p, ""})...)
-		}
+		matchingPaths = append(matchingPaths, ctx.findMatchingPaths([]string{"", ""})...)
 	} else {
 		return []starlarkNode{ctx.newBadNode(v, "inherit-product/include argument is too complex")}
 	}
@@ -872,17 +864,31 @@ func (ctx *parseContext) findMatchingPaths(pattern []string) []string {
 	}
 
 	// Create regular expression from the pattern
-	s_regexp := "^" + regexp.QuoteMeta(pattern[0])
+	regexString := "^" + regexp.QuoteMeta(pattern[0])
 	for _, s := range pattern[1:] {
-		s_regexp += ".*" + regexp.QuoteMeta(s)
+		regexString += ".*" + regexp.QuoteMeta(s)
 	}
-	s_regexp += "$"
-	rex := regexp.MustCompile(s_regexp)
+	regexString += "$"
+	rex := regexp.MustCompile(regexString)
+
+	includeTopRegexString := ""
+	if len(ctx.includeTops) > 0 {
+		for i, top := range ctx.includeTops {
+			if i > 0 {
+				includeTopRegexString += "|"
+			}
+			includeTopRegexString += "^" + regexp.QuoteMeta(top)
+		}
+	} else {
+		includeTopRegexString = ".*"
+	}
+
+	includeTopRegex := regexp.MustCompile(includeTopRegexString)
 
 	// Now match
 	var res []string
 	for _, p := range files {
-		if rex.MatchString(p) {
+		if rex.MatchString(p) && includeTopRegex.MatchString(p) {
 			res = append(res, p)
 		}
 	}
