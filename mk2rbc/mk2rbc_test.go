@@ -1157,6 +1157,8 @@ $(call inherit-product,$(MY_PATH)/cfg.mk)
 #RBC# include_top vendor/foo1
 $(call inherit-product,$(MY_OTHER_PATH))
 #RBC# include_top vendor/foo1
+$(call inherit-product,vendor/$(MY_OTHER_PATH))
+#RBC# include_top vendor/foo1
 $(foreach f,$(MY_MAKEFILES), \
 	$(call inherit-product,$(f)))
 `,
@@ -1179,6 +1181,13 @@ def init(g, handle):
   (_varmod, _varmod_init) = _entry if _entry else (None, None)
   if not _varmod_init:
     rblf.mkerror("product.mk", "Cannot find %s" % (g.get("MY_OTHER_PATH", "")))
+  rblf.inherit(handle, _varmod, _varmod_init)
+  _entry = {
+    "vendor/foo1/cfg.mk": ("vendor/foo1/cfg", _cfg_init),
+  }.get("vendor/%s" % g.get("MY_OTHER_PATH", ""))
+  (_varmod, _varmod_init) = _entry if _entry else (None, None)
+  if not _varmod_init:
+    rblf.mkerror("product.mk", "Cannot find %s" % ("vendor/%s" % g.get("MY_OTHER_PATH", "")))
   rblf.inherit(handle, _varmod, _varmod_init)
   for f in rblf.words(g.get("MY_MAKEFILES", "")):
     _entry = {
