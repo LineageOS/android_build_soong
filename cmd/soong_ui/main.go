@@ -53,12 +53,23 @@ func inList(s string, list []string) bool {
 	return indexList(s, list) != -1
 }
 
-func loadEnvConfig() error {
+func loadEnvConfig(config build.Config) error {
 	bc := os.Getenv("ANDROID_BUILD_ENVIRONMENT_CONFIG")
 	if bc == "" {
 		return nil
 	}
-	cfgFile := filepath.Join(os.Getenv("TOP"), configDir, fmt.Sprintf("%s.%s", bc, jsonSuffix))
+	configDirs := []string{
+		os.Getenv("ANDROID_BUILD_ENVIRONMENT_CONFIG_DIR"),
+		config.OutDir(),
+		configDir,
+	}
+	var cfgFile string
+	for _, dir := range configDirs {
+		cfgFile = filepath.Join(os.Getenv("TOP"), dir, fmt.Sprintf("%s.%s", bc, jsonSuffix))
+		if _, err := os.Stat(cfgFile); err == nil {
+			break
+		}
+	}
 
 	envVarsJSON, err := ioutil.ReadFile(cfgFile)
 	if err != nil {
@@ -74,9 +85,7 @@ func loadEnvConfig() error {
 		if os.Getenv(k) != "" {
 			continue
 		}
-		if err := os.Setenv(k, v); err != nil {
-			return err
-		}
+		config.Environment().Set(k, v)
 	}
 	return nil
 }
@@ -148,11 +157,10 @@ func main() {
 		config = build.NewConfig(buildCtx, os.Args[1:]...)
 	}
 
-	if err := loadEnvConfig(); err != nil {
+	if err := loadEnvConfig(config); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to parse env config files: %v", err)
 		os.Exit(1)
 	}
-
 
 	build.SetupOutDir(buildCtx, config)
 
