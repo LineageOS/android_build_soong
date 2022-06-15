@@ -132,7 +132,7 @@ else:
 sharedLibraries = []
 rootSharedLibraries = []
 
-shared_info_tag = "@rules_cc//examples:experimental_cc_shared_library.bzl%CcSharedLibraryInfo"
+shared_info_tag = "@_builtins//:common/cc/experimental_cc_shared_library.bzl%CcSharedLibraryInfo"
 if shared_info_tag in providers(target):
   shared_info = providers(target)[shared_info_tag]
   for lib in shared_info.linker_input.libraries:
