@@ -64,25 +64,25 @@ func init() {
 
 // toolchain config for ARM64 Linux CrossHost. Almost everything is the same as the ARM64 Android
 // target. The overridden methods below show the differences.
-type toolchainLinuxArm64 struct {
+type toolchainLinuxBionicArm64 struct {
 	toolchainArm64
 }
 
-func (toolchainLinuxArm64) ClangTriple() string {
+func (toolchainLinuxBionicArm64) ClangTriple() string {
 	// Note the absence of "-android" suffix. The compiler won't define __ANDROID__
 	return "aarch64-linux"
 }
 
-func (toolchainLinuxArm64) Cflags() string {
+func (toolchainLinuxBionicArm64) Cflags() string {
 	// The inherited flags + extra flags
 	return "${config.Arm64Cflags} ${config.LinuxBionicArm64Cflags}"
 }
 
-func (toolchainLinuxArm64) CrtBeginSharedBinary() []string {
+func (toolchainLinuxBionicArm64) CrtBeginSharedBinary() []string {
 	return linuxArm64CrtBeginSharedBinary
 }
 
-func linuxArm64ToolchainFactory(arch android.Arch) Toolchain {
+func linuxBionicArm64ToolchainFactory(arch android.Arch) Toolchain {
 	archVariant := "armv8-a" // for host, default to armv8-a
 	toolchainCflags := []string{arm64ArchVariantCflagsVar[archVariant]}
 
@@ -90,7 +90,7 @@ func linuxArm64ToolchainFactory(arch android.Arch) Toolchain {
 	// the host CPU needs the fix
 	extraLdflags := "-Wl,--fix-cortex-a53-843419"
 
-	ret := toolchainLinuxArm64{}
+	ret := toolchainLinuxBionicArm64{}
 
 	// add the extra ld and lld flags
 	ret.toolchainArm64.ldflags = strings.Join([]string{
@@ -108,5 +108,5 @@ func linuxArm64ToolchainFactory(arch android.Arch) Toolchain {
 }
 
 func init() {
-	registerToolchainFactory(android.LinuxBionic, android.Arm64, linuxArm64ToolchainFactory)
+	registerToolchainFactory(android.LinuxBionic, android.Arm64, linuxBionicArm64ToolchainFactory)
 }
