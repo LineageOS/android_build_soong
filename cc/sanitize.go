@@ -1289,7 +1289,7 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 
 type Sanitizeable interface {
 	android.Module
-	IsSanitizerEnabled(ctx android.BaseModuleContext, sanitizerName string) bool
+	IsSanitizerEnabled(config android.Config, sanitizerName string) bool
 	EnableSanitizer(sanitizerName string)
 	AddSanitizerDependencies(ctx android.BottomUpMutatorContext, sanitizerName string)
 }
@@ -1427,7 +1427,7 @@ func sanitizerMutator(t SanitizerType) func(android.BottomUpMutatorContext) {
 					}
 				}
 			}
-		} else if sanitizeable, ok := mctx.Module().(Sanitizeable); ok && sanitizeable.IsSanitizerEnabled(mctx, t.name()) {
+		} else if sanitizeable, ok := mctx.Module().(Sanitizeable); ok && sanitizeable.IsSanitizerEnabled(mctx.Config(), t.name()) {
 			// APEX fuzz modules fall here
 			sanitizeable.AddSanitizerDependencies(mctx, t.name())
 			mctx.CreateVariations(t.variationName())
