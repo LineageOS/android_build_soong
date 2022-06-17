@@ -95,6 +95,10 @@ type Deps struct {
 	HeaderLibs                                  []string
 	RuntimeLibs                                 []string
 
+	// UnexportedStaticLibs are static libraries that are also passed to -Wl,--exclude-libs= to
+	// prevent automatically exporting symbols.
+	UnexportedStaticLibs []string
+
 	// Used for data dependencies adjacent to tests
 	DataLibs []string
 	DataBins []string
@@ -156,6 +160,7 @@ type PathDeps struct {
 	GeneratedDeps    android.Paths
 
 	Flags                      []string
+	LdFlags                    []string
 	IncludeDirs                android.Paths
 	SystemIncludeDirs          android.Paths
 	ReexportedDirs             android.Paths
@@ -678,6 +683,9 @@ type libraryDependencyTag struct {
 
 	// Whether or not this dependency has to be followed for the apex variants
 	excludeInApex bool
+
+	// If true, don't automatically export symbols from the static library into a shared library.
+	unexportedSymbols bool
 }
 
 // header returns true if the libraryDependencyTag is tagging a header lib dependency.
@@ -1921,6 +1929,8 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		flags.Local.CommonFlags = append(flags.Local.CommonFlags, "-isystem "+dir.String())
 	}
 
+	flags.Local.LdFlags = append(flags.Local.LdFlags, deps.LdFlags...)
+
 	c.flags = flags
 	// We need access to all the flags seen by a source file.
 	if c.sabi != nil {
@@ -2363,6 +2373,13 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 
 	for _, lib := range deps.LateStaticLibs {
 		depTag := libraryDependencyTag{Kind: staticLibraryDependency, Order: lateLibraryDependency}
+		actx.AddVariationDependencies([]blueprint.Variation{
+			{Mutator: "link", Variation: "static"},
+		}, depTag, RewriteSnapshotLib(lib, GetSnapshot(c, &snapshotInfo, actx).StaticLibs))
+	}
+
+	for _, lib := range deps.UnexportedStaticLibs {
+		depTag := libraryDependencyTag{Kind: staticLibraryDependency, Order: lateLibraryDependency, unexportedSymbols: true}
 		actx.AddVariationDependencies([]blueprint.Variation{
 			{Mutator: "link", Variation: "static"},
 		}, depTag, RewriteSnapshotLib(lib, GetSnapshot(c, &snapshotInfo, actx).StaticLibs))
@@ -2865,6 +2882,10 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 					default:
 						panic(fmt.Errorf("unexpected library dependency order %d", libDepTag.Order))
 					}
+				}
+				if libDepTag.unexportedSymbols {
+					depPaths.LdFlags = append(depPaths.LdFlags,
+						"-Wl,--exclude-libs="+staticLibraryInfo.StaticLibrary.Base())
 				}
 			}
 
