@@ -902,7 +902,12 @@ func (c *configImpl) rbeReproxy() string {
 }
 
 func (c *configImpl) rbeAuth() (string, string) {
-	credFlags := []string{"use_application_default_credentials", "use_gce_credentials", "credential_file"}
+	credFlags := []string{
+		"use_application_default_credentials",
+		"use_gce_credentials",
+		"credential_file",
+		"use_google_prod_creds",
+	}
 	for _, cf := range credFlags {
 		for _, f := range []string{"RBE_" + cf, "FLAG_" + cf} {
 			if v, ok := c.environ.Get(f); ok {
