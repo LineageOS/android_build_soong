@@ -1468,7 +1468,7 @@ func (a *apexBundle) EnableSanitizer(sanitizerName string) {
 	}
 }
 
-func (a *apexBundle) IsSanitizerEnabled(ctx android.BaseModuleContext, sanitizerName string) bool {
+func (a *apexBundle) IsSanitizerEnabled(config android.Config, sanitizerName string) bool {
 	if android.InList(sanitizerName, a.properties.SanitizerNames) {
 		return true
 	}
@@ -1476,11 +1476,11 @@ func (a *apexBundle) IsSanitizerEnabled(ctx android.BaseModuleContext, sanitizer
 	// Then follow the global setting
 	globalSanitizerNames := []string{}
 	if a.Host() {
-		globalSanitizerNames = ctx.Config().SanitizeHost()
+		globalSanitizerNames = config.SanitizeHost()
 	} else {
-		arches := ctx.Config().SanitizeDeviceArch()
+		arches := config.SanitizeDeviceArch()
 		if len(arches) == 0 || android.InList(a.Arch().ArchType.Name, arches) {
-			globalSanitizerNames = ctx.Config().SanitizeDevice()
+			globalSanitizerNames = config.SanitizeDevice()
 		}
 	}
 	return android.InList(sanitizerName, globalSanitizerNames)
