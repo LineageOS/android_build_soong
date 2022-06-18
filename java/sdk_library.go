@@ -2584,7 +2584,10 @@ func formattedOptionalSdkLevelAttribute(ctx android.ModuleContext, attrName stri
 			`"current" is not an allowed value for this attribute`)
 		return ""
 	}
-	return formattedOptionalAttribute(attrName, value)
+	// "safeValue" is safe because it translates finalized codenames to a string
+	// with their SDK int.
+	safeValue := apiLevel.String()
+	return formattedOptionalAttribute(attrName, &safeValue)
 }
 
 // formats an attribute for the xml permissions file if the value is not null
