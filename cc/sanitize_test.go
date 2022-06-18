@@ -16,6 +16,7 @@ package cc
 
 import (
 	"fmt"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -195,6 +196,125 @@ func TestAsan(t *testing.T) {
 		expectInstallDep(binNoAsan, libTransitive)
 		expectInstallDep(libShared, libTransitive)
 		expectInstallDep(libAsan, libTransitive)
+	}
+
+	t.Run("host", func(t *testing.T) { check(t, result, result.Config.BuildOSTarget.String()) })
+	t.Run("device", func(t *testing.T) { check(t, result, "android_arm64_armv8-a") })
+}
+
+func TestUbsan(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("requires linux")
+	}
+
+	bp := `
+		cc_binary {
+			name: "bin_with_ubsan",
+			host_supported: true,
+			shared_libs: [
+				"libshared",
+			],
+			static_libs: [
+				"libstatic",
+				"libnoubsan",
+			],
+			sanitize: {
+				undefined: true,
+			}
+		}
+
+		cc_binary {
+			name: "bin_depends_ubsan",
+			host_supported: true,
+			shared_libs: [
+				"libshared",
+			],
+			static_libs: [
+				"libstatic",
+				"libubsan",
+				"libnoubsan",
+			],
+		}
+
+		cc_binary {
+			name: "bin_no_ubsan",
+			host_supported: true,
+			shared_libs: [
+				"libshared",
+			],
+			static_libs: [
+				"libstatic",
+				"libnoubsan",
+			],
+		}
+
+		cc_library_shared {
+			name: "libshared",
+			host_supported: true,
+			shared_libs: ["libtransitive"],
+		}
+
+		cc_library_shared {
+			name: "libtransitive",
+			host_supported: true,
+		}
+
+		cc_library_static {
+			name: "libubsan",
+			host_supported: true,
+			sanitize: {
+				undefined: true,
+			}
+		}
+
+		cc_library_static {
+			name: "libstatic",
+			host_supported: true,
+		}
+
+		cc_library_static {
+			name: "libnoubsan",
+			host_supported: true,
+		}
+	`
+
+	result := android.GroupFixturePreparers(
+		prepareForCcTest,
+	).RunTestWithBp(t, bp)
+
+	check := func(t *testing.T, result *android.TestResult, variant string) {
+		staticVariant := variant + "_static"
+
+		minimalRuntime := result.ModuleForTests("libclang_rt.ubsan_minimal", staticVariant)
+
+		// The binaries, one with ubsan and one without
+		binWithUbsan := result.ModuleForTests("bin_with_ubsan", variant)
+		binDependsUbsan := result.ModuleForTests("bin_depends_ubsan", variant)
+		binNoUbsan := result.ModuleForTests("bin_no_ubsan", variant)
+
+		android.AssertStringListContains(t, "missing libclang_rt.ubsan_minimal in bin_with_ubsan static libs",
+			strings.Split(binWithUbsan.Rule("ld").Args["libFlags"], " "),
+			minimalRuntime.OutputFiles(t, "")[0].String())
+
+		android.AssertStringListContains(t, "missing libclang_rt.ubsan_minimal in bin_depends_ubsan static libs",
+			strings.Split(binDependsUbsan.Rule("ld").Args["libFlags"], " "),
+			minimalRuntime.OutputFiles(t, "")[0].String())
+
+		android.AssertStringListDoesNotContain(t, "unexpected libclang_rt.ubsan_minimal in bin_no_ubsan static libs",
+			strings.Split(binNoUbsan.Rule("ld").Args["libFlags"], " "),
+			minimalRuntime.OutputFiles(t, "")[0].String())
+
+		android.AssertStringListContains(t, "missing -Wl,--exclude-libs for minimal runtime in bin_with_ubsan",
+			strings.Split(binWithUbsan.Rule("ld").Args["ldFlags"], " "),
+			"-Wl,--exclude-libs="+minimalRuntime.OutputFiles(t, "")[0].Base())
+
+		android.AssertStringListContains(t, "missing -Wl,--exclude-libs for minimal runtime in bin_depends_ubsan static libs",
+			strings.Split(binDependsUbsan.Rule("ld").Args["ldFlags"], " "),
+			"-Wl,--exclude-libs="+minimalRuntime.OutputFiles(t, "")[0].Base())
+
+		android.AssertStringListDoesNotContain(t, "unexpected -Wl,--exclude-libs for minimal runtime in bin_no_ubsan static libs",
+			strings.Split(binNoUbsan.Rule("ld").Args["ldFlags"], " "),
+			"-Wl,--exclude-libs="+minimalRuntime.OutputFiles(t, "")[0].Base())
 	}
 
 	t.Run("host", func(t *testing.T) { check(t, result, result.Config.BuildOSTarget.String()) })
