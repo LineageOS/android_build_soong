@@ -96,10 +96,11 @@ var singletons sortableComponents
 var preSingletons sortableComponents
 
 type mutator struct {
-	name            string
-	bottomUpMutator blueprint.BottomUpMutator
-	topDownMutator  blueprint.TopDownMutator
-	parallel        bool
+	name              string
+	bottomUpMutator   blueprint.BottomUpMutator
+	topDownMutator    blueprint.TopDownMutator
+	transitionMutator blueprint.TransitionMutator
+	parallel          bool
 }
 
 var _ sortableComponent = &mutator{}
