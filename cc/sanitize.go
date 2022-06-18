@@ -588,13 +588,6 @@ func toDisableUnsignedShiftBaseChange(flags []string) bool {
 }
 
 func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
-	minimalRuntimeLib := config.UndefinedBehaviorSanitizerMinimalRuntimeLibrary(ctx.toolchain()) + ".a"
-
-	if sanitize.Properties.MinimalRuntimeDep {
-		flags.Local.LdFlags = append(flags.Local.LdFlags,
-			"-Wl,--exclude-libs,"+minimalRuntimeLib)
-	}
-
 	if !sanitize.Properties.SanitizerEnabled && !sanitize.Properties.UbsanRuntimeDep {
 		return flags
 	}
@@ -724,7 +717,6 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 
 		if enableMinimalRuntime(sanitize) {
 			flags.Local.CFlags = append(flags.Local.CFlags, strings.Join(minimalRuntimeFlags, " "))
-			flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,--exclude-libs,"+minimalRuntimeLib)
 		}
 
 		if Bool(sanitize.Properties.Sanitize.Fuzzer) {
@@ -1217,7 +1209,7 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 			}
 
 			// static executable gets static runtime libs
-			depTag := libraryDependencyTag{Kind: staticLibraryDependency}
+			depTag := libraryDependencyTag{Kind: staticLibraryDependency, unexportedSymbols: true}
 			variations := append(mctx.Target().Variations(),
 				blueprint.Variation{Mutator: "link", Variation: "static"})
 			if c.Device() {
