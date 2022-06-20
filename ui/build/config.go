@@ -15,7 +15,9 @@
 package build
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -28,6 +30,11 @@ import (
 	"github.com/golang/protobuf/proto"
 
 	smpb "android/soong/ui/metrics/metrics_proto"
+)
+
+const (
+	envConfigDir  = "vendor/google/tools/soong_config"
+	jsonSuffix    = "json"
 )
 
 type Config struct{ *configImpl }
@@ -122,6 +129,43 @@ func checkTopDir(ctx Context) {
 	}
 }
 
+func loadEnvConfig(config *configImpl) error {
+	bc := os.Getenv("ANDROID_BUILD_ENVIRONMENT_CONFIG")
+	if bc == "" {
+		return nil
+	}
+	configDirs := []string{
+		os.Getenv("ANDROID_BUILD_ENVIRONMENT_CONFIG_DIR"),
+		config.OutDir(),
+		envConfigDir,
+	}
+	var cfgFile string
+	for _, dir := range configDirs {
+		cfgFile = filepath.Join(os.Getenv("TOP"), dir, fmt.Sprintf("%s.%s", bc, jsonSuffix))
+		if _, err := os.Stat(cfgFile); err == nil {
+			break
+		}
+	}
+
+	envVarsJSON, err := ioutil.ReadFile(cfgFile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "\033[33mWARNING:\033[0m failed to open config file %s: %s\n", cfgFile, err.Error())
+		return nil
+	}
+
+	var envVars map[string]map[string]string
+	if err := json.Unmarshal(envVarsJSON, &envVars); err != nil {
+		return fmt.Errorf("env vars config file: %s did not parse correctly: %s", cfgFile, err.Error())
+	}
+	for k, v := range envVars["env"] {
+		if os.Getenv(k) != "" {
+			continue
+		}
+		config.Environment().Set(k, v)
+	}
+	return nil
+}
+
 func NewConfig(ctx Context, args ...string) Config {
 	ret := &configImpl{
 		environ: OsEnvironment(),
@@ -148,6 +192,12 @@ func NewConfig(ctx Context, args ...string) Config {
 			}
 		}
 		ret.environ.Set("OUT_DIR", outDir)
+	}
+
+	// loadEnvConfig needs to know what the OUT_DIR is, so it should
+	// be called after we determine the appropriate out directory.
+	if err := loadEnvConfig(ret); err != nil {
+		ctx.Fatalln("Failed to parse env config files: %v", err)
 	}
 
 	if distDir, ok := ret.environ.Get("DIST_DIR"); ok {
@@ -911,7 +961,7 @@ func (c *configImpl) StartGoma() bool {
 }
 
 func (c *configImpl) UseRBE() bool {
-	if v, ok := c.environ.Get("USE_RBE"); ok {
+	if v, ok := c.Environment().Get("USE_RBE"); ok {
 		v = strings.TrimSpace(v)
 		if v != "" && v != "false" {
 			return true
