@@ -793,6 +793,10 @@ func (c *config) PlatformVersionLastStable() string {
 	return String(c.productVariables.Platform_version_last_stable)
 }
 
+func (c *config) PlatformVersionKnownCodenames() string {
+	return String(c.productVariables.Platform_version_known_codenames)
+}
+
 func (c *config) MinSupportedSdkVersion() ApiLevel {
 	return uncheckedFinalApiLevel(19)
 }
