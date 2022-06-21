@@ -89,6 +89,7 @@ func (p *buildinfoPropModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 	writeProp("ro.build.version.security_patch", config.PlatformSecurityPatch())
 	writeProp("ro.build.version.base_os", config.PlatformBaseOS())
 	writeProp("ro.build.version.min_supported_target_sdk", config.PlatformMinSupportedTargetSdkVersion())
+	writeProp("ro.build.version.known_codenames", config.PlatformVersionKnownCodenames())
 
 	if config.Eng() {
 		writeProp("ro.build.type", "eng")
@@ -109,7 +110,6 @@ func (p *buildinfoPropModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 		writeProp("ro.build.display.id", $BUILD_DISPLAY_ID)
 		writeProp("ro.build.version.incremental", $BUILD_NUMBER)
 		writeProp("ro.build.version.preview_sdk_fingerprint", $PLATFORM_PREVIEW_SDK_FINGERPRINT)
-		writeProp("ro.build.version.known_codenames", $PLATFORM_VERSION_KNOWN_CODENAMES)
 		writeProp("ro.build.version.release_or_preview_display", $PLATFORM_DISPLAY_VERSION)
 		writeProp("ro.build.date", `$DATE`)
 		writeProp("ro.build.date.utc", `$DATE +%s`)
