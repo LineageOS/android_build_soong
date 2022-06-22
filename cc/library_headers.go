@@ -130,7 +130,6 @@ func libraryHeadersBp2Build(ctx android.TopDownMutatorContext, module *Module) {
 		Export_includes:          exportedIncludes.Includes,
 		Export_absolute_includes: exportedIncludes.AbsoluteIncludes,
 		Export_system_includes:   exportedIncludes.SystemIncludes,
-		Implementation_deps:      linkerAttrs.implementationDeps,
 		Deps:                     linkerAttrs.deps,
 		System_dynamic_deps:      linkerAttrs.systemDynamicDeps,
 		Hdrs:                     baseAttributes.hdrs,
