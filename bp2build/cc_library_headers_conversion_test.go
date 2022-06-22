@@ -84,18 +84,6 @@ func TestCcLibraryHeadersSimple(t *testing.T) {
 		},
 		blueprint: soongCcLibraryHeadersPreamble + `
 cc_library_headers {
-    name: "lib-1",
-    export_include_dirs: ["lib-1"],
-    bazel_module: { bp2build_available: false },
-}
-
-cc_library_headers {
-    name: "lib-2",
-    export_include_dirs: ["lib-2"],
-    bazel_module: { bp2build_available: false },
-}
-
-cc_library_headers {
     name: "foo_headers",
     export_include_dirs: ["dir-1", "dir-2"],
     header_libs: ["lib-1", "lib-2"],
@@ -128,12 +116,8 @@ cc_library_headers {
         "//build/bazel/platforms/arch:x86_64": ["arch_x86_64_exported_include_dir"],
         "//conditions:default": [],
     })`,
-				"implementation_deps": `[
-        ":lib-1",
-        ":lib-2",
-    ]`,
-        "sdk_version": `"current"`,
-        "min_sdk_version": `"29"`,
+				"sdk_version":     `"current"`,
+				"min_sdk_version": `"29"`,
 			}),
 		},
 	})
@@ -173,18 +157,34 @@ cc_library_headers {
 cc_library_headers {
     name: "foo_headers",
     header_libs: ["base-lib"],
+		export_header_lib_headers: ["base-lib"],
     target: {
-        android: { header_libs: ["android-lib"] },
-        darwin: { header_libs: ["darwin-lib"] },
-        linux_bionic: { header_libs: ["linux_bionic-lib"] },
-        linux_glibc: { header_libs: ["linux-lib"] },
-        windows: { header_libs: ["windows-lib"] },
+        android: {
+						header_libs: ["android-lib"],
+						export_header_lib_headers: ["android-lib"],
+				},
+        darwin: {
+						header_libs: ["darwin-lib"],
+						export_header_lib_headers: ["darwin-lib"],
+				},
+        linux_bionic: {
+						header_libs: ["linux_bionic-lib"],
+						export_header_lib_headers: ["linux_bionic-lib"],
+				},
+        linux_glibc: {
+						header_libs: ["linux-lib"],
+						export_header_lib_headers: ["linux-lib"],
+				},
+        windows: {
+						header_libs: ["windows-lib"],
+						export_header_lib_headers: ["windows-lib"],
+				},
     },
     include_build_directory: false,
 }`,
 		expectedBazelTargets: []string{
 			makeBazelTarget("cc_library_headers", "foo_headers", attrNameToString{
-				"implementation_deps": `[":base-lib"] + select({
+				"deps": `[":base-lib"] + select({
         "//build/bazel/platforms/os:android": [":android-lib"],
         "//build/bazel/platforms/os:darwin": [":darwin-lib"],
         "//build/bazel/platforms/os:linux": [":linux-lib"],
@@ -226,10 +226,6 @@ cc_library_headers {
 			makeBazelTarget("cc_library_headers", "foo_headers", attrNameToString{
 				"deps": `select({
         "//build/bazel/platforms/os:android": [":exported-lib"],
-        "//conditions:default": [],
-    })`,
-				"implementation_deps": `select({
-        "//build/bazel/platforms/os:android": [":android-lib"],
         "//conditions:default": [],
     })`,
 			}),
