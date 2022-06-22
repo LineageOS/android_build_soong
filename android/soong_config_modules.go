@@ -172,7 +172,7 @@ func (m *soongConfigModuleTypeImport) Name() string {
 		"soong_config_module_type_import_" + fmt.Sprintf("%p", m)
 }
 
-func (*soongConfigModuleTypeImport) Nameless()                                 {}
+func (*soongConfigModuleTypeImport) Namespaceless()                            {}
 func (*soongConfigModuleTypeImport) GenerateAndroidBuildActions(ModuleContext) {}
 
 // Create dummy modules for soong_config_module_type and soong_config_*_variable
@@ -279,9 +279,9 @@ func SoongConfigModuleTypeFactory() Module {
 }
 
 func (m *soongConfigModuleTypeModule) Name() string {
-	return m.properties.Name
+	return m.properties.Name + fmt.Sprintf("%p", m)
 }
-func (*soongConfigModuleTypeModule) Nameless()                                     {}
+func (*soongConfigModuleTypeModule) Namespaceless()                                {}
 func (*soongConfigModuleTypeModule) GenerateAndroidBuildActions(ctx ModuleContext) {}
 
 type soongConfigStringVariableDummyModule struct {
@@ -314,15 +314,15 @@ func SoongConfigBoolVariableDummyFactory() Module {
 }
 
 func (m *soongConfigStringVariableDummyModule) Name() string {
-	return m.properties.Name
+	return m.properties.Name + fmt.Sprintf("%p", m)
 }
-func (*soongConfigStringVariableDummyModule) Nameless()                                     {}
+func (*soongConfigStringVariableDummyModule) Namespaceless()                                {}
 func (*soongConfigStringVariableDummyModule) GenerateAndroidBuildActions(ctx ModuleContext) {}
 
 func (m *soongConfigBoolVariableDummyModule) Name() string {
-	return m.properties.Name
+	return m.properties.Name + fmt.Sprintf("%p", m)
 }
-func (*soongConfigBoolVariableDummyModule) Nameless()                                     {}
+func (*soongConfigBoolVariableDummyModule) Namespaceless()                                {}
 func (*soongConfigBoolVariableDummyModule) GenerateAndroidBuildActions(ctx ModuleContext) {}
 
 // importModuleTypes registers the module factories for a list of module types defined
