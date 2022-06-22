@@ -167,7 +167,7 @@ func newAqueryHandler(aqueryResult actionGraphContainer) (*aqueryArtifactHandler
 
 	// Map middleman artifact ContentHash to input artifact depset ID.
 	// Middleman artifacts are treated as "substitute" artifacts for mixed builds. For example,
-	// if we find a middleman action which has outputs [foo, bar], and output [baz_middleman], then,
+	// if we find a middleman action which has inputs [foo, bar], and output [baz_middleman], then,
 	// for each other action which has input [baz_middleman], we add [foo, bar] to the inputs for
 	// that action instead.
 	middlemanIdToDepsetIds := map[artifactId][]depsetId{}
@@ -348,7 +348,7 @@ func AqueryBuildStatements(aqueryJsonProto []byte) ([]BuildStatement, []AqueryDe
 		if prevEntry, hasKey := depsetsByHash[aqueryDepset.ContentHash]; hasKey {
 			// Two depsets collide on hash. Ensure that their contents are identical.
 			if !reflect.DeepEqual(aqueryDepset, prevEntry) {
-				return nil, nil, fmt.Errorf("Two different depsets have the same hash: %v, %v", prevEntry, aqueryDepset)
+				return nil, nil, fmt.Errorf("two different depsets have the same hash: %v, %v", prevEntry, aqueryDepset)
 			}
 		} else {
 			depsetsByHash[aqueryDepset.ContentHash] = aqueryDepset
