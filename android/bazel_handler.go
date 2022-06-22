@@ -21,6 +21,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -870,53 +871,14 @@ func (c *bazelSingleton) GenerateBuildActions(ctx SingletonContext) {
 		})
 	}
 
-	// Register bazel-owned build statements (obtained from the aquery invocation).
+	executionRoot := path.Join(ctx.Config().BazelContext.OutputBase(), "execroot", "__main__")
+	bazelOutDir := path.Join(executionRoot, "bazel-out")
 	for index, buildStatement := range ctx.Config().BazelContext.BuildStatementsToRegister() {
 		if len(buildStatement.Command) < 1 {
 			panic(fmt.Sprintf("unhandled build statement: %v", buildStatement))
 		}
 		rule := NewRuleBuilder(pctx, ctx)
-		cmd := rule.Command()
-
-		// cd into Bazel's execution root, which is the action cwd.
-		cmd.Text(fmt.Sprintf("cd %s/execroot/__main__ &&", ctx.Config().BazelContext.OutputBase()))
-
-		// Remove old outputs, as some actions might not rerun if the outputs are detected.
-		if len(buildStatement.OutputPaths) > 0 {
-			cmd.Text("rm -f")
-			for _, outputPath := range buildStatement.OutputPaths {
-				cmd.Text(outputPath)
-			}
-			cmd.Text("&&")
-		}
-
-		for _, pair := range buildStatement.Env {
-			// Set per-action env variables, if any.
-			cmd.Flag(pair.Key + "=" + pair.Value)
-		}
-
-		// The actual Bazel action.
-		cmd.Text(buildStatement.Command)
-
-		for _, outputPath := range buildStatement.OutputPaths {
-			cmd.ImplicitOutput(PathForBazelOut(ctx, outputPath))
-		}
-		for _, inputPath := range buildStatement.InputPaths {
-			cmd.Implicit(PathForBazelOut(ctx, inputPath))
-		}
-		for _, inputDepsetHash := range buildStatement.InputDepsetHashes {
-			otherDepsetName := bazelDepsetName(inputDepsetHash)
-			cmd.Implicit(PathForPhony(ctx, otherDepsetName))
-		}
-
-		if depfile := buildStatement.Depfile; depfile != nil {
-			cmd.ImplicitDepFile(PathForBazelOut(ctx, *depfile))
-		}
-
-		for _, symlinkPath := range buildStatement.SymlinkPaths {
-			cmd.ImplicitSymlinkOutput(PathForBazelOut(ctx, symlinkPath))
-		}
-
+		createCommand(rule.Command(), buildStatement, executionRoot, bazelOutDir, ctx)
 		// This is required to silence warnings pertaining to unexpected timestamps. Particularly,
 		// some Bazel builtins (such as files in the bazel_tools directory) have far-future
 		// timestamps. Without restat, Ninja would emit warnings that the input files of a
@@ -925,6 +887,58 @@ func (c *bazelSingleton) GenerateBuildActions(ctx SingletonContext) {
 
 		desc := fmt.Sprintf("%s: %s", buildStatement.Mnemonic, buildStatement.OutputPaths)
 		rule.Build(fmt.Sprintf("bazel %d", index), desc)
+	}
+}
+
+// Register bazel-owned build statements (obtained from the aquery invocation).
+func createCommand(cmd *RuleBuilderCommand, buildStatement bazel.BuildStatement, executionRoot string, bazelOutDir string, ctx PathContext) {
+	// executionRoot is the action cwd.
+	cmd.Text(fmt.Sprintf("cd '%s' &&", executionRoot))
+
+	// Remove old outputs, as some actions might not rerun if the outputs are detected.
+	if len(buildStatement.OutputPaths) > 0 {
+		cmd.Text("rm -f")
+		for _, outputPath := range buildStatement.OutputPaths {
+			cmd.Text(outputPath)
+		}
+		cmd.Text("&&")
+	}
+
+	for _, pair := range buildStatement.Env {
+		// Set per-action env variables, if any.
+		cmd.Flag(pair.Key + "=" + pair.Value)
+	}
+
+	// The actual Bazel action.
+	cmd.Text(buildStatement.Command)
+
+	for _, outputPath := range buildStatement.OutputPaths {
+		cmd.ImplicitOutput(PathForBazelOut(ctx, outputPath))
+	}
+	for _, inputPath := range buildStatement.InputPaths {
+		cmd.Implicit(PathForBazelOut(ctx, inputPath))
+	}
+	for _, inputDepsetHash := range buildStatement.InputDepsetHashes {
+		otherDepsetName := bazelDepsetName(inputDepsetHash)
+		cmd.Implicit(PathForPhony(ctx, otherDepsetName))
+	}
+
+	if depfile := buildStatement.Depfile; depfile != nil {
+		// The paths in depfile are relative to `executionRoot`.
+		// Hence, they need to be corrected by replacing "bazel-out"
+		// with the full `bazelOutDir`.
+		// Otherwise, implicit outputs and implicit inputs under "bazel-out/"
+		// would be deemed missing.
+		// (Note: The regexp uses a capture group because the version of sed
+		//  does not support a look-behind pattern.)
+		replacement := fmt.Sprintf(`&& sed -i'' -E 's@(^|\s|")bazel-out/@\1%s/@g' '%s'`,
+			bazelOutDir, *depfile)
+		cmd.Text(replacement)
+		cmd.ImplicitDepFile(PathForBazelOut(ctx, *depfile))
+	}
+
+	for _, symlinkPath := range buildStatement.SymlinkPaths {
+		cmd.ImplicitSymlinkOutput(PathForBazelOut(ctx, symlinkPath))
 	}
 }
 
