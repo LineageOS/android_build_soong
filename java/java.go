@@ -528,7 +528,7 @@ func normalizeJavaVersion(ctx android.BaseModuleContext, javaVersion string) jav
 	case "11":
 		return JAVA_VERSION_11
 	case "17":
-		return JAVA_VERSION_11
+		return JAVA_VERSION_17
 	case "10", "12", "13", "14", "15", "16":
 		ctx.PropertyErrorf("java_version", "Java language level %s is not supported", javaVersion)
 		return JAVA_VERSION_UNSUPPORTED
