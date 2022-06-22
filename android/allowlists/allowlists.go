@@ -210,7 +210,6 @@ var (
 		"system/sepolicy/apex":                               Bp2BuildDefaultTrueRecursively,
 		"system/timezone/apex":                               Bp2BuildDefaultTrueRecursively,
 		"system/timezone/output_data":                        Bp2BuildDefaultTrueRecursively,
-		"system/unwinding/libbacktrace":                      Bp2BuildDefaultTrueRecursively,
 		"system/unwinding/libunwindstack":                    Bp2BuildDefaultTrueRecursively,
 		"tools/apksig":                                       Bp2BuildDefaultTrue,
 		"tools/platform-compat/java/android/compat":          Bp2BuildDefaultTrueRecursively,
