@@ -529,7 +529,7 @@ config_node(name = "%s",
 	configNodesSection := ""
 
 	labelsByConfig := map[string][]string{}
-	for val, _ := range context.requests {
+	for val := range context.requests {
 		labelString := fmt.Sprintf("\"@%s\"", val.label)
 		configString := getConfigString(val)
 		labelsByConfig[configString] = append(labelsByConfig[configString], labelString)
@@ -567,7 +567,7 @@ func indent(original string) string {
 // request type.
 func (context *bazelContext) cqueryStarlarkFileContents() []byte {
 	requestTypeToCqueryIdEntries := map[cqueryRequest][]string{}
-	for val, _ := range context.requests {
+	for val := range context.requests {
 		cqueryId := getCqueryId(val)
 		mapEntryString := fmt.Sprintf("%q : True", cqueryId)
 		requestTypeToCqueryIdEntries[val.requestType] =
