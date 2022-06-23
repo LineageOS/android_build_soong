@@ -589,6 +589,16 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 
 	a.classLoaderContexts = a.usesLibrary.classLoaderContextForUsesLibDeps(ctx)
 
+	var noticeAssetPath android.WritablePath
+	if Bool(a.appProperties.Embed_notices) || ctx.Config().IsEnvTrue("ALWAYS_EMBED_NOTICES") {
+		// The rule to create the notice file can't be generated yet, as the final output path
+		// for the apk isn't known yet.  Add the path where the notice file will be generated to the
+		// aapt rules now before calling aaptBuildActions, the rule to create the notice file will
+		// be generated later.
+		noticeAssetPath = android.PathForModuleOut(ctx, "NOTICE", "NOTICE.html.gz")
+		a.aapt.noticeFile = android.OptionalPathForPath(noticeAssetPath)
+	}
+
 	// Process all building blocks, from AAPT to certificates.
 	a.aaptBuildActions(ctx)
 
@@ -663,7 +673,8 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 		a.extraOutputFiles = append(a.extraOutputFiles, v4SignatureFile)
 	}
 
-	if Bool(a.appProperties.Embed_notices) || ctx.Config().IsEnvTrue("ALWAYS_EMBED_NOTICES") {
+	if a.aapt.noticeFile.Valid() {
+		// Generating the notice file rule has to be here after a.outputFile is known.
 		noticeFile := android.PathForModuleOut(ctx, "NOTICE.html.gz")
 		android.BuildNoticeHtmlOutputFromLicenseMetadata(
 			ctx, noticeFile, "", "",
@@ -672,13 +683,11 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 				android.PathForModuleInstall(ctx).String() + "/",
 				a.outputFile.String(),
 			})
-		noticeAssetPath := android.PathForModuleOut(ctx, "NOTICE", "NOTICE.html.gz")
 		builder := android.NewRuleBuilder(pctx, ctx)
 		builder.Command().Text("cp").
 			Input(noticeFile).
 			Output(noticeAssetPath)
 		builder.Build("notice_dir", "Building notice dir")
-		a.aapt.noticeFile = android.OptionalPathForPath(noticeAssetPath)
 	}
 
 	for _, split := range a.aapt.splits {
