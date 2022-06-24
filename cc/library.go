@@ -925,7 +925,6 @@ func (library *libraryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Fla
 		if ctx.Darwin() {
 			f = append(f,
 				"-dynamiclib",
-				"-single_module",
 				"-install_name @rpath/"+libName+flags.Toolchain.ShlibSuffix(),
 			)
 			if ctx.Arch().ArchType == android.X86 {
