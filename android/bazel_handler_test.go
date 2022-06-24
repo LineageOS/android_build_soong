@@ -57,8 +57,13 @@ func TestInvokeBazelWritesBazelFiles(t *testing.T) {
 }
 
 func TestInvokeBazelPopulatesBuildStatements(t *testing.T) {
-	bazelContext, _ := testBazelContext(t, map[bazelCommand]string{
-		bazelCommand{command: "aquery", expression: "deps(@soong_injection//mixed_builds:buildroot)"}: `
+	type testCase struct {
+		input   string
+		command string
+	}
+
+	var testCases = []testCase{
+		{`
 {
   "artifacts": [{
     "id": 1,
@@ -88,15 +93,60 @@ func TestInvokeBazelPopulatesBuildStatements(t *testing.T) {
     "label": "two"
   }]
 }`,
-	})
-	err := bazelContext.InvokeBazel(testConfig)
-	if err != nil {
-		t.Fatalf("Did not expect error invoking Bazel, but got %s", err)
+			"cd 'er' && rm -f one && touch foo",
+		}, {`
+{
+  "artifacts": [{
+    "id": 1,
+    "pathFragmentId": 10
+  }, {
+    "id": 2,
+    "pathFragmentId": 20
+  }],
+  "actions": [{
+    "targetId": 100,
+    "actionKey": "x",
+    "mnemonic": "x",
+    "arguments": ["bogus", "command"],
+    "outputIds": [1, 2],
+    "primaryOutputId": 1
+  }],
+  "pathFragments": [{
+    "id": 10,
+    "label": "one",
+    "parentId": 30
+  }, {
+    "id": 20,
+    "label": "one.d",
+    "parentId": 30
+  }, {
+    "id": 30,
+    "label": "parent"
+  }]
+}`,
+			`cd 'er' && rm -f parent/one && bogus command && sed -i'' -E 's@(^|\s|")bazel-out/@\1bo/@g' 'parent/one.d'`,
+		},
 	}
 
-	got := bazelContext.BuildStatementsToRegister()
-	if want := 1; len(got) != want {
-		t.Errorf("Expected %d registered build statements, got %#v", want, got)
+	for _, testCase := range testCases {
+		bazelContext, _ := testBazelContext(t, map[bazelCommand]string{
+			bazelCommand{command: "aquery", expression: "deps(@soong_injection//mixed_builds:buildroot)"}: testCase.input})
+
+		err := bazelContext.InvokeBazel(testConfig)
+		if err != nil {
+			t.Fatalf("Did not expect error invoking Bazel, but got %s", err)
+		}
+
+		got := bazelContext.BuildStatementsToRegister()
+		if want := 1; len(got) != want {
+			t.Errorf("expected %d registered build statements, but got %#v", want, got)
+		}
+
+		cmd := RuleBuilderCommand{}
+		createCommand(&cmd, got[0], "er", "bo", PathContextForTesting(TestConfig("out", nil, "", nil)))
+		if actual := cmd.buf.String(); testCase.command != actual {
+			t.Errorf("expected: [%s], actual: [%s]", testCase.command, actual)
+		}
 	}
 }
 
