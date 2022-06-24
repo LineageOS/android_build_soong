@@ -457,7 +457,8 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 		if version == "" || version == "current" {
 			target += strconv.Itoa(android.FutureApiLevelInt)
 		} else {
-			target += version
+			apiLevel := nativeApiLevelOrPanic(ctx, version)
+			target += apiLevel.String()
 		}
 	}
 
