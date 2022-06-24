@@ -211,7 +211,7 @@ func loadEnvConfig(ctx Context, config *configImpl) error {
 	}
 
 	if err := fetchEnvConfig(ctx, config, bc); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to fetch config file: %v\n", err)
+		ctx.Verbosef("Failed to fetch config file: %v\n", err)
 	}
 
 	configDirs := []string{
