@@ -837,40 +837,6 @@ func (d *ApexBundleDepsInfo) BuildDepsInfoLists(ctx ModuleContext, minSdkVersion
 	ctx.Phony(fmt.Sprintf("%s-depsinfo", ctx.ModuleName()), d.fullListPath, d.flatListPath)
 }
 
-// TODO(b/158059172): remove minSdkVersion allowlist
-var minSdkVersionAllowlist = func(apiMap map[string]int) map[string]ApiLevel {
-	list := make(map[string]ApiLevel, len(apiMap))
-	for name, finalApiInt := range apiMap {
-		list[name] = uncheckedFinalApiLevel(finalApiInt)
-	}
-	return list
-}(map[string]int{
-	"androidx-constraintlayout_constraintlayout-solver-nodeps": 29,
-	"apache-commons-compress":                                  29,
-	"bouncycastle_ike_digests":                                 30,
-	"brotli-java":                                              29,
-	"flatbuffer_headers":                                       30,
-	"gemmlowp_headers":                                         30,
-	"ike-internals":                                            30,
-	"libbrotli":                                                30,
-	"libcrypto_static":                                         30,
-	"libeigen":                                                 30,
-	"liblz4":                                                   30,
-	"libmdnssd":                                                30,
-	"libprocpartition":                                         30,
-	"libprotobuf-java-lite":                                    30,
-	"libprotoutil":                                             30,
-	"libtextclassifier_hash_headers":                           30,
-	"libtextclassifier_hash_static":                            30,
-	"libtflite_kernel_utils":                                   30,
-	"libzstd":                                                  30,
-	"net-utils-framework-common":                               29,
-	"philox_random_headers":                                    30,
-	"philox_random":                                            30,
-	"tensorflow_headers":                                       30,
-	"xz-java":                                                  29,
-})
-
 // Function called while walking an APEX's payload dependencies.
 //
 // Return true if the `to` module should be visited, false otherwise.
@@ -922,15 +888,13 @@ func CheckMinSdkVersion(ctx ModuleContext, minSdkVersion ApiLevel, walk WalkPayl
 		}
 		if err := to.ShouldSupportSdkVersion(ctx, minSdkVersion); err != nil {
 			toName := ctx.OtherModuleName(to)
-			if ver, ok := minSdkVersionAllowlist[toName]; !ok || ver.GreaterThan(minSdkVersion) {
-				ctx.OtherModuleErrorf(to, "should support min_sdk_version(%v) for %q: %v."+
-					"\n\nDependency path: %s\n\n"+
-					"Consider adding 'min_sdk_version: %q' to %q",
-					minSdkVersion, ctx.ModuleName(), err.Error(),
-					ctx.GetPathString(false),
-					minSdkVersion, toName)
-				return false
-			}
+			ctx.OtherModuleErrorf(to, "should support min_sdk_version(%v) for %q: %v."+
+				"\n\nDependency path: %s\n\n"+
+				"Consider adding 'min_sdk_version: %q' to %q",
+				minSdkVersion, ctx.ModuleName(), err.Error(),
+				ctx.GetPathString(false),
+				minSdkVersion, toName)
+			return false
 		}
 		return true
 	})
