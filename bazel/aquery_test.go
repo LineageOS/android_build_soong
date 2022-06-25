@@ -897,7 +897,7 @@ func flattenDepset(depsetHashToFlatten string, allDepsets map[string]AqueryDepse
 func assertFlattenedDepsets(t *testing.T, actualDepsets []AqueryDepset, expectedDepsetFiles [][]string) {
 	t.Helper()
 	if len(actualDepsets) != len(expectedDepsetFiles) {
-		t.Errorf("Expected %s depsets, but got %s depsets", expectedDepsetFiles, actualDepsets)
+		t.Errorf("Expected %d depsets, but got %d depsets", len(expectedDepsetFiles), len(actualDepsets))
 	}
 	for i, actualDepset := range actualDepsets {
 		actualFlattenedInputs := flattenDepsets([]string{actualDepset.ContentHash}, actualDepsets)
