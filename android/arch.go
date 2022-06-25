@@ -1825,7 +1825,9 @@ func getCommonTargets(targets []Target) []Target {
 	for _, t := range targets {
 		if _, found := set[t.Os.String()]; !found {
 			set[t.Os.String()] = true
-			ret = append(ret, commonTargetMap[t.Os.String()])
+			common := commonTargetMap[t.Os.String()]
+			common.HostCross = t.HostCross
+			ret = append(ret, common)
 		}
 	}
 
