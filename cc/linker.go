@@ -436,11 +436,6 @@ func (linker *baseLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 }
 
 func (linker *baseLinker) useClangLld(ctx ModuleContext) bool {
-	// Clang lld is not ready for for Darwin host executables yet.
-	// See https://lld.llvm.org/AtomLLD.html for status of lld for Mach-O.
-	if ctx.Darwin() {
-		return false
-	}
 	if linker.Properties.Use_clang_lld != nil {
 		return Bool(linker.Properties.Use_clang_lld)
 	}
