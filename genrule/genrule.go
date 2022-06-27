@@ -590,6 +590,18 @@ func (g *Module) generateCommonBuildActions(ctx android.ModuleContext) {
 }
 
 func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	// Allowlist genrule to use depfile until we have a solution to remove it.
+	// TODO(b/235582219): Remove allowlist for genrule
+	if ctx.ModuleType() == "gensrcs" &&
+		!ctx.DeviceConfig().BuildBrokenDepfile() &&
+		Bool(g.properties.Depfile) {
+		ctx.PropertyErrorf(
+			"depfile",
+			"Deprecated to ensure the module type is convertible to Bazel. "+
+				"Try specifying the dependencies explicitly so that there is no need to use depfile. "+
+				"If not possible, the escape hatch is to use BUILD_BROKEN_DEPFILE to bypass the error.")
+	}
+
 	g.generateCommonBuildActions(ctx)
 
 	// For <= 6 outputs, just embed those directly in the users. Right now, that covers >90% of
