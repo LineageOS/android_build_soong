@@ -1739,10 +1739,16 @@ func pathForInstall(ctx PathContext, os OsType, arch ArchType, partition string,
 		partionPaths = []string{"target", "product", ctx.Config().DeviceName(), partition}
 	} else {
 		osName := os.String()
-		if os == Linux || os == LinuxMusl {
+		if os == Linux {
 			// instead of linux_glibc
 			osName = "linux"
 		}
+		if os == LinuxMusl && ctx.Config().UseHostMusl() {
+			// When using musl instead of glibc, use "linux" instead of "linux_musl".  When cross
+			// compiling we will still use "linux_musl".
+			osName = "linux"
+		}
+
 		// SOONG_HOST_OUT is set to out/host/$(HOST_OS)-$(HOST_PREBUILT_ARCH)
 		// and HOST_PREBUILT_ARCH is forcibly set to x86 even on x86_64 hosts. We don't seem
 		// to have a plan to fix it (see the comment in build/make/core/envsetup.mk).

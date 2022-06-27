@@ -43,6 +43,8 @@ const (
 	osArchDarwinX86_64      = "darwin_x86_64"
 	osArchLinuxX86          = "linux_glibc_x86"
 	osArchLinuxX86_64       = "linux_glibc_x86_64"
+	osArchLinuxMuslArm      = "linux_musl_arm"
+	osArchLinuxMuslArm64    = "linux_musl_arm64"
 	osArchLinuxMuslX86      = "linux_musl_x86"
 	osArchLinuxMuslX86_64   = "linux_musl_x86_64"
 	osArchLinuxBionicArm64  = "linux_bionic_arm64"
@@ -101,6 +103,8 @@ var (
 		osArchDarwinX86_64:         "//build/bazel/platforms/os_arch:darwin_x86_64",
 		osArchLinuxX86:             "//build/bazel/platforms/os_arch:linux_glibc_x86",
 		osArchLinuxX86_64:          "//build/bazel/platforms/os_arch:linux_glibc_x86_64",
+		osArchLinuxMuslArm:         "//build/bazel/platforms/os_arch:linux_musl_arm",
+		osArchLinuxMuslArm64:       "//build/bazel/platforms/os_arch:linux_musl_arm64",
 		osArchLinuxMuslX86:         "//build/bazel/platforms/os_arch:linux_musl_x86",
 		osArchLinuxMuslX86_64:      "//build/bazel/platforms/os_arch:linux_musl_x86_64",
 		osArchLinuxBionicArm64:     "//build/bazel/platforms/os_arch:linux_bionic_arm64",
