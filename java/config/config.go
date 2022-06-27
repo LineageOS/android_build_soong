@@ -159,7 +159,7 @@ func init() {
 	pctx.HostBinToolVariable("ZipSyncCmd", "zipsync")
 	pctx.HostBinToolVariable("ApiCheckCmd", "apicheck")
 	pctx.HostBinToolVariable("D8Cmd", "d8")
-	pctx.HostBinToolVariable("R8Cmd", "r8-compat-proguard")
+	pctx.HostBinToolVariable("R8Cmd", "r8")
 	pctx.HostBinToolVariable("HiddenAPICmd", "hiddenapi")
 	pctx.HostBinToolVariable("ExtractApksCmd", "extract_apks")
 	pctx.VariableFunc("TurbineJar", func(ctx android.PackageVarContext) string {
@@ -177,7 +177,7 @@ func init() {
 	pctx.HostJavaToolVariable("MetalavaJar", "metalava.jar")
 	pctx.HostJavaToolVariable("DokkaJar", "dokka.jar")
 	pctx.HostJavaToolVariable("JetifierJar", "jetifier.jar")
-	pctx.HostJavaToolVariable("R8Jar", "r8-compat-proguard.jar")
+	pctx.HostJavaToolVariable("R8Jar", "r8.jar")
 	pctx.HostJavaToolVariable("D8Jar", "d8.jar")
 
 	pctx.HostBinToolVariable("SoongJavacWrapper", "soong_javac_wrapper")
