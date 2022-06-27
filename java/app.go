@@ -731,7 +731,7 @@ func collectAppDeps(ctx android.ModuleContext, app appDepsInterface,
 		tag := ctx.OtherModuleDependencyTag(module)
 
 		if IsJniDepTag(tag) || cc.IsSharedDepTag(tag) {
-			if dep, ok := module.(*cc.Module); ok {
+			if dep, ok := module.(cc.LinkableInterface); ok {
 				if dep.IsNdk(ctx.Config()) || dep.IsStubs() {
 					return false
 				}
