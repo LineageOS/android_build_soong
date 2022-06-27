@@ -440,6 +440,64 @@ type OutgoingTransitionContext interface {
 	// reached
 	DepTag() blueprint.DependencyTag
 }
+
+// Transition mutators implement a top-down mechanism where a module tells its
+// direct dependencies what variation they should be built in but the dependency
+// has the final say.
+//
+// When implementing a transition mutator, one needs to implement four methods:
+//   - Split() that tells what variations a module has by itself
+//   - OutgoingTransition() where a module tells what it wants from its
+//     dependency
+//   - IncomingTransition() where a module has the final say about its own
+//     variation
+//   - Mutate() that changes the state of a module depending on its variation
+//
+// That the effective variation of module B when depended on by module A is the
+// composition the outgoing transition of module A and the incoming transition
+// of module B.
+//
+// the outgoing transition should not take the properties of the dependency into
+// account, only those of the module that depends on it. For this reason, the
+// dependency is not even passed into it as an argument. Likewise, the incoming
+// transition should not take the properties of the depending module into
+// account and is thus not informed about it. This makes for a nice
+// decomposition of the decision logic.
+//
+// A given transition mutator only affects its own variation; other variations
+// stay unchanged along the dependency edges.
+//
+// Soong makes sure that all modules are created in the desired variations and
+// that dependency edges are set up correctly. This ensures that "missing
+// variation" errors do not happen and allows for more flexible changes in the
+// value of the variation among dependency edges (as oppposed to bottom-up
+// mutators where if module A in variation X depends on module B and module B
+// has that variation X, A must depend on variation X of B)
+//
+// The limited power of the context objects passed to individual mutators
+// methods also makes it more difficult to shoot oneself in the foot. Complete
+// safety is not guaranteed because no one prevents individual transition
+// mutators from mutating modules in illegal ways and for e.g. Split() or
+// Mutate() to run their own visitations of the transitive dependency of the
+// module and both of these are bad ideas, but it's better than no guardrails at
+// all.
+//
+// This model is pretty close to Bazel's configuration transitions. The mapping
+// between concepts in Soong and Bazel is as follows:
+//   - Module == configured target
+//   - Variant == configuration
+//   - Variation name == configuration flag
+//   - Variation == configuration flag value
+//   - Outgoing transition == attribute transition
+//   - Incoming transition == rule transition
+//
+// The Split() method does not have a Bazel equivalent and Bazel split
+// transitions do not have a Soong equivalent.
+//
+// Mutate() does not make sense in Bazel due to the different models of the
+// two systems: when creating new variations, Soong clones the old module and
+// thus some way is needed to change it state whereas Bazel creates each
+// configuration of a given configured target anew.
 type TransitionMutator interface {
 	// Split returns the set of variations that should be created for a module no
 	// matter who depends on it. Used when Make depends on a particular variation
@@ -448,7 +506,7 @@ type TransitionMutator interface {
 	// called on.
 	Split(ctx BaseModuleContext) []string
 
-	// OutCalled on a module to determine which variation it wants from its direct
+	// Called on a module to determine which variation it wants from its direct
 	// dependencies. The dependency itself can override this decision. This method
 	// should not mutate the module itself.
 	OutgoingTransition(ctx OutgoingTransitionContext, sourceVariation string) string
