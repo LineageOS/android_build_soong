@@ -24,6 +24,7 @@ bootstrap_go_package {
         "x86_device.go",
         "x86_64_device.go",
 
+        "arm_linux_host.go",
         "darwin_host.go",
         "x86_linux_host.go",
         "x86_linux_bionic_host.go",
