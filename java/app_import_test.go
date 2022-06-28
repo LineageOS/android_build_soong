@@ -129,6 +129,7 @@ func TestAndroidAppImport_SigningLineage(t *testing.T) {
 			certificate: "platform",
 			additional_certificates: [":additional_certificate"],
 			lineage: "lineage.bin",
+			rotationMinSdkVersion: "32",
 		}
 
 		android_app_certificate {
@@ -148,11 +149,12 @@ func TestAndroidAppImport_SigningLineage(t *testing.T) {
 	if expected != certificatesFlag {
 		t.Errorf("Incorrect certificates flags, expected: %q, got: %q", expected, certificatesFlag)
 	}
-	// Check cert signing lineage flag.
-	signingFlag := signedApk.Args["flags"]
-	expected = "--lineage lineage.bin"
-	if expected != signingFlag {
-		t.Errorf("Incorrect signing flags, expected: %q, got: %q", expected, signingFlag)
+
+	// Check cert signing flags.
+	actualCertSigningFlags := signedApk.Args["flags"]
+	expectedCertSigningFlags := "--lineage lineage.bin --rotation-min-sdk-version 32"
+	if expectedCertSigningFlags != actualCertSigningFlags {
+		t.Errorf("Incorrect signing flags, expected: %q, got: %q", expectedCertSigningFlags, actualCertSigningFlags)
 	}
 
 	rule := variant.Rule("genProvenanceMetaData")
