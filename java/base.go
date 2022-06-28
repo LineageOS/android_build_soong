@@ -1072,6 +1072,13 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 		kotlincFlags := j.properties.Kotlincflags
 		CheckKotlincFlags(ctx, kotlincFlags)
 
+		// This is needed for code that depends on libraries that use @JvmDefault
+		// -Xjvm-default=all will be the default in a future version of kotlin
+		// according to https://blog.jetbrains.com/kotlin/2020/07/kotlin-1-4-m3-generating-default-methods-in-interfaces/
+		if flags.javaVersion >= JAVA_VERSION_8 {
+			kotlincFlags = append(kotlincFlags, "-Xjvm-default=all")
+		}
+
 		// Workaround for KT-46512
 		kotlincFlags = append(kotlincFlags, "-Xsam-conversions=class")
 
