@@ -106,6 +106,9 @@ type LinkableInterface interface {
 	UnstrippedOutputFile() android.Path
 	CoverageFiles() android.Paths
 
+	// CoverageOutputFile returns the output archive of gcno coverage information files.
+	CoverageOutputFile() android.OptionalPath
+
 	NonCcVariants() bool
 
 	SelectedStl() string
@@ -132,6 +135,12 @@ type LinkableInterface interface {
 	InVendor() bool
 
 	UseSdk() bool
+
+	// IsNdk returns true if the library is in the configs known NDK list.
+	IsNdk(config android.Config) bool
+
+	// IsStubs returns true if the this is a stubs library.
+	IsStubs() bool
 
 	// IsLlndk returns true for both LLNDK (public) and LLNDK-private libs.
 	IsLlndk() bool
