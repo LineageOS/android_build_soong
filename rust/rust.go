@@ -695,6 +695,19 @@ func (mod *Module) CoverageFiles() android.Paths {
 	panic(fmt.Errorf("CoverageFiles called on non-library module: %q", mod.BaseModuleName()))
 }
 
+// Rust does not produce gcno files, and therefore does not produce a coverage archive.
+func (mod *Module) CoverageOutputFile() android.OptionalPath {
+	return android.OptionalPath{}
+}
+
+func (mod *Module) IsNdk(config android.Config) bool {
+	return false
+}
+
+func (mod *Module) IsStubs() bool {
+	return false
+}
+
 func (mod *Module) installable(apexInfo android.ApexInfo) bool {
 	if !proptools.BoolDefault(mod.Installable(), mod.EverInstallable()) {
 		return false
