@@ -430,7 +430,7 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 	}
 
 	// Enable Memtag for all components in the include paths (for Aarch64 only)
-	if ctx.Arch().ArchType == android.Arm64 && ctx.toolchain().Bionic() {
+	if ctx.Arch().ArchType == android.Arm64 {
 		if ctx.Config().MemtagHeapSyncEnabledForPath(ctx.ModuleDir()) {
 			if s.Memtag_heap == nil {
 				s.Memtag_heap = proptools.BoolPtr(true)
@@ -460,17 +460,17 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 	}
 
 	// HWASan requires AArch64 hardware feature (top-byte-ignore).
-	if ctx.Arch().ArchType != android.Arm64 || !ctx.toolchain().Bionic() {
+	if ctx.Arch().ArchType != android.Arm64 {
 		s.Hwaddress = nil
 	}
 
 	// SCS is only implemented on AArch64.
-	if ctx.Arch().ArchType != android.Arm64 || !ctx.toolchain().Bionic() {
+	if ctx.Arch().ArchType != android.Arm64 {
 		s.Scs = nil
 	}
 
 	// Memtag_heap is only implemented on AArch64.
-	if ctx.Arch().ArchType != android.Arm64 || !ctx.toolchain().Bionic() {
+	if ctx.Arch().ArchType != android.Arm64 {
 		s.Memtag_heap = nil
 	}
 
@@ -715,10 +715,6 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 			flags.Local.CFlags = append(flags.Local.CFlags, "-fno-sanitize=vptr,function")
 		}
 
-		if enableMinimalRuntime(sanitize) {
-			flags.Local.CFlags = append(flags.Local.CFlags, strings.Join(minimalRuntimeFlags, " "))
-		}
-
 		if Bool(sanitize.Properties.Sanitize.Fuzzer) {
 			// When fuzzing, we wish to crash with diagnostics on any bug.
 			flags.Local.CFlags = append(flags.Local.CFlags, "-fno-sanitize-trap=all", "-fno-sanitize-recover=all")
@@ -727,6 +723,11 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 		} else {
 			flags.Local.CFlags = append(flags.Local.CFlags, "-fsanitize-trap=all", "-ftrap-function=abort")
 		}
+
+		if enableMinimalRuntime(sanitize) {
+			flags.Local.CFlags = append(flags.Local.CFlags, strings.Join(minimalRuntimeFlags, " "))
+		}
+
 		// http://b/119329758, Android core does not boot up with this sanitizer yet.
 		if toDisableImplicitIntegerChange(flags.Local.CFlags) {
 			flags.Local.CFlags = append(flags.Local.CFlags, "-fno-sanitize=implicit-integer-sign-change")

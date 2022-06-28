@@ -1697,6 +1697,10 @@ func (c *deviceConfig) BuildBrokenInputDir(name string) bool {
 	return InList(name, c.config.productVariables.BuildBrokenInputDirModules)
 }
 
+func (c *deviceConfig) BuildBrokenDepfile() bool {
+	return Bool(c.config.productVariables.BuildBrokenDepfile)
+}
+
 func (c *deviceConfig) RequiresInsecureExecmemForSwiftshader() bool {
 	return c.config.productVariables.RequiresInsecureExecmemForSwiftshader
 }

@@ -17,6 +17,7 @@ package bazel
 import (
 	"fmt"
 	"reflect"
+	"sort"
 	"testing"
 )
 
@@ -1484,50 +1485,54 @@ func assertBuildStatements(t *testing.T, expected []BuildStatement, actual []Bui
 			len(expected), len(actual), expected, actual)
 		return
 	}
-ACTUAL_LOOP:
-	for _, actualStatement := range actual {
-		for _, expectedStatement := range expected {
-			if buildStatementEquals(actualStatement, expectedStatement) {
-				continue ACTUAL_LOOP
-			}
+	type compareFn = func(i int, j int) bool
+	byCommand := func(slice []BuildStatement) compareFn {
+		return func(i int, j int) bool {
+			return slice[i].Command < slice[j].Command
 		}
-		t.Errorf("unexpected build statement %#v.\n expected: %#v",
-			actualStatement, expected)
-		return
+	}
+	sort.SliceStable(expected, byCommand(expected))
+	sort.SliceStable(actual, byCommand(actual))
+	for i, actualStatement := range actual {
+		expectedStatement := expected[i]
+		if differingField := buildStatementEquals(actualStatement, expectedStatement); differingField != "" {
+			t.Errorf("%s differs\nunexpected build statement %#v.\nexpected: %#v",
+				differingField, actualStatement, expected)
+			return
+		}
 	}
 }
 
-func buildStatementEquals(first BuildStatement, second BuildStatement) bool {
+func buildStatementEquals(first BuildStatement, second BuildStatement) string {
 	if first.Mnemonic != second.Mnemonic {
-		return false
+		return "Mnemonic"
 	}
 	if first.Command != second.Command {
-		return false
+		return "Command"
 	}
 	// Ordering is significant for environment variables.
 	if !reflect.DeepEqual(first.Env, second.Env) {
-		return false
+		return "Env"
 	}
 	// Ordering is irrelevant for input and output paths, so compare sets.
-	if !reflect.DeepEqual(stringSet(first.InputPaths), stringSet(second.InputPaths)) {
-		return false
+	if !reflect.DeepEqual(sortedStrings(first.InputPaths), sortedStrings(second.InputPaths)) {
+		return "InputPaths"
 	}
-	if !reflect.DeepEqual(stringSet(first.OutputPaths), stringSet(second.OutputPaths)) {
-		return false
+	if !reflect.DeepEqual(sortedStrings(first.OutputPaths), sortedStrings(second.OutputPaths)) {
+		return "OutputPaths"
 	}
-	if !reflect.DeepEqual(stringSet(first.SymlinkPaths), stringSet(second.SymlinkPaths)) {
-		return false
+	if !reflect.DeepEqual(sortedStrings(first.SymlinkPaths), sortedStrings(second.SymlinkPaths)) {
+		return "SymlinkPaths"
 	}
 	if first.Depfile != second.Depfile {
-		return false
+		return "Depfile"
 	}
-	return true
+	return ""
 }
 
-func stringSet(stringSlice []string) map[string]struct{} {
-	stringMap := make(map[string]struct{})
-	for _, s := range stringSlice {
-		stringMap[s] = struct{}{}
-	}
-	return stringMap
+func sortedStrings(stringSlice []string) []string {
+	sorted := make([]string, len(stringSlice))
+	copy(sorted, stringSlice)
+	sort.Strings(sorted)
+	return sorted
 }
