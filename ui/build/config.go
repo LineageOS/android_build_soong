@@ -18,11 +18,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"android/soong/shared"
@@ -36,6 +38,15 @@ const (
 	envConfigDir  = "vendor/google/tools/soong_config"
 	jsonSuffix    = "json"
 )
+
+var (
+	rbeRandPrefix int
+)
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+	rbeRandPrefix = rand.Intn(1000)
+}
 
 type Config struct{ *configImpl }
 
@@ -998,34 +1009,25 @@ func (c *configImpl) StartRBE() bool {
 	return true
 }
 
-func (c *configImpl) rbeLogDir() string {
-	for _, f := range []string{"RBE_log_dir", "FLAG_log_dir"} {
+func (c *configImpl) rbeProxyLogsDir() string {
+	for _, f := range []string{"RBE_proxy_log_dir", "FLAG_output_dir"} {
 		if v, ok := c.environ.Get(f); ok {
 			return v
 		}
 	}
-	if c.Dist() {
-		return c.LogsDir()
-	}
-	return c.OutDir()
+	buildTmpDir := shared.TempDirForOutDir(c.SoongOutDir())
+	return filepath.Join(buildTmpDir, "rbe")
 }
 
-func (c *configImpl) rbeStatsOutputDir() string {
-	for _, f := range []string{"RBE_output_dir", "FLAG_output_dir"} {
-		if v, ok := c.environ.Get(f); ok {
-			return v
+func (c *configImpl) shouldCleanupRBELogsDir() bool {
+	// Perform a log directory cleanup only when the log directory
+	// is auto created by the build rather than user-specified.
+	for _, f := range []string{"RBE_proxy_log_dir", "FLAG_output_dir"} {
+		if _, ok := c.environ.Get(f); ok {
+			return false
 		}
 	}
-	return c.rbeLogDir()
-}
-
-func (c *configImpl) rbeLogPath() string {
-	for _, f := range []string{"RBE_log_path", "FLAG_log_path"} {
-		if v, ok := c.environ.Get(f); ok {
-			return v
-		}
-	}
-	return fmt.Sprintf("text://%v/reproxy_log.txt", c.rbeLogDir())
+	return true
 }
 
 func (c *configImpl) rbeExecRoot() string {
@@ -1075,6 +1077,23 @@ func (c *configImpl) rbeAuth() (string, string) {
 		}
 	}
 	return "RBE_use_application_default_credentials", "true"
+}
+
+func (c *configImpl) rbeSockAddr(dir string) (string, error) {
+	maxNameLen := len(syscall.RawSockaddrUnix{}.Path)
+	base := fmt.Sprintf("reproxy_%v.sock", rbeRandPrefix)
+
+	name := filepath.Join(dir, base)
+	if len(name) < maxNameLen {
+		return name, nil
+	}
+
+	name = filepath.Join("/tmp", base)
+	if len(name) < maxNameLen {
+		return name, nil
+	}
+
+	return "", fmt.Errorf("cannot generate a proxy socket address shorter than the limit of %v", maxNameLen)
 }
 
 func (c *configImpl) UseRemoteBuild() bool {
