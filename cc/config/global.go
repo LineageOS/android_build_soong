@@ -117,6 +117,13 @@ var (
 
 	commonGlobalConlyflags = []string{}
 
+	commonGlobalAsflags = []string{
+		"-D__ASSEMBLY__",
+		// TODO(b/235105792): override global -fdebug-default-version=5, it is causing $TMPDIR to
+		// end up in the dwarf data for crtend_so.S.
+		"-fdebug-default-version=4",
+	}
+
 	deviceGlobalCflags = []string{
 		"-ffunction-sections",
 		"-fdata-sections",
@@ -313,6 +320,7 @@ func init() {
 	}
 
 	exportedVars.ExportStringListStaticVariable("CommonGlobalConlyflags", commonGlobalConlyflags)
+	exportedVars.ExportStringListStaticVariable("CommonGlobalAsflags", commonGlobalAsflags)
 	exportedVars.ExportStringListStaticVariable("DeviceGlobalCppflags", deviceGlobalCppflags)
 	exportedVars.ExportStringListStaticVariable("DeviceGlobalLdflags", deviceGlobalLdflags)
 	exportedVars.ExportStringListStaticVariable("DeviceGlobalLldflags", deviceGlobalLldflags)
