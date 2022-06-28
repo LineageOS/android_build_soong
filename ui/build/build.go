@@ -245,6 +245,7 @@ func Build(ctx Context, config Config) {
 
 	if config.StartRBE() {
 		startRBE(ctx, config)
+		defer DumpRBEMetrics(ctx, config, filepath.Join(config.LogsDir(), "rbe_metrics.pb"))
 	}
 
 	if what&RunProductConfig != 0 {
