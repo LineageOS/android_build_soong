@@ -19,6 +19,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"runtime"
 	"syscall"
 	"time"
 
@@ -87,6 +88,13 @@ func getRBEVars(ctx Context, config Config) map[string]string {
 		}
 		vars["RBE_server_address"] = fmt.Sprintf("unix://%v", name)
 	}
+
+	rf := 1.0
+	if config.Parallel() < runtime.NumCPU() {
+		rf = float64(config.Parallel()) / float64(runtime.NumCPU())
+	}
+	vars["RBE_local_resource_fraction"] = fmt.Sprintf("%.2f", rf)
+
 	k, v := config.rbeAuth()
 	vars[k] = v
 	return vars
