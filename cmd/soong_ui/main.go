@@ -221,6 +221,7 @@ func main() {
 		}
 		defer build.UploadMetrics(buildCtx, config, c.simpleOutput, buildStarted, files...)
 		defer met.Dump(soongMetricsFile)
+		defer build.CheckProdCreds(buildCtx, config)
 	}
 
 	// Read the time at the starting point.
