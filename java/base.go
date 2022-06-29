@@ -1419,17 +1419,18 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 	j.implementationAndResourcesJar = implementationAndResourcesJar
 
 	// Enable dex compilation for the APEX variants, unless it is disabled explicitly
+	compileDex := j.dexProperties.Compile_dex
 	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
 	if j.DirectlyInAnyApex() && !apexInfo.IsForPlatform() {
-		if j.dexProperties.Compile_dex == nil {
-			j.dexProperties.Compile_dex = proptools.BoolPtr(true)
+		if compileDex == nil {
+			compileDex = proptools.BoolPtr(true)
 		}
 		if j.deviceProperties.Hostdex == nil {
 			j.deviceProperties.Hostdex = proptools.BoolPtr(true)
 		}
 	}
 
-	if ctx.Device() && (Bool(j.properties.Installable) || Bool(j.dexProperties.Compile_dex)) {
+	if ctx.Device() && (Bool(j.properties.Installable) || Bool(compileDex)) {
 		if j.hasCode(ctx) {
 			if j.shouldInstrumentStatic(ctx) {
 				j.dexer.extraProguardFlagFiles = append(j.dexer.extraProguardFlagFiles,
