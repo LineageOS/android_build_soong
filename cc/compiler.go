@@ -457,7 +457,8 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 		if version == "" || version == "current" {
 			target += strconv.Itoa(android.FutureApiLevelInt)
 		} else {
-			target += version
+			apiLevel := nativeApiLevelOrPanic(ctx, version)
+			target += apiLevel.String()
 		}
 	}
 
@@ -493,11 +494,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 		}
 	}
 
-	flags.Global.AsFlags = append(flags.Global.AsFlags, "-D__ASSEMBLY__")
-
-	// TODO(b/235105792): override global -fdebug-default-version=5, it is causing $TMPDIR to
-	// end up in the dwarf data for crtend_so.S.
-	flags.Global.AsFlags = append(flags.Global.AsFlags, "-fdebug-default-version=4")
+	flags.Global.AsFlags = append(flags.Global.AsFlags, "${config.CommonGlobalAsflags}")
 
 	flags.Global.CppFlags = append(flags.Global.CppFlags, tc.Cppflags())
 

@@ -3722,6 +3722,25 @@ func TestMinSdkVersionInClangTriple(t *testing.T) {
 	android.AssertStringDoesContain(t, "min sdk version", cFlags, "-target aarch64-linux-android29")
 }
 
+func TestNonDigitMinSdkVersionInClangTriple(t *testing.T) {
+	bp := `
+		cc_library_shared {
+			name: "libfoo",
+			srcs: ["foo.c"],
+			min_sdk_version: "S",
+		}
+	`
+	result := android.GroupFixturePreparers(
+		prepareForCcTest,
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			variables.Platform_version_active_codenames = []string{"UpsideDownCake", "Tiramisu"}
+		}),
+	).RunTestWithBp(t, bp)
+	ctx := result.TestContext
+	cFlags := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_shared").Rule("cc").Args["cFlags"]
+	android.AssertStringDoesContain(t, "min sdk version", cFlags, "-target aarch64-linux-android31")
+}
+
 func TestIncludeDirsExporting(t *testing.T) {
 
 	// Trim spaces from the beginning, end and immediately after any newline characters. Leaves
@@ -4076,7 +4095,7 @@ func TestIncludeDirectoryOrdering(t *testing.T) {
 		{
 			name:     "assemble",
 			src:      "foo.s",
-			expected: combineSlices(baseExpectedFlags, []string{"-D__ASSEMBLY__", "-fdebug-default-version=4"}, expectedIncludes, lastIncludes),
+			expected: combineSlices(baseExpectedFlags, []string{"${config.CommonGlobalAsflags}"}, expectedIncludes, lastIncludes),
 		},
 	}
 
