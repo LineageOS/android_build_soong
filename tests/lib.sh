@@ -116,6 +116,7 @@ function run_soong {
 
 function create_mock_bazel {
   copy_directory build/bazel
+  copy_directory build/bazel_common_rules
 
   symlink_directory prebuilts/bazel
   symlink_directory prebuilts/clang
