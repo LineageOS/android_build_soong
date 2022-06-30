@@ -246,7 +246,6 @@ func TestAqueryMultiArchGenrule(t *testing.T) {
 	expectedFlattenedInputs := []string{
 		"../sourceroot/bionic/libc/SYSCALLS.TXT",
 		"../sourceroot/bionic/libc/tools/gensyscalls.py",
-		"../bazel_tools/tools/genrule/genrule-setup.sh",
 	}
 	// In this example, each depset should have the same expected inputs.
 	for _, actualDepset := range actualDepsets {
@@ -769,6 +768,92 @@ func TestTransitiveInputDepsets(t *testing.T) {
 	actualFlattenedInputs := flattenDepsets(actualDepsetHashes, actualDepsets)
 	if !reflect.DeepEqual(actualFlattenedInputs, expectedFlattenedInputs) {
 		t.Errorf("Expected flattened inputs %v, but got %v", expectedFlattenedInputs, actualFlattenedInputs)
+	}
+}
+
+func TestBazelOutRemovalFromInputDepsets(t *testing.T) {
+	const inputString = `{
+  "artifacts": [{
+    "id": 1,
+    "pathFragmentId": 10
+  }, {
+    "id": 2,
+    "pathFragmentId": 20
+  }, {
+    "id": 3,
+    "pathFragmentId": 30
+  }, {
+    "id": 4,
+    "pathFragmentId": 40
+  }],
+  "depSetOfFiles": [{
+    "id": 1111,
+    "directArtifactIds": [3 , 4]
+  }],
+  "actions": [{
+    "targetId": 100,
+    "actionKey": "x",
+    "inputDepSetIds": [1111],
+    "mnemonic": "x",
+    "arguments": ["bogus", "command"],
+    "outputIds": [2],
+    "primaryOutputId": 1
+  }],
+  "pathFragments": [{
+    "id": 10,
+    "label": "input"
+  }, {
+    "id": 20,
+    "label": "output"
+  }, {
+    "id": 30,
+    "label": "dep1",
+    "parentId": 50
+  }, {
+    "id": 40,
+    "label": "dep2",
+    "parentId": 60
+  }, {
+    "id": 50,
+    "label": "bazel_tools",
+    "parentId": 60
+  }, {
+    "id": 60,
+    "label": ".."
+  }]
+}`
+	actualBuildStatements, actualDepsets, _ := AqueryBuildStatements([]byte(inputString))
+	if len(actualDepsets) != 1 {
+		t.Errorf("expected 1 depset but found %#v", actualDepsets)
+		return
+	}
+	dep2Found := false
+	for _, dep := range flattenDepsets([]string{actualDepsets[0].ContentHash}, actualDepsets) {
+		if dep == "../bazel_tools/dep1" {
+			t.Errorf("dependency %s expected to be removed but still exists", dep)
+		} else if dep == "../dep2" {
+			dep2Found = true
+		}
+	}
+	if !dep2Found {
+		t.Errorf("dependency ../dep2 expected but not found")
+	}
+
+	expectedBuildStatement := BuildStatement{
+		Command:     "bogus command",
+		OutputPaths: []string{"output"},
+		Mnemonic:    "x",
+	}
+	buildStatementFound := false
+	for _, actualBuildStatement := range actualBuildStatements {
+		if buildStatementEquals(actualBuildStatement, expectedBuildStatement) == "" {
+			buildStatementFound = true
+			break
+		}
+	}
+	if !buildStatementFound {
+		t.Errorf("expected but missing %#v in %#v", expectedBuildStatement, actualBuildStatements)
+		return
 	}
 }
 
@@ -1332,7 +1417,7 @@ func TestPythonZipperActionSuccess(t *testing.T) {
 			Command: "../bazel_tools/tools/zip/zipper/zipper cC python_binary.zip __main__.py=bazel-out/k8-fastbuild/bin/python_binary.temp " +
 				"__init__.py= runfiles/__main__/__init__.py= runfiles/__main__/python_binary.py=python_binary.py  && " +
 				"../bazel_tools/tools/zip/zipper/zipper x python_binary.zip -d python_binary.runfiles && ln -sf runfiles/__main__ python_binary.runfiles",
-			InputPaths:  []string{"../bazel_tools/tools/zip/zipper/zipper", "python_binary.py"},
+			InputPaths:  []string{"python_binary.py"},
 			OutputPaths: []string{"python_binary.zip"},
 			Mnemonic:    "PythonZipper",
 		},
@@ -1464,7 +1549,7 @@ func TestPythonZipperActionNoOutput(t *testing.T) {
   }]
 }`
 	_, _, err := AqueryBuildStatements([]byte(inputString))
-	assertError(t, err, `Expect 1+ input and 1 output to python zipper action, got: input ["../bazel_tools/tools/zip/zipper/zipper" "python_binary.py"], output []`)
+	assertError(t, err, `Expect 1+ input and 1 output to python zipper action, got: input ["python_binary.py"], output []`)
 }
 
 func assertError(t *testing.T, err error, expected string) {
@@ -1497,7 +1582,7 @@ func assertBuildStatements(t *testing.T, expected []BuildStatement, actual []Bui
 		expectedStatement := expected[i]
 		if differingField := buildStatementEquals(actualStatement, expectedStatement); differingField != "" {
 			t.Errorf("%s differs\nunexpected build statement %#v.\nexpected: %#v",
-				differingField, actualStatement, expected)
+				differingField, actualStatement, expectedStatement)
 			return
 		}
 	}
