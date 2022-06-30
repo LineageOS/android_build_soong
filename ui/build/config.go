@@ -1242,8 +1242,38 @@ func (c *configImpl) rbeSockAddr(dir string) (string, error) {
 	return "", fmt.Errorf("cannot generate a proxy socket address shorter than the limit of %v", maxNameLen)
 }
 
+// IsGooglerEnvironment returns true if the current build is running
+// on a Google developer machine and false otherwise.
+func (c *configImpl) IsGooglerEnvironment() bool {
+	cf := "ANDROID_BUILD_ENVIRONMENT_CONFIG"
+	if v, ok := c.environ.Get(cf); ok {
+		return v == "googler"
+	}
+	return false
+}
+
+// GoogleProdCredsExist determine whether credentials exist on the
+// Googler machine to use remote execution.
+func (c *configImpl) GoogleProdCredsExist() bool {
+	if _, err := exec.Command("/usr/bin/prodcertstatus", "--simple_output", "--nocheck_loas").Output(); err != nil {
+		return false
+	}
+	return true
+}
+
+// UseRemoteBuild indicates whether to use a remote build acceleration system
+// to speed up the build.
 func (c *configImpl) UseRemoteBuild() bool {
 	return c.UseGoma() || c.UseRBE()
+}
+
+// StubbyExists checks whether the stubby binary exists on the machine running
+// the build.
+func (c *configImpl) StubbyExists() bool {
+	if _, err := exec.LookPath("stubby"); err != nil {
+		return false
+	}
+	return true
 }
 
 // RemoteParallel controls how many remote jobs (i.e., commands which contain
