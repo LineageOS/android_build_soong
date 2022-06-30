@@ -324,3 +324,69 @@ cc_library_headers {
 		},
 	})
 }
+
+func TestCcLibraryHeadersExportedStaticLibHeadersReexported(t *testing.T) {
+	runCcLibraryHeadersTestCase(t, bp2buildTestCase{
+		description:                "cc_library_headers exported_static_lib_headers is reexported",
+		moduleTypeUnderTest:        "cc_library_headers",
+		moduleTypeUnderTestFactory: cc.LibraryHeaderFactory,
+		filesystem:                 map[string]string{},
+		blueprint: soongCcLibraryHeadersPreamble + `
+cc_library_headers {
+		name: "foo_headers",
+		export_static_lib_headers: ["foo_export"],
+		static_libs: ["foo_export", "foo_no_reexport"],
+    bazel_module: { bp2build_available: true },
+}
+` + simpleModuleDoNotConvertBp2build("cc_library_headers", "foo_export"),
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_library_headers", "foo_headers", attrNameToString{
+				"deps": `[":foo_export"]`,
+			}),
+		},
+	})
+}
+
+func TestCcLibraryHeadersExportedSharedLibHeadersReexported(t *testing.T) {
+	runCcLibraryHeadersTestCase(t, bp2buildTestCase{
+		description:                "cc_library_headers exported_shared_lib_headers is reexported",
+		moduleTypeUnderTest:        "cc_library_headers",
+		moduleTypeUnderTestFactory: cc.LibraryHeaderFactory,
+		filesystem:                 map[string]string{},
+		blueprint: soongCcLibraryHeadersPreamble + `
+cc_library_headers {
+		name: "foo_headers",
+		export_shared_lib_headers: ["foo_export"],
+		shared_libs: ["foo_export", "foo_no_reexport"],
+    bazel_module: { bp2build_available: true },
+}
+` + simpleModuleDoNotConvertBp2build("cc_library_headers", "foo_export"),
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_library_headers", "foo_headers", attrNameToString{
+				"deps": `[":foo_export"]`,
+			}),
+		},
+	})
+}
+
+func TestCcLibraryHeadersExportedHeaderLibHeadersReexported(t *testing.T) {
+	runCcLibraryHeadersTestCase(t, bp2buildTestCase{
+		description:                "cc_library_headers exported_header_lib_headers is reexported",
+		moduleTypeUnderTest:        "cc_library_headers",
+		moduleTypeUnderTestFactory: cc.LibraryHeaderFactory,
+		filesystem:                 map[string]string{},
+		blueprint: soongCcLibraryHeadersPreamble + `
+cc_library_headers {
+		name: "foo_headers",
+		export_header_lib_headers: ["foo_export"],
+		header_libs: ["foo_export", "foo_no_reexport"],
+    bazel_module: { bp2build_available: true },
+}
+` + simpleModuleDoNotConvertBp2build("cc_library_headers", "foo_export"),
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_library_headers", "foo_headers", attrNameToString{
+				"deps": `[":foo_export"]`,
+			}),
+		},
+	})
+}
