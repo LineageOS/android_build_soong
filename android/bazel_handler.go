@@ -879,12 +879,6 @@ func (c *bazelSingleton) GenerateBuildActions(ctx SingletonContext) {
 		}
 		rule := NewRuleBuilder(pctx, ctx)
 		createCommand(rule.Command(), buildStatement, executionRoot, bazelOutDir, ctx)
-		// This is required to silence warnings pertaining to unexpected timestamps. Particularly,
-		// some Bazel builtins (such as files in the bazel_tools directory) have far-future
-		// timestamps. Without restat, Ninja would emit warnings that the input files of a
-		// build statement have later timestamps than the outputs.
-		rule.Restat()
-
 		desc := fmt.Sprintf("%s: %s", buildStatement.Mnemonic, buildStatement.OutputPaths)
 		rule.Build(fmt.Sprintf("bazel %d", index), desc)
 	}
@@ -899,7 +893,7 @@ func createCommand(cmd *RuleBuilderCommand, buildStatement bazel.BuildStatement,
 	if len(buildStatement.OutputPaths) > 0 {
 		cmd.Text("rm -f")
 		for _, outputPath := range buildStatement.OutputPaths {
-			cmd.Text(outputPath)
+			cmd.Text(fmt.Sprintf("'%s'", outputPath))
 		}
 		cmd.Text("&&")
 	}
