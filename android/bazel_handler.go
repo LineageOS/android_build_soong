@@ -949,8 +949,15 @@ func getCqueryId(key cqueryKey) string {
 func getConfigString(key cqueryKey) string {
 	arch := key.configKey.arch
 	if len(arch) == 0 || arch == "common" {
-		// Use host platform, which is currently hardcoded to be x86_64.
-		arch = "x86_64"
+		if key.configKey.osType.Class == Device {
+			// For the generic Android, the expected result is "target|android", which
+			// corresponds to the product_variable_config named "android_target" in
+			// build/bazel/platforms/BUILD.bazel.
+			arch = "target"
+		} else {
+			// Use host platform, which is currently hardcoded to be x86_64.
+			arch = "x86_64"
+		}
 	}
 	osName := key.configKey.osType.Name
 	if len(osName) == 0 || osName == "common_os" || osName == "linux_glibc" {
