@@ -25,28 +25,14 @@ func TestAqueryMultiArchGenrule(t *testing.T) {
 	// This input string is retrieved from a real build of bionic-related genrules.
 	const inputString = `
 {
-  "artifacts": [{
-    "id": 1,
-    "pathFragmentId": 1
-  }, {
-    "id": 2,
-    "pathFragmentId": 6
-  }, {
-    "id": 3,
-    "pathFragmentId": 8
-  }, {
-    "id": 4,
-    "pathFragmentId": 12
-  }, {
-    "id": 5,
-    "pathFragmentId": 19
-  }, {
-    "id": 6,
-    "pathFragmentId": 20
-  }, {
-    "id": 7,
-    "pathFragmentId": 21
-  }],
+  "artifacts": [
+    { "id": 1, "pathFragmentId": 1 },
+    { "id": 2, "pathFragmentId": 6 },
+    { "id": 3, "pathFragmentId": 8 },
+    { "id": 4, "pathFragmentId": 12 },
+    { "id": 5, "pathFragmentId": 19 },
+    { "id": 6, "pathFragmentId": 20 },
+    { "id": 7, "pathFragmentId": 21 }],
   "actions": [{
     "targetId": 1,
     "actionKey": "ab53f6ecbdc2ee8cb8812613b63205464f1f5083f6dca87081a0a398c0f1ecf7",
@@ -100,129 +86,45 @@ func TestAqueryMultiArchGenrule(t *testing.T) {
     "outputIds": [7],
     "primaryOutputId": 7
   }],
-  "targets": [{
-    "id": 1,
-    "label": "@sourceroot//bionic/libc:syscalls-arm",
-    "ruleClassId": 1
-  }, {
-    "id": 2,
-    "label": "@sourceroot//bionic/libc:syscalls-x86",
-    "ruleClassId": 1
-  }, {
-    "id": 3,
-    "label": "@sourceroot//bionic/libc:syscalls-x86_64",
-    "ruleClassId": 1
-  }, {
-    "id": 4,
-    "label": "@sourceroot//bionic/libc:syscalls-arm64",
-    "ruleClassId": 1
-  }],
-  "depSetOfFiles": [{
-    "id": 1,
-    "directArtifactIds": [1, 2, 3]
-  }, {
-    "id": 2,
-    "directArtifactIds": [1, 2, 3]
-  }, {
-    "id": 3,
-    "directArtifactIds": [1, 2, 3]
-  }, {
-    "id": 4,
-    "directArtifactIds": [1, 2, 3]
-  }],
+  "targets": [
+    { "id": 1, "label": "@sourceroot//bionic/libc:syscalls-arm", "ruleClassId": 1 },
+    { "id": 2, "label": "@sourceroot//bionic/libc:syscalls-x86", "ruleClassId": 1 },
+    { "id": 3, "label": "@sourceroot//bionic/libc:syscalls-x86_64", "ruleClassId": 1 },
+    { "id": 4, "label": "@sourceroot//bionic/libc:syscalls-arm64", "ruleClassId": 1 }],
+  "depSetOfFiles": [
+    { "id": 1, "directArtifactIds": [1, 2, 3] },
+    { "id": 2, "directArtifactIds": [1, 2, 3] },
+    { "id": 3, "directArtifactIds": [1, 2, 3] },
+    { "id": 4, "directArtifactIds": [1, 2, 3] }],
   "configuration": [{
     "id": 1,
     "mnemonic": "k8-fastbuild",
     "platformName": "k8",
     "checksum": "485c362832c178e367d972177f68e69e0981e51e67ef1c160944473db53fe046"
   }],
-  "ruleClasses": [{
-    "id": 1,
-    "name": "genrule"
-  }],
-  "pathFragments": [{
-    "id": 5,
-    "label": ".."
-  }, {
-    "id": 4,
-    "label": "sourceroot",
-    "parentId": 5
-  }, {
-    "id": 3,
-    "label": "bionic",
-    "parentId": 4
-  }, {
-    "id": 2,
-    "label": "libc",
-    "parentId": 3
-  }, {
-    "id": 1,
-    "label": "SYSCALLS.TXT",
-    "parentId": 2
-  }, {
-    "id": 7,
-    "label": "tools",
-    "parentId": 2
-  }, {
-    "id": 6,
-    "label": "gensyscalls.py",
-    "parentId": 7
-  }, {
-    "id": 11,
-    "label": "bazel_tools",
-    "parentId": 5
-  }, {
-    "id": 10,
-    "label": "tools",
-    "parentId": 11
-  }, {
-    "id": 9,
-    "label": "genrule",
-    "parentId": 10
-  }, {
-    "id": 8,
-    "label": "genrule-setup.sh",
-    "parentId": 9
-  }, {
-    "id": 18,
-    "label": "bazel-out"
-  }, {
-    "id": 17,
-    "label": "sourceroot",
-    "parentId": 18
-  }, {
-    "id": 16,
-    "label": "k8-fastbuild",
-    "parentId": 17
-  }, {
-    "id": 15,
-    "label": "bin",
-    "parentId": 16
-  }, {
-    "id": 14,
-    "label": "bionic",
-    "parentId": 15
-  }, {
-    "id": 13,
-    "label": "libc",
-    "parentId": 14
-  }, {
-    "id": 12,
-    "label": "syscalls-arm.S",
-    "parentId": 13
-  }, {
-    "id": 19,
-    "label": "syscalls-x86.S",
-    "parentId": 13
-  }, {
-    "id": 20,
-    "label": "syscalls-x86_64.S",
-    "parentId": 13
-  }, {
-    "id": 21,
-    "label": "syscalls-arm64.S",
-    "parentId": 13
-  }]
+  "ruleClasses": [{ "id": 1, "name": "genrule"}],
+  "pathFragments": [
+    { "id": 5, "label": ".." },
+    { "id": 4, "label": "sourceroot", "parentId": 5 },
+    { "id": 3, "label": "bionic", "parentId": 4 },
+    { "id": 2, "label": "libc", "parentId": 3 },
+    { "id": 1, "label": "SYSCALLS.TXT", "parentId": 2 },
+    { "id": 7, "label": "tools", "parentId": 2 },
+    { "id": 6, "label": "gensyscalls.py", "parentId": 7 },
+    { "id": 11, "label": "bazel_tools", "parentId": 5 },
+    { "id": 10, "label": "tools", "parentId": 11 },
+    { "id": 9, "label": "genrule", "parentId": 10 },
+    { "id": 8, "label": "genrule-setup.sh", "parentId": 9 },
+    { "id": 18, "label": "bazel-out" },
+    { "id": 17, "label": "sourceroot", "parentId": 18 },
+    { "id": 16, "label": "k8-fastbuild", "parentId": 17 },
+    { "id": 15, "label": "bin", "parentId": 16 },
+    { "id": 14, "label": "bionic", "parentId": 15 },
+    { "id": 13, "label": "libc", "parentId": 14 },
+    { "id": 12, "label": "syscalls-arm.S", "parentId": 13 },
+    { "id": 19, "label": "syscalls-x86.S", "parentId": 13 },
+    { "id": 20, "label": "syscalls-x86_64.S", "parentId": 13 },
+    { "id": 21, "label": "syscalls-arm64.S", "parentId": 13 }]
 }`
 	actualbuildStatements, actualDepsets, _ := AqueryBuildStatements([]byte(inputString))
 	var expectedBuildStatements []BuildStatement
@@ -259,13 +161,9 @@ func TestAqueryMultiArchGenrule(t *testing.T) {
 func TestInvalidOutputId(t *testing.T) {
 	const inputString = `
 {
-  "artifacts": [{
-    "id": 1,
-    "pathFragmentId": 1
-  }, {
-    "id": 2,
-    "pathFragmentId": 2
-  }],
+  "artifacts": [
+    { "id": 1, "pathFragmentId": 1 },
+    { "id": 2, "pathFragmentId": 2 }],
   "actions": [{
     "targetId": 1,
     "actionKey": "x",
@@ -275,17 +173,11 @@ func TestInvalidOutputId(t *testing.T) {
     "outputIds": [3],
     "primaryOutputId": 3
   }],
-  "depSetOfFiles": [{
-    "id": 1,
-    "directArtifactIds": [1, 2]
-  }],
-  "pathFragments": [{
-    "id": 1,
-    "label": "one"
-  }, {
-    "id": 2,
-    "label": "two"
-  }]
+  "depSetOfFiles": [
+    { "id": 1, "directArtifactIds": [1, 2] }],
+  "pathFragments": [
+    { "id": 1, "label": "one" },
+    { "id": 2, "label": "two" }]
 }`
 
 	_, _, err := AqueryBuildStatements([]byte(inputString))
@@ -295,13 +187,9 @@ func TestInvalidOutputId(t *testing.T) {
 func TestInvalidInputDepsetIdFromAction(t *testing.T) {
 	const inputString = `
 {
-  "artifacts": [{
-    "id": 1,
-    "pathFragmentId": 1
-  }, {
-    "id": 2,
-    "pathFragmentId": 2
-  }],
+  "artifacts": [
+    { "id": 1, "pathFragmentId": 1 },
+    { "id": 2, "pathFragmentId": 2 }],
   "actions": [{
     "targetId": 1,
     "actionKey": "x",
@@ -311,17 +199,11 @@ func TestInvalidInputDepsetIdFromAction(t *testing.T) {
     "outputIds": [1],
     "primaryOutputId": 1
   }],
-  "depSetOfFiles": [{
-    "id": 1,
-    "directArtifactIds": [1, 2]
-  }],
-  "pathFragments": [{
-    "id": 1,
-    "label": "one"
-  }, {
-    "id": 2,
-    "label": "two"
-  }]
+  "depSetOfFiles": [
+    { "id": 1, "directArtifactIds": [1, 2] }],
+  "pathFragments": [
+    { "id": 1, "label": "one" },
+    { "id": 2, "label": "two" }]
 }`
 
 	_, _, err := AqueryBuildStatements([]byte(inputString))
@@ -331,13 +213,9 @@ func TestInvalidInputDepsetIdFromAction(t *testing.T) {
 func TestInvalidInputDepsetIdFromDepset(t *testing.T) {
 	const inputString = `
 {
-  "artifacts": [{
-    "id": 1,
-    "pathFragmentId": 1
-  }, {
-    "id": 2,
-    "pathFragmentId": 2
-  }],
+  "artifacts": [
+    { "id": 1, "pathFragmentId": 1 },
+    { "id": 2, "pathFragmentId": 2 }],
   "actions": [{
     "targetId": 1,
     "actionKey": "x",
@@ -347,18 +225,11 @@ func TestInvalidInputDepsetIdFromDepset(t *testing.T) {
     "outputIds": [1],
     "primaryOutputId": 1
   }],
-  "depSetOfFiles": [{
-    "id": 1,
-    "directArtifactIds": [1, 2],
-    "transitiveDepSetIds": [42]
-  }],
-  "pathFragments": [{
-    "id": 1,
-    "label": "one"
-  }, {
-    "id": 2,
-    "label": "two"
-  }]
+  "depSetOfFiles": [
+    { "id": 1, "directArtifactIds": [1, 2], "transitiveDepSetIds": [42] }],
+  "pathFragments": [
+    { "id": 1, "label": "one"},
+    { "id": 2, "label": "two" }]
 }`
 
 	_, _, err := AqueryBuildStatements([]byte(inputString))
@@ -368,13 +239,9 @@ func TestInvalidInputDepsetIdFromDepset(t *testing.T) {
 func TestInvalidInputArtifactId(t *testing.T) {
 	const inputString = `
 {
-  "artifacts": [{
-    "id": 1,
-    "pathFragmentId": 1
-  }, {
-    "id": 2,
-    "pathFragmentId": 2
-  }],
+  "artifacts": [
+    { "id": 1, "pathFragmentId": 1 },
+    { "id": 2, "pathFragmentId": 2 }],
   "actions": [{
     "targetId": 1,
     "actionKey": "x",
@@ -384,17 +251,11 @@ func TestInvalidInputArtifactId(t *testing.T) {
     "outputIds": [1],
     "primaryOutputId": 1
   }],
-  "depSetOfFiles": [{
-    "id": 1,
-    "directArtifactIds": [1, 3]
-  }],
-  "pathFragments": [{
-    "id": 1,
-    "label": "one"
-  }, {
-    "id": 2,
-    "label": "two"
-  }]
+  "depSetOfFiles": [
+    { "id": 1, "directArtifactIds": [1, 3] }],
+  "pathFragments": [
+    { "id": 1, "label": "one" },
+    { "id": 2, "label": "two" }]
 }`
 
 	_, _, err := AqueryBuildStatements([]byte(inputString))
@@ -404,13 +265,9 @@ func TestInvalidInputArtifactId(t *testing.T) {
 func TestInvalidPathFragmentId(t *testing.T) {
 	const inputString = `
 {
-  "artifacts": [{
-    "id": 1,
-    "pathFragmentId": 1
-  }, {
-    "id": 2,
-    "pathFragmentId": 2
-  }],
+  "artifacts": [
+    { "id": 1, "pathFragmentId": 1 },
+    { "id": 2, "pathFragmentId": 2 }],
   "actions": [{
     "targetId": 1,
     "actionKey": "x",
@@ -420,18 +277,11 @@ func TestInvalidPathFragmentId(t *testing.T) {
     "outputIds": [1],
     "primaryOutputId": 1
   }],
-  "depSetOfFiles": [{
-    "id": 1,
-    "directArtifactIds": [1, 2]
-  }],
-  "pathFragments": [{
-    "id": 1,
-    "label": "one"
-  }, {
-    "id": 2,
-    "label": "two",
-		"parentId": 3
-  }]
+  "depSetOfFiles": [
+     { "id": 1, "directArtifactIds": [1, 2] }],
+  "pathFragments": [
+    {  "id": 1, "label": "one" },
+    {  "id": 2, "label": "two", "parentId": 3 }]
 }`
 
 	_, _, err := AqueryBuildStatements([]byte(inputString))
@@ -441,16 +291,10 @@ func TestInvalidPathFragmentId(t *testing.T) {
 func TestDepfiles(t *testing.T) {
 	const inputString = `
 {
-  "artifacts": [{
-    "id": 1,
-    "pathFragmentId": 1
-  }, {
-    "id": 2,
-    "pathFragmentId": 2
-  }, {
-    "id": 3,
-    "pathFragmentId": 3
-  }],
+  "artifacts": [
+    { "id": 1, "pathFragmentId": 1 },
+    { "id": 2, "pathFragmentId": 2 },
+    { "id": 3, "pathFragmentId": 3 }],
   "actions": [{
     "targetId": 1,
     "actionKey": "x",
@@ -460,20 +304,12 @@ func TestDepfiles(t *testing.T) {
     "outputIds": [2, 3],
     "primaryOutputId": 2
   }],
-  "depSetOfFiles": [{
-    "id": 1,
-    "directArtifactIds": [1, 2, 3]
-  }],
-  "pathFragments": [{
-    "id": 1,
-    "label": "one"
-  }, {
-    "id": 2,
-    "label": "two"
-  }, {
-    "id": 3,
-    "label": "two.d"
-  }]
+  "depSetOfFiles": [
+    { "id": 1, "directArtifactIds": [1, 2, 3] }],
+  "pathFragments": [
+    { "id": 1, "label": "one" },
+    { "id": 2, "label": "two" },
+    { "id": 3, "label": "two.d" }]
 }`
 
 	actual, _, err := AqueryBuildStatements([]byte(inputString))
@@ -496,19 +332,11 @@ func TestDepfiles(t *testing.T) {
 func TestMultipleDepfiles(t *testing.T) {
 	const inputString = `
 {
-  "artifacts": [{
-    "id": 1,
-    "pathFragmentId": 1
-  }, {
-    "id": 2,
-    "pathFragmentId": 2
-  }, {
-    "id": 3,
-    "pathFragmentId": 3
-  }, {
-    "id": 4,
-    "pathFragmentId": 4
-  }],
+  "artifacts": [
+    { "id": 1, "pathFragmentId": 1 },
+    { "id": 2, "pathFragmentId": 2 },
+    { "id": 3, "pathFragmentId": 3 },
+    { "id": 4, "pathFragmentId": 4 }],
   "actions": [{
     "targetId": 1,
     "actionKey": "x",
@@ -522,19 +350,11 @@ func TestMultipleDepfiles(t *testing.T) {
     "id": 1,
     "directArtifactIds": [1, 2, 3, 4]
   }],
-  "pathFragments": [{
-    "id": 1,
-    "label": "one"
-  }, {
-    "id": 2,
-    "label": "two"
-  }, {
-    "id": 3,
-    "label": "two.d"
-  }, {
-    "id": 4,
-    "label": "other.d"
-  }]
+  "pathFragments": [
+    { "id": 1, "label": "one" },
+    { "id": 2, "label": "two" },
+    { "id": 3, "label": "two.d" },
+    { "id": 4, "label": "other.d" }]
 }`
 
 	_, _, err := AqueryBuildStatements([]byte(inputString))
@@ -546,70 +366,28 @@ func TestTransitiveInputDepsets(t *testing.T) {
 	// a single action with many inputs given via a deep depset.
 	const inputString = `
 {
-  "artifacts": [{
-    "id": 1,
-    "pathFragmentId": 1
-  }, {
-    "id": 2,
-    "pathFragmentId": 7
-  }, {
-    "id": 3,
-    "pathFragmentId": 8
-  }, {
-    "id": 4,
-    "pathFragmentId": 9
-  }, {
-    "id": 5,
-    "pathFragmentId": 10
-  }, {
-    "id": 6,
-    "pathFragmentId": 11
-  }, {
-    "id": 7,
-    "pathFragmentId": 12
-  }, {
-    "id": 8,
-    "pathFragmentId": 13
-  }, {
-    "id": 9,
-    "pathFragmentId": 14
-  }, {
-    "id": 10,
-    "pathFragmentId": 15
-  }, {
-    "id": 11,
-    "pathFragmentId": 16
-  }, {
-    "id": 12,
-    "pathFragmentId": 17
-  }, {
-    "id": 13,
-    "pathFragmentId": 18
-  }, {
-    "id": 14,
-    "pathFragmentId": 19
-  }, {
-    "id": 15,
-    "pathFragmentId": 20
-  }, {
-    "id": 16,
-    "pathFragmentId": 21
-  }, {
-    "id": 17,
-    "pathFragmentId": 22
-  }, {
-    "id": 18,
-    "pathFragmentId": 23
-  }, {
-    "id": 19,
-    "pathFragmentId": 24
-  }, {
-    "id": 20,
-    "pathFragmentId": 25
-  }, {
-    "id": 21,
-    "pathFragmentId": 26
-  }],
+  "artifacts": [
+   { "id": 1, "pathFragmentId": 1 },
+   { "id": 2, "pathFragmentId": 7 },
+   { "id": 3, "pathFragmentId": 8 },
+   { "id": 4, "pathFragmentId": 9 },
+   { "id": 5, "pathFragmentId": 10 },
+   { "id": 6, "pathFragmentId": 11 },
+   { "id": 7, "pathFragmentId": 12 },
+   { "id": 8, "pathFragmentId": 13 },
+   { "id": 9, "pathFragmentId": 14 },
+   { "id": 10, "pathFragmentId": 15 },
+   { "id": 11, "pathFragmentId": 16 },
+   { "id": 12, "pathFragmentId": 17 },
+   { "id": 13, "pathFragmentId": 18 },
+   { "id": 14, "pathFragmentId": 19 },
+   { "id": 15, "pathFragmentId": 20 },
+   { "id": 16, "pathFragmentId": 21 },
+   { "id": 17, "pathFragmentId": 22 },
+   { "id": 18, "pathFragmentId": 23 },
+   { "id": 19, "pathFragmentId": 24 },
+   { "id": 20, "pathFragmentId": 25 },
+   { "id": 21, "pathFragmentId": 26 }],
   "actions": [{
     "targetId": 1,
     "actionKey": "3b826d17fadbbbcd8313e456b90ec47c078c438088891dd45b4adbcd8889dc50",
@@ -620,128 +398,39 @@ func TestTransitiveInputDepsets(t *testing.T) {
     "outputIds": [21],
     "primaryOutputId": 21
   }],
-  "depSetOfFiles": [{
-    "id": 3,
-    "directArtifactIds": [1, 2, 3, 4, 5]
-  }, {
-    "id": 4,
-    "directArtifactIds": [6, 7, 8, 9, 10]
-  }, {
-    "id": 2,
-    "transitiveDepSetIds": [3, 4],
-    "directArtifactIds": [11, 12, 13, 14, 15]
-  }, {
-    "id": 5,
-    "directArtifactIds": [16, 17, 18, 19]
-  }, {
-    "id": 1,
-    "transitiveDepSetIds": [2, 5],
-    "directArtifactIds": [20]
-  }],
-  "pathFragments": [{
-    "id": 6,
-    "label": "bazel-out"
-  }, {
-    "id": 5,
-    "label": "sourceroot",
-    "parentId": 6
-  }, {
-    "id": 4,
-    "label": "k8-fastbuild",
-    "parentId": 5
-  }, {
-    "id": 3,
-    "label": "bin",
-    "parentId": 4
-  }, {
-    "id": 2,
-    "label": "testpkg",
-    "parentId": 3
-  }, {
-    "id": 1,
-    "label": "test_1",
-    "parentId": 2
-  }, {
-    "id": 7,
-    "label": "test_2",
-    "parentId": 2
-  }, {
-    "id": 8,
-    "label": "test_3",
-    "parentId": 2
-  }, {
-    "id": 9,
-    "label": "test_4",
-    "parentId": 2
-  }, {
-    "id": 10,
-    "label": "test_5",
-    "parentId": 2
-  }, {
-    "id": 11,
-    "label": "test_6",
-    "parentId": 2
-  }, {
-    "id": 12,
-    "label": "test_7",
-    "parentId": 2
-  }, {
-    "id": 13,
-    "label": "test_8",
-    "parentId": 2
-  }, {
-    "id": 14,
-    "label": "test_9",
-    "parentId": 2
-  }, {
-    "id": 15,
-    "label": "test_10",
-    "parentId": 2
-  }, {
-    "id": 16,
-    "label": "test_11",
-    "parentId": 2
-  }, {
-    "id": 17,
-    "label": "test_12",
-    "parentId": 2
-  }, {
-    "id": 18,
-    "label": "test_13",
-    "parentId": 2
-  }, {
-    "id": 19,
-    "label": "test_14",
-    "parentId": 2
-  }, {
-    "id": 20,
-    "label": "test_15",
-    "parentId": 2
-  }, {
-    "id": 21,
-    "label": "test_16",
-    "parentId": 2
-  }, {
-    "id": 22,
-    "label": "test_17",
-    "parentId": 2
-  }, {
-    "id": 23,
-    "label": "test_18",
-    "parentId": 2
-  }, {
-    "id": 24,
-    "label": "test_19",
-    "parentId": 2
-  }, {
-    "id": 25,
-    "label": "test_root",
-    "parentId": 2
-  }, {
-    "id": 26,
-    "label": "test_out",
-    "parentId": 2
-  }]
+  "depSetOfFiles": [
+    { "id": 3, "directArtifactIds": [1, 2, 3, 4, 5] },
+    { "id": 4, "directArtifactIds": [6, 7, 8, 9, 10] },
+    { "id": 2, "transitiveDepSetIds": [3, 4], "directArtifactIds": [11, 12, 13, 14, 15] },
+    { "id": 5, "directArtifactIds": [16, 17, 18, 19] },
+    { "id": 1, "transitiveDepSetIds": [2, 5], "directArtifactIds": [20] }],
+  "pathFragments": [
+    { "id": 6, "label": "bazel-out" },
+    { "id": 5, "label": "sourceroot", "parentId": 6 },
+    { "id": 4, "label": "k8-fastbuild", "parentId": 5 },
+    { "id": 3, "label": "bin", "parentId": 4 },
+    { "id": 2, "label": "testpkg", "parentId": 3 },
+    { "id": 1, "label": "test_1", "parentId": 2 },
+    { "id": 7, "label": "test_2", "parentId": 2 },
+    { "id": 8, "label": "test_3", "parentId": 2 },
+    { "id": 9, "label": "test_4", "parentId": 2 },
+    { "id": 10, "label": "test_5", "parentId": 2 },
+    { "id": 11, "label": "test_6", "parentId": 2 },
+    { "id": 12, "label": "test_7", "parentId": 2 },
+    { "id": 13, "label": "test_8", "parentId": 2 },
+    { "id": 14, "label": "test_9", "parentId": 2 },
+    { "id": 15, "label": "test_10", "parentId": 2 },
+    { "id": 16, "label": "test_11", "parentId": 2 },
+    { "id": 17, "label": "test_12", "parentId": 2 },
+    { "id": 18, "label": "test_13", "parentId": 2 },
+    { "id": 19, "label": "test_14", "parentId": 2 },
+    { "id": 20, "label": "test_15", "parentId": 2 },
+    { "id": 21, "label": "test_16", "parentId": 2 },
+    { "id": 22, "label": "test_17", "parentId": 2 },
+    { "id": 23, "label": "test_18", "parentId": 2 },
+    { "id": 24, "label": "test_19", "parentId": 2 },
+    { "id": 25, "label": "test_root", "parentId": 2 },
+    { "id": 26,"label": "test_out", "parentId": 2 }]
 }`
 
 	actualbuildStatements, actualDepsets, _ := AqueryBuildStatements([]byte(inputString))
@@ -860,51 +549,23 @@ func TestBazelOutRemovalFromInputDepsets(t *testing.T) {
 func TestMiddlemenAction(t *testing.T) {
 	const inputString = `
 {
-  "artifacts": [{
-    "id": 1,
-    "pathFragmentId": 1
-  }, {
-    "id": 2,
-    "pathFragmentId": 2
-  }, {
-    "id": 3,
-    "pathFragmentId": 3
-  }, {
-    "id": 4,
-    "pathFragmentId": 4
-  }, {
-    "id": 5,
-    "pathFragmentId": 5
-  }, {
-    "id": 6,
-    "pathFragmentId": 6
-  }],
-  "pathFragments": [{
-    "id": 1,
-    "label": "middleinput_one"
-  }, {
-    "id": 2,
-    "label": "middleinput_two"
-  }, {
-    "id": 3,
-    "label": "middleman_artifact"
-  }, {
-    "id": 4,
-    "label": "maininput_one"
-  }, {
-    "id": 5,
-    "label": "maininput_two"
-  }, {
-    "id": 6,
-    "label": "output"
-  }],
-  "depSetOfFiles": [{
-    "id": 1,
-    "directArtifactIds": [1, 2]
-  }, {
-    "id": 2,
-    "directArtifactIds": [3, 4, 5]
-  }],
+  "artifacts": [
+    { "id": 1, "pathFragmentId": 1 },
+    { "id": 2, "pathFragmentId": 2 },
+    { "id": 3, "pathFragmentId": 3 },
+    { "id": 4, "pathFragmentId": 4 },
+    { "id": 5, "pathFragmentId": 5 },
+    { "id": 6, "pathFragmentId": 6 }],
+  "pathFragments": [
+    { "id": 1, "label": "middleinput_one" },
+    { "id": 2, "label": "middleinput_two" },
+    { "id": 3, "label": "middleman_artifact" },
+    { "id": 4, "label": "maininput_one" },
+    { "id": 5, "label": "maininput_two" },
+    { "id": 6, "label": "output" }],
+  "depSetOfFiles": [
+    { "id": 1, "directArtifactIds": [1, 2] },
+    { "id": 2, "directArtifactIds": [3, 4, 5] }],
   "actions": [{
     "targetId": 1,
     "actionKey": "x",
@@ -996,13 +657,9 @@ func assertFlattenedDepsets(t *testing.T, actualDepsets []AqueryDepset, expected
 func TestSimpleSymlink(t *testing.T) {
 	const inputString = `
 {
-  "artifacts": [{
-    "id": 1,
-    "pathFragmentId": 3
-  }, {
-    "id": 2,
-    "pathFragmentId": 5
-  }],
+  "artifacts": [
+    { "id": 1, "pathFragmentId": 3 },
+    { "id": 2, "pathFragmentId": 5 }],
   "actions": [{
     "targetId": 1,
     "actionKey": "x",
@@ -1011,30 +668,14 @@ func TestSimpleSymlink(t *testing.T) {
     "outputIds": [2],
     "primaryOutputId": 2
   }],
-  "depSetOfFiles": [{
-    "id": 1,
-    "directArtifactIds": [1]
-  }],
-  "pathFragments": [{
-    "id": 1,
-    "label": "one"
-  }, {
-    "id": 2,
-    "label": "file_subdir",
-    "parentId": 1
-  }, {
-    "id": 3,
-    "label": "file",
-    "parentId": 2
-  }, {
-    "id": 4,
-    "label": "symlink_subdir",
-    "parentId": 1
-  }, {
-    "id": 5,
-    "label": "symlink",
-    "parentId": 4
-  }]
+  "depSetOfFiles": [
+    { "id": 1, "directArtifactIds": [1] }],
+  "pathFragments": [
+    { "id": 1, "label": "one" },
+    { "id": 2, "label": "file_subdir", "parentId": 1 },
+    { "id": 3, "label": "file", "parentId": 2 },
+    { "id": 4, "label": "symlink_subdir", "parentId": 1 },
+    { "id": 5, "label": "symlink", "parentId": 4 }]
 }`
 
 	actual, _, err := AqueryBuildStatements([]byte(inputString))
@@ -1060,13 +701,9 @@ func TestSimpleSymlink(t *testing.T) {
 func TestSymlinkQuotesPaths(t *testing.T) {
 	const inputString = `
 {
-  "artifacts": [{
-    "id": 1,
-    "pathFragmentId": 3
-  }, {
-    "id": 2,
-    "pathFragmentId": 5
-  }],
+  "artifacts": [
+    { "id": 1, "pathFragmentId": 3 },
+    { "id": 2, "pathFragmentId": 5 }],
   "actions": [{
     "targetId": 1,
     "actionKey": "x",
@@ -1075,30 +712,14 @@ func TestSymlinkQuotesPaths(t *testing.T) {
     "outputIds": [2],
     "primaryOutputId": 2
   }],
-  "depSetOfFiles": [{
-    "id": 1,
-    "directArtifactIds": [1]
-  }],
-  "pathFragments": [{
-    "id": 1,
-    "label": "one"
-  }, {
-    "id": 2,
-    "label": "file subdir",
-    "parentId": 1
-  }, {
-    "id": 3,
-    "label": "file",
-    "parentId": 2
-  }, {
-    "id": 4,
-    "label": "symlink subdir",
-    "parentId": 1
-  }, {
-    "id": 5,
-    "label": "symlink",
-    "parentId": 4
-  }]
+  "depSetOfFiles": [
+    { "id": 1, "directArtifactIds": [1] }],
+  "pathFragments": [
+    { "id": 1, "label": "one" },
+    { "id": 2, "label": "file subdir", "parentId": 1 },
+    { "id": 3, "label": "file", "parentId": 2 },
+    { "id": 4, "label": "symlink subdir", "parentId": 1 },
+    { "id": 5, "label": "symlink", "parentId": 4 }]
 }`
 
 	actual, _, err := AqueryBuildStatements([]byte(inputString))
@@ -1124,16 +745,10 @@ func TestSymlinkQuotesPaths(t *testing.T) {
 func TestSymlinkMultipleInputs(t *testing.T) {
 	const inputString = `
 {
-  "artifacts": [{
-    "id": 1,
-    "pathFragmentId": 1
-  }, {
-    "id": 2,
-    "pathFragmentId": 2
-  }, {
-    "id": 3,
-    "pathFragmentId": 3
-  }],
+  "artifacts": [
+    { "id": 1, "pathFragmentId": 1 },
+    { "id": 2, "pathFragmentId": 2 },
+    { "id": 3, "pathFragmentId": 3 }],
   "actions": [{
     "targetId": 1,
     "actionKey": "x",
@@ -1142,20 +757,11 @@ func TestSymlinkMultipleInputs(t *testing.T) {
     "outputIds": [3],
     "primaryOutputId": 3
   }],
-  "depSetOfFiles": [{
-    "id": 1,
-    "directArtifactIds": [1,2]
-  }],
-  "pathFragments": [{
-    "id": 1,
-    "label": "file"
-  }, {
-    "id": 2,
-    "label": "other_file"
-  }, {
-    "id": 3,
-    "label": "symlink"
-  }]
+  "depSetOfFiles": [{ "id": 1, "directArtifactIds": [1,2] }],
+  "pathFragments": [
+    { "id": 1, "label": "file" },
+    { "id": 2, "label": "other_file" },
+    { "id": 3, "label": "symlink" }]
 }`
 
 	_, _, err := AqueryBuildStatements([]byte(inputString))
@@ -1165,16 +771,10 @@ func TestSymlinkMultipleInputs(t *testing.T) {
 func TestSymlinkMultipleOutputs(t *testing.T) {
 	const inputString = `
 {
-  "artifacts": [{
-    "id": 1,
-    "pathFragmentId": 1
-  }, {
-    "id": 2,
-    "pathFragmentId": 2
-  }, {
-    "id": 3,
-    "pathFragmentId": 3
-  }],
+  "artifacts": [
+    { "id": 1, "pathFragmentId": 1 },
+    { "id": 2, "pathFragmentId": 2 },
+    { "id": 3, "pathFragmentId": 3 }],
   "actions": [{
     "targetId": 1,
     "actionKey": "x",
@@ -1183,20 +783,12 @@ func TestSymlinkMultipleOutputs(t *testing.T) {
     "outputIds": [2,3],
     "primaryOutputId": 2
   }],
-  "depSetOfFiles": [{
-    "id": 1,
-    "directArtifactIds": [1]
-  }],
-  "pathFragments": [{
-    "id": 1,
-    "label": "file"
-  }, {
-    "id": 2,
-    "label": "symlink"
-  }, {
-    "id": 3,
-    "label": "other_symlink"
-  }]
+  "depSetOfFiles": [
+    { "id": 1, "directArtifactIds": [1] }],
+  "pathFragments": [
+    { "id": 1, "label": "file" },
+    { "id": 2, "label": "symlink" },
+    { "id": 3,  "label": "other_symlink" }]
 }`
 
 	_, _, err := AqueryBuildStatements([]byte(inputString))
@@ -1219,18 +811,12 @@ func TestTemplateExpandActionSubstitutions(t *testing.T) {
     "primaryOutputId": 1,
     "executionPlatform": "//build/bazel/platforms:linux_x86_64",
     "templateContent": "Test template substitutions: %token1%, %python_binary%",
-    "substitutions": [{
-      "key": "%token1%",
-      "value": "abcd"
-    },{
-      "key": "%python_binary%",
-      "value": "python3"
-    }]
+    "substitutions": [
+      { "key": "%token1%", "value": "abcd" },
+      { "key": "%python_binary%", "value": "python3" }]
   }],
-  "pathFragments": [{
-    "id": 1,
-    "label": "template_file"
-  }]
+  "pathFragments": [
+    { "id": 1, "label": "template_file" }]
 }`
 
 	actual, _, err := AqueryBuildStatements([]byte(inputString))
@@ -1253,10 +839,8 @@ func TestTemplateExpandActionSubstitutions(t *testing.T) {
 func TestTemplateExpandActionNoOutput(t *testing.T) {
 	const inputString = `
 {
-  "artifacts": [{
-    "id": 1,
-    "pathFragmentId": 1
-  }],
+  "artifacts": [
+    { "id": 1, "pathFragmentId": 1 }],
   "actions": [{
     "targetId": 1,
     "actionKey": "x",
@@ -1265,18 +849,12 @@ func TestTemplateExpandActionNoOutput(t *testing.T) {
     "primaryOutputId": 1,
     "executionPlatform": "//build/bazel/platforms:linux_x86_64",
     "templateContent": "Test template substitutions: %token1%, %python_binary%",
-    "substitutions": [{
-      "key": "%token1%",
-      "value": "abcd"
-    },{
-      "key": "%python_binary%",
-      "value": "python3"
-    }]
+    "substitutions": [
+      { "key": "%token1%", "value": "abcd" },
+      { "key": "%python_binary%", "value": "python3" }]
   }],
-  "pathFragments": [{
-    "id": 1,
-    "label": "template_file"
-  }]
+  "pathFragments": [
+    { "id": 1, "label": "template_file" }]
 }`
 
 	_, _, err := AqueryBuildStatements([]byte(inputString))
@@ -1286,25 +864,13 @@ func TestTemplateExpandActionNoOutput(t *testing.T) {
 func TestPythonZipperActionSuccess(t *testing.T) {
 	const inputString = `
 {
-  "artifacts": [{
-    "id": 1,
-    "pathFragmentId": 1
-  },{
-    "id": 2,
-    "pathFragmentId": 2
-  },{
-    "id": 3,
-    "pathFragmentId": 3
-  },{
-    "id": 4,
-    "pathFragmentId": 4
-  },{
-    "id": 5,
-    "pathFragmentId": 10
-  },{
-    "id": 10,
-    "pathFragmentId": 20
-  }],
+  "artifacts": [
+    { "id": 1, "pathFragmentId": 1 },
+    { "id": 2, "pathFragmentId": 2 },
+    { "id": 3, "pathFragmentId": 3 },
+    { "id": 4, "pathFragmentId": 4 },
+    { "id": 5, "pathFragmentId": 10 },
+    { "id": 10, "pathFragmentId": 20 }],
   "actions": [{
     "targetId": 1,
     "actionKey": "x",
@@ -1331,73 +897,26 @@ func TestPythonZipperActionSuccess(t *testing.T) {
     "inputDepSetIds": [1],
     "primaryOutputId": 2
   }],
-  "depSetOfFiles": [{
-    "id": 1,
-    "directArtifactIds": [4, 3, 5]
-  }],
-  "pathFragments": [{
-    "id": 1,
-    "label": "python_binary"
-  },{
-    "id": 2,
-    "label": "python_binary.zip"
-  },{
-    "id": 3,
-    "label": "python_binary.py"
-  },{
-    "id": 9,
-    "label": ".."
-  }, {
-    "id": 8,
-    "label": "bazel_tools",
-    "parentId": 9
-  }, {
-    "id": 7,
-    "label": "tools",
-    "parentId": 8
-  }, {
-    "id": 6,
-    "label": "zip",
-    "parentId": 7
-  }, {
-    "id": 5,
-    "label": "zipper",
-    "parentId": 6
-  }, {
-    "id": 4,
-    "label": "zipper",
-    "parentId": 5
-  },{
-    "id": 16,
-    "label": "bazel-out"
-  },{
-    "id": 15,
-    "label": "bazel_tools",
-    "parentId": 16
-  }, {
-    "id": 14,
-    "label": "k8-fastbuild",
-    "parentId": 15
-  }, {
-    "id": 13,
-    "label": "bin",
-    "parentId": 14
-  }, {
-    "id": 12,
-    "label": "tools",
-    "parentId": 13
-  }, {
-    "id": 11,
-    "label": "python",
-    "parentId": 12
-  }, {
-    "id": 10,
-    "label": "py3wrapper.sh",
-    "parentId": 11
-  },{
-    "id": 20,
-    "label": "python_binary"
-  }]
+  "depSetOfFiles": [
+    { "id": 1, "directArtifactIds": [4, 3, 5] }],
+  "pathFragments": [
+    { "id": 1, "label": "python_binary" },
+    { "id": 2, "label": "python_binary.zip" },
+    { "id": 3, "label": "python_binary.py" },
+    { "id": 9, "label": ".." },
+    { "id": 8, "label": "bazel_tools", "parentId": 9 },
+    { "id": 7, "label": "tools", "parentId": 8 },
+    { "id": 6, "label": "zip", "parentId": 7  },
+    { "id": 5, "label": "zipper", "parentId": 6 },
+    { "id": 4, "label": "zipper", "parentId": 5 },
+    { "id": 16, "label": "bazel-out" },
+    { "id": 15, "label": "bazel_tools", "parentId": 16 },
+    { "id": 14, "label": "k8-fastbuild", "parentId": 15 },
+    { "id": 13, "label": "bin", "parentId": 14 },
+    { "id": 12, "label": "tools", "parentId": 13 },
+    { "id": 11, "label": "python", "parentId": 12 },
+    { "id": 10, "label": "py3wrapper.sh", "parentId": 11 },
+    { "id": 20, "label": "python_binary" }]
 }`
 	actual, _, err := AqueryBuildStatements([]byte(inputString))
 
@@ -1428,13 +947,9 @@ func TestPythonZipperActionSuccess(t *testing.T) {
 func TestPythonZipperActionNoInput(t *testing.T) {
 	const inputString = `
 {
-  "artifacts": [{
-    "id": 1,
-    "pathFragmentId": 1
-  },{
-    "id": 2,
-    "pathFragmentId": 2
-  }],
+  "artifacts": [
+    { "id": 1, "pathFragmentId": 1 },
+    { "id": 2, "pathFragmentId": 2 }],
   "actions": [{
     "targetId": 1,
     "actionKey": "x",
@@ -1444,13 +959,9 @@ func TestPythonZipperActionNoInput(t *testing.T) {
     "outputIds": [2],
     "primaryOutputId": 2
   }],
-  "pathFragments": [{
-    "id": 1,
-    "label": "python_binary"
-  },{
-    "id": 2,
-    "label": "python_binary.zip"
-  }]
+  "pathFragments": [
+    { "id": 1, "label": "python_binary" },
+    { "id": 2, "label": "python_binary.zip" }]
 }`
 	_, _, err := AqueryBuildStatements([]byte(inputString))
 	assertError(t, err, `Expect 1+ input and 1 output to python zipper action, got: input [], output ["python_binary.zip"]`)
@@ -1459,22 +970,12 @@ func TestPythonZipperActionNoInput(t *testing.T) {
 func TestPythonZipperActionNoOutput(t *testing.T) {
 	const inputString = `
 {
-  "artifacts": [{
-    "id": 1,
-    "pathFragmentId": 1
-  },{
-    "id": 2,
-    "pathFragmentId": 2
-  },{
-    "id": 3,
-    "pathFragmentId": 3
-  },{
-    "id": 4,
-    "pathFragmentId": 4
-  },{
-    "id": 5,
-    "pathFragmentId": 10
-  }],
+  "artifacts": [
+    { "id": 1, "pathFragmentId": 1 },
+    { "id": 2, "pathFragmentId": 2 },
+    { "id": 3, "pathFragmentId": 3 },
+    { "id": 4, "pathFragmentId": 4 },
+    { "id": 5, "pathFragmentId": 10 }],
   "actions": [{
     "targetId": 1,
     "actionKey": "x",
@@ -1483,70 +984,25 @@ func TestPythonZipperActionNoOutput(t *testing.T) {
     "arguments": ["../bazel_tools/tools/zip/zipper/zipper", "cC", "python_binary.zip", "__main__.py\u003dbazel-out/k8-fastbuild/bin/python_binary.temp", "__init__.py\u003d", "runfiles/__main__/__init__.py\u003d", "runfiles/__main__/python_binary.py\u003dpython_binary.py", "runfiles/bazel_tools/tools/python/py3wrapper.sh\u003dbazel-out/bazel_tools/k8-fastbuild/bin/tools/python/py3wrapper.sh"],
     "inputDepSetIds": [1]
   }],
-  "depSetOfFiles": [{
-    "id": 1,
-    "directArtifactIds": [4, 3, 5]
-  }],
-  "pathFragments": [{
-    "id": 1,
-    "label": "python_binary"
-  },{
-    "id": 2,
-    "label": "python_binary.zip"
-  },{
-    "id": 3,
-    "label": "python_binary.py"
-  },{
-    "id": 9,
-    "label": ".."
-  }, {
-    "id": 8,
-    "label": "bazel_tools",
-    "parentId": 9
-  }, {
-    "id": 7,
-    "label": "tools",
-    "parentId": 8
-  }, {
-    "id": 6,
-    "label": "zip",
-    "parentId": 7
-  }, {
-    "id": 5,
-    "label": "zipper",
-    "parentId": 6
-  }, {
-    "id": 4,
-    "label": "zipper",
-    "parentId": 5
-  },{
-    "id": 16,
-    "label": "bazel-out"
-  },{
-    "id": 15,
-    "label": "bazel_tools",
-    "parentId": 16
-  }, {
-    "id": 14,
-    "label": "k8-fastbuild",
-    "parentId": 15
-  }, {
-    "id": 13,
-    "label": "bin",
-    "parentId": 14
-  }, {
-    "id": 12,
-    "label": "tools",
-    "parentId": 13
-  }, {
-    "id": 11,
-    "label": "python",
-    "parentId": 12
-  }, {
-    "id": 10,
-    "label": "py3wrapper.sh",
-    "parentId": 11
-  }]
+  "depSetOfFiles": [
+    { "id": 1, "directArtifactIds": [4, 3, 5]}],
+  "pathFragments": [
+    { "id": 1, "label": "python_binary" },
+    { "id": 2, "label": "python_binary.zip" },
+    { "id": 3, "label": "python_binary.py" },
+    { "id": 9, "label": ".." },
+    { "id": 8, "label": "bazel_tools", "parentId": 9 },
+    { "id": 7, "label": "tools", "parentId": 8 },
+    { "id": 6, "label": "zip", "parentId": 7 },
+    { "id": 5, "label": "zipper", "parentId": 6 },
+    { "id": 4, "label": "zipper", "parentId": 5 },
+    { "id": 16, "label": "bazel-out" },
+    { "id": 15, "label": "bazel_tools", "parentId": 16 },
+    { "id": 14, "label": "k8-fastbuild", "parentId": 15 },
+    { "id": 13, "label": "bin", "parentId": 14 },
+    { "id": 12, "label": "tools", "parentId": 13 },
+    { "id": 11, "label": "python", "parentId": 12 },
+    { "id": 10, "label": "py3wrapper.sh", "parentId": 11 }]
 }`
 	_, _, err := AqueryBuildStatements([]byte(inputString))
 	assertError(t, err, `Expect 1+ input and 1 output to python zipper action, got: input ["python_binary.py"], output []`)
