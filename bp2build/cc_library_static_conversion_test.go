@@ -18,6 +18,7 @@ import (
 	"android/soong/android"
 	"android/soong/cc"
 	"android/soong/genrule"
+	"fmt"
 
 	"testing"
 )
@@ -204,8 +205,8 @@ cc_library_static {
         ":whole_static_lib_1",
         ":whole_static_lib_2",
     ]`,
-        "sdk_version": `"current"`,
-        "min_sdk_version": `"29"`,
+				"sdk_version":     `"current"`,
+				"min_sdk_version": `"29"`,
 			}),
 		},
 	})
@@ -1488,4 +1489,73 @@ func TestCcLibraryStaticStdInFlags(t *testing.T) {
 			}),
 		},
 	})
+}
+
+func TestCcLibraryStaticStl(t *testing.T) {
+	testCases := []struct {
+		desc string
+		prop string
+		attr attrNameToString
+	}{
+		{
+			desc: "c++_shared deduped to libc++",
+			prop: `stl: "c++_shared",`,
+			attr: attrNameToString{
+				"stl": `"libc++"`,
+			},
+		},
+		{
+			desc: "libc++ to libc++",
+			prop: `stl: "libc++",`,
+			attr: attrNameToString{
+				"stl": `"libc++"`,
+			},
+		},
+		{
+			desc: "c++_static to libc++_static",
+			prop: `stl: "c++_static",`,
+			attr: attrNameToString{
+				"stl": `"libc++_static"`,
+			},
+		},
+		{
+			desc: "libc++_static to libc++_static",
+			prop: `stl: "libc++_static",`,
+			attr: attrNameToString{
+				"stl": `"libc++_static"`,
+			},
+		},
+		{
+			desc: "system to system",
+			prop: `stl: "system",`,
+			attr: attrNameToString{
+				"stl": `"system"`,
+			},
+		},
+		{
+			desc: "none to none",
+			prop: `stl: "none",`,
+			attr: attrNameToString{
+				"stl": `"none"`,
+			},
+		},
+		{
+			desc: "empty to empty",
+			attr: attrNameToString{},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(*testing.T) {
+			runCcLibraryStaticTestCase(t, bp2buildTestCase{
+				blueprint: fmt.Sprintf(`cc_library_static {
+	name: "foo",
+	include_build_directory: false,
+	%s
+}`, tc.prop),
+				expectedBazelTargets: []string{
+					makeBazelTarget("cc_library_static", "foo", tc.attr),
+				},
+			})
+		})
+	}
 }
