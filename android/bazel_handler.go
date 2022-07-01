@@ -879,12 +879,6 @@ func (c *bazelSingleton) GenerateBuildActions(ctx SingletonContext) {
 		}
 		rule := NewRuleBuilder(pctx, ctx)
 		createCommand(rule.Command(), buildStatement, executionRoot, bazelOutDir, ctx)
-		// This is required to silence warnings pertaining to unexpected timestamps. Particularly,
-		// some Bazel builtins (such as files in the bazel_tools directory) have far-future
-		// timestamps. Without restat, Ninja would emit warnings that the input files of a
-		// build statement have later timestamps than the outputs.
-		rule.Restat()
-
 		desc := fmt.Sprintf("%s: %s", buildStatement.Mnemonic, buildStatement.OutputPaths)
 		rule.Build(fmt.Sprintf("bazel %d", index), desc)
 	}
@@ -899,7 +893,7 @@ func createCommand(cmd *RuleBuilderCommand, buildStatement bazel.BuildStatement,
 	if len(buildStatement.OutputPaths) > 0 {
 		cmd.Text("rm -f")
 		for _, outputPath := range buildStatement.OutputPaths {
-			cmd.Text(outputPath)
+			cmd.Text(fmt.Sprintf("'%s'", outputPath))
 		}
 		cmd.Text("&&")
 	}
@@ -949,8 +943,15 @@ func getCqueryId(key cqueryKey) string {
 func getConfigString(key cqueryKey) string {
 	arch := key.configKey.arch
 	if len(arch) == 0 || arch == "common" {
-		// Use host platform, which is currently hardcoded to be x86_64.
-		arch = "x86_64"
+		if key.configKey.osType.Class == Device {
+			// For the generic Android, the expected result is "target|android", which
+			// corresponds to the product_variable_config named "android_target" in
+			// build/bazel/platforms/BUILD.bazel.
+			arch = "target"
+		} else {
+			// Use host platform, which is currently hardcoded to be x86_64.
+			arch = "x86_64"
+		}
 	}
 	osName := key.configKey.osType.Name
 	if len(osName) == 0 || osName == "common_os" || osName == "linux_glibc" {

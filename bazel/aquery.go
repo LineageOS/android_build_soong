@@ -115,6 +115,8 @@ type BuildStatement struct {
 // A helper type for aquery processing which facilitates retrieval of path IDs from their
 // less readable Bazel structures (depset and path fragment).
 type aqueryArtifactHandler struct {
+	// Switches to true if any depset contains only `bazelToolsDependencySentinel`
+	bazelToolsDependencySentinelNeeded bool
 	// Maps depset id to AqueryDepset, a representation of depset which is
 	// post-processed for middleman artifact handling, unhandled artifact
 	// dropping, content hashing, etc.
@@ -142,6 +144,9 @@ var manifestFilePattern = regexp.MustCompile(".*/.+\\.runfiles/MANIFEST$")
 
 // The file name of py3wrapper.sh, which is used by py_binary targets.
 const py3wrapperFileName = "/py3wrapper.sh"
+
+// A file to be put into depsets that are otherwise empty
+const bazelToolsDependencySentinel = "BAZEL_TOOLS_DEPENDENCY_SENTINEL"
 
 func indexBy[K comparable, V any](values []V, keyFn func(v V) K) map[K]V {
 	m := map[K]V{}
@@ -219,7 +224,9 @@ func (a *aqueryArtifactHandler) populateDepsetMaps(depset depSetOfFiles, middlem
 		if depsetsToUse, isMiddleman := middlemanIdToDepsetIds[artifactId]; isMiddleman {
 			// Swap middleman artifacts with their corresponding depsets and drop the middleman artifacts.
 			transitiveDepsetIds = append(transitiveDepsetIds, depsetsToUse...)
-		} else if strings.HasSuffix(path, py3wrapperFileName) || manifestFilePattern.MatchString(path) {
+		} else if strings.HasSuffix(path, py3wrapperFileName) ||
+			manifestFilePattern.MatchString(path) ||
+			strings.HasPrefix(path, "../bazel_tools") {
 			// Drop these artifacts.
 			// See go/python-binary-host-mixed-build for more details.
 			// 1) For py3wrapper.sh, there is no action for creating py3wrapper.sh in the aquery output of
@@ -231,8 +238,9 @@ func (a *aqueryArtifactHandler) populateDepsetMaps(depset depSetOfFiles, middlem
 			// since there is no build statement to create them, they should be removed from input paths.
 			// TODO(b/197135294): Clean up this custom runfiles handling logic when
 			// SourceSymlinkManifest and SymlinkTree actions are supported.
+			// 3) ../bazel_tools: they have MODIFY timestamp 10years in the future and would cause the
+			// containing depset to always be considered newer than their outputs.
 		} else {
-			// TODO(b/216194240): Filter out bazel tools.
 			directArtifactPaths = append(directArtifactPaths, path)
 		}
 	}
@@ -248,6 +256,13 @@ func (a *aqueryArtifactHandler) populateDepsetMaps(depset depSetOfFiles, middlem
 			return AqueryDepset{}, err
 		}
 		childDepsetHashes = append(childDepsetHashes, childAqueryDepset.ContentHash)
+	}
+	if len(directArtifactPaths) == 0 && len(childDepsetHashes) == 0 {
+		// We could omit this depset altogether but that requires cleanup on
+		// transitive dependents.
+		// As a simpler alternative, we use this sentinel file as a dependency.
+		directArtifactPaths = append(directArtifactPaths, bazelToolsDependencySentinel)
+		a.bazelToolsDependencySentinelNeeded = true
 	}
 	aqueryDepset := AqueryDepset{
 		ContentHash:            depsetContentHash(directArtifactPaths, childDepsetHashes),
@@ -317,6 +332,13 @@ func AqueryBuildStatements(aqueryJsonProto []byte) ([]BuildStatement, []AqueryDe
 	}
 
 	var buildStatements []BuildStatement
+	if aqueryHandler.bazelToolsDependencySentinelNeeded {
+		buildStatements = append(buildStatements, BuildStatement{
+			Command:     fmt.Sprintf("touch '%s'", bazelToolsDependencySentinel),
+			OutputPaths: []string{bazelToolsDependencySentinel},
+			Mnemonic:    bazelToolsDependencySentinel,
+		})
+	}
 
 	for _, actionEntry := range aqueryResult.Actions {
 		if shouldSkipAction(actionEntry) {
@@ -445,7 +467,7 @@ func (a *aqueryArtifactHandler) pythonZipperActionBuildStatement(actionEntry act
 	}
 	command := strings.Join(proptools.ShellEscapeListIncludingSpaces(actionEntry.Arguments), " ")
 	inputPaths, command = removePy3wrapperScript(inputPaths, command)
-	command = addCommandForPyBinaryRunfilesDir(command, inputPaths[0], outputPaths[0])
+	command = addCommandForPyBinaryRunfilesDir(command, outputPaths[0])
 	// Add the python zip file as input of the corresponding python binary stub script in Ninja build statements.
 	// In Ninja build statements, the outputs of dependents of a python binary have python binary stub script as input,
 	// which is not sufficient without the python zip file from which runfiles directory is created for py_binary.
@@ -601,7 +623,7 @@ func escapeCommandlineArgument(str string) string {
 // TODO(b/205879240) remove this after py3wrapper.sh could be created in the mixed build mode.
 func removePy3wrapperScript(inputPaths []string, command string) (newInputPaths []string, newCommand string) {
 	// Remove from inputs
-	filteredInputPaths := []string{}
+	var filteredInputPaths []string
 	for _, path := range inputPaths {
 		if !strings.HasSuffix(path, py3wrapperFileName) {
 			filteredInputPaths = append(filteredInputPaths, path)
@@ -622,10 +644,10 @@ func removePy3wrapperScript(inputPaths []string, command string) (newInputPaths 
 // so MANIFEST file could not be created, which also blocks the creation of runfiles directory.
 // See go/python-binary-host-mixed-build for more details.
 // TODO(b/197135294) create runfiles directory from MANIFEST file once it can be created from SourceSymlinkManifest action.
-func addCommandForPyBinaryRunfilesDir(oldCommand string, zipperCommandPath, zipFilePath string) string {
+func addCommandForPyBinaryRunfilesDir(oldCommand string, zipFilePath string) string {
 	// Unzip the zip file, zipFilePath looks like <python_binary>.zip
 	runfilesDirName := zipFilePath[0:len(zipFilePath)-4] + ".runfiles"
-	command := fmt.Sprintf("%s x %s -d %s", zipperCommandPath, zipFilePath, runfilesDirName)
+	command := fmt.Sprintf("%s x %s -d %s", "../bazel_tools/tools/zip/zipper/zipper", zipFilePath, runfilesDirName)
 	// Create a symbolic link in <python_binary>.runfiles/, which is the expected structure
 	// when running the python binary stub script.
 	command += fmt.Sprintf(" && ln -sf runfiles/__main__ %s", runfilesDirName)
