@@ -25,6 +25,16 @@ func getNdkStlFamily(m LinkableInterface) string {
 	return family
 }
 
+func deduplicateStlInput(stl string) string {
+	switch stl {
+	case "c++_shared":
+		return "libc++"
+	case "c++_static":
+		return "libc++_static"
+	}
+	return stl
+}
+
 func getNdkStlFamilyAndLinkType(m LinkableInterface) (string, string) {
 	stl := m.SelectedStl()
 	switch stl {
@@ -66,18 +76,18 @@ func (stl *stl) begin(ctx BaseModuleContext) {
 		} else if ctx.header() {
 			s = "none"
 		}
+		if s == "none" {
+			return ""
+		}
+		s = deduplicateStlInput(s)
 		if ctx.useSdk() && ctx.Device() {
 			switch s {
 			case "", "system":
 				return "ndk_system"
-			case "c++_shared", "c++_static":
-				return "ndk_lib" + s
 			case "libc++":
 				return "ndk_libc++_shared"
 			case "libc++_static":
 				return "ndk_libc++_static"
-			case "none":
-				return ""
 			default:
 				ctx.ModuleErrorf("stl: %q is not a supported STL with sdk_version set", s)
 				return ""
@@ -87,8 +97,6 @@ func (stl *stl) begin(ctx BaseModuleContext) {
 			case "libc++", "libc++_static", "":
 				// Only use static libc++ for Windows.
 				return "libc++_static"
-			case "none":
-				return ""
 			default:
 				ctx.ModuleErrorf("stl: %q is not a supported STL for windows", s)
 				return ""
@@ -97,12 +105,6 @@ func (stl *stl) begin(ctx BaseModuleContext) {
 			switch s {
 			case "libc++", "libc++_static":
 				return s
-			case "c++_shared":
-				return "libc++"
-			case "c++_static":
-				return "libc++_static"
-			case "none":
-				return ""
 			case "", "system":
 				if ctx.static() {
 					return "libc++_static"
