@@ -171,6 +171,10 @@ func (s *javaFuzzPackager) GenerateBuildActions(ctx android.SingletonContext) {
 			return
 		}
 
+		if javaFuzzModule.Target().HostCross {
+			return
+		}
+
 		fuzzModuleValidator := fuzz.FuzzModule{
 			javaFuzzModule.ModuleBase,
 			javaFuzzModule.DefaultableModuleBase,

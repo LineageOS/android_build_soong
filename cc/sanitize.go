@@ -710,8 +710,13 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 			// Host sanitizers only link symbols in the final executable, so
 			// there will always be undefined symbols in intermediate libraries.
 			_, flags.Global.LdFlags = removeFromList("-Wl,--no-undefined", flags.Global.LdFlags)
+		}
 
-			// non-Bionic toolchain prebuilts are missing UBSan's vptr and function san
+		if !ctx.toolchain().Bionic() {
+			// non-Bionic toolchain prebuilts are missing UBSan's vptr and function san.
+			// Musl toolchain prebuilts have vptr and function sanitizers, but enabling them
+			// implicitly enables RTTI which causes RTTI mismatch issues with dependencies.
+
 			flags.Local.CFlags = append(flags.Local.CFlags, "-fno-sanitize=vptr,function")
 		}
 
