@@ -1478,11 +1478,30 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 	}
 
 	if ctx.Device() {
-		lintSDKVersion := func(sdkSpec android.SdkSpec) android.ApiLevel {
+		lintSDKVersion := func(sdkSpec android.SdkSpec) int {
 			if v := sdkSpec.ApiLevel; !v.IsPreview() {
-				return v
+				return v.FinalInt()
 			} else {
-				return ctx.Config().DefaultAppTargetSdk(ctx)
+				// When running metalava, we pass --version-codename. When that value
+				// is not REL, metalava will add 1 to the --current-version argument.
+				// On old branches, PLATFORM_SDK_VERSION is the latest version (for that
+				// branch) and the codename is REL, except potentially on the most
+				// recent non-master branch. On that branch, it goes through two other
+				// phases before it gets to the phase previously described:
+				//  - PLATFORM_SDK_VERSION has not been updated yet, and the codename
+				//    is not rel. This happens for most of the internal branch's life
+				//    while the branch has been cut but is still under active development.
+				//  - PLATFORM_SDK_VERSION has been set, but the codename is still not
+				//    REL. This happens briefly during the release process. During this
+				//    state the code to add --current-version is commented out, and then
+				//    that commenting out is reverted after the codename is set to REL.
+				// On the master branch, the PLATFORM_SDK_VERSION always represents a
+				// prior version and the codename is always non-REL.
+				//
+				// We need to add one here to match metalava adding 1. Technically
+				// this means that in the state described in the second bullet point
+				// above, this number is 1 higher than it should be.
+				return ctx.Config().PlatformSdkVersion().FinalInt() + 1
 			}
 		}
 

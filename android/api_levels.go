@@ -54,6 +54,14 @@ type ApiLevel struct {
 	isPreview bool
 }
 
+func (this ApiLevel) FinalInt() int {
+	if this.IsPreview() {
+		panic("Requested a final int from a non-final ApiLevel")
+	} else {
+		return this.number
+	}
+}
+
 func (this ApiLevel) FinalOrFutureInt() int {
 	if this.IsPreview() {
 		return FutureApiLevelInt
