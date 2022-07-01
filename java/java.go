@@ -164,6 +164,9 @@ var (
 		android.SdkMemberTypeBase{
 			PropertyName: "java_systemserver_libs",
 			SupportsSdk:  true,
+
+			// This was only added in Tiramisu.
+			SupportedBuildReleaseSpecification: "Tiramisu+",
 		},
 		func(ctx android.SdkMemberContext, j *Library) android.Path {
 			// Java systemserver libs are only provided in the SDK to provide access to their dex
