@@ -78,7 +78,13 @@ var (
 
 func init() {
 	pctx.SourcePathVariable("RustDefaultBase", RustDefaultBase)
-	pctx.VariableConfigMethod("HostPrebuiltTag", android.Config.PrebuiltOS)
+	pctx.VariableConfigMethod("HostPrebuiltTag", func(config android.Config) string {
+		if config.UseHostMusl() {
+			return "linux-musl-x86"
+		} else {
+			return config.PrebuiltOS()
+		}
+	})
 
 	pctx.VariableFunc("RustBase", func(ctx android.PackageVarContext) string {
 		if override := ctx.Config().Getenv("RUST_PREBUILTS_BASE"); override != "" {

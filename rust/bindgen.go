@@ -41,10 +41,25 @@ var (
 
 	//TODO(b/160803703) Use a prebuilt bindgen instead of the built bindgen.
 	_ = pctx.HostBinToolVariable("bindgenCmd", "bindgen")
+	_ = pctx.VariableFunc("bindgenHostPrebuiltTag", func(ctx android.PackageVarContext) string {
+		if ctx.Config().UseHostMusl() {
+			// This is a hack to use the glibc bindgen binary until we have a musl version checked in.
+			return "linux-x86"
+		} else {
+			return "${config.HostPrebuiltTag}"
+		}
+	})
+	_ = pctx.VariableFunc("bindgenClangLibdir", func(ctx android.PackageVarContext) string {
+		if ctx.Config().UseHostMusl() {
+			return "musl/lib64/"
+		} else {
+			return "lib64/"
+		}
+	})
 	_ = pctx.SourcePathVariable("bindgenClang",
-		"${cc_config.ClangBase}/${config.HostPrebuiltTag}/${bindgenClangVersion}/bin/clang")
+		"${cc_config.ClangBase}/${bindgenHostPrebuiltTag}/${bindgenClangVersion}/bin/clang")
 	_ = pctx.SourcePathVariable("bindgenLibClang",
-		"${cc_config.ClangBase}/${config.HostPrebuiltTag}/${bindgenClangVersion}/lib64/")
+		"${cc_config.ClangBase}/${bindgenHostPrebuiltTag}/${bindgenClangVersion}/${bindgenClangLibdir}")
 
 	//TODO(ivanlozano) Switch this to RuleBuilder
 	bindgen = pctx.AndroidStaticRule("bindgen",

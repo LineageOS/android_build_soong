@@ -376,7 +376,8 @@ func (ca *compilerAttributes) convertStlProps(ctx android.ArchVariantContext, mo
 				return
 			}
 			if ca.stl == nil {
-				ca.stl = stlProps.Stl
+				stl := deduplicateStlInput(*stlProps.Stl)
+				ca.stl = &stl
 			} else if ca.stl != stlProps.Stl {
 				ctx.ModuleErrorf("Unsupported conversion: module with different stl for different variants: %s and %s", *ca.stl, stlProps.Stl)
 			}
