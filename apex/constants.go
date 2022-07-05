@@ -33,4 +33,4 @@ package apex
 // * AOSP            - xx9990000
 // * x-mainline-prod - xx9990000
 // * master          - 990090000
-const defaultManifestVersion = "339990000"
+const defaultManifestVersion = "990090000"
