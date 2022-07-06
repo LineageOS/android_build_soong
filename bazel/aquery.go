@@ -83,6 +83,7 @@ type action struct {
 	OutputIds            []artifactId
 	TemplateContent      string
 	Substitutions        []KeyValuePair
+	FileContents         string
 }
 
 // actionGraphContainer contains relevant portions of Bazel's aquery proto, ActionGraphContainer.
@@ -110,6 +111,7 @@ type BuildStatement struct {
 	// input path string, but not both.
 	InputDepsetHashes []string
 	InputPaths        []string
+	FileContents      string
 }
 
 // A helper type for aquery processing which facilitates retrieval of path IDs from their
@@ -346,12 +348,14 @@ func AqueryBuildStatements(aqueryJsonProto []byte) ([]BuildStatement, []AqueryDe
 		}
 
 		var buildStatement BuildStatement
-		if isSymlinkAction(actionEntry) {
+		if actionEntry.isSymlinkAction() {
 			buildStatement, err = aqueryHandler.symlinkActionBuildStatement(actionEntry)
-		} else if isTemplateExpandAction(actionEntry) && len(actionEntry.Arguments) < 1 {
+		} else if actionEntry.isTemplateExpandAction() && len(actionEntry.Arguments) < 1 {
 			buildStatement, err = aqueryHandler.templateExpandActionBuildStatement(actionEntry)
-		} else if isPythonZipperAction(actionEntry) {
+		} else if actionEntry.isPythonZipperAction() {
 			buildStatement, err = aqueryHandler.pythonZipperActionBuildStatement(actionEntry, buildStatements)
+		} else if actionEntry.isFileWriteAction() {
+			buildStatement, err = aqueryHandler.fileWriteActionBuildStatement(actionEntry)
 		} else if len(actionEntry.Arguments) < 1 {
 			return nil, nil, fmt.Errorf("received action with no command: [%s]", actionEntry.Mnemonic)
 		} else {
@@ -532,6 +536,25 @@ func (a *aqueryArtifactHandler) templateExpandActionBuildStatement(actionEntry a
 	return buildStatement, nil
 }
 
+func (a *aqueryArtifactHandler) fileWriteActionBuildStatement(actionEntry action) (BuildStatement, error) {
+	outputPaths, _, err := a.getOutputPaths(actionEntry)
+	var depsetHashes []string
+	if err == nil {
+		depsetHashes, err = a.depsetContentHashes(actionEntry.InputDepSetIds)
+	}
+	if err != nil {
+		return BuildStatement{}, err
+	}
+	return BuildStatement{
+		Depfile:           nil,
+		OutputPaths:       outputPaths,
+		Env:               actionEntry.EnvironmentVariables,
+		Mnemonic:          actionEntry.Mnemonic,
+		InputDepsetHashes: depsetHashes,
+		FileContents:      actionEntry.FileContents,
+	}, nil
+}
+
 func (a *aqueryArtifactHandler) symlinkActionBuildStatement(actionEntry action) (BuildStatement, error) {
 	outputPaths, depfile, err := a.getOutputPaths(actionEntry)
 	if err != nil {
@@ -654,21 +677,25 @@ func addCommandForPyBinaryRunfilesDir(oldCommand string, zipFilePath string) str
 	return oldCommand + " && " + command
 }
 
-func isSymlinkAction(a action) bool {
+func (a action) isSymlinkAction() bool {
 	return a.Mnemonic == "Symlink" || a.Mnemonic == "SolibSymlink" || a.Mnemonic == "ExecutableSymlink"
 }
 
-func isTemplateExpandAction(a action) bool {
+func (a action) isTemplateExpandAction() bool {
 	return a.Mnemonic == "TemplateExpand"
 }
 
-func isPythonZipperAction(a action) bool {
+func (a action) isPythonZipperAction() bool {
 	return a.Mnemonic == "PythonZipper"
+}
+
+func (a action) isFileWriteAction() bool {
+	return a.Mnemonic == "FileWrite" || a.Mnemonic == "SourceSymlinkManifest"
 }
 
 func shouldSkipAction(a action) bool {
 	// TODO(b/180945121): Handle complex symlink actions.
-	if a.Mnemonic == "SymlinkTree" || a.Mnemonic == "SourceSymlinkManifest" {
+	if a.Mnemonic == "SymlinkTree" {
 		return true
 	}
 	// Middleman actions are not handled like other actions; they are handled separately as a
@@ -679,11 +706,6 @@ func shouldSkipAction(a action) bool {
 	}
 	// Skip "Fail" actions, which are placeholder actions designed to always fail.
 	if a.Mnemonic == "Fail" {
-		return true
-	}
-	// TODO(b/180946980): Handle FileWrite. The aquery proto currently contains no information
-	// about the contents that are written.
-	if a.Mnemonic == "FileWrite" {
 		return true
 	}
 	if a.Mnemonic == "BaselineCoverage" {
