@@ -40,6 +40,13 @@ var (
 		Rspfile:        "${out}.rsp",
 		RspfileContent: "${content}",
 	}, "content")
+	_                 = pctx.HostBinToolVariable("bazelBuildRunfilesTool", "build-runfiles")
+	buildRunfilesRule = pctx.AndroidStaticRule("bazelBuildRunfiles", blueprint.RuleParams{
+		Command:     "${bazelBuildRunfilesTool} ${in} ${outDir}",
+		Depfile:     "",
+		Description: "",
+		CommandDeps: []string{"${bazelBuildRunfilesTool}"},
+	}, "outDir")
 )
 
 func init() {
@@ -908,6 +915,25 @@ func (c *bazelSingleton) GenerateBuildActions(ctx SingletonContext) {
 				Description: fmt.Sprintf("%s %s", buildStatement.Mnemonic, buildStatement.OutputPaths[0]),
 				Args: map[string]string{
 					"content": escaped,
+				},
+			})
+		} else if buildStatement.Mnemonic == "SymlinkTree" {
+			// build-runfiles arguments are the manifest file and the target directory
+			// where it creates the symlink tree according to this manifest (and then
+			// writes the MANIFEST file to it).
+			outManifest := PathForBazelOut(ctx, buildStatement.OutputPaths[0])
+			outManifestPath := outManifest.String()
+			if !strings.HasSuffix(outManifestPath, "MANIFEST") {
+				panic("the base name of the symlink tree action should be MANIFEST, got " + outManifestPath)
+			}
+			outDir := filepath.Dir(outManifestPath)
+			ctx.Build(pctx, BuildParams{
+				Rule:        buildRunfilesRule,
+				Output:      outManifest,
+				Inputs:      []Path{PathForBazelOut(ctx, buildStatement.InputPaths[0])},
+				Description: "symlink tree for " + outDir,
+				Args: map[string]string{
+					"outDir": outDir,
 				},
 			})
 		} else {
