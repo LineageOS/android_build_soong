@@ -22,13 +22,16 @@ import (
 	"android/soong/java"
 )
 
-func TestSnapshotWithSystemServerClasspathFragment(t *testing.T) {
+func testSnapshotWithSystemServerClasspathFragment(t *testing.T, targetBuildRelease string, expectedSdkSnapshot string) {
 	result := android.GroupFixturePreparers(
 		prepareForSdkTestWithJava,
 		java.PrepareForTestWithJavaDefaultModules,
 		java.PrepareForTestWithJavaSdkLibraryFiles,
 		java.FixtureWithLastReleaseApis("mysdklibrary"),
 		dexpreopt.FixtureSetApexSystemServerJars("myapex:mylib", "myapex:mysdklibrary"),
+		android.FixtureModifyEnv(func(env map[string]string) {
+			env["SOONG_SDK_SNAPSHOT_TARGET_BUILD_RELEASE"] = targetBuildRelease
+		}),
 		prepareForSdkTestWithApex,
 
 		android.FixtureWithRootAndroidBp(`
@@ -83,7 +86,34 @@ func TestSnapshotWithSystemServerClasspathFragment(t *testing.T) {
 	).RunTest(t)
 
 	CheckSnapshot(t, result, "mysdk", "",
-		checkAndroidBpContents(`
+		checkAndroidBpContents(expectedSdkSnapshot),
+	)
+}
+
+func TestSnapshotWithSystemServerClasspathFragment(t *testing.T) {
+	t.Run("target-s", func(t *testing.T) {
+		testSnapshotWithSystemServerClasspathFragment(t, "S", `
+// This is auto-generated. DO NOT EDIT.
+
+java_sdk_library_import {
+    name: "mysdklibrary",
+    prefer: false,
+    visibility: ["//visibility:public"],
+    apex_available: ["myapex"],
+    shared_library: false,
+    public: {
+        jars: ["sdk_library/public/mysdklibrary-stubs.jar"],
+        stub_srcs: ["sdk_library/public/mysdklibrary_stub_sources"],
+        current_api: "sdk_library/public/mysdklibrary.txt",
+        removed_api: "sdk_library/public/mysdklibrary-removed.txt",
+        sdk_version: "current",
+    },
+}
+`)
+	})
+
+	t.Run("target-t", func(t *testing.T) {
+		testSnapshotWithSystemServerClasspathFragment(t, "Tiramisu", `
 // This is auto-generated. DO NOT EDIT.
 
 java_sdk_library_import {
@@ -120,6 +150,6 @@ prebuilt_systemserverclasspath_fragment {
         "mysdklibrary",
     ],
 }
-`),
-	)
+`)
+	})
 }
