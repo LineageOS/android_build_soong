@@ -34,6 +34,14 @@ import (
 	"android/soong/bazel"
 )
 
+var (
+	writeBazelFile = pctx.AndroidStaticRule("bazelWriteFileRule", blueprint.RuleParams{
+		Command:        `sed "s/\\\\n/\n/g" ${out}.rsp >${out}`,
+		Rspfile:        "${out}.rsp",
+		RspfileContent: "${content}",
+	}, "content")
+)
+
 func init() {
 	RegisterMixedBuildsMutator(InitRegistrationContext)
 }
@@ -778,7 +786,7 @@ func (context *bazelContext) InvokeBazel(config Config) error {
 		}
 	}
 
-	extraFlags := append([]string{"--output=jsonproto"}, coverageFlags...)
+	extraFlags := append([]string{"--output=jsonproto", "--include_file_write_contents"}, coverageFlags...)
 
 	aqueryOutput, _, err = context.issueBazelCommand(
 		context.paths,
@@ -874,13 +882,37 @@ func (c *bazelSingleton) GenerateBuildActions(ctx SingletonContext) {
 	executionRoot := path.Join(ctx.Config().BazelContext.OutputBase(), "execroot", "__main__")
 	bazelOutDir := path.Join(executionRoot, "bazel-out")
 	for index, buildStatement := range ctx.Config().BazelContext.BuildStatementsToRegister() {
-		if len(buildStatement.Command) < 1 {
+		if len(buildStatement.Command) > 0 {
+			rule := NewRuleBuilder(pctx, ctx)
+			createCommand(rule.Command(), buildStatement, executionRoot, bazelOutDir, ctx)
+			desc := fmt.Sprintf("%s: %s", buildStatement.Mnemonic, buildStatement.OutputPaths)
+			rule.Build(fmt.Sprintf("bazel %d", index), desc)
+			continue
+		}
+		// Certain actions returned by aquery (for instance FileWrite) do not contain a command
+		// and thus require special treatment. If BuildStatement were an interface implementing
+		// buildRule(ctx) function, the code here would just call it.
+		// Unfortunately, the BuildStatement is defined in
+		// the 'bazel' package, which cannot depend on 'android' package where ctx is defined,
+		// because this would cause circular dependency. So, until we move aquery processing
+		// to the 'android' package, we need to handle special cases here.
+		if buildStatement.Mnemonic == "FileWrite" || buildStatement.Mnemonic == "SourceSymlinkManifest" {
+			// Pass file contents as the value of the rule's "content" argument.
+			// Escape newlines and $ in the contents (the action "writeBazelFile" restores "\\n"
+			// back to the newline, and Ninja reads $$ as $.
+			escaped := strings.ReplaceAll(strings.ReplaceAll(buildStatement.FileContents, "\n", "\\n"),
+				"$", "$$")
+			ctx.Build(pctx, BuildParams{
+				Rule:        writeBazelFile,
+				Output:      PathForBazelOut(ctx, buildStatement.OutputPaths[0]),
+				Description: fmt.Sprintf("%s %s", buildStatement.Mnemonic, buildStatement.OutputPaths[0]),
+				Args: map[string]string{
+					"content": escaped,
+				},
+			})
+		} else {
 			panic(fmt.Sprintf("unhandled build statement: %v", buildStatement))
 		}
-		rule := NewRuleBuilder(pctx, ctx)
-		createCommand(rule.Command(), buildStatement, executionRoot, bazelOutDir, ctx)
-		desc := fmt.Sprintf("%s: %s", buildStatement.Mnemonic, buildStatement.OutputPaths)
-		rule.Build(fmt.Sprintf("bazel %d", index), desc)
 	}
 }
 
