@@ -30,8 +30,9 @@ var prepareForBpfTest = android.GroupFixturePreparers(
 	cc.PrepareForTestWithCcDefaultModules,
 	android.FixtureMergeMockFs(
 		map[string][]byte{
-			"bpf.c":       nil,
-			"BpfTest.cpp": nil,
+			"bpf.c":              nil,
+			"bpf_invalid_name.c": nil,
+			"BpfTest.cpp":        nil,
 		},
 	),
 	PrepareForTestWithBpf,
@@ -57,4 +58,16 @@ func TestBpfDataDependency(t *testing.T) {
 	// We only verify the above BP configuration is processed successfully since the data property
 	// value is not available for testing from this package.
 	// TODO(jungjw): Add a check for data or move this test to the cc package.
+}
+
+func TestBpfSourceName(t *testing.T) {
+	bp := `
+		bpf {
+			name: "bpf_invalid_name.o",
+			srcs: ["bpf_invalid_name.c"],
+		}
+	`
+	prepareForBpfTest.ExtendWithErrorHandler(android.FixtureExpectsOneErrorPattern(
+		`\QAndroid.bp:2:3: module "bpf_invalid_name.o" variant "android_common": invalid character '_' in source name\E`)).
+		RunTestWithBp(t, bp)
 }
