@@ -1584,10 +1584,10 @@ func (library *libraryDecorator) coverageOutputFilePath() android.OptionalPath {
 func getRefAbiDumpFile(ctx ModuleContext, vndkVersion, fileName string) android.Path {
 	// The logic must be consistent with classifySourceAbiDump.
 	isNdk := ctx.isNdk(ctx.Config())
-	isLlndkOrVndk := ctx.IsLlndkPublic() || (ctx.useVndk() && ctx.isVndk())
+	isVndk := ctx.useVndk() && ctx.isVndk()
 
-	refAbiDumpTextFile := android.PathForVndkRefAbiDump(ctx, vndkVersion, fileName, isNdk, isLlndkOrVndk, false)
-	refAbiDumpGzipFile := android.PathForVndkRefAbiDump(ctx, vndkVersion, fileName, isNdk, isLlndkOrVndk, true)
+	refAbiDumpTextFile := android.PathForVndkRefAbiDump(ctx, vndkVersion, fileName, isNdk, isVndk, false)
+	refAbiDumpGzipFile := android.PathForVndkRefAbiDump(ctx, vndkVersion, fileName, isNdk, isVndk, true)
 
 	if refAbiDumpTextFile.Valid() {
 		if refAbiDumpGzipFile.Valid() {
