@@ -28,6 +28,9 @@ func init() {
 		SdkMemberTypeBase: android.SdkMemberTypeBase{
 			PropertyName: "systemserverclasspath_fragments",
 			SupportsSdk:  true,
+
+			// This was only added in Tiramisu.
+			SupportedBuildReleaseSpecification: "Tiramisu+",
 		},
 	})
 }
