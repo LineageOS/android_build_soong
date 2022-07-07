@@ -433,6 +433,9 @@ be unnecessary as every module in the sdk already has its own licenses property.
 	traits := s.gatherTraits()
 	for _, member := range members {
 		memberType := member.memberType
+		if !memberType.ArePrebuiltsRequired() {
+			continue
+		}
 
 		name := member.name
 		requiredTraits := traits[name]
@@ -1319,6 +1322,119 @@ func (m multilibUsage) String() string {
 	}
 }
 
+// TODO(187910671): BEGIN - Remove once modules do not have an APEX and default variant.
+// variantCoordinate contains the coordinates used to identify a variant of an SDK member.
+type variantCoordinate struct {
+	// osType identifies the OS target of a variant.
+	osType android.OsType
+	// archId identifies the architecture and whether it is for the native bridge.
+	archId archId
+	// image is the image variant name.
+	image string
+	// linkType is the link type name.
+	linkType string
+}
+
+func getVariantCoordinate(ctx *memberContext, variant android.Module) variantCoordinate {
+	linkType := ""
+	if len(ctx.MemberType().SupportedLinkages()) > 0 {
+		linkType = getLinkType(variant)
+	}
+	return variantCoordinate{
+		osType:   variant.Target().Os,
+		archId:   archIdFromTarget(variant.Target()),
+		image:    variant.ImageVariation().Variation,
+		linkType: linkType,
+	}
+}
+
+// selectApexVariantsWhereAvailable filters the input list of variants by selecting the APEX
+// specific variant for a specific variantCoordinate when there is both an APEX and default variant.
+//
+// There is a long-standing issue where a module that is added to an APEX has both an APEX and
+// default/platform variant created even when the module does not require a platform variant. As a
+// result an indirect dependency onto a module via the APEX will use the APEX variant, whereas a
+// direct dependency onto the module will use the default/platform variant. That would result in a
+// failure while attempting to optimize the properties for a member as it would have two variants
+// when only one was expected.
+//
+// This function mitigates that problem by detecting when there are two variants that differ only
+// by apex variant, where one is the default/platform variant and one is the APEX variant. In that
+// case it picks the APEX variant. It picks the APEX variant because that is the behavior that would
+// be expected
+func selectApexVariantsWhereAvailable(ctx *memberContext, variants []android.SdkAware) []android.SdkAware {
+	moduleCtx := ctx.sdkMemberContext
+
+	// Group the variants by coordinates.
+	variantsByCoord := make(map[variantCoordinate][]android.SdkAware)
+	for _, variant := range variants {
+		coord := getVariantCoordinate(ctx, variant)
+		variantsByCoord[coord] = append(variantsByCoord[coord], variant)
+	}
+
+	toDiscard := make(map[android.SdkAware]struct{})
+	for coord, list := range variantsByCoord {
+		count := len(list)
+		if count == 1 {
+			continue
+		}
+
+		variantsByApex := make(map[string]android.SdkAware)
+		conflictDetected := false
+		for _, variant := range list {
+			apexInfo := moduleCtx.OtherModuleProvider(variant, android.ApexInfoProvider).(android.ApexInfo)
+			apexVariationName := apexInfo.ApexVariationName
+			// If there are two variants for a specific APEX variation then there is conflict.
+			if _, ok := variantsByApex[apexVariationName]; ok {
+				conflictDetected = true
+				break
+			}
+			variantsByApex[apexVariationName] = variant
+		}
+
+		// If there are more than 2 apex variations or one of the apex variations is not the
+		// default/platform variation then there is a conflict.
+		if len(variantsByApex) != 2 {
+			conflictDetected = true
+		} else if _, ok := variantsByApex[""]; !ok {
+			conflictDetected = true
+		}
+
+		// If there are no conflicts then add the default/platform variation to the list to remove.
+		if !conflictDetected {
+			toDiscard[variantsByApex[""]] = struct{}{}
+			continue
+		}
+
+		// There are duplicate variants at this coordinate and they are not the default and APEX variant
+		// so fail.
+		variantDescriptions := []string{}
+		for _, m := range list {
+			variantDescriptions = append(variantDescriptions, fmt.Sprintf("    %s", m.String()))
+		}
+
+		moduleCtx.ModuleErrorf("multiple conflicting variants detected for OsType{%s}, %s, Image{%s}, Link{%s}\n%s",
+			coord.osType, coord.archId.String(), coord.image, coord.linkType,
+			strings.Join(variantDescriptions, "\n"))
+	}
+
+	// If there are any variants to discard then remove them from the list of variants, while
+	// preserving the order.
+	if len(toDiscard) > 0 {
+		filtered := []android.SdkAware{}
+		for _, variant := range variants {
+			if _, ok := toDiscard[variant]; !ok {
+				filtered = append(filtered, variant)
+			}
+		}
+		variants = filtered
+	}
+
+	return variants
+}
+
+// TODO(187910671): END - Remove once modules do not have an APEX and default variant.
+
 type baseInfo struct {
 	Properties android.SdkMemberProperties
 }
@@ -1374,7 +1490,14 @@ func newOsTypeSpecificInfo(ctx android.SdkMemberContext, osType android.OsType, 
 
 	if commonVariants, ok := variantsByArchId[commonArchId]; ok {
 		if len(osTypeVariants) != 1 {
-			panic(fmt.Errorf("Expected to only have 1 variant when arch type is common but found %d", len(osTypeVariants)))
+			variants := []string{}
+			for _, m := range osTypeVariants {
+				variants = append(variants, fmt.Sprintf("    %s", m.String()))
+			}
+			panic(fmt.Errorf("expected to only have 1 variant of %q when arch type is common but found %d\n%s",
+				ctx.Name(),
+				len(osTypeVariants),
+				strings.Join(variants, "\n")))
 		}
 
 		// A common arch type only has one variant and its properties should be treated
@@ -1854,7 +1977,8 @@ func (s *sdk) createMemberSnapshot(ctx *memberContext, member *sdkMember, bpModu
 	memberType := member.memberType
 
 	// Do not add the prefer property if the member snapshot module is a source module type.
-	config := ctx.sdkMemberContext.Config()
+	moduleCtx := ctx.sdkMemberContext
+	config := moduleCtx.Config()
 	if !memberType.UsesSourceModuleTypeInSnapshot() {
 		// Set the prefer based on the environment variable. This is a temporary work around to allow a
 		// snapshot to be created that sets prefer: true.
@@ -1879,9 +2003,10 @@ func (s *sdk) createMemberSnapshot(ctx *memberContext, member *sdkMember, bpModu
 		}
 	}
 
+	variants := selectApexVariantsWhereAvailable(ctx, member.variants)
+
 	// Group the variants by os type.
 	variantsByOsType := make(map[android.OsType][]android.Module)
-	variants := member.Variants()
 	for _, variant := range variants {
 		osType := variant.Target().Os
 		variantsByOsType[osType] = append(variantsByOsType[osType], variant)
@@ -1927,7 +2052,7 @@ func (s *sdk) createMemberSnapshot(ctx *memberContext, member *sdkMember, bpModu
 	}
 
 	// Extract properties which are common across all architectures and os types.
-	extractCommonProperties(ctx.sdkMemberContext, commonValueExtractor, commonProperties, osSpecificPropertiesContainers)
+	extractCommonProperties(moduleCtx, commonValueExtractor, commonProperties, osSpecificPropertiesContainers)
 
 	// Add the common properties to the module.
 	addSdkMemberPropertiesToSet(ctx, commonProperties, bpModule)
