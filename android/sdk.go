@@ -661,6 +661,10 @@ type SdkMemberType interface {
 	// an Android.bp file.
 	RequiresBpProperty() bool
 
+	// SupportedBuildReleases returns the string representation of a set of target build releases that
+	// support this member type.
+	SupportedBuildReleases() string
+
 	// UsableWithSdkAndSdkSnapshot returns true if the member type supports the sdk/sdk_snapshot,
 	// false otherwise.
 	UsableWithSdkAndSdkSnapshot() bool
@@ -760,6 +764,11 @@ type SdkMemberTypeBase struct {
 	// property to be specifiable in an Android.bp file.
 	BpPropertyNotRequired bool
 
+	// The name of the first targeted build release.
+	//
+	// If not specified then it is assumed to be available on all targeted build releases.
+	SupportedBuildReleaseSpecification string
+
 	SupportsSdk     bool
 	HostOsDependent bool
 
@@ -778,6 +787,10 @@ func (b *SdkMemberTypeBase) SdkPropertyName() string {
 
 func (b *SdkMemberTypeBase) RequiresBpProperty() bool {
 	return !b.BpPropertyNotRequired
+}
+
+func (b *SdkMemberTypeBase) SupportedBuildReleases() string {
+	return b.SupportedBuildReleaseSpecification
 }
 
 func (b *SdkMemberTypeBase) UsableWithSdkAndSdkSnapshot() bool {
