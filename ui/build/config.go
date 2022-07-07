@@ -156,10 +156,15 @@ func checkTopDir(ctx Context) {
 // experiments system to control Soong features dynamically.
 func fetchEnvConfig(ctx Context, config *configImpl, envConfigName string) error {
 	configName := envConfigName + "." + jsonSuffix
-	expConfigFetcher := &smpb.ExpConfigFetcher{}
+	expConfigFetcher := &smpb.ExpConfigFetcher{Filename: &configName}
 	defer func() {
 		ctx.Metrics.ExpConfigFetcher(expConfigFetcher)
 	}()
+	if !config.GoogleProdCredsExist() {
+		status := smpb.ExpConfigFetcher_MISSING_GCERT
+		expConfigFetcher.Status = &status
+		return nil
+	}
 
 	s, err := os.Stat(configFetcher)
 	if err != nil {
