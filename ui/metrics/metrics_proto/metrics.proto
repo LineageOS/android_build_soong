@@ -251,6 +251,7 @@ message ExpConfigFetcher {
     NO_CONFIG = 0;
     CONFIG = 1;
     ERROR = 2;
+    MISSING_GCERT = 3;
   }
   // The result of the call to expconfigfetcher
   // NO_CONFIG - Not part of experiment
