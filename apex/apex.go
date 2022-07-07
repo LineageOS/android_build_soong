@@ -606,6 +606,18 @@ type dependencyTag struct {
 	// replacement. This is needed because some prebuilt modules do not provide all the information
 	// needed by the apex.
 	sourceOnly bool
+
+	// If not-nil and an APEX is a member of an SDK then dependencies of that APEX with this tag will
+	// also be added as exported members of that SDK.
+	memberType android.SdkMemberType
+}
+
+func (d *dependencyTag) SdkMemberType(_ android.Module) android.SdkMemberType {
+	return d.memberType
+}
+
+func (d *dependencyTag) ExportMember() bool {
+	return true
 }
 
 func (d *dependencyTag) String() string {
@@ -617,6 +629,7 @@ func (d *dependencyTag) ReplaceSourceWithPrebuilt() bool {
 }
 
 var _ android.ReplaceSourceWithPrebuilt = &dependencyTag{}
+var _ android.SdkMemberDependencyTag = &dependencyTag{}
 
 var (
 	androidAppTag   = &dependencyTag{name: "androidApp", payload: true}
@@ -624,8 +637,8 @@ var (
 	certificateTag  = &dependencyTag{name: "certificate"}
 	executableTag   = &dependencyTag{name: "executable", payload: true}
 	fsTag           = &dependencyTag{name: "filesystem", payload: true}
-	bcpfTag         = &dependencyTag{name: "bootclasspathFragment", payload: true, sourceOnly: true}
-	sscpfTag        = &dependencyTag{name: "systemserverclasspathFragment", payload: true, sourceOnly: true}
+	bcpfTag         = &dependencyTag{name: "bootclasspathFragment", payload: true, sourceOnly: true, memberType: java.BootclasspathFragmentSdkMemberType}
+	sscpfTag        = &dependencyTag{name: "systemserverclasspathFragment", payload: true, sourceOnly: true, memberType: java.SystemServerClasspathFragmentSdkMemberType}
 	compatConfigTag = &dependencyTag{name: "compatConfig", payload: true, sourceOnly: true}
 	javaLibTag      = &dependencyTag{name: "javaLib", payload: true}
 	jniLibTag       = &dependencyTag{name: "jniLib", payload: true}
