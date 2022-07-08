@@ -460,6 +460,43 @@ func TestTransitiveInputDepsets(t *testing.T) {
 	}
 }
 
+func TestSymlinkTree(t *testing.T) {
+	const inputString = `
+{
+  "artifacts": [
+    { "id": 1, "pathFragmentId": 1 },
+    { "id": 2, "pathFragmentId": 2 }],
+  "actions": [{
+    "targetId": 1,
+    "actionKey": "x",
+    "mnemonic": "SymlinkTree",
+    "configurationId": 1,
+    "inputDepSetIds": [1],
+    "outputIds": [2],
+    "primaryOutputId": 2,
+    "executionPlatform": "//build/bazel/platforms:linux_x86_64"
+  }],
+  "pathFragments": [
+    { "id": 1, "label": "foo.manifest" },
+    { "id": 2, "label": "foo.runfiles/MANIFEST" }],
+  "depSetOfFiles": [
+    { "id": 1, "directArtifactIds": [1] }]
+}
+`
+	actual, _, err := AqueryBuildStatements([]byte(inputString))
+	if err != nil {
+		t.Errorf("Unexpected error %q", err)
+	}
+	assertBuildStatements(t, []BuildStatement{
+		{
+			Command:     "",
+			OutputPaths: []string{"foo.runfiles/MANIFEST"},
+			Mnemonic:    "SymlinkTree",
+			InputPaths:  []string{"foo.manifest"},
+		},
+	}, actual)
+}
+
 func TestBazelOutRemovalFromInputDepsets(t *testing.T) {
 	const inputString = `{
   "artifacts": [{
@@ -861,151 +898,67 @@ func TestTemplateExpandActionNoOutput(t *testing.T) {
 	assertError(t, err, `Expect 1 output to template expand action, got: output []`)
 }
 
-func TestPythonZipperActionSuccess(t *testing.T) {
+func TestFileWrite(t *testing.T) {
 	const inputString = `
 {
   "artifacts": [
-    { "id": 1, "pathFragmentId": 1 },
-    { "id": 2, "pathFragmentId": 2 },
-    { "id": 3, "pathFragmentId": 3 },
-    { "id": 4, "pathFragmentId": 4 },
-    { "id": 5, "pathFragmentId": 10 },
-    { "id": 10, "pathFragmentId": 20 }],
+    { "id": 1, "pathFragmentId": 1 }],
   "actions": [{
     "targetId": 1,
     "actionKey": "x",
-    "mnemonic": "TemplateExpand",
+    "mnemonic": "FileWrite",
     "configurationId": 1,
     "outputIds": [1],
     "primaryOutputId": 1,
     "executionPlatform": "//build/bazel/platforms:linux_x86_64",
-    "templateContent": "Test template substitutions: %token1%, %python_binary%",
-    "substitutions": [{
-      "key": "%token1%",
-      "value": "abcd"
-    },{
-      "key": "%python_binary%",
-      "value": "python3"
-    }]
-  },{
-    "targetId": 1,
-    "actionKey": "x",
-    "mnemonic": "PythonZipper",
-    "configurationId": 1,
-    "arguments": ["../bazel_tools/tools/zip/zipper/zipper", "cC", "python_binary.zip", "__main__.py\u003dbazel-out/k8-fastbuild/bin/python_binary.temp", "__init__.py\u003d", "runfiles/__main__/__init__.py\u003d", "runfiles/__main__/python_binary.py\u003dpython_binary.py", "runfiles/bazel_tools/tools/python/py3wrapper.sh\u003dbazel-out/bazel_tools/k8-fastbuild/bin/tools/python/py3wrapper.sh"],
-    "outputIds": [2],
-    "inputDepSetIds": [1],
-    "primaryOutputId": 2
+    "fileContents": "file data\n"
   }],
-  "depSetOfFiles": [
-    { "id": 1, "directArtifactIds": [4, 3, 5] }],
   "pathFragments": [
-    { "id": 1, "label": "python_binary" },
-    { "id": 2, "label": "python_binary.zip" },
-    { "id": 3, "label": "python_binary.py" },
-    { "id": 9, "label": ".." },
-    { "id": 8, "label": "bazel_tools", "parentId": 9 },
-    { "id": 7, "label": "tools", "parentId": 8 },
-    { "id": 6, "label": "zip", "parentId": 7  },
-    { "id": 5, "label": "zipper", "parentId": 6 },
-    { "id": 4, "label": "zipper", "parentId": 5 },
-    { "id": 16, "label": "bazel-out" },
-    { "id": 15, "label": "bazel_tools", "parentId": 16 },
-    { "id": 14, "label": "k8-fastbuild", "parentId": 15 },
-    { "id": 13, "label": "bin", "parentId": 14 },
-    { "id": 12, "label": "tools", "parentId": 13 },
-    { "id": 11, "label": "python", "parentId": 12 },
-    { "id": 10, "label": "py3wrapper.sh", "parentId": 11 },
-    { "id": 20, "label": "python_binary" }]
-}`
+    { "id": 1, "label": "foo.manifest" }]
+}
+`
 	actual, _, err := AqueryBuildStatements([]byte(inputString))
-
 	if err != nil {
 		t.Errorf("Unexpected error %q", err)
 	}
+	assertBuildStatements(t, []BuildStatement{
+		{
+			OutputPaths:  []string{"foo.manifest"},
+			Mnemonic:     "FileWrite",
+			FileContents: "file data\n",
+		},
+	}, actual)
+}
 
-	expectedBuildStatements := []BuildStatement{
-		{
-			Command: "/bin/bash -c 'echo \"Test template substitutions: abcd, python3\" | sed \"s/\\\\\\\\n/\\\\n/g\" > python_binary && " +
-				"chmod a+x python_binary'",
-			InputPaths:  []string{"python_binary.zip"},
-			OutputPaths: []string{"python_binary"},
-			Mnemonic:    "TemplateExpand",
-		},
-		{
-			Command: "../bazel_tools/tools/zip/zipper/zipper cC python_binary.zip __main__.py=bazel-out/k8-fastbuild/bin/python_binary.temp " +
-				"__init__.py= runfiles/__main__/__init__.py= runfiles/__main__/python_binary.py=python_binary.py  && " +
-				"../bazel_tools/tools/zip/zipper/zipper x python_binary.zip -d python_binary.runfiles && ln -sf runfiles/__main__ python_binary.runfiles",
-			InputPaths:  []string{"python_binary.py"},
-			OutputPaths: []string{"python_binary.zip"},
-			Mnemonic:    "PythonZipper",
-		},
+func TestSourceSymlinkManifest(t *testing.T) {
+	const inputString = `
+{
+  "artifacts": [
+    { "id": 1, "pathFragmentId": 1 }],
+  "actions": [{
+    "targetId": 1,
+    "actionKey": "x",
+    "mnemonic": "SourceSymlinkManifest",
+    "configurationId": 1,
+    "outputIds": [1],
+    "primaryOutputId": 1,
+    "executionPlatform": "//build/bazel/platforms:linux_x86_64",
+    "fileContents": "symlink target\n"
+  }],
+  "pathFragments": [
+    { "id": 1, "label": "foo.manifest" }]
+}
+`
+	actual, _, err := AqueryBuildStatements([]byte(inputString))
+	if err != nil {
+		t.Errorf("Unexpected error %q", err)
 	}
-	assertBuildStatements(t, expectedBuildStatements, actual)
-}
-
-func TestPythonZipperActionNoInput(t *testing.T) {
-	const inputString = `
-{
-  "artifacts": [
-    { "id": 1, "pathFragmentId": 1 },
-    { "id": 2, "pathFragmentId": 2 }],
-  "actions": [{
-    "targetId": 1,
-    "actionKey": "x",
-    "mnemonic": "PythonZipper",
-    "configurationId": 1,
-    "arguments": ["../bazel_tools/tools/zip/zipper/zipper", "cC", "python_binary.zip", "__main__.py\u003dbazel-out/k8-fastbuild/bin/python_binary.temp", "__init__.py\u003d", "runfiles/__main__/__init__.py\u003d", "runfiles/__main__/python_binary.py\u003dpython_binary.py", "runfiles/bazel_tools/tools/python/py3wrapper.sh\u003dbazel-out/bazel_tools/k8-fastbuild/bin/tools/python/py3wrapper.sh"],
-    "outputIds": [2],
-    "primaryOutputId": 2
-  }],
-  "pathFragments": [
-    { "id": 1, "label": "python_binary" },
-    { "id": 2, "label": "python_binary.zip" }]
-}`
-	_, _, err := AqueryBuildStatements([]byte(inputString))
-	assertError(t, err, `Expect 1+ input and 1 output to python zipper action, got: input [], output ["python_binary.zip"]`)
-}
-
-func TestPythonZipperActionNoOutput(t *testing.T) {
-	const inputString = `
-{
-  "artifacts": [
-    { "id": 1, "pathFragmentId": 1 },
-    { "id": 2, "pathFragmentId": 2 },
-    { "id": 3, "pathFragmentId": 3 },
-    { "id": 4, "pathFragmentId": 4 },
-    { "id": 5, "pathFragmentId": 10 }],
-  "actions": [{
-    "targetId": 1,
-    "actionKey": "x",
-    "mnemonic": "PythonZipper",
-    "configurationId": 1,
-    "arguments": ["../bazel_tools/tools/zip/zipper/zipper", "cC", "python_binary.zip", "__main__.py\u003dbazel-out/k8-fastbuild/bin/python_binary.temp", "__init__.py\u003d", "runfiles/__main__/__init__.py\u003d", "runfiles/__main__/python_binary.py\u003dpython_binary.py", "runfiles/bazel_tools/tools/python/py3wrapper.sh\u003dbazel-out/bazel_tools/k8-fastbuild/bin/tools/python/py3wrapper.sh"],
-    "inputDepSetIds": [1]
-  }],
-  "depSetOfFiles": [
-    { "id": 1, "directArtifactIds": [4, 3, 5]}],
-  "pathFragments": [
-    { "id": 1, "label": "python_binary" },
-    { "id": 2, "label": "python_binary.zip" },
-    { "id": 3, "label": "python_binary.py" },
-    { "id": 9, "label": ".." },
-    { "id": 8, "label": "bazel_tools", "parentId": 9 },
-    { "id": 7, "label": "tools", "parentId": 8 },
-    { "id": 6, "label": "zip", "parentId": 7 },
-    { "id": 5, "label": "zipper", "parentId": 6 },
-    { "id": 4, "label": "zipper", "parentId": 5 },
-    { "id": 16, "label": "bazel-out" },
-    { "id": 15, "label": "bazel_tools", "parentId": 16 },
-    { "id": 14, "label": "k8-fastbuild", "parentId": 15 },
-    { "id": 13, "label": "bin", "parentId": 14 },
-    { "id": 12, "label": "tools", "parentId": 13 },
-    { "id": 11, "label": "python", "parentId": 12 },
-    { "id": 10, "label": "py3wrapper.sh", "parentId": 11 }]
-}`
-	_, _, err := AqueryBuildStatements([]byte(inputString))
-	assertError(t, err, `Expect 1+ input and 1 output to python zipper action, got: input ["python_binary.py"], output []`)
+	assertBuildStatements(t, []BuildStatement{
+		{
+			OutputPaths: []string{"foo.manifest"},
+			Mnemonic:    "SourceSymlinkManifest",
+		},
+	}, actual)
 }
 
 func assertError(t *testing.T, err error, expected string) {

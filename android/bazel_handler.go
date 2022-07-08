@@ -34,6 +34,21 @@ import (
 	"android/soong/bazel"
 )
 
+var (
+	writeBazelFile = pctx.AndroidStaticRule("bazelWriteFileRule", blueprint.RuleParams{
+		Command:        `sed "s/\\\\n/\n/g" ${out}.rsp >${out}`,
+		Rspfile:        "${out}.rsp",
+		RspfileContent: "${content}",
+	}, "content")
+	_                 = pctx.HostBinToolVariable("bazelBuildRunfilesTool", "build-runfiles")
+	buildRunfilesRule = pctx.AndroidStaticRule("bazelBuildRunfiles", blueprint.RuleParams{
+		Command:     "${bazelBuildRunfilesTool} ${in} ${outDir}",
+		Depfile:     "",
+		Description: "",
+		CommandDeps: []string{"${bazelBuildRunfilesTool}"},
+	}, "outDir")
+)
+
 func init() {
 	RegisterMixedBuildsMutator(InitRegistrationContext)
 }
@@ -173,26 +188,26 @@ type MockBazelContext struct {
 	LabelToPythonBinary map[string]string
 }
 
-func (m MockBazelContext) QueueBazelRequest(label string, requestType cqueryRequest, cfgKey configKey) {
+func (m MockBazelContext) QueueBazelRequest(_ string, _ cqueryRequest, _ configKey) {
 	panic("unimplemented")
 }
 
-func (m MockBazelContext) GetOutputFiles(label string, cfgKey configKey) ([]string, error) {
+func (m MockBazelContext) GetOutputFiles(label string, _ configKey) ([]string, error) {
 	result, _ := m.LabelToOutputFiles[label]
 	return result, nil
 }
 
-func (m MockBazelContext) GetCcInfo(label string, cfgKey configKey) (cquery.CcInfo, error) {
+func (m MockBazelContext) GetCcInfo(label string, _ configKey) (cquery.CcInfo, error) {
 	result, _ := m.LabelToCcInfo[label]
 	return result, nil
 }
 
-func (m MockBazelContext) GetPythonBinary(label string, cfgKey configKey) (string, error) {
+func (m MockBazelContext) GetPythonBinary(label string, _ configKey) (string, error) {
 	result, _ := m.LabelToPythonBinary[label]
 	return result, nil
 }
 
-func (m MockBazelContext) InvokeBazel(config Config) error {
+func (m MockBazelContext) InvokeBazel(_ Config) error {
 	panic("unimplemented")
 }
 
@@ -246,23 +261,23 @@ func (bazelCtx *bazelContext) GetPythonBinary(label string, cfgKey configKey) (s
 	return "", fmt.Errorf("no bazel response found for %v", key)
 }
 
-func (n noopBazelContext) QueueBazelRequest(label string, requestType cqueryRequest, cfgKey configKey) {
+func (n noopBazelContext) QueueBazelRequest(_ string, _ cqueryRequest, _ configKey) {
 	panic("unimplemented")
 }
 
-func (n noopBazelContext) GetOutputFiles(label string, cfgKey configKey) ([]string, error) {
+func (n noopBazelContext) GetOutputFiles(_ string, _ configKey) ([]string, error) {
 	panic("unimplemented")
 }
 
-func (n noopBazelContext) GetCcInfo(label string, cfgKey configKey) (cquery.CcInfo, error) {
+func (n noopBazelContext) GetCcInfo(_ string, _ configKey) (cquery.CcInfo, error) {
 	panic("unimplemented")
 }
 
-func (n noopBazelContext) GetPythonBinary(label string, cfgKey configKey) (string, error) {
+func (n noopBazelContext) GetPythonBinary(_ string, _ configKey) (string, error) {
 	panic("unimplemented")
 }
 
-func (n noopBazelContext) InvokeBazel(config Config) error {
+func (n noopBazelContext) InvokeBazel(_ Config) error {
 	panic("unimplemented")
 }
 
@@ -304,7 +319,7 @@ func bazelPathsFromConfig(c *config) (*bazelPaths, error) {
 	p := bazelPaths{
 		soongOutDir: c.soongOutDir,
 	}
-	missingEnvVars := []string{}
+	var missingEnvVars []string
 	if len(c.Getenv("BAZEL_HOME")) > 1 {
 		p.homeDir = c.Getenv("BAZEL_HOME")
 	} else {
@@ -365,10 +380,8 @@ type mockBazelRunner struct {
 	extraFlags          []string
 }
 
-func (r *mockBazelRunner) issueBazelCommand(paths *bazelPaths,
-	runName bazel.RunName,
-	command bazelCommand,
-	extraFlags ...string) (string, string, error) {
+func (r *mockBazelRunner) issueBazelCommand(_ *bazelPaths, _ bazel.RunName,
+	command bazelCommand, extraFlags ...string) (string, string, error) {
 	r.commands = append(r.commands, command)
 	r.extraFlags = append(r.extraFlags, strings.Join(extraFlags, " "))
 	if ret, ok := r.bazelCommandResults[command]; ok {
@@ -396,26 +409,30 @@ func (r *builtinBazelRunner) issueBazelCommand(paths *bazelPaths, runName bazel.
 		command.command,
 	}
 	cmdFlags = append(cmdFlags, command.expression)
-	cmdFlags = append(cmdFlags, "--profile="+shared.BazelMetricsFilename(paths, runName))
+	cmdFlags = append(cmdFlags,
+		// TODO(asmundak): is it needed in every build?
+		"--profile="+shared.BazelMetricsFilename(paths, runName),
 
-	// Set default platforms to canonicalized values for mixed builds requests.
-	// If these are set in the bazelrc, they will have values that are
-	// non-canonicalized to @sourceroot labels, and thus be invalid when
-	// referenced from the buildroot.
-	//
-	// The actual platform values here may be overridden by configuration
-	// transitions from the buildroot.
-	cmdFlags = append(cmdFlags,
-		fmt.Sprintf("--platforms=%s", "//build/bazel/platforms:android_target"))
-	cmdFlags = append(cmdFlags,
-		fmt.Sprintf("--extra_toolchains=%s", "//prebuilts/clang/host/linux-x86:all"))
-	// This should be parameterized on the host OS, but let's restrict to linux
-	// to keep things simple for now.
-	cmdFlags = append(cmdFlags,
-		fmt.Sprintf("--host_platform=%s", "//build/bazel/platforms:linux_x86_64"))
+		// Set default platforms to canonicalized values for mixed builds requests.
+		// If these are set in the bazelrc, they will have values that are
+		// non-canonicalized to @sourceroot labels, and thus be invalid when
+		// referenced from the buildroot.
+		//
+		// The actual platform values here may be overridden by configuration
+		// transitions from the buildroot.
+		fmt.Sprintf("--platforms=%s", "//build/bazel/platforms:android_target"),
+		fmt.Sprintf("--extra_toolchains=%s", "//prebuilts/clang/host/linux-x86:all"),
 
-	// Explicitly disable downloading rules (such as canonical C++ and Java rules) from the network.
-	cmdFlags = append(cmdFlags, "--experimental_repository_disable_download")
+		// This should be parameterized on the host OS, but let's restrict to linux
+		// to keep things simple for now.
+		fmt.Sprintf("--host_platform=%s", "//build/bazel/platforms:linux_x86_64"),
+
+		// Explicitly disable downloading rules (such as canonical C++ and Java rules) from the network.
+		"--experimental_repository_disable_download",
+
+		// Suppress noise
+		"--ui_event_filters=-INFO",
+		"--noshow_progress")
 	cmdFlags = append(cmdFlags, extraFlags...)
 
 	bazelCmd := exec.Command(paths.bazelPath, cmdFlags...)
@@ -682,8 +699,6 @@ func (p *bazelPaths) outDir() string {
 func (context *bazelContext) InvokeBazel(config Config) error {
 	context.results = make(map[cqueryKey]string)
 
-	var cqueryOutput string
-	var cqueryErr string
 	var err error
 
 	soongInjectionPath := absolutePath(context.paths.injectedFilesDir())
@@ -700,45 +715,27 @@ func (context *bazelContext) InvokeBazel(config Config) error {
 			return err
 		}
 	}
-	err = ioutil.WriteFile(filepath.Join(soongInjectionPath, "WORKSPACE.bazel"), []byte{}, 0666)
-	if err != nil {
+	if err = ioutil.WriteFile(filepath.Join(soongInjectionPath, "WORKSPACE.bazel"), []byte{}, 0666); err != nil {
 		return err
 	}
-
-	err = ioutil.WriteFile(
-		filepath.Join(mixedBuildsPath, "main.bzl"),
-		context.mainBzlFileContents(), 0666)
-	if err != nil {
+	if err = ioutil.WriteFile(filepath.Join(mixedBuildsPath, "main.bzl"), context.mainBzlFileContents(), 0666); err != nil {
 		return err
 	}
-
-	err = ioutil.WriteFile(
-		filepath.Join(mixedBuildsPath, "BUILD.bazel"),
-		context.mainBuildFileContents(), 0666)
-	if err != nil {
+	if err = ioutil.WriteFile(filepath.Join(mixedBuildsPath, "BUILD.bazel"), context.mainBuildFileContents(), 0666); err != nil {
 		return err
 	}
 	cqueryFileRelpath := filepath.Join(context.paths.injectedFilesDir(), "buildroot.cquery")
-	err = ioutil.WriteFile(
-		absolutePath(cqueryFileRelpath),
-		context.cqueryStarlarkFileContents(), 0666)
-	if err != nil {
+	if err = ioutil.WriteFile(absolutePath(cqueryFileRelpath), context.cqueryStarlarkFileContents(), 0666); err != nil {
 		return err
 	}
 
-	buildrootLabel := "@soong_injection//mixed_builds:buildroot"
-	cqueryOutput, cqueryErr, err = context.issueBazelCommand(
-		context.paths,
-		bazel.CqueryBuildRootRunName,
-		bazelCommand{"cquery", fmt.Sprintf("deps(%s, 2)", buildrootLabel)},
-		"--output=starlark",
-		"--starlark:file="+absolutePath(cqueryFileRelpath))
-	err = ioutil.WriteFile(filepath.Join(soongInjectionPath, "cquery.out"),
-		[]byte(cqueryOutput), 0666)
+	const buildrootLabel = "@soong_injection//mixed_builds:buildroot"
+	cqueryCmd := bazelCommand{"cquery", fmt.Sprintf("deps(%s, 2)", buildrootLabel)}
+	cqueryOutput, cqueryErr, err := context.issueBazelCommand(context.paths, bazel.CqueryBuildRootRunName, cqueryCmd,
+		"--output=starlark", "--starlark:file="+absolutePath(cqueryFileRelpath))
 	if err != nil {
-		return err
+		err = ioutil.WriteFile(filepath.Join(soongInjectionPath, "cquery.out"), []byte(cqueryOutput), 0666)
 	}
-
 	if err != nil {
 		return err
 	}
@@ -750,7 +747,6 @@ func (context *bazelContext) InvokeBazel(config Config) error {
 			cqueryResults[splitLine[0]] = splitLine[1]
 		}
 	}
-
 	for val := range context.requests {
 		if cqueryResult, ok := cqueryResults[getCqueryId(val)]; ok {
 			context.results[val] = cqueryResult
@@ -762,37 +758,27 @@ func (context *bazelContext) InvokeBazel(config Config) error {
 
 	// Issue an aquery command to retrieve action information about the bazel build tree.
 	//
-	var aqueryOutput string
-	var coverageFlags []string
+	// Use jsonproto instead of proto; actual proto parsing would require a dependency on Bazel's
+	// proto sources, which would add a number of unnecessary dependencies.
+	extraFlags := []string{"--output=jsonproto", "--include_file_write_contents"}
 	if Bool(config.productVariables.ClangCoverage) {
-		coverageFlags = append(coverageFlags, "--collect_code_coverage")
-		if len(config.productVariables.NativeCoveragePaths) > 0 ||
-			len(config.productVariables.NativeCoverageExcludePaths) > 0 {
-			includePaths := JoinWithPrefixAndSeparator(config.productVariables.NativeCoveragePaths, "+", ",")
-			excludePaths := JoinWithPrefixAndSeparator(config.productVariables.NativeCoverageExcludePaths, "-", ",")
-			if len(includePaths) > 0 && len(excludePaths) > 0 {
-				includePaths += ","
-			}
-			coverageFlags = append(coverageFlags, fmt.Sprintf(`--instrumentation_filter=%s`,
-				includePaths+excludePaths))
+		extraFlags = append(extraFlags, "--collect_code_coverage")
+		paths := make([]string, 0, 2)
+		if p := config.productVariables.NativeCoveragePaths; len(p) > 0 {
+			paths = append(paths, JoinWithPrefixAndSeparator(p, "+", ","))
+		}
+		if p := config.productVariables.NativeCoverageExcludePaths; len(p) > 0 {
+			paths = append(paths, JoinWithPrefixAndSeparator(p, "-", ","))
+		}
+		if len(paths) > 0 {
+			extraFlags = append(extraFlags, "--instrumentation_filter="+strings.Join(paths, ","))
 		}
 	}
-
-	extraFlags := append([]string{"--output=jsonproto"}, coverageFlags...)
-
-	aqueryOutput, _, err = context.issueBazelCommand(
-		context.paths,
-		bazel.AqueryBuildRootRunName,
-		bazelCommand{"aquery", fmt.Sprintf("deps(%s)", buildrootLabel)},
-		// Use jsonproto instead of proto; actual proto parsing would require a dependency on Bazel's
-		// proto sources, which would add a number of unnecessary dependencies.
-		extraFlags...)
-
-	if err != nil {
-		return err
+	aqueryCmd := bazelCommand{"aquery", fmt.Sprintf("deps(%s)", buildrootLabel)}
+	if aqueryOutput, _, err := context.issueBazelCommand(context.paths, bazel.AqueryBuildRootRunName, aqueryCmd,
+		extraFlags...); err == nil {
+		context.buildStatements, context.depsets, err = bazel.AqueryBuildStatements([]byte(aqueryOutput))
 	}
-
-	context.buildStatements, context.depsets, err = bazel.AqueryBuildStatements([]byte(aqueryOutput))
 	if err != nil {
 		return err
 	}
@@ -800,12 +786,8 @@ func (context *bazelContext) InvokeBazel(config Config) error {
 	// Issue a build command of the phony root to generate symlink forests for dependencies of the
 	// Bazel build. This is necessary because aquery invocations do not generate this symlink forest,
 	// but some of symlinks may be required to resolve source dependencies of the build.
-	_, _, err = context.issueBazelCommand(
-		context.paths,
-		bazel.BazelBuildPhonyRootRunName,
-		bazelCommand{"build", "@soong_injection//mixed_builds:phonyroot"})
-
-	if err != nil {
+	buildCmd := bazelCommand{"build", "@soong_injection//mixed_builds:phonyroot"}
+	if _, _, err = context.issueBazelCommand(context.paths, bazel.BazelBuildPhonyRootRunName, buildCmd); err != nil {
 		return err
 	}
 
@@ -874,13 +856,56 @@ func (c *bazelSingleton) GenerateBuildActions(ctx SingletonContext) {
 	executionRoot := path.Join(ctx.Config().BazelContext.OutputBase(), "execroot", "__main__")
 	bazelOutDir := path.Join(executionRoot, "bazel-out")
 	for index, buildStatement := range ctx.Config().BazelContext.BuildStatementsToRegister() {
-		if len(buildStatement.Command) < 1 {
+		if len(buildStatement.Command) > 0 {
+			rule := NewRuleBuilder(pctx, ctx)
+			createCommand(rule.Command(), buildStatement, executionRoot, bazelOutDir, ctx)
+			desc := fmt.Sprintf("%s: %s", buildStatement.Mnemonic, buildStatement.OutputPaths)
+			rule.Build(fmt.Sprintf("bazel %d", index), desc)
+			continue
+		}
+		// Certain actions returned by aquery (for instance FileWrite) do not contain a command
+		// and thus require special treatment. If BuildStatement were an interface implementing
+		// buildRule(ctx) function, the code here would just call it.
+		// Unfortunately, the BuildStatement is defined in
+		// the 'bazel' package, which cannot depend on 'android' package where ctx is defined,
+		// because this would cause circular dependency. So, until we move aquery processing
+		// to the 'android' package, we need to handle special cases here.
+		if buildStatement.Mnemonic == "FileWrite" || buildStatement.Mnemonic == "SourceSymlinkManifest" {
+			// Pass file contents as the value of the rule's "content" argument.
+			// Escape newlines and $ in the contents (the action "writeBazelFile" restores "\\n"
+			// back to the newline, and Ninja reads $$ as $.
+			escaped := strings.ReplaceAll(strings.ReplaceAll(buildStatement.FileContents, "\n", "\\n"),
+				"$", "$$")
+			ctx.Build(pctx, BuildParams{
+				Rule:        writeBazelFile,
+				Output:      PathForBazelOut(ctx, buildStatement.OutputPaths[0]),
+				Description: fmt.Sprintf("%s %s", buildStatement.Mnemonic, buildStatement.OutputPaths[0]),
+				Args: map[string]string{
+					"content": escaped,
+				},
+			})
+		} else if buildStatement.Mnemonic == "SymlinkTree" {
+			// build-runfiles arguments are the manifest file and the target directory
+			// where it creates the symlink tree according to this manifest (and then
+			// writes the MANIFEST file to it).
+			outManifest := PathForBazelOut(ctx, buildStatement.OutputPaths[0])
+			outManifestPath := outManifest.String()
+			if !strings.HasSuffix(outManifestPath, "MANIFEST") {
+				panic("the base name of the symlink tree action should be MANIFEST, got " + outManifestPath)
+			}
+			outDir := filepath.Dir(outManifestPath)
+			ctx.Build(pctx, BuildParams{
+				Rule:        buildRunfilesRule,
+				Output:      outManifest,
+				Inputs:      []Path{PathForBazelOut(ctx, buildStatement.InputPaths[0])},
+				Description: "symlink tree for " + outDir,
+				Args: map[string]string{
+					"outDir": outDir,
+				},
+			})
+		} else {
 			panic(fmt.Sprintf("unhandled build statement: %v", buildStatement))
 		}
-		rule := NewRuleBuilder(pctx, ctx)
-		createCommand(rule.Command(), buildStatement, executionRoot, bazelOutDir, ctx)
-		desc := fmt.Sprintf("%s: %s", buildStatement.Mnemonic, buildStatement.OutputPaths)
-		rule.Build(fmt.Sprintf("bazel %d", index), desc)
 	}
 }
 
