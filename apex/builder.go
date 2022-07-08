@@ -93,6 +93,11 @@ var (
 		Description: "strip ${in}=>${out}",
 	})
 
+	setVersionApexManifestRule = pctx.StaticRule("setVersionApexManifestRule", blueprint.RuleParams{
+		Command:     `sed 's/\"version\":\s*0\([^0-9]*\)$$/\"version\":\ ${default_version}\1/' $in > $out`,
+		Description: "Replace 'version: 0' with the correct version // ${in}=>${out}",
+	}, "default_version")
+
 	pbApexManifestRule = pctx.StaticRule("pbApexManifestRule", blueprint.RuleParams{
 		Command:     `rm -f $out && ${conv_apex_manifest} proto $in -o $out`,
 		CommandDeps: []string{"${conv_apex_manifest}"},
@@ -219,10 +224,20 @@ func (a *apexBundle) buildManifest(ctx android.ModuleContext, provideNativeLibs,
 		Output: manifestJsonCommentsStripped,
 	})
 
+	manifestJsonVersionChanged := android.PathForModuleOut(ctx, "apex_manifest_version_changed.json")
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   setVersionApexManifestRule,
+		Input:  manifestJsonCommentsStripped,
+		Output: manifestJsonVersionChanged,
+		Args: map[string]string{
+			"default_version": defaultManifestVersion,
+		},
+	})
+
 	manifestJsonFullOut := android.PathForModuleOut(ctx, "apex_manifest_full.json")
 	ctx.Build(pctx, android.BuildParams{
 		Rule:   apexManifestRule,
-		Input:  manifestJsonCommentsStripped,
+		Input:  manifestJsonVersionChanged,
 		Output: manifestJsonFullOut,
 		Args: map[string]string{
 			"provideNativeLibs": strings.Join(provideNativeLibs, " "),
