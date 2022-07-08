@@ -18,6 +18,7 @@ package fuzz
 
 import (
 	"encoding/json"
+	"fmt"
 	"sort"
 	"strings"
 
@@ -59,9 +60,65 @@ type ArchOs struct {
 	Dir          string
 }
 
+type PrivilegedLevel string
+
+const (
+	// Environment with the most minimal permissions.
+	Constrained PrivilegedLevel = "Constrained"
+	// Typical execution environment running unprivileged code.
+	Unprivileged = "Unprivileged"
+	// May have access to elevated permissions.
+	Privileged = "Privileged"
+	// Trusted computing base.
+	Tcb = "TCB"
+	// Bootloader chain.
+	Bootloader = "Bootloader"
+	// Tusted execution environment.
+	Tee = "Tee"
+	// Secure enclave.
+	Se = "Se"
+	// Other.
+	Other = "Other"
+)
+
+func IsValidConfig(fuzzModule FuzzPackagedModule, moduleName string) bool {
+	var config = fuzzModule.FuzzProperties.Fuzz_config
+	if config != nil {
+		var level = PrivilegedLevel(config.Privilege_level)
+		if level != "" {
+			switch level {
+			case Constrained, Unprivileged, Privileged, Tcb, Bootloader, Tee, Se, Other:
+				return true
+			}
+			panic(fmt.Errorf("Invalid privileged level in fuzz config in %s", moduleName))
+		}
+		return true
+	} else {
+		return false
+	}
+}
+
 type FuzzConfig struct {
 	// Email address of people to CC on bugs or contact about this fuzz target.
 	Cc []string `json:"cc,omitempty"`
+	// A brief description of what the fuzzed code does.
+	Description string `json:"description,omitempty"`
+	// Can this code be triggered remotely or only locally.
+	Remotely_accessible bool `json:"remotely_accessible,omitempty"`
+	// Is the fuzzed code host only, i.e. test frameworks or support utilities.
+	Host_only bool `json:"access_vector,omitempty"`
+	// Can third party/untrusted apps supply data to fuzzed code.
+	Untrusted_data bool `json:"untrusted_data,omitempty"`
+	// Is the code being fuzzed in a privileged, constrained or any other
+	// context from:
+	// https://source.android.com/security/overview/updates-resources#context_types.
+	Privilege_level PrivilegedLevel `json:"privilege_level,omitempty"`
+	// Can the fuzzed code isolated or can be called by multiple users/processes.
+	Isolated bool `json:"users_isolation,omitempty"`
+	// When code was relaeased or will be released.
+	Production_date string `json:"production_date,omitempty"`
+	// Prevents critical service functionality like phone calls, bluetooth, etc.
+	Critical bool `json:"critical,omitempty"`
 	// Specify whether to enable continuous fuzzing on devices. Defaults to true.
 	Fuzz_on_haiku_device *bool `json:"fuzz_on_haiku_device,omitempty"`
 	// Specify whether to enable continuous fuzzing on host. Defaults to true.
@@ -157,7 +214,7 @@ func (s *FuzzPackager) PackageArtifacts(ctx android.SingletonContext, module and
 	}
 
 	// Additional fuzz config.
-	if fuzzModule.Config != nil {
+	if fuzzModule.Config != nil && IsValidConfig(fuzzModule, module.Name()) {
 		files = append(files, FileToZip{fuzzModule.Config, ""})
 	}
 
