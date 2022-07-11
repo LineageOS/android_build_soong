@@ -84,6 +84,16 @@ python_binary_host {
     ],
 }
 
+python_test_host {
+    name: "jsonmodify_test",
+    main: "jsonmodify_test.py",
+    srcs: [
+        "jsonmodify_test.py",
+        "jsonmodify.py",
+    ],
+    test_suites: ["general-tests"],
+}
+
 python_binary_host {
     name: "test_config_fixer",
     main: "test_config_fixer.py",
