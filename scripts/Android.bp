@@ -193,3 +193,9 @@ sh_binary_host {
     name: "list_image",
     src: "list_image.sh",
 }
+
+filegroup {
+    name: "rustfmt.toml",
+    srcs: ["rustfmt.toml"],
+    visibility: ["//visibility:public"],
+}
