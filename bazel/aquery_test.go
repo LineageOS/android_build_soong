@@ -499,19 +499,11 @@ func TestSymlinkTree(t *testing.T) {
 
 func TestBazelOutRemovalFromInputDepsets(t *testing.T) {
 	const inputString = `{
-  "artifacts": [{
-    "id": 1,
-    "pathFragmentId": 10
-  }, {
-    "id": 2,
-    "pathFragmentId": 20
-  }, {
-    "id": 3,
-    "pathFragmentId": 30
-  }, {
-    "id": 4,
-    "pathFragmentId": 40
-  }],
+  "artifacts": [
+    { "id": 1, "pathFragmentId": 10 },
+    { "id": 2, "pathFragmentId": 20 },
+    { "id": 3, "pathFragmentId": 30 },
+    { "id": 4, "pathFragmentId": 40 }],
   "depSetOfFiles": [{
     "id": 1111,
     "directArtifactIds": [3 , 4]
@@ -525,28 +517,14 @@ func TestBazelOutRemovalFromInputDepsets(t *testing.T) {
     "outputIds": [2],
     "primaryOutputId": 1
   }],
-  "pathFragments": [{
-    "id": 10,
-    "label": "input"
-  }, {
-    "id": 20,
-    "label": "output"
-  }, {
-    "id": 30,
-    "label": "dep1",
-    "parentId": 50
-  }, {
-    "id": 40,
-    "label": "dep2",
-    "parentId": 60
-  }, {
-    "id": 50,
-    "label": "bazel_tools",
-    "parentId": 60
-  }, {
-    "id": 60,
-    "label": ".."
-  }]
+  "pathFragments": [
+    { "id": 10, "label": "input" },
+    { "id": 20, "label": "output" },
+    { "id": 30, "label": "dep1", "parentId": 50 },
+    { "id": 40, "label": "dep2", "parentId": 60 },
+    { "id": 50, "label": "bazel_tools", "parentId": 60 },
+    { "id": 60, "label": ".."}
+  ]
 }`
 	actualBuildStatements, actualDepsets, _ := AqueryBuildStatements([]byte(inputString))
 	if len(actualDepsets) != 1 {
