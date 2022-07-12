@@ -75,6 +75,14 @@ class AppendList(str):
       raise ValueError(self + " should be a array.")
     cur[key].extend(args)
 
+# A JSONDecoder that supports line comments start with //
+class JSONWithCommentsDecoder(json.JSONDecoder):
+  def __init__(self, **kw):
+    super().__init__(**kw)
+
+  def decode(self, s: str):
+    s = '\n'.join(l for l in s.split('\n') if not l.lstrip(' ').startswith('//'))
+    return super().decode(s)
 
 def main():
   parser = argparse.ArgumentParser()
@@ -103,9 +111,9 @@ def main():
 
   if args.input:
     with open(args.input) as f:
-      obj = json.load(f, object_pairs_hook=collections.OrderedDict)
+      obj = json.load(f, object_pairs_hook=collections.OrderedDict, cls=JSONWithCommentsDecoder)
   else:
-    obj = json.load(sys.stdin, object_pairs_hook=collections.OrderedDict)
+    obj = json.load(sys.stdin, object_pairs_hook=collections.OrderedDict, cls=JSONWithCommentsDecoder)
 
   for p in args.patch:
     p[0].apply(obj, *p[1:])
