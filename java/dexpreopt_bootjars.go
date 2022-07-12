@@ -785,24 +785,26 @@ func bootImageProfileRule(ctx android.ModuleContext, image *bootImageConfig) and
 	}
 
 	defaultProfile := "frameworks/base/config/boot-image-profile.txt"
+	extraProfile := "frameworks/base/config/boot-image-profile-extra.txt"
 
 	rule := android.NewRuleBuilder(pctx, ctx)
 
-	var bootImageProfile android.Path
-	if len(global.BootImageProfiles) > 1 {
-		combinedBootImageProfile := image.dir.Join(ctx, "boot-image-profile.txt")
-		rule.Command().Text("cat").Inputs(global.BootImageProfiles).Text(">").Output(combinedBootImageProfile)
-		bootImageProfile = combinedBootImageProfile
-	} else if len(global.BootImageProfiles) == 1 {
-		bootImageProfile = global.BootImageProfiles[0]
+	var profiles android.Paths
+	if len(global.BootImageProfiles) > 0 {
+		profiles = append(profiles, global.BootImageProfiles...)
 	} else if path := android.ExistentPathForSource(ctx, defaultProfile); path.Valid() {
-		bootImageProfile = path.Path()
+		profiles = append(profiles, path.Path())
 	} else {
 		// No profile (not even a default one, which is the case on some branches
 		// like master-art-host that don't have frameworks/base).
 		// Return nil and continue without profile.
 		return nil
 	}
+	if path := android.ExistentPathForSource(ctx, extraProfile); path.Valid() {
+		profiles = append(profiles, path.Path())
+	}
+	bootImageProfile := image.dir.Join(ctx, "boot-image-profile.txt")
+	rule.Command().Text("cat").Inputs(profiles).Text(">").Output(bootImageProfile)
 
 	profile := image.dir.Join(ctx, "boot.prof")
 
