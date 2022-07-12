@@ -76,11 +76,12 @@ var (
 		Command: `rm -f $out && ${jsonmodify} $in ` +
 			`-a provideNativeLibs ${provideNativeLibs} ` +
 			`-a requireNativeLibs ${requireNativeLibs} ` +
+			`-se version 0 ${default_version} ` +
 			`${opt} ` +
 			`-o $out`,
 		CommandDeps: []string{"${jsonmodify}"},
 		Description: "prepare ${out}",
-	}, "provideNativeLibs", "requireNativeLibs", "opt")
+	}, "provideNativeLibs", "requireNativeLibs", "default_version", "opt")
 
 	stripCommentsApexManifestRule = pctx.StaticRule("stripCommentsApexManifestRule", blueprint.RuleParams{
 		Command:     `sed '/^\s*\/\//d' $in > $out`,
@@ -92,11 +93,6 @@ var (
 		CommandDeps: []string{"${conv_apex_manifest}"},
 		Description: "strip ${in}=>${out}",
 	})
-
-	setVersionApexManifestRule = pctx.StaticRule("setVersionApexManifestRule", blueprint.RuleParams{
-		Command:     `sed 's/\"version\":\s*0\([^0-9]*\)$$/\"version\":\ ${default_version}\1/' $in > $out`,
-		Description: "Replace 'version: 0' with the correct version // ${in}=>${out}",
-	}, "default_version")
 
 	pbApexManifestRule = pctx.StaticRule("pbApexManifestRule", blueprint.RuleParams{
 		Command:     `rm -f $out && ${conv_apex_manifest} proto $in -o $out`,
@@ -224,24 +220,15 @@ func (a *apexBundle) buildManifest(ctx android.ModuleContext, provideNativeLibs,
 		Output: manifestJsonCommentsStripped,
 	})
 
-	manifestJsonVersionChanged := android.PathForModuleOut(ctx, "apex_manifest_version_changed.json")
-	ctx.Build(pctx, android.BuildParams{
-		Rule:   setVersionApexManifestRule,
-		Input:  manifestJsonCommentsStripped,
-		Output: manifestJsonVersionChanged,
-		Args: map[string]string{
-			"default_version": defaultManifestVersion,
-		},
-	})
-
 	manifestJsonFullOut := android.PathForModuleOut(ctx, "apex_manifest_full.json")
 	ctx.Build(pctx, android.BuildParams{
 		Rule:   apexManifestRule,
-		Input:  manifestJsonVersionChanged,
+		Input:  manifestJsonCommentsStripped,
 		Output: manifestJsonFullOut,
 		Args: map[string]string{
 			"provideNativeLibs": strings.Join(provideNativeLibs, " "),
 			"requireNativeLibs": strings.Join(requireNativeLibs, " "),
+			"default_version":   defaultManifestVersion,
 			"opt":               strings.Join(optCommands, " "),
 		},
 	})
