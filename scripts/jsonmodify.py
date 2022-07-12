@@ -59,6 +59,13 @@ class Replace(str):
       cur[key] = val
 
 
+class ReplaceIfEqual(str):
+  def apply(self, obj, old_val, new_val):
+    cur, key = follow_path(obj, self)
+    if cur and cur[key] == int(old_val):
+      cur[key] = new_val
+
+
 class Remove(str):
   def apply(self, obj):
     cur, key = follow_path(obj, self)
@@ -99,6 +106,11 @@ def main():
                       help='replace value of the key specified by path. If path doesn\'t exist, no op.',
                       metavar=('path', 'value'),
                       nargs=2, dest='patch', action='append')
+  parser.add_argument("-se", "--replace-if-equal", type=ReplaceIfEqual,
+                      help='replace value of the key specified by path to new_value if it\'s equal to old_value.' +
+                      'If path doesn\'t exist or the value is not equal to old_value, no op.',
+                      metavar=('path', 'old_value', 'new_value'),
+                      nargs=3, dest='patch', action='append')
   parser.add_argument("-r", "--remove", type=Remove,
                       help='remove the key specified by path. If path doesn\'t exist, no op.',
                       metavar='path',
