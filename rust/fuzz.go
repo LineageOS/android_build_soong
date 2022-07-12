@@ -153,7 +153,7 @@ func (s *rustFuzzPackager) GenerateBuildActions(ctx android.SingletonContext) {
 		sharedLibraries := fuzz.CollectAllSharedDependencies(ctx, module, cc.UnstrippedOutputFile, cc.IsValidSharedDependency)
 
 		// Package shared libraries
-		files = append(files, cc.GetSharedLibsToZip(sharedLibraries, rustModule, &s.FuzzPackager, archString, &sharedLibraryInstalled)...)
+		files = append(files, cc.GetSharedLibsToZip(sharedLibraries, rustModule, &s.FuzzPackager, archString, "lib", &sharedLibraryInstalled)...)
 
 		archDirs[archOs], ok = s.BuildZipFile(ctx, module, fuzzModule.fuzzPackagedModule, files, builder, archDir, archString, hostOrTargetString, archOs, archDirs)
 		if !ok {
