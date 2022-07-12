@@ -37,6 +37,7 @@ func init() {
 
 func registerBootclasspathFragmentBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("bootclasspath_fragment", bootclasspathFragmentFactory)
+	ctx.RegisterModuleType("bootclasspath_fragment_test", testBootclasspathFragmentFactory)
 	ctx.RegisterModuleType("prebuilt_bootclasspath_fragment", prebuiltBootclasspathFragmentFactory)
 }
 
@@ -231,6 +232,9 @@ type BootclasspathFragmentModule struct {
 	android.SdkBase
 	ClasspathFragmentBase
 
+	// True if this fragment is for testing purposes.
+	testFragment bool
+
 	properties bootclasspathFragmentProperties
 
 	sourceOnlyProperties SourceOnlyBootclasspathProperties
@@ -299,6 +303,12 @@ func bootclasspathFragmentFactory() android.Module {
 		// Initialize the contents property from the image_name.
 		bootclasspathFragmentInitContentsFromImage(ctx, m)
 	})
+	return m
+}
+
+func testBootclasspathFragmentFactory() android.Module {
+	m := bootclasspathFragmentFactory().(*BootclasspathFragmentModule)
+	m.testFragment = true
 	return m
 }
 
@@ -823,6 +833,26 @@ func (b *BootclasspathFragmentModule) createHiddenAPIFlagInput(ctx android.Modul
 	return input
 }
 
+// isTestFragment returns true if the current module is a test bootclasspath_fragment.
+func (b *BootclasspathFragmentModule) isTestFragment() bool {
+	if b.testFragment {
+		return true
+	}
+
+	// TODO(b/194063708): Once test fragments all use bootclasspath_fragment_test
+	// Some temporary exceptions until all test fragments use the
+	// bootclasspath_fragment_test module type.
+	name := b.BaseModuleName()
+	if strings.HasPrefix(name, "test_") {
+		return true
+	}
+	if name == "apex.apexd_test_bootclasspath-fragment" {
+		return true
+	}
+
+	return false
+}
+
 // produceHiddenAPIOutput produces the hidden API all-flags.csv file (and supporting files)
 // for the fragment as well as encoding the flags in the boot dex jars.
 func (b *BootclasspathFragmentModule) produceHiddenAPIOutput(ctx android.ModuleContext, contents []android.Module, input HiddenAPIFlagInput) *HiddenAPIOutput {
@@ -836,11 +866,18 @@ func (b *BootclasspathFragmentModule) produceHiddenAPIOutput(ctx android.ModuleC
 	packagePrefixes := b.sourceOnlyProperties.Hidden_api.Package_prefixes
 	singlePackages := b.sourceOnlyProperties.Hidden_api.Single_packages
 	if splitPackages != nil || packagePrefixes != nil || singlePackages != nil {
-		if splitPackages == nil {
-			splitPackages = []string{"*"}
-		}
 		output.SignaturePatternsPath = buildRuleSignaturePatternsFile(
 			ctx, output.AllFlagsPath, splitPackages, packagePrefixes, singlePackages)
+	} else if !b.isTestFragment() {
+		ctx.ModuleErrorf(`Must specify at least one of the split_packages, package_prefixes and single_packages properties
+  If this is a new bootclasspath_fragment or you are unsure what to do add the
+  the following to the bootclasspath_fragment:
+      hidden_api: {split_packages: ["*"]},
+  and then run the following:
+      m analyze_bcpf && analyze_bcpf --bcpf %q
+  it will analyze the bootclasspath_fragment and provide hints as to what you
+  should specify here. If you are happy with its suggestions then you can add
+  the --fix option and it will fix them for you.`, b.BaseModuleName())
 	}
 
 	return output

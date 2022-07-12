@@ -6227,6 +6227,9 @@ func TestOverrideApex(t *testing.T) {
 			name: "mybootclasspath_fragment",
 			contents: ["bcplib"],
 			apex_available: ["myapex"],
+			hidden_api: {
+				split_packages: ["*"],
+			},
 		}
 
 		java_library {
@@ -6241,6 +6244,9 @@ func TestOverrideApex(t *testing.T) {
 			name: "override_bootclasspath_fragment",
 			contents: ["override_bcplib"],
 			apex_available: ["myapex"],
+			hidden_api: {
+				split_packages: ["*"],
+			},
 		}
 
 		java_library {
@@ -7294,6 +7300,9 @@ func testNoUpdatableJarsInBootImage(t *testing.T, errmsg string, preparer androi
 			apex_available: [
 				"some-non-updatable-apex",
 			],
+			hidden_api: {
+				split_packages: ["*"],
+			},
 		}
 
 		java_library {
@@ -7352,6 +7361,9 @@ func testNoUpdatableJarsInBootImage(t *testing.T, errmsg string, preparer androi
 			apex_available: [
 				"com.android.art.debug",
 			],
+			hidden_api: {
+				split_packages: ["*"],
+			},
 		}
 
 		apex_key {
@@ -8796,6 +8808,9 @@ func TestApexJavaCoverage(t *testing.T) {
 			name: "mybootclasspathfragment",
 			contents: ["mybootclasspathlib"],
 			apex_available: ["myapex"],
+			hidden_api: {
+				split_packages: ["*"],
+			},
 		}
 
 		java_library {
@@ -9116,6 +9131,9 @@ func TestSdkLibraryCanHaveHigherMinSdkVersion(t *testing.T) {
 				name: "mybootclasspathfragment",
 				contents: ["mybootclasspathlib"],
 				apex_available: ["myapex"],
+				hidden_api: {
+					split_packages: ["*"],
+				},
 			}
 
 			java_sdk_library {
@@ -9216,6 +9234,9 @@ func TestSdkLibraryCanHaveHigherMinSdkVersion(t *testing.T) {
 					name: "mybootclasspathfragment",
 					contents: ["mybootclasspathlib"],
 					apex_available: ["myapex"],
+					hidden_api: {
+						split_packages: ["*"],
+					},
 				}
 
 				java_sdk_library {
@@ -9435,6 +9456,9 @@ func TestApexStrictUpdtabilityLintBcpFragmentDeps(t *testing.T) {
 			name: "mybootclasspathfragment",
 			contents: ["myjavalib"],
 			apex_available: ["myapex"],
+			hidden_api: {
+				split_packages: ["*"],
+			},
 		}
 		java_library {
 			name: "myjavalib",
