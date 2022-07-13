@@ -106,7 +106,7 @@ type FuzzConfig struct {
 	// Can this code be triggered remotely or only locally.
 	Remotely_accessible bool `json:"remotely_accessible,omitempty"`
 	// Is the fuzzed code host only, i.e. test frameworks or support utilities.
-	Host_only bool `json:"access_vector,omitempty"`
+	Host_only bool `json:"host_only,omitempty"`
 	// Can third party/untrusted apps supply data to fuzzed code.
 	Untrusted_data bool `json:"untrusted_data,omitempty"`
 	// Is the code being fuzzed in a privileged, constrained or any other
