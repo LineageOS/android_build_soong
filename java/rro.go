@@ -173,6 +173,10 @@ func (r *RuntimeResourceOverlay) MinSdkVersion(ctx android.EarlyModuleContext) a
 	return r.SdkVersion(ctx)
 }
 
+func (r *RuntimeResourceOverlay) ReplaceMaxSdkVersionPlaceholder(ctx android.EarlyModuleContext) android.SdkSpec {
+	return android.SdkSpecFrom(ctx, "")
+}
+
 func (r *RuntimeResourceOverlay) TargetSdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
 	return r.SdkVersion(ctx)
 }

@@ -571,5 +571,77 @@ class AddTestOnlyApplicationTest(unittest.TestCase):
     output = self.run_test(manifest_input)
     self.assert_xml_equal(output, manifest_input)
 
+
+class SetMaxSdkVersionTest(unittest.TestCase):
+  """Unit tests for set_max_sdk_version function."""
+
+  def assert_xml_equal(self, output, expected):
+    self.assertEqual(ET.canonicalize(output), ET.canonicalize(expected))
+
+  def run_test(self, input_manifest, max_sdk_version):
+    doc = minidom.parseString(input_manifest)
+    manifest_fixer.set_max_sdk_version(doc, max_sdk_version)
+    output = io.StringIO()
+    manifest_fixer.write_xml(output, doc)
+    return output.getvalue()
+
+  manifest_tmpl = (
+      '<?xml version="1.0" encoding="utf-8"?>\n'
+      '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n'
+      '%s'
+      '</manifest>\n')
+
+  def permission(self, max=None):
+    if max is None:
+      return '   <permission/>'
+    return '    <permission android:maxSdkVersion="%s"/>\n' % max
+
+  def uses_permission(self, max=None):
+    if max is None:
+      return '   <uses-permission/>'
+    return '    <uses-permission android:maxSdkVersion="%s"/>\n' % max
+
+  def test_permission_no_max_sdk_version(self):
+    """Tests if permission has no maxSdkVersion attribute"""
+    manifest_input = self.manifest_tmpl % self.permission()
+    expected = self.manifest_tmpl % self.permission()
+    output = self.run_test(manifest_input, '9000')
+    self.assert_xml_equal(output, expected)
+
+  def test_permission_max_sdk_version_changed(self):
+    """Tests if permission maxSdkVersion attribute is set to current"""
+    manifest_input = self.manifest_tmpl % self.permission('current')
+    expected = self.manifest_tmpl % self.permission(9000)
+    output = self.run_test(manifest_input, '9000')
+    self.assert_xml_equal(output, expected)
+
+  def test_permission_max_sdk_version_not_changed(self):
+    """Tests if permission maxSdkVersion attribute is not set to current"""
+    manifest_input = self.manifest_tmpl % self.permission(30)
+    expected = self.manifest_tmpl % self.permission(30)
+    output = self.run_test(manifest_input, '9000')
+    self.assert_xml_equal(output, expected)
+
+  def test_uses_permission_no_max_sdk_version(self):
+    """Tests if uses-permission has no maxSdkVersion attribute"""
+    manifest_input = self.manifest_tmpl % self.uses_permission()
+    expected = self.manifest_tmpl % self.uses_permission()
+    output = self.run_test(manifest_input, '9000')
+    self.assert_xml_equal(output, expected)
+
+  def test_uses_permission_max_sdk_version_changed(self):
+    """Tests if uses-permission maxSdkVersion attribute is set to current"""
+    manifest_input = self.manifest_tmpl % self.uses_permission('current')
+    expected = self.manifest_tmpl % self.uses_permission(9000)
+    output = self.run_test(manifest_input, '9000')
+    self.assert_xml_equal(output, expected)
+
+  def test_uses_permission_max_sdk_version_not_changed(self):
+    """Tests if uses-permission maxSdkVersion attribute is not set to current"""
+    manifest_input = self.manifest_tmpl % self.uses_permission(30)
+    expected = self.manifest_tmpl % self.uses_permission(30)
+    output = self.run_test(manifest_input, '9000')
+    self.assert_xml_equal(output, expected)
+
 if __name__ == '__main__':
   unittest.main(verbosity=2)
