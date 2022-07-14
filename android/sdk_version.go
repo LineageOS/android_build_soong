@@ -28,6 +28,9 @@ type SdkContext interface {
 	// MinSdkVersion returns SdkSpec that corresponds to the min_sdk_version property of the current module,
 	// or from sdk_version if it is not set.
 	MinSdkVersion(ctx EarlyModuleContext) SdkSpec
+	// ReplaceMaxSdkVersionPlaceholder returns SdkSpec to replace the maxSdkVersion property of permission and
+	// uses-permission tags if it is set.
+	ReplaceMaxSdkVersionPlaceholder(ctx EarlyModuleContext) SdkSpec
 	// TargetSdkVersion returns the SdkSpec that corresponds to the target_sdk_version property of the current module,
 	// or from sdk_version if it is not set.
 	TargetSdkVersion(ctx EarlyModuleContext) SdkSpec
