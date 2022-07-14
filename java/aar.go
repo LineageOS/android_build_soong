@@ -678,6 +678,10 @@ func (a *AARImport) MinSdkVersion(ctx android.EarlyModuleContext) android.SdkSpe
 	return a.SdkVersion(ctx)
 }
 
+func (a *AARImport) ReplaceMaxSdkVersionPlaceholder(ctx android.EarlyModuleContext) android.SdkSpec {
+	return android.SdkSpecFrom(ctx, "")
+}
+
 func (a *AARImport) TargetSdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
 	return a.SdkVersion(ctx)
 }
