@@ -985,6 +985,10 @@ type SdkMemberContext interface {
 
 	// RequiresTrait returns true if this member is expected to provide the specified trait.
 	RequiresTrait(trait SdkMemberTrait) bool
+
+	// IsTargetBuildBeforeTiramisu return true if the target build release for which this snapshot is
+	// being generated is before Tiramisu, i.e. S.
+	IsTargetBuildBeforeTiramisu() bool
 }
 
 // ExportedComponentsInfo contains information about the components that this module exports to an
