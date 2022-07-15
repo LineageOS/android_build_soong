@@ -2328,14 +2328,6 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 		}
 		if optPath.Valid() {
 			m.noticeFiles = append(m.noticeFiles, optPath.Path())
-		} else {
-			for _, notice = range []string{"LICENSE", "LICENCE", "NOTICE"} {
-				noticePath := filepath.Join(ctx.ModuleDir(), notice)
-				optPath = ExistentPathForSource(ctx, noticePath)
-				if optPath.Valid() {
-					m.noticeFiles = append(m.noticeFiles, optPath.Path())
-				}
-			}
 		}
 
 		licensesPropertyFlattener(ctx)
