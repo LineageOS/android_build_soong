@@ -495,6 +495,7 @@ func TestArchProperties(t *testing.T) {
 				arm64: {
 					a:  ["arm64"],
 				},
+				riscv64: { a: ["riscv64"] },
 				x86: { a:  ["x86"] },
 				x86_64: { a:  ["x86_64"] },
 			},

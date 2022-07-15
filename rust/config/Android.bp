@@ -14,6 +14,7 @@ bootstrap_go_package {
         "arm64_device.go",
         "global.go",
         "lints.go",
+        "riscv64_device.go",
         "toolchain.go",
         "allowed_list.go",
         "darwin_host.go",
