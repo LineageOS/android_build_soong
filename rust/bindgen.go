@@ -239,6 +239,11 @@ func (b *bindgenDecorator) GenerateSource(ctx ModuleContext, deps PathDeps) andr
 		cflags = append(cflags, "-x c")
 	}
 
+	// LLVM_NEXT may contain flags that bindgen doesn't recognise. Turn off unknown flags warning.
+	if ctx.Config().IsEnvTrue("LLVM_NEXT") {
+		cflags = append(cflags, "-Wno-unknown-warning-option")
+	}
+
 	outputFile := android.PathForModuleOut(ctx, b.BaseSourceProvider.getStem(ctx)+".rs")
 
 	var cmd, cmdDesc string
