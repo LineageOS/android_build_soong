@@ -118,6 +118,16 @@ var (
 		copyEverythingToSnapshot,
 	}
 
+	snapshotRequiresImplementationJar = func(ctx android.SdkMemberContext) bool {
+		// In the S build the build will break if updatable-media does not provide a full implementation
+		// jar. That issue was fixed in Tiramisu by b/229932396.
+		if ctx.IsTargetBuildBeforeTiramisu() && ctx.Name() == "updatable-media" {
+			return true
+		}
+
+		return false
+	}
+
 	// Supports adding java boot libraries to module_exports and sdk.
 	//
 	// The build has some implicit dependencies (via the boot jars configuration) on a number of
@@ -135,13 +145,21 @@ var (
 			SupportsSdk:  true,
 		},
 		func(ctx android.SdkMemberContext, j *Library) android.Path {
+			if snapshotRequiresImplementationJar(ctx) {
+				return exportImplementationClassesJar(ctx, j)
+			}
+
 			// Java boot libs are only provided in the SDK to provide access to their dex implementation
 			// jar for use by dexpreopting and boot jars package check. They do not need to provide an
 			// actual implementation jar but the java_import will need a file that exists so just copy an
 			// empty file. Any attempt to use that file as a jar will cause a build error.
 			return ctx.SnapshotBuilder().EmptyFile()
 		},
-		func(osPrefix, name string) string {
+		func(ctx android.SdkMemberContext, osPrefix, name string) string {
+			if snapshotRequiresImplementationJar(ctx) {
+				return sdkSnapshotFilePathForJar(ctx, osPrefix, name)
+			}
+
 			// Create a special name for the implementation jar to try and provide some useful information
 			// to a developer that attempts to compile against this.
 			// TODO(b/175714559): Provide a proper error message in Soong not ninja.
@@ -175,7 +193,7 @@ var (
 			// file. Any attempt to use that file as a jar will cause a build error.
 			return ctx.SnapshotBuilder().EmptyFile()
 		},
-		func(osPrefix, name string) string {
+		func(_ android.SdkMemberContext, osPrefix, name string) string {
 			// Create a special name for the implementation jar to try and provide some useful information
 			// to a developer that attempts to compile against this.
 			// TODO(b/175714559): Provide a proper error message in Soong not ninja.
@@ -672,7 +690,7 @@ const (
 )
 
 // path to the jar file of a java library. Relative to <sdk_root>/<api_dir>
-func sdkSnapshotFilePathForJar(osPrefix, name string) string {
+func sdkSnapshotFilePathForJar(_ android.SdkMemberContext, osPrefix, name string) string {
 	return sdkSnapshotFilePathForMember(osPrefix, name, jarFileSuffix)
 }
 
@@ -689,7 +707,7 @@ type librarySdkMemberType struct {
 
 	// Function to compute the snapshot relative path to which the named library's
 	// jar should be copied.
-	snapshotPathGetter func(osPrefix, name string) string
+	snapshotPathGetter func(ctx android.SdkMemberContext, osPrefix, name string) string
 
 	// True if only the jar should be copied to the snapshot, false if the jar plus any additional
 	// files like aidl files should also be copied.
@@ -747,7 +765,7 @@ func (p *librarySdkMemberProperties) AddToPropertySet(ctx android.SdkMemberConte
 	exportedJar := p.JarToExport
 	if exportedJar != nil {
 		// Delegate the creation of the snapshot relative path to the member type.
-		snapshotRelativeJavaLibPath := memberType.snapshotPathGetter(p.OsPrefix(), ctx.Name())
+		snapshotRelativeJavaLibPath := memberType.snapshotPathGetter(ctx, p.OsPrefix(), ctx.Name())
 
 		// Copy the exported jar to the snapshot.
 		builder.CopyToSnapshot(exportedJar, snapshotRelativeJavaLibPath)
@@ -1213,7 +1231,7 @@ func (p *testSdkMemberProperties) AddToPropertySet(ctx android.SdkMemberContext,
 
 	exportedJar := p.JarToExport
 	if exportedJar != nil {
-		snapshotRelativeJavaLibPath := sdkSnapshotFilePathForJar(p.OsPrefix(), ctx.Name())
+		snapshotRelativeJavaLibPath := sdkSnapshotFilePathForJar(ctx, p.OsPrefix(), ctx.Name())
 		builder.CopyToSnapshot(exportedJar, snapshotRelativeJavaLibPath)
 
 		propertySet.AddProperty("jars", []string{snapshotRelativeJavaLibPath})
