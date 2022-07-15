@@ -280,6 +280,11 @@ var (
 		"-Wno-string-concatenation",
 	}
 
+	llvmNextExtraCommonGlobalCflags = []string{
+		"-Wno-unqualified-std-cast-call",
+		"-Wno-deprecated-non-prototype",
+	}
+
 	IllegalFlags = []string{
 		"-w",
 	}
@@ -361,6 +366,11 @@ func init() {
 		if ctx.Config().IsEnvTrue("USE_CCACHE") {
 			flags = append(flags, "-Wno-unused-command-line-argument")
 		}
+
+		if ctx.Config().IsEnvTrue("LLVM_NEXT") {
+			flags = append(flags, llvmNextExtraCommonGlobalCflags...)
+		}
+
 		return strings.Join(flags, " ")
 	})
 
