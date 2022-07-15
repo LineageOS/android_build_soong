@@ -39,6 +39,8 @@ def parse_args():
   parser = argparse.ArgumentParser()
   parser.add_argument('--minSdkVersion', default='', dest='min_sdk_version',
                       help='specify minSdkVersion used by the build system')
+  parser.add_argument('--replaceMaxSdkVersionPlaceholder', default='', dest='max_sdk_version',
+                      help='specify maxSdkVersion used by the build system')
   parser.add_argument('--targetSdkVersion', default='', dest='target_sdk_version',
                       help='specify targetSdkVersion used by the build system')
   parser.add_argument('--raise-min-sdk-version', dest='raise_min_sdk_version', action='store_true',
@@ -342,6 +344,24 @@ def set_test_only_flag_to_true(doc):
   attr.value = 'true'
   application.setAttributeNode(attr)
 
+def set_max_sdk_version(doc, max_sdk_version):
+  """Replace the maxSdkVersion attribute value for permission and
+  uses-permission tags if the value was originally set to 'current'.
+  Used for cts test cases where the maxSdkVersion should equal to
+  Build.SDK_INT.
+
+  Args:
+    doc: The XML document.  May be modified by this function.
+    max_sdk_version: The requested maxSdkVersion attribute.
+  """
+  manifest = parse_manifest(doc)
+  for tag in ['permission', 'uses-permission']:
+    children = get_children_with_tag(manifest, tag)
+    for child in children:
+      max_attr = child.getAttributeNodeNS(android_ns, 'maxSdkVersion')
+      if max_attr and max_attr.value == 'current':
+        max_attr.value = max_sdk_version
+
 def main():
   """Program entry point."""
   try:
@@ -353,6 +373,9 @@ def main():
 
     if args.raise_min_sdk_version:
       raise_min_sdk_version(doc, args.min_sdk_version, args.target_sdk_version, args.library)
+
+    if args.max_sdk_version:
+      set_max_sdk_version(doc, args.max_sdk_version)
 
     if args.uses_libraries:
       add_uses_libraries(doc, args.uses_libraries, True)

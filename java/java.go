@@ -1459,6 +1459,10 @@ type ImportProperties struct {
 	// specified.
 	Min_sdk_version *string
 
+	// The max sdk version placeholder used to replace maxSdkVersion attributes on permission
+	// and uses-permission tags in manifest_fixer.
+	Replace_max_sdk_version_placeholder *string
+
 	Installable *bool
 
 	// If not empty, classes are restricted to the specified packages and their sub-packages.
@@ -1536,6 +1540,13 @@ func (j *Import) MinSdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
 		return android.SdkSpecFrom(ctx, *j.properties.Min_sdk_version)
 	}
 	return j.SdkVersion(ctx)
+}
+
+func (j *Import) ReplaceMaxSdkVersionPlaceholder(ctx android.EarlyModuleContext) android.SdkSpec {
+	if j.properties.Replace_max_sdk_version_placeholder != nil {
+		return android.SdkSpecFrom(ctx, *j.properties.Replace_max_sdk_version_placeholder)
+	}
+	return android.SdkSpecFrom(ctx, "")
 }
 
 func (j *Import) TargetSdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
