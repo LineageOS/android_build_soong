@@ -19,7 +19,8 @@ import textwrap
 import unittest
 
 import symbolfile
-from symbolfile import Arch, Tag, Tags, Version
+from symbolfile import Arch, Tag, Tags, Version, Symbol, Filter
+from copy import copy
 
 # pylint: disable=missing-docstring
 
@@ -202,178 +203,166 @@ class SymbolPresenceTest(unittest.TestCase):
 
 
 class OmitVersionTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.filter = Filter(arch = Arch('arm'), api = 9)
+        self.version = Version('foo', None, Tags(), [])
+
+    def assertOmit(self, f: Filter, v: Version) -> None:
+        self.assertTrue(f.should_omit_version(v))
+
+    def assertInclude(self, f: Filter, v: Version) -> None:
+        self.assertFalse(f.should_omit_version(v))
+
     def test_omit_private(self) -> None:
-        self.assertFalse(
-            symbolfile.should_omit_version(
-                symbolfile.Version('foo', None, Tags(), []), Arch('arm'), 9,
-                False, False))
+        f = self.filter
+        v = self.version
 
-        self.assertTrue(
-            symbolfile.should_omit_version(
-                symbolfile.Version('foo_PRIVATE', None, Tags(), []),
-                Arch('arm'), 9, False, False))
-        self.assertTrue(
-            symbolfile.should_omit_version(
-                symbolfile.Version('foo_PLATFORM', None, Tags(), []),
-                Arch('arm'), 9, False, False))
+        self.assertInclude(f, v)
 
-        self.assertTrue(
-            symbolfile.should_omit_version(
-                symbolfile.Version('foo', None,
-                                   Tags.from_strs(['platform-only']), []),
-                Arch('arm'), 9, False, False))
+        v.name = 'foo_PRIVATE'
+        self.assertOmit(f, v)
+
+        v.name = 'foo_PLATFORM'
+        self.assertOmit(f, v)
+
+        v.name = 'foo'
+        v.tags = Tags.from_strs(['platform-only'])
+        self.assertOmit(f, v)
 
     def test_omit_llndk(self) -> None:
-        self.assertTrue(
-            symbolfile.should_omit_version(
-                symbolfile.Version('foo', None, Tags.from_strs(['llndk']), []),
-                Arch('arm'), 9, False, False))
+        f = self.filter
+        v = self.version
+        v_llndk = copy(v)
+        v_llndk.tags = Tags.from_strs(['llndk'])
 
-        self.assertFalse(
-            symbolfile.should_omit_version(
-                symbolfile.Version('foo', None, Tags(), []), Arch('arm'), 9,
-                True, False))
-        self.assertFalse(
-            symbolfile.should_omit_version(
-                symbolfile.Version('foo', None, Tags.from_strs(['llndk']), []),
-                Arch('arm'), 9, True, False))
+        self.assertOmit(f, v_llndk)
+
+        f.llndk = True
+        self.assertInclude(f, v)
+        self.assertInclude(f, v_llndk)
 
     def test_omit_apex(self) -> None:
-        self.assertTrue(
-            symbolfile.should_omit_version(
-                symbolfile.Version('foo', None, Tags.from_strs(['apex']), []),
-                Arch('arm'), 9, False, False))
+        f = self.filter
+        v = self.version
+        v_apex = copy(v)
+        v_apex.tags = Tags.from_strs(['apex'])
 
-        self.assertFalse(
-            symbolfile.should_omit_version(
-                symbolfile.Version('foo', None, Tags(), []), Arch('arm'), 9,
-                False, True))
-        self.assertFalse(
-            symbolfile.should_omit_version(
-                symbolfile.Version('foo', None, Tags.from_strs(['apex']), []),
-                Arch('arm'), 9, False, True))
+        self.assertOmit(f, v_apex)
+
+        f.apex = True
+        self.assertInclude(f, v)
+        self.assertInclude(f, v_apex)
 
     def test_omit_systemapi(self) -> None:
-        self.assertTrue(
-            symbolfile.should_omit_version(
-                symbolfile.Version('foo', None, Tags.from_strs(['systemapi']),
-                                   []), Arch('arm'), 9, False, False))
+        f = self.filter
+        v = self.version
+        v_systemapi = copy(v)
+        v_systemapi.tags = Tags.from_strs(['systemapi'])
 
-        self.assertFalse(
-            symbolfile.should_omit_version(
-                symbolfile.Version('foo', None, Tags(), []), Arch('arm'), 9,
-                False, True))
-        self.assertFalse(
-            symbolfile.should_omit_version(
-                symbolfile.Version('foo', None, Tags.from_strs(['systemapi']),
-                                   []), Arch('arm'), 9, False, True))
+        self.assertOmit(f, v_systemapi)
+
+        f.apex = True
+        self.assertInclude(f, v)
+        self.assertInclude(f, v_systemapi)
 
     def test_omit_arch(self) -> None:
-        self.assertFalse(
-            symbolfile.should_omit_version(
-                symbolfile.Version('foo', None, Tags(), []), Arch('arm'), 9,
-                False, False))
-        self.assertFalse(
-            symbolfile.should_omit_version(
-                symbolfile.Version('foo', None, Tags.from_strs(['arm']), []),
-                Arch('arm'), 9, False, False))
+        f_arm = self.filter
+        v_none = self.version
+        self.assertInclude(f_arm, v_none)
 
-        self.assertTrue(
-            symbolfile.should_omit_version(
-                symbolfile.Version('foo', None, Tags.from_strs(['x86']), []),
-                Arch('arm'), 9, False, False))
+        v_arm = copy(v_none)
+        v_arm.tags = Tags.from_strs(['arm'])
+        self.assertInclude(f_arm, v_arm)
+
+        v_x86 = copy(v_none)
+        v_x86.tags = Tags.from_strs(['x86'])
+        self.assertOmit(f_arm, v_x86)
 
     def test_omit_api(self) -> None:
-        self.assertFalse(
-            symbolfile.should_omit_version(
-                symbolfile.Version('foo', None, Tags(), []), Arch('arm'), 9,
-                False, False))
-        self.assertFalse(
-            symbolfile.should_omit_version(
-                symbolfile.Version('foo', None,
-                                   Tags.from_strs(['introduced=9']), []),
-                Arch('arm'), 9, False, False))
+        f_api9 = self.filter
+        v_none = self.version
+        self.assertInclude(f_api9, v_none)
 
-        self.assertTrue(
-            symbolfile.should_omit_version(
-                symbolfile.Version('foo', None,
-                                   Tags.from_strs(['introduced=14']), []),
-                Arch('arm'), 9, False, False))
+        v_api9 = copy(v_none)
+        v_api9.tags = Tags.from_strs(['introduced=9'])
+        self.assertInclude(f_api9, v_api9)
+
+        v_api14 = copy(v_none)
+        v_api14.tags = Tags.from_strs(['introduced=14'])
+        self.assertOmit(f_api9, v_api14)
 
 
 class OmitSymbolTest(unittest.TestCase):
-    def test_omit_llndk(self) -> None:
-        self.assertTrue(
-            symbolfile.should_omit_symbol(
-                symbolfile.Symbol('foo', Tags.from_strs(['llndk'])),
-                Arch('arm'), 9, False, False))
+    def setUp(self) -> None:
+        self.filter = Filter(arch = Arch('arm'), api = 9)
 
-        self.assertFalse(
-            symbolfile.should_omit_symbol(symbolfile.Symbol('foo', Tags()),
-                                          Arch('arm'), 9, True, False))
-        self.assertFalse(
-            symbolfile.should_omit_symbol(
-                symbolfile.Symbol('foo', Tags.from_strs(['llndk'])),
-                Arch('arm'), 9, True, False))
+    def assertOmit(self, f: Filter, s: Symbol) -> None:
+        self.assertTrue(f.should_omit_symbol(s))
+
+    def assertInclude(self, f: Filter, s: Symbol) -> None:
+        self.assertFalse(f.should_omit_symbol(s))
+
+    def test_omit_llndk(self) -> None:
+        f_none = self.filter
+        f_llndk = copy(f_none)
+        f_llndk.llndk = True
+
+        s_none = Symbol('foo', Tags())
+        s_llndk = Symbol('foo', Tags.from_strs(['llndk']))
+
+        self.assertOmit(f_none, s_llndk)
+        self.assertInclude(f_llndk, s_none)
+        self.assertInclude(f_llndk, s_llndk)
 
     def test_omit_apex(self) -> None:
-        self.assertTrue(
-            symbolfile.should_omit_symbol(
-                symbolfile.Symbol('foo', Tags.from_strs(['apex'])),
-                Arch('arm'), 9, False, False))
+        f_none = self.filter
+        f_apex = copy(f_none)
+        f_apex.apex = True
 
-        self.assertFalse(
-            symbolfile.should_omit_symbol(symbolfile.Symbol('foo', Tags()),
-                                          Arch('arm'), 9, False, True))
-        self.assertFalse(
-            symbolfile.should_omit_symbol(
-                symbolfile.Symbol('foo', Tags.from_strs(['apex'])),
-                Arch('arm'), 9, False, True))
+        s_none = Symbol('foo', Tags())
+        s_apex = Symbol('foo', Tags.from_strs(['apex']))
+
+        self.assertOmit(f_none, s_apex)
+        self.assertInclude(f_apex, s_none)
+        self.assertInclude(f_apex, s_apex)
 
     def test_omit_systemapi(self) -> None:
-        self.assertTrue(
-            symbolfile.should_omit_symbol(
-                symbolfile.Symbol('foo', Tags.from_strs(['systemapi'])),
-                Arch('arm'), 9, False, False))
+        f_none = self.filter
+        f_systemapi = copy(f_none)
+        f_systemapi.apex = True
 
-        self.assertFalse(
-            symbolfile.should_omit_symbol(symbolfile.Symbol('foo', Tags()),
-                                          Arch('arm'), 9, False, True))
-        self.assertFalse(
-            symbolfile.should_omit_symbol(
-                symbolfile.Symbol('foo', Tags.from_strs(['systemapi'])),
-                Arch('arm'), 9, False, True))
+        s_none = Symbol('foo', Tags())
+        s_systemapi = Symbol('foo', Tags.from_strs(['systemapi']))
+
+        self.assertOmit(f_none, s_systemapi)
+        self.assertInclude(f_systemapi, s_none)
+        self.assertInclude(f_systemapi, s_systemapi)
 
     def test_omit_arch(self) -> None:
-        self.assertFalse(
-            symbolfile.should_omit_symbol(symbolfile.Symbol('foo', Tags()),
-                                          Arch('arm'), 9, False, False))
-        self.assertFalse(
-            symbolfile.should_omit_symbol(
-                symbolfile.Symbol('foo', Tags.from_strs(['arm'])), Arch('arm'),
-                9, False, False))
+        f_arm = self.filter
+        s_none = Symbol('foo', Tags())
+        s_arm = Symbol('foo', Tags.from_strs(['arm']))
+        s_x86 = Symbol('foo', Tags.from_strs(['x86']))
 
-        self.assertTrue(
-            symbolfile.should_omit_symbol(
-                symbolfile.Symbol('foo', Tags.from_strs(['x86'])), Arch('arm'),
-                9, False, False))
+        self.assertInclude(f_arm, s_none)
+        self.assertInclude(f_arm, s_arm)
+        self.assertOmit(f_arm, s_x86)
 
     def test_omit_api(self) -> None:
-        self.assertFalse(
-            symbolfile.should_omit_symbol(symbolfile.Symbol('foo', Tags()),
-                                          Arch('arm'), 9, False, False))
-        self.assertFalse(
-            symbolfile.should_omit_symbol(
-                symbolfile.Symbol('foo', Tags.from_strs(['introduced=9'])),
-                Arch('arm'), 9, False, False))
+        f_api9 = self.filter
+        s_none = Symbol('foo', Tags())
+        s_api9 = Symbol('foo', Tags.from_strs(['introduced=9']))
+        s_api14 = Symbol('foo', Tags.from_strs(['introduced=14']))
 
-        self.assertTrue(
-            symbolfile.should_omit_symbol(
-                symbolfile.Symbol('foo', Tags.from_strs(['introduced=14'])),
-                Arch('arm'), 9, False, False))
+        self.assertInclude(f_api9, s_none)
+        self.assertInclude(f_api9, s_api9)
+        self.assertOmit(f_api9, s_api14)
 
 
 class SymbolFileParseTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.filter = Filter(arch = Arch('arm'), api = 16)
+
     def test_next_line(self) -> None:
         input_file = io.StringIO(textwrap.dedent("""\
             foo
@@ -382,8 +371,7 @@ class SymbolFileParseTest(unittest.TestCase):
             # baz
             qux
         """))
-        parser = symbolfile.SymbolFileParser(input_file, {}, Arch('arm'), 16,
-                                             False, False)
+        parser = symbolfile.SymbolFileParser(input_file, {}, self.filter)
         self.assertIsNone(parser.current_line)
 
         self.assertEqual('foo', parser.next_line().strip())
@@ -409,8 +397,7 @@ class SymbolFileParseTest(unittest.TestCase):
             VERSION_2 {
             } VERSION_1; # asdf
         """))
-        parser = symbolfile.SymbolFileParser(input_file, {}, Arch('arm'), 16,
-                                             False, False)
+        parser = symbolfile.SymbolFileParser(input_file, {}, self.filter)
 
         parser.next_line()
         version = parser.parse_version()
@@ -419,8 +406,8 @@ class SymbolFileParseTest(unittest.TestCase):
         self.assertEqual(Tags.from_strs(['foo', 'bar']), version.tags)
 
         expected_symbols = [
-            symbolfile.Symbol('baz', Tags()),
-            symbolfile.Symbol('qux', Tags.from_strs(['woodly', 'doodly'])),
+            Symbol('baz', Tags()),
+            Symbol('qux', Tags.from_strs(['woodly', 'doodly'])),
         ]
         self.assertEqual(expected_symbols, version.symbols)
 
@@ -434,8 +421,7 @@ class SymbolFileParseTest(unittest.TestCase):
         input_file = io.StringIO(textwrap.dedent("""\
             VERSION_1 {
         """))
-        parser = symbolfile.SymbolFileParser(input_file, {}, Arch('arm'), 16,
-                                             False, False)
+        parser = symbolfile.SymbolFileParser(input_file, {}, self.filter)
         parser.next_line()
         with self.assertRaises(symbolfile.ParseError):
             parser.parse_version()
@@ -446,8 +432,7 @@ class SymbolFileParseTest(unittest.TestCase):
                 foo:
             }
         """))
-        parser = symbolfile.SymbolFileParser(input_file, {}, Arch('arm'), 16,
-                                             False, False)
+        parser = symbolfile.SymbolFileParser(input_file, {}, self.filter)
         parser.next_line()
         with self.assertRaises(symbolfile.ParseError):
             parser.parse_version()
@@ -457,8 +442,7 @@ class SymbolFileParseTest(unittest.TestCase):
             foo;
             bar; # baz qux
         """))
-        parser = symbolfile.SymbolFileParser(input_file, {}, Arch('arm'), 16,
-                                             False, False)
+        parser = symbolfile.SymbolFileParser(input_file, {}, self.filter)
 
         parser.next_line()
         symbol = parser.parse_symbol()
@@ -476,8 +460,7 @@ class SymbolFileParseTest(unittest.TestCase):
                 *;
             };
         """))
-        parser = symbolfile.SymbolFileParser(input_file, {}, Arch('arm'), 16,
-                                             False, False)
+        parser = symbolfile.SymbolFileParser(input_file, {}, self.filter)
         parser.next_line()
         with self.assertRaises(symbolfile.ParseError):
             parser.parse_version()
@@ -489,8 +472,7 @@ class SymbolFileParseTest(unittest.TestCase):
                     *;
             };
         """))
-        parser = symbolfile.SymbolFileParser(input_file, {}, Arch('arm'), 16,
-                                             False, False)
+        parser = symbolfile.SymbolFileParser(input_file, {}, self.filter)
         parser.next_line()
         version = parser.parse_version()
         self.assertEqual([], version.symbols)
@@ -501,8 +483,7 @@ class SymbolFileParseTest(unittest.TestCase):
                 foo
             };
         """))
-        parser = symbolfile.SymbolFileParser(input_file, {}, Arch('arm'), 16,
-                                             False, False)
+        parser = symbolfile.SymbolFileParser(input_file, {}, self.filter)
         parser.next_line()
         with self.assertRaises(symbolfile.ParseError):
             parser.parse_version()
@@ -510,8 +491,7 @@ class SymbolFileParseTest(unittest.TestCase):
     def test_parse_fails_invalid_input(self) -> None:
         with self.assertRaises(symbolfile.ParseError):
             input_file = io.StringIO('foo')
-            parser = symbolfile.SymbolFileParser(input_file, {}, Arch('arm'),
-                                                 16, False, False)
+            parser = symbolfile.SymbolFileParser(input_file, {}, self.filter)
             parser.parse()
 
     def test_parse(self) -> None:
@@ -532,19 +512,18 @@ class SymbolFileParseTest(unittest.TestCase):
                     qwerty;
             } VERSION_1;
         """))
-        parser = symbolfile.SymbolFileParser(input_file, {}, Arch('arm'), 16,
-                                             False, False)
+        parser = symbolfile.SymbolFileParser(input_file, {}, self.filter)
         versions = parser.parse()
 
         expected = [
             symbolfile.Version('VERSION_1', None, Tags(), [
-                symbolfile.Symbol('foo', Tags()),
-                symbolfile.Symbol('bar', Tags.from_strs(['baz'])),
+                Symbol('foo', Tags()),
+                Symbol('bar', Tags.from_strs(['baz'])),
             ]),
             symbolfile.Version(
                 'VERSION_2', 'VERSION_1', Tags.from_strs(['wasd']), [
-                    symbolfile.Symbol('woodly', Tags()),
-                    symbolfile.Symbol('doodly', Tags.from_strs(['asdf'])),
+                    Symbol('woodly', Tags()),
+                    Symbol('doodly', Tags.from_strs(['asdf'])),
                 ]),
         ]
 
@@ -559,8 +538,9 @@ class SymbolFileParseTest(unittest.TestCase):
                 qux; # apex
             };
         """))
-        parser = symbolfile.SymbolFileParser(input_file, {}, Arch('arm'), 16,
-                                             False, True)
+        f = copy(self.filter)
+        f.llndk = True
+        parser = symbolfile.SymbolFileParser(input_file, {}, f)
 
         parser.next_line()
         version = parser.parse_version()
@@ -568,10 +548,10 @@ class SymbolFileParseTest(unittest.TestCase):
         self.assertIsNone(version.base)
 
         expected_symbols = [
-            symbolfile.Symbol('foo', Tags()),
-            symbolfile.Symbol('bar', Tags.from_strs(['llndk'])),
-            symbolfile.Symbol('baz', Tags.from_strs(['llndk', 'apex'])),
-            symbolfile.Symbol('qux', Tags.from_strs(['apex'])),
+            Symbol('foo', Tags()),
+            Symbol('bar', Tags.from_strs(['llndk'])),
+            Symbol('baz', Tags.from_strs(['llndk', 'apex'])),
+            Symbol('qux', Tags.from_strs(['apex'])),
         ]
         self.assertEqual(expected_symbols, version.symbols)
 

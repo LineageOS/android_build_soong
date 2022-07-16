@@ -29,15 +29,12 @@ from symbolfile import Arch, Version
 class Generator:
     """Output generator that writes stub source files and version scripts."""
     def __init__(self, src_file: TextIO, version_script: TextIO,
-                 symbol_list: TextIO, arch: Arch, api: int, llndk: bool,
-                 apex: bool) -> None:
+                 symbol_list: TextIO, filt: symbolfile.Filter) -> None:
         self.src_file = src_file
         self.version_script = version_script
         self.symbol_list = symbol_list
-        self.arch = arch
-        self.api = api
-        self.llndk = llndk
-        self.apex = apex
+        self.filter = filt
+        self.api = filt.api
 
     def write(self, versions: Iterable[Version]) -> None:
         """Writes all symbol data to the output files."""
@@ -47,8 +44,7 @@ class Generator:
 
     def write_version(self, version: Version) -> None:
         """Writes a single version block's data to the output files."""
-        if symbolfile.should_omit_version(version, self.arch, self.api,
-                                          self.llndk, self.apex):
+        if self.filter.should_omit_version(version):
             return
 
         section_versioned = symbolfile.symbol_versioned_in_api(
@@ -56,8 +52,7 @@ class Generator:
         version_empty = True
         pruned_symbols = []
         for symbol in version.symbols:
-            if symbolfile.should_omit_symbol(symbol, self.arch, self.api,
-                                             self.llndk, self.apex):
+            if self.filter.should_omit_symbol(symbol):
                 continue
 
             if symbolfile.symbol_versioned_in_api(symbol.tags, self.api):
@@ -152,11 +147,10 @@ def main() -> None:
         verbosity = 2
     logging.basicConfig(level=verbose_map[verbosity])
 
+    filt = symbolfile.Filter(args.arch, api, args.llndk, args.apex)
     with args.symbol_file.open() as symbol_file:
         try:
-            versions = symbolfile.SymbolFileParser(symbol_file, api_map,
-                                                   args.arch, api, args.llndk,
-                                                   args.apex).parse()
+          versions = symbolfile.SymbolFileParser(symbol_file, api_map, filt).parse()
         except symbolfile.MultiplyDefinedSymbolError as ex:
             sys.exit(f'{args.symbol_file}: error: {ex}')
 
@@ -164,7 +158,7 @@ def main() -> None:
         with args.version_script.open('w') as version_script:
             with args.symbol_list.open('w') as symbol_list:
                 generator = Generator(src_file, version_script, symbol_list,
-                                      args.arch, api, args.llndk, args.apex)
+                                      filt)
                 generator.write(versions)
 
 
