@@ -1039,9 +1039,7 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 		if ctx.Module().(android.ApexModule).NotInPlatform() {
 			flag = "--apex"
 		} else {
-			// TODO(b/239274367) drop --apex when #apex is replaced with #systemapi
-			// in the map.txt files of platform libraries
-			flag = "--systemapi --apex"
+			flag = "--systemapi"
 		}
 		nativeAbiResult := parseNativeAbiDefinition(ctx, symbolFile,
 			android.ApiLevelOrPanic(ctx, library.MutatedProperties.StubsVersion), flag)
