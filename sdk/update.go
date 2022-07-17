@@ -1972,6 +1972,12 @@ func (m *memberContext) RequiresTrait(trait android.SdkMemberTrait) bool {
 	return m.requiredTraits.Contains(trait)
 }
 
+func (m *memberContext) IsTargetBuildBeforeTiramisu() bool {
+	return m.builder.targetBuildRelease.EarlierThan(buildReleaseT)
+}
+
+var _ android.SdkMemberContext = (*memberContext)(nil)
+
 func (s *sdk) createMemberSnapshot(ctx *memberContext, member *sdkMember, bpModule *bpModule) {
 
 	memberType := member.memberType

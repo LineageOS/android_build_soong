@@ -605,7 +605,7 @@ func (a *AndroidMkEntries) fillInEntries(ctx fillInEntriesContext, mod blueprint
 	}
 
 	if len(base.noticeFiles) > 0 {
-		a.SetString("LOCAL_NOTICE_FILE", strings.Join(base.noticeFiles.Strings(), " "))
+		a.AddStrings("LOCAL_NOTICE_FILE", strings.Join(base.noticeFiles.Strings(), " "))
 	}
 
 	if host {
