@@ -140,7 +140,7 @@ def main():
 
     with open(args.symbol_file) as symbol_file:
         try:
-            filt = Filter("", FUTURE_API_LEVEL, True, True)
+            filt = Filter("", FUTURE_API_LEVEL, True, True, True)
             versions = SymbolFileParser(symbol_file, api_map, filt).parse()
         except MultiplyDefinedSymbolError as ex:
             sys.exit('{}: error: {}'.format(args.symbol_file, ex))

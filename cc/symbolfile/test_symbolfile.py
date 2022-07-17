@@ -246,24 +246,30 @@ class OmitVersionTest(unittest.TestCase):
         v = self.version
         v_apex = copy(v)
         v_apex.tags = Tags.from_strs(['apex'])
+        v_systemapi = copy(v)
+        v_systemapi.tags = Tags.from_strs(['systemapi'])
 
         self.assertOmit(f, v_apex)
 
         f.apex = True
         self.assertInclude(f, v)
         self.assertInclude(f, v_apex)
+        self.assertOmit(f, v_systemapi)
 
     def test_omit_systemapi(self) -> None:
         f = self.filter
         v = self.version
+        v_apex = copy(v)
+        v_apex.tags = Tags.from_strs(['apex'])
         v_systemapi = copy(v)
         v_systemapi.tags = Tags.from_strs(['systemapi'])
 
         self.assertOmit(f, v_systemapi)
 
-        f.apex = True
+        f.systemapi = True
         self.assertInclude(f, v)
         self.assertInclude(f, v_systemapi)
+        self.assertOmit(f, v_apex)
 
     def test_omit_arch(self) -> None:
         f_arm = self.filter
@@ -321,22 +327,38 @@ class OmitSymbolTest(unittest.TestCase):
 
         s_none = Symbol('foo', Tags())
         s_apex = Symbol('foo', Tags.from_strs(['apex']))
+        s_systemapi = Symbol('foo', Tags.from_strs(['systemapi']))
 
         self.assertOmit(f_none, s_apex)
         self.assertInclude(f_apex, s_none)
         self.assertInclude(f_apex, s_apex)
+        self.assertOmit(f_apex, s_systemapi)
 
     def test_omit_systemapi(self) -> None:
         f_none = self.filter
         f_systemapi = copy(f_none)
-        f_systemapi.apex = True
+        f_systemapi.systemapi = True
 
         s_none = Symbol('foo', Tags())
+        s_apex = Symbol('foo', Tags.from_strs(['apex']))
         s_systemapi = Symbol('foo', Tags.from_strs(['systemapi']))
 
         self.assertOmit(f_none, s_systemapi)
         self.assertInclude(f_systemapi, s_none)
         self.assertInclude(f_systemapi, s_systemapi)
+        self.assertOmit(f_systemapi, s_apex)
+
+    def test_omit_apex_and_systemapi(self) -> None:
+        f = self.filter
+        f.systemapi = True
+        f.apex = True
+
+        s_none = Symbol('foo', Tags())
+        s_apex = Symbol('foo', Tags.from_strs(['apex']))
+        s_systemapi = Symbol('foo', Tags.from_strs(['systemapi']))
+        self.assertInclude(f, s_none)
+        self.assertInclude(f, s_apex)
+        self.assertInclude(f, s_systemapi)
 
     def test_omit_arch(self) -> None:
         f_arm = self.filter

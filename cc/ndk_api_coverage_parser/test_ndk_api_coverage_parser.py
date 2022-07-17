@@ -78,7 +78,7 @@ class ApiCoverageSymbolFileParserTest(unittest.TestCase):
         """
             )
         )
-        filt = Filter("", FUTURE_API_LEVEL, True, True)
+        filt = Filter("", FUTURE_API_LEVEL, True, True, True)
         parser = SymbolFileParser(input_file, {}, filt)
         generator = nparser.XmlGenerator(io.StringIO())
         result = generator.convertToXml(parser.parse())

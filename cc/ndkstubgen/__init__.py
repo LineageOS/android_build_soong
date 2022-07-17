@@ -105,12 +105,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         '--apex',
         action='store_true',
-        help='Use the APEX variant. Note: equivalent to --system-api.')
+        help='Use the APEX variant.')
     parser.add_argument(
-        '--system-api',
+        '--systemapi',
         action='store_true',
-        dest='apex',
-        help='Use the SystemAPI variant. Note: equivalent to --apex.')
+        dest='systemapi',
+        help='Use the SystemAPI variant.')
 
     parser.add_argument('--api-map',
                         type=resolved_path,
@@ -147,7 +147,7 @@ def main() -> None:
         verbosity = 2
     logging.basicConfig(level=verbose_map[verbosity])
 
-    filt = symbolfile.Filter(args.arch, api, args.llndk, args.apex)
+    filt = symbolfile.Filter(args.arch, api, args.llndk, args.apex, args.systemapi)
     with args.symbol_file.open() as symbol_file:
         try:
           versions = symbolfile.SymbolFileParser(symbol_file, api_map, filt).parse()

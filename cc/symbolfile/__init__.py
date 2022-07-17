@@ -78,12 +78,17 @@ class Tags:
     @property
     def has_mode_tags(self) -> bool:
         """Returns True if any mode tags (apex, llndk, etc) are set."""
-        return self.has_apex_tags or self.has_llndk_tags
+        return self.has_apex_tags or self.has_llndk_tags or self.has_systemapi_tags
 
     @property
     def has_apex_tags(self) -> bool:
         """Returns True if any APEX tags are set."""
-        return 'apex' in self.tags or 'systemapi' in self.tags
+        return 'apex' in self.tags
+
+    @property
+    def has_systemapi_tags(self) -> bool:
+        """Returns True if any APEX tags are set."""
+        return 'systemapi' in self.tags
 
     @property
     def has_llndk_tags(self) -> bool:
@@ -203,11 +208,12 @@ class Filter:
     symbol should be omitted or not
     """
 
-    def __init__(self, arch: Arch, api: int, llndk: bool = False, apex: bool = False):
+    def __init__(self, arch: Arch, api: int, llndk: bool = False, apex: bool = False, systemapi: bool = False):
         self.arch = arch
         self.api = api
         self.llndk = llndk
         self.apex = apex
+        self.systemapi = systemapi
 
     def _should_omit_tags(self, tags: Tags) -> bool:
         """Returns True if the tagged object should be omitted.
@@ -219,12 +225,13 @@ class Filter:
         # default behavior because all NDK symbols are implicitly available to
         # APEX and LLNDK.
         if tags.has_mode_tags:
-            if not self.apex and not self.llndk:
-                return True
-            if self.apex and not tags.has_apex_tags:
-                return True
-            if self.llndk and not tags.has_llndk_tags:
-                return True
+            if self.apex and tags.has_apex_tags:
+                return False
+            if self.llndk and tags.has_llndk_tags:
+                return False
+            if self.systemapi and tags.has_systemapi_tags:
+                return False
+            return True
         if not symbol_in_arch(tags, self.arch):
             return True
         if not symbol_in_api(tags, self.arch, self.api):
