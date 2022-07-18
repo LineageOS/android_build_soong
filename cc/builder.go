@@ -63,10 +63,10 @@ var (
 	ld, ldRE = pctx.RemoteStaticRules("ld",
 		blueprint.RuleParams{
 			Command: "$reTemplate$ldCmd ${crtBegin} @${out}.rsp " +
-				"${libFlags} ${crtEnd} -o ${out} ${ldFlags} ${extraLibFlags}",
+				"${crtEnd} -o ${out} ${ldFlags} ${extraLibFlags}",
 			CommandDeps:    []string{"$ldCmd"},
 			Rspfile:        "${out}.rsp",
-			RspfileContent: "${in}",
+			RspfileContent: "${in} ${libFlags}",
 			// clang -Wl,--out-implib doesn't update its output file if it hasn't changed.
 			Restat: true,
 		},
