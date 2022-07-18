@@ -15,6 +15,7 @@
 package sdk
 
 import (
+	"fmt"
 	"testing"
 
 	"android/soong/android"
@@ -339,8 +340,8 @@ func TestSnapshotWithJavaBootLibrary(t *testing.T) {
 		android.FixtureAddFile("aidl", nil),
 		android.FixtureAddFile("resource.txt", nil),
 	).RunTestWithBp(t, `
-		module_exports {
-			name: "myexports",
+		sdk {
+			name: "mysdk",
 			java_boot_libs: ["myjavalib"],
 		}
 
@@ -360,7 +361,7 @@ func TestSnapshotWithJavaBootLibrary(t *testing.T) {
 		}
 	`)
 
-	CheckSnapshot(t, result, "myexports", "",
+	CheckSnapshot(t, result, "mysdk", "",
 		checkUnversionedAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
@@ -377,7 +378,7 @@ java_import {
 // This is auto-generated. DO NOT EDIT.
 
 java_import {
-    name: "myexports_myjavalib@current",
+    name: "mysdk_myjavalib@current",
     sdk_member_name: "myjavalib",
     visibility: ["//visibility:public"],
     apex_available: ["//apex_available:platform"],
@@ -385,17 +386,71 @@ java_import {
     permitted_packages: ["pkg.myjavalib"],
 }
 
-module_exports_snapshot {
-    name: "myexports@current",
+sdk_snapshot {
+    name: "mysdk@current",
     visibility: ["//visibility:public"],
-    java_boot_libs: ["myexports_myjavalib@current"],
+    java_boot_libs: ["mysdk_myjavalib@current"],
 }
 
 `),
 		checkAllCopyRules(`
-.intermediates/myexports/common_os/empty -> java_boot_libs/snapshot/jars/are/invalid/myjavalib.jar
+.intermediates/mysdk/common_os/empty -> java_boot_libs/snapshot/jars/are/invalid/myjavalib.jar
 `),
 	)
+}
+
+func TestSnapshotWithJavaBootLibrary_UpdatableMedia(t *testing.T) {
+	runTest := func(t *testing.T, targetBuildRelease, expectedJarPath, expectedCopyRule string) {
+		result := android.GroupFixturePreparers(
+			prepareForSdkTestWithJava,
+			android.FixtureMergeEnv(map[string]string{
+				"SOONG_SDK_SNAPSHOT_TARGET_BUILD_RELEASE": targetBuildRelease,
+			}),
+		).RunTestWithBp(t, `
+		sdk {
+			name: "mysdk",
+			java_boot_libs: ["updatable-media"],
+		}
+
+		java_library {
+			name: "updatable-media",
+			srcs: ["Test.java"],
+			system_modules: "none",
+			sdk_version: "none",
+			compile_dex: true,
+			permitted_packages: ["pkg.media"],
+			apex_available: ["com.android.media"],
+		}
+	`)
+
+		CheckSnapshot(t, result, "mysdk", "",
+			checkUnversionedAndroidBpContents(fmt.Sprintf(`
+// This is auto-generated. DO NOT EDIT.
+
+java_import {
+    name: "updatable-media",
+    prefer: false,
+    visibility: ["//visibility:public"],
+    apex_available: ["com.android.media"],
+    jars: ["%s"],
+    permitted_packages: ["pkg.media"],
+}
+`, expectedJarPath)),
+			checkAllCopyRules(expectedCopyRule),
+		)
+	}
+
+	t.Run("updatable-media in S", func(t *testing.T) {
+		runTest(t, "S", "java/updatable-media.jar", `
+.intermediates/updatable-media/android_common/package-check/updatable-media.jar -> java/updatable-media.jar
+`)
+	})
+
+	t.Run("updatable-media in T", func(t *testing.T) {
+		runTest(t, "Tiramisu", "java_boot_libs/snapshot/jars/are/invalid/updatable-media.jar", `
+.intermediates/mysdk/common_os/empty -> java_boot_libs/snapshot/jars/are/invalid/updatable-media.jar
+`)
+	})
 }
 
 func TestSnapshotWithJavaSystemserverLibrary(t *testing.T) {
