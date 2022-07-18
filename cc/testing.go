@@ -194,7 +194,6 @@ func commonDefaultModules() string {
 			native_coverage: false,
 			system_shared_libs: [],
 			stl: "none",
-			notice: "custom_notice",
 		}
 		cc_library {
 			name: "libprofile-clang-extras",
@@ -205,7 +204,6 @@ func commonDefaultModules() string {
 			native_coverage: false,
 			system_shared_libs: [],
 			stl: "none",
-			notice: "custom_notice",
 		}
 		cc_library {
 			name: "libprofile-extras_ndk",
@@ -214,7 +212,6 @@ func commonDefaultModules() string {
 			native_coverage: false,
 			system_shared_libs: [],
 			stl: "none",
-			notice: "custom_notice",
 			sdk_version: "current",
 		}
 		cc_library {
@@ -224,7 +221,6 @@ func commonDefaultModules() string {
 			native_coverage: false,
 			system_shared_libs: [],
 			stl: "none",
-			notice: "custom_notice",
 			sdk_version: "current",
 		}
 

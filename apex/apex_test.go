@@ -443,7 +443,6 @@ func TestBasicApex(t *testing.T) {
 			srcs: ["mylib.cpp"],
 			system_shared_libs: [],
 			stl: "none",
-			notice: "custom_notice",
 			static_libs: ["libstatic"],
 			// TODO: remove //apex_available:platform
 			apex_available: [
@@ -467,7 +466,6 @@ func TestBasicApex(t *testing.T) {
 			srcs: ["mylib.cpp"],
 			system_shared_libs: [],
 			stl: "none",
-			notice: "custom_notice_for_static_lib",
 			// TODO: remove //apex_available:platform
 			apex_available: [
 				"//apex_available:platform",

@@ -58,7 +58,6 @@ func init() {
 	AddNeverAllowRules(createMakefileGoalRules()...)
 	AddNeverAllowRules(createInitFirstStageRules()...)
 	AddNeverAllowRules(createProhibitFrameworkAccessRules()...)
-	AddNeverAllowRules(createNoticeDeprecationRules()...)
 }
 
 // Add a NeverAllow rule to the set of rules to apply.
@@ -236,15 +235,6 @@ func createProhibitFrameworkAccessRules() []Rule {
 			With("libs", "framework").
 			WithoutMatcher("sdk_version", Regexp("(core_.*|^$)")).
 			Because("framework can't be used when building against SDK"),
-	}
-}
-
-func createNoticeDeprecationRules() []Rule {
-	return []Rule{
-		NeverAllow().
-			WithMatcher("notice", isSetMatcherInstance).
-			NotIn("vendor/linaro/linux-firmware/").
-			Because("notice has been replaced by licenses/default_applicable_licenses"),
 	}
 }
 
