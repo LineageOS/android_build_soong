@@ -40,7 +40,7 @@ func Codegen(ctx *CodegenContext) CodegenMetrics {
 		fmt.Printf("ERROR: Encountered %d error(s): \nERROR: %s", len(errs), strings.Join(errMsgs, "\n"))
 		os.Exit(1)
 	}
-	bp2buildFiles := CreateBazelFiles(nil, res.buildFileToTargets, ctx.mode)
+	bp2buildFiles := CreateBazelFiles(ctx.Config(), nil, res.buildFileToTargets, ctx.mode)
 	writeFiles(ctx, bp2buildDir, bp2buildFiles)
 
 	soongInjectionDir := android.PathForOutput(ctx, bazel.SoongInjectionDirName)
