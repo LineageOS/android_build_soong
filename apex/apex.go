@@ -17,6 +17,7 @@
 package apex
 
 import (
+	"android/soong/bazel/cquery"
 	"fmt"
 	"path/filepath"
 	"regexp"
@@ -1803,6 +1804,181 @@ func (f fsType) string() string {
 	}
 }
 
+var _ android.MixedBuildBuildable = (*apexBundle)(nil)
+
+func (a *apexBundle) IsMixedBuildSupported(ctx android.BaseModuleContext) bool {
+	return ctx.ModuleType() == "apex" && a.properties.ApexType == imageApex
+}
+
+func (a *apexBundle) QueueBazelCall(ctx android.BaseModuleContext) {
+	bazelCtx := ctx.Config().BazelContext
+	bazelCtx.QueueBazelRequest(a.GetBazelLabel(ctx, a), cquery.GetApexInfo, android.GetConfigKey(ctx))
+}
+
+func (a *apexBundle) ProcessBazelQueryResponse(ctx android.ModuleContext) {
+	if !a.commonBuildActions(ctx) {
+		return
+	}
+
+	a.setApexTypeAndSuffix(ctx)
+	a.setPayloadFsType(ctx)
+	a.setSystemLibLink(ctx)
+
+	if a.properties.ApexType != zipApex {
+		a.compatSymlinks = makeCompatSymlinks(a.BaseModuleName(), ctx, a.primaryApexType)
+	}
+
+	bazelCtx := ctx.Config().BazelContext
+	outputs, err := bazelCtx.GetApexInfo(a.GetBazelLabel(ctx, a), android.GetConfigKey(ctx))
+	if err != nil {
+		ctx.ModuleErrorf(err.Error())
+		return
+	}
+	a.installDir = android.PathForModuleInstall(ctx, "apex")
+	a.outputApexFile = android.PathForBazelOut(ctx, outputs.SignedOutput)
+	a.outputFile = a.outputApexFile
+	a.setCompression(ctx)
+
+	a.publicKeyFile = android.PathForBazelOut(ctx, outputs.BundleKeyPair[0])
+	a.privateKeyFile = android.PathForBazelOut(ctx, outputs.BundleKeyPair[1])
+	a.containerCertificateFile = android.PathForBazelOut(ctx, outputs.ContainerKeyPair[0])
+	a.containerPrivateKeyFile = android.PathForBazelOut(ctx, outputs.ContainerKeyPair[1])
+	apexType := a.properties.ApexType
+	switch apexType {
+	case imageApex:
+		// TODO(asmundak): Bazel does not create these files yet.
+		// b/190817312
+		a.htmlGzNotice = android.PathForBazelOut(ctx, "NOTICE.html.gz")
+		// b/239081457
+		a.bundleModuleFile = android.PathForBazelOut(ctx, a.Name()+apexType.suffix()+"-base.zip")
+		// b/239081455
+		a.nativeApisUsedByModuleFile = android.ModuleOutPath(android.PathForBazelOut(ctx, a.Name()+"_using.txt"))
+		// b/239081456
+		a.nativeApisBackedByModuleFile = android.ModuleOutPath(android.PathForBazelOut(ctx, a.Name()+"_backing.txt"))
+		// b/239084755
+		a.javaApisUsedByModuleFile = android.ModuleOutPath(android.PathForBazelOut(ctx, a.Name()+"_using.xml"))
+		a.installedFile = ctx.InstallFile(a.installDir, a.Name()+a.installSuffix(), a.outputFile,
+			a.compatSymlinks.Paths()...)
+	default:
+		panic(fmt.Errorf("unexpected apex_type for the ProcessBazelQuery: %v", a.properties.ApexType))
+	}
+
+	/*
+			TODO(asmundak): compared to building an APEX with Soong, building it with Bazel does not
+			return filesInfo and requiredDeps fields (in the Soong build the latter is updated).
+			Fix this, as these fields are subsequently used in apex/androidmk.go and in apex/builder/go
+			To find out what Soong build puts there, run:
+			vctx := visitorContext{handleSpecialLibs: !android.Bool(a.properties.Ignore_system_library_special_case)}
+			ctx.WalkDepsBlueprint(func(child, parent blueprint.Module) bool {
+		      return a.depVisitor(&vctx, ctx, child, parent)
+		    })
+			vctx.normalizeFileInfo()
+	*/
+
+}
+
+func (a *apexBundle) setCompression(ctx android.ModuleContext) {
+	a.isCompressed = (a.properties.ApexType == imageApex) &&
+		((ctx.Config().CompressedApex() &&
+			proptools.BoolDefault(a.overridableProperties.Compressible, false) &&
+			!a.testApex && !ctx.Config().UnbundledBuildApps()) ||
+			a.testOnlyShouldForceCompression())
+}
+
+func (a apexBundle) installSuffix() string {
+	if a.isCompressed {
+		return imageCapexSuffix
+	}
+	return imageApexSuffix
+}
+
+func (a *apexBundle) setSystemLibLink(ctx android.ModuleContext) {
+	// Optimization. If we are building bundled APEX, for the files that are gathered due to the
+	// transitive dependencies, don't place them inside the APEX, but place a symlink pointing
+	// the same library in the system partition, thus effectively sharing the same libraries
+	// across the APEX boundary. For unbundled APEX, all the gathered files are actually placed
+	// in the APEX.
+	a.linkToSystemLib = !ctx.Config().UnbundledBuild() && a.installable()
+
+	// APEXes targeting other than system/system_ext partitions use vendor/product variants.
+	// So we can't link them to /system/lib libs which are core variants.
+	if a.SocSpecific() || a.DeviceSpecific() || (a.ProductSpecific() && ctx.Config().EnforceProductPartitionInterface()) {
+		a.linkToSystemLib = false
+	}
+
+	forced := ctx.Config().ForceApexSymlinkOptimization()
+	updatable := a.Updatable() || a.FutureUpdatable()
+
+	// We don't need the optimization for updatable APEXes, as it might give false signal
+	// to the system health when the APEXes are still bundled (b/149805758).
+	if !forced && updatable && a.properties.ApexType == imageApex {
+		a.linkToSystemLib = false
+	}
+
+	// We also don't want the optimization for host APEXes, because it doesn't make sense.
+	if ctx.Host() {
+		a.linkToSystemLib = false
+	}
+}
+
+func (a *apexBundle) setPayloadFsType(ctx android.ModuleContext) {
+	switch proptools.StringDefault(a.properties.Payload_fs_type, ext4FsType) {
+	case ext4FsType:
+		a.payloadFsType = ext4
+	case f2fsFsType:
+		a.payloadFsType = f2fs
+	case erofsFsType:
+		a.payloadFsType = erofs
+	default:
+		ctx.PropertyErrorf("payload_fs_type", "%q is not a valid filesystem for apex [ext4, f2fs, erofs]", *a.properties.Payload_fs_type)
+	}
+}
+
+func (a *apexBundle) setApexTypeAndSuffix(ctx android.ModuleContext) {
+	// Set suffix and primaryApexType depending on the ApexType
+	buildFlattenedAsDefault := ctx.Config().FlattenApex()
+	switch a.properties.ApexType {
+	case imageApex:
+		if buildFlattenedAsDefault {
+			a.suffix = imageApexSuffix
+		} else {
+			a.suffix = ""
+			a.primaryApexType = true
+
+			if ctx.Config().InstallExtraFlattenedApexes() {
+				a.requiredDeps = append(a.requiredDeps, a.Name()+flattenedSuffix)
+			}
+		}
+	case zipApex:
+		if proptools.String(a.properties.Payload_type) == "zip" {
+			a.suffix = ""
+			a.primaryApexType = true
+		} else {
+			a.suffix = zipApexSuffix
+		}
+	case flattenedApex:
+		if buildFlattenedAsDefault {
+			a.suffix = ""
+			a.primaryApexType = true
+		} else {
+			a.suffix = flattenedSuffix
+		}
+	}
+}
+
+func (a *apexBundle) commonBuildActions(ctx android.ModuleContext) bool {
+	a.checkApexAvailability(ctx)
+	a.checkUpdatable(ctx)
+	a.CheckMinSdkVersion(ctx)
+	a.checkStaticLinkingToStubLibraries(ctx)
+	a.checkStaticExecutables(ctx)
+	if len(a.properties.Tests) > 0 && !a.testApex {
+		ctx.PropertyErrorf("tests", "property allowed only in apex_test module type")
+		return false
+	}
+	return true
+}
+
 type visitorContext struct {
 	// all the files that will be included in this APEX
 	filesInfo []apexFile
@@ -2188,16 +2364,9 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	////////////////////////////////////////////////////////////////////////////////////////////
 	// 1) do some validity checks such as apex_available, min_sdk_version, etc.
-	a.checkApexAvailability(ctx)
-	a.checkUpdatable(ctx)
-	a.CheckMinSdkVersion(ctx)
-	a.checkStaticLinkingToStubLibraries(ctx)
-	a.checkStaticExecutables(ctx)
-	if len(a.properties.Tests) > 0 && !a.testApex {
-		ctx.PropertyErrorf("tests", "property allowed only in apex_test module type")
+	if !a.commonBuildActions(ctx) {
 		return
 	}
-
 	////////////////////////////////////////////////////////////////////////////////////////////
 	// 2) traverse the dependency tree to collect apexFile structs from them.
 
@@ -2219,74 +2388,9 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.installDir = android.PathForModuleInstall(ctx, "apex")
 	a.filesInfo = vctx.filesInfo
 
-	// Set suffix and primaryApexType depending on the ApexType
-	buildFlattenedAsDefault := ctx.Config().FlattenApex()
-	switch a.properties.ApexType {
-	case imageApex:
-		if buildFlattenedAsDefault {
-			a.suffix = imageApexSuffix
-		} else {
-			a.suffix = ""
-			a.primaryApexType = true
-
-			if ctx.Config().InstallExtraFlattenedApexes() {
-				a.requiredDeps = append(a.requiredDeps, a.Name()+flattenedSuffix)
-			}
-		}
-	case zipApex:
-		if proptools.String(a.properties.Payload_type) == "zip" {
-			a.suffix = ""
-			a.primaryApexType = true
-		} else {
-			a.suffix = zipApexSuffix
-		}
-	case flattenedApex:
-		if buildFlattenedAsDefault {
-			a.suffix = ""
-			a.primaryApexType = true
-		} else {
-			a.suffix = flattenedSuffix
-		}
-	}
-
-	switch proptools.StringDefault(a.properties.Payload_fs_type, ext4FsType) {
-	case ext4FsType:
-		a.payloadFsType = ext4
-	case f2fsFsType:
-		a.payloadFsType = f2fs
-	case erofsFsType:
-		a.payloadFsType = erofs
-	default:
-		ctx.PropertyErrorf("payload_fs_type", "%q is not a valid filesystem for apex [ext4, f2fs, erofs]", *a.properties.Payload_fs_type)
-	}
-
-	// Optimization. If we are building bundled APEX, for the files that are gathered due to the
-	// transitive dependencies, don't place them inside the APEX, but place a symlink pointing
-	// the same library in the system partition, thus effectively sharing the same libraries
-	// across the APEX boundary. For unbundled APEX, all the gathered files are actually placed
-	// in the APEX.
-	a.linkToSystemLib = !ctx.Config().UnbundledBuild() && a.installable()
-
-	// APEXes targeting other than system/system_ext partitions use vendor/product variants.
-	// So we can't link them to /system/lib libs which are core variants.
-	if a.SocSpecific() || a.DeviceSpecific() || (a.ProductSpecific() && ctx.Config().EnforceProductPartitionInterface()) {
-		a.linkToSystemLib = false
-	}
-
-	forced := ctx.Config().ForceApexSymlinkOptimization()
-	updatable := a.Updatable() || a.FutureUpdatable()
-
-	// We don't need the optimization for updatable APEXes, as it might give false signal
-	// to the system health when the APEXes are still bundled (b/149805758).
-	if !forced && updatable && a.properties.ApexType == imageApex {
-		a.linkToSystemLib = false
-	}
-
-	// We also don't want the optimization for host APEXes, because it doesn't make sense.
-	if ctx.Host() {
-		a.linkToSystemLib = false
-	}
-
+	a.setApexTypeAndSuffix(ctx)
+	a.setPayloadFsType(ctx)
+	a.setSystemLibLink(ctx)
 	if a.properties.ApexType != zipApex {
 		a.compatSymlinks = makeCompatSymlinks(a.BaseModuleName(), ctx, a.primaryApexType)
 	}
