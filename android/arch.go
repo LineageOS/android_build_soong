@@ -616,6 +616,12 @@ func archMutator(bpctx blueprint.BottomUpMutatorContext) {
 		mctx.ModuleErrorf("%s", err.Error())
 	}
 
+	// If there are no supported targets disable the module.
+	if len(targets) == 0 {
+		base.Disable()
+		return
+	}
+
 	// If the module is using extraMultilib, decode the extraMultilib selection into
 	// a separate list of Targets.
 	var multiTargets []Target
@@ -624,6 +630,7 @@ func archMutator(bpctx blueprint.BottomUpMutatorContext) {
 		if err != nil {
 			mctx.ModuleErrorf("%s", err.Error())
 		}
+		multiTargets = filterHostCross(multiTargets, targets[0].HostCross)
 	}
 
 	// Recovery is always the primary architecture, filter out any other architectures.
@@ -753,6 +760,18 @@ func filterToArch(targets []Target, archs ...ArchType) []Target {
 			}
 		}
 		if !found {
+			targets = append(targets[:i], targets[i+1:]...)
+			i--
+		}
+	}
+	return targets
+}
+
+// filterHostCross takes a list of Targets and a hostCross value, and returns a modified list
+// that contains only Targets that have the specified HostCross.
+func filterHostCross(targets []Target, hostCross bool) []Target {
+	for i := 0; i < len(targets); i++ {
+		if targets[i].HostCross != hostCross {
 			targets = append(targets[:i], targets[i+1:]...)
 			i--
 		}
@@ -1789,20 +1808,23 @@ func getCommonTargets(targets []Target) []Target {
 }
 
 // FirstTarget takes a list of Targets and a list of multilib values and returns a list of Targets
-// that contains zero or one Target for each OsType, selecting the one that matches the earliest
-// filter.
+// that contains zero or one Target for each OsType and HostCross, selecting the one that matches
+// the earliest filter.
 func FirstTarget(targets []Target, filters ...string) []Target {
 	// find the first target from each OS
 	var ret []Target
-	hasHost := false
-	set := make(map[OsType]bool)
+	type osHostCross struct {
+		os        OsType
+		hostCross bool
+	}
+	set := make(map[osHostCross]bool)
 
 	for _, filter := range filters {
 		buildTargets := filterMultilibTargets(targets, filter)
 		for _, t := range buildTargets {
-			if _, found := set[t.Os]; !found {
-				hasHost = hasHost || (t.Os.Class == Host)
-				set[t.Os] = true
+			key := osHostCross{t.Os, t.HostCross}
+			if _, found := set[key]; !found {
+				set[key] = true
 				ret = append(ret, t)
 			}
 		}
