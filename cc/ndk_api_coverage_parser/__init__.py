@@ -23,6 +23,7 @@ import sys
 from xml.etree.ElementTree import Element, SubElement, tostring
 from symbolfile import (
     ALL_ARCHITECTURES,
+    Filter,
     FUTURE_API_LEVEL,
     MultiplyDefinedSymbolError,
     SymbolFileParser,
@@ -139,9 +140,8 @@ def main():
 
     with open(args.symbol_file) as symbol_file:
         try:
-            versions = SymbolFileParser(
-                symbol_file, api_map, "", FUTURE_API_LEVEL, True, True
-            ).parse()
+            filt = Filter("", FUTURE_API_LEVEL, True, True, True)
+            versions = SymbolFileParser(symbol_file, api_map, filt).parse()
         except MultiplyDefinedSymbolError as ex:
             sys.exit('{}: error: {}'.format(args.symbol_file, ex))
 

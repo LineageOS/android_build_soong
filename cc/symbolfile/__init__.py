@@ -78,12 +78,17 @@ class Tags:
     @property
     def has_mode_tags(self) -> bool:
         """Returns True if any mode tags (apex, llndk, etc) are set."""
-        return self.has_apex_tags or self.has_llndk_tags
+        return self.has_apex_tags or self.has_llndk_tags or self.has_systemapi_tags
 
     @property
     def has_apex_tags(self) -> bool:
         """Returns True if any APEX tags are set."""
-        return 'apex' in self.tags or 'systemapi' in self.tags
+        return 'apex' in self.tags
+
+    @property
+    def has_systemapi_tags(self) -> bool:
+        """Returns True if any APEX tags are set."""
+        return 'systemapi' in self.tags
 
     @property
     def has_llndk_tags(self) -> bool:
@@ -198,50 +203,57 @@ def get_tag_value(tag: Tag) -> str:
     """
     return split_tag(tag)[1]
 
-
-def _should_omit_tags(tags: Tags, arch: Arch, api: int, llndk: bool,
-                      apex: bool) -> bool:
-    """Returns True if the tagged object should be omitted.
-
-    This defines the rules shared between version tagging and symbol tagging.
+class Filter:
+    """A filter encapsulates a condition that tells whether a version or a
+    symbol should be omitted or not
     """
-    # The apex and llndk tags will only exclude APIs from other modes. If in
-    # APEX or LLNDK mode and neither tag is provided, we fall back to the
-    # default behavior because all NDK symbols are implicitly available to APEX
-    # and LLNDK.
-    if tags.has_mode_tags:
-        if not apex and not llndk:
+
+    def __init__(self, arch: Arch, api: int, llndk: bool = False, apex: bool = False, systemapi: bool = False):
+        self.arch = arch
+        self.api = api
+        self.llndk = llndk
+        self.apex = apex
+        self.systemapi = systemapi
+
+    def _should_omit_tags(self, tags: Tags) -> bool:
+        """Returns True if the tagged object should be omitted.
+
+        This defines the rules shared between version tagging and symbol tagging.
+        """
+        # The apex and llndk tags will only exclude APIs from other modes. If in
+        # APEX or LLNDK mode and neither tag is provided, we fall back to the
+        # default behavior because all NDK symbols are implicitly available to
+        # APEX and LLNDK.
+        if tags.has_mode_tags:
+            if self.apex and tags.has_apex_tags:
+                return False
+            if self.llndk and tags.has_llndk_tags:
+                return False
+            if self.systemapi and tags.has_systemapi_tags:
+                return False
             return True
-        if apex and not tags.has_apex_tags:
+        if not symbol_in_arch(tags, self.arch):
             return True
-        if llndk and not tags.has_llndk_tags:
+        if not symbol_in_api(tags, self.arch, self.api):
             return True
-    if not symbol_in_arch(tags, arch):
-        return True
-    if not symbol_in_api(tags, arch, api):
-        return True
-    return False
+        return False
 
+    def should_omit_version(self, version: Version) -> bool:
+        """Returns True if the version section should be omitted.
 
-def should_omit_version(version: Version, arch: Arch, api: int, llndk: bool,
-                        apex: bool) -> bool:
-    """Returns True if the version section should be omitted.
+        We want to omit any sections that do not have any symbols we'll have in
+        the stub library. Sections that contain entirely future symbols or only
+        symbols for certain architectures.
+        """
+        if version.is_private:
+            return True
+        if version.tags.has_platform_only_tags:
+            return True
+        return self._should_omit_tags(version.tags)
 
-    We want to omit any sections that do not have any symbols we'll have in the
-    stub library. Sections that contain entirely future symbols or only symbols
-    for certain architectures.
-    """
-    if version.is_private:
-        return True
-    if version.tags.has_platform_only_tags:
-        return True
-    return _should_omit_tags(version.tags, arch, api, llndk, apex)
-
-
-def should_omit_symbol(symbol: Symbol, arch: Arch, api: int, llndk: bool,
-                       apex: bool) -> bool:
-    """Returns True if the symbol should be omitted."""
-    return _should_omit_tags(symbol.tags, arch, api, llndk, apex)
+    def should_omit_symbol(self, symbol: Symbol) -> bool:
+        """Returns True if the symbol should be omitted."""
+        return self._should_omit_tags(symbol.tags)
 
 
 def symbol_in_arch(tags: Tags, arch: Arch) -> bool:
@@ -316,14 +328,10 @@ class MultiplyDefinedSymbolError(RuntimeError):
 
 class SymbolFileParser:
     """Parses NDK symbol files."""
-    def __init__(self, input_file: TextIO, api_map: ApiMap, arch: Arch,
-                 api: int, llndk: bool, apex: bool) -> None:
+    def __init__(self, input_file: TextIO, api_map: ApiMap, filt: Filter) -> None:
         self.input_file = input_file
         self.api_map = api_map
-        self.arch = arch
-        self.api = api
-        self.llndk = llndk
-        self.apex = apex
+        self.filter = filt
         self.current_line: Optional[str] = None
 
     def parse(self) -> List[Version]:
@@ -352,13 +360,11 @@ class SymbolFileParser:
         symbol_names = set()
         multiply_defined_symbols = set()
         for version in versions:
-            if should_omit_version(version, self.arch, self.api, self.llndk,
-                                   self.apex):
+            if self.filter.should_omit_version(version):
                 continue
 
             for symbol in version.symbols:
-                if should_omit_symbol(symbol, self.arch, self.api, self.llndk,
-                                      self.apex):
+                if self.filter.should_omit_symbol(symbol):
                     continue
 
                 if symbol.name in symbol_names:

@@ -1032,9 +1032,19 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 			ctx.PropertyErrorf("symbol_file", "%q doesn't have .map.txt suffix", symbolFile)
 			return Objects{}
 		}
+		// b/239274367 --apex and --systemapi filters symbols tagged with # apex and #
+		// systemapi, respectively. The former is for symbols defined in platform libraries
+		// and the latter is for symbols defined in APEXes.
+		var flag string
+		if ctx.Module().(android.ApexModule).NotInPlatform() {
+			flag = "--apex"
+		} else {
+			// TODO(b/239274367) drop --apex when #apex is replaced with #systemapi
+			// in the map.txt files of platform libraries
+			flag = "--systemapi --apex"
+		}
 		nativeAbiResult := parseNativeAbiDefinition(ctx, symbolFile,
-			android.ApiLevelOrPanic(ctx, library.MutatedProperties.StubsVersion),
-			"--apex")
+			android.ApiLevelOrPanic(ctx, library.MutatedProperties.StubsVersion), flag)
 		objs := compileStubLibrary(ctx, flags, nativeAbiResult.stubSrc)
 		library.versionScriptPath = android.OptionalPathForPath(
 			nativeAbiResult.versionScript)
