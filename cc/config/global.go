@@ -228,7 +228,6 @@ var (
 		// New warnings to be fixed after clang-r383902.
 		"-Wno-deprecated-copy",                      // http://b/153746672
 		"-Wno-range-loop-construct",                 // http://b/153747076
-		"-Wno-misleading-indentation",               // http://b/153746954
 		"-Wno-zero-as-null-pointer-constant",        // http://b/68236239
 		"-Wno-deprecated-anon-enum-enum-conversion", // http://b/153746485
 		"-Wno-pessimizing-move",                     // http://b/154270751
@@ -247,6 +246,8 @@ var (
 		"-Wno-unused-but-set-parameter",
 		// http://b/215753485
 		"-Wno-bitwise-instead-of-logical",
+		// http://b/232926688
+		"-Wno-misleading-indentation",
 	}
 
 	// Extra cflags for external third-party projects to disable warnings that
