@@ -116,8 +116,6 @@ func (metrics *CodegenMetrics) Write(dir string) {
 	}
 	if _, err := os.Stat(metricsFile); err != nil {
 		fail(err, "MISSING BP2BUILD METRICS OUTPUT: Failed to `stat` %s", metricsFile)
-	} else {
-		fmt.Printf("\nWrote bp2build metrics to: %s\n", metricsFile)
 	}
 }
 
