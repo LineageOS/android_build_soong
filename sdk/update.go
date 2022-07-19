@@ -108,7 +108,7 @@ var (
 
 	mergeZips = pctx.AndroidStaticRule("SnapshotMergeZips",
 		blueprint.RuleParams{
-			Command: `${config.MergeZipsCmd} $out $in`,
+			Command: `${config.MergeZipsCmd} -s $out $in`,
 			CommandDeps: []string{
 				"${config.MergeZipsCmd}",
 			},
@@ -481,7 +481,7 @@ be unnecessary as every module in the sdk already has its own licenses property.
 	// Copy the build number file into the snapshot.
 	builder.CopyToSnapshot(ctx.Config().BuildNumberFile(ctx), BUILD_NUMBER_FILE)
 
-	filesToZip := builder.filesToZip
+	filesToZip := android.SortedUniquePaths(builder.filesToZip)
 
 	// zip them all
 	zipPath := fmt.Sprintf("%s%s.zip", ctx.ModuleName(), snapshotFileSuffix)
@@ -517,7 +517,7 @@ be unnecessary as every module in the sdk already has its own licenses property.
 			Description: outputDesc,
 			Rule:        mergeZips,
 			Input:       zipFile,
-			Inputs:      builder.zipsToMerge,
+			Inputs:      android.SortedUniquePaths(builder.zipsToMerge),
 			Output:      outputZipFile,
 		})
 	}
