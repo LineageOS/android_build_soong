@@ -20,7 +20,7 @@ import textwrap
 import unittest
 
 from xml.etree.ElementTree import fromstring
-from symbolfile import FUTURE_API_LEVEL, SymbolFileParser
+from symbolfile import Filter, FUTURE_API_LEVEL, SymbolFileParser
 import ndk_api_coverage_parser as nparser
 
 
@@ -78,9 +78,8 @@ class ApiCoverageSymbolFileParserTest(unittest.TestCase):
         """
             )
         )
-        parser = SymbolFileParser(
-            input_file, {}, "", FUTURE_API_LEVEL, True, True
-        )
+        filt = Filter("", FUTURE_API_LEVEL, True, True, True)
+        parser = SymbolFileParser(input_file, {}, filt)
         generator = nparser.XmlGenerator(io.StringIO())
         result = generator.convertToXml(parser.parse())
         expected = fromstring(
