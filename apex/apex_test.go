@@ -949,8 +949,10 @@ func TestApexWithStubs(t *testing.T) {
 	// mylib2Cflags := ctx.ModuleForTests("mylib2", "android_arm64_armv8-a_static").Rule("cc").Args["cFlags"]
 	// ensureNotContains(t, mylib2Cflags, "-include ")
 
-	// Ensure that genstub is invoked with --apex
-	ensureContains(t, "--apex", ctx.ModuleForTests("mylib2", "android_arm64_armv8-a_shared_3").Rule("genStubSrc").Args["flags"])
+	// Ensure that genstub for platform-provided lib is invoked with --systemapi
+	ensureContains(t, ctx.ModuleForTests("mylib2", "android_arm64_armv8-a_shared_3").Rule("genStubSrc").Args["flags"], "--systemapi")
+	// Ensure that genstub for apex-provided lib is invoked with --apex
+	ensureContains(t, ctx.ModuleForTests("mylib3", "android_arm64_armv8-a_shared_12").Rule("genStubSrc").Args["flags"], "--apex")
 
 	ensureExactContents(t, ctx, "myapex", "android_common_myapex_image", []string{
 		"lib64/mylib.so",
@@ -1134,8 +1136,8 @@ func TestApexWithStubsWithMinSdkVersion(t *testing.T) {
 	mylib2Cflags := ctx.ModuleForTests("mylib2", "android_arm64_armv8-a_shared_29").Rule("cc").Args["cFlags"]
 	ensureNotContains(t, mylib2Cflags, "-include ")
 
-	// Ensure that genstub is invoked with --apex
-	ensureContains(t, "--apex", ctx.ModuleForTests("mylib2", "android_arm64_armv8-a_shared_29").Rule("genStubSrc").Args["flags"])
+	// Ensure that genstub is invoked with --systemapi
+	ensureContains(t, ctx.ModuleForTests("mylib2", "android_arm64_armv8-a_shared_29").Rule("genStubSrc").Args["flags"], "--systemapi")
 
 	ensureExactContents(t, ctx, "myapex", "android_common_myapex_image", []string{
 		"lib64/mylib.so",
