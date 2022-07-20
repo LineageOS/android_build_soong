@@ -21,16 +21,12 @@ import (
 	"android/soong/java"
 )
 
-func TestSnapshotWithCompatConfig(t *testing.T) {
+func testSnapshotWithCompatConfig(t *testing.T, sdk string) {
 	result := android.GroupFixturePreparers(
 		prepareForSdkTestWithJava,
 		java.PrepareForTestWithPlatformCompatConfig,
-	).RunTestWithBp(t, `
-		sdk {
-			name: "mysdk",
-			compat_configs: ["myconfig"],
-		}
-
+		prepareForSdkTestWithApex,
+	).RunTestWithBp(t, sdk+`
 		platform_compat_config {
 			name: "myconfig",
 		}
@@ -72,4 +68,29 @@ prebuilt_platform_compat_config {
 				)
 			}),
 	)
+}
+
+func TestSnapshotWithCompatConfig(t *testing.T) {
+	testSnapshotWithCompatConfig(t, `
+		sdk {
+			name: "mysdk",
+			compat_configs: ["myconfig"],
+		}
+`)
+}
+
+func TestSnapshotWithCompatConfig_Apex(t *testing.T) {
+	testSnapshotWithCompatConfig(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			min_sdk_version: "2",
+			compat_configs: ["myconfig"],
+		}
+
+		sdk {
+			name: "mysdk",
+			apexes: ["myapex"],
+		}
+`)
 }
