@@ -1843,23 +1843,20 @@ func getCommonTargets(targets []Target) []Target {
 }
 
 // FirstTarget takes a list of Targets and a list of multilib values and returns a list of Targets
-// that contains zero or one Target for each OsType and HostCross, selecting the one that matches
-// the earliest filter.
+// that contains zero or one Target for each OsType, selecting the one that matches the earliest
+// filter.
 func FirstTarget(targets []Target, filters ...string) []Target {
 	// find the first target from each OS
 	var ret []Target
-	type osHostCross struct {
-		os        OsType
-		hostCross bool
-	}
-	set := make(map[osHostCross]bool)
+	hasHost := false
+	set := make(map[OsType]bool)
 
 	for _, filter := range filters {
 		buildTargets := filterMultilibTargets(targets, filter)
 		for _, t := range buildTargets {
-			key := osHostCross{t.Os, t.HostCross}
-			if _, found := set[key]; !found {
-				set[key] = true
+			if _, found := set[t.Os]; !found {
+				hasHost = hasHost || (t.Os.Class == Host)
+				set[t.Os] = true
 				ret = append(ret, t)
 			}
 		}
