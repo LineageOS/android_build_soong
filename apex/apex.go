@@ -640,7 +640,7 @@ var (
 	fsTag           = &dependencyTag{name: "filesystem", payload: true}
 	bcpfTag         = &dependencyTag{name: "bootclasspathFragment", payload: true, sourceOnly: true, memberType: java.BootclasspathFragmentSdkMemberType}
 	sscpfTag        = &dependencyTag{name: "systemserverclasspathFragment", payload: true, sourceOnly: true, memberType: java.SystemServerClasspathFragmentSdkMemberType}
-	compatConfigTag = &dependencyTag{name: "compatConfig", payload: true, sourceOnly: true}
+	compatConfigTag = &dependencyTag{name: "compatConfig", payload: true, sourceOnly: true, memberType: java.CompatConfigSdkMemberType}
 	javaLibTag      = &dependencyTag{name: "javaLib", payload: true}
 	jniLibTag       = &dependencyTag{name: "jniLib", payload: true}
 	keyTag          = &dependencyTag{name: "key"}
