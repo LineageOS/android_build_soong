@@ -533,7 +533,7 @@ func MutateImage(mctx android.BaseModuleContext, m ImageMutatableModule) {
 		}
 	} else {
 		// This is either in /system (or similar: /data), or is a
-		// modules built with the NDK. Modules built with the NDK
+		// module built with the NDK. Modules built with the NDK
 		// will be restricted using the existing link type checks.
 		coreVariantNeeded = true
 	}
