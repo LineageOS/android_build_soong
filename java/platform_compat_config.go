@@ -26,12 +26,14 @@ import (
 func init() {
 	registerPlatformCompatConfigBuildComponents(android.InitRegistrationContext)
 
-	android.RegisterSdkMemberType(&compatConfigMemberType{
-		SdkMemberTypeBase: android.SdkMemberTypeBase{
-			PropertyName: "compat_configs",
-			SupportsSdk:  true,
-		},
-	})
+	android.RegisterSdkMemberType(CompatConfigSdkMemberType)
+}
+
+var CompatConfigSdkMemberType = &compatConfigMemberType{
+	SdkMemberTypeBase: android.SdkMemberTypeBase{
+		PropertyName: "compat_configs",
+		SupportsSdk:  true,
+	},
 }
 
 func registerPlatformCompatConfigBuildComponents(ctx android.RegistrationContext) {
