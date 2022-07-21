@@ -167,6 +167,7 @@ func installClean(ctx Context, config Config) {
 		productOut("debug_ramdisk"),
 		productOut("vendor_ramdisk"),
 		productOut("vendor_debug_ramdisk"),
+		productOut("vendor_kernel_ramdisk"),
 		productOut("test_harness_ramdisk"),
 		productOut("recovery"),
 		productOut("root"),
