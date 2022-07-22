@@ -32,8 +32,13 @@ type SoongMetrics struct {
 	Variants int
 }
 
-func ReadSoongMetrics(config Config) SoongMetrics {
-	return config.Get(soongMetricsOnceKey).(SoongMetrics)
+func readSoongMetrics(config Config) (SoongMetrics, bool) {
+	soongMetrics, ok := config.Peek(soongMetricsOnceKey)
+	if ok {
+		return soongMetrics.(SoongMetrics), true
+	} else {
+		return SoongMetrics{}, false
+	}
 }
 
 func init() {
@@ -60,9 +65,11 @@ func (soongMetricsSingleton) GenerateBuildActions(ctx SingletonContext) {
 func collectMetrics(config Config, eventHandler metrics.EventHandler) *soong_metrics_proto.SoongBuildMetrics {
 	metrics := &soong_metrics_proto.SoongBuildMetrics{}
 
-	soongMetrics := ReadSoongMetrics(config)
-	metrics.Modules = proto.Uint32(uint32(soongMetrics.Modules))
-	metrics.Variants = proto.Uint32(uint32(soongMetrics.Variants))
+	soongMetrics, ok := readSoongMetrics(config)
+	if ok {
+		metrics.Modules = proto.Uint32(uint32(soongMetrics.Modules))
+		metrics.Variants = proto.Uint32(uint32(soongMetrics.Variants))
+	}
 
 	memStats := runtime.MemStats{}
 	runtime.ReadMemStats(&memStats)
