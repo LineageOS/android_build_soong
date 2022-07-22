@@ -220,7 +220,7 @@ func writeDepFile(outputFile string, eventHandler metrics.EventHandler, ninjaDep
 // doChosenActivity runs Soong for a specific activity, like bp2build, queryview
 // or the actual Soong build for the build.ninja file. Returns the top level
 // output file of the specific activity.
-func doChosenActivity(configuration android.Config, extraNinjaDeps []string, logDir string) string {
+func doChosenActivity(ctx *android.Context, configuration android.Config, extraNinjaDeps []string, logDir string) string {
 	mixedModeBuild := configuration.BazelContext.BazelEnabled()
 	generateBazelWorkspace := bp2buildMarker != ""
 	generateQueryView := bazelQueryViewDir != ""
@@ -236,7 +236,6 @@ func doChosenActivity(configuration android.Config, extraNinjaDeps []string, log
 
 	blueprintArgs := cmdlineArgs
 
-	ctx := newContext(configuration)
 	if mixedModeBuild {
 		runMixedModeBuild(configuration, ctx, extraNinjaDeps)
 	} else {
@@ -284,7 +283,6 @@ func doChosenActivity(configuration android.Config, extraNinjaDeps []string, log
 		}
 	}
 
-	writeMetrics(configuration, *ctx.EventHandler, logDir)
 	return cmdlineArgs.OutFile
 }
 
@@ -344,7 +342,13 @@ func main() {
 	// change between every CI build, so tracking it would require re-running Soong for every build.
 	logDir := availableEnv["LOG_DIR"]
 
-	finalOutputFile := doChosenActivity(configuration, extraNinjaDeps, logDir)
+	ctx := newContext(configuration)
+	ctx.EventHandler.Begin("soong_build")
+
+	finalOutputFile := doChosenActivity(ctx, configuration, extraNinjaDeps, logDir)
+
+	ctx.EventHandler.End("soong_build")
+	writeMetrics(configuration, *ctx.EventHandler, logDir)
 
 	writeUsedEnvironmentFile(configuration, finalOutputFile)
 }
