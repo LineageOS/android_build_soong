@@ -338,6 +338,14 @@ func (l *linter) lint(ctx android.ModuleContext) {
 			ctx.PropertyErrorf("lint.disabled_checks",
 				"Can't disable %v checks if min_sdk_version is different from sdk_version.", filtered)
 		}
+
+		// TODO(b/238784089): Remove this workaround when the NewApi issues have been addressed in PermissionController
+		if ctx.ModuleName() == "PermissionController" {
+			l.extraMainlineLintErrors = android.FilterListPred(l.extraMainlineLintErrors, func(s string) bool {
+				return s != "NewApi"
+			})
+			l.properties.Lint.Warning_checks = append(l.properties.Lint.Warning_checks, "NewApi")
+		}
 	}
 
 	extraLintCheckModules := ctx.GetDirectDepsWithTag(extraLintCheckTag)
