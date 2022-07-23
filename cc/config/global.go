@@ -238,6 +238,8 @@ var (
 		// New warnings to be fixed after clang-r433403
 		"-Wno-error=unused-but-set-variable",  // http://b/197240255
 		"-Wno-error=unused-but-set-parameter", // http://b/197240255
+		// New warnings to be fixed after clang-r458507
+		"-Wno-error=unqualified-std-cast-call", // http://b/239662094
 	}
 
 	noOverrideExternalGlobalCflags = []string{
@@ -279,11 +281,12 @@ var (
 
 		// http://b/175068488
 		"-Wno-string-concatenation",
+
+		// http://b/239661264
+		"-Wno-deprecated-non-prototype",
 	}
 
 	llvmNextExtraCommonGlobalCflags = []string{
-		"-Wno-unqualified-std-cast-call",
-		"-Wno-deprecated-non-prototype",
 	}
 
 	IllegalFlags = []string{
@@ -297,8 +300,8 @@ var (
 
 	// prebuilts/clang default settings.
 	ClangDefaultBase         = "prebuilts/clang/host"
-	ClangDefaultVersion      = "clang-r450784e"
-	ClangDefaultShortVersion = "14.0.7"
+	ClangDefaultVersion      = "clang-r458507"
+	ClangDefaultShortVersion = "15.0.1"
 
 	// Directories with warnings from Android.bp files.
 	WarningAllowedProjects = []string{
@@ -370,6 +373,10 @@ func init() {
 
 		if ctx.Config().IsEnvTrue("LLVM_NEXT") {
 			flags = append(flags, llvmNextExtraCommonGlobalCflags...)
+		}
+
+		if ctx.Config().IsEnvTrue("ALLOW_UNKNOWN_WARNING_OPTION") {
+			flags = append(flags, "-Wno-error=unknown-warning-option")
 		}
 
 		return strings.Join(flags, " ")

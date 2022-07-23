@@ -6,6 +6,7 @@
 
 --disable_check AnimatorKeep
 --disable_check AppBundleLocaleChanges
+--disable_check AppCompatCustomView
 --disable_check BlockedPrivateApi
 --disable_check CustomSplashScreen
 --disable_check CustomX509TrustManager
@@ -22,6 +23,7 @@
 --disable_check PrivateApi
 --disable_check ProtectedPermissions
 --disable_check QueryPermissionsNeeded
+--disable_check ReservedSystemPermission
 --disable_check ScopedStorage
 --disable_check ServiceCast
 --disable_check SoonBlockedPrivateApi
@@ -99,7 +101,10 @@
 --warning_check WrongViewCast                      # 1 occurences in 1 modules
 
 --warning_check CoarseFineLocation
+--warning_check ExtraText
 --warning_check IntentFilterExportedReceiver
+--warning_check MissingInflatedId
+--warning_check NotificationPermission
 --warning_check QueryAllPackagesPermission
 --warning_check RemoteViewLayout
 --warning_check SupportAnnotationUsage
