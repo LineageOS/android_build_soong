@@ -324,7 +324,32 @@ var neverallowTests = []struct {
 			`),
 		},
 		expectedErrors: []string{
-			"Only boot images may be imported as a makefile goal.",
+			"Only boot images.* may be imported as a makefile goal",
+		},
+	},
+	{
+		name: "disallowed makefile_goal outside external",
+		fs: map[string][]byte{
+			"project/Android.bp": []byte(`
+				makefile_goal {
+					name: "foo",
+					product_out_path: "obj/EXE/foo",
+				}
+			`),
+		},
+		expectedErrors: []string{
+			"not in allowed projects",
+		},
+	},
+	{
+		name: "allow makefile_goal within external",
+		fs: map[string][]byte{
+			"frameworks/opt/net/wifi/libwifi_hal/Android.bp": []byte(`
+				makefile_goal {
+					name: "foo",
+					product_out_path: "obj/EXE/foo",
+				}
+			`),
 		},
 	},
 	// Tests for the rule prohibiting the use of framework
