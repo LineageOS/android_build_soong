@@ -1004,7 +1004,7 @@ func TestSnapshotWithJavaSdkLibrary_AnnotationsZip_PreT(t *testing.T) {
 		java_sdk_library {
 			name: "myjavalib",
 			srcs: ["Test.java"],
-			sdk_version: "current",
+			sdk_version: "S",
 			shared_library: false,
 			annotations_enabled: true,
 			public: {
