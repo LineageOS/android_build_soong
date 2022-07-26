@@ -20,6 +20,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/genrule"
+	"android/soong/multitree"
 	"android/soong/snapshot"
 )
 
@@ -30,6 +31,8 @@ func RegisterRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
 	RegisterLibraryBuildComponents(ctx)
 	RegisterLibraryHeadersBuildComponents(ctx)
 	RegisterLibraryStubBuildComponents(ctx)
+
+	multitree.RegisterApiImportsModule(ctx)
 
 	ctx.RegisterModuleType("cc_benchmark", BenchmarkFactory)
 	ctx.RegisterModuleType("cc_object", ObjectFactory)
