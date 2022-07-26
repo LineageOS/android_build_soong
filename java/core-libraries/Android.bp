@@ -84,12 +84,36 @@ java_library {
     ],
 }
 
+// Same as core-current-stubs-for-system-modules, but android annotations are
+// stripped.
+java_library {
+    name: "core-current-stubs-for-system-modules-no-annotations",
+    visibility: ["//development/sdk"],
+    static_libs: [
+        "core-current-stubs-for-system-modules",
+    ],
+    sdk_version: "none",
+    system_modules: "none",
+    dists: [
+        {
+            // Legacy dist location for the public file.
+            dest: "core-for-system-modules-no-annotations.jar",
+            targets: dist_targets,
+        },
+        {
+            dest: "system-modules/public/core-for-system-modules-no-annotations.jar",
+            targets: dist_targets,
+        },
+    ],
+    jarjar_rules: "jarjar-strip-annotations-rules.txt",
+}
+
 // Used when compiling higher-level code against core.current.stubs.
 java_system_modules {
     name: "core-public-stubs-system-modules",
     visibility: ["//visibility:public"],
     libs: [
-        "core-current-stubs-for-system-modules",
+        "core-current-stubs-for-system-modules-no-annotations",
     ],
 }
 
