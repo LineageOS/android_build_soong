@@ -893,7 +893,7 @@ func (g *AARImport) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
 	return nil
 }
 
-var _ android.PrebuiltInterface = (*Import)(nil)
+var _ android.PrebuiltInterface = (*AARImport)(nil)
 
 // android_library_import imports an `.aar` file into the build graph as if it was built with android_library.
 //
