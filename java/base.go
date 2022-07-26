@@ -645,6 +645,14 @@ func (j *Module) MinSdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
 	return j.SdkVersion(ctx)
 }
 
+func (j *Module) MinApiLevelForSdkSnapshot(ctx android.EarlyModuleContext) android.ApiLevel {
+	if j.deviceProperties.Min_sdk_version != nil {
+		return android.SdkSpecFrom(ctx, *j.deviceProperties.Min_sdk_version).ApiLevel
+	} else {
+		return android.NoneApiLevel
+	}
+}
+
 func (j *Module) MaxSdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
 	maxSdkVersion := proptools.StringDefault(j.deviceProperties.Max_sdk_version, "")
 	// SdkSpecFrom returns SdkSpecPrivate for this, which may be confusing.
