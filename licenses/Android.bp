@@ -32,6 +32,15 @@ license {
 }
 
 license_kind {
+    name: "BSD-Like-Binary-Only",
+    conditions: [
+        "notice",
+        "by_exception_only",
+        "proprietary",
+    ],
+}
+
+license_kind {
     name: "SPDX-license-identifier-0BSD",
     conditions: ["unencumbered"],
     url: "https://spdx.org/licenses/0BSD",
