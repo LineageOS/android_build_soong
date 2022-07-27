@@ -686,12 +686,49 @@ func (s StubDexJarsByModule) StubDexJarsForScope(scope *HiddenAPIScope) android.
 	return stubDexJars
 }
 
-// HiddenAPIFlagInput encapsulates information obtained from a module and its dependencies that are
-// needed for hidden API flag generation.
-type HiddenAPIFlagInput struct {
+type HiddenAPIPropertyInfo struct {
 	// FlagFilesByCategory contains the flag files that override the initial flags that are derived
 	// from the stub dex files.
 	FlagFilesByCategory FlagFilesByCategory
+
+	// See HiddenAPIFlagFileProperties.Package_prefixes
+	PackagePrefixes []string
+
+	// See HiddenAPIFlagFileProperties.Single_packages
+	SinglePackages []string
+
+	// See HiddenAPIFlagFileProperties.Split_packages
+	SplitPackages []string
+}
+
+// newHiddenAPIPropertyInfo creates a new initialized HiddenAPIPropertyInfo struct.
+func newHiddenAPIPropertyInfo() HiddenAPIPropertyInfo {
+	return HiddenAPIPropertyInfo{
+		FlagFilesByCategory: FlagFilesByCategory{},
+	}
+}
+
+// extractFlagFilesFromProperties extracts the paths to flag files that are specified in the
+// supplied properties and stores them in this struct.
+func (i *HiddenAPIPropertyInfo) extractFlagFilesFromProperties(ctx android.ModuleContext, p *HiddenAPIFlagFileProperties) {
+	for _, category := range HiddenAPIFlagFileCategories {
+		paths := android.PathsForModuleSrc(ctx, category.propertyValueReader(p))
+		i.FlagFilesByCategory[category] = paths
+	}
+}
+
+// extractPackageRulesFromProperties extracts the package rules that are specified in the supplied
+// properties and stores them in this struct.
+func (i *HiddenAPIPropertyInfo) extractPackageRulesFromProperties(p *HiddenAPIPackageProperties) {
+	i.PackagePrefixes = p.Hidden_api.Package_prefixes
+	i.SinglePackages = p.Hidden_api.Single_packages
+	i.SplitPackages = p.Hidden_api.Split_packages
+}
+
+// HiddenAPIFlagInput encapsulates information obtained from a module and its dependencies that are
+// needed for hidden API flag generation.
+type HiddenAPIFlagInput struct {
+	HiddenAPIPropertyInfo
 
 	// StubDexJarsByScope contains the stub dex jars for different *HiddenAPIScope and which determine
 	// the initial flags for each dex member.
@@ -714,10 +751,10 @@ type HiddenAPIFlagInput struct {
 	RemovedTxtFiles android.Paths
 }
 
-// newHiddenAPIFlagInput creates a new initialize HiddenAPIFlagInput struct.
+// newHiddenAPIFlagInput creates a new initialized HiddenAPIFlagInput struct.
 func newHiddenAPIFlagInput() HiddenAPIFlagInput {
 	input := HiddenAPIFlagInput{
-		FlagFilesByCategory:          FlagFilesByCategory{},
+		HiddenAPIPropertyInfo:        newHiddenAPIPropertyInfo(),
 		StubDexJarsByScope:           StubDexJarsByModule{},
 		DependencyStubDexJarsByScope: StubDexJarsByModule{},
 		AdditionalStubDexJarsByScope: StubDexJarsByModule{},
@@ -771,15 +808,6 @@ func (i *HiddenAPIFlagInput) gatherStubLibInfo(ctx android.ModuleContext, conten
 
 	// Normalize the paths, i.e. remove duplicates and sort.
 	i.RemovedTxtFiles = android.SortedUniquePaths(i.RemovedTxtFiles)
-}
-
-// extractFlagFilesFromProperties extracts the paths to flag files that are specified in the
-// supplied properties and stores them in this struct.
-func (i *HiddenAPIFlagInput) extractFlagFilesFromProperties(ctx android.ModuleContext, p *HiddenAPIFlagFileProperties) {
-	for _, category := range HiddenAPIFlagFileCategories {
-		paths := android.PathsForModuleSrc(ctx, category.propertyValueReader(p))
-		i.FlagFilesByCategory[category] = paths
-	}
 }
 
 func (i *HiddenAPIFlagInput) transitiveStubDexJarsByScope() StubDexJarsByModule {
