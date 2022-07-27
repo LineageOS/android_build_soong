@@ -1446,8 +1446,8 @@ func (c *config) ForceApexSymlinkOptimization() bool {
 	return Bool(c.productVariables.ForceApexSymlinkOptimization)
 }
 
-func (c *config) CompressedApex() bool {
-	return Bool(c.productVariables.CompressedApex)
+func (c *config) ApexCompressionEnabled() bool {
+	return Bool(c.productVariables.CompressedApex) && !c.UnbundledBuildApps()
 }
 
 func (c *config) EnforceSystemCertificate() bool {
