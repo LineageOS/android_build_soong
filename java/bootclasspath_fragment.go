@@ -830,6 +830,8 @@ func (b *BootclasspathFragmentModule) createHiddenAPIFlagInput(ctx android.Modul
 	// Populate with package rules from the properties.
 	input.extractPackageRulesFromProperties(&b.sourceOnlyProperties.HiddenAPIPackageProperties)
 
+	input.gatherPropertyInfo(ctx, contents)
+
 	// Add the stub dex jars from this module's fragment dependencies.
 	input.DependencyStubDexJarsByScope.addStubDexJarsByModule(dependencyHiddenApiInfo.TransitiveStubDexJarsByScope)
 
