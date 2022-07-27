@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package apex
+package android
 
-// This file contains branch specific constants. They are stored in a separate
-// file to minimise the potential of merge conflicts between branches when
-// the code from the package is changed.
+// This file contains branch specific constants for building updatable modules.
+// They are stored in a separate file to minimise the potential of merge
+// conflicts between branches when the code from the package is changed.
 
 // The default manifest version for all the modules on this branch.
 // This version code will be used only if there is no version field in the
@@ -33,4 +33,4 @@ package apex
 // * AOSP            - xx9990000
 // * x-mainline-prod - xx9990000
 // * master          - 990090000
-const defaultManifestVersion = "339990000"
+const DefaultUpdatableModuleVersion = "339990000"
