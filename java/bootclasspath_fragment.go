@@ -128,7 +128,7 @@ type bootclasspathFragmentProperties struct {
 	Coverage BootclasspathFragmentCoverageAffectedProperties
 
 	// Hidden API related properties.
-	Hidden_api HiddenAPIFlagFileProperties
+	HiddenAPIFlagFileProperties
 
 	// The list of additional stub libraries which this fragment's contents use but which are not
 	// provided by another bootclasspath_fragment.
@@ -825,7 +825,7 @@ func (b *BootclasspathFragmentModule) createHiddenAPIFlagInput(ctx android.Modul
 	input.gatherStubLibInfo(ctx, contents)
 
 	// Populate with flag file paths from the properties.
-	input.extractFlagFilesFromProperties(ctx, &b.properties.Hidden_api)
+	input.extractFlagFilesFromProperties(ctx, &b.properties.HiddenAPIFlagFileProperties)
 
 	// Populate with package rules from the properties.
 	input.extractPackageRulesFromProperties(&b.sourceOnlyProperties.HiddenAPIPackageProperties)
