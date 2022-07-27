@@ -806,8 +806,8 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 		return
 	}
 
-	a.setCompression(ctx)
-	if a.isCompressed {
+	if apexType == imageApex && (compressionEnabled || a.testOnlyShouldForceCompression()) {
+		a.isCompressed = true
 		unsignedCompressedOutputFile := android.PathForModuleOut(ctx, a.Name()+imageCapexSuffix+".unsigned")
 
 		compressRule := android.NewRuleBuilder(pctx, ctx)
@@ -837,12 +837,17 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 		a.outputFile = signedCompressedOutputFile
 	}
 
+	installSuffix := suffix
+	if a.isCompressed {
+		installSuffix = imageCapexSuffix
+	}
+
 	if !a.installable() {
 		a.SkipInstall()
 	}
 
 	// Install to $OUT/soong/{target,host}/.../apex.
-	a.installedFile = ctx.InstallFile(a.installDir, a.Name()+a.installSuffix(), a.outputFile,
+	a.installedFile = ctx.InstallFile(a.installDir, a.Name()+installSuffix, a.outputFile,
 		a.compatSymlinks.Paths()...)
 
 	// installed-files.txt is dist'ed
