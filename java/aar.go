@@ -105,6 +105,7 @@ type aapt struct {
 	noticeFile              android.OptionalPath
 	assetPackage            android.OptionalPath
 	isLibrary               bool
+	defaultManifestVersion  string
 	useEmbeddedNativeLibs   bool
 	useEmbeddedDex          bool
 	usesNonSdkApis          bool
@@ -281,14 +282,15 @@ func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext android.SdkCon
 	manifestSrcPath := android.PathForModuleSrc(ctx, manifestFile)
 
 	manifestPath := ManifestFixer(ctx, manifestSrcPath, ManifestFixerParams{
-		SdkContext:            sdkContext,
-		ClassLoaderContexts:   classLoaderContexts,
-		IsLibrary:             a.isLibrary,
-		UseEmbeddedNativeLibs: a.useEmbeddedNativeLibs,
-		UsesNonSdkApis:        a.usesNonSdkApis,
-		UseEmbeddedDex:        a.useEmbeddedDex,
-		HasNoCode:             a.hasNoCode,
-		LoggingParent:         a.LoggingParent,
+		SdkContext:             sdkContext,
+		ClassLoaderContexts:    classLoaderContexts,
+		IsLibrary:              a.isLibrary,
+		DefaultManifestVersion: a.defaultManifestVersion,
+		UseEmbeddedNativeLibs:  a.useEmbeddedNativeLibs,
+		UsesNonSdkApis:         a.usesNonSdkApis,
+		UseEmbeddedDex:         a.useEmbeddedDex,
+		HasNoCode:              a.hasNoCode,
+		LoggingParent:          a.LoggingParent,
 	})
 
 	// Add additional manifest files to transitive manifests.
