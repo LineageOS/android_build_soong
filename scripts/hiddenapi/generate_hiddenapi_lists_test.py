@@ -92,8 +92,8 @@ class TestHiddenapiListGeneration(unittest.TestCase):
         )
 
         # Test invalid API signature.
-        # with self.assertRaises(AssertionError):
-        #     flags.assign_flag(FLAG_SDK, set(['C']))
+        with self.assertRaises(AssertionError):
+            flags.assign_flag(FLAG_SDK, set(['C']))
 
         # Test invalid flag.
         with self.assertRaises(AssertionError):

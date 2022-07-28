@@ -183,7 +183,6 @@ func (gf *generatedFile) build(pctx android.PackageContext, ctx android.BuilderC
 // multilibs (32/64/both) are used by this sdk variant.
 func (s *sdk) collectMembers(ctx android.ModuleContext) {
 	s.multilibUsages = multilibNone
-
 	ctx.WalkDeps(func(child android.Module, parent android.Module) bool {
 		tag := ctx.OtherModuleDependencyTag(child)
 		if memberTag, ok := tag.(android.SdkMemberDependencyTag); ok {
@@ -212,14 +211,11 @@ func (s *sdk) collectMembers(ctx android.ModuleContext) {
 				container = parent.(android.SdkAware)
 			}
 
-			minApiLevel := android.MinApiLevelForSdkSnapshot(ctx, child)
-
 			export := memberTag.ExportMember()
 			s.memberVariantDeps = append(s.memberVariantDeps, sdkMemberVariantDep{
 				sdkVariant:             s,
 				memberType:             memberType,
 				variant:                child.(android.SdkAware),
-				minApiLevel:            minApiLevel,
 				container:              container,
 				export:                 export,
 				exportedComponentsInfo: exportedComponentsInfo,
@@ -336,28 +332,9 @@ const BUILD_NUMBER_FILE = "snapshot-creation-build-number.txt"
 //         <arch>/lib/
 //            libFoo.so   : a stub library
 
-func (s sdk) targetBuildRelease(ctx android.ModuleContext) *buildRelease {
-	config := ctx.Config()
-	currentBuildRelease := latestBuildRelease()
-	targetBuildReleaseEnv := config.GetenvWithDefault("SOONG_SDK_SNAPSHOT_TARGET_BUILD_RELEASE", currentBuildRelease.name)
-	targetBuildRelease, err := nameToRelease(targetBuildReleaseEnv)
-	if err != nil {
-		ctx.ModuleErrorf("invalid SOONG_SDK_SNAPSHOT_TARGET_BUILD_RELEASE: %s", err)
-		targetBuildRelease = currentBuildRelease
-	}
-
-	return targetBuildRelease
-}
-
 // buildSnapshot is the main function in this source file. It creates rules to copy
 // the contents (header files, stub libraries, etc) into the zip file.
 func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) {
-
-	targetBuildRelease := s.targetBuildRelease(ctx)
-	targetApiLevel, err := android.ApiLevelFromUser(ctx, targetBuildRelease.name)
-	if err != nil {
-		targetApiLevel = android.FutureApiLevel
-	}
 
 	// Aggregate all the sdkMemberVariantDep instances from all the sdk variants.
 	hasLicenses := false
@@ -369,18 +346,12 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) {
 	// Filter out any sdkMemberVariantDep that is a component of another.
 	memberVariantDeps = filterOutComponents(ctx, memberVariantDeps)
 
-	// Record the names of all the members, both explicitly specified and implicitly included. Also,
-	// record the names of any members that should be excluded from this snapshot.
+	// Record the names of all the members, both explicitly specified and implicitly
+	// included.
 	allMembersByName := make(map[string]struct{})
 	exportedMembersByName := make(map[string]struct{})
-	excludedMembersByName := make(map[string]struct{})
 
-	addMember := func(name string, export bool, exclude bool) {
-		if exclude {
-			excludedMembersByName[name] = struct{}{}
-			return
-		}
-
+	addMember := func(name string, export bool) {
 		allMembersByName[name] = struct{}{}
 		if export {
 			exportedMembersByName[name] = struct{}{}
@@ -391,15 +362,11 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) {
 		name := memberVariantDep.variant.Name()
 		export := memberVariantDep.export
 
-		// If the minApiLevel of the member is greater than the target API level then exclude it from
-		// this snapshot.
-		exclude := memberVariantDep.minApiLevel.GreaterThan(targetApiLevel)
-
-		addMember(name, export, exclude)
+		addMember(name, export)
 
 		// Add any components provided by the module.
 		for _, component := range memberVariantDep.exportedComponentsInfo.Components {
-			addMember(component, export, exclude)
+			addMember(component, export)
 		}
 
 		if memberVariantDep.memberType == android.LicenseModuleSdkMemberType {
@@ -415,8 +382,18 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) {
 		modules: make(map[string]*bpModule),
 	}
 
+	config := ctx.Config()
+
 	// Always add -current to the end
 	snapshotFileSuffix := "-current"
+
+	currentBuildRelease := latestBuildRelease()
+	targetBuildReleaseEnv := config.GetenvWithDefault("SOONG_SDK_SNAPSHOT_TARGET_BUILD_RELEASE", currentBuildRelease.name)
+	targetBuildRelease, err := nameToRelease(targetBuildReleaseEnv)
+	if err != nil {
+		ctx.ModuleErrorf("invalid SOONG_SDK_SNAPSHOT_TARGET_BUILD_RELEASE: %s", err)
+		targetBuildRelease = currentBuildRelease
+	}
 
 	builder := &snapshotBuilder{
 		ctx:                   ctx,
@@ -428,7 +405,6 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) {
 		prebuiltModules:       make(map[string]*bpModule),
 		allMembersByName:      allMembersByName,
 		exportedMembersByName: exportedMembersByName,
-		excludedMembersByName: excludedMembersByName,
 		targetBuildRelease:    targetBuildRelease,
 	}
 	s.builderForTests = builder
@@ -462,10 +438,6 @@ be unnecessary as every module in the sdk already has its own licenses property.
 		}
 
 		name := member.name
-		if _, ok := excludedMembersByName[name]; ok {
-			continue
-		}
-
 		requiredTraits := traits[name]
 		if requiredTraits == nil {
 			requiredTraits = android.EmptySdkMemberTraitSet()
@@ -500,7 +472,7 @@ be unnecessary as every module in the sdk already has its own licenses property.
 	contents := bp.content.String()
 	// If the snapshot is being generated for the current build release then check the syntax to make
 	// sure that it is compatible.
-	if targetBuildRelease == latestBuildRelease() {
+	if targetBuildRelease == currentBuildRelease {
 		syntaxCheckSnapshotBpFile(ctx, contents)
 	}
 
@@ -1063,9 +1035,6 @@ type snapshotBuilder struct {
 	// The set of exported members by name.
 	exportedMembersByName map[string]struct{}
 
-	// The set of members which have been excluded from this snapshot; by name.
-	excludedMembersByName map[string]struct{}
-
 	// The target build release for which the snapshot is to be generated.
 	targetBuildRelease *buildRelease
 
@@ -1250,9 +1219,6 @@ func (s *snapshotBuilder) snapshotSdkMemberName(name string, required bool) stri
 func (s *snapshotBuilder) snapshotSdkMemberNames(members []string, required bool) []string {
 	var references []string = nil
 	for _, m := range members {
-		if _, ok := s.excludedMembersByName[m]; ok {
-			continue
-		}
 		references = append(references, s.snapshotSdkMemberName(m, required))
 	}
 	return references
@@ -1295,9 +1261,6 @@ type sdkMemberVariantDep struct {
 
 	// The names of additional component modules provided by the variant.
 	exportedComponentsInfo android.ExportedComponentsInfo
-
-	// The minimum API level on which this module is supported.
-	minApiLevel android.ApiLevel
 }
 
 var _ android.SdkMember = (*sdkMember)(nil)

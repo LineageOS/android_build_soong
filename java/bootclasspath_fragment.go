@@ -769,7 +769,7 @@ func (b *BootclasspathFragmentModule) generateHiddenAPIBuildActions(ctx android.
 	//  their own.
 	if output.SignaturePatternsPath == nil {
 		output.SignaturePatternsPath = buildRuleSignaturePatternsFile(
-			ctx, output.AllFlagsPath, []string{"*"}, nil, nil, "")
+			ctx, output.AllFlagsPath, []string{"*"}, nil, nil)
 	}
 
 	// Initialize a HiddenAPIInfo structure.
@@ -853,10 +853,12 @@ func (b *BootclasspathFragmentModule) isTestFragment() bool {
 	return false
 }
 
-func (b *BootclasspathFragmentModule) generateHiddenApiFlagRules(ctx android.ModuleContext, contents []android.Module, input HiddenAPIFlagInput, bootDexInfoByModule bootDexInfoByModule, suffix string) HiddenAPIFlagOutput {
+// produceHiddenAPIOutput produces the hidden API all-flags.csv file (and supporting files)
+// for the fragment as well as encoding the flags in the boot dex jars.
+func (b *BootclasspathFragmentModule) produceHiddenAPIOutput(ctx android.ModuleContext, contents []android.Module, input HiddenAPIFlagInput) *HiddenAPIOutput {
 	// Generate the rules to create the hidden API flags and update the supplied hiddenAPIInfo with the
 	// paths to the created files.
-	flagOutput := hiddenAPIFlagRulesForBootclasspathFragment(ctx, bootDexInfoByModule, contents, input, suffix)
+	output := hiddenAPIRulesForBootclasspathFragment(ctx, contents, input)
 
 	// If the module specifies split_packages or package_prefixes then use those to generate the
 	// signature patterns.
@@ -864,8 +866,8 @@ func (b *BootclasspathFragmentModule) generateHiddenApiFlagRules(ctx android.Mod
 	packagePrefixes := b.sourceOnlyProperties.Hidden_api.Package_prefixes
 	singlePackages := b.sourceOnlyProperties.Hidden_api.Single_packages
 	if splitPackages != nil || packagePrefixes != nil || singlePackages != nil {
-		flagOutput.SignaturePatternsPath = buildRuleSignaturePatternsFile(
-			ctx, flagOutput.AllFlagsPath, splitPackages, packagePrefixes, singlePackages, suffix)
+		output.SignaturePatternsPath = buildRuleSignaturePatternsFile(
+			ctx, output.AllFlagsPath, splitPackages, packagePrefixes, singlePackages)
 	} else if !b.isTestFragment() {
 		ctx.ModuleErrorf(`Must specify at least one of the split_packages, package_prefixes and single_packages properties
   If this is a new bootclasspath_fragment or you are unsure what to do add the
@@ -877,49 +879,6 @@ func (b *BootclasspathFragmentModule) generateHiddenApiFlagRules(ctx android.Mod
   should specify here. If you are happy with its suggestions then you can add
   the --fix option and it will fix them for you.`, b.BaseModuleName())
 	}
-	return flagOutput
-}
-
-// produceHiddenAPIOutput produces the hidden API all-flags.csv file (and supporting files)
-// for the fragment as well as encoding the flags in the boot dex jars.
-func (b *BootclasspathFragmentModule) produceHiddenAPIOutput(ctx android.ModuleContext, contents []android.Module, input HiddenAPIFlagInput) *HiddenAPIOutput {
-	// Gather information about the boot dex files for the boot libraries provided by this fragment.
-	bootDexInfoByModule := extractBootDexInfoFromModules(ctx, contents)
-
-	flagOutput := b.generateHiddenApiFlagRules(ctx, contents, input, bootDexInfoByModule, "")
-
-	encodedBootDexFilesByModule := hiddenAPIEncodeRulesForBootclasspathFragment(ctx, bootDexInfoByModule, flagOutput.AllFlagsPath)
-
-	output := &HiddenAPIOutput{
-		HiddenAPIFlagOutput:         flagOutput,
-		EncodedBootDexFilesByModule: encodedBootDexFilesByModule,
-	}
-
-	config := ctx.Config()
-	targetApiLevel := android.ApiLevelOrPanic(ctx,
-		config.GetenvWithDefault("SOONG_SDK_SNAPSHOT_TARGET_BUILD_RELEASE", "current"))
-
-	filterContents := []android.Module{}
-	for _, module := range contents {
-		minApiLevel := android.MinApiLevelForSdkSnapshot(ctx, module)
-		if minApiLevel.GreaterThan(targetApiLevel) {
-			delete(bootDexInfoByModule, module.Name())
-			delete(input.StubDexJarsByScope, module.Name())
-			continue
-		}
-
-		filterContents = append(filterContents, module)
-	}
-
-	if len(filterContents) != len(contents) {
-		flagOutput = b.generateHiddenApiFlagRules(ctx, filterContents, input, bootDexInfoByModule, "-for-sdk-snapshot")
-	}
-
-	// Copy the information and make it available for sdk snapshot.
-	ctx.SetProvider(HiddenAPIInfoForSdkProvider, HiddenAPIInfoForSdk{
-		FlagFilesByCategory: input.FlagFilesByCategory,
-		HiddenAPIFlagOutput: flagOutput,
-	})
 
 	return output
 }
@@ -1085,7 +1044,7 @@ func (b *bootclasspathFragmentSdkMemberProperties) PopulateFromVariant(ctx andro
 
 	// Get the hidden API information from the module.
 	mctx := ctx.SdkModuleContext()
-	hiddenAPIInfo := mctx.OtherModuleProvider(module, HiddenAPIInfoForSdkProvider).(HiddenAPIInfoForSdk)
+	hiddenAPIInfo := mctx.OtherModuleProvider(module, HiddenAPIInfoProvider).(HiddenAPIInfo)
 	b.Flag_files_by_category = hiddenAPIInfo.FlagFilesByCategory
 
 	// Copy all the generated file paths.
@@ -1263,15 +1222,6 @@ func (module *PrebuiltBootclasspathFragmentModule) produceHiddenAPIOutput(ctx an
 	// TODO: Temporarily fallback to stub_flags/all_flags properties until prebuilts have been updated.
 	output.FilteredStubFlagsPath = pathForOptionalSrc(module.prebuiltProperties.Hidden_api.Filtered_stub_flags, output.StubFlagsPath)
 	output.FilteredFlagsPath = pathForOptionalSrc(module.prebuiltProperties.Hidden_api.Filtered_flags, output.AllFlagsPath)
-
-	// If the prebuilts module does not provide a signature patterns file then generate one from the
-	// flags.
-	// TODO(b/192868581): Remove once the prebuilts all provide a signature patterns file of their
-	//  own.
-	if output.SignaturePatternsPath == nil {
-		output.SignaturePatternsPath = buildRuleSignaturePatternsFile(
-			ctx, output.AllFlagsPath, []string{"*"}, nil, nil, "")
-	}
 
 	return &output
 }
