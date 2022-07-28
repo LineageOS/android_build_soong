@@ -74,6 +74,22 @@ type SdkAware interface {
 	sdkAwareWithoutModule
 }
 
+type minApiLevelForSdkSnapshot interface {
+	MinApiLevelForSdkSnapshot(ctx EarlyModuleContext) ApiLevel
+}
+
+func MinApiLevelForSdkSnapshot(ctx EarlyModuleContext, module Module) ApiLevel {
+	minApiLevel := NoneApiLevel
+	if m, ok := module.(minApiLevelForSdkSnapshot); ok {
+		minApiLevel = m.MinApiLevelForSdkSnapshot(ctx)
+	}
+	if minApiLevel == NoneApiLevel {
+		// The default API level is Q, i.e. the first release that supported mainline modules.
+		minApiLevel = uncheckedFinalApiLevel(29)
+	}
+	return minApiLevel
+}
+
 // SdkRef refers to a version of an SDK
 type SdkRef struct {
 	Name    string

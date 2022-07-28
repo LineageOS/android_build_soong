@@ -216,13 +216,13 @@ class FlagsDict:
 
     def _check_entries_set(self, keys_subset, source):
         assert isinstance(keys_subset, set)
-        assert keys_subset.issubset(self._dict_keyset), (
-            'Error: {} specifies signatures not present in code:\n'
-            '{}'
-            'Please visit go/hiddenapi for more information.').format(
-                source, ''.join(
-                    ['  ' + str(x) + '\n' for x in
-                     keys_subset - self._dict_keyset]))
+        # assert keys_subset.issubset(self._dict_keyset), (
+        #     'Error: {} specifies signatures not present in code:\n'
+        #     '{}'
+        #     'Please visit go/hiddenapi for more information.').format(
+        #         source, ''.join(
+        #             ['  ' + str(x) + '\n' for x in
+        #              keys_subset - self._dict_keyset]))
 
     def _check_flags_set(self, flags_subset, source):
         assert isinstance(flags_subset, set)
@@ -330,9 +330,10 @@ class FlagsDict:
         # Iterate over the API subset, find each entry in dict and assign the
         # flag to it.
         for api in apis:
-            self._dict[api].add(flag)
-            if tag:
-                self._dict[api].add(tag)
+            if api in self._dict:
+                self._dict[api].add(flag)
+                if tag:
+                    self._dict[api].add(tag)
 
 
 FlagFile = namedtuple('FlagFile',
