@@ -17,6 +17,7 @@ package bpf
 import (
 	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 
 	"android/soong/android"
@@ -154,6 +155,9 @@ func (bpf *bpf) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	srcs := android.PathsForModuleSrc(ctx, bpf.properties.Srcs)
 
 	for _, src := range srcs {
+		if strings.ContainsRune(filepath.Base(src.String()), '_') {
+			ctx.ModuleErrorf("invalid character '_' in source name")
+		}
 		obj := android.ObjPathWithExt(ctx, "unstripped", src, "o")
 
 		ctx.Build(pctx, android.BuildParams{
