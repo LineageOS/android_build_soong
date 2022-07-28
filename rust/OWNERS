@@ -1,5 +1,2 @@
 # Additional owner/reviewers for rust rules, including parent directory owners.
 per-file * = chiw@google.com, chriswailes@google.com, ivanlozano@google.com, jeffv@google.com, mmaurer@google.com, srhines@google.com
-
-# Limited owners/reviewers of the allowed list.
-per-file allowed_list.go = chiw@google.com, chriswailes@google.com, ivanlozano@google.com, jeffv@google.com, mmaurer@google.com, srhines@google.com
