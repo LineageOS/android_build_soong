@@ -104,6 +104,14 @@ func TestCreateBazelFiles_Bp2Build_CreatesDefaultFiles(t *testing.T) {
 			basename: "constants.bzl",
 		},
 		{
+			dir:      "apex_toolchain",
+			basename: GeneratedBuildFileName,
+		},
+		{
+			dir:      "apex_toolchain",
+			basename: "constants.bzl",
+		},
+		{
 			dir:      "metrics",
 			basename: "converted_modules.txt",
 		},
