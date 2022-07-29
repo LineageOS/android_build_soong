@@ -16,7 +16,6 @@ bootstrap_go_package {
         "global.go",
         "lints.go",
         "toolchain.go",
-        "allowed_list.go",
         "darwin_host.go",
         "x86_linux_bionic_host.go",
         "x86_linux_host.go",
