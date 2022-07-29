@@ -574,7 +574,7 @@ func (a *aqueryArtifactHandler) getOutputPaths(actionEntry action) (outputPaths 
 
 // expandTemplateContent substitutes the tokens in a template.
 func expandTemplateContent(actionEntry action) string {
-	replacerString := []string{}
+	var replacerString []string
 	for _, pair := range actionEntry.Substitutions {
 		value := pair.Value
 		if val, ok := templateActionOverriddenTokens[pair.Key]; ok {
@@ -647,7 +647,7 @@ func expandPathFragment(id pathFragmentId, pathFragmentsMap map[pathFragmentId]p
 		}
 		labels = append([]string{currFragment.Label}, labels...)
 		if currId == currFragment.ParentId {
-			return "", fmt.Errorf("Fragment cannot refer to itself as parent %#v", currFragment)
+			return "", fmt.Errorf("fragment cannot refer to itself as parent %#v", currFragment)
 		}
 		currId = currFragment.ParentId
 	}
