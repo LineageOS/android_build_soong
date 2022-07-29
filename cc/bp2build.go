@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -30,6 +30,7 @@ import (
 const (
 	cSrcPartition     = "c"
 	asSrcPartition    = "as"
+	asmSrcPartition   = "asm"
 	lSrcPartition     = "l"
 	llSrcPartition    = "ll"
 	cppSrcPartition   = "cpp"
@@ -81,6 +82,7 @@ func groupSrcsByExtension(ctx android.BazelConversionPathContext, srcs bazel.Lab
 		protoSrcPartition: android.ProtoSrcLabelPartition,
 		cSrcPartition:     bazel.LabelPartition{Extensions: []string{".c"}, LabelMapper: addSuffixForFilegroup("_c_srcs")},
 		asSrcPartition:    bazel.LabelPartition{Extensions: []string{".s", ".S"}, LabelMapper: addSuffixForFilegroup("_as_srcs")},
+		asmSrcPartition:   bazel.LabelPartition{Extensions: []string{".asm"}},
 		// TODO(http://b/231968910): If there is ever a filegroup target that
 		// 		contains .l or .ll files we will need to find a way to add a
 		// 		LabelMapper for these that identifies these filegroups and
@@ -289,6 +291,7 @@ type compilerAttributes struct {
 	// Assembly options and sources
 	asFlags bazel.StringListAttribute
 	asSrcs  bazel.LabelListAttribute
+	asmSrcs bazel.LabelListAttribute
 	// C options and sources
 	conlyFlags bazel.StringListAttribute
 	cSrcs      bazel.LabelListAttribute
@@ -447,6 +450,7 @@ func (ca *compilerAttributes) finalize(ctx android.BazelConversionPathContext, i
 	ca.srcs = partitionedSrcs[cppSrcPartition]
 	ca.cSrcs = partitionedSrcs[cSrcPartition]
 	ca.asSrcs = partitionedSrcs[asSrcPartition]
+	ca.asmSrcs = partitionedSrcs[asmSrcPartition]
 	ca.lSrcs = partitionedSrcs[lSrcPartition]
 	ca.llSrcs = partitionedSrcs[llSrcPartition]
 
@@ -525,6 +529,61 @@ func includesFromLabelList(labelList bazel.LabelList) (relative, absolute []stri
 		}
 	}
 	return relative, absolute
+}
+
+type YasmAttributes struct {
+	Srcs         bazel.LabelListAttribute
+	Flags        bazel.StringListAttribute
+	Include_dirs bazel.StringListAttribute
+}
+
+func bp2BuildYasm(ctx android.Bp2buildMutatorContext, m *Module, ca compilerAttributes) *bazel.LabelAttribute {
+	if ca.asmSrcs.IsEmpty() {
+		return nil
+	}
+
+	// Yasm needs the include directories from both local_includes and
+	// export_include_dirs. We don't care about actually exporting them from the
+	// yasm rule though, because they will also be present on the cc_ rule that
+	// wraps this yasm rule.
+	includes := ca.localIncludes.Clone()
+	bp2BuildPropParseHelper(ctx, m, &FlagExporterProperties{}, func(axis bazel.ConfigurationAxis, config string, props interface{}) {
+		if flagExporterProperties, ok := props.(*FlagExporterProperties); ok {
+			if len(flagExporterProperties.Export_include_dirs) > 0 {
+				x := bazel.StringListAttribute{}
+				x.SetSelectValue(axis, config, flagExporterProperties.Export_include_dirs)
+				includes.Append(x)
+			}
+		}
+	})
+
+	ctx.CreateBazelTargetModule(
+		bazel.BazelTargetModuleProperties{
+			Rule_class:        "yasm",
+			Bzl_load_location: "//build/bazel/rules/cc:yasm.bzl",
+		},
+		android.CommonAttributes{Name: m.Name() + "_yasm"},
+		&YasmAttributes{
+			Srcs:         ca.asmSrcs,
+			Flags:        ca.asFlags,
+			Include_dirs: *includes,
+		})
+
+	// We only want to add a dependency on the _yasm target if there are asm
+	// sources in the current configuration. If there are unconfigured asm
+	// sources, always add the dependency. Otherwise, add the dependency only
+	// on the configuration axes and values that had asm sources.
+	if len(ca.asmSrcs.Value.Includes) > 0 {
+		return bazel.MakeLabelAttribute(":" + m.Name() + "_yasm")
+	}
+
+	ret := &bazel.LabelAttribute{}
+	for _, axis := range ca.asmSrcs.SortedConfigurationAxes() {
+		for config := range ca.asmSrcs.ConfigurableValues[axis] {
+			ret.SetSelectValue(axis, config, bazel.Label{Label: ":" + m.Name() + "_yasm"})
+		}
+	}
+	return ret
 }
 
 // bp2BuildParseBaseProps returns all compiler, linker, library attributes of a cc module..
@@ -611,6 +670,8 @@ func bp2BuildParseBaseProps(ctx android.Bp2buildMutatorContext, module *Module) 
 
 	(&compilerAttrs).finalize(ctx, implementationHdrs)
 	(&linkerAttrs).finalize(ctx)
+
+	(&compilerAttrs.srcs).Add(bp2BuildYasm(ctx, module, compilerAttrs))
 
 	protoDep := bp2buildProto(ctx, module, compilerAttrs.protoSrcs)
 
