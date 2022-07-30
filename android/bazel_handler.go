@@ -91,11 +91,20 @@ type configKey struct {
 	osType OsType
 }
 
+func (c configKey) String() string {
+	return fmt.Sprintf("%s::%s", c.arch, c.osType)
+}
+
 // Map key to describe bazel cquery requests.
 type cqueryKey struct {
 	label       string
 	requestType cqueryRequest
 	configKey   configKey
+}
+
+func (c cqueryKey) String() string {
+	return fmt.Sprintf("cquery(%s,%s,%s)", c.label, c.requestType.Name(), c.configKey)
+
 }
 
 // BazelContext is a context object useful for interacting with Bazel during
@@ -122,6 +131,9 @@ type BazelContext interface {
 	// Returns the executable binary resultant from building together the python sources
 	// TODO(b/232976601): Remove.
 	GetPythonBinary(label string, cfgKey configKey) (string, error)
+
+	// Returns the results of the GetApexInfo query (including output files)
+	GetApexInfo(label string, cfgkey configKey) (cquery.ApexCqueryInfo, error)
 
 	// ** end Cquery Results Retrieval Functions
 
@@ -186,6 +198,7 @@ type MockBazelContext struct {
 	LabelToOutputFiles  map[string][]string
 	LabelToCcInfo       map[string]cquery.CcInfo
 	LabelToPythonBinary map[string]string
+	LabelToApexInfo     map[string]cquery.ApexCqueryInfo
 }
 
 func (m MockBazelContext) QueueBazelRequest(_ string, _ cqueryRequest, _ configKey) {
@@ -205,6 +218,10 @@ func (m MockBazelContext) GetCcInfo(label string, _ configKey) (cquery.CcInfo, e
 func (m MockBazelContext) GetPythonBinary(label string, _ configKey) (string, error) {
 	result, _ := m.LabelToPythonBinary[label]
 	return result, nil
+}
+
+func (n MockBazelContext) GetApexInfo(_ string, _ configKey) (cquery.ApexCqueryInfo, error) {
+	panic("unimplemented")
 }
 
 func (m MockBazelContext) InvokeBazel(_ Config) error {
@@ -261,6 +278,14 @@ func (bazelCtx *bazelContext) GetPythonBinary(label string, cfgKey configKey) (s
 	return "", fmt.Errorf("no bazel response found for %v", key)
 }
 
+func (bazelCtx *bazelContext) GetApexInfo(label string, cfgKey configKey) (cquery.ApexCqueryInfo, error) {
+	key := cqueryKey{label, cquery.GetApexInfo, cfgKey}
+	if rawString, ok := bazelCtx.results[key]; ok {
+		return cquery.GetApexInfo.ParseResult(strings.TrimSpace(rawString)), nil
+	}
+	return cquery.ApexCqueryInfo{}, fmt.Errorf("no bazel response found for %v", key)
+}
+
 func (n noopBazelContext) QueueBazelRequest(_ string, _ cqueryRequest, _ configKey) {
 	panic("unimplemented")
 }
@@ -274,6 +299,10 @@ func (n noopBazelContext) GetCcInfo(_ string, _ configKey) (cquery.CcInfo, error
 }
 
 func (n noopBazelContext) GetPythonBinary(_ string, _ configKey) (string, error) {
+	panic("unimplemented")
+}
+
+func (n noopBazelContext) GetApexInfo(_ string, _ configKey) (cquery.ApexCqueryInfo, error) {
 	panic("unimplemented")
 }
 
@@ -401,11 +430,9 @@ func (r *builtinBazelRunner) issueBazelCommand(paths *bazelPaths, runName bazel.
 	cmdFlags := []string{
 		"--output_base=" + absolutePath(paths.outputBase),
 		command.command,
-	}
-	cmdFlags = append(cmdFlags, command.expression)
-	cmdFlags = append(cmdFlags,
+		command.expression,
 		// TODO(asmundak): is it needed in every build?
-		"--profile="+shared.BazelMetricsFilename(paths, runName),
+		"--profile=" + shared.BazelMetricsFilename(paths, runName),
 
 		// Set default platforms to canonicalized values for mixed builds requests.
 		// If these are set in the bazelrc, they will have values that are
@@ -426,21 +453,23 @@ func (r *builtinBazelRunner) issueBazelCommand(paths *bazelPaths, runName bazel.
 
 		// Suppress noise
 		"--ui_event_filters=-INFO",
-		"--noshow_progress")
+		"--noshow_progress"}
 	cmdFlags = append(cmdFlags, extraFlags...)
 
 	bazelCmd := exec.Command(paths.bazelPath, cmdFlags...)
 	bazelCmd.Dir = absolutePath(paths.syntheticWorkspaceDir())
-	bazelCmd.Env = append(os.Environ(),
-		"HOME="+paths.homeDir,
+	extraEnv := []string{
+		"HOME=" + paths.homeDir,
 		pwdPrefix(),
-		"BUILD_DIR="+absolutePath(paths.soongOutDir),
+		"BUILD_DIR=" + absolutePath(paths.soongOutDir),
 		// Make OUT_DIR absolute here so tools/bazel.sh uses the correct
 		// OUT_DIR at <root>/out, instead of <root>/out/soong/workspace/out.
-		"OUT_DIR="+absolutePath(paths.outDir()),
+		"OUT_DIR=" + absolutePath(paths.outDir()),
 		// Disables local host detection of gcc; toolchain information is defined
 		// explicitly in BUILD files.
-		"BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1")
+		"BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1",
+	}
+	bazelCmd.Env = append(os.Environ(), extraEnv...)
 	stderr := &bytes.Buffer{}
 	bazelCmd.Stderr = stderr
 
@@ -651,6 +680,15 @@ def get_arch(target):
     fail("expected platform name of the form 'android_<arch>' or 'linux_<arch>', but was " + str(platforms))
     return "UNKNOWN"
 
+def json_for_file(key, file):
+    return '"' + key + '":"' + file.path + '"'
+
+def json_for_files(key, files):
+    return '"' + key + '":[' + ",".join(['"' + f.path + '"' for f in files]) + ']'
+
+def json_for_labels(key, ll):
+    return '"' + key + '":[' + ",".join(['"' + str(x) + '"' for x in ll]) + ']'
+
 def format(target):
   id_string = str(target.label) + "|" + get_arch(target)
 
@@ -728,7 +766,7 @@ func (context *bazelContext) InvokeBazel(config Config) error {
 	cqueryOutput, cqueryErr, err := context.issueBazelCommand(context.paths, bazel.CqueryBuildRootRunName, cqueryCmd,
 		"--output=starlark", "--starlark:file="+absolutePath(cqueryFileRelpath))
 	if err != nil {
-		err = ioutil.WriteFile(filepath.Join(soongInjectionPath, "cquery.out"), []byte(cqueryOutput), 0666)
+		_ = ioutil.WriteFile(filepath.Join(soongInjectionPath, "cquery.out"), []byte(cqueryOutput), 0666)
 	}
 	if err != nil {
 		return err

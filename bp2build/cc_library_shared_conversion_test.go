@@ -569,3 +569,58 @@ func TestCcLibrarySharedConvertLex(t *testing.T) {
 		},
 	})
 }
+
+func TestCcLibrarySharedClangUnknownFlags(t *testing.T) {
+	runCcLibrarySharedTestCase(t, bp2buildTestCase{
+		blueprint: soongCcProtoPreamble + `cc_library_shared {
+	name: "foo",
+	conlyflags: ["-a", "-finline-functions"],
+	cflags: ["-b","-finline-functions"],
+	cppflags: ["-c", "-finline-functions"],
+	ldflags: ["-d","-finline-functions", "-e"],
+	include_build_directory: false,
+}`,
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_library_shared", "foo", attrNameToString{
+				"conlyflags": `["-a"]`,
+				"copts":      `["-b"]`,
+				"cppflags":   `["-c"]`,
+				"linkopts": `[
+        "-d",
+        "-e",
+    ]`,
+			}),
+		},
+	})
+}
+
+func TestCCLibraryFlagSpaceSplitting(t *testing.T) {
+	runCcLibrarySharedTestCase(t, bp2buildTestCase{
+		blueprint: soongCcProtoPreamble + `cc_library_shared {
+	name: "foo",
+	conlyflags: [ "-include header.h"],
+	cflags: ["-include header.h"],
+	cppflags: ["-include header.h"],
+	version_script: "version_script",
+	include_build_directory: false,
+}`,
+		expectedBazelTargets: []string{
+			makeBazelTarget("cc_library_shared", "foo", attrNameToString{
+				"additional_linker_inputs": `["version_script"]`,
+				"conlyflags": `[
+        "-include",
+        "header.h",
+    ]`,
+				"copts": `[
+        "-include",
+        "header.h",
+    ]`,
+				"cppflags": `[
+        "-include",
+        "header.h",
+    ]`,
+				"linkopts": `["-Wl,--version-script,$(location version_script)"]`,
+			}),
+		},
+	})
+}
