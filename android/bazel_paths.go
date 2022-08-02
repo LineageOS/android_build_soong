@@ -32,14 +32,14 @@ import (
 // There is often a similar method for Bazel as there is for Soong path handling and should be used
 // in similar circumstances
 //
-// Bazel                                Soong
-//
-// BazelLabelForModuleSrc               PathForModuleSrc
-// BazelLabelForModuleSrcExcludes       PathForModuleSrcExcludes
-// BazelLabelForModuleDeps              n/a
-// tbd                                  PathForSource
-// tbd                                  ExistentPathsForSources
-// PathForBazelOut                      PathForModuleOut
+//   Bazel                                Soong
+//   ==============================================================
+//   BazelLabelForModuleSrc               PathForModuleSrc
+//   BazelLabelForModuleSrcExcludes       PathForModuleSrcExcludes
+//   BazelLabelForModuleDeps              n/a
+//   tbd                                  PathForSource
+//   tbd                                  ExistentPathsForSources
+//   PathForBazelOut                      PathForModuleOut
 //
 // Use cases:
 //  * Module contains a property (often tagged `android:"path"`) that expects paths *relative to the
@@ -68,7 +68,7 @@ import (
 //   cannot be resolved,the function will panic. This is often due to the dependency not being added
 //   via an AddDependency* method.
 
-// A minimal context interface to check if a module should be converted by bp2build,
+// BazelConversionContext is a minimal context interface to check if a module should be converted by bp2build,
 // with functions containing information to match against allowlists and denylists.
 // If a module is deemed to be convertible by bp2build, then it should rely on a
 // BazelConversionPathContext for more functions for dep/path features.

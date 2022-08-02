@@ -544,7 +544,7 @@ func loadSoongBuildMetrics(ctx Context, config Config) *soong_metrics_proto.Soon
 	buf, err := os.ReadFile(soongBuildMetricsFile)
 	if errors.Is(err, fs.ErrNotExist) {
 		// Soong may not have run during this invocation
-          ctx.Verbosef("Failed to read metrics file, %s: %s", soongBuildMetricsFile, err)
+		ctx.Verbosef("Failed to read metrics file, %s: %s", soongBuildMetricsFile, err)
 		return nil
 	} else if err != nil {
 		ctx.Fatalf("Failed to load %s: %s", soongBuildMetricsFile, err)
