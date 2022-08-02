@@ -86,7 +86,6 @@ func TestVndkApexUsesVendorVariant(t *testing.T) {
 			},
 			system_shared_libs: [],
 			stl: "none",
-			notice: "custom_notice",
 		}
 		` + vndkLibrariesTxtFiles("current")
 
