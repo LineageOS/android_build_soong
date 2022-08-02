@@ -67,6 +67,11 @@ func buildLicenseMetadata(ctx ModuleContext, licenseMetadataFile WritablePath) {
 			return
 		}
 
+		// Defaults add properties and dependencies that get processed on their own.
+		if ctx.OtherModuleDependencyTag(dep) == DefaultsDepTag {
+			return
+		}
+
 		if ctx.OtherModuleHasProvider(dep, LicenseMetadataProvider) {
 			info := ctx.OtherModuleProvider(dep, LicenseMetadataProvider).(*LicenseMetadataInfo)
 			allDepMetadataFiles = append(allDepMetadataFiles, info.LicenseMetadataPath)
