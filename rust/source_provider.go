@@ -65,9 +65,12 @@ func NewSourceProvider() *BaseSourceProvider {
 	}
 }
 
-func NewSourceProviderModule(hod android.HostOrDeviceSupported, sourceProvider SourceProvider, enableLints bool) *Module {
+func NewSourceProviderModule(hod android.HostOrDeviceSupported, sourceProvider SourceProvider, enableLints bool, rlibOnly bool) *Module {
 	_, library := NewRustLibrary(hod)
 	library.BuildOnlyRust()
+	if rlibOnly {
+		library.BuildOnlyRlib()
+	}
 	library.sourceProvider = sourceProvider
 
 	module := newModule(hod, android.MultilibBoth)
