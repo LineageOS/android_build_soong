@@ -515,7 +515,6 @@ type Module interface {
 	ExportedToMake() bool
 	InitRc() Paths
 	VintfFragments() Paths
-	NoticeFiles() Paths
 	EffectiveLicenseFiles() Paths
 
 	AddProperties(props ...interface{})
@@ -830,9 +829,6 @@ type commonProperties struct {
 
 	// names of other modules to install on target if this module is installed
 	Target_required []string `android:"arch_variant"`
-
-	// relative path to a file to include in the list of notices for the device
-	Notice *string `android:"path"`
 
 	// The OsType of artifacts that this module variant is responsible for creating.
 	//
@@ -1423,7 +1419,6 @@ type ModuleBase struct {
 	checkbuildFiles      Paths
 	packagingSpecs       []PackagingSpec
 	packagingSpecsDepSet *packagingSpecsDepSet
-	noticeFiles          Paths
 	// katiInstalls tracks the install rules that were created by Soong but are being exported
 	// to Make to convert to ninja rules so that Make can add additional dependencies.
 	katiInstalls katiInstalls
@@ -2054,10 +2049,6 @@ func (m *ModuleBase) Owner() string {
 	return String(m.commonProperties.Owner)
 }
 
-func (m *ModuleBase) NoticeFiles() Paths {
-	return m.noticeFiles
-}
-
 func (m *ModuleBase) setImageVariation(variant string) {
 	m.commonProperties.ImageVariation = variant
 }
@@ -2316,19 +2307,6 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 				ctx.validateAndroidModule(bm, ctx.OtherModuleDependencyTag(m), ctx.baseModuleContext.strictVisitDeps)
 			}
 		})
-
-		m.noticeFiles = make([]Path, 0)
-		optPath := OptionalPath{}
-		notice := proptools.StringDefault(m.commonProperties.Notice, "")
-		if module := SrcIsModule(notice); module != "" {
-			optPath = ctx.ExpandOptionalSource(&notice, "notice")
-		} else if notice != "" {
-			noticePath := filepath.Join(ctx.ModuleDir(), notice)
-			optPath = ExistentPathForSource(ctx, noticePath)
-		}
-		if optPath.Valid() {
-			m.noticeFiles = append(m.noticeFiles, optPath.Path())
-		}
 
 		licensesPropertyFlattener(ctx)
 		if ctx.Failed() {
