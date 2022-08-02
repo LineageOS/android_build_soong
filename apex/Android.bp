@@ -26,7 +26,6 @@ bootstrap_go_package {
         "apex_sdk_member.go",
         "apex_singleton.go",
         "builder.go",
-        "constants.go",
         "deapexer.go",
         "key.go",
         "prebuilt.go",
