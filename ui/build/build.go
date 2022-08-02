@@ -183,8 +183,8 @@ func checkRAM(ctx Context, config Config) {
 	}
 }
 
-// Build the tree. The 'what' argument can be used to chose which components of
-// the build to run, via checking various bitmasks.
+// Build the tree. Various flags in `config` govern which components of
+// the build to run.
 func Build(ctx Context, config Config) {
 	ctx.Verboseln("Starting build with args:", config.Arguments())
 	ctx.Verboseln("Environment:", config.Environment().Environ())
