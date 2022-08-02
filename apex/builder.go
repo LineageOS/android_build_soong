@@ -214,7 +214,7 @@ func (a *apexBundle) buildManifest(ctx android.ModuleContext, provideNativeLibs,
 		Args: map[string]string{
 			"provideNativeLibs": strings.Join(provideNativeLibs, " "),
 			"requireNativeLibs": strings.Join(requireNativeLibs, " "),
-			"default_version":   defaultManifestVersion,
+			"default_version":   android.DefaultUpdatableModuleVersion,
 			"opt":               strings.Join(optCommands, " "),
 		},
 	})
