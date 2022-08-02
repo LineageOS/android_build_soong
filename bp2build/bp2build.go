@@ -29,7 +29,9 @@ import (
 func Codegen(ctx *CodegenContext) CodegenMetrics {
 	// This directory stores BUILD files that could be eventually checked-in.
 	bp2buildDir := android.PathForOutput(ctx, "bp2build")
-	android.RemoveAllOutputDir(bp2buildDir)
+	if err := android.RemoveAllOutputDir(bp2buildDir); err != nil {
+		fmt.Printf("ERROR: Encountered error while cleaning %s: %s", bp2buildDir, err.Error())
+	}
 
 	res, errs := GenerateBazelTargets(ctx, true)
 	if len(errs) > 0 {
@@ -52,7 +54,9 @@ func Codegen(ctx *CodegenContext) CodegenMetrics {
 // Get the output directory and create it if it doesn't exist.
 func getOrCreateOutputDir(outputDir android.OutputPath, ctx android.PathContext, dir string) android.OutputPath {
 	dirPath := outputDir.Join(ctx, dir)
-	android.CreateOutputDirIfNonexistent(dirPath, os.ModePerm)
+	if err := android.CreateOutputDirIfNonexistent(dirPath, os.ModePerm); err != nil {
+		fmt.Printf("ERROR: path %s: %s", dirPath, err.Error())
+	}
 	return dirPath
 }
 
@@ -60,13 +64,13 @@ func getOrCreateOutputDir(outputDir android.OutputPath, ctx android.PathContext,
 func writeFiles(ctx android.PathContext, outputDir android.OutputPath, files []BazelFile) {
 	for _, f := range files {
 		p := getOrCreateOutputDir(outputDir, ctx, f.Dir).Join(ctx, f.Basename)
-		if err := writeFile(ctx, p, f.Contents); err != nil {
+		if err := writeFile(p, f.Contents); err != nil {
 			panic(fmt.Errorf("Failed to write %q (dir %q) due to %q", f.Basename, f.Dir, err))
 		}
 	}
 }
 
-func writeFile(ctx android.PathContext, pathToFile android.OutputPath, content string) error {
+func writeFile(pathToFile android.OutputPath, content string) error {
 	// These files are made editable to allow users to modify and iterate on them
 	// in the source tree.
 	return android.WriteFileToOutputDir(pathToFile, []byte(content), 0644)

@@ -22,7 +22,7 @@ type node struct {
 	children map[string]*node
 }
 
-// Ensures that the a node for the given path exists in the tree and returns it.
+// Ensures that the node for the given path exists in the tree and returns it.
 func ensureNodeExists(root *node, path string) *node {
 	if path == "" {
 		return root
@@ -126,11 +126,11 @@ func plantSymlinkForestRecursive(cfg android.Config, topdir string, forestDir st
 	buildFilesMap := readdirToMap(shared.JoinPath(topdir, buildFilesDir))
 
 	allEntries := make(map[string]bool)
-	for n, _ := range srcDirMap {
+	for n := range srcDirMap {
 		allEntries[n] = true
 	}
 
-	for n, _ := range buildFilesMap {
+	for n := range buildFilesMap {
 		allEntries[n] = true
 	}
 
@@ -140,7 +140,7 @@ func plantSymlinkForestRecursive(cfg android.Config, topdir string, forestDir st
 		os.Exit(1)
 	}
 
-	for f, _ := range allEntries {
+	for f := range allEntries {
 		if f[0] == '.' {
 			continue // Ignore dotfiles
 		}
