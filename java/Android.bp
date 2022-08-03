@@ -76,6 +76,7 @@ bootstrap_go_package {
         "tradefed.go",
     ],
     testSrcs: [
+        "aar_test.go",
         "androidmk_test.go",
         "app_import_test.go",
         "app_set_test.go",
