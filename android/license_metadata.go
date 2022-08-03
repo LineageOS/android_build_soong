@@ -15,7 +15,6 @@
 package android
 
 import (
-	"fmt"
 	"sort"
 	"strings"
 
@@ -64,6 +63,11 @@ func buildLicenseMetadata(ctx ModuleContext, licenseMetadataFile WritablePath) {
 			return
 		}
 		if !dep.Enabled() {
+			return
+		}
+
+		// Defaults add properties and dependencies that get processed on their own.
+		if ctx.OtherModuleDependencyTag(dep) == DefaultsDepTag {
 			return
 		}
 
@@ -139,8 +143,6 @@ func buildLicenseMetadata(ctx ModuleContext, licenseMetadataFile WritablePath) {
 	if len(outputFiles) > 0 {
 		args = append(args,
 			JoinWithPrefix(proptools.NinjaAndShellEscapeListIncludingSpaces(outputFiles.Strings()), "-t "))
-	} else {
-		args = append(args, fmt.Sprintf("-t //%s:%s", ctx.ModuleDir(), ctx.ModuleName()))
 	}
 
 	// Installed files
