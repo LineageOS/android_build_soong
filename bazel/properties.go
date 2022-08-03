@@ -725,7 +725,7 @@ func (lla *LabelListAttribute) SelectValue(axis ConfigurationAxis, config string
 	case noConfig:
 		return lla.Value
 	case arch, os, osArch, productVariables, osAndInApex:
-		return (lla.ConfigurableValues[axis][config])
+		return lla.ConfigurableValues[axis][config]
 	default:
 		panic(fmt.Errorf("Unrecognized ConfigurationAxis %s", axis))
 	}
