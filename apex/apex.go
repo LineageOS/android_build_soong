@@ -190,6 +190,10 @@ type apexBundleProperties struct {
 	// with the tool to sign payload contents.
 	Custom_sign_tool *string
 
+	// Whether this is a dynamic common lib apex, if so the native shared libs will be placed
+	// in a special way that include the digest of the lib file under /lib(64)?
+	Dynamic_common_lib_apex *bool
+
 	// Canonical name of this APEX bundle. Used to determine the path to the
 	// activated APEX on device (i.e. /apex/<apexVariationName>), and used for the
 	// apex mutator variations. For override_apex modules, this is the name of the
@@ -1452,6 +1456,11 @@ func (a *apexBundle) testOnlyShouldSkipPayloadSign() bool {
 // See the test_only_force_compression property
 func (a *apexBundle) testOnlyShouldForceCompression() bool {
 	return proptools.Bool(a.properties.Test_only_force_compression)
+}
+
+// See the dynamic_common_lib_apex property
+func (a *apexBundle) dynamic_common_lib_apex() bool {
+	return proptools.BoolDefault(a.properties.Dynamic_common_lib_apex, false)
 }
 
 // These functions are interfacing with cc/sanitizer.go. The entire APEX (along with all of its
