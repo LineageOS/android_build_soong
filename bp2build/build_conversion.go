@@ -161,22 +161,22 @@ type CodegenContext struct {
 	unconvertedDepMode unconvertedDepsMode
 }
 
-func (c *CodegenContext) Mode() CodegenMode {
-	return c.mode
+func (ctx *CodegenContext) Mode() CodegenMode {
+	return ctx.mode
 }
 
 // CodegenMode is an enum to differentiate code-generation modes.
 type CodegenMode int
 
 const (
-	// Bp2Build: generate BUILD files with targets buildable by Bazel directly.
+	// Bp2Build - generate BUILD files with targets buildable by Bazel directly.
 	//
 	// This mode is used for the Soong->Bazel build definition conversion.
 	Bp2Build CodegenMode = iota
 
-	// QueryView: generate BUILD files with targets representing fully mutated
+	// QueryView - generate BUILD files with targets representing fully mutated
 	// Soong modules, representing the fully configured Soong module graph with
-	// variants and dependency endges.
+	// variants and dependency edges.
 	//
 	// This mode is used for discovering and introspecting the existing Soong
 	// module graph.
@@ -470,13 +470,13 @@ func generateSoongModuleTarget(ctx bpToBuildContext, m blueprint.Module) BazelTa
 		})
 	}
 
-	for p, _ := range ignoredPropNames {
+	for p := range ignoredPropNames {
 		delete(props.Attrs, p)
 	}
 	attributes := propsToAttributes(props.Attrs)
 
 	depLabelList := "[\n"
-	for depLabel, _ := range depLabels {
+	for depLabel := range depLabels {
 		depLabelList += fmt.Sprintf("        %q,\n", depLabel)
 	}
 	depLabelList += "    ]"
