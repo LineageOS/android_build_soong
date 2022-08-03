@@ -106,21 +106,21 @@ type FuzzConfig struct {
 	// A brief description of what the fuzzed code does.
 	Description string `json:"description,omitempty"`
 	// Can this code be triggered remotely or only locally.
-	Remotely_accessible bool `json:"remotely_accessible,omitempty"`
+	Remotely_accessible *bool `json:"remotely_accessible,omitempty"`
 	// Is the fuzzed code host only, i.e. test frameworks or support utilities.
-	Host_only bool `json:"host_only,omitempty"`
+	Host_only *bool `json:"host_only,omitempty"`
 	// Can third party/untrusted apps supply data to fuzzed code.
-	Untrusted_data bool `json:"untrusted_data,omitempty"`
+	Untrusted_data *bool `json:"untrusted_data,omitempty"`
 	// Is the code being fuzzed in a privileged, constrained or any other
 	// context from:
 	// https://source.android.com/security/overview/updates-resources#context_types.
 	Privilege_level PrivilegedLevel `json:"privilege_level,omitempty"`
 	// Can the fuzzed code isolated or can be called by multiple users/processes.
-	Isolated bool `json:"users_isolation,omitempty"`
+	Isolated *bool `json:"users_isolation,omitempty"`
 	// When code was relaeased or will be released.
 	Production_date string `json:"production_date,omitempty"`
 	// Prevents critical service functionality like phone calls, bluetooth, etc.
-	Critical bool `json:"critical,omitempty"`
+	Critical *bool `json:"critical,omitempty"`
 	// Specify whether to enable continuous fuzzing on devices. Defaults to true.
 	Fuzz_on_haiku_device *bool `json:"fuzz_on_haiku_device,omitempty"`
 	// Specify whether to enable continuous fuzzing on host. Defaults to true.
