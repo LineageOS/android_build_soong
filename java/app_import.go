@@ -259,7 +259,7 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 		ctx.ModuleErrorf("One and only one of certficate, presigned, and default_dev_cert properties must be set")
 	}
 
-	_, certificates := collectAppDeps(ctx, a, false, false)
+	_, _, certificates := collectAppDeps(ctx, a, false, false)
 
 	// TODO: LOCAL_EXTRACT_APK/LOCAL_EXTRACT_DPI_APK
 	// TODO: LOCAL_PACKAGE_SPLITS
