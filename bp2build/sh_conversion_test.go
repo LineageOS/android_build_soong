@@ -48,25 +48,25 @@ func TestShBinaryLoadStatement(t *testing.T) {
 	}
 }
 
-func runShBinaryTestCase(t *testing.T, tc bp2buildTestCase) {
+func runShBinaryTestCase(t *testing.T, tc Bp2buildTestCase) {
 	t.Helper()
-	runBp2BuildTestCase(t, func(ctx android.RegistrationContext) {}, tc)
+	RunBp2BuildTestCase(t, func(ctx android.RegistrationContext) {}, tc)
 }
 
 func TestShBinarySimple(t *testing.T) {
-	runShBinaryTestCase(t, bp2buildTestCase{
-		description:                "sh_binary test",
-		moduleTypeUnderTest:        "sh_binary",
-		moduleTypeUnderTestFactory: sh.ShBinaryFactory,
-		blueprint: `sh_binary {
+	runShBinaryTestCase(t, Bp2buildTestCase{
+		Description:                "sh_binary test",
+		ModuleTypeUnderTest:        "sh_binary",
+		ModuleTypeUnderTestFactory: sh.ShBinaryFactory,
+		Blueprint: `sh_binary {
     name: "foo",
     src: "foo.sh",
     filename: "foo.exe",
     sub_dir: "sub",
     bazel_module: { bp2build_available: true },
 }`,
-		expectedBazelTargets: []string{
-			makeBazelTarget("sh_binary", "foo", attrNameToString{
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("sh_binary", "foo", AttrNameToString{
 				"srcs":     `["foo.sh"]`,
 				"filename": `"foo.exe"`,
 				"sub_dir":  `"sub"`,
@@ -75,17 +75,17 @@ func TestShBinarySimple(t *testing.T) {
 }
 
 func TestShBinaryDefaults(t *testing.T) {
-	runShBinaryTestCase(t, bp2buildTestCase{
-		description:                "sh_binary test",
-		moduleTypeUnderTest:        "sh_binary",
-		moduleTypeUnderTestFactory: sh.ShBinaryFactory,
-		blueprint: `sh_binary {
+	runShBinaryTestCase(t, Bp2buildTestCase{
+		Description:                "sh_binary test",
+		ModuleTypeUnderTest:        "sh_binary",
+		ModuleTypeUnderTestFactory: sh.ShBinaryFactory,
+		Blueprint: `sh_binary {
     name: "foo",
     src: "foo.sh",
     bazel_module: { bp2build_available: true },
 }`,
-		expectedBazelTargets: []string{
-			makeBazelTarget("sh_binary", "foo", attrNameToString{
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("sh_binary", "foo", AttrNameToString{
 				"srcs": `["foo.sh"]`,
 			})},
 	})

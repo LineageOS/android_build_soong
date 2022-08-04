@@ -94,6 +94,10 @@ func (ll *LabelList) IsNil() bool {
 	return ll.Includes == nil && ll.Excludes == nil
 }
 
+func (ll *LabelList) IsEmpty() bool {
+	return len(ll.Includes) == 0 && len(ll.Excludes) == 0
+}
+
 func (ll *LabelList) deepCopy() LabelList {
 	return LabelList{
 		Includes: ll.Includes[:],
