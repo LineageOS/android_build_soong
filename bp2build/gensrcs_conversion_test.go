@@ -24,7 +24,7 @@ func TestGensrcs(t *testing.T) {
 	testcases := []struct {
 		name               string
 		bp                 string
-		expectedBazelAttrs attrNameToString
+		expectedBazelAttrs AttrNameToString
 	}{
 		{
 			name: "gensrcs with common usage of properties",
@@ -37,7 +37,7 @@ func TestGensrcs(t *testing.T) {
                 output_extension: "out",
                 bazel_module: { bp2build_available: true },
 			}`,
-			expectedBazelAttrs: attrNameToString{
+			expectedBazelAttrs: AttrNameToString{
 				"srcs": `[
         "test/input.txt",
         ":external_files__BP2BUILD__MISSING__DEP",
@@ -56,7 +56,7 @@ func TestGensrcs(t *testing.T) {
                 cmd: "cat $(in) > $(out)",
                 bazel_module: { bp2build_available: true },
 			}`,
-			expectedBazelAttrs: attrNameToString{
+			expectedBazelAttrs: AttrNameToString{
 				"srcs": `["input.txt"]`,
 				"cmd":  `"cat $(SRC) > $(OUT)"`,
 			},
@@ -65,15 +65,15 @@ func TestGensrcs(t *testing.T) {
 
 	for _, test := range testcases {
 		expectedBazelTargets := []string{
-			makeBazelTargetNoRestrictions("gensrcs", "foo", test.expectedBazelAttrs),
+			MakeBazelTargetNoRestrictions("gensrcs", "foo", test.expectedBazelAttrs),
 		}
 		t.Run(test.name, func(t *testing.T) {
-			runBp2BuildTestCase(t, func(ctx android.RegistrationContext) {},
-				bp2buildTestCase{
-					moduleTypeUnderTest:        "gensrcs",
-					moduleTypeUnderTestFactory: genrule.GenSrcsFactory,
-					blueprint:                  test.bp,
-					expectedBazelTargets:       expectedBazelTargets,
+			RunBp2BuildTestCase(t, func(ctx android.RegistrationContext) {},
+				Bp2buildTestCase{
+					ModuleTypeUnderTest:        "gensrcs",
+					ModuleTypeUnderTestFactory: genrule.GenSrcsFactory,
+					Blueprint:                  test.bp,
+					ExpectedBazelTargets:       expectedBazelTargets,
 				})
 		})
 	}
