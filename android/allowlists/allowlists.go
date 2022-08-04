@@ -145,6 +145,7 @@ var (
 		"external/scudo":                                         Bp2BuildDefaultTrueRecursively,
 		"external/selinux/libselinux":                            Bp2BuildDefaultTrueRecursively,
 		"external/selinux/libsepol":                              Bp2BuildDefaultTrueRecursively,
+		"external/toybox":                                        Bp2BuildDefaultTrueRecursively,
 		"external/zlib":                                          Bp2BuildDefaultTrueRecursively,
 		"external/zopfli":                                        Bp2BuildDefaultTrueRecursively,
 		"external/zstd":                                          Bp2BuildDefaultTrueRecursively,
@@ -481,6 +482,9 @@ var (
 		// b/215723302; awaiting tz{data,_version} to then rename targets conflicting with srcs
 		"tzdata",
 		"tz_version",
+
+		// '//bionic/libc:libc_bp2build_cc_library_static' is duplicated in the 'deps' attribute of rule
+		"toybox-static",
 	}
 
 	Bp2buildCcLibraryStaticOnlyList = []string{}
