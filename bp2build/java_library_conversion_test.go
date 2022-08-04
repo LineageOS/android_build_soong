@@ -22,22 +22,22 @@ import (
 	"android/soong/java"
 )
 
-func runJavaLibraryTestCaseWithRegistrationCtxFunc(t *testing.T, tc bp2buildTestCase, registrationCtxFunc func(ctx android.RegistrationContext)) {
+func runJavaLibraryTestCaseWithRegistrationCtxFunc(t *testing.T, tc Bp2buildTestCase, registrationCtxFunc func(ctx android.RegistrationContext)) {
 	t.Helper()
-	(&tc).moduleTypeUnderTest = "java_library"
-	(&tc).moduleTypeUnderTestFactory = java.LibraryFactory
-	runBp2BuildTestCase(t, registrationCtxFunc, tc)
+	(&tc).ModuleTypeUnderTest = "java_library"
+	(&tc).ModuleTypeUnderTestFactory = java.LibraryFactory
+	RunBp2BuildTestCase(t, registrationCtxFunc, tc)
 }
 
-func runJavaLibraryTestCase(t *testing.T, tc bp2buildTestCase) {
+func runJavaLibraryTestCase(t *testing.T, tc Bp2buildTestCase) {
 	t.Helper()
 	runJavaLibraryTestCaseWithRegistrationCtxFunc(t, tc, func(ctx android.RegistrationContext) {})
 }
 
 func TestJavaLibrary(t *testing.T) {
-	runJavaLibraryTestCase(t, bp2buildTestCase{
-		description: "java_library with srcs, exclude_srcs and libs",
-		blueprint: `java_library {
+	runJavaLibraryTestCase(t, Bp2buildTestCase{
+		Description: "java_library with srcs, exclude_srcs and libs",
+		Blueprint: `java_library {
     name: "java-lib-1",
     srcs: ["a.java", "b.java"],
     exclude_srcs: ["b.java"],
@@ -50,12 +50,12 @@ java_library {
     srcs: ["b.java"],
     bazel_module: { bp2build_available: true },
 }`,
-		expectedBazelTargets: []string{
-			makeBazelTarget("java_library", "java-lib-1", attrNameToString{
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("java_library", "java-lib-1", AttrNameToString{
 				"srcs": `["a.java"]`,
 				"deps": `[":java-lib-2"]`,
 			}),
-			makeBazelTarget("java_library", "java-lib-2", attrNameToString{
+			makeBazelTarget("java_library", "java-lib-2", AttrNameToString{
 				"srcs": `["b.java"]`,
 			}),
 		},
@@ -63,8 +63,8 @@ java_library {
 }
 
 func TestJavaLibraryConvertsStaticLibsToDepsAndExports(t *testing.T) {
-	runJavaLibraryTestCase(t, bp2buildTestCase{
-		blueprint: `java_library {
+	runJavaLibraryTestCase(t, Bp2buildTestCase{
+		Blueprint: `java_library {
     name: "java-lib-1",
     srcs: ["a.java"],
     libs: ["java-lib-2"],
@@ -83,8 +83,8 @@ java_library {
     srcs: ["c.java"],
     bazel_module: { bp2build_available: false },
 }`,
-		expectedBazelTargets: []string{
-			makeBazelTarget("java_library", "java-lib-1", attrNameToString{
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("java_library", "java-lib-1", AttrNameToString{
 				"srcs": `["a.java"]`,
 				"deps": `[
         ":java-lib-2",
@@ -97,8 +97,8 @@ java_library {
 }
 
 func TestJavaLibraryConvertsStaticLibsToExportsIfNoSrcs(t *testing.T) {
-	runJavaLibraryTestCase(t, bp2buildTestCase{
-		blueprint: `java_library {
+	runJavaLibraryTestCase(t, Bp2buildTestCase{
+		Blueprint: `java_library {
     name: "java-lib-1",
     static_libs: ["java-lib-2"],
     bazel_module: { bp2build_available: true },
@@ -109,8 +109,8 @@ java_library {
     srcs: ["a.java"],
     bazel_module: { bp2build_available: false },
 }`,
-		expectedBazelTargets: []string{
-			makeBazelTarget("java_library", "java-lib-1", attrNameToString{
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("java_library", "java-lib-1", AttrNameToString{
 				"exports": `[":java-lib-2"]`,
 			}),
 		},
@@ -118,9 +118,9 @@ java_library {
 }
 
 func TestJavaLibraryFailsToConvertLibsWithNoSrcs(t *testing.T) {
-	runJavaLibraryTestCase(t, bp2buildTestCase{
-		expectedErr: fmt.Errorf("Module has direct dependencies but no sources. Bazel will not allow this."),
-		blueprint: `java_library {
+	runJavaLibraryTestCase(t, Bp2buildTestCase{
+		ExpectedErr: fmt.Errorf("Module has direct dependencies but no sources. Bazel will not allow this."),
+		Blueprint: `java_library {
     name: "java-lib-1",
     libs: ["java-lib-2"],
     bazel_module: { bp2build_available: true },
@@ -131,13 +131,13 @@ java_library {
     srcs: ["a.java"],
     bazel_module: { bp2build_available: false },
 }`,
-		expectedBazelTargets: []string{},
+		ExpectedBazelTargets: []string{},
 	})
 }
 
 func TestJavaLibraryPlugins(t *testing.T) {
-	runJavaLibraryTestCaseWithRegistrationCtxFunc(t, bp2buildTestCase{
-		blueprint: `java_library {
+	runJavaLibraryTestCaseWithRegistrationCtxFunc(t, Bp2buildTestCase{
+		Blueprint: `java_library {
     name: "java-lib-1",
     plugins: ["java-plugin-1"],
     bazel_module: { bp2build_available: true },
@@ -148,8 +148,8 @@ java_plugin {
     srcs: ["a.java"],
     bazel_module: { bp2build_available: false },
 }`,
-		expectedBazelTargets: []string{
-			makeBazelTarget("java_library", "java-lib-1", attrNameToString{
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("java_library", "java-lib-1", AttrNameToString{
 				"plugins": `[":java-plugin-1"]`,
 			}),
 		},
@@ -159,14 +159,14 @@ java_plugin {
 }
 
 func TestJavaLibraryJavaVersion(t *testing.T) {
-	runJavaLibraryTestCase(t, bp2buildTestCase{
-		blueprint: `java_library {
+	runJavaLibraryTestCase(t, Bp2buildTestCase{
+		Blueprint: `java_library {
     name: "java-lib-1",
     srcs: ["a.java"],
     java_version: "11",
 }`,
-		expectedBazelTargets: []string{
-			makeBazelTarget("java_library", "java-lib-1", attrNameToString{
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("java_library", "java-lib-1", AttrNameToString{
 				"srcs":      `["a.java"]`,
 				"javacopts": `["-source 11 -target 11"]`,
 			}),
@@ -175,8 +175,8 @@ func TestJavaLibraryJavaVersion(t *testing.T) {
 }
 
 func TestJavaLibraryErrorproneJavacflagsEnabledManually(t *testing.T) {
-	runJavaLibraryTestCase(t, bp2buildTestCase{
-		blueprint: `java_library {
+	runJavaLibraryTestCase(t, Bp2buildTestCase{
+		Blueprint: `java_library {
     name: "java-lib-1",
     srcs: ["a.java"],
     javacflags: ["-Xsuper-fast"],
@@ -185,8 +185,8 @@ func TestJavaLibraryErrorproneJavacflagsEnabledManually(t *testing.T) {
         javacflags: ["-Xep:SpeedLimit:OFF"],
     },
 }`,
-		expectedBazelTargets: []string{
-			makeBazelTarget("java_library", "java-lib-1", attrNameToString{
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("java_library", "java-lib-1", AttrNameToString{
 				"javacopts": `[
         "-Xsuper-fast",
         "-Xep:SpeedLimit:OFF",
@@ -198,8 +198,8 @@ func TestJavaLibraryErrorproneJavacflagsEnabledManually(t *testing.T) {
 }
 
 func TestJavaLibraryErrorproneJavacflagsErrorproneDisabledByDefault(t *testing.T) {
-	runJavaLibraryTestCase(t, bp2buildTestCase{
-		blueprint: `java_library {
+	runJavaLibraryTestCase(t, Bp2buildTestCase{
+		Blueprint: `java_library {
     name: "java-lib-1",
     srcs: ["a.java"],
     javacflags: ["-Xsuper-fast"],
@@ -207,8 +207,8 @@ func TestJavaLibraryErrorproneJavacflagsErrorproneDisabledByDefault(t *testing.T
         javacflags: ["-Xep:SpeedLimit:OFF"],
     },
 }`,
-		expectedBazelTargets: []string{
-			makeBazelTarget("java_library", "java-lib-1", attrNameToString{
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("java_library", "java-lib-1", AttrNameToString{
 				"javacopts": `["-Xsuper-fast"]`,
 				"srcs":      `["a.java"]`,
 			}),
@@ -217,8 +217,8 @@ func TestJavaLibraryErrorproneJavacflagsErrorproneDisabledByDefault(t *testing.T
 }
 
 func TestJavaLibraryErrorproneJavacflagsErrorproneDisabledManually(t *testing.T) {
-	runJavaLibraryTestCase(t, bp2buildTestCase{
-		blueprint: `java_library {
+	runJavaLibraryTestCase(t, Bp2buildTestCase{
+		Blueprint: `java_library {
     name: "java-lib-1",
     srcs: ["a.java"],
     javacflags: ["-Xsuper-fast"],
@@ -227,8 +227,8 @@ func TestJavaLibraryErrorproneJavacflagsErrorproneDisabledManually(t *testing.T)
         javacflags: ["-Xep:SpeedLimit:OFF"],
     },
 }`,
-		expectedBazelTargets: []string{
-			makeBazelTarget("java_library", "java-lib-1", attrNameToString{
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("java_library", "java-lib-1", AttrNameToString{
 				"javacopts": `["-Xsuper-fast"]`,
 				"srcs":      `["a.java"]`,
 			}),
@@ -237,11 +237,11 @@ func TestJavaLibraryErrorproneJavacflagsErrorproneDisabledManually(t *testing.T)
 }
 
 func TestJavaLibraryLogTags(t *testing.T) {
-	runJavaLibraryTestCase(t, bp2buildTestCase{
-		description:                "Java library - logtags creates separate dependency",
-		moduleTypeUnderTest:        "java_library",
-		moduleTypeUnderTestFactory: java.LibraryFactory,
-		blueprint: `java_library {
+	runJavaLibraryTestCase(t, Bp2buildTestCase{
+		Description:                "Java library - logtags creates separate dependency",
+		ModuleTypeUnderTest:        "java_library",
+		ModuleTypeUnderTestFactory: java.LibraryFactory,
+		Blueprint: `java_library {
         name: "example_lib",
         srcs: [
 			"a.java",
@@ -251,14 +251,14 @@ func TestJavaLibraryLogTags(t *testing.T) {
 		],
         bazel_module: { bp2build_available: true },
 }`,
-		expectedBazelTargets: []string{
-			makeBazelTarget("event_log_tags", "example_lib_logtags", attrNameToString{
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("event_log_tags", "example_lib_logtags", AttrNameToString{
 				"srcs": `[
         "a.logtag",
         "b.logtag",
     ]`,
 			}),
-			makeBazelTarget("java_library", "example_lib", attrNameToString{
+			makeBazelTarget("java_library", "example_lib", AttrNameToString{
 				"srcs": `[
         "a.java",
         "b.java",
@@ -269,18 +269,18 @@ func TestJavaLibraryLogTags(t *testing.T) {
 }
 
 func TestJavaLibraryResources(t *testing.T) {
-	runJavaLibraryTestCase(t, bp2buildTestCase{
-		filesystem: map[string]string{
+	runJavaLibraryTestCase(t, Bp2buildTestCase{
+		Filesystem: map[string]string{
 			"res/a.res":      "",
 			"res/b.res":      "",
 			"res/dir1/b.res": "",
 		},
-		blueprint: `java_library {
+		Blueprint: `java_library {
     name: "java-lib-1",
 	java_resources: ["res/a.res", "res/b.res"],
 }`,
-		expectedBazelTargets: []string{
-			makeBazelTarget("java_library", "java-lib-1", attrNameToString{
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("java_library", "java-lib-1", AttrNameToString{
 				"resources": `[
         "res/a.res",
         "res/b.res",
@@ -291,18 +291,18 @@ func TestJavaLibraryResources(t *testing.T) {
 }
 
 func TestJavaLibraryResourceDirs(t *testing.T) {
-	runJavaLibraryTestCase(t, bp2buildTestCase{
-		filesystem: map[string]string{
+	runJavaLibraryTestCase(t, Bp2buildTestCase{
+		Filesystem: map[string]string{
 			"res/a.res":      "",
 			"res/b.res":      "",
 			"res/dir1/b.res": "",
 		},
-		blueprint: `java_library {
+		Blueprint: `java_library {
     name: "java-lib-1",
 	java_resource_dirs: ["res"],
 }`,
-		expectedBazelTargets: []string{
-			makeBazelTarget("java_library", "java-lib-1", attrNameToString{
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("java_library", "java-lib-1", AttrNameToString{
 				"resource_strip_prefix": `"res"`,
 				"resources": `[
         "res/a.res",
@@ -315,18 +315,18 @@ func TestJavaLibraryResourceDirs(t *testing.T) {
 }
 
 func TestJavaLibraryResourcesExcludeDir(t *testing.T) {
-	runJavaLibraryTestCase(t, bp2buildTestCase{
-		filesystem: map[string]string{
+	runJavaLibraryTestCase(t, Bp2buildTestCase{
+		Filesystem: map[string]string{
 			"res/a.res":         "",
 			"res/exclude/b.res": "",
 		},
-		blueprint: `java_library {
+		Blueprint: `java_library {
     name: "java-lib-1",
 	java_resource_dirs: ["res"],
 	exclude_java_resource_dirs: ["res/exclude"],
 }`,
-		expectedBazelTargets: []string{
-			makeBazelTarget("java_library", "java-lib-1", attrNameToString{
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("java_library", "java-lib-1", AttrNameToString{
 				"resource_strip_prefix": `"res"`,
 				"resources":             `["res/a.res"]`,
 			}),
@@ -335,19 +335,19 @@ func TestJavaLibraryResourcesExcludeDir(t *testing.T) {
 }
 
 func TestJavaLibraryResourcesExcludeFile(t *testing.T) {
-	runJavaLibraryTestCase(t, bp2buildTestCase{
-		filesystem: map[string]string{
+	runJavaLibraryTestCase(t, Bp2buildTestCase{
+		Filesystem: map[string]string{
 			"res/a.res":            "",
 			"res/dir1/b.res":       "",
 			"res/dir1/exclude.res": "",
 		},
-		blueprint: `java_library {
+		Blueprint: `java_library {
     name: "java-lib-1",
 	java_resource_dirs: ["res"],
 	exclude_java_resources: ["res/dir1/exclude.res"],
 }`,
-		expectedBazelTargets: []string{
-			makeBazelTarget("java_library", "java-lib-1", attrNameToString{
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("java_library", "java-lib-1", AttrNameToString{
 				"resource_strip_prefix": `"res"`,
 				"resources": `[
         "res/a.res",
@@ -359,16 +359,16 @@ func TestJavaLibraryResourcesExcludeFile(t *testing.T) {
 }
 
 func TestJavaLibraryResourcesFailsWithMultipleDirs(t *testing.T) {
-	runJavaLibraryTestCase(t, bp2buildTestCase{
-		filesystem: map[string]string{
+	runJavaLibraryTestCase(t, Bp2buildTestCase{
+		Filesystem: map[string]string{
 			"res/a.res":  "",
 			"res1/a.res": "",
 		},
-		blueprint: `java_library {
+		Blueprint: `java_library {
     name: "java-lib-1",
 	java_resource_dirs: ["res", "res1"],
 }`,
-		expectedErr:          fmt.Errorf("bp2build does not support more than one directory in java_resource_dirs (b/226423379)"),
-		expectedBazelTargets: []string{},
+		ExpectedErr:          fmt.Errorf("bp2build does not support more than one directory in java_resource_dirs (b/226423379)"),
+		ExpectedBazelTargets: []string{},
 	})
 }

@@ -21,45 +21,45 @@ import (
 	"testing"
 )
 
-func runJavaImportTestCase(t *testing.T, tc bp2buildTestCase) {
+func runJavaImportTestCase(t *testing.T, tc Bp2buildTestCase) {
 	t.Helper()
-	runBp2BuildTestCase(t, registerJavaImportModuleTypes, tc)
+	RunBp2BuildTestCase(t, registerJavaImportModuleTypes, tc)
 }
 
 func registerJavaImportModuleTypes(ctx android.RegistrationContext) {
 }
 
 func TestJavaImportMinimal(t *testing.T) {
-	runJavaImportTestCase(t, bp2buildTestCase{
-		description:                "Java import - simple example",
-		moduleTypeUnderTest:        "java_import",
-		moduleTypeUnderTestFactory: java.ImportFactory,
-		filesystem: map[string]string{
+	runJavaImportTestCase(t, Bp2buildTestCase{
+		Description:                "Java import - simple example",
+		ModuleTypeUnderTest:        "java_import",
+		ModuleTypeUnderTestFactory: java.ImportFactory,
+		Filesystem: map[string]string{
 			"import.jar": "",
 		},
-		blueprint: `
+		Blueprint: `
 java_import {
         name: "example_import",
         jars: ["import.jar"],
         bazel_module: { bp2build_available: true },
 }
 `,
-		expectedBazelTargets: []string{
-			makeBazelTarget("java_import", "example_import", attrNameToString{
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("java_import", "example_import", AttrNameToString{
 				"jars": `["import.jar"]`,
 			}),
 		}})
 }
 
 func TestJavaImportArchVariant(t *testing.T) {
-	runJavaImportTestCase(t, bp2buildTestCase{
-		description:                "Java import - simple example",
-		moduleTypeUnderTest:        "java_import",
-		moduleTypeUnderTestFactory: java.ImportFactory,
-		filesystem: map[string]string{
+	runJavaImportTestCase(t, Bp2buildTestCase{
+		Description:                "Java import - simple example",
+		ModuleTypeUnderTest:        "java_import",
+		ModuleTypeUnderTestFactory: java.ImportFactory,
+		Filesystem: map[string]string{
 			"import.jar": "",
 		},
-		blueprint: `
+		Blueprint: `
 java_import {
         name: "example_import",
 		target: {
@@ -73,8 +73,8 @@ java_import {
         bazel_module: { bp2build_available: true },
 }
 `,
-		expectedBazelTargets: []string{
-			makeBazelTarget("java_import", "example_import", attrNameToString{
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("java_import", "example_import", AttrNameToString{
 				"jars": `select({
         "//build/bazel/platforms/os:android": ["android.jar"],
         "//build/bazel/platforms/os:linux": ["linux.jar"],
