@@ -429,7 +429,9 @@ func makeBazelTargetHostOrDevice(typ, name string, attrs AttrNameToString, hod a
 	}
 
 	attrStrings := make([]string, 0, len(attrs)+1)
-	attrStrings = append(attrStrings, fmt.Sprintf(`    name = "%s",`, name))
+	if name != "" {
+		attrStrings = append(attrStrings, fmt.Sprintf(`    name = "%s",`, name))
+	}
 	for _, k := range android.SortedStringKeys(attrs) {
 		attrStrings = append(attrStrings, fmt.Sprintf("    %s = %s,", k, attrs[k]))
 	}
