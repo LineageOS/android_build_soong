@@ -217,6 +217,7 @@ var (
 		"system/unwinding/libunwindstack":                        Bp2BuildDefaultTrueRecursively,
 		"tools/apksig":                                           Bp2BuildDefaultTrue,
 		"tools/platform-compat/java/android/compat":              Bp2BuildDefaultTrueRecursively,
+		"tools/tradefederation/prebuilts/filegroups":             Bp2BuildDefaultTrueRecursively,
 	}
 
 	Bp2buildKeepExistingBuildFile = map[string]bool{
@@ -526,5 +527,20 @@ var (
 		"simpleperf_ndk",
 		"toybox-static",
 		"zlib_bench",
+
+		// java_import[_host] issues
+		// tradefed prebuilts depend on libprotobuf
+		"prebuilt_tradefed",
+		"prebuilt_tradefed-test-framework",
+		// handcrafted BUILD.bazel files in //prebuilts/...
+		"prebuilt_r8lib-prebuilt",
+		"prebuilt_sdk-core-lambda-stubs",
+		"prebuilt_android-support-collections-nodeps",
+		"prebuilt_android-arch-core-common-nodeps",
+		"prebuilt_android-arch-lifecycle-common-java8-nodeps",
+		"prebuilt_android-arch-lifecycle-common-nodeps",
+		"prebuilt_android-support-annotations-nodeps",
+		"prebuilt_android-arch-paging-common-nodeps",
+		"prebuilt_android-arch-room-common-nodeps",
 	}
 )
