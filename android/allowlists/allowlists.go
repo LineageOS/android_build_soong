@@ -333,6 +333,13 @@ var (
 		"server_configurable_flags",
 		"tensorflow_headers",
 
+		// fastboot
+		"bootimg_headers",
+		"fastboot",
+		"libfastboot",
+		"liblp",
+		"libstorage_literals_headers",
+
 		//external/avb
 		"avbtool",
 		"libavb",
