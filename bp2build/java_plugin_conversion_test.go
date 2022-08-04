@@ -21,19 +21,19 @@ import (
 	"android/soong/java"
 )
 
-func runJavaPluginTestCase(t *testing.T, tc bp2buildTestCase) {
+func runJavaPluginTestCase(t *testing.T, tc Bp2buildTestCase) {
 	t.Helper()
-	(&tc).moduleTypeUnderTest = "java_plugin"
-	(&tc).moduleTypeUnderTestFactory = java.PluginFactory
-	runBp2BuildTestCase(t, func(ctx android.RegistrationContext) {
+	(&tc).ModuleTypeUnderTest = "java_plugin"
+	(&tc).ModuleTypeUnderTestFactory = java.PluginFactory
+	RunBp2BuildTestCase(t, func(ctx android.RegistrationContext) {
 		ctx.RegisterModuleType("java_library", java.LibraryFactory)
 	}, tc)
 }
 
 func TestJavaPlugin(t *testing.T) {
-	runJavaPluginTestCase(t, bp2buildTestCase{
-		description: "java_plugin with srcs, libs, static_libs",
-		blueprint: `java_plugin {
+	runJavaPluginTestCase(t, Bp2buildTestCase{
+		Description: "java_plugin with srcs, libs, static_libs",
+		Blueprint: `java_plugin {
     name: "java-plug-1",
     srcs: ["a.java", "b.java"],
     libs: ["java-lib-1"],
@@ -53,8 +53,8 @@ java_library {
     srcs: ["c.java"],
     bazel_module: { bp2build_available: false },
 }`,
-		expectedBazelTargets: []string{
-			makeBazelTarget("java_plugin", "java-plug-1", attrNameToString{
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("java_plugin", "java-plug-1", AttrNameToString{
 				"target_compatible_with": `select({
         "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
@@ -74,9 +74,9 @@ java_library {
 }
 
 func TestJavaPluginNoSrcs(t *testing.T) {
-	runJavaPluginTestCase(t, bp2buildTestCase{
-		description: "java_plugin without srcs converts (static) libs to deps",
-		blueprint: `java_plugin {
+	runJavaPluginTestCase(t, Bp2buildTestCase{
+		Description: "java_plugin without srcs converts (static) libs to deps",
+		Blueprint: `java_plugin {
     name: "java-plug-1",
     libs: ["java-lib-1"],
     static_libs: ["java-lib-2"],
@@ -94,8 +94,8 @@ java_library {
     srcs: ["c.java"],
     bazel_module: { bp2build_available: false },
 }`,
-		expectedBazelTargets: []string{
-			makeBazelTarget("java_plugin", "java-plug-1", attrNameToString{
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("java_plugin", "java-plug-1", AttrNameToString{
 				"target_compatible_with": `select({
         "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],

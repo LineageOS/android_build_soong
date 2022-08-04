@@ -22,11 +22,11 @@ import (
 	"android/soong/java"
 )
 
-func runJavaProtoTestCase(t *testing.T, tc bp2buildTestCase) {
+func runJavaProtoTestCase(t *testing.T, tc Bp2buildTestCase) {
 	t.Helper()
-	(&tc).moduleTypeUnderTest = "java_library_static"
-	(&tc).moduleTypeUnderTestFactory = java.LibraryFactory
-	runBp2BuildTestCase(t, func(ctx android.RegistrationContext) {}, tc)
+	(&tc).ModuleTypeUnderTest = "java_library_static"
+	(&tc).ModuleTypeUnderTestFactory = java.LibraryFactory
+	RunBp2BuildTestCase(t, func(ctx android.RegistrationContext) {}, tc)
 }
 
 func TestJavaProto(t *testing.T) {
@@ -70,25 +70,25 @@ func TestJavaProto(t *testing.T) {
     srcs: ["a.proto"],
 }`
 
-	protoLibrary := makeBazelTarget("proto_library", "java-protos_proto", attrNameToString{
+	protoLibrary := makeBazelTarget("proto_library", "java-protos_proto", AttrNameToString{
 		"srcs": `["a.proto"]`,
 	})
 
 	for _, tc := range testCases {
 		javaLibraryName := fmt.Sprintf("java-protos_%s", tc.javaLibraryNameExtension)
 
-		runJavaProtoTestCase(t, bp2buildTestCase{
-			description: fmt.Sprintf("java_proto %s", tc.protoType),
-			blueprint:   fmt.Sprintf(bp, tc.protoType),
-			expectedBazelTargets: []string{
+		runJavaProtoTestCase(t, Bp2buildTestCase{
+			Description: fmt.Sprintf("java_proto %s", tc.protoType),
+			Blueprint:   fmt.Sprintf(bp, tc.protoType),
+			ExpectedBazelTargets: []string{
 				protoLibrary,
 				makeBazelTarget(
 					tc.javaLibraryType,
 					javaLibraryName,
-					attrNameToString{
+					AttrNameToString{
 						"deps": `[":java-protos_proto"]`,
 					}),
-				makeBazelTarget("java_library", "java-protos", attrNameToString{
+				makeBazelTarget("java_library", "java-protos", AttrNameToString{
 					"exports": fmt.Sprintf(`[":%s"]`, javaLibraryName),
 				}),
 			},
@@ -97,25 +97,25 @@ func TestJavaProto(t *testing.T) {
 }
 
 func TestJavaProtoDefault(t *testing.T) {
-	runJavaProtoTestCase(t, bp2buildTestCase{
-		description: "java_library proto default",
-		blueprint: `java_library_static {
+	runJavaProtoTestCase(t, Bp2buildTestCase{
+		Description: "java_library proto default",
+		Blueprint: `java_library_static {
     name: "java-protos",
     srcs: ["a.proto"],
     java_version: "7",
 }
 `,
-		expectedBazelTargets: []string{
-			makeBazelTarget("proto_library", "java-protos_proto", attrNameToString{
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("proto_library", "java-protos_proto", AttrNameToString{
 				"srcs": `["a.proto"]`,
 			}),
 			makeBazelTarget(
 				"java_lite_proto_library",
 				"java-protos_java_proto_lite",
-				attrNameToString{
+				AttrNameToString{
 					"deps": `[":java-protos_proto"]`,
 				}),
-			makeBazelTarget("java_library", "java-protos", attrNameToString{
+			makeBazelTarget("java_library", "java-protos", AttrNameToString{
 				"exports":   `[":java-protos_java_proto_lite"]`,
 				"javacopts": `["-source 1.7 -target 1.7"]`,
 			}),
