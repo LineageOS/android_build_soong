@@ -56,15 +56,16 @@ func targetSdkVersionForManifestFixer(ctx android.ModuleContext, sdkContext andr
 }
 
 type ManifestFixerParams struct {
-	SdkContext            android.SdkContext
-	ClassLoaderContexts   dexpreopt.ClassLoaderContextMap
-	IsLibrary             bool
-	UseEmbeddedNativeLibs bool
-	UsesNonSdkApis        bool
-	UseEmbeddedDex        bool
-	HasNoCode             bool
-	TestOnly              bool
-	LoggingParent         string
+	SdkContext             android.SdkContext
+	ClassLoaderContexts    dexpreopt.ClassLoaderContextMap
+	IsLibrary              bool
+	DefaultManifestVersion string
+	UseEmbeddedNativeLibs  bool
+	UsesNonSdkApis         bool
+	UseEmbeddedDex         bool
+	HasNoCode              bool
+	TestOnly               bool
+	LoggingParent          string
 }
 
 // Uses manifest_fixer.py to inject minSdkVersion, etc. into an AndroidManifest.xml
@@ -152,6 +153,9 @@ func ManifestFixer(ctx android.ModuleContext, manifest android.Path,
 		args = append(args, "--minSdkVersion ", minSdkVersion)
 		args = append(args, "--replaceMaxSdkVersionPlaceholder ", strconv.Itoa(replaceMaxSdkVersionPlaceholder.FinalOrFutureInt()))
 		args = append(args, "--raise-min-sdk-version")
+	}
+	if params.DefaultManifestVersion != "" {
+		args = append(args, "--override-placeholder-version", params.DefaultManifestVersion)
 	}
 
 	fixedManifest := android.PathForModuleOut(ctx, "manifest_fixer", "AndroidManifest.xml")

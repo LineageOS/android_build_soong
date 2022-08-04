@@ -70,6 +70,8 @@ def parse_args():
   parser.add_argument('--test-only', dest='test_only', action='store_true',
                       help=('adds testOnly="true" attribute to application. Assign true value if application elem '
                             'already has a testOnly attribute.'))
+  parser.add_argument('--override-placeholder-version', dest='new_version',
+                      help='Overrides the versionCode if it\'s set to the placeholder value of 0')
   parser.add_argument('input', help='input AndroidManifest.xml file')
   parser.add_argument('output', help='output AndroidManifest.xml file')
   return parser.parse_args()
@@ -362,6 +364,19 @@ def set_max_sdk_version(doc, max_sdk_version):
       if max_attr and max_attr.value == 'current':
         max_attr.value = max_sdk_version
 
+def override_placeholder_version(doc, new_version):
+  """Replace the versionCode attribute value if it\'s currently
+  set to the placeholder version of 0.
+
+  Args:
+    doc: The XML document.  May be modified by this function.
+    new_version: The new version to set if versionCode is equal to 0.
+  """
+  manifest = parse_manifest(doc)
+  version = manifest.getAttribute("android:versionCode")
+  if (version == '0'):
+    manifest.setAttribute("android:versionCode", new_version)
+
 def main():
   """Program entry point."""
   try:
@@ -400,6 +415,9 @@ def main():
 
     if args.extract_native_libs is not None:
       add_extract_native_libs(doc, args.extract_native_libs)
+
+    if args.new_version:
+      override_placeholder_version(doc, args.new_version)
 
     with open(args.output, 'w') as f:
       write_xml(f, doc)
