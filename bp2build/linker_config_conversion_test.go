@@ -21,23 +21,23 @@ import (
 	"android/soong/linkerconfig"
 )
 
-func runLinkerConfigTestCase(t *testing.T, tc bp2buildTestCase) {
+func runLinkerConfigTestCase(t *testing.T, tc Bp2buildTestCase) {
 	t.Helper()
-	(&tc).moduleTypeUnderTest = "linker_config"
-	(&tc).moduleTypeUnderTestFactory = linkerconfig.LinkerConfigFactory
+	(&tc).ModuleTypeUnderTest = "linker_config"
+	(&tc).ModuleTypeUnderTestFactory = linkerconfig.LinkerConfigFactory
 	runBp2BuildTestCaseSimple(t, tc)
 }
 
 func TestLinkerConfigConvertsSrc(t *testing.T) {
 	runLinkerConfigTestCase(t,
-		bp2buildTestCase{
-			blueprint: `
+		Bp2buildTestCase{
+			Blueprint: `
 linker_config {
 	name: "foo",
 	src: "a.json",
 }
 `,
-			expectedBazelTargets: []string{makeBazelTarget("linker_config", "foo", attrNameToString{
+			ExpectedBazelTargets: []string{makeBazelTarget("linker_config", "foo", AttrNameToString{
 				"src": `"a.json"`,
 			})},
 		})
@@ -46,14 +46,14 @@ linker_config {
 
 func TestLinkerConfigNoSrc(t *testing.T) {
 	runLinkerConfigTestCase(t,
-		bp2buildTestCase{
-			blueprint: `
+		Bp2buildTestCase{
+			Blueprint: `
 linker_config {
 	name: "foo",
 }
 `,
-			expectedBazelTargets: []string{},
-			expectedErr:          fmt.Errorf("Android.bp:2:1: module \"foo\": src: empty src is not supported"),
+			ExpectedBazelTargets: []string{},
+			ExpectedErr:          fmt.Errorf("Android.bp:2:1: module \"foo\": src: empty src is not supported"),
 		})
 
 }
