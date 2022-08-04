@@ -78,9 +78,11 @@ func (m *licenseModule) ConvertWithBp2build(ctx TopDownMutatorContext) {
 		Visibility:       m.properties.Visibility,
 	}
 
-	// TODO(asmundak): Soong supports multiple license texts while Bazel does not.
-	if len(m.properties.License_text) > 1 {
-		fmt.Fprintf(os.Stderr, "%s:%s: warning: using only the first license_text item\n",
+	// TODO(asmundak): Soong supports multiple license texts while Bazel's license
+	// rule does not. Have android_license create a genrule to concatenate multiple
+	// license texts.
+	if len(m.properties.License_text) > 1 && ctx.Config().IsEnvTrue("BP2BUILD_VERBOSE") {
+		fmt.Fprintf(os.Stderr, "warning: using only the first license_text item from //%s:%s\n",
 			ctx.ModuleDir(), m.Name())
 	}
 	if len(m.properties.License_text) >= 1 {
