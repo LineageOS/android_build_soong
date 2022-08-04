@@ -44,14 +44,18 @@ declare -r go_extractor=$(realpath prebuilts/build-tools/linux-x86/bin/go_extrac
 declare -r go_root=$(realpath prebuilts/go/linux-x86)
 declare -r source_root=$PWD
 
-# TODO(asmundak): Until b/182183061 is fixed, default corpus has to be specified
-# in the rules file. Generate this file on the fly with corpus value set from the
-# environment variable.
-for dir in blueprint soong; do
-  (cd "build/$dir";
+# For the Go code, we invoke the extractor directly. The two caveats are that
+# the extractor's rewrite rules are generated on the fly as they depend on the XREF_CORPUS
+# value, and that the name of the kzip file is derived from the directory name
+# by replacing '/' with '_'.
+declare -ar go_modules=(build/blueprint build/soong
+  build/make/tools/canoninja build/make/tools/compliance build/make/tools/rbcrun)
+for dir in "${go_modules[@]}"; do
+  (cd "$dir";
+   outfile=$(echo "$dir" | sed -r 's|/|_|g;s|(.*)|\1.go.kzip|');
    KYTHE_ROOT_DIRECTORY="${source_root}" "$go_extractor" --goroot="$go_root" \
    --rules=<(printf '[{"pattern": "(.*)","vname": {"path": "@1@", "corpus":"%s"}}]' "${XREF_CORPUS}") \
-   --canonicalize_package_corpus --output "${abspath_out}/soong/build_${dir}.go.kzip" ./...
+   --canonicalize_package_corpus --output "${abspath_out}/soong/$outfile" ./...
   )
 done
 
