@@ -141,7 +141,7 @@ func RunBp2BuildTestCase(t *testing.T, registerModuleTypes func(ctx android.Regi
 		android.FailIfErrored(t, errs)
 	}
 	if actualCount, expectedCount := len(bazelTargets), len(tc.ExpectedBazelTargets); actualCount != expectedCount {
-		t.Errorf("%s: Expected %d bazel target (%s), got `%d`` (%s)",
+		t.Errorf("%s: Expected %d bazel target (%s), got %d (%s)",
 			tc.Description, expectedCount, tc.ExpectedBazelTargets, actualCount, bazelTargets)
 	} else {
 		for i, target := range bazelTargets {
@@ -451,4 +451,15 @@ func MakeBazelTargetNoRestrictions(typ, name string, attrs AttrNameToString) str
 // as this is the most common default in Soong.
 func MakeBazelTarget(typ, name string, attrs AttrNameToString) string {
 	return makeBazelTargetHostOrDevice(typ, name, attrs, android.DeviceSupported)
+}
+
+type ExpectedRuleTarget struct {
+	Rule  string
+	Name  string
+	Attrs AttrNameToString
+	Hod   android.HostOrDeviceSupported
+}
+
+func (ebr ExpectedRuleTarget) String() string {
+	return makeBazelTargetHostOrDevice(ebr.Rule, ebr.Name, ebr.Attrs, ebr.Hod)
 }
