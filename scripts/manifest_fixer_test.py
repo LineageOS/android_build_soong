@@ -643,5 +643,39 @@ class SetMaxSdkVersionTest(unittest.TestCase):
     output = self.run_test(manifest_input, '9000')
     self.assert_xml_equal(output, expected)
 
+class OverrideDefaultVersionTest(unittest.TestCase):
+  """Unit tests for override_default_version function."""
+
+  def assert_xml_equal(self, output, expected):
+    self.assertEqual(ET.canonicalize(output), ET.canonicalize(expected))
+
+  def run_test(self, input_manifest, version):
+    doc = minidom.parseString(input_manifest)
+    manifest_fixer.override_placeholder_version(doc, version)
+    output = io.StringIO()
+    manifest_fixer.write_xml(output, doc)
+    return output.getvalue()
+
+  manifest_tmpl = (
+      '<?xml version="1.0" encoding="utf-8"?>\n'
+      '<manifest xmlns:android="http://schemas.android.com/apk/res/android" '
+      'android:versionCode="%s">\n'
+      '</manifest>\n')
+
+  def test_doesnt_override_existing_version(self):
+    """Tests that an existing version is not overridden"""
+    manifest_input = self.manifest_tmpl % '12345'
+    expected = manifest_input
+    output = self.run_test(manifest_input, '67890')
+    self.assert_xml_equal(output, expected)
+
+  def test_overrides_default_version(self):
+    """Tests that a default version is overridden"""
+    manifest_input = self.manifest_tmpl % '0'
+    expected = self.manifest_tmpl % '67890'
+    output = self.run_test(manifest_input, '67890')
+    self.assert_xml_equal(output, expected)
+
+
 if __name__ == '__main__':
   unittest.main(verbosity=2)
