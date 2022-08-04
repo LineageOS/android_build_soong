@@ -320,7 +320,8 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (convers
 
 				// Handle modules with unconverted deps. By default, emit a warning.
 				if unconvertedDeps := aModule.GetUnconvertedBp2buildDeps(); len(unconvertedDeps) > 0 {
-					msg := fmt.Sprintf("%q depends on unconverted modules: %s", m.Name(), strings.Join(unconvertedDeps, ", "))
+					msg := fmt.Sprintf("%s %s:%s depends on unconverted modules: %s",
+						moduleType, bpCtx.ModuleDir(m), m.Name(), strings.Join(unconvertedDeps, ", "))
 					if ctx.unconvertedDepMode == warnUnconvertedDeps {
 						metrics.moduleWithUnconvertedDepsMsgs = append(metrics.moduleWithUnconvertedDepsMsgs, msg)
 					} else if ctx.unconvertedDepMode == errorModulesUnconvertedDeps {
@@ -329,7 +330,8 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (convers
 					}
 				}
 				if unconvertedDeps := aModule.GetMissingBp2buildDeps(); len(unconvertedDeps) > 0 {
-					msg := fmt.Sprintf("%q depends on missing modules: %s", m.Name(), strings.Join(unconvertedDeps, ", "))
+					msg := fmt.Sprintf("%s %s:%s depends on missing modules: %s",
+						moduleType, bpCtx.ModuleDir(m), m.Name(), strings.Join(unconvertedDeps, ", "))
 					if ctx.unconvertedDepMode == warnUnconvertedDeps {
 						metrics.moduleWithMissingDepsMsgs = append(metrics.moduleWithMissingDepsMsgs, msg)
 					} else if ctx.unconvertedDepMode == errorModulesUnconvertedDeps {
