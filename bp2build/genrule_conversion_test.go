@@ -27,11 +27,11 @@ func registerGenruleModuleTypes(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("genrule_defaults", func() android.Module { return genrule.DefaultsFactory() })
 }
 
-func runGenruleTestCase(t *testing.T, tc bp2buildTestCase) {
+func runGenruleTestCase(t *testing.T, tc Bp2buildTestCase) {
 	t.Helper()
-	(&tc).moduleTypeUnderTest = "genrule"
-	(&tc).moduleTypeUnderTestFactory = genrule.GenRuleFactory
-	runBp2BuildTestCase(t, registerGenruleModuleTypes, tc)
+	(&tc).ModuleTypeUnderTest = "genrule"
+	(&tc).ModuleTypeUnderTestFactory = genrule.GenRuleFactory
+	RunBp2BuildTestCase(t, registerGenruleModuleTypes, tc)
 }
 
 func otherGenruleBp(genruleTarget string) map[string]string {
@@ -101,7 +101,7 @@ func TestGenruleCliVariableReplacement(t *testing.T) {
 }`
 
 	for _, tc := range testCases {
-		moduleAttrs := attrNameToString{
+		moduleAttrs := AttrNameToString{
 			"cmd":   fmt.Sprintf(`"$(location :foo.tool) --genDir=%s arg $(SRCS) $(OUTS)"`, tc.genDir),
 			"outs":  `["foo.out"]`,
 			"srcs":  `["foo.in"]`,
@@ -113,12 +113,12 @@ func TestGenruleCliVariableReplacement(t *testing.T) {
 		}
 
 		t.Run(tc.moduleType, func(t *testing.T) {
-			runBp2BuildTestCase(t, func(ctx android.RegistrationContext) {},
-				bp2buildTestCase{
-					moduleTypeUnderTest:        tc.moduleType,
-					moduleTypeUnderTestFactory: tc.factory,
-					blueprint:                  fmt.Sprintf(bp, tc.moduleType, tc.moduleType),
-					expectedBazelTargets:       expectedBazelTargets,
+			RunBp2BuildTestCase(t, func(ctx android.RegistrationContext) {},
+				Bp2buildTestCase{
+					ModuleTypeUnderTest:        tc.moduleType,
+					ModuleTypeUnderTestFactory: tc.factory,
+					Blueprint:                  fmt.Sprintf(bp, tc.moduleType, tc.moduleType),
+					ExpectedBazelTargets:       expectedBazelTargets,
 				})
 		})
 	}
@@ -169,13 +169,13 @@ func TestGenruleLocationsLabel(t *testing.T) {
 }`
 
 	for _, tc := range testCases {
-		fooAttrs := attrNameToString{
+		fooAttrs := AttrNameToString{
 			"cmd":   `"$(locations :foo.tools) -s $(OUTS) $(SRCS)"`,
 			"outs":  `["foo.out"]`,
 			"srcs":  `["foo.in"]`,
 			"tools": `[":foo.tools"]`,
 		}
-		fooToolsAttrs := attrNameToString{
+		fooToolsAttrs := AttrNameToString{
 			"cmd": `"cp $(SRCS) $(OUTS)"`,
 			"outs": `[
         "foo_tool.out",
@@ -190,12 +190,12 @@ func TestGenruleLocationsLabel(t *testing.T) {
 		}
 
 		t.Run(tc.moduleType, func(t *testing.T) {
-			runBp2BuildTestCase(t, func(ctx android.RegistrationContext) {},
-				bp2buildTestCase{
-					moduleTypeUnderTest:        tc.moduleType,
-					moduleTypeUnderTestFactory: tc.factory,
-					blueprint:                  fmt.Sprintf(bp, tc.moduleType, tc.moduleType),
-					expectedBazelTargets:       expectedBazelTargets,
+			RunBp2BuildTestCase(t, func(ctx android.RegistrationContext) {},
+				Bp2buildTestCase{
+					ModuleTypeUnderTest:        tc.moduleType,
+					ModuleTypeUnderTestFactory: tc.factory,
+					Blueprint:                  fmt.Sprintf(bp, tc.moduleType, tc.moduleType),
+					ExpectedBazelTargets:       expectedBazelTargets,
 				})
 		})
 	}
@@ -238,7 +238,7 @@ func TestGenruleLocationsAbsoluteLabel(t *testing.T) {
 }`
 
 	for _, tc := range testCases {
-		moduleAttrs := attrNameToString{
+		moduleAttrs := AttrNameToString{
 			"cmd":   `"$(locations //other:foo.tool) -s $(OUTS) $(SRCS)"`,
 			"outs":  `["foo.out"]`,
 			"srcs":  `["foo.in"]`,
@@ -250,13 +250,13 @@ func TestGenruleLocationsAbsoluteLabel(t *testing.T) {
 		}
 
 		t.Run(tc.moduleType, func(t *testing.T) {
-			runBp2BuildTestCase(t, func(ctx android.RegistrationContext) {},
-				bp2buildTestCase{
-					moduleTypeUnderTest:        tc.moduleType,
-					moduleTypeUnderTestFactory: tc.factory,
-					blueprint:                  fmt.Sprintf(bp, tc.moduleType),
-					expectedBazelTargets:       expectedBazelTargets,
-					filesystem:                 otherGenruleBp(tc.moduleType),
+			RunBp2BuildTestCase(t, func(ctx android.RegistrationContext) {},
+				Bp2buildTestCase{
+					ModuleTypeUnderTest:        tc.moduleType,
+					ModuleTypeUnderTestFactory: tc.factory,
+					Blueprint:                  fmt.Sprintf(bp, tc.moduleType),
+					ExpectedBazelTargets:       expectedBazelTargets,
+					Filesystem:                 otherGenruleBp(tc.moduleType),
 				})
 		})
 	}
@@ -299,7 +299,7 @@ func TestGenruleSrcsLocationsAbsoluteLabel(t *testing.T) {
 }`
 
 	for _, tc := range testCases {
-		moduleAttrs := attrNameToString{
+		moduleAttrs := AttrNameToString{
 			"cmd":   `"$(locations //other:foo.tool) -s $(OUTS) $(location //other:other.tool)"`,
 			"outs":  `["foo.out"]`,
 			"srcs":  `["//other:other.tool"]`,
@@ -311,13 +311,13 @@ func TestGenruleSrcsLocationsAbsoluteLabel(t *testing.T) {
 		}
 
 		t.Run(tc.moduleType, func(t *testing.T) {
-			runBp2BuildTestCase(t, func(ctx android.RegistrationContext) {},
-				bp2buildTestCase{
-					moduleTypeUnderTest:        tc.moduleType,
-					moduleTypeUnderTestFactory: tc.factory,
-					blueprint:                  fmt.Sprintf(bp, tc.moduleType),
-					expectedBazelTargets:       expectedBazelTargets,
-					filesystem:                 otherGenruleBp(tc.moduleType),
+			RunBp2BuildTestCase(t, func(ctx android.RegistrationContext) {},
+				Bp2buildTestCase{
+					ModuleTypeUnderTest:        tc.moduleType,
+					ModuleTypeUnderTestFactory: tc.factory,
+					Blueprint:                  fmt.Sprintf(bp, tc.moduleType),
+					ExpectedBazelTargets:       expectedBazelTargets,
+					Filesystem:                 otherGenruleBp(tc.moduleType),
 				})
 		})
 	}
@@ -360,7 +360,7 @@ func TestGenruleLocationLabelShouldSubstituteFirstToolLabel(t *testing.T) {
 }`
 
 	for _, tc := range testCases {
-		moduleAttrs := attrNameToString{
+		moduleAttrs := AttrNameToString{
 			"cmd":  `"$(location //other:foo.tool) -s $(OUTS) $(SRCS)"`,
 			"outs": `["foo.out"]`,
 			"srcs": `["foo.in"]`,
@@ -375,13 +375,13 @@ func TestGenruleLocationLabelShouldSubstituteFirstToolLabel(t *testing.T) {
 		}
 
 		t.Run(tc.moduleType, func(t *testing.T) {
-			runBp2BuildTestCase(t, func(ctx android.RegistrationContext) {},
-				bp2buildTestCase{
-					moduleTypeUnderTest:        tc.moduleType,
-					moduleTypeUnderTestFactory: tc.factory,
-					blueprint:                  fmt.Sprintf(bp, tc.moduleType),
-					expectedBazelTargets:       expectedBazelTargets,
-					filesystem:                 otherGenruleBp(tc.moduleType),
+			RunBp2BuildTestCase(t, func(ctx android.RegistrationContext) {},
+				Bp2buildTestCase{
+					ModuleTypeUnderTest:        tc.moduleType,
+					ModuleTypeUnderTestFactory: tc.factory,
+					Blueprint:                  fmt.Sprintf(bp, tc.moduleType),
+					ExpectedBazelTargets:       expectedBazelTargets,
+					Filesystem:                 otherGenruleBp(tc.moduleType),
 				})
 		})
 	}
@@ -424,7 +424,7 @@ func TestGenruleLocationsLabelShouldSubstituteFirstToolLabel(t *testing.T) {
 }`
 
 	for _, tc := range testCases {
-		moduleAttrs := attrNameToString{
+		moduleAttrs := AttrNameToString{
 			"cmd":  `"$(locations //other:foo.tool) -s $(OUTS) $(SRCS)"`,
 			"outs": `["foo.out"]`,
 			"srcs": `["foo.in"]`,
@@ -439,13 +439,13 @@ func TestGenruleLocationsLabelShouldSubstituteFirstToolLabel(t *testing.T) {
 		}
 
 		t.Run(tc.moduleType, func(t *testing.T) {
-			runBp2BuildTestCase(t, func(ctx android.RegistrationContext) {},
-				bp2buildTestCase{
-					moduleTypeUnderTest:        tc.moduleType,
-					moduleTypeUnderTestFactory: tc.factory,
-					blueprint:                  fmt.Sprintf(bp, tc.moduleType),
-					expectedBazelTargets:       expectedBazelTargets,
-					filesystem:                 otherGenruleBp(tc.moduleType),
+			RunBp2BuildTestCase(t, func(ctx android.RegistrationContext) {},
+				Bp2buildTestCase{
+					ModuleTypeUnderTest:        tc.moduleType,
+					ModuleTypeUnderTestFactory: tc.factory,
+					Blueprint:                  fmt.Sprintf(bp, tc.moduleType),
+					ExpectedBazelTargets:       expectedBazelTargets,
+					Filesystem:                 otherGenruleBp(tc.moduleType),
 				})
 		})
 	}
@@ -487,7 +487,7 @@ func TestGenruleWithoutToolsOrToolFiles(t *testing.T) {
 }`
 
 	for _, tc := range testCases {
-		moduleAttrs := attrNameToString{
+		moduleAttrs := AttrNameToString{
 			"cmd":  `"cp $(SRCS) $(OUTS)"`,
 			"outs": `["foo.out"]`,
 			"srcs": `["foo.in"]`,
@@ -498,22 +498,22 @@ func TestGenruleWithoutToolsOrToolFiles(t *testing.T) {
 		}
 
 		t.Run(tc.moduleType, func(t *testing.T) {
-			runBp2BuildTestCase(t, func(ctx android.RegistrationContext) {},
-				bp2buildTestCase{
-					moduleTypeUnderTest:        tc.moduleType,
-					moduleTypeUnderTestFactory: tc.factory,
-					blueprint:                  fmt.Sprintf(bp, tc.moduleType),
-					expectedBazelTargets:       expectedBazelTargets,
+			RunBp2BuildTestCase(t, func(ctx android.RegistrationContext) {},
+				Bp2buildTestCase{
+					ModuleTypeUnderTest:        tc.moduleType,
+					ModuleTypeUnderTestFactory: tc.factory,
+					Blueprint:                  fmt.Sprintf(bp, tc.moduleType),
+					ExpectedBazelTargets:       expectedBazelTargets,
 				})
 		})
 	}
 }
 
 func TestGenruleBp2BuildInlinesDefaults(t *testing.T) {
-	testCases := []bp2buildTestCase{
+	testCases := []Bp2buildTestCase{
 		{
-			description: "genrule applies properties from a genrule_defaults dependency if not specified",
-			blueprint: `genrule_defaults {
+			Description: "genrule applies properties from a genrule_defaults dependency if not specified",
+			Blueprint: `genrule_defaults {
     name: "gen_defaults",
     cmd: "do-something $(in) $(out)",
 }
@@ -525,8 +525,8 @@ genrule {
     bazel_module: { bp2build_available: true },
 }
 `,
-			expectedBazelTargets: []string{
-				makeBazelTargetNoRestrictions("genrule", "gen", attrNameToString{
+			ExpectedBazelTargets: []string{
+				MakeBazelTargetNoRestrictions("genrule", "gen", AttrNameToString{
 					"cmd":  `"do-something $(SRCS) $(OUTS)"`,
 					"outs": `["out"]`,
 					"srcs": `["in1"]`,
@@ -534,8 +534,8 @@ genrule {
 			},
 		},
 		{
-			description: "genrule does merges properties from a genrule_defaults dependency, latest-first",
-			blueprint: `genrule_defaults {
+			Description: "genrule does merges properties from a genrule_defaults dependency, latest-first",
+			Blueprint: `genrule_defaults {
     name: "gen_defaults",
     out: ["out-from-defaults"],
     srcs: ["in-from-defaults"],
@@ -550,8 +550,8 @@ genrule {
     bazel_module: { bp2build_available: true },
 }
 `,
-			expectedBazelTargets: []string{
-				makeBazelTargetNoRestrictions("genrule", "gen", attrNameToString{
+			ExpectedBazelTargets: []string{
+				MakeBazelTargetNoRestrictions("genrule", "gen", AttrNameToString{
 					"cmd": `"do-something $(SRCS) $(OUTS)"`,
 					"outs": `[
         "out-from-defaults",
@@ -565,8 +565,8 @@ genrule {
 			},
 		},
 		{
-			description: "genrule applies properties from list of genrule_defaults",
-			blueprint: `genrule_defaults {
+			Description: "genrule applies properties from list of genrule_defaults",
+			Blueprint: `genrule_defaults {
     name: "gen_defaults1",
     cmd: "cp $(in) $(out)",
 }
@@ -583,8 +583,8 @@ genrule {
     bazel_module: { bp2build_available: true },
 }
 `,
-			expectedBazelTargets: []string{
-				makeBazelTargetNoRestrictions("genrule", "gen", attrNameToString{
+			ExpectedBazelTargets: []string{
+				MakeBazelTargetNoRestrictions("genrule", "gen", AttrNameToString{
 					"cmd":  `"cp $(SRCS) $(OUTS)"`,
 					"outs": `["out"]`,
 					"srcs": `["in1"]`,
@@ -592,8 +592,8 @@ genrule {
 			},
 		},
 		{
-			description: "genrule applies properties from genrule_defaults transitively",
-			blueprint: `genrule_defaults {
+			Description: "genrule applies properties from genrule_defaults transitively",
+			Blueprint: `genrule_defaults {
     name: "gen_defaults1",
     defaults: ["gen_defaults2"],
     cmd: "cmd1 $(in) $(out)", // overrides gen_defaults2's cmd property value.
@@ -620,8 +620,8 @@ genrule {
     bazel_module: { bp2build_available: true },
 }
 `,
-			expectedBazelTargets: []string{
-				makeBazelTargetNoRestrictions("genrule", "gen", attrNameToString{
+			ExpectedBazelTargets: []string{
+				MakeBazelTargetNoRestrictions("genrule", "gen", AttrNameToString{
 					"cmd": `"cmd1 $(SRCS) $(OUTS)"`,
 					"outs": `[
         "out-from-3",
@@ -638,7 +638,7 @@ genrule {
 	}
 
 	for _, testCase := range testCases {
-		t.Run(testCase.description, func(t *testing.T) {
+		t.Run(testCase.Description, func(t *testing.T) {
 			runGenruleTestCase(t, testCase)
 		})
 	}

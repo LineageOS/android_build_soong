@@ -25,9 +25,9 @@ import (
 	"testing"
 )
 
-func runApexTestCase(t *testing.T, tc bp2buildTestCase) {
+func runApexTestCase(t *testing.T, tc Bp2buildTestCase) {
 	t.Helper()
-	runBp2BuildTestCase(t, registerApexModuleTypes, tc)
+	RunBp2BuildTestCase(t, registerApexModuleTypes, tc)
 }
 
 func registerApexModuleTypes(ctx android.RegistrationContext) {
@@ -43,9 +43,9 @@ func registerApexModuleTypes(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("prebuilt_etc", etc.PrebuiltEtcFactory)
 }
 
-func runOverrideApexTestCase(t *testing.T, tc bp2buildTestCase) {
+func runOverrideApexTestCase(t *testing.T, tc Bp2buildTestCase) {
 	t.Helper()
-	runBp2BuildTestCase(t, registerOverrideApexModuleTypes, tc)
+	RunBp2BuildTestCase(t, registerOverrideApexModuleTypes, tc)
 }
 
 func registerOverrideApexModuleTypes(ctx android.RegistrationContext) {
@@ -63,12 +63,12 @@ func registerOverrideApexModuleTypes(ctx android.RegistrationContext) {
 }
 
 func TestApexBundleSimple(t *testing.T) {
-	runApexTestCase(t, bp2buildTestCase{
-		description:                "apex - example with all props, file_context is a module in same Android.bp",
-		moduleTypeUnderTest:        "apex",
-		moduleTypeUnderTestFactory: apex.BundleFactory,
-		filesystem:                 map[string]string{},
-		blueprint: `
+	runApexTestCase(t, Bp2buildTestCase{
+		Description:                "apex - example with all props, file_context is a module in same Android.bp",
+		ModuleTypeUnderTest:        "apex",
+		ModuleTypeUnderTestFactory: apex.BundleFactory,
+		Filesystem:                 map[string]string{},
+		Blueprint: `
 apex_key {
 	name: "com.android.apogee.key",
 	public_key: "com.android.apogee.avbpubkey",
@@ -140,8 +140,8 @@ apex {
 	logging_parent: "logging.parent",
 }
 `,
-		expectedBazelTargets: []string{
-			makeBazelTarget("apex", "com.android.apogee", attrNameToString{
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("apex", "com.android.apogee", AttrNameToString{
 				"android_manifest": `"ApogeeAndroidManifest.xml"`,
 				"binaries": `[
         ":cc_binary_1",
@@ -181,11 +181,11 @@ apex {
 }
 
 func TestApexBundleSimple_fileContextsInAnotherAndroidBp(t *testing.T) {
-	runApexTestCase(t, bp2buildTestCase{
-		description:                "apex - file contexts is a module in another Android.bp",
-		moduleTypeUnderTest:        "apex",
-		moduleTypeUnderTestFactory: apex.BundleFactory,
-		filesystem: map[string]string{
+	runApexTestCase(t, Bp2buildTestCase{
+		Description:                "apex - file contexts is a module in another Android.bp",
+		ModuleTypeUnderTest:        "apex",
+		ModuleTypeUnderTestFactory: apex.BundleFactory,
+		Filesystem: map[string]string{
 			"a/b/Android.bp": `
 filegroup {
 	name: "com.android.apogee-file_contexts",
@@ -196,14 +196,14 @@ filegroup {
 }
 `,
 		},
-		blueprint: `
+		Blueprint: `
 apex {
 	name: "com.android.apogee",
 	file_contexts: ":com.android.apogee-file_contexts",
 }
 `,
-		expectedBazelTargets: []string{
-			makeBazelTarget("apex", "com.android.apogee", attrNameToString{
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("apex", "com.android.apogee", AttrNameToString{
 				"file_contexts": `"//a/b:com.android.apogee-file_contexts"`,
 				"manifest":      `"apex_manifest.json"`,
 			}),
@@ -211,19 +211,19 @@ apex {
 }
 
 func TestApexBundleSimple_fileContextsIsFile(t *testing.T) {
-	runApexTestCase(t, bp2buildTestCase{
-		description:                "apex - file contexts is a file",
-		moduleTypeUnderTest:        "apex",
-		moduleTypeUnderTestFactory: apex.BundleFactory,
-		filesystem:                 map[string]string{},
-		blueprint: `
+	runApexTestCase(t, Bp2buildTestCase{
+		Description:                "apex - file contexts is a file",
+		ModuleTypeUnderTest:        "apex",
+		ModuleTypeUnderTestFactory: apex.BundleFactory,
+		Filesystem:                 map[string]string{},
+		Blueprint: `
 apex {
 	name: "com.android.apogee",
 	file_contexts: "file_contexts_file",
 }
 `,
-		expectedBazelTargets: []string{
-			makeBazelTarget("apex", "com.android.apogee", attrNameToString{
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("apex", "com.android.apogee", AttrNameToString{
 				"file_contexts": `"file_contexts_file"`,
 				"manifest":      `"apex_manifest.json"`,
 			}),
@@ -231,11 +231,11 @@ apex {
 }
 
 func TestApexBundleSimple_fileContextsIsNotSpecified(t *testing.T) {
-	runApexTestCase(t, bp2buildTestCase{
-		description:                "apex - file contexts is not specified",
-		moduleTypeUnderTest:        "apex",
-		moduleTypeUnderTestFactory: apex.BundleFactory,
-		filesystem: map[string]string{
+	runApexTestCase(t, Bp2buildTestCase{
+		Description:                "apex - file contexts is not specified",
+		ModuleTypeUnderTest:        "apex",
+		ModuleTypeUnderTestFactory: apex.BundleFactory,
+		Filesystem: map[string]string{
 			"system/sepolicy/apex/Android.bp": `
 filegroup {
 	name: "com.android.apogee-file_contexts",
@@ -246,13 +246,13 @@ filegroup {
 }
 `,
 		},
-		blueprint: `
+		Blueprint: `
 apex {
 	name: "com.android.apogee",
 }
 `,
-		expectedBazelTargets: []string{
-			makeBazelTarget("apex", "com.android.apogee", attrNameToString{
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("apex", "com.android.apogee", AttrNameToString{
 				"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
 				"manifest":      `"apex_manifest.json"`,
 			}),
@@ -260,11 +260,11 @@ apex {
 }
 
 func TestApexBundleCompileMultilibBoth(t *testing.T) {
-	runApexTestCase(t, bp2buildTestCase{
-		description:                "apex - example with compile_multilib=both",
-		moduleTypeUnderTest:        "apex",
-		moduleTypeUnderTestFactory: apex.BundleFactory,
-		filesystem: map[string]string{
+	runApexTestCase(t, Bp2buildTestCase{
+		Description:                "apex - example with compile_multilib=both",
+		ModuleTypeUnderTest:        "apex",
+		ModuleTypeUnderTestFactory: apex.BundleFactory,
+		Filesystem: map[string]string{
 			"system/sepolicy/apex/Android.bp": `
 filegroup {
 	name: "com.android.apogee-file_contexts",
@@ -273,9 +273,9 @@ filegroup {
 }
 `,
 		},
-		blueprint: createMultilibBlueprint("both"),
-		expectedBazelTargets: []string{
-			makeBazelTarget("apex", "com.android.apogee", attrNameToString{
+		Blueprint: createMultilibBlueprint("both"),
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("apex", "com.android.apogee", AttrNameToString{
 				"native_shared_libs_32": `[
         ":native_shared_lib_1",
         ":native_shared_lib_3",
@@ -304,11 +304,11 @@ filegroup {
 }
 
 func TestApexBundleCompileMultilibFirst(t *testing.T) {
-	runApexTestCase(t, bp2buildTestCase{
-		description:                "apex - example with compile_multilib=first",
-		moduleTypeUnderTest:        "apex",
-		moduleTypeUnderTestFactory: apex.BundleFactory,
-		filesystem: map[string]string{
+	runApexTestCase(t, Bp2buildTestCase{
+		Description:                "apex - example with compile_multilib=first",
+		ModuleTypeUnderTest:        "apex",
+		ModuleTypeUnderTestFactory: apex.BundleFactory,
+		Filesystem: map[string]string{
 			"system/sepolicy/apex/Android.bp": `
 filegroup {
 	name: "com.android.apogee-file_contexts",
@@ -317,9 +317,9 @@ filegroup {
 }
 `,
 		},
-		blueprint: createMultilibBlueprint("first"),
-		expectedBazelTargets: []string{
-			makeBazelTarget("apex", "com.android.apogee", attrNameToString{
+		Blueprint: createMultilibBlueprint("first"),
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("apex", "com.android.apogee", AttrNameToString{
 				"native_shared_libs_32": `select({
         "//build/bazel/platforms/arch:arm": [
             ":native_shared_lib_1",
@@ -353,11 +353,11 @@ filegroup {
 }
 
 func TestApexBundleCompileMultilib32(t *testing.T) {
-	runApexTestCase(t, bp2buildTestCase{
-		description:                "apex - example with compile_multilib=32",
-		moduleTypeUnderTest:        "apex",
-		moduleTypeUnderTestFactory: apex.BundleFactory,
-		filesystem: map[string]string{
+	runApexTestCase(t, Bp2buildTestCase{
+		Description:                "apex - example with compile_multilib=32",
+		ModuleTypeUnderTest:        "apex",
+		ModuleTypeUnderTestFactory: apex.BundleFactory,
+		Filesystem: map[string]string{
 			"system/sepolicy/apex/Android.bp": `
 filegroup {
 	name: "com.android.apogee-file_contexts",
@@ -366,9 +366,9 @@ filegroup {
 }
 `,
 		},
-		blueprint: createMultilibBlueprint("32"),
-		expectedBazelTargets: []string{
-			makeBazelTarget("apex", "com.android.apogee", attrNameToString{
+		Blueprint: createMultilibBlueprint("32"),
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("apex", "com.android.apogee", AttrNameToString{
 				"native_shared_libs_32": `[
         ":native_shared_lib_1",
         ":native_shared_lib_3",
@@ -384,11 +384,11 @@ filegroup {
 }
 
 func TestApexBundleCompileMultilib64(t *testing.T) {
-	runApexTestCase(t, bp2buildTestCase{
-		description:                "apex - example with compile_multilib=64",
-		moduleTypeUnderTest:        "apex",
-		moduleTypeUnderTestFactory: apex.BundleFactory,
-		filesystem: map[string]string{
+	runApexTestCase(t, Bp2buildTestCase{
+		Description:                "apex - example with compile_multilib=64",
+		ModuleTypeUnderTest:        "apex",
+		ModuleTypeUnderTestFactory: apex.BundleFactory,
+		Filesystem: map[string]string{
 			"system/sepolicy/apex/Android.bp": `
 filegroup {
 	name: "com.android.apogee-file_contexts",
@@ -397,9 +397,9 @@ filegroup {
 }
 `,
 		},
-		blueprint: createMultilibBlueprint("64"),
-		expectedBazelTargets: []string{
-			makeBazelTarget("apex", "com.android.apogee", attrNameToString{
+		Blueprint: createMultilibBlueprint("64"),
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("apex", "com.android.apogee", AttrNameToString{
 				"native_shared_libs_64": `select({
         "//build/bazel/platforms/arch:arm64": [
             ":native_shared_lib_1",
@@ -420,11 +420,11 @@ filegroup {
 }
 
 func TestApexBundleDefaultPropertyValues(t *testing.T) {
-	runApexTestCase(t, bp2buildTestCase{
-		description:                "apex - default property values",
-		moduleTypeUnderTest:        "apex",
-		moduleTypeUnderTestFactory: apex.BundleFactory,
-		filesystem: map[string]string{
+	runApexTestCase(t, Bp2buildTestCase{
+		Description:                "apex - default property values",
+		ModuleTypeUnderTest:        "apex",
+		ModuleTypeUnderTestFactory: apex.BundleFactory,
+		Filesystem: map[string]string{
 			"system/sepolicy/apex/Android.bp": `
 filegroup {
 	name: "com.android.apogee-file_contexts",
@@ -433,13 +433,13 @@ filegroup {
 }
 `,
 		},
-		blueprint: `
+		Blueprint: `
 apex {
 	name: "com.android.apogee",
 	manifest: "apogee_manifest.json",
 }
 `,
-		expectedBazelTargets: []string{makeBazelTarget("apex", "com.android.apogee", attrNameToString{
+		ExpectedBazelTargets: []string{makeBazelTarget("apex", "com.android.apogee", AttrNameToString{
 			"manifest":      `"apogee_manifest.json"`,
 			"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
 		}),
@@ -447,11 +447,11 @@ apex {
 }
 
 func TestApexBundleHasBazelModuleProps(t *testing.T) {
-	runApexTestCase(t, bp2buildTestCase{
-		description:                "apex - has bazel module props",
-		moduleTypeUnderTest:        "apex",
-		moduleTypeUnderTestFactory: apex.BundleFactory,
-		filesystem: map[string]string{
+	runApexTestCase(t, Bp2buildTestCase{
+		Description:                "apex - has bazel module props",
+		ModuleTypeUnderTest:        "apex",
+		ModuleTypeUnderTestFactory: apex.BundleFactory,
+		Filesystem: map[string]string{
 			"system/sepolicy/apex/Android.bp": `
 filegroup {
 	name: "apogee-file_contexts",
@@ -460,14 +460,14 @@ filegroup {
 }
 `,
 		},
-		blueprint: `
+		Blueprint: `
 apex {
 	name: "apogee",
 	manifest: "manifest.json",
 	bazel_module: { bp2build_available: true },
 }
 `,
-		expectedBazelTargets: []string{makeBazelTarget("apex", "apogee", attrNameToString{
+		ExpectedBazelTargets: []string{makeBazelTarget("apex", "apogee", AttrNameToString{
 			"manifest":      `"manifest.json"`,
 			"file_contexts": `"//system/sepolicy/apex:apogee-file_contexts"`,
 		}),
@@ -525,12 +525,12 @@ apex {
 }
 
 func TestBp2BuildOverrideApex(t *testing.T) {
-	runOverrideApexTestCase(t, bp2buildTestCase{
-		description:                "override_apex",
-		moduleTypeUnderTest:        "override_apex",
-		moduleTypeUnderTestFactory: apex.OverrideApexFactory,
-		filesystem:                 map[string]string{},
-		blueprint: `
+	runOverrideApexTestCase(t, Bp2buildTestCase{
+		Description:                "override_apex",
+		ModuleTypeUnderTest:        "override_apex",
+		ModuleTypeUnderTestFactory: apex.OverrideApexFactory,
+		Filesystem:                 map[string]string{},
+		Blueprint: `
 apex_key {
 	name: "com.android.apogee.key",
 	public_key: "com.android.apogee.avbpubkey",
@@ -623,8 +623,8 @@ override_apex {
 	compressible: true,
 }
 `,
-		expectedBazelTargets: []string{
-			makeBazelTarget("apex", "com.google.android.apogee", attrNameToString{
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
 				"android_manifest": `"ApogeeAndroidManifest.xml"`,
 				"binaries": `[
         ":cc_binary_1",
@@ -659,11 +659,11 @@ override_apex {
 }
 
 func TestApexBundleSimple_manifestIsEmpty_baseApexOverrideApexInDifferentAndroidBp(t *testing.T) {
-	runOverrideApexTestCase(t, bp2buildTestCase{
-		description:                "override_apex - manifest of base apex is empty, base apex and override_apex is in different Android.bp",
-		moduleTypeUnderTest:        "override_apex",
-		moduleTypeUnderTestFactory: apex.OverrideApexFactory,
-		filesystem: map[string]string{
+	runOverrideApexTestCase(t, Bp2buildTestCase{
+		Description:                "override_apex - manifest of base apex is empty, base apex and override_apex is in different Android.bp",
+		ModuleTypeUnderTest:        "override_apex",
+		ModuleTypeUnderTestFactory: apex.OverrideApexFactory,
+		Filesystem: map[string]string{
 			"system/sepolicy/apex/Android.bp": `
 filegroup {
 	name: "com.android.apogee-file_contexts",
@@ -677,14 +677,14 @@ apex {
 }
 `,
 		},
-		blueprint: `
+		Blueprint: `
 override_apex {
 	name: "com.google.android.apogee",
 	base: ":com.android.apogee",
 }
 `,
-		expectedBazelTargets: []string{
-			makeBazelTarget("apex", "com.google.android.apogee", attrNameToString{
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
 				"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
 				"manifest":      `"//a/b:apex_manifest.json"`,
 			}),
@@ -692,11 +692,11 @@ override_apex {
 }
 
 func TestApexBundleSimple_manifestIsSet_baseApexOverrideApexInDifferentAndroidBp(t *testing.T) {
-	runOverrideApexTestCase(t, bp2buildTestCase{
-		description:                "override_apex - manifest of base apex is set, base apex and override_apex is in different Android.bp",
-		moduleTypeUnderTest:        "override_apex",
-		moduleTypeUnderTestFactory: apex.OverrideApexFactory,
-		filesystem: map[string]string{
+	runOverrideApexTestCase(t, Bp2buildTestCase{
+		Description:                "override_apex - manifest of base apex is set, base apex and override_apex is in different Android.bp",
+		ModuleTypeUnderTest:        "override_apex",
+		ModuleTypeUnderTestFactory: apex.OverrideApexFactory,
+		Filesystem: map[string]string{
 			"system/sepolicy/apex/Android.bp": `
 filegroup {
 	name: "com.android.apogee-file_contexts",
@@ -711,14 +711,14 @@ apex {
 }
 `,
 		},
-		blueprint: `
+		Blueprint: `
 override_apex {
 	name: "com.google.android.apogee",
   base: ":com.android.apogee",
 }
 `,
-		expectedBazelTargets: []string{
-			makeBazelTarget("apex", "com.google.android.apogee", attrNameToString{
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
 				"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
 				"manifest":      `"//a/b:apogee_manifest.json"`,
 			}),
@@ -726,11 +726,11 @@ override_apex {
 }
 
 func TestApexBundleSimple_manifestIsEmpty_baseApexOverrideApexInSameAndroidBp(t *testing.T) {
-	runOverrideApexTestCase(t, bp2buildTestCase{
-		description:                "override_apex - manifest of base apex is empty, base apex and override_apex is in same Android.bp",
-		moduleTypeUnderTest:        "override_apex",
-		moduleTypeUnderTestFactory: apex.OverrideApexFactory,
-		filesystem: map[string]string{
+	runOverrideApexTestCase(t, Bp2buildTestCase{
+		Description:                "override_apex - manifest of base apex is empty, base apex and override_apex is in same Android.bp",
+		ModuleTypeUnderTest:        "override_apex",
+		ModuleTypeUnderTestFactory: apex.OverrideApexFactory,
+		Filesystem: map[string]string{
 			"system/sepolicy/apex/Android.bp": `
 filegroup {
 	name: "com.android.apogee-file_contexts",
@@ -738,7 +738,7 @@ filegroup {
 	bazel_module: { bp2build_available: false },
 }`,
 		},
-		blueprint: `
+		Blueprint: `
 apex {
 	name: "com.android.apogee",
 	bazel_module: { bp2build_available: false },
@@ -749,8 +749,8 @@ override_apex {
   base: ":com.android.apogee",
 }
 `,
-		expectedBazelTargets: []string{
-			makeBazelTarget("apex", "com.google.android.apogee", attrNameToString{
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
 				"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
 				"manifest":      `"apex_manifest.json"`,
 			}),
@@ -758,11 +758,11 @@ override_apex {
 }
 
 func TestApexBundleSimple_manifestIsSet_baseApexOverrideApexInSameAndroidBp(t *testing.T) {
-	runOverrideApexTestCase(t, bp2buildTestCase{
-		description:                "override_apex - manifest of base apex is set, base apex and override_apex is in same Android.bp",
-		moduleTypeUnderTest:        "override_apex",
-		moduleTypeUnderTestFactory: apex.OverrideApexFactory,
-		filesystem: map[string]string{
+	runOverrideApexTestCase(t, Bp2buildTestCase{
+		Description:                "override_apex - manifest of base apex is set, base apex and override_apex is in same Android.bp",
+		ModuleTypeUnderTest:        "override_apex",
+		ModuleTypeUnderTestFactory: apex.OverrideApexFactory,
+		Filesystem: map[string]string{
 			"system/sepolicy/apex/Android.bp": `
 filegroup {
 	name: "com.android.apogee-file_contexts",
@@ -770,7 +770,7 @@ filegroup {
 	bazel_module: { bp2build_available: false },
 }`,
 		},
-		blueprint: `
+		Blueprint: `
 apex {
 	name: "com.android.apogee",
   manifest: "apogee_manifest.json",
@@ -782,8 +782,8 @@ override_apex {
   base: ":com.android.apogee",
 }
 `,
-		expectedBazelTargets: []string{
-			makeBazelTarget("apex", "com.google.android.apogee", attrNameToString{
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
 				"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
 				"manifest":      `"apogee_manifest.json"`,
 			}),
@@ -791,11 +791,11 @@ override_apex {
 }
 
 func TestApexBundleSimple_packageNameOverride(t *testing.T) {
-	runOverrideApexTestCase(t, bp2buildTestCase{
-		description:                "override_apex - override package name",
-		moduleTypeUnderTest:        "override_apex",
-		moduleTypeUnderTestFactory: apex.OverrideApexFactory,
-		filesystem: map[string]string{
+	runOverrideApexTestCase(t, Bp2buildTestCase{
+		Description:                "override_apex - override package name",
+		ModuleTypeUnderTest:        "override_apex",
+		ModuleTypeUnderTestFactory: apex.OverrideApexFactory,
+		Filesystem: map[string]string{
 			"system/sepolicy/apex/Android.bp": `
 filegroup {
 	name: "com.android.apogee-file_contexts",
@@ -803,7 +803,7 @@ filegroup {
 	bazel_module: { bp2build_available: false },
 }`,
 		},
-		blueprint: `
+		Blueprint: `
 apex {
 	name: "com.android.apogee",
 	bazel_module: { bp2build_available: false },
@@ -815,8 +815,8 @@ override_apex {
 	package_name: "com.google.android.apogee",
 }
 `,
-		expectedBazelTargets: []string{
-			makeBazelTarget("apex", "com.google.android.apogee", attrNameToString{
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
 				"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
 				"manifest":      `"apex_manifest.json"`,
 				"package_name":  `"com.google.android.apogee"`,
@@ -825,11 +825,11 @@ override_apex {
 }
 
 func TestApexBundleSimple_NoPrebuiltsOverride(t *testing.T) {
-	runOverrideApexTestCase(t, bp2buildTestCase{
-		description:                "override_apex - no override",
-		moduleTypeUnderTest:        "override_apex",
-		moduleTypeUnderTestFactory: apex.OverrideApexFactory,
-		filesystem: map[string]string{
+	runOverrideApexTestCase(t, Bp2buildTestCase{
+		Description:                "override_apex - no override",
+		ModuleTypeUnderTest:        "override_apex",
+		ModuleTypeUnderTestFactory: apex.OverrideApexFactory,
+		Filesystem: map[string]string{
 			"system/sepolicy/apex/Android.bp": `
 filegroup {
 	name: "com.android.apogee-file_contexts",
@@ -837,7 +837,7 @@ filegroup {
 	bazel_module: { bp2build_available: false },
 }`,
 		},
-		blueprint: `
+		Blueprint: `
 prebuilt_etc {
 	name: "prebuilt_file",
 	bazel_module: { bp2build_available: false },
@@ -854,8 +854,8 @@ override_apex {
 	base: ":com.android.apogee",
 }
 `,
-		expectedBazelTargets: []string{
-			makeBazelTarget("apex", "com.google.android.apogee", attrNameToString{
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
 				"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
 				"manifest":      `"apex_manifest.json"`,
 				"prebuilts":     `[":prebuilt_file"]`,
@@ -864,11 +864,11 @@ override_apex {
 }
 
 func TestApexBundleSimple_PrebuiltsOverride(t *testing.T) {
-	runOverrideApexTestCase(t, bp2buildTestCase{
-		description:                "override_apex - ooverride",
-		moduleTypeUnderTest:        "override_apex",
-		moduleTypeUnderTestFactory: apex.OverrideApexFactory,
-		filesystem: map[string]string{
+	runOverrideApexTestCase(t, Bp2buildTestCase{
+		Description:                "override_apex - ooverride",
+		ModuleTypeUnderTest:        "override_apex",
+		ModuleTypeUnderTestFactory: apex.OverrideApexFactory,
+		Filesystem: map[string]string{
 			"system/sepolicy/apex/Android.bp": `
 filegroup {
 	name: "com.android.apogee-file_contexts",
@@ -876,7 +876,7 @@ filegroup {
 	bazel_module: { bp2build_available: false },
 }`,
 		},
-		blueprint: `
+		Blueprint: `
 prebuilt_etc {
 	name: "prebuilt_file",
 	bazel_module: { bp2build_available: false },
@@ -899,8 +899,8 @@ override_apex {
     prebuilts: ["prebuilt_file2"]
 }
 `,
-		expectedBazelTargets: []string{
-			makeBazelTarget("apex", "com.google.android.apogee", attrNameToString{
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
 				"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
 				"manifest":      `"apex_manifest.json"`,
 				"prebuilts":     `[":prebuilt_file2"]`,
@@ -909,11 +909,11 @@ override_apex {
 }
 
 func TestApexBundleSimple_PrebuiltsOverrideEmptyList(t *testing.T) {
-	runOverrideApexTestCase(t, bp2buildTestCase{
-		description:                "override_apex - override with empty list",
-		moduleTypeUnderTest:        "override_apex",
-		moduleTypeUnderTestFactory: apex.OverrideApexFactory,
-		filesystem: map[string]string{
+	runOverrideApexTestCase(t, Bp2buildTestCase{
+		Description:                "override_apex - override with empty list",
+		ModuleTypeUnderTest:        "override_apex",
+		ModuleTypeUnderTestFactory: apex.OverrideApexFactory,
+		Filesystem: map[string]string{
 			"system/sepolicy/apex/Android.bp": `
 filegroup {
 	name: "com.android.apogee-file_contexts",
@@ -921,7 +921,7 @@ filegroup {
 	bazel_module: { bp2build_available: false },
 }`,
 		},
-		blueprint: `
+		Blueprint: `
 prebuilt_etc {
 	name: "prebuilt_file",
 	bazel_module: { bp2build_available: false },
@@ -939,8 +939,8 @@ override_apex {
     prebuilts: [],
 }
 `,
-		expectedBazelTargets: []string{
-			makeBazelTarget("apex", "com.google.android.apogee", attrNameToString{
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
 				"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
 				"manifest":      `"apex_manifest.json"`,
 				"prebuilts":     `[]`,
@@ -949,11 +949,11 @@ override_apex {
 }
 
 func TestApexBundleSimple_NoLoggingParentOverride(t *testing.T) {
-	runOverrideApexTestCase(t, bp2buildTestCase{
-		description:                "override_apex - logging_parent - no override",
-		moduleTypeUnderTest:        "override_apex",
-		moduleTypeUnderTestFactory: apex.OverrideApexFactory,
-		filesystem: map[string]string{
+	runOverrideApexTestCase(t, Bp2buildTestCase{
+		Description:                "override_apex - logging_parent - no override",
+		ModuleTypeUnderTest:        "override_apex",
+		ModuleTypeUnderTestFactory: apex.OverrideApexFactory,
+		Filesystem: map[string]string{
 			"system/sepolicy/apex/Android.bp": `
 filegroup {
 	name: "com.android.apogee-file_contexts",
@@ -961,7 +961,7 @@ filegroup {
 	bazel_module: { bp2build_available: false },
 }`,
 		},
-		blueprint: `
+		Blueprint: `
 apex {
 	name: "com.android.apogee",
 	bazel_module: { bp2build_available: false },
@@ -973,8 +973,8 @@ override_apex {
 	base: ":com.android.apogee",
 }
 `,
-		expectedBazelTargets: []string{
-			makeBazelTarget("apex", "com.google.android.apogee", attrNameToString{
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
 				"file_contexts":  `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
 				"manifest":       `"apex_manifest.json"`,
 				"logging_parent": `"foo.bar.baz"`,
@@ -983,11 +983,11 @@ override_apex {
 }
 
 func TestApexBundleSimple_LoggingParentOverride(t *testing.T) {
-	runOverrideApexTestCase(t, bp2buildTestCase{
-		description:                "override_apex - logging_parent - override",
-		moduleTypeUnderTest:        "override_apex",
-		moduleTypeUnderTestFactory: apex.OverrideApexFactory,
-		filesystem: map[string]string{
+	runOverrideApexTestCase(t, Bp2buildTestCase{
+		Description:                "override_apex - logging_parent - override",
+		ModuleTypeUnderTest:        "override_apex",
+		ModuleTypeUnderTestFactory: apex.OverrideApexFactory,
+		Filesystem: map[string]string{
 			"system/sepolicy/apex/Android.bp": `
 filegroup {
 	name: "com.android.apogee-file_contexts",
@@ -995,7 +995,7 @@ filegroup {
 	bazel_module: { bp2build_available: false },
 }`,
 		},
-		blueprint: `
+		Blueprint: `
 apex {
 	name: "com.android.apogee",
 	bazel_module: { bp2build_available: false },
@@ -1008,8 +1008,8 @@ override_apex {
 	logging_parent: "foo.bar.baz.override",
 }
 `,
-		expectedBazelTargets: []string{
-			makeBazelTarget("apex", "com.google.android.apogee", attrNameToString{
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
 				"file_contexts":  `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
 				"manifest":       `"apex_manifest.json"`,
 				"logging_parent": `"foo.bar.baz.override"`,

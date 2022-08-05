@@ -21,7 +21,7 @@ type pythonLibBp2BuildTestCase struct {
 	expectedError        error
 }
 
-func convertPythonLibTestCaseToBp2build_Host(tc pythonLibBp2BuildTestCase) bp2buildTestCase {
+func convertPythonLibTestCaseToBp2build_Host(tc pythonLibBp2BuildTestCase) Bp2buildTestCase {
 	for i := range tc.expectedBazelTargets {
 		tc.expectedBazelTargets[i].attrs["target_compatible_with"] = `select({
         "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
@@ -32,7 +32,7 @@ func convertPythonLibTestCaseToBp2build_Host(tc pythonLibBp2BuildTestCase) bp2bu
 	return convertPythonLibTestCaseToBp2build(tc)
 }
 
-func convertPythonLibTestCaseToBp2build(tc pythonLibBp2BuildTestCase) bp2buildTestCase {
+func convertPythonLibTestCaseToBp2build(tc pythonLibBp2BuildTestCase) Bp2buildTestCase {
 	var bp2BuildTargets []string
 	for _, t := range tc.expectedBazelTargets {
 		bp2BuildTargets = append(bp2BuildTargets, makeBazelTarget(t.typ, t.name, t.attrs))
@@ -43,28 +43,28 @@ func convertPythonLibTestCaseToBp2build(tc pythonLibBp2BuildTestCase) bp2buildTe
 	for k, v := range tc.filesystem {
 		filesystemCopy[k] = v
 	}
-	return bp2buildTestCase{
-		description:          tc.description,
-		filesystem:           filesystemCopy,
-		blueprint:            tc.blueprint,
-		expectedBazelTargets: bp2BuildTargets,
-		dir:                  tc.dir,
-		expectedErr:          tc.expectedError,
+	return Bp2buildTestCase{
+		Description:          tc.description,
+		Filesystem:           filesystemCopy,
+		Blueprint:            tc.blueprint,
+		ExpectedBazelTargets: bp2BuildTargets,
+		Dir:                  tc.dir,
+		ExpectedErr:          tc.expectedError,
 	}
 }
 
 func runPythonLibraryTestCase(t *testing.T, tc pythonLibBp2BuildTestCase) {
 	t.Helper()
 	testCase := convertPythonLibTestCaseToBp2build(tc)
-	testCase.description = fmt.Sprintf(testCase.description, "python_library")
-	testCase.blueprint = fmt.Sprintf(testCase.blueprint, "python_library")
-	for name, contents := range testCase.filesystem {
+	testCase.Description = fmt.Sprintf(testCase.Description, "python_library")
+	testCase.Blueprint = fmt.Sprintf(testCase.Blueprint, "python_library")
+	for name, contents := range testCase.Filesystem {
 		if strings.HasSuffix(name, "Android.bp") {
-			testCase.filesystem[name] = fmt.Sprintf(contents, "python_library")
+			testCase.Filesystem[name] = fmt.Sprintf(contents, "python_library")
 		}
 	}
-	testCase.moduleTypeUnderTest = "python_library"
-	testCase.moduleTypeUnderTestFactory = python.PythonLibraryFactory
+	testCase.ModuleTypeUnderTest = "python_library"
+	testCase.ModuleTypeUnderTestFactory = python.PythonLibraryFactory
 
 	runBp2BuildTestCaseSimple(t, testCase)
 }
@@ -72,16 +72,16 @@ func runPythonLibraryTestCase(t *testing.T, tc pythonLibBp2BuildTestCase) {
 func runPythonLibraryHostTestCase(t *testing.T, tc pythonLibBp2BuildTestCase) {
 	t.Helper()
 	testCase := convertPythonLibTestCaseToBp2build_Host(tc)
-	testCase.description = fmt.Sprintf(testCase.description, "python_library_host")
-	testCase.blueprint = fmt.Sprintf(testCase.blueprint, "python_library_host")
-	for name, contents := range testCase.filesystem {
+	testCase.Description = fmt.Sprintf(testCase.Description, "python_library_host")
+	testCase.Blueprint = fmt.Sprintf(testCase.Blueprint, "python_library_host")
+	for name, contents := range testCase.Filesystem {
 		if strings.HasSuffix(name, "Android.bp") {
-			testCase.filesystem[name] = fmt.Sprintf(contents, "python_library_host")
+			testCase.Filesystem[name] = fmt.Sprintf(contents, "python_library_host")
 		}
 	}
-	testCase.moduleTypeUnderTest = "python_library_host"
-	testCase.moduleTypeUnderTestFactory = python.PythonLibraryHostFactory
-	runBp2BuildTestCase(t, func(ctx android.RegistrationContext) {
+	testCase.ModuleTypeUnderTest = "python_library_host"
+	testCase.ModuleTypeUnderTestFactory = python.PythonLibraryHostFactory
+	RunBp2BuildTestCase(t, func(ctx android.RegistrationContext) {
 		ctx.RegisterModuleType("python_library", python.PythonLibraryFactory)
 	},
 		testCase)
@@ -121,7 +121,7 @@ func TestSimplePythonLib(t *testing.T) {
 				{
 					typ:  "py_library",
 					name: "foo",
-					attrs: attrNameToString{
+					attrs: AttrNameToString{
 						"data": `["files/data.txt"]`,
 						"deps": `[":bar"]`,
 						"srcs": `[
@@ -155,7 +155,7 @@ func TestSimplePythonLib(t *testing.T) {
 				{
 					typ:  "py_library",
 					name: "foo",
-					attrs: attrNameToString{
+					attrs: AttrNameToString{
 						"srcs":         `["a.py"]`,
 						"srcs_version": `"PY2"`,
 						"imports":      `["."]`,
@@ -183,7 +183,7 @@ func TestSimplePythonLib(t *testing.T) {
 				{
 					typ:  "py_library",
 					name: "foo",
-					attrs: attrNameToString{
+					attrs: AttrNameToString{
 						"srcs":         `["a.py"]`,
 						"srcs_version": `"PY3"`,
 						"imports":      `["."]`,
@@ -212,7 +212,7 @@ func TestSimplePythonLib(t *testing.T) {
 					// srcs_version is PY2ANDPY3 by default.
 					typ:  "py_library",
 					name: "foo",
-					attrs: attrNameToString{
+					attrs: AttrNameToString{
 						"srcs":    `["a.py"]`,
 						"imports": `["."]`,
 					},
@@ -238,7 +238,7 @@ func TestSimplePythonLib(t *testing.T) {
 					// srcs_version is PY2ANDPY3 by default.
 					typ:  "py_library",
 					name: "foo",
-					attrs: attrNameToString{
+					attrs: AttrNameToString{
 						"srcs":         `["a.py"]`,
 						"imports":      `["../.."]`,
 						"srcs_version": `"PY3"`,
@@ -292,7 +292,7 @@ func TestPythonArchVariance(t *testing.T) {
 			{
 				typ:  "py_library",
 				name: "foo",
-				attrs: attrNameToString{
+				attrs: AttrNameToString{
 					"srcs": `select({
         "//build/bazel/platforms/arch:arm": ["arm.py"],
         "//build/bazel/platforms/arch:x86": ["x86.py"],
@@ -324,21 +324,21 @@ func TestPythonLibraryWithProtobufs(t *testing.T) {
 			{
 				typ:  "proto_library",
 				name: "foo_proto",
-				attrs: attrNameToString{
+				attrs: AttrNameToString{
 					"srcs": `["dir/myproto.proto"]`,
 				},
 			},
 			{
 				typ:  "py_proto_library",
 				name: "foo_py_proto",
-				attrs: attrNameToString{
+				attrs: AttrNameToString{
 					"deps": `[":foo_proto"]`,
 				},
 			},
 			{
 				typ:  "py_library",
 				name: "foo",
-				attrs: attrNameToString{
+				attrs: AttrNameToString{
 					"srcs":         `["dir/mylib.py"]`,
 					"srcs_version": `"PY3"`,
 					"imports":      `["."]`,

@@ -21,38 +21,38 @@ import (
 	"testing"
 )
 
-func runFilegroupTestCase(t *testing.T, tc bp2buildTestCase) {
+func runFilegroupTestCase(t *testing.T, tc Bp2buildTestCase) {
 	t.Helper()
-	(&tc).moduleTypeUnderTest = "filegroup"
-	(&tc).moduleTypeUnderTestFactory = android.FileGroupFactory
-	runBp2BuildTestCase(t, registerFilegroupModuleTypes, tc)
+	(&tc).ModuleTypeUnderTest = "filegroup"
+	(&tc).ModuleTypeUnderTestFactory = android.FileGroupFactory
+	RunBp2BuildTestCase(t, registerFilegroupModuleTypes, tc)
 }
 
 func registerFilegroupModuleTypes(ctx android.RegistrationContext) {}
 
 func TestFilegroupSameNameAsFile_OneFile(t *testing.T) {
-	runFilegroupTestCase(t, bp2buildTestCase{
-		description: "filegroup - same name as file, with one file",
-		filesystem:  map[string]string{},
-		blueprint: `
+	runFilegroupTestCase(t, Bp2buildTestCase{
+		Description: "filegroup - same name as file, with one file",
+		Filesystem:  map[string]string{},
+		Blueprint: `
 filegroup {
     name: "foo",
     srcs: ["foo"],
 }
 `,
-		expectedBazelTargets: []string{}})
+		ExpectedBazelTargets: []string{}})
 }
 
 func TestFilegroupSameNameAsFile_MultipleFiles(t *testing.T) {
-	runFilegroupTestCase(t, bp2buildTestCase{
-		description: "filegroup - same name as file, with multiple files",
-		filesystem:  map[string]string{},
-		blueprint: `
+	runFilegroupTestCase(t, Bp2buildTestCase{
+		Description: "filegroup - same name as file, with multiple files",
+		Filesystem:  map[string]string{},
+		Blueprint: `
 filegroup {
 	name: "foo",
 	srcs: ["foo", "bar"],
 }
 `,
-		expectedErr: fmt.Errorf("filegroup 'foo' cannot contain a file with the same name"),
+		ExpectedErr: fmt.Errorf("filegroup 'foo' cannot contain a file with the same name"),
 	})
 }
