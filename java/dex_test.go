@@ -59,6 +59,36 @@ func TestR8(t *testing.T) {
 		appR8.Args["r8Flags"], libHeader.String())
 	android.AssertStringDoesNotContain(t, "expected no  static_lib header jar in app javac classpath",
 		appR8.Args["r8Flags"], staticLibHeader.String())
+	android.AssertStringDoesContain(t, "expected -ignorewarnings in app r8 flags",
+		appR8.Args["r8Flags"], "-ignorewarnings")
+}
+
+func TestR8Flags(t *testing.T) {
+	result := PrepareForTestWithJavaDefaultModulesWithoutFakeDex2oatd.RunTestWithBp(t, `
+		android_app {
+			name: "app",
+			srcs: ["foo.java"],
+			platform_apis: true,
+			optimize: {
+				shrink: false,
+				optimize: false,
+				obfuscate: false,
+				ignore_warnings: false,
+			},
+		}
+	`)
+
+	app := result.ModuleForTests("app", "android_common")
+	appR8 := app.Rule("r8")
+	android.AssertStringDoesContain(t, "expected -dontshrink in app r8 flags",
+		appR8.Args["r8Flags"], "-dontshrink")
+	android.AssertStringDoesContain(t, "expected -dontoptimize in app r8 flags",
+		appR8.Args["r8Flags"], "-dontoptimize")
+	android.AssertStringDoesContain(t, "expected -dontobfuscate in app r8 flags",
+		appR8.Args["r8Flags"], "-dontobfuscate")
+	android.AssertStringDoesNotContain(t, "expected no -ignorewarnings in app r8 flags",
+		appR8.Args["r8Flags"], "-ignorewarnings")
+
 }
 
 func TestD8(t *testing.T) {
