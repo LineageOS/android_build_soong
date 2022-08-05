@@ -42,6 +42,9 @@ type DexProperties struct {
 		// True if the module containing this has it set by default.
 		EnabledByDefault bool `blueprint:"mutated"`
 
+		// Whether to continue building even if warnings are emitted.  Defaults to true.
+		Ignore_warnings *bool
+
 		// If true, runs R8 in Proguard compatibility mode (default).
 		// Otherwise, runs R8 in full mode.
 		Proguard_compatibility *bool
@@ -293,7 +296,10 @@ func (d *dexer) r8Flags(ctx android.ModuleContext, flags javaBuilderFlags) (r8Fl
 	}
 
 	// TODO(b/180878971): missing classes should be added to the relevant builds.
-	r8Flags = append(r8Flags, "-ignorewarnings")
+	// TODO(b/229727645): do not use true as default for Android platform builds.
+	if proptools.BoolDefault(opt.Ignore_warnings, true) {
+		r8Flags = append(r8Flags, "-ignorewarnings")
+	}
 
 	return r8Flags, r8Deps
 }
