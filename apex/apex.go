@@ -2701,7 +2701,7 @@ func (o *OverrideApex) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 
 var _ android.ModuleWithMinSdkVersionCheck = (*apexBundle)(nil)
 
-// Entures that min_sdk_version of the included modules are equal or less than the min_sdk_version
+// Ensures that min_sdk_version of the included modules are equal or less than the min_sdk_version
 // of this apexBundle.
 func (a *apexBundle) CheckMinSdkVersion(ctx android.ModuleContext) {
 	if a.testApex || a.vndkApex {
