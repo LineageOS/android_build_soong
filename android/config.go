@@ -18,6 +18,7 @@ package android
 // product variables necessary for soong_build's operation.
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -305,6 +306,9 @@ func saveToBazelConfigFile(config *productVariables, outDir string) error {
 	if err != nil {
 		return fmt.Errorf("cannot marshal config data: %s", err.Error())
 	}
+	// The backslashes need to be escaped because this text is going to be put
+	// inside a Starlark string literal.
+	configJson = bytes.ReplaceAll(configJson, []byte("\\"), []byte("\\\\"))
 
 	bzl := []string{
 		bazel.GeneratedBazelFileWarning,
@@ -317,11 +321,11 @@ product_var_constraints = _product_var_constraints
 arch_variant_product_var_constraints = _arch_variant_product_var_constraints
 `,
 	}
-	err = ioutil.WriteFile(filepath.Join(dir, "product_variables.bzl"), []byte(strings.Join(bzl, "\n")), 0644)
+	err = os.WriteFile(filepath.Join(dir, "product_variables.bzl"), []byte(strings.Join(bzl, "\n")), 0644)
 	if err != nil {
 		return fmt.Errorf("Could not write .bzl config file %s", err)
 	}
-	err = ioutil.WriteFile(filepath.Join(dir, "BUILD"), []byte(bazel.GeneratedBazelFileWarning), 0644)
+	err = os.WriteFile(filepath.Join(dir, "BUILD"), []byte(bazel.GeneratedBazelFileWarning), 0644)
 	if err != nil {
 		return fmt.Errorf("Could not write BUILD config file %s", err)
 	}
