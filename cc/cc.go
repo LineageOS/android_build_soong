@@ -62,6 +62,7 @@ func RegisterCCBuildComponents(ctx android.RegistrationContext) {
 		ctx.BottomUp("sanitize_runtime", sanitizerRuntimeMutator).Parallel()
 
 		ctx.TopDown("fuzz_deps", fuzzMutatorDeps)
+		ctx.BottomUp("fuzz", fuzzMutator)
 
 		ctx.BottomUp("coverage", coverageMutator).Parallel()
 
