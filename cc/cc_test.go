@@ -3343,8 +3343,8 @@ func TestErrorsIfAModuleDependsOnDisabled(t *testing.T) {
 }
 
 func TestAFLFuzzTarget(t *testing.T) {
-	bp := `
-		cc_fuzz {
+	ctx := testCc(t, `
+		cc_afl_fuzz {
 			name: "test_afl_fuzz_target",
 			srcs: ["foo.c"],
 			host_supported: true,
@@ -3354,10 +3354,17 @@ func TestAFLFuzzTarget(t *testing.T) {
 			shared_libs: [
 				"afl_fuzz_shared_lib",
 			],
-			fuzzing_frameworks: {
-				afl: true,
-				libfuzzer: false,
-			},
+		}
+		cc_fuzz {
+			name: "test_fuzz_target",
+			srcs: ["foo.c"],
+			static_libs: [
+				"afl_fuzz_static_lib",
+				"libfuzzer_only_static_lib",
+			],
+			shared_libs: [
+				"afl_fuzz_shared_lib",
+			],
 		}
 		cc_library {
 			name: "afl_fuzz_static_lib",
@@ -3402,19 +3409,12 @@ func TestAFLFuzzTarget(t *testing.T) {
 			host_supported: true,
 			srcs: ["second_file.c"],
 		}
-		cc_object {
+		filegroup {
 			name: "aflpp_driver",
-			host_supported: true,
 			srcs: [
 				"aflpp_driver.c",
 			],
-		}`
-
-	testEnv := map[string]string{
-		"FUZZ_FRAMEWORK": "AFL",
-	}
-
-	ctx := android.GroupFixturePreparers(prepareForCcTest, android.FixtureMergeEnv(testEnv)).RunTestWithBp(t, bp)
+		}`)
 
 	checkPcGuardFlag := func(
 		modName string, variantName string, shouldHave bool) {
@@ -3434,28 +3434,31 @@ func TestAFLFuzzTarget(t *testing.T) {
 		}
 	}
 
+	for _, vnt := range ctx.ModuleVariantsForTests("libfuzzer_only_static_lib") {
+		if strings.Contains(vnt, "fuzzer_afl") {
+			t.Errorf("libfuzzer_only_static_lib has afl variant and should not")
+		}
+	}
+
 	moduleName := "test_afl_fuzz_target"
-	hostVariant := "linux_glibc_x86_64"
-	armVariant := "android_arm64_armv8-a"
-	checkPcGuardFlag(moduleName, armVariant+"_fuzzer", true)
-	checkPcGuardFlag(moduleName, hostVariant+"_fuzzer", true)
+	variantName := "android_arm64_armv8-a_fuzzer_afl"
+	checkPcGuardFlag(moduleName, variantName, true)
 
 	moduleName = "afl_fuzz_static_lib"
-	checkPcGuardFlag(moduleName, armVariant+"_static", false)
-	checkPcGuardFlag(moduleName, armVariant+"_static_fuzzer", true)
-	checkPcGuardFlag(moduleName, hostVariant+"_static", false)
-	checkPcGuardFlag(moduleName, hostVariant+"_static_fuzzer", true)
+	variantName = "android_arm64_armv8-a_static"
+	checkPcGuardFlag(moduleName, variantName, false)
+	checkPcGuardFlag(moduleName, variantName+"_fuzzer", false)
+	checkPcGuardFlag(moduleName, variantName+"_fuzzer_afl", true)
 
 	moduleName = "second_static_lib"
-	checkPcGuardFlag(moduleName, armVariant+"_static", false)
-	checkPcGuardFlag(moduleName, armVariant+"_static_fuzzer", true)
-	checkPcGuardFlag(moduleName, hostVariant+"_static", false)
-	checkPcGuardFlag(moduleName, hostVariant+"_static_fuzzer", true)
+	checkPcGuardFlag(moduleName, variantName, false)
+	checkPcGuardFlag(moduleName, variantName+"_fuzzer", false)
+	checkPcGuardFlag(moduleName, variantName+"_fuzzer_afl", true)
 
 	ctx.ModuleForTests("afl_fuzz_shared_lib",
 		"android_arm64_armv8-a_shared").Rule("cc")
 	ctx.ModuleForTests("afl_fuzz_shared_lib",
-		"android_arm64_armv8-a_shared_fuzzer").Rule("cc")
+		"android_arm64_armv8-a_shared_fuzzer_afl").Rule("cc")
 }
 
 // Simple smoke test for the cc_fuzz target that ensures the rule compiles
