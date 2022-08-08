@@ -3069,3 +3069,65 @@ func TestAppMissingCertificateAllowMissingDependencies(t *testing.T) {
 	}
 	android.AssertStringDoesContain(t, "expected error rule message", fooApk.Args["error"], "missing dependencies: missing_certificate\n")
 }
+
+func TestTargetSdkVersionMtsTests(t *testing.T) {
+	platformSdkCodename := "Tiramisu"
+	android_test := "android_test"
+	android_test_helper_app := "android_test_helper_app"
+	bpTemplate := `
+	%v {
+		name: "mytest",
+		target_sdk_version: "%v",
+		test_suites: ["othersuite", "%v"],
+	}
+	`
+	testCases := []struct {
+		desc                     string
+		moduleType               string
+		targetSdkVersionInBp     string
+		targetSdkVersionExpected string
+		testSuites               string
+	}{
+		{
+			desc:                     "Non-MTS android_test_apps targeting current should not be upgraded to 10000",
+			moduleType:               android_test,
+			targetSdkVersionInBp:     "current",
+			targetSdkVersionExpected: platformSdkCodename,
+			testSuites:               "non-mts-suite",
+		},
+		{
+			desc:                     "MTS android_test_apps targeting released sdks should not be upgraded to 10000",
+			moduleType:               android_test,
+			targetSdkVersionInBp:     "29",
+			targetSdkVersionExpected: "29",
+			testSuites:               "mts-suite",
+		},
+		{
+			desc:                     "MTS android_test_apps targeting current should be upgraded to 10000",
+			moduleType:               android_test,
+			targetSdkVersionInBp:     "current",
+			targetSdkVersionExpected: "10000",
+			testSuites:               "mts-suite",
+		},
+		{
+			desc:                     "MTS android_test_helper_apps targeting current should be upgraded to 10000",
+			moduleType:               android_test_helper_app,
+			targetSdkVersionInBp:     "current",
+			targetSdkVersionExpected: "10000",
+			testSuites:               "mts-suite",
+		},
+	}
+	fixture := android.GroupFixturePreparers(
+		prepareForJavaTest,
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			variables.Platform_sdk_codename = &platformSdkCodename
+			variables.Platform_version_active_codenames = []string{platformSdkCodename}
+		}),
+	)
+	for _, testCase := range testCases {
+		result := fixture.RunTestWithBp(t, fmt.Sprintf(bpTemplate, testCase.moduleType, testCase.targetSdkVersionInBp, testCase.testSuites))
+		mytest := result.ModuleForTests("mytest", "android_common")
+		manifestFixerArgs := mytest.Output("manifest_fixer/AndroidManifest.xml").Args["args"]
+		android.AssertStringDoesContain(t, testCase.desc, manifestFixerArgs, "--targetSdkVersion  "+testCase.targetSdkVersionExpected)
+	}
+}

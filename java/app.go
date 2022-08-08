@@ -954,6 +954,18 @@ func (a *AndroidTest) InstallInTestcases() bool {
 	return true
 }
 
+type androidTestApp interface {
+	includedInTestSuite(searchPrefix string) bool
+}
+
+func (a *AndroidTest) includedInTestSuite(searchPrefix string) bool {
+	return android.PrefixInList(a.testProperties.Test_suites, searchPrefix)
+}
+
+func (a *AndroidTestHelperApp) includedInTestSuite(searchPrefix string) bool {
+	return android.PrefixInList(a.appTestHelperAppProperties.Test_suites, searchPrefix)
+}
+
 func (a *AndroidTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	var configs []tradefed.Config
 	if a.appTestProperties.Instrumentation_target_package != nil {
