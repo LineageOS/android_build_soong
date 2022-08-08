@@ -35,10 +35,6 @@ import (
 var (
 	DeviceSharedLibrary = "shared_library"
 	DeviceStaticLibrary = "static_library"
-	DeviceExecutable    = "executable"
-	HostSharedLibrary   = "host_shared_library"
-	HostStaticLibrary   = "host_static_library"
-	HostExecutable      = "host_executable"
 )
 
 type BuildParams struct {
@@ -980,8 +976,8 @@ func (t TaggedDistFiles) merge(other TaggedDistFiles) TaggedDistFiles {
 }
 
 func MakeDefaultDistFiles(paths ...Path) TaggedDistFiles {
-	for _, path := range paths {
-		if path == nil {
+	for _, p := range paths {
+		if p == nil {
 			panic("The path to a dist file cannot be nil.")
 		}
 	}
@@ -1005,7 +1001,6 @@ const (
 	MultilibFirst       Multilib = "first"
 	MultilibCommon      Multilib = "common"
 	MultilibCommonFirst Multilib = "common_first"
-	MultilibDefault     Multilib = ""
 )
 
 type HostOrDeviceSupported int
@@ -1149,22 +1144,16 @@ func InitCommonOSAndroidMultiTargetsArchModule(m Module, hod HostOrDeviceSupport
 
 func (attrs *CommonAttributes) fillCommonBp2BuildModuleAttrs(ctx *topDownMutatorContext,
 	enabledPropertyOverrides bazel.BoolAttribute) constraintAttributes {
-	// Assert passed-in attributes include Name
-	name := attrs.Name
-	if len(name) == 0 {
-		ctx.ModuleErrorf("CommonAttributes in fillCommonBp2BuildModuleAttrs expects a `.Name`!")
-	}
 
 	mod := ctx.Module().base()
-	props := &mod.commonProperties
+	// Assert passed-in attributes include Name
+	if len(attrs.Name) == 0 {
+		ctx.ModuleErrorf("CommonAttributes in fillCommonBp2BuildModuleAttrs expects a `.Name`!")
+	}
 
 	depsToLabelList := func(deps []string) bazel.LabelListAttribute {
 		return bazel.MakeLabelListAttribute(BazelLabelForModuleDeps(ctx, deps))
 	}
-
-	data := &attrs.Data
-
-	archVariantProps := mod.GetArchVariantProperties(ctx, &commonProperties{})
 
 	var enabledProperty bazel.BoolAttribute
 
@@ -1193,11 +1182,11 @@ func (attrs *CommonAttributes) fillCommonBp2BuildModuleAttrs(ctx *topDownMutator
 			neitherHostNorDevice = true
 		}
 
-		for _, os := range OsTypeList() {
-			if os.Class == Host {
-				osSupport[os.Name] = moduleSupportsHost
-			} else if os.Class == Device {
-				osSupport[os.Name] = moduleSupportsDevice
+		for _, osType := range OsTypeList() {
+			if osType.Class == Host {
+				osSupport[osType.Name] = moduleSupportsHost
+			} else if osType.Class == Device {
+				osSupport[osType.Name] = moduleSupportsDevice
 			}
 		}
 	}
@@ -1205,25 +1194,26 @@ func (attrs *CommonAttributes) fillCommonBp2BuildModuleAttrs(ctx *topDownMutator
 	if neitherHostNorDevice {
 		// we can't build this, disable
 		enabledProperty.Value = proptools.BoolPtr(false)
-	} else if props.Enabled != nil {
-		enabledProperty.SetValue(props.Enabled)
-		if !*props.Enabled {
-			for os, enabled := range osSupport {
-				if val := enabledProperty.SelectValue(bazel.OsConfigurationAxis, os); enabled && val != nil && *val {
+	} else if mod.commonProperties.Enabled != nil {
+		enabledProperty.SetValue(mod.commonProperties.Enabled)
+		if !*mod.commonProperties.Enabled {
+			for oss, enabled := range osSupport {
+				if val := enabledProperty.SelectValue(bazel.OsConfigurationAxis, oss); enabled && val != nil && *val {
 					// if this should be disabled by default, clear out any enabling we've done
-					enabledProperty.SetSelectValue(bazel.OsConfigurationAxis, os, nil)
+					enabledProperty.SetSelectValue(bazel.OsConfigurationAxis, oss, nil)
 				}
 			}
 		}
 	}
 
-	required := depsToLabelList(props.Required)
+	required := depsToLabelList(mod.commonProperties.Required)
+	archVariantProps := mod.GetArchVariantProperties(ctx, &commonProperties{})
 	for axis, configToProps := range archVariantProps {
 		for config, _props := range configToProps {
 			if archProps, ok := _props.(*commonProperties); ok {
 				// TODO(b/234748998) Remove this requiredFiltered workaround when aapt2 converts successfully
 				requiredFiltered := archProps.Required
-				if name == "apexer" {
+				if attrs.Name == "apexer" {
 					requiredFiltered = make([]string, 0, len(archProps.Required))
 					for _, req := range archProps.Required {
 						if req != "aapt2" && req != "apexer" {
@@ -1278,7 +1268,7 @@ func (attrs *CommonAttributes) fillCommonBp2BuildModuleAttrs(ctx *topDownMutator
 	})
 
 	platformEnabledAttribute, err := enabledProperty.ToLabelListAttribute(
-		bazel.LabelList{[]bazel.Label{bazel.Label{Label: "@platforms//:incompatible"}}, nil},
+		bazel.LabelList{[]bazel.Label{{Label: "@platforms//:incompatible"}}, nil},
 		bazel.LabelList{[]bazel.Label{}, nil})
 	if err != nil {
 		ctx.ModuleErrorf("Error processing platform enabled attribute: %s", err)
@@ -1291,15 +1281,13 @@ func (attrs *CommonAttributes) fillCommonBp2BuildModuleAttrs(ctx *topDownMutator
 		platformEnabledAttribute.Add(&l)
 	}
 
-	data.Append(required)
+	attrs.Data.Append(required)
 
-	constraints := constraintAttributes{}
 	moduleEnableConstraints := bazel.LabelListAttribute{}
 	moduleEnableConstraints.Append(platformEnabledAttribute)
 	moduleEnableConstraints.Append(productConfigEnabledAttribute)
-	constraints.Target_compatible_with = moduleEnableConstraints
 
-	return constraints
+	return constraintAttributes{Target_compatible_with: moduleEnableConstraints}
 }
 
 // Check product variables for `enabled: true` flag override.
@@ -1642,7 +1630,7 @@ func (m *ModuleBase) BuildParamsForTests() []BuildParams {
 	// transformSourceToObj, and should only affects unit tests.
 	vars := m.VariablesForTests()
 	buildParams := append([]BuildParams(nil), m.buildParams...)
-	for i, _ := range buildParams {
+	for i := range buildParams {
 		newArgs := make(map[string]string)
 		for k, v := range buildParams[i].Args {
 			newArgs[k] = v
@@ -2287,7 +2275,7 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 
 	// Some common property checks for properties that will be used later in androidmk.go
 	checkDistProperties(ctx, "dist", &m.distProperties.Dist)
-	for i, _ := range m.distProperties.Dists {
+	for i := range m.distProperties.Dists {
 		checkDistProperties(ctx, fmt.Sprintf("dists[%d]", i), &m.distProperties.Dists[i])
 	}
 
@@ -3465,14 +3453,6 @@ func sourceOrOutputDepTag(moduleName, tag string) blueprint.DependencyTag {
 	return sourceOrOutputDependencyTag{moduleName: moduleName, tag: tag}
 }
 
-// IsSourceDepTag returns true if the supplied blueprint.DependencyTag is one that was used to add
-// dependencies by either ExtractSourceDeps, ExtractSourcesDeps or automatically for properties
-// tagged with `android:"path"`.
-func IsSourceDepTag(depTag blueprint.DependencyTag) bool {
-	_, ok := depTag.(sourceOrOutputDependencyTag)
-	return ok
-}
-
 // IsSourceDepTagWithOutputTag returns true if the supplied blueprint.DependencyTag is one that was
 // used to add dependencies by either ExtractSourceDeps, ExtractSourcesDeps or automatically for
 // properties tagged with `android:"path"` AND it was added using a module reference of
@@ -3599,14 +3579,14 @@ func (m *moduleContext) ExpandSources(srcFiles, excludes []string) Paths {
 // be tagged with `android:"path" to support automatic source module dependency resolution.
 //
 // Deprecated: use PathForModuleSrc instead.
-func (m *moduleContext) ExpandSource(srcFile, prop string) Path {
+func (m *moduleContext) ExpandSource(srcFile, _ string) Path {
 	return PathForModuleSrc(m, srcFile)
 }
 
 // Returns an optional single path expanded from globs and modules referenced using ":module" syntax if
 // the srcFile is non-nil.  The property must be tagged with `android:"path" to support automatic source module
 // dependency resolution.
-func (m *moduleContext) ExpandOptionalSource(srcFile *string, prop string) OptionalPath {
+func (m *moduleContext) ExpandOptionalSource(srcFile *string, _ string) OptionalPath {
 	if srcFile != nil {
 		return OptionalPathForPath(PathForModuleSrc(m, *srcFile))
 	}
