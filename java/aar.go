@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"android/soong/android"
+	"android/soong/bazel"
 	"android/soong/dexpreopt"
 
 	"github.com/google/blueprint"
@@ -490,6 +491,7 @@ func aaptLibs(ctx android.ModuleContext, sdkContext android.SdkContext, classLoa
 type AndroidLibrary struct {
 	Library
 	aapt
+	android.BazelModuleBase
 
 	androidLibraryProperties androidLibraryProperties
 
@@ -605,6 +607,7 @@ func AndroidLibraryFactory() android.Module {
 
 	android.InitApexModule(module)
 	InitJavaModule(module, android.DeviceSupported)
+	android.InitBazelModule(module)
 	return module
 }
 
@@ -643,6 +646,7 @@ type AARImport struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
 	android.ApexModuleBase
+	android.BazelModuleBase
 	prebuilt android.Prebuilt
 
 	// Functionality common to Module and Import.
@@ -973,5 +977,96 @@ func AARImportFactory() android.Module {
 	android.InitPrebuiltModule(module, &module.properties.Aars)
 	android.InitApexModule(module)
 	InitJavaModuleMultiTargets(module, android.DeviceSupported)
+	android.InitBazelModule(module)
 	return module
+}
+
+type bazelAapt struct {
+	Manifest       bazel.Label
+	Resource_files bazel.LabelListAttribute
+}
+
+type bazelAndroidLibrary struct {
+	*javaLibraryAttributes
+	*bazelAapt
+}
+
+type bazelAndroidLibraryImport struct {
+	Aar     bazel.Label
+	Deps    bazel.LabelListAttribute
+	Exports bazel.LabelListAttribute
+}
+
+func (a *aapt) convertAaptAttrsWithBp2Build(ctx android.TopDownMutatorContext) *bazelAapt {
+	manifest := proptools.StringDefault(a.aaptProperties.Manifest, "AndroidManifest.xml")
+
+	resourceFiles := bazel.LabelList{
+		Includes: []bazel.Label{},
+	}
+	for _, dir := range android.PathsWithOptionalDefaultForModuleSrc(ctx, a.aaptProperties.Resource_dirs, "res") {
+		files := android.RootToModuleRelativePaths(ctx, androidResourceGlob(ctx, dir))
+		resourceFiles.Includes = append(resourceFiles.Includes, files...)
+	}
+	return &bazelAapt{
+		android.BazelLabelForModuleSrcSingle(ctx, manifest),
+		bazel.MakeLabelListAttribute(resourceFiles),
+	}
+}
+
+func (a *AARImport) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+	aars := android.BazelLabelForModuleSrcExcludes(ctx, a.properties.Aars, []string{})
+	exportableStaticLibs := []string{}
+	// TODO(b/240716882): investigate and handle static_libs deps that are not imports. They are not supported for export by Bazel.
+	for _, depName := range a.properties.Static_libs {
+		if dep, ok := ctx.ModuleFromName(depName); ok {
+			switch dep.(type) {
+			case *AARImport, *Import:
+				exportableStaticLibs = append(exportableStaticLibs, depName)
+			}
+		}
+	}
+	name := android.RemoveOptionalPrebuiltPrefix(a.Name())
+	deps := android.BazelLabelForModuleDeps(ctx, android.LastUniqueStrings(android.CopyOf(append(a.properties.Static_libs, a.properties.Libs...))))
+	exports := android.BazelLabelForModuleDeps(ctx, android.LastUniqueStrings(exportableStaticLibs))
+
+	ctx.CreateBazelTargetModule(
+		bazel.BazelTargetModuleProperties{
+			Rule_class:        "aar_import",
+			Bzl_load_location: "@rules_android//rules:rules.bzl",
+		},
+		android.CommonAttributes{Name: name},
+		&bazelAndroidLibraryImport{
+			Aar:     aars.Includes[0],
+			Deps:    bazel.MakeLabelListAttribute(deps),
+			Exports: bazel.MakeLabelListAttribute(exports),
+		},
+	)
+
+}
+
+func (a *AndroidLibrary) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+	commonAttrs, depLabels := a.convertLibraryAttrsBp2Build(ctx)
+
+	deps := depLabels.Deps
+	if !commonAttrs.Srcs.IsEmpty() {
+		deps.Append(depLabels.StaticDeps) // we should only append these if there are sources to use them
+	} else if !depLabels.Deps.IsEmpty() {
+		ctx.ModuleErrorf("Module has direct dependencies but no sources. Bazel will not allow this.")
+	}
+
+	ctx.CreateBazelTargetModule(
+		bazel.BazelTargetModuleProperties{
+			Rule_class:        "android_library",
+			Bzl_load_location: "@rules_android//rules:rules.bzl",
+		},
+		android.CommonAttributes{Name: a.Name()},
+		&bazelAndroidLibrary{
+			&javaLibraryAttributes{
+				javaCommonAttributes: commonAttrs,
+				Deps:                 deps,
+				Exports:              depLabels.StaticDeps,
+			},
+			a.convertAaptAttrsWithBp2Build(ctx),
+		},
+	)
 }
