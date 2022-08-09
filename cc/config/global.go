@@ -59,6 +59,10 @@ var (
 		"-Werror=string-plus-int",
 		"-Werror=unreachable-code-loop-increment",
 
+		// Force deprecation warnings to be warnings for code that compiles with -Werror.
+		// Making deprecated usages an error causes extreme pain when trying to deprecate anything.
+		"-Wno-error=deprecated-declarations",
+
 		"-D__compiler_offsetof=__builtin_offsetof",
 
 		// Emit address-significance table which allows linker to perform safe ICF. Clang does
@@ -286,8 +290,7 @@ var (
 		"-Wno-deprecated-non-prototype",
 	}
 
-	llvmNextExtraCommonGlobalCflags = []string{
-	}
+	llvmNextExtraCommonGlobalCflags = []string{}
 
 	IllegalFlags = []string{
 		"-w",
