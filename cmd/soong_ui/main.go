@@ -489,11 +489,7 @@ func runMake(ctx build.Context, config build.Config, _ []string, logsDir string)
 		fmt.Fprintln(writer, "!")
 		fmt.Fprintln(writer, "! Older versions are saved in verbose.log.#.gz files")
 		fmt.Fprintln(writer, "")
-		select {
-		case <-time.After(5 * time.Second):
-		case <-ctx.Done():
-			return
-		}
+		ctx.Fatal("done")
 	}
 
 	if _, ok := config.Environment().Get("ONE_SHOT_MAKEFILE"); ok {
