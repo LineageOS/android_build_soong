@@ -507,11 +507,14 @@ func TestBazelOutRemovalFromInputDepsets(t *testing.T) {
   "depSetOfFiles": [{
     "id": 1111,
     "directArtifactIds": [3 , 4]
+  }, {
+    "id": 2222,
+    "directArtifactIds": [3]
   }],
   "actions": [{
     "targetId": 100,
     "actionKey": "x",
-    "inputDepSetIds": [1111],
+    "inputDepSetIds": [1111, 2222],
     "mnemonic": "x",
     "arguments": ["bogus", "command"],
     "outputIds": [2],
@@ -527,7 +530,7 @@ func TestBazelOutRemovalFromInputDepsets(t *testing.T) {
   ]
 }`
 	actualBuildStatements, actualDepsets, _ := AqueryBuildStatements([]byte(inputString))
-	if len(actualDepsets) != 1 {
+	if len(actualDepsets) != 2 {
 		t.Errorf("expected 1 depset but found %#v", actualDepsets)
 		return
 	}
