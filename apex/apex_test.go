@@ -26,6 +26,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
@@ -9542,6 +9543,63 @@ func TestUpdatableApexEnforcesAppUpdatability(t *testing.T) {
 		myapp := result.ModuleForTests("myapp", "android_common").Module().(*java.AndroidApp)
 		android.AssertBoolEquals(t, testCase.name, testCase.app_is_updatable_expected, myapp.Updatable())
 	}
+}
+
+func TestApexBuildsAgainstApiSurfaceStubLibraries(t *testing.T) {
+	bp := `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			native_shared_libs: ["libfoo"],
+			min_sdk_version: "29",
+		}
+		apex_key {
+			name: "myapex.key",
+		}
+		cc_library {
+			name: "libfoo",
+			shared_libs: ["libc"],
+			apex_available: ["myapex"],
+			min_sdk_version: "29",
+		}
+		cc_api_library {
+			name: "libc",
+			src: "libc.so",
+			min_sdk_version: "29",
+			recovery_available: true,
+		}
+		api_imports {
+			name: "api_imports",
+			shared_libs: [
+				"libc",
+			],
+			header_libs: [],
+		}
+		`
+	result := testApex(t, bp)
+
+	hasDep := func(m android.Module, wantDep android.Module) bool {
+		t.Helper()
+		var found bool
+		result.VisitDirectDeps(m, func(dep blueprint.Module) {
+			if dep == wantDep {
+				found = true
+			}
+		})
+		return found
+	}
+
+	libfooApexVariant := result.ModuleForTests("libfoo", "android_arm64_armv8-a_shared_apex29").Module()
+	libcApexVariant := result.ModuleForTests("libc.apiimport", "android_arm64_armv8-a_shared_apex29").Module()
+
+	android.AssertBoolEquals(t, "apex variant should link against API surface stub libraries", true, hasDep(libfooApexVariant, libcApexVariant))
+
+	// libfoo core variant should be buildable in the same inner tree since
+	// certain mcombo files might build system and apexes in the same inner tree
+	// libfoo core variant should link against source libc
+	libfooCoreVariant := result.ModuleForTests("libfoo", "android_arm64_armv8-a_shared").Module()
+	libcCoreVariant := result.ModuleForTests("libc.apiimport", "android_arm64_armv8-a_shared").Module()
+	android.AssertBoolEquals(t, "core variant should link against source libc", true, hasDep(libfooCoreVariant, libcCoreVariant))
 }
 
 func TestMain(m *testing.M) {

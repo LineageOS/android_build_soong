@@ -17,6 +17,7 @@ package cc
 import (
 	"android/soong/android"
 	"android/soong/multitree"
+	"strings"
 )
 
 func init() {
@@ -25,8 +26,94 @@ func init() {
 
 func RegisterLibraryStubBuildComponents(ctx android.RegistrationContext) {
 	// cc_api_stub_library shares a lot of ndk_library, and this will be refactored later
+	ctx.RegisterModuleType("cc_api_library", CcApiLibraryFactory)
 	ctx.RegisterModuleType("cc_api_stub_library", CcApiStubLibraryFactory)
 	ctx.RegisterModuleType("cc_api_contribution", CcApiContributionFactory)
+}
+
+// 'cc_api_library' is a module type which is from the exported API surface
+// with C shared library type. The module will replace original module, and
+// offer a link to the module that generates shared library object from the
+// map file.
+type apiLibraryProperties struct {
+	Src *string `android:"arch_variant"`
+}
+
+type apiLibraryDecorator struct {
+	*libraryDecorator
+	properties apiLibraryProperties
+}
+
+func CcApiLibraryFactory() android.Module {
+	module, decorator := NewLibrary(android.DeviceSupported)
+	apiLibraryDecorator := &apiLibraryDecorator{
+		libraryDecorator: decorator,
+	}
+	apiLibraryDecorator.BuildOnlyShared()
+
+	module.stl = nil
+	module.sanitize = nil
+	decorator.disableStripping()
+
+	module.compiler = nil
+	module.linker = apiLibraryDecorator
+	module.installer = nil
+	module.AddProperties(&module.Properties, &apiLibraryDecorator.properties)
+
+	// Mark module as stub, so APEX would not include this stub in the package.
+	module.library.setBuildStubs(true)
+
+	// Prevent default system libs (libc, libm, and libdl) from being linked
+	if apiLibraryDecorator.baseLinker.Properties.System_shared_libs == nil {
+		apiLibraryDecorator.baseLinker.Properties.System_shared_libs = []string{}
+	}
+
+	module.Init()
+
+	return module
+}
+
+func (d *apiLibraryDecorator) Name(basename string) string {
+	return basename + multitree.GetApiImportSuffix()
+}
+
+func (d *apiLibraryDecorator) link(ctx ModuleContext, flags Flags, deps PathDeps, objects Objects) android.Path {
+	// Flags reexported from dependencies. (e.g. vndk_prebuilt_shared)
+	d.libraryDecorator.flagExporter.exportIncludes(ctx)
+	d.libraryDecorator.reexportDirs(deps.ReexportedDirs...)
+	d.libraryDecorator.reexportSystemDirs(deps.ReexportedSystemDirs...)
+	d.libraryDecorator.reexportFlags(deps.ReexportedFlags...)
+	d.libraryDecorator.reexportDeps(deps.ReexportedDeps...)
+	d.libraryDecorator.addExportedGeneratedHeaders(deps.ReexportedGeneratedHeaders...)
+	d.libraryDecorator.flagExporter.setProvider(ctx)
+
+	in := android.PathForModuleSrc(ctx, *d.properties.Src)
+
+	d.unstrippedOutputFile = in
+	libName := d.libraryDecorator.getLibName(ctx) + flags.Toolchain.ShlibSuffix()
+
+	tocFile := android.PathForModuleOut(ctx, libName+".toc")
+	d.tocFile = android.OptionalPathForPath(tocFile)
+	TransformSharedObjectToToc(ctx, in, tocFile)
+
+	ctx.SetProvider(SharedLibraryInfoProvider, SharedLibraryInfo{
+		SharedLibrary: in,
+		Target:        ctx.Target(),
+
+		TableOfContents: d.tocFile,
+	})
+
+	return in
+}
+
+func (d *apiLibraryDecorator) availableFor(what string) bool {
+	// Stub from API surface should be available for any APEX.
+	return true
+}
+
+func (d *apiLibraryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags {
+	d.libraryDecorator.libName = strings.TrimSuffix(ctx.ModuleName(), multitree.GetApiImportSuffix())
+	return d.libraryDecorator.linkerFlags(ctx, flags)
 }
 
 func CcApiStubLibraryFactory() android.Module {
