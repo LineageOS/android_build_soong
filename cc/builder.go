@@ -282,7 +282,7 @@ var (
 	sAbiDiff = pctx.RuleFunc("sAbiDiff",
 		func(ctx android.PackageRuleContext) blueprint.RuleParams {
 			commandStr := "($sAbiDiffer ${extraFlags} -lib ${libName} -arch ${arch} -o ${out} -new ${in} -old ${referenceDump})"
-			commandStr += "|| (echo 'error: Please update ABI references with: $$ANDROID_BUILD_TOP/development/vndk/tools/header-checker/utils/create_reference_dumps.py ${createReferenceDumpFlags} -l ${libName}'"
+			commandStr += "|| (echo '${errorMessage}'"
 			commandStr += " && (mkdir -p $$DIST_DIR/abidiffs && cp ${out} $$DIST_DIR/abidiffs/)"
 			commandStr += " && exit 1)"
 			return blueprint.RuleParams{
@@ -290,7 +290,7 @@ var (
 				CommandDeps: []string{"$sAbiDiffer"},
 			}
 		},
-		"extraFlags", "referenceDump", "libName", "arch", "createReferenceDumpFlags")
+		"extraFlags", "referenceDump", "libName", "arch", "errorMessage")
 
 	// Rule to unzip a reference abi dump.
 	unzipRefSAbiDump = pctx.AndroidStaticRule("unzipRefSAbiDump",
@@ -940,9 +940,21 @@ func sourceAbiDiff(ctx android.ModuleContext, inputDump android.Path, referenceD
 			"-allow-unreferenced-elf-symbol-changes")
 	}
 
-	// TODO(b/241496591): Remove -advice-only after b/239792343 and b/239790286 are reolved.
+	var errorMessage string
+	// When error occurs in previous version ABI diff, Developers can't just update ABI
+	// reference but need to follow instructions to ensure ABI backward compatibility.
 	if previousVersionDiff {
+		// TODO(b/241496591): Remove -advice-only after b/239792343 and b/239790286 are reolved.
 		extraFlags = append(extraFlags, "-advice-only")
+		errorMessage = "error: Please follow development/vndk/tools/header-checker/README.md to ensure the ABI compatibility between your source code and version " + prevVersion + "."
+		// The prevVersion is expected as a string of int, skip it if not.
+		if prevVersionInt, err := strconv.Atoi(prevVersion); err == nil {
+			sourceVersion := strconv.Itoa(prevVersionInt + 1)
+			extraFlags = append(extraFlags, "-target-version", sourceVersion)
+		}
+	} else {
+		errorMessage = "error: Please update ABI references with: $ANDROID_BUILD_TOP/development/vndk/tools/header-checker/utils/create_reference_dumps.py -l " + libName
+		extraFlags = append(extraFlags, "-target-version", "current")
 	}
 
 	if isLlndk || isNdk {
@@ -961,11 +973,11 @@ func sourceAbiDiff(ctx android.ModuleContext, inputDump android.Path, referenceD
 		Input:       inputDump,
 		Implicit:    referenceDump,
 		Args: map[string]string{
-			"referenceDump":            referenceDump.String(),
-			"libName":                  libName,
-			"arch":                     ctx.Arch().ArchType.Name,
-			"extraFlags":               strings.Join(extraFlags, " "),
-			"createReferenceDumpFlags": "",
+			"referenceDump": referenceDump.String(),
+			"libName":       libName,
+			"arch":          ctx.Arch().ArchType.Name,
+			"extraFlags":    strings.Join(extraFlags, " "),
+			"errorMessage":  errorMessage,
 		},
 	})
 	return android.OptionalPathForPath(outputFile)
