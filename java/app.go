@@ -1377,7 +1377,7 @@ func (u *usesLibrary) verifyUsesLibraries(ctx android.ModuleContext, inputFile a
 		Flag("--enforce-uses-libraries").
 		Input(inputFile).
 		FlagWithOutput("--enforce-uses-libraries-status ", statusFile).
-		FlagWithInput("--aapt ", ctx.Config().HostToolPath(ctx, "aapt"))
+		FlagWithInput("--aapt ", ctx.Config().HostToolPath(ctx, "aapt2"))
 
 	if outputFile != nil {
 		cmd.FlagWithOutput("-o ", outputFile)
