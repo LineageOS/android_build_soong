@@ -1453,10 +1453,9 @@ func androidAppCertificateBp2Build(ctx android.TopDownMutatorContext, module *An
 
 type bazelAndroidAppAttributes struct {
 	*javaCommonAttributes
+	*bazelAapt
 	Deps             bazel.LabelListAttribute
-	Manifest         bazel.Label
 	Custom_package   *string
-	Resource_files   bazel.LabelListAttribute
 	Certificate      *bazel.Label
 	Certificate_name *string
 }
@@ -1466,23 +1465,9 @@ func (a *AndroidApp) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 	commonAttrs, depLabels := a.convertLibraryAttrsBp2Build(ctx)
 
 	deps := depLabels.Deps
-	if !commonAttrs.Srcs.IsEmpty() {
-		deps.Append(depLabels.StaticDeps) // we should only append these if there are sources to use them
-	} else if !deps.IsEmpty() || !depLabels.StaticDeps.IsEmpty() {
-		ctx.ModuleErrorf("android_app has dynamic or static dependencies but no sources." +
-			" Bazel does not allow direct dependencies without sources nor exported" +
-			" dependencies on android_binary rule.")
-	}
+	deps.Append(depLabels.StaticDeps)
 
-	manifest := proptools.StringDefault(a.aaptProperties.Manifest, "AndroidManifest.xml")
-
-	resourceFiles := bazel.LabelList{
-		Includes: []bazel.Label{},
-	}
-	for _, dir := range android.PathsWithOptionalDefaultForModuleSrc(ctx, a.aaptProperties.Resource_dirs, "res") {
-		files := android.RootToModuleRelativePaths(ctx, androidResourceGlob(ctx, dir))
-		resourceFiles.Includes = append(resourceFiles.Includes, files...)
-	}
+	aapt := a.convertAaptAttrsWithBp2Build(ctx)
 
 	var certificate *bazel.Label
 	certificateNamePtr := a.overridableAppProperties.Certificate
@@ -1493,14 +1478,12 @@ func (a *AndroidApp) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 		certificate = &c
 		certificateNamePtr = nil
 	}
-
 	attrs := &bazelAndroidAppAttributes{
 		commonAttrs,
+		aapt,
 		deps,
-		android.BazelLabelForModuleSrcSingle(ctx, manifest),
 		// TODO(b/209576404): handle package name override by product variable PRODUCT_MANIFEST_PACKAGE_NAME_OVERRIDES
 		a.overridableAppProperties.Package_name,
-		bazel.MakeLabelListAttribute(resourceFiles),
 		certificate,
 		certificateNamePtr,
 	}
@@ -1509,7 +1492,6 @@ func (a *AndroidApp) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 		Rule_class:        "android_binary",
 		Bzl_load_location: "//build/bazel/rules/android:android_binary.bzl",
 	}
-
 	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: a.Name()}, attrs)
 
 }

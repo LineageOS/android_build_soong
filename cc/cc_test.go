@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -3342,7 +3343,7 @@ func TestErrorsIfAModuleDependsOnDisabled(t *testing.T) {
 	`)
 }
 
-func TestAFLFuzzTarget(t *testing.T) {
+func VerifyAFLFuzzTargetVariant(t *testing.T, variant string) {
 	bp := `
 		cc_fuzz {
 			name: "test_afl_fuzz_target",
@@ -3435,27 +3436,32 @@ func TestAFLFuzzTarget(t *testing.T) {
 	}
 
 	moduleName := "test_afl_fuzz_target"
-	hostVariant := "linux_glibc_x86_64"
-	armVariant := "android_arm64_armv8-a"
-	checkPcGuardFlag(moduleName, armVariant+"_fuzzer", true)
-	checkPcGuardFlag(moduleName, hostVariant+"_fuzzer", true)
+	checkPcGuardFlag(moduleName, variant+"_fuzzer", true)
 
 	moduleName = "afl_fuzz_static_lib"
-	checkPcGuardFlag(moduleName, armVariant+"_static", false)
-	checkPcGuardFlag(moduleName, armVariant+"_static_fuzzer", true)
-	checkPcGuardFlag(moduleName, hostVariant+"_static", false)
-	checkPcGuardFlag(moduleName, hostVariant+"_static_fuzzer", true)
+	checkPcGuardFlag(moduleName, variant+"_static", false)
+	checkPcGuardFlag(moduleName, variant+"_static_fuzzer", true)
 
 	moduleName = "second_static_lib"
-	checkPcGuardFlag(moduleName, armVariant+"_static", false)
-	checkPcGuardFlag(moduleName, armVariant+"_static_fuzzer", true)
-	checkPcGuardFlag(moduleName, hostVariant+"_static", false)
-	checkPcGuardFlag(moduleName, hostVariant+"_static_fuzzer", true)
+	checkPcGuardFlag(moduleName, variant+"_static", false)
+	checkPcGuardFlag(moduleName, variant+"_static_fuzzer", true)
 
 	ctx.ModuleForTests("afl_fuzz_shared_lib",
 		"android_arm64_armv8-a_shared").Rule("cc")
 	ctx.ModuleForTests("afl_fuzz_shared_lib",
 		"android_arm64_armv8-a_shared_fuzzer").Rule("cc")
+}
+
+func TestAFLFuzzTargetForDevice(t *testing.T) {
+	VerifyAFLFuzzTargetVariant(t, "android_arm64_armv8-a")
+}
+
+func TestAFLFuzzTargetForLinuxHost(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("requires linux")
+	}
+
+	VerifyAFLFuzzTargetVariant(t, "linux_glibc_x86_64")
 }
 
 // Simple smoke test for the cc_fuzz target that ensures the rule compiles

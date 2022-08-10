@@ -34,6 +34,7 @@ bootstrap_go_package {
         "soong-ui-metrics",
     ],
     testSrcs: [
+        "aar_conversion_test.go",
         "android_app_certificate_conversion_test.go",
         "android_app_conversion_test.go",
         "apex_conversion_test.go",
@@ -49,6 +50,7 @@ bootstrap_go_package {
         "cc_prebuilt_library_conversion_test.go",
         "cc_prebuilt_library_shared_test.go",
         "cc_prebuilt_library_static_test.go",
+        "cc_yasm_conversion_test.go",
         "conversion_test.go",
         "filegroup_conversion_test.go",
         "genrule_conversion_test.go",

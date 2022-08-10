@@ -169,6 +169,7 @@ var (
 		"packages/apps/DevCamera":                                Bp2BuildDefaultTrue,
 		"packages/apps/HTMLViewer":                               Bp2BuildDefaultTrue,
 		"packages/apps/Protips":                                  Bp2BuildDefaultTrue,
+		"packages/apps/WallpaperPicker":                          Bp2BuildDefaultTrue,
 		"packages/modules/StatsD/lib/libstatssocket":             Bp2BuildDefaultTrueRecursively,
 		"packages/modules/adb":                                   Bp2BuildDefaultTrue,
 		"packages/modules/adb/apex":                              Bp2BuildDefaultTrue,
@@ -182,6 +183,8 @@ var (
 		"packages/screensavers/Basic":                            Bp2BuildDefaultTrue,
 		"packages/services/Car/tests/SampleRearViewCamera":       Bp2BuildDefaultTrue,
 		"prebuilts/clang/host/linux-x86":                         Bp2BuildDefaultTrueRecursively,
+		"prebuilts/sdk/current/extras/app-toolkit":               Bp2BuildDefaultTrue,
+		"prebuilts/sdk/current/support":                          Bp2BuildDefaultTrue,
 		"prebuilts/tools/common/m2":                              Bp2BuildDefaultTrue,
 		"system/apex":                                            Bp2BuildDefaultFalse, // TODO(b/207466993): flaky failures
 		"system/apex/apexer":                                     Bp2BuildDefaultTrue,
@@ -258,7 +261,6 @@ var (
 
 		"packages/apps/Music":/* recursive = */ true,
 		"packages/apps/QuickSearchBox":/* recursive = */ true,
-		"packages/apps/WallpaperPicker":/* recursive = */ false,
 
 		"prebuilts/bazel":/* recursive = */ true,
 		"prebuilts/bundletool":/* recursive = */ true,
@@ -267,8 +269,6 @@ var (
 		"prebuilts/jdk/jdk11":/* recursive = */ false,
 		"prebuilts/misc":/* recursive = */ false, // not recursive because we need bp2build converted build files in prebuilts/misc/common/asm
 		"prebuilts/sdk":/* recursive = */ false,
-		"prebuilts/sdk/current/extras/app-toolkit":/* recursive = */ false,
-		"prebuilts/sdk/current/support":/* recursive = */ false,
 		"prebuilts/sdk/tools":/* recursive = */ false,
 		"prebuilts/r8":/* recursive = */ false,
 	}
@@ -459,9 +459,12 @@ var (
 		"generated_android_icu4j_test_resources",                     // depends on unconverted modules: android_icu4j_srcgen_binary, soong_zip
 		"host-libprotobuf-java-nano",                                 // b/220869005, depends on libprotobuf-java-nano
 		"libadb_host",                                                // depends on unconverted modules: AdbWinApi, libopenscreen-discovery, libopenscreen-platform-impl, libusb
+		"libapexutil",                                                // depends on unconverted modules: apex-info-list-tinyxml
 		"libart",                                                     // depends on unconverted modules: apex-info-list-tinyxml, libtinyxml2, libnativeloader-headers, heapprofd_client_api, art_operator_srcs, libcpu_features, libodrstatslog, libelffile, art_cmdlineparser_headers, cpp-define-generator-definitions, libdexfile, libnativebridge, libnativeloader, libsigchain, libartbase, libprofile, cpp-define-generator-asm-support
 		"libart-runtime-gtest",                                       // depends on unconverted modules: libgtest_isolated, libart-compiler, libdexfile, libprofile, libartbase, libartbase-art-gtest
 		"libart_headers",                                             // depends on unconverted modules: art_libartbase_headers
+		"libartbase-art-gtest",                                       // depends on unconverted modules: libgtest_isolated, libart, libart-compiler, libdexfile, libprofile
+		"libartbased-art-gtest",                                      // depends on unconverted modules: libgtest_isolated, libartd, libartd-compiler, libdexfiled, libprofiled
 		"libartd",                                                    // depends on unconverted modules: art_operator_srcs, libcpu_features, libodrstatslog, libelffiled, art_cmdlineparser_headers, cpp-define-generator-definitions, libdexfiled, libnativebridge, libnativeloader, libsigchain, libartbased, libprofiled, cpp-define-generator-asm-support, apex-info-list-tinyxml, libtinyxml2, libnativeloader-headers, heapprofd_client_api
 		"libartd-runtime-gtest",                                      // depends on unconverted modules: libgtest_isolated, libartd-compiler, libdexfiled, libprofiled, libartbased, libartbased-art-gtest
 		"libdebuggerd_handler",                                       // depends on unconverted module libdebuggerd_handler_core
@@ -484,11 +487,10 @@ var (
 		"stats-log-api-gen",                         // depends on unconverted modules: libstats_proto_host
 		"statslog.cpp", "statslog.h", "statslog.rs", // depends on unconverted modules: stats-log-api-gen
 		"statslog_art.cpp", "statslog_art.h", "statslog_header.rs", // depends on unconverted modules: stats-log-api-gen
-		"timezone-host",         // depends on unconverted modules: art.module.api.annotations
-		"truth-host-prebuilt",   // depends on unconverted modules: truth-prebuilt
-		"truth-prebuilt",        // depends on unconverted modules: asm-7.0, guava
-		"libartbase-art-gtest",  // depends on unconverted modules: libgtest_isolated, libart, libart-compiler, libdexfile, libprofile
-		"libartbased-art-gtest", // depends on unconverted modules: libgtest_isolated, libartd, libartd-compiler, libdexfiled, libprofiled
+		"test_fips",           // depends on unconverted modules: adb
+		"timezone-host",       // depends on unconverted modules: art.module.api.annotations
+		"truth-host-prebuilt", // depends on unconverted modules: truth-prebuilt
+		"truth-prebuilt",      // depends on unconverted modules: asm-7.0, guava
 
 		// b/215723302; awaiting tz{data,_version} to then rename targets conflicting with srcs
 		"tzdata",
