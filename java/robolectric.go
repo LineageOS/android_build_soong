@@ -354,7 +354,7 @@ func RobolectricTestFactory() android.Module {
 		&module.testProperties)
 
 	module.Module.dexpreopter.isTest = true
-	module.Module.linter.test = true
+	module.Module.linter.properties.Lint.Test = proptools.BoolPtr(true)
 
 	module.testProperties.Test_suites = []string{"robolectric-tests"}
 
