@@ -10,6 +10,7 @@ bootstrap_go_package {
         "soong-android",
     ],
     srcs: [
+        "api_imports.go",
         "api_surface.go",
         "export.go",
         "metadata.go",
