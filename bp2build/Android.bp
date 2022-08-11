@@ -15,6 +15,7 @@ bootstrap_go_package {
         "conversion.go",
         "metrics.go",
         "symlink_forest.go",
+        "testing.go",
     ],
     deps: [
         "soong-android",
@@ -68,7 +69,6 @@ bootstrap_go_package {
         "python_library_conversion_test.go",
         "sh_conversion_test.go",
         "soong_config_module_type_conversion_test.go",
-        "testing.go",
     ],
     pluginFor: [
         "soong_build",
