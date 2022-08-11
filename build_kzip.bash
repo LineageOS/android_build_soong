@@ -45,11 +45,13 @@ declare -r go_root=$(realpath prebuilts/go/linux-x86)
 declare -r source_root=$PWD
 
 # For the Go code, we invoke the extractor directly. The two caveats are that
-# the extractor's rewrite rules are generated on the fly as they depend on the XREF_CORPUS
-# value, and that the name of the kzip file is derived from the directory name
-# by replacing '/' with '_'.
+# the extractor's rewrite rules are generated on the fly as they depend on the
+# value of XREF_CORPUS, and that the name of the kzip file is derived from the
+# directory name by replacing '/' with '_'.
+# Go extractor should succeed.
 declare -ar go_modules=(build/blueprint build/soong
   build/make/tools/canoninja build/make/tools/compliance build/make/tools/rbcrun)
+set -e
 for dir in "${go_modules[@]}"; do
   (cd "$dir";
    outfile=$(echo "$dir" | sed -r 's|/|_|g;s|(.*)|\1.go.kzip|');
@@ -58,6 +60,7 @@ for dir in "${go_modules[@]}"; do
    --canonicalize_package_corpus --output "${abspath_out}/soong/$outfile" ./...
   )
 done
+set +e
 
 declare -r kzip_count=$(find "$out" -name '*.kzip' | wc -l)
 (($kzip_count>100000)) || { printf "Too few kzip files were generated: %d\n" $kzip_count; exit 1; }

@@ -22,6 +22,8 @@ import (
 
 	"android/soong/android"
 	"android/soong/multitree"
+
+	"github.com/google/blueprint"
 )
 
 func TestCcApiStubLibraryOutputFiles(t *testing.T) {
@@ -105,4 +107,112 @@ func TestApiSurfaceOutputs(t *testing.T) {
 	/*api_surface_gen_rule_args := result.ModuleForTests("mysdk", "").Rule("genApiSurfaceBuildFiles").Args
 	android.AssertStringEquals(t, "name", "foo.mysdk", api_surface_gen_rule_args["name"])
 	android.AssertStringEquals(t, "symbol_file", "foo.map.txt", api_surface_gen_rule_args["symbol_file"])*/
+}
+
+func hasDirectDependency(t *testing.T, ctx *android.TestResult, from android.Module, to android.Module) bool {
+	t.Helper()
+	var found bool
+	ctx.VisitDirectDeps(from, func(dep blueprint.Module) {
+		if dep == to {
+			found = true
+		}
+	})
+	return found
+}
+
+func TestApiLibraryReplacesExistingModule(t *testing.T) {
+	bp := `
+		cc_library {
+			name: "libfoo",
+			shared_libs: ["libbar"],
+		}
+
+		cc_library {
+			name: "libbar",
+		}
+
+		cc_api_library {
+			name: "libbar",
+			src: "libbar.so",
+		}
+
+		api_imports {
+			name: "api_imports",
+			shared_libs: [
+				"libbar",
+			],
+			header_libs: [],
+		}
+	`
+
+	ctx := prepareForCcTest.RunTestWithBp(t, bp)
+
+	libfoo := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_shared").Module()
+	libbar := ctx.ModuleForTests("libbar", "android_arm64_armv8-a_shared").Module()
+	libbarApiImport := ctx.ModuleForTests("libbar.apiimport", "android_arm64_armv8-a_shared").Module()
+
+	android.AssertBoolEquals(t, "original library should not be linked", false, hasDirectDependency(t, ctx, libfoo, libbar))
+	android.AssertBoolEquals(t, "Stub library from API surface should be linked", true, hasDirectDependency(t, ctx, libfoo, libbarApiImport))
+}
+
+func TestApiLibraryDoNotRequireOriginalModule(t *testing.T) {
+	bp := `
+		cc_library {
+			name: "libfoo",
+			shared_libs: ["libbar"],
+		}
+
+		cc_api_library {
+			name: "libbar",
+			src: "libbar.so",
+		}
+
+		api_imports {
+			name: "api_imports",
+			shared_libs: [
+				"libbar",
+			],
+			header_libs: [],
+		}
+	`
+
+	ctx := prepareForCcTest.RunTestWithBp(t, bp)
+
+	libfoo := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_shared").Module()
+	libbarApiImport := ctx.ModuleForTests("libbar.apiimport", "android_arm64_armv8-a_shared").Module()
+
+	android.AssertBoolEquals(t, "Stub library from API surface should be linked", true, hasDirectDependency(t, ctx, libfoo, libbarApiImport))
+}
+
+func TestApiLibraryShouldNotReplaceWithoutApiImport(t *testing.T) {
+	bp := `
+		cc_library {
+			name: "libfoo",
+			shared_libs: ["libbar"],
+		}
+
+		cc_library {
+			name: "libbar",
+		}
+
+		cc_api_library {
+			name: "libbar",
+			src: "libbar.so",
+		}
+
+		api_imports {
+			name: "api_imports",
+			shared_libs: [],
+			header_libs: [],
+		}
+	`
+
+	ctx := prepareForCcTest.RunTestWithBp(t, bp)
+
+	libfoo := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_shared").Module()
+	libbar := ctx.ModuleForTests("libbar", "android_arm64_armv8-a_shared").Module()
+	libbarApiImport := ctx.ModuleForTests("libbar.apiimport", "android_arm64_armv8-a_shared").Module()
+
+	android.AssertBoolEquals(t, "original library should be linked", true, hasDirectDependency(t, ctx, libfoo, libbar))
+	android.AssertBoolEquals(t, "Stub library from API surface should not be linked", false, hasDirectDependency(t, ctx, libfoo, libbarApiImport))
 }

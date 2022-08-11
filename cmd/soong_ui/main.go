@@ -66,11 +66,9 @@ var commands = []command{
 	{
 		flag:        "--make-mode",
 		description: "build the modules by the target name (i.e. soong_docs)",
-		config: func(ctx build.Context, args ...string) build.Config {
-			return build.NewConfig(ctx, args...)
-		},
-		stdio: stdio,
-		run:   runMake,
+		config:      build.NewConfig,
+		stdio:       stdio,
+		run:         runMake,
 	}, {
 		flag:         "--dumpvar-mode",
 		description:  "print the value of the legacy make variable VAR to stdout",
@@ -114,7 +112,7 @@ func inList(s string, list []string) bool {
 
 // Main execution of soong_ui. The command format is as follows:
 //
-//    soong_ui <command> [<arg 1> <arg 2> ... <arg n>]
+//	soong_ui <command> [<arg 1> <arg 2> ... <arg n>]
 //
 // Command is the type of soong_ui execution. Only one type of
 // execution is specified. The args are specific to the command.
@@ -491,11 +489,7 @@ func runMake(ctx build.Context, config build.Config, _ []string, logsDir string)
 		fmt.Fprintln(writer, "!")
 		fmt.Fprintln(writer, "! Older versions are saved in verbose.log.#.gz files")
 		fmt.Fprintln(writer, "")
-		select {
-		case <-time.After(5 * time.Second):
-		case <-ctx.Done():
-			return
-		}
+		ctx.Fatal("done")
 	}
 
 	if _, ok := config.Environment().Get("ONE_SHOT_MAKEFILE"); ok {
