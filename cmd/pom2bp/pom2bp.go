@@ -828,6 +828,7 @@ Usage: %s [--rewrite <regex>=<replace>] [--exclude <module>] [--extra-static-lib
 
 	var regen string
 	var pom2build bool
+	var prepend string
 
 	flag.Var(&excludes, "exclude", "Exclude module")
 	flag.Var(&extraStaticLibs, "extra-static-libs", "Extra static dependencies needed when depending on a module")
@@ -844,6 +845,7 @@ Usage: %s [--rewrite <regex>=<replace>] [--exclude <module>] [--extra-static-lib
 	flag.BoolVar(&jetifier, "jetifier", false, "Sets jetifier: true on all modules")
 	flag.StringVar(&regen, "regen", "", "Rewrite specified file")
 	flag.BoolVar(&pom2build, "pom2build", false, "If true, will generate a Bazel BUILD file *instead* of a .bp file")
+	flag.StringVar(&prepend, "prepend", "", "Path to a file containing text to insert at the beginning of the generated build file")
 	flag.Parse()
 
 	if regen != "" {
@@ -973,6 +975,15 @@ Usage: %s [--rewrite <regex>=<replace>] [--exclude <module>] [--extra-static-lib
 	if writeCmd {
 		fmt.Fprintln(buf, commentString, "Automatically generated with:")
 		fmt.Fprintln(buf, commentString, "pom2bp", strings.Join(proptools.ShellEscapeList(os.Args[1:]), " "))
+	}
+
+	if prepend != "" {
+		contents, err := ioutil.ReadFile(prepend)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Error reading", prepend, err)
+			os.Exit(1)
+		}
+		fmt.Fprintln(buf, string(contents))
 	}
 
 	depsTemplate := bpDepsTemplate
