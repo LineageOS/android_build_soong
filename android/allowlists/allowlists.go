@@ -215,6 +215,10 @@ var (
 		"system/libartpalette":                                   Bp2BuildDefaultTrueRecursively,
 		"system/libbase":                                         Bp2BuildDefaultTrueRecursively,
 		"system/libfmq":                                          Bp2BuildDefaultTrue,
+		"system/libhidl/transport/base/1.0":                      Bp2BuildDefaultTrue,
+		"system/libhidl/transport/manager/1.0":                   Bp2BuildDefaultTrue,
+		"system/libhidl/transport/manager/1.1":                   Bp2BuildDefaultTrue,
+		"system/libhidl/transport/manager/1.2":                   Bp2BuildDefaultTrue,
 		"system/libhwbinder":                                     Bp2BuildDefaultTrueRecursively,
 		"system/libprocinfo":                                     Bp2BuildDefaultTrue,
 		"system/libziparchive":                                   Bp2BuildDefaultTrueRecursively,
@@ -382,6 +386,10 @@ var (
 		"car-ui-androidx-core-common-nodeps",
 		"car-ui-androidx-lifecycle-common-nodeps",
 		"car-ui-androidx-constraintlayout-solver-nodeps",
+
+		//system/libhidl
+		// needed by cc_hidl_library
+		"libhidlbase",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
