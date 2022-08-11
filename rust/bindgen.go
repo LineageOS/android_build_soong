@@ -299,7 +299,15 @@ func NewRustBindgen(hod android.HostOrDeviceSupported) (*Module, *bindgenDecorat
 		ClangProperties:    cc.RustBindgenClangProperties{},
 	}
 
-	module := NewSourceProviderModule(hod, bindgen, false)
+	module := NewSourceProviderModule(hod, bindgen, false, true)
+
+	android.AddLoadHook(module, func(ctx android.LoadHookContext) {
+		type stub_props struct {
+			Visibility []string
+		}
+		props := &stub_props{[]string{":__subpackages__"}}
+		ctx.PrependProperties(props)
+	})
 
 	return module, bindgen
 }
