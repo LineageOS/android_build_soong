@@ -911,3 +911,45 @@ func TestSortedUniqueNamedPaths(t *testing.T) {
 		})
 	}
 }
+
+func TestProcessCommonTestOptions(t *testing.T) {
+	tests := []struct {
+		name        string
+		testOptions CommonTestOptions
+		expected    map[string][]string
+	}{
+		{
+			name:        "empty",
+			testOptions: CommonTestOptions{},
+			expected:    map[string][]string{},
+		},
+		{
+			name: "is unit test",
+			testOptions: CommonTestOptions{
+				Unit_test: boolPtr(true),
+			},
+			expected: map[string][]string{
+				"LOCAL_IS_UNIT_TEST": []string{"true"},
+			},
+		},
+		{
+			name: "is not unit test",
+			testOptions: CommonTestOptions{
+				Unit_test: boolPtr(false),
+			},
+			expected: map[string][]string{},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actualEntries := AndroidMkEntries{
+				EntryMap: map[string][]string{},
+			}
+			tt.testOptions.SetAndroidMkEntries(&actualEntries)
+			actual := actualEntries.EntryMap
+			t.Logf("actual: %v", actual)
+			t.Logf("expected: %v", tt.expected)
+			AssertDeepEquals(t, "TestProcessCommonTestOptions ", tt.expected, actual)
+		})
+	}
+}

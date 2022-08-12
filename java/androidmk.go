@@ -167,9 +167,8 @@ func (j *Test) AndroidMkEntries() []android.AndroidMkEntries {
 			entries.SetString("LOCAL_DISABLE_AUTO_GENERATE_TEST_CONFIG", "true")
 		}
 		entries.AddStrings("LOCAL_TEST_MAINLINE_MODULES", j.testProperties.Test_mainline_modules...)
-		if Bool(j.testProperties.Test_options.Unit_test) {
-			entries.SetBool("LOCAL_IS_UNIT_TEST", true)
-		}
+
+		j.testProperties.Test_options.CommonTestOptions.SetAndroidMkEntries(entries)
 	})
 
 	return entriesList
