@@ -29,6 +29,7 @@ import (
 
 	"android/soong/bazel/cquery"
 	"android/soong/shared"
+
 	"github.com/google/blueprint"
 
 	"android/soong/bazel"
@@ -54,7 +55,7 @@ func init() {
 }
 
 func RegisterMixedBuildsMutator(ctx RegistrationContext) {
-	ctx.PostDepsMutators(func(ctx RegisterMutatorsContext) {
+	ctx.FinalDepsMutators(func(ctx RegisterMutatorsContext) {
 		ctx.BottomUp("mixed_builds_prep", mixedBuildsPrepareMutator).Parallel()
 	})
 }
