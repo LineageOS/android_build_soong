@@ -915,6 +915,15 @@ func (c *config) ApexKeyDir(ctx ModuleContext) SourcePath {
 	return PathForSource(ctx, filepath.Dir(defaultCert))
 }
 
+// Certificate for the NetworkStack sepolicy context
+func (c *config) MainlineSepolicyDevCertificatesDir(ctx ModuleContext) SourcePath {
+	cert := String(c.productVariables.MainlineSepolicyDevCertificates)
+	if cert != "" {
+		return PathForSource(ctx, cert)
+	}
+	return c.DefaultAppCertificateDir(ctx)
+}
+
 // AllowMissingDependencies configures Blueprint/Soong to not fail when modules
 // are configured to depend on non-existent modules. Note that this does not
 // affect missing input dependencies at the Ninja level.
