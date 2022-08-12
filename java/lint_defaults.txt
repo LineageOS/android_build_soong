@@ -101,6 +101,7 @@
 --warning_check WrongViewCast                      # 1 occurences in 1 modules
 
 --warning_check CoarseFineLocation
+--warning_check ExtraText
 --warning_check IntentFilterExportedReceiver
 --warning_check MissingInflatedId
 --warning_check NotificationPermission
