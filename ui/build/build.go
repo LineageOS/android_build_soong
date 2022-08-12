@@ -201,7 +201,20 @@ func Build(ctx Context, config Config) {
 	buildLock := BecomeSingletonOrFail(ctx, config)
 	defer buildLock.Unlock()
 
+	logArgsOtherThan := func(specialTargets ...string) {
+		var ignored []string
+		for _, a := range config.Arguments() {
+			if !inList(a, specialTargets) {
+				ignored = append(ignored, a)
+			}
+		}
+		if len(ignored) > 0 {
+			ctx.Printf("ignoring arguments %q", ignored)
+		}
+	}
+
 	if inList("clean", config.Arguments()) || inList("clobber", config.Arguments()) {
+		logArgsOtherThan("clean", "clobber")
 		clean(ctx, config)
 		return
 	}
@@ -279,6 +292,7 @@ func Build(ctx Context, config Config) {
 
 	if inList("installclean", config.Arguments()) ||
 		inList("install-clean", config.Arguments()) {
+		logArgsOtherThan("installclean", "install-clean")
 		installClean(ctx, config)
 		ctx.Println("Deleted images and staging directories.")
 		return
@@ -286,6 +300,7 @@ func Build(ctx Context, config Config) {
 
 	if inList("dataclean", config.Arguments()) ||
 		inList("data-clean", config.Arguments()) {
+		logArgsOtherThan("dataclean", "data-clean")
 		dataClean(ctx, config)
 		ctx.Println("Deleted data files.")
 		return
