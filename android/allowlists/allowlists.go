@@ -574,5 +574,12 @@ var (
 		"prebuilt_android-support-annotations-nodeps",
 		"prebuilt_android-arch-paging-common-nodeps",
 		"prebuilt_android-arch-room-common-nodeps",
+
+		// Disabled pending the investigation of b/242220039
+		"libhidlbase",
+		"android.hidl.base@1.0",
+		"android.hidl.manager@1.0",
+		"android.hidl.manager@1.1",
+		"android.hidl.manager@1.2",
 	}
 )
