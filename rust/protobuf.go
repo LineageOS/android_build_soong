@@ -238,7 +238,7 @@ func NewRustProtobuf(hod android.HostOrDeviceSupported) (*Module, *protobufDecor
 		Properties:         ProtobufProperties{},
 	}
 
-	module := NewSourceProviderModule(hod, protobuf, false)
+	module := NewSourceProviderModule(hod, protobuf, false, false)
 
 	return module, protobuf
 }
