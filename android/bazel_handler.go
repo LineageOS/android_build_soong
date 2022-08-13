@@ -29,6 +29,7 @@ import (
 
 	"android/soong/bazel/cquery"
 	"android/soong/shared"
+
 	"github.com/google/blueprint"
 
 	"android/soong/bazel"
@@ -54,7 +55,7 @@ func init() {
 }
 
 func RegisterMixedBuildsMutator(ctx RegistrationContext) {
-	ctx.PostDepsMutators(func(ctx RegisterMutatorsContext) {
+	ctx.FinalDepsMutators(func(ctx RegisterMutatorsContext) {
 		ctx.BottomUp("mixed_builds_prep", mixedBuildsPrepareMutator).Parallel()
 	})
 }
@@ -766,9 +767,9 @@ func (context *bazelContext) InvokeBazel(config Config) error {
 	cqueryOutput, cqueryErr, err := context.issueBazelCommand(context.paths, bazel.CqueryBuildRootRunName, cqueryCmd,
 		"--output=starlark", "--starlark:file="+absolutePath(cqueryFileRelpath))
 	if err != nil {
-		_ = ioutil.WriteFile(filepath.Join(soongInjectionPath, "cquery.out"), []byte(cqueryOutput), 0666)
+		return err
 	}
-	if err != nil {
+	if err = ioutil.WriteFile(filepath.Join(soongInjectionPath, "cquery.out"), []byte(cqueryOutput), 0666); err != nil {
 		return err
 	}
 
