@@ -37,16 +37,22 @@ var (
 		// http://b/216364337 - TODO: Follow-up after compiler update to
 		// disable or fix individual instances.
 		"-cert-err33-c",
+		// http://b/241125373
+		"-bugprone-unchecked-optional-access",
 	}
 
 	// Some clang-tidy checks are included in some tidy_checks_as_errors lists,
 	// but not all warnings are fixed/suppressed yet. These checks are not
 	// disabled in the TidyGlobalNoChecks list, so we can see them and fix/suppress them.
 	globalNoErrorCheckList = []string{
-		// http://b/155034563
-		"-bugprone-signed-char-misuse",
+		// http://b/241997913
+		"-bugprone-assignment-in-if-condition",
 		// http://b/155034972
 		"-bugprone-branch-clone",
+		// http://b/155034563
+		"-bugprone-signed-char-misuse",
+		// http://b/241819232
+		"-misc-const-correctness",
 	}
 )
 
@@ -80,8 +86,10 @@ func init() {
 			"misc-*",
 			"performance-*",
 			"portability-*",
+			"-bugprone-assignment-in-if-condition",
 			"-bugprone-easily-swappable-parameters",
 			"-bugprone-narrowing-conversions",
+			"-misc-const-correctness",
 			"-misc-no-recursion",
 			"-misc-non-private-member-variables-in-classes",
 			"-misc-unused-parameters",
