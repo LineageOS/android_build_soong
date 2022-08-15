@@ -771,6 +771,12 @@ func GlobHeadersForSnapshot(ctx android.ModuleContext, paths android.Paths) andr
 		if strings.HasPrefix(dir, android.PathForOutput(ctx).String()) {
 			continue
 		}
+
+		// Filter out the generated headers from bazel.
+		if strings.HasPrefix(dir, android.PathForBazelOut(ctx, "bazel-out").String()) {
+			continue
+		}
+
 		// libeigen wrongly exports the root directory "external/eigen". But only two
 		// subdirectories "Eigen" and "unsupported" contain exported header files. Even worse
 		// some of them have no extension. So we need special treatment for libeigen in order
