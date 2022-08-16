@@ -13,6 +13,30 @@ import (
 
 type selects map[string]reflect.Value
 
+func getStringValue(str bazel.StringAttribute) (reflect.Value, []selects) {
+	value := reflect.ValueOf(str.Value)
+
+	if !str.HasConfigurableValues() {
+		return value, []selects{}
+	}
+
+	ret := selects{}
+	for _, axis := range str.SortedConfigurationAxes() {
+		configToStrs := str.ConfigurableValues[axis]
+		for config, strs := range configToStrs {
+			selectKey := axis.SelectKey(config)
+			ret[selectKey] = reflect.ValueOf(strs)
+		}
+	}
+	// if there is a select, use the base value as the conditions default value
+	if len(ret) > 0 {
+		ret[bazel.ConditionsDefaultSelectKey] = value
+		value = reflect.Zero(value.Type())
+	}
+
+	return value, []selects{ret}
+}
+
 func getStringListValues(list bazel.StringListAttribute) (reflect.Value, []selects) {
 	value := reflect.ValueOf(list.Value)
 	if !list.HasConfigurableValues() {
@@ -137,6 +161,12 @@ func prettyPrintAttribute(v bazel.Attribute, indent int) (string, error) {
 	// If true, print the default attribute value, even if the attribute is zero.
 	shouldPrintDefault := false
 	switch list := v.(type) {
+	case bazel.StringAttribute:
+		if err := list.Collapse(); err != nil {
+			return "", err
+		}
+		value, configurableAttrs = getStringValue(list)
+		defaultSelectValue = &bazelNone
 	case bazel.StringListAttribute:
 		value, configurableAttrs = getStringListValues(list)
 		defaultSelectValue = &emptyBazelList

@@ -15,11 +15,12 @@
 package bp2build
 
 import (
-	"android/soong/android"
 	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
+
+	"android/soong/android"
 )
 
 func setUp() {
@@ -103,6 +104,7 @@ custom = rule(
         "one_to_many_prop": attr.bool(),
         "other_embedded_prop": attr.string(),
         "string_list_prop": attr.string_list(),
+        "string_literal_prop": attr.string(),
         "string_prop": attr.string(),
         "string_ptr_prop": attr.string(),
     },
@@ -132,6 +134,7 @@ custom_defaults = rule(
         "one_to_many_prop": attr.bool(),
         "other_embedded_prop": attr.string(),
         "string_list_prop": attr.string_list(),
+        "string_literal_prop": attr.string(),
         "string_prop": attr.string(),
         "string_ptr_prop": attr.string(),
     },
@@ -161,6 +164,7 @@ custom_test_ = rule(
         "one_to_many_prop": attr.bool(),
         "other_embedded_prop": attr.string(),
         "string_list_prop": attr.string_list(),
+        "string_literal_prop": attr.string(),
         "string_prop": attr.string(),
         "string_ptr_prop": attr.string(),
         # test_prop start
