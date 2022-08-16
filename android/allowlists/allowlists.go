@@ -306,6 +306,7 @@ var (
 		"libandroid_runtime_vm_headers",
 		"libaudioclient_aidl_conversion_util",
 		"libaudioutils_fixedfft",
+		"libbinder_aidl",
 		"libbinder_headers",
 		"libbinder_headers_platform_shared",
 		"libbluetooth-types-header",
@@ -391,6 +392,13 @@ var (
 		//system/libhidl
 		// needed by cc_hidl_library
 		"libhidlbase",
+
+		//frameworks/native
+		"framework_native_aidl_binder",
+		"framework_native_aidl_gui",
+
+		//frameworks/native/libs/input
+		"inputconstants_aidl",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
