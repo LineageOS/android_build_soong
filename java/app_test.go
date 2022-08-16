@@ -1488,11 +1488,11 @@ func TestJNISDK(t *testing.T) {
 
 func TestCertificates(t *testing.T) {
 	testCases := []struct {
-		name                string
-		bp                  string
-		certificateOverride string
-		expectedLineage     string
-		expectedCertificate string
+		name                     string
+		bp                       string
+		certificateOverride      string
+		expectedCertSigningFlags string
+		expectedCertificate      string
 	}{
 		{
 			name: "default",
@@ -1503,9 +1503,9 @@ func TestCertificates(t *testing.T) {
 					sdk_version: "current",
 				}
 			`,
-			certificateOverride: "",
-			expectedLineage:     "",
-			expectedCertificate: "build/make/target/product/security/testkey.x509.pem build/make/target/product/security/testkey.pk8",
+			certificateOverride:      "",
+			expectedCertSigningFlags: "",
+			expectedCertificate:      "build/make/target/product/security/testkey.x509.pem build/make/target/product/security/testkey.pk8",
 		},
 		{
 			name: "module certificate property",
@@ -1522,9 +1522,9 @@ func TestCertificates(t *testing.T) {
 					certificate: "cert/new_cert",
 				}
 			`,
-			certificateOverride: "",
-			expectedLineage:     "",
-			expectedCertificate: "cert/new_cert.x509.pem cert/new_cert.pk8",
+			certificateOverride:      "",
+			expectedCertSigningFlags: "",
+			expectedCertificate:      "cert/new_cert.x509.pem cert/new_cert.pk8",
 		},
 		{
 			name: "path certificate property",
@@ -1536,9 +1536,9 @@ func TestCertificates(t *testing.T) {
 					sdk_version: "current",
 				}
 			`,
-			certificateOverride: "",
-			expectedLineage:     "",
-			expectedCertificate: "build/make/target/product/security/expiredkey.x509.pem build/make/target/product/security/expiredkey.pk8",
+			certificateOverride:      "",
+			expectedCertSigningFlags: "",
+			expectedCertificate:      "build/make/target/product/security/expiredkey.x509.pem build/make/target/product/security/expiredkey.pk8",
 		},
 		{
 			name: "certificate overrides",
@@ -1555,18 +1555,19 @@ func TestCertificates(t *testing.T) {
 					certificate: "cert/new_cert",
 				}
 			`,
-			certificateOverride: "foo:new_certificate",
-			expectedLineage:     "",
-			expectedCertificate: "cert/new_cert.x509.pem cert/new_cert.pk8",
+			certificateOverride:      "foo:new_certificate",
+			expectedCertSigningFlags: "",
+			expectedCertificate:      "cert/new_cert.x509.pem cert/new_cert.pk8",
 		},
 		{
-			name: "certificate lineage",
+			name: "certificate signing flags",
 			bp: `
 				android_app {
 					name: "foo",
 					srcs: ["a.java"],
 					certificate: ":new_certificate",
 					lineage: "lineage.bin",
+					rotationMinSdkVersion: "32",
 					sdk_version: "current",
 				}
 
@@ -1575,18 +1576,19 @@ func TestCertificates(t *testing.T) {
 					certificate: "cert/new_cert",
 				}
 			`,
-			certificateOverride: "",
-			expectedLineage:     "--lineage lineage.bin",
-			expectedCertificate: "cert/new_cert.x509.pem cert/new_cert.pk8",
+			certificateOverride:      "",
+			expectedCertSigningFlags: "--lineage lineage.bin --rotation-min-sdk-version 32",
+			expectedCertificate:      "cert/new_cert.x509.pem cert/new_cert.pk8",
 		},
 		{
-			name: "lineage from filegroup",
+			name: "cert signing flags from filegroup",
 			bp: `
 				android_app {
 					name: "foo",
 					srcs: ["a.java"],
 					certificate: ":new_certificate",
 					lineage: ":lineage_bin",
+					rotationMinSdkVersion: "32",
 					sdk_version: "current",
 				}
 
@@ -1600,9 +1602,9 @@ func TestCertificates(t *testing.T) {
 					srcs: ["lineage.bin"],
 				}
 			`,
-			certificateOverride: "",
-			expectedLineage:     "--lineage lineage.bin",
-			expectedCertificate: "cert/new_cert.x509.pem cert/new_cert.pk8",
+			certificateOverride:      "",
+			expectedCertSigningFlags: "--lineage lineage.bin --rotation-min-sdk-version 32",
+			expectedCertificate:      "cert/new_cert.x509.pem cert/new_cert.pk8",
 		},
 	}
 
@@ -1623,8 +1625,8 @@ func TestCertificates(t *testing.T) {
 			signCertificateFlags := signapk.Args["certificates"]
 			android.AssertStringEquals(t, "certificates flags", test.expectedCertificate, signCertificateFlags)
 
-			signFlags := signapk.Args["flags"]
-			android.AssertStringEquals(t, "signing flags", test.expectedLineage, signFlags)
+			certSigningFlags := signapk.Args["flags"]
+			android.AssertStringEquals(t, "cert signing flags", test.expectedCertSigningFlags, certSigningFlags)
 		})
 	}
 }
@@ -1819,6 +1821,7 @@ func TestOverrideAndroidApp(t *testing.T) {
 			base: "foo",
 			certificate: ":new_certificate",
 			lineage: "lineage.bin",
+			rotationMinSdkVersion: "32",
 			logging_parent: "bah",
 		}
 
@@ -1864,89 +1867,89 @@ func TestOverrideAndroidApp(t *testing.T) {
 		`)
 
 	expectedVariants := []struct {
-		name            string
-		moduleName      string
-		variantName     string
-		apkName         string
-		apkPath         string
-		certFlag        string
-		lineageFlag     string
-		overrides       []string
-		packageFlag     string
-		renameResources bool
-		logging_parent  string
+		name             string
+		moduleName       string
+		variantName      string
+		apkName          string
+		apkPath          string
+		certFlag         string
+		certSigningFlags string
+		overrides        []string
+		packageFlag      string
+		renameResources  bool
+		logging_parent   string
 	}{
 		{
-			name:            "foo",
-			moduleName:      "foo",
-			variantName:     "android_common",
-			apkPath:         "out/soong/target/product/test_device/system/app/foo/foo.apk",
-			certFlag:        "build/make/target/product/security/expiredkey.x509.pem build/make/target/product/security/expiredkey.pk8",
-			lineageFlag:     "",
-			overrides:       []string{"qux"},
-			packageFlag:     "",
-			renameResources: false,
-			logging_parent:  "",
+			name:             "foo",
+			moduleName:       "foo",
+			variantName:      "android_common",
+			apkPath:          "out/soong/target/product/test_device/system/app/foo/foo.apk",
+			certFlag:         "build/make/target/product/security/expiredkey.x509.pem build/make/target/product/security/expiredkey.pk8",
+			certSigningFlags: "",
+			overrides:        []string{"qux"},
+			packageFlag:      "",
+			renameResources:  false,
+			logging_parent:   "",
 		},
 		{
-			name:            "foo",
-			moduleName:      "bar",
-			variantName:     "android_common_bar",
-			apkPath:         "out/soong/target/product/test_device/system/app/bar/bar.apk",
-			certFlag:        "cert/new_cert.x509.pem cert/new_cert.pk8",
-			lineageFlag:     "--lineage lineage.bin",
-			overrides:       []string{"qux", "foo"},
-			packageFlag:     "",
-			renameResources: false,
-			logging_parent:  "bah",
+			name:             "foo",
+			moduleName:       "bar",
+			variantName:      "android_common_bar",
+			apkPath:          "out/soong/target/product/test_device/system/app/bar/bar.apk",
+			certFlag:         "cert/new_cert.x509.pem cert/new_cert.pk8",
+			certSigningFlags: "--lineage lineage.bin --rotation-min-sdk-version 32",
+			overrides:        []string{"qux", "foo"},
+			packageFlag:      "",
+			renameResources:  false,
+			logging_parent:   "bah",
 		},
 		{
-			name:            "foo",
-			moduleName:      "baz",
-			variantName:     "android_common_baz",
-			apkPath:         "out/soong/target/product/test_device/system/app/baz/baz.apk",
-			certFlag:        "build/make/target/product/security/expiredkey.x509.pem build/make/target/product/security/expiredkey.pk8",
-			lineageFlag:     "",
-			overrides:       []string{"qux", "foo"},
-			packageFlag:     "org.dandroid.bp",
-			renameResources: true,
-			logging_parent:  "",
+			name:             "foo",
+			moduleName:       "baz",
+			variantName:      "android_common_baz",
+			apkPath:          "out/soong/target/product/test_device/system/app/baz/baz.apk",
+			certFlag:         "build/make/target/product/security/expiredkey.x509.pem build/make/target/product/security/expiredkey.pk8",
+			certSigningFlags: "",
+			overrides:        []string{"qux", "foo"},
+			packageFlag:      "org.dandroid.bp",
+			renameResources:  true,
+			logging_parent:   "",
 		},
 		{
-			name:            "foo",
-			moduleName:      "baz_no_rename_resources",
-			variantName:     "android_common_baz_no_rename_resources",
-			apkPath:         "out/soong/target/product/test_device/system/app/baz_no_rename_resources/baz_no_rename_resources.apk",
-			certFlag:        "build/make/target/product/security/expiredkey.x509.pem build/make/target/product/security/expiredkey.pk8",
-			lineageFlag:     "",
-			overrides:       []string{"qux", "foo"},
-			packageFlag:     "org.dandroid.bp",
-			renameResources: false,
-			logging_parent:  "",
+			name:             "foo",
+			moduleName:       "baz_no_rename_resources",
+			variantName:      "android_common_baz_no_rename_resources",
+			apkPath:          "out/soong/target/product/test_device/system/app/baz_no_rename_resources/baz_no_rename_resources.apk",
+			certFlag:         "build/make/target/product/security/expiredkey.x509.pem build/make/target/product/security/expiredkey.pk8",
+			certSigningFlags: "",
+			overrides:        []string{"qux", "foo"},
+			packageFlag:      "org.dandroid.bp",
+			renameResources:  false,
+			logging_parent:   "",
 		},
 		{
-			name:            "foo_no_rename_resources",
-			moduleName:      "baz_base_no_rename_resources",
-			variantName:     "android_common_baz_base_no_rename_resources",
-			apkPath:         "out/soong/target/product/test_device/system/app/baz_base_no_rename_resources/baz_base_no_rename_resources.apk",
-			certFlag:        "build/make/target/product/security/expiredkey.x509.pem build/make/target/product/security/expiredkey.pk8",
-			lineageFlag:     "",
-			overrides:       []string{"qux", "foo_no_rename_resources"},
-			packageFlag:     "org.dandroid.bp",
-			renameResources: false,
-			logging_parent:  "",
+			name:             "foo_no_rename_resources",
+			moduleName:       "baz_base_no_rename_resources",
+			variantName:      "android_common_baz_base_no_rename_resources",
+			apkPath:          "out/soong/target/product/test_device/system/app/baz_base_no_rename_resources/baz_base_no_rename_resources.apk",
+			certFlag:         "build/make/target/product/security/expiredkey.x509.pem build/make/target/product/security/expiredkey.pk8",
+			certSigningFlags: "",
+			overrides:        []string{"qux", "foo_no_rename_resources"},
+			packageFlag:      "org.dandroid.bp",
+			renameResources:  false,
+			logging_parent:   "",
 		},
 		{
-			name:            "foo_no_rename_resources",
-			moduleName:      "baz_override_base_rename_resources",
-			variantName:     "android_common_baz_override_base_rename_resources",
-			apkPath:         "out/soong/target/product/test_device/system/app/baz_override_base_rename_resources/baz_override_base_rename_resources.apk",
-			certFlag:        "build/make/target/product/security/expiredkey.x509.pem build/make/target/product/security/expiredkey.pk8",
-			lineageFlag:     "",
-			overrides:       []string{"qux", "foo_no_rename_resources"},
-			packageFlag:     "org.dandroid.bp",
-			renameResources: true,
-			logging_parent:  "",
+			name:             "foo_no_rename_resources",
+			moduleName:       "baz_override_base_rename_resources",
+			variantName:      "android_common_baz_override_base_rename_resources",
+			apkPath:          "out/soong/target/product/test_device/system/app/baz_override_base_rename_resources/baz_override_base_rename_resources.apk",
+			certFlag:         "build/make/target/product/security/expiredkey.x509.pem build/make/target/product/security/expiredkey.pk8",
+			certSigningFlags: "",
+			overrides:        []string{"qux", "foo_no_rename_resources"},
+			packageFlag:      "org.dandroid.bp",
+			renameResources:  true,
+			logging_parent:   "",
 		},
 	}
 	for _, expected := range expectedVariants {
@@ -1960,9 +1963,9 @@ func TestOverrideAndroidApp(t *testing.T) {
 		certFlag := signapk.Args["certificates"]
 		android.AssertStringEquals(t, "certificates flags", expected.certFlag, certFlag)
 
-		// Check the lineage flags
-		lineageFlag := signapk.Args["flags"]
-		android.AssertStringEquals(t, "signing flags", expected.lineageFlag, lineageFlag)
+		// Check the cert signing flags
+		certSigningFlags := signapk.Args["flags"]
+		android.AssertStringEquals(t, "cert signing flags", expected.certSigningFlags, certSigningFlags)
 
 		// Check if the overrides field values are correctly aggregated.
 		mod := variant.Module().(*AndroidApp)

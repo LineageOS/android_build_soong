@@ -702,10 +702,8 @@ func transformSourceToObj(ctx ModuleContext, subdir string, srcFiles, noTidySrcs
 			sAbiDumpFile := android.ObjPathWithExt(ctx, subdir, srcFile, "sdump")
 			sAbiDumpFiles = append(sAbiDumpFiles, sAbiDumpFile)
 
+			// TODO(b/226497964): dumpRule = sAbiDumpRE if USE_RBE and RBE_ABI_DUMPER are true.
 			dumpRule := sAbiDump
-			if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_ABI_DUMPER") {
-				dumpRule = sAbiDumpRE
-			}
 			ctx.Build(pctx, android.BuildParams{
 				Rule:        dumpRule,
 				Description: "header-abi-dumper " + srcFile.Rel(),

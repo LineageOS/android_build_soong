@@ -33,6 +33,7 @@ func TestRuntimeResourceOverlay(t *testing.T) {
 			name: "foo",
 			certificate: "platform",
 			lineage: "lineage.bin",
+			rotationMinSdkVersion: "32",
 			product_specific: true,
 			static_libs: ["bar"],
 			resource_libs: ["baz"],
@@ -89,13 +90,14 @@ func TestRuntimeResourceOverlay(t *testing.T) {
 		t.Errorf("Resource lib flag %q missing in aapt2 link flags: %q", resourceLibFlag, aapt2Flags)
 	}
 
-	// Check cert signing flag.
+	// Check cert signing flags.
 	signedApk := m.Output("signed/foo.apk")
-	lineageFlag := signedApk.Args["flags"]
-	expectedLineageFlag := "--lineage lineage.bin"
-	if expectedLineageFlag != lineageFlag {
-		t.Errorf("Incorrect signing lineage flags, expected: %q, got: %q", expectedLineageFlag, lineageFlag)
+	actualCertSigningFlags := signedApk.Args["flags"]
+	expectedCertSigningFlags := "--lineage lineage.bin --rotation-min-sdk-version 32"
+	if expectedCertSigningFlags != actualCertSigningFlags {
+		t.Errorf("Incorrect cert signing flags, expected: %q, got: %q", expectedCertSigningFlags, actualCertSigningFlags)
 	}
+
 	signingFlag := signedApk.Args["certificates"]
 	expected := "build/make/target/product/security/platform.x509.pem build/make/target/product/security/platform.pk8"
 	if expected != signingFlag {
