@@ -131,14 +131,14 @@ func configuredJarListToClasspathJars(ctx android.ModuleContext, configuredJars 
 					// TODO(208456999): instead of mapping "current" to latest, min_sdk_version should never be set to "current"
 					if s.minSdkVersion.Specified() {
 						if s.minSdkVersion.ApiLevel.IsCurrent() {
-							jar.minSdkVersion = ctx.Config().LatestPreviewApiLevel().String()
+							jar.minSdkVersion = ctx.Config().DefaultAppTargetSdk(ctx).String()
 						} else {
 							jar.minSdkVersion = s.minSdkVersion.ApiLevel.String()
 						}
 					}
 					if s.maxSdkVersion.Specified() {
 						if s.maxSdkVersion.ApiLevel.IsCurrent() {
-							jar.maxSdkVersion = ctx.Config().LatestPreviewApiLevel().String()
+							jar.maxSdkVersion = ctx.Config().DefaultAppTargetSdk(ctx).String()
 						} else {
 							jar.maxSdkVersion = s.maxSdkVersion.ApiLevel.String()
 						}
