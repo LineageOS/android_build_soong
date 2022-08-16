@@ -46,6 +46,7 @@ var mockFs = pathtools.MockFs(map[string][]byte{
 	"dangling -> missing": nil,
 	"a/a/d -> b":          nil,
 	"c":                   fileC,
+	"d/a/a":               nil,
 	"l_nl":                []byte("a/a/a\na/a/b\nc\n\\[\n"),
 	"l_sp":                []byte("a/a/a a/a/b c \\["),
 	"l2":                  []byte("missing\n"),
@@ -400,6 +401,17 @@ func TestZip(t *testing.T) {
 				fh("a/a/b", fileB, zip.Deflate),
 			},
 		},
+		{
+			name: "duplicate sources",
+			args: fileArgsBuilder().
+				File("a/a/a").
+				File("a/a/a"),
+			compressionLevel: 9,
+
+			files: []zip.FileHeader{
+				fh("a/a/a", fileA, zip.Deflate),
+			},
+		},
 
 		// errors
 		{
@@ -426,6 +438,15 @@ func TestZip(t *testing.T) {
 				SourcePrefixToStrip("b").
 				File("a/a/a"),
 			err: IncorrectRelativeRootError{},
+		},
+		{
+			name: "error conflicting file",
+			args: fileArgsBuilder().
+				SourcePrefixToStrip("a").
+				File("a/a/a").
+				SourcePrefixToStrip("d").
+				File("d/a/a"),
+			err: ConflictingFileError{},
 		},
 	}
 
@@ -454,11 +475,15 @@ func TestZip(t *testing.T) {
 				t.Fatalf("want error %v, got %v", test.err, err)
 			} else if test.err != nil {
 				if os.IsNotExist(test.err) {
-					if !os.IsNotExist(test.err) {
+					if !os.IsNotExist(err) {
 						t.Fatalf("want error %v, got %v", test.err, err)
 					}
 				} else if _, wantRelativeRootErr := test.err.(IncorrectRelativeRootError); wantRelativeRootErr {
 					if _, gotRelativeRootErr := err.(IncorrectRelativeRootError); !gotRelativeRootErr {
+						t.Fatalf("want error %v, got %v", test.err, err)
+					}
+				} else if _, wantConflictingFileError := test.err.(ConflictingFileError); wantConflictingFileError {
+					if _, gotConflictingFileError := err.(ConflictingFileError); !gotConflictingFileError {
 						t.Fatalf("want error %v, got %v", test.err, err)
 					}
 				} else {
