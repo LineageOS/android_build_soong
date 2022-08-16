@@ -918,10 +918,15 @@ func unzipRefDump(ctx android.ModuleContext, zippedRefDump android.Path, baseNam
 
 // sourceAbiDiff registers a build statement to compare linked sAbi dump files (.lsdump).
 func sourceAbiDiff(ctx android.ModuleContext, inputDump android.Path, referenceDump android.Path,
-	baseName, exportedHeaderFlags string, diffFlags []string,
-	checkAllApis, isLlndk, isNdk, isVndkExt bool) android.OptionalPath {
+	baseName, prevVersion, exportedHeaderFlags string, diffFlags []string,
+	checkAllApis, isLlndk, isNdk, isVndkExt, previousVersionDiff bool) android.OptionalPath {
 
-	outputFile := android.PathForModuleOut(ctx, baseName+".abidiff")
+	var outputFile android.ModuleOutPath
+	if prevVersion == "" {
+		outputFile = android.PathForModuleOut(ctx, baseName+".abidiff")
+	} else {
+		outputFile = android.PathForModuleOut(ctx, baseName+"."+prevVersion+".abidiff")
+	}
 	libName := strings.TrimSuffix(baseName, filepath.Ext(baseName))
 
 	var extraFlags []string
@@ -933,10 +938,15 @@ func sourceAbiDiff(ctx android.ModuleContext, inputDump android.Path, referenceD
 			"-allow-unreferenced-elf-symbol-changes")
 	}
 
+	// TODO(b/241496591): Remove -advice-only after b/239792343 and b/239790286 are reolved.
+	if previousVersionDiff {
+		extraFlags = append(extraFlags, "-advice-only")
+	}
+
 	if isLlndk || isNdk {
 		extraFlags = append(extraFlags, "-consider-opaque-types-different")
 	}
-	if isVndkExt {
+	if isVndkExt || previousVersionDiff {
 		extraFlags = append(extraFlags, "-allow-extensions")
 	}
 	// TODO(b/232891473): Simplify the above logic with diffFlags.
