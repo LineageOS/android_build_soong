@@ -1326,6 +1326,10 @@ func (c *configImpl) KatiPackageNinjaFile() string {
 	return filepath.Join(c.OutDir(), "build"+c.KatiSuffix()+katiPackageSuffix+".ninja")
 }
 
+func (c *configImpl) SoongVarsFile() string {
+	return filepath.Join(c.SoongOutDir(), "soong.variables")
+}
+
 func (c *configImpl) SoongNinjaFile() string {
 	return filepath.Join(c.SoongOutDir(), "build.ninja")
 }
