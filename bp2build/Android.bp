@@ -63,6 +63,7 @@ bootstrap_go_package {
         "java_plugin_conversion_test.go",
         "java_proto_conversion_test.go",
         "linker_config_conversion_test.go",
+        "ndk_headers_conversion_test.go",
         "performance_test.go",
         "prebuilt_etc_conversion_test.go",
         "python_binary_conversion_test.go",
