@@ -31,13 +31,12 @@ import (
 // same time we do. Most of the time this means we just need to ignore the signal and we'll
 // just see errors from all of our subprocesses. But in case that fails, when we get a signal:
 //
-//   1. Wait two seconds to exit normally.
-//   2. Call cancel() which is normally the cancellation of a Context. This will send a SIGKILL
-//      to any subprocesses attached to that context.
-//   3. Wait two seconds to exit normally.
-//   4. Call cleanup() to close the log/trace buffers, then panic.
-//   5. If another two seconds passes (if cleanup got stuck, etc), then panic.
-//
+//  1. Wait two seconds to exit normally.
+//  2. Call cancel() which is normally the cancellation of a Context. This will send a SIGKILL
+//     to any subprocesses attached to that context.
+//  3. Wait two seconds to exit normally.
+//  4. Call cleanup() to close the log/trace buffers, then panic.
+//  5. If another two seconds passes (if cleanup got stuck, etc), then panic.
 func SetupSignals(log logger.Logger, cancel, cleanup func()) {
 	signals := make(chan os.Signal, 5)
 	signal.Notify(signals, os.Interrupt, syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGTERM)

@@ -688,17 +688,17 @@ type TestingBuildParams struct {
 //
 // The parts of this structure which are changed are:
 // * BuildParams
-//   * Args
-//   * All Path, Paths, WritablePath and WritablePaths fields.
+//   - Args
+//   - All Path, Paths, WritablePath and WritablePaths fields.
 //
 // * RuleParams
-//   * Command
-//   * Depfile
-//   * Rspfile
-//   * RspfileContent
-//   * SymlinkOutputs
-//   * CommandDeps
-//   * CommandOrderOnly
+//   - Command
+//   - Depfile
+//   - Rspfile
+//   - RspfileContent
+//   - SymlinkOutputs
+//   - CommandDeps
+//   - CommandOrderOnly
 //
 // See PathRelativeToTop for more details.
 //

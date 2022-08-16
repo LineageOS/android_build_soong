@@ -420,11 +420,13 @@ type FixturePreparer interface {
 // instances.
 //
 // base      - a list of already flattened and deduped preparers that will be applied first before
-//             the list of additional preparers. Any duplicates of these in the additional preparers
-//             will be ignored.
+//
+//	the list of additional preparers. Any duplicates of these in the additional preparers
+//	will be ignored.
 //
 // preparers - a list of additional unflattened, undeduped preparers that will be applied after the
-//             base preparers.
+//
+//	base preparers.
 //
 // Returns a deduped and flattened list of the preparers starting with the ones in base with any
 // additional ones from the preparers list added afterwards.
@@ -498,10 +500,10 @@ func newSimpleFixturePreparer(preparer func(fixture *fixture)) FixturePreparer {
 // FixtureErrorHandler determines how to respond to errors reported by the code under test.
 //
 // Some possible responses:
-// * Fail the test if any errors are reported, see FixtureExpectsNoErrors.
-// * Fail the test if at least one error that matches a pattern is not reported see
-//   FixtureExpectsAtLeastOneErrorMatchingPattern
-// * Fail the test if any unexpected errors are reported.
+//   - Fail the test if any errors are reported, see FixtureExpectsNoErrors.
+//   - Fail the test if at least one error that matches a pattern is not reported see
+//     FixtureExpectsAtLeastOneErrorMatchingPattern
+//   - Fail the test if any unexpected errors are reported.
 //
 // Although at the moment all the error handlers are implemented as simply a wrapper around a
 // function this is defined as an interface to allow future enhancements, e.g. provide different
@@ -854,10 +856,12 @@ func (r *TestResult) NormalizePathsForTesting(paths Paths) []string {
 // that produced this result.
 //
 // e.g. assuming that this result was created by running:
-//     GroupFixturePreparers(preparer1, preparer2, preparer3).RunTest(t)
+//
+//	GroupFixturePreparers(preparer1, preparer2, preparer3).RunTest(t)
 //
 // Then this method will be equivalent to running:
-//     GroupFixturePreparers(preparer1, preparer2, preparer3)
+//
+//	GroupFixturePreparers(preparer1, preparer2, preparer3)
 //
 // This is intended for use by tests whose output is Android.bp files to verify that those files
 // are valid, e.g. tests of the snapshots produced by the sdk module type.

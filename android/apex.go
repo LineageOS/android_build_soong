@@ -712,8 +712,8 @@ type ApexContents struct {
 
 // NewApexContents creates and initializes an ApexContents that is suitable
 // for use with an apex module.
-// * contents is a map from a module name to information about its membership within
-//   the apex.
+//   - contents is a map from a module name to information about its membership within
+//     the apex.
 func NewApexContents(contents map[string]ApexMembership) *ApexContents {
 	return &ApexContents{
 		contents: contents,

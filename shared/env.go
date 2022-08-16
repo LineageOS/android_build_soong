@@ -32,10 +32,11 @@ type envFileData []envFileEntry
 //
 // e.g. OUT_DIR = "out"
 // is converted to:
-// {
-//     "Key": "OUT_DIR",
-//     "Value": "out",
-// },
+//
+//	{
+//	    "Key": "OUT_DIR",
+//	    "Value": "out",
+//	},
 func EnvFileContents(envDeps map[string]string) ([]byte, error) {
 	contents := make(envFileData, 0, len(envDeps))
 	for key, value := range envDeps {

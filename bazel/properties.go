@@ -1071,15 +1071,18 @@ func (sla *StringListAttribute) SortedConfigurationAxes() []ConfigurationAxis {
 
 // DeduplicateAxesFromBase ensures no duplication of items between the no-configuration value and
 // configuration-specific values. For example, if we would convert this StringListAttribute as:
-// ["a", "b", "c"] + select({
-//    "//condition:one": ["a", "d"],
-//    "//conditions:default": [],
-// })
+//
+//	["a", "b", "c"] + select({
+//	   "//condition:one": ["a", "d"],
+//	   "//conditions:default": [],
+//	})
+//
 // after this function, we would convert this StringListAttribute as:
-// ["a", "b", "c"] + select({
-//    "//condition:one": ["d"],
-//    "//conditions:default": [],
-// })
+//
+//	["a", "b", "c"] + select({
+//	   "//condition:one": ["d"],
+//	   "//conditions:default": [],
+//	})
 func (sla *StringListAttribute) DeduplicateAxesFromBase() {
 	base := sla.Value
 	for axis, configToList := range sla.ConfigurableValues {

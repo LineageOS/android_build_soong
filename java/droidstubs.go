@@ -42,9 +42,7 @@ func RegisterStubsBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("prebuilt_stubs_sources", PrebuiltStubsSourcesFactory)
 }
 
-//
 // Droidstubs
-//
 type Droidstubs struct {
 	Javadoc
 	android.SdkBase

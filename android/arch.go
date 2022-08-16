@@ -572,26 +572,29 @@ var DarwinUniversalVariantTag = archDepTag{name: "darwin universal binary"}
 // archMutator splits a module into a variant for each Target requested by the module.  Target selection
 // for a module is in three levels, OsClass, multilib, and then Target.
 // OsClass selection is determined by:
-//    - The HostOrDeviceSupported value passed in to InitAndroidArchModule by the module type factory, which selects
-//      whether the module type can compile for host, device or both.
-//    - The host_supported and device_supported properties on the module.
+//   - The HostOrDeviceSupported value passed in to InitAndroidArchModule by the module type factory, which selects
+//     whether the module type can compile for host, device or both.
+//   - The host_supported and device_supported properties on the module.
+//
 // If host is supported for the module, the Host and HostCross OsClasses are selected.  If device is supported
 // for the module, the Device OsClass is selected.
 // Within each selected OsClass, the multilib selection is determined by:
-//    - The compile_multilib property if it set (which may be overridden by target.android.compile_multilib or
-//      target.host.compile_multilib).
-//    - The default multilib passed to InitAndroidArchModule if compile_multilib was not set.
+//   - The compile_multilib property if it set (which may be overridden by target.android.compile_multilib or
+//     target.host.compile_multilib).
+//   - The default multilib passed to InitAndroidArchModule if compile_multilib was not set.
+//
 // Valid multilib values include:
-//    "both": compile for all Targets supported by the OsClass (generally x86_64 and x86, or arm64 and arm).
-//    "first": compile for only a single preferred Target supported by the OsClass.  This is generally x86_64 or arm64,
-//        but may be arm for a 32-bit only build.
-//    "32": compile for only a single 32-bit Target supported by the OsClass.
-//    "64": compile for only a single 64-bit Target supported by the OsClass.
-//    "common": compile a for a single Target that will work on all Targets supported by the OsClass (for example Java).
-//    "common_first": compile a for a Target that will work on all Targets supported by the OsClass
-//        (same as "common"), plus a second Target for the preferred Target supported by the OsClass
-//        (same as "first").  This is used for java_binary that produces a common .jar and a wrapper
-//        executable script.
+//
+//	"both": compile for all Targets supported by the OsClass (generally x86_64 and x86, or arm64 and arm).
+//	"first": compile for only a single preferred Target supported by the OsClass.  This is generally x86_64 or arm64,
+//	    but may be arm for a 32-bit only build.
+//	"32": compile for only a single 32-bit Target supported by the OsClass.
+//	"64": compile for only a single 64-bit Target supported by the OsClass.
+//	"common": compile a for a single Target that will work on all Targets supported by the OsClass (for example Java).
+//	"common_first": compile a for a Target that will work on all Targets supported by the OsClass
+//	    (same as "common"), plus a second Target for the preferred Target supported by the OsClass
+//	    (same as "first").  This is used for java_binary that produces a common .jar and a wrapper
+//	    executable script.
 //
 // Once the list of Targets is determined, the module is split into a variant for each Target.
 //
@@ -1261,11 +1264,13 @@ func (m *ModuleBase) setOSProperties(ctx BottomUpMutatorContext) {
 
 // Returns the struct containing the properties specific to the given
 // architecture type. These look like this in Blueprint files:
-// arch: {
-//     arm64: {
-//         key: value,
-//     },
-// },
+//
+//	arch: {
+//	    arm64: {
+//	        key: value,
+//	    },
+//	},
+//
 // This struct will also contain sub-structs containing to the architecture/CPU
 // variants and features that themselves contain properties specific to those.
 func getArchTypeStruct(ctx ArchVariantContext, archProperties interface{}, archType ArchType) (reflect.Value, bool) {
@@ -1277,11 +1282,12 @@ func getArchTypeStruct(ctx ArchVariantContext, archProperties interface{}, archT
 
 // Returns the struct containing the properties specific to a given multilib
 // value. These look like this in the Blueprint file:
-// multilib: {
-//     lib32: {
-//         key: value,
-//     },
-// },
+//
+//	multilib: {
+//	    lib32: {
+//	        key: value,
+//	    },
+//	},
 func getMultilibStruct(ctx ArchVariantContext, archProperties interface{}, archType ArchType) (reflect.Value, bool) {
 	archPropValues := reflect.ValueOf(archProperties).Elem()
 	multilibProp := archPropValues.FieldByName("Multilib").Elem()
@@ -2054,9 +2060,10 @@ type ConfigurationAxisToArchVariantProperties map[bazel.ConfigurationAxis]ArchVa
 // arch-variant properties correspond to the values of the properties of the 'propertySet' struct
 // that are specific to that axis/configuration. Each axis is independent, containing
 // non-overlapping configs that correspond to the various "arch-variant" support, at this time:
-//    arches (including multilib)
-//    oses
-//    arch+os combinations
+//
+//	arches (including multilib)
+//	oses
+//	arch+os combinations
 //
 // For example, passing a struct { Foo bool, Bar string } will return an interface{} that can be
 // type asserted back into the same struct, containing the config-specific property value specified
@@ -2209,17 +2216,21 @@ func (m *ModuleBase) GetArchVariantProperties(ctx ArchVariantContext, propertySe
 
 // Returns a struct matching the propertySet interface, containing properties specific to the targetName
 // For example, given these arguments:
-//    propertySet = BaseCompilerProperties
-//    targetName = "android_arm"
+//
+//	propertySet = BaseCompilerProperties
+//	targetName = "android_arm"
+//
 // And given this Android.bp fragment:
-//    target:
-//       android_arm: {
-//          srcs: ["foo.c"],
-//       }
-//       android_arm64: {
-//          srcs: ["bar.c"],
-//      }
-//    }
+//
+//	target:
+//	   android_arm: {
+//	      srcs: ["foo.c"],
+//	   }
+//	   android_arm64: {
+//	      srcs: ["bar.c"],
+//	  }
+//	}
+//
 // This would return a BaseCompilerProperties with BaseCompilerProperties.Srcs = ["foo.c"]
 func getTargetStructs(ctx ArchVariantContext, archProperties []interface{}, targetName string) []reflect.Value {
 	var propertyStructs []reflect.Value
