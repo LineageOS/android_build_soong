@@ -68,7 +68,7 @@ var (
 
 	CpExecutable = pctx.AndroidStaticRule("CpExecutable",
 		blueprint.RuleParams{
-			Command:     "rm -f $out && cp $cpPreserveSymlinks $cpFlags $in $out && chmod +x $out$extraCmds",
+			Command:     "rm -f $out && cp $cpFlags $in $out && chmod +x $out$extraCmds",
 			Description: "cp $out",
 		},
 		"cpFlags", "extraCmds")
