@@ -2592,3 +2592,83 @@ func TestCcLibraryWithInstructionSet(t *testing.T) {
 		}),
 	})
 }
+
+func TestCcLibraryWithAidlSrcs(t *testing.T) {
+	runCcLibraryTestCase(t, Bp2buildTestCase{
+		Description:                "cc_library with aidl srcs",
+		ModuleTypeUnderTest:        "cc_library",
+		ModuleTypeUnderTestFactory: cc.LibraryFactory,
+		Blueprint: `
+filegroup {
+    name: "A_aidl",
+    srcs: ["aidl/A.aidl"],
+	path: "aidl",
+}
+cc_library {
+	name: "foo",
+	srcs: [
+		":A_aidl",
+		"B.aidl",
+	],
+}`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTargetNoRestrictions("aidl_library", "A_aidl", AttrNameToString{
+				"srcs":                `["aidl/A.aidl"]`,
+				"strip_import_prefix": `"aidl"`,
+			}),
+			makeBazelTarget("aidl_library", "foo_aidl_library", AttrNameToString{
+				"srcs": `["B.aidl"]`,
+			}),
+			makeBazelTarget("cc_aidl_library", "foo_cc_aidl_library", AttrNameToString{
+				"deps": `[
+        ":A_aidl",
+        ":foo_aidl_library",
+    ]`,
+			}),
+			makeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
+				"whole_archive_deps": `[":foo_cc_aidl_library"]`,
+				"local_includes":     `["."]`,
+			}),
+			makeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+				"whole_archive_deps": `[":foo_cc_aidl_library"]`,
+				"local_includes":     `["."]`,
+			}),
+		},
+	})
+}
+
+func TestCcLibraryWithNonAdjacentAidlFilegroup(t *testing.T) {
+	runCcLibraryTestCase(t, Bp2buildTestCase{
+		Description:                "cc_library with non aidl filegroup",
+		ModuleTypeUnderTest:        "cc_library",
+		ModuleTypeUnderTestFactory: cc.LibraryFactory,
+		Filesystem: map[string]string{
+			"path/to/A/Android.bp": `
+filegroup {
+	name: "A_aidl",
+	srcs: ["aidl/A.aidl"],
+	path: "aidl",
+}`,
+		},
+		Blueprint: `
+cc_library {
+	name: "foo",
+	srcs: [
+		":A_aidl",
+	],
+}`,
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("cc_aidl_library", "foo_cc_aidl_library", AttrNameToString{
+				"deps": `["//path/to/A:A_aidl"]`,
+			}),
+			makeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
+				"whole_archive_deps": `[":foo_cc_aidl_library"]`,
+				"local_includes":     `["."]`,
+			}),
+			makeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+				"whole_archive_deps": `[":foo_cc_aidl_library"]`,
+				"local_includes":     `["."]`,
+			}),
+		},
+	})
+}
