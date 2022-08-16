@@ -49,9 +49,10 @@ func (g partitionGroup) String() string {
 
 // Get partition group of java module that can be used at inter-partition dependency check.
 // We currently have three groups
-//   (system, system_ext) => system partition group
-//   (vendor, odm) => vendor partition group
-//   (product) => product partition group
+//
+//	(system, system_ext) => system partition group
+//	(vendor, odm) => vendor partition group
+//	(product) => product partition group
 func (j *Module) partitionGroup(ctx android.EarlyModuleContext) partitionGroup {
 	// system and system_ext partition can be treated as the same in terms of inter-partition dependency.
 	if j.Platform() || j.SystemExtSpecific() {
