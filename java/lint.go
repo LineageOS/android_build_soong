@@ -210,7 +210,7 @@ func lintRBEExecStrategy(ctx android.ModuleContext) string {
 	return ctx.Config().GetenvWithDefault("RBE_LINT_EXEC_STRATEGY", remoteexec.LocalExecStrategy)
 }
 
-func (l *linter) writeLintProjectXML(ctx android.ModuleContext, rule *android.RuleBuilder) lintPaths {
+func (l *linter) writeLintProjectXML(ctx android.ModuleContext, rule *android.RuleBuilder, srcsList android.Path) lintPaths {
 	projectXMLPath := android.PathForModuleOut(ctx, "lint", "project.xml")
 	// Lint looks for a lint.xml file next to the project.xml file, give it one.
 	configXMLPath := android.PathForModuleOut(ctx, "lint", "lint.xml")
@@ -241,8 +241,7 @@ func (l *linter) writeLintProjectXML(ctx android.ModuleContext, rule *android.Ru
 
 	// TODO(ccross): some of the files in l.srcs are generated sources and should be passed to
 	// lint separately.
-	srcsList := android.PathForModuleOut(ctx, "lint-srcs.list")
-	cmd.FlagWithRspFileInputList("--srcs ", srcsList, l.srcs)
+	cmd.FlagWithInput("--srcs ", srcsList)
 
 	cmd.FlagWithInput("--generated_srcs ", srcJarList)
 
@@ -381,7 +380,11 @@ func (l *linter) lint(ctx android.ModuleContext) {
 		rule.Temporary(manifest)
 	}
 
-	lintPaths := l.writeLintProjectXML(ctx, rule)
+	srcsList := android.PathForModuleOut(ctx, "lint", "lint-srcs.list")
+	srcsListRsp := android.PathForModuleOut(ctx, "lint-srcs.list.rsp")
+	rule.Command().Text("cp").FlagWithRspFileInputList("", srcsListRsp, l.srcs).Output(srcsList)
+
+	lintPaths := l.writeLintProjectXML(ctx, rule, srcsList)
 
 	html := android.PathForModuleOut(ctx, "lint", "lint-report.html")
 	text := android.PathForModuleOut(ctx, "lint", "lint-report.txt")
@@ -441,6 +444,7 @@ func (l *linter) lint(ctx android.ModuleContext) {
 		FlagWithArg("--kotlin-language-level ", l.kotlinLanguageLevel).
 		FlagWithArg("--url ", fmt.Sprintf(".=.,%s=out", android.PathForOutput(ctx).String())).
 		Flag("--exitcode").
+		Flag("--apply-suggestions"). // applies suggested fixes to files in the sandbox
 		Flags(l.properties.Lint.Flags).
 		Implicit(annotationsZipPath).
 		Implicit(apiVersionsXMLPath)
@@ -465,6 +469,13 @@ func (l *linter) lint(ctx android.ModuleContext) {
 
 	// The HTML output contains a date, remove it to make the output deterministic.
 	rule.Command().Text(`sed -i.tmp -e 's|Check performed at .*\(</nav>\)|\1|'`).Output(html)
+
+	// The sources in the sandbox may have been modified by --apply-suggestions, zip them up and
+	// export them out of the sandbox.
+	rule.Command().BuiltTool("soong_zip").
+		FlagWithOutput("-o ", android.PathForModuleOut(ctx, "lint", "suggested-fixes.zip")).
+		FlagWithArg("-C ", cmd.PathForInput(android.PathForSource(ctx))).
+		FlagWithInput("-r ", srcsList)
 
 	rule.Build("lint", "lint")
 
