@@ -237,3 +237,20 @@ sh_binary_host {
     name: "jars-to-module-info-java",
     src: "jars-to-module-info-java.sh",
 }
+
+python_binary_host {
+    name: "modify_permissions_allowlist",
+    main: "modify_permissions_allowlist.py",
+    srcs: [
+        "modify_permissions_allowlist.py",
+    ],
+}
+
+python_test_host {
+    name: "modify_permissions_allowlist_test",
+    main: "modify_permissions_allowlist_test.py",
+    srcs: [
+        "modify_permissions_allowlist_test.py",
+        "modify_permissions_allowlist.py",
+    ],
+}
