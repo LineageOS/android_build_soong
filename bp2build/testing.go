@@ -173,11 +173,12 @@ type customProps struct {
 	Bool_prop     bool
 	Bool_ptr_prop *bool
 	// Ensure that properties tagged `blueprint:mutated` are omitted
-	Int_prop         int `blueprint:"mutated"`
-	Int64_ptr_prop   *int64
-	String_prop      string
-	String_ptr_prop  *string
-	String_list_prop []string
+	Int_prop            int `blueprint:"mutated"`
+	Int64_ptr_prop      *int64
+	String_prop         string
+	String_literal_prop *string `android:"arch_variant"`
+	String_ptr_prop     *string
+	String_list_prop    []string
 
 	Nested_props     nestedProps
 	Nested_props_ptr *nestedProps
@@ -305,23 +306,29 @@ type OtherEmbeddedAttr struct {
 type customBazelModuleAttributes struct {
 	EmbeddedAttr
 	*OtherEmbeddedAttr
-	String_ptr_prop  *string
-	String_list_prop []string
-	Arch_paths       bazel.LabelListAttribute
+	String_literal_prop bazel.StringAttribute
+	String_ptr_prop     *string
+	String_list_prop    []string
+	Arch_paths          bazel.LabelListAttribute
 }
 
 func (m *customModule) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
-	paths := bazel.LabelListAttribute{}
-
 	if p := m.props.One_to_many_prop; p != nil && *p {
 		customBp2buildOneToMany(ctx, m)
 		return
 	}
 
+	paths := bazel.LabelListAttribute{}
+	strAttr := bazel.StringAttribute{}
 	for axis, configToProps := range m.GetArchVariantProperties(ctx, &customProps{}) {
 		for config, props := range configToProps {
-			if archProps, ok := props.(*customProps); ok && archProps.Arch_paths != nil {
-				paths.SetSelectValue(axis, config, android.BazelLabelForModuleSrcExcludes(ctx, archProps.Arch_paths, archProps.Arch_paths_exclude))
+			if custProps, ok := props.(*customProps); ok {
+				if custProps.Arch_paths != nil {
+					paths.SetSelectValue(axis, config, android.BazelLabelForModuleSrcExcludes(ctx, custProps.Arch_paths, custProps.Arch_paths_exclude))
+				}
+				if custProps.String_literal_prop != nil {
+					strAttr.SetSelectValue(axis, config, custProps.String_literal_prop)
+				}
 			}
 		}
 	}
@@ -329,10 +336,12 @@ func (m *customModule) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 	paths.ResolveExcludes()
 
 	attrs := &customBazelModuleAttributes{
-		String_ptr_prop:  m.props.String_ptr_prop,
-		String_list_prop: m.props.String_list_prop,
-		Arch_paths:       paths,
+		String_literal_prop: strAttr,
+		String_ptr_prop:     m.props.String_ptr_prop,
+		String_list_prop:    m.props.String_list_prop,
+		Arch_paths:          paths,
 	}
+
 	attrs.Embedded_attr = m.props.Embedded_prop
 	if m.props.OtherEmbeddedProps != nil {
 		attrs.OtherEmbeddedAttr = &OtherEmbeddedAttr{Other_embedded_attr: m.props.OtherEmbeddedProps.Other_embedded_prop}
