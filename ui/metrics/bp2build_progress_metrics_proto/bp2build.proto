@@ -1,0 +1,51 @@
+/*
+ * Copyright (C) 2022 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+
+package bp2build_proto;
+
+
+// Conversion progress report for root_modules .
+message Bp2buildConversionProgress {
+
+  // Soong module identifying information.
+  message Module {
+    // Name of the Soong module.
+    string name = 1;
+
+    // Directory that the Soong module is in.
+    string directory = 2;
+
+    // Module type of this module.
+    string type = 3;
+
+    // All unconverted transitive dependencies.
+    repeated string unconverted_deps = 4;
+
+    // Total number of transitive dependencies.
+    int32 num_deps = 5;
+  }
+
+  // Modules that the transitive dependencies were identified for.
+  repeated string root_modules = 1;
+
+  // Names of all dependencies of the root_modules.
+  int32 num_deps = 2;
+
+  // Module with all its unconverted transitive dependencies.
+  repeated Module unconverted = 3;
+}
