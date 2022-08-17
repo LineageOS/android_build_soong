@@ -33,7 +33,16 @@ import (
 
 func init() {
 	RegisterAppBuildComponents(android.InitRegistrationContext)
+	pctx.HostBinToolVariable("ModifyAllowlistCmd", "modify_permissions_allowlist")
 }
+
+var (
+	modifyAllowlist = pctx.AndroidStaticRule("modifyAllowlist",
+		blueprint.RuleParams{
+			Command:     "${ModifyAllowlistCmd} $in $packageName $out",
+			CommandDeps: []string{"${ModifyAllowlistCmd}"},
+		}, "packageName")
+)
 
 func RegisterAppBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("android_app", AndroidAppFactory)
@@ -115,6 +124,9 @@ type appProperties struct {
 	// Prefer using other specific properties if build behaviour must be changed; avoid using this
 	// flag for anything but neverallow rules (unless the behaviour change is invisible to owners).
 	Updatable *bool
+
+	// Specifies the file that contains the allowlist for this app.
+	Privapp_allowlist *string `android:"path"`
 }
 
 // android_app properties that can be overridden by override_android_app
@@ -179,6 +191,8 @@ type AndroidApp struct {
 	android.ApexBundleDepsInfo
 
 	javaApiUsedByOutputFile android.ModuleOutPath
+
+	privAppAllowlist android.OptionalPath
 }
 
 func (a *AndroidApp) IsInstallable() bool {
@@ -203,6 +217,10 @@ func (a *AndroidApp) Certificate() Certificate {
 
 func (a *AndroidApp) JniCoverageOutputs() android.Paths {
 	return a.jniCoverageOutputs
+}
+
+func (a *AndroidApp) PrivAppAllowlist() android.OptionalPath {
+	return a.privAppAllowlist
 }
 
 var _ AndroidLibraryDependency = (*AndroidApp)(nil)
@@ -267,6 +285,10 @@ func (a *AndroidApp) OverridablePropertiesDepsMutator(ctx android.BottomUpMutato
 	cert := android.SrcIsModule(a.getCertString(ctx))
 	if cert != "" {
 		ctx.AddDependency(ctx.Module(), certificateTag, cert)
+	}
+
+	if a.appProperties.Privapp_allowlist != nil && !Bool(a.appProperties.Privileged) {
+		ctx.PropertyErrorf("privapp_allowlist", "privileged must be set in order to use privapp_allowlist")
 	}
 
 	for _, cert := range a.appProperties.Additional_certificates {
@@ -598,6 +620,27 @@ func (a *AndroidApp) InstallApkName() string {
 	return a.installApkName
 }
 
+func (a *AndroidApp) createPrivappAllowlist(ctx android.ModuleContext) *android.OutputPath {
+	if a.appProperties.Privapp_allowlist == nil {
+		return nil
+	}
+	if a.overridableAppProperties.Package_name == nil {
+		ctx.PropertyErrorf("privapp_allowlist", "package_name must be set to use privapp_allowlist")
+	}
+	packageName := *a.overridableAppProperties.Package_name
+	fileName := "privapp_allowlist_" + packageName + ".xml"
+	outPath := android.PathForModuleOut(ctx, fileName).OutputPath
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   modifyAllowlist,
+		Input:  android.PathForModuleSrc(ctx, *a.appProperties.Privapp_allowlist),
+		Output: outPath,
+		Args: map[string]string{
+			"packageName": packageName,
+		},
+	})
+	return &outPath
+}
+
 func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	var apkDeps android.Paths
 
@@ -733,18 +776,27 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	BuildBundleModule(ctx, bundleFile, a.exportPackage, jniJarFile, dexJarFile)
 	a.bundleFile = bundleFile
 
+	allowlist := a.createPrivappAllowlist(ctx)
+	if allowlist != nil {
+		a.privAppAllowlist = android.OptionalPathForPath(allowlist)
+	}
+
 	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
 
 	// Install the app package.
-	if (Bool(a.Module.properties.Installable) || ctx.Host()) && apexInfo.IsForPlatform() &&
-		!a.appProperties.PreventInstall {
-
+	shouldInstallAppPackage := (Bool(a.Module.properties.Installable) || ctx.Host()) && apexInfo.IsForPlatform() && !a.appProperties.PreventInstall
+	if shouldInstallAppPackage {
 		var extraInstalledPaths android.Paths
 		for _, extra := range a.extraOutputFiles {
 			installed := ctx.InstallFile(a.installDir, extra.Base(), extra)
 			extraInstalledPaths = append(extraInstalledPaths, installed)
 		}
 		ctx.InstallFile(a.installDir, a.outputFile.Base(), a.outputFile, extraInstalledPaths...)
+
+		if a.privAppAllowlist.Valid() {
+			installPath := android.PathForModuleInstall(ctx, "etc", "permissions")
+			ctx.InstallFile(installPath, a.privAppAllowlist.Path().Base(), a.privAppAllowlist.Path())
+		}
 	}
 
 	a.buildAppDependencyInfo(ctx)
