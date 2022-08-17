@@ -32,12 +32,6 @@ func registerPythonTestComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("python_test", PythonTestFactory)
 }
 
-// Test option struct.
-type TestOptions struct {
-	// If the test is a hostside(no device required) unittest that shall be run during presubmit check.
-	Unit_test *bool
-}
-
 type TestProperties struct {
 	// the name of the test configuration (for example "AndroidTest.xml") that should be
 	// installed with the module.
@@ -55,7 +49,7 @@ type TestProperties struct {
 	Java_data []string
 
 	// Test options.
-	Test_options TestOptions
+	Test_options android.CommonTestOptions
 }
 
 type testDecorator struct {

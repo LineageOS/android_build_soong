@@ -103,12 +103,6 @@ type shBinaryProperties struct {
 	Recovery_available *bool
 }
 
-// Test option struct.
-type TestOptions struct {
-	// If the test is a hostside(no device required) unittest that shall be run during presubmit check.
-	Unit_test *bool
-}
-
 type TestProperties struct {
 	// list of compatibility suites (for example "cts", "vts") that the module should be
 	// installed into.
@@ -153,7 +147,7 @@ type TestProperties struct {
 	Per_testcase_directory *bool
 
 	// Test options.
-	Test_options TestOptions
+	Test_options android.CommonTestOptions
 }
 
 type ShBinary struct {
@@ -464,10 +458,9 @@ func (s *ShTest) AndroidMkEntries() []android.AndroidMkEntries {
 				if s.testProperties.Data_bins != nil {
 					entries.AddStrings("LOCAL_TEST_DATA_BINS", s.testProperties.Data_bins...)
 				}
-				if Bool(s.testProperties.Test_options.Unit_test) {
-					entries.SetBool("LOCAL_IS_UNIT_TEST", true)
-				}
 				entries.SetBoolIfTrue("LOCAL_COMPATIBILITY_PER_TESTCASE_DIRECTORY", Bool(s.testProperties.Per_testcase_directory))
+
+				s.testProperties.Test_options.SetAndroidMkEntries(entries)
 			},
 		},
 	}}
