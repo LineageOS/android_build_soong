@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"android/soong/android"
@@ -30,6 +31,9 @@ import (
 func init() {
 	registerBpfBuildComponents(android.InitRegistrationContext)
 	pctx.Import("android/soong/cc/config")
+	if runtime.GOOS != "darwin" {
+		pctx.StaticVariable("relPwd", "PWD=/proc/self/cwd")
+	}
 }
 
 var (
@@ -39,7 +43,7 @@ var (
 		blueprint.RuleParams{
 			Depfile:     "${out}.d",
 			Deps:        blueprint.DepsGCC,
-			Command:     "$ccCmd --target=bpf -c $cFlags -MD -MF ${out}.d -o $out $in",
+			Command:     "$relPwd $ccCmd --target=bpf -c $cFlags -MD -MF ${out}.d -o $out $in",
 			CommandDeps: []string{"$ccCmd"},
 		},
 		"ccCmd", "cFlags")
@@ -163,6 +167,9 @@ func (bpf *bpf) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	if proptools.Bool(bpf.properties.Btf) {
 		cflags = append(cflags, "-g")
+		if runtime.GOOS != "darwin" {
+			cflags = append(cflags, "-fdebug-prefix-map=/proc/self/cwd=")
+		}
 	}
 
 	srcs := android.PathsForModuleSrc(ctx, bpf.properties.Srcs)
