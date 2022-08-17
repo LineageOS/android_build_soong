@@ -596,14 +596,14 @@ To make `soong_build` wait for a debugger connection, install `dlv` and then
 start the build with `SOONG_DELVE=<listen addr>` in the environment.
 For example:
 ```bash
-SOONG_DELVE=:5006 m nothing
+SOONG_DELVE=5006 m nothing
 ```
 
 To make `soong_ui` wait for a debugger connection, use the `SOONG_UI_DELVE`
 variable:
 
 ```
-SOONG_UI_DELVE=:5006 m nothing
+SOONG_UI_DELVE=5006 m nothing
 ```
 
 
