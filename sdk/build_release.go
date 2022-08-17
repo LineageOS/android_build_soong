@@ -16,6 +16,7 @@ package sdk
 
 import (
 	"fmt"
+	"math"
 	"reflect"
 	"strings"
 )
@@ -29,7 +30,10 @@ type buildRelease struct {
 	// The name of the release, e.g. S, Tiramisu, etc.
 	name string
 
-	// The index of this structure within the buildReleases list.
+	// The index of this structure within the dessertBuildReleases list.
+	//
+	// The buildReleaseCurrent does not appear in the dessertBuildReleases list as it has an ordinal value
+	// that is larger than the size of the dessertBuildReleases.
 	ordinal int
 }
 
@@ -56,7 +60,7 @@ func (s *buildReleaseSet) addItem(release *buildRelease) {
 // addRange adds all the build releases from start (inclusive) to end (inclusive).
 func (s *buildReleaseSet) addRange(start *buildRelease, end *buildRelease) {
 	for i := start.ordinal; i <= end.ordinal; i += 1 {
-		s.addItem(buildReleases[i])
+		s.addItem(dessertBuildReleases[i])
 	}
 }
 
@@ -69,11 +73,17 @@ func (s *buildReleaseSet) contains(release *buildRelease) bool {
 // String returns a string representation of the set, sorted from earliest to latest release.
 func (s *buildReleaseSet) String() string {
 	list := []string{}
-	for _, release := range buildReleases {
+	addRelease := func(release *buildRelease) {
 		if _, ok := s.contents[release]; ok {
 			list = append(list, release.name)
 		}
 	}
+	// Add the names of the build releases in this set in the order in which they were created.
+	for _, release := range dessertBuildReleases {
+		addRelease(release)
+	}
+	// Always add "current" to the list of names last if it is present in the set.
+	addRelease(buildReleaseCurrent)
 	return fmt.Sprintf("[%s]", strings.Join(list, ","))
 }
 
@@ -81,30 +91,46 @@ var (
 	// nameToBuildRelease contains a map from name to build release.
 	nameToBuildRelease = map[string]*buildRelease{}
 
-	// buildReleases lists all the available build releases.
-	buildReleases = []*buildRelease{}
+	// dessertBuildReleases lists all the available dessert build releases, i.e. excluding current.
+	dessertBuildReleases = []*buildRelease{}
 
 	// allBuildReleaseSet is the set of all build releases.
 	allBuildReleaseSet = &buildReleaseSet{contents: map[*buildRelease]struct{}{}}
 
-	// Add the build releases from oldest to newest.
+	// Add the dessert build releases from oldest to newest.
 	buildReleaseS = initBuildRelease("S")
 	buildReleaseT = initBuildRelease("Tiramisu")
+
+	// Add the current build release which is always treated as being more recent than any other
+	// build release, including those added in tests.
+	buildReleaseCurrent = initBuildRelease("current")
 )
 
 // initBuildRelease creates a new build release with the specified name.
 func initBuildRelease(name string) *buildRelease {
-	ordinal := len(nameToBuildRelease)
+	ordinal := len(dessertBuildReleases)
+	if name == "current" {
+		// The current build release is more recent than all other build releases, including those
+		// created in tests so use the max int value. It cannot just rely on being created after all
+		// the other build releases as some are created in tests which run after the current build
+		// release has been created.
+		ordinal = math.MaxInt
+	}
 	release := &buildRelease{name: name, ordinal: ordinal}
 	nameToBuildRelease[name] = release
-	buildReleases = append(buildReleases, release)
 	allBuildReleaseSet.addItem(release)
+	if name != "current" {
+		// As the current build release has an ordinal value that does not correspond to its position
+		// in the dessertBuildReleases list do not add it to the list.
+		dessertBuildReleases = append(dessertBuildReleases, release)
+	}
 	return release
 }
 
-// latestBuildRelease returns the latest build release, i.e. the last one added.
-func latestBuildRelease() *buildRelease {
-	return buildReleases[len(buildReleases)-1]
+// latestDessertBuildRelease returns the latest dessert release build name, i.e. the last dessert
+// release added to the list, which does not include current.
+func latestDessertBuildRelease() *buildRelease {
+	return dessertBuildReleases[len(dessertBuildReleases)-1]
 }
 
 // nameToRelease maps from build release name to the corresponding build release (if it exists) or
@@ -134,8 +160,10 @@ func parseBuildReleaseSet(specification string) (*buildReleaseSet, error) {
 		if err != nil {
 			return nil, err
 		}
-		end := latestBuildRelease()
+		end := latestDessertBuildRelease()
 		set.addRange(start, end)
+		// An open-ended range always includes the current release.
+		set.addItem(buildReleaseCurrent)
 	} else if strings.Contains(specification, "-") {
 		limits := strings.SplitN(specification, "-", 2)
 		start, err := nameToRelease(limits[0])
