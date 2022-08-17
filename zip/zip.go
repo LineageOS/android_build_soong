@@ -201,6 +201,16 @@ func (x IncorrectRelativeRootError) Error() string {
 	return fmt.Sprintf("path %q is outside relative root %q", x.Path, x.RelativeRoot)
 }
 
+type ConflictingFileError struct {
+	Dest string
+	Prev string
+	Src  string
+}
+
+func (x ConflictingFileError) Error() string {
+	return fmt.Sprintf("destination %q has two files %q and %q", x.Dest, x.Prev, x.Src)
+}
+
 type ZipWriter struct {
 	time         time.Time
 	createdFiles map[string]string
@@ -605,13 +615,24 @@ func (z *ZipWriter) addFile(dest, src string, method uint16, emulateJar, srcJar 
 		if prev, exists := z.createdDirs[dest]; exists {
 			return fmt.Errorf("destination %q is both a directory %q and a file %q", dest, prev, src)
 		}
+
+		return nil
+	}
+
+	checkDuplicateFiles := func(dest, src string) (bool, error) {
 		if prev, exists := z.createdFiles[dest]; exists {
-			return fmt.Errorf("destination %q has two files %q and %q", dest, prev, src)
+			if prev != src {
+				return true, ConflictingFileError{
+					Dest: dest,
+					Prev: prev,
+					Src:  src,
+				}
+			}
+			return true, nil
 		}
 
 		z.createdFiles[dest] = src
-
-		return nil
+		return false, nil
 	}
 
 	if s.IsDir() {
@@ -623,6 +644,14 @@ func (z *ZipWriter) addFile(dest, src string, method uint16, emulateJar, srcJar 
 		err = createParentDirs(dest, src)
 		if err != nil {
 			return err
+		}
+
+		duplicate, err := checkDuplicateFiles(dest, src)
+		if err != nil {
+			return err
+		}
+		if duplicate {
+			return nil
 		}
 
 		return z.writeSymlink(dest, src)
@@ -667,6 +696,14 @@ func (z *ZipWriter) addFile(dest, src string, method uint16, emulateJar, srcJar 
 			return err
 		}
 
+		duplicate, err := checkDuplicateFiles(dest, src)
+		if err != nil {
+			return err
+		}
+		if duplicate {
+			return nil
+		}
+
 		return z.writeFileContents(header, r)
 	} else {
 		return fmt.Errorf("%s is not a file, directory, or symlink", src)
@@ -678,7 +715,14 @@ func (z *ZipWriter) addManifest(dest string, src string, _ uint16) error {
 		return fmt.Errorf("destination %q is both a directory %q and a file %q", dest, prev, src)
 	}
 	if prev, exists := z.createdFiles[dest]; exists {
-		return fmt.Errorf("destination %q has two files %q and %q", dest, prev, src)
+		if prev != src {
+			return ConflictingFileError{
+				Dest: dest,
+				Prev: prev,
+				Src:  src,
+			}
+		}
+		return nil
 	}
 
 	if err := z.writeDirectory(filepath.Dir(dest), src, true); err != nil {
