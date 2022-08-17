@@ -61,6 +61,11 @@ type LintProperties struct {
 
 		// If true, baselining updatability lint checks (e.g. NewApi) is prohibited. Defaults to false.
 		Strict_updatability_linting *bool
+
+		// Treat the code in this module as test code for @VisibleForTesting enforcement.
+		// This will be true by default for test module types, false otherwise.
+		// If soong gets support for testonly, this flag should be replaced with that.
+		Test *bool
 	}
 }
 
@@ -74,7 +79,6 @@ type linter struct {
 	classpath               android.Paths
 	classes                 android.Path
 	extraLintCheckJars      android.Paths
-	test                    bool
 	library                 bool
 	minSdkVersion           int
 	targetSdkVersion        int
@@ -229,7 +233,7 @@ func (l *linter) writeLintProjectXML(ctx android.ModuleContext, rule *android.Ru
 	if l.library {
 		cmd.Flag("--library")
 	}
-	if l.test {
+	if proptools.BoolDefault(l.properties.Lint.Test, false) {
 		cmd.Flag("--test")
 	}
 	if l.manifest != nil {
