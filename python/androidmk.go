@@ -69,7 +69,7 @@ func (p *testDecorator) AndroidMk(base *Module, entries *android.AndroidMkEntrie
 
 			entries.AddStrings("LOCAL_TEST_DATA", android.AndroidMkDataPaths(p.data)...)
 
-			entries.SetBoolIfTrue("LOCAL_IS_UNIT_TEST", Bool(p.testProperties.Test_options.Unit_test))
+			p.testProperties.Test_options.SetAndroidMkEntries(entries)
 		})
 	base.subAndroidMk(entries, p.binaryDecorator.pythonInstaller)
 }
