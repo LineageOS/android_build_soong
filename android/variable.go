@@ -249,7 +249,8 @@ type productVariables struct {
 	AAPTPreferredConfig *string  `json:",omitempty"`
 	AAPTPrebuiltDPI     []string `json:",omitempty"`
 
-	DefaultAppCertificate *string `json:",omitempty"`
+	DefaultAppCertificate           *string `json:",omitempty"`
+	MainlineSepolicyDevCertificates *string `json:",omitempty"`
 
 	AppsDefaultVersionName *string `json:",omitempty"`
 
