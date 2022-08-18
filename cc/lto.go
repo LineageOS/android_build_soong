@@ -136,9 +136,10 @@ func (lto *lto) LTO(ctx BaseModuleContext) bool {
 }
 
 func (lto *lto) DefaultThinLTO(ctx BaseModuleContext) bool {
+	lib32 := ctx.Arch().ArchType.Multilib == "lib32"
 	host := ctx.Host()
 	vndk := ctx.isVndk() // b/169217596
-	return GlobalThinLTO(ctx) && !lto.Never() && !host && !vndk
+	return GlobalThinLTO(ctx) && !lto.Never() && !lib32 && !host && !vndk
 }
 
 func (lto *lto) FullLTO() bool {
