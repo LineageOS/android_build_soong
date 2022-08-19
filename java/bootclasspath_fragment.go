@@ -145,7 +145,7 @@ type bootclasspathFragmentProperties struct {
 	BootclasspathFragmentsDepsProperties
 }
 
-type HiddenApiPackageProperties struct {
+type HiddenAPIPackageProperties struct {
 	Hidden_api struct {
 		// Contains prefixes of a package hierarchy that is provided solely by this
 		// bootclasspath_fragment.
@@ -222,8 +222,8 @@ type HiddenApiPackageProperties struct {
 }
 
 type SourceOnlyBootclasspathProperties struct {
-	HiddenApiPackageProperties
-	Coverage HiddenApiPackageProperties
+	HiddenAPIPackageProperties
+	Coverage HiddenAPIPackageProperties
 }
 
 type BootclasspathFragmentModule struct {
@@ -293,7 +293,7 @@ func bootclasspathFragmentFactory() android.Module {
 				return
 			}
 
-			err = proptools.AppendProperties(&m.sourceOnlyProperties.HiddenApiPackageProperties, &m.sourceOnlyProperties.Coverage, nil)
+			err = proptools.AppendProperties(&m.sourceOnlyProperties.HiddenAPIPackageProperties, &m.sourceOnlyProperties.Coverage, nil)
 			if err != nil {
 				ctx.PropertyErrorf("coverage", "error trying to append hidden api coverage specific properties: %s", err)
 				return
@@ -827,6 +827,9 @@ func (b *BootclasspathFragmentModule) createHiddenAPIFlagInput(ctx android.Modul
 	// Populate with flag file paths from the properties.
 	input.extractFlagFilesFromProperties(ctx, &b.properties.Hidden_api)
 
+	// Populate with package rules from the properties.
+	input.extractPackageRulesFromProperties(&b.sourceOnlyProperties.HiddenAPIPackageProperties)
+
 	// Add the stub dex jars from this module's fragment dependencies.
 	input.DependencyStubDexJarsByScope.addStubDexJarsByModule(dependencyHiddenApiInfo.TransitiveStubDexJarsByScope)
 
@@ -862,9 +865,9 @@ func (b *BootclasspathFragmentModule) produceHiddenAPIOutput(ctx android.ModuleC
 
 	// If the module specifies split_packages or package_prefixes then use those to generate the
 	// signature patterns.
-	splitPackages := b.sourceOnlyProperties.Hidden_api.Split_packages
-	packagePrefixes := b.sourceOnlyProperties.Hidden_api.Package_prefixes
-	singlePackages := b.sourceOnlyProperties.Hidden_api.Single_packages
+	splitPackages := input.SplitPackages
+	packagePrefixes := input.PackagePrefixes
+	singlePackages := input.SinglePackages
 	if splitPackages != nil || packagePrefixes != nil || singlePackages != nil {
 		output.SignaturePatternsPath = buildRuleSignaturePatternsFile(
 			ctx, output.AllFlagsPath, splitPackages, packagePrefixes, singlePackages)
