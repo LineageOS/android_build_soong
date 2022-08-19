@@ -19,12 +19,12 @@
 // To use, download the logs.zip from one or more branches, and extract them
 // into subdirectories of the current directory. So for example, I have:
 //
-//   ./aosp-master/aosp_arm/std_full.log
-//   ./aosp-master/aosp_arm64/std_full.log
-//   ./aosp-master/...
-//   ./internal-master/aosp_arm/std_full.log
-//   ./internal-master/aosp_arm64/std_full.log
-//   ./internal-master/...
+//	./aosp-master/aosp_arm/std_full.log
+//	./aosp-master/aosp_arm64/std_full.log
+//	./aosp-master/...
+//	./internal-master/aosp_arm/std_full.log
+//	./internal-master/aosp_arm64/std_full.log
+//	./internal-master/...
 //
 // Then I use `go run path/to/build_broken_logs.go *`
 package main

@@ -240,10 +240,12 @@ func (m ExportedStringListDictVariables) asBazel(_ Config, _ ExportedStringVaria
 // ExportedVariableReferenceDictVariables is a mapping from variable names to a
 // dictionary which references previously defined variables. This is used to
 // create a Starlark output such as:
-// 		string_var1 = "string1
-// 		var_ref_dict_var1 = {
-// 			"key1": string_var1
-// 		}
+//
+//	string_var1 = "string1
+//	var_ref_dict_var1 = {
+//		"key1": string_var1
+//	}
+//
 // This type of variable collection must be expanded last so that it recognizes
 // previously defined variables.
 type ExportedVariableReferenceDictVariables map[string]map[string]string

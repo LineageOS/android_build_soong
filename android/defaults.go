@@ -151,12 +151,12 @@ type DefaultsModuleBase struct {
 // retrieve the values it is necessary to iterate over properties(). E.g. to get
 // the commonProperties instance that have the real values:
 //
-//   d := myModule.(Defaults)
-//   for _, props := range d.properties() {
-//     if cp, ok := props.(*commonProperties); ok {
-//       ... access property values in cp ...
-//     }
-//   }
+//	d := myModule.(Defaults)
+//	for _, props := range d.properties() {
+//	  if cp, ok := props.(*commonProperties); ok {
+//	    ... access property values in cp ...
+//	  }
+//	}
 //
 // The rationale is that the properties on a defaults module apply to the
 // defaultable modules using it, not to the defaults module itself. E.g. setting

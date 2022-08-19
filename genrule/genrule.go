@@ -976,9 +976,7 @@ func (m *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 var Bool = proptools.Bool
 var String = proptools.String
 
-//
 // Defaults
-//
 type Defaults struct {
 	android.ModuleBase
 	android.DefaultsModuleBase

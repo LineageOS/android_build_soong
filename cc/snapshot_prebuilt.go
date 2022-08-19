@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -263,12 +263,12 @@ type BaseSnapshotDecoratorProperties struct {
 // version, snapshot arch, etc. It also adds a special suffix to Soong module name, so it doesn't
 // collide with source modules. e.g. the following example module,
 //
-// vendor_snapshot_static {
-//     name: "libbase",
-//     arch: "arm64",
-//     version: 30,
-//     ...
-// }
+//	vendor_snapshot_static {
+//	    name: "libbase",
+//	    arch: "arm64",
+//	    version: 30,
+//	    ...
+//	}
 //
 // will be seen as "libbase.vendor_static.30.arm64" by Soong.
 type BaseSnapshotDecorator struct {
@@ -370,7 +370,6 @@ func vendorSnapshotLoadHook(ctx android.LoadHookContext, p *BaseSnapshotDecorato
 	}
 }
 
-//
 // Module definitions for snapshots of libraries (shared, static, header).
 //
 // Modules (vendor|recovery)_snapshot_(shared|static|header) are defined here. Shared libraries and
@@ -630,7 +629,6 @@ func RecoverySnapshotHeaderFactory() android.Module {
 
 var _ snapshotSanitizer = (*snapshotLibraryDecorator)(nil)
 
-//
 // Module definitions for snapshots of executable binaries.
 //
 // Modules (vendor|recovery)_snapshot_binary are defined here. They have their prebuilt executable
@@ -728,7 +726,6 @@ func snapshotBinaryFactory(image SnapshotImage, moduleSuffix string) android.Mod
 	return module.Init()
 }
 
-//
 // Module definitions for snapshots of object files (*.o).
 //
 // Modules (vendor|recovery)_snapshot_object are defined here. They have their prebuilt object
