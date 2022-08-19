@@ -595,4 +595,9 @@ var (
 		"prebuilt_platform-robolectric-4.5.1-prebuilt",
 		"prebuilt_currysrc_org.eclipse",
 	}
+
+	ProdMixedBuildsEnabledList = []string{
+		// This list left intentionally empty for now. Add specific module names
+		// to have them built by Bazel in Prod Mixed Builds mode.
+	}
 )

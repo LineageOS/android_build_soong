@@ -254,6 +254,12 @@ func bootstrapBlueprint(ctx Context, config Config) {
 	if config.EmptyNinjaFile() {
 		mainSoongBuildExtraArgs = append(mainSoongBuildExtraArgs, "--empty-ninja-file")
 	}
+	if config.bazelProdMode {
+		mainSoongBuildExtraArgs = append(mainSoongBuildExtraArgs, "--bazel-mode")
+	}
+	if config.bazelDevMode {
+		mainSoongBuildExtraArgs = append(mainSoongBuildExtraArgs, "--bazel-mode-dev")
+	}
 
 	mainSoongBuildInvocation := primaryBuilderInvocation(
 		config,
@@ -263,7 +269,7 @@ func bootstrapBlueprint(ctx Context, config Config) {
 		fmt.Sprintf("analyzing Android.bp files and generating ninja file at %s", config.SoongNinjaFile()),
 	)
 
-	if config.bazelBuildMode() == mixedBuild {
+	if config.BazelBuildEnabled() {
 		// Mixed builds call Bazel from soong_build and they therefore need the
 		// Bazel workspace to be available. Make that so by adding a dependency on
 		// the bp2build marker file to the action that invokes soong_build .
@@ -373,9 +379,6 @@ func runSoong(ctx Context, config Config) {
 	// unused variables were changed?
 	envFile := filepath.Join(config.SoongOutDir(), availableEnvFile)
 
-	buildMode := config.bazelBuildMode()
-	integratedBp2Build := buildMode == mixedBuild
-
 	// This is done unconditionally, but does not take a measurable amount of time
 	bootstrapBlueprint(ctx, config)
 
@@ -405,7 +408,7 @@ func runSoong(ctx Context, config Config) {
 
 		checkEnvironmentFile(soongBuildEnv, config.UsedEnvFile(soongBuildTag))
 
-		if integratedBp2Build || config.Bp2Build() {
+		if config.BazelBuildEnabled() || config.Bp2Build() {
 			checkEnvironmentFile(soongBuildEnv, config.UsedEnvFile(bp2buildTag))
 		}
 

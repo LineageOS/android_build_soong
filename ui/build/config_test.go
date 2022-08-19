@@ -28,6 +28,7 @@ import (
 	"android/soong/ui/logger"
 	smpb "android/soong/ui/metrics/metrics_proto"
 	"android/soong/ui/status"
+	"google.golang.org/protobuf/encoding/prototext"
 
 	"google.golang.org/protobuf/proto"
 )
@@ -1005,6 +1006,8 @@ func TestBuildConfig(t *testing.T) {
 		environ             Environment
 		arguments           []string
 		useBazel            bool
+		bazelDevMode        bool
+		bazelProdMode       bool
 		expectedBuildConfig *smpb.BuildConfig
 	}{
 		{
@@ -1064,8 +1067,32 @@ func TestBuildConfig(t *testing.T) {
 			},
 		},
 		{
-			name:    "bazel mixed build",
+			name:    "bazel mixed build from env",
 			environ: Environment{"USE_BAZEL_ANALYSIS=1"},
+			expectedBuildConfig: &smpb.BuildConfig{
+				ForceUseGoma:    proto.Bool(false),
+				UseGoma:         proto.Bool(false),
+				UseRbe:          proto.Bool(false),
+				BazelAsNinja:    proto.Bool(false),
+				BazelMixedBuild: proto.Bool(true),
+			},
+		},
+		{
+			name:         "bazel mixed build from dev mode",
+			environ:      Environment{},
+			bazelDevMode: true,
+			expectedBuildConfig: &smpb.BuildConfig{
+				ForceUseGoma:    proto.Bool(false),
+				UseGoma:         proto.Bool(false),
+				UseRbe:          proto.Bool(false),
+				BazelAsNinja:    proto.Bool(false),
+				BazelMixedBuild: proto.Bool(true),
+			},
+		},
+		{
+			name:          "bazel mixed build from prod mode",
+			environ:       Environment{},
+			bazelProdMode: true,
 			expectedBuildConfig: &smpb.BuildConfig{
 				ForceUseGoma:    proto.Bool(false),
 				UseGoma:         proto.Bool(false),
@@ -1094,9 +1121,9 @@ func TestBuildConfig(t *testing.T) {
 				"FORCE_USE_GOMA=1",
 				"USE_GOMA=1",
 				"USE_RBE=1",
-				"USE_BAZEL_ANALYSIS=1",
 			},
-			useBazel: true,
+			useBazel:     true,
+			bazelDevMode: true,
 			expectedBuildConfig: &smpb.BuildConfig{
 				ForceUseGoma:    proto.Bool(true),
 				UseGoma:         proto.Bool(true),
@@ -1107,17 +1134,23 @@ func TestBuildConfig(t *testing.T) {
 		},
 	}
 
+	ctx := testContext()
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			c := &configImpl{
-				environ:   &tc.environ,
-				useBazel:  tc.useBazel,
-				arguments: tc.arguments,
+				environ:       &tc.environ,
+				useBazel:      tc.useBazel,
+				bazelDevMode:  tc.bazelDevMode,
+				bazelProdMode: tc.bazelProdMode,
+				arguments:     tc.arguments,
 			}
 			config := Config{c}
+			checkBazelMode(ctx, config)
 			actualBuildConfig := buildConfig(config)
 			if expected := tc.expectedBuildConfig; !proto.Equal(expected, actualBuildConfig) {
-				t.Errorf("Expected build config != actual build config: %#v != %#v", *expected, *actualBuildConfig)
+				t.Errorf("Build config mismatch.\n"+
+					"Expected build config: %#v\n"+
+					"Actual build config: %#v", prototext.Format(expected), prototext.Format(actualBuildConfig))
 			}
 		})
 	}
