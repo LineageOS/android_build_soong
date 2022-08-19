@@ -543,3 +543,41 @@ func TestCcBinaryConvertLex(t *testing.T) {
 		},
 	})
 }
+
+func TestCcBinaryRuntimeLibs(t *testing.T) {
+	runCcBinaryTests(t, ccBinaryBp2buildTestCase{
+		description: "cc_binary with runtime libs",
+		blueprint: `
+cc_library {
+    name: "bar",
+    srcs: ["b.cc"],
+}
+
+{rule_name} {
+    name: "foo",
+    srcs: ["a.cc"],
+    runtime_libs: ["bar"],
+}
+`,
+		targets: []testBazelTarget{
+			{"cc_library_static", "bar_bp2build_cc_library_static", AttrNameToString{
+				"local_includes":         `["."]`,
+				"srcs":                   `["b.cc"]`,
+				"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
+			},
+			},
+			{"cc_library_shared", "bar", AttrNameToString{
+				"local_includes":         `["."]`,
+				"srcs":                   `["b.cc"]`,
+				"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
+			},
+			},
+			{"cc_binary", "foo", AttrNameToString{
+				"local_includes": `["."]`,
+				"srcs":           `["a.cc"]`,
+				"runtime_deps":   `[":bar"]`,
+			},
+			},
+		},
+	})
+}
