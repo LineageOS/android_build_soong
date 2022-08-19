@@ -170,9 +170,8 @@ func primaryBuilderInvocation(
 
 	commonArgs = append(commonArgs, "-l", filepath.Join(config.FileListDir(), "Android.bp.list"))
 	invocationEnv := make(map[string]string)
-	debugMode := os.Getenv("SOONG_DELVE") != ""
-
-	if debugMode {
+	if os.Getenv("SOONG_DELVE") != "" {
+		//debug mode
 		commonArgs = append(commonArgs, "--delve_listen", os.Getenv("SOONG_DELVE"))
 		commonArgs = append(commonArgs, "--delve_path", shared.ResolveDelveBinary())
 		// GODEBUG=asyncpreemptoff=1 disables the preemption of goroutines. This
@@ -187,7 +186,7 @@ func primaryBuilderInvocation(
 		invocationEnv["GODEBUG"] = "asyncpreemptoff=1"
 	}
 
-	allArgs := make([]string, 0, 0)
+	var allArgs []string
 	allArgs = append(allArgs, specificArgs...)
 	allArgs = append(allArgs,
 		"--globListDir", name,
