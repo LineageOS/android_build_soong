@@ -43,6 +43,8 @@ type TestInstallerProperties struct {
 
 // Test option struct.
 type TestOptions struct {
+	android.CommonTestOptions
+
 	// The UID that you want to run the test as on a device.
 	Run_test_as *string
 
@@ -51,9 +53,6 @@ type TestOptions struct {
 
 	// a list of extra test configuration files that should be installed with the module.
 	Extra_test_configs []string `android:"path,arch_variant"`
-
-	// If the test is a hostside(no device required) unittest that shall be run during presubmit check.
-	Unit_test *bool
 
 	// Add ShippingApiLevelModuleController to auto generated test config. If the device properties
 	// for the shipping api level is less than the min_shipping_api_level, skip this module.

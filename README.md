@@ -13,8 +13,7 @@ on source.android.com to read how Soong is configured for testing.
 By design, Android.bp files are very simple.  There are no conditionals or
 control flow statements - any complexity is handled in build logic written in
 Go.  The syntax and semantics of Android.bp files are intentionally similar
-to [Bazel BUILD files](https://www.bazel.io/versions/master/docs/be/overview.html)
-when possible.
+to [Bazel BUILD files](https://bazel.build/concepts/build-files) when possible.
 
 ### Modules
 
@@ -596,14 +595,14 @@ To make `soong_build` wait for a debugger connection, install `dlv` and then
 start the build with `SOONG_DELVE=<listen addr>` in the environment.
 For example:
 ```bash
-SOONG_DELVE=:5006 m nothing
+SOONG_DELVE=5006 m nothing
 ```
 
 To make `soong_ui` wait for a debugger connection, use the `SOONG_UI_DELVE`
 variable:
 
 ```
-SOONG_UI_DELVE=:5006 m nothing
+SOONG_UI_DELVE=5006 m nothing
 ```
 
 

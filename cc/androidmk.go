@@ -226,17 +226,27 @@ func (library *libraryDecorator) androidMkWriteExportedFlags(entries *android.An
 	}
 }
 
-func (library *libraryDecorator) androidMkEntriesWriteAdditionalDependenciesForSourceAbiDiff(entries *android.AndroidMkEntries) {
-	if library.sAbiDiff.Valid() && !library.static() {
-		entries.AddStrings("LOCAL_ADDITIONAL_DEPENDENCIES", library.sAbiDiff.String())
+func (library *libraryDecorator) getAbiDiffsForAndroidMkDeps() []string {
+	if library.static() {
+		return nil
 	}
+	var abiDiffs []string
+	if library.sAbiDiff.Valid() {
+		abiDiffs = append(abiDiffs, library.sAbiDiff.String())
+	}
+	if library.prevSAbiDiff.Valid() {
+		abiDiffs = append(abiDiffs, library.prevSAbiDiff.String())
+	}
+	return abiDiffs
+}
+
+func (library *libraryDecorator) androidMkEntriesWriteAdditionalDependenciesForSourceAbiDiff(entries *android.AndroidMkEntries) {
+	entries.AddStrings("LOCAL_ADDITIONAL_DEPENDENCIES", library.getAbiDiffsForAndroidMkDeps()...)
 }
 
 // TODO(ccross): remove this once apex/androidmk.go is converted to AndroidMkEntries
 func (library *libraryDecorator) androidMkWriteAdditionalDependenciesForSourceAbiDiff(w io.Writer) {
-	if library.sAbiDiff.Valid() && !library.static() {
-		fmt.Fprintln(w, "LOCAL_ADDITIONAL_DEPENDENCIES +=", library.sAbiDiff.String())
-	}
+	fmt.Fprintln(w, "LOCAL_ADDITIONAL_DEPENDENCIES +=", strings.Join(library.getAbiDiffsForAndroidMkDeps(), " "))
 }
 
 func (library *libraryDecorator) AndroidMkEntries(ctx AndroidMkContext, entries *android.AndroidMkEntries) {
@@ -401,14 +411,13 @@ func (test *testBinary) AndroidMkEntries(ctx AndroidMkContext, entries *android.
 			entries.SetBool("LOCAL_DISABLE_AUTO_GENERATE_TEST_CONFIG", true)
 		}
 		entries.AddStrings("LOCAL_TEST_MAINLINE_MODULES", test.Properties.Test_mainline_modules...)
-		if Bool(test.Properties.Test_options.Unit_test) {
-			entries.SetBool("LOCAL_IS_UNIT_TEST", true)
-		}
 
 		entries.SetBoolIfTrue("LOCAL_COMPATIBILITY_PER_TESTCASE_DIRECTORY", Bool(test.Properties.Per_testcase_directory))
 		if len(test.Properties.Data_bins) > 0 {
 			entries.AddStrings("LOCAL_TEST_DATA_BINS", test.Properties.Data_bins...)
 		}
+
+		test.Properties.Test_options.CommonTestOptions.SetAndroidMkEntries(entries)
 	})
 
 	AndroidMkWriteTestData(test.data, entries)

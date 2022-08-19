@@ -231,6 +231,52 @@ func TestGenerateSoongModuleTargets(t *testing.T) {
 func TestGenerateBazelTargetModules(t *testing.T) {
 	testCases := []Bp2buildTestCase{
 		{
+			Description: "string prop empty",
+			Blueprint: `custom {
+	name: "foo",
+    string_literal_prop: "",
+    bazel_module: { bp2build_available: true },
+}`,
+			ExpectedBazelTargets: []string{
+				makeBazelTarget("custom", "foo", AttrNameToString{
+					"string_literal_prop": `""`,
+				}),
+			},
+		},
+		{
+			Description: `string prop "PROP"`,
+			Blueprint: `custom {
+	name: "foo",
+    string_literal_prop: "PROP",
+    bazel_module: { bp2build_available: true },
+}`,
+			ExpectedBazelTargets: []string{
+				makeBazelTarget("custom", "foo", AttrNameToString{
+					"string_literal_prop": `"PROP"`,
+				}),
+			},
+		},
+		{
+			Description: `string prop arch variant`,
+			Blueprint: `custom {
+    name: "foo",
+    arch: {
+        arm: { string_literal_prop: "ARM" },
+        arm64: { string_literal_prop: "ARM64" },
+    },
+    bazel_module: { bp2build_available: true },
+}`,
+			ExpectedBazelTargets: []string{
+				makeBazelTarget("custom", "foo", AttrNameToString{
+					"string_literal_prop": `select({
+        "//build/bazel/platforms/arch:arm": "ARM",
+        "//build/bazel/platforms/arch:arm64": "ARM64",
+        "//conditions:default": None,
+    })`,
+				}),
+			},
+		},
+		{
 			Description: "string ptr props",
 			Blueprint: `custom {
 	name: "foo",
@@ -244,7 +290,7 @@ func TestGenerateBazelTargetModules(t *testing.T) {
 			},
 		},
 		{
-			Description: "string props",
+			Description: "string list props",
 			Blueprint: `custom {
   name: "foo",
     string_list_prop: ["a", "b"],

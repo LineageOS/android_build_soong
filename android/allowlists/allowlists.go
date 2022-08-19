@@ -154,6 +154,7 @@ var (
 		"external/zstd":                          Bp2BuildDefaultTrueRecursively,
 
 		"frameworks/av/media/codecs":                         Bp2BuildDefaultTrueRecursively,
+		"frameworks/av/media/liberror":                       Bp2BuildDefaultTrueRecursively,
 		"frameworks/av/services/minijail":                    Bp2BuildDefaultTrueRecursively,
 		"frameworks/base/media/tests/MediaDump":              Bp2BuildDefaultTrue,
 		"frameworks/base/startop/apps/test":                  Bp2BuildDefaultTrue,
@@ -183,9 +184,9 @@ var (
 		"packages/modules/adb/pairing_connection":          Bp2BuildDefaultTrueRecursively,
 		"packages/modules/adb/proto":                       Bp2BuildDefaultTrueRecursively,
 		"packages/modules/adb/tls":                         Bp2BuildDefaultTrueRecursively,
-		"packages/providers/MediaProvider/tools/dialogs":   Bp2BuildDefaultTrue,
+		"packages/providers/MediaProvider/tools/dialogs":   Bp2BuildDefaultFalse, // TODO(b/242834374)
 		"packages/screensavers/Basic":                      Bp2BuildDefaultTrue,
-		"packages/services/Car/tests/SampleRearViewCamera": Bp2BuildDefaultTrue,
+		"packages/services/Car/tests/SampleRearViewCamera": Bp2BuildDefaultFalse, // TODO(b/242834321)
 
 		"prebuilts/clang/host/linux-x86":           Bp2BuildDefaultTrueRecursively,
 		"prebuilts/runtime/mainline/platform/sdk":  Bp2BuildDefaultTrueRecursively,
@@ -262,6 +263,7 @@ var (
 		// build/make/tools/signapk BUILD file is generated, so build/make/tools is not recursive.
 		"build/make/tools":/* recursive = */ false,
 		"build/pesto":/* recursive = */ true,
+		"build/soong/ui/metrics/bp2build_progress_metrics_proto":/* recursive = */ true,
 
 		// external/bazelbuild-rules_android/... is needed by mixed builds, otherwise mixed builds analysis fails
 		// e.g. ERROR: Analysis of target '@soong_injection//mixed_builds:buildroot' failed
@@ -574,12 +576,5 @@ var (
 		"prebuilt_android-support-annotations-nodeps",
 		"prebuilt_android-arch-paging-common-nodeps",
 		"prebuilt_android-arch-room-common-nodeps",
-
-		// Disabled pending the investigation of b/242220039
-		"libhidlbase",
-		"android.hidl.base@1.0",
-		"android.hidl.manager@1.0",
-		"android.hidl.manager@1.1",
-		"android.hidl.manager@1.2",
 	}
 )

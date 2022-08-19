@@ -960,6 +960,146 @@ func PartitionLabelListAttribute(ctx OtherModuleContext, lla *LabelListAttribute
 	return ret
 }
 
+// StringAttribute corresponds to the string Bazel attribute type with
+// support for additional metadata, like configurations.
+type StringAttribute struct {
+	// The base value of the string attribute.
+	Value *string
+
+	// The configured attribute label list Values. Optional
+	// a map of independent configurability axes
+	ConfigurableValues configurableStrings
+}
+
+type configurableStrings map[ConfigurationAxis]stringSelectValues
+
+func (cs configurableStrings) setValueForAxis(axis ConfigurationAxis, config string, str *string) {
+	if cs[axis] == nil {
+		cs[axis] = make(stringSelectValues)
+	}
+	var v = ""
+	if str != nil {
+		v = *str
+	}
+	cs[axis][config] = v
+}
+
+type stringSelectValues map[string]string
+
+// HasConfigurableValues returns true if the attribute contains axis-specific string values.
+func (sa StringAttribute) HasConfigurableValues() bool {
+	for _, selectValues := range sa.ConfigurableValues {
+		if len(selectValues) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// SetSelectValue set a value for a bazel select for the given axis, config and value.
+func (sa *StringAttribute) SetSelectValue(axis ConfigurationAxis, config string, str *string) {
+	axis.validateConfig(config)
+	switch axis.configurationType {
+	case noConfig:
+		sa.Value = str
+	case arch, os, osArch, productVariables:
+		if sa.ConfigurableValues == nil {
+			sa.ConfigurableValues = make(configurableStrings)
+		}
+		sa.ConfigurableValues.setValueForAxis(axis, config, str)
+	default:
+		panic(fmt.Errorf("Unrecognized ConfigurationAxis %s", axis))
+	}
+}
+
+// SelectValue gets a value for a bazel select for the given axis and config.
+func (sa *StringAttribute) SelectValue(axis ConfigurationAxis, config string) *string {
+	axis.validateConfig(config)
+	switch axis.configurationType {
+	case noConfig:
+		return sa.Value
+	case arch, os, osArch, productVariables:
+		if v, ok := sa.ConfigurableValues[axis][config]; ok {
+			return &v
+		} else {
+			return nil
+		}
+	default:
+		panic(fmt.Errorf("Unrecognized ConfigurationAxis %s", axis))
+	}
+}
+
+// SortedConfigurationAxes returns all the used ConfigurationAxis in sorted order.
+func (sa *StringAttribute) SortedConfigurationAxes() []ConfigurationAxis {
+	keys := make([]ConfigurationAxis, 0, len(sa.ConfigurableValues))
+	for k := range sa.ConfigurableValues {
+		keys = append(keys, k)
+	}
+
+	sort.Slice(keys, func(i, j int) bool { return keys[i].less(keys[j]) })
+	return keys
+}
+
+// Collapse reduces the configurable axes of the string attribute to a single axis.
+// This is necessary for final writing to bp2build, as a configurable string
+// attribute can only be comprised by a single select.
+func (sa *StringAttribute) Collapse() error {
+	axisTypes := sa.axisTypes()
+	_, containsOs := axisTypes[os]
+	_, containsArch := axisTypes[arch]
+	_, containsOsArch := axisTypes[osArch]
+	_, containsProductVariables := axisTypes[productVariables]
+	if containsProductVariables {
+		if containsOs || containsArch || containsOsArch {
+			return fmt.Errorf("boolean attribute could not be collapsed as it has two or more unrelated axes")
+		}
+	}
+	if (containsOs && containsArch) || (containsOsArch && (containsOs || containsArch)) {
+		// If a bool attribute has both os and arch configuration axes, the only
+		// way to successfully union their values is to increase the granularity
+		// of the configuration criteria to os_arch.
+		for osType, supportedArchs := range osToArchMap {
+			for _, supportedArch := range supportedArchs {
+				osArch := osArchString(osType, supportedArch)
+				if archOsVal := sa.SelectValue(OsArchConfigurationAxis, osArch); archOsVal != nil {
+					// Do nothing, as the arch_os is explicitly defined already.
+				} else {
+					archVal := sa.SelectValue(ArchConfigurationAxis, supportedArch)
+					osVal := sa.SelectValue(OsConfigurationAxis, osType)
+					if osVal != nil && archVal != nil {
+						// In this case, arch takes precedence. (This fits legacy Soong behavior, as arch mutator
+						// runs after os mutator.
+						sa.SetSelectValue(OsArchConfigurationAxis, osArch, archVal)
+					} else if osVal != nil && archVal == nil {
+						sa.SetSelectValue(OsArchConfigurationAxis, osArch, osVal)
+					} else if osVal == nil && archVal != nil {
+						sa.SetSelectValue(OsArchConfigurationAxis, osArch, archVal)
+					}
+				}
+			}
+		}
+		// All os_arch values are now set. Clear os and arch axes.
+		delete(sa.ConfigurableValues, ArchConfigurationAxis)
+		delete(sa.ConfigurableValues, OsConfigurationAxis)
+		// Verify post-condition; this should never fail, provided no additional
+		// axes are introduced.
+		if len(sa.ConfigurableValues) > 1 {
+			panic(fmt.Errorf("error in collapsing attribute: %#v", sa))
+		}
+	}
+	return nil
+}
+
+func (sa *StringAttribute) axisTypes() map[configurationType]bool {
+	types := map[configurationType]bool{}
+	for k := range sa.ConfigurableValues {
+		if strs := sa.ConfigurableValues[k]; len(strs) > 0 {
+			types[k.configurationType] = true
+		}
+	}
+	return types
+}
+
 // StringListAttribute corresponds to the string_list Bazel attribute type with
 // support for additional metadata, like configurations.
 type StringListAttribute struct {
