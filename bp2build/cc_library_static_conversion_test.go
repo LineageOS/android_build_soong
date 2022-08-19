@@ -15,12 +15,12 @@
 package bp2build
 
 import (
+	"fmt"
+	"testing"
+
 	"android/soong/android"
 	"android/soong/cc"
 	"android/soong/genrule"
-	"fmt"
-
-	"testing"
 )
 
 const (
@@ -1558,4 +1558,26 @@ func TestCcLibraryStaticStl(t *testing.T) {
 			})
 		})
 	}
+}
+
+func TestCCLibraryStaticRuntimeDeps(t *testing.T) {
+	runCcLibrarySharedTestCase(t, Bp2buildTestCase{
+		Blueprint: `cc_library_shared {
+	name: "bar",
+}
+
+cc_library_static {
+  name: "foo",
+  runtime_libs: ["foo"],
+}`,
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("cc_library_shared", "bar", AttrNameToString{
+				"local_includes": `["."]`,
+			}),
+			makeBazelTarget("cc_library_static", "foo", AttrNameToString{
+				"runtime_deps":   `[":foo"]`,
+				"local_includes": `["."]`,
+			}),
+		},
+	})
 }

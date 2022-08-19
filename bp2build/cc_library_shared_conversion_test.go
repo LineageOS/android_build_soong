@@ -624,3 +624,25 @@ func TestCCLibraryFlagSpaceSplitting(t *testing.T) {
 		},
 	})
 }
+
+func TestCCLibrarySharedRuntimeDeps(t *testing.T) {
+	runCcLibrarySharedTestCase(t, Bp2buildTestCase{
+		Blueprint: `cc_library_shared {
+	name: "bar",
+}
+
+cc_library_shared {
+  name: "foo",
+  runtime_libs: ["foo"],
+}`,
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("cc_library_shared", "bar", AttrNameToString{
+				"local_includes": `["."]`,
+			}),
+			makeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+				"runtime_deps":   `[":foo"]`,
+				"local_includes": `["."]`,
+			}),
+		},
+	})
+}
