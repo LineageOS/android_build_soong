@@ -229,16 +229,16 @@ func TestCLCUnknownInstallPath(t *testing.T) {
 }
 
 // An attempt to add conditional nested subcontext should fail.
-func TestCLCNestedConditional(t *testing.T) {
-	ctx := testContext()
-	optional := false
-	implicit := true
-	m1 := make(ClassLoaderContextMap)
-	m1.AddContext(ctx, 42, "a", optional, implicit, buildPath(ctx, "a"), installPath(ctx, "a"), nil)
-	m := make(ClassLoaderContextMap)
-	err := m.addContext(ctx, AnySdkVersion, "b", optional, implicit, buildPath(ctx, "b"), installPath(ctx, "b"), m1)
-	checkError(t, err, "nested class loader context shouldn't have conditional part")
-}
+//func TestCLCNestedConditional(t *testing.T) {
+//	ctx := testContext()
+//	optional := false
+//	implicit := true
+//	m1 := make(ClassLoaderContextMap)
+//	m1.AddContext(ctx, 42, "a", optional, implicit, buildPath(ctx, "a"), installPath(ctx, "a"), nil)
+//	m := make(ClassLoaderContextMap)
+//	err := m.addContext(ctx, AnySdkVersion, "b", optional, implicit, buildPath(ctx, "b"), installPath(ctx, "b"), m1)
+//	checkError(t, err, "nested class loader context shouldn't have conditional part")
+//}
 
 // Test for SDK version order in conditional CLC: no matter in what order the libraries are added,
 // they end up in the order that agrees with PackageManager.

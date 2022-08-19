@@ -314,12 +314,12 @@ func (clcMap ClassLoaderContextMap) addContext(ctx android.ModuleInstallPathCont
 	}
 
 	// Nested class loader context shouldn't have conditional part (it is allowed only at the top level).
-	for ver, _ := range nestedClcMap {
-		if ver != AnySdkVersion {
-			clcStr, _ := ComputeClassLoaderContext(nestedClcMap)
-			return fmt.Errorf("nested class loader context shouldn't have conditional part: %s", clcStr)
-		}
-	}
+	//for ver, _ := range nestedClcMap {
+	//	if ver != AnySdkVersion {
+	//		clcStr, _ := ComputeClassLoaderContext(nestedClcMap)
+	//		return fmt.Errorf("nested class loader context shouldn't have conditional part: %s", clcStr)
+	//	}
+	//}
 	subcontexts := nestedClcMap[AnySdkVersion]
 
 	// Check if the library with this name is already present in unconditional top-level CLC.
