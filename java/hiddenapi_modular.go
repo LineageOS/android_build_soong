@@ -378,32 +378,37 @@ func buildRuleToGenerateHiddenAPIStubFlagsFile(ctx android.BuilderContext, name,
 // with one Java package per line. All members of all classes within that package (but not nested
 // packages) will be updated in a property specific way.
 type HiddenAPIFlagFileProperties struct {
-	// Marks each signature in the referenced files as being unsupported.
-	Unsupported []string `android:"path"`
+	Hidden_api struct {
+		// Marks each signature in the referenced files as being unsupported.
+		Unsupported []string `android:"path"`
 
-	// Marks each signature in the referenced files as being unsupported because it has been removed.
-	// Any conflicts with other flags are ignored.
-	Removed []string `android:"path"`
+		// Marks each signature in the referenced files as being unsupported because it has been
+		// removed. Any conflicts with other flags are ignored.
+		Removed []string `android:"path"`
 
-	// Marks each signature in the referenced files as being supported only for targetSdkVersion <= R
-	// and low priority.
-	Max_target_r_low_priority []string `android:"path"`
+		// Marks each signature in the referenced files as being supported only for
+		// targetSdkVersion <= R and low priority.
+		Max_target_r_low_priority []string `android:"path"`
 
-	// Marks each signature in the referenced files as being supported only for targetSdkVersion <= Q.
-	Max_target_q []string `android:"path"`
+		// Marks each signature in the referenced files as being supported only for
+		// targetSdkVersion <= Q.
+		Max_target_q []string `android:"path"`
 
-	// Marks each signature in the referenced files as being supported only for targetSdkVersion <= P.
-	Max_target_p []string `android:"path"`
+		// Marks each signature in the referenced files as being supported only for
+		// targetSdkVersion <= P.
+		Max_target_p []string `android:"path"`
 
-	// Marks each signature in the referenced files as being supported only for targetSdkVersion <= O
-	// and low priority. Any conflicts with other flags are ignored.
-	Max_target_o_low_priority []string `android:"path"`
+		// Marks each signature in the referenced files as being supported only for
+		// targetSdkVersion <= O
+		// and low priority. Any conflicts with other flags are ignored.
+		Max_target_o_low_priority []string `android:"path"`
 
-	// Marks each signature in the referenced files as being blocked.
-	Blocked []string `android:"path"`
+		// Marks each signature in the referenced files as being blocked.
+		Blocked []string `android:"path"`
 
-	// Marks each signature in every package in the referenced files as being unsupported.
-	Unsupported_packages []string `android:"path"`
+		// Marks each signature in every package in the referenced files as being unsupported.
+		Unsupported_packages []string `android:"path"`
+	}
 }
 
 type hiddenAPIFlagFileCategory struct {
@@ -428,7 +433,7 @@ var hiddenAPIRemovedFlagFileCategory = &hiddenAPIFlagFileCategory{
 	// See HiddenAPIFlagFileProperties.Removed
 	PropertyName: "removed",
 	propertyValueReader: func(properties *HiddenAPIFlagFileProperties) []string {
-		return properties.Removed
+		return properties.Hidden_api.Removed
 	},
 	commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
 		command.FlagWithInput("--unsupported ", path).Flag("--ignore-conflicts ").FlagWithArg("--tag ", "removed")
@@ -440,7 +445,7 @@ var HiddenAPIFlagFileCategories = []*hiddenAPIFlagFileCategory{
 	{
 		PropertyName: "unsupported",
 		propertyValueReader: func(properties *HiddenAPIFlagFileProperties) []string {
-			return properties.Unsupported
+			return properties.Hidden_api.Unsupported
 		},
 		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
 			command.FlagWithInput("--unsupported ", path)
@@ -451,7 +456,7 @@ var HiddenAPIFlagFileCategories = []*hiddenAPIFlagFileCategory{
 	{
 		PropertyName: "max_target_r_low_priority",
 		propertyValueReader: func(properties *HiddenAPIFlagFileProperties) []string {
-			return properties.Max_target_r_low_priority
+			return properties.Hidden_api.Max_target_r_low_priority
 		},
 		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
 			command.FlagWithInput("--max-target-r ", path).FlagWithArg("--tag ", "lo-prio")
@@ -461,7 +466,7 @@ var HiddenAPIFlagFileCategories = []*hiddenAPIFlagFileCategory{
 	{
 		PropertyName: "max_target_q",
 		propertyValueReader: func(properties *HiddenAPIFlagFileProperties) []string {
-			return properties.Max_target_q
+			return properties.Hidden_api.Max_target_q
 		},
 		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
 			command.FlagWithInput("--max-target-q ", path)
@@ -471,7 +476,7 @@ var HiddenAPIFlagFileCategories = []*hiddenAPIFlagFileCategory{
 	{
 		PropertyName: "max_target_p",
 		propertyValueReader: func(properties *HiddenAPIFlagFileProperties) []string {
-			return properties.Max_target_p
+			return properties.Hidden_api.Max_target_p
 		},
 		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
 			command.FlagWithInput("--max-target-p ", path)
@@ -481,7 +486,7 @@ var HiddenAPIFlagFileCategories = []*hiddenAPIFlagFileCategory{
 	{
 		PropertyName: "max_target_o_low_priority",
 		propertyValueReader: func(properties *HiddenAPIFlagFileProperties) []string {
-			return properties.Max_target_o_low_priority
+			return properties.Hidden_api.Max_target_o_low_priority
 		},
 		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
 			command.FlagWithInput("--max-target-o ", path).Flag("--ignore-conflicts ").FlagWithArg("--tag ", "lo-prio")
@@ -491,7 +496,7 @@ var HiddenAPIFlagFileCategories = []*hiddenAPIFlagFileCategory{
 	{
 		PropertyName: "blocked",
 		propertyValueReader: func(properties *HiddenAPIFlagFileProperties) []string {
-			return properties.Blocked
+			return properties.Hidden_api.Blocked
 		},
 		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
 			command.FlagWithInput("--blocked ", path)
@@ -501,7 +506,7 @@ var HiddenAPIFlagFileCategories = []*hiddenAPIFlagFileCategory{
 	{
 		PropertyName: "unsupported_packages",
 		propertyValueReader: func(properties *HiddenAPIFlagFileProperties) []string {
-			return properties.Unsupported_packages
+			return properties.Hidden_api.Unsupported_packages
 		},
 		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
 			command.FlagWithInput("--unsupported ", path).Flag("--packages ")

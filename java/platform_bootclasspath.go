@@ -62,7 +62,7 @@ type platformBootclasspathModule struct {
 type platformBootclasspathProperties struct {
 	BootclasspathFragmentsDepsProperties
 
-	Hidden_api HiddenAPIFlagFileProperties
+	HiddenAPIFlagFileProperties
 }
 
 func platformBootclasspathFactory() android.SingletonModule {
@@ -372,7 +372,7 @@ func (b *platformBootclasspathModule) createAndProvideMonolithicHiddenAPIInfo(ct
 	temporaryInput := newHiddenAPIFlagInput()
 
 	// Create paths to the flag files specified in the properties.
-	temporaryInput.extractFlagFilesFromProperties(ctx, &b.properties.Hidden_api)
+	temporaryInput.extractFlagFilesFromProperties(ctx, &b.properties.HiddenAPIFlagFileProperties)
 
 	// Create the monolithic info, by starting with the flag files specified on this and then merging
 	// in information from all the fragment dependencies of this.
