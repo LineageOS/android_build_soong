@@ -43,23 +43,23 @@ func RegisterGenRuleBuildComponents(ctx android.RegistrationContext) {
 //
 // Use a java_genrule to package generated java resources:
 //
-//     java_genrule {
-//         name: "generated_resources",
-//         tools: [
-//             "generator",
-//             "soong_zip",
-//         ],
-//         srcs: ["generator_inputs/**/*"],
-//         out: ["generated_android_icu4j_resources.jar"],
-//         cmd: "$(location generator) $(in) -o $(genDir) " +
-//             "&& $(location soong_zip) -o $(out) -C $(genDir)/res -D $(genDir)/res",
-//     }
+//	java_genrule {
+//	    name: "generated_resources",
+//	    tools: [
+//	        "generator",
+//	        "soong_zip",
+//	    ],
+//	    srcs: ["generator_inputs/**/*"],
+//	    out: ["generated_android_icu4j_resources.jar"],
+//	    cmd: "$(location generator) $(in) -o $(genDir) " +
+//	        "&& $(location soong_zip) -o $(out) -C $(genDir)/res -D $(genDir)/res",
+//	}
 //
-//     java_library {
-//         name: "lib_with_generated_resources",
-//         srcs: ["src/**/*.java"],
-//         static_libs: ["generated_resources"],
-//     }
+//	java_library {
+//	    name: "lib_with_generated_resources",
+//	    srcs: ["src/**/*.java"],
+//	    static_libs: ["generated_resources"],
+//	}
 func GenRuleFactory() android.Module {
 	module := genrule.NewGenRule()
 

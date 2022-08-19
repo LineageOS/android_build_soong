@@ -66,8 +66,9 @@ func (afdo *afdo) AfdoEnabled() bool {
 }
 
 // Get list of profile file names, ordered by level of specialisation. For example:
-//   1. libfoo_arm64.afdo
-//   2. libfoo.afdo
+//  1. libfoo_arm64.afdo
+//  2. libfoo.afdo
+//
 // Add more specialisation as needed.
 func getProfileFiles(ctx android.BaseModuleContext, moduleName string) []string {
 	var files []string
