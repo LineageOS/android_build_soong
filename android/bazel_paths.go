@@ -221,9 +221,13 @@ func directoryHasBlueprint(fs pathtools.FileSystem, prefix string, components []
 // Transform a path (if necessary) to acknowledge package boundaries
 //
 // e.g. something like
-//   async_safe/include/async_safe/CHECK.h
+//
+//	async_safe/include/async_safe/CHECK.h
+//
 // might become
-//   //bionic/libc/async_safe:include/async_safe/CHECK.h
+//
+//	//bionic/libc/async_safe:include/async_safe/CHECK.h
+//
 // if the "async_safe" directory is actually a package and not just a directory.
 //
 // In particular, paths that extend into packages are transformed into absolute labels beginning with //.
@@ -303,20 +307,21 @@ func RootToModuleRelativePaths(ctx BazelConversionPathContext, paths Paths) []ba
 // directory and Bazel target labels, excluding those included in the excludes argument (which
 // should already be expanded to resolve references to Soong-modules). Valid elements of paths
 // include:
-// * filepath, relative to local module directory, resolves as a filepath relative to the local
-//   source directory
-// * glob, relative to the local module directory, resolves as filepath(s), relative to the local
-//    module directory. Because Soong does not have a concept of crossing package boundaries, the
-//    glob as computed by Soong may contain paths that cross package-boundaries that would be
-//    unknowingly omitted if the glob were handled by Bazel. To allow identification and detect
-//    (within Bazel) use of paths that cross package boundaries, we expand globs within Soong rather
-//    than converting Soong glob syntax to Bazel glob syntax. **Invalid for excludes.**
-// * other modules using the ":name{.tag}" syntax. These modules must implement SourceFileProducer
-//    or OutputFileProducer. These resolve as a Bazel label for a target. If the Bazel target is in
-//    the local module directory, it will be returned relative to the current package (e.g.
-//    ":<target>"). Otherwise, it will be returned as an absolute Bazel label (e.g.
-//    "//path/to/dir:<target>"). If the reference to another module cannot be resolved,the function
-//    will panic.
+//   - filepath, relative to local module directory, resolves as a filepath relative to the local
+//     source directory
+//   - glob, relative to the local module directory, resolves as filepath(s), relative to the local
+//     module directory. Because Soong does not have a concept of crossing package boundaries, the
+//     glob as computed by Soong may contain paths that cross package-boundaries that would be
+//     unknowingly omitted if the glob were handled by Bazel. To allow identification and detect
+//     (within Bazel) use of paths that cross package boundaries, we expand globs within Soong rather
+//     than converting Soong glob syntax to Bazel glob syntax. **Invalid for excludes.**
+//   - other modules using the ":name{.tag}" syntax. These modules must implement SourceFileProducer
+//     or OutputFileProducer. These resolve as a Bazel label for a target. If the Bazel target is in
+//     the local module directory, it will be returned relative to the current package (e.g.
+//     ":<target>"). Otherwise, it will be returned as an absolute Bazel label (e.g.
+//     "//path/to/dir:<target>"). If the reference to another module cannot be resolved,the function
+//     will panic.
+//
 // Properties passed as the paths or excludes argument must have been annotated with struct tag
 // `android:"path"` so that dependencies on other modules will have already been handled by the
 // path_deps mutator.

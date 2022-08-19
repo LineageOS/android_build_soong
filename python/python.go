@@ -438,9 +438,9 @@ func (p *Module) anySrcHasExt(ctx android.BottomUpMutatorContext, ext string) bo
 }
 
 // DepsMutator mutates dependencies for this module:
-//  * handles proto dependencies,
-//  * if required, specifies launcher and adds launcher dependencies,
-//  * applies python version mutations to Python dependencies
+//   - handles proto dependencies,
+//   - if required, specifies launcher and adds launcher dependencies,
+//   - applies python version mutations to Python dependencies
 func (p *Module) DepsMutator(ctx android.BottomUpMutatorContext) {
 	android.ProtoDeps(ctx, &p.protoProperties)
 
