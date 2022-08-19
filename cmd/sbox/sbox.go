@@ -208,7 +208,6 @@ func run() error {
 //
 // returns an exec.Cmd that can be ran from within sbox context if no error, or nil if error.
 // caller must ensure script is cleaned up if function succeeds.
-//
 func createCommandScript(rawCommand, scriptPath, scriptPathInSandbox string) (*exec.Cmd, error) {
 	err := os.WriteFile(scriptPath, []byte(rawCommand), 0644)
 	if err != nil {

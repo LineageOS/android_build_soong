@@ -421,9 +421,9 @@ func makeVariableToBlueprint(file *bpFile, val *mkparser.MakeString,
 // For example, if prefix is "foo" and name is "bar" with a value of "baz", then
 // the following variable will be generated:
 //
-// foo {
-//   bar: "baz"
-// }
+//	foo {
+//	  bar: "baz"
+//	}
 //
 // If prefix is the empty string and name is "foo" with a value of "bar", the
 // following variable will be generated (if it is a property):

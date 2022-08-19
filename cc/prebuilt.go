@@ -348,10 +348,10 @@ type bazelPrebuiltLibraryStaticAttributes struct {
 
 // TODO(b/228623543): The below is not entirely true until the bug is fixed. For now, both targets are always generated
 // Implements bp2build for cc_prebuilt_library modules. This will generate:
-// * Only a prebuilt_library_static if the shared.enabled property is set to false across all variants.
-// * Only a prebuilt_library_shared if the static.enabled property is set to false across all variants
-// * Both a prebuilt_library_static and prebuilt_library_shared if the aforementioned properties are not false across
-//   all variants
+//   - Only a prebuilt_library_static if the shared.enabled property is set to false across all variants.
+//   - Only a prebuilt_library_shared if the static.enabled property is set to false across all variants
+//   - Both a prebuilt_library_static and prebuilt_library_shared if the aforementioned properties are not false across
+//     all variants
 //
 // In all cases, prebuilt_library_static target names will be appended with "_bp2build_cc_library_static".
 func prebuiltLibraryBp2Build(ctx android.TopDownMutatorContext, module *Module) {

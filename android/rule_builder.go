@@ -1031,7 +1031,8 @@ func (c *RuleBuilderCommand) ImplicitTools(paths Paths) *RuleBuilderCommand {
 // be also added to the dependencies returned by RuleBuilder.Tools.
 //
 // It is equivalent to:
-//  cmd.Tool(ctx.Config().HostToolPath(ctx, tool))
+//
+//	cmd.Tool(ctx.Config().HostToolPath(ctx, tool))
 func (c *RuleBuilderCommand) BuiltTool(tool string) *RuleBuilderCommand {
 	if c.rule.ctx.Config().UseHostMusl() {
 		// If the host is using musl, assume that the tool was built against musl libc and include
@@ -1053,7 +1054,8 @@ func (c *RuleBuilderCommand) builtToolWithoutDeps(tool string) *RuleBuilderComma
 // dependencies returned by RuleBuilder.Tools.
 //
 // It is equivalent to:
-//  cmd.Tool(ctx.Config().PrebuiltBuildTool(ctx, tool))
+//
+//	cmd.Tool(ctx.Config().PrebuiltBuildTool(ctx, tool))
 func (c *RuleBuilderCommand) PrebuiltBuildTool(ctx PathContext, tool string) *RuleBuilderCommand {
 	return c.Tool(ctx.Config().PrebuiltBuildTool(ctx, tool))
 }

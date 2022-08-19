@@ -97,11 +97,11 @@ type ClasspathElementContext interface {
 // the list with its Contents field.
 //
 // Requirements/Assumptions:
-// * A fragment can be associated with more than one apex but each apex must only be associated with
-//   a single fragment from the fragments list.
-// * All of a fragment's contents must appear as a contiguous block in the same order in the
-//   libraries list.
-// * Each library must only appear in a single fragment.
+//   - A fragment can be associated with more than one apex but each apex must only be associated with
+//     a single fragment from the fragments list.
+//   - All of a fragment's contents must appear as a contiguous block in the same order in the
+//     libraries list.
+//   - Each library must only appear in a single fragment.
 //
 // The apex is used to identify which libraries belong to which fragment. First a mapping is created
 // from apex to fragment. Then the libraries are iterated over and any library in an apex is
@@ -109,13 +109,15 @@ type ClasspathElementContext interface {
 // standalone and have their own element.
 //
 // e.g. Given the following input:
-//     libraries: com.android.art:core-oj, com.android.art:core-libart, framework, ext
-//     fragments: com.android.art:art-bootclasspath-fragment
+//
+//	libraries: com.android.art:core-oj, com.android.art:core-libart, framework, ext
+//	fragments: com.android.art:art-bootclasspath-fragment
 //
 // Then this will return:
-//     ClasspathFragmentElement(art-bootclasspath-fragment, [core-oj, core-libart]),
-//     ClasspathLibraryElement(framework),
-//     ClasspathLibraryElement(ext),
+//
+//	ClasspathFragmentElement(art-bootclasspath-fragment, [core-oj, core-libart]),
+//	ClasspathLibraryElement(framework),
+//	ClasspathLibraryElement(ext),
 func CreateClasspathElements(ctx ClasspathElementContext, libraries []android.Module, fragments []android.Module) ClasspathElements {
 	// Create a map from apex name to the fragment module. This makes it easy to find the fragment
 	// associated with a particular apex.
