@@ -68,7 +68,6 @@ func getDynamicSdkMemberTraits(key android.OnceKey, registeredTraits []android.S
 // A list of sdkMemberTraitListProperty instances is created, one per member trait that provides:
 // * a reference to the member trait.
 // * a getter for the corresponding field in the properties struct.
-//
 func createDynamicSdkMemberTraits(sdkMemberTraits []android.SdkMemberTrait) *dynamicSdkMemberTraits {
 
 	var listProperties []*sdkMemberTraitListProperty

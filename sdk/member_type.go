@@ -80,7 +80,6 @@ func getDynamicSdkMemberTypes(key android.OnceKey, registeredTypes []android.Sdk
 // * a reference to the member type.
 // * a getter for the corresponding field in the properties struct.
 // * a dependency tag that identifies the member type of a resolved dependency.
-//
 func createDynamicSdkMemberTypes(sdkMemberTypes []android.SdkMemberType) *dynamicSdkMemberTypes {
 
 	var listProperties []*sdkMemberTypeListProperty
