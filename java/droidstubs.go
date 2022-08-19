@@ -48,11 +48,8 @@ type Droidstubs struct {
 	android.SdkBase
 
 	properties              DroidstubsProperties
-	apiFile                 android.WritablePath
-	apiXmlFile              android.WritablePath
-	lastReleasedApiXmlFile  android.WritablePath
-	privateApiFile          android.WritablePath
-	removedApiFile          android.WritablePath
+	apiFile                 android.Path
+	removedApiFile          android.Path
 	nullabilityWarningsFile android.WritablePath
 
 	checkCurrentApiTimestamp      android.WritablePath
@@ -65,9 +62,6 @@ type Droidstubs struct {
 
 	annotationsZip android.WritablePath
 	apiVersionsXml android.WritablePath
-
-	apiFilePath        android.Path
-	removedApiFilePath android.Path
 
 	metadataZip android.WritablePath
 	metadataDir android.WritablePath
@@ -204,9 +198,9 @@ func (d *Droidstubs) OutputFiles(tag string) (android.Paths, error) {
 		return android.Paths{d.docZip}, nil
 	case ".api.txt", android.DefaultDistTag:
 		// This is the default dist path for dist properties that have no tag property.
-		return android.Paths{d.apiFilePath}, nil
+		return android.Paths{d.apiFile}, nil
 	case ".removed-api.txt":
-		return android.Paths{d.removedApiFilePath}, nil
+		return android.Paths{d.removedApiFile}, nil
 	case ".annotations.zip":
 		return android.Paths{d.annotationsZip}, nil
 	case ".api_versions.xml":
@@ -221,11 +215,11 @@ func (d *Droidstubs) AnnotationsZip() android.Path {
 }
 
 func (d *Droidstubs) ApiFilePath() android.Path {
-	return d.apiFilePath
+	return d.apiFile
 }
 
 func (d *Droidstubs) RemovedApiFilePath() android.Path {
-	return d.removedApiFilePath
+	return d.removedApiFile
 }
 
 func (d *Droidstubs) StubsSrcJar() android.Path {
@@ -268,24 +262,24 @@ func (d *Droidstubs) stubsFlags(ctx android.ModuleContext, cmd *android.RuleBuil
 		apiCheckEnabled(ctx, d.properties.Check_api.Last_released, "last_released") ||
 		String(d.properties.Api_filename) != "" {
 		filename := proptools.StringDefault(d.properties.Api_filename, ctx.ModuleName()+"_api.txt")
-		d.apiFile = android.PathForModuleOut(ctx, "metalava", filename)
-		cmd.FlagWithOutput("--api ", d.apiFile)
-		d.apiFilePath = d.apiFile
+		uncheckedApiFile := android.PathForModuleOut(ctx, "metalava", filename)
+		cmd.FlagWithOutput("--api ", uncheckedApiFile)
+		d.apiFile = uncheckedApiFile
 	} else if sourceApiFile := proptools.String(d.properties.Check_api.Current.Api_file); sourceApiFile != "" {
 		// If check api is disabled then make the source file available for export.
-		d.apiFilePath = android.PathForModuleSrc(ctx, sourceApiFile)
+		d.apiFile = android.PathForModuleSrc(ctx, sourceApiFile)
 	}
 
 	if apiCheckEnabled(ctx, d.properties.Check_api.Current, "current") ||
 		apiCheckEnabled(ctx, d.properties.Check_api.Last_released, "last_released") ||
 		String(d.properties.Removed_api_filename) != "" {
 		filename := proptools.StringDefault(d.properties.Removed_api_filename, ctx.ModuleName()+"_removed.txt")
-		d.removedApiFile = android.PathForModuleOut(ctx, "metalava", filename)
-		cmd.FlagWithOutput("--removed-api ", d.removedApiFile)
-		d.removedApiFilePath = d.removedApiFile
+		uncheckedRemovedFile := android.PathForModuleOut(ctx, "metalava", filename)
+		cmd.FlagWithOutput("--removed-api ", uncheckedRemovedFile)
+		d.removedApiFile = uncheckedRemovedFile
 	} else if sourceRemovedApiFile := proptools.String(d.properties.Check_api.Current.Removed_api_file); sourceRemovedApiFile != "" {
 		// If check api is disabled then make the source removed api file available for export.
-		d.removedApiFilePath = android.PathForModuleSrc(ctx, sourceRemovedApiFile)
+		d.removedApiFile = android.PathForModuleSrc(ctx, sourceRemovedApiFile)
 	}
 
 	if Bool(d.properties.Write_sdk_values) {
