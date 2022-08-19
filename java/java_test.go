@@ -1287,6 +1287,41 @@ func TestAidlExportIncludeDirsFromImports(t *testing.T) {
 	}
 }
 
+func TestAidlIncludeDirFromConvertedFileGroupWithPathPropInMixedBuilds(t *testing.T) {
+	bp := `
+	filegroup {
+		name: "foo_aidl",
+		srcs: ["aidl/foo/IFoo.aidl"],
+		path: "aidl/foo",
+		bazel_module: { label: "//:foo_aidl" },
+	}
+	java_library {
+		name: "foo",
+		srcs: [":foo_aidl"],
+	}
+`
+
+	outBaseDir := "out/bazel/output"
+	result := android.GroupFixturePreparers(
+		prepareForJavaTest,
+		android.PrepareForTestWithFilegroup,
+		android.FixtureModifyConfig(func(config android.Config) {
+			config.BazelContext = android.MockBazelContext{
+				OutputBaseDir: outBaseDir,
+				LabelToOutputFiles: map[string][]string{
+					"//:foo_aidl": []string{"aidl/foo/IFoo.aidl"},
+				},
+			}
+		}),
+	).RunTestWithBp(t, bp)
+
+	aidlCommand := result.ModuleForTests("foo", "android_common").Rule("aidl").RuleParams.Command
+	expectedAidlFlag := "-I" + outBaseDir + "/execroot/__main__/aidl/foo"
+	if !strings.Contains(aidlCommand, expectedAidlFlag) {
+		t.Errorf("aidl command %q does not contain %q", aidlCommand, expectedAidlFlag)
+	}
+}
+
 func TestAidlFlagsArePassedToTheAidlCompiler(t *testing.T) {
 	ctx, _ := testJava(t, `
 		java_library {
