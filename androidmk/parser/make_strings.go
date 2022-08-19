@@ -38,10 +38,10 @@ import (
 // For example, "$(FOO)/bar/baz" will be represented as the
 // following lists:
 //
-// {
-//   Strings: ["", "/bar/baz"],
-//   Variables: ["FOO"]
-// }
+//	{
+//	  Strings: ["", "/bar/baz"],
+//	  Variables: ["FOO"]
+//	}
 type MakeString struct {
 	StringPos Pos
 	Strings   []string

@@ -343,23 +343,26 @@ func (defs Bp2BuildSoongConfigDefinitions) String() string {
 //
 // For example, the acme_cc_defaults example above would
 // produce a reflect.Value whose type is:
-// *struct {
-//     Soong_config_variables struct {
-//         Board struct {
-//             Soc_a interface{}
-//             Soc_b interface{}
-//         }
-//     }
-// }
+//
+//	*struct {
+//	    Soong_config_variables struct {
+//	        Board struct {
+//	            Soc_a interface{}
+//	            Soc_b interface{}
+//	        }
+//	    }
+//	}
+//
 // And whose value is:
-// &{
-//     Soong_config_variables: {
-//         Board: {
-//             Soc_a: (*struct{ Cflags []string })(nil),
-//             Soc_b: (*struct{ Cflags []string })(nil),
-//         },
-//     },
-// }
+//
+//	&{
+//	    Soong_config_variables: {
+//	        Board: {
+//	            Soc_a: (*struct{ Cflags []string })(nil),
+//	            Soc_b: (*struct{ Cflags []string })(nil),
+//	        },
+//	    },
+//	}
 func CreateProperties(factory blueprint.ModuleFactory, moduleType *ModuleType) reflect.Value {
 	var fields []reflect.StructField
 
