@@ -41,13 +41,13 @@ type GenruleExtraProperties struct {
 // variations.  The following environment variables will be set when the command
 // execute:
 //
-//   CC_ARCH           the name of the architecture the command is being executed for
+//	CC_ARCH           the name of the architecture the command is being executed for
 //
-//   CC_MULTILIB       "lib32" if the architecture the command is being executed for is 32-bit,
-//                     "lib64" if it is 64-bit.
+//	CC_MULTILIB       "lib32" if the architecture the command is being executed for is 32-bit,
+//	                  "lib64" if it is 64-bit.
 //
-//   CC_NATIVE_BRIDGE  the name of the subdirectory that native bridge libraries are stored in if
-//                     the architecture has native bridge enabled, empty if it is disabled.
+//	CC_NATIVE_BRIDGE  the name of the subdirectory that native bridge libraries are stored in if
+//	                  the architecture has native bridge enabled, empty if it is disabled.
 func GenRuleFactory() android.Module {
 	module := genrule.NewGenRule()
 

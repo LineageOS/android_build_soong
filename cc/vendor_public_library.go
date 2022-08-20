@@ -28,17 +28,16 @@ var (
 //
 // Example:
 //
-// vendor_public_library {
-//     name: "libfoo",
-//     symbol_file: "libfoo.map.txt",
-//     export_public_headers: ["libfoo_headers"],
-// }
+//	vendor_public_library {
+//	    name: "libfoo",
+//	    symbol_file: "libfoo.map.txt",
+//	    export_public_headers: ["libfoo_headers"],
+//	}
 //
-// cc_headers {
-//     name: "libfoo_headers",
-//     export_include_dirs: ["include"],
-// }
-//
+//	cc_headers {
+//	    name: "libfoo_headers",
+//	    export_include_dirs: ["include"],
+//	}
 type vendorPublicLibraryProperties struct {
 	// Relative path to the symbol map.
 	Symbol_file *string

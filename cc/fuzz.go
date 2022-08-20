@@ -152,10 +152,10 @@ func UnstrippedOutputFile(module android.Module) android.Path {
 // IsValidSharedDependency takes a module and determines if it is a unique shared library
 // that should be installed in the fuzz target output directories. This function
 // returns true, unless:
-//  - The module is not an installable shared library, or
-//  - The module is a header or stub, or
-//  - The module is a prebuilt and its source is available, or
-//  - The module is a versioned member of an SDK snapshot.
+//   - The module is not an installable shared library, or
+//   - The module is a header or stub, or
+//   - The module is a prebuilt and its source is available, or
+//   - The module is a versioned member of an SDK snapshot.
 func IsValidSharedDependency(dependency android.Module) bool {
 	// TODO(b/144090547): We should be parsing these modules using
 	// ModuleDependencyTag instead of the current brute-force checking.

@@ -1109,7 +1109,7 @@ func InitAndroidModule(m Module) {
 // property structs for architecture-specific versions of generic properties tagged with
 // `android:"arch_variant"`.
 //
-// InitAndroidModule should not be called if InitAndroidArchModule was called.
+//	InitAndroidModule should not be called if InitAndroidArchModule was called.
 func InitAndroidArchModule(m Module, hod HostOrDeviceSupported, defaultMultilib Multilib) {
 	InitAndroidModule(m)
 

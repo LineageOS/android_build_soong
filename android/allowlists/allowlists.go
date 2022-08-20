@@ -307,6 +307,7 @@ var (
 		"libandroid_runtime_vm_headers",
 		"libaudioclient_aidl_conversion_util",
 		"libaudioutils_fixedfft",
+		"libbinder_aidl",
 		"libbinder_headers",
 		"libbinder_headers_platform_shared",
 		"libbluetooth-types-header",
@@ -328,6 +329,8 @@ var (
 		"libpdx_headers",
 		"libprocpartition",
 		"libruy_static",
+		"libandroidio",
+		"libandroidio_srcs",
 		"libserviceutils",
 		"libstagefright_enc_common",
 		"libstagefright_foundation_headers",
@@ -392,6 +395,13 @@ var (
 		//system/libhidl
 		// needed by cc_hidl_library
 		"libhidlbase",
+
+		//frameworks/native
+		"framework_native_aidl_binder",
+		"framework_native_aidl_gui",
+
+		//frameworks/native/libs/input
+		"inputconstants_aidl",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
@@ -487,8 +497,6 @@ var (
 		"libartd-runtime-gtest",                                      // depends on unconverted modules: libgtest_isolated, libartd-compiler, libdexfiled, libprofiled, libartbased, libartbased-art-gtest
 		"libdebuggerd_handler",                                       // depends on unconverted module libdebuggerd_handler_core
 		"libdebuggerd_handler_core", "libdebuggerd_handler_fallback", // depends on unconverted module libdebuggerd
-		"libdexfile",                                              // depends on unconverted modules: dexfile_operator_srcs, libartbase, libartpalette,
-		"libdexfile_static",                                       // depends on unconverted modules: libartbase, libdexfile
 		"libdexfiled",                                             // depends on unconverted modules: dexfile_operator_srcs, libartbased, libartpalette
 		"libfastdeploy_host",                                      // depends on unconverted modules: libandroidfw, libusb, AdbWinApi
 		"libgmock_main_ndk",                                       // depends on unconverted modules: libgtest_ndk_c++
