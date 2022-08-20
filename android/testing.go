@@ -457,7 +457,7 @@ func (ctx *TestContext) Register() {
 
 // RegisterForBazelConversion prepares a test context for bp2build conversion.
 func (ctx *TestContext) RegisterForBazelConversion() {
-	ctx.SetRunningAsBp2build()
+	ctx.config.BuildMode = Bp2build
 	RegisterMutatorsForBazelConversion(ctx.Context, ctx.bp2buildPreArch)
 }
 
