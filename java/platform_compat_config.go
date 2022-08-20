@@ -280,7 +280,7 @@ func platformCompatConfigSingletonFactory() android.Singleton {
 	return &platformCompatConfigSingleton{}
 }
 
-//============== merged_compat_config =================
+// ============== merged_compat_config =================
 type globalCompatConfigProperties struct {
 	// name of the file into which the metadata will be copied.
 	Filename *string

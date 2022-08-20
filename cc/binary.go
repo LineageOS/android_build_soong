@@ -617,6 +617,7 @@ func binaryBp2build(ctx android.TopDownMutatorContext, m *Module, typ string) {
 		Dynamic_deps:       baseAttrs.implementationDynamicDeps,
 		Whole_archive_deps: baseAttrs.wholeArchiveDeps,
 		System_deps:        baseAttrs.systemDynamicDeps,
+		Runtime_deps:       baseAttrs.runtimeDeps,
 
 		Local_includes:    baseAttrs.localIncludes,
 		Absolute_includes: baseAttrs.absoluteIncludes,
@@ -667,6 +668,7 @@ type binaryAttributes struct {
 	Dynamic_deps       bazel.LabelListAttribute
 	Whole_archive_deps bazel.LabelListAttribute
 	System_deps        bazel.LabelListAttribute
+	Runtime_deps       bazel.LabelListAttribute
 
 	Local_includes    bazel.StringListAttribute
 	Absolute_includes bazel.StringListAttribute

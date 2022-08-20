@@ -148,12 +148,12 @@ func (m *headerModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 // to the sysroot base + "usr/include" + to directory + directory component.
 // ndk_headers requires the license file to be specified. Example:
 //
-//    Given:
-//    sysroot base = "ndk/sysroot"
-//    from = "include/foo"
-//    to = "bar"
-//    header = "include/foo/woodly/doodly.h"
-//    output path = "ndk/sysroot/usr/include/bar/woodly/doodly.h"
+//	Given:
+//	sysroot base = "ndk/sysroot"
+//	from = "include/foo"
+//	to = "bar"
+//	header = "include/foo/woodly/doodly.h"
+//	output path = "ndk/sysroot/usr/include/bar/woodly/doodly.h"
 func ndkHeadersFactory() android.Module {
 	module := &headerModule{}
 	module.AddProperties(&module.properties)
@@ -275,15 +275,17 @@ func versionedNdkHeadersFactory() android.Module {
 	return module
 }
 
-// preprocessed_ndk_header {
-//     name: "foo",
-//     preprocessor: "foo.sh",
-//     srcs: [...],
-//     to: "android",
-// }
+//	preprocessed_ndk_header {
+//	    name: "foo",
+//	    preprocessor: "foo.sh",
+//	    srcs: [...],
+//	    to: "android",
+//	}
 //
 // Will invoke the preprocessor as:
-//     $preprocessor -o $SYSROOT/usr/include/android/needs_preproc.h $src
+//
+//	$preprocessor -o $SYSROOT/usr/include/android/needs_preproc.h $src
+//
 // For each src in srcs.
 type preprocessedHeadersProperties struct {
 	// The preprocessor to run. Must be a program inside the source directory
