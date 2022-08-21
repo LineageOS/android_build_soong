@@ -262,8 +262,7 @@ func CheckSnapshot(t *testing.T, result *android.TestResult, name string, dir st
 
 	// If the generated snapshot builders not for the current release then it cannot be loaded by
 	// the current release.
-	currentBuildRelease := latestBuildRelease()
-	if snapshotBuildInfo.targetBuildRelease != currentBuildRelease {
+	if snapshotBuildInfo.targetBuildRelease != buildReleaseCurrent {
 		return
 	}
 
