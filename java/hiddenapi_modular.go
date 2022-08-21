@@ -440,7 +440,18 @@ var hiddenAPIRemovedFlagFileCategory = &hiddenAPIFlagFileCategory{
 	},
 }
 
-var HiddenAPIFlagFileCategories = []*hiddenAPIFlagFileCategory{
+type hiddenAPIFlagFileCategories []*hiddenAPIFlagFileCategory
+
+func (c hiddenAPIFlagFileCategories) byProperty(name string) *hiddenAPIFlagFileCategory {
+	for _, category := range c {
+		if category.PropertyName == name {
+			return category
+		}
+	}
+	panic(fmt.Errorf("no category exists with property name %q in %v", name, c))
+}
+
+var HiddenAPIFlagFileCategories = hiddenAPIFlagFileCategories{
 	// See HiddenAPIFlagFileProperties.Unsupported
 	{
 		PropertyName: "unsupported",
@@ -517,10 +528,17 @@ var HiddenAPIFlagFileCategories = []*hiddenAPIFlagFileCategory{
 // FlagFilesByCategory maps a hiddenAPIFlagFileCategory to the paths to the files in that category.
 type FlagFilesByCategory map[*hiddenAPIFlagFileCategory]android.Paths
 
-// append appends the supplied flags files to the corresponding category in this map.
+// append the supplied flags files to the corresponding category in this map.
 func (s FlagFilesByCategory) append(other FlagFilesByCategory) {
 	for _, category := range HiddenAPIFlagFileCategories {
 		s[category] = append(s[category], other[category]...)
+	}
+}
+
+// sort the paths for each category in this map.
+func (s FlagFilesByCategory) sort() {
+	for category, value := range s {
+		s[category] = android.SortedUniquePaths(value)
 	}
 }
 
@@ -706,6 +724,8 @@ type HiddenAPIPropertyInfo struct {
 	SplitPackages []string
 }
 
+var hiddenAPIPropertyInfoProvider = blueprint.NewProvider(HiddenAPIPropertyInfo{})
+
 // newHiddenAPIPropertyInfo creates a new initialized HiddenAPIPropertyInfo struct.
 func newHiddenAPIPropertyInfo() HiddenAPIPropertyInfo {
 	return HiddenAPIPropertyInfo{
@@ -728,6 +748,24 @@ func (i *HiddenAPIPropertyInfo) extractPackageRulesFromProperties(p *HiddenAPIPa
 	i.PackagePrefixes = p.Hidden_api.Package_prefixes
 	i.SinglePackages = p.Hidden_api.Single_packages
 	i.SplitPackages = p.Hidden_api.Split_packages
+}
+
+func (i *HiddenAPIPropertyInfo) gatherPropertyInfo(ctx android.ModuleContext, contents []android.Module) {
+	for _, module := range contents {
+		if ctx.OtherModuleHasProvider(module, hiddenAPIPropertyInfoProvider) {
+			info := ctx.OtherModuleProvider(module, hiddenAPIPropertyInfoProvider).(HiddenAPIPropertyInfo)
+			i.FlagFilesByCategory.append(info.FlagFilesByCategory)
+			i.PackagePrefixes = append(i.PackagePrefixes, info.PackagePrefixes...)
+			i.SinglePackages = append(i.SinglePackages, info.SinglePackages...)
+			i.SplitPackages = append(i.SplitPackages, info.SplitPackages...)
+		}
+	}
+
+	// Dedup and sort the information to ensure consistent builds.
+	i.FlagFilesByCategory.sort()
+	i.PackagePrefixes = android.SortedUniqueStrings(i.PackagePrefixes)
+	i.SinglePackages = android.SortedUniqueStrings(i.SinglePackages)
+	i.SplitPackages = android.SortedUniqueStrings(i.SplitPackages)
 }
 
 // HiddenAPIFlagInput encapsulates information obtained from a module and its dependencies that are
