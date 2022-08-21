@@ -267,6 +267,9 @@ type DeviceProperties struct {
 	// Only for libraries created by a sysprop_library module, SyspropPublicStub is the name of the
 	// public stubs library.
 	SyspropPublicStub string `blueprint:"mutated"`
+
+	HiddenAPIPackageProperties
+	HiddenAPIFlagFileProperties
 }
 
 // Device properties that can be overridden by overriding module (e.g. override_android_app)
@@ -562,6 +565,20 @@ func (j *Module) addHostAndDeviceProperties() {
 		&j.dexpreoptProperties,
 		&j.linter.properties,
 	)
+}
+
+// provideHiddenAPIPropertyInfo populates a HiddenAPIPropertyInfo from hidden API properties and
+// makes it available through the hiddenAPIPropertyInfoProvider.
+func (j *Module) provideHiddenAPIPropertyInfo(ctx android.ModuleContext) {
+	hiddenAPIInfo := newHiddenAPIPropertyInfo()
+
+	// Populate with flag file paths from the properties.
+	hiddenAPIInfo.extractFlagFilesFromProperties(ctx, &j.deviceProperties.HiddenAPIFlagFileProperties)
+
+	// Populate with package rules from the properties.
+	hiddenAPIInfo.extractPackageRulesFromProperties(&j.deviceProperties.HiddenAPIPackageProperties)
+
+	ctx.SetProvider(hiddenAPIPropertyInfoProvider, hiddenAPIInfo)
 }
 
 func (j *Module) OutputFiles(tag string) (android.Paths, error) {
