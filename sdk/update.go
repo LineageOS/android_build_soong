@@ -387,12 +387,11 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) {
 	// Always add -current to the end
 	snapshotFileSuffix := "-current"
 
-	currentBuildRelease := latestBuildRelease()
-	targetBuildReleaseEnv := config.GetenvWithDefault("SOONG_SDK_SNAPSHOT_TARGET_BUILD_RELEASE", currentBuildRelease.name)
+	targetBuildReleaseEnv := config.GetenvWithDefault("SOONG_SDK_SNAPSHOT_TARGET_BUILD_RELEASE", buildReleaseCurrent.name)
 	targetBuildRelease, err := nameToRelease(targetBuildReleaseEnv)
 	if err != nil {
 		ctx.ModuleErrorf("invalid SOONG_SDK_SNAPSHOT_TARGET_BUILD_RELEASE: %s", err)
-		targetBuildRelease = currentBuildRelease
+		targetBuildRelease = buildReleaseCurrent
 	}
 
 	builder := &snapshotBuilder{
@@ -472,7 +471,7 @@ be unnecessary as every module in the sdk already has its own licenses property.
 	contents := bp.content.String()
 	// If the snapshot is being generated for the current build release then check the syntax to make
 	// sure that it is compatible.
-	if targetBuildRelease == currentBuildRelease {
+	if targetBuildRelease == buildReleaseCurrent {
 		syntaxCheckSnapshotBpFile(ctx, contents)
 	}
 
