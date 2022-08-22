@@ -2566,3 +2566,29 @@ cc_library {
 		},
 	})
 }
+
+func TestCcLibraryWithInstructionSet(t *testing.T) {
+	runCcLibraryTestCase(t, Bp2buildTestCase{
+		ModuleTypeUnderTest:        "cc_library",
+		ModuleTypeUnderTestFactory: cc.LibraryFactory,
+		Blueprint: `cc_library {
+    name: "foo",
+    arch: {
+      arm: {
+        instruction_set: "arm",
+      }
+    }
+}
+`,
+		ExpectedBazelTargets: makeCcLibraryTargets("foo", AttrNameToString{
+			"features": `select({
+        "//build/bazel/platforms/arch:arm": [
+            "arm_isa_arm",
+            "-arm_isa_thumb",
+        ],
+        "//conditions:default": [],
+    })`,
+			"local_includes": `["."]`,
+		}),
+	})
+}

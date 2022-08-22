@@ -581,3 +581,32 @@ cc_library {
 		},
 	})
 }
+
+func TestCcBinaryWithInstructionSet(t *testing.T) {
+	runCcBinaryTests(t, ccBinaryBp2buildTestCase{
+		description: "instruction set",
+		blueprint: `
+{rule_name} {
+    name: "foo",
+    arch: {
+      arm: {
+        instruction_set: "arm",
+      }
+    }
+}
+`,
+		targets: []testBazelTarget{
+			{"cc_binary", "foo", AttrNameToString{
+				"features": `select({
+        "//build/bazel/platforms/arch:arm": [
+            "arm_isa_arm",
+            "-arm_isa_thumb",
+        ],
+        "//conditions:default": [],
+    })`,
+				"local_includes": `["."]`,
+			},
+			},
+		},
+	})
+}
