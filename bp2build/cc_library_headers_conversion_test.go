@@ -390,3 +390,24 @@ cc_library_headers {
 		},
 	})
 }
+
+func TestCcLibraryHeadersWholeStaticLibsReexported(t *testing.T) {
+	runCcLibraryHeadersTestCase(t, Bp2buildTestCase{
+		Description:                "cc_library_headers whole_static_libs is reexported",
+		ModuleTypeUnderTest:        "cc_library_headers",
+		ModuleTypeUnderTestFactory: cc.LibraryHeaderFactory,
+		Filesystem:                 map[string]string{},
+		Blueprint: soongCcLibraryHeadersPreamble + `
+cc_library_headers {
+		name: "foo_headers",
+		whole_static_libs: ["foo_export"],
+    bazel_module: { bp2build_available: true },
+}
+` + simpleModuleDoNotConvertBp2build("cc_library_headers", "foo_export"),
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("cc_library_headers", "foo_headers", AttrNameToString{
+				"deps": `[":foo_export"]`,
+			}),
+		},
+	})
+}
