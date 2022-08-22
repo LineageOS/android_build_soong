@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"android/soong/android"
+	"android/soong/multitree"
 )
 
 var (
@@ -623,6 +624,24 @@ func (p *prebuiltBinaryLinker) AndroidMkEntries(ctx AndroidMkContext, entries *a
 	ctx.subAndroidMk(entries, p.binaryDecorator)
 	ctx.subAndroidMk(entries, &p.prebuiltLinker)
 	androidMkWriteAllowUndefinedSymbols(p.baseLinker, entries)
+}
+
+func (a *apiLibraryDecorator) AndroidMkEntries(ctx AndroidMkContext, entries *android.AndroidMkEntries) {
+	entries.Class = "SHARED_LIBRARIES"
+	entries.SubName += multitree.GetApiImportSuffix()
+
+	entries.ExtraEntries = append(entries.ExtraEntries, func(_ android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
+		a.libraryDecorator.androidMkWriteExportedFlags(entries)
+		src := *a.properties.Src
+		path, file := filepath.Split(src)
+		stem, suffix, ext := android.SplitFileExt(file)
+		entries.SetString("LOCAL_BUILT_MODULE_STEM", "$(LOCAL_MODULE)"+ext)
+		entries.SetString("LOCAL_MODULE_SUFFIX", suffix)
+		entries.SetString("LOCAL_MODULE_STEM", stem)
+		entries.SetString("LOCAL_MODULE_PATH", path)
+		entries.SetBool("LOCAL_UNINSTALLABLE_MODULE", true)
+		entries.SetString("LOCAL_SOONG_TOC", a.toc().String())
+	})
 }
 
 func androidMkWriteAllowUndefinedSymbols(linker *baseLinker, entries *android.AndroidMkEntries) {
