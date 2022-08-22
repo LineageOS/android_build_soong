@@ -51,6 +51,9 @@ type prebuiltLinkerProperties struct {
 	// symbols, etc), default true.
 	Check_elf_files *bool
 
+	// if set, add an extra objcopy --prefix-symbols= step
+	Prefix_symbols *string
+
 	// Optionally provide an import library if this is a Windows PE DLL prebuilt.
 	// This is needed only if this library is linked by other modules in build time.
 	// Only makes sense for the Windows target.
@@ -129,6 +132,13 @@ func (p *prebuiltLibraryLinker) link(ctx ModuleContext,
 		p.libraryDecorator.exportVersioningMacroIfNeeded(ctx)
 
 		in := android.PathForModuleSrc(ctx, srcs[0])
+
+		if String(p.prebuiltLinker.properties.Prefix_symbols) != "" {
+			prefixed := android.PathForModuleOut(ctx, "prefixed", srcs[0])
+			transformBinaryPrefixSymbols(ctx, String(p.prebuiltLinker.properties.Prefix_symbols),
+				in, flagsToBuilderFlags(flags), prefixed)
+			in = prefixed
+		}
 
 		if p.static() {
 			depSet := android.NewDepSetBuilder(android.TOPOLOGICAL).Direct(in).Build()
