@@ -4145,7 +4145,7 @@ func TestIncludeDirectoryOrdering(t *testing.T) {
 		"${config.ArmArmv7ANeonCflags}",
 		"${config.ArmGenericCflags}",
 		"-target",
-		"armv7a-linux-androideabi20",
+		"armv7a-linux-androideabi21",
 	}
 
 	expectedIncludes := []string{
@@ -4176,7 +4176,6 @@ func TestIncludeDirectoryOrdering(t *testing.T) {
 		"external/foo/lib32",
 		"external/foo/libandroid_arm",
 		"defaults/cc/common/ndk_libc++_shared",
-		"defaults/cc/common/ndk_libandroid_support",
 	}
 
 	conly := []string{"-fPIC", "${config.CommonGlobalConlyflags}"}
@@ -4269,20 +4268,20 @@ func TestIncludeDirectoryOrdering(t *testing.T) {
 				},
 			},
 			stl: "libc++",
-			sdk_version: "20",
+			sdk_version: "minimum",
 		}
 
 		cc_library_headers {
 			name: "libheader1",
 			export_include_dirs: ["libheader1"],
-			sdk_version: "20",
+			sdk_version: "minimum",
 			stl: "none",
 		}
 
 		cc_library_headers {
 			name: "libheader2",
 			export_include_dirs: ["libheader2"],
-			sdk_version: "20",
+			sdk_version: "minimum",
 			stl: "none",
 		}
 	`, tc.src)
@@ -4306,7 +4305,7 @@ func TestIncludeDirectoryOrdering(t *testing.T) {
 			cc_library {
 				name: "%s",
 				export_include_dirs: ["%s"],
-				sdk_version: "20",
+				sdk_version: "minimum",
 				stl: "none",
 			}
 		`, lib, lib)
