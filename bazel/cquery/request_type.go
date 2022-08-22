@@ -134,13 +134,13 @@ else:
 sharedLibraries = []
 rootSharedLibraries = []
 
-shared_info_tag = "@_builtins//:common/cc/experimental_cc_shared_library.bzl%CcSharedLibraryInfo"
+shared_info_tag = "//build/bazel/rules/cc:cc_library_shared.bzl%CcSharedLibraryOutputInfo"
+
 if shared_info_tag in providers(target):
   shared_info = providers(target)[shared_info_tag]
-  for lib in shared_info.linker_input.libraries:
-    path = lib.dynamic_library.path
-    rootSharedLibraries += [path]
-    sharedLibraries.append(path)
+  path = shared_info.output_file.path
+  sharedLibraries.append(path)
+  rootSharedLibraries += [path]
 else:
   for linker_input in linker_inputs:
     for library in linker_input.libraries:
