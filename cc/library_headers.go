@@ -126,6 +126,7 @@ func libraryHeadersBp2Build(ctx android.TopDownMutatorContext, module *Module) {
 	exportedIncludes := bp2BuildParseExportedIncludes(ctx, module, &baseAttributes.includes)
 	linkerAttrs := baseAttributes.linkerAttributes
 	(&linkerAttrs.deps).Append(linkerAttrs.dynamicDeps)
+	(&linkerAttrs.deps).Append(linkerAttrs.wholeArchiveDeps)
 
 	attrs := &bazelCcLibraryHeadersAttributes{
 		Export_includes:          exportedIncludes.Includes,
