@@ -68,6 +68,9 @@ func CcApiLibraryFactory() android.Module {
 		apiLibraryDecorator.baseLinker.Properties.System_shared_libs = []string{}
 	}
 
+	apiLibraryDecorator.baseLinker.Properties.No_libcrt = BoolPtr(true)
+	apiLibraryDecorator.baseLinker.Properties.Nocrt = BoolPtr(true)
+
 	module.Init()
 
 	return module
