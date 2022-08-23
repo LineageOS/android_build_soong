@@ -118,6 +118,11 @@ func modifyTestConfigForMusl(config Config) {
 	config.BuildOSCommonTarget = getCommonTargets(config.Targets[config.BuildOS])[0]
 }
 
+func modifyTestConfigForMuslArm64HostCross(config Config) {
+	config.Targets[LinuxMusl] = append(config.Targets[LinuxMusl],
+		Target{config.BuildOS, Arch{ArchType: Arm64}, NativeBridgeDisabled, "", "", true})
+}
+
 // TestArchConfig returns a Config object suitable for using for tests that
 // need to run the arch mutator.
 func TestArchConfig(buildDir string, env map[string]string, bp string, fs map[string][]byte) Config {
