@@ -68,6 +68,38 @@ type Config struct {
 	*config
 }
 
+type SoongBuildMode int
+
+// Build modes that soong_build can run as.
+const (
+	// Don't use bazel at all during module analysis.
+	AnalysisNoBazel SoongBuildMode = iota
+
+	// Bp2build mode: Generate BUILD files from blueprint files and exit.
+	Bp2build
+
+	// Generate BUILD files which faithfully represent the dependency graph of
+	// blueprint modules. Individual BUILD targets will not, however, faitfhully
+	// express build semantics.
+	GenerateQueryView
+
+	// Create a JSON representation of the module graph and exit.
+	GenerateModuleGraph
+
+	// Generate a documentation file for module type definitions and exit.
+	GenerateDocFile
+
+	// Use bazel during analysis of many allowlisted build modules. The allowlist
+	// is considered a "developer mode" allowlist, as some modules may be
+	// allowlisted on an experimental basis.
+	BazelDevMode
+
+	// Use bazel during analysis of build modules from an allowlist carefully
+	// curated by the build team to be proven stable.
+	// TODO(cparsons): Implement this mode.
+	BazelProdMode
+)
+
 // SoongOutDir returns the build output directory for the configuration.
 func (c Config) SoongOutDir() string {
 	return c.soongOutDir
@@ -157,7 +189,7 @@ type config struct {
 	fs         pathtools.FileSystem
 	mockBpList string
 
-	runningAsBp2Build              bool
+	BuildMode                      SoongBuildMode
 	bp2buildPackageConfig          bp2BuildConversionAllowlist
 	Bp2buildSoongConfigDefinitions soongconfig.Bp2BuildSoongConfigDefinitions
 
@@ -171,6 +203,12 @@ type config struct {
 
 	OncePer
 
+	// These fields are only used for metrics collection. A module should be added
+	// to these maps only if its implementation supports Bazel handling in mixed
+	// builds. A module being in the "enabled" list indicates that there is a
+	// variant of that module for which bazel-handling actually took place.
+	// A module being in the "disabled" list indicates that there is a variant of
+	// that module for which bazel-handling was denied.
 	mixedBuildsLock           sync.Mutex
 	mixedBuildEnabledModules  map[string]struct{}
 	mixedBuildDisabledModules map[string]struct{}
@@ -346,7 +384,7 @@ func NullConfig(outDir, soongOutDir string) Config {
 
 // NewConfig creates a new Config object. The srcDir argument specifies the path
 // to the root source directory. It also loads the config file, if found.
-func NewConfig(moduleListFile string, runGoTests bool, outDir, soongOutDir string, availableEnv map[string]string) (Config, error) {
+func NewConfig(moduleListFile string, buildMode SoongBuildMode, runGoTests bool, outDir, soongOutDir string, availableEnv map[string]string) (Config, error) {
 	// Make a config with default options.
 	config := &config{
 		ProductVariablesFileName: filepath.Join(soongOutDir, productVariablesFileName),
@@ -443,8 +481,17 @@ func NewConfig(moduleListFile string, runGoTests bool, outDir, soongOutDir strin
 		config.AndroidFirstDeviceTarget = FirstTarget(config.Targets[Android], "lib64", "lib32")[0]
 	}
 
+	// Checking USE_BAZEL_ANALYSIS must be done here instead of in the caller, so
+	// that we can invoke IsEnvTrue (which also registers the env var as a
+	// dependency of the build).
+	// TODO(cparsons): Remove this hack once USE_BAZEL_ANALYSIS is removed.
+	if buildMode == AnalysisNoBazel && config.IsEnvTrue("USE_BAZEL_ANALYSIS") {
+		buildMode = BazelDevMode
+	}
+
+	config.BuildMode = buildMode
 	config.BazelContext, err = NewBazelContext(config)
-	config.bp2buildPackageConfig = getBp2BuildAllowList()
+	config.bp2buildPackageConfig = GetBp2BuildAllowList()
 
 	return Config{config}, err
 }
@@ -477,6 +524,12 @@ func (c *config) mockFileSystem(bp string, fs map[string][]byte) {
 
 	c.fs = pathtools.MockFs(mockFS)
 	c.mockBpList = blueprint.MockModuleListFile
+}
+
+// Returns true if "Bazel builds" is enabled. In this mode, part of build
+// analysis is handled by Bazel.
+func (c *config) IsMixedBuildsEnabled() bool {
+	return c.BuildMode == BazelProdMode || c.BuildMode == BazelDevMode
 }
 
 func (c *config) SetAllowMissingDependencies() {
