@@ -382,7 +382,7 @@ func loadSoongConfigModuleTypeDefinition(ctx LoadHookContext, from string) map[s
 		defer r.Close()
 
 		mtDef, errs := soongconfig.Parse(r, from)
-		if ctx.Config().runningAsBp2Build {
+		if ctx.Config().BuildMode == Bp2build {
 			ctx.Config().Bp2buildSoongConfigDefinitions.AddVars(*mtDef)
 		}
 
@@ -398,7 +398,7 @@ func loadSoongConfigModuleTypeDefinition(ctx LoadHookContext, from string) map[s
 		for name, moduleType := range mtDef.ModuleTypes {
 			factory := globalModuleTypes[moduleType.BaseModuleType]
 			if factory != nil {
-				factories[name] = configModuleFactory(factory, moduleType, ctx.Config().runningAsBp2Build)
+				factories[name] = configModuleFactory(factory, moduleType, ctx.Config().BuildMode == Bp2build)
 			} else {
 				reportErrors(ctx, from,
 					fmt.Errorf("missing global module type factory for %q", moduleType.BaseModuleType))
