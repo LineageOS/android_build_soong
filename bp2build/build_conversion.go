@@ -373,6 +373,15 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (convers
 	if generateFilegroups {
 		// Add a filegroup target that exposes all sources in the subtree of this package
 		// NOTE: This also means we generate a BUILD file for every Android.bp file (as long as it has at least one module)
+		//
+		// This works because: https://bazel.build/reference/be/functions#exports_files
+		// "As a legacy behaviour, also files mentioned as input to a rule are exported with the
+		// default visibility until the flag --incompatible_no_implicit_file_export is flipped. However, this behavior
+		// should not be relied upon and actively migrated away from."
+		//
+		// TODO(b/198619163): We should change this to export_files(glob(["**/*"])) instead, but doing that causes these errors:
+		// "Error in exports_files: generated label '//external/avb:avbtool' conflicts with existing py_binary rule"
+		// So we need to solve all the "target ... is both a rule and a file" warnings first.
 		for dir, _ := range dirs {
 			buildFileToTargets[dir] = append(buildFileToTargets[dir], BazelTarget{
 				name:      "bp2build_all_srcs",
