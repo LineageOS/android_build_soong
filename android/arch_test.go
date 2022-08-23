@@ -259,6 +259,27 @@ type archTestModule struct {
 	}
 }
 
+func (m *archTestMultiTargetsModule) GenerateAndroidBuildActions(ctx ModuleContext) {
+}
+
+func (m *archTestMultiTargetsModule) DepsMutator(ctx BottomUpMutatorContext) {
+	ctx.AddDependency(ctx.Module(), nil, m.props.Deps...)
+}
+
+func archTestMultiTargetsModuleFactory() Module {
+	m := &archTestMultiTargetsModule{}
+	m.AddProperties(&m.props)
+	InitAndroidMultiTargetsArchModule(m, HostAndDeviceSupported, MultilibCommon)
+	return m
+}
+
+type archTestMultiTargetsModule struct {
+	ModuleBase
+	props struct {
+		Deps []string
+	}
+}
+
 func (m *archTestModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 }
 
@@ -277,19 +298,27 @@ var prepareForArchTest = GroupFixturePreparers(
 	PrepareForTestWithArchMutator,
 	FixtureRegisterWithContext(func(ctx RegistrationContext) {
 		ctx.RegisterModuleType("module", archTestModuleFactory)
+		ctx.RegisterModuleType("multi_targets_module", archTestMultiTargetsModuleFactory)
 	}),
 )
 
 func TestArchMutator(t *testing.T) {
 	var buildOSVariants []string
+	var buildOS64Variants []string
 	var buildOS32Variants []string
+	var buildOSCommonVariant string
+
 	switch runtime.GOOS {
 	case "linux":
 		buildOSVariants = []string{"linux_glibc_x86_64", "linux_glibc_x86"}
+		buildOS64Variants = []string{"linux_glibc_x86_64"}
 		buildOS32Variants = []string{"linux_glibc_x86"}
+		buildOSCommonVariant = "linux_glibc_common"
 	case "darwin":
 		buildOSVariants = []string{"darwin_x86_64"}
+		buildOS64Variants = []string{"darwin_x86_64"}
 		buildOS32Variants = nil
+		buildOSCommonVariant = "darwin_common"
 	}
 
 	bp := `
@@ -312,24 +341,46 @@ func TestArchMutator(t *testing.T) {
 			host_supported: true,
 			compile_multilib: "32",
 		}
+
+		module {
+			name: "first",
+			host_supported: true,
+			compile_multilib: "first",
+		}
+
+		multi_targets_module {
+			name: "multi_targets",
+			host_supported: true,
+		}
 	`
 
 	testCases := []struct {
-		name        string
-		preparer    FixturePreparer
-		fooVariants []string
-		barVariants []string
-		bazVariants []string
-		quxVariants []string
+		name          string
+		preparer      FixturePreparer
+		fooVariants   []string
+		barVariants   []string
+		bazVariants   []string
+		quxVariants   []string
+		firstVariants []string
+
+		multiTargetVariants    []string
+		multiTargetVariantsMap map[string][]string
+
+		goOS string
 	}{
 		{
-			name:        "normal",
-			preparer:    nil,
-			fooVariants: []string{"android_arm64_armv8-a", "android_arm_armv7-a-neon"},
-			barVariants: append(buildOSVariants, "android_arm64_armv8-a", "android_arm_armv7-a-neon"),
-			bazVariants: nil,
-			quxVariants: append(buildOS32Variants, "android_arm_armv7-a-neon"),
-		},
+			name:                "normal",
+			preparer:            nil,
+			fooVariants:         []string{"android_arm64_armv8-a", "android_arm_armv7-a-neon"},
+			barVariants:         append(buildOSVariants, "android_arm64_armv8-a", "android_arm_armv7-a-neon"),
+			bazVariants:         nil,
+			quxVariants:         append(buildOS32Variants, "android_arm_armv7-a-neon"),
+			firstVariants:       append(buildOS64Variants, "android_arm64_armv8-a"),
+			multiTargetVariants: []string{buildOSCommonVariant, "android_common"},
+			multiTargetVariantsMap: map[string][]string{
+				buildOSCommonVariant: buildOS64Variants,
+				"android_common":     {"android_arm64_armv8-a"},
+			}},
 		{
 			name: "host-only",
 			preparer: FixtureModifyConfig(func(config Config) {
@@ -337,10 +388,33 @@ func TestArchMutator(t *testing.T) {
 				config.BuildOSCommonTarget = Target{}
 				config.Targets[Android] = nil
 			}),
-			fooVariants: nil,
-			barVariants: buildOSVariants,
-			bazVariants: nil,
-			quxVariants: buildOS32Variants,
+			fooVariants:         nil,
+			barVariants:         buildOSVariants,
+			bazVariants:         nil,
+			quxVariants:         buildOS32Variants,
+			firstVariants:       buildOS64Variants,
+			multiTargetVariants: []string{buildOSCommonVariant},
+			multiTargetVariantsMap: map[string][]string{
+				buildOSCommonVariant: buildOS64Variants,
+			},
+		},
+		{
+			name: "same arch host and host cross",
+			preparer: FixtureModifyConfig(func(config Config) {
+				modifyTestConfigForMusl(config)
+				modifyTestConfigForMuslArm64HostCross(config)
+			}),
+			fooVariants:         []string{"android_arm64_armv8-a", "android_arm_armv7-a-neon"},
+			barVariants:         []string{"linux_musl_x86_64", "linux_musl_arm64", "linux_musl_x86", "android_arm64_armv8-a", "android_arm_armv7-a-neon"},
+			bazVariants:         nil,
+			quxVariants:         []string{"linux_musl_x86", "android_arm_armv7-a-neon"},
+			firstVariants:       []string{"linux_musl_x86_64", "linux_musl_arm64", "android_arm64_armv8-a"},
+			multiTargetVariants: []string{"linux_musl_common", "android_common"},
+			multiTargetVariantsMap: map[string][]string{
+				"linux_musl_common": {"linux_musl_x86_64"},
+				"android_common":    {"android_arm64_armv8-a"},
+			},
+			goOS: "linux",
 		},
 	}
 
@@ -356,8 +430,21 @@ func TestArchMutator(t *testing.T) {
 		return ret
 	}
 
+	moduleMultiTargets := func(ctx *TestContext, name string, variant string) []string {
+		var ret []string
+		targets := ctx.ModuleForTests(name, variant).Module().MultiTargets()
+		for _, t := range targets {
+			ret = append(ret, t.String())
+		}
+		return ret
+	}
+
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.goOS != runtime.GOOS {
+				t.Skipf("requries runtime.GOOS %s", tt.goOS)
+			}
+
 			result := GroupFixturePreparers(
 				prepareForArchTest,
 				// Test specific preparer
@@ -380,6 +467,20 @@ func TestArchMutator(t *testing.T) {
 
 			if g, w := enabledVariants(ctx, "qux"), tt.quxVariants; !reflect.DeepEqual(w, g) {
 				t.Errorf("want qux variants:\n%q\ngot:\n%q\n", w, g)
+			}
+			if g, w := enabledVariants(ctx, "first"), tt.firstVariants; !reflect.DeepEqual(w, g) {
+				t.Errorf("want first variants:\n%q\ngot:\n%q\n", w, g)
+			}
+
+			if g, w := enabledVariants(ctx, "multi_targets"), tt.multiTargetVariants; !reflect.DeepEqual(w, g) {
+				t.Fatalf("want multi_target variants:\n%q\ngot:\n%q\n", w, g)
+			}
+
+			for _, variant := range tt.multiTargetVariants {
+				targets := moduleMultiTargets(ctx, "multi_targets", variant)
+				if g, w := targets, tt.multiTargetVariantsMap[variant]; !reflect.DeepEqual(w, g) {
+					t.Errorf("want ctx.MultiTarget() for %q:\n%q\ngot:\n%q\n", variant, w, g)
+				}
 			}
 		})
 	}
