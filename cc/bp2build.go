@@ -983,7 +983,7 @@ func bp2BuildParseExportedIncludes(ctx android.BazelConversionPathContext, modul
 
 func bazelLabelForStaticModule(ctx android.BazelConversionPathContext, m blueprint.Module) string {
 	label := android.BazelModuleLabel(ctx, m)
-	if ccModule, ok := m.(*Module); ok && ccModule.typ() == fullLibrary && !android.GenerateCcLibraryStaticOnly(m.Name()) {
+	if ccModule, ok := m.(*Module); ok && ccModule.typ() == fullLibrary && !android.GetBp2BuildAllowList().GenerateCcLibraryStaticOnly(m.Name()) {
 		label += "_bp2build_cc_library_static"
 	}
 	return label
