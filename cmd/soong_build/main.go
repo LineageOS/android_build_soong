@@ -240,7 +240,7 @@ func writeDepFile(outputFile string, eventHandler metrics.EventHandler, ninjaDep
 // doChosenActivity runs Soong for a specific activity, like bp2build, queryview
 // or the actual Soong build for the build.ninja file. Returns the top level
 // output file of the specific activity.
-func doChosenActivity(ctx *android.Context, configuration android.Config, extraNinjaDeps []string, logDir string) string {
+func doChosenActivity(ctx *android.Context, configuration android.Config, extraNinjaDeps []string) string {
 	if configuration.BuildMode == android.Bp2build {
 		// Run the alternate pipeline of bp2build mutators and singleton to convert
 		// Blueprint to BUILD files before everything else.
@@ -353,7 +353,7 @@ func main() {
 	ctx := newContext(configuration)
 	ctx.EventHandler.Begin("soong_build")
 
-	finalOutputFile := doChosenActivity(ctx, configuration, extraNinjaDeps, logDir)
+	finalOutputFile := doChosenActivity(ctx, configuration, extraNinjaDeps)
 
 	ctx.EventHandler.End("soong_build")
 	writeMetrics(configuration, *ctx.EventHandler, logDir)
