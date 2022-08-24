@@ -389,7 +389,7 @@ func TestBp2BuildAllowlist(t *testing.T) {
 }
 
 func TestBp2buildAllowList(t *testing.T) {
-	allowlist := getBp2BuildAllowList()
+	allowlist := GetBp2BuildAllowList()
 	for k, v := range allowlists.Bp2buildDefaultConfig {
 		if allowlist.defaultConfig[k] != v {
 			t.Errorf("bp2build default config of %s: expected: %v, got: %v", k, v, allowlist.defaultConfig[k])
@@ -413,11 +413,6 @@ func TestBp2buildAllowList(t *testing.T) {
 	for _, k := range allowlists.Bp2buildCcLibraryStaticOnlyList {
 		if !allowlist.ccLibraryStaticOnly[k] {
 			t.Errorf("bp2build cc library static only of %s: expected: true, got: %v", k, allowlist.ccLibraryStaticOnly[k])
-		}
-	}
-	for _, k := range allowlists.MixedBuildsDisabledList {
-		if !allowlist.mixedBuildsDisabled[k] {
-			t.Errorf("bp2build mix build disabled of %s: expected: true, got: %v", k, allowlist.mixedBuildsDisabled[k])
 		}
 	}
 }

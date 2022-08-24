@@ -448,7 +448,7 @@ func (defaultable *DefaultableModuleBase) applyDefaults(ctx TopDownMutatorContex
 	}
 
 	for _, defaults := range defaultsList {
-		if ctx.Config().runningAsBp2Build {
+		if ctx.Config().BuildMode == Bp2build {
 			applyNamespacedVariableDefaults(defaults, ctx)
 		}
 
