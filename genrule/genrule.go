@@ -26,6 +26,7 @@ import (
 	"strings"
 
 	"android/soong/bazel/cquery"
+
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/bootstrap"
 	"github.com/google/blueprint/proptools"
@@ -468,6 +469,7 @@ func (g *Module) generateCommonBuildActions(ctx android.ModuleContext) {
 				return "SOONG_ERROR", nil
 			}
 
+			// Apply shell escape to each cases to prevent source file paths containing $ from being evaluated in shell
 			switch name {
 			case "location":
 				if len(g.properties.Tools) == 0 && len(g.properties.Tool_files) == 0 {
@@ -481,15 +483,15 @@ func (g *Module) generateCommonBuildActions(ctx android.ModuleContext) {
 					return reportError("default label %q has multiple files, use $(locations %s) to reference it",
 						firstLabel, firstLabel)
 				}
-				return paths[0], nil
+				return proptools.ShellEscape(paths[0]), nil
 			case "in":
-				return strings.Join(cmd.PathsForInputs(srcFiles), " "), nil
+				return strings.Join(proptools.ShellEscapeList(cmd.PathsForInputs(srcFiles)), " "), nil
 			case "out":
 				var sandboxOuts []string
 				for _, out := range task.out {
 					sandboxOuts = append(sandboxOuts, cmd.PathForOutput(out))
 				}
-				return strings.Join(sandboxOuts, " "), nil
+				return strings.Join(proptools.ShellEscapeList(sandboxOuts), " "), nil
 			case "depfile":
 				referencedDepfile = true
 				if !Bool(g.properties.Depfile) {
@@ -497,7 +499,7 @@ func (g *Module) generateCommonBuildActions(ctx android.ModuleContext) {
 				}
 				return "__SBOX_DEPFILE__", nil
 			case "genDir":
-				return cmd.PathForOutput(task.genDir), nil
+				return proptools.ShellEscape(cmd.PathForOutput(task.genDir)), nil
 			default:
 				if strings.HasPrefix(name, "location ") {
 					label := strings.TrimSpace(strings.TrimPrefix(name, "location "))
@@ -509,7 +511,7 @@ func (g *Module) generateCommonBuildActions(ctx android.ModuleContext) {
 							return reportError("label %q has multiple files, use $(locations %s) to reference it",
 								label, label)
 						}
-						return paths[0], nil
+						return proptools.ShellEscape(paths[0]), nil
 					} else {
 						return reportError("unknown location label %q is not in srcs, out, tools or tool_files.", label)
 					}
@@ -520,7 +522,7 @@ func (g *Module) generateCommonBuildActions(ctx android.ModuleContext) {
 						if len(paths) == 0 {
 							return reportError("label %q has no files", label)
 						}
-						return strings.Join(paths, " "), nil
+						return proptools.ShellEscape(strings.Join(paths, " ")), nil
 					} else {
 						return reportError("unknown locations label %q is not in srcs, out, tools or tool_files.", label)
 					}
