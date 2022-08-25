@@ -912,7 +912,7 @@ func TestSortedUniqueNamedPaths(t *testing.T) {
 	}
 }
 
-func TestProcessCommonTestOptions(t *testing.T) {
+func TestSetAndroidMkEntriesWithTestOptions(t *testing.T) {
 	tests := []struct {
 		name        string
 		testOptions CommonTestOptions
@@ -938,6 +938,31 @@ func TestProcessCommonTestOptions(t *testing.T) {
 				Unit_test: boolPtr(false),
 			},
 			expected: map[string][]string{},
+		},
+		{
+			name: "empty tag",
+			testOptions: CommonTestOptions{
+				Tags: []string{},
+			},
+			expected: map[string][]string{},
+		},
+		{
+			name: "single tag",
+			testOptions: CommonTestOptions{
+				Tags: []string{"tag1"},
+			},
+			expected: map[string][]string{
+				"LOCAL_TEST_OPTIONS_TAGS": []string{"tag1"},
+			},
+		},
+		{
+			name: "multiple tag",
+			testOptions: CommonTestOptions{
+				Tags: []string{"tag1", "tag2", "tag3"},
+			},
+			expected: map[string][]string{
+				"LOCAL_TEST_OPTIONS_TAGS": []string{"tag1", "tag2", "tag3"},
+			},
 		},
 	}
 	for _, tt := range tests {
