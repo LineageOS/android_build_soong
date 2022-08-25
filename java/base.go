@@ -1195,12 +1195,21 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 		}
 	}
 	if len(uniqueSrcFiles) > 0 || len(srcJars) > 0 {
+		hasErrorproneableFiles := false
+		for _, ext := range j.sourceExtensions {
+			if ext != ".proto" && ext != ".aidl" {
+				// Skip running errorprone on pure proto or pure aidl modules. Some modules take a long time to
+				// compile, and it's not useful to have warnings on these generated sources.
+				hasErrorproneableFiles = true
+				break
+			}
+		}
 		var extraJarDeps android.Paths
 		if Bool(j.properties.Errorprone.Enabled) {
 			// If error-prone is enabled, enable errorprone flags on the regular
 			// build.
 			flags = enableErrorproneFlags(flags)
-		} else if ctx.Config().RunErrorProne() && j.properties.Errorprone.Enabled == nil {
+		} else if hasErrorproneableFiles && ctx.Config().RunErrorProne() && j.properties.Errorprone.Enabled == nil {
 			// Otherwise, if the RUN_ERROR_PRONE environment variable is set, create
 			// a new jar file just for compiling with the errorprone compiler to.
 			// This is because we don't want to cause the java files to get completely
