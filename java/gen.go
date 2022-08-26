@@ -15,6 +15,7 @@
 package java
 
 import (
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -116,12 +117,31 @@ func genLogtags(ctx android.ModuleContext, logtagsFile android.Path) android.Pat
 	return javaFile
 }
 
-func genAidlIncludeFlags(srcFiles android.Paths) string {
+// genAidlIncludeFlags returns additional include flags based on the relative path
+// of each .aidl file passed in srcFiles. excludeDirs is a list of paths relative to
+// the Android checkout root that should not be included in the returned flags.
+func genAidlIncludeFlags(ctx android.PathContext, srcFiles android.Paths, excludeDirs android.Paths) string {
 	var baseDirs []string
+	excludeDirsStrings := excludeDirs.Strings()
 	for _, srcFile := range srcFiles {
 		if srcFile.Ext() == ".aidl" {
 			baseDir := strings.TrimSuffix(srcFile.String(), srcFile.Rel())
-			if baseDir != "" && !android.InList(baseDir, baseDirs) {
+			baseDir = filepath.Clean(baseDir)
+			baseDirSeen := android.InList(baseDir, baseDirs) || android.InList(baseDir, excludeDirsStrings)
+
+			// For go/bp2build mixed builds, a file may be listed under a
+			// directory in the Bazel output tree that is symlinked to a
+			// directory under the android source tree. We should only
+			// include one copy of this directory so that the AIDL tool
+			// doesn't find multiple definitions of the same AIDL class.
+			// This code comes into effect when filegroups are used in mixed builds.
+			bazelPathPrefix := android.PathForBazelOut(ctx, "").String()
+			bazelBaseDir, err := filepath.Rel(bazelPathPrefix, baseDir)
+			bazelBaseDirSeen := err == nil &&
+				android.InList(bazelBaseDir, baseDirs) ||
+				android.InList(bazelBaseDir, excludeDirsStrings)
+
+			if baseDir != "" && !baseDirSeen && !bazelBaseDirSeen {
 				baseDirs = append(baseDirs, baseDir)
 			}
 		}
@@ -135,8 +155,6 @@ func (j *Module) genSources(ctx android.ModuleContext, srcFiles android.Paths,
 	outSrcFiles := make(android.Paths, 0, len(srcFiles))
 	var protoSrcs android.Paths
 	var aidlSrcs android.Paths
-
-	aidlIncludeFlags := genAidlIncludeFlags(srcFiles)
 
 	for _, srcFile := range srcFiles {
 		switch srcFile.Ext() {
@@ -168,7 +186,7 @@ func (j *Module) genSources(ctx android.ModuleContext, srcFiles android.Paths,
 				individualFlags[aidlSrc.String()] = flags
 			}
 		}
-		srcJarFiles := genAidl(ctx, aidlSrcs, flags.aidlFlags+aidlIncludeFlags, individualFlags, flags.aidlDeps)
+		srcJarFiles := genAidl(ctx, aidlSrcs, flags.aidlFlags, individualFlags, flags.aidlDeps)
 		outSrcFiles = append(outSrcFiles, srcJarFiles...)
 	}
 
