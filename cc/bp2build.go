@@ -779,6 +779,45 @@ func (la *linkerAttributes) bp2buildForAxisAndConfig(ctx android.BazelConversion
 	sharedDeps := maybePartitionExportedAndImplementationsDepsExcludes(ctx, !isBinary, sharedLibs, props.Exclude_shared_libs, props.Export_shared_lib_headers, bazelLabelForSharedDepsExcludes)
 	la.dynamicDeps.SetSelectValue(axis, config, sharedDeps.export)
 	la.implementationDynamicDeps.SetSelectValue(axis, config, sharedDeps.implementation)
+	if axis == bazel.NoConfigAxis || (axis == bazel.OsConfigurationAxis && config == bazel.OsAndroid) {
+		// If a dependency in la.implementationDynamicDeps has stubs, its stub variant should be
+		// used when the dependency is linked in a APEX. The dependencies in NoConfigAxis and
+		// OsConfigurationAxis/OsAndroid are grouped by having stubs or not, so Bazel select()
+		// statement can be used to choose source/stub variants of them.
+		depsWithStubs := []bazel.Label{}
+		for _, l := range sharedDeps.implementation.Includes {
+			dep, _ := ctx.ModuleFromName(l.OriginalModuleName)
+			if m, ok := dep.(*Module); ok && m.HasStubsVariants() {
+				depsWithStubs = append(depsWithStubs, l)
+			}
+		}
+		if len(depsWithStubs) > 0 {
+			implDynamicDeps := bazel.SubtractBazelLabelList(sharedDeps.implementation, bazel.MakeLabelList(depsWithStubs))
+			la.implementationDynamicDeps.SetSelectValue(axis, config, implDynamicDeps)
+
+			stubLibLabels := []bazel.Label{}
+			for _, l := range depsWithStubs {
+				l.Label = l.Label + "_stub_libs_current"
+				stubLibLabels = append(stubLibLabels, l)
+			}
+			inApexSelectValue := la.implementationDynamicDeps.SelectValue(bazel.OsAndInApexAxis, bazel.AndroidAndInApex)
+			nonApexSelectValue := la.implementationDynamicDeps.SelectValue(bazel.OsAndInApexAxis, bazel.AndroidAndNonApex)
+			defaultSelectValue := la.implementationDynamicDeps.SelectValue(bazel.OsAndInApexAxis, bazel.ConditionsDefaultConfigKey)
+			if axis == bazel.NoConfigAxis {
+				(&inApexSelectValue).Append(bazel.MakeLabelList(stubLibLabels))
+				(&nonApexSelectValue).Append(bazel.MakeLabelList(depsWithStubs))
+				(&defaultSelectValue).Append(bazel.MakeLabelList(depsWithStubs))
+				la.implementationDynamicDeps.SetSelectValue(bazel.OsAndInApexAxis, bazel.AndroidAndInApex, inApexSelectValue)
+				la.implementationDynamicDeps.SetSelectValue(bazel.OsAndInApexAxis, bazel.AndroidAndNonApex, nonApexSelectValue)
+				la.implementationDynamicDeps.SetSelectValue(bazel.OsAndInApexAxis, bazel.ConditionsDefaultConfigKey, defaultSelectValue)
+			} else if config == bazel.OsAndroid {
+				(&inApexSelectValue).Append(bazel.MakeLabelList(stubLibLabels))
+				(&nonApexSelectValue).Append(bazel.MakeLabelList(depsWithStubs))
+				la.implementationDynamicDeps.SetSelectValue(bazel.OsAndInApexAxis, bazel.AndroidAndInApex, inApexSelectValue)
+				la.implementationDynamicDeps.SetSelectValue(bazel.OsAndInApexAxis, bazel.AndroidAndNonApex, nonApexSelectValue)
+			}
+		}
+	}
 
 	if !BoolDefault(props.Pack_relocations, packRelocationsDefault) {
 		axisFeatures = append(axisFeatures, "disable_pack_relocations")
