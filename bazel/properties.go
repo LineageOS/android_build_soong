@@ -332,7 +332,7 @@ func (la *LabelAttribute) SetSelectValue(axis ConfigurationAxis, config string, 
 	switch axis.configurationType {
 	case noConfig:
 		la.Value = &value
-	case arch, os, osArch, productVariables:
+	case arch, os, osArch, productVariables, osAndInApex:
 		if la.ConfigurableValues == nil {
 			la.ConfigurableValues = make(configurableLabels)
 		}
@@ -348,7 +348,7 @@ func (la *LabelAttribute) SelectValue(axis ConfigurationAxis, config string) *La
 	switch axis.configurationType {
 	case noConfig:
 		return la.Value
-	case arch, os, osArch, productVariables:
+	case arch, os, osArch, productVariables, osAndInApex:
 		return la.ConfigurableValues[axis][config]
 	default:
 		panic(fmt.Errorf("Unrecognized ConfigurationAxis %s", axis))
@@ -424,7 +424,7 @@ func (ba *BoolAttribute) SetSelectValue(axis ConfigurationAxis, config string, v
 	switch axis.configurationType {
 	case noConfig:
 		ba.Value = value
-	case arch, os, osArch, productVariables:
+	case arch, os, osArch, productVariables, osAndInApex:
 		if ba.ConfigurableValues == nil {
 			ba.ConfigurableValues = make(configurableBools)
 		}
@@ -540,7 +540,7 @@ func (ba BoolAttribute) SelectValue(axis ConfigurationAxis, config string) *bool
 	switch axis.configurationType {
 	case noConfig:
 		return ba.Value
-	case arch, os, osArch, productVariables:
+	case arch, os, osArch, productVariables, osAndInApex:
 		if v, ok := ba.ConfigurableValues[axis][config]; ok {
 			return &v
 		} else {
@@ -676,7 +676,7 @@ func (lla *LabelListAttribute) SetSelectValue(axis ConfigurationAxis, config str
 	switch axis.configurationType {
 	case noConfig:
 		lla.Value = list
-	case arch, os, osArch, productVariables:
+	case arch, os, osArch, productVariables, osAndInApex:
 		if lla.ConfigurableValues == nil {
 			lla.ConfigurableValues = make(configurableLabelLists)
 		}
@@ -692,8 +692,8 @@ func (lla *LabelListAttribute) SelectValue(axis ConfigurationAxis, config string
 	switch axis.configurationType {
 	case noConfig:
 		return lla.Value
-	case arch, os, osArch, productVariables:
-		return lla.ConfigurableValues[axis][config]
+	case arch, os, osArch, productVariables, osAndInApex:
+		return (lla.ConfigurableValues[axis][config])
 	default:
 		panic(fmt.Errorf("Unrecognized ConfigurationAxis %s", axis))
 	}
@@ -1189,7 +1189,7 @@ func (sla *StringListAttribute) SetSelectValue(axis ConfigurationAxis, config st
 	switch axis.configurationType {
 	case noConfig:
 		sla.Value = list
-	case arch, os, osArch, productVariables:
+	case arch, os, osArch, productVariables, osAndInApex:
 		if sla.ConfigurableValues == nil {
 			sla.ConfigurableValues = make(configurableStringLists)
 		}
@@ -1205,7 +1205,7 @@ func (sla *StringListAttribute) SelectValue(axis ConfigurationAxis, config strin
 	switch axis.configurationType {
 	case noConfig:
 		return sla.Value
-	case arch, os, osArch, productVariables:
+	case arch, os, osArch, productVariables, osAndInApex:
 		return sla.ConfigurableValues[axis][config]
 	default:
 		panic(fmt.Errorf("Unrecognized ConfigurationAxis %s", axis))
