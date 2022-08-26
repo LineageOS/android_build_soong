@@ -1978,6 +1978,18 @@ func PathForTesting(paths ...string) Path {
 	return testPath{basePath{path: p, rel: p}}
 }
 
+func PathForTestingWithRel(path, rel string) Path {
+	p, err := validateSafePath(path, rel)
+	if err != nil {
+		panic(err)
+	}
+	r, err := validatePath(rel)
+	if err != nil {
+		panic(err)
+	}
+	return testPath{basePath{path: p, rel: r}}
+}
+
 // PathsForTesting returns a Path constructed from each element in strs. It should only be used from within tests.
 func PathsForTesting(strs ...string) Paths {
 	p := make(Paths, len(strs))
