@@ -16,6 +16,24 @@
       "message": "Still an issue?",
       "revId": "0b04890e6289f030aa69ddc14dbfb93195863512",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "4a6c7ce3_5f33af10",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 4550
+      },
+      "writtenOn": "2022-08-26T00:12:05Z",
+      "side": 1,
+      "message": "Yes",
+      "parentUuid": "4342b2a9_edfba1a7",
+      "revId": "0b04890e6289f030aa69ddc14dbfb93195863512",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
