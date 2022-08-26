@@ -359,7 +359,7 @@ func libraryBp2Build(ctx android.TopDownMutatorContext, m *Module) {
 		C_std:                    compilerAttrs.cStd,
 		Use_version_lib:          linkerAttrs.useVersionLib,
 
-		Features: linkerAttrs.features,
+		Features: baseAttributes.features,
 	}
 
 	sharedTargetAttrs := &bazelCcLibrarySharedAttributes{
@@ -391,7 +391,7 @@ func libraryBp2Build(ctx android.TopDownMutatorContext, m *Module) {
 			All:                          linkerAttrs.stripAll,
 			None:                         linkerAttrs.stripNone,
 		},
-		Features: linkerAttrs.features,
+		Features: baseAttributes.features,
 	}
 
 	if compilerAttrs.stubsSymbolFile != nil && len(compilerAttrs.stubsVersions.Value) > 0 {
@@ -2600,7 +2600,7 @@ func sharedOrStaticLibraryBp2Build(ctx android.TopDownMutatorContext, module *Mo
 			Conlyflags: compilerAttrs.conlyFlags,
 			Asflags:    asFlags,
 
-			Features: linkerAttrs.features,
+			Features: baseAttributes.features,
 		}
 	} else {
 		commonAttrs.Dynamic_deps.Add(baseAttributes.protoDependency)
@@ -2637,7 +2637,7 @@ func sharedOrStaticLibraryBp2Build(ctx android.TopDownMutatorContext, module *Mo
 				None:                         linkerAttrs.stripNone,
 			},
 
-			Features: linkerAttrs.features,
+			Features: baseAttributes.features,
 		}
 		if compilerAttrs.stubsSymbolFile != nil && len(compilerAttrs.stubsVersions.Value) > 0 {
 			hasStubs := true
