@@ -310,6 +310,134 @@ func TestResolveExcludes(t *testing.T) {
 	}
 }
 
+func TestLabelListAttributePartition(t *testing.T) {
+	testCases := []struct {
+		name         string
+		input        LabelListAttribute
+		predicated   LabelListAttribute
+		unpredicated LabelListAttribute
+		predicate    func(label Label) bool
+	}{
+		{
+			name: "move all to predicated partition",
+			input: MakeLabelListAttribute(makeLabelList(
+				[]string{"keep1", "throw1", "keep2", "throw2"},
+				[]string{"keep1", "throw1", "keep2", "throw2"},
+			)),
+			predicated: MakeLabelListAttribute(makeLabelList(
+				[]string{"keep1", "throw1", "keep2", "throw2"},
+				[]string{"keep1", "throw1", "keep2", "throw2"},
+			)),
+			unpredicated: LabelListAttribute{},
+			predicate: func(label Label) bool {
+				return true
+			},
+		},
+		{
+			name: "move all to unpredicated partition",
+			input: MakeLabelListAttribute(makeLabelList(
+				[]string{"keep1", "throw1", "keep2", "throw2"},
+				[]string{"keep1", "throw1", "keep2", "throw2"},
+			)),
+			predicated: LabelListAttribute{},
+			unpredicated: MakeLabelListAttribute(makeLabelList(
+				[]string{"keep1", "throw1", "keep2", "throw2"},
+				[]string{"keep1", "throw1", "keep2", "throw2"},
+			)),
+			predicate: func(label Label) bool {
+				return false
+			},
+		},
+		{
+			name: "partition includes and excludes",
+			input: MakeLabelListAttribute(makeLabelList(
+				[]string{"keep1", "throw1", "keep2", "throw2"},
+				[]string{"keep1", "throw1", "keep2", "throw2"},
+			)),
+			predicated: MakeLabelListAttribute(makeLabelList(
+				[]string{"keep1", "keep2"},
+				[]string{"keep1", "keep2"},
+			)),
+			unpredicated: MakeLabelListAttribute(makeLabelList(
+				[]string{"throw1", "throw2"},
+				[]string{"throw1", "throw2"},
+			)),
+			predicate: func(label Label) bool {
+				return strings.HasPrefix(label.Label, "keep")
+			},
+		},
+		{
+			name: "partition excludes only",
+			input: MakeLabelListAttribute(makeLabelList(
+				[]string{},
+				[]string{"keep1", "throw1", "keep2", "throw2"},
+			)),
+			predicated: MakeLabelListAttribute(makeLabelList(
+				[]string{},
+				[]string{"keep1", "keep2"},
+			)),
+			unpredicated: MakeLabelListAttribute(makeLabelList(
+				[]string{},
+				[]string{"throw1", "throw2"},
+			)),
+			predicate: func(label Label) bool {
+				return strings.HasPrefix(label.Label, "keep")
+			},
+		},
+		{
+			name: "partition includes only",
+			input: MakeLabelListAttribute(makeLabelList(
+				[]string{"keep1", "throw1", "keep2", "throw2"},
+				[]string{},
+			)),
+			predicated: MakeLabelListAttribute(makeLabelList(
+				[]string{"keep1", "keep2"},
+				[]string{},
+			)),
+			unpredicated: MakeLabelListAttribute(makeLabelList(
+				[]string{"throw1", "throw2"},
+				[]string{},
+			)),
+			predicate: func(label Label) bool {
+				return strings.HasPrefix(label.Label, "keep")
+			},
+		},
+		{
+			name:         "empty partition",
+			input:        MakeLabelListAttribute(makeLabelList([]string{}, []string{})),
+			predicated:   LabelListAttribute{},
+			unpredicated: LabelListAttribute{},
+			predicate: func(label Label) bool {
+				return true
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			predicated, unpredicated := tc.input.Partition(tc.predicate)
+			if !predicated.Value.Equals(tc.predicated.Value) {
+				t.Errorf("expected predicated labels to be %v; got %v", tc.predicated, predicated)
+			}
+			for axis, configs := range predicated.ConfigurableValues {
+				tcConfigs, ok := tc.predicated.ConfigurableValues[axis]
+				if !ok || !reflect.DeepEqual(configs, tcConfigs) {
+					t.Errorf("expected predicated labels to be %v; got %v", tc.predicated, predicated)
+				}
+			}
+			if !unpredicated.Value.Equals(tc.unpredicated.Value) {
+				t.Errorf("expected unpredicated labels to be %v; got %v", tc.unpredicated, unpredicated)
+			}
+			for axis, configs := range unpredicated.ConfigurableValues {
+				tcConfigs, ok := tc.unpredicated.ConfigurableValues[axis]
+				if !ok || !reflect.DeepEqual(configs, tcConfigs) {
+					t.Errorf("expected unpredicated labels to be %v; got %v", tc.unpredicated, unpredicated)
+				}
+			}
+		})
+	}
+}
+
 // labelAddSuffixForTypeMapper returns a LabelMapper that adds suffix to label name for modules of
 // typ
 func labelAddSuffixForTypeMapper(suffix, typ string) LabelMapper {

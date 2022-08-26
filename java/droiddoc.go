@@ -314,7 +314,7 @@ func (j *Javadoc) genSources(ctx android.ModuleContext, srcFiles android.Paths,
 	outSrcFiles := make(android.Paths, 0, len(srcFiles))
 	var aidlSrcs android.Paths
 
-	aidlIncludeFlags := genAidlIncludeFlags(srcFiles)
+	aidlIncludeFlags := genAidlIncludeFlags(ctx, srcFiles, android.Paths{})
 
 	for _, srcFile := range srcFiles {
 		switch srcFile.Ext() {

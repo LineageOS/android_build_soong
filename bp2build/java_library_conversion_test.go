@@ -372,3 +372,132 @@ func TestJavaLibraryResourcesFailsWithMultipleDirs(t *testing.T) {
 		ExpectedBazelTargets: []string{},
 	})
 }
+
+func TestJavaLibraryAidl(t *testing.T) {
+	runJavaLibraryTestCase(t, Bp2buildTestCase{
+		Description:                "Java library - aidl creates separate dependency",
+		ModuleTypeUnderTest:        "java_library",
+		ModuleTypeUnderTestFactory: java.LibraryFactory,
+		Blueprint: `java_library {
+        name: "example_lib",
+        srcs: [
+			"a.java",
+			"b.java",
+			"a.aidl",
+			"b.aidl",
+		],
+        bazel_module: { bp2build_available: true },
+}`,
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("aidl_library", "example_lib_aidl_library", AttrNameToString{
+				"srcs": `[
+        "a.aidl",
+        "b.aidl",
+    ]`,
+			}),
+			makeBazelTarget("java_aidl_library", "example_lib_java_aidl_library", AttrNameToString{
+				"deps": `[":example_lib_aidl_library"]`,
+			}),
+			makeBazelTarget("java_library", "example_lib", AttrNameToString{
+				"deps":    `[":example_lib_java_aidl_library"]`,
+				"exports": `[":example_lib_java_aidl_library"]`,
+				"srcs": `[
+        "a.java",
+        "b.java",
+    ]`,
+			}),
+		}})
+}
+
+func TestJavaLibraryAidlSrcsNoFileGroup(t *testing.T) {
+	runJavaLibraryTestCaseWithRegistrationCtxFunc(t, Bp2buildTestCase{
+		Description:                "Java library - aidl filegroup is parsed",
+		ModuleTypeUnderTest:        "java_library",
+		ModuleTypeUnderTestFactory: java.LibraryFactory,
+		Blueprint: `
+java_library {
+        name: "example_lib",
+        srcs: [
+			"a.java",
+			"b.aidl",
+		],
+        bazel_module: { bp2build_available: true },
+}`,
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("aidl_library", "example_lib_aidl_library", AttrNameToString{
+				"srcs": `["b.aidl"]`,
+			}),
+			makeBazelTarget("java_aidl_library", "example_lib_java_aidl_library", AttrNameToString{
+				"deps": `[":example_lib_aidl_library"]`,
+			}),
+			makeBazelTarget("java_library", "example_lib", AttrNameToString{
+				"deps":    `[":example_lib_java_aidl_library"]`,
+				"exports": `[":example_lib_java_aidl_library"]`,
+				"srcs":    `["a.java"]`,
+			}),
+		},
+	}, func(ctx android.RegistrationContext) {
+		ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
+	})
+}
+
+func TestJavaLibraryAidlFilegroup(t *testing.T) {
+	runJavaLibraryTestCaseWithRegistrationCtxFunc(t, Bp2buildTestCase{
+		Description:                "Java library - aidl filegroup is parsed",
+		ModuleTypeUnderTest:        "java_library",
+		ModuleTypeUnderTestFactory: java.LibraryFactory,
+		Blueprint: `
+filegroup {
+	name: "random_other_files",
+	srcs: [
+		"a.java",
+		"b.java",
+	],
+}
+filegroup {
+	name: "aidl_files",
+	srcs: [
+		"a.aidl",
+		"b.aidl",
+	],
+}
+java_library {
+        name: "example_lib",
+        srcs: [
+			"a.java",
+			"b.java",
+			":aidl_files",
+			":random_other_files",
+		],
+        bazel_module: { bp2build_available: true },
+}`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTargetNoRestrictions("aidl_library", "aidl_files", AttrNameToString{
+				"srcs": `[
+        "a.aidl",
+        "b.aidl",
+    ]`,
+			}),
+			makeBazelTarget("java_aidl_library", "example_lib_java_aidl_library", AttrNameToString{
+				"deps": `[":aidl_files"]`,
+			}),
+			makeBazelTarget("java_library", "example_lib", AttrNameToString{
+				"deps":    `[":example_lib_java_aidl_library"]`,
+				"exports": `[":example_lib_java_aidl_library"]`,
+				"srcs": `[
+        "a.java",
+        "b.java",
+        ":random_other_files",
+    ]`,
+			}),
+			MakeBazelTargetNoRestrictions("filegroup", "random_other_files", AttrNameToString{
+				"srcs": `[
+        "a.java",
+        "b.java",
+    ]`,
+			}),
+		},
+	}, func(ctx android.RegistrationContext) {
+		ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
+	})
+}
