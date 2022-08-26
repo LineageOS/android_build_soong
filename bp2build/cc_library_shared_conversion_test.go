@@ -485,12 +485,7 @@ cc_library_shared {
 		},
 		Blueprint: soongCcLibraryPreamble,
 		ExpectedBazelTargets: []string{makeBazelTarget("cc_library_shared", "a", AttrNameToString{
-			"stubs_symbol_file": `"a.map.txt"`,
-			"stubs_versions": `[
-        "28",
-        "29",
-        "current",
-    ]`,
+			"has_stubs": `True`,
 		}),
 		},
 	},
