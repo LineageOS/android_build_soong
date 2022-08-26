@@ -1301,10 +1301,10 @@ func makeCcLibraryTargets(name string, attrs AttrNameToString) []string {
 		"additional_linker_inputs": true,
 		"linkopts":                 true,
 		"strip":                    true,
-		"stubs_symbol_file":        true,
-		"stubs_versions":           true,
 		"inject_bssl_hash":         true,
+		"has_stubs":                true,
 	}
+
 	sharedAttrs := AttrNameToString{}
 	staticAttrs := AttrNameToString{}
 	for key, val := range attrs {
@@ -1319,6 +1319,26 @@ func makeCcLibraryTargets(name string, attrs AttrNameToString) []string {
 	staticTarget := makeBazelTarget("cc_library_static", name+"_bp2build_cc_library_static", staticAttrs)
 
 	return []string{staticTarget, sharedTarget}
+}
+
+func makeCcStubSuiteTargets(name string, attrs AttrNameToString) string {
+	if _, hasStubs := attrs["stubs_symbol_file"]; !hasStubs {
+		return ""
+	}
+	STUB_SUITE_ATTRS := map[string]string{
+		"stubs_symbol_file": "symbol_file",
+		"stubs_versions":    "versions",
+		"soname":            "soname",
+		"source_library":    "source_library",
+	}
+
+	stubSuiteAttrs := AttrNameToString{}
+	for key, _ := range attrs {
+		if _, stubSuiteAttr := STUB_SUITE_ATTRS[key]; stubSuiteAttr {
+			stubSuiteAttrs[STUB_SUITE_ATTRS[key]] = attrs[key]
+		}
+	}
+	return makeBazelTarget("cc_stub_suite", name+"_stub_libs", stubSuiteAttrs)
 }
 
 func TestCCLibraryNoLibCrtFalse(t *testing.T) {
@@ -2424,6 +2444,19 @@ func TestCcLibraryStaticDisabledForSomeArch(t *testing.T) {
 }
 
 func TestCcLibraryStubs(t *testing.T) {
+	expectedBazelTargets := makeCcLibraryTargets("a", AttrNameToString{
+		"has_stubs": `True`,
+	})
+	expectedBazelTargets = append(expectedBazelTargets, makeCcStubSuiteTargets("a", AttrNameToString{
+		"soname":            `"a.so"`,
+		"source_library":    `":a"`,
+		"stubs_symbol_file": `"a.map.txt"`,
+		"stubs_versions": `[
+        "28",
+        "29",
+        "current",
+    ]`,
+	}))
 	runCcLibraryTestCase(t, Bp2buildTestCase{
 		Description:                "cc_library stubs",
 		ModuleTypeUnderTest:        "cc_library",
@@ -2439,15 +2472,8 @@ cc_library {
 }
 `,
 		},
-		Blueprint: soongCcLibraryPreamble,
-		ExpectedBazelTargets: makeCcLibraryTargets("a", AttrNameToString{
-			"stubs_symbol_file": `"a.map.txt"`,
-			"stubs_versions": `[
-        "28",
-        "29",
-        "current",
-    ]`,
-		}),
+		Blueprint:            soongCcLibraryPreamble,
+		ExpectedBazelTargets: expectedBazelTargets,
 	},
 	)
 }
