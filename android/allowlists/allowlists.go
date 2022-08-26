@@ -137,6 +137,7 @@ var (
 		"external/libjpeg-turbo":                 Bp2BuildDefaultTrueRecursively,
 		"external/libmpeg2":                      Bp2BuildDefaultTrueRecursively,
 		"external/libpng":                        Bp2BuildDefaultTrueRecursively,
+		"external/libyuv":                        Bp2BuildDefaultTrueRecursively,
 		"external/lz4/lib":                       Bp2BuildDefaultTrue,
 		"external/lzma/C":                        Bp2BuildDefaultTrueRecursively,
 		"external/mdnsresponder":                 Bp2BuildDefaultTrueRecursively,
