@@ -16,7 +16,6 @@ package android
 
 import (
 	"android/soong/bazel"
-	"regexp"
 	"strings"
 
 	"github.com/google/blueprint"
@@ -25,14 +24,6 @@ import (
 
 const (
 	canonicalPathFromRootDefault = true
-)
-
-var (
-	// ignoring case, checks for proto or protos as an independent word in the name, whether at the
-	// beginning, end, or middle. e.g. "proto.foo", "bar-protos", "baz_proto_srcs" would all match
-	filegroupLikelyProtoPattern = regexp.MustCompile("(?i)(^|[^a-z])proto(s)?([^a-z]|$)")
-
-	ProtoSrcLabelPartition = bazel.LabelPartition{Extensions: []string{".proto"}, LabelMapper: isProtoFilegroup}
 )
 
 // TODO(ccross): protos are often used to communicate between multiple modules.  If the only
@@ -212,14 +203,4 @@ func Bp2buildProtoProperties(ctx Bp2buildMutatorContext, m *ModuleBase, srcs baz
 		&attrs)
 
 	return info, true
-}
-
-func isProtoFilegroup(ctx bazel.OtherModuleContext, label bazel.Label) (string, bool) {
-	m, exists := ctx.ModuleFromName(label.OriginalModuleName)
-	labelStr := label.Label
-	if !exists || !IsFilegroup(ctx, m) {
-		return labelStr, false
-	}
-	likelyProtos := filegroupLikelyProtoPattern.MatchString(label.OriginalModuleName)
-	return labelStr, likelyProtos
 }

@@ -119,12 +119,20 @@ func (ll *LabelList) uniqueParentDirectories() []string {
 	return dirs
 }
 
-// Add inserts the label Label at the end of the LabelList.
+// Add inserts the label Label at the end of the LabelList.Includes.
 func (ll *LabelList) Add(label *Label) {
 	if label == nil {
 		return
 	}
 	ll.Includes = append(ll.Includes, *label)
+}
+
+// AddExclude inserts the label Label at the end of the LabelList.Excludes.
+func (ll *LabelList) AddExclude(label *Label) {
+	if label == nil {
+		return
+	}
+	ll.Excludes = append(ll.Excludes, *label)
 }
 
 // Append appends the fields of other labelList to the corresponding fields of ll.
@@ -135,6 +143,30 @@ func (ll *LabelList) Append(other LabelList) {
 	if len(ll.Excludes) > 0 || len(other.Excludes) > 0 {
 		ll.Excludes = append(other.Excludes, other.Excludes...)
 	}
+}
+
+// Partition splits a LabelList into two LabelLists depending on the return value
+// of the predicate.
+// This function preserves the Includes and Excludes, but it does not provide
+// that information to the partition function.
+func (ll *LabelList) Partition(predicate func(label Label) bool) (LabelList, LabelList) {
+	predicated := LabelList{}
+	unpredicated := LabelList{}
+	for _, include := range ll.Includes {
+		if predicate(include) {
+			predicated.Add(&include)
+		} else {
+			unpredicated.Add(&include)
+		}
+	}
+	for _, exclude := range ll.Excludes {
+		if predicate(exclude) {
+			predicated.AddExclude(&exclude)
+		} else {
+			unpredicated.AddExclude(&exclude)
+		}
+	}
+	return predicated, unpredicated
 }
 
 // UniqueSortedBazelLabels takes a []Label and deduplicates the labels, and returns
@@ -332,7 +364,7 @@ func (la *LabelAttribute) SetSelectValue(axis ConfigurationAxis, config string, 
 	switch axis.configurationType {
 	case noConfig:
 		la.Value = &value
-	case arch, os, osArch, productVariables:
+	case arch, os, osArch, productVariables, osAndInApex:
 		if la.ConfigurableValues == nil {
 			la.ConfigurableValues = make(configurableLabels)
 		}
@@ -348,7 +380,7 @@ func (la *LabelAttribute) SelectValue(axis ConfigurationAxis, config string) *La
 	switch axis.configurationType {
 	case noConfig:
 		return la.Value
-	case arch, os, osArch, productVariables:
+	case arch, os, osArch, productVariables, osAndInApex:
 		return la.ConfigurableValues[axis][config]
 	default:
 		panic(fmt.Errorf("Unrecognized ConfigurationAxis %s", axis))
@@ -424,7 +456,7 @@ func (ba *BoolAttribute) SetSelectValue(axis ConfigurationAxis, config string, v
 	switch axis.configurationType {
 	case noConfig:
 		ba.Value = value
-	case arch, os, osArch, productVariables:
+	case arch, os, osArch, productVariables, osAndInApex:
 		if ba.ConfigurableValues == nil {
 			ba.ConfigurableValues = make(configurableBools)
 		}
@@ -540,7 +572,7 @@ func (ba BoolAttribute) SelectValue(axis ConfigurationAxis, config string) *bool
 	switch axis.configurationType {
 	case noConfig:
 		return ba.Value
-	case arch, os, osArch, productVariables:
+	case arch, os, osArch, productVariables, osAndInApex:
 		if v, ok := ba.ConfigurableValues[axis][config]; ok {
 			return &v
 		} else {
@@ -676,7 +708,7 @@ func (lla *LabelListAttribute) SetSelectValue(axis ConfigurationAxis, config str
 	switch axis.configurationType {
 	case noConfig:
 		lla.Value = list
-	case arch, os, osArch, productVariables:
+	case arch, os, osArch, productVariables, osAndInApex:
 		if lla.ConfigurableValues == nil {
 			lla.ConfigurableValues = make(configurableLabelLists)
 		}
@@ -692,8 +724,8 @@ func (lla *LabelListAttribute) SelectValue(axis ConfigurationAxis, config string
 	switch axis.configurationType {
 	case noConfig:
 		return lla.Value
-	case arch, os, osArch, productVariables:
-		return lla.ConfigurableValues[axis][config]
+	case arch, os, osArch, productVariables, osAndInApex:
+		return (lla.ConfigurableValues[axis][config])
 	default:
 		panic(fmt.Errorf("Unrecognized ConfigurationAxis %s", axis))
 	}
@@ -820,6 +852,29 @@ func (lla *LabelListAttribute) ResolveExcludes() {
 			delete(lla.ConfigurableValues, axis)
 		}
 	}
+}
+
+// Partition splits a LabelListAttribute into two LabelListAttributes depending
+// on the return value of the predicate.
+// This function preserves the Includes and Excludes, but it does not provide
+// that information to the partition function.
+func (lla LabelListAttribute) Partition(predicate func(label Label) bool) (LabelListAttribute, LabelListAttribute) {
+	predicated := LabelListAttribute{}
+	unpredicated := LabelListAttribute{}
+
+	valuePartitionTrue, valuePartitionFalse := lla.Value.Partition(predicate)
+	predicated.SetValue(valuePartitionTrue)
+	unpredicated.SetValue(valuePartitionFalse)
+
+	for axis, selectValueLabelLists := range lla.ConfigurableValues {
+		for config, labelList := range selectValueLabelLists {
+			configPredicated, configUnpredicated := labelList.Partition(predicate)
+			predicated.SetSelectValue(axis, config, configPredicated)
+			unpredicated.SetSelectValue(axis, config, configUnpredicated)
+		}
+	}
+
+	return predicated, unpredicated
 }
 
 // OtherModuleContext is a limited context that has methods with information about other modules.
@@ -1189,7 +1244,7 @@ func (sla *StringListAttribute) SetSelectValue(axis ConfigurationAxis, config st
 	switch axis.configurationType {
 	case noConfig:
 		sla.Value = list
-	case arch, os, osArch, productVariables:
+	case arch, os, osArch, productVariables, osAndInApex:
 		if sla.ConfigurableValues == nil {
 			sla.ConfigurableValues = make(configurableStringLists)
 		}
@@ -1205,7 +1260,7 @@ func (sla *StringListAttribute) SelectValue(axis ConfigurationAxis, config strin
 	switch axis.configurationType {
 	case noConfig:
 		return sla.Value
-	case arch, os, osArch, productVariables:
+	case arch, os, osArch, productVariables, osAndInApex:
 		return sla.ConfigurableValues[axis][config]
 	default:
 		panic(fmt.Errorf("Unrecognized ConfigurationAxis %s", axis))

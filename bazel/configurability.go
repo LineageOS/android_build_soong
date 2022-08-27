@@ -27,7 +27,7 @@ const (
 	archX86_64 = "x86_64"
 
 	// OsType names in arch.go
-	osAndroid     = "android"
+	OsAndroid     = "android"
 	osDarwin      = "darwin"
 	osLinux       = "linux_glibc"
 	osLinuxMusl   = "linux_musl"
@@ -64,6 +64,9 @@ const (
 	ConditionsDefaultSelectKey = "//conditions:default"
 
 	productVariableBazelPackage = "//build/bazel/product_variables"
+
+	AndroidAndInApex  = "android-in_apex"
+	AndroidAndNonApex = "android-non_apex"
 )
 
 var (
@@ -85,7 +88,7 @@ var (
 	// A map of target operating systems to the Bazel label of the
 	// constraint_value for the @platforms//os:os constraint_setting
 	platformOsMap = map[string]string{
-		osAndroid:                  "//build/bazel/platforms/os:android",
+		OsAndroid:                  "//build/bazel/platforms/os:android",
 		osDarwin:                   "//build/bazel/platforms/os:darwin",
 		osLinux:                    "//build/bazel/platforms/os:linux",
 		osLinuxMusl:                "//build/bazel/platforms/os:linux_musl",
@@ -120,13 +123,19 @@ var (
 	// TODO(cparsons): Source from arch.go; this task is nontrivial, as it currently results
 	// in a cyclic dependency.
 	osToArchMap = map[string][]string{
-		osAndroid:     {archArm, archArm64, archX86, archX86_64},
+		OsAndroid:     {archArm, archArm64, archX86, archX86_64},
 		osLinux:       {archX86, archX86_64},
 		osLinuxMusl:   {archX86, archX86_64},
 		osDarwin:      {archArm64, archX86_64},
 		osLinuxBionic: {archArm64, archX86_64},
 		// TODO(cparsons): According to arch.go, this should contain archArm, archArm64, as well.
 		osWindows: {archX86, archX86_64},
+	}
+
+	osAndInApexMap = map[string]string{
+		AndroidAndInApex:           "//build/bazel/rules/apex:android-in_apex",
+		AndroidAndNonApex:          "//build/bazel/rules/apex:android-non_apex",
+		ConditionsDefaultConfigKey: ConditionsDefaultSelectKey,
 	}
 )
 
@@ -139,6 +148,7 @@ const (
 	os
 	osArch
 	productVariables
+	osAndInApex
 )
 
 func osArchString(os string, arch string) string {
@@ -152,6 +162,7 @@ func (ct configurationType) String() string {
 		os:               "os",
 		osArch:           "arch_os",
 		productVariables: "product_variables",
+		osAndInApex:      "os_in_apex",
 	}[ct]
 }
 
@@ -175,6 +186,10 @@ func (ct configurationType) validateConfig(config string) {
 		}
 	case productVariables:
 		// do nothing
+	case osAndInApex:
+		if _, ok := osAndInApexMap[config]; !ok {
+			panic(fmt.Errorf("Unknown os+in_apex config: %s", config))
+		}
 	default:
 		panic(fmt.Errorf("Unrecognized ConfigurationType %d", ct))
 	}
@@ -198,6 +213,8 @@ func (ca ConfigurationAxis) SelectKey(config string) string {
 			return ConditionsDefaultSelectKey
 		}
 		return fmt.Sprintf("%s:%s", productVariableBazelPackage, config)
+	case osAndInApex:
+		return osAndInApexMap[config]
 	default:
 		panic(fmt.Errorf("Unrecognized ConfigurationType %d", ca.configurationType))
 	}
@@ -212,6 +229,8 @@ var (
 	OsConfigurationAxis = ConfigurationAxis{configurationType: os}
 	// An axis for arch+os-specific configurations
 	OsArchConfigurationAxis = ConfigurationAxis{configurationType: osArch}
+	// An axis for os+in_apex-specific configurations
+	OsAndInApexAxis = ConfigurationAxis{configurationType: osAndInApex}
 )
 
 // ProductVariableConfigurationAxis returns an axis for the given product variable

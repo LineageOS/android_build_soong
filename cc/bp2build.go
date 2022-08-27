@@ -282,6 +282,8 @@ type baseAttributes struct {
 	compilerAttributes
 	linkerAttributes
 
+	// A combination of compilerAttributes.features and linkerAttributes.features
+	features        bazel.StringListAttribute
 	protoDependency *bazel.LabelAttribute
 }
 
@@ -323,6 +325,8 @@ type compilerAttributes struct {
 
 	stubsSymbolFile *string
 	stubsVersions   bazel.StringListAttribute
+
+	features bazel.StringListAttribute
 }
 
 type filterOutFn func(string) bool
@@ -385,6 +389,13 @@ func (ca *compilerAttributes) bp2buildForAxisAndConfig(ctx android.BazelConversi
 
 	ca.absoluteIncludes.SetSelectValue(axis, config, props.Include_dirs)
 	ca.localIncludes.SetSelectValue(axis, config, localIncludeDirs)
+
+	instructionSet := proptools.StringDefault(props.Instruction_set, "")
+	if instructionSet == "arm" {
+		ca.features.SetSelectValue(axis, config, []string{"arm_isa_arm", "-arm_isa_thumb"})
+	} else if instructionSet != "" && instructionSet != "thumb" {
+		ctx.ModuleErrorf("Unknown value for instruction_set: %s", instructionSet)
+	}
 
 	// In Soong, cflags occur on the command line before -std=<val> flag, resulting in the value being
 	// overridden. In Bazel we always allow overriding, via flags; however, this can cause
@@ -686,9 +697,13 @@ func bp2BuildParseBaseProps(ctx android.Bp2buildMutatorContext, module *Module) 
 	(&compilerAttrs).srcs.Add(&convertedLSrcs.srcName)
 	(&compilerAttrs).cSrcs.Add(&convertedLSrcs.cSrcName)
 
+	features := compilerAttrs.features.Clone().Append(linkerAttrs.features)
+	features.DeduplicateAxesFromBase()
+
 	return baseAttributes{
 		compilerAttrs,
 		linkerAttrs,
+		*features,
 		protoDep.protoDep,
 	}
 }
@@ -779,6 +794,45 @@ func (la *linkerAttributes) bp2buildForAxisAndConfig(ctx android.BazelConversion
 	sharedDeps := maybePartitionExportedAndImplementationsDepsExcludes(ctx, !isBinary, sharedLibs, props.Exclude_shared_libs, props.Export_shared_lib_headers, bazelLabelForSharedDepsExcludes)
 	la.dynamicDeps.SetSelectValue(axis, config, sharedDeps.export)
 	la.implementationDynamicDeps.SetSelectValue(axis, config, sharedDeps.implementation)
+	if axis == bazel.NoConfigAxis || (axis == bazel.OsConfigurationAxis && config == bazel.OsAndroid) {
+		// If a dependency in la.implementationDynamicDeps has stubs, its stub variant should be
+		// used when the dependency is linked in a APEX. The dependencies in NoConfigAxis and
+		// OsConfigurationAxis/OsAndroid are grouped by having stubs or not, so Bazel select()
+		// statement can be used to choose source/stub variants of them.
+		depsWithStubs := []bazel.Label{}
+		for _, l := range sharedDeps.implementation.Includes {
+			dep, _ := ctx.ModuleFromName(l.OriginalModuleName)
+			if m, ok := dep.(*Module); ok && m.HasStubsVariants() {
+				depsWithStubs = append(depsWithStubs, l)
+			}
+		}
+		if len(depsWithStubs) > 0 {
+			implDynamicDeps := bazel.SubtractBazelLabelList(sharedDeps.implementation, bazel.MakeLabelList(depsWithStubs))
+			la.implementationDynamicDeps.SetSelectValue(axis, config, implDynamicDeps)
+
+			stubLibLabels := []bazel.Label{}
+			for _, l := range depsWithStubs {
+				l.Label = l.Label + "_stub_libs_current"
+				stubLibLabels = append(stubLibLabels, l)
+			}
+			inApexSelectValue := la.implementationDynamicDeps.SelectValue(bazel.OsAndInApexAxis, bazel.AndroidAndInApex)
+			nonApexSelectValue := la.implementationDynamicDeps.SelectValue(bazel.OsAndInApexAxis, bazel.AndroidAndNonApex)
+			defaultSelectValue := la.implementationDynamicDeps.SelectValue(bazel.OsAndInApexAxis, bazel.ConditionsDefaultConfigKey)
+			if axis == bazel.NoConfigAxis {
+				(&inApexSelectValue).Append(bazel.MakeLabelList(stubLibLabels))
+				(&nonApexSelectValue).Append(bazel.MakeLabelList(depsWithStubs))
+				(&defaultSelectValue).Append(bazel.MakeLabelList(depsWithStubs))
+				la.implementationDynamicDeps.SetSelectValue(bazel.OsAndInApexAxis, bazel.AndroidAndInApex, inApexSelectValue)
+				la.implementationDynamicDeps.SetSelectValue(bazel.OsAndInApexAxis, bazel.AndroidAndNonApex, nonApexSelectValue)
+				la.implementationDynamicDeps.SetSelectValue(bazel.OsAndInApexAxis, bazel.ConditionsDefaultConfigKey, defaultSelectValue)
+			} else if config == bazel.OsAndroid {
+				(&inApexSelectValue).Append(bazel.MakeLabelList(stubLibLabels))
+				(&nonApexSelectValue).Append(bazel.MakeLabelList(depsWithStubs))
+				la.implementationDynamicDeps.SetSelectValue(bazel.OsAndInApexAxis, bazel.AndroidAndInApex, inApexSelectValue)
+				la.implementationDynamicDeps.SetSelectValue(bazel.OsAndInApexAxis, bazel.AndroidAndNonApex, nonApexSelectValue)
+			}
+		}
+	}
 
 	if !BoolDefault(props.Pack_relocations, packRelocationsDefault) {
 		axisFeatures = append(axisFeatures, "disable_pack_relocations")
