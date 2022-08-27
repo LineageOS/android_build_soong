@@ -46,6 +46,7 @@ var (
 		"bionic":                                Bp2BuildDefaultTrueRecursively,
 		"bootable/recovery/tools/recovery_l10n": Bp2BuildDefaultTrue,
 
+		"build/bazel/examples/aidl":                   Bp2BuildDefaultTrueRecursively,
 		"build/bazel/examples/apex/minimal":           Bp2BuildDefaultTrueRecursively,
 		"build/bazel/examples/soong_config_variables": Bp2BuildDefaultTrueRecursively,
 		"build/bazel/examples/python":                 Bp2BuildDefaultTrueRecursively,
@@ -157,6 +158,7 @@ var (
 		"frameworks/av/media/liberror":                       Bp2BuildDefaultTrueRecursively,
 		"frameworks/av/services/minijail":                    Bp2BuildDefaultTrueRecursively,
 		"frameworks/base/media/tests/MediaDump":              Bp2BuildDefaultTrue,
+		"frameworks/base/services/tests/servicestests/aidl":  Bp2BuildDefaultTrue,
 		"frameworks/base/startop/apps/test":                  Bp2BuildDefaultTrue,
 		"frameworks/base/tests/appwidgets/AppWidgetHostTest": Bp2BuildDefaultTrueRecursively,
 		"frameworks/native/libs/adbd_auth":                   Bp2BuildDefaultTrueRecursively,
@@ -408,6 +410,7 @@ var (
 		"linker_config",
 		"java_import",
 		"java_import_host",
+		"aidl_interface_headers",
 	}
 
 	Bp2buildModuleDoNotConvertList = []string{
@@ -524,6 +527,24 @@ var (
 
 		// '//bionic/libc:libc_bp2build_cc_library_static' is duplicated in the 'deps' attribute of rule
 		"toybox-static",
+
+		// Do not convert the following modules because of duplicate labels checking in Bazel.
+		// See b/241283350. They should be removed from this list once the bug is fixed.
+		"libartpalette",
+		"libartbase",
+		"libdexfile",
+		"libartbased",
+		"libdexfile_static",
+		"libartbase-testing",
+		"libartbased-testing",
+		"libdexfile_support",
+		"libunwindstack",
+		"libunwindstack_local",
+		"libfdtrack",
+		"libc_malloc_debug",
+		"libutilscallstack",
+		"libunwindstack_utils",
+		"unwind_for_offline",
 	}
 
 	Bp2buildCcLibraryStaticOnlyList = []string{}
