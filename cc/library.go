@@ -270,6 +270,15 @@ type bazelCcLibraryAttributes struct {
 	Features bazel.StringListAttribute
 }
 
+type aidlLibraryAttributes struct {
+	Srcs        bazel.LabelListAttribute
+	Include_dir *string
+}
+
+type ccAidlLibraryAttributes struct {
+	Deps bazel.LabelListAttribute
+}
+
 type stripAttributes struct {
 	Keep_symbols                 bazel.BoolAttribute
 	Keep_symbols_and_debug_frame bazel.BoolAttribute
