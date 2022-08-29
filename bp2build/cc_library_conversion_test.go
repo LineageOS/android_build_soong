@@ -2789,12 +2789,13 @@ cc_library {
     ]`,
 			}),
 			MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
-				"whole_archive_deps": `[":foo_cc_aidl_library"]`,
-				"local_includes":     `["."]`,
+				"implementation_whole_archive_deps": `[":foo_cc_aidl_library"]`,
+				"local_includes":                    `["."]`,
 			}),
+			// TODO(b/239311679) Add implementation_whole_archive_deps to cc_library_shared
+			// for bp2build to be fully correct. This fallback is affecting proto as well.
 			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
-				"whole_archive_deps": `[":foo_cc_aidl_library"]`,
-				"local_includes":     `["."]`,
+				"local_includes": `["."]`,
 			}),
 		},
 	})
@@ -2808,21 +2809,56 @@ func TestCcLibraryWithNonAdjacentAidlFilegroup(t *testing.T) {
 		Filesystem: map[string]string{
 			"path/to/A/Android.bp": `
 filegroup {
-	name: "A_aidl",
-	srcs: ["aidl/A.aidl"],
-	path: "aidl",
+    name: "A_aidl",
+    srcs: ["aidl/A.aidl"],
+    path: "aidl",
 }`,
 		},
 		Blueprint: `
 cc_library {
-	name: "foo",
-	srcs: [
-		":A_aidl",
-	],
+    name: "foo",
+    srcs: [
+        ":A_aidl",
+    ],
 }`,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_aidl_library", "foo_cc_aidl_library", AttrNameToString{
 				"deps": `["//path/to/A:A_aidl"]`,
+			}),
+			MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
+				"implementation_whole_archive_deps": `[":foo_cc_aidl_library"]`,
+				"local_includes":                    `["."]`,
+			}),
+			// TODO(b/239311679) Add implementation_whole_archive_deps to cc_library_shared
+			// for bp2build to be fully correct. This fallback is affecting proto as well.
+			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+				"local_includes": `["."]`,
+			}),
+		},
+	})
+}
+
+func TestCcLibraryWithExportAidlHeaders(t *testing.T) {
+	runCcLibraryTestCase(t, Bp2buildTestCase{
+		Description:                "cc_library with export aidl headers",
+		ModuleTypeUnderTest:        "cc_library",
+		ModuleTypeUnderTestFactory: cc.LibraryFactory,
+		Blueprint: `
+cc_library {
+    name: "foo",
+    srcs: [
+        "Foo.aidl",
+    ],
+    aidl: {
+        export_aidl_headers: true,
+    }
+}`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("aidl_library", "foo_aidl_library", AttrNameToString{
+				"srcs": `["Foo.aidl"]`,
+			}),
+			MakeBazelTarget("cc_aidl_library", "foo_cc_aidl_library", AttrNameToString{
+				"deps": `[":foo_aidl_library"]`,
 			}),
 			MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
 				"whole_archive_deps": `[":foo_cc_aidl_library"]`,
