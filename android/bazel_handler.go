@@ -343,7 +343,30 @@ func (m noopBazelContext) AqueryDepsets() []bazel.AqueryDepset {
 }
 
 func NewBazelContext(c *config) (BazelContext, error) {
-	if !c.IsMixedBuildsEnabled() {
+	var modulesDefaultToBazel bool
+	disabledModules := map[string]bool{}
+	enabledModules := map[string]bool{}
+
+	switch c.BuildMode {
+	case BazelProdMode:
+		modulesDefaultToBazel = false
+
+		for _, enabledProdModule := range allowlists.ProdMixedBuildsEnabledList {
+			enabledModules[enabledProdModule] = true
+		}
+	case BazelDevMode:
+		modulesDefaultToBazel = true
+
+		// Don't use partially-converted cc_library targets in mixed builds,
+		// since mixed builds would generally rely on both static and shared
+		// variants of a cc_library.
+		for staticOnlyModule, _ := range GetBp2BuildAllowList().ccLibraryStaticOnly {
+			disabledModules[staticOnlyModule] = true
+		}
+		for _, disabledDevModule := range allowlists.MixedBuildsDisabledList {
+			disabledModules[disabledDevModule] = true
+		}
+	default:
 		return noopBazelContext{}, nil
 	}
 
@@ -352,24 +375,12 @@ func NewBazelContext(c *config) (BazelContext, error) {
 		return nil, err
 	}
 
-	// TODO(cparsons): Use a different allowlist depending on prod vs. dev
-	// bazel mode.
-	disabledModules := map[string]bool{}
-	// Don't use partially-converted cc_library targets in mixed builds,
-	// since mixed builds would generally rely on both static and shared
-	// variants of a cc_library.
-	for staticOnlyModule, _ := range GetBp2BuildAllowList().ccLibraryStaticOnly {
-		disabledModules[staticOnlyModule] = true
-	}
-	for _, disabledDevModule := range allowlists.MixedBuildsDisabledList {
-		disabledModules[disabledDevModule] = true
-	}
-
 	return &bazelContext{
 		bazelRunner:           &builtinBazelRunner{},
 		paths:                 p,
 		requests:              make(map[cqueryKey]bool),
-		modulesDefaultToBazel: true,
+		modulesDefaultToBazel: modulesDefaultToBazel,
+		bazelEnabledModules:   enabledModules,
 		bazelDisabledModules:  disabledModules,
 	}, nil
 }
