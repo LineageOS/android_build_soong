@@ -18,7 +18,6 @@ bootstrap_go_package {
         "testing.go",
     ],
     deps: [
-        "aidl-soong-rules",
         "soong-android",
         "soong-android-allowlists",
         "soong-android-soongconfig",
@@ -37,7 +36,6 @@ bootstrap_go_package {
     ],
     testSrcs: [
         "aar_conversion_test.go",
-        "aidl_interface_conversion_test.go",
         "android_app_certificate_conversion_test.go",
         "android_app_conversion_test.go",
         "apex_conversion_test.go",
