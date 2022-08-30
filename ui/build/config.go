@@ -99,7 +99,10 @@ type configImpl struct {
 
 	pathReplaced bool
 
-	useBazel bool
+	// TODO(b/243077098): Remove useBazel.
+	useBazel      bool
+	bazelProdMode bool
+	bazelDevMode  bool
 
 	// During Bazel execution, Bazel cannot write outside OUT_DIR.
 	// So if DIST_DIR is set to an external dir (outside of OUT_DIR), we need to rig it temporarily and then migrate files at the end of the build.
@@ -128,18 +131,6 @@ const (
 
 	// Build a list of specified modules. If none was specified, simply build the whole source tree.
 	BUILD_MODULES
-)
-
-type bazelBuildMode int
-
-// Bazel-related build modes.
-const (
-	// Don't use bazel at all.
-	noBazel bazelBuildMode = iota
-
-	// Generate synthetic build files and incorporate these files into a build which
-	// partially uses Bazel. Build metadata may come from Android.bp or BUILD files.
-	mixedBuild
 )
 
 // checkTopDir validates that the current directory is at the root directory of the source tree.
@@ -496,7 +487,7 @@ func buildConfig(config Config) *smpb.BuildConfig {
 		UseGoma:         proto.Bool(config.UseGoma()),
 		UseRbe:          proto.Bool(config.UseRBE()),
 		BazelAsNinja:    proto.Bool(config.UseBazel()),
-		BazelMixedBuild: proto.Bool(config.bazelBuildMode() == mixedBuild),
+		BazelMixedBuild: proto.Bool(config.BazelBuildEnabled()),
 	}
 	c.Targets = append(c.Targets, config.arguments...)
 
@@ -747,6 +738,10 @@ func (c *configImpl) parseArgs(ctx Context, args []string) {
 			c.skipSoongTests = true
 		} else if arg == "--mk-metrics" {
 			c.reportMkMetrics = true
+		} else if arg == "--bazel-mode" {
+			c.bazelProdMode = true
+		} else if arg == "--bazel-mode-dev" {
+			c.bazelDevMode = true
 		} else if len(arg) > 0 && arg[0] == '-' {
 			parseArgNum := func(def int) int {
 				if len(arg) > 2 {
@@ -1134,16 +1129,13 @@ func (c *configImpl) UseRBE() bool {
 	return false
 }
 
+// TODO(b/243077098): Remove UseBazel.
 func (c *configImpl) UseBazel() bool {
 	return c.useBazel
 }
 
-func (c *configImpl) bazelBuildMode() bazelBuildMode {
-	if c.Environment().IsEnvTrue("USE_BAZEL_ANALYSIS") {
-		return mixedBuild
-	} else {
-		return noBazel
-	}
+func (c *configImpl) BazelBuildEnabled() bool {
+	return c.bazelProdMode || c.bazelDevMode
 }
 
 func (c *configImpl) StartRBE() bool {
