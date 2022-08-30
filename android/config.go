@@ -1619,6 +1619,10 @@ func (c *deviceConfig) ShippingApiLevel() ApiLevel {
 	return uncheckedFinalApiLevel(apiLevel)
 }
 
+func (c *deviceConfig) BuildBrokenClangProperty() bool {
+	return c.config.productVariables.BuildBrokenClangProperty
+}
+
 func (c *deviceConfig) BuildBrokenEnforceSyspropOwner() bool {
 	return c.config.productVariables.BuildBrokenEnforceSyspropOwner
 }
