@@ -110,6 +110,24 @@ const (
 	RunAllWithBazel = RunProductConfig | RunSoong | RunKati | RunKatiNinja | RunBazel
 )
 
+// checkBazelMode fails the build if there are conflicting arguments for which bazel
+// build mode to use.
+func checkBazelMode(ctx Context, config Config) {
+	// TODO(cparsons): Remove USE_BAZEL_ANALYSIS handling.
+	if config.Environment().IsEnvTrue("USE_BAZEL_ANALYSIS") {
+		if config.bazelProdMode || config.bazelDevMode {
+			ctx.Fatalf("USE_BAZEL_ANALYSIS is deprecated.\n" +
+				"Unset USE_BAZEL_ANALYSIS when using --bazel-mode or --bazel-mode-dev.")
+		} else {
+			config.bazelDevMode = true
+		}
+	}
+	if config.bazelProdMode && config.bazelDevMode {
+		ctx.Fatalf("Conflicting bazel mode.\n" +
+			"Do not specify both --bazel-mode and --bazel-mode-dev")
+	}
+}
+
 // checkProblematicFiles fails the build if existing Android.mk or CleanSpec.mk files are found at the root of the tree.
 func checkProblematicFiles(ctx Context) {
 	files := []string{"Android.mk", "CleanSpec.mk"}
@@ -220,6 +238,8 @@ func Build(ctx Context, config Config) {
 	}
 
 	defer waitForDist(ctx)
+
+	checkBazelMode(ctx, config)
 
 	// checkProblematicFiles aborts the build if Android.mk or CleanSpec.mk are found at the root of the tree.
 	checkProblematicFiles(ctx)
