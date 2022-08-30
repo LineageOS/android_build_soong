@@ -33,6 +33,10 @@ OUTPUT_DIR="$(mktemp -d)"
 SOONG_OUTPUT_DIR="$OUTPUT_DIR/soong"
 BAZEL_OUTPUT_DIR="$OUTPUT_DIR/bazel"
 
+function call_bazel() {
+  tools/bazel --output_base="$BAZEL_OUTPUT_DIR" $@
+}
+
 function cleanup {
   # call bazel clean because some bazel outputs don't have w bits.
   call_bazel clean
@@ -54,9 +58,6 @@ packages/modules/common/build/build_unbundled_mainline_module.sh \
 ######################
 build/soong/soong_ui.bash --make-mode BP2BUILD_VERBOSE=1 --skip-soong-tests bp2build
 
-function call_bazel() {
-  tools/bazel --output_base="$BAZEL_OUTPUT_DIR" $@
-}
 BAZEL_OUT="$(call_bazel info output_path)"
 
 call_bazel build --config=bp2build --config=ci --config=android_arm \
