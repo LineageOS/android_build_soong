@@ -46,7 +46,6 @@ var (
 		"bionic":                                Bp2BuildDefaultTrueRecursively,
 		"bootable/recovery/tools/recovery_l10n": Bp2BuildDefaultTrue,
 
-		"build/bazel/examples/aidl":                   Bp2BuildDefaultTrueRecursively,
 		"build/bazel/examples/apex/minimal":           Bp2BuildDefaultTrueRecursively,
 		"build/bazel/examples/soong_config_variables": Bp2BuildDefaultTrueRecursively,
 		"build/bazel/examples/python":                 Bp2BuildDefaultTrueRecursively,
