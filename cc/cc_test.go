@@ -4336,3 +4336,53 @@ func TestIncludeDirectoryOrdering(t *testing.T) {
 	}
 
 }
+
+func TestCcBuildBrokenClangProperty(t *testing.T) {
+	tests := []struct {
+		name                     string
+		clang                    bool
+		BuildBrokenClangProperty bool
+		err                      string
+	}{
+		{
+			name:  "error when clang is set to false",
+			clang: false,
+			err:   "is no longer supported",
+		},
+		{
+			name:  "error when clang is set to true",
+			clang: true,
+			err:   "property is deprecated, see Changes.md",
+		},
+		{
+			name:                     "no error when BuildBrokenClangProperty is explicitly set to true",
+			clang:                    true,
+			BuildBrokenClangProperty: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			bp := fmt.Sprintf(`
+			cc_library {
+			   name: "foo",
+			   clang: %t,
+			}`, test.clang)
+
+			if test.err == "" {
+				android.GroupFixturePreparers(
+					prepareForCcTest,
+					android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+						if test.BuildBrokenClangProperty {
+							variables.BuildBrokenClangProperty = test.BuildBrokenClangProperty
+						}
+					}),
+				).RunTestWithBp(t, bp)
+			} else {
+				prepareForCcTest.
+					ExtendWithErrorHandler(android.FixtureExpectsOneErrorPattern(test.err)).
+					RunTestWithBp(t, bp)
+			}
+		})
+	}
+}
