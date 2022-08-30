@@ -219,16 +219,16 @@ type bp2BuildConversionAllowlist struct {
 	// in the synthetic Bazel workspace.
 	keepExistingBuildFile map[string]bool
 
-	// Per-module allowlist to always opt modules in of both bp2build and mixed builds.
-	// These modules are usually in directories with many other modules that are not ready for
-	// conversion.
+	// Per-module allowlist to always opt modules into both bp2build and Bazel Dev Mode mixed
+	// builds. These modules are usually in directories with many other modules that are not ready
+	// for conversion.
 	//
 	// A module can either be in this list or its directory allowlisted entirely
 	// in bp2buildDefaultConfig, but not both at the same time.
 	moduleAlwaysConvert map[string]bool
 
-	// Per-module-type allowlist to always opt modules in to both bp2build and mixed builds
-	// when they have the same type as one listed.
+	// Per-module-type allowlist to always opt modules in to both bp2build and
+	// Bazel Dev Mode mixed builds when they have the same type as one listed.
 	moduleTypeAlwaysConvert map[string]bool
 
 	// Per-module denylist to always opt modules out of bp2build conversion.
