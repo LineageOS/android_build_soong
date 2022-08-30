@@ -138,6 +138,7 @@ var (
 		"external/libjpeg-turbo":                 Bp2BuildDefaultTrueRecursively,
 		"external/libmpeg2":                      Bp2BuildDefaultTrueRecursively,
 		"external/libpng":                        Bp2BuildDefaultTrueRecursively,
+		"external/libyuv":                        Bp2BuildDefaultTrueRecursively,
 		"external/lz4/lib":                       Bp2BuildDefaultTrue,
 		"external/lzma/C":                        Bp2BuildDefaultTrueRecursively,
 		"external/mdnsresponder":                 Bp2BuildDefaultTrueRecursively,
@@ -149,6 +150,7 @@ var (
 		"external/scudo":                         Bp2BuildDefaultTrueRecursively,
 		"external/selinux/libselinux":            Bp2BuildDefaultTrueRecursively,
 		"external/selinux/libsepol":              Bp2BuildDefaultTrueRecursively,
+		"external/speex":                         Bp2BuildDefaultTrueRecursively,
 		"external/toybox":                        Bp2BuildDefaultTrueRecursively,
 		"external/zlib":                          Bp2BuildDefaultTrueRecursively,
 		"external/zopfli":                        Bp2BuildDefaultTrueRecursively,
@@ -227,6 +229,7 @@ var (
 		"system/libziparchive":                                   Bp2BuildDefaultTrueRecursively,
 		"system/logging/liblog":                                  Bp2BuildDefaultTrueRecursively,
 		"system/media/audio":                                     Bp2BuildDefaultTrueRecursively,
+		"system/media/audio_utils":                               Bp2BuildDefaultTrueRecursively,
 		"system/memory/libion":                                   Bp2BuildDefaultTrueRecursively,
 		"system/memory/libmemunreachable":                        Bp2BuildDefaultTrueRecursively,
 		"system/sepolicy/apex":                                   Bp2BuildDefaultTrueRecursively,
@@ -309,7 +312,6 @@ var (
 		"libandroid_runtime_lazy",
 		"libandroid_runtime_vm_headers",
 		"libaudioclient_aidl_conversion_util",
-		"libaudioutils_fixedfft",
 		"libbinder",
 		"libbinder_device_interface_sources",
 		"libbinder_aidl",
@@ -425,7 +427,6 @@ var (
 		"linker",                 // TODO(b/228316882): cc_binary uses link_crt
 		"libdebuggerd",           // TODO(b/228314770): support product variable-specific header_libs
 		"versioner",              // TODO(b/228313961):  depends on prebuilt shared library libclang-cpp_host as a shared library, which does not supply expected providers for a shared library
-		"libspeexresampler",      // TODO(b/231995978): Filter out unknown cflags
 		"libvpx",                 // TODO(b/240756936): Arm neon variant not supported
 		"art_libartbase_headers", // TODO(b/236268577): Header libraries do not support export_shared_libs_headers
 		"apexer_test",            // Requires aapt2
