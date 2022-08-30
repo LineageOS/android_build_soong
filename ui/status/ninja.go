@@ -35,8 +35,7 @@ import (
 func NewNinjaReader(ctx logger.Logger, status ToolStatus, fifo string) *NinjaReader {
 	os.Remove(fifo)
 
-	err := syscall.Mkfifo(fifo, 0666)
-	if err != nil {
+	if err := syscall.Mkfifo(fifo, 0666); err != nil {
 		ctx.Fatalf("Failed to mkfifo(%q): %v", fifo, err)
 	}
 
