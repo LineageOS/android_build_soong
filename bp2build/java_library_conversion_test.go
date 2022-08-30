@@ -501,3 +501,36 @@ java_library {
 		ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
 	})
 }
+
+func TestJavaLibraryAidlNonAdjacentAidlFilegroup(t *testing.T) {
+	runJavaLibraryTestCaseWithRegistrationCtxFunc(t, Bp2buildTestCase{
+		Description:                "java_library with non adjacent aidl filegroup",
+		ModuleTypeUnderTest:        "java_library",
+		ModuleTypeUnderTestFactory: java.LibraryFactory,
+		Filesystem: map[string]string{
+			"path/to/A/Android.bp": `
+filegroup {
+	name: "A_aidl",
+	srcs: ["aidl/A.aidl"],
+	path: "aidl",
+}`,
+		},
+		Blueprint: `
+java_library {
+	name: "foo",
+	srcs: [
+		":A_aidl",
+	],
+}`,
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("java_aidl_library", "foo_java_aidl_library", AttrNameToString{
+				"deps": `["//path/to/A:A_aidl"]`,
+			}),
+			makeBazelTarget("java_library", "foo", AttrNameToString{
+				"exports": `[":foo_java_aidl_library"]`,
+			}),
+		},
+	}, func(ctx android.RegistrationContext) {
+		ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
+	})
+}
