@@ -1600,13 +1600,48 @@ func (library *libraryDecorator) coverageOutputFilePath() android.OptionalPath {
 	return library.coverageOutputFile
 }
 
+// pathForVndkRefAbiDump returns an OptionalPath representing the path of the
+// reference abi dump for the given module. This is not guaranteed to be valid.
+func pathForVndkRefAbiDump(ctx android.ModuleInstallPathContext, version, fileName string,
+	isNdk, isVndk, isGzip bool) android.OptionalPath {
+
+	currentArchType := ctx.Arch().ArchType
+	primaryArchType := ctx.Config().DevicePrimaryArchType()
+	archName := currentArchType.String()
+	if currentArchType != primaryArchType {
+		archName += "_" + primaryArchType.String()
+	}
+
+	var dirName string
+	if isNdk {
+		dirName = "ndk"
+	} else if isVndk {
+		dirName = "vndk"
+	} else {
+		dirName = "platform" // opt-in libs
+	}
+
+	binderBitness := ctx.DeviceConfig().BinderBitness()
+
+	var ext string
+	if isGzip {
+		ext = ".lsdump.gz"
+	} else {
+		ext = ".lsdump"
+	}
+
+	return android.ExistentPathForSource(ctx, "prebuilts", "abi-dumps", dirName,
+		version, binderBitness, archName, "source-based",
+		fileName+ext)
+}
+
 func getRefAbiDumpFile(ctx ModuleContext, vndkVersion, fileName string) android.Path {
 	// The logic must be consistent with classifySourceAbiDump.
 	isNdk := ctx.isNdk(ctx.Config())
 	isVndk := ctx.useVndk() && ctx.isVndk()
 
-	refAbiDumpTextFile := android.PathForVndkRefAbiDump(ctx, vndkVersion, fileName, isNdk, isVndk, false)
-	refAbiDumpGzipFile := android.PathForVndkRefAbiDump(ctx, vndkVersion, fileName, isNdk, isVndk, true)
+	refAbiDumpTextFile := pathForVndkRefAbiDump(ctx, vndkVersion, fileName, isNdk, isVndk, false)
+	refAbiDumpGzipFile := pathForVndkRefAbiDump(ctx, vndkVersion, fileName, isNdk, isVndk, true)
 
 	if refAbiDumpTextFile.Valid() {
 		if refAbiDumpGzipFile.Valid() {
