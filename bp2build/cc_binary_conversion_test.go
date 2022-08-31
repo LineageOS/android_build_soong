@@ -605,8 +605,67 @@ func TestCcBinaryWithInstructionSet(t *testing.T) {
         "//conditions:default": [],
     })`,
 				"local_includes": `["."]`,
-			},
-			},
+			}},
+		},
+	})
+}
+
+func TestCcBinaryEmptySuffix(t *testing.T) {
+	runCcBinaryTests(t, ccBinaryBp2buildTestCase{
+		description: "binary with empty suffix",
+		blueprint: `
+{rule_name} {
+    name: "foo",
+    suffix: "",
+}`,
+		targets: []testBazelTarget{
+			{"cc_binary", "foo", AttrNameToString{
+				"local_includes": `["."]`,
+				"suffix":         `""`,
+			}},
+		},
+	})
+}
+
+func TestCcBinarySuffix(t *testing.T) {
+	runCcBinaryTests(t, ccBinaryBp2buildTestCase{
+		description: "binary with suffix",
+		blueprint: `
+{rule_name} {
+    name: "foo",
+    suffix: "-suf",
+}
+`,
+		targets: []testBazelTarget{
+			{"cc_binary", "foo", AttrNameToString{
+				"local_includes": `["."]`,
+				"suffix":         `"-suf"`,
+			}},
+		},
+	})
+}
+
+func TestCcArchVariantBinarySuffix(t *testing.T) {
+	runCcBinaryTests(t, ccBinaryBp2buildTestCase{
+		description: "binary with suffix",
+		blueprint: `
+{rule_name} {
+    name: "foo",
+    arch: {
+        arm64: { suffix: "-64" },
+        arm:   { suffix: "-32" },
+		},
+}
+`,
+		targets: []testBazelTarget{
+			{"cc_binary", "foo", AttrNameToString{
+				"local_includes": `["."]`,
+				"suffix": `select({
+        "//build/bazel/platforms/arch:arm": "-32",
+        "//build/bazel/platforms/arch:arm64": "-64",
+        "//conditions:default": None,
+    })`,
+			}},
 		},
 	})
 }
