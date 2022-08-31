@@ -344,19 +344,13 @@ func (t MemtagNoteType) str() string {
 
 func checkHasMemtagNote(t *testing.T, m android.TestingModule, expected MemtagNoteType) {
 	t.Helper()
-	note_async := "note_memtag_heap_async"
-	note_sync := "note_memtag_heap_sync"
 
 	found := None
-	implicits := m.Rule("ld").Implicits
-	for _, lib := range implicits {
-		if strings.Contains(lib.Rel(), note_async) {
-			found = Async
-			break
-		} else if strings.Contains(lib.Rel(), note_sync) {
-			found = Sync
-			break
-		}
+	ldFlags := m.Rule("ld").Args["ldFlags"]
+	if strings.Contains(ldFlags, "-fsanitize-memtag-mode=async") {
+		found = Async
+	} else if strings.Contains(ldFlags, "-fsanitize-memtag-mode=sync") {
+		found = Sync
 	}
 
 	if found != expected {
