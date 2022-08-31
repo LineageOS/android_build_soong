@@ -641,3 +641,76 @@ cc_library_shared {
 		},
 	})
 }
+
+func TestCcLibrarySharedEmptySuffix(t *testing.T) {
+	runCcLibrarySharedTestCase(t, Bp2buildTestCase{
+		Description: "cc_library_shared with empty suffix",
+		Filesystem: map[string]string{
+			"foo.c": "",
+		},
+		Blueprint: soongCcLibrarySharedPreamble + `
+cc_library_shared {
+    name: "foo_shared",
+    suffix: "",
+    srcs: ["foo.c"],
+    include_build_directory: false,
+}`,
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("cc_library_shared", "foo_shared", AttrNameToString{
+				"srcs_c": `["foo.c"]`,
+				"suffix": `""`,
+			}),
+		},
+	})
+}
+
+func TestCcLibrarySharedSuffix(t *testing.T) {
+	runCcLibrarySharedTestCase(t, Bp2buildTestCase{
+		Description: "cc_library_shared with suffix",
+		Filesystem: map[string]string{
+			"foo.c": "",
+		},
+		Blueprint: soongCcLibrarySharedPreamble + `
+cc_library_shared {
+    name: "foo_shared",
+    suffix: "-suf",
+    srcs: ["foo.c"],
+    include_build_directory: false,
+}`,
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("cc_library_shared", "foo_shared", AttrNameToString{
+				"srcs_c": `["foo.c"]`,
+				"suffix": `"-suf"`,
+			}),
+		},
+	})
+}
+
+func TestCcLibrarySharedArchVariantSuffix(t *testing.T) {
+	runCcLibrarySharedTestCase(t, Bp2buildTestCase{
+		Description: "cc_library_shared with arch-variant suffix",
+		Filesystem: map[string]string{
+			"foo.c": "",
+		},
+		Blueprint: soongCcLibrarySharedPreamble + `
+cc_library_shared {
+    name: "foo_shared",
+    arch: {
+        arm64: { suffix: "-64" },
+        arm:   { suffix: "-32" },
+		},
+    srcs: ["foo.c"],
+    include_build_directory: false,
+}`,
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("cc_library_shared", "foo_shared", AttrNameToString{
+				"srcs_c": `["foo.c"]`,
+				"suffix": `select({
+        "//build/bazel/platforms/arch:arm": "-32",
+        "//build/bazel/platforms/arch:arm64": "-64",
+        "//conditions:default": None,
+    })`,
+			}),
+		},
+	})
+}
