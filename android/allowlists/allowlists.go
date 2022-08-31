@@ -174,7 +174,35 @@ var (
 		"frameworks/native/opengl/tests/testViewport":        Bp2BuildDefaultTrue,
 		"frameworks/proto_logging/stats/stats_log_api_gen":   Bp2BuildDefaultTrueRecursively,
 
-		"libnativehelper":                                  Bp2BuildDefaultTrueRecursively,
+		"hardware/interfaces":                          Bp2BuildDefaultTrue,
+		"hardware/interfaces/configstore/1.0":          Bp2BuildDefaultTrue,
+		"hardware/interfaces/configstore/1.1":          Bp2BuildDefaultTrue,
+		"hardware/interfaces/configstore/utils":        Bp2BuildDefaultTrue,
+		"hardware/interfaces/graphics/allocator/2.0":   Bp2BuildDefaultTrue,
+		"hardware/interfaces/graphics/allocator/3.0":   Bp2BuildDefaultTrue,
+		"hardware/interfaces/graphics/allocator/4.0":   Bp2BuildDefaultTrue,
+		"hardware/interfaces/graphics/bufferqueue/1.0": Bp2BuildDefaultTrue,
+		"hardware/interfaces/graphics/bufferqueue/2.0": Bp2BuildDefaultTrue,
+		"hardware/interfaces/graphics/common/1.0":      Bp2BuildDefaultTrue,
+		"hardware/interfaces/graphics/common/1.1":      Bp2BuildDefaultTrue,
+		"hardware/interfaces/graphics/common/1.2":      Bp2BuildDefaultTrue,
+		"hardware/interfaces/graphics/mapper/2.0":      Bp2BuildDefaultTrue,
+		"hardware/interfaces/graphics/mapper/2.1":      Bp2BuildDefaultTrue,
+		"hardware/interfaces/graphics/mapper/3.0":      Bp2BuildDefaultTrue,
+		"hardware/interfaces/graphics/mapper/4.0":      Bp2BuildDefaultTrue,
+		"hardware/interfaces/media/1.0":                Bp2BuildDefaultTrue,
+		"hardware/interfaces/media/bufferpool/2.0":     Bp2BuildDefaultTrue,
+		"hardware/interfaces/media/c2/1.0":             Bp2BuildDefaultTrue,
+		"hardware/interfaces/media/c2/1.1":             Bp2BuildDefaultTrue,
+		"hardware/interfaces/media/c2/1.2":             Bp2BuildDefaultTrue,
+		"hardware/interfaces/media/omx/1.0":            Bp2BuildDefaultTrue,
+		"hardware/interfaces/neuralnetworks/1.0":       Bp2BuildDefaultTrue,
+		"hardware/interfaces/neuralnetworks/1.1":       Bp2BuildDefaultTrue,
+		"hardware/interfaces/neuralnetworks/1.2":       Bp2BuildDefaultTrue,
+		"hardware/interfaces/neuralnetworks/1.3":       Bp2BuildDefaultTrue,
+
+		"libnativehelper": Bp2BuildDefaultTrueRecursively,
+
 		"packages/apps/DevCamera":                          Bp2BuildDefaultTrue,
 		"packages/apps/HTMLViewer":                         Bp2BuildDefaultTrue,
 		"packages/apps/Protips":                            Bp2BuildDefaultTrue,
@@ -220,10 +248,18 @@ var (
 		"system/libartpalette":                                   Bp2BuildDefaultTrueRecursively,
 		"system/libbase":                                         Bp2BuildDefaultTrueRecursively,
 		"system/libfmq":                                          Bp2BuildDefaultTrue,
+		"system/libhidl/libhidlmemory":                           Bp2BuildDefaultTrue,
+		"system/libhidl/transport":                               Bp2BuildDefaultTrue,
+		"system/libhidl/transport/allocator/1.0":                 Bp2BuildDefaultTrue,
 		"system/libhidl/transport/base/1.0":                      Bp2BuildDefaultTrue,
 		"system/libhidl/transport/manager/1.0":                   Bp2BuildDefaultTrue,
 		"system/libhidl/transport/manager/1.1":                   Bp2BuildDefaultTrue,
 		"system/libhidl/transport/manager/1.2":                   Bp2BuildDefaultTrue,
+		"system/libhidl/transport/memory/1.0":                    Bp2BuildDefaultTrue,
+		"system/libhidl/transport/memory/token/1.0":              Bp2BuildDefaultTrue,
+		"system/libhidl/transport/safe_union/1.0":                Bp2BuildDefaultTrue,
+		"system/libhidl/transport/token/1.0":                     Bp2BuildDefaultTrue,
+		"system/libhidl/transport/token/1.0/utils":               Bp2BuildDefaultTrue,
 		"system/libhwbinder":                                     Bp2BuildDefaultTrueRecursively,
 		"system/libprocinfo":                                     Bp2BuildDefaultTrue,
 		"system/libziparchive":                                   Bp2BuildDefaultTrueRecursively,
@@ -619,5 +655,10 @@ var (
 		"prebuilt_platform-robolectric-4.4-prebuilt",
 		"prebuilt_platform-robolectric-4.5.1-prebuilt",
 		"prebuilt_currysrc_org.eclipse",
+	}
+
+	ProdMixedBuildsEnabledList = []string{
+		// This list left intentionally empty for now. Add specific module names
+		// to have them built by Bazel in Prod Mixed Builds mode.
 	}
 )
