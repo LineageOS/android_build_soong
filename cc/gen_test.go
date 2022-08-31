@@ -74,4 +74,26 @@ func TestGen(t *testing.T) {
 
 	})
 
+	t.Run("sysprop", func(t *testing.T) {
+		ctx := testCc(t, `
+		cc_library {
+			name: "libsysprop",
+			srcs: [
+				"path/to/foo.sysprop",
+			],
+		}`)
+
+		outDir := "out/soong/.intermediates/libsysprop/android_arm64_armv8-a_static/gen"
+		syspropBuildParams := ctx.ModuleForTests("libsysprop", "android_arm64_armv8-a_static").Rule("sysprop")
+
+		android.AssertStringEquals(t, "header output directory does not match", outDir+"/sysprop/include/path/to", syspropBuildParams.Args["headerOutDir"])
+		android.AssertStringEquals(t, "public output directory does not match", outDir+"/sysprop/public/include/path/to", syspropBuildParams.Args["publicOutDir"])
+		android.AssertStringEquals(t, "src output directory does not match", outDir+"/sysprop/path/to", syspropBuildParams.Args["srcOutDir"])
+		android.AssertStringEquals(t, "output include name does not match", "path/to/foo.sysprop.h", syspropBuildParams.Args["includeName"])
+		android.AssertStringEquals(t, "Input file does not match", "path/to/foo.sysprop", syspropBuildParams.Input.String())
+		android.AssertStringEquals(t, "Output file does not match", outDir+"/sysprop/path/to/foo.sysprop.cpp", syspropBuildParams.Output.String())
+		android.AssertStringListContains(t, "Implicit outputs does not contain header file", syspropBuildParams.ImplicitOutputs.Strings(), outDir+"/sysprop/include/path/to/foo.sysprop.h")
+		android.AssertStringListContains(t, "Implicit outputs does not contain public header file", syspropBuildParams.ImplicitOutputs.Strings(), outDir+"/sysprop/public/include/path/to/foo.sysprop.h")
+		android.AssertIntEquals(t, "Implicit outputs contains the incorrect number of elements", 2, len(syspropBuildParams.ImplicitOutputs.Strings()))
+	})
 }
