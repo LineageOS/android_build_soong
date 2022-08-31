@@ -162,6 +162,9 @@ var (
 		"frameworks/native/libs/adbd_auth":                   Bp2BuildDefaultTrueRecursively,
 		"frameworks/native/libs/arect":                       Bp2BuildDefaultTrueRecursively,
 		"frameworks/native/libs/math":                        Bp2BuildDefaultTrueRecursively,
+		"hardware/interfaces/common/aidl":                    Bp2BuildDefaultTrue,
+		"hardware/interfaces/graphics/common/aidl":           Bp2BuildDefaultTrue,
+		"hardware/interfaces/neuralnetworks/aidl":            Bp2BuildDefaultTrue,
 		"frameworks/native/libs/nativebase":                  Bp2BuildDefaultTrueRecursively,
 		"frameworks/native/opengl/tests/gl2_cameraeye":       Bp2BuildDefaultTrue,
 		"frameworks/native/opengl/tests/gl2_java":            Bp2BuildDefaultTrue,
@@ -424,6 +427,9 @@ var (
 
 		//frameworks/native/libs/input
 		"inputconstants_aidl",
+
+		// needed for aidl_interface's ndk backend
+		"libbinder_ndk",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
@@ -526,7 +532,7 @@ var (
 		"libnativehelper_lazy_mts_jni", "libnativehelper_mts_jni", // depends on unconverted modules: libnativetesthelper_jni, libgmock_ndk
 		"libnativetesthelper_jni",   // depends on unconverted modules: libgtest_ndk_c++
 		"libprotobuf-java-nano",     // b/220869005, depends on non-public_current SDK
-		"libstatslog",               // depends on unconverted modules: libstatspull, statsd-aidl-ndk, libbinder_ndk
+		"libstatslog",               // depends on unconverted modules: libstatspull, statsd-aidl-ndk
 		"libstatslog_art",           // depends on unconverted modules: statslog_art.cpp, statslog_art.h
 		"linker_reloc_bench_main",   // depends on unconverted modules: liblinker_reloc_bench_*
 		"pbtombstone", "crash_dump", // depends on libdebuggerd, libunwindstack
