@@ -2,7 +2,6 @@ package bp2build
 
 import (
 	"encoding/json"
-	"fmt"
 	"reflect"
 	"strings"
 
@@ -80,21 +79,14 @@ func CreateBazelFiles(
 		files = append(files, newFile(bazelRulesSubDir, "soong_module.bzl", generateSoongModuleBzl(ruleShims)))
 	}
 
-	files = append(files, createBuildFiles(cfg, buildToTargets, mode)...)
+	files = append(files, createBuildFiles(buildToTargets, mode)...)
 
 	return files
 }
 
-func createBuildFiles(cfg android.Config, buildToTargets map[string]BazelTargets, mode CodegenMode) []BazelFile {
+func createBuildFiles(buildToTargets map[string]BazelTargets, mode CodegenMode) []BazelFile {
 	files := make([]BazelFile, 0, len(buildToTargets))
-	warnNotWriting := cfg.IsEnvTrue("BP2BUILD_VERBOSE")
 	for _, dir := range android.SortedStringKeys(buildToTargets) {
-		if mode == Bp2Build && android.ShouldKeepExistingBuildFileForDir(dir) {
-			if warnNotWriting {
-				fmt.Printf("[bp2build] Not writing generated BUILD file for dir: '%s'\n", dir)
-			}
-			continue
-		}
 		targets := buildToTargets[dir]
 		targets.sort()
 

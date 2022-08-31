@@ -211,7 +211,7 @@ func (b *BazelModuleBase) GetBazelLabel(ctx BazelConversionPathContext, module b
 	return "" // no label for unconverted module
 }
 
-type bp2BuildConversionAllowlist struct {
+type Bp2BuildConversionAllowlist struct {
 	// Configure modules in these directories to enable bp2build_available: true or false by default.
 	defaultConfig allowlists.Bp2BuildConfig
 
@@ -241,14 +241,14 @@ type bp2BuildConversionAllowlist struct {
 
 // GenerateCcLibraryStaticOnly returns whether a cc_library module should only
 // generate a static version of itself based on the current global configuration.
-func (a bp2BuildConversionAllowlist) GenerateCcLibraryStaticOnly(moduleName string) bool {
+func (a Bp2BuildConversionAllowlist) GenerateCcLibraryStaticOnly(moduleName string) bool {
 	return a.ccLibraryStaticOnly[moduleName]
 }
 
-// NewBp2BuildAllowlist creates a new, empty bp2BuildConversionAllowlist
+// NewBp2BuildAllowlist creates a new, empty Bp2BuildConversionAllowlist
 // which can be populated using builder pattern Set* methods
-func NewBp2BuildAllowlist() bp2BuildConversionAllowlist {
-	return bp2BuildConversionAllowlist{
+func NewBp2BuildAllowlist() Bp2BuildConversionAllowlist {
+	return Bp2BuildConversionAllowlist{
 		allowlists.Bp2BuildConfig{},
 		map[string]bool{},
 		map[string]bool{},
@@ -259,7 +259,7 @@ func NewBp2BuildAllowlist() bp2BuildConversionAllowlist {
 }
 
 // SetDefaultConfig copies the entries from defaultConfig into the allowlist
-func (a bp2BuildConversionAllowlist) SetDefaultConfig(defaultConfig allowlists.Bp2BuildConfig) bp2BuildConversionAllowlist {
+func (a Bp2BuildConversionAllowlist) SetDefaultConfig(defaultConfig allowlists.Bp2BuildConfig) Bp2BuildConversionAllowlist {
 	if a.defaultConfig == nil {
 		a.defaultConfig = allowlists.Bp2BuildConfig{}
 	}
@@ -271,7 +271,7 @@ func (a bp2BuildConversionAllowlist) SetDefaultConfig(defaultConfig allowlists.B
 }
 
 // SetKeepExistingBuildFile copies the entries from keepExistingBuildFile into the allowlist
-func (a bp2BuildConversionAllowlist) SetKeepExistingBuildFile(keepExistingBuildFile map[string]bool) bp2BuildConversionAllowlist {
+func (a Bp2BuildConversionAllowlist) SetKeepExistingBuildFile(keepExistingBuildFile map[string]bool) Bp2BuildConversionAllowlist {
 	if a.keepExistingBuildFile == nil {
 		a.keepExistingBuildFile = map[string]bool{}
 	}
@@ -283,7 +283,7 @@ func (a bp2BuildConversionAllowlist) SetKeepExistingBuildFile(keepExistingBuildF
 }
 
 // SetModuleAlwaysConvertList copies the entries from moduleAlwaysConvert into the allowlist
-func (a bp2BuildConversionAllowlist) SetModuleAlwaysConvertList(moduleAlwaysConvert []string) bp2BuildConversionAllowlist {
+func (a Bp2BuildConversionAllowlist) SetModuleAlwaysConvertList(moduleAlwaysConvert []string) Bp2BuildConversionAllowlist {
 	if a.moduleAlwaysConvert == nil {
 		a.moduleAlwaysConvert = map[string]bool{}
 	}
@@ -295,7 +295,7 @@ func (a bp2BuildConversionAllowlist) SetModuleAlwaysConvertList(moduleAlwaysConv
 }
 
 // SetModuleTypeAlwaysConvertList copies the entries from moduleTypeAlwaysConvert into the allowlist
-func (a bp2BuildConversionAllowlist) SetModuleTypeAlwaysConvertList(moduleTypeAlwaysConvert []string) bp2BuildConversionAllowlist {
+func (a Bp2BuildConversionAllowlist) SetModuleTypeAlwaysConvertList(moduleTypeAlwaysConvert []string) Bp2BuildConversionAllowlist {
 	if a.moduleTypeAlwaysConvert == nil {
 		a.moduleTypeAlwaysConvert = map[string]bool{}
 	}
@@ -307,7 +307,7 @@ func (a bp2BuildConversionAllowlist) SetModuleTypeAlwaysConvertList(moduleTypeAl
 }
 
 // SetModuleDoNotConvertList copies the entries from moduleDoNotConvert into the allowlist
-func (a bp2BuildConversionAllowlist) SetModuleDoNotConvertList(moduleDoNotConvert []string) bp2BuildConversionAllowlist {
+func (a Bp2BuildConversionAllowlist) SetModuleDoNotConvertList(moduleDoNotConvert []string) Bp2BuildConversionAllowlist {
 	if a.moduleDoNotConvert == nil {
 		a.moduleDoNotConvert = map[string]bool{}
 	}
@@ -319,7 +319,7 @@ func (a bp2BuildConversionAllowlist) SetModuleDoNotConvertList(moduleDoNotConver
 }
 
 // SetCcLibraryStaticOnlyList copies the entries from ccLibraryStaticOnly into the allowlist
-func (a bp2BuildConversionAllowlist) SetCcLibraryStaticOnlyList(ccLibraryStaticOnly []string) bp2BuildConversionAllowlist {
+func (a Bp2BuildConversionAllowlist) SetCcLibraryStaticOnlyList(ccLibraryStaticOnly []string) Bp2BuildConversionAllowlist {
 	if a.ccLibraryStaticOnly == nil {
 		a.ccLibraryStaticOnly = map[string]bool{}
 	}
@@ -330,33 +330,15 @@ func (a bp2BuildConversionAllowlist) SetCcLibraryStaticOnlyList(ccLibraryStaticO
 	return a
 }
 
-var bp2BuildAllowListKey = NewOnceKey("Bp2BuildAllowlist")
-var bp2buildAllowlist OncePer
-
-func GetBp2BuildAllowList() bp2BuildConversionAllowlist {
-	return bp2buildAllowlist.Once(bp2BuildAllowListKey, func() interface{} {
-		return NewBp2BuildAllowlist().SetDefaultConfig(allowlists.Bp2buildDefaultConfig).
-			SetKeepExistingBuildFile(allowlists.Bp2buildKeepExistingBuildFile).
-			SetModuleAlwaysConvertList(allowlists.Bp2buildModuleAlwaysConvertList).
-			SetModuleTypeAlwaysConvertList(allowlists.Bp2buildModuleTypeAlwaysConvertList).
-			SetModuleDoNotConvertList(allowlists.Bp2buildModuleDoNotConvertList).
-			SetCcLibraryStaticOnlyList(allowlists.Bp2buildCcLibraryStaticOnlyList)
-	}).(bp2BuildConversionAllowlist)
-}
-
 // ShouldKeepExistingBuildFileForDir returns whether an existing BUILD file should be
 // added to the build symlink forest based on the current global configuration.
-func ShouldKeepExistingBuildFileForDir(dir string) bool {
-	return shouldKeepExistingBuildFileForDir(GetBp2BuildAllowList(), dir)
-}
-
-func shouldKeepExistingBuildFileForDir(allowlist bp2BuildConversionAllowlist, dir string) bool {
-	if _, ok := allowlist.keepExistingBuildFile[dir]; ok {
+func (a Bp2BuildConversionAllowlist) ShouldKeepExistingBuildFileForDir(dir string) bool {
+	if _, ok := a.keepExistingBuildFile[dir]; ok {
 		// Exact dir match
 		return true
 	}
 	// Check if subtree match
-	for prefix, recursive := range allowlist.keepExistingBuildFile {
+	for prefix, recursive := range a.keepExistingBuildFile {
 		if recursive {
 			if strings.HasPrefix(dir, prefix+"/") {
 				return true
@@ -365,6 +347,20 @@ func shouldKeepExistingBuildFileForDir(allowlist bp2BuildConversionAllowlist, di
 	}
 	// Default
 	return false
+}
+
+var bp2BuildAllowListKey = NewOnceKey("Bp2BuildAllowlist")
+var bp2buildAllowlist OncePer
+
+func GetBp2BuildAllowList() Bp2BuildConversionAllowlist {
+	return bp2buildAllowlist.Once(bp2BuildAllowListKey, func() interface{} {
+		return NewBp2BuildAllowlist().SetDefaultConfig(allowlists.Bp2buildDefaultConfig).
+			SetKeepExistingBuildFile(allowlists.Bp2buildKeepExistingBuildFile).
+			SetModuleAlwaysConvertList(allowlists.Bp2buildModuleAlwaysConvertList).
+			SetModuleTypeAlwaysConvertList(allowlists.Bp2buildModuleTypeAlwaysConvertList).
+			SetModuleDoNotConvertList(allowlists.Bp2buildModuleDoNotConvertList).
+			SetCcLibraryStaticOnlyList(allowlists.Bp2buildCcLibraryStaticOnlyList)
+	}).(Bp2BuildConversionAllowlist)
 }
 
 // MixedBuildsEnabled returns true if a module is ready to be replaced by a
@@ -431,7 +427,7 @@ func (b *BazelModuleBase) shouldConvertWithBp2build(ctx bazelOtherModuleContext,
 	}
 
 	moduleName := module.Name()
-	allowlist := ctx.Config().bp2buildPackageConfig
+	allowlist := ctx.Config().Bp2buildPackageConfig
 	moduleNameAllowed := allowlist.moduleAlwaysConvert[moduleName]
 	moduleTypeAllowed := allowlist.moduleTypeAlwaysConvert[ctx.OtherModuleType(module)]
 	allowlistConvert := moduleNameAllowed || moduleTypeAllowed
@@ -445,14 +441,6 @@ func (b *BazelModuleBase) shouldConvertWithBp2build(ctx bazelOtherModuleContext,
 			ctx.ModuleErrorf("a module cannot be in moduleDoNotConvert and also be in moduleAlwaysConvert")
 		}
 		return false
-	}
-
-	if allowlistConvert && shouldKeepExistingBuildFileForDir(allowlist, packagePath) {
-		if moduleNameAllowed {
-			ctx.ModuleErrorf("A module cannot be in a directory listed in keepExistingBuildFile"+
-				" and also be in moduleAlwaysConvert. Directory: '%s'", packagePath)
-			return false
-		}
 	}
 
 	// This is a tristate value: true, false, or unset.
