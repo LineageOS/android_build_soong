@@ -2593,6 +2593,91 @@ func TestCcLibraryWithInstructionSet(t *testing.T) {
 	})
 }
 
+func TestCcLibraryEmptySuffix(t *testing.T) {
+	runCcLibraryTestCase(t, Bp2buildTestCase{
+		Description:                "cc_library with empty suffix",
+		ModuleTypeUnderTest:        "cc_library",
+		ModuleTypeUnderTestFactory: cc.LibraryFactory,
+		Filesystem: map[string]string{
+			"foo.c": "",
+		},
+		Blueprint: `cc_library {
+    name: "foo",
+    suffix: "",
+    srcs: ["foo.c"],
+    include_build_directory: false,
+}`,
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
+				"srcs_c": `["foo.c"]`,
+			}),
+			makeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+				"srcs_c": `["foo.c"]`,
+				"suffix": `""`,
+			}),
+		},
+	})
+}
+
+func TestCcLibrarySuffix(t *testing.T) {
+	runCcLibraryTestCase(t, Bp2buildTestCase{
+		Description:                "cc_library with suffix",
+		ModuleTypeUnderTest:        "cc_library",
+		ModuleTypeUnderTestFactory: cc.LibraryFactory,
+		Filesystem: map[string]string{
+			"foo.c": "",
+		},
+		Blueprint: `cc_library {
+    name: "foo",
+    suffix: "-suf",
+    srcs: ["foo.c"],
+    include_build_directory: false,
+}`,
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
+				"srcs_c": `["foo.c"]`,
+			}),
+			makeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+				"srcs_c": `["foo.c"]`,
+				"suffix": `"-suf"`,
+			}),
+		},
+	})
+}
+
+func TestCcLibraryArchVariantSuffix(t *testing.T) {
+	runCcLibraryTestCase(t, Bp2buildTestCase{
+		Description:                "cc_library with arch-variant suffix",
+		ModuleTypeUnderTest:        "cc_library",
+		ModuleTypeUnderTestFactory: cc.LibraryFactory,
+		Filesystem: map[string]string{
+			"foo.c": "",
+		},
+		Blueprint: `cc_library {
+    name: "foo",
+    arch: {
+        arm64: { suffix: "-64" },
+        arm:   { suffix: "-32" },
+		},
+    srcs: ["foo.c"],
+    include_build_directory: false,
+}`,
+		ExpectedBazelTargets: []string{
+			makeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
+				"srcs_c": `["foo.c"]`,
+			}),
+			makeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+				"srcs_c": `["foo.c"]`,
+				"suffix": `select({
+        "//build/bazel/platforms/arch:arm": "-32",
+        "//build/bazel/platforms/arch:arm64": "-64",
+        "//conditions:default": None,
+    })`,
+			}),
+		},
+	})
+}
+
 func TestCcLibraryWithAidlSrcs(t *testing.T) {
 	runCcLibraryTestCase(t, Bp2buildTestCase{
 		Description:                "cc_library with aidl srcs",
