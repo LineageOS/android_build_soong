@@ -18,6 +18,7 @@ import (
 	"debug/macho"
 	"fmt"
 	"io"
+	"os/exec"
 	"sort"
 	"strings"
 )
@@ -40,7 +41,7 @@ func extractMachoSymbols(machoFile *macho.File) (*File, error) {
 		return symbols[i].Value < symbols[j].Value
 	})
 
-	file := &File{}
+	file := &File{IsMachoFile: true}
 
 	for _, section := range machoFile.Sections {
 		file.Sections = append(file.Sections, &Section{
@@ -94,4 +95,9 @@ func dumpMachoSymbols(r io.ReaderAt) error {
 	fmt.Println("}")
 
 	return nil
+}
+
+func CodeSignMachoFile(path string) error {
+	cmd := exec.Command("/usr/bin/codesign", "--force", "-s", "-", path)
+	return cmd.Run()
 }
