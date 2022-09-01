@@ -450,6 +450,7 @@ var (
 		"linker_config",
 		"java_import",
 		"java_import_host",
+		"sysprop_library",
 		"aidl_interface_headers",
 	}
 
