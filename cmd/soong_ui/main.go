@@ -176,10 +176,6 @@ func main() {
 
 	build.SetupOutDir(buildCtx, config)
 
-	if config.UseBazel() && config.Dist() {
-		defer populateExternalDistDir(buildCtx, config)
-	}
-
 	// Set up files to be outputted in the log directory.
 	logsDir := config.LogsDir()
 
