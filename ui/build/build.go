@@ -104,10 +104,9 @@ const (
 	// Whether to run ninja on the combined ninja.
 	RunNinja = 1 << iota
 	// Whether to run bazel on the combined ninja.
-	RunBazel        = 1 << iota
-	RunBuildTests   = 1 << iota
-	RunAll          = RunProductConfig | RunSoong | RunKati | RunKatiNinja | RunNinja
-	RunAllWithBazel = RunProductConfig | RunSoong | RunKati | RunKatiNinja | RunBazel
+	RunBazel      = 1 << iota
+	RunBuildTests = 1 << iota
+	RunAll        = RunProductConfig | RunSoong | RunKati | RunKatiNinja | RunNinja
 )
 
 // checkBazelMode fails the build if there are conflicting arguments for which bazel
@@ -256,9 +255,6 @@ func Build(ctx Context, config Config) {
 	SetupPath(ctx, config)
 
 	what := RunAll
-	if config.UseBazel() {
-		what = RunAllWithBazel
-	}
 	if config.Checkbuild() {
 		what |= RunBuildTests
 	}
