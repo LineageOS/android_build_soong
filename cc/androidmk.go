@@ -644,6 +644,16 @@ func (a *apiLibraryDecorator) AndroidMkEntries(ctx AndroidMkContext, entries *an
 	})
 }
 
+func (a *apiHeadersDecorator) AndroidMkEntries(ctx AndroidMkContext, entries *android.AndroidMkEntries) {
+	entries.Class = "HEADER_LIBRARIES"
+	entries.SubName += multitree.GetApiImportSuffix()
+
+	entries.ExtraEntries = append(entries.ExtraEntries, func(_ android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
+		a.libraryDecorator.androidMkWriteExportedFlags(entries)
+		entries.SetBool("LOCAL_UNINSTALLABLE_MODULE", true)
+	})
+}
+
 func androidMkWriteAllowUndefinedSymbols(linker *baseLinker, entries *android.AndroidMkEntries) {
 	allow := linker.Properties.Allow_undefined_symbols
 	if allow != nil {
