@@ -2350,7 +2350,10 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 
 		lib = GetReplaceModuleName(lib, GetSnapshot(c, &snapshotInfo, actx).HeaderLibs)
 
-		if c.IsStubs() {
+		if c.isNDKStubLibrary() {
+			// ndk_headers do not have any variations
+			actx.AddFarVariationDependencies([]blueprint.Variation{}, depTag, lib)
+		} else if c.IsStubs() {
 			actx.AddFarVariationDependencies(append(ctx.Target().Variations(), c.ImageVariation()),
 				depTag, lib)
 		} else {
