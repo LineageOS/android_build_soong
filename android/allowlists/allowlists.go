@@ -548,10 +548,6 @@ var (
 		"truth-host-prebuilt", // depends on unconverted modules: truth-prebuilt
 		"truth-prebuilt",      // depends on unconverted modules: asm-7.0, guava
 
-		// b/215723302; awaiting tz{data,_version} to then rename targets conflicting with srcs
-		"tzdata",
-		"tz_version",
-
 		// '//bionic/libc:libc_bp2build_cc_library_static' is duplicated in the 'deps' attribute of rule
 		"toybox-static",
 
