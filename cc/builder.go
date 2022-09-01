@@ -953,7 +953,7 @@ func sourceAbiDiff(ctx android.ModuleContext, inputDump android.Path, referenceD
 			extraFlags = append(extraFlags, "-target-version", sourceVersion)
 		}
 	} else {
-		errorMessage = "error: Please update ABI references with: $ANDROID_BUILD_TOP/development/vndk/tools/header-checker/utils/create_reference_dumps.py -l " + libName
+		errorMessage = "error: Please update ABI references with: $$ANDROID_BUILD_TOP/development/vndk/tools/header-checker/utils/create_reference_dumps.py -l " + libName
 		extraFlags = append(extraFlags, "-target-version", "current")
 	}
 
