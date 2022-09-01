@@ -46,19 +46,16 @@ var (
 		"bionic":                                Bp2BuildDefaultTrueRecursively,
 		"bootable/recovery/tools/recovery_l10n": Bp2BuildDefaultTrue,
 
-		"build/bazel/examples/apex/minimal":           Bp2BuildDefaultTrueRecursively,
-		"build/bazel/examples/soong_config_variables": Bp2BuildDefaultTrueRecursively,
-		"build/bazel/examples/python":                 Bp2BuildDefaultTrueRecursively,
-		"build/bazel/examples/gensrcs":                Bp2BuildDefaultTrueRecursively,
-		"build/make/target/product/security":          Bp2BuildDefaultTrue,
-		"build/make/tools/signapk":                    Bp2BuildDefaultTrue,
-		"build/make/tools/zipalign":                   Bp2BuildDefaultTrueRecursively,
-		"build/soong":                                 Bp2BuildDefaultTrue,
-		"build/soong/cc/libbuildversion":              Bp2BuildDefaultTrue, // Skip tests subdir
-		"build/soong/cc/ndkstubgen":                   Bp2BuildDefaultTrue,
-		"build/soong/cc/symbolfile":                   Bp2BuildDefaultTrue,
-		"build/soong/linkerconfig":                    Bp2BuildDefaultTrueRecursively,
-		"build/soong/scripts":                         Bp2BuildDefaultTrueRecursively,
+		"build/bazel":                        Bp2BuildDefaultTrueRecursively,
+		"build/make/target/product/security": Bp2BuildDefaultTrue,
+		"build/make/tools/signapk":           Bp2BuildDefaultTrue,
+		"build/make/tools/zipalign":          Bp2BuildDefaultTrueRecursively,
+		"build/soong":                        Bp2BuildDefaultTrue,
+		"build/soong/cc/libbuildversion":     Bp2BuildDefaultTrue, // Skip tests subdir
+		"build/soong/cc/ndkstubgen":          Bp2BuildDefaultTrue,
+		"build/soong/cc/symbolfile":          Bp2BuildDefaultTrue,
+		"build/soong/linkerconfig":           Bp2BuildDefaultTrueRecursively,
+		"build/soong/scripts":                Bp2BuildDefaultTrueRecursively,
 
 		"cts/common/device-side/nativetesthelper/jni": Bp2BuildDefaultTrueRecursively,
 		"development/apps/DevelopmentSettings":        Bp2BuildDefaultTrue,
@@ -165,6 +162,9 @@ var (
 		"frameworks/native/libs/adbd_auth":                   Bp2BuildDefaultTrueRecursively,
 		"frameworks/native/libs/arect":                       Bp2BuildDefaultTrueRecursively,
 		"frameworks/native/libs/math":                        Bp2BuildDefaultTrueRecursively,
+		"hardware/interfaces/common/aidl":                    Bp2BuildDefaultTrue,
+		"hardware/interfaces/graphics/common/aidl":           Bp2BuildDefaultTrue,
+		"hardware/interfaces/neuralnetworks/aidl":            Bp2BuildDefaultTrue,
 		"frameworks/native/libs/nativebase":                  Bp2BuildDefaultTrueRecursively,
 		"frameworks/native/opengl/tests/gl2_cameraeye":       Bp2BuildDefaultTrue,
 		"frameworks/native/opengl/tests/gl2_java":            Bp2BuildDefaultTrue,
@@ -282,24 +282,7 @@ var (
 		// This is actually build/bazel/build.BAZEL symlinked to ./BUILD
 		".":/*recursive = */ false,
 
-		// build/bazel/examples/apex/... BUILD files should be generated, so
-		// build/bazel is not recursive. Instead list each subdirectory under
-		// build/bazel explicitly.
-		"build/bazel":/* recursive = */ false,
-		"build/bazel/ci/dist":/* recursive = */ false,
-		"build/bazel/examples/android_app":/* recursive = */ true,
-		"build/bazel/examples/cc":/* recursive = */ true,
-		"build/bazel/examples/java":/* recursive = */ true,
-		"build/bazel/examples/partitions":/* recursive = */ true,
-		"build/bazel/bazel_skylib":/* recursive = */ true,
-		"build/bazel/rules":/* recursive = */ true,
-		"build/bazel/rules_cc":/* recursive = */ true,
-		"build/bazel/scripts":/* recursive = */ true,
-		"build/bazel/tests":/* recursive = */ true,
-		"build/bazel/platforms":/* recursive = */ true,
-		"build/bazel/product_config":/* recursive = */ true,
-		"build/bazel/product_variables":/* recursive = */ true,
-		"build/bazel/vendor/google":/* recursive = */ true,
+		"build/bazel":/* recursive = */ true,
 		"build/bazel_common_rules":/* recursive = */ true,
 		// build/make/tools/signapk BUILD file is generated, so build/make/tools is not recursive.
 		"build/make/tools":/* recursive = */ false,
@@ -444,6 +427,9 @@ var (
 
 		//frameworks/native/libs/input
 		"inputconstants_aidl",
+
+		// needed for aidl_interface's ndk backend
+		"libbinder_ndk",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
@@ -546,7 +532,7 @@ var (
 		"libnativehelper_lazy_mts_jni", "libnativehelper_mts_jni", // depends on unconverted modules: libnativetesthelper_jni, libgmock_ndk
 		"libnativetesthelper_jni",   // depends on unconverted modules: libgtest_ndk_c++
 		"libprotobuf-java-nano",     // b/220869005, depends on non-public_current SDK
-		"libstatslog",               // depends on unconverted modules: libstatspull, statsd-aidl-ndk, libbinder_ndk
+		"libstatslog",               // depends on unconverted modules: libstatspull, statsd-aidl-ndk
 		"libstatslog_art",           // depends on unconverted modules: statslog_art.cpp, statslog_art.h
 		"linker_reloc_bench_main",   // depends on unconverted modules: liblinker_reloc_bench_*
 		"pbtombstone", "crash_dump", // depends on libdebuggerd, libunwindstack
