@@ -51,6 +51,7 @@ bootstrap_go_package {
         "cc_prebuilt_library_conversion_test.go",
         "cc_prebuilt_library_shared_test.go",
         "cc_prebuilt_library_static_test.go",
+        "cc_test_conversion_test.go",
         "cc_yasm_conversion_test.go",
         "conversion_test.go",
         "filegroup_conversion_test.go",
