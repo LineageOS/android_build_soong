@@ -243,6 +243,7 @@ var (
 		"system/core/libprocessgroup/cgrouprc":                   Bp2BuildDefaultTrue,
 		"system/core/libprocessgroup/cgrouprc_format":            Bp2BuildDefaultTrue,
 		"system/core/libsystem":                                  Bp2BuildDefaultTrueRecursively,
+		"system/core/libsysutils":                                Bp2BuildDefaultTrueRecursively,
 		"system/core/libutils":                                   Bp2BuildDefaultTrueRecursively,
 		"system/core/libvndksupport":                             Bp2BuildDefaultTrueRecursively,
 		"system/core/property_service/libpropertyinfoparser":     Bp2BuildDefaultTrueRecursively,
@@ -265,7 +266,7 @@ var (
 		"system/libhwbinder":                                     Bp2BuildDefaultTrueRecursively,
 		"system/libprocinfo":                                     Bp2BuildDefaultTrue,
 		"system/libziparchive":                                   Bp2BuildDefaultTrueRecursively,
-		"system/logging/liblog":                                  Bp2BuildDefaultTrueRecursively,
+		"system/logging":                                         Bp2BuildDefaultTrueRecursively,
 		"system/media/audio":                                     Bp2BuildDefaultTrueRecursively,
 		"system/media/audio_utils":                               Bp2BuildDefaultTrueRecursively,
 		"system/memory/libion":                                   Bp2BuildDefaultTrueRecursively,
@@ -438,6 +439,11 @@ var (
 		"libbinder_ndk",
 
 		"libusb",
+
+		// needed by liblogd
+		"ILogcatManagerService_aidl",
+		"libincremental_aidl-cpp",
+		"incremental_aidl",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
@@ -449,8 +455,12 @@ var (
 
 	Bp2buildModuleDoNotConvertList = []string{
 		// cc bugs
-		"libactivitymanager_aidl",                   // TODO(b/207426160): Unsupported use of aidl sources (via Dactivity_manager_procstate_aidl) in a cc_library
-		"gen-kotlin-build-file.py",                  // TODO(b/198619163) module has same name as source
+		"libactivitymanager_aidl", // TODO(b/207426160): Unsupported use of aidl sources (via Dactivity_manager_procstate_aidl) in a cc_library
+
+		// TODO(b/198619163) module has same name as source
+		"gen-kotlin-build-file.py",
+		"logtagd.rc",
+
 		"libgtest_ndk_c++", "libgtest_main_ndk_c++", // TODO(b/201816222): Requires sdk_version support.
 
 		// TODO(b/202876379): has arch-variant static_executable
@@ -592,11 +602,10 @@ var (
 
 		// cc_test with unconverted deps, or are device-only (and not verified to pass yet)
 		"AMRWBEncTest",
-		"AmrnbDecoderTest", // depends on unconverted modules: libaudioutils, libsndfile
-		"AmrnbEncoderTest", // depends on unconverted modules: libaudioutils, libsndfile
-		"AmrwbDecoderTest", // depends on unconverted modules: libsndfile, libaudioutils
-		"AmrwbEncoderTest", // depends on unconverted modules: libaudioutils, libsndfile
-		"CtsLiblogTestCases",
+		"AmrnbDecoderTest",     // depends on unconverted modules: libaudioutils, libsndfile
+		"AmrnbEncoderTest",     // depends on unconverted modules: libaudioutils, libsndfile
+		"AmrwbDecoderTest",     // depends on unconverted modules: libsndfile, libaudioutils
+		"AmrwbEncoderTest",     // depends on unconverted modules: libaudioutils, libsndfile
 		"Mp3DecoderTest",       // depends on unconverted modules: libsndfile, libaudioutils
 		"Mpeg4H263DecoderTest", // depends on unconverted modules: libstagefright_foundation
 		"Mpeg4H263EncoderTest",
@@ -657,8 +666,7 @@ var (
 		"libcutils_sockets_test",
 		"libexpectedutils_test",
 		"libhwbinder_latency",
-		"liblog-host-test",
-		"liblog-unit-tests",
+		"liblog-host-test", // failing tests
 		"libminijail_test",
 		"libminijail_unittest_gtest",
 		"libpackagelistparser_test",
