@@ -17,7 +17,6 @@ package cc
 import (
 	"android/soong/android"
 	"android/soong/multitree"
-	"strings"
 )
 
 func init() {
@@ -25,8 +24,10 @@ func init() {
 }
 
 func RegisterLibraryStubBuildComponents(ctx android.RegistrationContext) {
-	// cc_api_stub_library shares a lot of ndk_library, and this will be refactored later
 	ctx.RegisterModuleType("cc_api_library", CcApiLibraryFactory)
+	ctx.RegisterModuleType("cc_api_headers", CcApiHeadersFactory)
+
+	// cc_api_stub_library shares a lot of ndk_library, and this will be refactored later
 	ctx.RegisterModuleType("cc_api_stub_library", CcApiStubLibraryFactory)
 	ctx.RegisterModuleType("cc_api_contribution", CcApiContributionFactory)
 }
@@ -81,6 +82,14 @@ func (d *apiLibraryDecorator) Name(basename string) string {
 }
 
 func (d *apiLibraryDecorator) link(ctx ModuleContext, flags Flags, deps PathDeps, objects Objects) android.Path {
+	// Export headers as system include dirs if specified. Mostly for libc
+	if Bool(d.libraryDecorator.Properties.Llndk.Export_headers_as_system) {
+		d.libraryDecorator.flagExporter.Properties.Export_system_include_dirs = append(
+			d.libraryDecorator.flagExporter.Properties.Export_system_include_dirs,
+			d.libraryDecorator.flagExporter.Properties.Export_include_dirs...)
+		d.libraryDecorator.flagExporter.Properties.Export_include_dirs = nil
+	}
+
 	// Flags reexported from dependencies. (e.g. vndk_prebuilt_shared)
 	d.libraryDecorator.flagExporter.exportIncludes(ctx)
 	d.libraryDecorator.reexportDirs(deps.ReexportedDirs...)
@@ -114,9 +123,51 @@ func (d *apiLibraryDecorator) availableFor(what string) bool {
 	return true
 }
 
-func (d *apiLibraryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags {
-	d.libraryDecorator.libName = strings.TrimSuffix(ctx.ModuleName(), multitree.GetApiImportSuffix())
-	return d.libraryDecorator.linkerFlags(ctx, flags)
+// 'cc_api_headers' is similar with 'cc_api_library', but which replaces
+// header libraries. The module will replace any dependencies to existing
+// original header libraries.
+type apiHeadersDecorator struct {
+	*libraryDecorator
+}
+
+func CcApiHeadersFactory() android.Module {
+	module, decorator := NewLibrary(android.DeviceSupported)
+	apiHeadersDecorator := &apiHeadersDecorator{
+		libraryDecorator: decorator,
+	}
+	apiHeadersDecorator.HeaderOnly()
+
+	module.stl = nil
+	module.sanitize = nil
+	decorator.disableStripping()
+
+	module.compiler = nil
+	module.linker = apiHeadersDecorator
+	module.installer = nil
+
+	// Mark module as stub, so APEX would not include this stub in the package.
+	module.library.setBuildStubs(true)
+
+	// Prevent default system libs (libc, libm, and libdl) from being linked
+	if apiHeadersDecorator.baseLinker.Properties.System_shared_libs == nil {
+		apiHeadersDecorator.baseLinker.Properties.System_shared_libs = []string{}
+	}
+
+	apiHeadersDecorator.baseLinker.Properties.No_libcrt = BoolPtr(true)
+	apiHeadersDecorator.baseLinker.Properties.Nocrt = BoolPtr(true)
+
+	module.Init()
+
+	return module
+}
+
+func (d *apiHeadersDecorator) Name(basename string) string {
+	return basename + multitree.GetApiImportSuffix()
+}
+
+func (d *apiHeadersDecorator) availableFor(what string) bool {
+	// Stub from API surface should be available for any APEX.
+	return true
 }
 
 func CcApiStubLibraryFactory() android.Module {
