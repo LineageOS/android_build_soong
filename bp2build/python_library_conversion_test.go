@@ -35,7 +35,7 @@ func convertPythonLibTestCaseToBp2build_Host(tc pythonLibBp2BuildTestCase) Bp2bu
 func convertPythonLibTestCaseToBp2build(tc pythonLibBp2BuildTestCase) Bp2buildTestCase {
 	var bp2BuildTargets []string
 	for _, t := range tc.expectedBazelTargets {
-		bp2BuildTargets = append(bp2BuildTargets, makeBazelTarget(t.typ, t.name, t.attrs))
+		bp2BuildTargets = append(bp2BuildTargets, MakeBazelTarget(t.typ, t.name, t.attrs))
 	}
 	// Copy the filesystem so that we can change stuff in it later without it
 	// affecting the original pythonLibBp2BuildTestCase

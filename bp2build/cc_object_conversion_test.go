@@ -60,7 +60,7 @@ func TestCcObjectSimple(t *testing.T) {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_object", "foo", AttrNameToString{
+			MakeBazelTarget("cc_object", "foo", AttrNameToString{
 				"copts": `[
         "-fno-addrsig",
         "-Wno-gcc-compat",
@@ -106,7 +106,7 @@ cc_defaults {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_object", "foo", AttrNameToString{
+			MakeBazelTarget("cc_object", "foo", AttrNameToString{
 				"copts": `[
         "-Werror",
         "-fno-addrsig",
@@ -141,11 +141,11 @@ cc_object {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_object", "bar", AttrNameToString{
+			MakeBazelTarget("cc_object", "bar", AttrNameToString{
 				"copts":               `["-fno-addrsig"]`,
 				"srcs":                `["x/y/z.c"]`,
 				"system_dynamic_deps": `[]`,
-			}), makeBazelTarget("cc_object", "foo", AttrNameToString{
+			}), MakeBazelTarget("cc_object", "foo", AttrNameToString{
 				"copts":               `["-fno-addrsig"]`,
 				"deps":                `[":bar"]`,
 				"srcs":                `["a/b/c.c"]`,
@@ -170,7 +170,7 @@ func TestCcObjectIncludeBuildDirFalse(t *testing.T) {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_object", "foo", AttrNameToString{
+			MakeBazelTarget("cc_object", "foo", AttrNameToString{
 				"copts":               `["-fno-addrsig"]`,
 				"srcs":                `["a/b/c.c"]`,
 				"system_dynamic_deps": `[]`,
@@ -195,7 +195,7 @@ func TestCcObjectProductVariable(t *testing.T) {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_object", "foo", AttrNameToString{
+			MakeBazelTarget("cc_object", "foo", AttrNameToString{
 				"asflags": `select({
         "//build/bazel/product_variables:platform_sdk_version": ["-DPLATFORM_SDK_VERSION=$(Platform_sdk_version)"],
         "//conditions:default": [],
@@ -227,7 +227,7 @@ func TestCcObjectCflagsOneArch(t *testing.T) {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_object", "foo", AttrNameToString{
+			MakeBazelTarget("cc_object", "foo", AttrNameToString{
 				"copts": `["-fno-addrsig"] + select({
         "//build/bazel/platforms/arch:x86": ["-fPIC"],
         "//conditions:default": [],
@@ -271,7 +271,7 @@ func TestCcObjectCflagsFourArch(t *testing.T) {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_object", "foo", AttrNameToString{
+			MakeBazelTarget("cc_object", "foo", AttrNameToString{
 				"copts": `["-fno-addrsig"] + select({
         "//build/bazel/platforms/arch:arm": ["-Wall"],
         "//build/bazel/platforms/arch:arm64": ["-Wall"],
@@ -303,7 +303,7 @@ func TestCcObjectLinkerScript(t *testing.T) {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_object", "foo", AttrNameToString{
+			MakeBazelTarget("cc_object", "foo", AttrNameToString{
 				"copts":         `["-fno-addrsig"]`,
 				"linker_script": `"bunny.lds"`,
 				"srcs":          `["base.cpp"]`,
@@ -360,7 +360,7 @@ cc_object {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_object", "foo", AttrNameToString{
+			MakeBazelTarget("cc_object", "foo", AttrNameToString{
 				"copts": `["-fno-addrsig"]`,
 				"deps": `select({
         "//build/bazel/platforms/arch:arm": [":arm_obj"],
@@ -401,7 +401,7 @@ func TestCcObjectSelectOnLinuxAndBionicArchs(t *testing.T) {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_object", "foo", AttrNameToString{
+			MakeBazelTarget("cc_object", "foo", AttrNameToString{
 				"copts": `["-fno-addrsig"]`,
 				"srcs": `["base.cpp"] + select({
         "//build/bazel/platforms/os_arch:android_arm64": [

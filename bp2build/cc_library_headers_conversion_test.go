@@ -106,7 +106,7 @@ cc_library_headers {
     // TODO: Also support export_header_lib_headers
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_library_headers", "foo_headers", AttrNameToString{
+			MakeBazelTarget("cc_library_headers", "foo_headers", AttrNameToString{
 				"export_includes": `[
         "dir-1",
         "dir-2",
@@ -183,7 +183,7 @@ cc_library_headers {
     include_build_directory: false,
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_library_headers", "foo_headers", AttrNameToString{
+			MakeBazelTarget("cc_library_headers", "foo_headers", AttrNameToString{
 				"deps": `[":base-lib"] + select({
         "//build/bazel/platforms/os:android": [":android-lib"],
         "//build/bazel/platforms/os:darwin": [":darwin-lib"],
@@ -223,7 +223,7 @@ cc_library_headers {
     include_build_directory: false,
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_library_headers", "foo_headers", AttrNameToString{
+			MakeBazelTarget("cc_library_headers", "foo_headers", AttrNameToString{
 				"deps": `select({
         "//build/bazel/platforms/os:android": [":exported-lib"],
         "//conditions:default": [],
@@ -276,7 +276,7 @@ func TestCcLibraryHeadersArchAndTargetExportSystemIncludes(t *testing.T) {
     include_build_directory: false,
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_library_headers", "foo_headers", AttrNameToString{
+			MakeBazelTarget("cc_library_headers", "foo_headers", AttrNameToString{
 				"export_system_includes": `["shared_include_dir"] + select({
         "//build/bazel/platforms/arch:arm": ["arm_include_dir"],
         "//build/bazel/platforms/arch:x86_64": ["x86_64_include_dir"],
@@ -318,7 +318,7 @@ cc_library_headers {
     include_build_directory: false,
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_library_headers", "lib-1", AttrNameToString{
+			MakeBazelTarget("cc_library_headers", "lib-1", AttrNameToString{
 				"export_includes": `["lib-1"]`,
 			}),
 		},
@@ -340,7 +340,7 @@ cc_library_headers {
 }
 ` + simpleModuleDoNotConvertBp2build("cc_library_headers", "foo_export"),
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_library_headers", "foo_headers", AttrNameToString{
+			MakeBazelTarget("cc_library_headers", "foo_headers", AttrNameToString{
 				"deps": `[":foo_export"]`,
 			}),
 		},
@@ -362,7 +362,7 @@ cc_library_headers {
 }
 ` + simpleModuleDoNotConvertBp2build("cc_library_headers", "foo_export"),
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_library_headers", "foo_headers", AttrNameToString{
+			MakeBazelTarget("cc_library_headers", "foo_headers", AttrNameToString{
 				"deps": `[":foo_export"]`,
 			}),
 		},
@@ -384,7 +384,7 @@ cc_library_headers {
 }
 ` + simpleModuleDoNotConvertBp2build("cc_library_headers", "foo_export"),
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_library_headers", "foo_headers", AttrNameToString{
+			MakeBazelTarget("cc_library_headers", "foo_headers", AttrNameToString{
 				"deps": `[":foo_export"]`,
 			}),
 		},
@@ -405,7 +405,7 @@ cc_library_headers {
 }
 ` + simpleModuleDoNotConvertBp2build("cc_library_headers", "foo_export"),
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_library_headers", "foo_headers", AttrNameToString{
+			MakeBazelTarget("cc_library_headers", "foo_headers", AttrNameToString{
 				"deps": `[":foo_export"]`,
 			}),
 		},

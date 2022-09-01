@@ -47,7 +47,7 @@ android_app {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("android_binary", "TestApp", AttrNameToString{
+			MakeBazelTarget("android_binary", "TestApp", AttrNameToString{
 				"srcs":           `["app.java"]`,
 				"manifest":       `"AndroidManifest.xml"`,
 				"resource_files": `["res/res.png"]`,
@@ -79,7 +79,7 @@ android_app {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("android_binary", "TestApp", AttrNameToString{
+			MakeBazelTarget("android_binary", "TestApp", AttrNameToString{
 				"srcs":     `["app.java"]`,
 				"manifest": `"manifest/AndroidManifest.xml"`,
 				"resource_files": `[
@@ -119,7 +119,7 @@ android_app {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("android_binary", "TestApp", AttrNameToString{
+			MakeBazelTarget("android_binary", "TestApp", AttrNameToString{
 				"srcs": `select({
         "//build/bazel/platforms/arch:arm": ["arm.java"],
         "//build/bazel/platforms/arch:x86": ["x86.java"],

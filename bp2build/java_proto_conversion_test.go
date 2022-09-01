@@ -70,7 +70,7 @@ func TestJavaProto(t *testing.T) {
     srcs: ["a.proto"],
 }`
 
-	protoLibrary := makeBazelTarget("proto_library", "java-protos_proto", AttrNameToString{
+	protoLibrary := MakeBazelTarget("proto_library", "java-protos_proto", AttrNameToString{
 		"srcs": `["a.proto"]`,
 	})
 
@@ -82,13 +82,13 @@ func TestJavaProto(t *testing.T) {
 			Blueprint:   fmt.Sprintf(bp, tc.protoType),
 			ExpectedBazelTargets: []string{
 				protoLibrary,
-				makeBazelTarget(
+				MakeBazelTarget(
 					tc.javaLibraryType,
 					javaLibraryName,
 					AttrNameToString{
 						"deps": `[":java-protos_proto"]`,
 					}),
-				makeBazelTarget("java_library", "java-protos", AttrNameToString{
+				MakeBazelTarget("java_library", "java-protos", AttrNameToString{
 					"exports": fmt.Sprintf(`[":%s"]`, javaLibraryName),
 				}),
 			},
@@ -106,16 +106,16 @@ func TestJavaProtoDefault(t *testing.T) {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("proto_library", "java-protos_proto", AttrNameToString{
+			MakeBazelTarget("proto_library", "java-protos_proto", AttrNameToString{
 				"srcs": `["a.proto"]`,
 			}),
-			makeBazelTarget(
+			MakeBazelTarget(
 				"java_lite_proto_library",
 				"java-protos_java_proto_lite",
 				AttrNameToString{
 					"deps": `[":java-protos_proto"]`,
 				}),
-			makeBazelTarget("java_library", "java-protos", AttrNameToString{
+			MakeBazelTarget("java_library", "java-protos", AttrNameToString{
 				"exports":   `[":java-protos_java_proto_lite"]`,
 				"javacopts": `["-source 1.7 -target 1.7"]`,
 			}),
