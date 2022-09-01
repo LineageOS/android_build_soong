@@ -1474,41 +1474,6 @@ func pathForModuleOut(ctx ModuleOutPathContext) OutputPath {
 	return PathForOutput(ctx, ".intermediates", ctx.ModuleDir(), ctx.ModuleName(), ctx.ModuleSubDir())
 }
 
-// PathForVndkRefAbiDump returns an OptionalPath representing the path of the
-// reference abi dump for the given module. This is not guaranteed to be valid.
-func PathForVndkRefAbiDump(ctx ModuleInstallPathContext, version, fileName string,
-	isNdk, isVndk, isGzip bool) OptionalPath {
-
-	currentArchType := ctx.Arch().ArchType
-	primaryArchType := ctx.Config().DevicePrimaryArchType()
-	archName := currentArchType.String()
-	if currentArchType != primaryArchType {
-		archName += "_" + primaryArchType.String()
-	}
-
-	var dirName string
-	if isNdk {
-		dirName = "ndk"
-	} else if isVndk {
-		dirName = "vndk"
-	} else {
-		dirName = "platform" // opt-in libs
-	}
-
-	binderBitness := ctx.DeviceConfig().BinderBitness()
-
-	var ext string
-	if isGzip {
-		ext = ".lsdump.gz"
-	} else {
-		ext = ".lsdump"
-	}
-
-	return ExistentPathForSource(ctx, "prebuilts", "abi-dumps", dirName,
-		version, binderBitness, archName, "source-based",
-		fileName+ext)
-}
-
 // PathForModuleOut returns a Path representing the paths... under the module's
 // output directory.
 func PathForModuleOut(ctx ModuleOutPathContext, paths ...string) ModuleOutPath {
