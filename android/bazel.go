@@ -17,9 +17,6 @@ package android
 import (
 	"bufio"
 	"errors"
-	"fmt"
-	"io/ioutil"
-	"path/filepath"
 	"strings"
 
 	"github.com/google/blueprint"
@@ -117,7 +114,6 @@ type Bazelable interface {
 	GetBazelLabel(ctx BazelConversionPathContext, module blueprint.Module) string
 	ShouldConvertWithBp2build(ctx BazelConversionContext) bool
 	shouldConvertWithBp2build(ctx bazelOtherModuleContext, module blueprint.Module) bool
-	GetBazelBuildFileContents(c Config, path, name string) (string, error)
 	ConvertWithBp2build(ctx TopDownMutatorContext)
 
 	// namespacedVariableProps is a map from a soong config variable namespace
@@ -496,28 +492,6 @@ func bp2buildDefaultTrueRecursively(packagePath string, config allowlists.Bp2Bui
 	}
 
 	return false, packagePath
-}
-
-// GetBazelBuildFileContents returns the file contents of a hand-crafted BUILD file if available or
-// an error if there are errors reading the file.
-// TODO(b/181575318): currently we append the whole BUILD file, let's change that to do
-// something more targeted based on the rule type and target.
-func (b *BazelModuleBase) GetBazelBuildFileContents(c Config, path, name string) (string, error) {
-	if !strings.Contains(b.HandcraftedLabel(), path) {
-		return "", fmt.Errorf("%q not found in bazel_module.label %q", path, b.HandcraftedLabel())
-	}
-	name = filepath.Join(path, name)
-	f, err := c.fs.Open(name)
-	if err != nil {
-		return "", err
-	}
-	defer f.Close()
-
-	data, err := ioutil.ReadAll(f)
-	if err != nil {
-		return "", err
-	}
-	return string(data[:]), nil
 }
 
 func registerBp2buildConversionMutator(ctx RegisterMutatorsContext) {
