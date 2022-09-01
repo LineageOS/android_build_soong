@@ -37,7 +37,7 @@ linker_config {
 	src: "a.json",
 }
 `,
-			ExpectedBazelTargets: []string{makeBazelTarget("linker_config", "foo", AttrNameToString{
+			ExpectedBazelTargets: []string{MakeBazelTarget("linker_config", "foo", AttrNameToString{
 				"src": `"a.json"`,
 			})},
 		})

@@ -51,11 +51,11 @@ java_library {
     bazel_module: { bp2build_available: true },
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("java_library", "java-lib-1", AttrNameToString{
+			MakeBazelTarget("java_library", "java-lib-1", AttrNameToString{
 				"srcs": `["a.java"]`,
 				"deps": `[":java-lib-2"]`,
 			}),
-			makeBazelTarget("java_library", "java-lib-2", AttrNameToString{
+			MakeBazelTarget("java_library", "java-lib-2", AttrNameToString{
 				"srcs": `["b.java"]`,
 			}),
 		},
@@ -84,7 +84,7 @@ java_library {
     bazel_module: { bp2build_available: false },
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("java_library", "java-lib-1", AttrNameToString{
+			MakeBazelTarget("java_library", "java-lib-1", AttrNameToString{
 				"srcs": `["a.java"]`,
 				"deps": `[
         ":java-lib-2",
@@ -110,7 +110,7 @@ java_library {
     bazel_module: { bp2build_available: false },
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("java_library", "java-lib-1", AttrNameToString{
+			MakeBazelTarget("java_library", "java-lib-1", AttrNameToString{
 				"exports": `[":java-lib-2"]`,
 			}),
 		},
@@ -149,7 +149,7 @@ java_plugin {
     bazel_module: { bp2build_available: false },
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("java_library", "java-lib-1", AttrNameToString{
+			MakeBazelTarget("java_library", "java-lib-1", AttrNameToString{
 				"plugins": `[":java-plugin-1"]`,
 			}),
 		},
@@ -166,7 +166,7 @@ func TestJavaLibraryJavaVersion(t *testing.T) {
     java_version: "11",
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("java_library", "java-lib-1", AttrNameToString{
+			MakeBazelTarget("java_library", "java-lib-1", AttrNameToString{
 				"srcs":      `["a.java"]`,
 				"javacopts": `["-source 11 -target 11"]`,
 			}),
@@ -186,7 +186,7 @@ func TestJavaLibraryErrorproneJavacflagsEnabledManually(t *testing.T) {
     },
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("java_library", "java-lib-1", AttrNameToString{
+			MakeBazelTarget("java_library", "java-lib-1", AttrNameToString{
 				"javacopts": `[
         "-Xsuper-fast",
         "-Xep:SpeedLimit:OFF",
@@ -208,7 +208,7 @@ func TestJavaLibraryErrorproneJavacflagsErrorproneDisabledByDefault(t *testing.T
     },
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("java_library", "java-lib-1", AttrNameToString{
+			MakeBazelTarget("java_library", "java-lib-1", AttrNameToString{
 				"javacopts": `["-Xsuper-fast"]`,
 				"srcs":      `["a.java"]`,
 			}),
@@ -228,7 +228,7 @@ func TestJavaLibraryErrorproneJavacflagsErrorproneDisabledManually(t *testing.T)
     },
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("java_library", "java-lib-1", AttrNameToString{
+			MakeBazelTarget("java_library", "java-lib-1", AttrNameToString{
 				"javacopts": `["-Xsuper-fast"]`,
 				"srcs":      `["a.java"]`,
 			}),
@@ -252,13 +252,13 @@ func TestJavaLibraryLogTags(t *testing.T) {
         bazel_module: { bp2build_available: true },
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("event_log_tags", "example_lib_logtags", AttrNameToString{
+			MakeBazelTarget("event_log_tags", "example_lib_logtags", AttrNameToString{
 				"srcs": `[
         "a.logtag",
         "b.logtag",
     ]`,
 			}),
-			makeBazelTarget("java_library", "example_lib", AttrNameToString{
+			MakeBazelTarget("java_library", "example_lib", AttrNameToString{
 				"srcs": `[
         "a.java",
         "b.java",
@@ -280,7 +280,7 @@ func TestJavaLibraryResources(t *testing.T) {
 	java_resources: ["res/a.res", "res/b.res"],
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("java_library", "java-lib-1", AttrNameToString{
+			MakeBazelTarget("java_library", "java-lib-1", AttrNameToString{
 				"resources": `[
         "res/a.res",
         "res/b.res",
@@ -302,7 +302,7 @@ func TestJavaLibraryResourceDirs(t *testing.T) {
 	java_resource_dirs: ["res"],
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("java_library", "java-lib-1", AttrNameToString{
+			MakeBazelTarget("java_library", "java-lib-1", AttrNameToString{
 				"resource_strip_prefix": `"res"`,
 				"resources": `[
         "res/a.res",
@@ -326,7 +326,7 @@ func TestJavaLibraryResourcesExcludeDir(t *testing.T) {
 	exclude_java_resource_dirs: ["res/exclude"],
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("java_library", "java-lib-1", AttrNameToString{
+			MakeBazelTarget("java_library", "java-lib-1", AttrNameToString{
 				"resource_strip_prefix": `"res"`,
 				"resources":             `["res/a.res"]`,
 			}),
@@ -347,7 +347,7 @@ func TestJavaLibraryResourcesExcludeFile(t *testing.T) {
 	exclude_java_resources: ["res/dir1/exclude.res"],
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("java_library", "java-lib-1", AttrNameToString{
+			MakeBazelTarget("java_library", "java-lib-1", AttrNameToString{
 				"resource_strip_prefix": `"res"`,
 				"resources": `[
         "res/a.res",
@@ -389,16 +389,16 @@ func TestJavaLibraryAidl(t *testing.T) {
         bazel_module: { bp2build_available: true },
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("aidl_library", "example_lib_aidl_library", AttrNameToString{
+			MakeBazelTarget("aidl_library", "example_lib_aidl_library", AttrNameToString{
 				"srcs": `[
         "a.aidl",
         "b.aidl",
     ]`,
 			}),
-			makeBazelTarget("java_aidl_library", "example_lib_java_aidl_library", AttrNameToString{
+			MakeBazelTarget("java_aidl_library", "example_lib_java_aidl_library", AttrNameToString{
 				"deps": `[":example_lib_aidl_library"]`,
 			}),
-			makeBazelTarget("java_library", "example_lib", AttrNameToString{
+			MakeBazelTarget("java_library", "example_lib", AttrNameToString{
 				"deps":    `[":example_lib_java_aidl_library"]`,
 				"exports": `[":example_lib_java_aidl_library"]`,
 				"srcs": `[
@@ -424,13 +424,13 @@ java_library {
         bazel_module: { bp2build_available: true },
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("aidl_library", "example_lib_aidl_library", AttrNameToString{
+			MakeBazelTarget("aidl_library", "example_lib_aidl_library", AttrNameToString{
 				"srcs": `["b.aidl"]`,
 			}),
-			makeBazelTarget("java_aidl_library", "example_lib_java_aidl_library", AttrNameToString{
+			MakeBazelTarget("java_aidl_library", "example_lib_java_aidl_library", AttrNameToString{
 				"deps": `[":example_lib_aidl_library"]`,
 			}),
-			makeBazelTarget("java_library", "example_lib", AttrNameToString{
+			MakeBazelTarget("java_library", "example_lib", AttrNameToString{
 				"deps":    `[":example_lib_java_aidl_library"]`,
 				"exports": `[":example_lib_java_aidl_library"]`,
 				"srcs":    `["a.java"]`,
@@ -478,10 +478,10 @@ java_library {
         "b.aidl",
     ]`,
 			}),
-			makeBazelTarget("java_aidl_library", "example_lib_java_aidl_library", AttrNameToString{
+			MakeBazelTarget("java_aidl_library", "example_lib_java_aidl_library", AttrNameToString{
 				"deps": `[":aidl_files"]`,
 			}),
-			makeBazelTarget("java_library", "example_lib", AttrNameToString{
+			MakeBazelTarget("java_library", "example_lib", AttrNameToString{
 				"deps":    `[":example_lib_java_aidl_library"]`,
 				"exports": `[":example_lib_java_aidl_library"]`,
 				"srcs": `[
@@ -523,10 +523,10 @@ java_library {
 	],
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("java_aidl_library", "foo_java_aidl_library", AttrNameToString{
+			MakeBazelTarget("java_aidl_library", "foo_java_aidl_library", AttrNameToString{
 				"deps": `["//path/to/A:A_aidl"]`,
 			}),
-			makeBazelTarget("java_library", "foo", AttrNameToString{
+			MakeBazelTarget("java_library", "foo", AttrNameToString{
 				"exports": `[":foo_java_aidl_library"]`,
 			}),
 		},

@@ -141,7 +141,7 @@ apex {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("apex", "com.android.apogee", AttrNameToString{
+			MakeBazelTarget("apex", "com.android.apogee", AttrNameToString{
 				"android_manifest": `"ApogeeAndroidManifest.xml"`,
 				"binaries": `[
         ":cc_binary_1",
@@ -203,7 +203,7 @@ apex {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("apex", "com.android.apogee", AttrNameToString{
+			MakeBazelTarget("apex", "com.android.apogee", AttrNameToString{
 				"file_contexts": `"//a/b:com.android.apogee-file_contexts"`,
 				"manifest":      `"apex_manifest.json"`,
 			}),
@@ -223,7 +223,7 @@ apex {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("apex", "com.android.apogee", AttrNameToString{
+			MakeBazelTarget("apex", "com.android.apogee", AttrNameToString{
 				"file_contexts": `"file_contexts_file"`,
 				"manifest":      `"apex_manifest.json"`,
 			}),
@@ -252,7 +252,7 @@ apex {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("apex", "com.android.apogee", AttrNameToString{
+			MakeBazelTarget("apex", "com.android.apogee", AttrNameToString{
 				"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
 				"manifest":      `"apex_manifest.json"`,
 			}),
@@ -275,7 +275,7 @@ filegroup {
 		},
 		Blueprint: createMultilibBlueprint("both"),
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("apex", "com.android.apogee", AttrNameToString{
+			MakeBazelTarget("apex", "com.android.apogee", AttrNameToString{
 				"native_shared_libs_32": `[
         ":native_shared_lib_1",
         ":native_shared_lib_3",
@@ -319,7 +319,7 @@ filegroup {
 		},
 		Blueprint: createMultilibBlueprint("first"),
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("apex", "com.android.apogee", AttrNameToString{
+			MakeBazelTarget("apex", "com.android.apogee", AttrNameToString{
 				"native_shared_libs_32": `select({
         "//build/bazel/platforms/arch:arm": [
             ":native_shared_lib_1",
@@ -368,7 +368,7 @@ filegroup {
 		},
 		Blueprint: createMultilibBlueprint("32"),
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("apex", "com.android.apogee", AttrNameToString{
+			MakeBazelTarget("apex", "com.android.apogee", AttrNameToString{
 				"native_shared_libs_32": `[
         ":native_shared_lib_1",
         ":native_shared_lib_3",
@@ -399,7 +399,7 @@ filegroup {
 		},
 		Blueprint: createMultilibBlueprint("64"),
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("apex", "com.android.apogee", AttrNameToString{
+			MakeBazelTarget("apex", "com.android.apogee", AttrNameToString{
 				"native_shared_libs_64": `select({
         "//build/bazel/platforms/arch:arm64": [
             ":native_shared_lib_1",
@@ -439,7 +439,7 @@ apex {
 	manifest: "apogee_manifest.json",
 }
 `,
-		ExpectedBazelTargets: []string{makeBazelTarget("apex", "com.android.apogee", AttrNameToString{
+		ExpectedBazelTargets: []string{MakeBazelTarget("apex", "com.android.apogee", AttrNameToString{
 			"manifest":      `"apogee_manifest.json"`,
 			"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
 		}),
@@ -467,7 +467,7 @@ apex {
 	bazel_module: { bp2build_available: true },
 }
 `,
-		ExpectedBazelTargets: []string{makeBazelTarget("apex", "apogee", AttrNameToString{
+		ExpectedBazelTargets: []string{MakeBazelTarget("apex", "apogee", AttrNameToString{
 			"manifest":      `"manifest.json"`,
 			"file_contexts": `"//system/sepolicy/apex:apogee-file_contexts"`,
 		}),
@@ -624,7 +624,7 @@ override_apex {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
+			MakeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
 				"android_manifest": `"ApogeeAndroidManifest.xml"`,
 				"binaries": `[
         ":cc_binary_1",
@@ -684,7 +684,7 @@ override_apex {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
+			MakeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
 				"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
 				"manifest":      `"//a/b:apex_manifest.json"`,
 			}),
@@ -718,7 +718,7 @@ override_apex {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
+			MakeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
 				"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
 				"manifest":      `"//a/b:apogee_manifest.json"`,
 			}),
@@ -750,7 +750,7 @@ override_apex {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
+			MakeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
 				"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
 				"manifest":      `"apex_manifest.json"`,
 			}),
@@ -783,7 +783,7 @@ override_apex {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
+			MakeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
 				"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
 				"manifest":      `"apogee_manifest.json"`,
 			}),
@@ -816,7 +816,7 @@ override_apex {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
+			MakeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
 				"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
 				"manifest":      `"apex_manifest.json"`,
 				"package_name":  `"com.google.android.apogee"`,
@@ -855,7 +855,7 @@ override_apex {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
+			MakeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
 				"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
 				"manifest":      `"apex_manifest.json"`,
 				"prebuilts":     `[":prebuilt_file"]`,
@@ -900,7 +900,7 @@ override_apex {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
+			MakeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
 				"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
 				"manifest":      `"apex_manifest.json"`,
 				"prebuilts":     `[":prebuilt_file2"]`,
@@ -940,7 +940,7 @@ override_apex {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
+			MakeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
 				"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
 				"manifest":      `"apex_manifest.json"`,
 				"prebuilts":     `[]`,
@@ -974,7 +974,7 @@ override_apex {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
+			MakeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
 				"file_contexts":  `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
 				"manifest":       `"apex_manifest.json"`,
 				"logging_parent": `"foo.bar.baz"`,
@@ -1009,7 +1009,7 @@ override_apex {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
+			MakeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
 				"file_contexts":  `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
 				"manifest":       `"apex_manifest.json"`,
 				"logging_parent": `"foo.bar.baz.override"`,

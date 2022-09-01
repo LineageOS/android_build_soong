@@ -23,7 +23,7 @@ cc_prebuilt_library_shared {
 	bazel_module: { bp2build_available: true },
 }`,
 			ExpectedBazelTargets: []string{
-				makeBazelTarget("prebuilt_library_shared", "libtest", AttrNameToString{
+				MakeBazelTarget("prebuilt_library_shared", "libtest", AttrNameToString{
 					"shared_library": `"libf.so"`,
 				}),
 			},
@@ -50,7 +50,7 @@ cc_prebuilt_library_shared {
 	bazel_module: { bp2build_available: true },
 }`,
 			ExpectedBazelTargets: []string{
-				makeBazelTarget("prebuilt_library_shared", "libtest", AttrNameToString{
+				MakeBazelTarget("prebuilt_library_shared", "libtest", AttrNameToString{
 					"shared_library": `select({
         "//build/bazel/platforms/arch:arm": "libg.so",
         "//build/bazel/platforms/arch:arm64": "libf.so",
