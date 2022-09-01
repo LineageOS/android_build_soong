@@ -3714,7 +3714,9 @@ func (c *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 	prebuilt := c.IsPrebuilt()
 	switch c.typ() {
 	case binary:
-		if !prebuilt {
+		if prebuilt {
+			prebuiltBinaryBp2Build(ctx, c)
+		} else {
 			binaryBp2build(ctx, c)
 		}
 	case testBin:
