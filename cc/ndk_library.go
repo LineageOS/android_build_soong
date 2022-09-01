@@ -84,11 +84,13 @@ var (
 //
 // Example:
 //
-//	ndk_library {
-//	    name: "libfoo",
-//	    symbol_file: "libfoo.map.txt",
-//	    first_version: "9",
-//	}
+// ndk_library {
+//
+//	name: "libfoo",
+//	symbol_file: "libfoo.map.txt",
+//	first_version: "9",
+//
+// }
 type libraryProperties struct {
 	// Relative path to the symbol map.
 	// An example file can be seen here: TODO(danalbert): Make an example.
@@ -109,6 +111,9 @@ type libraryProperties struct {
 	// where it is enabled pending a fix for http://b/190554910 (no debug info
 	// for asm implemented symbols).
 	Allow_untyped_symbols *bool
+
+	// Headers presented by this library to the Public API Surface
+	Export_header_libs []string
 }
 
 type stubDecorator struct {
@@ -483,8 +488,11 @@ func (c *stubDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) O
 	return objs
 }
 
+// Add a dependency on the header modules of this ndk_library
 func (linker *stubDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
-	return Deps{}
+	return Deps{
+		HeaderLibs: linker.properties.Export_header_libs,
+	}
 }
 
 func (linker *stubDecorator) Name(name string) string {
