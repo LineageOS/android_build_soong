@@ -240,7 +240,7 @@ func writeDepFile(outputFile string, eventHandler metrics.EventHandler, ninjaDep
 // doChosenActivity runs Soong for a specific activity, like bp2build, queryview
 // or the actual Soong build for the build.ninja file. Returns the top level
 // output file of the specific activity.
-func doChosenActivity(ctx *android.Context, configuration android.Config, extraNinjaDeps []string, logDir string) string {
+func doChosenActivity(ctx *android.Context, configuration android.Config, extraNinjaDeps []string) string {
 	if configuration.BuildMode == android.Bp2build {
 		// Run the alternate pipeline of bp2build mutators and singleton to convert
 		// Blueprint to BUILD files before everything else.
@@ -353,7 +353,7 @@ func main() {
 	ctx := newContext(configuration)
 	ctx.EventHandler.Begin("soong_build")
 
-	finalOutputFile := doChosenActivity(ctx, configuration, extraNinjaDeps, logDir)
+	finalOutputFile := doChosenActivity(ctx, configuration, extraNinjaDeps)
 
 	ctx.EventHandler.End("soong_build")
 	writeMetrics(configuration, *ctx.EventHandler, logDir)
@@ -406,14 +406,10 @@ func touch(path string) {
 	}
 }
 
-// Find BUILD files in the srcDir which...
-//
-// - are not on the allow list (android/bazel.go#ShouldKeepExistingBuildFileForDir())
-//
-// - won't be overwritten by corresponding bp2build generated files
-//
-// And return their paths so they can be left out of the Bazel workspace dir (i.e. ignored)
-func getPathsToIgnoredBuildFiles(topDir string, generatedRoot string, srcDirBazelFiles []string, verbose bool) []string {
+// Find BUILD files in the srcDir which are not in the allowlist
+// (android.Bp2BuildConversionAllowlist#ShouldKeepExistingBuildFileForDir)
+// and return their paths so they can be left out of the Bazel workspace dir (i.e. ignored)
+func getPathsToIgnoredBuildFiles(config android.Bp2BuildConversionAllowlist, topDir string, srcDirBazelFiles []string, verbose bool) []string {
 	paths := make([]string, 0)
 
 	for _, srcDirBazelFileRelativePath := range srcDirBazelFiles {
@@ -428,19 +424,12 @@ func getPathsToIgnoredBuildFiles(topDir string, generatedRoot string, srcDirBaze
 			// Don't ignore entire directories
 			continue
 		}
-		if !(fileInfo.Name() == "BUILD" || fileInfo.Name() == "BUILD.bazel") {
+		if fileInfo.Name() != "BUILD" && fileInfo.Name() != "BUILD.bazel" {
 			// Don't ignore this file - it is not a build file
 			continue
 		}
-		srcDirBazelFileDir := filepath.Dir(srcDirBazelFileRelativePath)
-		if android.ShouldKeepExistingBuildFileForDir(srcDirBazelFileDir) {
+		if config.ShouldKeepExistingBuildFileForDir(filepath.Dir(srcDirBazelFileRelativePath)) {
 			// Don't ignore this existing build file
-			continue
-		}
-		correspondingBp2BuildFile := shared.JoinPath(topDir, generatedRoot, srcDirBazelFileRelativePath)
-		if _, err := os.Stat(correspondingBp2BuildFile); err == nil {
-			// If bp2build generated an alternate BUILD file, don't exclude this workspace path
-			// BUILD file clash resolution happens later in the symlink forest creation
 			continue
 		}
 		if verbose {
@@ -553,7 +542,7 @@ func runBp2Build(configuration android.Config, extraNinjaDeps []string) {
 			os.Exit(1)
 		}
 
-		pathsToIgnoredBuildFiles := getPathsToIgnoredBuildFiles(topDir, generatedRoot, existingBazelRelatedFiles, configuration.IsEnvTrue("BP2BUILD_VERBOSE"))
+		pathsToIgnoredBuildFiles := getPathsToIgnoredBuildFiles(configuration.Bp2buildPackageConfig, topDir, existingBazelRelatedFiles, configuration.IsEnvTrue("BP2BUILD_VERBOSE"))
 		excludes = append(excludes, pathsToIgnoredBuildFiles...)
 
 		excludes = append(excludes, getTemporaryExcludes()...)
