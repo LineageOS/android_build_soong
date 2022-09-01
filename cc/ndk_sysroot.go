@@ -57,13 +57,16 @@ import (
 )
 
 func init() {
-	android.RegisterModuleType("ndk_headers", ndkHeadersFactory)
-	android.RegisterModuleType("ndk_library", NdkLibraryFactory)
-	android.RegisterModuleType("versioned_ndk_headers", versionedNdkHeadersFactory)
-	android.RegisterModuleType("preprocessed_ndk_headers", preprocessedNdkHeadersFactory)
-	android.RegisterSingletonType("ndk", NdkSingleton)
-
+	RegisterNdkModuleTypes(android.InitRegistrationContext)
 	pctx.Import("android/soong/android")
+}
+
+func RegisterNdkModuleTypes(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("ndk_headers", ndkHeadersFactory)
+	ctx.RegisterModuleType("ndk_library", NdkLibraryFactory)
+	ctx.RegisterModuleType("versioned_ndk_headers", versionedNdkHeadersFactory)
+	ctx.RegisterModuleType("preprocessed_ndk_headers", preprocessedNdkHeadersFactory)
+	ctx.RegisterSingletonType("ndk", NdkSingleton)
 }
 
 func getNdkInstallBase(ctx android.PathContext) android.InstallPath {
