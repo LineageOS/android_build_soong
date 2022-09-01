@@ -355,7 +355,7 @@ cc_library {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_library_static", "a_bp2build_cc_library_static", AttrNameToString{
+			MakeBazelTarget("cc_library_static", "a_bp2build_cc_library_static", AttrNameToString{
 				"copts": `[
         "bothflag",
         "staticflag",
@@ -377,7 +377,7 @@ cc_library {
         ":whole_and_static_lib_for_both",
         ":whole_static_lib_for_static",
     ]`}),
-			makeBazelTarget("cc_library_shared", "a", AttrNameToString{
+			MakeBazelTarget("cc_library_shared", "a", AttrNameToString{
 				"copts": `[
         "bothflag",
         "sharedflag",
@@ -463,7 +463,7 @@ cc_library {
 			simpleModuleDoNotConvertBp2build("cc_library", "shared_dep_for_both") +
 			simpleModuleDoNotConvertBp2build("cc_library", "implementation_shared_dep_for_both"),
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_library_static", "a_bp2build_cc_library_static", AttrNameToString{
+			MakeBazelTarget("cc_library_static", "a_bp2build_cc_library_static", AttrNameToString{
 				"copts": `[
         "bothflag",
         "staticflag",
@@ -495,7 +495,7 @@ cc_library {
         ":whole_static_dep_for_static",
     ]`,
 			}),
-			makeBazelTarget("cc_library_shared", "a", AttrNameToString{
+			MakeBazelTarget("cc_library_shared", "a", AttrNameToString{
 				"copts": `[
         "bothflag",
         "sharedflag",
@@ -560,13 +560,13 @@ cc_prebuilt_library_static { name: "whole_static_lib_for_both" }
 		},
 		Blueprint: soongCcLibraryPreamble,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_library_static", "a_bp2build_cc_library_static", AttrNameToString{
+			MakeBazelTarget("cc_library_static", "a_bp2build_cc_library_static", AttrNameToString{
 				"whole_archive_deps": `[
         ":whole_static_lib_for_both_alwayslink",
         ":whole_static_lib_for_static_alwayslink",
     ]`,
 			}),
-			makeBazelTarget("cc_library_shared", "a", AttrNameToString{
+			MakeBazelTarget("cc_library_shared", "a", AttrNameToString{
 				"whole_archive_deps": `[
         ":whole_static_lib_for_both_alwayslink",
         ":whole_static_lib_for_shared_alwayslink",
@@ -654,7 +654,7 @@ cc_library_static { name: "android_dep_for_shared" }
 		},
 		Blueprint: soongCcLibraryPreamble,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_library_static", "a_bp2build_cc_library_static", AttrNameToString{
+			MakeBazelTarget("cc_library_static", "a_bp2build_cc_library_static", AttrNameToString{
 				"copts": `[
         "bothflag",
         "staticflag",
@@ -678,7 +678,7 @@ cc_library_static { name: "android_dep_for_shared" }
         "//conditions:default": [],
     })`,
 			}),
-			makeBazelTarget("cc_library_shared", "a", AttrNameToString{
+			MakeBazelTarget("cc_library_shared", "a", AttrNameToString{
 				"copts": `[
         "bothflag",
         "sharedflag",
@@ -807,7 +807,7 @@ filegroup {
 		},
 		Blueprint: soongCcLibraryPreamble,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_library_static", "a_bp2build_cc_library_static", AttrNameToString{
+			MakeBazelTarget("cc_library_static", "a_bp2build_cc_library_static", AttrNameToString{
 				"local_includes": `["."]`,
 				"srcs": `[
         "both_source.cpp",
@@ -832,7 +832,7 @@ filegroup {
         ":static_filegroup_c_srcs",
     ]`,
 			}),
-			makeBazelTarget("cc_library_shared", "a", AttrNameToString{
+			MakeBazelTarget("cc_library_shared", "a", AttrNameToString{
 				"local_includes": `["."]`,
 				"srcs": `[
         "both_source.cpp",
@@ -1315,8 +1315,8 @@ func makeCcLibraryTargets(name string, attrs AttrNameToString) []string {
 			staticAttrs[key] = val
 		}
 	}
-	sharedTarget := makeBazelTarget("cc_library_shared", name, sharedAttrs)
-	staticTarget := makeBazelTarget("cc_library_static", name+"_bp2build_cc_library_static", staticAttrs)
+	sharedTarget := MakeBazelTarget("cc_library_shared", name, sharedAttrs)
+	staticTarget := MakeBazelTarget("cc_library_static", name+"_bp2build_cc_library_static", staticAttrs)
 
 	return []string{staticTarget, sharedTarget}
 }
@@ -1338,7 +1338,7 @@ func makeCcStubSuiteTargets(name string, attrs AttrNameToString) string {
 			stubSuiteAttrs[STUB_SUITE_ATTRS[key]] = attrs[key]
 		}
 	}
-	return makeBazelTarget("cc_stub_suite", name+"_stub_libs", stubSuiteAttrs)
+	return MakeBazelTarget("cc_stub_suite", name+"_stub_libs", stubSuiteAttrs)
 }
 
 func TestCCLibraryNoLibCrtFalse(t *testing.T) {
@@ -1649,10 +1649,10 @@ cc_library {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_library_static", "static_empty_bp2build_cc_library_static", AttrNameToString{
+			MakeBazelTarget("cc_library_static", "static_empty_bp2build_cc_library_static", AttrNameToString{
 				"system_dynamic_deps": "[]",
 			}),
-			makeBazelTarget("cc_library_shared", "static_empty", AttrNameToString{}),
+			MakeBazelTarget("cc_library_shared", "static_empty", AttrNameToString{}),
 		},
 	})
 }
@@ -1672,8 +1672,8 @@ cc_library {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_library_static", "shared_empty_bp2build_cc_library_static", AttrNameToString{}),
-			makeBazelTarget("cc_library_shared", "shared_empty", AttrNameToString{
+			MakeBazelTarget("cc_library_static", "shared_empty_bp2build_cc_library_static", AttrNameToString{}),
+			MakeBazelTarget("cc_library_shared", "shared_empty", AttrNameToString{
 				"system_dynamic_deps": "[]",
 			}),
 		},
@@ -1699,8 +1699,8 @@ cc_library {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_library_static", "shared_empty_bp2build_cc_library_static", AttrNameToString{}),
-			makeBazelTarget("cc_library_shared", "shared_empty", AttrNameToString{
+			MakeBazelTarget("cc_library_static", "shared_empty_bp2build_cc_library_static", AttrNameToString{}),
+			MakeBazelTarget("cc_library_shared", "shared_empty", AttrNameToString{
 				"system_dynamic_deps": "[]",
 			}),
 		},
@@ -1782,10 +1782,10 @@ cc_library {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
+			MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
 				"system_dynamic_deps": `[":libc"]`,
 			}),
-			makeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
 				"system_dynamic_deps": `[
         ":libc",
         ":libm",
@@ -2000,7 +2000,7 @@ cc_library_static {
 }
 `, name_prefix, cppStdProp, cStdProp, gnuExtensionsProp),
 				ExpectedBazelTargets: []string{
-					makeBazelTarget("cc_library_static", name_prefix+"_static", attrs),
+					MakeBazelTarget("cc_library_static", name_prefix+"_static", attrs),
 				},
 			})
 
@@ -2019,7 +2019,7 @@ cc_library_shared {
 }
 `, name_prefix, cppStdProp, cStdProp, gnuExtensionsProp),
 				ExpectedBazelTargets: []string{
-					makeBazelTarget("cc_library_shared", name_prefix+"_shared", attrs),
+					MakeBazelTarget("cc_library_shared", name_prefix+"_shared", attrs),
 				},
 			})
 		})
@@ -2036,14 +2036,14 @@ func TestCcLibraryProtoSimple(t *testing.T) {
 	include_build_directory: false,
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("proto_library", "foo_proto", AttrNameToString{
+			MakeBazelTarget("proto_library", "foo_proto", AttrNameToString{
 				"srcs": `["foo.proto"]`,
-			}), makeBazelTarget("cc_lite_proto_library", "foo_cc_proto_lite", AttrNameToString{
+			}), MakeBazelTarget("cc_lite_proto_library", "foo_cc_proto_lite", AttrNameToString{
 				"deps": `[":foo_proto"]`,
-			}), makeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
+			}), MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
 				"implementation_whole_archive_deps": `[":foo_cc_proto_lite"]`,
 				"deps":                              `[":libprotobuf-cpp-lite"]`,
-			}), makeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+			}), MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
 				"dynamic_deps": `[":libprotobuf-cpp-lite"]`,
 			}),
 		},
@@ -2061,15 +2061,15 @@ func TestCcLibraryProtoNoCanonicalPathFromRoot(t *testing.T) {
 	include_build_directory: false,
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("proto_library", "foo_proto", AttrNameToString{
+			MakeBazelTarget("proto_library", "foo_proto", AttrNameToString{
 				"srcs":                `["foo.proto"]`,
 				"strip_import_prefix": `""`,
-			}), makeBazelTarget("cc_lite_proto_library", "foo_cc_proto_lite", AttrNameToString{
+			}), MakeBazelTarget("cc_lite_proto_library", "foo_cc_proto_lite", AttrNameToString{
 				"deps": `[":foo_proto"]`,
-			}), makeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
+			}), MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
 				"implementation_whole_archive_deps": `[":foo_cc_proto_lite"]`,
 				"deps":                              `[":libprotobuf-cpp-lite"]`,
-			}), makeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+			}), MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
 				"dynamic_deps": `[":libprotobuf-cpp-lite"]`,
 			}),
 		},
@@ -2087,14 +2087,14 @@ func TestCcLibraryProtoExplicitCanonicalPathFromRoot(t *testing.T) {
 	include_build_directory: false,
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("proto_library", "foo_proto", AttrNameToString{
+			MakeBazelTarget("proto_library", "foo_proto", AttrNameToString{
 				"srcs": `["foo.proto"]`,
-			}), makeBazelTarget("cc_lite_proto_library", "foo_cc_proto_lite", AttrNameToString{
+			}), MakeBazelTarget("cc_lite_proto_library", "foo_cc_proto_lite", AttrNameToString{
 				"deps": `[":foo_proto"]`,
-			}), makeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
+			}), MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
 				"implementation_whole_archive_deps": `[":foo_cc_proto_lite"]`,
 				"deps":                              `[":libprotobuf-cpp-lite"]`,
-			}), makeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+			}), MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
 				"dynamic_deps": `[":libprotobuf-cpp-lite"]`,
 			}),
 		},
@@ -2114,14 +2114,14 @@ func TestCcLibraryProtoFull(t *testing.T) {
 	include_build_directory: false,
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("proto_library", "foo_proto", AttrNameToString{
+			MakeBazelTarget("proto_library", "foo_proto", AttrNameToString{
 				"srcs": `["foo.proto"]`,
-			}), makeBazelTarget("cc_proto_library", "foo_cc_proto", AttrNameToString{
+			}), MakeBazelTarget("cc_proto_library", "foo_cc_proto", AttrNameToString{
 				"deps": `[":foo_proto"]`,
-			}), makeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
+			}), MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
 				"implementation_whole_archive_deps": `[":foo_cc_proto"]`,
 				"deps":                              `[":libprotobuf-cpp-full"]`,
-			}), makeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+			}), MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
 				"dynamic_deps": `[":libprotobuf-cpp-full"]`,
 			}),
 		},
@@ -2141,14 +2141,14 @@ func TestCcLibraryProtoLite(t *testing.T) {
 	include_build_directory: false,
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("proto_library", "foo_proto", AttrNameToString{
+			MakeBazelTarget("proto_library", "foo_proto", AttrNameToString{
 				"srcs": `["foo.proto"]`,
-			}), makeBazelTarget("cc_lite_proto_library", "foo_cc_proto_lite", AttrNameToString{
+			}), MakeBazelTarget("cc_lite_proto_library", "foo_cc_proto_lite", AttrNameToString{
 				"deps": `[":foo_proto"]`,
-			}), makeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
+			}), MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
 				"implementation_whole_archive_deps": `[":foo_cc_proto_lite"]`,
 				"deps":                              `[":libprotobuf-cpp-lite"]`,
-			}), makeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+			}), MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
 				"dynamic_deps": `[":libprotobuf-cpp-lite"]`,
 			}),
 		},
@@ -2168,14 +2168,14 @@ func TestCcLibraryProtoExportHeaders(t *testing.T) {
 	include_build_directory: false,
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("proto_library", "foo_proto", AttrNameToString{
+			MakeBazelTarget("proto_library", "foo_proto", AttrNameToString{
 				"srcs": `["foo.proto"]`,
-			}), makeBazelTarget("cc_lite_proto_library", "foo_cc_proto_lite", AttrNameToString{
+			}), MakeBazelTarget("cc_lite_proto_library", "foo_cc_proto_lite", AttrNameToString{
 				"deps": `[":foo_proto"]`,
-			}), makeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
+			}), MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
 				"deps":               `[":libprotobuf-cpp-lite"]`,
 				"whole_archive_deps": `[":foo_cc_proto_lite"]`,
-			}), makeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+			}), MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
 				"dynamic_deps":       `[":libprotobuf-cpp-lite"]`,
 				"whole_archive_deps": `[":foo_cc_proto_lite"]`,
 			}),
@@ -2228,65 +2228,65 @@ cc_library {
 	include_build_directory: false,
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("proto_library", "a_proto", AttrNameToString{
+			MakeBazelTarget("proto_library", "a_proto", AttrNameToString{
 				"srcs": `[":a_fg_proto"]`,
-			}), makeBazelTarget("cc_lite_proto_library", "a_cc_proto_lite", AttrNameToString{
+			}), MakeBazelTarget("cc_lite_proto_library", "a_cc_proto_lite", AttrNameToString{
 				"deps": `[":a_proto"]`,
-			}), makeBazelTarget("cc_library_static", "a_bp2build_cc_library_static", AttrNameToString{
+			}), MakeBazelTarget("cc_library_static", "a_bp2build_cc_library_static", AttrNameToString{
 				"deps":               `[":libprotobuf-cpp-lite"]`,
 				"whole_archive_deps": `[":a_cc_proto_lite"]`,
 				"srcs":               `[":a_fg_proto_cpp_srcs"]`,
 				"srcs_as":            `[":a_fg_proto_as_srcs"]`,
 				"srcs_c":             `[":a_fg_proto_c_srcs"]`,
-			}), makeBazelTarget("cc_library_shared", "a", AttrNameToString{
+			}), MakeBazelTarget("cc_library_shared", "a", AttrNameToString{
 				"dynamic_deps":       `[":libprotobuf-cpp-lite"]`,
 				"whole_archive_deps": `[":a_cc_proto_lite"]`,
 				"srcs":               `[":a_fg_proto_cpp_srcs"]`,
 				"srcs_as":            `[":a_fg_proto_as_srcs"]`,
 				"srcs_c":             `[":a_fg_proto_c_srcs"]`,
-			}), makeBazelTarget("proto_library", "b_proto", AttrNameToString{
+			}), MakeBazelTarget("proto_library", "b_proto", AttrNameToString{
 				"srcs": `[":b_protos"]`,
-			}), makeBazelTarget("cc_lite_proto_library", "b_cc_proto_lite", AttrNameToString{
+			}), MakeBazelTarget("cc_lite_proto_library", "b_cc_proto_lite", AttrNameToString{
 				"deps": `[":b_proto"]`,
-			}), makeBazelTarget("cc_library_static", "b_bp2build_cc_library_static", AttrNameToString{
+			}), MakeBazelTarget("cc_library_static", "b_bp2build_cc_library_static", AttrNameToString{
 				"deps":               `[":libprotobuf-cpp-lite"]`,
 				"whole_archive_deps": `[":b_cc_proto_lite"]`,
 				"srcs":               `[":b_protos_cpp_srcs"]`,
 				"srcs_as":            `[":b_protos_as_srcs"]`,
 				"srcs_c":             `[":b_protos_c_srcs"]`,
-			}), makeBazelTarget("cc_library_shared", "b", AttrNameToString{
+			}), MakeBazelTarget("cc_library_shared", "b", AttrNameToString{
 				"dynamic_deps":       `[":libprotobuf-cpp-lite"]`,
 				"whole_archive_deps": `[":b_cc_proto_lite"]`,
 				"srcs":               `[":b_protos_cpp_srcs"]`,
 				"srcs_as":            `[":b_protos_as_srcs"]`,
 				"srcs_c":             `[":b_protos_c_srcs"]`,
-			}), makeBazelTarget("proto_library", "c_proto", AttrNameToString{
+			}), MakeBazelTarget("proto_library", "c_proto", AttrNameToString{
 				"srcs": `[":c-proto-srcs"]`,
-			}), makeBazelTarget("cc_lite_proto_library", "c_cc_proto_lite", AttrNameToString{
+			}), MakeBazelTarget("cc_lite_proto_library", "c_cc_proto_lite", AttrNameToString{
 				"deps": `[":c_proto"]`,
-			}), makeBazelTarget("cc_library_static", "c_bp2build_cc_library_static", AttrNameToString{
+			}), MakeBazelTarget("cc_library_static", "c_bp2build_cc_library_static", AttrNameToString{
 				"deps":               `[":libprotobuf-cpp-lite"]`,
 				"whole_archive_deps": `[":c_cc_proto_lite"]`,
 				"srcs":               `[":c-proto-srcs_cpp_srcs"]`,
 				"srcs_as":            `[":c-proto-srcs_as_srcs"]`,
 				"srcs_c":             `[":c-proto-srcs_c_srcs"]`,
-			}), makeBazelTarget("cc_library_shared", "c", AttrNameToString{
+			}), MakeBazelTarget("cc_library_shared", "c", AttrNameToString{
 				"dynamic_deps":       `[":libprotobuf-cpp-lite"]`,
 				"whole_archive_deps": `[":c_cc_proto_lite"]`,
 				"srcs":               `[":c-proto-srcs_cpp_srcs"]`,
 				"srcs_as":            `[":c-proto-srcs_as_srcs"]`,
 				"srcs_c":             `[":c-proto-srcs_c_srcs"]`,
-			}), makeBazelTarget("proto_library", "d_proto", AttrNameToString{
+			}), MakeBazelTarget("proto_library", "d_proto", AttrNameToString{
 				"srcs": `[":proto-srcs-d"]`,
-			}), makeBazelTarget("cc_lite_proto_library", "d_cc_proto_lite", AttrNameToString{
+			}), MakeBazelTarget("cc_lite_proto_library", "d_cc_proto_lite", AttrNameToString{
 				"deps": `[":d_proto"]`,
-			}), makeBazelTarget("cc_library_static", "d_bp2build_cc_library_static", AttrNameToString{
+			}), MakeBazelTarget("cc_library_static", "d_bp2build_cc_library_static", AttrNameToString{
 				"deps":               `[":libprotobuf-cpp-lite"]`,
 				"whole_archive_deps": `[":d_cc_proto_lite"]`,
 				"srcs":               `[":proto-srcs-d_cpp_srcs"]`,
 				"srcs_as":            `[":proto-srcs-d_as_srcs"]`,
 				"srcs_c":             `[":proto-srcs-d_c_srcs"]`,
-			}), makeBazelTarget("cc_library_shared", "d", AttrNameToString{
+			}), MakeBazelTarget("cc_library_shared", "d", AttrNameToString{
 				"dynamic_deps":       `[":libprotobuf-cpp-lite"]`,
 				"whole_archive_deps": `[":d_cc_proto_lite"]`,
 				"srcs":               `[":proto-srcs-d_cpp_srcs"]`,
@@ -2385,10 +2385,10 @@ func TestCcLibrarySharedDisabled(t *testing.T) {
   },
 	include_build_directory: false,
 }`,
-		ExpectedBazelTargets: []string{makeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
+		ExpectedBazelTargets: []string{MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
 			"srcs":                   `["foo.cpp"]`,
 			"target_compatible_with": `["@platforms//:incompatible"]`,
-		}), makeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+		}), MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
 			"srcs": `["foo.cpp"]`,
 			"target_compatible_with": `select({
         "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
@@ -2425,13 +2425,13 @@ func TestCcLibraryStaticDisabledForSomeArch(t *testing.T) {
 	},
 	include_build_directory: false,
 }`,
-		ExpectedBazelTargets: []string{makeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
+		ExpectedBazelTargets: []string{MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
 			"srcs": `["foo.cpp"]`,
 			"target_compatible_with": `select({
         "//build/bazel/platforms/os:windows": ["@platforms//:incompatible"],
         "//conditions:default": [],
     })`,
-		}), makeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+		}), MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
 			"srcs": `["foo.cpp"]`,
 			"target_compatible_with": `select({
         "//build/bazel/platforms/os_arch:darwin_arm64": [],
@@ -2513,14 +2513,14 @@ func TestCcLibraryConvertLex(t *testing.T) {
 	bazel_module: { bp2build_available: true },
 }`,
 		ExpectedBazelTargets: append([]string{
-			makeBazelTarget("genlex", "foo_lib_genlex_l", AttrNameToString{
+			MakeBazelTarget("genlex", "foo_lib_genlex_l", AttrNameToString{
 				"srcs": `[
         "foo1.l",
         "foo2.l",
     ]`,
 				"lexopts": `["--foo_flags"]`,
 			}),
-			makeBazelTarget("genlex", "foo_lib_genlex_ll", AttrNameToString{
+			MakeBazelTarget("genlex", "foo_lib_genlex_ll", AttrNameToString{
 				"srcs": `[
         "bar1.ll",
         "bar2.ll",
@@ -2552,14 +2552,14 @@ cc_library {
   runtime_libs: ["foo"],
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_library_shared", "bar", AttrNameToString{
+			MakeBazelTarget("cc_library_shared", "bar", AttrNameToString{
 				"local_includes": `["."]`,
 			}),
-			makeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
+			MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
 				"runtime_deps":   `[":foo"]`,
 				"local_includes": `["."]`,
 			}),
-			makeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
 				"runtime_deps":   `[":foo"]`,
 				"local_includes": `["."]`,
 			}),
@@ -2608,10 +2608,10 @@ func TestCcLibraryEmptySuffix(t *testing.T) {
     include_build_directory: false,
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
+			MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
 				"srcs_c": `["foo.c"]`,
 			}),
-			makeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
 				"srcs_c": `["foo.c"]`,
 				"suffix": `""`,
 			}),
@@ -2634,10 +2634,10 @@ func TestCcLibrarySuffix(t *testing.T) {
     include_build_directory: false,
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
+			MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
 				"srcs_c": `["foo.c"]`,
 			}),
-			makeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
 				"srcs_c": `["foo.c"]`,
 				"suffix": `"-suf"`,
 			}),
@@ -2663,10 +2663,10 @@ func TestCcLibraryArchVariantSuffix(t *testing.T) {
     include_build_directory: false,
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
+			MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
 				"srcs_c": `["foo.c"]`,
 			}),
-			makeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
 				"srcs_c": `["foo.c"]`,
 				"suffix": `select({
         "//build/bazel/platforms/arch:arm": "-32",
@@ -2701,20 +2701,20 @@ cc_library {
 				"srcs":                `["aidl/A.aidl"]`,
 				"strip_import_prefix": `"aidl"`,
 			}),
-			makeBazelTarget("aidl_library", "foo_aidl_library", AttrNameToString{
+			MakeBazelTarget("aidl_library", "foo_aidl_library", AttrNameToString{
 				"srcs": `["B.aidl"]`,
 			}),
-			makeBazelTarget("cc_aidl_library", "foo_cc_aidl_library", AttrNameToString{
+			MakeBazelTarget("cc_aidl_library", "foo_cc_aidl_library", AttrNameToString{
 				"deps": `[
         ":A_aidl",
         ":foo_aidl_library",
     ]`,
 			}),
-			makeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
+			MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
 				"whole_archive_deps": `[":foo_cc_aidl_library"]`,
 				"local_includes":     `["."]`,
 			}),
-			makeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
 				"whole_archive_deps": `[":foo_cc_aidl_library"]`,
 				"local_includes":     `["."]`,
 			}),
@@ -2743,14 +2743,14 @@ cc_library {
 	],
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_aidl_library", "foo_cc_aidl_library", AttrNameToString{
+			MakeBazelTarget("cc_aidl_library", "foo_cc_aidl_library", AttrNameToString{
 				"deps": `["//path/to/A:A_aidl"]`,
 			}),
-			makeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
+			MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
 				"whole_archive_deps": `[":foo_cc_aidl_library"]`,
 				"local_includes":     `["."]`,
 			}),
-			makeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
 				"whole_archive_deps": `[":foo_cc_aidl_library"]`,
 				"local_includes":     `["."]`,
 			}),

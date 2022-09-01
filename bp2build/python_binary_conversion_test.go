@@ -42,7 +42,7 @@ func TestPythonBinaryHostSimple(t *testing.T) {
       bazel_module: { bp2build_available: false },
     }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("py_binary", "foo", AttrNameToString{
+			MakeBazelTarget("py_binary", "foo", AttrNameToString{
 				"data":    `["files/data.txt"]`,
 				"deps":    `[":bar"]`,
 				"main":    `"a.py"`,
@@ -82,7 +82,7 @@ func TestPythonBinaryHostPy2(t *testing.T) {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("py_binary", "foo", AttrNameToString{
+			MakeBazelTarget("py_binary", "foo", AttrNameToString{
 				"python_version": `"PY2"`,
 				"imports":        `["."]`,
 				"srcs":           `["a.py"]`,
@@ -117,7 +117,7 @@ func TestPythonBinaryHostPy3(t *testing.T) {
 `,
 		ExpectedBazelTargets: []string{
 			// python_version is PY3 by default.
-			makeBazelTarget("py_binary", "foo", AttrNameToString{
+			MakeBazelTarget("py_binary", "foo", AttrNameToString{
 				"imports": `["."]`,
 				"srcs":    `["a.py"]`,
 				"target_compatible_with": `select({
@@ -150,7 +150,7 @@ func TestPythonBinaryHostArchVariance(t *testing.T) {
 					},
 				 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("py_binary", "foo-arm", AttrNameToString{
+			MakeBazelTarget("py_binary", "foo-arm", AttrNameToString{
 				"imports": `["."]`,
 				"srcs": `select({
         "//build/bazel/platforms/arch:arm": ["arm.py"],

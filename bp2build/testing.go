@@ -444,6 +444,6 @@ func MakeBazelTargetNoRestrictions(typ, name string, attrs AttrNameToString) str
 
 // makeBazelTargetNoRestrictions returns bazel target build file definition that is device specific
 // as this is the most common default in Soong.
-func makeBazelTarget(typ, name string, attrs AttrNameToString) string {
+func MakeBazelTarget(typ, name string, attrs AttrNameToString) string {
 	return makeBazelTargetHostOrDevice(typ, name, attrs, android.DeviceSupported)
 }
