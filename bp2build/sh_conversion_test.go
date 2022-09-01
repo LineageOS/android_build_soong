@@ -66,7 +66,7 @@ func TestShBinarySimple(t *testing.T) {
     bazel_module: { bp2build_available: true },
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("sh_binary", "foo", AttrNameToString{
+			MakeBazelTarget("sh_binary", "foo", AttrNameToString{
 				"srcs":     `["foo.sh"]`,
 				"filename": `"foo.exe"`,
 				"sub_dir":  `"sub"`,
@@ -85,7 +85,7 @@ func TestShBinaryDefaults(t *testing.T) {
     bazel_module: { bp2build_available: true },
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("sh_binary", "foo", AttrNameToString{
+			MakeBazelTarget("sh_binary", "foo", AttrNameToString{
 				"srcs": `["foo.sh"]`,
 			})},
 	})

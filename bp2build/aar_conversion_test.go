@@ -53,7 +53,7 @@ android_library {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget(
+			MakeBazelTarget(
 				"android_library",
 				"TestLib",
 				AttrNameToString{
@@ -120,7 +120,7 @@ android_library_import {
 }
 `,
 			ExpectedBazelTargets: []string{
-				makeBazelTarget(
+				MakeBazelTarget(
 					"aar_import",
 					"TestImport",
 					AttrNameToString{

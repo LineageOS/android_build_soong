@@ -46,7 +46,7 @@ java_library_host {
     java_version: "9",
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("java_library", "java-lib-host-1", AttrNameToString{
+			MakeBazelTarget("java_library", "java-lib-host-1", AttrNameToString{
 				"srcs": `["a.java"]`,
 				"deps": `[":java-lib-host-2"]`,
 				"target_compatible_with": `select({
@@ -54,7 +54,7 @@ java_library_host {
         "//conditions:default": [],
     })`,
 			}),
-			makeBazelTarget("java_library", "java-lib-host-2", AttrNameToString{
+			MakeBazelTarget("java_library", "java-lib-host-2", AttrNameToString{
 				"javacopts": `["-source 1.9 -target 1.9"]`,
 				"srcs":      `["c.java"]`,
 				"target_compatible_with": `select({
