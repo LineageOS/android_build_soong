@@ -66,7 +66,7 @@ func runPythonLibraryTestCase(t *testing.T, tc pythonLibBp2BuildTestCase) {
 	testCase.ModuleTypeUnderTest = "python_library"
 	testCase.ModuleTypeUnderTestFactory = python.PythonLibraryFactory
 
-	runBp2BuildTestCaseSimple(t, testCase)
+	RunBp2BuildTestCaseSimple(t, testCase)
 }
 
 func runPythonLibraryHostTestCase(t *testing.T, tc pythonLibBp2BuildTestCase) {
