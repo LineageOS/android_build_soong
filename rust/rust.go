@@ -1664,6 +1664,10 @@ func (k kytheExtractRustSingleton) GenerateBuildActions(ctx android.SingletonCon
 	}
 }
 
+func (c *Module) Partition() string {
+	return ""
+}
+
 var Bool = proptools.Bool
 var BoolDefault = proptools.BoolDefault
 var String = proptools.String

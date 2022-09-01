@@ -3835,6 +3835,15 @@ func (ks *kytheExtractAllSingleton) GenerateBuildActions(ctx android.SingletonCo
 	}
 }
 
+func (c *Module) Partition() string {
+	if p, ok := c.installer.(interface {
+		getPartition() string
+	}); ok {
+		return p.getPartition()
+	}
+	return ""
+}
+
 var Bool = proptools.Bool
 var BoolDefault = proptools.BoolDefault
 var BoolPtr = proptools.BoolPtr

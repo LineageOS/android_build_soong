@@ -418,6 +418,7 @@ type jniLib struct {
 	target         android.Target
 	coverageFile   android.OptionalPath
 	unstrippedFile android.Path
+	partition      string
 }
 
 func sdkDeps(ctx android.BottomUpMutatorContext, sdkContext android.SdkContext, d dexer) {
