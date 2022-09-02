@@ -1084,9 +1084,12 @@ func (la *linkerAttributes) convertProductVariables(ctx android.BazelConversionP
 func (la *linkerAttributes) finalize(ctx android.BazelConversionPathContext) {
 	// if system dynamic deps have the default value, any use of a system dynamic library used will
 	// result in duplicate library errors for bionic OSes. Here, we explicitly exclude those libraries
-	// from bionic OSes.
+	// from bionic OSes and the no config case as these libraries only build for bionic OSes.
 	if la.systemDynamicDeps.IsNil() && len(la.usedSystemDynamicDepAsDynamicDep) > 0 {
 		toRemove := bazelLabelForSharedDeps(ctx, android.SortedStringKeys(la.usedSystemDynamicDepAsDynamicDep))
+		la.dynamicDeps.Exclude(bazel.NoConfigAxis, "", toRemove)
+		la.implementationDynamicDeps.Exclude(bazel.NoConfigAxis, "", toRemove)
+		la.implementationDynamicDeps.Exclude(bazel.NoConfigAxis, "", toRemove)
 		la.dynamicDeps.Exclude(bazel.OsConfigurationAxis, "android", toRemove)
 		la.dynamicDeps.Exclude(bazel.OsConfigurationAxis, "linux_bionic", toRemove)
 		la.implementationDynamicDeps.Exclude(bazel.OsConfigurationAxis, "android", toRemove)

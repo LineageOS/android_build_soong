@@ -1419,13 +1419,7 @@ cc_library_static {
 }
 `,
 		ExpectedBazelTargets: []string{
-			MakeBazelTarget("cc_library_static", "all", AttrNameToString{
-				"implementation_dynamic_deps": `select({
-        "//build/bazel/platforms/os:android": [],
-        "//build/bazel/platforms/os:linux_bionic": [],
-        "//conditions:default": [":libc"],
-    })`,
-			}),
+			MakeBazelTarget("cc_library_static", "all", AttrNameToString{}),
 			MakeBazelTarget("cc_library_static", "keep_for_empty_system_shared_libs", AttrNameToString{
 				"implementation_dynamic_deps": `[":libc"]`,
 				"system_dynamic_deps":         `[]`,
