@@ -295,6 +295,7 @@ var (
 		"external/bazel-skylib":/* recursive = */ true,
 		"external/guava":/* recursive = */ true,
 		"external/jsr305":/* recursive = */ true,
+		"external/protobuf":/* recursive = */ false,
 		"frameworks/ex/common":/* recursive = */ true,
 
 		"packages/apps/Music":/* recursive = */ true,
@@ -302,6 +303,7 @@ var (
 
 		"prebuilts/bazel":/* recursive = */ true,
 		"prebuilts/bundletool":/* recursive = */ true,
+		"prebuilts/clang/host/linux-x86":/* recursive = */ false,
 		"prebuilts/gcc":/* recursive = */ true,
 		"prebuilts/build-tools":/* recursive = */ true,
 		"prebuilts/jdk/jdk11":/* recursive = */ false,
@@ -591,30 +593,8 @@ var (
 		"libadb_pairing_connection_static",
 		"libadb_pairing_server", "libadb_pairing_server_static",
 
-		// TODO(b/204811222) support suffix in cc_binary
-		"acvp_modulewrapper",
-		"android.hardware.media.c2@1.0-service-v4l2",
-		"app_process",
-		"bar_test",
-		"bench_cxa_atexit",
-		"bench_noop",
-		"bench_noop_nostl",
-		"bench_noop_static",
-		"boringssl_self_test",
-		"boringssl_self_test_vendor",
-		"bssl",
-		"cavp",
-		"crash_dump",
+		// TODO(b/240563612) Needing `stem` selection support for cc_binary
 		"crasher",
-		"libcxx_test_template",
-		"linker",
-		"memory_replay",
-		"native_bridge_guest_linker",
-		"native_bridge_stub_library_defaults",
-		"noop",
-		"simpleperf_ndk",
-		"toybox-static",
-		"zlib_bench",
 
 		// java_import[_host] issues
 		// tradefed prebuilts depend on libprotobuf
