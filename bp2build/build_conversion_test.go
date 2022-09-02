@@ -1299,9 +1299,7 @@ func TestCombineBuildFilesBp2buildTargets(t *testing.T) {
     name: "fg_foo",
     bazel_module: { label: "//other:fg_foo" },
 }`,
-			ExpectedBazelTargets: []string{
-				`// BUILD file`,
-			},
+			ExpectedBazelTargets: []string{},
 			Filesystem: map[string]string{
 				"other/BUILD.bazel": `// BUILD file`,
 			},
@@ -1319,9 +1317,7 @@ func TestCombineBuildFilesBp2buildTargets(t *testing.T) {
         name: "foo",
         bazel_module: { label: "//other:foo" },
     }`,
-			ExpectedBazelTargets: []string{
-				`// BUILD file`,
-			},
+			ExpectedBazelTargets: []string{},
 			Filesystem: map[string]string{
 				"other/BUILD.bazel": `// BUILD file`,
 			},
@@ -1349,7 +1345,6 @@ func TestCombineBuildFilesBp2buildTargets(t *testing.T) {
 			},
 			ExpectedBazelTargets: []string{
 				MakeBazelTargetNoRestrictions("filegroup", "fg_foo", map[string]string{}),
-				`// definition for fg_bar`,
 			},
 		},
 		{
@@ -1375,7 +1370,6 @@ func TestCombineBuildFilesBp2buildTargets(t *testing.T) {
     }`,
 			ExpectedBazelTargets: []string{
 				MakeBazelTargetNoRestrictions("filegroup", "fg_bar", map[string]string{}),
-				`// BUILD file`,
 			},
 		},
 	}
@@ -1419,9 +1413,6 @@ func TestCombineBuildFilesBp2buildTargets(t *testing.T) {
 			expectedCount := len(testCase.ExpectedBazelTargets)
 			if actualCount != expectedCount {
 				t.Errorf("Expected %d bazel target, got %d\n%s", expectedCount, actualCount, bazelTargets)
-			}
-			if !strings.Contains(bazelTargets.String(), "Section: Handcrafted targets. ") {
-				t.Errorf("Expected string representation of bazelTargets to contain handcrafted section header.")
 			}
 			for i, target := range bazelTargets {
 				actualContent := target.content

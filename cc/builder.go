@@ -920,14 +920,14 @@ func unzipRefDump(ctx android.ModuleContext, zippedRefDump android.Path, baseNam
 
 // sourceAbiDiff registers a build statement to compare linked sAbi dump files (.lsdump).
 func sourceAbiDiff(ctx android.ModuleContext, inputDump android.Path, referenceDump android.Path,
-	baseName, prevVersion, exportedHeaderFlags string, diffFlags []string,
+	baseName, exportedHeaderFlags string, diffFlags []string, prevVersion int,
 	checkAllApis, isLlndk, isNdk, isVndkExt, previousVersionDiff bool) android.OptionalPath {
 
 	var outputFile android.ModuleOutPath
-	if prevVersion == "" {
-		outputFile = android.PathForModuleOut(ctx, baseName+".abidiff")
+	if previousVersionDiff {
+		outputFile = android.PathForModuleOut(ctx, baseName+"."+strconv.Itoa(prevVersion)+".abidiff")
 	} else {
-		outputFile = android.PathForModuleOut(ctx, baseName+"."+prevVersion+".abidiff")
+		outputFile = android.PathForModuleOut(ctx, baseName+".abidiff")
 	}
 	libName := strings.TrimSuffix(baseName, filepath.Ext(baseName))
 
@@ -946,14 +946,11 @@ func sourceAbiDiff(ctx android.ModuleContext, inputDump android.Path, referenceD
 	if previousVersionDiff {
 		// TODO(b/241496591): Remove -advice-only after b/239792343 and b/239790286 are reolved.
 		extraFlags = append(extraFlags, "-advice-only")
-		errorMessage = "error: Please follow development/vndk/tools/header-checker/README.md to ensure the ABI compatibility between your source code and version " + prevVersion + "."
-		// The prevVersion is expected as a string of int, skip it if not.
-		if prevVersionInt, err := strconv.Atoi(prevVersion); err == nil {
-			sourceVersion := strconv.Itoa(prevVersionInt + 1)
-			extraFlags = append(extraFlags, "-target-version", sourceVersion)
-		}
+		errorMessage = "error: Please follow development/vndk/tools/header-checker/README.md to ensure the ABI compatibility between your source code and version " + strconv.Itoa(prevVersion) + "."
+		sourceVersion := prevVersion + 1
+		extraFlags = append(extraFlags, "-target-version", strconv.Itoa(sourceVersion))
 	} else {
-		errorMessage = "error: Please update ABI references with: $ANDROID_BUILD_TOP/development/vndk/tools/header-checker/utils/create_reference_dumps.py -l " + libName
+		errorMessage = "error: Please update ABI references with: $$ANDROID_BUILD_TOP/development/vndk/tools/header-checker/utils/create_reference_dumps.py -l " + libName
 		extraFlags = append(extraFlags, "-target-version", "current")
 	}
 

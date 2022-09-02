@@ -216,3 +216,112 @@ func TestApiLibraryShouldNotReplaceWithoutApiImport(t *testing.T) {
 	android.AssertBoolEquals(t, "original library should be linked", true, hasDirectDependency(t, ctx, libfoo, libbar))
 	android.AssertBoolEquals(t, "Stub library from API surface should not be linked", false, hasDirectDependency(t, ctx, libfoo, libbarApiImport))
 }
+
+func TestApiHeaderReplacesExistingModule(t *testing.T) {
+	bp := `
+		cc_library {
+			name: "libfoo",
+			header_libs: ["libfoo_headers"],
+		}
+
+		cc_api_library {
+			name: "libfoo",
+			header_libs: ["libfoo_headers"],
+			src: "libfoo.so",
+		}
+
+		cc_library_headers {
+			name: "libfoo_headers",
+		}
+
+		cc_api_headers {
+			name: "libfoo_headers",
+		}
+
+		api_imports {
+			name: "api_imports",
+			shared_libs: [
+				"libfoo",
+			],
+			header_libs: [
+				"libfoo_headers",
+			],
+		}
+	`
+
+	ctx := prepareForCcTest.RunTestWithBp(t, bp)
+
+	libfoo := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_shared").Module()
+	libfooApiImport := ctx.ModuleForTests("libfoo.apiimport", "android_arm64_armv8-a_shared").Module()
+	libfooHeader := ctx.ModuleForTests("libfoo_headers", "android_arm64_armv8-a").Module()
+	libfooHeaderApiImport := ctx.ModuleForTests("libfoo_headers.apiimport", "android_arm64_armv8-a").Module()
+
+	android.AssertBoolEquals(t, "original header should not be used for original library", false, hasDirectDependency(t, ctx, libfoo, libfooHeader))
+	android.AssertBoolEquals(t, "Header from API surface should be used for original library", true, hasDirectDependency(t, ctx, libfoo, libfooHeaderApiImport))
+	android.AssertBoolEquals(t, "original header should not be used for library imported from API surface", false, hasDirectDependency(t, ctx, libfooApiImport, libfooHeader))
+	android.AssertBoolEquals(t, "Header from API surface should be used for library imported from API surface", true, hasDirectDependency(t, ctx, libfooApiImport, libfooHeaderApiImport))
+}
+
+func TestApiHeadersDoNotRequireOriginalModule(t *testing.T) {
+	bp := `
+	cc_library {
+		name: "libfoo",
+		header_libs: ["libfoo_headers"],
+	}
+
+	cc_api_headers {
+		name: "libfoo_headers",
+	}
+
+	api_imports {
+		name: "api_imports",
+		shared_libs: [
+			"libfoo",
+		],
+		header_libs: [
+			"libfoo_headers",
+		],
+	}
+	`
+
+	ctx := prepareForCcTest.RunTestWithBp(t, bp)
+
+	libfoo := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_shared").Module()
+	libfooHeaderApiImport := ctx.ModuleForTests("libfoo_headers.apiimport", "android_arm64_armv8-a").Module()
+
+	android.AssertBoolEquals(t, "Header from API surface should be used for original library", true, hasDirectDependency(t, ctx, libfoo, libfooHeaderApiImport))
+}
+
+func TestApiHeadersShouldNotReplaceWithoutApiImport(t *testing.T) {
+	bp := `
+		cc_library {
+			name: "libfoo",
+			header_libs: ["libfoo_headers"],
+		}
+
+		cc_library_headers {
+			name: "libfoo_headers",
+		}
+
+		cc_api_headers {
+			name: "libfoo_headers",
+		}
+
+		api_imports {
+			name: "api_imports",
+			shared_libs: [
+				"libfoo",
+			],
+			header_libs: [],
+		}
+	`
+
+	ctx := prepareForCcTest.RunTestWithBp(t, bp)
+
+	libfoo := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_shared").Module()
+	libfooHeader := ctx.ModuleForTests("libfoo_headers", "android_arm64_armv8-a").Module()
+	libfooHeaderApiImport := ctx.ModuleForTests("libfoo_headers.apiimport", "android_arm64_armv8-a").Module()
+
+	android.AssertBoolEquals(t, "original header should be used for original library", true, hasDirectDependency(t, ctx, libfoo, libfooHeader))
+	android.AssertBoolEquals(t, "Header from API surface should not be used for original library", false, hasDirectDependency(t, ctx, libfoo, libfooHeaderApiImport))
+}

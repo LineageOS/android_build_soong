@@ -41,6 +41,7 @@ func RegisterRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("ndk_prebuilt_static_stl", NdkPrebuiltStaticStlFactory)
 	ctx.RegisterModuleType("ndk_prebuilt_object", NdkPrebuiltObjectFactory)
 	ctx.RegisterModuleType("ndk_library", NdkLibraryFactory)
+	ctx.RegisterModuleType("ndk_headers", ndkHeadersFactory)
 }
 
 func GatherRequiredDepsForTest(oses ...android.OsType) string {
