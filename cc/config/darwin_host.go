@@ -176,6 +176,8 @@ func getMacTools(ctx android.PathContext) *macPlatformTools {
 type toolchainDarwin struct {
 	cFlags, ldFlags string
 	toolchain64Bit
+	toolchainNoCrt
+	toolchainBase
 }
 
 type toolchainDarwinX86 struct {
@@ -252,6 +254,10 @@ func (t *toolchainDarwin) YasmFlags() string {
 
 func (t *toolchainDarwin) ShlibSuffix() string {
 	return ".dylib"
+}
+
+func (t *toolchainDarwin) ExecutableSuffix() string {
+	return ""
 }
 
 func (t *toolchainDarwin) AvailableLibraries() []string {
