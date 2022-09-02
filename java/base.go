@@ -169,6 +169,8 @@ type CommonProperties struct {
 		Output_params []string
 	}
 
+	// If true, then jacocoagent is automatically added as a libs dependency so that
+	// r8 will not strip instrumentation classes out of dexed libraries.
 	Instrument bool `blueprint:"mutated"`
 	// If true, then the module supports statically including the jacocoagent
 	// into the library.
@@ -786,6 +788,9 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 		}
 	} else if j.shouldInstrumentStatic(ctx) {
 		ctx.AddVariationDependencies(nil, staticLibTag, "jacocoagent")
+	}
+	if j.shouldInstrument(ctx) {
+		ctx.AddVariationDependencies(nil, libTag, "jacocoagent")
 	}
 
 	if j.useCompose() {
