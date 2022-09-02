@@ -158,6 +158,7 @@ func init() {
 }
 
 type toolchainLinux struct {
+	toolchainBase
 	cFlags, ldFlags string
 }
 
@@ -247,9 +248,18 @@ func (t *toolchainLinux) AvailableLibraries() []string {
 	return linuxAvailableLibraries
 }
 
+func (toolchainLinux) ShlibSuffix() string {
+	return ".so"
+}
+
+func (toolchainLinux) ExecutableSuffix() string {
+	return ""
+}
+
 // glibc specialization of the linux toolchain
 
 type toolchainGlibc struct {
+	toolchainNoCrt
 }
 
 func (toolchainGlibc) Glibc() bool { return true }

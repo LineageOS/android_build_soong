@@ -153,6 +153,8 @@ func init() {
 
 type toolchainWindows struct {
 	cFlags, ldFlags string
+	toolchainBase
+	toolchainNoCrt
 }
 
 type toolchainWindowsX86 struct {
