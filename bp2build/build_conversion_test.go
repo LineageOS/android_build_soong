@@ -751,7 +751,7 @@ func TestBp2buildHostAndDevice(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Description, func(t *testing.T) {
-			runBp2BuildTestCaseSimple(t, tc)
+			RunBp2BuildTestCaseSimple(t, tc)
 		})
 	}
 }
@@ -1494,7 +1494,7 @@ func TestGlobExcludeSrcs(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Description, func(t *testing.T) {
-			runBp2BuildTestCaseSimple(t, testCase)
+			RunBp2BuildTestCaseSimple(t, testCase)
 		})
 	}
 }
@@ -1593,7 +1593,7 @@ filegroup {
 
 	for _, tc := range testCases {
 		t.Run(tc.Description, func(t *testing.T) {
-			runBp2BuildTestCaseSimple(t, tc)
+			RunBp2BuildTestCaseSimple(t, tc)
 		})
 	}
 }
