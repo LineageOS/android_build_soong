@@ -25,7 +25,7 @@ func runLinkerConfigTestCase(t *testing.T, tc Bp2buildTestCase) {
 	t.Helper()
 	(&tc).ModuleTypeUnderTest = "linker_config"
 	(&tc).ModuleTypeUnderTestFactory = linkerconfig.LinkerConfigFactory
-	runBp2BuildTestCaseSimple(t, tc)
+	RunBp2BuildTestCaseSimple(t, tc)
 }
 
 func TestLinkerConfigConvertsSrc(t *testing.T) {

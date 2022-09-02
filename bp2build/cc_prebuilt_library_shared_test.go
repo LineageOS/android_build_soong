@@ -8,7 +8,7 @@ import (
 )
 
 func TestSharedPrebuiltLibrary(t *testing.T) {
-	runBp2BuildTestCaseSimple(t,
+	RunBp2BuildTestCaseSimple(t,
 		Bp2buildTestCase{
 			Description:                "prebuilt library shared simple",
 			ModuleTypeUnderTest:        "cc_prebuilt_library_shared",
@@ -31,7 +31,7 @@ cc_prebuilt_library_shared {
 }
 
 func TestSharedPrebuiltLibraryWithArchVariance(t *testing.T) {
-	runBp2BuildTestCaseSimple(t,
+	RunBp2BuildTestCaseSimple(t,
 		Bp2buildTestCase{
 			Description:                "prebuilt library shared with arch variance",
 			ModuleTypeUnderTest:        "cc_prebuilt_library_shared",
@@ -62,7 +62,7 @@ cc_prebuilt_library_shared {
 }
 
 func TestSharedPrebuiltLibrarySharedStanzaFails(t *testing.T) {
-	runBp2BuildTestCaseSimple(t,
+	RunBp2BuildTestCaseSimple(t,
 		Bp2buildTestCase{
 			Description:                "prebuilt library shared with shared stanza fails because multiple sources",
 			ModuleTypeUnderTest:        "cc_prebuilt_library_shared",

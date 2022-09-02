@@ -21,7 +21,7 @@ import (
 )
 
 func TestPrebuiltLibraryStaticAndSharedSimple(t *testing.T) {
-	runBp2BuildTestCaseSimple(t,
+	RunBp2BuildTestCaseSimple(t,
 		Bp2buildTestCase{
 			Description:                "prebuilt library static and shared simple",
 			ModuleTypeUnderTest:        "cc_prebuilt_library",
@@ -47,7 +47,7 @@ cc_prebuilt_library {
 }
 
 func TestPrebuiltLibraryWithArchVariance(t *testing.T) {
-	runBp2BuildTestCaseSimple(t,
+	RunBp2BuildTestCaseSimple(t,
 		Bp2buildTestCase{
 			Description:                "prebuilt library with arch variance",
 			ModuleTypeUnderTest:        "cc_prebuilt_library",
@@ -85,7 +85,7 @@ cc_prebuilt_library {
 }
 
 func TestPrebuiltLibraryAdditionalAttrs(t *testing.T) {
-	runBp2BuildTestCaseSimple(t,
+	RunBp2BuildTestCaseSimple(t,
 		Bp2buildTestCase{
 			Description:                "prebuilt library additional attributes",
 			ModuleTypeUnderTest:        "cc_prebuilt_library",
@@ -118,7 +118,7 @@ cc_prebuilt_library {
 }
 
 func TestPrebuiltLibrarySharedStanzaFails(t *testing.T) {
-	runBp2BuildTestCaseSimple(t,
+	RunBp2BuildTestCaseSimple(t,
 		Bp2buildTestCase{
 			Description:                "prebuilt library with shared stanza fails because multiple sources",
 			ModuleTypeUnderTest:        "cc_prebuilt_library",
@@ -141,7 +141,7 @@ cc_prebuilt_library {
 }
 
 func TestPrebuiltLibraryStaticStanzaFails(t *testing.T) {
-	runBp2BuildTestCaseSimple(t,
+	RunBp2BuildTestCaseSimple(t,
 		Bp2buildTestCase{
 			Description:                "prebuilt library with static stanza fails because multiple sources",
 			ModuleTypeUnderTest:        "cc_prebuilt_library",
@@ -164,7 +164,7 @@ cc_prebuilt_library {
 }
 
 func TestPrebuiltLibrarySharedAndStaticStanzas(t *testing.T) {
-	runBp2BuildTestCaseSimple(t,
+	RunBp2BuildTestCaseSimple(t,
 		Bp2buildTestCase{
 			Description:                "prebuilt library with both shared and static stanzas",
 			ModuleTypeUnderTest:        "cc_prebuilt_library",
@@ -197,7 +197,7 @@ cc_prebuilt_library {
 
 // TODO(b/228623543): When this bug is fixed, enable this test
 //func TestPrebuiltLibraryOnlyShared(t *testing.T) {
-//	runBp2BuildTestCaseSimple(t,
+//	RunBp2BuildTestCaseSimple(t,
 //		bp2buildTestCase{
 //			description:                "prebuilt library shared only",
 //			moduleTypeUnderTest:        "cc_prebuilt_library",
@@ -224,7 +224,7 @@ cc_prebuilt_library {
 
 // TODO(b/228623543): When this bug is fixed, enable this test
 //func TestPrebuiltLibraryOnlyStatic(t *testing.T) {
-//	runBp2BuildTestCaseSimple(t,
+//	RunBp2BuildTestCaseSimple(t,
 //		bp2buildTestCase{
 //			description:                "prebuilt library static only",
 //			moduleTypeUnderTest:        "cc_prebuilt_library",
