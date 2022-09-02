@@ -1199,6 +1199,40 @@ cc_library {
 	)
 }
 
+func TestCcLibraryProductVariablesHeaderLibs(t *testing.T) {
+	runCcLibraryTestCase(t, Bp2buildTestCase{
+		ModuleTypeUnderTest:        "cc_library",
+		ModuleTypeUnderTestFactory: cc.LibraryFactory,
+		Filesystem:                 map[string]string{},
+		Blueprint: soongCcLibraryStaticPreamble + `
+cc_library {
+    name: "foo_static",
+    srcs: ["common.c"],
+    product_variables: {
+        malloc_not_svelte: {
+            header_libs: ["malloc_not_svelte_header_lib"],
+        },
+    },
+    include_build_directory: false,
+}
+
+cc_library {
+    name: "malloc_not_svelte_header_lib",
+    bazel_module: { bp2build_available: false },
+}
+`,
+		ExpectedBazelTargets: makeCcLibraryTargets("foo_static", AttrNameToString{
+			"implementation_deps": `select({
+        "//build/bazel/product_variables:malloc_not_svelte": [":malloc_not_svelte_header_lib"],
+        "//conditions:default": [],
+    })`,
+			"srcs_c":                 `["common.c"]`,
+			"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
+		}),
+	},
+	)
+}
+
 func TestCCLibraryNoCrtTrue(t *testing.T) {
 	runCcLibraryTestCase(t, Bp2buildTestCase{
 		Description:                "cc_library - nocrt: true emits attribute",
