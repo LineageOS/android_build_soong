@@ -21,7 +21,7 @@ import (
 )
 
 func TestStaticPrebuiltLibrary(t *testing.T) {
-	runBp2BuildTestCaseSimple(t,
+	RunBp2BuildTestCaseSimple(t,
 		Bp2buildTestCase{
 			Description:                "prebuilt library static simple",
 			ModuleTypeUnderTest:        "cc_prebuilt_library_static",
@@ -44,7 +44,7 @@ cc_prebuilt_library_static {
 }
 
 func TestStaticPrebuiltLibraryWithArchVariance(t *testing.T) {
-	runBp2BuildTestCaseSimple(t,
+	RunBp2BuildTestCaseSimple(t,
 		Bp2buildTestCase{
 			Description:                "prebuilt library static with arch variance",
 			ModuleTypeUnderTest:        "cc_prebuilt_library_static",
@@ -75,7 +75,7 @@ cc_prebuilt_library_static {
 }
 
 func TestStaticPrebuiltLibraryStaticStanzaFails(t *testing.T) {
-	runBp2BuildTestCaseSimple(t,
+	RunBp2BuildTestCaseSimple(t,
 		Bp2buildTestCase{
 			Description:                "prebuilt library with static stanza fails because multiple sources",
 			ModuleTypeUnderTest:        "cc_prebuilt_library_static",
