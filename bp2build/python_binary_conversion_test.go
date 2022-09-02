@@ -62,7 +62,7 @@ func TestPythonBinaryHostSimple(t *testing.T) {
 }
 
 func TestPythonBinaryHostPy2(t *testing.T) {
-	runBp2BuildTestCaseSimple(t, Bp2buildTestCase{
+	RunBp2BuildTestCaseSimple(t, Bp2buildTestCase{
 		Description:                "py2 python_binary_host",
 		ModuleTypeUnderTest:        "python_binary_host",
 		ModuleTypeUnderTestFactory: python.PythonBinaryHostFactory,
@@ -96,7 +96,7 @@ func TestPythonBinaryHostPy2(t *testing.T) {
 }
 
 func TestPythonBinaryHostPy3(t *testing.T) {
-	runBp2BuildTestCaseSimple(t, Bp2buildTestCase{
+	RunBp2BuildTestCaseSimple(t, Bp2buildTestCase{
 		Description:                "py3 python_binary_host",
 		ModuleTypeUnderTest:        "python_binary_host",
 		ModuleTypeUnderTestFactory: python.PythonBinaryHostFactory,
@@ -130,7 +130,7 @@ func TestPythonBinaryHostPy3(t *testing.T) {
 }
 
 func TestPythonBinaryHostArchVariance(t *testing.T) {
-	runBp2BuildTestCaseSimple(t, Bp2buildTestCase{
+	RunBp2BuildTestCaseSimple(t, Bp2buildTestCase{
 		Description:                "test arch variants",
 		ModuleTypeUnderTest:        "python_binary_host",
 		ModuleTypeUnderTestFactory: python.PythonBinaryHostFactory,
