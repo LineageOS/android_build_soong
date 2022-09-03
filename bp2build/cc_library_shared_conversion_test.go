@@ -142,7 +142,7 @@ cc_library_shared {
     // TODO: Also support export_header_lib_headers
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_library_shared", "foo_shared", AttrNameToString{
+			MakeBazelTarget("cc_library_shared", "foo_shared", AttrNameToString{
 				"absolute_includes": `[
         "include_dir_1",
         "include_dir_2",
@@ -202,7 +202,7 @@ cc_library_shared {
     include_build_directory: false,
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_library_shared", "foo_shared", AttrNameToString{
+			MakeBazelTarget("cc_library_shared", "foo_shared", AttrNameToString{
 				"implementation_dynamic_deps": `select({
         "//build/bazel/platforms/arch:arm64": [":shared_dep"],
         "//conditions:default": [],
@@ -231,7 +231,7 @@ cc_library_shared {
     include_build_directory: false,
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_library_shared", "foo_shared", AttrNameToString{
+			MakeBazelTarget("cc_library_shared", "foo_shared", AttrNameToString{
 				"implementation_dynamic_deps": `select({
         "//build/bazel/platforms/os:android": [":shared_dep"],
         "//conditions:default": [],
@@ -266,7 +266,7 @@ cc_library_shared {
     include_build_directory: false,
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_library_shared", "foo_shared", AttrNameToString{
+			MakeBazelTarget("cc_library_shared", "foo_shared", AttrNameToString{
 				"implementation_dynamic_deps": `[":shared_dep"] + select({
         "//build/bazel/platforms/arch:arm64": [":shared_dep3"],
         "//conditions:default": [],
@@ -295,7 +295,7 @@ cc_library_shared {
     include_build_directory: false,
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_library_shared", "foo_shared", AttrNameToString{
+			MakeBazelTarget("cc_library_shared", "foo_shared", AttrNameToString{
 				"srcs_c": `[
         "common.c",
         "foo-a.c",
@@ -322,7 +322,7 @@ cc_library_shared {
     include_build_directory: false,
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_library_shared", "foo_shared", AttrNameToString{
+			MakeBazelTarget("cc_library_shared", "foo_shared", AttrNameToString{
 				"strip": `{
         "all": True,
         "keep_symbols": False,
@@ -351,7 +351,7 @@ cc_library_shared {
     include_build_directory: false,
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_library_shared", "foo_shared", AttrNameToString{
+			MakeBazelTarget("cc_library_shared", "foo_shared", AttrNameToString{
 				"additional_linker_inputs": `["version_script"]`,
 				"linkopts":                 `["-Wl,--version-script,$(location version_script)"]`,
 			}),
@@ -374,7 +374,7 @@ cc_library_shared {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_library_shared", "foo_shared", AttrNameToString{
+			MakeBazelTarget("cc_library_shared", "foo_shared", AttrNameToString{
 				"link_crt": `False`,
 				"srcs":     `["impl.cpp"]`,
 			}),
@@ -397,7 +397,7 @@ cc_library_shared {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_library_shared", "foo_shared", AttrNameToString{
+			MakeBazelTarget("cc_library_shared", "foo_shared", AttrNameToString{
 				"srcs": `["impl.cpp"]`,
 			}),
 		},
@@ -440,11 +440,11 @@ func TestCcLibrarySharedProto(t *testing.T) {
 	include_build_directory: false,
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("proto_library", "foo_proto", AttrNameToString{
+			MakeBazelTarget("proto_library", "foo_proto", AttrNameToString{
 				"srcs": `["foo.proto"]`,
-			}), makeBazelTarget("cc_lite_proto_library", "foo_cc_proto_lite", AttrNameToString{
+			}), MakeBazelTarget("cc_lite_proto_library", "foo_cc_proto_lite", AttrNameToString{
 				"deps": `[":foo_proto"]`,
-			}), makeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+			}), MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
 				"dynamic_deps":       `[":libprotobuf-cpp-lite"]`,
 				"whole_archive_deps": `[":foo_cc_proto_lite"]`,
 			}),
@@ -460,7 +460,7 @@ func TestCcLibrarySharedUseVersionLib(t *testing.T) {
         include_build_directory: false,
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
 				"use_version_lib": "True",
 			}),
 		},
@@ -484,7 +484,7 @@ cc_library_shared {
 `,
 		},
 		Blueprint: soongCcLibraryPreamble,
-		ExpectedBazelTargets: []string{makeBazelTarget("cc_library_shared", "a", AttrNameToString{
+		ExpectedBazelTargets: []string{MakeBazelTarget("cc_library_shared", "a", AttrNameToString{
 			"has_stubs": `True`,
 		}),
 		},
@@ -510,7 +510,7 @@ cc_library_shared {
     defaults: ["empty_defaults"],
 }
 `,
-		ExpectedBazelTargets: []string{makeBazelTarget("cc_library_shared", "empty", AttrNameToString{
+		ExpectedBazelTargets: []string{MakeBazelTarget("cc_library_shared", "empty", AttrNameToString{
 			"system_dynamic_deps": "[]",
 		})},
 	})
@@ -537,21 +537,21 @@ func TestCcLibrarySharedConvertLex(t *testing.T) {
 	bazel_module: { bp2build_available: true },
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("genlex", "foo_lib_genlex_l", AttrNameToString{
+			MakeBazelTarget("genlex", "foo_lib_genlex_l", AttrNameToString{
 				"srcs": `[
         "foo1.l",
         "foo2.l",
     ]`,
 				"lexopts": `["--foo_flags"]`,
 			}),
-			makeBazelTarget("genlex", "foo_lib_genlex_ll", AttrNameToString{
+			MakeBazelTarget("genlex", "foo_lib_genlex_ll", AttrNameToString{
 				"srcs": `[
         "bar1.ll",
         "bar2.ll",
     ]`,
 				"lexopts": `["--foo_flags"]`,
 			}),
-			makeBazelTarget("cc_library_shared", "foo_lib", AttrNameToString{
+			MakeBazelTarget("cc_library_shared", "foo_lib", AttrNameToString{
 				"srcs": `[
         "bar.cc",
         ":foo_lib_genlex_ll",
@@ -576,7 +576,7 @@ func TestCcLibrarySharedClangUnknownFlags(t *testing.T) {
 	include_build_directory: false,
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
 				"conlyflags": `["-a"]`,
 				"copts":      `["-b"]`,
 				"cppflags":   `["-c"]`,
@@ -600,7 +600,7 @@ func TestCCLibraryFlagSpaceSplitting(t *testing.T) {
 	include_build_directory: false,
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
 				"additional_linker_inputs": `["version_script"]`,
 				"conlyflags": `[
         "-include",
@@ -631,10 +631,10 @@ cc_library_shared {
   runtime_libs: ["foo"],
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_library_shared", "bar", AttrNameToString{
+			MakeBazelTarget("cc_library_shared", "bar", AttrNameToString{
 				"local_includes": `["."]`,
 			}),
-			makeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
 				"runtime_deps":   `[":foo"]`,
 				"local_includes": `["."]`,
 			}),
@@ -656,7 +656,7 @@ cc_library_shared {
     include_build_directory: false,
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_library_shared", "foo_shared", AttrNameToString{
+			MakeBazelTarget("cc_library_shared", "foo_shared", AttrNameToString{
 				"srcs_c": `["foo.c"]`,
 				"suffix": `""`,
 			}),
@@ -678,7 +678,7 @@ cc_library_shared {
     include_build_directory: false,
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_library_shared", "foo_shared", AttrNameToString{
+			MakeBazelTarget("cc_library_shared", "foo_shared", AttrNameToString{
 				"srcs_c": `["foo.c"]`,
 				"suffix": `"-suf"`,
 			}),
@@ -703,7 +703,7 @@ cc_library_shared {
     include_build_directory: false,
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("cc_library_shared", "foo_shared", AttrNameToString{
+			MakeBazelTarget("cc_library_shared", "foo_shared", AttrNameToString{
 				"srcs_c": `["foo.c"]`,
 				"suffix": `select({
         "//build/bazel/platforms/arch:arm": "-32",

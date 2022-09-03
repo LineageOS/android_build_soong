@@ -21,7 +21,7 @@ import (
 )
 
 func TestPrebuiltLibraryStaticAndSharedSimple(t *testing.T) {
-	runBp2BuildTestCaseSimple(t,
+	RunBp2BuildTestCaseSimple(t,
 		Bp2buildTestCase{
 			Description:                "prebuilt library static and shared simple",
 			ModuleTypeUnderTest:        "cc_prebuilt_library",
@@ -36,10 +36,10 @@ cc_prebuilt_library {
 	bazel_module: { bp2build_available: true },
 }`,
 			ExpectedBazelTargets: []string{
-				makeBazelTarget("prebuilt_library_static", "libtest_bp2build_cc_library_static", AttrNameToString{
+				MakeBazelTarget("prebuilt_library_static", "libtest_bp2build_cc_library_static", AttrNameToString{
 					"static_library": `"libf.so"`,
 				}),
-				makeBazelTarget("prebuilt_library_shared", "libtest", AttrNameToString{
+				MakeBazelTarget("prebuilt_library_shared", "libtest", AttrNameToString{
 					"shared_library": `"libf.so"`,
 				}),
 			},
@@ -47,7 +47,7 @@ cc_prebuilt_library {
 }
 
 func TestPrebuiltLibraryWithArchVariance(t *testing.T) {
-	runBp2BuildTestCaseSimple(t,
+	RunBp2BuildTestCaseSimple(t,
 		Bp2buildTestCase{
 			Description:                "prebuilt library with arch variance",
 			ModuleTypeUnderTest:        "cc_prebuilt_library",
@@ -66,14 +66,14 @@ cc_prebuilt_library {
 	bazel_module: { bp2build_available: true },
 }`,
 			ExpectedBazelTargets: []string{
-				makeBazelTarget("prebuilt_library_static", "libtest_bp2build_cc_library_static", AttrNameToString{
+				MakeBazelTarget("prebuilt_library_static", "libtest_bp2build_cc_library_static", AttrNameToString{
 					"static_library": `select({
         "//build/bazel/platforms/arch:arm": "libg.so",
         "//build/bazel/platforms/arch:arm64": "libf.so",
         "//conditions:default": None,
     })`,
 				}),
-				makeBazelTarget("prebuilt_library_shared", "libtest", AttrNameToString{
+				MakeBazelTarget("prebuilt_library_shared", "libtest", AttrNameToString{
 					"shared_library": `select({
         "//build/bazel/platforms/arch:arm": "libg.so",
         "//build/bazel/platforms/arch:arm64": "libf.so",
@@ -85,7 +85,7 @@ cc_prebuilt_library {
 }
 
 func TestPrebuiltLibraryAdditionalAttrs(t *testing.T) {
-	runBp2BuildTestCaseSimple(t,
+	RunBp2BuildTestCaseSimple(t,
 		Bp2buildTestCase{
 			Description:                "prebuilt library additional attributes",
 			ModuleTypeUnderTest:        "cc_prebuilt_library",
@@ -104,13 +104,13 @@ cc_prebuilt_library {
 	bazel_module: { bp2build_available: true },
 }`,
 			ExpectedBazelTargets: []string{
-				makeBazelTarget("prebuilt_library_static", "libtest_bp2build_cc_library_static", AttrNameToString{
+				MakeBazelTarget("prebuilt_library_static", "libtest_bp2build_cc_library_static", AttrNameToString{
 					"static_library":         `"libf.so"`,
 					"export_includes":        `["testdir/1/"]`,
 					"export_system_includes": `["testdir/2/"]`,
 				}),
 				// TODO(b/229374533): When fixed, update this test
-				makeBazelTarget("prebuilt_library_shared", "libtest", AttrNameToString{
+				MakeBazelTarget("prebuilt_library_shared", "libtest", AttrNameToString{
 					"shared_library": `"libf.so"`,
 				}),
 			},
@@ -118,7 +118,7 @@ cc_prebuilt_library {
 }
 
 func TestPrebuiltLibrarySharedStanzaFails(t *testing.T) {
-	runBp2BuildTestCaseSimple(t,
+	RunBp2BuildTestCaseSimple(t,
 		Bp2buildTestCase{
 			Description:                "prebuilt library with shared stanza fails because multiple sources",
 			ModuleTypeUnderTest:        "cc_prebuilt_library",
@@ -141,7 +141,7 @@ cc_prebuilt_library {
 }
 
 func TestPrebuiltLibraryStaticStanzaFails(t *testing.T) {
-	runBp2BuildTestCaseSimple(t,
+	RunBp2BuildTestCaseSimple(t,
 		Bp2buildTestCase{
 			Description:                "prebuilt library with static stanza fails because multiple sources",
 			ModuleTypeUnderTest:        "cc_prebuilt_library",
@@ -164,7 +164,7 @@ cc_prebuilt_library {
 }
 
 func TestPrebuiltLibrarySharedAndStaticStanzas(t *testing.T) {
-	runBp2BuildTestCaseSimple(t,
+	RunBp2BuildTestCaseSimple(t,
 		Bp2buildTestCase{
 			Description:                "prebuilt library with both shared and static stanzas",
 			ModuleTypeUnderTest:        "cc_prebuilt_library",
@@ -185,10 +185,10 @@ cc_prebuilt_library {
 	bazel_module: { bp2build_available: true },
 }`,
 			ExpectedBazelTargets: []string{
-				makeBazelTarget("prebuilt_library_static", "libtest_bp2build_cc_library_static", AttrNameToString{
+				MakeBazelTarget("prebuilt_library_static", "libtest_bp2build_cc_library_static", AttrNameToString{
 					"static_library": `"libf.so"`,
 				}),
-				makeBazelTarget("prebuilt_library_shared", "libtest", AttrNameToString{
+				MakeBazelTarget("prebuilt_library_shared", "libtest", AttrNameToString{
 					"shared_library": `"libg.so"`,
 				}),
 			},
@@ -197,7 +197,7 @@ cc_prebuilt_library {
 
 // TODO(b/228623543): When this bug is fixed, enable this test
 //func TestPrebuiltLibraryOnlyShared(t *testing.T) {
-//	runBp2BuildTestCaseSimple(t,
+//	RunBp2BuildTestCaseSimple(t,
 //		bp2buildTestCase{
 //			description:                "prebuilt library shared only",
 //			moduleTypeUnderTest:        "cc_prebuilt_library",
@@ -224,7 +224,7 @@ cc_prebuilt_library {
 
 // TODO(b/228623543): When this bug is fixed, enable this test
 //func TestPrebuiltLibraryOnlyStatic(t *testing.T) {
-//	runBp2BuildTestCaseSimple(t,
+//	RunBp2BuildTestCaseSimple(t,
 //		bp2buildTestCase{
 //			description:                "prebuilt library static only",
 //			moduleTypeUnderTest:        "cc_prebuilt_library",

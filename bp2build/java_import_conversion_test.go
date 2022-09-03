@@ -45,7 +45,7 @@ java_import {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("java_import", "example_import", AttrNameToString{
+			MakeBazelTarget("java_import", "example_import", AttrNameToString{
 				"jars": `["import.jar"]`,
 			}),
 		}})
@@ -74,7 +74,7 @@ java_import {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("java_import", "example_import", AttrNameToString{
+			MakeBazelTarget("java_import", "example_import", AttrNameToString{
 				"jars": `select({
         "//build/bazel/platforms/os:android": ["android.jar"],
         "//build/bazel/platforms/os:linux": ["linux.jar"],

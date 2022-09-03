@@ -48,7 +48,7 @@ cc_library {
   srcs: ["main.cpp", "myfile.asm"],
 }`,
 		ExpectedBazelTargets: append([]string{
-			makeBazelTarget("yasm", "foo_yasm", map[string]string{
+			MakeBazelTarget("yasm", "foo_yasm", map[string]string{
 				"include_dirs": `["."]`,
 				"srcs":         `["myfile.asm"]`,
 			}),
@@ -81,7 +81,7 @@ cc_library {
   srcs: ["main.cpp", "myfile.asm"],
 }`,
 		ExpectedBazelTargets: append([]string{
-			makeBazelTarget("yasm", "foo_yasm", map[string]string{
+			MakeBazelTarget("yasm", "foo_yasm", map[string]string{
 				"include_dirs": `[
         "include1/foo",
         ".",
@@ -123,7 +123,7 @@ cc_library {
   },
 }`,
 		ExpectedBazelTargets: append([]string{
-			makeBazelTarget("yasm", "foo_yasm", map[string]string{
+			MakeBazelTarget("yasm", "foo_yasm", map[string]string{
 				"include_dirs": `["."]`,
 				"srcs": `select({
         "//build/bazel/platforms/arch:x86": ["myfile.asm"],
@@ -161,7 +161,7 @@ cc_library {
   },
 }`,
 		ExpectedBazelTargets: append([]string{
-			makeBazelTarget("yasm", "foo_yasm", map[string]string{
+			MakeBazelTarget("yasm", "foo_yasm", map[string]string{
 				"include_dirs": `["."]`,
 				"srcs": `["myfile.asm"] + select({
         "//build/bazel/platforms/arch:x86": ["mysecondfile.asm"],

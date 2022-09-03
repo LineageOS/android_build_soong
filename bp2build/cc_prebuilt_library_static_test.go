@@ -21,7 +21,7 @@ import (
 )
 
 func TestStaticPrebuiltLibrary(t *testing.T) {
-	runBp2BuildTestCaseSimple(t,
+	RunBp2BuildTestCaseSimple(t,
 		Bp2buildTestCase{
 			Description:                "prebuilt library static simple",
 			ModuleTypeUnderTest:        "cc_prebuilt_library_static",
@@ -36,7 +36,7 @@ cc_prebuilt_library_static {
 	bazel_module: { bp2build_available: true },
 }`,
 			ExpectedBazelTargets: []string{
-				makeBazelTarget("prebuilt_library_static", "libtest", AttrNameToString{
+				MakeBazelTarget("prebuilt_library_static", "libtest", AttrNameToString{
 					"static_library": `"libf.so"`,
 				}),
 			},
@@ -44,7 +44,7 @@ cc_prebuilt_library_static {
 }
 
 func TestStaticPrebuiltLibraryWithArchVariance(t *testing.T) {
-	runBp2BuildTestCaseSimple(t,
+	RunBp2BuildTestCaseSimple(t,
 		Bp2buildTestCase{
 			Description:                "prebuilt library static with arch variance",
 			ModuleTypeUnderTest:        "cc_prebuilt_library_static",
@@ -63,7 +63,7 @@ cc_prebuilt_library_static {
 	bazel_module: { bp2build_available: true },
 }`,
 			ExpectedBazelTargets: []string{
-				makeBazelTarget("prebuilt_library_static", "libtest", AttrNameToString{
+				MakeBazelTarget("prebuilt_library_static", "libtest", AttrNameToString{
 					"static_library": `select({
         "//build/bazel/platforms/arch:arm": "libg.so",
         "//build/bazel/platforms/arch:arm64": "libf.so",
@@ -75,7 +75,7 @@ cc_prebuilt_library_static {
 }
 
 func TestStaticPrebuiltLibraryStaticStanzaFails(t *testing.T) {
-	runBp2BuildTestCaseSimple(t,
+	RunBp2BuildTestCaseSimple(t,
 		Bp2buildTestCase{
 			Description:                "prebuilt library with static stanza fails because multiple sources",
 			ModuleTypeUnderTest:        "cc_prebuilt_library_static",
@@ -118,21 +118,21 @@ func TestCcLibraryStaticConvertLex(t *testing.T) {
 	bazel_module: { bp2build_available: true },
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("genlex", "foo_lib_genlex_l", AttrNameToString{
+			MakeBazelTarget("genlex", "foo_lib_genlex_l", AttrNameToString{
 				"srcs": `[
         "foo1.l",
         "foo2.l",
     ]`,
 				"lexopts": `["--foo_flags"]`,
 			}),
-			makeBazelTarget("genlex", "foo_lib_genlex_ll", AttrNameToString{
+			MakeBazelTarget("genlex", "foo_lib_genlex_ll", AttrNameToString{
 				"srcs": `[
         "bar1.ll",
         "bar2.ll",
     ]`,
 				"lexopts": `["--foo_flags"]`,
 			}),
-			makeBazelTarget("cc_library_static", "foo_lib", AttrNameToString{
+			MakeBazelTarget("cc_library_static", "foo_lib", AttrNameToString{
 				"srcs": `[
         "bar.cc",
         ":foo_lib_genlex_ll",
