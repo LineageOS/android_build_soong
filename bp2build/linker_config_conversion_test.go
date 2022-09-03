@@ -25,7 +25,7 @@ func runLinkerConfigTestCase(t *testing.T, tc Bp2buildTestCase) {
 	t.Helper()
 	(&tc).ModuleTypeUnderTest = "linker_config"
 	(&tc).ModuleTypeUnderTestFactory = linkerconfig.LinkerConfigFactory
-	runBp2BuildTestCaseSimple(t, tc)
+	RunBp2BuildTestCaseSimple(t, tc)
 }
 
 func TestLinkerConfigConvertsSrc(t *testing.T) {
@@ -37,7 +37,7 @@ linker_config {
 	src: "a.json",
 }
 `,
-			ExpectedBazelTargets: []string{makeBazelTarget("linker_config", "foo", AttrNameToString{
+			ExpectedBazelTargets: []string{MakeBazelTarget("linker_config", "foo", AttrNameToString{
 				"src": `"a.json"`,
 			})},
 		})

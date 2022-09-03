@@ -15,6 +15,7 @@
 package config
 
 type toolchainBionic struct {
+	toolchainBase
 }
 
 var (
@@ -28,6 +29,12 @@ var (
 func (toolchainBionic) Bionic() bool { return true }
 
 func (toolchainBionic) DefaultSharedLibraries() []string { return bionicDefaultSharedLibraries }
+
+func (toolchainBionic) ShlibSuffix() string { return ".so" }
+
+func (toolchainBionic) ExecutableSuffix() string { return "" }
+
+func (toolchainBionic) AvailableLibraries() []string { return nil }
 
 func (toolchainBionic) CrtBeginStaticBinary() []string  { return bionicCrtBeginStaticBinary }
 func (toolchainBionic) CrtBeginSharedBinary() []string  { return bionicCrtBeginSharedBinary }

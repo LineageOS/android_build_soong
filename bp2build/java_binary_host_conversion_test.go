@@ -55,7 +55,7 @@ func TestJavaBinaryHost(t *testing.T) {
     java_version: "8",
 }`,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("java_binary", "java-binary-host-1", AttrNameToString{
+			MakeBazelTarget("java_binary", "java-binary-host-1", AttrNameToString{
 				"srcs":       `["a.java"]`,
 				"main_class": `"com.android.test.MainClass"`,
 				"deps":       `["//other:jni-lib-1"]`,
@@ -91,7 +91,7 @@ java_library {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("java_binary", "java-binary-host-1", AttrNameToString{
+			MakeBazelTarget("java_binary", "java-binary-host-1", AttrNameToString{
 				"main_class":   `"com.android.test.MainClass"`,
 				"runtime_deps": `[":java-dep-1"]`,
 				"target_compatible_with": `select({

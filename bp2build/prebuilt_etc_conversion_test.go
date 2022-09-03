@@ -45,7 +45,7 @@ prebuilt_etc {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("prebuilt_file", "apex_tz_version", AttrNameToString{
+			MakeBazelTarget("prebuilt_file", "apex_tz_version", AttrNameToString{
 				"filename":    `"tz_version"`,
 				"installable": `False`,
 				"src":         `"version/tz_version"`,
@@ -75,7 +75,7 @@ prebuilt_etc {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("prebuilt_file", "apex_tz_version", AttrNameToString{
+			MakeBazelTarget("prebuilt_file", "apex_tz_version", AttrNameToString{
 				"filename":    `"tz_version"`,
 				"installable": `False`,
 				"src": `select({
@@ -114,7 +114,7 @@ prebuilt_etc {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("prebuilt_file", "apex_tz_version", AttrNameToString{
+			MakeBazelTarget("prebuilt_file", "apex_tz_version", AttrNameToString{
 				"filename":    `"tz_version"`,
 				"installable": `False`,
 				"src": `select({
@@ -153,7 +153,7 @@ prebuilt_usr_share {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("prebuilt_file", "apex_tz_version", AttrNameToString{
+			MakeBazelTarget("prebuilt_file", "apex_tz_version", AttrNameToString{
 				"filename":    `"tz_version"`,
 				"installable": `False`,
 				"src":         `"version/tz_version"`,
@@ -174,10 +174,94 @@ prebuilt_etc {
 }
 `,
 		ExpectedBazelTargets: []string{
-			makeBazelTarget("prebuilt_file", "apex_tz_version", AttrNameToString{
+			MakeBazelTarget("prebuilt_file", "apex_tz_version", AttrNameToString{
 				"filename":    `"tz_version"`,
 				"installable": `False`,
 				"src":         `"version/tz_version"`,
 				"dir":         `"etc"`,
+			})}})
+}
+
+func TestFilenameAsProperty(t *testing.T) {
+	runPrebuiltEtcTestCase(t, Bp2buildTestCase{
+		Description: "prebuilt_etc - filename is specified as a property ",
+		Filesystem:  map[string]string{},
+		Blueprint: `
+prebuilt_etc {
+    name: "foo",
+    src: "fooSrc",
+    filename: "fooFileName",
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("prebuilt_file", "foo", AttrNameToString{
+				"filename": `"fooFileName"`,
+				"src":      `"fooSrc"`,
+				"dir":      `"etc"`,
+			})}})
+}
+
+func TestFileNameFromSrc(t *testing.T) {
+	runPrebuiltEtcTestCase(t, Bp2buildTestCase{
+		Description: "prebuilt_etc - filename_from_src is true  ",
+		Filesystem:  map[string]string{},
+		Blueprint: `
+prebuilt_etc {
+    name: "foo",
+    filename_from_src: true,
+    src: "fooSrc",
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("prebuilt_file", "foo", AttrNameToString{
+				"filename": `"fooSrc"`,
+				"src":      `"fooSrc"`,
+				"dir":      `"etc"`,
+			})}})
+}
+
+func TestFileNameFromSrcMultipleSrcs(t *testing.T) {
+	runPrebuiltEtcTestCase(t, Bp2buildTestCase{
+		Description: "prebuilt_etc - filename_from_src is true but there are multiple srcs",
+		Filesystem:  map[string]string{},
+		Blueprint: `
+prebuilt_etc {
+    name: "foo",
+    filename_from_src: true,
+		arch: {
+        arm: {
+            src: "barSrc",
+        },
+        arm64: {
+            src: "bazSrc",
+        },
+	  }
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("prebuilt_file", "foo", AttrNameToString{
+				"filename_from_src": `True`,
+				"dir":               `"etc"`,
+				"src": `select({
+        "//build/bazel/platforms/arch:arm": "barSrc",
+        "//build/bazel/platforms/arch:arm64": "bazSrc",
+        "//conditions:default": None,
+    })`,
+			})}})
+}
+
+func TestFilenameFromModuleName(t *testing.T) {
+	runPrebuiltEtcTestCase(t, Bp2buildTestCase{
+		Description: "prebuilt_etc - neither filename nor filename_from_src are specified ",
+		Filesystem:  map[string]string{},
+		Blueprint: `
+prebuilt_etc {
+    name: "foo",
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("prebuilt_file", "foo", AttrNameToString{
+				"filename": `"foo"`,
+				"dir":      `"etc"`,
 			})}})
 }

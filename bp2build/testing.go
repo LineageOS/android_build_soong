@@ -71,7 +71,7 @@ func errored(t *testing.T, tc Bp2buildTestCase, errs []error) bool {
 	return false
 }
 
-func runBp2BuildTestCaseSimple(t *testing.T, tc Bp2buildTestCase) {
+func RunBp2BuildTestCaseSimple(t *testing.T, tc Bp2buildTestCase) {
 	t.Helper()
 	RunBp2BuildTestCase(t, func(ctx android.RegistrationContext) {}, tc)
 }
@@ -444,6 +444,6 @@ func MakeBazelTargetNoRestrictions(typ, name string, attrs AttrNameToString) str
 
 // makeBazelTargetNoRestrictions returns bazel target build file definition that is device specific
 // as this is the most common default in Soong.
-func makeBazelTarget(typ, name string, attrs AttrNameToString) string {
+func MakeBazelTarget(typ, name string, attrs AttrNameToString) string {
 	return makeBazelTargetHostOrDevice(typ, name, attrs, android.DeviceSupported)
 }

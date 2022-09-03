@@ -238,7 +238,7 @@ func TestGenerateBazelTargetModules(t *testing.T) {
     bazel_module: { bp2build_available: true },
 }`,
 			ExpectedBazelTargets: []string{
-				makeBazelTarget("custom", "foo", AttrNameToString{
+				MakeBazelTarget("custom", "foo", AttrNameToString{
 					"string_literal_prop": `""`,
 				}),
 			},
@@ -251,7 +251,7 @@ func TestGenerateBazelTargetModules(t *testing.T) {
     bazel_module: { bp2build_available: true },
 }`,
 			ExpectedBazelTargets: []string{
-				makeBazelTarget("custom", "foo", AttrNameToString{
+				MakeBazelTarget("custom", "foo", AttrNameToString{
 					"string_literal_prop": `"PROP"`,
 				}),
 			},
@@ -267,7 +267,7 @@ func TestGenerateBazelTargetModules(t *testing.T) {
     bazel_module: { bp2build_available: true },
 }`,
 			ExpectedBazelTargets: []string{
-				makeBazelTarget("custom", "foo", AttrNameToString{
+				MakeBazelTarget("custom", "foo", AttrNameToString{
 					"string_literal_prop": `select({
         "//build/bazel/platforms/arch:arm": "ARM",
         "//build/bazel/platforms/arch:arm64": "ARM64",
@@ -284,7 +284,7 @@ func TestGenerateBazelTargetModules(t *testing.T) {
     bazel_module: { bp2build_available: true },
 }`,
 			ExpectedBazelTargets: []string{
-				makeBazelTarget("custom", "foo", AttrNameToString{
+				MakeBazelTarget("custom", "foo", AttrNameToString{
 					"string_ptr_prop": `""`,
 				}),
 			},
@@ -298,7 +298,7 @@ func TestGenerateBazelTargetModules(t *testing.T) {
     bazel_module: { bp2build_available: true },
 }`,
 			ExpectedBazelTargets: []string{
-				makeBazelTarget("custom", "foo", AttrNameToString{
+				MakeBazelTarget("custom", "foo", AttrNameToString{
 					"string_list_prop": `[
         "a",
         "b",
@@ -316,7 +316,7 @@ func TestGenerateBazelTargetModules(t *testing.T) {
     bazel_module: { bp2build_available: true },
 }`,
 			ExpectedBazelTargets: []string{
-				makeBazelTarget("custom", "foo", AttrNameToString{
+				MakeBazelTarget("custom", "foo", AttrNameToString{
 					"string_list_prop": `[
         "\t",
         "\n",
@@ -339,10 +339,10 @@ custom {
   bazel_module: { bp2build_available: true },
 }`,
 			ExpectedBazelTargets: []string{
-				makeBazelTarget("custom", "dep", AttrNameToString{
+				MakeBazelTarget("custom", "dep", AttrNameToString{
 					"arch_paths": `["abc"]`,
 				}),
-				makeBazelTarget("custom", "has_dep", AttrNameToString{
+				MakeBazelTarget("custom", "has_dep", AttrNameToString{
 					"arch_paths": `[":dep"]`,
 				}),
 			},
@@ -355,7 +355,7 @@ custom {
   bazel_module: { bp2build_available: true },
 }`,
 			ExpectedBazelTargets: []string{
-				makeBazelTarget("custom", "has_dep", AttrNameToString{
+				MakeBazelTarget("custom", "has_dep", AttrNameToString{
 					"arch_paths": `[":dep__BP2BUILD__MISSING__DEP"]`,
 				}),
 			},
@@ -391,7 +391,7 @@ custom {
     bazel_module: { bp2build_available: true },
 }`,
 			ExpectedBazelTargets: []string{
-				makeBazelTarget("custom", "arch_paths", AttrNameToString{
+				MakeBazelTarget("custom", "arch_paths", AttrNameToString{
 					"arch_paths": `select({
         "//build/bazel/platforms/arch:arm": [
             "arm.txt",
@@ -469,10 +469,10 @@ custom {
     bazel_module: { bp2build_available: true },
 }`,
 			ExpectedBazelTargets: []string{
-				makeBazelTarget("custom", "dep", AttrNameToString{
+				MakeBazelTarget("custom", "dep", AttrNameToString{
 					"arch_paths": `["abc"]`,
 				}),
-				makeBazelTarget("custom", "has_dep", AttrNameToString{
+				MakeBazelTarget("custom", "has_dep", AttrNameToString{
 					"arch_paths": `select({
         "//build/bazel/platforms/arch:x86": [":dep"],
         "//conditions:default": [],
@@ -488,7 +488,7 @@ custom {
     bazel_module: { bp2build_available: true },
 }`,
 			ExpectedBazelTargets: []string{
-				makeBazelTarget("custom", "embedded_props", AttrNameToString{
+				MakeBazelTarget("custom", "embedded_props", AttrNameToString{
 					"embedded_attr": `"abc"`,
 				}),
 			},
@@ -501,7 +501,7 @@ custom {
     bazel_module: { bp2build_available: true },
 }`,
 			ExpectedBazelTargets: []string{
-				makeBazelTarget("custom", "ptr_to_embedded_props", AttrNameToString{
+				MakeBazelTarget("custom", "ptr_to_embedded_props", AttrNameToString{
 					"other_embedded_attr": `"abc"`,
 				}),
 			},
@@ -751,7 +751,7 @@ func TestBp2buildHostAndDevice(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Description, func(t *testing.T) {
-			runBp2BuildTestCaseSimple(t, tc)
+			RunBp2BuildTestCaseSimple(t, tc)
 		})
 	}
 }
@@ -1494,7 +1494,7 @@ func TestGlobExcludeSrcs(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Description, func(t *testing.T) {
-			runBp2BuildTestCaseSimple(t, testCase)
+			RunBp2BuildTestCaseSimple(t, testCase)
 		})
 	}
 }
@@ -1536,7 +1536,7 @@ python_library {
     bazel_module: { bp2build_available: true },
 }`,
 			ExpectedBazelTargets: []string{
-				makeBazelTarget("py_library", "fg_foo", map[string]string{
+				MakeBazelTarget("py_library", "fg_foo", map[string]string{
 					"data": `select({
         "//build/bazel/platforms/arch:arm": [":reqdarm"],
         "//build/bazel/platforms/arch:x86": [":reqdx86"],
@@ -1563,7 +1563,7 @@ python_library {
     bazel_module: { bp2build_available: true },
 }`,
 			ExpectedBazelTargets: []string{
-				makeBazelTarget("py_library", "fg_foo", map[string]string{
+				MakeBazelTarget("py_library", "fg_foo", map[string]string{
 					"data": `[
         "data.bin",
         ":reqd",
@@ -1593,7 +1593,7 @@ filegroup {
 
 	for _, tc := range testCases {
 		t.Run(tc.Description, func(t *testing.T) {
-			runBp2BuildTestCaseSimple(t, tc)
+			RunBp2BuildTestCaseSimple(t, tc)
 		})
 	}
 }

@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 
 	"android/soong/bazel/cquery"
+
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
@@ -591,7 +592,7 @@ func (handler *ccBinaryBazelHandler) ProcessBazelQueryResponse(ctx android.Modul
 	handler.module.linker.(*binaryDecorator).unstrippedOutputFile = outputFilePath
 }
 
-func binaryBp2build(ctx android.TopDownMutatorContext, m *Module, typ string) {
+func binaryBp2buildAttrs(ctx android.TopDownMutatorContext, m *Module) binaryAttributes {
 	baseAttrs := bp2BuildParseBaseProps(ctx, m)
 	binaryLinkerAttrs := bp2buildBinaryLinkerProps(ctx, m)
 
@@ -601,7 +602,7 @@ func binaryBp2build(ctx android.TopDownMutatorContext, m *Module, typ string) {
 		baseAttrs.implementationDeps.Add(baseAttrs.protoDependency)
 	}
 
-	attrs := &binaryAttributes{
+	attrs := binaryAttributes{
 		binaryLinkerAttrs: binaryLinkerAttrs,
 
 		Srcs:    baseAttrs.srcs,
@@ -644,12 +645,19 @@ func binaryBp2build(ctx android.TopDownMutatorContext, m *Module, typ string) {
 		sdkAttributes: bp2BuildParseSdkAttributes(m),
 	}
 
+	return attrs
+}
+
+func binaryBp2build(ctx android.TopDownMutatorContext, m *Module) {
+	// shared with cc_test
+	binaryAttrs := binaryBp2buildAttrs(ctx, m)
+
 	ctx.CreateBazelTargetModule(bazel.BazelTargetModuleProperties{
 		Rule_class:        "cc_binary",
 		Bzl_load_location: "//build/bazel/rules/cc:cc_binary.bzl",
 	},
 		android.CommonAttributes{Name: m.Name()},
-		attrs)
+		&binaryAttrs)
 }
 
 // binaryAttributes contains Bazel attributes corresponding to a cc binary
