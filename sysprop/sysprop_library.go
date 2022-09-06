@@ -23,6 +23,7 @@ import (
 	"path"
 	"sync"
 
+	"android/soong/bazel"
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
@@ -125,6 +126,7 @@ func syspropJavaGenFactory() android.Module {
 type syspropLibrary struct {
 	android.ModuleBase
 	android.ApexModuleBase
+	android.BazelModuleBase
 
 	properties syspropLibraryProperties
 
@@ -372,6 +374,7 @@ func syspropLibraryFactory() android.Module {
 	)
 	android.InitAndroidModule(m)
 	android.InitApexModule(m)
+	android.InitBazelModule(m)
 	android.AddLoadHook(m, func(ctx android.LoadHookContext) { syspropLibraryHook(ctx, m) })
 	return m
 }
@@ -403,6 +406,9 @@ type ccLibraryProperties struct {
 	Host_supported     *bool
 	Apex_available     []string
 	Min_sdk_version    *string
+	Bazel_module       struct {
+		Bp2build_available *bool
+	}
 }
 
 type javaLibraryProperties struct {
@@ -483,6 +489,11 @@ func syspropLibraryHook(ctx android.LoadHookContext, m *syspropLibrary) {
 	ccProps.Host_supported = m.properties.Host_supported
 	ccProps.Apex_available = m.ApexProperties.Apex_available
 	ccProps.Min_sdk_version = m.properties.Cpp.Min_sdk_version
+	// A Bazel macro handles this, so this module does not need to be handled
+	// in bp2build
+	// TODO(b/237810289) perhaps do something different here so that we aren't
+	//                   also disabling these modules in mixed builds
+	ccProps.Bazel_module.Bp2build_available = proptools.BoolPtr(false)
 	ctx.CreateModule(cc.LibraryFactory, &ccProps)
 
 	scope := "internal"
@@ -556,4 +567,46 @@ func syspropLibraryHook(ctx android.LoadHookContext, m *syspropLibrary) {
 		libraries := syspropLibraries(ctx.Config())
 		*libraries = append(*libraries, "//"+ctx.ModuleDir()+":"+ctx.ModuleName())
 	}
+}
+
+// TODO(b/240463568): Additional properties will be added for API validation
+type bazelSyspropLibraryAttributes struct {
+	Srcs bazel.LabelListAttribute
+}
+
+type bazelCcSyspropLibraryAttributes struct {
+	Dep             bazel.LabelAttribute
+	Min_sdk_version *string
+}
+
+func (m *syspropLibrary) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+	ctx.CreateBazelTargetModule(
+		bazel.BazelTargetModuleProperties{
+			Rule_class:        "sysprop_library",
+			Bzl_load_location: "//build/bazel/rules/sysprop:sysprop_library.bzl",
+		},
+		android.CommonAttributes{Name: m.Name()},
+		&bazelSyspropLibraryAttributes{
+			Srcs: bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrc(ctx, m.properties.Srcs)),
+		})
+
+	attrs := &bazelCcSyspropLibraryAttributes{
+		Dep:             *bazel.MakeLabelAttribute(":" + m.Name()),
+		Min_sdk_version: m.properties.Cpp.Min_sdk_version,
+	}
+
+	ctx.CreateBazelTargetModule(
+		bazel.BazelTargetModuleProperties{
+			Rule_class:        "cc_sysprop_library_shared",
+			Bzl_load_location: "//build/bazel/rules/cc:cc_sysprop_library.bzl",
+		},
+		android.CommonAttributes{Name: m.CcImplementationModuleName()},
+		attrs)
+	ctx.CreateBazelTargetModule(
+		bazel.BazelTargetModuleProperties{
+			Rule_class:        "cc_sysprop_library_static",
+			Bzl_load_location: "//build/bazel/rules/cc:cc_sysprop_library.bzl",
+		},
+		android.CommonAttributes{Name: m.CcImplementationModuleName() + "_bp2build_cc_library_static"},
+		attrs)
 }
