@@ -485,6 +485,7 @@ type ModuleContextIntf interface {
 	static() bool
 	staticBinary() bool
 	testBinary() bool
+	testLibrary() bool
 	header() bool
 	binary() bool
 	object() bool
@@ -1484,6 +1485,10 @@ func (ctx *moduleContextImpl) staticBinary() bool {
 
 func (ctx *moduleContextImpl) testBinary() bool {
 	return ctx.mod.testBinary()
+}
+
+func (ctx *moduleContextImpl) testLibrary() bool {
+	return ctx.mod.testLibrary()
 }
 
 func (ctx *moduleContextImpl) header() bool {
