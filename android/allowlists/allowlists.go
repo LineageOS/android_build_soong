@@ -134,6 +134,7 @@ var (
 		"external/libjpeg-turbo":                 Bp2BuildDefaultTrueRecursively,
 		"external/libmpeg2":                      Bp2BuildDefaultTrueRecursively,
 		"external/libpng":                        Bp2BuildDefaultTrueRecursively,
+		"external/libvpx":                        Bp2BuildDefaultTrueRecursively,
 		"external/libyuv":                        Bp2BuildDefaultTrueRecursively,
 		"external/lz4/lib":                       Bp2BuildDefaultTrue,
 		"external/lzma/C":                        Bp2BuildDefaultTrueRecursively,
@@ -471,7 +472,6 @@ var (
 
 		"linker",                 // TODO(b/228316882): cc_binary uses link_crt
 		"versioner",              // TODO(b/228313961):  depends on prebuilt shared library libclang-cpp_host as a shared library, which does not supply expected providers for a shared library
-		"libvpx",                 // TODO(b/240756936): Arm neon variant not supported
 		"art_libartbase_headers", // TODO(b/236268577): Header libraries do not support export_shared_libs_headers
 		"apexer_test",            // Requires aapt2
 		"apexer_test_host_tools",
