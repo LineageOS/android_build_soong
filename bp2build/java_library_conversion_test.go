@@ -534,3 +534,118 @@ java_library {
 		ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
 	})
 }
+
+func TestConvertArmNeonVariant(t *testing.T) {
+	t.Helper()
+	RunBp2BuildTestCase(t, func(ctx android.RegistrationContext) {}, Bp2buildTestCase{
+		Description:                "Android Library - simple arch feature",
+		ModuleTypeUnderTest:        "android_library",
+		ModuleTypeUnderTestFactory: java.AndroidLibraryFactory,
+		Blueprint: simpleModuleDoNotConvertBp2build("android_library", "static_lib_dep") + `
+android_library {
+	name: "TestLib",
+	manifest: "manifest/AndroidManifest.xml",
+	srcs: ["lib.java"],
+	arch: {
+		arm: {
+			neon: {
+				srcs: ["arm_neon.java"],
+			},
+		},
+	},
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget(
+				"android_library",
+				"TestLib",
+				AttrNameToString{
+					"srcs": `["lib.java"] + select({
+        "//build/bazel/platforms/arch/variants:arm-neon": ["arm_neon.java"],
+        "//conditions:default": [],
+    })`,
+					"manifest":       `"manifest/AndroidManifest.xml"`,
+					"resource_files": `[]`,
+				}),
+		}})
+}
+
+func TestConvertMultipleArchFeatures(t *testing.T) {
+	t.Helper()
+	RunBp2BuildTestCase(t, func(ctx android.RegistrationContext) {}, Bp2buildTestCase{
+		Description:                "Android Library - multiple arch features",
+		ModuleTypeUnderTest:        "android_library",
+		ModuleTypeUnderTestFactory: java.AndroidLibraryFactory,
+		Blueprint: simpleModuleDoNotConvertBp2build("android_library", "static_lib_dep") + `
+android_library {
+	name: "TestLib",
+	manifest: "manifest/AndroidManifest.xml",
+	srcs: ["lib.java"],
+	arch: {
+		x86: {
+			ssse3: {
+				srcs: ["ssse3.java"],
+			},
+			sse4_1: {
+				srcs: ["sse4_1.java"],
+			},
+		},
+	},
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget(
+				"android_library",
+				"TestLib",
+				AttrNameToString{
+					"srcs": `["lib.java"] + select({
+        "//build/bazel/platforms/arch/variants:x86-sse4_1": ["sse4_1.java"],
+        "//build/bazel/platforms/arch/variants:x86-sse4_1-ssse3": [
+            "sse4_1.java",
+            "ssse3.java",
+        ],
+        "//build/bazel/platforms/arch/variants:x86-ssse3": ["ssse3.java"],
+        "//conditions:default": [],
+    })`,
+					"manifest":       `"manifest/AndroidManifest.xml"`,
+					"resource_files": `[]`,
+				}),
+		}})
+}
+
+func TestConvertExcludeSrcsArchFeature(t *testing.T) {
+	t.Helper()
+	RunBp2BuildTestCase(t, func(ctx android.RegistrationContext) {}, Bp2buildTestCase{
+		Description:                "Android Library - exclude_srcs with arch feature",
+		ModuleTypeUnderTest:        "android_library",
+		ModuleTypeUnderTestFactory: java.AndroidLibraryFactory,
+		Blueprint: simpleModuleDoNotConvertBp2build("android_library", "static_lib_dep") + `
+android_library {
+	name: "TestLib",
+	manifest: "manifest/AndroidManifest.xml",
+	srcs: ["lib.java"],
+	arch: {
+		arm: {
+			srcs: ["arm_non_neon.java"],
+			neon: {
+				exclude_srcs: ["arm_non_neon.java"],
+			},
+		},
+	},
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget(
+				"android_library",
+				"TestLib",
+				AttrNameToString{
+					"srcs": `["lib.java"] + select({
+        "//build/bazel/platforms/arch/variants:arm-neon": [],
+        "//build/bazel/platforms/arch:arm": ["arm_non_neon.java"],
+        "//conditions:default": [],
+    })`,
+					"manifest":       `"manifest/AndroidManifest.xml"`,
+					"resource_files": `[]`,
+				}),
+		}})
+}
