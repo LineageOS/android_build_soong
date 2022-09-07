@@ -8842,19 +8842,7 @@ func TestApexJavaCoverage(t *testing.T) {
 		android.FixtureWithRootAndroidBp(bp),
 		dexpreopt.FixtureSetApexBootJars("myapex:mybootclasspathlib"),
 		dexpreopt.FixtureSetApexSystemServerJars("myapex:mysystemserverclasspathlib"),
-		android.FixtureMergeEnv(map[string]string{
-			"EMMA_INSTRUMENT": "true",
-		}),
-		// need to mock jacocoagent here to satisfy dependency added for
-		// instrumented libraries at build time
-		android.FixtureAddFile("jacocoagent/Android.bp", []byte(`
-			java_library {
-				name: "jacocoagent",
-				srcs: ["Test.java"],
-				system_modules: "none",
-				sdk_version: "none",
-			}
-		`)),
+		java.PrepareForTestWithJacocoInstrumentation,
 	).RunTest(t)
 
 	// Make sure jacoco ran on both mylib and mybootclasspathlib
