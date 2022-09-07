@@ -16,6 +16,7 @@ package multitree
 
 import (
 	"android/soong/android"
+	"strings"
 
 	"github.com/google/blueprint"
 )
@@ -26,6 +27,7 @@ var (
 
 func init() {
 	RegisterApiImportsModule(android.InitRegistrationContext)
+	android.RegisterMakeVarsProvider(pctx, makeVarsProvider)
 }
 
 func RegisterApiImportsModule(ctx android.RegistrationContext) {
@@ -85,4 +87,13 @@ func (imports *ApiImports) DepsMutator(ctx android.BottomUpMutatorContext) {
 
 func GetApiImportSuffix() string {
 	return apiImportNameSuffix
+}
+
+func makeVarsProvider(ctx android.MakeVarsContext) {
+	ctx.VisitAllModules(func(m android.Module) {
+		if i, ok := m.(*ApiImports); ok {
+			ctx.Strict("API_IMPORTED_SHARED_LIBRARIES", strings.Join(i.properties.Shared_libs, " "))
+			ctx.Strict("API_IMPORTED_HEADER_LIBRARIES", strings.Join(i.properties.Header_libs, " "))
+		}
+	})
 }
