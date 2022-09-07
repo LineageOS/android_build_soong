@@ -164,19 +164,21 @@ const tidyExternalVendor = "${config.TidyExternalVendorChecks}"
 const tidyDefaultNoAnalyzer = "${config.TidyDefaultGlobalChecks},-clang-analyzer-*"
 
 // This is a map of local path prefixes to the set of default clang-tidy checks
-// to be used.
+// to be used.  This is like android.IsThirdPartyPath, but with more patterns.
 // The last matched local_path_prefix should be the most specific to be used.
 var DefaultLocalTidyChecks = []PathBasedTidyCheck{
 	{"external/", tidyExternalVendor},
-	{"external/google", tidyDefault},
-	{"external/webrtc", tidyDefault},
-	{"external/googletest/", tidyExternalVendor},
 	{"frameworks/compile/mclinker/", tidyExternalVendor},
-	{"hardware/qcom", tidyExternalVendor},
+	{"hardware/", tidyExternalVendor},
+	{"hardware/google/", tidyDefault},
+	{"hardware/interfaces/", tidyDefault},
+	{"hardware/ril/", tidyDefault},
+	{"hardware/libhardware", tidyDefault}, // all 'hardware/libhardware*'
 	{"vendor/", tidyExternalVendor},
-	{"vendor/google", tidyDefault},
+	{"vendor/google", tidyDefault}, // all 'vendor/google*'
+	{"vendor/google/external/", tidyExternalVendor},
 	{"vendor/google_arc/libs/org.chromium.arc.mojom", tidyExternalVendor},
-	{"vendor/google_devices", tidyExternalVendor},
+	{"vendor/google_devices/", tidyExternalVendor}, // many have vendor code
 }
 
 var reversedDefaultLocalTidyChecks = reverseTidyChecks(DefaultLocalTidyChecks)
@@ -197,6 +199,13 @@ func TidyChecksForDir(dir string) string {
 		}
 	}
 	return tidyDefault
+}
+
+func NoClangTidyForDir(dir string) bool {
+	// This function depends on TidyChecksForDir, which selects tidyExternalVendor
+	// checks for external/vendor projects. For those projects we disable clang-tidy
+	// by default, unless some modules enable clang-tidy with tidy:true.
+	return TidyChecksForDir(dir) == tidyExternalVendor
 }
 
 // Returns a globally disabled tidy checks, overriding locally selected checks.
