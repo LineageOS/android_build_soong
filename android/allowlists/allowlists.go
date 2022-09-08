@@ -37,8 +37,8 @@ const (
 
 var (
 	Bp2buildDefaultConfig = Bp2BuildConfig{
-		"art/libartpalette":                     Bp2BuildDefaultTrueRecursively,
 		"art/libartbase":                        Bp2BuildDefaultTrueRecursively,
+		"art/libartpalette":                     Bp2BuildDefaultTrueRecursively,
 		"art/libdexfile":                        Bp2BuildDefaultTrueRecursively,
 		"art/libnativebridge":                   Bp2BuildDefaultTrueRecursively,
 		"art/runtime":                           Bp2BuildDefaultTrueRecursively,
@@ -164,9 +164,6 @@ var (
 		"frameworks/native/libs/adbd_auth":                   Bp2BuildDefaultTrueRecursively,
 		"frameworks/native/libs/arect":                       Bp2BuildDefaultTrueRecursively,
 		"frameworks/native/libs/math":                        Bp2BuildDefaultTrueRecursively,
-		"hardware/interfaces/common/aidl":                    Bp2BuildDefaultTrue,
-		"hardware/interfaces/graphics/common/aidl":           Bp2BuildDefaultTrue,
-		"hardware/interfaces/neuralnetworks/aidl":            Bp2BuildDefaultTrue,
 		"frameworks/native/libs/nativebase":                  Bp2BuildDefaultTrueRecursively,
 		"frameworks/native/opengl/tests/gl2_cameraeye":       Bp2BuildDefaultTrue,
 		"frameworks/native/opengl/tests/gl2_java":            Bp2BuildDefaultTrue,
@@ -176,6 +173,7 @@ var (
 		"frameworks/proto_logging/stats/stats_log_api_gen":   Bp2BuildDefaultTrueRecursively,
 
 		"hardware/interfaces":                          Bp2BuildDefaultTrue,
+		"hardware/interfaces/common/aidl":              Bp2BuildDefaultTrue,
 		"hardware/interfaces/configstore/1.0":          Bp2BuildDefaultTrue,
 		"hardware/interfaces/configstore/1.1":          Bp2BuildDefaultTrue,
 		"hardware/interfaces/configstore/utils":        Bp2BuildDefaultTrue,
@@ -187,6 +185,7 @@ var (
 		"hardware/interfaces/graphics/common/1.0":      Bp2BuildDefaultTrue,
 		"hardware/interfaces/graphics/common/1.1":      Bp2BuildDefaultTrue,
 		"hardware/interfaces/graphics/common/1.2":      Bp2BuildDefaultTrue,
+		"hardware/interfaces/graphics/common/aidl":     Bp2BuildDefaultTrue,
 		"hardware/interfaces/graphics/mapper/2.0":      Bp2BuildDefaultTrue,
 		"hardware/interfaces/graphics/mapper/2.1":      Bp2BuildDefaultTrue,
 		"hardware/interfaces/graphics/mapper/3.0":      Bp2BuildDefaultTrue,
@@ -201,6 +200,7 @@ var (
 		"hardware/interfaces/neuralnetworks/1.1":       Bp2BuildDefaultTrue,
 		"hardware/interfaces/neuralnetworks/1.2":       Bp2BuildDefaultTrue,
 		"hardware/interfaces/neuralnetworks/1.3":       Bp2BuildDefaultTrue,
+		"hardware/interfaces/neuralnetworks/aidl":      Bp2BuildDefaultTrue,
 
 		"libnativehelper": Bp2BuildDefaultTrueRecursively,
 
@@ -221,13 +221,13 @@ var (
 		"packages/screensavers/Basic":                      Bp2BuildDefaultTrue,
 		"packages/services/Car/tests/SampleRearViewCamera": Bp2BuildDefaultFalse, // TODO(b/242834321)
 
+		"platform_testing/tests/example": Bp2BuildDefaultTrueRecursively,
+
 		"prebuilts/clang/host/linux-x86":           Bp2BuildDefaultTrueRecursively,
 		"prebuilts/runtime/mainline/platform/sdk":  Bp2BuildDefaultTrueRecursively,
 		"prebuilts/sdk/current/extras/app-toolkit": Bp2BuildDefaultTrue,
 		"prebuilts/sdk/current/support":            Bp2BuildDefaultTrue,
 		"prebuilts/tools/common/m2":                Bp2BuildDefaultTrue,
-
-		"platform_testing/tests/example": Bp2BuildDefaultTrueRecursively,
 
 		"system/apex":                                            Bp2BuildDefaultFalse, // TODO(b/207466993): flaky failures
 		"system/apex/apexer":                                     Bp2BuildDefaultTrue,
@@ -451,6 +451,7 @@ var (
 		"linker_config",
 		"java_import",
 		"java_import_host",
+		"sysprop_library",
 		"aidl_interface_headers",
 	}
 
@@ -459,7 +460,6 @@ var (
 		"libactivitymanager_aidl", // TODO(b/207426160): Unsupported use of aidl sources (via Dactivity_manager_procstate_aidl) in a cc_library
 
 		// TODO(b/198619163) module has same name as source
-		"gen-kotlin-build-file.py",
 		"logtagd.rc",
 
 		"libgtest_ndk_c++", "libgtest_main_ndk_c++", // TODO(b/201816222): Requires sdk_version support.
