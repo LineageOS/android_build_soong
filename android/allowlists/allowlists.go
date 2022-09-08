@@ -1082,7 +1082,6 @@ var (
 	}
 
 	ProdMixedBuildsEnabledList = []string{
-		// This list left intentionally empty for now. Add specific module names
-		// to have them built by Bazel in Prod Mixed Builds mode.
+		"com.android.adbd",
 	}
 )
