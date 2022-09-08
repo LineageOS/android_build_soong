@@ -124,6 +124,10 @@ func init() {
 		// This is set up and guaranteed by soong_ui
 		return ctx.Config().Getenv("ANDROID_JAVA_HOME")
 	})
+	pctx.VariableFunc("Java11Home", func(ctx android.PackageVarContext) string {
+		// This is set up and guaranteed by soong_ui
+		return ctx.Config().Getenv("ANDROID_JAVA11_HOME")
+	})
 	pctx.VariableFunc("JlinkVersion", func(ctx android.PackageVarContext) string {
 		if override := ctx.Config().Getenv("OVERRIDE_JLINK_VERSION_NUMBER"); override != "" {
 			return override
@@ -137,11 +141,12 @@ func init() {
 	})
 
 	pctx.SourcePathVariable("JavaToolchain", "${JavaHome}/bin")
+	pctx.SourcePathVariable("Java11Toolchain", "${Java11Home}/bin")
 	pctx.SourcePathVariableWithEnvOverride("JavacCmd",
 		"${JavaToolchain}/javac", "ALTERNATE_JAVAC")
 	pctx.SourcePathVariable("JavaCmd", "${JavaToolchain}/java")
 	pctx.SourcePathVariable("JarCmd", "${JavaToolchain}/jar")
-	pctx.SourcePathVariable("JavadocCmd", "${JavaToolchain}/javadoc")
+	pctx.SourcePathVariable("JavadocCmd", "${Java11Toolchain}/javadoc")
 	pctx.SourcePathVariable("JlinkCmd", "${JavaToolchain}/jlink")
 	pctx.SourcePathVariable("JmodCmd", "${JavaToolchain}/jmod")
 	pctx.SourcePathVariable("JrtFsJar", "${JavaHome}/lib/jrt-fs.jar")
@@ -267,7 +272,7 @@ func JavaCmd(ctx android.PathContext) android.SourcePath {
 
 // JavadocCmd returns a SourcePath object with the path to the java command.
 func JavadocCmd(ctx android.PathContext) android.SourcePath {
-	return javaTool(ctx, "javadoc")
+	return java11Tool(ctx, "javadoc")
 }
 
 func javaTool(ctx android.PathContext, tool string) android.SourcePath {
@@ -281,11 +286,30 @@ func javaTool(ctx android.PathContext, tool string) android.SourcePath {
 
 }
 
+func java11Tool(ctx android.PathContext, tool string) android.SourcePath {
+	type javaToolKey string
+
+	key := android.NewCustomOnceKey(javaToolKey(tool))
+
+	return ctx.Config().OnceSourcePath(key, func() android.SourcePath {
+		return java11Toolchain(ctx).Join(ctx, tool)
+	})
+
+}
+
 var javaToolchainKey = android.NewOnceKey("javaToolchain")
 
 func javaToolchain(ctx android.PathContext) android.SourcePath {
 	return ctx.Config().OnceSourcePath(javaToolchainKey, func() android.SourcePath {
 		return javaHome(ctx).Join(ctx, "bin")
+	})
+}
+
+var java11ToolchainKey = android.NewOnceKey("java11Toolchain")
+
+func java11Toolchain(ctx android.PathContext) android.SourcePath {
+	return ctx.Config().OnceSourcePath(java11ToolchainKey, func() android.SourcePath {
+		return java11Home(ctx).Join(ctx, "bin")
 	})
 }
 
@@ -295,5 +319,14 @@ func javaHome(ctx android.PathContext) android.SourcePath {
 	return ctx.Config().OnceSourcePath(javaHomeKey, func() android.SourcePath {
 		// This is set up and guaranteed by soong_ui
 		return android.PathForSource(ctx, ctx.Config().Getenv("ANDROID_JAVA_HOME"))
+	})
+}
+
+var java11HomeKey = android.NewOnceKey("java11Home")
+
+func java11Home(ctx android.PathContext) android.SourcePath {
+	return ctx.Config().OnceSourcePath(java11HomeKey, func() android.SourcePath {
+		// This is set up and guaranteed by soong_ui
+		return android.PathForSource(ctx, ctx.Config().Getenv("ANDROID_JAVA11_HOME"))
 	})
 }
