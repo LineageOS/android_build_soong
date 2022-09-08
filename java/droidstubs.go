@@ -17,6 +17,7 @@ package java
 import (
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/google/blueprint/proptools"
@@ -142,6 +143,10 @@ type DroidstubsProperties struct {
 	// if set to true, collect the values used by the Dev tools and
 	// write them in files packaged with the SDK. Defaults to false.
 	Write_sdk_values *bool
+
+	// path or filegroup to file defining extension an SDK name <-> numerical ID mapping and
+	// what APIs exist in which SDKs; passed to metalava via --sdk-extensions-info
+	Extensions_info_file *string `android:"path"`
 }
 
 // Used by xsd_config
@@ -398,9 +403,20 @@ func (d *Droidstubs) apiLevelsGenerationFlags(ctx android.ModuleContext, cmd *an
 	filename := proptools.StringDefault(d.properties.Api_levels_jar_filename, "android.jar")
 
 	var dirs []string
+	var extensions_dir string
 	ctx.VisitDirectDepsWithTag(metalavaAPILevelsAnnotationsDirTag, func(m android.Module) {
 		if t, ok := m.(*ExportedDroiddocDir); ok {
+			extRegex := regexp.MustCompile(t.dir.String() + `/extensions/[0-9]+/public/.*\.jar`)
+
+			// Grab the first extensions_dir and we find while scanning ExportedDroiddocDir.deps;
+			// ideally this should be read from prebuiltApis.properties.Extensions_*
 			for _, dep := range t.deps {
+				if extRegex.MatchString(dep.String()) && d.properties.Extensions_info_file != nil {
+					if extensions_dir == "" {
+						extensions_dir = t.dir.String() + "/extensions"
+					}
+					cmd.Implicit(dep)
+				}
 				if dep.Base() == filename {
 					cmd.Implicit(dep)
 				}
@@ -444,6 +460,16 @@ func (d *Droidstubs) apiLevelsGenerationFlags(ctx android.ModuleContext, cmd *an
 		for _, dir := range dirs {
 			cmd.FlagWithArg("--android-jar-pattern ", fmt.Sprintf("%s/%%/%s/%s", dir, sdkDir, filename))
 		}
+	}
+
+	if d.properties.Extensions_info_file != nil {
+		if extensions_dir == "" {
+			ctx.ModuleErrorf("extensions_info_file set, but no SDK extension dirs found")
+		}
+		info_file := android.PathForModuleSrc(ctx, *d.properties.Extensions_info_file)
+		cmd.Implicit(info_file)
+		cmd.FlagWithArg("--sdk-extensions-root ", extensions_dir)
+		cmd.FlagWithArg("--sdk-extensions-info ", info_file.String())
 	}
 }
 
