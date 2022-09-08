@@ -235,14 +235,14 @@ func (g getApexInfoType) Name() string {
 //   - The function body should not be indented outside of its own scope.
 func (g getApexInfoType) StarlarkFunctionBody() string {
 	return `info = providers(target)["//build/bazel/rules/apex:apex.bzl%ApexInfo"]
-return "{%s}" % ",".join([
-    json_for_file("signed_output", info.signed_output),
-    json_for_file("unsigned_output", info.unsigned_output),
-    json_for_labels("provides_native_libs", info.provides_native_libs),
-    json_for_labels("requires_native_libs", info.requires_native_libs),
-    json_for_files("bundle_key_pair", info.bundle_key_pair),
-    json_for_files("container_key_pair", info.container_key_pair)
-    ])`
+return json_encode({
+    "signed_output": info.signed_output.path,
+    "unsigned_output": info.unsigned_output.path,
+    "provides_native_libs": [str(lib) for lib in info.provides_native_libs],
+    "requires_native_libs": [str(lib) for lib in info.requires_native_libs],
+    "bundle_key_pair": [f.path for f in info.bundle_key_pair],
+    "container_key_pair": [f.path for f in info.container_key_pair]
+})`
 }
 
 type ApexCqueryInfo struct {
@@ -259,7 +259,9 @@ type ApexCqueryInfo struct {
 // Starlark given in StarlarkFunctionBody.
 func (g getApexInfoType) ParseResult(rawString string) ApexCqueryInfo {
 	var info ApexCqueryInfo
-	if err := json.Unmarshal([]byte(rawString), &info); err != nil {
+	decoder := json.NewDecoder(strings.NewReader(rawString))
+	decoder.DisallowUnknownFields() //useful to detect typos, e.g. in unit tests
+	if err := decoder.Decode(&info); err != nil {
 		panic(fmt.Errorf("cannot parse cquery result '%s': %s", rawString, err))
 	}
 	return info
