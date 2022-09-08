@@ -32,7 +32,6 @@ import (
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/bootstrap"
-	"github.com/google/blueprint/deptools"
 	"github.com/google/blueprint/microfactory"
 
 	"google.golang.org/protobuf/proto"
@@ -349,12 +348,9 @@ func bootstrapBlueprint(ctx Context, config Config) {
 			soongDocsInvocation},
 	}
 
-	bootstrapDeps := bootstrap.RunBlueprint(blueprintArgs, bootstrap.DoEverything, blueprintCtx, blueprintConfig)
-	bootstrapDepFile := shared.JoinPath(config.SoongOutDir(), "bootstrap.ninja.d")
-	err := deptools.WriteDepFile(bootstrapDepFile, blueprintArgs.OutFile, bootstrapDeps)
-	if err != nil {
-		ctx.Fatalf("Error writing depfile '%s': %s", bootstrapDepFile, err)
-	}
+	// since `bootstrap.ninja` is regenerated unconditionally, we ignore the deps, i.e. little
+	// reason to write a `bootstrap.ninja.d` file
+	_ = bootstrap.RunBlueprint(blueprintArgs, bootstrap.DoEverything, blueprintCtx, blueprintConfig)
 }
 
 func checkEnvironmentFile(currentEnv *Environment, envFile string) {
