@@ -451,6 +451,7 @@ var (
 		"linker_config",
 		"java_import",
 		"java_import_host",
+		"sysprop_library",
 		"aidl_interface_headers",
 	}
 
@@ -459,7 +460,6 @@ var (
 		"libactivitymanager_aidl", // TODO(b/207426160): Unsupported use of aidl sources (via Dactivity_manager_procstate_aidl) in a cc_library
 
 		// TODO(b/198619163) module has same name as source
-		"gen-kotlin-build-file.py",
 		"logtagd.rc",
 
 		"libgtest_ndk_c++", "libgtest_main_ndk_c++", // TODO(b/201816222): Requires sdk_version support.

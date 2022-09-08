@@ -140,12 +140,13 @@ func (lto *lto) DefaultThinLTO(ctx BaseModuleContext) bool {
 	lib32 := ctx.Arch().ArchType.Multilib == "lib32"
 	// CFI enables full LTO.
 	cfi := ctx.isCfi()
-	// Performance and binary size are less important for host binaries.
+	// Performance and binary size are less important for host binaries and tests.
 	host := ctx.Host()
+	test := ctx.testBinary() || ctx.testLibrary()
 	// FIXME: ThinLTO for VNDK produces different output.
 	// b/169217596
 	vndk := ctx.isVndk()
-	return GlobalThinLTO(ctx) && !lto.Never() && !lib32 && !cfi && !host && !vndk
+	return GlobalThinLTO(ctx) && !lto.Never() && !lib32 && !cfi && !host && !test && !vndk
 }
 
 func (lto *lto) FullLTO() bool {
