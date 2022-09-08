@@ -136,16 +136,17 @@ const (
 var (
 	// Certain module property names are blocklisted/ignored here, for the reasons commented.
 	ignoredPropNames = map[string]bool{
-		"name":       true, // redundant, since this is explicitly generated for every target
-		"from":       true, // reserved keyword
-		"in":         true, // reserved keyword
-		"size":       true, // reserved for tests
-		"arch":       true, // interface prop type is not supported yet.
-		"multilib":   true, // interface prop type is not supported yet.
-		"target":     true, // interface prop type is not supported yet.
-		"visibility": true, // Bazel has native visibility semantics. Handle later.
-		"features":   true, // There is already a built-in attribute 'features' which cannot be overridden.
-		"for":        true, // reserved keyword, b/233579439
+		"name":               true, // redundant, since this is explicitly generated for every target
+		"from":               true, // reserved keyword
+		"in":                 true, // reserved keyword
+		"size":               true, // reserved for tests
+		"arch":               true, // interface prop type is not supported yet.
+		"multilib":           true, // interface prop type is not supported yet.
+		"target":             true, // interface prop type is not supported yet.
+		"visibility":         true, // Bazel has native visibility semantics. Handle later.
+		"features":           true, // There is already a built-in attribute 'features' which cannot be overridden.
+		"for":                true, // reserved keyword, b/233579439
+		"versions_with_info": true, // TODO(b/245730552) struct properties not fully supported
 	}
 )
 
