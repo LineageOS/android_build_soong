@@ -161,7 +161,7 @@ func TestGetCcInfoParseResults(t *testing.T) {
 		actualOutput, err := GetCcInfo.ParseResult(tc.input)
 		if (err == nil && tc.expectedErrorMessage != "") ||
 			(err != nil && err.Error() != tc.expectedErrorMessage) {
-			t.Errorf("%q:\nexpected Error %s\n, got %s", tc.description, tc.expectedErrorMessage, err)
+			t.Errorf("%q:\n%12s: %q\n%12s: %q", tc.description, "expect Error", tc.expectedErrorMessage, "but got", err)
 		} else if err == nil && !reflect.DeepEqual(tc.expectedOutput, actualOutput) {
 			t.Errorf("%q:\n expected %#v\n!= actual %#v", tc.description, tc.expectedOutput, actualOutput)
 		}
