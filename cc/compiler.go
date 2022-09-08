@@ -565,7 +565,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 			flags.aidlFlags = append(flags.aidlFlags, includeDirsToFlags(rootAidlIncludeDirs))
 		}
 
-		if Bool(compiler.Properties.Aidl.Generate_traces) {
+		if proptools.BoolDefault(compiler.Properties.Aidl.Generate_traces, true) {
 			flags.aidlFlags = append(flags.aidlFlags, "-t")
 		}
 
