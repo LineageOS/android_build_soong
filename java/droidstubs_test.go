@@ -259,3 +259,33 @@ func checkSystemModulesUseByDroidstubs(t *testing.T, ctx *android.TestContext, m
 		t.Errorf("inputs of %q must be []string{%q}, but was %#v.", moduleName, systemJar, systemJars)
 	}
 }
+
+func TestDroidstubsWithSdkExtensions(t *testing.T) {
+	ctx, _ := testJavaWithFS(t, `
+		droiddoc_exported_dir {
+			name: "sdk-dir",
+			path: "sdk",
+		}
+
+		droidstubs {
+			name: "baz-stubs",
+			api_levels_annotations_dirs: ["sdk-dir"],
+			api_levels_annotations_enabled: true,
+			extensions_info_file: ":info-file",
+		}
+
+		filegroup {
+			name: "info-file",
+			srcs: ["sdk/extensions/info.txt"],
+		}
+		`,
+		map[string][]byte{
+			"sdk/extensions/1/public/some-mainline-module-stubs.jar": nil,
+			"sdk/extensions/info.txt":                                nil,
+		})
+	m := ctx.ModuleForTests("baz-stubs", "android_common")
+	manifest := m.Output("metalava.sbox.textproto")
+	cmdline := String(android.RuleBuilderSboxProtoForTests(t, manifest).Commands[0].Command)
+	android.AssertStringDoesContain(t, "sdk-extensions-root present", cmdline, "--sdk-extensions-root sdk/extensions")
+	android.AssertStringDoesContain(t, "sdk-extensions-info present", cmdline, "--sdk-extensions-info sdk/extensions/info.txt")
+}
