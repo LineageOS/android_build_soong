@@ -101,6 +101,7 @@ func (lto *lto) flags(ctx BaseModuleContext, flags Flags) Flags {
 		}
 
 		flags.Local.CFlags = append(flags.Local.CFlags, ltoCFlag)
+		flags.Local.AsFlags = append(flags.Local.AsFlags, ltoCFlag)
 		flags.Local.LdFlags = append(flags.Local.LdFlags, ltoCFlag)
 		flags.Local.LdFlags = append(flags.Local.LdFlags, ltoLdFlag)
 
