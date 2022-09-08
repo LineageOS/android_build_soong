@@ -15,8 +15,9 @@
 package android
 
 import (
-	"android/soong/bazel"
 	"strings"
+
+	"android/soong/bazel"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
@@ -161,6 +162,13 @@ type Bp2buildProtoInfo struct {
 type protoAttrs struct {
 	Srcs                bazel.LabelListAttribute
 	Strip_import_prefix *string
+	Deps                bazel.LabelListAttribute
+}
+
+// For each package in the include_dirs property a proto_library target should
+// be added to the BUILD file in that package and a mapping should be added here
+var includeDirsToProtoDeps = map[string]string{
+	"external/protobuf/src": "//external/protobuf:libprotobuf-proto",
 }
 
 // Bp2buildProtoProperties converts proto properties, creating a proto_library and returning the
@@ -190,6 +198,14 @@ func Bp2buildProtoProperties(ctx Bp2buildMutatorContext, m *ModuleBase, srcs baz
 					// an empty string indicates to strips the package path
 					path := ""
 					attrs.Strip_import_prefix = &path
+				}
+
+				for _, dir := range props.Proto.Include_dirs {
+					if dep, ok := includeDirsToProtoDeps[dir]; ok {
+						attrs.Deps.Add(bazel.MakeLabelAttribute(dep))
+					} else {
+						ctx.PropertyErrorf("Could not find the proto_library target for include dir", dir)
+					}
 				}
 			} else if props.Proto.Type != info.Type && props.Proto.Type != nil {
 				ctx.ModuleErrorf("Cannot handle arch-variant types for protos at this time.")
