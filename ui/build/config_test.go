@@ -1062,16 +1062,6 @@ func TestBuildConfig(t *testing.T) {
 			},
 		},
 		{
-			name:    "bazel mixed build from env",
-			environ: Environment{"USE_BAZEL_ANALYSIS=1"},
-			expectedBuildConfig: &smpb.BuildConfig{
-				ForceUseGoma:    proto.Bool(false),
-				UseGoma:         proto.Bool(false),
-				UseRbe:          proto.Bool(false),
-				BazelMixedBuild: proto.Bool(true),
-			},
-		},
-		{
 			name:         "bazel mixed build from dev mode",
 			environ:      Environment{},
 			bazelDevMode: true,

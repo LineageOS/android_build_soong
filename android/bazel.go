@@ -75,7 +75,7 @@ type bazelModuleProperties struct {
 
 // Properties contains common module properties for Bazel migration purposes.
 type properties struct {
-	// In USE_BAZEL_ANALYSIS=1 mode, this represents the Bazel target replacing
+	// In "Bazel mixed build" mode, this represents the Bazel target replacing
 	// this Soong module.
 	Bazel_module bazelModuleProperties
 }
