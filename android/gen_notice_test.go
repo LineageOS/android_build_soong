@@ -12,19 +12,6 @@ var genNoticeTests = []struct {
 	expectedErrors []string
 }{
 	{
-		name: "gen_notice must not accept licenses property",
-		fs: map[string][]byte{
-			"top/Android.bp": []byte(`
-				gen_notice {
-					name: "top_license",
-					licenses: ["other_license"],
-				}`),
-		},
-		expectedErrors: []string{
-			`unrecognized property "licenses"`,
-		},
-	},
-	{
 		name: "bad gen_notice",
 		fs: map[string][]byte{
 			"top/Android.bp": []byte(`
