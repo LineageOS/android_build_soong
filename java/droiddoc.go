@@ -755,6 +755,7 @@ func dokkaCmd(ctx android.ModuleContext, rule *android.RuleBuilder,
 	return rule.Command().
 		BuiltTool("dokka").
 		Flag(config.JavacVmFlags).
+		Flag("-J--add-opens=java.base/java.lang=ALL-UNNAMED").
 		Flag(srcJarDir.String()).
 		FlagWithInputList("-classpath ", dokkaClasspath, ":").
 		FlagWithArg("-format ", "dac").
