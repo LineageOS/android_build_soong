@@ -60,7 +60,8 @@ build/soong/soong_ui.bash --make-mode BP2BUILD_VERBOSE=1 --skip-soong-tests bp2b
 
 BAZEL_OUT="$(call_bazel info output_path)"
 
-call_bazel build --config=bp2build --config=ci --config=android_arm \
+export TARGET_PRODUCT="module_arm"
+call_bazel build --config=bp2build --config=ci --config=android \
   //packages/modules/adb/apex:com.android.adbd \
   //system/timezone/apex:com.android.tzdata \
   //build/bazel/examples/apex/minimal:build.bazel.examples.apex.minimal.apex
@@ -86,7 +87,7 @@ function compare_deapexer_list() {
 
   # Compare the outputs of `deapexer list`, which lists the contents of the apex filesystem image.
   local SOONG_APEX="$SOONG_OUTPUT_DIR/$APEX"
-  local BAZEL_APEX="$BAZEL_OUT/android_arm-fastbuild/bin/$APEX_DIR/$APEX"
+  local BAZEL_APEX="$BAZEL_OUT/android_target-fastbuild/bin/$APEX_DIR/$APEX"
 
   local SOONG_LIST="$OUTPUT_DIR/soong.list"
   local BAZEL_LIST="$OUTPUT_DIR/bazel.list"
