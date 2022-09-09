@@ -723,15 +723,23 @@ func bp2BuildParseBaseProps(ctx android.Bp2buildMutatorContext, module *Module) 
 	(&compilerAttrs.srcs).Add(bp2BuildYasm(ctx, module, compilerAttrs))
 
 	protoDep := bp2buildProto(ctx, module, compilerAttrs.protoSrcs)
-	aidlDep := bp2buildCcAidlLibrary(ctx, module, compilerAttrs.aidlSrcs)
 
 	// bp2buildProto will only set wholeStaticLib or implementationWholeStaticLib, but we don't know
 	// which. This will add the newly generated proto library to the appropriate attribute and nothing
 	// to the other
 	(&linkerAttrs).wholeArchiveDeps.Add(protoDep.wholeStaticLib)
 	(&linkerAttrs).implementationWholeArchiveDeps.Add(protoDep.implementationWholeStaticLib)
-	// TODO(b/243023967) Add aidlDep to implementationWholeArchiveDeps if aidl.export_aidl_headers is true
-	(&linkerAttrs).wholeArchiveDeps.Add(aidlDep)
+
+	aidlDep := bp2buildCcAidlLibrary(ctx, module, compilerAttrs.aidlSrcs)
+	if aidlDep != nil {
+		if lib, ok := module.linker.(*libraryDecorator); ok {
+			if proptools.Bool(lib.Properties.Aidl.Export_aidl_headers) {
+				(&linkerAttrs).wholeArchiveDeps.Add(aidlDep)
+			} else {
+				(&linkerAttrs).implementationWholeArchiveDeps.Add(aidlDep)
+			}
+		}
+	}
 
 	convertedLSrcs := bp2BuildLex(ctx, module.Name(), compilerAttrs)
 	(&compilerAttrs).srcs.Add(&convertedLSrcs.srcName)
