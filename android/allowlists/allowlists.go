@@ -609,7 +609,6 @@ var (
 		"adb_pairing_auth_test",
 		"adb_pairing_connection_test",
 		"adb_tls_connection_test",
-		"adbd_test", // depends on unconverted modules: libusb
 		"avcdec",
 		"avcenc",
 		"bionic-benchmarks-tests",
