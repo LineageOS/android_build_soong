@@ -718,6 +718,9 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 		flags.Local.CFlags = append(flags.Local.CFlags, "-Wno-error=frame-larger-than")
 		flags.Local.AsFlags = append(flags.Local.AsFlags, memtagStackCommonFlags...)
 		flags.Local.LdFlags = append(flags.Local.LdFlags, memtagStackCommonFlags...)
+		// This works around LLD complaining about the stack frame size.
+		// TODO(fmayer): remove once https://reviews.llvm.org/D127917 is in Android toolchain.
+		flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,--no-fatal-warnings")
 	}
 
 	if (Bool(sanitize.Properties.Sanitize.Memtag_heap) || Bool(sanitize.Properties.Sanitize.Memtag_stack)) && ctx.binary() {
