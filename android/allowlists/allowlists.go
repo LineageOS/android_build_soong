@@ -154,6 +154,7 @@ var (
 		"external/zopfli":                        Bp2BuildDefaultTrueRecursively,
 		"external/zstd":                          Bp2BuildDefaultTrueRecursively,
 
+		"frameworks/av":                                      Bp2BuildDefaultTrue,
 		"frameworks/av/media/codecs":                         Bp2BuildDefaultTrueRecursively,
 		"frameworks/av/media/liberror":                       Bp2BuildDefaultTrueRecursively,
 		"frameworks/av/services/minijail":                    Bp2BuildDefaultTrueRecursively,
@@ -277,6 +278,7 @@ var (
 		"system/timezone/apex":                                   Bp2BuildDefaultTrueRecursively,
 		"system/timezone/output_data":                            Bp2BuildDefaultTrueRecursively,
 		"system/tools/sysprop":                                   Bp2BuildDefaultTrue,
+		"system/tools/aidl/build/tests_bp2build":                 Bp2BuildDefaultTrue,
 		"system/unwinding/libunwindstack":                        Bp2BuildDefaultTrueRecursively,
 
 		"tools/apksig": Bp2BuildDefaultTrue,
@@ -609,7 +611,6 @@ var (
 		"adb_pairing_auth_test",
 		"adb_pairing_connection_test",
 		"adb_tls_connection_test",
-		"adbd_test", // depends on unconverted modules: libusb
 		"avcdec",
 		"avcenc",
 		"bionic-benchmarks-tests",
