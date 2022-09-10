@@ -81,7 +81,9 @@ def Main():
     os.environ.update(new_env)
 
     sys.stdout.flush()
-    retCode = subprocess.call(args)
+    # close_fds=False so that you can run binaries with files provided on the command line:
+    # my_python_app --file <(echo foo)
+    retCode = subprocess.call(args, close_fds=False)
     sys.exit(retCode)
   except:
     raise
