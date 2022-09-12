@@ -592,6 +592,9 @@ type ProductConfigProperty struct {
 	// "acme__board__soc_a", "acme__board__soc_b", and
 	// "acme__board__conditions_default"
 	FullConfig string
+
+	// keeps track of whether this product variable is nested under an arch variant
+	OuterAxis bazel.ConfigurationAxis
 }
 
 func (p *ProductConfigProperty) AlwaysEmit() bool {
@@ -600,11 +603,11 @@ func (p *ProductConfigProperty) AlwaysEmit() bool {
 
 func (p *ProductConfigProperty) ConfigurationAxis() bazel.ConfigurationAxis {
 	if p.Namespace == "" {
-		return bazel.ProductVariableConfigurationAxis(p.FullConfig)
+		return bazel.ProductVariableConfigurationAxis(p.FullConfig, p.OuterAxis)
 	} else {
 		// Soong config variables can be uniquely identified by the namespace
 		// (e.g. acme, android) and the product variable name (e.g. board, size)
-		return bazel.ProductVariableConfigurationAxis(p.Namespace + "__" + p.Name)
+		return bazel.ProductVariableConfigurationAxis(p.Namespace+"__"+p.Name, bazel.NoConfigAxis)
 	}
 }
 
@@ -663,9 +666,11 @@ func ProductVariableProperties(ctx BazelConversionPathContext) ProductConfigProp
 			moduleBase.variableProperties,
 			"",
 			"",
-			&productConfigProperties)
+			&productConfigProperties,
+			bazel.ConfigurationAxis{},
+		)
 
-		for _, configToProps := range moduleBase.GetArchVariantProperties(ctx, moduleBase.variableProperties) {
+		for axis, configToProps := range moduleBase.GetArchVariantProperties(ctx, moduleBase.variableProperties) {
 			for config, props := range configToProps {
 				// GetArchVariantProperties is creating an instance of the requested type
 				// and productVariablesValues expects an interface, so no need to cast
@@ -674,7 +679,8 @@ func ProductVariableProperties(ctx BazelConversionPathContext) ProductConfigProp
 					props,
 					"",
 					config,
-					&productConfigProperties)
+					&productConfigProperties,
+					axis)
 			}
 		}
 	}
@@ -687,7 +693,8 @@ func ProductVariableProperties(ctx BazelConversionPathContext) ProductConfigProp
 					namespacedVariableProp,
 					namespace,
 					"",
-					&productConfigProperties)
+					&productConfigProperties,
+					bazel.NoConfigAxis)
 			}
 		}
 	}
@@ -803,6 +810,7 @@ func (props *ProductConfigProperties) zeroValuesForNamespacedVariables() {
 					p.Name,
 					p.FullConfig,
 					zeroValue,
+					bazel.NoConfigAxis,
 				)
 			}
 		}
@@ -810,7 +818,7 @@ func (props *ProductConfigProperties) zeroValuesForNamespacedVariables() {
 }
 
 func (p *ProductConfigProperties) AddProductConfigProperty(
-	propertyName, namespace, productVariableName, config string, property interface{}) {
+	propertyName, namespace, productVariableName, config string, property interface{}, outerAxis bazel.ConfigurationAxis) {
 	if (*p)[propertyName] == nil {
 		(*p)[propertyName] = make(map[ProductConfigProperty]interface{})
 	}
@@ -819,6 +827,7 @@ func (p *ProductConfigProperties) AddProductConfigProperty(
 		Namespace:  namespace,           // e.g. acme, android
 		Name:       productVariableName, // e.g. size, feature1, feature2, FEATURE3, board
 		FullConfig: config,              // e.g. size, feature1-x86, size__conditions_default
+		OuterAxis:  outerAxis,
 	}
 
 	if existing, ok := (*p)[propertyName][productConfigProp]; ok && namespace != "" {
@@ -869,7 +878,7 @@ func maybeExtractConfigVarProp(v reflect.Value) (reflect.Value, bool) {
 	return v, true
 }
 
-func (productConfigProperties *ProductConfigProperties) AddProductConfigProperties(namespace, suffix string, variableValues reflect.Value) {
+func (productConfigProperties *ProductConfigProperties) AddProductConfigProperties(namespace, suffix string, variableValues reflect.Value, outerAxis bazel.ConfigurationAxis) {
 	// variableValues can either be a product_variables or
 	// soong_config_variables struct.
 	//
@@ -974,7 +983,8 @@ func (productConfigProperties *ProductConfigProperties) AddProductConfigProperti
 						namespace,           // e.g. acme, android
 						productVariableName, // e.g. size, feature1, FEATURE2, board
 						config,
-						field.Field(k).Interface(), // e.g. ["-DDEFAULT"], ["foo", "bar"]
+						field.Field(k).Interface(), // e.g. ["-DDEFAULT"], ["foo", "bar"],
+						outerAxis,
 					)
 				}
 			} else if property.Kind() != reflect.Interface {
@@ -988,6 +998,7 @@ func (productConfigProperties *ProductConfigProperties) AddProductConfigProperti
 					productVariableName,
 					config,
 					property.Interface(),
+					outerAxis,
 				)
 			}
 		}
@@ -998,14 +1009,14 @@ func (productConfigProperties *ProductConfigProperties) AddProductConfigProperti
 // product_variables and soong_config_variables to structs that can be generated
 // as select statements.
 func productVariableValues(
-	fieldName string, variableProps interface{}, namespace, suffix string, productConfigProperties *ProductConfigProperties) {
+	fieldName string, variableProps interface{}, namespace, suffix string, productConfigProperties *ProductConfigProperties, outerAxis bazel.ConfigurationAxis) {
 	if suffix != "" {
 		suffix = "-" + suffix
 	}
 
 	// variableValues represent the product_variables or soong_config_variables struct.
 	variableValues := reflect.ValueOf(variableProps).Elem().FieldByName(fieldName)
-	productConfigProperties.AddProductConfigProperties(namespace, suffix, variableValues)
+	productConfigProperties.AddProductConfigProperties(namespace, suffix, variableValues, outerAxis)
 }
 
 func VariableMutator(mctx BottomUpMutatorContext) {

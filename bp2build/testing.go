@@ -384,6 +384,9 @@ func customBp2buildOneToMany(ctx android.TopDownMutatorContext, m *customModule)
 func generateBazelTargetsForDir(codegenCtx *CodegenContext, dir string) (BazelTargets, []error) {
 	// TODO: Set generateFilegroups to true and/or remove the generateFilegroups argument completely
 	res, err := GenerateBazelTargets(codegenCtx, false)
+	if err != nil {
+		return BazelTargets{}, err
+	}
 	return res.buildFileToTargets[dir], err
 }
 

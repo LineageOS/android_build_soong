@@ -31,6 +31,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"reflect"
 	"strings"
 
 	"github.com/google/blueprint/proptools"
@@ -690,6 +691,22 @@ func (module *PrebuiltEtc) ConvertWithBp2build(ctx android.TopDownMutatorContext
 			if props.Src != nil {
 				label := android.BazelLabelForModuleSrcSingle(ctx, *props.Src)
 				src.SetSelectValue(axis, config, label)
+			}
+		}
+
+		for propName, productConfigProps := range android.ProductVariableProperties(ctx) {
+			for configProp, propVal := range productConfigProps {
+				if propName == "Src" {
+					props, ok := propVal.(*string)
+					if !ok {
+						ctx.PropertyErrorf(" Expected Property to have type string, but was %s\n", reflect.TypeOf(propVal).String())
+						continue
+					}
+					if props != nil {
+						label := android.BazelLabelForModuleSrcSingle(ctx, *props)
+						src.SetSelectValue(configProp.ConfigurationAxis(), configProp.SelectKey(), label)
+					}
+				}
 			}
 		}
 	}
