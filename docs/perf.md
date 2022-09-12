@@ -221,6 +221,18 @@ You'll likely need to cross-reference this data against the build graph in the
 various .ninja files. The files are (mostly) human-readable, but a (slow) web
 interface can be used by running `NINJA_ARGS="-t browse <target>" m`.
 
+There is also `SOONG_UI_NINJA_ARGS`, which passes ninja arguments to soong ui's
+ninja invocations, e.g. to emit $OUT_DIR/soong/build.ninja, $OUT_DIR/soong/module-graph.json, etc.
+
+```bash
+$ m nothing
+$ touch Android.bp
+$ SOONG_UI_NINJA_ARGS="-d explain" m nothing
+...
+ninja explain: restat of output out/soong/build.ninja older than most recent input Android.bp
+...
+```
+
 #### Builds take a long time
 
 If the long part in the trace view of a build is a relatively solid block, then
@@ -228,7 +240,7 @@ the performance is probably more related to how much time the actual build
 commands are taking than having extra dependencies, or slowdowns in
 soong/kati/ninja themselves.
 
-Beyond looking at visible outliers in the trace view, we don't have any tooling
+Beyond looking at visible outliers in the trace view, we don't have any tooli
 to help in this area yet. It's possible to aggregate some of the raw data
 together, but since our builds are heavily parallelized, it's particularly easy
 for build commands to impact unrelated build commands. This is an area we'd
