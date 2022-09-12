@@ -309,7 +309,19 @@ func (la *LabelAttribute) Collapse() error {
 	_, containsProductVariables := axisTypes[productVariables]
 	if containsProductVariables {
 		if containsOs || containsArch || containsOsArch {
-			return fmt.Errorf("label attribute could not be collapsed as it has two or more unrelated axes")
+			if containsArch {
+				allProductVariablesAreArchVariant := true
+				for k := range la.ConfigurableValues {
+					if k.configurationType == productVariables && k.outerAxisType != arch {
+						allProductVariablesAreArchVariant = false
+					}
+				}
+				if !allProductVariablesAreArchVariant {
+					return fmt.Errorf("label attribute could not be collapsed as it has two or more unrelated axes")
+				}
+			} else {
+				return fmt.Errorf("label attribute could not be collapsed as it has two or more unrelated axes")
+			}
 		}
 	}
 	if (containsOs && containsArch) || (containsOsArch && (containsOs || containsArch)) {
