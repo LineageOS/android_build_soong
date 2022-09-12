@@ -59,11 +59,9 @@ var PrepareForTestWithJavaBuildComponents = android.GroupFixturePreparers(
 	}.AddToFixture(),
 )
 
-// Test fixture preparer that will define all default java modules except the
-// fake_tool_binary for dex2oatd.
-var PrepareForTestWithJavaDefaultModulesWithoutFakeDex2oatd = android.GroupFixturePreparers(
-	// Make sure that all the module types used in the defaults are registered.
-	PrepareForTestWithJavaBuildComponents,
+var prepareForTestWithFrameworkDeps = android.GroupFixturePreparers(
+	// The java default module definitions.
+	android.FixtureAddTextFile(defaultJavaDir+"/Android.bp", gatherRequiredDepsForTest()),
 	// Additional files needed when test disallows non-existent source.
 	android.MockFS{
 		// Needed for framework-res
@@ -77,8 +75,14 @@ var PrepareForTestWithJavaDefaultModulesWithoutFakeDex2oatd = android.GroupFixtu
 		"build/make/core/proguard.flags":             nil,
 		"build/make/core/proguard_basic_keeps.flags": nil,
 	}.AddToFixture(),
-	// The java default module definitions.
-	android.FixtureAddTextFile(defaultJavaDir+"/Android.bp", gatherRequiredDepsForTest()),
+)
+
+// Test fixture preparer that will define all default java modules except the
+// fake_tool_binary for dex2oatd.
+var PrepareForTestWithJavaDefaultModulesWithoutFakeDex2oatd = android.GroupFixturePreparers(
+	// Make sure that all the module types used in the defaults are registered.
+	PrepareForTestWithJavaBuildComponents,
+	prepareForTestWithFrameworkDeps,
 	// Add dexpreopt compat libs (android.test.base, etc.) and a fake dex2oatd module.
 	dexpreopt.PrepareForTestWithDexpreoptCompatLibs,
 )
@@ -140,6 +144,30 @@ var PrepareForTestWithPrebuiltsOfCurrentApi = FixtureWithPrebuiltApis(map[string
 	// .txt files which causes the prebuilt_apis module to fail.
 	"30": {},
 })
+
+var prepareForTestWithFrameworkJacocoInstrumentation = android.GroupFixturePreparers(
+	android.FixtureMergeEnv(map[string]string{
+		"EMMA_INSTRUMENT_FRAMEWORK": "true",
+	}),
+	PrepareForTestWithJacocoInstrumentation,
+)
+
+// PrepareForTestWithJacocoInstrumentation creates a mock jacocoagent library that can be
+// depended on as part of the build process for instrumented Java modules.
+var PrepareForTestWithJacocoInstrumentation = android.GroupFixturePreparers(
+	android.FixtureMergeEnv(map[string]string{
+		"EMMA_INSTRUMENT": "true",
+	}),
+	android.FixtureAddFile("jacocoagent/Test.java", nil),
+	android.FixtureAddFile("jacocoagent/Android.bp", []byte(`
+		java_library {
+			name: "jacocoagent",
+			host_supported: true,
+			srcs: ["Test.java"],
+			sdk_version: "current",
+		}
+	`)),
+)
 
 // FixtureWithPrebuiltApis creates a preparer that will define prebuilt api modules for the
 // specified releases and modules.
