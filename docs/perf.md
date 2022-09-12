@@ -240,7 +240,7 @@ the performance is probably more related to how much time the actual build
 commands are taking than having extra dependencies, or slowdowns in
 soong/kati/ninja themselves.
 
-Beyond looking at visible outliers in the trace view, we don't have any tooli
+Beyond looking at visible outliers in the trace view, we don't have any tooling
 to help in this area yet. It's possible to aggregate some of the raw data
 together, but since our builds are heavily parallelized, it's particularly easy
 for build commands to impact unrelated build commands. This is an area we'd
