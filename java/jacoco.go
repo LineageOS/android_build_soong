@@ -47,6 +47,34 @@ var (
 		"strippedJar", "stripSpec", "tmpDir", "tmpJar")
 )
 
+func jacocoDepsMutator(ctx android.BottomUpMutatorContext) {
+	type instrumentable interface {
+		shouldInstrument(ctx android.BaseModuleContext) bool
+		shouldInstrumentInApex(ctx android.BaseModuleContext) bool
+		setInstrument(value bool)
+	}
+
+	j, ok := ctx.Module().(instrumentable)
+	if !ctx.Module().Enabled() || !ok {
+		return
+	}
+
+	if j.shouldInstrumentInApex(ctx) {
+		j.setInstrument(true)
+	}
+
+	if j.shouldInstrument(ctx) && ctx.ModuleName() != "jacocoagent" {
+		// We can use AddFarVariationDependencies here because, since this dep
+		// is added as libs only (i.e. a compiletime CLASSPATH entry only),
+		// the first variant of jacocoagent is sufficient to prevent
+		// compile time errors.
+		// At this stage in the build, AddVariationDependencies is not always
+		// able to procure a variant of jacocoagent that matches the calling
+		// module.
+		ctx.AddFarVariationDependencies(ctx.Module().Target().Variations(), libTag, "jacocoagent")
+	}
+}
+
 // Instruments a jar using the Jacoco command line interface.  Uses stripSpec to extract a subset
 // of the classes in inputJar into strippedJar, instruments strippedJar into tmpJar, and then
 // combines the classes in tmpJar with inputJar (preferring the instrumented classes in tmpJar)
