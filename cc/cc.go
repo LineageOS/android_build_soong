@@ -2226,10 +2226,8 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		rewriteHeaderLibs := func(list []string) (newHeaderLibs []string) {
 			newHeaderLibs = []string{}
 			for _, entry := range list {
-				// Replace device_kernel_headers with generated_kernel_headers
-				// for inline kernel building
-				if entry == "device_kernel_headers" || entry == "qti_kernel_headers" {
-					newHeaderLibs = append(newHeaderLibs, "generated_kernel_headers")
+				if entry == "generated_kernel_headers" || entry == "qti_kernel_headers" {
+					newHeaderLibs = append(newHeaderLibs, "device_kernel_headers")
 					continue
 				}
 				newHeaderLibs = append(newHeaderLibs, entry)
