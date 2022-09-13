@@ -447,6 +447,9 @@ var (
 		"ILogcatManagerService_aidl",
 		"libincremental_aidl-cpp",
 		"incremental_aidl",
+
+		//frameworks/native/cmds/cmd
+		"libcmd",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
@@ -526,7 +529,6 @@ var (
 
 		// unconverted deps
 		"CarHTMLViewer",                                              // depends on unconverted modules android.car-stubs, car-ui-lib
-		"abb",                                                        // depends on unconverted modules: libcmd, libbinder
 		"adb",                                                        // depends on unconverted modules: AdbWinApi, libandroidfw, libopenscreen-discovery, libopenscreen-platform-impl, libusb, bin2c_fastdeployagent, AdbWinUsbApi
 		"android_icu4j_srcgen",                                       // depends on unconverted modules: currysrc
 		"android_icu4j_srcgen_binary",                                // depends on unconverted modules: android_icu4j_srcgen, currysrc
@@ -607,10 +609,6 @@ var (
 		"Mp3DecoderTest",       // depends on unconverted modules: libsndfile, libaudioutils
 		"Mpeg4H263DecoderTest", // depends on unconverted modules: libstagefright_foundation
 		"Mpeg4H263EncoderTest",
-		"adb_crypto_test",
-		"adb_pairing_auth_test",
-		"adb_pairing_connection_test",
-		"adb_tls_connection_test",
 		"avcdec",
 		"avcenc",
 		"bionic-benchmarks-tests",
@@ -706,7 +704,6 @@ var (
 		"yuvconstants",
 		"yuvconvert",
 		"zipalign_tests",
-		// "zlib_tests",
 
 		// cc_test_library
 		"clang_diagnostic_tests",

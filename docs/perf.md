@@ -221,6 +221,18 @@ You'll likely need to cross-reference this data against the build graph in the
 various .ninja files. The files are (mostly) human-readable, but a (slow) web
 interface can be used by running `NINJA_ARGS="-t browse <target>" m`.
 
+There is also `SOONG_UI_NINJA_ARGS`, which passes ninja arguments to soong ui's
+ninja invocations, e.g. to emit $OUT_DIR/soong/build.ninja, $OUT_DIR/soong/module-graph.json, etc.
+
+```bash
+$ m nothing
+$ touch Android.bp
+$ SOONG_UI_NINJA_ARGS="-d explain" m nothing
+...
+ninja explain: restat of output out/soong/build.ninja older than most recent input Android.bp
+...
+```
+
 #### Builds take a long time
 
 If the long part in the trace view of a build is a relatively solid block, then
