@@ -78,7 +78,7 @@ var (
 func init() {
 	pctx.Import("github.com/google/blueprint/bootstrap")
 
-	exportedVars.ExportStringStaticVariable("JavacHeapSize", "2048M")
+	exportedVars.ExportStringStaticVariable("JavacHeapSize", "4096M")
 	exportedVars.ExportStringStaticVariable("JavacHeapFlags", "-J-Xmx${JavacHeapSize}")
 
 	// ErrorProne can use significantly more memory than javac alone, give it a higher heap
