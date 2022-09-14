@@ -410,6 +410,7 @@ var (
 		"mediaswcodec.policy",
 		"mediaswcodec.xml",
 		"neuralnetworks_types",
+		"neuralnetworks_utils_hal_aidl",
 		"neuralnetworks_utils_hal_common",
 		"neuralnetworks_utils_hal_1_0",
 		"neuralnetworks_utils_hal_1_1",
