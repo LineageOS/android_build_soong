@@ -363,10 +363,7 @@ func (m *syspropLibrary) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
 // sysprop_library creates schematized APIs from sysprop description files (.sysprop).
 // Both Java and C++ modules can link against sysprop_library, and API stability check
 // against latest APIs (see build/soong/scripts/freeze-sysprop-api-files.sh)
-// is performed. Note that the generated C++ module has its name prefixed with
-// `lib`, and it is this module that should be depended on from other C++
-// modules; i.e., if the sysprop_library module is named `foo`, C++ modules
-// should depend on `libfoo`.
+// is performed.
 func syspropLibraryFactory() android.Module {
 	m := &syspropLibrary{}
 
