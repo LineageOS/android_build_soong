@@ -858,12 +858,12 @@ func (b *BootclasspathFragmentModule) isTestFragment() bool {
 	return false
 }
 
-// produceHiddenAPIOutput produces the hidden API all-flags.csv file (and supporting files)
-// for the fragment as well as encoding the flags in the boot dex jars.
-func (b *BootclasspathFragmentModule) produceHiddenAPIOutput(ctx android.ModuleContext, contents []android.Module, input HiddenAPIFlagInput) *HiddenAPIOutput {
+// generateHiddenApiFlagRules generates rules to generate hidden API flags and compute the signature
+// patterns file.
+func (b *BootclasspathFragmentModule) generateHiddenApiFlagRules(ctx android.ModuleContext, contents []android.Module, input HiddenAPIFlagInput, bootDexInfoByModule bootDexInfoByModule, suffix string) HiddenAPIFlagOutput {
 	// Generate the rules to create the hidden API flags and update the supplied hiddenAPIInfo with the
 	// paths to the created files.
-	output := hiddenAPIRulesForBootclasspathFragment(ctx, contents, input)
+	flagOutput := hiddenAPIFlagRulesForBootclasspathFragment(ctx, bootDexInfoByModule, contents, input)
 
 	// If the module specifies split_packages or package_prefixes then use those to generate the
 	// signature patterns.
@@ -871,8 +871,8 @@ func (b *BootclasspathFragmentModule) produceHiddenAPIOutput(ctx android.ModuleC
 	packagePrefixes := input.PackagePrefixes
 	singlePackages := input.SinglePackages
 	if splitPackages != nil || packagePrefixes != nil || singlePackages != nil {
-		output.SignaturePatternsPath = buildRuleSignaturePatternsFile(
-			ctx, output.AllFlagsPath, splitPackages, packagePrefixes, singlePackages)
+		flagOutput.SignaturePatternsPath = buildRuleSignaturePatternsFile(
+			ctx, flagOutput.AllFlagsPath, splitPackages, packagePrefixes, singlePackages)
 	} else if !b.isTestFragment() {
 		ctx.ModuleErrorf(`Must specify at least one of the split_packages, package_prefixes and single_packages properties
   If this is a new bootclasspath_fragment or you are unsure what to do add the
@@ -883,6 +883,26 @@ func (b *BootclasspathFragmentModule) produceHiddenAPIOutput(ctx android.ModuleC
   it will analyze the bootclasspath_fragment and provide hints as to what you
   should specify here. If you are happy with its suggestions then you can add
   the --fix option and it will fix them for you.`, b.BaseModuleName())
+	}
+	return flagOutput
+}
+
+// produceHiddenAPIOutput produces the hidden API all-flags.csv file (and supporting files)
+// for the fragment as well as encoding the flags in the boot dex jars.
+func (b *BootclasspathFragmentModule) produceHiddenAPIOutput(ctx android.ModuleContext, contents []android.Module, input HiddenAPIFlagInput) *HiddenAPIOutput {
+	// Gather information about the boot dex files for the boot libraries provided by this fragment.
+	bootDexInfoByModule := extractBootDexInfoFromModules(ctx, contents)
+
+	// Generate the flag file needed to encode into the dex files.
+	flagOutput := b.generateHiddenApiFlagRules(ctx, contents, input, bootDexInfoByModule, "")
+
+	// Encode those flags into the dex files of the contents of this fragment.
+	encodedBootDexFilesByModule := hiddenAPIEncodeRulesForBootclasspathFragment(ctx, bootDexInfoByModule, flagOutput.AllFlagsPath)
+
+	// Store that information for return for use by other rules.
+	output := &HiddenAPIOutput{
+		HiddenAPIFlagOutput:         flagOutput,
+		EncodedBootDexFilesByModule: encodedBootDexFilesByModule,
 	}
 
 	return output
