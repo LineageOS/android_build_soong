@@ -2078,7 +2078,8 @@ func TestCcLibraryProtoSimple(t *testing.T) {
 				"implementation_whole_archive_deps": `[":foo_cc_proto_lite"]`,
 				"deps":                              `[":libprotobuf-cpp-lite"]`,
 			}), MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
-				"dynamic_deps": `[":libprotobuf-cpp-lite"]`,
+				"dynamic_deps":                      `[":libprotobuf-cpp-lite"]`,
+				"implementation_whole_archive_deps": `[":foo_cc_proto_lite"]`,
 			}),
 		},
 	})
@@ -2104,7 +2105,8 @@ func TestCcLibraryProtoNoCanonicalPathFromRoot(t *testing.T) {
 				"implementation_whole_archive_deps": `[":foo_cc_proto_lite"]`,
 				"deps":                              `[":libprotobuf-cpp-lite"]`,
 			}), MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
-				"dynamic_deps": `[":libprotobuf-cpp-lite"]`,
+				"dynamic_deps":                      `[":libprotobuf-cpp-lite"]`,
+				"implementation_whole_archive_deps": `[":foo_cc_proto_lite"]`,
 			}),
 		},
 	})
@@ -2129,7 +2131,8 @@ func TestCcLibraryProtoExplicitCanonicalPathFromRoot(t *testing.T) {
 				"implementation_whole_archive_deps": `[":foo_cc_proto_lite"]`,
 				"deps":                              `[":libprotobuf-cpp-lite"]`,
 			}), MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
-				"dynamic_deps": `[":libprotobuf-cpp-lite"]`,
+				"dynamic_deps":                      `[":libprotobuf-cpp-lite"]`,
+				"implementation_whole_archive_deps": `[":foo_cc_proto_lite"]`,
 			}),
 		},
 	})
@@ -2156,7 +2159,8 @@ func TestCcLibraryProtoFull(t *testing.T) {
 				"implementation_whole_archive_deps": `[":foo_cc_proto"]`,
 				"deps":                              `[":libprotobuf-cpp-full"]`,
 			}), MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
-				"dynamic_deps": `[":libprotobuf-cpp-full"]`,
+				"dynamic_deps":                      `[":libprotobuf-cpp-full"]`,
+				"implementation_whole_archive_deps": `[":foo_cc_proto"]`,
 			}),
 		},
 	})
@@ -2183,7 +2187,8 @@ func TestCcLibraryProtoLite(t *testing.T) {
 				"implementation_whole_archive_deps": `[":foo_cc_proto_lite"]`,
 				"deps":                              `[":libprotobuf-cpp-lite"]`,
 			}), MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
-				"dynamic_deps": `[":libprotobuf-cpp-lite"]`,
+				"dynamic_deps":                      `[":libprotobuf-cpp-lite"]`,
+				"implementation_whole_archive_deps": `[":foo_cc_proto_lite"]`,
 			}),
 		},
 	})
@@ -2239,7 +2244,8 @@ func TestCcLibraryProtoIncludeDirs(t *testing.T) {
 				"deps":                              `[":libprotobuf-cpp-lite"]`,
 				"implementation_whole_archive_deps": `[":foo_cc_proto_lite"]`,
 			}), MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
-				"dynamic_deps": `[":libprotobuf-cpp-lite"]`,
+				"dynamic_deps":                      `[":libprotobuf-cpp-lite"]`,
+				"implementation_whole_archive_deps": `[":foo_cc_proto_lite"]`,
 			}),
 		},
 	})
@@ -2916,10 +2922,9 @@ cc_library {
 				"implementation_whole_archive_deps": `[":foo_cc_aidl_library"]`,
 				"local_includes":                    `["."]`,
 			}),
-			// TODO(b/239311679) Add implementation_whole_archive_deps to cc_library_shared
-			// for bp2build to be fully correct. This fallback is affecting proto as well.
 			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
-				"local_includes": `["."]`,
+				"implementation_whole_archive_deps": `[":foo_cc_aidl_library"]`,
+				"local_includes":                    `["."]`,
 			}),
 		},
 	})
@@ -2953,10 +2958,9 @@ cc_library {
 				"implementation_whole_archive_deps": `[":foo_cc_aidl_library"]`,
 				"local_includes":                    `["."]`,
 			}),
-			// TODO(b/239311679) Add implementation_whole_archive_deps to cc_library_shared
-			// for bp2build to be fully correct. This fallback is affecting proto as well.
 			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
-				"local_includes": `["."]`,
+				"local_includes":                    `["."]`,
+				"implementation_whole_archive_deps": `[":foo_cc_aidl_library"]`,
 			}),
 		},
 	})
