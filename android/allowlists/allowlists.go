@@ -223,6 +223,7 @@ var (
 		"packages/modules/adb/proto":                       Bp2BuildDefaultTrueRecursively,
 		"packages/modules/adb/tls":                         Bp2BuildDefaultTrueRecursively,
 		"packages/providers/MediaProvider/tools/dialogs":   Bp2BuildDefaultFalse, // TODO(b/242834374)
+		"packages/modules/NeuralNetworks/driver/cache":     Bp2BuildDefaultTrueRecursively,
 		"packages/screensavers/Basic":                      Bp2BuildDefaultTrue,
 		"packages/services/Car/tests/SampleRearViewCamera": Bp2BuildDefaultFalse, // TODO(b/242834321)
 
