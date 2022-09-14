@@ -36,6 +36,8 @@ const (
 	cppSrcPartition   = "cpp"
 	protoSrcPartition = "proto"
 	aidlSrcPartition  = "aidl"
+
+	stubsSuffix = "_stub_libs_current"
 )
 
 // staticOrSharedAttributes are the Bazel-ified versions of StaticOrSharedProperties --
@@ -935,7 +937,7 @@ func (la *linkerAttributes) bp2buildForAxisAndConfig(ctx android.BazelConversion
 
 			stubLibLabels := []bazel.Label{}
 			for _, l := range depsWithStubs {
-				l.Label = l.Label + "_stub_libs_current"
+				l.Label = l.Label + stubsSuffix
 				stubLibLabels = append(stubLibLabels, l)
 			}
 			inApexSelectValue := la.implementationDynamicDeps.SelectValue(bazel.OsAndInApexAxis, bazel.AndroidAndInApex)
@@ -1096,12 +1098,20 @@ func (la *linkerAttributes) finalize(ctx android.BazelConversionPathContext) {
 	if la.systemDynamicDeps.IsNil() && len(la.usedSystemDynamicDepAsDynamicDep) > 0 {
 		toRemove := bazelLabelForSharedDeps(ctx, android.SortedStringKeys(la.usedSystemDynamicDepAsDynamicDep))
 		la.dynamicDeps.Exclude(bazel.NoConfigAxis, "", toRemove)
-		la.implementationDynamicDeps.Exclude(bazel.NoConfigAxis, "", toRemove)
-		la.implementationDynamicDeps.Exclude(bazel.NoConfigAxis, "", toRemove)
 		la.dynamicDeps.Exclude(bazel.OsConfigurationAxis, "android", toRemove)
 		la.dynamicDeps.Exclude(bazel.OsConfigurationAxis, "linux_bionic", toRemove)
+		la.implementationDynamicDeps.Exclude(bazel.NoConfigAxis, "", toRemove)
 		la.implementationDynamicDeps.Exclude(bazel.OsConfigurationAxis, "android", toRemove)
 		la.implementationDynamicDeps.Exclude(bazel.OsConfigurationAxis, "linux_bionic", toRemove)
+
+		la.implementationDynamicDeps.Exclude(bazel.OsAndInApexAxis, bazel.ConditionsDefaultConfigKey, toRemove)
+		la.implementationDynamicDeps.Exclude(bazel.OsAndInApexAxis, bazel.AndroidAndNonApex, toRemove)
+		stubsToRemove := make([]bazel.Label, 0, len(la.usedSystemDynamicDepAsDynamicDep))
+		for _, lib := range toRemove.Includes {
+			lib.Label += stubsSuffix
+			stubsToRemove = append(stubsToRemove, lib)
+		}
+		la.implementationDynamicDeps.Exclude(bazel.OsAndInApexAxis, bazel.AndroidAndInApex, bazel.MakeLabelList(stubsToRemove))
 	}
 
 	la.deps.ResolveExcludes()

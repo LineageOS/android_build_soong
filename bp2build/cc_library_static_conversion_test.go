@@ -1392,6 +1392,16 @@ func TestCcLibrarystatic_SystemSharedLibUsedAsDep(t *testing.T) {
 		Description: "cc_library_static system_shared_lib empty for linux_bionic variant",
 		Blueprint: soongCcLibraryStaticPreamble +
 			simpleModuleDoNotConvertBp2build("cc_library", "libc") + `
+
+cc_library {
+    name: "libm",
+    stubs: {
+        symbol_file: "libm.map.txt",
+        versions: ["current"],
+    },
+    bazel_module: { bp2build_available: false },
+}
+
 cc_library_static {
     name: "used_in_bionic_oses",
     target: {
@@ -1414,7 +1424,20 @@ cc_library_static {
 cc_library_static {
     name: "keep_for_empty_system_shared_libs",
     shared_libs: ["libc"],
-		system_shared_libs: [],
+    system_shared_libs: [],
+    include_build_directory: false,
+}
+
+cc_library_static {
+    name: "used_with_stubs",
+    shared_libs: ["libm"],
+    include_build_directory: false,
+}
+
+cc_library_static {
+    name: "keep_with_stubs",
+    shared_libs: ["libm"],
+    system_shared_libs: [],
     include_build_directory: false,
 }
 `,
@@ -1424,7 +1447,15 @@ cc_library_static {
 				"implementation_dynamic_deps": `[":libc"]`,
 				"system_dynamic_deps":         `[]`,
 			}),
+			MakeBazelTarget("cc_library_static", "keep_with_stubs", AttrNameToString{
+				"implementation_dynamic_deps": `select({
+        "//build/bazel/rules/apex:android-in_apex": [":libm_stub_libs_current"],
+        "//conditions:default": [":libm"],
+    })`,
+				"system_dynamic_deps": `[]`,
+			}),
 			MakeBazelTarget("cc_library_static", "used_in_bionic_oses", AttrNameToString{}),
+			MakeBazelTarget("cc_library_static", "used_with_stubs", AttrNameToString{}),
 		},
 	})
 }
