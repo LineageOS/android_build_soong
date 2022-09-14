@@ -863,7 +863,9 @@ func (j *Module) aidlFlags(ctx android.ModuleContext, aidlPreprocess android.Opt
 	// add flags for dirs containing AIDL srcs that haven't been specified yet
 	flags = append(flags, genAidlIncludeFlags(ctx, aidlSrcs, includeDirs))
 
-	if Bool(j.deviceProperties.Aidl.Generate_traces) {
+	sdkVersion := (j.SdkVersion(ctx)).Kind
+	defaultTrace := ((sdkVersion == android.SdkSystemServer) || (sdkVersion == android.SdkCore) || (sdkVersion == android.SdkCorePlatform))
+	if proptools.BoolDefault(j.deviceProperties.Aidl.Generate_traces, defaultTrace) {
 		flags = append(flags, "-t")
 	}
 
