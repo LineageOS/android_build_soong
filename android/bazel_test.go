@@ -266,7 +266,7 @@ func TestBp2BuildAllowlist(t *testing.T) {
 		{
 			description:    "module allowlist and enabled directory",
 			shouldConvert:  false,
-			expectedErrors: []string{"A module cannot be in a directory marked Bp2BuildDefaultTrue or Bp2BuildDefaultTrueRecursively and also be in moduleAlwaysConvert. Directory: 'existing/build/dir'"},
+			expectedErrors: []string{"A module cannot be in a directory marked Bp2BuildDefaultTrue or Bp2BuildDefaultTrueRecursively and also be in moduleAlwaysConvert. Directory: 'existing/build/dir' Module: 'foo'"},
 			module: TestBazelModule{
 				TestModuleInfo: bazel.TestModuleInfo{
 					ModuleName: "foo",
@@ -287,7 +287,7 @@ func TestBp2BuildAllowlist(t *testing.T) {
 		{
 			description:    "module allowlist and enabled subdirectory",
 			shouldConvert:  false,
-			expectedErrors: []string{"A module cannot be in a directory marked Bp2BuildDefaultTrue or Bp2BuildDefaultTrueRecursively and also be in moduleAlwaysConvert. Directory: 'existing/build/dir'"},
+			expectedErrors: []string{"A module cannot be in a directory marked Bp2BuildDefaultTrue or Bp2BuildDefaultTrueRecursively and also be in moduleAlwaysConvert. Directory: 'existing/build/dir' Module: 'foo'"},
 			module: TestBazelModule{
 				TestModuleInfo: bazel.TestModuleInfo{
 					ModuleName: "foo",
