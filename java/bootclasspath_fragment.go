@@ -905,6 +905,14 @@ func (b *BootclasspathFragmentModule) produceHiddenAPIOutput(ctx android.ModuleC
 		EncodedBootDexFilesByModule: encodedBootDexFilesByModule,
 	}
 
+	flagFilesByCategory := input.FlagFilesByCategory
+
+	// Make the information available for the sdk snapshot.
+	ctx.SetProvider(HiddenAPIInfoForSdkProvider, HiddenAPIInfoForSdk{
+		FlagFilesByCategory: flagFilesByCategory,
+		HiddenAPIFlagOutput: flagOutput,
+	})
+
 	return output
 }
 
@@ -1069,7 +1077,7 @@ func (b *bootclasspathFragmentSdkMemberProperties) PopulateFromVariant(ctx andro
 
 	// Get the hidden API information from the module.
 	mctx := ctx.SdkModuleContext()
-	hiddenAPIInfo := mctx.OtherModuleProvider(module, HiddenAPIInfoProvider).(HiddenAPIInfo)
+	hiddenAPIInfo := mctx.OtherModuleProvider(module, HiddenAPIInfoForSdkProvider).(HiddenAPIInfoForSdk)
 	b.Flag_files_by_category = hiddenAPIInfo.FlagFilesByCategory
 
 	// Copy all the generated file paths.
