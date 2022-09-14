@@ -426,6 +426,7 @@ var (
 		"libgui_headers",
 		"libstagefright_bufferpool@2.0",
 		"libstagefright_bufferpool@2.0.1",
+		"libSurfaceFlingerProp",
 
 		// fastboot
 		"bootimg_headers",
