@@ -79,10 +79,10 @@ func groupSrcsByExtension(ctx android.BazelConversionPathContext, srcs bazel.Lab
 			if !exists || !android.IsFilegroup(otherModuleCtx, m) {
 				return labelStr, false
 			}
-			// If the filegroup is already converted to aidl_library, skip creating
-			// _c_srcs, _as_srcs, _cpp_srcs filegroups
-			fg, _ := m.(android.Bp2buildAidlLibrary)
-			if fg.ShouldConvertToAidlLibrary(ctx) {
+			// If the filegroup is already converted to aidl_library or proto_library,
+			// skip creating _c_srcs, _as_srcs, _cpp_srcs filegroups
+			fg, _ := m.(android.FileGroupAsLibrary)
+			if fg.ShouldConvertToAidlLibrary(ctx) || fg.ShouldConvertToProtoLibrary(ctx) {
 				return labelStr, false
 			}
 			return labelStr + suffix, true
@@ -506,19 +506,6 @@ func parseSrcs(ctx android.BazelConversionPathContext, props *BaseCompilerProper
 	return bazel.AppendBazelLabelLists(allSrcsLabelList, generatedSrcsLabelList), anySrcs
 }
 
-// Given a name in srcs prop, check to see if the name references a filegroup
-// and the filegroup is converted to aidl_library
-func isConvertedToAidlLibrary(ctx android.BazelConversionPathContext, name string) bool {
-	if module, ok := ctx.ModuleFromName(name); ok {
-		if android.IsFilegroup(ctx, module) {
-			if fg, ok := module.(android.Bp2buildAidlLibrary); ok {
-				return fg.ShouldConvertToAidlLibrary(ctx)
-			}
-		}
-	}
-	return false
-}
-
 func bp2buildStdVal(std *string, prefix string, useGnu bool) *string {
 	defaultVal := prefix + "_std_default"
 	// If c{,pp}std properties are not specified, don't generate them in the BUILD file.
@@ -770,9 +757,8 @@ func bp2buildAidlLibraries(
 	// Make a list of labels that correspond to filegroups that are already converted to aidl_library
 	for _, aidlSrc := range aidlSrcs.Value.Includes {
 		src := aidlSrc.OriginalModuleName
-		if isConvertedToAidlLibrary(ctx, src) {
-			module, _ := ctx.ModuleFromName(src)
-			fg, _ := module.(android.Bp2buildAidlLibrary)
+		if fg, ok := android.ToFileGroupAsLibrary(ctx, src); ok &&
+			fg.ShouldConvertToAidlLibrary(ctx) {
 			aidlLibraries.Add(&bazel.Label{
 				Label: fg.GetAidlLibraryLabel(ctx),
 			})

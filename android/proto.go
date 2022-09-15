@@ -155,11 +155,12 @@ func ProtoRule(rule *RuleBuilder, protoFile Path, flags ProtoFlags, deps Paths,
 
 // Bp2buildProtoInfo contains information necessary to pass on to language specific conversion.
 type Bp2buildProtoInfo struct {
-	Type *string
-	Name string
+	Type       *string
+	Name       string
+	Proto_libs bazel.LabelList
 }
 
-type protoAttrs struct {
+type ProtoAttrs struct {
 	Srcs                bazel.LabelListAttribute
 	Strip_import_prefix *string
 	Deps                bazel.LabelListAttribute
@@ -179,44 +180,70 @@ func Bp2buildProtoProperties(ctx Bp2buildMutatorContext, m *ModuleBase, srcs baz
 		return info, false
 	}
 
-	info.Name = m.Name() + "_proto"
-	attrs := protoAttrs{
-		Srcs: srcs,
-	}
+	var protoLibraries bazel.LabelList
+	var directProtoSrcs bazel.LabelList
 
-	for axis, configToProps := range m.GetArchVariantProperties(ctx, &ProtoProperties{}) {
-		for _, rawProps := range configToProps {
-			var props *ProtoProperties
-			var ok bool
-			if props, ok = rawProps.(*ProtoProperties); !ok {
-				ctx.ModuleErrorf("Could not cast ProtoProperties to expected type")
-			}
-			if axis == bazel.NoConfigAxis {
-				info.Type = props.Proto.Type
-
-				if !proptools.BoolDefault(props.Proto.Canonical_path_from_root, canonicalPathFromRootDefault) {
-					// an empty string indicates to strips the package path
-					path := ""
-					attrs.Strip_import_prefix = &path
-				}
-
-				for _, dir := range props.Proto.Include_dirs {
-					if dep, ok := includeDirsToProtoDeps[dir]; ok {
-						attrs.Deps.Add(bazel.MakeLabelAttribute(dep))
-					} else {
-						ctx.PropertyErrorf("Could not find the proto_library target for include dir", dir)
-					}
-				}
-			} else if props.Proto.Type != info.Type && props.Proto.Type != nil {
-				ctx.ModuleErrorf("Cannot handle arch-variant types for protos at this time.")
-			}
+	// For filegroups that should be converted to proto_library just collect the
+	// labels of converted proto_library targets.
+	for _, protoSrc := range srcs.Value.Includes {
+		src := protoSrc.OriginalModuleName
+		if fg, ok := ToFileGroupAsLibrary(ctx, src); ok &&
+			fg.ShouldConvertToProtoLibrary(ctx) {
+			protoLibraries.Add(&bazel.Label{
+				Label: fg.GetProtoLibraryLabel(ctx),
+			})
+		} else {
+			directProtoSrcs.Add(&protoSrc)
 		}
 	}
 
-	ctx.CreateBazelTargetModule(
-		bazel.BazelTargetModuleProperties{Rule_class: "proto_library"},
-		CommonAttributes{Name: info.Name},
-		&attrs)
+	info.Name = m.Name() + "_proto"
+
+	if len(directProtoSrcs.Includes) > 0 {
+		attrs := ProtoAttrs{
+			Srcs: bazel.MakeLabelListAttribute(directProtoSrcs),
+		}
+
+		for axis, configToProps := range m.GetArchVariantProperties(ctx, &ProtoProperties{}) {
+			for _, rawProps := range configToProps {
+				var props *ProtoProperties
+				var ok bool
+				if props, ok = rawProps.(*ProtoProperties); !ok {
+					ctx.ModuleErrorf("Could not cast ProtoProperties to expected type")
+				}
+				if axis == bazel.NoConfigAxis {
+					info.Type = props.Proto.Type
+
+					if !proptools.BoolDefault(props.Proto.Canonical_path_from_root, canonicalPathFromRootDefault) {
+						// an empty string indicates to strips the package path
+						path := ""
+						attrs.Strip_import_prefix = &path
+					}
+
+					for _, dir := range props.Proto.Include_dirs {
+						if dep, ok := includeDirsToProtoDeps[dir]; ok {
+							attrs.Deps.Add(bazel.MakeLabelAttribute(dep))
+						} else {
+							ctx.PropertyErrorf("Could not find the proto_library target for include dir", dir)
+						}
+					}
+				} else if props.Proto.Type != info.Type && props.Proto.Type != nil {
+					ctx.ModuleErrorf("Cannot handle arch-variant types for protos at this time.")
+				}
+			}
+		}
+
+		ctx.CreateBazelTargetModule(
+			bazel.BazelTargetModuleProperties{Rule_class: "proto_library"},
+			CommonAttributes{Name: info.Name},
+			&attrs)
+
+		protoLibraries.Add(&bazel.Label{
+			Label: ":" + info.Name,
+		})
+	}
+
+	info.Proto_libs = protoLibraries
 
 	return info, true
 }
