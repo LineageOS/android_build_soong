@@ -443,8 +443,8 @@ func (b *BazelModuleBase) shouldConvertWithBp2build(ctx bazelOtherModuleContext,
 	if ok, directoryPath := bp2buildDefaultTrueRecursively(packagePath, allowlist.defaultConfig); ok {
 		if moduleNameAllowed {
 			ctx.ModuleErrorf("A module cannot be in a directory marked Bp2BuildDefaultTrue"+
-				" or Bp2BuildDefaultTrueRecursively and also be in moduleAlwaysConvert. Directory: '%s'",
-				directoryPath)
+				" or Bp2BuildDefaultTrueRecursively and also be in moduleAlwaysConvert. Directory: '%s'"+
+				" Module: '%s'", directoryPath, moduleName)
 			return false
 		}
 
