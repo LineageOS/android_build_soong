@@ -209,32 +209,32 @@ func TestSyspropLibrary(t *testing.T) {
 		cc_library {
 			name: "cc-client-platform",
 			srcs: ["d.cpp"],
-			static_libs: ["libsysprop-platform"],
+			static_libs: ["sysprop-platform"],
 		}
 
 		cc_library_static {
 			name: "cc-client-platform-static",
 			srcs: ["d.cpp"],
-			whole_static_libs: ["libsysprop-platform"],
+			whole_static_libs: ["sysprop-platform"],
 		}
 
 		cc_library {
 			name: "cc-client-product",
 			srcs: ["d.cpp"],
 			product_specific: true,
-			static_libs: ["libsysprop-platform-on-product", "libsysprop-vendor-on-product"],
+			static_libs: ["sysprop-platform-on-product", "sysprop-vendor-on-product"],
 		}
 
 		cc_library {
 			name: "cc-client-vendor",
 			srcs: ["d.cpp"],
 			soc_specific: true,
-			static_libs: ["libsysprop-platform", "libsysprop-vendor"],
+			static_libs: ["sysprop-platform", "sysprop-vendor"],
 		}
 
 		cc_binary_host {
 			name: "hostbin",
-			static_libs: ["libsysprop-platform"],
+			static_libs: ["sysprop-platform"],
 		}
 	`)
 
