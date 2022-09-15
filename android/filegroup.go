@@ -33,6 +33,8 @@ var PrepareForTestWithFilegroup = FixtureRegisterWithContext(func(ctx Registrati
 	ctx.RegisterModuleType("filegroup", FileGroupFactory)
 })
 
+var convertedProtoLibrarySuffix = "_bp2build_converted"
+
 // IsFilegroup checks that a module is a filegroup type
 func IsFilegroup(ctx bazel.OtherModuleContext, m blueprint.Module) bool {
 	return ctx.OtherModuleType(m) == "filegroup"
@@ -117,6 +119,20 @@ func (fg *fileGroup) ConvertWithBp2build(ctx TopDownMutatorContext) {
 
 		ctx.CreateBazelTargetModule(props, CommonAttributes{Name: fg.Name()}, attrs)
 	} else {
+		if fg.ShouldConvertToProtoLibrary(ctx) {
+			attrs := &ProtoAttrs{
+				Srcs:                srcs,
+				Strip_import_prefix: fg.properties.Path,
+			}
+
+			ctx.CreateBazelTargetModule(
+				bazel.BazelTargetModuleProperties{Rule_class: "proto_library"},
+				CommonAttributes{Name: fg.Name() + convertedProtoLibrarySuffix},
+				attrs)
+		}
+
+		// TODO(b/242847534): Still convert to a filegroup because other unconverted
+		// modules may depend on the filegroup
 		attrs := &bazelFilegroupAttributes{
 			Srcs: srcs,
 		}
@@ -150,14 +166,14 @@ type fileGroupProperties struct {
 type fileGroup struct {
 	ModuleBase
 	BazelModuleBase
-	Bp2buildAidlLibrary
+	FileGroupAsLibrary
 	properties fileGroupProperties
 	srcs       Paths
 }
 
 var _ MixedBuildBuildable = (*fileGroup)(nil)
 var _ SourceFileProducer = (*fileGroup)(nil)
-var _ Bp2buildAidlLibrary = (*fileGroup)(nil)
+var _ FileGroupAsLibrary = (*fileGroup)(nil)
 
 // filegroup contains a list of files that are referenced by other modules
 // properties (such as "srcs") using the syntax ":<name>". filegroup are
@@ -243,11 +259,19 @@ func (fg *fileGroup) ProcessBazelQueryResponse(ctx ModuleContext) {
 }
 
 func (fg *fileGroup) ShouldConvertToAidlLibrary(ctx BazelConversionPathContext) bool {
+	return fg.shouldConvertToLibrary(ctx, ".aidl")
+}
+
+func (fg *fileGroup) ShouldConvertToProtoLibrary(ctx BazelConversionPathContext) bool {
+	return fg.shouldConvertToLibrary(ctx, ".proto")
+}
+
+func (fg *fileGroup) shouldConvertToLibrary(ctx BazelConversionPathContext, suffix string) bool {
 	if len(fg.properties.Srcs) == 0 || !fg.ShouldConvertWithBp2build(ctx) {
 		return false
 	}
 	for _, src := range fg.properties.Srcs {
-		if !strings.HasSuffix(src, ".aidl") {
+		if !strings.HasSuffix(src, suffix) {
 			return false
 		}
 	}
@@ -255,6 +279,14 @@ func (fg *fileGroup) ShouldConvertToAidlLibrary(ctx BazelConversionPathContext) 
 }
 
 func (fg *fileGroup) GetAidlLibraryLabel(ctx BazelConversionPathContext) string {
+	return fg.getFileGroupAsLibraryLabel(ctx)
+}
+
+func (fg *fileGroup) GetProtoLibraryLabel(ctx BazelConversionPathContext) string {
+	return fg.getFileGroupAsLibraryLabel(ctx) + convertedProtoLibrarySuffix
+}
+
+func (fg *fileGroup) getFileGroupAsLibraryLabel(ctx BazelConversionPathContext) string {
 	if ctx.OtherModuleDir(fg.module) == ctx.ModuleDir() {
 		return ":" + fg.Name()
 	} else {
@@ -265,12 +297,19 @@ func (fg *fileGroup) GetAidlLibraryLabel(ctx BazelConversionPathContext) string 
 // Given a name in srcs prop, check to see if the name references a filegroup
 // and the filegroup is converted to aidl_library
 func IsConvertedToAidlLibrary(ctx BazelConversionPathContext, name string) bool {
+	if fg, ok := ToFileGroupAsLibrary(ctx, name); ok {
+		return fg.ShouldConvertToAidlLibrary(ctx)
+	}
+	return false
+}
+
+func ToFileGroupAsLibrary(ctx BazelConversionPathContext, name string) (FileGroupAsLibrary, bool) {
 	if module, ok := ctx.ModuleFromName(name); ok {
 		if IsFilegroup(ctx, module) {
-			if fg, ok := module.(Bp2buildAidlLibrary); ok {
-				return fg.ShouldConvertToAidlLibrary(ctx)
+			if fg, ok := module.(FileGroupAsLibrary); ok {
+				return fg, true
 			}
 		}
 	}
-	return false
+	return nil, false
 }
