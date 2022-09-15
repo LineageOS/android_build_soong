@@ -32,10 +32,13 @@ const (
 	Bp2BuildTopLevel = "."
 )
 
-// Bp2buildAidlLibrary describes a filegroup module that are converted to aidl_library
-type Bp2buildAidlLibrary interface {
+// FileGroupAsLibrary describes a filegroup module that is converted to some library
+// such as aidl_library or proto_library.
+type FileGroupAsLibrary interface {
 	ShouldConvertToAidlLibrary(ctx BazelConversionPathContext) bool
+	ShouldConvertToProtoLibrary(ctx BazelConversionPathContext) bool
 	GetAidlLibraryLabel(ctx BazelConversionPathContext) string
+	GetProtoLibraryLabel(ctx BazelConversionPathContext) string
 }
 
 type BazelConversionStatus struct {
