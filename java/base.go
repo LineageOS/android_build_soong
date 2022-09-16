@@ -649,6 +649,10 @@ func (j *Module) shouldInstrumentInApex(ctx android.BaseModuleContext) bool {
 	return false
 }
 
+func (j *Module) setInstrument(value bool) {
+	j.properties.Instrument = value
+}
+
 func (j *Module) SdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
 	return android.SdkSpecFrom(ctx, String(j.deviceProperties.Sdk_version))
 }
@@ -782,9 +786,6 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 		}
 	} else if j.shouldInstrumentStatic(ctx) {
 		ctx.AddVariationDependencies(nil, staticLibTag, "jacocoagent")
-	}
-	if j.shouldInstrument(ctx) {
-		ctx.AddVariationDependencies(nil, libTag, "jacocoagent")
 	}
 
 	if j.useCompose() {
@@ -1412,10 +1413,6 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 	j.implementationJarFile = outputFile
 	if j.headerJarFile == nil {
 		j.headerJarFile = j.implementationJarFile
-	}
-
-	if j.shouldInstrumentInApex(ctx) {
-		j.properties.Instrument = true
 	}
 
 	// enforce syntax check to jacoco filters for any build (http://b/183622051)
