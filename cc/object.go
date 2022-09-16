@@ -256,18 +256,13 @@ func (object *objectLinker) link(ctx ModuleContext,
 	builderFlags := flagsToBuilderFlags(flags)
 
 	if len(objs.objFiles) == 1 && String(object.Properties.Linker_script) == "" {
-		output := android.PathForModuleOut(ctx, ctx.ModuleName()+objectExtension)
-		outputFile = output
+		outputFile = objs.objFiles[0]
 
 		if String(object.Properties.Prefix_symbols) != "" {
-			transformBinaryPrefixSymbols(ctx, String(object.Properties.Prefix_symbols), objs.objFiles[0],
+			output := android.PathForModuleOut(ctx, ctx.ModuleName()+objectExtension)
+			transformBinaryPrefixSymbols(ctx, String(object.Properties.Prefix_symbols), outputFile,
 				builderFlags, output)
-		} else {
-			ctx.Build(pctx, android.BuildParams{
-				Rule:   android.Cp,
-				Input:  objs.objFiles[0],
-				Output: output,
-			})
+			outputFile = output
 		}
 	} else {
 		output := android.PathForModuleOut(ctx, ctx.ModuleName()+objectExtension)
