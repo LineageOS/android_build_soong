@@ -59,6 +59,15 @@ func testPlatformSystemServerModuleConfig(ctx android.PathContext, name string) 
 		android.PathForOutput(ctx, fmt.Sprintf("%s/enforce_uses_libraries.status", name)))
 }
 
+func testSystemExtSystemServerModuleConfig(ctx android.PathContext, name string) *ModuleConfig {
+	return createTestModuleConfig(
+		name,
+		fmt.Sprintf("/system_ext/framework/%s.jar", name),
+		android.PathForOutput(ctx, fmt.Sprintf("%s/dexpreopt/%s.jar", name, name)),
+		android.PathForOutput(ctx, fmt.Sprintf("%s/aligned/%s.jar", name, name)),
+		android.PathForOutput(ctx, fmt.Sprintf("%s/enforce_uses_libraries.status", name)))
+}
+
 func createTestModuleConfig(name, dexLocation string, buildPath, dexPath, enforceUsesLibrariesStatusFile android.OutputPath) *ModuleConfig {
 	return &ModuleConfig{
 		Name:                            name,
@@ -208,6 +217,29 @@ func TestDexPreoptStandaloneSystemServerJars(t *testing.T) {
 	wantInstalls := android.RuleBuilderInstalls{
 		{android.PathForOutput(ctx, "service-A/dexpreopt/oat/arm/javalib.odex"), "/system/framework/oat/arm/service-A.odex"},
 		{android.PathForOutput(ctx, "service-A/dexpreopt/oat/arm/javalib.vdex"), "/system/framework/oat/arm/service-A.vdex"},
+	}
+
+	android.AssertStringEquals(t, "installs", wantInstalls.String(), rule.Installs().String())
+}
+
+func TestDexPreoptSystemExtSystemServerJars(t *testing.T) {
+	config := android.TestConfig("out", nil, "", nil)
+	ctx := android.BuilderContextForTesting(config)
+	globalSoong := globalSoongConfigForTests()
+	global := GlobalConfigForTests(ctx)
+	module := testSystemExtSystemServerModuleConfig(ctx, "service-A")
+
+	global.StandaloneSystemServerJars = android.CreateTestConfiguredJarList(
+		[]string{"system_ext:service-A"})
+
+	rule, err := GenerateDexpreoptRule(ctx, globalSoong, global, module)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	wantInstalls := android.RuleBuilderInstalls{
+		{android.PathForOutput(ctx, "service-A/dexpreopt/oat/arm/javalib.odex"), "/system_ext/framework/oat/arm/service-A.odex"},
+		{android.PathForOutput(ctx, "service-A/dexpreopt/oat/arm/javalib.vdex"), "/system_ext/framework/oat/arm/service-A.vdex"},
 	}
 
 	android.AssertStringEquals(t, "installs", wantInstalls.String(), rule.Installs().String())
