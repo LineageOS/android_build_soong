@@ -838,6 +838,7 @@ type linkerAttributes struct {
 
 var (
 	soongSystemSharedLibs = []string{"libc", "libm", "libdl"}
+	versionLib            = "libbuildversion"
 )
 
 // resolveTargetApex re-adds the shared and static libs in target.apex.exclude_shared|static_libs props to non-apex variant
@@ -877,10 +878,27 @@ func (la *linkerAttributes) bp2buildForAxisAndConfig(ctx android.BazelConversion
 	var axisFeatures []string
 
 	wholeStaticLibs := android.FirstUniqueStrings(props.Whole_static_libs)
-	la.wholeArchiveDeps.SetSelectValue(axis, config, bazelLabelForWholeDepsExcludes(ctx, wholeStaticLibs, props.Exclude_static_libs))
+	staticLibs := android.FirstUniqueStrings(android.RemoveListFromList(props.Static_libs, wholeStaticLibs))
+	if axis == bazel.NoConfigAxis {
+		la.useVersionLib.SetSelectValue(axis, config, props.Use_version_lib)
+		if proptools.Bool(props.Use_version_lib) {
+			versionLibAlreadyInDeps := android.InList(versionLib, wholeStaticLibs)
+			// remove from static libs so there is no duplicate dependency
+			_, staticLibs = android.RemoveFromList(versionLib, staticLibs)
+			// only add the dep if it is not in progress
+			if !versionLibAlreadyInDeps {
+				if isBinary {
+					wholeStaticLibs = append(wholeStaticLibs, versionLib)
+				} else {
+					la.implementationWholeArchiveDeps.SetSelectValue(axis, config, bazelLabelForWholeDepsExcludes(ctx, []string{versionLib}, props.Exclude_static_libs))
+				}
+			}
+		}
+	}
+
 	// Excludes to parallel Soong:
 	// https://cs.android.com/android/platform/superproject/+/master:build/soong/cc/linker.go;l=247-249;drc=088b53577dde6e40085ffd737a1ae96ad82fc4b0
-	staticLibs := android.FirstUniqueStrings(android.RemoveListFromList(props.Static_libs, wholeStaticLibs))
+	la.wholeArchiveDeps.SetSelectValue(axis, config, bazelLabelForWholeDepsExcludes(ctx, wholeStaticLibs, props.Exclude_static_libs))
 
 	staticDeps := maybePartitionExportedAndImplementationsDepsExcludes(
 		ctx,
@@ -1005,10 +1023,6 @@ func (la *linkerAttributes) bp2buildForAxisAndConfig(ctx android.BazelConversion
 
 	la.linkopts.SetSelectValue(axis, config, parseCommandLineFlags(linkerFlags, false, filterOutClangUnknownCflags))
 	la.useLibcrt.SetSelectValue(axis, config, props.libCrt())
-
-	if axis == bazel.NoConfigAxis {
-		la.useVersionLib.SetSelectValue(axis, config, props.Use_version_lib)
-	}
 
 	// it's very unlikely for nocrt to be arch variant, so bp2build doesn't support it.
 	if props.crt() != nil {
