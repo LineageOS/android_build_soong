@@ -53,7 +53,6 @@ func makeStringOfKeys(ctx android.MakeVarsContext, key android.OnceKey) string {
 
 func makeStringOfWarningAllowedProjects() string {
 	allProjects := append([]string{}, config.WarningAllowedProjects...)
-	allProjects = append(allProjects, config.WarningAllowedOldProjects...)
 	sort.Strings(allProjects)
 	// Makefile rules use pattern "path/%" to match module paths.
 	if len(allProjects) > 0 {
