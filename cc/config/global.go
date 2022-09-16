@@ -316,9 +316,6 @@ var (
 		"device/",
 		"vendor/",
 	}
-
-	// Directories with warnings from Android.mk files.
-	WarningAllowedOldProjects = []string{}
 )
 
 // BazelCcToolchainVars generates bzl file content containing variables for
