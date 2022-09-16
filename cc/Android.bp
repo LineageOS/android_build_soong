@@ -99,6 +99,7 @@ bootstrap_go_package {
         "library_headers_test.go",
         "library_stub_test.go",
         "library_test.go",
+        "lto_test.go",
         "ndk_test.go",
         "object_test.go",
         "prebuilt_test.go",
