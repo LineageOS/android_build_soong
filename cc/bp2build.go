@@ -746,77 +746,57 @@ func bp2BuildParseBaseProps(ctx android.Bp2buildMutatorContext, module *Module) 
 	}
 }
 
-func bp2buildAidlLibraries(
-	ctx android.Bp2buildMutatorContext,
-	m *Module,
-	aidlSrcs bazel.LabelListAttribute,
-) bazel.LabelList {
-	var aidlLibraries bazel.LabelList
-	var directAidlSrcs bazel.LabelList
-
-	// Make a list of labels that correspond to filegroups that are already converted to aidl_library
-	for _, aidlSrc := range aidlSrcs.Value.Includes {
-		src := aidlSrc.OriginalModuleName
-		if fg, ok := android.ToFileGroupAsLibrary(ctx, src); ok &&
-			fg.ShouldConvertToAidlLibrary(ctx) {
-			aidlLibraries.Add(&bazel.Label{
-				Label: fg.GetAidlLibraryLabel(ctx),
-			})
-		} else {
-			directAidlSrcs.Add(&aidlSrc)
-		}
-	}
-
-	if len(directAidlSrcs.Includes) > 0 {
-		aidlLibraryLabel := m.Name() + "_aidl_library"
-		ctx.CreateBazelTargetModule(
-			bazel.BazelTargetModuleProperties{
-				Rule_class:        "aidl_library",
-				Bzl_load_location: "//build/bazel/rules/aidl:library.bzl",
-			},
-			android.CommonAttributes{Name: aidlLibraryLabel},
-			&aidlLibraryAttributes{
-				Srcs: bazel.MakeLabelListAttribute(directAidlSrcs),
-			},
-		)
-		aidlLibraries.Add(&bazel.Label{
-			Label: ":" + aidlLibraryLabel,
-		})
-	}
-	return aidlLibraries
-}
-
 func bp2buildCcAidlLibrary(
 	ctx android.Bp2buildMutatorContext,
 	m *Module,
-	aidlSrcs bazel.LabelListAttribute,
+	aidlLabelList bazel.LabelListAttribute,
 ) *bazel.LabelAttribute {
-	suffix := "_cc_aidl_library"
-	ccAidlLibrarylabel := m.Name() + suffix
+	if !aidlLabelList.IsEmpty() {
+		aidlLibs, aidlSrcs := aidlLabelList.Partition(func(src bazel.Label) bool {
+			if fg, ok := android.ToFileGroupAsLibrary(ctx, src.OriginalModuleName); ok &&
+				fg.ShouldConvertToAidlLibrary(ctx) {
+				return true
+			}
+			return false
+		})
 
-	aidlLibraries := bp2buildAidlLibraries(ctx, m, aidlSrcs)
+		if !aidlSrcs.IsEmpty() {
+			aidlLibName := m.Name() + "_aidl_library"
+			ctx.CreateBazelTargetModule(
+				bazel.BazelTargetModuleProperties{
+					Rule_class:        "aidl_library",
+					Bzl_load_location: "//build/bazel/rules/aidl:library.bzl",
+				},
+				android.CommonAttributes{Name: aidlLibName},
+				&aidlLibraryAttributes{
+					Srcs: aidlSrcs,
+				},
+			)
+			aidlLibs.Add(&bazel.LabelAttribute{Value: &bazel.Label{Label: ":" + aidlLibName}})
+		}
 
-	if aidlLibraries.IsEmpty() {
-		return nil
+		if !aidlLibs.IsEmpty() {
+			ccAidlLibrarylabel := m.Name() + "_cc_aidl_library"
+			ctx.CreateBazelTargetModule(
+				bazel.BazelTargetModuleProperties{
+					Rule_class:        "cc_aidl_library",
+					Bzl_load_location: "//build/bazel/rules/cc:cc_aidl_library.bzl",
+				},
+				android.CommonAttributes{Name: ccAidlLibrarylabel},
+				&ccAidlLibraryAttributes{
+					Deps: aidlLibs,
+				},
+			)
+			label := &bazel.LabelAttribute{
+				Value: &bazel.Label{
+					Label: ":" + ccAidlLibrarylabel,
+				},
+			}
+			return label
+		}
 	}
 
-	ctx.CreateBazelTargetModule(
-		bazel.BazelTargetModuleProperties{
-			Rule_class:        "cc_aidl_library",
-			Bzl_load_location: "//build/bazel/rules/cc:cc_aidl_library.bzl",
-		},
-		android.CommonAttributes{Name: ccAidlLibrarylabel},
-		&ccAidlLibraryAttributes{
-			Deps: bazel.MakeLabelListAttribute(aidlLibraries),
-		},
-	)
-
-	label := &bazel.LabelAttribute{
-		Value: &bazel.Label{
-			Label: ":" + ccAidlLibrarylabel,
-		},
-	}
-	return label
+	return nil
 }
 
 func bp2BuildParseSdkAttributes(module *Module) sdkAttributes {
