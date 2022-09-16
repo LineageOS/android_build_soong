@@ -2995,3 +2995,86 @@ cc_library {
 		},
 	})
 }
+
+func TestCcLibraryWithTargetApex(t *testing.T) {
+	runCcLibraryTestCase(t, Bp2buildTestCase{
+		Description:                "cc_library with target.apex",
+		ModuleTypeUnderTest:        "cc_library",
+		ModuleTypeUnderTestFactory: cc.LibraryFactory,
+		Blueprint: `
+cc_library {
+    name: "foo",
+	shared_libs: ["bar", "baz"],
+	static_libs: ["baz", "buh"],
+	target: {
+        apex: {
+            exclude_shared_libs: ["bar"],
+            exclude_static_libs: ["buh"],
+        }
+    }
+}`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
+				"implementation_deps": `[":baz__BP2BUILD__MISSING__DEP"] + select({
+        "//build/bazel/rules/apex:non_apex": [":buh__BP2BUILD__MISSING__DEP"],
+        "//conditions:default": [],
+    })`,
+				"implementation_dynamic_deps": `[":baz__BP2BUILD__MISSING__DEP"] + select({
+        "//build/bazel/rules/apex:non_apex": [":bar__BP2BUILD__MISSING__DEP"],
+        "//conditions:default": [],
+    })`,
+				"local_includes": `["."]`,
+			}),
+			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+				"implementation_deps": `[":baz__BP2BUILD__MISSING__DEP"] + select({
+        "//build/bazel/rules/apex:non_apex": [":buh__BP2BUILD__MISSING__DEP"],
+        "//conditions:default": [],
+    })`,
+				"implementation_dynamic_deps": `[":baz__BP2BUILD__MISSING__DEP"] + select({
+        "//build/bazel/rules/apex:non_apex": [":bar__BP2BUILD__MISSING__DEP"],
+        "//conditions:default": [],
+    })`,
+				"local_includes": `["."]`,
+			}),
+		},
+	})
+}
+
+func TestCcLibraryWithTargetApexAndExportLibHeaders(t *testing.T) {
+	runCcLibraryTestCase(t, Bp2buildTestCase{
+		Description:                "cc_library with target.apex and export_shared|static_lib_headers",
+		ModuleTypeUnderTest:        "cc_library",
+		ModuleTypeUnderTestFactory: cc.LibraryFactory,
+		Blueprint: `
+cc_library_static {
+    name: "foo",
+	shared_libs: ["bar", "baz"],
+    static_libs: ["abc"],
+    export_shared_lib_headers: ["baz"],
+    export_static_lib_headers: ["abc"],
+	target: {
+        apex: {
+            exclude_shared_libs: ["baz", "bar"],
+            exclude_static_libs: ["abc"],
+        }
+    }
+}`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_library_static", "foo", AttrNameToString{
+				"implementation_dynamic_deps": `select({
+        "//build/bazel/rules/apex:non_apex": [":bar__BP2BUILD__MISSING__DEP"],
+        "//conditions:default": [],
+    })`,
+				"dynamic_deps": `select({
+        "//build/bazel/rules/apex:non_apex": [":baz__BP2BUILD__MISSING__DEP"],
+        "//conditions:default": [],
+    })`,
+				"deps": `select({
+        "//build/bazel/rules/apex:non_apex": [":abc__BP2BUILD__MISSING__DEP"],
+        "//conditions:default": [],
+    })`,
+				"local_includes": `["."]`,
+			}),
+		},
+	})
+}
