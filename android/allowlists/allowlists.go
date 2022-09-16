@@ -161,6 +161,7 @@ var (
 		"frameworks/av/media/codecs":                         Bp2BuildDefaultTrueRecursively,
 		"frameworks/av/media/liberror":                       Bp2BuildDefaultTrueRecursively,
 		"frameworks/av/services/minijail":                    Bp2BuildDefaultTrueRecursively,
+		"frameworks/av/media/module/minijail":                Bp2BuildDefaultTrueRecursively,
 		"frameworks/base/media/tests/MediaDump":              Bp2BuildDefaultTrue,
 		"frameworks/base/services/tests/servicestests/aidl":  Bp2BuildDefaultTrue,
 		"frameworks/base/startop/apps/test":                  Bp2BuildDefaultTrue,
@@ -223,6 +224,7 @@ var (
 		"packages/modules/adb/proto":                       Bp2BuildDefaultTrueRecursively,
 		"packages/modules/adb/tls":                         Bp2BuildDefaultTrueRecursively,
 		"packages/providers/MediaProvider/tools/dialogs":   Bp2BuildDefaultFalse, // TODO(b/242834374)
+		"packages/modules/NeuralNetworks/driver/cache":     Bp2BuildDefaultTrueRecursively,
 		"packages/screensavers/Basic":                      Bp2BuildDefaultTrue,
 		"packages/services/Car/tests/SampleRearViewCamera": Bp2BuildDefaultFalse, // TODO(b/242834321)
 
@@ -410,6 +412,7 @@ var (
 		"mediaswcodec.policy",
 		"mediaswcodec.xml",
 		"neuralnetworks_types",
+		"neuralnetworks_utils_hal_aidl",
 		"neuralnetworks_utils_hal_common",
 		"neuralnetworks_utils_hal_1_0",
 		"neuralnetworks_utils_hal_1_1",
@@ -424,6 +427,7 @@ var (
 		"libgui_headers",
 		"libstagefright_bufferpool@2.0",
 		"libstagefright_bufferpool@2.0.1",
+		"libSurfaceFlingerProp",
 
 		// fastboot
 		"bootimg_headers",
@@ -695,7 +699,6 @@ var (
 		"libBionicCtsGtestMain", // depends on unconverted modules: libgtest_isolated
 		"libBionicLoaderTests",  // depends on unconverted modules: libmeminfo
 		"libapexutil_tests",     // depends on unconverted modules: apex-info-list-tinyxml, libapexutil
-		"libavservices_minijail_unittest",
 		"libcutils_sockets_test",
 		"libexpectedutils_test",
 		"libhwbinder_latency",

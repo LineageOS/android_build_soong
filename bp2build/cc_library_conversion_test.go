@@ -2261,6 +2261,130 @@ func TestCcLibraryProtoIncludeDirsUnknown(t *testing.T) {
 	})
 }
 
+func TestCcLibraryConvertedProtoFilegroups(t *testing.T) {
+	runCcLibraryTestCase(t, Bp2buildTestCase{
+		ModuleTypeUnderTest:        "cc_library",
+		ModuleTypeUnderTestFactory: cc.LibraryFactory,
+		Blueprint: soongCcProtoPreamble + `
+filegroup {
+	name: "a_fg_proto",
+	srcs: ["a_fg.proto"],
+}
+
+cc_library {
+	name: "a",
+	srcs: [
+    ":a_fg_proto",
+    "a.proto",
+  ],
+	proto: {
+		export_proto_headers: true,
+	},
+	include_build_directory: false,
+}`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("proto_library", "a_proto", AttrNameToString{
+				"srcs": `["a.proto"]`,
+			}), MakeBazelTarget("cc_lite_proto_library", "a_cc_proto_lite", AttrNameToString{
+				"deps": `[
+        ":a_fg_proto_bp2build_converted",
+        ":a_proto",
+    ]`,
+			}), MakeBazelTarget("cc_library_static", "a_bp2build_cc_library_static", AttrNameToString{
+				"deps":               `[":libprotobuf-cpp-lite"]`,
+				"whole_archive_deps": `[":a_cc_proto_lite"]`,
+			}), MakeBazelTarget("cc_library_shared", "a", AttrNameToString{
+				"dynamic_deps":       `[":libprotobuf-cpp-lite"]`,
+				"whole_archive_deps": `[":a_cc_proto_lite"]`,
+			}), MakeBazelTargetNoRestrictions("proto_library", "a_fg_proto_bp2build_converted", AttrNameToString{
+				"srcs": `["a_fg.proto"]`,
+			}), MakeBazelTargetNoRestrictions("filegroup", "a_fg_proto", AttrNameToString{
+				"srcs": `["a_fg.proto"]`,
+			}),
+		},
+	})
+}
+
+func TestCcLibraryConvertedProtoFilegroupsNoProtoFiles(t *testing.T) {
+	runCcLibraryTestCase(t, Bp2buildTestCase{
+		ModuleTypeUnderTest:        "cc_library",
+		ModuleTypeUnderTestFactory: cc.LibraryFactory,
+		Blueprint: soongCcProtoPreamble + `
+filegroup {
+	name: "a_fg_proto",
+	srcs: ["a_fg.proto"],
+}
+
+cc_library {
+	name: "a",
+	srcs: [
+    ":a_fg_proto",
+  ],
+	proto: {
+		export_proto_headers: true,
+	},
+	include_build_directory: false,
+}`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_lite_proto_library", "a_cc_proto_lite", AttrNameToString{
+				"deps": `[":a_fg_proto_bp2build_converted"]`,
+			}), MakeBazelTarget("cc_library_static", "a_bp2build_cc_library_static", AttrNameToString{
+				"deps":               `[":libprotobuf-cpp-lite"]`,
+				"whole_archive_deps": `[":a_cc_proto_lite"]`,
+			}), MakeBazelTarget("cc_library_shared", "a", AttrNameToString{
+				"dynamic_deps":       `[":libprotobuf-cpp-lite"]`,
+				"whole_archive_deps": `[":a_cc_proto_lite"]`,
+			}), MakeBazelTargetNoRestrictions("proto_library", "a_fg_proto_bp2build_converted", AttrNameToString{
+				"srcs": `["a_fg.proto"]`,
+			}), MakeBazelTargetNoRestrictions("filegroup", "a_fg_proto", AttrNameToString{
+				"srcs": `["a_fg.proto"]`,
+			}),
+		},
+	})
+}
+
+func TestCcLibraryExternalConvertedProtoFilegroups(t *testing.T) {
+	runCcLibraryTestCase(t, Bp2buildTestCase{
+		ModuleTypeUnderTest:        "cc_library",
+		ModuleTypeUnderTestFactory: cc.LibraryFactory,
+		Filesystem: map[string]string{
+			"path/to/A/Android.bp": `
+filegroup {
+	name: "a_fg_proto",
+	srcs: ["a_fg.proto"],
+}`,
+		},
+		Blueprint: soongCcProtoPreamble + `
+cc_library {
+	name: "a",
+	srcs: [
+    ":a_fg_proto",
+    "a.proto",
+  ],
+	proto: {
+		export_proto_headers: true,
+	},
+	include_build_directory: false,
+}`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("proto_library", "a_proto", AttrNameToString{
+				"srcs": `["a.proto"]`,
+			}), MakeBazelTarget("cc_lite_proto_library", "a_cc_proto_lite", AttrNameToString{
+				"deps": `[
+        "//path/to/A:a_fg_proto_bp2build_converted",
+        ":a_proto",
+    ]`,
+			}), MakeBazelTarget("cc_library_static", "a_bp2build_cc_library_static", AttrNameToString{
+				"deps":               `[":libprotobuf-cpp-lite"]`,
+				"whole_archive_deps": `[":a_cc_proto_lite"]`,
+			}), MakeBazelTarget("cc_library_shared", "a", AttrNameToString{
+				"dynamic_deps":       `[":libprotobuf-cpp-lite"]`,
+				"whole_archive_deps": `[":a_cc_proto_lite"]`,
+			}),
+		},
+	})
+}
+
 func TestCcLibraryProtoFilegroups(t *testing.T) {
 	runCcLibraryTestCase(t, Bp2buildTestCase{
 		ModuleTypeUnderTest:        "cc_library",
