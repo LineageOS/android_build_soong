@@ -933,14 +933,14 @@ func (la *linkerAttributes) bp2buildForAxisAndConfig(ctx android.BazelConversion
 				(&inApexSelectValue).Append(bazel.MakeLabelList(stubLibLabels))
 				(&nonApexSelectValue).Append(bazel.MakeLabelList(depsWithStubs))
 				(&defaultSelectValue).Append(bazel.MakeLabelList(depsWithStubs))
-				la.implementationDynamicDeps.SetSelectValue(bazel.OsAndInApexAxis, bazel.AndroidAndInApex, inApexSelectValue)
-				la.implementationDynamicDeps.SetSelectValue(bazel.OsAndInApexAxis, bazel.AndroidAndNonApex, nonApexSelectValue)
-				la.implementationDynamicDeps.SetSelectValue(bazel.OsAndInApexAxis, bazel.ConditionsDefaultConfigKey, defaultSelectValue)
+				la.implementationDynamicDeps.SetSelectValue(bazel.OsAndInApexAxis, bazel.AndroidAndInApex, bazel.FirstUniqueBazelLabelList(inApexSelectValue))
+				la.implementationDynamicDeps.SetSelectValue(bazel.OsAndInApexAxis, bazel.AndroidAndNonApex, bazel.FirstUniqueBazelLabelList(nonApexSelectValue))
+				la.implementationDynamicDeps.SetSelectValue(bazel.OsAndInApexAxis, bazel.ConditionsDefaultConfigKey, bazel.FirstUniqueBazelLabelList(defaultSelectValue))
 			} else if config == bazel.OsAndroid {
 				(&inApexSelectValue).Append(bazel.MakeLabelList(stubLibLabels))
 				(&nonApexSelectValue).Append(bazel.MakeLabelList(depsWithStubs))
-				la.implementationDynamicDeps.SetSelectValue(bazel.OsAndInApexAxis, bazel.AndroidAndInApex, inApexSelectValue)
-				la.implementationDynamicDeps.SetSelectValue(bazel.OsAndInApexAxis, bazel.AndroidAndNonApex, nonApexSelectValue)
+				la.implementationDynamicDeps.SetSelectValue(bazel.OsAndInApexAxis, bazel.AndroidAndInApex, bazel.FirstUniqueBazelLabelList(inApexSelectValue))
+				la.implementationDynamicDeps.SetSelectValue(bazel.OsAndInApexAxis, bazel.AndroidAndNonApex, bazel.FirstUniqueBazelLabelList(nonApexSelectValue))
 			}
 		}
 	}
