@@ -135,7 +135,8 @@ filegroup {
 		ExpectedBazelTargets: []string{
 			MakeBazelTargetNoRestrictions("proto_library", "foo_bp2build_converted", AttrNameToString{
 				"srcs":                `["proto/foo.proto"]`,
-				"strip_import_prefix": `"proto"`}),
+				"strip_import_prefix": `"proto"`,
+				"tags":                `["manual"]`}),
 			MakeBazelTargetNoRestrictions("filegroup", "foo", AttrNameToString{
 				"srcs": `["proto/foo.proto"]`}),
 		}})
