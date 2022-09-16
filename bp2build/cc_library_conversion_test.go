@@ -2284,6 +2284,7 @@ cc_library {
 }`,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("proto_library", "a_proto", AttrNameToString{
+				"deps": `[":a_fg_proto_bp2build_converted"]`,
 				"srcs": `["a.proto"]`,
 			}), MakeBazelTarget("cc_lite_proto_library", "a_cc_proto_lite", AttrNameToString{
 				"deps": `[
@@ -2298,6 +2299,7 @@ cc_library {
 				"whole_archive_deps": `[":a_cc_proto_lite"]`,
 			}), MakeBazelTargetNoRestrictions("proto_library", "a_fg_proto_bp2build_converted", AttrNameToString{
 				"srcs": `["a_fg.proto"]`,
+				"tags": `["manual"]`,
 			}), MakeBazelTargetNoRestrictions("filegroup", "a_fg_proto", AttrNameToString{
 				"srcs": `["a_fg.proto"]`,
 			}),
@@ -2336,6 +2338,7 @@ cc_library {
 				"whole_archive_deps": `[":a_cc_proto_lite"]`,
 			}), MakeBazelTargetNoRestrictions("proto_library", "a_fg_proto_bp2build_converted", AttrNameToString{
 				"srcs": `["a_fg.proto"]`,
+				"tags": `["manual"]`,
 			}), MakeBazelTargetNoRestrictions("filegroup", "a_fg_proto", AttrNameToString{
 				"srcs": `["a_fg.proto"]`,
 			}),
@@ -2368,6 +2371,7 @@ cc_library {
 }`,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("proto_library", "a_proto", AttrNameToString{
+				"deps": `["//path/to/A:a_fg_proto_bp2build_converted"]`,
 				"srcs": `["a.proto"]`,
 			}), MakeBazelTarget("cc_lite_proto_library", "a_cc_proto_lite", AttrNameToString{
 				"deps": `[
