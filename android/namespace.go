@@ -166,10 +166,10 @@ func (r *NameResolver) findNamespace(path string) (namespace *Namespace) {
 	return namespace
 }
 
-// A NamelessModule can never be looked up by name.  It must still implement Name(), but the return
-// value doesn't have to be unique.
-type NamelessModule interface {
-	Nameless()
+// A NamespacelessModule can never be looked up by name.  It must still implement Name(), and the name
+// still has to be unique.
+type NamespacelessModule interface {
+	Namespaceless()
 }
 
 func (r *NameResolver) NewModule(ctx blueprint.NamespaceContext, moduleGroup blueprint.ModuleGroup, module blueprint.Module) (namespace blueprint.Namespace, errs []error) {
@@ -183,7 +183,7 @@ func (r *NameResolver) NewModule(ctx blueprint.NamespaceContext, moduleGroup blu
 		return nil, nil
 	}
 
-	if _, ok := module.(NamelessModule); ok {
+	if _, ok := module.(NamespacelessModule); ok {
 		return nil, nil
 	}
 
