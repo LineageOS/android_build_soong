@@ -2284,6 +2284,7 @@ cc_library {
 }`,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("proto_library", "a_proto", AttrNameToString{
+				"deps": `[":a_fg_proto_bp2build_converted"]`,
 				"srcs": `["a.proto"]`,
 			}), MakeBazelTarget("cc_lite_proto_library", "a_cc_proto_lite", AttrNameToString{
 				"deps": `[
@@ -2298,6 +2299,7 @@ cc_library {
 				"whole_archive_deps": `[":a_cc_proto_lite"]`,
 			}), MakeBazelTargetNoRestrictions("proto_library", "a_fg_proto_bp2build_converted", AttrNameToString{
 				"srcs": `["a_fg.proto"]`,
+				"tags": `["manual"]`,
 			}), MakeBazelTargetNoRestrictions("filegroup", "a_fg_proto", AttrNameToString{
 				"srcs": `["a_fg.proto"]`,
 			}),
@@ -2336,6 +2338,7 @@ cc_library {
 				"whole_archive_deps": `[":a_cc_proto_lite"]`,
 			}), MakeBazelTargetNoRestrictions("proto_library", "a_fg_proto_bp2build_converted", AttrNameToString{
 				"srcs": `["a_fg.proto"]`,
+				"tags": `["manual"]`,
 			}), MakeBazelTargetNoRestrictions("filegroup", "a_fg_proto", AttrNameToString{
 				"srcs": `["a_fg.proto"]`,
 			}),
@@ -2368,6 +2371,7 @@ cc_library {
 }`,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("proto_library", "a_proto", AttrNameToString{
+				"deps": `["//path/to/A:a_fg_proto_bp2build_converted"]`,
 				"srcs": `["a.proto"]`,
 			}), MakeBazelTarget("cc_lite_proto_library", "a_cc_proto_lite", AttrNameToString{
 				"deps": `[
@@ -2678,6 +2682,40 @@ cc_library {
 		ExpectedBazelTargets: expectedBazelTargets,
 	},
 	)
+}
+
+func TestCcLibraryStubsAcrossConfigsDuplicatesRemoved(t *testing.T) {
+	runCcLibraryTestCase(t, Bp2buildTestCase{
+		Description:                "stub target generation of the same lib across configs should not result in duplicates",
+		ModuleTypeUnderTest:        "cc_library",
+		ModuleTypeUnderTestFactory: cc.LibraryFactory,
+		Filesystem: map[string]string{
+			"bar.map.txt": "",
+		},
+		Blueprint: `
+cc_library {
+	name: "barlib",
+	stubs: { symbol_file: "bar.map.txt", versions: ["28", "29", "current"] },
+	bazel_module: { bp2build_available: false },
+}
+cc_library {
+	name: "foolib",
+	shared_libs: ["barlib"],
+	target: {
+		android: {
+			shared_libs: ["barlib"],
+		},
+	},
+	bazel_module: { bp2build_available: true },
+}`,
+		ExpectedBazelTargets: makeCcLibraryTargets("foolib", AttrNameToString{
+			"implementation_dynamic_deps": `select({
+        "//build/bazel/rules/apex:android-in_apex": [":barlib_stub_libs_current"],
+        "//conditions:default": [":barlib"],
+    })`,
+			"local_includes": `["."]`,
+		}),
+	})
 }
 
 func TestCcLibraryEscapeLdflags(t *testing.T) {

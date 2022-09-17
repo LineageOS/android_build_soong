@@ -201,6 +201,11 @@ func GetSystemServerDexLocation(ctx android.PathContext, global *GlobalConfig, l
 	if apex := global.AllApexSystemServerJars(ctx).ApexOfJar(lib); apex != "" {
 		return fmt.Sprintf("/apex/%s/javalib/%s.jar", apex, lib)
 	}
+
+	if apex := global.AllPlatformSystemServerJars(ctx).ApexOfJar(lib); apex == "system_ext" {
+		return fmt.Sprintf("/system_ext/framework/%s.jar", lib)
+	}
+
 	return fmt.Sprintf("/system/framework/%s.jar", lib)
 }
 
