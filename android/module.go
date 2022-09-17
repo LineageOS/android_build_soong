@@ -1169,7 +1169,9 @@ func (attrs *CommonAttributes) fillCommonBp2BuildModuleAttrs(ctx *topDownMutator
 	mod := ctx.Module().base()
 	// Assert passed-in attributes include Name
 	if len(attrs.Name) == 0 {
-		ctx.ModuleErrorf("CommonAttributes in fillCommonBp2BuildModuleAttrs expects a `.Name`!")
+		if ctx.ModuleType() != "package" {
+			ctx.ModuleErrorf("CommonAttributes in fillCommonBp2BuildModuleAttrs expects a `.Name`!")
+		}
 	}
 
 	depsToLabelList := func(deps []string) bazel.LabelListAttribute {
