@@ -69,6 +69,9 @@ const (
 
 	AndroidAndInApex  = "android-in_apex"
 	AndroidAndNonApex = "android-non_apex"
+
+	InApex  = "in_apex"
+	NonApex = "non_apex"
 )
 
 func PowerSetWithoutEmptySet[T any](items []T) [][]T {
@@ -198,6 +201,12 @@ var (
 		AndroidAndNonApex:          "//build/bazel/rules/apex:android-non_apex",
 		ConditionsDefaultConfigKey: ConditionsDefaultSelectKey,
 	}
+
+	inApexMap = map[string]string{
+		InApex:                     "//build/bazel/rules/apex:in_apex",
+		NonApex:                    "//build/bazel/rules/apex:non_apex",
+		ConditionsDefaultConfigKey: ConditionsDefaultSelectKey,
+	}
 )
 
 // basic configuration types
@@ -210,6 +219,7 @@ const (
 	osArch
 	productVariables
 	osAndInApex
+	inApex
 )
 
 func osArchString(os string, arch string) string {
@@ -224,6 +234,7 @@ func (ct configurationType) String() string {
 		osArch:           "arch_os",
 		productVariables: "product_variables",
 		osAndInApex:      "os_in_apex",
+		inApex:           "in_apex",
 	}[ct]
 }
 
@@ -251,6 +262,10 @@ func (ct configurationType) validateConfig(config string) {
 		if _, ok := osAndInApexMap[config]; !ok {
 			panic(fmt.Errorf("Unknown os+in_apex config: %s", config))
 		}
+	case inApex:
+		if _, ok := inApexMap[config]; !ok {
+			panic(fmt.Errorf("Unknown in_apex config: %s", config))
+		}
 	default:
 		panic(fmt.Errorf("Unrecognized ConfigurationType %d", ct))
 	}
@@ -276,6 +291,8 @@ func (ca ConfigurationAxis) SelectKey(config string) string {
 		return fmt.Sprintf("%s:%s", productVariableBazelPackage, config)
 	case osAndInApex:
 		return osAndInApexMap[config]
+	case inApex:
+		return inApexMap[config]
 	default:
 		panic(fmt.Errorf("Unrecognized ConfigurationType %d", ca.configurationType))
 	}
@@ -292,6 +309,8 @@ var (
 	OsArchConfigurationAxis = ConfigurationAxis{configurationType: osArch}
 	// An axis for os+in_apex-specific configurations
 	OsAndInApexAxis = ConfigurationAxis{configurationType: osAndInApex}
+	// An axis for in_apex-specific configurations
+	InApexAxis = ConfigurationAxis{configurationType: inApex}
 )
 
 // ProductVariableConfigurationAxis returns an axis for the given product variable
