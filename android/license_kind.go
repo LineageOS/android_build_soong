@@ -14,6 +14,8 @@
 
 package android
 
+import "android/soong/bazel"
+
 func init() {
 	RegisterLicenseKindBuildComponents(InitRegistrationContext)
 }
@@ -32,11 +34,37 @@ type licenseKindProperties struct {
 	Visibility []string
 }
 
+var _ Bazelable = &licenseKindModule{}
+
 type licenseKindModule struct {
 	ModuleBase
 	DefaultableModuleBase
+	BazelModuleBase
 
 	properties licenseKindProperties
+}
+
+type bazelLicenseKindAttributes struct {
+	Conditions []string
+	Url        string
+	Visibility []string
+}
+
+func (m *licenseKindModule) ConvertWithBp2build(ctx TopDownMutatorContext) {
+	attrs := &bazelLicenseKindAttributes{
+		Conditions: m.properties.Conditions,
+		Url:        m.properties.Url,
+		Visibility: m.properties.Visibility,
+	}
+	ctx.CreateBazelTargetModule(
+		bazel.BazelTargetModuleProperties{
+			Rule_class:        "license_kind",
+			Bzl_load_location: "@rules_license//rules:license_kind.bzl",
+		},
+		CommonAttributes{
+			Name: m.Name(),
+		},
+		attrs)
 }
 
 func (m *licenseKindModule) DepsMutator(ctx BottomUpMutatorContext) {
@@ -51,13 +79,14 @@ func LicenseKindFactory() Module {
 	module := &licenseKindModule{}
 
 	base := module.base()
-	module.AddProperties(&base.nameProperties, &module.properties)
+	module.AddProperties(&base.nameProperties, &module.properties, &base.commonProperties.BazelConversionStatus)
 
 	// The visibility property needs to be checked and parsed by the visibility module.
 	setPrimaryVisibilityProperty(module, "visibility", &module.properties.Visibility)
 
 	initAndroidModuleBase(module)
 	InitDefaultableModule(module)
+	InitBazelModule(module)
 
 	return module
 }

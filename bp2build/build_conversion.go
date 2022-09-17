@@ -64,7 +64,16 @@ func (t BazelTarget) Label() string {
 // BazelTargets is a typedef for a slice of BazelTarget objects.
 type BazelTargets []BazelTarget
 
-// sort a list of BazelTargets in-place by name
+func (targets BazelTargets) packageRule() *BazelTarget {
+	for _, target := range targets {
+		if target.ruleClass == "package" {
+			return &target
+		}
+	}
+	return nil
+}
+
+// sort a list of BazelTargets in-place, by name, and by generated/handcrafted types.
 func (targets BazelTargets) sort() {
 	sort.Slice(targets, func(i, j int) bool {
 		return targets[i].name < targets[j].name
@@ -77,7 +86,9 @@ func (targets BazelTargets) sort() {
 func (targets BazelTargets) String() string {
 	var res string
 	for i, target := range targets {
-		res += target.content
+		if target.ruleClass != "package" {
+			res += target.content
+		}
 		if i != len(targets)-1 {
 			res += "\n\n"
 		}
@@ -391,18 +402,19 @@ func generateBazelTarget(ctx bpToBuildContext, m bp2buildModule) (BazelTarget, e
 	// Return the Bazel target with rule class and attributes, ready to be
 	// code-generated.
 	attributes := propsToAttributes(props.Attrs)
+	var content string
 	targetName := m.TargetName()
+	if targetName != "" {
+		content = fmt.Sprintf(ruleTargetTemplate, ruleClass, targetName, attributes)
+	} else {
+		content = fmt.Sprintf(unnamedRuleTargetTemplate, ruleClass, attributes)
+	}
 	return BazelTarget{
 		name:            targetName,
 		packageName:     m.TargetPackage(),
 		ruleClass:       ruleClass,
 		bzlLoadLocation: bzlLoadLocation,
-		content: fmt.Sprintf(
-			bazelTarget,
-			ruleClass,
-			targetName,
-			attributes,
-		),
+		content:         content,
 	}, nil
 }
 
@@ -436,7 +448,7 @@ func generateSoongModuleTarget(ctx bpToBuildContext, m blueprint.Module) (BazelT
 	return BazelTarget{
 		name: targetName,
 		content: fmt.Sprintf(
-			soongModuleTarget,
+			soongModuleTargetTemplate,
 			targetName,
 			ctx.ModuleName(m),
 			canonicalizeModuleType(ctx.ModuleType(m)),
