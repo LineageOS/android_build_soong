@@ -15,6 +15,7 @@
 package cc
 
 import (
+	"fmt"
 	"testing"
 
 	"android/soong/android"
@@ -106,4 +107,66 @@ cc_object {
 
 	expectedOutputFiles := []string{"outputbase/execroot/__main__/bazel_out.o"}
 	android.AssertDeepEquals(t, "output files", expectedOutputFiles, outputFiles.Strings())
+}
+
+func TestCcObjectOutputFile(t *testing.T) {
+	testcases := []struct {
+		name       string
+		moduleName string
+		bp         string
+	}{
+		{
+			name:       "normal",
+			moduleName: "foo",
+			bp: `
+				srcs: ["bar.c"],
+			`,
+		},
+		{
+			name:       "suffix",
+			moduleName: "foo.o",
+			bp: `
+				srcs: ["bar.c"],
+			`,
+		},
+		{
+			name:       "keep symbols",
+			moduleName: "foo",
+			bp: `
+				srcs: ["bar.c"],
+				prefix_symbols: "foo_",
+			`,
+		},
+		{
+			name:       "partial linking",
+			moduleName: "foo",
+			bp: `
+				srcs: ["bar.c", "baz.c"],
+			`,
+		},
+		{
+			name:       "partial linking and prefix symbols",
+			moduleName: "foo",
+			bp: `
+				srcs: ["bar.c", "baz.c"],
+				prefix_symbols: "foo_",
+			`,
+		},
+	}
+
+	for _, testcase := range testcases {
+		bp := fmt.Sprintf(`
+			cc_object {
+				name: "%s",
+				%s
+			}
+		`, testcase.moduleName, testcase.bp)
+		t.Run(testcase.name, func(t *testing.T) {
+			ctx := PrepareForIntegrationTestWithCc.RunTestWithBp(t, bp)
+			android.AssertPathRelativeToTopEquals(t, "expected output file foo.o",
+				fmt.Sprintf("out/soong/.intermediates/%s/android_arm64_armv8-a/foo.o", testcase.moduleName),
+				ctx.ModuleForTests(testcase.moduleName, "android_arm64_armv8-a").Output("foo.o").Output)
+		})
+	}
+
 }
