@@ -23,7 +23,7 @@ load("//build/bazel/queryview_rules:soong_module.bzl", "soong_module")
 
 	// A macro call in the BUILD file representing a Soong module, with space
 	// for expanding more attributes.
-	soongModuleTarget = `soong_module(
+	soongModuleTargetTemplate = `soong_module(
     name = "%s",
     soong_module_name = "%s",
     soong_module_type = "%s",
@@ -31,8 +31,11 @@ load("//build/bazel/queryview_rules:soong_module.bzl", "soong_module")
     soong_module_deps = %s,
 %s)`
 
-	bazelTarget = `%s(
+	ruleTargetTemplate = `%s(
     name = "%s",
+%s)`
+
+	unnamedRuleTargetTemplate = `%s(
 %s)`
 
 	// A simple provider to mark and differentiate Soong module rule shims from
