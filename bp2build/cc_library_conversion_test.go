@@ -2078,7 +2078,8 @@ func TestCcLibraryProtoSimple(t *testing.T) {
 				"implementation_whole_archive_deps": `[":foo_cc_proto_lite"]`,
 				"deps":                              `[":libprotobuf-cpp-lite"]`,
 			}), MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
-				"dynamic_deps": `[":libprotobuf-cpp-lite"]`,
+				"dynamic_deps":                      `[":libprotobuf-cpp-lite"]`,
+				"implementation_whole_archive_deps": `[":foo_cc_proto_lite"]`,
 			}),
 		},
 	})
@@ -2104,7 +2105,8 @@ func TestCcLibraryProtoNoCanonicalPathFromRoot(t *testing.T) {
 				"implementation_whole_archive_deps": `[":foo_cc_proto_lite"]`,
 				"deps":                              `[":libprotobuf-cpp-lite"]`,
 			}), MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
-				"dynamic_deps": `[":libprotobuf-cpp-lite"]`,
+				"dynamic_deps":                      `[":libprotobuf-cpp-lite"]`,
+				"implementation_whole_archive_deps": `[":foo_cc_proto_lite"]`,
 			}),
 		},
 	})
@@ -2129,7 +2131,8 @@ func TestCcLibraryProtoExplicitCanonicalPathFromRoot(t *testing.T) {
 				"implementation_whole_archive_deps": `[":foo_cc_proto_lite"]`,
 				"deps":                              `[":libprotobuf-cpp-lite"]`,
 			}), MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
-				"dynamic_deps": `[":libprotobuf-cpp-lite"]`,
+				"dynamic_deps":                      `[":libprotobuf-cpp-lite"]`,
+				"implementation_whole_archive_deps": `[":foo_cc_proto_lite"]`,
 			}),
 		},
 	})
@@ -2156,7 +2159,8 @@ func TestCcLibraryProtoFull(t *testing.T) {
 				"implementation_whole_archive_deps": `[":foo_cc_proto"]`,
 				"deps":                              `[":libprotobuf-cpp-full"]`,
 			}), MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
-				"dynamic_deps": `[":libprotobuf-cpp-full"]`,
+				"dynamic_deps":                      `[":libprotobuf-cpp-full"]`,
+				"implementation_whole_archive_deps": `[":foo_cc_proto"]`,
 			}),
 		},
 	})
@@ -2183,7 +2187,8 @@ func TestCcLibraryProtoLite(t *testing.T) {
 				"implementation_whole_archive_deps": `[":foo_cc_proto_lite"]`,
 				"deps":                              `[":libprotobuf-cpp-lite"]`,
 			}), MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
-				"dynamic_deps": `[":libprotobuf-cpp-lite"]`,
+				"dynamic_deps":                      `[":libprotobuf-cpp-lite"]`,
+				"implementation_whole_archive_deps": `[":foo_cc_proto_lite"]`,
 			}),
 		},
 	})
@@ -2239,7 +2244,8 @@ func TestCcLibraryProtoIncludeDirs(t *testing.T) {
 				"deps":                              `[":libprotobuf-cpp-lite"]`,
 				"implementation_whole_archive_deps": `[":foo_cc_proto_lite"]`,
 			}), MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
-				"dynamic_deps": `[":libprotobuf-cpp-lite"]`,
+				"dynamic_deps":                      `[":libprotobuf-cpp-lite"]`,
+				"implementation_whole_archive_deps": `[":foo_cc_proto_lite"]`,
 			}),
 		},
 	})
@@ -2954,10 +2960,9 @@ cc_library {
 				"implementation_whole_archive_deps": `[":foo_cc_aidl_library"]`,
 				"local_includes":                    `["."]`,
 			}),
-			// TODO(b/239311679) Add implementation_whole_archive_deps to cc_library_shared
-			// for bp2build to be fully correct. This fallback is affecting proto as well.
 			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
-				"local_includes": `["."]`,
+				"implementation_whole_archive_deps": `[":foo_cc_aidl_library"]`,
+				"local_includes":                    `["."]`,
 			}),
 		},
 	})
@@ -2991,10 +2996,9 @@ cc_library {
 				"implementation_whole_archive_deps": `[":foo_cc_aidl_library"]`,
 				"local_includes":                    `["."]`,
 			}),
-			// TODO(b/239311679) Add implementation_whole_archive_deps to cc_library_shared
-			// for bp2build to be fully correct. This fallback is affecting proto as well.
 			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
-				"local_includes": `["."]`,
+				"local_includes":                    `["."]`,
+				"implementation_whole_archive_deps": `[":foo_cc_aidl_library"]`,
 			}),
 		},
 	})
@@ -3029,6 +3033,89 @@ cc_library {
 			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
 				"whole_archive_deps": `[":foo_cc_aidl_library"]`,
 				"local_includes":     `["."]`,
+			}),
+		},
+	})
+}
+
+func TestCcLibraryWithTargetApex(t *testing.T) {
+	runCcLibraryTestCase(t, Bp2buildTestCase{
+		Description:                "cc_library with target.apex",
+		ModuleTypeUnderTest:        "cc_library",
+		ModuleTypeUnderTestFactory: cc.LibraryFactory,
+		Blueprint: `
+cc_library {
+    name: "foo",
+	shared_libs: ["bar", "baz"],
+	static_libs: ["baz", "buh"],
+	target: {
+        apex: {
+            exclude_shared_libs: ["bar"],
+            exclude_static_libs: ["buh"],
+        }
+    }
+}`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
+				"implementation_deps": `[":baz__BP2BUILD__MISSING__DEP"] + select({
+        "//build/bazel/rules/apex:non_apex": [":buh__BP2BUILD__MISSING__DEP"],
+        "//conditions:default": [],
+    })`,
+				"implementation_dynamic_deps": `[":baz__BP2BUILD__MISSING__DEP"] + select({
+        "//build/bazel/rules/apex:non_apex": [":bar__BP2BUILD__MISSING__DEP"],
+        "//conditions:default": [],
+    })`,
+				"local_includes": `["."]`,
+			}),
+			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+				"implementation_deps": `[":baz__BP2BUILD__MISSING__DEP"] + select({
+        "//build/bazel/rules/apex:non_apex": [":buh__BP2BUILD__MISSING__DEP"],
+        "//conditions:default": [],
+    })`,
+				"implementation_dynamic_deps": `[":baz__BP2BUILD__MISSING__DEP"] + select({
+        "//build/bazel/rules/apex:non_apex": [":bar__BP2BUILD__MISSING__DEP"],
+        "//conditions:default": [],
+    })`,
+				"local_includes": `["."]`,
+			}),
+		},
+	})
+}
+
+func TestCcLibraryWithTargetApexAndExportLibHeaders(t *testing.T) {
+	runCcLibraryTestCase(t, Bp2buildTestCase{
+		Description:                "cc_library with target.apex and export_shared|static_lib_headers",
+		ModuleTypeUnderTest:        "cc_library",
+		ModuleTypeUnderTestFactory: cc.LibraryFactory,
+		Blueprint: `
+cc_library_static {
+    name: "foo",
+	shared_libs: ["bar", "baz"],
+    static_libs: ["abc"],
+    export_shared_lib_headers: ["baz"],
+    export_static_lib_headers: ["abc"],
+	target: {
+        apex: {
+            exclude_shared_libs: ["baz", "bar"],
+            exclude_static_libs: ["abc"],
+        }
+    }
+}`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_library_static", "foo", AttrNameToString{
+				"implementation_dynamic_deps": `select({
+        "//build/bazel/rules/apex:non_apex": [":bar__BP2BUILD__MISSING__DEP"],
+        "//conditions:default": [],
+    })`,
+				"dynamic_deps": `select({
+        "//build/bazel/rules/apex:non_apex": [":baz__BP2BUILD__MISSING__DEP"],
+        "//conditions:default": [],
+    })`,
+				"deps": `select({
+        "//build/bazel/rules/apex:non_apex": [":abc__BP2BUILD__MISSING__DEP"],
+        "//conditions:default": [],
+    })`,
+				"local_includes": `["."]`,
 			}),
 		},
 	})
