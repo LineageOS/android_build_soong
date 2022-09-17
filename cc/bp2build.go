@@ -840,6 +840,38 @@ var (
 	soongSystemSharedLibs = []string{"libc", "libm", "libdl"}
 )
 
+// resolveTargetApex re-adds the shared and static libs in target.apex.exclude_shared|static_libs props to non-apex variant
+// since all libs are already excluded by default
+func (la *linkerAttributes) resolveTargetApexProp(ctx android.BazelConversionPathContext, isBinary bool, props *BaseLinkerProperties) {
+	sharedLibsForNonApex := maybePartitionExportedAndImplementationsDeps(
+		ctx,
+		true,
+		props.Target.Apex.Exclude_shared_libs,
+		props.Export_shared_lib_headers,
+		bazelLabelForSharedDeps,
+	)
+	dynamicDeps := la.dynamicDeps.SelectValue(bazel.InApexAxis, bazel.NonApex)
+	implDynamicDeps := la.implementationDynamicDeps.SelectValue(bazel.InApexAxis, bazel.NonApex)
+	(&dynamicDeps).Append(sharedLibsForNonApex.export)
+	(&implDynamicDeps).Append(sharedLibsForNonApex.implementation)
+	la.dynamicDeps.SetSelectValue(bazel.InApexAxis, bazel.NonApex, dynamicDeps)
+	la.implementationDynamicDeps.SetSelectValue(bazel.InApexAxis, bazel.NonApex, implDynamicDeps)
+
+	staticLibsForNonApex := maybePartitionExportedAndImplementationsDeps(
+		ctx,
+		!isBinary,
+		props.Target.Apex.Exclude_static_libs,
+		props.Export_static_lib_headers,
+		bazelLabelForSharedDeps,
+	)
+	deps := la.deps.SelectValue(bazel.InApexAxis, bazel.NonApex)
+	implDeps := la.implementationDeps.SelectValue(bazel.InApexAxis, bazel.NonApex)
+	(&deps).Append(staticLibsForNonApex.export)
+	(&implDeps).Append(staticLibsForNonApex.implementation)
+	la.deps.SetSelectValue(bazel.InApexAxis, bazel.NonApex, deps)
+	la.implementationDeps.SetSelectValue(bazel.InApexAxis, bazel.NonApex, implDeps)
+}
+
 func (la *linkerAttributes) bp2buildForAxisAndConfig(ctx android.BazelConversionPathContext, isBinary bool, axis bazel.ConfigurationAxis, config string, props *BaseLinkerProperties) {
 	// Use a single variable to capture usage of nocrt in arch variants, so there's only 1 error message for this module
 	var axisFeatures []string
@@ -850,7 +882,15 @@ func (la *linkerAttributes) bp2buildForAxisAndConfig(ctx android.BazelConversion
 	// https://cs.android.com/android/platform/superproject/+/master:build/soong/cc/linker.go;l=247-249;drc=088b53577dde6e40085ffd737a1ae96ad82fc4b0
 	staticLibs := android.FirstUniqueStrings(android.RemoveListFromList(props.Static_libs, wholeStaticLibs))
 
-	staticDeps := maybePartitionExportedAndImplementationsDepsExcludes(ctx, !isBinary, staticLibs, props.Exclude_static_libs, props.Export_static_lib_headers, bazelLabelForStaticDepsExcludes)
+	staticDeps := maybePartitionExportedAndImplementationsDepsExcludes(
+		ctx,
+		!isBinary,
+		staticLibs,
+		// Exclude static libs in Exclude_static_libs and Target.Apex.Exclude_static_libs props
+		append(props.Exclude_static_libs, props.Target.Apex.Exclude_static_libs...),
+		props.Export_static_lib_headers,
+		bazelLabelForStaticDepsExcludes,
+	)
 
 	headerLibs := android.FirstUniqueStrings(props.Header_libs)
 	hDeps := maybePartitionExportedAndImplementationsDeps(ctx, !isBinary, headerLibs, props.Export_header_lib_headers, bazelLabelForHeaderDeps)
@@ -882,9 +922,19 @@ func (la *linkerAttributes) bp2buildForAxisAndConfig(ctx android.BazelConversion
 		la.usedSystemDynamicDepAsDynamicDep[el] = true
 	}
 
-	sharedDeps := maybePartitionExportedAndImplementationsDepsExcludes(ctx, !isBinary, sharedLibs, props.Exclude_shared_libs, props.Export_shared_lib_headers, bazelLabelForSharedDepsExcludes)
+	sharedDeps := maybePartitionExportedAndImplementationsDepsExcludes(
+		ctx,
+		!isBinary,
+		sharedLibs,
+		// Exclude shared libs in Exclude_shared_libs and Target.Apex.Exclude_shared_libs props
+		append(props.Exclude_shared_libs, props.Target.Apex.Exclude_shared_libs...),
+		props.Export_shared_lib_headers,
+		bazelLabelForSharedDepsExcludes,
+	)
 	la.dynamicDeps.SetSelectValue(axis, config, sharedDeps.export)
 	la.implementationDynamicDeps.SetSelectValue(axis, config, sharedDeps.implementation)
+	la.resolveTargetApexProp(ctx, isBinary, props)
+
 	if axis == bazel.NoConfigAxis || (axis == bazel.OsConfigurationAxis && config == bazel.OsAndroid) {
 		// If a dependency in la.implementationDynamicDeps has stubs, its stub variant should be
 		// used when the dependency is linked in a APEX. The dependencies in NoConfigAxis and
