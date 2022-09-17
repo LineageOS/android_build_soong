@@ -16,6 +16,7 @@ package cc
 
 import (
 	"fmt"
+	"strings"
 
 	"android/soong/android"
 	"android/soong/bazel"
@@ -254,22 +255,31 @@ func (object *objectLinker) link(ctx ModuleContext,
 
 	var outputFile android.Path
 	builderFlags := flagsToBuilderFlags(flags)
+	outputName := ctx.ModuleName()
+	if !strings.HasSuffix(outputName, objectExtension) {
+		outputName += objectExtension
+	}
 
 	if len(objs.objFiles) == 1 && String(object.Properties.Linker_script) == "" {
-		outputFile = objs.objFiles[0]
-
-		if String(object.Properties.Prefix_symbols) != "" {
-			output := android.PathForModuleOut(ctx, ctx.ModuleName()+objectExtension)
-			transformBinaryPrefixSymbols(ctx, String(object.Properties.Prefix_symbols), outputFile,
-				builderFlags, output)
-			outputFile = output
-		}
-	} else {
-		output := android.PathForModuleOut(ctx, ctx.ModuleName()+objectExtension)
+		output := android.PathForModuleOut(ctx, outputName)
 		outputFile = output
 
 		if String(object.Properties.Prefix_symbols) != "" {
-			input := android.PathForModuleOut(ctx, "unprefixed", ctx.ModuleName()+objectExtension)
+			transformBinaryPrefixSymbols(ctx, String(object.Properties.Prefix_symbols), objs.objFiles[0],
+				builderFlags, output)
+		} else {
+			ctx.Build(pctx, android.BuildParams{
+				Rule:   android.Cp,
+				Input:  objs.objFiles[0],
+				Output: output,
+			})
+		}
+	} else {
+		output := android.PathForModuleOut(ctx, outputName)
+		outputFile = output
+
+		if String(object.Properties.Prefix_symbols) != "" {
+			input := android.PathForModuleOut(ctx, "unprefixed", outputName)
 			transformBinaryPrefixSymbols(ctx, String(object.Properties.Prefix_symbols), input,
 				builderFlags, output)
 			output = input
