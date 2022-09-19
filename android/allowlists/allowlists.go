@@ -216,6 +216,7 @@ var (
 		"packages/apps/DevCamera":                          Bp2BuildDefaultTrue,
 		"packages/apps/HTMLViewer":                         Bp2BuildDefaultTrue,
 		"packages/apps/Protips":                            Bp2BuildDefaultTrue,
+		"packages/apps/SafetyRegulatoryInfo":               Bp2BuildDefaultTrue,
 		"packages/apps/WallpaperPicker":                    Bp2BuildDefaultTrue,
 		"packages/modules/StatsD/lib/libstatssocket":       Bp2BuildDefaultTrueRecursively,
 		"packages/modules/adb":                             Bp2BuildDefaultTrue,
