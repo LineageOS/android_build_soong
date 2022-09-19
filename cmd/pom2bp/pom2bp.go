@@ -150,6 +150,7 @@ var sdkVersion string
 var defaultMinSdkVersion string
 var useVersion string
 var staticDeps bool
+var writeCmd bool
 var jetifier bool
 
 func InList(s string, list []string) bool {
@@ -810,6 +811,9 @@ Usage: %s [--rewrite <regex>=<replace>] [--exclude <module>] [--extra-static-lib
   -use-version <version>
      If the maven directory contains multiple versions of artifacts and their pom files,
      -use-version can be used to only write Android.bp files for a specific version of those artifacts.
+  -write-cmd
+     Whether to write the command line arguments used to generate the build file as a comment at
+     the top of the build file itself.
   -jetifier
      Sets jetifier: true for all modules.
   <dir>
@@ -836,6 +840,7 @@ Usage: %s [--rewrite <regex>=<replace>] [--exclude <module>] [--extra-static-lib
 	flag.StringVar(&defaultMinSdkVersion, "default-min-sdk-version", "24", "Default min_sdk_version to use, if one is not available from AndroidManifest.xml. Default: 24")
 	flag.StringVar(&useVersion, "use-version", "", "Only read artifacts of a specific version")
 	flag.BoolVar(&staticDeps, "static-deps", false, "Statically include direct dependencies")
+	flag.BoolVar(&writeCmd, "write-cmd", true, "Write command line arguments as a comment")
 	flag.BoolVar(&jetifier, "jetifier", false, "Sets jetifier: true on all modules")
 	flag.StringVar(&regen, "regen", "", "Rewrite specified file")
 	flag.BoolVar(&pom2build, "pom2build", false, "If true, will generate a Bazel BUILD file *instead* of a .bp file")
@@ -962,8 +967,13 @@ Usage: %s [--rewrite <regex>=<replace>] [--exclude <module>] [--extra-static-lib
 	if pom2build {
 		commentString = "#"
 	}
-	fmt.Fprintln(buf, commentString, "Automatically generated with:")
-	fmt.Fprintln(buf, commentString, "pom2bp", strings.Join(proptools.ShellEscapeList(os.Args[1:]), " "))
+
+	fmt.Fprintln(buf, commentString, "This is a generated file. Do not modify directly.")
+
+	if writeCmd {
+		fmt.Fprintln(buf, commentString, "Automatically generated with:")
+		fmt.Fprintln(buf, commentString, "pom2bp", strings.Join(proptools.ShellEscapeList(os.Args[1:]), " "))
+	}
 
 	depsTemplate := bpDepsTemplate
 	template := bpTemplate
