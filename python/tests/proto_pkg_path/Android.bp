@@ -1,0 +1,13 @@
+python_test_host {
+    name: "py_proto_pkg_path_test",
+    main: "main.py",
+    srcs: [
+        "main.py",
+        "proto/*.proto",
+    ],
+    pkg_path: "mylib/subpackage",
+    proto: {
+        canonical_path_from_root: false,
+        respect_pkg_path: true,
+    },
+}
