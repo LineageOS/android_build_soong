@@ -45,6 +45,7 @@ func generateBazelTargetsForTest(targets []testBazelTarget, hod android.HostOrDe
 
 type ccBinaryBp2buildTestCase struct {
 	description string
+	filesystem  map[string]string
 	blueprint   string
 	targets     []testBazelTarget
 }
@@ -79,6 +80,7 @@ func runCcBinaryTestCase(t *testing.T, testCase ccBinaryBp2buildTestCase) {
 			ModuleTypeUnderTestFactory: cc.BinaryFactory,
 			Description:                description,
 			Blueprint:                  binaryReplacer.Replace(testCase.blueprint),
+			Filesystem:                 testCase.filesystem,
 		})
 	})
 }
@@ -94,6 +96,7 @@ func runCcHostBinaryTestCase(t *testing.T, testCase ccBinaryBp2buildTestCase) {
 			ModuleTypeUnderTestFactory: cc.BinaryHostFactory,
 			Description:                description,
 			Blueprint:                  hostBinaryReplacer.Replace(testCase.blueprint),
+			Filesystem:                 testCase.filesystem,
 		})
 	})
 }
@@ -101,6 +104,9 @@ func runCcHostBinaryTestCase(t *testing.T, testCase ccBinaryBp2buildTestCase) {
 func TestBasicCcBinary(t *testing.T) {
 	runCcBinaryTests(t, ccBinaryBp2buildTestCase{
 		description: "basic -- properties -> attrs with little/no transformation",
+		filesystem: map[string]string{
+			soongCcVersionLibBpPath: soongCcVersionLibBp,
+		},
 		blueprint: `
 {rule_name} {
     name: "foo",
@@ -146,9 +152,10 @@ func TestBasicCcBinary(t *testing.T) {
         "keep_symbols_list": ["symbol"],
         "none": True,
     }`,
-				"sdk_version":     `"current"`,
-				"min_sdk_version": `"29"`,
-				"use_version_lib": `True`,
+				"sdk_version":        `"current"`,
+				"min_sdk_version":    `"29"`,
+				"use_version_lib":    `True`,
+				"whole_archive_deps": `["//build/soong/cc/libbuildversion:libbuildversion"]`,
 			},
 			},
 		},
