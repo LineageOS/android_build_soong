@@ -367,7 +367,6 @@ func libraryBp2Build(ctx android.TopDownMutatorContext, m *Module) {
 		Stl:                      compilerAttrs.stl,
 		Cpp_std:                  compilerAttrs.cppStd,
 		C_std:                    compilerAttrs.cStd,
-		Use_version_lib:          linkerAttrs.useVersionLib,
 
 		Features: baseAttributes.features,
 	}
@@ -2631,8 +2630,7 @@ func sharedOrStaticLibraryBp2Build(ctx android.TopDownMutatorContext, module *Mo
 		attrs = &bazelCcLibraryStaticAttributes{
 			staticOrSharedAttributes: commonAttrs,
 
-			Use_libcrt:      linkerAttrs.useLibcrt,
-			Use_version_lib: linkerAttrs.useVersionLib,
+			Use_libcrt: linkerAttrs.useLibcrt,
 
 			Rtti:    compilerAttrs.rtti,
 			Stl:     compilerAttrs.stl,

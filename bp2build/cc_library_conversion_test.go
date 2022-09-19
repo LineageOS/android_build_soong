@@ -27,7 +27,16 @@ const (
 	soongCcLibraryPreamble = `
 cc_defaults {
     name: "linux_bionic_supported",
-}`
+}
+`
+
+	soongCcVersionLibBpPath = "build/soong/cc/libbuildversion/Android.bp"
+	soongCcVersionLibBp     = `
+cc_library_static {
+	name: "libbuildversion",
+	bazel_module: { bp2build_available: false },
+}
+`
 
 	soongCcProtoLibraries = `
 cc_library {
@@ -62,9 +71,10 @@ func TestCcLibrarySimple(t *testing.T) {
 		ModuleTypeUnderTest:        "cc_library",
 		ModuleTypeUnderTestFactory: cc.LibraryFactory,
 		Filesystem: map[string]string{
-			"android.cpp": "",
-			"bionic.cpp":  "",
-			"darwin.cpp":  "",
+			soongCcVersionLibBpPath: soongCcVersionLibBp,
+			"android.cpp":           "",
+			"bionic.cpp":            "",
+			"darwin.cpp":            "",
 			// Refer to cc.headerExts for the supported header extensions in Soong.
 			"header.h":         "",
 			"header.hh":        "",
@@ -143,9 +153,10 @@ cc_library {
         "//build/bazel/platforms/os:linux_bionic": ["bionic.cpp"],
         "//conditions:default": [],
     })`,
-			"sdk_version":     `"current"`,
-			"min_sdk_version": `"29"`,
-			"use_version_lib": `True`,
+			"sdk_version":                       `"current"`,
+			"min_sdk_version":                   `"29"`,
+			"use_version_lib":                   `True`,
+			"implementation_whole_archive_deps": `["//build/soong/cc/libbuildversion:libbuildversion"]`,
 		}),
 	})
 }
@@ -1337,6 +1348,7 @@ func makeCcLibraryTargets(name string, attrs AttrNameToString) []string {
 		"strip":                    true,
 		"inject_bssl_hash":         true,
 		"has_stubs":                true,
+		"use_version_lib":          true,
 	}
 
 	sharedAttrs := AttrNameToString{}
