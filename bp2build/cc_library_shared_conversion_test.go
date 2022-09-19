@@ -454,6 +454,9 @@ func TestCcLibrarySharedProto(t *testing.T) {
 
 func TestCcLibrarySharedUseVersionLib(t *testing.T) {
 	runCcLibrarySharedTestCase(t, Bp2buildTestCase{
+		Filesystem: map[string]string{
+			soongCcVersionLibBpPath: soongCcVersionLibBp,
+		},
 		Blueprint: soongCcProtoPreamble + `cc_library_shared {
         name: "foo",
         use_version_lib: true,
@@ -461,7 +464,8 @@ func TestCcLibrarySharedUseVersionLib(t *testing.T) {
 }`,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
-				"use_version_lib": "True",
+				"use_version_lib":                   "True",
+				"implementation_whole_archive_deps": `["//build/soong/cc/libbuildversion:libbuildversion"]`,
 			}),
 		},
 	})
