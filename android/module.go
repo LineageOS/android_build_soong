@@ -917,6 +917,8 @@ type CommonAttributes struct {
 	Name string
 	// Data mapped from: Required
 	Data bazel.LabelListAttribute
+
+	Tags bazel.StringListAttribute
 }
 
 // constraintAttributes represents Bazel attributes pertaining to build constraints,

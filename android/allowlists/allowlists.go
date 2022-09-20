@@ -165,10 +165,12 @@ var (
 		"frameworks/av/media/liberror":                       Bp2BuildDefaultTrueRecursively,
 		"frameworks/av/services/minijail":                    Bp2BuildDefaultTrueRecursively,
 		"frameworks/av/media/module/minijail":                Bp2BuildDefaultTrueRecursively,
+		"frameworks/base/libs/androidfw":                     Bp2BuildDefaultTrue,
 		"frameworks/base/media/tests/MediaDump":              Bp2BuildDefaultTrue,
 		"frameworks/base/services/tests/servicestests/aidl":  Bp2BuildDefaultTrue,
 		"frameworks/base/startop/apps/test":                  Bp2BuildDefaultTrue,
 		"frameworks/base/tests/appwidgets/AppWidgetHostTest": Bp2BuildDefaultTrueRecursively,
+		"frameworks/base/tools/aapt2":                        Bp2BuildDefaultTrue,
 		"frameworks/native/libs/adbd_auth":                   Bp2BuildDefaultTrueRecursively,
 		"frameworks/native/libs/arect":                       Bp2BuildDefaultTrueRecursively,
 		"frameworks/native/libs/math":                        Bp2BuildDefaultTrueRecursively,
@@ -216,6 +218,7 @@ var (
 		"packages/apps/DevCamera":                          Bp2BuildDefaultTrue,
 		"packages/apps/HTMLViewer":                         Bp2BuildDefaultTrue,
 		"packages/apps/Protips":                            Bp2BuildDefaultTrue,
+		"packages/apps/SafetyRegulatoryInfo":               Bp2BuildDefaultTrue,
 		"packages/apps/WallpaperPicker":                    Bp2BuildDefaultTrue,
 		"packages/modules/StatsD/lib/libstatssocket":       Bp2BuildDefaultTrueRecursively,
 		"packages/modules/adb":                             Bp2BuildDefaultTrue,
@@ -260,6 +263,7 @@ var (
 		"system/core/libvndksupport":                             Bp2BuildDefaultTrueRecursively,
 		"system/core/property_service/libpropertyinfoparser":     Bp2BuildDefaultTrueRecursively,
 		"system/core/property_service/libpropertyinfoserializer": Bp2BuildDefaultTrueRecursively,
+		"system/incremental_delivery/incfs":                      Bp2BuildDefaultTrue,
 		"system/libartpalette":                                   Bp2BuildDefaultTrueRecursively,
 		"system/libbase":                                         Bp2BuildDefaultTrueRecursively,
 		"system/libfmq":                                          Bp2BuildDefaultTrue,
@@ -288,9 +292,11 @@ var (
 		"system/testing/gtest_extras":                            Bp2BuildDefaultTrueRecursively,
 		"system/timezone/apex":                                   Bp2BuildDefaultTrueRecursively,
 		"system/timezone/output_data":                            Bp2BuildDefaultTrueRecursively,
-		"system/tools/sysprop":                                   Bp2BuildDefaultTrue,
 		"system/tools/aidl/build/tests_bp2build":                 Bp2BuildDefaultTrue,
+		"system/tools/sysprop":                                   Bp2BuildDefaultTrue,
 		"system/unwinding/libunwindstack":                        Bp2BuildDefaultTrueRecursively,
+
+		"frameworks/proto_logging/stats": Bp2BuildDefaultTrueRecursively,
 
 		"tools/apksig": Bp2BuildDefaultTrue,
 		"tools/platform-compat/java/android/compat":  Bp2BuildDefaultTrueRecursively,
@@ -336,6 +342,8 @@ var (
 	}
 
 	Bp2buildModuleAlwaysConvertList = []string{
+		"libidmap2_policies",
+		"libSurfaceFlingerProp",
 		// cc mainline modules
 		"code_coverage.policy",
 		"code_coverage.policy.other",
@@ -377,10 +385,10 @@ var (
 		"libgraphicsenv",
 		"libhardware",
 		"libhardware_headers",
-		"libincfs_headers",
 		"libnativeloader-headers",
 		"libnativewindow_headers",
 		"libneuralnetworks_headers",
+		"libneuralnetworks_packageinfo",
 		"libopus",
 		"libpdx_headers",
 		"libprocpartition",
@@ -420,11 +428,14 @@ var (
 		"neuralnetworks_types",
 		"neuralnetworks_utils_hal_aidl",
 		"neuralnetworks_utils_hal_common",
+		"neuralnetworks_utils_hal_service",
 		"neuralnetworks_utils_hal_1_0",
 		"neuralnetworks_utils_hal_1_1",
 		"neuralnetworks_utils_hal_1_2",
 		"neuralnetworks_utils_hal_1_3",
 		"libneuralnetworks_common",
+		// packagemanager_aidl_interface is created implicitly in packagemanager_aidl module
+		"packagemanager_aidl_interface",
 		"philox_random",
 		"philox_random_headers",
 		"server_configurable_flags",
@@ -546,9 +557,6 @@ var (
 		"prebuilt_platform-robolectric-4.4-prebuilt",   // aosp/1999250, needs .aar support in Jars
 		"prebuilt_platform-robolectric-4.5.1-prebuilt", // aosp/1999250, needs .aar support in Jars
 
-		// proto support
-		"libstats_proto_host", // TODO(b/236055697): handle protos from other packages
-
 		// path property for filegroups
 		"conscrypt",                        // TODO(b/210751803), we don't handle path property for filegroups
 		"conscrypt-for-host",               // TODO(b/210751803), we don't handle path property for filegroups
@@ -560,15 +568,16 @@ var (
 		"auto_value_plugin_resources",      // TODO(b/210751803), we don't handle path property for filegroups
 
 		// go deps:
+		"aapt2-protos",                                                                               // depends on soong_zip, a go binary
 		"analyze_bcpf",                                                                               // depends on bpmodify a blueprint_go_binary.
 		"apex-protos",                                                                                // depends on soong_zip, a go binary
 		"generated_android_icu4j_src_files", "generated_android_icu4j_test_files", "icu4c_test_data", // depends on unconverted modules: soong_zip
 		"host_bionic_linker_asm",                                                  // depends on extract_linker, a go binary.
 		"host_bionic_linker_script",                                               // depends on extract_linker, a go binary.
 		"libc_musl_sysroot_bionic_arch_headers",                                   // depends on soong_zip
-		"libc_musl_sysroot_zlib_headers",                                          // depends on soong_zip and zip2zip
 		"libc_musl_sysroot_bionic_headers",                                        // 218405924, depends on soong_zip and generates duplicate srcs
 		"libc_musl_sysroot_libc++_headers", "libc_musl_sysroot_libc++abi_headers", // depends on soong_zip, zip2zip
+		"libc_musl_sysroot_zlib_headers", // depends on soong_zip and zip2zip
 		"robolectric-sqlite4java-native", // depends on soong_zip, a go binary
 		"robolectric_tzdata",             // depends on soong_zip, a go binary
 
@@ -614,7 +623,6 @@ var (
 		"pbtombstone", "crash_dump", // depends on libdebuggerd, libunwindstack
 		"robolectric-sqlite4java-0.282",             // depends on unconverted modules: robolectric-sqlite4java-import, robolectric-sqlite4java-native
 		"static_crasher",                            // depends on unconverted modules: libdebuggerd_handler
-		"stats-log-api-gen",                         // depends on unconverted modules: libstats_proto_host
 		"statslog.cpp", "statslog.h", "statslog.rs", // depends on unconverted modules: stats-log-api-gen
 		"statslog_art.cpp", "statslog_art.h", "statslog_header.rs", // depends on unconverted modules: stats-log-api-gen
 		"test_fips",           // depends on unconverted modules: adb
@@ -624,6 +632,9 @@ var (
 
 		// '//bionic/libc:libc_bp2build_cc_library_static' is duplicated in the 'deps' attribute of rule
 		"toybox-static",
+
+		// aidl files not created
+		"overlayable_policy_aidl_interface",
 
 		// cc_test related.
 		// Failing host cc_tests
@@ -648,6 +659,8 @@ var (
 		"libnativebridge3-test-case",
 		"libnativebridge6-test-case",
 		"libnativebridge6prezygotefork",
+
+		"libandroidfw_tests", "aapt2_tests", // failing due to data path issues
 
 		// cc_test with unconverted deps, or are device-only (and not verified to pass yet)
 		"AMRWBEncTest",
@@ -1077,6 +1090,12 @@ var (
 		"libtest_with_dependency_loop_b_tmp",
 		"libtest_with_dependency_loop_c",
 		"libtestshared",
+
+		// depends on unconverted libprotobuf-java-nano
+		"dnsresolverprotosnano",
+		"launcherprotosnano",
+		"datastallprotosnano",
+		"devicepolicyprotosnano",
 	}
 
 	Bp2buildCcLibraryStaticOnlyList = []string{}
