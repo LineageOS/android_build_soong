@@ -148,3 +148,27 @@ cc_test {
 		},
 	})
 }
+
+func TestCcTest_TestOptions_Tags(t *testing.T) {
+	runCcTestTestCase(t, ccTestBp2buildTestCase{
+		description: "cc test with test_options.tags converted to tags",
+		blueprint: `
+cc_test {
+    name: "mytest",
+    host_supported: true,
+    srcs: ["test.cpp"],
+    test_options: { tags: ["no-remote"] },
+}
+`,
+		targets: []testBazelTarget{
+			{"cc_test", "mytest", AttrNameToString{
+				"tags":           `["no-remote"]`,
+				"local_includes": `["."]`,
+				"srcs":           `["test.cpp"]`,
+				"gtest":          "True",
+				"isolated":       "True",
+			},
+			},
+		},
+	})
+}
