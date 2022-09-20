@@ -19,14 +19,6 @@ cc_library_static {
 
 python_library_host {
     name: "linker_config_proto",
-    version: {
-        py2: {
-            enabled: false,
-        },
-        py3: {
-            enabled: true,
-        },
-    },
     srcs: [
         "linker_config.proto",
     ],
