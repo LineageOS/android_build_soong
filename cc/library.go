@@ -2704,6 +2704,7 @@ func sharedOrStaticLibraryBp2Build(ctx android.TopDownMutatorContext, module *Mo
 		modType = "cc_library_static"
 	} else {
 		modType = "cc_library_shared"
+		createStubsBazelTargetIfNeeded(ctx, module, compilerAttrs, exportedIncludes, baseAttributes)
 	}
 	props := bazel.BazelTargetModuleProperties{
 		Rule_class:        modType,
@@ -2711,8 +2712,6 @@ func sharedOrStaticLibraryBp2Build(ctx android.TopDownMutatorContext, module *Mo
 	}
 
 	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: module.Name()}, attrs)
-
-	createStubsBazelTargetIfNeeded(ctx, module, compilerAttrs, exportedIncludes, baseAttributes)
 }
 
 // TODO(b/199902614): Can this be factored to share with the other Attributes?
