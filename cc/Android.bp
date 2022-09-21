@@ -45,6 +45,7 @@ bootstrap_go_package {
         "snapshot_utils.go",
         "stl.go",
         "strip.go",
+        "sysprop.go",
         "tidy.go",
         "util.go",
         "vendor_snapshot.go",
