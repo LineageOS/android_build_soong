@@ -30,6 +30,7 @@ bootstrap_go_package {
     srcs: [
         "androidmk.go",
         "apex.go",
+        "api_domain.go",
         "api_levels.go",
         "arch.go",
         "arch_list.go",
