@@ -439,6 +439,8 @@ var (
 		"philox_random",
 		"philox_random_headers",
 		"server_configurable_flags",
+		"statslog_neuralnetworks.cpp",
+		"statslog_neuralnetworks.h",
 		"tensorflow_headers",
 
 		"libgui_headers",
@@ -660,14 +662,12 @@ var (
 		"libstatslog_art",           // depends on unconverted modules: statslog_art.cpp, statslog_art.h
 		"linker_reloc_bench_main",   // depends on unconverted modules: liblinker_reloc_bench_*
 		"pbtombstone", "crash_dump", // depends on libdebuggerd, libunwindstack
-		"robolectric-sqlite4java-0.282",             // depends on unconverted modules: robolectric-sqlite4java-import, robolectric-sqlite4java-native
-		"static_crasher",                            // depends on unconverted modules: libdebuggerd_handler
-		"statslog.cpp", "statslog.h", "statslog.rs", // depends on unconverted modules: stats-log-api-gen
-		"statslog_art.cpp", "statslog_art.h", "statslog_header.rs", // depends on unconverted modules: stats-log-api-gen
-		"test_fips",           // depends on unconverted modules: adb
-		"timezone-host",       // depends on unconverted modules: art.module.api.annotations
-		"truth-host-prebuilt", // depends on unconverted modules: truth-prebuilt
-		"truth-prebuilt",      // depends on unconverted modules: asm-7.0, guava
+		"robolectric-sqlite4java-0.282", // depends on unconverted modules: robolectric-sqlite4java-import, robolectric-sqlite4java-native
+		"static_crasher",                // depends on unconverted modules: libdebuggerd_handler
+		"test_fips",                     // depends on unconverted modules: adb
+		"timezone-host",                 // depends on unconverted modules: art.module.api.annotations
+		"truth-host-prebuilt",           // depends on unconverted modules: truth-prebuilt
+		"truth-prebuilt",                // depends on unconverted modules: asm-7.0, guava
 
 		// '//bionic/libc:libc_bp2build_cc_library_static' is duplicated in the 'deps' attribute of rule
 		"toybox-static",
