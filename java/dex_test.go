@@ -30,6 +30,19 @@ func TestR8(t *testing.T) {
 			platform_apis: true,
 		}
 
+		android_app {
+			name: "stable_app",
+			srcs: ["foo.java"],
+			sdk_version: "current",
+			min_sdk_version: "31",
+		}
+
+		android_app {
+			name: "core_platform_app",
+			srcs: ["foo.java"],
+			sdk_version: "core_platform",
+		}
+
 		java_library {
 			name: "lib",
 			srcs: ["foo.java"],
@@ -42,11 +55,15 @@ func TestR8(t *testing.T) {
 	`)
 
 	app := result.ModuleForTests("app", "android_common")
+	stableApp := result.ModuleForTests("stable_app", "android_common")
+	corePlatformApp := result.ModuleForTests("core_platform_app", "android_common")
 	lib := result.ModuleForTests("lib", "android_common")
 	staticLib := result.ModuleForTests("static_lib", "android_common")
 
 	appJavac := app.Rule("javac")
 	appR8 := app.Rule("r8")
+	stableAppR8 := stableApp.Rule("r8")
+	corePlatformAppR8 := corePlatformApp.Rule("r8")
 	libHeader := lib.Output("turbine-combined/lib.jar").Output
 	staticLibHeader := staticLib.Output("turbine-combined/static_lib.jar").Output
 
@@ -61,6 +78,12 @@ func TestR8(t *testing.T) {
 		appR8.Args["r8Flags"], staticLibHeader.String())
 	android.AssertStringDoesContain(t, "expected -ignorewarnings in app r8 flags",
 		appR8.Args["r8Flags"], "-ignorewarnings")
+	android.AssertStringDoesContain(t, "expected --android-platform-build in app r8 flags",
+		appR8.Args["r8Flags"], "--android-platform-build")
+	android.AssertStringDoesNotContain(t, "expected no --android-platform-build in stable_app r8 flags",
+		stableAppR8.Args["r8Flags"], "--android-platform-build")
+	android.AssertStringDoesContain(t, "expected --android-platform-build in core_platform_app r8 flags",
+		corePlatformAppR8.Args["r8Flags"], "--android-platform-build")
 }
 
 func TestR8Flags(t *testing.T) {
@@ -88,7 +111,8 @@ func TestR8Flags(t *testing.T) {
 		appR8.Args["r8Flags"], "-dontobfuscate")
 	android.AssertStringDoesNotContain(t, "expected no -ignorewarnings in app r8 flags",
 		appR8.Args["r8Flags"], "-ignorewarnings")
-
+	android.AssertStringDoesContain(t, "expected --android-platform-build in app r8 flags",
+		appR8.Args["r8Flags"], "--android-platform-build")
 }
 
 func TestD8(t *testing.T) {
