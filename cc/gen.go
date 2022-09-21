@@ -229,6 +229,34 @@ func genSysprop(ctx android.ModuleContext, syspropFile android.Path) (android.Pa
 	return cppFile, headers.Paths()
 }
 
+func bp2buildCcSysprop(ctx android.Bp2buildMutatorContext, moduleName string, minSdkVersion *string, srcs bazel.LabelListAttribute) *bazel.LabelAttribute {
+	labels := SyspropLibraryLabels{
+		SyspropLibraryLabel: moduleName + "_sysprop_library",
+		StaticLibraryLabel:  moduleName + "_cc_sysprop_library_static",
+	}
+	Bp2buildSysprop(ctx, labels, srcs, minSdkVersion)
+	return createLabelAttributeCorrespondingToSrcs(":"+labels.StaticLibraryLabel, srcs)
+}
+
+// Creates a LabelAttribute for a given label where the value is only set for
+// the same config values that have values in a given LabelListAttribute
+func createLabelAttributeCorrespondingToSrcs(baseLabelName string, srcs bazel.LabelListAttribute) *bazel.LabelAttribute {
+	baseLabel := bazel.Label{Label: baseLabelName}
+	label := bazel.LabelAttribute{}
+	if !srcs.Value.IsNil() && !srcs.Value.IsEmpty() {
+		label.Value = &baseLabel
+		return &label
+	}
+	for axis, configToSrcs := range srcs.ConfigurableValues {
+		for config, val := range configToSrcs {
+			if !val.IsNil() && !val.IsEmpty() {
+				label.SetSelectValue(axis, config, baseLabel)
+			}
+		}
+	}
+	return &label
+}
+
 // Used to communicate information from the genSources method back to the library code that uses
 // it.
 type generatedSourceInfo struct {
