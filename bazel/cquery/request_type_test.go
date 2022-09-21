@@ -1,9 +1,8 @@
 package cquery
 
 import (
-	"fmt"
+	"encoding/json"
 	"reflect"
-	"strings"
 	"testing"
 )
 
@@ -63,74 +62,48 @@ func TestGetPythonBinaryParseResults(t *testing.T) {
 }
 
 func TestGetCcInfoParseResults(t *testing.T) {
-	const expectedSplits = 10
-	noResult := strings.Repeat("|", expectedSplits-1)
 	testCases := []struct {
-		description          string
-		input                string
-		expectedOutput       CcInfo
-		expectedErrorMessage string
+		description    string
+		inputCcInfo    CcInfo
+		expectedOutput CcInfo
 	}{
 		{
-			description: "no result",
-			input:       noResult,
-			expectedOutput: CcInfo{
-				OutputFiles:          []string{},
-				CcObjectFiles:        []string{},
-				CcSharedLibraryFiles: []string{},
-				CcStaticLibraryFiles: []string{},
-				Includes:             []string{},
-				SystemIncludes:       []string{},
-				Headers:              []string{},
-				RootStaticArchives:   []string{},
-				RootDynamicLibraries: []string{},
-				TocFile:              "",
-			},
+			description:    "no result",
+			inputCcInfo:    CcInfo{},
+			expectedOutput: CcInfo{},
 		},
 		{
 			description: "only output",
-			input:       "test" + noResult,
+			inputCcInfo: CcInfo{
+				OutputFiles: []string{"test", "test3"},
+			},
 			expectedOutput: CcInfo{
-				OutputFiles:          []string{"test"},
-				CcObjectFiles:        []string{},
-				CcSharedLibraryFiles: []string{},
-				CcStaticLibraryFiles: []string{},
-				Includes:             []string{},
-				SystemIncludes:       []string{},
-				Headers:              []string{},
-				RootStaticArchives:   []string{},
-				RootDynamicLibraries: []string{},
-				TocFile:              "",
+				OutputFiles: []string{"test", "test3"},
 			},
 		},
 		{
 			description: "only ToC",
-			input:       noResult + "test",
+			inputCcInfo: CcInfo{
+				TocFile: "test",
+			},
 			expectedOutput: CcInfo{
-				OutputFiles:          []string{},
-				CcObjectFiles:        []string{},
-				CcSharedLibraryFiles: []string{},
-				CcStaticLibraryFiles: []string{},
-				Includes:             []string{},
-				SystemIncludes:       []string{},
-				Headers:              []string{},
-				RootStaticArchives:   []string{},
-				RootDynamicLibraries: []string{},
-				TocFile:              "test",
+				TocFile: "test",
 			},
 		},
 		{
 			description: "all items set",
-			input: "out1, out2" +
-				"|object1, object2" +
-				"|shared_lib1, shared_lib2" +
-				"|static_lib1, static_lib2" +
-				"|., dir/subdir" +
-				"|system/dir, system/other/dir" +
-				"|dir/subdir/hdr.h" +
-				"|rootstaticarchive1" +
-				"|rootdynamiclibrary1" +
-				"|lib.so.toc",
+			inputCcInfo: CcInfo{
+				OutputFiles:          []string{"out1", "out2"},
+				CcObjectFiles:        []string{"object1", "object2"},
+				CcSharedLibraryFiles: []string{"shared_lib1", "shared_lib2"},
+				CcStaticLibraryFiles: []string{"static_lib1", "static_lib2"},
+				Includes:             []string{".", "dir/subdir"},
+				SystemIncludes:       []string{"system/dir", "system/other/dir"},
+				Headers:              []string{"dir/subdir/hdr.h"},
+				RootStaticArchives:   []string{"rootstaticarchive1"},
+				RootDynamicLibraries: []string{"rootdynamiclibrary1"},
+				TocFile:              "lib.so.toc",
+			},
 			expectedOutput: CcInfo{
 				OutputFiles:          []string{"out1", "out2"},
 				CcObjectFiles:        []string{"object1", "object2"},
@@ -144,24 +117,12 @@ func TestGetCcInfoParseResults(t *testing.T) {
 				TocFile:              "lib.so.toc",
 			},
 		},
-		{
-			description:          "too few result splits",
-			input:                "|",
-			expectedOutput:       CcInfo{},
-			expectedErrorMessage: fmt.Sprintf("expected %d items, got %q", expectedSplits, []string{"", ""}),
-		},
-		{
-			description:          "too many result splits",
-			input:                strings.Repeat("|", expectedSplits+1), // 2 too many
-			expectedOutput:       CcInfo{},
-			expectedErrorMessage: fmt.Sprintf("expected %d items, got %q", expectedSplits, make([]string, expectedSplits+2)),
-		},
 	}
 	for _, tc := range testCases {
-		actualOutput, err := GetCcInfo.ParseResult(tc.input)
-		if (err == nil && tc.expectedErrorMessage != "") ||
-			(err != nil && err.Error() != tc.expectedErrorMessage) {
-			t.Errorf("%q:\n%12s: %q\n%12s: %q", tc.description, "expect Error", tc.expectedErrorMessage, "but got", err)
+		jsonInput, _ := json.Marshal(tc.inputCcInfo)
+		actualOutput, err := GetCcInfo.ParseResult(string(jsonInput))
+		if err != nil {
+			t.Errorf("%q:\n test case get error: %q", tc.description, err)
 		} else if err == nil && !reflect.DeepEqual(tc.expectedOutput, actualOutput) {
 			t.Errorf("%q:\n expected %#v\n!= actual %#v", tc.description, tc.expectedOutput, actualOutput)
 		}
