@@ -1485,14 +1485,37 @@ func TestCcLibraryStaticProto(t *testing.T) {
 
 func TestCcLibraryStaticUseVersionLib(t *testing.T) {
 	runCcLibraryStaticTestCase(t, Bp2buildTestCase{
+		Filesystem: map[string]string{
+			soongCcVersionLibBpPath: soongCcVersionLibBp,
+		},
 		Blueprint: soongCcProtoPreamble + `cc_library_static {
 	name: "foo",
 	use_version_lib: true,
+	static_libs: ["libbuildversion"],
 	include_build_directory: false,
 }`,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_static", "foo", AttrNameToString{
-				"use_version_lib": "True",
+				"implementation_whole_archive_deps": `["//build/soong/cc/libbuildversion:libbuildversion"]`,
+			}),
+		},
+	})
+}
+
+func TestCcLibraryStaticUseVersionLibHasDep(t *testing.T) {
+	runCcLibraryStaticTestCase(t, Bp2buildTestCase{
+		Filesystem: map[string]string{
+			soongCcVersionLibBpPath: soongCcVersionLibBp,
+		},
+		Blueprint: soongCcProtoPreamble + `cc_library_static {
+	name: "foo",
+	use_version_lib: true,
+	whole_static_libs: ["libbuildversion"],
+	include_build_directory: false,
+}`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_library_static", "foo", AttrNameToString{
+				"whole_archive_deps": `["//build/soong/cc/libbuildversion:libbuildversion"]`,
 			}),
 		},
 	})
