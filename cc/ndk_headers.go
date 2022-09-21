@@ -147,16 +147,6 @@ func (m *headerModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 }
 
-const (
-	apiContributionSuffix = ".contribution"
-)
-
-// apiContributionTargetName returns the name of the cc_api(headers|contribution) bp2build target of ndk modules
-// A suffix is necessary to prevent a name collision with the base ndk_(library|header) target in the same bp2build bazel package
-func apiContributionTargetName(moduleName string) string {
-	return moduleName + apiContributionSuffix
-}
-
 // TODO(b/243196151): Populate `system` and `arch` metadata
 type bazelCcApiHeadersAttributes struct {
 	Hdrs        bazel.LabelListAttribute
@@ -179,7 +169,7 @@ func createCcApiHeadersTarget(ctx android.TopDownMutatorContext, includes []stri
 		Include_dir: include_dir,
 	}
 	ctx.CreateBazelTargetModule(props, android.CommonAttributes{
-		Name: apiContributionTargetName(ctx.ModuleName()),
+		Name: android.ApiContributionTargetName(ctx.ModuleName()),
 	}, attrs)
 }
 
