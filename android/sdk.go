@@ -74,6 +74,26 @@ type SdkAware interface {
 	sdkAwareWithoutModule
 }
 
+// minApiLevelForSdkSnapshot provides access to the min_sdk_version for MinApiLevelForSdkSnapshot
+type minApiLevelForSdkSnapshot interface {
+	MinSdkVersion(ctx EarlyModuleContext) SdkSpec
+}
+
+// MinApiLevelForSdkSnapshot returns the ApiLevel of the min_sdk_version of the supplied module.
+//
+// If the module does not provide a min_sdk_version then it defaults to 1.
+func MinApiLevelForSdkSnapshot(ctx EarlyModuleContext, module Module) ApiLevel {
+	minApiLevel := NoneApiLevel
+	if m, ok := module.(minApiLevelForSdkSnapshot); ok {
+		minApiLevel = m.MinSdkVersion(ctx).ApiLevel
+	}
+	if minApiLevel == NoneApiLevel {
+		// The default min API level is 1.
+		minApiLevel = uncheckedFinalApiLevel(1)
+	}
+	return minApiLevel
+}
+
 // SdkRef refers to a version of an SDK
 type SdkRef struct {
 	Name    string

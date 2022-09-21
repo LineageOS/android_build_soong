@@ -1041,8 +1041,11 @@ func (s SignatureCsvSubsets) RelativeToTop() []string {
 // patterns that will select a subset of the monolithic flags.
 func buildRuleSignaturePatternsFile(
 	ctx android.ModuleContext, flagsPath android.Path,
-	splitPackages []string, packagePrefixes []string, singlePackages []string) android.Path {
-	patternsFile := android.PathForModuleOut(ctx, "modular-hiddenapi", "signature-patterns.csv")
+	splitPackages []string, packagePrefixes []string, singlePackages []string,
+	suffix string) android.Path {
+	hiddenApiSubDir := "modular-hiddenapi" + suffix
+
+	patternsFile := android.PathForModuleOut(ctx, hiddenApiSubDir, "signature-patterns.csv")
 	// Create a rule to validate the output from the following rule.
 	rule := android.NewRuleBuilder(pctx, ctx)
 
@@ -1059,7 +1062,7 @@ func buildRuleSignaturePatternsFile(
 		FlagForEachArg("--package-prefix ", packagePrefixes).
 		FlagForEachArg("--single-package ", singlePackages).
 		FlagWithOutput("--output ", patternsFile)
-	rule.Build("hiddenAPISignaturePatterns", "hidden API signature patterns")
+	rule.Build("hiddenAPISignaturePatterns"+suffix, "hidden API signature patterns"+suffix)
 
 	return patternsFile
 }
@@ -1147,27 +1150,27 @@ func buildRuleValidateOverlappingCsvFiles(ctx android.BuilderContext, name strin
 // * metadata.csv
 // * index.csv
 // * all-flags.csv
-func hiddenAPIFlagRulesForBootclasspathFragment(ctx android.ModuleContext, bootDexInfoByModule bootDexInfoByModule, contents []android.Module, input HiddenAPIFlagInput) HiddenAPIFlagOutput {
-	hiddenApiSubDir := "modular-hiddenapi"
+func hiddenAPIFlagRulesForBootclasspathFragment(ctx android.ModuleContext, bootDexInfoByModule bootDexInfoByModule, contents []android.Module, input HiddenAPIFlagInput, suffix string) HiddenAPIFlagOutput {
+	hiddenApiSubDir := "modular-hiddenapi" + suffix
 
 	// Generate the stub-flags.csv.
 	stubFlagsCSV := android.PathForModuleOut(ctx, hiddenApiSubDir, "stub-flags.csv")
-	buildRuleToGenerateHiddenAPIStubFlagsFile(ctx, "modularHiddenAPIStubFlagsFile", "modular hiddenapi stub flags", stubFlagsCSV, bootDexInfoByModule.bootDexJars(), input, nil)
+	buildRuleToGenerateHiddenAPIStubFlagsFile(ctx, "modularHiddenAPIStubFlagsFile"+suffix, "modular hiddenapi stub flags", stubFlagsCSV, bootDexInfoByModule.bootDexJars(), input, nil)
 
 	// Extract the classes jars from the contents.
 	classesJars := extractClassesJarsFromModules(contents)
 
 	// Generate the set of flags from the annotations in the source code.
 	annotationFlagsCSV := android.PathForModuleOut(ctx, hiddenApiSubDir, "annotation-flags.csv")
-	buildRuleToGenerateAnnotationFlags(ctx, "modular hiddenapi annotation flags", classesJars, stubFlagsCSV, annotationFlagsCSV)
+	buildRuleToGenerateAnnotationFlags(ctx, "modular hiddenapi annotation flags"+suffix, classesJars, stubFlagsCSV, annotationFlagsCSV)
 
 	// Generate the metadata from the annotations in the source code.
 	metadataCSV := android.PathForModuleOut(ctx, hiddenApiSubDir, "metadata.csv")
-	buildRuleToGenerateMetadata(ctx, "modular hiddenapi metadata", classesJars, stubFlagsCSV, metadataCSV)
+	buildRuleToGenerateMetadata(ctx, "modular hiddenapi metadata"+suffix, classesJars, stubFlagsCSV, metadataCSV)
 
 	// Generate the index file from the CSV files in the classes jars.
 	indexCSV := android.PathForModuleOut(ctx, hiddenApiSubDir, "index.csv")
-	buildRuleToGenerateIndex(ctx, "modular hiddenapi index", classesJars, indexCSV)
+	buildRuleToGenerateIndex(ctx, "modular hiddenapi index"+suffix, classesJars, indexCSV)
 
 	// Removed APIs need to be marked and in order to do that the hiddenAPIInfo needs to specify files
 	// containing dex signatures of all the removed APIs. In the monolithic files that is done by
@@ -1175,25 +1178,25 @@ func hiddenAPIFlagRulesForBootclasspathFragment(ctx android.ModuleContext, bootD
 	// signatures, see the combined-removed-dex module. This does that automatically by using the
 	// *removed.txt files retrieved from the java_sdk_library modules that are specified in the
 	// stub_libs and contents properties of a bootclasspath_fragment.
-	removedDexSignatures := buildRuleToGenerateRemovedDexSignatures(ctx, input.RemovedTxtFiles)
+	removedDexSignatures := buildRuleToGenerateRemovedDexSignatures(ctx, suffix, input.RemovedTxtFiles)
 
 	// Generate the all-flags.csv which are the flags that will, in future, be encoded into the dex
 	// files.
 	allFlagsCSV := android.PathForModuleOut(ctx, hiddenApiSubDir, "all-flags.csv")
-	buildRuleToGenerateHiddenApiFlags(ctx, "modularHiddenApiAllFlags", "modular hiddenapi all flags", allFlagsCSV, stubFlagsCSV, android.Paths{annotationFlagsCSV}, input.FlagFilesByCategory, nil, removedDexSignatures)
+	buildRuleToGenerateHiddenApiFlags(ctx, "modularHiddenApiAllFlags"+suffix, "modular hiddenapi all flags"+suffix, allFlagsCSV, stubFlagsCSV, android.Paths{annotationFlagsCSV}, input.FlagFilesByCategory, nil, removedDexSignatures)
 
 	// Generate the filtered-stub-flags.csv file which contains the filtered stub flags that will be
 	// compared against the monolithic stub flags.
 	filteredStubFlagsCSV := android.PathForModuleOut(ctx, hiddenApiSubDir, "filtered-stub-flags.csv")
-	buildRuleRemoveSignaturesWithImplementationFlags(ctx, "modularHiddenApiFilteredStubFlags",
-		"modular hiddenapi filtered stub flags", stubFlagsCSV, filteredStubFlagsCSV,
+	buildRuleRemoveSignaturesWithImplementationFlags(ctx, "modularHiddenApiFilteredStubFlags"+suffix,
+		"modular hiddenapi filtered stub flags"+suffix, stubFlagsCSV, filteredStubFlagsCSV,
 		HIDDENAPI_STUB_FLAGS_IMPL_FLAGS)
 
 	// Generate the filtered-flags.csv file which contains the filtered flags that will be compared
 	// against the monolithic flags.
 	filteredFlagsCSV := android.PathForModuleOut(ctx, hiddenApiSubDir, "filtered-flags.csv")
-	buildRuleRemoveSignaturesWithImplementationFlags(ctx, "modularHiddenApiFilteredFlags",
-		"modular hiddenapi filtered flags", allFlagsCSV, filteredFlagsCSV,
+	buildRuleRemoveSignaturesWithImplementationFlags(ctx, "modularHiddenApiFilteredFlags"+suffix,
+		"modular hiddenapi filtered flags"+suffix, allFlagsCSV, filteredFlagsCSV,
 		HIDDENAPI_FLAGS_CSV_IMPL_FLAGS)
 
 	// Store the paths in the info for use by other modules and sdk snapshot generation.
@@ -1223,12 +1226,12 @@ func hiddenAPIEncodeRulesForBootclasspathFragment(ctx android.ModuleContext, boo
 	return encodedBootDexJarsByModule
 }
 
-func buildRuleToGenerateRemovedDexSignatures(ctx android.ModuleContext, removedTxtFiles android.Paths) android.OptionalPath {
+func buildRuleToGenerateRemovedDexSignatures(ctx android.ModuleContext, suffix string, removedTxtFiles android.Paths) android.OptionalPath {
 	if len(removedTxtFiles) == 0 {
 		return android.OptionalPath{}
 	}
 
-	output := android.PathForModuleOut(ctx, "modular-hiddenapi/removed-dex-signatures.txt")
+	output := android.PathForModuleOut(ctx, "module-hiddenapi"+suffix, "removed-dex-signatures.txt")
 
 	rule := android.NewRuleBuilder(pctx, ctx)
 	rule.Command().
@@ -1236,7 +1239,7 @@ func buildRuleToGenerateRemovedDexSignatures(ctx android.ModuleContext, removedT
 		Flag("--no-banner").
 		Inputs(removedTxtFiles).
 		FlagWithOutput("--dex-api ", output)
-	rule.Build("modular-hiddenapi-removed-dex-signatures", "modular hiddenapi removed dex signatures")
+	rule.Build("modular-hiddenapi-removed-dex-signatures"+suffix, "modular hiddenapi removed dex signatures"+suffix)
 	return android.OptionalPathForPath(output)
 }
 
