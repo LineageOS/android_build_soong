@@ -987,57 +987,6 @@ func TestModuleTypeBp2Build(t *testing.T) {
 			},
 		},
 		{
-			Description:                "filegroup with glob",
-			ModuleTypeUnderTest:        "filegroup",
-			ModuleTypeUnderTestFactory: android.FileGroupFactory,
-			Blueprint: `filegroup {
-    name: "fg_foo",
-    srcs: ["**/*.txt"],
-    bazel_module: { bp2build_available: true },
-}`,
-			ExpectedBazelTargets: []string{
-				MakeBazelTargetNoRestrictions("filegroup", "fg_foo", map[string]string{
-					"srcs": `[
-        "other/a.txt",
-        "other/b.txt",
-        "other/subdir/a.txt",
-    ]`,
-				}),
-			},
-			Filesystem: map[string]string{
-				"other/a.txt":        "",
-				"other/b.txt":        "",
-				"other/subdir/a.txt": "",
-				"other/file":         "",
-			},
-		},
-		{
-			Description:                "filegroup with glob in subdir",
-			ModuleTypeUnderTest:        "filegroup",
-			ModuleTypeUnderTestFactory: android.FileGroupFactory,
-			Dir:                        "other",
-			Filesystem: map[string]string{
-				"other/Android.bp": `filegroup {
-    name: "fg_foo",
-    srcs: ["**/*.txt"],
-    bazel_module: { bp2build_available: true },
-}`,
-				"other/a.txt":        "",
-				"other/b.txt":        "",
-				"other/subdir/a.txt": "",
-				"other/file":         "",
-			},
-			ExpectedBazelTargets: []string{
-				MakeBazelTargetNoRestrictions("filegroup", "fg_foo", map[string]string{
-					"srcs": `[
-        "a.txt",
-        "b.txt",
-        "subdir/a.txt",
-    ]`,
-				}),
-			},
-		},
-		{
 			Description:                "depends_on_other_dir_module",
 			ModuleTypeUnderTest:        "filegroup",
 			ModuleTypeUnderTestFactory: android.FileGroupFactory,
@@ -1425,6 +1374,226 @@ func TestCombineBuildFilesBp2buildTargets(t *testing.T) {
 					)
 				}
 			}
+		})
+	}
+}
+
+func TestGlob(t *testing.T) {
+	testCases := []Bp2buildTestCase{
+		{
+			Description:                "filegroup with glob",
+			ModuleTypeUnderTest:        "filegroup",
+			ModuleTypeUnderTestFactory: android.FileGroupFactory,
+			Blueprint: `filegroup {
+    name: "fg_foo",
+    srcs: ["**/*.txt"],
+    bazel_module: { bp2build_available: true },
+}`,
+			ExpectedBazelTargets: []string{
+				MakeBazelTargetNoRestrictions("filegroup", "fg_foo", map[string]string{
+					"srcs": `[
+        "other/a.txt",
+        "other/b.txt",
+        "other/subdir/a.txt",
+    ]`,
+				}),
+			},
+			Filesystem: map[string]string{
+				"other/a.txt":        "",
+				"other/b.txt":        "",
+				"other/subdir/a.txt": "",
+				"other/file":         "",
+			},
+		},
+		{
+			Description:                "filegroup with glob in subdir",
+			ModuleTypeUnderTest:        "filegroup",
+			ModuleTypeUnderTestFactory: android.FileGroupFactory,
+			Dir:                        "other",
+			Filesystem: map[string]string{
+				"other/Android.bp": `filegroup {
+    name: "fg_foo",
+    srcs: ["**/*.txt"],
+    bazel_module: { bp2build_available: true },
+}`,
+				"other/a.txt":        "",
+				"other/b.txt":        "",
+				"other/subdir/a.txt": "",
+				"other/file":         "",
+			},
+			ExpectedBazelTargets: []string{
+				MakeBazelTargetNoRestrictions("filegroup", "fg_foo", map[string]string{
+					"srcs": `[
+        "a.txt",
+        "b.txt",
+        "subdir/a.txt",
+    ]`,
+				}),
+			},
+		},
+		{
+			Description:                "filegroup with glob with no kept BUILD files",
+			ModuleTypeUnderTest:        "filegroup",
+			ModuleTypeUnderTestFactory: android.FileGroupFactory,
+			KeepBuildFileForDirs:       []string{
+				// empty
+			},
+			Blueprint: `filegroup {
+    name: "fg_foo",
+    srcs: ["**/*.txt"],
+    bazel_module: { bp2build_available: true },
+}`,
+			Filesystem: map[string]string{
+				"a.txt":         "",
+				"b.txt":         "",
+				"foo/BUILD":     "",
+				"foo/a.txt":     "",
+				"foo/bar/BUILD": "",
+				"foo/bar/b.txt": "",
+			},
+			ExpectedBazelTargets: []string{
+				MakeBazelTargetNoRestrictions("filegroup", "fg_foo", map[string]string{
+					"srcs": `[
+        "a.txt",
+        "b.txt",
+        "foo/a.txt",
+        "foo/bar/b.txt",
+    ]`,
+				}),
+			},
+		},
+		{
+			Description:                "filegroup with glob with kept BUILD file",
+			ModuleTypeUnderTest:        "filegroup",
+			ModuleTypeUnderTestFactory: android.FileGroupFactory,
+			KeepBuildFileForDirs: []string{
+				"foo",
+			},
+			Blueprint: `filegroup {
+    name: "fg_foo",
+    srcs: ["**/*.txt"],
+    bazel_module: { bp2build_available: true },
+}`,
+			Filesystem: map[string]string{
+				"a.txt":         "",
+				"b.txt":         "",
+				"foo/BUILD":     "",
+				"foo/a.txt":     "",
+				"foo/bar/BUILD": "",
+				"foo/bar/b.txt": "",
+			},
+			ExpectedBazelTargets: []string{
+				MakeBazelTargetNoRestrictions("filegroup", "fg_foo", map[string]string{
+					"srcs": `[
+        "a.txt",
+        "b.txt",
+        "//foo:a.txt",
+        "//foo:bar/b.txt",
+    ]`,
+				}),
+			},
+		},
+		{
+			Description:                "filegroup with glob with kept BUILD.bazel file",
+			ModuleTypeUnderTest:        "filegroup",
+			ModuleTypeUnderTestFactory: android.FileGroupFactory,
+			KeepBuildFileForDirs: []string{
+				"foo",
+			},
+			Blueprint: `filegroup {
+    name: "fg_foo",
+    srcs: ["**/*.txt"],
+    bazel_module: { bp2build_available: true },
+}`,
+			Filesystem: map[string]string{
+				"a.txt":               "",
+				"b.txt":               "",
+				"foo/BUILD.bazel":     "",
+				"foo/a.txt":           "",
+				"foo/bar/BUILD.bazel": "",
+				"foo/bar/b.txt":       "",
+			},
+			ExpectedBazelTargets: []string{
+				MakeBazelTargetNoRestrictions("filegroup", "fg_foo", map[string]string{
+					"srcs": `[
+        "a.txt",
+        "b.txt",
+        "//foo:a.txt",
+        "//foo:bar/b.txt",
+    ]`,
+				}),
+			},
+		},
+		{
+			Description:                "filegroup with glob with Android.bp file as boundary",
+			ModuleTypeUnderTest:        "filegroup",
+			ModuleTypeUnderTestFactory: android.FileGroupFactory,
+			Blueprint: `filegroup {
+    name: "fg_foo",
+    srcs: ["**/*.txt"],
+    bazel_module: { bp2build_available: true },
+}`,
+			Filesystem: map[string]string{
+				"a.txt":              "",
+				"b.txt":              "",
+				"foo/Android.bp":     "",
+				"foo/a.txt":          "",
+				"foo/bar/Android.bp": "",
+				"foo/bar/b.txt":      "",
+			},
+			ExpectedBazelTargets: []string{
+				MakeBazelTargetNoRestrictions("filegroup", "fg_foo", map[string]string{
+					"srcs": `[
+        "a.txt",
+        "b.txt",
+        "//foo:a.txt",
+        "//foo/bar:b.txt",
+    ]`,
+				}),
+			},
+		},
+		{
+			Description:                "filegroup with glob in subdir with kept BUILD and BUILD.bazel file",
+			ModuleTypeUnderTest:        "filegroup",
+			ModuleTypeUnderTestFactory: android.FileGroupFactory,
+			Dir:                        "other",
+			KeepBuildFileForDirs: []string{
+				"other/foo",
+				"other/foo/bar",
+				// deliberately not other/foo/baz/BUILD.
+			},
+			Filesystem: map[string]string{
+				"other/Android.bp": `filegroup {
+    name: "fg_foo",
+    srcs: ["**/*.txt"],
+    bazel_module: { bp2build_available: true },
+}`,
+				"other/a.txt":               "",
+				"other/b.txt":               "",
+				"other/foo/BUILD":           "",
+				"other/foo/a.txt":           "",
+				"other/foo/bar/BUILD.bazel": "",
+				"other/foo/bar/b.txt":       "",
+				"other/foo/baz/BUILD":       "",
+				"other/foo/baz/c.txt":       "",
+			},
+			ExpectedBazelTargets: []string{
+				MakeBazelTargetNoRestrictions("filegroup", "fg_foo", map[string]string{
+					"srcs": `[
+        "a.txt",
+        "b.txt",
+        "//other/foo:a.txt",
+        "//other/foo/bar:b.txt",
+        "//other/foo:baz/c.txt",
+    ]`,
+				}),
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Description, func(t *testing.T) {
+			RunBp2BuildTestCaseSimple(t, testCase)
 		})
 	}
 }
