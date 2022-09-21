@@ -1231,22 +1231,17 @@ func (attrs *CommonAttributes) fillCommonBp2BuildModuleAttrs(ctx *topDownMutator
 		}
 	}
 
-	required := depsToLabelList(mod.commonProperties.Required)
+	// The required property can contain the module itself. This causes a cycle
+	// when generated as the 'data' label list attribute in Bazel. Remove it if
+	// it exists. See b/247985196.
+	_, requiredWithoutCycles := RemoveFromList(ctx.ModuleName(), mod.commonProperties.Required)
+	required := depsToLabelList(requiredWithoutCycles)
 	archVariantProps := mod.GetArchVariantProperties(ctx, &commonProperties{})
 	for axis, configToProps := range archVariantProps {
 		for config, _props := range configToProps {
 			if archProps, ok := _props.(*commonProperties); ok {
-				// TODO(b/234748998) Remove this requiredFiltered workaround when aapt2 converts successfully
-				requiredFiltered := archProps.Required
-				if attrs.Name == "apexer" {
-					requiredFiltered = make([]string, 0, len(archProps.Required))
-					for _, req := range archProps.Required {
-						if req != "aapt2" && req != "apexer" {
-							requiredFiltered = append(requiredFiltered, req)
-						}
-					}
-				}
-				required.SetSelectValue(axis, config, depsToLabelList(requiredFiltered).Value)
+				_, requiredWithoutCycles := RemoveFromList(ctx.ModuleName(), archProps.Required)
+				required.SetSelectValue(axis, config, depsToLabelList(requiredWithoutCycles).Value)
 				if !neitherHostNorDevice {
 					if archProps.Enabled != nil {
 						if axis != bazel.OsConfigurationAxis || osSupport[config] {
