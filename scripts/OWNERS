@@ -1,5 +1,4 @@
 per-file system-clang-format,system-clang-format-2 = enh@google.com,smoreland@google.com
-per-file build-aml-prebuilts.sh = ngeoffray@google.com,paulduffin@google.com,mast@google.com
 per-file construct_context.py = ngeoffray@google.com,calin@google.com,skvadrik@google.com
 per-file conv_linker_config.py = kiyoungkim@google.com, jiyong@google.com, jooyung@google.com
 per-file gen_ndk*.sh,gen_java*.sh = sophiez@google.com, allenhair@google.com
