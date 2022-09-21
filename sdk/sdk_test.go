@@ -482,6 +482,7 @@ java_import {
 				name: "mysdklibrary",
 				srcs: ["Test.java"],
 				compile_dex: true,
+				sdk_version: "S",
 				public: {enabled: true},
 				permitted_packages: ["mysdklibrary"],
 			}
