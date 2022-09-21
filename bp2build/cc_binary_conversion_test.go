@@ -676,3 +676,77 @@ func TestCcArchVariantBinarySuffix(t *testing.T) {
 		},
 	})
 }
+
+func TestCcBinaryWithSyspropSrcs(t *testing.T) {
+	runCcBinaryTestCase(t, ccBinaryBp2buildTestCase{
+		description: "cc_binary with sysprop sources",
+		blueprint: `
+{rule_name} {
+	name: "foo",
+	srcs: [
+		"bar.sysprop",
+		"baz.sysprop",
+		"blah.cpp",
+	],
+	min_sdk_version: "5",
+}`,
+		targets: []testBazelTarget{
+			{"sysprop_library", "foo_sysprop_library", AttrNameToString{
+				"srcs": `[
+        "bar.sysprop",
+        "baz.sysprop",
+    ]`,
+			}},
+			{"cc_sysprop_library_static", "foo_cc_sysprop_library_static", AttrNameToString{
+				"dep":             `":foo_sysprop_library"`,
+				"min_sdk_version": `"5"`,
+			}},
+			{"cc_binary", "foo", AttrNameToString{
+				"srcs":               `["blah.cpp"]`,
+				"local_includes":     `["."]`,
+				"min_sdk_version":    `"5"`,
+				"whole_archive_deps": `[":foo_cc_sysprop_library_static"]`,
+			}},
+		},
+	})
+}
+
+func TestCcBinaryWithSyspropSrcsSomeConfigs(t *testing.T) {
+	runCcBinaryTestCase(t, ccBinaryBp2buildTestCase{
+		description: "cc_binary with sysprop sources in some configs but not others",
+		blueprint: `
+{rule_name} {
+	name: "foo",
+	srcs: [
+		"blah.cpp",
+	],
+	target: {
+		android: {
+			srcs: ["bar.sysprop"],
+		},
+	},
+	min_sdk_version: "5",
+}`,
+		targets: []testBazelTarget{
+			{"sysprop_library", "foo_sysprop_library", AttrNameToString{
+				"srcs": `select({
+        "//build/bazel/platforms/os:android": ["bar.sysprop"],
+        "//conditions:default": [],
+    })`,
+			}},
+			{"cc_sysprop_library_static", "foo_cc_sysprop_library_static", AttrNameToString{
+				"dep":             `":foo_sysprop_library"`,
+				"min_sdk_version": `"5"`,
+			}},
+			{"cc_binary", "foo", AttrNameToString{
+				"srcs":            `["blah.cpp"]`,
+				"local_includes":  `["."]`,
+				"min_sdk_version": `"5"`,
+				"whole_archive_deps": `select({
+        "//build/bazel/platforms/os:android": [":foo_cc_sysprop_library_static"],
+        "//conditions:default": [],
+    })`,
+			}},
+		},
+	})
+}
