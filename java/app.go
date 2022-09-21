@@ -526,7 +526,8 @@ func (a *AndroidApp) JNISymbolsInstalls(installPath string) android.RuleBuilderI
 
 // Reads and prepends a main cert from the default cert dir if it hasn't been set already, i.e. it
 // isn't a cert module reference. Also checks and enforces system cert restriction if applicable.
-func processMainCert(m android.ModuleBase, certPropValue string, certificates []Certificate, ctx android.ModuleContext) []Certificate {
+func processMainCert(m android.ModuleBase, certPropValue string, certificates []Certificate,
+	ctx android.ModuleContext) (mainCertificate Certificate, allCertificates []Certificate) {
 	if android.SrcIsModule(certPropValue) == "" {
 		var mainCert Certificate
 		if certPropValue != "" {
@@ -558,7 +559,22 @@ func processMainCert(m android.ModuleBase, certPropValue string, certificates []
 		}
 	}
 
-	return certificates
+	if len(certificates) > 0 {
+		mainCertificate = certificates[0]
+	} else {
+		// This can be reached with an empty certificate list if AllowMissingDependencies is set
+		// and the certificate property for this module is a module reference to a missing module.
+		if !ctx.Config().AllowMissingDependencies() && len(ctx.GetMissingDependencies()) > 0 {
+			panic("Should only get here if AllowMissingDependencies set and there are missing dependencies")
+		}
+		// Set a certificate to avoid panics later when accessing it.
+		mainCertificate = Certificate{
+			Key: android.PathForModuleOut(ctx, "missing.pk8"),
+			Pem: android.PathForModuleOut(ctx, "missing.pem"),
+		}
+	}
+
+	return mainCertificate, certificates
 }
 
 func (a *AndroidApp) InstallApkName() string {
@@ -632,29 +648,14 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 
 	dexJarFile := a.dexBuildActions(ctx)
 
-	jniLibs, prebuiltJniPackages, certificateDeps := collectAppDeps(ctx, a, a.shouldEmbedJnis(ctx), !Bool(a.appProperties.Jni_uses_platform_apis))
+	jniLibs, prebuiltJniPackages, certificates := collectAppDeps(ctx, a, a.shouldEmbedJnis(ctx), !Bool(a.appProperties.Jni_uses_platform_apis))
 	jniJarFile := a.jniBuildActions(jniLibs, prebuiltJniPackages, ctx)
 
 	if ctx.Failed() {
 		return
 	}
 
-	certificates := processMainCert(a.ModuleBase, a.getCertString(ctx), certificateDeps, ctx)
-
-	// This can be reached with an empty certificate list if AllowMissingDependencies is set
-	// and the certificate property for this module is a module reference to a missing module.
-	if len(certificates) > 0 {
-		a.certificate = certificates[0]
-	} else {
-		if !ctx.Config().AllowMissingDependencies() && len(ctx.GetMissingDependencies()) > 0 {
-			panic("Should only get here if AllowMissingDependencies set and there are missing dependencies")
-		}
-		// Set a certificate to avoid panics later when accessing it.
-		a.certificate = Certificate{
-			Key: android.PathForModuleOut(ctx, "missing.pk8"),
-			Pem: android.PathForModuleOut(ctx, "missing.pem"),
-		}
-	}
+	a.certificate, certificates = processMainCert(a.ModuleBase, a.getCertString(ctx), certificates, ctx)
 
 	// Build a final signed app package.
 	packageFile := android.PathForModuleOut(ctx, a.installApkName+".apk")
