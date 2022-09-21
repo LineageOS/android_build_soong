@@ -629,11 +629,9 @@ var (
 		"auto_value_plugin_resources",      // TODO(b/210751803), we don't handle path property for filegroups
 
 		// go deps:
-		"analyze_bcpf",                                                            // depends on bpmodify a blueprint_go_binary.
-		"host_bionic_linker_asm",                                                  // depends on extract_linker, a go binary.
-		"host_bionic_linker_script",                                               // depends on extract_linker, a go binary.
-		"libc_musl_sysroot_libc++_headers", "libc_musl_sysroot_libc++abi_headers", // depends on zip2zip
-		"libc_musl_sysroot_zlib_headers", // depends on zip2zip
+		"analyze_bcpf",              // depends on bpmodify a blueprint_go_binary.
+		"host_bionic_linker_asm",    // depends on extract_linker, a go binary.
+		"host_bionic_linker_script", // depends on extract_linker, a go binary.
 
 		// in cmd attribute of genrule rule //system/timezone/output_data:robolectric_tzdata: label '//system/timezone/output_data:iana/tzdata' in $(location) expression is not a declared prerequisite of this rule
 		"robolectric_tzdata",
