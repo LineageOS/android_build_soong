@@ -296,6 +296,8 @@ var (
 		"system/tools/sysprop":                                   Bp2BuildDefaultTrue,
 		"system/unwinding/libunwindstack":                        Bp2BuildDefaultTrueRecursively,
 
+		"frameworks/proto_logging/stats": Bp2BuildDefaultTrueRecursively,
+
 		"tools/apksig": Bp2BuildDefaultTrue,
 		"tools/platform-compat/java/android/compat":  Bp2BuildDefaultTrueRecursively,
 		"tools/tradefederation/prebuilts/filegroups": Bp2BuildDefaultTrueRecursively,
@@ -386,6 +388,7 @@ var (
 		"libnativeloader-headers",
 		"libnativewindow_headers",
 		"libneuralnetworks_headers",
+		"libneuralnetworks_packageinfo",
 		"libopus",
 		"libpdx_headers",
 		"libprocpartition",
@@ -425,11 +428,14 @@ var (
 		"neuralnetworks_types",
 		"neuralnetworks_utils_hal_aidl",
 		"neuralnetworks_utils_hal_common",
+		"neuralnetworks_utils_hal_service",
 		"neuralnetworks_utils_hal_1_0",
 		"neuralnetworks_utils_hal_1_1",
 		"neuralnetworks_utils_hal_1_2",
 		"neuralnetworks_utils_hal_1_3",
 		"libneuralnetworks_common",
+		// packagemanager_aidl_interface is created implicitly in packagemanager_aidl module
+		"packagemanager_aidl_interface",
 		"philox_random",
 		"philox_random_headers",
 		"server_configurable_flags",
@@ -551,9 +557,6 @@ var (
 		"prebuilt_platform-robolectric-4.4-prebuilt",   // aosp/1999250, needs .aar support in Jars
 		"prebuilt_platform-robolectric-4.5.1-prebuilt", // aosp/1999250, needs .aar support in Jars
 
-		// proto support
-		"libstats_proto_host", // TODO(b/236055697): handle protos from other packages
-
 		// path property for filegroups
 		"conscrypt",                        // TODO(b/210751803), we don't handle path property for filegroups
 		"conscrypt-for-host",               // TODO(b/210751803), we don't handle path property for filegroups
@@ -620,7 +623,6 @@ var (
 		"pbtombstone", "crash_dump", // depends on libdebuggerd, libunwindstack
 		"robolectric-sqlite4java-0.282",             // depends on unconverted modules: robolectric-sqlite4java-import, robolectric-sqlite4java-native
 		"static_crasher",                            // depends on unconverted modules: libdebuggerd_handler
-		"stats-log-api-gen",                         // depends on unconverted modules: libstats_proto_host
 		"statslog.cpp", "statslog.h", "statslog.rs", // depends on unconverted modules: stats-log-api-gen
 		"statslog_art.cpp", "statslog_art.h", "statslog_header.rs", // depends on unconverted modules: stats-log-api-gen
 		"test_fips",           // depends on unconverted modules: adb
@@ -1088,6 +1090,12 @@ var (
 		"libtest_with_dependency_loop_b_tmp",
 		"libtest_with_dependency_loop_c",
 		"libtestshared",
+
+		// depends on unconverted libprotobuf-java-nano
+		"dnsresolverprotosnano",
+		"launcherprotosnano",
+		"datastallprotosnano",
+		"devicepolicyprotosnano",
 	}
 
 	Bp2buildCcLibraryStaticOnlyList = []string{}
@@ -1136,6 +1144,20 @@ var (
 		"prebuilt_platform-robolectric-4.4-prebuilt",
 		"prebuilt_platform-robolectric-4.5.1-prebuilt",
 		"prebuilt_currysrc_org.eclipse",
+
+		// TODO(b/247782695 and/or b/242847534) Fix mixed build between unconverted gensrcs and converted filegroup
+		"libstats_atom_enum_protos",
+		"data_stall_event_proto",
+		"device_policy_proto",
+		"dns_resolver_proto",
+		"launcher_proto",
+		"network_stack_proto",
+		"srcs_bluetooth_protos",
+		"srcs_bluetooth_leaudio_protos",
+		"style_proto",
+		"tethering_proto",
+		"text_classifier_proto",
+		"libstats_atom_message_protos",
 	}
 
 	ProdMixedBuildsEnabledList = []string{
