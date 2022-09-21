@@ -41,7 +41,7 @@ sysprop_library {
 `,
 		ExpectedBazelTargets: []string{
 			bp2build.MakeBazelTargetNoRestrictions("sysprop_library",
-				"sysprop_foo_sysprop_library",
+				"sysprop_foo",
 				bp2build.AttrNameToString{
 					"srcs": `[
         "foo.sysprop",
@@ -51,12 +51,12 @@ sysprop_library {
 			bp2build.MakeBazelTargetNoRestrictions("cc_sysprop_library_shared",
 				"libsysprop_foo",
 				bp2build.AttrNameToString{
-					"dep": `":sysprop_foo_sysprop_library"`,
+					"dep": `":sysprop_foo"`,
 				}),
 			bp2build.MakeBazelTargetNoRestrictions("cc_sysprop_library_static",
 				"libsysprop_foo_bp2build_cc_library_static",
 				bp2build.AttrNameToString{
-					"dep": `":sysprop_foo_sysprop_library"`,
+					"dep": `":sysprop_foo"`,
 				}),
 		},
 	})
@@ -86,7 +86,7 @@ sysprop_library {
 `,
 		ExpectedBazelTargets: []string{
 			bp2build.MakeBazelTargetNoRestrictions("sysprop_library",
-				"sysprop_foo_sysprop_library",
+				"sysprop_foo",
 				bp2build.AttrNameToString{
 					"srcs": `[
         "foo.sysprop",
@@ -96,13 +96,13 @@ sysprop_library {
 			bp2build.MakeBazelTargetNoRestrictions("cc_sysprop_library_shared",
 				"libsysprop_foo",
 				bp2build.AttrNameToString{
-					"dep":             `":sysprop_foo_sysprop_library"`,
+					"dep":             `":sysprop_foo"`,
 					"min_sdk_version": `"5"`,
 				}),
 			bp2build.MakeBazelTargetNoRestrictions("cc_sysprop_library_static",
 				"libsysprop_foo_bp2build_cc_library_static",
 				bp2build.AttrNameToString{
-					"dep":             `":sysprop_foo_sysprop_library"`,
+					"dep":             `":sysprop_foo"`,
 					"min_sdk_version": `"5"`,
 				}),
 		},
