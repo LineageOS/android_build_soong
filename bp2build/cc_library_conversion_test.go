@@ -3206,3 +3206,45 @@ cc_library {
 		},
 	})
 }
+
+func TestCcLibraryWithAidlAndSharedLibs(t *testing.T) {
+	runCcLibraryTestCase(t, Bp2buildTestCase{
+		Description:                "cc_aidl_library depends on shared libs from parent cc_library_static",
+		ModuleTypeUnderTest:        "cc_library",
+		ModuleTypeUnderTestFactory: cc.LibraryFactory,
+		Blueprint: `
+cc_library_static {
+    name: "foo",
+    srcs: [
+        "Foo.aidl",
+    ],
+	shared_libs: [
+		"bar",
+		"baz",
+	],
+	export_shared_lib_headers: [
+		"baz",
+	],
+}` +
+			simpleModuleDoNotConvertBp2build("cc_library", "bar") +
+			simpleModuleDoNotConvertBp2build("cc_library", "baz"),
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("aidl_library", "foo_aidl_library", AttrNameToString{
+				"srcs": `["Foo.aidl"]`,
+			}),
+			MakeBazelTarget("cc_aidl_library", "foo_cc_aidl_library", AttrNameToString{
+				"deps": `[":foo_aidl_library"]`,
+				"implementation_dynamic_deps": `[
+        ":baz",
+        ":bar",
+    ]`,
+			}),
+			MakeBazelTarget("cc_library_static", "foo", AttrNameToString{
+				"implementation_whole_archive_deps": `[":foo_cc_aidl_library"]`,
+				"dynamic_deps":                      `[":baz"]`,
+				"implementation_dynamic_deps":       `[":bar"]`,
+				"local_includes":                    `["."]`,
+			}),
+		},
+	})
+}
