@@ -910,10 +910,11 @@ func (m *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 			cmd = strings.Replace(cmd, "$(out)", "$(OUTS)", -1)
 		}
 
-		genDir := "$(GENDIR)"
-		if t := ctx.ModuleType(); t == "cc_genrule" || t == "java_genrule" || t == "java_genrule_host" {
-			genDir = "$(RULEDIR)"
+		genDir := "$(RULEDIR)"
+		if ctx.ModuleType() == "gensrcs" {
+			genDir = "$(GENDIR)"
 		}
+
 		cmd = strings.Replace(cmd, "$(genDir)", genDir, -1)
 		if len(tools.Value.Includes) > 0 {
 			cmd = strings.Replace(cmd, "$(location)", fmt.Sprintf("$(location %s)", tools.Value.Includes[0].Label), -1)
