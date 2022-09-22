@@ -61,7 +61,7 @@ func TestGenruleCliVariableReplacement(t *testing.T) {
 		{
 			moduleType: "genrule",
 			factory:    genrule.GenRuleFactory,
-			genDir:     "$(GENDIR)",
+			genDir:     "$(RULEDIR)",
 		},
 		{
 			moduleType: "cc_genrule",
