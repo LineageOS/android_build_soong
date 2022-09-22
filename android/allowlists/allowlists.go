@@ -508,6 +508,45 @@ var (
 
 		//frameworks/native/cmds/cmd
 		"libcmd",
+
+		//system/core/fs_mgr/libdm
+		"libdm",
+
+		//system/core/fs_mgr/libfiemap
+		"libfiemap_headers",
+		"libfiemap_passthrough_srcs",
+		"libfiemap_srcs",
+
+		//system/gsid
+		"libgsi",
+		"libgsi_headers",
+
+		//system/core/libkeyutils
+		"libkeyutils",
+
+		//bootable/recovery/minadbd
+		"libminadbd_headers",
+
+		//bootable/recovery/otautil
+		"libotautil",
+
+		//system/vold
+		"libvold_headers",
+
+		//system/extras/libfscrypt
+		"libfscrypt",
+
+		//system/core/fs_mgr
+		"libfstab",
+
+		//bootable/recovery/fuse_sideload
+		"libfusesideload",
+
+		//system/core/fs_mgr/libfs_avb
+		"libfs_avb",
+
+		//system/core/fs_mgr
+		"libfs_mgr",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
