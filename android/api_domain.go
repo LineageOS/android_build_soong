@@ -28,6 +28,28 @@ func RegisterApiDomainBuildComponents(ctx RegistrationContext) {
 	ctx.RegisterModuleType("api_domain", ApiDomainFactory)
 }
 
+type ApiSurface int
+
+// TODO(b/246656800): Reconcile with android.SdkKind
+const (
+	PublicApi ApiSurface = iota
+	SystemApi
+	VendorApi
+)
+
+func (a ApiSurface) String() string {
+	switch a {
+	case PublicApi:
+		return "publicapi"
+	case SystemApi:
+		return "systemapi"
+	case VendorApi:
+		return "vendorapi"
+	default:
+		return "invalid"
+	}
+}
+
 type apiDomain struct {
 	ModuleBase
 	BazelModuleBase
