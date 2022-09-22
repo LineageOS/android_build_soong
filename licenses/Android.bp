@@ -762,7 +762,7 @@ license_kind {
 
 license_kind {
     name: "SPDX-license-identifier-GPL-2.0-with-classpath-exception",
-    conditions: ["restricted"],
+    conditions: ["permissive"],
     url: "https://spdx.org/licenses/GPL-2.0-with-classpath-exception.html",
 }
 
@@ -810,7 +810,7 @@ license_kind {
 
 license_kind {
     name: "SPDX-license-identifier-GPL-with-classpath-exception",
-    conditions: ["restricted"],
+    conditions: ["permissive"],
 }
 
 license_kind {
