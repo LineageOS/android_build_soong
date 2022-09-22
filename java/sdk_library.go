@@ -539,7 +539,7 @@ type sdkLibraryProperties struct {
 	}
 
 	// TODO: determines whether to create HTML doc or not
-	//Html_doc *bool
+	// Html_doc *bool
 }
 
 // Paths to outputs from java_sdk_library and java_sdk_library_import.
@@ -1354,7 +1354,7 @@ func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext)
 	// Provide additional information for inclusion in an sdk's generated .info file.
 	additionalSdkInfo := map[string]interface{}{}
 	additionalSdkInfo["dist_stem"] = module.distStem()
-	baseModuleName := module.BaseModuleName()
+	baseModuleName := module.distStem()
 	scopes := map[string]interface{}{}
 	additionalSdkInfo["scopes"] = scopes
 	for scope, scopePaths := range module.scopePaths {
@@ -2905,6 +2905,18 @@ var javaSdkLibrarySdkMemberType = &sdkLibrarySdkMemberType{
 type sdkLibrarySdkMemberProperties struct {
 	android.SdkMemberPropertiesBase
 
+	// Stem name for files in the sdk snapshot.
+	//
+	// This is used to construct the path names of various sdk library files in the sdk snapshot to
+	// make sure that they match the finalized versions of those files in prebuilts/sdk.
+	//
+	// This property is marked as keep so that it will be kept in all instances of this struct, will
+	// not be cleared but will be copied to common structs. That is needed because this field is used
+	// to construct many file names for other parts of this struct and so it needs to be present in
+	// all structs. If it was not marked as keep then it would be cleared in some structs and so would
+	// be unavailable for generating file names if there were other properties that were still set.
+	Stem string `sdk:"keep"`
+
 	// Scope to per scope properties.
 	Scopes map[*apiScope]*scopeProperties
 
@@ -2966,6 +2978,9 @@ type scopeProperties struct {
 func (s *sdkLibrarySdkMemberProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.Module) {
 	sdk := variant.(*SdkLibrary)
 
+	// Copy the stem name for files in the sdk snapshot.
+	s.Stem = sdk.distStem()
+
 	s.Scopes = make(map[*apiScope]*scopeProperties)
 	for _, apiScope := range allApiScopes {
 		paths := sdk.findScopePaths(apiScope)
@@ -3018,6 +3033,8 @@ func (s *sdkLibrarySdkMemberProperties) AddToPropertySet(ctx android.SdkMemberCo
 		propertySet.AddProperty("permitted_packages", s.Permitted_packages)
 	}
 
+	stem := s.Stem
+
 	for _, apiScope := range allApiScopes {
 		if properties, ok := s.Scopes[apiScope]; ok {
 			scopeSet := propertySet.AddPropertySet(apiScope.propertyName)
@@ -3026,7 +3043,7 @@ func (s *sdkLibrarySdkMemberProperties) AddToPropertySet(ctx android.SdkMemberCo
 
 			var jars []string
 			for _, p := range properties.Jars {
-				dest := filepath.Join(scopeDir, ctx.Name()+"-stubs.jar")
+				dest := filepath.Join(scopeDir, stem+"-stubs.jar")
 				ctx.SnapshotBuilder().CopyToSnapshot(p, dest)
 				jars = append(jars, dest)
 			}
@@ -3034,31 +3051,31 @@ func (s *sdkLibrarySdkMemberProperties) AddToPropertySet(ctx android.SdkMemberCo
 
 			if ctx.SdkModuleContext().Config().IsEnvTrue("SOONG_SDK_SNAPSHOT_USE_SRCJAR") {
 				// Copy the stubs source jar into the snapshot zip as is.
-				srcJarSnapshotPath := filepath.Join(scopeDir, ctx.Name()+".srcjar")
+				srcJarSnapshotPath := filepath.Join(scopeDir, stem+".srcjar")
 				ctx.SnapshotBuilder().CopyToSnapshot(properties.StubsSrcJar, srcJarSnapshotPath)
 				scopeSet.AddProperty("stub_srcs", []string{srcJarSnapshotPath})
 			} else {
 				// Merge the stubs source jar into the snapshot zip so that when it is unpacked
 				// the source files are also unpacked.
-				snapshotRelativeDir := filepath.Join(scopeDir, ctx.Name()+"_stub_sources")
+				snapshotRelativeDir := filepath.Join(scopeDir, stem+"_stub_sources")
 				ctx.SnapshotBuilder().UnzipToSnapshot(properties.StubsSrcJar, snapshotRelativeDir)
 				scopeSet.AddProperty("stub_srcs", []string{snapshotRelativeDir})
 			}
 
 			if properties.CurrentApiFile != nil {
-				currentApiSnapshotPath := apiScope.snapshotRelativeCurrentApiTxtPath(ctx.Name())
+				currentApiSnapshotPath := apiScope.snapshotRelativeCurrentApiTxtPath(stem)
 				ctx.SnapshotBuilder().CopyToSnapshot(properties.CurrentApiFile, currentApiSnapshotPath)
 				scopeSet.AddProperty("current_api", currentApiSnapshotPath)
 			}
 
 			if properties.RemovedApiFile != nil {
-				removedApiSnapshotPath := apiScope.snapshotRelativeRemovedApiTxtPath(ctx.Name())
+				removedApiSnapshotPath := apiScope.snapshotRelativeRemovedApiTxtPath(stem)
 				ctx.SnapshotBuilder().CopyToSnapshot(properties.RemovedApiFile, removedApiSnapshotPath)
 				scopeSet.AddProperty("removed_api", removedApiSnapshotPath)
 			}
 
 			if properties.AnnotationsZip != nil {
-				annotationsSnapshotPath := filepath.Join(scopeDir, ctx.Name()+"_annotations.zip")
+				annotationsSnapshotPath := filepath.Join(scopeDir, stem+"_annotations.zip")
 				ctx.SnapshotBuilder().CopyToSnapshot(properties.AnnotationsZip, annotationsSnapshotPath)
 				scopeSet.AddProperty("annotations", annotationsSnapshotPath)
 			}
