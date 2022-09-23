@@ -242,6 +242,7 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (convers
 	// Simple metrics tracking for bp2build
 	metrics := CodegenMetrics{
 		ruleClassCount:           make(map[string]uint64),
+		convertedModulePathMap:   make(map[string]string),
 		convertedModuleTypeCount: make(map[string]uint64),
 		totalModuleTypeCount:     make(map[string]uint64),
 	}
@@ -272,12 +273,12 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (convers
 				// target in a BUILD file, we don't autoconvert them.
 
 				// Log the module.
-				metrics.AddConvertedModule(m, moduleType, Handcrafted)
+				metrics.AddConvertedModule(m, moduleType, dir, Handcrafted)
 			} else if aModule, ok := m.(android.Module); ok && aModule.IsConvertedByBp2build() {
 				// Handle modules converted to generated targets.
 
 				// Log the module.
-				metrics.AddConvertedModule(aModule, moduleType, Generated)
+				metrics.AddConvertedModule(aModule, moduleType, dir, Generated)
 
 				// Handle modules with unconverted deps. By default, emit a warning.
 				if unconvertedDeps := aModule.GetUnconvertedBp2buildDeps(); len(unconvertedDeps) > 0 {
