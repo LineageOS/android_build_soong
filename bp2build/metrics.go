@@ -9,6 +9,7 @@ import (
 	"android/soong/android"
 	"android/soong/shared"
 	"android/soong/ui/metrics/bp2build_metrics_proto"
+
 	"github.com/google/blueprint"
 )
 
@@ -37,6 +38,9 @@ type CodegenMetrics struct {
 
 	// List of converted modules
 	convertedModules []string
+
+	// Map of converted modules and paths to call
+	convertedModulePathMap map[string]string
 
 	// Counts of converted modules by module type.
 	convertedModuleTypeCount map[string]uint64
@@ -147,10 +151,11 @@ const (
 	Handcrafted
 )
 
-func (metrics *CodegenMetrics) AddConvertedModule(m blueprint.Module, moduleType string, conversionType ConversionType) {
+func (metrics *CodegenMetrics) AddConvertedModule(m blueprint.Module, moduleType string, dir string, conversionType ConversionType) {
 	// Undo prebuilt_ module name prefix modifications
 	moduleName := android.RemoveOptionalPrebuiltPrefix(m.Name())
 	metrics.convertedModules = append(metrics.convertedModules, moduleName)
+	metrics.convertedModulePathMap[moduleName] = "//" + dir
 	metrics.convertedModuleTypeCount[moduleType] += 1
 	metrics.totalModuleTypeCount[moduleType] += 1
 
