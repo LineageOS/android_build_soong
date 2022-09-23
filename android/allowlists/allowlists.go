@@ -589,6 +589,7 @@ var (
 		"ndk_headers",
 		"ndk_library",
 		"sysprop_library",
+		"bpf",
 	}
 
 	// Add the names of modules that bp2build should never convert, if it is
