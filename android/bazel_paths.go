@@ -202,20 +202,26 @@ func BazelLabelForModuleSrcExcludes(ctx BazelConversionPathContext, paths, exclu
 	return labels
 }
 
-// Returns true if a prefix + components[:i] + /Android.bp exists
-// TODO(b/185358476) Could check for BUILD file instead of checking for Android.bp file, or ensure BUILD is always generated?
-func directoryHasBlueprint(fs pathtools.FileSystem, prefix string, components []string, componentIndex int) bool {
-	blueprintPath := prefix
-	if blueprintPath != "" {
-		blueprintPath = blueprintPath + "/"
-	}
-	blueprintPath = blueprintPath + strings.Join(components[:componentIndex+1], "/")
-	blueprintPath = blueprintPath + "/Android.bp"
-	if exists, _, _ := fs.Exists(blueprintPath); exists {
+// Returns true if a prefix + components[:i] is a package boundary.
+//
+// A package boundary is determined by a BUILD file in the directory. This can happen in 2 cases:
+//
+// 1. An Android.bp exists, which bp2build will always convert to a sibling BUILD file.
+// 2. An Android.bp doesn't exist, but a checked-in BUILD/BUILD.bazel file exists, and that file
+//    is allowlisted by the bp2build configuration to be merged into the symlink forest workspace.
+func isPackageBoundary(config Config, prefix string, components []string, componentIndex int) bool {
+	prefix = filepath.Join(prefix, filepath.Join(components[:componentIndex+1]...))
+	if exists, _, _ := config.fs.Exists(filepath.Join(prefix, "Android.bp")); exists {
 		return true
-	} else {
-		return false
+	} else if config.Bp2buildPackageConfig.ShouldKeepExistingBuildFileForDir(prefix) {
+		if exists, _, _ := config.fs.Exists(filepath.Join(prefix, "BUILD")); exists {
+			return true
+		} else if exists, _, _ := config.fs.Exists(filepath.Join(prefix, "BUILD.bazel")); exists {
+			return true
+		}
 	}
+
+	return false
 }
 
 // Transform a path (if necessary) to acknowledge package boundaries
@@ -245,14 +251,14 @@ func transformSubpackagePath(ctx BazelConversionPathContext, path bazel.Label) b
 
 	newLabel := ""
 	pathComponents := strings.Split(path.Label, "/")
-	foundBlueprint := false
+	foundPackageBoundary := false
 	// Check the deepest subdirectory first and work upwards
 	for i := len(pathComponents) - 1; i >= 0; i-- {
 		pathComponent := pathComponents[i]
 		var sep string
-		if !foundBlueprint && directoryHasBlueprint(ctx.Config().fs, ctx.ModuleDir(), pathComponents, i) {
+		if !foundPackageBoundary && isPackageBoundary(ctx.Config(), ctx.ModuleDir(), pathComponents, i) {
 			sep = ":"
-			foundBlueprint = true
+			foundPackageBoundary = true
 		} else {
 			sep = "/"
 		}
@@ -262,7 +268,7 @@ func transformSubpackagePath(ctx BazelConversionPathContext, path bazel.Label) b
 			newLabel = pathComponent + sep + newLabel
 		}
 	}
-	if foundBlueprint {
+	if foundPackageBoundary {
 		// Ensure paths end up looking like //bionic/... instead of //./bionic/...
 		moduleDir := ctx.ModuleDir()
 		if strings.HasPrefix(moduleDir, ".") {

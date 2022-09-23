@@ -30,13 +30,6 @@ import (
 )
 
 var (
-	// A default configuration for tests to not have to specify bp2build_available on top level targets.
-	bp2buildConfig = android.NewBp2BuildAllowlist().SetDefaultConfig(
-		allowlists.Bp2BuildConfig{
-			android.Bp2BuildTopLevel: allowlists.Bp2BuildDefaultTrueRecursively,
-		},
-	)
-
 	buildDir string
 )
 
@@ -87,6 +80,11 @@ type Bp2buildTestCase struct {
 	// An error with a string contained within the string of the expected error
 	ExpectedErr         error
 	UnconvertedDepsMode unconvertedDepsMode
+
+	// For every directory listed here, the BUILD file for that directory will
+	// be merged with the generated BUILD file. This allows custom BUILD targets
+	// to be used in tests, or use BUILD files to draw package boundaries.
+	KeepBuildFileForDirs []string
 }
 
 func RunBp2BuildTestCase(t *testing.T, registerModuleTypes func(ctx android.RegistrationContext), tc Bp2buildTestCase) {
@@ -107,6 +105,18 @@ func RunBp2BuildTestCase(t *testing.T, registerModuleTypes func(ctx android.Regi
 
 	registerModuleTypes(ctx)
 	ctx.RegisterModuleType(tc.ModuleTypeUnderTest, tc.ModuleTypeUnderTestFactory)
+
+	// A default configuration for tests to not have to specify bp2build_available on top level targets.
+	bp2buildConfig := android.NewBp2BuildAllowlist().SetDefaultConfig(
+		allowlists.Bp2BuildConfig{
+			android.Bp2BuildTopLevel: allowlists.Bp2BuildDefaultTrueRecursively,
+		},
+	)
+	for _, f := range tc.KeepBuildFileForDirs {
+		bp2buildConfig.SetKeepExistingBuildFile(map[string]bool{
+			f: /*recursive=*/ false,
+		})
+	}
 	ctx.RegisterBp2BuildConfig(bp2buildConfig)
 	ctx.RegisterForBazelConversion()
 
