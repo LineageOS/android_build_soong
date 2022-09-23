@@ -61,7 +61,7 @@ func TestPrebuiltApis_SystemModulesCreation(t *testing.T) {
 }
 
 func TestPrebuiltApis_WithExtensions(t *testing.T) {
-	runTestWithBaseExtensionLevel := func(v int) (foo_input string, bar_input string) {
+	runTestWithBaseExtensionLevel := func(v int) (foo_input, bar_input, baz_input string) {
 		result := android.GroupFixturePreparers(
 			prepareForJavaTest,
 			android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
@@ -69,7 +69,7 @@ func TestPrebuiltApis_WithExtensions(t *testing.T) {
 			}),
 			FixtureWithPrebuiltApisAndExtensions(map[string][]string{
 				"31":      {"foo"},
-				"32":      {"foo", "bar"},
+				"32":      {"foo", "bar", "baz"},
 				"current": {"foo", "bar"},
 			}, map[string][]string{
 				"1": {"foo"},
@@ -78,15 +78,24 @@ func TestPrebuiltApis_WithExtensions(t *testing.T) {
 		).RunTest(t)
 		foo_input = result.ModuleForTests("foo.api.public.latest", "").Rule("generator").Implicits[0].String()
 		bar_input = result.ModuleForTests("bar.api.public.latest", "").Rule("generator").Implicits[0].String()
+		baz_input = result.ModuleForTests("baz.api.public.latest", "").Rule("generator").Implicits[0].String()
 		return
 	}
-	// Here, the base extension level is 1, so extension level 2 is the latest
-	foo_input, bar_input := runTestWithBaseExtensionLevel(1)
-	android.AssertStringEquals(t, "Expected latest = extension level 2", "prebuilts/sdk/extensions/2/public/api/foo.txt", foo_input)
-	android.AssertStringEquals(t, "Expected latest = extension level 2", "prebuilts/sdk/extensions/2/public/api/bar.txt", bar_input)
+	// Extension 2 is the latest for both foo and bar, finalized after the base extension version.
+	foo_input, bar_input, baz_input := runTestWithBaseExtensionLevel(1)
+	android.AssertStringEquals(t, "Expected latest foo = extension level 2", "prebuilts/sdk/extensions/2/public/api/foo.txt", foo_input)
+	android.AssertStringEquals(t, "Expected latest bar = extension level 2", "prebuilts/sdk/extensions/2/public/api/bar.txt", bar_input)
+	android.AssertStringEquals(t, "Expected latest baz = api level 32", "prebuilts/sdk/32/public/api/baz.txt", baz_input)
 
-	// Here, the base extension level is 2, so 2 is not later than 32.
-	foo_input, bar_input = runTestWithBaseExtensionLevel(2)
-	android.AssertStringEquals(t, "Expected latest = api level 32", "prebuilts/sdk/32/public/api/foo.txt", foo_input)
-	android.AssertStringEquals(t, "Expected latest = api level 32", "prebuilts/sdk/32/public/api/bar.txt", bar_input)
+	// Extension 2 is the latest for both foo and bar, finalized together with 32
+	foo_input, bar_input, baz_input = runTestWithBaseExtensionLevel(2)
+	android.AssertStringEquals(t, "Expected latest foo = extension level 2", "prebuilts/sdk/extensions/2/public/api/foo.txt", foo_input)
+	android.AssertStringEquals(t, "Expected latest bar = extension level 2", "prebuilts/sdk/extensions/2/public/api/bar.txt", bar_input)
+	android.AssertStringEquals(t, "Expected latest baz = api level 32", "prebuilts/sdk/32/public/api/baz.txt", baz_input)
+
+	// Extension 3 is the current extension, but it has not yet been finalized.
+	foo_input, bar_input, baz_input = runTestWithBaseExtensionLevel(3)
+	android.AssertStringEquals(t, "Expected latest foo = extension level 2", "prebuilts/sdk/extensions/2/public/api/foo.txt", foo_input)
+	android.AssertStringEquals(t, "Expected latest bar = extension level 2", "prebuilts/sdk/extensions/2/public/api/bar.txt", bar_input)
+	android.AssertStringEquals(t, "Expected latest baz = api level 32", "prebuilts/sdk/32/public/api/baz.txt", baz_input)
 }
