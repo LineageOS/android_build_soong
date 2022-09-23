@@ -348,6 +348,7 @@ var (
 	dataDeviceBinsTag       = dependencyTag{name: "dataDeviceBins"}
 	staticLibTag            = dependencyTag{name: "staticlib"}
 	libTag                  = dependencyTag{name: "javalib", runtimeLinked: true}
+	sdkLibTag               = dependencyTag{name: "sdklib", runtimeLinked: true}
 	java9LibTag             = dependencyTag{name: "java9lib", runtimeLinked: true}
 	pluginTag               = dependencyTag{name: "plugin", toolchain: true}
 	errorpronePluginTag     = dependencyTag{name: "errorprone-plugin", toolchain: true}
@@ -374,7 +375,7 @@ var (
 )
 
 func IsLibDepTag(depTag blueprint.DependencyTag) bool {
-	return depTag == libTag
+	return depTag == libTag || depTag == sdkLibTag
 }
 
 func IsStaticLibDepTag(depTag blueprint.DependencyTag) bool {
@@ -427,7 +428,7 @@ func sdkDeps(ctx android.BottomUpMutatorContext, sdkContext android.SdkContext, 
 	if sdkDep.useModule {
 		ctx.AddVariationDependencies(nil, bootClasspathTag, sdkDep.bootclasspath...)
 		ctx.AddVariationDependencies(nil, java9LibTag, sdkDep.java9Classpath...)
-		ctx.AddVariationDependencies(nil, libTag, sdkDep.classpath...)
+		ctx.AddVariationDependencies(nil, sdkLibTag, sdkDep.classpath...)
 		if d.effectiveOptimizeEnabled() && sdkDep.hasStandardLibs() {
 			ctx.AddVariationDependencies(nil, proguardRaiseTag, config.LegacyCorePlatformBootclasspathLibraries...)
 		}
@@ -1654,7 +1655,7 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		if ctx.OtherModuleHasProvider(module, JavaInfoProvider) {
 			dep := ctx.OtherModuleProvider(module, JavaInfoProvider).(JavaInfo)
 			switch tag {
-			case libTag:
+			case libTag, sdkLibTag:
 				flags.classpath = append(flags.classpath, dep.HeaderJars...)
 				flags.dexClasspath = append(flags.dexClasspath, dep.HeaderJars...)
 			case staticLibTag:
@@ -1664,7 +1665,7 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			}
 		} else if dep, ok := module.(SdkLibraryDependency); ok {
 			switch tag {
-			case libTag:
+			case libTag, sdkLibTag:
 				flags.classpath = append(flags.classpath, dep.SdkHeaderJars(ctx, j.SdkVersion(ctx))...)
 			}
 		}
@@ -2178,7 +2179,7 @@ func addCLCFromDep(ctx android.ModuleContext, depModule android.Module,
 	}
 
 	depTag := ctx.OtherModuleDependencyTag(depModule)
-	if depTag == libTag {
+	if IsLibDepTag(depTag) {
 		// Ok, propagate <uses-library> through non-static library dependencies.
 	} else if tag, ok := depTag.(usesLibraryDependencyTag); ok && tag.sdkVersion == dexpreopt.AnySdkVersion {
 		// Ok, propagate <uses-library> through non-compatibility <uses-library> dependencies.
