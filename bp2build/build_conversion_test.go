@@ -1687,6 +1687,22 @@ filegroup {
 			},
 		},
 		{
+			Description:                "Required into data test, cyclic self reference is filtered out",
+			ModuleTypeUnderTest:        "filegroup",
+			ModuleTypeUnderTestFactory: android.FileGroupFactory,
+			Blueprint: simpleModuleDoNotConvertBp2build("filegroup", "reqd") + `
+filegroup {
+    name: "fg_foo",
+    required: ["reqd", "fg_foo"],
+    bazel_module: { bp2build_available: true },
+}`,
+			ExpectedBazelTargets: []string{
+				MakeBazelTargetNoRestrictions("filegroup", "fg_foo", map[string]string{
+					"data": `[":reqd"]`,
+				}),
+			},
+		},
+		{
 			Description:                "Required via arch into data test",
 			ModuleTypeUnderTest:        "python_library",
 			ModuleTypeUnderTestFactory: python.PythonLibraryFactory,
