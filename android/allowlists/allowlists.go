@@ -556,6 +556,21 @@ var (
 
 		//system/core/fs_mgr
 		"libfs_mgr",
+
+		"libcodec2_hidl@1.0",
+		"libcodec2_hidl@1.1",
+		"libcodec2_hidl@1.2",
+		"libcodec2_hidl_plugin_stub",
+		"libcodec2_hidl_plugin",
+		"libstagefright_bufferqueue_helper_novndk",
+		"libgui_bufferqueue_static",
+		"libGLESv2",
+		"libEGL",
+		"libcodec2_vndk",
+		"libnativeloader_lazy",
+		"libnativeloader",
+		"libEGL_getProcAddress",
+		"libEGL_blobCache",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
