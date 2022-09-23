@@ -807,3 +807,23 @@ func TestAndroidTestImport_UncompressDex(t *testing.T) {
 		}
 	}
 }
+
+func TestAppImportMissingCertificateAllowMissingDependencies(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		PrepareForTestWithJavaDefaultModules,
+		android.PrepareForTestWithAllowMissingDependencies,
+		android.PrepareForTestWithAndroidMk,
+	).RunTestWithBp(t, `
+		android_app_import {
+			name: "foo",
+			apk: "a.apk",
+			certificate: ":missing_certificate",
+		}`)
+
+	foo := result.ModuleForTests("foo", "android_common")
+	fooApk := foo.Output("signed/foo.apk")
+	if fooApk.Rule != android.ErrorRule {
+		t.Fatalf("expected ErrorRule for foo.apk, got %s", fooApk.Rule.String())
+	}
+	android.AssertStringDoesContain(t, "expected error rule message", fooApk.Args["error"], "missing dependencies: missing_certificate\n")
+}

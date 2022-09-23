@@ -488,12 +488,21 @@ cc_library_shared {
 `,
 		},
 		Blueprint: soongCcLibraryPreamble,
-		ExpectedBazelTargets: []string{MakeBazelTarget("cc_library_shared", "a", AttrNameToString{
-			"has_stubs": `True`,
+		ExpectedBazelTargets: []string{makeCcStubSuiteTargets("a", AttrNameToString{
+			"soname":            `"a.so"`,
+			"source_library":    `":a"`,
+			"stubs_symbol_file": `"a.map.txt"`,
+			"stubs_versions": `[
+        "28",
+        "29",
+        "current",
+    ]`,
 		}),
+			MakeBazelTarget("cc_library_shared", "a", AttrNameToString{
+				"has_stubs": `True`,
+			}),
 		},
-	},
-	)
+	})
 }
 
 func TestCcLibrarySharedSystemSharedLibsSharedEmpty(t *testing.T) {
@@ -713,6 +722,80 @@ cc_library_shared {
         "//build/bazel/platforms/arch:arm": "-32",
         "//build/bazel/platforms/arch:arm64": "-64",
         "//conditions:default": None,
+    })`,
+			}),
+		},
+	})
+}
+
+func TestCcLibrarySharedWithSyspropSrcs(t *testing.T) {
+	runCcLibrarySharedTestCase(t, Bp2buildTestCase{
+		Description: "cc_library_shared with sysprop sources",
+		Blueprint: `
+cc_library_shared {
+	name: "foo",
+	srcs: [
+		"bar.sysprop",
+		"baz.sysprop",
+		"blah.cpp",
+	],
+	min_sdk_version: "5",
+}`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("sysprop_library", "foo_sysprop_library", AttrNameToString{
+				"srcs": `[
+        "bar.sysprop",
+        "baz.sysprop",
+    ]`,
+			}),
+			MakeBazelTarget("cc_sysprop_library_static", "foo_cc_sysprop_library_static", AttrNameToString{
+				"dep":             `":foo_sysprop_library"`,
+				"min_sdk_version": `"5"`,
+			}),
+			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+				"srcs":               `["blah.cpp"]`,
+				"local_includes":     `["."]`,
+				"min_sdk_version":    `"5"`,
+				"whole_archive_deps": `[":foo_cc_sysprop_library_static"]`,
+			}),
+		},
+	})
+}
+
+func TestCcLibrarySharedWithSyspropSrcsSomeConfigs(t *testing.T) {
+	runCcLibrarySharedTestCase(t, Bp2buildTestCase{
+		Description: "cc_library_shared with sysprop sources in some configs but not others",
+		Blueprint: `
+cc_library_shared {
+	name: "foo",
+	srcs: [
+		"blah.cpp",
+	],
+	target: {
+		android: {
+			srcs: ["bar.sysprop"],
+		},
+	},
+	min_sdk_version: "5",
+}`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("sysprop_library", "foo_sysprop_library", AttrNameToString{
+				"srcs": `select({
+        "//build/bazel/platforms/os:android": ["bar.sysprop"],
+        "//conditions:default": [],
+    })`,
+			}),
+			MakeBazelTarget("cc_sysprop_library_static", "foo_cc_sysprop_library_static", AttrNameToString{
+				"dep":             `":foo_sysprop_library"`,
+				"min_sdk_version": `"5"`,
+			}),
+			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+				"srcs":            `["blah.cpp"]`,
+				"local_includes":  `["."]`,
+				"min_sdk_version": `"5"`,
+				"whole_archive_deps": `select({
+        "//build/bazel/platforms/os:android": [":foo_cc_sysprop_library_static"],
+        "//conditions:default": [],
     })`,
 			}),
 		},
