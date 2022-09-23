@@ -456,7 +456,9 @@ func CheckAvailableForApex(what string, apex_available []string) bool {
 		(what != AvailableToPlatform && InList(AvailableToAnyApex, apex_available)) ||
 		(what == "com.android.btservices" && InList("com.android.bluetooth", apex_available)) || // TODO b/243054261
 		(what == "com.android.bluetooth" && InList("com.android.btservices", apex_available)) || // TODO b/243054261
-		(strings.HasPrefix(what, "com.android.gki.") && InList(AvailableToGkiApex, apex_available))
+		(strings.HasPrefix(what, "com.android.gki.") && InList(AvailableToGkiApex, apex_available)) ||
+		(what == "com.google.mainline.primary.libs") || // TODO b/248601389
+		(what == "com.google.mainline.go.primary.libs") // TODO b/248601389
 }
 
 // Implements ApexModule
@@ -712,8 +714,8 @@ type ApexContents struct {
 
 // NewApexContents creates and initializes an ApexContents that is suitable
 // for use with an apex module.
-// * contents is a map from a module name to information about its membership within
-//   the apex.
+//   - contents is a map from a module name to information about its membership within
+//     the apex.
 func NewApexContents(contents map[string]ApexMembership) *ApexContents {
 	return &ApexContents{
 		contents: contents,
