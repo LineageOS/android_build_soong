@@ -454,7 +454,9 @@ func CheckAvailableForApex(what string, apex_available []string) bool {
 	}
 	return InList(what, apex_available) ||
 		(what != AvailableToPlatform && InList(AvailableToAnyApex, apex_available)) ||
-		(strings.HasPrefix(what, "com.android.gki.") && InList(AvailableToGkiApex, apex_available))
+		(strings.HasPrefix(what, "com.android.gki.") && InList(AvailableToGkiApex, apex_available)) ||
+		(what == "com.google.mainline.primary.libs") || // TODO b/248601389
+		(what == "com.google.mainline.go.primary.libs") // TODO b/248601389
 }
 
 // Implements ApexModule
