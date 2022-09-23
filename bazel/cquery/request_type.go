@@ -168,8 +168,9 @@ return json_encode({
 	"Headers": headers,
 	"RootStaticArchives": rootStaticArchives,
 	"RootDynamicLibraries": rootSharedLibraries,
-	"toc_file": toc_file
+	"TocFile": toc_file
 })`
+
 }
 
 // ParseResult returns a value obtained by parsing the result of the request's Starlark function.
@@ -178,6 +179,7 @@ return json_encode({
 func (g getCcInfoType) ParseResult(rawString string) (CcInfo, error) {
 	var ccInfo CcInfo
 	decoder := json.NewDecoder(strings.NewReader(rawString))
+	decoder.DisallowUnknownFields() //useful to detect typos, e.g. in unit tests
 	err := decoder.Decode(&ccInfo)
 	return ccInfo, err
 }

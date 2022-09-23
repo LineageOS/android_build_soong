@@ -199,6 +199,17 @@ python_binary_host {
     ],
 }
 
+python_binary_host {
+    name: "build-apex-bundle",
+    main: "build-apex-bundle.py",
+    srcs: [
+        "build-apex-bundle.py",
+    ],
+    required: [
+        "bundletool",
+    ],
+}
+
 sh_binary_host {
     name: "list_image",
     src: "list_image.sh",

@@ -63,10 +63,9 @@ func TestGetPythonBinaryParseResults(t *testing.T) {
 
 func TestGetCcInfoParseResults(t *testing.T) {
 	testCases := []struct {
-		description          string
-		inputCcInfo          CcInfo
-		expectedOutput       CcInfo
-		expectedErrorMessage string
+		description    string
+		inputCcInfo    CcInfo
+		expectedOutput CcInfo
 	}{
 		{
 			description:    "no result",
@@ -120,11 +119,10 @@ func TestGetCcInfoParseResults(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		jsonInput, err := json.Marshal(tc.inputCcInfo)
+		jsonInput, _ := json.Marshal(tc.inputCcInfo)
 		actualOutput, err := GetCcInfo.ParseResult(string(jsonInput))
-		if (err == nil && tc.expectedErrorMessage != "") ||
-			(err != nil && err.Error() != tc.expectedErrorMessage) {
-			t.Errorf("%q:\n%12s: %q\n%12s: %q", tc.description, "expect Error", tc.expectedErrorMessage, "but got", err)
+		if err != nil {
+			t.Errorf("%q:\n test case get error: %q", tc.description, err)
 		} else if err == nil && !reflect.DeepEqual(tc.expectedOutput, actualOutput) {
 			t.Errorf("%q:\n expected %#v\n!= actual %#v", tc.description, tc.expectedOutput, actualOutput)
 		}
