@@ -147,6 +147,7 @@ var (
 		"external/mdnsresponder":                 Bp2BuildDefaultTrueRecursively,
 		"external/minijail":                      Bp2BuildDefaultTrueRecursively,
 		"external/openscreen":                    Bp2BuildDefaultTrueRecursively,
+		"external/objenesis":                     Bp2BuildDefaultTrueRecursively,
 		"external/pcre":                          Bp2BuildDefaultTrueRecursively,
 		"external/protobuf":                      Bp2BuildDefaultTrueRecursively,
 		"external/python/six":                    Bp2BuildDefaultTrueRecursively,
@@ -312,7 +313,7 @@ var (
 		// build/make/tools/signapk BUILD file is generated, so build/make/tools is not recursive.
 		"build/make/tools":/* recursive = */ false,
 		"build/pesto":/* recursive = */ true,
-		"build/soong/ui/metrics/bp2build_progress_metrics_proto":/* recursive = */ true,
+		"build/soong":/* recursive = */ true,
 
 		// external/bazelbuild-rules_android/... is needed by mixed builds, otherwise mixed builds analysis fails
 		// e.g. ERROR: Analysis of target '@soong_injection//mixed_builds:buildroot' failed
@@ -323,6 +324,10 @@ var (
 		"external/guava":/* recursive = */ true,
 		"external/jsr305":/* recursive = */ true,
 		"external/protobuf":/* recursive = */ false,
+
+		// this BUILD file is globbed by //external/icu/icu4c/source:icu4c_test_data's "data/**/*".
+		"external/icu/icu4c/source/data/unidata/norm2":/* recursive = */ false,
+
 		"frameworks/base/tools/codegen":/* recursive = */ true,
 		"frameworks/ex/common":/* recursive = */ true,
 
@@ -354,6 +359,7 @@ var (
 		"com.android.media.swcodec-mediaswcodec.rc",
 		"com.android.media.swcodec.certificate",
 		"com.android.media.swcodec.key",
+		"com.android.neuralnetworks",
 		"com.android.neuralnetworks-androidManifest",
 		"com.android.neuralnetworks.certificate",
 		"com.android.neuralnetworks.key",
@@ -382,6 +388,7 @@ var (
 		"libgrallocusage",
 		"libgralloctypes",
 		"libnativewindow",
+		"libneuralnetworks",
 		"libgraphicsenv",
 		"libhardware",
 		"libhardware_headers",
@@ -439,6 +446,8 @@ var (
 		"philox_random",
 		"philox_random_headers",
 		"server_configurable_flags",
+		"statslog_neuralnetworks.cpp",
+		"statslog_neuralnetworks.h",
 		"tensorflow_headers",
 
 		"libgui_headers",
@@ -547,17 +556,42 @@ var (
 
 		//system/core/fs_mgr
 		"libfs_mgr",
+
+		"libcodec2_hidl@1.0",
+		"libcodec2_hidl@1.1",
+		"libcodec2_hidl@1.2",
+		"libcodec2_hidl_plugin_stub",
+		"libcodec2_hidl_plugin",
+		"libstagefright_bufferqueue_helper_novndk",
+		"libgui_bufferqueue_static",
+		"libGLESv2",
+		"libEGL",
+		"libcodec2_vndk",
+		"libnativeloader_lazy",
+		"libnativeloader",
+		"libEGL_getProcAddress",
+		"libEGL_blobCache",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
+		"aidl_interface_headers",
+		"api_domain",
 		"license",
 		"linker_config",
 		"java_import",
 		"java_import_host",
+		"ndk_headers",
+		"ndk_library",
 		"sysprop_library",
-		"aidl_interface_headers",
 	}
 
+	// Add the names of modules that bp2build should never convert, if it is
+	// in the package allowlist.  An error will be thrown if a module must
+	// not be here and in the alwaysConvert lists.
+	//
+	// For prebuilt modules (e.g. android_library_import), remember to add
+	// the "prebuilt_" prefix to the name, so that it's differentiable from
+	// the source versions within Soong's module graph.
 	Bp2buildModuleDoNotConvertList = []string{
 		// cc bugs
 		"libactivitymanager_aidl", // TODO(b/207426160): Unsupported use of aidl sources (via Dactivity_manager_procstate_aidl) in a cc_library
@@ -595,6 +629,9 @@ var (
 		"prebuilt_car-ui-androidx-core-common",         // TODO(b/224773339), genrule dependency creates an .aar, not a .jar
 		"prebuilt_platform-robolectric-4.4-prebuilt",   // aosp/1999250, needs .aar support in Jars
 		"prebuilt_platform-robolectric-4.5.1-prebuilt", // aosp/1999250, needs .aar support in Jars
+		// ERROR: The dependencies for the following 1 jar(s) are not complete.
+		// 1.bazel-out/android_target-fastbuild/bin/prebuilts/tools/common/m2/_aar/robolectric-monitor-1.0.2-alpha1/classes_and_libs_merged.jar
+		"prebuilt_robolectric-monitor-1.0.2-alpha1",
 
 		// path property for filegroups
 		"conscrypt",                        // TODO(b/210751803), we don't handle path property for filegroups
@@ -607,18 +644,12 @@ var (
 		"auto_value_plugin_resources",      // TODO(b/210751803), we don't handle path property for filegroups
 
 		// go deps:
-		"aapt2-protos",                                                                               // depends on soong_zip, a go binary
-		"analyze_bcpf",                                                                               // depends on bpmodify a blueprint_go_binary.
-		"apex-protos",                                                                                // depends on soong_zip, a go binary
-		"generated_android_icu4j_src_files", "generated_android_icu4j_test_files", "icu4c_test_data", // depends on unconverted modules: soong_zip
-		"host_bionic_linker_asm",                                                  // depends on extract_linker, a go binary.
-		"host_bionic_linker_script",                                               // depends on extract_linker, a go binary.
-		"libc_musl_sysroot_bionic_arch_headers",                                   // depends on soong_zip
-		"libc_musl_sysroot_bionic_headers",                                        // 218405924, depends on soong_zip and generates duplicate srcs
-		"libc_musl_sysroot_libc++_headers", "libc_musl_sysroot_libc++abi_headers", // depends on soong_zip, zip2zip
-		"libc_musl_sysroot_zlib_headers", // depends on soong_zip and zip2zip
-		"robolectric-sqlite4java-native", // depends on soong_zip, a go binary
-		"robolectric_tzdata",             // depends on soong_zip, a go binary
+		"analyze_bcpf",              // depends on bpmodify a blueprint_go_binary.
+		"host_bionic_linker_asm",    // depends on extract_linker, a go binary.
+		"host_bionic_linker_script", // depends on extract_linker, a go binary.
+
+		// in cmd attribute of genrule rule //system/timezone/output_data:robolectric_tzdata: label '//system/timezone/output_data:iana/tzdata' in $(location) expression is not a declared prerequisite of this rule
+		"robolectric_tzdata",
 
 		// rust support
 		"libtombstoned_client_rust_bridge_code", "libtombstoned_client_wrapper", // rust conversions are not supported
@@ -634,8 +665,8 @@ var (
 		"com.android.runtime",                                        // depends on unconverted modules: bionic-linker-config, linkerconfig
 		"currysrc",                                                   // depends on unconverted modules: currysrc_org.eclipse, guavalib, jopt-simple-4.9
 		"dex2oat-script",                                             // depends on unconverted modules: dex2oat
-		"generated_android_icu4j_resources",                          // depends on unconverted modules: android_icu4j_srcgen_binary, soong_zip
-		"generated_android_icu4j_test_resources",                     // depends on unconverted modules: android_icu4j_srcgen_binary, soong_zip
+		"generated_android_icu4j_resources",                          // depends on unconverted modules: android_icu4j_srcgen_binary
+		"generated_android_icu4j_test_resources",                     // depends on unconverted modules: android_icu4j_srcgen_binary
 		"host-libprotobuf-java-nano",                                 // b/220869005, depends on libprotobuf-java-nano
 		"jacoco-stubs",                                               // b/245767077, depends on droidstubs
 		"libapexutil",                                                // depends on unconverted modules: apex-info-list-tinyxml
@@ -660,20 +691,22 @@ var (
 		"libstatslog_art",           // depends on unconverted modules: statslog_art.cpp, statslog_art.h
 		"linker_reloc_bench_main",   // depends on unconverted modules: liblinker_reloc_bench_*
 		"pbtombstone", "crash_dump", // depends on libdebuggerd, libunwindstack
-		"robolectric-sqlite4java-0.282",             // depends on unconverted modules: robolectric-sqlite4java-import, robolectric-sqlite4java-native
-		"static_crasher",                            // depends on unconverted modules: libdebuggerd_handler
-		"statslog.cpp", "statslog.h", "statslog.rs", // depends on unconverted modules: stats-log-api-gen
-		"statslog_art.cpp", "statslog_art.h", "statslog_header.rs", // depends on unconverted modules: stats-log-api-gen
-		"test_fips",           // depends on unconverted modules: adb
-		"timezone-host",       // depends on unconverted modules: art.module.api.annotations
-		"truth-host-prebuilt", // depends on unconverted modules: truth-prebuilt
-		"truth-prebuilt",      // depends on unconverted modules: asm-7.0, guava
+		"robolectric-sqlite4java-0.282", // depends on unconverted modules: robolectric-sqlite4java-import, robolectric-sqlite4java-native
+		"static_crasher",                // depends on unconverted modules: libdebuggerd_handler
+		"test_fips",                     // depends on unconverted modules: adb
+		"timezone-host",                 // depends on unconverted modules: art.module.api.annotations
+		"truth-host-prebuilt",           // depends on unconverted modules: truth-prebuilt
+		"truth-prebuilt",                // depends on unconverted modules: asm-7.0, guava
 
 		// '//bionic/libc:libc_bp2build_cc_library_static' is duplicated in the 'deps' attribute of rule
 		"toybox-static",
 
 		// aidl files not created
 		"overlayable_policy_aidl_interface",
+
+		//prebuilts/tools/common/m2
+		// depends on //external/okio:okio-lib, which uses kotlin
+		"wire-runtime",
 
 		// cc_test related.
 		// Failing host cc_tests
