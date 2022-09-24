@@ -64,6 +64,7 @@ bootstrap_go_package {
         "plugin.go",
         "prebuilt_apis.go",
         "proto.go",
+        "resourceshrinker.go",
         "robolectric.go",
         "rro.go",
         "sdk.go",

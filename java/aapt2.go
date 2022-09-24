@@ -256,17 +256,21 @@ func aapt2Link(ctx android.ModuleContext,
 
 var aapt2ConvertRule = pctx.AndroidStaticRule("aapt2Convert",
 	blueprint.RuleParams{
-		Command:     `${config.Aapt2Cmd} convert --output-format proto $in -o $out`,
+		Command:     `${config.Aapt2Cmd} convert --output-format $format $in -o $out`,
 		CommandDeps: []string{"${config.Aapt2Cmd}"},
-	})
+	}, "format",
+)
 
 // Converts xml files and resource tables (resources.arsc) in the given jar/apk file to a proto
 // format. The proto definition is available at frameworks/base/tools/aapt2/Resources.proto.
-func aapt2Convert(ctx android.ModuleContext, out android.WritablePath, in android.Path) {
+func aapt2Convert(ctx android.ModuleContext, out android.WritablePath, in android.Path, format string) {
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        aapt2ConvertRule,
 		Input:       in,
 		Output:      out,
-		Description: "convert to proto",
+		Description: "convert to " + format,
+		Args: map[string]string{
+			"format": format,
+		},
 	})
 }
