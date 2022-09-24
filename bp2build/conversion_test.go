@@ -116,6 +116,10 @@ func TestCreateBazelFiles_Bp2Build_CreatesDefaultFiles(t *testing.T) {
 			basename: "converted_modules.txt",
 		},
 		{
+			dir:      "metrics",
+			basename: "converted_modules_path_map.json",
+		},
+		{
 			dir:      "product_config",
 			basename: "soong_config_variables.bzl",
 		},
