@@ -221,6 +221,7 @@ type testPropertiesStruct struct {
 	name          string
 	private       string
 	Public_Ignore string `sdk:"ignore"`
+	Public_Keep   string `sdk:"keep"`
 	S_Common      string
 	S_Different   string `android:"arch_variant"`
 	A_Common      []string
@@ -247,6 +248,7 @@ func TestCommonValueOptimization(t *testing.T) {
 			name:          "struct-0",
 			private:       "common",
 			Public_Ignore: "common",
+			Public_Keep:   "keep",
 			S_Common:      "common",
 			S_Different:   "upper",
 			A_Common:      []string{"first", "second"},
@@ -262,6 +264,7 @@ func TestCommonValueOptimization(t *testing.T) {
 			name:          "struct-1",
 			private:       "common",
 			Public_Ignore: "common",
+			Public_Keep:   "keep",
 			S_Common:      "common",
 			S_Different:   "lower",
 			A_Common:      []string{"first", "second"},
@@ -285,6 +288,7 @@ func TestCommonValueOptimization(t *testing.T) {
 			name:          "common",
 			private:       "",
 			Public_Ignore: "",
+			Public_Keep:   "keep",
 			S_Common:      "common",
 			S_Different:   "",
 			A_Common:      []string{"first", "second"},
@@ -303,6 +307,7 @@ func TestCommonValueOptimization(t *testing.T) {
 			name:          "struct-0",
 			private:       "common",
 			Public_Ignore: "common",
+			Public_Keep:   "keep",
 			S_Common:      "",
 			S_Different:   "upper",
 			A_Common:      nil,
@@ -321,6 +326,7 @@ func TestCommonValueOptimization(t *testing.T) {
 			name:          "struct-1",
 			private:       "common",
 			Public_Ignore: "common",
+			Public_Keep:   "keep",
 			S_Common:      "",
 			S_Different:   "lower",
 			A_Common:      nil,

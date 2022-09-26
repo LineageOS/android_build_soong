@@ -889,6 +889,56 @@ java_sdk_library_import {
 	)
 }
 
+func TestSnapshotWithJavaSdkLibrary_DistStem(t *testing.T) {
+	result := android.GroupFixturePreparers(prepareForSdkTestWithJavaSdkLibrary).RunTestWithBp(t, `
+		sdk {
+			name: "mysdk",
+			java_sdk_libs: ["myjavalib-foo"],
+		}
+
+		java_sdk_library {
+			name: "myjavalib-foo",
+			apex_available: ["//apex_available:anyapex"],
+			srcs: ["Test.java"],
+			sdk_version: "current",
+			shared_library: false,
+			public: {
+				enabled: true,
+			},
+			dist_stem: "myjavalib",
+		}
+	`)
+
+	CheckSnapshot(t, result, "mysdk", "",
+		checkAndroidBpContents(`
+// This is auto-generated. DO NOT EDIT.
+
+java_sdk_library_import {
+    name: "myjavalib-foo",
+    prefer: false,
+    visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:anyapex"],
+    shared_library: false,
+    public: {
+        jars: ["sdk_library/public/myjavalib-stubs.jar"],
+        stub_srcs: ["sdk_library/public/myjavalib_stub_sources"],
+        current_api: "sdk_library/public/myjavalib.txt",
+        removed_api: "sdk_library/public/myjavalib-removed.txt",
+        sdk_version: "current",
+    },
+}
+`),
+		checkAllCopyRules(`
+.intermediates/myjavalib-foo.stubs/android_common/javac/myjavalib-foo.stubs.jar -> sdk_library/public/myjavalib-stubs.jar
+.intermediates/myjavalib-foo.stubs.source/android_common/metalava/myjavalib-foo.stubs.source_api.txt -> sdk_library/public/myjavalib.txt
+.intermediates/myjavalib-foo.stubs.source/android_common/metalava/myjavalib-foo.stubs.source_removed.txt -> sdk_library/public/myjavalib-removed.txt
+`),
+		checkMergeZips(
+			".intermediates/mysdk/common_os/tmp/sdk_library/public/myjavalib_stub_sources.zip",
+		),
+	)
+}
+
 func TestSnapshotWithJavaSdkLibrary_UseSrcJar(t *testing.T) {
 	result := android.GroupFixturePreparers(
 		prepareForSdkTestWithJavaSdkLibrary,
