@@ -44,13 +44,13 @@ var (
 
 	hostPar = pctx.AndroidStaticRule("hostPar",
 		blueprint.RuleParams{
-			Command: `sed -e 's/%interpreter%/$interp/g' -e 's/%main%/$main/g' $template > $stub && ` +
+			Command: `sed -e 's/%interpreter%/$interp/g' -e 's/%main%/$main/g' -e 's/ADD_TOP_DIRECTORIES_TO_PATH/$addTopDirectoriesToPath/g' build/soong/python/scripts/stub_template_host.txt > $out.main && ` +
 				`echo "#!/usr/bin/env $interp" >${out}.prefix &&` +
-				`$mergeParCmd -p --prefix ${out}.prefix -pm $stub $out $srcsZips && ` +
-				`chmod +x $out && (rm -f $stub; rm -f ${out}.prefix)`,
-			CommandDeps: []string{"$mergeParCmd"},
+				`$mergeParCmd -p --prefix ${out}.prefix -pm $out.main $out $srcsZips && ` +
+				`chmod +x $out && (rm -f $out.main; rm -f ${out}.prefix)`,
+			CommandDeps: []string{"$mergeParCmd", "build/soong/python/scripts/stub_template_host.txt"},
 		},
-		"interp", "main", "template", "stub", "srcsZips")
+		"interp", "main", "srcsZips", "addTopDirectoriesToPath")
 
 	embeddedPar = pctx.AndroidStaticRule("embeddedPar",
 		blueprint.RuleParams{
@@ -81,7 +81,7 @@ func init() {
 
 func registerBuildActionForParFile(ctx android.ModuleContext, embeddedLauncher bool,
 	launcherPath android.OptionalPath, interpreter, main, binName string,
-	srcsZips android.Paths) android.Path {
+	srcsZips android.Paths, addTopDirectoriesToPath bool) android.Path {
 
 	// .intermediate output path for bin executable.
 	binFile := android.PathForModuleOut(ctx, binName)
@@ -90,24 +90,20 @@ func registerBuildActionForParFile(ctx android.ModuleContext, embeddedLauncher b
 	implicits := srcsZips
 
 	if !embeddedLauncher {
-		// the path of stub_template_host.txt from source tree.
-		template := android.PathForSource(ctx, StubTemplateHost)
-		implicits = append(implicits, template)
-
-		// intermediate output path for __main__.py
-		stub := android.PathForModuleOut(ctx, mainFileName).String()
-
+		addDirsString := "False"
+		if addTopDirectoriesToPath {
+			addDirsString = "True"
+		}
 		ctx.Build(pctx, android.BuildParams{
 			Rule:        hostPar,
 			Description: "host python archive",
 			Output:      binFile,
 			Implicits:   implicits,
 			Args: map[string]string{
-				"interp":   strings.Replace(interpreter, "/", `\/`, -1),
-				"main":     strings.Replace(main, "/", `\/`, -1),
-				"template": template.String(),
-				"stub":     stub,
-				"srcsZips": strings.Join(srcsZips.Strings(), " "),
+				"interp":                  strings.Replace(interpreter, "/", `\/`, -1),
+				"main":                    strings.Replace(main, "/", `\/`, -1),
+				"srcsZips":                strings.Join(srcsZips.Strings(), " "),
+				"addTopDirectoriesToPath": addDirsString,
 			},
 		})
 	} else if launcherPath.Valid() {

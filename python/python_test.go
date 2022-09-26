@@ -300,8 +300,6 @@ var (
 				filepath.Join("dir", "file2.py"):       nil,
 				filepath.Join("dir", "bin.py"):         nil,
 				filepath.Join("dir", "file4.py"):       nil,
-				StubTemplateHost: []byte(`PYTHON_BINARY = '%interpreter%'
-				MAIN_FILE = '%main%'`),
 			},
 			expectedBinaries: []pyModule{
 				{

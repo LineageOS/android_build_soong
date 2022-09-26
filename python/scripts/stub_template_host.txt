@@ -1,7 +1,6 @@
 #!/usr/bin/env '%interpreter%'
 
 import os
-import re
 import tempfile
 import shutil
 import sys
@@ -15,56 +14,31 @@ PYTHON_PATH = 'PYTHONPATH'
 # Don't imply 'import site' on initialization
 PYTHON_ARG = '-S'
 
-def SearchPathEnv(name):
-  search_path = os.getenv('PATH', os.defpath).split(os.pathsep)
-  for directory in search_path:
-    if directory == '': continue
-    path = os.path.join(directory, name)
-    # Check if path is actual executable file.
-    if os.path.isfile(path) and os.access(path, os.X_OK):
-      return path
-  return None
-
-def FindPythonBinary():
-  if PYTHON_BINARY.startswith('/'):
-    # Case 1: Python interpreter is directly provided with absolute path.
-    return PYTHON_BINARY
-  else:
-    # Case 2: Find Python interpreter through environment variable: PATH.
-    return SearchPathEnv(PYTHON_BINARY)
-
-# Create the runfiles tree by extracting the zip file
-def ExtractRunfiles():
-  temp_dir = tempfile.mkdtemp("", "Soong.python_")
-  zf = zipfile.ZipFile(os.path.dirname(__file__))
-  zf.extractall(temp_dir)
-  return temp_dir
-
 def Main():
   args = sys.argv[1:]
 
-  new_env = {}
-  runfiles_path = None
-
+  runfiles_path = tempfile.mkdtemp(prefix="Soong.python_")
   try:
-    runfiles_path = ExtractRunfiles()
+    zf = zipfile.ZipFile(os.path.dirname(__file__))
+    zf.extractall(runfiles_path)
+    zf.close()
 
     # Add runfiles path to PYTHONPATH.
     python_path_entries = [runfiles_path]
 
-    # Add top dirs within runfiles path to PYTHONPATH.
-    top_entries = [os.path.join(runfiles_path, i) for i in os.listdir(runfiles_path)]
-    top_pkg_dirs = [i for i in top_entries if os.path.isdir(i)]
-    python_path_entries += top_pkg_dirs
+    if ADD_TOP_DIRECTORIES_TO_PATH:
+      # Add top dirs within runfiles path to PYTHONPATH.
+      top_entries = [os.path.join(runfiles_path, i) for i in os.listdir(runfiles_path)]
+      top_pkg_dirs = [i for i in top_entries if os.path.isdir(i)]
+      python_path_entries += top_pkg_dirs
 
+    new_python_path = ":".join(python_path_entries)
     old_python_path = os.environ.get(PYTHON_PATH)
-    separator = ':'
-    new_python_path = separator.join(python_path_entries)
 
-    # Copy old PYTHONPATH.
     if old_python_path:
-      new_python_path += separator + old_python_path
-    new_env[PYTHON_PATH] = new_python_path
+      os.environ.update({PYTHON_PATH: new_python_path + ":" + old_python_path})
+    else:
+      os.environ.update({PYTHON_PATH: new_python_path})
 
     # Now look for main python source file.
     main_filepath = os.path.join(runfiles_path, MAIN_FILE)
@@ -73,23 +47,14 @@ def Main():
     assert os.access(main_filepath, os.R_OK), \
            'Cannot exec() %r: file not readable.' % main_filepath
 
-    python_program = FindPythonBinary()
-    if python_program is None:
-      raise AssertionError('Could not find python binary: ' + PYTHON_BINARY)
-    args = [python_program, PYTHON_ARG, main_filepath] + args
-
-    os.environ.update(new_env)
+    args = [PYTHON_BINARY, PYTHON_ARG, main_filepath] + args
 
     sys.stdout.flush()
     # close_fds=False so that you can run binaries with files provided on the command line:
     # my_python_app --file <(echo foo)
-    retCode = subprocess.call(args, close_fds=False)
-    sys.exit(retCode)
-  except:
-    raise
+    sys.exit(subprocess.call(args, close_fds=False))
   finally:
-    if runfiles_path is not None:
-      shutil.rmtree(runfiles_path, True)
+    shutil.rmtree(runfiles_path, ignore_errors=True)
 
 if __name__ == '__main__':
   Main()
