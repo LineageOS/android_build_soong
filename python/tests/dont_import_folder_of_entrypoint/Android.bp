@@ -5,8 +5,7 @@ python_test_host {
         "mypkg/main.py",
         "mypkg/mymodule.py",
     ],
-    dont_add_entrypoint_folder_to_path: true,
-    dont_add_top_level_directories_to_path: true,
+    defaults: ["modern_python_path_defaults"],
 }
 
 python_test_host {
