@@ -1,0 +1,24 @@
+python_test_host {
+    name: "py_dont_import_folder_of_entrypoint_test",
+    main: "mypkg/main.py",
+    srcs: [
+        "mypkg/main.py",
+        "mypkg/mymodule.py",
+    ],
+    dont_add_entrypoint_folder_to_path: true,
+    dont_add_top_level_directories_to_path: true,
+}
+
+python_test_host {
+    name: "py_dont_import_folder_of_entrypoint_test_embedded_launcher",
+    main: "mypkg/main.py",
+    srcs: [
+        "mypkg/main.py",
+        "mypkg/mymodule.py",
+    ],
+    version: {
+        py3: {
+            embedded_launcher: true,
+        },
+    },
+}
