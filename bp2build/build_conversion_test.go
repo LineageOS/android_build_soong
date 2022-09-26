@@ -971,6 +971,24 @@ func TestModuleTypeBp2Build(t *testing.T) {
 			},
 		},
 		{
+			Description:                "filegroup with dot-slash-prefixed srcs",
+			ModuleTypeUnderTest:        "filegroup",
+			ModuleTypeUnderTestFactory: android.FileGroupFactory,
+			Blueprint: `filegroup {
+    name: "fg_foo",
+    srcs: ["./a", "./b"],
+    bazel_module: { bp2build_available: true },
+}`,
+			ExpectedBazelTargets: []string{
+				MakeBazelTargetNoRestrictions("filegroup", "fg_foo", map[string]string{
+					"srcs": `[
+        "a",
+        "b",
+    ]`,
+				}),
+			},
+		},
+		{
 			Description:                "filegroup with excludes srcs",
 			ModuleTypeUnderTest:        "filegroup",
 			ModuleTypeUnderTestFactory: android.FileGroupFactory,

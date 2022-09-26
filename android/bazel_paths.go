@@ -206,9 +206,9 @@ func BazelLabelForModuleSrcExcludes(ctx BazelConversionPathContext, paths, exclu
 //
 // A package boundary is determined by a BUILD file in the directory. This can happen in 2 cases:
 //
-// 1. An Android.bp exists, which bp2build will always convert to a sibling BUILD file.
-// 2. An Android.bp doesn't exist, but a checked-in BUILD/BUILD.bazel file exists, and that file
-//    is allowlisted by the bp2build configuration to be merged into the symlink forest workspace.
+//  1. An Android.bp exists, which bp2build will always convert to a sibling BUILD file.
+//  2. An Android.bp doesn't exist, but a checked-in BUILD/BUILD.bazel file exists, and that file
+//     is allowlisted by the bp2build configuration to be merged into the symlink forest workspace.
 func isPackageBoundary(config Config, prefix string, components []string, componentIndex int) bool {
 	prefix = filepath.Join(prefix, filepath.Join(components[:componentIndex+1]...))
 	if exists, _, _ := config.fs.Exists(filepath.Join(prefix, "Android.bp")); exists {
@@ -248,9 +248,29 @@ func transformSubpackagePath(ctx BazelConversionPathContext, path bazel.Label) b
 		newPath.Label = path.Label
 		return newPath
 	}
-
-	newLabel := ""
+	if strings.HasPrefix(path.Label, "./") {
+		// Drop "./" for consistent handling of paths.
+		// Specifically, to not let "." be considered a package boundary.
+		// Say `inputPath` is `x/Android.bp` and that file has some module
+		// with `srcs=["y/a.c", "z/b.c"]`.
+		// And say the directory tree is:
+		//     x
+		//     ├── Android.bp
+		//     ├── y
+		//     │   ├── a.c
+		//     │   └── Android.bp
+		//     └── z
+		//         └── b.c
+		// Then bazel equivalent labels in srcs should be:
+		//   //x/y:a.c, x/z/b.c
+		// The above should still be the case if `x/Android.bp` had
+		//   srcs=["./y/a.c", "./z/b.c"]
+		// However, if we didn't strip "./", we'd get
+		//   //x/./y:a.c, //x/.:z/b.c
+		path.Label = strings.TrimPrefix(path.Label, "./")
+	}
 	pathComponents := strings.Split(path.Label, "/")
+	newLabel := ""
 	foundPackageBoundary := false
 	// Check the deepest subdirectory first and work upwards
 	for i := len(pathComponents) - 1; i >= 0; i-- {
