@@ -2217,8 +2217,8 @@ func (e *commonValueExtractor) gatherFields(structType reflect.Type, containingS
 			continue
 		}
 
-		// Ignore fields whose value should be kept.
-		if proptools.HasTag(field, "sdk", "keep") {
+		// Ignore fields tagged with sdk:"ignore".
+		if proptools.HasTag(field, "sdk", "ignore") {
 			continue
 		}
 
