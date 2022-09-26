@@ -42,7 +42,7 @@ license_kind {
 
 license_kind {
     name: "SPDX-license-identifier-0BSD",
-    conditions: ["unencumbered"],
+    conditions: ["permissive"],
     url: "https://spdx.org/licenses/0BSD",
 }
 
@@ -933,7 +933,7 @@ license_kind {
 
 license_kind {
     name: "SPDX-license-identifier-MIT-0",
-    conditions: ["notice"],
+    conditions: ["permissive"],
     url: "https://spdx.org/licenses/MIT-0.html",
 }
 
