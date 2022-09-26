@@ -738,6 +738,11 @@ type SdkMemberType interface {
 	//   A field annotated with a tag of `sdk:"ignore"` will be treated as if it
 	//   was not capitalized, i.e. ignored and not optimized for common values.
 	//
+	//   A field annotated with a tag of `sdk:"keep"` will not be cleared even if the value is common
+	//   across multiple structs. Common values will still be copied into the common property struct.
+	//   So, if the same value is placed in all structs populated from variants that value would be
+	//   copied into all common property structs and so be available in every instance.
+	//
 	//   A field annotated with a tag of `android:"arch_variant"` will be allowed to have
 	//   values that differ by arch, fields not tagged as such must have common values across
 	//   all variants.
