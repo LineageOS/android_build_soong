@@ -2172,6 +2172,11 @@ type extractorProperty struct {
 	// Retrieves the value on which common value optimization will be performed.
 	getter fieldAccessorFunc
 
+	// True if the field should never be cleared.
+	//
+	// This is set to true if and only if the field is annotated with `sdk:"keep"`.
+	keep bool
+
 	// The empty value for the field.
 	emptyValue reflect.Value
 
@@ -2236,6 +2241,8 @@ func (e *commonValueExtractor) gatherFields(structType reflect.Type, containingS
 			}
 		}
 
+		keep := proptools.HasTag(field, "sdk", "keep")
+
 		// Save a copy of the field index for use in the function.
 		fieldIndex := f
 
@@ -2275,6 +2282,7 @@ func (e *commonValueExtractor) gatherFields(structType reflect.Type, containingS
 				name,
 				filter,
 				fieldGetter,
+				keep,
 				reflect.Zero(field.Type),
 				proptools.HasTag(field, "android", "arch_variant"),
 			}
@@ -2394,11 +2402,13 @@ func (e *commonValueExtractor) extractCommonProperties(commonProperties interfac
 		if commonValue != nil {
 			emptyValue := property.emptyValue
 			fieldGetter(commonStructValue).Set(*commonValue)
-			for i := 0; i < sliceValue.Len(); i++ {
-				container := sliceValue.Index(i).Interface().(propertiesContainer)
-				itemValue := reflect.ValueOf(container.optimizableProperties())
-				fieldValue := fieldGetter(itemValue)
-				fieldValue.Set(emptyValue)
+			if !property.keep {
+				for i := 0; i < sliceValue.Len(); i++ {
+					container := sliceValue.Index(i).Interface().(propertiesContainer)
+					itemValue := reflect.ValueOf(container.optimizableProperties())
+					fieldValue := fieldGetter(itemValue)
+					fieldValue.Set(emptyValue)
+				}
 			}
 		}
 
