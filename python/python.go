@@ -356,10 +356,6 @@ var (
 	protoExt             = ".proto"
 	pyVersion2           = "PY2"
 	pyVersion3           = "PY3"
-	initFileName         = "__init__.py"
-	mainFileName         = "__main__.py"
-	entryPointFile       = "entry_point.txt"
-	parFileExt           = ".zip"
 	internalPath         = "internal"
 )
 
