@@ -249,41 +249,7 @@ func Build(ctx Context, config Config) {
 
 	SetupPath(ctx, config)
 
-	what := RunAll
-	if config.Checkbuild() {
-		what |= RunBuildTests
-	}
-	if config.SkipConfig() {
-		ctx.Verboseln("Skipping Config as requested")
-		what = what &^ RunProductConfig
-	}
-	if config.SkipKati() {
-		ctx.Verboseln("Skipping Kati as requested")
-		what = what &^ RunKati
-	}
-	if config.SkipKatiNinja() {
-		ctx.Verboseln("Skipping use of Kati ninja as requested")
-		what = what &^ RunKatiNinja
-	}
-	if config.SkipSoong() {
-		ctx.Verboseln("Skipping use of Soong as requested")
-		what = what &^ RunSoong
-	}
-
-	if config.SkipNinja() {
-		ctx.Verboseln("Skipping Ninja as requested")
-		what = what &^ RunNinja
-	}
-
-	if !config.SoongBuildInvocationNeeded() {
-		// This means that the output of soong_build is not needed and thus it would
-		// run unnecessarily. In addition, if this code wasn't there invocations
-		// with only special-cased target names like "m bp2build" would result in
-		// passing Ninja the empty target list and it would then build the default
-		// targets which is not what the user asked for.
-		what = what &^ RunNinja
-		what = what &^ RunKati
-	}
+	what := evaluateWhatToRun(config, ctx.Verboseln)
 
 	if config.StartGoma() {
 		startGoma(ctx, config)
@@ -357,6 +323,46 @@ func Build(ctx Context, config Config) {
 	if what&RunBazel != 0 {
 		runBazel(ctx, config)
 	}
+}
+
+func evaluateWhatToRun(config Config, verboseln func(v ...interface{})) int {
+	//evaluate what to run
+	what := RunAll
+	if config.Checkbuild() {
+		what |= RunBuildTests
+	}
+	if config.SkipConfig() {
+		verboseln("Skipping Config as requested")
+		what = what &^ RunProductConfig
+	}
+	if config.SkipKati() {
+		verboseln("Skipping Kati as requested")
+		what = what &^ RunKati
+	}
+	if config.SkipKatiNinja() {
+		verboseln("Skipping use of Kati ninja as requested")
+		what = what &^ RunKatiNinja
+	}
+	if config.SkipSoong() {
+		verboseln("Skipping use of Soong as requested")
+		what = what &^ RunSoong
+	}
+
+	if config.SkipNinja() {
+		verboseln("Skipping Ninja as requested")
+		what = what &^ RunNinja
+	}
+
+	if !config.SoongBuildInvocationNeeded() {
+		// This means that the output of soong_build is not needed and thus it would
+		// run unnecessarily. In addition, if this code wasn't there invocations
+		// with only special-cased target names like "m bp2build" would result in
+		// passing Ninja the empty target list and it would then build the default
+		// targets which is not what the user asked for.
+		what = what &^ RunNinja
+		what = what &^ RunKati
+	}
+	return what
 }
 
 var distWaitGroup sync.WaitGroup
