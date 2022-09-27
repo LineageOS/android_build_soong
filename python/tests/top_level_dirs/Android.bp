@@ -1,0 +1,9 @@
+python_test_host {
+    name: "py_dont_add_top_level_dirs_test",
+    main: "main.py",
+    srcs: [
+        "main.py",
+        "mypkg/mymodule.py",
+    ],
+    dont_add_top_level_directories_to_path: true,
+}
