@@ -48,6 +48,10 @@ java_import {
 			MakeBazelTarget("java_import", "example_import", AttrNameToString{
 				"jars": `["import.jar"]`,
 			}),
+			MakeBazelTarget("java_library", "example_import-neverlink", AttrNameToString{
+				"exports":   `[":example_import"]`,
+				"neverlink": `True`,
+			}),
 		}})
 }
 
@@ -80,6 +84,36 @@ java_import {
         "//build/bazel/platforms/os:linux": ["linux.jar"],
         "//conditions:default": [],
     })`,
+			}),
+			MakeBazelTarget("java_library", "example_import-neverlink", AttrNameToString{
+				"exports":   `[":example_import"]`,
+				"neverlink": `True`,
+			}),
+		}})
+}
+
+func TestJavaImportHost(t *testing.T) {
+	runJavaImportTestCase(t, Bp2buildTestCase{
+		Description:                "Java import host- simple example",
+		ModuleTypeUnderTest:        "java_import_host",
+		ModuleTypeUnderTestFactory: java.ImportFactory,
+		Filesystem: map[string]string{
+			"import.jar": "",
+		},
+		Blueprint: `
+java_import_host {
+        name: "example_import",
+        jars: ["import.jar"],
+        bazel_module: { bp2build_available: true },
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("java_import", "example_import", AttrNameToString{
+				"jars": `["import.jar"]`,
+			}),
+			MakeBazelTarget("java_library", "example_import-neverlink", AttrNameToString{
+				"exports":   `[":example_import"]`,
+				"neverlink": `True`,
 			}),
 		}})
 }
