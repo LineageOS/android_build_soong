@@ -7264,6 +7264,28 @@ func TestAppSetBundlePrebuilt(t *testing.T) {
 	android.AssertStringEquals(t, "myapex input", extractorOutput, copiedApex.Input.String())
 }
 
+func TestApexSetApksModuleAssignment(t *testing.T) {
+	ctx := testApex(t, `
+		apex_set {
+			name: "myapex",
+			set: ":myapex_apks_file",
+		}
+
+		filegroup {
+			name: "myapex_apks_file",
+			srcs: ["myapex.apks"],
+		}
+	`)
+
+	m := ctx.ModuleForTests("myapex.apex.extractor", "android_common")
+
+	// Check that the extractor produces the correct apks file from the input module
+	extractorOutput := "out/soong/.intermediates/myapex.apex.extractor/android_common/extracted/myapex.apks"
+	extractedApex := m.Output(extractorOutput)
+
+	android.AssertArrayString(t, "extractor input", []string{"myapex.apks"}, extractedApex.Inputs.Strings())
+}
+
 func testNoUpdatableJarsInBootImage(t *testing.T, errmsg string, preparer android.FixturePreparer, fragments ...java.ApexVariantReference) {
 	t.Helper()
 
