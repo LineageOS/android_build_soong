@@ -43,13 +43,12 @@ var manifestMergerRule = pctx.AndroidStaticRule("manifestMerger",
 // targetSdkVersion for manifest_fixer
 // When TARGET_BUILD_APPS is not empty, this method returns 10000 for modules targeting an unreleased SDK
 // This enables release builds (that run with TARGET_BUILD_APPS=[val...]) to target APIs that have not yet been finalized as part of an SDK
-func targetSdkVersionForManifestFixer(ctx android.ModuleContext, sdkContext android.SdkContext) string {
-	targetSdkVersionSpec := sdkContext.TargetSdkVersion(ctx)
-	// Return 10000 for modules targeting "current" if either
-	// 1. The module is built in unbundled mode (TARGET_BUILD_APPS not empty)
-	// 2. The module is run as part of MTS, and should be testable on stable branches
+func targetSdkVersionForManifestFixer(ctx android.ModuleContext, params ManifestFixerParams) string {
+	targetSdkVersionSpec := params.SdkContext.TargetSdkVersion(ctx)
+
+	// Check if we want to return 10000
 	// TODO(b/240294501): Determine the rules for handling test apexes
-	if targetSdkVersionSpec.ApiLevel.IsPreview() && (ctx.Config().UnbundledBuildApps() || includedInMts(ctx.Module())) {
+	if shouldReturnFinalOrFutureInt(ctx, targetSdkVersionSpec, params.EnforceDefaultTargetSdkVersion) {
 		return strconv.Itoa(android.FutureApiLevel.FinalOrFutureInt())
 	}
 	targetSdkVersion, err := targetSdkVersionSpec.EffectiveVersionString(ctx)
@@ -57,6 +56,17 @@ func targetSdkVersionForManifestFixer(ctx android.ModuleContext, sdkContext andr
 		ctx.ModuleErrorf("invalid targetSdkVersion: %s", err)
 	}
 	return targetSdkVersion
+}
+
+// Return true for modules targeting "current" if either
+// 1. The module is built in unbundled mode (TARGET_BUILD_APPS not empty)
+// 2. The module is run as part of MTS, and should be testable on stable branches
+// Do not return 10000 if we are enforcing default targetSdkVersion and sdk has been finalised
+func shouldReturnFinalOrFutureInt(ctx android.ModuleContext, targetSdkVersionSpec android.SdkSpec, enforceDefaultTargetSdkVersion bool) bool {
+	if enforceDefaultTargetSdkVersion && ctx.Config().PlatformSdkFinal() {
+		return false
+	}
+	return targetSdkVersionSpec.ApiLevel.IsPreview() && (ctx.Config().UnbundledBuildApps() || includedInMts(ctx.Module()))
 }
 
 // Helper function that casts android.Module to java.androidTestApp
@@ -69,16 +79,17 @@ func includedInMts(module android.Module) bool {
 }
 
 type ManifestFixerParams struct {
-	SdkContext             android.SdkContext
-	ClassLoaderContexts    dexpreopt.ClassLoaderContextMap
-	IsLibrary              bool
-	DefaultManifestVersion string
-	UseEmbeddedNativeLibs  bool
-	UsesNonSdkApis         bool
-	UseEmbeddedDex         bool
-	HasNoCode              bool
-	TestOnly               bool
-	LoggingParent          string
+	SdkContext                     android.SdkContext
+	ClassLoaderContexts            dexpreopt.ClassLoaderContextMap
+	IsLibrary                      bool
+	DefaultManifestVersion         string
+	UseEmbeddedNativeLibs          bool
+	UsesNonSdkApis                 bool
+	UseEmbeddedDex                 bool
+	HasNoCode                      bool
+	TestOnly                       bool
+	LoggingParent                  string
+	EnforceDefaultTargetSdkVersion bool
 }
 
 // Uses manifest_fixer.py to inject minSdkVersion, etc. into an AndroidManifest.xml
@@ -137,7 +148,7 @@ func ManifestFixer(ctx android.ModuleContext, manifest android.Path,
 	var argsMapper = make(map[string]string)
 
 	if params.SdkContext != nil {
-		targetSdkVersion := targetSdkVersionForManifestFixer(ctx, params.SdkContext)
+		targetSdkVersion := targetSdkVersionForManifestFixer(ctx, params)
 		args = append(args, "--targetSdkVersion ", targetSdkVersion)
 
 		if UseApiFingerprint(ctx) && ctx.ModuleName() != "framework-res" {
