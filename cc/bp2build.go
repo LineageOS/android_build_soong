@@ -1019,18 +1019,20 @@ func (la *linkerAttributes) bp2buildForAxisAndConfig(ctx android.BazelConversion
 			axisFeatures = append(axisFeatures, "-static_flag")
 		}
 	}
+	additionalLinkerInputs := bazel.LabelList{}
 	if props.Version_script != nil {
 		label := android.BazelLabelForModuleSrcSingle(ctx, *props.Version_script)
-		la.additionalLinkerInputs.SetSelectValue(axis, config, bazel.LabelList{Includes: []bazel.Label{label}})
+		additionalLinkerInputs.Add(&label)
 		linkerFlags = append(linkerFlags, fmt.Sprintf("-Wl,--version-script,$(location %s)", label.Label))
 	}
 
 	if props.Dynamic_list != nil {
 		label := android.BazelLabelForModuleSrcSingle(ctx, *props.Dynamic_list)
-		la.additionalLinkerInputs.SetSelectValue(axis, config, bazel.LabelList{Includes: []bazel.Label{label}})
+		additionalLinkerInputs.Add(&label)
 		linkerFlags = append(linkerFlags, fmt.Sprintf("-Wl,--dynamic-list,$(location %s)", label.Label))
 	}
 
+	la.additionalLinkerInputs.SetSelectValue(axis, config, additionalLinkerInputs)
 	la.linkopts.SetSelectValue(axis, config, parseCommandLineFlags(linkerFlags, false, filterOutClangUnknownCflags))
 	la.useLibcrt.SetSelectValue(axis, config, props.libCrt())
 

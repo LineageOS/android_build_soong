@@ -338,22 +338,30 @@ cc_library_shared {
 	})
 }
 
-func TestCcLibrarySharedVersionScript(t *testing.T) {
+func TestCcLibrarySharedVersionScriptAndDynamicList(t *testing.T) {
 	runCcLibrarySharedTestCase(t, Bp2buildTestCase{
-		Description: "cc_library_shared version script",
+		Description: "cc_library_shared version script and dynamic list",
 		Filesystem: map[string]string{
 			"version_script": "",
+			"dynamic.list":   "",
 		},
 		Blueprint: soongCcLibrarySharedPreamble + `
 cc_library_shared {
     name: "foo_shared",
     version_script: "version_script",
+    dynamic_list: "dynamic.list",
     include_build_directory: false,
 }`,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_shared", "foo_shared", AttrNameToString{
-				"additional_linker_inputs": `["version_script"]`,
-				"linkopts":                 `["-Wl,--version-script,$(location version_script)"]`,
+				"additional_linker_inputs": `[
+        "version_script",
+        "dynamic.list",
+    ]`,
+				"linkopts": `[
+        "-Wl,--version-script,$(location version_script)",
+        "-Wl,--dynamic-list,$(location dynamic.list)",
+    ]`,
 			}),
 		},
 	})
