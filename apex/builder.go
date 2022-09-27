@@ -1087,7 +1087,7 @@ func (a *apexBundle) buildCannedFsConfig(ctx android.ModuleContext) android.Outp
 			}
 		} else if f.class == appSet {
 			appSetDirs = append(appSetDirs, f.installDir)
-			appSetFiles[f.installDir] = f.builtFile
+			appSetFiles[f.installDir] = f.module.(*java.AndroidAppSet).PackedAdditionalOutputs()
 		} else {
 			readOnlyPaths = append(readOnlyPaths, pathInApex)
 		}
