@@ -7241,6 +7241,11 @@ func TestAppSetBundle(t *testing.T) {
 	ensureMatches(t, copyCmds[0], "^rm -rf .*/app/AppSet@TEST.BUILD_ID$")
 	ensureMatches(t, copyCmds[1], "^mkdir -p .*/app/AppSet@TEST.BUILD_ID$")
 	ensureMatches(t, copyCmds[2], "^unzip .*-d .*/app/AppSet@TEST.BUILD_ID .*/AppSet.zip$")
+
+	// Ensure that canned_fs_config has an entry for the app set zip file
+	generateFsRule := mod.Rule("generateFsConfig")
+	cmd := generateFsRule.RuleParams.Command
+	ensureContains(t, cmd, "AppSet.zip")
 }
 
 func TestAppSetBundlePrebuilt(t *testing.T) {
