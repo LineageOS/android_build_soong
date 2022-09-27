@@ -919,6 +919,8 @@ type CommonAttributes struct {
 	Data bazel.LabelListAttribute
 
 	Tags bazel.StringListAttribute
+
+	Applicable_licenses bazel.LabelListAttribute
 }
 
 // constraintAttributes represents Bazel attributes pertaining to build constraints,
@@ -1230,6 +1232,8 @@ func (attrs *CommonAttributes) fillCommonBp2BuildModuleAttrs(ctx *topDownMutator
 			}
 		}
 	}
+
+	attrs.Applicable_licenses = bazel.MakeLabelListAttribute(BazelLabelForModuleDeps(ctx, mod.commonProperties.Licenses))
 
 	// The required property can contain the module itself. This causes a cycle
 	// when generated as the 'data' label list attribute in Bazel. Remove it if
