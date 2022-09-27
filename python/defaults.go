@@ -31,15 +31,12 @@ func (d *Defaults) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 }
 
 func defaultsFactory() android.Module {
-	return DefaultsFactory()
-}
-
-func DefaultsFactory(props ...interface{}) android.Module {
 	module := &Defaults{}
 
-	module.AddProperties(props...)
 	module.AddProperties(
 		&BaseProperties{},
+		&android.ProtoProperties{},
+		&BinaryProperties{},
 	)
 
 	android.InitDefaultsModule(module)
