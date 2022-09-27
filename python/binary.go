@@ -124,6 +124,14 @@ type BinaryProperties struct {
 	// to support it. When using embedded_launcher: true, this is already the
 	// behavior. The default is currently false.
 	Dont_add_top_level_directories_to_path *bool
+
+	// Setting this to true will mimic Python 3.11+'s PYTHON_SAFE_PATH environment
+	// variable or -P flag, even on older python versions. This is a temporary
+	// flag while modules are changed to support it, eventually true will be the
+	// default and the flag will be removed. The default is currently false. It
+	// is only applicable when embedded_launcher is false, when embedded_launcher
+	// is true this is already implied.
+	Dont_add_entrypoint_folder_to_path *bool
 }
 
 type binaryDecorator struct {
@@ -185,11 +193,12 @@ func (binary *binaryDecorator) bootstrap(ctx android.ModuleContext, actualVersio
 	}
 
 	addTopDirectoriesToPath := !proptools.BoolDefault(binary.binaryProperties.Dont_add_top_level_directories_to_path, false)
+	dontAddEntrypointFolderToPath := proptools.BoolDefault(binary.binaryProperties.Dont_add_entrypoint_folder_to_path, false)
 
 	binFile := registerBuildActionForParFile(ctx, embeddedLauncher, launcherPath,
 		binary.getHostInterpreterName(ctx, actualVersion),
 		main, binary.getStem(ctx), append(android.Paths{srcsZip}, depsSrcsZips...),
-		addTopDirectoriesToPath)
+		addTopDirectoriesToPath, dontAddEntrypointFolderToPath)
 
 	return android.OptionalPathForPath(binFile)
 }
