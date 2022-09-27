@@ -839,17 +839,17 @@ type ApexSet struct {
 
 type ApexExtractorProperties struct {
 	// the .apks file path that contains prebuilt apex files to be extracted.
-	Set *string
+	Set *string `android:"path"`
 
 	Sanitized struct {
 		None struct {
-			Set *string
+			Set *string `android:"path"`
 		}
 		Address struct {
-			Set *string
+			Set *string `android:"path"`
 		}
 		Hwaddress struct {
-			Set *string
+			Set *string `android:"path"`
 		}
 	}
 
