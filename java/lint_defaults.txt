@@ -91,6 +91,7 @@
 --warning_check StringFormatInvalid                # 148 occurences in 11 modules
 --warning_check StringFormatMatches                # 4800 occurences in 30 modules
 --warning_check UnknownId                          # 8 occurences in 7 modules
+--warning_check UnspecifiedImmutableFlag
 --warning_check ValidFragment                      # 12 occurences in 5 modules
 --warning_check ValidRestrictions                  # 5 occurences in 1 modules
 --warning_check WebViewLayout                      # 3 occurences in 1 modules
