@@ -114,7 +114,10 @@ EOF
   fi
 }
 
+_save_trap=$(trap -p EXIT)
+trap '[[ $? -ne 0 ]] && echo Are you running this locally? Try changing --sandbox_tmpfs_path to something other than /tmp/ in build/bazel/linux.bazelrc.' EXIT
 test_bp2build_generates_all_buildfiles
+eval ${_save_trap}
 
 function test_cc_correctness {
   setup
