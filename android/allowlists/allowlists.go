@@ -467,6 +467,10 @@ var (
 		"libavb",
 		"avb_headers",
 
+		//external/libxml2
+		"xmllint",
+		"libxml2",
+
 		//external/fec
 		"libfec_rs",
 
@@ -571,6 +575,8 @@ var (
 		"libnativeloader",
 		"libEGL_getProcAddress",
 		"libEGL_blobCache",
+
+		"protoc-gen-cppstream",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
@@ -637,7 +643,6 @@ var (
 		"conscrypt",                        // TODO(b/210751803), we don't handle path property for filegroups
 		"conscrypt-for-host",               // TODO(b/210751803), we don't handle path property for filegroups
 		"host-libprotobuf-java-full",       // TODO(b/210751803), we don't handle path property for filegroups
-		"libprotobuf-internal-protos",      // TODO(b/210751803), we don't handle path property for filegroups
 		"libprotobuf-internal-python-srcs", // TODO(b/210751803), we don't handle path property for filegroups
 		"libprotobuf-java-full",            // TODO(b/210751803), we don't handle path property for filegroups
 		"libprotobuf-java-util-full",       // TODO(b/210751803), we don't handle path property for filegroups

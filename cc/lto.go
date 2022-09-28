@@ -15,9 +15,9 @@
 package cc
 
 import (
-	"github.com/google/blueprint/proptools"
-
 	"android/soong/android"
+
+	"github.com/google/blueprint/proptools"
 )
 
 // LTO (link-time optimization) allows the compiler to optimize and generate
@@ -49,9 +49,12 @@ type LTOProperties struct {
 
 	// Dep properties indicate that this module needs to be built with LTO
 	// since it is an object dependency of an LTO module.
-	FullDep  bool `blueprint:"mutated"`
-	ThinDep  bool `blueprint:"mutated"`
-	NoLtoDep bool `blueprint:"mutated"`
+	FullEnabled  bool `blueprint:"mutated"`
+	ThinEnabled  bool `blueprint:"mutated"`
+	NoLtoEnabled bool `blueprint:"mutated"`
+	FullDep      bool `blueprint:"mutated"`
+	ThinDep      bool `blueprint:"mutated"`
+	NoLtoDep     bool `blueprint:"mutated"`
 
 	// Use clang lld instead of gnu ld.
 	Use_clang_lld *bool
@@ -70,7 +73,7 @@ func (lto *lto) props() []interface{} {
 
 func (lto *lto) begin(ctx BaseModuleContext) {
 	if ctx.Config().IsEnvTrue("DISABLE_LTO") {
-		lto.Properties.Lto.Never = proptools.BoolPtr(true)
+		lto.Properties.NoLtoEnabled = true
 	}
 }
 
@@ -151,15 +154,15 @@ func (lto *lto) DefaultThinLTO(ctx BaseModuleContext) bool {
 }
 
 func (lto *lto) FullLTO() bool {
-	return lto != nil && Bool(lto.Properties.Lto.Full)
+	return lto != nil && (proptools.Bool(lto.Properties.Lto.Full) || lto.Properties.FullEnabled)
 }
 
 func (lto *lto) ThinLTO() bool {
-	return lto != nil && Bool(lto.Properties.Lto.Thin)
+	return lto != nil && (proptools.Bool(lto.Properties.Lto.Thin) || lto.Properties.ThinEnabled)
 }
 
 func (lto *lto) Never() bool {
-	return lto != nil && Bool(lto.Properties.Lto.Never)
+	return lto != nil && (proptools.Bool(lto.Properties.Lto.Never) || lto.Properties.NoLtoEnabled)
 }
 
 func GlobalThinLTO(ctx android.BaseModuleContext) bool {
@@ -255,13 +258,13 @@ func ltoMutator(mctx android.BottomUpMutatorContext) {
 
 				// LTO properties for dependencies
 				if name == "lto-full" {
-					variation.lto.Properties.Lto.Full = proptools.BoolPtr(true)
+					variation.lto.Properties.FullEnabled = true
 				}
 				if name == "lto-thin" {
-					variation.lto.Properties.Lto.Thin = proptools.BoolPtr(true)
+					variation.lto.Properties.ThinEnabled = true
 				}
 				if name == "lto-none" {
-					variation.lto.Properties.Lto.Never = proptools.BoolPtr(true)
+					variation.lto.Properties.NoLtoEnabled = true
 				}
 				variation.Properties.PreventInstall = true
 				variation.Properties.HideFromMake = true

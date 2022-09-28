@@ -20,7 +20,6 @@ import (
 	"strings"
 
 	"android/soong/android"
-
 	"github.com/google/blueprint"
 	_ "github.com/google/blueprint/bootstrap"
 )
@@ -44,13 +43,25 @@ var (
 
 	hostPar = pctx.AndroidStaticRule("hostPar",
 		blueprint.RuleParams{
-			Command: `sed -e 's/%interpreter%/$interp/g' -e 's/%main%/$main/g' $template > $stub && ` +
+			Command: `sed -e 's/%interpreter%/$interp/g' -e 's/%main%/$main/g' -e 's/ADD_TOP_DIRECTORIES_TO_PATH/$addTopDirectoriesToPath/g' build/soong/python/scripts/stub_template_host.txt > $out.main && ` +
 				`echo "#!/usr/bin/env $interp" >${out}.prefix &&` +
-				`$mergeParCmd -p --prefix ${out}.prefix -pm $stub $out $srcsZips && ` +
-				`chmod +x $out && (rm -f $stub; rm -f ${out}.prefix)`,
-			CommandDeps: []string{"$mergeParCmd"},
+				`$mergeParCmd -p --prefix ${out}.prefix -pm $out.main $out $srcsZips && ` +
+				`chmod +x $out && (rm -f $out.main; rm -f ${out}.prefix)`,
+			CommandDeps: []string{"$mergeParCmd", "build/soong/python/scripts/stub_template_host.txt"},
 		},
-		"interp", "main", "template", "stub", "srcsZips")
+		"interp", "main", "srcsZips", "addTopDirectoriesToPath")
+
+	hostParWithoutAddingEntrypointFolderToPath = pctx.AndroidStaticRule("hostParWithoutAddingEntrypointFolderToPath",
+		blueprint.RuleParams{
+			Command: `sed -e 's/%interpreter%/$interp/g' -e 's/%main%/__soong_entrypoint_redirector__.py/g' -e 's/ADD_TOP_DIRECTORIES_TO_PATH/$addTopDirectoriesToPath/g' build/soong/python/scripts/stub_template_host.txt > $out.main && ` +
+				"sed -e 's/ENTRY_POINT/$main/g' build/soong/python/scripts/main_non_embedded.py >`dirname $out`/__soong_entrypoint_redirector__.py && " +
+				"$parCmd -o $out.entrypoint_zip -C `dirname $out` -f `dirname $out`/__soong_entrypoint_redirector__.py && " +
+				`echo "#!/usr/bin/env $interp" >${out}.prefix &&` +
+				`$mergeParCmd -p --prefix ${out}.prefix -pm $out.main $out $srcsZips $out.entrypoint_zip && ` +
+				"chmod +x $out && (rm -f $out.main; rm -f ${out}.prefix; rm -f $out.entrypoint_zip; rm -f `dirname $out`/__soong_entrypoint_redirector__.py)",
+			CommandDeps: []string{"$mergeParCmd", "$parCmd", "build/soong/python/scripts/stub_template_host.txt", "build/soong/python/scripts/main_non_embedded.py"},
+		},
+		"interp", "main", "srcsZips", "addTopDirectoriesToPath")
 
 	embeddedPar = pctx.AndroidStaticRule("embeddedPar",
 		blueprint.RuleParams{
@@ -58,7 +69,7 @@ var (
 				`sed 's/ENTRY_POINT/$main/' build/soong/python/scripts/main.py >$out.main &&` +
 				`$mergeParCmd -p -pm $out.main --prefix $launcher $out $srcsZips && ` +
 				`chmod +x $out && rm -rf $out.main`,
-			CommandDeps: []string{"$mergeParCmd", "$parCmd", "build/soong/python/scripts/main.py"},
+			CommandDeps: []string{"$mergeParCmd", "build/soong/python/scripts/main.py"},
 		},
 		"main", "srcsZips", "launcher")
 
@@ -81,7 +92,7 @@ func init() {
 
 func registerBuildActionForParFile(ctx android.ModuleContext, embeddedLauncher bool,
 	launcherPath android.OptionalPath, interpreter, main, binName string,
-	srcsZips android.Paths) android.Path {
+	srcsZips android.Paths, addTopDirectoriesToPath bool, dontAddEntrypointFolderToPath bool) android.Path {
 
 	// .intermediate output path for bin executable.
 	binFile := android.PathForModuleOut(ctx, binName)
@@ -90,26 +101,37 @@ func registerBuildActionForParFile(ctx android.ModuleContext, embeddedLauncher b
 	implicits := srcsZips
 
 	if !embeddedLauncher {
-		// the path of stub_template_host.txt from source tree.
-		template := android.PathForSource(ctx, StubTemplateHost)
-		implicits = append(implicits, template)
-
-		// intermediate output path for __main__.py
-		stub := android.PathForModuleOut(ctx, mainFileName).String()
-
-		ctx.Build(pctx, android.BuildParams{
-			Rule:        hostPar,
-			Description: "host python archive",
-			Output:      binFile,
-			Implicits:   implicits,
-			Args: map[string]string{
-				"interp":   strings.Replace(interpreter, "/", `\/`, -1),
-				"main":     strings.Replace(main, "/", `\/`, -1),
-				"template": template.String(),
-				"stub":     stub,
-				"srcsZips": strings.Join(srcsZips.Strings(), " "),
-			},
-		})
+		addDirsString := "False"
+		if addTopDirectoriesToPath {
+			addDirsString = "True"
+		}
+		if dontAddEntrypointFolderToPath {
+			ctx.Build(pctx, android.BuildParams{
+				Rule:        hostParWithoutAddingEntrypointFolderToPath,
+				Description: "host python archive",
+				Output:      binFile,
+				Implicits:   implicits,
+				Args: map[string]string{
+					"interp":                  strings.Replace(interpreter, "/", `\/`, -1),
+					"main":                    strings.Replace(strings.TrimSuffix(main, pyExt), "/", ".", -1),
+					"srcsZips":                strings.Join(srcsZips.Strings(), " "),
+					"addTopDirectoriesToPath": addDirsString,
+				},
+			})
+		} else {
+			ctx.Build(pctx, android.BuildParams{
+				Rule:        hostPar,
+				Description: "host python archive",
+				Output:      binFile,
+				Implicits:   implicits,
+				Args: map[string]string{
+					"interp":                  strings.Replace(interpreter, "/", `\/`, -1),
+					"main":                    strings.Replace(main, "/", `\/`, -1),
+					"srcsZips":                strings.Join(srcsZips.Strings(), " "),
+					"addTopDirectoriesToPath": addDirsString,
+				},
+			})
+		}
 	} else if launcherPath.Valid() {
 		// added launcherPath to the implicits Ninja dependencies.
 		implicits = append(implicits, launcherPath.Path())

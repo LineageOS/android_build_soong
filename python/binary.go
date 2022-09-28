@@ -116,6 +116,22 @@ type BinaryProperties struct {
 	// doesn't exist next to the Android.bp, this attribute doesn't need to be set to true
 	// explicitly.
 	Auto_gen_config *bool
+
+	// Currently, both the root of the zipfile and all the directories 1 level
+	// below that are added to the python path. When this flag is set to true,
+	// only the root of the zipfile will be added to the python path. This flag
+	// will be removed after all the python modules in the tree have been updated
+	// to support it. When using embedded_launcher: true, this is already the
+	// behavior. The default is currently false.
+	Dont_add_top_level_directories_to_path *bool
+
+	// Setting this to true will mimic Python 3.11+'s PYTHON_SAFE_PATH environment
+	// variable or -P flag, even on older python versions. This is a temporary
+	// flag while modules are changed to support it, eventually true will be the
+	// default and the flag will be removed. The default is currently false. It
+	// is only applicable when embedded_launcher is false, when embedded_launcher
+	// is true this is already implied.
+	Dont_add_entrypoint_folder_to_path *bool
 }
 
 type binaryDecorator struct {
@@ -127,10 +143,6 @@ type binaryDecorator struct {
 type IntermPathProvider interface {
 	IntermPathForModuleOut() android.OptionalPath
 }
-
-var (
-	StubTemplateHost = "build/soong/python/scripts/stub_template_host.txt"
-)
 
 func NewBinary(hod android.HostOrDeviceSupported) (*Module, *binaryDecorator) {
 	module := newModule(hod, android.MultilibFirst)
@@ -180,9 +192,13 @@ func (binary *binaryDecorator) bootstrap(ctx android.ModuleContext, actualVersio
 		})
 	}
 
+	addTopDirectoriesToPath := !proptools.BoolDefault(binary.binaryProperties.Dont_add_top_level_directories_to_path, false)
+	dontAddEntrypointFolderToPath := proptools.BoolDefault(binary.binaryProperties.Dont_add_entrypoint_folder_to_path, false)
+
 	binFile := registerBuildActionForParFile(ctx, embeddedLauncher, launcherPath,
 		binary.getHostInterpreterName(ctx, actualVersion),
-		main, binary.getStem(ctx), append(android.Paths{srcsZip}, depsSrcsZips...))
+		main, binary.getStem(ctx), append(android.Paths{srcsZip}, depsSrcsZips...),
+		addTopDirectoriesToPath, dontAddEntrypointFolderToPath)
 
 	return android.OptionalPathForPath(binFile)
 }

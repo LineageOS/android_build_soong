@@ -678,9 +678,10 @@ type bazelPrebuiltFileAttributes struct {
 	Filename_from_src bazel.BoolAttribute
 }
 
-// ConvertWithBp2build performs bp2build conversion of PrebuiltEtc
-// All prebuilt_* modules are PrebuiltEtc, which we treat uniformily as *PrebuiltFile*
-func (module *PrebuiltEtc) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+// Bp2buildHelper returns a bazelPrebuiltFileAttributes used for the conversion
+// of prebuilt_*  modules. bazelPrebuiltFileAttributes has the common attributes
+// used by both prebuilt_etc_xml and other prebuilt_* moodules
+func (module *PrebuiltEtc) Bp2buildHelper(ctx android.TopDownMutatorContext) *bazelPrebuiltFileAttributes {
 	var src bazel.LabelAttribute
 	for axis, configToProps := range module.GetArchVariantProperties(ctx, &prebuiltEtcProperties{}) {
 		for config, p := range configToProps {
@@ -727,10 +728,6 @@ func (module *PrebuiltEtc) ConvertWithBp2build(ctx android.TopDownMutatorContext
 	}
 
 	var dir = module.installDirBase
-	// prebuilt_file supports only `etc` or `usr/share`
-	if !(dir == "etc" || dir == "usr/share") {
-		return
-	}
 	if subDir := module.subdirProperties.Sub_dir; subDir != nil {
 		dir = dir + "/" + *subDir
 	}
@@ -751,6 +748,22 @@ func (module *PrebuiltEtc) ConvertWithBp2build(ctx android.TopDownMutatorContext
 	} else if filenameFromSrc {
 		attrs.Filename_from_src = bazel.BoolAttribute{Value: moduleProps.Filename_from_src}
 	}
+
+	return attrs
+
+}
+
+// ConvertWithBp2build performs bp2build conversion of PrebuiltEtc
+// prebuilt_* modules (except prebuilt_etc_xml) are PrebuiltEtc,
+// which we treat as *PrebuiltFile*
+func (module *PrebuiltEtc) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+	var dir = module.installDirBase
+	// prebuilt_file supports only `etc` or `usr/share`
+	if !(dir == "etc" || dir == "usr/share") {
+		return
+	}
+
+	attrs := module.Bp2buildHelper(ctx)
 
 	props := bazel.BazelTargetModuleProperties{
 		Rule_class:        "prebuilt_file",
