@@ -138,6 +138,7 @@ func (j *JavaFuzzLibrary) AndroidMkEntries() []android.AndroidMkEntries {
 	entries.ExtraEntries = append(entries.ExtraEntries, func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
 		entries.AddStrings("LOCAL_COMPATIBILITY_SUITE", "null-suite")
 		androidMkWriteTestData(j.jniFilePaths, entries)
+		androidMkWriteTestData(android.Paths{j.implementationJarFile}, entries)
 	})
 	return entriesList
 }
