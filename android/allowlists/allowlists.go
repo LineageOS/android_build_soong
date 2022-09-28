@@ -45,6 +45,9 @@ var (
 		"art/runtime":                           Bp2BuildDefaultTrueRecursively,
 		"art/tools":                             Bp2BuildDefaultTrue,
 		"bionic":                                Bp2BuildDefaultTrueRecursively,
+		"bootable/recovery/minadbd":             Bp2BuildDefaultTrue,
+		"bootable/recovery/minui":               Bp2BuildDefaultTrue,
+		"bootable/recovery/recovery_utils":      Bp2BuildDefaultTrue,
 		"bootable/recovery/tools/recovery_l10n": Bp2BuildDefaultTrue,
 
 		"build/bazel":                        Bp2BuildDefaultTrueRecursively,
@@ -124,9 +127,9 @@ var (
 		"external/icu/icu4j":                     Bp2BuildDefaultFalse, // java rules incomplete
 		"external/jacoco":                        Bp2BuildDefaultTrueRecursively,
 		"external/jarjar":                        Bp2BuildDefaultTrueRecursively,
-		"external/javassist":                     Bp2BuildDefaultTrueRecursively,
 		"external/javaparser":                    Bp2BuildDefaultTrueRecursively,
 		"external/javapoet":                      Bp2BuildDefaultTrueRecursively,
+		"external/javassist":                     Bp2BuildDefaultTrueRecursively,
 		"external/jemalloc_new":                  Bp2BuildDefaultTrueRecursively,
 		"external/jsoncpp":                       Bp2BuildDefaultTrueRecursively,
 		"external/junit":                         Bp2BuildDefaultTrueRecursively,
@@ -134,6 +137,7 @@ var (
 		"external/libcap":                        Bp2BuildDefaultTrueRecursively,
 		"external/libcxx":                        Bp2BuildDefaultTrueRecursively,
 		"external/libcxxabi":                     Bp2BuildDefaultTrueRecursively,
+		"external/libdrm":                        Bp2BuildDefaultTrue,
 		"external/libevent":                      Bp2BuildDefaultTrueRecursively,
 		"external/libgav1":                       Bp2BuildDefaultTrueRecursively,
 		"external/libhevc":                       Bp2BuildDefaultTrueRecursively,
@@ -146,8 +150,8 @@ var (
 		"external/lzma/C":                        Bp2BuildDefaultTrueRecursively,
 		"external/mdnsresponder":                 Bp2BuildDefaultTrueRecursively,
 		"external/minijail":                      Bp2BuildDefaultTrueRecursively,
-		"external/openscreen":                    Bp2BuildDefaultTrueRecursively,
 		"external/objenesis":                     Bp2BuildDefaultTrueRecursively,
+		"external/openscreen":                    Bp2BuildDefaultTrueRecursively,
 		"external/pcre":                          Bp2BuildDefaultTrueRecursively,
 		"external/protobuf":                      Bp2BuildDefaultTrueRecursively,
 		"external/python/six":                    Bp2BuildDefaultTrueRecursively,
@@ -181,6 +185,7 @@ var (
 		"frameworks/native/opengl/tests/testLatency":         Bp2BuildDefaultTrue,
 		"frameworks/native/opengl/tests/testPauseResume":     Bp2BuildDefaultTrue,
 		"frameworks/native/opengl/tests/testViewport":        Bp2BuildDefaultTrue,
+		"frameworks/native/services/batteryservice":          Bp2BuildDefaultTrue,
 		"frameworks/proto_logging/stats/stats_log_api_gen":   Bp2BuildDefaultTrueRecursively,
 
 		"hardware/interfaces":                          Bp2BuildDefaultTrue,
@@ -202,6 +207,14 @@ var (
 		"hardware/interfaces/graphics/mapper/2.1":      Bp2BuildDefaultTrue,
 		"hardware/interfaces/graphics/mapper/3.0":      Bp2BuildDefaultTrue,
 		"hardware/interfaces/graphics/mapper/4.0":      Bp2BuildDefaultTrue,
+		"hardware/interfaces/health/1.0":               Bp2BuildDefaultTrue,
+		"hardware/interfaces/health/1.0/default":       Bp2BuildDefaultTrue,
+		"hardware/interfaces/health/2.0":               Bp2BuildDefaultTrue,
+		"hardware/interfaces/health/2.0/default":       Bp2BuildDefaultTrue,
+		"hardware/interfaces/health/2.0/utils":         Bp2BuildDefaultTrueRecursively,
+		"hardware/interfaces/health/2.1":               Bp2BuildDefaultTrue,
+		"hardware/interfaces/health/aidl":              Bp2BuildDefaultTrue,
+		"hardware/interfaces/health/utils":             Bp2BuildDefaultTrueRecursively,
 		"hardware/interfaces/media/1.0":                Bp2BuildDefaultTrue,
 		"hardware/interfaces/media/bufferpool/2.0":     Bp2BuildDefaultTrue,
 		"hardware/interfaces/media/c2/1.0":             Bp2BuildDefaultTrue,
@@ -251,6 +264,8 @@ var (
 		"system/apex/tools":                                      Bp2BuildDefaultTrueRecursively,
 		"system/core/debuggerd":                                  Bp2BuildDefaultTrueRecursively,
 		"system/core/diagnose_usb":                               Bp2BuildDefaultTrueRecursively,
+		"system/core/healthd":                                    Bp2BuildDefaultTrue,
+		"system/core/healthd/testdata":                           Bp2BuildDefaultTrue,
 		"system/core/libasyncio":                                 Bp2BuildDefaultTrue,
 		"system/core/libcrypto_utils":                            Bp2BuildDefaultTrueRecursively,
 		"system/core/libcutils":                                  Bp2BuildDefaultTrueRecursively,
@@ -258,6 +273,7 @@ var (
 		"system/core/libprocessgroup":                            Bp2BuildDefaultTrue,
 		"system/core/libprocessgroup/cgrouprc":                   Bp2BuildDefaultTrue,
 		"system/core/libprocessgroup/cgrouprc_format":            Bp2BuildDefaultTrue,
+		"system/core/libsuspend":                                 Bp2BuildDefaultTrue,
 		"system/core/libsystem":                                  Bp2BuildDefaultTrueRecursively,
 		"system/core/libsysutils":                                Bp2BuildDefaultTrueRecursively,
 		"system/core/libutils":                                   Bp2BuildDefaultTrueRecursively,
@@ -537,9 +553,6 @@ var (
 		//system/core/libkeyutils
 		"libkeyutils",
 
-		//bootable/recovery/minadbd
-		"libminadbd_headers",
-
 		//bootable/recovery/otautil
 		"libotautil",
 
@@ -712,6 +725,12 @@ var (
 		//prebuilts/tools/common/m2
 		// depends on //external/okio:okio-lib, which uses kotlin
 		"wire-runtime",
+
+		// depends on adbd_system_api_recovery, which is a unconverted `phony` module type
+		"minadbd",
+
+		// depends on android.hardware.health-V2.0-java
+		"android.hardware.health-translate-java",
 
 		// cc_test related.
 		// Failing host cc_tests
