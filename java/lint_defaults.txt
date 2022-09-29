@@ -39,6 +39,7 @@
 # Downgrade existing errors to warnings
 --warning_check AppCompatResource                  # 55 occurences in 10 modules
 --warning_check AppLinkUrlError                    # 111 occurences in 53 modules
+--warning_check BinderGetCallingInMainThread
 --warning_check ByteOrderMark                      # 2 occurences in 2 modules
 --warning_check DuplicateActivity                  # 3 occurences in 3 modules
 --warning_check DuplicateDefinition                # 3623 occurences in 48 modules
@@ -91,6 +92,7 @@
 --warning_check StringFormatInvalid                # 148 occurences in 11 modules
 --warning_check StringFormatMatches                # 4800 occurences in 30 modules
 --warning_check UnknownId                          # 8 occurences in 7 modules
+--warning_check UnspecifiedImmutableFlag
 --warning_check ValidFragment                      # 12 occurences in 5 modules
 --warning_check ValidRestrictions                  # 5 occurences in 1 modules
 --warning_check WebViewLayout                      # 3 occurences in 1 modules
