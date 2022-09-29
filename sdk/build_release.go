@@ -100,6 +100,7 @@ var (
 	// Add the dessert build releases from oldest to newest.
 	buildReleaseS = initBuildRelease("S")
 	buildReleaseT = initBuildRelease("Tiramisu")
+	buildReleaseU = initBuildRelease("UpsideDownCake")
 
 	// Add the current build release which is always treated as being more recent than any other
 	// build release, including those added in tests.

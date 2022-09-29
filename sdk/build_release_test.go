@@ -42,7 +42,7 @@ func TestNameToRelease(t *testing.T) {
 		android.AssertDeepEquals(t, "release", (*buildRelease)(nil), release)
 		// Uses a wildcard in the error message to allow for additional build releases to be added to
 		// the supported set without breaking this test.
-		android.FailIfNoMatchingErrors(t, `unknown release "A", expected one of \[S,Tiramisu,F1,F2,current\]`, []error{err})
+		android.FailIfNoMatchingErrors(t, `unknown release "A", expected one of \[S,Tiramisu,UpsideDownCake,F1,F2,current\]`, []error{err})
 	})
 }
 
@@ -60,7 +60,7 @@ func TestParseBuildReleaseSet(t *testing.T) {
 	t.Run("closed range", func(t *testing.T) {
 		set, err := parseBuildReleaseSet("S-F1")
 		android.AssertDeepEquals(t, "errors", nil, err)
-		android.AssertStringEquals(t, "set", "[S,Tiramisu,F1]", set.String())
+		android.AssertStringEquals(t, "set", "[S,Tiramisu,UpsideDownCake,F1]", set.String())
 	})
 	invalidAReleaseMessage := `unknown release "A", expected one of ` + allBuildReleaseSet.String()
 	t.Run("invalid release", func(t *testing.T) {
