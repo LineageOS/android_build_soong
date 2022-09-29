@@ -181,6 +181,9 @@ func (g getCcInfoType) ParseResult(rawString string) (CcInfo, error) {
 	decoder := json.NewDecoder(strings.NewReader(rawString))
 	decoder.DisallowUnknownFields() //useful to detect typos, e.g. in unit tests
 	err := decoder.Decode(&ccInfo)
+	if err != nil {
+		return ccInfo, fmt.Errorf("error parsing CcInfo result. %s RAW STRING: %s", err, rawString)
+	}
 	return ccInfo, err
 }
 

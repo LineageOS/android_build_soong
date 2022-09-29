@@ -104,9 +104,16 @@ type cqueryKey struct {
 	configKey   configKey
 }
 
+func makeCqueryKey(label string, cqueryRequest cqueryRequest, cfgKey configKey) cqueryKey {
+	if strings.HasPrefix(label, "//") {
+		// Normalize Bazel labels to specify main repository explicitly.
+		label = "@" + label
+	}
+	return cqueryKey{label, cqueryRequest, cfgKey}
+}
+
 func (c cqueryKey) String() string {
 	return fmt.Sprintf("cquery(%s,%s,%s)", c.label, c.requestType.Name(), c.configKey)
-
 }
 
 // BazelContext is a context object useful for interacting with Bazel during
@@ -261,23 +268,24 @@ func (m MockBazelContext) AqueryDepsets() []bazel.AqueryDepset {
 var _ BazelContext = MockBazelContext{}
 
 func (bazelCtx *bazelContext) QueueBazelRequest(label string, requestType cqueryRequest, cfgKey configKey) {
-	key := cqueryKey{label, requestType, cfgKey}
+	key := makeCqueryKey(label, requestType, cfgKey)
 	bazelCtx.requestMutex.Lock()
 	defer bazelCtx.requestMutex.Unlock()
 	bazelCtx.requests[key] = true
 }
 
 func (bazelCtx *bazelContext) GetOutputFiles(label string, cfgKey configKey) ([]string, error) {
-	key := cqueryKey{label, cquery.GetOutputFiles, cfgKey}
+	key := makeCqueryKey(label, cquery.GetOutputFiles, cfgKey)
 	if rawString, ok := bazelCtx.results[key]; ok {
 		bazelOutput := strings.TrimSpace(rawString)
+
 		return cquery.GetOutputFiles.ParseResult(bazelOutput), nil
 	}
 	return nil, fmt.Errorf("no bazel response found for %v", key)
 }
 
 func (bazelCtx *bazelContext) GetCcInfo(label string, cfgKey configKey) (cquery.CcInfo, error) {
-	key := cqueryKey{label, cquery.GetCcInfo, cfgKey}
+	key := makeCqueryKey(label, cquery.GetCcInfo, cfgKey)
 	if rawString, ok := bazelCtx.results[key]; ok {
 		bazelOutput := strings.TrimSpace(rawString)
 		return cquery.GetCcInfo.ParseResult(bazelOutput)
@@ -286,7 +294,7 @@ func (bazelCtx *bazelContext) GetCcInfo(label string, cfgKey configKey) (cquery.
 }
 
 func (bazelCtx *bazelContext) GetPythonBinary(label string, cfgKey configKey) (string, error) {
-	key := cqueryKey{label, cquery.GetPythonBinary, cfgKey}
+	key := makeCqueryKey(label, cquery.GetPythonBinary, cfgKey)
 	if rawString, ok := bazelCtx.results[key]; ok {
 		bazelOutput := strings.TrimSpace(rawString)
 		return cquery.GetPythonBinary.ParseResult(bazelOutput), nil
@@ -295,7 +303,7 @@ func (bazelCtx *bazelContext) GetPythonBinary(label string, cfgKey configKey) (s
 }
 
 func (bazelCtx *bazelContext) GetApexInfo(label string, cfgKey configKey) (cquery.ApexCqueryInfo, error) {
-	key := cqueryKey{label, cquery.GetApexInfo, cfgKey}
+	key := makeCqueryKey(label, cquery.GetApexInfo, cfgKey)
 	if rawString, ok := bazelCtx.results[key]; ok {
 		return cquery.GetApexInfo.ParseResult(strings.TrimSpace(rawString)), nil
 	}
@@ -754,6 +762,10 @@ def get_arch(target):
 
 def format(target):
   id_string = str(target.label) + "|" + get_arch(target)
+
+  # TODO(b/248106697): Remove once Bazel is updated to always normalize labels.
+  if id_string.startswith("//"):
+    id_string = "@" + id_string
 
   # Main switch section
   %s
