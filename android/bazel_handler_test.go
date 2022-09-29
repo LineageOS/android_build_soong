@@ -13,10 +13,10 @@ import (
 var testConfig = TestConfig("out", nil, "", nil)
 
 func TestRequestResultsAfterInvokeBazel(t *testing.T) {
-	label := "//foo:bar"
+	label := "@//foo:bar"
 	cfg := configKey{"arm64_armv8-a", Android}
 	bazelContext, _ := testBazelContext(t, map[bazelCommand]string{
-		bazelCommand{command: "cquery", expression: "deps(@soong_injection//mixed_builds:buildroot, 2)"}: `//foo:bar|arm64_armv8-a|android>>out/foo/bar.txt`,
+		bazelCommand{command: "cquery", expression: "deps(@soong_injection//mixed_builds:buildroot, 2)"}: `@//foo:bar|arm64_armv8-a|android>>out/foo/bar.txt`,
 	})
 	bazelContext.QueueBazelRequest(label, cquery.GetOutputFiles, cfg)
 	err := bazelContext.InvokeBazel(testConfig)
