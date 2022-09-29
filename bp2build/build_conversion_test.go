@@ -1821,3 +1821,30 @@ filegroup {
 		})
 	}
 }
+
+func TestLicensesAttrConversion(t *testing.T) {
+	RunBp2BuildTestCase(t,
+		func(ctx android.RegistrationContext) {
+			ctx.RegisterModuleType("license", android.LicenseFactory)
+		},
+		Bp2buildTestCase{
+			Description:                "Test that licenses: attribute is converted",
+			ModuleTypeUnderTest:        "filegroup",
+			ModuleTypeUnderTestFactory: android.FileGroupFactory,
+			Blueprint: `
+license {
+    name: "my_license",
+}
+filegroup {
+    name: "my_filegroup",
+    licenses: ["my_license"],
+}
+`,
+			ExpectedBazelTargets: []string{
+				MakeBazelTargetNoRestrictions("filegroup", "my_filegroup", AttrNameToString{
+					"applicable_licenses": `[":my_license"]`,
+				}),
+				MakeBazelTargetNoRestrictions("android_license", "my_license", AttrNameToString{}),
+			},
+		})
+}
