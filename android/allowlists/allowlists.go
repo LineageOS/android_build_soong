@@ -632,13 +632,10 @@ var (
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
 		"aidl_interface_headers",
-		"api_domain",
 		"license",
 		"linker_config",
 		"java_import",
 		"java_import_host",
-		"ndk_headers",
-		"ndk_library",
 		"sysprop_library",
 		"bpf",
 	}
