@@ -530,7 +530,7 @@ func (j *Module) checkSdkVersions(ctx android.ModuleContext) {
 		// TODO(satayev): cover other types as well, e.g. imports
 		case *Library, *AndroidLibrary:
 			switch tag {
-			case bootClasspathTag, libTag, staticLibTag, java9LibTag:
+			case bootClasspathTag, sdkLibTag, libTag, staticLibTag, java9LibTag:
 				j.checkSdkLinkType(ctx, module.(moduleWithSdkDep), tag.(dependencyTag))
 			}
 		}
@@ -1955,7 +1955,7 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 
 		if dep, ok := module.(SdkLibraryDependency); ok {
 			switch tag {
-			case libTag:
+			case sdkLibTag, libTag:
 				depHeaderJars := dep.SdkHeaderJars(ctx, j.SdkVersion(ctx))
 				deps.classpath = append(deps.classpath, depHeaderJars...)
 				deps.dexClasspath = append(deps.dexClasspath, depHeaderJars...)
@@ -1975,7 +1975,7 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 			switch tag {
 			case bootClasspathTag:
 				deps.bootClasspath = append(deps.bootClasspath, dep.HeaderJars...)
-			case libTag, instrumentationForTag:
+			case sdkLibTag, libTag, instrumentationForTag:
 				if _, ok := module.(*Plugin); ok {
 					ctx.ModuleErrorf("a java_plugin (%s) cannot be used as a libs dependency", otherName)
 				}
@@ -2048,7 +2048,7 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 			}
 		} else if dep, ok := module.(android.SourceFileProducer); ok {
 			switch tag {
-			case libTag:
+			case sdkLibTag, libTag:
 				checkProducesJars(ctx, dep)
 				deps.classpath = append(deps.classpath, dep.Srcs()...)
 				deps.dexClasspath = append(deps.classpath, dep.Srcs()...)
