@@ -1135,7 +1135,3 @@ func transformArchiveRepack(ctx android.ModuleContext, inputFile android.Path,
 		},
 	})
 }
-
-func mingwCmd(toolchain config.Toolchain, cmd string) string {
-	return filepath.Join(toolchain.GccRoot(), "bin", toolchain.GccTriple()+"-"+cmd)
-}
