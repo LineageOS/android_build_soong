@@ -84,12 +84,11 @@ var (
 //
 // Example:
 //
-// ndk_library {
-//     name: "libfoo",
-//     symbol_file: "libfoo.map.txt",
-//     first_version: "9",
-// }
-//
+//	ndk_library {
+//	    name: "libfoo",
+//	    symbol_file: "libfoo.map.txt",
+//	    first_version: "9",
+//	}
 type libraryProperties struct {
 	// Relative path to the symbol map.
 	// An example file can be seen here: TODO(danalbert): Make an example.

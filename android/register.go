@@ -257,20 +257,20 @@ type RegistrationContext interface {
 
 // Used to register build components from an init() method, e.g.
 //
-// init() {
-//   RegisterBuildComponents(android.InitRegistrationContext)
-// }
+//	init() {
+//	  RegisterBuildComponents(android.InitRegistrationContext)
+//	}
 //
-// func RegisterBuildComponents(ctx android.RegistrationContext) {
-//   ctx.RegisterModuleType(...)
-//   ...
-// }
+//	func RegisterBuildComponents(ctx android.RegistrationContext) {
+//	  ctx.RegisterModuleType(...)
+//	  ...
+//	}
 //
 // Extracting the actual registration into a separate RegisterBuildComponents(ctx) function
 // allows it to be used to initialize test context, e.g.
 //
-//   ctx := android.NewTestContext(config)
-//   RegisterBuildComponents(ctx)
+//	ctx := android.NewTestContext(config)
+//	RegisterBuildComponents(ctx)
 var InitRegistrationContext RegistrationContext = &initRegistrationContext{
 	moduleTypes:       make(map[string]ModuleFactory),
 	singletonTypes:    make(map[string]SingletonFactory),

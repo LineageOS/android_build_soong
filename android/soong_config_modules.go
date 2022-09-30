@@ -190,77 +190,78 @@ type soongConfigModuleTypeModule struct {
 //
 // Each soong_config_variable supports an additional value `conditions_default`. The properties
 // specified in `conditions_default` will only be used under the following conditions:
-//   bool variable: the variable is unspecified or not set to a true value
-//   value variable: the variable is unspecified
-//   string variable: the variable is unspecified or the variable is set to a string unused in the
-//                    given module. For example, string variable `test` takes values: "a" and "b",
-//                    if the module contains a property `a` and `conditions_default`, when test=b,
-//                    the properties under `conditions_default` will be used. To specify that no
-//                    properties should be amended for `b`, you can set `b: {},`.
+//
+//	bool variable: the variable is unspecified or not set to a true value
+//	value variable: the variable is unspecified
+//	string variable: the variable is unspecified or the variable is set to a string unused in the
+//	                 given module. For example, string variable `test` takes values: "a" and "b",
+//	                 if the module contains a property `a` and `conditions_default`, when test=b,
+//	                 the properties under `conditions_default` will be used. To specify that no
+//	                 properties should be amended for `b`, you can set `b: {},`.
 //
 // For example, an Android.bp file could have:
 //
-//     soong_config_module_type {
-//         name: "acme_cc_defaults",
-//         module_type: "cc_defaults",
-//         config_namespace: "acme",
-//         variables: ["board"],
-//         bool_variables: ["feature"],
-//         value_variables: ["width"],
-//         properties: ["cflags", "srcs"],
-//     }
+//	    soong_config_module_type {
+//	        name: "acme_cc_defaults",
+//	        module_type: "cc_defaults",
+//	        config_namespace: "acme",
+//	        variables: ["board"],
+//	        bool_variables: ["feature"],
+//	        value_variables: ["width"],
+//	        properties: ["cflags", "srcs"],
+//	    }
 //
-//     soong_config_string_variable {
-//         name: "board",
-//         values: ["soc_a", "soc_b"],
-//     }
+//	    soong_config_string_variable {
+//	        name: "board",
+//	        values: ["soc_a", "soc_b"],
+//	    }
 //
-//     acme_cc_defaults {
-//         name: "acme_defaults",
-//         cflags: ["-DGENERIC"],
-//         soong_config_variables: {
-//             board: {
-//                 soc_a: {
-//                     cflags: ["-DSOC_A"],
-//                 },
-//                 soc_b: {
-//                     cflags: ["-DSOC_B"],
-//                 },
-//                 conditions_default: {
-//                     cflags: ["-DSOC_DEFAULT"],
-//                 },
-//             },
-//             feature: {
-//                 cflags: ["-DFEATURE"],
-//                 conditions_default: {
-//                     cflags: ["-DFEATURE_DEFAULT"],
-//                 },
-//             },
-//             width: {
-//	               cflags: ["-DWIDTH=%s"],
-//                 conditions_default: {
-//                     cflags: ["-DWIDTH=DEFAULT"],
-//                 },
-//             },
-//         },
-//     }
+//	    acme_cc_defaults {
+//	        name: "acme_defaults",
+//	        cflags: ["-DGENERIC"],
+//	        soong_config_variables: {
+//	            board: {
+//	                soc_a: {
+//	                    cflags: ["-DSOC_A"],
+//	                },
+//	                soc_b: {
+//	                    cflags: ["-DSOC_B"],
+//	                },
+//	                conditions_default: {
+//	                    cflags: ["-DSOC_DEFAULT"],
+//	                },
+//	            },
+//	            feature: {
+//	                cflags: ["-DFEATURE"],
+//	                conditions_default: {
+//	                    cflags: ["-DFEATURE_DEFAULT"],
+//	                },
+//	            },
+//	            width: {
+//		               cflags: ["-DWIDTH=%s"],
+//	                conditions_default: {
+//	                    cflags: ["-DWIDTH=DEFAULT"],
+//	                },
+//	            },
+//	        },
+//	    }
 //
-//     cc_library {
-//         name: "libacme_foo",
-//         defaults: ["acme_defaults"],
-//         srcs: ["*.cpp"],
-//     }
+//	    cc_library {
+//	        name: "libacme_foo",
+//	        defaults: ["acme_defaults"],
+//	        srcs: ["*.cpp"],
+//	    }
 //
 // If an acme BoardConfig.mk file contained:
 //
-//     SOONG_CONFIG_NAMESPACES += acme
-//     SOONG_CONFIG_acme += \
-//         board \
-//         feature \
+//	SOONG_CONFIG_NAMESPACES += acme
+//	SOONG_CONFIG_acme += \
+//	    board \
+//	    feature \
 //
-//     SOONG_CONFIG_acme_board := soc_a
-//     SOONG_CONFIG_acme_feature := true
-//     SOONG_CONFIG_acme_width := 200
+//	SOONG_CONFIG_acme_board := soc_a
+//	SOONG_CONFIG_acme_feature := true
+//	SOONG_CONFIG_acme_width := 200
 //
 // Then libacme_foo would build with cflags "-DGENERIC -DSOC_A -DFEATURE".
 func SoongConfigModuleTypeFactory() Module {

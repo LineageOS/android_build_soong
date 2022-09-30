@@ -29,26 +29,25 @@ var (
 //
 // Example:
 //
-// vndk_prebuilt_shared {
-//     name: "libfoo",
-//     version: "27",
-//     target_arch: "arm64",
-//     vendor_available: true,
-//     product_available: true,
-//     vndk: {
-//         enabled: true,
-//     },
-//     export_include_dirs: ["include/external/libfoo/vndk_include"],
-//     arch: {
-//         arm64: {
-//             srcs: ["arm/lib64/libfoo.so"],
-//         },
-//         arm: {
-//             srcs: ["arm/lib/libfoo.so"],
-//         },
-//     },
-// }
-//
+//	vndk_prebuilt_shared {
+//	    name: "libfoo",
+//	    version: "27",
+//	    target_arch: "arm64",
+//	    vendor_available: true,
+//	    product_available: true,
+//	    vndk: {
+//	        enabled: true,
+//	    },
+//	    export_include_dirs: ["include/external/libfoo/vndk_include"],
+//	    arch: {
+//	        arm64: {
+//	            srcs: ["arm/lib64/libfoo.so"],
+//	        },
+//	        arm: {
+//	            srcs: ["arm/lib/libfoo.so"],
+//	        },
+//	    },
+//	}
 type vndkPrebuiltProperties struct {
 	// VNDK snapshot version.
 	Version *string
@@ -250,25 +249,25 @@ func vndkPrebuiltSharedLibrary() *Module {
 // vndk_prebuilt_shared installs Vendor Native Development kit (VNDK) snapshot
 // shared libraries for system build. Example:
 //
-//    vndk_prebuilt_shared {
-//        name: "libfoo",
-//        version: "27",
-//        target_arch: "arm64",
-//        vendor_available: true,
-//        product_available: true,
-//        vndk: {
-//            enabled: true,
-//        },
-//        export_include_dirs: ["include/external/libfoo/vndk_include"],
-//        arch: {
-//            arm64: {
-//                srcs: ["arm/lib64/libfoo.so"],
-//            },
-//            arm: {
-//                srcs: ["arm/lib/libfoo.so"],
-//            },
-//        },
-//    }
+//	vndk_prebuilt_shared {
+//	    name: "libfoo",
+//	    version: "27",
+//	    target_arch: "arm64",
+//	    vendor_available: true,
+//	    product_available: true,
+//	    vndk: {
+//	        enabled: true,
+//	    },
+//	    export_include_dirs: ["include/external/libfoo/vndk_include"],
+//	    arch: {
+//	        arm64: {
+//	            srcs: ["arm/lib64/libfoo.so"],
+//	        },
+//	        arm: {
+//	            srcs: ["arm/lib/libfoo.so"],
+//	        },
+//	    },
+//	}
 func VndkPrebuiltSharedFactory() android.Module {
 	module := vndkPrebuiltSharedLibrary()
 	return module.Init()

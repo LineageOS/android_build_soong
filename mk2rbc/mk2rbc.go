@@ -14,13 +14,13 @@
 
 // Convert makefile containing device configuration to Starlark file
 // The conversion can handle the following constructs in a makefile:
-//   * comments
-//   * simple variable assignments
-//   * $(call init-product,<file>)
-//   * $(call inherit-product-if-exists
-//   * if directives
-// All other constructs are carried over to the output starlark file as comments.
+//   - comments
+//   - simple variable assignments
+//   - $(call init-product,<file>)
+//   - $(call inherit-product-if-exists
+//   - if directives
 //
+// All other constructs are carried over to the output starlark file as comments.
 package mk2rbc
 
 import (

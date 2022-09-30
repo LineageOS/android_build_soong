@@ -450,13 +450,13 @@ func (r *sdkRegistry) uniqueOnceKey() OnceKey {
 // required for some members but not others. Traits can cause additional information to be output
 // to the sdk snapshot or replace the default information exported for a member with something else.
 // e.g.
-// * By default cc libraries only export the default image variants to the SDK. However, for some
-//   members it may be necessary to export specific image variants, e.g. vendor, or recovery.
-// * By default cc libraries export all the configured architecture variants except for the native
-//   bridge architecture variants. However, for some members it may be necessary to export the
-//   native bridge architecture variants as well.
-// * By default cc libraries export the platform variant (i.e. sdk:). However, for some members it
-//   may be necessary to export the sdk variant (i.e. sdk:sdk).
+//   - By default cc libraries only export the default image variants to the SDK. However, for some
+//     members it may be necessary to export specific image variants, e.g. vendor, or recovery.
+//   - By default cc libraries export all the configured architecture variants except for the native
+//     bridge architecture variants. However, for some members it may be necessary to export the
+//     native bridge architecture variants as well.
+//   - By default cc libraries export the platform variant (i.e. sdk:). However, for some members it
+//     may be necessary to export the sdk variant (i.e. sdk:sdk).
 //
 // A sdk can request a module to provide no traits, one trait or a collection of traits. The exact
 // behavior of a trait is determined by how SdkMemberType implementations handle the traits. A trait
@@ -467,17 +467,17 @@ func (r *sdkRegistry) uniqueOnceKey() OnceKey {
 // SdkPropertyName(). Each property contains a list of modules that are required to have that trait.
 // e.g. something like this:
 //
-//   sdk {
-//     name: "sdk",
-//     ...
-//     traits: {
-//       recovery_image: ["module1", "module4", "module5"],
-//       native_bridge: ["module1", "module2"],
-//       native_sdk: ["module1", "module3"],
-//       ...
-//     },
-//     ...
-//   }
+//	sdk {
+//	  name: "sdk",
+//	  ...
+//	  traits: {
+//	    recovery_image: ["module1", "module4", "module5"],
+//	    native_bridge: ["module1", "module2"],
+//	    native_sdk: ["module1", "module3"],
+//	    ...
+//	  },
+//	  ...
+//	}
 type SdkMemberTrait interface {
 	// SdkPropertyName returns the name of the traits property on an sdk module.
 	SdkPropertyName() string
@@ -659,20 +659,19 @@ func DependencyTagForSdkMemberType(memberType SdkMemberType, export bool) SdkMem
 // The basic implementation should look something like this, where ModuleType is
 // the name of the module type being supported.
 //
-//    type moduleTypeSdkMemberType struct {
-//        android.SdkMemberTypeBase
-//    }
+//	type moduleTypeSdkMemberType struct {
+//	    android.SdkMemberTypeBase
+//	}
 //
-//    func init() {
-//        android.RegisterSdkMemberType(&moduleTypeSdkMemberType{
-//            SdkMemberTypeBase: android.SdkMemberTypeBase{
-//                PropertyName: "module_types",
-//            },
-//        }
-//    }
+//	func init() {
+//	    android.RegisterSdkMemberType(&moduleTypeSdkMemberType{
+//	        SdkMemberTypeBase: android.SdkMemberTypeBase{
+//	            PropertyName: "module_types",
+//	        },
+//	    }
+//	}
 //
-//    ...methods...
-//
+//	...methods...
 type SdkMemberType interface {
 	// SdkPropertyName returns the name of the member type property on an sdk module.
 	SdkPropertyName() string

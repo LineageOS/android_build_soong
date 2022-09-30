@@ -2129,11 +2129,12 @@ var _ SdkLibraryDependency = (*SdkLibraryImport)(nil)
 
 // The type of a structure that contains a field of type sdkLibraryScopeProperties
 // for each apiscope in allApiScopes, e.g. something like:
-// struct {
-//   Public sdkLibraryScopeProperties
-//   System sdkLibraryScopeProperties
-//   ...
-// }
+//
+//	struct {
+//	  Public sdkLibraryScopeProperties
+//	  System sdkLibraryScopeProperties
+//	  ...
+//	}
 var allScopeStructType = createAllScopePropertiesStructType()
 
 // Dynamically create a structure type for each apiscope in allApiScopes.
@@ -2559,9 +2560,7 @@ func (module *SdkLibraryImport) RequiredFilesFromPrebuiltApex(ctx android.BaseMo
 	return requiredFilesFromPrebuiltApexForImport(name)
 }
 
-//
 // java_sdk_library_xml
-//
 type sdkLibraryXml struct {
 	android.ModuleBase
 	android.DefaultableModuleBase

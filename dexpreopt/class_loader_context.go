@@ -25,11 +25,11 @@ import (
 )
 
 // This comment describes the following:
-//   1. the concept of class loader context (CLC) and its relation to classpath
-//   2. how PackageManager constructs CLC from shared libraries and their dependencies
-//   3. build-time vs. run-time CLC and why this matters for dexpreopt
-//   4. manifest fixer: a tool that adds missing <uses-library> tags to the manifests
-//   5. build system support for CLC
+//  1. the concept of class loader context (CLC) and its relation to classpath
+//  2. how PackageManager constructs CLC from shared libraries and their dependencies
+//  3. build-time vs. run-time CLC and why this matters for dexpreopt
+//  4. manifest fixer: a tool that adds missing <uses-library> tags to the manifests
+//  5. build system support for CLC
 //
 // 1. Class loader context
 // -----------------------
@@ -59,15 +59,16 @@ import (
 // loaders are not duplicated (at runtime there is a single class loader instance for each library).
 //
 // Example: A has <uses-library> tags B, C and D; C has <uses-library tags> B and D;
-//          D has <uses-library> E; B and E have no <uses-library> dependencies. The CLC is:
-//    A
-//    ├── B
-//    ├── C
-//    │   ├── B
-//    │   └── D
-//    │       └── E
-//    └── D
-//        └── E
+//
+//	      D has <uses-library> E; B and E have no <uses-library> dependencies. The CLC is:
+//	A
+//	├── B
+//	├── C
+//	│   ├── B
+//	│   └── D
+//	│       └── E
+//	└── D
+//	    └── E
 //
 // CLC defines the lookup order of libraries when resolving Java classes used by the library/app.
 // The lookup order is important because libraries may contain duplicate classes, and the class is
@@ -188,7 +189,6 @@ import (
 // rule generation phase.
 //
 // ClassLoaderContext is a structure that represents CLC.
-//
 type ClassLoaderContext struct {
 	// The name of the library.
 	Name string
@@ -253,7 +253,6 @@ func (c *ClassLoaderContext) excludeLibs(excludedLibs []string) (*ClassLoaderCon
 // generates a build rule that includes conditional CLC for all versions, extracts the target SDK
 // version from the manifest, and filters the CLCs based on that version. Exact final CLC that is
 // passed to dex2oat is unknown to the build system, and gets known only at Ninja stage.
-//
 type ClassLoaderContextMap map[int][]*ClassLoaderContext
 
 // Compatibility libraries. Some are optional, and some are required: this is the default that
@@ -502,7 +501,6 @@ func (clcMap ClassLoaderContextMap) ExcludeLibs(excludedLibs []string) ClassLoad
 // constructs class loader context on device.
 //
 // TODO(b/132357300): remove "android.hidl.manager" and "android.hidl.base" for non-system apps.
-//
 func fixClassLoaderContext(clcMap ClassLoaderContextMap) {
 	required, optional := clcMap.UsesLibs()
 	usesLibs := append(required, optional...)

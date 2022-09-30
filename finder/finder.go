@@ -732,15 +732,15 @@ func (f *Finder) parseCacheEntry(bytes []byte) ([]dirFullInfo, error) {
 // because we know this separator won't appear in the json that we're parsing.
 //
 // The newline byte can only appear in a UTF-8 stream if the newline character appears, because:
-// - The newline character is encoded as "0000 1010" in binary ("0a" in hex)
-// - UTF-8 dictates that bytes beginning with a "0" bit are never emitted as part of a multibyte
-//   character.
+//   - The newline character is encoded as "0000 1010" in binary ("0a" in hex)
+//   - UTF-8 dictates that bytes beginning with a "0" bit are never emitted as part of a multibyte
+//     character.
 //
 // We know that the newline character will never appear in our json string, because:
-// - If a newline character appears as part of a data string, then json encoding will
-//   emit two characters instead: '\' and 'n'.
-// - The json encoder that we use doesn't emit the optional newlines between any of its
-//   other outputs.
+//   - If a newline character appears as part of a data string, then json encoding will
+//     emit two characters instead: '\' and 'n'.
+//   - The json encoder that we use doesn't emit the optional newlines between any of its
+//     other outputs.
 const lineSeparator = byte('\n')
 
 func (f *Finder) readLine(reader *bufio.Reader) ([]byte, error) {

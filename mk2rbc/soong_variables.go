@@ -32,8 +32,8 @@ type context struct {
 
 // Scans the makefile Soong uses to generate soong.variables file,
 // collecting variable names and types from the lines that look like this:
-//    $(call add_json_XXX,  <...>,             $(VAR))
 //
+//	$(call add_json_XXX,  <...>,             $(VAR))
 func FindSoongVariables(mkFile string, includeFileScope mkparser.Scope, registrar variableRegistrar) error {
 	ctx := context{includeFileScope, registrar}
 	return ctx.doFind(mkFile)
