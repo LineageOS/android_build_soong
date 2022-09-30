@@ -66,13 +66,20 @@ var (
 		"host_bionic_linker_script")
 )
 
+const (
+	x86_64GccVersion = "4.9"
+)
+
 func init() {
+
 	pctx.StaticVariable("LinuxBionicCflags", strings.Join(linuxBionicCflags, " "))
 	pctx.StaticVariable("LinuxBionicLdflags", strings.Join(linuxBionicLdflags, " "))
 	pctx.StaticVariable("LinuxBionicLldflags", strings.Join(linuxBionicLdflags, " "))
 
 	// Use the device gcc toolchain for now
-	pctx.StaticVariable("LinuxBionicGccRoot", "${X86_64GccRoot}")
+	pctx.StaticVariable("LinuxBionicGccVersion", x86_64GccVersion)
+	pctx.SourcePathVariable("LinuxBionicGccRoot",
+		"prebuilts/gcc/${HostPrebuiltTag}/x86/x86_64-linux-android-${LinuxBionicGccVersion}")
 }
 
 type toolchainLinuxBionic struct {
@@ -82,18 +89,6 @@ type toolchainLinuxBionic struct {
 
 func (t *toolchainLinuxBionic) Name() string {
 	return "x86_64"
-}
-
-func (t *toolchainLinuxBionic) GccRoot() string {
-	return "${config.LinuxBionicGccRoot}"
-}
-
-func (t *toolchainLinuxBionic) GccTriple() string {
-	return "x86_64-linux-android"
-}
-
-func (t *toolchainLinuxBionic) GccVersion() string {
-	return "4.9"
 }
 
 func (t *toolchainLinuxBionic) IncludeFlags() string {

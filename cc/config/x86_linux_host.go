@@ -179,18 +179,6 @@ func (t *toolchainLinuxX8664) Name() string {
 	return "x86_64"
 }
 
-func (t *toolchainLinux) GccRoot() string {
-	return "${config.LinuxGccRoot}"
-}
-
-func (t *toolchainLinux) GccTriple() string {
-	return "${config.LinuxGccTriple}"
-}
-
-func (t *toolchainLinux) GccVersion() string {
-	return linuxGccVersion
-}
-
 func (t *toolchainLinux) IncludeFlags() string {
 	return ""
 }
