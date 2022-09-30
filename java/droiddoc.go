@@ -267,7 +267,7 @@ func (j *Javadoc) addDeps(ctx android.BottomUpMutatorContext) {
 			ctx.AddVariationDependencies(nil, bootClasspathTag, sdkDep.bootclasspath...)
 			ctx.AddVariationDependencies(nil, systemModulesTag, sdkDep.systemModules)
 			ctx.AddVariationDependencies(nil, java9LibTag, sdkDep.java9Classpath...)
-			ctx.AddVariationDependencies(nil, libTag, sdkDep.classpath...)
+			ctx.AddVariationDependencies(nil, sdkLibTag, sdkDep.classpath...)
 		}
 	}
 
@@ -367,7 +367,7 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 			} else {
 				panic(fmt.Errorf("unknown dependency %q for %q", otherName, ctx.ModuleName()))
 			}
-		case libTag:
+		case libTag, sdkLibTag:
 			if dep, ok := module.(SdkLibraryDependency); ok {
 				deps.classpath = append(deps.classpath, dep.SdkHeaderJars(ctx, j.SdkVersion(ctx))...)
 			} else if ctx.OtherModuleHasProvider(module, JavaInfoProvider) {
