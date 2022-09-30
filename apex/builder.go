@@ -459,8 +459,13 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 			pathOnDevice := filepath.Join("/system", fi.path())
 			copyCommands = append(copyCommands, "ln -sfn "+pathOnDevice+" "+destPath)
 		} else {
+			// Copy the file into APEX
+			copyCommands = append(copyCommands, "cp -f "+fi.builtFile.String()+" "+destPath)
+
 			var installedPath android.InstallPath
 			if fi.class == appSet {
+				// In case of AppSet, we need to copy additional APKs as well. They
+				// are zipped. So we need to unzip them.
 				copyCommands = append(copyCommands,
 					fmt.Sprintf("unzip -qDD -d %s %s", destPathDir,
 						fi.module.(*java.AndroidAppSet).PackedAdditionalOutputs().String()))
@@ -469,7 +474,6 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 						fi.stem(), fi.builtFile, fi.module.(*java.AndroidAppSet).PackedAdditionalOutputs())
 				}
 			} else {
-				copyCommands = append(copyCommands, "cp -f "+fi.builtFile.String()+" "+destPath)
 				if installSymbolFiles {
 					installedPath = ctx.InstallFile(pathWhenActivated.Join(ctx, fi.installDir), fi.stem(), fi.builtFile)
 				}
@@ -1086,6 +1090,9 @@ func (a *apexBundle) buildCannedFsConfig(ctx android.ModuleContext) android.Outp
 				executablePaths = append(executablePaths, filepath.Join(f.installDir, s))
 			}
 		} else if f.class == appSet {
+			// base APK
+			readOnlyPaths = append(readOnlyPaths, pathInApex)
+			// Additional APKs
 			appSetDirs = append(appSetDirs, f.installDir)
 			appSetFiles[f.installDir] = f.module.(*java.AndroidAppSet).PackedAdditionalOutputs()
 		} else {
