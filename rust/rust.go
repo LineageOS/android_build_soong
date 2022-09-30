@@ -1615,7 +1615,7 @@ func (mod *Module) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Mo
 		}
 	}
 
-	if depTag == procMacroDepTag {
+	if depTag == procMacroDepTag || depTag == customBindgenDepTag {
 		return false
 	}
 
