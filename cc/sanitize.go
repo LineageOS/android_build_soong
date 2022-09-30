@@ -881,8 +881,12 @@ func (sanitize *sanitize) SetSanitizer(t SanitizerType, b bool) {
 	switch t {
 	case Asan:
 		sanitize.Properties.Sanitize.Address = bPtr
+		// For ASAN variant, we need to disable Memtag_stack
+		sanitize.Properties.Sanitize.Memtag_stack = nil
 	case Hwasan:
 		sanitize.Properties.Sanitize.Hwaddress = bPtr
+		// For HWAsan variant, we need to disable Memtag_stack
+		sanitize.Properties.Sanitize.Memtag_stack = nil
 	case tsan:
 		sanitize.Properties.Sanitize.Thread = bPtr
 	case intOverflow:
@@ -895,6 +899,7 @@ func (sanitize *sanitize) SetSanitizer(t SanitizerType, b bool) {
 		sanitize.Properties.Sanitize.Memtag_heap = bPtr
 	case Memtag_stack:
 		sanitize.Properties.Sanitize.Memtag_stack = bPtr
+		// We do not need to disable ASAN or HWASan here, as there is no Memtag_stack variant.
 	case Fuzzer:
 		sanitize.Properties.Sanitize.Fuzzer = bPtr
 	default:
