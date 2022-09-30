@@ -3260,6 +3260,102 @@ func TestVersioningMacro(t *testing.T) {
 	}
 }
 
+func pathsToBase(paths android.Paths) []string {
+	var ret []string
+	for _, p := range paths {
+		ret = append(ret, p.Base())
+	}
+	return ret
+}
+
+func TestStaticLibArchiveArgs(t *testing.T) {
+	ctx := testCc(t, `
+		cc_library_static {
+			name: "foo",
+			srcs: ["foo.c"],
+		}
+
+		cc_library_static {
+			name: "bar",
+			srcs: ["bar.c"],
+		}
+
+		cc_library_shared {
+			name: "qux",
+			srcs: ["qux.c"],
+		}
+
+		cc_library_static {
+			name: "baz",
+			srcs: ["baz.c"],
+			static_libs: ["foo"],
+			shared_libs: ["qux"],
+			whole_static_libs: ["bar"],
+		}`)
+
+	variant := "android_arm64_armv8-a_static"
+	arRule := ctx.ModuleForTests("baz", variant).Rule("ar")
+
+	// For static libraries, the object files of a whole static dep are included in the archive
+	// directly
+	if g, w := pathsToBase(arRule.Inputs), []string{"bar.o", "baz.o"}; !reflect.DeepEqual(w, g) {
+		t.Errorf("Expected input objects %q, got %q", w, g)
+	}
+
+	// non whole static dependencies are not linked into the archive
+	if len(arRule.Implicits) > 0 {
+		t.Errorf("Expected 0 additional deps, got %q", arRule.Implicits)
+	}
+}
+
+func TestSharedLibLinkingArgs(t *testing.T) {
+	ctx := testCc(t, `
+		cc_library_static {
+			name: "foo",
+			srcs: ["foo.c"],
+		}
+
+		cc_library_static {
+			name: "bar",
+			srcs: ["bar.c"],
+		}
+
+		cc_library_shared {
+			name: "qux",
+			srcs: ["qux.c"],
+		}
+
+		cc_library_shared {
+			name: "baz",
+			srcs: ["baz.c"],
+			static_libs: ["foo"],
+			shared_libs: ["qux"],
+			whole_static_libs: ["bar"],
+		}`)
+
+	variant := "android_arm64_armv8-a_shared"
+	linkRule := ctx.ModuleForTests("baz", variant).Rule("ld")
+	libFlags := linkRule.Args["libFlags"]
+	// When dynamically linking, we expect static dependencies to be found on the command line
+	if expected := "foo.a"; !strings.Contains(libFlags, expected) {
+		t.Errorf("Static lib %q was not found in %q", expected, libFlags)
+	}
+	// When dynamically linking, we expect whole static dependencies to be found on the command line
+	if expected := "bar.a"; !strings.Contains(libFlags, expected) {
+		t.Errorf("Static lib %q was not found in %q", expected, libFlags)
+	}
+
+	// When dynamically linking, we expect shared dependencies to be found on the command line
+	if expected := "qux.so"; !strings.Contains(libFlags, expected) {
+		t.Errorf("Shared lib %q was not found in %q", expected, libFlags)
+	}
+
+	// We should only have the objects from the shared library srcs, not the whole static dependencies
+	if g, w := pathsToBase(linkRule.Inputs), []string{"baz.o"}; !reflect.DeepEqual(w, g) {
+		t.Errorf("Expected input objects %q, got %q", w, g)
+	}
+}
+
 func TestStaticExecutable(t *testing.T) {
 	ctx := testCc(t, `
 		cc_binary {
@@ -3542,14 +3638,6 @@ func TestDefaults(t *testing.T) {
 			name: "binary",
 			defaults: ["defaults"],
 		}`)
-
-	pathsToBase := func(paths android.Paths) []string {
-		var ret []string
-		for _, p := range paths {
-			ret = append(ret, p.Base())
-		}
-		return ret
-	}
 
 	shared := ctx.ModuleForTests("libshared", "android_arm64_armv8-a_shared").Rule("ld")
 	if g, w := pathsToBase(shared.Inputs), []string{"foo.o", "baz.o"}; !reflect.DeepEqual(w, g) {
