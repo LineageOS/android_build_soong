@@ -1523,7 +1523,7 @@ func (m *ModuleBase) GetUnconvertedBp2buildDeps() []string {
 	return FirstUniqueStrings(m.commonProperties.BazelConversionStatus.UnconvertedDeps)
 }
 
-// GetMissingBp2buildDeps eturns the list of module names that were not found in Android.bp files.
+// GetMissingBp2buildDeps returns the list of module names that were not found in Android.bp files.
 func (m *ModuleBase) GetMissingBp2buildDeps() []string {
 	return FirstUniqueStrings(m.commonProperties.BazelConversionStatus.MissingDeps)
 }
