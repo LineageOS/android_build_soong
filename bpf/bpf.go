@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"android/soong/android"
+	"android/soong/bazel"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
@@ -93,6 +94,7 @@ type BpfProperties struct {
 
 type bpf struct {
 	android.ModuleBase
+	android.BazelModuleBase
 
 	properties BpfProperties
 
@@ -260,5 +262,39 @@ func BpfFactory() android.Module {
 	module.AddProperties(&module.properties)
 
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibCommon)
+	android.InitBazelModule(module)
 	return module
+}
+
+type bazelBpfAttributes struct {
+	Srcs              bazel.LabelListAttribute
+	Copts             bazel.StringListAttribute
+	Absolute_includes bazel.StringListAttribute
+	Btf               *bool
+	// TODO(b/249528391): Add support for sub_dir
+}
+
+// bpf bp2build converter
+func (b *bpf) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+	if ctx.ModuleType() != "bpf" {
+		return
+	}
+
+	srcs := bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrc(ctx, b.properties.Srcs))
+	copts := bazel.MakeStringListAttribute(b.properties.Cflags)
+	absolute_includes := bazel.MakeStringListAttribute(b.properties.Include_dirs)
+	btf := b.properties.Btf
+
+	attrs := bazelBpfAttributes{
+		Srcs:              srcs,
+		Copts:             copts,
+		Absolute_includes: absolute_includes,
+		Btf:               btf,
+	}
+	props := bazel.BazelTargetModuleProperties{
+		Rule_class:        "bpf",
+		Bzl_load_location: "//build/bazel/rules/bpf:bpf.bzl",
+	}
+
+	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: b.Name()}, &attrs)
 }
