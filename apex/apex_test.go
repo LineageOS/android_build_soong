@@ -7235,12 +7235,13 @@ func TestAppSetBundle(t *testing.T) {
 	ensureContains(t, content, `"compression":{"uncompressed_glob":["apex_payload.img","apex_manifest.*"]}`)
 	s := mod.Rule("apexRule").Args["copy_commands"]
 	copyCmds := regexp.MustCompile(" *&& *").Split(s, -1)
-	if len(copyCmds) != 3 {
-		t.Fatalf("Expected 3 commands, got %d in:\n%s", len(copyCmds), s)
+	if len(copyCmds) != 4 {
+		t.Fatalf("Expected 4 commands, got %d in:\n%s", len(copyCmds), s)
 	}
 	ensureMatches(t, copyCmds[0], "^rm -rf .*/app/AppSet@TEST.BUILD_ID$")
 	ensureMatches(t, copyCmds[1], "^mkdir -p .*/app/AppSet@TEST.BUILD_ID$")
-	ensureMatches(t, copyCmds[2], "^unzip .*-d .*/app/AppSet@TEST.BUILD_ID .*/AppSet.zip$")
+	ensureMatches(t, copyCmds[2], "^cp -f .*/app/AppSet@TEST.BUILD_ID/AppSet.apk$")
+	ensureMatches(t, copyCmds[3], "^unzip .*-d .*/app/AppSet@TEST.BUILD_ID .*/AppSet.zip$")
 
 	// Ensure that canned_fs_config has an entry for the app set zip file
 	generateFsRule := mod.Rule("generateFsConfig")
