@@ -271,7 +271,7 @@ func TestJavaLintDatabaseSelectionPublicFiltered(t *testing.T) {
 				"a.java",
 			],
 			min_sdk_version: "29",
-			sdk_version: "module_current",
+			sdk_version: "XXX",
 			lint: {
 				strict_updatability_linting: true,
 			},
