@@ -132,12 +132,7 @@ func init() {
 		if override := ctx.Config().Getenv("OVERRIDE_JLINK_VERSION_NUMBER"); override != "" {
 			return override
 		}
-		switch ctx.Config().Getenv("EXPERIMENTAL_USE_OPENJDK17_TOOLCHAIN") {
-		case "true":
-			return "17"
-		default:
-			return "11"
-		}
+		return "17"
 	})
 
 	pctx.SourcePathVariable("JavaToolchain", "${JavaHome}/bin")
