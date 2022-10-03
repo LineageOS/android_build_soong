@@ -284,6 +284,9 @@ type apexArchBundleProperties struct {
 		Arm64 struct {
 			ApexNativeDependencies
 		}
+		Riscv64 struct {
+			ApexNativeDependencies
+		}
 		X86 struct {
 			ApexNativeDependencies
 		}
@@ -784,6 +787,8 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 			depsList = append(depsList, a.archProperties.Arch.Arm.ApexNativeDependencies)
 		case android.Arm64:
 			depsList = append(depsList, a.archProperties.Arch.Arm64.ApexNativeDependencies)
+		case android.Riscv64:
+			depsList = append(depsList, a.archProperties.Arch.Riscv64.ApexNativeDependencies)
 		case android.X86:
 			depsList = append(depsList, a.archProperties.Arch.X86.ApexNativeDependencies)
 		case android.X86_64:
