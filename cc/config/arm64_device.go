@@ -74,7 +74,7 @@ var (
 			"-mcpu=kryo",
 		},
 		"kryo385": []string{
-			// Use cortex-a53 because kryo385 is not supported in GCC/clang.
+			// Use cortex-a53 because kryo385 is not supported in clang.
 			"-mcpu=cortex-a53",
 		},
 		"exynos-m1": []string{
@@ -86,16 +86,7 @@ var (
 	}
 )
 
-const (
-	arm64GccVersion = "4.9"
-)
-
 func init() {
-	pctx.StaticVariable("arm64GccVersion", arm64GccVersion)
-
-	pctx.SourcePathVariable("Arm64GccRoot",
-		"prebuilts/gcc/${HostPrebuiltTag}/aarch64/aarch64-linux-android-${arm64GccVersion}")
-
 	exportedVars.ExportStringListStaticVariable("Arm64Ldflags", arm64Ldflags)
 	exportedVars.ExportStringListStaticVariable("Arm64Lldflags", arm64Lldflags)
 
@@ -164,24 +155,12 @@ func (t *toolchainArm64) Name() string {
 	return "arm64"
 }
 
-func (t *toolchainArm64) GccRoot() string {
-	return "${config.Arm64GccRoot}"
-}
-
-func (t *toolchainArm64) GccTriple() string {
-	return "aarch64-linux-android"
-}
-
-func (t *toolchainArm64) GccVersion() string {
-	return arm64GccVersion
-}
-
 func (t *toolchainArm64) IncludeFlags() string {
 	return ""
 }
 
 func (t *toolchainArm64) ClangTriple() string {
-	return t.GccTriple()
+	return "aarch64-linux-android"
 }
 
 func (t *toolchainArm64) Cflags() string {
