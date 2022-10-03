@@ -133,6 +133,7 @@ var (
 		"external/jemalloc_new":                  Bp2BuildDefaultTrueRecursively,
 		"external/jsoncpp":                       Bp2BuildDefaultTrueRecursively,
 		"external/junit":                         Bp2BuildDefaultTrueRecursively,
+		"external/libaom":                        Bp2BuildDefaultTrueRecursively,
 		"external/libavc":                        Bp2BuildDefaultTrueRecursively,
 		"external/libcap":                        Bp2BuildDefaultTrueRecursively,
 		"external/libcxx":                        Bp2BuildDefaultTrueRecursively,
@@ -167,6 +168,7 @@ var (
 
 		"frameworks/av":                                      Bp2BuildDefaultTrue,
 		"frameworks/av/media/codecs":                         Bp2BuildDefaultTrueRecursively,
+		"frameworks/av/media/codec2/components/aom":          Bp2BuildDefaultTrueRecursively,
 		"frameworks/av/media/liberror":                       Bp2BuildDefaultTrueRecursively,
 		"frameworks/av/services/minijail":                    Bp2BuildDefaultTrueRecursively,
 		"frameworks/av/media/module/minijail":                Bp2BuildDefaultTrueRecursively,
