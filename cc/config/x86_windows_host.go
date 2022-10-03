@@ -175,24 +175,12 @@ func (t *toolchainWindowsX8664) Name() string {
 	return "x86_64"
 }
 
-func (t *toolchainWindows) GccRoot() string {
-	return "${config.WindowsGccRoot}"
-}
-
-func (t *toolchainWindows) GccTriple() string {
-	return "${config.WindowsGccTriple}"
-}
-
 func (t *toolchainWindows) ToolchainCflags() string {
-	return "-B" + filepath.Join(t.GccRoot(), t.GccTriple(), "bin")
+	return "-B" + filepath.Join("${config.WindowsGccRoot}", "${config.WindowsGccTriple}", "bin")
 }
 
 func (t *toolchainWindows) ToolchainLdflags() string {
-	return "-B" + filepath.Join(t.GccRoot(), t.GccTriple(), "bin")
-}
-
-func (t *toolchainWindows) GccVersion() string {
-	return windowsGccVersion
+	return "-B" + filepath.Join("${config.WindowsGccRoot}", "${config.WindowsGccTriple}", "bin")
 }
 
 func (t *toolchainWindows) IncludeFlags() string {
