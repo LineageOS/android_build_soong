@@ -79,7 +79,7 @@ var (
 		"cortex-a7": []string{
 			"-mcpu=cortex-a7",
 			"-mfpu=neon-vfpv4",
-			// Fake an ARM compiler flag as these processors support LPAE which GCC/clang
+			// Fake an ARM compiler flag as these processors support LPAE which clang
 			// don't advertise.
 			// TODO This is a hack and we need to add it for each processor that supports LPAE until some
 			// better solution comes around. See Bug 27340895
@@ -91,7 +91,7 @@ var (
 		"cortex-a15": []string{
 			"-mcpu=cortex-a15",
 			"-mfpu=neon-vfpv4",
-			// Fake an ARM compiler flag as these processors support LPAE which GCC/clang
+			// Fake an ARM compiler flag as these processors support LPAE which clang
 			// don't advertise.
 			// TODO This is a hack and we need to add it for each processor that supports LPAE until some
 			// better solution comes around. See Bug 27340895
@@ -100,7 +100,7 @@ var (
 		"cortex-a53": []string{
 			"-mcpu=cortex-a53",
 			"-mfpu=neon-fp-armv8",
-			// Fake an ARM compiler flag as these processors support LPAE which GCC/clang
+			// Fake an ARM compiler flag as these processors support LPAE which clang
 			// don't advertise.
 			// TODO This is a hack and we need to add it for each processor that supports LPAE until some
 			// better solution comes around. See Bug 27340895
@@ -109,7 +109,7 @@ var (
 		"cortex-a55": []string{
 			"-mcpu=cortex-a55",
 			"-mfpu=neon-fp-armv8",
-			// Fake an ARM compiler flag as these processors support LPAE which GCC/clang
+			// Fake an ARM compiler flag as these processors support LPAE which clang
 			// don't advertise.
 			// TODO This is a hack and we need to add it for each processor that supports LPAE until some
 			// better solution comes around. See Bug 27340895
@@ -118,7 +118,7 @@ var (
 		"cortex-a75": []string{
 			"-mcpu=cortex-a55",
 			"-mfpu=neon-fp-armv8",
-			// Fake an ARM compiler flag as these processors support LPAE which GCC/clang
+			// Fake an ARM compiler flag as these processors support LPAE which clang
 			// don't advertise.
 			// TODO This is a hack and we need to add it for each processor that supports LPAE until some
 			// better solution comes around. See Bug 27340895
@@ -127,7 +127,7 @@ var (
 		"cortex-a76": []string{
 			"-mcpu=cortex-a55",
 			"-mfpu=neon-fp-armv8",
-			// Fake an ARM compiler flag as these processors support LPAE which GCC/clang
+			// Fake an ARM compiler flag as these processors support LPAE which clang
 			// don't advertise.
 			// TODO This is a hack and we need to add it for each processor that supports LPAE until some
 			// better solution comes around. See Bug 27340895
@@ -136,7 +136,7 @@ var (
 		"krait": []string{
 			"-mcpu=krait",
 			"-mfpu=neon-vfpv4",
-			// Fake an ARM compiler flag as these processors support LPAE which GCC/clang
+			// Fake an ARM compiler flag as these processors support LPAE which clang
 			// don't advertise.
 			// TODO This is a hack and we need to add it for each processor that supports LPAE until some
 			// better solution comes around. See Bug 27340895
@@ -147,16 +147,16 @@ var (
 			// even though clang does.
 			"-mcpu=cortex-a53",
 			"-mfpu=neon-fp-armv8",
-			// Fake an ARM compiler flag as these processors support LPAE which GCC/clang
+			// Fake an ARM compiler flag as these processors support LPAE which clang
 			// don't advertise.
 			// TODO This is a hack and we need to add it for each processor that supports LPAE until some
 			// better solution comes around. See Bug 27340895
 			"-D__ARM_FEATURE_LPAE=1",
 		},
 		"kryo385": []string{
-			// Use cortex-a53 because kryo385 is not supported in GCC/clang.
+			// Use cortex-a53 because kryo385 is not supported in clang.
 			"-mcpu=cortex-a53",
-			// Fake an ARM compiler flag as these processors support LPAE which GCC/clang
+			// Fake an ARM compiler flag as these processors support LPAE which clang
 			// don't advertise.
 			// TODO This is a hack and we need to add it for each processor that supports LPAE until some
 			// better solution comes around. See Bug 27340895
@@ -166,17 +166,12 @@ var (
 )
 
 const (
-	name          = "arm"
-	armGccVersion = "4.9"
-	gccTriple     = "arm-linux-androideabi"
-	clangTriple   = "armv7a-linux-androideabi"
+	name        = "arm"
+	ndkTriple   = "arm-linux-androideabi"
+	clangTriple = "armv7a-linux-androideabi"
 )
 
 func init() {
-	pctx.StaticVariable("armGccVersion", armGccVersion)
-
-	pctx.SourcePathVariable("ArmGccRoot", "prebuilts/gcc/${HostPrebuiltTag}/arm/arm-linux-androideabi-${armGccVersion}")
-
 	// Just exported. Not created as a Ninja static variable.
 	exportedVars.ExportString("ArmClangTriple", clangTriple)
 
@@ -255,18 +250,6 @@ func (t *toolchainArm) Name() string {
 	return name
 }
 
-func (t *toolchainArm) GccRoot() string {
-	return "${config.ArmGccRoot}"
-}
-
-func (t *toolchainArm) GccTriple() string {
-	return gccTriple
-}
-
-func (t *toolchainArm) GccVersion() string {
-	return armGccVersion
-}
-
 func (t *toolchainArm) IncludeFlags() string {
 	return ""
 }
@@ -278,7 +261,7 @@ func (t *toolchainArm) ClangTriple() string {
 
 func (t *toolchainArm) ndkTriple() string {
 	// Use current NDK include path, while ClangTriple is changed.
-	return t.GccTriple()
+	return ndkTriple
 }
 
 func (t *toolchainArm) ToolchainCflags() string {
