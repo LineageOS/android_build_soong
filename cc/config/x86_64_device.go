@@ -80,17 +80,7 @@ var (
 	}
 )
 
-const (
-	x86_64GccVersion = "4.9"
-)
-
 func init() {
-
-	pctx.StaticVariable("x86_64GccVersion", x86_64GccVersion)
-
-	pctx.SourcePathVariable("X86_64GccRoot",
-		"prebuilts/gcc/${HostPrebuiltTag}/x86/x86_64-linux-android-${x86_64GccVersion}")
-
 	exportedVars.ExportStringListStaticVariable("X86_64ToolchainCflags", []string{"-m64"})
 	exportedVars.ExportStringListStaticVariable("X86_64ToolchainLdflags", []string{"-m64"})
 
@@ -128,24 +118,12 @@ func (t *toolchainX86_64) Name() string {
 	return "x86_64"
 }
 
-func (t *toolchainX86_64) GccRoot() string {
-	return "${config.X86_64GccRoot}"
-}
-
-func (t *toolchainX86_64) GccTriple() string {
-	return "x86_64-linux-android"
-}
-
-func (t *toolchainX86_64) GccVersion() string {
-	return x86_64GccVersion
-}
-
 func (t *toolchainX86_64) IncludeFlags() string {
 	return ""
 }
 
 func (t *toolchainX86_64) ClangTriple() string {
-	return t.GccTriple()
+	return "x86_64-linux-android"
 }
 
 func (t *toolchainX86_64) ToolchainLdflags() string {
