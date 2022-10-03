@@ -301,7 +301,6 @@ func NewFuzzer(hod android.HostOrDeviceSupported) *Module {
 	baseInstallerPath := "fuzz"
 
 	binary.baseInstaller = NewBaseInstaller(baseInstallerPath, baseInstallerPath, InstallInData)
-	module.sanitize.SetSanitizer(Fuzzer, true)
 
 	fuzzBin := &fuzzBinary{
 		binaryDecorator: binary,
@@ -315,7 +314,11 @@ func NewFuzzer(hod android.HostOrDeviceSupported) *Module {
 
 	// The fuzzer runtime is not present for darwin host modules, disable cc_fuzz modules when targeting darwin.
 	android.AddLoadHook(module, func(ctx android.LoadHookContext) {
-		disableDarwinAndLinuxBionic := struct {
+
+		extraProps := struct {
+			Sanitize struct {
+				Fuzzer *bool
+			}
 			Target struct {
 				Darwin struct {
 					Enabled *bool
@@ -325,9 +328,10 @@ func NewFuzzer(hod android.HostOrDeviceSupported) *Module {
 				}
 			}
 		}{}
-		disableDarwinAndLinuxBionic.Target.Darwin.Enabled = BoolPtr(false)
-		disableDarwinAndLinuxBionic.Target.Linux_bionic.Enabled = BoolPtr(false)
-		ctx.AppendProperties(&disableDarwinAndLinuxBionic)
+		extraProps.Sanitize.Fuzzer = BoolPtr(true)
+		extraProps.Target.Darwin.Enabled = BoolPtr(false)
+		extraProps.Target.Linux_bionic.Enabled = BoolPtr(false)
+		ctx.AppendProperties(&extraProps)
 
 		targetFramework := fuzz.GetFramework(ctx, fuzz.Cc)
 		if !fuzz.IsValidFrameworkForModule(targetFramework, fuzz.Cc, fuzzBin.fuzzPackagedModule.FuzzProperties.Fuzzing_frameworks) {
