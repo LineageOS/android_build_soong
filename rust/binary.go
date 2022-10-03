@@ -106,7 +106,7 @@ func (binary *binaryDecorator) compilerDeps(ctx DepsContext, deps Deps) Deps {
 		if static {
 			deps.CrtBegin = []string{"libc_musl_crtbegin_static"}
 		} else {
-			deps.CrtBegin = []string{"libc_musl_crtbegin_dynamic", "musl_linker_script"}
+			deps.CrtBegin = []string{"libc_musl_crtbegin_dynamic"}
 		}
 		deps.CrtEnd = []string{"libc_musl_crtend"}
 	}
