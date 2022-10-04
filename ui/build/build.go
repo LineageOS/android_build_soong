@@ -112,10 +112,6 @@ const (
 // checkBazelMode fails the build if there are conflicting arguments for which bazel
 // build mode to use.
 func checkBazelMode(ctx Context, config Config) {
-	if config.Environment().IsEnvTrue("USE_BAZEL_ANALYSIS") {
-		ctx.Fatalln("USE_BAZEL_ANALYSIS is deprecated. Unset USE_BAZEL_ANALYSIS.\n" +
-			"Use --bazel-mode-dev instead. For example: `m --bazel-mode-dev nothing`")
-	}
 	if config.bazelProdMode && config.bazelDevMode {
 		ctx.Fatalln("Conflicting bazel mode.\n" +
 			"Do not specify both --bazel-mode and --bazel-mode-dev")
