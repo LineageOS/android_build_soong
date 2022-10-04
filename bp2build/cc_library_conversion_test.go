@@ -870,9 +870,9 @@ filegroup {
 			})}})
 }
 
-func TestCcLibraryNonConfiguredVersionScript(t *testing.T) {
+func TestCcLibraryNonConfiguredVersionScriptAndDynamicList(t *testing.T) {
 	runCcLibraryTestCase(t, Bp2buildTestCase{
-		Description:                "cc_library non-configured version script",
+		Description:                "cc_library non-configured version script and dynamic list",
 		ModuleTypeUnderTest:        "cc_library",
 		ModuleTypeUnderTestFactory: cc.LibraryFactory,
 		Dir:                        "foo/bar",
@@ -882,6 +882,7 @@ cc_library {
     name: "a",
     srcs: ["a.cpp"],
     version_script: "v.map",
+    dynamic_list: "dynamic.list",
     bazel_module: { bp2build_available: true },
     include_build_directory: false,
 }
@@ -889,17 +890,23 @@ cc_library {
 		},
 		Blueprint: soongCcLibraryPreamble,
 		ExpectedBazelTargets: makeCcLibraryTargets("a", AttrNameToString{
-			"additional_linker_inputs": `["v.map"]`,
-			"linkopts":                 `["-Wl,--version-script,$(location v.map)"]`,
-			"srcs":                     `["a.cpp"]`,
+			"additional_linker_inputs": `[
+        "v.map",
+        "dynamic.list",
+    ]`,
+			"linkopts": `[
+        "-Wl,--version-script,$(location v.map)",
+        "-Wl,--dynamic-list,$(location dynamic.list)",
+    ]`,
+			"srcs": `["a.cpp"]`,
 		}),
 	},
 	)
 }
 
-func TestCcLibraryConfiguredVersionScript(t *testing.T) {
+func TestCcLibraryConfiguredVersionScriptAndDynamicList(t *testing.T) {
 	runCcLibraryTestCase(t, Bp2buildTestCase{
-		Description:                "cc_library configured version script",
+		Description:                "cc_library configured version script and dynamic list",
 		ModuleTypeUnderTest:        "cc_library",
 		ModuleTypeUnderTestFactory: cc.LibraryFactory,
 		Dir:                        "foo/bar",
@@ -911,9 +918,11 @@ cc_library {
    arch: {
      arm: {
        version_script: "arm.map",
+       dynamic_list: "dynamic_arm.list",
      },
      arm64: {
        version_script: "arm64.map",
+       dynamic_list: "dynamic_arm64.list",
      },
    },
 
@@ -925,13 +934,25 @@ cc_library {
 		Blueprint: soongCcLibraryPreamble,
 		ExpectedBazelTargets: makeCcLibraryTargets("a", AttrNameToString{
 			"additional_linker_inputs": `select({
-        "//build/bazel/platforms/arch:arm": ["arm.map"],
-        "//build/bazel/platforms/arch:arm64": ["arm64.map"],
+        "//build/bazel/platforms/arch:arm": [
+            "arm.map",
+            "dynamic_arm.list",
+        ],
+        "//build/bazel/platforms/arch:arm64": [
+            "arm64.map",
+            "dynamic_arm64.list",
+        ],
         "//conditions:default": [],
     })`,
 			"linkopts": `select({
-        "//build/bazel/platforms/arch:arm": ["-Wl,--version-script,$(location arm.map)"],
-        "//build/bazel/platforms/arch:arm64": ["-Wl,--version-script,$(location arm64.map)"],
+        "//build/bazel/platforms/arch:arm": [
+            "-Wl,--version-script,$(location arm.map)",
+            "-Wl,--dynamic-list,$(location dynamic_arm.list)",
+        ],
+        "//build/bazel/platforms/arch:arm64": [
+            "-Wl,--version-script,$(location arm64.map)",
+            "-Wl,--dynamic-list,$(location dynamic_arm64.list)",
+        ],
         "//conditions:default": [],
     })`,
 			"srcs": `["a.cpp"]`,
