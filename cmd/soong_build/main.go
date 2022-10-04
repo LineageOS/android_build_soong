@@ -480,8 +480,8 @@ func getExistingBazelRelatedFiles(topDir string) ([]string, error) {
 // an alternate pipeline of mutators and singletons specifically for generating
 // Bazel BUILD files instead of Ninja files.
 func runBp2Build(configuration android.Config, extraNinjaDeps []string) {
+	var codegenMetrics bp2build.CodegenMetrics
 	eventHandler := metrics.EventHandler{}
-	var metrics bp2build.CodegenMetrics
 	eventHandler.Do("bp2build", func() {
 
 		// Register an alternate set of singletons and mutators for bazel
@@ -494,32 +494,38 @@ func runBp2Build(configuration android.Config, extraNinjaDeps []string) {
 		bp2buildCtx.SetNameInterface(newNameResolver(configuration))
 		bp2buildCtx.RegisterForBazelConversion()
 
+		var ninjaDeps []string
+		ninjaDeps = append(ninjaDeps, extraNinjaDeps...)
+
 		// The bp2build process is a purely functional process that only depends on
 		// Android.bp files. It must not depend on the values of per-build product
 		// configurations or variables, since those will generate different BUILD
 		// files based on how the user has configured their tree.
 		bp2buildCtx.SetModuleListFile(cmdlineArgs.ModuleListFile)
-		modulePaths, err := bp2buildCtx.ListModulePaths(".")
-		if err != nil {
+		if modulePaths, err := bp2buildCtx.ListModulePaths("."); err != nil {
 			panic(err)
+		} else {
+			ninjaDeps = append(ninjaDeps, modulePaths...)
 		}
-
-		extraNinjaDeps = append(extraNinjaDeps, modulePaths...)
 
 		// Run the loading and analysis pipeline to prepare the graph of regular
 		// Modules parsed from Android.bp files, and the BazelTargetModules mapped
 		// from the regular Modules.
-		blueprintArgs := cmdlineArgs
-		ninjaDeps := bootstrap.RunBlueprint(blueprintArgs, bootstrap.StopBeforePrepareBuildActions, bp2buildCtx.Context, configuration)
-		ninjaDeps = append(ninjaDeps, extraNinjaDeps...)
+		eventHandler.Do("bootstrap", func() {
+			blueprintArgs := cmdlineArgs
+			bootstrapDeps := bootstrap.RunBlueprint(blueprintArgs, bootstrap.StopBeforePrepareBuildActions, bp2buildCtx.Context, configuration)
+			ninjaDeps = append(ninjaDeps, bootstrapDeps...)
+		})
 
 		globListFiles := writeBuildGlobsNinjaFile(bp2buildCtx, configuration.SoongOutDir(), configuration)
 		ninjaDeps = append(ninjaDeps, globListFiles...)
 
 		// Run the code-generation phase to convert BazelTargetModules to BUILD files
-		// and print conversion metrics to the user.
+		// and print conversion codegenMetrics to the user.
 		codegenContext := bp2build.NewCodegenContext(configuration, *bp2buildCtx, bp2build.Bp2Build)
-		metrics = bp2build.Codegen(codegenContext)
+		eventHandler.Do("codegen", func() {
+			codegenMetrics = bp2build.Codegen(codegenContext)
+		})
 
 		generatedRoot := shared.JoinPath(configuration.SoongOutDir(), "bp2build")
 		workspaceRoot := shared.JoinPath(configuration.SoongOutDir(), "workspace")
@@ -547,11 +553,17 @@ func runBp2Build(configuration android.Config, extraNinjaDeps []string) {
 
 		excludes = append(excludes, getTemporaryExcludes()...)
 
-		symlinkForestDeps := bp2build.PlantSymlinkForest(
-			configuration, topDir, workspaceRoot, generatedRoot, ".", excludes)
+		// PlantSymlinkForest() returns all the directories that were readdir()'ed.
+		// Such a directory SHOULD be added to `ninjaDeps` so that a child directory
+		// or file created/deleted under it would trigger an update of the symlink
+		// forest.
+		eventHandler.Do("symlink_forest", func() {
+			symlinkForestDeps := bp2build.PlantSymlinkForest(
+				configuration, topDir, workspaceRoot, generatedRoot, ".", excludes)
+			ninjaDeps = append(ninjaDeps, symlinkForestDeps...)
+		})
 
 		ninjaDeps = append(ninjaDeps, codegenContext.AdditionalNinjaDeps()...)
-		ninjaDeps = append(ninjaDeps, symlinkForestDeps...)
 
 		writeDepFile(bp2buildMarker, eventHandler, ninjaDeps)
 
@@ -563,9 +575,9 @@ func runBp2Build(configuration android.Config, extraNinjaDeps []string) {
 	// for queryview, since that's a total repo-wide conversion and there's a
 	// 1:1 mapping for each module.
 	if configuration.IsEnvTrue("BP2BUILD_VERBOSE") {
-		metrics.Print()
+		codegenMetrics.Print()
 	}
-	writeBp2BuildMetrics(&metrics, configuration, eventHandler)
+	writeBp2BuildMetrics(&codegenMetrics, configuration, eventHandler)
 }
 
 // Write Bp2Build metrics into $LOG_DIR
