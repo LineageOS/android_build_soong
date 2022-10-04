@@ -288,11 +288,6 @@ type bootImageConfig struct {
 	// Deprecated: Not initialized correctly, see struct comment.
 	profileLicenseMetadataFile android.OptionalPath
 
-	// Path to the image profile file on host (or empty, if profile is not generated).
-	//
-	// Deprecated: Not initialized correctly, see struct comment.
-	profilePathOnHost android.Path
-
 	// Target-dependent fields.
 	variants []*bootImageVariant
 
@@ -581,7 +576,7 @@ func copyBootJarsToPredefinedLocations(ctx android.ModuleContext, srcBootDexJars
 // boot image files.
 //
 // The paths are returned because they are needed elsewhere in Soong, e.g. for populating an APEX.
-func buildBootImageVariantsForAndroidOs(ctx android.ModuleContext, image *bootImageConfig, profile android.WritablePath) bootImageFilesByArch {
+func buildBootImageVariantsForAndroidOs(ctx android.ModuleContext, image *bootImageConfig, profile android.WritablePath) bootImageOutputs {
 	return buildBootImageForOsType(ctx, image, profile, android.Android)
 }
 
@@ -596,12 +591,22 @@ func buildBootImageVariantsForBuildOs(ctx android.ModuleContext, image *bootImag
 	buildBootImageForOsType(ctx, image, profile, ctx.Config().BuildOS)
 }
 
+// bootImageOutputs encapsulates information about boot images that were created/obtained by
+// commonBootclasspathFragment.produceBootImageFiles.
+type bootImageOutputs struct {
+	// Map from arch to the paths to the boot image files created/obtained for that arch.
+	byArch bootImageFilesByArch
+
+	// The path to the profile file created/obtained for the boot image.
+	profile android.WritablePath
+}
+
 // buildBootImageForOsType takes a bootImageConfig, a profile file and an android.OsType
 // boot image files are required for and it creates rules to build the boot image
 // files for all the required architectures for them.
 //
 // It returns a map from android.ArchType to the predefined paths of the boot image files.
-func buildBootImageForOsType(ctx android.ModuleContext, image *bootImageConfig, profile android.WritablePath, requiredOsType android.OsType) bootImageFilesByArch {
+func buildBootImageForOsType(ctx android.ModuleContext, image *bootImageConfig, profile android.WritablePath, requiredOsType android.OsType) bootImageOutputs {
 	filesByArch := bootImageFilesByArch{}
 	for _, variant := range image.variants {
 		if variant.target.Os == requiredOsType {
@@ -610,7 +615,10 @@ func buildBootImageForOsType(ctx android.ModuleContext, image *bootImageConfig, 
 		}
 	}
 
-	return filesByArch
+	return bootImageOutputs{
+		filesByArch,
+		profile,
+	}
 }
 
 // buildBootImageZipInPredefinedLocation generates a zip file containing all the boot image files.
@@ -854,8 +862,6 @@ func bootImageProfileRule(ctx android.ModuleContext, image *bootImageConfig) and
 	}
 
 	rule.Build("bootJarsProfile", "profile boot jars")
-
-	image.profilePathOnHost = profile
 
 	return profile
 }
