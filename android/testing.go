@@ -667,6 +667,46 @@ func (ctx *TestContext) InstallMakeRulesForTesting(t *testing.T) []InstallMakeRu
 	return parseMkRules(t, ctx.config, nodes)
 }
 
+// MakeVarVariable provides access to make vars that will be written by the makeVarsSingleton
+type MakeVarVariable interface {
+	// Name is the name of the variable.
+	Name() string
+
+	// Value is the value of the variable.
+	Value() string
+}
+
+func (v makeVarsVariable) Name() string {
+	return v.name
+}
+
+func (v makeVarsVariable) Value() string {
+	return v.value
+}
+
+// PrepareForTestAccessingMakeVars sets up the test so that MakeVarsForTesting will work.
+var PrepareForTestAccessingMakeVars = GroupFixturePreparers(
+	PrepareForTestWithAndroidMk,
+	PrepareForTestWithMakevars,
+)
+
+// MakeVarsForTesting returns a filtered list of MakeVarVariable objects that represent the
+// variables that will be written out.
+//
+// It is necessary to use PrepareForTestAccessingMakeVars in tests that want to call this function.
+// Along with any other preparers needed to add the make vars.
+func (ctx *TestContext) MakeVarsForTesting(filter func(variable MakeVarVariable) bool) []MakeVarVariable {
+	vars := ctx.SingletonForTests("makevars").Singleton().(*makeVarsSingleton).varsForTesting
+	result := make([]MakeVarVariable, 0, len(vars))
+	for _, v := range vars {
+		if filter(v) {
+			result = append(result, v)
+		}
+	}
+
+	return result
+}
+
 func (ctx *TestContext) Config() Config {
 	return ctx.config
 }
