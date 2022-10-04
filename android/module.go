@@ -3546,10 +3546,29 @@ func OutputFileForModule(ctx PathContext, module blueprint.Module, tag string) P
 		reportPathError(ctx, err)
 		return nil
 	}
+	if len(paths) == 0 {
+		type addMissingDependenciesIntf interface {
+			AddMissingDependencies([]string)
+			OtherModuleName(blueprint.Module) string
+		}
+		if mctx, ok := ctx.(addMissingDependenciesIntf); ok && ctx.Config().AllowMissingDependencies() {
+			mctx.AddMissingDependencies([]string{mctx.OtherModuleName(module)})
+		} else {
+			ReportPathErrorf(ctx, "failed to get output files from module %q", pathContextName(ctx, module))
+		}
+		// Return a fake output file to avoid nil dereferences of Path objects later.
+		// This should never get used for an actual build as the error or missing
+		// dependency has already been reported.
+		p, err := pathForSource(ctx, filepath.Join("missing_output_file", pathContextName(ctx, module)))
+		if err != nil {
+			reportPathError(ctx, err)
+			return nil
+		}
+		return p
+	}
 	if len(paths) > 1 {
 		ReportPathErrorf(ctx, "got multiple output files from module %q, expected exactly one",
 			pathContextName(ctx, module))
-		return nil
 	}
 	return paths[0]
 }
@@ -3561,18 +3580,12 @@ func outputFilesForModule(ctx PathContext, module blueprint.Module, tag string) 
 			return nil, fmt.Errorf("failed to get output file from module %q: %s",
 				pathContextName(ctx, module), err.Error())
 		}
-		if len(paths) == 0 {
-			return nil, fmt.Errorf("failed to get output files from module %q", pathContextName(ctx, module))
-		}
 		return paths, nil
 	} else if sourceFileProducer, ok := module.(SourceFileProducer); ok {
 		if tag != "" {
 			return nil, fmt.Errorf("module %q is a SourceFileProducer, not an OutputFileProducer, and so does not support tag %q", pathContextName(ctx, module), tag)
 		}
 		paths := sourceFileProducer.Srcs()
-		if len(paths) == 0 {
-			return nil, fmt.Errorf("failed to get output files from module %q", pathContextName(ctx, module))
-		}
 		return paths, nil
 	} else {
 		return nil, fmt.Errorf("module %q is not an OutputFileProducer", pathContextName(ctx, module))
