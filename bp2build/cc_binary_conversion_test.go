@@ -201,20 +201,27 @@ func TestCcBinaryWithLinkStatic(t *testing.T) {
 	})
 }
 
-func TestCcBinaryVersionScript(t *testing.T) {
+func TestCcBinaryVersionScriptAndDynamicList(t *testing.T) {
 	runCcBinaryTests(t, ccBinaryBp2buildTestCase{
-		description: `version script`,
+		description: `version script and dynamic list`,
 		blueprint: `
 {rule_name} {
     name: "foo",
     include_build_directory: false,
     version_script: "vs",
+    dynamic_list: "dynamic.list",
 }
 `,
 		targets: []testBazelTarget{
 			{"cc_binary", "foo", AttrNameToString{
-				"additional_linker_inputs": `["vs"]`,
-				"linkopts":                 `["-Wl,--version-script,$(location vs)"]`,
+				"additional_linker_inputs": `[
+        "vs",
+        "dynamic.list",
+    ]`,
+				"linkopts": `[
+        "-Wl,--version-script,$(location vs)",
+        "-Wl,--dynamic-list,$(location dynamic.list)",
+    ]`,
 			},
 			},
 		},
