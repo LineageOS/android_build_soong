@@ -598,8 +598,9 @@ func (b *BootclasspathFragmentModule) GenerateAndroidBuildActions(ctx android.Mo
 				copyBootJarsToPredefinedLocations(ctx, hiddenAPIOutput.EncodedBootDexFilesByModule, imageConfig.dexPathsByModule)
 			}
 
-			for _, variant := range imageConfig.apexVariants() {
-				arch := variant.target.Arch.ArchType.String()
+			for _, variant := range bootImageFiles.variants {
+				archType := variant.config.target.Arch.ArchType
+				arch := archType.String()
 				for _, install := range variant.deviceInstalls {
 					// Remove the "/" prefix because the path should be relative to $ANDROID_PRODUCT_OUT.
 					installDir := strings.TrimPrefix(filepath.Dir(install.To), "/")
@@ -1304,8 +1305,17 @@ func (module *PrebuiltBootclasspathFragmentModule) produceBootImageFiles(ctx and
 		// If the boot image files for the android variants are in the prebuilt apex, we must use those
 		// rather than building new ones because those boot image files are going to be used on device.
 		files := bootImageFilesByArch{}
+		bootImageFiles := bootImageOutputs{
+			byArch:  files,
+			profile: profile,
+		}
 		for _, variant := range imageConfig.apexVariants() {
 			arch := variant.target.Arch.ArchType
+			bootImageFiles.variants = append(bootImageFiles.variants, bootImageVariantOutputs{
+				variant,
+				// No device installs needed when installed in APEX.
+				nil,
+			})
 			for _, toPath := range variant.imagesDeps {
 				apexRelativePath := apexRootRelativePathToBootImageFile(arch, toPath.Base())
 				// Get the path to the file that the deapexer extracted from the prebuilt apex file.
@@ -1323,10 +1333,7 @@ func (module *PrebuiltBootclasspathFragmentModule) produceBootImageFiles(ctx and
 				})
 			}
 		}
-		return bootImageOutputs{
-			files,
-			profile,
-		}
+		return bootImageFiles
 	} else {
 		if profile == nil {
 			ctx.ModuleErrorf("Unable to produce boot image files: neither boot image files nor profiles exists in the prebuilt apex")
