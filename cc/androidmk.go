@@ -546,7 +546,7 @@ func (c *snapshotLibraryDecorator) AndroidMkEntries(ctx AndroidMkContext, entrie
 
 	entries.SubName += c.baseProperties.Androidmk_suffix
 
-	entries.ExtraEntries = append(entries.ExtraEntries, func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
+	entries.ExtraEntries = append(entries.ExtraEntries, func(_ android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
 		c.libraryDecorator.androidMkWriteExportedFlags(entries)
 
 		if c.shared() || c.static() {
@@ -566,6 +566,10 @@ func (c *snapshotLibraryDecorator) AndroidMkEntries(ctx AndroidMkContext, entrie
 			}
 			if c.tocFile.Valid() {
 				entries.SetString("LOCAL_SOONG_TOC", c.tocFile.String())
+			}
+
+			if c.shared() && len(c.Properties.Overrides) > 0 {
+				entries.SetString("LOCAL_OVERRIDES_MODULES", strings.Join(makeOverrideModuleNames(ctx, c.Properties.Overrides), " "))
 			}
 		}
 

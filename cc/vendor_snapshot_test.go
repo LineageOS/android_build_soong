@@ -42,6 +42,13 @@ func TestVendorSnapshotCapture(t *testing.T) {
 	}
 
 	cc_library {
+		name: "libvendor_override",
+		vendor: true,
+		nocrt: true,
+		overrides: ["libvendor"],
+	}
+
+	cc_library {
 		name: "libvendor_available",
 		vendor_available: true,
 		nocrt: true,
@@ -63,6 +70,13 @@ func TestVendorSnapshotCapture(t *testing.T) {
 		name: "vendor_available_bin",
 		vendor_available: true,
 		nocrt: true,
+	}
+
+	cc_binary {
+		name: "vendor_bin_override",
+		vendor: true,
+		nocrt: true,
+		overrides: ["vendor_bin"],
 	}
 
 	cc_prebuilt_library_static {
@@ -150,6 +164,8 @@ func TestVendorSnapshotCapture(t *testing.T) {
 			jsonFiles = append(jsonFiles,
 				filepath.Join(binaryDir, "vendor_bin.json"),
 				filepath.Join(binaryDir, "vendor_available_bin.json"))
+
+			checkOverrides(t, ctx, snapshotSingleton, filepath.Join(binaryDir, "vendor_bin_override.json"), []string{"vendor_bin"})
 		}
 
 		// For header libraries, all vendor:true and vendor_available modules are captured.
@@ -161,6 +177,8 @@ func TestVendorSnapshotCapture(t *testing.T) {
 		objectDir := filepath.Join(snapshotVariantPath, archDir, "object")
 		CheckSnapshot(t, ctx, snapshotSingleton, "obj", "obj.o", objectDir, objectVariant)
 		jsonFiles = append(jsonFiles, filepath.Join(objectDir, "obj.o.json"))
+
+		checkOverrides(t, ctx, snapshotSingleton, filepath.Join(sharedDir, "libvendor_override.so.json"), []string{"libvendor"})
 	}
 
 	for _, jsonFile := range jsonFiles {
@@ -506,11 +524,13 @@ func TestVendorSnapshotUse(t *testing.T) {
 				],
 				shared_libs: [
 					"libvendor",
+					"libvendor_override",
 					"libvendor_available",
 					"lib64",
 				],
 				binaries: [
 					"bin",
+					"bin_override",
 				],
 			},
 			arm: {
@@ -526,6 +546,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 				],
 				shared_libs: [
 					"libvendor",
+					"libvendor_override",
 					"libvendor_available",
 					"lib32",
 				],
@@ -572,6 +593,30 @@ func TestVendorSnapshotUse(t *testing.T) {
 			},
 			arm: {
 				src: "libvendor.so",
+				export_include_dirs: ["include/libvendor"],
+			},
+		},
+	}
+
+	vendor_snapshot_shared {
+		name: "libvendor_override",
+		version: "31",
+		target_arch: "arm64",
+		compile_multilib: "both",
+		vendor: true,
+		overrides: ["libvendor"],
+		shared_libs: [
+			"libvendor_without_snapshot",
+			"libvendor_available",
+			"libvndk",
+		],
+		arch: {
+			arm64: {
+				src: "override/libvendor.so",
+				export_include_dirs: ["include/libvendor"],
+			},
+			arm: {
+				src: "override/libvendor.so",
 				export_include_dirs: ["include/libvendor"],
 			},
 		},
@@ -745,6 +790,21 @@ func TestVendorSnapshotUse(t *testing.T) {
 	}
 
 	vendor_snapshot_binary {
+		name: "bin_override",
+		version: "31",
+		target_arch: "arm64",
+		compile_multilib: "64",
+		vendor: true,
+		overrides: ["bin"],
+		arch: {
+			arm64: {
+				src: "override/bin",
+			},
+		},
+		symlinks: ["binfoo", "binbar"],
+	}
+
+	vendor_snapshot_binary {
 		name: "bin32",
 		version: "31",
 		target_arch: "arm64",
@@ -793,6 +853,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 		"framework/symbol.txt":             nil,
 		"vendor/Android.bp":                []byte(vendorProprietaryBp),
 		"vendor/bin":                       nil,
+		"vendor/override/bin":              nil,
 		"vendor/bin32":                     nil,
 		"vendor/bin.cpp":                   nil,
 		"vendor/client.cpp":                nil,
@@ -806,6 +867,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 		"vendor/libvendor.a":               nil,
 		"vendor/libvendor.cfi.a":           nil,
 		"vendor/libvendor.so":              nil,
+		"vendor/override/libvendor.so":     nil,
 		"vendor/lib32.a":                   nil,
 		"vendor/lib32.so":                  nil,
 		"vendor/lib64.a":                   nil,
@@ -957,6 +1019,23 @@ func TestVendorSnapshotUse(t *testing.T) {
 	binVariants := ctx.ModuleVariantsForTests("bin")
 	if inList(binaryVariant, binVariants) {
 		t.Errorf("bin must not have variant %#v, but it does", sharedVariant)
+	}
+
+	// test overrides property
+	binOverrideModule := ctx.ModuleForTests("bin_override.vendor_binary.31.arm64", binaryVariant)
+	binOverrideModule.Output("bin")
+	binOverrideMkEntries := android.AndroidMkEntriesForTest(t, ctx, binOverrideModule.Module())
+	binOverrideEntry := binOverrideMkEntries[0].EntryMap["LOCAL_OVERRIDES_MODULES"]
+	if !inList("bin", binOverrideEntry) {
+		t.Errorf("bin_override must override bin but was %q\n", binOverrideEntry)
+	}
+
+	libvendorOverrideModule := ctx.ModuleForTests("libvendor_override.vendor_shared.31.arm64", sharedVariant)
+	libvendorOverrideModule.Output("libvendor.so")
+	libvendorOverrideMkEntries := android.AndroidMkEntriesForTest(t, ctx, libvendorOverrideModule.Module())
+	libvendorOverrideEntry := libvendorOverrideMkEntries[0].EntryMap["LOCAL_OVERRIDES_MODULES"]
+	if !inList("libvendor", libvendorOverrideEntry) {
+		t.Errorf("libvendor_override must override libvendor but was %q\n", libvendorOverrideEntry)
 	}
 }
 

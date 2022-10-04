@@ -2231,6 +2231,12 @@ func (library *libraryDecorator) getAPIListCoverageXMLPath() android.ModuleOutPa
 	return library.apiListCoverageXmlPath
 }
 
+func (library *libraryDecorator) overriddenModules() []string {
+	return library.Properties.Overrides
+}
+
+var _ overridable = (*libraryDecorator)(nil)
+
 var versioningMacroNamesListKey = android.NewOnceKey("versioningMacroNamesList")
 
 // versioningMacroNamesList returns a singleton map, where keys are "version macro names",
