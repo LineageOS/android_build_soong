@@ -264,7 +264,7 @@ type commonBootclasspathFragment interface {
 	//
 	// If it could not create the files then it will return nil. Otherwise, it will return a map from
 	// android.ArchType to the predefined paths of the boot image files.
-	produceBootImageFiles(ctx android.ModuleContext, imageConfig *bootImageConfig) bootImageFilesByArch
+	produceBootImageFiles(ctx android.ModuleContext, imageConfig *bootImageConfig) bootImageOutputs
 }
 
 var _ commonBootclasspathFragment = (*BootclasspathFragmentModule)(nil)
@@ -583,16 +583,16 @@ func (b *BootclasspathFragmentModule) GenerateAndroidBuildActions(ctx android.Mo
 		// Perform hidden API processing.
 		hiddenAPIOutput := b.generateHiddenAPIBuildActions(ctx, contents, fragments)
 
-		var bootImageFilesByArch bootImageFilesByArch
+		var bootImageFiles bootImageOutputs
 		if imageConfig != nil {
 			// Delegate the production of the boot image files to a module type specific method.
 			common := ctx.Module().(commonBootclasspathFragment)
-			bootImageFilesByArch = common.produceBootImageFiles(ctx, imageConfig)
+			bootImageFiles = common.produceBootImageFiles(ctx, imageConfig)
 
 			if shouldCopyBootFilesToPredefinedLocations(ctx, imageConfig) {
 				// Zip the boot image files up, if available. This will generate the zip file in a
 				// predefined location.
-				buildBootImageZipInPredefinedLocation(ctx, imageConfig, bootImageFilesByArch)
+				buildBootImageZipInPredefinedLocation(ctx, imageConfig, bootImageFiles.byArch)
 
 				// Copy the dex jars of this fragment's content modules to their predefined locations.
 				copyBootJarsToPredefinedLocations(ctx, hiddenAPIOutput.EncodedBootDexFilesByModule, imageConfig.dexPathsByModule)
@@ -620,7 +620,7 @@ func (b *BootclasspathFragmentModule) GenerateAndroidBuildActions(ctx android.Mo
 		// A prebuilt fragment cannot contribute to an apex.
 		if !android.IsModulePrebuilt(ctx.Module()) {
 			// Provide the apex content info.
-			b.provideApexContentInfo(ctx, imageConfig, hiddenAPIOutput, bootImageFilesByArch)
+			b.provideApexContentInfo(ctx, imageConfig, hiddenAPIOutput, bootImageFiles)
 		}
 	} else {
 		// Versioned fragments are not needed by make.
@@ -663,7 +663,7 @@ func shouldCopyBootFilesToPredefinedLocations(ctx android.ModuleContext, imageCo
 
 // provideApexContentInfo creates, initializes and stores the apex content info for use by other
 // modules.
-func (b *BootclasspathFragmentModule) provideApexContentInfo(ctx android.ModuleContext, imageConfig *bootImageConfig, hiddenAPIOutput *HiddenAPIOutput, bootImageFilesByArch bootImageFilesByArch) {
+func (b *BootclasspathFragmentModule) provideApexContentInfo(ctx android.ModuleContext, imageConfig *bootImageConfig, hiddenAPIOutput *HiddenAPIOutput, bootImageFiles bootImageOutputs) {
 	// Construct the apex content info from the config.
 	info := BootclasspathFragmentApexContentInfo{
 		// Populate the apex content info with paths to the dex jars.
@@ -674,14 +674,14 @@ func (b *BootclasspathFragmentModule) provideApexContentInfo(ctx android.ModuleC
 		info.modules = imageConfig.modules
 		global := dexpreopt.GetGlobalConfig(ctx)
 		if !global.DisableGenerateProfile {
-			info.profilePathOnHost = imageConfig.profilePathOnHost
+			info.profilePathOnHost = bootImageFiles.profile
 			info.profileInstallPathInApex = imageConfig.profileInstallPathInApex
 		}
 
 		info.shouldInstallBootImageInApex = imageConfig.shouldInstallInApex()
 	}
 
-	info.bootImageFilesByArch = bootImageFilesByArch
+	info.bootImageFilesByArch = bootImageFiles.byArch
 
 	// Make the apex content info available for other modules.
 	ctx.SetProvider(BootclasspathFragmentApexContentInfoProvider, info)
@@ -934,9 +934,9 @@ func (b *BootclasspathFragmentModule) produceHiddenAPIOutput(ctx android.ModuleC
 }
 
 // produceBootImageFiles builds the boot image files from the source if it is required.
-func (b *BootclasspathFragmentModule) produceBootImageFiles(ctx android.ModuleContext, imageConfig *bootImageConfig) bootImageFilesByArch {
+func (b *BootclasspathFragmentModule) produceBootImageFiles(ctx android.ModuleContext, imageConfig *bootImageConfig) bootImageOutputs {
 	if SkipDexpreoptBootJars(ctx) {
-		return nil
+		return bootImageOutputs{}
 	}
 
 	// Only generate the boot image if the configuration does not skip it.
@@ -948,21 +948,21 @@ func (b *BootclasspathFragmentModule) produceBootImageFiles(ctx android.ModuleCo
 //
 // If it could not create the files then it will return nil. Otherwise, it will return a map from
 // android.ArchType to the predefined paths of the boot image files.
-func (b *BootclasspathFragmentModule) generateBootImageBuildActions(ctx android.ModuleContext, imageConfig *bootImageConfig) bootImageFilesByArch {
+func (b *BootclasspathFragmentModule) generateBootImageBuildActions(ctx android.ModuleContext, imageConfig *bootImageConfig) bootImageOutputs {
 	global := dexpreopt.GetGlobalConfig(ctx)
 	if !shouldBuildBootImages(ctx.Config(), global) {
-		return nil
+		return bootImageOutputs{}
 	}
 
 	// Bootclasspath fragment modules that are for the platform do not produce a boot image.
 	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
 	if apexInfo.IsForPlatform() {
-		return nil
+		return bootImageOutputs{}
 	}
 
 	// Bootclasspath fragment modules that are versioned do not produce a boot image.
 	if android.IsModuleInVersionedSdk(ctx.Module()) {
-		return nil
+		return bootImageOutputs{}
 	}
 
 	// Build a profile for the image config and then use that to build the boot image.
@@ -972,11 +972,11 @@ func (b *BootclasspathFragmentModule) generateBootImageBuildActions(ctx android.
 	buildBootImageVariantsForBuildOs(ctx, imageConfig, profile)
 
 	// Build boot image files for the android variants.
-	androidBootImageFilesByArch := buildBootImageVariantsForAndroidOs(ctx, imageConfig, profile)
+	bootImageFiles := buildBootImageVariantsForAndroidOs(ctx, imageConfig, profile)
 
 	// Return the boot image files for the android variants for inclusion in an APEX and to be zipped
 	// up for the dist.
-	return androidBootImageFilesByArch
+	return bootImageFiles
 }
 
 func (b *BootclasspathFragmentModule) AndroidMkEntries() []android.AndroidMkEntries {
@@ -1277,14 +1277,14 @@ func (module *PrebuiltBootclasspathFragmentModule) produceHiddenAPIOutput(ctx an
 }
 
 // produceBootImageFiles extracts the boot image files from the APEX if available.
-func (module *PrebuiltBootclasspathFragmentModule) produceBootImageFiles(ctx android.ModuleContext, imageConfig *bootImageConfig) bootImageFilesByArch {
+func (module *PrebuiltBootclasspathFragmentModule) produceBootImageFiles(ctx android.ModuleContext, imageConfig *bootImageConfig) bootImageOutputs {
 	if !shouldCopyBootFilesToPredefinedLocations(ctx, imageConfig) {
-		return nil
+		return bootImageOutputs{}
 	}
 
 	di := android.FindDeapexerProviderForModule(ctx)
 	if di == nil {
-		return nil // An error has been reported by FindDeapexerProviderForModule.
+		return bootImageOutputs{} // An error has been reported by FindDeapexerProviderForModule.
 	}
 
 	profile := (android.WritablePath)(nil)
@@ -1321,11 +1321,14 @@ func (module *PrebuiltBootclasspathFragmentModule) produceBootImageFiles(ctx and
 				})
 			}
 		}
-		return files
+		return bootImageOutputs{
+			files,
+			profile,
+		}
 	} else {
 		if profile == nil {
 			ctx.ModuleErrorf("Unable to produce boot image files: neither boot image files nor profiles exists in the prebuilt apex")
-			return nil
+			return bootImageOutputs{}
 		}
 		// Build boot image files for the android variants from the dex files provided by the contents
 		// of this module.
