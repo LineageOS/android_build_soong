@@ -215,8 +215,7 @@ java_import {
 
 		// Check the behavior of the snapshot when it is preferred.
 		snapshotTestChecker(checkSnapshotPreferredWithSource, func(t *testing.T, result *android.TestResult) {
-			// TODO - the expectedLicenseMetadataFile passed here is incorrect as it is for the source module not the prebuilt module.
-			java.CheckMutatedArtBootImageConfig(t, result, "out/soong/.intermediates/mybootclasspathfragment/android_common_apex10000/meta_lic")
+			java.CheckMutatedArtBootImageConfig(t, result, "out/soong/.intermediates/snapshot/prebuilt_mybootclasspathfragment/android_common_com.android.art/meta_lic")
 			java.CheckMutatedFrameworkBootImageConfig(t, result, "out/soong/.intermediates/frameworks/base/boot/platform-bootclasspath/android_common/meta_lic")
 		}),
 	)
