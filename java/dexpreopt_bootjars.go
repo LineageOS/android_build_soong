@@ -234,6 +234,11 @@ func init() {
 }
 
 // Target-independent description of a boot image.
+//
+// WARNING: All fields in this struct should be initialized in the genBootImageConfigs function.
+// Failure to do so can lead to data races if there is no synchronization enforced ordering between
+// the writer and the reader. Fields which break this rule are marked as deprecated and should be
+// removed and replaced with something else, e.g. providers.
 type bootImageConfig struct {
 	// If this image is an extension, the image that it extends.
 	extends *bootImageConfig
@@ -274,12 +279,18 @@ type bootImageConfig struct {
 	zip android.WritablePath
 
 	// Rules which should be used in make to install the outputs.
+	//
+	// Deprecated: Not initialized correctly, see struct comment.
 	profileInstalls android.RuleBuilderInstalls
 
 	// Path to the license metadata file for the module that built the profile.
+	//
+	// Deprecated: Not initialized correctly, see struct comment.
 	profileLicenseMetadataFile android.OptionalPath
 
 	// Path to the image profile file on host (or empty, if profile is not generated).
+	//
+	// Deprecated: Not initialized correctly, see struct comment.
 	profilePathOnHost android.Path
 
 	// Target-dependent fields.
@@ -290,6 +301,8 @@ type bootImageConfig struct {
 }
 
 // Target-dependent description of a boot image.
+//
+// WARNING: The warning comment on bootImageConfig applies here too.
 type bootImageVariant struct {
 	*bootImageConfig
 
@@ -320,14 +333,28 @@ type bootImageVariant struct {
 	primaryImagesDeps android.Paths
 
 	// Rules which should be used in make to install the outputs on host.
-	installs           android.RuleBuilderInstalls
-	vdexInstalls       android.RuleBuilderInstalls
+	//
+	// Deprecated: Not initialized correctly, see struct comment.
+	installs android.RuleBuilderInstalls
+
+	// Rules which should be used in make to install the vdex outputs on host.
+	//
+	// Deprecated: Not initialized correctly, see struct comment.
+	vdexInstalls android.RuleBuilderInstalls
+
+	// Rules which should be used in make to install the unstripped outputs on host.
+	//
+	// Deprecated: Not initialized correctly, see struct comment.
 	unstrippedInstalls android.RuleBuilderInstalls
 
 	// Rules which should be used in make to install the outputs on device.
+	//
+	// Deprecated: Not initialized correctly, see struct comment.
 	deviceInstalls android.RuleBuilderInstalls
 
 	// Path to the license metadata file for the module that built the image.
+	//
+	// Deprecated: Not initialized correctly, see struct comment.
 	licenseMetadataFile android.OptionalPath
 }
 
