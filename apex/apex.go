@@ -2659,9 +2659,13 @@ func (o *OverrideApex) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 		}
 
 		// Certificate
-		if overridableProperties.Certificate != nil {
-			attrs.Certificate = bazel.LabelAttribute{}
-			attrs.Certificate.SetValue(android.BazelLabelForModuleDepSingle(ctx, *overridableProperties.Certificate))
+		if overridableProperties.Certificate == nil {
+			// delegated to the rule attr default
+			attrs.Certificate = nil
+		} else {
+			certificateName, certificate := java.ParseCertificateToAttribute(ctx, overridableProperties.Certificate)
+			attrs.Certificate_name = certificateName
+			attrs.Certificate = certificate
 		}
 
 		// Prebuilts
@@ -3335,7 +3339,8 @@ type bazelApexBundleAttributes struct {
 	Android_manifest      bazel.LabelAttribute
 	File_contexts         bazel.LabelAttribute
 	Key                   bazel.LabelAttribute
-	Certificate           bazel.LabelAttribute
+	Certificate           *bazel.Label // used when the certificate prop is a module
+	Certificate_name      *string      // used when the certificate prop is a string
 	Min_sdk_version       *string
 	Updatable             bazel.BoolAttribute
 	Installable           bazel.BoolAttribute
@@ -3397,10 +3402,7 @@ func convertWithBp2build(a *apexBundle, ctx android.TopDownMutatorContext) (baze
 		keyLabelAttribute.SetValue(android.BazelLabelForModuleDepSingle(ctx, *a.overridableProperties.Key))
 	}
 
-	var certificateLabelAttribute bazel.LabelAttribute
-	if a.overridableProperties.Certificate != nil {
-		certificateLabelAttribute.SetValue(android.BazelLabelForModuleDepSingle(ctx, *a.overridableProperties.Certificate))
-	}
+	certificateName, certificate := java.ParseCertificateToAttribute(ctx, a.overridableProperties.Certificate)
 
 	nativeSharedLibs := &convertedNativeSharedLibs{
 		Native_shared_libs_32: bazel.LabelListAttribute{},
@@ -3456,7 +3458,8 @@ func convertWithBp2build(a *apexBundle, ctx android.TopDownMutatorContext) (baze
 		File_contexts:         fileContextsLabelAttribute,
 		Min_sdk_version:       minSdkVersion,
 		Key:                   keyLabelAttribute,
-		Certificate:           certificateLabelAttribute,
+		Certificate:           certificate,
+		Certificate_name:      certificateName,
 		Updatable:             updatableAttribute,
 		Installable:           installableAttribute,
 		Native_shared_libs_32: nativeSharedLibs.Native_shared_libs_32,
