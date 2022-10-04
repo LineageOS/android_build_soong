@@ -34,6 +34,7 @@ type fuzzDecorator struct {
 	*binaryDecorator
 
 	fuzzPackagedModule fuzz.FuzzPackagedModule
+	sharedLibraries    android.Paths
 }
 
 var _ compiler = (*fuzzDecorator)(nil)
@@ -84,6 +85,15 @@ func (fuzzer *fuzzDecorator) compilerDeps(ctx DepsContext, deps Deps) Deps {
 func (fuzzer *fuzzDecorator) compilerProps() []interface{} {
 	return append(fuzzer.binaryDecorator.compilerProps(),
 		&fuzzer.fuzzPackagedModule.FuzzProperties)
+}
+
+func (fuzzer *fuzzDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) buildOutput {
+	out := fuzzer.binaryDecorator.compile(ctx, flags, deps)
+
+	// Grab the list of required shared libraries.
+	fuzzer.sharedLibraries = cc.CollectAllSharedDependencies(ctx)
+
+	return out
 }
 
 func (fuzzer *fuzzDecorator) stdLinkage(ctx *depsContext) RustLinkage {
@@ -149,11 +159,8 @@ func (s *rustFuzzPackager) GenerateBuildActions(ctx android.SingletonContext) {
 		// The executable.
 		files = append(files, fuzz.FileToZip{rustModule.UnstrippedOutputFile(), ""})
 
-		// Grab the list of required shared libraries.
-		sharedLibraries := fuzz.CollectAllSharedDependencies(ctx, module, cc.UnstrippedOutputFile, cc.IsValidSharedDependency)
-
 		// Package shared libraries
-		files = append(files, cc.GetSharedLibsToZip(sharedLibraries, rustModule, &s.FuzzPackager, archString, "lib", &sharedLibraryInstalled)...)
+		files = append(files, cc.GetSharedLibsToZip(fuzzModule.sharedLibraries, rustModule, &s.FuzzPackager, archString, "lib", &sharedLibraryInstalled)...)
 
 		archDirs[archOs], ok = s.BuildZipFile(ctx, module, fuzzModule.fuzzPackagedModule, files, builder, archDir, archString, hostOrTargetString, archOs, archDirs)
 		if !ok {
