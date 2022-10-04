@@ -180,8 +180,10 @@ var (
 		"frameworks/base/tools/aapt2":                        Bp2BuildDefaultTrue,
 		"frameworks/native/libs/adbd_auth":                   Bp2BuildDefaultTrueRecursively,
 		"frameworks/native/libs/arect":                       Bp2BuildDefaultTrueRecursively,
+		"frameworks/native/libs/gui":                         Bp2BuildDefaultTrue,
 		"frameworks/native/libs/math":                        Bp2BuildDefaultTrueRecursively,
 		"frameworks/native/libs/nativebase":                  Bp2BuildDefaultTrueRecursively,
+		"frameworks/native/libs/vr":                          Bp2BuildDefaultTrueRecursively,
 		"frameworks/native/opengl/tests/gl2_cameraeye":       Bp2BuildDefaultTrue,
 		"frameworks/native/opengl/tests/gl2_java":            Bp2BuildDefaultTrue,
 		"frameworks/native/opengl/tests/testLatency":         Bp2BuildDefaultTrue,
@@ -397,14 +399,11 @@ var (
 		"libbinder_headers_platform_shared",
 		"libbinderthreadstateutils",
 		"libbluetooth-types-header",
-		"libbufferhub_headers",
 		"libcodec2",
 		"libcodec2_headers",
 		"libcodec2_internal",
 		"libdmabufheap",
-		"libdvr_headers",
 		"libgsm",
-		"libgui_bufferqueue_sources",
 		"libgrallocusage",
 		"libgralloctypes",
 		"libnativewindow",
@@ -417,7 +416,6 @@ var (
 		"libneuralnetworks_headers",
 		"libneuralnetworks_packageinfo",
 		"libopus",
-		"libpdx_headers",
 		"libprocpartition",
 		"libruy_static",
 		"libandroidio",
@@ -443,7 +441,6 @@ var (
 		"libtextclassifier_hash_static",
 		"libtflite_kernel_utils",
 		"libtinyxml2",
-		"libgui_aidl",
 		"libui",
 		"libui-types",
 		"libui_headers",
@@ -470,7 +467,6 @@ var (
 		"statslog_neuralnetworks.h",
 		"tensorflow_headers",
 
-		"libgui_headers",
 		"libstagefright_bufferpool@2.0",
 		"libstagefright_bufferpool@2.0.1",
 		"libSurfaceFlingerProp",
@@ -584,7 +580,6 @@ var (
 		"libcodec2_hidl_plugin_stub",
 		"libcodec2_hidl_plugin",
 		"libstagefright_bufferqueue_helper_novndk",
-		"libgui_bufferqueue_static",
 		"libGLESv2",
 		"libEGL",
 		"libcodec2_vndk",
@@ -653,6 +648,23 @@ var (
 	// the "prebuilt_" prefix to the name, so that it's differentiable from
 	// the source versions within Soong's module graph.
 	Bp2buildModuleDoNotConvertList = []string{
+		// TODO(b/250876486): Created cc_aidl_library doesn't have static libs from parent cc module
+		"libgui_window_info_static",
+		"libgui",     // Depends on unconverted libgui_window_info_static
+		"libdisplay", // Depends on uncovnerted libgui
+		// Depends on unconverted libdisplay
+		"libdvr_static.google",
+		"libdvr.google",
+		"libvrsensor",
+		"dvr_api-test",
+		// Depends on unconverted libandroid, libgui
+		"dvr_buffer_queue-test",
+		"dvr_display-test",
+		// Depends on unconverted libchrome
+		"pdx_benchmarks",
+		"buffer_hub_queue-test",
+		"buffer_hub_queue_producer-test",
+
 		// cc bugs
 		"libactivitymanager_aidl", // TODO(b/207426160): Unsupported use of aidl sources (via Dactivity_manager_procstate_aidl) in a cc_library
 
@@ -935,6 +947,7 @@ var (
 		"libdlext_test_norelro",
 		"libdlext_test_recursive",
 		"libdlext_test_zip",
+		"libdvrcommon_test",
 		"libfortify1-new-tests-clang",
 		"libfortify1-new-tests-clang",
 		"libfortify1-tests-clang",
