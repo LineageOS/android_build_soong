@@ -663,3 +663,23 @@ func TestPrebuiltStubNoinstall(t *testing.T) {
 		testFunc(t, disabledSourceStublibBp+prebuiltStublibBp+installedlibBp)
 	})
 }
+
+func TestPrebuiltBinaryNoSrcsNoError(t *testing.T) {
+	const bp = `
+cc_prebuilt_binary {
+	name: "bintest",
+	srcs: [],
+}`
+	ctx := testPrebuilt(t, bp, map[string][]byte{})
+	mod := ctx.ModuleForTests("bintest", "android_arm64_armv8-a").Module().(*Module)
+	android.AssertBoolEquals(t, `expected no srcs to yield no output file`, false, mod.OutputFile().Valid())
+}
+
+func TestPrebuiltBinaryMultipleSrcs(t *testing.T) {
+	const bp = `
+cc_prebuilt_binary {
+	name: "bintest",
+	srcs: ["foo", "bar"],
+}`
+	testCcError(t, `Android.bp:4:6: module "bintest" variant "android_arm64_armv8-a": srcs: multiple prebuilt source files`, bp)
+}
