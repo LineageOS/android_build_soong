@@ -308,6 +308,20 @@ class OmitSymbolTest(unittest.TestCase):
     def assertInclude(self, f: Filter, s: Symbol) -> None:
         self.assertFalse(f.should_omit_symbol(s))
 
+    def test_omit_ndk(self) -> None:
+        f_ndk = self.filter
+        f_nondk = copy(f_ndk)
+        f_nondk.ndk = False
+        f_nondk.apex = True
+
+        s_ndk = Symbol('foo', Tags())
+        s_nonndk = Symbol('foo', Tags.from_strs(['apex']))
+
+        self.assertInclude(f_ndk, s_ndk)
+        self.assertOmit(f_ndk, s_nonndk)
+        self.assertOmit(f_nondk, s_ndk)
+        self.assertInclude(f_nondk, s_nonndk)
+
     def test_omit_llndk(self) -> None:
         f_none = self.filter
         f_llndk = copy(f_none)
