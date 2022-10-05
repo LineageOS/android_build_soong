@@ -1089,6 +1089,12 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 		} else {
 			flag = "--systemapi"
 		}
+		// b/184712170, unless the lib is an NDK library, exclude all public symbols from
+		// the stub so that it is mandated that all symbols are explicitly marked with
+		// either apex or systemapi.
+		if !ctx.Module().(*Module).IsNdk(ctx.Config()) {
+			flag = flag + " --no-ndk"
+		}
 		nativeAbiResult := parseNativeAbiDefinition(ctx, symbolFile,
 			android.ApiLevelOrPanic(ctx, library.MutatedProperties.StubsVersion), flag)
 		objs := compileStubLibrary(ctx, flags, nativeAbiResult.stubSrc)
