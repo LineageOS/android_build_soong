@@ -85,6 +85,7 @@ custom = rule(
         "soong_module_name": attr.string(mandatory = True),
         "soong_module_variant": attr.string(),
         "soong_module_deps": attr.label_list(providers = [SoongModuleInfo]),
+        "api": attr.string(),
         "arch_paths": attr.string_list(),
         "arch_paths_exclude": attr.string_list(),
         # bazel_module start
@@ -119,6 +120,7 @@ custom_defaults = rule(
         "soong_module_name": attr.string(mandatory = True),
         "soong_module_variant": attr.string(),
         "soong_module_deps": attr.label_list(providers = [SoongModuleInfo]),
+        "api": attr.string(),
         "arch_paths": attr.string_list(),
         "arch_paths_exclude": attr.string_list(),
         "bool_prop": attr.bool(),
@@ -149,6 +151,7 @@ custom_test_ = rule(
         "soong_module_name": attr.string(mandatory = True),
         "soong_module_variant": attr.string(),
         "soong_module_deps": attr.label_list(providers = [SoongModuleInfo]),
+        "api": attr.string(),
         "arch_paths": attr.string_list(),
         "arch_paths_exclude": attr.string_list(),
         "bool_prop": attr.bool(),
