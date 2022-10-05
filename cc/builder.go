@@ -672,11 +672,16 @@ func transformSourceToObj(ctx ModuleContext, subdir string, srcFiles, noTidySrcs
 			tidyCmd := "${config.ClangBin}/clang-tidy"
 
 			rule := clangTidy
+			reducedCFlags := moduleFlags
 			if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_CLANG_TIDY") {
 				rule = clangTidyRE
+				// b/248371171, work around RBE input processor problem
+				// some cflags rejected by input processor, but usually
+				// do not affect included files or clang-tidy
+				reducedCFlags = config.TidyReduceCFlags(reducedCFlags)
 			}
 
-			sharedCFlags := shareFlags("cFlags", moduleFlags)
+			sharedCFlags := shareFlags("cFlags", reducedCFlags)
 			srcRelPath := srcFile.Rel()
 
 			// Add the .tidy rule
