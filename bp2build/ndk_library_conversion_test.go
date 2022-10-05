@@ -37,7 +37,7 @@ func TestNdkLibraryContributionSymbolFile(t *testing.T) {
 			"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
 		},
 	)
-	RunBp2BuildTestCase(t, cc.RegisterNdkModuleTypes, Bp2buildTestCase{
+	RunApiBp2BuildTestCase(t, cc.RegisterNdkModuleTypes, Bp2buildTestCase{
 		Blueprint:            bp,
 		ExpectedBazelTargets: []string{expectedBazelTarget},
 	})
@@ -69,7 +69,7 @@ func TestNdkLibraryContributionHeaders(t *testing.T) {
 			"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
 		},
 	)
-	RunBp2BuildTestCase(t, cc.RegisterNdkModuleTypes, Bp2buildTestCase{
+	RunApiBp2BuildTestCase(t, cc.RegisterNdkModuleTypes, Bp2buildTestCase{
 		Blueprint:            bp,
 		Filesystem:           fs,
 		ExpectedBazelTargets: []string{expectedBazelTarget},
