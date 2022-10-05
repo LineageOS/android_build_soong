@@ -79,7 +79,7 @@ func TestNdkHeaderFilepaths(t *testing.T) {
 				"hdrs": testCase.expectedHdrs,
 			},
 		)
-		RunBp2BuildTestCase(t, cc.RegisterNdkModuleTypes, Bp2buildTestCase{
+		RunApiBp2BuildTestCase(t, cc.RegisterNdkModuleTypes, Bp2buildTestCase{
 			Description:          testCase.desc,
 			Blueprint:            fmt.Sprintf(bpTemplate, testCase.srcs, testCase.excludeSrcs),
 			ExpectedBazelTargets: []string{expectedBazelTarget},
@@ -121,7 +121,7 @@ func TestNdkHeaderIncludeDir(t *testing.T) {
 				"include_dir": testCase.expectedIncludeDir,
 			},
 		)
-		RunBp2BuildTestCase(t, cc.RegisterNdkModuleTypes, Bp2buildTestCase{
+		RunApiBp2BuildTestCase(t, cc.RegisterNdkModuleTypes, Bp2buildTestCase{
 			Description:          testCase.desc,
 			Blueprint:            fmt.Sprintf(bpTemplate, testCase.from),
 			ExpectedBazelTargets: []string{expectedBazelTarget},
@@ -156,7 +156,7 @@ func TestVersionedNdkHeaderFilepaths(t *testing.T) {
     ]`,
 		},
 	)
-	RunBp2BuildTestCase(t, cc.RegisterNdkModuleTypes, Bp2buildTestCase{
+	RunApiBp2BuildTestCase(t, cc.RegisterNdkModuleTypes, Bp2buildTestCase{
 		Blueprint:            bp,
 		Filesystem:           fs,
 		ExpectedBazelTargets: []string{expectedBazelTarget},
