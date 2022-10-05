@@ -134,6 +134,11 @@ type Bazelable interface {
 	SetBaseModuleType(baseModuleType string)
 }
 
+// ApiProvider is implemented by modules that contribute to an API surface
+type ApiProvider interface {
+	ConvertWithApiBp2build(ctx TopDownMutatorContext)
+}
+
 // MixedBuildBuildable is an interface that module types should implement in order
 // to be "handled by Bazel" in a mixed build.
 type MixedBuildBuildable interface {
@@ -415,6 +420,13 @@ func (b *BazelModuleBase) shouldConvertWithBp2build(ctx bazelOtherModuleContext,
 		return false
 	}
 
+	// In api_bp2build mode, all soong modules that can provide API contributions should be converted
+	// This is irrespective of its presence/absence in bp2build allowlists
+	if ctx.Config().BuildMode == ApiBp2build {
+		_, providesApis := module.(ApiProvider)
+		return providesApis
+	}
+
 	propValue := b.bazelProperties.Bazel_module.Bp2build_available
 	packagePath := ctx.OtherModuleDir(module)
 
@@ -508,6 +520,17 @@ func convertWithBp2build(ctx TopDownMutatorContext) {
 	}
 
 	bModule.ConvertWithBp2build(ctx)
+}
+
+func registerApiBp2buildConversionMutator(ctx RegisterMutatorsContext) {
+	ctx.TopDown("apiBp2build_conversion", convertWithApiBp2build).Parallel()
+}
+
+// Generate API contribution targets if the Soong module provides APIs
+func convertWithApiBp2build(ctx TopDownMutatorContext) {
+	if m, ok := ctx.Module().(ApiProvider); ok {
+		m.ConvertWithApiBp2build(ctx)
+	}
 }
 
 // GetMainClassInManifest scans the manifest file specified in filepath and returns

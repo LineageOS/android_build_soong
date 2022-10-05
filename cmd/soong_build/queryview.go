@@ -23,8 +23,9 @@ import (
 	"android/soong/bp2build"
 )
 
-func createBazelQueryView(ctx *bp2build.CodegenContext, bazelQueryViewDir string) error {
-	os.RemoveAll(bazelQueryViewDir)
+// A helper function to generate a Read-only Bazel workspace in outDir
+func createBazelWorkspace(ctx *bp2build.CodegenContext, outDir string) error {
+	os.RemoveAll(outDir)
 	ruleShims := bp2build.CreateRuleShims(android.ModuleTypeFactories())
 
 	res, err := bp2build.GenerateBazelTargets(ctx, true)
@@ -33,9 +34,9 @@ func createBazelQueryView(ctx *bp2build.CodegenContext, bazelQueryViewDir string
 	}
 
 	filesToWrite := bp2build.CreateBazelFiles(ctx.Config(), ruleShims, res.BuildDirToTargets(),
-		bp2build.QueryView)
+		ctx.Mode())
 	for _, f := range filesToWrite {
-		if err := writeReadOnlyFile(bazelQueryViewDir, f); err != nil {
+		if err := writeReadOnlyFile(outDir, f); err != nil {
 			return err
 		}
 	}
