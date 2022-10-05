@@ -1853,3 +1853,27 @@ filegroup {
 			},
 		})
 }
+
+func TestGenerateApiBazelTargets(t *testing.T) {
+	bp := `
+	custom {
+		name: "foo",
+		api: "foo.txt",
+	}
+	`
+	expectedBazelTarget := MakeBazelTarget(
+		"custom_api_contribution",
+		"foo",
+		AttrNameToString{
+			"api": `"foo.txt"`,
+		},
+	)
+	registerCustomModule := func(ctx android.RegistrationContext) {
+		ctx.RegisterModuleType("custom", customModuleFactoryHostAndDevice)
+	}
+	RunApiBp2BuildTestCase(t, registerCustomModule, Bp2buildTestCase{
+		Blueprint:            bp,
+		ExpectedBazelTargets: []string{expectedBazelTarget},
+		Description:          "Generating API contribution Bazel targets for custom module",
+	})
+}
