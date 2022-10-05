@@ -28,6 +28,8 @@ func minApiForArch(ctx android.BaseModuleContext,
 		return ctx.Config().MinSupportedSdkVersion()
 	case android.Arm64, android.X86_64:
 		return android.FirstLp64Version
+	case android.Riscv64:
+		return android.FutureApiLevel
 	default:
 		panic(fmt.Errorf("Unknown arch %q", arch))
 	}
