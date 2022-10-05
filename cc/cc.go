@@ -3330,6 +3330,11 @@ func (c *Module) OutputFiles(tag string) (android.Paths, error) {
 			return android.Paths{c.outputFile.Path()}, nil
 		}
 		return android.Paths{}, nil
+	case "unstripped":
+		if c.linker != nil {
+			return android.PathsIfNonNil(c.linker.unstrippedOutputFilePath()), nil
+		}
+		return nil, nil
 	default:
 		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
 	}
