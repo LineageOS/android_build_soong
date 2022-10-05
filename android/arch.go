@@ -147,10 +147,11 @@ const COMMON_VARIANT = "common"
 var (
 	archTypeList []ArchType
 
-	Arm    = newArch("arm", "lib32")
-	Arm64  = newArch("arm64", "lib64")
-	X86    = newArch("x86", "lib32")
-	X86_64 = newArch("x86_64", "lib64")
+	Arm     = newArch("arm", "lib32")
+	Arm64   = newArch("arm64", "lib64")
+	Riscv64 = newArch("riscv64", "lib64")
+	X86     = newArch("x86", "lib32")
+	X86_64  = newArch("x86_64", "lib64")
 
 	Common = ArchType{
 		Name: COMMON_VARIANT,
@@ -318,7 +319,7 @@ var (
 	Windows = newOsType("windows", Host, true, X86, X86_64)
 	// Android is the OS for target devices that run all of Android, including the Linux kernel
 	// and the Bionic libc runtime.
-	Android = newOsType("android", Device, false, Arm, Arm64, X86, X86_64)
+	Android = newOsType("android", Device, false, Arm, Arm64, Riscv64, X86, X86_64)
 
 	// CommonOS is a pseudo OSType for a common OS variant, which is OsType agnostic and which
 	// has dependencies on all the OS variants.

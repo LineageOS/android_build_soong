@@ -75,10 +75,6 @@ var (
 	)
 )
 
-const (
-	darwinGccVersion = "4.2.1"
-)
-
 func init() {
 	pctx.VariableFunc("macSdkRoot", func(ctx android.PackageVarContext) string {
 		return getMacTools(ctx).sdkRoot
@@ -99,12 +95,6 @@ func init() {
 	pctx.VariableFunc("MacToolPath", func(ctx android.PackageVarContext) string {
 		return getMacTools(ctx).toolPath
 	})
-
-	pctx.StaticVariable("DarwinGccVersion", darwinGccVersion)
-	pctx.SourcePathVariable("DarwinGccRoot",
-		"prebuilts/gcc/${HostPrebuiltTag}/host/i686-apple-darwin-${DarwinGccVersion}")
-
-	pctx.StaticVariable("DarwinGccTriple", "i686-apple-darwin11")
 
 	pctx.StaticVariable("DarwinCflags", strings.Join(darwinCflags, " "))
 	pctx.StaticVariable("DarwinLdflags", strings.Join(darwinLdflags, " "))
@@ -194,30 +184,6 @@ func (t *toolchainDarwinArm) Name() string {
 
 func (t *toolchainDarwinX86) Name() string {
 	return "x86_64"
-}
-
-func (t *toolchainDarwinArm) GccRoot() string {
-	panic("unimplemented")
-}
-
-func (t *toolchainDarwinArm) GccTriple() string {
-	panic("unimplemented")
-}
-
-func (t *toolchainDarwinArm) GccVersion() string {
-	panic("unimplemented")
-}
-
-func (t *toolchainDarwinX86) GccRoot() string {
-	return "${config.DarwinGccRoot}"
-}
-
-func (t *toolchainDarwinX86) GccTriple() string {
-	return "${config.DarwinGccTriple}"
-}
-
-func (t *toolchainDarwinX86) GccVersion() string {
-	return darwinGccVersion
 }
 
 func (t *toolchainDarwin) IncludeFlags() string {

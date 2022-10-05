@@ -1489,6 +1489,20 @@ type bazelAndroidAppAttributes struct {
 	Certificate_name *string
 }
 
+// ParseCertificateToAttribute splits the certificate prop into a certificate
+// label attribute or a certificate_name string attribute.
+func ParseCertificateToAttribute(ctx android.TopDownMutatorContext, certificate *string) (*string, *bazel.Label) {
+	var certificateLabel *bazel.Label
+	certificateName := proptools.StringDefault(certificate, "")
+	certModule := android.SrcIsModule(certificateName)
+	if certModule != "" {
+		c := android.BazelLabelForModuleDepSingle(ctx, certificateName)
+		certificateLabel = &c
+		certificate = nil
+	}
+	return certificate, certificateLabel
+}
+
 // ConvertWithBp2build is used to convert android_app to Bazel.
 func (a *AndroidApp) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 	commonAttrs, depLabels := a.convertLibraryAttrsBp2Build(ctx)
@@ -1498,15 +1512,7 @@ func (a *AndroidApp) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 
 	aapt := a.convertAaptAttrsWithBp2Build(ctx)
 
-	var certificate *bazel.Label
-	certificateNamePtr := a.overridableAppProperties.Certificate
-	certificateName := proptools.StringDefault(certificateNamePtr, "")
-	certModule := android.SrcIsModule(certificateName)
-	if certModule != "" {
-		c := android.BazelLabelForModuleDepSingle(ctx, certificateName)
-		certificate = &c
-		certificateNamePtr = nil
-	}
+	certificateName, certificate := ParseCertificateToAttribute(ctx, a.overridableAppProperties.Certificate)
 	attrs := &bazelAndroidAppAttributes{
 		commonAttrs,
 		aapt,
@@ -1514,7 +1520,7 @@ func (a *AndroidApp) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 		// TODO(b/209576404): handle package name override by product variable PRODUCT_MANIFEST_PACKAGE_NAME_OVERRIDES
 		a.overridableAppProperties.Package_name,
 		certificate,
-		certificateNamePtr,
+		certificateName,
 	}
 
 	props := bazel.BazelTargetModuleProperties{

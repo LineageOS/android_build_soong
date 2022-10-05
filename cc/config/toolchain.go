@@ -63,11 +63,6 @@ func findToolchain(os android.OsType, arch android.Arch) (Toolchain, error) {
 type Toolchain interface {
 	Name() string
 
-	GccRoot() string
-	GccTriple() string
-	// GccVersion should return a real value, not a ninja reference
-	GccVersion() string
-
 	IncludeFlags() string
 
 	ClangTriple() string

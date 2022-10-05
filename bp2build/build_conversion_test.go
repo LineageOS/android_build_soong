@@ -369,6 +369,7 @@ custom {
       x86_64:  { arch_paths: ["x86_64.txt"] },
       arm:  { arch_paths: ["arm.txt"] },
       arm64:  { arch_paths: ["arm64.txt"] },
+      riscv64: { arch_paths: ["riscv64.txt"] },
     },
     target: {
       linux: { arch_paths: ["linux.txt"] },
@@ -399,6 +400,10 @@ custom {
         ],
         "//build/bazel/platforms/arch:arm64": [
             "arm64.txt",
+            "lib64.txt",
+        ],
+        "//build/bazel/platforms/arch:riscv64": [
+            "riscv64.txt",
             "lib64.txt",
         ],
         "//build/bazel/platforms/arch:x86": [
