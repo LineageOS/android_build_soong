@@ -122,7 +122,7 @@ func getAndroidJarPatternsForDroidstubs(t *testing.T, sdkType string) []string {
 				"some-other-exported-dir",
 			],
 			api_levels_annotations_enabled: true,
-      api_levels_sdk_type: "%s",
+			api_levels_sdk_type: "%s",
 		}
 		`, sdkType),
 		map[string][]byte{
@@ -160,6 +160,21 @@ func TestModuleLibDroidstubs(t *testing.T) {
 	patterns := getAndroidJarPatternsForDroidstubs(t, "module-lib")
 
 	android.AssertArrayString(t, "order of patterns", []string{
+		"--android-jar-pattern somedir/%/module-lib/android.jar",
+		"--android-jar-pattern someotherdir/%/module-lib/android.jar",
+		"--android-jar-pattern somedir/%/system/android.jar",
+		"--android-jar-pattern someotherdir/%/system/android.jar",
+		"--android-jar-pattern somedir/%/public/android.jar",
+		"--android-jar-pattern someotherdir/%/public/android.jar",
+	}, patterns)
+}
+
+func TestSystemServerDroidstubs(t *testing.T) {
+	patterns := getAndroidJarPatternsForDroidstubs(t, "system-server")
+
+	android.AssertArrayString(t, "order of patterns", []string{
+		"--android-jar-pattern somedir/%/system-server/android.jar",
+		"--android-jar-pattern someotherdir/%/system-server/android.jar",
 		"--android-jar-pattern somedir/%/module-lib/android.jar",
 		"--android-jar-pattern someotherdir/%/module-lib/android.jar",
 		"--android-jar-pattern somedir/%/system/android.jar",
