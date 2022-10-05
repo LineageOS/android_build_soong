@@ -1638,6 +1638,10 @@ func (p InstallPath) PartitionDir() string {
 	}
 }
 
+func (p InstallPath) Partition() string {
+	return p.partition
+}
+
 // Join creates a new InstallPath with paths... joined with the current path. The
 // provided paths... may not use '..' to escape from the current path.
 func (p InstallPath) Join(ctx PathContext, paths ...string) InstallPath {
