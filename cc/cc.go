@@ -3729,6 +3729,13 @@ func (c *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 		} else {
 			sharedOrStaticLibraryBp2Build(ctx, c, false)
 		}
+	}
+}
+
+var _ android.ApiProvider = (*Module)(nil)
+
+func (c *Module) ConvertWithApiBp2build(ctx android.TopDownMutatorContext) {
+	switch c.typ() {
 	case ndkLibrary:
 		ndkLibraryBp2build(ctx, c)
 	}
