@@ -208,12 +208,14 @@ class Filter:
     symbol should be omitted or not
     """
 
-    def __init__(self, arch: Arch, api: int, llndk: bool = False, apex: bool = False, systemapi: bool = False):
+    def __init__(self, arch: Arch, api: int, llndk: bool = False, apex: bool = False, systemapi:
+                 bool = False, ndk: bool = True):
         self.arch = arch
         self.api = api
         self.llndk = llndk
         self.apex = apex
         self.systemapi = systemapi
+        self.ndk = ndk
 
     def _should_omit_tags(self, tags: Tags) -> bool:
         """Returns True if the tagged object should be omitted.
@@ -253,8 +255,13 @@ class Filter:
 
     def should_omit_symbol(self, symbol: Symbol) -> bool:
         """Returns True if the symbol should be omitted."""
-        return self._should_omit_tags(symbol.tags)
+        if not symbol.tags.has_mode_tags and not self.ndk:
+            # Symbols that don't have mode tags are NDK. They are usually
+            # included, but have to be omitted if NDK symbols are explicitly
+            # filtered-out
+            return True
 
+        return self._should_omit_tags(symbol.tags)
 
 def symbol_in_arch(tags: Tags, arch: Arch) -> bool:
     """Returns true if the symbol is present for the given architecture."""
