@@ -24,6 +24,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/blueprint/proptools"
+
 	"android/soong/android"
 	"android/soong/android/allowlists"
 	"android/soong/bazel"
@@ -88,6 +90,22 @@ type Bp2buildTestCase struct {
 }
 
 func RunBp2BuildTestCase(t *testing.T, registerModuleTypes func(ctx android.RegistrationContext), tc Bp2buildTestCase) {
+	bp2buildSetup := func(ctx *android.TestContext) {
+		registerModuleTypes(ctx)
+		ctx.RegisterForBazelConversion()
+	}
+	runBp2BuildTestCaseWithSetup(t, bp2buildSetup, tc)
+}
+
+func RunApiBp2BuildTestCase(t *testing.T, registerModuleTypes func(ctx android.RegistrationContext), tc Bp2buildTestCase) {
+	apiBp2BuildSetup := func(ctx *android.TestContext) {
+		registerModuleTypes(ctx)
+		ctx.RegisterForApiBazelConversion()
+	}
+	runBp2BuildTestCaseWithSetup(t, apiBp2BuildSetup, tc)
+}
+
+func runBp2BuildTestCaseWithSetup(t *testing.T, setup func(ctx *android.TestContext), tc Bp2buildTestCase) {
 	t.Helper()
 	dir := "."
 	filesystem := make(map[string][]byte)
@@ -103,7 +121,7 @@ func RunBp2BuildTestCase(t *testing.T, registerModuleTypes func(ctx android.Regi
 	config := android.TestConfig(buildDir, nil, tc.Blueprint, filesystem)
 	ctx := android.NewTestContext(config)
 
-	registerModuleTypes(ctx)
+	setup(ctx)
 	ctx.RegisterModuleType(tc.ModuleTypeUnderTest, tc.ModuleTypeUnderTestFactory)
 
 	// A default configuration for tests to not have to specify bp2build_available on top level targets.
@@ -118,7 +136,6 @@ func RunBp2BuildTestCase(t *testing.T, registerModuleTypes func(ctx android.Regi
 		})
 	}
 	ctx.RegisterBp2BuildConfig(bp2buildConfig)
-	ctx.RegisterForBazelConversion()
 
 	_, parseErrs := ctx.ParseFileList(dir, toParse)
 	if errored(t, tc, parseErrs) {
@@ -198,6 +215,8 @@ type customProps struct {
 
 	// Prop used to indicate this conversion should be 1 module -> multiple targets
 	One_to_many_prop *bool
+
+	Api *string // File describing the APIs of this module
 }
 
 type customModule struct {
@@ -320,6 +339,7 @@ type customBazelModuleAttributes struct {
 	String_ptr_prop     *string
 	String_list_prop    []string
 	Arch_paths          bazel.LabelListAttribute
+	Api                 bazel.LabelAttribute
 }
 
 func (m *customModule) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
@@ -362,6 +382,23 @@ func (m *customModule) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 	}
 
 	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: m.Name()}, attrs)
+}
+
+var _ android.ApiProvider = (*customModule)(nil)
+
+func (c *customModule) ConvertWithApiBp2build(ctx android.TopDownMutatorContext) {
+	props := bazel.BazelTargetModuleProperties{
+		Rule_class: "custom_api_contribution",
+	}
+	apiAttribute := bazel.MakeLabelAttribute(
+		android.BazelLabelForModuleSrcSingle(ctx, proptools.String(c.props.Api)).Label,
+	)
+	attrs := &customBazelModuleAttributes{
+		Api: *apiAttribute,
+	}
+	ctx.CreateBazelTargetModule(props,
+		android.CommonAttributes{Name: c.Name()},
+		attrs)
 }
 
 // A bp2build mutator that uses load statements and creates a 1:M mapping from
