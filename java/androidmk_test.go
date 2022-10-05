@@ -19,6 +19,9 @@ import (
 	"testing"
 
 	"android/soong/android"
+	"android/soong/cc"
+
+	"github.com/google/blueprint/proptools"
 )
 
 func TestRequired(t *testing.T) {
@@ -250,5 +253,151 @@ func TestGetOverriddenPackages(t *testing.T) {
 		actual := entries.EntryMap["LOCAL_OVERRIDES_PACKAGES"]
 
 		android.AssertDeepEquals(t, "overrides property", expected.overrides, actual)
+	}
+}
+
+func TestJniPartition(t *testing.T) {
+	bp := `
+		cc_library {
+			name: "libjni_system",
+			system_shared_libs: [],
+			sdk_version: "current",
+			stl: "none",
+		}
+
+		cc_library {
+			name: "libjni_system_ext",
+			system_shared_libs: [],
+			sdk_version: "current",
+			stl: "none",
+			system_ext_specific: true,
+		}
+
+		cc_library {
+			name: "libjni_odm",
+			system_shared_libs: [],
+			sdk_version: "current",
+			stl: "none",
+			device_specific: true,
+		}
+
+		cc_library {
+			name: "libjni_product",
+			system_shared_libs: [],
+			sdk_version: "current",
+			stl: "none",
+			product_specific: true,
+		}
+
+		cc_library {
+			name: "libjni_vendor",
+			system_shared_libs: [],
+			sdk_version: "current",
+			stl: "none",
+			soc_specific: true,
+		}
+
+		android_app {
+			name: "test_app_system_jni_system",
+			privileged: true,
+			platform_apis: true,
+			certificate: "platform",
+			jni_libs: ["libjni_system"],
+		}
+
+		android_app {
+			name: "test_app_system_jni_system_ext",
+			privileged: true,
+			platform_apis: true,
+			certificate: "platform",
+			jni_libs: ["libjni_system_ext"],
+		}
+
+		android_app {
+			name: "test_app_system_ext_jni_system",
+			privileged: true,
+			platform_apis: true,
+			certificate: "platform",
+			jni_libs: ["libjni_system"],
+			system_ext_specific: true
+		}
+
+		android_app {
+			name: "test_app_system_ext_jni_system_ext",
+			sdk_version: "core_platform",
+			jni_libs: ["libjni_system_ext"],
+			system_ext_specific: true
+		}
+
+		android_app {
+			name: "test_app_product_jni_product",
+			sdk_version: "core_platform",
+			jni_libs: ["libjni_product"],
+			product_specific: true
+		}
+
+		android_app {
+			name: "test_app_vendor_jni_odm",
+			sdk_version: "core_platform",
+			jni_libs: ["libjni_odm"],
+			soc_specific: true
+		}
+
+		android_app {
+			name: "test_app_odm_jni_vendor",
+			sdk_version: "core_platform",
+			jni_libs: ["libjni_vendor"],
+			device_specific: true
+		}
+		android_app {
+			name: "test_app_system_jni_multiple",
+			privileged: true,
+			platform_apis: true,
+			certificate: "platform",
+			jni_libs: ["libjni_system", "libjni_system_ext"],
+		}
+		android_app {
+			name: "test_app_vendor_jni_multiple",
+			sdk_version: "core_platform",
+			jni_libs: ["libjni_odm", "libjni_vendor"],
+			soc_specific: true
+		}
+		`
+	arch := "arm64"
+	ctx := android.GroupFixturePreparers(
+		PrepareForTestWithJavaDefaultModules,
+		cc.PrepareForTestWithCcDefaultModules,
+		android.PrepareForTestWithAndroidMk,
+		android.FixtureModifyConfig(func(config android.Config) {
+			config.TestProductVariables.DeviceArch = proptools.StringPtr(arch)
+		}),
+	).
+		RunTestWithBp(t, bp)
+	testCases := []struct {
+		name           string
+		partitionNames []string
+		partitionTags  []string
+	}{
+		{"test_app_system_jni_system", []string{"libjni_system"}, []string{""}},
+		{"test_app_system_jni_system_ext", []string{"libjni_system_ext"}, []string{"_SYSTEM_EXT"}},
+		{"test_app_system_ext_jni_system", []string{"libjni_system"}, []string{""}},
+		{"test_app_system_ext_jni_system_ext", []string{"libjni_system_ext"}, []string{"_SYSTEM_EXT"}},
+		{"test_app_product_jni_product", []string{"libjni_product"}, []string{"_PRODUCT"}},
+		{"test_app_vendor_jni_odm", []string{"libjni_odm"}, []string{"_ODM"}},
+		{"test_app_odm_jni_vendor", []string{"libjni_vendor"}, []string{"_VENDOR"}},
+		{"test_app_system_jni_multiple", []string{"libjni_system", "libjni_system_ext"}, []string{"", "_SYSTEM_EXT"}},
+		{"test_app_vendor_jni_multiple", []string{"libjni_odm", "libjni_vendor"}, []string{"_ODM", "_VENDOR"}},
+	}
+
+	for _, test := range testCases {
+		t.Run(test.name, func(t *testing.T) {
+			mod := ctx.ModuleForTests(test.name, "android_common").Module()
+			entry := android.AndroidMkEntriesForTest(t, ctx.TestContext, mod)[0]
+			for i := range test.partitionNames {
+				actual := entry.EntryMap["LOCAL_SOONG_JNI_LIBS_PARTITION_"+arch][i]
+				expected := test.partitionNames[i] + ":" + test.partitionTags[i]
+				android.AssertStringEquals(t, "Expected and actual differ", expected, actual)
+			}
+		})
 	}
 }
