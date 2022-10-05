@@ -461,6 +461,12 @@ func (ctx *TestContext) RegisterForBazelConversion() {
 	RegisterMutatorsForBazelConversion(ctx.Context, ctx.bp2buildPreArch)
 }
 
+// RegisterForApiBazelConversion prepares a test context for API bp2build conversion.
+func (ctx *TestContext) RegisterForApiBazelConversion() {
+	ctx.config.BuildMode = ApiBp2build
+	RegisterMutatorsForApiBazelConversion(ctx.Context, ctx.bp2buildPreArch)
+}
+
 func (ctx *TestContext) ParseFileList(rootDir string, filePaths []string) (deps []string, errs []error) {
 	// This function adapts the old style ParseFileList calls that are spread throughout the tests
 	// to the new style that takes a config.

@@ -180,6 +180,16 @@ func (ctx *Context) RegisterForBazelConversion() {
 	RegisterMutatorsForBazelConversion(ctx, bp2buildPreArchMutators)
 }
 
+// RegisterForApiBazelConversion is similar to RegisterForBazelConversion except that
+// it only generates API targets in the generated  workspace
+func (ctx *Context) RegisterForApiBazelConversion() {
+	for _, t := range moduleTypes {
+		t.register(ctx)
+	}
+
+	RegisterMutatorsForApiBazelConversion(ctx, bp2buildPreArchMutators)
+}
+
 // Register the pipeline of singletons, module types, and mutators for
 // generating build.ninja and other files for Kati, from Android.bp files.
 func (ctx *Context) Register() {
