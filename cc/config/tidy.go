@@ -16,6 +16,7 @@ package config
 
 import (
 	"android/soong/android"
+	"regexp"
 	"strings"
 )
 
@@ -236,4 +237,12 @@ func TidyFlagsForSrcFile(srcFile android.Path, flags string) string {
 		}
 	}
 	return flags
+}
+
+var (
+	removedCFlags = regexp.MustCompile(" -fsanitize=[^ ]*memtag-[^ ]* ")
+)
+
+func TidyReduceCFlags(flags string) string {
+	return removedCFlags.ReplaceAllString(flags, " ")
 }
