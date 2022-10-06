@@ -424,6 +424,45 @@ class IntegrationTest(unittest.TestCase):
         """)
         self.assertEqual(expected_version, version_file.getvalue())
 
+    def test_integration_with_nondk(self) -> None:
+        input_file = io.StringIO(textwrap.dedent("""\
+            VERSION_1 {
+                global:
+                    foo;
+                    bar; # apex
+                local:
+                    *;
+            };
+        """))
+        f = copy(self.filter)
+        f.apex = True
+        f.ndk = False   # ndk symbols should be excluded
+        parser = symbolfile.SymbolFileParser(input_file, {}, f)
+        versions = parser.parse()
+
+        src_file = io.StringIO()
+        version_file = io.StringIO()
+        symbol_list_file = io.StringIO()
+        f = copy(self.filter)
+        f.apex = True
+        f.ndk = False   # ndk symbols should be excluded
+        generator = ndkstubgen.Generator(src_file,
+                                         version_file, symbol_list_file, f)
+        generator.write(versions)
+
+        expected_src = textwrap.dedent("""\
+            void bar() {}
+        """)
+        self.assertEqual(expected_src, src_file.getvalue())
+
+        expected_version = textwrap.dedent("""\
+            VERSION_1 {
+                global:
+                    bar;
+            };
+        """)
+        self.assertEqual(expected_version, version_file.getvalue())
+
     def test_empty_stub(self) -> None:
         """Tests that empty stubs can be generated.
 
