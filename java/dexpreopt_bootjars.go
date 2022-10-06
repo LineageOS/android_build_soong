@@ -803,10 +803,15 @@ func buildBootImageVariant(ctx android.ModuleContext, image *bootImageVariant, p
 	rule.Build(image.name+"JarsDexpreopt_"+image.target.String(), "dexpreopt "+image.name+" jars "+arch.String())
 
 	// save output and installed files for makevars
+	// TODO - these are always the same and so should be initialized in genBootImageConfigs
 	image.installs = rule.Installs()
 	image.vdexInstalls = vdexInstalls
 	image.unstrippedInstalls = unstrippedInstalls
-	image.licenseMetadataFile = android.OptionalPathForPath(ctx.LicenseMetadataFile())
+
+	// Only set the licenseMetadataFile from the active module.
+	if isActiveModule(ctx.Module()) {
+		image.licenseMetadataFile = android.OptionalPathForPath(ctx.LicenseMetadataFile())
+	}
 
 	return bootImageVariantOutputs{
 		image,
