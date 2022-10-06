@@ -436,10 +436,10 @@ func (b *platformBootclasspathModule) generateBootImageBuildActions(ctx android.
 	profile := bootImageProfileRule(ctx, imageConfig)
 
 	// Build boot image files for the android variants.
-	androidBootImageFilesByArch := buildBootImageVariantsForAndroidOs(ctx, imageConfig, profile)
+	androidBootImageFiles := buildBootImageVariantsForAndroidOs(ctx, imageConfig, profile)
 
 	// Zip the android variant boot image files up.
-	buildBootImageZipInPredefinedLocation(ctx, imageConfig, androidBootImageFilesByArch)
+	buildBootImageZipInPredefinedLocation(ctx, imageConfig, androidBootImageFiles.byArch)
 
 	// Build boot image files for the host variants. There are use directly by ART host side tests.
 	buildBootImageVariantsForBuildOs(ctx, imageConfig, profile)

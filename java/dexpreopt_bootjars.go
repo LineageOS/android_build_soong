@@ -234,6 +234,11 @@ func init() {
 }
 
 // Target-independent description of a boot image.
+//
+// WARNING: All fields in this struct should be initialized in the genBootImageConfigs function.
+// Failure to do so can lead to data races if there is no synchronization enforced ordering between
+// the writer and the reader. Fields which break this rule are marked as deprecated and should be
+// removed and replaced with something else, e.g. providers.
 type bootImageConfig struct {
 	// If this image is an extension, the image that it extends.
 	extends *bootImageConfig
@@ -274,13 +279,14 @@ type bootImageConfig struct {
 	zip android.WritablePath
 
 	// Rules which should be used in make to install the outputs.
+	//
+	// Deprecated: Not initialized correctly, see struct comment.
 	profileInstalls android.RuleBuilderInstalls
 
 	// Path to the license metadata file for the module that built the profile.
+	//
+	// Deprecated: Not initialized correctly, see struct comment.
 	profileLicenseMetadataFile android.OptionalPath
-
-	// Path to the image profile file on host (or empty, if profile is not generated).
-	profilePathOnHost android.Path
 
 	// Target-dependent fields.
 	variants []*bootImageVariant
@@ -290,6 +296,8 @@ type bootImageConfig struct {
 }
 
 // Target-dependent description of a boot image.
+//
+// WARNING: The warning comment on bootImageConfig applies here too.
 type bootImageVariant struct {
 	*bootImageConfig
 
@@ -320,14 +328,23 @@ type bootImageVariant struct {
 	primaryImagesDeps android.Paths
 
 	// Rules which should be used in make to install the outputs on host.
-	installs           android.RuleBuilderInstalls
-	vdexInstalls       android.RuleBuilderInstalls
+	//
+	// Deprecated: Not initialized correctly, see struct comment.
+	installs android.RuleBuilderInstalls
+
+	// Rules which should be used in make to install the vdex outputs on host.
+	//
+	// Deprecated: Not initialized correctly, see struct comment.
+	vdexInstalls android.RuleBuilderInstalls
+
+	// Rules which should be used in make to install the unstripped outputs on host.
+	//
+	// Deprecated: Not initialized correctly, see struct comment.
 	unstrippedInstalls android.RuleBuilderInstalls
 
-	// Rules which should be used in make to install the outputs on device.
-	deviceInstalls android.RuleBuilderInstalls
-
 	// Path to the license metadata file for the module that built the image.
+	//
+	// Deprecated: Not initialized correctly, see struct comment.
 	licenseMetadataFile android.OptionalPath
 }
 
@@ -554,7 +571,7 @@ func copyBootJarsToPredefinedLocations(ctx android.ModuleContext, srcBootDexJars
 // boot image files.
 //
 // The paths are returned because they are needed elsewhere in Soong, e.g. for populating an APEX.
-func buildBootImageVariantsForAndroidOs(ctx android.ModuleContext, image *bootImageConfig, profile android.WritablePath) bootImageFilesByArch {
+func buildBootImageVariantsForAndroidOs(ctx android.ModuleContext, image *bootImageConfig, profile android.WritablePath) bootImageOutputs {
 	return buildBootImageForOsType(ctx, image, profile, android.Android)
 }
 
@@ -569,21 +586,38 @@ func buildBootImageVariantsForBuildOs(ctx android.ModuleContext, image *bootImag
 	buildBootImageForOsType(ctx, image, profile, ctx.Config().BuildOS)
 }
 
+// bootImageOutputs encapsulates information about boot images that were created/obtained by
+// commonBootclasspathFragment.produceBootImageFiles.
+type bootImageOutputs struct {
+	// Map from arch to the paths to the boot image files created/obtained for that arch.
+	byArch bootImageFilesByArch
+
+	variants []bootImageVariantOutputs
+
+	// The path to the profile file created/obtained for the boot image.
+	profile android.WritablePath
+}
+
 // buildBootImageForOsType takes a bootImageConfig, a profile file and an android.OsType
 // boot image files are required for and it creates rules to build the boot image
 // files for all the required architectures for them.
 //
 // It returns a map from android.ArchType to the predefined paths of the boot image files.
-func buildBootImageForOsType(ctx android.ModuleContext, image *bootImageConfig, profile android.WritablePath, requiredOsType android.OsType) bootImageFilesByArch {
+func buildBootImageForOsType(ctx android.ModuleContext, image *bootImageConfig, profile android.WritablePath, requiredOsType android.OsType) bootImageOutputs {
 	filesByArch := bootImageFilesByArch{}
+	imageOutputs := bootImageOutputs{
+		byArch:  filesByArch,
+		profile: profile,
+	}
 	for _, variant := range image.variants {
 		if variant.target.Os == requiredOsType {
-			buildBootImageVariant(ctx, variant, profile)
+			variantOutputs := buildBootImageVariant(ctx, variant, profile)
+			imageOutputs.variants = append(imageOutputs.variants, variantOutputs)
 			filesByArch[variant.target.Arch.ArchType] = variant.imagesDeps.Paths()
 		}
 	}
 
-	return filesByArch
+	return imageOutputs
 }
 
 // buildBootImageZipInPredefinedLocation generates a zip file containing all the boot image files.
@@ -611,8 +645,13 @@ func buildBootImageZipInPredefinedLocation(ctx android.ModuleContext, image *boo
 	rule.Build("zip_"+image.name, "zip "+image.name+" image")
 }
 
+type bootImageVariantOutputs struct {
+	config         *bootImageVariant
+	deviceInstalls android.RuleBuilderInstalls
+}
+
 // Generate boot image build rules for a specific target.
-func buildBootImageVariant(ctx android.ModuleContext, image *bootImageVariant, profile android.Path) {
+func buildBootImageVariant(ctx android.ModuleContext, image *bootImageVariant, profile android.Path) bootImageVariantOutputs {
 
 	globalSoong := dexpreopt.GetGlobalSoongConfig(ctx)
 	global := dexpreopt.GetGlobalConfig(ctx)
@@ -773,8 +812,12 @@ func buildBootImageVariant(ctx android.ModuleContext, image *bootImageVariant, p
 	image.installs = rule.Installs()
 	image.vdexInstalls = vdexInstalls
 	image.unstrippedInstalls = unstrippedInstalls
-	image.deviceInstalls = deviceInstalls
 	image.licenseMetadataFile = android.OptionalPathForPath(ctx.LicenseMetadataFile())
+
+	return bootImageVariantOutputs{
+		image,
+		deviceInstalls,
+	}
 }
 
 const failureMessage = `ERROR: Dex2oat failed to compile a boot image.
@@ -827,8 +870,6 @@ func bootImageProfileRule(ctx android.ModuleContext, image *bootImageConfig) and
 	}
 
 	rule.Build("bootJarsProfile", "profile boot jars")
-
-	image.profilePathOnHost = profile
 
 	return profile
 }
