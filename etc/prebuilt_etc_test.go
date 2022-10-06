@@ -195,6 +195,30 @@ func TestPrebuiltEtcHost(t *testing.T) {
 	}
 }
 
+func TestPrebuiltEtcAllowMissingDependencies(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		prepareForPrebuiltEtcTest,
+		android.PrepareForTestDisallowNonExistentPaths,
+		android.FixtureModifyConfig(
+			func(config android.Config) {
+				config.TestProductVariables.Allow_missing_dependencies = proptools.BoolPtr(true)
+			}),
+	).RunTestWithBp(t, `
+		prebuilt_etc {
+			name: "foo.conf",
+			filename_from_src: true,
+			arch: {
+				x86: {
+					src: "x86.conf",
+				},
+			},
+		}
+	`)
+
+	android.AssertStringEquals(t, "expected error rule", "android/soong/android.Error",
+		result.ModuleForTests("foo.conf", "android_arm64_armv8-a").Output("foo.conf").Rule.String())
+}
+
 func TestPrebuiltRootInstallDirPath(t *testing.T) {
 	result := prepareForPrebuiltEtcTest.RunTestWithBp(t, `
 		prebuilt_root {

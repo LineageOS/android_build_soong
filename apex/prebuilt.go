@@ -537,7 +537,11 @@ func (p *ApexFileProperties) prebuiltApexSelector(ctx android.BaseModuleContext,
 	}
 
 	if src == "" {
-		ctx.OtherModuleErrorf(prebuilt, "prebuilt_apex does not support %q", multiTargets[0].Arch.String())
+		if ctx.Config().AllowMissingDependencies() {
+			ctx.AddMissingDependencies([]string{ctx.OtherModuleName(prebuilt)})
+		} else {
+			ctx.OtherModuleErrorf(prebuilt, "prebuilt_apex does not support %q", multiTargets[0].Arch.String())
+		}
 		// Drop through to return an empty string as the src (instead of nil) to avoid the prebuilt
 		// logic from reporting a more general, less useful message.
 	}
