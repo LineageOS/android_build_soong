@@ -29,6 +29,9 @@ SKIPPED_PRODUCTS=(
     linux_bionic
     mainline_sdk
     ndk
+
+    # New architecture bringup, fails without ALLOW_MISSING_DEPENDENCIES=true
+    aosp_riscv64
 )
 
 # To track how long we took to startup. %N isn't supported on Darwin, but
