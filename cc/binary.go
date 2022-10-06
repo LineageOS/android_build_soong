@@ -540,6 +540,12 @@ func (binary *binaryDecorator) hostToolPath() android.OptionalPath {
 	return binary.toolPath
 }
 
+func (binary *binaryDecorator) overriddenModules() []string {
+	return binary.Properties.Overrides
+}
+
+var _ overridable = (*binaryDecorator)(nil)
+
 func init() {
 	pctx.HostBinToolVariable("verifyHostBionicCmd", "host_bionic_verify")
 }
