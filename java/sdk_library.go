@@ -65,7 +65,26 @@ type apiScope struct {
 	name string
 
 	// The api scope that this scope extends.
+	//
+	// This organizes the scopes into an extension hierarchy.
+	//
+	// If set this means that the API provided by this scope includes the API provided by the scope
+	// set in this field.
 	extends *apiScope
+
+	// The next api scope that a library that uses this scope can access.
+	//
+	// This organizes the scopes into an access hierarchy.
+	//
+	// If set this means that a library that can access this API can also access the API provided by
+	// the scope set in this field.
+	//
+	// A module that sets sdk_version: "<scope>_current" should have access to the <scope> API of
+	// every java_sdk_library that it depends on. If the library does not provide an API for <scope>
+	// then it will traverse up this access hierarchy to find an API that it does provide.
+	//
+	// If this is not set then it defaults to the scope set in extends.
+	canAccess *apiScope
 
 	// The legacy enabled status for a specific scope can be dependent on other
 	// properties that have been specified on the library so it is provided by
@@ -107,7 +126,7 @@ type apiScope struct {
 	// The scope specific prefix to add to the api file base of "current.txt" or "removed.txt".
 	apiFilePrefix string
 
-	// The scope specific prefix to add to the sdk library module name to construct a scope specific
+	// The scope specific suffix to add to the sdk library module name to construct a scope specific
 	// module name.
 	moduleSuffix string
 
@@ -191,6 +210,11 @@ func initApiScope(scope *apiScope) *apiScope {
 		if s != scope && s.annotation != "" {
 			scopeSpecificArgs = append(scopeSpecificArgs, "--show-for-stub-purposes-annotation", s.annotation)
 		}
+	}
+
+	// By default, a library that can access a scope can also access the scope it extends.
+	if scope.canAccess == nil {
+		scope.canAccess = scope.extends
 	}
 
 	// Escape any special characters in the arguments. This is needed because droidstubs
@@ -310,6 +334,14 @@ var (
 	apiScopeSystemServer = initApiScope(&apiScope{
 		name:    "system-server",
 		extends: apiScopePublic,
+
+		// The system-server scope can access the module-lib scope.
+		//
+		// A module that provides a system-server API is appended to the standard bootclasspath that is
+		// used by the system server. So, it should be able to access module-lib APIs provided by
+		// libraries on the bootclasspath.
+		canAccess: apiScopeModuleLib,
+
 		// The system-server scope is disabled by default in legacy mode.
 		//
 		// Enabling this would break existing usages.
@@ -926,7 +958,7 @@ func (c *commonToSdkLibraryAndImport) findScopePaths(scope *apiScope) *scopePath
 // If this does not support the requested api scope then find the closest available
 // scope it does support. Returns nil if no such scope is available.
 func (c *commonToSdkLibraryAndImport) findClosestScopePath(scope *apiScope) *scopePaths {
-	for s := scope; s != nil; s = s.extends {
+	for s := scope; s != nil; s = s.canAccess {
 		if paths := c.findScopePaths(s); paths != nil {
 			return paths
 		}

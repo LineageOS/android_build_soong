@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 
 	"android/soong/android"
@@ -697,6 +698,80 @@ func TestJavaSdkLibrary_SystemServer(t *testing.T) {
 			},
 		}
 		`)
+}
+
+func TestJavaSdkLibrary_SystemServer_AccessToStubScopeLibs(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		prepareForJavaTest,
+		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithLastReleaseApis("foo-public", "foo-system", "foo-module-lib", "foo-system-server"),
+	).RunTestWithBp(t, `
+		java_sdk_library {
+			name: "foo-public",
+			srcs: ["a.java"],
+			api_packages: ["foo"],
+			public: {
+				enabled: true,
+			},
+		}
+
+		java_sdk_library {
+			name: "foo-system",
+			srcs: ["a.java"],
+			api_packages: ["foo"],
+			system: {
+				enabled: true,
+			},
+		}
+
+		java_sdk_library {
+			name: "foo-module-lib",
+			srcs: ["a.java"],
+			api_packages: ["foo"],
+			system: {
+				enabled: true,
+			},
+			module_lib: {
+				enabled: true,
+			},
+		}
+
+		java_sdk_library {
+			name: "foo-system-server",
+			srcs: ["a.java"],
+			api_packages: ["foo"],
+			system_server: {
+				enabled: true,
+			},
+		}
+
+		java_library {
+			name: "bar",
+			srcs: ["a.java"],
+			libs: ["foo-public", "foo-system", "foo-module-lib", "foo-system-server"],
+			sdk_version: "system_server_current",
+		}
+		`)
+
+	stubsPath := func(name string, scope *apiScope) string {
+		name = scope.stubsLibraryModuleName(name)
+		return fmt.Sprintf("out/soong/.intermediates/%[1]s/android_common/turbine-combined/%[1]s.jar", name)
+	}
+
+	// The bar library should depend on the highest (where system server is highest and public is
+	// lowest) API scopes provided by each of the foo-* modules. The highest API scope provided by the
+	// foo-<x> module is <x>.
+	barLibrary := result.ModuleForTests("bar", "android_common").Rule("javac")
+	stubLibraries := []string{
+		stubsPath("foo-public", apiScopePublic),
+		stubsPath("foo-system", apiScopeSystem),
+		stubsPath("foo-module-lib", apiScopeModuleLib),
+		stubsPath("foo-system-server", apiScopeSystemServer),
+	}
+	expectedPattern := fmt.Sprintf(`^-classpath .*:\Q%s\E$`, strings.Join(stubLibraries, ":"))
+	if expected, actual := expectedPattern, barLibrary.Args["classpath"]; !regexp.MustCompile(expected).MatchString(actual) {
+		t.Errorf("expected pattern %q to match %#q", expected, actual)
+	}
 }
 
 func TestJavaSdkLibrary_MissingScope(t *testing.T) {
