@@ -616,6 +616,10 @@ type xref interface {
 	XrefCcFiles() android.Paths
 }
 
+type overridable interface {
+	overriddenModules() []string
+}
+
 type libraryDependencyKind int
 
 const (
@@ -3640,6 +3644,13 @@ func (c *Module) UniqueApexVariations() bool {
 	// APEX variation. Otherwise, another vendor APEX with use_vndk_as_stable:true may use a wrong
 	// variation of the VNDK lib because APEX variations are merged/grouped.
 	return c.UseVndk() && c.IsVndk()
+}
+
+func (c *Module) overriddenModules() []string {
+	if o, ok := c.linker.(overridable); ok {
+		return o.overriddenModules()
+	}
+	return nil
 }
 
 var _ snapshot.RelativeInstallPath = (*Module)(nil)

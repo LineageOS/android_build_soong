@@ -239,6 +239,9 @@ var ccSnapshotAction snapshot.GenerateSnapshotAction = func(s snapshot.SnapshotS
 		}
 		prop.RuntimeLibs = m.SnapshotRuntimeLibs()
 		prop.Required = m.RequiredModuleNames()
+		if o, ok := m.(overridable); ok {
+			prop.Overrides = o.overriddenModules()
+		}
 		for _, path := range m.InitRc() {
 			prop.InitRc = append(prop.InitRc, filepath.Join("configs", path.Base()))
 		}
