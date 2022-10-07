@@ -2740,11 +2740,6 @@ func (a *apexBundle) minSdkVersionValue(ctx android.EarlyModuleContext) string {
 		return ""
 	}
 
-	archMinApiLevel := cc.MinApiForArch(ctx, a.MultiTargets()[0].Arch.ArchType)
-	if !archMinApiLevel.IsNone() && archMinApiLevel.CompareTo(minApiLevel) > 0 {
-		minApiLevel = archMinApiLevel
-	}
-
 	overrideMinSdkValue := ctx.DeviceConfig().ApexGlobalMinSdkVersionOverride()
 	overrideApiLevel := minSdkVersionFromValue(ctx, overrideMinSdkValue)
 	if !overrideApiLevel.IsNone() && overrideApiLevel.CompareTo(minApiLevel) > 0 {
