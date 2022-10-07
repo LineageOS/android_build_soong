@@ -44,8 +44,6 @@ type apexKey struct {
 
 	publicKeyFile  android.Path
 	privateKeyFile android.Path
-
-	keyName string
 }
 
 type apexKeyProperties struct {
@@ -102,7 +100,6 @@ func (m *apexKey) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			m.publicKeyFile.String(), pubKeyName, m.privateKeyFile, privKeyName)
 		return
 	}
-	m.keyName = pubKeyName
 }
 
 // //////////////////////////////////////////////////////////////////////
@@ -203,8 +200,11 @@ func (s *apexKeysText) MakeVars(ctx android.MakeVarsContext) {
 // For Bazel / bp2build
 
 type bazelApexKeyAttributes struct {
-	Public_key  bazel.LabelAttribute
-	Private_key bazel.LabelAttribute
+	Public_key      bazel.LabelAttribute
+	Public_key_name bazel.LabelAttribute
+
+	Private_key      bazel.LabelAttribute
+	Private_key_name bazel.LabelAttribute
 }
 
 // ConvertWithBp2build performs conversion apexKey for bp2build
@@ -214,18 +214,33 @@ func (m *apexKey) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 
 func apexKeyBp2BuildInternal(ctx android.TopDownMutatorContext, module *apexKey) {
 	var privateKeyLabelAttribute bazel.LabelAttribute
+	var privateKeyNameAttribute bazel.LabelAttribute
 	if module.properties.Private_key != nil {
-		privateKeyLabelAttribute.SetValue(android.BazelLabelForModuleSrcSingle(ctx, *module.properties.Private_key))
+		m := String(module.properties.Private_key)
+		if android.SrcIsModule(m) == "" {
+			privateKeyNameAttribute.SetValue(android.BazelLabelForModuleSrcSingle(ctx, *module.properties.Private_key))
+		} else {
+			privateKeyLabelAttribute.SetValue(android.BazelLabelForModuleDepSingle(ctx, *module.properties.Private_key))
+		}
 	}
 
 	var publicKeyLabelAttribute bazel.LabelAttribute
+	var publicKeyNameAttribute bazel.LabelAttribute
 	if module.properties.Public_key != nil {
-		publicKeyLabelAttribute.SetValue(android.BazelLabelForModuleSrcSingle(ctx, *module.properties.Public_key))
+		m := String(module.properties.Public_key)
+		if android.SrcIsModule(m) == "" {
+			publicKeyNameAttribute.SetValue(android.BazelLabelForModuleSrcSingle(ctx, *module.properties.Public_key))
+		} else {
+			publicKeyLabelAttribute.SetValue(android.BazelLabelForModuleDepSingle(ctx, *module.properties.Public_key))
+		}
 	}
 
 	attrs := &bazelApexKeyAttributes{
-		Private_key: privateKeyLabelAttribute,
-		Public_key:  publicKeyLabelAttribute,
+		Private_key:      privateKeyLabelAttribute,
+		Private_key_name: privateKeyNameAttribute,
+
+		Public_key:      publicKeyLabelAttribute,
+		Public_key_name: publicKeyNameAttribute,
 	}
 
 	props := bazel.BazelTargetModuleProperties{
