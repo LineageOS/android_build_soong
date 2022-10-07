@@ -367,6 +367,42 @@ cc_library_shared {
 	})
 }
 
+func TestCcLibraryLdflagsSplitBySpaceSoongAdded(t *testing.T) {
+	runCcLibrarySharedTestCase(t, Bp2buildTestCase{
+		Description: "ldflags are split by spaces except for the ones added by soong (version script and dynamic list)",
+		Filesystem: map[string]string{
+			"version_script": "",
+			"dynamic.list":   "",
+		},
+		Blueprint: `
+cc_library_shared {
+    name: "foo",
+    ldflags: [
+        "--nospace_flag",
+        "-z spaceflag",
+    ],
+    version_script: "version_script",
+    dynamic_list: "dynamic.list",
+    include_build_directory: false,
+}`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+				"additional_linker_inputs": `[
+        "version_script",
+        "dynamic.list",
+    ]`,
+				"linkopts": `[
+        "--nospace_flag",
+        "-z",
+        "spaceflag",
+        "-Wl,--version-script,$(location version_script)",
+        "-Wl,--dynamic-list,$(location dynamic.list)",
+    ]`,
+			}),
+		},
+	})
+}
+
 func TestCcLibrarySharedNoCrtTrue(t *testing.T) {
 	runCcLibrarySharedTestCase(t, Bp2buildTestCase{
 		Description: "cc_library_shared - nocrt: true emits attribute",
