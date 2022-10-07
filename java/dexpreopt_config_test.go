@@ -15,12 +15,19 @@
 package java
 
 import (
+	"log"
+	"runtime"
 	"testing"
 
 	"android/soong/android"
 )
 
 func TestBootImageConfig(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		log.Printf("Skipping as boot image config test is only supported on linux not %s", runtime.GOOS)
+		return
+	}
+
 	result := android.GroupFixturePreparers(
 		PrepareForBootImageConfigTest,
 	).RunTest(t)
