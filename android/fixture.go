@@ -630,6 +630,20 @@ type TestResult struct {
 	NinjaDeps []string
 }
 
+type TestPathContext struct {
+	*TestResult
+}
+
+var _ PathContext = &TestPathContext{}
+
+func (t *TestPathContext) Config() Config {
+	return t.TestResult.Config
+}
+
+func (t *TestPathContext) AddNinjaFileDeps(deps ...string) {
+	panic("unimplemented")
+}
+
 func createFixture(t *testing.T, buildDir string, preparers []*simpleFixturePreparer) Fixture {
 	config := TestConfig(buildDir, nil, "", nil)
 	ctx := NewTestContext(config)
