@@ -677,7 +677,8 @@ func (p *Module) createSrcsZip(ctx android.ModuleContext, pkgPath string) androi
 		protoFlags := android.GetProtoFlags(ctx, &p.protoProperties)
 		protoFlags.OutTypeFlag = "--python_out"
 
-		protosRespectPkgPath := proptools.BoolDefault(p.properties.Proto.Respect_pkg_path, true)
+		// TODO(b/247578564): Change the default to true, and then eventually remove respect_pkg_path
+		protosRespectPkgPath := proptools.BoolDefault(p.properties.Proto.Respect_pkg_path, false)
 		pkgPathForProtos := pkgPath
 		if pkgPathForProtos != "" && protosRespectPkgPath {
 			pkgPathStagingDir := android.PathForModuleGen(ctx, "protos_staged_for_pkg_path")
