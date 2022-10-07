@@ -27,11 +27,12 @@ func runApexKeyTestCase(t *testing.T, tc Bp2buildTestCase) {
 }
 
 func registerApexKeyModuleTypes(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
 }
 
-func TestApexKeySimple(t *testing.T) {
+func TestApexKeySimple_KeysAreSrcFiles(t *testing.T) {
 	runApexKeyTestCase(t, Bp2buildTestCase{
-		Description:                "apex key - simple example",
+		Description:                "apex key - keys are src files, use key_name attributes",
 		ModuleTypeUnderTest:        "apex_key",
 		ModuleTypeUnderTestFactory: apex.ApexKeyFactory,
 		Filesystem:                 map[string]string{},
@@ -43,8 +44,29 @@ apex_key {
 }
 `,
 		ExpectedBazelTargets: []string{MakeBazelTargetNoRestrictions("apex_key", "com.android.apogee.key", AttrNameToString{
-			"private_key": `"com.android.apogee.pem"`,
-			"public_key":  `"com.android.apogee.avbpubkey"`,
+			"private_key_name": `"com.android.apogee.pem"`,
+			"public_key_name":  `"com.android.apogee.avbpubkey"`,
+		}),
+		}})
+}
+
+func TestApexKey_KeysAreModules(t *testing.T) {
+	runApexKeyTestCase(t, Bp2buildTestCase{
+		Description:                "apex key - keys are modules, use key attributes",
+		ModuleTypeUnderTest:        "apex_key",
+		ModuleTypeUnderTestFactory: apex.ApexKeyFactory,
+		Filesystem:                 map[string]string{},
+		Blueprint: `
+apex_key {
+        name: "com.android.apogee.key",
+        public_key: ":com.android.apogee.avbpubkey",
+        private_key: ":com.android.apogee.pem",
+}
+` + simpleModuleDoNotConvertBp2build("filegroup", "com.android.apogee.avbpubkey") +
+			simpleModuleDoNotConvertBp2build("filegroup", "com.android.apogee.pem"),
+		ExpectedBazelTargets: []string{MakeBazelTargetNoRestrictions("apex_key", "com.android.apogee.key", AttrNameToString{
+			"private_key": `":com.android.apogee.pem"`,
+			"public_key":  `":com.android.apogee.avbpubkey"`,
 		}),
 		}})
 }
