@@ -192,8 +192,8 @@ func (binary *binaryDecorator) bootstrap(ctx android.ModuleContext, actualVersio
 		})
 	}
 
-	addTopDirectoriesToPath := !proptools.BoolDefault(binary.binaryProperties.Dont_add_top_level_directories_to_path, true)
-	dontAddEntrypointFolderToPath := proptools.BoolDefault(binary.binaryProperties.Dont_add_entrypoint_folder_to_path, true)
+	addTopDirectoriesToPath := !proptools.BoolDefault(binary.binaryProperties.Dont_add_top_level_directories_to_path, false)
+	dontAddEntrypointFolderToPath := proptools.BoolDefault(binary.binaryProperties.Dont_add_entrypoint_folder_to_path, false)
 
 	binFile := registerBuildActionForParFile(ctx, embeddedLauncher, launcherPath,
 		binary.getHostInterpreterName(ctx, actualVersion),
