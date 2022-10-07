@@ -1,4 +1,4 @@
-// Copyright 2019 Google Inc. All rights reserved.
+// Copyright 2022 Google Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,35 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package android
+package java
 
 import (
-	"io/ioutil"
-	"os"
 	"testing"
+
+	"android/soong/android"
 )
 
-var buildDir string
+func TestBootImageConfig(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		PrepareForBootImageConfigTest,
+	).RunTest(t)
 
-func setUp() {
-	var err error
-	buildDir, err = ioutil.TempDir("", "android_test")
-	if err != nil {
-		panic(err)
-	}
-}
-
-func tearDown() {
-	os.RemoveAll(buildDir)
-}
-
-func TestMain(m *testing.M) {
-	run := func() int {
-		setUp()
-		defer tearDown()
-
-		return m.Run()
-	}
-
-	os.Exit(run())
+	CheckArtBootImageConfig(t, result)
+	CheckFrameworkBootImageConfig(t, result)
 }

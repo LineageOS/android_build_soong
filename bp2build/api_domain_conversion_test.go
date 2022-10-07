@@ -60,7 +60,7 @@ func TestApiDomainContributionsTest(t *testing.T) {
 			"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
 		},
 	)
-	RunBp2BuildTestCase(t, registerApiDomainModuleTypes, Bp2buildTestCase{
+	RunApiBp2BuildTestCase(t, registerApiDomainModuleTypes, Bp2buildTestCase{
 		Blueprint:            bp,
 		ExpectedBazelTargets: []string{expectedBazelTarget},
 		Filesystem:           fs,

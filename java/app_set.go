@@ -90,10 +90,11 @@ func (as *AndroidAppSet) APKCertsFile() android.Path {
 }
 
 var TargetCpuAbi = map[string]string{
-	"arm":    "ARMEABI_V7A",
-	"arm64":  "ARM64_V8A",
-	"x86":    "X86",
-	"x86_64": "X86_64",
+	"arm":     "ARMEABI_V7A",
+	"arm64":   "ARM64_V8A",
+	"riscv64": "RISCV64",
+	"x86":     "X86",
+	"x86_64":  "X86_64",
 }
 
 func SupportedAbis(ctx android.ModuleContext) []string {

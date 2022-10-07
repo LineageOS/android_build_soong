@@ -15,6 +15,7 @@
 package cc
 
 import (
+	"encoding/json"
 	"path/filepath"
 	"testing"
 
@@ -734,5 +735,24 @@ func AssertExcludeFromRecoverySnapshotIs(t *testing.T, ctx *android.TestContext,
 	m := ctx.ModuleForTests(name, variant).Module().(LinkableInterface)
 	if m.ExcludeFromRecoverySnapshot() != expected {
 		t.Errorf("expected %q ExcludeFromRecoverySnapshot to be %t", m.String(), expected)
+	}
+}
+
+func checkOverrides(t *testing.T, ctx *android.TestContext, singleton android.TestingSingleton, jsonPath string, expected []string) {
+	t.Helper()
+	out := singleton.MaybeOutput(jsonPath)
+	content := android.ContentFromFileRuleForTests(t, out)
+
+	var flags snapshotJsonFlags
+	if err := json.Unmarshal([]byte(content), &flags); err != nil {
+		t.Errorf("Error while unmarshalling json %q: %s", jsonPath, err.Error())
+		return
+	}
+
+	for _, moduleName := range expected {
+		if !android.InList(moduleName, flags.Overrides) {
+			t.Errorf("expected %q to be in %q: %q", moduleName, flags.Overrides, content)
+			return
+		}
 	}
 }

@@ -118,5 +118,6 @@ type SnapshotJsonFlags struct {
 	CrateName           string `json:",omitempty"`
 
 	// dependencies
-	Required []string `json:",omitempty"`
+	Required  []string `json:",omitempty"`
+	Overrides []string `json:",omitempty"`
 }
