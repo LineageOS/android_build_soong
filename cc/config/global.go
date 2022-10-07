@@ -240,7 +240,6 @@ var (
 		// New warnings to be fixed after clang-r458507
 		"-Wno-error=unqualified-std-cast-call", // http://b/239662094
 		// New warnings to be fixed after clang-r468909
-		"-Wno-error=array-parameter",     // http://b/241941550
 		"-Wno-error=deprecated-builtins", // http://b/241601211
 		"-Wno-error=deprecated",          // in external/googletest/googletest
 	}
@@ -253,6 +252,8 @@ var (
 		"-Wno-bitwise-instead-of-logical",
 		// http://b/232926688
 		"-Wno-misleading-indentation",
+		// http://b/241941550
+		"-Wno-array-parameter",
 	}
 
 	// Extra cflags for external third-party projects to disable warnings that
