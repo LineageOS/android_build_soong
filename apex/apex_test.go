@@ -4098,6 +4098,76 @@ func TestApexName(t *testing.T) {
 	ensureNotContains(t, androidMk, "LOCAL_MODULE := mylib.com.android.myapex\n")
 }
 
+func TestCompileMultilibProp(t *testing.T) {
+	testCases := []struct {
+		compileMultiLibProp string
+		containedLibs       []string
+		notContainedLibs    []string
+	}{
+		{
+			containedLibs: []string{
+				"image.apex/lib64/mylib.so",
+				"image.apex/lib/mylib.so",
+			},
+			compileMultiLibProp: `compile_multilib: "both",`,
+		},
+		{
+			containedLibs:       []string{"image.apex/lib64/mylib.so"},
+			notContainedLibs:    []string{"image.apex/lib/mylib.so"},
+			compileMultiLibProp: `compile_multilib: "first",`,
+		},
+		{
+			containedLibs:    []string{"image.apex/lib64/mylib.so"},
+			notContainedLibs: []string{"image.apex/lib/mylib.so"},
+			// compile_multilib, when unset, should result to the same output as when compile_multilib is "first"
+		},
+		{
+			containedLibs:       []string{"image.apex/lib64/mylib.so"},
+			notContainedLibs:    []string{"image.apex/lib/mylib.so"},
+			compileMultiLibProp: `compile_multilib: "64",`,
+		},
+		{
+			containedLibs:       []string{"image.apex/lib/mylib.so"},
+			notContainedLibs:    []string{"image.apex/lib64/mylib.so"},
+			compileMultiLibProp: `compile_multilib: "32",`,
+		},
+	}
+	for _, testCase := range testCases {
+		ctx := testApex(t, fmt.Sprintf(`
+			apex {
+				name: "myapex",
+				key: "myapex.key",
+				%s
+				native_shared_libs: ["mylib"],
+				updatable: false,
+			}
+			apex_key {
+				name: "myapex.key",
+				public_key: "testkey.avbpubkey",
+				private_key: "testkey.pem",
+			}
+			cc_library {
+				name: "mylib",
+				srcs: ["mylib.cpp"],
+				apex_available: [
+					"//apex_available:platform",
+					"myapex",
+			],
+			}
+		`, testCase.compileMultiLibProp),
+		)
+		module := ctx.ModuleForTests("myapex", "android_common_myapex_image")
+		apexRule := module.Rule("apexRule")
+		copyCmds := apexRule.Args["copy_commands"]
+		for _, containedLib := range testCase.containedLibs {
+			ensureContains(t, copyCmds, containedLib)
+		}
+		for _, notContainedLib := range testCase.notContainedLibs {
+			ensureNotContains(t, copyCmds, notContainedLib)
+		}
+	}
+}
+
 func TestNonTestApex(t *testing.T) {
 	ctx := testApex(t, `
 		apex {
