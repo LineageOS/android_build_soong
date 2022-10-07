@@ -142,6 +142,10 @@ func (r *RuntimeResourceOverlay) GenerateAndroidBuildActions(ctx android.ModuleC
 		aaptLinkFlags = append(aaptLinkFlags,
 			"--rename-overlay-target-package "+*r.overridableProperties.Target_package_name)
 	}
+	if r.overridableProperties.Category != nil {
+		aaptLinkFlags = append(aaptLinkFlags,
+			"--rename-overlay-category "+*r.overridableProperties.Category)
+	}
 	r.aapt.buildActions(ctx, r, nil, nil, false, aaptLinkFlags...)
 
 	// Sign the built package
@@ -220,6 +224,9 @@ type OverridableRuntimeResourceOverlayProperties struct {
 
 	// the target package name of this overlay app. The target package name in the manifest file is used if one was not given.
 	Target_package_name *string
+
+	// the rro category of this overlay. The category in the manifest file is used if one was not given.
+	Category *string
 }
 
 type OverrideRuntimeResourceOverlay struct {

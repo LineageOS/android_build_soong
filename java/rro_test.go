@@ -201,6 +201,7 @@ func TestOverrideRuntimeResourceOverlay(t *testing.T) {
 			base: "foo_overlay",
 			package_name: "com.android.bar.overlay",
 			target_package_name: "com.android.bar",
+			category: "mycategory",
 		}
 		`)
 
@@ -212,6 +213,7 @@ func TestOverrideRuntimeResourceOverlay(t *testing.T) {
 		targetVariant     string
 		packageFlag       string
 		targetPackageFlag string
+		categoryFlag      string
 	}{
 		{
 			variantName:       "android_common",
@@ -228,6 +230,7 @@ func TestOverrideRuntimeResourceOverlay(t *testing.T) {
 			targetVariant:     "android_common_bar",
 			packageFlag:       "com.android.bar.overlay",
 			targetPackageFlag: "com.android.bar",
+			categoryFlag:      "mycategory",
 		},
 	}
 	for _, expected := range expectedVariants {
@@ -249,6 +252,7 @@ func TestOverrideRuntimeResourceOverlay(t *testing.T) {
 		checkAapt2LinkFlag(t, aapt2Flags, "rename-manifest-package", expected.packageFlag)
 		checkAapt2LinkFlag(t, aapt2Flags, "rename-resources-package", "")
 		checkAapt2LinkFlag(t, aapt2Flags, "rename-overlay-target-package", expected.targetPackageFlag)
+		checkAapt2LinkFlag(t, aapt2Flags, "rename-overlay-category", expected.categoryFlag)
 	}
 }
 
