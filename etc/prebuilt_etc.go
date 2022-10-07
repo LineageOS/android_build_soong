@@ -296,27 +296,37 @@ func (p *PrebuiltEtc) ExcludeFromRecoverySnapshot() bool {
 }
 
 func (p *PrebuiltEtc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	if p.properties.Src == nil {
-		ctx.PropertyErrorf("src", "missing prebuilt source file")
-		return
-	}
-	p.sourceFilePath = android.PathForModuleSrc(ctx, proptools.String(p.properties.Src))
-
-	// Determine the output file basename.
-	// If Filename is set, use the name specified by the property.
-	// If Filename_from_src is set, use the source file name.
-	// Otherwise use the module name.
 	filename := proptools.String(p.properties.Filename)
 	filenameFromSrc := proptools.Bool(p.properties.Filename_from_src)
-	if filename != "" {
-		if filenameFromSrc {
-			ctx.PropertyErrorf("filename_from_src", "filename is set. filename_from_src can't be true")
-			return
+	if p.properties.Src != nil {
+		p.sourceFilePath = android.PathForModuleSrc(ctx, proptools.String(p.properties.Src))
+
+		// Determine the output file basename.
+		// If Filename is set, use the name specified by the property.
+		// If Filename_from_src is set, use the source file name.
+		// Otherwise use the module name.
+		if filename != "" {
+			if filenameFromSrc {
+				ctx.PropertyErrorf("filename_from_src", "filename is set. filename_from_src can't be true")
+				return
+			}
+		} else if filenameFromSrc {
+			filename = p.sourceFilePath.Base()
+		} else {
+			filename = ctx.ModuleName()
 		}
-	} else if filenameFromSrc {
-		filename = p.sourceFilePath.Base()
+	} else if ctx.Config().AllowMissingDependencies() {
+		// If no srcs was set and AllowMissingDependencies is enabled then
+		// mark the module as missing dependencies and set a fake source path
+		// and file name.
+		ctx.AddMissingDependencies([]string{"MISSING_PREBUILT_SRC_FILE"})
+		p.sourceFilePath = android.PathForModuleSrc(ctx)
+		if filename == "" {
+			filename = ctx.ModuleName()
+		}
 	} else {
-		filename = ctx.ModuleName()
+		ctx.PropertyErrorf("src", "missing prebuilt source file")
+		return
 	}
 	p.outputFilePath = android.PathForModuleOut(ctx, filename).OutputPath
 

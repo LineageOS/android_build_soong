@@ -67,7 +67,6 @@ func ApiDomainFactory() Module {
 	m := &apiDomain{}
 	m.AddProperties(&m.properties)
 	InitAndroidArchModule(m, DeviceSupported, MultilibBoth)
-	InitBazelModule(m)
 	return m
 }
 
@@ -108,7 +107,9 @@ type bazelApiDomainAttributes struct {
 	Cc_api_contributions bazel.LabelListAttribute
 }
 
-func (a *apiDomain) ConvertWithBp2build(ctx TopDownMutatorContext) {
+var _ ApiProvider = (*apiDomain)(nil)
+
+func (a *apiDomain) ConvertWithApiBp2build(ctx TopDownMutatorContext) {
 	props := bazel.BazelTargetModuleProperties{
 		Rule_class:        "api_domain",
 		Bzl_load_location: "//build/bazel/rules/apis:api_domain.bzl",

@@ -103,6 +103,7 @@ type fuzzBinary struct {
 	*baseCompiler
 	fuzzPackagedModule  fuzz.FuzzPackagedModule
 	installedSharedDeps []string
+	sharedLibraries     android.Paths
 }
 
 func (fuzz *fuzzBinary) fuzzBinary() bool {
@@ -140,13 +141,6 @@ func (fuzz *fuzzBinary) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 	flags.Local.LdFlags = append(flags.Local.LdFlags, `-Wl,-rpath,\$$ORIGIN/lib`)
 
 	return flags
-}
-
-func UnstrippedOutputFile(module android.Module) android.Path {
-	if mod, ok := module.(LinkableInterface); ok {
-		return mod.UnstrippedOutputFile()
-	}
-	panic("UnstrippedOutputFile called on non-LinkableInterface module: " + module.Name())
 }
 
 // IsValidSharedDependency takes a module and determines if it is a unique shared library
@@ -270,22 +264,9 @@ func (fuzzBin *fuzzBinary) install(ctx ModuleContext, file android.Path) {
 	}
 
 	// Grab the list of required shared libraries.
-	seen := make(map[string]bool)
-	var sharedLibraries android.Paths
-	ctx.WalkDeps(func(child, parent android.Module) bool {
-		if seen[child.Name()] {
-			return false
-		}
-		seen[child.Name()] = true
+	fuzzBin.sharedLibraries = CollectAllSharedDependencies(ctx)
 
-		if IsValidSharedDependency(child) {
-			sharedLibraries = append(sharedLibraries, child.(*Module).UnstrippedOutputFile())
-			return true
-		}
-		return false
-	})
-
-	for _, lib := range sharedLibraries {
+	for _, lib := range fuzzBin.sharedLibraries {
 		fuzzBin.installedSharedDeps = append(fuzzBin.installedSharedDeps,
 			sharedLibraryInstallLocation(
 				lib, ctx.Host(), installBase, ctx.Arch().ArchType.String()))
@@ -412,9 +393,6 @@ func (s *ccFuzzPackager) GenerateBuildActions(ctx android.SingletonContext) {
 		archDir := android.PathForIntermediates(ctx, intermediatePath, hostOrTargetString, archString)
 		archOs := fuzz.ArchOs{HostOrTarget: hostOrTargetString, Arch: archString, Dir: archDir.String()}
 
-		// Grab the list of required shared libraries.
-		sharedLibraries := fuzz.CollectAllSharedDependencies(ctx, module, UnstrippedOutputFile, IsValidSharedDependency)
-
 		var files []fuzz.FileToZip
 		builder := android.NewRuleBuilder(pctx, ctx)
 
@@ -422,10 +400,10 @@ func (s *ccFuzzPackager) GenerateBuildActions(ctx android.SingletonContext) {
 		files = s.PackageArtifacts(ctx, module, fpm, archDir, builder)
 
 		// Package shared libraries
-		files = append(files, GetSharedLibsToZip(sharedLibraries, ccModule, &s.FuzzPackager, archString, sharedLibsInstallDirPrefix, &sharedLibraryInstalled)...)
+		files = append(files, GetSharedLibsToZip(fuzzModule.sharedLibraries, ccModule, &s.FuzzPackager, archString, sharedLibsInstallDirPrefix, &sharedLibraryInstalled)...)
 
 		// The executable.
-		files = append(files, fuzz.FileToZip{ccModule.UnstrippedOutputFile(), ""})
+		files = append(files, fuzz.FileToZip{android.OutputFileForModule(ctx, ccModule, "unstripped"), ""})
 
 		archDirs[archOs], ok = s.BuildZipFile(ctx, module, fpm, files, builder, archDir, archString, hostOrTargetString, archOs, archDirs)
 		if !ok {
@@ -493,4 +471,47 @@ func GetSharedLibsToZip(sharedLibraries android.Paths, module LinkableInterface,
 		}
 	}
 	return files
+}
+
+// CollectAllSharedDependencies search over the provided module's dependencies using
+// VisitDirectDeps and WalkDeps to enumerate all shared library dependencies.
+// VisitDirectDeps is used first to avoid incorrectly using the core libraries (sanitizer
+// runtimes, libc, libdl, etc.) from a dependency. This may cause issues when dependencies
+// have explicit sanitizer tags, as we may get a dependency on an unsanitized libc, etc.
+func CollectAllSharedDependencies(ctx android.ModuleContext) android.Paths {
+	seen := make(map[string]bool)
+	recursed := make(map[string]bool)
+
+	var sharedLibraries android.Paths
+
+	// Enumerate the first level of dependencies, as we discard all non-library
+	// modules in the BFS loop below.
+	ctx.VisitDirectDeps(func(dep android.Module) {
+		if !IsValidSharedDependency(dep) {
+			return
+		}
+		if seen[ctx.OtherModuleName(dep)] {
+			return
+		}
+		seen[ctx.OtherModuleName(dep)] = true
+		sharedLibraries = append(sharedLibraries, android.OutputFileForModule(ctx, dep, "unstripped"))
+	})
+
+	ctx.WalkDeps(func(child, parent android.Module) bool {
+		if !IsValidSharedDependency(child) {
+			return false
+		}
+		if !seen[ctx.OtherModuleName(child)] {
+			seen[ctx.OtherModuleName(child)] = true
+			sharedLibraries = append(sharedLibraries, android.OutputFileForModule(ctx, child, "unstripped"))
+		}
+
+		if recursed[ctx.OtherModuleName(child)] {
+			return false
+		}
+		recursed[ctx.OtherModuleName(child)] = true
+		return true
+	})
+
+	return sharedLibraries
 }

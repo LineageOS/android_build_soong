@@ -173,7 +173,9 @@ func createCcApiHeadersTarget(ctx android.TopDownMutatorContext, includes []stri
 	}, attrs)
 }
 
-func (h *headerModule) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+var _ android.ApiProvider = (*headerModule)(nil)
+
+func (h *headerModule) ConvertWithApiBp2build(ctx android.TopDownMutatorContext) {
 	// Generate `cc_api_headers` target for Multi-tree API export
 	createCcApiHeadersTarget(ctx, h.properties.Srcs, h.properties.Exclude_srcs, h.properties.From)
 }
@@ -192,7 +194,6 @@ func ndkHeadersFactory() android.Module {
 	module := &headerModule{}
 	module.AddProperties(&module.properties)
 	android.InitAndroidModule(module)
-	android.InitBazelModule(module)
 	return module
 }
 
@@ -263,7 +264,9 @@ func (m *versionedHeaderModule) GenerateAndroidBuildActions(ctx android.ModuleCo
 	processHeadersWithVersioner(ctx, fromSrcPath, toOutputPath, srcFiles, installPaths)
 }
 
-func (h *versionedHeaderModule) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+var _ android.ApiProvider = (*versionedHeaderModule)(nil)
+
+func (h *versionedHeaderModule) ConvertWithApiBp2build(ctx android.TopDownMutatorContext) {
 	// Glob all .h files under `From`
 	includePattern := headerGlobPattern(proptools.String(h.properties.From))
 	// Generate `cc_api_headers` target for Multi-tree API export
@@ -319,7 +322,6 @@ func versionedNdkHeadersFactory() android.Module {
 	module.AddProperties(&module.properties)
 
 	android.InitAndroidModule(module)
-	android.InitBazelModule(module)
 
 	return module
 }

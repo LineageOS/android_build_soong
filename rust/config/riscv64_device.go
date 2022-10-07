@@ -25,7 +25,7 @@ var (
 	Riscv64ArchFeatureRustFlags = map[string][]string{"": {}}
 	Riscv64LinkFlags            = []string{}
 
-	Riscv64ArchVariantRustFlags = map[string][]string{}
+	Riscv64ArchVariantRustFlags = map[string][]string{"": {}}
 )
 
 func init() {
