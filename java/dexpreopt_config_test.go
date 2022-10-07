@@ -15,7 +15,6 @@
 package java
 
 import (
-	"log"
 	"runtime"
 	"testing"
 
@@ -24,8 +23,7 @@ import (
 
 func TestBootImageConfig(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		log.Printf("Skipping as boot image config test is only supported on linux not %s", runtime.GOOS)
-		return
+		t.Skipf("Skipping as boot image config test is only supported on linux not %s", runtime.GOOS)
 	}
 
 	result := android.GroupFixturePreparers(
