@@ -22,6 +22,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/bazel"
+	"android/soong/bazel/cquery"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
@@ -237,6 +238,35 @@ func (bpf *bpf) AndroidMk() android.AndroidMkData {
 			fmt.Fprintln(w, "include $(BUILD_PHONY_PACKAGE)")
 		},
 	}
+}
+
+var _ android.MixedBuildBuildable = (*bpf)(nil)
+
+func (bpf *bpf) IsMixedBuildSupported(ctx android.BaseModuleContext) bool {
+	return true
+}
+
+func (bpf *bpf) QueueBazelCall(ctx android.BaseModuleContext) {
+	bazelCtx := ctx.Config().BazelContext
+	bazelCtx.QueueBazelRequest(
+		bpf.GetBazelLabel(ctx, bpf),
+		cquery.GetOutputFiles,
+		android.GetConfigKey(ctx))
+}
+
+func (bpf *bpf) ProcessBazelQueryResponse(ctx android.ModuleContext) {
+	bazelCtx := ctx.Config().BazelContext
+	objPaths, err := bazelCtx.GetOutputFiles(bpf.GetBazelLabel(ctx, bpf), android.GetConfigKey(ctx))
+	if err != nil {
+		ctx.ModuleErrorf(err.Error())
+		return
+	}
+
+	bazelOuts := android.Paths{}
+	for _, p := range objPaths {
+		bazelOuts = append(bazelOuts, android.PathForBazelOut(ctx, p))
+	}
+	bpf.objs = bazelOuts
 }
 
 // Implements OutputFileFileProducer interface so that the obj output can be used in the data property
