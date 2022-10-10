@@ -73,9 +73,9 @@ func ApiDomainFactory() Module {
 func (a *apiDomain) DepsMutator(ctx BottomUpMutatorContext) {
 	for _, cc := range a.properties.Cc_api_contributions {
 		// Use FarVariationDependencies since the variants of api_domain is a subset of the variants of the dependency cc module
-		// Creating a dependency on the first variant is ok since this is a no-op in Soong
+		// Creating a dependency on the first variant that matches (os,arch) is ok since this is a no-op in Soong
 		// The primary function of this dependency is to create a connected graph in the corresponding bp2build workspace
-		ctx.AddFarVariationDependencies([]blueprint.Variation{}, nil, cc)
+		ctx.AddFarVariationDependencies(ctx.Target().Variations(), nil, cc)
 	}
 }
 
