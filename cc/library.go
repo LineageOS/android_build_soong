@@ -289,6 +289,16 @@ type stripAttributes struct {
 	None                         bazel.BoolAttribute
 }
 
+func stripAttrsFromLinkerAttrs(la *linkerAttributes) stripAttributes {
+	return stripAttributes{
+		Keep_symbols:                 la.stripKeepSymbols,
+		Keep_symbols_and_debug_frame: la.stripKeepSymbolsAndDebugFrame,
+		Keep_symbols_list:            la.stripKeepSymbolsList,
+		All:                          la.stripAll,
+		None:                         la.stripNone,
+	}
+}
+
 func libraryBp2Build(ctx android.TopDownMutatorContext, m *Module) {
 	// For some cc_library modules, their static variants are ready to be
 	// converted, but not their shared variants. For these modules, delegate to
@@ -395,13 +405,7 @@ func libraryBp2Build(ctx android.TopDownMutatorContext, m *Module) {
 
 		Additional_linker_inputs: linkerAttrs.additionalLinkerInputs,
 
-		Strip: stripAttributes{
-			Keep_symbols:                 linkerAttrs.stripKeepSymbols,
-			Keep_symbols_and_debug_frame: linkerAttrs.stripKeepSymbolsAndDebugFrame,
-			Keep_symbols_list:            linkerAttrs.stripKeepSymbolsList,
-			All:                          linkerAttrs.stripAll,
-			None:                         linkerAttrs.stripNone,
-		},
+		Strip:    stripAttrsFromLinkerAttrs(&linkerAttrs),
 		Features: baseAttributes.features,
 	}
 
@@ -2839,13 +2843,7 @@ func sharedOrStaticLibraryBp2Build(ctx android.TopDownMutatorContext, module *Mo
 			Absolute_includes:        compilerAttrs.absoluteIncludes,
 			Additional_linker_inputs: linkerAttrs.additionalLinkerInputs,
 
-			Strip: stripAttributes{
-				Keep_symbols:                 linkerAttrs.stripKeepSymbols,
-				Keep_symbols_and_debug_frame: linkerAttrs.stripKeepSymbolsAndDebugFrame,
-				Keep_symbols_list:            linkerAttrs.stripKeepSymbolsList,
-				All:                          linkerAttrs.stripAll,
-				None:                         linkerAttrs.stripNone,
-			},
+			Strip: stripAttrsFromLinkerAttrs(&linkerAttrs),
 
 			Features: baseAttributes.features,
 
