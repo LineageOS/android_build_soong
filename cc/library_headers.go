@@ -15,6 +15,8 @@
 package cc
 
 import (
+	"github.com/google/blueprint/proptools"
+
 	"android/soong/android"
 	"android/soong/bazel"
 	"android/soong/bazel/cquery"
@@ -144,4 +146,119 @@ func libraryHeadersBp2Build(ctx android.TopDownMutatorContext, module *Module) {
 	}
 
 	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: module.Name()}, attrs)
+}
+
+// Append .contribution suffix to input labels
+func apiBazelTargets(ll bazel.LabelList) bazel.LabelList {
+	labels := make([]bazel.Label, 0)
+	for _, l := range ll.Includes {
+		labels = append(labels, bazel.Label{
+			Label: android.ApiContributionTargetName(l.Label),
+		})
+	}
+	return bazel.MakeLabelList(labels)
+}
+
+func apiLibraryHeadersBp2Build(ctx android.TopDownMutatorContext, module *Module) {
+	// cc_api_library_headers have a 1:1 mapping to arch/no-arch
+	// For API export, create a top-level arch-agnostic target and list the arch-specific targets as its deps
+
+	// arch-agnostic includes
+	apiIncludes := getSystemApiIncludes(ctx, module)
+	// arch and os specific includes
+	archApiIncludes, androidOsIncludes := archOsSpecificApiIncludes(ctx, module)
+	for _, arch := range allArches { // sorted iteration
+		archApiInclude := archApiIncludes[arch]
+		if !archApiInclude.isEmpty() {
+			createApiHeaderTarget(ctx, archApiInclude)
+			apiIncludes.addDep(archApiInclude.name)
+		}
+	}
+	// os==android includes
+	if !androidOsIncludes.isEmpty() {
+		createApiHeaderTarget(ctx, androidOsIncludes)
+		apiIncludes.addDep(androidOsIncludes.name)
+	}
+
+	if !apiIncludes.isEmpty() {
+		// override the name from <mod>.systemapi.headers --> <mod>.contribution
+		apiIncludes.name = android.ApiContributionTargetName(module.Name())
+		createApiHeaderTarget(ctx, apiIncludes)
+	}
+}
+
+func createApiHeaderTarget(ctx android.TopDownMutatorContext, includes apiIncludes) {
+	props := bazel.BazelTargetModuleProperties{
+		Rule_class:        "cc_api_library_headers",
+		Bzl_load_location: "//build/bazel/rules/apis:cc_api_contribution.bzl",
+	}
+	ctx.CreateBazelTargetModule(
+		props,
+		android.CommonAttributes{
+			Name:     includes.name,
+			SkipData: proptools.BoolPtr(true),
+		},
+		&includes.attrs,
+	)
+}
+
+var (
+	allArches = []string{"arm", "arm64", "x86", "x86_64"}
+)
+
+type archApiIncludes map[string]apiIncludes
+
+func archOsSpecificApiIncludes(ctx android.TopDownMutatorContext, module *Module) (archApiIncludes, apiIncludes) {
+	baseProps := bp2BuildParseBaseProps(ctx, module)
+	i := bp2BuildParseExportedIncludes(ctx, module, &baseProps.includes)
+	archRet := archApiIncludes{}
+	for _, arch := range allArches {
+		includes := i.Includes.SelectValue(
+			bazel.ArchConfigurationAxis,
+			arch)
+		systemIncludes := i.SystemIncludes.SelectValue(
+			bazel.ArchConfigurationAxis,
+			arch)
+		deps := baseProps.deps.SelectValue(
+			bazel.ArchConfigurationAxis,
+			arch)
+		attrs := bazelCcLibraryHeadersAttributes{
+			Export_includes:        bazel.MakeStringListAttribute(includes),
+			Export_system_includes: bazel.MakeStringListAttribute(systemIncludes),
+		}
+		apiDeps := apiBazelTargets(deps)
+		if !apiDeps.IsEmpty() {
+			attrs.Deps = bazel.MakeLabelListAttribute(apiDeps)
+		}
+		apiIncludes := apiIncludes{
+			name: android.ApiContributionTargetName(module.Name()) + "." + arch,
+			attrs: bazelCcApiLibraryHeadersAttributes{
+				bazelCcLibraryHeadersAttributes: attrs,
+				Arch:                            proptools.StringPtr(arch),
+			},
+		}
+		archRet[arch] = apiIncludes
+	}
+
+	// apiIncludes for os == Android
+	androidOsDeps := baseProps.deps.SelectValue(bazel.OsConfigurationAxis, bazel.OsAndroid)
+	androidOsAttrs := bazelCcLibraryHeadersAttributes{
+		Export_includes: bazel.MakeStringListAttribute(
+			i.Includes.SelectValue(bazel.OsConfigurationAxis, bazel.OsAndroid),
+		),
+		Export_system_includes: bazel.MakeStringListAttribute(
+			i.SystemIncludes.SelectValue(bazel.OsConfigurationAxis, bazel.OsAndroid),
+		),
+	}
+	androidOsApiDeps := apiBazelTargets(androidOsDeps)
+	if !androidOsApiDeps.IsEmpty() {
+		androidOsAttrs.Deps = bazel.MakeLabelListAttribute(androidOsApiDeps)
+	}
+	osRet := apiIncludes{
+		name: android.ApiContributionTargetName(module.Name()) + ".androidos",
+		attrs: bazelCcApiLibraryHeadersAttributes{
+			bazelCcLibraryHeadersAttributes: androidOsAttrs,
+		},
+	}
+	return archRet, osRet
 }
