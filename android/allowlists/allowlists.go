@@ -190,7 +190,7 @@ var (
 		"frameworks/native/opengl/tests/testPauseResume":     Bp2BuildDefaultTrue,
 		"frameworks/native/opengl/tests/testViewport":        Bp2BuildDefaultTrue,
 		"frameworks/native/services/batteryservice":          Bp2BuildDefaultTrue,
-		"frameworks/proto_logging/stats/stats_log_api_gen":   Bp2BuildDefaultTrueRecursively,
+		"frameworks/proto_logging/stats":                     Bp2BuildDefaultTrueRecursively,
 
 		"hardware/interfaces":                          Bp2BuildDefaultTrue,
 		"hardware/interfaces/common/aidl":              Bp2BuildDefaultTrue,
@@ -317,8 +317,6 @@ var (
 		"system/tools/aidl/build/tests_bp2build":                 Bp2BuildDefaultTrue,
 		"system/tools/sysprop":                                   Bp2BuildDefaultTrue,
 		"system/unwinding/libunwindstack":                        Bp2BuildDefaultTrueRecursively,
-
-		"frameworks/proto_logging/stats": Bp2BuildDefaultTrueRecursively,
 
 		"tools/apksig": Bp2BuildDefaultTrue,
 		"tools/platform-compat/java/android/compat":  Bp2BuildDefaultTrueRecursively,
@@ -471,6 +469,9 @@ var (
 		"libstagefright_bufferpool@2.0",
 		"libstagefright_bufferpool@2.0.1",
 		"libSurfaceFlingerProp",
+
+		// prebuilts
+		"prebuilt_stats-log-api-gen",
 
 		// fastboot
 		"bootimg_headers",
