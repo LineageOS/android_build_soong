@@ -3751,7 +3751,18 @@ func (c *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 var _ android.ApiProvider = (*Module)(nil)
 
 func (c *Module) ConvertWithApiBp2build(ctx android.TopDownMutatorContext) {
+	if c.IsPrebuilt() {
+		return
+	}
 	switch c.typ() {
+	case fullLibrary:
+		apiContributionBp2Build(ctx, c)
+	case sharedLibrary:
+		apiContributionBp2Build(ctx, c)
+	case headerLibrary:
+		// Aggressively generate api targets for all header modules
+		// This is necessary since the header module does not know if it is a dep of API surface stub library
+		apiLibraryHeadersBp2Build(ctx, c)
 	case ndkLibrary:
 		ndkLibraryBp2build(ctx, c)
 	}

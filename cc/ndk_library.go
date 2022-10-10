@@ -581,12 +581,12 @@ type bazelCcApiContributionAttributes struct {
 }
 
 // Names of the cc_api_header targets in the bp2build workspace
-func (s *stubDecorator) apiHeaderLabels(ctx android.TopDownMutatorContext) bazel.LabelList {
+func apiHeaderLabels(ctx android.TopDownMutatorContext, hdrLibs []string) bazel.LabelList {
 	addSuffix := func(ctx android.BazelConversionPathContext, module blueprint.Module) string {
 		label := android.BazelModuleLabel(ctx, module)
 		return android.ApiContributionTargetName(label)
 	}
-	return android.BazelLabelForModuleDepsWithFn(ctx, s.properties.Export_header_libs, addSuffix)
+	return android.BazelLabelForModuleDepsWithFn(ctx, hdrLibs, addSuffix)
 }
 
 func ndkLibraryBp2build(ctx android.TopDownMutatorContext, m *Module) {
@@ -604,7 +604,7 @@ func ndkLibraryBp2build(ctx android.TopDownMutatorContext, m *Module) {
 		apiLabel := android.BazelLabelForModuleSrcSingle(ctx, proptools.String(symbolFile)).Label
 		attrs.Api = *bazel.MakeLabelAttribute(apiLabel)
 	}
-	apiHeaders := stubLibrary.apiHeaderLabels(ctx)
+	apiHeaders := apiHeaderLabels(ctx, stubLibrary.properties.Export_header_libs)
 	attrs.Hdrs = bazel.MakeLabelListAttribute(apiHeaders)
 	apiContributionTargetName := android.ApiContributionTargetName(ctx.ModuleName())
 	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: apiContributionTargetName}, attrs)

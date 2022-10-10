@@ -123,6 +123,69 @@ cc_library_headers {
 	})
 }
 
+func TestCcApiHeaders(t *testing.T) {
+	fs := map[string]string{
+		"bar/Android.bp": `cc_library_headers { name: "bar_headers", }`,
+	}
+	bp := `
+	cc_library_headers {
+		name: "foo_headers",
+		export_include_dirs: ["dir1", "dir2"],
+		export_header_lib_headers: ["bar_headers"],
+
+		arch: {
+			arm: {
+				export_include_dirs: ["dir_arm"],
+			},
+			x86: {
+				export_include_dirs: ["dir_x86"],
+			},
+		},
+
+		target: {
+			android: {
+				export_include_dirs: ["dir1", "dir_android"],
+			},
+			windows: {
+				export_include_dirs: ["dir_windows"],
+			},
+		}
+	}
+	`
+	expectedBazelTargets := []string{
+		MakeBazelTarget("cc_api_library_headers", "foo_headers.contribution.arm", AttrNameToString{
+			"export_includes": `["dir_arm"]`,
+			"arch":            `"arm"`,
+		}),
+		MakeBazelTarget("cc_api_library_headers", "foo_headers.contribution.x86", AttrNameToString{
+			"export_includes": `["dir_x86"]`,
+			"arch":            `"x86"`,
+		}),
+		MakeBazelTarget("cc_api_library_headers", "foo_headers.contribution.androidos", AttrNameToString{
+			"export_includes": `["dir_android"]`, // common includes are deduped
+		}),
+		// Windows headers are not exported
+		MakeBazelTarget("cc_api_library_headers", "foo_headers.contribution", AttrNameToString{
+			"export_includes": `[
+        "dir1",
+        "dir2",
+    ]`,
+			"deps": `[
+        "//bar:bar_headers.contribution",
+        ":foo_headers.contribution.arm",
+        ":foo_headers.contribution.x86",
+        ":foo_headers.contribution.androidos",
+    ]`,
+		}),
+	}
+	RunApiBp2BuildTestCase(t, cc.RegisterLibraryHeadersBuildComponents, Bp2buildTestCase{
+		Blueprint:            bp,
+		Description:          "Header library contributions to API surfaces",
+		ExpectedBazelTargets: expectedBazelTargets,
+		Filesystem:           fs,
+	})
+}
+
 func TestCcLibraryHeadersOsSpecificHeader(t *testing.T) {
 	runCcLibraryHeadersTestCase(t, Bp2buildTestCase{
 		Description:                "cc_library_headers test with os-specific header_libs props",
