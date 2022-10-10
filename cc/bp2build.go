@@ -169,6 +169,14 @@ func maybePartitionExportedAndImplementationsDepsExcludes(ctx android.BazelConve
 	}
 }
 
+func bp2BuildPropParseHelper(ctx android.ArchVariantContext, module *Module, propsType interface{}, parseFunc func(axis bazel.ConfigurationAxis, config string, props interface{})) {
+	for axis, configToProps := range module.GetArchVariantProperties(ctx, propsType) {
+		for config, props := range configToProps {
+			parseFunc(axis, config, props)
+		}
+	}
+}
+
 // Parses properties common to static and shared libraries. Also used for prebuilt libraries.
 func bp2buildParseStaticOrSharedProps(ctx android.BazelConversionPathContext, module *Module, lib *libraryDecorator, isStatic bool) staticOrSharedAttributes {
 	attrs := staticOrSharedAttributes{}
@@ -227,32 +235,30 @@ type prebuiltAttributes struct {
 	Enabled bazel.BoolAttribute
 }
 
+func parseSrc(ctx android.BazelConversionPathContext, srcLabelAttribute *bazel.LabelAttribute, axis bazel.ConfigurationAxis, config string, srcs []string) {
+	srcFileError := func() {
+		ctx.ModuleErrorf("parseSrc: Expected at most one source file for %s %s\n", axis, config)
+	}
+	if len(srcs) > 1 {
+		srcFileError()
+		return
+	} else if len(srcs) == 0 {
+		return
+	}
+	if srcLabelAttribute.SelectValue(axis, config) != nil {
+		srcFileError()
+		return
+	}
+	srcLabelAttribute.SetSelectValue(axis, config, android.BazelLabelForModuleSrcSingle(ctx, srcs[0]))
+}
+
 // NOTE: Used outside of Soong repo project, in the clangprebuilts.go bootstrap_go_package
 func Bp2BuildParsePrebuiltLibraryProps(ctx android.BazelConversionPathContext, module *Module, isStatic bool) prebuiltAttributes {
-	manySourceFileError := func(axis bazel.ConfigurationAxis, config string) {
-		ctx.ModuleErrorf("Bp2BuildParsePrebuiltLibraryProps: Expected at most one source file for %s %s\n", axis, config)
-	}
+
 	var srcLabelAttribute bazel.LabelAttribute
-
-	parseSrcs := func(ctx android.BazelConversionPathContext, axis bazel.ConfigurationAxis, config string, srcs []string) {
-		if len(srcs) > 1 {
-			manySourceFileError(axis, config)
-			return
-		} else if len(srcs) == 0 {
-			return
-		}
-		if srcLabelAttribute.SelectValue(axis, config) != nil {
-			manySourceFileError(axis, config)
-			return
-		}
-
-		src := android.BazelLabelForModuleSrcSingle(ctx, srcs[0])
-		srcLabelAttribute.SetSelectValue(axis, config, src)
-	}
-
 	bp2BuildPropParseHelper(ctx, module, &prebuiltLinkerProperties{}, func(axis bazel.ConfigurationAxis, config string, props interface{}) {
 		if prebuiltLinkerProperties, ok := props.(*prebuiltLinkerProperties); ok {
-			parseSrcs(ctx, axis, config, prebuiltLinkerProperties.Srcs)
+			parseSrc(ctx, &srcLabelAttribute, axis, config, prebuiltLinkerProperties.Srcs)
 		}
 	})
 
@@ -261,7 +267,7 @@ func Bp2BuildParsePrebuiltLibraryProps(ctx android.BazelConversionPathContext, m
 		if props.Enabled != nil {
 			enabledLabelAttribute.SetSelectValue(axis, config, props.Enabled)
 		}
-		parseSrcs(ctx, axis, config, props.Srcs)
+		parseSrc(ctx, &srcLabelAttribute, axis, config, props.Srcs)
 	}
 
 	if isStatic {
@@ -284,11 +290,16 @@ func Bp2BuildParsePrebuiltLibraryProps(ctx android.BazelConversionPathContext, m
 	}
 }
 
-func bp2BuildPropParseHelper(ctx android.ArchVariantContext, module *Module, propsType interface{}, parseFunc func(axis bazel.ConfigurationAxis, config string, props interface{})) {
-	for axis, configToProps := range module.GetArchVariantProperties(ctx, propsType) {
-		for config, props := range configToProps {
-			parseFunc(axis, config, props)
+func bp2BuildParsePrebuiltBinaryProps(ctx android.BazelConversionPathContext, module *Module) prebuiltAttributes {
+	var srcLabelAttribute bazel.LabelAttribute
+	bp2BuildPropParseHelper(ctx, module, &prebuiltLinkerProperties{}, func(axis bazel.ConfigurationAxis, config string, props interface{}) {
+		if props, ok := props.(*prebuiltLinkerProperties); ok {
+			parseSrc(ctx, &srcLabelAttribute, axis, config, props.Srcs)
 		}
+	})
+
+	return prebuiltAttributes{
+		Src: srcLabelAttribute,
 	}
 }
 
