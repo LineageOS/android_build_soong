@@ -188,9 +188,9 @@ func (r *robolectricTest) GenerateAndroidBuildActions(ctx android.ModuleContext)
 
 	// TODO: this could all be removed if tradefed was used as the test runner, it will find everything
 	// annotated as a test and run it.
-	for _, src := range r.compiledJavaSrcs {
+	for _, src := range r.uniqueSrcFiles {
 		s := src.Rel()
-		if !strings.HasSuffix(s, "Test.java") {
+		if !strings.HasSuffix(s, "Test.java") && !strings.HasSuffix(s, "Test.kt") {
 			continue
 		} else if strings.HasSuffix(s, "/BaseRobolectricTest.java") {
 			continue
