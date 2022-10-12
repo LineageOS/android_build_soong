@@ -189,16 +189,6 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 		}
 	}
 
-	// TODO:(b/178369775)
-	// For now sanitizing is only supported on devices
-	if ctx.Os() == android.Android && Bool(s.Fuzzer) {
-		sanitize.Properties.SanitizerEnabled = true
-	}
-
-	if ctx.Os() == android.Android && Bool(s.Address) {
-		sanitize.Properties.SanitizerEnabled = true
-	}
-
 	// HWASan requires AArch64 hardware feature (top-byte-ignore).
 	if ctx.Arch().ArchType != android.Arm64 || !ctx.Os().Bionic() {
 		s.Hwaddress = nil
@@ -219,7 +209,9 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 		s.Memtag_heap = nil
 	}
 
-	if ctx.Os() == android.Android && (Bool(s.Hwaddress) || Bool(s.Address) || Bool(s.Memtag_heap)) {
+	// TODO:(b/178369775)
+	// For now sanitizing is only supported on devices
+	if ctx.Os() == android.Android && (Bool(s.Hwaddress) || Bool(s.Address) || Bool(s.Memtag_heap) || Bool(s.Fuzzer)) {
 		sanitize.Properties.SanitizerEnabled = true
 	}
 }
