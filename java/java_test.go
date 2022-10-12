@@ -588,8 +588,8 @@ func TestPrebuilts(t *testing.T) {
 	sdklibStubsJar := ctx.ModuleForTests("sdklib.stubs", "android_common").Rule("combineJar").Output
 
 	fooLibrary := fooModule.Module().(*Library)
-	assertDeepEquals(t, "foo java sources incorrect",
-		[]string{"a.java"}, fooLibrary.compiledJavaSrcs.Strings())
+	assertDeepEquals(t, "foo unique sources incorrect",
+		[]string{"a.java"}, fooLibrary.uniqueSrcFiles.Strings())
 
 	assertDeepEquals(t, "foo java source jars incorrect",
 		[]string{".intermediates/stubs-source/android_common/stubs-source-stubs.srcjar"},
