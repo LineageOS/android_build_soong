@@ -683,3 +683,27 @@ cc_prebuilt_binary {
 }`
 	testCcError(t, `Android.bp:4:6: module "bintest" variant "android_arm64_armv8-a": srcs: multiple prebuilt source files`, bp)
 }
+
+func TestPrebuiltBinaryWithBazel(t *testing.T) {
+	const bp = `
+cc_prebuilt_binary {
+	name: "bintest",
+	srcs: ["bin"],
+	bazel_module: { label: "//bin/foo:foo" },
+}`
+	const outBaseDir = "outputbase"
+	const expectedOut = outBaseDir + "/execroot/__main__/bin"
+	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
+	config.BazelContext = android.MockBazelContext{
+		OutputBaseDir:      outBaseDir,
+		LabelToOutputFiles: map[string][]string{"//bin/foo:foo": []string{"bin"}},
+	}
+	ctx := testCcWithConfig(t, config)
+	bin := ctx.ModuleForTests("bintest", "android_arm64_armv8-a").Module().(*Module)
+	out := bin.OutputFile()
+	if !out.Valid() {
+		t.Error("Invalid output file")
+		return
+	}
+	android.AssertStringEquals(t, "output file", expectedOut, out.String())
+}
