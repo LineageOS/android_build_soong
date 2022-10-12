@@ -564,11 +564,6 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 		s.Scudo = nil
 	}
 
-	if Bool(s.Undefined) || Bool(s.All_undefined) || len(s.Misc_undefined) > 0 {
-		// TODO(b/251249010): re-enable Hwaddress with UBSan once fixed.
-		s.Hwaddress = nil
-	}
-
 	if Bool(s.Hwaddress) {
 		s.Address = nil
 		s.Thread = nil
