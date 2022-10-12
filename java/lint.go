@@ -473,19 +473,22 @@ func (l *linter) lint(ctx android.ModuleContext) {
 
 	cmd.FlagWithOutput("--write-reference-baseline ", baseline)
 
-	cmd.Text("|| (").Text("if [ -e").Input(text).Text("]; then cat").Input(text).Text("; fi; exit 7)")
+	cmd.Text("; EXITCODE=$?; ")
+
+	// The sources in the sandbox may have been modified by --apply-suggestions, zip them up and
+	// export them out of the sandbox.  Do this before exiting so that the suggestions exit even after
+	// a fatal error.
+	cmd.BuiltTool("soong_zip").
+		FlagWithOutput("-o ", android.PathForModuleOut(ctx, "lint", "suggested-fixes.zip")).
+		FlagWithArg("-C ", cmd.PathForInput(android.PathForSource(ctx))).
+		FlagWithInput("-r ", srcsList)
+
+	cmd.Text("; if [ $EXITCODE != 0 ]; then if [ -e").Input(text).Text("]; then cat").Input(text).Text("; fi; exit $EXITCODE; fi")
 
 	rule.Command().Text("rm -rf").Flag(lintPaths.cacheDir.String()).Flag(lintPaths.homeDir.String())
 
 	// The HTML output contains a date, remove it to make the output deterministic.
 	rule.Command().Text(`sed -i.tmp -e 's|Check performed at .*\(</nav>\)|\1|'`).Output(html)
-
-	// The sources in the sandbox may have been modified by --apply-suggestions, zip them up and
-	// export them out of the sandbox.
-	rule.Command().BuiltTool("soong_zip").
-		FlagWithOutput("-o ", android.PathForModuleOut(ctx, "lint", "suggested-fixes.zip")).
-		FlagWithArg("-C ", cmd.PathForInput(android.PathForSource(ctx))).
-		FlagWithInput("-r ", srcsList)
 
 	rule.Build("lint", "lint")
 
