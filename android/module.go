@@ -915,8 +915,15 @@ type commonProperties struct {
 type CommonAttributes struct {
 	// Soong nameProperties -> Bazel name
 	Name string
+
 	// Data mapped from: Required
 	Data bazel.LabelListAttribute
+
+	// SkipData is neither a Soong nor Bazel target attribute
+	// If true, this will not fill the data attribute automatically
+	// This is useful for Soong modules that have 1:many Bazel targets
+	// Some of the generated Bazel targets might not have a data attribute
+	SkipData *bool
 
 	Tags bazel.StringListAttribute
 
@@ -1305,7 +1312,12 @@ func (attrs *CommonAttributes) fillCommonBp2BuildModuleAttrs(ctx *topDownMutator
 		platformEnabledAttribute.Add(&l)
 	}
 
-	attrs.Data.Append(required)
+	if !proptools.Bool(attrs.SkipData) {
+		attrs.Data.Append(required)
+	}
+	// SkipData is not an attribute of any Bazel target
+	// Set this to nil so that it does not appear in the generated build file
+	attrs.SkipData = nil
 
 	moduleEnableConstraints := bazel.LabelListAttribute{}
 	moduleEnableConstraints.Append(platformEnabledAttribute)

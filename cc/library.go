@@ -30,6 +30,7 @@ import (
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/pathtools"
+	"github.com/google/blueprint/proptools"
 )
 
 // LibraryProperties is a collection of properties shared by cc library rules/cc.
@@ -288,6 +289,16 @@ type stripAttributes struct {
 	None                         bazel.BoolAttribute
 }
 
+func stripAttrsFromLinkerAttrs(la *linkerAttributes) stripAttributes {
+	return stripAttributes{
+		Keep_symbols:                 la.stripKeepSymbols,
+		Keep_symbols_and_debug_frame: la.stripKeepSymbolsAndDebugFrame,
+		Keep_symbols_list:            la.stripKeepSymbolsList,
+		All:                          la.stripAll,
+		None:                         la.stripNone,
+	}
+}
+
 func libraryBp2Build(ctx android.TopDownMutatorContext, m *Module) {
 	// For some cc_library modules, their static variants are ready to be
 	// converted, but not their shared variants. For these modules, delegate to
@@ -394,13 +405,7 @@ func libraryBp2Build(ctx android.TopDownMutatorContext, m *Module) {
 
 		Additional_linker_inputs: linkerAttrs.additionalLinkerInputs,
 
-		Strip: stripAttributes{
-			Keep_symbols:                 linkerAttrs.stripKeepSymbols,
-			Keep_symbols_and_debug_frame: linkerAttrs.stripKeepSymbolsAndDebugFrame,
-			Keep_symbols_list:            linkerAttrs.stripKeepSymbolsList,
-			All:                          linkerAttrs.stripAll,
-			None:                         linkerAttrs.stripNone,
-		},
+		Strip:    stripAttrsFromLinkerAttrs(&linkerAttrs),
 		Features: baseAttributes.features,
 	}
 
@@ -463,6 +468,147 @@ func createStubsBazelTargetIfNeeded(ctx android.TopDownMutatorContext, m *Module
 		ctx.CreateBazelTargetModule(stubSuitesProps,
 			android.CommonAttributes{Name: m.Name() + "_stub_libs"},
 			stubSuitesAttrs)
+	}
+}
+
+func apiContributionBp2Build(ctx android.TopDownMutatorContext, module *Module) {
+	apiSurfaces := make([]string, 0)
+	apiHeaders := make([]string, 0)
+	// systemapi (non-null `stubs` property)
+	if module.HasStubsVariants() {
+		apiSurfaces = append(apiSurfaces, android.SystemApi.String())
+		apiIncludes := getSystemApiIncludes(ctx, module)
+		if !apiIncludes.isEmpty() {
+			createApiHeaderTarget(ctx, apiIncludes)
+			apiHeaders = append(apiHeaders, apiIncludes.name)
+		}
+	}
+	// vendorapi (non-null `llndk` property)
+	if module.HasLlndkStubs() {
+		apiSurfaces = append(apiSurfaces, android.VendorApi.String())
+		apiIncludes := getVendorApiIncludes(ctx, module)
+		if !apiIncludes.isEmpty() {
+			createApiHeaderTarget(ctx, apiIncludes)
+			apiHeaders = append(apiHeaders, apiIncludes.name)
+		}
+	}
+	// create a target only if this module contributes to an api surface
+	// TODO: Currently this does not distinguish systemapi-only headers and vendrorapi-only headers
+	// TODO: Update so that systemapi-only headers do not get exported to vendorapi (and vice-versa)
+	if len(apiSurfaces) > 0 {
+		props := bazel.BazelTargetModuleProperties{
+			Rule_class:        "cc_api_contribution",
+			Bzl_load_location: "//build/bazel/rules/apis:cc_api_contribution.bzl",
+		}
+		attrs := &bazelCcApiContributionAttributes{
+			Library_name: module.Name(),
+			Api_surfaces: bazel.MakeStringListAttribute(apiSurfaces),
+			Api:          apiLabelAttribute(ctx, module),
+			Hdrs: bazel.MakeLabelListAttribute(
+				bazel.MakeLabelListFromTargetNames(apiHeaders),
+			),
+		}
+		ctx.CreateBazelTargetModule(
+			props,
+			android.CommonAttributes{
+				Name:     android.ApiContributionTargetName(module.Name()),
+				SkipData: proptools.BoolPtr(true),
+			},
+			attrs,
+		)
+	}
+}
+
+// Native apis are versioned in a single .map.txt for all api surfaces
+// Pick any one of the .map.txt files
+func apiLabelAttribute(ctx android.TopDownMutatorContext, module *Module) bazel.LabelAttribute {
+	var apiFile *string
+	linker := module.linker.(*libraryDecorator)
+	if llndkApi := linker.Properties.Llndk.Symbol_file; llndkApi != nil {
+		apiFile = llndkApi
+	} else if systemApi := linker.Properties.Stubs.Symbol_file; systemApi != nil {
+		apiFile = systemApi
+	} else {
+		ctx.ModuleErrorf("API surface library does not have any API file")
+	}
+	apiLabel := android.BazelLabelForModuleSrcSingle(ctx, proptools.String(apiFile)).Label
+	return *bazel.MakeLabelAttribute(apiLabel)
+}
+
+// wrapper struct to flatten the arch and os specific export_include_dirs
+// flattening is necessary since we want to export apis of all arches even when we build for x86 (e.g.)
+type bazelCcApiLibraryHeadersAttributes struct {
+	bazelCcLibraryHeadersAttributes
+
+	Arch *string
+}
+
+func (a *bazelCcApiLibraryHeadersAttributes) isEmpty() bool {
+	return a.Export_includes.IsEmpty() &&
+		a.Export_system_includes.IsEmpty() &&
+		a.Deps.IsEmpty()
+}
+
+type apiIncludes struct {
+	name  string // name of the Bazel target in the generated bp2build workspace
+	attrs bazelCcApiLibraryHeadersAttributes
+}
+
+func (includes *apiIncludes) isEmpty() bool {
+	return includes.attrs.isEmpty()
+}
+
+func (includes *apiIncludes) addDep(name string) {
+	l := bazel.Label{Label: ":" + name}
+	ll := bazel.MakeLabelList([]bazel.Label{l})
+	lla := bazel.MakeLabelListAttribute(ll)
+	includes.attrs.Deps.Append(lla)
+}
+
+func getSystemApiIncludes(ctx android.TopDownMutatorContext, c *Module) apiIncludes {
+	flagProps := c.library.(*libraryDecorator).flagExporter.Properties
+	linkProps := c.library.(*libraryDecorator).baseLinker.Properties
+	includes := android.FirstUniqueStrings(flagProps.Export_include_dirs)
+	systemIncludes := android.FirstUniqueStrings(flagProps.Export_system_include_dirs)
+	headerLibs := android.FirstUniqueStrings(linkProps.Export_header_lib_headers)
+	attrs := bazelCcLibraryHeadersAttributes{
+		Export_includes:        bazel.MakeStringListAttribute(includes),
+		Export_system_includes: bazel.MakeStringListAttribute(systemIncludes),
+		Deps:                   bazel.MakeLabelListAttribute(apiHeaderLabels(ctx, headerLibs)),
+	}
+
+	return apiIncludes{
+		name: c.Name() + ".systemapi.headers",
+		attrs: bazelCcApiLibraryHeadersAttributes{
+			bazelCcLibraryHeadersAttributes: attrs,
+		},
+	}
+}
+
+func getVendorApiIncludes(ctx android.TopDownMutatorContext, c *Module) apiIncludes {
+	baseProps := c.library.(*libraryDecorator).flagExporter.Properties
+	llndkProps := c.library.(*libraryDecorator).Properties.Llndk
+	includes := baseProps.Export_include_dirs
+	systemIncludes := baseProps.Export_system_include_dirs
+	// LLNDK can override the base includes
+	if llndkIncludes := llndkProps.Override_export_include_dirs; llndkIncludes != nil {
+		includes = llndkIncludes
+	}
+	if proptools.Bool(llndkProps.Export_headers_as_system) {
+		systemIncludes = append(systemIncludes, includes...)
+		includes = nil
+	}
+
+	attrs := bazelCcLibraryHeadersAttributes{
+		Export_includes:        bazel.MakeStringListAttribute(includes),
+		Export_system_includes: bazel.MakeStringListAttribute(systemIncludes),
+		Deps:                   bazel.MakeLabelListAttribute(apiHeaderLabels(ctx, llndkProps.Export_llndk_headers)),
+	}
+	return apiIncludes{
+		name: c.Name() + ".vendorapi.headers",
+		attrs: bazelCcApiLibraryHeadersAttributes{
+			bazelCcLibraryHeadersAttributes: attrs,
+		},
 	}
 }
 
@@ -2697,13 +2843,7 @@ func sharedOrStaticLibraryBp2Build(ctx android.TopDownMutatorContext, module *Mo
 			Absolute_includes:        compilerAttrs.absoluteIncludes,
 			Additional_linker_inputs: linkerAttrs.additionalLinkerInputs,
 
-			Strip: stripAttributes{
-				Keep_symbols:                 linkerAttrs.stripKeepSymbols,
-				Keep_symbols_and_debug_frame: linkerAttrs.stripKeepSymbolsAndDebugFrame,
-				Keep_symbols_list:            linkerAttrs.stripKeepSymbolsList,
-				All:                          linkerAttrs.stripAll,
-				None:                         linkerAttrs.stripNone,
-			},
+			Strip: stripAttrsFromLinkerAttrs(&linkerAttrs),
 
 			Features: baseAttributes.features,
 
