@@ -28,7 +28,7 @@ import (
 )
 
 // The values allowed for Droidstubs' Api_levels_sdk_type
-var allowedApiLevelSdkTypes = []string{"public", "system", "module-lib"}
+var allowedApiLevelSdkTypes = []string{"public", "system", "module-lib", "system-server"}
 
 func init() {
 	RegisterStubsBuildComponents(android.InitRegistrationContext)
@@ -134,7 +134,7 @@ type DroidstubsProperties struct {
 	// the dirs which Metalava extracts API levels annotations from.
 	Api_levels_annotations_dirs []string
 
-	// the sdk kind which Metalava extracts API levels annotations from. Supports 'public', 'system' and 'module-lib' for now; defaults to public.
+	// the sdk kind which Metalava extracts API levels annotations from. Supports 'public', 'system', 'module-lib' and 'system-server'; defaults to public.
 	Api_levels_sdk_type *string
 
 	// the filename which Metalava extracts API levels annotations from. Defaults to android.jar.
@@ -445,6 +445,8 @@ func (d *Droidstubs) apiLevelsGenerationFlags(ctx android.ModuleContext, cmd *an
 	// for older releases. Similarly, module-lib falls back to system API.
 	var sdkDirs []string
 	switch proptools.StringDefault(d.properties.Api_levels_sdk_type, "public") {
+	case "system-server":
+		sdkDirs = []string{"system-server", "module-lib", "system", "public"}
 	case "module-lib":
 		sdkDirs = []string{"module-lib", "system", "public"}
 	case "system":
