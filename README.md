@@ -1,12 +1,32 @@
 # Soong
 
-Soong is the replacement for the old Android make-based build system.  It
-replaces Android.mk files with Android.bp files, which are JSON-like simple
-declarative descriptions of modules to build.
+Soong is one of the build systems used in Android. There are altogether three:
+* The legacy Make-based build system that is controlled by files called
+  `Android.mk`.
+* Soong, which is controlled by files called `Android.bp`.
+* The upcoming Bazel-based build system that is controlled by files called
+  `BUILD.bazel`.
+
+`Android.bp` file are JSON-like declarative descriptions of "modules" to build;
+a "module" is the basic unit of building that Soong understands, similarly to
+how "target" is the basic unit of building for Bazel (and Make, although the
+two kinds of "targets" are very different)
 
 See [Simple Build
 Configuration](https://source.android.com/compatibility/tests/development/blueprints)
 on source.android.com to read how Soong is configured for testing.
+
+### Contributing
+
+Code reviews are handled through the usual code review system of Android,
+available [here](https://android-review.googlesource.com/dashboard/self).
+
+For simple changes (fixing typos, obvious optimizations, etc.), sending a code
+review request is enough. For more substantial changes, file a bug in our
+[bug tracker](https://issuetracker.google.com/issues/new?component=381517) or
+or write us at android-building@googlegroups.com .
+
+For Googlers, see our [internal documentation](http://go/soong).
 
 ## Android.bp file format
 
