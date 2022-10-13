@@ -674,9 +674,15 @@ func PrebuiltBinaryFactory() android.Module {
 	return module.Init()
 }
 
+type prebuiltBinaryBazelHandler struct {
+	module    *Module
+	decorator *binaryDecorator
+}
+
 func NewPrebuiltBinary(hod android.HostOrDeviceSupported) (*Module, *binaryDecorator) {
-	module, binary := newBinary(hod, false)
+	module, binary := newBinary(hod, true)
 	module.compiler = nil
+	module.bazelHandler = &prebuiltBinaryBazelHandler{module, binary}
 
 	prebuilt := &prebuiltBinaryLinker{
 		binaryDecorator: binary,
@@ -688,6 +694,29 @@ func NewPrebuiltBinary(hod android.HostOrDeviceSupported) (*Module, *binaryDecor
 
 	android.InitPrebuiltModule(module, &prebuilt.properties.Srcs)
 	return module, binary
+}
+
+var _ BazelHandler = (*prebuiltBinaryBazelHandler)(nil)
+
+func (h *prebuiltBinaryBazelHandler) QueueBazelCall(ctx android.BaseModuleContext, label string) {
+	bazelCtx := ctx.Config().BazelContext
+	bazelCtx.QueueBazelRequest(label, cquery.GetOutputFiles, android.GetConfigKey(ctx))
+}
+
+func (h *prebuiltBinaryBazelHandler) ProcessBazelQueryResponse(ctx android.ModuleContext, label string) {
+	bazelCtx := ctx.Config().BazelContext
+	outputs, err := bazelCtx.GetOutputFiles(label, android.GetConfigKey(ctx))
+	if err != nil {
+		ctx.ModuleErrorf(err.Error())
+		return
+	}
+	if len(outputs) != 1 {
+		ctx.ModuleErrorf("Expected a single output for `%s`, but got:\n%v", label, outputs)
+		return
+	}
+	out := android.PathForBazelOut(ctx, outputs[0])
+	h.module.outputFile = android.OptionalPathForPath(out)
+	h.module.maybeUnhideFromMake()
 }
 
 type bazelPrebuiltBinaryAttributes struct {

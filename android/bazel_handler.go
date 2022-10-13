@@ -172,12 +172,13 @@ type bazelRunner interface {
 }
 
 type bazelPaths struct {
-	homeDir      string
-	bazelPath    string
-	outputBase   string
-	workspaceDir string
-	soongOutDir  string
-	metricsDir   string
+	homeDir       string
+	bazelPath     string
+	outputBase    string
+	workspaceDir  string
+	soongOutDir   string
+	metricsDir    string
+	bazelDepsFile string
 }
 
 // A context object which tracks queued requests that need to be made to Bazel,
@@ -423,6 +424,11 @@ func bazelPathsFromConfig(c *config) (*bazelPaths, error) {
 		p.metricsDir = c.Getenv("BAZEL_METRICS_DIR")
 	} else {
 		missingEnvVars = append(missingEnvVars, "BAZEL_METRICS_DIR")
+	}
+	if len(c.Getenv("BAZEL_DEPS_FILE")) > 1 {
+		p.bazelDepsFile = c.Getenv("BAZEL_DEPS_FILE")
+	} else {
+		missingEnvVars = append(missingEnvVars, "BAZEL_DEPS_FILE")
 	}
 	if len(missingEnvVars) > 0 {
 		return nil, errors.New(fmt.Sprintf("missing required env vars to use bazel: %s", missingEnvVars))
