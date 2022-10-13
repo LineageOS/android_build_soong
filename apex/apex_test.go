@@ -2191,6 +2191,38 @@ func TestApexMinSdkVersion_Okay(t *testing.T) {
 	`)
 }
 
+func TestApexMinSdkVersion_MinApiForArch(t *testing.T) {
+	// Tests that an apex dependency with min_sdk_version higher than the
+	// min_sdk_version of the apex is allowed as long as the dependency's
+	// min_sdk_version is less than or equal to the api level that the
+	// architecture was introduced in.  In this case, arm64 didn't exist
+	// until api level 21, so the arm64 code will never need to run on
+	// an api level 20 device, even if other architectures of the apex
+	// will.
+	testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			native_shared_libs: ["libfoo"],
+			min_sdk_version: "20",
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "libfoo",
+			srcs: ["mylib.cpp"],
+			apex_available: ["myapex"],
+			min_sdk_version: "21",
+			stl: "none",
+		}
+	`)
+}
+
 func TestJavaStableSdkVersion(t *testing.T) {
 	testCases := []struct {
 		name          string
