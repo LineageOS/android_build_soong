@@ -259,6 +259,7 @@ cc_library {
 				SystemIncludes:       []string{"system_include"},
 				Headers:              []string{"foo.h"},
 				RootDynamicLibraries: []string{"foo.so"},
+				UnstrippedOutput:     "foo_unstripped.so",
 			},
 			"//foo/bar:bar_bp2build_cc_library_static": cquery.CcInfo{
 				CcObjectFiles:      []string{"foo.o"},
@@ -294,6 +295,7 @@ cc_library {
 	expectedOutputFiles = []string{"outputbase/execroot/__main__/foo.so"}
 	android.AssertDeepEquals(t, "output files", expectedOutputFiles, outputFiles.Strings())
 
+	android.AssertStringEquals(t, "unstripped shared library", "outputbase/execroot/__main__/foo_unstripped.so", sharedFoo.(*Module).linker.unstrippedOutputFilePath().String())
 	flagExporter = ctx.ModuleProvider(sharedFoo, FlagExporterInfoProvider).(FlagExporterInfo)
 	android.AssertPathsRelativeToTopEquals(t, "exported include dirs", []string{"outputbase/execroot/__main__/include"}, flagExporter.IncludeDirs)
 	android.AssertPathsRelativeToTopEquals(t, "exported system include dirs", []string{"outputbase/execroot/__main__/system_include"}, flagExporter.SystemIncludeDirs)

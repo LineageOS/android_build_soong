@@ -885,7 +885,7 @@ func (handler *ccLibraryBazelHandler) generateSharedBazelBuildActions(ctx androi
 	outputFilePath := android.PathForBazelOut(ctx, rootDynamicLibraries[0])
 	handler.module.outputFile = android.OptionalPathForPath(outputFilePath)
 
-	handler.module.linker.(*libraryDecorator).unstrippedOutputFile = outputFilePath
+	handler.module.linker.(*libraryDecorator).unstrippedOutputFile = android.PathForBazelOut(ctx, ccInfo.UnstrippedOutput)
 
 	var tocFile android.OptionalPath
 	if len(ccInfo.TocFile) > 0 {
