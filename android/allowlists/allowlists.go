@@ -47,11 +47,13 @@ var (
 		"bionic":                                Bp2BuildDefaultTrueRecursively,
 		"bootable/recovery/minadbd":             Bp2BuildDefaultTrue,
 		"bootable/recovery/minui":               Bp2BuildDefaultTrue,
+		"bootable/recovery/applypatch":          Bp2BuildDefaultTrue,
 		"bootable/recovery/recovery_utils":      Bp2BuildDefaultTrue,
 		"bootable/recovery/tools/recovery_l10n": Bp2BuildDefaultTrue,
 
 		"build/bazel":                        Bp2BuildDefaultTrueRecursively,
 		"build/make/target/product/security": Bp2BuildDefaultTrue,
+		"build/make/tools/releasetools":      Bp2BuildDefaultTrue,
 		"build/make/tools/signapk":           Bp2BuildDefaultTrue,
 		"build/make/tools/zipalign":          Bp2BuildDefaultTrueRecursively,
 		"build/soong":                        Bp2BuildDefaultTrue,
@@ -109,6 +111,8 @@ var (
 		"external/boringssl":                     Bp2BuildDefaultTrueRecursively,
 		"external/bouncycastle":                  Bp2BuildDefaultTrue,
 		"external/brotli":                        Bp2BuildDefaultTrue,
+		"external/bsdiff":                        Bp2BuildDefaultTrueRecursively,
+		"external/bzip2":                         Bp2BuildDefaultTrueRecursively,
 		"external/conscrypt":                     Bp2BuildDefaultTrue,
 		"external/e2fsprogs":                     Bp2BuildDefaultTrueRecursively,
 		"external/eigen":                         Bp2BuildDefaultTrueRecursively,
@@ -138,6 +142,7 @@ var (
 		"external/libcap":                        Bp2BuildDefaultTrueRecursively,
 		"external/libcxx":                        Bp2BuildDefaultTrueRecursively,
 		"external/libcxxabi":                     Bp2BuildDefaultTrueRecursively,
+		"external/libdivsufsort":                 Bp2BuildDefaultTrueRecursively,
 		"external/libdrm":                        Bp2BuildDefaultTrue,
 		"external/libevent":                      Bp2BuildDefaultTrueRecursively,
 		"external/libgav1":                       Bp2BuildDefaultTrueRecursively,
@@ -148,6 +153,7 @@ var (
 		"external/libvpx":                        Bp2BuildDefaultTrueRecursively,
 		"external/libyuv":                        Bp2BuildDefaultTrueRecursively,
 		"external/lz4/lib":                       Bp2BuildDefaultTrue,
+		"external/lz4/programs":                  Bp2BuildDefaultTrue,
 		"external/lzma/C":                        Bp2BuildDefaultTrueRecursively,
 		"external/mdnsresponder":                 Bp2BuildDefaultTrueRecursively,
 		"external/minijail":                      Bp2BuildDefaultTrueRecursively,
@@ -282,6 +288,7 @@ var (
 		"system/core/libsysutils":                                Bp2BuildDefaultTrueRecursively,
 		"system/core/libutils":                                   Bp2BuildDefaultTrueRecursively,
 		"system/core/libvndksupport":                             Bp2BuildDefaultTrueRecursively,
+		"system/core/mkbootfs":                                   Bp2BuildDefaultTrueRecursively,
 		"system/core/property_service/libpropertyinfoparser":     Bp2BuildDefaultTrueRecursively,
 		"system/core/property_service/libpropertyinfoserializer": Bp2BuildDefaultTrueRecursively,
 		"system/extras/toolchain-extras":                         Bp2BuildDefaultTrue,
@@ -315,6 +322,7 @@ var (
 		"system/timezone/apex":                                   Bp2BuildDefaultTrueRecursively,
 		"system/timezone/output_data":                            Bp2BuildDefaultTrueRecursively,
 		"system/tools/aidl/build/tests_bp2build":                 Bp2BuildDefaultTrue,
+		"system/tools/mkbootimg":                                 Bp2BuildDefaultTrueRecursively,
 		"system/tools/sysprop":                                   Bp2BuildDefaultTrue,
 		"system/unwinding/libunwindstack":                        Bp2BuildDefaultTrueRecursively,
 
@@ -474,7 +482,6 @@ var (
 		"prebuilt_stats-log-api-gen",
 
 		// fastboot
-		"bootimg_headers",
 		"fastboot",
 		"libfastboot",
 		"liblp",
@@ -507,6 +514,7 @@ var (
 
 		//system/extras/verity/fec
 		"fec",
+		"boot_signer",
 
 		//packages/apps/Car/libs/car-ui-lib/car-ui-androidx
 		// genrule dependencies for java_imports
@@ -1245,6 +1253,29 @@ var (
 		"launcherprotosnano",
 		"datastallprotosnano",
 		"devicepolicyprotosnano",
+		"ota_metadata_proto_java",
+		"merge_ota",
+
+		// releasetools
+		"releasetools_fsverity_metadata_generator",
+		"verity_utils",
+		"check_ota_package_signature",
+		"check_target_files_vintf",
+		"releasetools_check_target_files_vintf",
+		"releasetools_verity_utils",
+		"build_image",
+		"ota_from_target_files",
+		"releasetools_ota_from_target_files",
+		"releasetools_build_image",
+		"add_img_to_target_files",
+		"releasetools_add_img_to_target_files",
+		"fsverity_metadata_generator",
+		"sign_target_files_apks",
+
+		// depends on the support of yacc file
+		"libapplypatch",
+		"libapplypatch_modes",
+		"applypatch",
 	}
 
 	Bp2buildCcLibraryStaticOnlyList = []string{}
