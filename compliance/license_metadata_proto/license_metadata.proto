@@ -21,6 +21,9 @@ message LicenseMetadata {
   // package_name identifies the source package. License texts are named relative to the package name.
   optional string package_name = 1;
 
+  // module_name identifies the target
+  optional string module_name = 14;
+
   repeated string module_types = 2;
 
   repeated string module_classes = 3;
@@ -54,6 +57,9 @@ message LicenseMetadata {
 
   // deps lists the license metadata files depended on.
   repeated AnnotatedDependency deps = 13;
+
+  // next id: 15
+
 }
 
 // InstallMap messages describe the mapping from an input filesystem file to the path to the file
