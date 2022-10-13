@@ -165,3 +165,31 @@ func TestGetApexInfoParseResults(t *testing.T) {
 		}
 	}
 }
+
+func TestGetCcUnstrippedParseResults(t *testing.T) {
+	testCases := []struct {
+		description    string
+		input          string
+		expectedOutput CcUnstrippedInfo
+	}{
+		{
+			description:    "no result",
+			input:          "{}",
+			expectedOutput: CcUnstrippedInfo{},
+		},
+		{
+			description: "one result",
+			input:       `{"OutputFile":"myapp", "UnstrippedOutput":"myapp_unstripped"}`,
+			expectedOutput: CcUnstrippedInfo{
+				OutputFile:       "myapp",
+				UnstrippedOutput: "myapp_unstripped",
+			},
+		},
+	}
+	for _, tc := range testCases {
+		actualOutput := GetCcUnstrippedInfo.ParseResult(tc.input)
+		if !reflect.DeepEqual(tc.expectedOutput, actualOutput) {
+			t.Errorf("%q: expected %#v != actual %#v", tc.description, tc.expectedOutput, actualOutput)
+		}
+	}
+}
