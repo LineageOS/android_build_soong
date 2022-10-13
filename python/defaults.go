@@ -19,7 +19,7 @@ import (
 )
 
 func init() {
-	android.RegisterModuleType("python_defaults", defaultsFactory)
+	android.RegisterModuleType("python_defaults", DefaultsFactory)
 }
 
 type Defaults struct {
@@ -30,7 +30,7 @@ type Defaults struct {
 func (d *Defaults) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 }
 
-func defaultsFactory() android.Module {
+func DefaultsFactory() android.Module {
 	module := &Defaults{}
 
 	module.AddProperties(
