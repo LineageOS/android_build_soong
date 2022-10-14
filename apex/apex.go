@@ -2665,12 +2665,13 @@ func (o *OverrideApex) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 
 		// Certificate
 		if overridableProperties.Certificate == nil {
-			// delegated to the rule attr default
-			attrs.Certificate = nil
+			// If overridableProperties.Certificate is nil, clear this out as
+			// well with zeroed structs, so the override_apex does not use the
+			// base apex's certificate.
+			attrs.Certificate = bazel.LabelAttribute{}
+			attrs.Certificate_name = bazel.StringAttribute{}
 		} else {
-			certificateName, certificate := java.ParseCertificateToAttribute(ctx, overridableProperties.Certificate)
-			attrs.Certificate_name = certificateName
-			attrs.Certificate = certificate
+			attrs.Certificate, attrs.Certificate_name = android.BazelStringOrLabelFromProp(ctx, overridableProperties.Certificate)
 		}
 
 		// Prebuilts
@@ -3346,8 +3347,8 @@ type bazelApexBundleAttributes struct {
 	Android_manifest      bazel.LabelAttribute
 	File_contexts         bazel.LabelAttribute
 	Key                   bazel.LabelAttribute
-	Certificate           *bazel.Label // used when the certificate prop is a module
-	Certificate_name      *string      // used when the certificate prop is a string
+	Certificate           bazel.LabelAttribute  // used when the certificate prop is a module
+	Certificate_name      bazel.StringAttribute // used when the certificate prop is a string
 	Min_sdk_version       *string
 	Updatable             bazel.BoolAttribute
 	Installable           bazel.BoolAttribute
@@ -3409,7 +3410,8 @@ func convertWithBp2build(a *apexBundle, ctx android.TopDownMutatorContext) (baze
 		keyLabelAttribute.SetValue(android.BazelLabelForModuleDepSingle(ctx, *a.overridableProperties.Key))
 	}
 
-	certificateName, certificate := java.ParseCertificateToAttribute(ctx, a.overridableProperties.Certificate)
+	// Certificate
+	certificate, certificateName := android.BazelStringOrLabelFromProp(ctx, a.overridableProperties.Certificate)
 
 	nativeSharedLibs := &convertedNativeSharedLibs{
 		Native_shared_libs_32: bazel.LabelListAttribute{},
