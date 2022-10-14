@@ -66,6 +66,7 @@ func main() {
 
 	packageName := flags.String("p", "", "license package name")
 	moduleType := newMultiString(flags, "mt", "module type")
+	moduleName := flags.String("mn", "", "module name")
 	kinds := newMultiString(flags, "k", "license kinds")
 	moduleClass := newMultiString(flags, "mc", "module class")
 	conditions := newMultiString(flags, "c", "license conditions")
@@ -83,6 +84,7 @@ func main() {
 
 	metadata := license_metadata_proto.LicenseMetadata{}
 	metadata.PackageName = proto.String(*packageName)
+	metadata.ModuleName = proto.String(*moduleName)
 	metadata.ModuleTypes = *moduleType
 	metadata.ModuleClasses = *moduleClass
 	metadata.IsContainer = proto.Bool(*isContainer)
