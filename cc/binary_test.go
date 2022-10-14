@@ -15,6 +15,7 @@
 package cc
 
 import (
+	"android/soong/bazel/cquery"
 	"testing"
 
 	"android/soong/android"
@@ -30,8 +31,11 @@ cc_binary {
 	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
 	config.BazelContext = android.MockBazelContext{
 		OutputBaseDir: "outputbase",
-		LabelToOutputFiles: map[string][]string{
-			"//foo/bar:bar": []string{"foo"},
+		LabelToCcBinary: map[string]cquery.CcUnstrippedInfo{
+			"//foo/bar:bar": cquery.CcUnstrippedInfo{
+				OutputFile:       "foo",
+				UnstrippedOutput: "foo.unstripped",
+			},
 		},
 	}
 	ctx := testCcWithConfig(t, config)
@@ -46,7 +50,7 @@ cc_binary {
 	android.AssertDeepEquals(t, "output files", expectedOutputFiles, outputFiles.Strings())
 
 	unStrippedFilePath := binMod.(*Module).UnstrippedOutputFile()
-	expectedUnStrippedFile := "outputbase/execroot/__main__/foo"
+	expectedUnStrippedFile := "outputbase/execroot/__main__/foo.unstripped"
 	android.AssertStringEquals(t, "Unstripped output file", expectedUnStrippedFile, unStrippedFilePath.String())
 }
 

@@ -108,6 +108,12 @@ func (cov *coverage) flags(ctx ModuleContext, flags Flags, deps PathDeps) (Flags
 			if EnableContinuousCoverage(ctx) {
 				flags.Local.CommonFlags = append(flags.Local.CommonFlags, "-mllvm", "-runtime-counter-relocation")
 			}
+
+			// http://b/248022906, http://b/247941801  enabling coverage and hwasan-globals
+			// instrumentation together causes duplicate-symbol errors for __llvm_profile_filename.
+			if c, ok := ctx.Module().(*Module); ok && c.sanitize.isSanitizerEnabled(Hwasan) {
+				flags.Local.CommonFlags = append(flags.Local.CommonFlags, "-mllvm", "-hwasan-globals=0")
+			}
 		}
 	}
 

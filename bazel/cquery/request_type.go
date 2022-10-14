@@ -7,10 +7,11 @@ import (
 )
 
 var (
-	GetOutputFiles  = &getOutputFilesRequestType{}
-	GetPythonBinary = &getPythonBinaryRequestType{}
-	GetCcInfo       = &getCcInfoType{}
-	GetApexInfo     = &getApexInfoType{}
+	GetOutputFiles      = &getOutputFilesRequestType{}
+	GetPythonBinary     = &getPythonBinaryRequestType{}
+	GetCcInfo           = &getCcInfoType{}
+	GetApexInfo         = &getApexInfoType{}
+	GetCcUnstrippedInfo = &getCcUnstippedInfoType{}
 )
 
 type CcInfo struct {
@@ -30,6 +31,7 @@ type CcInfo struct {
 	// but general cc_library will also have dynamic libraries in output files).
 	RootDynamicLibraries []string
 	TocFile              string
+	UnstrippedOutput     string
 }
 
 type getOutputFilesRequestType struct{}
@@ -135,12 +137,17 @@ sharedLibraries = []
 rootSharedLibraries = []
 
 shared_info_tag = "//build/bazel/rules/cc:cc_library_shared.bzl%CcSharedLibraryOutputInfo"
+unstripped_tag = "//build/bazel/rules/cc:stripped_cc_common.bzl%CcUnstrippedInfo"
+unstripped = ""
 
 if shared_info_tag in providers(target):
   shared_info = providers(target)[shared_info_tag]
   path = shared_info.output_file.path
   sharedLibraries.append(path)
   rootSharedLibraries += [path]
+  unstripped = path
+  if unstripped_tag in providers(target):
+    unstripped = providers(target)[unstripped_tag].unstripped.path
 else:
   for linker_input in linker_inputs:
     for library in linker_input.libraries:
@@ -168,7 +175,8 @@ return json_encode({
 	"Headers": headers,
 	"RootStaticArchives": rootStaticArchives,
 	"RootDynamicLibraries": rootSharedLibraries,
-	"TocFile": toc_file
+	"TocFile": toc_file,
+	"UnstrippedOutput": unstripped,
 })`
 
 }
@@ -235,6 +243,47 @@ func (g getApexInfoType) ParseResult(rawString string) ApexCqueryInfo {
 		panic(fmt.Errorf("cannot parse cquery result '%s': %s", rawString, err))
 	}
 	return info
+}
+
+// getCcUnstrippedInfoType implements cqueryRequest interface. It handles the
+// interaction with `bazel cquery` to retrieve CcUnstrippedInfo provided
+// by the` cc_binary` and `cc_shared_library` rules.
+type getCcUnstippedInfoType struct{}
+
+func (g getCcUnstippedInfoType) Name() string {
+	return "getCcUnstrippedInfo"
+}
+
+func (g getCcUnstippedInfoType) StarlarkFunctionBody() string {
+	return `unstripped_tag = "//build/bazel/rules/cc:stripped_cc_common.bzl%CcUnstrippedInfo"
+p = providers(target)
+output_path = target.files.to_list()[0].path
+unstripped = output_path
+if unstripped_tag in p:
+    unstripped = p[unstripped_tag].unstripped.files.to_list()[0].path
+return json_encode({
+    "OutputFile":  output_path,
+    "UnstrippedOutput": unstripped,
+})
+`
+}
+
+// ParseResult returns a value obtained by parsing the result of the request's Starlark function.
+// The given rawString must correspond to the string output which was created by evaluating the
+// Starlark given in StarlarkFunctionBody.
+func (g getCcUnstippedInfoType) ParseResult(rawString string) CcUnstrippedInfo {
+	var info CcUnstrippedInfo
+	decoder := json.NewDecoder(strings.NewReader(rawString))
+	decoder.DisallowUnknownFields() //useful to detect typos, e.g. in unit tests
+	if err := decoder.Decode(&info); err != nil {
+		panic(fmt.Errorf("cannot parse cquery result '%s': %s", rawString, err))
+	}
+	return info
+}
+
+type CcUnstrippedInfo struct {
+	OutputFile       string
+	UnstrippedOutput string
 }
 
 // splitOrEmpty is a modification of strings.Split() that returns an empty list
