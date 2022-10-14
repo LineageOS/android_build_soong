@@ -20,7 +20,7 @@ import (
 	"android/soong/android"
 )
 
-func MinApiForArch(ctx android.EarlyModuleContext,
+func minApiForArch(ctx android.EarlyModuleContext,
 	arch android.ArchType) android.ApiLevel {
 
 	switch arch {
@@ -38,7 +38,7 @@ func MinApiForArch(ctx android.EarlyModuleContext,
 func nativeApiLevelFromUser(ctx android.BaseModuleContext,
 	raw string) (android.ApiLevel, error) {
 
-	min := MinApiForArch(ctx, ctx.Arch().ArchType)
+	min := minApiForArch(ctx, ctx.Arch().ArchType)
 	if raw == "minimum" {
 		return min, nil
 	}

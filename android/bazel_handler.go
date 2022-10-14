@@ -144,6 +144,9 @@ type BazelContext interface {
 	// Returns the results of the GetApexInfo query (including output files)
 	GetApexInfo(label string, cfgkey configKey) (cquery.ApexCqueryInfo, error)
 
+	// Returns the results of the GetCcUnstrippedInfo query
+	GetCcUnstrippedInfo(label string, cfgkey configKey) (cquery.CcUnstrippedInfo, error)
+
 	// ** end Cquery Results Retrieval Functions
 
 	// Issues commands to Bazel to receive results for all cquery requests
@@ -172,12 +175,13 @@ type bazelRunner interface {
 }
 
 type bazelPaths struct {
-	homeDir      string
-	bazelPath    string
-	outputBase   string
-	workspaceDir string
-	soongOutDir  string
-	metricsDir   string
+	homeDir       string
+	bazelPath     string
+	outputBase    string
+	workspaceDir  string
+	soongOutDir   string
+	metricsDir    string
+	bazelDepsFile string
 }
 
 // A context object which tracks queued requests that need to be made to Bazel,
@@ -223,6 +227,7 @@ type MockBazelContext struct {
 	LabelToCcInfo       map[string]cquery.CcInfo
 	LabelToPythonBinary map[string]string
 	LabelToApexInfo     map[string]cquery.ApexCqueryInfo
+	LabelToCcBinary     map[string]cquery.CcUnstrippedInfo
 }
 
 func (m MockBazelContext) QueueBazelRequest(_ string, _ cqueryRequest, _ configKey) {
@@ -246,6 +251,11 @@ func (m MockBazelContext) GetPythonBinary(label string, _ configKey) (string, er
 
 func (n MockBazelContext) GetApexInfo(_ string, _ configKey) (cquery.ApexCqueryInfo, error) {
 	panic("unimplemented")
+}
+
+func (m MockBazelContext) GetCcUnstrippedInfo(label string, _ configKey) (cquery.CcUnstrippedInfo, error) {
+	result, _ := m.LabelToCcBinary[label]
+	return result, nil
 }
 
 func (m MockBazelContext) InvokeBazel(_ Config) error {
@@ -311,6 +321,14 @@ func (bazelCtx *bazelContext) GetApexInfo(label string, cfgKey configKey) (cquer
 	return cquery.ApexCqueryInfo{}, fmt.Errorf("no bazel response found for %v", key)
 }
 
+func (bazelCtx *bazelContext) GetCcUnstrippedInfo(label string, cfgKey configKey) (cquery.CcUnstrippedInfo, error) {
+	key := makeCqueryKey(label, cquery.GetCcUnstrippedInfo, cfgKey)
+	if rawString, ok := bazelCtx.results[key]; ok {
+		return cquery.GetCcUnstrippedInfo.ParseResult(strings.TrimSpace(rawString)), nil
+	}
+	return cquery.CcUnstrippedInfo{}, fmt.Errorf("no bazel response for %s", key)
+}
+
 func (n noopBazelContext) QueueBazelRequest(_ string, _ cqueryRequest, _ configKey) {
 	panic("unimplemented")
 }
@@ -329,6 +347,11 @@ func (n noopBazelContext) GetPythonBinary(_ string, _ configKey) (string, error)
 
 func (n noopBazelContext) GetApexInfo(_ string, _ configKey) (cquery.ApexCqueryInfo, error) {
 	panic("unimplemented")
+}
+
+func (n noopBazelContext) GetCcUnstrippedInfo(_ string, _ configKey) (cquery.CcUnstrippedInfo, error) {
+	//TODO implement me
+	panic("implement me")
 }
 
 func (n noopBazelContext) InvokeBazel(_ Config) error {
@@ -423,6 +446,11 @@ func bazelPathsFromConfig(c *config) (*bazelPaths, error) {
 		p.metricsDir = c.Getenv("BAZEL_METRICS_DIR")
 	} else {
 		missingEnvVars = append(missingEnvVars, "BAZEL_METRICS_DIR")
+	}
+	if len(c.Getenv("BAZEL_DEPS_FILE")) > 1 {
+		p.bazelDepsFile = c.Getenv("BAZEL_DEPS_FILE")
+	} else {
+		missingEnvVars = append(missingEnvVars, "BAZEL_DEPS_FILE")
 	}
 	if len(missingEnvVars) > 0 {
 		return nil, errors.New(fmt.Sprintf("missing required env vars to use bazel: %s", missingEnvVars))

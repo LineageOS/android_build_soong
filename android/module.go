@@ -1246,12 +1246,14 @@ func (attrs *CommonAttributes) fillCommonBp2BuildModuleAttrs(ctx *topDownMutator
 	// when generated as the 'data' label list attribute in Bazel. Remove it if
 	// it exists. See b/247985196.
 	_, requiredWithoutCycles := RemoveFromList(ctx.ModuleName(), mod.commonProperties.Required)
+	requiredWithoutCycles = FirstUniqueStrings(requiredWithoutCycles)
 	required := depsToLabelList(requiredWithoutCycles)
 	archVariantProps := mod.GetArchVariantProperties(ctx, &commonProperties{})
 	for axis, configToProps := range archVariantProps {
 		for config, _props := range configToProps {
 			if archProps, ok := _props.(*commonProperties); ok {
 				_, requiredWithoutCycles := RemoveFromList(ctx.ModuleName(), archProps.Required)
+				requiredWithoutCycles = FirstUniqueStrings(requiredWithoutCycles)
 				required.SetSelectValue(axis, config, depsToLabelList(requiredWithoutCycles).Value)
 				if !neitherHostNorDevice {
 					if archProps.Enabled != nil {
