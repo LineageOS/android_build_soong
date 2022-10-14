@@ -48,6 +48,52 @@ EOF
 
 test_bp2build_null_build_with_globs
 
+function test_different_relative_outdir {
+  setup
+  create_mock_bazel
+
+  mkdir -p a
+  touch a/g.txt
+  cat > a/Android.bp <<'EOF'
+filegroup {
+    name: "g",
+    srcs: ["g.txt"],
+    bazel_module: {bp2build_available: true},
+  }
+EOF
+
+  # A directory under $MOCK_TOP
+  outdir=out2
+  trap "rm -rf $outdir" EXIT
+  # Modify OUT_DIR in a subshell so it doesn't affect the top level one.
+  (export OUT_DIR=$outdir; run_soong bp2build && run_bazel build --config=bp2build //a:g)
+}
+
+test_different_relative_outdir
+
+function test_different_absolute_outdir {
+  setup
+  create_mock_bazel
+
+  mkdir -p a
+  touch a/g.txt
+  cat > a/Android.bp <<'EOF'
+filegroup {
+    name: "g",
+    srcs: ["g.txt"],
+    bazel_module: {bp2build_available: true},
+  }
+EOF
+
+  # A directory under /tmp/...
+  outdir=$(mktemp -t -d st.XXXXX)
+  trap 'rm -rf $outdir' EXIT
+  # Modify OUT_DIR in a subshell so it doesn't affect the top level one.
+  (export OUT_DIR=$outdir; run_soong bp2build && run_bazel build --config=bp2build //a:g)
+}
+
+test_different_absolute_outdir
+
 function test_bp2build_generates_all_buildfiles {
   setup
   create_mock_bazel
