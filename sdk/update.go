@@ -242,7 +242,7 @@ func (s *sdk) collectMembers(ctx android.ModuleContext) {
 // Finally, the member type slices are concatenated together to form a single slice. The order in
 // which they are concatenated is the order in which the member types were registered in the
 // android.SdkMemberTypesRegistry.
-func (s *sdk) groupMemberVariantsByMemberThenType(ctx android.ModuleContext, memberVariantDeps []sdkMemberVariantDep) []*sdkMember {
+func (s *sdk) groupMemberVariantsByMemberThenType(ctx android.ModuleContext, targetBuildRelease *buildRelease, memberVariantDeps []sdkMemberVariantDep) []*sdkMember {
 	byType := make(map[android.SdkMemberType][]*sdkMember)
 	byName := make(map[string]*sdkMember)
 
@@ -265,11 +265,37 @@ func (s *sdk) groupMemberVariantsByMemberThenType(ctx android.ModuleContext, mem
 
 	var members []*sdkMember
 	for _, memberListProperty := range s.memberTypeListProperties() {
-		membersOfType := byType[memberListProperty.memberType]
+		memberType := memberListProperty.memberType
+
+		if !isMemberTypeSupportedByTargetBuildRelease(memberType, targetBuildRelease) {
+			continue
+		}
+
+		membersOfType := byType[memberType]
 		members = append(members, membersOfType...)
 	}
 
 	return members
+}
+
+// isMemberTypeSupportedByTargetBuildRelease returns true if the member type is supported by the
+// target build release.
+func isMemberTypeSupportedByTargetBuildRelease(memberType android.SdkMemberType, targetBuildRelease *buildRelease) bool {
+	supportedByTargetBuildRelease := true
+	supportedBuildReleases := memberType.SupportedBuildReleases()
+	if supportedBuildReleases == "" {
+		supportedBuildReleases = "S+"
+	}
+
+	set, err := parseBuildReleaseSet(supportedBuildReleases)
+	if err != nil {
+		panic(fmt.Errorf("member type %s has invalid supported build releases %q: %s",
+			memberType.SdkPropertyName(), supportedBuildReleases, err))
+	}
+	if !set.contains(targetBuildRelease) {
+		supportedByTargetBuildRelease = false
+	}
+	return supportedByTargetBuildRelease
 }
 
 func appendUniqueVariants(variants []android.SdkAware, newVariant android.SdkAware) []android.SdkAware {
@@ -416,7 +442,7 @@ be unnecessary as every module in the sdk already has its own licenses property.
 
 	// Group the variants for each member module together and then group the members of each member
 	// type together.
-	members := s.groupMemberVariantsByMemberThenType(ctx, memberVariantDeps)
+	members := s.groupMemberVariantsByMemberThenType(ctx, targetBuildRelease, memberVariantDeps)
 
 	// Create the prebuilt modules for each of the member modules.
 	traits := s.gatherTraits()
@@ -793,6 +819,9 @@ func (s *sdk) addSnapshotPropertiesToPropertySet(builder *snapshotBuilder, prope
 	dynamicMemberTypeListProperties := combined.dynamicProperties
 	for _, memberListProperty := range s.memberTypeListProperties() {
 		if memberListProperty.getter == nil {
+			continue
+		}
+		if !isMemberTypeSupportedByTargetBuildRelease(memberListProperty.memberType, builder.targetBuildRelease) {
 			continue
 		}
 		names := memberListProperty.getter(dynamicMemberTypeListProperties)
@@ -1901,6 +1930,12 @@ func (m *memberContext) Name() string {
 func (m *memberContext) RequiresTrait(trait android.SdkMemberTrait) bool {
 	return m.requiredTraits.Contains(trait)
 }
+
+func (m *memberContext) IsTargetBuildBeforeTiramisu() bool {
+	return m.builder.targetBuildRelease.EarlierThan(buildReleaseT)
+}
+
+var _ android.SdkMemberContext = (*memberContext)(nil)
 
 func (s *sdk) createMemberSnapshot(ctx *memberContext, member *sdkMember, bpModule *bpModule) {
 
