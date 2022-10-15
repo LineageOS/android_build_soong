@@ -190,7 +190,7 @@ type CommonProperties struct {
 // constructing a new module.
 type DeviceProperties struct {
 	// If not blank, set to the version of the sdk to compile against.
-	// Defaults to private.
+	// Defaults to an empty string, which compiles the module against the private platform APIs.
 	// Values are of one of the following forms:
 	// 1) numerical API level, "current", "none", or "core_platform"
 	// 2) An SDK kind with an API level: "<sdk kind>_<API level>"
