@@ -94,6 +94,9 @@ func cleanupRBELogsDir(ctx Context, config Config) {
 }
 
 func startRBE(ctx Context, config Config) {
+	if !config.GoogleProdCredsExist() && prodCredsAuthType(config) {
+		ctx.Fatalf("Unable to start RBE reproxy\nFAILED: Missing LOAS credentials.")
+	}
 	ctx.BeginTrace(metrics.RunSetupTool, "rbe_bootstrap")
 	defer ctx.EndTrace()
 

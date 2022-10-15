@@ -98,6 +98,11 @@ func buildLicenseMetadata(ctx ModuleContext, licenseMetadataFile WritablePath) {
 	var orderOnlyDeps Paths
 	var args []string
 
+	if n := ctx.ModuleName(); n != "" {
+		args = append(args,
+			"-mn "+proptools.NinjaAndShellEscape(n))
+	}
+
 	if t := ctx.ModuleType(); t != "" {
 		args = append(args,
 			"-mt "+proptools.NinjaAndShellEscape(t))
