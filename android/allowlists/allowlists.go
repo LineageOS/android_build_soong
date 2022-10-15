@@ -33,6 +33,10 @@ const (
 	// all modules in this package (not recursively) default to bp2build_available: false.
 	// allows modules to opt-in.
 	Bp2BuildDefaultFalse
+
+	// all modules in this package and subpackages default to bp2build_available: false.
+	// allows modules to opt-in.
+	Bp2BuildDefaultFalseRecursively
 )
 
 var (
