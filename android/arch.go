@@ -655,7 +655,8 @@ func archMutator(bpctx blueprint.BottomUpMutatorContext) {
 	prefer32 := os == Windows
 
 	// Determine the multilib selection for this module.
-	multilib, extraMultilib := decodeMultilib(base, os)
+	force_first_on_device := mctx.Config().ForceMultilibFirstOnDevice()
+	multilib, extraMultilib := decodeMultilib(base, os, force_first_on_device)
 
 	// Convert the multilib selection into a list of Targets.
 	targets, err := decodeMultilibTargets(multilib, osTargets, prefer32)
@@ -730,7 +731,7 @@ func addTargetProperties(m Module, target Target, multiTargets []Target, primary
 // multilib from the factory's call to InitAndroidArchModule if none was set.  For modules that
 // called InitAndroidMultiTargetsArchModule it always returns "common" for multilib, and returns
 // the actual multilib in extraMultilib.
-func decodeMultilib(base *ModuleBase, os OsType) (multilib, extraMultilib string) {
+func decodeMultilib(base *ModuleBase, os OsType, force_first_on_device bool) (multilib, extraMultilib string) {
 	// First check the "android.compile_multilib" or "host.compile_multilib" properties.
 	switch os.Class {
 	case Device:
@@ -747,6 +748,13 @@ func decodeMultilib(base *ModuleBase, os OsType) (multilib, extraMultilib string
 	// If that wasn't set, use the default multilib set by the factory.
 	if multilib == "" {
 		multilib = base.commonProperties.Default_multilib
+	}
+
+	// If a device is configured with multiple targets, this option
+	// force all device targets that prefer32 to be compiled only as
+	// the first target.
+	if force_first_on_device && os.Class == Device && (multilib == "prefer32" || multilib == "first_prefer32") {
+		multilib = "first"
 	}
 
 	if base.commonProperties.UseTargetVariants {
