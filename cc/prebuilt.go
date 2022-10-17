@@ -358,12 +358,12 @@ type bazelPrebuiltLibraryStaticAttributes struct {
 
 // TODO(b/228623543): The below is not entirely true until the bug is fixed. For now, both targets are always generated
 // Implements bp2build for cc_prebuilt_library modules. This will generate:
-//   - Only a prebuilt_library_static if the shared.enabled property is set to false across all variants.
-//   - Only a prebuilt_library_shared if the static.enabled property is set to false across all variants
-//   - Both a prebuilt_library_static and prebuilt_library_shared if the aforementioned properties are not false across
+//   - Only a cc_prebuilt_library_static if the shared.enabled property is set to false across all variants.
+//   - Only a cc_prebuilt_library_shared if the static.enabled property is set to false across all variants
+//   - Both a cc_prebuilt_library_static and cc_prebuilt_library_shared if the aforementioned properties are not false across
 //     all variants
 //
-// In all cases, prebuilt_library_static target names will be appended with "_bp2build_cc_library_static".
+// In all cases, cc_prebuilt_library_static target names will be appended with "_bp2build_cc_library_static".
 func prebuiltLibraryBp2Build(ctx android.TopDownMutatorContext, module *Module) {
 	prebuiltLibraryStaticBp2Build(ctx, module, true)
 	prebuiltLibrarySharedBp2Build(ctx, module)
@@ -380,8 +380,8 @@ func prebuiltLibraryStaticBp2Build(ctx android.TopDownMutatorContext, module *Mo
 	}
 
 	props := bazel.BazelTargetModuleProperties{
-		Rule_class:        "prebuilt_library_static",
-		Bzl_load_location: "//build/bazel/rules/cc:prebuilt_library_static.bzl",
+		Rule_class:        "cc_prebuilt_library_static",
+		Bzl_load_location: "//build/bazel/rules/cc:cc_prebuilt_library_static.bzl",
 	}
 
 	name := android.RemoveOptionalPrebuiltPrefix(module.Name())
@@ -403,8 +403,8 @@ func prebuiltLibrarySharedBp2Build(ctx android.TopDownMutatorContext, module *Mo
 	}
 
 	props := bazel.BazelTargetModuleProperties{
-		Rule_class:        "prebuilt_library_shared",
-		Bzl_load_location: "//build/bazel/rules/cc:prebuilt_library_shared.bzl",
+		Rule_class:        "cc_prebuilt_library_shared",
+		Bzl_load_location: "//build/bazel/rules/cc:cc_prebuilt_library_shared.bzl",
 	}
 
 	name := android.RemoveOptionalPrebuiltPrefix(module.Name())
