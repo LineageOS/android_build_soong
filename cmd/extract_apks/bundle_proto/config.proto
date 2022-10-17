@@ -26,6 +26,9 @@ message BundleConfig {
     ASSET_ONLY = 2;
   }
   BundleType type = 8;
+
+  // Configuration for locales.
+  Locales locales = 9;
 }
 
 message Bundletool {
@@ -40,6 +43,48 @@ message Compression {
   // the name of the modules, and using forward slash ("/") as a name separator.
   // Examples: "res/raw/**", "assets/**/*.uncompressed", etc.
   repeated string uncompressed_glob = 1;
+
+  enum AssetModuleCompression {
+    UNSPECIFIED = 0;
+    // Assets are left uncompressed in the generated asset module.
+    UNCOMPRESSED = 1;
+    // Assets are compressed in the generated asset module.
+    // This option can be overridden at a finer granularity by specifying
+    // files or folders to keep uncompressed in `uncompressed_glob`.
+    // This option should only be used if the app is able to handle compressed
+    // asset module content at runtime (some runtime APIs may misbehave).
+    COMPRESSED = 2;
+  }
+
+  // Default compression strategy for install-time asset modules.
+  // If the compression strategy indicates to compress a file and the same file
+  // matches one of the `uncompressed_glob` values, the `uncompressed_glob`
+  // takes precedence (the file is left uncompressed in the generated APK).
+  //
+  // If unspecified, asset module content is left uncompressed in the
+  // generated asset modules.
+  //
+  // Note: this flag only configures the compression strategy for install-time
+  // asset modules; the content of on-demand and fast-follow asset modules is
+  // always kept uncompressed.
+  AssetModuleCompression install_time_asset_module_default_compression = 2;
+
+  enum ApkCompressionAlgorithm {
+    // Default in the current version of bundletool is zlib deflate algorithm
+    // with compression level 9 for the application's resources and compression
+    // level 6 for other entries.
+    //
+    // This is a good trade-off between size of final APK and size of patches
+    // which are used to update the application from previous to next version.
+    DEFAULT_APK_COMPRESSION_ALGORITHM = 0;
+
+    // 7zip implementation of deflate algorithm which gives smaller APK size
+    // but size of patches required to update the application are larger.
+    P7ZIP = 1;
+  }
+
+  // Compression algorithm which is used to compress entries in final APKs.
+  ApkCompressionAlgorithm apk_compression_algorithm = 3;
 }
 
 // Resources to keep in the master split.
@@ -55,12 +100,40 @@ message Optimizations {
   // This is for uncompressing native libraries on M+ devices (L+ devices on
   // instant apps).
   UncompressNativeLibraries uncompress_native_libraries = 2;
-  // This is for uncompressing dex files on P+ devices.
+  // This is for uncompressing dex files.
   UncompressDexFiles uncompress_dex_files = 3;
   // Configuration for the generation of standalone APKs.
   // If no StandaloneConfig is set, the configuration is inherited from
   // splits_config.
   StandaloneConfig standalone_config = 4;
+
+  // Optimizations that are applied to resources.
+  ResourceOptimizations resource_optimizations = 5;
+
+  // Configuration for archiving the app.
+  StoreArchive store_archive = 6;
+}
+
+message ResourceOptimizations {
+  // Whether to use sparse encoding for resource tables.
+  // Resources in sparse resource table are accessed using a binary search tree.
+  // This decreases APK size at the cost of resource retrieval performance.
+  SparseEncoding sparse_encoding = 1;
+
+  enum SparseEncoding {
+    // Previously 'ENFORCED'. This option is deprecated because of issues found
+    // in Android O up to Android Sv2 and causes segfaults in
+    // Resources#getIdentifier.
+    reserved 1;
+    reserved "ENFORCED";
+
+    // Disables sparse encoding.
+    UNSPECIFIED = 0;
+    // Generates special APKs for Android SDK +32 with sparse resource tables.
+    // Devices with Android SDK below 32 will still receive APKs with regular
+    // resource tables.
+    VARIANT_FOR_SDK_32 = 2;
+  }
 }
 
 message UncompressNativeLibraries {
@@ -68,7 +141,39 @@ message UncompressNativeLibraries {
 }
 
 message UncompressDexFiles {
+  //  A new variant with uncompressed dex will be generated. The sdk targeting
+  //  of the variant is determined by 'uncompressed_dex_target_sdk'.
   bool enabled = 1;
+
+  //  If 'enabled' field is set, this will determine the sdk targeting of the
+  //  generated variant.
+  UncompressedDexTargetSdk uncompressed_dex_target_sdk = 2;
+
+  enum UncompressedDexTargetSdk {
+    // Q+ variant will be generated.
+    UNSPECIFIED = 0;
+    // S+ variant will be generated.
+    SDK_31 = 1;
+  }
+}
+
+message StoreArchive {
+  // Archive is an app state that allows an official app store to reclaim device
+  // storage and disable app functionality temporarily until the user interacts
+  // with the app again. Upon interaction the latest available version of the
+  // app will be restored while leaving user data unaffected.
+  // Enabled by default.
+  bool enabled = 1;
+}
+
+message Locales {
+  // Instructs bundletool to generate locale config and inject it into
+  // AndroidManifest.xml. A locale is marked as supported by the application if
+  // there is at least one resource value in this locale. Be very careful with
+  // this setting because if some of your libraries expose resources in some
+  // locales which are not actually supported by your application it will mark
+  // this locale as supported. Disabled by default.
+  bool inject_locale_config = 1;
 }
 
 // Optimization configuration used to generate Split APKs.
@@ -82,8 +187,28 @@ message StandaloneConfig {
   repeated SplitDimension split_dimension = 1;
   // Whether 64 bit libraries should be stripped from Standalone APKs.
   bool strip_64_bit_libraries = 2;
+  // Dex merging strategy that should be applied to produce Standalone APKs.
+  DexMergingStrategy dex_merging_strategy = 3;
+
+  enum DexMergingStrategy {
+    // Strategy that does dex merging for applications that have minimum SDK
+    // below 21 to ensure dex files from all modules are merged into one or
+    // mainDexList is applied when merging into one dex is not possible. For
+    // applications with minSdk >= 21 dex files from all modules are copied into
+    // standalone APK as is because Android supports multiple dex files natively
+    // starting from Android 5.0.
+    MERGE_IF_NEEDED = 0;
+    // Requires to copy dex files from all modules into standalone APK as is.
+    // If an application supports SDKs below 21 this strategy puts
+    // responsibility of providing dex files compatible with legacy multidex on
+    // application developers.
+    NEVER_MERGE = 1;
+  }
 }
 
+// BEGIN-INTERNAL
+// LINT.IfChange
+// END-INTERNAL
 message SplitDimension {
   enum Value {
     UNSPECIFIED_VALUE = 0;
@@ -92,8 +217,9 @@ message SplitDimension {
     LANGUAGE = 3;
     TEXTURE_COMPRESSION_FORMAT = 4;
     // BEGIN-INTERNAL
-    GRAPHICS_API = 5;
+    GRAPHICS_API = 5 [deprecated = true];
     // END-INTERNAL
+    DEVICE_TIER = 6;
   }
   Value value = 1;
 
@@ -105,11 +231,14 @@ message SplitDimension {
   // the targeting is encoded in the directory name (e.g: assets/foo#tcf_etc1)
   SuffixStripping suffix_stripping = 3;
 }
+// BEGIN-INTERNAL
+// LINT.ThenChange(//depot/google3/wireless/android/vending/developer/proto/storage/app/apk_bundle.proto)
+// END-INTERNAL
 
 message SuffixStripping {
   // If set to 'true', indicates that the targeting suffix should be removed
-  // from assets paths for this dimension when splits (or asset slices) are
-  // generated.
+  // from assets paths for this dimension when splits (e.g: "asset packs") or
+  // standalone/universal APKs are generated.
   // This only applies to assets.
   // For example a folder with path "assets/level1_textures#tcf_etc1"
   // would be outputted to "assets/level1_textures". File contents are
@@ -117,9 +246,9 @@ message SuffixStripping {
   bool enabled = 1;
 
   // The default suffix to be used for the cases where separate slices can't
-  // be generated for this dimension. In the case of standalone/universal APKs
-  // generation, stripping the suffix can lead to file name collisions. This
-  // default suffix defines the directories to retain. The others are
+  // be generated for this dimension - typically for standalone or universal
+  // APKs.
+  // This default suffix defines the directories to retain. The others are
   // discarded: standalone/universal APKs will contain only directories
   // targeted at this value for the dimension.
   //
@@ -135,6 +264,15 @@ message SuffixStripping {
 message ApexConfig {
   // Configuration for processing of APKs embedded in an APEX image.
   repeated ApexEmbeddedApkConfig apex_embedded_apk_config = 1;
+
+  // Explicit list of supported ABIs.
+  // Default: See ApexBundleValidator.REQUIRED_ONE_OF_ABI_SETS
+  repeated SupportedAbiSet supported_abi_set = 2;
+}
+
+// Represents a set of ABIs which must be supported by a single APEX image.
+message SupportedAbiSet {
+  repeated string abi = 1;
 }
 
 message ApexEmbeddedApkConfig {
