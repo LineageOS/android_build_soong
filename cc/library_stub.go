@@ -81,6 +81,19 @@ func (d *apiLibraryDecorator) Name(basename string) string {
 	return basename + multitree.GetApiImportSuffix()
 }
 
+// Export include dirs without checking for existence.
+// The directories are not guaranteed to exist during Soong analysis.
+func (d *apiLibraryDecorator) exportIncludes(ctx ModuleContext) {
+	exporterProps := d.flagExporter.Properties
+	for _, dir := range exporterProps.Export_include_dirs {
+		d.dirs = append(d.dirs, android.PathForSource(ctx, ctx.ModuleDir(), dir))
+	}
+	// system headers
+	for _, dir := range exporterProps.Export_system_include_dirs {
+		d.systemDirs = append(d.systemDirs, android.PathForSource(ctx, ctx.ModuleDir(), dir))
+	}
+}
+
 func (d *apiLibraryDecorator) link(ctx ModuleContext, flags Flags, deps PathDeps, objects Objects) android.Path {
 	// Export headers as system include dirs if specified. Mostly for libc
 	if Bool(d.libraryDecorator.Properties.Llndk.Export_headers_as_system) {
@@ -91,7 +104,7 @@ func (d *apiLibraryDecorator) link(ctx ModuleContext, flags Flags, deps PathDeps
 	}
 
 	// Flags reexported from dependencies. (e.g. vndk_prebuilt_shared)
-	d.libraryDecorator.flagExporter.exportIncludes(ctx)
+	d.exportIncludes(ctx)
 	d.libraryDecorator.reexportDirs(deps.ReexportedDirs...)
 	d.libraryDecorator.reexportSystemDirs(deps.ReexportedSystemDirs...)
 	d.libraryDecorator.reexportFlags(deps.ReexportedFlags...)
@@ -99,7 +112,13 @@ func (d *apiLibraryDecorator) link(ctx ModuleContext, flags Flags, deps PathDeps
 	d.libraryDecorator.addExportedGeneratedHeaders(deps.ReexportedGeneratedHeaders...)
 	d.libraryDecorator.flagExporter.setProvider(ctx)
 
-	in := android.PathForModuleSrc(ctx, *d.properties.Src)
+	if d.properties.Src == nil {
+		ctx.PropertyErrorf("src", "src is a required property")
+	}
+	// Skip the existence check of the stub prebuilt file.
+	// The file is not guaranteed to exist during Soong analysis.
+	// Build orchestrator will be responsible for creating a connected ninja graph.
+	in := android.PathForSource(ctx, ctx.ModuleDir(), *d.properties.Src)
 
 	d.unstrippedOutputFile = in
 	libName := d.libraryDecorator.getLibName(ctx) + flags.Toolchain.ShlibSuffix()

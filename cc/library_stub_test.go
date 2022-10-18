@@ -325,3 +325,41 @@ func TestApiHeadersShouldNotReplaceWithoutApiImport(t *testing.T) {
 	android.AssertBoolEquals(t, "original header should be used for original library", true, hasDirectDependency(t, ctx, libfoo, libfooHeader))
 	android.AssertBoolEquals(t, "Header from API surface should not be used for original library", false, hasDirectDependency(t, ctx, libfoo, libfooHeaderApiImport))
 }
+
+func TestExportDirFromStubLibrary(t *testing.T) {
+	bp := `
+		cc_library {
+			name: "libfoo",
+			export_include_dirs: ["source_include_dir"],
+			export_system_include_dirs: ["source_system_include_dir"],
+			vendor_available: true,
+		}
+		cc_api_library {
+			name: "libfoo",
+			export_include_dirs: ["stub_include_dir"],
+			export_system_include_dirs: ["stub_system_include_dir"],
+			vendor_available: true,
+			src: "libfoo.so",
+		}
+		api_imports {
+			name: "api_imports",
+			shared_libs: [
+				"libfoo",
+			],
+			header_libs: [],
+		}
+		// vendor binary
+		cc_binary {
+			name: "vendorbin",
+			vendor: true,
+			srcs: ["vendor.cc"],
+			shared_libs: ["libfoo"],
+		}
+	`
+	ctx := prepareForCcTest.RunTestWithBp(t, bp)
+	vendorCFlags := ctx.ModuleForTests("vendorbin", "android_vendor.29_arm64_armv8-a").Rule("cc").Args["cFlags"]
+	android.AssertStringDoesContain(t, "Vendor binary should compile using headers provided by stub", vendorCFlags, "-Istub_include_dir")
+	android.AssertStringDoesNotContain(t, "Vendor binary should not compile using headers of source", vendorCFlags, "-Isource_include_dir")
+	android.AssertStringDoesContain(t, "Vendor binary should compile using system headers provided by stub", vendorCFlags, "-isystem stub_system_include_dir")
+	android.AssertStringDoesNotContain(t, "Vendor binary should not compile using system headers of source", vendorCFlags, "-isystem source_system_include_dir")
+}
