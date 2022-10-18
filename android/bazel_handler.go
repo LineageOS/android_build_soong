@@ -386,6 +386,12 @@ func NewBazelContext(c *config) (BazelContext, error) {
 		for _, enabledProdModule := range allowlists.ProdMixedBuildsEnabledList {
 			enabledModules[enabledProdModule] = true
 		}
+	case BazelStagingMode:
+		modulesDefaultToBazel = false
+		for _, enabledStagingMode := range allowlists.StagingMixedBuildsEnabledList {
+			enabledModules[enabledStagingMode] = true
+
+		}
 	case BazelDevMode:
 		modulesDefaultToBazel = true
 

@@ -112,9 +112,19 @@ const (
 // checkBazelMode fails the build if there are conflicting arguments for which bazel
 // build mode to use.
 func checkBazelMode(ctx Context, config Config) {
-	if config.bazelProdMode && config.bazelDevMode {
+	count := 0
+	if config.bazelProdMode {
+		count++
+	}
+	if config.bazelDevMode {
+		count++
+	}
+	if config.bazelStagingMode {
+		count++
+	}
+	if count > 1 {
 		ctx.Fatalln("Conflicting bazel mode.\n" +
-			"Do not specify both --bazel-mode and --bazel-mode-dev")
+			"Do not specify more than one of --bazel-mode and --bazel-mode-dev and --bazel-mode-staging ")
 	}
 }
 
