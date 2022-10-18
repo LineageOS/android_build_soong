@@ -139,6 +139,8 @@ func staticUnwinder(ctx android.BaseModuleContext) string {
 	return "libunwind"
 }
 
+// Should be kept up to date with
+// https://cs.android.com/android/platform/superproject/+/master:build/bazel/rules/cc/stl.bzl;l=46;drc=21771b671ae08565033768a6d3d151c54f887fa2
 func (stl *stl) deps(ctx BaseModuleContext, deps Deps) Deps {
 	switch stl.Properties.SelectedStl {
 	case "libstdc++":
@@ -194,6 +196,8 @@ func (stl *stl) deps(ctx BaseModuleContext, deps Deps) Deps {
 	return deps
 }
 
+// Should be kept up to date with
+// https://cs.android.com/android/platform/superproject/+/master:build/bazel/rules/cc/stl.bzl;l=94;drc=5bc8e39d2637927dc57dd0850210d43d348a1341
 func (stl *stl) flags(ctx ModuleContext, flags Flags) Flags {
 	switch stl.Properties.SelectedStl {
 	case "libc++", "libc++_static":
