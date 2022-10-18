@@ -3391,7 +3391,12 @@ func convertWithBp2build(a *apexBundle, ctx android.TopDownMutatorContext) (baze
 		Native_shared_libs_32: bazel.LabelListAttribute{},
 		Native_shared_libs_64: bazel.LabelListAttribute{},
 	}
-	compileMultilib := "both"
+
+	// https://cs.android.com/android/platform/superproject/+/master:build/soong/android/arch.go;l=698;drc=f05b0d35d2fbe51be9961ce8ce8031f840295c68
+	// https://cs.android.com/android/platform/superproject/+/master:build/soong/apex/apex.go;l=2549;drc=ec731a83e3e2d80a1254e32fd4ad7ef85e262669
+	// In Soong, decodeMultilib, used to get multilib, return "first" if defaultMultilib is set to "common".
+	// Since apex sets defaultMultilib to be "common", equivalent compileMultilib in bp2build for apex should be "first"
+	compileMultilib := "first"
 	if a.CompileMultilib() != nil {
 		compileMultilib = *a.CompileMultilib()
 	}
