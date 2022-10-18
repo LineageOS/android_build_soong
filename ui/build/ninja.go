@@ -67,8 +67,7 @@ func runNinjaForBuild(ctx Context, config Config) {
 	args = append(args,
 		"-o", "usesphonyoutputs=yes",
 		"-w", "dupbuild=err",
-		"-w", "missingdepfile=err",
-		"-w", "missingoutfile=err")
+		"-w", "missingdepfile=err")
 
 	cmd := Command(ctx, config, "ninja", executable, args...)
 
