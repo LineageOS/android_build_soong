@@ -79,9 +79,10 @@ func (tidy *tidyFeature) flags(ctx ModuleContext, flags Flags) Flags {
 	// Some projects like external/* and vendor/* have clang-tidy disabled by default,
 	// unless they are enabled explicitly with the "tidy:true" property or
 	// when TIDY_EXTERNAL_VENDOR is set to true.
-	if !ctx.Config().IsEnvTrue("TIDY_EXTERNAL_VENDOR") &&
-		!proptools.Bool(tidy.Properties.Tidy) &&
-		config.NoClangTidyForDir(ctx.ModuleDir()) {
+	if !proptools.Bool(tidy.Properties.Tidy) &&
+		config.NoClangTidyForDir(
+			ctx.Config().IsEnvTrue("TIDY_EXTERNAL_VENDOR"),
+			ctx.ModuleDir()) {
 		return flags
 	}
 	// If not explicitly disabled, set flags.Tidy to generate .tidy rules.
