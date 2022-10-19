@@ -205,11 +205,18 @@ func TidyChecksForDir(dir string) string {
 	return tidyDefault
 }
 
-func NoClangTidyForDir(dir string) bool {
+func neverTidyForDir(dir string) bool {
+	// This function can be extended if tidy needs to be disabled for more directories.
+	return strings.HasPrefix(dir, "external/grpc-grpc")
+}
+
+func NoClangTidyForDir(allowExternalVendor bool, dir string) bool {
+	// Tidy can be disable for a module in dir, if the dir is "neverTidyForDir",
+	// or if it belongs to external|vendor and !allowExternalVendor.
 	// This function depends on TidyChecksForDir, which selects tidyExternalVendor
-	// checks for external/vendor projects. For those projects we disable clang-tidy
-	// by default, unless some modules enable clang-tidy with tidy:true.
-	return TidyChecksForDir(dir) == tidyExternalVendor
+	// checks for external/vendor projects.
+	return neverTidyForDir(dir) ||
+		(!allowExternalVendor && TidyChecksForDir(dir) == tidyExternalVendor)
 }
 
 // Returns a globally disabled tidy checks, overriding locally selected checks.
