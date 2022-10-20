@@ -15,12 +15,13 @@
 package bp2build
 
 import (
+	"fmt"
+	"testing"
+
 	"android/soong/android"
 	"android/soong/cc"
 	"android/soong/genrule"
 	"android/soong/java"
-	"fmt"
-	"testing"
 )
 
 func registerGenruleModuleTypes(ctx android.RegistrationContext) {
@@ -642,4 +643,51 @@ genrule {
 			runGenruleTestCase(t, testCase)
 		})
 	}
+}
+
+func TestCcGenruleArchAndExcludeSrcs(t *testing.T) {
+	name := "cc_genrule with arch"
+	bp := `
+	cc_genrule {
+		name: "foo",
+		srcs: [
+			"foo1.in",
+			"foo2.in",
+		],
+		exclude_srcs: ["foo2.in"],
+		arch: {
+			arm: {
+				srcs: [
+					"foo1_arch.in",
+					"foo2_arch.in",
+				],
+				exclude_srcs: ["foo2_arch.in"],
+			},
+		},
+		cmd: "cat $(in) > $(out)",
+		bazel_module: { bp2build_available: true },
+	}`
+
+	expectedBazelAttrs := AttrNameToString{
+		"srcs": `["foo1.in"] + select({
+        "//build/bazel/platforms/arch:arm": ["foo1_arch.in"],
+        "//conditions:default": [],
+    })`,
+		"cmd":                    `"cat $(SRCS) > $(OUTS)"`,
+		"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
+	}
+
+	expectedBazelTargets := []string{
+		MakeBazelTargetNoRestrictions("genrule", "foo", expectedBazelAttrs),
+	}
+
+	t.Run(name, func(t *testing.T) {
+		RunBp2BuildTestCase(t, func(ctx android.RegistrationContext) {},
+			Bp2buildTestCase{
+				ModuleTypeUnderTest:        "cc_genrule",
+				ModuleTypeUnderTestFactory: cc.GenRuleFactory,
+				Blueprint:                  bp,
+				ExpectedBazelTargets:       expectedBazelTargets,
+			})
+	})
 }
