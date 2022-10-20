@@ -264,7 +264,7 @@ func (fuzzBin *fuzzBinary) install(ctx ModuleContext, file android.Path) {
 	}
 
 	// Grab the list of required shared libraries.
-	fuzzBin.sharedLibraries = CollectAllSharedDependencies(ctx)
+	fuzzBin.sharedLibraries, _ = CollectAllSharedDependencies(ctx)
 
 	for _, lib := range fuzzBin.sharedLibraries {
 		fuzzBin.installedSharedDeps = append(fuzzBin.installedSharedDeps,
@@ -478,9 +478,10 @@ func GetSharedLibsToZip(sharedLibraries android.Paths, module LinkableInterface,
 // VisitDirectDeps is used first to avoid incorrectly using the core libraries (sanitizer
 // runtimes, libc, libdl, etc.) from a dependency. This may cause issues when dependencies
 // have explicit sanitizer tags, as we may get a dependency on an unsanitized libc, etc.
-func CollectAllSharedDependencies(ctx android.ModuleContext) android.Paths {
+func CollectAllSharedDependencies(ctx android.ModuleContext) (android.Paths, []android.Module) {
 	seen := make(map[string]bool)
 	recursed := make(map[string]bool)
+	deps := []android.Module{}
 
 	var sharedLibraries android.Paths
 
@@ -494,6 +495,7 @@ func CollectAllSharedDependencies(ctx android.ModuleContext) android.Paths {
 			return
 		}
 		seen[ctx.OtherModuleName(dep)] = true
+		deps = append(deps, dep)
 		sharedLibraries = append(sharedLibraries, android.OutputFileForModule(ctx, dep, "unstripped"))
 	})
 
@@ -503,6 +505,7 @@ func CollectAllSharedDependencies(ctx android.ModuleContext) android.Paths {
 		}
 		if !seen[ctx.OtherModuleName(child)] {
 			seen[ctx.OtherModuleName(child)] = true
+			deps = append(deps, child)
 			sharedLibraries = append(sharedLibraries, android.OutputFileForModule(ctx, child, "unstripped"))
 		}
 
@@ -513,5 +516,5 @@ func CollectAllSharedDependencies(ctx android.ModuleContext) android.Paths {
 		return true
 	})
 
-	return sharedLibraries
+	return sharedLibraries, deps
 }
