@@ -91,7 +91,7 @@ func (fuzzer *fuzzDecorator) compile(ctx ModuleContext, flags Flags, deps PathDe
 	out := fuzzer.binaryDecorator.compile(ctx, flags, deps)
 
 	// Grab the list of required shared libraries.
-	fuzzer.sharedLibraries = cc.CollectAllSharedDependencies(ctx)
+	fuzzer.sharedLibraries, _ = cc.CollectAllSharedDependencies(ctx)
 
 	return out
 }
