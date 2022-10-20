@@ -27,6 +27,7 @@ func runAndroidAppTestCase(t *testing.T, tc Bp2buildTestCase) {
 }
 
 func registerAndroidAppModuleTypes(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
 }
 
 func TestMinimalAndroidApp(t *testing.T) {
@@ -76,6 +77,7 @@ android_app {
         manifest: "manifest/AndroidManifest.xml",
         static_libs: ["static_lib_dep"],
         java_version: "7",
+        certificate: "foocert",
 }
 `,
 		ExpectedBazelTargets: []string{
@@ -86,9 +88,10 @@ android_app {
         "resa/res.png",
         "resb/res.png",
     ]`,
-				"custom_package": `"com.google"`,
-				"deps":           `[":static_lib_dep"]`,
-				"javacopts":      `["-source 1.7 -target 1.7"]`,
+				"custom_package":   `"com.google"`,
+				"deps":             `[":static_lib_dep"]`,
+				"javacopts":        `["-source 1.7 -target 1.7"]`,
+				"certificate_name": `"foocert"`,
 			}),
 		}})
 }
@@ -127,6 +130,73 @@ android_app {
     })`,
 				"manifest":       `"AndroidManifest.xml"`,
 				"resource_files": `["res/res.png"]`,
+			}),
+		}})
+}
+
+func TestAndroidAppCertIsModule(t *testing.T) {
+	runAndroidAppTestCase(t, Bp2buildTestCase{
+		Description:                "Android app - cert is module",
+		ModuleTypeUnderTest:        "android_app",
+		ModuleTypeUnderTestFactory: java.AndroidAppFactory,
+		Filesystem:                 map[string]string{},
+		Blueprint: simpleModuleDoNotConvertBp2build("filegroup", "foocert") + `
+android_app {
+        name: "TestApp",
+        certificate: ":foocert",
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("android_binary", "TestApp", AttrNameToString{
+				"certificate":    `":foocert"`,
+				"manifest":       `"AndroidManifest.xml"`,
+				"resource_files": `[]`,
+			}),
+		}})
+}
+
+func TestAndroidAppCertIsSrcFile(t *testing.T) {
+	runAndroidAppTestCase(t, Bp2buildTestCase{
+		Description:                "Android app - cert is src file",
+		ModuleTypeUnderTest:        "android_app",
+		ModuleTypeUnderTestFactory: java.AndroidAppFactory,
+		Filesystem: map[string]string{
+			"foocert": "",
+		},
+		Blueprint: `
+android_app {
+        name: "TestApp",
+        certificate: "foocert",
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("android_binary", "TestApp", AttrNameToString{
+				"certificate":    `"foocert"`,
+				"manifest":       `"AndroidManifest.xml"`,
+				"resource_files": `[]`,
+			}),
+		}})
+}
+
+func TestAndroidAppCertIsNotSrcOrModule(t *testing.T) {
+	runAndroidAppTestCase(t, Bp2buildTestCase{
+		Description:                "Android app - cert is not src or module",
+		ModuleTypeUnderTest:        "android_app",
+		ModuleTypeUnderTestFactory: java.AndroidAppFactory,
+		Filesystem:                 map[string]string{
+			// deliberate empty
+		},
+		Blueprint: `
+android_app {
+        name: "TestApp",
+        certificate: "foocert",
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("android_binary", "TestApp", AttrNameToString{
+				"certificate_name": `"foocert"`,
+				"manifest":         `"AndroidManifest.xml"`,
+				"resource_files":   `[]`,
 			}),
 		}})
 }

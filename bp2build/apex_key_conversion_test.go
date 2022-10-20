@@ -30,12 +30,37 @@ func registerApexKeyModuleTypes(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
 }
 
-func TestApexKeySimple_KeysAreSrcFiles(t *testing.T) {
+func TestApexKeySimple_KeysAreSrcFilesInSameDir(t *testing.T) {
 	runApexKeyTestCase(t, Bp2buildTestCase{
-		Description:                "apex key - keys are src files, use key_name attributes",
+		Description:                "apex key - keys are src files, use key attributes",
 		ModuleTypeUnderTest:        "apex_key",
 		ModuleTypeUnderTestFactory: apex.ApexKeyFactory,
-		Filesystem:                 map[string]string{},
+		Filesystem: map[string]string{
+			"com.android.apogee.avbpubkey": "",
+			"com.android.apogee.pem":       "",
+		},
+		Blueprint: `
+apex_key {
+        name: "com.android.apogee.key",
+        public_key: "com.android.apogee.avbpubkey",
+        private_key: "com.android.apogee.pem",
+}
+`,
+		ExpectedBazelTargets: []string{MakeBazelTargetNoRestrictions("apex_key", "com.android.apogee.key", AttrNameToString{
+			"private_key": `"com.android.apogee.pem"`,
+			"public_key":  `"com.android.apogee.avbpubkey"`,
+		}),
+		}})
+}
+
+func TestApexKeySimple_KeysAreSrcFilesNotInDir(t *testing.T) {
+	runApexKeyTestCase(t, Bp2buildTestCase{
+		Description:                "apex key - keys are not src or module, use key_name attributes",
+		ModuleTypeUnderTest:        "apex_key",
+		ModuleTypeUnderTestFactory: apex.ApexKeyFactory,
+		Filesystem:                 map[string]string{
+			// deliberately left empty
+		},
 		Blueprint: `
 apex_key {
         name: "com.android.apogee.key",
