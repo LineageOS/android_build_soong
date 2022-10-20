@@ -1280,6 +1280,10 @@ var (
 		"libapplypatch",
 		"libapplypatch_modes",
 		"applypatch",
+
+		// TODO(b/254476335): disable the following due to this bug
+		"libapexinfo",
+		"libapexinfo_tests",
 	}
 
 	Bp2buildCcLibraryStaticOnlyList = []string{}
