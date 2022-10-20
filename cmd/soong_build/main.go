@@ -519,6 +519,12 @@ func touch(path string) {
 	}
 }
 
+func touchIfDoesNotExist(path string) {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		touch(path)
+	}
+}
+
 // Find BUILD files in the srcDir which are not in the allowlist
 // (android.Bp2BuildConversionAllowlist#ShouldKeepExistingBuildFileForDir)
 // and return their paths so they can be left out of the Bazel workspace dir (i.e. ignored)
@@ -684,8 +690,9 @@ func runBp2Build(configuration android.Config, extraNinjaDeps []string) {
 
 		writeDepFile(bp2buildMarker, eventHandler, ninjaDeps)
 
-		// Create an empty bp2build marker file.
-		touch(shared.JoinPath(topDir, bp2buildMarker))
+		// Create an empty bp2build marker file, if it does not already exist.
+		// Note the relevant rule has `restat = true`
+		touchIfDoesNotExist(shared.JoinPath(topDir, bp2buildMarker))
 	})
 
 	// Only report metrics when in bp2build mode. The metrics aren't relevant
