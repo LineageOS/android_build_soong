@@ -534,3 +534,55 @@ func PathsForBazelOut(ctx PathContext, paths []string) Paths {
 	}
 	return outs
 }
+
+// BazelStringOrLabelFromProp splits a Soong module property that can be
+// either a string literal, path (with android:path tag) or a module reference
+// into separate bazel string or label attributes. Bazel treats string and label
+// attributes as distinct types, so this function categorizes a string property
+// into either one of them.
+//
+// e.g. apex.private_key = "foo.pem" can either refer to:
+//
+// 1. "foo.pem" in the current directory -> file target
+// 2. "foo.pem" module -> rule target
+// 3. "foo.pem" file in a different directory, prefixed by a product variable handled
+// in a bazel macro. -> string literal
+//
+// For the first two cases, they are defined using the label attribute. For the third case,
+// it's defined with the string attribute.
+func BazelStringOrLabelFromProp(
+	ctx TopDownMutatorContext,
+	propToDistinguish *string) (bazel.LabelAttribute, bazel.StringAttribute) {
+
+	var labelAttr bazel.LabelAttribute
+	var strAttr bazel.StringAttribute
+
+	if propToDistinguish == nil {
+		// nil pointer
+		return labelAttr, strAttr
+	}
+
+	prop := String(propToDistinguish)
+	if SrcIsModule(prop) != "" {
+		// If it's a module (SrcIsModule will return the module name), set the
+		// resolved label to the label attribute.
+		labelAttr.SetValue(BazelLabelForModuleDepSingle(ctx, prop))
+	} else {
+		// Not a module name. This could be a string literal or a file target in
+		// the current dir. Check if the path exists:
+		path := ExistentPathForSource(ctx, ctx.ModuleDir(), prop)
+
+		if path.Valid() && parentDir(path.String()) == ctx.ModuleDir() {
+			// If it exists and the path is relative to the current dir, resolve the bazel label
+			// for the _file target_ and set it to the label attribute.
+			//
+			// Resolution is necessary because this could be a file in a subpackage.
+			labelAttr.SetValue(BazelLabelForModuleSrcSingle(ctx, prop))
+		} else {
+			// Otherwise, treat it as a string literal and assign to the string attribute.
+			strAttr.Value = propToDistinguish
+		}
+	}
+
+	return labelAttr, strAttr
+}

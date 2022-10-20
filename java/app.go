@@ -1486,22 +1486,8 @@ type bazelAndroidAppAttributes struct {
 	*bazelAapt
 	Deps             bazel.LabelListAttribute
 	Custom_package   *string
-	Certificate      *bazel.Label
-	Certificate_name *string
-}
-
-// ParseCertificateToAttribute splits the certificate prop into a certificate
-// label attribute or a certificate_name string attribute.
-func ParseCertificateToAttribute(ctx android.TopDownMutatorContext, certificate *string) (*string, *bazel.Label) {
-	var certificateLabel *bazel.Label
-	certificateName := proptools.StringDefault(certificate, "")
-	certModule := android.SrcIsModule(certificateName)
-	if certModule != "" {
-		c := android.BazelLabelForModuleDepSingle(ctx, certificateName)
-		certificateLabel = &c
-		certificate = nil
-	}
-	return certificate, certificateLabel
+	Certificate      bazel.LabelAttribute
+	Certificate_name bazel.StringAttribute
 }
 
 // ConvertWithBp2build is used to convert android_app to Bazel.
@@ -1513,7 +1499,8 @@ func (a *AndroidApp) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 
 	aapt := a.convertAaptAttrsWithBp2Build(ctx)
 
-	certificateName, certificate := ParseCertificateToAttribute(ctx, a.overridableAppProperties.Certificate)
+	certificate, certificateName := android.BazelStringOrLabelFromProp(ctx, a.overridableAppProperties.Certificate)
+
 	attrs := &bazelAndroidAppAttributes{
 		commonAttrs,
 		aapt,
