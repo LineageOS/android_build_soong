@@ -1392,6 +1392,7 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 
 		// Determine the runtime library required
 		runtimeLibrary := ""
+		alwaysStaticRuntime := false
 		var extraStaticDeps []string
 		toolchain := c.toolchain(mctx)
 		if Bool(c.sanitize.Properties.Sanitize.Address) {
@@ -1416,8 +1417,15 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 			Bool(c.sanitize.Properties.Sanitize.Undefined) ||
 			Bool(c.sanitize.Properties.Sanitize.All_undefined) {
 			runtimeLibrary = config.UndefinedBehaviorSanitizerRuntimeLibrary(toolchain)
-			if c.staticBinary() {
+			if c.staticBinary() || toolchain.Musl() {
+				// Use a static runtime for static binaries.
+				// Also use a static runtime for musl to match
+				// what clang does for glibc.  Otherwise dlopening
+				// libraries that depend on libclang_rt.ubsan_standalone.so
+				// fails with:
+				// Error relocating ...: initial-exec TLS resolves to dynamic definition
 				runtimeLibrary += ".static"
+				alwaysStaticRuntime = true
 			}
 		}
 
@@ -1461,7 +1469,7 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 			//
 			// Note that by adding dependency with {static|shared}DepTag, the lib is
 			// added to libFlags and LOCAL_SHARED_LIBRARIES by cc.Module
-			if c.staticBinary() {
+			if c.staticBinary() || alwaysStaticRuntime {
 				addStaticDeps(runtimeLibrary)
 				addStaticDeps(extraStaticDeps...)
 			} else if !c.static() && !c.Header() {
