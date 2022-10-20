@@ -36,7 +36,7 @@ cc_prebuilt_library_static {
 	bazel_module: { bp2build_available: true },
 }`,
 			ExpectedBazelTargets: []string{
-				MakeBazelTarget("prebuilt_library_static", "libtest", AttrNameToString{
+				MakeBazelTarget("cc_prebuilt_library_static", "libtest", AttrNameToString{
 					"static_library": `"libf.so"`,
 				}),
 			},
@@ -63,7 +63,7 @@ cc_prebuilt_library_static {
 	bazel_module: { bp2build_available: true },
 }`,
 			ExpectedBazelTargets: []string{
-				MakeBazelTarget("prebuilt_library_static", "libtest", AttrNameToString{
+				MakeBazelTarget("cc_prebuilt_library_static", "libtest", AttrNameToString{
 					"static_library": `select({
         "//build/bazel/platforms/arch:arm": "libg.so",
         "//build/bazel/platforms/arch:arm64": "libf.so",
