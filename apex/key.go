@@ -201,10 +201,10 @@ func (s *apexKeysText) MakeVars(ctx android.MakeVarsContext) {
 
 type bazelApexKeyAttributes struct {
 	Public_key      bazel.LabelAttribute
-	Public_key_name bazel.LabelAttribute
+	Public_key_name bazel.StringAttribute
 
 	Private_key      bazel.LabelAttribute
-	Private_key_name bazel.LabelAttribute
+	Private_key_name bazel.StringAttribute
 }
 
 // ConvertWithBp2build performs conversion apexKey for bp2build
@@ -213,27 +213,11 @@ func (m *apexKey) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 }
 
 func apexKeyBp2BuildInternal(ctx android.TopDownMutatorContext, module *apexKey) {
-	var privateKeyLabelAttribute bazel.LabelAttribute
-	var privateKeyNameAttribute bazel.LabelAttribute
-	if module.properties.Private_key != nil {
-		m := String(module.properties.Private_key)
-		if android.SrcIsModule(m) == "" {
-			privateKeyNameAttribute.SetValue(android.BazelLabelForModuleSrcSingle(ctx, *module.properties.Private_key))
-		} else {
-			privateKeyLabelAttribute.SetValue(android.BazelLabelForModuleDepSingle(ctx, *module.properties.Private_key))
-		}
-	}
+	privateKeyLabelAttribute, privateKeyNameAttribute :=
+		android.BazelStringOrLabelFromProp(ctx, module.properties.Private_key)
 
-	var publicKeyLabelAttribute bazel.LabelAttribute
-	var publicKeyNameAttribute bazel.LabelAttribute
-	if module.properties.Public_key != nil {
-		m := String(module.properties.Public_key)
-		if android.SrcIsModule(m) == "" {
-			publicKeyNameAttribute.SetValue(android.BazelLabelForModuleSrcSingle(ctx, *module.properties.Public_key))
-		} else {
-			publicKeyLabelAttribute.SetValue(android.BazelLabelForModuleDepSingle(ctx, *module.properties.Public_key))
-		}
-	}
+	publicKeyLabelAttribute, publicKeyNameAttribute :=
+		android.BazelStringOrLabelFromProp(ctx, module.properties.Public_key)
 
 	attrs := &bazelApexKeyAttributes{
 		Private_key:      privateKeyLabelAttribute,
