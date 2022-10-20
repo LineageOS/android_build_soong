@@ -58,17 +58,14 @@ var (
 )
 
 func init() {
-	// Many clang-tidy checks like altera-*, llvm-*, modernize-*
-	// are not designed for Android source code or creating too
-	// many (false-positive) warnings. The global default tidy checks
-	// should include only tested groups and exclude known noisy checks.
+	// The global default tidy checks should include clang-tidy
+	// default checks and tested groups, but exclude known noisy checks.
 	// See https://clang.llvm.org/extra/clang-tidy/checks/list.html
 	pctx.VariableFunc("TidyDefaultGlobalChecks", func(ctx android.PackageVarContext) string {
 		if override := ctx.Config().Getenv("DEFAULT_GLOBAL_TIDY_CHECKS"); override != "" {
 			return override
 		}
 		checks := strings.Join([]string{
-			"-*",
 			"android-*",
 			"bugprone-*",
 			"cert-*",
@@ -95,7 +92,7 @@ func init() {
 			"-misc-non-private-member-variables-in-classes",
 			"-misc-unused-parameters",
 			"-performance-no-int-to-ptr",
-			// the following groups are excluded by -*
+			// the following groups are not in clang-tidy default checks.
 			// -altera-*
 			// -cppcoreguidelines-*
 			// -darwin-*
@@ -109,28 +106,34 @@ func init() {
 			// -readability-*
 			// -zircon-*
 		}, ",")
-		// clang-analyzer-* checks are too slow to be in the default for WITH_TIDY=1.
-		// nightly builds add CLANG_ANALYZER_CHECKS=1 to run those checks.
+		// clang-analyzer-* checks are slow for large files, but we have TIDY_TIMEOUT to
+		// limit clang-tidy runtime. We allow clang-tidy default clang-analyzer-* checks,
+		// and add it explicitly when CLANG_ANALYZER_CHECKS is set.
 		// The insecureAPI.DeprecatedOrUnsafeBufferHandling warning does not apply to Android.
 		if ctx.Config().IsEnvTrue("CLANG_ANALYZER_CHECKS") {
 			checks += ",clang-analyzer-*,-clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling"
+		} else {
+			checks += ",-clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling"
 		}
 		return checks
 	})
 
-	// There are too many clang-tidy warnings in external and vendor projects.
-	// Enable only some google checks for these projects.
+	// The external and vendor projects do not run clang-tidy unless TIDY_EXTERNAL_VENDOR is set.
+	// We do not add "-*" to the check list to avoid suppressing the check list in .clang-tidy config files.
+	// There are too many clang-tidy warnings in external and vendor projects, so we only
+	// enable some google checks for these projects. Users can add more checks locally with the
+	// "tidy_checks" list in .bp files, or the "Checks" list in .clang-tidy config files.
 	pctx.VariableFunc("TidyExternalVendorChecks", func(ctx android.PackageVarContext) string {
 		if override := ctx.Config().Getenv("DEFAULT_EXTERNAL_VENDOR_TIDY_CHECKS"); override != "" {
 			return override
 		}
 		return strings.Join([]string{
-			"-*",
 			"clang-diagnostic-unused-command-line-argument",
 			"google-build-explicit-make-pair",
 			"google-build-namespaces",
 			"google-runtime-operator",
 			"google-upgrade-*",
+			"-clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling",
 		}, ",")
 	})
 
