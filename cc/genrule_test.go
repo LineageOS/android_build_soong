@@ -40,14 +40,13 @@ func TestArchGenruleCmd(t *testing.T) {
 					name: "gen",
 					tool_files: ["tool"],
 					cmd: "$(location tool) $(in) $(out)",
+					out: ["out_arm"],
 					arch: {
 						arm: {
 							srcs: ["foo"],
-							out: ["out_arm"],
 						},
 						arm64: {
 							srcs: ["bar"],
-							out: ["out_arm64"],
 						},
 					},
 				}
@@ -70,7 +69,7 @@ func TestArchGenruleCmd(t *testing.T) {
 		t.Errorf(`want arm inputs %v, got %v`, expected, gen.Implicits.Strings())
 	}
 
-	gen = ctx.ModuleForTests("gen", "android_arm64_armv8-a").Output("out_arm64")
+	gen = ctx.ModuleForTests("gen", "android_arm64_armv8-a").Output("out_arm")
 	expected = []string{"bar"}
 	if !reflect.DeepEqual(expected, gen.Implicits.Strings()[:len(expected)]) {
 		t.Errorf(`want arm64 inputs %v, got %v`, expected, gen.Implicits.Strings())

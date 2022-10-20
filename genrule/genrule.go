@@ -875,7 +875,7 @@ func GenRuleFactory() android.Module {
 
 type genRuleProperties struct {
 	// names of the output files that will be generated
-	Out []string `android:"arch_variant"`
+	Out []string
 }
 
 type bazelGenruleAttributes struct {
@@ -893,11 +893,27 @@ func (m *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 	tools_prop.Append(tool_files_prop)
 
 	tools := bazel.MakeLabelListAttribute(tools_prop)
-	srcs := bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrc(ctx, m.properties.Srcs))
+	srcs := bazel.LabelListAttribute{}
+	srcs_labels := bazel.LabelList{}
+	// Only cc_genrule is arch specific
+	if ctx.ModuleType() == "cc_genrule" {
+		for axis, configToProps := range m.GetArchVariantProperties(ctx, &generatorProperties{}) {
+			for config, props := range configToProps {
+				if props, ok := props.(*generatorProperties); ok {
+					labels := android.BazelLabelForModuleSrcExcludes(ctx, props.Srcs, props.Exclude_srcs)
+					srcs_labels.Append(labels)
+					srcs.SetSelectValue(axis, config, labels)
+				}
+			}
+		}
+	} else {
+		srcs_labels = android.BazelLabelForModuleSrcExcludes(ctx, m.properties.Srcs, m.properties.Exclude_srcs)
+		srcs = bazel.MakeLabelListAttribute(srcs_labels)
+	}
 
 	var allReplacements bazel.LabelList
 	allReplacements.Append(tools.Value)
-	allReplacements.Append(srcs.Value)
+	allReplacements.Append(bazel.FirstUniqueBazelLabelList(srcs_labels))
 
 	// Replace in and out variables with $< and $@
 	var cmd string
