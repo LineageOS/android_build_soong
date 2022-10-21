@@ -51,7 +51,7 @@ var (
 	})
 	_ = pctx.VariableFunc("bindgenClangLibdir", func(ctx android.PackageVarContext) string {
 		if ctx.Config().UseHostMusl() {
-			return "musl/lib64/"
+			return "musl/lib/"
 		} else {
 			return "lib64/"
 		}
