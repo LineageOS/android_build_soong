@@ -85,6 +85,7 @@ function create_mock_soong {
   copy_directory build/blueprint
   copy_directory build/soong
   copy_directory build/make/tools/rbcrun
+  copy_directory prebuilts/bazel/common/proto
 
   symlink_directory prebuilts/sdk
   symlink_directory prebuilts/go
