@@ -1139,6 +1139,21 @@ func PathForSource(ctx PathContext, pathComponents ...string) SourcePath {
 	return path
 }
 
+// MaybeExistentPathForSource joins the provided path components and validates that the result
+// neither escapes the source dir nor is in the out dir.
+// It does not validate whether the path exists.
+func MaybeExistentPathForSource(ctx PathContext, pathComponents ...string) SourcePath {
+	path, err := pathForSource(ctx, pathComponents...)
+	if err != nil {
+		reportPathError(ctx, err)
+	}
+
+	if pathtools.IsGlob(path.String()) {
+		ReportPathErrorf(ctx, "path may not contain a glob: %s", path.String())
+	}
+	return path
+}
+
 // ExistentPathForSource returns an OptionalPath with the SourcePath, rooted from SrcDir, *not*
 // rooted from the module's local source directory, if the path exists, or an empty OptionalPath if
 // it doesn't exist. Dependencies are added so that the ninja file will be regenerated if the state

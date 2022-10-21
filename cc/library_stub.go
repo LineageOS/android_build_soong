@@ -86,11 +86,11 @@ func (d *apiLibraryDecorator) Name(basename string) string {
 func (d *apiLibraryDecorator) exportIncludes(ctx ModuleContext) {
 	exporterProps := d.flagExporter.Properties
 	for _, dir := range exporterProps.Export_include_dirs {
-		d.dirs = append(d.dirs, android.PathForSource(ctx, ctx.ModuleDir(), dir))
+		d.dirs = append(d.dirs, android.MaybeExistentPathForSource(ctx, ctx.ModuleDir(), dir))
 	}
 	// system headers
 	for _, dir := range exporterProps.Export_system_include_dirs {
-		d.systemDirs = append(d.systemDirs, android.PathForSource(ctx, ctx.ModuleDir(), dir))
+		d.systemDirs = append(d.systemDirs, android.MaybeExistentPathForSource(ctx, ctx.ModuleDir(), dir))
 	}
 }
 
@@ -118,7 +118,7 @@ func (d *apiLibraryDecorator) link(ctx ModuleContext, flags Flags, deps PathDeps
 	// Skip the existence check of the stub prebuilt file.
 	// The file is not guaranteed to exist during Soong analysis.
 	// Build orchestrator will be responsible for creating a connected ninja graph.
-	in := android.PathForSource(ctx, ctx.ModuleDir(), *d.properties.Src)
+	in := android.MaybeExistentPathForSource(ctx, ctx.ModuleDir(), *d.properties.Src)
 
 	d.unstrippedOutputFile = in
 	libName := d.libraryDecorator.getLibName(ctx) + flags.Toolchain.ShlibSuffix()
