@@ -1353,4 +1353,8 @@ var (
 	ProdMixedBuildsEnabledList = []string{
 		"com.android.adbd",
 	}
+
+	// Staging builds should be entirely prod, plus some near-ready ones. Add the
+	// new ones to the first argument as needed.
+	StagingMixedBuildsEnabledList = append([]string{}, ProdMixedBuildsEnabledList...)
 )

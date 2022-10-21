@@ -260,6 +260,9 @@ func bootstrapBlueprint(ctx Context, config Config) {
 	if config.bazelDevMode {
 		mainSoongBuildExtraArgs = append(mainSoongBuildExtraArgs, "--bazel-mode-dev")
 	}
+	if config.bazelStagingMode {
+		mainSoongBuildExtraArgs = append(mainSoongBuildExtraArgs, "--bazel-mode-staging")
+	}
 
 	mainSoongBuildInvocation := primaryBuilderInvocation(
 		config,
