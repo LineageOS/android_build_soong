@@ -104,7 +104,9 @@ func (j *JavaFuzzLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext)
 		j.fuzzPackagedModule.Config = configPath
 	}
 
-	ctx.VisitDirectDepsWithTag(cc.JniFuzzLibTag, func(dep android.Module) {
+	_, sharedDeps := cc.CollectAllSharedDependencies(ctx)
+
+	for _, dep := range sharedDeps {
 		sharedLibInfo := ctx.OtherModuleProvider(dep, cc.SharedLibraryInfoProvider).(cc.SharedLibraryInfo)
 		if sharedLibInfo.SharedLibrary != nil {
 			// The .class jars are output in slightly different locations
@@ -127,7 +129,7 @@ func (j *JavaFuzzLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext)
 		} else {
 			ctx.PropertyErrorf("jni_libs", "%q of type %q is not supported", dep.Name(), ctx.OtherModuleType(dep))
 		}
-	})
+	}
 
 	j.Library.GenerateAndroidBuildActions(ctx)
 }
