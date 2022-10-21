@@ -27,15 +27,3 @@ bootstrap_go_package {
     ],
     pluginFor: ["soong_build"],
 }
-
-// We're transitioning all of these flags to be true by default.
-// This is a defaults flag that can be used to easily add all of them to
-// certain modules.
-python_defaults {
-    name: "modern_python_path_defaults",
-    dont_add_top_level_directories_to_path: true,
-    dont_add_entrypoint_folder_to_path: true,
-    proto: {
-        respect_pkg_path: true,
-    },
-}
