@@ -1008,6 +1008,7 @@ func TestBuildConfig(t *testing.T) {
 		useBazel            bool
 		bazelDevMode        bool
 		bazelProdMode       bool
+		bazelStagingMode    bool
 		expectedBuildConfig *smpb.BuildConfig
 	}{
 		{
@@ -1084,6 +1085,17 @@ func TestBuildConfig(t *testing.T) {
 			},
 		},
 		{
+			name:             "bazel mixed build from staging mode",
+			environ:          Environment{},
+			bazelStagingMode: true,
+			expectedBuildConfig: &smpb.BuildConfig{
+				ForceUseGoma:    proto.Bool(false),
+				UseGoma:         proto.Bool(false),
+				UseRbe:          proto.Bool(false),
+				BazelMixedBuild: proto.Bool(true),
+			},
+		},
+		{
 			name:      "specified targets",
 			environ:   Environment{},
 			useBazel:  true,
@@ -1118,10 +1130,11 @@ func TestBuildConfig(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			c := &configImpl{
-				environ:       &tc.environ,
-				bazelDevMode:  tc.bazelDevMode,
-				bazelProdMode: tc.bazelProdMode,
-				arguments:     tc.arguments,
+				environ:          &tc.environ,
+				bazelDevMode:     tc.bazelDevMode,
+				bazelProdMode:    tc.bazelProdMode,
+				bazelStagingMode: tc.bazelStagingMode,
+				arguments:        tc.arguments,
 			}
 			config := Config{c}
 			checkBazelMode(ctx, config)

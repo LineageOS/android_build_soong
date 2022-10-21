@@ -97,6 +97,11 @@ const (
 	// allowlisted on an experimental basis.
 	BazelDevMode
 
+	// Use bazel during analysis of a few allowlisted build modules. The allowlist
+	// is considered "staging, as these are modules being prepared to be released
+	// into prod mode shortly after.
+	BazelStagingMode
+
 	// Use bazel during analysis of build modules from an allowlist carefully
 	// curated by the build team to be proven stable.
 	BazelProdMode
