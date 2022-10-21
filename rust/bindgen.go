@@ -30,7 +30,7 @@ var (
 	defaultBindgenFlags = []string{""}
 
 	// bindgen should specify its own Clang revision so updating Clang isn't potentially blocked on bindgen failures.
-	bindgenClangVersion = "clang-r450784d"
+	bindgenClangVersion = "clang-r468909b"
 
 	_ = pctx.VariableFunc("bindgenClangVersion", func(ctx android.PackageVarContext) string {
 		if override := ctx.Config().Getenv("LLVM_BINDGEN_PREBUILTS_VERSION"); override != "" {
@@ -238,6 +238,10 @@ func (b *bindgenDecorator) GenerateSource(ctx ModuleContext, deps PathDeps) andr
 	} else {
 		cflags = append(cflags, "-x c")
 	}
+
+	// clang-r468909b complains about the -x c in the flags in clang-sys parse_search_paths:
+	// clang: error: '-x c' after last input file has no effect [-Werror,-Wunused-command-line-argument]
+	cflags = append(cflags, "-Wno-unused-command-line-argument")
 
 	// LLVM_NEXT may contain flags that bindgen doesn't recognise. Turn off unknown flags warning.
 	if ctx.Config().IsEnvTrue("LLVM_NEXT") {
