@@ -511,7 +511,7 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 		s.Integer_overflow = nil
 	}
 
-	// CFI doesn't work for riscv64 yet because LTO doesn't work.
+	// TODO(b/254713216): CFI doesn't work for riscv64 yet because LTO doesn't work.
 	if ctx.Arch().ArchType == android.Riscv64 {
 		s.Cfi = nil
 		s.Diag.Cfi = nil
