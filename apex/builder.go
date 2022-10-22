@@ -922,10 +922,16 @@ func (a *apexBundle) buildFlattenedApex(ctx android.ModuleContext) {
 				installedSymlinks = append(installedSymlinks,
 					ctx.InstallAbsoluteSymlink(installDir, fi.stem(), pathOnDevice))
 			} else {
-				target := ctx.InstallFile(installDir, fi.stem(), fi.builtFile)
-				for _, sym := range fi.symlinks {
-					installedSymlinks = append(installedSymlinks,
-						ctx.InstallSymlink(installDir, sym, target))
+				if fi.class == appSet {
+					as := fi.module.(*java.AndroidAppSet)
+					ctx.InstallFileWithExtraFilesZip(installDir, as.BaseModuleName()+".apk",
+						as.OutputFile(), as.PackedAdditionalOutputs())
+				} else {
+					target := ctx.InstallFile(installDir, fi.stem(), fi.builtFile)
+					for _, sym := range fi.symlinks {
+						installedSymlinks = append(installedSymlinks,
+							ctx.InstallSymlink(installDir, sym, target))
+					}
 				}
 			}
 		}

@@ -386,6 +386,12 @@ func NewBazelContext(c *config) (BazelContext, error) {
 		for _, enabledProdModule := range allowlists.ProdMixedBuildsEnabledList {
 			enabledModules[enabledProdModule] = true
 		}
+	case BazelStagingMode:
+		modulesDefaultToBazel = false
+		for _, enabledStagingMode := range allowlists.StagingMixedBuildsEnabledList {
+			enabledModules[enabledStagingMode] = true
+
+		}
 	case BazelDevMode:
 		modulesDefaultToBazel = true
 
@@ -551,7 +557,6 @@ func (r *builtinBazelRunner) createBazelCommand(paths *bazelPaths, runName bazel
 		//
 		// The actual platform values here may be overridden by configuration
 		// transitions from the buildroot.
-		fmt.Sprintf("--platforms=%s", "//build/bazel/platforms:android_target"),
 		fmt.Sprintf("--extra_toolchains=%s", "//prebuilts/clang/host/linux-x86:all"),
 
 		// This should be parameterized on the host OS, but let's restrict to linux

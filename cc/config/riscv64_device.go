@@ -25,6 +25,7 @@ var (
 	riscv64Cflags = []string{
 		// Help catch common 32/64-bit errors.
 		"-Werror=implicit-function-declaration",
+		"-fno-emulated-tls",
 	}
 
 	riscv64ArchVariantCflags = map[string][]string{}

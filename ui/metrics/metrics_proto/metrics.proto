@@ -130,6 +130,9 @@ message BuildConfig {
   // These are the targets soong passes to ninja, these targets include special
   // targets such as droid as well as the regular build targets.
   repeated string targets = 6;
+
+  // Whether the user explicitly disabled bazel mixed builds for this build.
+  optional bool force_disable_bazel_mixed_build = 7;
 }
 
 message SystemResourceInfo {
