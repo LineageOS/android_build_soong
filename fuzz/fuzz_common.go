@@ -122,9 +122,9 @@ type FuzzConfig struct {
 	// context from:
 	// https://source.android.com/security/overview/updates-resources#context_types.
 	Privilege_level PrivilegedLevel `json:"privilege_level,omitempty"`
-	// Can the fuzzed code isolated or can be called by multiple users/processes.
+	// Is the fuzzed code isolated or can it be called by multiple users/processes.
 	Isolated *bool `json:"users_isolation,omitempty"`
-	// When code was relaeased or will be released.
+	// When code was released or will be released.
 	Production_date string `json:"production_date,omitempty"`
 	// Prevents critical service functionality like phone calls, bluetooth, etc.
 	Critical *bool `json:"critical,omitempty"`
@@ -134,7 +134,7 @@ type FuzzConfig struct {
 	Fuzz_on_haiku_host *bool `json:"fuzz_on_haiku_host,omitempty"`
 	// Component in Google's bug tracking system that bugs should be filed to.
 	Componentid *int64 `json:"componentid,omitempty"`
-	// Hotlists in Google's bug tracking system that bugs should be marked with.
+	// Hotlist(s) in Google's bug tracking system that bugs should be marked with.
 	Hotlists []string `json:"hotlists,omitempty"`
 	// Specify whether this fuzz target was submitted by a researcher. Defaults
 	// to false.

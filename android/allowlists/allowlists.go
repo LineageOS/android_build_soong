@@ -187,6 +187,7 @@ var (
 		"frameworks/base/services/tests/servicestests/aidl":  Bp2BuildDefaultTrue,
 		"frameworks/base/startop/apps/test":                  Bp2BuildDefaultTrue,
 		"frameworks/base/tests/appwidgets/AppWidgetHostTest": Bp2BuildDefaultTrueRecursively,
+		"frameworks/base/tools/streaming_proto":              Bp2BuildDefaultTrueRecursively,
 		"frameworks/base/tools/aapt2":                        Bp2BuildDefaultTrue,
 		"frameworks/native/libs/adbd_auth":                   Bp2BuildDefaultTrueRecursively,
 		"frameworks/native/libs/arect":                       Bp2BuildDefaultTrueRecursively,
@@ -397,8 +398,10 @@ var (
 		"com.android.neuralnetworks.certificate",
 		"com.android.neuralnetworks.key",
 		"flatbuffer_headers",
+		"framework-connectivity-protos",
 		"gemmlowp_headers",
 		"gl_headers",
+		"ipconnectivity-proto-src",
 		"libaidlcommonsupport",
 		"libandroid_runtime_lazy",
 		"libandroid_runtime_vm_headers",
@@ -474,6 +477,7 @@ var (
 		"philox_random",
 		"philox_random_headers",
 		"server_configurable_flags",
+		"service-permission-streaming-proto-sources",
 		"statslog_neuralnetworks.cpp",
 		"statslog_neuralnetworks.h",
 		"tensorflow_headers",
@@ -601,8 +605,6 @@ var (
 		"libnativeloader",
 		"libEGL_getProcAddress",
 		"libEGL_blobCache",
-
-		"protoc-gen-cppstream",
 
 		"mediaswcodec",
 		"libmedia_headers",
@@ -1334,21 +1336,28 @@ var (
 		"prebuilt_currysrc_org.eclipse",
 
 		// TODO(b/247782695 and/or b/242847534) Fix mixed build between unconverted gensrcs and converted filegroup
-		"libstats_atom_enum_protos",
+		"connectivity_service_proto",
 		"data_stall_event_proto",
 		"device_policy_proto",
 		"dns_resolver_proto",
+		"ipconnectivity-proto-src",
 		"launcher_proto",
+		"libstats_atom_enum_protos",
+		"libstats_atom_message_protos",
 		"network_stack_proto",
+		"service-permission-streaming-proto-sources",
 		"srcs_bluetooth_protos",
 		"srcs_bluetooth_leaudio_protos",
 		"style_proto",
 		"tethering_proto",
 		"text_classifier_proto",
-		"libstats_atom_message_protos",
 	}
 
 	ProdMixedBuildsEnabledList = []string{
 		"com.android.adbd",
 	}
+
+	// Staging builds should be entirely prod, plus some near-ready ones. Add the
+	// new ones to the first argument as needed.
+	StagingMixedBuildsEnabledList = append([]string{}, ProdMixedBuildsEnabledList...)
 )
