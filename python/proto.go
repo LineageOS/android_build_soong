@@ -18,7 +18,7 @@ import (
 	"android/soong/android"
 )
 
-func genProto(ctx android.ModuleContext, protoFile android.Path, flags android.ProtoFlags, pkgPath string) android.Path {
+func genProto(ctx android.ModuleContext, protoFile android.Path, flags android.ProtoFlags) android.Path {
 	srcsZipFile := android.PathForModuleGen(ctx, protoFile.Base()+".srcszip")
 
 	outDir := srcsZipFile.ReplaceExtension(ctx, "tmp")
@@ -36,9 +36,6 @@ func genProto(ctx android.ModuleContext, protoFile android.Path, flags android.P
 	zipCmd := rule.Command().
 		BuiltTool("soong_zip").
 		FlagWithOutput("-o ", srcsZipFile)
-	if pkgPath != "" {
-		zipCmd.FlagWithArg("-P ", pkgPath)
-	}
 	zipCmd.FlagWithArg("-C ", outDir.String()).
 		FlagWithArg("-D ", outDir.String())
 

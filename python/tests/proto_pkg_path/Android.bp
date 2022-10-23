@@ -12,6 +12,5 @@ python_test_host {
     pkg_path: "mylib/subpackage",
     proto: {
         canonical_path_from_root: false,
-        respect_pkg_path: true,
     },
 }
