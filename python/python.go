@@ -120,15 +120,6 @@ type BaseProperties struct {
 	// whether the binary is required to be built with embedded launcher for this actual_version.
 	// this is set by the python version mutator based on version-specific properties
 	Embedded_launcher *bool `blueprint:"mutated"`
-
-	Proto struct {
-		// Whether generated python protos should include the pkg_path in
-		// their import statements. This is a temporary flag to help transition to
-		// the new behavior where this is always true. It will be removed after all
-		// usages of protos with pkg_path have been updated. The default is currently
-		// false.
-		Respect_pkg_path *bool
-	}
 }
 
 type baseAttributes struct {
@@ -677,9 +668,7 @@ func (p *Module) createSrcsZip(ctx android.ModuleContext, pkgPath string) androi
 		protoFlags := android.GetProtoFlags(ctx, &p.protoProperties)
 		protoFlags.OutTypeFlag = "--python_out"
 
-		protosRespectPkgPath := proptools.BoolDefault(p.properties.Proto.Respect_pkg_path, true)
-		pkgPathForProtos := pkgPath
-		if pkgPathForProtos != "" && protosRespectPkgPath {
+		if pkgPath != "" {
 			pkgPathStagingDir := android.PathForModuleGen(ctx, "protos_staged_for_pkg_path")
 			rule := android.NewRuleBuilder(pctx, ctx)
 			var stagedProtoSrcs android.Paths
@@ -691,11 +680,10 @@ func (p *Module) createSrcsZip(ctx android.ModuleContext, pkgPath string) androi
 			}
 			rule.Build("stage_protos_for_pkg_path", "Stage protos for pkg_path")
 			protoSrcs = stagedProtoSrcs
-			pkgPathForProtos = ""
 		}
 
 		for _, srcFile := range protoSrcs {
-			zip := genProto(ctx, srcFile, protoFlags, pkgPathForProtos)
+			zip := genProto(ctx, srcFile, protoFlags)
 			zips = append(zips, zip)
 		}
 	}

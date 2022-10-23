@@ -23,16 +23,7 @@ def Main():
     zf.extractall(runfiles_path)
     zf.close()
 
-    # Add runfiles path to PYTHONPATH.
-    python_path_entries = [runfiles_path]
-
-    if ADD_TOP_DIRECTORIES_TO_PATH:
-      # Add top dirs within runfiles path to PYTHONPATH.
-      top_entries = [os.path.join(runfiles_path, i) for i in os.listdir(runfiles_path)]
-      top_pkg_dirs = [i for i in top_entries if os.path.isdir(i)]
-      python_path_entries += top_pkg_dirs
-
-    new_python_path = ":".join(python_path_entries)
+    new_python_path = runfiles_path
     old_python_path = os.environ.get(PYTHON_PATH)
 
     if old_python_path:
