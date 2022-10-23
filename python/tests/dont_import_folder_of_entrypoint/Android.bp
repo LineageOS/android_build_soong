@@ -9,7 +9,6 @@ python_test_host {
         "mypkg/main.py",
         "mypkg/mymodule.py",
     ],
-    defaults: ["modern_python_path_defaults"],
 }
 
 python_test_host {
