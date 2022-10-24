@@ -1334,23 +1334,6 @@ var (
 		"prebuilt_platform-robolectric-4.4-prebuilt",
 		"prebuilt_platform-robolectric-4.5.1-prebuilt",
 		"prebuilt_currysrc_org.eclipse",
-
-		// TODO(b/247782695 and/or b/242847534) Fix mixed build between unconverted gensrcs and converted filegroup
-		"connectivity_service_proto",
-		"data_stall_event_proto",
-		"device_policy_proto",
-		"dns_resolver_proto",
-		"ipconnectivity-proto-src",
-		"launcher_proto",
-		"libstats_atom_enum_protos",
-		"libstats_atom_message_protos",
-		"network_stack_proto",
-		"service-permission-streaming-proto-sources",
-		"srcs_bluetooth_protos",
-		"srcs_bluetooth_leaudio_protos",
-		"style_proto",
-		"tethering_proto",
-		"text_classifier_proto",
 	}
 
 	ProdMixedBuildsEnabledList = []string{
