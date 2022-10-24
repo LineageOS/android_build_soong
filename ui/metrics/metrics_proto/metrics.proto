@@ -111,6 +111,14 @@ message MetricsBase {
 
   // The metrics of the experiment config fetcher
   optional ExpConfigFetcher exp_config_fetcher = 28;
+
+  // Whether the build exited with a panic or non-zero exit code, includes both
+  // non-zero exits of recorded phases and non-recorded phases of the build.
+  optional bool non_zero_exit = 29;
+
+  // The error message due to a non-zero exit _only_ if it did not occur in a
+  // recorded phase of the build.
+  optional string error_message = 30;
 }
 
 message BuildConfig {
@@ -163,6 +171,13 @@ message PerfInfo {
 
   // The resource information of each executed process.
   repeated ProcessResourceInfo processes_resource_info = 6;
+
+  // Whether the phase of tool running exited with a panic or non-zero exit
+  // code.
+  optional bool non_zero_exit = 7;
+
+  // The error message, if any, due to a non-zero exit.
+  optional string error_message = 8;
 }
 
 message ProcessResourceInfo {

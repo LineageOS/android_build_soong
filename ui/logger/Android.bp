@@ -25,4 +25,7 @@ bootstrap_go_package {
     testSrcs: [
         "logger_test.go",
     ],
+    deps: [
+        "soong-ui-metrics",
+    ],
 }

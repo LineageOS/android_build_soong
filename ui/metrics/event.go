@@ -31,7 +31,6 @@ import (
 	"time"
 
 	soong_metrics_proto "android/soong/ui/metrics/metrics_proto"
-	"android/soong/ui/tracer"
 
 	"google.golang.org/protobuf/proto"
 )
@@ -49,6 +48,10 @@ type event struct {
 	// The description of the event (used to uniquely identify an event
 	// for metrics analysis).
 	desc string
+
+	nonZeroExitCode bool
+
+	errorMsg *string
 
 	// The time that the event started to occur.
 	start time.Time
@@ -68,13 +71,18 @@ func newEvent(name, desc string) *event {
 
 func (e event) perfInfo() soong_metrics_proto.PerfInfo {
 	realTime := uint64(_now().Sub(e.start).Nanoseconds())
-	return soong_metrics_proto.PerfInfo{
+	perfInfo := soong_metrics_proto.PerfInfo{
 		Description:           proto.String(e.desc),
 		Name:                  proto.String(e.name),
 		StartTime:             proto.Uint64(uint64(e.start.UnixNano())),
 		RealTime:              proto.Uint64(realTime),
 		ProcessesResourceInfo: e.procResInfo,
+		NonZeroExit:           proto.Bool(e.nonZeroExitCode),
 	}
+	if m := e.errorMsg; m != nil {
+		perfInfo.ErrorMessage = proto.String(*m)
+	}
+	return perfInfo
 }
 
 // EventTracer is an array of events that provides functionality to trace a
@@ -94,6 +102,9 @@ func (t *EventTracer) lastIndex() int {
 
 // peek returns the active build event.
 func (t *EventTracer) peek() *event {
+	if t.empty() {
+		return nil
+	}
 	return (*t)[t.lastIndex()]
 }
 
@@ -137,12 +148,12 @@ func (t *EventTracer) AddProcResInfo(name string, state *os.ProcessState) {
 }
 
 // Begin starts tracing the event.
-func (t *EventTracer) Begin(name, desc string, _ tracer.Thread) {
+func (t *EventTracer) Begin(name, desc string) {
 	t.push(newEvent(name, desc))
 }
 
 // End performs post calculations such as duration of the event, aggregates
 // the collected performance information into PerfInfo protobuf message.
-func (t *EventTracer) End(tracer.Thread) soong_metrics_proto.PerfInfo {
+func (t *EventTracer) End() soong_metrics_proto.PerfInfo {
 	return t.pop().perfInfo()
 }
