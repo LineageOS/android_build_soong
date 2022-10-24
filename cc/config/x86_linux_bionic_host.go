@@ -15,8 +15,6 @@
 package config
 
 import (
-	"strings"
-
 	"android/soong/android"
 )
 
@@ -71,14 +69,13 @@ const (
 )
 
 func init() {
-
-	pctx.StaticVariable("LinuxBionicCflags", strings.Join(linuxBionicCflags, " "))
-	pctx.StaticVariable("LinuxBionicLdflags", strings.Join(linuxBionicLdflags, " "))
-	pctx.StaticVariable("LinuxBionicLldflags", strings.Join(linuxBionicLdflags, " "))
+	exportedVars.ExportStringListStaticVariable("LinuxBionicCflags", linuxBionicCflags)
+	exportedVars.ExportStringListStaticVariable("LinuxBionicLdflags", linuxBionicLdflags)
+	exportedVars.ExportStringListStaticVariable("LinuxBionicLldflags", linuxBionicLdflags)
 
 	// Use the device gcc toolchain for now
-	pctx.StaticVariable("LinuxBionicGccVersion", x86_64GccVersion)
-	pctx.SourcePathVariable("LinuxBionicGccRoot",
+	exportedVars.ExportStringStaticVariable("LinuxBionicGccVersion", x86_64GccVersion)
+	exportedVars.ExportSourcePathVariable("LinuxBionicGccRoot",
 		"prebuilts/gcc/${HostPrebuiltTag}/x86/x86_64-linux-android-${LinuxBionicGccVersion}")
 }
 
