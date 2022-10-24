@@ -572,7 +572,7 @@ func (r *builtinBazelRunner) createBazelCommand(paths *bazelPaths, runName bazel
 		"HOME=" + paths.homeDir,
 		pwdPrefix(),
 		"BUILD_DIR=" + absolutePath(paths.soongOutDir),
-		// Make OUT_DIR absolute here so tools/bazel.sh uses the correct
+		// Make OUT_DIR absolute here so build/bazel/bin/bazel uses the correct
 		// OUT_DIR at <root>/out, instead of <root>/out/soong/workspace/out.
 		"OUT_DIR=" + absolutePath(paths.outDir()),
 		// Disables local host detection of gcc; toolchain information is defined

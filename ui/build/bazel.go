@@ -85,9 +85,9 @@ func runBazel(ctx Context, config Config) {
 
 	bazelEnv["SHELL"] = "/bin/bash"
 
-	// `tools/bazel` is the default entry point for executing Bazel in the AOSP
+	// `build/bazel/bin/bazel` is the default entry point for executing Bazel in the AOSP
 	// source tree.
-	bazelExecutable := filepath.Join("tools", "bazel")
+	bazelExecutable := filepath.Join("build", "bazel", "bin", "bazel")
 	cmd := Command(ctx, config, "bazel", bazelExecutable)
 
 	// Append custom startup flags to the Bazel command. Startup flags affect
