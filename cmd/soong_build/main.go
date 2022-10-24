@@ -15,6 +15,7 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -478,12 +479,19 @@ func writeUsedEnvironmentFile(configuration android.Config, finalOutputFile stri
 		os.Exit(1)
 	}
 
-	err = ioutil.WriteFile(path, data, 0666)
-	if err != nil {
+	if preexistingData, err := os.ReadFile(path); err != nil {
+		if !os.IsNotExist(err) {
+			fmt.Fprintf(os.Stderr, "error reading used environment file '%s': %s\n", usedEnvFile, err)
+			os.Exit(1)
+		}
+	} else if bytes.Equal(preexistingData, data) {
+		// used environment file is unchanged
+		return
+	}
+	if err = os.WriteFile(path, data, 0666); err != nil {
 		fmt.Fprintf(os.Stderr, "error writing used environment file '%s': %s\n", usedEnvFile, err)
 		os.Exit(1)
 	}
-
 	// Touch the output file so that it's not older than the file we just
 	// wrote. We can't write the environment file earlier because one an access
 	// new environment variables while writing it.
