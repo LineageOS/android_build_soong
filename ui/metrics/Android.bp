@@ -25,7 +25,6 @@ bootstrap_go_package {
         "soong-ui-metrics_upload_proto",
         "soong-ui-metrics_proto",
         "soong-ui-mk_metrics_proto",
-        "soong-ui-tracer",
         "soong-shared",
     ],
     srcs: [
