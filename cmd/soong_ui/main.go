@@ -132,8 +132,13 @@ func main() {
 		build.OsEnvironment().IsEnvTrue("ANDROID_QUIET_BUILD"),
 		build.OsEnvironment().IsEnvTrue("SOONG_UI_ANSI_OUTPUT"))
 
+	// Create and start a new metric record.
+	met := metrics.New()
+	met.SetBuildDateTime(buildStarted)
+	met.SetBuildCommand(os.Args)
+
 	// Attach a new logger instance to the terminal output.
-	log := logger.New(output)
+	log := logger.NewWithMetrics(output, met)
 	defer log.Cleanup()
 
 	// Create a context to simplify the program termination process.
@@ -143,11 +148,6 @@ func main() {
 	// Create a new trace file writer, making it log events to the log instance.
 	trace := tracer.New(log)
 	defer trace.Close()
-
-	// Create and start a new metric record.
-	met := metrics.New()
-	met.SetBuildDateTime(buildStarted)
-	met.SetBuildCommand(os.Args)
 
 	// Create a new Status instance, which manages action counts and event output channels.
 	stat := &status.Status{}
@@ -281,7 +281,7 @@ func dumpVar(ctx build.Context, config build.Config, args []string, _ string) {
 
 	if flags.NArg() != 1 {
 		flags.Usage()
-		os.Exit(1)
+		ctx.Fatalf("Invalid usage")
 	}
 
 	varName := flags.Arg(0)
@@ -341,7 +341,7 @@ func dumpVars(ctx build.Context, config build.Config, args []string, _ string) {
 
 	if flags.NArg() != 0 {
 		flags.Usage()
-		os.Exit(1)
+		ctx.Fatalf("Invalid usage")
 	}
 
 	vars := strings.Fields(*varsStr)
@@ -502,7 +502,7 @@ func runMake(ctx build.Context, config build.Config, _ []string, logsDir string)
 		fmt.Fprintln(writer, "!")
 		fmt.Fprintln(writer, "! Older versions are saved in verbose.log.#.gz files")
 		fmt.Fprintln(writer, "")
-		ctx.Fatal("done")
+		ctx.Fatal("Invalid argument")
 	}
 
 	if _, ok := config.Environment().Get("ONE_SHOT_MAKEFILE"); ok {
@@ -513,7 +513,7 @@ func runMake(ctx build.Context, config build.Config, _ []string, logsDir string)
 		fmt.Fprintln(writer, "!")
 		fmt.Fprintln(writer, "! Otherwise, either specify a module name with m, or use mma / MODULES-IN-...")
 		fmt.Fprintln(writer, "")
-		ctx.Fatal("done")
+		ctx.Fatal("Invalid environment")
 	}
 
 	build.Build(ctx, config)

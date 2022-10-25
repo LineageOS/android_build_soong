@@ -29,6 +29,7 @@
 package logger
 
 import (
+	"android/soong/ui/metrics"
 	"errors"
 	"fmt"
 	"io"
@@ -72,8 +73,8 @@ type Logger interface {
 	Output(calldepth int, str string) error
 }
 
-// fatalLog is the type used when Fatal[f|ln]
-type fatalLog struct {
+// fatalError is the type used when Fatal[f|ln]
+type fatalError struct {
 	error
 }
 
@@ -127,7 +128,7 @@ func Recover(fn func(err error)) {
 
 	if p == nil {
 		return
-	} else if log, ok := p.(fatalLog); ok {
+	} else if log, ok := p.(fatalError); ok {
 		fn(error(log))
 	} else {
 		panic(p)
@@ -141,6 +142,7 @@ type stdLogger struct {
 	fileLogger *log.Logger
 	mutex      sync.Mutex
 	file       *os.File
+	metrics    *metrics.Metrics
 }
 
 var _ Logger = &stdLogger{}
@@ -149,9 +151,14 @@ var _ Logger = &stdLogger{}
 // os.Stderr, but it may be a buffer for tests, or a separate log file if
 // the user doesn't need to see the output.
 func New(out io.Writer) *stdLogger {
+	return NewWithMetrics(out, nil)
+}
+
+func NewWithMetrics(out io.Writer, m *metrics.Metrics) *stdLogger {
 	return &stdLogger{
 		stderr:     log.New(out, "", log.Ltime),
 		fileLogger: log.New(ioutil.Discard, "", log.Ldate|log.Lmicroseconds|log.Llongfile),
+		metrics:    m,
 	}
 }
 
@@ -201,7 +208,7 @@ func (s *stdLogger) Cleanup() {
 	fatal := false
 	p := recover()
 
-	if _, ok := p.(fatalLog); ok {
+	if _, ok := p.(fatalError); ok {
 		fatal = true
 		p = nil
 	} else if p != nil {
@@ -217,40 +224,56 @@ func (s *stdLogger) Cleanup() {
 	}
 }
 
+type verbosityLevel int
+
+const (
+	verboseLog verbosityLevel = iota
+	infoLog
+	fatalLog
+	panicLog
+)
+
 // Output writes string to both stderr and the file log.
 func (s *stdLogger) Output(calldepth int, str string) error {
-	s.stderr.Output(calldepth+1, str)
+	return s.output(calldepth, str, infoLog)
+}
+
+// output writes string to stderr, the file log, and if fatal or panic, to metrics.
+func (s *stdLogger) output(calldepth int, str string, level verbosityLevel) error {
+	if level != verboseLog || s.verbose {
+		s.stderr.Output(calldepth+1, str)
+	}
+	if level >= fatalLog {
+		s.metrics.SetFatalOrPanicMessage(str)
+	}
 	return s.fileLogger.Output(calldepth+1, str)
 }
 
 // VerboseOutput is equivalent to Output, but only goes to the file log
 // unless SetVerbose(true) has been called.
 func (s *stdLogger) VerboseOutput(calldepth int, str string) error {
-	if s.verbose {
-		s.stderr.Output(calldepth+1, str)
-	}
-	return s.fileLogger.Output(calldepth+1, str)
+	return s.output(calldepth, str, verboseLog)
 }
 
 // Print prints to both stderr and the file log.
 // Arguments are handled in the manner of fmt.Print.
 func (s *stdLogger) Print(v ...interface{}) {
 	output := fmt.Sprint(v...)
-	s.Output(2, output)
+	s.output(2, output, infoLog)
 }
 
 // Printf prints to both stderr and the file log.
 // Arguments are handled in the manner of fmt.Printf.
 func (s *stdLogger) Printf(format string, v ...interface{}) {
 	output := fmt.Sprintf(format, v...)
-	s.Output(2, output)
+	s.output(2, output, infoLog)
 }
 
 // Println prints to both stderr and the file log.
 // Arguments are handled in the manner of fmt.Println.
 func (s *stdLogger) Println(v ...interface{}) {
 	output := fmt.Sprintln(v...)
-	s.Output(2, output)
+	s.output(2, output, infoLog)
 }
 
 // Verbose is equivalent to Print, but only goes to the file log unless
@@ -278,43 +301,43 @@ func (s *stdLogger) Verboseln(v ...interface{}) {
 // Cleanup will convert to a os.Exit(1).
 func (s *stdLogger) Fatal(v ...interface{}) {
 	output := fmt.Sprint(v...)
-	s.Output(2, output)
-	panic(fatalLog{errors.New(output)})
+	s.output(2, output, fatalLog)
+	panic(fatalError{errors.New(output)})
 }
 
 // Fatalf is equivalent to Printf() followed by a call to panic() that
 // Cleanup will convert to a os.Exit(1).
 func (s *stdLogger) Fatalf(format string, v ...interface{}) {
 	output := fmt.Sprintf(format, v...)
-	s.Output(2, output)
-	panic(fatalLog{errors.New(output)})
+	s.output(2, output, fatalLog)
+	panic(fatalError{errors.New(output)})
 }
 
 // Fatalln is equivalent to Println() followed by a call to panic() that
 // Cleanup will convert to a os.Exit(1).
 func (s *stdLogger) Fatalln(v ...interface{}) {
 	output := fmt.Sprintln(v...)
-	s.Output(2, output)
-	panic(fatalLog{errors.New(output)})
+	s.output(2, output, fatalLog)
+	panic(fatalError{errors.New(output)})
 }
 
 // Panic is equivalent to Print() followed by a call to panic().
 func (s *stdLogger) Panic(v ...interface{}) {
 	output := fmt.Sprint(v...)
-	s.Output(2, output)
+	s.output(2, output, panicLog)
 	panic(output)
 }
 
 // Panicf is equivalent to Printf() followed by a call to panic().
 func (s *stdLogger) Panicf(format string, v ...interface{}) {
 	output := fmt.Sprintf(format, v...)
-	s.Output(2, output)
+	s.output(2, output, panicLog)
 	panic(output)
 }
 
 // Panicln is equivalent to Println() followed by a call to panic().
 func (s *stdLogger) Panicln(v ...interface{}) {
 	output := fmt.Sprintln(v...)
-	s.Output(2, output)
+	s.output(2, output, panicLog)
 	panic(output)
 }

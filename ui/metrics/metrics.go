@@ -125,6 +125,21 @@ func (m *Metrics) SetTimeMetrics(perf soong_metrics_proto.PerfInfo) {
 	}
 }
 
+// SetFatalOrPanicMessage stores a non-zero exit and the relevant message in the latest event if
+// available or the metrics base.
+func (m *Metrics) SetFatalOrPanicMessage(errMsg string) {
+	if m == nil {
+		return
+	}
+	if event := m.EventTracer.peek(); event != nil {
+		event.nonZeroExitCode = true
+		event.errorMsg = &errMsg
+	} else {
+		m.metrics.ErrorMessage = proto.String(errMsg)
+	}
+	m.metrics.NonZeroExit = proto.Bool(true)
+}
+
 // BuildConfig stores information about the build configuration.
 func (m *Metrics) BuildConfig(b *soong_metrics_proto.BuildConfig) {
 	m.metrics.BuildConfig = b
