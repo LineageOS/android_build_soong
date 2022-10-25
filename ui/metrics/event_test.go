@@ -17,8 +17,6 @@ package metrics
 import (
 	"testing"
 	"time"
-
-	"android/soong/ui/tracer"
 )
 
 func TestEnd(t *testing.T) {
@@ -35,8 +33,31 @@ func TestEnd(t *testing.T) {
 		start: startTime,
 	})
 
-	perf := et.End(tracer.Thread(0))
+	perf := et.End()
 	if perf.GetRealTime() != uint64(dur.Nanoseconds()) {
 		t.Errorf("got %d, want %d nanoseconds for event duration", perf.GetRealTime(), dur.Nanoseconds())
+	}
+}
+
+func TestEndWithError(t *testing.T) {
+	startTime := time.Date(2020, time.July, 13, 13, 0, 0, 0, time.UTC)
+	dur := time.Nanosecond * 10
+	initialNow := _now
+	_now = func() time.Time { return startTime.Add(dur) }
+	defer func() { _now = initialNow }()
+
+	err := "foobar"
+	et := &EventTracer{}
+	et.push(&event{
+		desc:            "test",
+		name:            "test",
+		start:           startTime,
+		nonZeroExitCode: true,
+		errorMsg:        &err,
+	})
+
+	perf := et.End()
+	if msg := perf.GetErrorMessage(); msg != err {
+		t.Errorf("got %q, want %q for even error message", msg, err)
 	}
 }
