@@ -1288,6 +1288,8 @@ func TestAidlExportIncludeDirsFromImports(t *testing.T) {
 }
 
 func TestAidlIncludeDirFromConvertedFileGroupWithPathPropInMixedBuilds(t *testing.T) {
+	// TODO(b/247782695), TODO(b/242847534) Fix mixed builds for filegroups
+	t.Skip("Re-enable once filegroups are corrected for mixed builds")
 	bp := `
 	filegroup {
 		name: "foo_aidl",
