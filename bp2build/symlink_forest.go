@@ -202,13 +202,13 @@ func plantSymlinkForestRecursive(cfg android.Config, topdir string, forestDir st
 		}
 	}
 
-	allEntries := make(map[string]bool)
+	allEntries := make(map[string]struct{})
 	for n := range srcDirMap {
-		allEntries[n] = true
+		allEntries[n] = struct{}{}
 	}
 
 	for n := range buildFilesMap {
-		allEntries[n] = true
+		allEntries[n] = struct{}{}
 	}
 
 	err := os.MkdirAll(shared.JoinPath(topdir, forestDir), 0777)
@@ -250,15 +250,8 @@ func plantSymlinkForestRecursive(cfg android.Config, topdir string, forestDir st
 			continue
 		}
 
-		sDir := false
-		bDir := false
-		if sExists {
-			sDir = isDir(shared.JoinPath(topdir, srcChild), srcChildEntry)
-		}
-
-		if bExists {
-			bDir = isDir(shared.JoinPath(topdir, buildFilesChild), buildFilesChildEntry)
-		}
+		sDir := sExists && isDir(shared.JoinPath(topdir, srcChild), srcChildEntry)
+		bDir := bExists && isDir(shared.JoinPath(topdir, buildFilesChild), buildFilesChildEntry)
 
 		if !sExists {
 			if bDir && excludeChild != nil {
