@@ -137,8 +137,17 @@ func (fuzz *fuzzBinary) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 	// RunPaths on devices isn't instantiated by the base linker. `../lib` for
 	// installed fuzz targets (both host and device), and `./lib` for fuzz
 	// target packages.
-	flags.Local.LdFlags = append(flags.Local.LdFlags, `-Wl,-rpath,\$$ORIGIN/../lib`)
 	flags.Local.LdFlags = append(flags.Local.LdFlags, `-Wl,-rpath,\$$ORIGIN/lib`)
+
+	// When running on device, fuzz targets with vendor: true set will be in
+	// fuzzer_name/vendor/fuzzer_name (note the extra 'vendor' and thus need to
+	// link with libraries in ../../lib/. Non-vendor binaries only need to look
+	// one level up, in ../lib/.
+	if ctx.inVendor() {
+		flags.Local.LdFlags = append(flags.Local.LdFlags, `-Wl,-rpath,\$$ORIGIN/../../lib`)
+	} else {
+		flags.Local.LdFlags = append(flags.Local.LdFlags, `-Wl,-rpath,\$$ORIGIN/../lib`)
+	}
 
 	return flags
 }
