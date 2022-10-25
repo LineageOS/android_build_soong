@@ -616,20 +616,10 @@ func runBp2Build(configuration android.Config, extraNinjaDeps []string) {
 		bp2buildCtx.SetAllowMissingDependencies(configuration.AllowMissingDependencies())
 		bp2buildCtx.SetNameInterface(newNameResolver(configuration))
 		bp2buildCtx.RegisterForBazelConversion()
+		bp2buildCtx.SetModuleListFile(cmdlineArgs.ModuleListFile)
 
 		var ninjaDeps []string
 		ninjaDeps = append(ninjaDeps, extraNinjaDeps...)
-
-		// The bp2build process is a purely functional process that only depends on
-		// Android.bp files. It must not depend on the values of per-build product
-		// configurations or variables, since those will generate different BUILD
-		// files based on how the user has configured their tree.
-		bp2buildCtx.SetModuleListFile(cmdlineArgs.ModuleListFile)
-		if modulePaths, err := bp2buildCtx.ListModulePaths("."); err != nil {
-			panic(err)
-		} else {
-			ninjaDeps = append(ninjaDeps, modulePaths...)
-		}
 
 		// Run the loading and analysis pipeline to prepare the graph of regular
 		// Modules parsed from Android.bp files, and the BazelTargetModules mapped
