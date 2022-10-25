@@ -234,7 +234,8 @@ func (fg *fileGroup) QueueBazelCall(ctx BaseModuleContext) {
 }
 
 func (fg *fileGroup) IsMixedBuildSupported(ctx BaseModuleContext) bool {
-	return true
+	// TODO(b/247782695), TODO(b/242847534) Fix mixed builds for filegroups
+	return false
 }
 
 func (fg *fileGroup) ProcessBazelQueryResponse(ctx ModuleContext) {
