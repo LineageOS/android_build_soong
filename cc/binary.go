@@ -646,7 +646,7 @@ func binaryBp2buildAttrs(ctx android.TopDownMutatorContext, m *Module) binaryAtt
 		sdkAttributes: bp2BuildParseSdkAttributes(m),
 	}
 
-	m.convertTidyAttributes(&attrs.tidyAttributes)
+	m.convertTidyAttributes(ctx, &attrs.tidyAttributes)
 
 	return attrs
 }
