@@ -42,6 +42,7 @@ func registerApexModuleTypes(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("android_app_certificate", java.AndroidAppCertificateFactory)
 	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
 	ctx.RegisterModuleType("prebuilt_etc", etc.PrebuiltEtcFactory)
+	ctx.RegisterModuleType("cc_test", cc.TestFactory)
 }
 
 func runOverrideApexTestCase(t *testing.T, tc Bp2buildTestCase) {
@@ -1246,6 +1247,31 @@ override_apex {
 				"file_contexts":    `":com.android.apogee-file_contexts"`,
 				"certificate_name": `"com.google.android.apogee.certificate"`,
 				"manifest":         `"apogee_manifest.json"`,
+			}),
+		}})
+}
+
+func TestApexTestBundleSimple(t *testing.T) {
+	runApexTestCase(t, Bp2buildTestCase{
+		Description:                "apex_test - simple",
+		ModuleTypeUnderTest:        "apex_test",
+		ModuleTypeUnderTestFactory: apex.TestApexBundleFactory,
+		Filesystem:                 map[string]string{},
+		Blueprint: `
+cc_test { name: "cc_test_1", bazel_module: { bp2build_available: false } }
+
+apex_test {
+	name: "test_com.android.apogee",
+	file_contexts: "file_contexts_file",
+	tests: ["cc_test_1"],
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("apex", "test_com.android.apogee", AttrNameToString{
+				"file_contexts": `"file_contexts_file"`,
+				"manifest":      `"apex_manifest.json"`,
+				"testonly":      `True`,
+				"tests":         `[":cc_test_1"]`,
 			}),
 		}})
 }
