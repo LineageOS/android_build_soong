@@ -48,8 +48,10 @@ source "${TOP}/build/soong/scripts/microfactory.bash"
 
 case $(uname) in
   Linux)
-    export LD_PRELOAD=/lib/x86_64-linux-gnu/libSegFault.so
-    export SEGFAULT_USE_ALTSTACK=1
+    if [[ -f /lib/x86_64-linux-gnu/libSegFault.so ]]; then
+      export LD_PRELOAD=/lib/x86_64-linux-gnu/libSegFault.so
+      export SEGFAULT_USE_ALTSTACK=1
+    fi
     ulimit -a
     ;;
 esac
