@@ -585,6 +585,7 @@ android_library {
 					"manifest":       `"manifest/AndroidManifest.xml"`,
 					"resource_files": `[]`,
 				}),
+			MakeNeverlinkDuplicateTarget("android_library", "TestLib"),
 		}})
 }
 
@@ -628,6 +629,7 @@ android_library {
 					"manifest":       `"manifest/AndroidManifest.xml"`,
 					"resource_files": `[]`,
 				}),
+			MakeNeverlinkDuplicateTarget("android_library", "TestLib"),
 		}})
 }
 
@@ -665,6 +667,7 @@ android_library {
 					"manifest":       `"manifest/AndroidManifest.xml"`,
 					"resource_files": `[]`,
 				}),
+			MakeNeverlinkDuplicateTarget("android_library", "TestLib"),
 		}})
 }
 

@@ -2663,7 +2663,7 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext)
 	if m.properties.Libs != nil {
 
 		// TODO 244210934 ALIX Check if this else statement breaks presubmits get rid of it if it doesn't
-		if strings.HasPrefix(ctx.ModuleType(), "java_binary") || strings.HasPrefix(ctx.ModuleType(), "java_library") {
+		if strings.HasPrefix(ctx.ModuleType(), "java_binary") || strings.HasPrefix(ctx.ModuleType(), "java_library") || ctx.ModuleType() == "android_library" {
 			for _, d := range m.properties.Libs {
 				neverlinkLabel := android.BazelLabelForModuleDepSingle(ctx, d)
 				neverlinkLabel.Label = neverlinkLabel.Label + "-neverlink"

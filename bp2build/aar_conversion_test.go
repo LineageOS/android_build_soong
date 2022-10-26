@@ -68,6 +68,7 @@ android_library {
 					"exports":        `[":static_lib_dep"]`,
 					"javacopts":      `["-source 1.7 -target 1.7"]`,
 				}),
+			MakeNeverlinkDuplicateTarget("android_library", "TestLib"),
 		}})
 }
 
