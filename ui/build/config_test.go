@@ -28,6 +28,7 @@ import (
 	"android/soong/ui/logger"
 	smpb "android/soong/ui/metrics/metrics_proto"
 	"android/soong/ui/status"
+
 	"google.golang.org/protobuf/encoding/prototext"
 
 	"google.golang.org/protobuf/proto"
@@ -1015,40 +1016,55 @@ func TestBuildConfig(t *testing.T) {
 			name:    "none set",
 			environ: Environment{},
 			expectedBuildConfig: &smpb.BuildConfig{
-				ForceUseGoma:    proto.Bool(false),
-				UseGoma:         proto.Bool(false),
-				UseRbe:          proto.Bool(false),
-				BazelMixedBuild: proto.Bool(false),
+				ForceUseGoma:                proto.Bool(false),
+				UseGoma:                     proto.Bool(false),
+				UseRbe:                      proto.Bool(false),
+				BazelMixedBuild:             proto.Bool(false),
+				ForceDisableBazelMixedBuild: proto.Bool(false),
 			},
 		},
 		{
 			name:    "force use goma",
 			environ: Environment{"FORCE_USE_GOMA=1"},
 			expectedBuildConfig: &smpb.BuildConfig{
-				ForceUseGoma:    proto.Bool(true),
-				UseGoma:         proto.Bool(false),
-				UseRbe:          proto.Bool(false),
-				BazelMixedBuild: proto.Bool(false),
+				ForceUseGoma:                proto.Bool(true),
+				UseGoma:                     proto.Bool(false),
+				UseRbe:                      proto.Bool(false),
+				BazelMixedBuild:             proto.Bool(false),
+				ForceDisableBazelMixedBuild: proto.Bool(false),
 			},
 		},
 		{
 			name:    "use goma",
 			environ: Environment{"USE_GOMA=1"},
 			expectedBuildConfig: &smpb.BuildConfig{
-				ForceUseGoma:    proto.Bool(false),
-				UseGoma:         proto.Bool(true),
-				UseRbe:          proto.Bool(false),
-				BazelMixedBuild: proto.Bool(false),
+				ForceUseGoma:                proto.Bool(false),
+				UseGoma:                     proto.Bool(true),
+				UseRbe:                      proto.Bool(false),
+				BazelMixedBuild:             proto.Bool(false),
+				ForceDisableBazelMixedBuild: proto.Bool(false),
 			},
 		},
 		{
 			name:    "use rbe",
 			environ: Environment{"USE_RBE=1"},
 			expectedBuildConfig: &smpb.BuildConfig{
-				ForceUseGoma:    proto.Bool(false),
-				UseGoma:         proto.Bool(false),
-				UseRbe:          proto.Bool(true),
-				BazelMixedBuild: proto.Bool(false),
+				ForceUseGoma:                proto.Bool(false),
+				UseGoma:                     proto.Bool(false),
+				UseRbe:                      proto.Bool(true),
+				BazelMixedBuild:             proto.Bool(false),
+				ForceDisableBazelMixedBuild: proto.Bool(false),
+			},
+		},
+		{
+			name:    "disable mixed builds",
+			environ: Environment{"BUILD_BROKEN_DISABLE_BAZEL=1"},
+			expectedBuildConfig: &smpb.BuildConfig{
+				ForceUseGoma:                proto.Bool(false),
+				UseGoma:                     proto.Bool(false),
+				UseRbe:                      proto.Bool(false),
+				BazelMixedBuild:             proto.Bool(false),
+				ForceDisableBazelMixedBuild: proto.Bool(true),
 			},
 		},
 		{
@@ -1056,10 +1072,11 @@ func TestBuildConfig(t *testing.T) {
 			environ:  Environment{},
 			useBazel: true,
 			expectedBuildConfig: &smpb.BuildConfig{
-				ForceUseGoma:    proto.Bool(false),
-				UseGoma:         proto.Bool(false),
-				UseRbe:          proto.Bool(false),
-				BazelMixedBuild: proto.Bool(false),
+				ForceUseGoma:                proto.Bool(false),
+				UseGoma:                     proto.Bool(false),
+				UseRbe:                      proto.Bool(false),
+				BazelMixedBuild:             proto.Bool(false),
+				ForceDisableBazelMixedBuild: proto.Bool(false),
 			},
 		},
 		{
@@ -1067,10 +1084,11 @@ func TestBuildConfig(t *testing.T) {
 			environ:      Environment{},
 			bazelDevMode: true,
 			expectedBuildConfig: &smpb.BuildConfig{
-				ForceUseGoma:    proto.Bool(false),
-				UseGoma:         proto.Bool(false),
-				UseRbe:          proto.Bool(false),
-				BazelMixedBuild: proto.Bool(true),
+				ForceUseGoma:                proto.Bool(false),
+				UseGoma:                     proto.Bool(false),
+				UseRbe:                      proto.Bool(false),
+				BazelMixedBuild:             proto.Bool(true),
+				ForceDisableBazelMixedBuild: proto.Bool(false),
 			},
 		},
 		{
@@ -1078,10 +1096,11 @@ func TestBuildConfig(t *testing.T) {
 			environ:       Environment{},
 			bazelProdMode: true,
 			expectedBuildConfig: &smpb.BuildConfig{
-				ForceUseGoma:    proto.Bool(false),
-				UseGoma:         proto.Bool(false),
-				UseRbe:          proto.Bool(false),
-				BazelMixedBuild: proto.Bool(true),
+				ForceUseGoma:                proto.Bool(false),
+				UseGoma:                     proto.Bool(false),
+				UseRbe:                      proto.Bool(false),
+				BazelMixedBuild:             proto.Bool(true),
+				ForceDisableBazelMixedBuild: proto.Bool(false),
 			},
 		},
 		{
@@ -1089,10 +1108,11 @@ func TestBuildConfig(t *testing.T) {
 			environ:          Environment{},
 			bazelStagingMode: true,
 			expectedBuildConfig: &smpb.BuildConfig{
-				ForceUseGoma:    proto.Bool(false),
-				UseGoma:         proto.Bool(false),
-				UseRbe:          proto.Bool(false),
-				BazelMixedBuild: proto.Bool(true),
+				ForceUseGoma:                proto.Bool(false),
+				UseGoma:                     proto.Bool(false),
+				UseRbe:                      proto.Bool(false),
+				BazelMixedBuild:             proto.Bool(true),
+				ForceDisableBazelMixedBuild: proto.Bool(false),
 			},
 		},
 		{
@@ -1101,11 +1121,12 @@ func TestBuildConfig(t *testing.T) {
 			useBazel:  true,
 			arguments: []string{"droid", "dist"},
 			expectedBuildConfig: &smpb.BuildConfig{
-				ForceUseGoma:    proto.Bool(false),
-				UseGoma:         proto.Bool(false),
-				UseRbe:          proto.Bool(false),
-				BazelMixedBuild: proto.Bool(false),
-				Targets:         []string{"droid", "dist"},
+				ForceUseGoma:                proto.Bool(false),
+				UseGoma:                     proto.Bool(false),
+				UseRbe:                      proto.Bool(false),
+				BazelMixedBuild:             proto.Bool(false),
+				Targets:                     []string{"droid", "dist"},
+				ForceDisableBazelMixedBuild: proto.Bool(false),
 			},
 		},
 		{
@@ -1114,14 +1135,16 @@ func TestBuildConfig(t *testing.T) {
 				"FORCE_USE_GOMA=1",
 				"USE_GOMA=1",
 				"USE_RBE=1",
+				"BUILD_BROKEN_DISABLE_BAZEL=1",
 			},
 			useBazel:     true,
 			bazelDevMode: true,
 			expectedBuildConfig: &smpb.BuildConfig{
-				ForceUseGoma:    proto.Bool(true),
-				UseGoma:         proto.Bool(true),
-				UseRbe:          proto.Bool(true),
-				BazelMixedBuild: proto.Bool(true),
+				ForceUseGoma:                proto.Bool(true),
+				UseGoma:                     proto.Bool(true),
+				UseRbe:                      proto.Bool(true),
+				BazelMixedBuild:             proto.Bool(true),
+				ForceDisableBazelMixedBuild: proto.Bool(true),
 			},
 		},
 	}
