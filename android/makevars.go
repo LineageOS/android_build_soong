@@ -471,7 +471,7 @@ func (s *makeVarsSingleton) writeInstalls(installs, symlinks []katiInstall) []by
 			fmt.Fprintf(buf, " %s", dep.String())
 		}
 		fmt.Fprintln(buf)
-		fmt.Fprintln(buf, "\t@echo \"Install $@\"")
+		fmt.Fprintln(buf, "\t@echo \"Install: $@\"")
 		fmt.Fprintf(buf, "\trm -f $@ && cp -f %s $< $@\n", preserveSymlinksFlag)
 		if install.executable {
 			fmt.Fprintf(buf, "\tchmod +x $@\n")
@@ -515,7 +515,7 @@ func (s *makeVarsSingleton) writeInstalls(installs, symlinks []katiInstall) []by
 			fromStr = symlink.absFrom
 		}
 
-		fmt.Fprintln(buf, "\t@echo \"Symlink $@\"")
+		fmt.Fprintln(buf, "\t@echo \"Symlink: $@\"")
 		fmt.Fprintf(buf, "\trm -f $@ && ln -sfn %s $@", fromStr)
 		fmt.Fprintln(buf)
 		fmt.Fprintln(buf)
