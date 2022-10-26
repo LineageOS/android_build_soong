@@ -34,7 +34,7 @@ SOONG_OUTPUT_DIR="$OUTPUT_DIR/soong"
 BAZEL_OUTPUT_DIR="$OUTPUT_DIR/bazel"
 
 function call_bazel() {
-  tools/bazel --output_base="$BAZEL_OUTPUT_DIR" $@
+  build/bazel/bin/bazel --output_base="$BAZEL_OUTPUT_DIR" $@
 }
 
 function cleanup {

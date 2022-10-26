@@ -399,7 +399,7 @@ func runSoong(ctx Context, config Config) {
 	soongBuildEnv := config.Environment().Copy()
 	soongBuildEnv.Set("TOP", os.Getenv("TOP"))
 	// For Bazel mixed builds.
-	soongBuildEnv.Set("BAZEL_PATH", "./tools/bazel")
+	soongBuildEnv.Set("BAZEL_PATH", "./build/bazel/bin/bazel")
 	// Bazel's HOME var is set to an output subdirectory which doesn't exist. This
 	// prevents Bazel from file I/O in the actual user HOME directory.
 	soongBuildEnv.Set("BAZEL_HOME", absPath(ctx, filepath.Join(config.BazelOutDir(), "bazelhome")))

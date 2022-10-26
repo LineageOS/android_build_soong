@@ -202,13 +202,13 @@ func plantSymlinkForestRecursive(cfg android.Config, topdir string, forestDir st
 		}
 	}
 
-	allEntries := make(map[string]bool)
+	allEntries := make(map[string]struct{})
 	for n := range srcDirMap {
-		allEntries[n] = true
+		allEntries[n] = struct{}{}
 	}
 
 	for n := range buildFilesMap {
-		allEntries[n] = true
+		allEntries[n] = struct{}{}
 	}
 
 	err := os.MkdirAll(shared.JoinPath(topdir, forestDir), 0777)
@@ -250,15 +250,8 @@ func plantSymlinkForestRecursive(cfg android.Config, topdir string, forestDir st
 			continue
 		}
 
-		sDir := false
-		bDir := false
-		if sExists {
-			sDir = isDir(shared.JoinPath(topdir, srcChild), srcChildEntry)
-		}
-
-		if bExists {
-			bDir = isDir(shared.JoinPath(topdir, buildFilesChild), buildFilesChildEntry)
-		}
+		sDir := sExists && isDir(shared.JoinPath(topdir, srcChild), srcChildEntry)
+		bDir := bExists && isDir(shared.JoinPath(topdir, buildFilesChild), buildFilesChildEntry)
 
 		if !sExists {
 			if bDir && excludeChild != nil {
@@ -285,17 +278,9 @@ func plantSymlinkForestRecursive(cfg android.Config, topdir string, forestDir st
 			// Neither is a directory. Merge them.
 			srcBuildFile := shared.JoinPath(topdir, srcChild)
 			generatedBuildFile := shared.JoinPath(topdir, buildFilesChild)
-			// Add the src and generated build files as dependencies so that bp2build
-			// is rerun when they change. Currently, this is only really necessary
-			// for srcBuildFile, because if we regenerate the generated build files
-			// we will always rerun the symlink forest generation as well. If that
-			// is later split up into separate, fully dependency-tracing steps, then
-			// we'll need srcBuildFile as well. Adding srcBuildFile here today
-			// technically makes it a dependency of bp2build_workspace_marker, which
-			// also implicitly outputs that file, but since bp2build_workspace_marker
-			// will always have a newer timestamp than the generatedBuildFile it
-			// shouldn't be a problem.
-			*acc = append(*acc, srcBuildFile, generatedBuildFile)
+			// The Android.bp file that codegen used to produce `buildFilesChild` is
+			// already a dependency, we can ignore `buildFilesChild`.
+			*acc = append(*acc, srcChild)
 			err = mergeBuildFiles(shared.JoinPath(topdir, forestChild), srcBuildFile, generatedBuildFile, cfg.IsEnvTrue("BP2BUILD_VERBOSE"))
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error merging %s and %s: %s",
