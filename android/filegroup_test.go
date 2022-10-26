@@ -6,6 +6,8 @@ import (
 )
 
 func TestFileGroupWithPathProp(t *testing.T) {
+	// TODO(b/247782695), TODO(b/242847534) Fix mixed builds for filegroups
+	t.Skip("Re-enable once filegroups are corrected for mixed builds")
 	outBaseDir := "outputbase"
 	pathPrefix := outBaseDir + "/execroot/__main__"
 	expectedOutputfile := filepath.Join(pathPrefix, "a/b/c/d/test.aidl")

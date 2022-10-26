@@ -15,6 +15,7 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -478,12 +479,19 @@ func writeUsedEnvironmentFile(configuration android.Config, finalOutputFile stri
 		os.Exit(1)
 	}
 
-	err = ioutil.WriteFile(path, data, 0666)
-	if err != nil {
+	if preexistingData, err := os.ReadFile(path); err != nil {
+		if !os.IsNotExist(err) {
+			fmt.Fprintf(os.Stderr, "error reading used environment file '%s': %s\n", usedEnvFile, err)
+			os.Exit(1)
+		}
+	} else if bytes.Equal(preexistingData, data) {
+		// used environment file is unchanged
+		return
+	}
+	if err = os.WriteFile(path, data, 0666); err != nil {
 		fmt.Fprintf(os.Stderr, "error writing used environment file '%s': %s\n", usedEnvFile, err)
 		os.Exit(1)
 	}
-
 	// Touch the output file so that it's not older than the file we just
 	// wrote. We can't write the environment file earlier because one an access
 	// new environment variables while writing it.
@@ -508,6 +516,12 @@ func touch(path string) {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error touching '%s': %s\n", path, err)
 		os.Exit(1)
+	}
+}
+
+func touchIfDoesNotExist(path string) {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		touch(path)
 	}
 }
 
@@ -608,20 +622,10 @@ func runBp2Build(configuration android.Config, extraNinjaDeps []string) {
 		bp2buildCtx.SetAllowMissingDependencies(configuration.AllowMissingDependencies())
 		bp2buildCtx.SetNameInterface(newNameResolver(configuration))
 		bp2buildCtx.RegisterForBazelConversion()
+		bp2buildCtx.SetModuleListFile(cmdlineArgs.ModuleListFile)
 
 		var ninjaDeps []string
 		ninjaDeps = append(ninjaDeps, extraNinjaDeps...)
-
-		// The bp2build process is a purely functional process that only depends on
-		// Android.bp files. It must not depend on the values of per-build product
-		// configurations or variables, since those will generate different BUILD
-		// files based on how the user has configured their tree.
-		bp2buildCtx.SetModuleListFile(cmdlineArgs.ModuleListFile)
-		if modulePaths, err := bp2buildCtx.ListModulePaths("."); err != nil {
-			panic(err)
-		} else {
-			ninjaDeps = append(ninjaDeps, modulePaths...)
-		}
 
 		// Run the loading and analysis pipeline to prepare the graph of regular
 		// Modules parsed from Android.bp files, and the BazelTargetModules mapped
@@ -676,8 +680,9 @@ func runBp2Build(configuration android.Config, extraNinjaDeps []string) {
 
 		writeDepFile(bp2buildMarker, eventHandler, ninjaDeps)
 
-		// Create an empty bp2build marker file.
-		touch(shared.JoinPath(topDir, bp2buildMarker))
+		// Create an empty bp2build marker file, if it does not already exist.
+		// Note the relevant rule has `restat = true`
+		touchIfDoesNotExist(shared.JoinPath(topDir, bp2buildMarker))
 	})
 
 	// Only report metrics when in bp2build mode. The metrics aren't relevant
