@@ -910,7 +910,11 @@ func (c *configImpl) UsedEnvFile(tag string) string {
 	return shared.JoinPath(c.SoongOutDir(), usedEnvFile+"."+tag)
 }
 
-func (c *configImpl) Bp2BuildMarkerFile() string {
+func (c *configImpl) Bp2BuildFilesMarkerFile() string {
+	return shared.JoinPath(c.SoongOutDir(), "bp2build_files_marker")
+}
+
+func (c *configImpl) Bp2BuildWorkspaceMarkerFile() string {
 	return shared.JoinPath(c.SoongOutDir(), "bp2build_workspace_marker")
 }
 
