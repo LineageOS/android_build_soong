@@ -333,7 +333,7 @@ func (l *linter) lint(ctx android.ModuleContext) {
 		l.extraMainlineLintErrors = append(l.extraMainlineLintErrors, updatabilityChecks...)
 		// Skip lint warning checks for NewApi warnings for libcore where they come from source
 		// files that reference the API they are adding (b/208656169).
-		if ctx.ModuleDir() != "libcore" {
+		if !strings.HasPrefix(ctx.ModuleDir(), "libcore") {
 			_, filtered := android.FilterList(l.properties.Lint.Warning_checks, updatabilityChecks)
 
 			if len(filtered) != 0 {
