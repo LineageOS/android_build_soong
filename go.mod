@@ -13,12 +13,7 @@ exclude github.com/golang/protobuf v1.5.0
 
 replace github.com/google/go-cmp v0.5.5 => ../../external/go-cmp
 
-require prebuilts/bazel/common/proto/analysis_v2 v0.0.0
-
-replace prebuilts/bazel/common/proto/analysis_v2 => ../../prebuilts/bazel/common/proto/analysis_v2
-
-require prebuilts/bazel/common/proto/build v0.0.0 // indirect
-
-replace prebuilts/bazel/common/proto/build => ../../prebuilts/bazel/common/proto/build
+// Indirect dep from go-cmp
+exclude golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
 
 go 1.18
