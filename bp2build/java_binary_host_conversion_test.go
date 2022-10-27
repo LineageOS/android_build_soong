@@ -32,7 +32,7 @@ func runJavaBinaryHostTestCase(t *testing.T, tc Bp2buildTestCase) {
 	}, tc)
 }
 
-var fs = map[string]string{
+var testFs = map[string]string{
 	"test.mf": "Main-Class: com.android.test.MainClass",
 	"other/Android.bp": `cc_library_host_shared {
     name: "jni-lib-1",
@@ -43,7 +43,7 @@ var fs = map[string]string{
 func TestJavaBinaryHost(t *testing.T) {
 	runJavaBinaryHostTestCase(t, Bp2buildTestCase{
 		Description: "java_binary_host with srcs, exclude_srcs, jni_libs, javacflags, and manifest.",
-		Filesystem:  fs,
+		Filesystem:  testFs,
 		Blueprint: `java_binary_host {
     name: "java-binary-host-1",
     srcs: ["a.java", "b.java"],
@@ -76,7 +76,7 @@ func TestJavaBinaryHost(t *testing.T) {
 func TestJavaBinaryHostRuntimeDeps(t *testing.T) {
 	runJavaBinaryHostTestCase(t, Bp2buildTestCase{
 		Description: "java_binary_host with srcs, exclude_srcs, jni_libs, javacflags, and manifest.",
-		Filesystem:  fs,
+		Filesystem:  testFs,
 		Blueprint: `java_binary_host {
     name: "java-binary-host-1",
     static_libs: ["java-dep-1"],
