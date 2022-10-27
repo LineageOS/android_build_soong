@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "aa93561f_ec850b10",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2022-10-27T16:56:27Z",
+      "side": 1,
+      "message": "AOSP accepted the change so go for it\nBut I may want to look at making dopush use the build data Colin suggested",
+      "revId": "5a9f7fbb9c10c23250c9d8d7f5a32ffa672d43fa",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
