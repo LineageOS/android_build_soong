@@ -639,13 +639,9 @@ func (s *stringVariable) initializeProperties(v reflect.Value, typ reflect.Type)
 // Extracts an interface from values containing the properties to apply based on config.
 // If config does not match a value with a non-nil property set, the default value will be returned.
 func (s *stringVariable) PropertiesToApply(config SoongConfig, values reflect.Value) (interface{}, error) {
-	configValue := config.String(s.variable)
-	if configValue != "" && !InList(configValue, s.values) {
-		return nil, fmt.Errorf("Soong config property %q must be one of %v, found %q", s.variable, s.values, configValue)
-	}
 	for j, v := range s.values {
 		f := values.Field(j)
-		if configValue == v && !f.Elem().IsNil() {
+		if config.String(s.variable) == v && !f.Elem().IsNil() {
 			return f.Interface(), nil
 		}
 	}
@@ -862,13 +858,3 @@ type emptyInterfaceStruct struct {
 }
 
 var emptyInterfaceType = reflect.TypeOf(emptyInterfaceStruct{}).Field(0).Type
-
-// InList checks if the string belongs to the list
-func InList(s string, list []string) bool {
-	for _, s2 := range list {
-		if s2 == s {
-			return true
-		}
-	}
-	return false
-}
