@@ -928,6 +928,8 @@ type CommonAttributes struct {
 	Tags bazel.StringListAttribute
 
 	Applicable_licenses bazel.LabelListAttribute
+
+	Testonly *bool
 }
 
 // constraintAttributes represents Bazel attributes pertaining to build constraints,
