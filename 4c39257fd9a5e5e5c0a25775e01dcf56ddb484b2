@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "6e4e677d_20fa163a",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2022-10-27T16:30:22Z",
+      "side": 1,
+      "message": "See discussion in https://review.lineageos.org/c/LineageOS/android_vendor_lineage/+/342696. This fixes dopush.",
+      "revId": "4c39257fd9a5e5e5c0a25775e01dcf56ddb484b2",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
