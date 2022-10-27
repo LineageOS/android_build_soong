@@ -17,6 +17,7 @@ package bazel
 import (
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"reflect"
@@ -24,8 +25,6 @@ import (
 	"strings"
 
 	"github.com/google/blueprint/proptools"
-	"google.golang.org/protobuf/proto"
-	analysis_v2_proto "prebuilts/bazel/common/proto/analysis_v2"
 )
 
 type artifactId int
@@ -313,78 +312,10 @@ func (a *aqueryArtifactHandler) artifactPathsFromDepsetHash(depsetHash string) (
 // BuildStatements are one-to-one with actions in the given action graph, and AqueryDepsets
 // are one-to-one with Bazel's depSetOfFiles objects.
 func AqueryBuildStatements(aqueryJsonProto []byte) ([]BuildStatement, []AqueryDepset, error) {
-	aqueryProto := &analysis_v2_proto.ActionGraphContainer{}
-	err := proto.Unmarshal(aqueryJsonProto, aqueryProto)
+	var aqueryResult actionGraphContainer
+	err := json.Unmarshal(aqueryJsonProto, &aqueryResult)
 	if err != nil {
 		return nil, nil, err
-	}
-	aqueryResult := actionGraphContainer{}
-
-	for _, protoArtifact := range aqueryProto.Artifacts {
-		aqueryResult.Artifacts = append(aqueryResult.Artifacts, artifact{artifactId(protoArtifact.Id),
-			pathFragmentId(protoArtifact.PathFragmentId)})
-	}
-
-	for _, protoAction := range aqueryProto.Actions {
-		var environmentVariable []KeyValuePair
-		var inputDepSetIds []depsetId
-		var outputIds []artifactId
-		var substitutions []KeyValuePair
-
-		for _, protoEnvironmentVariable := range protoAction.EnvironmentVariables {
-			environmentVariable = append(environmentVariable, KeyValuePair{
-				protoEnvironmentVariable.Key, protoEnvironmentVariable.Value,
-			})
-		}
-		for _, protoInputDepSetIds := range protoAction.InputDepSetIds {
-			inputDepSetIds = append(inputDepSetIds, depsetId(protoInputDepSetIds))
-		}
-		for _, protoOutputIds := range protoAction.OutputIds {
-			outputIds = append(outputIds, artifactId(protoOutputIds))
-		}
-		for _, protoSubstitutions := range protoAction.Substitutions {
-			substitutions = append(substitutions, KeyValuePair{
-				protoSubstitutions.Key, protoSubstitutions.Value,
-			})
-		}
-
-		aqueryResult.Actions = append(aqueryResult.Actions,
-			action{
-				Arguments:            protoAction.Arguments,
-				EnvironmentVariables: environmentVariable,
-				InputDepSetIds:       inputDepSetIds,
-				Mnemonic:             protoAction.Mnemonic,
-				OutputIds:            outputIds,
-				TemplateContent:      protoAction.TemplateContent,
-				Substitutions:        substitutions,
-				FileContents:         protoAction.FileContents})
-	}
-
-	for _, protoDepSetOfFiles := range aqueryProto.DepSetOfFiles {
-		var directArtifactIds []artifactId
-		var transitiveDepSetIds []depsetId
-
-		for _, protoDirectArtifactIds := range protoDepSetOfFiles.DirectArtifactIds {
-			directArtifactIds = append(directArtifactIds, artifactId(protoDirectArtifactIds))
-		}
-		for _, protoTransitiveDepSetIds := range protoDepSetOfFiles.TransitiveDepSetIds {
-			transitiveDepSetIds = append(transitiveDepSetIds, depsetId(protoTransitiveDepSetIds))
-		}
-		aqueryResult.DepSetOfFiles = append(aqueryResult.DepSetOfFiles,
-			depSetOfFiles{
-				Id:                  depsetId(protoDepSetOfFiles.Id),
-				DirectArtifactIds:   directArtifactIds,
-				TransitiveDepSetIds: transitiveDepSetIds})
-
-	}
-
-	for _, protoPathFragments := range aqueryProto.PathFragments {
-		aqueryResult.PathFragments = append(aqueryResult.PathFragments,
-			pathFragment{
-				Id:       pathFragmentId(protoPathFragments.Id),
-				Label:    protoPathFragments.Label,
-				ParentId: pathFragmentId(protoPathFragments.ParentId)})
-
 	}
 	aqueryHandler, err := newAqueryHandler(aqueryResult)
 	if err != nil {

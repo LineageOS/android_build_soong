@@ -20,7 +20,6 @@ bootstrap_go_package {
         "soong_build",
     ],
     deps: [
-        "bazel_analysis_v2_proto",
         "blueprint",
     ],
 }
