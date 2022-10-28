@@ -464,10 +464,11 @@ func storeConfigMetrics(ctx Context, config Config) {
 
 func buildConfig(config Config) *smpb.BuildConfig {
 	c := &smpb.BuildConfig{
-		ForceUseGoma:    proto.Bool(config.ForceUseGoma()),
-		UseGoma:         proto.Bool(config.UseGoma()),
-		UseRbe:          proto.Bool(config.UseRBE()),
-		BazelMixedBuild: proto.Bool(config.BazelBuildEnabled()),
+		ForceUseGoma:                proto.Bool(config.ForceUseGoma()),
+		UseGoma:                     proto.Bool(config.UseGoma()),
+		UseRbe:                      proto.Bool(config.UseRBE()),
+		BazelMixedBuild:             proto.Bool(config.BazelBuildEnabled()),
+		ForceDisableBazelMixedBuild: proto.Bool(config.IsBazelMixedBuildForceDisabled()),
 	}
 	c.Targets = append(c.Targets, config.arguments...)
 
@@ -1450,6 +1451,10 @@ func (c *configImpl) SetEmptyNinjaFile(v bool) {
 
 func (c *configImpl) EmptyNinjaFile() bool {
 	return c.emptyNinjaFile
+}
+
+func (c *configImpl) IsBazelMixedBuildForceDisabled() bool {
+	return c.Environment().IsEnvTrue("BUILD_BROKEN_DISABLE_BAZEL")
 }
 
 func GetMetricsUploader(topDir string, env *Environment) string {
