@@ -15,9 +15,7 @@
 package bp2build
 
 import (
-	"errors"
 	"fmt"
-	"io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -319,45 +317,6 @@ func plantSymlinkForestRecursive(context *symlinkForestContext, instructions *in
 	}
 }
 
-func removeParallelRecursive(path string, fi os.FileInfo, wg *sync.WaitGroup) {
-	defer wg.Done()
-
-	if fi.IsDir() {
-		children := readdirToMap(path)
-		childrenWg := &sync.WaitGroup{}
-		childrenWg.Add(len(children))
-
-		for child, childFi := range children {
-			go removeParallelRecursive(shared.JoinPath(path, child), childFi, childrenWg)
-		}
-
-		childrenWg.Wait()
-	}
-
-	if err := os.Remove(path); err != nil {
-		fmt.Fprintf(os.Stderr, "Cannot unlink '%s': %s\n", path, err)
-		os.Exit(1)
-	}
-}
-
-func removeParallel(path string) {
-	fi, err := os.Lstat(path)
-	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return
-		}
-
-		fmt.Fprintf(os.Stderr, "Cannot lstat '%s': %s\n", path, err)
-		os.Exit(1)
-	}
-
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
-	removeParallelRecursive(path, fi, wg)
-
-	wg.Wait()
-}
-
 // Creates a symlink forest by merging the directory tree at "buildFiles" and
 // "srcDir" while excluding paths listed in "exclude". Returns the set of paths
 // under srcDir on which readdir() had to be called to produce the symlink
@@ -371,7 +330,7 @@ func PlantSymlinkForest(verbose bool, topdir string, forest string, buildFiles s
 
 	context.okay.Store(true)
 
-	removeParallel(shared.JoinPath(topdir, forest))
+	os.RemoveAll(shared.JoinPath(topdir, forest))
 
 	instructions := instructionsFromExcludePathList(exclude)
 	go func() {
