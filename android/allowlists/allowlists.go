@@ -1336,9 +1336,7 @@ var (
 		"prebuilt_currysrc_org.eclipse",
 	}
 
-	ProdMixedBuildsEnabledList = []string{
-		"com.android.adbd",
-	}
+	ProdMixedBuildsEnabledList = []string{}
 
 	// Staging builds should be entirely prod, plus some near-ready ones. Add the
 	// new ones to the first argument as needed.
