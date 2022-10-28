@@ -1873,8 +1873,11 @@ func (c *Module) IsMixedBuildSupported(ctx android.BaseModuleContext) bool {
 		return false
 	}
 
-	// Enable mixed builds as long as the cc_* module type has a bazel handler.
-	return c.bazelHandler != nil
+	// TODO(b/261058727): Remove this (enable mixed builds for modules with UBSan)
+	ubsanEnabled := c.sanitize != nil &&
+		((c.sanitize.Properties.Sanitize.Integer_overflow != nil && *c.sanitize.Properties.Sanitize.Integer_overflow) ||
+			c.sanitize.Properties.Sanitize.Misc_undefined != nil)
+	return c.bazelHandler != nil && !ubsanEnabled
 }
 
 func (c *Module) ProcessBazelQueryResponse(ctx android.ModuleContext) {
