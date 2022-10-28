@@ -75,6 +75,9 @@ const (
 	// Don't use bazel at all during module analysis.
 	AnalysisNoBazel SoongBuildMode = iota
 
+	// Symlink fores mode: merge two directory trees into a symlink forest
+	SymlinkForest
+
 	// Bp2build mode: Generate BUILD files from blueprint files and exit.
 	Bp2build
 
