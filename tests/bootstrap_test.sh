@@ -551,8 +551,45 @@ function test_bp2build_generates_marker_file {
 
   run_soong bp2build
 
+  if [[ ! -f "./out/soong/bp2build_files_marker" ]]; then
+    fail "bp2build marker file was not generated"
+  fi
+
   if [[ ! -f "./out/soong/bp2build_workspace_marker" ]]; then
-    fail "Marker file was not generated"
+    fail "symlink forest marker file was not generated"
+  fi
+}
+
+function test_bp2build_add_irrelevant_file {
+  setup
+
+  mkdir -p a/b
+  touch a/b/c.txt
+  cat > a/b/Android.bp <<'EOF'
+filegroup {
+  name: "c",
+  srcs: ["c.txt"],
+  bazel_module: { bp2build_available: true },
+}
+EOF
+
+  run_soong bp2build
+  if [[ ! -e out/soong/bp2build/a/b/BUILD.bazel ]]; then
+    fail "BUILD file in symlink forest was not created";
+  fi
+
+  local mtime1=$(stat -c "%y" out/soong/bp2build/a/b/BUILD.bazel)
+
+  touch a/irrelevant.txt
+  run_soong bp2build
+  local mtime2=$(stat -c "%y" out/soong/bp2build/a/b/BUILD.bazel)
+
+  if [[ "$mtime1" != "$mtime2" ]]; then
+    fail "BUILD.bazel file was regenerated"
+  fi
+
+  if [[ ! -e "out/soong/workspace/a/irrelevant.txt" ]]; then
+    fail "New file was not symlinked into symlink forest"
   fi
 }
 
@@ -849,6 +886,7 @@ test_bp2build_generates_marker_file
 test_bp2build_null_build
 test_bp2build_back_and_forth_null_build
 test_bp2build_add_android_bp
+test_bp2build_add_irrelevant_file
 test_bp2build_add_to_glob
 test_bp2build_bazel_workspace_structure
 test_bp2build_bazel_workspace_add_file
