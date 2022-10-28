@@ -293,10 +293,8 @@ var (
 	}
 
 	llvmNextExtraCommonGlobalCflags = []string{
-		// New warnings to be fixed after clang-r468909
-		"-Wno-error=array-parameter",     // http://b/241941550
-		"-Wno-error=deprecated-builtins", // http://b/241601211
-		"-Wno-error=deprecated",          // in external/googletest/googletest
+		// New warnings to be fixed after clang-r475365
+		"-Wno-error=single-bit-bitfield-constant-conversion", // http://b/243965903
 	}
 
 	IllegalFlags = []string{
