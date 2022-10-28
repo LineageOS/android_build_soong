@@ -69,6 +69,7 @@ func AddNeverAllowRules(rules ...Rule) {
 func createBp2BuildRule() Rule {
 	return NeverAllow().
 		With("bazel_module.bp2build_available", "true").
+		NotIn("soong_tests"). // only used in tests
 		Because("setting bp2build_available in Android.bp is not " +
 			"supported for custom conversion, use allowlists.go instead.")
 }
