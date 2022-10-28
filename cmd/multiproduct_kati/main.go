@@ -48,6 +48,10 @@ var incremental = flag.Bool("incremental", false, "run in incremental mode (savi
 var outDir = flag.String("out", "", "path to store output directories (defaults to tmpdir under $OUT when empty)")
 var alternateResultDir = flag.Bool("dist", false, "write select results to $DIST_DIR (or <out>/dist when empty)")
 
+var bazelMode = flag.Bool("bazel-mode", false, "use bazel for analysis of certain modules")
+var bazelModeStaging = flag.Bool("bazel-mode-staging", false, "use bazel for analysis of certain near-ready modules")
+var bazelModeDev = flag.Bool("bazel-mode-dev", false, "use bazel for analysis of a large number of modules (less stable)")
+
 var onlyConfig = flag.Bool("only-config", false, "Only run product config (not Soong or Kati)")
 var onlySoong = flag.Bool("only-soong", false, "Only run product config and Soong (not Kati)")
 
@@ -212,6 +216,31 @@ func distDir(outDir string) string {
 func forceAnsiOutput() bool {
 	value := os.Getenv("SOONG_UI_ANSI_OUTPUT")
 	return value == "1" || value == "y" || value == "yes" || value == "on" || value == "true"
+}
+
+func getBazelArg() string {
+	count := 0
+	str := ""
+	if *bazelMode {
+		count++
+		str = "--bazel-mode"
+	}
+	if *bazelModeStaging {
+		count++
+		str = "--bazel-mode-staging"
+	}
+	if *bazelModeDev {
+		count++
+		str = "--bazel-mode-dev"
+	}
+
+	if count > 1 {
+		// Can't set more than one
+		fmt.Errorf("Only one bazel mode is permitted to be set.")
+		os.Exit(1)
+	}
+
+	return str
 }
 
 func main() {
@@ -470,6 +499,11 @@ func runSoongUiForProduct(mpctx *mpContext, product string) {
 		args = append(args, "--config-only")
 	} else if *onlySoong {
 		args = append(args, "--soong-only")
+	}
+
+	bazelStr := getBazelArg()
+	if bazelStr != "" {
+		args = append(args, bazelStr)
 	}
 
 	cmd := exec.Command(mpctx.SoongUi, args...)
