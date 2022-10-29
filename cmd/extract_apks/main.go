@@ -29,6 +29,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"android/soong/cmd/extract_apks/bundle_proto"
 	android_bundle_proto "android/soong/cmd/extract_apks/bundle_proto"
 	"android/soong/third_party/zip"
 )
@@ -197,6 +198,49 @@ type multiAbiTargetingMatcher struct {
 	*android_bundle_proto.MultiAbiTargeting
 }
 
+type multiAbiValue []*bundle_proto.Abi
+
+func (m multiAbiValue) compare(other multiAbiValue) int {
+	min := func(a, b int) int {
+		if a < b {
+			return a
+		}
+		return b
+	}
+
+	sortAbis := func(abiSlice multiAbiValue) func(i, j int) bool {
+		return func(i, j int) bool {
+			// sort priorities greatest to least
+			return multiAbiPriorities[abiSlice[i].Alias] > multiAbiPriorities[abiSlice[j].Alias]
+		}
+	}
+
+	m = append(multiAbiValue{}, m...)
+	sort.Slice(m, sortAbis(m))
+	other = append(multiAbiValue{}, other...)
+	sort.Slice(other, sortAbis(other))
+
+	for i := 0; i < min(len(m), len(other)); i++ {
+		if multiAbiPriorities[m[i].Alias] > multiAbiPriorities[other[i].Alias] {
+			return 1
+		}
+		if multiAbiPriorities[m[i].Alias] < multiAbiPriorities[other[i].Alias] {
+			return -1
+		}
+	}
+
+	if len(m) == len(other) {
+		return 0
+	}
+	if len(m) > len(other) {
+		return 1
+	}
+	return -1
+}
+
+// this logic should match the logic in bundletool at
+// https://github.com/google/bundletool/blob/ae0fc0162fd80d92ef8f4ef4527c066f0106942f/src/main/java/com/android/tools/build/bundletool/device/MultiAbiMatcher.java#L43
+// (note link is the commit at time of writing; but logic should always match the latest)
 func (t multiAbiTargetingMatcher) matches(config TargetConfig) bool {
 	if t.MultiAbiTargeting == nil {
 		return true
@@ -204,31 +248,45 @@ func (t multiAbiTargetingMatcher) matches(config TargetConfig) bool {
 	if _, ok := config.abis[android_bundle_proto.Abi_UNSPECIFIED_CPU_ARCHITECTURE]; ok {
 		return true
 	}
-	// Find the one with the highest priority.
-	highestPriority := 0
-	for _, v := range t.GetValue() {
-		for _, a := range v.GetAbi() {
-			if _, ok := config.abis[a.Alias]; ok {
-				if highestPriority < multiAbiPriorities[a.Alias] {
-					highestPriority = multiAbiPriorities[a.Alias]
-				}
+
+	multiAbiIsValid := func(m multiAbiValue) bool {
+		for _, abi := range m {
+			if _, ok := config.abis[abi.Alias]; !ok {
+				return false
 			}
 		}
+		return true
 	}
-	if highestPriority == 0 {
+
+	// ensure that the current value is valid for our config
+	valueSetContainsViableAbi := false
+	multiAbiSet := t.GetValue()
+	for _, multiAbi := range multiAbiSet {
+		if multiAbiIsValid(multiAbi.GetAbi()) {
+			valueSetContainsViableAbi = true
+		}
+	}
+
+	if !valueSetContainsViableAbi {
 		return false
 	}
+
 	// See if there are any matching alternatives with a higher priority.
-	for _, v := range t.GetAlternatives() {
-		for _, a := range v.GetAbi() {
-			if _, ok := config.abis[a.Alias]; ok {
-				if highestPriority < multiAbiPriorities[a.Alias] {
-					// There's a better one. Skip this one.
-					return false
-				}
+	for _, altMultiAbi := range t.GetAlternatives() {
+		if !multiAbiIsValid(altMultiAbi.GetAbi()) {
+			continue
+		}
+
+		for _, multiAbi := range multiAbiSet {
+			valueAbis := multiAbiValue(multiAbi.GetAbi())
+			altAbis := multiAbiValue(altMultiAbi.GetAbi())
+			if valueAbis.compare(altAbis) < 0 {
+				// An alternative has a higher priority, don't use this one
+				return false
 			}
 		}
 	}
+
 	return true
 }
 
