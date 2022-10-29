@@ -208,13 +208,16 @@ func (g getApexInfoType) Name() string {
 //   - The function body should not be indented outside of its own scope.
 func (g getApexInfoType) StarlarkFunctionBody() string {
 	return `info = providers(target)["//build/bazel/rules/apex:apex.bzl%ApexInfo"]
+bundle_key_info = info.bundle_key_info
+container_key_info = info.container_key_info
 return json_encode({
     "signed_output": info.signed_output.path,
     "unsigned_output": info.unsigned_output.path,
     "provides_native_libs": [str(lib) for lib in info.provides_native_libs],
     "requires_native_libs": [str(lib) for lib in info.requires_native_libs],
-    "bundle_key_pair": [f.path for f in info.bundle_key_pair],
-    "container_key_pair": [f.path for f in info.container_key_pair]
+    "bundle_key_info": [bundle_key_info.public_key.path, bundle_key_info.private_key.path],
+    "container_key_info": [container_key_info.pem.path, container_key_info.pk8.path, container_key_info.key_name],
+    "package_name": info.package_name,
 })`
 }
 
@@ -223,8 +226,9 @@ type ApexCqueryInfo struct {
 	UnsignedOutput   string   `json:"unsigned_output"`
 	ProvidesLibs     []string `json:"provides_native_libs"`
 	RequiresLibs     []string `json:"requires_native_libs"`
-	BundleKeyPair    []string `json:"bundle_key_pair"`
-	ContainerKeyPair []string `json:"container_key_pair"`
+	BundleKeyInfo    []string `json:"bundle_key_info"`
+	ContainerKeyInfo []string `json:"container_key_info"`
+	PackageName      string   `json:"package_name"`
 }
 
 // ParseResult returns a value obtained by parsing the result of the request's Starlark function.
