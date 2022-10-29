@@ -145,16 +145,18 @@ func TestGetApexInfoParseResults(t *testing.T) {
 			input: `{"signed_output":"my.apex",` +
 				`"unsigned_output":"my.apex.unsigned",` +
 				`"requires_native_libs":["//bionic/libc:libc","//bionic/libdl:libdl"],` +
-				`"bundle_key_pair":["foo.pem","foo.privkey"],` +
-				`"container_key_pair":["foo.x509.pem", "foo.pk8"],` +
+				`"bundle_key_info":["foo.pem", "foo.privkey"],` +
+				`"container_key_info":["foo.x509.pem", "foo.pk8", "foo"],` +
+				`"package_name":"package.name",` +
 				`"provides_native_libs":[]}`,
 			expectedOutput: ApexCqueryInfo{
 				SignedOutput:     "my.apex",
 				UnsignedOutput:   "my.apex.unsigned",
 				RequiresLibs:     []string{"//bionic/libc:libc", "//bionic/libdl:libdl"},
 				ProvidesLibs:     []string{},
-				BundleKeyPair:    []string{"foo.pem", "foo.privkey"},
-				ContainerKeyPair: []string{"foo.x509.pem", "foo.pk8"},
+				BundleKeyInfo:    []string{"foo.pem", "foo.privkey"},
+				ContainerKeyInfo: []string{"foo.x509.pem", "foo.pk8", "foo"},
+				PackageName:      "package.name",
 			},
 		},
 	}
