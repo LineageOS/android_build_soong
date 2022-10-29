@@ -839,84 +839,84 @@ license_kind {
 
 license_kind {
     name: "SPDX-license-identifier-LGPL",
-    conditions: ["restricted"],
+    conditions: ["restricted_allows_dynamic_linking"],
 }
 
 license_kind {
     name: "SPDX-license-identifier-LGPL-2.0",
-    conditions: ["restricted"],
+    conditions: ["restricted_allows_dynamic_linking"],
     url: "https://spdx.org/licenses/LGPL-2.0.html",
 }
 
 license_kind {
     name: "SPDX-license-identifier-LGPL-2.0+",
-    conditions: ["restricted"],
+    conditions: ["restricted_allows_dynamic_linking"],
     url: "https://spdx.org/licenses/LGPL-2.0+.html",
 }
 
 license_kind {
     name: "SPDX-license-identifier-LGPL-2.0-only",
-    conditions: ["restricted"],
+    conditions: ["restricted_allows_dynamic_linking"],
     url: "https://spdx.org/licenses/LGPL-2.0-only.html",
 }
 
 license_kind {
     name: "SPDX-license-identifier-LGPL-2.0-or-later",
-    conditions: ["restricted"],
+    conditions: ["restricted_allows_dynamic_linking"],
     url: "https://spdx.org/licenses/LGPL-2.0-or-later.html",
 }
 
 license_kind {
     name: "SPDX-license-identifier-LGPL-2.1",
-    conditions: ["restricted"],
+    conditions: ["restricted_allows_dynamic_linking"],
     url: "https://spdx.org/licenses/LGPL-2.1.html",
 }
 
 license_kind {
     name: "SPDX-license-identifier-LGPL-2.1+",
-    conditions: ["restricted"],
+    conditions: ["restricted_allows_dynamic_linking"],
     url: "https://spdx.org/licenses/LGPL-2.1+.html",
 }
 
 license_kind {
     name: "SPDX-license-identifier-LGPL-2.1-only",
-    conditions: ["restricted"],
+    conditions: ["restricted_allows_dynamic_linking"],
     url: "https://spdx.org/licenses/LGPL-2.1-only.html",
 }
 
 license_kind {
     name: "SPDX-license-identifier-LGPL-2.1-or-later",
-    conditions: ["restricted"],
+    conditions: ["restricted_allows_dynamic_linking"],
     url: "https://spdx.org/licenses/LGPL-2.1-or-later.html",
 }
 
 license_kind {
     name: "SPDX-license-identifier-LGPL-3.0",
-    conditions: ["restricted"],
+    conditions: ["restricted_allows_dynamic_linking"],
     url: "https://spdx.org/licenses/LGPL-3.0.html",
 }
 
 license_kind {
     name: "SPDX-license-identifier-LGPL-3.0+",
-    conditions: ["restricted"],
+    conditions: ["restricted_allows_dynamic_linking"],
     url: "https://spdx.org/licenses/LGPL-3.0+.html",
 }
 
 license_kind {
     name: "SPDX-license-identifier-LGPL-3.0-only",
-    conditions: ["restricted"],
+    conditions: ["restricted_allows_dynamic_linking"],
     url: "https://spdx.org/licenses/LGPL-3.0-only.html",
 }
 
 license_kind {
     name: "SPDX-license-identifier-LGPL-3.0-or-later",
-    conditions: ["restricted"],
+    conditions: ["restricted_allows_dynamic_linking"],
     url: "https://spdx.org/licenses/LGPL-3.0-or-later.html",
 }
 
 license_kind {
     name: "SPDX-license-identifier-LGPLLR",
-    conditions: ["restricted"],
+    conditions: ["restricted_allows_dynamic_linking"],
     url: "https://spdx.org/licenses/LGPLLR.html",
 }
 
