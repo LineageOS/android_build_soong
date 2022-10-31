@@ -53,11 +53,13 @@ java_library {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("java_library", "java-lib-1", AttrNameToString{
 				"srcs": `["a.java"]`,
-				"deps": `[":java-lib-2"]`,
+				"deps": `[":java-lib-2-neverlink"]`,
 			}),
+			MakeNeverlinkDuplicateTarget("java_library", "java-lib-1"),
 			MakeBazelTarget("java_library", "java-lib-2", AttrNameToString{
 				"srcs": `["b.java"]`,
 			}),
+			MakeNeverlinkDuplicateTarget("java_library", "java-lib-2"),
 		},
 	})
 }
@@ -87,11 +89,12 @@ java_library {
 			MakeBazelTarget("java_library", "java-lib-1", AttrNameToString{
 				"srcs": `["a.java"]`,
 				"deps": `[
-        ":java-lib-2",
+        ":java-lib-2-neverlink",
         ":java-lib-3",
     ]`,
 				"exports": `[":java-lib-3"]`,
 			}),
+			MakeNeverlinkDuplicateTarget("java_library", "java-lib-1"),
 		},
 	})
 }
@@ -113,6 +116,7 @@ java_library {
 			MakeBazelTarget("java_library", "java-lib-1", AttrNameToString{
 				"exports": `[":java-lib-2"]`,
 			}),
+			MakeNeverlinkDuplicateTarget("java_library", "java-lib-1"),
 		},
 	})
 }
@@ -152,6 +156,7 @@ java_plugin {
 			MakeBazelTarget("java_library", "java-lib-1", AttrNameToString{
 				"plugins": `[":java-plugin-1"]`,
 			}),
+			MakeNeverlinkDuplicateTarget("java_library", "java-lib-1"),
 		},
 	}, func(ctx android.RegistrationContext) {
 		ctx.RegisterModuleType("java_plugin", java.PluginFactory)
@@ -170,6 +175,7 @@ func TestJavaLibraryJavaVersion(t *testing.T) {
 				"srcs":      `["a.java"]`,
 				"javacopts": `["-source 11 -target 11"]`,
 			}),
+			MakeNeverlinkDuplicateTarget("java_library", "java-lib-1"),
 		},
 	})
 }
@@ -193,6 +199,7 @@ func TestJavaLibraryErrorproneJavacflagsEnabledManually(t *testing.T) {
     ]`,
 				"srcs": `["a.java"]`,
 			}),
+			MakeNeverlinkDuplicateTarget("java_library", "java-lib-1"),
 		},
 	})
 }
@@ -212,6 +219,7 @@ func TestJavaLibraryErrorproneJavacflagsErrorproneDisabledByDefault(t *testing.T
 				"javacopts": `["-Xsuper-fast"]`,
 				"srcs":      `["a.java"]`,
 			}),
+			MakeNeverlinkDuplicateTarget("java_library", "java-lib-1"),
 		},
 	})
 }
@@ -232,6 +240,7 @@ func TestJavaLibraryErrorproneJavacflagsErrorproneDisabledManually(t *testing.T)
 				"javacopts": `["-Xsuper-fast"]`,
 				"srcs":      `["a.java"]`,
 			}),
+			MakeNeverlinkDuplicateTarget("java_library", "java-lib-1"),
 		},
 	})
 }
@@ -265,6 +274,7 @@ func TestJavaLibraryLogTags(t *testing.T) {
         ":example_lib_logtags",
     ]`,
 			}),
+			MakeNeverlinkDuplicateTarget("java_library", "example_lib"),
 		}})
 }
 
@@ -286,6 +296,7 @@ func TestJavaLibraryResources(t *testing.T) {
         "res/b.res",
     ]`,
 			}),
+			MakeNeverlinkDuplicateTarget("java_library", "java-lib-1"),
 		},
 	})
 }
@@ -310,6 +321,7 @@ func TestJavaLibraryResourceDirs(t *testing.T) {
         "res/dir1/b.res",
     ]`,
 			}),
+			MakeNeverlinkDuplicateTarget("java_library", "java-lib-1"),
 		},
 	})
 }
@@ -330,6 +342,7 @@ func TestJavaLibraryResourcesExcludeDir(t *testing.T) {
 				"resource_strip_prefix": `"res"`,
 				"resources":             `["res/a.res"]`,
 			}),
+			MakeNeverlinkDuplicateTarget("java_library", "java-lib-1"),
 		},
 	})
 }
@@ -354,6 +367,7 @@ func TestJavaLibraryResourcesExcludeFile(t *testing.T) {
         "res/dir1/b.res",
     ]`,
 			}),
+			MakeNeverlinkDuplicateTarget("java_library", "java-lib-1"),
 		},
 	})
 }
@@ -406,6 +420,7 @@ func TestJavaLibraryAidl(t *testing.T) {
         "b.java",
     ]`,
 			}),
+			MakeNeverlinkDuplicateTarget("java_library", "example_lib"),
 		}})
 }
 
@@ -435,6 +450,7 @@ java_library {
 				"exports": `[":example_lib_java_aidl_library"]`,
 				"srcs":    `["a.java"]`,
 			}),
+			MakeNeverlinkDuplicateTarget("java_library", "example_lib"),
 		},
 	}, func(ctx android.RegistrationContext) {
 		ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
@@ -490,6 +506,7 @@ java_library {
         ":random_other_files",
     ]`,
 			}),
+			MakeNeverlinkDuplicateTarget("java_library", "example_lib"),
 			MakeBazelTargetNoRestrictions("filegroup", "random_other_files", AttrNameToString{
 				"srcs": `[
         "a.java",
@@ -529,6 +546,7 @@ java_library {
 			MakeBazelTarget("java_library", "foo", AttrNameToString{
 				"exports": `[":foo_java_aidl_library"]`,
 			}),
+			MakeNeverlinkDuplicateTarget("java_library", "foo"),
 		},
 	}, func(ctx android.RegistrationContext) {
 		ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
