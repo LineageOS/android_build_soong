@@ -29,6 +29,7 @@ func runJavaBinaryHostTestCase(t *testing.T, tc Bp2buildTestCase) {
 	RunBp2BuildTestCase(t, func(ctx android.RegistrationContext) {
 		ctx.RegisterModuleType("cc_library_host_shared", cc.LibraryHostSharedFactory)
 		ctx.RegisterModuleType("java_library", java.LibraryFactory)
+		ctx.RegisterModuleType("java_import_host", java.ImportFactory)
 	}, tc)
 }
 
@@ -94,6 +95,37 @@ java_library {
 			MakeBazelTarget("java_binary", "java-binary-host-1", AttrNameToString{
 				"main_class":   `"com.android.test.MainClass"`,
 				"runtime_deps": `[":java-dep-1"]`,
+				"target_compatible_with": `select({
+        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    })`,
+			}),
+		},
+	})
+}
+
+func TestJavaBinaryHostLibs(t *testing.T) {
+	runJavaBinaryHostTestCase(t, Bp2buildTestCase{
+		Description: "java_binary_host with srcs, libs.",
+		Filesystem:  fs,
+		Blueprint: `java_binary_host {
+    name: "java-binary-host-libs",
+    libs: ["java-lib-dep-1"],
+    manifest: "test.mf",
+    srcs: ["a.java"],
+}
+
+java_import_host{
+    name: "java-lib-dep-1",
+    jars: ["foo.jar"],
+    bazel_module: { bp2build_available: false },
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("java_binary", "java-binary-host-libs", AttrNameToString{
+				"main_class": `"com.android.test.MainClass"`,
+				"srcs":       `["a.java"]`,
+				"deps":       `[":java-lib-dep-1-neverlink"]`,
 				"target_compatible_with": `select({
         "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
