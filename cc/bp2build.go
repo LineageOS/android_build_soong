@@ -66,6 +66,26 @@ type staticOrSharedAttributes struct {
 	Native_coverage bazel.BoolAttribute
 
 	sdkAttributes
+
+	tidyAttributes
+}
+
+type tidyAttributes struct {
+	Tidy                  *bool
+	Tidy_flags            []string
+	Tidy_checks           []string
+	Tidy_checks_as_errors []string
+}
+
+func (m *Module) convertTidyAttributes(moduleAttrs *tidyAttributes) {
+	for _, f := range m.features {
+		if tidy, ok := f.(*tidyFeature); ok {
+			moduleAttrs.Tidy = tidy.Properties.Tidy
+			moduleAttrs.Tidy_flags = tidy.Properties.Tidy_flags
+			moduleAttrs.Tidy_checks = tidy.Properties.Tidy_checks
+			moduleAttrs.Tidy_checks_as_errors = tidy.Properties.Tidy_checks_as_errors
+		}
+	}
 }
 
 // groupSrcsByExtension partitions `srcs` into groups based on file extension.
