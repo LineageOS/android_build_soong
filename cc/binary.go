@@ -646,6 +646,8 @@ func binaryBp2buildAttrs(ctx android.TopDownMutatorContext, m *Module) binaryAtt
 		sdkAttributes: bp2BuildParseSdkAttributes(m),
 	}
 
+	m.convertTidyAttributes(&attrs.tidyAttributes)
+
 	return attrs
 }
 
@@ -698,4 +700,6 @@ type binaryAttributes struct {
 	Features bazel.StringListAttribute
 
 	sdkAttributes
+
+	tidyAttributes
 }
