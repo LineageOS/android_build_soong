@@ -86,6 +86,7 @@ func expectInstallDep(t *testing.T, from, to android.TestingModule) {
 }
 
 func TestAsan(t *testing.T) {
+	t.Parallel()
 	bp := `
 		cc_binary {
 			name: "bin_with_asan",
@@ -233,6 +234,7 @@ func TestAsan(t *testing.T) {
 }
 
 func TestTsan(t *testing.T) {
+	t.Parallel()
 	bp := `
 	cc_binary {
 		name: "bin_with_tsan",
@@ -318,6 +320,7 @@ func TestMiscUndefined(t *testing.T) {
 		t.Skip("requires linux")
 	}
 
+	t.Parallel()
 	bp := `
 	cc_binary {
 		name: "bin_with_ubsan",
@@ -417,6 +420,7 @@ func TestMiscUndefined(t *testing.T) {
 }
 
 func TestFuzz(t *testing.T) {
+	t.Parallel()
 	bp := `
 		cc_binary {
 			name: "bin_with_fuzzer",
@@ -551,6 +555,7 @@ func TestFuzz(t *testing.T) {
 }
 
 func TestUbsan(t *testing.T) {
+	t.Parallel()
 	if runtime.GOOS != "linux" {
 		t.Skip("requires linux")
 	}
@@ -794,6 +799,7 @@ var prepareForTestWithMemtagHeap = android.GroupFixturePreparers(
 )
 
 func TestSanitizeMemtagHeap(t *testing.T) {
+	t.Parallel()
 	variant := "android_arm64_armv8-a"
 
 	result := android.GroupFixturePreparers(
@@ -866,6 +872,7 @@ func TestSanitizeMemtagHeap(t *testing.T) {
 }
 
 func TestSanitizeMemtagHeapWithSanitizeDevice(t *testing.T) {
+	t.Parallel()
 	variant := "android_arm64_armv8-a"
 
 	result := android.GroupFixturePreparers(
@@ -940,6 +947,7 @@ func TestSanitizeMemtagHeapWithSanitizeDevice(t *testing.T) {
 }
 
 func TestSanitizeMemtagHeapWithSanitizeDeviceDiag(t *testing.T) {
+	t.Parallel()
 	variant := "android_arm64_armv8-a"
 
 	result := android.GroupFixturePreparers(
