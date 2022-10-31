@@ -651,13 +651,23 @@ func runSymlinkForestCreation(configuration android.Config, extraNinjaDeps []str
 
 	writeDepFile(symlinkForestMarker, eventHandler, ninjaDeps)
 	touch(shared.JoinPath(topDir, symlinkForestMarker))
+	metricsDir := configuration.Getenv("LOG_DIR")
+	codegenMetrics := bp2build.ReadCodegenMetrics(metricsDir)
+	if codegenMetrics == nil {
+		m := bp2build.CreateCodegenMetrics()
+		codegenMetrics = &m
+	} else {
+		//TODO (usta) we cannot determine if we loaded a stale file, i.e. from an unrelated prior
+		//invocation of codegen. We should simply use a separate .pb file
+	}
+	writeBp2BuildMetrics(codegenMetrics, configuration, eventHandler)
 }
 
 // Run Soong in the bp2build mode. This creates a standalone context that registers
 // an alternate pipeline of mutators and singletons specifically for generating
 // Bazel BUILD files instead of Ninja files.
 func runBp2Build(configuration android.Config, extraNinjaDeps []string) {
-	var codegenMetrics bp2build.CodegenMetrics
+	var codegenMetrics *bp2build.CodegenMetrics
 	eventHandler := metrics.EventHandler{}
 	eventHandler.Do("bp2build", func() {
 
@@ -706,19 +716,18 @@ func runBp2Build(configuration android.Config, extraNinjaDeps []string) {
 	if configuration.IsEnvTrue("BP2BUILD_VERBOSE") {
 		codegenMetrics.Print()
 	}
-	writeBp2BuildMetrics(&codegenMetrics, configuration, eventHandler)
+	writeBp2BuildMetrics(codegenMetrics, configuration, eventHandler)
 }
 
 // Write Bp2Build metrics into $LOG_DIR
 func writeBp2BuildMetrics(codegenMetrics *bp2build.CodegenMetrics,
 	configuration android.Config, eventHandler metrics.EventHandler) {
 	for _, event := range eventHandler.CompletedEvents() {
-		codegenMetrics.Events = append(codegenMetrics.Events,
-			&bp2build_metrics_proto.Event{
-				Name:      event.Id,
-				StartTime: uint64(event.Start.UnixNano()),
-				RealTime:  event.RuntimeNanoseconds(),
-			})
+		codegenMetrics.AddEvent(&bp2build_metrics_proto.Event{
+			Name:      event.Id,
+			StartTime: uint64(event.Start.UnixNano()),
+			RealTime:  event.RuntimeNanoseconds(),
+		})
 	}
 	metricsDir := configuration.Getenv("LOG_DIR")
 	if len(metricsDir) < 1 {
