@@ -106,7 +106,6 @@ func (d *apiLibraryDecorator) link(ctx ModuleContext, flags Flags, deps PathDeps
 	d.libraryDecorator.reexportFlags(deps.ReexportedFlags...)
 	d.libraryDecorator.reexportDeps(deps.ReexportedDeps...)
 	d.libraryDecorator.addExportedGeneratedHeaders(deps.ReexportedGeneratedHeaders...)
-	d.libraryDecorator.flagExporter.setProvider(ctx)
 
 	if d.properties.Src == nil {
 		ctx.PropertyErrorf("src", "src is a required property")
@@ -115,6 +114,12 @@ func (d *apiLibraryDecorator) link(ctx ModuleContext, flags Flags, deps PathDeps
 	// The file is not guaranteed to exist during Soong analysis.
 	// Build orchestrator will be responsible for creating a connected ninja graph.
 	in := android.MaybeExistentPathForSource(ctx, ctx.ModuleDir(), *d.properties.Src)
+
+	// Make the _compilation_ of rdeps have an order-only dep on cc_api_library.src (an .so file)
+	// The .so file itself has an order-only dependency on the headers contributed by this library.
+	// Creating this dependency ensures that the headers are assembled before compilation of rdeps begins.
+	d.libraryDecorator.reexportDeps(in)
+	d.libraryDecorator.flagExporter.setProvider(ctx)
 
 	d.unstrippedOutputFile = in
 	libName := d.libraryDecorator.getLibName(ctx) + flags.Toolchain.ShlibSuffix()
