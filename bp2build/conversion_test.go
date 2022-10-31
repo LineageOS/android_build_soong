@@ -84,7 +84,7 @@ func TestCreateBazelFiles_QueryView_AddsTopLevelFiles(t *testing.T) {
 
 func TestCreateBazelFiles_Bp2Build_CreatesDefaultFiles(t *testing.T) {
 	testConfig := android.TestConfig("", make(map[string]string), "", make(map[string][]byte))
-	files := CreateSoongInjectionFiles(testConfig, CodegenMetrics{})
+	files := CreateSoongInjectionFiles(testConfig, CreateCodegenMetrics())
 
 	expectedFilePaths := []bazelFilepath{
 		{
