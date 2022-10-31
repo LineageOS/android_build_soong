@@ -69,6 +69,7 @@ func (ev ExportedVariables) asBazel(config Config,
 	ret = append(ret, ev.exportedStringListDictVars.asBazel(config, stringVars, stringListVars, cfgDepVars)...)
 	// Note: ExportedVariableReferenceDictVars collections can only contain references to other variables and must be printed last
 	ret = append(ret, ev.exportedVariableReferenceDictVars.asBazel(config, stringVars, stringListVars, cfgDepVars)...)
+	ret = append(ret, ev.exportedConfigDependingVars.asBazel(config, stringVars, stringListVars, cfgDepVars)...)
 	return ret
 }
 
@@ -139,6 +140,33 @@ type ExportedConfigDependingVariables map[string]interface{}
 
 func (m ExportedConfigDependingVariables) set(k string, v interface{}) {
 	m[k] = v
+}
+
+func (m ExportedConfigDependingVariables) asBazel(config Config,
+	stringVars ExportedStringVariables, stringListVars ExportedStringListVariables, cfgDepVars ExportedConfigDependingVariables) []bazelConstant {
+	ret := make([]bazelConstant, 0, len(m))
+	for variable, unevaluatedVar := range m {
+		evalFunc := reflect.ValueOf(unevaluatedVar)
+		validateVariableMethod(variable, evalFunc)
+		evaluatedResult := evalFunc.Call([]reflect.Value{reflect.ValueOf(config)})
+		evaluatedValue := evaluatedResult[0].Interface().(string)
+		expandedVars, err := expandVar(config, evaluatedValue, stringVars, stringListVars, cfgDepVars)
+		if err != nil {
+			panic(fmt.Errorf("error expanding config variable %s: %s", variable, err))
+		}
+		if len(expandedVars) > 1 {
+			ret = append(ret, bazelConstant{
+				variableName:       variable,
+				internalDefinition: starlark_fmt.PrintStringList(expandedVars, 0),
+			})
+		} else {
+			ret = append(ret, bazelConstant{
+				variableName:       variable,
+				internalDefinition: fmt.Sprintf(`"%s"`, validateCharacters(expandedVars[0])),
+			})
+		}
+	}
+	return ret
 }
 
 // Ensure that string s has no invalid characters to be generated into the bzl file.
