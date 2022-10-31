@@ -500,7 +500,18 @@ type androidTestImportProperties struct {
 type AndroidTestImport struct {
 	AndroidAppImport
 
-	testProperties testProperties
+	testProperties struct {
+		// list of compatibility suites (for example "cts", "vts") that the module should be
+		// installed into.
+		Test_suites []string `android:"arch_variant"`
+
+		// list of files or filegroup modules that provide data that should be installed alongside
+		// the test
+		Data []string `android:"path"`
+
+		// Install the test into a folder named for the module in all test suites.
+		Per_testcase_directory *bool
+	}
 
 	testImportProperties androidTestImportProperties
 
