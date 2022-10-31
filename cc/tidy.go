@@ -68,6 +68,7 @@ func (tidy *tidyFeature) props() []interface{} {
 // Then, that old style usage will be obsolete and an error.
 const NoWarningsAsErrorsInTidyFlags = true
 
+// keep this up to date with https://cs.android.com/android/platform/superproject/+/master:build/bazel/rules/cc/clang_tidy.bzl
 func (tidy *tidyFeature) flags(ctx ModuleContext, flags Flags) Flags {
 	CheckBadTidyFlags(ctx, "tidy_flags", tidy.Properties.Tidy_flags)
 	CheckBadTidyChecks(ctx, "tidy_checks", tidy.Properties.Tidy_checks)
