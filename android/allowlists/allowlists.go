@@ -272,6 +272,9 @@ var (
 		"prebuilts/tools":                          Bp2BuildDefaultTrue,
 		"prebuilts/tools/common/m2":                Bp2BuildDefaultTrue,
 
+		"sdk/eventanalyzer": Bp2BuildDefaultTrue,
+		"sdk/dumpeventlog":  Bp2BuildDefaultTrue,
+
 		"system/apex":                                            Bp2BuildDefaultFalse, // TODO(b/207466993): flaky failures
 		"system/apex/apexer":                                     Bp2BuildDefaultTrue,
 		"system/apex/libs":                                       Bp2BuildDefaultTrueRecursively,
