@@ -32,7 +32,7 @@ func CreateSoongInjectionFiles(cfg android.Config, metrics CodegenMetrics) []Baz
 	files = append(files, newFile("apex_toolchain", GeneratedBuildFileName, "")) // Creates a //apex_toolchain package.
 	files = append(files, newFile("apex_toolchain", "constants.bzl", apex.BazelApexToolchainVars()))
 
-	files = append(files, newFile("metrics", "converted_modules.txt", strings.Join(metrics.convertedModules, "\n")))
+	files = append(files, newFile("metrics", "converted_modules.txt", strings.Join(metrics.Serialize().ConvertedModules, "\n")))
 
 	convertedModulePathMap, err := json.MarshalIndent(metrics.convertedModulePathMap, "", "\t")
 	if err != nil {
@@ -53,10 +53,6 @@ func CreateSoongInjectionFiles(cfg android.Config, metrics CodegenMetrics) []Baz
 	files = append(files, newFile("api_levels", "api_levels.bzl", android.StarlarkApiLevelConfigs(cfg)))
 
 	return files
-}
-
-func convertedModules(convertedModules []string) string {
-	return strings.Join(convertedModules, "\n")
 }
 
 func CreateBazelFiles(
