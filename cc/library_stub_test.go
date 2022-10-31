@@ -278,4 +278,9 @@ func TestExportDirFromStubLibrary(t *testing.T) {
 	android.AssertStringDoesNotContain(t, "Vendor binary should not compile using headers of source", vendorCFlags, "-Isource_include_dir")
 	android.AssertStringDoesContain(t, "Vendor binary should compile using system headers provided by stub", vendorCFlags, "-isystem stub_system_include_dir")
 	android.AssertStringDoesNotContain(t, "Vendor binary should not compile using system headers of source", vendorCFlags, "-isystem source_system_include_dir")
+
+	vendorImplicits := ctx.ModuleForTests("vendorbin", "android_vendor.29_arm64_armv8-a").Rule("cc").OrderOnly.Strings()
+	// Building the stub.so file first assembles its .h files in multi-tree out.
+	// These header files are required for compiling the other API domain (vendor in this case)
+	android.AssertStringListContains(t, "Vendor binary compilation should have an implicit dep on the stub .so file", vendorImplicits, "libfoo.so")
 }
