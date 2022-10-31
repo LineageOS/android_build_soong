@@ -61,8 +61,8 @@ func init() {
 	// The global default tidy checks should include clang-tidy
 	// default checks and tested groups, but exclude known noisy checks.
 	// See https://clang.llvm.org/extra/clang-tidy/checks/list.html
-	pctx.VariableFunc("TidyDefaultGlobalChecks", func(ctx android.PackageVarContext) string {
-		if override := ctx.Config().Getenv("DEFAULT_GLOBAL_TIDY_CHECKS"); override != "" {
+	exportedVars.ExportVariableConfigMethod("TidyDefaultGlobalChecks", func(config android.Config) string {
+		if override := config.Getenv("DEFAULT_GLOBAL_TIDY_CHECKS"); override != "" {
 			return override
 		}
 		checks := strings.Join([]string{
@@ -110,7 +110,7 @@ func init() {
 		// limit clang-tidy runtime. We allow clang-tidy default clang-analyzer-* checks,
 		// and add it explicitly when CLANG_ANALYZER_CHECKS is set.
 		// The insecureAPI.DeprecatedOrUnsafeBufferHandling warning does not apply to Android.
-		if ctx.Config().IsEnvTrue("CLANG_ANALYZER_CHECKS") {
+		if config.IsEnvTrue("CLANG_ANALYZER_CHECKS") {
 			checks += ",clang-analyzer-*,-clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling"
 		} else {
 			checks += ",-clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling"
@@ -123,8 +123,8 @@ func init() {
 	// There are too many clang-tidy warnings in external and vendor projects, so we only
 	// enable some google checks for these projects. Users can add more checks locally with the
 	// "tidy_checks" list in .bp files, or the "Checks" list in .clang-tidy config files.
-	pctx.VariableFunc("TidyExternalVendorChecks", func(ctx android.PackageVarContext) string {
-		if override := ctx.Config().Getenv("DEFAULT_EXTERNAL_VENDOR_TIDY_CHECKS"); override != "" {
+	exportedVars.ExportVariableConfigMethod("TidyExternalVendorChecks", func(config android.Config) string {
+		if override := config.Getenv("DEFAULT_EXTERNAL_VENDOR_TIDY_CHECKS"); override != "" {
 			return override
 		}
 		return strings.Join([]string{
@@ -137,24 +137,24 @@ func init() {
 		}, ",")
 	})
 
-	pctx.VariableFunc("TidyGlobalNoChecks", func(ctx android.PackageVarContext) string {
+	exportedVars.ExportVariableFuncVariable("TidyGlobalNoChecks", func() string {
 		return strings.Join(globalNoCheckList, ",")
 	})
 
-	pctx.VariableFunc("TidyGlobalNoErrorChecks", func(ctx android.PackageVarContext) string {
+	exportedVars.ExportVariableFuncVariable("TidyGlobalNoErrorChecks", func() string {
 		return strings.Join(globalNoErrorCheckList, ",")
 	})
 
 	// To reduce duplicate warnings from the same header files,
 	// header-filter will contain only the module directory and
 	// those specified by DEFAULT_TIDY_HEADER_DIRS.
-	pctx.VariableFunc("TidyDefaultHeaderDirs", func(ctx android.PackageVarContext) string {
-		return ctx.Config().Getenv("DEFAULT_TIDY_HEADER_DIRS")
+	exportedVars.ExportVariableConfigMethod("TidyDefaultHeaderDirs", func(config android.Config) string {
+		return config.Getenv("DEFAULT_TIDY_HEADER_DIRS")
 	})
 
 	// Use WTIH_TIDY_FLAGS to pass extra global default clang-tidy flags.
-	pctx.VariableFunc("TidyWithTidyFlags", func(ctx android.PackageVarContext) string {
-		return ctx.Config().Getenv("WITH_TIDY_FLAGS")
+	exportedVars.ExportVariableConfigMethod("TidyWithTidyFlags", func(config android.Config) string {
+		return config.Getenv("WITH_TIDY_FLAGS")
 	})
 }
 
