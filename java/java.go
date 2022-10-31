@@ -2384,7 +2384,18 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext)
 	}
 
 	if m.properties.Libs != nil {
-		deps.Append(android.BazelLabelForModuleDeps(ctx, android.LastUniqueStrings(android.CopyOf(m.properties.Libs))))
+
+		// TODO 244210934 ALIX Check if this else statement breaks presubmits get rid of it if it doesn't
+		if strings.HasPrefix(ctx.ModuleType(), "java_binary") {
+			for _, d := range m.properties.Libs {
+				neverlinkLabel := android.BazelLabelForModuleDepSingle(ctx, d)
+				neverlinkLabel.Label = neverlinkLabel.Label + "-neverlink"
+				deps.Add(&neverlinkLabel)
+			}
+
+		} else {
+			deps.Append(android.BazelLabelForModuleDeps(ctx, android.LastUniqueStrings(android.CopyOf(m.properties.Libs))))
+		}
 	}
 
 	if m.properties.Static_libs != nil {
@@ -2409,8 +2420,9 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext)
 
 type javaLibraryAttributes struct {
 	*javaCommonAttributes
-	Deps    bazel.LabelListAttribute
-	Exports bazel.LabelListAttribute
+	Deps      bazel.LabelListAttribute
+	Exports   bazel.LabelListAttribute
+	Neverlink bazel.BoolAttribute
 }
 
 func javaLibraryBp2Build(ctx android.TopDownMutatorContext, m *Library) {
@@ -2440,7 +2452,8 @@ func javaLibraryBp2Build(ctx android.TopDownMutatorContext, m *Library) {
 		Bzl_load_location: "//build/bazel/rules/java:library.bzl",
 	}
 
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: m.Name()}, attrs)
+	name := m.Name()
+	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: name}, attrs)
 }
 
 type javaBinaryHostAttributes struct {
@@ -2522,7 +2535,8 @@ func javaBinaryHostBp2Build(ctx android.TopDownMutatorContext, m *Binary) {
 }
 
 type bazelJavaImportAttributes struct {
-	Jars bazel.LabelListAttribute
+	Jars    bazel.LabelListAttribute
+	Exports bazel.LabelListAttribute
 }
 
 // java_import bp2Build converter.
@@ -2543,7 +2557,17 @@ func (i *Import) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 	}
 	props := bazel.BazelTargetModuleProperties{Rule_class: "java_import"}
 
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: android.RemoveOptionalPrebuiltPrefix(i.Name())}, attrs)
+	name := android.RemoveOptionalPrebuiltPrefix(i.Name())
+
+	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: name}, attrs)
+
+	neverlink := true
+	neverlinkAttrs := &javaLibraryAttributes{
+		Neverlink: bazel.BoolAttribute{Value: &neverlink},
+		Exports:   bazel.MakeSingleLabelListAttribute(bazel.Label{Label: ":" + name}),
+	}
+	ctx.CreateBazelTargetModule(bazel.BazelTargetModuleProperties{Rule_class: "java_library"}, android.CommonAttributes{Name: name + "-neverlink"}, neverlinkAttrs)
+
 }
 
 var _ android.MixedBuildBuildable = (*Import)(nil)
