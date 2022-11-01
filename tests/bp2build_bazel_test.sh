@@ -50,7 +50,6 @@ test_bp2build_null_build_with_globs
 
 function test_different_relative_outdir {
   setup
-  create_mock_bazel
 
   mkdir -p a
   touch a/g.txt
@@ -73,7 +72,6 @@ test_different_relative_outdir
 
 function test_different_absolute_outdir {
   setup
-  create_mock_bazel
 
   mkdir -p a
   touch a/g.txt
@@ -96,7 +94,6 @@ test_different_absolute_outdir
 
 function test_bp2build_generates_all_buildfiles {
   setup
-  create_mock_bazel
 
   mkdir -p foo/convertible_soong_module
   cat > foo/convertible_soong_module/Android.bp <<'EOF'
@@ -167,7 +164,6 @@ eval ${_save_trap}
 
 function test_cc_correctness {
   setup
-  create_mock_bazel
 
   mkdir -p a
   cat > a/Android.bp <<EOF
