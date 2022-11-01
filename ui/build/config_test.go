@@ -90,7 +90,9 @@ func TestConfigParseArgsJK(t *testing.T) {
 				t.Fatal(err)
 			})
 
+			env := Environment([]string{})
 			c := &configImpl{
+				environ:   &env,
 				parallel:  -1,
 				keepGoing: -1,
 			}
