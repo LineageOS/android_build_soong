@@ -9,25 +9,16 @@ import (
 	"android/soong/android"
 	"android/soong/shared"
 	"android/soong/ui/metrics/bp2build_metrics_proto"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/google/blueprint"
 )
 
-// Simple metrics struct to collect information about a Blueprint to BUILD
+// CodegenMetrics represents information about the Blueprint-to-BUILD
 // conversion process.
+// Use CreateCodegenMetrics() to get a properly initialized instance
 type CodegenMetrics struct {
-	// Total number of Soong modules converted to generated targets
-	generatedModuleCount uint64
-
-	// Total number of Soong modules converted to handcrafted targets
-	handCraftedModuleCount uint64
-
-	// Total number of unconverted Soong modules
-	unconvertedModuleCount uint64
-
-	// Counts of generated Bazel targets per Bazel rule class
-	ruleClassCount map[string]uint64
-
+	serialized *bp2build_metrics_proto.Bp2BuildMetrics
 	// List of modules with unconverted deps
 	// NOTE: NOT in the .proto
 	moduleWithUnconvertedDepsMsgs []string
@@ -36,40 +27,32 @@ type CodegenMetrics struct {
 	// NOTE: NOT in the .proto
 	moduleWithMissingDepsMsgs []string
 
-	// List of converted modules
-	convertedModules []string
-
 	// Map of converted modules and paths to call
+	// NOTE: NOT in the .proto
 	convertedModulePathMap map[string]string
+}
 
-	// Counts of converted modules by module type.
-	convertedModuleTypeCount map[string]uint64
-
-	// Counts of total modules by module type.
-	totalModuleTypeCount map[string]uint64
-
-	Events []*bp2build_metrics_proto.Event
+func CreateCodegenMetrics() CodegenMetrics {
+	return CodegenMetrics{
+		serialized: &bp2build_metrics_proto.Bp2BuildMetrics{
+			RuleClassCount:           make(map[string]uint64),
+			ConvertedModuleTypeCount: make(map[string]uint64),
+			TotalModuleTypeCount:     make(map[string]uint64),
+		},
+		convertedModulePathMap: make(map[string]string),
+	}
 }
 
 // Serialize returns the protoized version of CodegenMetrics: bp2build_metrics_proto.Bp2BuildMetrics
-func (metrics *CodegenMetrics) Serialize() bp2build_metrics_proto.Bp2BuildMetrics {
-	return bp2build_metrics_proto.Bp2BuildMetrics{
-		GeneratedModuleCount:     metrics.generatedModuleCount,
-		HandCraftedModuleCount:   metrics.handCraftedModuleCount,
-		UnconvertedModuleCount:   metrics.unconvertedModuleCount,
-		RuleClassCount:           metrics.ruleClassCount,
-		ConvertedModules:         metrics.convertedModules,
-		ConvertedModuleTypeCount: metrics.convertedModuleTypeCount,
-		TotalModuleTypeCount:     metrics.totalModuleTypeCount,
-		Events:                   metrics.Events,
-	}
+func (metrics *CodegenMetrics) Serialize() *bp2build_metrics_proto.Bp2BuildMetrics {
+	return metrics.serialized
 }
 
 // Print the codegen metrics to stdout.
 func (metrics *CodegenMetrics) Print() {
 	generatedTargetCount := uint64(0)
-	for _, ruleClass := range android.SortedStringKeys(metrics.ruleClassCount) {
-		count := metrics.ruleClassCount[ruleClass]
+	for _, ruleClass := range android.SortedStringKeys(metrics.serialized.RuleClassCount) {
+		count := metrics.serialized.RuleClassCount[ruleClass]
 		fmt.Printf("[bp2build] %s: %d targets\n", ruleClass, count)
 		generatedTargetCount += count
 	}
@@ -80,9 +63,9 @@ func (metrics *CodegenMetrics) Print() {
 %d converted modules have missing deps:
 	%s
 `,
-		metrics.generatedModuleCount,
+		metrics.serialized.GeneratedModuleCount,
 		generatedTargetCount,
-		metrics.handCraftedModuleCount,
+		metrics.serialized.HandCraftedModuleCount,
 		metrics.TotalModuleCount(),
 		len(metrics.moduleWithUnconvertedDepsMsgs),
 		strings.Join(metrics.moduleWithUnconvertedDepsMsgs, "\n\t"),
@@ -119,29 +102,67 @@ func (metrics *CodegenMetrics) Write(dir string) {
 		fail(err, "Error outputting %s", metricsFile)
 	}
 	if _, err := os.Stat(metricsFile); err != nil {
-		fail(err, "MISSING BP2BUILD METRICS OUTPUT: Failed to `stat` %s", metricsFile)
+		if os.IsNotExist(err) {
+			fail(err, "MISSING BP2BUILD METRICS OUTPUT: %s", metricsFile)
+		} else {
+			fail(err, "FAILED TO `stat` BP2BUILD METRICS OUTPUT: %s", metricsFile)
+		}
+	}
+}
+
+// ReadCodegenMetrics loads CodegenMetrics from `dir`
+// returns a nil pointer if the file doesn't exist
+func ReadCodegenMetrics(dir string) *CodegenMetrics {
+	metricsFile := filepath.Join(dir, bp2buildMetricsFilename)
+	if _, err := os.Stat(metricsFile); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		} else {
+			fail(err, "FAILED TO `stat` BP2BUILD METRICS OUTPUT: %s", metricsFile)
+			panic("unreachable after fail")
+		}
+	}
+	if buf, err := os.ReadFile(metricsFile); err != nil {
+		fail(err, "FAILED TO READ BP2BUILD METRICS OUTPUT: %s", metricsFile)
+		panic("unreachable after fail")
+	} else {
+		bp2BuildMetrics := bp2build_metrics_proto.Bp2BuildMetrics{
+			RuleClassCount:           make(map[string]uint64),
+			ConvertedModuleTypeCount: make(map[string]uint64),
+			TotalModuleTypeCount:     make(map[string]uint64),
+		}
+		if err := proto.Unmarshal(buf, &bp2BuildMetrics); err != nil {
+			fail(err, "FAILED TO PARSE BP2BUILD METRICS OUTPUT: %s", metricsFile)
+		}
+		return &CodegenMetrics{
+			serialized:             &bp2BuildMetrics,
+			convertedModulePathMap: make(map[string]string),
+		}
 	}
 }
 
 func (metrics *CodegenMetrics) IncrementRuleClassCount(ruleClass string) {
-	metrics.ruleClassCount[ruleClass] += 1
+	metrics.serialized.RuleClassCount[ruleClass] += 1
 }
 
+func (metrics *CodegenMetrics) AddEvent(event *bp2build_metrics_proto.Event) {
+	metrics.serialized.Events = append(metrics.serialized.Events, event)
+}
 func (metrics *CodegenMetrics) AddUnconvertedModule(moduleType string) {
-	metrics.unconvertedModuleCount += 1
-	metrics.totalModuleTypeCount[moduleType] += 1
+	metrics.serialized.UnconvertedModuleCount += 1
+	metrics.serialized.TotalModuleTypeCount[moduleType] += 1
 }
 
 func (metrics *CodegenMetrics) TotalModuleCount() uint64 {
-	return metrics.handCraftedModuleCount +
-		metrics.generatedModuleCount +
-		metrics.unconvertedModuleCount
+	return metrics.serialized.HandCraftedModuleCount +
+		metrics.serialized.GeneratedModuleCount +
+		metrics.serialized.UnconvertedModuleCount
 }
 
 // Dump serializes the metrics to the given filename
 func (metrics *CodegenMetrics) dump(filename string) (err error) {
 	ser := metrics.Serialize()
-	return shared.Save(&ser, filename)
+	return shared.Save(ser, filename)
 }
 
 type ConversionType int
@@ -154,14 +175,14 @@ const (
 func (metrics *CodegenMetrics) AddConvertedModule(m blueprint.Module, moduleType string, dir string, conversionType ConversionType) {
 	// Undo prebuilt_ module name prefix modifications
 	moduleName := android.RemoveOptionalPrebuiltPrefix(m.Name())
-	metrics.convertedModules = append(metrics.convertedModules, moduleName)
+	metrics.serialized.ConvertedModules = append(metrics.serialized.ConvertedModules, moduleName)
 	metrics.convertedModulePathMap[moduleName] = "//" + dir
-	metrics.convertedModuleTypeCount[moduleType] += 1
-	metrics.totalModuleTypeCount[moduleType] += 1
+	metrics.serialized.ConvertedModuleTypeCount[moduleType] += 1
+	metrics.serialized.TotalModuleTypeCount[moduleType] += 1
 
 	if conversionType == Handcrafted {
-		metrics.handCraftedModuleCount += 1
+		metrics.serialized.HandCraftedModuleCount += 1
 	} else if conversionType == Generated {
-		metrics.generatedModuleCount += 1
+		metrics.serialized.GeneratedModuleCount += 1
 	}
 }

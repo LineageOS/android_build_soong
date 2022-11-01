@@ -28,7 +28,6 @@ import (
 	"android/soong/android"
 	"android/soong/bazel"
 	"android/soong/starlark_fmt"
-
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 )
@@ -245,12 +244,7 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (convers
 	buildFileToTargets := make(map[string]BazelTargets)
 
 	// Simple metrics tracking for bp2build
-	metrics := CodegenMetrics{
-		ruleClassCount:           make(map[string]uint64),
-		convertedModulePathMap:   make(map[string]string),
-		convertedModuleTypeCount: make(map[string]uint64),
-		totalModuleTypeCount:     make(map[string]uint64),
-	}
+	metrics := CreateCodegenMetrics()
 
 	dirs := make(map[string]bool)
 
