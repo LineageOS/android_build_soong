@@ -162,6 +162,7 @@ func createJavaDeviceForHostRules() []Rule {
 	javaDeviceForHostProjectsAllowedList := []string{
 		"development/build",
 		"external/guava",
+		"external/kotlinx.coroutines",
 		"external/robolectric-shadows",
 		"external/robolectric",
 		"frameworks/layoutlib",
