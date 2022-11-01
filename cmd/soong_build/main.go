@@ -244,7 +244,7 @@ func runApiBp2build(configuration android.Config, extraNinjaDeps []string) strin
 	ninjaDeps = append(ninjaDeps, codegenContext.AdditionalNinjaDeps()...)
 
 	// Create soong_injection repository
-	soongInjectionFiles := bp2build.CreateSoongInjectionFiles(configuration, bp2build.CodegenMetrics{})
+	soongInjectionFiles := bp2build.CreateSoongInjectionFiles(configuration, bp2build.CreateCodegenMetrics())
 	absoluteSoongInjectionDir := shared.JoinPath(topDir, configuration.SoongOutDir(), bazel.SoongInjectionDirName)
 	for _, file := range soongInjectionFiles {
 		writeReadOnlyFile(absoluteSoongInjectionDir, file)
