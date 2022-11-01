@@ -532,17 +532,22 @@ func runSoong(ctx Context, config Config) {
 		targets = append(targets, config.SoongNinjaFile())
 	}
 
-	ninja("bootstrap", "bootstrap.ninja", targets...)
-
 	if shouldCollectBuildSoongMetrics(config) {
-		soongBuildMetrics := loadSoongBuildMetrics(ctx, config)
-		if soongBuildMetrics != nil {
-			logSoongBuildMetrics(ctx, soongBuildMetrics)
-			if ctx.Metrics != nil {
-				ctx.Metrics.SetSoongBuildMetrics(soongBuildMetrics)
-			}
+		soongBuildMetricsFile := filepath.Join(config.LogsDir(), "soong_build_metrics.pb")
+		if err := os.Remove(soongBuildMetricsFile); err != nil && !os.IsNotExist(err) {
+			ctx.Verbosef("Failed to remove %s", soongBuildMetricsFile)
 		}
+		defer func() {
+			soongBuildMetrics := loadSoongBuildMetrics(ctx, soongBuildMetricsFile)
+			if soongBuildMetrics != nil {
+				logSoongBuildMetrics(ctx, soongBuildMetrics)
+				if ctx.Metrics != nil {
+					ctx.Metrics.SetSoongBuildMetrics(soongBuildMetrics)
+				}
+			}
+		}()
 	}
+	ninja("bootstrap", "bootstrap.ninja", targets...)
 
 	distGzipFile(ctx, config, config.SoongNinjaFile(), "soong")
 	distFile(ctx, config, config.SoongVarsFile(), "soong")
@@ -581,8 +586,7 @@ func shouldCollectBuildSoongMetrics(config Config) bool {
 	return config.SoongBuildInvocationNeeded()
 }
 
-func loadSoongBuildMetrics(ctx Context, config Config) *soong_metrics_proto.SoongBuildMetrics {
-	soongBuildMetricsFile := filepath.Join(config.LogsDir(), "soong_build_metrics.pb")
+func loadSoongBuildMetrics(ctx Context, soongBuildMetricsFile string) *soong_metrics_proto.SoongBuildMetrics {
 	buf, err := os.ReadFile(soongBuildMetricsFile)
 	if errors.Is(err, fs.ErrNotExist) {
 		// Soong may not have run during this invocation
