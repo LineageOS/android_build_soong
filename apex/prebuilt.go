@@ -532,6 +532,10 @@ func (p *ApexFileProperties) prebuiltApexSelector(ctx android.BaseModuleContext,
 		src = String(p.Arch.Arm64.Src)
 	case android.Riscv64:
 		src = String(p.Arch.Riscv64.Src)
+		// HACK: fall back to arm64 prebuilts, the riscv64 ones don't exist yet.
+		if src == "" {
+			src = String(p.Arch.Arm64.Src)
+		}
 	case android.X86:
 		src = String(p.Arch.X86.Src)
 	case android.X86_64:
