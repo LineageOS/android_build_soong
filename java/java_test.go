@@ -1783,3 +1783,26 @@ func TestGenAidlIncludeFlagsForMixedBuilds(t *testing.T) {
 		t.Errorf("expected flags to be %q; was %q", expectedFlags, flags)
 	}
 }
+
+func TestDeviceBinaryWrapperGeneration(t *testing.T) {
+	// Scenario 1: java_binary has main_class property in its bp
+	ctx, _ := testJava(t, `
+		java_binary {
+			name: "foo",
+			srcs: ["foo.java"],
+			main_class: "foo.bar.jb",
+		}
+	`)
+	wrapperPath := fmt.Sprint(ctx.ModuleForTests("foo", "android_arm64_armv8-a").AllOutputs())
+	if !strings.Contains(wrapperPath, "foo.sh") {
+		t.Errorf("wrapper file foo.sh is not generated")
+	}
+
+	// Scenario 2: java_binary has neither wrapper nor main_class, its build
+	// is expected to be failed.
+	testJavaError(t, "main_class property is required for device binary if no default wrapper is assigned", `
+		java_binary {
+			name: "foo",
+			srcs: ["foo.java"],
+		}`)
+}

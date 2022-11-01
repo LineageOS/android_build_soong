@@ -26,7 +26,7 @@ import (
 // Codegen is the backend of bp2build. The code generator is responsible for
 // writing .bzl files that are equivalent to Android.bp files that are capable
 // of being built with Bazel.
-func Codegen(ctx *CodegenContext) CodegenMetrics {
+func Codegen(ctx *CodegenContext) *CodegenMetrics {
 	// This directory stores BUILD files that could be eventually checked-in.
 	bp2buildDir := android.PathForOutput(ctx, "bp2build")
 	if err := android.RemoveAllOutputDir(bp2buildDir); err != nil {
@@ -48,7 +48,7 @@ func Codegen(ctx *CodegenContext) CodegenMetrics {
 	soongInjectionDir := android.PathForOutput(ctx, bazel.SoongInjectionDirName)
 	writeFiles(ctx, soongInjectionDir, CreateSoongInjectionFiles(ctx.Config(), res.metrics))
 
-	return res.metrics
+	return &res.metrics
 }
 
 // Get the output directory and create it if it doesn't exist.
