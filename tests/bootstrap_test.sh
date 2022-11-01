@@ -547,7 +547,6 @@ function test_bp2build_smoke {
 
 function test_bp2build_generates_marker_file {
   setup
-  create_mock_bazel
 
   run_soong bp2build
 
