@@ -3522,6 +3522,7 @@ cc_library_static {
 	tidy_checks: ["check1", "check2"],
 	tidy_checks_as_errors: ["check1error", "check2error"],
 	tidy_disabled_srcs: ["bar.cpp"],
+	tidy_timeout_srcs: ["baz.cpp"],
 }`,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_static", "foo", AttrNameToString{
@@ -3537,6 +3538,7 @@ cc_library_static {
         "check2error",
     ]`,
 				"tidy_disabled_srcs": `["bar.cpp"]`,
+				"tidy_timeout_srcs":  `["baz.cpp"]`,
 			}),
 		},
 	})

@@ -76,7 +76,7 @@ type tidyAttributes struct {
 	Tidy_checks           []string
 	Tidy_checks_as_errors []string
 	Tidy_disabled_srcs    bazel.LabelListAttribute
-	// TODO(b/255754964) support Tidy_timeout_srcs
+	Tidy_timeout_srcs     bazel.LabelListAttribute
 }
 
 func (m *Module) convertTidyAttributes(ctx android.BaseMutatorContext, moduleAttrs *tidyAttributes) {
@@ -89,13 +89,14 @@ func (m *Module) convertTidyAttributes(ctx android.BaseMutatorContext, moduleAtt
 		}
 
 	}
-
 	archVariantProps := m.GetArchVariantProperties(ctx, &BaseCompilerProperties{})
 	for axis, configToProps := range archVariantProps {
 		for config, _props := range configToProps {
 			if archProps, ok := _props.(*BaseCompilerProperties); ok {
 				archDisabledSrcs := android.BazelLabelForModuleSrc(ctx, archProps.Tidy_disabled_srcs)
 				moduleAttrs.Tidy_disabled_srcs.SetSelectValue(axis, config, archDisabledSrcs)
+				archTimeoutSrcs := android.BazelLabelForModuleSrc(ctx, archProps.Tidy_timeout_srcs)
+				moduleAttrs.Tidy_timeout_srcs.SetSelectValue(axis, config, archTimeoutSrcs)
 			}
 		}
 	}
