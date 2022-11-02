@@ -266,6 +266,10 @@ org\.chromium\.arc\..*
 com\.google\.wear
 com\.google\.wear\..*
 
+# Lineage adds
+lineageos\.platform
+org\.lineageos\.platform\.internal
+
 # NV adds
 com\.nvidia
 com\.nvidia\..*
