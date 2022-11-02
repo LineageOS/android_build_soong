@@ -4296,12 +4296,15 @@ func TestApexWithArch(t *testing.T) {
 			name: "myapex",
 			key: "myapex.key",
 			updatable: false,
+			native_shared_libs: ["mylib.generic"],
 			arch: {
 				arm64: {
 					native_shared_libs: ["mylib.arm64"],
+					exclude_native_shared_libs: ["mylib.generic"],
 				},
 				x86_64: {
 					native_shared_libs: ["mylib.x64"],
+					exclude_native_shared_libs: ["mylib.generic"],
 				},
 			}
 		}
@@ -4310,6 +4313,18 @@ func TestApexWithArch(t *testing.T) {
 			name: "myapex.key",
 			public_key: "testkey.avbpubkey",
 			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "mylib.generic",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+			// TODO: remove //apex_available:platform
+			apex_available: [
+				"//apex_available:platform",
+				"myapex",
+			],
 		}
 
 		cc_library {
@@ -4342,6 +4357,7 @@ func TestApexWithArch(t *testing.T) {
 
 	// Ensure that apex variant is created for the direct dep
 	ensureListContains(t, ctx.ModuleVariantsForTests("mylib.arm64"), "android_arm64_armv8-a_shared_apex10000")
+	ensureListNotContains(t, ctx.ModuleVariantsForTests("mylib.generic"), "android_arm64_armv8-a_shared_apex10000")
 	ensureListNotContains(t, ctx.ModuleVariantsForTests("mylib.x64"), "android_arm64_armv8-a_shared_apex10000")
 
 	// Ensure that both direct and indirect deps are copied into apex
