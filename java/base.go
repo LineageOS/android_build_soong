@@ -593,6 +593,8 @@ func (j *Module) OutputFiles(tag string) (android.Paths, error) {
 		return android.Paths{j.outputFile}, nil
 	case ".jar":
 		return android.Paths{j.implementationAndResourcesJar}, nil
+	case ".hjar":
+		return android.Paths{j.headerJarFile}, nil
 	case ".proguard_map":
 		if j.dexer.proguardDictionary.Valid() {
 			return android.Paths{j.dexer.proguardDictionary.Path()}, nil
