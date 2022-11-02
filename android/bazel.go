@@ -341,16 +341,19 @@ func (a Bp2BuildConversionAllowlist) ShouldKeepExistingBuildFileForDir(dir strin
 		// Exact dir match
 		return true
 	}
+	var i int
 	// Check if subtree match
-	for prefix, recursive := range a.keepExistingBuildFile {
-		if recursive {
-			if strings.HasPrefix(dir, prefix+"/") {
-				return true
-			}
+	for {
+		j := strings.Index(dir[i:], "/")
+		if j == -1 {
+			return false //default
+		}
+		prefix := dir[0 : i+j]
+		i = i + j + 1 // skip the "/"
+		if recursive, ok := a.keepExistingBuildFile[prefix]; ok && recursive {
+			return true
 		}
 	}
-	// Default
-	return false
 }
 
 var bp2BuildAllowListKey = NewOnceKey("Bp2BuildAllowlist")
