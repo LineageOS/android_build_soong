@@ -70,13 +70,11 @@ func ApiDomainFactory() Module {
 	return m
 }
 
+// Do not create any dependency edges in Soong for now to skip visibility checks for some systemapi libraries.
+// Currently, all api_domain modules reside in build/orchestrator/apis/Android.bp
+// However, cc libraries like libsigchain (com.android.art) restrict their visibility to art/*
+// When the api_domain module types are collocated with their contributions, this dependency edge can be restored
 func (a *apiDomain) DepsMutator(ctx BottomUpMutatorContext) {
-	for _, cc := range a.properties.Cc_api_contributions {
-		// Use FarVariationDependencies since the variants of api_domain is a subset of the variants of the dependency cc module
-		// Creating a dependency on the first variant that matches (os,arch) is ok since this is a no-op in Soong
-		// The primary function of this dependency is to create a connected graph in the corresponding bp2build workspace
-		ctx.AddFarVariationDependencies(ctx.Target().Variations(), nil, cc)
-	}
 }
 
 // API domain does not have any builld actions yet
