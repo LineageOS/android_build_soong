@@ -213,6 +213,10 @@ com\.google\.wear\..*
 vendor\.google_clockwork\.displayoffload3
 vendor\.google_clockwork\.displayoffload3\..*
 
+# Lineage adds
+lineageos\.platform
+org\.lineageos\.platform\.internal
+
 # QC adds
 com.qualcomm.qti
 com.quicinc.tcmiface
