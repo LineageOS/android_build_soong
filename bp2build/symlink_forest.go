@@ -15,7 +15,9 @@
 package bp2build
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -47,6 +49,59 @@ type symlinkForestContext struct {
 	wg    sync.WaitGroup
 	depCh chan string
 	okay  atomic.Bool // Whether the forest was successfully constructed
+}
+
+// A simple thread pool to limit concurrency on system calls.
+// Necessary because Go spawns a new OS-level thread for each blocking system
+// call. This means that if syscalls are too slow and there are too many of
+// them, the hard limit on OS-level threads can be exhausted.
+type syscallPool struct {
+	shutdownCh []chan<- struct{}
+	workCh     chan syscall
+}
+
+type syscall struct {
+	work func()
+	done chan<- struct{}
+}
+
+func createSyscallPool(count int) *syscallPool {
+	result := &syscallPool{
+		shutdownCh: make([]chan<- struct{}, count),
+		workCh:     make(chan syscall),
+	}
+
+	for i := 0; i < count; i++ {
+		shutdownCh := make(chan struct{})
+		result.shutdownCh[i] = shutdownCh
+		go result.worker(shutdownCh)
+	}
+
+	return result
+}
+
+func (p *syscallPool) do(work func()) {
+	doneCh := make(chan struct{})
+	p.workCh <- syscall{work, doneCh}
+	<-doneCh
+}
+
+func (p *syscallPool) shutdown() {
+	for _, ch := range p.shutdownCh {
+		ch <- struct{}{} // Blocks until the value is received
+	}
+}
+
+func (p *syscallPool) worker(shutdownCh <-chan struct{}) {
+	for {
+		select {
+		case <-shutdownCh:
+			return
+		case work := <-p.workCh:
+			work.work()
+			work.done <- struct{}{}
+		}
+	}
 }
 
 // Ensures that the node for the given path exists in the tree and returns it.
@@ -317,6 +372,51 @@ func plantSymlinkForestRecursive(context *symlinkForestContext, instructions *in
 	}
 }
 
+func removeParallelRecursive(pool *syscallPool, path string, fi os.FileInfo, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	if fi.IsDir() {
+		children := readdirToMap(path)
+		childrenWg := &sync.WaitGroup{}
+		childrenWg.Add(len(children))
+
+		for child, childFi := range children {
+			go removeParallelRecursive(pool, shared.JoinPath(path, child), childFi, childrenWg)
+		}
+
+		childrenWg.Wait()
+	}
+
+	pool.do(func() {
+		if err := os.Remove(path); err != nil {
+			fmt.Fprintf(os.Stderr, "Cannot unlink '%s': %s\n", path, err)
+			os.Exit(1)
+		}
+	})
+}
+
+func removeParallel(path string) {
+	fi, err := os.Lstat(path)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return
+		}
+
+		fmt.Fprintf(os.Stderr, "Cannot lstat '%s': %s\n", path, err)
+		os.Exit(1)
+	}
+
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+
+	// Random guess as to the best number of syscalls to run in parallel
+	pool := createSyscallPool(100)
+	removeParallelRecursive(pool, path, fi, wg)
+	pool.shutdown()
+
+	wg.Wait()
+}
+
 // Creates a symlink forest by merging the directory tree at "buildFiles" and
 // "srcDir" while excluding paths listed in "exclude". Returns the set of paths
 // under srcDir on which readdir() had to be called to produce the symlink
@@ -330,7 +430,7 @@ func PlantSymlinkForest(verbose bool, topdir string, forest string, buildFiles s
 
 	context.okay.Store(true)
 
-	os.RemoveAll(shared.JoinPath(topdir, forest))
+	removeParallel(shared.JoinPath(topdir, forest))
 
 	instructions := instructionsFromExcludePathList(exclude)
 	go func() {
