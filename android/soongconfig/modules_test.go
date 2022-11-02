@@ -303,6 +303,10 @@ type soongConfigVars struct {
 	Bool_var interface{}
 }
 
+type stringSoongConfigVars struct {
+	String_var interface{}
+}
+
 func Test_PropertiesToApply(t *testing.T) {
 	mt, _ := newModuleType(&ModuleTypeProperties{
 		Module_type:      "foo",
@@ -362,6 +366,51 @@ func Test_PropertiesToApply(t *testing.T) {
 		if !reflect.DeepEqual(gotProps, tc.wantProps) {
 			t.Errorf("%s: Expected %s, got %s", tc.name, tc.wantProps, gotProps)
 		}
+	}
+}
+
+func Test_PropertiesToApply_String_Error(t *testing.T) {
+	mt, _ := newModuleType(&ModuleTypeProperties{
+		Module_type:      "foo",
+		Config_namespace: "bar",
+		Variables:        []string{"string_var"},
+		Properties:       []string{"a", "b"},
+	})
+	mt.Variables = append(mt.Variables, &stringVariable{
+		baseVariable: baseVariable{
+			variable: "string_var",
+		},
+		values: []string{"a", "b", "c"},
+	})
+	stringVarPositive := &properties{
+		A: proptools.StringPtr("A"),
+		B: true,
+	}
+	conditionsDefault := &properties{
+		A: proptools.StringPtr("default"),
+		B: false,
+	}
+	actualProps := &struct {
+		Soong_config_variables stringSoongConfigVars
+	}{
+		Soong_config_variables: stringSoongConfigVars{
+			String_var: &boolVarProps{
+				A:                  stringVarPositive.A,
+				B:                  stringVarPositive.B,
+				Conditions_default: conditionsDefault,
+			},
+		},
+	}
+	props := reflect.ValueOf(actualProps)
+
+	_, err := PropertiesToApply(mt, props, Config(map[string]string{
+		"string_var": "x",
+	}))
+	expected := `Soong config property "string_var" must be one of [a b c], found "x"`
+	if err == nil {
+		t.Fatalf("Expected an error, got nil")
+	} else if err.Error() != expected {
+		t.Fatalf("Error message was not correct, expected %q, got %q", expected, err.Error())
 	}
 }
 
