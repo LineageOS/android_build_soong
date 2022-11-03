@@ -19,6 +19,7 @@
 # For example, current line llvm-readelf output is:
 # 1: 00000000     0     FUNC      GLOBAL  DEFAULT   UND   dlopen@LIBC
 # After the parse function below "dlopen" would be write to the output file.
+
 printHelp() {
     echo "**************************** Usage Instructions ****************************"
     echo "This script is used to generate the Mainline modules used-by NDK symbols."
@@ -29,30 +30,33 @@ printHelp() {
 }
 
 parseReadelfOutput() {
+  local readelfOutput=$1; shift
+  local ndkApisOutput=$1; shift
   while IFS= read -r line
   do
       if [[ $line = *FUNC*GLOBAL*UND*@* ]] ;
       then
-          echo "$line" | sed -r 's/.*UND (.*@.*)/\1/g' >> "$2"
+          echo "$line" | sed -r 's/.*UND (.*@.*)/\1/g' >> "${ndkApisOutput}"
       fi
-  done < "$1"
-  echo "" >> "$2"
+  done < "${readelfOutput}"
+  echo "" >> "${ndkApisOutput}"
 }
 
 unzipJarAndApk() {
-  tmpUnzippedDir="$1"/tmpUnzipped
-  [[ -e "$tmpUnzippedDir" ]] && rm -rf "$tmpUnzippedDir"
-  mkdir -p "$tmpUnzippedDir"
-  find "$1" -name "*.jar" -exec unzip -o {} -d "$tmpUnzippedDir" \;
-  find "$1" -name "*.apk" -exec unzip -o {} -d "$tmpUnzippedDir" \;
-  find "$tmpUnzippedDir" -name "*.MF" -exec rm {} \;
+  local dir="$1"; shift
+  local tmpUnzippedDir="$1"; shift
+  mkdir -p "${tmpUnzippedDir}"
+  find "$dir" -name "*.jar" -exec unzip -o {} -d "${tmpUnzippedDir}" \;
+  find "$dir" -name "*.apk" -exec unzip -o {} -d "${tmpUnzippedDir}" \;
+  find "${tmpUnzippedDir}" -name "*.MF" -exec rm {} \;
 }
 
 lookForExecFile() {
-  dir="$1"
-  readelf="$2"
-  find "$dir" -type f -name "*.so"  -exec "$2" --dyn-symbols {} >> "$dir"/../tmpReadelf.txt \;
-  find "$dir" -type f -perm /111 ! -name "*.so"  -exec "$2" --dyn-symbols {} >> "$dir"/../tmpReadelf.txt \;
+  local dir="$1"; shift
+  local readelf="$1"; shift
+  local tmpOutput="$1"; shift
+  find -L "$dir" -type f -name "*.so"  -exec "${readelf}" --dyn-symbols {} >> "${tmpOutput}" \;
+  find -L "$dir" -type f -perm /111 ! -name "*.so" -exec "${readelf}" --dyn-symbols {} >> "${tmpOutput}" \;
 }
 
 if [[ "$1" == "help" ]]
@@ -62,11 +66,22 @@ elif [[ "$#" -ne 3 ]]
 then
   echo "Wrong argument length. Expecting 3 argument representing image file directory, llvm-readelf tool path, output path."
 else
-  unzipJarAndApk "$1"
-  lookForExecFile "$1" "$2"
-  tmpReadelfOutput="$1/../tmpReadelf.txt"
-  [[ -e "$3" ]] && rm "$3"
-  parseReadelfOutput "$tmpReadelfOutput" "$3"
-  [[ -e "$tmpReadelfOutput" ]] && rm "$tmpReadelfOutput"
-  rm -rf "$1/tmpUnzipped"
+  imageDir="$1"; shift
+  readelf="$1"; shift
+  outputFile="$1"; shift
+
+  tmpReadelfOutput=$(mktemp /tmp/temporary-file.XXXXXXXX)
+  tmpUnzippedDir=$(mktemp -d /tmp/temporary-dir.XXXXXXXX)
+  trap 'rm -rf -- "${tmpReadelfOutput}" "${tmpUnzippedDir}"' EXIT
+
+  # If there are any jars or apks, unzip them to surface native files.
+  unzipJarAndApk "${imageDir}" "${tmpUnzippedDir}"
+  # Analyze the unzipped files.
+  lookForExecFile "${tmpUnzippedDir}" "${readelf}" "${tmpReadelfOutput}"
+
+  # Analyze the apex image staging dir itself.
+  lookForExecFile "${imageDir}" "${readelf}" "${tmpReadelfOutput}"
+
+  [[ -e "${outputFile}" ]] && rm "${outputFile}"
+  parseReadelfOutput "${tmpReadelfOutput}" "${outputFile}"
 fi
