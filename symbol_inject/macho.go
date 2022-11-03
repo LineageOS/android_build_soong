@@ -16,9 +16,12 @@ package symbol_inject
 
 import (
 	"debug/macho"
+	"encoding/binary"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
 	"strings"
 )
@@ -98,6 +101,80 @@ func dumpMachoSymbols(r io.ReaderAt) error {
 }
 
 func CodeSignMachoFile(path string) error {
-	cmd := exec.Command("/usr/bin/codesign", "--force", "-s", "-", path)
-	return cmd.Run()
+	filename := filepath.Base(path)
+	cmd := exec.Command("/usr/bin/codesign", "--force", "-s", "-", "-i", filename, path)
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+	return modifyCodeSignFlags(path)
+}
+
+const LC_CODE_SIGNATURE = 0x1d
+const CSSLOT_CODEDIRECTORY = 0
+
+// To make codesign not invalidated by stripping, modify codesign flags to 0x20002
+// (adhoc | linkerSigned).
+func modifyCodeSignFlags(path string) error {
+	f, err := os.OpenFile(path, os.O_RDWR, 0)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	// Step 1: find code signature section.
+	machoFile, err := macho.NewFile(f)
+	if err != nil {
+		return err
+	}
+	var codeSignSectionOffset uint32 = 0
+	var codeSignSectionSize uint32 = 0
+	for _, l := range machoFile.Loads {
+		data := l.Raw()
+		cmd := machoFile.ByteOrder.Uint32(data)
+		if cmd == LC_CODE_SIGNATURE {
+			codeSignSectionOffset = machoFile.ByteOrder.Uint32(data[8:])
+			codeSignSectionSize = machoFile.ByteOrder.Uint32(data[12:])
+		}
+	}
+	if codeSignSectionOffset == 0 {
+		return fmt.Errorf("code signature section not found")
+	}
+
+	data := make([]byte, codeSignSectionSize)
+	_, err = f.ReadAt(data, int64(codeSignSectionOffset))
+	if err != nil {
+		return err
+	}
+
+	// Step 2: get flags offset.
+	blobCount := binary.BigEndian.Uint32(data[8:])
+	off := 12
+	var codeDirectoryOff uint32 = 0
+	for blobCount > 0 {
+		blobType := binary.BigEndian.Uint32(data[off:])
+		if blobType == CSSLOT_CODEDIRECTORY {
+			codeDirectoryOff = binary.BigEndian.Uint32(data[off+4:])
+			break
+		}
+		blobCount--
+		off += 8
+	}
+	if codeDirectoryOff == 0 {
+		return fmt.Errorf("no code directory in code signature section")
+	}
+	flagsOff := codeSignSectionOffset + codeDirectoryOff + 12
+
+	// Step 3: modify flags.
+	flagsData := make([]byte, 4)
+	_, err = f.ReadAt(flagsData, int64(flagsOff))
+	if err != nil {
+		return err
+	}
+	oldFlags := binary.BigEndian.Uint32(flagsData)
+	if oldFlags != 0x2 {
+		return fmt.Errorf("unexpected flags in code signature section: 0x%x", oldFlags)
+	}
+	binary.BigEndian.PutUint32(flagsData, 0x20002)
+	_, err = f.WriteAt(flagsData, int64(flagsOff))
+	return err
 }
