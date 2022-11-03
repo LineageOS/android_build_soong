@@ -2632,6 +2632,7 @@ func DefaultsFactory(props ...interface{}) android.Module {
 	module.AddProperties(
 		&apexBundleProperties{},
 		&apexTargetBundleProperties{},
+		&apexArchBundleProperties{},
 		&overridableProperties{},
 	)
 
