@@ -221,7 +221,7 @@ type BaseLinkerProperties struct {
 	// Generate compact dynamic relocation table, default true.
 	Pack_relocations *bool `android:"arch_variant"`
 
-	// local file name to pass to the linker as --version_script
+	// local file name to pass to the linker as --version-script
 	Version_script *string `android:"path,arch_variant"`
 
 	// local file name to pass to the linker as --dynamic-list
