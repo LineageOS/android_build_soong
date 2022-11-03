@@ -236,6 +236,19 @@ func loadEnvConfig(ctx Context, config *configImpl) error {
 	return nil
 }
 
+func defaultBazelProdMode(cfg *configImpl) bool {
+	// Envirnoment flag to disable Bazel for users which experience
+	// broken bazel-handled builds, or significant performance regressions.
+	if cfg.IsBazelMixedBuildForceDisabled() {
+		return false
+	}
+	// Darwin-host builds are currently untested with Bazel.
+	if runtime.GOOS == "darwin" {
+		return false
+	}
+	return true
+}
+
 func NewConfig(ctx Context, args ...string) Config {
 	ret := &configImpl{
 		environ:       OsEnvironment(),
@@ -773,6 +786,9 @@ func (c *configImpl) parseArgs(ctx Context, args []string) {
 			}
 			c.arguments = append(c.arguments, arg)
 		}
+	}
+	if (!c.bazelProdMode) && (!c.bazelDevMode) && (!c.bazelStagingMode) {
+		c.bazelProdMode = defaultBazelProdMode(c)
 	}
 }
 

@@ -12,7 +12,6 @@ source "$(dirname "$0")/lib.sh"
 
 function test_bazel_smoke {
   setup
-  create_mock_bazel
 
   run_soong bp2build
 
@@ -21,7 +20,6 @@ function test_bazel_smoke {
 
 function test_add_irrelevant_file {
   setup
-  create_mock_bazel
 
   mkdir -p soong_tests/a/b
   touch soong_tests/a/b/c.txt
@@ -33,7 +31,7 @@ filegroup {
 }
 EOF
 
-  run_soong --bazel-mode nothing
+  run_soong --bazel-mode-staging nothing
 
   if [[ ! -e out/soong/bp2build/soong_tests/a/b/BUILD.bazel ]]; then
     fail "BUILD.bazel not created"
@@ -48,7 +46,7 @@ EOF
 
   touch soong_tests/a/irrelevant.txt
 
-  run_soong --bazel-mode nothing
+  run_soong --bazel-mode-staging nothing
   local mtime_build2=$(stat -c "%y" out/soong/bp2build/soong_tests/a/b/BUILD.bazel)
   local mtime_ninja2=$(stat -c "%y" out/soong/build.ninja)
 

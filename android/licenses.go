@@ -340,4 +340,5 @@ func licensesMakeVarsProvider(ctx MakeVarsContext) {
 	ctx.Strict("COMPLIANCENOTICE_SHIPPEDLIBS", ctx.Config().HostToolPath(ctx, "compliancenotice_shippedlibs").String())
 	ctx.Strict("COMPLIANCE_LISTSHARE", ctx.Config().HostToolPath(ctx, "compliance_listshare").String())
 	ctx.Strict("COMPLIANCE_CHECKSHARE", ctx.Config().HostToolPath(ctx, "compliance_checkshare").String())
+	ctx.Strict("COMPLIANCE_SBOM", ctx.Config().HostToolPath(ctx, "compliance_sbom").String())
 }
