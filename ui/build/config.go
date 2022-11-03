@@ -82,6 +82,7 @@ type configImpl struct {
 	skipSoong       bool
 	skipNinja       bool
 	skipSoongTests  bool
+	searchApiDir    bool // Scan the Android.bp files generated in out/api_surfaces
 
 	// From the product config
 	katiArgs        []string
@@ -725,6 +726,8 @@ func (c *configImpl) parseArgs(ctx Context, args []string) {
 			c.bazelDevMode = true
 		} else if arg == "--bazel-mode-staging" {
 			c.bazelStagingMode = true
+		} else if arg == "--search-api-dir" {
+			c.searchApiDir = true
 		} else if len(arg) > 0 && arg[0] == '-' {
 			parseArgNum := func(def int) int {
 				if len(arg) > 2 {
@@ -882,6 +885,10 @@ func (c *configImpl) BazelOutDir() string {
 
 func (c *configImpl) SoongOutDir() string {
 	return filepath.Join(c.OutDir(), "soong")
+}
+
+func (c *configImpl) ApiSurfacesOutDir() string {
+	return filepath.Join(c.OutDir(), "api_surfaces")
 }
 
 func (c *configImpl) PrebuiltOS() string {
