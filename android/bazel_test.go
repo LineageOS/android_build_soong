@@ -423,3 +423,21 @@ func TestBp2buildAllowList(t *testing.T) {
 		}
 	}
 }
+
+func TestShouldKeepExistingBuildFileForDir(t *testing.T) {
+	allowlist := NewBp2BuildAllowlist()
+	// entry "a/b2/c2" is moot because of its parent "a/b2"
+	allowlist.SetKeepExistingBuildFile(map[string]bool{"a": false, "a/b1": false, "a/b2": true, "a/b1/c1": true, "a/b2/c2": false})
+	truths := []string{"a", "a/b1", "a/b2", "a/b1/c1", "a/b2/c", "a/b2/c2", "a/b2/c2/d"}
+	falsities := []string{"a1", "a/b", "a/b1/c"}
+	for _, dir := range truths {
+		if !allowlist.ShouldKeepExistingBuildFileForDir(dir) {
+			t.Errorf("%s expected TRUE but was FALSE", dir)
+		}
+	}
+	for _, dir := range falsities {
+		if allowlist.ShouldKeepExistingBuildFileForDir(dir) {
+			t.Errorf("%s expected FALSE but was TRUE", dir)
+		}
+	}
+}
