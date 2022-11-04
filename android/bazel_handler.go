@@ -250,7 +250,8 @@ func (m MockBazelContext) GetPythonBinary(label string, _ configKey) (string, er
 }
 
 func (m MockBazelContext) GetApexInfo(label string, _ configKey) (cquery.ApexInfo, error) {
-	panic("unimplemented")
+	result, _ := m.LabelToApexInfo[label]
+	return result, nil
 }
 
 func (m MockBazelContext) GetCcUnstrippedInfo(label string, _ configKey) (cquery.CcUnstrippedInfo, error) {
