@@ -27,6 +27,15 @@ func (sc *SandboxConfig) SrcDirIsRO() bool {
 	return sc.srcDirIsRO
 }
 
+// Return the mount flag of the source directory in the nsjail command
+func (sc *SandboxConfig) SrcDirMountFlag() string {
+	ret := "-B" // Read-write
+	if sc.SrcDirIsRO() {
+		ret = "-R" // Read-only
+	}
+	return ret
+}
+
 func (sc *SandboxConfig) SetSrcDirRWAllowlist(allowlist []string) {
 	sc.srcDirRWAllowlist = allowlist
 }

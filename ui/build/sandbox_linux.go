@@ -101,7 +101,7 @@ func (c *Cmd) sandboxSupported() bool {
 			// srcDir is /tmp/.* in integration tests, which is a child dir of /tmp
 			// nsjail throws an error if a child dir is mounted before its parent
 			"-B", "/tmp",
-			"-B", sandboxConfig.srcDir,
+			c.config.sandboxConfig.SrcDirMountFlag(), sandboxConfig.srcDir,
 			"-B", sandboxConfig.outDir,
 		}
 
@@ -148,13 +148,6 @@ func (c *Cmd) sandboxSupported() bool {
 func (c *Cmd) wrapSandbox() {
 	wd, _ := os.Getwd()
 
-	var srcDirMountFlag string
-	if c.config.sandboxConfig.SrcDirIsRO() {
-		srcDirMountFlag = "-R"
-	} else {
-		srcDirMountFlag = "-B" //Read-Write
-	}
-
 	sandboxArgs := []string{
 		// The executable to run
 		"-x", c.Path,
@@ -195,7 +188,7 @@ func (c *Cmd) wrapSandbox() {
 		"-B", "/tmp",
 
 		// Mount source
-		srcDirMountFlag, sandboxConfig.srcDir,
+		c.config.sandboxConfig.SrcDirMountFlag(), sandboxConfig.srcDir,
 
 		//Mount out dir as read-write
 		"-B", sandboxConfig.outDir,
