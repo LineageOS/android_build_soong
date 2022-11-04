@@ -307,6 +307,7 @@ func (this *stubDecorator) findImplementationLibrary(ctx ModuleContext) android.
 	impl, ok := dep.(*Module)
 	if !ok {
 		ctx.ModuleErrorf("Implementation for stub is not correct module type")
+		return nil
 	}
 	output := impl.UnstrippedOutputFile()
 	if output == nil {
