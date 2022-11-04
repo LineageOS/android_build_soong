@@ -1903,16 +1903,14 @@ func (a *apexBundle) ProcessBazelQueryResponse(ctx android.ModuleContext) {
 	apexType := a.properties.ApexType
 	switch apexType {
 	case imageApex:
-		// TODO(asmundak): Bazel does not create these files yet.
-		// b/190817312
+		// TODO(b/190817312): Generate the notice file from the apex rule.
 		a.htmlGzNotice = android.PathForBazelOut(ctx, "NOTICE.html.gz")
-		// b/239081457
+		// TODO(b/239081457): Generate the bazel bundle module file from the apex rule.
 		a.bundleModuleFile = android.PathForBazelOut(ctx, a.Name()+apexType.suffix()+"-base.zip")
-		// b/239081455
-		a.nativeApisUsedByModuleFile = android.ModuleOutPath(android.PathForBazelOut(ctx, a.Name()+"_using.txt"))
-		// b/239081456
+		a.nativeApisUsedByModuleFile = android.ModuleOutPath(android.PathForBazelOut(ctx, outputs.SymbolsUsedByApex))
+		// TODO(b/239081456): Generate the backing.txt file from Bazel.
 		a.nativeApisBackedByModuleFile = android.ModuleOutPath(android.PathForBazelOut(ctx, a.Name()+"_backing.txt"))
-		// b/239084755
+		// TODO(b/239084755): Generate the java api using.xml file from Bazel.
 		a.javaApisUsedByModuleFile = android.ModuleOutPath(android.PathForBazelOut(ctx, a.Name()+"_using.xml"))
 		installSuffix := imageApexSuffix
 		if a.isCompressed {
