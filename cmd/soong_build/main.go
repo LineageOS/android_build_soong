@@ -165,7 +165,7 @@ func newConfig(availableEnv map[string]string) android.Config {
 // Bazel-enabled mode. Attaches a mutator to queue Bazel requests, adds a
 // BeforePrepareBuildActionsHook to invoke Bazel, and then uses Bazel metadata
 // for modules that should be handled by Bazel.
-func runMixedModeBuild(configuration android.Config, ctx *android.Context, extraNinjaDeps []string) {
+func runMixedModeBuild(configuration android.Config, ctx *android.Context, extraNinjaDeps []string) string {
 	ctx.EventHandler.Begin("mixed_build")
 	defer ctx.EventHandler.End("mixed_build")
 
@@ -188,6 +188,7 @@ func runMixedModeBuild(configuration android.Config, ctx *android.Context, extra
 	ninjaDeps = append(ninjaDeps, globListFiles...)
 
 	writeDepFile(cmdlineArgs.OutFile, ctx.EventHandler, ninjaDeps)
+	return cmdlineArgs.OutFile
 }
 
 // Run the code-generation phase to convert BazelTargetModules to BUILD files.
@@ -356,53 +357,59 @@ func doChosenActivity(ctx *android.Context, configuration android.Config, extraN
 		// Blueprint to BUILD files before everything else.
 		runBp2Build(configuration, extraNinjaDeps, metricsDir)
 		return bp2buildMarker
-	} else if configuration.IsMixedBuildsEnabled() {
-		runMixedModeBuild(configuration, ctx, extraNinjaDeps)
 	} else if configuration.BuildMode == android.ApiBp2build {
 		return runApiBp2build(configuration, extraNinjaDeps)
 	} else {
-		var stopBefore bootstrap.StopBefore
-		if configuration.BuildMode == android.GenerateModuleGraph {
-			stopBefore = bootstrap.StopBeforeWriteNinja
-		} else if configuration.BuildMode == android.GenerateQueryView || configuration.BuildMode == android.GenerateDocFile {
-			stopBefore = bootstrap.StopBeforePrepareBuildActions
+		if configuration.IsMixedBuildsEnabled() {
+			return runMixedModeBuild(configuration, ctx, extraNinjaDeps)
 		} else {
-			stopBefore = bootstrap.DoEverything
-		}
-
-		ninjaDeps := bootstrap.RunBlueprint(cmdlineArgs, stopBefore, ctx.Context, configuration)
-		ninjaDeps = append(ninjaDeps, extraNinjaDeps...)
-
-		globListFiles := writeBuildGlobsNinjaFile(ctx, configuration.SoongOutDir(), configuration)
-		ninjaDeps = append(ninjaDeps, globListFiles...)
-
-		// Convert the Soong module graph into Bazel BUILD files.
-		if configuration.BuildMode == android.GenerateQueryView {
-			queryviewMarkerFile := bazelQueryViewDir + ".marker"
-			runQueryView(bazelQueryViewDir, queryviewMarkerFile, configuration, ctx)
-			writeDepFile(queryviewMarkerFile, ctx.EventHandler, ninjaDeps)
-			return queryviewMarkerFile
-		} else if configuration.BuildMode == android.GenerateModuleGraph {
-			writeJsonModuleGraphAndActions(ctx, moduleGraphFile, moduleActionsFile)
-			writeDepFile(moduleGraphFile, ctx.EventHandler, ninjaDeps)
-			return moduleGraphFile
-		} else if configuration.BuildMode == android.GenerateDocFile {
-			// TODO: we could make writeDocs() return the list of documentation files
-			// written and add them to the .d file. Then soong_docs would be re-run
-			// whenever one is deleted.
-			if err := writeDocs(ctx, shared.JoinPath(topDir, docFile)); err != nil {
-				fmt.Fprintf(os.Stderr, "error building Soong documentation: %s\n", err)
-				os.Exit(1)
-			}
-			writeDepFile(docFile, ctx.EventHandler, ninjaDeps)
-			return docFile
-		} else {
-			// The actual output (build.ninja) was written in the RunBlueprint() call
-			// above
-			writeDepFile(cmdlineArgs.OutFile, ctx.EventHandler, ninjaDeps)
+			return runSoongOnlyBuild(configuration, ctx, extraNinjaDeps)
 		}
 	}
+}
 
+// runSoongOnlyBuild runs the standard Soong build in a number of different modes.
+func runSoongOnlyBuild(configuration android.Config, ctx *android.Context, extraNinjaDeps []string) string {
+	var stopBefore bootstrap.StopBefore
+	if configuration.BuildMode == android.GenerateModuleGraph {
+		stopBefore = bootstrap.StopBeforeWriteNinja
+	} else if configuration.BuildMode == android.GenerateQueryView || configuration.BuildMode == android.GenerateDocFile {
+		stopBefore = bootstrap.StopBeforePrepareBuildActions
+	} else {
+		stopBefore = bootstrap.DoEverything
+	}
+
+	ninjaDeps := bootstrap.RunBlueprint(cmdlineArgs, stopBefore, ctx.Context, configuration)
+	ninjaDeps = append(ninjaDeps, extraNinjaDeps...)
+
+	globListFiles := writeBuildGlobsNinjaFile(ctx, configuration.SoongOutDir(), configuration)
+	ninjaDeps = append(ninjaDeps, globListFiles...)
+
+	// Convert the Soong module graph into Bazel BUILD files.
+	if configuration.BuildMode == android.GenerateQueryView {
+		queryviewMarkerFile := bazelQueryViewDir + ".marker"
+		runQueryView(bazelQueryViewDir, queryviewMarkerFile, configuration, ctx)
+		writeDepFile(queryviewMarkerFile, ctx.EventHandler, ninjaDeps)
+		return queryviewMarkerFile
+	} else if configuration.BuildMode == android.GenerateModuleGraph {
+		writeJsonModuleGraphAndActions(ctx, moduleGraphFile, moduleActionsFile)
+		writeDepFile(moduleGraphFile, ctx.EventHandler, ninjaDeps)
+		return moduleGraphFile
+	} else if configuration.BuildMode == android.GenerateDocFile {
+		// TODO: we could make writeDocs() return the list of documentation files
+		// written and add them to the .d file. Then soong_docs would be re-run
+		// whenever one is deleted.
+		if err := writeDocs(ctx, shared.JoinPath(topDir, docFile)); err != nil {
+			fmt.Fprintf(os.Stderr, "error building Soong documentation: %s\n", err)
+			os.Exit(1)
+		}
+		writeDepFile(docFile, ctx.EventHandler, ninjaDeps)
+		return docFile
+	} else {
+		// The actual output (build.ninja) was written in the RunBlueprint() call
+		// above
+		writeDepFile(cmdlineArgs.OutFile, ctx.EventHandler, ninjaDeps)
+	}
 	return cmdlineArgs.OutFile
 }
 
