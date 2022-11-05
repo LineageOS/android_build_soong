@@ -62,7 +62,7 @@ func (soongMetricsSingleton) GenerateBuildActions(ctx SingletonContext) {
 	})
 }
 
-func collectMetrics(config Config, eventHandler metrics.EventHandler) *soong_metrics_proto.SoongBuildMetrics {
+func collectMetrics(config Config, eventHandler *metrics.EventHandler) *soong_metrics_proto.SoongBuildMetrics {
 	metrics := &soong_metrics_proto.SoongBuildMetrics{}
 
 	soongMetrics, ok := readSoongMetrics(config)
@@ -107,7 +107,7 @@ func collectMetrics(config Config, eventHandler metrics.EventHandler) *soong_met
 	return metrics
 }
 
-func WriteMetrics(config Config, eventHandler metrics.EventHandler, metricsFile string) error {
+func WriteMetrics(config Config, eventHandler *metrics.EventHandler, metricsFile string) error {
 	metrics := collectMetrics(config, eventHandler)
 
 	buf, err := proto.Marshal(metrics)
