@@ -142,7 +142,7 @@ type BazelContext interface {
 	GetPythonBinary(label string, cfgKey configKey) (string, error)
 
 	// Returns the results of the GetApexInfo query (including output files)
-	GetApexInfo(label string, cfgkey configKey) (cquery.ApexCqueryInfo, error)
+	GetApexInfo(label string, cfgkey configKey) (cquery.ApexInfo, error)
 
 	// Returns the results of the GetCcUnstrippedInfo query
 	GetCcUnstrippedInfo(label string, cfgkey configKey) (cquery.CcUnstrippedInfo, error)
@@ -226,7 +226,7 @@ type MockBazelContext struct {
 	LabelToOutputFiles  map[string][]string
 	LabelToCcInfo       map[string]cquery.CcInfo
 	LabelToPythonBinary map[string]string
-	LabelToApexInfo     map[string]cquery.ApexCqueryInfo
+	LabelToApexInfo     map[string]cquery.ApexInfo
 	LabelToCcBinary     map[string]cquery.CcUnstrippedInfo
 }
 
@@ -249,7 +249,7 @@ func (m MockBazelContext) GetPythonBinary(label string, _ configKey) (string, er
 	return result, nil
 }
 
-func (n MockBazelContext) GetApexInfo(_ string, _ configKey) (cquery.ApexCqueryInfo, error) {
+func (m MockBazelContext) GetApexInfo(label string, _ configKey) (cquery.ApexInfo, error) {
 	panic("unimplemented")
 }
 
@@ -313,12 +313,12 @@ func (bazelCtx *bazelContext) GetPythonBinary(label string, cfgKey configKey) (s
 	return "", fmt.Errorf("no bazel response found for %v", key)
 }
 
-func (bazelCtx *bazelContext) GetApexInfo(label string, cfgKey configKey) (cquery.ApexCqueryInfo, error) {
+func (bazelCtx *bazelContext) GetApexInfo(label string, cfgKey configKey) (cquery.ApexInfo, error) {
 	key := makeCqueryKey(label, cquery.GetApexInfo, cfgKey)
 	if rawString, ok := bazelCtx.results[key]; ok {
 		return cquery.GetApexInfo.ParseResult(strings.TrimSpace(rawString)), nil
 	}
-	return cquery.ApexCqueryInfo{}, fmt.Errorf("no bazel response found for %v", key)
+	return cquery.ApexInfo{}, fmt.Errorf("no bazel response found for %v", key)
 }
 
 func (bazelCtx *bazelContext) GetCcUnstrippedInfo(label string, cfgKey configKey) (cquery.CcUnstrippedInfo, error) {
@@ -345,7 +345,7 @@ func (n noopBazelContext) GetPythonBinary(_ string, _ configKey) (string, error)
 	panic("unimplemented")
 }
 
-func (n noopBazelContext) GetApexInfo(_ string, _ configKey) (cquery.ApexCqueryInfo, error) {
+func (n noopBazelContext) GetApexInfo(_ string, _ configKey) (cquery.ApexInfo, error) {
 	panic("unimplemented")
 }
 
