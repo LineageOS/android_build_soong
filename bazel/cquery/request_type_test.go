@@ -133,12 +133,12 @@ func TestGetApexInfoParseResults(t *testing.T) {
 	testCases := []struct {
 		description    string
 		input          string
-		expectedOutput ApexCqueryInfo
+		expectedOutput ApexInfo
 	}{
 		{
 			description:    "no result",
 			input:          "{}",
-			expectedOutput: ApexCqueryInfo{},
+			expectedOutput: ApexInfo{},
 		},
 		{
 			description: "one result",
@@ -149,7 +149,7 @@ func TestGetApexInfoParseResults(t *testing.T) {
 				`"container_key_info":["foo.x509.pem", "foo.pk8", "foo"],` +
 				`"package_name":"package.name",` +
 				`"provides_native_libs":[]}`,
-			expectedOutput: ApexCqueryInfo{
+			expectedOutput: ApexInfo{
 				SignedOutput:     "my.apex",
 				UnsignedOutput:   "my.apex.unsigned",
 				RequiresLibs:     []string{"//bionic/libc:libc", "//bionic/libdl:libdl"},
