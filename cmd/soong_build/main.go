@@ -358,18 +358,29 @@ func doChosenActivity(ctx *android.Context, configuration android.Config, extraN
 		runBp2Build(configuration, extraNinjaDeps, metricsDir)
 		return bp2buildMarker
 	} else if configuration.BuildMode == android.ApiBp2build {
-		return runApiBp2build(configuration, extraNinjaDeps)
+		outputFile := runApiBp2build(configuration, extraNinjaDeps)
+		writeMetrics(configuration, ctx.EventHandler, metricsDir)
+		return outputFile
 	} else {
+
+		var outputFile string
 		if configuration.IsMixedBuildsEnabled() {
-			return runMixedModeBuild(configuration, ctx, extraNinjaDeps)
+			outputFile = runMixedModeBuild(configuration, ctx, extraNinjaDeps)
 		} else {
-			return runSoongOnlyBuild(configuration, ctx, extraNinjaDeps)
+			outputFile = runSoongOnlyBuild(configuration, ctx, extraNinjaDeps)
 		}
+
+		writeMetrics(configuration, ctx.EventHandler, metricsDir)
+
+		return outputFile
 	}
 }
 
 // runSoongOnlyBuild runs the standard Soong build in a number of different modes.
 func runSoongOnlyBuild(configuration android.Config, ctx *android.Context, extraNinjaDeps []string) string {
+	ctx.EventHandler.Begin("soong_build")
+	defer ctx.EventHandler.End("soong_build")
+
 	var stopBefore bootstrap.StopBefore
 	if configuration.BuildMode == android.GenerateModuleGraph {
 		stopBefore = bootstrap.StopBeforeWriteNinja
@@ -470,12 +481,8 @@ func main() {
 	logDir := availableEnv["LOG_DIR"]
 
 	ctx := newContext(configuration)
-	ctx.EventHandler.Begin("soong_build")
 
 	finalOutputFile := doChosenActivity(ctx, configuration, extraNinjaDeps, logDir)
-
-	ctx.EventHandler.End("soong_build")
-	writeMetrics(configuration, ctx.EventHandler, logDir)
 
 	writeUsedEnvironmentFile(configuration, finalOutputFile)
 }
