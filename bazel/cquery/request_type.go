@@ -221,7 +221,7 @@ return json_encode({
 })`
 }
 
-type ApexCqueryInfo struct {
+type ApexInfo struct {
 	SignedOutput     string   `json:"signed_output"`
 	UnsignedOutput   string   `json:"unsigned_output"`
 	ProvidesLibs     []string `json:"provides_native_libs"`
@@ -234,8 +234,8 @@ type ApexCqueryInfo struct {
 // ParseResult returns a value obtained by parsing the result of the request's Starlark function.
 // The given rawString must correspond to the string output which was created by evaluating the
 // Starlark given in StarlarkFunctionBody.
-func (g getApexInfoType) ParseResult(rawString string) ApexCqueryInfo {
-	var info ApexCqueryInfo
+func (g getApexInfoType) ParseResult(rawString string) ApexInfo {
+	var info ApexInfo
 	parseJson(rawString, &info)
 	return info
 }
