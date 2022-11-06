@@ -1120,6 +1120,7 @@ func SetKatiEnabledForTests(config Config) {
 }
 
 func AndroidMkEntriesForTest(t *testing.T, ctx *TestContext, mod blueprint.Module) []AndroidMkEntries {
+	t.Helper()
 	var p AndroidMkEntriesProvider
 	var ok bool
 	if p, ok = mod.(AndroidMkEntriesProvider); !ok {
@@ -1134,6 +1135,7 @@ func AndroidMkEntriesForTest(t *testing.T, ctx *TestContext, mod blueprint.Modul
 }
 
 func AndroidMkDataForTest(t *testing.T, ctx *TestContext, mod blueprint.Module) AndroidMkData {
+	t.Helper()
 	var p AndroidMkDataProvider
 	var ok bool
 	if p, ok = mod.(AndroidMkDataProvider); !ok {
