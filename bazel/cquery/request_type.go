@@ -219,6 +219,7 @@ return json_encode({
     "container_key_info": [container_key_info.pem.path, container_key_info.pk8.path, container_key_info.key_name],
     "package_name": info.package_name,
     "symbols_used_by_apex": info.symbols_used_by_apex.path,
+    "backing_libs": info.backing_libs.path,
 })`
 }
 
@@ -231,6 +232,7 @@ type ApexInfo struct {
 	ContainerKeyInfo  []string `json:"container_key_info"`
 	PackageName       string   `json:"package_name"`
 	SymbolsUsedByApex string   `json:"symbols_used_by_apex"`
+	BackingLibs       string   `json:"backing_libs"`
 }
 
 // ParseResult returns a value obtained by parsing the result of the request's Starlark function.
