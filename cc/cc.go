@@ -1853,6 +1853,11 @@ func (c *Module) IsMixedBuildSupported(ctx android.BaseModuleContext) bool {
 func (c *Module) ProcessBazelQueryResponse(ctx android.ModuleContext) {
 	bazelModuleLabel := c.getBazelModuleLabel(ctx)
 
+	bazelCtx := ctx.Config().BazelContext
+	if ccInfo, err := bazelCtx.GetCcInfo(bazelModuleLabel, android.GetConfigKey(ctx)); err == nil {
+		c.tidyFiles = android.PathsForBazelOut(ctx, ccInfo.TidyFiles)
+	}
+
 	c.bazelHandler.ProcessBazelQueryResponse(ctx, bazelModuleLabel)
 
 	c.Properties.SubName = GetSubnameProperty(ctx, c)
