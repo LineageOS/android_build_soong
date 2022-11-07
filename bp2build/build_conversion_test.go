@@ -209,7 +209,7 @@ func TestGenerateSoongModuleTargets(t *testing.T) {
 			_, errs = ctx.PrepareBuildActions(config)
 			android.FailIfErrored(t, errs)
 
-			codegenCtx := NewCodegenContext(config, *ctx.Context, QueryView)
+			codegenCtx := NewCodegenContext(config, ctx.Context, QueryView)
 			bazelTargets, err := generateBazelTargetsForDir(codegenCtx, dir)
 			android.FailIfErrored(t, err)
 			if actualCount, expectedCount := len(bazelTargets), 1; actualCount != expectedCount {
@@ -530,7 +530,7 @@ custom {
 				return
 			}
 
-			codegenCtx := NewCodegenContext(config, *ctx.Context, Bp2Build)
+			codegenCtx := NewCodegenContext(config, ctx.Context, Bp2Build)
 			bazelTargets, err := generateBazelTargetsForDir(codegenCtx, dir)
 			android.FailIfErrored(t, err)
 
@@ -903,7 +903,7 @@ load("//build/bazel/rules:rules.bzl", "my_library")`,
 		_, errs = ctx.ResolveDependencies(config)
 		android.FailIfErrored(t, errs)
 
-		codegenCtx := NewCodegenContext(config, *ctx.Context, Bp2Build)
+		codegenCtx := NewCodegenContext(config, ctx.Context, Bp2Build)
 		bazelTargets, err := generateBazelTargetsForDir(codegenCtx, dir)
 		android.FailIfErrored(t, err)
 		if actualCount := len(bazelTargets); actualCount != testCase.expectedBazelTargetCount {
@@ -1156,7 +1156,7 @@ func TestAllowlistingBp2buildTargetsExplicitly(t *testing.T) {
 			_, errs = ctx.ResolveDependencies(config)
 			android.FailIfErrored(t, errs)
 
-			codegenCtx := NewCodegenContext(config, *ctx.Context, Bp2Build)
+			codegenCtx := NewCodegenContext(config, ctx.Context, Bp2Build)
 			bazelTargets, err := generateBazelTargetsForDir(codegenCtx, dir)
 			android.FailIfErrored(t, err)
 			if actualCount := len(bazelTargets); actualCount != testCase.expectedCount {
@@ -1263,7 +1263,7 @@ filegroup { name: "opt-out-h", bazel_module: { bp2build_available: false } }
 		_, errs = ctx.ResolveDependencies(config)
 		android.FailIfErrored(t, errs)
 
-		codegenCtx := NewCodegenContext(config, *ctx.Context, Bp2Build)
+		codegenCtx := NewCodegenContext(config, ctx.Context, Bp2Build)
 
 		// For each directory, test that the expected number of generated targets is correct.
 		for dir, expectedCount := range testCase.expectedCount {
@@ -1398,7 +1398,7 @@ func TestCombineBuildFilesBp2buildTargets(t *testing.T) {
 			if testCase.Dir != "" {
 				checkDir = testCase.Dir
 			}
-			codegenCtx := NewCodegenContext(config, *ctx.Context, Bp2Build)
+			codegenCtx := NewCodegenContext(config, ctx.Context, Bp2Build)
 			bazelTargets, err := generateBazelTargetsForDir(codegenCtx, checkDir)
 			android.FailIfErrored(t, err)
 			bazelTargets.sort()
