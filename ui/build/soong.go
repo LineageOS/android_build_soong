@@ -332,6 +332,7 @@ func bootstrapBlueprint(ctx Context, config Config) {
 	blueprintArgs.EmptyNinjaFile = false
 
 	blueprintCtx := blueprint.NewContext()
+	blueprintCtx.AddIncludeTags(config.GetIncludeTags()...)
 	blueprintCtx.SetIgnoreUnknownModuleTypes(true)
 	blueprintConfig := BlueprintConfig{
 		soongOutDir: config.SoongOutDir(),
