@@ -136,7 +136,7 @@ type bpToBuildContext interface {
 
 type CodegenContext struct {
 	config             android.Config
-	context            android.Context
+	context            *android.Context
 	mode               CodegenMode
 	additionalDeps     []string
 	unconvertedDepMode unconvertedDepsMode
@@ -203,12 +203,12 @@ func (ctx *CodegenContext) AdditionalNinjaDeps() []string {
 	return ctx.additionalDeps
 }
 
-func (ctx *CodegenContext) Config() android.Config   { return ctx.config }
-func (ctx *CodegenContext) Context() android.Context { return ctx.context }
+func (ctx *CodegenContext) Config() android.Config    { return ctx.config }
+func (ctx *CodegenContext) Context() *android.Context { return ctx.context }
 
 // NewCodegenContext creates a wrapper context that conforms to PathContext for
 // writing BUILD files in the output directory.
-func NewCodegenContext(config android.Config, context android.Context, mode CodegenMode) *CodegenContext {
+func NewCodegenContext(config android.Config, context *android.Context, mode CodegenMode) *CodegenContext {
 	var unconvertedDeps unconvertedDepsMode
 	if config.IsEnvTrue("BP2BUILD_ERROR_UNCONVERTED") {
 		unconvertedDeps = errorModulesUnconvertedDeps

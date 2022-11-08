@@ -43,6 +43,7 @@ var (
 	InstrumentFrameworkModules = []string{
 		"framework",
 		"framework-minus-apex",
+		"ims-common",
 		"telephony-common",
 		"services",
 		"android.car",
