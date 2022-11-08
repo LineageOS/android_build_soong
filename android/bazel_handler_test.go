@@ -9,8 +9,9 @@ import (
 	"testing"
 
 	"android/soong/bazel/cquery"
-	"google.golang.org/protobuf/proto"
 	analysis_v2_proto "prebuilts/bazel/common/proto/analysis_v2"
+
+	"google.golang.org/protobuf/proto"
 )
 
 var testConfig = TestConfig("out", nil, "", nil)
@@ -86,7 +87,7 @@ func TestInvokeBazelPopulatesBuildStatements(t *testing.T) {
    { "id": 1, "label": "one" },
    { "id": 2, "label": "two" }]
 }`,
-			"cd 'test/exec_root' && rm -f 'one' && touch foo",
+			"cd 'test/exec_root' && rm -rf 'one' && touch foo",
 		}, {`
 {
  "artifacts": [
@@ -105,7 +106,7 @@ func TestInvokeBazelPopulatesBuildStatements(t *testing.T) {
    { "id": 20, "label": "one.d", "parent_id": 30 },
    { "id": 30, "label": "parent" }]
 }`,
-			`cd 'test/exec_root' && rm -f 'parent/one' && bogus command && sed -i'' -E 's@(^|\s|")bazel-out/@\1test/bazel_out/@g' 'parent/one.d'`,
+			`cd 'test/exec_root' && rm -rf 'parent/one' && bogus command && sed -i'' -E 's@(^|\s|")bazel-out/@\1test/bazel_out/@g' 'parent/one.d'`,
 		},
 	}
 

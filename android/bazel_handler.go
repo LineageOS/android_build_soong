@@ -1083,7 +1083,7 @@ func createCommand(cmd *RuleBuilderCommand, buildStatement bazel.BuildStatement,
 
 	// Remove old outputs, as some actions might not rerun if the outputs are detected.
 	if len(buildStatement.OutputPaths) > 0 {
-		cmd.Text("rm -f")
+		cmd.Text("rm -rf") // -r because outputs can be Bazel dir/tree artifacts.
 		for _, outputPath := range buildStatement.OutputPaths {
 			cmd.Text(fmt.Sprintf("'%s'", outputPath))
 		}
