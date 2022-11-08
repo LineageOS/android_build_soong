@@ -91,7 +91,27 @@ type NameResolver struct {
 	namespaceExportFilter func(*Namespace) bool
 }
 
-func NewNameResolver(namespaceExportFilter func(*Namespace) bool) *NameResolver {
+// NameResolverConfig provides the subset of the Config interface needed by the
+// NewNameResolver function.
+type NameResolverConfig interface {
+	// ExportedNamespaces is the list of namespaces that Soong must export to
+	// make.
+	ExportedNamespaces() []string
+}
+
+func NewNameResolver(config NameResolverConfig) *NameResolver {
+	namespacePathsToExport := make(map[string]bool)
+
+	for _, namespaceName := range config.ExportedNamespaces() {
+		namespacePathsToExport[namespaceName] = true
+	}
+
+	namespacePathsToExport["."] = true // always export the root namespace
+
+	namespaceExportFilter := func(namespace *Namespace) bool {
+		return namespacePathsToExport[namespace.Path]
+	}
+
 	r := &NameResolver{
 		namespacesByDir:       sync.Map{},
 		namespaceExportFilter: namespaceExportFilter,
