@@ -621,6 +621,36 @@ func TestRename(t *testing.T) {
 	// setupTest will report any errors
 }
 
+func TestNamespace_Exports(t *testing.T) {
+	result := GroupFixturePreparers(
+		prepareForTestWithNamespace,
+		FixtureModifyProductVariables(func(variables FixtureProductVariables) {
+			variables.NamespacesToExport = []string{"dir1"}
+		}),
+		dirBpToPreparer(map[string]string{
+			"dir1": `
+				soong_namespace {
+				}
+				test_module {
+					name: "a",
+				}
+			`,
+			"dir2": `
+				soong_namespace {
+				}
+				test_module {
+					name: "b",
+				}
+			`,
+		}),
+	).RunTest(t)
+
+	aModule := result.Module("a", "")
+	AssertBoolEquals(t, "a exported", true, aModule.ExportedToMake())
+	bModule := result.Module("b", "")
+	AssertBoolEquals(t, "b not exported", false, bModule.ExportedToMake())
+}
+
 // some utils to support the tests
 
 func mockFiles(bps map[string]string) (files map[string][]byte) {
