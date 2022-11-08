@@ -149,6 +149,7 @@ func TestGetApexInfoParseResults(t *testing.T) {
 				`"container_key_info":["foo.x509.pem", "foo.pk8", "foo"],` +
 				`"package_name":"package.name",` +
 				`"symbols_used_by_apex": "path/to/my.apex_using.txt",` +
+				`"backing_libs":"path/to/backing.txt",` +
 				`"provides_native_libs":[]}`,
 			expectedOutput: ApexInfo{
 				SignedOutput:      "my.apex",
@@ -159,6 +160,7 @@ func TestGetApexInfoParseResults(t *testing.T) {
 				ContainerKeyInfo:  []string{"foo.x509.pem", "foo.pk8", "foo"},
 				PackageName:       "package.name",
 				SymbolsUsedByApex: "path/to/my.apex_using.txt",
+				BackingLibs:       "path/to/backing.txt",
 			},
 		},
 	}
