@@ -9768,10 +9768,11 @@ apex {
 				OutputBaseDir: outputBaseDir,
 				LabelToApexInfo: map[string]cquery.ApexInfo{
 					"//:foo": cquery.ApexInfo{
-						SignedOutput:     "signed_out.apex",
-						UnsignedOutput:   "unsigned_out.apex",
-						BundleKeyInfo:    []string{"public_key", "private_key"},
-						ContainerKeyInfo: []string{"container_cert", "container_private"},
+						SignedOutput:      "signed_out.apex",
+						UnsignedOutput:    "unsigned_out.apex",
+						BundleKeyInfo:     []string{"public_key", "private_key"},
+						ContainerKeyInfo:  []string{"container_cert", "container_private"},
+						SymbolsUsedByApex: "foo_using.txt",
 
 						// unused
 						PackageName:  "pkg_name",
@@ -9806,6 +9807,10 @@ apex {
 	}
 
 	if w, g := "out/bazel/execroot/__main__/signed_out.apex", ab.outputFile.String(); w != g {
+		t.Errorf("Expected output file %q, got %q", w, g)
+	}
+
+	if w, g := "out/bazel/execroot/__main__/foo_using.txt", ab.nativeApisUsedByModuleFile.String(); w != g {
 		t.Errorf("Expected output file %q, got %q", w, g)
 	}
 }
