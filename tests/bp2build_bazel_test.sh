@@ -140,7 +140,7 @@ EOF
   # NOTE: We don't actually use the extra BUILD file for anything here
   run_bazel build --config=android --config=bp2build --config=ci //foo/...
 
-  local the_answer_file="$(find -L bazel-out -name the_answer.txt)"
+  local -r the_answer_file="$(find -L bazel-out -name the_answer.txt)"
   if [[ ! -f "${the_answer_file}" ]]; then
     fail "Expected the_answer.txt to be generated, but was missing"
   fi
@@ -154,6 +154,49 @@ function test_bp2build_generates_all_buildfiles {
   trap '[[ $? -ne 0 ]] && echo Are you running this locally? Try changing --sandbox_tmpfs_path to something other than /tmp/ in build/bazel/linux.bazelrc.' EXIT
   _bp2build_generates_all_buildfiles
   eval "${_save_trap}"
+}
+
+function test_bp2build_symlinks_files {
+  setup
+  mkdir -p foo
+  touch foo/BLANK1
+  touch foo/BLANK2
+  touch foo/F2D
+  touch foo/BUILD
+
+  run_soong bp2build
+
+  if [[ -e "./out/soong/workspace/foo/BUILD" ]]; then
+    fail "./out/soong/workspace/foo/BUILD should be omitted"
+  fi
+  for file in BLANK1 BLANK2 F2D
+  do
+    if [[ ! -L "./out/soong/workspace/foo/$file" ]]; then
+      fail "./out/soong/workspace/foo/$file should exist"
+    fi
+  done
+  local -r BLANK1_BEFORE=$(stat -c %y "./out/soong/workspace/foo/BLANK1")
+
+  rm foo/BLANK2
+  rm foo/F2D
+  mkdir foo/F2D
+  touch foo/F2D/BUILD
+
+  run_soong bp2build
+
+  if [[ -e "./out/soong/workspace/foo/BUILD" ]]; then
+    fail "./out/soong/workspace/foo/BUILD should be omitted"
+  fi
+  local -r BLANK1_AFTER=$(stat -c %y "./out/soong/workspace/foo/BLANK1")
+  if [[ "$BLANK1_AFTER" != "$BLANK1_BEFORE" ]]; then
+    fail "./out/soong/workspace/foo/BLANK1 should be untouched"
+  fi
+  if [[  -e "./out/soong/workspace/foo/BLANK2" ]]; then
+    fail "./out/soong/workspace/foo/BLANK2 should be removed"
+  fi
+  if [[ -L "./out/soong/workspace/foo/F2D" ]] || [[ ! -d "./out/soong/workspace/foo/F2D" ]]; then
+    fail "./out/soong/workspace/foo/F2D should be a dir"
+  fi
 }
 
 function test_cc_correctness {
