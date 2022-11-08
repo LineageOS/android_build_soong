@@ -1109,7 +1109,7 @@ func (c *deviceConfig) WithDexpreopt() bool {
 	return c.config.productVariables.WithDexpreopt
 }
 
-func (c *config) FrameworksBaseDirExists(ctx PathGlobContext) bool {
+func (c *config) FrameworksBaseDirExists(ctx PathContext) bool {
 	return ExistentPathForSource(ctx, "frameworks", "base", "Android.bp").Valid()
 }
 

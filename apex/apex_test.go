@@ -16,6 +16,7 @@ package apex
 
 import (
 	"fmt"
+	"os"
 	"path"
 	"path/filepath"
 	"reflect"
@@ -9743,4 +9744,8 @@ func TestApexBuildsAgainstApiSurfaceStubLibraries(t *testing.T) {
 	libfooCoreVariant := result.ModuleForTests("libfoo", "android_arm64_armv8-a_shared").Module()
 	libcCoreVariant := result.ModuleForTests("libc.apiimport", "android_arm64_armv8-a_shared").Module()
 	android.AssertBoolEquals(t, "core variant should link against source libc", true, hasDep(libfooCoreVariant, libcCoreVariant))
+}
+
+func TestMain(m *testing.M) {
+	os.Exit(m.Run())
 }

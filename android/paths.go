@@ -39,7 +39,6 @@ type PathContext interface {
 }
 
 type PathGlobContext interface {
-	PathContext
 	GlobWithDeps(globPattern string, excludes []string) ([]string, error)
 }
 
@@ -57,6 +56,7 @@ func (ctx NullPathContext) Config() Config         { return ctx.config }
 // EarlyModulePathContext is a subset of EarlyModuleContext methods required by the
 // Path methods. These path methods can be called before any mutators have run.
 type EarlyModulePathContext interface {
+	PathContext
 	PathGlobContext
 
 	ModuleDir() string
@@ -375,7 +375,7 @@ func PathsForSource(ctx PathContext, paths []string) Paths {
 // ExistentPathsForSources returns a list of Paths rooted from SrcDir, *not* rooted from the
 // module's local source directory, that are found in the tree. If any are not found, they are
 // omitted from the list, and dependencies are added so that we're re-run when they are added.
-func ExistentPathsForSources(ctx PathGlobContext, paths []string) Paths {
+func ExistentPathsForSources(ctx PathContext, paths []string) Paths {
 	ret := make(Paths, 0, len(paths))
 	for _, path := range paths {
 		p := ExistentPathForSource(ctx, path)
@@ -1087,12 +1087,21 @@ func pathForSource(ctx PathContext, pathComponents ...string) (SourcePath, error
 
 // existsWithDependencies returns true if the path exists, and adds appropriate dependencies to rerun if the
 // path does not exist.
-func existsWithDependencies(ctx PathGlobContext, path SourcePath) (exists bool, err error) {
+func existsWithDependencies(ctx PathContext, path SourcePath) (exists bool, err error) {
 	var files []string
 
-	// Use glob to produce proper dependencies, even though we only want
-	// a single file.
-	files, err = ctx.GlobWithDeps(path.String(), nil)
+	if gctx, ok := ctx.(PathGlobContext); ok {
+		// Use glob to produce proper dependencies, even though we only want
+		// a single file.
+		files, err = gctx.GlobWithDeps(path.String(), nil)
+	} else {
+		var result pathtools.GlobResult
+		// We cannot add build statements in this context, so we fall back to
+		// AddNinjaFileDeps
+		result, err = ctx.Config().fs.Glob(path.String(), nil, pathtools.FollowSymlinks)
+		ctx.AddNinjaFileDeps(result.Deps...)
+		files = result.Matches
+	}
 
 	if err != nil {
 		return false, fmt.Errorf("glob: %s", err.Error())
@@ -1115,7 +1124,7 @@ func PathForSource(ctx PathContext, pathComponents ...string) SourcePath {
 	}
 
 	if modCtx, ok := ctx.(ModuleMissingDepsPathContext); ok && ctx.Config().AllowMissingDependencies() {
-		exists, err := existsWithDependencies(modCtx, path)
+		exists, err := existsWithDependencies(ctx, path)
 		if err != nil {
 			reportPathError(ctx, err)
 		}
@@ -1149,7 +1158,7 @@ func MaybeExistentPathForSource(ctx PathContext, pathComponents ...string) Sourc
 // rooted from the module's local source directory, if the path exists, or an empty OptionalPath if
 // it doesn't exist. Dependencies are added so that the ninja file will be regenerated if the state
 // of the path changes.
-func ExistentPathForSource(ctx PathGlobContext, pathComponents ...string) OptionalPath {
+func ExistentPathForSource(ctx PathContext, pathComponents ...string) OptionalPath {
 	path, err := pathForSource(ctx, pathComponents...)
 	if err != nil {
 		reportPathError(ctx, err)

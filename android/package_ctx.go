@@ -48,7 +48,7 @@ type configErrorWrapper struct {
 
 var _ PathContext = &configErrorWrapper{}
 var _ errorfContext = &configErrorWrapper{}
-var _ PackageVarContext = &variableFuncContextWrapper{}
+var _ PackageVarContext = &configErrorWrapper{}
 var _ PackagePoolContext = &configErrorWrapper{}
 var _ PackageRuleContext = &configErrorWrapper{}
 
@@ -62,33 +62,21 @@ func (e *configErrorWrapper) AddNinjaFileDeps(deps ...string) {
 	e.config.addNinjaFileDeps(deps...)
 }
 
-type variableFuncContextWrapper struct {
-	configErrorWrapper
-	blueprint.VariableFuncContext
-}
-
-type PackagePoolContext interface {
+type PackageVarContext interface {
 	PathContext
 	errorfContext
 }
 
-type PackageRuleContext PackagePoolContext
-
-type PackageVarContext interface {
-	PackagePoolContext
-	PathGlobContext
-}
+type PackagePoolContext PackageVarContext
+type PackageRuleContext PackageVarContext
 
 // VariableFunc wraps blueprint.PackageContext.VariableFunc, converting the interface{} config
 // argument to a PackageVarContext.
 func (p PackageContext) VariableFunc(name string,
 	f func(PackageVarContext) string) blueprint.Variable {
 
-	return p.PackageContext.VariableFunc(name, func(bpctx blueprint.VariableFuncContext, config interface{}) (string, error) {
-		ctx := &variableFuncContextWrapper{
-			configErrorWrapper:  configErrorWrapper{p, config.(Config), nil},
-			VariableFuncContext: bpctx,
-		}
+	return p.PackageContext.VariableFunc(name, func(config interface{}) (string, error) {
+		ctx := &configErrorWrapper{p, config.(Config), nil}
 		ret := f(ctx)
 		if len(ctx.errors) > 0 {
 			return "", ctx.errors[0]
