@@ -536,7 +536,7 @@ func (c *config) mockFileSystem(bp string, fs map[string][]byte) {
 // Returns true if "Bazel builds" is enabled. In this mode, part of build
 // analysis is handled by Bazel.
 func (c *config) IsMixedBuildsEnabled() bool {
-	return c.BuildMode == BazelProdMode || c.BuildMode == BazelDevMode
+	return c.BuildMode == BazelProdMode || c.BuildMode == BazelDevMode || c.BuildMode == BazelStagingMode
 }
 
 func (c *config) SetAllowMissingDependencies() {
