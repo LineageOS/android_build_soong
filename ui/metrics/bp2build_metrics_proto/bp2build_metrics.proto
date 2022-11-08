@@ -27,6 +27,12 @@ message Bp2BuildMetrics {
   // Total number of unconverted Soong modules
   uint64 unconvertedModuleCount = 3;
 
+  // Counts of symlinks in synthetic bazel workspace
+  uint64 workspaceSymlinkCount= 9;
+
+  // Counts of mkdir calls during creation of synthetic bazel workspace
+  uint64 workspaceMkDirCount= 10;
+
   // Counts of generated Bazel targets per Bazel rule class
   map<string, uint64> ruleClassCount = 4;
 
