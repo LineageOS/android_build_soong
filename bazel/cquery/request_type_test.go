@@ -3,10 +3,12 @@ package cquery
 import (
 	"encoding/json"
 	"reflect"
+	"strings"
 	"testing"
 )
 
 func TestGetOutputFilesParseResults(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		description    string
 		input          string
@@ -29,14 +31,17 @@ func TestGetOutputFilesParseResults(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		actualOutput := GetOutputFiles.ParseResult(tc.input)
-		if !reflect.DeepEqual(tc.expectedOutput, actualOutput) {
-			t.Errorf("%q: expected %#v != actual %#v", tc.description, tc.expectedOutput, actualOutput)
-		}
+		t.Run(tc.description, func(t *testing.T) {
+			actualOutput := GetOutputFiles.ParseResult(tc.input)
+			if !reflect.DeepEqual(tc.expectedOutput, actualOutput) {
+				t.Errorf("expected %#v != actual %#v", tc.expectedOutput, actualOutput)
+			}
+		})
 	}
 }
 
 func TestGetPythonBinaryParseResults(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		description    string
 		input          string
@@ -54,14 +59,17 @@ func TestGetPythonBinaryParseResults(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		actualOutput := GetPythonBinary.ParseResult(tc.input)
-		if !reflect.DeepEqual(tc.expectedOutput, actualOutput) {
-			t.Errorf("%q: expected %#v != actual %#v", tc.description, tc.expectedOutput, actualOutput)
-		}
+		t.Run(tc.description, func(t *testing.T) {
+			actualOutput := GetPythonBinary.ParseResult(tc.input)
+			if !reflect.DeepEqual(tc.expectedOutput, actualOutput) {
+				t.Errorf("expected %#v != actual %#v", tc.expectedOutput, actualOutput)
+			}
+		})
 	}
 }
 
 func TestGetCcInfoParseResults(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		description    string
 		inputCcInfo    CcInfo
@@ -71,24 +79,6 @@ func TestGetCcInfoParseResults(t *testing.T) {
 			description:    "no result",
 			inputCcInfo:    CcInfo{},
 			expectedOutput: CcInfo{},
-		},
-		{
-			description: "only output",
-			inputCcInfo: CcInfo{
-				OutputFiles: []string{"test", "test3"},
-			},
-			expectedOutput: CcInfo{
-				OutputFiles: []string{"test", "test3"},
-			},
-		},
-		{
-			description: "only ToC",
-			inputCcInfo: CcInfo{
-				TocFile: "test",
-			},
-			expectedOutput: CcInfo{
-				TocFile: "test",
-			},
 		},
 		{
 			description: "all items set",
@@ -119,17 +109,51 @@ func TestGetCcInfoParseResults(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		jsonInput, _ := json.Marshal(tc.inputCcInfo)
-		actualOutput, err := GetCcInfo.ParseResult(string(jsonInput))
-		if err != nil {
-			t.Errorf("%q:\n test case get error: %q", tc.description, err)
-		} else if err == nil && !reflect.DeepEqual(tc.expectedOutput, actualOutput) {
-			t.Errorf("%q:\n expected %#v\n!= actual %#v", tc.description, tc.expectedOutput, actualOutput)
-		}
+		t.Run(tc.description, func(t *testing.T) {
+			jsonInput, _ := json.Marshal(tc.inputCcInfo)
+			actualOutput, err := GetCcInfo.ParseResult(string(jsonInput))
+			if err != nil {
+				t.Errorf("error parsing result: %q", err)
+			} else if err == nil && !reflect.DeepEqual(tc.expectedOutput, actualOutput) {
+				t.Errorf("expected %#v\n!= actual %#v", tc.expectedOutput, actualOutput)
+			}
+		})
+	}
+}
+
+func TestGetCcInfoParseResultsError(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		description   string
+		input         string
+		expectedError string
+	}{
+		{
+			description:   "not json",
+			input:         ``,
+			expectedError: `cannot parse cquery result '': EOF`,
+		},
+		{
+			description: "invalid field",
+			input: `{
+	"toc_file": "dir/file.so.toc"
+}`,
+			expectedError: `json: unknown field "toc_file"`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			_, err := GetCcInfo.ParseResult(tc.input)
+			if !strings.Contains(err.Error(), tc.expectedError) {
+				t.Errorf("expected string %q in error message, got %q", tc.expectedError, err)
+			}
+		})
 	}
 }
 
 func TestGetApexInfoParseResults(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		description    string
 		input          string
@@ -169,14 +193,51 @@ func TestGetApexInfoParseResults(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		actualOutput := GetApexInfo.ParseResult(tc.input)
-		if !reflect.DeepEqual(tc.expectedOutput, actualOutput) {
-			t.Errorf("%q: expected %#v != actual %#v", tc.description, tc.expectedOutput, actualOutput)
-		}
+		t.Run(tc.description, func(t *testing.T) {
+			actualOutput, err := GetApexInfo.ParseResult(tc.input)
+			if err != nil {
+				t.Errorf("Unexpected error %q", err)
+			}
+			if !reflect.DeepEqual(tc.expectedOutput, actualOutput) {
+				t.Errorf("expected %#v != actual %#v", tc.expectedOutput, actualOutput)
+			}
+		})
+	}
+}
+
+func TestGetApexInfoParseResultsError(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		description   string
+		input         string
+		expectedError string
+	}{
+		{
+			description:   "not json",
+			input:         ``,
+			expectedError: `cannot parse cquery result '': EOF`,
+		},
+		{
+			description: "invalid field",
+			input: `{
+	"fake_field": "path/to/file"
+}`,
+			expectedError: `json: unknown field "fake_field"`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			_, err := GetApexInfo.ParseResult(tc.input)
+			if !strings.Contains(err.Error(), tc.expectedError) {
+				t.Errorf("expected string %q in error message, got %q", tc.expectedError, err)
+			}
+		})
 	}
 }
 
 func TestGetCcUnstrippedParseResults(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		description    string
 		input          string
@@ -197,9 +258,45 @@ func TestGetCcUnstrippedParseResults(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		actualOutput := GetCcUnstrippedInfo.ParseResult(tc.input)
-		if !reflect.DeepEqual(tc.expectedOutput, actualOutput) {
-			t.Errorf("%q: expected %#v != actual %#v", tc.description, tc.expectedOutput, actualOutput)
-		}
+		t.Run(tc.description, func(t *testing.T) {
+			actualOutput, err := GetCcUnstrippedInfo.ParseResult(tc.input)
+			if err != nil {
+				t.Errorf("Unexpected error %q", err)
+			}
+			if !reflect.DeepEqual(tc.expectedOutput, actualOutput) {
+				t.Errorf("expected %#v != actual %#v", tc.expectedOutput, actualOutput)
+			}
+		})
+	}
+}
+
+func TestGetCcUnstrippedParseResultsErrors(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		description   string
+		input         string
+		expectedError string
+	}{
+		{
+			description:   "not json",
+			input:         ``,
+			expectedError: `cannot parse cquery result '': EOF`,
+		},
+		{
+			description: "invalid field",
+			input: `{
+	"fake_field": "path/to/file"
+}`,
+			expectedError: `json: unknown field "fake_field"`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			_, err := GetCcUnstrippedInfo.ParseResult(tc.input)
+			if !strings.Contains(err.Error(), tc.expectedError) {
+				t.Errorf("expected string %q in error message, got %q", tc.expectedError, err)
+			}
+		})
 	}
 }

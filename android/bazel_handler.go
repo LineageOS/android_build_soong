@@ -317,7 +317,7 @@ func (bazelCtx *bazelContext) GetPythonBinary(label string, cfgKey configKey) (s
 func (bazelCtx *bazelContext) GetApexInfo(label string, cfgKey configKey) (cquery.ApexInfo, error) {
 	key := makeCqueryKey(label, cquery.GetApexInfo, cfgKey)
 	if rawString, ok := bazelCtx.results[key]; ok {
-		return cquery.GetApexInfo.ParseResult(strings.TrimSpace(rawString)), nil
+		return cquery.GetApexInfo.ParseResult(strings.TrimSpace(rawString))
 	}
 	return cquery.ApexInfo{}, fmt.Errorf("no bazel response found for %v", key)
 }
@@ -325,7 +325,7 @@ func (bazelCtx *bazelContext) GetApexInfo(label string, cfgKey configKey) (cquer
 func (bazelCtx *bazelContext) GetCcUnstrippedInfo(label string, cfgKey configKey) (cquery.CcUnstrippedInfo, error) {
 	key := makeCqueryKey(label, cquery.GetCcUnstrippedInfo, cfgKey)
 	if rawString, ok := bazelCtx.results[key]; ok {
-		return cquery.GetCcUnstrippedInfo.ParseResult(strings.TrimSpace(rawString)), nil
+		return cquery.GetCcUnstrippedInfo.ParseResult(strings.TrimSpace(rawString))
 	}
 	return cquery.CcUnstrippedInfo{}, fmt.Errorf("no bazel response for %s", key)
 }
