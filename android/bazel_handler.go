@@ -250,7 +250,8 @@ func (m MockBazelContext) GetPythonBinary(label string, _ configKey) (string, er
 }
 
 func (m MockBazelContext) GetApexInfo(label string, _ configKey) (cquery.ApexInfo, error) {
-	panic("unimplemented")
+	result, _ := m.LabelToApexInfo[label]
+	return result, nil
 }
 
 func (m MockBazelContext) GetCcUnstrippedInfo(label string, _ configKey) (cquery.CcUnstrippedInfo, error) {
@@ -388,9 +389,12 @@ func NewBazelContext(c *config) (BazelContext, error) {
 		}
 	case BazelStagingMode:
 		modulesDefaultToBazel = false
+		// Staging mode includes all prod modules plus all staging modules.
+		for _, enabledProdModule := range allowlists.ProdMixedBuildsEnabledList {
+			enabledModules[enabledProdModule] = true
+		}
 		for _, enabledStagingMode := range allowlists.StagingMixedBuildsEnabledList {
 			enabledModules[enabledStagingMode] = true
-
 		}
 	case BazelDevMode:
 		modulesDefaultToBazel = true
@@ -1082,7 +1086,7 @@ func createCommand(cmd *RuleBuilderCommand, buildStatement bazel.BuildStatement,
 
 	// Remove old outputs, as some actions might not rerun if the outputs are detected.
 	if len(buildStatement.OutputPaths) > 0 {
-		cmd.Text("rm -f")
+		cmd.Text("rm -rf") // -r because outputs can be Bazel dir/tree artifacts.
 		for _, outputPath := range buildStatement.OutputPaths {
 			cmd.Text(fmt.Sprintf("'%s'", outputPath))
 		}
