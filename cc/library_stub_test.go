@@ -284,3 +284,54 @@ func TestExportDirFromStubLibrary(t *testing.T) {
 	// These header files are required for compiling the other API domain (vendor in this case)
 	android.AssertStringListContains(t, "Vendor binary compilation should have an implicit dep on the stub .so file", vendorImplicits, "libfoo.so")
 }
+
+func TestApiLibraryWithLlndkVariant(t *testing.T) {
+	bp := `
+		cc_binary {
+			name: "binfoo",
+			vendor: true,
+			srcs: ["binfoo.cc"],
+			shared_libs: ["libbar"],
+		}
+
+		cc_api_library {
+			name: "libbar",
+			// TODO(b/244244438) Remove src property once all variants are implemented.
+			src: "libbar.so",
+			vendor_available: true,
+			variants: [
+				"llndk",
+			],
+		}
+
+		cc_api_variant {
+			name: "libbar",
+			variant: "llndk",
+			src: "libbar_llndk.so",
+			export_headers: ["libbar_llndk_include"]
+		}
+
+		api_imports {
+			name: "api_imports",
+			shared_libs: [
+				"libbar",
+			],
+			header_libs: [],
+		}
+	`
+
+	ctx := prepareForCcTest.RunTestWithBp(t, bp)
+
+	libfoo := ctx.ModuleForTests("binfoo", "android_vendor.29_arm64_armv8-a").Module()
+	libbarApiImport := ctx.ModuleForTests("libbar.apiimport", "android_vendor.29_arm64_armv8-a_shared").Module()
+	libbarApiVariant := ctx.ModuleForTests("libbar.llndk.apiimport", "android_vendor.29_arm64_armv8-a").Module()
+
+	android.AssertBoolEquals(t, "Stub library from API surface should be linked", true, hasDirectDependency(t, ctx, libfoo, libbarApiImport))
+	android.AssertBoolEquals(t, "Stub library variant from API surface should be linked", true, hasDirectDependency(t, ctx, libbarApiImport, libbarApiVariant))
+
+	libFooLibFlags := ctx.ModuleForTests("binfoo", "android_vendor.29_arm64_armv8-a").Rule("ld").Args["libFlags"]
+	android.AssertStringDoesContain(t, "Vendor binary should be linked with LLNDK variant source", libFooLibFlags, "libbar_llndk.so")
+
+	libFooCFlags := ctx.ModuleForTests("binfoo", "android_vendor.29_arm64_armv8-a").Rule("cc").Args["cFlags"]
+	android.AssertStringDoesContain(t, "Vendor binary should include headers from the LLNDK variant source", libFooCFlags, "-Ilibbar_llndk_include")
+}
