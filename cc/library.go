@@ -956,7 +956,7 @@ func GlobHeadersForSnapshot(ctx android.ModuleContext, paths android.Paths) andr
 	for _, path := range paths {
 		dir := path.String()
 		// Skip if dir is for generated headers
-		if strings.HasPrefix(dir, android.PathForOutput(ctx).String()) {
+		if strings.HasPrefix(dir, ctx.Config().OutDir()) {
 			continue
 		}
 
