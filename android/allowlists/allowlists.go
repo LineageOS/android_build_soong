@@ -1339,9 +1339,12 @@ var (
 		"prebuilt_currysrc_org.eclipse",
 	}
 
+	// Bazel prod-mode allowlist. Modules in this list are built by Bazel
+	// in either prod mode or staging mode.
 	ProdMixedBuildsEnabledList = []string{}
 
-	// Staging builds should be entirely prod, plus some near-ready ones. Add the
-	// new ones to the first argument as needed.
-	StagingMixedBuildsEnabledList = append([]string{}, ProdMixedBuildsEnabledList...)
+	// Staging-mode allowlist. Modules in this list are only built
+	// by Bazel with --bazel-mode-staging. This list should contain modules
+	// which will soon be added to the prod allowlist.
+	StagingMixedBuildsEnabledList = []string{}
 )
