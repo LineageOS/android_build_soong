@@ -69,6 +69,9 @@ var (
 		"build/soong/scripts":                Bp2BuildDefaultTrueRecursively,
 
 		"cts/common/device-side/nativetesthelper/jni": Bp2BuildDefaultTrueRecursively,
+
+		"dalvik/tools/dexdeps": Bp2BuildDefaultTrueRecursively,
+
 		"development/apps/DevelopmentSettings":        Bp2BuildDefaultTrue,
 		"development/apps/Fallback":                   Bp2BuildDefaultTrue,
 		"development/apps/WidgetPreview":              Bp2BuildDefaultTrue,
@@ -176,7 +179,7 @@ var (
 		"external/zopfli":                        Bp2BuildDefaultTrueRecursively,
 		"external/zstd":                          Bp2BuildDefaultTrueRecursively,
 
-		"frameworks/av":                                      Bp2BuildDefaultTrue,
+		"frameworks/av": Bp2BuildDefaultTrue,
 		"frameworks/av/media/codec2/components/aom":          Bp2BuildDefaultTrueRecursively,
 		"frameworks/av/media/codecs":                         Bp2BuildDefaultTrueRecursively,
 		"frameworks/av/media/liberror":                       Bp2BuildDefaultTrueRecursively,
