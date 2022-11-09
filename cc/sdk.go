@@ -78,5 +78,7 @@ func sdkMutator(ctx android.BottomUpMutatorContext) {
 		}
 	case *snapshotModule:
 		ctx.CreateVariations("")
+	case *CcApiVariant:
+		ctx.CreateVariations("")
 	}
 }
