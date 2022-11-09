@@ -41,6 +41,7 @@ func TestAsan(t *testing.T) {
 			static_libs: [
 				"libstatic",
 				"libnoasan",
+				"libstatic_asan",
 			],
 			sanitize: {
 				address: true,
@@ -57,6 +58,7 @@ func TestAsan(t *testing.T) {
 			static_libs: [
 				"libstatic",
 				"libnoasan",
+				"libstatic_asan",
 			],
 		}
 
@@ -92,6 +94,15 @@ func TestAsan(t *testing.T) {
 				address: false,
 			}
 		}
+
+		cc_library_static {
+			name: "libstatic_asan",
+			host_supported: true,
+			sanitize: {
+				address: true,
+			}
+		}
+
 	`
 
 	result := android.GroupFixturePreparers(
@@ -124,6 +135,10 @@ func TestAsan(t *testing.T) {
 
 		// Static library that never uses asan.
 		libNoAsan := result.ModuleForTests("libnoasan", staticVariant)
+
+		// Static library that specifies asan
+		libStaticAsan := result.ModuleForTests("libstatic_asan", staticAsanVariant)
+		libStaticAsanNoAsanVariant := result.ModuleForTests("libstatic_asan", staticVariant)
 
 		// expectSharedLinkDep verifies that the from module links against the to module as a
 		// shared library.
@@ -176,6 +191,7 @@ func TestAsan(t *testing.T) {
 
 		expectStaticLinkDep(binWithAsan, libStaticAsanVariant)
 		expectStaticLinkDep(binWithAsan, libNoAsan)
+		expectStaticLinkDep(binWithAsan, libStaticAsan)
 
 		expectInstallDep(binWithAsan, libShared)
 		expectInstallDep(binWithAsan, libAsan)
@@ -190,6 +206,7 @@ func TestAsan(t *testing.T) {
 
 		expectStaticLinkDep(binNoAsan, libStaticNoAsanVariant)
 		expectStaticLinkDep(binNoAsan, libNoAsan)
+		expectStaticLinkDep(binNoAsan, libStaticAsanNoAsanVariant)
 
 		expectInstallDep(binNoAsan, libShared)
 		expectInstallDep(binNoAsan, libAsan)
