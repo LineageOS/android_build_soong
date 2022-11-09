@@ -22,11 +22,12 @@ package bp2build
 // run for longer, set -benchtime to a larger value.
 
 import (
-	"android/soong/android"
 	"fmt"
 	"math"
 	"strings"
 	"testing"
+
+	"android/soong/android"
 )
 
 const (
@@ -105,7 +106,7 @@ func setup(builddir string, tcSize float64) testConfig {
 	ctx := android.NewTestContext(config)
 
 	registerCustomModuleForBp2buildConversion(ctx)
-	codegenCtx := NewCodegenContext(config, *ctx.Context, Bp2Build)
+	codegenCtx := NewCodegenContext(config, ctx.Context, Bp2Build)
 	return testConfig{
 		config,
 		ctx,
