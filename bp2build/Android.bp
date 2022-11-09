@@ -8,6 +8,7 @@ bootstrap_go_package {
     srcs: [
         "androidbp_to_build_templates.go",
         "bp2build.go",
+        "bp2build_product_config.go",
         "build_conversion.go",
         "bzl_conversion.go",
         "configurability.go",
