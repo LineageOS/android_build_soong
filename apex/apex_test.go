@@ -527,7 +527,6 @@ func TestBasicApex(t *testing.T) {
 	data.Custom(&builder, ab.BaseModuleName(), "TARGET_", "", data)
 
 	androidMk := builder.String()
-	ensureContains(t, androidMk, "LOCAL_MODULE := mylib.myapex\n")
 	ensureNotContains(t, androidMk, "LOCAL_MODULE := mylib.com.android.myapex\n")
 
 	optFlags := apexRule.Args["opt_flags"]
@@ -4126,7 +4125,6 @@ func TestApexName(t *testing.T) {
 	var builder strings.Builder
 	data.Custom(&builder, name, prefix, "", data)
 	androidMk := builder.String()
-	ensureContains(t, androidMk, "LOCAL_MODULE := mylib.myapex\n")
 	ensureNotContains(t, androidMk, "LOCAL_MODULE := mylib.com.android.myapex\n")
 }
 
@@ -5625,12 +5623,6 @@ func TestApexWithTests(t *testing.T) {
 	var builder strings.Builder
 	data.Custom(&builder, name, prefix, "", data)
 	androidMk := builder.String()
-	ensureContains(t, androidMk, "LOCAL_MODULE := mytest.myapex\n")
-	ensureContains(t, androidMk, "LOCAL_MODULE := mytest1.myapex\n")
-	ensureContains(t, androidMk, "LOCAL_MODULE := mytest2.myapex\n")
-	ensureContains(t, androidMk, "LOCAL_MODULE := mytest3.myapex\n")
-	ensureContains(t, androidMk, "LOCAL_MODULE := apex_manifest.pb.myapex\n")
-	ensureContains(t, androidMk, "LOCAL_MODULE := apex_pubkey.myapex\n")
 	ensureContains(t, androidMk, "LOCAL_MODULE := myapex\n")
 
 	flatBundle := ctx.ModuleForTests("myapex", "android_common_myapex_flattened").Module().(*apexBundle)
@@ -6457,12 +6449,6 @@ func TestOverrideApex(t *testing.T) {
 	var builder strings.Builder
 	data.Custom(&builder, name, "TARGET_", "", data)
 	androidMk := builder.String()
-	ensureContains(t, androidMk, "LOCAL_MODULE := override_app.override_myapex")
-	ensureContains(t, androidMk, "LOCAL_MODULE := overrideBpf.o.override_myapex")
-	ensureContains(t, androidMk, "LOCAL_MODULE := apex_manifest.pb.override_myapex")
-	ensureContains(t, androidMk, "LOCAL_MODULE := override_bcplib.override_myapex")
-	ensureContains(t, androidMk, "LOCAL_MODULE := override_systemserverlib.override_myapex")
-	ensureContains(t, androidMk, "LOCAL_MODULE := override_java_library.override_myapex")
 	ensureContains(t, androidMk, "LOCAL_MODULE_STEM := override_myapex.apex")
 	ensureContains(t, androidMk, "LOCAL_OVERRIDES_MODULES := unknownapex myapex")
 	ensureNotContains(t, androidMk, "LOCAL_MODULE := app.myapex")
@@ -7192,17 +7178,17 @@ func TestSymlinksFromApexToSystemRequiredModuleNames(t *testing.T) {
 		}
 	`)
 
-	apexBundle := ctx.ModuleForTests("myapex", "android_common_myapex_image").Module().(*apexBundle)
+	apexBundle := ctx.ModuleForTests("myapex", "android_common_myapex_flattened").Module().(*apexBundle)
 	data := android.AndroidMkDataForTest(t, ctx, apexBundle)
 	var builder strings.Builder
 	data.Custom(&builder, apexBundle.BaseModuleName(), "TARGET_", "", data)
 	androidMk := builder.String()
 	// `myotherlib` is added to `myapex` as symlink
-	ensureContains(t, androidMk, "LOCAL_MODULE := mylib.myapex\n")
+	ensureContains(t, androidMk, "LOCAL_MODULE := mylib.myapex.flattened\n")
 	ensureNotContains(t, androidMk, "LOCAL_MODULE := prebuilt_myotherlib.myapex\n")
 	ensureNotContains(t, androidMk, "LOCAL_MODULE := myotherlib.myapex\n")
 	// `myapex` should have `myotherlib` in its required line, not `prebuilt_myotherlib`
-	ensureContains(t, androidMk, "LOCAL_REQUIRED_MODULES += mylib.myapex:64 myotherlib:64 apex_manifest.pb.myapex apex_pubkey.myapex\n")
+	ensureContains(t, androidMk, "LOCAL_REQUIRED_MODULES += mylib.myapex.flattened:64 myotherlib:64 apex_manifest.pb.myapex.flattened apex_pubkey.myapex.flattened\n")
 }
 
 func TestApexWithJniLibs(t *testing.T) {
@@ -9768,11 +9754,13 @@ apex {
 				OutputBaseDir: outputBaseDir,
 				LabelToApexInfo: map[string]cquery.ApexInfo{
 					"//:foo": cquery.ApexInfo{
-						SignedOutput:      "signed_out.apex",
-						UnsignedOutput:    "unsigned_out.apex",
-						BundleKeyInfo:     []string{"public_key", "private_key"},
-						ContainerKeyInfo:  []string{"container_cert", "container_private"},
-						SymbolsUsedByApex: "foo_using.txt",
+						SignedOutput:          "signed_out.apex",
+						UnsignedOutput:        "unsigned_out.apex",
+						BundleKeyInfo:         []string{"public_key", "private_key"},
+						ContainerKeyInfo:      []string{"container_cert", "container_private"},
+						SymbolsUsedByApex:     "foo_using.txt",
+						JavaSymbolsUsedByApex: "foo_using.xml",
+						BundleFile:            "apex_bundle.zip",
 
 						// unused
 						PackageName:  "pkg_name",
@@ -9812,5 +9800,18 @@ apex {
 
 	if w, g := "out/bazel/execroot/__main__/foo_using.txt", ab.nativeApisUsedByModuleFile.String(); w != g {
 		t.Errorf("Expected output file %q, got %q", w, g)
+	}
+
+	if w, g := "out/bazel/execroot/__main__/foo_using.xml", ab.javaApisUsedByModuleFile.String(); w != g {
+		t.Errorf("Expected output file %q, got %q", w, g)
+	}
+
+	mkData := android.AndroidMkDataForTest(t, result.TestContext, m)
+	var builder strings.Builder
+	mkData.Custom(&builder, "foo", "BAZEL_TARGET_", "", mkData)
+
+	data := builder.String()
+	if w := "ALL_MODULES.$(my_register_name).BUNDLE := out/bazel/execroot/__main__/apex_bundle.zip"; !strings.Contains(data, w) {
+		t.Errorf("Expected %q in androidmk data, but did not find %q", w, data)
 	}
 }
