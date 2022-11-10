@@ -222,6 +222,7 @@ var (
 		"":               "${config.ArmGenericCflags}",
 		"cortex-a7":      "${config.ArmCortexA7Cflags}",
 		"cortex-a8":      "${config.ArmCortexA8Cflags}",
+		"cortex-a9":      "${config.ArmGenericCflags}",
 		"cortex-a15":     "${config.ArmCortexA15Cflags}",
 		"cortex-a53":     "${config.ArmCortexA53Cflags}",
 		"cortex-a53.a57": "${config.ArmCortexA53Cflags}",
