@@ -2792,7 +2792,7 @@ func sharedOrStaticLibraryBp2Build(ctx android.TopDownMutatorContext, module *Mo
 		Runtime_deps:                      linkerAttrs.runtimeDeps,
 	}
 
-	module.convertTidyAttributes(&commonAttrs.tidyAttributes)
+	module.convertTidyAttributes(ctx, &commonAttrs.tidyAttributes)
 
 	var attrs interface{}
 	if isStatic {

@@ -3508,3 +3508,38 @@ cc_library_static {
 		},
 	})
 }
+
+func TestCcLibraryWithTidy(t *testing.T) {
+	runCcLibraryTestCase(t, Bp2buildTestCase{
+		Description:                "cc_library uses tidy properties",
+		ModuleTypeUnderTest:        "cc_library",
+		ModuleTypeUnderTestFactory: cc.LibraryFactory,
+		Blueprint: `
+cc_library_static {
+    name: "foo",
+    srcs: ["foo.cpp"],
+	tidy: true,
+	tidy_checks: ["check1", "check2"],
+	tidy_checks_as_errors: ["check1error", "check2error"],
+	tidy_disabled_srcs: ["bar.cpp"],
+	tidy_timeout_srcs: ["baz.cpp"],
+}`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_library_static", "foo", AttrNameToString{
+				"local_includes": `["."]`,
+				"srcs":           `["foo.cpp"]`,
+				"tidy":           `True`,
+				"tidy_checks": `[
+        "check1",
+        "check2",
+    ]`,
+				"tidy_checks_as_errors": `[
+        "check1error",
+        "check2error",
+    ]`,
+				"tidy_disabled_srcs": `["bar.cpp"]`,
+				"tidy_timeout_srcs":  `["baz.cpp"]`,
+			}),
+		},
+	})
+}
