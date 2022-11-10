@@ -142,15 +142,18 @@ func TestGetApexInfoParseResults(t *testing.T) {
 		},
 		{
 			description: "one result",
-			input: `{"signed_output":"my.apex",` +
-				`"unsigned_output":"my.apex.unsigned",` +
-				`"requires_native_libs":["//bionic/libc:libc","//bionic/libdl:libdl"],` +
-				`"bundle_key_info":["foo.pem", "foo.privkey"],` +
-				`"container_key_info":["foo.x509.pem", "foo.pk8", "foo"],` +
-				`"package_name":"package.name",` +
-				`"symbols_used_by_apex": "path/to/my.apex_using.txt",` +
-				`"backing_libs":"path/to/backing.txt",` +
-				`"provides_native_libs":[]}`,
+			input: `{
+	"signed_output":"my.apex",
+	"unsigned_output":"my.apex.unsigned",
+	"requires_native_libs":["//bionic/libc:libc","//bionic/libdl:libdl"],
+	"bundle_key_info":["foo.pem", "foo.privkey"],
+	"container_key_info":["foo.x509.pem", "foo.pk8", "foo"],
+	"package_name":"package.name",
+	"symbols_used_by_apex": "path/to/my.apex_using.txt",
+	"backing_libs":"path/to/backing.txt",
+	"bundle_file": "dir/bundlefile.zip",
+	"provides_native_libs":[]
+}`,
 			expectedOutput: ApexInfo{
 				SignedOutput:      "my.apex",
 				UnsignedOutput:    "my.apex.unsigned",
@@ -161,6 +164,7 @@ func TestGetApexInfoParseResults(t *testing.T) {
 				PackageName:       "package.name",
 				SymbolsUsedByApex: "path/to/my.apex_using.txt",
 				BackingLibs:       "path/to/backing.txt",
+				BundleFile:        "dir/bundlefile.zip",
 			},
 		},
 	}
