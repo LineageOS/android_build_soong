@@ -1903,15 +1903,14 @@ func (a *apexBundle) ProcessBazelQueryResponse(ctx android.ModuleContext) {
 	apexType := a.properties.ApexType
 	switch apexType {
 	case imageApex:
+
 		// TODO(b/190817312): Generate the notice file from the apex rule.
 		a.htmlGzNotice = android.PathForBazelOut(ctx, "NOTICE.html.gz")
-		// TODO(b/239081457): Generate the bazel bundle module file from the apex rule.
-		a.bundleModuleFile = android.PathForBazelOut(ctx, a.Name()+apexType.suffix()+"-base.zip")
+		a.bundleModuleFile = android.PathForBazelOut(ctx, outputs.BundleFile)
 		a.nativeApisUsedByModuleFile = android.ModuleOutPath(android.PathForBazelOut(ctx, outputs.SymbolsUsedByApex))
-		// TODO(b/239081456): Generate the backing.txt file from Bazel.
-		a.nativeApisBackedByModuleFile = android.ModuleOutPath(android.PathForBazelOut(ctx, a.Name()+"_backing.txt"))
+		a.nativeApisBackedByModuleFile = android.ModuleOutPath(android.PathForBazelOut(ctx, outputs.BackingLibs))
 		// TODO(b/239084755): Generate the java api using.xml file from Bazel.
-		a.javaApisUsedByModuleFile = android.ModuleOutPath(android.PathForBazelOut(ctx, a.Name()+"_using.xml"))
+		a.javaApisUsedByModuleFile = android.ModuleOutPath(android.PathForBazelOut(ctx, outputs.JavaSymbolsUsedByApex))
 		installSuffix := imageApexSuffix
 		if a.isCompressed {
 			installSuffix = imageCapexSuffix
