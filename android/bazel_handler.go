@@ -571,7 +571,9 @@ func (r *builtinBazelRunner) createBazelCommand(paths *bazelPaths, runName bazel
 
 		// Suppress noise
 		"--ui_event_filters=-INFO",
-		"--noshow_progress"}
+		"--noshow_progress",
+		"--norun_validations",
+	}
 	cmdFlags = append(cmdFlags, extraFlags...)
 
 	bazelCmd := exec.Command(paths.bazelPath, cmdFlags...)
