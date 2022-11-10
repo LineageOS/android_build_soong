@@ -30,6 +30,7 @@ type CcInfo struct {
 	// be a subset of OutputFiles. (or shared libraries, this will be equal to OutputFiles,
 	// but general cc_library will also have dynamic libraries in output files).
 	RootDynamicLibraries []string
+	TidyFiles            []string
 	TocFile              string
 	UnstrippedOutput     string
 }
@@ -165,6 +166,12 @@ else:
   # NOTE: It's OK if there's no ToC, as Soong just uses it for optimization
   pass
 
+tidy_files = []
+p = providers(target)
+clang_tidy_info = p.get("//build/bazel/rules/cc:clang_tidy.bzl%ClangTidyInfo")
+if clang_tidy_info:
+  tidy_files = [v.path for v in clang_tidy_info.tidy_files.to_list()]
+
 return json_encode({
 	"OutputFiles": outputFiles,
 	"CcObjectFiles": ccObjectFiles,
@@ -175,6 +182,7 @@ return json_encode({
 	"Headers": headers,
 	"RootStaticArchives": rootStaticArchives,
 	"RootDynamicLibraries": rootSharedLibraries,
+	"TidyFiles": tidy_files,
 	"TocFile": toc_file,
 	"UnstrippedOutput": unstripped,
 })`
