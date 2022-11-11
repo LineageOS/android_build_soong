@@ -56,9 +56,7 @@ func (stripper *Stripper) NeedsStrip(actx android.ModuleContext) bool {
 	forceEnable := Bool(stripper.StripProperties.Strip.All) ||
 		Bool(stripper.StripProperties.Strip.Keep_symbols) ||
 		Bool(stripper.StripProperties.Strip.Keep_symbols_and_debug_frame)
-	// create_minidebuginfo doesn't work for riscv64 yet, disable stripping for now
-	riscv64 := actx.Arch().ArchType == android.Riscv64
-	return !forceDisable && (forceEnable || defaultEnable) && !riscv64
+	return !forceDisable && (forceEnable || defaultEnable)
 }
 
 // Keep this consistent with //build/bazel/rules/stripped_shared_library.bzl.
