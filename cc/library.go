@@ -956,7 +956,7 @@ func GlobHeadersForSnapshot(ctx android.ModuleContext, paths android.Paths) andr
 	for _, path := range paths {
 		dir := path.String()
 		// Skip if dir is for generated headers
-		if strings.HasPrefix(dir, android.PathForOutput(ctx).String()) {
+		if strings.HasPrefix(dir, ctx.Config().OutDir()) {
 			continue
 		}
 
@@ -2792,7 +2792,7 @@ func sharedOrStaticLibraryBp2Build(ctx android.TopDownMutatorContext, module *Mo
 		Runtime_deps:                      linkerAttrs.runtimeDeps,
 	}
 
-	module.convertTidyAttributes(&commonAttrs.tidyAttributes)
+	module.convertTidyAttributes(ctx, &commonAttrs.tidyAttributes)
 
 	var attrs interface{}
 	if isStatic {
