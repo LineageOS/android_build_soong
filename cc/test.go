@@ -678,7 +678,7 @@ func testBinaryBp2build(ctx android.TopDownMutatorContext, m *Module) {
 		}
 	}
 
-	m.convertTidyAttributes(&testBinaryAttrs.tidyAttributes)
+	m.convertTidyAttributes(ctx, &testBinaryAttrs.tidyAttributes)
 
 	for _, propIntf := range m.GetProperties() {
 		if testLinkerProps, ok := propIntf.(*TestLinkerProperties); ok {

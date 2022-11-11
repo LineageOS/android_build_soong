@@ -339,14 +339,14 @@ func (a *apexBundle) writeRequiredModules(w io.Writer, moduleNames []string) {
 func (a *apexBundle) androidMkForType() android.AndroidMkData {
 	return android.AndroidMkData{
 		Custom: func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
+			moduleNames := []string{}
 			apexType := a.properties.ApexType
+			if a.installable() {
+				apexName := proptools.StringDefault(a.properties.Apex_name, name)
+				moduleNames = a.androidMkForFiles(w, name, apexName, moduleDir, data)
+			}
 
 			if apexType == flattenedApex {
-				var moduleNames []string = nil
-				if a.installable() {
-					apexName := proptools.StringDefault(a.properties.Apex_name, name)
-					moduleNames = a.androidMkForFiles(w, name, apexName, moduleDir, data)
-				}
 				// Only image APEXes can be flattened.
 				fmt.Fprintln(w, "\ninclude $(CLEAR_VARS)")
 				fmt.Fprintln(w, "LOCAL_PATH :=", moduleDir)
@@ -390,7 +390,7 @@ func (a *apexBundle) androidMkForType() android.AndroidMkData {
 				if len(a.overridableProperties.Overrides) > 0 {
 					fmt.Fprintln(w, "LOCAL_OVERRIDES_MODULES :=", strings.Join(a.overridableProperties.Overrides, " "))
 				}
-				a.writeRequiredModules(w, nil)
+				a.writeRequiredModules(w, moduleNames)
 
 				fmt.Fprintln(w, "include $(BUILD_PREBUILT)")
 

@@ -30,6 +30,7 @@ type CcInfo struct {
 	// be a subset of OutputFiles. (or shared libraries, this will be equal to OutputFiles,
 	// but general cc_library will also have dynamic libraries in output files).
 	RootDynamicLibraries []string
+	TidyFiles            []string
 	TocFile              string
 	UnstrippedOutput     string
 }
@@ -165,6 +166,12 @@ else:
   # NOTE: It's OK if there's no ToC, as Soong just uses it for optimization
   pass
 
+tidy_files = []
+p = providers(target)
+clang_tidy_info = p.get("//build/bazel/rules/cc:clang_tidy.bzl%ClangTidyInfo")
+if clang_tidy_info:
+  tidy_files = [v.path for v in clang_tidy_info.tidy_files.to_list()]
+
 return json_encode({
 	"OutputFiles": outputFiles,
 	"CcObjectFiles": ccObjectFiles,
@@ -175,6 +182,7 @@ return json_encode({
 	"Headers": headers,
 	"RootStaticArchives": rootStaticArchives,
 	"RootDynamicLibraries": rootSharedLibraries,
+	"TidyFiles": tidy_files,
 	"TocFile": toc_file,
 	"UnstrippedOutput": unstripped,
 })`
@@ -186,7 +194,9 @@ return json_encode({
 // Starlark given in StarlarkFunctionBody.
 func (g getCcInfoType) ParseResult(rawString string) (CcInfo, error) {
 	var ccInfo CcInfo
-	parseJson(rawString, &ccInfo)
+	if err := parseJson(rawString, &ccInfo); err != nil {
+		return ccInfo, err
+	}
 	return ccInfo, nil
 }
 
@@ -242,10 +252,10 @@ type ApexInfo struct {
 // ParseResult returns a value obtained by parsing the result of the request's Starlark function.
 // The given rawString must correspond to the string output which was created by evaluating the
 // Starlark given in StarlarkFunctionBody.
-func (g getApexInfoType) ParseResult(rawString string) ApexInfo {
+func (g getApexInfoType) ParseResult(rawString string) (ApexInfo, error) {
 	var info ApexInfo
-	parseJson(rawString, &info)
-	return info
+	err := parseJson(rawString, &info)
+	return info, err
 }
 
 // getCcUnstrippedInfoType implements cqueryRequest interface. It handles the
@@ -274,10 +284,10 @@ return json_encode({
 // ParseResult returns a value obtained by parsing the result of the request's Starlark function.
 // The given rawString must correspond to the string output which was created by evaluating the
 // Starlark given in StarlarkFunctionBody.
-func (g getCcUnstippedInfoType) ParseResult(rawString string) CcUnstrippedInfo {
+func (g getCcUnstippedInfoType) ParseResult(rawString string) (CcUnstrippedInfo, error) {
 	var info CcUnstrippedInfo
-	parseJson(rawString, &info)
-	return info
+	err := parseJson(rawString, &info)
+	return info, err
 }
 
 type CcUnstrippedInfo struct {
@@ -297,10 +307,12 @@ func splitOrEmpty(s string, sep string) []string {
 
 // parseJson decodes json string into the fields of the receiver.
 // Unknown attribute name causes panic.
-func parseJson(jsonString string, info interface{}) {
+func parseJson(jsonString string, info interface{}) error {
 	decoder := json.NewDecoder(strings.NewReader(jsonString))
 	decoder.DisallowUnknownFields() //useful to detect typos, e.g. in unit tests
-	if err := decoder.Decode(info); err != nil {
-		panic(fmt.Errorf("cannot parse cquery result '%s': %s", jsonString, err))
+	err := decoder.Decode(info)
+	if err != nil {
+		return fmt.Errorf("cannot parse cquery result '%s': %s", jsonString, err)
 	}
+	return nil
 }
