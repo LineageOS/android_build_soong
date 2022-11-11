@@ -924,9 +924,9 @@ func unzipRefDump(ctx android.ModuleContext, zippedRefDump android.Path, baseNam
 }
 
 // sourceAbiDiff registers a build statement to compare linked sAbi dump files (.lsdump).
-func sourceAbiDiff(ctx android.ModuleContext, inputDump android.Path, referenceDump android.Path,
-	baseName, exportedHeaderFlags string, diffFlags []string, prevVersion int,
-	checkAllApis, isLlndk, isNdk, isVndkExt, previousVersionDiff bool) android.OptionalPath {
+func sourceAbiDiff(ctx android.ModuleContext, inputDump, referenceDump android.Path,
+	baseName string, diffFlags []string, prevVersion int,
+	checkAllApis, isLlndkOrNdk, isVndkExt, previousVersionDiff bool) android.OptionalPath {
 
 	var outputFile android.ModuleOutPath
 	if previousVersionDiff {
@@ -955,7 +955,7 @@ func sourceAbiDiff(ctx android.ModuleContext, inputDump android.Path, referenceD
 		extraFlags = append(extraFlags, "-target-version", "current")
 	}
 
-	if isLlndk || isNdk {
+	if isLlndkOrNdk {
 		extraFlags = append(extraFlags, "-consider-opaque-types-different")
 	}
 	if isVndkExt || previousVersionDiff {
