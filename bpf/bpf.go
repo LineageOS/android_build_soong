@@ -24,6 +24,7 @@ import (
 	"android/soong/android"
 	"android/soong/bazel"
 	"android/soong/bazel/cquery"
+	"android/soong/cc"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
@@ -32,9 +33,7 @@ import (
 func init() {
 	registerBpfBuildComponents(android.InitRegistrationContext)
 	pctx.Import("android/soong/cc/config")
-	if runtime.GOOS != "darwin" {
-		pctx.StaticVariable("relPwd", "PWD=/proc/self/cwd")
-	}
+	pctx.StaticVariable("relPwd", cc.PwdPrefix())
 }
 
 var (

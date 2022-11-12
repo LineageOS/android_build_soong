@@ -36,7 +36,7 @@ const afdoCFlagsFormat = "-funique-internal-linkage-names -fprofile-sample-accur
 
 func getAfdoProfileProjects(config android.DeviceConfig) []string {
 	return config.OnceStringSlice(afdoProfileProjectsConfigKey, func() []string {
-		return append(globalAfdoProfileProjects, config.AfdoAdditionalProfileDirs()...)
+		return globalAfdoProfileProjects
 	})
 }
 
