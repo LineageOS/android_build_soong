@@ -9775,6 +9775,7 @@ apex {
 						SymbolsUsedByApex:     "foo_using.txt",
 						JavaSymbolsUsedByApex: "foo_using.xml",
 						BundleFile:            "apex_bundle.zip",
+						InstalledFiles:        "installed-files.txt",
 
 						// unused
 						PackageName:  "pkg_name",
@@ -9820,12 +9821,19 @@ apex {
 		t.Errorf("Expected output file %q, got %q", w, g)
 	}
 
+	if w, g := "out/bazel/execroot/__main__/installed-files.txt", ab.installedFilesFile.String(); w != g {
+		t.Errorf("Expected installed-files.txt %q, got %q", w, g)
+	}
+
 	mkData := android.AndroidMkDataForTest(t, result.TestContext, m)
 	var builder strings.Builder
 	mkData.Custom(&builder, "foo", "BAZEL_TARGET_", "", mkData)
 
 	data := builder.String()
 	if w := "ALL_MODULES.$(my_register_name).BUNDLE := out/bazel/execroot/__main__/apex_bundle.zip"; !strings.Contains(data, w) {
+		t.Errorf("Expected %q in androidmk data, but did not find %q", w, data)
+	}
+	if w := "$(call dist-for-goals,checkbuild,out/bazel/execroot/__main__/installed-files.txt:foo-installed-files.txt)"; !strings.Contains(data, w) {
 		t.Errorf("Expected %q in androidmk data, but did not find %q", w, data)
 	}
 }

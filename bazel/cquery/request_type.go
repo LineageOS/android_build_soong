@@ -232,6 +232,7 @@ return json_encode({
     "java_symbols_used_by_apex": info.java_symbols_used_by_apex.path,
     "backing_libs": info.backing_libs.path,
     "bundle_file": info.base_with_config_zip.path,
+    "installed_files": info.installed_files.path,
 })`
 }
 
@@ -247,6 +248,7 @@ type ApexInfo struct {
 	JavaSymbolsUsedByApex string   `json:"java_symbols_used_by_apex"`
 	BackingLibs           string   `json:"backing_libs"`
 	BundleFile            string   `json:"bundle_file"`
+	InstalledFiles        string   `json:"installed_files"`
 }
 
 // ParseResult returns a value obtained by parsing the result of the request's Starlark function.
