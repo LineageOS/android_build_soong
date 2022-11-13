@@ -336,8 +336,7 @@ type productVariables struct {
 
 	NamespacesToExport []string `json:",omitempty"`
 
-	AfdoAdditionalProfileDirs []string `json:",omitempty"`
-	PgoAdditionalProfileDirs  []string `json:",omitempty"`
+	PgoAdditionalProfileDirs []string `json:",omitempty"`
 
 	VndkUseCoreVariant         *bool `json:",omitempty"`
 	VndkSnapshotBuildArtifacts *bool `json:",omitempty"`
