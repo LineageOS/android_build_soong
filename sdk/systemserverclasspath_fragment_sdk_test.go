@@ -119,8 +119,16 @@ java_import {
     prefer: false,
     visibility: ["//visibility:public"],
     apex_available: ["myapex"],
-    jars: ["java_systemserver_libs/snapshot/jars/are/invalid/mylib.jar"],
+    jars: [":mysdk_mylib-error"],
     permitted_packages: ["mylib"],
+}
+
+genrule {
+    name: "mysdk_mylib-error",
+    visibility: ["//visibility:private"],
+    out: ["this-file-will-never-be-created.jar"],
+    tool_files: ["scripts/invalid_implementation_jar.sh"],
+    cmd: "$(location scripts/invalid_implementation_jar.sh) mylib",
 }
 
 prebuilt_systemserverclasspath_fragment {
@@ -180,8 +188,16 @@ java_import {
     prefer: false,
     visibility: ["//visibility:public"],
     apex_available: ["myapex"],
-    jars: ["java_systemserver_libs/snapshot/jars/are/invalid/mylib.jar"],
+    jars: [":mysdk_mylib-error"],
     permitted_packages: ["mylib"],
+}
+
+genrule {
+    name: "mysdk_mylib-error",
+    visibility: ["//visibility:private"],
+    out: ["this-file-will-never-be-created.jar"],
+    tool_files: ["scripts/invalid_implementation_jar.sh"],
+    cmd: "$(location scripts/invalid_implementation_jar.sh) mylib",
 }
 
 prebuilt_systemserverclasspath_fragment {
