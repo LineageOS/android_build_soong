@@ -30,18 +30,10 @@ import (
 	"github.com/google/blueprint/proptools"
 )
 
-func NewTestContext(config Config) *TestContext {
-	namespaceExportFilter := func(namespace *Namespace) bool {
-		return true
-	}
-
-	nameResolver := NewNameResolver(namespaceExportFilter)
+func newTestContextForFixture(config Config) *TestContext {
 	ctx := &TestContext{
-		Context:      &Context{blueprint.NewContext(), config},
-		NameResolver: nameResolver,
+		Context: &Context{blueprint.NewContext(), config},
 	}
-
-	ctx.SetNameInterface(nameResolver)
 
 	ctx.postDeps = append(ctx.postDeps, registerPathDepsMutator)
 
@@ -49,6 +41,16 @@ func NewTestContext(config Config) *TestContext {
 	if ctx.config.mockBpList != "" {
 		ctx.SetModuleListFile(ctx.config.mockBpList)
 	}
+
+	return ctx
+}
+
+func NewTestContext(config Config) *TestContext {
+	ctx := newTestContextForFixture(config)
+
+	nameResolver := NewNameResolver(config)
+	ctx.NameResolver = nameResolver
+	ctx.SetNameInterface(nameResolver)
 
 	return ctx
 }
