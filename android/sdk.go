@@ -232,12 +232,6 @@ type SnapshotBuilder interface {
 	// relative path) and add the dest to the zip.
 	CopyToSnapshot(src Path, dest string)
 
-	// EmptyFile returns the path to an empty file.
-	//
-	// This can be used by sdk member types that need to create an empty file in the snapshot, simply
-	// pass the value returned from this to the CopyToSnapshot() method.
-	EmptyFile() Path
-
 	// UnzipToSnapshot generates a rule that will unzip the supplied zip into the snapshot relative
 	// directory destDir.
 	UnzipToSnapshot(zipPath Path, destDir string)
@@ -263,6 +257,14 @@ type SnapshotBuilder interface {
 	//
 	// See sdk/update.go for more information.
 	AddPrebuiltModule(member SdkMember, moduleType string) BpModule
+
+	// AddInternalModule creates a new module in the generated Android.bp file that can only be
+	// referenced by one of the other modules in the snapshot.
+	//
+	// The created module's name is constructed by concatenating the name of this member and the
+	// nameSuffix, separated by "-". It also has the visibility property set to "//visibility:private"
+	// to prevent it from being inadvertently accessed from outside the snapshot.
+	AddInternalModule(properties SdkMemberProperties, moduleType string, nameSuffix string) BpModule
 
 	// SdkMemberReferencePropertyTag returns a property tag to use when adding a property to a
 	// BpModule that contains references to other sdk members.
@@ -922,6 +924,12 @@ func RegisterSdkMemberType(memberType SdkMemberType) {
 //
 // Contains common properties that apply across many different member types.
 type SdkMemberPropertiesBase struct {
+	// The name of the member.
+	//
+	// Ignore this property during optimization. This is needed because this property is the same for
+	// all variants of a member and so would be optimized away if it was not ignored.
+	MemberName string `sdk:"ignore"`
+
 	// The number of unique os types supported by the member variants.
 	//
 	// If a member has a variant with more than one os type then it will need to differentiate
@@ -943,6 +951,10 @@ type SdkMemberPropertiesBase struct {
 
 	// The setting to use for the compile_multilib property.
 	Compile_multilib string `android:"arch_variant"`
+}
+
+func (b *SdkMemberPropertiesBase) Name() string {
+	return b.MemberName
 }
 
 // OsPrefix returns the os prefix to use for any file paths in the sdk.
@@ -969,6 +981,8 @@ func (b *SdkMemberPropertiesBase) Base() *SdkMemberPropertiesBase {
 type SdkMemberProperties interface {
 	// Base returns the base structure.
 	Base() *SdkMemberPropertiesBase
+
+	Name() string
 
 	// PopulateFromVariant populates this structure with information from a module variant.
 	//
