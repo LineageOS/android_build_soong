@@ -418,7 +418,7 @@ func runSoong(ctx Context, config Config) {
 	// Bazel's HOME var is set to an output subdirectory which doesn't exist. This
 	// prevents Bazel from file I/O in the actual user HOME directory.
 	soongBuildEnv.Set("BAZEL_HOME", absPath(ctx, filepath.Join(config.BazelOutDir(), "bazelhome")))
-	soongBuildEnv.Set("BAZEL_OUTPUT_BASE", filepath.Join(config.BazelOutDir(), "output"))
+	soongBuildEnv.Set("BAZEL_OUTPUT_BASE", config.bazelOutputBase())
 	soongBuildEnv.Set("BAZEL_WORKSPACE", absPath(ctx, "."))
 	soongBuildEnv.Set("BAZEL_METRICS_DIR", config.BazelMetricsDir())
 	soongBuildEnv.Set("LOG_DIR", config.LogsDir())
