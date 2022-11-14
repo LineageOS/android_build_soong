@@ -16,6 +16,7 @@ package android
 
 import (
 	"encoding"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"runtime"
@@ -1681,10 +1682,10 @@ func hasArmAndroidArch(targets []Target) bool {
 
 // archConfig describes a built-in configuration.
 type archConfig struct {
-	arch        string
-	archVariant string
-	cpuVariant  string
-	abi         []string
+	Arch        string   `json:"arch"`
+	ArchVariant string   `json:"arch_variant"`
+	CpuVariant  string   `json:"cpu_variant"`
+	Abi         []string `json:"abis"`
 }
 
 // getNdkAbisConfig returns the list of archConfigs that are used for building
@@ -1713,8 +1714,8 @@ func decodeAndroidArchSettings(archConfigs []archConfig) ([]Target, error) {
 	var ret []Target
 
 	for _, config := range archConfigs {
-		arch, err := decodeArch(Android, config.arch, &config.archVariant,
-			&config.cpuVariant, config.abi)
+		arch, err := decodeArch(Android, config.Arch, &config.ArchVariant,
+			&config.CpuVariant, config.Abi)
 		if err != nil {
 			return nil, err
 		}
@@ -2284,6 +2285,14 @@ func printArchTypeNestedStarlarkDict(dict map[ArchType]map[string][]string) stri
 	return starlark_fmt.PrintDict(valDict, 0)
 }
 
+func printArchConfigList(arches []archConfig) string {
+	jsonOut, err := json.MarshalIndent(arches, "", starlark_fmt.Indention(1))
+	if err != nil {
+		panic(fmt.Errorf("Error converting arch configs %#v to json: %q", arches, err))
+	}
+	return fmt.Sprintf("json.decode('''%s''')", string(jsonOut))
+}
+
 func StarlarkArchConfigurations() string {
 	return fmt.Sprintf(`
 _arch_to_variants = %s
@@ -2294,13 +2303,21 @@ _arch_to_features = %s
 
 _android_arch_feature_for_arch_variant = %s
 
+_aml_arches = %s
+
+_ndk_arches = %s
+
 arch_to_variants = _arch_to_variants
 arch_to_cpu_variants = _arch_to_cpu_variants
 arch_to_features = _arch_to_features
 android_arch_feature_for_arch_variants = _android_arch_feature_for_arch_variant
+aml_arches = _aml_arches
+ndk_arches = _ndk_arches
 `, printArchTypeStarlarkDict(archVariants),
 		printArchTypeStarlarkDict(cpuVariants),
 		printArchTypeStarlarkDict(archFeatures),
 		printArchTypeNestedStarlarkDict(androidArchFeatureMap),
+		printArchConfigList(getAmlAbisConfig()),
+		printArchConfigList(getNdkAbisConfig()),
 	)
 }
