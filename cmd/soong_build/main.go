@@ -97,19 +97,7 @@ func init() {
 }
 
 func newNameResolver(config android.Config) *android.NameResolver {
-	namespacePathsToExport := make(map[string]bool)
-
-	for _, namespaceName := range config.ExportedNamespaces() {
-		namespacePathsToExport[namespaceName] = true
-	}
-
-	namespacePathsToExport["."] = true // always export the root namespace
-
-	exportFilter := func(namespace *android.Namespace) bool {
-		return namespacePathsToExport[namespace.Path]
-	}
-
-	return android.NewNameResolver(exportFilter)
+	return android.NewNameResolver(config)
 }
 
 func newContext(configuration android.Config) *android.Context {
