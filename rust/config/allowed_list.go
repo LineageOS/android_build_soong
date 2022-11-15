@@ -8,6 +8,7 @@ var (
 	RustAllowedPaths = []string{
 		"device/google/cuttlefish",
 		"external/adhd",
+		"external/boringssl",
 		"external/crosvm",
 		"external/libchromeos-rs",
 		"external/minijail",
