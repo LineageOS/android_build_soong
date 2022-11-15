@@ -243,6 +243,11 @@ func runApiBp2build(configuration android.Config, ctx *android.Context, extraNin
 	// Exclude all src BUILD files
 	excludes = append(excludes, apiBuildFileExcludes()...)
 
+	// Android.bp files for api surfaces are mounted to out/, but out/ should not be a
+	// dep for api_bp2build.
+	// Otherwise api_bp2build will be run every single time
+	excludes = append(excludes, configuration.OutDir())
+
 	// Create the symlink forest
 	symlinkDeps := bp2build.PlantSymlinkForest(
 		configuration.IsEnvTrue("BP2BUILD_VERBOSE"),
