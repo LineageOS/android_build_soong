@@ -32,7 +32,6 @@ var (
 
 	riscv64Ldflags = []string{
 		"-Wl,--hash-style=gnu",
-		"-Wl,-z,separate-code",
 	}
 
 	riscv64Lldflags = append(riscv64Ldflags,
