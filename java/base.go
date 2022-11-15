@@ -868,7 +868,7 @@ func (j *Module) aidlFlags(ctx android.ModuleContext, aidlPreprocess android.Opt
 	flags = append(flags, genAidlIncludeFlags(ctx, aidlSrcs, includeDirs))
 
 	sdkVersion := (j.SdkVersion(ctx)).Kind
-	defaultTrace := ((sdkVersion == android.SdkSystemServer) || (sdkVersion == android.SdkCore) || (sdkVersion == android.SdkCorePlatform))
+	defaultTrace := ((sdkVersion == android.SdkSystemServer) || (sdkVersion == android.SdkCore) || (sdkVersion == android.SdkCorePlatform) || (sdkVersion == android.SdkModule))
 	if proptools.BoolDefault(j.deviceProperties.Aidl.Generate_traces, defaultTrace) {
 		flags = append(flags, "-t")
 	}
