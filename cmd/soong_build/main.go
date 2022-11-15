@@ -336,13 +336,11 @@ func writeDepFile(outputFile string, eventHandler *metrics.EventHandler, ninjaDe
 // output file of the specific activity.
 func doChosenActivity(ctx *android.Context, configuration android.Config, extraNinjaDeps []string, metricsDir string) string {
 	if configuration.BuildMode == android.SymlinkForest {
-		runSymlinkForestCreation(configuration, ctx, extraNinjaDeps, metricsDir)
-		return symlinkForestMarker
+		return runSymlinkForestCreation(configuration, ctx, extraNinjaDeps, metricsDir)
 	} else if configuration.BuildMode == android.Bp2build {
 		// Run the alternate pipeline of bp2build mutators and singleton to convert
 		// Blueprint to BUILD files before everything else.
-		runBp2Build(configuration, ctx, extraNinjaDeps, metricsDir)
-		return bp2buildMarker
+		return runBp2Build(configuration, ctx, extraNinjaDeps, metricsDir)
 	} else if configuration.BuildMode == android.ApiBp2build {
 		outputFile := runApiBp2build(configuration, ctx, extraNinjaDeps)
 		writeMetrics(configuration, ctx.EventHandler, metricsDir)
@@ -407,8 +405,8 @@ func runSoongOnlyBuild(configuration android.Config, ctx *android.Context, extra
 		// The actual output (build.ninja) was written in the RunBlueprint() call
 		// above
 		writeDepFile(cmdlineArgs.OutFile, ctx.EventHandler, ninjaDeps)
+		return cmdlineArgs.OutFile
 	}
-	return cmdlineArgs.OutFile
 }
 
 // soong_ui dumps the available environment variables to
@@ -615,7 +613,7 @@ func bazelArtifacts() []string {
 // Ideally, bp2build would write a file that contains instructions to the
 // symlink tree creation binary. Then the latter would not need to depend on
 // the very heavy-weight machinery of soong_build .
-func runSymlinkForestCreation(configuration android.Config, ctx *android.Context, extraNinjaDeps []string, metricsDir string) {
+func runSymlinkForestCreation(configuration android.Config, ctx *android.Context, extraNinjaDeps []string, metricsDir string) string {
 	var ninjaDeps []string
 	ninjaDeps = append(ninjaDeps, extraNinjaDeps...)
 
@@ -659,12 +657,14 @@ func runSymlinkForestCreation(configuration android.Config, ctx *android.Context
 		//invocation of codegen. We should simply use a separate .pb file
 	}
 	writeBp2BuildMetrics(codegenMetrics, ctx.EventHandler, metricsDir)
+
+	return symlinkForestMarker
 }
 
 // Run Soong in the bp2build mode. This creates a standalone context that registers
 // an alternate pipeline of mutators and singletons specifically for generating
 // Bazel BUILD files instead of Ninja files.
-func runBp2Build(configuration android.Config, ctx *android.Context, extraNinjaDeps []string, metricsDir string) {
+func runBp2Build(configuration android.Config, ctx *android.Context, extraNinjaDeps []string, metricsDir string) string {
 	var codegenMetrics *bp2build.CodegenMetrics
 	ctx.EventHandler.Do("bp2build", func() {
 
@@ -710,6 +710,7 @@ func runBp2Build(configuration android.Config, ctx *android.Context, extraNinjaD
 		codegenMetrics.Print()
 	}
 	writeBp2BuildMetrics(codegenMetrics, ctx.EventHandler, metricsDir)
+	return bp2buildMarker
 }
 
 // Write Bp2Build metrics into $LOG_DIR
