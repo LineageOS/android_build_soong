@@ -302,7 +302,7 @@ func bootstrapBlueprint(ctx Context, config Config) {
 	)
 
 	bp2buildWorkspaceInvocation.Inputs = append(bp2buildWorkspaceInvocation.Inputs,
-		config.Bp2BuildFilesMarkerFile())
+		config.Bp2BuildFilesMarkerFile(), filepath.Join(config.FileListDir(), "bazel.list"))
 
 	jsonModuleGraphInvocation := primaryBuilderInvocation(
 		config,
