@@ -256,9 +256,11 @@ com.qualcomm.qti
 com.quicinc.tcmiface
 com.qualcomm.wfd
 com.qualcomm.wfd.service
-org.codeaurora.ims
-org.codeaurora.internal
 qcom.fmradio
+
+# CodeAurora packages
+org\.codeaurora\..*
+com\.quicinc\..*
 
 ###################################################
 # IFAA Manager used for Alipay and/or WeChat payment
