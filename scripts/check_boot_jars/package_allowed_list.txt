@@ -256,8 +256,7 @@ com.qualcomm.qti
 com.quicinc.tcmiface
 com.qualcomm.wfd
 com.qualcomm.wfd.service
-org.codeaurora.ims
-org.codeaurora.internal
+org.codeaurora\..*
 qcom.fmradio
 
 ###################################################
