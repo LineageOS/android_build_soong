@@ -288,8 +288,8 @@ type ccApiexportProperties struct {
 }
 
 type variantExporterProperties struct {
-	// Header directory or library to export
-	Export_headers []string
+	// Header directory to export
+	Export_headers []string `android:"arch_variant"`
 
 	// Export all headers as system include
 	Export_headers_as_system *bool

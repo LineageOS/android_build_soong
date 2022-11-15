@@ -1049,9 +1049,6 @@ type snapshotBuilder struct {
 	filesToZip  android.Paths
 	zipsToMerge android.Paths
 
-	// The path to an empty file.
-	emptyFile android.WritablePath
-
 	prebuiltModules map[string]*bpModule
 	prebuiltOrder   []*bpModule
 
@@ -1109,19 +1106,6 @@ func (s *snapshotBuilder) UnzipToSnapshot(zipPath android.Path, destDir string) 
 
 	// Add the repackaged zip file to the files to merge.
 	s.zipsToMerge = append(s.zipsToMerge, tmpZipPath)
-}
-
-func (s *snapshotBuilder) EmptyFile() android.Path {
-	if s.emptyFile == nil {
-		ctx := s.ctx
-		s.emptyFile = android.PathForModuleOut(ctx, "empty")
-		s.ctx.Build(pctx, android.BuildParams{
-			Rule:   android.Touch,
-			Output: s.emptyFile,
-		})
-	}
-
-	return s.emptyFile
 }
 
 func (s *snapshotBuilder) AddPrebuiltModule(member android.SdkMember, moduleType string) android.BpModule {
@@ -1200,6 +1184,24 @@ func (s *snapshotBuilder) AddPrebuiltModule(member android.SdkMember, moduleType
 	return m
 }
 
+func (s *snapshotBuilder) AddInternalModule(properties android.SdkMemberProperties, moduleType string, nameSuffix string) android.BpModule {
+	name := properties.Name() + "-" + nameSuffix
+
+	if s.prebuiltModules[name] != nil {
+		panic(fmt.Sprintf("Duplicate module detected, module %s has already been added", name))
+	}
+
+	m := s.bpFile.newModule(moduleType)
+	m.AddProperty("name", name)
+	m.AddProperty("visibility", []string{"//visibility:private"})
+
+	s.prebuiltModules[name] = m
+	s.prebuiltOrder = append(s.prebuiltOrder, m)
+
+	s.allMembersByName[name] = struct{}{}
+	return m
+}
+
 func addHostDeviceSupportedProperties(deviceSupported bool, hostSupported bool, bpModule *bpModule) {
 	// If neither device or host is supported then this module does not support either so will not
 	// recognize the properties.
@@ -1230,18 +1232,23 @@ func (s *snapshotBuilder) OptionalSdkMemberReferencePropertyTag() android.BpProp
 // Get a name for sdk snapshot member. If the member is private then generate a snapshot specific
 // name. As part of the processing this checks to make sure that any required members are part of
 // the snapshot.
-func (s *snapshotBuilder) snapshotSdkMemberName(name string, required bool) string {
+func (s *snapshotBuilder) snapshotSdkMemberName(reference string, required bool) string {
+	prefix := ""
+	name := strings.TrimPrefix(reference, ":")
+	if name != reference {
+		prefix = ":"
+	}
 	if _, ok := s.allMembersByName[name]; !ok {
 		if required {
 			s.ctx.ModuleErrorf("Required member reference %s is not a member of the sdk", name)
 		}
-		return name
+		return reference
 	}
 
 	if s.isInternalMember(name) {
-		return s.ctx.ModuleName() + "_" + name
+		return prefix + s.ctx.ModuleName() + "_" + name
 	} else {
-		return name
+		return reference
 	}
 }
 
@@ -2057,6 +2064,7 @@ func (s *sdk) createMemberSnapshot(ctx *memberContext, member *sdkMember, bpModu
 	variantPropertiesFactory := func() android.SdkMemberProperties {
 		properties := memberType.CreateVariantPropertiesStruct()
 		base := properties.Base()
+		base.MemberName = member.Name()
 		base.Os_count = osCount
 		return properties
 	}
