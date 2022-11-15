@@ -74,8 +74,8 @@ func createBp2BuildRule() Rule {
 			"supported for custom conversion, use allowlists.go instead.")
 }
 
-func createIncludeDirsRules() []Rule {
-	notInIncludeDir := []string{
+var (
+	neverallowNotInIncludeDir = []string{
 		"art",
 		"art/libnativebridge",
 		"art/libnativeloader",
@@ -91,7 +91,7 @@ func createIncludeDirsRules() []Rule {
 		"external/vixl",
 		"external/wycheproof",
 	}
-	noUseIncludeDir := []string{
+	neverallowNoUseIncludeDir = []string{
 		"frameworks/av/apex",
 		"frameworks/av/tools",
 		"frameworks/native/cmds",
@@ -103,10 +103,12 @@ func createIncludeDirsRules() []Rule {
 		"system/libfmq",
 		"system/libvintf",
 	}
+)
 
-	rules := make([]Rule, 0, len(notInIncludeDir)+len(noUseIncludeDir))
+func createIncludeDirsRules() []Rule {
+	rules := make([]Rule, 0, len(neverallowNotInIncludeDir)+len(neverallowNoUseIncludeDir))
 
-	for _, path := range notInIncludeDir {
+	for _, path := range neverallowNotInIncludeDir {
 		rule :=
 			NeverAllow().
 				WithMatcher("include_dirs", StartsWith(path+"/")).
@@ -116,7 +118,7 @@ func createIncludeDirsRules() []Rule {
 		rules = append(rules, rule)
 	}
 
-	for _, path := range noUseIncludeDir {
+	for _, path := range neverallowNoUseIncludeDir {
 		rule := NeverAllow().In(path+"/").WithMatcher("include_dirs", isSetMatcherInstance).
 			Because("include_dirs is deprecated, all usages of them in '" + path + "' have been migrated" +
 				" to use alternate mechanisms and so can no longer be used.")
