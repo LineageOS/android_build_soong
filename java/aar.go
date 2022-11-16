@@ -1046,7 +1046,8 @@ func (a *AARImport) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 }
 
 func (a *AndroidLibrary) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
-	commonAttrs, depLabels := a.convertLibraryAttrsBp2Build(ctx)
+	commonAttrs, bp2buildInfo := a.convertLibraryAttrsBp2Build(ctx)
+	depLabels := bp2buildInfo.DepLabels
 
 	deps := depLabels.Deps
 	if !commonAttrs.Srcs.IsEmpty() {
