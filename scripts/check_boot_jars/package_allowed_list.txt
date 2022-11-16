@@ -252,14 +252,14 @@ com\.nvidia
 com\.nvidia\..*
 
 # QC adds
-com.qualcomm.qti
-com.quicinc.tcmiface
-com.qualcomm.wfd
-com.qualcomm.wfd.service
+com\.qualcomm\.qti
+com\.quicinc\.tcmiface
+com\.qualcomm\.wfd
+com\.qualcomm\.wfd\.service
 org\.codeaurora\.ims
 org\.codeaurora\.ims\..*
 org\.codeaurora\.internal
-qcom.fmradio
+qcom\.fmradio
 
 ###################################################
 # IFAA Manager used for Alipay and/or WeChat payment
