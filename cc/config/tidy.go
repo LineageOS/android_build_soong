@@ -55,6 +55,21 @@ var (
 		// http://b/241819232
 		"-misc-const-correctness",
 	}
+
+	extraArgFlags = []string{
+		// We might be using the static analyzer through clang tidy.
+		// https://bugs.llvm.org/show_bug.cgi?id=32914
+		"-D__clang_analyzer__",
+
+		// A recent change in clang-tidy (r328258) enabled destructor inlining, which
+		// appears to cause a number of false positives. Until that's resolved, this turns
+		// off the effects of r328258.
+		// https://bugs.llvm.org/show_bug.cgi?id=37459
+		"-Xclang",
+		"-analyzer-config",
+		"-Xclang",
+		"c++-temp-dtor-inlining=false",
+	}
 )
 
 func init() {
@@ -145,6 +160,8 @@ func init() {
 		return strings.Join(globalNoErrorCheckList, ",")
 	})
 
+	exportedVars.ExportStringListStaticVariable("TidyExtraArgFlags", extraArgFlags)
+
 	// To reduce duplicate warnings from the same header files,
 	// header-filter will contain only the module directory and
 	// those specified by DEFAULT_TIDY_HEADER_DIRS.
@@ -233,6 +250,10 @@ func TidyGlobalNoErrorChecks() string {
 		return ",${config.TidyGlobalNoErrorChecks}"
 	}
 	return ""
+}
+
+func TidyExtraArgFlags() []string {
+	return extraArgFlags
 }
 
 func TidyFlagsForSrcFile(srcFile android.Path, flags string) string {
