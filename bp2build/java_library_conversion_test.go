@@ -649,3 +649,46 @@ android_library {
 				}),
 		}})
 }
+
+func TestJavaLibraryKotlinSrcs(t *testing.T) {
+	runJavaLibraryTestCase(t, Bp2buildTestCase{
+		Description: "java_library with kotlin  srcs",
+		Blueprint: `java_library {
+    name: "java-lib-1",
+    srcs: ["a.java", "b.java", "c.kt"],
+    bazel_module: { bp2build_available: true },
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("kt_jvm_library", "java-lib-1", AttrNameToString{
+				"srcs": `[
+        "a.java",
+        "b.java",
+        "c.kt",
+    ]`,
+			}),
+		},
+	})
+}
+
+func TestJavaLibraryKotlinCommonSrcs(t *testing.T) {
+	runJavaLibraryTestCase(t, Bp2buildTestCase{
+		Description: "java_library with kotlin  common_srcs",
+		Blueprint: `java_library {
+    name: "java-lib-1",
+    srcs: ["a.java", "b.java"],
+    common_srcs: ["c.kt"],
+    bazel_module: { bp2build_available: true },
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("kt_jvm_library", "java-lib-1", AttrNameToString{
+				"srcs": `[
+        "a.java",
+        "b.java",
+    ]`,
+				"common_srcs": `["c.kt"]`,
+			}),
+		},
+	})
+}

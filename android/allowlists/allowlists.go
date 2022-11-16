@@ -650,6 +650,10 @@ var (
 		"libcodec2_soft_avcenc",
 		"libcodec2_soft_aacdec",
 		"libcodec2_soft_common",
+
+		// kotlin srcs in java libs
+		"CtsPkgInstallerConstants",
+		"kotlinx_atomicfu",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
