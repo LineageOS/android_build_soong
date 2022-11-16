@@ -16,6 +16,24 @@
       "message": "Just fix the existing entries (org\\.codeaurora\\.ims and org\\.codeaurora\\.internal) and add quicinc packages if needed",
       "revId": "9410f93c0dfedf62a67a290fbd0c91e13bd69406",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "ee4dfb83_234a8f05",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 20587
+      },
+      "writtenOn": "2022-11-16T10:58:51Z",
+      "side": 1,
+      "message": "The important part here is the wildcard match at the end, not the escaping of the dots which is only a fix included while already touching the lines.\nDo you want me to remove the quicinc line? Used that from the AOSPA patch and looks correct.",
+      "parentUuid": "6066e9c6_78c8b0c5",
+      "revId": "9410f93c0dfedf62a67a290fbd0c91e13bd69406",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
