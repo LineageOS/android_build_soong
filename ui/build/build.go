@@ -90,7 +90,7 @@ func createCombinedBuildNinjaFile(ctx Context, config Config) {
 	}
 }
 
-// These are bitmasks which can be used to check whether various flags are set e.g. whether to use Bazel.
+// These are bitmasks which can be used to check whether various flags are set
 const (
 	_ = iota
 	// Whether to run the kati config step.
@@ -102,9 +102,7 @@ const (
 	// Whether to include the kati-generated ninja file in the combined ninja.
 	RunKatiNinja = 1 << iota
 	// Whether to run ninja on the combined ninja.
-	RunNinja = 1 << iota
-	// Whether to run bazel on the combined ninja.
-	RunBazel      = 1 << iota
+	RunNinja      = 1 << iota
 	RunBuildTests = 1 << iota
 	RunAll        = RunProductConfig | RunSoong | RunKati | RunKatiNinja | RunNinja
 )
@@ -323,11 +321,6 @@ func Build(ctx Context, config Config) {
 		}
 
 		runNinjaForBuild(ctx, config)
-	}
-
-	// Currently, using Bazel requires Kati and Soong to run first, so check whether to run Bazel last.
-	if what&RunBazel != 0 {
-		runBazel(ctx, config)
 	}
 }
 
