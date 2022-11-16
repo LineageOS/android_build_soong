@@ -41,6 +41,12 @@ var (
 		"broadwell": []string{
 			"-march=broadwell",
 		},
+		"goldmont": []string{
+			"-march=goldmont",
+		},
+		"goldmont-plus": []string{
+			"-march=goldmont-plus",
+		},
 		"haswell": []string{
 			"-march=core-avx2",
 		},
@@ -58,6 +64,9 @@ var (
 		},
 		"stoneyridge": []string{
 			"-march=bdver4",
+		},
+		"tremont": []string{
+			"-march=tremont",
 		},
 	}
 
