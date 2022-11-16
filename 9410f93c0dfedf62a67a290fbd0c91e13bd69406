@@ -70,6 +70,23 @@
       "parentUuid": "269f5570_4982d608",
       "revId": "9410f93c0dfedf62a67a290fbd0c91e13bd69406",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "e3c68fb8_761ab5db",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 10067
+      },
+      "writtenOn": "2022-11-16T12:25:43Z",
+      "side": 1,
+      "message": "ims-ext-common isn\u0027t supposed to be a boot jar, it\u0027s supposed to be a runtime dependency of ims.apk.",
+      "revId": "9410f93c0dfedf62a67a290fbd0c91e13bd69406",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
