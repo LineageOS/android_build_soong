@@ -123,6 +123,24 @@
       "parentUuid": "fba34605_6e00ec2f",
       "revId": "9410f93c0dfedf62a67a290fbd0c91e13bd69406",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "1a317721_46d45779",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 25732
+      },
+      "writtenOn": "2022-11-16T17:41:16Z",
+      "side": 1,
+      "message": "CodeLinaro, it replaces CAF (CodeAurora Forum)",
+      "parentUuid": "8586e58d_d917f756",
+      "revId": "9410f93c0dfedf62a67a290fbd0c91e13bd69406",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }

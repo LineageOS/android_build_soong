@@ -1,0 +1,44 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "20f9d324_fba0d47e",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 4
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 25732
+      },
+      "writtenOn": "2022-11-16T17:41:16Z",
+      "side": 1,
+      "message": "Someone should fix dot escaping on all the other QCOM additions as well...",
+      "revId": "c24e0e630c6610337c3b95ed1c564d894b0c7216",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "3b796d8d_4cf042b3",
+        "filename": "scripts/check_boot_jars/package_allowed_list.txt",
+        "patchSetId": 4
+      },
+      "lineNbr": 259,
+      "author": {
+        "id": 25732
+      },
+      "writtenOn": "2022-11-16T17:41:16Z",
+      "side": 1,
+      "message": "org\\.codeaurora\\.ims",
+      "range": {
+        "startLine": 259,
+        "startChar": 0,
+        "endLine": 259,
+        "endChar": 18
+      },
+      "revId": "c24e0e630c6610337c3b95ed1c564d894b0c7216",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
