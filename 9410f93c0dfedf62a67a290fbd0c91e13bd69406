@@ -87,6 +87,42 @@
       "message": "ims-ext-common isn\u0027t supposed to be a boot jar, it\u0027s supposed to be a runtime dependency of ims.apk.",
       "revId": "9410f93c0dfedf62a67a290fbd0c91e13bd69406",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "7faebb04_263e9e9a",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 20587
+      },
+      "writtenOn": "2022-11-16T17:34:18Z",
+      "side": 1,
+      "message": "It seems to be a bug with the Sony ims.apk which doesn\u0027t seem to have it so workarounds are required [1].\nAlso \"org\\.codeaurora\\.ims.*\" used to be in android_build [2], [3]\nAnd others besides AOSPA have it too [4]\n\n[1] https://github.com/whatawurst/android_device_sony_yoshino-common/commit/6c36f18a159da1885d1f4501edd4f2d79ed6ddb3\n[2] https://github.com/LineageOS/android_build/commit/896b0125065d9be475d4c9c5dc20c13529b0e882\n[3] https://review.lineageos.org/c/LineageOS/android_build/+/287136\n[4] https://gerrit.pixysos.com/c/PixysOS/build_soong/+/23279",
+      "parentUuid": "e3c68fb8_761ab5db",
+      "revId": "9410f93c0dfedf62a67a290fbd0c91e13bd69406",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "8586e58d_d917f756",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 20587
+      },
+      "writtenOn": "2022-11-16T17:34:18Z",
+      "side": 1,
+      "message": "Ok I did the bare minimum and added org\\.codeaurora\\.ims\\..*, i.e. \"org.codeaurora.ims\" and all sub-packages are now allowed.\nThis should be correct as indicated by the referenced error.\nBTW: What exactly is \"CLO\"?",
+      "parentUuid": "fba34605_6e00ec2f",
+      "revId": "9410f93c0dfedf62a67a290fbd0c91e13bd69406",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
