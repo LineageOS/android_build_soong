@@ -52,6 +52,23 @@
       "parentUuid": "3956718c_b19c1782",
       "revId": "36674e1cd21b1d1e90af1764d56e252146f257b7",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "577c1bc2_02e6e83f",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 6
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 20587
+      },
+      "writtenOn": "2022-11-17T16:15:41Z",
+      "side": 1,
+      "message": "\u003e you could always just fix your apk /w apktool.\n\nTrue. It wasn\u0027t me doing that workaround but I\u0027m using the sources as they are shared between similar devices. I\u0027ll keep that in mind.\n\nAs for this CR: Does it hurt allowing \"org.codeaurora.ims.internal\" and similar? If you really don\u0027t want this I\u0027ll rebase the other CR fixing the dot-escaping to exclude this change.",
+      "revId": "36674e1cd21b1d1e90af1764d56e252146f257b7",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
