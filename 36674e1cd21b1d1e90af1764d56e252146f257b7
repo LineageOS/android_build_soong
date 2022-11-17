@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "72f5c89b_6af130f8",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 6
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 20587
+      },
+      "writtenOn": "2022-11-17T11:05:31Z",
+      "side": 1,
+      "message": "\u003e Patch Set 6: Code-Review-2\n\u003e \n\u003e can you upload your ims.apk somewhere?\n\nThe version used at the time where the workaround was introduced is at [1]\nA more recent version (seemingly used now) from a different SONY device is at [2]\n\nI tried to verify that it doesn\u0027t have ims-ext-common as a runtime dep but failed to find a way to list the runtime deps of an apk file. How do you do it?\n\n[1] https://drive.google.com/file/d/1Pb6QPVbq1eS9J5IHHD0Mds9GYCUG4qiP/view?usp\u003dsharing\n[2] https://github.com/whatawurst/android_vendor_sony_yoshino-common/raw/lineage-20/proprietary/system_ext/priv-app/ims/ims.apk",
+      "revId": "36674e1cd21b1d1e90af1764d56e252146f257b7",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
