@@ -91,6 +91,7 @@ bootstrap_go_package {
         "dexpreopt_config_test.go",
         "droiddoc_test.go",
         "droidstubs_test.go",
+        "fuzz_test.go",
         "genrule_test.go",
         "hiddenapi_singleton_test.go",
         "jacoco_test.go",
