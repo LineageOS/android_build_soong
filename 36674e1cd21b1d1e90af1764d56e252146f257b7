@@ -34,6 +34,24 @@
       "parentUuid": "72f5c89b_6af130f8",
       "revId": "36674e1cd21b1d1e90af1764d56e252146f257b7",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "19a05f16_a4b8317e",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 6
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 20587
+      },
+      "writtenOn": "2022-11-17T13:02:28Z",
+      "side": 1,
+      "message": "I see. Looks like it is only the original APK (copied from the device for which the build is for) which lacks that (first link) so the workaround may not be required when kanging it from another device.",
+      "parentUuid": "3956718c_b19c1782",
+      "revId": "36674e1cd21b1d1e90af1764d56e252146f257b7",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
