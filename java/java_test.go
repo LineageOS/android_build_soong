@@ -1823,13 +1823,13 @@ func TestJavaApiLibraryAndProviderLink(t *testing.T) {
 		java_api_library {
 			name: "bar1",
 			api_surface: "public",
-			api_providers: ["foo1"],
+			api_contributions: ["foo1"],
 		}
 
 		java_api_library {
 			name: "bar2",
 			api_surface: "system",
-			api_providers: ["foo1", "foo2"],
+			api_contributions: ["foo1", "foo2"],
 		}
 		`,
 		map[string][]byte{
@@ -1876,13 +1876,13 @@ func TestJavaApiLibraryJarGeneration(t *testing.T) {
 		java_api_library {
 			name: "bar1",
 			api_surface: "public",
-			api_providers: ["foo1"],
+			api_contributions: ["foo1"],
 		}
 
 		java_api_library {
 			name: "bar2",
 			api_surface: "system",
-			api_providers: ["foo1", "foo2"],
+			api_contributions: ["foo1", "foo2"],
 		}
 		`,
 		map[string][]byte{
