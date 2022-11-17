@@ -16,6 +16,24 @@
       "message": "\u003e Patch Set 6: Code-Review-2\n\u003e \n\u003e can you upload your ims.apk somewhere?\n\nThe version used at the time where the workaround was introduced is at [1]\nA more recent version (seemingly used now) from a different SONY device is at [2]\n\nI tried to verify that it doesn\u0027t have ims-ext-common as a runtime dep but failed to find a way to list the runtime deps of an apk file. How do you do it?\n\n[1] https://drive.google.com/file/d/1Pb6QPVbq1eS9J5IHHD0Mds9GYCUG4qiP/view?usp\u003dsharing\n[2] https://github.com/whatawurst/android_vendor_sony_yoshino-common/raw/lineage-20/proprietary/system_ext/priv-app/ims/ims.apk",
       "revId": "36674e1cd21b1d1e90af1764d56e252146f257b7",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "3956718c_b19c1782",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 6
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 10067
+      },
+      "writtenOn": "2022-11-17T11:54:17Z",
+      "side": 1,
+      "message": "The ims.apk downloaded from whatawurst has the following lines in AndroidManifest:\n\n```\n\u003cuses-library android:name\u003d\"qti-telephony-hidl-wrapper\"/\u003e\n\u003cuses-library android:name\u003d\"qti-telephony-utils\"/\u003e\n\u003cuses-library android:name\u003d\"ims-ext-common\"/\u003e\n```\n\nYou didn\u0027t forget to add the following targets to PRODUCT_PACKAGES, did you?\n\n```\nPRODUCT_PACKAGES +\u003d ims_ext_common.xml qti_telephony_hidl_wrapper.xml qti_telephony_hidl_wrapper_prd.xml qti_telephony_utils.xml qti_telephony_utils_prd.xml\n```",
+      "parentUuid": "72f5c89b_6af130f8",
+      "revId": "36674e1cd21b1d1e90af1764d56e252146f257b7",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
