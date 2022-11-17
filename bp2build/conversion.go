@@ -23,6 +23,9 @@ type BazelFile struct {
 func CreateSoongInjectionFiles(cfg android.Config, metrics CodegenMetrics) []BazelFile {
 	var files []BazelFile
 
+	files = append(files, newFile("android", GeneratedBuildFileName, "")) // Creates a //cc_toolchain package.
+	files = append(files, newFile("android", "constants.bzl", android.BazelCcToolchainVars(cfg)))
+
 	files = append(files, newFile("cc_toolchain", GeneratedBuildFileName, "")) // Creates a //cc_toolchain package.
 	files = append(files, newFile("cc_toolchain", "constants.bzl", cc_config.BazelCcToolchainVars(cfg)))
 

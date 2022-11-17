@@ -25,7 +25,8 @@ import (
 )
 
 var (
-	pctx = NewPackageContext("android/soong/android")
+	pctx         = NewPackageContext("android/soong/android")
+	exportedVars = NewExportedVariables(pctx)
 
 	cpPreserveSymlinks = pctx.VariableConfigMethod("cpPreserveSymlinks",
 		Config.CpPreserveSymlinksFlags)
@@ -128,6 +129,13 @@ func init() {
 	pctx.VariableFunc("RBEWrapper", func(ctx PackageVarContext) string {
 		return ctx.Config().RBEWrapper()
 	})
+
+	exportedVars.ExportStringList("NeverAllowNotInIncludeDir", neverallowNotInIncludeDir)
+	exportedVars.ExportStringList("NeverAllowNoUseIncludeDir", neverallowNoUseIncludeDir)
+}
+
+func BazelCcToolchainVars(config Config) string {
+	return BazelToolchainVars(config, exportedVars)
 }
 
 var (

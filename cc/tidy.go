@@ -136,19 +136,7 @@ func (tidy *tidyFeature) flags(ctx ModuleContext, flags Flags) Flags {
 		flags.TidyFlags = append(flags.TidyFlags, "-extra-arg-before=-fno-caret-diagnostics")
 	}
 
-	extraArgFlags := []string{
-		// We might be using the static analyzer through clang tidy.
-		// https://bugs.llvm.org/show_bug.cgi?id=32914
-		"-D__clang_analyzer__",
-
-		// A recent change in clang-tidy (r328258) enabled destructor inlining, which
-		// appears to cause a number of false positives. Until that's resolved, this turns
-		// off the effects of r328258.
-		// https://bugs.llvm.org/show_bug.cgi?id=37459
-		"-Xclang", "-analyzer-config", "-Xclang", "c++-temp-dtor-inlining=false",
-	}
-
-	for _, f := range extraArgFlags {
+	for _, f := range config.TidyExtraArgFlags() {
 		flags.TidyFlags = append(flags.TidyFlags, "-extra-arg-before="+f)
 	}
 
