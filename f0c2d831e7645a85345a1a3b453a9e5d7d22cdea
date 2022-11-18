@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "e5365ba5_2731819e",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 28232
+      },
+      "writtenOn": "2022-11-18T17:33:39Z",
+      "side": 1,
+      "message": "https://git.codelinaro.org/clo/la/platform/build/soong/-/commit/ecac81972fef935cf7c2d58188ddc8c69cda11f2 in case you\u0027d like to have the actual commit from CLO.",
+      "revId": "f0c2d831e7645a85345a1a3b453a9e5d7d22cdea",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
