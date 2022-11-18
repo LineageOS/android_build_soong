@@ -1806,3 +1806,108 @@ func TestDeviceBinaryWrapperGeneration(t *testing.T) {
 			srcs: ["foo.java"],
 		}`)
 }
+
+func TestJavaApiLibraryAndProviderLink(t *testing.T) {
+	provider_bp_a := `
+	java_api_contribution {
+		name: "foo1",
+		api_file: "foo1.txt",
+	}
+	`
+	provider_bp_b := `java_api_contribution {
+		name: "foo2",
+		api_file: "foo2.txt",
+	}
+	`
+	ctx, _ := testJavaWithFS(t, `
+		java_api_library {
+			name: "bar1",
+			api_surface: "public",
+			api_providers: ["foo1"],
+		}
+
+		java_api_library {
+			name: "bar2",
+			api_surface: "system",
+			api_providers: ["foo1", "foo2"],
+		}
+		`,
+		map[string][]byte{
+			"a/Android.bp": []byte(provider_bp_a),
+			"b/Android.bp": []byte(provider_bp_b),
+		})
+
+	testcases := []struct {
+		moduleName         string
+		sourceTextFileDirs []string
+	}{
+		{
+			moduleName:         "bar1",
+			sourceTextFileDirs: []string{"a/foo1.txt"},
+		},
+		{
+			moduleName:         "bar2",
+			sourceTextFileDirs: []string{"a/foo1.txt", "b/foo2.txt"},
+		},
+	}
+	for _, c := range testcases {
+		m := ctx.ModuleForTests(c.moduleName, "android_common")
+		manifest := m.Output("metalava.sbox.textproto")
+		sboxProto := android.RuleBuilderSboxProtoForTests(t, manifest)
+		manifestCommand := sboxProto.Commands[0].GetCommand()
+		sourceFilesFlag := "--source-files " + strings.Join(c.sourceTextFileDirs, " ")
+		android.AssertStringDoesContain(t, "source text files not present", manifestCommand, sourceFilesFlag)
+	}
+}
+
+func TestJavaApiLibraryJarGeneration(t *testing.T) {
+	provider_bp_a := `
+	java_api_contribution {
+		name: "foo1",
+		api_file: "foo1.txt",
+	}
+	`
+	provider_bp_b := `java_api_contribution {
+		name: "foo2",
+		api_file: "foo2.txt",
+	}
+	`
+	ctx, _ := testJavaWithFS(t, `
+		java_api_library {
+			name: "bar1",
+			api_surface: "public",
+			api_providers: ["foo1"],
+		}
+
+		java_api_library {
+			name: "bar2",
+			api_surface: "system",
+			api_providers: ["foo1", "foo2"],
+		}
+		`,
+		map[string][]byte{
+			"a/Android.bp": []byte(provider_bp_a),
+			"b/Android.bp": []byte(provider_bp_b),
+		})
+
+	testcases := []struct {
+		moduleName    string
+		outputJarName string
+	}{
+		{
+			moduleName:    "bar1",
+			outputJarName: "bar1/android.jar",
+		},
+		{
+			moduleName:    "bar2",
+			outputJarName: "bar2/android.jar",
+		},
+	}
+	for _, c := range testcases {
+		m := ctx.ModuleForTests(c.moduleName, "android_common")
+		outputs := fmt.Sprint(m.AllOutputs())
+		if !strings.Contains(outputs, c.outputJarName) {
+			t.Errorf("Module output does not contain expected jar %s", c.outputJarName)
+		}
+	}
+}
