@@ -292,6 +292,8 @@ var (
 	llvmNextExtraCommonGlobalCflags = []string{
 		// New warnings to be fixed after clang-r475365
 		"-Wno-error=single-bit-bitfield-constant-conversion", // http://b/243965903
+		// Skip deprecated flags.
+		"-Wno-unused-command-line-argument",
 	}
 
 	IllegalFlags = []string{
