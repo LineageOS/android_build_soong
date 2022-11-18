@@ -125,3 +125,37 @@ func TestFileSystemGathersItemsOnlyInSystemPartition(t *testing.T) {
 	module := result.ModuleForTests("myfilesystem", "android_common").Module().(*systemImage)
 	android.AssertDeepEquals(t, "entries should have foo only", []string{"components/foo"}, module.entries)
 }
+
+func TestAvbAddHashFooter(t *testing.T) {
+	result := fixture.RunTestWithBp(t, `
+		avb_add_hash_footer {
+			name: "myfooter",
+			src: "input.img",
+			filename: "output.img",
+			partition_name: "mypartition",
+			private_key: "mykey",
+			salt: "1111",
+			props: [
+				{
+					name: "prop1",
+					value: "value1",
+				},
+				{
+					name: "prop2",
+					file: "value_file",
+				},
+			],
+		}
+	`)
+	cmd := result.ModuleForTests("myfooter", "android_arm64_armv8-a").Rule("avbAddHashFooter").RuleParams.Command
+	android.AssertStringDoesContain(t, "Can't find correct --partition_name argument",
+		cmd, "--partition_name mypartition")
+	android.AssertStringDoesContain(t, "Can't find correct --key argument",
+		cmd, "--key mykey")
+	android.AssertStringDoesContain(t, "Can't find --salt argument",
+		cmd, "--salt 1111")
+	android.AssertStringDoesContain(t, "Can't find --prop argument",
+		cmd, "--prop 'prop1:value1'")
+	android.AssertStringDoesContain(t, "Can't find --prop_from_file argument",
+		cmd, "--prop_from_file 'prop2:value_file'")
+}
