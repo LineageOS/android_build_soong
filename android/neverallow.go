@@ -155,6 +155,7 @@ func createJavaDeviceForHostRules() []Rule {
 		"external/guava",
 		"external/kotlinx.coroutines",
 		"external/robolectric-shadows",
+		"external/robolectric",
 		"frameworks/layoutlib",
 	}
 
