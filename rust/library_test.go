@@ -45,7 +45,7 @@ func TestLibraryVariants(t *testing.T) {
 	rlibCrateType := "rlib"
 	dylibCrateType := "dylib"
 	sharedCrateType := "cdylib"
-	staticCrateType := "static"
+	staticCrateType := "staticlib"
 
 	// Test crate type for rlib is correct.
 	if !strings.Contains(libfooRlib.Args["rustcFlags"], "crate-type="+rlibCrateType) {
