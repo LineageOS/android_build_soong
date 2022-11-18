@@ -190,10 +190,8 @@ func (l *linter) deps(ctx android.BottomUpMutatorContext) {
 
 	extraCheckModules := l.properties.Lint.Extra_check_modules
 
-	if checkOnly := ctx.Config().Getenv("ANDROID_LINT_CHECK"); checkOnly != "" {
-		if checkOnlyModules := ctx.Config().Getenv("ANDROID_LINT_CHECK_EXTRA_MODULES"); checkOnlyModules != "" {
-			extraCheckModules = strings.Split(checkOnlyModules, ",")
-		}
+	if extraCheckModulesEnv := ctx.Config().Getenv("ANDROID_LINT_CHECK_EXTRA_MODULES"); extraCheckModulesEnv != "" {
+		extraCheckModules = append(extraCheckModules, strings.Split(extraCheckModulesEnv, ",")...)
 	}
 
 	ctx.AddFarVariationDependencies(ctx.Config().BuildOSCommonTarget.Variations(),
