@@ -34,6 +34,7 @@ func init() {
 func registerBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("android_filesystem", filesystemFactory)
 	ctx.RegisterModuleType("android_system_image", systemImageFactory)
+	ctx.RegisterModuleType("avb_add_hash_footer", avbAddHashFooterFactory)
 }
 
 type filesystem struct {
