@@ -23,7 +23,7 @@ func TestRequestResultsAfterInvokeBazel(t *testing.T) {
 		bazelCommand{command: "cquery", expression: "deps(@soong_injection//mixed_builds:buildroot, 2)"}: `@//foo:bar|arm64_armv8-a|android>>out/foo/bar.txt`,
 	})
 	bazelContext.QueueBazelRequest(label, cquery.GetOutputFiles, cfg)
-	err := bazelContext.InvokeBazel(testConfig)
+	err := bazelContext.InvokeBazel(testConfig, nil)
 	if err != nil {
 		t.Fatalf("Did not expect error invoking Bazel, but got %s", err)
 	}
@@ -37,7 +37,7 @@ func TestRequestResultsAfterInvokeBazel(t *testing.T) {
 
 func TestInvokeBazelWritesBazelFiles(t *testing.T) {
 	bazelContext, baseDir := testBazelContext(t, map[bazelCommand]string{})
-	err := bazelContext.InvokeBazel(testConfig)
+	err := bazelContext.InvokeBazel(testConfig, nil)
 	if err != nil {
 		t.Fatalf("Did not expect error invoking Bazel, but got %s", err)
 	}
@@ -118,7 +118,7 @@ func TestInvokeBazelPopulatesBuildStatements(t *testing.T) {
 		bazelContext, _ := testBazelContext(t, map[bazelCommand]string{
 			bazelCommand{command: "aquery", expression: "deps(@soong_injection//mixed_builds:buildroot)"}: string(data)})
 
-		err = bazelContext.InvokeBazel(testConfig)
+		err = bazelContext.InvokeBazel(testConfig, nil)
 		if err != nil {
 			t.Fatalf("testCase #%d: did not expect error invoking Bazel, but got %s", i+1, err)
 		}
@@ -170,7 +170,7 @@ func TestCoverageFlagsAfterInvokeBazel(t *testing.T) {
 func verifyExtraFlags(t *testing.T, config Config, expected string) string {
 	bazelContext, _ := testBazelContext(t, map[bazelCommand]string{})
 
-	err := bazelContext.InvokeBazel(config)
+	err := bazelContext.InvokeBazel(config, nil)
 	if err != nil {
 		t.Fatalf("Did not expect error invoking Bazel, but got %s", err)
 	}
@@ -197,7 +197,7 @@ func testBazelContext(t *testing.T, bazelCommandResults map[bazelCommand]string)
 	}
 	aqueryCommand := bazelCommand{command: "aquery", expression: "deps(@soong_injection//mixed_builds:buildroot)"}
 	if _, exists := bazelCommandResults[aqueryCommand]; !exists {
-		bazelCommandResults[aqueryCommand] = "{}\n"
+		bazelCommandResults[aqueryCommand] = ""
 	}
 	runner := &mockBazelRunner{bazelCommandResults: bazelCommandResults}
 	return &bazelContext{

@@ -157,9 +157,7 @@ func runMixedModeBuild(configuration android.Config, ctx *android.Context, extra
 	defer ctx.EventHandler.End("mixed_build")
 
 	bazelHook := func() error {
-		ctx.EventHandler.Begin("bazel")
-		defer ctx.EventHandler.End("bazel")
-		return configuration.BazelContext.InvokeBazel(configuration)
+		return configuration.BazelContext.InvokeBazel(configuration, ctx)
 	}
 	ctx.SetBeforePrepareBuildActionsHook(bazelHook)
 	ninjaDeps := bootstrap.RunBlueprint(cmdlineArgs, bootstrap.DoEverything, ctx.Context, configuration)
