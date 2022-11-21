@@ -164,7 +164,6 @@ type ProtoAttrs struct {
 	Srcs                bazel.LabelListAttribute
 	Strip_import_prefix *string
 	Deps                bazel.LabelListAttribute
-	Tags                []string
 }
 
 // For each package in the include_dirs property a proto_library target should
