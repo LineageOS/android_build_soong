@@ -169,15 +169,7 @@ java_import {
     prefer: false,
     visibility: ["//visibility:public"],
     apex_available: ["com.android.art"],
-    jars: [":mysdk_core1-error"],
-}
-
-genrule {
-    name: "mysdk_core1-error",
-    visibility: ["//visibility:private"],
-    out: ["this-file-will-never-be-created.jar"],
-    tool_files: ["scripts/invalid_implementation_jar.sh"],
-    cmd: "$(location scripts/invalid_implementation_jar.sh) core1",
+    jars: ["java_boot_libs/snapshot/jars/are/invalid/core1.jar"],
 }
 
 java_import {
@@ -185,15 +177,7 @@ java_import {
     prefer: false,
     visibility: ["//visibility:public"],
     apex_available: ["com.android.art"],
-    jars: [":mysdk_core2-error"],
-}
-
-genrule {
-    name: "mysdk_core2-error",
-    visibility: ["//visibility:private"],
-    out: ["this-file-will-never-be-created.jar"],
-    tool_files: ["scripts/invalid_implementation_jar.sh"],
-    cmd: "$(location scripts/invalid_implementation_jar.sh) core2",
+    jars: ["java_boot_libs/snapshot/jars/are/invalid/core2.jar"],
 }
 `),
 		checkAllCopyRules(`
@@ -203,7 +187,8 @@ genrule {
 .intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/signature-patterns.csv -> hiddenapi/signature-patterns.csv
 .intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/filtered-stub-flags.csv -> hiddenapi/filtered-stub-flags.csv
 .intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/filtered-flags.csv -> hiddenapi/filtered-flags.csv
-build/soong/java/invalid_implementation_jar.sh -> scripts/invalid_implementation_jar.sh
+.intermediates/mysdk/common_os/empty -> java_boot_libs/snapshot/jars/are/invalid/core1.jar
+.intermediates/mysdk/common_os/empty -> java_boot_libs/snapshot/jars/are/invalid/core2.jar
 		`),
 		snapshotTestPreparer(checkSnapshotWithoutSource, preparerForSnapshot),
 
@@ -372,16 +357,8 @@ java_import {
     prefer: false,
     visibility: ["//visibility:public"],
     apex_available: ["myapex"],
-    jars: [":mysdk_mybootlib-error"],
+    jars: ["java_boot_libs/snapshot/jars/are/invalid/mybootlib.jar"],
     permitted_packages: ["mybootlib"],
-}
-
-genrule {
-    name: "mysdk_mybootlib-error",
-    visibility: ["//visibility:private"],
-    out: ["this-file-will-never-be-created.jar"],
-    tool_files: ["scripts/invalid_implementation_jar.sh"],
-    cmd: "$(location scripts/invalid_implementation_jar.sh) mybootlib",
 }
 
 java_sdk_library_import {
@@ -490,7 +467,7 @@ func TestSnapshotWithBootClasspathFragment_Contents(t *testing.T) {
 .intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/signature-patterns.csv -> hiddenapi/signature-patterns.csv
 .intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/filtered-stub-flags.csv -> hiddenapi/filtered-stub-flags.csv
 .intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/filtered-flags.csv -> hiddenapi/filtered-flags.csv
-build/soong/java/invalid_implementation_jar.sh -> scripts/invalid_implementation_jar.sh
+.intermediates/mysdk/common_os/empty -> java_boot_libs/snapshot/jars/are/invalid/mybootlib.jar
 .intermediates/myothersdklibrary.stubs/android_common/javac/myothersdklibrary.stubs.jar -> sdk_library/public/myothersdklibrary-stubs.jar
 .intermediates/myothersdklibrary.stubs.source/android_common/metalava/myothersdklibrary.stubs.source_api.txt -> sdk_library/public/myothersdklibrary.txt
 .intermediates/myothersdklibrary.stubs.source/android_common/metalava/myothersdklibrary.stubs.source_removed.txt -> sdk_library/public/myothersdklibrary-removed.txt
@@ -510,7 +487,7 @@ build/soong/java/invalid_implementation_jar.sh -> scripts/invalid_implementation
 .intermediates/mybootclasspathfragment/android_common_myapex/modular-hiddenapi/signature-patterns.csv -> hiddenapi/signature-patterns.csv
 .intermediates/mybootclasspathfragment/android_common_myapex/modular-hiddenapi/filtered-stub-flags.csv -> hiddenapi/filtered-stub-flags.csv
 .intermediates/mybootclasspathfragment/android_common_myapex/modular-hiddenapi/filtered-flags.csv -> hiddenapi/filtered-flags.csv
-build/soong/java/invalid_implementation_jar.sh -> scripts/invalid_implementation_jar.sh
+.intermediates/mysdk/common_os/empty -> java_boot_libs/snapshot/jars/are/invalid/mybootlib.jar
 .intermediates/myothersdklibrary.stubs/android_common/javac/myothersdklibrary.stubs.jar -> sdk_library/public/myothersdklibrary-stubs.jar
 .intermediates/myothersdklibrary.stubs.source/android_common/metalava/myothersdklibrary.stubs.source_api.txt -> sdk_library/public/myothersdklibrary.txt
 .intermediates/myothersdklibrary.stubs.source/android_common/metalava/myothersdklibrary.stubs.source_removed.txt -> sdk_library/public/myothersdklibrary-removed.txt
@@ -899,16 +876,8 @@ java_import {
     prefer: false,
     visibility: ["//visibility:public"],
     apex_available: ["myapex"],
-    jars: [":mysdk_mybootlib-error"],
+    jars: ["java_boot_libs/snapshot/jars/are/invalid/mybootlib.jar"],
     permitted_packages: ["mybootlib"],
-}
-
-genrule {
-    name: "mysdk_mybootlib-error",
-    visibility: ["//visibility:private"],
-    out: ["this-file-will-never-be-created.jar"],
-    tool_files: ["scripts/invalid_implementation_jar.sh"],
-    cmd: "$(location scripts/invalid_implementation_jar.sh) mybootlib",
 }
 
 java_sdk_library_import {
@@ -961,7 +930,7 @@ my-unsupported-packages.txt -> hiddenapi/my-unsupported-packages.txt
 .intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/signature-patterns.csv -> hiddenapi/signature-patterns.csv
 .intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/filtered-stub-flags.csv -> hiddenapi/filtered-stub-flags.csv
 .intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/filtered-flags.csv -> hiddenapi/filtered-flags.csv
-build/soong/java/invalid_implementation_jar.sh -> scripts/invalid_implementation_jar.sh
+.intermediates/mysdk/common_os/empty -> java_boot_libs/snapshot/jars/are/invalid/mybootlib.jar
 .intermediates/mynewlibrary.stubs/android_common/javac/mynewlibrary.stubs.jar -> sdk_library/public/mynewlibrary-stubs.jar
 .intermediates/mynewlibrary.stubs.source/android_common/metalava/mynewlibrary.stubs.source_api.txt -> sdk_library/public/mynewlibrary.txt
 .intermediates/mynewlibrary.stubs.source/android_common/metalava/mynewlibrary.stubs.source_removed.txt -> sdk_library/public/mynewlibrary-removed.txt
