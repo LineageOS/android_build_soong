@@ -65,9 +65,8 @@ func TestJavaFuzz(t *testing.T) {
 
 	osCommonTarget := result.Config.BuildOSCommonTarget.String()
 
-	osCommonTargetWithSan := osCommonTarget + "_asan" + "_fuzzer"
-	javac := result.ModuleForTests("foo", osCommonTargetWithSan).Rule("javac")
-	combineJar := result.ModuleForTests("foo", osCommonTargetWithSan).Description("for javac")
+	javac := result.ModuleForTests("foo", osCommonTarget).Rule("javac")
+	combineJar := result.ModuleForTests("foo", osCommonTarget).Description("for javac")
 
 	if len(javac.Inputs) != 1 || javac.Inputs[0].String() != "a.java" {
 		t.Errorf(`foo inputs %v != ["a.java"]`, javac.Inputs)
@@ -85,9 +84,9 @@ func TestJavaFuzz(t *testing.T) {
 	}
 
 	ctx := result.TestContext
-	foo := ctx.ModuleForTests("foo", osCommonTargetWithSan).Module().(*JavaFuzzLibrary)
+	foo := ctx.ModuleForTests("foo", osCommonTarget).Module().(*JavaFuzzLibrary)
 
-	expected := "libjni.so"
+	expected := "lib64/libjni.so"
 	if runtime.GOOS == "darwin" {
 		expected = "libjni.dylib"
 	}
