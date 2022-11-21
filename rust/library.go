@@ -267,84 +267,94 @@ var _ compiler = (*libraryDecorator)(nil)
 var _ libraryInterface = (*libraryDecorator)(nil)
 var _ exportedFlagsProducer = (*libraryDecorator)(nil)
 
-// rust_library produces all rust variants.
+// rust_library produces all Rust variants (rust_library_dylib and
+// rust_library_rlib).
 func RustLibraryFactory() android.Module {
 	module, library := NewRustLibrary(android.HostAndDeviceSupported)
 	library.BuildOnlyRust()
 	return module.Init()
 }
 
-// rust_ffi produces all ffi variants.
+// rust_ffi produces all FFI variants (rust_ffi_shared and
+// rust_ffi_static).
 func RustFFIFactory() android.Module {
 	module, library := NewRustLibrary(android.HostAndDeviceSupported)
 	library.BuildOnlyFFI()
 	return module.Init()
 }
 
-// rust_library_dylib produces a dylib.
+// rust_library_dylib produces a Rust dylib (Rust crate type "dylib").
 func RustLibraryDylibFactory() android.Module {
 	module, library := NewRustLibrary(android.HostAndDeviceSupported)
 	library.BuildOnlyDylib()
 	return module.Init()
 }
 
-// rust_library_rlib produces an rlib.
+// rust_library_rlib produces an rlib (Rust crate type "rlib").
 func RustLibraryRlibFactory() android.Module {
 	module, library := NewRustLibrary(android.HostAndDeviceSupported)
 	library.BuildOnlyRlib()
 	return module.Init()
 }
 
-// rust_ffi_shared produces a shared library.
+// rust_ffi_shared produces a shared library (Rust crate type
+// "cdylib").
 func RustFFISharedFactory() android.Module {
 	module, library := NewRustLibrary(android.HostAndDeviceSupported)
 	library.BuildOnlyShared()
 	return module.Init()
 }
 
-// rust_ffi_static produces a static library.
+// rust_ffi_static produces a static library (Rust crate type
+// "staticlib").
 func RustFFIStaticFactory() android.Module {
 	module, library := NewRustLibrary(android.HostAndDeviceSupported)
 	library.BuildOnlyStatic()
 	return module.Init()
 }
 
-// rust_library_host produces all rust variants.
+// rust_library_host produces all Rust variants for the host
+// (rust_library_dylib_host and rust_library_rlib_host).
 func RustLibraryHostFactory() android.Module {
 	module, library := NewRustLibrary(android.HostSupported)
 	library.BuildOnlyRust()
 	return module.Init()
 }
 
-// rust_ffi_host produces all FFI variants.
+// rust_ffi_host produces all FFI variants for the host
+// (rust_ffi_static_host and rust_ffi_shared_host).
 func RustFFIHostFactory() android.Module {
 	module, library := NewRustLibrary(android.HostSupported)
 	library.BuildOnlyFFI()
 	return module.Init()
 }
 
-// rust_library_dylib_host produces a dylib.
+// rust_library_dylib_host produces a dylib for the host (Rust crate
+// type "dylib").
 func RustLibraryDylibHostFactory() android.Module {
 	module, library := NewRustLibrary(android.HostSupported)
 	library.BuildOnlyDylib()
 	return module.Init()
 }
 
-// rust_library_rlib_host produces an rlib.
+// rust_library_rlib_host produces an rlib for the host (Rust crate
+// type "rlib").
 func RustLibraryRlibHostFactory() android.Module {
 	module, library := NewRustLibrary(android.HostSupported)
 	library.BuildOnlyRlib()
 	return module.Init()
 }
 
-// rust_ffi_static_host produces a static library.
+// rust_ffi_static_host produces a static library for the host (Rust
+// crate type "staticlib").
 func RustFFIStaticHostFactory() android.Module {
 	module, library := NewRustLibrary(android.HostSupported)
 	library.BuildOnlyStatic()
 	return module.Init()
 }
 
-// rust_ffi_shared_host produces an shared library.
+// rust_ffi_shared_host produces an shared library for the host (Rust
+// crate type "cdylib").
 func RustFFISharedHostFactory() android.Module {
 	module, library := NewRustLibrary(android.HostSupported)
 	library.BuildOnlyShared()
