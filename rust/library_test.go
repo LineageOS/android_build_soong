@@ -30,11 +30,11 @@ func TestLibraryVariants(t *testing.T) {
 			srcs: ["foo.rs"],
 			crate_name: "foo",
 		}
-                rust_ffi_host {
-                        name: "libfoo.ffi",
-                        srcs: ["foo.rs"],
-                        crate_name: "foo"
-                }`)
+		rust_ffi_host {
+			name: "libfoo.ffi",
+			srcs: ["foo.rs"],
+			crate_name: "foo"
+		}`)
 
 	// Test all variants are being built.
 	libfooRlib := ctx.ModuleForTests("libfoo", "linux_glibc_x86_64_rlib_rlib-std").Rule("rustc")
