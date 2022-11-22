@@ -304,6 +304,9 @@ func (j *Javadoc) aidlFlags(ctx android.ModuleContext, aidlPreprocess android.Op
 		flags = append(flags, "-I"+src.String())
 	}
 
+	minSdkVersion := j.MinSdkVersion(ctx).ApiLevel.FinalOrFutureInt()
+	flags = append(flags, fmt.Sprintf("--min_sdk_version=%v", minSdkVersion))
+
 	return strings.Join(flags, " "), deps
 }
 
