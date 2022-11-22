@@ -42,16 +42,29 @@ critical path:
 ```
 
 If the elapsed time is much longer than the critical path then additional
-parallelism on the build machine will improve total build times.  If there are
+parallelism on the build machine will improve total build times. If there are
 long individual times listed in the critical path then improving build times
 for those steps or adjusting dependencies so that those steps can run earlier
 in the build graph will improve total build times.
 
 ### Soong
 
-Soong can be traced and profiled using the standard Go tools. It understands
-the `-cpuprofile`, `-trace`, and `-memprofile` command line arguments, but we
-don't currently have an easy way to enable them in the context of a full build.
+Soong proper (i.e., `soong_build` executable that processes the blueprint
+files) can be traced and profiled using the standard Go tools. It understands
+the `-trace`, `-cpuprofile`, and `-memprofile` command line arguments.
+Setting `SOONG_PROFILE_CPU` and/or `SOONG_PROFILE_MEM` environment variables
+for the build enables respective profiling, e.g., running
+
+```shell
+SOONG_PROFILE_CPU=/tmp/foo m ..._
+```
+
+saves CPU profile for each Soong invocation in /tmp/foo._step_ file, where
+_step_ is Soong execution step. The main step is `build`. The others as
+`bp2build_files`, `bp2build_workspace`, `modulegraph`, `queryview`,
+`api_bp2build`, `soong_docs` (not all of them necessarily run during the build).
+The profiles can be inspected with `go tool pprof` from the command line or
+with _Run>Open Profiler Snapshot_ in IntelliJ IDEA.
 
 ### Kati
 
