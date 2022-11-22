@@ -19,13 +19,11 @@ import (
 	"testing"
 
 	"android/soong/android"
-	"android/soong/genrule"
 	"android/soong/java"
 )
 
 var prepareForSdkTestWithJava = android.GroupFixturePreparers(
 	java.PrepareForTestWithJavaBuildComponents,
-	genrule.PrepareForTestWithGenRuleBuildComponents,
 	PrepareForTestWithSdkBuildComponents,
 
 	// Ensure that all source paths are provided. This helps ensure that the snapshot generation is
@@ -36,7 +34,6 @@ var prepareForSdkTestWithJava = android.GroupFixturePreparers(
 	// Files needs by most of the tests.
 	android.MockFS{
 		"Test.java": nil,
-		"build/soong/java/invalid_implementation_jar.sh": nil,
 	}.AddToFixture(),
 )
 
@@ -291,26 +288,18 @@ java_import {
     prefer: false,
     visibility: ["//visibility:public"],
     apex_available: ["//apex_available:platform"],
-    jars: [":mysdk_myjavalib-error"],
+    jars: ["java_boot_libs/snapshot/jars/are/invalid/myjavalib.jar"],
     permitted_packages: ["pkg.myjavalib"],
-}
-
-genrule {
-    name: "mysdk_myjavalib-error",
-    visibility: ["//visibility:private"],
-    out: ["this-file-will-never-be-created.jar"],
-    tool_files: ["scripts/invalid_implementation_jar.sh"],
-    cmd: "$(location scripts/invalid_implementation_jar.sh) myjavalib",
 }
 `),
 		checkAllCopyRules(`
-build/soong/java/invalid_implementation_jar.sh -> scripts/invalid_implementation_jar.sh
+.intermediates/mysdk/common_os/empty -> java_boot_libs/snapshot/jars/are/invalid/myjavalib.jar
 `),
 	)
 }
 
 func TestSnapshotWithJavaBootLibrary_UpdatableMedia(t *testing.T) {
-	runTest := func(t *testing.T, targetBuildRelease, expectedJarPath, expectedGenRule, expectedCopyRule string) {
+	runTest := func(t *testing.T, targetBuildRelease, expectedJarPath, expectedCopyRule string) {
 		result := android.GroupFixturePreparers(
 			prepareForSdkTestWithJava,
 			android.FixtureMergeEnv(map[string]string{
@@ -345,27 +334,20 @@ java_import {
     jars: ["%s"],
     permitted_packages: ["pkg.media"],
 }
-%s`, expectedJarPath, expectedGenRule)),
+`, expectedJarPath)),
 			checkAllCopyRules(expectedCopyRule),
 		)
 	}
 
 	t.Run("updatable-media in S", func(t *testing.T) {
-		runTest(t, "S", "java/updatable-media.jar", "", `
+		runTest(t, "S", "java/updatable-media.jar", `
 .intermediates/updatable-media/android_common/package-check/updatable-media.jar -> java/updatable-media.jar
 `)
 	})
 
 	t.Run("updatable-media in T", func(t *testing.T) {
-		runTest(t, "Tiramisu", ":mysdk_updatable-media-error", `
-genrule {
-    name: "mysdk_updatable-media-error",
-    visibility: ["//visibility:private"],
-    out: ["this-file-will-never-be-created.jar"],
-    tool_files: ["scripts/invalid_implementation_jar.sh"],
-    cmd: "$(location scripts/invalid_implementation_jar.sh) updatable-media",
-}`, `
-build/soong/java/invalid_implementation_jar.sh -> scripts/invalid_implementation_jar.sh
+		runTest(t, "Tiramisu", "java_boot_libs/snapshot/jars/are/invalid/updatable-media.jar", `
+.intermediates/mysdk/common_os/empty -> java_boot_libs/snapshot/jars/are/invalid/updatable-media.jar
 `)
 	})
 }
@@ -407,20 +389,12 @@ java_import {
     prefer: false,
     visibility: ["//visibility:public"],
     apex_available: ["//apex_available:platform"],
-    jars: [":myexports_myjavalib-error"],
+    jars: ["java_systemserver_libs/snapshot/jars/are/invalid/myjavalib.jar"],
     permitted_packages: ["pkg.myjavalib"],
-}
-
-genrule {
-    name: "myexports_myjavalib-error",
-    visibility: ["//visibility:private"],
-    out: ["this-file-will-never-be-created.jar"],
-    tool_files: ["scripts/invalid_implementation_jar.sh"],
-    cmd: "$(location scripts/invalid_implementation_jar.sh) myjavalib",
 }
 `),
 		checkAllCopyRules(`
-build/soong/java/invalid_implementation_jar.sh -> scripts/invalid_implementation_jar.sh
+.intermediates/myexports/common_os/empty -> java_systemserver_libs/snapshot/jars/are/invalid/myjavalib.jar
 `),
 	)
 }
