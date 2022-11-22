@@ -34,41 +34,6 @@ import (
 // Environment variables that affect the generated snapshot
 // ========================================================
 //
-// SOONG_SDK_SNAPSHOT_PREFER
-//     By default every module in the generated snapshot has prefer: false. Building it
-//     with SOONG_SDK_SNAPSHOT_PREFER=true will force them to use prefer: true.
-//
-// SOONG_SDK_SNAPSHOT_USE_SOURCE_CONFIG_VAR
-//     If set this specifies the Soong config var that can be used to control whether the prebuilt
-//     modules from the generated snapshot or the original source modules. Values must be a colon
-//     separated pair of strings, the first of which is the Soong config namespace, and the second
-//     is the name of the variable within that namespace.
-//
-//     The config namespace and var name are used to set the `use_source_config_var` property. That
-//     in turn will cause the generated prebuilts to use the soong config variable to select whether
-//     source or the prebuilt is used.
-//     e.g. If an sdk snapshot is built using:
-//       m SOONG_SDK_SNAPSHOT_USE_SOURCE_CONFIG_VAR=acme:build_from_source sdkextensions-sdk
-//     Then the resulting snapshot will include:
-//       use_source_config_var: {
-//         config_namespace: "acme",
-//         var_name: "build_from_source",
-//       }
-//
-//     Assuming that the config variable is defined in .mk using something like:
-//       $(call add_soong_config_namespace,acme)
-//       $(call add_soong_config_var_value,acme,build_from_source,true)
-//
-//     Then when the snapshot is unpacked in the repository it will have the following behavior:
-//       m droid - will use the sdkextensions-sdk prebuilts if present. Otherwise, it will use the
-//           sources.
-//       m SOONG_CONFIG_acme_build_from_source=true droid - will use the sdkextensions-sdk
-//            sources, if present. Otherwise, it will use the prebuilts.
-//
-//     This is a temporary mechanism to control the prefer flags and will be removed once a more
-//     maintainable solution has been implemented.
-//     TODO(b/174997203): Remove when no longer necessary.
-//
 // SOONG_SDK_SNAPSHOT_TARGET_BUILD_RELEASE
 //     This allows the target build release (i.e. the release version of the build within which
 //     the snapshot will be used) of the snapshot to be specified. If unspecified then it defaults
@@ -2019,29 +1984,12 @@ func (s *sdk) createMemberSnapshot(ctx *memberContext, member *sdkMember, bpModu
 
 	// Do not add the prefer property if the member snapshot module is a source module type.
 	moduleCtx := ctx.sdkMemberContext
-	config := moduleCtx.Config()
 	if !memberType.UsesSourceModuleTypeInSnapshot() {
-		// Set the prefer based on the environment variable. This is a temporary work around to allow a
-		// snapshot to be created that sets prefer: true.
-		// TODO(b/174997203): Remove once the ability to select the modules to prefer can be done
-		//  dynamically at build time not at snapshot generation time.
-		prefer := config.IsEnvTrue("SOONG_SDK_SNAPSHOT_PREFER")
-
 		// Set prefer. Setting this to false is not strictly required as that is the default but it does
 		// provide a convenient hook to post-process the generated Android.bp file, e.g. in tests to
 		// check the behavior when a prebuilt is preferred. It also makes it explicit what the default
 		// behavior is for the module.
-		bpModule.insertAfter("name", "prefer", prefer)
-
-		configVar := config.Getenv("SOONG_SDK_SNAPSHOT_USE_SOURCE_CONFIG_VAR")
-		if configVar != "" {
-			parts := strings.Split(configVar, ":")
-			cfp := android.ConfigVarProperties{
-				Config_namespace: proptools.StringPtr(parts[0]),
-				Var_name:         proptools.StringPtr(parts[1]),
-			}
-			bpModule.insertAfter("prefer", "use_source_config_var", cfp)
-		}
+		bpModule.insertAfter("name", "prefer", false)
 	}
 
 	variants := selectApexVariantsWhereAvailable(ctx, member.variants)
