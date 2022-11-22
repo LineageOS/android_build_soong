@@ -122,16 +122,18 @@ func (fg *fileGroup) ConvertWithBp2build(ctx TopDownMutatorContext) {
 		if fg.ShouldConvertToProtoLibrary(ctx) {
 			// TODO(b/246997908): we can remove this tag if we could figure out a
 			// solution for this bug.
-			tags := []string{"manual"}
 			attrs := &ProtoAttrs{
 				Srcs:                srcs,
 				Strip_import_prefix: fg.properties.Path,
-				Tags:                tags,
 			}
 
+			tags := []string{"manual"}
 			ctx.CreateBazelTargetModule(
 				bazel.BazelTargetModuleProperties{Rule_class: "proto_library"},
-				CommonAttributes{Name: fg.Name() + convertedProtoLibrarySuffix},
+				CommonAttributes{
+					Name: fg.Name() + convertedProtoLibrarySuffix,
+					Tags: bazel.MakeStringListAttribute(tags),
+				},
 				attrs)
 		}
 
