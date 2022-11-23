@@ -1050,18 +1050,26 @@ func (c *bazelSingleton) GenerateBuildActions(ctx SingletonContext) {
 
 	for _, depset := range ctx.Config().BazelContext.AqueryDepsets() {
 		var outputs []Path
+		var orderOnlies []Path
 		for _, depsetDepHash := range depset.TransitiveDepSetHashes {
 			otherDepsetName := bazelDepsetName(depsetDepHash)
 			outputs = append(outputs, PathForPhony(ctx, otherDepsetName))
 		}
 		for _, artifactPath := range depset.DirectArtifacts {
-			outputs = append(outputs, PathForBazelOut(ctx, artifactPath))
+			pathInBazelOut := PathForBazelOut(ctx, artifactPath)
+			if artifactPath == "bazel-out/volatile-status.txt" {
+				// See https://bazel.build/docs/user-manual#workspace-status
+				orderOnlies = append(orderOnlies, pathInBazelOut)
+			} else {
+				outputs = append(outputs, pathInBazelOut)
+			}
 		}
 		thisDepsetName := bazelDepsetName(depset.ContentHash)
 		ctx.Build(pctx, BuildParams{
 			Rule:      blueprint.Phony,
 			Outputs:   []WritablePath{PathForPhony(ctx, thisDepsetName)},
 			Implicits: outputs,
+			OrderOnly: orderOnlies,
 		})
 	}
 
