@@ -1793,10 +1793,8 @@ func (library *libraryDecorator) coverageOutputFilePath() android.OptionalPath {
 	return library.coverageOutputFile
 }
 
-// pathForRefAbiDump returns an OptionalPath representing the path of the
-// reference abi dump for the given module. This is not guaranteed to be valid.
-func pathForRefAbiDump(ctx android.ModuleInstallPathContext,
-	versionedDumpDir, fileName string, isGzip bool) android.OptionalPath {
+func getRefAbiDumpFile(ctx android.ModuleInstallPathContext,
+	versionedDumpDir, fileName string) android.OptionalPath {
 
 	currentArchType := ctx.Arch().ArchType
 	primaryArchType := ctx.Config().DevicePrimaryArchType()
@@ -1805,15 +1803,8 @@ func pathForRefAbiDump(ctx android.ModuleInstallPathContext,
 		archName += "_" + primaryArchType.String()
 	}
 
-	var ext string
-	if isGzip {
-		ext = ".lsdump.gz"
-	} else {
-		ext = ".lsdump"
-	}
-
 	return android.ExistentPathForSource(ctx, versionedDumpDir, archName, "source-based",
-		fileName+ext)
+		fileName+".lsdump")
 }
 
 func getRefAbiDumpDir(isNdk, isVndk bool) string {
@@ -1826,25 +1817,6 @@ func getRefAbiDumpDir(isNdk, isVndk bool) string {
 		dirName = "platform"
 	}
 	return filepath.Join("prebuilts", "abi-dumps", dirName)
-}
-
-func getRefAbiDumpFile(ctx ModuleContext, versionedDumpDir, fileName string) android.Path {
-	refAbiDumpTextFile := pathForRefAbiDump(ctx, versionedDumpDir, fileName, /* isGzip */ false)
-	refAbiDumpGzipFile := pathForRefAbiDump(ctx, versionedDumpDir, fileName, /* isGzip */ true)
-
-	if refAbiDumpTextFile.Valid() {
-		if refAbiDumpGzipFile.Valid() {
-			ctx.ModuleErrorf(
-				"Two reference ABI dump files are found: %q and %q. Please delete the stale one.",
-				refAbiDumpTextFile, refAbiDumpGzipFile)
-			return nil
-		}
-		return refAbiDumpTextFile.Path()
-	}
-	if refAbiDumpGzipFile.Valid() {
-		return unzipRefDump(ctx, refAbiDumpGzipFile.Path(), fileName)
-	}
-	return nil
 }
 
 func prevRefAbiDumpVersion(ctx ModuleContext, dumpDir string) int {
@@ -1957,8 +1929,8 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objec
 			prevVersion := strconv.Itoa(prevVersionInt)
 			prevDumpDir := filepath.Join(dumpDir, prevVersion, binderBitness)
 			prevDumpFile := getRefAbiDumpFile(ctx, prevDumpDir, fileName)
-			if prevDumpFile != nil {
-				library.crossVersionAbiDiff(ctx, prevDumpFile,
+			if prevDumpFile.Valid() {
+				library.crossVersionAbiDiff(ctx, prevDumpFile.Path(),
 					fileName, isLlndk || isNdk,
 					strconv.Itoa(prevVersionInt+1), prevVersion)
 			}
@@ -1967,8 +1939,8 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objec
 		currVersion := currRefAbiDumpVersion(ctx, isVndk)
 		currDumpDir := filepath.Join(dumpDir, currVersion, binderBitness)
 		currDumpFile := getRefAbiDumpFile(ctx, currDumpDir, fileName)
-		if currDumpFile != nil {
-			library.sameVersionAbiDiff(ctx, currDumpFile,
+		if currDumpFile.Valid() {
+			library.sameVersionAbiDiff(ctx, currDumpFile.Path(),
 				fileName, isLlndk || isNdk, ctx.IsVndkExt())
 		}
 	}
