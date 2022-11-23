@@ -15,12 +15,11 @@
 package java
 
 import (
+	"fmt"
 	"path/filepath"
 
 	"android/soong/android"
 	"github.com/google/blueprint"
-
-	"fmt"
 )
 
 func init() {
@@ -55,7 +54,6 @@ type platformCompatConfigProperties struct {
 
 type platformCompatConfig struct {
 	android.ModuleBase
-	android.SdkBase
 
 	properties     platformCompatConfigProperties
 	installDirPath android.InstallPath
@@ -127,7 +125,6 @@ func (p *platformCompatConfig) AndroidMkEntries() []android.AndroidMkEntries {
 func PlatformCompatConfigFactory() android.Module {
 	module := &platformCompatConfig{}
 	module.AddProperties(&module.properties)
-	android.InitSdkAwareModule(module)
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibCommon)
 	return module
 }
@@ -178,7 +175,6 @@ var _ android.SdkMemberType = (*compatConfigMemberType)(nil)
 // A prebuilt version of the platform compat config module.
 type prebuiltCompatConfigModule struct {
 	android.ModuleBase
-	android.SdkBase
 	prebuilt android.Prebuilt
 
 	properties prebuiltCompatConfigProperties
@@ -213,7 +209,6 @@ func prebuiltCompatConfigFactory() android.Module {
 	m := &prebuiltCompatConfigModule{}
 	m.AddProperties(&m.properties)
 	android.InitSingleSourcePrebuiltModule(m, &m.properties, "Metadata")
-	android.InitSdkAwareModule(m)
 	android.InitAndroidArchModule(m, android.DeviceSupported, android.MultilibCommon)
 	return m
 }

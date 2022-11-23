@@ -396,7 +396,6 @@ type apexBundle struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
 	android.OverridableModuleBase
-	android.SdkBase
 	android.BazelModuleBase
 	multitree.ExportableModuleBase
 
@@ -2593,7 +2592,6 @@ func newApexBundle() *apexBundle {
 
 	android.InitAndroidMultiTargetsArchModule(module, android.HostAndDeviceSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
-	android.InitSdkAwareModule(module)
 	android.InitOverridableModule(module, &module.overridableProperties.Overrides)
 	android.InitBazelModule(module)
 	multitree.InitExportableModule(module)

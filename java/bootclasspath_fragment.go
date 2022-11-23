@@ -229,7 +229,6 @@ type SourceOnlyBootclasspathProperties struct {
 type BootclasspathFragmentModule struct {
 	android.ModuleBase
 	android.ApexModuleBase
-	android.SdkBase
 	ClasspathFragmentBase
 
 	// True if this fragment is for testing purposes.
@@ -279,7 +278,6 @@ func bootclasspathFragmentFactory() android.Module {
 	m := &BootclasspathFragmentModule{}
 	m.AddProperties(&m.properties, &m.sourceOnlyProperties)
 	android.InitApexModule(m)
-	android.InitSdkAwareModule(m)
 	initClasspathFragment(m, BOOTCLASSPATH)
 	android.InitAndroidArchModule(m, android.DeviceSupported, android.MultilibCommon)
 
@@ -1353,7 +1351,6 @@ func prebuiltBootclasspathFragmentFactory() android.Module {
 	// array.
 	android.InitPrebuiltModule(m, &[]string{"placeholder"})
 	android.InitApexModule(m)
-	android.InitSdkAwareModule(m)
 	android.InitAndroidArchModule(m, android.HostAndDeviceSupported, android.MultilibCommon)
 
 	// Initialize the contents property from the image_name.

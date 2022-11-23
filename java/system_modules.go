@@ -114,7 +114,6 @@ func SystemModulesFactory() android.Module {
 	module.AddProperties(&module.properties)
 	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
-	android.InitSdkAwareModule(module)
 	return module
 }
 
@@ -130,7 +129,6 @@ var _ SystemModulesProvider = (*systemModulesImport)(nil)
 type SystemModules struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
-	android.SdkBase
 
 	properties SystemModulesProperties
 
@@ -215,7 +213,6 @@ func systemModulesImportFactory() android.Module {
 	android.InitPrebuiltModule(module, &module.properties.Libs)
 	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
-	android.InitSdkAwareModule(module)
 	return module
 }
 

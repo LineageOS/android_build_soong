@@ -58,7 +58,6 @@ var _ Bazelable = &licenseModule{}
 type licenseModule struct {
 	ModuleBase
 	DefaultableModuleBase
-	SdkBase
 	BazelModuleBase
 
 	properties licenseProperties
@@ -137,7 +136,6 @@ func LicenseFactory() Module {
 	// The visibility property needs to be checked and parsed by the visibility module.
 	setPrimaryVisibilityProperty(module, "visibility", &module.properties.Visibility)
 
-	InitSdkAwareModule(module)
 	initAndroidModuleBase(module)
 	InitDefaultableModule(module)
 	InitBazelModule(module)

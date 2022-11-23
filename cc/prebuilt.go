@@ -293,8 +293,6 @@ func NewPrebuiltLibrary(hod android.HostOrDeviceSupported, srcsProperty string) 
 		android.InitPrebuiltModuleWithSrcSupplier(module, srcsSupplier, srcsProperty)
 	}
 
-	// Prebuilt libraries can be used in SDKs.
-	android.InitSdkAwareModule(module)
 	return module, library
 }
 
@@ -580,7 +578,6 @@ func NewPrebuiltObject(hod android.HostOrDeviceSupported) *Module {
 	module.linker = prebuilt
 	module.AddProperties(&prebuilt.properties)
 	android.InitPrebuiltModule(module, &prebuilt.properties.Srcs)
-	android.InitSdkAwareModule(module)
 	return module
 }
 
