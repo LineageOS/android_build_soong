@@ -1065,7 +1065,7 @@ func (s *sanitizerSplitMutator) Split(ctx android.BaseModuleContext) []string {
 		//TODO: When Rust modules have vendor support, enable this path for PlatformSanitizeable
 
 		// Check if it's a snapshot module supporting sanitizer
-		if ss, ok := c.linker.(snapshotSanitizer); ok && ss.isSanitizerEnabled(s.sanitizer) {
+		if ss, ok := c.linker.(snapshotSanitizer); ok && ss.isSanitizerAvailable(s.sanitizer) {
 			return []string{"", s.sanitizer.variationName()}
 		} else {
 			return []string{""}
@@ -1097,7 +1097,7 @@ func (s *sanitizerSplitMutator) OutgoingTransition(ctx android.OutgoingTransitio
 func (s *sanitizerSplitMutator) IncomingTransition(ctx android.IncomingTransitionContext, incomingVariation string) string {
 	if d, ok := ctx.Module().(PlatformSanitizeable); ok {
 		if dm, ok := ctx.Module().(*Module); ok {
-			if ss, ok := dm.linker.(snapshotSanitizer); ok && ss.isSanitizerEnabled(s.sanitizer) {
+			if ss, ok := dm.linker.(snapshotSanitizer); ok && ss.isSanitizerAvailable(s.sanitizer) {
 				return incomingVariation
 			}
 		}
@@ -1212,14 +1212,23 @@ func (s *sanitizerSplitMutator) Mutate(mctx android.BottomUpMutatorContext, vari
 			sanitizeable.AddSanitizerDependencies(mctx, s.sanitizer.name())
 		}
 	} else if c, ok := mctx.Module().(*Module); ok {
-		if ss, ok := c.linker.(snapshotSanitizer); ok && ss.isSanitizerEnabled(s.sanitizer) {
+		if ss, ok := c.linker.(snapshotSanitizer); ok && ss.isSanitizerAvailable(s.sanitizer) {
+			if !ss.isUnsanitizedVariant() {
+				// Snapshot sanitizer may have only one variantion.
+				// Skip exporting the module if it already has a sanitizer variation.
+				c.SetPreventInstall()
+				c.SetHideFromMake()
+				return
+			}
 			c.linker.(snapshotSanitizer).setSanitizerVariation(s.sanitizer, sanitizerVariation)
 
 			// Export the static lib name to make
 			if c.static() && c.ExportedToMake() {
+				// use BaseModuleName which is the name for Make.
 				if s.sanitizer == cfi {
-					// use BaseModuleName which is the name for Make.
 					cfiStaticLibs(mctx.Config()).add(c, c.BaseModuleName())
+				} else if s.sanitizer == Hwasan {
+					hwasanStaticLibs(mctx.Config()).add(c, c.BaseModuleName())
 				}
 			}
 		}
