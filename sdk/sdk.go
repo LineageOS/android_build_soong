@@ -17,7 +17,6 @@ package sdk
 import (
 	"fmt"
 	"io"
-	"strconv"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
@@ -280,7 +279,6 @@ var _ android.SdkDependencyContext = (*dependencyContext)(nil)
 // outside of the sdk package
 func RegisterPreDepsMutators(ctx android.RegisterMutatorsContext) {
 	ctx.BottomUp("SdkMember", memberMutator).Parallel()
-	ctx.TopDown("SdkMember_deps", memberDepsMutator).Parallel()
 }
 
 type dependencyTag struct {
@@ -323,37 +321,4 @@ func memberMutator(mctx android.BottomUpMutatorContext) {
 			}
 		}
 	}
-}
-
-// Step 2: record that dependencies of SDK modules are members of the SDK modules
-func memberDepsMutator(mctx android.TopDownMutatorContext) {
-	if s, ok := mctx.Module().(*sdk); ok {
-		mySdkRef := android.ParseSdkRef(mctx, mctx.ModuleName(), "name")
-		if s.snapshot() && mySdkRef.Unversioned() {
-			mctx.PropertyErrorf("name", "sdk_snapshot should be named as <name>@<version>. "+
-				"Did you manually modify Android.bp?")
-		}
-		if !s.snapshot() && !mySdkRef.Unversioned() {
-			mctx.PropertyErrorf("name", "sdk shouldn't be named as <name>@<version>.")
-		}
-		if mySdkRef.Version != "" && mySdkRef.Version != "current" {
-			if _, err := strconv.Atoi(mySdkRef.Version); err != nil {
-				mctx.PropertyErrorf("name", "version %q is neither a number nor \"current\"", mySdkRef.Version)
-			}
-		}
-
-		mctx.VisitDirectDeps(func(child android.Module) {
-			if member, ok := child.(android.SdkAware); ok {
-				member.MakeMemberOf(mySdkRef)
-			}
-		})
-	}
-}
-
-// An interface that encapsulates all the functionality needed to manage the sdk dependencies.
-//
-// It is a mixture of apex and sdk module functionality.
-type sdkAndApexModule interface {
-	android.Module
-	android.DepIsInSameApex
 }
