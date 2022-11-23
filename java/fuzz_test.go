@@ -88,7 +88,7 @@ func TestJavaFuzz(t *testing.T) {
 
 	expected := "lib64/libjni.so"
 	if runtime.GOOS == "darwin" {
-		expected = "libjni.dylib"
+		expected = "lib64/libjni.dylib"
 	}
 
 	fooJniFilePaths := foo.jniFilePaths
