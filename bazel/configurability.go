@@ -203,6 +203,11 @@ var (
 	osAndInApexMap = map[string]string{
 		AndroidAndInApex:           "//build/bazel/rules/apex:android-in_apex",
 		AndroidAndNonApex:          "//build/bazel/rules/apex:android-non_apex",
+		osDarwin:                   "//build/bazel/platforms/os:darwin",
+		osLinux:                    "//build/bazel/platforms/os:linux",
+		osLinuxMusl:                "//build/bazel/platforms/os:linux_musl",
+		osLinuxBionic:              "//build/bazel/platforms/os:linux_bionic",
+		osWindows:                  "//build/bazel/platforms/os:windows",
 		ConditionsDefaultConfigKey: ConditionsDefaultSelectKey,
 	}
 
