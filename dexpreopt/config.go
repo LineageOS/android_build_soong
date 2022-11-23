@@ -96,6 +96,8 @@ type GlobalConfig struct {
 	// quickly silence build errors. This flag should be used with caution and only as a temporary
 	// measure, as it masks real errors and affects performance.
 	RelaxUsesLibraryCheck bool
+
+	EnableUffdGc bool // preopt with the assumption that userfaultfd GC will be used on device.
 }
 
 var allPlatformSystemServerJarsKey = android.NewOnceKey("allPlatformSystemServerJars")

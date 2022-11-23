@@ -154,10 +154,7 @@ var BannerVars = []string{
 	"HOST_CROSS_OS",
 	"BUILD_ID",
 	"OUT_DIR",
-	"SOONG_SDK_SNAPSHOT_PREFER",
 	"SOONG_SDK_SNAPSHOT_TARGET_BUILD_RELEASE",
-	"SOONG_SDK_SNAPSHOT_USE_SOURCE_CONFIG_VAR",
-	"SOONG_SDK_SNAPSHOT_VERSION",
 }
 
 func Banner(make_vars map[string]string) string {
