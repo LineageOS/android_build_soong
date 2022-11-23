@@ -409,60 +409,6 @@ java_import {
 		)
 	})
 
-	t.Run("SOONG_SDK_SNAPSHOT_PREFER=true", func(t *testing.T) {
-		result := android.GroupFixturePreparers(
-			preparer,
-			android.FixtureMergeEnv(map[string]string{
-				"SOONG_SDK_SNAPSHOT_PREFER": "true",
-			}),
-		).RunTest(t)
-
-		checkZipFile(t, result, "out/soong/.intermediates/mysdk/common_os/mysdk-current.zip")
-
-		CheckSnapshot(t, result, "mysdk", "",
-			checkAndroidBpContents(`
-// This is auto-generated. DO NOT EDIT.
-
-java_import {
-    name: "myjavalib",
-    prefer: true,
-    visibility: ["//visibility:public"],
-    apex_available: ["//apex_available:platform"],
-    jars: ["java/myjavalib.jar"],
-}
-			`),
-		)
-	})
-
-	t.Run("SOONG_SDK_SNAPSHOT_USE_SOURCE_CONFIG_VAR=module:build_from_source", func(t *testing.T) {
-		result := android.GroupFixturePreparers(
-			preparer,
-			android.FixtureMergeEnv(map[string]string{
-				"SOONG_SDK_SNAPSHOT_USE_SOURCE_CONFIG_VAR": "module:build_from_source",
-			}),
-		).RunTest(t)
-
-		checkZipFile(t, result, "out/soong/.intermediates/mysdk/common_os/mysdk-current.zip")
-
-		CheckSnapshot(t, result, "mysdk", "",
-			checkAndroidBpContents(`
-// This is auto-generated. DO NOT EDIT.
-
-java_import {
-    name: "myjavalib",
-    prefer: false,
-    use_source_config_var: {
-        config_namespace: "module",
-        var_name: "build_from_source",
-    },
-    visibility: ["//visibility:public"],
-    apex_available: ["//apex_available:platform"],
-    jars: ["java/myjavalib.jar"],
-}
-			`),
-		)
-	})
-
 	t.Run("SOONG_SDK_SNAPSHOT_TARGET_BUILD_RELEASE=S", func(t *testing.T) {
 		result := android.GroupFixturePreparers(
 			prepareForSdkTestWithJava,

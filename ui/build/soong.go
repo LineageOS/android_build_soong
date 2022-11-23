@@ -195,6 +195,12 @@ func primaryBuilderInvocation(
 
 	allArgs = append(allArgs, commonArgs...)
 	allArgs = append(allArgs, environmentArgs(config, name)...)
+	if profileCpu := os.Getenv("SOONG_PROFILE_CPU"); profileCpu != "" {
+		allArgs = append(allArgs, "--cpuprofile", profileCpu+"."+name)
+	}
+	if profileMem := os.Getenv("SOONG_PROFILE_MEM"); profileMem != "" {
+		allArgs = append(allArgs, "--memprofile", profileMem+"."+name)
+	}
 	allArgs = append(allArgs, "Android.bp")
 
 	return bootstrap.PrimaryBuilderInvocation{
