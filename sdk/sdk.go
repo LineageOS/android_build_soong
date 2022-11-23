@@ -37,7 +37,6 @@ func init() {
 func registerSdkBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("sdk", SdkModuleFactory)
 	ctx.RegisterModuleType("sdk_snapshot", SnapshotModuleFactory)
-	ctx.PreDepsMutators(RegisterPreDepsMutators)
 }
 
 type sdk struct {
@@ -274,13 +273,6 @@ func (d *dependencyContext) RequiresTrait(name string, trait android.SdkMemberTr
 
 var _ android.SdkDependencyContext = (*dependencyContext)(nil)
 
-// RegisterPreDepsMutators registers pre-deps mutators to support modules implementing SdkAware
-// interface and the sdk module type. This function has been made public to be called by tests
-// outside of the sdk package
-func RegisterPreDepsMutators(ctx android.RegisterMutatorsContext) {
-	ctx.BottomUp("SdkMember", memberMutator).Parallel()
-}
-
 type dependencyTag struct {
 	blueprint.BaseDependencyTag
 }
@@ -290,35 +282,35 @@ func (t dependencyTag) ExcludeFromApexContents() {}
 
 var _ android.ExcludeFromApexContentsTag = dependencyTag{}
 
-// Step 1: create dependencies from an SDK module to its members.
-func memberMutator(mctx android.BottomUpMutatorContext) {
-	if s, ok := mctx.Module().(*sdk); ok {
-		// Add dependencies from enabled and non CommonOS variants to the sdk member variants.
-		if s.Enabled() && !s.IsCommonOSVariant() {
-			ctx := s.newDependencyContext(mctx)
-			for _, memberListProperty := range s.memberTypeListProperties() {
-				if memberListProperty.getter == nil {
-					continue
-				}
-				names := memberListProperty.getter(s.dynamicMemberTypeListProperties)
-				if len(names) > 0 {
-					memberType := memberListProperty.memberType
+func (s *sdk) DepsMutator(mctx android.BottomUpMutatorContext) {
+	// Add dependencies from non CommonOS variants to the sdk member variants.
+	if s.IsCommonOSVariant() {
+		return
+	}
 
-					// Verify that the member type supports the specified traits.
-					supportedTraits := memberType.SupportedTraits()
-					for _, name := range names {
-						requiredTraits := ctx.RequiredTraits(name)
-						unsupportedTraits := requiredTraits.Subtract(supportedTraits)
-						if !unsupportedTraits.Empty() {
-							ctx.ModuleErrorf("sdk member %q has traits %s that are unsupported by its member type %q", name, unsupportedTraits, memberType.SdkPropertyName())
-						}
-					}
+	ctx := s.newDependencyContext(mctx)
+	for _, memberListProperty := range s.memberTypeListProperties() {
+		if memberListProperty.getter == nil {
+			continue
+		}
+		names := memberListProperty.getter(s.dynamicMemberTypeListProperties)
+		if len(names) > 0 {
+			memberType := memberListProperty.memberType
 
-					// Add dependencies using the appropriate tag.
-					tag := memberListProperty.dependencyTag
-					memberType.AddDependencies(ctx, tag, names)
+			// Verify that the member type supports the specified traits.
+			supportedTraits := memberType.SupportedTraits()
+			for _, name := range names {
+				requiredTraits := ctx.RequiredTraits(name)
+				unsupportedTraits := requiredTraits.Subtract(supportedTraits)
+				if !unsupportedTraits.Empty() {
+					ctx.ModuleErrorf("sdk member %q has traits %s that are unsupported by its member type %q",
+						name, unsupportedTraits, memberType.SdkPropertyName())
 				}
 			}
+
+			// Add dependencies using the appropriate tag.
+			tag := memberListProperty.dependencyTag
+			memberType.AddDependencies(ctx, tag, names)
 		}
 	}
 }
