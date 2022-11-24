@@ -1376,6 +1376,13 @@ func (c *Module) HasStubsVariants() bool {
 	return false
 }
 
+func (c *Module) IsStubsImplementationRequired() bool {
+	if lib := c.library; lib != nil {
+		return lib.isStubsImplementationRequired()
+	}
+	return false
+}
+
 // If this is a stubs library, ImplementationModuleName returns the name of the module that contains
 // the implementation.  If it is an implementation library it returns its own name.
 func (c *Module) ImplementationModuleName(ctx android.BaseModuleContext) string {

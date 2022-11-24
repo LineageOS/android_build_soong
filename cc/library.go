@@ -71,6 +71,12 @@ type LibraryProperties struct {
 		// List versions to generate stubs libs for. The version name "current" is always
 		// implicitly added.
 		Versions []string
+
+		// Whether to not require the implementation of the library to be installed if a
+		// client of the stubs is installed. Defaults to true; set to false if the
+		// implementation is made available by some other means, e.g. in a Microdroid
+		// virtual machine.
+		Implementation_installable *bool
 	}
 
 	// set the name of the output
@@ -1339,6 +1345,7 @@ type versionedInterface interface {
 	buildStubs() bool
 	setBuildStubs(isLatest bool)
 	hasStubsVariants() bool
+	isStubsImplementationRequired() bool
 	setStubsVersion(string)
 	stubsVersion() string
 
@@ -2296,6 +2303,10 @@ func (library *libraryDecorator) hasStubsVariants() bool {
 	// the stub for the future API level is created.
 	return library.Properties.Stubs.Symbol_file != nil ||
 		len(library.Properties.Stubs.Versions) > 0
+}
+
+func (library *libraryDecorator) isStubsImplementationRequired() bool {
+	return BoolDefault(library.Properties.Stubs.Implementation_installable, true)
 }
 
 func (library *libraryDecorator) stubsVersions(ctx android.BaseMutatorContext) []string {
