@@ -2301,7 +2301,7 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 				//
 				// Always include if we are a host-apex however since those won't have any
 				// system libraries.
-				if !am.DirectlyInAnyApex() {
+				if ch.IsStubsImplementationRequired() && !am.DirectlyInAnyApex() {
 					// we need a module name for Make
 					name := ch.ImplementationModuleNameForMake(ctx) + ch.Properties.SubName
 					if !android.InList(name, a.requiredDeps) {
