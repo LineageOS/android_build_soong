@@ -2976,6 +2976,63 @@ cc_library {
 	})
 }
 
+func TestCcLibraryExcludesLibsHost(t *testing.T) {
+	runCcLibraryTestCase(t, Bp2buildTestCase{
+		ModuleTypeUnderTest:        "cc_library",
+		ModuleTypeUnderTestFactory: cc.LibraryFactory,
+		Filesystem: map[string]string{
+			"bar.map.txt": "",
+		},
+		Blueprint: simpleModuleDoNotConvertBp2build("cc_library", "bazlib") + `
+cc_library {
+	name: "quxlib",
+	stubs: { symbol_file: "bar.map.txt", versions: ["current"] },
+	bazel_module: { bp2build_available: false },
+}
+cc_library {
+	name: "barlib",
+	stubs: { symbol_file: "bar.map.txt", versions: ["28", "29", "current"] },
+	bazel_module: { bp2build_available: false },
+}
+cc_library {
+	name: "foolib",
+	shared_libs: ["barlib", "quxlib"],
+	target: {
+		host: {
+			shared_libs: ["bazlib"],
+			exclude_shared_libs: ["barlib"],
+		},
+	},
+	include_build_directory: false,
+	bazel_module: { bp2build_available: true },
+}`,
+		ExpectedBazelTargets: makeCcLibraryTargets("foolib", AttrNameToString{
+			"implementation_dynamic_deps": `select({
+        "//build/bazel/platforms/os:darwin": [":bazlib"],
+        "//build/bazel/platforms/os:linux": [":bazlib"],
+        "//build/bazel/platforms/os:linux_bionic": [":bazlib"],
+        "//build/bazel/platforms/os:linux_musl": [":bazlib"],
+        "//build/bazel/platforms/os:windows": [":bazlib"],
+        "//conditions:default": [],
+    }) + select({
+        "//build/bazel/platforms/os:darwin": [":quxlib"],
+        "//build/bazel/platforms/os:linux": [":quxlib"],
+        "//build/bazel/platforms/os:linux_bionic": [":quxlib"],
+        "//build/bazel/platforms/os:linux_musl": [":quxlib"],
+        "//build/bazel/platforms/os:windows": [":quxlib"],
+        "//build/bazel/rules/apex:android-in_apex": [
+            ":barlib_stub_libs_current",
+            ":quxlib_stub_libs_current",
+        ],
+        "//conditions:default": [
+            ":barlib",
+            ":quxlib",
+        ],
+    })`,
+		}),
+	})
+}
+
 func TestCcLibraryEscapeLdflags(t *testing.T) {
 	runCcLibraryTestCase(t, Bp2buildTestCase{
 		ModuleTypeUnderTest:        "cc_library",

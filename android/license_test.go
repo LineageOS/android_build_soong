@@ -90,6 +90,36 @@ var licenseTests = []struct {
 		},
 	},
 	{
+		name: "must not duplicate license_kind",
+		fs: map[string][]byte{
+			"top/Android.bp": []byte(`
+				license_kind {
+					name: "top_by_exception_only",
+					conditions: ["by_exception_only"],
+					visibility: ["//visibility:private"],
+				}
+
+				license_kind {
+					name: "top_by_exception_only_2",
+					conditions: ["by_exception_only"],
+					visibility: ["//visibility:private"],
+				}
+
+				license {
+					name: "top_proprietary",
+					license_kinds: [
+						"top_by_exception_only",
+						"top_by_exception_only_2",
+						"top_by_exception_only"
+					],
+					visibility: ["//visibility:public"],
+				}`),
+		},
+		expectedErrors: []string{
+			`top/Android.bp:14:5: module "top_proprietary": Duplicated license kind: "top_by_exception_only"`,
+		},
+	},
+	{
 		name: "license_kind module must exist",
 		fs: map[string][]byte{
 			"top/Android.bp": []byte(`

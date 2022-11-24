@@ -15,10 +15,12 @@
 package android
 
 import (
-	"android/soong/bazel"
 	"fmt"
-	"github.com/google/blueprint"
 	"os"
+
+	"github.com/google/blueprint"
+
+	"android/soong/bazel"
 )
 
 type licenseKindDependencyTag struct {
@@ -101,6 +103,14 @@ func (m *licenseModule) ConvertWithBp2build(ctx TopDownMutatorContext) {
 }
 
 func (m *licenseModule) DepsMutator(ctx BottomUpMutatorContext) {
+	for i, license := range m.properties.License_kinds {
+		for j := i + 1; j < len(m.properties.License_kinds); j++ {
+			if license == m.properties.License_kinds[j] {
+				ctx.ModuleErrorf("Duplicated license kind: %q", license)
+				break
+			}
+		}
+	}
 	ctx.AddVariationDependencies(nil, licenseKindTag, m.properties.License_kinds...)
 }
 
