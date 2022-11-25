@@ -664,7 +664,15 @@ func TestBasicSdkWithBootclasspathFragment(t *testing.T) {
 	android.GroupFixturePreparers(
 		prepareForSdkTestWithApex,
 		prepareForSdkTestWithJava,
-		android.FixtureAddFile("java/mybootlib.jar", nil),
+		android.FixtureMergeMockFs(android.MockFS{
+			"java/mybootlib.jar":                nil,
+			"hiddenapi/annotation-flags.csv":    nil,
+			"hiddenapi/index.csv":               nil,
+			"hiddenapi/metadata.csv":            nil,
+			"hiddenapi/signature-patterns.csv":  nil,
+			"hiddenapi/filtered-stub-flags.csv": nil,
+			"hiddenapi/filtered-flags.csv":      nil,
+		}),
 		android.FixtureWithRootAndroidBp(`
 		sdk {
 			name: "mysdk",
@@ -691,26 +699,27 @@ func TestBasicSdkWithBootclasspathFragment(t *testing.T) {
 			compile_dex: true,
 		}
 
-		sdk_snapshot {
-			name: "mysdk@1",
-			bootclasspath_fragments: ["mysdk_mybootclasspathfragment@1"],
-		}
-
 		prebuilt_bootclasspath_fragment {
-			name: "mysdk_mybootclasspathfragment@1",
-			sdk_member_name: "mybootclasspathfragment",
+			name: "mybootclasspathfragment",
 			prefer: false,
 			visibility: ["//visibility:public"],
 			apex_available: [
 				"myapex",
 			],
 			image_name: "art",
-			contents: ["mysdk_mybootlib@1"],
+			contents: ["mybootlib"],
+			hidden_api: {
+				annotation_flags: "hiddenapi/annotation-flags.csv",
+				metadata: "hiddenapi/metadata.csv",
+				index: "hiddenapi/index.csv",
+				signature_patterns: "hiddenapi/signature-patterns.csv",
+				filtered_stub_flags: "hiddenapi/filtered-stub-flags.csv",
+				filtered_flags: "hiddenapi/filtered-flags.csv",
+			},
 		}
 
 		java_import {
-			name: "mysdk_mybootlib@1",
-			sdk_member_name: "mybootlib",
+			name: "mybootlib",
 			visibility: ["//visibility:public"],
 			apex_available: ["com.android.art"],
 			jars: ["java/mybootlib.jar"],
