@@ -367,6 +367,22 @@ var neverallowTests = []struct {
 			"framework can't be used when building against SDK",
 		},
 	},
+	// Test for the rule restricting use of implementation_installable
+	{
+		name: `"implementation_installable" outside allowed list`,
+		fs: map[string][]byte{
+			"Android.bp": []byte(`
+				cc_library {
+					name: "outside_allowed_list",
+					stubs: {
+                                                implementation_installable: true,
+					},
+				}`),
+		},
+		expectedErrors: []string{
+			`module "outside_allowed_list": violates neverallow`,
+		},
+	},
 }
 
 var prepareForNeverAllowTest = GroupFixturePreparers(
@@ -418,6 +434,10 @@ type mockCcLibraryProperties struct {
 
 	Platform struct {
 		Shared_libs []string
+	}
+
+	Stubs struct {
+		Implementation_installable *bool
 	}
 }
 
