@@ -96,7 +96,7 @@ var TargetCpuAbi = map[string]string{
 	"x86_64": "X86_64",
 }
 
-func SupportedAbis(ctx android.ModuleContext) []string {
+func SupportedAbis(ctx android.ModuleContext, excludeNativeBridgeAbis bool) []string {
 	abiName := func(targetIdx int, deviceArch string) string {
 		if abi, found := TargetCpuAbi[deviceArch]; found {
 			return abi
@@ -107,6 +107,9 @@ func SupportedAbis(ctx android.ModuleContext) []string {
 
 	var result []string
 	for i, target := range ctx.Config().Targets[android.Android] {
+		if target.NativeBridge == android.NativeBridgeEnabled && excludeNativeBridgeAbis {
+			continue
+		}
 		result = append(result, abiName(i, target.Arch.ArchType.String()))
 	}
 	return result
@@ -133,7 +136,7 @@ func (as *AndroidAppSet) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 			ImplicitOutputs: android.WritablePaths{as.packedOutput, as.apkcertsFile},
 			Inputs:          android.Paths{as.prebuilt.SingleSourcePath(ctx)},
 			Args: map[string]string{
-				"abis":              strings.Join(SupportedAbis(ctx), ","),
+				"abis":              strings.Join(SupportedAbis(ctx, false), ","),
 				"allow-prereleased": strconv.FormatBool(proptools.Bool(as.properties.Prerelease)),
 				"screen-densities":  screenDensities,
 				"sdk-version":       ctx.Config().PlatformSdkVersion().String(),
