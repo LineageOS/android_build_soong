@@ -3520,7 +3520,7 @@ func (c *Module) IsInstallableToApex() bool {
 	if lib := c.library; lib != nil {
 		// Stub libs and prebuilt libs in a versioned SDK are not
 		// installable to APEX even though they are shared libs.
-		return lib.shared() && !lib.buildStubs() && !android.IsModuleInVersionedSdk(c)
+		return lib.shared() && !lib.buildStubs()
 	} else if _, ok := c.linker.(testPerSrc); ok {
 		return true
 	}

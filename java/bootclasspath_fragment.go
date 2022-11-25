@@ -332,19 +332,6 @@ func bootclasspathFragmentInitContentsFromImage(ctx android.EarlyModuleContext, 
 		return
 	}
 
-	// TODO(b/177892522): Prebuilts (versioned or not) should not use the image_name property.
-	if android.IsModuleInVersionedSdk(m) {
-		// The module is a versioned prebuilt so ignore it. This is done for a couple of reasons:
-		// 1. There is no way to use this at the moment so ignoring it is safe.
-		// 2. Attempting to initialize the contents property from the configuration will end up having
-		//    the versioned prebuilt depending on the unversioned prebuilt. That will cause problems
-		//    as the unversioned prebuilt could end up with an APEX variant created for the source
-		//    APEX which will prevent it from having an APEX variant for the prebuilt APEX which in
-		//    turn will prevent it from accessing the dex implementation jar from that which will
-		//    break hidden API processing, amongst others.
-		return
-	}
-
 	// Get the configuration for the art apex jars. Do not use getImageConfig(ctx) here as this is
 	// too early in the Soong processing for that to work.
 	global := dexpreopt.GetGlobalConfig(ctx)
@@ -383,19 +370,6 @@ func bootclasspathFragmentInitContentsFromImage(ctx android.EarlyModuleContext, 
 func (b *BootclasspathFragmentModule) bootclasspathImageNameContentsConsistencyCheck(ctx android.BaseModuleContext) {
 	imageName := proptools.String(b.properties.Image_name)
 	if imageName == "art" {
-		// TODO(b/177892522): Prebuilts (versioned or not) should not use the image_name property.
-		if android.IsModuleInVersionedSdk(b) {
-			// The module is a versioned prebuilt so ignore it. This is done for a couple of reasons:
-			// 1. There is no way to use this at the moment so ignoring it is safe.
-			// 2. Attempting to initialize the contents property from the configuration will end up having
-			//    the versioned prebuilt depending on the unversioned prebuilt. That will cause problems
-			//    as the unversioned prebuilt could end up with an APEX variant created for the source
-			//    APEX which will prevent it from having an APEX variant for the prebuilt APEX which in
-			//    turn will prevent it from accessing the dex implementation jar from that which will
-			//    break hidden API processing, amongst others.
-			return
-		}
-
 		// Get the configuration for the art apex jars.
 		modules := b.getImageConfig(ctx).modules
 		configuredJars := modules.CopyOfJars()
@@ -575,57 +549,48 @@ func (b *BootclasspathFragmentModule) GenerateAndroidBuildActions(ctx android.Mo
 	// prebuilt which will not use the image config.
 	imageConfig := b.getImageConfig(ctx)
 
-	// A versioned prebuilt_bootclasspath_fragment cannot and does not need to perform hidden API
-	// processing. It cannot do it because it is not part of a prebuilt_apex and so has no access to
-	// the correct dex implementation jar. It does not need to because the platform-bootclasspath
-	// always references the latest bootclasspath_fragments.
-	if !android.IsModuleInVersionedSdk(ctx.Module()) {
-		// Perform hidden API processing.
-		hiddenAPIOutput := b.generateHiddenAPIBuildActions(ctx, contents, fragments)
+	// Perform hidden API processing.
+	hiddenAPIOutput := b.generateHiddenAPIBuildActions(ctx, contents, fragments)
 
-		var bootImageFiles bootImageOutputs
-		if imageConfig != nil {
-			// Delegate the production of the boot image files to a module type specific method.
-			common := ctx.Module().(commonBootclasspathFragment)
-			bootImageFiles = common.produceBootImageFiles(ctx, imageConfig)
+	var bootImageFiles bootImageOutputs
+	if imageConfig != nil {
+		// Delegate the production of the boot image files to a module type specific method.
+		common := ctx.Module().(commonBootclasspathFragment)
+		bootImageFiles = common.produceBootImageFiles(ctx, imageConfig)
 
-			if shouldCopyBootFilesToPredefinedLocations(ctx, imageConfig) {
-				// Zip the boot image files up, if available. This will generate the zip file in a
-				// predefined location.
-				buildBootImageZipInPredefinedLocation(ctx, imageConfig, bootImageFiles.byArch)
+		if shouldCopyBootFilesToPredefinedLocations(ctx, imageConfig) {
+			// Zip the boot image files up, if available. This will generate the zip file in a
+			// predefined location.
+			buildBootImageZipInPredefinedLocation(ctx, imageConfig, bootImageFiles.byArch)
 
-				// Copy the dex jars of this fragment's content modules to their predefined locations.
-				copyBootJarsToPredefinedLocations(ctx, hiddenAPIOutput.EncodedBootDexFilesByModule, imageConfig.dexPathsByModule)
-			}
-
-			for _, variant := range bootImageFiles.variants {
-				archType := variant.config.target.Arch.ArchType
-				arch := archType.String()
-				for _, install := range variant.deviceInstalls {
-					// Remove the "/" prefix because the path should be relative to $ANDROID_PRODUCT_OUT.
-					installDir := strings.TrimPrefix(filepath.Dir(install.To), "/")
-					installBase := filepath.Base(install.To)
-					installPath := android.PathForModuleInPartitionInstall(ctx, "", installDir)
-
-					b.bootImageDeviceInstalls = append(b.bootImageDeviceInstalls, dexpreopterInstall{
-						name:                arch + "-" + installBase,
-						moduleName:          b.Name(),
-						outputPathOnHost:    install.From,
-						installDirOnDevice:  installPath,
-						installFileOnDevice: installBase,
-					})
-				}
-			}
+			// Copy the dex jars of this fragment's content modules to their predefined locations.
+			copyBootJarsToPredefinedLocations(ctx, hiddenAPIOutput.EncodedBootDexFilesByModule, imageConfig.dexPathsByModule)
 		}
 
-		// A prebuilt fragment cannot contribute to an apex.
-		if !android.IsModulePrebuilt(ctx.Module()) {
-			// Provide the apex content info.
-			b.provideApexContentInfo(ctx, imageConfig, hiddenAPIOutput, bootImageFiles)
+		for _, variant := range bootImageFiles.variants {
+			archType := variant.config.target.Arch.ArchType
+			arch := archType.String()
+			for _, install := range variant.deviceInstalls {
+				// Remove the "/" prefix because the path should be relative to $ANDROID_PRODUCT_OUT.
+				installDir := strings.TrimPrefix(filepath.Dir(install.To), "/")
+				installBase := filepath.Base(install.To)
+				installPath := android.PathForModuleInPartitionInstall(ctx, "", installDir)
+
+				b.bootImageDeviceInstalls = append(b.bootImageDeviceInstalls, dexpreopterInstall{
+					name:                arch + "-" + installBase,
+					moduleName:          b.Name(),
+					outputPathOnHost:    install.From,
+					installDirOnDevice:  installPath,
+					installFileOnDevice: installBase,
+				})
+			}
 		}
-	} else {
-		// Versioned fragments are not needed by make.
-		b.HideFromMake()
+	}
+
+	// A prebuilt fragment cannot contribute to an apex.
+	if !android.IsModulePrebuilt(ctx.Module()) {
+		// Provide the apex content info.
+		b.provideApexContentInfo(ctx, imageConfig, hiddenAPIOutput, bootImageFiles)
 	}
 
 	// In order for information about bootclasspath_fragment modules to be added to module-info.json
@@ -719,7 +684,7 @@ func (b *BootclasspathFragmentModule) configuredJars(ctx android.ModuleContext) 
 		jars = jars.Append("com.android.sdkext", "test_framework-sdkextensions")
 	} else if android.InList("test_framework-apexd", possibleUpdatableModules) {
 		jars = jars.Append("com.android.apex.test_package", "test_framework-apexd")
-	} else if global.ApexBootJars.Len() != 0 && !android.IsModuleInVersionedSdk(ctx.Module()) {
+	} else if global.ApexBootJars.Len() != 0 {
 		unknown = android.RemoveListFromList(unknown, b.properties.Coverage.Contents)
 		_, unknown = android.RemoveFromList("core-icu4j", unknown)
 		// This module only exists in car products.
@@ -958,11 +923,6 @@ func (b *BootclasspathFragmentModule) generateBootImageBuildActions(ctx android.
 	// Bootclasspath fragment modules that are for the platform do not produce a boot image.
 	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
 	if apexInfo.IsForPlatform() {
-		return bootImageOutputs{}
-	}
-
-	// Bootclasspath fragment modules that are versioned do not produce a boot image.
-	if android.IsModuleInVersionedSdk(ctx.Module()) {
 		return bootImageOutputs{}
 	}
 

@@ -216,16 +216,6 @@ func InitSdkAwareModule(m SdkAware) {
 	m.AddProperties(&base.properties)
 }
 
-// IsModuleInVersionedSdk returns true if the module is an versioned sdk.
-func IsModuleInVersionedSdk(module Module) bool {
-	if s, ok := module.(SdkAware); ok {
-		if !s.ContainingSdk().Unversioned() {
-			return true
-		}
-	}
-	return false
-}
-
 // SnapshotBuilder provides support for generating the build rules which will build the snapshot.
 type SnapshotBuilder interface {
 	// CopyToSnapshot generates a rule that will copy the src to the dest (which is a snapshot

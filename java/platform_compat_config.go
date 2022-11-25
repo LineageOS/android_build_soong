@@ -223,18 +223,6 @@ type platformCompatConfigSingleton struct {
 	metadata android.Path
 }
 
-// isModulePreferredByCompatConfig checks to see whether the module is preferred for use by
-// platform compat config.
-func isModulePreferredByCompatConfig(module android.Module) bool {
-	// A versioned prebuilt_platform_compat_config, i.e. foo-platform-compat-config@current should be
-	// ignored.
-	if android.IsModuleInVersionedSdk(module) {
-		return false
-	}
-
-	return android.IsModulePreferred(module)
-}
-
 func (p *platformCompatConfigSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 
 	var compatConfigMetadata android.Paths
@@ -244,7 +232,7 @@ func (p *platformCompatConfigSingleton) GenerateBuildActions(ctx android.Singlet
 			return
 		}
 		if c, ok := module.(platformCompatConfigMetadataProvider); ok {
-			if !isModulePreferredByCompatConfig(module) {
+			if !android.IsModulePreferred(module) {
 				return
 			}
 			metadata := c.compatConfigMetadata()

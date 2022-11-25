@@ -209,12 +209,6 @@ func IsValidSharedDependency(dependency android.Module) bool {
 		return false
 	}
 
-	// Discard versioned members of SDK snapshots, because they will conflict with
-	// unversioned ones.
-	if android.IsModuleInVersionedSdk(dependency) {
-		return false
-	}
-
 	return true
 }
 

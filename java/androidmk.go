@@ -200,11 +200,6 @@ func (prebuilt *Import) AndroidMkEntries() []android.AndroidMkEntries {
 		dexpreoptEntries := prebuilt.dexpreopter.AndroidMkEntriesForApex()
 		return append(dexpreoptEntries, android.AndroidMkEntries{Disabled: true})
 	}
-	if android.IsModuleInVersionedSdk(prebuilt) {
-		return []android.AndroidMkEntries{android.AndroidMkEntries{
-			Disabled: true,
-		}}
-	}
 	return []android.AndroidMkEntries{android.AndroidMkEntries{
 		Class:      "JAVA_LIBRARIES",
 		OutputFile: android.OptionalPathForPath(prebuilt.combinedClasspathFile),

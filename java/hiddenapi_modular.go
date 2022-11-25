@@ -1352,14 +1352,6 @@ func deferReportingMissingBootDexJar(ctx android.ModuleContext, module android.M
 		return true
 	}
 
-	// A bootclasspath module that is part of a versioned sdk never provides a boot dex jar as there
-	// is no equivalently versioned prebuilt APEX file from which it can be obtained. However,
-	// versioned bootclasspath modules are processed by Soong so in order to avoid them causing build
-	// failures missing boot dex jars need to be deferred.
-	if android.IsModuleInVersionedSdk(ctx.Module()) {
-		return true
-	}
-
 	// This is called for both platform_bootclasspath and bootclasspath_fragment modules.
 	//
 	// A bootclasspath_fragment module should only use the APEX variant of source or prebuilt modules.
