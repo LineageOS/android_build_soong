@@ -200,7 +200,7 @@ func (prebuilt *Import) AndroidMkEntries() []android.AndroidMkEntries {
 		dexpreoptEntries := prebuilt.dexpreopter.AndroidMkEntriesForApex()
 		return append(dexpreoptEntries, android.AndroidMkEntries{Disabled: true})
 	}
-	if !prebuilt.ContainingSdk().Unversioned() {
+	if android.IsModuleInVersionedSdk(prebuilt) {
 		return []android.AndroidMkEntries{android.AndroidMkEntries{
 			Disabled: true,
 		}}
