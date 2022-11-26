@@ -120,6 +120,7 @@ java_import {
     visibility: ["//visibility:public"],
     apex_available: ["myapex"],
     jars: ["java_systemserver_libs/snapshot/jars/are/invalid/mylib.jar"],
+    min_sdk_version: "2",
     permitted_packages: ["mylib"],
 }
 
@@ -181,6 +182,7 @@ java_import {
     visibility: ["//visibility:public"],
     apex_available: ["myapex"],
     jars: ["java_systemserver_libs/snapshot/jars/are/invalid/mylib.jar"],
+    min_sdk_version: "2",
     permitted_packages: ["mylib"],
 }
 
