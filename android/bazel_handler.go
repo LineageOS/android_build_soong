@@ -81,7 +81,7 @@ type cqueryRequest interface {
 	// all request-relevant information about a target and returns a string containing
 	// this information.
 	// The function should have the following properties:
-	//   - `target` is the only parameter to this function (a configured target).
+	//   - The arguments are `target` (a configured target) and `id_string` (the label + configuration).
 	//   - The return value must be a string.
 	//   - The function body should not be indented outside of its own scope.
 	StarlarkFunctionBody() string
@@ -743,12 +743,12 @@ func (context *bazelContext) cqueryStarlarkFileContents() []byte {
 }
 `
 	functionDefFormatString := `
-def %s(target):
+def %s(target, id_string):
 %s
 `
 	mainSwitchSectionFormatString := `
   if id_string in %s:
-    return id_string + ">>" + %s(target)
+    return id_string + ">>" + %s(target, id_string)
 `
 
 	for requestType := range requestTypeToCqueryIdEntries {
