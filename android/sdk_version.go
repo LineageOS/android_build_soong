@@ -44,6 +44,7 @@ const (
 	SdkNone
 	SdkCore
 	SdkCorePlatform
+	SdkIntraCore // API surface provided by one core module to another
 	SdkPublic
 	SdkSystem
 	SdkTest
@@ -69,6 +70,8 @@ func (k SdkKind) String() string {
 		return "core"
 	case SdkCorePlatform:
 		return "core_platform"
+	case SdkIntraCore:
+		return "intracore"
 	case SdkModule:
 		return "module-lib"
 	case SdkSystemServer:
