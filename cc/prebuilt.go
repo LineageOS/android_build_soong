@@ -388,7 +388,9 @@ func prebuiltLibraryStaticBp2Build(ctx android.TopDownMutatorContext, module *Mo
 	if fullBuild {
 		name += "_bp2build_cc_library_static"
 	}
-	ctx.CreateBazelTargetModuleWithRestrictions(props, android.CommonAttributes{Name: name}, attrs, prebuiltAttrs.Enabled)
+
+	tags := android.ApexAvailableTags(module)
+	ctx.CreateBazelTargetModuleWithRestrictions(props, android.CommonAttributes{Name: name, Tags: tags}, attrs, prebuiltAttrs.Enabled)
 }
 
 type bazelPrebuiltLibrarySharedAttributes struct {
@@ -408,7 +410,8 @@ func prebuiltLibrarySharedBp2Build(ctx android.TopDownMutatorContext, module *Mo
 	}
 
 	name := android.RemoveOptionalPrebuiltPrefix(module.Name())
-	ctx.CreateBazelTargetModuleWithRestrictions(props, android.CommonAttributes{Name: name}, attrs, prebuiltAttrs.Enabled)
+	tags := android.ApexAvailableTags(module)
+	ctx.CreateBazelTargetModuleWithRestrictions(props, android.CommonAttributes{Name: name, Tags: tags}, attrs, prebuiltAttrs.Enabled)
 }
 
 type prebuiltObjectProperties struct {
@@ -740,7 +743,8 @@ func prebuiltBinaryBp2Build(ctx android.TopDownMutatorContext, module *Module) {
 	}
 
 	name := android.RemoveOptionalPrebuiltPrefix(module.Name())
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: name}, attrs)
+	tags := android.ApexAvailableTags(module)
+	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: name, Tags: tags}, attrs)
 }
 
 type Sanitized struct {
