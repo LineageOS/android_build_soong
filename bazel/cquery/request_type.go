@@ -50,7 +50,7 @@ func (g getOutputFilesRequestType) Name() string {
 // all request-relevant information about a target and returns a string containing
 // this information.
 // The function should have the following properties:
-//   - `target` is the only parameter to this function (a configured target).
+//   - The arguments are `target` (a configured target) and `id_string` (the label + configuration).
 //   - The return value must be a string.
 //   - The function body should not be indented outside of its own scope.
 func (g getOutputFilesRequestType) StarlarkFunctionBody() string {
@@ -75,7 +75,7 @@ func (g getPythonBinaryRequestType) Name() string {
 // all request-relevant information about a target and returns a string containing
 // this information.
 // The function should have the following properties:
-//   - `target` is the only parameter to this function (a configured target).
+//   - The arguments are `target` (a configured target) and `id_string` (the label + configuration).
 //   - The return value must be a string.
 //   - The function body should not be indented outside of its own scope.
 func (g getPythonBinaryRequestType) StarlarkFunctionBody() string {
@@ -102,13 +102,16 @@ func (g getCcInfoType) Name() string {
 // all request-relevant information about a target and returns a string containing
 // this information.
 // The function should have the following properties:
-//   - `target` is the only parameter to this function (a configured target).
+//   - The arguments are `target` (a configured target) and `id_string` (the label + configuration).
 //   - The return value must be a string.
 //   - The function body should not be indented outside of its own scope.
 func (g getCcInfoType) StarlarkFunctionBody() string {
 	return `
 outputFiles = [f.path for f in target.files.to_list()]
-cc_info = providers(target)["CcInfo"]
+p = providers(target)
+cc_info = p.get("CcInfo")
+if not cc_info:
+  fail("%s did not provide CcInfo" % id_string)
 
 includes = cc_info.compilation_context.includes.to_list()
 system_includes = cc_info.compilation_context.system_includes.to_list()
@@ -120,8 +123,8 @@ rootStaticArchives = []
 linker_inputs = cc_info.linking_context.linker_inputs.to_list()
 
 static_info_tag = "//build/bazel/rules/cc:cc_library_static.bzl%CcStaticLibraryInfo"
-if static_info_tag in providers(target):
-  static_info = providers(target)[static_info_tag]
+if static_info_tag in p:
+  static_info = p[static_info_tag]
   ccObjectFiles = [f.path for f in static_info.objects]
   rootStaticArchives = [static_info.root_static_archive.path]
 else:
@@ -141,14 +144,14 @@ shared_info_tag = "//build/bazel/rules/cc:cc_library_shared.bzl%CcSharedLibraryO
 unstripped_tag = "//build/bazel/rules/cc:stripped_cc_common.bzl%CcUnstrippedInfo"
 unstripped = ""
 
-if shared_info_tag in providers(target):
-  shared_info = providers(target)[shared_info_tag]
+if shared_info_tag in p:
+  shared_info = p[shared_info_tag]
   path = shared_info.output_file.path
   sharedLibraries.append(path)
   rootSharedLibraries += [path]
   unstripped = path
-  if unstripped_tag in providers(target):
-    unstripped = providers(target)[unstripped_tag].unstripped.path
+  if unstripped_tag in p:
+    unstripped = p[unstripped_tag].unstripped.path
 else:
   for linker_input in linker_inputs:
     for library in linker_input.libraries:
@@ -160,14 +163,13 @@ else:
 
 toc_file = ""
 toc_file_tag = "//build/bazel/rules/cc:generate_toc.bzl%CcTocInfo"
-if toc_file_tag in providers(target):
-  toc_file = providers(target)[toc_file_tag].toc.path
+if toc_file_tag in p:
+  toc_file = p[toc_file_tag].toc.path
 else:
   # NOTE: It's OK if there's no ToC, as Soong just uses it for optimization
   pass
 
 tidy_files = []
-p = providers(target)
 clang_tidy_info = p.get("//build/bazel/rules/cc:clang_tidy.bzl%ClangTidyInfo")
 if clang_tidy_info:
   tidy_files = [v.path for v in clang_tidy_info.tidy_files.to_list()]
@@ -213,11 +215,14 @@ func (g getApexInfoType) Name() string {
 // The returned string is the body of a Starlark function which obtains
 // all request-relevant information about a target and returns a string containing
 // this information. The function should have the following properties:
-//   - `target` is the only parameter to this function (a configured target).
+//   - The arguments are `target` (a configured target) and `id_string` (the label + configuration).
 //   - The return value must be a string.
 //   - The function body should not be indented outside of its own scope.
 func (g getApexInfoType) StarlarkFunctionBody() string {
-	return `info = providers(target)["//build/bazel/rules/apex:apex.bzl%ApexInfo"]
+	return `
+info = providers(target).get("//build/bazel/rules/apex:apex.bzl%ApexInfo")
+if not info:
+  fail("%s did not provide ApexInfo" % id_string)
 bundle_key_info = info.bundle_key_info
 container_key_info = info.container_key_info
 return json_encode({
