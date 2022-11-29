@@ -18,6 +18,8 @@ import (
 	"testing"
 
 	"android/soong/android"
+
+	"github.com/google/blueprint/proptools"
 )
 
 func TestR8(t *testing.T) {
@@ -74,7 +76,7 @@ func TestR8(t *testing.T) {
 
 	android.AssertStringDoesContain(t, "expected lib header jar in app r8 classpath",
 		appR8.Args["r8Flags"], libHeader.String())
-	android.AssertStringDoesNotContain(t, "expected no  static_lib header jar in app javac classpath",
+	android.AssertStringDoesNotContain(t, "expected no static_lib header jar in app r8 classpath",
 		appR8.Args["r8Flags"], staticLibHeader.String())
 	android.AssertStringDoesContain(t, "expected -ignorewarnings in app r8 flags",
 		appR8.Args["r8Flags"], "-ignorewarnings")
@@ -84,6 +86,174 @@ func TestR8(t *testing.T) {
 		stableAppR8.Args["r8Flags"], "--android-platform-build")
 	android.AssertStringDoesContain(t, "expected --android-platform-build in core_platform_app r8 flags",
 		corePlatformAppR8.Args["r8Flags"], "--android-platform-build")
+}
+
+func TestR8TransitiveDeps(t *testing.T) {
+	bp := `
+		override_android_app {
+			name: "override_app",
+			base: "app",
+		}
+
+		android_app {
+			name: "app",
+			srcs: ["foo.java"],
+			libs: [
+				"lib",
+				"uses_libs_dep_import",
+			],
+			static_libs: [
+				"static_lib",
+				"repeated_dep",
+			],
+			platform_apis: true,
+		}
+
+		java_library {
+			name: "static_lib",
+			srcs: ["foo.java"],
+		}
+
+		java_library {
+			name: "lib",
+			libs: [
+				"transitive_lib",
+				"repeated_dep",
+				"prebuilt_lib",
+			],
+			static_libs: ["transitive_static_lib"],
+			srcs: ["foo.java"],
+		}
+
+		java_library {
+			name: "repeated_dep",
+			srcs: ["foo.java"],
+		}
+
+		java_library {
+			name: "transitive_static_lib",
+			srcs: ["foo.java"],
+		}
+
+		java_library {
+			name: "transitive_lib",
+			srcs: ["foo.java"],
+			libs: ["transitive_lib_2"],
+		}
+
+		java_library {
+			name: "transitive_lib_2",
+			srcs: ["foo.java"],
+		}
+
+		java_import {
+			name: "lib",
+			jars: ["lib.jar"],
+		}
+
+		java_library {
+			name: "uses_lib",
+			srcs: ["foo.java"],
+		}
+
+		java_library {
+			name: "optional_uses_lib",
+			srcs: ["foo.java"],
+		}
+
+		android_library {
+			name: "uses_libs_dep",
+			uses_libs: ["uses_lib"],
+			optional_uses_libs: ["optional_uses_lib"],
+		}
+
+		android_library_import {
+			name: "uses_libs_dep_import",
+			aars: ["aar.aar"],
+			static_libs: ["uses_libs_dep"],
+		}
+	`
+
+	testcases := []struct {
+		name      string
+		unbundled bool
+	}{
+		{
+			name:      "non-unbundled build",
+			unbundled: false,
+		},
+		{
+			name:      "unbundled build",
+			unbundled: true,
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			fixturePreparer := PrepareForTestWithJavaDefaultModulesWithoutFakeDex2oatd
+			if tc.unbundled {
+				fixturePreparer = android.GroupFixturePreparers(
+					fixturePreparer,
+					android.FixtureModifyProductVariables(
+						func(variables android.FixtureProductVariables) {
+							variables.Unbundled_build = proptools.BoolPtr(true)
+						},
+					),
+				)
+			}
+			result := fixturePreparer.RunTestWithBp(t, bp)
+
+			getHeaderJar := func(name string) android.Path {
+				mod := result.ModuleForTests(name, "android_common")
+				return mod.Output("turbine-combined/" + name + ".jar").Output
+			}
+
+			appR8 := result.ModuleForTests("app", "android_common").Rule("r8")
+			overrideAppR8 := result.ModuleForTests("app", "android_common_override_app").Rule("r8")
+			appHeader := getHeaderJar("app")
+			overrideAppHeader := result.ModuleForTests("app", "android_common_override_app").Output("turbine-combined/app.jar").Output
+			libHeader := getHeaderJar("lib")
+			transitiveLibHeader := getHeaderJar("transitive_lib")
+			transitiveLib2Header := getHeaderJar("transitive_lib_2")
+			staticLibHeader := getHeaderJar("static_lib")
+			transitiveStaticLibHeader := getHeaderJar("transitive_static_lib")
+			repeatedDepHeader := getHeaderJar("repeated_dep")
+			usesLibHeader := getHeaderJar("uses_lib")
+			optionalUsesLibHeader := getHeaderJar("optional_uses_lib")
+			prebuiltLibHeader := result.ModuleForTests("prebuilt_lib", "android_common").Output("combined/lib.jar").Output
+
+			for _, rule := range []android.TestingBuildParams{appR8, overrideAppR8} {
+				android.AssertStringDoesNotContain(t, "expected no app header jar in app r8 classpath",
+					rule.Args["r8Flags"], appHeader.String())
+				android.AssertStringDoesNotContain(t, "expected no override_app header jar in app r8 classpath",
+					rule.Args["r8Flags"], overrideAppHeader.String())
+				android.AssertStringDoesContain(t, "expected transitive lib header jar in app r8 classpath",
+					rule.Args["r8Flags"], transitiveLibHeader.String())
+				android.AssertStringDoesContain(t, "expected transitive lib ^2 header jar in app r8 classpath",
+					rule.Args["r8Flags"], transitiveLib2Header.String())
+				android.AssertStringDoesContain(t, "expected lib header jar in app r8 classpath",
+					rule.Args["r8Flags"], libHeader.String())
+				android.AssertStringDoesContain(t, "expected uses_lib header jar in app r8 classpath",
+					rule.Args["r8Flags"], usesLibHeader.String())
+				android.AssertStringDoesContain(t, "expected optional_uses_lib header jar in app r8 classpath",
+					rule.Args["r8Flags"], optionalUsesLibHeader.String())
+				android.AssertStringDoesNotContain(t, "expected no static_lib header jar in app r8 classpath",
+					rule.Args["r8Flags"], staticLibHeader.String())
+				android.AssertStringDoesNotContain(t, "expected no transitive static_lib header jar in app r8 classpath",
+					rule.Args["r8Flags"], transitiveStaticLibHeader.String())
+				// we shouldn't list this dep because it is already included as static_libs in the app
+				android.AssertStringDoesNotContain(t, "expected no repeated_dep header jar in app r8 classpath",
+					rule.Args["r8Flags"], repeatedDepHeader.String())
+				// skip a prebuilt transitive dep if the source is also a transitive dep
+				android.AssertStringDoesNotContain(t, "expected no prebuilt header jar in app r8 classpath",
+					rule.Args["r8Flags"], prebuiltLibHeader.String())
+				android.AssertStringDoesContain(t, "expected -ignorewarnings in app r8 flags",
+					rule.Args["r8Flags"], "-ignorewarnings")
+				android.AssertStringDoesContain(t, "expected --android-platform-build in app r8 flags",
+					rule.Args["r8Flags"], "--android-platform-build")
+			}
+		})
+	}
 }
 
 func TestR8Flags(t *testing.T) {
