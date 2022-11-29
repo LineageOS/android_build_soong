@@ -269,8 +269,10 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Wr
 				targets = append(targets, target)
 			}
 		}
-		if isSystemServerJar && !d.isSDKLibrary {
-			// If the module is not an SDK library and it's a system server jar, only preopt the primary arch.
+		if isSystemServerJar && moduleName(ctx) != "com.android.location.provider" {
+			// If the module is a system server jar, only preopt for the primary arch because the jar can
+			// only be loaded by system server. "com.android.location.provider" is a special case because
+			// it's also used by apps as a shared library.
 			targets = targets[:1]
 		}
 	}
