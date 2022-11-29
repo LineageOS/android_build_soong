@@ -145,7 +145,7 @@ func CheckProdCreds(ctx Context, config Config) {
 	}
 	if !config.StubbyExists() && prodCredsAuthType(config) {
 		fmt.Fprintln(ctx.Writer, "")
-		fmt.Fprintln(ctx.Writer, fmt.Sprintf("\033[33mWARNING: %q binary not found in $PATH, follow go/build-fast#opting-out-of-loas-credentials instead for authenticating with RBE.\033[0m", "stubby"))
+		fmt.Fprintln(ctx.Writer, fmt.Sprintf("\033[33mWARNING: %q binary not found in $PATH, follow go/build-fast-without-stubby instead for authenticating with RBE.\033[0m", "stubby"))
 		fmt.Fprintln(ctx.Writer, "")
 		return
 	}
