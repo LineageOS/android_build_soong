@@ -536,7 +536,17 @@ func (c *config) mockFileSystem(bp string, fs map[string][]byte) {
 // Returns true if "Bazel builds" is enabled. In this mode, part of build
 // analysis is handled by Bazel.
 func (c *config) IsMixedBuildsEnabled() bool {
-	return c.BuildMode == BazelProdMode || c.BuildMode == BazelDevMode || c.BuildMode == BazelStagingMode
+	globalMixedBuildsSupport := c.Once(OnceKey{"globalMixedBuildsSupport"}, func() interface{} {
+		if c.productVariables.DeviceArch != nil && *c.productVariables.DeviceArch == "riscv64" {
+			fmt.Fprintln(os.Stderr, "unsupported device arch 'riscv64' for Bazel: falling back to non-mixed build")
+			return false
+		}
+		// TODO(b/253664931): Add other fallback criteria below.
+		return true
+	}).(bool)
+
+	bazelModeEnabled := c.BuildMode == BazelProdMode || c.BuildMode == BazelDevMode || c.BuildMode == BazelStagingMode
+	return globalMixedBuildsSupport && bazelModeEnabled
 }
 
 func (c *config) SetAllowMissingDependencies() {

@@ -62,6 +62,7 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 		TestAllowNonExistentPaths: true,
 
 		BazelContext:              noopBazelContext{},
+		BuildMode:                 BazelProdMode,
 		mixedBuildDisabledModules: make(map[string]struct{}),
 		mixedBuildEnabledModules:  make(map[string]struct{}),
 	}
