@@ -65,7 +65,7 @@ EOF
   outdir=out2
   trap "rm -rf $outdir" EXIT
   # Modify OUT_DIR in a subshell so it doesn't affect the top level one.
-  (export OUT_DIR=$outdir; run_soong bp2build && run_bazel build --config=bp2build //a:g)
+  (export OUT_DIR=$outdir; run_soong bp2build && run_bazel build --config=bp2build --config=ci //a:g)
 }
 
 test_different_relative_outdir
@@ -87,7 +87,7 @@ EOF
   outdir=$(mktemp -t -d st.XXXXX)
   trap 'rm -rf $outdir' EXIT
   # Modify OUT_DIR in a subshell so it doesn't affect the top level one.
-  (export OUT_DIR=$outdir; run_soong bp2build && run_bazel build --config=bp2build //a:g)
+  (export OUT_DIR=$outdir; run_soong bp2build && run_bazel build --config=bp2build --config=ci //a:g)
 }
 
 test_different_absolute_outdir
@@ -146,7 +146,7 @@ EOF
   fi
 
   # NOTE: We don't actually use the extra BUILD file for anything here
-  run_bazel build --config=android --package_path=out/soong/workspace //foo/...
+  run_bazel build --config=android --config=bp2build --config=ci //foo/...
 
   local the_answer_file="bazel-out/android_target-fastbuild/bin/foo/convertible_soong_module/the_answer.txt"
   if [[ ! -f "${the_answer_file}" ]]; then
@@ -191,10 +191,10 @@ EOF
 
   run_soong bp2build
 
-  run_bazel build --config=android --package_path=out/soong/workspace //a:qq
+  run_bazel build --config=android --config=bp2build --config=ci //a:qq
   local -r output_mtime1=$(stat -c "%y" bazel-bin/a/_objs/qq/qq.o)
 
-  run_bazel build --config=android --package_path=out/soong/workspace //a:qq
+  run_bazel build --config=android --config=bp2build --config=ci //a:qq
   local -r output_mtime2=$(stat -c "%y" bazel-bin/a/_objs/qq/qq.o)
 
   if [[ "$output_mtime1" != "$output_mtime2" ]]; then
@@ -205,7 +205,7 @@ EOF
 #define QQ 2
 EOF
 
-  run_bazel build --config=android --package_path=out/soong/workspace //a:qq
+  run_bazel build --config=android --config=bp2build --config=ci //a:qq
   local -r output_mtime3=$(stat -c "%y" bazel-bin/a/_objs/qq/qq.o)
 
   if [[ "$output_mtime1" == "$output_mtime3" ]]; then
