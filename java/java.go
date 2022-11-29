@@ -1648,7 +1648,7 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	var srcFiles []android.Path
 	ctx.VisitDirectDepsWithTag(javaApiContributionTag, func(dep android.Module) {
 		provider := ctx.OtherModuleProvider(dep, JavaApiImportProvider).(JavaApiImportInfo)
-		srcFiles = append(srcFiles, android.PathForModuleSrc(ctx, provider.ApiFile.String()))
+		srcFiles = append(srcFiles, android.PathForSource(ctx, provider.ApiFile.String()))
 	})
 
 	cmd := metalavaStubCmd(ctx, rule, srcFiles, homeDir)
@@ -1673,6 +1673,8 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	TransformJavaToClasses(ctx, al.stubsJar, 0, android.Paths{},
 		android.Paths{al.stubsSrcJar}, flags, android.Paths{})
+
+	ctx.Phony(ctx.ModuleName(), al.stubsJar)
 }
 
 //
