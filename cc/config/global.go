@@ -222,7 +222,6 @@ var (
 		// http://b/145211066
 		"-Wno-implicit-int-float-conversion",
 		// New warnings to be fixed after clang-r377782.
-		"-Wno-sizeof-array-div",             // http://b/148815709
 		"-Wno-tautological-overlap-compare", // http://b/148815696
 		// New warnings to be fixed after clang-r383902.
 		"-Wno-deprecated-copy",                      // http://b/153746672
@@ -240,12 +239,13 @@ var (
 		// New warnings to be fixed after clang-r458507
 		"-Wno-error=unqualified-std-cast-call", // http://b/239662094
 		// New warnings to be fixed after clang-r468909
-		"-Wno-error=array-parameter",     // http://b/241941550
 		"-Wno-error=deprecated-builtins", // http://b/241601211
 		"-Wno-error=deprecated",          // in external/googletest/googletest
 	}
 
 	noOverrideExternalGlobalCflags = []string{
+		// http://b/148815709
+		"-Wno-sizeof-array-div",
 		// http://b/197240255
 		"-Wno-unused-but-set-variable",
 		"-Wno-unused-but-set-parameter",
@@ -253,6 +253,8 @@ var (
 		"-Wno-bitwise-instead-of-logical",
 		// http://b/232926688
 		"-Wno-misleading-indentation",
+		// http://b/241941550
+		"-Wno-array-parameter",
 	}
 
 	// Extra cflags for external third-party projects to disable warnings that
