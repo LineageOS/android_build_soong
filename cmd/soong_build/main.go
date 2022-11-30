@@ -276,6 +276,7 @@ func apiBuildFileExcludes() []string {
 			src != "BUILD" &&
 			src != "BUILD.bazel" &&
 			!strings.HasPrefix(src, "build/bazel") &&
+			!strings.HasPrefix(src, "external/bazel-skylib") &&
 			!strings.HasPrefix(src, "prebuilts/clang") {
 			ret = append(ret, src)
 		}
