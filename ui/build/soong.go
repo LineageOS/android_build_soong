@@ -566,11 +566,12 @@ func runSoong(ctx Context, config Config) {
 		targets = append(targets, config.SoongNinjaFile())
 	}
 
+	// TODO(juu): Stop embedding soong_build_metrics in soong_metrics.
+	soongBuildMetricsFile := filepath.Join(config.LogsDir(), "soong_build_metrics.pb")
+	if err := os.Remove(soongBuildMetricsFile); err != nil && !os.IsNotExist(err) {
+		ctx.Verbosef("Failed to remove %s", soongBuildMetricsFile)
+	}
 	if shouldCollectBuildSoongMetrics(config) {
-		soongBuildMetricsFile := filepath.Join(config.LogsDir(), "soong_build_metrics.pb")
-		if err := os.Remove(soongBuildMetricsFile); err != nil && !os.IsNotExist(err) {
-			ctx.Verbosef("Failed to remove %s", soongBuildMetricsFile)
-		}
 		defer func() {
 			soongBuildMetrics := loadSoongBuildMetrics(ctx, soongBuildMetricsFile)
 			if soongBuildMetrics != nil {
