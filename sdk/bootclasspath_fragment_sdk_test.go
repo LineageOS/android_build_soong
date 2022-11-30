@@ -358,6 +358,7 @@ java_import {
     visibility: ["//visibility:public"],
     apex_available: ["myapex"],
     jars: ["java_boot_libs/snapshot/jars/are/invalid/mybootlib.jar"],
+    min_sdk_version: "2",
     permitted_packages: ["mybootlib"],
 }
 
@@ -877,6 +878,7 @@ java_import {
     visibility: ["//visibility:public"],
     apex_available: ["myapex"],
     jars: ["java_boot_libs/snapshot/jars/are/invalid/mybootlib.jar"],
+    min_sdk_version: "1",
     permitted_packages: ["mybootlib"],
 }
 

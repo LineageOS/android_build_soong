@@ -764,6 +764,9 @@ type librarySdkMemberProperties struct {
 	// The list of permitted packages that need to be passed to the prebuilts as they are used to
 	// create the updatable-bcp-packages.txt file.
 	PermittedPackages []string
+
+	// The value of the min_sdk_version property, translated into a number where possible.
+	MinSdkVersion *string `supported_build_releases:"Tiramisu+"`
 }
 
 func (p *librarySdkMemberProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.Module) {
@@ -774,6 +777,13 @@ func (p *librarySdkMemberProperties) PopulateFromVariant(ctx android.SdkMemberCo
 	p.AidlIncludeDirs = j.AidlIncludeDirs()
 
 	p.PermittedPackages = j.PermittedPackagesForUpdatableBootJars()
+
+	// If the min_sdk_version was set then add the canonical representation of the API level to the
+	// snapshot.
+	if j.deviceProperties.Min_sdk_version != nil {
+		canonical := android.ReplaceFinalizedCodenames(ctx.SdkModuleContext().Config(), j.minSdkVersion.ApiLevel.String())
+		p.MinSdkVersion = proptools.StringPtr(canonical)
+	}
 }
 
 func (p *librarySdkMemberProperties) AddToPropertySet(ctx android.SdkMemberContext, propertySet android.BpPropertySet) {
@@ -790,6 +800,10 @@ func (p *librarySdkMemberProperties) AddToPropertySet(ctx android.SdkMemberConte
 		builder.CopyToSnapshot(exportedJar, snapshotRelativeJavaLibPath)
 
 		propertySet.AddProperty("jars", []string{snapshotRelativeJavaLibPath})
+	}
+
+	if p.MinSdkVersion != nil {
+		propertySet.AddProperty("min_sdk_version", *p.MinSdkVersion)
 	}
 
 	if len(p.PermittedPackages) > 0 {
