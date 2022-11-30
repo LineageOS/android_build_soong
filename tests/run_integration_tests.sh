@@ -12,5 +12,4 @@ TOP="$(readlink -f "$(dirname "$0")"/../../..)"
 
 # The following tests build against the full source tree and don't rely on the
 # mock client.
-# TODO(b/260278287) the bazel server won't shut down for some reason when run on the build server
-# "$TOP/build/soong/tests/apex_comparison_tests.sh"
+"$TOP/build/soong/tests/apex_comparison_tests.sh"
