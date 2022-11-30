@@ -2053,7 +2053,7 @@ func (m *ModuleBase) InstallInRecovery() bool {
 }
 
 func (m *ModuleBase) InstallInVendor() bool {
-	return Bool(m.commonProperties.Vendor)
+	return Bool(m.commonProperties.Vendor) || Bool(m.commonProperties.Soc_specific) || Bool(m.commonProperties.Proprietary)
 }
 
 func (m *ModuleBase) InstallInRoot() bool {
