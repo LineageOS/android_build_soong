@@ -532,3 +532,10 @@ func makeCcStubSuiteTargets(name string, attrs AttrNameToString) string {
 	}
 	return MakeBazelTarget("cc_stub_suite", name+"_stub_libs", stubSuiteAttrs)
 }
+
+func MakeNeverlinkDuplicateTarget(moduleType string, name string) string {
+	return MakeBazelTarget(moduleType, name+"-neverlink", AttrNameToString{
+		"neverlink": `True`,
+		"exports":   `[":` + name + `"]`,
+	})
+}
