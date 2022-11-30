@@ -383,6 +383,9 @@ func MixedBuildsEnabled(ctx BaseModuleContext) bool {
 // mixedBuildPossible returns true if a module is ready to be replaced by a
 // converted or handcrafted Bazel target.
 func mixedBuildPossible(ctx BaseModuleContext) bool {
+	if !ctx.Config().IsMixedBuildsEnabled() {
+		return false
+	}
 	if ctx.Os() == Windows {
 		// Windows toolchains are not currently supported.
 		return false
