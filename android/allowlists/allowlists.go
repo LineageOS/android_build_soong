@@ -374,9 +374,12 @@ var (
 		"packages/apps/Music":/* recursive = */ true,
 		"packages/apps/QuickSearchBox":/* recursive = */ true,
 
+		"prebuilts/abi-dumps/platform":/* recursive = */ true,
+		"prebuilts/abi-dumps/ndk":/* recursive = */ true,
 		"prebuilts/bazel":/* recursive = */ true,
 		"prebuilts/bundletool":/* recursive = */ true,
 		"prebuilts/clang/host/linux-x86":/* recursive = */ false,
+		"prebuilts/clang-tools":/* recursive = */ true,
 		"prebuilts/gcc":/* recursive = */ true,
 		"prebuilts/build-tools":/* recursive = */ true,
 		"prebuilts/jdk/jdk11":/* recursive = */ false,

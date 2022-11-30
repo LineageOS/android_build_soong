@@ -543,7 +543,8 @@ cc_library_shared {
     ]`,
 		}),
 			MakeBazelTarget("cc_library_shared", "a", AttrNameToString{
-				"has_stubs": `True`,
+				"has_stubs":         `True`,
+				"stubs_symbol_file": `"a.map.txt"`,
 			}),
 		},
 	})
@@ -841,6 +842,46 @@ cc_library_shared {
         "//build/bazel/platforms/os:android": [":foo_cc_sysprop_library_static"],
         "//conditions:default": [],
     })`,
+			}),
+		},
+	})
+}
+
+func TestCcLibrarySharedHeaderAbiChecker(t *testing.T) {
+	runCcLibrarySharedTestCase(t, Bp2buildTestCase{
+		Description: "cc_library_shared with header abi checker",
+		Blueprint: `cc_library_shared {
+    name: "foo",
+    header_abi_checker: {
+        enabled: true,
+        symbol_file: "a.map.txt",
+        exclude_symbol_versions: [
+						"29",
+						"30",
+				],
+        exclude_symbol_tags: [
+						"tag1",
+						"tag2",
+				],
+        check_all_apis: true,
+        diff_flags: ["-allow-adding-removing-weak-symbols"],
+    },
+    include_build_directory: false,
+}`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+				"abi_checker_enabled":     `True`,
+				"abi_checker_symbol_file": `"a.map.txt"`,
+				"abi_checker_exclude_symbol_versions": `[
+        "29",
+        "30",
+    ]`,
+				"abi_checker_exclude_symbol_tags": `[
+        "tag1",
+        "tag2",
+    ]`,
+				"abi_checker_check_all_apis": `True`,
+				"abi_checker_diff_flags":     `["-allow-adding-removing-weak-symbols"]`,
 			}),
 		},
 	})
