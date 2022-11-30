@@ -242,6 +242,10 @@ var (
 		// New warnings to be fixed after clang-r468909
 		"-Wno-error=deprecated-builtins", // http://b/241601211
 		"-Wno-error=deprecated",          // in external/googletest/googletest
+		// New warnings to be fixed after clang-r475365
+		"-Wno-error=single-bit-bitfield-constant-conversion", // http://b/243965903
+		"-Wno-error=incompatible-function-pointer-types",     // http://b/257101299
+		"-Wno-error=enum-constexpr-conversion",               // http://b/243964282
 	}
 
 	noOverrideExternalGlobalCflags = []string{
@@ -293,8 +297,6 @@ var (
 	llvmNextExtraCommonGlobalCflags = []string{
 		// New warnings to be fixed after clang-r475365
 		"-Wno-error=single-bit-bitfield-constant-conversion", // http://b/243965903
-		// Skip deprecated flags.
-		"-Wno-unused-command-line-argument",
 	}
 
 	IllegalFlags = []string{
@@ -308,8 +310,8 @@ var (
 
 	// prebuilts/clang default settings.
 	ClangDefaultBase         = "prebuilts/clang/host"
-	ClangDefaultVersion      = "clang-r468909b"
-	ClangDefaultShortVersion = "15.0.3"
+	ClangDefaultVersion      = "clang-r475365"
+	ClangDefaultShortVersion = "16.0.1"
 
 	// Directories with warnings from Android.bp files.
 	WarningAllowedProjects = []string{
@@ -350,6 +352,7 @@ func init() {
 			// Default to zero initialization.
 			"-ftrivial-auto-var-init=zero",
 			"-enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clang",
+			"-Wno-unused-command-line-argument",
 		}...)
 	exportedVars.ExportStringList("CommonGlobalCflags", bazelCommonGlobalCflags)
 
@@ -360,14 +363,14 @@ func init() {
 		// Automatically initialize any uninitialized stack variables.
 		// Prefer zero-init if multiple options are set.
 		if ctx.Config().IsEnvTrue("AUTO_ZERO_INITIALIZE") {
-			flags = append(flags, "-ftrivial-auto-var-init=zero -enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clang")
+			flags = append(flags, "-ftrivial-auto-var-init=zero -enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clang -Wno-unused-command-line-argument")
 		} else if ctx.Config().IsEnvTrue("AUTO_PATTERN_INITIALIZE") {
 			flags = append(flags, "-ftrivial-auto-var-init=pattern")
 		} else if ctx.Config().IsEnvTrue("AUTO_UNINITIALIZE") {
 			flags = append(flags, "-ftrivial-auto-var-init=uninitialized")
 		} else {
 			// Default to zero initialization.
-			flags = append(flags, "-ftrivial-auto-var-init=zero -enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clang")
+			flags = append(flags, "-ftrivial-auto-var-init=zero -enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clang -Wno-unused-command-line-argument")
 		}
 
 		// Workaround for ccache with clang.
