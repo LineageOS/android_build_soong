@@ -725,14 +725,6 @@ func (s *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 	}
 	sanProps := &s.Properties.SanitizeMutated
 
-	// Currently unwinding through tagged frames for exceptions is broken, so disable memtag stack
-	// in that case, so we don't end up tagging those.
-	// TODO(b/174878242): Remove once https://r.android.com/2251926 is included in toolchain.
-	if android.InList("-fexceptions", flags.Local.CFlags) || android.InList("-fexceptions", flags.Global.CFlags) {
-		sanProps.Memtag_stack = nil
-		_, s.Properties.Sanitizers = android.RemoveFromList("memtag-stack", s.Properties.Sanitizers)
-	}
-
 	if Bool(sanProps.Address) {
 		if ctx.Arch().ArchType == android.Arm {
 			// Frame pointer based unwinder in ASan requires ARM frame setup.
