@@ -292,12 +292,6 @@ var (
 		},
 		"extraFlags", "referenceDump", "libName", "arch", "errorMessage")
 
-	// Rule to unzip a reference abi dump.
-	unzipRefSAbiDump = pctx.AndroidStaticRule("unzipRefSAbiDump",
-		blueprint.RuleParams{
-			Command: "gunzip -c $in > $out",
-		})
-
 	// Rule to zip files.
 	zip = pctx.AndroidStaticRule("zip",
 		blueprint.RuleParams{
@@ -909,18 +903,6 @@ func transformDumpToLinkedDump(ctx android.ModuleContext, sAbiDumps android.Path
 		Args:        args,
 	})
 	return android.OptionalPathForPath(outputFile)
-}
-
-// unzipRefDump registers a build statement to unzip a reference abi dump.
-func unzipRefDump(ctx android.ModuleContext, zippedRefDump android.Path, baseName string) android.Path {
-	outputFile := android.PathForModuleOut(ctx, baseName+"_ref.lsdump")
-	ctx.Build(pctx, android.BuildParams{
-		Rule:        unzipRefSAbiDump,
-		Description: "gunzip" + outputFile.Base(),
-		Output:      outputFile,
-		Input:       zippedRefDump,
-	})
-	return outputFile
 }
 
 func transformAbiDumpToAbiDiff(ctx android.ModuleContext, inputDump, referenceDump android.Path,
