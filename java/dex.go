@@ -63,6 +63,7 @@ type DexProperties struct {
 		// classes referenced by the app manifest.  Defaults to false.
 		No_aapt_flags *bool
 
+		// If true, optimize for size by removing unused resources. Defaults to false.
 		Shrink_resources *bool
 
 		// Flags to pass to proguard.
