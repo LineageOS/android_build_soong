@@ -759,10 +759,10 @@ func srcsForSanitizer(sanitize *sanitize, sanitized Sanitized) []string {
 	if sanitize == nil {
 		return nil
 	}
-	if Bool(sanitize.Properties.Sanitize.Address) && sanitized.Address.Srcs != nil {
+	if sanitize.isSanitizerEnabled(Asan) && sanitized.Address.Srcs != nil {
 		return sanitized.Address.Srcs
 	}
-	if Bool(sanitize.Properties.Sanitize.Hwaddress) && sanitized.Hwaddress.Srcs != nil {
+	if sanitize.isSanitizerEnabled(Hwasan) && sanitized.Hwaddress.Srcs != nil {
 		return sanitized.Hwaddress.Srcs
 	}
 	return sanitized.None.Srcs
