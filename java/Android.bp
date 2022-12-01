@@ -104,6 +104,7 @@ bootstrap_go_package {
         "plugin_test.go",
         "prebuilt_apis_test.go",
         "proto_test.go",
+        "resourceshrinker_test.go",
         "rro_test.go",
         "sdk_test.go",
         "sdk_library_test.go",
