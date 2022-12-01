@@ -1662,7 +1662,7 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	var srcFiles []android.Path
 	ctx.VisitDirectDepsWithTag(javaApiContributionTag, func(dep android.Module) {
 		provider := ctx.OtherModuleProvider(dep, JavaApiImportProvider).(JavaApiImportInfo)
-		srcFiles = append(srcFiles, android.PathForModuleSrc(ctx, provider.ApiFile.String()))
+		srcFiles = append(srcFiles, android.PathForSource(ctx, provider.ApiFile.String()))
 	})
 
 	cmd := metalavaStubCmd(ctx, rule, srcFiles, homeDir)
@@ -1687,6 +1687,8 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	TransformJavaToClasses(ctx, al.stubsJar, 0, android.Paths{},
 		android.Paths{al.stubsSrcJar}, flags, android.Paths{})
+
+	ctx.Phony(ctx.ModuleName(), al.stubsJar)
 }
 
 //
@@ -2620,7 +2622,7 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext)
 	if m.properties.Libs != nil {
 
 		// TODO 244210934 ALIX Check if this else statement breaks presubmits get rid of it if it doesn't
-		if strings.HasPrefix(ctx.ModuleType(), "java_binary") {
+		if strings.HasPrefix(ctx.ModuleType(), "java_binary") || strings.HasPrefix(ctx.ModuleType(), "java_library") {
 			for _, d := range m.properties.Libs {
 				neverlinkLabel := android.BazelLabelForModuleDepSingle(ctx, d)
 				neverlinkLabel.Label = neverlinkLabel.Label + "-neverlink"
@@ -2688,12 +2690,21 @@ func javaLibraryBp2Build(ctx android.TopDownMutatorContext, m *Library) {
 		Deps:                 deps,
 		Exports:              depLabels.StaticDeps,
 	}
+	name := m.Name()
 
 	if !bp2BuildInfo.hasKotlinSrcs && len(m.properties.Common_srcs) == 0 {
 		props = bazel.BazelTargetModuleProperties{
 			Rule_class:        "java_library",
 			Bzl_load_location: "//build/bazel/rules/java:library.bzl",
 		}
+
+		ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: name}, attrs)
+		neverlinkProp := true
+		neverLinkAttrs := &javaLibraryAttributes{
+			Exports:   bazel.MakeSingleLabelListAttribute(bazel.Label{Label: ":" + name}),
+			Neverlink: bazel.BoolAttribute{Value: &neverlinkProp},
+		}
+		ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: name + "-neverlink"}, neverLinkAttrs)
 	} else {
 		attrs.Common_srcs = bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrc(ctx, m.properties.Common_srcs))
 
@@ -2701,10 +2712,10 @@ func javaLibraryBp2Build(ctx android.TopDownMutatorContext, m *Library) {
 			Rule_class:        "kt_jvm_library",
 			Bzl_load_location: "@rules_kotlin//kotlin:jvm_library.bzl",
 		}
+		// TODO (b/244210934): create neverlink-duplicate target once kt_jvm_library supports neverlink attribute
+		ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: name}, attrs)
 	}
 
-	name := m.Name()
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: name}, attrs)
 }
 
 type javaBinaryHostAttributes struct {

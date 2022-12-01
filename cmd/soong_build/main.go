@@ -276,6 +276,7 @@ func apiBuildFileExcludes() []string {
 			src != "BUILD" &&
 			src != "BUILD.bazel" &&
 			!strings.HasPrefix(src, "build/bazel") &&
+			!strings.HasPrefix(src, "external/bazel-skylib") &&
 			!strings.HasPrefix(src, "prebuilts/clang") {
 			ret = append(ret, src)
 		}
@@ -577,6 +578,17 @@ func getTemporaryExcludes() []string {
 
 	// FIXME: 'frameworks/compile/slang' has a filegroup error due to an escaping issue
 	excludes = append(excludes, "frameworks/compile/slang")
+
+	// FIXME(b/260809113): 'prebuilts/clang/host/linux-x86/clang-dev' is a tool-generated symlink directory that contains a BUILD file.
+	// The bazel files finder code doesn't traverse into symlink dirs, and hence is not aware of this BUILD file and exclude it accordingly
+	// during symlink forest generation when checking against keepExistingBuildFiles allowlist.
+	//
+	// This is necessary because globs in //prebuilts/clang/host/linux-x86/BUILD
+	// currently assume no subpackages (keepExistingBuildFile is not recursive for that directory).
+	//
+	// This is a bandaid until we the symlink forest logic can intelligently exclude BUILD files found in source symlink dirs according
+	// to the keepExistingBuildFile allowlist.
+	excludes = append(excludes, "prebuilts/clang/host/linux-x86/clang-dev")
 
 	return excludes
 }
