@@ -227,27 +227,17 @@ func (library *libraryDecorator) androidMkWriteExportedFlags(entries *android.An
 	}
 }
 
-func (library *libraryDecorator) getAbiDiffsForAndroidMkDeps() []string {
-	if library.static() {
-		return nil
-	}
-	var abiDiffs []string
-	if library.sAbiDiff.Valid() {
-		abiDiffs = append(abiDiffs, library.sAbiDiff.String())
-	}
-	if library.prevSAbiDiff.Valid() {
-		abiDiffs = append(abiDiffs, library.prevSAbiDiff.String())
-	}
-	return abiDiffs
-}
-
 func (library *libraryDecorator) androidMkEntriesWriteAdditionalDependenciesForSourceAbiDiff(entries *android.AndroidMkEntries) {
-	entries.AddStrings("LOCAL_ADDITIONAL_DEPENDENCIES", library.getAbiDiffsForAndroidMkDeps()...)
+	if !library.static() {
+		entries.AddPaths("LOCAL_ADDITIONAL_DEPENDENCIES", library.sAbiDiff)
+	}
 }
 
 // TODO(ccross): remove this once apex/androidmk.go is converted to AndroidMkEntries
 func (library *libraryDecorator) androidMkWriteAdditionalDependenciesForSourceAbiDiff(w io.Writer) {
-	fmt.Fprintln(w, "LOCAL_ADDITIONAL_DEPENDENCIES +=", strings.Join(library.getAbiDiffsForAndroidMkDeps(), " "))
+	if !library.static() {
+		fmt.Fprintln(w, "LOCAL_ADDITIONAL_DEPENDENCIES +=", strings.Join(library.sAbiDiff.Strings(), " "))
+	}
 }
 
 func (library *libraryDecorator) AndroidMkEntries(ctx AndroidMkContext, entries *android.AndroidMkEntries) {
