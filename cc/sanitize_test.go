@@ -29,6 +29,56 @@ var prepareForAsanTest = android.FixtureAddFile("asan/Android.bp", []byte(`
 	}
 `))
 
+var prepareForTsanTest = android.FixtureAddFile("tsan/Android.bp", []byte(`
+	cc_library_shared {
+		name: "libclang_rt.tsan",
+	}
+`))
+
+// expectSharedLinkDep verifies that the from module links against the to module as a
+// shared library.
+func expectSharedLinkDep(t *testing.T, from, to android.TestingModule) {
+	t.Helper()
+	fromLink := from.Description("link")
+	toLink := to.Description("strip")
+
+	if g, w := fromLink.OrderOnly.Strings(), toLink.Output.String(); !android.InList(w, g) {
+		t.Errorf("%s should link against %s, expected %q, got %q",
+			from.Module(), to.Module(), w, g)
+	}
+}
+
+// expectStaticLinkDep verifies that the from module links against the to module as a
+// static library.
+func expectStaticLinkDep(t *testing.T, from, to android.TestingModule) {
+	t.Helper()
+	fromLink := from.Description("link")
+	toLink := to.Description("static link")
+
+	if g, w := fromLink.Implicits.Strings(), toLink.Output.String(); !android.InList(w, g) {
+		t.Errorf("%s should link against %s, expected %q, got %q",
+			from.Module(), to.Module(), w, g)
+	}
+
+}
+
+// expectInstallDep verifies that the install rule of the from module depends on the
+// install rule of the to module.
+func expectInstallDep(t *testing.T, from, to android.TestingModule) {
+	t.Helper()
+	fromInstalled := from.Description("install")
+	toInstalled := to.Description("install")
+
+	// combine implicits and order-only dependencies, host uses implicit but device uses
+	// order-only.
+	got := append(fromInstalled.Implicits.Strings(), fromInstalled.OrderOnly.Strings()...)
+	want := toInstalled.Output.String()
+	if !android.InList(want, got) {
+		t.Errorf("%s installation should depend on %s, expected %q, got %q",
+			from.Module(), to.Module(), want, got)
+	}
+}
+
 func TestAsan(t *testing.T) {
 	bp := `
 		cc_binary {
@@ -140,82 +190,251 @@ func TestAsan(t *testing.T) {
 		libStaticAsan := result.ModuleForTests("libstatic_asan", staticAsanVariant)
 		libStaticAsanNoAsanVariant := result.ModuleForTests("libstatic_asan", staticVariant)
 
-		// expectSharedLinkDep verifies that the from module links against the to module as a
-		// shared library.
-		expectSharedLinkDep := func(from, to android.TestingModule) {
-			t.Helper()
-			fromLink := from.Description("link")
-			toLink := to.Description("strip")
+		expectSharedLinkDep(t, binWithAsan, libShared)
+		expectSharedLinkDep(t, binWithAsan, libAsan)
+		expectSharedLinkDep(t, libShared, libTransitive)
+		expectSharedLinkDep(t, libAsan, libTransitive)
 
-			if g, w := fromLink.OrderOnly.Strings(), toLink.Output.String(); !android.InList(w, g) {
-				t.Errorf("%s should link against %s, expected %q, got %q",
-					from.Module(), to.Module(), w, g)
-			}
-		}
+		expectStaticLinkDep(t, binWithAsan, libStaticAsanVariant)
+		expectStaticLinkDep(t, binWithAsan, libNoAsan)
+		expectStaticLinkDep(t, binWithAsan, libStaticAsan)
 
-		// expectStaticLinkDep verifies that the from module links against the to module as a
-		// static library.
-		expectStaticLinkDep := func(from, to android.TestingModule) {
-			t.Helper()
-			fromLink := from.Description("link")
-			toLink := to.Description("static link")
+		expectInstallDep(t, binWithAsan, libShared)
+		expectInstallDep(t, binWithAsan, libAsan)
+		expectInstallDep(t, binWithAsan, libTransitive)
+		expectInstallDep(t, libShared, libTransitive)
+		expectInstallDep(t, libAsan, libTransitive)
 
-			if g, w := fromLink.Implicits.Strings(), toLink.Output.String(); !android.InList(w, g) {
-				t.Errorf("%s should link against %s, expected %q, got %q",
-					from.Module(), to.Module(), w, g)
-			}
+		expectSharedLinkDep(t, binNoAsan, libShared)
+		expectSharedLinkDep(t, binNoAsan, libAsan)
+		expectSharedLinkDep(t, libShared, libTransitive)
+		expectSharedLinkDep(t, libAsan, libTransitive)
 
-		}
+		expectStaticLinkDep(t, binNoAsan, libStaticNoAsanVariant)
+		expectStaticLinkDep(t, binNoAsan, libNoAsan)
+		expectStaticLinkDep(t, binNoAsan, libStaticAsanNoAsanVariant)
 
-		// expectInstallDep verifies that the install rule of the from module depends on the
-		// install rule of the to module.
-		expectInstallDep := func(from, to android.TestingModule) {
-			t.Helper()
-			fromInstalled := from.Description("install")
-			toInstalled := to.Description("install")
-
-			// combine implicits and order-only dependencies, host uses implicit but device uses
-			// order-only.
-			got := append(fromInstalled.Implicits.Strings(), fromInstalled.OrderOnly.Strings()...)
-			want := toInstalled.Output.String()
-			if !android.InList(want, got) {
-				t.Errorf("%s installation should depend on %s, expected %q, got %q",
-					from.Module(), to.Module(), want, got)
-			}
-		}
-
-		expectSharedLinkDep(binWithAsan, libShared)
-		expectSharedLinkDep(binWithAsan, libAsan)
-		expectSharedLinkDep(libShared, libTransitive)
-		expectSharedLinkDep(libAsan, libTransitive)
-
-		expectStaticLinkDep(binWithAsan, libStaticAsanVariant)
-		expectStaticLinkDep(binWithAsan, libNoAsan)
-		expectStaticLinkDep(binWithAsan, libStaticAsan)
-
-		expectInstallDep(binWithAsan, libShared)
-		expectInstallDep(binWithAsan, libAsan)
-		expectInstallDep(binWithAsan, libTransitive)
-		expectInstallDep(libShared, libTransitive)
-		expectInstallDep(libAsan, libTransitive)
-
-		expectSharedLinkDep(binNoAsan, libShared)
-		expectSharedLinkDep(binNoAsan, libAsan)
-		expectSharedLinkDep(libShared, libTransitive)
-		expectSharedLinkDep(libAsan, libTransitive)
-
-		expectStaticLinkDep(binNoAsan, libStaticNoAsanVariant)
-		expectStaticLinkDep(binNoAsan, libNoAsan)
-		expectStaticLinkDep(binNoAsan, libStaticAsanNoAsanVariant)
-
-		expectInstallDep(binNoAsan, libShared)
-		expectInstallDep(binNoAsan, libAsan)
-		expectInstallDep(binNoAsan, libTransitive)
-		expectInstallDep(libShared, libTransitive)
-		expectInstallDep(libAsan, libTransitive)
+		expectInstallDep(t, binNoAsan, libShared)
+		expectInstallDep(t, binNoAsan, libAsan)
+		expectInstallDep(t, binNoAsan, libTransitive)
+		expectInstallDep(t, libShared, libTransitive)
+		expectInstallDep(t, libAsan, libTransitive)
 	}
 
 	t.Run("host", func(t *testing.T) { check(t, result, result.Config.BuildOSTarget.String()) })
+	t.Run("device", func(t *testing.T) { check(t, result, "android_arm64_armv8-a") })
+}
+
+func TestTsan(t *testing.T) {
+	bp := `
+	cc_binary {
+		name: "bin_with_tsan",
+		host_supported: true,
+		shared_libs: [
+			"libshared",
+			"libtsan",
+		],
+		sanitize: {
+			thread: true,
+		}
+	}
+
+	cc_binary {
+		name: "bin_no_tsan",
+		host_supported: true,
+		shared_libs: [
+			"libshared",
+			"libtsan",
+		],
+	}
+
+	cc_library_shared {
+		name: "libshared",
+		host_supported: true,
+		shared_libs: ["libtransitive"],
+	}
+
+	cc_library_shared {
+		name: "libtsan",
+		host_supported: true,
+		shared_libs: ["libtransitive"],
+		sanitize: {
+			thread: true,
+		}
+	}
+
+	cc_library_shared {
+		name: "libtransitive",
+		host_supported: true,
+	}
+`
+
+	result := android.GroupFixturePreparers(
+		prepareForCcTest,
+		prepareForTsanTest,
+	).RunTestWithBp(t, bp)
+
+	check := func(t *testing.T, result *android.TestResult, variant string) {
+		tsanVariant := variant + "_tsan"
+		sharedVariant := variant + "_shared"
+		sharedTsanVariant := sharedVariant + "_tsan"
+
+		// The binaries, one with tsan and one without
+		binWithTsan := result.ModuleForTests("bin_with_tsan", tsanVariant)
+		binNoTsan := result.ModuleForTests("bin_no_tsan", variant)
+
+		// Shared libraries that don't request tsan
+		libShared := result.ModuleForTests("libshared", sharedVariant)
+		libTransitive := result.ModuleForTests("libtransitive", sharedVariant)
+
+		// Shared library that requests tsan
+		libTsan := result.ModuleForTests("libtsan", sharedTsanVariant)
+
+		expectSharedLinkDep(t, binWithTsan, libShared)
+		expectSharedLinkDep(t, binWithTsan, libTsan)
+		expectSharedLinkDep(t, libShared, libTransitive)
+		expectSharedLinkDep(t, libTsan, libTransitive)
+
+		expectSharedLinkDep(t, binNoTsan, libShared)
+		expectSharedLinkDep(t, binNoTsan, libTsan)
+		expectSharedLinkDep(t, libShared, libTransitive)
+		expectSharedLinkDep(t, libTsan, libTransitive)
+	}
+
+	t.Run("host", func(t *testing.T) { check(t, result, result.Config.BuildOSTarget.String()) })
+	t.Run("device", func(t *testing.T) { check(t, result, "android_arm64_armv8-a") })
+}
+
+func TestFuzz(t *testing.T) {
+	bp := `
+		cc_binary {
+			name: "bin_with_fuzzer",
+			host_supported: true,
+			shared_libs: [
+				"libshared",
+				"libfuzzer",
+			],
+			static_libs: [
+				"libstatic",
+				"libnofuzzer",
+				"libstatic_fuzzer",
+			],
+			sanitize: {
+				fuzzer: true,
+			}
+		}
+
+		cc_binary {
+			name: "bin_no_fuzzer",
+			host_supported: true,
+			shared_libs: [
+				"libshared",
+				"libfuzzer",
+			],
+			static_libs: [
+				"libstatic",
+				"libnofuzzer",
+				"libstatic_fuzzer",
+			],
+		}
+
+		cc_library_shared {
+			name: "libshared",
+			host_supported: true,
+			shared_libs: ["libtransitive"],
+		}
+
+		cc_library_shared {
+			name: "libfuzzer",
+			host_supported: true,
+			shared_libs: ["libtransitive"],
+			sanitize: {
+				fuzzer: true,
+			}
+		}
+
+		cc_library_shared {
+			name: "libtransitive",
+			host_supported: true,
+		}
+
+		cc_library_static {
+			name: "libstatic",
+			host_supported: true,
+		}
+
+		cc_library_static {
+			name: "libnofuzzer",
+			host_supported: true,
+			sanitize: {
+				fuzzer: false,
+			}
+		}
+
+		cc_library_static {
+			name: "libstatic_fuzzer",
+			host_supported: true,
+		}
+
+	`
+
+	result := android.GroupFixturePreparers(
+		prepareForCcTest,
+	).RunTestWithBp(t, bp)
+
+	check := func(t *testing.T, result *android.TestResult, variant string) {
+		fuzzerVariant := variant + "_fuzzer"
+		sharedVariant := variant + "_shared"
+		sharedFuzzerVariant := sharedVariant + "_fuzzer"
+		staticVariant := variant + "_static"
+		staticFuzzerVariant := staticVariant + "_fuzzer"
+
+		// The binaries, one with fuzzer and one without
+		binWithFuzzer := result.ModuleForTests("bin_with_fuzzer", fuzzerVariant)
+		binNoFuzzer := result.ModuleForTests("bin_no_fuzzer", variant)
+
+		// Shared libraries that don't request fuzzer
+		libShared := result.ModuleForTests("libshared", sharedVariant)
+		libTransitive := result.ModuleForTests("libtransitive", sharedVariant)
+
+		// Shared libraries that don't request fuzzer
+		libSharedFuzzer := result.ModuleForTests("libshared", sharedFuzzerVariant)
+		libTransitiveFuzzer := result.ModuleForTests("libtransitive", sharedFuzzerVariant)
+
+		// Shared library that requests fuzzer
+		libFuzzer := result.ModuleForTests("libfuzzer", sharedFuzzerVariant)
+
+		// Static library that uses an fuzzer variant for bin_with_fuzzer and a non-fuzzer variant
+		// for bin_no_fuzzer.
+		libStaticFuzzerVariant := result.ModuleForTests("libstatic", staticFuzzerVariant)
+		libStaticNoFuzzerVariant := result.ModuleForTests("libstatic", staticVariant)
+
+		// Static library that never uses fuzzer.
+		libNoFuzzer := result.ModuleForTests("libnofuzzer", staticVariant)
+
+		// Static library that specifies fuzzer
+		libStaticFuzzer := result.ModuleForTests("libstatic_fuzzer", staticFuzzerVariant)
+		libStaticFuzzerNoFuzzerVariant := result.ModuleForTests("libstatic_fuzzer", staticVariant)
+
+		expectSharedLinkDep(t, binWithFuzzer, libSharedFuzzer)
+		expectSharedLinkDep(t, binWithFuzzer, libFuzzer)
+		expectSharedLinkDep(t, libSharedFuzzer, libTransitiveFuzzer)
+		expectSharedLinkDep(t, libFuzzer, libTransitiveFuzzer)
+
+		expectStaticLinkDep(t, binWithFuzzer, libStaticFuzzerVariant)
+		expectStaticLinkDep(t, binWithFuzzer, libNoFuzzer)
+		expectStaticLinkDep(t, binWithFuzzer, libStaticFuzzer)
+
+		expectSharedLinkDep(t, binNoFuzzer, libShared)
+		expectSharedLinkDep(t, binNoFuzzer, libFuzzer)
+		expectSharedLinkDep(t, libShared, libTransitive)
+		expectSharedLinkDep(t, libFuzzer, libTransitiveFuzzer)
+
+		expectStaticLinkDep(t, binNoFuzzer, libStaticNoFuzzerVariant)
+		expectStaticLinkDep(t, binNoFuzzer, libNoFuzzer)
+		expectStaticLinkDep(t, binNoFuzzer, libStaticFuzzerNoFuzzerVariant)
+	}
+
 	t.Run("device", func(t *testing.T) { check(t, result, "android_arm64_armv8-a") })
 }
 
