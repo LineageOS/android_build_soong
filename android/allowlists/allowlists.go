@@ -387,8 +387,11 @@ var (
 		"prebuilts/sdk":/* recursive = */ false,
 		"prebuilts/sdk/tools":/* recursive = */ false,
 		"prebuilts/r8":/* recursive = */ false,
+		"prebuilts/runtime":/* recursive = */ false,
 
-		"tools/asuite/atest/":/* recursive = */ true,
+		// not recursive due to conflicting workspace paths in tools/atest/bazel/rules
+		"tools/asuite/atest":/* recursive = */ false,
+		"tools/asuite/atest/bazel/reporter":/* recursive = */ true,
 	}
 
 	Bp2buildModuleAlwaysConvertList = []string{
