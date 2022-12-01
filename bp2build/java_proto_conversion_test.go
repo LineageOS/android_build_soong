@@ -91,6 +91,7 @@ func TestJavaProto(t *testing.T) {
 				MakeBazelTarget("java_library", "java-protos", AttrNameToString{
 					"exports": fmt.Sprintf(`[":%s"]`, javaLibraryName),
 				}),
+				MakeNeverlinkDuplicateTarget("java_library", "java-protos"),
 			},
 		})
 	}
@@ -119,6 +120,7 @@ func TestJavaProtoDefault(t *testing.T) {
 				"exports":   `[":java-protos_java_proto_lite"]`,
 				"javacopts": `["-source 1.7 -target 1.7"]`,
 			}),
+			MakeNeverlinkDuplicateTarget("java_library", "java-protos"),
 		},
 	})
 }

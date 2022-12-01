@@ -15,6 +15,7 @@
 package main
 
 import (
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -35,6 +36,11 @@ func createBazelWorkspace(ctx *bp2build.CodegenContext, outDir string) error {
 
 	filesToWrite := bp2build.CreateBazelFiles(ctx.Config(), ruleShims, res.BuildDirToTargets(),
 		ctx.Mode())
+	bazelRcFiles, err2 := CopyBazelRcFiles()
+	if err2 != nil {
+		return err2
+	}
+	filesToWrite = append(filesToWrite, bazelRcFiles...)
 	for _, f := range filesToWrite {
 		if err := writeReadOnlyFile(outDir, f); err != nil {
 			return err
@@ -42,6 +48,32 @@ func createBazelWorkspace(ctx *bp2build.CodegenContext, outDir string) error {
 	}
 
 	return nil
+}
+
+// CopyBazelRcFiles creates BazelFiles for all the bazelrc files under
+// build/bazel. They're needed because the rc files are still read when running
+// queryview, so they have to be in the queryview workspace.
+func CopyBazelRcFiles() ([]bp2build.BazelFile, error) {
+	result := make([]bp2build.BazelFile, 0)
+	err := filepath.WalkDir(filepath.Join(topDir, "build/bazel"), func(path string, info fs.DirEntry, err error) error {
+		if filepath.Ext(path) == ".bazelrc" {
+			contents, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			path, err = filepath.Rel(topDir, path)
+			if err != nil {
+				return err
+			}
+			result = append(result, bp2build.BazelFile{
+				Dir:      filepath.Dir(path),
+				Basename: filepath.Base(path),
+				Contents: string(contents),
+			})
+		}
+		return nil
+	})
+	return result, err
 }
 
 // The auto-conversion directory should be read-only, sufficient for bazel query. The files
