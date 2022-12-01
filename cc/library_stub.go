@@ -15,12 +15,15 @@
 package cc
 
 import (
+	"regexp"
 	"strings"
-
-	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
 	"android/soong/multitree"
+)
+
+var (
+	ndkVariantRegex = regexp.MustCompile("ndk\\.([a-zA-Z0-9]+)")
 )
 
 func init() {
@@ -45,13 +48,17 @@ func updateImportedLibraryDependency(ctx android.BottomUpMutatorContext) {
 	}
 
 	if m.UseVndk() && apiLibrary.hasLLNDKStubs() {
-		// Add LLNDK dependencies
-		for _, variant := range apiLibrary.properties.Variants {
-			if variant == "llndk" {
-				variantName := BuildApiVariantName(m.BaseModuleName(), "llndk", "")
-				ctx.AddDependency(m, nil, variantName)
-				break
-			}
+		// Add LLNDK variant dependency
+		if inList("llndk", apiLibrary.properties.Variants) {
+			variantName := BuildApiVariantName(m.BaseModuleName(), "llndk", "")
+			ctx.AddDependency(m, nil, variantName)
+		}
+	} else if m.IsSdkVariant() {
+		// Add NDK variant dependencies
+		targetVariant := "ndk." + m.StubsVersion()
+		if inList(targetVariant, apiLibrary.properties.Variants) {
+			variantName := BuildApiVariantName(m.BaseModuleName(), targetVariant, "")
+			ctx.AddDependency(m, nil, variantName)
 		}
 	}
 }
@@ -117,12 +124,31 @@ func (d *apiLibraryDecorator) exportIncludes(ctx ModuleContext) {
 	}
 }
 
+func (d *apiLibraryDecorator) linkerInit(ctx BaseModuleContext) {
+	d.baseLinker.linkerInit(ctx)
+
+	if d.hasNDKStubs() {
+		// Set SDK version of module as current
+		ctx.Module().(*Module).Properties.Sdk_version = StringPtr("current")
+
+		// Add NDK stub as NDK known libs
+		name := ctx.ModuleName()
+
+		ndkKnownLibsLock.Lock()
+		ndkKnownLibs := getNDKKnownLibs(ctx.Config())
+		if !inList(name, *ndkKnownLibs) {
+			*ndkKnownLibs = append(*ndkKnownLibs, name)
+		}
+		ndkKnownLibsLock.Unlock()
+	}
+}
+
 func (d *apiLibraryDecorator) link(ctx ModuleContext, flags Flags, deps PathDeps, objects Objects) android.Path {
 	m, _ := ctx.Module().(*Module)
 
 	var in android.Path
 
-	if src := proptools.String(d.properties.Src); src != "" {
+	if src := String(d.properties.Src); src != "" {
 		in = android.PathForModuleSrc(ctx, src)
 	}
 
@@ -149,12 +175,35 @@ func (d *apiLibraryDecorator) link(ctx ModuleContext, flags Flags, deps PathDeps
 					variantMod.exportProperties.Export_headers...)
 
 				// Export headers as system include dirs if specified. Mostly for libc
-				if proptools.Bool(variantMod.exportProperties.Export_headers_as_system) {
+				if Bool(variantMod.exportProperties.Export_headers_as_system) {
 					d.libraryDecorator.flagExporter.Properties.Export_system_include_dirs = append(
 						d.libraryDecorator.flagExporter.Properties.Export_system_include_dirs,
 						d.libraryDecorator.flagExporter.Properties.Export_include_dirs...)
 					d.libraryDecorator.flagExporter.Properties.Export_include_dirs = nil
 				}
+			}
+		}
+	} else if m.IsSdkVariant() {
+		// NDK Variant
+		apiVariantModule := BuildApiVariantName(m.BaseModuleName(), "ndk", m.StubsVersion())
+
+		var mod android.Module
+
+		ctx.VisitDirectDeps(func(depMod android.Module) {
+			if depMod.Name() == apiVariantModule {
+				mod = depMod
+			}
+		})
+
+		if mod != nil {
+			variantMod, ok := mod.(*CcApiVariant)
+			if ok {
+				in = variantMod.Src()
+
+				// Copy NDK properties to cc_api_library module
+				d.libraryDecorator.flagExporter.Properties.Export_include_dirs = append(
+					d.libraryDecorator.flagExporter.Properties.Export_include_dirs,
+					variantMod.exportProperties.Export_headers...)
 			}
 		}
 	}
@@ -214,6 +263,14 @@ func (d *apiLibraryDecorator) stubsVersions(ctx android.BaseMutatorContext) []st
 
 	// TODO(b/244244438) Create more version information for NDK and APEX variations
 	// NDK variants
+
+	if m.IsSdkVariant() {
+		// TODO(b/249193999) Do not check if module has NDK stubs once all NDK cc_api_library contains ndk variant of cc_api_variant.
+		if d.hasNDKStubs() {
+			return d.getNdkVersions()
+		}
+	}
+
 	if m.MinSdkVersion() == "" {
 		return nil
 	}
@@ -229,12 +286,28 @@ func (d *apiLibraryDecorator) stubsVersions(ctx android.BaseMutatorContext) []st
 }
 
 func (d *apiLibraryDecorator) hasLLNDKStubs() bool {
+	return inList("llndk", d.properties.Variants)
+}
+
+func (d *apiLibraryDecorator) hasNDKStubs() bool {
 	for _, variant := range d.properties.Variants {
-		if strings.Contains(variant, "llndk") {
+		if ndkVariantRegex.MatchString(variant) {
 			return true
 		}
 	}
 	return false
+}
+
+func (d *apiLibraryDecorator) getNdkVersions() []string {
+	ndkVersions := []string{}
+
+	for _, variant := range d.properties.Variants {
+		if match := ndkVariantRegex.FindStringSubmatch(variant); len(match) == 2 {
+			ndkVersions = append(ndkVersions, match[1])
+		}
+	}
+
+	return ndkVersions
 }
 
 // 'cc_api_headers' is similar with 'cc_api_library', but which replaces
@@ -320,18 +393,18 @@ func CcApiVariantFactory() android.Module {
 func (v *CcApiVariant) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// No need to build
 
-	if proptools.String(v.properties.Src) == "" {
+	if String(v.properties.Src) == "" {
 		ctx.PropertyErrorf("src", "src is a required property")
 	}
 
 	// Skip the existence check of the stub prebuilt file.
 	// The file is not guaranteed to exist during Soong analysis.
 	// Build orchestrator will be responsible for creating a connected ninja graph.
-	v.src = android.MaybeExistentPathForSource(ctx, ctx.ModuleDir(), proptools.String(v.properties.Src))
+	v.src = android.MaybeExistentPathForSource(ctx, ctx.ModuleDir(), String(v.properties.Src))
 }
 
 func (v *CcApiVariant) Name() string {
-	version := proptools.String(v.properties.Version)
+	version := String(v.properties.Version)
 	return BuildApiVariantName(v.BaseModuleName(), *v.properties.Variant, version)
 }
 
@@ -349,8 +422,10 @@ func BuildApiVariantName(baseName string, variant string, version string) string
 }
 
 // Implement ImageInterface to generate image variants
-func (v *CcApiVariant) ImageMutatorBegin(ctx android.BaseModuleContext)               {}
-func (v *CcApiVariant) CoreVariantNeeded(ctx android.BaseModuleContext) bool          { return false }
+func (v *CcApiVariant) ImageMutatorBegin(ctx android.BaseModuleContext) {}
+func (v *CcApiVariant) CoreVariantNeeded(ctx android.BaseModuleContext) bool {
+	return String(v.properties.Variant) == "ndk"
+}
 func (v *CcApiVariant) RamdiskVariantNeeded(ctx android.BaseModuleContext) bool       { return false }
 func (v *CcApiVariant) VendorRamdiskVariantNeeded(ctx android.BaseModuleContext) bool { return false }
 func (v *CcApiVariant) DebugRamdiskVariantNeeded(ctx android.BaseModuleContext) bool  { return false }
@@ -359,7 +434,7 @@ func (v *CcApiVariant) ExtraImageVariations(ctx android.BaseModuleContext) []str
 	var variations []string
 	platformVndkVersion := ctx.DeviceConfig().PlatformVndkVersion()
 
-	if proptools.String(v.properties.Variant) == "llndk" {
+	if String(v.properties.Variant) == "llndk" {
 		variations = append(variations, VendorVariationPrefix+platformVndkVersion)
 		variations = append(variations, ProductVariationPrefix+platformVndkVersion)
 	}

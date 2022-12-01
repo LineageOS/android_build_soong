@@ -2314,28 +2314,23 @@ func RewriteLibs(c LinkableInterface, snapshotInfo **SnapshotInfo, actx android.
 	return nonvariantLibs, variantLibs
 }
 
-func updateDepsWithApiImports(deps Deps, apiImports multitree.ApiImportInfo) Deps {
-	for idx, lib := range deps.SharedLibs {
-		deps.SharedLibs[idx] = GetReplaceModuleName(lib, apiImports.SharedLibs)
+func rewriteLibsForApiImports(c LinkableInterface, libs []string, replaceList map[string]string, config android.Config) ([]string, []string) {
+	nonVariantLibs := []string{}
+	variantLibs := []string{}
+
+	for _, lib := range libs {
+		replaceLibName := GetReplaceModuleName(lib, replaceList)
+		if replaceLibName == lib {
+			// Do not handle any libs which are not in API imports
+			nonVariantLibs = append(nonVariantLibs, replaceLibName)
+		} else if c.UseSdk() && inList(replaceLibName, *getNDKKnownLibs(config)) {
+			variantLibs = append(variantLibs, replaceLibName)
+		} else {
+			nonVariantLibs = append(nonVariantLibs, replaceLibName)
+		}
 	}
 
-	for idx, lib := range deps.LateSharedLibs {
-		deps.LateSharedLibs[idx] = GetReplaceModuleName(lib, apiImports.SharedLibs)
-	}
-
-	for idx, lib := range deps.RuntimeLibs {
-		deps.RuntimeLibs[idx] = GetReplaceModuleName(lib, apiImports.SharedLibs)
-	}
-
-	for idx, lib := range deps.SystemSharedLibs {
-		deps.SystemSharedLibs[idx] = GetReplaceModuleName(lib, apiImports.SharedLibs)
-	}
-
-	for idx, lib := range deps.ReexportSharedLibHeaders {
-		deps.ReexportSharedLibHeaders[idx] = GetReplaceModuleName(lib, apiImports.SharedLibs)
-	}
-
-	return deps
+	return nonVariantLibs, variantLibs
 }
 
 func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
@@ -2354,8 +2349,15 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	deps := c.deps(ctx)
 	apiImportInfo := GetApiImports(c, actx)
 
+	apiNdkLibs := []string{}
+	apiLateNdkLibs := []string{}
+
 	if ctx.Os() == android.Android && c.Target().NativeBridge != android.NativeBridgeEnabled {
-		deps = updateDepsWithApiImports(deps, apiImportInfo)
+		deps.SharedLibs, apiNdkLibs = rewriteLibsForApiImports(c, deps.SharedLibs, apiImportInfo.SharedLibs, ctx.Config())
+		deps.LateSharedLibs, apiLateNdkLibs = rewriteLibsForApiImports(c, deps.LateSharedLibs, apiImportInfo.SharedLibs, ctx.Config())
+		deps.SystemSharedLibs, _ = rewriteLibsForApiImports(c, deps.SystemSharedLibs, apiImportInfo.SharedLibs, ctx.Config())
+		deps.ReexportHeaderLibHeaders, _ = rewriteLibsForApiImports(c, deps.ReexportHeaderLibHeaders, apiImportInfo.SharedLibs, ctx.Config())
+		deps.ReexportSharedLibHeaders, _ = rewriteLibsForApiImports(c, deps.ReexportSharedLibHeaders, apiImportInfo.SharedLibs, ctx.Config())
 	}
 
 	c.Properties.AndroidMkSystemSharedLibs = deps.SystemSharedLibs
@@ -2542,12 +2544,20 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		{Mutator: "version", Variation: version},
 		{Mutator: "link", Variation: "shared"},
 	}, ndkStubDepTag, variantNdkLibs...)
+	actx.AddVariationDependencies([]blueprint.Variation{
+		{Mutator: "version", Variation: version},
+		{Mutator: "link", Variation: "shared"},
+	}, ndkStubDepTag, apiNdkLibs...)
 
 	ndkLateStubDepTag := libraryDependencyTag{Kind: sharedLibraryDependency, Order: lateLibraryDependency, ndk: true, makeSuffix: "." + version}
 	actx.AddVariationDependencies([]blueprint.Variation{
 		{Mutator: "version", Variation: version},
 		{Mutator: "link", Variation: "shared"},
 	}, ndkLateStubDepTag, variantLateNdkLibs...)
+	actx.AddVariationDependencies([]blueprint.Variation{
+		{Mutator: "version", Variation: version},
+		{Mutator: "link", Variation: "shared"},
+	}, ndkLateStubDepTag, apiLateNdkLibs...)
 
 	if vndkdep := c.vndkdep; vndkdep != nil {
 		if vndkdep.isVndkExt() {
@@ -2601,6 +2611,10 @@ func checkLinkType(ctx android.BaseModuleContext, from LinkableInterface, to Lin
 		}
 		return
 	}
+	// TODO(b/244244438) : Remove this once all variants are implemented
+	if ccFrom, ok := from.(*Module); ok && ccFrom.isImportedApiLibrary() {
+		return
+	}
 	if from.SdkVersion() == "" {
 		// Platform code can link to anything
 		return
@@ -2625,6 +2639,10 @@ func checkLinkType(ctx android.BaseModuleContext, from LinkableInterface, to Lin
 		if c.StubDecorator() {
 			// These aren't real libraries, but are the stub shared libraries that are included in
 			// the NDK.
+			return
+		}
+		if c.isImportedApiLibrary() {
+			// Imported library from the API surface is a stub library built against interface definition.
 			return
 		}
 	}
