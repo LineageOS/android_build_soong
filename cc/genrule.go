@@ -48,6 +48,8 @@ type GenruleExtraProperties struct {
 //
 //	CC_NATIVE_BRIDGE  the name of the subdirectory that native bridge libraries are stored in if
 //	                  the architecture has native bridge enabled, empty if it is disabled.
+//
+//	CC_OS             the name of the OS the command is being executed for.
 func GenRuleFactory() android.Module {
 	module := genrule.NewGenRule()
 
@@ -68,8 +70,9 @@ func GenRuleFactory() android.Module {
 func genruleCmdModifier(ctx android.ModuleContext, cmd string) string {
 	target := ctx.Target()
 	arch := target.Arch.ArchType
-	return fmt.Sprintf("CC_ARCH=%s CC_NATIVE_BRIDGE=%s CC_MULTILIB=%s && %s",
-		arch.Name, target.NativeBridgeRelativePath, arch.Multilib, cmd)
+	osName := target.Os.Name
+	return fmt.Sprintf("CC_ARCH=%s CC_NATIVE_BRIDGE=%s CC_MULTILIB=%s CC_OS=%s && %s",
+		arch.Name, target.NativeBridgeRelativePath, arch.Multilib, osName, cmd)
 }
 
 var _ android.ImageInterface = (*GenruleExtraProperties)(nil)
