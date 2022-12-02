@@ -629,40 +629,41 @@ func bazelArtifacts() []string {
 // symlink tree creation binary. Then the latter would not need to depend on
 // the very heavy-weight machinery of soong_build .
 func runSymlinkForestCreation(configuration android.Config, ctx *android.Context, extraNinjaDeps []string, metricsDir string) string {
-	var ninjaDeps []string
-	ninjaDeps = append(ninjaDeps, extraNinjaDeps...)
-
-	generatedRoot := shared.JoinPath(configuration.SoongOutDir(), "bp2build")
-	workspaceRoot := shared.JoinPath(configuration.SoongOutDir(), "workspace")
-
-	excludes := bazelArtifacts()
-
-	if outDir[0] != '/' {
-		excludes = append(excludes, outDir)
-	}
-
-	existingBazelRelatedFiles, err := getExistingBazelRelatedFiles(topDir)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error determining existing Bazel-related files: %s\n", err)
-		os.Exit(1)
-	}
-
-	pathsToIgnoredBuildFiles := getPathsToIgnoredBuildFiles(configuration.Bp2buildPackageConfig, topDir, existingBazelRelatedFiles, configuration.IsEnvTrue("BP2BUILD_VERBOSE"))
-	excludes = append(excludes, pathsToIgnoredBuildFiles...)
-	excludes = append(excludes, getTemporaryExcludes()...)
-
-	// PlantSymlinkForest() returns all the directories that were readdir()'ed.
-	// Such a directory SHOULD be added to `ninjaDeps` so that a child directory
-	// or file created/deleted under it would trigger an update of the symlink
-	// forest.
 	ctx.EventHandler.Do("symlink_forest", func() {
-		symlinkForestDeps := bp2build.PlantSymlinkForest(
-			configuration.IsEnvTrue("BP2BUILD_VERBOSE"), topDir, workspaceRoot, generatedRoot, excludes)
-		ninjaDeps = append(ninjaDeps, symlinkForestDeps...)
-	})
+		var ninjaDeps []string
+		ninjaDeps = append(ninjaDeps, extraNinjaDeps...)
 
-	writeDepFile(symlinkForestMarker, ctx.EventHandler, ninjaDeps)
-	touch(shared.JoinPath(topDir, symlinkForestMarker))
+		generatedRoot := shared.JoinPath(configuration.SoongOutDir(), "bp2build")
+		workspaceRoot := shared.JoinPath(configuration.SoongOutDir(), "workspace")
+
+		excludes := bazelArtifacts()
+
+		if outDir[0] != '/' {
+			excludes = append(excludes, outDir)
+		}
+
+		existingBazelRelatedFiles, err := getExistingBazelRelatedFiles(topDir)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error determining existing Bazel-related files: %s\n", err)
+			os.Exit(1)
+		}
+
+		pathsToIgnoredBuildFiles := getPathsToIgnoredBuildFiles(configuration.Bp2buildPackageConfig, topDir, existingBazelRelatedFiles, configuration.IsEnvTrue("BP2BUILD_VERBOSE"))
+		excludes = append(excludes, pathsToIgnoredBuildFiles...)
+		excludes = append(excludes, getTemporaryExcludes()...)
+
+		// PlantSymlinkForest() returns all the directories that were readdir()'ed.
+		// Such a directory SHOULD be added to `ninjaDeps` so that a child directory
+		// or file created/deleted under it would trigger an update of the symlink forest.
+		ctx.EventHandler.Do("plant", func() {
+			symlinkForestDeps := bp2build.PlantSymlinkForest(
+				configuration.IsEnvTrue("BP2BUILD_VERBOSE"), topDir, workspaceRoot, generatedRoot, excludes)
+			ninjaDeps = append(ninjaDeps, symlinkForestDeps...)
+		})
+
+		writeDepFile(symlinkForestMarker, ctx.EventHandler, ninjaDeps)
+		touch(shared.JoinPath(topDir, symlinkForestMarker))
+	})
 	codegenMetrics := bp2build.ReadCodegenMetrics(metricsDir)
 	if codegenMetrics == nil {
 		m := bp2build.CreateCodegenMetrics()
