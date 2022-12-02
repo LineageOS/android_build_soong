@@ -227,6 +227,11 @@ type config struct {
 	mixedBuildsLock           sync.Mutex
 	mixedBuildEnabledModules  map[string]struct{}
 	mixedBuildDisabledModules map[string]struct{}
+
+	// These are modules to be built with Bazel beyond the allowlisted/build-mode
+	// specified modules. They are passed via the command-line flag
+	// "--bazel-force-enabled-modules"
+	bazelForceEnabledModules map[string]struct{}
 }
 
 type deviceConfig struct {
@@ -399,7 +404,8 @@ func NullConfig(outDir, soongOutDir string) Config {
 
 // NewConfig creates a new Config object. The srcDir argument specifies the path
 // to the root source directory. It also loads the config file, if found.
-func NewConfig(moduleListFile string, buildMode SoongBuildMode, runGoTests bool, outDir, soongOutDir string, availableEnv map[string]string) (Config, error) {
+func NewConfig(moduleListFile string, buildMode SoongBuildMode, runGoTests bool, outDir, soongOutDir string, availableEnv map[string]string,
+	bazelForceEnabledModules []string) (Config, error) {
 	// Make a config with default options.
 	config := &config{
 		ProductVariablesFileName: filepath.Join(soongOutDir, productVariablesFileName),
@@ -415,6 +421,7 @@ func NewConfig(moduleListFile string, buildMode SoongBuildMode, runGoTests bool,
 		fs:                        pathtools.NewOsFs(absSrcDir),
 		mixedBuildDisabledModules: make(map[string]struct{}),
 		mixedBuildEnabledModules:  make(map[string]struct{}),
+		bazelForceEnabledModules:  make(map[string]struct{}),
 	}
 
 	config.deviceConfig = &deviceConfig{
@@ -499,6 +506,10 @@ func NewConfig(moduleListFile string, buildMode SoongBuildMode, runGoTests bool,
 	config.BuildMode = buildMode
 	config.BazelContext, err = NewBazelContext(config)
 	config.Bp2buildPackageConfig = GetBp2BuildAllowList()
+
+	for _, module := range bazelForceEnabledModules {
+		config.bazelForceEnabledModules[module] = struct{}{}
+	}
 
 	return Config{config}, err
 }
@@ -1156,6 +1167,10 @@ func (c *config) HasMultilibConflict(arch ArchType) bool {
 
 func (c *config) PrebuiltHiddenApiDir(ctx PathContext) string {
 	return String(c.productVariables.PrebuiltHiddenApiDir)
+}
+
+func (c *config) BazelModulesForceEnabledByFlag() map[string]struct{} {
+	return c.bazelForceEnabledModules
 }
 
 func (c *deviceConfig) Arches() []Arch {
