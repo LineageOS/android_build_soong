@@ -314,6 +314,10 @@ func TestTsan(t *testing.T) {
 }
 
 func TestMiscUndefined(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("requires linux")
+	}
+
 	bp := `
 	cc_binary {
 		name: "bin_with_ubsan",
