@@ -273,6 +273,10 @@ func bootstrapBlueprint(ctx Context, config Config) {
 	if config.bazelStagingMode {
 		mainSoongBuildExtraArgs = append(mainSoongBuildExtraArgs, "--bazel-mode-staging")
 	}
+	if len(config.bazelForceEnabledModules) > 0 {
+		mainSoongBuildExtraArgs = append(mainSoongBuildExtraArgs, "--bazel-force-enabled-modules="+config.bazelForceEnabledModules)
+	}
+
 	queryviewDir := filepath.Join(config.SoongOutDir(), "queryview")
 	// The BUILD files will be generated in out/soong/.api_bp2build (no symlinks to src files)
 	// The final workspace will be generated in out/soong/api_bp2build
