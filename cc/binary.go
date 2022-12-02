@@ -655,11 +655,12 @@ func binaryBp2build(ctx android.TopDownMutatorContext, m *Module) {
 	// shared with cc_test
 	binaryAttrs := binaryBp2buildAttrs(ctx, m)
 
+	tags := android.ApexAvailableTags(m)
 	ctx.CreateBazelTargetModule(bazel.BazelTargetModuleProperties{
 		Rule_class:        "cc_binary",
 		Bzl_load_location: "//build/bazel/rules/cc:cc_binary.bzl",
 	},
-		android.CommonAttributes{Name: m.Name()},
+		android.CommonAttributes{Name: m.Name(), Tags: tags},
 		&binaryAttrs)
 }
 
