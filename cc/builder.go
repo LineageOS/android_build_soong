@@ -292,12 +292,6 @@ var (
 		},
 		"extraFlags", "referenceDump", "libName", "arch", "errorMessage")
 
-	// Rule to unzip a reference abi dump.
-	unzipRefSAbiDump = pctx.AndroidStaticRule("unzipRefSAbiDump",
-		blueprint.RuleParams{
-			Command: "gunzip -c $in > $out",
-		})
-
 	// Rule to zip files.
 	zip = pctx.AndroidStaticRule("zip",
 		blueprint.RuleParams{
@@ -911,58 +905,16 @@ func transformDumpToLinkedDump(ctx android.ModuleContext, sAbiDumps android.Path
 	return android.OptionalPathForPath(outputFile)
 }
 
-// unzipRefDump registers a build statement to unzip a reference abi dump.
-func unzipRefDump(ctx android.ModuleContext, zippedRefDump android.Path, baseName string) android.Path {
-	outputFile := android.PathForModuleOut(ctx, baseName+"_ref.lsdump")
-	ctx.Build(pctx, android.BuildParams{
-		Rule:        unzipRefSAbiDump,
-		Description: "gunzip" + outputFile.Base(),
-		Output:      outputFile,
-		Input:       zippedRefDump,
-	})
-	return outputFile
-}
-
-// sourceAbiDiff registers a build statement to compare linked sAbi dump files (.lsdump).
-func sourceAbiDiff(ctx android.ModuleContext, inputDump, referenceDump android.Path,
-	baseName string, diffFlags []string, prevVersion int,
-	checkAllApis, isLlndkOrNdk, isVndkExt, previousVersionDiff bool) android.OptionalPath {
+func transformAbiDumpToAbiDiff(ctx android.ModuleContext, inputDump, referenceDump android.Path,
+	baseName, nameExt string, extraFlags []string, errorMessage string) android.Path {
 
 	var outputFile android.ModuleOutPath
-	if previousVersionDiff {
-		outputFile = android.PathForModuleOut(ctx, baseName+"."+strconv.Itoa(prevVersion)+".abidiff")
+	if nameExt != "" {
+		outputFile = android.PathForModuleOut(ctx, baseName+"."+nameExt+".abidiff")
 	} else {
 		outputFile = android.PathForModuleOut(ctx, baseName+".abidiff")
 	}
 	libName := strings.TrimSuffix(baseName, filepath.Ext(baseName))
-
-	var extraFlags []string
-	if checkAllApis {
-		extraFlags = append(extraFlags, "-check-all-apis")
-	} else {
-		extraFlags = append(extraFlags,
-			"-allow-unreferenced-changes",
-			"-allow-unreferenced-elf-symbol-changes")
-	}
-
-	var errorMessage string
-	if previousVersionDiff {
-		errorMessage = "error: Please follow https://android.googlesource.com/platform/development/+/master/vndk/tools/header-checker/README.md#configure-cross_version-abi-check to resolve the ABI difference between your source code and version " + strconv.Itoa(prevVersion) + "."
-		sourceVersion := prevVersion + 1
-		extraFlags = append(extraFlags, "-target-version", strconv.Itoa(sourceVersion))
-	} else {
-		errorMessage = "error: Please update ABI references with: $$ANDROID_BUILD_TOP/development/vndk/tools/header-checker/utils/create_reference_dumps.py -l " + libName
-		extraFlags = append(extraFlags, "-target-version", "current")
-	}
-
-	if isLlndkOrNdk {
-		extraFlags = append(extraFlags, "-consider-opaque-types-different")
-	}
-	if isVndkExt || previousVersionDiff {
-		extraFlags = append(extraFlags, "-allow-extensions")
-	}
-	// TODO(b/232891473): Simplify the above logic with diffFlags.
-	extraFlags = append(extraFlags, diffFlags...)
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        sAbiDiff,
@@ -978,7 +930,7 @@ func sourceAbiDiff(ctx android.ModuleContext, inputDump, referenceDump android.P
 			"errorMessage":  errorMessage,
 		},
 	})
-	return android.OptionalPathForPath(outputFile)
+	return outputFile
 }
 
 // Generate a rule for extracting a table of contents from a shared library (.so)
