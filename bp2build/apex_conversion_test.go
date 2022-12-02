@@ -663,6 +663,7 @@ override_apex {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
 				"android_manifest": `"ApogeeAndroidManifest.xml"`,
+				"base_apex_name":   `"com.android.apogee"`,
 				"binaries": `[
         ":cc_binary_1",
         ":sh_binary_2",
@@ -729,8 +730,9 @@ override_apex {
 `,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
-				"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
-				"manifest":      `"//a/b:apex_manifest.json"`,
+				"base_apex_name": `"com.android.apogee"`,
+				"file_contexts":  `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
+				"manifest":       `"//a/b:apex_manifest.json"`,
 			}),
 		}})
 }
@@ -763,8 +765,9 @@ override_apex {
 `,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
-				"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
-				"manifest":      `"//a/b:apogee_manifest.json"`,
+				"base_apex_name": `"com.android.apogee"`,
+				"file_contexts":  `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
+				"manifest":       `"//a/b:apogee_manifest.json"`,
 			}),
 		}})
 }
@@ -795,8 +798,9 @@ override_apex {
 `,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
-				"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
-				"manifest":      `"apex_manifest.json"`,
+				"base_apex_name": `"com.android.apogee"`,
+				"file_contexts":  `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
+				"manifest":       `"apex_manifest.json"`,
 			}),
 		}})
 }
@@ -828,8 +832,9 @@ override_apex {
 `,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
-				"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
-				"manifest":      `"apogee_manifest.json"`,
+				"base_apex_name": `"com.android.apogee"`,
+				"file_contexts":  `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
+				"manifest":       `"apogee_manifest.json"`,
 			}),
 		}})
 }
@@ -861,9 +866,10 @@ override_apex {
 `,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
-				"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
-				"manifest":      `"apex_manifest.json"`,
-				"package_name":  `"com.google.android.apogee"`,
+				"base_apex_name": `"com.android.apogee"`,
+				"file_contexts":  `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
+				"manifest":       `"apex_manifest.json"`,
+				"package_name":   `"com.google.android.apogee"`,
 			}),
 		}})
 }
@@ -900,9 +906,10 @@ override_apex {
 `,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
-				"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
-				"manifest":      `"apex_manifest.json"`,
-				"prebuilts":     `[":prebuilt_file"]`,
+				"base_apex_name": `"com.android.apogee"`,
+				"file_contexts":  `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
+				"manifest":       `"apex_manifest.json"`,
+				"prebuilts":      `[":prebuilt_file"]`,
 			}),
 		}})
 }
@@ -945,9 +952,10 @@ override_apex {
 `,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
-				"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
-				"manifest":      `"apex_manifest.json"`,
-				"prebuilts":     `[":prebuilt_file2"]`,
+				"base_apex_name": `"com.android.apogee"`,
+				"file_contexts":  `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
+				"manifest":       `"apex_manifest.json"`,
+				"prebuilts":      `[":prebuilt_file2"]`,
 			}),
 		}})
 }
@@ -985,9 +993,10 @@ override_apex {
 `,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
-				"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
-				"manifest":      `"apex_manifest.json"`,
-				"prebuilts":     `[]`,
+				"base_apex_name": `"com.android.apogee"`,
+				"file_contexts":  `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
+				"manifest":       `"apex_manifest.json"`,
+				"prebuilts":      `[]`,
 			}),
 		}})
 }
@@ -1019,6 +1028,7 @@ override_apex {
 `,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
+				"base_apex_name": `"com.android.apogee"`,
 				"file_contexts":  `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
 				"manifest":       `"apex_manifest.json"`,
 				"logging_parent": `"foo.bar.baz"`,
@@ -1054,6 +1064,7 @@ override_apex {
 `,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
+				"base_apex_name": `"com.android.apogee"`,
 				"file_contexts":  `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
 				"manifest":       `"apex_manifest.json"`,
 				"logging_parent": `"foo.bar.baz.override"`,
@@ -1099,8 +1110,9 @@ override_apex {
 `,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
-				"file_contexts": `":com.android.apogee-file_contexts"`,
-				"manifest":      `"apogee_manifest.json"`,
+				"base_apex_name": `"com.android.apogee"`,
+				"file_contexts":  `":com.android.apogee-file_contexts"`,
+				"manifest":       `"apogee_manifest.json"`,
 			}),
 		}})
 }
@@ -1200,9 +1212,10 @@ override_apex {
 `,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
-				"file_contexts": `":com.android.apogee-file_contexts"`,
-				"certificate":   `":com.google.android.apogee.certificate"`,
-				"manifest":      `"apogee_manifest.json"`,
+				"base_apex_name": `"com.android.apogee"`,
+				"file_contexts":  `":com.android.apogee-file_contexts"`,
+				"certificate":    `":com.google.android.apogee.certificate"`,
+				"manifest":       `"apogee_manifest.json"`,
 			}),
 		}})
 }
@@ -1244,6 +1257,7 @@ override_apex {
 `,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("apex", "com.google.android.apogee", AttrNameToString{
+				"base_apex_name":   `"com.android.apogee"`,
 				"file_contexts":    `":com.android.apogee-file_contexts"`,
 				"certificate_name": `"com.google.android.apogee.certificate"`,
 				"manifest":         `"apogee_manifest.json"`,
