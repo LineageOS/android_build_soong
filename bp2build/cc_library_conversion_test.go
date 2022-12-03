@@ -3645,3 +3645,49 @@ func TestCcLibraryHeaderAbiChecker(t *testing.T) {
 		},
 	})
 }
+
+func TestCcLibraryApexAvailable(t *testing.T) {
+	runCcLibraryTestCase(t, Bp2buildTestCase{
+		Description:                "cc_library apex_available converted to tags",
+		ModuleTypeUnderTest:        "cc_library",
+		ModuleTypeUnderTestFactory: cc.LibraryFactory,
+		Blueprint: soongCcLibraryPreamble + `
+cc_library {
+    name: "a",
+    srcs: ["a.cpp"],
+    apex_available: ["com.android.foo"],
+}
+`,
+		ExpectedBazelTargets: makeCcLibraryTargets("a", AttrNameToString{
+			"tags":           `["apex_available=com.android.foo"]`,
+			"srcs":           `["a.cpp"]`,
+			"local_includes": `["."]`,
+		}),
+	},
+	)
+}
+
+func TestCcLibraryApexAvailableMultiple(t *testing.T) {
+	runCcLibraryTestCase(t, Bp2buildTestCase{
+		Description:                "cc_library apex_available converted to multiple tags",
+		ModuleTypeUnderTest:        "cc_library",
+		ModuleTypeUnderTestFactory: cc.LibraryFactory,
+		Blueprint: soongCcLibraryPreamble + `
+cc_library {
+    name: "a",
+    srcs: ["a.cpp"],
+    apex_available: ["com.android.foo", "//apex_available:platform", "com.android.bar"],
+}
+`,
+		ExpectedBazelTargets: makeCcLibraryTargets("a", AttrNameToString{
+			"tags": `[
+        "apex_available=com.android.foo",
+        "apex_available=//apex_available:platform",
+        "apex_available=com.android.bar",
+    ]`,
+			"srcs":           `["a.cpp"]`,
+			"local_includes": `["."]`,
+		}),
+	},
+	)
+}

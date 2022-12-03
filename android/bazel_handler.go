@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -260,11 +259,11 @@ func (m MockBazelContext) GetCcUnstrippedInfo(label string, _ configKey) (cquery
 	return result, nil
 }
 
-func (m MockBazelContext) InvokeBazel(_ Config, ctx *Context) error {
+func (m MockBazelContext) InvokeBazel(_ Config, _ *Context) error {
 	panic("unimplemented")
 }
 
-func (m MockBazelContext) BazelAllowlisted(moduleName string) bool {
+func (m MockBazelContext) BazelAllowlisted(_ string) bool {
 	return true
 }
 
@@ -356,7 +355,7 @@ func (n noopBazelContext) GetCcUnstrippedInfo(_ string, _ configKey) (cquery.CcU
 	panic("implement me")
 }
 
-func (n noopBazelContext) InvokeBazel(_ Config, ctx *Context) error {
+func (n noopBazelContext) InvokeBazel(_ Config, _ *Context) error {
 	panic("unimplemented")
 }
 
@@ -364,7 +363,7 @@ func (m noopBazelContext) OutputBase() string {
 	return ""
 }
 
-func (n noopBazelContext) BazelAllowlisted(moduleName string) bool {
+func (n noopBazelContext) BazelAllowlisted(_ string) bool {
 	return false
 }
 
@@ -388,6 +387,10 @@ func NewBazelContext(c *config) (BazelContext, error) {
 		for _, enabledProdModule := range allowlists.ProdMixedBuildsEnabledList {
 			enabledModules[enabledProdModule] = true
 		}
+
+		for enabledAdHocModule := range c.BazelModulesForceEnabledByFlag() {
+			enabledModules[enabledAdHocModule] = true
+		}
 	case BazelStagingMode:
 		modulesDefaultToBazel = false
 		// Staging mode includes all prod modules plus all staging modules.
@@ -397,13 +400,17 @@ func NewBazelContext(c *config) (BazelContext, error) {
 		for _, enabledStagingMode := range allowlists.StagingMixedBuildsEnabledList {
 			enabledModules[enabledStagingMode] = true
 		}
+
+		for enabledAdHocModule := range c.BazelModulesForceEnabledByFlag() {
+			enabledModules[enabledAdHocModule] = true
+		}
 	case BazelDevMode:
 		modulesDefaultToBazel = true
 
 		// Don't use partially-converted cc_library targets in mixed builds,
 		// since mixed builds would generally rely on both static and shared
 		// variants of a cc_library.
-		for staticOnlyModule, _ := range GetBp2BuildAllowList().ccLibraryStaticOnly {
+		for staticOnlyModule := range GetBp2BuildAllowList().ccLibraryStaticOnly {
 			disabledModules[staticOnlyModule] = true
 		}
 		for _, disabledDevModule := range allowlists.MixedBuildsDisabledList {
@@ -509,7 +516,7 @@ type mockBazelRunner struct {
 	extraFlags []string
 }
 
-func (r *mockBazelRunner) createBazelCommand(paths *bazelPaths, runName bazel.RunName,
+func (r *mockBazelRunner) createBazelCommand(_ *bazelPaths, _ bazel.RunName,
 	command bazelCommand, extraFlags ...string) *exec.Cmd {
 	r.commands = append(r.commands, command)
 	r.extraFlags = append(r.extraFlags, strings.Join(extraFlags, " "))
@@ -534,13 +541,13 @@ type builtinBazelRunner struct{}
 // Returns (stdout, stderr, error). The first and second return values are strings
 // containing the stdout and stderr of the run command, and an error is returned if
 // the invocation returned an error code.
-
 func (r *builtinBazelRunner) issueBazelCommand(bazelCmd *exec.Cmd) (string, string, error) {
 	stderr := &bytes.Buffer{}
 	bazelCmd.Stderr = stderr
 	if output, err := bazelCmd.Output(); err != nil {
 		return "", string(stderr.Bytes()),
-			fmt.Errorf("bazel command failed. command: [%s], env: [%s], error [%s]", bazelCmd, bazelCmd.Env, stderr)
+			fmt.Errorf("bazel command failed: %s\n---command---\n%s\n---env---\n%s\n---stderr---\n%s---",
+				err, bazelCmd, strings.Join(bazelCmd.Env, "\n"), stderr)
 	} else {
 		return string(output), string(stderr.Bytes()), nil
 	}
@@ -916,17 +923,17 @@ func (context *bazelContext) runCquery(ctx *Context) error {
 			return err
 		}
 	}
-	if err := ioutil.WriteFile(filepath.Join(soongInjectionPath, "WORKSPACE.bazel"), []byte{}, 0666); err != nil {
+	if err := os.WriteFile(filepath.Join(soongInjectionPath, "WORKSPACE.bazel"), []byte{}, 0666); err != nil {
 		return err
 	}
-	if err := ioutil.WriteFile(filepath.Join(mixedBuildsPath, "main.bzl"), context.mainBzlFileContents(), 0666); err != nil {
+	if err := os.WriteFile(filepath.Join(mixedBuildsPath, "main.bzl"), context.mainBzlFileContents(), 0666); err != nil {
 		return err
 	}
-	if err := ioutil.WriteFile(filepath.Join(mixedBuildsPath, "BUILD.bazel"), context.mainBuildFileContents(), 0666); err != nil {
+	if err := os.WriteFile(filepath.Join(mixedBuildsPath, "BUILD.bazel"), context.mainBuildFileContents(), 0666); err != nil {
 		return err
 	}
 	cqueryFileRelpath := filepath.Join(context.paths.injectedFilesDir(), "buildroot.cquery")
-	if err := ioutil.WriteFile(absolutePath(cqueryFileRelpath), context.cqueryStarlarkFileContents(), 0666); err != nil {
+	if err := os.WriteFile(absolutePath(cqueryFileRelpath), context.cqueryStarlarkFileContents(), 0666); err != nil {
 		return err
 	}
 
@@ -937,7 +944,7 @@ func (context *bazelContext) runCquery(ctx *Context) error {
 		return cqueryErr
 	}
 	cqueryCommandPrint := fmt.Sprintf("cquery command line:\n  %s \n\n\n", printableCqueryCommand(cqueryCommandWithFlag))
-	if err := ioutil.WriteFile(filepath.Join(soongInjectionPath, "cquery.out"), []byte(cqueryCommandPrint+cqueryOutput), 0666); err != nil {
+	if err := os.WriteFile(filepath.Join(soongInjectionPath, "cquery.out"), []byte(cqueryCommandPrint+cqueryOutput), 0666); err != nil {
 		return err
 	}
 	cqueryResults := map[string]string{}
@@ -972,7 +979,7 @@ func (context *bazelContext) runAquery(config Config, ctx *Context) error {
 		extraFlags = append(extraFlags, "--collect_code_coverage")
 		paths := make([]string, 0, 2)
 		if p := config.productVariables.NativeCoveragePaths; len(p) > 0 {
-			for i, _ := range p {
+			for i := range p {
 				// TODO(b/259404593) convert path wildcard to regex values
 				if p[i] == "*" {
 					p[i] = ".*"
@@ -1039,7 +1046,7 @@ func (c *bazelSingleton) GenerateBuildActions(ctx SingletonContext) {
 		filepath.Dir(ctx.Config().moduleListFile), "bazel.list"))
 	ctx.AddNinjaFileDeps(bazelBuildList)
 
-	data, err := ioutil.ReadFile(bazelBuildList)
+	data, err := os.ReadFile(bazelBuildList)
 	if err != nil {
 		ctx.Errorf(err.Error())
 	}

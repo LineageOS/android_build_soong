@@ -448,11 +448,18 @@ func libraryBp2Build(ctx android.TopDownMutatorContext, m *Module) {
 		Bzl_load_location: "//build/bazel/rules/cc:cc_library_shared.bzl",
 	}
 
+	tags := android.ApexAvailableTags(m)
 	ctx.CreateBazelTargetModuleWithRestrictions(staticProps,
-		android.CommonAttributes{Name: m.Name() + "_bp2build_cc_library_static"},
+		android.CommonAttributes{
+			Name: m.Name() + "_bp2build_cc_library_static",
+			Tags: tags,
+		},
 		staticTargetAttrs, staticAttrs.Enabled)
 	ctx.CreateBazelTargetModuleWithRestrictions(sharedProps,
-		android.CommonAttributes{Name: m.Name()},
+		android.CommonAttributes{
+			Name: m.Name(),
+			Tags: tags,
+		},
 		sharedTargetAttrs, sharedAttrs.Enabled)
 
 	createStubsBazelTargetIfNeeded(ctx, m, compilerAttrs, exportedIncludes, baseAttributes)
@@ -897,6 +904,10 @@ func (handler *ccLibraryBazelHandler) generateSharedBazelBuildActions(ctx androi
 		tocFile = android.OptionalPathForPath(android.PathForBazelOut(ctx, ccInfo.TocFile))
 	}
 	handler.module.linker.(*libraryDecorator).tocFile = tocFile
+
+	if len(ccInfo.AbiDiffFiles) > 0 {
+		handler.module.linker.(*libraryDecorator).sAbiDiff = android.PathsForBazelOut(ctx, ccInfo.AbiDiffFiles)
+	}
 
 	ctx.SetProvider(SharedLibraryInfoProvider, SharedLibraryInfo{
 		TableOfContents: tocFile,
@@ -2914,7 +2925,8 @@ func sharedOrStaticLibraryBp2Build(ctx android.TopDownMutatorContext, module *Mo
 		Bzl_load_location: fmt.Sprintf("//build/bazel/rules/cc:%s.bzl", modType),
 	}
 
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: module.Name()}, attrs)
+	tags := android.ApexAvailableTags(module)
+	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: module.Name(), Tags: tags}, attrs)
 }
 
 // TODO(b/199902614): Can this be factored to share with the other Attributes?
