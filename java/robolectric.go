@@ -327,7 +327,7 @@ func (r *robolectricTest) AndroidMkEntries() []android.AndroidMkEntries {
 
 func (r *robolectricTest) writeTestRunner(w io.Writer, module, name string, tests []string) {
 	fmt.Fprintln(w, "")
-	fmt.Fprintln(w, "include $(CLEAR_VARS)")
+	fmt.Fprintln(w, "include $(CLEAR_VARS)", " # java.robolectricTest")
 	fmt.Fprintln(w, "LOCAL_MODULE :=", name)
 	fmt.Fprintln(w, "LOCAL_JAVA_LIBRARIES :=", module)
 	fmt.Fprintln(w, "LOCAL_JAVA_LIBRARIES += ", strings.Join(r.libs, " "))

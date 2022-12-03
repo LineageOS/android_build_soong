@@ -1053,6 +1053,7 @@ func TestVendorSnapshotSanitizer(t *testing.T) {
 			},
 		},
 	}
+
 	vendor_snapshot_static {
 		name: "libsnapshot",
 		vendor: true,
@@ -1063,7 +1064,10 @@ func TestVendorSnapshotSanitizer(t *testing.T) {
 				src: "libsnapshot.a",
 				cfi: {
 					src: "libsnapshot.cfi.a",
-				}
+				},
+				hwasan: {
+					src: "libsnapshot.hwasan.a",
+				},
 			},
 		},
 	}
@@ -1098,6 +1102,7 @@ func TestVendorSnapshotSanitizer(t *testing.T) {
 		"vendor/libc++demangle.a":        nil,
 		"vendor/libsnapshot.a":           nil,
 		"vendor/libsnapshot.cfi.a":       nil,
+		"vendor/libsnapshot.hwasan.a":    nil,
 		"vendor/note_memtag_heap_sync.a": nil,
 	}
 
@@ -1106,15 +1111,25 @@ func TestVendorSnapshotSanitizer(t *testing.T) {
 	config.TestProductVariables.Platform_vndk_version = StringPtr("29")
 	ctx := testCcWithConfig(t, config)
 
-	// Check non-cfi and cfi variant.
+	// Check non-cfi, cfi and hwasan variant.
 	staticVariant := "android_vendor.28_arm64_armv8-a_static"
 	staticCfiVariant := "android_vendor.28_arm64_armv8-a_static_cfi"
+	staticHwasanVariant := "android_vendor.28_arm64_armv8-a_static_hwasan"
+	staticHwasanCfiVariant := "android_vendor.28_arm64_armv8-a_static_hwasan_cfi"
 
 	staticModule := ctx.ModuleForTests("libsnapshot.vendor_static.28.arm64", staticVariant).Module().(*Module)
 	assertString(t, staticModule.outputFile.Path().Base(), "libsnapshot.a")
 
 	staticCfiModule := ctx.ModuleForTests("libsnapshot.vendor_static.28.arm64", staticCfiVariant).Module().(*Module)
 	assertString(t, staticCfiModule.outputFile.Path().Base(), "libsnapshot.cfi.a")
+
+	staticHwasanModule := ctx.ModuleForTests("libsnapshot.vendor_static.28.arm64", staticHwasanVariant).Module().(*Module)
+	assertString(t, staticHwasanModule.outputFile.Path().Base(), "libsnapshot.hwasan.a")
+
+	staticHwasanCfiModule := ctx.ModuleForTests("libsnapshot.vendor_static.28.arm64", staticHwasanCfiVariant).Module().(*Module)
+	if !staticHwasanCfiModule.HiddenFromMake() || !staticHwasanCfiModule.PreventInstall() {
+		t.Errorf("Hwasan and Cfi cannot enabled at the same time.")
+	}
 }
 
 func TestVendorSnapshotExclude(t *testing.T) {

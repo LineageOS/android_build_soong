@@ -205,13 +205,13 @@ func bp2buildProto(ctx android.Bp2buildMutatorContext, m *Module, protoSrcs baze
 	protoAttrs.Deps.SetValue(protoInfo.Proto_libs)
 
 	name := m.Name() + suffix
-
+	tags := android.ApexAvailableTags(m)
 	ctx.CreateBazelTargetModule(
 		bazel.BazelTargetModuleProperties{
 			Rule_class:        rule_class,
 			Bzl_load_location: "//build/bazel/rules/cc:cc_proto.bzl",
 		},
-		android.CommonAttributes{Name: name},
+		android.CommonAttributes{Name: name, Tags: tags},
 		&protoAttrs)
 
 	var privateHdrs bool

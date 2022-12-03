@@ -609,15 +609,15 @@ To load the code of Soong in IntelliJ:
   Content Root, then add the `build/blueprint` directory.
 * Optional: also add the `external/golang-protobuf` directory. In practice,
   IntelliJ seems to work well enough without this, too.
+
 ### Running Soong in a debugger
 
-To make `soong_build` wait for a debugger connection, install `dlv` and then
-start the build with `SOONG_DELVE=<listen addr>` in the environment.
-For example:
-```bash
-SOONG_DELVE=5006 m nothing
-```
+Both the Android build driver (`soong_ui`) and Soong proper (`soong_build`) are
+Go applications and can be debugged with the help of the standard Go debugger
+called Delve. A client (e.g., IntelliJ IDEA) communicates with Delve via IP port
+that Delve listens to (the port number is passed to it on invocation).
 
+#### Debugging Android Build Driver ####
 To make `soong_ui` wait for a debugger connection, use the `SOONG_UI_DELVE`
 variable:
 
@@ -625,11 +625,28 @@ variable:
 SOONG_UI_DELVE=5006 m nothing
 ```
 
+#### Debugging Soong Proper ####
 
-setting or unsetting `SOONG_DELVE` causes a recompilation of `soong_build`. This
+To make `soong_build` wait for a debugger connection, install `dlv` and then
+start the build with `SOONG_DELVE=<listen addr>` in the environment.
+For example:
+```bash
+SOONG_DELVE=5006 m nothing
+```
+Android build driver invokes `soong_build` multiple times, and by default each
+invocation is run in the debugger. Setting `SOONG_DELVE_STEPS` controls which
+invocations are run in the debugger, e.g., running
+```bash
+SOONG_DELVE=2345 SOONG_DELVE_STEPS='build,modulegraph' m
+```
+results in only `build` (main build step) and `modulegraph` being run in the debugger.
+The allowed step names are `api_bp2build`, `bp2build_files`, `bp2build_workspace`,
+`build`, `modulegraph`, `queryview`, `soong_docs`.
+
+Note setting or unsetting `SOONG_DELVE` causes a recompilation of `soong_build`. This
 is because in order to debug the binary, it needs to be built with debug
 symbols.
-
+#### Delve Troubleshooting ####
 To test the debugger connection, run this command:
 
 ```
@@ -648,15 +665,23 @@ using:
 sudo sysctl -w kernel.yama.ptrace_scope=0
 ```
 
+#### IntelliJ Setup ####
 To connect to the process using IntelliJ:
 
 * Run -> Edit Configurations...
 * Choose "Go Remote" on the left
 * Click on the "+" buttion on the top-left
-* Give it a nice name and set "Host" to localhost and "Port" to the port in the
-  environment variable
+* Give it a nice _name_ and set "Host" to `localhost` and "Port" to the port in the
+  environment variable (`SOONG_UI_DELVE` for `soong_ui`, `SOONG_DELVE` for
+  `soong_build`)
+* Set the breakpoints where you want application to stop
+* Run the build from the command line
+* In IntelliJ, click Run -> Debug _name_
+* Observe _Connecting..._ message in the debugger pane. It changes to
+  _Connected_ once the communication with the debugger has been established; the
+  terminal window where the build started will display
+  `API server listening at ...` message
 
-Debugging works far worse than debugging Java, but is sometimes useful.
 
 Sometimes the `dlv` process hangs on connection. A symptom of this is `dlv`
 spinning a core or two. In that case, `kill -9` `dlv` and try again.
