@@ -22,6 +22,6 @@ proto_library(
 
 py_proto_library(
     name = "bp2build_py_proto",
+    visibility = ["//build/bazel/scripts/bp2build_progress:__pkg__"],
     deps = [":bp2build_proto"],
-    visibility = ["//build/bazel/scripts/bp2build-progress:__pkg__"],
 )
