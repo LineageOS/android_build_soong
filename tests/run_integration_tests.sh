@@ -13,3 +13,4 @@ TOP="$(readlink -f "$(dirname "$0")"/../../..)"
 # The following tests build against the full source tree and don't rely on the
 # mock client.
 "$TOP/build/soong/tests/apex_comparison_tests.sh"
+"$TOP/build/soong/tests/apex_comparison_tests.sh" "module_arm64only"
