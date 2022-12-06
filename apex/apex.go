@@ -2776,61 +2776,13 @@ func makeApexAvailableBaseline() map[string][]string {
 	// Module separator
 	//
 	m["com.android.btservices"] = []string{
-		"bluetooth-protos-lite",
-		"internal_include_headers",
-		"libaudio-a2dp-hw-utils",
-		"libaudio-hearing-aid-hw-utils",
-		"libbluetooth",
-		"libbluetooth-types",
-		"libbluetooth-types-header",
-		"libbluetooth_gd",
-		"libbluetooth_headers",
-		"libbluetooth_jni",
-		"libbt-audio-hal-interface",
-		"libbt-bta",
-		"libbt-common",
-		"libbt-hci",
-		"libbt-platform-protos-lite",
-		"libbt-protos-lite",
-		"libbt-sbc-decoder",
-		"libbt-sbc-encoder",
-		"libbt-stack",
-		"libbt-utils",
-		"libbtcore",
-		"libbtdevice",
-		"libbte",
-		"libbtif",
-		"libchrome",
+		// empty
 	}
 	//
 	// Module separator
 	//
 	m["com.android.bluetooth"] = []string{
-		"bluetooth-protos-lite",
-		"internal_include_headers",
-		"libaudio-a2dp-hw-utils",
-		"libaudio-hearing-aid-hw-utils",
-		"libbluetooth",
-		"libbluetooth-types",
-		"libbluetooth-types-header",
-		"libbluetooth_gd",
-		"libbluetooth_headers",
-		"libbluetooth_jni",
-		"libbt-audio-hal-interface",
-		"libbt-bta",
-		"libbt-common",
-		"libbt-hci",
-		"libbt-platform-protos-lite",
-		"libbt-protos-lite",
-		"libbt-sbc-decoder",
-		"libbt-sbc-encoder",
-		"libbt-stack",
-		"libbt-utils",
-		"libbtcore",
-		"libbtdevice",
-		"libbte",
-		"libbtif",
-		"libchrome",
+		// empty
 	}
 	//
 	// Module separator
