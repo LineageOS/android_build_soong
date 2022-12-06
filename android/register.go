@@ -161,6 +161,7 @@ type Context struct {
 func NewContext(config Config) *Context {
 	ctx := &Context{blueprint.NewContext(), config}
 	ctx.SetSrcDir(absSrcDir)
+	ctx.AddIncludeTags(config.IncludeTags()...)
 	return ctx
 }
 
