@@ -403,6 +403,7 @@ func bootstrapBlueprint(ctx Context, config Config) {
 	}
 
 	blueprintCtx := blueprint.NewContext()
+	blueprintCtx.AddIncludeTags(config.GetIncludeTags()...)
 	blueprintCtx.SetIgnoreUnknownModuleTypes(true)
 	blueprintConfig := BlueprintConfig{
 		soongOutDir: config.SoongOutDir(),
