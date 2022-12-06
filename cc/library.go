@@ -120,6 +120,9 @@ type LibraryProperties struct {
 
 		// Extra flags passed to header-abi-diff
 		Diff_flags []string
+
+		// Opt-in reference dump directories
+		Ref_dump_dirs []string
 	}
 
 	// Inject boringssl hash into the shared library.  This is only intended for use by external/boringssl.
@@ -1911,6 +1914,16 @@ func (library *libraryDecorator) sameVersionAbiDiff(ctx android.ModuleContext, r
 		isLlndkOrNdk, allowExtensions, "current", errorMessage)
 }
 
+func (library *libraryDecorator) optInAbiDiff(ctx android.ModuleContext, referenceDump android.Path,
+	baseName, nameExt string, isLlndkOrNdk bool, refDumpDir string) {
+
+	libName := strings.TrimSuffix(baseName, filepath.Ext(baseName))
+	errorMessage := "error: Please update ABI references with: $$ANDROID_BUILD_TOP/development/vndk/tools/header-checker/utils/create_reference_dumps.py -l " + libName + " -ref-dump-dir $$ANDROID_BUILD_TOP/" + refDumpDir
+
+	library.sourceAbiDiff(ctx, referenceDump, baseName, nameExt,
+		isLlndkOrNdk, /* allowExtensions */ false, "current", errorMessage)
+}
+
 func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objects, fileName string, soFile android.Path) {
 	if library.sabi.shouldCreateSourceAbiDump() {
 		exportIncludeDirs := library.flagExporter.exportedIncludes(ctx)
@@ -1954,6 +1967,19 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objec
 		if currDumpFile.Valid() {
 			library.sameVersionAbiDiff(ctx, currDumpFile.Path(),
 				fileName, isLlndk || isNdk, ctx.IsVndkExt())
+		}
+		// Check against the opt-in reference dumps.
+		for i, optInDumpDir := range library.Properties.Header_abi_checker.Ref_dump_dirs {
+			optInDumpDirPath := android.PathForModuleSrc(ctx, optInDumpDir)
+			// Ref_dump_dirs are not versioned.
+			// They do not contain subdir for binder bitness because 64-bit binder has been mandatory.
+			optInDumpFile := getRefAbiDumpFile(ctx, optInDumpDirPath.String(), fileName)
+			if !optInDumpFile.Valid() {
+				continue
+			}
+			library.optInAbiDiff(ctx, optInDumpFile.Path(),
+				fileName, "opt"+strconv.Itoa(i), isLlndk || isNdk,
+				optInDumpDirPath.String())
 		}
 	}
 }
