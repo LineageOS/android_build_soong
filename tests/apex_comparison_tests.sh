@@ -29,9 +29,12 @@ fi
 # Test Setup
 ############
 
-OUTPUT_DIR="$(mktemp -d)"
+OUTPUT_DIR="$(mktemp -d tmp.XXXXXX)"
 SOONG_OUTPUT_DIR="$OUTPUT_DIR/soong"
 BAZEL_OUTPUT_DIR="$OUTPUT_DIR/bazel"
+
+export TARGET_PRODUCT="module_arm"
+[ "$#" -eq 1 ] && export TARGET_PRODUCT="$1"
 
 function call_bazel() {
   build/bazel/bin/bazel --output_base="$BAZEL_OUTPUT_DIR" $@
@@ -50,7 +53,7 @@ trap cleanup EXIT
 export UNBUNDLED_BUILD_SDKS_FROM_SOURCE=true # don't rely on prebuilts
 export TARGET_BUILD_APPS="com.android.adbd com.android.tzdata build.bazel.examples.apex.minimal"
 packages/modules/common/build/build_unbundled_mainline_module.sh \
-  --product module_arm \
+  --product "$TARGET_PRODUCT" \
   --dist_dir "$SOONG_OUTPUT_DIR"
 
 ######################
@@ -60,22 +63,15 @@ build/soong/soong_ui.bash --make-mode BP2BUILD_VERBOSE=1 --skip-soong-tests bp2b
 
 BAZEL_OUT="$(call_bazel info --config=bp2build output_path)"
 
-export TARGET_PRODUCT="module_arm"
 call_bazel build --config=bp2build --config=ci --config=android \
   //packages/modules/adb/apex:com.android.adbd \
   //system/timezone/apex:com.android.tzdata \
   //build/bazel/examples/apex/minimal:build.bazel.examples.apex.minimal.apex
 
 # Build debugfs separately, as it's not a dep of apexer, but needs to be an explicit arg.
-call_bazel build --config=bp2build --config=linux_x86_64 //external/e2fsprogs/debugfs
+call_bazel build --config=bp2build --config=linux_x86_64 //external/e2fsprogs/debugfs //system/apex/tools:deapexer
 DEBUGFS_PATH="$BAZEL_OUT/linux_x86_64-fastbuild/bin/external/e2fsprogs/debugfs/debugfs"
-
-function run_deapexer() {
-  call_bazel run --config=bp2build --config=linux_x86_64 //system/apex/tools:deapexer \
-    -- \
-    --debugfs_path="$DEBUGFS_PATH" \
-    $@
-}
+DEAPEXER="$BAZEL_OUT/linux_x86_64-fastbuild/bin/system/apex/tools/deapexer --debugfs_path=$DEBUGFS_PATH"
 
 #######
 # Tests
@@ -92,8 +88,8 @@ function compare_deapexer_list() {
   local SOONG_LIST="$OUTPUT_DIR/soong.list"
   local BAZEL_LIST="$OUTPUT_DIR/bazel.list"
 
-  run_deapexer list "$SOONG_APEX" > "$SOONG_LIST"
-  run_deapexer list "$BAZEL_APEX" > "$BAZEL_LIST"
+  $DEAPEXER list "$SOONG_APEX" > "$SOONG_LIST"
+  $DEAPEXER list "$BAZEL_APEX" > "$BAZEL_LIST"
 
   if cmp -s "$SOONG_LIST" "$BAZEL_LIST"
   then
