@@ -164,6 +164,7 @@ var (
 		"external/lzma/C":                        Bp2BuildDefaultTrueRecursively,
 		"external/mdnsresponder":                 Bp2BuildDefaultTrueRecursively,
 		"external/minijail":                      Bp2BuildDefaultTrueRecursively,
+		"external/musl":                          Bp2BuildDefaultTrueRecursively,
 		"external/objenesis":                     Bp2BuildDefaultTrueRecursively,
 		"external/openscreen":                    Bp2BuildDefaultTrueRecursively,
 		"external/ow2-asm":                       Bp2BuildDefaultTrueRecursively,
@@ -1305,6 +1306,9 @@ var (
 		// TODO(b/254476335): disable the following due to this bug
 		"libapexinfo",
 		"libapexinfo_tests",
+
+		// uses glob in $(locations)
+		"libc_musl_sysroot",
 	}
 
 	Bp2buildCcLibraryStaticOnlyList = []string{}
