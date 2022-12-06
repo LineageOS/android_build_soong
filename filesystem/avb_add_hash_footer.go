@@ -149,7 +149,7 @@ func addAvbProp(ctx android.ModuleContext, cmd *android.RuleBuilderCommand, prop
 		cmd.FlagWithArg("--prop ", proptools.ShellEscape(fmt.Sprintf("%s:%s", name, value)))
 	} else {
 		p := android.PathForModuleSrc(ctx, file)
-		cmd.Input(p)
+		cmd.Implicit(p)
 		cmd.FlagWithArg("--prop_from_file ", proptools.ShellEscape(fmt.Sprintf("%s:%s", name, cmd.PathForInput(p))))
 	}
 }
