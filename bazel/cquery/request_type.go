@@ -33,7 +33,6 @@ type CcInfo struct {
 	TidyFiles            []string
 	TocFile              string
 	UnstrippedOutput     string
-	AbiDiffFiles         []string
 }
 
 type getOutputFilesRequestType struct{}
@@ -175,11 +174,6 @@ clang_tidy_info = p.get("//build/bazel/rules/cc:clang_tidy.bzl%ClangTidyInfo")
 if clang_tidy_info:
   tidy_files = [v.path for v in clang_tidy_info.tidy_files.to_list()]
 
-abi_diff_files = []
-abi_diff_info = p.get("//build/bazel/rules/abi:abi_dump.bzl%AbiDiffInfo")
-if abi_diff_info:
-  abi_diff_files = [f.path for f in abi_diff_info.diff_files.to_list()]
-
 return json_encode({
 	"OutputFiles": outputFiles,
 	"CcObjectFiles": ccObjectFiles,
@@ -193,7 +187,6 @@ return json_encode({
 	"TidyFiles": tidy_files,
 	"TocFile": toc_file,
 	"UnstrippedOutput": unstripped,
-	"AbiDiffFiles": abi_diff_files,
 })`
 
 }

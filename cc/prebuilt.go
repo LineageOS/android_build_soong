@@ -388,9 +388,7 @@ func prebuiltLibraryStaticBp2Build(ctx android.TopDownMutatorContext, module *Mo
 	if fullBuild {
 		name += "_bp2build_cc_library_static"
 	}
-
-	tags := android.ApexAvailableTags(module)
-	ctx.CreateBazelTargetModuleWithRestrictions(props, android.CommonAttributes{Name: name, Tags: tags}, attrs, prebuiltAttrs.Enabled)
+	ctx.CreateBazelTargetModuleWithRestrictions(props, android.CommonAttributes{Name: name}, attrs, prebuiltAttrs.Enabled)
 }
 
 type bazelPrebuiltLibrarySharedAttributes struct {
@@ -410,8 +408,7 @@ func prebuiltLibrarySharedBp2Build(ctx android.TopDownMutatorContext, module *Mo
 	}
 
 	name := android.RemoveOptionalPrebuiltPrefix(module.Name())
-	tags := android.ApexAvailableTags(module)
-	ctx.CreateBazelTargetModuleWithRestrictions(props, android.CommonAttributes{Name: name, Tags: tags}, attrs, prebuiltAttrs.Enabled)
+	ctx.CreateBazelTargetModuleWithRestrictions(props, android.CommonAttributes{Name: name}, attrs, prebuiltAttrs.Enabled)
 }
 
 type prebuiltObjectProperties struct {
@@ -743,8 +740,7 @@ func prebuiltBinaryBp2Build(ctx android.TopDownMutatorContext, module *Module) {
 	}
 
 	name := android.RemoveOptionalPrebuiltPrefix(module.Name())
-	tags := android.ApexAvailableTags(module)
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: name, Tags: tags}, attrs)
+	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: name}, attrs)
 }
 
 type Sanitized struct {
@@ -763,10 +759,10 @@ func srcsForSanitizer(sanitize *sanitize, sanitized Sanitized) []string {
 	if sanitize == nil {
 		return nil
 	}
-	if sanitize.isSanitizerEnabled(Asan) && sanitized.Address.Srcs != nil {
+	if Bool(sanitize.Properties.Sanitize.Address) && sanitized.Address.Srcs != nil {
 		return sanitized.Address.Srcs
 	}
-	if sanitize.isSanitizerEnabled(Hwasan) && sanitized.Hwaddress.Srcs != nil {
+	if Bool(sanitize.Properties.Sanitize.Hwaddress) && sanitized.Hwaddress.Srcs != nil {
 		return sanitized.Hwaddress.Srcs
 	}
 	return sanitized.None.Srcs

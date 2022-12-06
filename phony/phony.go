@@ -49,7 +49,7 @@ func (p *phony) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 func (p *phony) AndroidMk() android.AndroidMkData {
 	return android.AndroidMkData{
 		Custom: func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
-			fmt.Fprintln(w, "\ninclude $(CLEAR_VARS)", " # phony.phony")
+			fmt.Fprintln(w, "\ninclude $(CLEAR_VARS)")
 			fmt.Fprintln(w, "LOCAL_PATH :=", moduleDir)
 			fmt.Fprintln(w, "LOCAL_MODULE :=", name)
 			data.Entries.WriteLicenseVariables(w)

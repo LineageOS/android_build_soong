@@ -91,66 +91,65 @@ type Bp2buildTestCase struct {
 
 func RunBp2BuildTestCase(t *testing.T, registerModuleTypes func(ctx android.RegistrationContext), tc Bp2buildTestCase) {
 	t.Helper()
-	bp2buildSetup := android.GroupFixturePreparers(
-		android.FixtureRegisterWithContext(registerModuleTypes),
-		SetBp2BuildTestRunner,
-	)
+	bp2buildSetup := func(ctx *android.TestContext) {
+		registerModuleTypes(ctx)
+		ctx.RegisterForBazelConversion()
+	}
 	runBp2BuildTestCaseWithSetup(t, bp2buildSetup, tc)
 }
 
 func RunApiBp2BuildTestCase(t *testing.T, registerModuleTypes func(ctx android.RegistrationContext), tc Bp2buildTestCase) {
 	t.Helper()
-	apiBp2BuildSetup := android.GroupFixturePreparers(
-		android.FixtureRegisterWithContext(registerModuleTypes),
-		SetApiBp2BuildTestRunner,
-	)
+	apiBp2BuildSetup := func(ctx *android.TestContext) {
+		registerModuleTypes(ctx)
+		ctx.RegisterForApiBazelConversion()
+	}
 	runBp2BuildTestCaseWithSetup(t, apiBp2BuildSetup, tc)
 }
 
-func runBp2BuildTestCaseWithSetup(t *testing.T, extraPreparer android.FixturePreparer, tc Bp2buildTestCase) {
+func runBp2BuildTestCaseWithSetup(t *testing.T, setup func(ctx *android.TestContext), tc Bp2buildTestCase) {
 	t.Helper()
 	dir := "."
 	filesystem := make(map[string][]byte)
+	toParse := []string{
+		"Android.bp",
+	}
 	for f, content := range tc.Filesystem {
+		if strings.HasSuffix(f, "Android.bp") {
+			toParse = append(toParse, f)
+		}
 		filesystem[f] = []byte(content)
 	}
+	config := android.TestConfig(buildDir, nil, tc.Blueprint, filesystem)
+	ctx := android.NewTestContext(config)
 
-	preparers := []android.FixturePreparer{
-		extraPreparer,
-		android.FixtureMergeMockFs(filesystem),
-		android.FixtureWithRootAndroidBp(tc.Blueprint),
-		android.FixtureRegisterWithContext(func(ctx android.RegistrationContext) {
-			ctx.RegisterModuleType(tc.ModuleTypeUnderTest, tc.ModuleTypeUnderTestFactory)
-		}),
-		android.FixtureModifyContext(func(ctx *android.TestContext) {
-			// A default configuration for tests to not have to specify bp2build_available on top level
-			// targets.
-			bp2buildConfig := android.NewBp2BuildAllowlist().SetDefaultConfig(
-				allowlists.Bp2BuildConfig{
-					android.Bp2BuildTopLevel: allowlists.Bp2BuildDefaultTrueRecursively,
-				},
-			)
-			for _, f := range tc.KeepBuildFileForDirs {
-				bp2buildConfig.SetKeepExistingBuildFile(map[string]bool{
-					f: /*recursive=*/ false,
-				})
-			}
-			ctx.RegisterBp2BuildConfig(bp2buildConfig)
-		}),
-		android.FixtureModifyEnv(func(env map[string]string) {
-			if tc.UnconvertedDepsMode == errorModulesUnconvertedDeps {
-				env["BP2BUILD_ERROR_UNCONVERTED"] = "true"
-			}
-		}),
+	setup(ctx)
+	ctx.RegisterModuleType(tc.ModuleTypeUnderTest, tc.ModuleTypeUnderTestFactory)
+
+	// A default configuration for tests to not have to specify bp2build_available on top level targets.
+	bp2buildConfig := android.NewBp2BuildAllowlist().SetDefaultConfig(
+		allowlists.Bp2BuildConfig{
+			android.Bp2BuildTopLevel: allowlists.Bp2BuildDefaultTrueRecursively,
+		},
+	)
+	for _, f := range tc.KeepBuildFileForDirs {
+		bp2buildConfig.SetKeepExistingBuildFile(map[string]bool{
+			f: /*recursive=*/ false,
+		})
+	}
+	ctx.RegisterBp2BuildConfig(bp2buildConfig)
+
+	_, parseErrs := ctx.ParseFileList(dir, toParse)
+	if errored(t, tc, parseErrs) {
+		return
+	}
+	_, resolveDepsErrs := ctx.ResolveDependencies(config)
+	if errored(t, tc, resolveDepsErrs) {
+		return
 	}
 
-	preparer := android.GroupFixturePreparers(preparers...)
-	if tc.ExpectedErr != nil {
-		pattern := "\\Q" + tc.ExpectedErr.Error() + "\\E"
-		preparer = preparer.ExtendWithErrorHandler(android.FixtureExpectsOneErrorPattern(pattern))
-	}
-	result := preparer.RunTestWithCustomResult(t).(*BazelTestResult)
-	if len(result.Errs) > 0 {
+	parseAndResolveErrs := append(parseErrs, resolveDepsErrs...)
+	if tc.ExpectedErr != nil && checkError(t, parseAndResolveErrs, tc.ExpectedErr) {
 		return
 	}
 
@@ -158,115 +157,27 @@ func runBp2BuildTestCaseWithSetup(t *testing.T, extraPreparer android.FixturePre
 	if tc.Dir != "" {
 		checkDir = tc.Dir
 	}
-	expectedTargets := map[string][]string{
-		checkDir: tc.ExpectedBazelTargets,
-	}
-
-	result.CompareAllBazelTargets(t, tc.Description, expectedTargets, true)
-}
-
-// SetBp2BuildTestRunner customizes the test fixture mechanism to run tests in Bp2Build mode.
-var SetBp2BuildTestRunner = android.FixtureSetTestRunner(&bazelTestRunner{Bp2Build})
-
-// SetApiBp2BuildTestRunner customizes the test fixture mechanism to run tests in ApiBp2build mode.
-var SetApiBp2BuildTestRunner = android.FixtureSetTestRunner(&bazelTestRunner{ApiBp2build})
-
-// bazelTestRunner customizes the test fixture mechanism to run tests of the bp2build and
-// apiBp2build build modes.
-type bazelTestRunner struct {
-	mode CodegenMode
-}
-
-func (b *bazelTestRunner) FinalPreparer(result *android.TestResult) android.CustomTestResult {
-	ctx := result.TestContext
-	switch b.mode {
-	case Bp2Build:
-		ctx.RegisterForBazelConversion()
-	case ApiBp2build:
-		ctx.RegisterForApiBazelConversion()
-	default:
-		panic(fmt.Errorf("unknown build mode: %d", b.mode))
-	}
-
-	return &BazelTestResult{TestResult: result}
-}
-
-func (b *bazelTestRunner) PostParseProcessor(result android.CustomTestResult) {
-	bazelResult := result.(*BazelTestResult)
-	ctx := bazelResult.TestContext
-	config := bazelResult.Config
-	_, errs := ctx.ResolveDependencies(config)
-	if bazelResult.CollateErrs(errs) {
-		return
-	}
-
 	codegenCtx := NewCodegenContext(config, ctx.Context, Bp2Build)
-	res, errs := GenerateBazelTargets(codegenCtx, false)
-	if bazelResult.CollateErrs(errs) {
-		return
-	}
-
-	// Store additional data for access by tests.
-	bazelResult.conversionResults = res
-}
-
-// BazelTestResult is a wrapper around android.TestResult to provide type safe access to the bazel
-// specific data stored by the bazelTestRunner.
-type BazelTestResult struct {
-	*android.TestResult
-
-	// The result returned by the GenerateBazelTargets function.
-	conversionResults
-}
-
-// CompareAllBazelTargets compares the BazelTargets produced by the test for all the directories
-// with the supplied set of expected targets.
-//
-// If ignoreUnexpected=false then this enforces an exact match where every BazelTarget produced must
-// have a corresponding expected BazelTarget.
-//
-// If ignoreUnexpected=true then it will ignore directories for which there are no expected targets.
-func (b BazelTestResult) CompareAllBazelTargets(t *testing.T, description string, expectedTargets map[string][]string, ignoreUnexpected bool) {
-	actualTargets := b.buildFileToTargets
-
-	// Generate the sorted set of directories to check.
-	dirsToCheck := android.SortedStringKeys(expectedTargets)
-	if !ignoreUnexpected {
-		// This needs to perform an exact match so add the directories in which targets were
-		// produced to the list of directories to check.
-		dirsToCheck = append(dirsToCheck, android.SortedStringKeys(actualTargets)...)
-		dirsToCheck = android.SortedUniqueStrings(dirsToCheck)
-	}
-
-	for _, dir := range dirsToCheck {
-		expected := expectedTargets[dir]
-		actual := actualTargets[dir]
-
-		if expected == nil {
-			if actual != nil {
-				t.Errorf("did not expect any bazel modules in %q but found %d", dir, len(actual))
-			}
-		} else if actual == nil {
-			expectedCount := len(expected)
-			if expectedCount > 0 {
-				t.Errorf("expected %d bazel modules in %q but did not find any", expectedCount, dir)
-			}
+	codegenCtx.unconvertedDepMode = tc.UnconvertedDepsMode
+	bazelTargets, errs := generateBazelTargetsForDir(codegenCtx, checkDir)
+	if tc.ExpectedErr != nil {
+		if checkError(t, errs, tc.ExpectedErr) {
+			return
 		} else {
-			b.CompareBazelTargets(t, description, expected, actual)
+			t.Errorf("Expected error: %q, got: %q and %q", tc.ExpectedErr, errs, parseAndResolveErrs)
 		}
-	}
-}
-
-func (b BazelTestResult) CompareBazelTargets(t *testing.T, description string, expectedContents []string, actualTargets BazelTargets) {
-	if actualCount, expectedCount := len(actualTargets), len(expectedContents); actualCount != expectedCount {
-		t.Errorf("%s: Expected %d bazel target (%s), got %d (%s)",
-			description, expectedCount, expectedContents, actualCount, actualTargets)
 	} else {
-		for i, actualTarget := range actualTargets {
-			if w, g := expectedContents[i], actualTarget.content; w != g {
+		android.FailIfErrored(t, errs)
+	}
+	if actualCount, expectedCount := len(bazelTargets), len(tc.ExpectedBazelTargets); actualCount != expectedCount {
+		t.Errorf("%s: Expected %d bazel target (%s), got %d (%s)",
+			tc.Description, expectedCount, tc.ExpectedBazelTargets, actualCount, bazelTargets)
+	} else {
+		for i, target := range bazelTargets {
+			if w, g := tc.ExpectedBazelTargets[i], target.content; w != g {
 				t.Errorf(
-					"%s[%d]: Expected generated Bazel target to be `%s`, got `%s`",
-					description, i, w, g)
+					"%s: Expected generated Bazel target to be `%s`, got `%s`",
+					tc.Description, w, g)
 			}
 		}
 	}

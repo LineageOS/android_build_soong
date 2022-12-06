@@ -203,10 +203,6 @@ func (ctx *TestContext) HardCodedPreArchMutators(f RegisterMutatorFunc) {
 	ctx.PreArchMutators(f)
 }
 
-func (ctx *TestContext) ModuleProvider(m blueprint.Module, p blueprint.ProviderKey) interface{} {
-	return ctx.Context.ModuleProvider(m, p)
-}
-
 func (ctx *TestContext) PreDepsMutators(f RegisterMutatorFunc) {
 	ctx.preDeps = append(ctx.preDeps, f)
 }

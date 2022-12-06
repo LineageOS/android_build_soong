@@ -530,10 +530,8 @@ func (c *snapshotLibraryDecorator) AndroidMkEntries(ctx AndroidMkContext, entrie
 
 	entries.SubName = ""
 
-	if c.isSanitizerEnabled(cfi) {
+	if c.sanitizerProperties.CfiEnabled {
 		entries.SubName += ".cfi"
-	} else if c.isSanitizerEnabled(Hwasan) {
-		entries.SubName += ".hwasan"
 	}
 
 	entries.SubName += c.baseProperties.Androidmk_suffix

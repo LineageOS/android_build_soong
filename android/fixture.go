@@ -213,46 +213,6 @@ func FixtureCustomPreparer(mutator func(fixture Fixture)) FixturePreparer {
 	})
 }
 
-// FixtureTestRunner determines the type of test to run.
-//
-// If no custom FixtureTestRunner is provided (using the FixtureSetTestRunner) then the default test
-// runner will run a standard Soong test that corresponds to what happens when Soong is run on the
-// command line.
-type FixtureTestRunner interface {
-	// FinalPreparer is a function that is run immediately before parsing the blueprint files. It is
-	// intended to perform the initialization needed by PostParseProcessor.
-	//
-	// It returns a CustomTestResult that is passed into PostParseProcessor and returned from
-	// FixturePreparer.RunTestWithCustomResult. If it needs to return some custom data then it must
-	// provide its own implementation of CustomTestResult and return an instance of that. Otherwise,
-	// it can just return the supplied *TestResult.
-	FinalPreparer(result *TestResult) CustomTestResult
-
-	// PostParseProcessor is called after successfully parsing the blueprint files and can do further
-	// work on the result of parsing the files.
-	//
-	// Successfully parsing simply means that no errors were encountered when parsing the blueprint
-	// files.
-	//
-	// This must collate any information useful for testing, e.g. errs, ninja deps and custom data in
-	// the supplied result.
-	PostParseProcessor(result CustomTestResult)
-}
-
-// FixtureSetTestRunner sets the FixtureTestRunner in the fixture.
-//
-// It is an error if more than one of these is applied to a single fixture. If none of these are
-// applied then the fixture will use the defaultTestRunner which will run the test as if it was
-// being run in `m <target>`.
-func FixtureSetTestRunner(testRunner FixtureTestRunner) FixturePreparer {
-	return newSimpleFixturePreparer(func(fixture *fixture) {
-		if fixture.testRunner != nil {
-			panic("fixture test runner has already been set")
-		}
-		fixture.testRunner = testRunner
-	})
-}
-
 // Modify the config
 func FixtureModifyConfig(mutator func(config Config)) FixturePreparer {
 	return newSimpleFixturePreparer(func(f *fixture) {
@@ -430,21 +390,6 @@ type FixturePreparer interface {
 	//
 	// Shorthand for Fixture(t).RunTest()
 	RunTest(t *testing.T) *TestResult
-
-	// RunTestWithCustomResult runs the test just as RunTest(t) does but instead of returning a
-	// *TestResult it returns the CustomTestResult that was returned by the custom
-	// FixtureTestRunner.PostParseProcessor method that ran the test, or the *TestResult if that
-	// method returned nil.
-	//
-	// This method must be used when needing to access custom data collected by the
-	// FixtureTestRunner.PostParseProcessor method.
-	//
-	// e.g. something like this
-	//
-	//   preparers := ...FixtureSetTestRunner(&myTestRunner)...
-	//   customResult := preparers.RunTestWithCustomResult(t).(*myCustomTestResult)
-	//   doSomething(customResult.data)
-	RunTestWithCustomResult(t *testing.T) CustomTestResult
 
 	// Run the test with the supplied Android.bp file.
 	//
@@ -674,7 +619,7 @@ type Fixture interface {
 	MockFS() MockFS
 
 	// Run the test, checking any errors reported and returning a TestResult instance.
-	RunTest() CustomTestResult
+	RunTest() *TestResult
 }
 
 // Struct to allow TestResult to embed a *TestContext and allow call forwarding to its methods.
@@ -696,39 +641,6 @@ type TestResult struct {
 	// singletons via the *.AddNinjaFileDeps() methods.
 	NinjaDeps []string
 }
-
-func (r *TestResult) testResult() *TestResult { return r }
-
-// CustomTestResult is the interface that FixtureTestRunner implementations who wish to return
-// custom data must implement. It must embed *TestResult and initialize that to the value passed
-// into the method. It is returned from the FixtureTestRunner.FinalPreparer, passed into the
-// FixtureTestRunner.PostParseProcessor and returned from FixturePreparer.RunTestWithCustomResult.
-//
-// e.g. something like this:
-//
-//		type myCustomTestResult struct {
-//		    *android.TestResult
-//		    data []string
-//		}
-//
-//		func (r *myTestRunner) FinalPreparer(result *TestResult) CustomTestResult {
-//	     ... do some final test preparation ...
-//	     return &myCustomTestResult{TestResult: result)
-//	 }
-//
-//		func (r *myTestRunner) PostParseProcessor(result CustomTestResult) {
-//		    ...
-//		    myData := []string {....}
-//		    ...
-//		    customResult := result.(*myCustomTestResult)
-//	     customResult.data = myData
-//		}
-type CustomTestResult interface {
-	// testResult returns the embedded *TestResult.
-	testResult() *TestResult
-}
-
-var _ CustomTestResult = (*TestResult)(nil)
 
 type TestPathContext struct {
 	*TestResult
@@ -784,11 +696,6 @@ func (b *baseFixturePreparer) ExtendWithErrorHandler(errorHandler FixtureErrorHa
 
 func (b *baseFixturePreparer) RunTest(t *testing.T) *TestResult {
 	t.Helper()
-	return b.RunTestWithCustomResult(t).testResult()
-}
-
-func (b *baseFixturePreparer) RunTestWithCustomResult(t *testing.T) CustomTestResult {
-	t.Helper()
 	fixture := b.self.Fixture(t)
 	return fixture.RunTest()
 }
@@ -817,15 +724,12 @@ func (b *baseFixturePreparer) RunTestWithConfig(t *testing.T, config Config) *Te
 		ctx.SetModuleListFile(ctx.config.mockBpList)
 	}
 
-	return fixture.RunTest().testResult()
+	return fixture.RunTest()
 }
 
 type fixture struct {
 	// The preparers used to create this fixture.
 	preparers []*simpleFixturePreparer
-
-	// The test runner used in this fixture, defaults to defaultTestRunner if not set.
-	testRunner FixtureTestRunner
 
 	// The gotest state of the go test within which this was created.
 	t *testing.T
@@ -858,7 +762,7 @@ func (f *fixture) MockFS() MockFS {
 	return f.mockFS
 }
 
-func (f *fixture) RunTest() CustomTestResult {
+func (f *fixture) RunTest() *TestResult {
 	f.t.Helper()
 
 	// If in debug mode output the state of the fixture before running the test.
@@ -896,58 +800,29 @@ func (f *fixture) RunTest() CustomTestResult {
 	// Set the NameResolver in the TestContext.
 	ctx.NameResolver = resolver
 
-	// If test runner has not been set then use the default runner.
-	if f.testRunner == nil {
-		f.testRunner = defaultTestRunner
+	ctx.Register()
+	var ninjaDeps []string
+	extraNinjaDeps, errs := ctx.ParseBlueprintsFiles("ignored")
+	if len(errs) == 0 {
+		ninjaDeps = append(ninjaDeps, extraNinjaDeps...)
+		extraNinjaDeps, errs = ctx.PrepareBuildActions(f.config)
+		if len(errs) == 0 {
+			ninjaDeps = append(ninjaDeps, extraNinjaDeps...)
+		}
 	}
 
-	// Create the result to collate result information.
 	result := &TestResult{
 		testContext: testContext{ctx},
 		fixture:     f,
 		Config:      f.config,
-	}
-
-	// Do any last minute preparation before parsing the blueprint files.
-	customResult := f.testRunner.FinalPreparer(result)
-
-	// Parse the blueprint files adding the information to the result.
-	extraNinjaDeps, errs := ctx.ParseBlueprintsFiles("ignored")
-	result.NinjaDeps = append(result.NinjaDeps, extraNinjaDeps...)
-	result.Errs = append(result.Errs, errs...)
-
-	if len(result.Errs) == 0 {
-		// If parsing the blueprint files was successful then perform any additional processing.
-		f.testRunner.PostParseProcessor(customResult)
+		Errs:        errs,
+		NinjaDeps:   ninjaDeps,
 	}
 
 	f.errorHandler.CheckErrors(f.t, result)
 
-	return customResult
-}
-
-// standardTestRunner is the implementation of the default test runner
-type standardTestRunner struct{}
-
-func (s *standardTestRunner) FinalPreparer(result *TestResult) CustomTestResult {
-	// Register the hard coded mutators and singletons used by the standard Soong build as well as
-	// any additional instances that have been registered with this fixture.
-	result.TestContext.Register()
 	return result
 }
-
-func (s *standardTestRunner) PostParseProcessor(customResult CustomTestResult) {
-	result := customResult.(*TestResult)
-	ctx := result.TestContext
-	cfg := result.Config
-	// Prepare the build actions, i.e. run all the mutators, singletons and then invoke the
-	// GenerateAndroidBuildActions methods on all the modules.
-	extraNinjaDeps, errs := ctx.PrepareBuildActions(cfg)
-	result.NinjaDeps = append(result.NinjaDeps, extraNinjaDeps...)
-	result.CollateErrs(errs)
-}
-
-var defaultTestRunner FixtureTestRunner = &standardTestRunner{}
 
 func (f *fixture) outputDebugState() {
 	fmt.Printf("Begin Fixture State for %s\n", f.t.Name())
@@ -1033,11 +908,4 @@ func (r *TestResult) Preparer() FixturePreparer {
 // Module returns the module with the specific name and of the specified variant.
 func (r *TestResult) Module(name string, variant string) Module {
 	return r.ModuleForTests(name, variant).Module()
-}
-
-// CollateErrs adds additional errors to the result and returns true if there is more than one
-// error in the result.
-func (r *TestResult) CollateErrs(errs []error) bool {
-	r.Errs = append(r.Errs, errs...)
-	return len(r.Errs) > 0
 }

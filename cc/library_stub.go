@@ -172,7 +172,7 @@ func (d *apiLibraryDecorator) link(ctx ModuleContext, flags Flags, deps PathDeps
 				// Copy LLDNK properties to cc_api_library module
 				d.libraryDecorator.flagExporter.Properties.Export_include_dirs = append(
 					d.libraryDecorator.flagExporter.Properties.Export_include_dirs,
-					variantMod.exportProperties.Export_include_dirs...)
+					variantMod.exportProperties.Export_headers...)
 
 				// Export headers as system include dirs if specified. Mostly for libc
 				if Bool(variantMod.exportProperties.Export_headers_as_system) {
@@ -203,7 +203,7 @@ func (d *apiLibraryDecorator) link(ctx ModuleContext, flags Flags, deps PathDeps
 				// Copy NDK properties to cc_api_library module
 				d.libraryDecorator.flagExporter.Properties.Export_include_dirs = append(
 					d.libraryDecorator.flagExporter.Properties.Export_include_dirs,
-					variantMod.exportProperties.Export_include_dirs...)
+					variantMod.exportProperties.Export_headers...)
 			}
 		}
 	}
@@ -362,7 +362,7 @@ type ccApiexportProperties struct {
 
 type variantExporterProperties struct {
 	// Header directory to export
-	Export_include_dirs []string `android:"arch_variant"`
+	Export_headers []string `android:"arch_variant"`
 
 	// Export all headers as system include
 	Export_headers_as_system *bool

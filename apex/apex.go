@@ -2676,10 +2676,6 @@ func (o *OverrideApex) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 	}
 	attrs, props := convertWithBp2build(a, ctx)
 
-	// We just want the name, not module reference.
-	baseApexName := strings.TrimPrefix(baseApexModuleName, ":")
-	attrs.Base_apex_name = &baseApexName
-
 	for _, p := range o.GetProperties() {
 		overridableProperties, ok := p.(*overridableProperties)
 		if !ok {
@@ -3377,7 +3373,6 @@ type bazelApexBundleAttributes struct {
 	Package_name          *string
 	Logging_parent        *string
 	Tests                 bazel.LabelListAttribute
-	Base_apex_name        *string
 }
 
 type convertedNativeSharedLibs struct {

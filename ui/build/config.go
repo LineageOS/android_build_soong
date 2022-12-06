@@ -109,8 +109,6 @@ type configImpl struct {
 	emptyNinjaFile bool
 
 	metricsUploader string
-
-	bazelForceEnabledModules string
 }
 
 const srcDirFileCheck = "build/soong/root.bp"
@@ -240,7 +238,7 @@ func loadEnvConfig(ctx Context, config *configImpl) error {
 }
 
 func defaultBazelProdMode(cfg *configImpl) bool {
-	// Environment flag to disable Bazel for users which experience
+	// Envirnoment flag to disable Bazel for users which experience
 	// broken bazel-handled builds, or significant performance regressions.
 	if cfg.IsBazelMixedBuildForceDisabled() {
 		return false
@@ -743,14 +741,6 @@ func (c *configImpl) parseArgs(ctx Context, args []string) {
 			c.bazelStagingMode = true
 		} else if arg == "--search-api-dir" {
 			c.searchApiDir = true
-		} else if strings.HasPrefix(arg, "--build-command=") {
-			buildCmd := strings.TrimPrefix(arg, "--build-command=")
-			// remove quotations
-			buildCmd = strings.TrimPrefix(buildCmd, "\"")
-			buildCmd = strings.TrimSuffix(buildCmd, "\"")
-			ctx.Metrics.SetBuildCommand([]string{buildCmd})
-		} else if strings.HasPrefix(arg, "--bazel-force-enabled-modules=") {
-			c.bazelForceEnabledModules = strings.TrimPrefix(arg, "--bazel-force-enabled-modules=")
 		} else if len(arg) > 0 && arg[0] == '-' {
 			parseArgNum := func(def int) int {
 				if len(arg) > 2 {
@@ -1496,10 +1486,6 @@ func (c *configImpl) EmptyNinjaFile() bool {
 
 func (c *configImpl) IsBazelMixedBuildForceDisabled() bool {
 	return c.Environment().IsEnvTrue("BUILD_BROKEN_DISABLE_BAZEL")
-}
-
-func (c *configImpl) BazelModulesForceEnabledByFlag() string {
-	return c.bazelForceEnabledModules
 }
 
 func GetMetricsUploader(topDir string, env *Environment) string {

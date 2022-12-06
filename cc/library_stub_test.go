@@ -308,7 +308,7 @@ func TestApiLibraryWithLlndkVariant(t *testing.T) {
 			name: "libbar",
 			variant: "llndk",
 			src: "libbar_llndk.so",
-			export_include_dirs: ["libbar_llndk_include"]
+			export_headers: ["libbar_llndk_include"]
 		}
 
 		api_imports {
@@ -370,7 +370,7 @@ func TestApiLibraryWithNdkVariant(t *testing.T) {
 			variant: "ndk",
 			version: "29",
 			src: "libbar_ndk_29.so",
-			export_include_dirs: ["libbar_ndk_29_include"]
+			export_headers: ["libbar_ndk_29_include"]
 		}
 
 		cc_api_variant {
@@ -378,7 +378,7 @@ func TestApiLibraryWithNdkVariant(t *testing.T) {
 			variant: "ndk",
 			version: "30",
 			src: "libbar_ndk_30.so",
-			export_include_dirs: ["libbar_ndk_30_include"]
+			export_headers: ["libbar_ndk_30_include"]
 		}
 
 		cc_api_variant {
@@ -386,7 +386,7 @@ func TestApiLibraryWithNdkVariant(t *testing.T) {
 			variant: "ndk",
 			version: "current",
 			src: "libbar_ndk_current.so",
-			export_include_dirs: ["libbar_ndk_current_include"]
+			export_headers: ["libbar_ndk_current_include"]
 		}
 
 		api_imports {
@@ -458,7 +458,7 @@ func TestApiLibraryWithMultipleVariants(t *testing.T) {
 			variant: "ndk",
 			version: "29",
 			src: "libbar_ndk_29.so",
-			export_include_dirs: ["libbar_ndk_29_include"]
+			export_headers: ["libbar_ndk_29_include"]
 		}
 
 		cc_api_variant {
@@ -466,7 +466,7 @@ func TestApiLibraryWithMultipleVariants(t *testing.T) {
 			variant: "ndk",
 			version: "30",
 			src: "libbar_ndk_30.so",
-			export_include_dirs: ["libbar_ndk_30_include"]
+			export_headers: ["libbar_ndk_30_include"]
 		}
 
 		cc_api_variant {
@@ -474,14 +474,14 @@ func TestApiLibraryWithMultipleVariants(t *testing.T) {
 			variant: "ndk",
 			version: "current",
 			src: "libbar_ndk_current.so",
-			export_include_dirs: ["libbar_ndk_current_include"]
+			export_headers: ["libbar_ndk_current_include"]
 		}
 
 		cc_api_variant {
 			name: "libbar",
 			variant: "llndk",
 			src: "libbar_llndk.so",
-			export_include_dirs: ["libbar_llndk_include"]
+			export_headers: ["libbar_llndk_include"]
 		}
 
 		api_imports {

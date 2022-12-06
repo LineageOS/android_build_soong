@@ -91,9 +91,9 @@ func TestPrebuiltLibraryAdditionalAttrs(t *testing.T) {
 			ModuleTypeUnderTest:        "cc_prebuilt_library",
 			ModuleTypeUnderTestFactory: cc.PrebuiltLibraryFactory,
 			Filesystem: map[string]string{
-				"libf.so":             "",
-				"testdir/1/include.h": "",
-				"testdir/2/other.h":   "",
+				"libf.so":    "",
+				"testdir/1/": "",
+				"testdir/2/": "",
 			},
 			Blueprint: `
 cc_prebuilt_library {

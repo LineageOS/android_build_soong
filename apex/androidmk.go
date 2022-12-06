@@ -134,7 +134,7 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, apexName, mo
 			continue
 		}
 
-		fmt.Fprintln(w, "\ninclude $(CLEAR_VARS)  # apex.apexBundle.files")
+		fmt.Fprintln(w, "\ninclude $(CLEAR_VARS)")
 		if fi.moduleDir != "" {
 			fmt.Fprintln(w, "LOCAL_PATH :=", fi.moduleDir)
 		} else {
@@ -348,7 +348,7 @@ func (a *apexBundle) androidMkForType() android.AndroidMkData {
 
 			if apexType == flattenedApex {
 				// Only image APEXes can be flattened.
-				fmt.Fprintln(w, "\ninclude $(CLEAR_VARS)  # apex.apexBundle.flat")
+				fmt.Fprintln(w, "\ninclude $(CLEAR_VARS)")
 				fmt.Fprintln(w, "LOCAL_PATH :=", moduleDir)
 				fmt.Fprintln(w, "LOCAL_MODULE :=", name+a.suffix)
 				data.Entries.WriteLicenseVariables(w)
@@ -356,7 +356,7 @@ func (a *apexBundle) androidMkForType() android.AndroidMkData {
 				fmt.Fprintln(w, "include $(BUILD_PHONY_PACKAGE)")
 
 			} else {
-				fmt.Fprintln(w, "\ninclude $(CLEAR_VARS)  # apex.apexBundle")
+				fmt.Fprintln(w, "\ninclude $(CLEAR_VARS)")
 				fmt.Fprintln(w, "LOCAL_PATH :=", moduleDir)
 				fmt.Fprintln(w, "LOCAL_MODULE :=", name+a.suffix)
 				data.Entries.WriteLicenseVariables(w)

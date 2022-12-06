@@ -336,8 +336,8 @@ func (m *syspropLibrary) AndroidMk() android.AndroidMkData {
 		Custom: func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
 			// sysprop_library module itself is defined as a FAKE module to perform API check.
 			// Actual implementation libraries are created on LoadHookMutator
-			fmt.Fprintln(w, "\ninclude $(CLEAR_VARS)", " # sysprop.syspropLibrary")
-			fmt.Fprintln(w, "LOCAL_MODULE :=", m.Name())
+			fmt.Fprintln(w, "\ninclude $(CLEAR_VARS)")
+			fmt.Fprintf(w, "LOCAL_MODULE := %s\n", m.Name())
 			data.Entries.WriteLicenseVariables(w)
 			fmt.Fprintf(w, "LOCAL_MODULE_CLASS := FAKE\n")
 			fmt.Fprintf(w, "LOCAL_MODULE_TAGS := optional\n")

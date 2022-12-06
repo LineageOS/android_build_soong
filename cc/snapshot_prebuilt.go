@@ -18,7 +18,6 @@ package cc
 // snapshot mutators and snapshot information maps which are also defined in this file.
 
 import (
-	"fmt"
 	"strings"
 
 	"android/soong/android"
@@ -400,10 +399,8 @@ type SnapshotLibraryProperties struct {
 }
 
 type snapshotSanitizer interface {
-	isSanitizerAvailable(t SanitizerType) bool
-	setSanitizerVariation(t SanitizerType, enabled bool)
 	isSanitizerEnabled(t SanitizerType) bool
-	isUnsanitizedVariant() bool
+	setSanitizerVariation(t SanitizerType, enabled bool)
 }
 
 type snapshotLibraryDecorator struct {
@@ -411,13 +408,10 @@ type snapshotLibraryDecorator struct {
 	*libraryDecorator
 	properties          SnapshotLibraryProperties
 	sanitizerProperties struct {
-		SanitizerVariation SanitizerType `blueprint:"mutated"`
+		CfiEnabled bool `blueprint:"mutated"`
 
 		// Library flags for cfi variant.
 		Cfi SnapshotLibraryProperties `android:"arch_variant"`
-
-		// Library flags for hwasan variant.
-		Hwasan SnapshotLibraryProperties `android:"arch_variant"`
 	}
 }
 
@@ -456,10 +450,8 @@ func (p *snapshotLibraryDecorator) link(ctx ModuleContext, flags Flags, deps Pat
 		return p.libraryDecorator.link(ctx, flags, deps, objs)
 	}
 
-	if p.isSanitizerEnabled(cfi) {
+	if p.sanitizerProperties.CfiEnabled {
 		p.properties = p.sanitizerProperties.Cfi
-	} else if p.isSanitizerEnabled(Hwasan) {
-		p.properties = p.sanitizerProperties.Hwasan
 	}
 
 	if !p.MatchesWithDevice(ctx.DeviceConfig()) {
@@ -522,34 +514,25 @@ func (p *snapshotLibraryDecorator) nativeCoverage() bool {
 	return false
 }
 
-func (p *snapshotLibraryDecorator) isSanitizerAvailable(t SanitizerType) bool {
+func (p *snapshotLibraryDecorator) isSanitizerEnabled(t SanitizerType) bool {
 	switch t {
 	case cfi:
 		return p.sanitizerProperties.Cfi.Src != nil
-	case Hwasan:
-		return p.sanitizerProperties.Hwasan.Src != nil
 	default:
 		return false
 	}
 }
 
 func (p *snapshotLibraryDecorator) setSanitizerVariation(t SanitizerType, enabled bool) {
-	if !enabled || p.isSanitizerEnabled(t) {
+	if !enabled {
 		return
 	}
-	if !p.isUnsanitizedVariant() {
-		panic(fmt.Errorf("snapshot Sanitizer must be one of Cfi or Hwasan but not both"))
+	switch t {
+	case cfi:
+		p.sanitizerProperties.CfiEnabled = true
+	default:
+		return
 	}
-	p.sanitizerProperties.SanitizerVariation = t
-}
-
-func (p *snapshotLibraryDecorator) isSanitizerEnabled(t SanitizerType) bool {
-	return p.sanitizerProperties.SanitizerVariation == t
-}
-
-func (p *snapshotLibraryDecorator) isUnsanitizedVariant() bool {
-	return !p.isSanitizerEnabled(Asan) &&
-		!p.isSanitizerEnabled(Hwasan)
 }
 
 func snapshotLibraryFactory(image SnapshotImage, moduleSuffix string) (*Module, *snapshotLibraryDecorator) {
