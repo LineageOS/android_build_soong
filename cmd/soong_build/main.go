@@ -238,7 +238,12 @@ func runApiBp2build(configuration android.Config, ctx *android.Context, extraNin
 	soongInjectionFiles := bp2build.CreateSoongInjectionFiles(configuration, bp2build.CreateCodegenMetrics())
 	absoluteSoongInjectionDir := shared.JoinPath(topDir, configuration.SoongOutDir(), bazel.SoongInjectionDirName)
 	for _, file := range soongInjectionFiles {
-		writeReadOnlyFile(absoluteSoongInjectionDir, file)
+		// The API targets in api_bp2build workspace do not have any dependency on api_bp2build.
+		// But we need to create these files to prevent errors during Bazel analysis.
+		// These need to be created in Read-Write mode.
+		// This is because the subsequent step (bp2build in api domain analysis) creates them in Read-Write mode
+		// to allow users to edit/experiment in the synthetic workspace.
+		writeReadWriteFile(absoluteSoongInjectionDir, file)
 	}
 
 	workspace := shared.JoinPath(configuration.SoongOutDir(), "api_bp2build")
