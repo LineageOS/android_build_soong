@@ -161,32 +161,34 @@ type Context struct {
 func NewContext(config Config) *Context {
 	ctx := &Context{blueprint.NewContext(), config}
 	ctx.SetSrcDir(absSrcDir)
+	ctx.AddIncludeTags(config.IncludeTags()...)
 	return ctx
+}
+
+// Helper function to register the module types used in bp2build and
+// api_bp2build.
+func registerModuleTypes(ctx *Context) {
+	for _, t := range moduleTypes {
+		t.register(ctx)
+	}
+	// Required for SingletonModule types, even though we are not using them.
+	for _, t := range singletons {
+		t.register(ctx)
+	}
 }
 
 // RegisterForBazelConversion registers an alternate shadow pipeline of
 // singletons, module types and mutators to register for converting Blueprint
 // files to semantically equivalent BUILD files.
 func (ctx *Context) RegisterForBazelConversion() {
-	for _, t := range moduleTypes {
-		t.register(ctx)
-	}
-
-	// Required for SingletonModule types, even though we are not using them.
-	for _, t := range singletons {
-		t.register(ctx)
-	}
-
+	registerModuleTypes(ctx)
 	RegisterMutatorsForBazelConversion(ctx, bp2buildPreArchMutators)
 }
 
 // RegisterForApiBazelConversion is similar to RegisterForBazelConversion except that
 // it only generates API targets in the generated  workspace
 func (ctx *Context) RegisterForApiBazelConversion() {
-	for _, t := range moduleTypes {
-		t.register(ctx)
-	}
-
+	registerModuleTypes(ctx)
 	RegisterMutatorsForApiBazelConversion(ctx, bp2buildPreArchMutators)
 }
 

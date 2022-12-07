@@ -1863,6 +1863,7 @@ func TestJavaApiLibraryAndProviderLink(t *testing.T) {
 			name: "bar2",
 			api_surface: "system",
 			api_contributions: ["foo1", "foo2"],
+			api_files: ["api1/current.txt", "api2/current.txt"]
 		}
 		`,
 		map[string][]byte{
@@ -1880,7 +1881,7 @@ func TestJavaApiLibraryAndProviderLink(t *testing.T) {
 		},
 		{
 			moduleName:         "bar2",
-			sourceTextFileDirs: []string{"a/foo1.txt", "b/foo2.txt"},
+			sourceTextFileDirs: []string{"a/foo1.txt", "b/foo2.txt", "api1/current.txt", "api2/current.txt"},
 		},
 	}
 	for _, c := range testcases {
