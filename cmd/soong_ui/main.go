@@ -58,7 +58,7 @@ type command struct {
 	stdio func() terminal.StdioInterface
 
 	// run the command
-	run func(ctx build.Context, config build.Config, args []string, logsDir string)
+	run func(ctx build.Context, config build.Config, args []string)
 }
 
 // list of supported commands (flags) supported by soong ui
@@ -91,6 +91,15 @@ var commands = []command{
 		config:      buildActionConfig,
 		stdio:       stdio,
 		run:         runMake,
+	}, {
+		flag:        "--upload-metrics-only",
+		description: "upload metrics without building anything",
+		config:      uploadOnlyConfig,
+		stdio:       stdio,
+		// Upload-only mode mostly skips to the metrics-uploading phase of soong_ui.
+		// However, this invocation marks the true "end of the build", and thus we
+		// need to update the total runtime of the build to include this upload step.
+		run: updateTotalRealTime,
 	},
 }
 
@@ -182,18 +191,49 @@ func main() {
 	}}
 
 	config := c.config(buildCtx, args...)
+	config.SetLogsPrefix(c.logsPrefix)
+	logsDir := config.LogsDir()
+	buildStarted = config.BuildStartedTimeOrDefault(buildStarted)
 
+	buildErrorFile := filepath.Join(logsDir, c.logsPrefix+"build_error")
+	soongMetricsFile := filepath.Join(logsDir, c.logsPrefix+"soong_metrics")
+	rbeMetricsFile := filepath.Join(logsDir, c.logsPrefix+"rbe_metrics.pb")
+	bp2buildMetricsFile := filepath.Join(logsDir, c.logsPrefix+"bp2build_metrics.pb")
+	metricsFiles := []string{
+		buildErrorFile,           // build error strings
+		rbeMetricsFile,           // high level metrics related to remote build execution.
+		bp2buildMetricsFile,      // high level metrics related to bp2build.
+		soongMetricsFile,         // high level metrics related to this build system.
+		config.BazelMetricsDir(), // directory that contains a set of bazel metrics.
+	}
+
+	os.MkdirAll(logsDir, 0777)
+
+	log.SetOutput(filepath.Join(logsDir, c.logsPrefix+"soong.log"))
+
+	trace.SetOutput(filepath.Join(logsDir, c.logsPrefix+"build.trace"))
+
+	c.run(buildCtx, config, args)
+
+	defer met.Dump(soongMetricsFile)
+	if !config.SkipMetricsUpload() {
+		defer build.UploadMetrics(buildCtx, config, c.simpleOutput, buildStarted, metricsFiles...)
+	}
+
+}
+
+func logAndSymlinkSetup(buildCtx build.Context, config build.Config) {
+	log := buildCtx.ContextImpl.Logger
+	logsPrefix := config.GetLogsPrefix()
 	build.SetupOutDir(buildCtx, config)
-
-	// Set up files to be outputted in the log directory.
 	logsDir := config.LogsDir()
 
 	// Common list of metric file definition.
-	buildErrorFile := filepath.Join(logsDir, c.logsPrefix+"build_error")
-	rbeMetricsFile := filepath.Join(logsDir, c.logsPrefix+"rbe_metrics.pb")
-	soongMetricsFile := filepath.Join(logsDir, c.logsPrefix+"soong_metrics")
-	bp2buildMetricsFile := filepath.Join(logsDir, c.logsPrefix+"bp2build_metrics.pb")
-	soongBuildMetricsFile := filepath.Join(logsDir, c.logsPrefix+"soong_build_metrics.pb")
+	buildErrorFile := filepath.Join(logsDir, logsPrefix+"build_error")
+	rbeMetricsFile := filepath.Join(logsDir, logsPrefix+"rbe_metrics.pb")
+	soongMetricsFile := filepath.Join(logsDir, logsPrefix+"soong_metrics")
+	bp2buildMetricsFile := filepath.Join(logsDir, logsPrefix+"bp2build_metrics.pb")
+	soongBuildMetricsFile := filepath.Join(logsDir, logsPrefix+"soong_build_metrics.pb")
 
 	//Delete the stale metrics files
 	staleFileSlice := []string{buildErrorFile, rbeMetricsFile, soongMetricsFile, bp2buildMetricsFile, soongBuildMetricsFile}
@@ -203,14 +243,12 @@ func main() {
 
 	build.PrintOutDirWarning(buildCtx, config)
 
-	os.MkdirAll(logsDir, 0777)
-	log.SetOutput(filepath.Join(logsDir, c.logsPrefix+"soong.log"))
-	trace.SetOutput(filepath.Join(logsDir, c.logsPrefix+"build.trace"))
-	stat.AddOutput(status.NewVerboseLog(log, filepath.Join(logsDir, c.logsPrefix+"verbose.log")))
-	stat.AddOutput(status.NewErrorLog(log, filepath.Join(logsDir, c.logsPrefix+"error.log")))
+	stat := buildCtx.Status
+	stat.AddOutput(status.NewVerboseLog(log, filepath.Join(logsDir, logsPrefix+"verbose.log")))
+	stat.AddOutput(status.NewErrorLog(log, filepath.Join(logsDir, logsPrefix+"error.log")))
 	stat.AddOutput(status.NewProtoErrorLog(log, buildErrorFile))
 	stat.AddOutput(status.NewCriticalPath(log))
-	stat.AddOutput(status.NewBuildProgressLog(log, filepath.Join(logsDir, c.logsPrefix+"build_progress.pb")))
+	stat.AddOutput(status.NewBuildProgressLog(log, filepath.Join(logsDir, logsPrefix+"build_progress.pb")))
 
 	buildCtx.Verbosef("Detected %.3v GB total RAM", float32(config.TotalRAM())/(1024*1024*1024))
 	buildCtx.Verbosef("Parallelism (local/remote/highmem): %v/%v/%v",
@@ -218,27 +256,7 @@ func main() {
 
 	setMaxFiles(buildCtx)
 
-	{
-		// The order of the function calls is important. The last defer function call
-		// is the first one that is executed to save the rbe metrics to a protobuf
-		// file. The soong metrics file is then next. Bazel profiles are written
-		// before the uploadMetrics is invoked. The written files are then uploaded
-		// if the uploading of the metrics is enabled.
-		files := []string{
-			buildErrorFile,           // build error strings
-			rbeMetricsFile,           // high level metrics related to remote build execution.
-			soongBuildMetricsFile,    // high level metrics related to soong build(except bp2build).
-			bp2buildMetricsFile,      // high level metrics related to bp2build.
-			soongMetricsFile,         // high level metrics related to this build system.
-			config.BazelMetricsDir(), // directory that contains a set of bazel metrics.
-		}
-
-		if !config.SkipMetricsUpload() {
-			defer build.UploadMetrics(buildCtx, config, c.simpleOutput, buildStarted, files...)
-		}
-		defer met.Dump(soongMetricsFile)
-		defer build.CheckProdCreds(buildCtx, config)
-	}
+	defer build.CheckProdCreds(buildCtx, config)
 
 	// Read the time at the starting point.
 	if start, ok := os.LookupEnv("TRACE_BEGIN_SOONG"); ok {
@@ -253,7 +271,7 @@ func main() {
 		}
 
 		if executable, err := os.Executable(); err == nil {
-			trace.ImportMicrofactoryLog(filepath.Join(filepath.Dir(executable), "."+filepath.Base(executable)+".trace"))
+			buildCtx.ContextImpl.Tracer.ImportMicrofactoryLog(filepath.Join(filepath.Dir(executable), "."+filepath.Base(executable)+".trace"))
 		}
 	}
 
@@ -266,8 +284,6 @@ func main() {
 	f := build.NewSourceFinder(buildCtx, config)
 	defer f.Shutdown()
 	build.FindSources(buildCtx, config, f)
-
-	c.run(buildCtx, config, args, logsDir)
 }
 
 func fixBadDanglingLink(ctx build.Context, name string) {
@@ -284,7 +300,8 @@ func fixBadDanglingLink(ctx build.Context, name string) {
 	}
 }
 
-func dumpVar(ctx build.Context, config build.Config, args []string, _ string) {
+func dumpVar(ctx build.Context, config build.Config, args []string) {
+	logAndSymlinkSetup(ctx, config)
 	flags := flag.NewFlagSet("dumpvar", flag.ExitOnError)
 	flags.SetOutput(ctx.Writer)
 
@@ -336,7 +353,9 @@ func dumpVar(ctx build.Context, config build.Config, args []string, _ string) {
 	}
 }
 
-func dumpVars(ctx build.Context, config build.Config, args []string, _ string) {
+func dumpVars(ctx build.Context, config build.Config, args []string) {
+	logAndSymlinkSetup(ctx, config)
+
 	flags := flag.NewFlagSet("dumpvars", flag.ExitOnError)
 	flags.SetOutput(ctx.Writer)
 
@@ -419,6 +438,14 @@ func customStdio() terminal.StdioInterface {
 // dumpVarConfig does not require any arguments to be parsed by the NewConfig.
 func dumpVarConfig(ctx build.Context, args ...string) build.Config {
 	return build.NewConfig(ctx)
+}
+
+// uploadOnlyConfig explicitly requires no arguments.
+func uploadOnlyConfig(ctx build.Context, args ...string) build.Config {
+	if len(args) > 0 {
+		fmt.Printf("--upload-only does not require arguments.")
+	}
+	return build.UploadOnlyConfig(ctx)
 }
 
 func buildActionConfig(ctx build.Context, args ...string) build.Config {
@@ -514,7 +541,9 @@ func buildActionConfig(ctx build.Context, args ...string) build.Config {
 	return build.NewBuildActionConfig(buildAction, *dir, ctx, args...)
 }
 
-func runMake(ctx build.Context, config build.Config, _ []string, logsDir string) {
+func runMake(ctx build.Context, config build.Config, _ []string) {
+	logAndSymlinkSetup(ctx, config)
+	logsDir := config.LogsDir()
 	if config.IsVerbose() {
 		writer := ctx.Writer
 		fmt.Fprintln(writer, "! The argument `showcommands` is no longer supported.")
@@ -657,5 +686,21 @@ func setMaxFiles(ctx build.Context) {
 	err = syscall.Setrlimit(syscall.RLIMIT_NOFILE, &limits)
 	if err != nil {
 		ctx.Println("Failed to increase file limit:", err)
+	}
+}
+
+func updateTotalRealTime(ctx build.Context, config build.Config, args []string) {
+	soongMetricsFile := filepath.Join(config.LogsDir(), "soong_metrics")
+
+	//read file into proto
+	data, err := os.ReadFile(soongMetricsFile)
+	if err != nil {
+		ctx.Fatal(err)
+	}
+	met := ctx.ContextImpl.Metrics
+
+	err = met.UpdateTotalRealTime(data)
+	if err != nil {
+		ctx.Fatal(err)
 	}
 }
