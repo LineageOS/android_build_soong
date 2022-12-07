@@ -91,6 +91,19 @@ func writeReadOnlyFile(dir string, f bp2build.BazelFile) error {
 	return err
 }
 
+func writeReadWriteFile(dir string, f bp2build.BazelFile) error {
+	dir = filepath.Join(dir, f.Dir)
+	if err := createDirectoryIfNonexistent(dir); err != nil {
+		return err
+	}
+	pathToFile := filepath.Join(dir, f.Basename)
+
+	// 0644 is read-write
+	err := ioutil.WriteFile(pathToFile, []byte(f.Contents), 0644)
+
+	return err
+}
+
 func createDirectoryIfNonexistent(dir string) error {
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		return os.MkdirAll(dir, os.ModePerm)
