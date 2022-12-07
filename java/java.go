@@ -1567,7 +1567,13 @@ type JavaApiLibraryProperties struct {
 	Api_surface *string
 
 	// list of Java API contribution modules that consists this API surface
+	// This is a list of Soong modules
 	Api_contributions []string
+
+	// list of api.txt files relative to this directory that contribute to the
+	// API surface.
+	// This is a list of relative paths
+	Api_files []string
 
 	// List of flags to be passed to the javac compiler to generate jar file
 	Javacflags []string
@@ -1664,6 +1670,13 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		provider := ctx.OtherModuleProvider(dep, JavaApiImportProvider).(JavaApiImportInfo)
 		srcFiles = append(srcFiles, android.PathForSource(ctx, provider.ApiFile.String()))
 	})
+
+	// Add the api_files inputs
+	for _, api := range al.properties.Api_files {
+		// Use MaybeExistentPathForSource since the api file might not exist during analysis.
+		// This will be provided by the orchestrator in the combined execution.
+		srcFiles = append(srcFiles, android.MaybeExistentPathForSource(ctx, ctx.ModuleDir(), api))
+	}
 
 	cmd := metalavaStubCmd(ctx, rule, srcFiles, homeDir)
 

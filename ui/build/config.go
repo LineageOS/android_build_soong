@@ -111,6 +111,8 @@ type configImpl struct {
 	metricsUploader string
 
 	bazelForceEnabledModules string
+
+	includeTags []string
 }
 
 const srcDirFileCheck = "build/soong/root.bp"
@@ -1077,6 +1079,14 @@ func (c *configImpl) KatiArgs() []string {
 
 func (c *configImpl) Parallel() int {
 	return c.parallel
+}
+
+func (c *configImpl) GetIncludeTags() []string {
+	return c.includeTags
+}
+
+func (c *configImpl) SetIncludeTags(i []string) {
+	c.includeTags = i
 }
 
 func (c *configImpl) HighmemParallel() int {
