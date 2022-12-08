@@ -731,7 +731,7 @@ var (
 		"platform_tools_properties", "build_tools_source_properties", // TODO(b/203369847): multiple genrules in the same package creating the same file
 
 		// aar support
-		"prebuilt_car-ui-androidx-core-common",         // TODO(b/224773339), genrule dependency creates an .aar, not a .jar
+		"prebuilt_car-ui-androidx-core-common", // TODO(b/224773339), genrule dependency creates an .aar, not a .jar
 		// ERROR: The dependencies for the following 1 jar(s) are not complete.
 		// 1.bazel-out/android_target-fastbuild/bin/prebuilts/tools/common/m2/_aar/robolectric-monitor-1.0.2-alpha1/classes_and_libs_merged.jar
 		"prebuilt_robolectric-monitor-1.0.2-alpha1",
@@ -1359,5 +1359,8 @@ var (
 	// Staging-mode allowlist. Modules in this list are only built
 	// by Bazel with --bazel-mode-staging. This list should contain modules
 	// which will soon be added to the prod allowlist.
-	StagingMixedBuildsEnabledList = []string{"com.android.tzdata"}
+	StagingMixedBuildsEnabledList = []string{
+		"com.android.adbd",
+		"com.android.tzdata",
+	}
 )
