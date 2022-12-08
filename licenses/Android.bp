@@ -921,6 +921,14 @@ license_kind {
 }
 
 license_kind {
+    name: "SPDX-license-identifier-Linux-syscall-note",
+    // expanding visibility requires approval from an OSPO lawyer or pcounsel
+    visibility: ["//external/libbpf:__subpackages__"],
+    conditions: ["permissive"],
+    url: "https://spdx.org/licenses/Linux-syscall-note.html",
+}
+
+license_kind {
     name: "SPDX-license-identifier-LPL-1.02",
     conditions: ["notice"],
     url: "https://spdx.org/licenses/LPL-1.02.html",
