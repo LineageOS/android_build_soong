@@ -215,7 +215,11 @@ func main() {
 			soongMetricsFile,         // high level metrics related to this build system.
 			config.BazelMetricsDir(), // directory that contains a set of bazel metrics.
 		}
-		defer build.UploadMetrics(buildCtx, config, c.simpleOutput, buildStarted, files...)
+
+		if !config.SkipMetricsUpload() {
+			defer build.UploadMetrics(buildCtx, config, c.simpleOutput, buildStarted, files...)
+		}
+
 		defer met.Dump(soongMetricsFile)
 		defer build.CheckProdCreds(buildCtx, config)
 	}

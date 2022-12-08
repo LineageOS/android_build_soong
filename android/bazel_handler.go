@@ -16,7 +16,6 @@ package android
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -376,105 +375,72 @@ func (m noopBazelContext) AqueryDepsets() []bazel.AqueryDepset {
 }
 
 func NewBazelContext(c *config) (BazelContext, error) {
-	var modulesDefaultToBazel bool
 	disabledModules := map[string]bool{}
 	enabledModules := map[string]bool{}
+	addToStringSet := func(set map[string]bool, items []string) {
+		for _, item := range items {
+			set[item] = true
+		}
+	}
 
 	switch c.BuildMode {
 	case BazelProdMode:
-		modulesDefaultToBazel = false
-
-		for _, enabledProdModule := range allowlists.ProdMixedBuildsEnabledList {
-			enabledModules[enabledProdModule] = true
-		}
-
+		addToStringSet(enabledModules, allowlists.ProdMixedBuildsEnabledList)
 		for enabledAdHocModule := range c.BazelModulesForceEnabledByFlag() {
 			enabledModules[enabledAdHocModule] = true
 		}
 	case BazelStagingMode:
-		modulesDefaultToBazel = false
 		// Staging mode includes all prod modules plus all staging modules.
-		for _, enabledProdModule := range allowlists.ProdMixedBuildsEnabledList {
-			enabledModules[enabledProdModule] = true
-		}
-		for _, enabledStagingMode := range allowlists.StagingMixedBuildsEnabledList {
-			enabledModules[enabledStagingMode] = true
-		}
-
+		addToStringSet(enabledModules, allowlists.ProdMixedBuildsEnabledList)
+		addToStringSet(enabledModules, allowlists.StagingMixedBuildsEnabledList)
 		for enabledAdHocModule := range c.BazelModulesForceEnabledByFlag() {
 			enabledModules[enabledAdHocModule] = true
 		}
 	case BazelDevMode:
-		modulesDefaultToBazel = true
-
 		// Don't use partially-converted cc_library targets in mixed builds,
 		// since mixed builds would generally rely on both static and shared
 		// variants of a cc_library.
 		for staticOnlyModule := range GetBp2BuildAllowList().ccLibraryStaticOnly {
 			disabledModules[staticOnlyModule] = true
 		}
-		for _, disabledDevModule := range allowlists.MixedBuildsDisabledList {
-			disabledModules[disabledDevModule] = true
-		}
+		addToStringSet(disabledModules, allowlists.MixedBuildsDisabledList)
 	default:
 		return noopBazelContext{}, nil
 	}
 
-	p, err := bazelPathsFromConfig(c)
-	if err != nil {
-		return nil, err
+	paths := bazelPaths{
+		soongOutDir: c.soongOutDir,
 	}
-
+	var missing []string
+	vars := []struct {
+		name string
+		ptr  *string
+	}{
+		{"BAZEL_HOME", &paths.homeDir},
+		{"BAZEL_PATH", &paths.bazelPath},
+		{"BAZEL_OUTPUT_BASE", &paths.outputBase},
+		{"BAZEL_WORKSPACE", &paths.workspaceDir},
+		{"BAZEL_METRICS_DIR", &paths.metricsDir},
+		{"BAZEL_DEPS_FILE", &paths.bazelDepsFile},
+	}
+	for _, v := range vars {
+		if s := c.Getenv(v.name); len(s) > 1 {
+			*v.ptr = s
+		} else {
+			missing = append(missing, v.name)
+		}
+	}
+	if len(missing) > 0 {
+		return nil, fmt.Errorf("missing required env vars to use bazel: %s", missing)
+	}
 	return &bazelContext{
 		bazelRunner:           &builtinBazelRunner{},
-		paths:                 p,
+		paths:                 &paths,
 		requests:              make(map[cqueryKey]bool),
-		modulesDefaultToBazel: modulesDefaultToBazel,
+		modulesDefaultToBazel: c.BuildMode == BazelDevMode,
 		bazelEnabledModules:   enabledModules,
 		bazelDisabledModules:  disabledModules,
 	}, nil
-}
-
-func bazelPathsFromConfig(c *config) (*bazelPaths, error) {
-	p := bazelPaths{
-		soongOutDir: c.soongOutDir,
-	}
-	var missingEnvVars []string
-	if len(c.Getenv("BAZEL_HOME")) > 1 {
-		p.homeDir = c.Getenv("BAZEL_HOME")
-	} else {
-		missingEnvVars = append(missingEnvVars, "BAZEL_HOME")
-	}
-	if len(c.Getenv("BAZEL_PATH")) > 1 {
-		p.bazelPath = c.Getenv("BAZEL_PATH")
-	} else {
-		missingEnvVars = append(missingEnvVars, "BAZEL_PATH")
-	}
-	if len(c.Getenv("BAZEL_OUTPUT_BASE")) > 1 {
-		p.outputBase = c.Getenv("BAZEL_OUTPUT_BASE")
-	} else {
-		missingEnvVars = append(missingEnvVars, "BAZEL_OUTPUT_BASE")
-	}
-	if len(c.Getenv("BAZEL_WORKSPACE")) > 1 {
-		p.workspaceDir = c.Getenv("BAZEL_WORKSPACE")
-	} else {
-		missingEnvVars = append(missingEnvVars, "BAZEL_WORKSPACE")
-	}
-	if len(c.Getenv("BAZEL_METRICS_DIR")) > 1 {
-		p.metricsDir = c.Getenv("BAZEL_METRICS_DIR")
-	} else {
-		missingEnvVars = append(missingEnvVars, "BAZEL_METRICS_DIR")
-	}
-	if len(c.Getenv("BAZEL_DEPS_FILE")) > 1 {
-		p.bazelDepsFile = c.Getenv("BAZEL_DEPS_FILE")
-	} else {
-		missingEnvVars = append(missingEnvVars, "BAZEL_DEPS_FILE")
-	}
-	if len(missingEnvVars) > 0 {
-		return nil, errors.New(fmt.Sprintf("missing required env vars to use bazel: %s", missingEnvVars))
-	} else {
-		return &p, nil
-	}
 }
 
 func (p *bazelPaths) BazelMetricsDir() string {

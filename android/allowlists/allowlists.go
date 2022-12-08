@@ -732,7 +732,6 @@ var (
 
 		// aar support
 		"prebuilt_car-ui-androidx-core-common",         // TODO(b/224773339), genrule dependency creates an .aar, not a .jar
-		"prebuilt_platform-robolectric-4.5.1-prebuilt", // aosp/1999250, needs .aar support in Jars
 		// ERROR: The dependencies for the following 1 jar(s) are not complete.
 		// 1.bazel-out/android_target-fastbuild/bin/prebuilts/tools/common/m2/_aar/robolectric-monitor-1.0.2-alpha1/classes_and_libs_merged.jar
 		"prebuilt_robolectric-monitor-1.0.2-alpha1",
@@ -1350,7 +1349,6 @@ var (
 		"prebuilt_kotlin-stdlib-jdk8",
 		"prebuilt_kotlin-test",
 		// TODO(b/217750501) exclude_files property not supported
-		"prebuilt_platform-robolectric-4.5.1-prebuilt",
 		"prebuilt_currysrc_org.eclipse",
 	}
 
