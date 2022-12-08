@@ -301,3 +301,76 @@ java_system_modules {
         "core-generated-annotation-stubs",
     ],
 }
+
+// Used when compiling higher-level code against art.module.public.api.stubs.
+// This abstraction should come from the inner tree linking against the stubs
+// and not from an "sdk", since parts of this abstraction do not belong to an
+// official API (e.g. stub-annotations).
+//
+// This is only intended for use within core libraries and must not be used
+// from outside.
+java_system_modules {
+    name: "art-module-public-api-stubs-system-modules",
+    visibility: [
+        "//art/build/sdk",
+        "//external/conscrypt",
+        "//external/icu/android_icu4j",
+        "//external/wycheproof",
+    ],
+    libs: [
+        "art.module.public.api.stubs",
+        // This one is not on device but it's needed when javac compiles code
+        // containing lambdas.
+        "core-lambda-stubs-for-system-modules",
+        // This one is not on device but it's needed when javac compiles code
+        // containing @Generated annotations produced by some code generation
+        // tools.
+        // See http://b/123891440.
+        "core-generated-annotation-stubs",
+
+        // Ensure that core libraries that depend on the public API can access
+        // the UnsupportedAppUsage, CorePlatformApi and IntraCoreApi
+        // annotations.
+        "art.module.api.annotations.for.system.modules",
+
+        // Make nullability annotations available when compiling public stubs.
+        // They are provided as a separate library because while the
+        // annotations are not themselves part of the public API provided by
+        // this module they are used in the stubs.
+        "stub-annotations",
+    ],
+}
+
+// Used when compiling higher-level code against art.module.public.api.stubs.module_lib.
+//
+// This is only intended for use within core libraries and must not be used
+// from outside.
+java_system_modules {
+    name: "art-module-lib-api-stubs-system-modules",
+    visibility: [
+        "//art/build/sdk",
+        "//external/conscrypt",
+        "//external/icu/android_icu4j",
+    ],
+    libs: [
+        "art.module.public.api.stubs.module_lib",
+    ],
+}
+
+// Used when compiling against art.module.intra.core.api.stubs.
+java_system_modules {
+    name: "art-module-intra-core-api-stubs-system-modules",
+    visibility: [
+        "//art/build/sdk",
+        "//external/bouncycastle",
+        "//external/conscrypt",
+        "//external/icu/android_icu4j",
+    ],
+    libs: [
+        // The intra core API stubs library.
+        "art.module.intra.core.api.stubs",
+
+        // Additional classes needed by javac but which are not present in the stubs.
+        "art-module-intra-core-api-stubs-system-modules-lib",
+    ],
+}
