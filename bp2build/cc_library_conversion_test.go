@@ -3619,7 +3619,10 @@ cc_library {
 	}{
 		{
 			description: "cc_library with afdo enabled and existing profile",
-			filesystem:  map[string]string{"vendor/google_data/pgo_profile/sampling/foo.afdo": ""},
+			filesystem: map[string]string{
+				"vendor/google_data/pgo_profile/sampling/BUILD":    "",
+				"vendor/google_data/pgo_profile/sampling/foo.afdo": "",
+			},
 			expectedBazelTargets: []string{
 				MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{}),
 				MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
@@ -3629,7 +3632,10 @@ cc_library {
 		},
 		{
 			description: "cc_library with afdo enabled and existing profile in AOSP",
-			filesystem:  map[string]string{"toolchain/pgo-profiles/sampling/foo.afdo": ""},
+			filesystem: map[string]string{
+				"toolchain/pgo-profiles/sampling/BUILD":    "",
+				"toolchain/pgo-profiles/sampling/foo.afdo": "",
+			},
 			expectedBazelTargets: []string{
 				MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{}),
 				MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
@@ -3639,7 +3645,10 @@ cc_library {
 		},
 		{
 			description: "cc_library with afdo enabled but profile filename doesn't match with module name",
-			filesystem:  map[string]string{"toolchain/pgo-profiles/sampling/bar.afdo": ""},
+			filesystem: map[string]string{
+				"toolchain/pgo-profiles/sampling/BUILD":    "",
+				"toolchain/pgo-profiles/sampling/bar.afdo": "",
+			},
 			expectedBazelTargets: []string{
 				MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{}),
 				MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{}),
@@ -3647,6 +3656,16 @@ cc_library {
 		},
 		{
 			description: "cc_library with afdo enabled but profile doesn't exist",
+			expectedBazelTargets: []string{
+				MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{}),
+				MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{}),
+			},
+		},
+		{
+			description: "cc_library with afdo enabled and existing profile but BUILD file doesn't exist",
+			filesystem: map[string]string{
+				"vendor/google_data/pgo_profile/sampling/foo.afdo": "",
+			},
 			expectedBazelTargets: []string{
 				MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{}),
 				MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{}),
