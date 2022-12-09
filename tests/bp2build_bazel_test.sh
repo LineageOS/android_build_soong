@@ -148,7 +148,7 @@ EOF
   # NOTE: We don't actually use the extra BUILD file for anything here
   run_bazel build --config=android --package_path=out/soong/workspace //foo/...
 
-  local the_answer_file="bazel-out/android_target-fastbuild/bin/foo/convertible_soong_module/the_answer.txt"
+  local the_answer_file="bazel-out/android_target-opt/bin/foo/convertible_soong_module/the_answer.txt"
   if [[ ! -f "${the_answer_file}" ]]; then
     fail "Expected '${the_answer_file}' to be generated, but was missing"
   fi
