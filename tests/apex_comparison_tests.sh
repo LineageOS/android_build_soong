@@ -68,10 +68,10 @@ call_bazel build --config=bp2build --config=ci --config=android \
   //system/timezone/apex:com.android.tzdata \
   //build/bazel/examples/apex/minimal:build.bazel.examples.apex.minimal.apex
 
-# Build debugfs separately, as it's not a dep of apexer, but needs to be an explicit arg.
+# # Build debugfs separately, as it's not a dep of apexer, but needs to be an explicit arg.
 call_bazel build --config=bp2build --config=linux_x86_64 //external/e2fsprogs/debugfs //system/apex/tools:deapexer
-DEBUGFS_PATH="$BAZEL_OUT/linux_x86_64-fastbuild/bin/external/e2fsprogs/debugfs/debugfs"
-DEAPEXER="$BAZEL_OUT/linux_x86_64-fastbuild/bin/system/apex/tools/deapexer --debugfs_path=$DEBUGFS_PATH"
+DEBUGFS_PATH="$BAZEL_OUT/linux_x86_64-opt/bin/external/e2fsprogs/debugfs/debugfs"
+DEAPEXER="$BAZEL_OUT/linux_x86_64-opt/bin/system/apex/tools/deapexer --debugfs_path=$DEBUGFS_PATH"
 
 #######
 # Tests
@@ -83,7 +83,7 @@ function compare_deapexer_list() {
 
   # Compare the outputs of `deapexer list`, which lists the contents of the apex filesystem image.
   local SOONG_APEX="$SOONG_OUTPUT_DIR/$APEX"
-  local BAZEL_APEX="$BAZEL_OUT/android_target-fastbuild/bin/$APEX_DIR/$APEX"
+  local BAZEL_APEX="$BAZEL_OUT/android_target-opt/bin/$APEX_DIR/$APEX"
 
   local SOONG_LIST="$OUTPUT_DIR/soong.list"
   local BAZEL_LIST="$OUTPUT_DIR/bazel.list"
