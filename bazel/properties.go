@@ -1207,6 +1207,11 @@ type StringListAttribute struct {
 	// The configured attribute label list Values. Optional
 	// a map of independent configurability axes
 	ConfigurableValues configurableStringLists
+
+	// If a property has struct tag "variant_prepend", this value should
+	// be set to True, so that when bp2build generates BUILD.bazel, variant
+	// properties(select ...) come before general properties.
+	Prepend bool
 }
 
 // IsEmpty returns true if the attribute has no values under any configuration.
@@ -1273,6 +1278,9 @@ func (sla StringListAttribute) HasConfigurableValues() bool {
 // Append appends all values, including os and arch specific ones, from another
 // StringListAttribute to this StringListAttribute
 func (sla *StringListAttribute) Append(other StringListAttribute) *StringListAttribute {
+	if sla.Prepend != other.Prepend {
+		panic(fmt.Errorf("StringListAttribute could not be appended because it has different prepend value"))
+	}
 	sla.Value = append(sla.Value, other.Value...)
 	if sla.ConfigurableValues == nil {
 		sla.ConfigurableValues = make(configurableStringLists)
