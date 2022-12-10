@@ -235,6 +235,12 @@ func (a *apexBundle) buildManifest(ctx android.ModuleContext, provideNativeLibs,
 		optCommands = append(optCommands, "-a jniLibs "+strings.Join(jniLibs, " "))
 	}
 
+	if android.InList(":vndk", requireNativeLibs) {
+		if _, vndkVersion := a.getImageVariationPair(ctx.DeviceConfig()); vndkVersion != "" {
+			optCommands = append(optCommands, "-v vndkVersion "+vndkVersion)
+		}
+	}
+
 	manifestJsonFullOut := android.PathForModuleOut(ctx, "apex_manifest_full.json")
 	defaultVersion := android.DefaultUpdatableModuleVersion
 	if override := ctx.Config().Getenv("OVERRIDE_APEX_MANIFEST_DEFAULT_VERSION"); override != "" {
