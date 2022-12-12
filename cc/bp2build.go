@@ -341,7 +341,7 @@ type baseAttributes struct {
 	compilerAttributes
 	linkerAttributes
 
-	// A combination of compilerAttributes.features and linkerAttributes.features, as well as sanitizer features
+	// A combination of compilerAttributes.features and linkerAttributes.features
 	features        bazel.StringListAttribute
 	protoDependency *bazel.LabelAttribute
 	aidlDependency  *bazel.LabelAttribute
@@ -790,7 +790,7 @@ func bp2BuildParseBaseProps(ctx android.Bp2buildMutatorContext, module *Module) 
 		(&linkerAttrs).wholeArchiveDeps.Add(bp2buildCcSysprop(ctx, module.Name(), module.Properties.Min_sdk_version, compilerAttrs.syspropSrcs))
 	}
 
-	features := compilerAttrs.features.Clone().Append(linkerAttrs.features).Append(bp2buildSanitizerFeatures(ctx, module))
+	features := compilerAttrs.features.Clone().Append(linkerAttrs.features)
 	features.DeduplicateAxesFromBase()
 
 	return baseAttributes{
@@ -1407,21 +1407,4 @@ func bp2buildBinaryLinkerProps(ctx android.BazelConversionPathContext, m *Module
 	})
 
 	return attrs
-}
-
-func bp2buildSanitizerFeatures(ctx android.BazelConversionPathContext, m *Module) bazel.StringListAttribute {
-	sanitizerFeatures := bazel.StringListAttribute{}
-	bp2BuildPropParseHelper(ctx, m, &SanitizeProperties{}, func(axis bazel.ConfigurationAxis, config string, props interface{}) {
-		var features []string
-		if sanitizerProps, ok := props.(*SanitizeProperties); ok {
-			if sanitizerProps.Sanitize.Integer_overflow != nil && *sanitizerProps.Sanitize.Integer_overflow {
-				features = append(features, "ubsan_integer_overflow")
-			}
-			for _, sanitizer := range sanitizerProps.Sanitize.Misc_undefined {
-				features = append(features, "ubsan_"+sanitizer)
-			}
-			sanitizerFeatures.SetSelectValue(axis, config, features)
-		}
-	})
-	return sanitizerFeatures
 }
