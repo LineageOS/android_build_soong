@@ -1367,5 +1367,6 @@ var (
 	// also be built - do not add them to this list.
 	StagingMixedBuildsEnabledList = []string{
 		"com.android.adbd",
+		"adbd_test",
 	}
 )
