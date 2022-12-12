@@ -56,6 +56,8 @@ var PrepareForTestWithJavaBuildComponents = android.GroupFixturePreparers(
 		"build/make/target/product/security": nil,
 		// Required to generate Java used-by API coverage
 		"build/soong/scripts/gen_java_usedby_apex.sh": nil,
+		// Needed for the global lint checks provided from frameworks/base
+		"prebuilts/cmdline-tools/AndroidGlobalLintChecker.jar": nil,
 	}.AddToFixture(),
 )
 
