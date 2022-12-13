@@ -1103,7 +1103,7 @@ func (c *bazelSingleton) GenerateBuildActions(ctx SingletonContext) {
 }
 
 // Register bazel-owned build statements (obtained from the aquery invocation).
-func createCommand(cmd *RuleBuilderCommand, buildStatement bazel.BuildStatement, executionRoot string, bazelOutDir string, ctx PathContext) {
+func createCommand(cmd *RuleBuilderCommand, buildStatement bazel.BuildStatement, executionRoot string, bazelOutDir string, ctx BuilderContext) {
 	// executionRoot is the action cwd.
 	cmd.Text(fmt.Sprintf("cd '%s' &&", executionRoot))
 
@@ -1122,7 +1122,14 @@ func createCommand(cmd *RuleBuilderCommand, buildStatement bazel.BuildStatement,
 	}
 
 	// The actual Bazel action.
-	cmd.Text(buildStatement.Command)
+	if len(buildStatement.Command) > 16*1024 {
+		commandFile := PathForBazelOut(ctx, buildStatement.OutputPaths[0]+".sh")
+		WriteFileRule(ctx, commandFile, buildStatement.Command)
+
+		cmd.Text("bash").Text(buildStatement.OutputPaths[0] + ".sh").Implicit(commandFile)
+	} else {
+		cmd.Text(buildStatement.Command)
+	}
 
 	for _, outputPath := range buildStatement.OutputPaths {
 		cmd.ImplicitOutput(PathForBazelOut(ctx, outputPath))
