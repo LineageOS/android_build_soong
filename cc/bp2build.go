@@ -337,6 +337,19 @@ func bp2BuildParsePrebuiltBinaryProps(ctx android.BazelConversionPathContext, mo
 	}
 }
 
+func bp2BuildParsePrebuiltObjectProps(ctx android.BazelConversionPathContext, module *Module) prebuiltAttributes {
+	var srcLabelAttribute bazel.LabelAttribute
+	bp2BuildPropParseHelper(ctx, module, &prebuiltObjectProperties{}, func(axis bazel.ConfigurationAxis, config string, props interface{}) {
+		if props, ok := props.(*prebuiltObjectProperties); ok {
+			parseSrc(ctx, &srcLabelAttribute, axis, config, props.Srcs)
+		}
+	})
+
+	return prebuiltAttributes{
+		Src: srcLabelAttribute,
+	}
+}
+
 type baseAttributes struct {
 	compilerAttributes
 	linkerAttributes
