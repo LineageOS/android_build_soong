@@ -830,6 +830,7 @@ func (p *prebuiltApexExtractorModule) GenerateAndroidBuildActions(ctx android.Mo
 	srcsSupplier := func(ctx android.BaseModuleContext, prebuilt android.Module) []string {
 		return p.properties.prebuiltSrcs(ctx)
 	}
+	defaultAllowPrerelease := ctx.Config().IsEnvTrue("SOONG_ALLOW_PRERELEASE_APEXES")
 	apexSet := android.SingleSourcePathFromSupplier(ctx, srcsSupplier, "set")
 	p.extractedApex = android.PathForModuleOut(ctx, "extracted", apexSet.Base())
 	// Filter out NativeBridge archs (b/260115309)
@@ -842,7 +843,7 @@ func (p *prebuiltApexExtractorModule) GenerateAndroidBuildActions(ctx android.Mo
 			Output:      p.extractedApex,
 			Args: map[string]string{
 				"abis":              strings.Join(abis, ","),
-				"allow-prereleased": strconv.FormatBool(proptools.Bool(p.properties.Prerelease)),
+				"allow-prereleased": strconv.FormatBool(proptools.BoolDefault(p.properties.Prerelease, defaultAllowPrerelease)),
 				"sdk-version":       ctx.Config().PlatformSdkVersion().String(),
 			},
 		})
