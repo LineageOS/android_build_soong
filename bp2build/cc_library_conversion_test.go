@@ -3603,6 +3603,89 @@ cc_library_static {
 	})
 }
 
+func TestCcLibraryWithAfdoEnabled(t *testing.T) {
+	bp := `
+cc_library {
+	name: "foo",
+	afdo: true,
+	include_build_directory: false,
+}`
+
+	// TODO(b/260714900): Add test case for arch-specific afdo profile
+	testCases := []struct {
+		description          string
+		filesystem           map[string]string
+		expectedBazelTargets []string
+	}{
+		{
+			description: "cc_library with afdo enabled and existing profile",
+			filesystem: map[string]string{
+				"vendor/google_data/pgo_profile/sampling/BUILD":    "",
+				"vendor/google_data/pgo_profile/sampling/foo.afdo": "",
+			},
+			expectedBazelTargets: []string{
+				MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{}),
+				MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+					"fdo_profile": `"//vendor/google_data/pgo_profile/sampling:foo"`,
+				}),
+			},
+		},
+		{
+			description: "cc_library with afdo enabled and existing profile in AOSP",
+			filesystem: map[string]string{
+				"toolchain/pgo-profiles/sampling/BUILD":    "",
+				"toolchain/pgo-profiles/sampling/foo.afdo": "",
+			},
+			expectedBazelTargets: []string{
+				MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{}),
+				MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+					"fdo_profile": `"//toolchain/pgo-profiles/sampling:foo"`,
+				}),
+			},
+		},
+		{
+			description: "cc_library with afdo enabled but profile filename doesn't match with module name",
+			filesystem: map[string]string{
+				"toolchain/pgo-profiles/sampling/BUILD":    "",
+				"toolchain/pgo-profiles/sampling/bar.afdo": "",
+			},
+			expectedBazelTargets: []string{
+				MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{}),
+				MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{}),
+			},
+		},
+		{
+			description: "cc_library with afdo enabled but profile doesn't exist",
+			expectedBazelTargets: []string{
+				MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{}),
+				MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{}),
+			},
+		},
+		{
+			description: "cc_library with afdo enabled and existing profile but BUILD file doesn't exist",
+			filesystem: map[string]string{
+				"vendor/google_data/pgo_profile/sampling/foo.afdo": "",
+			},
+			expectedBazelTargets: []string{
+				MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{}),
+				MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{}),
+			},
+		},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.description, func(t *testing.T) {
+			runCcLibraryTestCase(t, Bp2buildTestCase{
+				ExpectedBazelTargets:       testCase.expectedBazelTargets,
+				ModuleTypeUnderTest:        "cc_library",
+				ModuleTypeUnderTestFactory: cc.LibraryFactory,
+				Description:                testCase.description,
+				Blueprint:                  binaryReplacer.Replace(bp),
+				Filesystem:                 testCase.filesystem,
+			})
+		})
+	}
+}
+
 func TestCcLibraryHeaderAbiChecker(t *testing.T) {
 	runCcLibraryTestCase(t, Bp2buildTestCase{
 		Description:                "cc_library with header abi checker",
