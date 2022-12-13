@@ -14,6 +14,8 @@
 
 package mk2rbc
 
+import "fmt"
+
 // Starlark expression types we use
 type starlarkType int
 
@@ -30,6 +32,25 @@ const (
 	starlarkTypeBool    starlarkType = iota
 	starlarkTypeVoid    starlarkType = iota
 )
+
+func (t starlarkType) String() string {
+	switch t {
+	case starlarkTypeList:
+		return "list"
+	case starlarkTypeString:
+		return "string"
+	case starlarkTypeInt:
+		return "int"
+	case starlarkTypeBool:
+		return "bool"
+	case starlarkTypeVoid:
+		return "void"
+	case starlarkTypeUnknown:
+		return "unknown"
+	default:
+		panic(fmt.Sprintf("Unknown starlark type %d", t))
+	}
+}
 
 type hiddenArgType int
 
