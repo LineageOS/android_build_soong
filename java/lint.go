@@ -366,6 +366,9 @@ func (l *linter) lint(ctx android.ModuleContext) {
 		}
 	}
 
+	l.extraLintCheckJars = append(l.extraLintCheckJars, android.PathForSource(ctx,
+		"prebuilts/cmdline-tools/AndroidGlobalLintChecker.jar"))
+
 	rule := android.NewRuleBuilder(pctx, ctx).
 		Sbox(android.PathForModuleOut(ctx, "lint"),
 			android.PathForModuleOut(ctx, "lint.sbox.textproto")).
