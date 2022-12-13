@@ -32,7 +32,7 @@ func RegisterPrebuiltBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("cc_prebuilt_library_shared", PrebuiltSharedLibraryFactory)
 	ctx.RegisterModuleType("cc_prebuilt_library_static", PrebuiltStaticLibraryFactory)
 	ctx.RegisterModuleType("cc_prebuilt_test_library_shared", PrebuiltSharedTestLibraryFactory)
-	ctx.RegisterModuleType("cc_prebuilt_object", prebuiltObjectFactory)
+	ctx.RegisterModuleType("cc_prebuilt_object", PrebuiltObjectFactory)
 	ctx.RegisterModuleType("cc_prebuilt_binary", PrebuiltBinaryFactory)
 }
 
@@ -572,6 +572,8 @@ func (p *prebuiltObjectLinker) object() bool {
 
 func NewPrebuiltObject(hod android.HostOrDeviceSupported) *Module {
 	module := newObject(hod)
+	module.bazelHandler = &prebuiltObjectBazelHandler{module: module}
+	module.bazelable = true
 	prebuilt := &prebuiltObjectLinker{
 		objectLinker: objectLinker{
 			baseLinker: NewBaseLinker(nil),
@@ -584,7 +586,55 @@ func NewPrebuiltObject(hod android.HostOrDeviceSupported) *Module {
 	return module
 }
 
-func prebuiltObjectFactory() android.Module {
+type prebuiltObjectBazelHandler struct {
+	module *Module
+}
+
+var _ BazelHandler = (*prebuiltObjectBazelHandler)(nil)
+
+func (h *prebuiltObjectBazelHandler) QueueBazelCall(ctx android.BaseModuleContext, label string) {
+	bazelCtx := ctx.Config().BazelContext
+	bazelCtx.QueueBazelRequest(label, cquery.GetOutputFiles, android.GetConfigKey(ctx))
+}
+
+func (h *prebuiltObjectBazelHandler) ProcessBazelQueryResponse(ctx android.ModuleContext, label string) {
+	bazelCtx := ctx.Config().BazelContext
+	outputs, err := bazelCtx.GetOutputFiles(label, android.GetConfigKey(ctx))
+	if err != nil {
+		ctx.ModuleErrorf(err.Error())
+		return
+	}
+	if len(outputs) != 1 {
+		ctx.ModuleErrorf("Expected a single output for `%s`, but got:\n%v", label, outputs)
+		return
+	}
+	out := android.PathForBazelOut(ctx, outputs[0])
+	h.module.outputFile = android.OptionalPathForPath(out)
+	h.module.maybeUnhideFromMake()
+}
+
+type bazelPrebuiltObjectAttributes struct {
+	Src bazel.LabelAttribute
+}
+
+func prebuiltObjectBp2Build(ctx android.TopDownMutatorContext, module *Module) {
+	prebuiltAttrs := bp2BuildParsePrebuiltObjectProps(ctx, module)
+
+	attrs := &bazelPrebuiltObjectAttributes{
+		Src: prebuiltAttrs.Src,
+	}
+
+	props := bazel.BazelTargetModuleProperties{
+		Rule_class:        "cc_prebuilt_object",
+		Bzl_load_location: "//build/bazel/rules/cc:cc_prebuilt_object.bzl",
+	}
+
+	name := android.RemoveOptionalPrebuiltPrefix(module.Name())
+	tags := android.ApexAvailableTags(module)
+	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: name, Tags: tags}, attrs)
+}
+
+func PrebuiltObjectFactory() android.Module {
 	module := NewPrebuiltObject(android.HostAndDeviceSupported)
 	return module.Init()
 }
