@@ -77,6 +77,7 @@ var knownFunctions = map[string]interface {
 	"add-to-product-copy-files-if-exists":  &simpleCallParser{name: baseName + ".copy_if_exists", returnType: starlarkTypeList},
 	"addprefix":                            &simpleCallParser{name: baseName + ".addprefix", returnType: starlarkTypeList},
 	"addsuffix":                            &simpleCallParser{name: baseName + ".addsuffix", returnType: starlarkTypeList},
+	"and":                                  &andOrParser{isAnd: true},
 	"copy-files":                           &simpleCallParser{name: baseName + ".copy_files", returnType: starlarkTypeList},
 	"dir":                                  &simpleCallParser{name: baseName + ".dir", returnType: starlarkTypeString},
 	"dist-for-goals":                       &simpleCallParser{name: baseName + ".mkdist_for_goals", returnType: starlarkTypeVoid, addGlobals: true},
@@ -105,6 +106,7 @@ var knownFunctions = map[string]interface {
 	"math_gt":                              &mathComparisonCallParser{op: ">"},
 	"math_lt":                              &mathComparisonCallParser{op: "<"},
 	"my-dir":                               &myDirCallParser{},
+	"or":                                   &andOrParser{isAnd: false},
 	"patsubst":                             &substCallParser{fname: "patsubst"},
 	"product-copy-files-by-pattern":        &simpleCallParser{name: baseName + ".product_copy_files_by_pattern", returnType: starlarkTypeList},
 	"require-artifacts-in-path":            &simpleCallParser{name: baseName + ".require_artifacts_in_path", returnType: starlarkTypeVoid, addHandle: true},
@@ -114,6 +116,8 @@ var knownFunctions = map[string]interface {
 	"sort":     &simpleCallParser{name: baseName + ".mksort", returnType: starlarkTypeList},
 	"strip":    &simpleCallParser{name: baseName + ".mkstrip", returnType: starlarkTypeString},
 	"subst":    &substCallParser{fname: "subst"},
+	"to-lower": &lowerUpperParser{isUpper: false},
+	"to-upper": &lowerUpperParser{isUpper: true},
 	"warning":  &makeControlFuncParser{name: baseName + ".mkwarning"},
 	"word":     &wordCallParser{},
 	"words":    &wordsCallParser{},
@@ -1430,6 +1434,51 @@ func (p *myDirCallParser) parse(ctx *parseContext, node mkparser.Node, args *mkp
 	return &stringLiteralExpr{literal: filepath.Dir(ctx.script.mkFile)}
 }
 
+type andOrParser struct {
+	isAnd bool
+}
+
+func (p *andOrParser) parse(ctx *parseContext, node mkparser.Node, args *mkparser.MakeString) starlarkExpr {
+	if args.Empty() {
+		return ctx.newBadExpr(node, "and/or function must have at least 1 argument")
+	}
+	op := "or"
+	if p.isAnd {
+		op = "and"
+	}
+
+	argsParsed := make([]starlarkExpr, 0)
+
+	for _, arg := range args.Split(",") {
+		arg.TrimLeftSpaces()
+		arg.TrimRightSpaces()
+		x := ctx.parseMakeString(node, arg)
+		if xBad, ok := x.(*badExpr); ok {
+			return xBad
+		}
+		argsParsed = append(argsParsed, x)
+	}
+	typ := starlarkTypeUnknown
+	for _, arg := range argsParsed {
+		if typ != arg.typ() && arg.typ() != starlarkTypeUnknown && typ != starlarkTypeUnknown {
+			return ctx.newBadExpr(node, "Expected all arguments to $(or) or $(and) to have the same type, found %q and %q", typ.String(), arg.typ().String())
+		}
+		if arg.typ() != starlarkTypeUnknown {
+			typ = arg.typ()
+		}
+	}
+	result := argsParsed[0]
+	for _, arg := range argsParsed[1:] {
+		result = &binaryOpExpr{
+			left:       result,
+			right:      arg,
+			op:         op,
+			returnType: typ,
+		}
+	}
+	return result
+}
+
 type isProductInListCallParser struct{}
 
 func (p *isProductInListCallParser) parse(ctx *parseContext, node mkparser.Node, args *mkparser.MakeString) starlarkExpr {
@@ -1846,6 +1895,24 @@ func (p *evalNodeParser) parse(ctx *parseContext, node mkparser.Node, args *mkpa
 	}
 
 	return []starlarkNode{ctx.newBadNode(node, "Eval expression too complex; only assignments, comments, includes, and inherit-products are supported")}
+}
+
+type lowerUpperParser struct {
+	isUpper bool
+}
+
+func (p *lowerUpperParser) parse(ctx *parseContext, node mkparser.Node, args *mkparser.MakeString) starlarkExpr {
+	fn := "lower"
+	if p.isUpper {
+		fn = "upper"
+	}
+	arg := ctx.parseMakeString(node, args)
+
+	return &callExpr{
+		object:     arg,
+		name:       fn,
+		returnType: starlarkTypeString,
+	}
 }
 
 func (ctx *parseContext) parseMakeString(node mkparser.Node, mk *mkparser.MakeString) starlarkExpr {
