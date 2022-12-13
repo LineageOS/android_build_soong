@@ -78,6 +78,7 @@ var knownFunctions = map[string]interface {
 	"addprefix":                            &simpleCallParser{name: baseName + ".addprefix", returnType: starlarkTypeList},
 	"addsuffix":                            &simpleCallParser{name: baseName + ".addsuffix", returnType: starlarkTypeList},
 	"and":                                  &andOrParser{isAnd: true},
+	"clear-var-list":                       &simpleCallParser{name: baseName + ".clear_var_list", returnType: starlarkTypeVoid, addGlobals: true, addHandle: true},
 	"copy-files":                           &simpleCallParser{name: baseName + ".copy_files", returnType: starlarkTypeList},
 	"dir":                                  &simpleCallParser{name: baseName + ".dir", returnType: starlarkTypeString},
 	"dist-for-goals":                       &simpleCallParser{name: baseName + ".mkdist_for_goals", returnType: starlarkTypeVoid, addGlobals: true},
