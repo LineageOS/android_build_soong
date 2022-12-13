@@ -1661,6 +1661,26 @@ def init(g, handle):
   g["X"] = rblf.mk2rbc_error("product.mk:12", "Expected all arguments to $(or) or $(and) to have the same type, found \"string\" and \"list\"")
 `,
 	},
+	{
+
+		desc:   "is-lower/is-upper",
+		mkname: "product.mk",
+		in: `
+X := $(call to-lower,aBc)
+X := $(call to-upper,aBc)
+X := $(call to-lower,$(VAR))
+X := $(call to-upper,$(VAR))
+`,
+		expected: `load("//build/make/core:product_config.rbc", "rblf")
+
+def init(g, handle):
+  cfg = rblf.cfg(handle)
+  g["X"] = ("aBc").lower()
+  g["X"] = ("aBc").upper()
+  g["X"] = (g.get("VAR", "")).lower()
+  g["X"] = (g.get("VAR", "")).upper()
+`,
+	},
 }
 
 var known_variables = []struct {

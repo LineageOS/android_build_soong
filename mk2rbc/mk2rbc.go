@@ -116,6 +116,8 @@ var knownFunctions = map[string]interface {
 	"sort":     &simpleCallParser{name: baseName + ".mksort", returnType: starlarkTypeList},
 	"strip":    &simpleCallParser{name: baseName + ".mkstrip", returnType: starlarkTypeString},
 	"subst":    &substCallParser{fname: "subst"},
+	"to-lower": &lowerUpperParser{isUpper: false},
+	"to-upper": &lowerUpperParser{isUpper: true},
 	"warning":  &makeControlFuncParser{name: baseName + ".mkwarning"},
 	"word":     &wordCallParser{},
 	"words":    &wordsCallParser{},
@@ -1893,6 +1895,24 @@ func (p *evalNodeParser) parse(ctx *parseContext, node mkparser.Node, args *mkpa
 	}
 
 	return []starlarkNode{ctx.newBadNode(node, "Eval expression too complex; only assignments, comments, includes, and inherit-products are supported")}
+}
+
+type lowerUpperParser struct {
+	isUpper bool
+}
+
+func (p *lowerUpperParser) parse(ctx *parseContext, node mkparser.Node, args *mkparser.MakeString) starlarkExpr {
+	fn := "lower"
+	if p.isUpper {
+		fn = "upper"
+	}
+	arg := ctx.parseMakeString(node, args)
+
+	return &callExpr{
+		object:     arg,
+		name:       fn,
+		returnType: starlarkTypeString,
+	}
 }
 
 func (ctx *parseContext) parseMakeString(node mkparser.Node, mk *mkparser.MakeString) starlarkExpr {
