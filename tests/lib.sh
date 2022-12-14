@@ -150,3 +150,16 @@ info "Mock top: $MOCK_TOP"
 export ALLOW_MISSING_DEPENDENCIES=true
 export ALLOW_BP_UNDER_SYMLINKS=true
 warmup_mock_top
+
+function scan_and_run_tests {
+  # find all test_ functions
+  # NB "declare -F" output is sorted, hence test order is deterministic
+  readarray -t test_fns < <(declare -F | sed -n -e 's/^declare -f \(test_.*\)$/\1/p')
+  info "Found ${#test_fns[*]} tests"
+  if [[ ${#test_fns[*]} -eq 0 ]]; then
+    fail "No tests found"
+  fi
+  for f in ${test_fns[*]}; do
+    $f
+  done
+}

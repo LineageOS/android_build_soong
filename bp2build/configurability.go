@@ -37,10 +37,11 @@ func getStringValue(str bazel.StringAttribute) (reflect.Value, []selects) {
 	return value, []selects{ret}
 }
 
-func getStringListValues(list bazel.StringListAttribute) (reflect.Value, []selects) {
+func getStringListValues(list bazel.StringListAttribute) (reflect.Value, []selects, bool) {
 	value := reflect.ValueOf(list.Value)
+	prepend := reflect.ValueOf(list.Prepend).Bool()
 	if !list.HasConfigurableValues() {
-		return value, []selects{}
+		return value, []selects{}, prepend
 	}
 
 	var ret []selects
@@ -56,7 +57,7 @@ func getStringListValues(list bazel.StringListAttribute) (reflect.Value, []selec
 		}
 	}
 
-	return value, ret
+	return value, ret, prepend
 }
 
 func getLabelValue(label bazel.LabelAttribute) (reflect.Value, []selects) {
@@ -156,6 +157,7 @@ var (
 func prettyPrintAttribute(v bazel.Attribute, indent int) (string, error) {
 	var value reflect.Value
 	var configurableAttrs []selects
+	var prepend bool
 	var defaultSelectValue *string
 	var emitZeroValues bool
 	// If true, print the default attribute value, even if the attribute is zero.
@@ -168,7 +170,7 @@ func prettyPrintAttribute(v bazel.Attribute, indent int) (string, error) {
 		value, configurableAttrs = getStringValue(list)
 		defaultSelectValue = &bazelNone
 	case bazel.StringListAttribute:
-		value, configurableAttrs = getStringListValues(list)
+		value, configurableAttrs, prepend = getStringListValues(list)
 		defaultSelectValue = &emptyBazelList
 	case bazel.LabelListAttribute:
 		value, configurableAttrs = getLabelListValues(list)
@@ -203,22 +205,28 @@ func prettyPrintAttribute(v bazel.Attribute, indent int) (string, error) {
 
 		ret += s
 	}
-	// Convenience function to append selects components to an attribute value.
-	appendSelects := func(selectsData selects, defaultValue *string, s string) (string, error) {
+	// Convenience function to prepend/append selects components to an attribute value.
+	concatenateSelects := func(selectsData selects, defaultValue *string, s string, prepend bool) (string, error) {
 		selectMap, err := prettyPrintSelectMap(selectsData, defaultValue, indent, emitZeroValues)
 		if err != nil {
 			return "", err
 		}
-		if s != "" && selectMap != "" {
-			s += " + "
+		var left, right string
+		if prepend {
+			left, right = selectMap, s
+		} else {
+			left, right = s, selectMap
 		}
-		s += selectMap
+		if left != "" && right != "" {
+			left += " + "
+		}
+		left += right
 
-		return s, nil
+		return left, nil
 	}
 
 	for _, configurableAttr := range configurableAttrs {
-		ret, err = appendSelects(configurableAttr, defaultSelectValue, ret)
+		ret, err = concatenateSelects(configurableAttr, defaultSelectValue, ret, prepend)
 		if err != nil {
 			return "", err
 		}

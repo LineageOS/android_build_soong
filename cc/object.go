@@ -133,6 +133,7 @@ type bazelObjectAttributes struct {
 	Srcs                bazel.LabelListAttribute
 	Srcs_as             bazel.LabelListAttribute
 	Hdrs                bazel.LabelListAttribute
+	Objs                bazel.LabelListAttribute
 	Deps                bazel.LabelListAttribute
 	System_dynamic_deps bazel.LabelListAttribute
 	Copts               bazel.StringListAttribute
@@ -155,6 +156,7 @@ func objectBp2Build(ctx android.TopDownMutatorContext, m *Module) {
 	// Set arch-specific configurable attributes
 	baseAttributes := bp2BuildParseBaseProps(ctx, m)
 	compilerAttrs := baseAttributes.compilerAttributes
+	var objs bazel.LabelListAttribute
 	var deps bazel.LabelListAttribute
 	systemDynamicDeps := bazel.LabelListAttribute{ForceSpecifyEmptyList: true}
 
@@ -167,16 +169,19 @@ func objectBp2Build(ctx android.TopDownMutatorContext, m *Module) {
 					label := android.BazelLabelForModuleSrcSingle(ctx, *objectLinkerProps.Linker_script)
 					linkerScript.SetSelectValue(axis, config, label)
 				}
-				deps.SetSelectValue(axis, config, android.BazelLabelForModuleDeps(ctx, objectLinkerProps.Objs))
+				objs.SetSelectValue(axis, config, android.BazelLabelForModuleDeps(ctx, objectLinkerProps.Objs))
 				systemSharedLibs := objectLinkerProps.System_shared_libs
 				if len(systemSharedLibs) > 0 {
 					systemSharedLibs = android.FirstUniqueStrings(systemSharedLibs)
 				}
 				systemDynamicDeps.SetSelectValue(axis, config, bazelLabelForSharedDeps(ctx, systemSharedLibs))
+				deps.SetSelectValue(axis, config, android.BazelLabelForModuleDeps(ctx, objectLinkerProps.Static_libs))
+				deps.SetSelectValue(axis, config, android.BazelLabelForModuleDeps(ctx, objectLinkerProps.Shared_libs))
+				deps.SetSelectValue(axis, config, android.BazelLabelForModuleDeps(ctx, objectLinkerProps.Header_libs))
 			}
 		}
 	}
-	deps.ResolveExcludes()
+	objs.ResolveExcludes()
 
 	// Don't split cc_object srcs across languages. Doing so would add complexity,
 	// and this isn't typically done for cc_object.
@@ -192,6 +197,7 @@ func objectBp2Build(ctx android.TopDownMutatorContext, m *Module) {
 	attrs := &bazelObjectAttributes{
 		Srcs:                srcs,
 		Srcs_as:             compilerAttrs.asSrcs,
+		Objs:                objs,
 		Deps:                deps,
 		System_dynamic_deps: systemDynamicDeps,
 		Copts:               compilerAttrs.copts,
