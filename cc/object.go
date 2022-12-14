@@ -214,7 +214,12 @@ func objectBp2Build(ctx android.TopDownMutatorContext, m *Module) {
 		Bzl_load_location: "//build/bazel/rules/cc:cc_object.bzl",
 	}
 
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: m.Name()}, attrs)
+	tags := android.ApexAvailableTags(m)
+
+	ctx.CreateBazelTargetModule(props, android.CommonAttributes{
+		Name: m.Name(),
+		Tags: tags,
+	}, attrs)
 }
 
 func (object *objectLinker) appendLdflags(flags []string) {
