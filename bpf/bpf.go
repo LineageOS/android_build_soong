@@ -240,7 +240,7 @@ func (bpf *bpf) AndroidMk() android.AndroidMkData {
 			fmt.Fprintln(w, "include $(CLEAR_VARS)", " # bpf.bpf")
 			fmt.Fprintln(w, "LOCAL_MODULE := ", name)
 			data.Entries.WriteLicenseVariables(w)
-			fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES :=", strings.Join(names, " "))
+			android.AndroidMkEmitAssignList(w, "LOCAL_REQUIRED_MODULES", names)
 			fmt.Fprintln(w, "include $(BUILD_PHONY_PACKAGE)")
 		},
 	}

@@ -337,6 +337,19 @@ func bp2BuildParsePrebuiltBinaryProps(ctx android.BazelConversionPathContext, mo
 	}
 }
 
+func bp2BuildParsePrebuiltObjectProps(ctx android.BazelConversionPathContext, module *Module) prebuiltAttributes {
+	var srcLabelAttribute bazel.LabelAttribute
+	bp2BuildPropParseHelper(ctx, module, &prebuiltObjectProperties{}, func(axis bazel.ConfigurationAxis, config string, props interface{}) {
+		if props, ok := props.(*prebuiltObjectProperties); ok {
+			parseSrc(ctx, &srcLabelAttribute, axis, config, props.Srcs)
+		}
+	})
+
+	return prebuiltAttributes{
+		Src: srcLabelAttribute,
+	}
+}
+
 type baseAttributes struct {
 	compilerAttributes
 	linkerAttributes
@@ -1301,6 +1314,13 @@ func bp2BuildParseExportedIncludes(ctx android.BazelConversionPathContext, modul
 	} else {
 		exported = BazelIncludes{}
 	}
+
+	// cc library Export_include_dirs and Export_system_include_dirs are marked
+	// "variant_prepend" in struct tag, set their prepend property to true to make
+	// sure bp2build generates correct result.
+	exported.Includes.Prepend = true
+	exported.SystemIncludes.Prepend = true
+
 	bp2BuildPropParseHelper(ctx, module, &FlagExporterProperties{}, func(axis bazel.ConfigurationAxis, config string, props interface{}) {
 		if flagExporterProperties, ok := props.(*FlagExporterProperties); ok {
 			if len(flagExporterProperties.Export_include_dirs) > 0 {
