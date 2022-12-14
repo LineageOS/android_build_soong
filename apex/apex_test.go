@@ -9835,11 +9835,11 @@ apex {
 						JavaSymbolsUsedByApex: "foo_using.xml",
 						BundleFile:            "apex_bundle.zip",
 						InstalledFiles:        "installed-files.txt",
+						RequiresLibs:          []string{"//path/c:c", "//path/d:d"},
 
 						// unused
 						PackageName:  "pkg_name",
 						ProvidesLibs: []string{"a", "b"},
-						RequiresLibs: []string{"c", "d"},
 					},
 				},
 			}
@@ -9894,5 +9894,8 @@ apex {
 	}
 	if w := "$(call dist-for-goals,checkbuild,out/bazel/execroot/__main__/installed-files.txt:foo-installed-files.txt)"; !strings.Contains(data, w) {
 		t.Errorf("Expected %q in androidmk data, but did not find %q", w, data)
+	}
+	if w := "LOCAL_REQUIRED_MODULES := c d"; !strings.Contains(data, w) {
+		t.Errorf("Expected %q in androidmk data, but did not find it in %q", w, data)
 	}
 }
