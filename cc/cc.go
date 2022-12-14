@@ -1859,11 +1859,7 @@ func (c *Module) QueueBazelCall(ctx android.BaseModuleContext) {
 }
 
 func (c *Module) IsMixedBuildSupported(ctx android.BaseModuleContext) bool {
-	// TODO(b/261058727): Remove this (enable mised builds for modules with UBSan)
-	ubsanEnabled := c.sanitize != nil &&
-		((c.sanitize.Properties.Sanitize.Integer_overflow != nil && *c.sanitize.Properties.Sanitize.Integer_overflow) ||
-			c.sanitize.Properties.Sanitize.Misc_undefined != nil)
-	return c.bazelHandler != nil && !ubsanEnabled
+	return c.bazelHandler != nil
 }
 
 func (c *Module) ProcessBazelQueryResponse(ctx android.ModuleContext) {

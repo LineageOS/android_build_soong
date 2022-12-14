@@ -17,23 +17,28 @@ set -eu
 # limitations under the License.
 
 # Tool to unpack an apex file and verify that the required files were extracted.
-if [ $# -lt 5 ]; then
-  echo "usage: $0 <deapaxer_path> <debugfs_path> <apex file> <output_dir> <required_files>+" >&2
+if [ $# -lt 7 ]; then
+  echo "usage: $0 <deapaxer_path> <debugfs_path> <blkid_path> <fsck.erofs_path> <apex file> <output_dir> <required_files>+" >&2
   exit 1
 fi
 
 DEAPEXER_PATH=$1
 DEBUGFS_PATH=$2
-APEX_FILE=$3
-OUTPUT_DIR=$4
-shift 4
+BLKID_PATH=$3
+FSCK_EROFS_PATH=$4
+APEX_FILE=$5
+OUTPUT_DIR=$6
+shift 6
 REQUIRED_PATHS=$@
 
 rm -fr $OUTPUT_DIR
 mkdir -p $OUTPUT_DIR
 
 # Unpack the apex file contents.
-$DEAPEXER_PATH --debugfs_path $DEBUGFS_PATH extract $APEX_FILE $OUTPUT_DIR
+$DEAPEXER_PATH --debugfs_path $DEBUGFS_PATH \
+               --blkid_path $BLKID_PATH \
+               --fsckerofs_path $FSCK_EROFS_PATH \
+               extract $APEX_FILE $OUTPUT_DIR
 
 # Verify that the files that the build expects to be in the .apex file actually
 # exist, and make sure they have a fresh mtime to not confuse ninja.
