@@ -1408,6 +1408,13 @@ var (
 	ProdMixedBuildsEnabledList = []string{
 		"com.android.tzdata",
 		"test1_com.android.tzdata",
+		"com.android.adbd",
+		"test_com.android.adbd",
+		"adbd_test",
+		"adb_crypto_test",
+		"adb_pairing_auth_test",
+		"adb_pairing_connection_test",
+		"adb_tls_connection_test",
 	}
 
 	// Staging-mode allowlist. Modules in this list are only built
@@ -1415,12 +1422,5 @@ var (
 	// which will soon be added to the prod allowlist.
 	// It is implicit that all modules in ProdMixedBuildsEnabledList will
 	// also be built - do not add them to this list.
-	StagingMixedBuildsEnabledList = []string{
-		"com.android.adbd",
-		"adbd_test",
-		"adb_crypto_test",
-		"adb_pairing_auth_test",
-		"adb_pairing_connection_test",
-		"adb_tls_connection_test",
-	}
+	StagingMixedBuildsEnabledList = []string{}
 )
