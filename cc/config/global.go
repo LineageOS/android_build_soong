@@ -278,8 +278,6 @@ var (
 		// http://b/145211477
 		"-Wno-pointer-compare",
 		// http://b/145211022
-		"-Wno-xor-used-as-pow",
-		// http://b/145211022
 		"-Wno-final-dtor-non-final-class",
 
 		// http://b/165945989
