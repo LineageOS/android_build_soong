@@ -794,6 +794,7 @@ var (
 		"libstatslog",               // depends on unconverted modules: libstatspull, statsd-aidl-ndk
 		"libstatslog_art",           // depends on unconverted modules: statslog_art.cpp, statslog_art.h
 		"linker_reloc_bench_main",   // depends on unconverted modules: liblinker_reloc_bench_*
+		"malloc-rss-benchmark",      // depends on unconverted modules: libmeminfo
 		"pbtombstone", "crash_dump", // depends on libdebuggerd, libunwindstack
 		"robolectric-sqlite4java-0.282", // depends on unconverted modules: robolectric-sqlite4java-import, robolectric-sqlite4java-native
 		"static_crasher",                // depends on unconverted modules: libdebuggerd_handler
