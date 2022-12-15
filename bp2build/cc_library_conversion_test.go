@@ -1408,7 +1408,6 @@ func makeCcLibraryTargets(name string, attrs AttrNameToString) []string {
 		"linkopts":                 true,
 		"strip":                    true,
 		"inject_bssl_hash":         true,
-		"has_stubs":                true,
 		"stubs_symbol_file":        true,
 		"use_version_lib":          true,
 	}
@@ -2711,7 +2710,6 @@ func TestCcLibraryStaticDisabledForSomeArch(t *testing.T) {
 
 func TestCcLibraryStubs(t *testing.T) {
 	expectedBazelTargets := makeCcLibraryTargets("a", AttrNameToString{
-		"has_stubs":         `True`,
 		"stubs_symbol_file": `"a.map.txt"`,
 	})
 	expectedBazelTargets = append(expectedBazelTargets, makeCcStubSuiteTargets("a", AttrNameToString{
