@@ -145,7 +145,12 @@ func libraryHeadersBp2Build(ctx android.TopDownMutatorContext, module *Module) {
 		Bzl_load_location: "//build/bazel/rules/cc:cc_library_headers.bzl",
 	}
 
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: module.Name()}, attrs)
+	tags := android.ApexAvailableTags(module)
+
+	ctx.CreateBazelTargetModule(props, android.CommonAttributes{
+		Name: module.Name(),
+		Tags: tags,
+	}, attrs)
 }
 
 // Append .contribution suffix to input labels
