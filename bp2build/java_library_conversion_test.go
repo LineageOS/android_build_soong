@@ -685,6 +685,7 @@ func TestJavaLibraryKotlinSrcs(t *testing.T) {
         "c.kt",
     ]`,
 			}),
+			MakeNeverlinkDuplicateTarget("kt_jvm_library", "java-lib-1"),
 		},
 	})
 }
@@ -707,6 +708,7 @@ func TestJavaLibraryKotlinCommonSrcs(t *testing.T) {
     ]`,
 				"common_srcs": `["c.kt"]`,
 			}),
+			MakeNeverlinkDuplicateTarget("kt_jvm_library", "java-lib-1"),
 		},
 	})
 }

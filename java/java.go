@@ -2710,14 +2710,6 @@ func javaLibraryBp2Build(ctx android.TopDownMutatorContext, m *Library) {
 			Rule_class:        "java_library",
 			Bzl_load_location: "//build/bazel/rules/java:library.bzl",
 		}
-
-		ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: name}, attrs)
-		neverlinkProp := true
-		neverLinkAttrs := &javaLibraryAttributes{
-			Exports:   bazel.MakeSingleLabelListAttribute(bazel.Label{Label: ":" + name}),
-			Neverlink: bazel.BoolAttribute{Value: &neverlinkProp},
-		}
-		ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: name + "-neverlink"}, neverLinkAttrs)
 	} else {
 		attrs.Common_srcs = bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrc(ctx, m.properties.Common_srcs))
 
@@ -2725,9 +2717,15 @@ func javaLibraryBp2Build(ctx android.TopDownMutatorContext, m *Library) {
 			Rule_class:        "kt_jvm_library",
 			Bzl_load_location: "@rules_kotlin//kotlin:jvm_library.bzl",
 		}
-		// TODO (b/244210934): create neverlink-duplicate target once kt_jvm_library supports neverlink attribute
-		ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: name}, attrs)
 	}
+
+	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: name}, attrs)
+	neverlinkProp := true
+	neverLinkAttrs := &javaLibraryAttributes{
+		Exports:   bazel.MakeSingleLabelListAttribute(bazel.Label{Label: ":" + name}),
+		Neverlink: bazel.BoolAttribute{Value: &neverlinkProp},
+	}
+	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: name + "-neverlink"}, neverLinkAttrs)
 
 }
 
