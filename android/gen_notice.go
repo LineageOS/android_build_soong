@@ -16,6 +16,7 @@ package android
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/google/blueprint/proptools"
@@ -73,6 +74,7 @@ func (s *genNoticeBuildRules) GenerateBuildActions(ctx SingletonContext) {
 		out(ctx, gm.output, ctx.ModuleName(gm),
 			proptools.StringDefault(gm.properties.ArtifactName, defaultName),
 			[]string{
+				filepath.Join(ctx.Config().OutDir(), "target", "product", ctx.Config().DeviceName()) + "/",
 				ctx.Config().OutDir() + "/",
 				ctx.Config().SoongOutDir() + "/",
 			}, modules...)
