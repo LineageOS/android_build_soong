@@ -93,17 +93,18 @@ func isSnapshotAware(cfg android.DeviceConfig, m LinkableInterface, inProprietar
 	// Libraries
 	if sanitizable, ok := m.(PlatformSanitizeable); ok && sanitizable.IsSnapshotLibrary() {
 		if sanitizable.SanitizePropDefined() {
-			// scs and hwasan export both sanitized and unsanitized variants for static and header
-			// Always use unsanitized variants of them.
-			for _, t := range []SanitizerType{scs, Hwasan} {
-				if !sanitizable.Shared() && sanitizable.IsSanitizerEnabled(t) {
-					return false
-				}
+			// scs exports both sanitized and unsanitized variants for static and header
+			// Always use unsanitized variant of it.
+			if !sanitizable.Shared() && sanitizable.IsSanitizerEnabled(scs) {
+				return false
 			}
-			// cfi also exports both variants. But for static, we capture both.
+			// cfi and hwasan also export both variants. But for static, we capture both.
 			// This is because cfi static libraries can't be linked from non-cfi modules,
-			// and vice versa. This isn't the case for scs and hwasan sanitizers.
-			if !sanitizable.Static() && !sanitizable.Shared() && sanitizable.IsSanitizerEnabled(cfi) {
+			// and vice versa.
+			// hwasan is captured as well to support hwasan build.
+			if !sanitizable.Static() &&
+				!sanitizable.Shared() &&
+				(sanitizable.IsSanitizerEnabled(cfi) || sanitizable.IsSanitizerEnabled(Hwasan)) {
 				return false
 			}
 		}
@@ -303,14 +304,22 @@ var ccSnapshotAction snapshot.GenerateSnapshotAction = func(s snapshot.SnapshotS
 				libPath := m.OutputFile().Path()
 				stem = libPath.Base()
 				if sanitizable, ok := m.(PlatformSanitizeable); ok {
-					if (sanitizable.Static() || sanitizable.Rlib()) && sanitizable.SanitizePropDefined() && sanitizable.IsSanitizerEnabled(cfi) {
-						// both cfi and non-cfi variant for static libraries can exist.
-						// attach .cfi to distinguish between cfi and non-cfi.
-						// e.g. libbase.a -> libbase.cfi.a
-						ext := filepath.Ext(stem)
-						stem = strings.TrimSuffix(stem, ext) + ".cfi" + ext
-						prop.Sanitize = "cfi"
-						prop.ModuleName += ".cfi"
+					if (sanitizable.Static() || sanitizable.Rlib()) && sanitizable.SanitizePropDefined() {
+						if sanitizable.IsSanitizerEnabled(cfi) {
+							// both cfi and non-cfi variant for static libraries can exist.
+							// attach .cfi to distinguish between cfi and non-cfi.
+							// e.g. libbase.a -> libbase.cfi.a
+							ext := filepath.Ext(stem)
+							stem = strings.TrimSuffix(stem, ext) + ".cfi" + ext
+							prop.Sanitize = "cfi"
+							prop.ModuleName += ".cfi"
+						} else if sanitizable.IsSanitizerEnabled(Hwasan) {
+							// Same for the hwasan
+							ext := filepath.Ext(stem)
+							stem = strings.TrimSuffix(stem, ext) + ".hwasan" + ext
+							prop.Sanitize = "hwasan"
+							prop.ModuleName += ".hwasan"
+						}
 					}
 				}
 				snapshotLibOut := filepath.Join(snapshotArchDir, targetArch, libType, stem)

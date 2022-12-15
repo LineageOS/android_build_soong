@@ -1067,6 +1067,11 @@ func (m *Module) SanitizableDepTagChecker() SantizableDependencyTagChecker {
 // as vendor snapshot. Such modules must create both cfi and non-cfi variants,
 // except for ones which explicitly disable cfi.
 func needsCfiForVendorSnapshot(mctx android.BaseModuleContext) bool {
+	if inList("hwaddress", mctx.Config().SanitizeDevice()) {
+		// cfi will not be built if SANITIZE_TARGET=hwaddress is set
+		return false
+	}
+
 	if snapshot.IsVendorProprietaryModule(mctx) {
 		return false
 	}
