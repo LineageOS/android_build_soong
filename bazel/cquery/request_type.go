@@ -227,7 +227,7 @@ func (g getApexInfoType) Name() string {
 //   - The function body should not be indented outside of its own scope.
 func (g getApexInfoType) StarlarkFunctionBody() string {
 	return `
-info = providers(target).get("//build/bazel/rules/apex:apex.bzl%ApexInfo")
+info = providers(target).get("//build/bazel/rules/apex:apex_info.bzl%ApexInfo")
 if not info:
   fail("%s did not provide ApexInfo" % id_string)
 bundle_key_info = info.bundle_key_info

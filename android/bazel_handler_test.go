@@ -129,7 +129,8 @@ func TestInvokeBazelPopulatesBuildStatements(t *testing.T) {
 		}
 
 		cmd := RuleBuilderCommand{}
-		createCommand(&cmd, got[0], "test/exec_root", "test/bazel_out", PathContextForTesting(TestConfig("out", nil, "", nil)))
+		ctx := builderContextForTests{PathContextForTesting(TestConfig("out", nil, "", nil))}
+		createCommand(&cmd, got[0], "test/exec_root", "test/bazel_out", ctx)
 		if actual, expected := cmd.buf.String(), testCase.command; expected != actual {
 			t.Errorf("expected: [%s], actual: [%s]", expected, actual)
 		}
