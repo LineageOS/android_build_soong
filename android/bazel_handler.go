@@ -36,11 +36,6 @@ import (
 )
 
 var (
-	writeBazelFile = pctx.AndroidStaticRule("bazelWriteFileRule", blueprint.RuleParams{
-		Command:        `sed "s/\\\\n/\n/g" ${out}.rsp >${out}`,
-		Rspfile:        "${out}.rsp",
-		RspfileContent: "${content}",
-	}, "content")
 	_                 = pctx.HostBinToolVariable("bazelBuildRunfilesTool", "build-runfiles")
 	buildRunfilesRule = pctx.AndroidStaticRule("bazelBuildRunfiles", blueprint.RuleParams{
 		Command:     "${bazelBuildRunfilesTool} ${in} ${outDir}",
@@ -1089,19 +1084,8 @@ func (c *bazelSingleton) GenerateBuildActions(ctx SingletonContext) {
 		// because this would cause circular dependency. So, until we move aquery processing
 		// to the 'android' package, we need to handle special cases here.
 		if buildStatement.Mnemonic == "FileWrite" || buildStatement.Mnemonic == "SourceSymlinkManifest" {
-			// Pass file contents as the value of the rule's "content" argument.
-			// Escape newlines and $ in the contents (the action "writeBazelFile" restores "\\n"
-			// back to the newline, and Ninja reads $$ as $.
-			escaped := strings.ReplaceAll(strings.ReplaceAll(buildStatement.FileContents, "\n", "\\n"),
-				"$", "$$")
-			ctx.Build(pctx, BuildParams{
-				Rule:        writeBazelFile,
-				Output:      PathForBazelOut(ctx, buildStatement.OutputPaths[0]),
-				Description: fmt.Sprintf("%s %s", buildStatement.Mnemonic, buildStatement.OutputPaths[0]),
-				Args: map[string]string{
-					"content": escaped,
-				},
-			})
+			out := PathForBazelOut(ctx, buildStatement.OutputPaths[0])
+			WriteFileRuleVerbatim(ctx, out, buildStatement.FileContents)
 		} else if buildStatement.Mnemonic == "SymlinkTree" {
 			// build-runfiles arguments are the manifest file and the target directory
 			// where it creates the symlink tree according to this manifest (and then

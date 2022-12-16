@@ -179,13 +179,6 @@ var (
 		Description: "app bundle",
 	}, "abi", "config")
 
-	emitApexContentRule = pctx.StaticRule("emitApexContentRule", blueprint.RuleParams{
-		Command:        `rm -f ${out} && touch ${out} && (. ${out}.emit_commands)`,
-		Rspfile:        "${out}.emit_commands",
-		RspfileContent: "${emit_commands}",
-		Description:    "Emit APEX image content",
-	}, "emit_commands")
-
 	diffApexContentRule = pctx.StaticRule("diffApexContentRule", blueprint.RuleParams{
 		Command: `diff --unchanged-group-format='' \` +
 			`--changed-group-format='%<' \` +
@@ -546,29 +539,20 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 	// to be using this at this moment. Furthermore, this looks very similar to what
 	// buildInstalledFilesFile does. At least, move this to somewhere else so that this doesn't
 	// hurt readability.
-	// TODO(jiyong): use RuleBuilder
 	if a.overridableProperties.Allowed_files != nil {
 		// Build content.txt
-		var emitCommands []string
+		var contentLines []string
 		imageContentFile := android.PathForModuleOut(ctx, "content.txt")
-		emitCommands = append(emitCommands, "echo ./apex_manifest.pb >> "+imageContentFile.String())
+		contentLines = append(contentLines, "./apex_manifest.pb")
 		minSdkVersion := a.minSdkVersion(ctx)
 		if minSdkVersion.EqualTo(android.SdkVersion_Android10) {
-			emitCommands = append(emitCommands, "echo ./apex_manifest.json >> "+imageContentFile.String())
+			contentLines = append(contentLines, "./apex_manifest.json")
 		}
 		for _, fi := range a.filesInfo {
-			emitCommands = append(emitCommands, "echo './"+fi.path()+"' >> "+imageContentFile.String())
+			contentLines = append(contentLines, "./"+fi.path())
 		}
-		emitCommands = append(emitCommands, "sort -o "+imageContentFile.String()+" "+imageContentFile.String())
-		ctx.Build(pctx, android.BuildParams{
-			Rule:        emitApexContentRule,
-			Implicits:   implicitInputs,
-			Output:      imageContentFile,
-			Description: "emit apex image content",
-			Args: map[string]string{
-				"emit_commands": strings.Join(emitCommands, " && "),
-			},
-		})
+		sort.Strings(contentLines)
+		android.WriteFileRule(ctx, imageContentFile, strings.Join(contentLines, "\n"))
 		implicitInputs = append(implicitInputs, imageContentFile)
 
 		// Compare content.txt against allowed_files.
