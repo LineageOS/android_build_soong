@@ -458,6 +458,11 @@ func bp2buildModuleLabel(ctx BazelConversionContext, module blueprint.Module) st
 	return fmt.Sprintf("//%s:%s", moduleDir, moduleName)
 }
 
+// ModuleFromBazelLabel reverses the logic in bp2buildModuleLabel
+func ModuleFromBazelLabel(label string) string {
+	return strings.Split(label, ":")[1]
+}
+
 // BazelOutPath is a Bazel output path compatible to be used for mixed builds within Soong/Ninja.
 type BazelOutPath struct {
 	OutputPath

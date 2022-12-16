@@ -365,6 +365,7 @@ var (
 		"external/guava":/* recursive = */ true,
 		"external/jsr305":/* recursive = */ true,
 		"external/protobuf":/* recursive = */ false,
+		"external/python/absl-py":/* recursive = */ true,
 
 		// this BUILD file is globbed by //external/icu/icu4c/source:icu4c_test_data's "data/**/*".
 		"external/icu/icu4c/source/data/unidata/norm2":/* recursive = */ false,
@@ -1363,8 +1364,9 @@ var (
 	// Staging-mode allowlist. Modules in this list are only built
 	// by Bazel with --bazel-mode-staging. This list should contain modules
 	// which will soon be added to the prod allowlist.
+	// It is implicit that all modules in ProdMixedBuildsEnabledList will
+	// also be built - do not add them to this list.
 	StagingMixedBuildsEnabledList = []string{
 		"com.android.adbd",
-		"com.android.tzdata",
 	}
 )
