@@ -1945,3 +1945,25 @@ func TestJavaApiLibraryJarGeneration(t *testing.T) {
 		}
 	}
 }
+
+func TestTradefedOptions(t *testing.T) {
+	result := PrepareForTestWithJavaBuildComponents.RunTestWithBp(t, `
+java_test_host {
+	name: "foo",
+	test_options: {
+		tradefed_options: [
+			{
+				name: "exclude-path",
+				value: "org/apache"
+			}
+		]
+	}
+}
+`)
+	args := result.ModuleForTests("foo", "linux_glibc_common").
+		Output("out/soong/.intermediates/foo/linux_glibc_common/foo.config").Args
+	expected := proptools.NinjaAndShellEscape("<option name=\"exclude-path\" value=\"org/apache\" />")
+	if args["extraConfigs"] != expected {
+		t.Errorf("Expected args[\"extraConfigs\"] to equal %q, was %q", expected, args["extraConfigs"])
+	}
+}
