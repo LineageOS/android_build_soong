@@ -21,7 +21,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -69,6 +68,26 @@ type Config struct {
 }
 
 type SoongBuildMode int
+
+type CmdArgs struct {
+	bootstrap.Args
+	RunGoTests  bool
+	OutDir      string
+	SoongOutDir string
+
+	SymlinkForestMarker string
+	Bp2buildMarker      string
+	BazelQueryViewDir   string
+	BazelApiBp2buildDir string
+	ModuleGraphFile     string
+	ModuleActionsFile   string
+	DocFile             string
+
+	BazelMode                bool
+	BazelModeDev             bool
+	BazelModeStaging         bool
+	BazelForceEnabledModules string
+}
 
 // Build modes that soong_build can run as.
 const (
@@ -307,7 +326,7 @@ func saveToConfigFile(config *productVariables, filename string) error {
 		return fmt.Errorf("cannot marshal config data: %s", err.Error())
 	}
 
-	f, err := ioutil.TempFile(filepath.Dir(filename), "config")
+	f, err := os.CreateTemp(filepath.Dir(filename), "config")
 	if err != nil {
 		return fmt.Errorf("cannot create empty config file %s: %s", filename, err.Error())
 	}
@@ -404,20 +423,19 @@ func NullConfig(outDir, soongOutDir string) Config {
 
 // NewConfig creates a new Config object. The srcDir argument specifies the path
 // to the root source directory. It also loads the config file, if found.
-func NewConfig(moduleListFile string, buildMode SoongBuildMode, runGoTests bool, outDir, soongOutDir string, availableEnv map[string]string,
-	bazelForceEnabledModules []string) (Config, error) {
+func NewConfig(cmdArgs CmdArgs, availableEnv map[string]string) (Config, error) {
 	// Make a config with default options.
 	config := &config{
-		ProductVariablesFileName: filepath.Join(soongOutDir, productVariablesFileName),
+		ProductVariablesFileName: filepath.Join(cmdArgs.SoongOutDir, productVariablesFileName),
 
 		env: availableEnv,
 
-		outDir:            outDir,
-		soongOutDir:       soongOutDir,
-		runGoTests:        runGoTests,
+		outDir:            cmdArgs.OutDir,
+		soongOutDir:       cmdArgs.SoongOutDir,
+		runGoTests:        cmdArgs.RunGoTests,
 		multilibConflicts: make(map[ArchType]bool),
 
-		moduleListFile:            moduleListFile,
+		moduleListFile:            cmdArgs.ModuleListFile,
 		fs:                        pathtools.NewOsFs(absSrcDir),
 		mixedBuildDisabledModules: make(map[string]struct{}),
 		mixedBuildEnabledModules:  make(map[string]struct{}),
@@ -430,7 +448,7 @@ func NewConfig(moduleListFile string, buildMode SoongBuildMode, runGoTests bool,
 
 	// Soundness check of the build and source directories. This won't catch strange
 	// configurations with symlinks, but at least checks the obvious case.
-	absBuildDir, err := filepath.Abs(soongOutDir)
+	absBuildDir, err := filepath.Abs(cmdArgs.SoongOutDir)
 	if err != nil {
 		return Config{}, err
 	}
@@ -450,7 +468,7 @@ func NewConfig(moduleListFile string, buildMode SoongBuildMode, runGoTests bool,
 		return Config{}, err
 	}
 
-	KatiEnabledMarkerFile := filepath.Join(soongOutDir, ".soong.kati_enabled")
+	KatiEnabledMarkerFile := filepath.Join(cmdArgs.SoongOutDir, ".soong.kati_enabled")
 	if _, err := os.Stat(absolutePath(KatiEnabledMarkerFile)); err == nil {
 		config.katiEnabled = true
 	}
@@ -503,11 +521,32 @@ func NewConfig(moduleListFile string, buildMode SoongBuildMode, runGoTests bool,
 		config.AndroidFirstDeviceTarget = FirstTarget(config.Targets[Android], "lib64", "lib32")[0]
 	}
 
-	config.BuildMode = buildMode
+	if cmdArgs.SymlinkForestMarker != "" {
+		config.BuildMode = SymlinkForest
+	} else if cmdArgs.Bp2buildMarker != "" {
+		config.BuildMode = Bp2build
+	} else if cmdArgs.BazelQueryViewDir != "" {
+		config.BuildMode = GenerateQueryView
+	} else if cmdArgs.BazelApiBp2buildDir != "" {
+		config.BuildMode = ApiBp2build
+	} else if cmdArgs.ModuleGraphFile != "" {
+		config.BuildMode = GenerateModuleGraph
+	} else if cmdArgs.DocFile != "" {
+		config.BuildMode = GenerateDocFile
+	} else if cmdArgs.BazelModeDev {
+		config.BuildMode = BazelDevMode
+	} else if cmdArgs.BazelMode {
+		config.BuildMode = BazelProdMode
+	} else if cmdArgs.BazelModeStaging {
+		config.BuildMode = BazelStagingMode
+	} else {
+		config.BuildMode = AnalysisNoBazel
+	}
+
 	config.BazelContext, err = NewBazelContext(config)
 	config.Bp2buildPackageConfig = GetBp2BuildAllowList()
 
-	for _, module := range bazelForceEnabledModules {
+	for _, module := range strings.Split(cmdArgs.BazelForceEnabledModules, ",") {
 		config.bazelForceEnabledModules[module] = struct{}{}
 	}
 
@@ -1150,7 +1189,7 @@ func (c *config) DexpreoptGlobalConfig(ctx PathContext) ([]byte, error) {
 		return nil, nil
 	}
 	ctx.AddNinjaFileDeps(path.String())
-	return ioutil.ReadFile(absolutePath(path.String()))
+	return os.ReadFile(absolutePath(path.String()))
 }
 
 func (c *deviceConfig) WithDexpreopt() bool {
@@ -1169,7 +1208,7 @@ func (c *config) HasMultilibConflict(arch ArchType) bool {
 	return c.multilibConflicts[arch]
 }
 
-func (c *config) PrebuiltHiddenApiDir(ctx PathContext) string {
+func (c *config) PrebuiltHiddenApiDir(_ PathContext) string {
 	return String(c.productVariables.PrebuiltHiddenApiDir)
 }
 
