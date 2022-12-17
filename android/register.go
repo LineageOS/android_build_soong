@@ -35,7 +35,7 @@ type sortableComponent interface {
 	// tests.
 	componentName() string
 
-	// register registers this component in the supplied context.
+	// registers this component in the supplied context.
 	register(ctx *Context)
 }
 
@@ -124,7 +124,7 @@ func SingletonFactoryAdaptor(ctx *Context, factory SingletonFactory) blueprint.S
 	return func() blueprint.Singleton {
 		singleton := factory()
 		if makevars, ok := singleton.(SingletonMakeVarsProvider); ok {
-			registerSingletonMakeVarsProvider(ctx.config, makevars)
+			ctx.registerSingletonMakeVarsProvider(makevars)
 		}
 		return &singletonAdaptor{Singleton: singleton}
 	}
@@ -206,6 +206,14 @@ func (ctx *Context) Register() {
 
 	singletons := collateGloballyRegisteredSingletons()
 	singletons.registerAll(ctx)
+}
+
+func (ctx *Context) Config() Config {
+	return ctx.config
+}
+
+func (ctx *Context) registerSingletonMakeVarsProvider(makevars SingletonMakeVarsProvider) {
+	registerSingletonMakeVarsProvider(ctx.config, makevars)
 }
 
 func collateGloballyRegisteredSingletons() sortableComponents {
@@ -335,7 +343,7 @@ func (ctx *initRegistrationContext) PreArchMutators(f RegisterMutatorFunc) {
 	PreArchMutators(f)
 }
 
-func (ctx *initRegistrationContext) HardCodedPreArchMutators(f RegisterMutatorFunc) {
+func (ctx *initRegistrationContext) HardCodedPreArchMutators(_ RegisterMutatorFunc) {
 	// Nothing to do as the mutators are hard code in preArch in mutator.go
 }
 
