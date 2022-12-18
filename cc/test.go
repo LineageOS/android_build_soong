@@ -378,12 +378,6 @@ func (test *testBinary) installerProps() []interface{} {
 }
 
 func (test *testBinary) install(ctx ModuleContext, file android.Path) {
-	// TODO: (b/167308193) Switch to /data/local/tests/unrestricted as the default install base.
-	testInstallBase := "/data/local/tmp"
-	if ctx.inVendor() || ctx.useVndk() {
-		testInstallBase = "/data/local/tests/vendor"
-	}
-
 	dataSrcPaths := android.PathsForModuleSrc(ctx, test.Properties.Data)
 
 	for _, dataSrcPath := range dataSrcPaths {
@@ -415,49 +409,9 @@ func (test *testBinary) install(ctx ModuleContext, file android.Path) {
 		}
 	})
 
-	var configs []tradefed.Config
-	for _, module := range test.Properties.Test_mainline_modules {
-		configs = append(configs, tradefed.Option{Name: "config-descriptor:metadata", Key: "mainline-param", Value: module})
-	}
-	if Bool(test.Properties.Require_root) {
-		configs = append(configs, tradefed.Object{"target_preparer", "com.android.tradefed.targetprep.RootTargetPreparer", nil})
-	} else {
-		var options []tradefed.Option
-		options = append(options, tradefed.Option{Name: "force-root", Value: "false"})
-		configs = append(configs, tradefed.Object{"target_preparer", "com.android.tradefed.targetprep.RootTargetPreparer", options})
-	}
-	if Bool(test.Properties.Disable_framework) {
-		var options []tradefed.Option
-		configs = append(configs, tradefed.Object{"target_preparer", "com.android.tradefed.targetprep.StopServicesSetup", options})
-	}
-	if test.isolated(ctx) {
-		configs = append(configs, tradefed.Option{Name: "not-shardable", Value: "true"})
-	}
-	if test.Properties.Test_options.Run_test_as != nil {
-		configs = append(configs, tradefed.Option{Name: "run-test-as", Value: String(test.Properties.Test_options.Run_test_as)})
-	}
-	for _, tag := range test.Properties.Test_options.Test_suite_tag {
-		configs = append(configs, tradefed.Option{Name: "test-suite-tag", Value: tag})
-	}
-	if test.Properties.Test_options.Min_shipping_api_level != nil {
-		if test.Properties.Test_options.Vsr_min_shipping_api_level != nil {
-			ctx.PropertyErrorf("test_options.min_shipping_api_level", "must not be set at the same time as 'vsr_min_shipping_api_level'.")
-		}
-		var options []tradefed.Option
-		options = append(options, tradefed.Option{Name: "min-api-level", Value: strconv.FormatInt(int64(*test.Properties.Test_options.Min_shipping_api_level), 10)})
-		configs = append(configs, tradefed.Object{"module_controller", "com.android.tradefed.testtype.suite.module.ShippingApiLevelModuleController", options})
-	}
-	if test.Properties.Test_options.Vsr_min_shipping_api_level != nil {
-		var options []tradefed.Option
-		options = append(options, tradefed.Option{Name: "vsr-min-api-level", Value: strconv.FormatInt(int64(*test.Properties.Test_options.Vsr_min_shipping_api_level), 10)})
-		configs = append(configs, tradefed.Object{"module_controller", "com.android.tradefed.testtype.suite.module.ShippingApiLevelModuleController", options})
-	}
-	if test.Properties.Test_options.Min_vndk_version != nil {
-		var options []tradefed.Option
-		options = append(options, tradefed.Option{Name: "min-api-level", Value: strconv.FormatInt(int64(*test.Properties.Test_options.Min_vndk_version), 10)})
-		options = append(options, tradefed.Option{Name: "api-level-prop", Value: "ro.vndk.version"})
-		configs = append(configs, tradefed.Object{"module_controller", "com.android.tradefed.testtype.suite.module.MinApiLevelModuleController", options})
-	}
+	useVendor := ctx.inVendor() || ctx.useVndk()
+	testInstallBase := getTestInstallBase(useVendor)
+	configs := getTradefedConfigOptions(ctx, &test.Properties, test.isolated(ctx))
 
 	test.testConfig = tradefed.NewMaybeAutoGenTestConfigBuilder(ctx).
 		SetTestConfigProp(test.Properties.Test_config).
@@ -485,6 +439,63 @@ func (test *testBinary) install(ctx ModuleContext, file android.Path) {
 		test.Properties.Test_options.Unit_test = proptools.BoolPtr(true)
 	}
 	test.binaryDecorator.baseInstaller.install(ctx, file)
+}
+
+func getTestInstallBase(useVendor bool) string {
+	// TODO: (b/167308193) Switch to /data/local/tests/unrestricted as the default install base.
+	testInstallBase := "/data/local/tmp"
+	if useVendor {
+		testInstallBase = "/data/local/tests/vendor"
+	}
+	return testInstallBase
+}
+
+func getTradefedConfigOptions(ctx android.EarlyModuleContext, properties *TestBinaryProperties, isolated bool) []tradefed.Config {
+	var configs []tradefed.Config
+
+	for _, module := range properties.Test_mainline_modules {
+		configs = append(configs, tradefed.Option{Name: "config-descriptor:metadata", Key: "mainline-param", Value: module})
+	}
+	if Bool(properties.Require_root) {
+		configs = append(configs, tradefed.Object{"target_preparer", "com.android.tradefed.targetprep.RootTargetPreparer", nil})
+	} else {
+		var options []tradefed.Option
+		options = append(options, tradefed.Option{Name: "force-root", Value: "false"})
+		configs = append(configs, tradefed.Object{"target_preparer", "com.android.tradefed.targetprep.RootTargetPreparer", options})
+	}
+	if Bool(properties.Disable_framework) {
+		var options []tradefed.Option
+		configs = append(configs, tradefed.Object{"target_preparer", "com.android.tradefed.targetprep.StopServicesSetup", options})
+	}
+	if isolated {
+		configs = append(configs, tradefed.Option{Name: "not-shardable", Value: "true"})
+	}
+	if properties.Test_options.Run_test_as != nil {
+		configs = append(configs, tradefed.Option{Name: "run-test-as", Value: String(properties.Test_options.Run_test_as)})
+	}
+	for _, tag := range properties.Test_options.Test_suite_tag {
+		configs = append(configs, tradefed.Option{Name: "test-suite-tag", Value: tag})
+	}
+	if properties.Test_options.Min_shipping_api_level != nil {
+		if properties.Test_options.Vsr_min_shipping_api_level != nil {
+			ctx.PropertyErrorf("test_options.min_shipping_api_level", "must not be set at the same time as 'vsr_min_shipping_api_level'.")
+		}
+		var options []tradefed.Option
+		options = append(options, tradefed.Option{Name: "min-api-level", Value: strconv.FormatInt(int64(*properties.Test_options.Min_shipping_api_level), 10)})
+		configs = append(configs, tradefed.Object{"module_controller", "com.android.tradefed.testtype.suite.module.ShippingApiLevelModuleController", options})
+	}
+	if properties.Test_options.Vsr_min_shipping_api_level != nil {
+		var options []tradefed.Option
+		options = append(options, tradefed.Option{Name: "vsr-min-api-level", Value: strconv.FormatInt(int64(*properties.Test_options.Vsr_min_shipping_api_level), 10)})
+		configs = append(configs, tradefed.Object{"module_controller", "com.android.tradefed.testtype.suite.module.ShippingApiLevelModuleController", options})
+	}
+	if properties.Test_options.Min_vndk_version != nil {
+		var options []tradefed.Option
+		options = append(options, tradefed.Option{Name: "min-api-level", Value: strconv.FormatInt(int64(*properties.Test_options.Min_vndk_version), 10)})
+		options = append(options, tradefed.Option{Name: "api-level-prop", Value: "ro.vndk.version"})
+		configs = append(configs, tradefed.Object{"module_controller", "com.android.tradefed.testtype.suite.module.MinApiLevelModuleController", options})
+	}
+	return configs
 }
 
 func NewTest(hod android.HostOrDeviceSupported, bazelable bool) *Module {
@@ -660,6 +671,7 @@ type testBinaryAttributes struct {
 	Isolated bool
 
 	tidyAttributes
+	tradefed.TestConfigAttributes
 }
 
 // testBinaryBp2build is the bp2build converter for cc_test modules. A cc_test's
@@ -670,7 +682,6 @@ type testBinaryAttributes struct {
 // TODO(b/244432609): handle `isolated` property.
 // TODO(b/244432134): handle custom runpaths for tests that assume runfile layouts not
 // default to bazel. (see linkerInit function)
-// TODO(b/244432500): handle test.testConfig generation (see install function)
 func testBinaryBp2build(ctx android.TopDownMutatorContext, m *Module) {
 	var testBinaryAttrs testBinaryAttributes
 	testBinaryAttrs.binaryAttributes = binaryBp2buildAttrs(ctx, m)
@@ -703,6 +714,25 @@ func testBinaryBp2build(ctx android.TopDownMutatorContext, m *Module) {
 		}
 	}
 
+	for _, testProps := range m.GetProperties() {
+		if p, ok := testProps.(*TestBinaryProperties); ok {
+			useVendor := false // TODO Bug: 262914724
+			testInstallBase := getTestInstallBase(useVendor)
+			testConfigAttributes := tradefed.GetTestConfigAttributes(
+				ctx,
+				p.Test_config,
+				p.Test_options.Extra_test_configs,
+				p.Auto_gen_config,
+				p.Test_options.Test_suite_tag,
+				p.Test_config_template,
+				getTradefedConfigOptions(ctx, p, testBinaryAttrs.Isolated),
+				&testInstallBase,
+			)
+			testBinaryAttrs.TestConfigAttributes = testConfigAttributes
+		}
+	}
+
+	// TODO (b/262914724): convert to tradefed_cc_test and tradefed_cc_test_host
 	ctx.CreateBazelTargetModule(
 		bazel.BazelTargetModuleProperties{
 			Rule_class:        "cc_test",
