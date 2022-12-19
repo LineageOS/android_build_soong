@@ -800,6 +800,8 @@ func collectAppDeps(ctx android.ModuleContext, app appDepsInterface,
 						unstrippedFile: dep.UnstrippedOutputFile(),
 						partition:      dep.Partition(),
 					})
+				} else if ctx.Config().AllowMissingDependencies() {
+					ctx.AddMissingDependencies([]string{otherName})
 				} else {
 					ctx.ModuleErrorf("dependency %q missing output file", otherName)
 				}
