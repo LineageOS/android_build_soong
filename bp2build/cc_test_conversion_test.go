@@ -26,6 +26,7 @@ import (
 type ccTestBp2buildTestCase struct {
 	description string
 	blueprint   string
+	filesystem  map[string]string
 	targets     []testBazelTarget
 }
 
@@ -41,12 +42,12 @@ func registerCcTestModuleTypes(ctx android.RegistrationContext) {
 func runCcTestTestCase(t *testing.T, testCase ccTestBp2buildTestCase) {
 	t.Helper()
 	moduleTypeUnderTest := "cc_test"
-
 	description := fmt.Sprintf("%s %s", moduleTypeUnderTest, testCase.description)
 	t.Run(description, func(t *testing.T) {
 		t.Helper()
 		RunBp2BuildTestCase(t, registerCcTestModuleTypes, Bp2buildTestCase{
 			ExpectedBazelTargets:       generateBazelTargetsForTest(testCase.targets, android.HostAndDeviceSupported),
+			Filesystem:                 testCase.filesystem,
 			ModuleTypeUnderTest:        moduleTypeUnderTest,
 			ModuleTypeUnderTestFactory: cc.TestFactory,
 			Description:                description,
@@ -167,6 +168,93 @@ cc_test {
 				"srcs":           `["test.cpp"]`,
 				"gtest":          "True",
 				"isolated":       "True",
+			},
+			},
+		},
+	})
+}
+
+func TestCcTest_TestConfig(t *testing.T) {
+	runCcTestTestCase(t, ccTestBp2buildTestCase{
+		description: "cc test that sets a test_config",
+		filesystem: map[string]string{
+			"test_config.xml": "",
+		},
+		blueprint: `
+cc_test {
+	name: "mytest",
+	srcs: ["test.cpp"],
+	test_config: "test_config.xml",
+}
+`,
+		targets: []testBazelTarget{
+			{"cc_test", "mytest", AttrNameToString{
+				"gtest":                  "True",
+				"isolated":               "True",
+				"local_includes":         `["."]`,
+				"srcs":                   `["test.cpp"]`,
+				"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
+				"test_config":            `"test_config.xml"`,
+			},
+			},
+		},
+	})
+}
+
+func TestCcTest_TestConfigAndroidTestXML(t *testing.T) {
+	runCcTestTestCase(t, ccTestBp2buildTestCase{
+		description: "cc test that defaults to test config AndroidTest.xml",
+		filesystem: map[string]string{
+			"AndroidTest.xml": "",
+		},
+		blueprint: `
+cc_test {
+	name: "mytest",
+	srcs: ["test.cpp"],
+}
+`,
+		targets: []testBazelTarget{
+			{"cc_test", "mytest", AttrNameToString{
+				"gtest":                  "True",
+				"isolated":               "True",
+				"local_includes":         `["."]`,
+				"srcs":                   `["test.cpp"]`,
+				"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
+				"test_config":            `"AndroidTest.xml"`,
+			},
+			},
+		},
+	})
+}
+
+func TestCcTest_TestConfigTemplateOptions(t *testing.T) {
+	runCcTestTestCase(t, ccTestBp2buildTestCase{
+		description: "cc test that sets test config template attributes",
+		filesystem: map[string]string{
+			"test_config_template.xml": "",
+		},
+		blueprint: `
+cc_test {
+	name: "mytest",
+	srcs: ["test.cpp"],
+	test_config_template: "test_config_template.xml",
+	auto_gen_config: true,
+}
+`,
+		targets: []testBazelTarget{
+			{"cc_test", "mytest", AttrNameToString{
+				"auto_generate_test_config": "True",
+				"gtest":                     "True",
+				"isolated":                  "True",
+				"local_includes":            `["."]`,
+				"srcs":                      `["test.cpp"]`,
+				"target_compatible_with":    `["//build/bazel/platforms/os:android"]`,
+				"template_configs": `[
+        "'<target_preparer class=\"com.android.tradefed.targetprep.RootTargetPreparer\">\\n        <option name=\"force-root\" value=\"false\" />\\n    </target_preparer>'",
+        "'<option name=\"not-shardable\" value=\"true\" />'",
+    ]`,
+				"template_install_base": `"/data/local/tmp"`,
+				"template_test_config":  `"test_config_template.xml"`,
 			},
 			},
 		},
