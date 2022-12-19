@@ -630,15 +630,8 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 
 	// Also disable CFI for VNDK variants of components
 	if ctx.isVndk() && ctx.useVndk() {
-		if ctx.static() {
-			// Cfi variant for static vndk should be captured as vendor snapshot,
-			// so don't strictly disable Cfi.
-			s.Cfi = nil
-			s.Diag.Cfi = nil
-		} else {
-			s.Cfi = nil
-			s.Diag.Cfi = nil
-		}
+		s.Cfi = nil
+		s.Diag.Cfi = nil
 	}
 
 	// HWASan ramdisk (which is built from recovery) goes over some bootloader limit.
@@ -1168,10 +1161,12 @@ func (s *sanitizerSplitMutator) Split(ctx android.BaseModuleContext) []string {
 		//TODO: When Rust modules have vendor support, enable this path for PlatformSanitizeable
 
 		// Check if it's a snapshot module supporting sanitizer
-		if ss, ok := c.linker.(snapshotSanitizer); ok && ss.isSanitizerAvailable(s.sanitizer) {
-			return []string{"", s.sanitizer.variationName()}
-		} else {
-			return []string{""}
+		if ss, ok := c.linker.(snapshotSanitizer); ok {
+			if ss.isSanitizerAvailable(s.sanitizer) {
+				return []string{"", s.sanitizer.variationName()}
+			} else {
+				return []string{""}
+			}
 		}
 	}
 

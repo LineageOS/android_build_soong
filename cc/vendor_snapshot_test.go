@@ -1050,6 +1050,12 @@ func TestVendorSnapshotSanitizer(t *testing.T) {
 					"libsnapshot",
 					"note_memtag_heap_sync",
 				],
+				objects: [
+					"snapshot_object",
+				],
+				vndk_libs: [
+					"libclang_rt.hwasan",
+				],
 			},
 		},
 	}
@@ -1084,6 +1090,35 @@ func TestVendorSnapshotSanitizer(t *testing.T) {
 		},
 	}
 
+	vndk_prebuilt_shared {
+		name: "libclang_rt.hwasan",
+		version: "28",
+		target_arch: "arm64",
+		vendor_available: true,
+		product_available: true,
+		vndk: {
+			enabled: true,
+		},
+		arch: {
+			arm64: {
+				srcs: ["libclang_rt.hwasan.so"],
+			},
+		},
+	}
+
+	vendor_snapshot_object {
+		name: "snapshot_object",
+		vendor: true,
+		target_arch: "arm64",
+		version: "28",
+		arch: {
+			arm64: {
+				src: "snapshot_object.o",
+			},
+		},
+		stl: "none",
+	}
+
 	cc_test {
 		name: "vstest",
 		gtest: false,
@@ -1100,15 +1135,18 @@ func TestVendorSnapshotSanitizer(t *testing.T) {
 	mockFS := map[string][]byte{
 		"vendor/Android.bp":              []byte(bp),
 		"vendor/libc++demangle.a":        nil,
+		"vendor/libclang_rt.hwasan.so":   nil,
 		"vendor/libsnapshot.a":           nil,
 		"vendor/libsnapshot.cfi.a":       nil,
 		"vendor/libsnapshot.hwasan.a":    nil,
 		"vendor/note_memtag_heap_sync.a": nil,
+		"vendor/snapshot_object.o":       nil,
 	}
 
 	config := TestConfig(t.TempDir(), android.Android, nil, "", mockFS)
 	config.TestProductVariables.DeviceVndkVersion = StringPtr("28")
 	config.TestProductVariables.Platform_vndk_version = StringPtr("29")
+	config.TestProductVariables.SanitizeDevice = []string{"hwaddress"}
 	ctx := testCcWithConfig(t, config)
 
 	// Check non-cfi, cfi and hwasan variant.
@@ -1130,6 +1168,11 @@ func TestVendorSnapshotSanitizer(t *testing.T) {
 	if !staticHwasanCfiModule.HiddenFromMake() || !staticHwasanCfiModule.PreventInstall() {
 		t.Errorf("Hwasan and Cfi cannot enabled at the same time.")
 	}
+
+	snapshotObjModule := ctx.ModuleForTests("snapshot_object.vendor_object.28.arm64", "android_vendor.28_arm64_armv8-a").Module()
+	snapshotObjMkEntries := android.AndroidMkEntriesForTest(t, ctx, snapshotObjModule)
+	// snapshot object must not add ".hwasan" suffix
+	assertString(t, snapshotObjMkEntries[0].EntryMap["LOCAL_MODULE"][0], "snapshot_object")
 }
 
 func TestVendorSnapshotExclude(t *testing.T) {
