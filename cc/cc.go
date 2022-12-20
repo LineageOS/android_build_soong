@@ -1858,7 +1858,22 @@ func (c *Module) QueueBazelCall(ctx android.BaseModuleContext) {
 	c.bazelHandler.QueueBazelCall(ctx, c.getBazelModuleLabel(ctx))
 }
 
+var (
+	mixedBuildSupportedCcTest = []string{
+		"adbd_test",
+	}
+)
+
+// IsMixedBuildSupported returns true if the module should be analyzed by Bazel
+// in any of the --bazel-mode(s). This filters at the module level and takes
+// precedence over the allowlists in allowlists/allowlists.go.
 func (c *Module) IsMixedBuildSupported(ctx android.BaseModuleContext) bool {
+	if c.testBinary() && !android.InList(c.Name(), mixedBuildSupportedCcTest) {
+		// Per-module rollout of mixed-builds for cc_test modules.
+		return false
+	}
+
+	// Enable mixed builds as long as the cc_* module type has a bazel handler.
 	return c.bazelHandler != nil
 }
 
@@ -1888,6 +1903,8 @@ func (c *Module) ProcessBazelQueryResponse(ctx android.ModuleContext) {
 	}
 	mctx.ctx = mctx
 
+	// TODO(b/244432500): Get the tradefed config from the bazel target instead
+	// of generating it with Soong.
 	c.maybeInstall(mctx, apexInfo)
 }
 
@@ -2038,6 +2055,9 @@ func (c *Module) maybeUnhideFromMake() {
 	}
 }
 
+// maybeInstall is called at the end of both GenerateAndroidBuildActions and
+// ProcessBazelQueryResponse to run the install hooks for installable modules,
+// like binaries and tests.
 func (c *Module) maybeInstall(ctx ModuleContext, apexInfo android.ApexInfo) {
 	if !proptools.BoolDefault(c.Installable(), true) {
 		// If the module has been specifically configure to not be installed then
