@@ -453,17 +453,23 @@ func libraryBp2Build(ctx android.TopDownMutatorContext, m *Module) {
 		Bzl_load_location: "//build/bazel/rules/cc:cc_library_shared.bzl",
 	}
 
-	tags := android.ApexAvailableTags(m)
+	var tagsForStaticVariant bazel.StringListAttribute
+	if compilerAttrs.stubsSymbolFile == nil && len(compilerAttrs.stubsVersions.Value) == 0 {
+		tagsForStaticVariant = android.ApexAvailableTags(m)
+	}
+
+	tagsForSharedVariant := android.ApexAvailableTags(m)
+
 	ctx.CreateBazelTargetModuleWithRestrictions(staticProps,
 		android.CommonAttributes{
 			Name: m.Name() + "_bp2build_cc_library_static",
-			Tags: tags,
+			Tags: tagsForStaticVariant,
 		},
 		staticTargetAttrs, staticAttrs.Enabled)
 	ctx.CreateBazelTargetModuleWithRestrictions(sharedProps,
 		android.CommonAttributes{
 			Name: m.Name(),
-			Tags: tags,
+			Tags: tagsForSharedVariant,
 		},
 		sharedTargetAttrs, sharedAttrs.Enabled)
 
