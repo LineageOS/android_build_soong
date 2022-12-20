@@ -1201,7 +1201,7 @@ func getConfigString(key cqueryKey) string {
 		}
 	}
 	osName := key.configKey.osType.Name
-	if len(osName) == 0 || osName == "common_os" || osName == "linux_glibc" {
+	if len(osName) == 0 || osName == "common_os" || osName == "linux_glibc" || osName == "linux_musl" {
 		// Use host OS, which is currently hardcoded to be linux.
 		osName = "linux"
 	}
