@@ -644,6 +644,8 @@ func binaryBp2buildAttrs(ctx android.TopDownMutatorContext, m *Module) binaryAtt
 		Features: baseAttrs.features,
 
 		sdkAttributes: bp2BuildParseSdkAttributes(m),
+
+		Native_coverage: baseAttrs.Native_coverage,
 	}
 
 	m.convertTidyAttributes(ctx, &attrs.tidyAttributes)
@@ -703,4 +705,6 @@ type binaryAttributes struct {
 	sdkAttributes
 
 	tidyAttributes
+
+	Native_coverage *bool
 }
