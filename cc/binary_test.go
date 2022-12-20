@@ -22,6 +22,7 @@ import (
 )
 
 func TestCcBinaryWithBazel(t *testing.T) {
+	t.Parallel()
 	bp := `
 cc_binary {
 	name: "foo",
@@ -55,6 +56,7 @@ cc_binary {
 }
 
 func TestBinaryLinkerScripts(t *testing.T) {
+	t.Parallel()
 	result := PrepareForIntegrationTestWithCc.RunTestWithBp(t, `
 		cc_binary {
 			name: "foo",
