@@ -1875,6 +1875,17 @@ func (a *apexBundle) QueueBazelCall(ctx android.BaseModuleContext) {
 	bazelCtx.QueueBazelRequest(a.GetBazelLabel(ctx, a), cquery.GetApexInfo, android.GetConfigKey(ctx))
 }
 
+// GetBazelLabel returns the bazel label of this apexBundle, or the label of the
+// override_apex module overriding this apexBundle. An apexBundle can be
+// overridden by different override_apex modules (e.g. Google or Go variants),
+// which is handled by the overrides mutators.
+func (a *apexBundle) GetBazelLabel(ctx android.BazelConversionPathContext, module blueprint.Module) string {
+	if _, ok := ctx.Module().(android.OverridableModule); ok {
+		return android.MaybeBp2buildLabelOfOverridingModule(ctx)
+	}
+	return a.BazelModuleBase.GetBazelLabel(ctx, a)
+}
+
 func (a *apexBundle) ProcessBazelQueryResponse(ctx android.ModuleContext) {
 	if !a.commonBuildActions(ctx) {
 		return

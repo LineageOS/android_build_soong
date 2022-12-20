@@ -455,6 +455,9 @@ func samePackage(label1, label2 string) bool {
 func bp2buildModuleLabel(ctx BazelConversionContext, module blueprint.Module) string {
 	moduleName := ctx.OtherModuleName(module)
 	moduleDir := ctx.OtherModuleDir(module)
+	if moduleDir == Bp2BuildTopLevel {
+		moduleDir = ""
+	}
 	return fmt.Sprintf("//%s:%s", moduleDir, moduleName)
 }
 
