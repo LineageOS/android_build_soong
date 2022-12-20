@@ -149,8 +149,8 @@ cc_library {
             "android.cpp",
         ],
         "//build/bazel/platforms/os:darwin": ["darwin.cpp"],
-        "//build/bazel/platforms/os:linux": ["linux.cpp"],
         "//build/bazel/platforms/os:linux_bionic": ["bionic.cpp"],
+        "//build/bazel/platforms/os:linux_glibc": ["linux.cpp"],
         "//conditions:default": [],
     })`,
 			"sdk_version":                       `"current"`,
@@ -1927,13 +1927,13 @@ cc_library {
             "android.cpp",
         ],
         "//build/bazel/platforms/os:darwin": ["darwin.cpp"],
-        "//build/bazel/platforms/os:linux": [
-            "linux.cpp",
-            "linux_glibc.cpp",
-        ],
         "//build/bazel/platforms/os:linux_bionic": [
             "linux.cpp",
             "bionic.cpp",
+        ],
+        "//build/bazel/platforms/os:linux_glibc": [
+            "linux.cpp",
+            "linux_glibc.cpp",
         ],
         "//build/bazel/platforms/os:linux_musl": [
             "linux.cpp",
@@ -3011,15 +3011,15 @@ cc_library {
 		ExpectedBazelTargets: makeCcLibraryTargets("foolib", AttrNameToString{
 			"implementation_dynamic_deps": `select({
         "//build/bazel/platforms/os:darwin": [":bazlib"],
-        "//build/bazel/platforms/os:linux": [":bazlib"],
         "//build/bazel/platforms/os:linux_bionic": [":bazlib"],
+        "//build/bazel/platforms/os:linux_glibc": [":bazlib"],
         "//build/bazel/platforms/os:linux_musl": [":bazlib"],
         "//build/bazel/platforms/os:windows": [":bazlib"],
         "//conditions:default": [],
     }) + select({
         "//build/bazel/platforms/os:darwin": [":quxlib"],
-        "//build/bazel/platforms/os:linux": [":quxlib"],
         "//build/bazel/platforms/os:linux_bionic": [":quxlib"],
+        "//build/bazel/platforms/os:linux_glibc": [":quxlib"],
         "//build/bazel/platforms/os:linux_musl": [":quxlib"],
         "//build/bazel/platforms/os:windows": [":quxlib"],
         "//build/bazel/rules/apex:android-in_apex": [
