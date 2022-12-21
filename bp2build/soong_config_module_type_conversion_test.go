@@ -32,6 +32,7 @@ func registerSoongConfigModuleTypes(ctx android.RegistrationContext) {
 	android.RegisterSoongConfigModuleBuildComponents(ctx)
 
 	ctx.RegisterModuleType("cc_library", cc.LibraryFactory)
+	ctx.RegisterModuleType("custom", customModuleFactoryHostAndDevice)
 }
 
 func TestErrorInBpFileDoesNotPanic(t *testing.T) {
@@ -606,6 +607,55 @@ cc_library_static {
     }),
     local_includes = ["."],
 )`}})
+}
+
+func TestSoongConfigModuleType_Defaults_UseBaselineValueForStringProp(t *testing.T) {
+	bp := `
+soong_config_string_variable {
+    name: "library_linking_strategy",
+    values: [
+        "prefer_static",
+    ],
+}
+
+soong_config_module_type {
+    name: "library_linking_strategy_custom",
+    module_type: "custom",
+    config_namespace: "ANDROID",
+    variables: ["library_linking_strategy"],
+    properties: [
+        "string_literal_prop",
+    ],
+}
+
+library_linking_strategy_custom {
+    name: "foo",
+    string_literal_prop: "29",
+    soong_config_variables: {
+        library_linking_strategy: {
+            prefer_static: {},
+            conditions_default: {
+              string_literal_prop: "30",
+            },
+        },
+    },
+}`
+
+	runSoongConfigModuleTypeTest(t, Bp2buildTestCase{
+		Description:                "soong config variables - generates selects for library_linking_strategy",
+		ModuleTypeUnderTest:        "cc_binary",
+		ModuleTypeUnderTestFactory: cc.BinaryFactory,
+		Blueprint:                  bp,
+		Filesystem:                 map[string]string{},
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("custom", "foo", AttrNameToString{
+				"string_literal_prop": `select({
+        "//build/bazel/product_variables:android__library_linking_strategy__prefer_static": "29",
+        "//conditions:default": "30",
+    })`,
+			}),
+		},
+	})
 }
 
 func TestSoongConfigModuleType_UnsetConditions(t *testing.T) {
