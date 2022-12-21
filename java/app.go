@@ -170,6 +170,10 @@ type AndroidApp struct {
 	android.ApexBundleDepsInfo
 
 	javaApiUsedByOutputFile android.ModuleOutPath
+
+	// List of additional package names to generate RROs for
+	// Useful for original-package, dev APKs, etc.
+	additionalRroPackageNames []string
 }
 
 func (a *AndroidApp) IsInstallable() bool {

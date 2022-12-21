@@ -407,6 +407,10 @@ func (app *AndroidApp) AndroidMkEntries() []android.AndroidMkEntries {
 				}
 
 				entries.SetOptionalPaths("LOCAL_SOONG_LINT_REPORTS", app.linter.reports)
+
+				if app.additionalRroPackageNames != nil {
+					entries.AddStrings("LOCAL_ADDITIONAL_RRO_PACKAGE_NAMES", app.additionalRroPackageNames...)
+				}
 			},
 		},
 		ExtraFooters: []android.AndroidMkExtraFootersFunc{
