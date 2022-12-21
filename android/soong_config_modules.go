@@ -382,13 +382,13 @@ func loadSoongConfigModuleTypeDefinition(ctx LoadHookContext, from string) map[s
 		defer r.Close()
 
 		mtDef, errs := soongconfig.Parse(r, from)
-		if ctx.Config().BuildMode == Bp2build {
-			ctx.Config().Bp2buildSoongConfigDefinitions.AddVars(*mtDef)
-		}
-
 		if len(errs) > 0 {
 			reportErrors(ctx, from, errs...)
 			return (map[string]blueprint.ModuleFactory)(nil)
+		}
+
+		if ctx.Config().BuildMode == Bp2build {
+			ctx.Config().Bp2buildSoongConfigDefinitions.AddVars(*mtDef)
 		}
 
 		globalModuleTypes := ctx.moduleFactories()

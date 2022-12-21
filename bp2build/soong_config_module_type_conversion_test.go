@@ -17,6 +17,7 @@ package bp2build
 import (
 	"android/soong/android"
 	"android/soong/cc"
+	"fmt"
 	"testing"
 )
 
@@ -34,6 +35,29 @@ func registerSoongConfigModuleTypes(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("soong_config_bool_variable", android.SoongConfigBoolVariableDummyFactory)
 
 	ctx.RegisterModuleType("cc_library", cc.LibraryFactory)
+}
+
+func TestErrorInBpFileDoesNotPanic(t *testing.T) {
+	bp := `
+soong_config_module_type {
+    name: "library_linking_strategy_cc_defaults",
+    module_type: "cc_defaults",
+    config_namespace: "ANDROID",
+    variables: ["library_linking_strategy"],
+    properties: [
+        "shared_libs",
+        "static_libs",
+    ],
+}
+`
+
+	runSoongConfigModuleTypeTest(t, Bp2buildTestCase{
+		Description:                "soong config variables - generates selects for library_linking_strategy",
+		ModuleTypeUnderTest:        "cc_binary",
+		ModuleTypeUnderTestFactory: cc.BinaryFactory,
+		Blueprint:                  bp,
+		ExpectedErr:                fmt.Errorf(`unknown variable "library_linking_strategy" in module type "library_linking_strategy_cc_defaults`),
+	})
 }
 
 func TestSoongConfigModuleType(t *testing.T) {
