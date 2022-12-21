@@ -426,18 +426,18 @@ custom {
             "darwin.txt",
             "not_windows.txt",
         ],
-        "//build/bazel/platforms/os:linux": [
-            "host.txt",
-            "linux.txt",
-            "glibc.txt",
-            "linux_glibc.txt",
-            "not_windows.txt",
-        ],
         "//build/bazel/platforms/os:linux_bionic": [
             "host.txt",
             "linux.txt",
             "bionic.txt",
             "linux_bionic.txt",
+            "not_windows.txt",
+        ],
+        "//build/bazel/platforms/os:linux_glibc": [
+            "host.txt",
+            "linux.txt",
+            "glibc.txt",
+            "linux_glibc.txt",
             "not_windows.txt",
         ],
         "//build/bazel/platforms/os:linux_musl": [
