@@ -595,10 +595,6 @@ func (c *config) IsMixedBuildsEnabled() bool {
 			fmt.Fprintln(os.Stderr, "unsupported env var GLOBAL_THINLTO for Bazel: falling back to non-mixed build")
 			return false
 		}
-		if c.IsEnvTrue("CLANG_COVERAGE") {
-			fmt.Fprintln(os.Stderr, "unsupported env var CLANG_COVERAGE for Bazel: falling back to non-mixed build")
-			return false
-		}
 		if len(c.productVariables.SanitizeHost) > 0 {
 			fmt.Fprintln(os.Stderr, "unsupported product var SanitizeHost for Bazel: falling back to non-mixed build")
 			return false
