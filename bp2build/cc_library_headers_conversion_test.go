@@ -250,8 +250,8 @@ cc_library_headers {
 				"deps": `[":base-lib"] + select({
         "//build/bazel/platforms/os:android": [":android-lib"],
         "//build/bazel/platforms/os:darwin": [":darwin-lib"],
-        "//build/bazel/platforms/os:linux": [":linux-lib"],
         "//build/bazel/platforms/os:linux_bionic": [":linux_bionic-lib"],
+        "//build/bazel/platforms/os:linux_glibc": [":linux-lib"],
         "//build/bazel/platforms/os:windows": [":windows-lib"],
         "//conditions:default": [],
     })`,
@@ -343,7 +343,7 @@ func TestCcLibraryHeadersArchAndTargetExportSystemIncludes(t *testing.T) {
 				"export_system_includes": `select({
         "//build/bazel/platforms/os:android": ["android_include_dir"],
         "//build/bazel/platforms/os:darwin": ["darwin_include_dir"],
-        "//build/bazel/platforms/os:linux": ["linux_include_dir"],
+        "//build/bazel/platforms/os:linux_glibc": ["linux_include_dir"],
         "//conditions:default": [],
     }) + select({
         "//build/bazel/platforms/arch:arm": ["arm_include_dir"],
