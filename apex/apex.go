@@ -3426,7 +3426,7 @@ type bazelApexBundleAttributes struct {
 	Key                   bazel.LabelAttribute
 	Certificate           bazel.LabelAttribute  // used when the certificate prop is a module
 	Certificate_name      bazel.StringAttribute // used when the certificate prop is a string
-	Min_sdk_version       *string
+	Min_sdk_version       bazel.StringAttribute
 	Updatable             bazel.BoolAttribute
 	Installable           bazel.BoolAttribute
 	Binaries              bazel.LabelListAttribute
@@ -3444,6 +3444,10 @@ type convertedNativeSharedLibs struct {
 	Native_shared_libs_32 bazel.LabelListAttribute
 	Native_shared_libs_64 bazel.LabelListAttribute
 }
+
+const (
+	minSdkVersionPropName = "Min_sdk_version"
+)
 
 // ConvertWithBp2build performs bp2build conversion of an apex
 func (a *apexBundle) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
@@ -3483,11 +3487,19 @@ func convertWithBp2build(a *apexBundle, ctx android.TopDownMutatorContext) (baze
 		fileContextsLabelAttribute.SetValue(android.BazelLabelForModuleSrcSingle(ctx, *a.properties.File_contexts))
 	}
 
+	productVariableProps := android.ProductVariableProperties(ctx)
 	// TODO(b/219503907) this would need to be set to a.MinSdkVersionValue(ctx) but
 	// given it's coming via config, we probably don't want to put it in here.
-	var minSdkVersion *string
+	var minSdkVersion bazel.StringAttribute
 	if a.properties.Min_sdk_version != nil {
-		minSdkVersion = a.properties.Min_sdk_version
+		minSdkVersion.SetValue(*a.properties.Min_sdk_version)
+	}
+	if props, ok := productVariableProps[minSdkVersionPropName]; ok {
+		for c, p := range props {
+			if val, ok := p.(*string); ok {
+				minSdkVersion.SetSelectValue(c.ConfigurationAxis(), c.SelectKey(), val)
+			}
+		}
 	}
 
 	var keyLabelAttribute bazel.LabelAttribute
