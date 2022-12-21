@@ -27,6 +27,7 @@ import (
 	"text/scanner"
 
 	"android/soong/bazel"
+
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 )
