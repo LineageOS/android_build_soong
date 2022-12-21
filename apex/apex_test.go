@@ -6992,6 +6992,42 @@ func TestCompatConfig(t *testing.T) {
 	})
 }
 
+func TestNoDupeApexFiles(t *testing.T) {
+	android.GroupFixturePreparers(
+		android.PrepareForTestWithAndroidBuildComponents,
+		PrepareForTestWithApexBuildComponents,
+		prepareForTestWithMyapex,
+		prebuilt_etc.PrepareForTestWithPrebuiltEtc,
+	).
+		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern("is provided by two different files")).
+		RunTestWithBp(t, `
+			apex {
+				name: "myapex",
+				key: "myapex.key",
+				prebuilts: ["foo", "bar"],
+				updatable: false,
+			}
+
+			apex_key {
+				name: "myapex.key",
+				public_key: "testkey.avbpubkey",
+				private_key: "testkey.pem",
+			}
+
+			prebuilt_etc {
+				name: "foo",
+				src: "myprebuilt",
+				filename_from_src: true,
+			}
+
+			prebuilt_etc {
+				name: "bar",
+				src: "myprebuilt",
+				filename_from_src: true,
+			}
+		`)
+}
+
 func TestRejectNonInstallableJavaLibrary(t *testing.T) {
 	testApexError(t, `"myjar" is not configured to be compiled into dex`, `
 		apex {

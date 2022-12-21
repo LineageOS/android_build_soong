@@ -71,10 +71,6 @@ func TestBootclasspathFragments(t *testing.T) {
 			name: "com.android.art",
 			key: "com.android.art.key",
 			bootclasspath_fragments: ["art-bootclasspath-fragment"],
- 			java_libs: [
-				"baz",
-				"quuz",
-			],
 			updatable: false,
 		}
 
@@ -301,11 +297,7 @@ func TestBootclasspathFragmentInArtApex(t *testing.T) {
 				"mybootclasspathfragment",
 			],
 			// bar (like foo) should be transitively included in this apex because it is part of the
-			// mybootclasspathfragment bootclasspath_fragment. However, it is kept here to ensure that the
-			// apex dedups the files correctly.
-			java_libs: [
-				"bar",
-			],
+			// mybootclasspathfragment bootclasspath_fragment.
 			updatable: false,
 		}
 
@@ -445,7 +437,6 @@ func TestBootclasspathFragmentInArtApex(t *testing.T) {
 		})
 
 		java.CheckModuleDependencies(t, result.TestContext, "com.android.art", "android_common_com.android.art_image", []string{
-			`bar`,
 			`com.android.art.key`,
 			`mybootclasspathfragment`,
 		})
@@ -559,7 +550,6 @@ func TestBootclasspathFragmentInArtApex(t *testing.T) {
 		})
 
 		java.CheckModuleDependencies(t, result.TestContext, "com.android.art", "android_common_com.android.art_image", []string{
-			`bar`,
 			`com.android.art.key`,
 			`mybootclasspathfragment`,
 			`prebuilt_com.android.art`,
@@ -1105,10 +1095,6 @@ func TestBootclasspathFragment_AndroidNonUpdatable(t *testing.T) {
 			name: "com.android.art",
 			key: "com.android.art.key",
 			bootclasspath_fragments: ["art-bootclasspath-fragment"],
- 			java_libs: [
-				"baz",
-				"quuz",
-			],
 			updatable: false,
 		}
 
@@ -1270,10 +1256,6 @@ func TestBootclasspathFragment_AndroidNonUpdatable_AlwaysUsePrebuiltSdks(t *test
 			name: "com.android.art",
 			key: "com.android.art.key",
 			bootclasspath_fragments: ["art-bootclasspath-fragment"],
- 			java_libs: [
-				"baz",
-				"quuz",
-			],
 			updatable: false,
 		}
 
