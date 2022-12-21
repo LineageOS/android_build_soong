@@ -351,6 +351,7 @@ func libraryBp2Build(ctx android.TopDownMutatorContext, m *Module) {
 		System_dynamic_deps:               *linkerAttrs.systemDynamicDeps.Clone().Append(staticAttrs.System_dynamic_deps),
 		Runtime_deps:                      linkerAttrs.runtimeDeps,
 		sdkAttributes:                     bp2BuildParseSdkAttributes(m),
+		Native_coverage:                   baseAttributes.Native_coverage,
 	}
 
 	sharedCommonAttrs := staticOrSharedAttributes{
@@ -369,6 +370,7 @@ func libraryBp2Build(ctx android.TopDownMutatorContext, m *Module) {
 		System_dynamic_deps:               *linkerAttrs.systemDynamicDeps.Clone().Append(sharedAttrs.System_dynamic_deps),
 		Runtime_deps:                      linkerAttrs.runtimeDeps,
 		sdkAttributes:                     bp2BuildParseSdkAttributes(m),
+		Native_coverage:                   baseAttributes.Native_coverage,
 	}
 
 	staticTargetAttrs := &bazelCcLibraryStaticAttributes{
@@ -2869,6 +2871,7 @@ func sharedOrStaticLibraryBp2Build(ctx android.TopDownMutatorContext, module *Mo
 		System_dynamic_deps:               linkerAttrs.systemDynamicDeps,
 		sdkAttributes:                     bp2BuildParseSdkAttributes(module),
 		Runtime_deps:                      linkerAttrs.runtimeDeps,
+		Native_coverage:                   baseAttributes.Native_coverage,
 	}
 
 	module.convertTidyAttributes(ctx, &commonAttrs.tidyAttributes)
@@ -2956,6 +2959,13 @@ func sharedOrStaticLibraryBp2Build(ctx android.TopDownMutatorContext, module *Mo
 	}
 
 	tags := android.ApexAvailableTags(module)
+
+	// This lib needs some special handling in bazel, so add this tag to the build
+	// file.
+	if module.Name() == "libprofile-clang-extras" {
+		tags.Append(bazel.MakeStringListAttribute([]string{"NO_EXPORTING"}))
+	}
+
 	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: module.Name(), Tags: tags}, attrs)
 }
 

@@ -1031,19 +1031,20 @@ func TestCcLibraryFeatures(t *testing.T) {
 		"features": `[
         "disable_pack_relocations",
         "-no_undefined_symbols",
-        "-coverage",
     ]`,
-		"srcs": `["a.cpp"]`,
+		"native_coverage": `False`,
+		"srcs":            `["a.cpp"]`,
 	})...)
 	expected_targets = append(expected_targets, makeCcLibraryTargets("b", AttrNameToString{
-		"features": `["-coverage"] + select({
+		"features": `select({
         "//build/bazel/platforms/arch:x86_64": [
             "disable_pack_relocations",
             "-no_undefined_symbols",
         ],
         "//conditions:default": [],
     })`,
-		"srcs": `["b.cpp"]`,
+		"native_coverage": `False`,
+		"srcs":            `["b.cpp"]`,
 	})...)
 	expected_targets = append(expected_targets, makeCcLibraryTargets("c", AttrNameToString{
 		"features": `select({

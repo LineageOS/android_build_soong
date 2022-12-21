@@ -59,6 +59,7 @@ func TestLibraryHeaders(t *testing.T) {
 }
 
 func TestPrebuiltLibraryHeadersPreferred(t *testing.T) {
+	t.Parallel()
 	bp := `
 		cc_library_headers {
 			name: "headers",

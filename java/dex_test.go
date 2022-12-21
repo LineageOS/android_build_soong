@@ -155,3 +155,57 @@ func TestD8(t *testing.T) {
 	android.AssertStringDoesNotContain(t, "expected no  static_lib header jar in foo javac classpath",
 		fooD8.Args["d8Flags"], staticLibHeader.String())
 }
+
+func TestProguardFlagsInheritance(t *testing.T) {
+	result := PrepareForTestWithJavaDefaultModulesWithoutFakeDex2oatd.RunTestWithBp(t, `
+		android_app {
+			name: "app",
+			static_libs: [
+				"primary_android_lib",
+				"primary_lib",
+			],
+			platform_apis: true,
+		}
+
+		java_library {
+			name: "primary_lib",
+			optimize: {
+				proguard_flags_files: ["primary.flags"],
+			},
+		}
+
+		android_library {
+			name: "primary_android_lib",
+			static_libs: ["secondary_lib"],
+			optimize: {
+				proguard_flags_files: ["primary_android.flags"],
+			},
+		}
+
+		java_library {
+			name: "secondary_lib",
+			static_libs: ["tertiary_lib"],
+			optimize: {
+				proguard_flags_files: ["secondary.flags"],
+			},
+		}
+
+		java_library {
+			name: "tertiary_lib",
+			optimize: {
+				proguard_flags_files: ["tertiary.flags"],
+			},
+		}
+	`)
+
+	app := result.ModuleForTests("app", "android_common")
+	appR8 := app.Rule("r8")
+	android.AssertStringDoesContain(t, "expected primary_lib's proguard flags from direct dep",
+		appR8.Args["r8Flags"], "primary.flags")
+	android.AssertStringDoesContain(t, "expected primary_android_lib's proguard flags from direct dep",
+		appR8.Args["r8Flags"], "primary_android.flags")
+	android.AssertStringDoesContain(t, "expected secondary_lib's proguard flags from inherited dep",
+		appR8.Args["r8Flags"], "secondary.flags")
+	android.AssertStringDoesContain(t, "expected tertiary_lib's proguard flags from inherited dep",
+		appR8.Args["r8Flags"], "tertiary.flags")
+}

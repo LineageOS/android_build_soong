@@ -38,6 +38,7 @@ func hasDirectDep(ctx visitDirectDepsInterface, m android.Module, wantDep androi
 }
 
 func TestAfdoDeps(t *testing.T) {
+	t.Parallel()
 	bp := `
 	cc_library_shared {
 		name: "libTest",
@@ -93,6 +94,7 @@ func TestAfdoDeps(t *testing.T) {
 }
 
 func TestAfdoEnabledOnStaticDepNoAfdo(t *testing.T) {
+	t.Parallel()
 	bp := `
 	cc_library_shared {
 		name: "libTest",

@@ -23,6 +23,7 @@ import (
 )
 
 func TestThinLtoDeps(t *testing.T) {
+	t.Parallel()
 	bp := `
 	cc_library_shared {
 		name: "lto_enabled",
@@ -106,6 +107,7 @@ func TestThinLtoDeps(t *testing.T) {
 }
 
 func TestThinLtoOnlyOnStaticDep(t *testing.T) {
+	t.Parallel()
 	bp := `
 	cc_library_shared {
 		name: "root",

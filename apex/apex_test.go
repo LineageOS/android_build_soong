@@ -29,7 +29,6 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
-	"android/soong/bazel/cquery"
 	"android/soong/bpf"
 	"android/soong/cc"
 	"android/soong/dexpreopt"
@@ -9803,99 +9802,4 @@ func TestApexBuildsAgainstApiSurfaceStubLibraries(t *testing.T) {
 	libfooCoreVariant := result.ModuleForTests("libfoo", "android_arm64_armv8-a_shared").Module()
 	libcCoreVariant := result.ModuleForTests("libc.apiimport", "android_arm64_armv8-a_shared").Module()
 	android.AssertBoolEquals(t, "core variant should link against source libc", true, hasDep(libfooCoreVariant, libcCoreVariant))
-}
-
-func TestApexImageInMixedBuilds(t *testing.T) {
-	bp := `
-apex_key{
-	name: "foo_key",
-}
-apex {
-	name: "foo",
-	key: "foo_key",
-	updatable: true,
-	min_sdk_version: "31",
-	file_contexts: ":myapex-file_contexts",
-	bazel_module: { label: "//:foo" },
-}`
-
-	outputBaseDir := "out/bazel"
-	result := android.GroupFixturePreparers(
-		prepareForApexTest,
-		android.FixtureModifyConfig(func(config android.Config) {
-			config.BazelContext = android.MockBazelContext{
-				OutputBaseDir: outputBaseDir,
-				LabelToApexInfo: map[string]cquery.ApexInfo{
-					"//:foo": cquery.ApexInfo{
-						SignedOutput:          "signed_out.apex",
-						UnsignedOutput:        "unsigned_out.apex",
-						BundleKeyInfo:         []string{"public_key", "private_key"},
-						ContainerKeyInfo:      []string{"container_cert", "container_private"},
-						SymbolsUsedByApex:     "foo_using.txt",
-						JavaSymbolsUsedByApex: "foo_using.xml",
-						BundleFile:            "apex_bundle.zip",
-						InstalledFiles:        "installed-files.txt",
-						RequiresLibs:          []string{"//path/c:c", "//path/d:d"},
-
-						// unused
-						PackageName:  "pkg_name",
-						ProvidesLibs: []string{"a", "b"},
-					},
-				},
-			}
-		}),
-	).RunTestWithBp(t, bp)
-
-	m := result.ModuleForTests("foo", "android_common_foo_image").Module()
-	ab, ok := m.(*apexBundle)
-	if !ok {
-		t.Fatalf("Expected module to be an apexBundle, was not")
-	}
-
-	if w, g := "out/bazel/execroot/__main__/public_key", ab.publicKeyFile.String(); w != g {
-		t.Errorf("Expected public key %q, got %q", w, g)
-	}
-
-	if w, g := "out/bazel/execroot/__main__/private_key", ab.privateKeyFile.String(); w != g {
-		t.Errorf("Expected private key %q, got %q", w, g)
-	}
-
-	if w, g := "out/bazel/execroot/__main__/container_cert", ab.containerCertificateFile.String(); w != g {
-		t.Errorf("Expected public container key %q, got %q", w, g)
-	}
-
-	if w, g := "out/bazel/execroot/__main__/container_private", ab.containerPrivateKeyFile.String(); w != g {
-		t.Errorf("Expected private container key %q, got %q", w, g)
-	}
-
-	if w, g := "out/bazel/execroot/__main__/signed_out.apex", ab.outputFile.String(); w != g {
-		t.Errorf("Expected output file %q, got %q", w, g)
-	}
-
-	if w, g := "out/bazel/execroot/__main__/foo_using.txt", ab.nativeApisUsedByModuleFile.String(); w != g {
-		t.Errorf("Expected output file %q, got %q", w, g)
-	}
-
-	if w, g := "out/bazel/execroot/__main__/foo_using.xml", ab.javaApisUsedByModuleFile.String(); w != g {
-		t.Errorf("Expected output file %q, got %q", w, g)
-	}
-
-	if w, g := "out/bazel/execroot/__main__/installed-files.txt", ab.installedFilesFile.String(); w != g {
-		t.Errorf("Expected installed-files.txt %q, got %q", w, g)
-	}
-
-	mkData := android.AndroidMkDataForTest(t, result.TestContext, m)
-	var builder strings.Builder
-	mkData.Custom(&builder, "foo", "BAZEL_TARGET_", "", mkData)
-
-	data := builder.String()
-	if w := "ALL_MODULES.$(my_register_name).BUNDLE := out/bazel/execroot/__main__/apex_bundle.zip"; !strings.Contains(data, w) {
-		t.Errorf("Expected %q in androidmk data, but did not find %q", w, data)
-	}
-	if w := "$(call dist-for-goals,checkbuild,out/bazel/execroot/__main__/installed-files.txt:foo-installed-files.txt)"; !strings.Contains(data, w) {
-		t.Errorf("Expected %q in androidmk data, but did not find %q", w, data)
-	}
-	if w := "LOCAL_REQUIRED_MODULES := c d"; !strings.Contains(data, w) {
-		t.Errorf("Expected %q in androidmk data, but did not find it in %q", w, data)
-	}
 }

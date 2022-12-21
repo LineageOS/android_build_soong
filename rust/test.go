@@ -130,16 +130,13 @@ func (test *testDecorator) install(ctx ModuleContext) {
 		configs = append(configs, tradefed.Object{"target_preparer", "com.android.tradefed.targetprep.RootTargetPreparer", options})
 	}
 
-	test.testConfig = tradefed.NewMaybeAutoGenTestConfigBuilder(ctx).
-		SetTestConfigProp(test.Properties.Test_config).
-		SetTestTemplateConfigProp(test.Properties.Test_config_template).
-		SetTestSuites(test.Properties.Test_suites).
-		SetConfig(configs).
-		SetAutoGenConfig(test.Properties.Auto_gen_config).
-		SetTestInstallBase(testInstallBase).
-		SetDeviceTemplate("${RustDeviceTestConfigTemplate}").
-		SetHostTemplate("${RustHostTestConfigTemplate}").
-		Build()
+	test.testConfig = tradefed.AutoGenRustTestConfig(ctx,
+		test.Properties.Test_config,
+		test.Properties.Test_config_template,
+		test.Properties.Test_suites,
+		configs,
+		test.Properties.Auto_gen_config,
+		testInstallBase)
 
 	dataSrcPaths := android.PathsForModuleSrc(ctx, test.Properties.Data)
 

@@ -28,6 +28,7 @@ package android
 // module based on it.
 
 import (
+	"fmt"
 	"sort"
 	"sync"
 
@@ -48,6 +49,10 @@ type OverrideModule interface {
 	// i.e. cases where an overriding module, too, is overridden by a prebuilt module.
 	setOverriddenByPrebuilt(overridden bool)
 	getOverriddenByPrebuilt() bool
+
+	// Directory containing the Blueprint definition of the overriding module
+	setModuleDir(string)
+	ModuleDir() string
 }
 
 // Base module struct for override module types
@@ -57,6 +62,8 @@ type OverrideModuleBase struct {
 	overridingProperties []interface{}
 
 	overriddenByPrebuilt bool
+
+	moduleDir string
 }
 
 type OverrideModuleProperties struct {
@@ -64,6 +71,14 @@ type OverrideModuleProperties struct {
 	Base *string
 
 	// TODO(jungjw): Add an optional override_name bool flag.
+}
+
+func (o *OverrideModuleBase) setModuleDir(d string) {
+	o.moduleDir = d
+}
+
+func (o *OverrideModuleBase) ModuleDir() string {
+	return o.moduleDir
 }
 
 func (o *OverrideModuleBase) getOverridingProperties() []interface{} {
@@ -108,6 +123,7 @@ type OverridableModule interface {
 
 	override(ctx BaseModuleContext, o OverrideModule)
 	GetOverriddenBy() string
+	GetOverriddenByModuleDir() string
 
 	setOverridesProperty(overridesProperties *[]string)
 
@@ -117,7 +133,8 @@ type OverridableModule interface {
 }
 
 type overridableModuleProperties struct {
-	OverriddenBy string `blueprint:"mutated"`
+	OverriddenBy          string `blueprint:"mutated"`
+	OverriddenByModuleDir string `blueprint:"mutated"`
 }
 
 // Base module struct for overridable module types
@@ -196,6 +213,7 @@ func (b *OverridableModuleBase) override(ctx BaseModuleContext, o OverrideModule
 		*b.overridesProperty = append(*b.overridesProperty, ctx.ModuleName())
 	}
 	b.overridableModuleProperties.OverriddenBy = o.Name()
+	b.overridableModuleProperties.OverriddenByModuleDir = o.ModuleDir()
 }
 
 // GetOverriddenBy returns the name of the override module that has overridden this module.
@@ -204,6 +222,10 @@ func (b *OverridableModuleBase) override(ctx BaseModuleContext, o OverrideModule
 // the new local variant. It returns "" when called from the original variant of bar.
 func (b *OverridableModuleBase) GetOverriddenBy() string {
 	return b.overridableModuleProperties.OverriddenBy
+}
+
+func (b *OverridableModuleBase) GetOverriddenByModuleDir() string {
+	return b.overridableModuleProperties.OverriddenByModuleDir
 }
 
 func (b *OverridableModuleBase) OverridablePropertiesDepsMutator(ctx BottomUpMutatorContext) {
@@ -254,7 +276,9 @@ func overrideModuleDepsMutator(ctx BottomUpMutatorContext) {
 		})
 		baseModule := ctx.AddDependency(ctx.Module(), overrideBaseDepTag, *module.getOverrideModuleProperties().Base)[0]
 		if o, ok := baseModule.(OverridableModule); ok {
-			o.addOverride(ctx.Module().(OverrideModule))
+			overrideModule := ctx.Module().(OverrideModule)
+			overrideModule.setModuleDir(ctx.ModuleDir())
+			o.addOverride(overrideModule)
 		}
 	}
 }
@@ -314,11 +338,35 @@ func replaceDepsOnOverridingModuleMutator(ctx BottomUpMutatorContext) {
 // ModuleNameWithPossibleOverride returns the name of the OverrideModule that overrides the current
 // variant of this OverridableModule, or ctx.ModuleName() if this module is not an OverridableModule
 // or if this variant is not overridden.
-func ModuleNameWithPossibleOverride(ctx ModuleContext) string {
+func ModuleNameWithPossibleOverride(ctx BazelConversionContext) string {
 	if overridable, ok := ctx.Module().(OverridableModule); ok {
 		if o := overridable.GetOverriddenBy(); o != "" {
 			return o
 		}
 	}
-	return ctx.ModuleName()
+	return ctx.OtherModuleName(ctx.Module())
+}
+
+// ModuleDirWithPossibleOverride returns the dir of the OverrideModule that overrides the current
+// variant of this OverridableModule, or ctx.ModuleName() if this module is not an OverridableModule
+// or if this variant is not overridden.
+func moduleDirWithPossibleOverride(ctx BazelConversionContext) string {
+	if overridable, ok := ctx.Module().(OverridableModule); ok {
+		if o := overridable.GetOverriddenByModuleDir(); o != "" {
+			return o
+		}
+	}
+	return ctx.OtherModuleDir(ctx.Module())
+}
+
+// MaybeBp2buildLabelOfOverridingModule returns the bazel label of the
+// overriding module of an OverridableModule (e.g. override_apex label of a base
+// apex), or the module's label itself if not overridden.
+func MaybeBp2buildLabelOfOverridingModule(ctx BazelConversionContext) string {
+	moduleName := ModuleNameWithPossibleOverride(ctx)
+	moduleDir := moduleDirWithPossibleOverride(ctx)
+	if moduleDir == Bp2BuildTopLevel {
+		moduleDir = ""
+	}
+	return fmt.Sprintf("//%s:%s", moduleDir, moduleName)
 }

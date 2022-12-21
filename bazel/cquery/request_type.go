@@ -11,7 +11,7 @@ var (
 	GetPythonBinary     = &getPythonBinaryRequestType{}
 	GetCcInfo           = &getCcInfoType{}
 	GetApexInfo         = &getApexInfoType{}
-	GetCcUnstrippedInfo = &getCcUnstippedInfoType{}
+	GetCcUnstrippedInfo = &getCcUnstrippedInfoType{}
 )
 
 type CcInfo struct {
@@ -275,13 +275,13 @@ func (g getApexInfoType) ParseResult(rawString string) (ApexInfo, error) {
 // getCcUnstrippedInfoType implements cqueryRequest interface. It handles the
 // interaction with `bazel cquery` to retrieve CcUnstrippedInfo provided
 // by the` cc_binary` and `cc_shared_library` rules.
-type getCcUnstippedInfoType struct{}
+type getCcUnstrippedInfoType struct{}
 
-func (g getCcUnstippedInfoType) Name() string {
+func (g getCcUnstrippedInfoType) Name() string {
 	return "getCcUnstrippedInfo"
 }
 
-func (g getCcUnstippedInfoType) StarlarkFunctionBody() string {
+func (g getCcUnstrippedInfoType) StarlarkFunctionBody() string {
 	return `unstripped_tag = "//build/bazel/rules/cc:stripped_cc_common.bzl%CcUnstrippedInfo"
 p = providers(target)
 output_path = target.files.to_list()[0].path
@@ -298,7 +298,7 @@ return json_encode({
 // ParseResult returns a value obtained by parsing the result of the request's Starlark function.
 // The given rawString must correspond to the string output which was created by evaluating the
 // Starlark given in StarlarkFunctionBody.
-func (g getCcUnstippedInfoType) ParseResult(rawString string) (CcUnstrippedInfo, error) {
+func (g getCcUnstrippedInfoType) ParseResult(rawString string) (CcUnstrippedInfo, error) {
 	var info CcUnstrippedInfo
 	err := parseJson(rawString, &info)
 	return info, err
