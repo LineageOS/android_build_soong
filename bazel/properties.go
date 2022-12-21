@@ -1367,6 +1367,9 @@ func (sla *StringListAttribute) DeduplicateAxesFromBase() {
 // TryVariableSubstitution, replace string substitution formatting within each string in slice with
 // Starlark string.format compatible tag for productVariable.
 func TryVariableSubstitutions(slice []string, productVariable string) ([]string, bool) {
+	if len(slice) == 0 {
+		return slice, false
+	}
 	ret := make([]string, 0, len(slice))
 	changesMade := false
 	for _, s := range slice {
