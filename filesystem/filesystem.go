@@ -69,6 +69,9 @@ type filesystemProperties struct {
 	// Hash and signing algorithm for avbtool. Default is SHA256_RSA4096.
 	Avb_algorithm *string
 
+	// Hash and signing algorithm for avbtool. Default is SHA256_RSA4096.
+	Avb_hash_algorithm *string
+
 	// Name of the partition stored in vbmeta desc. Defaults to the name of this module.
 	Partition_name *string
 
@@ -318,7 +321,11 @@ func (f *filesystem) buildPropFile(ctx android.ModuleContext) (propFile android.
 		addStr("avb_algorithm", algorithm)
 		key := android.PathForModuleSrc(ctx, proptools.String(f.properties.Avb_private_key))
 		addPath("avb_key_path", key)
-		addStr("avb_add_hashtree_footer_args", "--do_not_generate_fec")
+		avb_add_hashtree_footer_args := "--do_not_generate_fec"
+		if hashAlgorithm := proptools.String(f.properties.Avb_hash_algorithm); hashAlgorithm != "" {
+			avb_add_hashtree_footer_args += " --hash_algorithm " + hashAlgorithm
+		}
+		addStr("avb_add_hashtree_footer_args", avb_add_hashtree_footer_args)
 		partitionName := proptools.StringDefault(f.properties.Partition_name, f.Name())
 		addStr("partition_name", partitionName)
 	}
