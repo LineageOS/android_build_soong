@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "76eba409_3060e284",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 2195
+      },
+      "writtenOn": "2022-12-21T23:24:44Z",
+      "side": 1,
+      "message": "It\u0027s just a simple string now, but still, this doesn\u0027t work.\n\nOnce this is solved, this should be good to go.\n\n",
+      "revId": "3bb514e38fc92bca7e5b277f1aaae32999c7e71a",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
