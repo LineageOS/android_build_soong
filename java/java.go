@@ -503,6 +503,11 @@ func getJavaVersion(ctx android.ModuleContext, javaVersion string, sdkContext an
 	}
 }
 
+// Java version for stubs generation
+func getStubsJavaVersion() javaVersion {
+	return JAVA_VERSION_8
+}
+
 type javaVersion int
 
 const (
@@ -1625,6 +1630,7 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	al.stubsJar = android.PathForModuleOut(ctx, ctx.ModuleName(), "android.jar")
 
 	var flags javaBuilderFlags
+	flags.javaVersion = getStubsJavaVersion()
 	flags.javacFlags = strings.Join(al.properties.Javacflags, " ")
 
 	TransformJavaToClasses(ctx, al.stubsJar, 0, android.Paths{},
