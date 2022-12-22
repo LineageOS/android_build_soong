@@ -543,7 +543,6 @@ cc_library_shared {
     ]`,
 		}),
 			MakeBazelTarget("cc_library_shared", "a", AttrNameToString{
-				"has_stubs":         `True`,
 				"stubs_symbol_file": `"a.map.txt"`,
 			}),
 		},
