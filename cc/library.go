@@ -424,6 +424,8 @@ func libraryBp2Build(ctx android.TopDownMutatorContext, m *Module) {
 	}
 
 	if compilerAttrs.stubsSymbolFile != nil && len(compilerAttrs.stubsVersions.Value) > 0 {
+		hasStubs := true
+		sharedTargetAttrs.Has_stubs.SetValue(&hasStubs)
 		sharedTargetAttrs.Stubs_symbol_file = compilerAttrs.stubsSymbolFile
 	}
 
@@ -2937,6 +2939,8 @@ func sharedOrStaticLibraryBp2Build(ctx android.TopDownMutatorContext, module *Mo
 			Fdo_profile: compilerAttrs.fdoProfile,
 		}
 		if compilerAttrs.stubsSymbolFile != nil && len(compilerAttrs.stubsVersions.Value) > 0 {
+			hasStubs := true
+			sharedLibAttrs.Has_stubs.SetValue(&hasStubs)
 			sharedLibAttrs.Stubs_symbol_file = compilerAttrs.stubsSymbolFile
 		}
 		attrs = sharedLibAttrs
@@ -3022,6 +3026,7 @@ type bazelCcLibrarySharedAttributes struct {
 
 	Features bazel.StringListAttribute
 
+	Has_stubs         bazel.BoolAttribute
 	Stubs_symbol_file *string
 
 	Inject_bssl_hash bazel.BoolAttribute
