@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "a1dd4158_310d4064",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 19282
+      },
+      "writtenOn": "2022-12-23T08:38:25Z",
+      "side": 1,
+      "message": "This is needed for new genrule sections in mainline modules.",
+      "revId": "695fc0cdc977115f2e5183e5527559c6f6a69578",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
