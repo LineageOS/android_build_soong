@@ -34,6 +34,24 @@
       "parentUuid": "a1dd4158_310d4064",
       "revId": "695fc0cdc977115f2e5183e5527559c6f6a69578",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "fb8b0350_86bf1991",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 19282
+      },
+      "writtenOn": "2022-12-24T08:06:28Z",
+      "side": 1,
+      "message": "It is supported and Android TV even unconditionally includes them, if you build with GMS.\n\nhttps://github.com/LineageOS/android_vendor_lineage/blob/lineage-20.0/config/partner_gms.mk#L13",
+      "parentUuid": "23186ae2_3c1c4d08",
+      "revId": "695fc0cdc977115f2e5183e5527559c6f6a69578",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
