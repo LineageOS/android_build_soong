@@ -16,6 +16,24 @@
       "message": "This is needed for new genrule sections in mainline modules.",
       "revId": "695fc0cdc977115f2e5183e5527559c6f6a69578",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "23186ae2_3c1c4d08",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 28232
+      },
+      "writtenOn": "2022-12-24T05:59:53Z",
+      "side": 1,
+      "message": "But, Lineage does not have/support building GPSU in-tree. So, do we need this here?",
+      "parentUuid": "a1dd4158_310d4064",
+      "revId": "695fc0cdc977115f2e5183e5527559c6f6a69578",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
