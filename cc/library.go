@@ -85,10 +85,19 @@ type LibraryProperties struct {
 	// set suffix of the name of the output
 	Suffix *string `android:"arch_variant"`
 
+	// Properties for ABI compatibility checker.
+	Header_abi_checker headerAbiCheckerProperties
+
 	Target struct {
 		Vendor, Product struct {
 			// set suffix of the name of the output
 			Suffix *string `android:"arch_variant"`
+
+			Header_abi_checker headerAbiCheckerProperties
+		}
+
+		Platform struct {
+			Header_abi_checker headerAbiCheckerProperties
 		}
 	}
 
@@ -98,32 +107,6 @@ type LibraryProperties struct {
 	// binaries would be installed by default (in PRODUCT_PACKAGES) the other library will be removed
 	// from PRODUCT_PACKAGES.
 	Overrides []string
-
-	// Properties for ABI compatibility checker
-	Header_abi_checker struct {
-		// Enable ABI checks (even if this is not an LLNDK/VNDK lib)
-		Enabled *bool
-
-		// Path to a symbol file that specifies the symbols to be included in the generated
-		// ABI dump file
-		Symbol_file *string `android:"path"`
-
-		// Symbol versions that should be ignored from the symbol file
-		Exclude_symbol_versions []string
-
-		// Symbol tags that should be ignored from the symbol file
-		Exclude_symbol_tags []string
-
-		// Run checks on all APIs (in addition to the ones referred by
-		// one of exported ELF symbols.)
-		Check_all_apis *bool
-
-		// Extra flags passed to header-abi-diff
-		Diff_flags []string
-
-		// Opt-in reference dump directories
-		Ref_dump_dirs []string
-	}
 
 	// Inject boringssl hash into the shared library.  This is only intended for use by external/boringssl.
 	Inject_bssl_hash *bool `android:"arch_variant"`
@@ -1202,12 +1185,20 @@ func (library *libraryDecorator) compilerFlags(ctx ModuleContext, flags Flags, d
 	return flags
 }
 
-func (library *libraryDecorator) headerAbiCheckerEnabled() bool {
-	return Bool(library.Properties.Header_abi_checker.Enabled)
-}
-
-func (library *libraryDecorator) headerAbiCheckerExplicitlyDisabled() bool {
-	return !BoolDefault(library.Properties.Header_abi_checker.Enabled, true)
+func (library *libraryDecorator) getHeaderAbiCheckerProperties(ctx android.BaseModuleContext) headerAbiCheckerProperties {
+	m := ctx.Module().(*Module)
+	variantProps := &library.Properties.Target.Platform.Header_abi_checker
+	if m.InVendor() {
+		variantProps = &library.Properties.Target.Vendor.Header_abi_checker
+	} else if m.InProduct() {
+		variantProps = &library.Properties.Target.Product.Header_abi_checker
+	}
+	props := library.Properties.Header_abi_checker
+	err := proptools.AppendProperties(&props, variantProps, nil)
+	if err != nil {
+		ctx.ModuleErrorf("Cannot merge headerAbiCheckerProperties: %s", err.Error())
+	}
+	return props
 }
 
 func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) Objects {
@@ -1342,9 +1333,8 @@ type libraryInterface interface {
 	setStatic()
 	setShared()
 
-	// Check whether header_abi_checker is enabled or explicitly disabled.
-	headerAbiCheckerEnabled() bool
-	headerAbiCheckerExplicitlyDisabled() bool
+	// Gets the ABI properties for vendor, product, or platform variant
+	getHeaderAbiCheckerProperties(ctx android.BaseModuleContext) headerAbiCheckerProperties
 
 	// Write LOCAL_ADDITIONAL_DEPENDENCIES for ABI diff
 	androidMkWriteAdditionalDependenciesForSourceAbiDiff(w io.Writer)
@@ -1876,7 +1866,8 @@ func (library *libraryDecorator) sourceAbiDiff(ctx android.ModuleContext, refere
 	sourceDump := library.sAbiOutputFile.Path()
 
 	extraFlags := []string{"-target-version", sourceVersion}
-	if Bool(library.Properties.Header_abi_checker.Check_all_apis) {
+	headerAbiChecker := library.getHeaderAbiCheckerProperties(ctx)
+	if Bool(headerAbiChecker.Check_all_apis) {
 		extraFlags = append(extraFlags, "-check-all-apis")
 	} else {
 		extraFlags = append(extraFlags,
@@ -1889,7 +1880,7 @@ func (library *libraryDecorator) sourceAbiDiff(ctx android.ModuleContext, refere
 	if allowExtensions {
 		extraFlags = append(extraFlags, "-allow-extensions")
 	}
-	extraFlags = append(extraFlags, library.Properties.Header_abi_checker.Diff_flags...)
+	extraFlags = append(extraFlags, headerAbiChecker.Diff_flags...)
 
 	library.sAbiDiff = append(
 		library.sAbiDiff,
@@ -1937,10 +1928,11 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objec
 			SourceAbiFlags = append(SourceAbiFlags, "-I"+reexportedInclude)
 		}
 		exportedHeaderFlags := strings.Join(SourceAbiFlags, " ")
+		headerAbiChecker := library.getHeaderAbiCheckerProperties(ctx)
 		library.sAbiOutputFile = transformDumpToLinkedDump(ctx, objs.sAbiDumpFiles, soFile, fileName, exportedHeaderFlags,
 			android.OptionalPathForModuleSrc(ctx, library.symbolFileForAbiCheck(ctx)),
-			library.Properties.Header_abi_checker.Exclude_symbol_versions,
-			library.Properties.Header_abi_checker.Exclude_symbol_tags)
+			headerAbiChecker.Exclude_symbol_versions,
+			headerAbiChecker.Exclude_symbol_tags)
 
 		addLsdumpPath(classifySourceAbiDump(ctx) + ":" + library.sAbiOutputFile.String())
 
@@ -1971,7 +1963,7 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objec
 				fileName, isLlndk || isNdk, ctx.IsVndkExt())
 		}
 		// Check against the opt-in reference dumps.
-		for i, optInDumpDir := range library.Properties.Header_abi_checker.Ref_dump_dirs {
+		for i, optInDumpDir := range headerAbiChecker.Ref_dump_dirs {
 			optInDumpDirPath := android.PathForModuleSrc(ctx, optInDumpDir)
 			// Ref_dump_dirs are not versioned.
 			// They do not contain subdir for binder bitness because 64-bit binder has been mandatory.
@@ -2330,8 +2322,8 @@ func (library *libraryDecorator) buildStubs() bool {
 }
 
 func (library *libraryDecorator) symbolFileForAbiCheck(ctx ModuleContext) *string {
-	if library.Properties.Header_abi_checker.Symbol_file != nil {
-		return library.Properties.Header_abi_checker.Symbol_file
+	if props := library.getHeaderAbiCheckerProperties(ctx); props.Symbol_file != nil {
+		return props.Symbol_file
 	}
 	if ctx.Module().(*Module).IsLlndk() {
 		return library.Properties.Llndk.Symbol_file
@@ -2807,7 +2799,7 @@ func bp2buildParseAbiCheckerProps(ctx android.TopDownMutatorContext, module *Mod
 		return bazelCcHeaderAbiCheckerAttributes{}
 	}
 
-	abiChecker := lib.Properties.Header_abi_checker
+	abiChecker := lib.getHeaderAbiCheckerProperties(ctx)
 
 	abiCheckerAttrs := bazelCcHeaderAbiCheckerAttributes{
 		Abi_checker_enabled:                 abiChecker.Enabled,
