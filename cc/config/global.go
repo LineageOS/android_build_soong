@@ -294,8 +294,8 @@ var (
 	}
 
 	llvmNextExtraCommonGlobalCflags = []string{
-		// New warnings to be fixed after clang-r475365
-		"-Wno-error=single-bit-bitfield-constant-conversion", // http://b/243965903
+		// Do not report warnings when testing with the top of trunk LLVM.
+		"-Wno-error",
 	}
 
 	IllegalFlags = []string{
