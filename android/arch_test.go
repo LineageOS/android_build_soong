@@ -584,6 +584,8 @@ type testArchPropertiesModule struct {
 
 func (testArchPropertiesModule) GenerateAndroidBuildActions(ctx ModuleContext) {}
 
+// Module property "a" does not have "variant_prepend" tag.
+// Expected variant property orders are based on this fact.
 func TestArchProperties(t *testing.T) {
 	bp := `
 		module {
