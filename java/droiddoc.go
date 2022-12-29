@@ -598,7 +598,7 @@ func (d *Droiddoc) doclavaDocsFlags(ctx android.ModuleContext, cmd *android.Rule
 	// Droiddoc always gets "-source 1.8" because it doesn't support 1.9 sources.  For modules with 1.9
 	// sources, droiddoc will get sources produced by metalava which will have already stripped out the
 	// 1.9 language features.
-	cmd.FlagWithArg("-source ", "1.8").
+	cmd.FlagWithArg("-source ", getStubsJavaVersion().String()).
 		Flag("-J-Xmx1600m").
 		Flag("-J-XX:-OmitStackTraceInFastThrow").
 		Flag("-XDignore.symbol.file").
