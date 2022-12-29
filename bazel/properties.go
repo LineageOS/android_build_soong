@@ -1278,9 +1278,6 @@ func (sla StringListAttribute) HasConfigurableValues() bool {
 // Append appends all values, including os and arch specific ones, from another
 // StringListAttribute to this StringListAttribute
 func (sla *StringListAttribute) Append(other StringListAttribute) *StringListAttribute {
-	if sla.Prepend != other.Prepend {
-		panic(fmt.Errorf("StringListAttribute could not be appended because it has different prepend value"))
-	}
 	sla.Value = append(sla.Value, other.Value...)
 	if sla.ConfigurableValues == nil {
 		sla.ConfigurableValues = make(configurableStringLists)
