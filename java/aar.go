@@ -525,7 +525,7 @@ func (a *AndroidLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	if sdkDep.hasFrameworkLibs() {
 		a.aapt.deps(ctx, sdkDep)
 	}
-	a.usesLibrary.deps(ctx, sdkDep.hasFrameworkLibs())
+	a.usesLibrary.deps(ctx, false)
 }
 
 func (a *AndroidLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
