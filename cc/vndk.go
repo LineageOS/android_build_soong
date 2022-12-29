@@ -368,7 +368,10 @@ func IsForVndkApex(mctx android.BottomUpMutatorContext, m *Module) bool {
 			}
 			return m.ImageVariation().Variation == android.CoreVariation && lib.shared() && m.IsVndkSp() && !m.IsVndkExt()
 		}
-
+		// VNDK APEX doesn't need stub variants
+		if lib.buildStubs() {
+			return false
+		}
 		useCoreVariant := m.VndkVersion() == mctx.DeviceConfig().PlatformVndkVersion() &&
 			mctx.DeviceConfig().VndkUseCoreVariant() && !m.MustUseVendorVariant()
 		return lib.shared() && m.InVendor() && m.IsVndk() && !m.IsVndkExt() && !useCoreVariant
