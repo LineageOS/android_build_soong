@@ -3773,3 +3773,138 @@ cc_library {
 	},
 	)
 }
+
+// Export_include_dirs and Export_system_include_dirs have "variant_prepend" tag.
+// In bp2build output, variant info(select) should go before general info.
+// Internal order of the property should be unchanged. (e.g. ["eid1", "eid2"])
+func TestCcLibraryVariantPrependPropOrder(t *testing.T) {
+	runCcLibraryTestCase(t, Bp2buildTestCase{
+		Description:                "cc_library variant prepend properties order",
+		ModuleTypeUnderTest:        "cc_library",
+		ModuleTypeUnderTestFactory: cc.LibraryFactory,
+		Blueprint: soongCcLibraryPreamble + `
+cc_library {
+  name: "a",
+  srcs: ["a.cpp"],
+  export_include_dirs: ["eid1", "eid2"],
+  export_system_include_dirs: ["esid1", "esid2"],
+    target: {
+      android: {
+        export_include_dirs: ["android_eid1", "android_eid2"],
+        export_system_include_dirs: ["android_esid1", "android_esid2"],
+      },
+      android_arm: {
+        export_include_dirs: ["android_arm_eid1", "android_arm_eid2"],
+        export_system_include_dirs: ["android_arm_esid1", "android_arm_esid2"],
+      },
+      linux: {
+        export_include_dirs: ["linux_eid1", "linux_eid2"],
+        export_system_include_dirs: ["linux_esid1", "linux_esid2"],
+      },
+    },
+    multilib: {
+      lib32: {
+        export_include_dirs: ["lib32_eid1", "lib32_eid2"],
+        export_system_include_dirs: ["lib32_esid1", "lib32_esid2"],
+      },
+    },
+    arch: {
+      arm: {
+        export_include_dirs: ["arm_eid1", "arm_eid2"],
+        export_system_include_dirs: ["arm_esid1", "arm_esid2"],
+      },
+    }
+}
+`,
+		ExpectedBazelTargets: makeCcLibraryTargets("a", AttrNameToString{
+			"export_includes": `select({
+        "//build/bazel/platforms/os_arch:android_arm": [
+            "android_arm_eid1",
+            "android_arm_eid2",
+        ],
+        "//conditions:default": [],
+    }) + select({
+        "//build/bazel/platforms/os:android": [
+            "android_eid1",
+            "android_eid2",
+            "linux_eid1",
+            "linux_eid2",
+        ],
+        "//build/bazel/platforms/os:linux_bionic": [
+            "linux_eid1",
+            "linux_eid2",
+        ],
+        "//build/bazel/platforms/os:linux_glibc": [
+            "linux_eid1",
+            "linux_eid2",
+        ],
+        "//build/bazel/platforms/os:linux_musl": [
+            "linux_eid1",
+            "linux_eid2",
+        ],
+        "//conditions:default": [],
+    }) + select({
+        "//build/bazel/platforms/arch:arm": [
+            "lib32_eid1",
+            "lib32_eid2",
+            "arm_eid1",
+            "arm_eid2",
+        ],
+        "//build/bazel/platforms/arch:x86": [
+            "lib32_eid1",
+            "lib32_eid2",
+        ],
+        "//conditions:default": [],
+    }) + [
+        "eid1",
+        "eid2",
+    ]`,
+			"export_system_includes": `select({
+        "//build/bazel/platforms/os_arch:android_arm": [
+            "android_arm_esid1",
+            "android_arm_esid2",
+        ],
+        "//conditions:default": [],
+    }) + select({
+        "//build/bazel/platforms/os:android": [
+            "android_esid1",
+            "android_esid2",
+            "linux_esid1",
+            "linux_esid2",
+        ],
+        "//build/bazel/platforms/os:linux_bionic": [
+            "linux_esid1",
+            "linux_esid2",
+        ],
+        "//build/bazel/platforms/os:linux_glibc": [
+            "linux_esid1",
+            "linux_esid2",
+        ],
+        "//build/bazel/platforms/os:linux_musl": [
+            "linux_esid1",
+            "linux_esid2",
+        ],
+        "//conditions:default": [],
+    }) + select({
+        "//build/bazel/platforms/arch:arm": [
+            "lib32_esid1",
+            "lib32_esid2",
+            "arm_esid1",
+            "arm_esid2",
+        ],
+        "//build/bazel/platforms/arch:x86": [
+            "lib32_esid1",
+            "lib32_esid2",
+        ],
+        "//conditions:default": [],
+    }) + [
+        "esid1",
+        "esid2",
+    ]`,
+			"srcs":                   `["a.cpp"]`,
+			"local_includes":         `["."]`,
+			"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
+		}),
+	},
+	)
+}

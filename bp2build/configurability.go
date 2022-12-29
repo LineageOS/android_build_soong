@@ -39,7 +39,7 @@ func getStringValue(str bazel.StringAttribute) (reflect.Value, []selects) {
 
 func getStringListValues(list bazel.StringListAttribute) (reflect.Value, []selects, bool) {
 	value := reflect.ValueOf(list.Value)
-	prepend := reflect.ValueOf(list.Prepend).Bool()
+	prepend := list.Prepend
 	if !list.HasConfigurableValues() {
 		return value, []selects{}, prepend
 	}
