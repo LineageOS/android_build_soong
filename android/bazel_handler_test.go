@@ -189,7 +189,7 @@ func verifyExtraFlags(t *testing.T, config Config, expected string) string {
 	return actual
 }
 
-func testBazelContext(t *testing.T, bazelCommandResults map[bazelCommand]string) (*bazelContext, string) {
+func testBazelContext(t *testing.T, bazelCommandResults map[bazelCommand]string) (*mixedBuildBazelContext, string) {
 	t.Helper()
 	p := bazelPaths{
 		soongOutDir:  t.TempDir(),
@@ -201,7 +201,7 @@ func testBazelContext(t *testing.T, bazelCommandResults map[bazelCommand]string)
 		bazelCommandResults[aqueryCommand] = ""
 	}
 	runner := &mockBazelRunner{bazelCommandResults: bazelCommandResults}
-	return &bazelContext{
+	return &mixedBuildBazelContext{
 		bazelRunner: runner,
 		paths:       &p,
 		requests:    map[cqueryKey]bool{},
