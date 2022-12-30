@@ -304,3 +304,45 @@ func TestDroidstubsWithSdkExtensions(t *testing.T) {
 	android.AssertStringDoesContain(t, "sdk-extensions-root present", cmdline, "--sdk-extensions-root sdk/extensions")
 	android.AssertStringDoesContain(t, "sdk-extensions-info present", cmdline, "--sdk-extensions-info sdk/extensions/info.txt")
 }
+
+func TestApiSurfaceFromDroidStubsName(t *testing.T) {
+	testCases := []struct {
+		desc               string
+		name               string
+		expectedApiSurface string
+	}{
+		{
+			desc:               "Default is publicapi",
+			name:               "mydroidstubs",
+			expectedApiSurface: "publicapi",
+		},
+		{
+			desc:               "name contains system substring",
+			name:               "mydroidstubs.system.suffix",
+			expectedApiSurface: "systemapi",
+		},
+		{
+			desc:               "name contains system_server substring",
+			name:               "mydroidstubs.system_server.suffix",
+			expectedApiSurface: "system-serverapi",
+		},
+		{
+			desc:               "name contains module_lib substring",
+			name:               "mydroidstubs.module_lib.suffix",
+			expectedApiSurface: "module-libapi",
+		},
+		{
+			desc:               "name contains test substring",
+			name:               "mydroidstubs.test.suffix",
+			expectedApiSurface: "testapi",
+		},
+		{
+			desc:               "name contains intra.core substring",
+			name:               "mydroidstubs.intra.core.suffix",
+			expectedApiSurface: "intracoreapi",
+		},
+	}
+	for _, tc := range testCases {
+		android.AssertStringEquals(t, tc.desc, tc.expectedApiSurface, bazelApiSurfaceName(tc.name))
+	}
+}
