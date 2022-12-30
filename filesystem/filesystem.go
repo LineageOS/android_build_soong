@@ -264,6 +264,14 @@ func (f *filesystem) buildImageUsingBuildImage(ctx android.ModuleContext) androi
 		Input(rootZip).
 		Input(rebasedDepsZip)
 
+	// run host_init_verifier
+	// Ideally we should have a concept of pluggable linters that verify the generated image.
+	// While such concept is not implement this will do.
+	// TODO(b/263574231): substitute with pluggable linter.
+	builder.Command().
+		BuiltTool("host_init_verifier").
+		FlagWithArg("--out_system=", rootDir.String()+"/system")
+
 	propFile, toolDeps := f.buildPropFile(ctx)
 	output := android.PathForModuleOut(ctx, f.installFileName()).OutputPath
 	builder.Command().BuiltTool("build_image").
