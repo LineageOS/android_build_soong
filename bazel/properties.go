@@ -674,6 +674,11 @@ type LabelListAttribute struct {
 	// specific select statements where an empty list for a non-default select
 	// key has a meaning.
 	EmitEmptyList bool
+
+	// If a property has struct tag "variant_prepend", this value should
+	// be set to True, so that when bp2build generates BUILD.bazel, variant
+	// properties(select ...) come before general properties.
+	Prepend bool
 }
 
 type configurableLabelLists map[ConfigurationAxis]labelListSelectValues
