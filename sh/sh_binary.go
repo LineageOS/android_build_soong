@@ -379,8 +379,16 @@ func (s *ShTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		}
 		configs = append(configs, tradefed.Object{"target_preparer", "com.android.tradefed.targetprep.PushFilePreparer", options})
 	}
-	s.testConfig = tradefed.AutoGenShellTestConfig(ctx, s.testProperties.Test_config,
-		s.testProperties.Test_config_template, s.testProperties.Test_suites, configs, s.testProperties.Auto_gen_config, s.outputFilePath.Base())
+	s.testConfig = tradefed.AutoGenTestConfig(ctx, tradefed.AutoGenTestConfigOptions{
+		TestConfigProp:         s.testProperties.Test_config,
+		TestConfigTemplateProp: s.testProperties.Test_config_template,
+		TestSuites:             s.testProperties.Test_suites,
+		Config:                 configs,
+		AutoGenConfig:          s.testProperties.Auto_gen_config,
+		OutputFileName:         s.outputFilePath.Base(),
+		DeviceTemplate:         "${ShellTestConfigTemplate}",
+		HostTemplate:           "${ShellTestConfigTemplate}",
+	})
 
 	s.dataModules = make(map[string]android.Path)
 	ctx.VisitDirectDeps(func(dep android.Module) {

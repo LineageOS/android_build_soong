@@ -112,12 +112,14 @@ func (benchmark *benchmarkDecorator) compilerProps() []interface{} {
 }
 
 func (benchmark *benchmarkDecorator) install(ctx ModuleContext) {
-	benchmark.testConfig = tradefed.AutoGenRustBenchmarkConfig(ctx,
-		benchmark.Properties.Test_config,
-		benchmark.Properties.Test_config_template,
-		benchmark.Properties.Test_suites,
-		nil,
-		benchmark.Properties.Auto_gen_config)
+	benchmark.testConfig = tradefed.AutoGenTestConfig(ctx, tradefed.AutoGenTestConfigOptions{
+		TestConfigProp:         benchmark.Properties.Test_config,
+		TestConfigTemplateProp: benchmark.Properties.Test_config_template,
+		TestSuites:             benchmark.Properties.Test_suites,
+		AutoGenConfig:          benchmark.Properties.Auto_gen_config,
+		DeviceTemplate:         "${RustDeviceBenchmarkConfigTemplate}",
+		HostTemplate:           "${RustHostBenchmarkConfigTemplate}",
+	})
 
 	// default relative install path is module name
 	if !Bool(benchmark.Properties.No_named_install_directory) {
