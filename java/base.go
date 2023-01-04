@@ -1488,14 +1488,7 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 			}
 			// Dex compilation
 			var dexOutputFile android.OutputPath
-			params := &compileDexParams{
-				flags:         flags,
-				sdkVersion:    j.SdkVersion(ctx),
-				minSdkVersion: j.MinSdkVersion(ctx),
-				classesJar:    implementationAndResourcesJar,
-				jarName:       jarName,
-			}
-			dexOutputFile = j.dexer.compileDex(ctx, params)
+			dexOutputFile = j.dexer.compileDex(ctx, flags, j.MinSdkVersion(ctx), implementationAndResourcesJar, jarName)
 			if ctx.Failed() {
 				return
 			}
