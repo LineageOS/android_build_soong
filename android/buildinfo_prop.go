@@ -61,11 +61,10 @@ func (p *buildinfoPropModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 		return
 	}
 
-	rule := NewRuleBuilder(pctx, ctx)
-	cmd := rule.Command().Text("(")
+	lines := make([]string, 0)
 
 	writeString := func(str string) {
-		cmd.Text(`echo "` + str + `" && `)
+		lines = append(lines, str)
 	}
 
 	writeString("# begin build properties")
@@ -142,8 +141,7 @@ func (p *buildinfoPropModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 
 	writeString("# end build properties")
 
-	cmd.Text("true) > ").Output(p.outputFilePath)
-	rule.Build("build.prop", "generating build.prop")
+	WriteFileRule(ctx, p.outputFilePath, strings.Join(lines, "\n"))
 
 	if !p.installable() {
 		p.SkipInstall()
