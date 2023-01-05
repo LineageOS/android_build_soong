@@ -415,8 +415,16 @@ func (test *testBinary) install(ctx ModuleContext, file android.Path) {
 	testInstallBase := getTestInstallBase(useVendor)
 	configs := getTradefedConfigOptions(ctx, &test.Properties, test.isolated(ctx))
 
-	test.testConfig = tradefed.AutoGenNativeTestConfig(ctx, test.Properties.Test_config,
-		test.Properties.Test_config_template, test.testDecorator.InstallerProperties.Test_suites, configs, test.Properties.Auto_gen_config, testInstallBase)
+	test.testConfig = tradefed.AutoGenTestConfig(ctx, tradefed.AutoGenTestConfigOptions{
+		TestConfigProp:         test.Properties.Test_config,
+		TestConfigTemplateProp: test.Properties.Test_config_template,
+		TestSuites:             test.testDecorator.InstallerProperties.Test_suites,
+		Config:                 configs,
+		AutoGenConfig:          test.Properties.Auto_gen_config,
+		TestInstallBase:        testInstallBase,
+		DeviceTemplate:         "${NativeTestConfigTemplate}",
+		HostTemplate:           "${NativeHostTestConfigTemplate}",
+	})
 
 	test.extraTestConfigs = android.PathsForModuleSrc(ctx, test.Properties.Test_options.Extra_test_configs)
 
@@ -630,8 +638,15 @@ func (benchmark *benchmarkDecorator) install(ctx ModuleContext, file android.Pat
 	if Bool(benchmark.Properties.Require_root) {
 		configs = append(configs, tradefed.Object{"target_preparer", "com.android.tradefed.targetprep.RootTargetPreparer", nil})
 	}
-	benchmark.testConfig = tradefed.AutoGenNativeBenchmarkTestConfig(ctx, benchmark.Properties.Test_config,
-		benchmark.Properties.Test_config_template, benchmark.Properties.Test_suites, configs, benchmark.Properties.Auto_gen_config)
+	benchmark.testConfig = tradefed.AutoGenTestConfig(ctx, tradefed.AutoGenTestConfigOptions{
+		TestConfigProp:         benchmark.Properties.Test_config,
+		TestConfigTemplateProp: benchmark.Properties.Test_config_template,
+		TestSuites:             benchmark.Properties.Test_suites,
+		Config:                 configs,
+		AutoGenConfig:          benchmark.Properties.Auto_gen_config,
+		DeviceTemplate:         "${NativeBenchmarkTestConfigTemplate}",
+		HostTemplate:           "${NativeBenchmarkTestConfigTemplate}",
+	})
 
 	benchmark.binaryDecorator.baseInstaller.dir = filepath.Join("benchmarktest", ctx.ModuleName())
 	benchmark.binaryDecorator.baseInstaller.dir64 = filepath.Join("benchmarktest64", ctx.ModuleName())
