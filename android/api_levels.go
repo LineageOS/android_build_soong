@@ -133,6 +133,58 @@ func (this ApiLevel) IsPrivate() bool {
 	return this.number == PrivateApiLevel.number
 }
 
+// EffectiveVersion converts an ApiLevel into the concrete ApiLevel that the module should use. For
+// modules targeting an unreleased SDK (meaning it does not yet have a number) it returns
+// FutureApiLevel(10000).
+func (l ApiLevel) EffectiveVersion(ctx EarlyModuleContext) (ApiLevel, error) {
+	if l.EqualTo(InvalidApiLevel) {
+		return l, fmt.Errorf("invalid version in sdk_version %q", l.value)
+	}
+	if !l.IsPreview() {
+		return l, nil
+	}
+	ret := ctx.Config().DefaultAppTargetSdk(ctx)
+	if ret.IsPreview() {
+		return FutureApiLevel, nil
+	}
+	return ret, nil
+}
+
+// EffectiveVersionString converts an SdkSpec into the concrete version string that the module
+// should use. For modules targeting an unreleased SDK (meaning it does not yet have a number)
+// it returns the codename (P, Q, R, etc.)
+func (l ApiLevel) EffectiveVersionString(ctx EarlyModuleContext) (string, error) {
+	if l.EqualTo(InvalidApiLevel) {
+		return l.value, fmt.Errorf("invalid version in sdk_version %q", l.value)
+	}
+	if !l.IsPreview() {
+		return l.String(), nil
+	}
+	// Determine the default sdk
+	ret := ctx.Config().DefaultAppTargetSdk(ctx)
+	if !ret.IsPreview() {
+		// If the default sdk has been finalized, return that
+		return ret.String(), nil
+	}
+	// There can be more than one active in-development sdks
+	// If an app is targeting an active sdk, but not the default one, return the requested active sdk.
+	// e.g.
+	// SETUP
+	// In-development: UpsideDownCake, VanillaIceCream
+	// Default: VanillaIceCream
+	// Android.bp
+	// min_sdk_version: `UpsideDownCake`
+	// RETURN
+	// UpsideDownCake and not VanillaIceCream
+	for _, preview := range ctx.Config().PreviewApiLevels() {
+		if l.String() == preview.String() {
+			return preview.String(), nil
+		}
+	}
+	// Otherwise return the default one
+	return ret.String(), nil
+}
+
 // Returns -1 if the current API level is less than the argument, 0 if they
 // are equal, and 1 if it is greater than the argument.
 func (this ApiLevel) CompareTo(other ApiLevel) int {

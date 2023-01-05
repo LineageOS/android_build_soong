@@ -221,14 +221,7 @@ func (s SdkSpec) EffectiveVersion(ctx EarlyModuleContext) (ApiLevel, error) {
 	if ctx.DeviceSpecific() || ctx.SocSpecific() {
 		s = s.ForVendorPartition(ctx)
 	}
-	if !s.ApiLevel.IsPreview() {
-		return s.ApiLevel, nil
-	}
-	ret := ctx.Config().DefaultAppTargetSdk(ctx)
-	if ret.IsPreview() {
-		return FutureApiLevel, nil
-	}
-	return ret, nil
+	return s.ApiLevel.EffectiveVersion(ctx)
 }
 
 // EffectiveVersionString converts an SdkSpec into the concrete version string that the module
@@ -242,32 +235,7 @@ func (s SdkSpec) EffectiveVersionString(ctx EarlyModuleContext) (string, error) 
 	if ctx.DeviceSpecific() || ctx.SocSpecific() {
 		s = s.ForVendorPartition(ctx)
 	}
-	if !s.ApiLevel.IsPreview() {
-		return s.ApiLevel.String(), nil
-	}
-	// Determine the default sdk
-	ret := ctx.Config().DefaultAppTargetSdk(ctx)
-	if !ret.IsPreview() {
-		// If the default sdk has been finalized, return that
-		return ret.String(), nil
-	}
-	// There can be more than one active in-development sdks
-	// If an app is targeting an active sdk, but not the default one, return the requested active sdk.
-	// e.g.
-	// SETUP
-	// In-development: UpsideDownCake, VanillaIceCream
-	// Default: VanillaIceCream
-	// Android.bp
-	// min_sdk_version: `UpsideDownCake`
-	// RETURN
-	// UpsideDownCake and not VanillaIceCream
-	for _, preview := range ctx.Config().PreviewApiLevels() {
-		if s.ApiLevel.String() == preview.String() {
-			return preview.String(), nil
-		}
-	}
-	// Otherwise return the default one
-	return ret.String(), nil
+	return s.ApiLevel.EffectiveVersionString(ctx)
 }
 
 var (
