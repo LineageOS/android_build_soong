@@ -432,16 +432,26 @@ func NewBazelContext(c *config) (BazelContext, error) {
 	vars := []struct {
 		name string
 		ptr  *string
+
+		// True if the environment variable needs to be tracked so that changes to the variable
+		// cause the ninja file to be regenerated, false otherwise. False should only be set for
+		// environment variables that have no effect on the generated ninja file.
+		track bool
 	}{
-		{"BAZEL_HOME", &paths.homeDir},
-		{"BAZEL_PATH", &paths.bazelPath},
-		{"BAZEL_OUTPUT_BASE", &paths.outputBase},
-		{"BAZEL_WORKSPACE", &paths.workspaceDir},
-		{"BAZEL_METRICS_DIR", &paths.metricsDir},
-		{"BAZEL_DEPS_FILE", &paths.bazelDepsFile},
+		{"BAZEL_HOME", &paths.homeDir, true},
+		{"BAZEL_PATH", &paths.bazelPath, true},
+		{"BAZEL_OUTPUT_BASE", &paths.outputBase, true},
+		{"BAZEL_WORKSPACE", &paths.workspaceDir, true},
+		{"BAZEL_METRICS_DIR", &paths.metricsDir, false},
+		{"BAZEL_DEPS_FILE", &paths.bazelDepsFile, true},
 	}
 	for _, v := range vars {
-		if s := c.Getenv(v.name); len(s) > 1 {
+		if v.track {
+			if s := c.Getenv(v.name); len(s) > 1 {
+				*v.ptr = s
+				continue
+			}
+		} else if s, ok := c.env[v.name]; ok {
 			*v.ptr = s
 		} else {
 			missing = append(missing, v.name)
