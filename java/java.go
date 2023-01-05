@@ -2005,15 +2005,7 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			j.dexpreopter.uncompressedDex = *j.dexProperties.Uncompress_dex
 
 			var dexOutputFile android.OutputPath
-			dexParams := &compileDexParams{
-				flags:         flags,
-				sdkVersion:    j.SdkVersion(ctx),
-				minSdkVersion: j.MinSdkVersion(ctx),
-				classesJar:    outputFile,
-				jarName:       jarName,
-			}
-
-			dexOutputFile = j.dexer.compileDex(ctx, dexParams)
+			dexOutputFile = j.dexer.compileDex(ctx, flags, j.MinSdkVersion(ctx), outputFile, jarName)
 			if ctx.Failed() {
 				return
 			}
