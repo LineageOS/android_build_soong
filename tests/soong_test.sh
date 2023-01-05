@@ -19,4 +19,4 @@ function test_m_clean_works {
   run_soong clean
 }
 
-test_m_clean_works
+scan_and_run_tests
