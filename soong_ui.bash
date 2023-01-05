@@ -18,34 +18,8 @@
 # that's detected in the Go code, which skips calculating the startup time.
 export TRACE_BEGIN_SOONG=$(date +%s%N)
 
-# Function to find top of the source tree (if $TOP isn't set) by walking up the
-# tree.
-function gettop
-{
-    local TOPFILE=build/soong/root.bp
-    if [ -n "${TOP-}" -a -f "${TOP-}/${TOPFILE}" ] ; then
-        # The following circumlocution ensures we remove symlinks from TOP.
-        (cd $TOP; PWD= /bin/pwd)
-    else
-        if [ -f $TOPFILE ] ; then
-            # The following circumlocution (repeated below as well) ensures
-            # that we record the true directory name and not one that is
-            # faked up with symlink names.
-            PWD= /bin/pwd
-        else
-            local HERE=$PWD
-            T=
-            while [ \( ! \( -f $TOPFILE \) \) -a \( $PWD != "/" \) ]; do
-                \cd ..
-                T=`PWD= /bin/pwd -P`
-            done
-            \cd $HERE
-            if [ -f "$T/$TOPFILE" ]; then
-                echo $T
-            fi
-        fi
-    fi
-}
+source $(cd $(dirname $BASH_SOURCE) &> /dev/null && pwd)/../make/shell_utils.sh
+require_top
 
 # Save the current PWD for use in soong_ui
 export ORIGINAL_PWD=${PWD}
