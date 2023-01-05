@@ -41,7 +41,6 @@ func TestR8(t *testing.T) {
 			name: "core_platform_app",
 			srcs: ["foo.java"],
 			sdk_version: "core_platform",
-			min_sdk_version: "31",
 		}
 
 		java_library {
