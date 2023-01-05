@@ -277,7 +277,7 @@ func runSoongOnlyBuild(ctx *android.Context, extraNinjaDeps []string) string {
 	switch ctx.Config().BuildMode {
 	case android.GenerateModuleGraph:
 		stopBefore = bootstrap.StopBeforeWriteNinja
-	case android.GenerateQueryView | android.GenerateDocFile:
+	case android.GenerateQueryView, android.GenerateDocFile:
 		stopBefore = bootstrap.StopBeforePrepareBuildActions
 	default:
 		stopBefore = bootstrap.DoEverything
