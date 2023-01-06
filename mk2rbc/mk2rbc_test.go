@@ -1567,6 +1567,9 @@ $(foreach x,$(MY_LIST_VAR), \
 
 $(foreach x,$(MY_LIST_VAR), \
   $(eval include foo/$(x).mk))
+
+# Check that we get as least close to correct line numbers for errors on statements inside evals
+$(eval $(call inherit-product,$(A_VAR)))
 `,
 		expected: `load("//build/make/core:product_config.rbc", "rblf")
 load("//foo:font.star", _font_init = "init")
@@ -1592,6 +1595,8 @@ def init(g, handle):
     if not _varmod_init:
       rblf.mkerror("product.mk", "Cannot find %s" % ("foo/%s.mk" % x))
     _varmod_init(g, handle)
+  # Check that we get as least close to correct line numbers for errors on statements inside evals
+  rblf.mk2rbc_error("product.mk:17", "inherit-product/include argument is too complex")
 `,
 	},
 	{
