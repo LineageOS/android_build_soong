@@ -36,11 +36,6 @@ import (
 )
 
 var (
-	writeBazelFile = pctx.AndroidStaticRule("bazelWriteFileRule", blueprint.RuleParams{
-		Command:        `sed "s/\\\\n/\n/g" ${out}.rsp >${out}`,
-		Rspfile:        "${out}.rsp",
-		RspfileContent: "${content}",
-	}, "content")
 	_                 = pctx.HostBinToolVariable("bazelBuildRunfilesTool", "build-runfiles")
 	buildRunfilesRule = pctx.AndroidStaticRule("bazelBuildRunfiles", blueprint.RuleParams{
 		Command:     "${bazelBuildRunfilesTool} ${in} ${outDir}",
@@ -437,16 +432,26 @@ func NewBazelContext(c *config) (BazelContext, error) {
 	vars := []struct {
 		name string
 		ptr  *string
+
+		// True if the environment variable needs to be tracked so that changes to the variable
+		// cause the ninja file to be regenerated, false otherwise. False should only be set for
+		// environment variables that have no effect on the generated ninja file.
+		track bool
 	}{
-		{"BAZEL_HOME", &paths.homeDir},
-		{"BAZEL_PATH", &paths.bazelPath},
-		{"BAZEL_OUTPUT_BASE", &paths.outputBase},
-		{"BAZEL_WORKSPACE", &paths.workspaceDir},
-		{"BAZEL_METRICS_DIR", &paths.metricsDir},
-		{"BAZEL_DEPS_FILE", &paths.bazelDepsFile},
+		{"BAZEL_HOME", &paths.homeDir, true},
+		{"BAZEL_PATH", &paths.bazelPath, true},
+		{"BAZEL_OUTPUT_BASE", &paths.outputBase, true},
+		{"BAZEL_WORKSPACE", &paths.workspaceDir, true},
+		{"BAZEL_METRICS_DIR", &paths.metricsDir, false},
+		{"BAZEL_DEPS_FILE", &paths.bazelDepsFile, true},
 	}
 	for _, v := range vars {
-		if s := c.Getenv(v.name); len(s) > 1 {
+		if v.track {
+			if s := c.Getenv(v.name); len(s) > 1 {
+				*v.ptr = s
+				continue
+			}
+		} else if s, ok := c.env[v.name]; ok {
 			*v.ptr = s
 		} else {
 			missing = append(missing, v.name)
@@ -1089,19 +1094,8 @@ func (c *bazelSingleton) GenerateBuildActions(ctx SingletonContext) {
 		// because this would cause circular dependency. So, until we move aquery processing
 		// to the 'android' package, we need to handle special cases here.
 		if buildStatement.Mnemonic == "FileWrite" || buildStatement.Mnemonic == "SourceSymlinkManifest" {
-			// Pass file contents as the value of the rule's "content" argument.
-			// Escape newlines and $ in the contents (the action "writeBazelFile" restores "\\n"
-			// back to the newline, and Ninja reads $$ as $.
-			escaped := strings.ReplaceAll(strings.ReplaceAll(buildStatement.FileContents, "\n", "\\n"),
-				"$", "$$")
-			ctx.Build(pctx, BuildParams{
-				Rule:        writeBazelFile,
-				Output:      PathForBazelOut(ctx, buildStatement.OutputPaths[0]),
-				Description: fmt.Sprintf("%s %s", buildStatement.Mnemonic, buildStatement.OutputPaths[0]),
-				Args: map[string]string{
-					"content": escaped,
-				},
-			})
+			out := PathForBazelOut(ctx, buildStatement.OutputPaths[0])
+			WriteFileRuleVerbatim(ctx, out, buildStatement.FileContents)
 		} else if buildStatement.Mnemonic == "SymlinkTree" {
 			// build-runfiles arguments are the manifest file and the target directory
 			// where it creates the symlink tree according to this manifest (and then
