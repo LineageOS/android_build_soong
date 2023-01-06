@@ -1872,6 +1872,18 @@ func (p *evalNodeParser) parse(ctx *parseContext, node mkparser.Node, args *mkpa
 	if len(nodes) == 0 {
 		return []starlarkNode{}
 	} else if len(nodes) == 1 {
+		// Replace the nodeLocator with one that just returns the location of
+		// the $(eval) node. Otherwise, statements inside an $(eval) will show as
+		// being on line 1 of the file, because they're on line 1 of
+		// strings.NewReader(args.Dump())
+		oldNodeLocator := ctx.script.nodeLocator
+		ctx.script.nodeLocator = func(pos mkparser.Pos) int {
+			return oldNodeLocator(node.Pos())
+		}
+		defer func() {
+			ctx.script.nodeLocator = oldNodeLocator
+		}()
+
 		switch n := nodes[0].(type) {
 		case *mkparser.Assignment:
 			if n.Name.Const() {
