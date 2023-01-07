@@ -140,9 +140,9 @@ EOF
   # NOTE: We don't actually use the extra BUILD file for anything here
   run_bazel build --config=android --config=bp2build --config=ci //foo/...
 
-  local the_answer_file="bazel-out/android_target-opt/bin/foo/convertible_soong_module/the_answer.txt"
+  local the_answer_file="$(find -L bazel-out -name the_answer.txt)"
   if [[ ! -f "${the_answer_file}" ]]; then
-    fail "Expected '${the_answer_file}' to be generated, but was missing"
+    fail "Expected the_answer.txt to be generated, but was missing"
   fi
   if ! grep 42 "${the_answer_file}"; then
     fail "Expected to find 42 in '${the_answer_file}'"
