@@ -541,7 +541,7 @@ type SdkMember interface {
 	Name() string
 
 	// Variants returns all the variants of this module depended upon by the SDK.
-	Variants() []SdkAware
+	Variants() []Module
 }
 
 // SdkMemberDependencyTag is the interface that a tag must implement in order to allow the
@@ -673,7 +673,7 @@ type SdkMemberType interface {
 	// The sdk module code generates the snapshot as follows:
 	//
 	// * A properties struct of type SdkMemberProperties is created for each variant and
-	//   populated with information from the variant by calling PopulateFromVariant(SdkAware)
+	//   populated with information from the variant by calling PopulateFromVariant(Module)
 	//   on the struct.
 	//
 	// * An additional properties struct is created into which the common properties will be
