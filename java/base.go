@@ -395,7 +395,6 @@ type Module struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
 	android.ApexModuleBase
-	android.SdkBase
 	android.BazelModuleBase
 
 	// Functionality common to Module and Import.

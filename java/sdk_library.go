@@ -752,7 +752,7 @@ type commonToSdkLibraryAndImportProperties struct {
 // commonSdkLibraryAndImportModule defines the interface that must be provided by a module that
 // embeds the commonToSdkLibraryAndImport struct.
 type commonSdkLibraryAndImportModule interface {
-	android.SdkAware
+	android.Module
 
 	BaseModuleName() string
 }
@@ -2048,7 +2048,6 @@ func SdkLibraryFactory() android.Module {
 
 	module.InitSdkLibraryProperties()
 	android.InitApexModule(module)
-	android.InitSdkAwareModule(module)
 	InitJavaModule(module, android.HostAndDeviceSupported)
 
 	// Initialize the map from scope to scope specific properties.
@@ -2126,7 +2125,6 @@ type SdkLibraryImport struct {
 	android.DefaultableModuleBase
 	prebuilt android.Prebuilt
 	android.ApexModuleBase
-	android.SdkBase
 
 	hiddenAPI
 	dexpreopter
@@ -2208,7 +2206,6 @@ func sdkLibraryImportFactory() android.Module {
 
 	android.InitPrebuiltModule(module, &[]string{""})
 	android.InitApexModule(module)
-	android.InitSdkAwareModule(module)
 	InitJavaModule(module, android.HostAndDeviceSupported)
 
 	module.SetDefaultableHook(func(mctx android.DefaultableHookContext) {
