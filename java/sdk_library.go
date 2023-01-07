@@ -831,18 +831,14 @@ func (c *commonToSdkLibraryAndImport) xmlPermissionsModuleName() string {
 // Name of the java_library module that compiles the stubs source.
 func (c *commonToSdkLibraryAndImport) stubsLibraryModuleName(apiScope *apiScope) string {
 	baseName := c.module.BaseModuleName()
-	return c.module.SdkMemberComponentName(baseName, func(name string) string {
-		return c.namingScheme.stubsLibraryModuleName(apiScope, name)
-	})
+	return c.namingScheme.stubsLibraryModuleName(apiScope, baseName)
 }
 
 // Name of the droidstubs module that generates the stubs source and may also
 // generate/check the API.
 func (c *commonToSdkLibraryAndImport) stubsSourceModuleName(apiScope *apiScope) string {
 	baseName := c.module.BaseModuleName()
-	return c.module.SdkMemberComponentName(baseName, func(name string) string {
-		return c.namingScheme.stubsSourceModuleName(apiScope, name)
-	})
+	return c.namingScheme.stubsSourceModuleName(apiScope, baseName)
 }
 
 // The component names for different outputs of the java_sdk_library.
