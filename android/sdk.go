@@ -25,36 +25,6 @@ import (
 
 // sdkAwareWithoutModule is provided simply to improve code navigation with the IDE.
 type sdkAwareWithoutModule interface {
-	// SdkMemberComponentName will return the name to use for a component of this module based on the
-	// base name of this module.
-	//
-	// The baseName is the name returned by ModuleBase.BaseModuleName(), i.e. the name specified in
-	// the name property in the .bp file so will not include the prebuilt_ prefix.
-	//
-	// The componentNameCreator is a func for creating the name of a component from the base name of
-	// the module, e.g. it could just append ".component" to the name passed in.
-	//
-	// This is intended to be called by prebuilt modules that create component models. It is because
-	// prebuilt module base names come in a variety of different forms:
-	// * unversioned - this is the same as the source module.
-	// * internal to an sdk - this is the unversioned name prefixed by the base name of the sdk
-	//   module.
-	// * versioned - this is the same as the internal with the addition of an "@<version>" suffix.
-	//
-	// While this can be called from a source module in that case it will behave the same way as the
-	// unversioned name and return the result of calling the componentNameCreator func on the supplied
-	// base name.
-	//
-	// e.g. Assuming the componentNameCreator func simply appends ".component" to the name passed in
-	// then this will work as follows:
-	// * An unversioned name of "foo" will return "foo.component".
-	// * An internal to the sdk name of "sdk_foo" will return "sdk_foo.component".
-	// * A versioned name of "sdk_foo@current" will return "sdk_foo.component@current".
-	//
-	// Note that in the latter case the ".component" suffix is added before the version. Adding it
-	// after would change the version.
-	SdkMemberComponentName(baseName string, componentNameCreator func(string) string) string
-
 	sdkBase() *SdkBase
 	MakeMemberOf(sdk SdkRef)
 	IsInAnySdk() bool
@@ -166,18 +136,6 @@ type SdkBase struct {
 
 func (s *SdkBase) sdkBase() *SdkBase {
 	return s
-}
-
-func (s *SdkBase) SdkMemberComponentName(baseName string, componentNameCreator func(string) string) string {
-	if s.MemberName() == "" {
-		return componentNameCreator(baseName)
-	} else {
-		index := strings.LastIndex(baseName, "@")
-		unversionedName := baseName[:index]
-		unversionedComponentName := componentNameCreator(unversionedName)
-		versionSuffix := baseName[index:]
-		return unversionedComponentName + versionSuffix
-	}
 }
 
 // MakeMemberOf sets this module to be a member of a specific SDK
