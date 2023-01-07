@@ -134,7 +134,7 @@ func runMixedModeBuild(ctx *android.Context, extraNinjaDeps []string) string {
 func runQueryView(queryviewDir, queryviewMarker string, ctx *android.Context) {
 	ctx.EventHandler.Begin("queryview")
 	defer ctx.EventHandler.End("queryview")
-	codegenContext := bp2build.NewCodegenContext(ctx.Config(), ctx, bp2build.QueryView)
+	codegenContext := bp2build.NewCodegenContext(ctx.Config(), ctx, bp2build.QueryView, topDir)
 	err := createBazelWorkspace(codegenContext, shared.JoinPath(topDir, queryviewDir))
 	maybeQuit(err, "")
 	touch(shared.JoinPath(topDir, queryviewMarker))
@@ -169,7 +169,7 @@ func runApiBp2build(ctx *android.Context, extraNinjaDeps []string) string {
 	ninjaDeps = append(ninjaDeps, writeBuildGlobsNinjaFile(ctx)...)
 
 	// Run codegen to generate BUILD files
-	codegenContext := bp2build.NewCodegenContext(ctx.Config(), ctx, bp2build.ApiBp2build)
+	codegenContext := bp2build.NewCodegenContext(ctx.Config(), ctx, bp2build.ApiBp2build, topDir)
 	absoluteApiBp2buildDir := shared.JoinPath(topDir, cmdlineArgs.BazelApiBp2buildDir)
 	err := createBazelWorkspace(codegenContext, absoluteApiBp2buildDir)
 	maybeQuit(err, "")
@@ -586,7 +586,7 @@ func runBp2Build(ctx *android.Context, extraNinjaDeps []string, metricsDir strin
 
 		// Run the code-generation phase to convert BazelTargetModules to BUILD files
 		// and print conversion codegenMetrics to the user.
-		codegenContext := bp2build.NewCodegenContext(ctx.Config(), ctx, bp2build.Bp2Build)
+		codegenContext := bp2build.NewCodegenContext(ctx.Config(), ctx, bp2build.Bp2Build, topDir)
 		ctx.EventHandler.Do("codegen", func() {
 			codegenMetrics = bp2build.Codegen(codegenContext)
 		})

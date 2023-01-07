@@ -205,6 +205,9 @@ type bazelContext struct {
 	bazelEnabledModules map[string]bool
 	// If true, modules are bazel-enabled by default, unless present in bazelDisabledModules.
 	modulesDefaultToBazel bool
+
+	targetProduct      string
+	targetBuildVariant string
 }
 
 var _ BazelContext = &bazelContext{}
@@ -460,6 +463,18 @@ func NewBazelContext(c *config) (BazelContext, error) {
 	if len(missing) > 0 {
 		return nil, fmt.Errorf("missing required env vars to use bazel: %s", missing)
 	}
+
+	targetBuildVariant := "user"
+	if c.Eng() {
+		targetBuildVariant = "eng"
+	} else if c.Debuggable() {
+		targetBuildVariant = "userdebug"
+	}
+	targetProduct := "unknown"
+	if c.HasDeviceProduct() {
+		targetProduct = c.DeviceProduct()
+	}
+
 	return &bazelContext{
 		bazelRunner:           &builtinBazelRunner{},
 		paths:                 &paths,
@@ -467,6 +482,8 @@ func NewBazelContext(c *config) (BazelContext, error) {
 		modulesDefaultToBazel: c.BuildMode == BazelDevMode,
 		bazelEnabledModules:   enabledModules,
 		bazelDisabledModules:  disabledModules,
+		targetProduct:         targetProduct,
+		targetBuildVariant:    targetBuildVariant,
 	}, nil
 }
 
@@ -563,9 +580,9 @@ func (r *builtinBazelRunner) createBazelCommand(paths *bazelPaths, runName bazel
 		// The actual platform values here may be overridden by configuration
 		// transitions from the buildroot.
 		fmt.Sprintf("--extra_toolchains=%s", "//prebuilts/clang/host/linux-x86:all"),
-		// This should be parameterized on the host OS, but let's restrict to linux
-		// to keep things simple for now.
-		fmt.Sprintf("--host_platform=%s", "//build/bazel/platforms:linux_x86_64"),
+
+		// We don't need to set --host_platforms because it's set in bazelrc files
+		// that the bazel shell script wrapper passes
 
 		// Explicitly disable downloading rules (such as canonical C++ and Java rules) from the network.
 		"--experimental_repository_disable_download",
@@ -610,8 +627,12 @@ func (context *bazelContext) mainBzlFileContents() []byte {
 #####################################################
 
 def _config_node_transition_impl(settings, attr):
+    if attr.os == "android" and attr.arch == "target":
+        target = "{PRODUCT}-{VARIANT}"
+    else:
+        target = "{PRODUCT}-{VARIANT}_%s_%s" % (attr.os, attr.arch)
     return {
-        "//command_line_option:platforms": "@//build/bazel/platforms:%s_%s" % (attr.os, attr.arch),
+        "//command_line_option:platforms": "@soong_injection//product_config_platforms/products/{PRODUCT}-{VARIANT}:%s" % target,
     }
 
 _config_node_transition = transition(
@@ -658,7 +679,12 @@ phony_root = rule(
     attrs = {"deps" : attr.label_list()},
 )
 `
-	return []byte(contents)
+
+	productReplacer := strings.NewReplacer(
+		"{PRODUCT}", context.targetProduct,
+		"{VARIANT}", context.targetBuildVariant)
+
+	return []byte(productReplacer.Replace(contents))
 }
 
 func (context *bazelContext) mainBuildFileContents() []byte {
@@ -780,26 +806,24 @@ def json_encode(input):
     t = type(p)
     if t == "string" or t == "int":
       return repr(p)
-    fail("unsupported value '%%s' of type '%%s'" %% (p, type(p)))
+    fail("unsupported value '%s' of type '%s'" % (p, type(p)))
 
   def encode_list(list):
-    return "[%%s]" %% ", ".join([encode_primitive(item) for item in list])
+    return "[%s]" % ", ".join([encode_primitive(item) for item in list])
 
   def encode_list_or_primitive(v):
     return encode_list(v) if type(v) == "list" else encode_primitive(v)
 
   if type(input) == "dict":
     # TODO(juu): the result is read line by line so can't use '\n' yet
-    kv_pairs = [("%%s: %%s" %% (encode_primitive(k), encode_list_or_primitive(v))) for (k, v) in input.items()]
-    return "{ %%s }" %% ", ".join(kv_pairs)
+    kv_pairs = [("%s: %s" % (encode_primitive(k), encode_list_or_primitive(v))) for (k, v) in input.items()]
+    return "{ %s }" % ", ".join(kv_pairs)
   else:
     return encode_list_or_primitive(input)
 
-# Label Map Section
-%s
+{LABEL_REGISTRATION_MAP_SECTION}
 
-# Function Def Section
-%s
+{FUNCTION_DEF_SECTION}
 
 def get_arch(target):
   # TODO(b/199363072): filegroups and file targets aren't associated with any
@@ -811,22 +835,26 @@ def get_arch(target):
     # File targets do not have buildoptions. File targets aren't associated with
     #  any specific platform architecture in mixed builds, so use the host.
     return "x86_64|linux"
-  platforms = build_options(target)["//command_line_option:platforms"]
+  platforms = buildoptions["//command_line_option:platforms"]
   if len(platforms) != 1:
     # An individual configured target should have only one platform architecture.
     # Note that it's fine for there to be multiple architectures for the same label,
     # but each is its own configured target.
     fail("expected exactly 1 platform for " + str(target.label) + " but got " + str(platforms))
-  platform_name = build_options(target)["//command_line_option:platforms"][0].name
+  platform_name = platforms[0].name
   if platform_name == "host":
     return "HOST"
+  if not platform_name.startswith("{TARGET_PRODUCT}-{TARGET_BUILD_VARIANT}"):
+    fail("expected platform name of the form '{TARGET_PRODUCT}-{TARGET_BUILD_VARIANT}_android_<arch>' or '{TARGET_PRODUCT}-{TARGET_BUILD_VARIANT}_linux_<arch>', but was " + str(platforms))
+  platform_name = platform_name.removeprefix("{TARGET_PRODUCT}-{TARGET_BUILD_VARIANT}").removeprefix("_")
+  if not platform_name:
+    return "target|android"
   elif platform_name.startswith("android_"):
-    return platform_name[len("android_"):] + "|" + platform_name[:len("android_")-1]
+    return platform_name.removeprefix("android_") + "|android"
   elif platform_name.startswith("linux_"):
-    return platform_name[len("linux_"):] + "|" + platform_name[:len("linux_")-1]
+    return platform_name.removeprefix("linux_") + "|linux"
   else:
-    fail("expected platform name of the form 'android_<arch>' or 'linux_<arch>', but was " + str(platforms))
-    return "UNKNOWN"
+    fail("expected platform name of the form '{TARGET_PRODUCT}-{TARGET_BUILD_VARIANT}_android_<arch>' or '{TARGET_PRODUCT}-{TARGET_BUILD_VARIANT}_linux_<arch>', but was " + str(platforms))
 
 def format(target):
   id_string = str(target.label) + "|" + get_arch(target)
@@ -835,15 +863,20 @@ def format(target):
   if id_string.startswith("//"):
     id_string = "@" + id_string
 
-  # Main switch section
-  %s
+  {MAIN_SWITCH_SECTION}
+
   # This target was not requested via cquery, and thus must be a dependency
   # of a requested target.
   return id_string + ">>NONE"
 `
+	replacer := strings.NewReplacer(
+		"{TARGET_PRODUCT}", context.targetProduct,
+		"{TARGET_BUILD_VARIANT}", context.targetBuildVariant,
+		"{LABEL_REGISTRATION_MAP_SECTION}", labelRegistrationMapSection,
+		"{FUNCTION_DEF_SECTION}", functionDefSection,
+		"{MAIN_SWITCH_SECTION}", mainSwitchSection)
 
-	return []byte(fmt.Sprintf(formatString, labelRegistrationMapSection, functionDefSection,
-		mainSwitchSection))
+	return []byte(replacer.Replace(formatString))
 }
 
 // Returns a path containing build-related metadata required for interfacing

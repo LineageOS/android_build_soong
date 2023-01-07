@@ -200,7 +200,7 @@ func (b *bazelTestRunner) PostParseProcessor(result android.CustomTestResult) {
 		return
 	}
 
-	codegenCtx := NewCodegenContext(config, ctx.Context, Bp2Build)
+	codegenCtx := NewCodegenContext(config, ctx.Context, Bp2Build, "")
 	res, errs := GenerateBazelTargets(codegenCtx, false)
 	if bazelResult.CollateErrs(errs) {
 		return

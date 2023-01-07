@@ -769,6 +769,13 @@ func (c *config) DeviceProduct() string {
 	return *c.productVariables.DeviceProduct
 }
 
+// HasDeviceProduct returns if the build has a product. A build will not
+// necessarily have a product when --skip-config is passed to soong, like it is
+// in prebuilts/build-tools/build-prebuilts.sh
+func (c *config) HasDeviceProduct() bool {
+	return c.productVariables.DeviceProduct != nil
+}
+
 func (c *config) DeviceResourceOverlays() []string {
 	return c.productVariables.DeviceResourceOverlays
 }
