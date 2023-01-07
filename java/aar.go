@@ -1054,12 +1054,15 @@ func (a *AndroidLibrary) ConvertWithBp2build(ctx android.TopDownMutatorContext) 
 		ctx.ModuleErrorf("Module has direct dependencies but no sources. Bazel will not allow this.")
 	}
 
+	name := a.Name()
+	props := bazel.BazelTargetModuleProperties{
+		Rule_class:        "android_library",
+		Bzl_load_location: "@rules_android//rules:rules.bzl",
+	}
+
 	ctx.CreateBazelTargetModule(
-		bazel.BazelTargetModuleProperties{
-			Rule_class:        "android_library",
-			Bzl_load_location: "@rules_android//rules:rules.bzl",
-		},
-		android.CommonAttributes{Name: a.Name()},
+		props,
+		android.CommonAttributes{Name: name},
 		&bazelAndroidLibrary{
 			&javaLibraryAttributes{
 				javaCommonAttributes: commonAttrs,
@@ -1067,6 +1070,18 @@ func (a *AndroidLibrary) ConvertWithBp2build(ctx android.TopDownMutatorContext) 
 				Exports:              depLabels.StaticDeps,
 			},
 			a.convertAaptAttrsWithBp2Build(ctx),
+		},
+	)
+
+	neverlink := true
+	ctx.CreateBazelTargetModule(
+		props,
+		android.CommonAttributes{Name: name + "-neverlink"},
+		&bazelAndroidLibrary{
+			javaLibraryAttributes: &javaLibraryAttributes{
+				Neverlink: bazel.BoolAttribute{Value: &neverlink},
+				Exports:   bazel.MakeSingleLabelListAttribute(bazel.Label{Label: ":" + name}),
+			},
 		},
 	)
 }
