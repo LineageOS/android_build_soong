@@ -107,7 +107,7 @@ function setup {
   info "Running test case \e[96;1m${FUNCNAME[1]}\e[0m"
   cd "$MOCK_TOP"
 
-  tar xzf "$WARMED_UP_MOCK_TOP"
+  tar xzf "$WARMED_UP_MOCK_TOP" --warning=no-timestamp
 }
 
 # shellcheck disable=SC2120
