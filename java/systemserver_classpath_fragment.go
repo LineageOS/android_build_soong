@@ -83,7 +83,6 @@ func (p *platformSystemServerClasspathModule) standaloneConfiguredJars(ctx andro
 type SystemServerClasspathModule struct {
 	android.ModuleBase
 	android.ApexModuleBase
-	android.SdkBase
 
 	ClasspathFragmentBase
 
@@ -113,7 +112,6 @@ func systemServerClasspathFactory() android.Module {
 	m := &SystemServerClasspathModule{}
 	m.AddProperties(&m.properties)
 	android.InitApexModule(m)
-	android.InitSdkAwareModule(m)
 	initClasspathFragment(m, SYSTEMSERVERCLASSPATH)
 	android.InitAndroidArchModule(m, android.DeviceSupported, android.MultilibCommon)
 	return m
@@ -331,7 +329,6 @@ func prebuiltSystemServerClasspathModuleFactory() android.Module {
 	// array.
 	android.InitPrebuiltModule(m, &[]string{"placeholder"})
 	android.InitApexModule(m)
-	android.InitSdkAwareModule(m)
 	android.InitAndroidArchModule(m, android.DeviceSupported, android.MultilibCommon)
 	return m
 }
