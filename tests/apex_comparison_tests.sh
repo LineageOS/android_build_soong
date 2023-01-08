@@ -67,23 +67,26 @@ call_bazel build --config=bp2build --config=ci --config=android \
   //packages/modules/adb/apex:com.android.adbd \
   //system/timezone/apex:com.android.tzdata \
   //build/bazel/examples/apex/minimal:build.bazel.examples.apex.minimal.apex
+BAZEL_ADBD="$(realpath $(call_bazel cquery --config=bp2build --config=android --config=ci --output=files //packages/modules/adb/apex:com.android.adbd))"
+BAZEL_TZDATA="$(realpath $(call_bazel cquery --config=bp2build --config=android --config=ci --output=files //system/timezone/apex:com.android.tzdata))"
+BAZEL_MINIMAL="$(realpath $(call_bazel cquery --config=bp2build --config=android --config=ci --output=files //build/bazel/examples/apex/minimal:build.bazel.examples.apex.minimal.apex))"
 
 # # Build debugfs separately, as it's not a dep of apexer, but needs to be an explicit arg.
 call_bazel build --config=bp2build --config=linux_x86_64 //external/e2fsprogs/debugfs //system/apex/tools:deapexer
-DEBUGFS_PATH="$BAZEL_OUT/linux_x86_64-opt/bin/external/e2fsprogs/debugfs/debugfs"
-DEAPEXER="$BAZEL_OUT/linux_x86_64-opt/bin/system/apex/tools/deapexer --debugfs_path=$DEBUGFS_PATH"
+DEBUGFS_PATH="$(realpath $(call_bazel cquery --config=bp2build --config=linux_x86_64 --config=ci --output=files //external/e2fsprogs/debugfs))"
+DEAPEXER="$(realpath $(call_bazel cquery --config=bp2build --config=linux_x86_64 --config=ci --output=files //system/apex/tools:deapexer))"
+DEAPEXER="$DEAPEXER --debugfs_path=$DEBUGFS_PATH"
 
 #######
 # Tests
 #######
 
 function compare_deapexer_list() {
-  local APEX_DIR=$1; shift
+  local BAZEL_APEX=$1; shift
   local APEX=$1; shift
 
   # Compare the outputs of `deapexer list`, which lists the contents of the apex filesystem image.
   local SOONG_APEX="$SOONG_OUTPUT_DIR/$APEX"
-  local BAZEL_APEX="$BAZEL_OUT/android_target-opt/bin/$APEX_DIR/$APEX"
 
   local SOONG_LIST="$OUTPUT_DIR/soong.list"
   local BAZEL_LIST="$OUTPUT_DIR/bazel.list"
@@ -108,6 +111,6 @@ function compare_deapexer_list() {
   fi
 }
 
-compare_deapexer_list packages/modules/adb/apex com.android.adbd.apex
-compare_deapexer_list system/timezone/apex com.android.tzdata.apex
-compare_deapexer_list build/bazel/examples/apex/minimal build.bazel.examples.apex.minimal.apex
+compare_deapexer_list "${BAZEL_ADBD}" com.android.adbd.apex
+compare_deapexer_list "${BAZEL_TZDATA}" com.android.tzdata.apex
+compare_deapexer_list "${BAZEL_MINIMAL}" build.bazel.examples.apex.minimal.apex

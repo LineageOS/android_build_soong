@@ -106,7 +106,7 @@ func setup(builddir string, tcSize float64) testConfig {
 	ctx := android.NewTestContext(config)
 
 	registerCustomModuleForBp2buildConversion(ctx)
-	codegenCtx := NewCodegenContext(config, ctx.Context, Bp2Build)
+	codegenCtx := NewCodegenContext(config, ctx.Context, Bp2Build, "")
 	return testConfig{
 		config,
 		ctx,

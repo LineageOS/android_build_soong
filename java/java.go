@@ -876,7 +876,6 @@ func LibraryFactory() android.Module {
 	module.initModuleAndImport(module)
 
 	android.InitApexModule(module)
-	android.InitSdkAwareModule(module)
 	android.InitBazelModule(module)
 	InitJavaModule(module, android.HostAndDeviceSupported)
 	return module
@@ -899,7 +898,6 @@ func LibraryHostFactory() android.Module {
 	module.Module.properties.Installable = proptools.BoolPtr(true)
 
 	android.InitApexModule(module)
-	android.InitSdkAwareModule(module)
 	android.InitBazelModule(module)
 	InitJavaModule(module, android.HostSupported)
 	return module
@@ -1340,7 +1338,6 @@ func TestFactory() android.Module {
 	module.Module.dexpreopter.isTest = true
 	module.Module.linter.properties.Lint.Test = proptools.BoolPtr(true)
 
-	android.InitSdkAwareModule(module)
 	InitJavaModule(module, android.HostAndDeviceSupported)
 	return module
 }
@@ -1379,7 +1376,6 @@ func JavaTestImportFactory() android.Module {
 
 	android.InitPrebuiltModule(module, &module.properties.Jars)
 	android.InitApexModule(module)
-	android.InitSdkAwareModule(module)
 	InitJavaModule(module, android.HostAndDeviceSupported)
 	return module
 }
@@ -1802,7 +1798,6 @@ type Import struct {
 	android.ApexModuleBase
 	android.BazelModuleBase
 	prebuilt android.Prebuilt
-	android.SdkBase
 
 	// Functionality common to Module and Import.
 	embeddableInModuleAndImport
@@ -2176,7 +2171,6 @@ func ImportFactory() android.Module {
 
 	android.InitPrebuiltModule(module, &module.properties.Jars)
 	android.InitApexModule(module)
-	android.InitSdkAwareModule(module)
 	android.InitBazelModule(module)
 	InitJavaModule(module, android.HostAndDeviceSupported)
 	return module

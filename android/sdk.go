@@ -23,57 +23,6 @@ import (
 	"github.com/google/blueprint/proptools"
 )
 
-// sdkAwareWithoutModule is provided simply to improve code navigation with the IDE.
-type sdkAwareWithoutModule interface {
-	// SdkMemberComponentName will return the name to use for a component of this module based on the
-	// base name of this module.
-	//
-	// The baseName is the name returned by ModuleBase.BaseModuleName(), i.e. the name specified in
-	// the name property in the .bp file so will not include the prebuilt_ prefix.
-	//
-	// The componentNameCreator is a func for creating the name of a component from the base name of
-	// the module, e.g. it could just append ".component" to the name passed in.
-	//
-	// This is intended to be called by prebuilt modules that create component models. It is because
-	// prebuilt module base names come in a variety of different forms:
-	// * unversioned - this is the same as the source module.
-	// * internal to an sdk - this is the unversioned name prefixed by the base name of the sdk
-	//   module.
-	// * versioned - this is the same as the internal with the addition of an "@<version>" suffix.
-	//
-	// While this can be called from a source module in that case it will behave the same way as the
-	// unversioned name and return the result of calling the componentNameCreator func on the supplied
-	// base name.
-	//
-	// e.g. Assuming the componentNameCreator func simply appends ".component" to the name passed in
-	// then this will work as follows:
-	// * An unversioned name of "foo" will return "foo.component".
-	// * An internal to the sdk name of "sdk_foo" will return "sdk_foo.component".
-	// * A versioned name of "sdk_foo@current" will return "sdk_foo.component@current".
-	//
-	// Note that in the latter case the ".component" suffix is added before the version. Adding it
-	// after would change the version.
-	SdkMemberComponentName(baseName string, componentNameCreator func(string) string) string
-
-	sdkBase() *SdkBase
-	MakeMemberOf(sdk SdkRef)
-	IsInAnySdk() bool
-
-	// IsVersioned determines whether the module is versioned, i.e. has a name of the form
-	// <name>@<version>
-	IsVersioned() bool
-
-	ContainingSdk() SdkRef
-	MemberName() string
-}
-
-// SdkAware is the interface that must be supported by any module to become a member of SDK or to be
-// built with SDK
-type SdkAware interface {
-	Module
-	sdkAwareWithoutModule
-}
-
 // minApiLevelForSdkSnapshot provides access to the min_sdk_version for MinApiLevelForSdkSnapshot
 type minApiLevelForSdkSnapshot interface {
 	MinSdkVersion(ctx EarlyModuleContext) SdkSpec
@@ -92,128 +41,6 @@ func MinApiLevelForSdkSnapshot(ctx EarlyModuleContext, module Module) ApiLevel {
 		minApiLevel = uncheckedFinalApiLevel(1)
 	}
 	return minApiLevel
-}
-
-// SdkRef refers to a version of an SDK
-type SdkRef struct {
-	Name    string
-	Version string
-}
-
-// Unversioned determines if the SdkRef is referencing to the unversioned SDK module
-func (s SdkRef) Unversioned() bool {
-	return s.Version == ""
-}
-
-// String returns string representation of this SdkRef for debugging purpose
-func (s SdkRef) String() string {
-	if s.Name == "" {
-		return "(No Sdk)"
-	}
-	if s.Unversioned() {
-		return s.Name
-	}
-	return s.Name + string(SdkVersionSeparator) + s.Version
-}
-
-// SdkVersionSeparator is a character used to separate an sdk name and its version
-const SdkVersionSeparator = '@'
-
-// ParseSdkRef parses a `name@version` style string into a corresponding SdkRef struct
-func ParseSdkRef(ctx BaseModuleContext, str string, property string) SdkRef {
-	tokens := strings.Split(str, string(SdkVersionSeparator))
-	if len(tokens) < 1 || len(tokens) > 2 {
-		ctx.PropertyErrorf(property, "%q does not follow name@version syntax", str)
-		return SdkRef{Name: "invalid sdk name", Version: "invalid sdk version"}
-	}
-
-	name := tokens[0]
-
-	var version string
-	if len(tokens) == 2 {
-		version = tokens[1]
-	}
-
-	return SdkRef{Name: name, Version: version}
-}
-
-type SdkRefs []SdkRef
-
-// Contains tells if the given SdkRef is in this list of SdkRef's
-func (refs SdkRefs) Contains(s SdkRef) bool {
-	for _, r := range refs {
-		if r == s {
-			return true
-		}
-	}
-	return false
-}
-
-type sdkProperties struct {
-	// The SDK that this module is a member of. nil if it is not a member of any SDK
-	ContainingSdk *SdkRef `blueprint:"mutated"`
-
-	// Name of the module that this sdk member is representing
-	Sdk_member_name *string
-}
-
-// SdkBase is a struct that is expected to be included in module types to implement the SdkAware
-// interface. InitSdkAwareModule should be called to initialize this struct.
-type SdkBase struct {
-	properties sdkProperties
-	module     SdkAware
-}
-
-func (s *SdkBase) sdkBase() *SdkBase {
-	return s
-}
-
-func (s *SdkBase) SdkMemberComponentName(baseName string, componentNameCreator func(string) string) string {
-	if s.MemberName() == "" {
-		return componentNameCreator(baseName)
-	} else {
-		index := strings.LastIndex(baseName, "@")
-		unversionedName := baseName[:index]
-		unversionedComponentName := componentNameCreator(unversionedName)
-		versionSuffix := baseName[index:]
-		return unversionedComponentName + versionSuffix
-	}
-}
-
-// MakeMemberOf sets this module to be a member of a specific SDK
-func (s *SdkBase) MakeMemberOf(sdk SdkRef) {
-	s.properties.ContainingSdk = &sdk
-}
-
-// IsInAnySdk returns true if this module is a member of any SDK
-func (s *SdkBase) IsInAnySdk() bool {
-	return s.properties.ContainingSdk != nil
-}
-
-// IsVersioned returns true if this module is versioned.
-func (s *SdkBase) IsVersioned() bool {
-	return strings.Contains(s.module.Name(), "@")
-}
-
-// ContainingSdk returns the SDK that this module is a member of
-func (s *SdkBase) ContainingSdk() SdkRef {
-	if s.properties.ContainingSdk != nil {
-		return *s.properties.ContainingSdk
-	}
-	return SdkRef{Name: "", Version: ""}
-}
-
-// MemberName returns the name of the module that this SDK member is overriding
-func (s *SdkBase) MemberName() string {
-	return proptools.String(s.properties.Sdk_member_name)
-}
-
-// InitSdkAwareModule initializes the SdkBase struct. This must be called by all modules including
-// SdkBase.
-func InitSdkAwareModule(m SdkAware) {
-	base := m.sdkBase()
-	base.module = m
-	m.AddProperties(&base.properties)
 }
 
 // SnapshotBuilder provides support for generating the build rules which will build the snapshot.
@@ -583,7 +410,7 @@ type SdkMember interface {
 	Name() string
 
 	// Variants returns all the variants of this module depended upon by the SDK.
-	Variants() []SdkAware
+	Variants() []Module
 }
 
 // SdkMemberDependencyTag is the interface that a tag must implement in order to allow the
@@ -715,7 +542,7 @@ type SdkMemberType interface {
 	// The sdk module code generates the snapshot as follows:
 	//
 	// * A properties struct of type SdkMemberProperties is created for each variant and
-	//   populated with information from the variant by calling PopulateFromVariant(SdkAware)
+	//   populated with information from the variant by calling PopulateFromVariant(Module)
 	//   on the struct.
 	//
 	// * An additional properties struct is created into which the common properties will be

@@ -818,7 +818,6 @@ type BazelHandler interface {
 type Module struct {
 	fuzz.FuzzModule
 
-	android.SdkBase
 	android.BazelModuleBase
 
 	VendorProperties VendorProperties
@@ -1199,7 +1198,6 @@ func (c *Module) Init() android.Module {
 		android.InitBazelModule(c)
 	}
 	android.InitApexModule(c)
-	android.InitSdkAwareModule(c)
 	android.InitDefaultableModule(c)
 
 	return c
