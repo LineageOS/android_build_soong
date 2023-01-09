@@ -133,6 +133,4 @@ function run_androidmk_test {
   echo "Succeeded"
 }
 
-test_rewrite_license_property_inside_current_directory
-
-test_rewrite_license_property_outside_current_directory
+scan_and_run_tests

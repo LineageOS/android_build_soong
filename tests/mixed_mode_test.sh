@@ -63,5 +63,4 @@ EOF
   fi
 }
 
-test_add_irrelevant_file
-test_bazel_smoke
+scan_and_run_tests
