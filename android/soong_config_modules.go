@@ -31,11 +31,17 @@ import (
 )
 
 func init() {
-	RegisterModuleType("soong_config_module_type_import", SoongConfigModuleTypeImportFactory)
-	RegisterModuleType("soong_config_module_type", SoongConfigModuleTypeFactory)
-	RegisterModuleType("soong_config_string_variable", SoongConfigStringVariableDummyFactory)
-	RegisterModuleType("soong_config_bool_variable", SoongConfigBoolVariableDummyFactory)
+	RegisterSoongConfigModuleBuildComponents(InitRegistrationContext)
 }
+
+func RegisterSoongConfigModuleBuildComponents(ctx RegistrationContext) {
+	ctx.RegisterModuleType("soong_config_module_type_import", SoongConfigModuleTypeImportFactory)
+	ctx.RegisterModuleType("soong_config_module_type", SoongConfigModuleTypeFactory)
+	ctx.RegisterModuleType("soong_config_string_variable", SoongConfigStringVariableDummyFactory)
+	ctx.RegisterModuleType("soong_config_bool_variable", SoongConfigBoolVariableDummyFactory)
+}
+
+var PrepareForTestWithSoongConfigModuleBuildComponents = FixtureRegisterWithContext(RegisterSoongConfigModuleBuildComponents)
 
 type soongConfigModuleTypeImport struct {
 	ModuleBase
