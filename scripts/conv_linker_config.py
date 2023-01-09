@@ -27,13 +27,15 @@ from google.protobuf.text_format import MessageToString
 
 
 def Proto(args):
-    json_content = ''
-    with open(args.source) as f:
-        for line in f:
-            if not line.lstrip().startswith('//'):
-                json_content += line
-    obj = json.loads(json_content, object_pairs_hook=collections.OrderedDict)
-    pb = ParseDict(obj, linker_config_pb2.LinkerConfig())
+    pb = linker_config_pb2.LinkerConfig()
+    for input in args.source.split(':'):
+        json_content = ''
+        with open(input) as f:
+            for line in f:
+                if not line.lstrip().startswith('//'):
+                    json_content += line
+        obj = json.loads(json_content, object_pairs_hook=collections.OrderedDict)
+        ParseDict(obj, pb)
     with open(args.output, 'wb') as f:
         f.write(pb.SerializeToString())
 
@@ -104,7 +106,7 @@ def GetArgParser():
         '--source',
         required=True,
         type=str,
-        help='Source linker configuration file in JSON.')
+        help='Colon-separated list of linker configuration files in JSON.')
     parser_proto.add_argument(
         '-o',
         '--output',
