@@ -483,7 +483,7 @@ func TestSoongConfigModuleSingletonModule(t *testing.T) {
 		},
 	} {
 		t.Run(fmt.Sprintf("coyote:%t", test.coyote), func(t *testing.T) {
-			GroupFixturePreparers(
+			result := GroupFixturePreparers(
 				PrepareForTestWithSoongConfigModuleBuildComponents,
 				prepareForSoongConfigTestSingletonModule,
 				FixtureWithRootAndroidBp(bp),
@@ -494,9 +494,12 @@ func TestSoongConfigModuleSingletonModule(t *testing.T) {
 						},
 					}
 				}),
-			).ExtendWithErrorHandler(FixtureExpectsAllErrorsToMatchAPattern([]string{
-				`\QDuplicate SingletonModule "test_singleton", previously used in\E`,
-			})).RunTest(t)
+			).RunTest(t)
+
+			// Make sure that the singleton was created.
+			result.SingletonForTests("test_singleton")
+			m := result.ModuleForTests("wiley", "").module.(*soongConfigTestSingletonModule)
+			AssertStringEquals(t, "fragments", test.expectedFragments, fmt.Sprintf("%+v", m.props.Fragments))
 		})
 	}
 }
