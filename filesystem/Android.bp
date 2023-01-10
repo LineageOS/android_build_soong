@@ -13,6 +13,7 @@ bootstrap_go_package {
     ],
     srcs: [
         "avb_add_hash_footer.go",
+        "avb_gen_vbmeta_image.go",
         "bootimg.go",
         "filesystem.go",
         "logical_partition.go",
