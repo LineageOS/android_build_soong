@@ -42,6 +42,11 @@ func TestKotlin(t *testing.T) {
 		}
 		`)
 
+	kotlinStdlib := ctx.ModuleForTests("kotlin-stdlib", "android_common").
+		Output("turbine-combined/kotlin-stdlib.jar").Output
+	kotlinAnnotations := ctx.ModuleForTests("kotlin-annotations", "android_common").
+		Output("turbine-combined/kotlin-annotations.jar").Output
+
 	fooKotlinc := ctx.ModuleForTests("foo", "android_common").Rule("kotlinc")
 	fooJavac := ctx.ModuleForTests("foo", "android_common").Rule("javac")
 	fooJar := ctx.ModuleForTests("foo", "android_common").Output("combined/foo.jar")
@@ -67,6 +72,16 @@ func TestKotlin(t *testing.T) {
 	if !inList(fooKotlincClasses.String(), fooJar.Inputs.Strings()) {
 		t.Errorf("foo jar inputs %v does not contain %q",
 			fooJar.Inputs.Strings(), fooKotlincClasses.String())
+	}
+
+	if !inList(kotlinStdlib.String(), fooJar.Inputs.Strings()) {
+		t.Errorf("foo jar inputs %v does not contain %v",
+			fooJar.Inputs.Strings(), kotlinStdlib.String())
+	}
+
+	if !inList(kotlinAnnotations.String(), fooJar.Inputs.Strings()) {
+		t.Errorf("foo jar inputs %v does not contain %v",
+			fooJar.Inputs.Strings(), kotlinAnnotations.String())
 	}
 
 	if !inList(fooKotlincHeaderClasses.String(), fooHeaderJar.Inputs.Strings()) {

@@ -526,6 +526,20 @@ func (v javaVersion) String() string {
 	}
 }
 
+func (v javaVersion) StringForKotlinc() string {
+	// $ ./external/kotlinc/bin/kotlinc -jvm-target foo
+	// error: unknown JVM target version: foo
+	// Supported versions: 1.6, 1.8, 9, 10, 11, 12, 13, 14, 15, 16, 17
+	switch v {
+	case JAVA_VERSION_7:
+		return "1.6"
+	case JAVA_VERSION_9:
+		return "9"
+	default:
+		return v.String()
+	}
+}
+
 // Returns true if javac targeting this version uses system modules instead of a bootclasspath.
 func (v javaVersion) usesJavaModules() bool {
 	return v >= 9
