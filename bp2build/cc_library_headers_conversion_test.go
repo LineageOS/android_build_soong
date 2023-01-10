@@ -186,6 +186,8 @@ func TestCcApiHeaders(t *testing.T) {
 	})
 }
 
+// header_libs has "variant_prepend" tag. In bp2build output,
+// variant info(select) should go before general info.
 func TestCcLibraryHeadersOsSpecificHeader(t *testing.T) {
 	runCcLibraryHeadersTestCase(t, Bp2buildTestCase{
 		Description:                "cc_library_headers test with os-specific header_libs props",
@@ -247,14 +249,14 @@ cc_library_headers {
 }`,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_headers", "foo_headers", AttrNameToString{
-				"deps": `[":base-lib"] + select({
+				"deps": `select({
         "//build/bazel/platforms/os:android": [":android-lib"],
         "//build/bazel/platforms/os:darwin": [":darwin-lib"],
         "//build/bazel/platforms/os:linux_bionic": [":linux_bionic-lib"],
         "//build/bazel/platforms/os:linux_glibc": [":linux-lib"],
         "//build/bazel/platforms/os:windows": [":windows-lib"],
         "//conditions:default": [],
-    })`,
+    }) + [":base-lib"]`,
 			}),
 		},
 	})
