@@ -106,8 +106,9 @@ func getBoolValue(boolAttr bazel.BoolAttribute) (reflect.Value, []selects) {
 
 	return value, []selects{ret}
 }
-func getLabelListValues(list bazel.LabelListAttribute) (reflect.Value, []selects) {
+func getLabelListValues(list bazel.LabelListAttribute) (reflect.Value, []selects, bool) {
 	value := reflect.ValueOf(list.Value.Includes)
+	prepend := list.Prepend
 	var ret []selects
 	for _, axis := range list.SortedConfigurationAxes() {
 		configToLabels := list.ConfigurableValues[axis]
@@ -133,7 +134,7 @@ func getLabelListValues(list bazel.LabelListAttribute) (reflect.Value, []selects
 		}
 	}
 
-	return value, ret
+	return value, ret, prepend
 }
 
 func labelListSelectValue(selectKey string, list bazel.LabelList, emitEmptyList bool) (bool, reflect.Value) {
@@ -173,7 +174,7 @@ func prettyPrintAttribute(v bazel.Attribute, indent int) (string, error) {
 		value, configurableAttrs, prepend = getStringListValues(list)
 		defaultSelectValue = &emptyBazelList
 	case bazel.LabelListAttribute:
-		value, configurableAttrs = getLabelListValues(list)
+		value, configurableAttrs, prepend = getLabelListValues(list)
 		emitZeroValues = list.EmitEmptyList
 		defaultSelectValue = &emptyBazelList
 		if list.ForceSpecifyEmptyList && (!value.IsNil() || list.HasConfigurableValues()) {
