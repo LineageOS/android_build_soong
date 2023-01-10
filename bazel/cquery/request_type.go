@@ -232,8 +232,14 @@ if not info:
   fail("%s did not provide ApexInfo" % id_string)
 bundle_key_info = info.bundle_key_info
 container_key_info = info.container_key_info
+
+signed_compressed_output = "" # no .capex if the apex is not compressible, cannot be None as it needs to be json encoded.
+if info.signed_compressed_output:
+    signed_compressed_output = info.signed_compressed_output.path
+
 return json_encode({
     "signed_output": info.signed_output.path,
+    "signed_compressed_output": signed_compressed_output,
     "unsigned_output": info.unsigned_output.path,
     "provides_native_libs": [str(lib) for lib in info.provides_native_libs],
     "requires_native_libs": [str(lib) for lib in info.requires_native_libs],
@@ -249,18 +255,19 @@ return json_encode({
 }
 
 type ApexInfo struct {
-	SignedOutput          string   `json:"signed_output"`
-	UnsignedOutput        string   `json:"unsigned_output"`
-	ProvidesLibs          []string `json:"provides_native_libs"`
-	RequiresLibs          []string `json:"requires_native_libs"`
-	BundleKeyInfo         []string `json:"bundle_key_info"`
-	ContainerKeyInfo      []string `json:"container_key_info"`
-	PackageName           string   `json:"package_name"`
-	SymbolsUsedByApex     string   `json:"symbols_used_by_apex"`
-	JavaSymbolsUsedByApex string   `json:"java_symbols_used_by_apex"`
-	BackingLibs           string   `json:"backing_libs"`
-	BundleFile            string   `json:"bundle_file"`
-	InstalledFiles        string   `json:"installed_files"`
+	SignedOutput           string   `json:"signed_output"`
+	SignedCompressedOutput string   `json:"signed_compressed_output"`
+	UnsignedOutput         string   `json:"unsigned_output"`
+	ProvidesLibs           []string `json:"provides_native_libs"`
+	RequiresLibs           []string `json:"requires_native_libs"`
+	BundleKeyInfo          []string `json:"bundle_key_info"`
+	ContainerKeyInfo       []string `json:"container_key_info"`
+	PackageName            string   `json:"package_name"`
+	SymbolsUsedByApex      string   `json:"symbols_used_by_apex"`
+	JavaSymbolsUsedByApex  string   `json:"java_symbols_used_by_apex"`
+	BackingLibs            string   `json:"backing_libs"`
+	BundleFile             string   `json:"bundle_file"`
+	InstalledFiles         string   `json:"installed_files"`
 }
 
 // ParseResult returns a value obtained by parsing the result of the request's Starlark function.

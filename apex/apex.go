@@ -1905,9 +1905,15 @@ func (a *apexBundle) ProcessBazelQueryResponse(ctx android.ModuleContext) {
 		return
 	}
 	a.installDir = android.PathForModuleInstall(ctx, "apex")
-	a.outputApexFile = android.PathForBazelOut(ctx, outputs.SignedOutput)
-	a.outputFile = a.outputApexFile
+
+	// Set the output file to .apex or .capex depending on the compression configuration.
 	a.setCompression(ctx)
+	if a.isCompressed {
+		a.outputApexFile = android.PathForBazelOut(ctx, outputs.SignedCompressedOutput)
+	} else {
+		a.outputApexFile = android.PathForBazelOut(ctx, outputs.SignedOutput)
+	}
+	a.outputFile = a.outputApexFile
 
 	// TODO(b/257829940): These are used by the apex_keys_text singleton; would probably be a clearer
 	// interface if these were set in a provider rather than the module itself
