@@ -1,5 +1,10 @@
 # Treat LintError as fatal to catch invocation errors
 --fatal_check LintError
+# ObsoleteLintCustomCheck is a warning by default, but lint ignores the
+# checks from the subject jar if this issue is raised.
+# This should be an error for AOSP. If we create a check, we expect it
+# to run, otherwise we want an error.
+--fatal_check ObsoleteLintCustomCheck
 
 # Checks which do not apply to the platform (implementation
 # in lint assumes that it's running on app code)
