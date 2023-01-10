@@ -15,11 +15,9 @@
 package android
 
 import (
+	"fmt"
 	"testing"
 )
-
-type soongConfigTestDefaultsModuleProperties struct {
-}
 
 type soongConfigTestDefaultsModule struct {
 	ModuleBase
@@ -413,10 +411,95 @@ func TestDuplicateStringValueInSoongConfigStringVariable(t *testing.T) {
 	})).RunTest(t)
 }
 
-func testConfigWithVendorVars(buildDir, bp string, fs map[string][]byte, vendorVars map[string]map[string]string) Config {
-	config := TestConfig(buildDir, nil, bp, fs)
+type soongConfigTestSingletonModule struct {
+	SingletonModuleBase
+	props soongConfigTestSingletonModuleProperties
+}
 
-	config.TestProductVariables.VendorVars = vendorVars
+type soongConfigTestSingletonModuleProperties struct {
+	Fragments []struct {
+		Apex   string
+		Module string
+	}
+}
 
-	return config
+func soongConfigTestSingletonModuleFactory() SingletonModule {
+	m := &soongConfigTestSingletonModule{}
+	m.AddProperties(&m.props)
+	InitAndroidModule(m)
+	return m
+}
+
+func (t *soongConfigTestSingletonModule) GenerateAndroidBuildActions(ModuleContext) {}
+
+func (t *soongConfigTestSingletonModule) GenerateSingletonBuildActions(SingletonContext) {}
+
+var prepareForSoongConfigTestSingletonModule = FixtureRegisterWithContext(func(ctx RegistrationContext) {
+	ctx.RegisterSingletonModuleType("test_singleton", soongConfigTestSingletonModuleFactory)
+})
+
+func TestSoongConfigModuleSingletonModule(t *testing.T) {
+	bp := `
+		soong_config_module_type {
+			name: "acme_test_singleton",
+			module_type: "test_singleton",
+			config_namespace: "acme",
+			bool_variables: ["coyote"],
+			properties: ["fragments"],
+		}
+
+		acme_test_singleton {
+			name: "wiley",
+			fragments: [
+				{
+					apex: "com.android.acme",
+					module: "road-runner",
+				},
+			],
+			soong_config_variables: {
+				coyote: {
+					fragments: [
+						{
+							apex: "com.android.acme",
+							module: "wiley",
+						},
+					],
+				},
+			},
+		}
+	`
+
+	for _, test := range []struct {
+		coyote            bool
+		expectedFragments string
+	}{
+		{
+			coyote:            false,
+			expectedFragments: "[{Apex:com.android.acme Module:road-runner}]",
+		},
+		{
+			coyote:            true,
+			expectedFragments: "[{Apex:com.android.acme Module:road-runner} {Apex:com.android.acme Module:wiley}]",
+		},
+	} {
+		t.Run(fmt.Sprintf("coyote:%t", test.coyote), func(t *testing.T) {
+			result := GroupFixturePreparers(
+				PrepareForTestWithSoongConfigModuleBuildComponents,
+				prepareForSoongConfigTestSingletonModule,
+				FixtureWithRootAndroidBp(bp),
+				FixtureModifyProductVariables(func(variables FixtureProductVariables) {
+					variables.VendorVars = map[string]map[string]string{
+						"acme": {
+							"coyote": fmt.Sprintf("%t", test.coyote),
+						},
+					}
+				}),
+			).RunTest(t)
+
+			// Make sure that the singleton was created.
+			result.SingletonForTests("test_singleton")
+			m := result.ModuleForTests("wiley", "").module.(*soongConfigTestSingletonModule)
+			AssertStringEquals(t, "fragments", test.expectedFragments, fmt.Sprintf("%+v", m.props.Fragments))
+		})
+	}
 }
