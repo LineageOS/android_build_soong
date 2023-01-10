@@ -93,7 +93,9 @@ message MetricsBase {
   // The metrics for the whole build
   optional PerfInfo total = 21;
 
-  optional SoongBuildMetrics soong_build_metrics = 22;
+  // Deprecated because instead of embedding in a MetricsBase, we keep
+  // SoongBuildMetrics in its own file
+  optional SoongBuildMetrics soong_build_metrics = 22 [deprecated=true];
 
   optional BuildConfig build_config = 23;
 
