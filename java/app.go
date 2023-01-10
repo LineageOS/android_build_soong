@@ -315,10 +315,6 @@ func (a *AndroidApp) checkAppSdkVersions(ctx android.ModuleContext) {
 		}
 	}
 
-	if Bool(a.appProperties.Enforce_default_target_sdk_version) {
-		a.SetEnforceDefaultTargetSdkVersion(true)
-	}
-
 	a.checkPlatformAPI(ctx)
 	a.checkSdkVersions(ctx)
 }
@@ -637,6 +633,11 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 		// be generated later.
 		noticeAssetPath = android.PathForModuleOut(ctx, "NOTICE", "NOTICE.html.gz")
 		a.aapt.noticeFile = android.OptionalPathForPath(noticeAssetPath)
+	}
+
+	// For apps targeting latest target_sdk_version
+	if Bool(a.appProperties.Enforce_default_target_sdk_version) {
+		a.SetEnforceDefaultTargetSdkVersion(true)
 	}
 
 	// Process all building blocks, from AAPT to certificates.
