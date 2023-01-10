@@ -53,6 +53,11 @@ func soongConfigTestModuleFactory() Module {
 
 func (t soongConfigTestModule) GenerateAndroidBuildActions(ModuleContext) {}
 
+var prepareForSoongConfigTestModule = FixtureRegisterWithContext(func(ctx RegistrationContext) {
+	ctx.RegisterModuleType("test_defaults", soongConfigTestDefaultsModuleFactory)
+	ctx.RegisterModuleType("test", soongConfigTestModuleFactory)
+})
+
 func TestSoongConfigModule(t *testing.T) {
 	configBp := `
 		soong_config_module_type {
@@ -309,14 +314,8 @@ func TestSoongConfigModule(t *testing.T) {
 				result := GroupFixturePreparers(
 					tc.preparer,
 					PrepareForTestWithDefaults,
-					FixtureRegisterWithContext(func(ctx RegistrationContext) {
-						ctx.RegisterModuleType("soong_config_module_type_import", SoongConfigModuleTypeImportFactory)
-						ctx.RegisterModuleType("soong_config_module_type", SoongConfigModuleTypeFactory)
-						ctx.RegisterModuleType("soong_config_string_variable", SoongConfigStringVariableDummyFactory)
-						ctx.RegisterModuleType("soong_config_bool_variable", SoongConfigBoolVariableDummyFactory)
-						ctx.RegisterModuleType("test_defaults", soongConfigTestDefaultsModuleFactory)
-						ctx.RegisterModuleType("test", soongConfigTestModuleFactory)
-					}),
+					PrepareForTestWithSoongConfigModuleBuildComponents,
+					prepareForSoongConfigTestModule,
 					fs.AddToFixture(),
 					FixtureWithRootAndroidBp(bp),
 				).RunTest(t)
@@ -371,14 +370,8 @@ func TestNonExistentPropertyInSoongConfigModule(t *testing.T) {
 	GroupFixturePreparers(
 		fixtureForVendorVars(map[string]map[string]string{"acme": {"feature1": "1"}}),
 		PrepareForTestWithDefaults,
-		FixtureRegisterWithContext(func(ctx RegistrationContext) {
-			ctx.RegisterModuleType("soong_config_module_type_import", SoongConfigModuleTypeImportFactory)
-			ctx.RegisterModuleType("soong_config_module_type", SoongConfigModuleTypeFactory)
-			ctx.RegisterModuleType("soong_config_string_variable", SoongConfigStringVariableDummyFactory)
-			ctx.RegisterModuleType("soong_config_bool_variable", SoongConfigBoolVariableDummyFactory)
-			ctx.RegisterModuleType("test_defaults", soongConfigTestDefaultsModuleFactory)
-			ctx.RegisterModuleType("test", soongConfigTestModuleFactory)
-		}),
+		PrepareForTestWithSoongConfigModuleBuildComponents,
+		prepareForSoongConfigTestModule,
 		FixtureWithRootAndroidBp(bp),
 	).ExtendWithErrorHandler(FixtureExpectsAllErrorsToMatchAPattern([]string{
 		// TODO(b/171232169): improve the error message for non-existent properties
@@ -411,14 +404,8 @@ func TestDuplicateStringValueInSoongConfigStringVariable(t *testing.T) {
 	GroupFixturePreparers(
 		fixtureForVendorVars(map[string]map[string]string{"acme": {"feature1": "1"}}),
 		PrepareForTestWithDefaults,
-		FixtureRegisterWithContext(func(ctx RegistrationContext) {
-			ctx.RegisterModuleType("soong_config_module_type_import", SoongConfigModuleTypeImportFactory)
-			ctx.RegisterModuleType("soong_config_module_type", SoongConfigModuleTypeFactory)
-			ctx.RegisterModuleType("soong_config_string_variable", SoongConfigStringVariableDummyFactory)
-			ctx.RegisterModuleType("soong_config_bool_variable", SoongConfigBoolVariableDummyFactory)
-			ctx.RegisterModuleType("test_defaults", soongConfigTestDefaultsModuleFactory)
-			ctx.RegisterModuleType("test", soongConfigTestModuleFactory)
-		}),
+		PrepareForTestWithSoongConfigModuleBuildComponents,
+		prepareForSoongConfigTestModule,
 		FixtureWithRootAndroidBp(bp),
 	).ExtendWithErrorHandler(FixtureExpectsAllErrorsToMatchAPattern([]string{
 		// TODO(b/171232169): improve the error message for non-existent properties
