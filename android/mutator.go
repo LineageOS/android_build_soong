@@ -409,7 +409,7 @@ func bottomUpMutatorContextFactory(ctx blueprint.BottomUpMutatorContext, a Modul
 
 	return &bottomUpMutatorContext{
 		bp:                ctx,
-		baseModuleContext: a.base().baseModuleContextFactory(ctx),
+		baseModuleContext: moduleContext,
 		finalPhase:        finalPhase,
 	}
 }
