@@ -496,13 +496,15 @@ func PathForBazelOutRelative(ctx PathContext, relativeRoot string, path string) 
 	if err != nil {
 		reportPathError(ctx, err)
 	}
-	relativeRootPath := filepath.Join("execroot", "__main__", relativeRoot)
-	if pathComponents := strings.Split(path, "/"); len(pathComponents) >= 3 &&
+	var relativeRootPath string
+	if pathComponents := strings.SplitN(path, "/", 4); len(pathComponents) >= 3 &&
 		pathComponents[0] == "bazel-out" && pathComponents[2] == "bin" {
 		// If the path starts with something like: bazel-out/linux_x86_64-fastbuild-ST-b4ef1c4402f9/bin/
 		// make it relative to that folder. bazel-out/volatile-status.txt is an example
 		// of something that starts with bazel-out but is not relative to the bin folder
 		relativeRootPath = filepath.Join("execroot", "__main__", pathComponents[0], pathComponents[1], pathComponents[2], relativeRoot)
+	} else {
+		relativeRootPath = filepath.Join("execroot", "__main__", relativeRoot)
 	}
 
 	var relPath string
