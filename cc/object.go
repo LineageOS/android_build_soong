@@ -78,7 +78,7 @@ type ObjectLinkerProperties struct {
 	Static_libs []string `android:"arch_variant,variant_prepend"`
 
 	// list of shared library modules should only provide headers for this module.
-	Shared_libs []string `android:"arch_variant"`
+	Shared_libs []string `android:"arch_variant,variant_prepend"`
 
 	// list of modules that should only provide headers for this module.
 	Header_libs []string `android:"arch_variant,variant_prepend"`
@@ -178,6 +178,8 @@ func objectBp2Build(ctx android.TopDownMutatorContext, m *Module) {
 				deps.SetSelectValue(axis, config, android.BazelLabelForModuleDeps(ctx, objectLinkerProps.Static_libs))
 				deps.SetSelectValue(axis, config, android.BazelLabelForModuleDeps(ctx, objectLinkerProps.Shared_libs))
 				deps.SetSelectValue(axis, config, android.BazelLabelForModuleDeps(ctx, objectLinkerProps.Header_libs))
+				// static_libs, shared_libs, and header_libs have variant_prepend tag
+				deps.Prepend = true
 			}
 		}
 	}
