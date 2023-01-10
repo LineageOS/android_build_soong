@@ -29,10 +29,7 @@ func runSoongConfigModuleTypeTest(t *testing.T, tc Bp2buildTestCase) {
 func registerSoongConfigModuleTypes(ctx android.RegistrationContext) {
 	cc.RegisterCCBuildComponents(ctx)
 
-	ctx.RegisterModuleType("soong_config_module_type_import", android.SoongConfigModuleTypeImportFactory)
-	ctx.RegisterModuleType("soong_config_module_type", android.SoongConfigModuleTypeFactory)
-	ctx.RegisterModuleType("soong_config_string_variable", android.SoongConfigStringVariableDummyFactory)
-	ctx.RegisterModuleType("soong_config_bool_variable", android.SoongConfigBoolVariableDummyFactory)
+	android.RegisterSoongConfigModuleBuildComponents(ctx)
 
 	ctx.RegisterModuleType("cc_library", cc.LibraryFactory)
 }
