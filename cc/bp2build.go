@@ -804,6 +804,12 @@ func bp2BuildParseBaseProps(ctx android.Bp2buildMutatorContext, module *Module) 
 		(&linkerAttrs).wholeArchiveDeps.Add(bp2buildCcSysprop(ctx, module.Name(), module.Properties.Min_sdk_version, compilerAttrs.syspropSrcs))
 	}
 
+	linkerAttrs.wholeArchiveDeps.Prepend = true
+	linkerAttrs.deps.Prepend = true
+	compilerAttrs.localIncludes.Prepend = true
+	compilerAttrs.absoluteIncludes.Prepend = true
+	compilerAttrs.hdrs.Prepend = true
+
 	features := compilerAttrs.features.Clone().Append(linkerAttrs.features).Append(bp2buildSanitizerFeatures(ctx, module))
 	features.DeduplicateAxesFromBase()
 

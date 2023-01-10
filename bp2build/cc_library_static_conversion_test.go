@@ -1003,6 +1003,8 @@ cc_library_static {
 	})
 }
 
+// generated_headers has "variant_prepend" tag. In bp2build output,
+// variant info(select) should go before general info.
 func TestCcLibraryStaticArchSrcsExcludeSrcsGeneratedFiles(t *testing.T) {
 	runCcLibraryStaticTestCase(t, Bp2buildTestCase{
 		Description: "cc_library_static arch srcs/exclude_srcs with generated files",
@@ -1066,13 +1068,13 @@ cc_library_static {
         "//build/bazel/platforms/os:android": [":generated_src_android"],
         "//conditions:default": [],
     })`,
-				"hdrs": `["//dep:generated_hdr_other_pkg"] + select({
-        "//build/bazel/platforms/arch:x86": ["//dep:generated_hdr_other_pkg_x86"],
-        "//conditions:default": [],
-    }) + select({
+				"hdrs": `select({
         "//build/bazel/platforms/os:android": ["//dep:generated_hdr_other_pkg_android"],
         "//conditions:default": [],
-    })`,
+    }) + select({
+        "//build/bazel/platforms/arch:x86": ["//dep:generated_hdr_other_pkg_x86"],
+        "//conditions:default": [],
+    }) + ["//dep:generated_hdr_other_pkg"]`,
 				"local_includes":           `["."]`,
 				"export_absolute_includes": `["dep"]`,
 			}),
