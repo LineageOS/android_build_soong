@@ -3163,6 +3163,7 @@ func TestDefaultAppTargetSdkVersionForUpdatableModules(t *testing.T) {
 				variables.Platform_sdk_version = &platform_sdk_version
 				variables.Platform_sdk_codename = &platform_sdk_codename
 				variables.Platform_version_active_codenames = []string{platform_sdk_codename}
+				variables.Unbundled_build = proptools.BoolPtr(true)
 				variables.Unbundled_build_apps = []string{"sampleModule"}
 			}),
 		)
@@ -3241,6 +3242,7 @@ func TestEnforceDefaultAppTargetSdkVersionFlag(t *testing.T) {
 				variables.Platform_sdk_final = &testCase.platform_sdk_final
 				variables.Platform_sdk_version = &platform_sdk_version
 				variables.Platform_sdk_codename = &platform_sdk_codename
+				variables.Unbundled_build = proptools.BoolPtr(true)
 				variables.Unbundled_build_apps = []string{"sampleModule"}
 			}),
 		)
@@ -3311,6 +3313,7 @@ func TestEnforceDefaultAppTargetSdkVersionFlagForTests(t *testing.T) {
 				variables.Platform_sdk_final = &testCase.platform_sdk_final
 				variables.Platform_sdk_version = &platform_sdk_version
 				variables.Platform_sdk_codename = &platform_sdk_codename
+				variables.Unbundled_build = proptools.BoolPtr(true)
 				variables.Unbundled_build_apps = []string{"sampleModule"}
 			}),
 		)
