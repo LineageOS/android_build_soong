@@ -145,8 +145,10 @@ func runQueryView(queryviewDir, queryviewMarker string, ctx *android.Context) {
 func runApiBp2build(ctx *android.Context, extraNinjaDeps []string) string {
 	ctx.EventHandler.Begin("api_bp2build")
 	defer ctx.EventHandler.End("api_bp2build")
-	// Do not allow missing dependencies.
-	ctx.SetAllowMissingDependencies(false)
+	// api_bp2build does not run the typical pipeline of soong mutators.
+	// Hoevever, it still runs the defaults mutator which can create dependencies.
+	// These dependencies might not always exist (e.g. in tests)
+	ctx.SetAllowMissingDependencies(ctx.Config().AllowMissingDependencies())
 	ctx.RegisterForApiBazelConversion()
 
 	// Register the Android.bp files in the tree
