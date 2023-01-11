@@ -52,6 +52,11 @@ func (j *jdepsGeneratorSingleton) GenerateBuildActions(ctx android.SingletonCont
 			return
 		}
 
+		// Prevent including both prebuilts and matching source modules when one replaces the other.
+		if !android.IsModulePreferred(module) {
+			return
+		}
+
 		ideInfoProvider, ok := module.(android.IDEInfo)
 		if !ok {
 			return
