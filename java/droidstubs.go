@@ -877,6 +877,7 @@ var (
 		"module_lib":    android.SdkModule,
 		"module-lib":    android.SdkModule,
 		"test":          android.SdkTest,
+		"toolchain":     android.SdkToolchain,
 	}
 )
 
