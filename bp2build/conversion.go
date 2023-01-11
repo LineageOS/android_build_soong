@@ -20,7 +20,8 @@ type BazelFile struct {
 	Contents string
 }
 
-func CreateSoongInjectionFiles(cfg android.Config, metrics CodegenMetrics) []BazelFile {
+// PRIVATE: Use CreateSoongInjectionDirFiles instead
+func soongInjectionFiles(cfg android.Config, metrics CodegenMetrics) []BazelFile {
 	var files []BazelFile
 
 	files = append(files, newFile("android", GeneratedBuildFileName, "")) // Creates a //cc_toolchain package.
