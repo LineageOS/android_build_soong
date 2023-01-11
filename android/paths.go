@@ -1033,9 +1033,6 @@ func (p basePath) withRel(rel string) basePath {
 // SourcePath is a Path representing a file path rooted from SrcDir
 type SourcePath struct {
 	basePath
-
-	// The sources root, i.e. Config.SrcDir()
-	srcDir string
 }
 
 func (p SourcePath) RelativeToTop() Path {
@@ -1054,7 +1051,7 @@ func (p SourcePath) withRel(rel string) SourcePath {
 // code that is embedding ninja variables in paths
 func safePathForSource(ctx PathContext, pathComponents ...string) (SourcePath, error) {
 	p, err := validateSafePath(pathComponents...)
-	ret := SourcePath{basePath{p, ""}, "."}
+	ret := SourcePath{basePath{p, ""}}
 	if err != nil {
 		return ret, err
 	}
@@ -1071,7 +1068,7 @@ func safePathForSource(ctx PathContext, pathComponents ...string) (SourcePath, e
 // pathForSource creates a SourcePath from pathComponents, but does not check that it exists.
 func pathForSource(ctx PathContext, pathComponents ...string) (SourcePath, error) {
 	p, err := validatePath(pathComponents...)
-	ret := SourcePath{basePath{p, ""}, "."}
+	ret := SourcePath{basePath{p, ""}}
 	if err != nil {
 		return ret, err
 	}
@@ -1174,7 +1171,10 @@ func ExistentPathForSource(ctx PathGlobContext, pathComponents ...string) Option
 }
 
 func (p SourcePath) String() string {
-	return filepath.Join(p.srcDir, p.path)
+	if p.path == "" {
+		return "."
+	}
+	return p.path
 }
 
 // Join creates a new SourcePath with paths... joined with the current path. The
@@ -1207,7 +1207,7 @@ func (p SourcePath) OverlayPath(ctx ModuleMissingDepsPathContext, path Path) Opt
 		// No need to put the error message into the returned path since it has been reported already.
 		return OptionalPath{}
 	}
-	dir := filepath.Join(p.srcDir, p.path, relDir)
+	dir := filepath.Join(p.path, relDir)
 	// Use Glob so that we are run again if the directory is added.
 	if pathtools.IsGlob(dir) {
 		ReportPathErrorf(ctx, "Path may not contain a glob: %s", dir)
@@ -1220,8 +1220,7 @@ func (p SourcePath) OverlayPath(ctx ModuleMissingDepsPathContext, path Path) Opt
 	if len(paths) == 0 {
 		return InvalidOptionalPath(dir + " does not exist")
 	}
-	relPath := Rel(ctx, p.srcDir, paths[0])
-	return OptionalPathForPath(PathForSource(ctx, relPath))
+	return OptionalPathForPath(PathForSource(ctx, paths[0]))
 }
 
 // OutputPath is a Path representing an intermediates file path rooted from the build directory

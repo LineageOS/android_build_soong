@@ -22,7 +22,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/google/blueprint"
 	"github.com/google/blueprint/parser"
 	"github.com/google/blueprint/proptools"
 
@@ -363,10 +362,9 @@ func (defs Bp2BuildSoongConfigDefinitions) String() string {
 //	        },
 //	    },
 //	}
-func CreateProperties(factory blueprint.ModuleFactory, moduleType *ModuleType) reflect.Value {
+func CreateProperties(factoryProps []interface{}, moduleType *ModuleType) reflect.Value {
 	var fields []reflect.StructField
 
-	_, factoryProps := factory()
 	affectablePropertiesType := createAffectablePropertiesType(moduleType.affectableProperties, factoryProps)
 	if affectablePropertiesType == nil {
 		return reflect.Value{}
