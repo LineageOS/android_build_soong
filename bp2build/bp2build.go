@@ -45,17 +45,27 @@ func Codegen(ctx *CodegenContext) *CodegenMetrics {
 	bp2buildFiles := CreateBazelFiles(ctx.Config(), nil, res.buildFileToTargets, ctx.mode)
 	writeFiles(ctx, bp2buildDir, bp2buildFiles)
 
+	soongInjectionDir := android.PathForOutput(ctx, bazel.SoongInjectionDirName)
+	writeFiles(ctx, soongInjectionDir, CreateSoongInjectionDirFiles(ctx, res.metrics))
+
+	return &res.metrics
+}
+
+// Wrapper function that will be responsible for all files in soong_injection directory
+// This includes
+// 1. config value(s) that are hardcoded in Soong
+// 2. product_config variables
+func CreateSoongInjectionDirFiles(ctx *CodegenContext, metrics CodegenMetrics) []BazelFile {
+	var ret []BazelFile
+
 	productConfigFiles, err := CreateProductConfigFiles(ctx)
 	if err != nil {
 		fmt.Printf("ERROR: %s", err.Error())
 		os.Exit(1)
 	}
-
-	soongInjectionDir := android.PathForOutput(ctx, bazel.SoongInjectionDirName)
-	writeFiles(ctx, soongInjectionDir, productConfigFiles)
-	writeFiles(ctx, soongInjectionDir, CreateSoongInjectionFiles(ctx.Config(), res.metrics))
-
-	return &res.metrics
+	ret = append(ret, productConfigFiles...)
+	ret = append(ret, soongInjectionFiles(ctx.Config(), metrics)...)
+	return ret
 }
 
 // Get the output directory and create it if it doesn't exist.
