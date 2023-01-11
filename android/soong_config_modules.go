@@ -20,7 +20,9 @@ package android
 import (
 	"fmt"
 	"path/filepath"
+	"reflect"
 	"strings"
+	"sync"
 	"text/scanner"
 
 	"github.com/google/blueprint"
@@ -31,11 +33,17 @@ import (
 )
 
 func init() {
-	RegisterModuleType("soong_config_module_type_import", SoongConfigModuleTypeImportFactory)
-	RegisterModuleType("soong_config_module_type", SoongConfigModuleTypeFactory)
-	RegisterModuleType("soong_config_string_variable", SoongConfigStringVariableDummyFactory)
-	RegisterModuleType("soong_config_bool_variable", SoongConfigBoolVariableDummyFactory)
+	RegisterSoongConfigModuleBuildComponents(InitRegistrationContext)
 }
+
+func RegisterSoongConfigModuleBuildComponents(ctx RegistrationContext) {
+	ctx.RegisterModuleType("soong_config_module_type_import", SoongConfigModuleTypeImportFactory)
+	ctx.RegisterModuleType("soong_config_module_type", SoongConfigModuleTypeFactory)
+	ctx.RegisterModuleType("soong_config_string_variable", SoongConfigStringVariableDummyFactory)
+	ctx.RegisterModuleType("soong_config_bool_variable", SoongConfigBoolVariableDummyFactory)
+}
+
+var PrepareForTestWithSoongConfigModuleBuildComponents = FixtureRegisterWithContext(RegisterSoongConfigModuleBuildComponents)
 
 type soongConfigModuleTypeImport struct {
 	ModuleBase
@@ -416,13 +424,43 @@ func loadSoongConfigModuleTypeDefinition(ctx LoadHookContext, from string) map[s
 // configModuleFactory takes an existing soongConfigModuleFactory and a
 // ModuleType to create a new ModuleFactory that uses a custom loadhook.
 func configModuleFactory(factory blueprint.ModuleFactory, moduleType *soongconfig.ModuleType, bp2build bool) blueprint.ModuleFactory {
-	conditionalFactoryProps := soongconfig.CreateProperties(factory, moduleType)
-	if !conditionalFactoryProps.IsValid() {
-		return factory
+	// Defer creation of conditional properties struct until the first call from the factory
+	// method. That avoids having to make a special call to the factory to create the properties
+	// structs from which the conditional properties struct is created. This is needed in order to
+	// allow singleton modules to be customized by soong_config_module_type as the
+	// SingletonModuleFactoryAdaptor factory registers a load hook for the singleton module
+	// everytime that it is called. Calling the factory twice causes a build failure as the load
+	// hook is called twice, the first time it updates the singleton module to indicate that it has
+	// been registered as a module, and the second time it fails because it thinks it has been
+	// registered again and a singleton module can only be registered once.
+	//
+	// This is an issue for singleton modules because:
+	// * Load hooks are registered on the module object and are only called when the module object
+	//   is created by Blueprint while processing the Android.bp file.
+	// * The module factory for a singleton module returns the same module object each time it is
+	//   called, and registers its load hook on that same module object.
+	// * When the module factory is called by Blueprint it then calls all the load hooks that have
+	//   been registered for every call to that module factory.
+	//
+	// It is not an issue for normal modules because they return a new module object each time the
+	// factory is called and so any load hooks registered on module objects which are discarded will
+	// not be run.
+	once := &sync.Once{}
+	conditionalFactoryProps := reflect.Value{}
+	getConditionalFactoryProps := func(props []interface{}) reflect.Value {
+		once.Do(func() {
+			conditionalFactoryProps = soongconfig.CreateProperties(props, moduleType)
+		})
+		return conditionalFactoryProps
 	}
 
 	return func() (blueprint.Module, []interface{}) {
 		module, props := factory()
+		conditionalFactoryProps := getConditionalFactoryProps(props)
+		if !conditionalFactoryProps.IsValid() {
+			return module, props
+		}
+
 		conditionalProps := proptools.CloneEmptyProperties(conditionalFactoryProps)
 		props = append(props, conditionalProps.Interface())
 
