@@ -204,14 +204,9 @@ func fetchEnvConfig(ctx Context, config *configImpl, envConfigName string) error
 	return nil
 }
 
-func loadEnvConfig(ctx Context, config *configImpl) error {
-	bc := os.Getenv("ANDROID_BUILD_ENVIRONMENT_CONFIG")
+func loadEnvConfig(ctx Context, config *configImpl, bc string) error {
 	if bc == "" {
 		return nil
-	}
-
-	if err := fetchEnvConfig(ctx, config, bc); err != nil {
-		ctx.Verbosef("Failed to fetch config file: %v\n", err)
 	}
 
 	configDirs := []string{
@@ -262,6 +257,12 @@ func UploadOnlyConfig(ctx Context, _ ...string) Config {
 		environ:       OsEnvironment(),
 		sandboxConfig: &SandboxConfig{},
 	}
+	srcDir := absPath(ctx, ".")
+	bc := os.Getenv("ANDROID_BUILD_ENVIRONMENT_CONFIG")
+	if err := loadEnvConfig(ctx, ret, bc); err != nil {
+		ctx.Fatalln("Failed to parse env config files: %v", err)
+	}
+	ret.metricsUploader = GetMetricsUploader(srcDir, ret.environ)
 	return Config{ret}
 }
 
@@ -294,8 +295,15 @@ func NewConfig(ctx Context, args ...string) Config {
 
 	// loadEnvConfig needs to know what the OUT_DIR is, so it should
 	// be called after we determine the appropriate out directory.
-	if err := loadEnvConfig(ctx, ret); err != nil {
-		ctx.Fatalln("Failed to parse env config files: %v", err)
+	bc := os.Getenv("ANDROID_BUILD_ENVIRONMENT_CONFIG")
+
+	if bc != "" {
+		if err := fetchEnvConfig(ctx, ret, bc); err != nil {
+			ctx.Verbosef("Failed to fetch config file: %v\n", err)
+
+		} else if err := loadEnvConfig(ctx, ret, bc); err != nil {
+			ctx.Fatalln("Failed to parse env config files: %v", err)
+		}
 	}
 
 	if distDir, ok := ret.environ.Get("DIST_DIR"); ok {
