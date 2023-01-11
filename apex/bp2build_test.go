@@ -42,15 +42,16 @@ apex {
 				OutputBaseDir: outputBaseDir,
 				LabelToApexInfo: map[string]cquery.ApexInfo{
 					"//:foo": cquery.ApexInfo{
-						SignedOutput:          "signed_out.apex",
-						UnsignedOutput:        "unsigned_out.apex",
-						BundleKeyInfo:         []string{"public_key", "private_key"},
-						ContainerKeyInfo:      []string{"container_cert", "container_private"},
-						SymbolsUsedByApex:     "foo_using.txt",
-						JavaSymbolsUsedByApex: "foo_using.xml",
-						BundleFile:            "apex_bundle.zip",
-						InstalledFiles:        "installed-files.txt",
-						RequiresLibs:          []string{"//path/c:c", "//path/d:d"},
+						SignedOutput:           "signed_out.apex",
+						SignedCompressedOutput: "signed_out.capex",
+						UnsignedOutput:         "unsigned_out.apex",
+						BundleKeyInfo:          []string{"public_key", "private_key"},
+						ContainerKeyInfo:       []string{"container_cert", "container_private"},
+						SymbolsUsedByApex:      "foo_using.txt",
+						JavaSymbolsUsedByApex:  "foo_using.xml",
+						BundleFile:             "apex_bundle.zip",
+						InstalledFiles:         "installed-files.txt",
+						RequiresLibs:           []string{"//path/c:c", "//path/d:d"},
 
 						// unused
 						PackageName:  "pkg_name",
@@ -112,6 +113,68 @@ apex {
 	}
 	if w := "LOCAL_REQUIRED_MODULES := c d"; !strings.Contains(data, w) {
 		t.Errorf("Expected %q in androidmk data, but did not find it in %q", w, data)
+	}
+}
+
+func TestCompressedApexImageInMixedBuilds(t *testing.T) {
+	bp := `
+apex_key{
+	name: "foo_key",
+}
+apex {
+	name: "foo",
+	key: "foo_key",
+	updatable: true,
+	min_sdk_version: "31",
+	file_contexts: ":myapex-file_contexts",
+	bazel_module: { label: "//:foo" },
+	test_only_force_compression: true, // force compression
+}`
+
+	outputBaseDir := "out/bazel"
+	result := android.GroupFixturePreparers(
+		prepareForApexTest,
+		android.FixtureModifyConfig(func(config android.Config) {
+			config.BazelContext = android.MockBazelContext{
+				OutputBaseDir: outputBaseDir,
+				LabelToApexInfo: map[string]cquery.ApexInfo{
+					"//:foo": cquery.ApexInfo{
+						SignedOutput:           "signed_out.apex",
+						SignedCompressedOutput: "signed_out.capex",
+						BundleKeyInfo:          []string{"public_key", "private_key"},
+						ContainerKeyInfo:       []string{"container_cert", "container_private"},
+					},
+				},
+			}
+		}),
+	).RunTestWithBp(t, bp)
+
+	m := result.ModuleForTests("foo", "android_common_foo_image").Module()
+	ab, ok := m.(*apexBundle)
+	if !ok {
+		t.Fatalf("Expected module to be an apexBundle, was not")
+	}
+
+	if w, g := "out/bazel/execroot/__main__/signed_out.capex", ab.outputFile.String(); w != g {
+		t.Errorf("Expected output file to be compressed apex %q, got %q", w, g)
+	}
+
+	mkData := android.AndroidMkDataForTest(t, result.TestContext, m)
+	var builder strings.Builder
+	mkData.Custom(&builder, "foo", "BAZEL_TARGET_", "", mkData)
+
+	data := builder.String()
+
+	expectedAndroidMk := []string{
+		"LOCAL_PREBUILT_MODULE_FILE := out/bazel/execroot/__main__/signed_out.capex",
+
+		// Check that the source install file is the capex. The dest is not important.
+		"LOCAL_SOONG_INSTALL_PAIRS := out/bazel/execroot/__main__/signed_out.capex:",
+	}
+	for _, androidMk := range expectedAndroidMk {
+		if !strings.Contains(data, androidMk) {
+			t.Errorf("Expected %q in androidmk data, but did not find %q", androidMk, data)
+		}
 	}
 }
 
