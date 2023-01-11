@@ -15,10 +15,10 @@
 package cc
 
 import (
-	"fmt"
-
 	"android/soong/android"
 	"android/soong/cc/config"
+	"fmt"
+	"path/filepath"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
@@ -270,8 +270,7 @@ func NewBaseLinker(sanitize *sanitize) *baseLinker {
 type baseLinker struct {
 	Properties        BaseLinkerProperties
 	dynamicProperties struct {
-		RunPaths   []string `blueprint:"mutated"`
-		BuildStubs bool     `blueprint:"mutated"`
+		BuildStubs bool `blueprint:"mutated"`
 	}
 
 	sanitize *sanitize
@@ -281,13 +280,8 @@ func (linker *baseLinker) appendLdflags(flags []string) {
 	linker.Properties.Ldflags = append(linker.Properties.Ldflags, flags...)
 }
 
-// linkerInit initializes dynamic properties of the linker (such as runpath).
+// linkerInit initializes dynamic properties of the linker.
 func (linker *baseLinker) linkerInit(ctx BaseModuleContext) {
-	if ctx.toolchain().Is64Bit() {
-		linker.dynamicProperties.RunPaths = append(linker.dynamicProperties.RunPaths, "../lib64", "lib64")
-	} else {
-		linker.dynamicProperties.RunPaths = append(linker.dynamicProperties.RunPaths, "../lib", "lib")
-	}
 }
 
 func (linker *baseLinker) linkerProps() []interface{} {
@@ -529,17 +523,8 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 
 	flags.Local.LdFlags = append(flags.Local.LdFlags, proptools.NinjaAndShellEscapeList(linker.Properties.Ldflags)...)
 
-	if ctx.Host() && !ctx.Windows() {
-		rpathPrefix := `\$$ORIGIN/`
-		if ctx.Darwin() {
-			rpathPrefix = "@loader_path/"
-		}
-
-		if !ctx.static() {
-			for _, rpath := range linker.dynamicProperties.RunPaths {
-				flags.Global.LdFlags = append(flags.Global.LdFlags, "-Wl,-rpath,"+rpathPrefix+rpath)
-			}
-		}
+	if ctx.Host() && !ctx.Windows() && !ctx.static() {
+		flags.Global.LdFlags = append(flags.Global.LdFlags, RpathFlags(ctx)...)
 	}
 
 	if ctx.useSdk() {
@@ -608,6 +593,45 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 	}
 
 	return flags
+}
+
+// RpathFlags returns the rpath linker flags for current target to search the following directories relative
+// to the binary:
+//
+//   - "." to find libraries alongside tests
+//   - "lib[64]" to find libraries in a subdirectory of the binaries' directory
+//   - "../lib[64]" to find libraries when the binaries are in a bin directory
+//   - "../../lib[64]" to find libraries in out/host/linux-x86/lib64 when the test or binary is in
+//     out/host/linux-x86/nativetest/<test dir>/<test>
+//   - "../../../lib[[64] to find libraries in out/host/linux-x86/lib64 when the test or binary is in
+//     out/host/linux-x86/testcases/<test dir>/<CPU>/<test>
+func RpathFlags(ctx android.ModuleContext) []string {
+	key := struct {
+		os   android.OsType
+		arch android.ArchType
+	}{ctx.Target().Os, ctx.Target().Arch.ArchType}
+
+	return ctx.Config().OnceStringSlice(android.NewCustomOnceKey(key), func() []string {
+		rpathPrefix := `\$$ORIGIN/`
+		if key.os == android.Darwin {
+			rpathPrefix = "@loader_path/"
+		}
+
+		var libDir string
+		if key.arch.Multilib == "lib64" {
+			libDir = "lib64"
+		} else {
+			libDir = "lib"
+		}
+
+		return []string{
+			"-Wl,-rpath," + rpathPrefix,
+			"-Wl,-rpath," + rpathPrefix + libDir,
+			"-Wl,-rpath," + rpathPrefix + filepath.Join("..", libDir),
+			"-Wl,-rpath," + rpathPrefix + filepath.Join("../..", libDir),
+			"-Wl,-rpath," + rpathPrefix + filepath.Join("../../..", libDir),
+		}
+	})
 }
 
 func (linker *baseLinker) link(ctx ModuleContext,
