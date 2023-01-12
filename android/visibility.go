@@ -155,7 +155,11 @@ func (r subpackagesRule) matches(m qualifiedModuleName) bool {
 }
 
 func isAncestor(p1 string, p2 string) bool {
-	return strings.HasPrefix(p2+"/", p1+"/")
+	// Equivalent to strings.HasPrefix(p2+"/", p1+"/"), but without the string copies
+	// The check for a trailing slash is so that we don't consider sibling
+	// directories with common prefixes to be ancestors, e.g. "fooo/bar" should not be
+	// a descendant of "foo".
+	return strings.HasPrefix(p2, p1) && (len(p2) == len(p1) || p2[len(p1)] == '/')
 }
 
 func (r subpackagesRule) String() string {
