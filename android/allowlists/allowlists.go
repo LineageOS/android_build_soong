@@ -669,6 +669,10 @@ var (
 		// kotlin srcs in java libs
 		"CtsPkgInstallerConstants",
 		"kotlinx_atomicfu",
+
+		// kotlin srcs in java binary
+		"AnalyzerKt",
+		"trebuchet-core",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
