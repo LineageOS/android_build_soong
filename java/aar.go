@@ -1031,7 +1031,7 @@ func (a *AARImport) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 	ctx.CreateBazelTargetModule(
 		bazel.BazelTargetModuleProperties{
 			Rule_class:        "aar_import",
-			Bzl_load_location: "@rules_android//rules:rules.bzl",
+			Bzl_load_location: "//build/bazel/rules/android:rules.bzl",
 		},
 		android.CommonAttributes{Name: name},
 		&bazelAndroidLibraryImport{
@@ -1057,7 +1057,7 @@ func (a *AndroidLibrary) ConvertWithBp2build(ctx android.TopDownMutatorContext) 
 	name := a.Name()
 	props := bazel.BazelTargetModuleProperties{
 		Rule_class:        "android_library",
-		Bzl_load_location: "@rules_android//rules:rules.bzl",
+		Bzl_load_location: "//build/bazel/rules/android:rules.bzl",
 	}
 
 	ctx.CreateBazelTargetModule(
