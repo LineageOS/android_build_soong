@@ -1623,8 +1623,8 @@ type JavaApiLibraryProperties struct {
 func ApiLibraryFactory() android.Module {
 	module := &ApiLibrary{}
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibCommon)
-	android.InitDefaultableModule(module)
 	module.AddProperties(&module.properties)
+	android.InitDefaultableModule(module)
 	return module
 }
 
@@ -2402,6 +2402,7 @@ func DefaultsFactory() android.Module {
 		&RuntimeResourceOverlayProperties{},
 		&LintProperties{},
 		&appTestHelperAppProperties{},
+		&JavaApiLibraryProperties{},
 	)
 
 	android.InitDefaultsModule(module)
