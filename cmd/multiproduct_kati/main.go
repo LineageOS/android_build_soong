@@ -321,7 +321,7 @@ func main() {
 		jobs = runtime.NumCPU() / 4
 
 		ramGb := int(detectTotalRAM() / (1024 * 1024 * 1024))
-		if ramJobs := ramGb / 30; ramGb > 0 && jobs > ramJobs {
+		if ramJobs := ramGb / 40; ramGb > 0 && jobs > ramJobs {
 			jobs = ramJobs
 		}
 
