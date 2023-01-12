@@ -453,6 +453,14 @@ func (m *customModule) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 			}
 		}
 	}
+	productVariableProps := android.ProductVariableProperties(ctx)
+	if props, ok := productVariableProps["String_literal_prop"]; ok {
+		for c, p := range props {
+			if val, ok := p.(*string); ok {
+				strAttr.SetSelectValue(c.ConfigurationAxis(), c.SelectKey(), val)
+			}
+		}
+	}
 
 	paths.ResolveExcludes()
 
