@@ -1318,8 +1318,6 @@ var (
 		"libc_musl_sysroot",
 	}
 
-	Bp2buildCcLibraryStaticOnlyList = []string{}
-
 	MixedBuildsDisabledList = []string{
 		"libruy_static", "libtflite_kernel_utils", // TODO(b/237315968); Depend on prebuilt stl, not from source
 

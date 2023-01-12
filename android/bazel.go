@@ -66,8 +66,8 @@ type bazelModuleProperties struct {
 	//
 	// This is a bool pointer to support tristates: true, false, not set.
 	//
-	// To opt-in a module, set bazel_module: { bp2build_available: true }
-	// To opt-out a module, set bazel_module: { bp2build_available: false }
+	// To opt in a module, set bazel_module: { bp2build_available: true }
+	// To opt out a module, set bazel_module: { bp2build_available: false }
 	// To defer the default setting for the directory, do not set the value.
 	Bp2build_available *bool
 
@@ -126,7 +126,7 @@ type Bazelable interface {
 	// one with the single member called Soong_config_variables, which itself is
 	// a struct containing fields for each supported feature in that namespace.
 	//
-	// The reason for using an slice of interface{} is to support defaults
+	// The reason for using a slice of interface{} is to support defaults
 	// propagation of the struct pointers.
 	namespacedVariableProps() namespacedVariableProperties
 	setNamespacedVariableProps(props namespacedVariableProperties)
@@ -237,16 +237,6 @@ type Bp2BuildConversionAllowlist struct {
 
 	// Per-module denylist to always opt modules out of bp2build conversion.
 	moduleDoNotConvert map[string]bool
-
-	// Per-module denylist of cc_library modules to only generate the static
-	// variant if their shared variant isn't ready or buildable by Bazel.
-	ccLibraryStaticOnly map[string]bool
-}
-
-// GenerateCcLibraryStaticOnly returns whether a cc_library module should only
-// generate a static version of itself based on the current global configuration.
-func (a Bp2BuildConversionAllowlist) GenerateCcLibraryStaticOnly(moduleName string) bool {
-	return a.ccLibraryStaticOnly[moduleName]
 }
 
 // NewBp2BuildAllowlist creates a new, empty Bp2BuildConversionAllowlist
@@ -254,7 +244,6 @@ func (a Bp2BuildConversionAllowlist) GenerateCcLibraryStaticOnly(moduleName stri
 func NewBp2BuildAllowlist() Bp2BuildConversionAllowlist {
 	return Bp2BuildConversionAllowlist{
 		allowlists.Bp2BuildConfig{},
-		map[string]bool{},
 		map[string]bool{},
 		map[string]bool{},
 		map[string]bool{},
@@ -322,18 +311,6 @@ func (a Bp2BuildConversionAllowlist) SetModuleDoNotConvertList(moduleDoNotConver
 	return a
 }
 
-// SetCcLibraryStaticOnlyList copies the entries from ccLibraryStaticOnly into the allowlist
-func (a Bp2BuildConversionAllowlist) SetCcLibraryStaticOnlyList(ccLibraryStaticOnly []string) Bp2BuildConversionAllowlist {
-	if a.ccLibraryStaticOnly == nil {
-		a.ccLibraryStaticOnly = map[string]bool{}
-	}
-	for _, m := range ccLibraryStaticOnly {
-		a.ccLibraryStaticOnly[m] = true
-	}
-
-	return a
-}
-
 // ShouldKeepExistingBuildFileForDir returns whether an existing BUILD file should be
 // added to the build symlink forest based on the current global configuration.
 func (a Bp2BuildConversionAllowlist) ShouldKeepExistingBuildFileForDir(dir string) bool {
@@ -365,8 +342,7 @@ func GetBp2BuildAllowList() Bp2BuildConversionAllowlist {
 			SetKeepExistingBuildFile(allowlists.Bp2buildKeepExistingBuildFile).
 			SetModuleAlwaysConvertList(allowlists.Bp2buildModuleAlwaysConvertList).
 			SetModuleTypeAlwaysConvertList(allowlists.Bp2buildModuleTypeAlwaysConvertList).
-			SetModuleDoNotConvertList(allowlists.Bp2buildModuleDoNotConvertList).
-			SetCcLibraryStaticOnlyList(allowlists.Bp2buildCcLibraryStaticOnlyList)
+			SetModuleDoNotConvertList(allowlists.Bp2buildModuleDoNotConvertList)
 	}).(Bp2BuildConversionAllowlist)
 }
 
@@ -375,28 +351,14 @@ func GetBp2BuildAllowList() Bp2BuildConversionAllowlist {
 // method will also log whether this module is mixed build enabled for
 // metrics reporting.
 func MixedBuildsEnabled(ctx BaseModuleContext) bool {
-	mixedBuildEnabled := mixedBuildPossible(ctx)
+	module := ctx.Module()
+	mixedBuildEnabled := ctx.Config().IsMixedBuildsEnabled() &&
+		ctx.Os() != Windows && // Windows toolchains are not currently supported.
+		module.Enabled() &&
+		convertedToBazel(ctx, module) &&
+		ctx.Config().BazelContext.IsModuleNameAllowed(module.Name())
 	ctx.Config().LogMixedBuild(ctx, mixedBuildEnabled)
 	return mixedBuildEnabled
-}
-
-// mixedBuildPossible returns true if a module is ready to be replaced by a
-// converted or handcrafted Bazel target.
-func mixedBuildPossible(ctx BaseModuleContext) bool {
-	if !ctx.Config().IsMixedBuildsEnabled() {
-		return false
-	}
-	if ctx.Os() == Windows {
-		// Windows toolchains are not currently supported.
-		return false
-	}
-	if !ctx.Module().Enabled() {
-		return false
-	}
-	if !convertedToBazel(ctx, ctx.Module()) {
-		return false
-	}
-	return ctx.Config().BazelContext.BazelAllowlisted(ctx.Module().Name())
 }
 
 // ConvertedToBazel returns whether this module has been converted (with bp2build or manually) to Bazel.
