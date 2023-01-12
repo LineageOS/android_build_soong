@@ -519,6 +519,13 @@ func transformSourceToObj(ctx ModuleContext, subdir string, srcFiles, noTidySrcs
 	cppflags += " ${config.NoOverrideGlobalCflags}"
 	toolingCppflags += " ${config.NoOverrideGlobalCflags}"
 
+	if flags.toolchain.Is64Bit() {
+		cflags += " ${config.NoOverride64GlobalCflags}"
+		toolingCflags += " ${config.NoOverride64GlobalCflags}"
+		cppflags += " ${config.NoOverride64GlobalCflags}"
+		toolingCppflags += " ${config.NoOverride64GlobalCflags}"
+	}
+
 	modulePath := android.PathForModuleSrc(ctx).String()
 	if android.IsThirdPartyPath(modulePath) {
 		cflags += " ${config.NoOverrideExternalGlobalCflags}"
