@@ -15,6 +15,7 @@
 package rust
 
 import (
+	"android/soong/cc"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -307,19 +308,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 	flags.EmitXrefs = ctx.Config().EmitXrefRules()
 
 	if ctx.Host() && !ctx.Windows() {
-		rpathPrefix := `\$$ORIGIN/`
-		if ctx.Darwin() {
-			rpathPrefix = "@loader_path/"
-		}
-
-		var rpath string
-		if ctx.toolchain().Is64Bit() {
-			rpath = "lib64"
-		} else {
-			rpath = "lib"
-		}
-		flags.LinkFlags = append(flags.LinkFlags, "-Wl,-rpath,"+rpathPrefix+rpath)
-		flags.LinkFlags = append(flags.LinkFlags, "-Wl,-rpath,"+rpathPrefix+"../"+rpath)
+		flags.LinkFlags = append(flags.LinkFlags, cc.RpathFlags(ctx)...)
 	}
 
 	return flags
