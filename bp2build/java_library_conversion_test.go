@@ -715,3 +715,43 @@ func TestJavaLibraryKotlinCommonSrcs(t *testing.T) {
 		},
 	})
 }
+
+func TestJavaLibraryArchVariantLibs(t *testing.T) {
+	runJavaLibraryTestCase(t, Bp2buildTestCase{
+		Description: "java_library with arch variant libs",
+		Blueprint: `java_library {
+    name: "java-lib-1",
+    srcs: ["a.java"],
+    libs: ["java-lib-2"],
+    target: {
+        android: {
+            libs: ["java-lib-3"],
+        },
+    },
+    bazel_module: { bp2build_available: true },
+}
+
+	java_library{
+		name: "java-lib-2",
+}
+
+	java_library{
+		name: "java-lib-3",
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("java_library", "java-lib-1", AttrNameToString{
+				"srcs": `["a.java"]`,
+				"deps": `[":java-lib-2-neverlink"] + select({
+        "//build/bazel/platforms/os:android": [":java-lib-3-neverlink"],
+        "//conditions:default": [],
+    })`,
+			}),
+			MakeNeverlinkDuplicateTarget("java_library", "java-lib-1"),
+			MakeBazelTarget("java_library", "java-lib-2", AttrNameToString{}),
+			MakeNeverlinkDuplicateTarget("java_library", "java-lib-2"),
+			MakeBazelTarget("java_library", "java-lib-3", AttrNameToString{}),
+			MakeNeverlinkDuplicateTarget("java_library", "java-lib-3"),
+		},
+	})
+}

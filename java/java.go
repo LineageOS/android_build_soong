@@ -2568,7 +2568,7 @@ type bp2BuildJavaInfo struct {
 // to be returned to the calling function.
 func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext) (*javaCommonAttributes, *bp2BuildJavaInfo) {
 	var srcs bazel.LabelListAttribute
-	var deps bazel.LabelList
+	var deps bazel.LabelListAttribute
 	var staticDeps bazel.LabelList
 
 	archVariantProps := m.GetArchVariantProperties(ctx, &CommonProperties{})
@@ -2674,11 +2674,17 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext)
 		Javacopts: bazel.MakeStringListAttribute(javacopts),
 	}
 
-	if m.properties.Libs != nil {
-		for _, d := range m.properties.Libs {
-			neverlinkLabel := android.BazelLabelForModuleDepSingle(ctx, d)
-			neverlinkLabel.Label = neverlinkLabel.Label + "-neverlink"
-			deps.Add(&neverlinkLabel)
+	for axis, configToProps := range archVariantProps {
+		for config, _props := range configToProps {
+			if archProps, ok := _props.(*CommonProperties); ok {
+				var libLabels []bazel.Label
+				for _, d := range archProps.Libs {
+					neverlinkLabel := android.BazelLabelForModuleDepSingle(ctx, d)
+					neverlinkLabel.Label = neverlinkLabel.Label + "-neverlink"
+					libLabels = append(libLabels, neverlinkLabel)
+				}
+				deps.SetSelectValue(axis, config, bazel.MakeLabelList(libLabels))
+			}
 		}
 	}
 
@@ -2696,7 +2702,7 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext)
 	staticDeps.Add(protoDepLabel)
 
 	depLabels := &javaDependencyLabels{}
-	depLabels.Deps = bazel.MakeLabelListAttribute(deps)
+	depLabels.Deps = deps
 	depLabels.StaticDeps = bazel.MakeLabelListAttribute(staticDeps)
 
 	bp2BuildInfo := &bp2BuildJavaInfo{
