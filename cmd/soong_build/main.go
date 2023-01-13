@@ -191,7 +191,7 @@ func runApiBp2build(ctx *android.Context, extraNinjaDeps []string) string {
 
 	workspace := shared.JoinPath(ctx.Config().SoongOutDir(), "api_bp2build")
 	// Create the symlink forest
-	symlinkDeps := bp2build.PlantSymlinkForest(
+	symlinkDeps, _, _ := bp2build.PlantSymlinkForest(
 		ctx.Config().IsEnvTrue("BP2BUILD_VERBOSE"),
 		topDir,
 		workspace,
@@ -461,8 +461,10 @@ func bazelArtifacts() []string {
 // symlink tree creation binary. Then the latter would not need to depend on
 // the very heavy-weight machinery of soong_build .
 func runSymlinkForestCreation(ctx *android.Context, extraNinjaDeps []string, metricsDir string) string {
+	var ninjaDeps []string
+	var mkdirCount, symlinkCount uint64
+
 	ctx.EventHandler.Do("symlink_forest", func() {
-		var ninjaDeps []string
 		ninjaDeps = append(ninjaDeps, extraNinjaDeps...)
 		verbose := ctx.Config().IsEnvTrue("BP2BUILD_VERBOSE")
 
@@ -471,15 +473,16 @@ func runSymlinkForestCreation(ctx *android.Context, extraNinjaDeps []string, met
 		// or file created/deleted under it would trigger an update of the symlink forest.
 		generatedRoot := shared.JoinPath(ctx.Config().SoongOutDir(), "bp2build")
 		workspaceRoot := shared.JoinPath(ctx.Config().SoongOutDir(), "workspace")
+		var symlinkForestDeps []string
 		ctx.EventHandler.Do("plant", func() {
-			symlinkForestDeps := bp2build.PlantSymlinkForest(
+			symlinkForestDeps, mkdirCount, symlinkCount = bp2build.PlantSymlinkForest(
 				verbose, topDir, workspaceRoot, generatedRoot, excludedFromSymlinkForest(ctx, verbose))
-			ninjaDeps = append(ninjaDeps, symlinkForestDeps...)
 		})
-
-		writeDepFile(cmdlineArgs.SymlinkForestMarker, ctx.EventHandler, ninjaDeps)
-		touch(shared.JoinPath(topDir, cmdlineArgs.SymlinkForestMarker))
+		ninjaDeps = append(ninjaDeps, symlinkForestDeps...)
 	})
+
+	writeDepFile(cmdlineArgs.SymlinkForestMarker, ctx.EventHandler, ninjaDeps)
+	touch(shared.JoinPath(topDir, cmdlineArgs.SymlinkForestMarker))
 	codegenMetrics := bp2build.ReadCodegenMetrics(metricsDir)
 	if codegenMetrics == nil {
 		m := bp2build.CreateCodegenMetrics()
@@ -488,6 +491,8 @@ func runSymlinkForestCreation(ctx *android.Context, extraNinjaDeps []string, met
 		//TODO (usta) we cannot determine if we loaded a stale file, i.e. from an unrelated prior
 		//invocation of codegen. We should simply use a separate .pb file
 	}
+	codegenMetrics.SetSymlinkCount(symlinkCount)
+	codegenMetrics.SetMkDirCount(mkdirCount)
 	writeBp2BuildMetrics(codegenMetrics, ctx.EventHandler, metricsDir)
 	return cmdlineArgs.SymlinkForestMarker
 }
