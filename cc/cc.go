@@ -2212,6 +2212,13 @@ func GetCrtVariations(ctx android.BottomUpMutatorContext,
 		if err != nil {
 			ctx.PropertyErrorf("min_sdk_version", err.Error())
 		}
+
+		// Raise the minSdkVersion to the minimum supported for the architecture.
+		minApiForArch := minApiForArch(ctx, m.Target().Arch.ArchType)
+		if apiLevel.LessThan(minApiForArch) {
+			apiLevel = minApiForArch
+		}
+
 		return []blueprint.Variation{
 			{Mutator: "sdk", Variation: "sdk"},
 			{Mutator: "version", Variation: apiLevel.String()},
