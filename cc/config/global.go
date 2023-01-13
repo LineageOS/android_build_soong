@@ -369,10 +369,6 @@ func init() {
 			flags = append(flags, "-Wno-unused-command-line-argument")
 		}
 
-		if ctx.Config().IsEnvTrue("LLVM_NEXT") {
-			flags = append(flags, llvmNextExtraCommonGlobalCflags...)
-		}
-
 		if ctx.Config().IsEnvTrue("ALLOW_UNKNOWN_WARNING_OPTION") {
 			flags = append(flags, "-Wno-error=unknown-warning-option")
 		}
@@ -388,8 +384,17 @@ func init() {
 		return strings.Join(deviceGlobalCflags, " ")
 	})
 
+	// Export the static default NoOverrideGlobalCflags to Bazel.
+	exportedVars.ExportStringList("NoOverrideGlobalCflags", noOverrideGlobalCflags)
+	pctx.VariableFunc("NoOverrideGlobalCflags", func(ctx android.PackageVarContext) string {
+		flags := noOverrideGlobalCflags
+		if ctx.Config().IsEnvTrue("LLVM_NEXT") {
+			flags = append(noOverrideGlobalCflags, llvmNextExtraCommonGlobalCflags...)
+		}
+		return strings.Join(flags, " ")
+	})
+
 	exportedVars.ExportStringListStaticVariable("HostGlobalCflags", hostGlobalCflags)
-	exportedVars.ExportStringListStaticVariable("NoOverrideGlobalCflags", noOverrideGlobalCflags)
 	exportedVars.ExportStringListStaticVariable("NoOverrideExternalGlobalCflags", noOverrideExternalGlobalCflags)
 	exportedVars.ExportStringListStaticVariable("CommonGlobalCppflags", commonGlobalCppflags)
 	exportedVars.ExportStringListStaticVariable("ExternalCflags", extraExternalCflags)
