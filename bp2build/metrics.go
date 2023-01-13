@@ -148,9 +148,24 @@ func (metrics *CodegenMetrics) IncrementRuleClassCount(ruleClass string) {
 func (metrics *CodegenMetrics) AddEvent(event *bp2build_metrics_proto.Event) {
 	metrics.serialized.Events = append(metrics.serialized.Events, event)
 }
+
 func (metrics *CodegenMetrics) AddUnconvertedModule(moduleType string) {
 	metrics.serialized.UnconvertedModuleCount += 1
 	metrics.serialized.TotalModuleTypeCount[moduleType] += 1
+}
+
+func (metrics *CodegenMetrics) SetSymlinkCount(n uint64) {
+	if m := metrics.serialized.WorkspaceSymlinkCount; m != 0 {
+		fmt.Fprintf(os.Stderr, "unexpected non-zero workspaceSymlinkCount of %d", m)
+	}
+	metrics.serialized.WorkspaceSymlinkCount = n
+}
+
+func (metrics *CodegenMetrics) SetMkDirCount(n uint64) {
+	if m := metrics.serialized.WorkspaceMkDirCount; m != 0 {
+		fmt.Fprintf(os.Stderr, "unexpected non-zero workspaceDirCount of %d", m)
+	}
+	metrics.serialized.WorkspaceMkDirCount = n
 }
 
 func (metrics *CodegenMetrics) TotalModuleCount() uint64 {
