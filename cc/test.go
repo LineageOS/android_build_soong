@@ -311,23 +311,6 @@ func (test *testDecorator) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
 	return deps
 }
 
-func (test *testDecorator) linkerInit(ctx BaseModuleContext, linker *baseLinker) {
-	// 1. Add ../../lib[64] to rpath so that out/host/linux-x86/nativetest/<test dir>/<test> can
-	// find out/host/linux-x86/lib[64]/library.so
-	// 2. Add ../../../lib[64] to rpath so that out/host/linux-x86/testcases/<test dir>/<CPU>/<test> can
-	// also find out/host/linux-x86/lib[64]/library.so
-	runpaths := []string{"../../lib", "../../../lib"}
-	for _, runpath := range runpaths {
-		if ctx.toolchain().Is64Bit() {
-			runpath += "64"
-		}
-		linker.dynamicProperties.RunPaths = append(linker.dynamicProperties.RunPaths, runpath)
-	}
-
-	// add "" to rpath so that test binaries can find libraries in their own test directory
-	linker.dynamicProperties.RunPaths = append(linker.dynamicProperties.RunPaths, "")
-}
-
 func (test *testDecorator) linkerProps() []interface{} {
 	return []interface{}{&test.LinkerProperties}
 }
@@ -354,11 +337,6 @@ func (test *testBinary) linkerProps() []interface{} {
 	props := append(test.testDecorator.linkerProps(), test.binaryDecorator.linkerProps()...)
 	props = append(props, &test.Properties)
 	return props
-}
-
-func (test *testBinary) linkerInit(ctx BaseModuleContext) {
-	test.testDecorator.linkerInit(ctx, test.binaryDecorator.baseLinker)
-	test.binaryDecorator.linkerInit(ctx)
 }
 
 func (test *testBinary) linkerDeps(ctx DepsContext, deps Deps) Deps {
@@ -535,11 +513,6 @@ func (test *testLibrary) linkerProps() []interface{} {
 	return append(props, test.libraryDecorator.linkerProps()...)
 }
 
-func (test *testLibrary) linkerInit(ctx BaseModuleContext) {
-	test.testDecorator.linkerInit(ctx, test.libraryDecorator.baseLinker)
-	test.libraryDecorator.linkerInit(ctx)
-}
-
 func (test *testLibrary) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	deps = test.testDecorator.linkerDeps(ctx, deps)
 	deps = test.libraryDecorator.linkerDeps(ctx, deps)
@@ -608,15 +581,6 @@ type benchmarkDecorator struct {
 
 func (benchmark *benchmarkDecorator) benchmarkBinary() bool {
 	return true
-}
-
-func (benchmark *benchmarkDecorator) linkerInit(ctx BaseModuleContext) {
-	runpath := "../../lib"
-	if ctx.toolchain().Is64Bit() {
-		runpath += "64"
-	}
-	benchmark.baseLinker.dynamicProperties.RunPaths = append(benchmark.baseLinker.dynamicProperties.RunPaths, runpath)
-	benchmark.binaryDecorator.linkerInit(ctx)
 }
 
 func (benchmark *benchmarkDecorator) linkerProps() []interface{} {
