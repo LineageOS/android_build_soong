@@ -145,8 +145,10 @@ func runQueryView(queryviewDir, queryviewMarker string, ctx *android.Context) {
 func runApiBp2build(ctx *android.Context, extraNinjaDeps []string) string {
 	ctx.EventHandler.Begin("api_bp2build")
 	defer ctx.EventHandler.End("api_bp2build")
-	// Do not allow missing dependencies.
-	ctx.SetAllowMissingDependencies(false)
+	// api_bp2build does not run the typical pipeline of soong mutators.
+	// Hoevever, it still runs the defaults mutator which can create dependencies.
+	// These dependencies might not always exist (e.g. in tests)
+	ctx.SetAllowMissingDependencies(ctx.Config().AllowMissingDependencies())
 	ctx.RegisterForApiBazelConversion()
 
 	// Register the Android.bp files in the tree
@@ -176,7 +178,7 @@ func runApiBp2build(ctx *android.Context, extraNinjaDeps []string) string {
 	ninjaDeps = append(ninjaDeps, codegenContext.AdditionalNinjaDeps()...)
 
 	// Create soong_injection repository
-	soongInjectionFiles := bp2build.CreateSoongInjectionFiles(ctx.Config(), bp2build.CreateCodegenMetrics())
+	soongInjectionFiles := bp2build.CreateSoongInjectionDirFiles(codegenContext, bp2build.CreateCodegenMetrics())
 	absoluteSoongInjectionDir := shared.JoinPath(topDir, ctx.Config().SoongOutDir(), bazel.SoongInjectionDirName)
 	for _, file := range soongInjectionFiles {
 		// The API targets in api_bp2build workspace do not have any dependency on api_bp2build.

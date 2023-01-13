@@ -231,4 +231,11 @@ EOF
   fi
 }
 
+# Smoke test to verify api_bp2build worksapce does not contain any errors
+function test_api_bp2build_empty_build() {
+  setup
+  run_soong api_bp2build
+  run_bazel build --config=android --config=api_bp2build //:empty
+}
+
 scan_and_run_tests

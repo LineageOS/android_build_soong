@@ -417,11 +417,6 @@ func TestBp2buildAllowList(t *testing.T) {
 			t.Errorf("bp2build module do not convert of %s: expected: true, got: %v", k, allowlist.moduleDoNotConvert[k])
 		}
 	}
-	for _, k := range allowlists.Bp2buildCcLibraryStaticOnlyList {
-		if !allowlist.ccLibraryStaticOnly[k] {
-			t.Errorf("bp2build cc library static only of %s: expected: true, got: %v", k, allowlist.ccLibraryStaticOnly[k])
-		}
-	}
 }
 
 func TestShouldKeepExistingBuildFileForDir(t *testing.T) {

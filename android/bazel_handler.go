@@ -152,7 +152,7 @@ type BazelContext interface {
 	// Note that this only implies "bazel mixed build" allowlisting. The caller
 	// should independently verify the module is eligible for Bazel handling
 	// (for example, that it is MixedBuildBuildable).
-	BazelAllowlisted(moduleName string) bool
+	IsModuleNameAllowed(moduleName string) bool
 
 	// Returns the bazel output base (the root directory for all bazel intermediate outputs).
 	OutputBase() string
@@ -181,7 +181,7 @@ type bazelPaths struct {
 
 // A context object which tracks queued requests that need to be made to Bazel,
 // and their results after the requests have been made.
-type bazelContext struct {
+type mixedBuildBazelContext struct {
 	bazelRunner
 	paths        *bazelPaths
 	requests     map[cqueryKey]bool // cquery requests that have not yet been issued to Bazel
@@ -210,7 +210,7 @@ type bazelContext struct {
 	targetBuildVariant string
 }
 
-var _ BazelContext = &bazelContext{}
+var _ BazelContext = &mixedBuildBazelContext{}
 
 // A bazel context to use when Bazel is disabled.
 type noopBazelContext struct{}
@@ -261,7 +261,7 @@ func (m MockBazelContext) InvokeBazel(_ Config, _ *Context) error {
 	panic("unimplemented")
 }
 
-func (m MockBazelContext) BazelAllowlisted(_ string) bool {
+func (m MockBazelContext) IsModuleNameAllowed(_ string) bool {
 	return true
 }
 
@@ -277,14 +277,14 @@ func (m MockBazelContext) AqueryDepsets() []bazel.AqueryDepset {
 
 var _ BazelContext = MockBazelContext{}
 
-func (bazelCtx *bazelContext) QueueBazelRequest(label string, requestType cqueryRequest, cfgKey configKey) {
+func (bazelCtx *mixedBuildBazelContext) QueueBazelRequest(label string, requestType cqueryRequest, cfgKey configKey) {
 	key := makeCqueryKey(label, requestType, cfgKey)
 	bazelCtx.requestMutex.Lock()
 	defer bazelCtx.requestMutex.Unlock()
 	bazelCtx.requests[key] = true
 }
 
-func (bazelCtx *bazelContext) GetOutputFiles(label string, cfgKey configKey) ([]string, error) {
+func (bazelCtx *mixedBuildBazelContext) GetOutputFiles(label string, cfgKey configKey) ([]string, error) {
 	key := makeCqueryKey(label, cquery.GetOutputFiles, cfgKey)
 	if rawString, ok := bazelCtx.results[key]; ok {
 		bazelOutput := strings.TrimSpace(rawString)
@@ -294,7 +294,7 @@ func (bazelCtx *bazelContext) GetOutputFiles(label string, cfgKey configKey) ([]
 	return nil, fmt.Errorf("no bazel response found for %v", key)
 }
 
-func (bazelCtx *bazelContext) GetCcInfo(label string, cfgKey configKey) (cquery.CcInfo, error) {
+func (bazelCtx *mixedBuildBazelContext) GetCcInfo(label string, cfgKey configKey) (cquery.CcInfo, error) {
 	key := makeCqueryKey(label, cquery.GetCcInfo, cfgKey)
 	if rawString, ok := bazelCtx.results[key]; ok {
 		bazelOutput := strings.TrimSpace(rawString)
@@ -303,7 +303,7 @@ func (bazelCtx *bazelContext) GetCcInfo(label string, cfgKey configKey) (cquery.
 	return cquery.CcInfo{}, fmt.Errorf("no bazel response found for %v", key)
 }
 
-func (bazelCtx *bazelContext) GetPythonBinary(label string, cfgKey configKey) (string, error) {
+func (bazelCtx *mixedBuildBazelContext) GetPythonBinary(label string, cfgKey configKey) (string, error) {
 	key := makeCqueryKey(label, cquery.GetPythonBinary, cfgKey)
 	if rawString, ok := bazelCtx.results[key]; ok {
 		bazelOutput := strings.TrimSpace(rawString)
@@ -312,7 +312,7 @@ func (bazelCtx *bazelContext) GetPythonBinary(label string, cfgKey configKey) (s
 	return "", fmt.Errorf("no bazel response found for %v", key)
 }
 
-func (bazelCtx *bazelContext) GetApexInfo(label string, cfgKey configKey) (cquery.ApexInfo, error) {
+func (bazelCtx *mixedBuildBazelContext) GetApexInfo(label string, cfgKey configKey) (cquery.ApexInfo, error) {
 	key := makeCqueryKey(label, cquery.GetApexInfo, cfgKey)
 	if rawString, ok := bazelCtx.results[key]; ok {
 		return cquery.GetApexInfo.ParseResult(strings.TrimSpace(rawString))
@@ -320,7 +320,7 @@ func (bazelCtx *bazelContext) GetApexInfo(label string, cfgKey configKey) (cquer
 	return cquery.ApexInfo{}, fmt.Errorf("no bazel response found for %v", key)
 }
 
-func (bazelCtx *bazelContext) GetCcUnstrippedInfo(label string, cfgKey configKey) (cquery.CcUnstrippedInfo, error) {
+func (bazelCtx *mixedBuildBazelContext) GetCcUnstrippedInfo(label string, cfgKey configKey) (cquery.CcUnstrippedInfo, error) {
 	key := makeCqueryKey(label, cquery.GetCcUnstrippedInfo, cfgKey)
 	if rawString, ok := bazelCtx.results[key]; ok {
 		return cquery.GetCcUnstrippedInfo.ParseResult(strings.TrimSpace(rawString))
@@ -361,7 +361,7 @@ func (m noopBazelContext) OutputBase() string {
 	return ""
 }
 
-func (n noopBazelContext) BazelAllowlisted(_ string) bool {
+func (n noopBazelContext) IsModuleNameAllowed(_ string) bool {
 	return false
 }
 
@@ -396,12 +396,6 @@ func GetBazelEnabledAndDisabledModules(buildMode SoongBuildMode, forceEnabled ma
 			enabledModules[enabledAdHocModule] = true
 		}
 	case BazelDevMode:
-		// Don't use partially-converted cc_library targets in mixed builds,
-		// since mixed builds would generally rely on both static and shared
-		// variants of a cc_library.
-		for staticOnlyModule := range GetBp2BuildAllowList().ccLibraryStaticOnly {
-			disabledModules[staticOnlyModule] = true
-		}
 		addToStringSet(disabledModules, allowlists.MixedBuildsDisabledList)
 	default:
 		panic("Expected BazelProdMode, BazelStagingMode, or BazelDevMode")
@@ -475,7 +469,7 @@ func NewBazelContext(c *config) (BazelContext, error) {
 		targetProduct = c.DeviceProduct()
 	}
 
-	return &bazelContext{
+	return &mixedBuildBazelContext{
 		bazelRunner:           &builtinBazelRunner{},
 		paths:                 &paths,
 		requests:              make(map[cqueryKey]bool),
@@ -491,7 +485,7 @@ func (p *bazelPaths) BazelMetricsDir() string {
 	return p.metricsDir
 }
 
-func (context *bazelContext) BazelAllowlisted(moduleName string) bool {
+func (context *mixedBuildBazelContext) IsModuleNameAllowed(moduleName string) bool {
 	if context.bazelDisabledModules[moduleName] {
 		return false
 	}
@@ -618,7 +612,7 @@ func printableCqueryCommand(bazelCmd *exec.Cmd) string {
 
 }
 
-func (context *bazelContext) mainBzlFileContents() []byte {
+func (context *mixedBuildBazelContext) mainBzlFileContents() []byte {
 	// TODO(cparsons): Define configuration transitions programmatically based
 	// on available archs.
 	contents := `
@@ -687,7 +681,7 @@ phony_root = rule(
 	return []byte(productReplacer.Replace(contents))
 }
 
-func (context *bazelContext) mainBuildFileContents() []byte {
+func (context *mixedBuildBazelContext) mainBuildFileContents() []byte {
 	// TODO(cparsons): Map label to attribute programmatically; don't use hard-coded
 	// architecture mapping.
 	formatString := `
@@ -751,10 +745,10 @@ func indent(original string) string {
 
 // Returns the file contents of the buildroot.cquery file that should be used for the cquery
 // expression in order to obtain information about buildroot and its dependencies.
-// The contents of this file depend on the bazelContext's requests; requests are enumerated
+// The contents of this file depend on the mixedBuildBazelContext's requests; requests are enumerated
 // and grouped by their request type. The data retrieved for each label depends on its
 // request type.
-func (context *bazelContext) cqueryStarlarkFileContents() []byte {
+func (context *mixedBuildBazelContext) cqueryStarlarkFileContents() []byte {
 	requestTypeToCqueryIdEntries := map[cqueryRequest][]string{}
 	for val := range context.requests {
 		cqueryId := getCqueryId(val)
@@ -912,7 +906,7 @@ var (
 
 // Issues commands to Bazel to receive results for all cquery requests
 // queued in the BazelContext.
-func (context *bazelContext) InvokeBazel(config Config, ctx *Context) error {
+func (context *mixedBuildBazelContext) InvokeBazel(config Config, ctx *Context) error {
 	if ctx != nil {
 		ctx.EventHandler.Begin("bazel")
 		defer ctx.EventHandler.End("bazel")
@@ -939,7 +933,7 @@ func (context *bazelContext) InvokeBazel(config Config, ctx *Context) error {
 	return nil
 }
 
-func (context *bazelContext) runCquery(ctx *Context) error {
+func (context *mixedBuildBazelContext) runCquery(ctx *Context) error {
 	if ctx != nil {
 		ctx.EventHandler.Begin("cquery")
 		defer ctx.EventHandler.End("cquery")
@@ -994,7 +988,7 @@ func (context *bazelContext) runCquery(ctx *Context) error {
 	return nil
 }
 
-func (context *bazelContext) runAquery(config Config, ctx *Context) error {
+func (context *mixedBuildBazelContext) runAquery(config Config, ctx *Context) error {
 	if ctx != nil {
 		ctx.EventHandler.Begin("aquery")
 		defer ctx.EventHandler.End("aquery")
@@ -1032,7 +1026,7 @@ func (context *bazelContext) runAquery(config Config, ctx *Context) error {
 	return err
 }
 
-func (context *bazelContext) generateBazelSymlinks(ctx *Context) error {
+func (context *mixedBuildBazelContext) generateBazelSymlinks(ctx *Context) error {
 	if ctx != nil {
 		ctx.EventHandler.Begin("symlinks")
 		defer ctx.EventHandler.End("symlinks")
@@ -1044,15 +1038,15 @@ func (context *bazelContext) generateBazelSymlinks(ctx *Context) error {
 	return err
 }
 
-func (context *bazelContext) BuildStatementsToRegister() []bazel.BuildStatement {
+func (context *mixedBuildBazelContext) BuildStatementsToRegister() []bazel.BuildStatement {
 	return context.buildStatements
 }
 
-func (context *bazelContext) AqueryDepsets() []bazel.AqueryDepset {
+func (context *mixedBuildBazelContext) AqueryDepsets() []bazel.AqueryDepset {
 	return context.depsets
 }
 
-func (context *bazelContext) OutputBase() string {
+func (context *mixedBuildBazelContext) OutputBase() string {
 	return context.paths.outputBase
 }
 
