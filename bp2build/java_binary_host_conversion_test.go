@@ -134,3 +134,153 @@ java_import_host{
 		},
 	})
 }
+
+func TestJavaBinaryHostKotlinSrcs(t *testing.T) {
+	runJavaBinaryHostTestCase(t, Bp2buildTestCase{
+		Description: "java_binary_host with srcs, libs.",
+		Filesystem:  testFs,
+		Blueprint: `java_binary_host {
+    name: "java-binary-host",
+    manifest: "test.mf",
+    srcs: ["a.java", "b.kt"],
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("kt_jvm_library", "java-binary-host_kt", AttrNameToString{
+				"srcs": `[
+        "a.java",
+        "b.kt",
+    ]`,
+				"target_compatible_with": `select({
+        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    })`,
+			}),
+			MakeBazelTarget("java_binary", "java-binary-host", AttrNameToString{
+				"main_class":   `"com.android.test.MainClass"`,
+				"runtime_deps": `[":java-binary-host_kt"]`,
+				"target_compatible_with": `select({
+        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    })`,
+			}),
+		},
+	})
+}
+
+func TestJavaBinaryHostKotlinCommonSrcs(t *testing.T) {
+	runJavaBinaryHostTestCase(t, Bp2buildTestCase{
+		Description: "java_binary_host with common_srcs",
+		Filesystem:  testFs,
+		Blueprint: `java_binary_host {
+    name: "java-binary-host",
+    manifest: "test.mf",
+    srcs: ["a.java"],
+    common_srcs: ["b.kt"],
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("kt_jvm_library", "java-binary-host_kt", AttrNameToString{
+				"srcs":        `["a.java"]`,
+				"common_srcs": `["b.kt"]`,
+				"target_compatible_with": `select({
+        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    })`,
+			}),
+			MakeBazelTarget("java_binary", "java-binary-host", AttrNameToString{
+				"main_class":   `"com.android.test.MainClass"`,
+				"runtime_deps": `[":java-binary-host_kt"]`,
+				"target_compatible_with": `select({
+        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    })`,
+			}),
+		},
+	})
+}
+
+func TestJavaBinaryHostKotlinWithResourceDir(t *testing.T) {
+	runJavaBinaryHostTestCase(t, Bp2buildTestCase{
+		Description: "java_binary_host with srcs, libs, resource dir  .",
+		Filesystem: map[string]string{
+			"test.mf":        "Main-Class: com.android.test.MainClass",
+			"res/a.res":      "",
+			"res/dir1/b.res": "",
+		},
+		Blueprint: `java_binary_host {
+    name: "java-binary-host",
+    manifest: "test.mf",
+    srcs: ["a.java", "b.kt"],
+    java_resource_dirs: ["res"],
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("kt_jvm_library", "java-binary-host_kt", AttrNameToString{
+				"srcs": `[
+        "a.java",
+        "b.kt",
+    ]`,
+				"target_compatible_with": `select({
+        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    })`,
+			}),
+			MakeBazelTarget("java_binary", "java-binary-host", AttrNameToString{
+				"main_class":   `"com.android.test.MainClass"`,
+				"runtime_deps": `[":java-binary-host_kt"]`,
+				"resources": `[
+        "res/a.res",
+        "res/dir1/b.res",
+    ]`,
+				"resource_strip_prefix": `"res"`,
+				"target_compatible_with": `select({
+        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    })`,
+			}),
+		},
+	})
+}
+
+func TestJavaBinaryHostKotlinWithResources(t *testing.T) {
+	runJavaBinaryHostTestCase(t, Bp2buildTestCase{
+		Description: "java_binary_host with srcs, libs, resources.",
+		Filesystem: map[string]string{
+			"test.mf":   "Main-Class: com.android.test.MainClass",
+			"res/a.res": "",
+			"res/b.res": "",
+		},
+		Blueprint: `java_binary_host {
+    name: "java-binary-host",
+    manifest: "test.mf",
+    srcs: ["a.java", "b.kt"],
+    java_resources: ["res/a.res", "res/b.res"],
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("kt_jvm_library", "java-binary-host_kt", AttrNameToString{
+				"srcs": `[
+        "a.java",
+        "b.kt",
+    ]`,
+				"resources": `[
+        "res/a.res",
+        "res/b.res",
+    ]`,
+				"target_compatible_with": `select({
+        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    })`,
+			}),
+			MakeBazelTarget("java_binary", "java-binary-host", AttrNameToString{
+				"main_class":   `"com.android.test.MainClass"`,
+				"runtime_deps": `[":java-binary-host_kt"]`,
+				"target_compatible_with": `select({
+        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    })`,
+			}),
+		},
+	})
+}
