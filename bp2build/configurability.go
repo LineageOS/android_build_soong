@@ -28,10 +28,13 @@ func getStringValue(str bazel.StringAttribute) (reflect.Value, []selects) {
 			ret[selectKey] = reflect.ValueOf(strs)
 		}
 	}
+
 	// if there is a select, use the base value as the conditions default value
 	if len(ret) > 0 {
-		ret[bazel.ConditionsDefaultSelectKey] = value
-		value = reflect.Zero(value.Type())
+		if _, ok := ret[bazel.ConditionsDefaultSelectKey]; !ok {
+			ret[bazel.ConditionsDefaultSelectKey] = value
+			value = reflect.Zero(value.Type())
+		}
 	}
 
 	return value, []selects{ret}
