@@ -50,7 +50,6 @@ type symlinkForestContext struct {
 	depCh        chan string
 	mkdirCount   atomic.Uint64
 	symlinkCount atomic.Uint64
-	okay         atomic.Bool // Whether the forest was successfully constructed
 }
 
 // A simple thread pool to limit concurrency on system calls.
@@ -366,14 +365,14 @@ func plantSymlinkForestRecursive(context *symlinkForestContext, instructions *in
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error merging %s and %s: %s",
 					srcBuildFile, generatedBuildFile, err)
-				context.okay.Store(false)
+				os.Exit(1)
 			}
 		} else {
 			// Both exist and one is a file. This is an error.
 			fmt.Fprintf(os.Stderr,
 				"Conflict in workspace symlink tree creation: both '%s' and '%s' exist and exactly one is a directory\n",
 				srcChild, buildFilesChild)
-			context.okay.Store(false)
+			os.Exit(1)
 		}
 	}
 }
@@ -436,8 +435,6 @@ func PlantSymlinkForest(verbose bool, topdir string, forest string, buildFiles s
 		symlinkCount: atomic.Uint64{},
 	}
 
-	context.okay.Store(true)
-
 	removeParallel(shared.JoinPath(topdir, forest))
 
 	instructions := instructionsFromExcludePathList(exclude)
@@ -450,10 +447,6 @@ func PlantSymlinkForest(verbose bool, topdir string, forest string, buildFiles s
 
 	for dep := range context.depCh {
 		deps = append(deps, dep)
-	}
-
-	if !context.okay.Load() {
-		os.Exit(1)
 	}
 
 	return deps, context.mkdirCount.Load(), context.symlinkCount.Load()
