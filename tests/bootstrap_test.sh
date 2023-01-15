@@ -75,7 +75,6 @@ EOF
   grep -q "^# Module:.*my_great_binary_host" out/soong/build.ninja || fail "new module not found"
 }
 
-
 function test_add_android_bp() {
   setup
   run_soong
@@ -312,7 +311,6 @@ function test_create_global_include_directory() {
   fi
 
 }
-
 
 function test_add_file_to_soong_build() {
   setup
@@ -736,7 +734,6 @@ function test_json_module_graph_back_and_forth_null_build() {
 
 }
 
-
 function test_bp2build_bazel_workspace_structure {
   setup
 
@@ -802,7 +799,7 @@ EOF
     || fail "${GENERATED_BUILD_FILE_NAME} files symlinked to the wrong place"
 }
 
-function test_bp2build_reports_multiple_errors {
+function test_bp2build_fails_fast {
   setup
 
   mkdir -p "a/${GENERATED_BUILD_FILE_NAME}"
@@ -830,7 +827,7 @@ EOF
   fi
 
   grep -q "a/${GENERATED_BUILD_FILE_NAME}' exist" "$MOCK_TOP/errors" || fail "Error for a/${GENERATED_BUILD_FILE_NAME} not found"
-  grep -q "b/${GENERATED_BUILD_FILE_NAME}' exist" "$MOCK_TOP/errors" || fail "Error for b/${GENERATED_BUILD_FILE_NAME} not found"
+  grep -q -v "b/${GENERATED_BUILD_FILE_NAME}' exist" "$MOCK_TOP/errors" || fail "Error for b/${GENERATED_BUILD_FILE_NAME} found but not expected"
 }
 
 function test_bp2build_back_and_forth_null_build {
