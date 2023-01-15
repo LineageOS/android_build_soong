@@ -1894,6 +1894,94 @@ func TestJavaApiLibraryAndProviderLink(t *testing.T) {
 	}
 }
 
+func TestJavaApiLibraryAndDefaultsLink(t *testing.T) {
+	provider_bp_a := `java_api_contribution {
+		name: "foo1",
+		api_file: "foo1.txt",
+	}
+	`
+	provider_bp_b := `java_api_contribution {
+		name: "foo2",
+		api_file: "foo2.txt",
+	}
+	`
+	provider_bp_c := `java_api_contribution {
+		name: "foo3",
+		api_file: "foo3.txt",
+	}
+	`
+	provider_bp_d := `java_api_contribution {
+		name: "foo4",
+		api_file: "foo4.txt",
+	}
+	`
+	ctx, _ := testJavaWithFS(t, `
+		java_defaults {
+			name: "baz1",
+			api_surface: "public",
+			api_contributions: ["foo1", "foo2"],
+		}
+
+		java_defaults {
+			name: "baz2",
+			api_surface: "system",
+			api_contributions: ["foo3"],
+		}
+
+		java_api_library {
+			name: "bar1",
+			api_surface: "public",
+			api_contributions: ["foo1"],
+		}
+
+		java_api_library {
+			name: "bar2",
+			api_surface: "public",
+			defaults:["baz1"],
+		}
+
+		java_api_library {
+			name: "bar3",
+			api_surface: "system",
+			defaults:["baz1", "baz2"],
+			api_contributions: ["foo4"],
+			api_files: ["api1/current.txt", "api2/current.txt"]
+		}
+		`,
+		map[string][]byte{
+			"a/Android.bp": []byte(provider_bp_a),
+			"b/Android.bp": []byte(provider_bp_b),
+			"c/Android.bp": []byte(provider_bp_c),
+			"d/Android.bp": []byte(provider_bp_d),
+		})
+
+	testcases := []struct {
+		moduleName         string
+		sourceTextFileDirs []string
+	}{
+		{
+			moduleName:         "bar1",
+			sourceTextFileDirs: []string{"a/foo1.txt"},
+		},
+		{
+			moduleName:         "bar2",
+			sourceTextFileDirs: []string{"a/foo1.txt", "b/foo2.txt"},
+		},
+		{
+			moduleName:         "bar3",
+			sourceTextFileDirs: []string{"c/foo3.txt", "a/foo1.txt", "b/foo2.txt", "d/foo4.txt", "api1/current.txt", "api2/current.txt"},
+		},
+	}
+	for _, c := range testcases {
+		m := ctx.ModuleForTests(c.moduleName, "android_common")
+		manifest := m.Output("metalava.sbox.textproto")
+		sboxProto := android.RuleBuilderSboxProtoForTests(t, manifest)
+		manifestCommand := sboxProto.Commands[0].GetCommand()
+		sourceFilesFlag := "--source-files " + strings.Join(c.sourceTextFileDirs, " ")
+		android.AssertStringDoesContain(t, "source text files not present", manifestCommand, sourceFilesFlag)
+	}
+}
+
 func TestJavaApiLibraryJarGeneration(t *testing.T) {
 	provider_bp_a := `
 	java_api_contribution {

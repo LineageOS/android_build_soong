@@ -46,9 +46,11 @@ type symlinkForestContext struct {
 	topdir  string // $TOPDIR
 
 	// State
-	wg    sync.WaitGroup
-	depCh chan string
-	okay  atomic.Bool // Whether the forest was successfully constructed
+	wg           sync.WaitGroup
+	depCh        chan string
+	mkdirCount   atomic.Uint64
+	symlinkCount atomic.Uint64
+	okay         atomic.Bool // Whether the forest was successfully constructed
 }
 
 // A simple thread pool to limit concurrency on system calls.
@@ -288,6 +290,7 @@ func plantSymlinkForestRecursive(context *symlinkForestContext, instructions *in
 		fmt.Fprintf(os.Stderr, "Cannot mkdir '%s': %s\n", forestDir, err)
 		os.Exit(1)
 	}
+	context.mkdirCount.Add(1)
 
 	for f := range allEntries {
 		if f[0] == '.' {
@@ -318,6 +321,7 @@ func plantSymlinkForestRecursive(context *symlinkForestContext, instructions *in
 		if instructionsChild != nil && instructionsChild.excluded {
 			if bExists {
 				symlinkIntoForest(context.topdir, forestChild, buildFilesChild)
+				context.symlinkCount.Add(1)
 			}
 			continue
 		}
@@ -334,6 +338,7 @@ func plantSymlinkForestRecursive(context *symlinkForestContext, instructions *in
 			} else {
 				// Not in the source tree, symlink BUILD file
 				symlinkIntoForest(context.topdir, forestChild, buildFilesChild)
+				context.symlinkCount.Add(1)
 			}
 		} else if !bExists {
 			if sDir && instructionsChild != nil {
@@ -344,6 +349,7 @@ func plantSymlinkForestRecursive(context *symlinkForestContext, instructions *in
 			} else {
 				// Not in the build file tree, symlink source tree, carry on
 				symlinkIntoForest(context.topdir, forestChild, srcChild)
+				context.symlinkCount.Add(1)
 			}
 		} else if sDir && bDir {
 			// Both are directories. Descend.
@@ -417,15 +423,17 @@ func removeParallel(path string) {
 	wg.Wait()
 }
 
-// Creates a symlink forest by merging the directory tree at "buildFiles" and
+// PlantSymlinkForest Creates a symlink forest by merging the directory tree at "buildFiles" and
 // "srcDir" while excluding paths listed in "exclude". Returns the set of paths
 // under srcDir on which readdir() had to be called to produce the symlink
 // forest.
-func PlantSymlinkForest(verbose bool, topdir string, forest string, buildFiles string, exclude []string) []string {
+func PlantSymlinkForest(verbose bool, topdir string, forest string, buildFiles string, exclude []string) (deps []string, mkdirCount, symlinkCount uint64) {
 	context := &symlinkForestContext{
-		verbose: verbose,
-		topdir:  topdir,
-		depCh:   make(chan string),
+		verbose:      verbose,
+		topdir:       topdir,
+		depCh:        make(chan string),
+		mkdirCount:   atomic.Uint64{},
+		symlinkCount: atomic.Uint64{},
 	}
 
 	context.okay.Store(true)
@@ -440,7 +448,6 @@ func PlantSymlinkForest(verbose bool, topdir string, forest string, buildFiles s
 		close(context.depCh)
 	}()
 
-	deps := make([]string, 0)
 	for dep := range context.depCh {
 		deps = append(deps, dep)
 	}
@@ -449,5 +456,5 @@ func PlantSymlinkForest(verbose bool, topdir string, forest string, buildFiles s
 		os.Exit(1)
 	}
 
-	return deps
+	return deps, context.mkdirCount.Load(), context.symlinkCount.Load()
 }
