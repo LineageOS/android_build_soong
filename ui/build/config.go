@@ -147,8 +147,10 @@ func checkTopDir(ctx Context) {
 	}
 }
 
-// fetchEnvConfig optionally fetches environment config from an
-// experiments system to control Soong features dynamically.
+// fetchEnvConfig optionally fetches a configuration file that can then subsequently be
+// loaded into Soong environment to control certain aspects of build behavior (e.g., enabling RBE).
+// If a configuration file already exists on disk, the fetch is run in the background
+// so as to NOT block the rest of the build execution.
 func fetchEnvConfig(ctx Context, config *configImpl, envConfigName string) error {
 	configName := envConfigName + "." + jsonSuffix
 	expConfigFetcher := &smpb.ExpConfigFetcher{Filename: &configName}
@@ -174,8 +176,13 @@ func fetchEnvConfig(ctx Context, config *configImpl, envConfigName string) error
 		return fmt.Errorf("configuration fetcher binary %v is not executable: %v", configFetcher, s.Mode())
 	}
 
+	configExists := false
+	outConfigFilePath := filepath.Join(config.OutDir(), configName)
+	if _, err := os.Stat(outConfigFilePath); err == nil {
+		configExists = true
+	}
+
 	tCtx, cancel := context.WithTimeout(ctx, envConfigFetchTimeout)
-	defer cancel()
 	fetchStart := time.Now()
 	cmd := exec.CommandContext(tCtx, configFetcher, "-output_config_dir", config.OutDir(),
 		"-output_config_name", configName)
@@ -185,22 +192,39 @@ func fetchEnvConfig(ctx Context, config *configImpl, envConfigName string) error
 		return err
 	}
 
-	if err := cmd.Wait(); err != nil {
-		status := smpb.ExpConfigFetcher_ERROR
-		expConfigFetcher.Status = &status
-		return err
-	}
-	fetchEnd := time.Now()
-	expConfigFetcher.Micros = proto.Uint64(uint64(fetchEnd.Sub(fetchStart).Microseconds()))
-	outConfigFilePath := filepath.Join(config.OutDir(), configName)
-	expConfigFetcher.Filename = proto.String(outConfigFilePath)
-	if _, err := os.Stat(outConfigFilePath); err == nil {
+	fetchCfg := func() error {
+		if err := cmd.Wait(); err != nil {
+			status := smpb.ExpConfigFetcher_ERROR
+			expConfigFetcher.Status = &status
+			return err
+		}
+		fetchEnd := time.Now()
+		expConfigFetcher.Micros = proto.Uint64(uint64(fetchEnd.Sub(fetchStart).Microseconds()))
+		expConfigFetcher.Filename = proto.String(outConfigFilePath)
+
+		if _, err := os.Stat(outConfigFilePath); err != nil {
+			status := smpb.ExpConfigFetcher_NO_CONFIG
+			expConfigFetcher.Status = &status
+			return err
+		}
 		status := smpb.ExpConfigFetcher_CONFIG
 		expConfigFetcher.Status = &status
-	} else {
-		status := smpb.ExpConfigFetcher_NO_CONFIG
-		expConfigFetcher.Status = &status
+		return nil
 	}
+
+	// If a config file does not exist, wait for the config file to be fetched. Otherwise
+	// fetch the config file in the background and return immediately.
+	if !configExists {
+		defer cancel()
+		return fetchCfg()
+	}
+
+	go func() {
+		defer cancel()
+		if err := fetchCfg(); err != nil {
+			ctx.Verbosef("Failed to fetch config file %v: %v\n", configName, err)
+		}
+	}()
 	return nil
 }
 
@@ -300,8 +324,8 @@ func NewConfig(ctx Context, args ...string) Config {
 	if bc != "" {
 		if err := fetchEnvConfig(ctx, ret, bc); err != nil {
 			ctx.Verbosef("Failed to fetch config file: %v\n", err)
-
-		} else if err := loadEnvConfig(ctx, ret, bc); err != nil {
+		}
+		if err := loadEnvConfig(ctx, ret, bc); err != nil {
 			ctx.Fatalln("Failed to parse env config files: %v", err)
 		}
 	}
