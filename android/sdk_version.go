@@ -94,8 +94,9 @@ func (k SdkKind) JavaLibraryName(c Config) string {
 // not check if either module exists.
 // TODO: Return .txt (single-tree or multi-tree equivalents) based on config
 func JavaLibraryNameFromText(c Config, name string) string {
-	// This returns the default for now.
-	// TODO: Implement this
+	if c.BuildFromTextStub() {
+		return name + ".from-text"
+	}
 	return name
 }
 

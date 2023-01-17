@@ -88,6 +88,7 @@ type configImpl struct {
 	searchApiDir      bool // Scan the Android.bp files generated in out/api_surfaces
 	skipMetricsUpload bool
 	buildStartedTime  int64 // For metrics-upload-only - manually specify a build-started time
+	buildFromTextStub bool
 
 	// From the product config
 	katiArgs        []string
@@ -509,6 +510,11 @@ func NewConfig(ctx Context, args ...string) Config {
 		}
 	}
 
+	if ret.BuildFromTextStub() {
+		// TODO(b/271443071): support hidden api check for from-text stub build
+		ret.environ.Set("UNSAFE_DISABLE_HIDDENAPI_FLAGS", "true")
+	}
+
 	bpd := ret.BazelMetricsDir()
 	if err := os.RemoveAll(bpd); err != nil {
 		ctx.Fatalf("Unable to remove bazel profile directory %q: %v", bpd, err)
@@ -833,6 +839,8 @@ func (c *configImpl) parseArgs(ctx Context, args []string) {
 			} else {
 				ctx.Fatalf("unknown option for ninja_weight_source: %s", source)
 			}
+		} else if arg == "--build-from-text-stub" {
+			c.buildFromTextStub = true
 		} else if strings.HasPrefix(arg, "--build-command=") {
 			buildCmd := strings.TrimPrefix(arg, "--build-command=")
 			// remove quotations
@@ -1153,6 +1161,10 @@ func (c *configImpl) SetSkipNinja(v bool) {
 
 func (c *configImpl) SkipConfig() bool {
 	return c.skipConfig
+}
+
+func (c *configImpl) BuildFromTextStub() bool {
+	return c.buildFromTextStub
 }
 
 func (c *configImpl) TargetProduct() string {
