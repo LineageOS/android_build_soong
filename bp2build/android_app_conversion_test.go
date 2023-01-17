@@ -28,6 +28,7 @@ func runAndroidAppTestCase(t *testing.T, tc Bp2buildTestCase) {
 
 func registerAndroidAppModuleTypes(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
+	ctx.RegisterModuleType("java_library", java.LibraryFactory)
 }
 
 func TestMinimalAndroidApp(t *testing.T) {
@@ -197,6 +198,32 @@ android_app {
 				"certificate_name": `"foocert"`,
 				"manifest":         `"AndroidManifest.xml"`,
 				"resource_files":   `[]`,
+			}),
+		}})
+}
+
+func TestAndroidAppLibs(t *testing.T) {
+	runAndroidAppTestCase(t, Bp2buildTestCase{
+		Description:                "Android app with libs",
+		ModuleTypeUnderTest:        "android_app",
+		ModuleTypeUnderTestFactory: java.AndroidAppFactory,
+		Filesystem:                 map[string]string{},
+		Blueprint: simpleModuleDoNotConvertBp2build("filegroup", "foocert") + `
+android_app {
+        name: "foo",
+				libs: ["barLib"]
+}
+java_library{
+       name: "barLib",
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("java_library", "barLib", AttrNameToString{}),
+			MakeNeverlinkDuplicateTarget("java_library", "barLib"),
+			MakeBazelTarget("android_binary", "foo", AttrNameToString{
+				"manifest":       `"AndroidManifest.xml"`,
+				"resource_files": `[]`,
+				"deps":           `[":barLib-neverlink"]`,
 			}),
 		}})
 }
