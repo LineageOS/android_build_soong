@@ -205,6 +205,14 @@ func (d *apiLibraryDecorator) link(ctx ModuleContext, flags Flags, deps PathDeps
 				d.libraryDecorator.flagExporter.Properties.Export_include_dirs = append(
 					d.libraryDecorator.flagExporter.Properties.Export_include_dirs,
 					variantMod.exportProperties.Export_include_dirs...)
+
+				// Export headers as system include dirs if specified. Mostly for libc
+				if Bool(variantMod.exportProperties.Export_headers_as_system) {
+					d.libraryDecorator.flagExporter.Properties.Export_system_include_dirs = append(
+						d.libraryDecorator.flagExporter.Properties.Export_system_include_dirs,
+						d.libraryDecorator.flagExporter.Properties.Export_include_dirs...)
+					d.libraryDecorator.flagExporter.Properties.Export_include_dirs = nil
+				}
 			}
 		}
 	}
