@@ -60,7 +60,7 @@ java_library {
         "//conditions:default": [],
     })`,
 				"deps": `[
-        ":java-lib-1",
+        ":java-lib-1-neverlink",
         ":java-lib-2",
     ]`,
 				"srcs": `[
@@ -101,7 +101,7 @@ java_library {
         "//conditions:default": [],
     })`,
 				"deps": `[
-        ":java-lib-1",
+        ":java-lib-1-neverlink",
         ":java-lib-2",
     ]`,
 			}),
