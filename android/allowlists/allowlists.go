@@ -1427,4 +1427,20 @@ var (
 	// It is implicit that all modules in ProdMixedBuildsEnabledList will
 	// also be built - do not add them to this list.
 	StagingMixedBuildsEnabledList = []string{}
+
+	// These should be the libs that are included by the apexes in the ProdMixedBuildsEnabledList
+	ProdDclaMixedBuildsEnabledList = []string{}
+
+	// These should be the libs that are included by the apexes in the StagingMixedBuildsEnabledList
+	StagingDclaMixedBuildsEnabledList = []string{
+		"libbase",
+		"libc++",
+		"libcrypto",
+		"libcutils",
+	}
+
+	// TODO(b/269342245): Enable the rest of the DCLA libs
+	// "libssl",
+	// "libstagefright_flacdec",
+	// "libutils",
 )
