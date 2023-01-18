@@ -5,13 +5,15 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/google/blueprint/proptools"
-
 	"android/soong/android"
 )
 
 func init() {
 	android.RegisterSingletonType("cflag_artifacts_text", cflagArtifactsTextFactory)
+}
+
+func cflagArtifactsTextFactory() android.Singleton {
+	return &cflagArtifactsText{}
 }
 
 var (
@@ -29,12 +31,9 @@ var (
 	}
 )
 
-const FileBP = 50
-
 // Stores output files.
 type cflagArtifactsText struct {
-	interOutputs map[string]android.WritablePaths
-	outputs      android.WritablePaths
+	outputs android.WritablePaths
 }
 
 // allowedDir verifies if the directory/project is part of the TrackedCFlagsDir
@@ -44,93 +43,22 @@ func allowedDir(subdir string) bool {
 	return android.HasAnyPrefix(subdir, TrackedCFlagsDir)
 }
 
-func (s *cflagArtifactsText) genFlagFilename(flag string) string {
-	return fmt.Sprintf("module_cflags%s.txt", flag)
-}
+// GenCFlagArtifact is used to generate the build rules which produce a file
+// that contains a list of all modules using/not using a particular cflag
+func (s *cflagArtifactsText) GenCFlagArtifact(ctx android.SingletonContext,
+	flag string, modulesUsing, modulesNotUsing []string) {
 
-// incrementFile is used to generate an output path object with the passed in flag
-// and part number.
-// e.g. FLAG + part # -> out/soong/cflags/module_cflags-FLAG.txt.0
-func (s *cflagArtifactsText) incrementFile(ctx android.SingletonContext,
-	flag string, part int) (string, android.OutputPath) {
-
-	filename := fmt.Sprintf("%s.%d", s.genFlagFilename(flag), part)
+	filename := "module_cflags" + flag + ".txt"
 	filepath := android.PathForOutput(ctx, "cflags", filename)
-	s.interOutputs[flag] = append(s.interOutputs[flag], filepath)
-	return filename, filepath
-}
 
-// GenCFlagArtifactParts is used to generate the build rules which produce the
-// intermediary files for each desired C Flag artifact
-// e.g. module_cflags-FLAG.txt.0, module_cflags-FLAG.txt.1, ...
-func (s *cflagArtifactsText) GenCFlagArtifactParts(ctx android.SingletonContext,
-	flag string, using bool, modules []string, part int) int {
+	lines := make([]string, 0, 2+len(modulesUsing)+len(modulesNotUsing))
+	lines = append(lines, "# Modules using "+flag)
+	lines = append(lines, modulesUsing...)
+	lines = append(lines, "# Modules not using "+flag)
+	lines = append(lines, modulesNotUsing...)
 
-	cleanedName := strings.Replace(flag, "=", "_", -1)
-	filename, filepath := s.incrementFile(ctx, cleanedName, part)
-	rule := android.NewRuleBuilder(pctx, ctx)
-	rule.Command().Textf("rm -f %s", filepath.String())
-
-	if using {
-		rule.Command().
-			Textf("echo '# Modules using %s'", flag).
-			FlagWithOutput(">> ", filepath)
-	} else {
-		rule.Command().
-			Textf("echo '# Modules not using %s'", flag).
-			FlagWithOutput(">> ", filepath)
-	}
-
-	length := len(modules)
-
-	if length == 0 {
-		rule.Build(filename, "gen "+filename)
-		part++
-	}
-
-	// Following loop splits the module list for each tracked C Flag into
-	// chunks of length FileBP (file breakpoint) and generates a partial artifact
-	// (intermediary file) build rule for each split.
-	moduleShards := android.ShardStrings(modules, FileBP)
-	for index, shard := range moduleShards {
-		rule.Command().
-			Textf("for m in %s; do echo $m",
-				strings.Join(proptools.ShellEscapeList(shard), " ")).
-			FlagWithOutput(">> ", filepath).
-			Text("; done")
-		rule.Build(filename, "gen "+filename)
-
-		if index+1 != len(moduleShards) {
-			filename, filepath = s.incrementFile(ctx, cleanedName, part+index+1)
-			rule = android.NewRuleBuilder(pctx, ctx)
-			rule.Command().Textf("rm -f %s", filepath.String())
-		}
-	}
-
-	return part + len(moduleShards)
-}
-
-// GenCFlagArtifacts is used to generate build rules which combine the
-// intermediary files of a specific tracked flag into a single C Flag artifact
-// for each tracked flag.
-// e.g. module_cflags-FLAG.txt.0 + module_cflags-FLAG.txt.1 = module_cflags-FLAG.txt
-func (s *cflagArtifactsText) GenCFlagArtifacts(ctx android.SingletonContext) {
-	// Scans through s.interOutputs and creates a build rule for each tracked C
-	// Flag that concatenates the associated intermediary file into a single
-	// artifact.
-	for _, flag := range TrackedCFlags {
-		// Generate build rule to combine related intermediary files into a
-		// C Flag artifact
-		rule := android.NewRuleBuilder(pctx, ctx)
-		filename := s.genFlagFilename(flag)
-		outputpath := android.PathForOutput(ctx, "cflags", filename)
-		rule.Command().
-			Text("cat").
-			Inputs(s.interOutputs[flag].Paths()).
-			FlagWithOutput("> ", outputpath)
-		rule.Build(filename, "gen "+filename)
-		s.outputs = append(s.outputs, outputpath)
-	}
+	android.WriteFileRule(ctx, filepath, strings.Join(lines, "\n"))
+	s.outputs = append(s.outputs, filepath)
 }
 
 func (s *cflagArtifactsText) GenerateBuildActions(ctx android.SingletonContext) {
@@ -163,18 +91,8 @@ func (s *cflagArtifactsText) GenerateBuildActions(ctx android.SingletonContext) 
 	// contain parts of each expected C Flag artifact.
 	for _, flag := range TrackedCFlags {
 		sort.Strings(modulesWithCFlag[flag])
-		part := s.GenCFlagArtifactParts(ctx, flag, true, modulesWithCFlag[flag], 0)
 		sort.Strings(modulesWithCFlag["!"+flag])
-		s.GenCFlagArtifactParts(ctx, flag, false, modulesWithCFlag["!"+flag], part)
-	}
-
-	// Combine intermediary files into a single C Flag artifact.
-	s.GenCFlagArtifacts(ctx)
-}
-
-func cflagArtifactsTextFactory() android.Singleton {
-	return &cflagArtifactsText{
-		interOutputs: make(map[string]android.WritablePaths),
+		s.GenCFlagArtifact(ctx, flag, modulesWithCFlag[flag], modulesWithCFlag["!"+flag])
 	}
 }
 
