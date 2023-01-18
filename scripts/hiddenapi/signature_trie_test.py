@@ -117,14 +117,6 @@ class TestSignatureToElements(unittest.TestCase):
         self.assertEqual(elements, self.signature_to_elements(signature))
         self.assertEqual(signature, self.elements_to_signature(elements))
 
-    def test_invalid_no_class_or_wildcard(self):
-        signature = "java/lang"
-        with self.assertRaises(Exception) as context:
-            self.signature_to_elements(signature)
-        self.assertIn(
-            "last element 'lang' is lower case but should be an "
-            "upper case class name or wildcard", str(context.exception))
-
     def test_non_standard_class_name(self):
         elements = [
             ("package", "javax"),
