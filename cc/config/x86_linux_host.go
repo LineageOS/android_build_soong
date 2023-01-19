@@ -112,7 +112,7 @@ var (
 	muslCrtBeginSharedBinary, muslCrtEndSharedBinary   = []string{"libc_musl_crtbegin_dynamic"}, []string{"libc_musl_crtend"}
 	muslCrtBeginSharedLibrary, muslCrtEndSharedLibrary = []string{"libc_musl_crtbegin_so"}, []string{"libc_musl_crtend_so"}
 
-	muslDefaultSharedLibraries = []string{"libc_musl"}
+	MuslDefaultSharedLibraries = []string{"libc_musl"}
 )
 
 const (
@@ -331,7 +331,7 @@ func (toolchainMusl) CrtEndStaticBinary() []string    { return muslCrtEndStaticB
 func (toolchainMusl) CrtEndSharedBinary() []string    { return muslCrtEndSharedBinary }
 func (toolchainMusl) CrtEndSharedLibrary() []string   { return muslCrtEndSharedLibrary }
 
-func (toolchainMusl) DefaultSharedLibraries() []string { return muslDefaultSharedLibraries }
+func (toolchainMusl) DefaultSharedLibraries() []string { return MuslDefaultSharedLibraries }
 
 func (toolchainMusl) Cflags() string {
 	return "${config.LinuxMuslCflags}"
