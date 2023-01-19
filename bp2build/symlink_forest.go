@@ -22,6 +22,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"sync"
 	"sync/atomic"
 
@@ -275,14 +276,17 @@ func plantSymlinkForestRecursive(context *symlinkForestContext, instructions *in
 		}
 	}
 
-	allEntries := make(map[string]struct{})
+	allEntries := make([]string, 0, len(srcDirMap)+len(buildFilesMap))
 	for n := range srcDirMap {
-		allEntries[n] = struct{}{}
+		allEntries = append(allEntries, n)
 	}
-
 	for n := range buildFilesMap {
-		allEntries[n] = struct{}{}
+		if _, ok := srcDirMap[n]; !ok {
+			allEntries = append(allEntries, n)
+		}
 	}
+	// Tests read the error messages generated, so ensure their order is deterministic
+	sort.Strings(allEntries)
 
 	err := os.MkdirAll(shared.JoinPath(context.topdir, forestDir), 0777)
 	if err != nil {
@@ -291,7 +295,7 @@ func plantSymlinkForestRecursive(context *symlinkForestContext, instructions *in
 	}
 	context.mkdirCount.Add(1)
 
-	for f := range allEntries {
+	for _, f := range allEntries {
 		if f[0] == '.' {
 			continue // Ignore dotfiles
 		}
