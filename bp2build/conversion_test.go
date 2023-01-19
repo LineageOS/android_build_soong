@@ -101,7 +101,11 @@ func TestCreateBazelFiles_Bp2Build_CreatesDefaultFiles(t *testing.T) {
 		},
 		{
 			dir:      "cc_toolchain",
-			basename: "constants.bzl",
+			basename: "config_constants.bzl",
+		},
+		{
+			dir:      "cc_toolchain",
+			basename: "sanitizer_constants.bzl",
 		},
 		{
 			dir:      "java_toolchain",
