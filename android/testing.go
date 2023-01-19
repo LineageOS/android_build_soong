@@ -1145,7 +1145,7 @@ func AndroidMkDataForTest(t *testing.T, ctx *TestContext, mod blueprint.Module) 
 	var p AndroidMkDataProvider
 	var ok bool
 	if p, ok = mod.(AndroidMkDataProvider); !ok {
-		t.Errorf("module does not implement AndroidMkDataProvider: " + mod.Name())
+		t.Fatalf("module does not implement AndroidMkDataProvider: " + mod.Name())
 	}
 	data := p.AndroidMk()
 	data.fillInData(ctx, mod)

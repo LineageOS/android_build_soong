@@ -14,7 +14,14 @@ var (
 	GetCcUnstrippedInfo = &getCcUnstrippedInfoType{}
 )
 
+type CcAndroidMkInfo struct {
+	LocalStaticLibs      []string
+	LocalWholeStaticLibs []string
+	LocalSharedLibs      []string
+}
+
 type CcInfo struct {
+	CcAndroidMkInfo
 	OutputFiles          []string
 	CcObjectFiles        []string
 	CcSharedLibraryFiles []string
@@ -180,20 +187,33 @@ abi_diff_info = p.get("//build/bazel/rules/abi:abi_dump.bzl%AbiDiffInfo")
 if abi_diff_info:
   abi_diff_files = [f.path for f in abi_diff_info.diff_files.to_list()]
 
+local_static_libs = []
+local_whole_static_libs = []
+local_shared_libs = []
+androidmk_tag = "//build/bazel/rules/cc:cc_library_common.bzl%CcAndroidMkInfo"
+if androidmk_tag in p:
+    androidmk_info = p[androidmk_tag]
+    local_static_libs = androidmk_info.local_static_libs
+    local_whole_static_libs = androidmk_info.local_whole_static_libs
+    local_shared_libs = androidmk_info.local_shared_libs
+
 return json_encode({
-	"OutputFiles": outputFiles,
-	"CcObjectFiles": ccObjectFiles,
-	"CcSharedLibraryFiles": sharedLibraries,
-	"CcStaticLibraryFiles": staticLibraries,
-	"Includes": includes,
-	"SystemIncludes": system_includes,
-	"Headers": headers,
-	"RootStaticArchives": rootStaticArchives,
-	"RootDynamicLibraries": rootSharedLibraries,
-	"TidyFiles": tidy_files,
-	"TocFile": toc_file,
-	"UnstrippedOutput": unstripped,
-	"AbiDiffFiles": abi_diff_files,
+    "OutputFiles": outputFiles,
+    "CcObjectFiles": ccObjectFiles,
+    "CcSharedLibraryFiles": sharedLibraries,
+    "CcStaticLibraryFiles": staticLibraries,
+    "Includes": includes,
+    "SystemIncludes": system_includes,
+    "Headers": headers,
+    "RootStaticArchives": rootStaticArchives,
+    "RootDynamicLibraries": rootSharedLibraries,
+    "TidyFiles": tidy_files,
+    "TocFile": toc_file,
+    "UnstrippedOutput": unstripped,
+    "AbiDiffFiles": abi_diff_files,
+    "LocalStaticLibs": [l for l in local_static_libs],
+    "LocalWholeStaticLibs": [l for l in local_whole_static_libs],
+    "LocalSharedLibs": [l for l in local_shared_libs],
 })`
 
 }
@@ -289,15 +309,32 @@ func (g getCcUnstrippedInfoType) Name() string {
 }
 
 func (g getCcUnstrippedInfoType) StarlarkFunctionBody() string {
-	return `unstripped_tag = "//build/bazel/rules/cc:stripped_cc_common.bzl%CcUnstrippedInfo"
+	return `
 p = providers(target)
 output_path = target.files.to_list()[0].path
+
 unstripped = output_path
+unstripped_tag = "//build/bazel/rules/cc:stripped_cc_common.bzl%CcUnstrippedInfo"
 if unstripped_tag in p:
-    unstripped = p[unstripped_tag].unstripped.files.to_list()[0].path
+    unstripped_info = p[unstripped_tag]
+    unstripped = unstripped_info.unstripped.files.to_list()[0].path
+
+local_static_libs = []
+local_whole_static_libs = []
+local_shared_libs = []
+androidmk_tag = "//build/bazel/rules/cc:cc_library_common.bzl%CcAndroidMkInfo"
+if androidmk_tag in p:
+    androidmk_info = p[androidmk_tag]
+    local_static_libs = androidmk_info.local_static_libs
+    local_whole_static_libs = androidmk_info.local_whole_static_libs
+    local_shared_libs = androidmk_info.local_shared_libs
+
 return json_encode({
     "OutputFile":  output_path,
     "UnstrippedOutput": unstripped,
+    "LocalStaticLibs": [l for l in local_static_libs],
+    "LocalWholeStaticLibs": [l for l in local_whole_static_libs],
+    "LocalSharedLibs": [l for l in local_shared_libs],
 })
 `
 }
@@ -312,6 +349,7 @@ func (g getCcUnstrippedInfoType) ParseResult(rawString string) (CcUnstrippedInfo
 }
 
 type CcUnstrippedInfo struct {
+	CcAndroidMkInfo
 	OutputFile       string
 	UnstrippedOutput string
 }

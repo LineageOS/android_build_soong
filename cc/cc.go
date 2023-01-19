@@ -1870,7 +1870,8 @@ var (
 // in any of the --bazel-mode(s). This filters at the module level and takes
 // precedence over the allowlists in allowlists/allowlists.go.
 func (c *Module) IsMixedBuildSupported(ctx android.BaseModuleContext) bool {
-	if c.testBinary() && !android.InList(c.Name(), mixedBuildSupportedCcTest) {
+	_, isForTesting := ctx.Config().BazelContext.(android.MockBazelContext)
+	if c.testBinary() && !android.InList(c.Name(), mixedBuildSupportedCcTest) && !isForTesting {
 		// Per-module rollout of mixed-builds for cc_test modules.
 		return false
 	}
@@ -1888,6 +1889,14 @@ func (c *Module) ProcessBazelQueryResponse(ctx android.ModuleContext) {
 	bazelCtx := ctx.Config().BazelContext
 	if ccInfo, err := bazelCtx.GetCcInfo(bazelModuleLabel, android.GetConfigKey(ctx)); err == nil {
 		c.tidyFiles = android.PathsForBazelOut(ctx, ccInfo.TidyFiles)
+		c.Properties.AndroidMkSharedLibs = ccInfo.LocalSharedLibs
+		c.Properties.AndroidMkStaticLibs = ccInfo.LocalStaticLibs
+		c.Properties.AndroidMkWholeStaticLibs = ccInfo.LocalWholeStaticLibs
+	}
+	if unstrippedInfo, err := bazelCtx.GetCcUnstrippedInfo(bazelModuleLabel, android.GetConfigKey(ctx)); err == nil {
+		c.Properties.AndroidMkSharedLibs = unstrippedInfo.LocalSharedLibs
+		c.Properties.AndroidMkStaticLibs = unstrippedInfo.LocalStaticLibs
+		c.Properties.AndroidMkWholeStaticLibs = unstrippedInfo.LocalWholeStaticLibs
 	}
 
 	c.bazelHandler.ProcessBazelQueryResponse(ctx, bazelModuleLabel)
