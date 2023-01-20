@@ -15,7 +15,6 @@
 package rust
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/google/blueprint"
@@ -178,10 +177,6 @@ func (b *bindgenDecorator) GenerateSource(ctx ModuleContext, deps PathDeps) andr
 
 	if mctx, ok := ctx.(*moduleContext); ok && mctx.apexVariationName() != "" {
 		cflags = append(cflags, "-D__ANDROID_APEX__")
-		if ctx.Device() {
-			cflags = append(cflags, fmt.Sprintf("-D__ANDROID_APEX_MIN_SDK_VERSION__=%d",
-				ctx.RustModule().apexSdkVersion.FinalOrFutureInt()))
-		}
 	}
 
 	if ctx.Target().NativeBridge == android.NativeBridgeEnabled {
