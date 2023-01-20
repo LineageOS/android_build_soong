@@ -52,7 +52,6 @@ bootstrap_go_package {
         "vndk.go",
         "vndk_prebuilt.go",
 
-        "cflag_artifacts.go",
         "cmakelists.go",
         "compdb.go",
         "compiler.go",

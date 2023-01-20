@@ -813,6 +813,8 @@ func bp2BuildParseBaseProps(ctx android.Bp2buildMutatorContext, module *Module) 
 	features := compilerAttrs.features.Clone().Append(linkerAttrs.features).Append(bp2buildSanitizerFeatures(ctx, module))
 	features.DeduplicateAxesFromBase()
 
+	addMuslSystemDynamicDeps(ctx, linkerAttrs)
+
 	return baseAttributes{
 		compilerAttrs,
 		linkerAttrs,
@@ -820,6 +822,16 @@ func bp2BuildParseBaseProps(ctx android.Bp2buildMutatorContext, module *Module) 
 		protoDep.protoDep,
 		aidlDep,
 		nativeCoverage,
+	}
+}
+
+// As a workaround for b/261657184, we are manually adding the default value
+// of system_dynamic_deps for the linux_musl os.
+// TODO: Solve this properly
+func addMuslSystemDynamicDeps(ctx android.Bp2buildMutatorContext, attrs linkerAttributes) {
+	systemDynamicDeps := attrs.systemDynamicDeps.SelectValue(bazel.OsConfigurationAxis, "linux_musl")
+	if attrs.systemDynamicDeps.HasAxisSpecificValues(bazel.OsConfigurationAxis) && systemDynamicDeps.IsNil() {
+		attrs.systemDynamicDeps.SetSelectValue(bazel.OsConfigurationAxis, "linux_musl", android.BazelLabelForModuleDeps(ctx, config.MuslDefaultSharedLibraries))
 	}
 }
 

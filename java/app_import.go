@@ -17,6 +17,7 @@ package java
 // This file contains the module implementations for android_app_import and android_test_import.
 
 import (
+	"github.com/google/blueprint"
 	"reflect"
 
 	"github.com/google/blueprint/proptools"
@@ -30,6 +31,24 @@ func init() {
 
 	initAndroidAppImportVariantGroupTypes()
 }
+
+var (
+	uncompressEmbeddedJniLibsRule = pctx.AndroidStaticRule("uncompress-embedded-jni-libs", blueprint.RuleParams{
+		Command: `if (zipinfo $in 'lib/*.so' 2>/dev/null | grep -v ' stor ' >/dev/null) ; then ` +
+			`${config.Zip2ZipCmd} -i $in -o $out -0 'lib/**/*.so'` +
+			`; else cp -f $in $out; fi`,
+		CommandDeps: []string{"${config.Zip2ZipCmd}"},
+		Description: "Uncompress embedded JNI libs",
+	})
+
+	uncompressDexRule = pctx.AndroidStaticRule("uncompress-dex", blueprint.RuleParams{
+		Command: `if (zipinfo $in '*.dex' 2>/dev/null | grep -v ' stor ' >/dev/null) ; then ` +
+			`${config.Zip2ZipCmd} -i $in -o $out -0 'classes*.dex'` +
+			`; else cp -f $in $out; fi`,
+		CommandDeps: []string{"${config.Zip2ZipCmd}"},
+		Description: "Uncompress dex files",
+	})
+)
 
 func RegisterAppImportBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("android_app_import", AndroidAppImportFactory)
@@ -193,15 +212,12 @@ func (a *AndroidAppImport) uncompressEmbeddedJniLibs(
 		})
 		return
 	}
-	rule := android.NewRuleBuilder(pctx, ctx)
-	rule.Command().
-		Textf(`if (zipinfo %s 'lib/*.so' 2>/dev/null | grep -v ' stor ' >/dev/null) ; then`, inputPath).
-		BuiltTool("zip2zip").
-		FlagWithInput("-i ", inputPath).
-		FlagWithOutput("-o ", outputPath).
-		FlagWithArg("-0 ", "'lib/**/*.so'").
-		Textf(`; else cp -f %s %s; fi`, inputPath, outputPath)
-	rule.Build("uncompress-embedded-jni-libs", "Uncompress embedded JIN libs")
+
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   uncompressEmbeddedJniLibsRule,
+		Input:  inputPath,
+		Output: outputPath,
+	})
 }
 
 // Returns whether this module should have the dex file stored uncompressed in the APK.
@@ -216,19 +232,6 @@ func (a *AndroidAppImport) shouldUncompressDex(ctx android.ModuleContext) bool {
 	}
 
 	return shouldUncompressDex(ctx, &a.dexpreopter)
-}
-
-func (a *AndroidAppImport) uncompressDex(
-	ctx android.ModuleContext, inputPath android.Path, outputPath android.OutputPath) {
-	rule := android.NewRuleBuilder(pctx, ctx)
-	rule.Command().
-		Textf(`if (zipinfo %s '*.dex' 2>/dev/null | grep -v ' stor ' >/dev/null) ; then`, inputPath).
-		BuiltTool("zip2zip").
-		FlagWithInput("-i ", inputPath).
-		FlagWithOutput("-o ", outputPath).
-		FlagWithArg("-0 ", "'classes*.dex'").
-		Textf(`; else cp -f %s %s; fi`, inputPath, outputPath)
-	rule.Build("uncompress-dex", "Uncompress dex files")
 }
 
 func (a *AndroidAppImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -306,7 +309,11 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 	a.dexpreopter.dexpreopt(ctx, jnisUncompressed)
 	if a.dexpreopter.uncompressedDex {
 		dexUncompressed := android.PathForModuleOut(ctx, "dex-uncompressed", ctx.ModuleName()+".apk")
-		a.uncompressDex(ctx, jnisUncompressed, dexUncompressed.OutputPath)
+		ctx.Build(pctx, android.BuildParams{
+			Rule:   uncompressDexRule,
+			Input:  jnisUncompressed,
+			Output: dexUncompressed,
+		})
 		jnisUncompressed = dexUncompressed
 	}
 

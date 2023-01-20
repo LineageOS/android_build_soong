@@ -1041,6 +1041,21 @@ func (a *AARImport) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 		},
 	)
 
+	neverlink := true
+	ctx.CreateBazelTargetModule(
+		bazel.BazelTargetModuleProperties{
+			Rule_class:        "android_library",
+			Bzl_load_location: "//build/bazel/rules/android:rules.bzl",
+		},
+		android.CommonAttributes{Name: name + "-neverlink"},
+		&bazelAndroidLibrary{
+			javaLibraryAttributes: &javaLibraryAttributes{
+				Neverlink: bazel.BoolAttribute{Value: &neverlink},
+				Exports:   bazel.MakeSingleLabelListAttribute(bazel.Label{Label: ":" + name}),
+			},
+		},
+	)
+
 }
 
 func (a *AndroidLibrary) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
