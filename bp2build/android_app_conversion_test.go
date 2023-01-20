@@ -227,3 +227,82 @@ java_library{
 			}),
 		}})
 }
+
+func TestAndroidAppKotlinSrcs(t *testing.T) {
+	runAndroidAppTestCase(t, Bp2buildTestCase{
+		Description:                "Android app with kotlin sources and common_srcs",
+		ModuleTypeUnderTest:        "android_app",
+		ModuleTypeUnderTestFactory: java.AndroidAppFactory,
+		Filesystem: map[string]string{
+			"res/res.png": "",
+		},
+		Blueprint: simpleModuleDoNotConvertBp2build("filegroup", "foocert") + `
+android_app {
+        name: "foo",
+        srcs: ["a.java", "b.kt"],
+        certificate: ":foocert",
+        manifest: "fooManifest.xml",
+        libs: ["barLib"]
+}
+java_library{
+      name:   "barLib",
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("java_library", "barLib", AttrNameToString{}),
+			MakeNeverlinkDuplicateTarget("java_library", "barLib"),
+			MakeBazelTarget("android_library", "foo_kt", AttrNameToString{
+				"srcs": `[
+        "a.java",
+        "b.kt",
+    ]`,
+				"manifest":       `"fooManifest.xml"`,
+				"resource_files": `["res/res.png"]`,
+				"deps":           `[":barLib-neverlink"]`,
+			}),
+			MakeBazelTarget("android_binary", "foo", AttrNameToString{
+				"deps":        `[":foo_kt"]`,
+				"certificate": `":foocert"`,
+				"manifest":    `"fooManifest.xml"`,
+			}),
+		}})
+}
+
+func TestAndroidAppCommonSrcs(t *testing.T) {
+	runAndroidAppTestCase(t, Bp2buildTestCase{
+		Description:                "Android app with common_srcs",
+		ModuleTypeUnderTest:        "android_app",
+		ModuleTypeUnderTestFactory: java.AndroidAppFactory,
+		Filesystem: map[string]string{
+			"res/res.png": "",
+		},
+		Blueprint: simpleModuleDoNotConvertBp2build("filegroup", "foocert") + `
+android_app {
+        name: "foo",
+        srcs: ["a.java"],
+        common_srcs: ["b.kt"],
+        certificate: "foocert",
+        manifest: "fooManifest.xml",
+        libs:        ["barLib"],
+}
+java_library{
+      name:   "barLib",
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("java_library", "barLib", AttrNameToString{}),
+			MakeNeverlinkDuplicateTarget("java_library", "barLib"),
+			MakeBazelTarget("android_library", "foo_kt", AttrNameToString{
+				"srcs":           `["a.java"]`,
+				"common_srcs":    `["b.kt"]`,
+				"manifest":       `"fooManifest.xml"`,
+				"resource_files": `["res/res.png"]`,
+				"deps":           `[":barLib-neverlink"]`,
+			}),
+			MakeBazelTarget("android_binary", "foo", AttrNameToString{
+				"deps":             `[":foo_kt"]`,
+				"certificate_name": `"foocert"`,
+				"manifest":         `"fooManifest.xml"`,
+			}),
+		}})
+}
