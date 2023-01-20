@@ -1310,6 +1310,11 @@ func TestStaticLibrary_SystemSharedLibsBionicEmpty(t *testing.T) {
 	runCcLibraryStaticTestCase(t, Bp2buildTestCase{
 		Description: "cc_library_static system_shared_lib empty for bionic variant",
 		Blueprint: soongCcLibraryStaticPreamble + `
+cc_library {
+		name: "libc_musl",
+		bazel_module: { bp2build_available: false },
+}
+
 cc_library_static {
     name: "target_bionic_empty",
     target: {
@@ -1322,7 +1327,10 @@ cc_library_static {
 `,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_static", "target_bionic_empty", AttrNameToString{
-				"system_dynamic_deps": `[]`,
+				"system_dynamic_deps": `select({
+        "//build/bazel/platforms/os:linux_musl": [":libc_musl"],
+        "//conditions:default": [],
+    })`,
 			}),
 		},
 	})
@@ -1336,6 +1344,11 @@ func TestStaticLibrary_SystemSharedLibsLinuxBionicEmpty(t *testing.T) {
 	runCcLibraryStaticTestCase(t, Bp2buildTestCase{
 		Description: "cc_library_static system_shared_lib empty for linux_bionic variant",
 		Blueprint: soongCcLibraryStaticPreamble + `
+cc_library {
+		name: "libc_musl",
+		bazel_module: { bp2build_available: false },
+}
+
 cc_library_static {
     name: "target_linux_bionic_empty",
     target: {
@@ -1348,6 +1361,63 @@ cc_library_static {
 `,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_static", "target_linux_bionic_empty", AttrNameToString{
+				"system_dynamic_deps": `select({
+        "//build/bazel/platforms/os:linux_musl": [":libc_musl"],
+        "//conditions:default": [],
+    })`,
+			}),
+		},
+	})
+}
+
+func TestStaticLibrary_SystemSharedLibsMuslEmpty(t *testing.T) {
+	runCcLibraryStaticTestCase(t, Bp2buildTestCase{
+		Description: "cc_library_static system_shared_lib empty for musl variant",
+		Blueprint: soongCcLibraryStaticPreamble + `
+cc_library {
+		name: "libc_musl",
+		bazel_module: { bp2build_available: false },
+}
+
+cc_library_static {
+    name: "target_musl_empty",
+    target: {
+        musl: {
+            system_shared_libs: [],
+        },
+    },
+    include_build_directory: false,
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_library_static", "target_musl_empty", AttrNameToString{
+				"system_dynamic_deps": `[]`,
+			}),
+		},
+	})
+}
+
+func TestStaticLibrary_SystemSharedLibsLinuxMuslEmpty(t *testing.T) {
+	runCcLibraryStaticTestCase(t, Bp2buildTestCase{
+		Description: "cc_library_static system_shared_lib empty for linux_musl variant",
+		Blueprint: soongCcLibraryStaticPreamble + `
+cc_library {
+		name: "libc_musl",
+		bazel_module: { bp2build_available: false },
+}
+
+cc_library_static {
+    name: "target_linux_musl_empty",
+    target: {
+        linux_musl: {
+            system_shared_libs: [],
+        },
+    },
+    include_build_directory: false,
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_library_static", "target_linux_musl_empty", AttrNameToString{
 				"system_dynamic_deps": `[]`,
 			}),
 		},
@@ -1359,6 +1429,11 @@ func TestStaticLibrary_SystemSharedLibsBionic(t *testing.T) {
 		Description: "cc_library_static system_shared_libs set for bionic variant",
 		Blueprint: soongCcLibraryStaticPreamble +
 			simpleModuleDoNotConvertBp2build("cc_library", "libc") + `
+cc_library {
+	name: "libc_musl",
+	bazel_module: { bp2build_available: false },
+}
+
 cc_library_static {
     name: "target_bionic",
     target: {
@@ -1374,6 +1449,7 @@ cc_library_static {
 				"system_dynamic_deps": `select({
         "//build/bazel/platforms/os:android": [":libc"],
         "//build/bazel/platforms/os:linux_bionic": [":libc"],
+        "//build/bazel/platforms/os:linux_musl": [":libc_musl"],
         "//conditions:default": [],
     })`,
 			}),
@@ -1387,6 +1463,11 @@ func TestStaticLibrary_SystemSharedLibsLinuxRootAndLinuxBionic(t *testing.T) {
 		Blueprint: soongCcLibraryStaticPreamble +
 			simpleModuleDoNotConvertBp2build("cc_library", "libc") +
 			simpleModuleDoNotConvertBp2build("cc_library", "libm") + `
+cc_library {
+	name: "libc_musl",
+	bazel_module: { bp2build_available: false },
+}
+
 cc_library_static {
     name: "target_linux_bionic",
     system_shared_libs: ["libc"],
@@ -1402,6 +1483,7 @@ cc_library_static {
 			MakeBazelTarget("cc_library_static", "target_linux_bionic", AttrNameToString{
 				"system_dynamic_deps": `[":libc"] + select({
         "//build/bazel/platforms/os:linux_bionic": [":libm"],
+        "//build/bazel/platforms/os:linux_musl": [":libc_musl"],
         "//conditions:default": [],
     })`,
 			}),

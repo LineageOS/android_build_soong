@@ -150,10 +150,6 @@ class InteriorNode(Node):
                                 f"wildcard '{last_element}' and "
                                 f"member signature '{member[0]}'")
             wildcard = [last_element]
-        elif last_element.islower():
-            raise Exception(f"Invalid signature '{signature}': last element "
-                            f"'{last_element}' is lower case but should be an "
-                            f"upper case class name or wildcard")
         else:
             packages = elements[0:-1]
             # Split the class name into outer / inner classes
