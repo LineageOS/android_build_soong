@@ -1239,6 +1239,10 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 		// b/239274367 --apex and --systemapi filters symbols tagged with # apex and #
 		// systemapi, respectively. The former is for symbols defined in platform libraries
 		// and the latter is for symbols defined in APEXes.
+		// A single library can contain either # apex or # systemapi, but not both.
+		// The stub generator (ndkstubgen) is additive, so passing _both_ of these to it should be a no-op.
+		// However, having this distinction helps guard accidental
+		// promotion or demotion of API and also helps the API review process b/191371676
 		var flag string
 		if ctx.Module().(android.ApexModule).NotInPlatform() {
 			flag = "--apex"
