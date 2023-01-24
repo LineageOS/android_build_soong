@@ -1,4 +1,3 @@
 PRODUCT_MAKEFILES := \
-    $(LOCAL_DIR)/aosp_tv_arm.mk \
     $(LOCAL_DIR)/aosp_tv_arm64.mk \
     aosp_cf_x86_tv:$(LOCAL_DIR)/vsoc_x86/tv/device.mk
