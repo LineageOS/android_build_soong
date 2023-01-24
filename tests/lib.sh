@@ -94,6 +94,8 @@ function create_mock_soong {
   symlink_directory external/go-cmp
   symlink_directory external/golang-protobuf
   symlink_directory external/starlark-go
+  symlink_directory external/python
+  symlink_directory external/sqlite
 
   touch "$MOCK_TOP/Android.bp"
 }

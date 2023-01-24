@@ -146,8 +146,12 @@ type PythonLibraryModule struct {
 	// pathMapping: <dest: runfile_path, src: source_path>
 	dataPathMappings []pathMapping
 
-	// the zip filepath for zipping current module source/data files.
+	// The zip file containing the current module's source/data files.
 	srcsZip android.Path
+
+	// The zip file containing the current module's source/data files, with the
+	// source files precompiled.
+	precompiledSrcsZip android.Path
 }
 
 // newModule generates new Python base module
@@ -164,6 +168,7 @@ type pythonDependency interface {
 	getSrcsPathMappings() []pathMapping
 	getDataPathMappings() []pathMapping
 	getSrcsZip() android.Path
+	getPrecompiledSrcsZip() android.Path
 }
 
 // getSrcsPathMappings gets this module's path mapping of src source path : runfiles destination
@@ -179,6 +184,11 @@ func (p *PythonLibraryModule) getDataPathMappings() []pathMapping {
 // getSrcsZip returns the filepath where the current module's source/data files are zipped.
 func (p *PythonLibraryModule) getSrcsZip() android.Path {
 	return p.srcsZip
+}
+
+// getSrcsZip returns the filepath where the current module's source/data files are zipped.
+func (p *PythonLibraryModule) getPrecompiledSrcsZip() android.Path {
+	return p.precompiledSrcsZip
 }
 
 func (p *PythonLibraryModule) getBaseProperties() *BaseProperties {
@@ -213,16 +223,23 @@ type installDependencyTag struct {
 }
 
 var (
-	pythonLibTag         = dependencyTag{name: "pythonLib"}
-	javaDataTag          = dependencyTag{name: "javaData"}
+	pythonLibTag = dependencyTag{name: "pythonLib"}
+	javaDataTag  = dependencyTag{name: "javaData"}
+	// The python interpreter, with soong module name "py3-launcher" or "py3-launcher-autorun".
 	launcherTag          = dependencyTag{name: "launcher"}
 	launcherSharedLibTag = installDependencyTag{name: "launcherSharedLib"}
-	pathComponentRegexp  = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_-]*$`)
-	pyExt                = ".py"
-	protoExt             = ".proto"
-	pyVersion2           = "PY2"
-	pyVersion3           = "PY3"
-	internalPath         = "internal"
+	// The python interpreter built for host so that we can precompile python sources.
+	// This only works because the precompiled sources don't vary by architecture.
+	// The soong module name is "py3-launcher".
+	hostLauncherTag          = dependencyTag{name: "hostLauncher"}
+	hostlauncherSharedLibTag = dependencyTag{name: "hostlauncherSharedLib"}
+	hostStdLibTag            = dependencyTag{name: "hostStdLib"}
+	pathComponentRegexp      = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_-]*$`)
+	pyExt                    = ".py"
+	protoExt                 = ".proto"
+	pyVersion2               = "PY2"
+	pyVersion3               = "PY3"
+	internalPath             = "internal"
 )
 
 type basePropertiesProvider interface {
@@ -305,6 +322,76 @@ func (p *PythonLibraryModule) DepsMutator(ctx android.BottomUpMutatorContext) {
 	// so that it can point to java modules.
 	javaDataVariation := []blueprint.Variation{{"arch", android.Common.String()}}
 	ctx.AddVariationDependencies(javaDataVariation, javaDataTag, p.properties.Java_data...)
+
+	p.AddDepsOnPythonLauncherAndStdlib(ctx, hostStdLibTag, hostLauncherTag, hostlauncherSharedLibTag, false, ctx.Config().BuildOSTarget)
+}
+
+// AddDepsOnPythonLauncherAndStdlib will make the current module depend on the python stdlib,
+// launcher (interpreter), and the launcher's shared libraries. If autorun is true, it will use
+// the autorun launcher instead of the regular one. This function acceps a targetForDeps argument
+// as the target to use for these dependencies. For embedded launcher python binaries, the launcher
+// that will be embedded will be under the same target as the python module itself. But when
+// precompiling python code, we need to get the python launcher built for host, even if we're
+// compiling the python module for device, so we pass a different target to this function.
+func (p *PythonLibraryModule) AddDepsOnPythonLauncherAndStdlib(ctx android.BottomUpMutatorContext,
+	stdLibTag, launcherTag, launcherSharedLibTag blueprint.DependencyTag,
+	autorun bool, targetForDeps android.Target) {
+	var stdLib string
+	var launcherModule string
+	// Add launcher shared lib dependencies. Ideally, these should be
+	// derived from the `shared_libs` property of the launcher. TODO: read these from
+	// the python launcher itself using ctx.OtherModuleProvider() or similar on the result
+	// of ctx.AddFarVariationDependencies()
+	launcherSharedLibDeps := []string{
+		"libsqlite",
+	}
+	// Add launcher-specific dependencies for bionic
+	if targetForDeps.Os.Bionic() {
+		launcherSharedLibDeps = append(launcherSharedLibDeps, "libc", "libdl", "libm")
+	}
+	if targetForDeps.Os == android.LinuxMusl && !ctx.Config().HostStaticBinaries() {
+		launcherSharedLibDeps = append(launcherSharedLibDeps, "libc_musl")
+	}
+
+	switch p.properties.Actual_version {
+	case pyVersion2:
+		stdLib = "py2-stdlib"
+
+		launcherModule = "py2-launcher"
+		if autorun {
+			launcherModule = "py2-launcher-autorun"
+		}
+
+		launcherSharedLibDeps = append(launcherSharedLibDeps, "libc++")
+	case pyVersion3:
+		stdLib = "py3-stdlib"
+
+		launcherModule = "py3-launcher"
+		if autorun {
+			launcherModule = "py3-launcher-autorun"
+		}
+		if ctx.Config().HostStaticBinaries() && targetForDeps.Os == android.LinuxMusl {
+			launcherModule += "-static"
+		}
+		if ctx.Device() {
+			launcherSharedLibDeps = append(launcherSharedLibDeps, "liblog")
+		}
+	default:
+		panic(fmt.Errorf("unknown Python Actual_version: %q for module: %q.",
+			p.properties.Actual_version, ctx.ModuleName()))
+	}
+	targetVariations := targetForDeps.Variations()
+	if ctx.ModuleName() != stdLib {
+		stdLibVariations := make([]blueprint.Variation, 0, len(targetVariations)+1)
+		stdLibVariations = append(stdLibVariations, blueprint.Variation{Mutator: "python_version", Variation: p.properties.Actual_version})
+		stdLibVariations = append(stdLibVariations, targetVariations...)
+		// Using AddFarVariationDependencies for all of these because they can be for a different
+		// platform, like if the python module itself was being compiled for device, we may want
+		// the python interpreter built for host so that we can precompile python sources.
+		ctx.AddFarVariationDependencies(stdLibVariations, stdLibTag, stdLib)
+	}
+	ctx.AddFarVariationDependencies(targetVariations, launcherTag, launcherModule)
+	ctx.AddFarVariationDependencies(targetVariations, launcherSharedLibTag, launcherSharedLibDeps...)
 }
 
 // GenerateAndroidBuildActions performs build actions common to all Python modules
@@ -342,6 +429,7 @@ func (p *PythonLibraryModule) GenerateAndroidBuildActions(ctx android.ModuleCont
 
 	// generate the zipfile of all source and data files
 	p.srcsZip = p.createSrcsZip(ctx, pkgPath)
+	p.precompiledSrcsZip = p.precompileSrcs(ctx)
 }
 
 func isValidPythonPath(path string) error {
@@ -397,12 +485,8 @@ func (p *PythonLibraryModule) genModulePathMappings(ctx android.ModuleContext, p
 // createSrcsZip registers build actions to zip current module's sources and data.
 func (p *PythonLibraryModule) createSrcsZip(ctx android.ModuleContext, pkgPath string) android.Path {
 	relativeRootMap := make(map[string]android.Paths)
-	pathMappings := append(p.srcsPathMappings, p.dataPathMappings...)
-
 	var protoSrcs android.Paths
-	// "srcs" or "data" properties may contain filegroup so it might happen that
-	// the root directory for each source path is different.
-	for _, path := range pathMappings {
+	addPathMapping := func(path pathMapping) {
 		// handle proto sources separately
 		if path.src.Ext() == protoExt {
 			protoSrcs = append(protoSrcs, path.src)
@@ -411,6 +495,16 @@ func (p *PythonLibraryModule) createSrcsZip(ctx android.ModuleContext, pkgPath s
 			relativeRootMap[relativeRoot] = append(relativeRootMap[relativeRoot], path.src)
 		}
 	}
+
+	// "srcs" or "data" properties may contain filegroups so it might happen that
+	// the root directory for each source path is different.
+	for _, path := range p.srcsPathMappings {
+		addPathMapping(path)
+	}
+	for _, path := range p.dataPathMappings {
+		addPathMapping(path)
+	}
+
 	var zips android.Paths
 	if len(protoSrcs) > 0 {
 		protoFlags := android.GetProtoFlags(ctx, &p.protoProperties)
@@ -484,6 +578,65 @@ func (p *PythonLibraryModule) createSrcsZip(ctx android.ModuleContext, pkgPath s
 	}
 }
 
+func (p *PythonLibraryModule) precompileSrcs(ctx android.ModuleContext) android.Path {
+	// To precompile the python sources, we need a python interpreter and stdlib built
+	// for host. We then use those to compile the python sources, which may be used on either
+	// host of device. Python bytecode is architecture agnostic, so we're essentially
+	// "cross compiling" for device here purely by virtue of host and device python bytecode
+	// being the same.
+	var stdLib android.Path
+	var launcher android.Path
+	if ctx.ModuleName() == "py3-stdlib" || ctx.ModuleName() == "py2-stdlib" {
+		stdLib = p.srcsZip
+	} else {
+		ctx.VisitDirectDepsWithTag(hostStdLibTag, func(module android.Module) {
+			if dep, ok := module.(pythonDependency); ok {
+				stdLib = dep.getPrecompiledSrcsZip()
+			}
+		})
+	}
+	ctx.VisitDirectDepsWithTag(hostLauncherTag, func(module android.Module) {
+		if dep, ok := module.(IntermPathProvider); ok {
+			optionalLauncher := dep.IntermPathForModuleOut()
+			if optionalLauncher.Valid() {
+				launcher = optionalLauncher.Path()
+			}
+		}
+	})
+	var launcherSharedLibs android.Paths
+	var ldLibraryPath []string
+	ctx.VisitDirectDepsWithTag(hostlauncherSharedLibTag, func(module android.Module) {
+		if dep, ok := module.(IntermPathProvider); ok {
+			optionalPath := dep.IntermPathForModuleOut()
+			if optionalPath.Valid() {
+				launcherSharedLibs = append(launcherSharedLibs, optionalPath.Path())
+				ldLibraryPath = append(ldLibraryPath, filepath.Dir(optionalPath.Path().String()))
+			}
+		}
+	})
+
+	out := android.PathForModuleOut(ctx, ctx.ModuleName()+".srcszipprecompiled")
+	if stdLib == nil || launcher == nil {
+		// This shouldn't happen in a real build because we'll error out when adding dependencies
+		// on the stdlib and launcher if they don't exist. But some tests set
+		// AllowMissingDependencies.
+		return out
+	}
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        precompile,
+		Input:       p.srcsZip,
+		Output:      out,
+		Implicits:   launcherSharedLibs,
+		Description: "Precompile the python sources of " + ctx.ModuleName(),
+		Args: map[string]string{
+			"stdlibZip":     stdLib.String(),
+			"launcher":      launcher.String(),
+			"ldLibraryPath": strings.Join(ldLibraryPath, ":"),
+		},
+	})
+	return out
+}
+
 // isPythonLibModule returns whether the given module is a Python library PythonLibraryModule or not
 func isPythonLibModule(module blueprint.Module) bool {
 	if _, ok := module.(*PythonLibraryModule); ok {
@@ -497,7 +650,7 @@ func isPythonLibModule(module blueprint.Module) bool {
 // collectPathsFromTransitiveDeps checks for source/data files for duplicate paths
 // for module and its transitive dependencies and collects list of data/source file
 // zips for transitive dependencies.
-func (p *PythonLibraryModule) collectPathsFromTransitiveDeps(ctx android.ModuleContext) android.Paths {
+func (p *PythonLibraryModule) collectPathsFromTransitiveDeps(ctx android.ModuleContext, precompiled bool) android.Paths {
 	// fetch <runfiles_path, source_path> pairs from "src" and "data" properties to
 	// check duplicates.
 	destToPySrcs := make(map[string]string)
@@ -541,7 +694,11 @@ func (p *PythonLibraryModule) collectPathsFromTransitiveDeps(ctx android.ModuleC
 				checkForDuplicateOutputPath(ctx, destToPyData,
 					path.dest, path.src.String(), ctx.ModuleName(), ctx.OtherModuleName(child))
 			}
-			result = append(result, dep.getSrcsZip())
+			if precompiled {
+				result = append(result, dep.getPrecompiledSrcsZip())
+			} else {
+				result = append(result, dep.getSrcsZip())
+			}
 		}
 		return true
 	})

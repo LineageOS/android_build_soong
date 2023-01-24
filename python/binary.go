@@ -21,8 +21,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/google/blueprint"
-
 	"android/soong/android"
 )
 
@@ -109,14 +107,14 @@ func (p *PythonBinaryModule) GenerateAndroidBuildActions(ctx android.ModuleConte
 }
 
 func (p *PythonBinaryModule) buildBinary(ctx android.ModuleContext) {
-	depsSrcsZips := p.collectPathsFromTransitiveDeps(ctx)
+	embeddedLauncher := p.isEmbeddedLauncherEnabled()
+	depsSrcsZips := p.collectPathsFromTransitiveDeps(ctx, embeddedLauncher)
 	main := ""
 	if p.autorun() {
 		main = p.getPyMainFile(ctx, p.srcsPathMappings)
 	}
 
 	var launcherPath android.OptionalPath
-	embeddedLauncher := p.isEmbeddedLauncherEnabled()
 	if embeddedLauncher {
 		ctx.VisitDirectDepsWithTag(launcherTag, func(m android.Module) {
 			if provider, ok := m.(IntermPathProvider); ok {
@@ -128,9 +126,16 @@ func (p *PythonBinaryModule) buildBinary(ctx android.ModuleContext) {
 			}
 		})
 	}
+	srcsZips := make(android.Paths, 0, len(depsSrcsZips)+1)
+	if embeddedLauncher {
+		srcsZips = append(srcsZips, p.precompiledSrcsZip)
+	} else {
+		srcsZips = append(srcsZips, p.srcsZip)
+	}
+	srcsZips = append(srcsZips, depsSrcsZips...)
 	p.installSource = registerBuildActionForParFile(ctx, embeddedLauncher, launcherPath,
 		p.getHostInterpreterName(ctx, p.properties.Actual_version),
-		main, p.getStem(ctx), append(android.Paths{p.srcsZip}, depsSrcsZips...))
+		main, p.getStem(ctx), srcsZips)
 
 	var sharedLibs []string
 	// if embedded launcher is enabled, we need to collect the shared library dependencies of the
@@ -170,64 +175,8 @@ func (p *PythonBinaryModule) AndroidMkEntries() []android.AndroidMkEntries {
 func (p *PythonBinaryModule) DepsMutator(ctx android.BottomUpMutatorContext) {
 	p.PythonLibraryModule.DepsMutator(ctx)
 
-	versionVariation := []blueprint.Variation{
-		{"python_version", p.properties.Actual_version},
-	}
-
-	// If this module will be installed and has an embedded launcher, we need to add dependencies for:
-	//   * standard library
-	//   * launcher
-	//   * shared dependencies of the launcher
 	if p.isEmbeddedLauncherEnabled() {
-		var stdLib string
-		var launcherModule string
-		// Add launcher shared lib dependencies. Ideally, these should be
-		// derived from the `shared_libs` property of the launcher. However, we
-		// cannot read the property at this stage and it will be too late to add
-		// dependencies later.
-		launcherSharedLibDeps := []string{
-			"libsqlite",
-		}
-		// Add launcher-specific dependencies for bionic
-		if ctx.Target().Os.Bionic() {
-			launcherSharedLibDeps = append(launcherSharedLibDeps, "libc", "libdl", "libm")
-		}
-		if ctx.Target().Os == android.LinuxMusl && !ctx.Config().HostStaticBinaries() {
-			launcherSharedLibDeps = append(launcherSharedLibDeps, "libc_musl")
-		}
-
-		switch p.properties.Actual_version {
-		case pyVersion2:
-			stdLib = "py2-stdlib"
-
-			launcherModule = "py2-launcher"
-			if p.autorun() {
-				launcherModule = "py2-launcher-autorun"
-			}
-
-			launcherSharedLibDeps = append(launcherSharedLibDeps, "libc++")
-
-		case pyVersion3:
-			stdLib = "py3-stdlib"
-
-			launcherModule = "py3-launcher"
-			if p.autorun() {
-				launcherModule = "py3-launcher-autorun"
-			}
-			if ctx.Config().HostStaticBinaries() && ctx.Target().Os == android.LinuxMusl {
-				launcherModule += "-static"
-			}
-
-			if ctx.Device() {
-				launcherSharedLibDeps = append(launcherSharedLibDeps, "liblog")
-			}
-		default:
-			panic(fmt.Errorf("unknown Python Actual_version: %q for module: %q.",
-				p.properties.Actual_version, ctx.ModuleName()))
-		}
-		ctx.AddVariationDependencies(versionVariation, pythonLibTag, stdLib)
-		ctx.AddFarVariationDependencies(ctx.Target().Variations(), launcherTag, launcherModule)
-		ctx.AddFarVariationDependencies(ctx.Target().Variations(), launcherSharedLibTag, launcherSharedLibDeps...)
+		p.AddDepsOnPythonLauncherAndStdlib(ctx, pythonLibTag, launcherTag, launcherSharedLibTag, p.autorun(), ctx.Target())
 	}
 }
 
