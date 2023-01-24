@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"android/soong/android"
+	"android/soong/cc"
 	cc_config "android/soong/cc/config"
 	java_config "android/soong/java/config"
 
@@ -28,7 +29,8 @@ func soongInjectionFiles(cfg android.Config, metrics CodegenMetrics) []BazelFile
 	files = append(files, newFile("android", "constants.bzl", android.BazelCcToolchainVars(cfg)))
 
 	files = append(files, newFile("cc_toolchain", GeneratedBuildFileName, "")) // Creates a //cc_toolchain package.
-	files = append(files, newFile("cc_toolchain", "constants.bzl", cc_config.BazelCcToolchainVars(cfg)))
+	files = append(files, newFile("cc_toolchain", "config_constants.bzl", cc_config.BazelCcToolchainVars(cfg)))
+	files = append(files, newFile("cc_toolchain", "sanitizer_constants.bzl", cc.BazelCcSanitizerToolchainVars(cfg)))
 
 	files = append(files, newFile("java_toolchain", GeneratedBuildFileName, "")) // Creates a //java_toolchain package.
 	files = append(files, newFile("java_toolchain", "constants.bzl", java_config.BazelJavaToolchainVars(cfg)))
