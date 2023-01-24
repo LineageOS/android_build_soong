@@ -29,7 +29,6 @@ func TestProductsMakefile(t *testing.T) {
 	}
 	expectedProducts := map[string]string{
 		"aosp_cf_x86_tv": abspath("vsoc_x86/tv/device.mk"),
-		"aosp_tv_arm":    abspath("aosp_tv_arm.mk"),
 		"aosp_tv_arm64":  abspath("aosp_tv_arm64.mk"),
 	}
 	if !reflect.DeepEqual(actualProducts, expectedProducts) {
