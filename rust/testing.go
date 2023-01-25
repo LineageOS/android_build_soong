@@ -104,6 +104,7 @@ func GatherRequiredDepsForTest() string {
 			crate_name: "std",
 			srcs: ["foo.rs"],
 			no_stdlibs: true,
+			product_available: true,
 			host_supported: true,
 			vendor_available: true,
 			vendor_ramdisk_available: true,

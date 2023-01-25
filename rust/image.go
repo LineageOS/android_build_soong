@@ -129,6 +129,10 @@ func (ctx *moduleContext) DeviceSpecific() bool {
 	return ctx.ModuleContext.DeviceSpecific() || (ctx.RustModule().InVendor() && ctx.RustModule().VendorVariantToOdm())
 }
 
+func (ctx *moduleContext) SystemExtSpecific() bool {
+	return ctx.ModuleContext.SystemExtSpecific()
+}
+
 // Returns true when this module creates a vendor variant and wants to install the vendor variant
 // to the odm partition.
 func (c *Module) VendorVariantToOdm() bool {
@@ -158,22 +162,15 @@ func (mod *Module) InVendorRamdisk() bool {
 }
 
 func (mod *Module) OnlyInRamdisk() bool {
-	// TODO(b/165791368)
-	return false
+	return mod.ModuleBase.InstallInRamdisk()
 }
 
 func (mod *Module) OnlyInRecovery() bool {
-	// TODO(b/165791368)
-	return false
+	return mod.ModuleBase.InstallInRecovery()
 }
 
 func (mod *Module) OnlyInVendorRamdisk() bool {
-	return false
-}
-
-func (mod *Module) OnlyInProduct() bool {
-	//TODO(b/165791368)
-	return false
+	return mod.ModuleBase.InstallInVendorRamdisk()
 }
 
 // Returns true when this module is configured to have core and vendor variants.
@@ -226,10 +223,7 @@ func (mod *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 	// Rust does not support installing to the product image yet.
 	vendorSpecific := mctx.SocSpecific() || mctx.DeviceSpecific()
 
-	if mctx.ProductSpecific() {
-		mctx.PropertyErrorf("product_specific",
-			"Rust modules do not yet support installing to the product image.")
-	} else if Bool(mod.VendorProperties.Double_loadable) {
+	if Bool(mod.VendorProperties.Double_loadable) {
 		mctx.PropertyErrorf("double_loadable",
 			"Rust modules do not yet support double loading")
 	}
@@ -241,6 +235,11 @@ func (mod *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 	if vendorSpecific {
 		if lib, ok := mod.compiler.(libraryInterface); ok && lib.buildDylib() {
 			mctx.PropertyErrorf("vendor", "Vendor-only dylibs are not yet supported, use rust_library_rlib.")
+		}
+	}
+	if mctx.ProductSpecific() {
+		if lib, ok := mod.compiler.(libraryInterface); ok && lib.buildDylib() {
+			mctx.PropertyErrorf("product", "Product-only dylibs are not yet supported, use rust_library_rlib.")
 		}
 	}
 

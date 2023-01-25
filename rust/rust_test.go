@@ -83,6 +83,10 @@ const (
 	rlibVendorVariant     = "android_vendor.29_arm64_armv8-a_rlib_rlib-std"
 	sharedRecoveryVariant = "android_recovery_arm64_armv8-a_shared"
 	rlibRecoveryVariant   = "android_recovery_arm64_armv8-a_rlib_rlib-std"
+	binaryCoreVariant     = "android_arm64_armv8-a"
+	binaryVendorVariant   = "android_vendor.29_arm64_armv8-a"
+	binaryProductVariant  = "android_product.29_arm64_armv8-a"
+	binaryRecoveryVariant = "android_recovery_arm64_armv8-a"
 )
 
 func testRustVndkFs(t *testing.T, bp string, fs android.MockFS) *android.TestContext {
