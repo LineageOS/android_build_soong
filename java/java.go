@@ -1618,6 +1618,10 @@ type JavaApiLibraryProperties struct {
 
 	// List of flags to be passed to the javac compiler to generate jar file
 	Javacflags []string
+
+	// List of shared java libs that this module has dependencies to and
+	// should be passed as classpath in javac invocation
+	Libs []string
 }
 
 func ApiLibraryFactory() android.Module {
@@ -1689,6 +1693,7 @@ func (al *ApiLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	for _, apiContributionName := range apiContributions {
 		ctx.AddDependency(ctx.Module(), javaApiContributionTag, apiContributionName)
 	}
+	ctx.AddVariationDependencies(nil, libTag, al.properties.Libs...)
 }
 
 func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -1706,10 +1711,18 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	homeDir := android.PathForModuleOut(ctx, "metalava", "home")
 
-	var srcFiles []android.Path
-	ctx.VisitDirectDepsWithTag(javaApiContributionTag, func(dep android.Module) {
-		provider := ctx.OtherModuleProvider(dep, JavaApiImportProvider).(JavaApiImportInfo)
-		srcFiles = append(srcFiles, android.PathForSource(ctx, provider.ApiFile.String()))
+	var srcFiles android.Paths
+	var classPaths android.Paths
+	ctx.VisitDirectDeps(func(dep android.Module) {
+		tag := ctx.OtherModuleDependencyTag(dep)
+		switch tag {
+		case javaApiContributionTag:
+			provider := ctx.OtherModuleProvider(dep, JavaApiImportProvider).(JavaApiImportInfo)
+			srcFiles = append(srcFiles, android.PathForSource(ctx, provider.ApiFile.String()))
+		case libTag:
+			provider := ctx.OtherModuleProvider(dep, JavaInfoProvider).(JavaInfo)
+			classPaths = append(classPaths, provider.HeaderJars...)
+		}
 	})
 
 	// Add the api_files inputs
@@ -1739,11 +1752,16 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	var flags javaBuilderFlags
 	flags.javaVersion = getStubsJavaVersion()
 	flags.javacFlags = strings.Join(al.properties.Javacflags, " ")
+	flags.classpath = classpath(classPaths)
 
 	TransformJavaToClasses(ctx, al.stubsJar, 0, android.Paths{},
 		android.Paths{al.stubsSrcJar}, flags, android.Paths{})
 
 	ctx.Phony(ctx.ModuleName(), al.stubsJar)
+
+	ctx.SetProvider(JavaInfoProvider, JavaInfo{
+		HeaderJars: android.PathsIfNonNil(al.stubsJar),
+	})
 }
 
 //
