@@ -142,6 +142,7 @@ type bazelObjectAttributes struct {
 	Absolute_includes   bazel.StringListAttribute
 	Stl                 *string
 	Linker_script       bazel.LabelAttribute
+	Crt                 *bool
 	sdkAttributes
 }
 
@@ -208,6 +209,7 @@ func objectBp2Build(ctx android.TopDownMutatorContext, m *Module) {
 		Absolute_includes:   compilerAttrs.absoluteIncludes,
 		Stl:                 compilerAttrs.stl,
 		Linker_script:       linkerScript,
+		Crt:                 m.linker.(*objectLinker).Properties.Crt,
 		sdkAttributes:       bp2BuildParseSdkAttributes(m),
 	}
 
