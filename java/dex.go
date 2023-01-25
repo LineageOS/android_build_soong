@@ -89,6 +89,7 @@ type dexer struct {
 	// list of extra proguard flag files
 	extraProguardFlagFiles android.Paths
 	proguardDictionary     android.OptionalPath
+	proguardConfiguration  android.OptionalPath
 	proguardUsageZip       android.OptionalPath
 }
 
@@ -130,17 +131,18 @@ var d8, d8RE = pctx.MultiCommandRemoteStaticRules("d8",
 var r8, r8RE = pctx.MultiCommandRemoteStaticRules("r8",
 	blueprint.RuleParams{
 		Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
-			`rm -f "$outDict" && rm -rf "${outUsageDir}" && ` +
+			`rm -f "$outDict" && rm -f "$outConfig" && rm -rf "${outUsageDir}" && ` +
 			`mkdir -p $$(dirname ${outUsage}) && ` +
 			`mkdir -p $$(dirname $tmpJar) && ` +
 			`${config.Zip2ZipCmd} -i $in -o $tmpJar -x '**/*.dex' && ` +
 			`$r8Template${config.R8Cmd} ${config.R8Flags} -injars $tmpJar --output $outDir ` +
 			`--no-data-resources ` +
 			`-printmapping ${outDict} ` +
+			`--pg-conf-output ${outConfig} ` +
 			`-printusage ${outUsage} ` +
 			`--deps-file ${out}.d ` +
 			`$r8Flags && ` +
-			`touch "${outDict}" "${outUsage}" && ` +
+			`touch "${outDict}" "${outConfig}" "${outUsage}" && ` +
 			`${config.SoongZipCmd} -o ${outUsageZip} -C ${outUsageDir} -f ${outUsage} && ` +
 			`rm -rf ${outUsageDir} && ` +
 			`$zipTemplate${config.SoongZipCmd} $zipFlags -o $outDir/classes.dex.jar -C $outDir -f "$outDir/classes*.dex" && ` +
@@ -176,7 +178,7 @@ var r8, r8RE = pctx.MultiCommandRemoteStaticRules("r8",
 			ExecStrategy: "${config.RER8ExecStrategy}",
 			Platform:     map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
 		},
-	}, []string{"outDir", "outDict", "outUsage", "outUsageZip", "outUsageDir",
+	}, []string{"outDir", "outDict", "outConfig", "outUsage", "outUsageZip", "outUsageDir",
 		"r8Flags", "zipFlags", "tmpJar", "mergeZipsFlags"}, []string{"implicits"})
 
 func (d *dexer) dexCommonFlags(ctx android.ModuleContext,
@@ -342,6 +344,8 @@ func (d *dexer) compileDex(ctx android.ModuleContext, flags javaBuilderFlags, mi
 	if useR8 {
 		proguardDictionary := android.PathForModuleOut(ctx, "proguard_dictionary")
 		d.proguardDictionary = android.OptionalPathForPath(proguardDictionary)
+		proguardConfiguration := android.PathForModuleOut(ctx, "proguard_configuration")
+		d.proguardConfiguration = android.OptionalPathForPath(proguardConfiguration)
 		proguardUsageDir := android.PathForModuleOut(ctx, "proguard_usage")
 		proguardUsage := proguardUsageDir.Join(ctx, ctx.Namespace().Path,
 			android.ModuleNameWithPossibleOverride(ctx), "unused.txt")
@@ -354,6 +358,7 @@ func (d *dexer) compileDex(ctx android.ModuleContext, flags javaBuilderFlags, mi
 			"r8Flags":        strings.Join(append(commonFlags, r8Flags...), " "),
 			"zipFlags":       zipFlags,
 			"outDict":        proguardDictionary.String(),
+			"outConfig":      proguardConfiguration.String(),
 			"outUsageDir":    proguardUsageDir.String(),
 			"outUsage":       proguardUsage.String(),
 			"outUsageZip":    proguardUsageZip.String(),
