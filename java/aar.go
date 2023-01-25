@@ -651,6 +651,8 @@ type AARImport struct {
 	// Functionality common to Module and Import.
 	embeddableInModuleAndImport
 
+	providesTransitiveHeaderJars
+
 	properties AARImportProperties
 
 	classpathFile         android.WritablePath
@@ -897,8 +899,11 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		a.assetsPackage = mergedAssets
 	}
 
+	a.collectTransitiveHeaderJars(ctx)
 	ctx.SetProvider(JavaInfoProvider, JavaInfo{
 		HeaderJars:                     android.PathsIfNonNil(a.classpathFile),
+		TransitiveLibsHeaderJars:       a.transitiveLibsHeaderJars,
+		TransitiveStaticLibsHeaderJars: a.transitiveStaticLibsHeaderJars,
 		ImplementationAndResourcesJars: android.PathsIfNonNil(a.classpathFile),
 		ImplementationJars:             android.PathsIfNonNil(a.classpathFile),
 	})
