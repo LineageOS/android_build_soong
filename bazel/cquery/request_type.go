@@ -237,6 +237,10 @@ signed_compressed_output = "" # no .capex if the apex is not compressible, canno
 if info.signed_compressed_output:
     signed_compressed_output = info.signed_compressed_output.path
 
+mk_info = providers(target).get("//build/bazel/rules/apex:apex_info.bzl%ApexMkInfo")
+if not mk_info:
+  fail("%s did not provide ApexMkInfo" % id_string)
+
 return json_encode({
     "signed_output": info.signed_output.path,
     "signed_compressed_output": signed_compressed_output,
@@ -251,10 +255,12 @@ return json_encode({
     "backing_libs": info.backing_libs.path,
     "bundle_file": info.base_with_config_zip.path,
     "installed_files": info.installed_files.path,
+    "make_modules_to_install": mk_info.make_modules_to_install,
 })`
 }
 
 type ApexInfo struct {
+	// From the ApexInfo provider
 	SignedOutput           string   `json:"signed_output"`
 	SignedCompressedOutput string   `json:"signed_compressed_output"`
 	UnsignedOutput         string   `json:"unsigned_output"`
@@ -268,6 +274,9 @@ type ApexInfo struct {
 	BackingLibs            string   `json:"backing_libs"`
 	BundleFile             string   `json:"bundle_file"`
 	InstalledFiles         string   `json:"installed_files"`
+
+	// From the ApexMkInfo provider
+	MakeModulesToInstall []string `json:"make_modules_to_install"`
 }
 
 // ParseResult returns a value obtained by parsing the result of the request's Starlark function.

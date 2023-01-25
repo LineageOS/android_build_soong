@@ -1445,6 +1445,8 @@ func isBionic(name string) bool {
 }
 
 func InstallToBootstrap(name string, config android.Config) bool {
+	// NOTE: also update //build/bazel/rules/apex/cc.bzl#_installed_to_bootstrap
+	// if this list is updated.
 	if name == "libclang_rt.hwasan" {
 		return true
 	}
