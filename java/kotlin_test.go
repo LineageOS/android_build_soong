@@ -44,6 +44,10 @@ func TestKotlin(t *testing.T) {
 
 	kotlinStdlib := ctx.ModuleForTests("kotlin-stdlib", "android_common").
 		Output("turbine-combined/kotlin-stdlib.jar").Output
+	kotlinStdlibJdk7 := ctx.ModuleForTests("kotlin-stdlib-jdk7", "android_common").
+		Output("turbine-combined/kotlin-stdlib-jdk7.jar").Output
+	kotlinStdlibJdk8 := ctx.ModuleForTests("kotlin-stdlib-jdk8", "android_common").
+		Output("turbine-combined/kotlin-stdlib-jdk8.jar").Output
 	kotlinAnnotations := ctx.ModuleForTests("kotlin-annotations", "android_common").
 		Output("turbine-combined/kotlin-annotations.jar").Output
 
@@ -77,6 +81,16 @@ func TestKotlin(t *testing.T) {
 	if !inList(kotlinStdlib.String(), fooJar.Inputs.Strings()) {
 		t.Errorf("foo jar inputs %v does not contain %v",
 			fooJar.Inputs.Strings(), kotlinStdlib.String())
+	}
+
+	if !inList(kotlinStdlibJdk7.String(), fooJar.Inputs.Strings()) {
+		t.Errorf("foo jar inputs %v does not contain %v",
+			fooJar.Inputs.Strings(), kotlinStdlibJdk7.String())
+	}
+
+	if !inList(kotlinStdlibJdk8.String(), fooJar.Inputs.Strings()) {
+		t.Errorf("foo jar inputs %v does not contain %v",
+			fooJar.Inputs.Strings(), kotlinStdlibJdk8.String())
 	}
 
 	if !inList(kotlinAnnotations.String(), fooJar.Inputs.Strings()) {
