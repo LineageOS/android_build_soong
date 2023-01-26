@@ -32,6 +32,20 @@ func registerPythonTestComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("python_test", PythonTestFactory)
 }
 
+func NewTest(hod android.HostOrDeviceSupported) *PythonTestModule {
+	return &PythonTestModule{PythonBinaryModule: *NewBinary(hod)}
+}
+
+func PythonTestHostFactory() android.Module {
+	return NewTest(android.HostSupportedNoCross).init()
+}
+
+func PythonTestFactory() android.Module {
+	module := NewTest(android.HostAndDeviceSupported)
+	module.multilib = android.MultilibBoth
+	return module.init()
+}
+
 type TestProperties struct {
 	// the name of the test configuration (for example "AndroidTest.xml") that should be
 	// installed with the module.
@@ -52,76 +66,79 @@ type TestProperties struct {
 	Test_options android.CommonTestOptions
 }
 
-type testDecorator struct {
-	*binaryDecorator
+type PythonTestModule struct {
+	PythonBinaryModule
 
 	testProperties TestProperties
-
-	testConfig android.Path
-
-	data []android.DataPath
+	testConfig     android.Path
+	data           []android.DataPath
 }
 
-func (test *testDecorator) bootstrapperProps() []interface{} {
-	return append(test.binaryDecorator.bootstrapperProps(), &test.testProperties)
+func (p *PythonTestModule) init() android.Module {
+	p.AddProperties(&p.properties, &p.protoProperties)
+	p.AddProperties(&p.binaryProperties)
+	p.AddProperties(&p.testProperties)
+	android.InitAndroidArchModule(p, p.hod, p.multilib)
+	android.InitDefaultableModule(p)
+	android.InitBazelModule(p)
+	if p.hod == android.HostSupportedNoCross && p.testProperties.Test_options.Unit_test == nil {
+		p.testProperties.Test_options.Unit_test = proptools.BoolPtr(true)
+	}
+	return p
 }
 
-func (test *testDecorator) install(ctx android.ModuleContext, file android.Path) {
-	test.testConfig = tradefed.AutoGenTestConfig(ctx, tradefed.AutoGenTestConfigOptions{
-		TestConfigProp:         test.testProperties.Test_config,
-		TestConfigTemplateProp: test.testProperties.Test_config_template,
-		TestSuites:             test.binaryDecorator.binaryProperties.Test_suites,
-		AutoGenConfig:          test.binaryDecorator.binaryProperties.Auto_gen_config,
+func (p *PythonTestModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	// We inherit from only the library's GenerateAndroidBuildActions, and then
+	// just use buildBinary() so that the binary is not installed into the location
+	// it would be for regular binaries.
+	p.PythonLibraryModule.GenerateAndroidBuildActions(ctx)
+	p.buildBinary(ctx)
+
+	p.testConfig = tradefed.AutoGenTestConfig(ctx, tradefed.AutoGenTestConfigOptions{
+		TestConfigProp:         p.testProperties.Test_config,
+		TestConfigTemplateProp: p.testProperties.Test_config_template,
+		TestSuites:             p.binaryProperties.Test_suites,
+		AutoGenConfig:          p.binaryProperties.Auto_gen_config,
 		DeviceTemplate:         "${PythonBinaryHostTestConfigTemplate}",
 		HostTemplate:           "${PythonBinaryHostTestConfigTemplate}",
 	})
 
-	test.binaryDecorator.pythonInstaller.dir = "nativetest"
-	test.binaryDecorator.pythonInstaller.dir64 = "nativetest64"
+	p.installedDest = ctx.InstallFile(installDir(ctx, "nativetest", "nativetest64", ctx.ModuleName()), p.installSource.Base(), p.installSource)
 
-	test.binaryDecorator.pythonInstaller.relative = ctx.ModuleName()
-
-	test.binaryDecorator.pythonInstaller.install(ctx, file)
-
-	dataSrcPaths := android.PathsForModuleSrc(ctx, test.testProperties.Data)
-
-	for _, dataSrcPath := range dataSrcPaths {
-		test.data = append(test.data, android.DataPath{SrcPath: dataSrcPath})
+	for _, dataSrcPath := range android.PathsForModuleSrc(ctx, p.testProperties.Data) {
+		p.data = append(p.data, android.DataPath{SrcPath: dataSrcPath})
 	}
 
 	// Emulate the data property for java_data dependencies.
 	for _, javaData := range ctx.GetDirectDepsWithTag(javaDataTag) {
 		for _, javaDataSrcPath := range android.OutputFilesForModule(ctx, javaData, "") {
-			test.data = append(test.data, android.DataPath{SrcPath: javaDataSrcPath})
+			p.data = append(p.data, android.DataPath{SrcPath: javaDataSrcPath})
 		}
 	}
 }
 
-func NewTest(hod android.HostOrDeviceSupported) *Module {
-	module, binary := NewBinary(hod)
-
-	binary.pythonInstaller = NewPythonInstaller("nativetest", "nativetest64")
-
-	test := &testDecorator{binaryDecorator: binary}
-	if hod == android.HostSupportedNoCross && test.testProperties.Test_options.Unit_test == nil {
-		test.testProperties.Test_options.Unit_test = proptools.BoolPtr(true)
+func (p *PythonTestModule) AndroidMkEntries() []android.AndroidMkEntries {
+	entriesList := p.PythonBinaryModule.AndroidMkEntries()
+	if len(entriesList) != 1 {
+		panic("Expected 1 entry")
 	}
+	entries := &entriesList[0]
 
-	module.bootstrapper = test
-	module.installer = test
+	entries.Class = "NATIVE_TESTS"
 
-	return module
-}
+	entries.ExtraEntries = append(entries.ExtraEntries,
+		func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
+			//entries.AddCompatibilityTestSuites(p.binaryProperties.Test_suites...)
+			if p.testConfig != nil {
+				entries.SetString("LOCAL_FULL_TEST_CONFIG", p.testConfig.String())
+			}
 
-func PythonTestHostFactory() android.Module {
-	module := NewTest(android.HostSupportedNoCross)
+			entries.SetBoolIfTrue("LOCAL_DISABLE_AUTO_GENERATE_TEST_CONFIG", !BoolDefault(p.binaryProperties.Auto_gen_config, true))
 
-	return module.init()
-}
+			entries.AddStrings("LOCAL_TEST_DATA", android.AndroidMkDataPaths(p.data)...)
 
-func PythonTestFactory() android.Module {
-	module := NewTest(android.HostAndDeviceSupported)
-	module.multilib = android.MultilibBoth
+			p.testProperties.Test_options.SetAndroidMkEntries(entries)
+		})
 
-	return module.init()
+	return entriesList
 }

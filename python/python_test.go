@@ -312,10 +312,6 @@ var (
 						"e/file4.py",
 					},
 					srcsZip: "out/soong/.intermediates/dir/bin/PY3/bin.py.srcszip",
-					depsSrcsZips: []string{
-						"out/soong/.intermediates/dir/lib5/PY3/lib5.py.srcszip",
-						"out/soong/.intermediates/dir/lib6/PY3/lib6.py.srcszip",
-					},
 				},
 			},
 		},
@@ -346,17 +342,17 @@ func TestPythonModule(t *testing.T) {
 
 			for _, e := range d.expectedBinaries {
 				t.Run(e.name, func(t *testing.T) {
-					expectModule(t, result.TestContext, e.name, e.actualVersion, e.srcsZip, e.pyRunfiles, e.depsSrcsZips)
+					expectModule(t, result.TestContext, e.name, e.actualVersion, e.srcsZip, e.pyRunfiles)
 				})
 			}
 		})
 	}
 }
 
-func expectModule(t *testing.T, ctx *android.TestContext, name, variant, expectedSrcsZip string, expectedPyRunfiles, expectedDepsSrcsZips []string) {
+func expectModule(t *testing.T, ctx *android.TestContext, name, variant, expectedSrcsZip string, expectedPyRunfiles []string) {
 	module := ctx.ModuleForTests(name, variant)
 
-	base, baseOk := module.Module().(*Module)
+	base, baseOk := module.Module().(*PythonLibraryModule)
 	if !baseOk {
 		t.Fatalf("%s is not Python module!", name)
 	}
@@ -369,8 +365,6 @@ func expectModule(t *testing.T, ctx *android.TestContext, name, variant, expecte
 	android.AssertDeepEquals(t, "pyRunfiles", expectedPyRunfiles, actualPyRunfiles)
 
 	android.AssertPathRelativeToTopEquals(t, "srcsZip", expectedSrcsZip, base.srcsZip)
-
-	android.AssertPathsRelativeToTopEquals(t, "depsSrcsZips", expectedDepsSrcsZips, base.depsSrcsZips)
 }
 
 func TestMain(m *testing.M) {
