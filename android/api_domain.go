@@ -32,17 +32,18 @@ type ApiSurface int
 
 // TODO(b/246656800): Reconcile with android.SdkKind
 const (
-	PublicApi ApiSurface = iota
-	SystemApi
-	VendorApi
+	// API surface provided by platform and mainline modules to other mainline modules
+	ModuleLibApi ApiSurface = iota
+	PublicApi               // Aka NDK
+	VendorApi               // Aka LLNDK
 )
 
 func (a ApiSurface) String() string {
 	switch a {
+	case ModuleLibApi:
+		return "module-libapi"
 	case PublicApi:
 		return "publicapi"
-	case SystemApi:
-		return "systemapi"
 	case VendorApi:
 		return "vendorapi"
 	default:

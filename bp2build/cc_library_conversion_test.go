@@ -2825,7 +2825,7 @@ func TestCcApiContributionsWithHdrs(t *testing.T) {
 	expectedBazelTargets := []string{
 		MakeBazelTarget(
 			"cc_api_library_headers",
-			"libfoo.systemapi.headers",
+			"libfoo.module-libapi.headers",
 			AttrNameToString{
 				"export_includes": `["dir1"]`,
 			}),
@@ -2842,18 +2842,18 @@ func TestCcApiContributionsWithHdrs(t *testing.T) {
 				"api":          `"libfoo.map.txt"`,
 				"library_name": `"libfoo"`,
 				"api_surfaces": `[
-        "systemapi",
+        "module-libapi",
         "vendorapi",
     ]`,
 				"hdrs": `[
-        ":libfoo.systemapi.headers",
+        ":libfoo.module-libapi.headers",
         ":libfoo.vendorapi.headers",
     ]`,
 			}),
 	}
 	RunApiBp2BuildTestCase(t, cc.RegisterLibraryBuildComponents, Bp2buildTestCase{
 		Blueprint:            bp,
-		Description:          "cc API contributions to systemapi and vendorapi",
+		Description:          "cc API contributions to module-libapi and vendorapi",
 		ExpectedBazelTargets: expectedBazelTargets,
 	})
 }
@@ -2872,8 +2872,8 @@ func TestCcApiSurfaceCombinations(t *testing.T) {
 				stubs: {symbol_file: "a.map.txt"},
 			}`,
 			expectedApi:         `"a.map.txt"`,
-			expectedApiSurfaces: `["systemapi"]`,
-			description:         "Library that contributes to systemapi",
+			expectedApiSurfaces: `["module-libapi"]`,
+			description:         "Library that contributes to module-libapi",
 		},
 		{
 			bp: `
@@ -2894,10 +2894,10 @@ func TestCcApiSurfaceCombinations(t *testing.T) {
 			}`,
 			expectedApi: `"a.map.txt"`,
 			expectedApiSurfaces: `[
-        "systemapi",
+        "module-libapi",
         "vendorapi",
     ]`,
-			description: "Library that contributes to systemapi and vendorapi",
+			description: "Library that contributes to module-libapi and vendorapi",
 		},
 	}
 	for _, testCase := range testCases {
