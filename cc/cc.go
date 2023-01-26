@@ -2214,7 +2214,7 @@ func GetCrtVariations(ctx android.BottomUpMutatorContext,
 		}
 
 		// Raise the minSdkVersion to the minimum supported for the architecture.
-		minApiForArch := minApiForArch(ctx, m.Target().Arch.ArchType)
+		minApiForArch := MinApiForArch(ctx, m.Target().Arch.ArchType)
 		if apiLevel.LessThan(minApiForArch) {
 			apiLevel = minApiForArch
 		}
@@ -3700,7 +3700,7 @@ func (c *Module) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
 	// This allows introducing new architectures in the platform that
 	// need to be included in apexes that normally require an older
 	// min_sdk_version.
-	minApiForArch := minApiForArch(ctx, c.Target().Arch.ArchType)
+	minApiForArch := MinApiForArch(ctx, c.Target().Arch.ArchType)
 	if sdkVersion.LessThan(minApiForArch) {
 		sdkVersion = minApiForArch
 	}
