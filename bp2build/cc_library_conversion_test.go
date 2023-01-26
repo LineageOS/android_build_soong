@@ -3437,23 +3437,23 @@ cc_library {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
 				"implementation_deps": `[":baz__BP2BUILD__MISSING__DEP"] + select({
-        "//build/bazel/rules/apex:non_apex": [":buh__BP2BUILD__MISSING__DEP"],
-        "//conditions:default": [],
+        "//build/bazel/rules/apex:in_apex": [],
+        "//conditions:default": [":buh__BP2BUILD__MISSING__DEP"],
     })`,
 				"implementation_dynamic_deps": `[":baz__BP2BUILD__MISSING__DEP"] + select({
-        "//build/bazel/rules/apex:non_apex": [":bar__BP2BUILD__MISSING__DEP"],
-        "//conditions:default": [],
+        "//build/bazel/rules/apex:in_apex": [],
+        "//conditions:default": [":bar__BP2BUILD__MISSING__DEP"],
     })`,
 				"local_includes": `["."]`,
 			}),
 			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
 				"implementation_deps": `[":baz__BP2BUILD__MISSING__DEP"] + select({
-        "//build/bazel/rules/apex:non_apex": [":buh__BP2BUILD__MISSING__DEP"],
-        "//conditions:default": [],
+        "//build/bazel/rules/apex:in_apex": [],
+        "//conditions:default": [":buh__BP2BUILD__MISSING__DEP"],
     })`,
 				"implementation_dynamic_deps": `[":baz__BP2BUILD__MISSING__DEP"] + select({
-        "//build/bazel/rules/apex:non_apex": [":bar__BP2BUILD__MISSING__DEP"],
-        "//conditions:default": [],
+        "//build/bazel/rules/apex:in_apex": [],
+        "//conditions:default": [":bar__BP2BUILD__MISSING__DEP"],
     })`,
 				"local_includes": `["."]`,
 			}),
@@ -3483,16 +3483,16 @@ cc_library_static {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_static", "foo", AttrNameToString{
 				"implementation_dynamic_deps": `select({
-        "//build/bazel/rules/apex:non_apex": [":bar__BP2BUILD__MISSING__DEP"],
-        "//conditions:default": [],
+        "//build/bazel/rules/apex:in_apex": [],
+        "//conditions:default": [":bar__BP2BUILD__MISSING__DEP"],
     })`,
 				"dynamic_deps": `select({
-        "//build/bazel/rules/apex:non_apex": [":baz__BP2BUILD__MISSING__DEP"],
-        "//conditions:default": [],
+        "//build/bazel/rules/apex:in_apex": [],
+        "//conditions:default": [":baz__BP2BUILD__MISSING__DEP"],
     })`,
 				"deps": `select({
-        "//build/bazel/rules/apex:non_apex": [":abc__BP2BUILD__MISSING__DEP"],
-        "//conditions:default": [],
+        "//build/bazel/rules/apex:in_apex": [],
+        "//conditions:default": [":abc__BP2BUILD__MISSING__DEP"],
     })`,
 				"local_includes": `["."]`,
 			}),

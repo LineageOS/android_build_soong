@@ -152,7 +152,7 @@ func (ll *LabelList) Append(other LabelList) {
 		ll.Includes = append(ll.Includes, other.Includes...)
 	}
 	if len(ll.Excludes) > 0 || len(other.Excludes) > 0 {
-		ll.Excludes = append(other.Excludes, other.Excludes...)
+		ll.Excludes = append(ll.Excludes, other.Excludes...)
 	}
 }
 
@@ -888,7 +888,7 @@ func (lla *LabelListAttribute) ResolveExcludes() {
 			// then remove all config-specific excludes
 			allLabels := baseLabels.deepCopy()
 			allLabels.Append(val)
-			lla.ConfigurableValues[axis][config] = SubtractBazelLabelList(allLabels, LabelList{Includes: val.Excludes})
+			lla.ConfigurableValues[axis][config] = SubtractBazelLabelList(allLabels, LabelList{Includes: allLabels.Excludes})
 		}
 
 		// After going through all configs, delete the duplicates in the config
