@@ -416,11 +416,6 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 
 	if ctx.apexVariationName() != "" {
 		flags.Global.CommonFlags = append(flags.Global.CommonFlags, "-D__ANDROID_APEX__")
-		if ctx.Device() {
-			flags.Global.CommonFlags = append(flags.Global.CommonFlags,
-				fmt.Sprintf("-D__ANDROID_APEX_MIN_SDK_VERSION__=%d",
-					ctx.apexSdkVersion().FinalOrFutureInt()))
-		}
 	}
 
 	if ctx.Target().NativeBridge == android.NativeBridgeEnabled {

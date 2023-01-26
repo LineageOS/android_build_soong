@@ -673,6 +673,9 @@ var (
 		// kotlin srcs in java binary
 		"AnalyzerKt",
 		"trebuchet-core",
+
+		// kotlin srcs in android_library
+		"renderscript_toolkit",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
@@ -1381,5 +1384,9 @@ var (
 	StagingMixedBuildsEnabledList = []string{
 		"com.android.adbd",
 		"adbd_test",
+		"adb_crypto_test",
+		"adb_pairing_auth_test",
+		"adb_pairing_connection_test",
+		"adb_tls_connection_test",
 	}
 )
