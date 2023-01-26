@@ -93,6 +93,7 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 
 	ctx.Strict("CLANG_EXTERNAL_CFLAGS", "${config.ExternalCflags}")
 	ctx.Strict("GLOBAL_CLANG_CFLAGS_NO_OVERRIDE", "${config.NoOverrideGlobalCflags}")
+	ctx.Strict("GLOBAL_CLANG_CFLAGS_64_NO_OVERRIDE", "${config.NoOverride64GlobalCflags}")
 	ctx.Strict("GLOBAL_CLANG_CPPFLAGS_NO_OVERRIDE", "")
 	ctx.Strict("GLOBAL_CLANG_EXTERNAL_CFLAGS_NO_OVERRIDE", "${config.NoOverrideExternalGlobalCflags}")
 

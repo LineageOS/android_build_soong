@@ -103,3 +103,93 @@ func TestForbiddenVendorLinkage(t *testing.T) {
 		}
        `)
 }
+
+func checkInstallPartition(t *testing.T, ctx *android.TestContext, name, variant, expected string) {
+	mod := ctx.ModuleForTests(name, variant).Module().(*Module)
+	partitionDefined := false
+	checkPartition := func(specific bool, partition string) {
+		if specific {
+			if expected != partition && !partitionDefined {
+				// The variant is installed to the 'partition'
+				t.Errorf("%s variant of %q must not be installed to %s partition", variant, name, partition)
+			}
+			partitionDefined = true
+		} else {
+			// The variant is not installed to the 'partition'
+			if expected == partition {
+				t.Errorf("%s variant of %q must be installed to %s partition", variant, name, partition)
+			}
+		}
+	}
+	socSpecific := func(m *Module) bool {
+		return m.SocSpecific()
+	}
+	deviceSpecific := func(m *Module) bool {
+		return m.DeviceSpecific()
+	}
+	productSpecific := func(m *Module) bool {
+		return m.ProductSpecific() || m.productSpecificModuleContext()
+	}
+	systemExtSpecific := func(m *Module) bool {
+		return m.SystemExtSpecific()
+	}
+	checkPartition(socSpecific(mod), "vendor")
+	checkPartition(deviceSpecific(mod), "odm")
+	checkPartition(productSpecific(mod), "product")
+	checkPartition(systemExtSpecific(mod), "system_ext")
+	if !partitionDefined && expected != "system" {
+		t.Errorf("%s variant of %q is expected to be installed to %s partition,"+
+			" but installed to system partition", variant, name, expected)
+	}
+}
+
+func TestInstallPartition(t *testing.T) {
+	t.Parallel()
+	t.Helper()
+	ctx := testRust(t, `
+		rust_binary {
+			name: "sample_system",
+			crate_name: "sample",
+			srcs: ["foo.rs"],
+		}
+		rust_binary {
+			name: "sample_system_ext",
+			crate_name: "sample",
+			srcs: ["foo.rs"],
+			system_ext_specific: true,
+		}
+		rust_binary {
+			name: "sample_product",
+			crate_name: "sample",
+			srcs: ["foo.rs"],
+			product_specific: true,
+		}
+		rust_binary {
+			name: "sample_vendor",
+			crate_name: "sample",
+			srcs: ["foo.rs"],
+			vendor: true,
+		}
+		rust_binary {
+			name: "sample_odm",
+			crate_name: "sample",
+			srcs: ["foo.rs"],
+			device_specific: true,
+		}
+		rust_binary {
+			name: "sample_all_available",
+			crate_name: "sample",
+			srcs: ["foo.rs"],
+			vendor_available: true,
+			product_available: true,
+		}
+	`)
+
+	checkInstallPartition(t, ctx, "sample_system", binaryCoreVariant, "system")
+	checkInstallPartition(t, ctx, "sample_system_ext", binaryCoreVariant, "system_ext")
+	checkInstallPartition(t, ctx, "sample_product", binaryProductVariant, "product")
+	checkInstallPartition(t, ctx, "sample_vendor", binaryVendorVariant, "vendor")
+	checkInstallPartition(t, ctx, "sample_odm", binaryVendorVariant, "odm")
+
+	checkInstallPartition(t, ctx, "sample_all_available", binaryCoreVariant, "system")
+}
