@@ -702,7 +702,13 @@ func bp2BuildParseBaseProps(ctx android.Bp2buildMutatorContext, module *Module) 
 	compilerAttrs := compilerAttributes{}
 	linkerAttrs := linkerAttributes{}
 
-	for axis, configs := range axisToConfigs {
+	// Iterate through these axes in a deterministic order. This is required
+	// because processing certain dependencies may result in concatenating
+	// elements along other axes. (For example, processing NoConfig may result
+	// in elements being added to InApex). This is thus the only way to ensure
+	// that the order of entries in each list is in a predictable order.
+	for _, axis := range bazel.SortedConfigurationAxes(axisToConfigs) {
+		configs := axisToConfigs[axis]
 		for cfg := range configs {
 			var allHdrs []string
 			if baseCompilerProps, ok := archVariantCompilerProps[axis][cfg].(*BaseCompilerProperties); ok {

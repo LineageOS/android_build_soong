@@ -73,6 +73,16 @@ func MakeLabelList(labels []Label) LabelList {
 	}
 }
 
+func SortedConfigurationAxes[T any](m map[ConfigurationAxis]T) []ConfigurationAxis {
+	keys := make([]ConfigurationAxis, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+
+	sort.Slice(keys, func(i, j int) bool { return keys[i].less(keys[j]) })
+	return keys
+}
+
 // MakeLabelListFromTargetNames creates a LabelList from unqualified target names
 // This is a utiltity function for bp2build converters of Soong modules that have 1:many generated targets
 func MakeLabelListFromTargetNames(targetNames []string) LabelList {
@@ -412,13 +422,7 @@ func (la *LabelAttribute) SelectValue(axis ConfigurationAxis, config string) *La
 
 // SortedConfigurationAxes returns all the used ConfigurationAxis in sorted order.
 func (la *LabelAttribute) SortedConfigurationAxes() []ConfigurationAxis {
-	keys := make([]ConfigurationAxis, 0, len(la.ConfigurableValues))
-	for k := range la.ConfigurableValues {
-		keys = append(keys, k)
-	}
-
-	sort.Slice(keys, func(i, j int) bool { return keys[i].less(keys[j]) })
-	return keys
+	return SortedConfigurationAxes(la.ConfigurableValues)
 }
 
 // MakeLabelAttribute turns a string into a LabelAttribute
@@ -608,13 +612,7 @@ func (ba BoolAttribute) SelectValue(axis ConfigurationAxis, config string) *bool
 
 // SortedConfigurationAxes returns all the used ConfigurationAxis in sorted order.
 func (ba *BoolAttribute) SortedConfigurationAxes() []ConfigurationAxis {
-	keys := make([]ConfigurationAxis, 0, len(ba.ConfigurableValues))
-	for k := range ba.ConfigurableValues {
-		keys = append(keys, k)
-	}
-
-	sort.Slice(keys, func(i, j int) bool { return keys[i].less(keys[j]) })
-	return keys
+	return SortedConfigurationAxes(ba.ConfigurableValues)
 }
 
 // labelListSelectValues supports config-specific label_list typed Bazel attribute values.
@@ -761,13 +759,7 @@ func (lla *LabelListAttribute) SelectValue(axis ConfigurationAxis, config string
 
 // SortedConfigurationAxes returns all the used ConfigurationAxis in sorted order.
 func (lla *LabelListAttribute) SortedConfigurationAxes() []ConfigurationAxis {
-	keys := make([]ConfigurationAxis, 0, len(lla.ConfigurableValues))
-	for k := range lla.ConfigurableValues {
-		keys = append(keys, k)
-	}
-
-	sort.Slice(keys, func(i, j int) bool { return keys[i].less(keys[j]) })
-	return keys
+	return SortedConfigurationAxes(lla.ConfigurableValues)
 }
 
 // Append all values, including os and arch specific ones, from another
@@ -1145,13 +1137,7 @@ func (sa *StringAttribute) SelectValue(axis ConfigurationAxis, config string) *s
 
 // SortedConfigurationAxes returns all the used ConfigurationAxis in sorted order.
 func (sa *StringAttribute) SortedConfigurationAxes() []ConfigurationAxis {
-	keys := make([]ConfigurationAxis, 0, len(sa.ConfigurableValues))
-	for k := range sa.ConfigurableValues {
-		keys = append(keys, k)
-	}
-
-	sort.Slice(keys, func(i, j int) bool { return keys[i].less(keys[j]) })
-	return keys
+	return SortedConfigurationAxes(sa.ConfigurableValues)
 }
 
 // Collapse reduces the configurable axes of the string attribute to a single axis.
@@ -1353,13 +1339,7 @@ func (sla *StringListAttribute) SelectValue(axis ConfigurationAxis, config strin
 
 // SortedConfigurationAxes returns all the used ConfigurationAxis in sorted order.
 func (sla *StringListAttribute) SortedConfigurationAxes() []ConfigurationAxis {
-	keys := make([]ConfigurationAxis, 0, len(sla.ConfigurableValues))
-	for k := range sla.ConfigurableValues {
-		keys = append(keys, k)
-	}
-
-	sort.Slice(keys, func(i, j int) bool { return keys[i].less(keys[j]) })
-	return keys
+	return SortedConfigurationAxes(sla.ConfigurableValues)
 }
 
 // DeduplicateAxesFromBase ensures no duplication of items between the no-configuration value and
