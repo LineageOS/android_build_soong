@@ -258,6 +258,7 @@ func (b BazelTestResult) CompareAllBazelTargets(t *testing.T, description string
 }
 
 func (b BazelTestResult) CompareBazelTargets(t *testing.T, description string, expectedContents []string, actualTargets BazelTargets) {
+	t.Helper()
 	if actualCount, expectedCount := len(actualTargets), len(expectedContents); actualCount != expectedCount {
 		t.Errorf("%s: Expected %d bazel target (%s), got %d (%s)",
 			description, expectedCount, expectedContents, actualCount, actualTargets)
