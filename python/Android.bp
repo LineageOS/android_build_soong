@@ -11,11 +11,10 @@ bootstrap_go_package {
         "soong-tradefed",
     ],
     srcs: [
-        "androidmk.go",
         "binary.go",
+        "bp2build.go",
         "builder.go",
         "defaults.go",
-        "installer.go",
         "library.go",
         "proto.go",
         "python.go",
