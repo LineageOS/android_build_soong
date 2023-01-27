@@ -120,10 +120,6 @@ type apexBundleProperties struct {
 	// List of filesystem images that are embedded inside this APEX bundle.
 	Filesystems []string
 
-	// The minimum SDK version that this APEX must support at minimum. This is usually set to
-	// the SDK version that the APEX was first introduced.
-	Min_sdk_version *string
-
 	// Whether this APEX is considered updatable or not. When set to true, this will enforce
 	// additional rules for making sure that the APEX is truly updatable. To be updatable,
 	// min_sdk_version should be set as well. This will also disable the size optimizations like
@@ -386,6 +382,10 @@ type overridableProperties struct {
 	// conditions, e.g., target device needs to support APEX compression, are also fulfilled.
 	// Default: false.
 	Compressible *bool
+
+	// The minimum SDK version that this APEX must support at minimum. This is usually set to
+	// the SDK version that the APEX was first introduced.
+	Min_sdk_version *string
 }
 
 type apexBundle struct {
@@ -2550,14 +2550,14 @@ func (a *apexBundle) minSdkVersionValue(ctx android.EarlyModuleContext) string {
 	// min_sdk_version value is lower than the one to override with.
 	overrideMinSdkValue := ctx.DeviceConfig().ApexGlobalMinSdkVersionOverride()
 	overrideApiLevel := minSdkVersionFromValue(ctx, overrideMinSdkValue)
-	originalMinApiLevel := minSdkVersionFromValue(ctx, proptools.String(a.properties.Min_sdk_version))
-	isMinSdkSet := a.properties.Min_sdk_version != nil
+	originalMinApiLevel := minSdkVersionFromValue(ctx, proptools.String(a.overridableProperties.Min_sdk_version))
+	isMinSdkSet := a.overridableProperties.Min_sdk_version != nil
 	isOverrideValueHigher := overrideApiLevel.CompareTo(originalMinApiLevel) > 0
 	if overrideMinSdkValue != "" && isMinSdkSet && isOverrideValueHigher {
 		return overrideMinSdkValue
 	}
 
-	return proptools.String(a.properties.Min_sdk_version)
+	return proptools.String(a.overridableProperties.Min_sdk_version)
 }
 
 // Returns apex's min_sdk_version SdkSpec, honoring overrides
@@ -3255,8 +3255,8 @@ func (a *apexBundle) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 	// TODO(b/219503907) this would need to be set to a.MinSdkVersionValue(ctx) but
 	// given it's coming via config, we probably don't want to put it in here.
 	var minSdkVersion *string
-	if a.properties.Min_sdk_version != nil {
-		minSdkVersion = a.properties.Min_sdk_version
+	if a.overridableProperties.Min_sdk_version != nil {
+		minSdkVersion = a.overridableProperties.Min_sdk_version
 	}
 
 	var keyLabelAttribute bazel.LabelAttribute
