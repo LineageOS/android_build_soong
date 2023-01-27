@@ -1594,7 +1594,11 @@ type JavaApiImportInfo struct {
 var JavaApiImportProvider = blueprint.NewProvider(JavaApiImportInfo{})
 
 func (ap *JavaApiContribution) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	apiFile := android.PathForModuleSrc(ctx, String(ap.properties.Api_file))
+	var apiFile android.Path = nil
+	if apiFileString := ap.properties.Api_file; apiFileString != nil {
+		apiFile = android.PathForModuleSrc(ctx, String(apiFileString))
+	}
+
 	ctx.SetProvider(JavaApiImportProvider, JavaApiImportInfo{
 		ApiFile: apiFile,
 	})
@@ -1725,7 +1729,11 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		switch tag {
 		case javaApiContributionTag:
 			provider := ctx.OtherModuleProvider(dep, JavaApiImportProvider).(JavaApiImportInfo)
-			srcFiles = append(srcFiles, android.PathForSource(ctx, provider.ApiFile.String()))
+			providerApiFile := provider.ApiFile
+			if providerApiFile == nil {
+				ctx.ModuleErrorf("Error: %s has an empty api file.", dep.Name())
+			}
+			srcFiles = append(srcFiles, android.PathForSource(ctx, providerApiFile.String()))
 		case libTag:
 			provider := ctx.OtherModuleProvider(dep, JavaInfoProvider).(JavaInfo)
 			classPaths = append(classPaths, provider.HeaderJars...)
