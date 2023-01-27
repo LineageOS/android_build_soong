@@ -443,8 +443,8 @@ type apexBundle struct {
 	// GenerateAndroidBuildActions.
 	filesInfo []apexFile
 
-	// List of other module names that should be installed when this APEX gets installed.
-	requiredDeps []string
+	// List of other module names that should be installed when this APEX gets installed (LOCAL_REQUIRED_MODULES).
+	makeModulesToInstall []string
 
 	///////////////////////////////////////////////////////////////////////////////////////////
 	// Outputs (final and intermediates)
@@ -1973,11 +1973,9 @@ func (a *apexBundle) ProcessBazelQueryResponse(ctx android.ModuleContext) {
 	a.containerCertificateFile = android.PathForBazelOut(ctx, outputs.ContainerKeyInfo[0])
 	a.containerPrivateKeyFile = android.PathForBazelOut(ctx, outputs.ContainerKeyInfo[1])
 
-	// Ensure ApexInfo.RequiresLibs are installed as part of a bundle build
-	for _, bazelLabel := range outputs.RequiresLibs {
-		// convert Bazel label back to Soong module name
-		a.requiredDeps = append(a.requiredDeps, android.ModuleFromBazelLabel(bazelLabel))
-	}
+	// Ensure ApexMkInfo.install_to_system make module names are installed as
+	// part of a bundled build.
+	a.makeModulesToInstall = append(a.makeModulesToInstall, outputs.MakeModulesToInstall...)
 
 	apexType := a.properties.ApexType
 	switch apexType {
@@ -2076,7 +2074,7 @@ func (a *apexBundle) setApexTypeAndSuffix(ctx android.ModuleContext) {
 			a.primaryApexType = true
 
 			if ctx.Config().InstallExtraFlattenedApexes() {
-				a.requiredDeps = append(a.requiredDeps, a.Name()+flattenedSuffix)
+				a.makeModulesToInstall = append(a.makeModulesToInstall, a.Name()+flattenedSuffix)
 			}
 		}
 	case zipApex:
@@ -2228,7 +2226,7 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 
 			vctx.filesInfo = append(vctx.filesInfo, apexBootclasspathFragmentFiles(ctx, child)...)
 			for _, makeModuleName := range bcpfModule.BootImageDeviceInstallMakeModules() {
-				a.requiredDeps = append(a.requiredDeps, makeModuleName)
+				a.makeModulesToInstall = append(a.makeModulesToInstall, makeModuleName)
 			}
 			return true
 		case sscpfTag:
@@ -2394,8 +2392,8 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 				if ch.IsStubsImplementationRequired() && !am.DirectlyInAnyApex() {
 					// we need a module name for Make
 					name := ch.ImplementationModuleNameForMake(ctx) + ch.Properties.SubName
-					if !android.InList(name, a.requiredDeps) {
-						a.requiredDeps = append(a.requiredDeps, name)
+					if !android.InList(name, a.makeModulesToInstall) {
+						a.makeModulesToInstall = append(a.makeModulesToInstall, name)
 					}
 				}
 				vctx.requireNativeLibs = append(vctx.requireNativeLibs, af.stem())

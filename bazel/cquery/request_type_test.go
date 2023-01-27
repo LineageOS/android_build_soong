@@ -177,9 +177,11 @@ func TestGetApexInfoParseResults(t *testing.T) {
 	"backing_libs":"path/to/backing.txt",
 	"bundle_file": "dir/bundlefile.zip",
 	"installed_files":"path/to/installed-files.txt",
-	"provides_native_libs":[]
+	"provides_native_libs":[],
+	"make_modules_to_install": ["foo","bar"]
 }`,
 			expectedOutput: ApexInfo{
+				// ApexInfo
 				SignedOutput:      "my.apex",
 				UnsignedOutput:    "my.apex.unsigned",
 				RequiresLibs:      []string{"//bionic/libc:libc", "//bionic/libdl:libdl"},
@@ -191,6 +193,9 @@ func TestGetApexInfoParseResults(t *testing.T) {
 				BackingLibs:       "path/to/backing.txt",
 				BundleFile:        "dir/bundlefile.zip",
 				InstalledFiles:    "path/to/installed-files.txt",
+
+				// ApexMkInfo
+				MakeModulesToInstall: []string{"foo", "bar"},
 			},
 		},
 	}
