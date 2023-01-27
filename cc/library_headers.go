@@ -88,6 +88,8 @@ func (h *libraryHeaderBazelHandler) ProcessBazelQueryResponse(ctx android.Module
 	// validation will fail. For now, set this to an empty list.
 	// TODO(cparsons): More closely mirror the collectHeadersForSnapshot implementation.
 	h.library.collectedSnapshotHeaders = android.Paths{}
+
+	h.module.setAndroidMkVariablesFromCquery(ccInfo.CcAndroidMkInfo)
 }
 
 // cc_library_headers contains a set of c/c++ headers which are imported by
