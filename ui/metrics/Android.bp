@@ -22,6 +22,7 @@ bootstrap_go_package {
     deps: [
         "golang-protobuf-proto",
         "soong-ui-bp2build_metrics_proto",
+        "soong-ui-bazel_metrics_proto",
         "soong-ui-metrics_upload_proto",
         "soong-ui-metrics_proto",
         "soong-ui-mk_metrics_proto",
@@ -69,6 +70,18 @@ bootstrap_go_package {
     ],
     srcs: [
         "bp2build_metrics_proto/bp2build_metrics.pb.go",
+    ],
+}
+
+bootstrap_go_package {
+    name: "soong-ui-bazel_metrics_proto",
+    pkgPath: "android/soong/ui/metrics/bazel_metrics_proto",
+    deps: [
+        "golang-protobuf-reflect-protoreflect",
+        "golang-protobuf-runtime-protoimpl",
+    ],
+    srcs: [
+        "bazel_metrics_proto/bazel_metrics.pb.go",
     ],
 }
 
