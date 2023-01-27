@@ -309,7 +309,7 @@ func (a *apexBundle) writeRequiredModules(w io.Writer, moduleNames []string) {
 		targetRequired = append(targetRequired, fi.targetRequiredModuleNames...)
 		hostRequired = append(hostRequired, fi.hostRequiredModuleNames...)
 	}
-	android.AndroidMkEmitAssignList(w, "LOCAL_REQUIRED_MODULES", moduleNames, a.requiredDeps, required)
+	android.AndroidMkEmitAssignList(w, "LOCAL_REQUIRED_MODULES", moduleNames, a.makeModulesToInstall, required)
 	android.AndroidMkEmitAssignList(w, "LOCAL_TARGET_REQUIRED_MODULES", targetRequired)
 	android.AndroidMkEmitAssignList(w, "LOCAL_HOST_REQUIRED_MODULES", hostRequired)
 }

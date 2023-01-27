@@ -42,6 +42,7 @@ apex {
 				OutputBaseDir: outputBaseDir,
 				LabelToApexInfo: map[string]cquery.ApexInfo{
 					"//:foo": cquery.ApexInfo{
+						// ApexInfo Starlark provider.
 						SignedOutput:           "signed_out.apex",
 						SignedCompressedOutput: "signed_out.capex",
 						UnsignedOutput:         "unsigned_out.apex",
@@ -56,6 +57,9 @@ apex {
 						// unused
 						PackageName:  "pkg_name",
 						ProvidesLibs: []string{"a", "b"},
+
+						// ApexMkInfo Starlark provider
+						MakeModulesToInstall: []string{"c"}, // d deliberately omitted
 					},
 				},
 			}
@@ -111,7 +115,12 @@ apex {
 	if w := "$(call dist-for-goals,checkbuild,out/bazel/execroot/__main__/installed-files.txt:foo-installed-files.txt)"; !strings.Contains(data, w) {
 		t.Errorf("Expected %q in androidmk data, but did not find %q", w, data)
 	}
-	if w := "LOCAL_REQUIRED_MODULES := c d"; !strings.Contains(data, w) {
+
+	// make modules to be installed to system
+	if len(ab.makeModulesToInstall) != 1 && ab.makeModulesToInstall[0] != "c" {
+		t.Errorf("Expected makeModulesToInstall slice to only contain 'c', got %q", ab.makeModulesToInstall)
+	}
+	if w := "LOCAL_REQUIRED_MODULES := c"; !strings.Contains(data, w) {
 		t.Errorf("Expected %q in androidmk data, but did not find it in %q", w, data)
 	}
 }
@@ -212,6 +221,7 @@ override_apex {
 				OutputBaseDir: outputBaseDir,
 				LabelToApexInfo: map[string]cquery.ApexInfo{
 					"//:foo": cquery.ApexInfo{
+						// ApexInfo Starlark provider
 						SignedOutput:          "signed_out.apex",
 						UnsignedOutput:        "unsigned_out.apex",
 						BundleKeyInfo:         []string{"public_key", "private_key"},
@@ -225,8 +235,12 @@ override_apex {
 						// unused
 						PackageName:  "pkg_name",
 						ProvidesLibs: []string{"a", "b"},
+
+						// ApexMkInfo Starlark provider
+						MakeModulesToInstall: []string{"c"}, // d deliberately omitted
 					},
 					"//:override_foo": cquery.ApexInfo{
+						// ApexInfo Starlark provider
 						SignedOutput:          "override_signed_out.apex",
 						UnsignedOutput:        "override_unsigned_out.apex",
 						BundleKeyInfo:         []string{"override_public_key", "override_private_key"},
@@ -240,6 +254,9 @@ override_apex {
 						// unused
 						PackageName:  "override_pkg_name",
 						ProvidesLibs: []string{"a", "b"},
+
+						// ApexMkInfo Starlark provider
+						MakeModulesToInstall: []string{"c"}, // d deliberately omitted
 					},
 				},
 			}
@@ -295,7 +312,12 @@ override_apex {
 	if w := "$(call dist-for-goals,checkbuild,out/bazel/execroot/__main__/override_installed-files.txt:override_foo-installed-files.txt)"; !strings.Contains(data, w) {
 		t.Errorf("Expected %q in androidmk data, but did not find %q", w, data)
 	}
-	if w := "LOCAL_REQUIRED_MODULES := c d"; !strings.Contains(data, w) {
+
+	// make modules to be installed to system
+	if len(ab.makeModulesToInstall) != 1 && ab.makeModulesToInstall[0] != "c" {
+		t.Errorf("Expected makeModulestoInstall slice to only contain 'c', got %q", ab.makeModulesToInstall)
+	}
+	if w := "LOCAL_REQUIRED_MODULES := c"; !strings.Contains(data, w) {
 		t.Errorf("Expected %q in androidmk data, but did not find it in %q", w, data)
 	}
 }
