@@ -5708,7 +5708,7 @@ func TestInstallExtraFlattenedApexes(t *testing.T) {
 		}),
 	)
 	ab := ctx.ModuleForTests("myapex", "android_common_myapex_image").Module().(*apexBundle)
-	ensureListContains(t, ab.requiredDeps, "myapex.flattened")
+	ensureListContains(t, ab.makeModulesToInstall, "myapex.flattened")
 	mk := android.AndroidMkDataForTest(t, ctx, ab)
 	var builder strings.Builder
 	mk.Custom(&builder, ab.Name(), "TARGET_", "", mk)
@@ -9285,7 +9285,7 @@ func TestAndroidMk_RequiredDeps(t *testing.T) {
 	`)
 
 	bundle := ctx.ModuleForTests("myapex", "android_common_myapex_image").Module().(*apexBundle)
-	bundle.requiredDeps = append(bundle.requiredDeps, "foo")
+	bundle.makeModulesToInstall = append(bundle.makeModulesToInstall, "foo")
 	data := android.AndroidMkDataForTest(t, ctx, bundle)
 	var builder strings.Builder
 	data.Custom(&builder, bundle.BaseModuleName(), "TARGET_", "", data)
@@ -9293,7 +9293,7 @@ func TestAndroidMk_RequiredDeps(t *testing.T) {
 	ensureContains(t, androidMk, "LOCAL_REQUIRED_MODULES := foo\n")
 
 	flattenedBundle := ctx.ModuleForTests("myapex", "android_common_myapex_flattened").Module().(*apexBundle)
-	flattenedBundle.requiredDeps = append(flattenedBundle.requiredDeps, "foo")
+	flattenedBundle.makeModulesToInstall = append(flattenedBundle.makeModulesToInstall, "foo")
 	flattenedData := android.AndroidMkDataForTest(t, ctx, flattenedBundle)
 	var flattenedBuilder strings.Builder
 	flattenedData.Custom(&flattenedBuilder, flattenedBundle.BaseModuleName(), "TARGET_", "", flattenedData)
@@ -9537,7 +9537,7 @@ func TestSdkLibraryCanHaveHigherMinSdkVersion(t *testing.T) {
 func ensureContainsRequiredDeps(t *testing.T, ctx *android.TestContext, moduleName, variant string, deps []string) {
 	a := ctx.ModuleForTests(moduleName, variant).Module().(*apexBundle)
 	for _, dep := range deps {
-		android.AssertStringListContains(t, "", a.requiredDeps, dep)
+		android.AssertStringListContains(t, "", a.makeModulesToInstall, dep)
 	}
 }
 
@@ -9545,7 +9545,7 @@ func ensureContainsRequiredDeps(t *testing.T, ctx *android.TestContext, moduleNa
 func ensureDoesNotContainRequiredDeps(t *testing.T, ctx *android.TestContext, moduleName, variant string, deps []string) {
 	a := ctx.ModuleForTests(moduleName, variant).Module().(*apexBundle)
 	for _, dep := range deps {
-		android.AssertStringListDoesNotContain(t, "", a.requiredDeps, dep)
+		android.AssertStringListDoesNotContain(t, "", a.makeModulesToInstall, dep)
 	}
 }
 
