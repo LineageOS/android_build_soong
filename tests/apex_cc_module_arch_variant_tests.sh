@@ -56,7 +56,7 @@ build/soong/soong_ui.bash --make-mode BP2BUILD_VERBOSE=1 --skip-soong-tests bp2b
 
 # Number of CppCompile actions with arch variant flag
 actions_with_arch_variant_num=$(call_bazel aquery --config=bp2build --config=ci --config=android \
-  'mnemonic("CppCompile", deps(//build/bazel/examples/apex/minimal:build.bazel.examples.apex.minimal.apex))' | grep -c "\-march=$ARCH_VARIANT_CFLAG")
+  'mnemonic("CppCompile", deps(//build/bazel/examples/apex/minimal:build.bazel.examples.apex.minimal.apex))' | grep -c \'-march=$ARCH_VARIANT_CFLAG\')
 
 # Number of all CppCompile actions
 all_cppcompile_actions_num=0
