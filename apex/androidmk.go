@@ -309,7 +309,7 @@ func (a *apexBundle) writeRequiredModules(w io.Writer, moduleNames []string) {
 		targetRequired = append(targetRequired, fi.targetRequiredModuleNames...)
 		hostRequired = append(hostRequired, fi.hostRequiredModuleNames...)
 	}
-	android.AndroidMkEmitAssignList(w, "LOCAL_REQUIRED_MODULES", moduleNames, a.requiredDeps, required)
+	android.AndroidMkEmitAssignList(w, "LOCAL_REQUIRED_MODULES", moduleNames, a.makeModulesToInstall, required)
 	android.AndroidMkEmitAssignList(w, "LOCAL_TARGET_REQUIRED_MODULES", targetRequired)
 	android.AndroidMkEmitAssignList(w, "LOCAL_HOST_REQUIRED_MODULES", hostRequired)
 }
@@ -317,14 +317,14 @@ func (a *apexBundle) writeRequiredModules(w io.Writer, moduleNames []string) {
 func (a *apexBundle) androidMkForType() android.AndroidMkData {
 	return android.AndroidMkData{
 		Custom: func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
+			moduleNames := []string{}
 			apexType := a.properties.ApexType
+			if a.installable() {
+				apexName := proptools.StringDefault(a.properties.Apex_name, name)
+				moduleNames = a.androidMkForFiles(w, name, apexName, moduleDir, data)
+			}
 
 			if apexType == flattenedApex {
-				var moduleNames []string = nil
-				if a.installable() {
-					apexName := proptools.StringDefault(a.properties.Apex_name, name)
-					moduleNames = a.androidMkForFiles(w, name, apexName, moduleDir, data)
-				}
 				// Only image APEXes can be flattened.
 				fmt.Fprintln(w, "\ninclude $(CLEAR_VARS)  # apex.apexBundle.flat")
 				fmt.Fprintln(w, "LOCAL_PATH :=", moduleDir)
@@ -366,7 +366,7 @@ func (a *apexBundle) androidMkForType() android.AndroidMkData {
 				}
 
 				android.AndroidMkEmitAssignList(w, "LOCAL_OVERRIDES_MODULES", a.overridableProperties.Overrides)
-				a.writeRequiredModules(w, nil)
+				a.writeRequiredModules(w, moduleNames)
 
 				fmt.Fprintln(w, "include $(BUILD_PREBUILT)")
 

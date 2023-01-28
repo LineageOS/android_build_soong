@@ -1840,6 +1840,20 @@ func TestDeviceBinaryWrapperGeneration(t *testing.T) {
 		}`)
 }
 
+func TestJavaApiContributionEmptyApiFile(t *testing.T) {
+	testJavaError(t,
+		"Error: foo has an empty api file.",
+		`java_api_contribution {
+			name: "foo",
+		}
+		java_api_library {
+			name: "bar",
+			api_surface: "public",
+			api_contributions: ["foo"],
+		}
+	`)
+}
+
 func TestJavaApiLibraryAndProviderLink(t *testing.T) {
 	provider_bp_a := `
 	java_api_contribution {

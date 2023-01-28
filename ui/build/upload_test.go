@@ -29,6 +29,30 @@ import (
 	"android/soong/ui/logger"
 )
 
+func writeBazelProfileFile(dir string) error {
+	contents := `
+
+=== PHASE SUMMARY INFORMATION ===
+
+Total launch phase time                              1.193 s   15.77%
+Total init phase time                                1.092 s   14.44%
+Total target pattern evaluation phase time           0.580 s    7.67%
+Total interleaved loading-and-analysis phase time    3.646 s   48.21%
+Total preparation phase time                         0.022 s    0.30%
+Total execution phase time                           0.993 s   13.13%
+Total finish phase time                              0.036 s    0.48%
+---------------------------------------------------------------------
+Total run time                                       7.563 s  100.00%
+
+Critical path (178 ms):
+       Time Percentage   Description
+     178 ms  100.00%   action 'BazelWorkspaceStatusAction stable-status.txt'
+
+`
+	file := filepath.Join(dir, "bazel_metrics.txt")
+	return os.WriteFile(file, []byte(contents), 0666)
+}
+
 func TestPruneMetricsFiles(t *testing.T) {
 	rootDir := t.TempDir()
 
@@ -84,12 +108,12 @@ func TestUploadMetrics(t *testing.T) {
 	}, {
 		description: "non-existent metrics files no upload",
 		uploader:    "echo",
-		files:       []string{"metrics_file_1", "metrics_file_2", "metrics_file_3"},
+		files:       []string{"metrics_file_1", "metrics_file_2", "metrics_file_3, bazel_metrics.pb"},
 	}, {
 		description: "trigger upload",
 		uploader:    "echo",
 		createFiles: true,
-		files:       []string{"metrics_file_1", "metrics_file_2"},
+		files:       []string{"metrics_file_1", "metrics_file_2, bazel_metrics.pb"},
 	}}
 
 	for _, tt := range tests {
@@ -130,6 +154,9 @@ func TestUploadMetrics(t *testing.T) {
 					}
 				}
 			}
+			if err := writeBazelProfileFile(outDir); err != nil {
+				t.Fatalf("failed to create bazel profile file in dir: %v", outDir)
+			}
 
 			config := Config{&configImpl{
 				environ: &Environment{
@@ -139,7 +166,7 @@ func TestUploadMetrics(t *testing.T) {
 				metricsUploader: tt.uploader,
 			}}
 
-			UploadMetrics(ctx, config, false, time.Now(), metricsFiles...)
+			UploadMetrics(ctx, config, false, time.Now(), "out/bazel_metrics.txt", "out/bazel_metrics.pb", metricsFiles...)
 		})
 	}
 }
@@ -194,8 +221,79 @@ func TestUploadMetricsErrors(t *testing.T) {
 				metricsUploader: "echo",
 			}}
 
-			UploadMetrics(ctx, config, true, time.Now(), metricsFile)
+			UploadMetrics(ctx, config, true, time.Now(), "", "", metricsFile)
 			t.Errorf("got nil, expecting %q as a failure", tt.expectedErr)
 		})
+	}
+}
+
+func TestParsePercentageToTenThousandths(t *testing.T) {
+	// 2.59% should be returned as 259 - representing 259/10000 of the build
+	percentage := parsePercentageToTenThousandths("2.59%")
+	if percentage != 259 {
+		t.Errorf("Expected percentage to be returned as ten-thousandths. Expected 259, have %d\n", percentage)
+	}
+
+	// Test without a leading digit
+	percentage = parsePercentageToTenThousandths(".52%")
+	if percentage != 52 {
+		t.Errorf("Expected percentage to be returned as ten-thousandths. Expected 52, have %d\n", percentage)
+	}
+}
+
+func TestParseTimingToNanos(t *testing.T) {
+	// This parses from seconds (with millis precision) and returns nanos
+	timingNanos := parseTimingToNanos("0.111")
+	if timingNanos != 111000000 {
+		t.Errorf("Error parsing timing. Expected 111000, have %d\n", timingNanos)
+	}
+
+	// Test without a leading digit
+	timingNanos = parseTimingToNanos(".112")
+	if timingNanos != 112000000 {
+		t.Errorf("Error parsing timing. Expected 112000, have %d\n", timingNanos)
+	}
+}
+
+func TestParsePhaseTiming(t *testing.T) {
+	// Sample lines include:
+	// Total launch phase time   0.011 s    2.59%
+	// Total target pattern evaluation phase time  0.012 s    4.59%
+
+	line1 := "Total launch phase time   0.011 s    2.59%"
+	timing := parsePhaseTiming(line1)
+
+	if timing.GetPhaseName() != "launch" {
+		t.Errorf("Failed to parse phase name. Expected launch, have %s\n", timing.GetPhaseName())
+	} else if timing.GetDurationNanos() != 11000000 {
+		t.Errorf("Failed to parse duration nanos. Expected 11000000, have %d\n", timing.GetDurationNanos())
+	} else if timing.GetPortionOfBuildTime() != 259 {
+		t.Errorf("Failed to parse portion of build time. Expected 259, have %d\n", timing.GetPortionOfBuildTime())
+	}
+
+	// Test with a multiword phase name
+	line2 := "Total target pattern evaluation phase  time  0.012 s    4.59%"
+
+	timing = parsePhaseTiming(line2)
+	if timing.GetPhaseName() != "target pattern evaluation" {
+		t.Errorf("Failed to parse phase name. Expected target pattern evaluation, have %s\n", timing.GetPhaseName())
+	} else if timing.GetDurationNanos() != 12000000 {
+		t.Errorf("Failed to parse duration nanos. Expected 12000000, have %d\n", timing.GetDurationNanos())
+	} else if timing.GetPortionOfBuildTime() != 459 {
+		t.Errorf("Failed to parse portion of build time. Expected 459, have %d\n", timing.GetPortionOfBuildTime())
+	}
+}
+
+func TestParseTotal(t *testing.T) {
+	// Total line is in the form of:
+	// Total run time                                       7.563 s  100.00%
+
+	line := "Total run time                                       7.563 s  100.00%"
+
+	total := parseTotal(line)
+
+	// Only the seconds field is parsed, as nanos
+	if total != 7563000000 {
+		t.Errorf("Failed to parse total build time. Expected 7563000000, have %d\n", total)
 	}
 }

@@ -231,6 +231,7 @@ func TestResolveExcludes(t *testing.T) {
 				"all_include",
 				"arm_exclude",
 				"android_exclude",
+				"product_config_exclude",
 			},
 			[]string{"all_exclude"},
 		),
@@ -251,10 +252,10 @@ func TestResolveExcludes(t *testing.T) {
 				"a":                        makeLabelList([]string{}, []string{"not_in_value"}),
 				"b":                        makeLabelList([]string{"b_val"}, []string{}),
 				"c":                        makeLabelList([]string{"c_val"}, []string{}),
-				ConditionsDefaultConfigKey: makeLabelList([]string{"c_val", "default", "default2"}, []string{}),
+				ConditionsDefaultConfigKey: makeLabelList([]string{"c_val", "default", "default2", "all_exclude"}, []string{}),
 			},
 			ProductVariableConfigurationAxis("product_only_with_excludes", NoConfigAxis): labelListSelectValues{
-				"a": makeLabelList([]string{}, []string{"not_in_value"}),
+				"a": makeLabelList([]string{}, []string{"product_config_exclude"}),
 			},
 		},
 	}
@@ -286,6 +287,10 @@ func TestResolveExcludes(t *testing.T) {
 			"b":                        makeLabels("b_val"),
 			"c":                        makeLabels("c_val"),
 			ConditionsDefaultConfigKey: makeLabels("c_val", "default", "default2"),
+		},
+		ProductVariableConfigurationAxis("product_only_with_excludes", NoConfigAxis): {
+			"a":                        nilLabels,
+			ConditionsDefaultConfigKey: makeLabels("product_config_exclude"),
 		},
 	}
 	for _, axis := range attr.SortedConfigurationAxes() {

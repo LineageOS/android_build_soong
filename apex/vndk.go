@@ -65,8 +65,23 @@ func apexVndkMutator(mctx android.TopDownMutatorContext) {
 		}
 
 		vndkVersion := ab.vndkVersion(mctx.DeviceConfig())
+
 		// Ensure VNDK APEX mount point is formatted as com.android.vndk.v###
 		ab.properties.Apex_name = proptools.StringPtr(vndkApexNamePrefix + vndkVersion)
+
+		apiLevel, err := android.ApiLevelFromUser(mctx, vndkVersion)
+		if err != nil {
+			mctx.PropertyErrorf("vndk_version", "%s", err.Error())
+			return
+		}
+
+		targets := mctx.MultiTargets()
+		if len(targets) > 0 && apiLevel.LessThan(cc.MinApiForArch(mctx, targets[0].Arch.ArchType)) {
+			// Disable VNDK apexes for VNDK versions less than the minimum supported API level for the primary
+			// architecture.
+			ab.Disable()
+		}
+
 	}
 }
 
