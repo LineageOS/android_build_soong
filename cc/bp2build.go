@@ -979,34 +979,22 @@ var (
 
 // resolveTargetApex re-adds the shared and static libs in target.apex.exclude_shared|static_libs props to non-apex variant
 // since all libs are already excluded by default
-func (la *linkerAttributes) resolveTargetApexProp(ctx android.BazelConversionPathContext, isBinary bool, props *BaseLinkerProperties) {
-	sharedLibsForNonApex := maybePartitionExportedAndImplementationsDeps(
-		ctx,
-		true,
-		props.Target.Apex.Exclude_shared_libs,
-		props.Export_shared_lib_headers,
-		bazelLabelForSharedDeps,
-	)
-	dynamicDeps := la.dynamicDeps.SelectValue(bazel.InApexAxis, bazel.NonApex)
-	implDynamicDeps := la.implementationDynamicDeps.SelectValue(bazel.InApexAxis, bazel.NonApex)
-	(&dynamicDeps).Append(sharedLibsForNonApex.export)
-	(&implDynamicDeps).Append(sharedLibsForNonApex.implementation)
-	la.dynamicDeps.SetSelectValue(bazel.InApexAxis, bazel.NonApex, dynamicDeps)
-	la.implementationDynamicDeps.SetSelectValue(bazel.InApexAxis, bazel.NonApex, implDynamicDeps)
+func (la *linkerAttributes) resolveTargetApexProp(ctx android.BazelConversionPathContext, props *BaseLinkerProperties) {
+	excludeSharedLibs := bazelLabelForSharedDeps(ctx, props.Target.Apex.Exclude_shared_libs)
+	sharedExcludes := bazel.LabelList{Excludes: excludeSharedLibs.Includes}
+	sharedExcludesLabelList := bazel.LabelListAttribute{}
+	sharedExcludesLabelList.SetSelectValue(bazel.InApexAxis, bazel.InApex, sharedExcludes)
 
-	staticLibsForNonApex := maybePartitionExportedAndImplementationsDeps(
-		ctx,
-		!isBinary,
-		props.Target.Apex.Exclude_static_libs,
-		props.Export_static_lib_headers,
-		bazelLabelForSharedDeps,
-	)
-	deps := la.deps.SelectValue(bazel.InApexAxis, bazel.NonApex)
-	implDeps := la.implementationDeps.SelectValue(bazel.InApexAxis, bazel.NonApex)
-	(&deps).Append(staticLibsForNonApex.export)
-	(&implDeps).Append(staticLibsForNonApex.implementation)
-	la.deps.SetSelectValue(bazel.InApexAxis, bazel.NonApex, deps)
-	la.implementationDeps.SetSelectValue(bazel.InApexAxis, bazel.NonApex, implDeps)
+	la.dynamicDeps.Append(sharedExcludesLabelList)
+	la.implementationDynamicDeps.Append(sharedExcludesLabelList)
+
+	excludeStaticLibs := bazelLabelForStaticDeps(ctx, props.Target.Apex.Exclude_static_libs)
+	staticExcludes := bazel.LabelList{Excludes: excludeStaticLibs.Includes}
+	staticExcludesLabelList := bazel.LabelListAttribute{}
+	staticExcludesLabelList.SetSelectValue(bazel.InApexAxis, bazel.InApex, staticExcludes)
+
+	la.deps.Append(staticExcludesLabelList)
+	la.implementationDeps.Append(staticExcludesLabelList)
 }
 
 func (la *linkerAttributes) bp2buildForAxisAndConfig(ctx android.BazelConversionPathContext, isBinary bool, axis bazel.ConfigurationAxis, config string, props *BaseLinkerProperties) {
@@ -1040,8 +1028,7 @@ func (la *linkerAttributes) bp2buildForAxisAndConfig(ctx android.BazelConversion
 		ctx,
 		!isBinary,
 		staticLibs,
-		// Exclude static libs in Exclude_static_libs and Target.Apex.Exclude_static_libs props
-		append(props.Exclude_static_libs, props.Target.Apex.Exclude_static_libs...),
+		props.Exclude_static_libs,
 		props.Export_static_lib_headers,
 		bazelLabelForStaticDepsExcludes,
 	)
@@ -1080,14 +1067,13 @@ func (la *linkerAttributes) bp2buildForAxisAndConfig(ctx android.BazelConversion
 		ctx,
 		!isBinary,
 		sharedLibs,
-		// Exclude shared libs in Exclude_shared_libs and Target.Apex.Exclude_shared_libs props
-		append(props.Exclude_shared_libs, props.Target.Apex.Exclude_shared_libs...),
+		props.Exclude_shared_libs,
 		props.Export_shared_lib_headers,
 		bazelLabelForSharedDepsExcludes,
 	)
 	la.dynamicDeps.SetSelectValue(axis, config, sharedDeps.export)
 	la.implementationDynamicDeps.SetSelectValue(axis, config, sharedDeps.implementation)
-	la.resolveTargetApexProp(ctx, isBinary, props)
+	la.resolveTargetApexProp(ctx, props)
 
 	if axis == bazel.NoConfigAxis || (axis == bazel.OsConfigurationAxis && config == bazel.OsAndroid) {
 		// If a dependency in la.implementationDynamicDeps has stubs, its stub variant should be

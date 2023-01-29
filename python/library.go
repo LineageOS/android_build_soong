@@ -18,9 +18,6 @@ package python
 
 import (
 	"android/soong/android"
-	"android/soong/bazel"
-
-	"github.com/google/blueprint/proptools"
 )
 
 func init() {
@@ -33,66 +30,9 @@ func registerPythonLibraryComponents(ctx android.RegistrationContext) {
 }
 
 func PythonLibraryHostFactory() android.Module {
-	module := newModule(android.HostSupported, android.MultilibFirst)
-
-	android.InitBazelModule(module)
-
-	return module.init()
-}
-
-type bazelPythonLibraryAttributes struct {
-	Srcs         bazel.LabelListAttribute
-	Deps         bazel.LabelListAttribute
-	Imports      bazel.StringListAttribute
-	Srcs_version *string
-}
-
-type bazelPythonProtoLibraryAttributes struct {
-	Deps bazel.LabelListAttribute
-}
-
-func pythonLibBp2Build(ctx android.TopDownMutatorContext, m *Module) {
-	// TODO(b/182306917): this doesn't fully handle all nested props versioned
-	// by the python version, which would have been handled by the version split
-	// mutator. This is sufficient for very simple python_library modules under
-	// Bionic.
-	py3Enabled := proptools.BoolDefault(m.properties.Version.Py3.Enabled, true)
-	py2Enabled := proptools.BoolDefault(m.properties.Version.Py2.Enabled, false)
-	var python_version *string
-	if py2Enabled && !py3Enabled {
-		python_version = &pyVersion2
-	} else if !py2Enabled && py3Enabled {
-		python_version = &pyVersion3
-	} else if !py2Enabled && !py3Enabled {
-		ctx.ModuleErrorf("bp2build converter doesn't understand having neither py2 nor py3 enabled")
-	} else {
-		// do nothing, since python_version defaults to PY2ANDPY3
-	}
-
-	baseAttrs := m.makeArchVariantBaseAttributes(ctx)
-
-	attrs := &bazelPythonLibraryAttributes{
-		Srcs:         baseAttrs.Srcs,
-		Deps:         baseAttrs.Deps,
-		Srcs_version: python_version,
-		Imports:      baseAttrs.Imports,
-	}
-
-	props := bazel.BazelTargetModuleProperties{
-		// Use the native py_library rule.
-		Rule_class: "py_library",
-	}
-
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{
-		Name: m.Name(),
-		Data: baseAttrs.Data,
-	}, attrs)
+	return newModule(android.HostSupported, android.MultilibFirst).init()
 }
 
 func PythonLibraryFactory() android.Module {
-	module := newModule(android.HostAndDeviceSupported, android.MultilibBoth)
-
-	android.InitBazelModule(module)
-
-	return module.init()
+	return newModule(android.HostAndDeviceSupported, android.MultilibBoth).init()
 }

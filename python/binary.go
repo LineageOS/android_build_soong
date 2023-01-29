@@ -18,11 +18,12 @@ package python
 
 import (
 	"fmt"
+	"path/filepath"
+	"strings"
+
+	"github.com/google/blueprint"
 
 	"android/soong/android"
-	"android/soong/bazel"
-
-	"github.com/google/blueprint/proptools"
 )
 
 func init() {
@@ -31,63 +32,6 @@ func init() {
 
 func registerPythonBinaryComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("python_binary_host", PythonBinaryHostFactory)
-}
-
-type bazelPythonBinaryAttributes struct {
-	Main           *bazel.Label
-	Srcs           bazel.LabelListAttribute
-	Deps           bazel.LabelListAttribute
-	Python_version *string
-	Imports        bazel.StringListAttribute
-}
-
-func pythonBinaryBp2Build(ctx android.TopDownMutatorContext, m *Module) {
-	// TODO(b/182306917): this doesn't fully handle all nested props versioned
-	// by the python version, which would have been handled by the version split
-	// mutator. This is sufficient for very simple python_binary_host modules
-	// under Bionic.
-	py3Enabled := proptools.BoolDefault(m.properties.Version.Py3.Enabled, false)
-	py2Enabled := proptools.BoolDefault(m.properties.Version.Py2.Enabled, false)
-	var python_version *string
-	if py3Enabled && py2Enabled {
-		panic(fmt.Errorf(
-			"error for '%s' module: bp2build's python_binary_host converter does not support "+
-				"converting a module that is enabled for both Python 2 and 3 at the same time.", m.Name()))
-	} else if py2Enabled {
-		python_version = &pyVersion2
-	} else {
-		// do nothing, since python_version defaults to PY3.
-	}
-
-	baseAttrs := m.makeArchVariantBaseAttributes(ctx)
-	attrs := &bazelPythonBinaryAttributes{
-		Main:           nil,
-		Srcs:           baseAttrs.Srcs,
-		Deps:           baseAttrs.Deps,
-		Python_version: python_version,
-		Imports:        baseAttrs.Imports,
-	}
-
-	for _, propIntf := range m.GetProperties() {
-		if props, ok := propIntf.(*BinaryProperties); ok {
-			// main is optional.
-			if props.Main != nil {
-				main := android.BazelLabelForModuleSrcSingle(ctx, *props.Main)
-				attrs.Main = &main
-				break
-			}
-		}
-	}
-
-	props := bazel.BazelTargetModuleProperties{
-		// Use the native py_binary rule.
-		Rule_class: "py_binary",
-	}
-
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{
-		Name: m.Name(),
-		Data: baseAttrs.Data,
-	}, attrs)
 }
 
 type BinaryProperties struct {
@@ -118,52 +62,61 @@ type BinaryProperties struct {
 	Auto_gen_config *bool
 }
 
-type binaryDecorator struct {
+type PythonBinaryModule struct {
+	PythonLibraryModule
 	binaryProperties BinaryProperties
 
-	*pythonInstaller
+	// (.intermediate) module output path as installation source.
+	installSource android.Path
+
+	// Final installation path.
+	installedDest android.Path
+
+	androidMkSharedLibs []string
 }
+
+var _ android.AndroidMkEntriesProvider = (*PythonBinaryModule)(nil)
+var _ android.Module = (*PythonBinaryModule)(nil)
 
 type IntermPathProvider interface {
 	IntermPathForModuleOut() android.OptionalPath
 }
 
-func NewBinary(hod android.HostOrDeviceSupported) (*Module, *binaryDecorator) {
-	module := newModule(hod, android.MultilibFirst)
-	decorator := &binaryDecorator{pythonInstaller: NewPythonInstaller("bin", "")}
-
-	module.bootstrapper = decorator
-	module.installer = decorator
-
-	return module, decorator
+func NewBinary(hod android.HostOrDeviceSupported) *PythonBinaryModule {
+	return &PythonBinaryModule{
+		PythonLibraryModule: *newModule(hod, android.MultilibFirst),
+	}
 }
 
 func PythonBinaryHostFactory() android.Module {
-	module, _ := NewBinary(android.HostSupported)
-
-	android.InitBazelModule(module)
-
-	return module.init()
+	return NewBinary(android.HostSupported).init()
 }
 
-func (binary *binaryDecorator) autorun() bool {
-	return BoolDefault(binary.binaryProperties.Autorun, true)
+func (p *PythonBinaryModule) init() android.Module {
+	p.AddProperties(&p.properties, &p.protoProperties)
+	p.AddProperties(&p.binaryProperties)
+	android.InitAndroidArchModule(p, p.hod, p.multilib)
+	android.InitDefaultableModule(p)
+	android.InitBazelModule(p)
+	return p
 }
 
-func (binary *binaryDecorator) bootstrapperProps() []interface{} {
-	return []interface{}{&binary.binaryProperties}
+func (p *PythonBinaryModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	p.PythonLibraryModule.GenerateAndroidBuildActions(ctx)
+	p.buildBinary(ctx)
+	p.installedDest = ctx.InstallFile(installDir(ctx, "bin", "", ""),
+		p.installSource.Base(), p.installSource)
 }
 
-func (binary *binaryDecorator) bootstrap(ctx android.ModuleContext, actualVersion string,
-	embeddedLauncher bool, srcsPathMappings []pathMapping, srcsZip android.Path,
-	depsSrcsZips android.Paths) android.OptionalPath {
-
+func (p *PythonBinaryModule) buildBinary(ctx android.ModuleContext) {
+	depsSrcsZips := p.collectPathsFromTransitiveDeps(ctx)
 	main := ""
-	if binary.autorun() {
-		main = binary.getPyMainFile(ctx, srcsPathMappings)
+	if p.autorun() {
+		main = p.getPyMainFile(ctx, p.srcsPathMappings)
 	}
 
 	var launcherPath android.OptionalPath
+	embeddedLauncher := p.isEmbeddedLauncherEnabled()
 	if embeddedLauncher {
 		ctx.VisitDirectDepsWithTag(launcherTag, func(m android.Module) {
 			if provider, ok := m.(IntermPathProvider); ok {
@@ -175,15 +128,137 @@ func (binary *binaryDecorator) bootstrap(ctx android.ModuleContext, actualVersio
 			}
 		})
 	}
-	binFile := registerBuildActionForParFile(ctx, embeddedLauncher, launcherPath,
-		binary.getHostInterpreterName(ctx, actualVersion),
-		main, binary.getStem(ctx), append(android.Paths{srcsZip}, depsSrcsZips...))
+	p.installSource = registerBuildActionForParFile(ctx, embeddedLauncher, launcherPath,
+		p.getHostInterpreterName(ctx, p.properties.Actual_version),
+		main, p.getStem(ctx), append(android.Paths{p.srcsZip}, depsSrcsZips...))
 
-	return android.OptionalPathForPath(binFile)
+	var sharedLibs []string
+	// if embedded launcher is enabled, we need to collect the shared library dependencies of the
+	// launcher
+	for _, dep := range ctx.GetDirectDepsWithTag(launcherSharedLibTag) {
+		sharedLibs = append(sharedLibs, ctx.OtherModuleName(dep))
+	}
+	p.androidMkSharedLibs = sharedLibs
+}
+
+func (p *PythonBinaryModule) AndroidMkEntries() []android.AndroidMkEntries {
+	entries := android.AndroidMkEntries{OutputFile: android.OptionalPathForPath(p.installSource)}
+
+	entries.Class = "EXECUTABLES"
+
+	entries.ExtraEntries = append(entries.ExtraEntries,
+		func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
+			entries.AddCompatibilityTestSuites(p.binaryProperties.Test_suites...)
+		})
+
+	entries.Required = append(entries.Required, "libc++")
+	entries.ExtraEntries = append(entries.ExtraEntries,
+		func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
+			path, file := filepath.Split(p.installedDest.String())
+			stem := strings.TrimSuffix(file, filepath.Ext(file))
+
+			entries.SetString("LOCAL_MODULE_SUFFIX", filepath.Ext(file))
+			entries.SetString("LOCAL_MODULE_PATH", path)
+			entries.SetString("LOCAL_MODULE_STEM", stem)
+			entries.AddStrings("LOCAL_SHARED_LIBRARIES", p.androidMkSharedLibs...)
+			entries.SetBool("LOCAL_CHECK_ELF_FILES", false)
+		})
+
+	return []android.AndroidMkEntries{entries}
+}
+
+func (p *PythonBinaryModule) DepsMutator(ctx android.BottomUpMutatorContext) {
+	p.PythonLibraryModule.DepsMutator(ctx)
+
+	versionVariation := []blueprint.Variation{
+		{"python_version", p.properties.Actual_version},
+	}
+
+	// If this module will be installed and has an embedded launcher, we need to add dependencies for:
+	//   * standard library
+	//   * launcher
+	//   * shared dependencies of the launcher
+	if p.isEmbeddedLauncherEnabled() {
+		var stdLib string
+		var launcherModule string
+		// Add launcher shared lib dependencies. Ideally, these should be
+		// derived from the `shared_libs` property of the launcher. However, we
+		// cannot read the property at this stage and it will be too late to add
+		// dependencies later.
+		launcherSharedLibDeps := []string{
+			"libsqlite",
+		}
+		// Add launcher-specific dependencies for bionic
+		if ctx.Target().Os.Bionic() {
+			launcherSharedLibDeps = append(launcherSharedLibDeps, "libc", "libdl", "libm")
+		}
+		if ctx.Target().Os == android.LinuxMusl && !ctx.Config().HostStaticBinaries() {
+			launcherSharedLibDeps = append(launcherSharedLibDeps, "libc_musl")
+		}
+
+		switch p.properties.Actual_version {
+		case pyVersion2:
+			stdLib = "py2-stdlib"
+
+			launcherModule = "py2-launcher"
+			if p.autorun() {
+				launcherModule = "py2-launcher-autorun"
+			}
+
+			launcherSharedLibDeps = append(launcherSharedLibDeps, "libc++")
+
+		case pyVersion3:
+			stdLib = "py3-stdlib"
+
+			launcherModule = "py3-launcher"
+			if p.autorun() {
+				launcherModule = "py3-launcher-autorun"
+			}
+			if ctx.Config().HostStaticBinaries() && ctx.Target().Os == android.LinuxMusl {
+				launcherModule += "-static"
+			}
+
+			if ctx.Device() {
+				launcherSharedLibDeps = append(launcherSharedLibDeps, "liblog")
+			}
+		default:
+			panic(fmt.Errorf("unknown Python Actual_version: %q for module: %q.",
+				p.properties.Actual_version, ctx.ModuleName()))
+		}
+		ctx.AddVariationDependencies(versionVariation, pythonLibTag, stdLib)
+		ctx.AddFarVariationDependencies(ctx.Target().Variations(), launcherTag, launcherModule)
+		ctx.AddFarVariationDependencies(ctx.Target().Variations(), launcherSharedLibTag, launcherSharedLibDeps...)
+	}
+}
+
+// HostToolPath returns a path if appropriate such that this module can be used as a host tool,
+// fulfilling the android.HostToolProvider interface.
+func (p *PythonBinaryModule) HostToolPath() android.OptionalPath {
+	// TODO: This should only be set when building host binaries -- tests built for device would be
+	// setting this incorrectly.
+	return android.OptionalPathForPath(p.installedDest)
+}
+
+// OutputFiles returns output files based on given tag, returns an error if tag is unsupported.
+func (p *PythonBinaryModule) OutputFiles(tag string) (android.Paths, error) {
+	switch tag {
+	case "":
+		return android.Paths{p.installSource}, nil
+	default:
+		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
+	}
+}
+
+func (p *PythonBinaryModule) isEmbeddedLauncherEnabled() bool {
+	return Bool(p.properties.Embedded_launcher)
+}
+
+func (b *PythonBinaryModule) autorun() bool {
+	return BoolDefault(b.binaryProperties.Autorun, true)
 }
 
 // get host interpreter name.
-func (binary *binaryDecorator) getHostInterpreterName(ctx android.ModuleContext,
+func (p *PythonBinaryModule) getHostInterpreterName(ctx android.ModuleContext,
 	actualVersion string) string {
 	var interp string
 	switch actualVersion {
@@ -200,13 +275,13 @@ func (binary *binaryDecorator) getHostInterpreterName(ctx android.ModuleContext,
 }
 
 // find main program path within runfiles tree.
-func (binary *binaryDecorator) getPyMainFile(ctx android.ModuleContext,
+func (p *PythonBinaryModule) getPyMainFile(ctx android.ModuleContext,
 	srcsPathMappings []pathMapping) string {
 	var main string
-	if String(binary.binaryProperties.Main) == "" {
+	if String(p.binaryProperties.Main) == "" {
 		main = ctx.ModuleName() + pyExt
 	} else {
-		main = String(binary.binaryProperties.Main)
+		main = String(p.binaryProperties.Main)
 	}
 
 	for _, path := range srcsPathMappings {
@@ -219,11 +294,21 @@ func (binary *binaryDecorator) getPyMainFile(ctx android.ModuleContext,
 	return ""
 }
 
-func (binary *binaryDecorator) getStem(ctx android.ModuleContext) string {
+func (p *PythonBinaryModule) getStem(ctx android.ModuleContext) string {
 	stem := ctx.ModuleName()
-	if String(binary.binaryProperties.Stem) != "" {
-		stem = String(binary.binaryProperties.Stem)
+	if String(p.binaryProperties.Stem) != "" {
+		stem = String(p.binaryProperties.Stem)
 	}
 
-	return stem + String(binary.binaryProperties.Suffix)
+	return stem + String(p.binaryProperties.Suffix)
+}
+
+func installDir(ctx android.ModuleContext, dir, dir64, relative string) android.InstallPath {
+	if ctx.Arch().ArchType.Multilib == "lib64" && dir64 != "" {
+		dir = dir64
+	}
+	if !ctx.Host() && ctx.Config().HasMultilibConflict(ctx.Arch().ArchType) {
+		dir = filepath.Join(dir, ctx.Arch().ArchType.String())
+	}
+	return android.PathForModuleInstall(ctx, dir, relative)
 }

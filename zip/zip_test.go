@@ -16,6 +16,7 @@ package zip
 
 import (
 	"bytes"
+	"encoding/hex"
 	"hash/crc32"
 	"io"
 	"os"
@@ -34,6 +35,10 @@ var (
 	fileC        = []byte("CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC")
 	fileEmpty    = []byte("")
 	fileManifest = []byte("Manifest-Version: 1.0\nCreated-By: soong_zip\n\n")
+
+	sha256FileA = "d53eda7a637c99cc7fb566d96e9fa109bf15c478410a3f5eb4d4c4e26cd081f6"
+	sha256FileB = "430c56c5818e62bcb6d478901ef86284e97714c138f3c86aa14fd6a84b7ce5d3"
+	sha256FileC = "31c5ab6111f1d6aa13c2c4e92bb3c0f7c76b61b42d141af1e846eb7f6586a51c"
 
 	fileCustomManifest  = []byte("Custom manifest: true\n")
 	customManifestAfter = []byte("Manifest-Version: 1.0\nCreated-By: soong_zip\nCustom manifest: true\n\n")
@@ -67,6 +72,20 @@ func fh(name string, contents []byte, method uint16) zip.FileHeader {
 	}
 }
 
+func fhWithSHA256(name string, contents []byte, method uint16, sha256 string) zip.FileHeader {
+	h := fh(name, contents, method)
+	// The extra field contains 38 bytes, including 2 bytes of header ID, 2 bytes
+	// of size, 2 bytes of signature, and 32 bytes of checksum data block.
+	var extra [38]byte
+	// The first 6 bytes contains Sha256HeaderID (0x4967), size (unit(34)) and
+	// Sha256HeaderSignature (0x9514)
+	copy(extra[0:], []byte{103, 73, 34, 0, 20, 149})
+	sha256Bytes, _ := hex.DecodeString(sha256)
+	copy(extra[6:], sha256Bytes)
+	h.Extra = append(h.Extra, extra[:]...)
+	return h
+}
+
 func fhManifest(contents []byte) zip.FileHeader {
 	return zip.FileHeader{
 		Name:               "META-INF/MANIFEST.MF",
@@ -87,13 +106,18 @@ func fhLink(name string, to string) zip.FileHeader {
 	}
 }
 
-func fhDir(name string) zip.FileHeader {
+type fhDirOptions struct {
+	extra []byte
+}
+
+func fhDir(name string, opts fhDirOptions) zip.FileHeader {
 	return zip.FileHeader{
 		Name:               name,
 		Method:             zip.Store,
 		CRC32:              crc32.ChecksumIEEE(nil),
 		UncompressedSize64: 0,
 		ExternalAttrs:      (syscall.S_IFDIR|0755)<<16 | 0x10,
+		Extra:              opts.extra,
 	}
 }
 
@@ -114,6 +138,7 @@ func TestZip(t *testing.T) {
 		manifest           string
 		storeSymlinks      bool
 		ignoreMissingFiles bool
+		sha256Checksum     bool
 
 		files []zip.FileHeader
 		err   error
@@ -320,10 +345,10 @@ func TestZip(t *testing.T) {
 			emulateJar:       true,
 
 			files: []zip.FileHeader{
-				fhDir("META-INF/"),
+				fhDir("META-INF/", fhDirOptions{extra: []byte{254, 202, 0, 0}}),
 				fhManifest(fileManifest),
-				fhDir("a/"),
-				fhDir("a/a/"),
+				fhDir("a/", fhDirOptions{}),
+				fhDir("a/a/", fhDirOptions{}),
 				fh("a/a/a", fileA, zip.Deflate),
 				fh("a/a/b", fileB, zip.Deflate),
 			},
@@ -338,10 +363,10 @@ func TestZip(t *testing.T) {
 			manifest:         "manifest.txt",
 
 			files: []zip.FileHeader{
-				fhDir("META-INF/"),
+				fhDir("META-INF/", fhDirOptions{extra: []byte{254, 202, 0, 0}}),
 				fhManifest(customManifestAfter),
-				fhDir("a/"),
-				fhDir("a/a/"),
+				fhDir("a/", fhDirOptions{}),
+				fhDir("a/a/", fhDirOptions{}),
 				fh("a/a/a", fileA, zip.Deflate),
 				fh("a/a/b", fileB, zip.Deflate),
 			},
@@ -355,8 +380,8 @@ func TestZip(t *testing.T) {
 			dirEntries:       true,
 
 			files: []zip.FileHeader{
-				fhDir("a/"),
-				fhDir("a/a/"),
+				fhDir("a/", fhDirOptions{}),
+				fhDir("a/a/", fhDirOptions{}),
 				fh("a/a/a", fileA, zip.Deflate),
 				fh("a/a/b", fileB, zip.Deflate),
 			},
@@ -412,6 +437,23 @@ func TestZip(t *testing.T) {
 				fh("a/a/a", fileA, zip.Deflate),
 			},
 		},
+		{
+			name: "generate SHA256 checksum",
+			args: fileArgsBuilder().
+				File("a/a/a").
+				File("a/a/b").
+				File("a/a/c").
+				File("c"),
+			compressionLevel: 9,
+			sha256Checksum:   true,
+
+			files: []zip.FileHeader{
+				fhWithSHA256("a/a/a", fileA, zip.Deflate, sha256FileA),
+				fhWithSHA256("a/a/b", fileB, zip.Deflate, sha256FileB),
+				fhWithSHA256("a/a/c", fileC, zip.Deflate, sha256FileC),
+				fhWithSHA256("c", fileC, zip.Deflate, sha256FileC),
+			},
+		},
 
 		// errors
 		{
@@ -465,6 +507,7 @@ func TestZip(t *testing.T) {
 			args.ManifestSourcePath = test.manifest
 			args.StoreSymlinks = test.storeSymlinks
 			args.IgnoreMissingFiles = test.ignoreMissingFiles
+			args.Sha256Checksum = test.sha256Checksum
 			args.Filesystem = mockFs
 			args.Stderr = &bytes.Buffer{}
 
@@ -554,6 +597,11 @@ func TestZip(t *testing.T) {
 				if want.Method != got.Method {
 					t.Errorf("incorrect file %s method want %v got %v", want.Name,
 						want.Method, got.Method)
+				}
+
+				if !bytes.Equal(want.Extra, got.Extra) {
+					t.Errorf("incorrect file %s extra want %v got %v", want.Name,
+						want.Extra, got.Extra)
 				}
 			}
 		})

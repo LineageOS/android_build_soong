@@ -346,3 +346,27 @@ func TestApiSurfaceFromDroidStubsName(t *testing.T) {
 		android.AssertStringEquals(t, tc.desc, tc.expectedApiSurface, bazelApiSurfaceName(tc.name))
 	}
 }
+
+func TestDroidStubsApiContributionGeneration(t *testing.T) {
+	ctx, _ := testJavaWithFS(t, `
+		droidstubs {
+			name: "foo",
+			srcs: ["A/a.java"],
+			api_surface: "public",
+			check_api: {
+				current: {
+					api_file: "A/current.txt",
+					removed_api_file: "A/removed.txt",
+				}
+			}
+		}
+		`,
+		map[string][]byte{
+			"A/a.java":      nil,
+			"A/current.txt": nil,
+			"A/removed.txt": nil,
+		},
+	)
+
+	ctx.ModuleForTests("foo.api.contribution", "")
+}
