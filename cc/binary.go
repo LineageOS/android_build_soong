@@ -151,7 +151,7 @@ func (binary *binaryDecorator) getStem(ctx BaseModuleContext) string {
 // modules common to most binaries, such as bionic libraries.
 func (binary *binaryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	deps = binary.baseLinker.linkerDeps(ctx, deps)
-	if !Bool(binary.baseLinker.Properties.Nocrt) {
+	if binary.baseLinker.Properties.crt() {
 		if binary.static() {
 			deps.CrtBegin = ctx.toolchain().CrtBeginStaticBinary()
 			deps.CrtEnd = ctx.toolchain().CrtEndStaticBinary()
@@ -630,8 +630,6 @@ func binaryBp2buildAttrs(ctx android.TopDownMutatorContext, m *Module) binaryAtt
 		Local_includes:    baseAttrs.localIncludes,
 		Absolute_includes: baseAttrs.absoluteIncludes,
 		Linkopts:          baseAttrs.linkopts,
-		Link_crt:          baseAttrs.linkCrt,
-		Use_libcrt:        baseAttrs.useLibcrt,
 		Use_version_lib:   baseAttrs.useVersionLib,
 		Rtti:              baseAttrs.rtti,
 		Stl:               baseAttrs.stl,
@@ -695,10 +693,7 @@ type binaryAttributes struct {
 
 	Linkopts                 bazel.StringListAttribute
 	Additional_linker_inputs bazel.LabelListAttribute
-
-	Link_crt        bazel.BoolAttribute
-	Use_libcrt      bazel.BoolAttribute
-	Use_version_lib bazel.BoolAttribute
+	Use_version_lib          bazel.BoolAttribute
 
 	Rtti    bazel.BoolAttribute
 	Stl     *string
