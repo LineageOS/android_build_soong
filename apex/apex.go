@@ -492,8 +492,6 @@ type apexBundle struct {
 	// Optional list of lint report zip files for apexes that contain java or app modules
 	lintReports android.Paths
 
-	prebuiltFileToDelete string
-
 	isCompressed bool
 
 	// Path of API coverage generate file
@@ -2343,12 +2341,6 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 				a.containerPrivateKeyFile = dep.Certificate.Key
 			} else {
 				ctx.ModuleErrorf("certificate dependency %q must be an android_app_certificate module", depName)
-			}
-		case android.PrebuiltDepTag:
-			// If the prebuilt is force disabled, remember to delete the prebuilt file
-			// that might have been installed in the previous builds
-			if prebuilt, ok := child.(prebuilt); ok && prebuilt.isForceDisabled() {
-				a.prebuiltFileToDelete = prebuilt.InstallFilename()
 			}
 		}
 		return false
