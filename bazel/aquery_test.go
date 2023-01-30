@@ -227,7 +227,7 @@ func TestInvalidInputDepsetIdFromAction(t *testing.T) {
 		return
 	}
 	_, _, err = AqueryBuildStatements(data)
-	assertError(t, err, "undefined input depsetId 2")
+	assertError(t, err, "undefined (not even empty) input depsetId 2")
 }
 
 func TestInvalidInputDepsetIdFromDepset(t *testing.T) {
@@ -584,13 +584,18 @@ func TestBazelOutRemovalFromInputDepsets(t *testing.T) {
    { "id": 60, "label": ".."}
  ]
 }`
+	/* depsets
+	       1111  2222
+	       /  \   |
+	../dep2    ../bazel_tools/dep1
+	*/
 	data, err := JsonToActionGraphContainer(inputString)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 	actualBuildStatements, actualDepsets, _ := AqueryBuildStatements(data)
-	if len(actualDepsets) != 2 {
+	if len(actualDepsets) != 1 {
 		t.Errorf("expected 1 depset but found %#v", actualDepsets)
 		return
 	}
@@ -604,6 +609,82 @@ func TestBazelOutRemovalFromInputDepsets(t *testing.T) {
 	}
 	if !dep2Found {
 		t.Errorf("dependency ../dep2 expected but not found")
+	}
+
+	expectedBuildStatement := BuildStatement{
+		Command:     "bogus command",
+		OutputPaths: []string{"output"},
+		Mnemonic:    "x",
+	}
+	buildStatementFound := false
+	for _, actualBuildStatement := range actualBuildStatements {
+		if buildStatementEquals(actualBuildStatement, expectedBuildStatement) == "" {
+			buildStatementFound = true
+			break
+		}
+	}
+	if !buildStatementFound {
+		t.Errorf("expected but missing %#v in %#v", expectedBuildStatement, actualBuildStatements)
+		return
+	}
+}
+
+func TestBazelOutRemovalFromTransitiveInputDepsets(t *testing.T) {
+	const inputString = `{
+ "artifacts": [
+   { "id": 1, "path_fragment_id": 10 },
+   { "id": 2, "path_fragment_id": 20 },
+   { "id": 3, "path_fragment_id": 30 }],
+ "dep_set_of_files": [{
+   "id": 1111,
+   "transitive_dep_set_ids": [2222]
+ }, {
+   "id": 2222,
+   "direct_artifact_ids": [3]
+ }, {
+   "id": 3333,
+   "direct_artifact_ids": [3]
+ }, {
+   "id": 4444,
+   "transitive_dep_set_ids": [3333]
+ }],
+ "actions": [{
+   "target_id": 100,
+   "action_key": "x",
+   "input_dep_set_ids": [1111, 4444],
+   "mnemonic": "x",
+   "arguments": ["bogus", "command"],
+   "output_ids": [2],
+   "primary_output_id": 1
+ }],
+ "path_fragments": [
+   { "id": 10, "label": "input" },
+   { "id": 20, "label": "output" },
+   { "id": 30, "label": "dep", "parent_id": 50 },
+   { "id": 50, "label": "bazel_tools", "parent_id": 60 },
+   { "id": 60, "label": ".."}
+ ]
+}`
+	/* depsets
+	    1111    4444
+	     ||      ||
+	    2222    3333
+	      |      |
+	../bazel_tools/dep
+	Note: in dep_set_of_files:
+	  1111 appears BEFORE its dependency,2222 while
+	  4444 appears AFTER its dependency 3333
+	and this test shows that that order doesn't affect empty depset pruning
+	*/
+	data, err := JsonToActionGraphContainer(inputString)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	actualBuildStatements, actualDepsets, _ := AqueryBuildStatements(data)
+	if len(actualDepsets) != 0 {
+		t.Errorf("expected 0 depsets but found %#v", actualDepsets)
+		return
 	}
 
 	expectedBuildStatement := BuildStatement{
