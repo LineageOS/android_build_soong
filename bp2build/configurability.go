@@ -160,6 +160,12 @@ var (
 // select statements.
 func prettyPrintAttribute(v bazel.Attribute, indent int) (string, error) {
 	var value reflect.Value
+	// configurableAttrs is the list of individual select statements to be
+	// concatenated together. These select statements should be along different
+	// axes. For example, one element may be
+	// `select({"//color:red": "one", "//color:green": "two"})`, and the second
+	// element may be `select({"//animal:cat": "three", "//animal:dog": "four"}).
+	// These selects should be sorted by axis identifier.
 	var configurableAttrs []selects
 	var prepend bool
 	var defaultSelectValue *string
