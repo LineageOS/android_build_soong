@@ -70,6 +70,17 @@ var (
 			CommandDeps: []string{"$mergeParCmd"},
 		},
 		"srcsZips", "launcher")
+
+	precompile = pctx.AndroidStaticRule("precompilePython", blueprint.RuleParams{
+		Command: `LD_LIBRARY_PATH="$ldLibraryPath" ` +
+			`PYTHONPATH=$stdlibZip/internal/stdlib ` +
+			`$launcher build/soong/python/scripts/precompile_python.py $in $out`,
+		CommandDeps: []string{
+			"$stdlibZip",
+			"$launcher",
+			"build/soong/python/scripts/precompile_python.py",
+		},
+	}, "stdlibZip", "launcher", "ldLibraryPath")
 )
 
 func init() {
