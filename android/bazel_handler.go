@@ -1135,10 +1135,11 @@ func (c *bazelSingleton) GenerateBuildActions(ctx SingletonContext) {
 		// the 'bazel' package, which cannot depend on 'android' package where ctx is defined,
 		// because this would cause circular dependency. So, until we move aquery processing
 		// to the 'android' package, we need to handle special cases here.
-		if buildStatement.Mnemonic == "FileWrite" || buildStatement.Mnemonic == "SourceSymlinkManifest" {
+		switch buildStatement.Mnemonic {
+		case "FileWrite", "SourceSymlinkManifest":
 			out := PathForBazelOut(ctx, buildStatement.OutputPaths[0])
 			WriteFileRuleVerbatim(ctx, out, buildStatement.FileContents)
-		} else if buildStatement.Mnemonic == "SymlinkTree" {
+		case "SymlinkTree":
 			// build-runfiles arguments are the manifest file and the target directory
 			// where it creates the symlink tree according to this manifest (and then
 			// writes the MANIFEST file to it).
@@ -1157,7 +1158,7 @@ func (c *bazelSingleton) GenerateBuildActions(ctx SingletonContext) {
 					"outDir": outDir,
 				},
 			})
-		} else {
+		default:
 			panic(fmt.Sprintf("unhandled build statement: %v", buildStatement))
 		}
 	}
