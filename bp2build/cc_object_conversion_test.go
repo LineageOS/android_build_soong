@@ -58,6 +58,7 @@ func TestCcObjectSimple(t *testing.T) {
     exclude_srcs: ["a/b/exclude.c"],
     sdk_version: "current",
     min_sdk_version: "29",
+	crt: true,
 }
 `,
 		ExpectedBazelTargets: []string{
@@ -76,6 +77,7 @@ func TestCcObjectSimple(t *testing.T) {
 				"system_dynamic_deps": `[]`,
 				"sdk_version":         `"current"`,
 				"min_sdk_version":     `"29"`,
+				"crt":                 "True",
 			}),
 		},
 	})
