@@ -343,8 +343,8 @@ type ConfigurationAxis struct {
 }
 
 func (ca *ConfigurationAxis) less(other ConfigurationAxis) bool {
-	if ca.configurationType < other.configurationType {
-		return true
+	if ca.configurationType == other.configurationType {
+		return ca.subType < other.subType
 	}
-	return ca.subType < other.subType
+	return ca.configurationType < other.configurationType
 }
