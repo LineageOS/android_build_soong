@@ -169,7 +169,7 @@ func apiLibraryHeadersBp2Build(ctx android.TopDownMutatorContext, module *Module
 	// For API export, create a top-level arch-agnostic target and list the arch-specific targets as its deps
 
 	// arch-agnostic includes
-	apiIncludes := getSystemApiIncludes(ctx, module)
+	apiIncludes := getModuleLibApiIncludes(ctx, module)
 	// arch and os specific includes
 	archApiIncludes, androidOsIncludes := archOsSpecificApiIncludes(ctx, module)
 	for _, arch := range allArches { // sorted iteration
@@ -186,7 +186,7 @@ func apiLibraryHeadersBp2Build(ctx android.TopDownMutatorContext, module *Module
 	}
 
 	if !apiIncludes.isEmpty() {
-		// override the name from <mod>.systemapi.headers --> <mod>.contribution
+		// override the name from <mod>.module-libapi.headers --> <mod>.contribution
 		apiIncludes.name = android.ApiContributionTargetName(module.Name())
 		createApiHeaderTarget(ctx, apiIncludes)
 	}
