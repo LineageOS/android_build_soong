@@ -22,7 +22,6 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
-	"android/soong/java/config"
 	"android/soong/remoteexec"
 )
 
@@ -259,12 +258,6 @@ func (d *dexer) r8Flags(ctx android.ModuleContext, flags javaBuilderFlags) (r8Fl
 	r8Deps = append(r8Deps, flags.bootClasspath...)
 	r8Flags = append(r8Flags, flags.dexClasspath.FormJavaClassPath("-libraryjars"))
 	r8Deps = append(r8Deps, flags.dexClasspath...)
-	r8Flags = append(r8Flags, flags.processorPath.FormJavaClassPath("-libraryjars"))
-	r8Deps = append(r8Deps, flags.processorPath...)
-
-	errorProneClasspath := classpath(android.PathsForSource(ctx, config.ErrorProneClasspath))
-	r8Flags = append(r8Flags, errorProneClasspath.FormJavaClassPath("-libraryjars"))
-	r8Deps = append(r8Deps, errorProneClasspath...)
 
 	transitiveStaticLibsLookupMap := map[android.Path]bool{}
 	if d.transitiveStaticLibsHeaderJars != nil {
