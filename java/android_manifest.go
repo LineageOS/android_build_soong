@@ -149,12 +149,13 @@ func ManifestFixer(ctx android.ModuleContext, manifest android.Path,
 
 	if params.SdkContext != nil {
 		targetSdkVersion := targetSdkVersionForManifestFixer(ctx, params)
-		args = append(args, "--targetSdkVersion ", targetSdkVersion)
 
 		if UseApiFingerprint(ctx) && ctx.ModuleName() != "framework-res" {
 			targetSdkVersion = ctx.Config().PlatformSdkCodename() + fmt.Sprintf(".$$(cat %s)", ApiFingerprintPath(ctx).String())
 			deps = append(deps, ApiFingerprintPath(ctx))
 		}
+
+		args = append(args, "--targetSdkVersion ", targetSdkVersion)
 
 		minSdkVersion, err := params.SdkContext.MinSdkVersion(ctx).EffectiveVersionString(ctx)
 		if err != nil {
