@@ -683,12 +683,13 @@ var (
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
 		"aidl_interface_headers",
+		"bpf",
 		"license",
 		"linker_config",
 		"java_import",
 		"java_import_host",
+		"java_sdk_library",
 		"sysprop_library",
-		"bpf",
 	}
 
 	// Add the names of modules that bp2build should never convert, if it is
