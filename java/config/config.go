@@ -98,6 +98,8 @@ func init() {
 		"-JXmx2048M",
 		// Disable this optimization as it can impact weak reference semantics. See b/233432839.
 		"-JDcom.android.tools.r8.disableEnqueuerDeferredTracing=true",
+		// Disable class merging across different files to improve attribution. See b/242881914.
+		"-JDcom.android.tools.r8.enableSameFilePolicy=true",
 	}, dexerJavaVmFlagsList...))
 
 	exportedVars.ExportStringListStaticVariable("CommonJdkFlags", []string{
