@@ -710,6 +710,10 @@ var (
 		// for building com.android.neuralnetworks
 		"libimapper_stablec",
 		"libimapper_providerutils",
+
+		// min_sdk_version in android_app
+		"CtsShimUpgrade",
+		"fake-framework",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
