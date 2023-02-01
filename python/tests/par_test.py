@@ -27,7 +27,10 @@ def assert_equal(what, a, b):
         failed = True
 
 assert_equal("__name__", __name__, "__main__")
-assert_equal("os.path.basename(__file__)", os.path.basename(__file__), "par_test.py")
+fileName = os.path.basename(__file__)
+if fileName.endswith('.pyc'):
+    fileName = fileName[:-1]
+assert_equal("os.path.basename(__file__)", fileName, "par_test.py")
 
 archive = os.path.dirname(__file__)
 

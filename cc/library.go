@@ -475,10 +475,10 @@ func createStubsBazelTargetIfNeeded(ctx android.TopDownMutatorContext, m *Module
 func apiContributionBp2Build(ctx android.TopDownMutatorContext, module *Module) {
 	apiSurfaces := make([]string, 0)
 	apiHeaders := make([]string, 0)
-	// systemapi (non-null `stubs` property)
+	// module-libapi for apexes (non-null `stubs` property)
 	if module.HasStubsVariants() {
-		apiSurfaces = append(apiSurfaces, android.SystemApi.String())
-		apiIncludes := getSystemApiIncludes(ctx, module)
+		apiSurfaces = append(apiSurfaces, android.ModuleLibApi.String())
+		apiIncludes := getModuleLibApiIncludes(ctx, module)
 		if !apiIncludes.isEmpty() {
 			createApiHeaderTarget(ctx, apiIncludes)
 			apiHeaders = append(apiHeaders, apiIncludes.name)
@@ -494,8 +494,8 @@ func apiContributionBp2Build(ctx android.TopDownMutatorContext, module *Module) 
 		}
 	}
 	// create a target only if this module contributes to an api surface
-	// TODO: Currently this does not distinguish systemapi-only headers and vendrorapi-only headers
-	// TODO: Update so that systemapi-only headers do not get exported to vendorapi (and vice-versa)
+	// TODO: Currently this does not distinguish modulelibapi-only headers and vendrorapi-only headers
+	// TODO: Update so that modulelibapi-only headers do not get exported to vendorapi (and vice-versa)
 	if len(apiSurfaces) > 0 {
 		props := bazel.BazelTargetModuleProperties{
 			Rule_class:        "cc_api_contribution",
@@ -527,8 +527,8 @@ func apiLabelAttribute(ctx android.TopDownMutatorContext, module *Module) bazel.
 	linker := module.linker.(*libraryDecorator)
 	if llndkApi := linker.Properties.Llndk.Symbol_file; llndkApi != nil {
 		apiFile = llndkApi
-	} else if systemApi := linker.Properties.Stubs.Symbol_file; systemApi != nil {
-		apiFile = systemApi
+	} else if moduleLibApi := linker.Properties.Stubs.Symbol_file; moduleLibApi != nil {
+		apiFile = moduleLibApi
 	} else {
 		ctx.ModuleErrorf("API surface library does not have any API file")
 	}
@@ -566,7 +566,8 @@ func (includes *apiIncludes) addDep(name string) {
 	includes.attrs.Deps.Append(lla)
 }
 
-func getSystemApiIncludes(ctx android.TopDownMutatorContext, c *Module) apiIncludes {
+// includes provided to the module-lib API surface. This API surface is used by apexes.
+func getModuleLibApiIncludes(ctx android.TopDownMutatorContext, c *Module) apiIncludes {
 	flagProps := c.library.(*libraryDecorator).flagExporter.Properties
 	linkProps := c.library.(*libraryDecorator).baseLinker.Properties
 	includes := android.FirstUniqueStrings(flagProps.Export_include_dirs)
@@ -579,7 +580,7 @@ func getSystemApiIncludes(ctx android.TopDownMutatorContext, c *Module) apiInclu
 	}
 
 	return apiIncludes{
-		name: c.Name() + ".systemapi.headers",
+		name: c.Name() + ".module-libapi.headers",
 		attrs: bazelCcApiLibraryHeadersAttributes{
 			bazelCcLibraryHeadersAttributes: attrs,
 		},
