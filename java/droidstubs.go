@@ -901,6 +901,7 @@ var (
 		"system":        android.SdkSystem,
 		"module_lib":    android.SdkModule,
 		"module-lib":    android.SdkModule,
+		"platform.api":  android.SdkCorePlatform,
 		"test":          android.SdkTest,
 		"toolchain":     android.SdkToolchain,
 	}
