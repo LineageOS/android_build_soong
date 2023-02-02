@@ -1508,20 +1508,48 @@ func (a *AndroidApp) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 
 	certificate, certificateName := android.BazelStringOrLabelFromProp(ctx, a.overridableAppProperties.Certificate)
 
-	attrs := &bazelAndroidAppAttributes{
-		commonAttrs,
-		aapt,
-		deps,
+	appAttrs := &bazelAndroidAppAttributes{
 		// TODO(b/209576404): handle package name override by product variable PRODUCT_MANIFEST_PACKAGE_NAME_OVERRIDES
-		a.overridableAppProperties.Package_name,
-		certificate,
-		certificateName,
+		Custom_package:   a.overridableAppProperties.Package_name,
+		Certificate:      certificate,
+		Certificate_name: certificateName,
 	}
 
 	props := bazel.BazelTargetModuleProperties{
 		Rule_class:        "android_binary",
 		Bzl_load_location: "//build/bazel/rules/android:rules.bzl",
 	}
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: a.Name()}, attrs)
+
+	if !bp2BuildInfo.hasKotlinSrcs && len(a.properties.Common_srcs) == 0 {
+		appAttrs.javaCommonAttributes = commonAttrs
+		appAttrs.bazelAapt = aapt
+		appAttrs.Deps = deps
+		ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: a.Name()}, appAttrs)
+	} else {
+		ktName := a.Name() + "_kt"
+		commonAttrs.Common_srcs = bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrc(ctx, a.properties.Common_srcs))
+		ctx.CreateBazelTargetModule(
+			bazel.BazelTargetModuleProperties{
+				Rule_class:        "android_library",
+				Bzl_load_location: "//build/bazel/rules/android:rules.bzl",
+			},
+			android.CommonAttributes{Name: ktName},
+			&bazelAndroidLibrary{
+				javaLibraryAttributes: &javaLibraryAttributes{
+					javaCommonAttributes: commonAttrs,
+					Deps:                 deps,
+				},
+				bazelAapt: aapt,
+			},
+		)
+
+		appAttrs.bazelAapt = &bazelAapt{Manifest: aapt.Manifest}
+		appAttrs.Deps = bazel.MakeSingleLabelListAttribute(bazel.Label{Label: ":" + ktName})
+		ctx.CreateBazelTargetModule(
+			props,
+			android.CommonAttributes{Name: a.Name()},
+			appAttrs,
+		)
+	}
 
 }
