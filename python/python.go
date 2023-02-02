@@ -226,20 +226,18 @@ var (
 	pythonLibTag = dependencyTag{name: "pythonLib"}
 	javaDataTag  = dependencyTag{name: "javaData"}
 	// The python interpreter, with soong module name "py3-launcher" or "py3-launcher-autorun".
-	launcherTag          = dependencyTag{name: "launcher"}
-	launcherSharedLibTag = installDependencyTag{name: "launcherSharedLib"}
+	launcherTag = dependencyTag{name: "launcher"}
 	// The python interpreter built for host so that we can precompile python sources.
 	// This only works because the precompiled sources don't vary by architecture.
 	// The soong module name is "py3-launcher".
-	hostLauncherTag          = dependencyTag{name: "hostLauncher"}
-	hostlauncherSharedLibTag = dependencyTag{name: "hostlauncherSharedLib"}
-	hostStdLibTag            = dependencyTag{name: "hostStdLib"}
-	pathComponentRegexp      = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_-]*$`)
-	pyExt                    = ".py"
-	protoExt                 = ".proto"
-	pyVersion2               = "PY2"
-	pyVersion3               = "PY3"
-	internalPath             = "internal"
+	hostLauncherTag     = dependencyTag{name: "hostLauncher"}
+	hostStdLibTag       = dependencyTag{name: "hostStdLib"}
+	pathComponentRegexp = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_-]*$`)
+	pyExt               = ".py"
+	protoExt            = ".proto"
+	pyVersion2          = "PY2"
+	pyVersion3          = "PY3"
+	internalPath        = "internal"
 )
 
 type basePropertiesProvider interface {
@@ -323,35 +321,21 @@ func (p *PythonLibraryModule) DepsMutator(ctx android.BottomUpMutatorContext) {
 	javaDataVariation := []blueprint.Variation{{"arch", android.Common.String()}}
 	ctx.AddVariationDependencies(javaDataVariation, javaDataTag, p.properties.Java_data...)
 
-	p.AddDepsOnPythonLauncherAndStdlib(ctx, hostStdLibTag, hostLauncherTag, hostlauncherSharedLibTag, false, ctx.Config().BuildOSTarget)
+	p.AddDepsOnPythonLauncherAndStdlib(ctx, hostStdLibTag, hostLauncherTag, false, ctx.Config().BuildOSTarget)
 }
 
-// AddDepsOnPythonLauncherAndStdlib will make the current module depend on the python stdlib,
-// launcher (interpreter), and the launcher's shared libraries. If autorun is true, it will use
-// the autorun launcher instead of the regular one. This function acceps a targetForDeps argument
-// as the target to use for these dependencies. For embedded launcher python binaries, the launcher
-// that will be embedded will be under the same target as the python module itself. But when
-// precompiling python code, we need to get the python launcher built for host, even if we're
-// compiling the python module for device, so we pass a different target to this function.
+// AddDepsOnPythonLauncherAndStdlib will make the current module depend on the python stdlib
+// and launcher (interpreter). If autorun is true, it will use the autorun launcher instead of the
+// regular one. This function accepts a targetForDeps argument as the target to use for these
+// dependencies. For embedded launcher python binaries, the launcher that will be embedded will be
+// under the same target as the python module itself. But when precompiling python code, we need to
+// get the python launcher built for host, even if we're compiling the python module for device, so
+// we pass a different target to this function.
 func (p *PythonLibraryModule) AddDepsOnPythonLauncherAndStdlib(ctx android.BottomUpMutatorContext,
-	stdLibTag, launcherTag, launcherSharedLibTag blueprint.DependencyTag,
+	stdLibTag, launcherTag blueprint.DependencyTag,
 	autorun bool, targetForDeps android.Target) {
 	var stdLib string
 	var launcherModule string
-	// Add launcher shared lib dependencies. Ideally, these should be
-	// derived from the `shared_libs` property of the launcher. TODO: read these from
-	// the python launcher itself using ctx.OtherModuleProvider() or similar on the result
-	// of ctx.AddFarVariationDependencies()
-	launcherSharedLibDeps := []string{
-		"libsqlite",
-	}
-	// Add launcher-specific dependencies for bionic
-	if targetForDeps.Os.Bionic() {
-		launcherSharedLibDeps = append(launcherSharedLibDeps, "libc", "libdl", "libm")
-	}
-	if targetForDeps.Os == android.LinuxMusl && !ctx.Config().HostStaticBinaries() {
-		launcherSharedLibDeps = append(launcherSharedLibDeps, "libc_musl")
-	}
 
 	switch p.properties.Actual_version {
 	case pyVersion2:
@@ -362,7 +346,6 @@ func (p *PythonLibraryModule) AddDepsOnPythonLauncherAndStdlib(ctx android.Botto
 			launcherModule = "py2-launcher-autorun"
 		}
 
-		launcherSharedLibDeps = append(launcherSharedLibDeps, "libc++")
 	case pyVersion3:
 		stdLib = "py3-stdlib"
 
@@ -372,9 +355,6 @@ func (p *PythonLibraryModule) AddDepsOnPythonLauncherAndStdlib(ctx android.Botto
 		}
 		if ctx.Config().HostStaticBinaries() && targetForDeps.Os == android.LinuxMusl {
 			launcherModule += "-static"
-		}
-		if ctx.Device() {
-			launcherSharedLibDeps = append(launcherSharedLibDeps, "liblog")
 		}
 	default:
 		panic(fmt.Errorf("unknown Python Actual_version: %q for module: %q.",
@@ -391,7 +371,6 @@ func (p *PythonLibraryModule) AddDepsOnPythonLauncherAndStdlib(ctx android.Botto
 		ctx.AddFarVariationDependencies(stdLibVariations, stdLibTag, stdLib)
 	}
 	ctx.AddFarVariationDependencies(targetVariations, launcherTag, launcherModule)
-	ctx.AddFarVariationDependencies(targetVariations, launcherSharedLibTag, launcherSharedLibDeps...)
 }
 
 // GenerateAndroidBuildActions performs build actions common to all Python modules
@@ -595,22 +574,19 @@ func (p *PythonLibraryModule) precompileSrcs(ctx android.ModuleContext) android.
 			}
 		})
 	}
+	var launcherSharedLibs android.Paths
+	var ldLibraryPath []string
 	ctx.VisitDirectDepsWithTag(hostLauncherTag, func(module android.Module) {
 		if dep, ok := module.(IntermPathProvider); ok {
 			optionalLauncher := dep.IntermPathForModuleOut()
 			if optionalLauncher.Valid() {
 				launcher = optionalLauncher.Path()
 			}
-		}
-	})
-	var launcherSharedLibs android.Paths
-	var ldLibraryPath []string
-	ctx.VisitDirectDepsWithTag(hostlauncherSharedLibTag, func(module android.Module) {
-		if dep, ok := module.(IntermPathProvider); ok {
-			optionalPath := dep.IntermPathForModuleOut()
-			if optionalPath.Valid() {
-				launcherSharedLibs = append(launcherSharedLibs, optionalPath.Path())
-				ldLibraryPath = append(ldLibraryPath, filepath.Dir(optionalPath.Path().String()))
+			for _, spec := range module.TransitivePackagingSpecs() {
+				if strings.HasSuffix(spec.SrcPath().String(), ".so") {
+					launcherSharedLibs = append(launcherSharedLibs, spec.SrcPath())
+					ldLibraryPath = append(ldLibraryPath, filepath.Dir(spec.SrcPath().String()))
+				}
 			}
 		}
 	})
