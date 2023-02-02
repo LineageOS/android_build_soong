@@ -937,6 +937,8 @@ func (handler *ccLibraryBazelHandler) ProcessBazelQueryResponse(ctx android.Modu
 		// implementation.
 		i.(*libraryDecorator).collectedSnapshotHeaders = android.Paths{}
 	}
+
+	handler.module.setAndroidMkVariablesFromCquery(ccInfo.CcAndroidMkInfo)
 }
 
 func (library *libraryDecorator) setFlagExporterInfoFromCcInfo(ctx android.ModuleContext, ccInfo cquery.CcInfo) {

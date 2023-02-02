@@ -28,6 +28,7 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
+	"android/soong/bazel/cquery"
 	"android/soong/cc/config"
 	"android/soong/fuzz"
 	"android/soong/genrule"
@@ -1891,14 +1892,6 @@ func (c *Module) ProcessBazelQueryResponse(ctx android.ModuleContext) {
 	bazelCtx := ctx.Config().BazelContext
 	if ccInfo, err := bazelCtx.GetCcInfo(bazelModuleLabel, android.GetConfigKey(ctx)); err == nil {
 		c.tidyFiles = android.PathsForBazelOut(ctx, ccInfo.TidyFiles)
-		c.Properties.AndroidMkSharedLibs = ccInfo.LocalSharedLibs
-		c.Properties.AndroidMkStaticLibs = ccInfo.LocalStaticLibs
-		c.Properties.AndroidMkWholeStaticLibs = ccInfo.LocalWholeStaticLibs
-	}
-	if unstrippedInfo, err := bazelCtx.GetCcUnstrippedInfo(bazelModuleLabel, android.GetConfigKey(ctx)); err == nil {
-		c.Properties.AndroidMkSharedLibs = unstrippedInfo.LocalSharedLibs
-		c.Properties.AndroidMkStaticLibs = unstrippedInfo.LocalStaticLibs
-		c.Properties.AndroidMkWholeStaticLibs = unstrippedInfo.LocalWholeStaticLibs
 	}
 
 	c.bazelHandler.ProcessBazelQueryResponse(ctx, bazelModuleLabel)
@@ -2094,6 +2087,12 @@ func (c *Module) maybeInstall(ctx ModuleContext, apexInfo android.ApexInfo) {
 			return
 		}
 	}
+}
+
+func (c *Module) setAndroidMkVariablesFromCquery(info cquery.CcAndroidMkInfo) {
+	c.Properties.AndroidMkSharedLibs = info.LocalSharedLibs
+	c.Properties.AndroidMkStaticLibs = info.LocalStaticLibs
+	c.Properties.AndroidMkWholeStaticLibs = info.LocalWholeStaticLibs
 }
 
 func (c *Module) toolchain(ctx android.BaseModuleContext) config.Toolchain {
