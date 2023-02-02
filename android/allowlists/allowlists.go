@@ -400,6 +400,9 @@ var (
 		// not recursive due to conflicting workspace paths in tools/atest/bazel/rules
 		"tools/asuite/atest":/* recursive = */ false,
 		"tools/asuite/atest/bazel/reporter":/* recursive = */ true,
+
+		// TODO(b/266459895): remove this and the placeholder BUILD file after re-enabling libunwindstack
+		"external/rust/crates/rustc-demangle-capi":/* recursive = */ false,
 	}
 
 	Bp2buildModuleAlwaysConvertList = []string{
@@ -1367,6 +1370,30 @@ var (
 		"prebuilt_kotlin-test",
 		// TODO(b/217750501) exclude_files property not supported
 		"prebuilt_currysrc_org.eclipse",
+
+		// TODO(b/266459895): re-enable libunwindstack
+		"libunwindstack",
+		"libunwindstack_stdout_log",
+		"libunwindstack_no_dex",
+		"libunwindstack_utils",
+		"unwind_reg_info",
+		"libunwindstack_local",
+		"unwind_for_offline",
+		"unwind",
+		"unwind_info",
+		"unwind_symbols",
+		"libc_malloc_debug",
+		"libfdtrack",
+		"mediaswcodec",
+		"libcodec2_hidl@1.0",
+		"libEGL",
+		"libstagefright_bufferqueue_helper_novndk",
+		"libGLESv2",
+		"libcodec2_hidl@1.1",
+		"libmedia_codecserviceregistrant",
+		"libcodec2_hidl@1.2",
+		"libutils_test",
+		"libutilscallstack",
 	}
 
 	// Bazel prod-mode allowlist. Modules in this list are built by Bazel
