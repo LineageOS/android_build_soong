@@ -183,9 +183,11 @@ type bazelPaths struct {
 // and their results after the requests have been made.
 type mixedBuildBazelContext struct {
 	bazelRunner
-	paths        *bazelPaths
-	requests     map[cqueryKey]bool // cquery requests that have not yet been issued to Bazel
-	requestMutex sync.Mutex         // requests can be written in parallel
+	paths *bazelPaths
+	// cquery requests that have not yet been issued to Bazel. This list is maintained
+	// in a sorted state, and is guaranteed to have no duplicates.
+	requests     []cqueryKey
+	requestMutex sync.Mutex // requests can be written in parallel
 
 	results map[cqueryKey]string // Results of cquery requests after Bazel invocations
 
@@ -281,7 +283,29 @@ func (bazelCtx *mixedBuildBazelContext) QueueBazelRequest(label string, requestT
 	key := makeCqueryKey(label, requestType, cfgKey)
 	bazelCtx.requestMutex.Lock()
 	defer bazelCtx.requestMutex.Unlock()
-	bazelCtx.requests[key] = true
+
+	// Insert key into requests, maintaining the sort, and only if it's not duplicate.
+	keyString := key.String()
+	foundEqual := false
+	notLessThanKeyString := func(i int) bool {
+		s := bazelCtx.requests[i].String()
+		v := strings.Compare(s, keyString)
+		if v == 0 {
+			foundEqual = true
+		}
+		return v >= 0
+	}
+	targetIndex := sort.Search(len(bazelCtx.requests), notLessThanKeyString)
+	if foundEqual {
+		return
+	}
+
+	if targetIndex == len(bazelCtx.requests) {
+		bazelCtx.requests = append(bazelCtx.requests, key)
+	} else {
+		bazelCtx.requests = append(bazelCtx.requests[:targetIndex+1], bazelCtx.requests[targetIndex:]...)
+		bazelCtx.requests[targetIndex] = key
+	}
 }
 
 func (bazelCtx *mixedBuildBazelContext) GetOutputFiles(label string, cfgKey configKey) ([]string, error) {
@@ -472,7 +496,6 @@ func NewBazelContext(c *config) (BazelContext, error) {
 	return &mixedBuildBazelContext{
 		bazelRunner:           &builtinBazelRunner{},
 		paths:                 &paths,
-		requests:              make(map[cqueryKey]bool),
 		modulesDefaultToBazel: c.BuildMode == BazelDevMode,
 		bazelEnabledModules:   enabledModules,
 		bazelDisabledModules:  disabledModules,
@@ -712,14 +735,23 @@ config_node(name = "%s",
 	configNodesSection := ""
 
 	labelsByConfig := map[string][]string{}
-	for val := range context.requests {
+
+	for _, val := range context.requests {
 		labelString := fmt.Sprintf("\"@%s\"", val.label)
 		configString := getConfigString(val)
 		labelsByConfig[configString] = append(labelsByConfig[configString], labelString)
 	}
 
+	// Configs need to be sorted to maintain determinism of the BUILD file.
+	sortedConfigs := make([]string, 0, len(labelsByConfig))
+	for val := range labelsByConfig {
+		sortedConfigs = append(sortedConfigs, val)
+	}
+	sort.Slice(sortedConfigs, func(i, j int) bool { return sortedConfigs[i] < sortedConfigs[j] })
+
 	allLabels := []string{}
-	for configString, labels := range labelsByConfig {
+	for _, configString := range sortedConfigs {
+		labels := labelsByConfig[configString]
 		configTokens := strings.Split(configString, "|")
 		if len(configTokens) != 2 {
 			panic(fmt.Errorf("Unexpected config string format: %s", configString))
@@ -750,7 +782,7 @@ func indent(original string) string {
 // request type.
 func (context *mixedBuildBazelContext) cqueryStarlarkFileContents() []byte {
 	requestTypeToCqueryIdEntries := map[cqueryRequest][]string{}
-	for val := range context.requests {
+	for _, val := range context.requests {
 		cqueryId := getCqueryId(val)
 		mapEntryString := fmt.Sprintf("%q : True", cqueryId)
 		requestTypeToCqueryIdEntries[val.requestType] =
@@ -929,7 +961,7 @@ func (context *mixedBuildBazelContext) InvokeBazel(config Config, ctx *Context) 
 	}
 
 	// Clear requests.
-	context.requests = map[cqueryKey]bool{}
+	context.requests = []cqueryKey{}
 	return nil
 }
 
@@ -946,17 +978,17 @@ func (context *mixedBuildBazelContext) runCquery(ctx *Context) error {
 			return err
 		}
 	}
-	if err := os.WriteFile(filepath.Join(soongInjectionPath, "WORKSPACE.bazel"), []byte{}, 0666); err != nil {
+	if err := writeFileBytesIfChanged(filepath.Join(soongInjectionPath, "WORKSPACE.bazel"), []byte{}, 0666); err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(mixedBuildsPath, "main.bzl"), context.mainBzlFileContents(), 0666); err != nil {
+	if err := writeFileBytesIfChanged(filepath.Join(mixedBuildsPath, "main.bzl"), context.mainBzlFileContents(), 0666); err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(mixedBuildsPath, "BUILD.bazel"), context.mainBuildFileContents(), 0666); err != nil {
+	if err := writeFileBytesIfChanged(filepath.Join(mixedBuildsPath, "BUILD.bazel"), context.mainBuildFileContents(), 0666); err != nil {
 		return err
 	}
 	cqueryFileRelpath := filepath.Join(context.paths.injectedFilesDir(), "buildroot.cquery")
-	if err := os.WriteFile(absolutePath(cqueryFileRelpath), context.cqueryStarlarkFileContents(), 0666); err != nil {
+	if err := writeFileBytesIfChanged(absolutePath(cqueryFileRelpath), context.cqueryStarlarkFileContents(), 0666); err != nil {
 		return err
 	}
 
@@ -977,13 +1009,21 @@ func (context *mixedBuildBazelContext) runCquery(ctx *Context) error {
 			cqueryResults[splitLine[0]] = splitLine[1]
 		}
 	}
-	for val := range context.requests {
+	for _, val := range context.requests {
 		if cqueryResult, ok := cqueryResults[getCqueryId(val)]; ok {
 			context.results[val] = cqueryResult
 		} else {
 			return fmt.Errorf("missing result for bazel target %s. query output: [%s], cquery err: [%s]",
 				getCqueryId(val), cqueryOutput, cqueryErrorMessage)
 		}
+	}
+	return nil
+}
+
+func writeFileBytesIfChanged(path string, contents []byte, perm os.FileMode) error {
+	oldContents, err := os.ReadFile(path)
+	if err != nil || !bytes.Equal(contents, oldContents) {
+		err = os.WriteFile(path, contents, perm)
 	}
 	return nil
 }
