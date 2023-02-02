@@ -3029,32 +3029,6 @@ func checkStaticLibs(t *testing.T, expected []string, module *Module) {
 	}
 }
 
-func checkWholeStaticLibs(t *testing.T, expected []string, module *Module) {
-	t.Helper()
-	actual := module.Properties.AndroidMkWholeStaticLibs
-	if !reflect.DeepEqual(actual, expected) {
-		t.Errorf("incorrect whole_static_libs"+
-			"\nactual:   %v"+
-			"\nexpected: %v",
-			actual,
-			expected,
-		)
-	}
-}
-
-func checkSharedLibs(t *testing.T, expected []string, module *Module) {
-	t.Helper()
-	actual := module.Properties.AndroidMkSharedLibs
-	if !reflect.DeepEqual(actual, expected) {
-		t.Errorf("incorrect shared_libs"+
-			"\nactual:   %v"+
-			"\nexpected: %v",
-			actual,
-			expected,
-		)
-	}
-}
-
 const staticLibAndroidBp = `
 	cc_library {
 		name: "lib1",
@@ -3110,6 +3084,20 @@ func TestLibDepAndroidMkExportInMixedBuilds(t *testing.T) {
 		cc_binary {
 			name: "binary",
 			bazel_module: { label: "//:binary" },
+			static_libs: ["static_dep"],
+			whole_static_libs: ["whole_static_dep"],
+			shared_libs: ["shared_dep"],
+		}
+		cc_library_headers {
+			name: "lib_headers",
+			bazel_module: { label: "//:lib_headers" },
+			static_libs: ["static_dep"],
+			whole_static_libs: ["whole_static_dep"],
+			shared_libs: ["shared_dep"],
+		}
+		cc_prebuilt_library {
+			name: "lib_prebuilt",
+			bazel_module: { label: "//:lib_prebuilt" },
 			static_libs: ["static_dep"],
 			whole_static_libs: ["whole_static_dep"],
 			shared_libs: ["shared_dep"],
@@ -3172,6 +3160,36 @@ func TestLibDepAndroidMkExportInMixedBuilds(t *testing.T) {
 				LocalSharedLibs:      []string{"shared_dep"},
 			},
 		},
+		{
+			name:       "cc_library_headers",
+			moduleName: "lib_headers",
+			variant:    "android_arm64_armv8-a",
+			androidMkInfo: cquery.CcAndroidMkInfo{
+				LocalStaticLibs:      []string{"static_dep"},
+				LocalWholeStaticLibs: []string{"whole_static_dep"},
+				LocalSharedLibs:      []string{"shared_dep"},
+			},
+		},
+		{
+			name:       "prebuilt lib static",
+			moduleName: "lib_prebuilt",
+			variant:    "android_arm64_armv8-a_static",
+			androidMkInfo: cquery.CcAndroidMkInfo{
+				LocalStaticLibs:      []string{"static_dep"},
+				LocalWholeStaticLibs: []string{"whole_static_dep"},
+				LocalSharedLibs:      []string{"shared_dep"},
+			},
+		},
+		{
+			name:       "prebuilt lib shared",
+			moduleName: "lib_prebuilt",
+			variant:    "android_arm64_armv8-a_shared",
+			androidMkInfo: cquery.CcAndroidMkInfo{
+				LocalStaticLibs:      []string{"static_dep"},
+				LocalWholeStaticLibs: []string{"whole_static_dep"},
+				LocalSharedLibs:      []string{"shared_dep"},
+			},
+		},
 	}
 
 	outputBaseDir := "out/bazel"
@@ -3191,6 +3209,16 @@ func TestLibDepAndroidMkExportInMixedBuilds(t *testing.T) {
 								CcAndroidMkInfo:    tc.androidMkInfo,
 								RootStaticArchives: []string{""},
 							},
+							"//:lib_headers": cquery.CcInfo{
+								CcAndroidMkInfo: tc.androidMkInfo,
+								OutputFiles:     []string{""},
+							},
+							"//:lib_prebuilt": cquery.CcInfo{
+								CcAndroidMkInfo: tc.androidMkInfo,
+							},
+							"//:lib_prebuilt_bp2build_cc_library_static": cquery.CcInfo{
+								CcAndroidMkInfo: tc.androidMkInfo,
+							},
 						},
 						LabelToCcBinary: map[string]cquery.CcUnstrippedInfo{
 							"//:test": cquery.CcUnstrippedInfo{
@@ -3207,25 +3235,68 @@ func TestLibDepAndroidMkExportInMixedBuilds(t *testing.T) {
 
 			module := ctx.ModuleForTests(tc.moduleName, tc.variant).Module().(*Module)
 			entries := android.AndroidMkEntriesForTest(t, ctx, module)[0]
-			checkStaticLibs(t, tc.androidMkInfo.LocalStaticLibs, module)
-			missingStaticDeps := android.ListDifference(entries.EntryMap["LOCAL_STATIC_LIBRARIES"], tc.androidMkInfo.LocalStaticLibs)
-			if len(missingStaticDeps) > 0 {
-				t.Errorf("expected LOCAL_STATIC_LIBRARIES to be %q"+
-					" but was %q; difference: %q", tc.androidMkInfo.LocalStaticLibs, entries.EntryMap["LOCAL_STATIC_LIBRARIES"], missingStaticDeps)
+			if !reflect.DeepEqual(module.Properties.AndroidMkStaticLibs, tc.androidMkInfo.LocalStaticLibs) {
+				t.Errorf("incorrect static_libs"+
+					"\nactual:   %v"+
+					"\nexpected: %v",
+					module.Properties.AndroidMkStaticLibs,
+					tc.androidMkInfo.LocalStaticLibs,
+				)
+			}
+			staticDepsDiffer, missingStaticDeps, additionalStaticDeps := android.ListSetDifference(
+				entries.EntryMap["LOCAL_STATIC_LIBRARIES"],
+				tc.androidMkInfo.LocalStaticLibs,
+			)
+			if staticDepsDiffer {
+				t.Errorf(
+					"expected LOCAL_STATIC_LIBRARIES to be %q but was %q; missing: %q; extra %q",
+					tc.androidMkInfo.LocalStaticLibs,
+					entries.EntryMap["LOCAL_STATIC_LIBRARIES"],
+					missingStaticDeps,
+					additionalStaticDeps,
+				)
 			}
 
-			checkWholeStaticLibs(t, tc.androidMkInfo.LocalWholeStaticLibs, module)
-			missingWholeStaticDeps := android.ListDifference(entries.EntryMap["LOCAL_WHOLE_STATIC_LIBRARIES"], tc.androidMkInfo.LocalWholeStaticLibs)
-			if len(missingWholeStaticDeps) > 0 {
-				t.Errorf("expected LOCAL_WHOLE_STATIC_LIBRARIES to be %q"+
-					" but was %q; difference: %q", tc.androidMkInfo.LocalWholeStaticLibs, entries.EntryMap["LOCAL_WHOLE_STATIC_LIBRARIES"], missingWholeStaticDeps)
+			if !reflect.DeepEqual(module.Properties.AndroidMkWholeStaticLibs, tc.androidMkInfo.LocalWholeStaticLibs) {
+				t.Errorf("expected module.Properties.AndroidMkWholeStaticLibs to be %q, but was %q",
+					tc.androidMkInfo.LocalWholeStaticLibs,
+					module.Properties.AndroidMkWholeStaticLibs,
+				)
+			}
+			wholeStaticDepsDiffer, missingWholeStaticDeps, additionalWholeStaticDeps := android.ListSetDifference(
+				entries.EntryMap["LOCAL_WHOLE_STATIC_LIBRARIES"],
+				tc.androidMkInfo.LocalWholeStaticLibs,
+			)
+			if wholeStaticDepsDiffer {
+				t.Errorf(
+					"expected LOCAL_WHOLE_STATIC_LIBRARIES to be %q but was %q; missing: %q; extra %q",
+					tc.androidMkInfo.LocalWholeStaticLibs,
+					entries.EntryMap["LOCAL_WHOLE_STATIC_LIBRARIES"],
+					missingWholeStaticDeps,
+					additionalWholeStaticDeps,
+				)
 			}
 
-			checkSharedLibs(t, tc.androidMkInfo.LocalSharedLibs, module)
-			missingSharedDeps := android.ListDifference(entries.EntryMap["LOCAL_SHARED_LIBRARIES"], tc.androidMkInfo.LocalSharedLibs)
-			if len(missingSharedDeps) > 0 {
-				t.Errorf("expected LOCAL_SHARED_LIBRARIES to be %q"+
-					" but was %q; difference: %q", tc.androidMkInfo.LocalSharedLibs, entries.EntryMap["LOCAL_SHARED_LIBRARIES"], missingSharedDeps)
+			if !reflect.DeepEqual(module.Properties.AndroidMkSharedLibs, tc.androidMkInfo.LocalSharedLibs) {
+				t.Errorf("incorrect shared_libs"+
+					"\nactual:   %v"+
+					"\nexpected: %v",
+					module.Properties.AndroidMkSharedLibs,
+					tc.androidMkInfo.LocalSharedLibs,
+				)
+			}
+			sharedDepsDiffer, missingSharedDeps, additionalSharedDeps := android.ListSetDifference(
+				entries.EntryMap["LOCAL_SHARED_LIBRARIES"],
+				tc.androidMkInfo.LocalSharedLibs,
+			)
+			if sharedDepsDiffer {
+				t.Errorf(
+					"expected LOCAL_SHARED_LIBRARIES to be %q but was %q; missing %q; extra %q",
+					tc.androidMkInfo.LocalSharedLibs,
+					entries.EntryMap["LOCAL_SHARED_LIBRARIES"],
+					missingSharedDeps,
+					additionalSharedDeps,
+				)
 			}
 		})
 	}
