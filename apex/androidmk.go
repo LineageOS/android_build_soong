@@ -23,6 +23,7 @@ import (
 	"android/soong/android"
 	"android/soong/cc"
 	"android/soong/java"
+	"android/soong/rust"
 
 	"github.com/google/blueprint/proptools"
 )
@@ -255,6 +256,10 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, apexName, mo
 				ccMod.AndroidMkWriteAdditionalDependenciesForSourceAbiDiff(w)
 				if ccMod.CoverageOutputFile().Valid() {
 					fmt.Fprintln(w, "LOCAL_PREBUILT_COVERAGE_ARCHIVE :=", ccMod.CoverageOutputFile().String())
+				}
+			} else if rustMod, ok := fi.module.(*rust.Module); ok {
+				if rustMod.UnstrippedOutputFile() != nil {
+					fmt.Fprintln(w, "LOCAL_SOONG_UNSTRIPPED_BINARY :=", rustMod.UnstrippedOutputFile().String())
 				}
 			}
 			fmt.Fprintln(w, "include $(BUILD_SYSTEM)/soong_cc_rust_prebuilt.mk")
