@@ -51,6 +51,9 @@ var (
 		// Use v0 mangling to distinguish from C++ symbols
 		"-C symbol-mangling-version=v0",
 		"--color always",
+		// TODO (b/267698452): Temporary workaround until the "no unstable
+		// features" policy is enforced.
+		"-A stable-features",
 	}
 
 	deviceGlobalRustFlags = []string{
