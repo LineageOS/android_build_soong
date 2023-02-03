@@ -58,6 +58,8 @@ func soongInjectionFiles(cfg android.Config, metrics CodegenMetrics) []BazelFile
 	files = append(files, newFile("api_levels", "api_levels.json", string(apiLevelsContent)))
 	files = append(files, newFile("api_levels", "api_levels.bzl", android.StarlarkApiLevelConfigs(cfg)))
 
+	files = append(files, newFile("allowlists", GeneratedBuildFileName, ""))
+	files = append(files, newFile("allowlists", "env.bzl", android.EnvironmentVarsFile(cfg)))
 	// TODO(b/262781701): Create an alternate soong_build entrypoint for writing out these files only when requested
 	files = append(files, newFile("allowlists", "mixed_build_prod_allowlist.txt", strings.Join(android.GetBazelEnabledModules(android.BazelProdMode), "\n")+"\n"))
 	files = append(files, newFile("allowlists", "mixed_build_staging_allowlist.txt", strings.Join(android.GetBazelEnabledModules(android.BazelStagingMode), "\n")+"\n"))
