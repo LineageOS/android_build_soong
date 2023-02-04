@@ -1125,6 +1125,11 @@ func SetKatiEnabledForTests(config Config) {
 	config.katiEnabled = true
 }
 
+func SetTrimmedApexEnabledForTests(config Config) {
+	config.productVariables.TrimmedApex = new(bool)
+	*config.productVariables.TrimmedApex = true
+}
+
 func AndroidMkEntriesForTest(t *testing.T, ctx *TestContext, mod blueprint.Module) []AndroidMkEntries {
 	t.Helper()
 	var p AndroidMkEntriesProvider

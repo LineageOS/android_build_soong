@@ -9862,3 +9862,70 @@ func TestApexBuildsAgainstApiSurfaceStubLibraries(t *testing.T) {
 	libcCoreVariant := result.ModuleForTests("libc.apiimport", "android_arm64_armv8-a_shared").Module()
 	android.AssertBoolEquals(t, "core variant should link against source libc", true, hasDep(libfooCoreVariant, libcCoreVariant))
 }
+
+func TestTrimmedApex(t *testing.T) {
+	bp := `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			native_shared_libs: ["libfoo","libbaz"],
+			min_sdk_version: "29",
+			trim_against: "mydcla",
+    }
+		apex {
+			name: "mydcla",
+			key: "myapex.key",
+			native_shared_libs: ["libfoo","libbar"],
+			min_sdk_version: "29",
+			file_contexts: ":myapex-file_contexts",
+			dynamic_common_lib_apex: true,
+		}
+		apex_key {
+			name: "myapex.key",
+		}
+		cc_library {
+			name: "libfoo",
+			shared_libs: ["libc"],
+			apex_available: ["myapex","mydcla"],
+			min_sdk_version: "29",
+		}
+		cc_library {
+			name: "libbar",
+			shared_libs: ["libc"],
+			apex_available: ["myapex","mydcla"],
+			min_sdk_version: "29",
+		}
+		cc_library {
+			name: "libbaz",
+			shared_libs: ["libc"],
+			apex_available: ["myapex","mydcla"],
+			min_sdk_version: "29",
+		}
+		cc_api_library {
+			name: "libc",
+			src: "libc.so",
+			min_sdk_version: "29",
+			recovery_available: true,
+		}
+		api_imports {
+			name: "api_imports",
+			shared_libs: [
+				"libc",
+			],
+			header_libs: [],
+		}
+		`
+	ctx := testApex(t, bp)
+	module := ctx.ModuleForTests("myapex", "android_common_myapex_image")
+	apexRule := module.MaybeRule("apexRule")
+	if apexRule.Rule == nil {
+		t.Errorf("Expecting regular apex rule but a non regular apex rule found")
+	}
+
+	ctx = testApex(t, bp, android.FixtureModifyConfig(android.SetTrimmedApexEnabledForTests))
+	trimmedApexRule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("TrimmedApexRule")
+	libs_to_trim := trimmedApexRule.Args["libs_to_trim"]
+	android.AssertStringDoesContain(t, "missing lib to trim", libs_to_trim, "libfoo")
+	android.AssertStringDoesContain(t, "missing lib to trim", libs_to_trim, "libbar")
+	android.AssertStringDoesNotContain(t, "unexpected libs in the libs to trim", libs_to_trim, "libbaz")
+}
