@@ -462,6 +462,8 @@ func (h *prebuiltLibraryBazelHandler) ProcessBazelQueryResponse(ctx android.Modu
 	}
 
 	h.module.maybeUnhideFromMake()
+
+	h.module.setAndroidMkVariablesFromCquery(ccInfo.CcAndroidMkInfo)
 }
 
 func (h *prebuiltLibraryBazelHandler) processStaticBazelQueryResponse(ctx android.ModuleContext, label string, ccInfo cquery.CcInfo) bool {
