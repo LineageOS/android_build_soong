@@ -241,10 +241,11 @@ func (a *apexBundle) buildManifest(ctx android.ModuleContext, provideNativeLibs,
 	provideNativeLibs = android.SortedUniqueStrings(provideNativeLibs)
 	requireNativeLibs = android.SortedUniqueStrings(android.RemoveListFromList(requireNativeLibs, provideNativeLibs))
 
-	// APEX name can be overridden
+	// VNDK APEX name is determined at runtime, so update "name" in apex_manifest
 	optCommands := []string{}
-	if a.properties.Apex_name != nil {
-		optCommands = append(optCommands, "-v name "+*a.properties.Apex_name)
+	if a.vndkApex {
+		apexName := vndkApexNamePrefix + a.vndkVersion(ctx.DeviceConfig())
+		optCommands = append(optCommands, "-v name "+apexName)
 	}
 
 	// Collect jniLibs. Notice that a.filesInfo is already sorted
@@ -453,14 +454,6 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 	imageDir := android.PathForModuleOut(ctx, "image"+suffix)
 
 	installSymbolFiles := (!ctx.Config().KatiEnabled() || a.ExportedToMake()) && a.installable()
-
-	// b/140136207. When there are overriding APEXes for a VNDK APEX, the symbols file for the overridden
-	// APEX and the overriding APEX will have the same installation paths at /apex/com.android.vndk.v<ver>
-	// as their apexName will be the same. To avoid the path conflicts, skip installing the symbol files
-	// for the overriding VNDK APEXes.
-	if a.vndkApex && len(a.overridableProperties.Overrides) > 0 {
-		installSymbolFiles = false
-	}
 
 	// Avoid creating duplicate build rules for multi-installed APEXes.
 	if proptools.BoolDefault(a.properties.Multi_install_skip_symbol_files, false) {
@@ -1012,7 +1005,7 @@ func (a *apexBundle) getOverrideManifestPackageName(ctx android.ModuleContext) s
 	if a.vndkApex {
 		overrideName, overridden := ctx.DeviceConfig().OverrideManifestPackageNameFor(vndkApexName)
 		if overridden {
-			return strings.Replace(*a.properties.Apex_name, vndkApexName, overrideName, 1)
+			return overrideName + ".v" + a.vndkVersion(ctx.DeviceConfig())
 		}
 		return ""
 	}

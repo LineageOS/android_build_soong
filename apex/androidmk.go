@@ -95,15 +95,6 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, apexName, mo
 		return moduleNames
 	}
 
-	// b/140136207. When there are overriding APEXes for a VNDK APEX, the symbols file for the overridden
-	// APEX and the overriding APEX will have the same installation paths at /apex/com.android.vndk.v<ver>
-	// as their apexName will be the same. To avoid the path conflicts, skip installing the symbol files
-	// for the overriding VNDK APEXes.
-	symbolFilesNotNeeded := a.vndkApex && len(a.overridableProperties.Overrides) > 0
-	if symbolFilesNotNeeded && apexType != flattenedApex {
-		return moduleNames
-	}
-
 	// Avoid creating duplicate build rules for multi-installed APEXes.
 	if proptools.BoolDefault(a.properties.Multi_install_skip_symbol_files, false) {
 		return moduleNames
@@ -152,7 +143,7 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, apexName, mo
 			// /system/apex/<name>/{lib|framework|...}
 			modulePath = filepath.Join(a.installDir.String(), apexBundleName, fi.installDir)
 			fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", modulePath)
-			if a.primaryApexType && !symbolFilesNotNeeded {
+			if a.primaryApexType {
 				fmt.Fprintln(w, "LOCAL_SOONG_SYMBOL_PATH :=", pathWhenActivated)
 			}
 			android.AndroidMkEmitAssignList(w, "LOCAL_MODULE_SYMLINKS", fi.symlinks)
