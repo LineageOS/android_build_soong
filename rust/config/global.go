@@ -24,7 +24,7 @@ import (
 var pctx = android.NewPackageContext("android/soong/rust/config")
 
 var (
-	RustDefaultVersion = "1.65.0.p1"
+	RustDefaultVersion = "1.66.1"
 	RustDefaultBase    = "prebuilts/rust/"
 	DefaultEdition     = "2021"
 	Stdlibs            = []string{
@@ -51,9 +51,6 @@ var (
 		// Use v0 mangling to distinguish from C++ symbols
 		"-C symbol-mangling-version=v0",
 		"--color always",
-		// TODO (b/267698452): Temporary workaround until the "no unstable
-		// features" policy is enforced.
-		"-A stable-features",
 	}
 
 	deviceGlobalRustFlags = []string{
