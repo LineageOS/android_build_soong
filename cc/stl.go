@@ -38,9 +38,9 @@ func deduplicateStlInput(stl string) string {
 func getNdkStlFamilyAndLinkType(m LinkableInterface) (string, string) {
 	stl := m.SelectedStl()
 	switch stl {
-	case "ndk_libc++_shared":
+	case "ndk_libc++_shared", "libc++":
 		return "libc++", "shared"
-	case "ndk_libc++_static":
+	case "ndk_libc++_static", "libc++_static":
 		return "libc++", "static"
 	case "ndk_system":
 		return "system", "shared"
@@ -80,7 +80,8 @@ func (stl *stl) begin(ctx BaseModuleContext) {
 			return ""
 		}
 		s = deduplicateStlInput(s)
-		if ctx.useSdk() && ctx.Device() {
+		archHasNDKStl := ctx.Arch().ArchType != android.Riscv64
+		if ctx.useSdk() && ctx.Device() && archHasNDKStl {
 			switch s {
 			case "", "system":
 				return "ndk_system"
