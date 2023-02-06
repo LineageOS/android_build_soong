@@ -75,6 +75,7 @@ jdk\.internal\.misc
 jdk\.internal\.ref
 jdk\.internal\.reflect
 jdk\.internal\.util
+jdk\.internal\.util\.jar
 jdk\.internal\.vm\.annotation
 jdk\.net
 org\.w3c\.dom
