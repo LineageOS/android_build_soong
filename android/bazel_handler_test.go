@@ -168,6 +168,32 @@ func TestCoverageFlagsAfterInvokeBazel(t *testing.T) {
 	}
 }
 
+func TestBazelRequestsSorted(t *testing.T) {
+	bazelContext, _ := testBazelContext(t, map[bazelCommand]string{})
+
+	bazelContext.QueueBazelRequest("zzz", cquery.GetOutputFiles, configKey{"arm64_armv8-a", Android})
+	bazelContext.QueueBazelRequest("ccc", cquery.GetApexInfo, configKey{"arm64_armv8-a", Android})
+	bazelContext.QueueBazelRequest("duplicate", cquery.GetOutputFiles, configKey{"arm64_armv8-a", Android})
+	bazelContext.QueueBazelRequest("duplicate", cquery.GetOutputFiles, configKey{"arm64_armv8-a", Android})
+	bazelContext.QueueBazelRequest("xxx", cquery.GetOutputFiles, configKey{"arm64_armv8-a", Linux})
+	bazelContext.QueueBazelRequest("aaa", cquery.GetOutputFiles, configKey{"arm64_armv8-a", Android})
+	bazelContext.QueueBazelRequest("aaa", cquery.GetOutputFiles, configKey{"otherarch", Android})
+	bazelContext.QueueBazelRequest("bbb", cquery.GetOutputFiles, configKey{"otherarch", Android})
+
+	if len(bazelContext.requests) != 7 {
+		t.Error("Expected 7 request elements, but got", len(bazelContext.requests))
+	}
+
+	lastString := ""
+	for _, val := range bazelContext.requests {
+		thisString := val.String()
+		if thisString <= lastString {
+			t.Errorf("Requests are not ordered correctly. '%s' came before '%s'", lastString, thisString)
+		}
+		lastString = thisString
+	}
+}
+
 func verifyExtraFlags(t *testing.T, config Config, expected string) string {
 	bazelContext, _ := testBazelContext(t, map[bazelCommand]string{})
 
@@ -204,7 +230,6 @@ func testBazelContext(t *testing.T, bazelCommandResults map[bazelCommand]string)
 	return &mixedBuildBazelContext{
 		bazelRunner: runner,
 		paths:       &p,
-		requests:    map[cqueryKey]bool{},
 	}, p.soongOutDir
 }
 
