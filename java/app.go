@@ -1524,7 +1524,6 @@ func (a *AndroidApp) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 		appAttrs.javaCommonAttributes = commonAttrs
 		appAttrs.bazelAapt = aapt
 		appAttrs.Deps = deps
-		ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: a.Name()}, appAttrs)
 	} else {
 		ktName := a.Name() + "_kt"
 		commonAttrs.Common_srcs = bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrc(ctx, a.properties.Common_srcs))
@@ -1545,11 +1544,12 @@ func (a *AndroidApp) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 
 		appAttrs.bazelAapt = &bazelAapt{Manifest: aapt.Manifest}
 		appAttrs.Deps = bazel.MakeSingleLabelListAttribute(bazel.Label{Label: ":" + ktName})
-		ctx.CreateBazelTargetModule(
-			props,
-			android.CommonAttributes{Name: a.Name()},
-			appAttrs,
-		)
 	}
+
+	ctx.CreateBazelTargetModule(
+		props,
+		android.CommonAttributes{Name: a.Name()},
+		appAttrs,
+	)
 
 }
