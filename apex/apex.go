@@ -149,16 +149,6 @@ type apexBundleProperties struct {
 	// Should be only used in non-system apexes (e.g. vendor: true). Default is false.
 	Use_vndk_as_stable *bool
 
-	// Whether this is multi-installed APEX should skip installing symbol files.
-	// Multi-installed APEXes share the same apex_name and are installed at the same time.
-	// Default is false.
-	//
-	// Should be set to true for all multi-installed APEXes except the singular
-	// default version within the multi-installed group.
-	// Only the default version can install symbol files in $(PRODUCT_OUT}/apex,
-	// or else conflicting build rules may be created.
-	Multi_install_skip_symbol_files *bool
-
 	// The type of APEX to build. Controls what the APEX payload is. Either 'image', 'zip' or
 	// 'both'. When set to image, contents are stored in a filesystem image inside a zip
 	// container. When set to zip, contents are stored in a zip container directly. This type is

@@ -455,11 +455,6 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 
 	installSymbolFiles := (!ctx.Config().KatiEnabled() || a.ExportedToMake()) && a.installable()
 
-	// Avoid creating duplicate build rules for multi-installed APEXes.
-	if proptools.BoolDefault(a.properties.Multi_install_skip_symbol_files, false) {
-		installSymbolFiles = false
-
-	}
 	// set of dependency module:location mappings
 	installMapSet := make(map[string]bool)
 
