@@ -706,12 +706,6 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 			optFlags = append(optFlags, "--unsigned_payload")
 		}
 
-		if a.properties.Apex_name != nil {
-			// If apex_name is set, apexer can skip checking if key name matches with
-			// apex name.  Note that apex_manifest is also mended.
-			optFlags = append(optFlags, "--do_not_check_keyname")
-		}
-
 		if moduleMinSdkVersion == android.SdkVersion_Android10 {
 			implicitInputs = append(implicitInputs, a.manifestJsonOut)
 			optFlags = append(optFlags, "--manifest_json "+a.manifestJsonOut.String())
