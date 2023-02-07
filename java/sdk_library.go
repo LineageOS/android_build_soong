@@ -1749,7 +1749,7 @@ func (module *SdkLibrary) createStubsSourcesAndApi(mctx android.DefaultableHookC
 		}
 	}
 
-	mctx.CreateModule(DroidstubsFactory, &props)
+	mctx.CreateModule(DroidstubsFactory, &props).(*Droidstubs).CallHookIfAvailable(mctx)
 }
 
 func (module *SdkLibrary) compareAgainstLatestApi(apiScope *apiScope) bool {
