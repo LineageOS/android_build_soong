@@ -55,7 +55,7 @@ func (d *DefaultableModuleBase) SetDefaultableHook(hook DefaultableHook) {
 	d.hook = hook
 }
 
-func (d *DefaultableModuleBase) callHookIfAvailable(ctx DefaultableHookContext) {
+func (d *DefaultableModuleBase) CallHookIfAvailable(ctx DefaultableHookContext) {
 	if d.hook != nil {
 		d.hook(ctx)
 	}
@@ -82,7 +82,7 @@ type Defaultable interface {
 	SetDefaultableHook(hook DefaultableHook)
 
 	// Call the hook if specified.
-	callHookIfAvailable(context DefaultableHookContext)
+	CallHookIfAvailable(context DefaultableHookContext)
 }
 
 type DefaultableModule interface {
@@ -630,6 +630,6 @@ func defaultsMutator(ctx TopDownMutatorContext) {
 			defaultable.applyDefaults(ctx, defaultsList)
 		}
 
-		defaultable.callHookIfAvailable(ctx)
+		defaultable.CallHookIfAvailable(ctx)
 	}
 }
