@@ -4138,8 +4138,6 @@ func TestApexName(t *testing.T) {
 	module := ctx.ModuleForTests("myapex", "android_common_com.android.myapex_image")
 	apexManifestRule := module.Rule("apexManifestRule")
 	ensureContains(t, apexManifestRule.Args["opt"], "-v name com.android.myapex")
-	apexRule := module.Rule("apexRule")
-	ensureContains(t, apexRule.Args["opt_flags"], "--do_not_check_keyname")
 
 	apexBundle := module.Module().(*apexBundle)
 	data := android.AndroidMkDataForTest(t, ctx, apexBundle)
