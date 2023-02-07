@@ -29,6 +29,7 @@ import (
 	"android/soong/android/allowlists"
 	"android/soong/bazel/cquery"
 	"android/soong/shared"
+	"android/soong/starlark_fmt"
 
 	"github.com/google/blueprint"
 
@@ -43,6 +44,27 @@ var (
 		Description: "",
 		CommandDeps: []string{"${bazelBuildRunfilesTool}"},
 	}, "outDir")
+	allowedBazelEnvironmentVars = []string{
+		"ALLOW_LOCAL_TIDY_TRUE",
+		"DEFAULT_TIDY_HEADER_DIRS",
+		"TIDY_TIMEOUT",
+		"WITH_TIDY",
+		"WITH_TIDY_FLAGS",
+		"SKIP_ABI_CHECKS",
+		"UNSAFE_DISABLE_APEX_ALLOWED_DEPS_CHECK",
+		"AUTO_ZERO_INITIALIZE",
+		"AUTO_PATTERN_INITIALIZE",
+		"AUTO_UNINITIALIZE",
+		"USE_CCACHE",
+		"LLVM_NEXT",
+		"ALLOW_UNKNOWN_WARNING_OPTION",
+
+		// Overrides the version in the apex_manifest.json. The version is unique for
+		// each branch (internal, aosp, mainline releases, dessert releases).  This
+		// enables modules built on an older branch to be installed against a newer
+		// device for development purposes.
+		"OVERRIDE_APEX_MANIFEST_DEFAULT_VERSION",
+	}
 )
 
 func init() {
@@ -165,7 +187,7 @@ type BazelContext interface {
 }
 
 type bazelRunner interface {
-	createBazelCommand(paths *bazelPaths, runName bazel.RunName, command bazelCommand, extraFlags ...string) *exec.Cmd
+	createBazelCommand(config Config, paths *bazelPaths, runName bazel.RunName, command bazelCommand, extraFlags ...string) *exec.Cmd
 	issueBazelCommand(bazelCmd *exec.Cmd) (output string, errorMessage string, error error)
 }
 
@@ -558,7 +580,7 @@ type mockBazelRunner struct {
 	extraFlags []string
 }
 
-func (r *mockBazelRunner) createBazelCommand(_ *bazelPaths, _ bazel.RunName,
+func (r *mockBazelRunner) createBazelCommand(_ Config, _ *bazelPaths, _ bazel.RunName,
 	command bazelCommand, extraFlags ...string) *exec.Cmd {
 	r.commands = append(r.commands, command)
 	r.extraFlags = append(r.extraFlags, strings.Join(extraFlags, " "))
@@ -595,7 +617,7 @@ func (r *builtinBazelRunner) issueBazelCommand(bazelCmd *exec.Cmd) (string, stri
 	}
 }
 
-func (r *builtinBazelRunner) createBazelCommand(paths *bazelPaths, runName bazel.RunName, command bazelCommand,
+func (r *builtinBazelRunner) createBazelCommand(config Config, paths *bazelPaths, runName bazel.RunName, command bazelCommand,
 	extraFlags ...string) *exec.Cmd {
 	cmdFlags := []string{
 		"--output_base=" + absolutePath(paths.outputBase),
@@ -638,6 +660,13 @@ func (r *builtinBazelRunner) createBazelCommand(paths *bazelPaths, runName bazel
 		// Disables local host detection of gcc; toolchain information is defined
 		// explicitly in BUILD files.
 		"BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1",
+	}
+	for _, envvar := range allowedBazelEnvironmentVars {
+		val := config.Getenv(envvar)
+		if val == "" {
+			continue
+		}
+		extraEnv = append(extraEnv, fmt.Sprintf("%s=%s", envvar, val))
 	}
 	bazelCmd.Env = append(os.Environ(), extraEnv...)
 
@@ -965,13 +994,13 @@ func (context *mixedBuildBazelContext) InvokeBazel(config Config, ctx *Context) 
 		}
 	}
 	context.results = make(map[cqueryKey]string)
-	if err := context.runCquery(ctx); err != nil {
+	if err := context.runCquery(config, ctx); err != nil {
 		return err
 	}
 	if err := context.runAquery(config, ctx); err != nil {
 		return err
 	}
-	if err := context.generateBazelSymlinks(ctx); err != nil {
+	if err := context.generateBazelSymlinks(config, ctx); err != nil {
 		return err
 	}
 
@@ -980,7 +1009,7 @@ func (context *mixedBuildBazelContext) InvokeBazel(config Config, ctx *Context) 
 	return nil
 }
 
-func (context *mixedBuildBazelContext) runCquery(ctx *Context) error {
+func (context *mixedBuildBazelContext) runCquery(config Config, ctx *Context) error {
 	if ctx != nil {
 		ctx.EventHandler.Begin("cquery")
 		defer ctx.EventHandler.End("cquery")
@@ -1007,7 +1036,7 @@ func (context *mixedBuildBazelContext) runCquery(ctx *Context) error {
 		return err
 	}
 
-	cqueryCommandWithFlag := context.createBazelCommand(context.paths, bazel.CqueryBuildRootRunName, cqueryCmd,
+	cqueryCommandWithFlag := context.createBazelCommand(config, context.paths, bazel.CqueryBuildRootRunName, cqueryCmd,
 		"--output=starlark", "--starlark:file="+absolutePath(cqueryFileRelpath))
 	cqueryOutput, cqueryErrorMessage, cqueryErr := context.issueBazelCommand(cqueryCommandWithFlag)
 	if cqueryErr != nil {
@@ -1072,7 +1101,7 @@ func (context *mixedBuildBazelContext) runAquery(config Config, ctx *Context) er
 			extraFlags = append(extraFlags, "--instrumentation_filter="+strings.Join(paths, ","))
 		}
 	}
-	aqueryOutput, _, err := context.issueBazelCommand(context.createBazelCommand(context.paths, bazel.AqueryBuildRootRunName, aqueryCmd,
+	aqueryOutput, _, err := context.issueBazelCommand(context.createBazelCommand(config, context.paths, bazel.AqueryBuildRootRunName, aqueryCmd,
 		extraFlags...))
 	if err != nil {
 		return err
@@ -1081,7 +1110,7 @@ func (context *mixedBuildBazelContext) runAquery(config Config, ctx *Context) er
 	return err
 }
 
-func (context *mixedBuildBazelContext) generateBazelSymlinks(ctx *Context) error {
+func (context *mixedBuildBazelContext) generateBazelSymlinks(config Config, ctx *Context) error {
 	if ctx != nil {
 		ctx.EventHandler.Begin("symlinks")
 		defer ctx.EventHandler.End("symlinks")
@@ -1089,7 +1118,7 @@ func (context *mixedBuildBazelContext) generateBazelSymlinks(ctx *Context) error
 	// Issue a build command of the phony root to generate symlink forests for dependencies of the
 	// Bazel build. This is necessary because aquery invocations do not generate this symlink forest,
 	// but some of symlinks may be required to resolve source dependencies of the build.
-	_, _, err := context.issueBazelCommand(context.createBazelCommand(context.paths, bazel.BazelBuildPhonyRootRunName, buildCmd))
+	_, _, err := context.issueBazelCommand(context.createBazelCommand(config, context.paths, bazel.BazelBuildPhonyRootRunName, buildCmd))
 	return err
 }
 
@@ -1298,4 +1327,14 @@ func GetConfigKey(ctx BaseModuleContext) configKey {
 
 func bazelDepsetName(contentHash string) string {
 	return fmt.Sprintf("bazel_depset_%s", contentHash)
+}
+
+func EnvironmentVarsFile(config Config) string {
+	return fmt.Sprintf(bazel.GeneratedBazelFileWarning+`
+_env = %s
+
+env = _env
+`,
+		starlark_fmt.PrintStringList(allowedBazelEnvironmentVars, 0),
+	)
 }
