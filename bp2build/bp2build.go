@@ -15,6 +15,7 @@
 package bp2build
 
 import (
+	"android/soong/starlark_import"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -93,6 +94,12 @@ func Codegen(ctx *CodegenContext) *CodegenMetrics {
 		os.Exit(1)
 	}
 	writeFiles(ctx, android.PathForOutput(ctx, bazel.SoongInjectionDirName), injectionFiles)
+	starlarkDeps, err := starlark_import.GetNinjaDeps()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+		os.Exit(1)
+	}
+	ctx.AddNinjaFileDeps(starlarkDeps...)
 	return &res.metrics
 }
 
