@@ -65,10 +65,6 @@ func apexVndkMutator(mctx android.TopDownMutatorContext) {
 		}
 
 		vndkVersion := ab.vndkVersion(mctx.DeviceConfig())
-
-		// Ensure VNDK APEX mount point is formatted as com.android.vndk.v###
-		ab.properties.Apex_name = proptools.StringPtr(vndkApexNamePrefix + vndkVersion)
-
 		apiLevel, err := android.ApiLevelFromUser(mctx, vndkVersion)
 		if err != nil {
 			mctx.PropertyErrorf("vndk_version", "%s", err.Error())
