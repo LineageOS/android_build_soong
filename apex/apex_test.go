@@ -3806,11 +3806,9 @@ func TestVndkApexNameRule(t *testing.T) {
 		}`+vndkLibrariesTxtFiles("28", "current"))
 
 	assertApexName := func(expected, moduleName string) {
-		bundle := ctx.ModuleForTests(moduleName, "android_common_image").Module().(*apexBundle)
-		actual := proptools.String(bundle.properties.Apex_name)
-		if !reflect.DeepEqual(actual, expected) {
-			t.Errorf("Got '%v', expected '%v'", actual, expected)
-		}
+		module := ctx.ModuleForTests(moduleName, "android_common_image")
+		apexManifestRule := module.Rule("apexManifestRule")
+		ensureContains(t, apexManifestRule.Args["opt"], "-v name "+expected)
 	}
 
 	assertApexName("com.android.vndk.v29", "com.android.vndk.current")
@@ -4136,9 +4134,6 @@ func TestApexName(t *testing.T) {
 	`)
 
 	module := ctx.ModuleForTests("myapex", "android_common_com.android.myapex_image")
-	apexManifestRule := module.Rule("apexManifestRule")
-	ensureContains(t, apexManifestRule.Args["opt"], "-v name com.android.myapex")
-
 	apexBundle := module.Module().(*apexBundle)
 	data := android.AndroidMkDataForTest(t, ctx, apexBundle)
 	name := apexBundle.BaseModuleName()
