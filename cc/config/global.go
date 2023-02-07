@@ -293,6 +293,9 @@ var (
 
 		// http://b/239661264
 		"-Wno-deprecated-non-prototype",
+
+		// http://b/191699019
+		"-Wno-format-insufficient-args",
 	}
 
 	llvmNextExtraCommonGlobalCflags = []string{
