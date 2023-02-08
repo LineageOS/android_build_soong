@@ -446,7 +446,7 @@ func markManifestTestOnly(ctx android.ModuleContext, androidManifestFile android
 func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 	apexType := a.properties.ApexType
 	suffix := apexType.suffix()
-	apexName := a.BaseModuleName()
+	apexName := proptools.StringDefault(a.properties.Apex_name, a.BaseModuleName())
 
 	////////////////////////////////////////////////////////////////////////////////////////////
 	// Step 1: copy built files to appropriate directories under the image directory
@@ -461,7 +461,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 	// TODO(jiyong): use the RuleBuilder
 	var copyCommands []string
 	var implicitInputs []android.Path
-	apexDir := android.PathForModuleInPartitionInstall(ctx, "apex", apexName)
+	pathWhenActivated := android.PathForModuleInPartitionInstall(ctx, "apex", apexName)
 	for _, fi := range a.filesInfo {
 		destPath := imageDir.Join(ctx, fi.path()).String()
 		// Prepare the destination path
@@ -491,12 +491,12 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 					fmt.Sprintf("unzip -qDD -d %s %s", destPathDir,
 						fi.module.(*java.AndroidAppSet).PackedAdditionalOutputs().String()))
 				if installSymbolFiles {
-					installedPath = ctx.InstallFileWithExtraFilesZip(apexDir.Join(ctx, fi.installDir),
+					installedPath = ctx.InstallFileWithExtraFilesZip(pathWhenActivated.Join(ctx, fi.installDir),
 						fi.stem(), fi.builtFile, fi.module.(*java.AndroidAppSet).PackedAdditionalOutputs())
 				}
 			} else {
 				if installSymbolFiles {
-					installedPath = ctx.InstallFile(apexDir.Join(ctx, fi.installDir), fi.stem(), fi.builtFile)
+					installedPath = ctx.InstallFile(pathWhenActivated.Join(ctx, fi.installDir), fi.stem(), fi.builtFile)
 				}
 			}
 			implicitInputs = append(implicitInputs, fi.builtFile)
@@ -510,7 +510,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 				symlinkDest := imageDir.Join(ctx, symlinkPath).String()
 				copyCommands = append(copyCommands, "ln -sfn "+filepath.Base(destPath)+" "+symlinkDest)
 				if installSymbolFiles {
-					installedSymlink := ctx.InstallSymlink(apexDir.Join(ctx, filepath.Dir(symlinkPath)), filepath.Base(symlinkPath), installedPath)
+					installedSymlink := ctx.InstallSymlink(pathWhenActivated.Join(ctx, filepath.Dir(symlinkPath)), filepath.Base(symlinkPath), installedPath)
 					implicitInputs = append(implicitInputs, installedSymlink)
 				}
 			}
@@ -537,8 +537,8 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 	}
 	implicitInputs = append(implicitInputs, a.manifestPbOut)
 	if installSymbolFiles {
-		installedManifest := ctx.InstallFile(apexDir, "apex_manifest.pb", a.manifestPbOut)
-		installedKey := ctx.InstallFile(apexDir, "apex_pubkey", a.publicKeyFile)
+		installedManifest := ctx.InstallFile(pathWhenActivated, "apex_manifest.pb", a.manifestPbOut)
+		installedKey := ctx.InstallFile(pathWhenActivated, "apex_pubkey", a.publicKeyFile)
 		implicitInputs = append(implicitInputs, installedManifest, installedKey)
 	}
 
