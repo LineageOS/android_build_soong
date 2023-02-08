@@ -21,7 +21,9 @@ import (
 )
 
 var (
-	LinuxBionicRustFlags     = []string{}
+	LinuxBionicRustFlags = []string{
+		"-C panic=abort",
+	}
 	LinuxBionicRustLinkFlags = []string{
 		"-B${cc_config.ClangBin}",
 		"-fuse-ld=lld",
