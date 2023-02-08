@@ -1066,6 +1066,31 @@ func (c *Module) CcLibraryInterface() bool {
 	return false
 }
 
+func (c *Module) IsFuzzModule() bool {
+	if _, ok := c.compiler.(*fuzzBinary); ok {
+		return true
+	}
+	return false
+}
+
+func (c *Module) FuzzModuleStruct() fuzz.FuzzModule {
+	return c.FuzzModule
+}
+
+func (c *Module) FuzzPackagedModule() fuzz.FuzzPackagedModule {
+	if fuzzer, ok := c.compiler.(*fuzzBinary); ok {
+		return fuzzer.fuzzPackagedModule
+	}
+	panic(fmt.Errorf("FuzzPackagedModule called on non-fuzz module: %q", c.BaseModuleName()))
+}
+
+func (c *Module) FuzzSharedLibraries() android.Paths {
+	if fuzzer, ok := c.compiler.(*fuzzBinary); ok {
+		return fuzzer.sharedLibraries
+	}
+	panic(fmt.Errorf("FuzzSharedLibraries called on non-fuzz module: %q", c.BaseModuleName()))
+}
+
 func (c *Module) NonCcVariants() bool {
 	return false
 }
