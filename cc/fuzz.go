@@ -212,7 +212,7 @@ func IsValidSharedDependency(dependency android.Module) bool {
 	return true
 }
 
-func sharedLibraryInstallLocation(
+func SharedLibraryInstallLocation(
 	libraryPath android.Path, isHost bool, fuzzDir string, archString string) string {
 	installLocation := "$(PRODUCT_OUT)/data"
 	if isHost {
@@ -224,7 +224,7 @@ func sharedLibraryInstallLocation(
 }
 
 // Get the device-only shared library symbols install directory.
-func sharedLibrarySymbolsInstallLocation(libraryPath android.Path, fuzzDir string, archString string) string {
+func SharedLibrarySymbolsInstallLocation(libraryPath android.Path, fuzzDir string, archString string) string {
 	return filepath.Join("$(PRODUCT_OUT)/symbols/data/", fuzzDir, archString, "/lib/", libraryPath.Base())
 }
 
@@ -237,57 +237,62 @@ func (fuzzBin *fuzzBinary) install(ctx ModuleContext, file android.Path) {
 		installBase, ctx.Target().Arch.ArchType.String(), ctx.ModuleName())
 	fuzzBin.binaryDecorator.baseInstaller.install(ctx, file)
 
-	fuzzBin.fuzzPackagedModule.Corpus = android.PathsForModuleSrc(ctx, fuzzBin.fuzzPackagedModule.FuzzProperties.Corpus)
-	builder := android.NewRuleBuilder(pctx, ctx)
-	intermediateDir := android.PathForModuleOut(ctx, "corpus")
-	for _, entry := range fuzzBin.fuzzPackagedModule.Corpus {
-		builder.Command().Text("cp").
-			Input(entry).
-			Output(intermediateDir.Join(ctx, entry.Base()))
-	}
-	builder.Build("copy_corpus", "copy corpus")
-	fuzzBin.fuzzPackagedModule.CorpusIntermediateDir = intermediateDir
-
-	fuzzBin.fuzzPackagedModule.Data = android.PathsForModuleSrc(ctx, fuzzBin.fuzzPackagedModule.FuzzProperties.Data)
-	builder = android.NewRuleBuilder(pctx, ctx)
-	intermediateDir = android.PathForModuleOut(ctx, "data")
-	for _, entry := range fuzzBin.fuzzPackagedModule.Data {
-		builder.Command().Text("cp").
-			Input(entry).
-			Output(intermediateDir.Join(ctx, entry.Rel()))
-	}
-	builder.Build("copy_data", "copy data")
-	fuzzBin.fuzzPackagedModule.DataIntermediateDir = intermediateDir
-
-	if fuzzBin.fuzzPackagedModule.FuzzProperties.Dictionary != nil {
-		fuzzBin.fuzzPackagedModule.Dictionary = android.PathForModuleSrc(ctx, *fuzzBin.fuzzPackagedModule.FuzzProperties.Dictionary)
-		if fuzzBin.fuzzPackagedModule.Dictionary.Ext() != ".dict" {
-			ctx.PropertyErrorf("dictionary",
-				"Fuzzer dictionary %q does not have '.dict' extension",
-				fuzzBin.fuzzPackagedModule.Dictionary.String())
-		}
-	}
-
-	if fuzzBin.fuzzPackagedModule.FuzzProperties.Fuzz_config != nil {
-		configPath := android.PathForModuleOut(ctx, "config").Join(ctx, "config.json")
-		android.WriteFileRule(ctx, configPath, fuzzBin.fuzzPackagedModule.FuzzProperties.Fuzz_config.String())
-		fuzzBin.fuzzPackagedModule.Config = configPath
-	}
+	fuzzBin.fuzzPackagedModule = PackageFuzzModule(ctx, fuzzBin.fuzzPackagedModule, pctx)
 
 	// Grab the list of required shared libraries.
 	fuzzBin.sharedLibraries, _ = CollectAllSharedDependencies(ctx)
 
 	for _, lib := range fuzzBin.sharedLibraries {
 		fuzzBin.installedSharedDeps = append(fuzzBin.installedSharedDeps,
-			sharedLibraryInstallLocation(
+			SharedLibraryInstallLocation(
 				lib, ctx.Host(), installBase, ctx.Arch().ArchType.String()))
 
 		// Also add the dependency on the shared library symbols dir.
 		if !ctx.Host() {
 			fuzzBin.installedSharedDeps = append(fuzzBin.installedSharedDeps,
-				sharedLibrarySymbolsInstallLocation(lib, installBase, ctx.Arch().ArchType.String()))
+				SharedLibrarySymbolsInstallLocation(lib, installBase, ctx.Arch().ArchType.String()))
 		}
 	}
+}
+
+func PackageFuzzModule(ctx android.ModuleContext, fuzzPackagedModule fuzz.FuzzPackagedModule, pctx android.PackageContext) fuzz.FuzzPackagedModule {
+	fuzzPackagedModule.Corpus = android.PathsForModuleSrc(ctx, fuzzPackagedModule.FuzzProperties.Corpus)
+	builder := android.NewRuleBuilder(pctx, ctx)
+	intermediateDir := android.PathForModuleOut(ctx, "corpus")
+	for _, entry := range fuzzPackagedModule.Corpus {
+		builder.Command().Text("cp").
+			Input(entry).
+			Output(intermediateDir.Join(ctx, entry.Base()))
+	}
+	builder.Build("copy_corpus", "copy corpus")
+	fuzzPackagedModule.CorpusIntermediateDir = intermediateDir
+
+	fuzzPackagedModule.Data = android.PathsForModuleSrc(ctx, fuzzPackagedModule.FuzzProperties.Data)
+	builder = android.NewRuleBuilder(pctx, ctx)
+	intermediateDir = android.PathForModuleOut(ctx, "data")
+	for _, entry := range fuzzPackagedModule.Data {
+		builder.Command().Text("cp").
+			Input(entry).
+			Output(intermediateDir.Join(ctx, entry.Rel()))
+	}
+	builder.Build("copy_data", "copy data")
+	fuzzPackagedModule.DataIntermediateDir = intermediateDir
+
+	if fuzzPackagedModule.FuzzProperties.Dictionary != nil {
+		fuzzPackagedModule.Dictionary = android.PathForModuleSrc(ctx, *fuzzPackagedModule.FuzzProperties.Dictionary)
+		if fuzzPackagedModule.Dictionary.Ext() != ".dict" {
+			ctx.PropertyErrorf("dictionary",
+				"Fuzzer dictionary %q does not have '.dict' extension",
+				fuzzPackagedModule.Dictionary.String())
+		}
+	}
+
+	if fuzzPackagedModule.FuzzProperties.Fuzz_config != nil {
+		configPath := android.PathForModuleOut(ctx, "config").Join(ctx, "config.json")
+		android.WriteFileRule(ctx, configPath, fuzzPackagedModule.FuzzProperties.Fuzz_config.String())
+		fuzzPackagedModule.Config = configPath
+	}
+	return fuzzPackagedModule
 }
 
 func NewFuzzer(hod android.HostOrDeviceSupported) *Module {
@@ -344,7 +349,7 @@ func NewFuzzer(hod android.HostOrDeviceSupported) *Module {
 
 // Responsible for generating GNU Make rules that package fuzz targets into
 // their architecture & target/host specific zip file.
-type ccFuzzPackager struct {
+type ccRustFuzzPackager struct {
 	fuzz.FuzzPackager
 	fuzzPackagingArchModules         string
 	fuzzTargetSharedDepsInstallPairs string
@@ -353,7 +358,7 @@ type ccFuzzPackager struct {
 
 func fuzzPackagingFactory() android.Singleton {
 
-	fuzzPackager := &ccFuzzPackager{
+	fuzzPackager := &ccRustFuzzPackager{
 		fuzzPackagingArchModules:         "SOONG_FUZZ_PACKAGING_ARCH_MODULES",
 		fuzzTargetSharedDepsInstallPairs: "FUZZ_TARGET_SHARED_DEPS_INSTALL_PAIRS",
 		allFuzzTargetsName:               "ALL_FUZZ_TARGETS",
@@ -361,7 +366,7 @@ func fuzzPackagingFactory() android.Singleton {
 	return fuzzPackager
 }
 
-func (s *ccFuzzPackager) GenerateBuildActions(ctx android.SingletonContext) {
+func (s *ccRustFuzzPackager) GenerateBuildActions(ctx android.SingletonContext) {
 	// Map between each architecture + host/device combination, and the files that
 	// need to be packaged (in the tuple of {source file, destination folder in
 	// archive}).
@@ -376,19 +381,18 @@ func (s *ccFuzzPackager) GenerateBuildActions(ctx android.SingletonContext) {
 	sharedLibraryInstalled := make(map[string]bool)
 
 	ctx.VisitAllModules(func(module android.Module) {
-		ccModule, ok := module.(*Module)
-		if !ok || ccModule.Properties.PreventInstall {
+		ccModule, ok := module.(LinkableInterface)
+		if !ok || ccModule.PreventInstall() {
 			return
 		}
 
 		// Discard non-fuzz targets.
-		if ok := fuzz.IsValid(ccModule.FuzzModule); !ok {
+		if ok := fuzz.IsValid(ccModule.FuzzModuleStruct()); !ok {
 			return
 		}
 
 		sharedLibsInstallDirPrefix := "lib"
-		fuzzModule, ok := ccModule.compiler.(*fuzzBinary)
-		if !ok {
+		if !ccModule.IsFuzzModule() {
 			return
 		}
 
@@ -399,12 +403,12 @@ func (s *ccFuzzPackager) GenerateBuildActions(ctx android.SingletonContext) {
 
 		fpm := fuzz.FuzzPackagedModule{}
 		if ok {
-			fpm = fuzzModule.fuzzPackagedModule
+			fpm = ccModule.FuzzPackagedModule()
 		}
 
 		intermediatePath := "fuzz"
 
-		archString := ccModule.Arch().ArchType.String()
+		archString := ccModule.Target().Arch.ArchType.String()
 		archDir := android.PathForIntermediates(ctx, intermediatePath, hostOrTargetString, archString)
 		archOs := fuzz.ArchOs{HostOrTarget: hostOrTargetString, Arch: archString, Dir: archDir.String()}
 
@@ -415,7 +419,7 @@ func (s *ccFuzzPackager) GenerateBuildActions(ctx android.SingletonContext) {
 		files = s.PackageArtifacts(ctx, module, fpm, archDir, builder)
 
 		// Package shared libraries
-		files = append(files, GetSharedLibsToZip(fuzzModule.sharedLibraries, ccModule, &s.FuzzPackager, archString, sharedLibsInstallDirPrefix, &sharedLibraryInstalled)...)
+		files = append(files, GetSharedLibsToZip(ccModule.FuzzSharedLibraries(), ccModule, &s.FuzzPackager, archString, sharedLibsInstallDirPrefix, &sharedLibraryInstalled)...)
 
 		// The executable.
 		files = append(files, fuzz.FileToZip{android.OutputFileForModule(ctx, ccModule, "unstripped"), ""})
@@ -429,7 +433,7 @@ func (s *ccFuzzPackager) GenerateBuildActions(ctx android.SingletonContext) {
 	s.CreateFuzzPackage(ctx, archDirs, fuzz.Cc, pctx)
 }
 
-func (s *ccFuzzPackager) MakeVars(ctx android.MakeVarsContext) {
+func (s *ccRustFuzzPackager) MakeVars(ctx android.MakeVarsContext) {
 	packages := s.Packages.Strings()
 	sort.Strings(packages)
 	sort.Strings(s.FuzzPackager.SharedLibInstallStrings)
@@ -460,7 +464,7 @@ func GetSharedLibsToZip(sharedLibraries android.Paths, module LinkableInterface,
 		// For each architecture-specific shared library dependency, we need to
 		// install it to the output directory. Setup the install destination here,
 		// which will be used by $(copy-many-files) in the Make backend.
-		installDestination := sharedLibraryInstallLocation(
+		installDestination := SharedLibraryInstallLocation(
 			library, module.Host(), fuzzDir, archString)
 		if (*sharedLibraryInstalled)[installDestination] {
 			continue
@@ -479,7 +483,7 @@ func GetSharedLibsToZip(sharedLibraries android.Paths, module LinkableInterface,
 		// we want symbolization tools (like `stack`) to be able to find the symbols
 		// in $ANDROID_PRODUCT_OUT/symbols automagically.
 		if !module.Host() {
-			symbolsInstallDestination := sharedLibrarySymbolsInstallLocation(library, fuzzDir, archString)
+			symbolsInstallDestination := SharedLibrarySymbolsInstallLocation(library, fuzzDir, archString)
 			symbolsInstallDestination = strings.ReplaceAll(symbolsInstallDestination, "$", "$$")
 			s.SharedLibInstallStrings = append(s.SharedLibInstallStrings,
 				library.String()+":"+symbolsInstallDestination)
