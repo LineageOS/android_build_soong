@@ -1771,6 +1771,18 @@ func apexFileForJavaModuleWithFile(ctx android.BaseModuleContext, module javaMod
 	return af
 }
 
+func apexFileForJavaModuleProfile(ctx android.BaseModuleContext, module javaModule) *apexFile {
+	if dexpreopter, ok := module.(java.DexpreopterInterface); ok {
+		if profilePathOnHost := dexpreopter.ProfilePathOnHost(); profilePathOnHost != nil {
+			dirInApex := "javalib"
+			af := newApexFile(ctx, profilePathOnHost, module.BaseModuleName()+"-profile", dirInApex, etc, nil)
+			af.customStem = module.Stem() + ".jar.prof"
+			return &af
+		}
+	}
+	return nil
+}
+
 // androidApp is an interface to handle all app modules (android_app, android_app_import, etc.) in
 // the same way.
 type androidApp interface {
@@ -2465,6 +2477,9 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 		case *java.Library, *java.SdkLibrary:
 			af := apexFileForJavaModule(ctx, child.(javaModule))
 			vctx.filesInfo = append(vctx.filesInfo, af)
+			if profileAf := apexFileForJavaModuleProfile(ctx, child.(javaModule)); profileAf != nil {
+				vctx.filesInfo = append(vctx.filesInfo, *profileAf)
+			}
 			return true // track transitive dependencies
 		default:
 			ctx.PropertyErrorf("systemserverclasspath_fragments",
