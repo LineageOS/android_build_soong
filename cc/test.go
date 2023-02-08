@@ -649,7 +649,11 @@ func (handler *ccTestBazelHandler) ProcessBazelQueryResponse(ctx android.ModuleC
 		return
 	}
 
-	outputFilePath := android.PathForBazelOut(ctx, info.OutputFile)
+	var outputFilePath android.Path = android.PathForBazelOut(ctx, info.OutputFile)
+	if len(info.TidyFiles) > 0 {
+		handler.module.tidyFiles = android.PathsForBazelOut(ctx, info.TidyFiles)
+		outputFilePath = android.AttachValidationActions(ctx, outputFilePath, handler.module.tidyFiles)
+	}
 	handler.module.outputFile = android.OptionalPathForPath(outputFilePath)
 	handler.module.linker.(*testBinary).unstrippedOutputFile = android.PathForBazelOut(ctx, info.UnstrippedOutput)
 
