@@ -4105,11 +4105,52 @@ func TestDependenciesInApexManifest(t *testing.T) {
 	ensureListEmpty(t, requireNativeLibs)
 }
 
+func TestApexName(t *testing.T) {
+	ctx := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			apex_name: "com.android.myapex",
+			native_shared_libs: ["mylib"],
+			updatable: false,
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "mylib",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+			apex_available: [
+				"//apex_available:platform",
+				"myapex",
+			],
+		}
+	`)
+
+	module := ctx.ModuleForTests("myapex", "android_common_com.android.myapex_image")
+	apexBundle := module.Module().(*apexBundle)
+	data := android.AndroidMkDataForTest(t, ctx, apexBundle)
+	name := apexBundle.BaseModuleName()
+	prefix := "TARGET_"
+	var builder strings.Builder
+	data.Custom(&builder, name, prefix, "", data)
+	androidMk := builder.String()
+	ensureContains(t, androidMk, "LOCAL_MODULE := mylib.myapex\n")
+	ensureNotContains(t, androidMk, "LOCAL_MODULE := mylib.com.android.myapex\n")
+}
+
 func TestOverrideApexManifestDefaultVersion(t *testing.T) {
 	ctx := testApex(t, `
 		apex {
 			name: "myapex",
 			key: "myapex.key",
+			apex_name: "com.android.myapex",
 			native_shared_libs: ["mylib"],
 			updatable: false,
 		}
@@ -4134,7 +4175,7 @@ func TestOverrideApexManifestDefaultVersion(t *testing.T) {
 		"OVERRIDE_APEX_MANIFEST_DEFAULT_VERSION": "1234",
 	}))
 
-	module := ctx.ModuleForTests("myapex", "android_common_myapex_image")
+	module := ctx.ModuleForTests("myapex", "android_common_com.android.myapex_image")
 	apexManifestRule := module.Rule("apexManifestRule")
 	ensureContains(t, apexManifestRule.Args["default_version"], "1234")
 }
