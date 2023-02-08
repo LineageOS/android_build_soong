@@ -370,3 +370,36 @@ func TestDroidStubsApiContributionGeneration(t *testing.T) {
 
 	ctx.ModuleForTests("foo.api.contribution", "")
 }
+
+func TestGeneratedApiContributionVisibilityTest(t *testing.T) {
+	library_bp := `
+		java_api_library {
+			name: "bar",
+			api_surface: "public",
+			api_contributions: ["foo.api.contribution"],
+		}
+	`
+	ctx, _ := testJavaWithFS(t, `
+			droidstubs {
+				name: "foo",
+				srcs: ["A/a.java"],
+				api_surface: "public",
+				check_api: {
+					current: {
+						api_file: "A/current.txt",
+						removed_api_file: "A/removed.txt",
+					}
+				},
+				visibility: ["//a"],
+			}
+		`,
+		map[string][]byte{
+			"a/a.java":      nil,
+			"a/current.txt": nil,
+			"a/removed.txt": nil,
+			"b/Android.bp":  []byte(library_bp),
+		},
+	)
+
+	ctx.ModuleForTests("bar", "android_common")
+}

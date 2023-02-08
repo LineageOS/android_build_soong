@@ -878,11 +878,13 @@ func (d *Droidstubs) createApiContribution(ctx android.DefaultableHookContext) {
 		Name        *string
 		Api_surface *string
 		Api_file    *string
+		Visibility  []string
 	}{}
 
 	props.Name = proptools.StringPtr(d.Name() + ".api.contribution")
 	props.Api_surface = api_surface
 	props.Api_file = api_file
+	props.Visibility = []string{"//visibility:override", "//visibility:public"}
 
 	ctx.CreateModule(ApiContributionFactory, &props)
 }
