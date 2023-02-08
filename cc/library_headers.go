@@ -76,7 +76,11 @@ func (h *libraryHeaderBazelHandler) ProcessBazelQueryResponse(ctx android.Module
 		return
 	}
 
-	outputPath := android.PathForBazelOut(ctx, outputPaths[0])
+	var outputPath android.Path = android.PathForBazelOut(ctx, outputPaths[0])
+	if len(ccInfo.TidyFiles) > 0 {
+		h.module.tidyFiles = android.PathsForBazelOut(ctx, ccInfo.TidyFiles)
+		outputPath = android.AttachValidationActions(ctx, outputPath, h.module.tidyFiles)
+	}
 	h.module.outputFile = android.OptionalPathForPath(outputPath)
 
 	// HeaderLibraryInfo is an empty struct to indicate to dependencies that this is a header library
