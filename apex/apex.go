@@ -1966,6 +1966,11 @@ func (a *apexBundle) ProcessBazelQueryResponse(ctx android.ModuleContext) {
 	}
 	a.outputFile = a.outputApexFile
 
+	if len(outputs.TidyFiles) > 0 {
+		tidyFiles := android.PathsForBazelOut(ctx, outputs.TidyFiles)
+		a.outputFile = android.AttachValidationActions(ctx, a.outputFile, tidyFiles)
+	}
+
 	// TODO(b/257829940): These are used by the apex_keys_text singleton; would probably be a clearer
 	// interface if these were set in a provider rather than the module itself
 	a.publicKeyFile = android.PathForBazelOut(ctx, outputs.BundleKeyInfo[0])

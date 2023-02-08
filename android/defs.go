@@ -58,6 +58,14 @@ var (
 		},
 		"cpFlags", "extraCmds")
 
+	// A copy rule that doesn't preserve symlinks.
+	CpNoPreserveSymlink = pctx.AndroidStaticRule("CpNoPreserveSymlink",
+		blueprint.RuleParams{
+			Command:     "rm -f $out && cp $cpFlags $in $out$extraCmds",
+			Description: "cp $out",
+		},
+		"cpFlags", "extraCmds")
+
 	// A copy rule that only updates the output if it changed.
 	CpIfChanged = pctx.AndroidStaticRule("CpIfChanged",
 		blueprint.RuleParams{

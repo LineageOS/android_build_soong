@@ -443,6 +443,75 @@ cc_prebuilt_library {
 		expectedStaticOutputFiles, staticOutputFiles.Strings())
 }
 
+func TestPrebuiltLibraryWithBazelValidations(t *testing.T) {
+	const bp = `
+cc_prebuilt_library {
+	name: "foo",
+	shared: {
+		srcs: ["foo.so"],
+	},
+	static: {
+		srcs: ["foo.a"],
+	},
+	bazel_module: { label: "//foo/bar:bar" },
+	tidy: true,
+}`
+	outBaseDir := "outputbase"
+	result := android.GroupFixturePreparers(
+		prepareForPrebuiltTest,
+		android.FixtureMergeEnv(map[string]string{
+			"ALLOW_LOCAL_TIDY_TRUE": "1",
+		}),
+		android.FixtureModifyConfig(func(config android.Config) {
+			config.BazelContext = android.MockBazelContext{
+				OutputBaseDir: outBaseDir,
+				LabelToCcInfo: map[string]cquery.CcInfo{
+					"//foo/bar:bar": cquery.CcInfo{
+						CcSharedLibraryFiles: []string{"foo.so"},
+						TidyFiles:            []string{"foo.c.tidy"},
+					},
+					"//foo/bar:bar_bp2build_cc_library_static": cquery.CcInfo{
+						CcStaticLibraryFiles: []string{"foo.a"},
+						TidyFiles:            []string{"foo.c.tidy"},
+					},
+				},
+			}
+		}),
+	).RunTestWithBp(t, bp)
+	sharedFoo := result.ModuleForTests("foo", "android_arm_armv7-a-neon_shared").Module()
+
+	expectedOutputFile := "out/soong/.intermediates/foo/android_arm_armv7-a-neon_shared/validated/foo.so"
+	sharedInfo := result.ModuleProvider(sharedFoo, SharedLibraryInfoProvider).(SharedLibraryInfo)
+	android.AssertPathRelativeToTopEquals(t,
+		"prebuilt library shared target path did not exist or did not match expected. If the base path is what does not match, it is likely that Soong built this module instead of Bazel.",
+		expectedOutputFile, sharedInfo.SharedLibrary)
+
+	outputFiles, err := sharedFoo.(android.OutputFileProducer).OutputFiles("")
+	if err != nil {
+		t.Errorf("Unexpected error getting cc_object outputfiles %s", err)
+	}
+	expectedOutputFiles := []string{expectedOutputFile}
+	android.AssertPathsRelativeToTopEquals(t,
+		"prebuilt library shared target output files did not match expected.",
+		expectedOutputFiles, outputFiles)
+
+	staticFoo := result.ModuleForTests("foo", "android_arm_armv7-a-neon_static").Module()
+	staticInfo := result.ModuleProvider(staticFoo, StaticLibraryInfoProvider).(StaticLibraryInfo)
+	expectedStaticOutputFile := "out/soong/.intermediates/foo/android_arm_armv7-a-neon_static/validated/foo.a"
+	android.AssertPathRelativeToTopEquals(t,
+		"prebuilt library static target path did not exist or did not match expected. If the base path is what does not match, it is likely that Soong built this module instead of Bazel.",
+		expectedStaticOutputFile, staticInfo.StaticLibrary)
+
+	staticOutputFiles, err := staticFoo.(android.OutputFileProducer).OutputFiles("")
+	if err != nil {
+		t.Errorf("Unexpected error getting cc_object staticOutputFiles %s", err)
+	}
+	expectedStaticOutputFiles := []string{expectedStaticOutputFile}
+	android.AssertPathsRelativeToTopEquals(t,
+		"prebuilt library static target output files did not match expected.",
+		expectedStaticOutputFiles, staticOutputFiles)
+}
+
 func TestPrebuiltLibraryWithBazelStaticDisabled(t *testing.T) {
 	const bp = `
 cc_prebuilt_library {

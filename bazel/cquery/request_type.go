@@ -180,7 +180,7 @@ else:
 tidy_files = []
 clang_tidy_info = p.get("//build/bazel/rules/cc:clang_tidy.bzl%ClangTidyInfo")
 if clang_tidy_info:
-  tidy_files = [v.path for v in clang_tidy_info.tidy_files.to_list()]
+  tidy_files = [v.path for v in clang_tidy_info.transitive_tidy_files.to_list()]
 
 abi_diff_files = []
 abi_diff_info = p.get("//build/bazel/rules/abi:abi_dump.bzl%AbiDiffInfo")
@@ -207,7 +207,7 @@ return json_encode({
     "Headers": headers,
     "RootStaticArchives": rootStaticArchives,
     "RootDynamicLibraries": rootSharedLibraries,
-    "TidyFiles": tidy_files,
+    "TidyFiles": [t for t in tidy_files],
     "TocFile": toc_file,
     "UnstrippedOutput": unstripped,
     "AbiDiffFiles": abi_diff_files,
@@ -261,6 +261,11 @@ mk_info = providers(target).get("//build/bazel/rules/apex:apex_info.bzl%ApexMkIn
 if not mk_info:
   fail("%s did not provide ApexMkInfo" % id_string)
 
+tidy_files = []
+clang_tidy_info = providers(target).get("//build/bazel/rules/cc:clang_tidy.bzl%ClangTidyInfo")
+if clang_tidy_info:
+    tidy_files = [v.path for v in clang_tidy_info.transitive_tidy_files.to_list()]
+
 return json_encode({
     "signed_output": info.signed_output.path,
     "signed_compressed_output": signed_compressed_output,
@@ -276,6 +281,7 @@ return json_encode({
     "bundle_file": info.base_with_config_zip.path,
     "installed_files": info.installed_files.path,
     "make_modules_to_install": mk_info.make_modules_to_install,
+    "tidy_files": [t for t in tidy_files],
 })`
 }
 
@@ -294,6 +300,7 @@ type ApexInfo struct {
 	BackingLibs            string   `json:"backing_libs"`
 	BundleFile             string   `json:"bundle_file"`
 	InstalledFiles         string   `json:"installed_files"`
+	TidyFiles              []string `json:"tidy_files"`
 
 	// From the ApexMkInfo provider
 	MakeModulesToInstall []string `json:"make_modules_to_install"`
@@ -338,12 +345,18 @@ if androidmk_tag in p:
     local_whole_static_libs = androidmk_info.local_whole_static_libs
     local_shared_libs = androidmk_info.local_shared_libs
 
+tidy_files = []
+clang_tidy_info = p.get("//build/bazel/rules/cc:clang_tidy.bzl%ClangTidyInfo")
+if clang_tidy_info:
+    tidy_files = [v.path for v in clang_tidy_info.transitive_tidy_files.to_list()]
+
 return json_encode({
     "OutputFile":  output_path,
     "UnstrippedOutput": unstripped,
     "LocalStaticLibs": [l for l in local_static_libs],
     "LocalWholeStaticLibs": [l for l in local_whole_static_libs],
     "LocalSharedLibs": [l for l in local_shared_libs],
+    "TidyFiles": [t for t in tidy_files],
 })
 `
 }
@@ -361,6 +374,7 @@ type CcUnstrippedInfo struct {
 	CcAndroidMkInfo
 	OutputFile       string
 	UnstrippedOutput string
+	TidyFiles        []string
 }
 
 // splitOrEmpty is a modification of strings.Split() that returns an empty list
