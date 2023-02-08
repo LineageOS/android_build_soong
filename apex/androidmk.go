@@ -24,6 +24,8 @@ import (
 	"android/soong/cc"
 	"android/soong/java"
 	"android/soong/rust"
+
+	"github.com/google/blueprint/proptools"
 )
 
 func (a *apexBundle) AndroidMk() android.AndroidMkData {
@@ -72,15 +74,12 @@ func (a *apexBundle) fullModuleName(apexBundleName string, fi *apexFile) string 
 	return fi.androidMkModuleName + "." + apexBundleName + a.suffix
 }
 
-func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, moduleDir string,
+func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, apexName, moduleDir string,
 	apexAndroidMkData android.AndroidMkData) []string {
 
-	// apexBundleName comes from the 'name' property or soong module.
-	// apexName comes from 'name' property of apex_manifest.
+	// apexBundleName comes from the 'name' property; apexName comes from 'apex_name' property.
 	// An apex is installed to /system/apex/<apexBundleName> and is activated at /apex/<apexName>
 	// In many cases, the two names are the same, but could be different in general.
-	// However, symbol files for apex files are installed under /apex/<apexBundleName> to avoid
-	// conflicts between two apexes with the same apexName.
 
 	moduleNames := []string{}
 	apexType := a.properties.ApexType
@@ -88,6 +87,11 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, moduleDir st
 	// to install symbol files in $(PRODUCT_OUT}/apex.
 	// And if apexType is flattened, run this function to install files in $(PRODUCT_OUT}/system/apex.
 	if !a.primaryApexType && apexType != flattenedApex {
+		return moduleNames
+	}
+
+	// b/162366062. Prevent GKI APEXes to emit make rules to avoid conflicts.
+	if strings.HasPrefix(apexName, "com.android.gki.") && apexType != flattenedApex {
 		return moduleNames
 	}
 
@@ -127,15 +131,15 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, moduleDir st
 		if fi.module != nil && fi.module.Owner() != "" {
 			fmt.Fprintln(w, "LOCAL_MODULE_OWNER :=", fi.module.Owner())
 		}
-		// /apex/<apexBundleName>/{lib|framework|...}
-		pathForSymbol := filepath.Join("$(PRODUCT_OUT)", "apex", apexBundleName, fi.installDir)
+		// /apex/<apex_name>/{lib|framework|...}
+		pathWhenActivated := filepath.Join("$(PRODUCT_OUT)", "apex", apexName, fi.installDir)
 		var modulePath string
 		if apexType == flattenedApex {
-			// /system/apex/<apexBundleName>/{lib|framework|...}
+			// /system/apex/<name>/{lib|framework|...}
 			modulePath = filepath.Join(a.installDir.String(), apexBundleName, fi.installDir)
 			fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", modulePath)
 			if a.primaryApexType {
-				fmt.Fprintln(w, "LOCAL_SOONG_SYMBOL_PATH :=", pathForSymbol)
+				fmt.Fprintln(w, "LOCAL_SOONG_SYMBOL_PATH :=", pathWhenActivated)
 			}
 			android.AndroidMkEmitAssignList(w, "LOCAL_MODULE_SYMLINKS", fi.symlinks)
 			newDataPaths := []android.DataPath{}
@@ -148,8 +152,8 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, moduleDir st
 			}
 			android.AndroidMkEmitAssignList(w, "LOCAL_TEST_DATA", android.AndroidMkDataPaths(newDataPaths))
 		} else {
-			modulePath = pathForSymbol
-			fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", modulePath)
+			modulePath = pathWhenActivated
+			fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", pathWhenActivated)
 
 			// For non-flattend APEXes, the merged notice file is attached to the APEX itself.
 			// We don't need to have notice file for the individual modules in it. Otherwise,
@@ -307,7 +311,8 @@ func (a *apexBundle) androidMkForType() android.AndroidMkData {
 			moduleNames := []string{}
 			apexType := a.properties.ApexType
 			if a.installable() {
-				moduleNames = a.androidMkForFiles(w, name, moduleDir, data)
+				apexName := proptools.StringDefault(a.properties.Apex_name, name)
+				moduleNames = a.androidMkForFiles(w, name, apexName, moduleDir, data)
 			}
 
 			if apexType == flattenedApex {
