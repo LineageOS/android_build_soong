@@ -205,8 +205,8 @@ func (compiler *baseCompiler) AndroidMk(ctx AndroidMkContext, ret *android.Andro
 		})
 }
 
-func (fuzz *fuzzDecorator) AndroidMkEntries(ctx AndroidMkContext, entries *android.AndroidMkEntries) {
-	ctx.SubAndroidMk(entries, fuzz.binaryDecorator)
+func (fuzz *fuzzDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkEntries) {
+	ctx.SubAndroidMk(ret, fuzz.binaryDecorator)
 
 	var fuzzFiles []string
 	for _, d := range fuzz.fuzzPackagedModule.Corpus {
@@ -229,11 +229,14 @@ func (fuzz *fuzzDecorator) AndroidMkEntries(ctx AndroidMkContext, entries *andro
 			filepath.Dir(fuzz.fuzzPackagedModule.Config.String())+":config.json")
 	}
 
-	entries.ExtraEntries = append(entries.ExtraEntries, func(ctx android.AndroidMkExtraEntriesContext,
+	ret.ExtraEntries = append(ret.ExtraEntries, func(ctx android.AndroidMkExtraEntriesContext,
 		entries *android.AndroidMkEntries) {
 		entries.SetBool("LOCAL_IS_FUZZ_TARGET", true)
 		if len(fuzzFiles) > 0 {
 			entries.AddStrings("LOCAL_TEST_DATA", fuzzFiles...)
+		}
+		if fuzz.installedSharedDeps != nil {
+			entries.AddStrings("LOCAL_FUZZ_INSTALLED_SHARED_DEPS", fuzz.installedSharedDeps...)
 		}
 	})
 }
