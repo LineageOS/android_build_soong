@@ -52,7 +52,7 @@ var (
 		if ctx.Config().UseHostMusl() {
 			return "musl/lib/"
 		} else {
-			return "lib64/"
+			return "lib/"
 		}
 	})
 	_ = pctx.SourcePathVariable("bindgenClang",
