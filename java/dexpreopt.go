@@ -27,6 +27,7 @@ type DexpreopterInterface interface {
 	dexpreoptDisabled(ctx android.BaseModuleContext) bool
 	DexpreoptBuiltInstalledForApex() []dexpreopterInstall
 	AndroidMkEntriesForApex() []android.AndroidMkEntries
+	ProfilePathOnHost() android.Path
 }
 
 type dexpreopterInstall struct {
@@ -103,6 +104,9 @@ type dexpreopter struct {
 	// - Dexpreopt post-processing (using dexpreopt artifacts from a prebuilt system image to incrementally
 	//   dexpreopt another partition).
 	configPath android.WritablePath
+
+	// The path to the profile on host.
+	profilePathOnHost android.Path
 }
 
 type DexpreoptProperties struct {
@@ -180,9 +184,8 @@ func (d *dexpreopter) dexpreoptDisabled(ctx android.BaseModuleContext) bool {
 
 	isApexSystemServerJar := global.AllApexSystemServerJars(ctx).ContainsJar(moduleName(ctx))
 	if isApexVariant(ctx) {
-		// Don't preopt APEX variant module unless the module is an APEX system server jar and we are
-		// building the entire system image.
-		if !isApexSystemServerJar || ctx.Config().UnbundledBuild() {
+		// Don't preopt APEX variant module unless the module is an APEX system server jar.
+		if !isApexSystemServerJar {
 			return true
 		}
 	} else {
@@ -368,21 +371,29 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Wr
 		installBase := filepath.Base(install.To)
 		arch := filepath.Base(installDir)
 		installPath := android.PathForModuleInPartitionInstall(ctx, "", installDir)
+		isProfile := strings.HasSuffix(installBase, ".prof")
+
+		if isProfile {
+			d.profilePathOnHost = install.From
+		}
 
 		if isApexSystemServerJar {
-			// APEX variants of java libraries are hidden from Make, so their dexpreopt
-			// outputs need special handling. Currently, for APEX variants of java
-			// libraries, only those in the system server classpath are handled here.
-			// Preopting of boot classpath jars in the ART APEX are handled in
-			// java/dexpreopt_bootjars.go, and other APEX jars are not preopted.
-			// The installs will be handled by Make as sub-modules of the java library.
-			d.builtInstalledForApex = append(d.builtInstalledForApex, dexpreopterInstall{
-				name:                arch + "-" + installBase,
-				moduleName:          moduleName(ctx),
-				outputPathOnHost:    install.From,
-				installDirOnDevice:  installPath,
-				installFileOnDevice: installBase,
-			})
+			// Profiles are handled separately because they are installed into the APEX.
+			if !isProfile {
+				// APEX variants of java libraries are hidden from Make, so their dexpreopt
+				// outputs need special handling. Currently, for APEX variants of java
+				// libraries, only those in the system server classpath are handled here.
+				// Preopting of boot classpath jars in the ART APEX are handled in
+				// java/dexpreopt_bootjars.go, and other APEX jars are not preopted.
+				// The installs will be handled by Make as sub-modules of the java library.
+				d.builtInstalledForApex = append(d.builtInstalledForApex, dexpreopterInstall{
+					name:                arch + "-" + installBase,
+					moduleName:          moduleName(ctx),
+					outputPathOnHost:    install.From,
+					installDirOnDevice:  installPath,
+					installFileOnDevice: installBase,
+				})
+			}
 		} else if !d.preventInstall {
 			ctx.InstallFile(installPath, installBase, install.From)
 		}
@@ -403,4 +414,8 @@ func (d *dexpreopter) AndroidMkEntriesForApex() []android.AndroidMkEntries {
 		entries = append(entries, install.ToMakeEntries())
 	}
 	return entries
+}
+
+func (d *dexpreopter) ProfilePathOnHost() android.Path {
+	return d.profilePathOnHost
 }
