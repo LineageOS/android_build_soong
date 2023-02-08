@@ -2445,18 +2445,24 @@ func (module *SdkLibraryImport) GenerateAndroidBuildActions(ctx android.ModuleCo
 			if di == nil {
 				return // An error has been reported by FindDeapexerProviderForModule.
 			}
-			if dexOutputPath := di.PrebuiltExportPath(apexRootRelativePathToJavaLib(module.BaseModuleName())); dexOutputPath != nil {
+			dexJarFileApexRootRelative := apexRootRelativePathToJavaLib(module.BaseModuleName())
+			if dexOutputPath := di.PrebuiltExportPath(dexJarFileApexRootRelative); dexOutputPath != nil {
 				dexJarFile := makeDexJarPathFromPath(dexOutputPath)
 				module.dexJarFile = dexJarFile
 				installPath := android.PathForModuleInPartitionInstall(
-					ctx, "apex", ai.ApexVariationName, apexRootRelativePathToJavaLib(module.BaseModuleName()))
+					ctx, "apex", ai.ApexVariationName, dexJarFileApexRootRelative)
 				module.installFile = installPath
 				module.initHiddenAPI(ctx, dexJarFile, module.findScopePaths(apiScopePublic).stubsImplPath[0], nil)
 
-				// Dexpreopting.
 				module.dexpreopter.installPath = module.dexpreopter.getInstallPath(ctx, installPath)
 				module.dexpreopter.isSDKLibrary = true
 				module.dexpreopter.uncompressedDex = shouldUncompressDex(ctx, &module.dexpreopter)
+
+				if profilePath := di.PrebuiltExportPath(dexJarFileApexRootRelative + ".prof"); profilePath != nil {
+					module.dexpreopter.inputProfilePathOnHost = profilePath
+				}
+
+				// Dexpreopting.
 				module.dexpreopt(ctx, dexOutputPath)
 			} else {
 				// This should never happen as a variant for a prebuilt_apex is only created if the
@@ -2585,7 +2591,7 @@ var _ android.RequiredFilesFromPrebuiltApex = (*SdkLibraryImport)(nil)
 
 func (module *SdkLibraryImport) RequiredFilesFromPrebuiltApex(ctx android.BaseModuleContext) []string {
 	name := module.BaseModuleName()
-	return requiredFilesFromPrebuiltApexForImport(name)
+	return requiredFilesFromPrebuiltApexForImport(name, &module.dexpreopter)
 }
 
 // java_sdk_library_xml
