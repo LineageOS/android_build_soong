@@ -78,7 +78,8 @@ func (install dexpreopterInstall) ToMakeEntries() android.AndroidMkEntries {
 }
 
 type dexpreopter struct {
-	dexpreoptProperties DexpreoptProperties
+	dexpreoptProperties       DexpreoptProperties
+	importDexpreoptProperties ImportDexpreoptProperties
 
 	installPath         android.InstallPath
 	uncompressedDex     bool
@@ -126,6 +127,18 @@ type DexpreoptProperties struct {
 		// defaults to searching for a file that matches the name of this module in the default
 		// profile location set by PRODUCT_DEX_PREOPT_PROFILE_DIR, or empty if not found.
 		Profile *string `android:"path"`
+	}
+
+	Dex_preopt_result struct {
+		// True if profile-guided optimization is actually enabled.
+		Profile_guided bool
+	} `blueprint:"mutated"`
+}
+
+type ImportDexpreoptProperties struct {
+	Dex_preopt struct {
+		// If true, use the profile in the prebuilt APEX to guide optimization. Defaults to false.
+		Profile_guided *bool
 	}
 }
 
@@ -309,6 +322,8 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Wr
 				global.ProfileDir, moduleName(ctx)+".prof")
 		}
 	}
+
+	d.dexpreoptProperties.Dex_preopt_result.Profile_guided = profileClassListing.Valid()
 
 	// Full dexpreopt config, used to create dexpreopt build rules.
 	dexpreoptConfig := &dexpreopt.ModuleConfig{

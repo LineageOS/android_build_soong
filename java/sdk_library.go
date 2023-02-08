@@ -2201,7 +2201,7 @@ func sdkLibraryImportFactory() android.Module {
 
 	allScopeProperties, scopeToProperties := createPropertiesInstance()
 	module.scopeProperties = scopeToProperties
-	module.AddProperties(&module.properties, allScopeProperties)
+	module.AddProperties(&module.properties, allScopeProperties, &module.importDexpreoptProperties)
 
 	// Initialize information common between source and prebuilt.
 	module.initCommon(module)
@@ -2994,6 +2994,8 @@ type sdkLibrarySdkMemberProperties struct {
 	//
 	// This means that the device won't recognise this library as installed.
 	Max_device_sdk *string
+
+	DexPreoptProfileGuided *bool `supported_build_releases:"UpsideDownCake+"`
 }
 
 type scopeProperties struct {
@@ -3047,6 +3049,10 @@ func (s *sdkLibrarySdkMemberProperties) PopulateFromVariant(ctx android.SdkMembe
 	s.On_bootclasspath_before = sdk.commonSdkLibraryProperties.On_bootclasspath_before
 	s.Min_device_sdk = sdk.commonSdkLibraryProperties.Min_device_sdk
 	s.Max_device_sdk = sdk.commonSdkLibraryProperties.Max_device_sdk
+
+	if sdk.dexpreopter.dexpreoptProperties.Dex_preopt_result.Profile_guided {
+		s.DexPreoptProfileGuided = proptools.BoolPtr(true)
+	}
 }
 
 func (s *sdkLibrarySdkMemberProperties) AddToPropertySet(ctx android.SdkMemberContext, propertySet android.BpPropertySet) {
@@ -3061,6 +3067,10 @@ func (s *sdkLibrarySdkMemberProperties) AddToPropertySet(ctx android.SdkMemberCo
 	}
 	if len(s.Permitted_packages) > 0 {
 		propertySet.AddProperty("permitted_packages", s.Permitted_packages)
+	}
+	dexPreoptSet := propertySet.AddPropertySet("dex_preopt")
+	if s.DexPreoptProfileGuided != nil {
+		dexPreoptSet.AddProperty("profile_guided", proptools.Bool(s.DexPreoptProfileGuided))
 	}
 
 	stem := s.Stem
