@@ -984,8 +984,11 @@ type appTestProperties struct {
 	// The name of the android_app module that the tests will run against.
 	Instrumentation_for *string
 
-	// if specified, the instrumentation target package name in the manifest is overwritten by it.
+	// If specified, the instrumentation target package name in the manifest is overwritten by it.
 	Instrumentation_target_package *string
+
+	// If specified, the mainline module package name in the test config is overwritten by it.
+	Mainline_package_name *string
 }
 
 type AndroidTest struct {
@@ -1061,6 +1064,11 @@ func (a *AndroidTest) FixTestConfig(ctx android.ModuleContext, testConfig androi
 		fixNeeded = true
 		command.FlagWithInput("--manifest ", a.manifestPath).
 			FlagWithArg("--package-name ", *a.overridableAppProperties.Package_name)
+	}
+
+	if a.appTestProperties.Mainline_package_name != nil {
+		fixNeeded = true
+		command.FlagWithArg("--mainline-package-name ", *a.appTestProperties.Mainline_package_name)
 	}
 
 	if fixNeeded {
