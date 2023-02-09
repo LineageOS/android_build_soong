@@ -69,42 +69,222 @@ type ArchOs struct {
 	Dir          string
 }
 
-type PrivilegedLevel string
+type Vector string
 
 const (
-	// Environment with the most minimal permissions.
-	Constrained PrivilegedLevel = "Constrained"
-	// Typical execution environment running unprivileged code.
-	Unprivileged = "Unprivileged"
-	// May have access to elevated permissions.
-	Privileged = "Privileged"
-	// Trusted computing base.
-	Tcb = "TCB"
-	// Bootloader chain.
-	Bootloader = "Bootloader"
-	// Tusted execution environment.
-	Tee = "Tee"
-	// Secure enclave.
-	Se = "Se"
-	// Other.
-	Other = "Other"
+	unknown_access_vector Vector = "unknown_access_vector"
+	// The code being fuzzed is reachable from a remote source, or using data
+	// provided by a remote source.  For example: media codecs process media files
+	// from the internet, SMS processing handles remote message data.
+	// See
+	// https://source.android.com/docs/security/overview/updates-resources#local-vs-remote
+	// for an explanation of what's considered "remote."
+	remote = "remote"
+	// The code being fuzzed can only be reached locally, such as from an
+	// installed app.  As an example, if it's fuzzing a Binder interface, it's
+	// assumed that you'd need a local app to make arbitrary Binder calls.
+	// And the app that's calling the fuzzed code does not require any privileges;
+	// any 3rd party app could make these calls.
+	local_no_privileges_required = "local_no_privileges_required"
+	// The code being fuzzed can only be called locally, and the calling process
+	// requires additional permissions that prevent arbitrary 3rd party apps from
+	// calling the code.  For instance: this requires a privileged or signature
+	// permission to reach, or SELinux restrictions prevent the untrusted_app
+	// domain from calling it.
+	local_privileges_required = "local_privileges_required"
+	// The code is only callable on a PC host, not on a production Android device.
+	// For instance, this is fuzzing code used during the build process, or
+	// tooling that does not exist on a user's actual Android device.
+	host_access = "host_access"
+	// The code being fuzzed is only reachable if the user has enabled Developer
+	// Options, or has enabled a persistent Developer Options setting.
+	local_with_developer_options = "local_with_developer_options"
 )
+
+func (vector Vector) isValidVector() bool {
+	switch vector {
+	case "",
+		unknown_access_vector,
+		remote,
+		local_no_privileges_required,
+		local_privileges_required,
+		host_access,
+		local_with_developer_options:
+		return true
+	}
+	return false
+}
+
+type ServicePrivilege string
+
+const (
+	unknown_service_privilege ServicePrivilege = "unknown_service_privilege"
+	// The code being fuzzed runs on a Secure Element.  This has access to some
+	// of the most privileged data on the device, such as authentication keys.
+	// Not all devices have a Secure Element.
+	secure_element = "secure_element"
+	// The code being fuzzed runs in the TEE.  The TEE is designed to be resistant
+	// to a compromised kernel, and stores sensitive data.
+	trusted_execution = "trusted_execution"
+	// The code being fuzzed has privileges beyond what arbitrary 3rd party apps
+	// have.  For instance, it's running as the System UID, or it's in an SELinux
+	// domain that's able to perform calls that can't be made by 3rd party apps.
+	privileged = "privileged"
+	// The code being fuzzed is equivalent to a 3rd party app.  It runs in the
+	// untrusted_app SELinux domain, or it only has privileges that are equivalent
+	// to what a 3rd party app could have.
+	unprivileged = "unprivileged"
+	// The code being fuzzed is significantly constrained, and even if it's
+	// compromised, it has significant restrictions that prevent it from
+	// performing most actions.  This is significantly more restricted than
+	// UNPRIVILEGED.  An example is the isolatedProcess=true setting in a 3rd
+	// party app.  Or a process that's very restricted by SELinux, such as
+	// anything in the mediacodec SELinux domain.
+	constrained = "constrained"
+	// The code being fuzzed always has Negligible Security Impact.  Even
+	// arbitrary out of bounds writes and full code execution would not be
+	// considered a security vulnerability.  This typically only makes sense if
+	// FuzzedCodeUsage is set to FUTURE_VERSION or EXPERIMENTAL, and if
+	// AutomaticallyRouteTo is set to ALWAYS_NSI.
+	nsi = "nsi"
+	// The code being fuzzed only runs on a PC host, not on a production Android
+	// device.  For instance, the fuzzer is fuzzing code used during the build
+	// process, or tooling that does not exist on a user's actual Android device.
+	host_only = "host_only"
+)
+
+func (service_privilege ServicePrivilege) isValidServicePrivilege() bool {
+	switch service_privilege {
+	case "",
+		unknown_service_privilege,
+		secure_element,
+		trusted_execution,
+		privileged,
+		unprivileged,
+		constrained,
+		nsi,
+		host_only:
+		return true
+	}
+	return false
+}
+
+type UserData string
+
+const (
+	unknown_user_data UserData = "unknown_user_data"
+	// The process being fuzzed only handles data from a single user, or from a
+	// single process or app.  It's possible the process shuts down before
+	// handling data from another user/process/app, or it's possible the process
+	// only ever handles one user's/process's/app's data.  As an example, some
+	// print spooler processes are started for a single document and terminate
+	// when done, so each instance only handles data from a single user/app.
+	single_user = "single_user"
+	// The process handles data from multiple users, or from multiple other apps
+	// or processes.  Media processes, for instance, can handle media requests
+	// from multiple different apps without restarting.  Wi-Fi and network
+	// processes handle data from multiple users, and processes, and apps.
+	multi_user = "multi_user"
+)
+
+func (user_data UserData) isValidUserData() bool {
+	switch user_data {
+	case "",
+		unknown_user_data,
+		single_user,
+		multi_user:
+		return true
+	}
+	return false
+}
+
+type FuzzedCodeUsage string
+
+const (
+	undefined FuzzedCodeUsage = "undefined"
+	unknown                   = "unknown"
+	// The code being fuzzed exists in a shipped version of Android and runs on
+	// devices in production.
+	shipped = "shipped"
+	// The code being fuzzed is not yet in a shipping version of Android, but it
+	// will be at some point in the future.
+	future_version = "future_version"
+	// The code being fuzzed is not in a shipping version of Android, and there
+	// are no plans to ship it in the future.
+	experimental = "experimental"
+)
+
+func (fuzzed_code_usage FuzzedCodeUsage) isValidFuzzedCodeUsage() bool {
+	switch fuzzed_code_usage {
+	case "",
+		undefined,
+		unknown,
+		shipped,
+		future_version,
+		experimental:
+		return true
+	}
+	return false
+}
+
+type AutomaticallyRouteTo string
+
+const (
+	undefined_routing AutomaticallyRouteTo = "undefined_routing"
+	// Automatically route this to the Android Automotive security team for
+	// assessment.
+	android_automotive = "android_automotive"
+	// This should not be used in fuzzer configurations.  It is used internally
+	// by Severity Assigner to flag memory leak reports.
+	memory_leak = "memory_leak"
+	// Route this vulnerability to our Ittiam vendor team for assessment.
+	ittiam = "ittiam"
+	// Reports from this fuzzer are always NSI (see the NSI ServicePrivilegeEnum
+	// value for additional context).  It is not possible for this code to ever
+	// have a security vulnerability.
+	always_nsi = "always_nsi"
+	// Route this vulnerability to AIDL team for assessment.
+	aidl = "aidl"
+)
+
+func (automatically_route_to AutomaticallyRouteTo) isValidAutomaticallyRouteTo() bool {
+	switch automatically_route_to {
+	case "",
+		undefined_routing,
+		android_automotive,
+		memory_leak,
+		ittiam,
+		always_nsi,
+		aidl:
+		return true
+	}
+	return false
+}
 
 func IsValidConfig(fuzzModule FuzzPackagedModule, moduleName string) bool {
 	var config = fuzzModule.FuzzProperties.Fuzz_config
 	if config != nil {
-		var level = PrivilegedLevel(config.Privilege_level)
-		if level != "" {
-			switch level {
-			case Constrained, Unprivileged, Privileged, Tcb, Bootloader, Tee, Se, Other:
-				return true
-			}
-			panic(fmt.Errorf("Invalid privileged level in fuzz config in %s", moduleName))
+		if !config.Vector.isValidVector() {
+			panic(fmt.Errorf("Invalid vector in fuzz config in %s", moduleName))
 		}
-		return true
-	} else {
-		return false
+
+		if !config.Service_privilege.isValidServicePrivilege() {
+			panic(fmt.Errorf("Invalid service_privilege in fuzz config in %s", moduleName))
+		}
+
+		if !config.Users.isValidUserData() {
+			panic(fmt.Errorf("Invalid users (user_data) in fuzz config in %s", moduleName))
+		}
+
+		if !config.Fuzzed_code_usage.isValidFuzzedCodeUsage() {
+			panic(fmt.Errorf("Invalid fuzzed_code_usage in fuzz config in %s", moduleName))
+		}
+
+		if !config.Automatically_route_to.isValidAutomaticallyRouteTo() {
+			panic(fmt.Errorf("Invalid automatically_route_to in fuzz config in %s", moduleName))
+		}
 	}
+	return true
 }
 
 type FuzzConfig struct {
@@ -112,18 +292,23 @@ type FuzzConfig struct {
 	Cc []string `json:"cc,omitempty"`
 	// A brief description of what the fuzzed code does.
 	Description string `json:"description,omitempty"`
-	// Can this code be triggered remotely or only locally.
-	Remotely_accessible *bool `json:"remotely_accessible,omitempty"`
-	// Is the fuzzed code host only, i.e. test frameworks or support utilities.
-	Host_only *bool `json:"host_only,omitempty"`
+	// Whether the code being fuzzed is remotely accessible or requires privileges
+	// to access locally.
+	Vector Vector `json:"vector,omitempty"`
+	// How privileged the service being fuzzed is.
+	Service_privilege ServicePrivilege `json:"service_privilege,omitempty"`
+	// Whether the service being fuzzed handles data from multiple users or only
+	// a single one.
+	Users UserData `json:"users,omitempty"`
+	// Specifies the use state of the code being fuzzed. This state factors into
+	// how an issue is handled.
+	Fuzzed_code_usage FuzzedCodeUsage `json:"fuzzed_code_usage,omitempty"`
+	// Comment describing how we came to these settings for this fuzzer.
+	Config_comment string
+	// Which team to route this to, if it should be routed automatically.
+	Automatically_route_to AutomaticallyRouteTo `json:"automatically_route_to,omitempty"`
 	// Can third party/untrusted apps supply data to fuzzed code.
 	Untrusted_data *bool `json:"untrusted_data,omitempty"`
-	// Is the code being fuzzed in a privileged, constrained or any other
-	// context from:
-	// https://source.android.com/security/overview/updates-resources#context_types.
-	Privilege_level PrivilegedLevel `json:"privilege_level,omitempty"`
-	// Is the fuzzed code isolated or can it be called by multiple users/processes.
-	Isolated *bool `json:"users_isolation,omitempty"`
 	// When code was released or will be released.
 	Production_date string `json:"production_date,omitempty"`
 	// Prevents critical service functionality like phone calls, bluetooth, etc.
