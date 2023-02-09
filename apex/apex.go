@@ -94,10 +94,6 @@ type apexBundleProperties struct {
 	// a default one is automatically generated.
 	AndroidManifest *string `android:"path"`
 
-	// Canonical name of this APEX bundle. Used to determine the path to the activated APEX on
-	// device (/apex/<apex_name>). If unspecified, follows the name property.
-	Apex_name *string
-
 	// Determines the file contexts file for setting the security contexts to files in this APEX
 	// bundle. For platform APEXes, this should points to a file under /system/sepolicy Default:
 	// /system/sepolicy/apex/<module_name>_file_contexts.
@@ -1037,7 +1033,7 @@ func (a *apexBundle) ApexInfoMutator(mctx android.TopDownMutatorContext) {
 	// This is the main part of this mutator. Mark the collected dependencies that they need to
 	// be built for this apexBundle.
 
-	apexVariationName := proptools.StringDefault(a.properties.Apex_name, mctx.ModuleName()) // could be com.android.foo
+	apexVariationName := mctx.ModuleName() // could be com.android.foo
 	a.properties.ApexVariationName = apexVariationName
 	apexInfo := android.ApexInfo{
 		ApexVariationName: apexVariationName,
