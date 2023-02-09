@@ -1326,6 +1326,9 @@ var (
 
 		// uses glob in $(locations)
 		"libc_musl_sysroot",
+
+		// TODO(b/266459895): depends on libunwindstack
+		"libutils_test",
 	}
 
 	MixedBuildsDisabledList = []string{
