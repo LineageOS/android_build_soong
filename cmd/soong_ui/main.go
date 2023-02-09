@@ -220,10 +220,10 @@ func main() {
 
 	c.run(buildCtx, config, args)
 
-	defer met.Dump(soongMetricsFile)
 	if !config.SkipMetricsUpload() {
 		defer build.UploadMetrics(buildCtx, config, c.simpleOutput, buildStarted, bazelProfileFile, bazelMetricsFile, metricsFiles...)
 	}
+	defer met.Dump(soongMetricsFile)
 
 }
 

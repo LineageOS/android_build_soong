@@ -3,6 +3,7 @@ package cc
 import (
 	"android/soong/android"
 	"android/soong/bazel/cquery"
+	"android/soong/fuzz"
 	"android/soong/snapshot"
 
 	"github.com/google/blueprint"
@@ -119,6 +120,17 @@ type LinkableInterface interface {
 	SetShared()
 	IsPrebuilt() bool
 	Toc() android.OptionalPath
+
+	// IsFuzzModule returns true if this a *_fuzz module.
+	IsFuzzModule() bool
+
+	// FuzzPackagedModule returns the fuzz.FuzzPackagedModule for this module.
+	// Expects that IsFuzzModule returns true.
+	FuzzPackagedModule() fuzz.FuzzPackagedModule
+
+	// FuzzSharedLibraries returns the shared library dependencies for this module.
+	// Expects that IsFuzzModule returns true.
+	FuzzSharedLibraries() android.Paths
 
 	Device() bool
 	Host() bool
@@ -256,6 +268,9 @@ type LinkableInterface interface {
 
 	// Partition returns the partition string for this module.
 	Partition() string
+
+	// FuzzModule returns the fuzz.FuzzModule associated with the module.
+	FuzzModuleStruct() fuzz.FuzzModule
 }
 
 var (
