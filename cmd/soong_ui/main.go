@@ -218,12 +218,12 @@ func main() {
 
 	trace.SetOutput(filepath.Join(logsDir, c.logsPrefix+"build.trace"))
 
-	c.run(buildCtx, config, args)
-
 	if !config.SkipMetricsUpload() {
 		defer build.UploadMetrics(buildCtx, config, c.simpleOutput, buildStarted, bazelProfileFile, bazelMetricsFile, metricsFiles...)
 	}
 	defer met.Dump(soongMetricsFile)
+
+	c.run(buildCtx, config, args)
 
 }
 
