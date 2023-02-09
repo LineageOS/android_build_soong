@@ -2330,12 +2330,14 @@ func TestAndroidTest_FixTestConfig(t *testing.T) {
 			srcs: ["b.java"],
 			package_name: "com.android.bar.test",
 			instrumentation_for: "foo",
+			mainline_package_name: "com.android.bar",
 		}
 
 		override_android_test {
 			name: "baz_test",
 			base: "foo_test",
 			package_name: "com.android.baz.test",
+			mainline_package_name: "com.android.baz",
 		}
 		`)
 
@@ -2354,6 +2356,7 @@ func TestAndroidTest_FixTestConfig(t *testing.T) {
 			expectedFlags: []string{
 				"--manifest out/soong/.intermediates/bar_test/android_common/manifest_fixer/AndroidManifest.xml",
 				"--package-name com.android.bar.test",
+				"--mainline-package-name com.android.bar",
 			},
 		},
 		{
@@ -2363,6 +2366,8 @@ func TestAndroidTest_FixTestConfig(t *testing.T) {
 				"--manifest out/soong/.intermediates/foo_test/android_common_baz_test/manifest_fixer/AndroidManifest.xml",
 				"--package-name com.android.baz.test",
 				"--test-file-name baz_test.apk",
+				"out/soong/.intermediates/foo_test/android_common_baz_test/test_config_fixer/AndroidTest.xml",
+				"--mainline-package-name com.android.baz",
 			},
 		},
 	}
