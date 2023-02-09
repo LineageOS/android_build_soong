@@ -3484,14 +3484,14 @@ func getFiles(t *testing.T, ctx *android.TestContext, moduleName, variant string
 	return ret
 }
 
-func ensureExactContents(t *testing.T, ctx *android.TestContext, moduleName, variant string, files []string) {
+func assertFileListEquals(t *testing.T, expectedFiles []string, actualFiles []fileInApex) {
 	t.Helper()
 	var failed bool
 	var surplus []string
 	filesMatched := make(map[string]bool)
-	for _, file := range getFiles(t, ctx, moduleName, variant) {
+	for _, file := range actualFiles {
 		matchFound := false
-		for _, expected := range files {
+		for _, expected := range expectedFiles {
 			if file.match(expected) {
 				matchFound = true
 				filesMatched[expected] = true
@@ -3509,9 +3509,9 @@ func ensureExactContents(t *testing.T, ctx *android.TestContext, moduleName, var
 		failed = true
 	}
 
-	if len(files) > len(filesMatched) {
+	if len(expectedFiles) > len(filesMatched) {
 		var missing []string
-		for _, expected := range files {
+		for _, expected := range expectedFiles {
 			if !filesMatched[expected] {
 				missing = append(missing, expected)
 			}
@@ -3523,6 +3523,32 @@ func ensureExactContents(t *testing.T, ctx *android.TestContext, moduleName, var
 	if failed {
 		t.Fail()
 	}
+}
+
+func ensureExactContents(t *testing.T, ctx *android.TestContext, moduleName, variant string, files []string) {
+	assertFileListEquals(t, files, getFiles(t, ctx, moduleName, variant))
+}
+
+func ensureExactDeapexedContents(t *testing.T, ctx *android.TestContext, moduleName string, variant string, files []string) {
+	deapexer := ctx.ModuleForTests(moduleName+".deapexer", variant).Rule("deapexer")
+	outputs := make([]string, 0, len(deapexer.ImplicitOutputs)+1)
+	if deapexer.Output != nil {
+		outputs = append(outputs, deapexer.Output.String())
+	}
+	for _, output := range deapexer.ImplicitOutputs {
+		outputs = append(outputs, output.String())
+	}
+	actualFiles := make([]fileInApex, 0, len(outputs))
+	for _, output := range outputs {
+		dir := "/deapexer/"
+		pos := strings.LastIndex(output, dir)
+		if pos == -1 {
+			t.Fatal("Unknown deapexer output ", output)
+		}
+		path := output[pos+len(dir):]
+		actualFiles = append(actualFiles, fileInApex{path: path, src: "", isLink: false})
+	}
+	assertFileListEquals(t, files, actualFiles)
 }
 
 func TestVndkApexCurrent(t *testing.T) {
