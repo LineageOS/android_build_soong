@@ -23,6 +23,8 @@ from xml.dom import minidom
 
 import test_config_fixer
 
+from manifest import write_xml
+
 sys.dont_write_bytecode = True
 
 
@@ -115,6 +117,40 @@ class OverwriteTestFileNameTest(unittest.TestCase):
     # Only the matching package name in a test node should be updated.
     expected = self.test_config_suite_apk_installer % ("bar.apk")
     self.assertEqual(expected, output.getvalue())
+
+
+class OverwriteMainlineModulePackageNameTest(unittest.TestCase):
+  """ Unit tests for overwrite_mainline_module_package_name function """
+
+  test_config = (
+      '<?xml version="1.0" encoding="utf-8"?>\n'
+      '<configuration description="Runs some tests.">\n'
+      '    <target_preparer class="com.android.tradefed.targetprep.TestAppInstallSetup">\n'
+      '        <option name="test-file-name" value="foo.apk"/>\n'
+      '    </target_preparer>\n'
+      '    <test class="com.android.tradefed.testtype.AndroidJUnitTest">\n'
+      '        <option name="package" value="com.android.foo"/>\n'
+      '        <option name="runtime-hint" value="20s"/>\n'
+      '    </test>\n'
+      '    <object type="module_controller" class="com.android.tradefed.testtype.suite.module.MainlineTestModuleController">\n'
+      '        <option name="enable" value="true"/>\n'
+      '        <option name="mainline-module-package-name" value="%s"/>\n'
+      '    </object>\n'
+      '</configuration>\n')
+
+  def test_testappinstallsetup(self):
+    doc = minidom.parseString(self.test_config % ("com.android.old.package.name"))
+
+    test_config_fixer.overwrite_mainline_module_package_name(doc, "com.android.new.package.name")
+    output = io.StringIO()
+    test_config_fixer.write_xml(output, doc)
+
+    # Only the mainline module package name should be updated. Format the xml
+    # with minidom first to avoid mismatches due to trivial reformatting.
+    expected = io.StringIO()
+    write_xml(expected, minidom.parseString(self.test_config % ("com.android.new.package.name")))
+    self.maxDiff = None
+    self.assertEqual(expected.getvalue(), output.getvalue())
 
 
 if __name__ == '__main__':
