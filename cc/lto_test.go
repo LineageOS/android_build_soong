@@ -185,12 +185,11 @@ func TestLtoDisabledButEnabledForArch(t *testing.T) {
 	cc_library {
 		name: "libfoo",
 		srcs: ["foo.c"],
-		host_supported:true,
 		lto: {
 			never: true,
 		},
 		target: {
-			android: {
+			android_arm: {
 				lto: {
 					never: false,
 					thin: true,
@@ -202,8 +201,8 @@ func TestLtoDisabledButEnabledForArch(t *testing.T) {
 		prepareForCcTest,
 	).RunTestWithBp(t, bp)
 
-	libFooWithLto := result.ModuleForTests("libfoo", "android_arm64_armv8-a_shared").Rule("ld")
-	libFooWithoutLto := result.ModuleForTests("libfoo", "linux_glibc_x86_64_shared").Rule("ld")
+	libFooWithLto := result.ModuleForTests("libfoo", "android_arm_armv7-a-neon_shared").Rule("ld")
+	libFooWithoutLto := result.ModuleForTests("libfoo", "android_arm64_armv8-a_shared").Rule("ld")
 
 	android.AssertStringDoesContain(t, "missing flag for LTO in variant that expects it",
 		libFooWithLto.Args["ldFlags"], "-flto=thin")
