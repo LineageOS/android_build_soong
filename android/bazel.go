@@ -526,3 +526,15 @@ func GetMainClassInManifest(c Config, filepath string) (string, error) {
 
 	return "", errors.New("Main-Class is not found.")
 }
+
+func AttachValidationActions(ctx ModuleContext, outputFilePath Path, validations Paths) ModuleOutPath {
+	validatedOutputFilePath := PathForModuleOut(ctx, "validated", outputFilePath.Base())
+	ctx.Build(pctx, BuildParams{
+		Rule:        CpNoPreserveSymlink,
+		Description: "run validations " + outputFilePath.Base(),
+		Output:      validatedOutputFilePath,
+		Input:       outputFilePath,
+		Validations: validations,
+	})
+	return validatedOutputFilePath
+}
