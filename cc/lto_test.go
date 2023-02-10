@@ -209,3 +209,33 @@ func TestLtoDisabledButEnabledForArch(t *testing.T) {
 	android.AssertStringDoesNotContain(t, "got flag for LTO in variant that doesn't expect it",
 		libFooWithoutLto.Args["ldFlags"], "-flto=thin")
 }
+
+func TestLtoDoesNotPropagateToRuntimeLibs(t *testing.T) {
+	t.Parallel()
+	bp := `
+	cc_library {
+		name: "runtime_libbar",
+		srcs: ["bar.c"],
+	}
+
+	cc_library {
+		name: "libfoo",
+		srcs: ["foo.c"],
+		runtime_libs: ["runtime_libbar"],
+		lto: {
+			thin: true,
+		},
+	}`
+
+	result := android.GroupFixturePreparers(
+		prepareForCcTest,
+	).RunTestWithBp(t, bp)
+
+	libFoo := result.ModuleForTests("libfoo", "android_arm_armv7-a-neon_shared").Rule("ld")
+	libBar := result.ModuleForTests("runtime_libbar", "android_arm_armv7-a-neon_shared").Rule("ld")
+
+	android.AssertStringDoesContain(t, "missing flag for LTO in LTO enabled library",
+		libFoo.Args["ldFlags"], "-flto=thin")
+	android.AssertStringDoesNotContain(t, "got flag for LTO in runtime_lib",
+		libBar.Args["ldFlags"], "-flto=thin")
+}
