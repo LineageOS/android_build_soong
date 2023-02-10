@@ -1994,21 +1994,17 @@ func (a *apexBundle) ProcessBazelQueryResponse(ctx android.ModuleContext) {
 		a.installedFile = ctx.InstallFile(a.installDir, a.Name()+installSuffix, a.outputFile,
 			a.compatSymlinks.Paths()...)
 	default:
-		panic(fmt.Errorf("unexpected apex_type for the ProcessBazelQuery: %v", a.properties.ApexType))
+		panic(fmt.Errorf("internal error: unexpected apex_type for the ProcessBazelQueryResponse: %v", a.properties.ApexType))
 	}
 
-	/*
-			TODO(asmundak): compared to building an APEX with Soong, building it with Bazel does not
-			return filesInfo and requiredDeps fields (in the Soong build the latter is updated).
-			Fix this, as these fields are subsequently used in apex/androidmk.go and in apex/builder/go
-			To find out what Soong build puts there, run:
-			vctx := visitorContext{handleSpecialLibs: !android.Bool(a.properties.Ignore_system_library_special_case)}
-			ctx.WalkDepsBlueprint(func(child, parent blueprint.Module) bool {
-		      return a.depVisitor(&vctx, ctx, child, parent)
-		    })
-			vctx.normalizeFileInfo()
-	*/
-
+	// filesInfo is not set in mixed mode, because all information about the
+	// apex's contents should completely come from the Starlark providers.
+	//
+	// Prevent accidental writes to filesInfo in the earlier parts Soong by
+	// asserting it to be nil.
+	if a.filesInfo != nil {
+		panic(fmt.Errorf("internal error: filesInfo must be nil for an apex handled by Bazel."))
+	}
 }
 
 func (a *apexBundle) setCompression(ctx android.ModuleContext) {
