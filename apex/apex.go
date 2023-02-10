@@ -94,10 +94,6 @@ type apexBundleProperties struct {
 	// a default one is automatically generated.
 	AndroidManifest *string `android:"path"`
 
-	// Canonical name of this APEX bundle. Used to determine the path to the activated APEX on
-	// device (/apex/<apex_name>). If unspecified, follows the name property.
-	Apex_name *string
-
 	// Determines the file contexts file for setting the security contexts to files in this APEX
 	// bundle. For platform APEXes, this should points to a file under /system/sepolicy Default:
 	// /system/sepolicy/apex/<module_name>_file_contexts.
@@ -1037,7 +1033,7 @@ func (a *apexBundle) ApexInfoMutator(mctx android.TopDownMutatorContext) {
 	// This is the main part of this mutator. Mark the collected dependencies that they need to
 	// be built for this apexBundle.
 
-	apexVariationName := proptools.StringDefault(a.properties.Apex_name, mctx.ModuleName()) // could be com.android.foo
+	apexVariationName := mctx.ModuleName() // could be com.android.foo
 	a.properties.ApexVariationName = apexVariationName
 	apexInfo := android.ApexInfo{
 		ApexVariationName: apexVariationName,
@@ -1771,6 +1767,18 @@ func apexFileForJavaModuleWithFile(ctx android.BaseModuleContext, module javaMod
 	return af
 }
 
+func apexFileForJavaModuleProfile(ctx android.BaseModuleContext, module javaModule) *apexFile {
+	if dexpreopter, ok := module.(java.DexpreopterInterface); ok {
+		if profilePathOnHost := dexpreopter.ProfilePathOnHost(); profilePathOnHost != nil {
+			dirInApex := "javalib"
+			af := newApexFile(ctx, profilePathOnHost, module.BaseModuleName()+"-profile", dirInApex, etc, nil)
+			af.customStem = module.Stem() + ".jar.prof"
+			return &af
+		}
+	}
+	return nil
+}
+
 // androidApp is an interface to handle all app modules (android_app, android_app_import, etc.) in
 // the same way.
 type androidApp interface {
@@ -1953,6 +1961,11 @@ func (a *apexBundle) ProcessBazelQueryResponse(ctx android.ModuleContext) {
 		a.outputApexFile = android.PathForBazelOut(ctx, outputs.SignedOutput)
 	}
 	a.outputFile = a.outputApexFile
+
+	if len(outputs.TidyFiles) > 0 {
+		tidyFiles := android.PathsForBazelOut(ctx, outputs.TidyFiles)
+		a.outputFile = android.AttachValidationActions(ctx, a.outputFile, tidyFiles)
+	}
 
 	// TODO(b/257829940): These are used by the apex_keys_text singleton; would probably be a clearer
 	// interface if these were set in a provider rather than the module itself
@@ -2465,6 +2478,9 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 		case *java.Library, *java.SdkLibrary:
 			af := apexFileForJavaModule(ctx, child.(javaModule))
 			vctx.filesInfo = append(vctx.filesInfo, af)
+			if profileAf := apexFileForJavaModuleProfile(ctx, child.(javaModule)); profileAf != nil {
+				vctx.filesInfo = append(vctx.filesInfo, *profileAf)
+			}
 			return true // track transitive dependencies
 		default:
 			ctx.PropertyErrorf("systemserverclasspath_fragments",

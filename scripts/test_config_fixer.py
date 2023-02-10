@@ -31,6 +31,8 @@ from manifest import write_xml
 KNOWN_PREPARERS = ['com.android.tradefed.targetprep.TestAppInstallSetup',
                    'com.android.tradefed.targetprep.suite.SuiteApkInstaller']
 
+MAINLINE_CONTROLLER = 'com.android.tradefed.testtype.suite.module.MainlineTestModuleController'
+
 def parse_args():
   """Parse commandline arguments."""
 
@@ -41,6 +43,8 @@ def parse_args():
                       help=('overwrite package fields in the test config'))
   parser.add_argument('--test-file-name', default='', dest='test_file_name',
                       help=('overwrite test file name in the test config'))
+  parser.add_argument('--mainline-package-name', default='', dest='mainline_package_name',
+                      help=('overwrite mainline module package name in the test config'))
   parser.add_argument('input', help='input test config file')
   parser.add_argument('output', help='output test config file')
   return parser.parse_args()
@@ -72,6 +76,16 @@ def overwrite_test_file_name(test_config_doc, test_file_name):
         if option.getAttribute('name') == "test-file-name":
           option.setAttribute('value', test_file_name)
 
+def overwrite_mainline_module_package_name(test_config_doc, mainline_package_name):
+
+  test_config = parse_test_config(test_config_doc)
+
+  for obj in get_children_with_tag(test_config, 'object'):
+    if obj.getAttribute('class') == MAINLINE_CONTROLLER:
+      for option in get_children_with_tag(obj, 'option'):
+        if option.getAttribute('name') == "mainline-module-package-name":
+          option.setAttribute('value', mainline_package_name)
+
 def main():
   """Program entry point."""
   try:
@@ -87,6 +101,9 @@ def main():
 
     if args.test_file_name:
       overwrite_test_file_name(doc, args.test_file_name)
+
+    if args.mainline_package_name:
+      overwrite_mainline_module_package_name(doc, args.mainline_package_name)
 
     with open(args.output, 'w') as f:
       write_xml(f, doc)

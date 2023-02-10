@@ -488,13 +488,17 @@ func (h *prebuiltLibraryBazelHandler) processStaticBazelQueryResponse(ctx androi
 		return true
 	}
 
-	out := android.PathForBazelOut(ctx, staticLibs[0])
-	h.module.outputFile = android.OptionalPathForPath(out)
+	var outputPath android.Path = android.PathForBazelOut(ctx, staticLibs[0])
+	if len(ccInfo.TidyFiles) > 0 {
+		h.module.tidyFiles = android.PathsForBazelOut(ctx, ccInfo.TidyFiles)
+		outputPath = android.AttachValidationActions(ctx, outputPath, h.module.tidyFiles)
+	}
 
-	depSet := android.NewDepSetBuilder(android.TOPOLOGICAL).Direct(out).Build()
+	h.module.outputFile = android.OptionalPathForPath(outputPath)
+
+	depSet := android.NewDepSetBuilder(android.TOPOLOGICAL).Direct(outputPath).Build()
 	ctx.SetProvider(StaticLibraryInfoProvider, StaticLibraryInfo{
-		StaticLibrary: out,
-
+		StaticLibrary:                        outputPath,
 		TransitiveStaticLibrariesForOrdering: depSet,
 	})
 
@@ -518,21 +522,26 @@ func (h *prebuiltLibraryBazelHandler) processSharedBazelQueryResponse(ctx androi
 		return true
 	}
 
-	out := android.PathForBazelOut(ctx, sharedLibs[0])
-	h.module.outputFile = android.OptionalPathForPath(out)
+	var outputPath android.Path = android.PathForBazelOut(ctx, sharedLibs[0])
+	if len(ccInfo.TidyFiles) > 0 {
+		h.module.tidyFiles = android.PathsForBazelOut(ctx, ccInfo.TidyFiles)
+		outputPath = android.AttachValidationActions(ctx, outputPath, h.module.tidyFiles)
+	}
+
+	h.module.outputFile = android.OptionalPathForPath(outputPath)
 
 	// FIXME(b/214600441): We don't yet strip prebuilt shared libraries
-	h.library.unstrippedOutputFile = out
+	h.library.unstrippedOutputFile = outputPath
 
 	var toc android.Path
 	if len(ccInfo.TocFile) > 0 {
 		toc = android.PathForBazelOut(ctx, ccInfo.TocFile)
 	} else {
-		toc = out // Just reuse `out` so ninja still gets an input but won't matter
+		toc = outputPath // Just reuse `out` so ninja still gets an input but won't matter
 	}
 
 	info := SharedLibraryInfo{
-		SharedLibrary:   out,
+		SharedLibrary:   outputPath,
 		TableOfContents: android.OptionalPathForPath(toc),
 		Target:          ctx.Target(),
 	}
