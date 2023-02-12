@@ -25,6 +25,7 @@ import (
 	"sync/atomic"
 
 	"android/soong/shared"
+	"github.com/google/blueprint/pathtools"
 )
 
 // A tree structure that describes what to do at each directory in the created
@@ -116,25 +117,13 @@ func mergeBuildFiles(output string, srcBuildFile string, generatedBuildFile stri
 		generatedBuildFileContent = packageDefaultVisibilityRegex.ReplaceAll(generatedBuildFileContent, []byte{})
 	}
 
-	outFile, err := os.Create(output)
-	if err != nil {
-		return err
+	newContents := generatedBuildFileContent
+	if newContents[len(newContents)-1] != '\n' {
+		newContents = append(newContents, '\n')
 	}
+	newContents = append(newContents, srcBuildFileContent...)
 
-	_, err = outFile.Write(generatedBuildFileContent)
-	if err != nil {
-		return err
-	}
-
-	if generatedBuildFileContent[len(generatedBuildFileContent)-1] != '\n' {
-		_, err = outFile.WriteString("\n")
-		if err != nil {
-			return err
-		}
-	}
-
-	_, err = outFile.Write(srcBuildFileContent)
-	return err
+	return pathtools.WriteFileIfChanged(output, newContents, 0666)
 }
 
 // Calls readdir() and returns it as a map from the basename of the files in dir
