@@ -35,7 +35,9 @@ var (
 	}
 
 	riscv64Lldflags = append(riscv64Ldflags,
-		"-Wl,-z,max-page-size=4096")
+		"-Wl,-z,max-page-size=4096",
+		"-Wl,-plugin-opt,-emulated-tls=0",
+	)
 
 	riscv64Cppflags = []string{}
 
