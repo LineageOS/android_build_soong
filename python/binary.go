@@ -125,6 +125,25 @@ func (p *PythonBinaryModule) buildBinary(ctx android.ModuleContext) {
 				launcherPath = provider.IntermPathForModuleOut()
 			}
 		})
+
+		// TODO: get the list of shared libraries directly from the launcher module somehow
+		var sharedLibs []string
+		sharedLibs = append(sharedLibs, "libsqlite")
+		if ctx.Target().Os.Bionic() {
+			sharedLibs = append(sharedLibs, "libc", "libdl", "libm")
+		}
+		if ctx.Target().Os == android.LinuxMusl && !ctx.Config().HostStaticBinaries() {
+			sharedLibs = append(sharedLibs, "libc_musl")
+		}
+		switch p.properties.Actual_version {
+		case pyVersion2:
+			sharedLibs = append(sharedLibs, "libc++")
+		case pyVersion3:
+			if ctx.Device() {
+				sharedLibs = append(sharedLibs, "liblog")
+			}
+		}
+		p.androidMkSharedLibs = sharedLibs
 	}
 	srcsZips := make(android.Paths, 0, len(depsSrcsZips)+1)
 	if embeddedLauncher {
@@ -136,14 +155,6 @@ func (p *PythonBinaryModule) buildBinary(ctx android.ModuleContext) {
 	p.installSource = registerBuildActionForParFile(ctx, embeddedLauncher, launcherPath,
 		p.getHostInterpreterName(ctx, p.properties.Actual_version),
 		main, p.getStem(ctx), srcsZips)
-
-	var sharedLibs []string
-	// if embedded launcher is enabled, we need to collect the shared library dependencies of the
-	// launcher
-	for _, dep := range ctx.GetDirectDepsWithTag(launcherSharedLibTag) {
-		sharedLibs = append(sharedLibs, ctx.OtherModuleName(dep))
-	}
-	p.androidMkSharedLibs = sharedLibs
 }
 
 func (p *PythonBinaryModule) AndroidMkEntries() []android.AndroidMkEntries {
@@ -176,7 +187,7 @@ func (p *PythonBinaryModule) DepsMutator(ctx android.BottomUpMutatorContext) {
 	p.PythonLibraryModule.DepsMutator(ctx)
 
 	if p.isEmbeddedLauncherEnabled() {
-		p.AddDepsOnPythonLauncherAndStdlib(ctx, pythonLibTag, launcherTag, launcherSharedLibTag, p.autorun(), ctx.Target())
+		p.AddDepsOnPythonLauncherAndStdlib(ctx, pythonLibTag, launcherTag, p.autorun(), ctx.Target())
 	}
 }
 
