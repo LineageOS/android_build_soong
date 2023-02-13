@@ -73,6 +73,10 @@ func (p *PackagingSpec) Partition() string {
 	return p.partition
 }
 
+func (p *PackagingSpec) SrcPath() Path {
+	return p.srcPath
+}
+
 type PackageModule interface {
 	Module
 	packagingBase() *PackagingBase
