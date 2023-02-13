@@ -45,11 +45,14 @@ var (
 		CommandDeps: []string{"${bazelBuildRunfilesTool}"},
 	}, "outDir")
 	allowedBazelEnvironmentVars = []string{
+		// clang-tidy
 		"ALLOW_LOCAL_TIDY_TRUE",
 		"DEFAULT_TIDY_HEADER_DIRS",
 		"TIDY_TIMEOUT",
 		"WITH_TIDY",
 		"WITH_TIDY_FLAGS",
+		"TIDY_EXTERNAL_VENDOR",
+
 		"SKIP_ABI_CHECKS",
 		"UNSAFE_DISABLE_APEX_ALLOWED_DEPS_CHECK",
 		"AUTO_ZERO_INITIALIZE",
