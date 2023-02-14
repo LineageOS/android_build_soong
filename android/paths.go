@@ -1709,10 +1709,10 @@ func makePathForInstall(ctx ModuleInstallPathContext, os OsType, arch ArchType, 
 func pathForInstall(ctx PathContext, os OsType, arch ArchType, partition string, debug bool,
 	pathComponents ...string) InstallPath {
 
-	var partionPaths []string
+	var partitionPaths []string
 
 	if os.Class == Device {
-		partionPaths = []string{"target", "product", ctx.Config().DeviceName(), partition}
+		partitionPaths = []string{"target", "product", ctx.Config().DeviceName(), partition}
 	} else {
 		osName := os.String()
 		if os == Linux {
@@ -1734,21 +1734,21 @@ func pathForInstall(ctx PathContext, os OsType, arch ArchType, partition string,
 		if os.Class == Host && (arch == X86_64 || arch == Common) {
 			archName = "x86"
 		}
-		partionPaths = []string{"host", osName + "-" + archName, partition}
+		partitionPaths = []string{"host", osName + "-" + archName, partition}
 	}
 	if debug {
-		partionPaths = append([]string{"debug"}, partionPaths...)
+		partitionPaths = append([]string{"debug"}, partitionPaths...)
 	}
 
-	partionPath, err := validatePath(partionPaths...)
+	partitionPath, err := validatePath(partitionPaths...)
 	if err != nil {
 		reportPathError(ctx, err)
 	}
 
 	base := InstallPath{
-		basePath:     basePath{partionPath, ""},
+		basePath:     basePath{partitionPath, ""},
 		soongOutDir:  ctx.Config().soongOutDir,
-		partitionDir: partionPath,
+		partitionDir: partitionPath,
 		partition:    partition,
 	}
 
