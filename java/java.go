@@ -1138,7 +1138,6 @@ func (j *TestHost) DepsMutator(ctx android.BottomUpMutatorContext) {
 	}
 
 	j.addDataDeviceBinsDeps(ctx)
-
 	j.deps(ctx)
 }
 

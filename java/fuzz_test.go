@@ -31,17 +31,15 @@ var prepForJavaFuzzTest = android.GroupFixturePreparers(
 
 func TestJavaFuzz(t *testing.T) {
 	result := prepForJavaFuzzTest.RunTestWithBp(t, `
-		java_fuzz_host {
+		java_fuzz {
 			name: "foo",
 			srcs: ["a.java"],
+			host_supported: true,
+			device_supported: false,
 			libs: ["bar"],
 			static_libs: ["baz"],
             jni_libs: [
                 "libjni",
-            ],
-            sanitizers: [
-                "address",
-                "fuzzer",
             ],
 		}
 
@@ -84,7 +82,7 @@ func TestJavaFuzz(t *testing.T) {
 	}
 
 	ctx := result.TestContext
-	foo := ctx.ModuleForTests("foo", osCommonTarget).Module().(*JavaFuzzLibrary)
+	foo := ctx.ModuleForTests("foo", osCommonTarget).Module().(*JavaFuzzTest)
 
 	expected := "lib64/libjni.so"
 	if runtime.GOOS == "darwin" {
