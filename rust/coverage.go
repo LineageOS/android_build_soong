@@ -21,6 +21,7 @@ import (
 )
 
 var CovLibraryName = "libprofile-clang-extras"
+var ProfilerBuiltins = "libprofiler_builtins.rust_sysroot"
 
 // Add '%c' to default specifier after we resolve http://b/210012154
 const profileInstrFlag = "-fprofile-instr-generate=/data/misc/trace/clang-%p-%m.profraw"
@@ -41,6 +42,11 @@ func (cov *coverage) deps(ctx DepsContext, deps Deps) Deps {
 		ctx.AddVariationDependencies([]blueprint.Variation{
 			{Mutator: "link", Variation: "static"},
 		}, cc.CoverageDepTag, CovLibraryName)
+
+		// no_std modules are missing libprofiler_builtins which provides coverage, so we need to add it as a dependency.
+		if rustModule, ok := ctx.Module().(*Module); ok && rustModule.compiler.noStdlibs() {
+			ctx.AddVariationDependencies([]blueprint.Variation{{Mutator: "rust_libraries", Variation: "rlib"}}, rlibDepTag, ProfilerBuiltins)
+		}
 	}
 
 	return deps
@@ -60,6 +66,13 @@ func (cov *coverage) flags(ctx ModuleContext, flags Flags, deps PathDeps) (Flags
 		flags.LinkFlags = append(flags.LinkFlags,
 			profileInstrFlag, "-g", coverage.OutputFile().Path().String(), "-Wl,--wrap,open")
 		deps.StaticLibs = append(deps.StaticLibs, coverage.OutputFile().Path())
+
+		// no_std modules are missing libprofiler_builtins which provides coverage, so we need to add it as a dependency.
+		if rustModule, ok := ctx.Module().(*Module); ok && rustModule.compiler.noStdlibs() {
+			profiler_builtins := ctx.GetDirectDepWithTag(ProfilerBuiltins, rlibDepTag).(*Module)
+			deps.RLibs = append(deps.RLibs, RustLibrary{Path: profiler_builtins.OutputFile().Path(), CrateName: profiler_builtins.CrateName()})
+		}
+
 		if cc.EnableContinuousCoverage(ctx) {
 			flags.RustFlags = append(flags.RustFlags, "-C llvm-args=--runtime-counter-relocation")
 			flags.LinkFlags = append(flags.LinkFlags, "-Wl,-mllvm,-runtime-counter-relocation")
