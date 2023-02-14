@@ -208,6 +208,10 @@ func (compiler *baseCompiler) SetDisabled() {
 	panic("baseCompiler does not implement SetDisabled()")
 }
 
+func (compiler *baseCompiler) noStdlibs() bool {
+	return Bool(compiler.Properties.No_stdlibs)
+}
+
 func (compiler *baseCompiler) coverageOutputZipPath() android.OptionalPath {
 	panic("baseCompiler does not implement coverageOutputZipPath()")
 }
