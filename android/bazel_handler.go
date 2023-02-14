@@ -32,6 +32,7 @@ import (
 	"android/soong/starlark_fmt"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/metrics"
 
 	"android/soong/bazel"
 )
@@ -135,6 +136,10 @@ func (c cqueryKey) String() string {
 	return fmt.Sprintf("cquery(%s,%s,%s)", c.label, c.requestType.Name(), c.configKey)
 }
 
+type invokeBazelContext interface {
+	GetEventHandler() *metrics.EventHandler
+}
+
 // BazelContext is a context object useful for interacting with Bazel during
 // the course of a build. Use of Bazel to evaluate part of the build graph
 // is referred to as a "mixed build". (Some modules are managed by Soong,
@@ -171,7 +176,7 @@ type BazelContext interface {
 	// Issues commands to Bazel to receive results for all cquery requests
 	// queued in the BazelContext. The ctx argument is optional and is only
 	// used for performance data collection
-	InvokeBazel(config Config, ctx *Context) error
+	InvokeBazel(config Config, ctx invokeBazelContext) error
 
 	// Returns true if Bazel handling is enabled for the module with the given name.
 	// Note that this only implies "bazel mixed build" allowlisting. The caller
@@ -191,7 +196,7 @@ type BazelContext interface {
 
 type bazelRunner interface {
 	createBazelCommand(config Config, paths *bazelPaths, runName bazel.RunName, command bazelCommand, extraFlags ...string) *exec.Cmd
-	issueBazelCommand(bazelCmd *exec.Cmd) (output string, errorMessage string, error error)
+	issueBazelCommand(bazelCmd *exec.Cmd, eventHandler *metrics.EventHandler) (output string, errorMessage string, error error)
 }
 
 type bazelPaths struct {
@@ -299,7 +304,7 @@ func (m MockBazelContext) GetCcUnstrippedInfo(label string, _ configKey) (cquery
 	return result, nil
 }
 
-func (m MockBazelContext) InvokeBazel(_ Config, _ *Context) error {
+func (m MockBazelContext) InvokeBazel(_ Config, _ invokeBazelContext) error {
 	panic("unimplemented")
 }
 
@@ -417,7 +422,7 @@ func (n noopBazelContext) GetCcUnstrippedInfo(_ string, _ configKey) (cquery.CcU
 	panic("implement me")
 }
 
-func (n noopBazelContext) InvokeBazel(_ Config, _ *Context) error {
+func (n noopBazelContext) InvokeBazel(_ Config, _ invokeBazelContext) error {
 	panic("unimplemented")
 }
 
@@ -595,7 +600,7 @@ func (r *mockBazelRunner) createBazelCommand(_ Config, _ *bazelPaths, _ bazel.Ru
 	return cmd
 }
 
-func (r *mockBazelRunner) issueBazelCommand(bazelCmd *exec.Cmd) (string, string, error) {
+func (r *mockBazelRunner) issueBazelCommand(bazelCmd *exec.Cmd, _ *metrics.EventHandler) (string, string, error) {
 	if command, ok := r.tokens[bazelCmd]; ok {
 		return r.bazelCommandResults[command], "", nil
 	}
@@ -608,7 +613,9 @@ type builtinBazelRunner struct{}
 // Returns (stdout, stderr, error). The first and second return values are strings
 // containing the stdout and stderr of the run command, and an error is returned if
 // the invocation returned an error code.
-func (r *builtinBazelRunner) issueBazelCommand(bazelCmd *exec.Cmd) (string, string, error) {
+func (r *builtinBazelRunner) issueBazelCommand(bazelCmd *exec.Cmd, eventHandler *metrics.EventHandler) (string, string, error) {
+	eventHandler.Begin("bazel command")
+	defer eventHandler.End("bazel command")
 	stderr := &bytes.Buffer{}
 	bazelCmd.Stderr = stderr
 	if output, err := bazelCmd.Output(); err != nil {
@@ -985,11 +992,10 @@ var (
 
 // Issues commands to Bazel to receive results for all cquery requests
 // queued in the BazelContext.
-func (context *mixedBuildBazelContext) InvokeBazel(config Config, ctx *Context) error {
-	if ctx != nil {
-		ctx.EventHandler.Begin("bazel")
-		defer ctx.EventHandler.End("bazel")
-	}
+func (context *mixedBuildBazelContext) InvokeBazel(config Config, ctx invokeBazelContext) error {
+	eventHandler := ctx.GetEventHandler()
+	eventHandler.Begin("bazel")
+	defer eventHandler.End("bazel")
 
 	if metricsDir := context.paths.BazelMetricsDir(); metricsDir != "" {
 		if err := os.MkdirAll(metricsDir, 0777); err != nil {
@@ -1012,11 +1018,10 @@ func (context *mixedBuildBazelContext) InvokeBazel(config Config, ctx *Context) 
 	return nil
 }
 
-func (context *mixedBuildBazelContext) runCquery(config Config, ctx *Context) error {
-	if ctx != nil {
-		ctx.EventHandler.Begin("cquery")
-		defer ctx.EventHandler.End("cquery")
-	}
+func (context *mixedBuildBazelContext) runCquery(config Config, ctx invokeBazelContext) error {
+	eventHandler := ctx.GetEventHandler()
+	eventHandler.Begin("cquery")
+	defer eventHandler.End("cquery")
 	soongInjectionPath := absolutePath(context.paths.injectedFilesDir())
 	mixedBuildsPath := filepath.Join(soongInjectionPath, "mixed_builds")
 	if _, err := os.Stat(mixedBuildsPath); os.IsNotExist(err) {
@@ -1041,7 +1046,7 @@ func (context *mixedBuildBazelContext) runCquery(config Config, ctx *Context) er
 
 	cqueryCommandWithFlag := context.createBazelCommand(config, context.paths, bazel.CqueryBuildRootRunName, cqueryCmd,
 		"--output=starlark", "--starlark:file="+absolutePath(cqueryFileRelpath))
-	cqueryOutput, cqueryErrorMessage, cqueryErr := context.issueBazelCommand(cqueryCommandWithFlag)
+	cqueryOutput, cqueryErrorMessage, cqueryErr := context.issueBazelCommand(cqueryCommandWithFlag, eventHandler)
 	if cqueryErr != nil {
 		return cqueryErr
 	}
@@ -1075,11 +1080,10 @@ func writeFileBytesIfChanged(path string, contents []byte, perm os.FileMode) err
 	return nil
 }
 
-func (context *mixedBuildBazelContext) runAquery(config Config, ctx *Context) error {
-	if ctx != nil {
-		ctx.EventHandler.Begin("aquery")
-		defer ctx.EventHandler.End("aquery")
-	}
+func (context *mixedBuildBazelContext) runAquery(config Config, ctx invokeBazelContext) error {
+	eventHandler := ctx.GetEventHandler()
+	eventHandler.Begin("aquery")
+	defer eventHandler.End("aquery")
 	// Issue an aquery command to retrieve action information about the bazel build tree.
 	//
 	// Use jsonproto instead of proto; actual proto parsing would require a dependency on Bazel's
@@ -1105,23 +1109,22 @@ func (context *mixedBuildBazelContext) runAquery(config Config, ctx *Context) er
 		}
 	}
 	aqueryOutput, _, err := context.issueBazelCommand(context.createBazelCommand(config, context.paths, bazel.AqueryBuildRootRunName, aqueryCmd,
-		extraFlags...))
+		extraFlags...), eventHandler)
 	if err != nil {
 		return err
 	}
-	context.buildStatements, context.depsets, err = bazel.AqueryBuildStatements([]byte(aqueryOutput))
+	context.buildStatements, context.depsets, err = bazel.AqueryBuildStatements([]byte(aqueryOutput), eventHandler)
 	return err
 }
 
-func (context *mixedBuildBazelContext) generateBazelSymlinks(config Config, ctx *Context) error {
-	if ctx != nil {
-		ctx.EventHandler.Begin("symlinks")
-		defer ctx.EventHandler.End("symlinks")
-	}
+func (context *mixedBuildBazelContext) generateBazelSymlinks(config Config, ctx invokeBazelContext) error {
+	eventHandler := ctx.GetEventHandler()
+	eventHandler.Begin("symlinks")
+	defer eventHandler.End("symlinks")
 	// Issue a build command of the phony root to generate symlink forests for dependencies of the
 	// Bazel build. This is necessary because aquery invocations do not generate this symlink forest,
 	// but some of symlinks may be required to resolve source dependencies of the build.
-	_, _, err := context.issueBazelCommand(context.createBazelCommand(config, context.paths, bazel.BazelBuildPhonyRootRunName, buildCmd))
+	_, _, err := context.issueBazelCommand(context.createBazelCommand(config, context.paths, bazel.BazelBuildPhonyRootRunName, buildCmd), eventHandler)
 	return err
 }
 
