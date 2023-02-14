@@ -11,10 +11,17 @@ import (
 	"android/soong/bazel/cquery"
 	analysis_v2_proto "prebuilts/bazel/common/proto/analysis_v2"
 
+	"github.com/google/blueprint/metrics"
 	"google.golang.org/protobuf/proto"
 )
 
 var testConfig = TestConfig("out", nil, "", nil)
+
+type testInvokeBazelContext struct{}
+
+func (t *testInvokeBazelContext) GetEventHandler() *metrics.EventHandler {
+	return &metrics.EventHandler{}
+}
 
 func TestRequestResultsAfterInvokeBazel(t *testing.T) {
 	label := "@//foo:bar"
@@ -23,7 +30,7 @@ func TestRequestResultsAfterInvokeBazel(t *testing.T) {
 		bazelCommand{command: "cquery", expression: "deps(@soong_injection//mixed_builds:buildroot, 2)"}: `@//foo:bar|arm64_armv8-a|android>>out/foo/bar.txt`,
 	})
 	bazelContext.QueueBazelRequest(label, cquery.GetOutputFiles, cfg)
-	err := bazelContext.InvokeBazel(testConfig, nil)
+	err := bazelContext.InvokeBazel(testConfig, &testInvokeBazelContext{})
 	if err != nil {
 		t.Fatalf("Did not expect error invoking Bazel, but got %s", err)
 	}
@@ -37,7 +44,7 @@ func TestRequestResultsAfterInvokeBazel(t *testing.T) {
 
 func TestInvokeBazelWritesBazelFiles(t *testing.T) {
 	bazelContext, baseDir := testBazelContext(t, map[bazelCommand]string{})
-	err := bazelContext.InvokeBazel(testConfig, nil)
+	err := bazelContext.InvokeBazel(testConfig, &testInvokeBazelContext{})
 	if err != nil {
 		t.Fatalf("Did not expect error invoking Bazel, but got %s", err)
 	}
@@ -118,7 +125,7 @@ func TestInvokeBazelPopulatesBuildStatements(t *testing.T) {
 		bazelContext, _ := testBazelContext(t, map[bazelCommand]string{
 			bazelCommand{command: "aquery", expression: "deps(@soong_injection//mixed_builds:buildroot)"}: string(data)})
 
-		err = bazelContext.InvokeBazel(testConfig, nil)
+		err = bazelContext.InvokeBazel(testConfig, &testInvokeBazelContext{})
 		if err != nil {
 			t.Fatalf("testCase #%d: did not expect error invoking Bazel, but got %s", i+1, err)
 		}
@@ -197,7 +204,7 @@ func TestBazelRequestsSorted(t *testing.T) {
 func verifyExtraFlags(t *testing.T, config Config, expected string) string {
 	bazelContext, _ := testBazelContext(t, map[bazelCommand]string{})
 
-	err := bazelContext.InvokeBazel(config, nil)
+	err := bazelContext.InvokeBazel(config, &testInvokeBazelContext{})
 	if err != nil {
 		t.Fatalf("Did not expect error invoking Bazel, but got %s", err)
 	}
