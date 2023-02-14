@@ -671,17 +671,18 @@ func expandTemplateContent(actionEntry action) string {
 	return replacer.Replace(actionEntry.TemplateContent)
 }
 
+// \->\\, $->\$, `->\`, "->\", \n->\\n, '->'"'"'
+var commandLineArgumentReplacer = strings.NewReplacer(
+	`\`, `\\`,
+	`$`, `\$`,
+	"`", "\\`",
+	`"`, `\"`,
+	"\n", "\\n",
+	`'`, `'"'"'`,
+)
+
 func escapeCommandlineArgument(str string) string {
-	// \->\\, $->\$, `->\`, "->\", \n->\\n, '->'"'"'
-	replacer := strings.NewReplacer(
-		`\`, `\\`,
-		`$`, `\$`,
-		"`", "\\`",
-		`"`, `\"`,
-		"\n", "\\n",
-		`'`, `'"'"'`,
-	)
-	return replacer.Replace(str)
+	return commandLineArgumentReplacer.Replace(str)
 }
 
 func (a action) isSymlinkAction() bool {
