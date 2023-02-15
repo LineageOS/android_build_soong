@@ -20,10 +20,17 @@ import (
 	"android/soong/android"
 )
 
-var hiddenAPIGenerateCSVRule = pctx.AndroidStaticRule("hiddenAPIGenerateCSV", blueprint.RuleParams{
-	Command:     "${config.Class2NonSdkList} --stub-api-flags ${stubAPIFlags} $in $outFlag $out",
-	CommandDeps: []string{"${config.Class2NonSdkList}"},
-}, "outFlag", "stubAPIFlags")
+var (
+	hiddenAPIGenerateCSVRule = pctx.AndroidStaticRule("hiddenAPIGenerateCSV", blueprint.RuleParams{
+		Command:     "${config.Class2NonSdkList} --stub-api-flags ${stubAPIFlags} $in $outFlag $out",
+		CommandDeps: []string{"${config.Class2NonSdkList}"},
+	}, "outFlag", "stubAPIFlags")
+
+	hiddenAPIGenerateIndexRule = pctx.AndroidStaticRule("hiddenAPIGenerateIndex", blueprint.RuleParams{
+		Command:     "${config.MergeCsvCommand} --zip_input --key_field signature --output=$out $in",
+		CommandDeps: []string{"${config.MergeCsvCommand}"},
+	})
+)
 
 type hiddenAPI struct {
 	// True if the module containing this structure contributes to the hiddenapi information or has
@@ -216,14 +223,12 @@ func buildRuleToGenerateMetadata(ctx android.ModuleContext, desc string, classes
 // created by the unsupported app usage annotation processor during compilation of the class
 // implementation jar.
 func buildRuleToGenerateIndex(ctx android.ModuleContext, desc string, classesJars android.Paths, indexCSV android.WritablePath) {
-	rule := android.NewRuleBuilder(pctx, ctx)
-	rule.Command().
-		BuiltTool("merge_csv").
-		Flag("--zip_input").
-		Flag("--key_field signature").
-		FlagWithOutput("--output=", indexCSV).
-		Inputs(classesJars)
-	rule.Build(desc, desc)
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        hiddenAPIGenerateIndexRule,
+		Description: desc,
+		Inputs:      classesJars,
+		Output:      indexCSV,
+	})
 }
 
 var hiddenAPIEncodeDexRule = pctx.AndroidStaticRule("hiddenAPIEncodeDex", blueprint.RuleParams{
