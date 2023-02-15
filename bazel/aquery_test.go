@@ -21,8 +21,10 @@ import (
 	"sort"
 	"testing"
 
-	"google.golang.org/protobuf/proto"
 	analysis_v2_proto "prebuilts/bazel/common/proto/analysis_v2"
+
+	"github.com/google/blueprint/metrics"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestAqueryMultiArchGenrule(t *testing.T) {
@@ -136,7 +138,7 @@ func TestAqueryMultiArchGenrule(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	actualbuildStatements, actualDepsets, _ := AqueryBuildStatements(data)
+	actualbuildStatements, actualDepsets, _ := AqueryBuildStatements(data, &metrics.EventHandler{})
 	var expectedBuildStatements []BuildStatement
 	for _, arch := range []string{"arm", "arm64", "x86", "x86_64"} {
 		expectedBuildStatements = append(expectedBuildStatements,
@@ -195,7 +197,7 @@ func TestInvalidOutputId(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	_, _, err = AqueryBuildStatements(data)
+	_, _, err = AqueryBuildStatements(data, &metrics.EventHandler{})
 	assertError(t, err, "undefined outputId 3")
 }
 
@@ -226,7 +228,7 @@ func TestInvalidInputDepsetIdFromAction(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	_, _, err = AqueryBuildStatements(data)
+	_, _, err = AqueryBuildStatements(data, &metrics.EventHandler{})
 	assertError(t, err, "undefined (not even empty) input depsetId 2")
 }
 
@@ -257,7 +259,7 @@ func TestInvalidInputDepsetIdFromDepset(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	_, _, err = AqueryBuildStatements(data)
+	_, _, err = AqueryBuildStatements(data, &metrics.EventHandler{})
 	assertError(t, err, "undefined input depsetId 42 (referenced by depsetId 1)")
 }
 
@@ -288,7 +290,7 @@ func TestInvalidInputArtifactId(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	_, _, err = AqueryBuildStatements(data)
+	_, _, err = AqueryBuildStatements(data, &metrics.EventHandler{})
 	assertError(t, err, "undefined input artifactId 3")
 }
 
@@ -319,7 +321,7 @@ func TestInvalidPathFragmentId(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	_, _, err = AqueryBuildStatements(data)
+	_, _, err = AqueryBuildStatements(data, &metrics.EventHandler{})
 	assertError(t, err, "undefined path fragment id 3")
 }
 
@@ -352,7 +354,7 @@ func TestDepfiles(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	actual, _, err := AqueryBuildStatements(data)
+	actual, _, err := AqueryBuildStatements(data, &metrics.EventHandler{})
 	if err != nil {
 		t.Errorf("Unexpected error %q", err)
 	}
@@ -402,7 +404,7 @@ func TestMultipleDepfiles(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	_, _, err = AqueryBuildStatements(data)
+	_, _, err = AqueryBuildStatements(data, &metrics.EventHandler{})
 	assertError(t, err, `found multiple potential depfiles "two.d", "other.d"`)
 }
 
@@ -483,7 +485,7 @@ func TestTransitiveInputDepsets(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	actualbuildStatements, actualDepsets, _ := AqueryBuildStatements(data)
+	actualbuildStatements, actualDepsets, _ := AqueryBuildStatements(data, &metrics.EventHandler{})
 
 	expectedBuildStatements := []BuildStatement{
 		{
@@ -538,7 +540,7 @@ func TestSymlinkTree(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	actual, _, err := AqueryBuildStatements(data)
+	actual, _, err := AqueryBuildStatements(data, &metrics.EventHandler{})
 	if err != nil {
 		t.Errorf("Unexpected error %q", err)
 	}
@@ -594,7 +596,7 @@ func TestBazelOutRemovalFromInputDepsets(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	actualBuildStatements, actualDepsets, _ := AqueryBuildStatements(data)
+	actualBuildStatements, actualDepsets, _ := AqueryBuildStatements(data, &metrics.EventHandler{})
 	if len(actualDepsets) != 1 {
 		t.Errorf("expected 1 depset but found %#v", actualDepsets)
 		return
@@ -681,7 +683,7 @@ func TestBazelOutRemovalFromTransitiveInputDepsets(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	actualBuildStatements, actualDepsets, _ := AqueryBuildStatements(data)
+	actualBuildStatements, actualDepsets, _ := AqueryBuildStatements(data, &metrics.EventHandler{})
 	if len(actualDepsets) != 0 {
 		t.Errorf("expected 0 depsets but found %#v", actualDepsets)
 		return
@@ -748,7 +750,7 @@ func TestMiddlemenAction(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	actualBuildStatements, actualDepsets, err := AqueryBuildStatements(data)
+	actualBuildStatements, actualDepsets, err := AqueryBuildStatements(data, &metrics.EventHandler{})
 	if err != nil {
 		t.Errorf("Unexpected error %q", err)
 	}
@@ -845,7 +847,7 @@ func TestSimpleSymlink(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	actual, _, err := AqueryBuildStatements(data)
+	actual, _, err := AqueryBuildStatements(data, &metrics.EventHandler{})
 
 	if err != nil {
 		t.Errorf("Unexpected error %q", err)
@@ -894,7 +896,7 @@ func TestSymlinkQuotesPaths(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	actual, _, err := AqueryBuildStatements(data)
+	actual, _, err := AqueryBuildStatements(data, &metrics.EventHandler{})
 	if err != nil {
 		t.Errorf("Unexpected error %q", err)
 	}
@@ -940,7 +942,7 @@ func TestSymlinkMultipleInputs(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	_, _, err = AqueryBuildStatements(data)
+	_, _, err = AqueryBuildStatements(data, &metrics.EventHandler{})
 	assertError(t, err, `Expect 1 input and 1 output to symlink action, got: input ["file" "other_file"], output ["symlink"]`)
 }
 
@@ -971,7 +973,7 @@ func TestSymlinkMultipleOutputs(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	_, _, err = AqueryBuildStatements(data)
+	_, _, err = AqueryBuildStatements(data, &metrics.EventHandler{})
 	assertError(t, err, "undefined outputId 2")
 }
 
@@ -1004,7 +1006,7 @@ func TestTemplateExpandActionSubstitutions(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	actual, _, err := AqueryBuildStatements(data)
+	actual, _, err := AqueryBuildStatements(data, &metrics.EventHandler{})
 	if err != nil {
 		t.Errorf("Unexpected error %q", err)
 	}
@@ -1046,7 +1048,7 @@ func TestTemplateExpandActionNoOutput(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	_, _, err = AqueryBuildStatements(data)
+	_, _, err = AqueryBuildStatements(data, &metrics.EventHandler{})
 	assertError(t, err, `Expect 1 output to template expand action, got: output []`)
 }
 
@@ -1074,7 +1076,7 @@ func TestFileWrite(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	actual, _, err := AqueryBuildStatements(data)
+	actual, _, err := AqueryBuildStatements(data, &metrics.EventHandler{})
 	if err != nil {
 		t.Errorf("Unexpected error %q", err)
 	}
@@ -1111,7 +1113,7 @@ func TestSourceSymlinkManifest(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	actual, _, err := AqueryBuildStatements(data)
+	actual, _, err := AqueryBuildStatements(data, &metrics.EventHandler{})
 	if err != nil {
 		t.Errorf("Unexpected error %q", err)
 	}

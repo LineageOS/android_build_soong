@@ -490,6 +490,7 @@ type compiler interface {
 	SetDisabled()
 
 	stdLinkage(ctx *depsContext) RustLinkage
+	noStdlibs() bool
 
 	unstrippedOutputFilePath() android.Path
 	strippedOutputFilePath() android.OptionalPath

@@ -143,6 +143,7 @@ var (
 		"external/javassist":                     Bp2BuildDefaultTrueRecursively,
 		"external/jemalloc_new":                  Bp2BuildDefaultTrueRecursively,
 		"external/jsoncpp":                       Bp2BuildDefaultTrueRecursively,
+		"external/jsr305":                        Bp2BuildDefaultTrueRecursively,
 		"external/junit":                         Bp2BuildDefaultTrueRecursively,
 		"external/libaom":                        Bp2BuildDefaultTrueRecursively,
 		"external/libavc":                        Bp2BuildDefaultTrueRecursively,
@@ -369,7 +370,6 @@ var (
 		"external/bazelbuild-kotlin-rules":/* recursive = */ true,
 		"external/bazel-skylib":/* recursive = */ true,
 		"external/guava":/* recursive = */ true,
-		"external/jsr305":/* recursive = */ true,
 		"external/protobuf":/* recursive = */ false,
 		"external/python/absl-py":/* recursive = */ true,
 
@@ -379,8 +379,8 @@ var (
 		"frameworks/base/tools/codegen":/* recursive = */ true,
 		"frameworks/ex/common":/* recursive = */ true,
 
+		// Building manually due to b/179889880: resource files cross package boundary
 		"packages/apps/Music":/* recursive = */ true,
-		"packages/apps/QuickSearchBox":/* recursive = */ true,
 
 		"prebuilts/abi-dumps/platform":/* recursive = */ true,
 		"prebuilts/abi-dumps/ndk":/* recursive = */ true,
@@ -679,6 +679,9 @@ var (
 
 		// kotlin srcs in android_library
 		"renderscript_toolkit",
+
+		//kotlin srcs in android_binary
+		"MusicKotlin",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{

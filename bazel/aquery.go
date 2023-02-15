@@ -23,9 +23,11 @@ import (
 	"sort"
 	"strings"
 
+	analysis_v2_proto "prebuilts/bazel/common/proto/analysis_v2"
+
+	"github.com/google/blueprint/metrics"
 	"github.com/google/blueprint/proptools"
 	"google.golang.org/protobuf/proto"
-	analysis_v2_proto "prebuilts/bazel/common/proto/analysis_v2"
 )
 
 type artifactId int
@@ -313,7 +315,7 @@ func (a *aqueryArtifactHandler) artifactPathsFromDepsetHash(depsetHash string) (
 // action graph, as described by the given action graph json proto.
 // BuildStatements are one-to-one with actions in the given action graph, and AqueryDepsets
 // are one-to-one with Bazel's depSetOfFiles objects.
-func AqueryBuildStatements(aqueryJsonProto []byte) ([]BuildStatement, []AqueryDepset, error) {
+func AqueryBuildStatements(aqueryJsonProto []byte, eventHandler *metrics.EventHandler) ([]BuildStatement, []AqueryDepset, error) {
 	aqueryProto := &analysis_v2_proto.ActionGraphContainer{}
 	err := proto.Unmarshal(aqueryJsonProto, aqueryProto)
 	if err != nil {
@@ -387,74 +389,92 @@ func AqueryBuildStatements(aqueryJsonProto []byte) ([]BuildStatement, []AqueryDe
 				ParentId: pathFragmentId(protoPathFragments.ParentId)})
 
 	}
-	aqueryHandler, err := newAqueryHandler(aqueryResult)
-	if err != nil {
-		return nil, nil, err
-	}
 
-	var buildStatements []BuildStatement
-	for _, actionEntry := range aqueryResult.Actions {
-		if shouldSkipAction(actionEntry) {
-			continue
-		}
-
-		var buildStatement BuildStatement
-		if actionEntry.isSymlinkAction() {
-			buildStatement, err = aqueryHandler.symlinkActionBuildStatement(actionEntry)
-		} else if actionEntry.isTemplateExpandAction() && len(actionEntry.Arguments) < 1 {
-			buildStatement, err = aqueryHandler.templateExpandActionBuildStatement(actionEntry)
-		} else if actionEntry.isFileWriteAction() {
-			buildStatement, err = aqueryHandler.fileWriteActionBuildStatement(actionEntry)
-		} else if actionEntry.isSymlinkTreeAction() {
-			buildStatement, err = aqueryHandler.symlinkTreeActionBuildStatement(actionEntry)
-		} else if len(actionEntry.Arguments) < 1 {
-			return nil, nil, fmt.Errorf("received action with no command: [%s]", actionEntry.Mnemonic)
-		} else {
-			buildStatement, err = aqueryHandler.normalActionBuildStatement(actionEntry)
-		}
-
+	var aqueryHandler *aqueryArtifactHandler
+	{
+		eventHandler.Begin("init_handler")
+		defer eventHandler.End("init_handler")
+		aqueryHandler, err = newAqueryHandler(aqueryResult)
 		if err != nil {
 			return nil, nil, err
 		}
-		buildStatements = append(buildStatements, buildStatement)
+	}
+
+	var buildStatements []BuildStatement
+	{
+		eventHandler.Begin("build_statements")
+		defer eventHandler.End("build_statements")
+		for _, actionEntry := range aqueryResult.Actions {
+			if shouldSkipAction(actionEntry) {
+				continue
+			}
+
+			var buildStatement BuildStatement
+			if actionEntry.isSymlinkAction() {
+				buildStatement, err = aqueryHandler.symlinkActionBuildStatement(actionEntry)
+			} else if actionEntry.isTemplateExpandAction() && len(actionEntry.Arguments) < 1 {
+				buildStatement, err = aqueryHandler.templateExpandActionBuildStatement(actionEntry)
+			} else if actionEntry.isFileWriteAction() {
+				buildStatement, err = aqueryHandler.fileWriteActionBuildStatement(actionEntry)
+			} else if actionEntry.isSymlinkTreeAction() {
+				buildStatement, err = aqueryHandler.symlinkTreeActionBuildStatement(actionEntry)
+			} else if len(actionEntry.Arguments) < 1 {
+				err = fmt.Errorf("received action with no command: [%s]", actionEntry.Mnemonic)
+			} else {
+				buildStatement, err = aqueryHandler.normalActionBuildStatement(actionEntry)
+			}
+
+			if err != nil {
+				return nil, nil, err
+			}
+			buildStatements = append(buildStatements, buildStatement)
+		}
 	}
 
 	depsetsByHash := map[string]AqueryDepset{}
 	var depsets []AqueryDepset
-	for _, aqueryDepset := range aqueryHandler.depsetIdToAqueryDepset {
-		if prevEntry, hasKey := depsetsByHash[aqueryDepset.ContentHash]; hasKey {
-			// Two depsets collide on hash. Ensure that their contents are identical.
-			if !reflect.DeepEqual(aqueryDepset, prevEntry) {
-				return nil, nil, fmt.Errorf("two different depsets have the same hash: %v, %v", prevEntry, aqueryDepset)
+	{
+		eventHandler.Begin("depsets")
+		defer eventHandler.End("depsets")
+		for _, aqueryDepset := range aqueryHandler.depsetIdToAqueryDepset {
+			if prevEntry, hasKey := depsetsByHash[aqueryDepset.ContentHash]; hasKey {
+				// Two depsets collide on hash. Ensure that their contents are identical.
+				if !reflect.DeepEqual(aqueryDepset, prevEntry) {
+					return nil, nil, fmt.Errorf("two different depsets have the same hash: %v, %v", prevEntry, aqueryDepset)
+				}
+			} else {
+				depsetsByHash[aqueryDepset.ContentHash] = aqueryDepset
+				depsets = append(depsets, aqueryDepset)
 			}
-		} else {
-			depsetsByHash[aqueryDepset.ContentHash] = aqueryDepset
-			depsets = append(depsets, aqueryDepset)
 		}
 	}
 
-	// Build Statements and depsets must be sorted by their content hash to
-	// preserve determinism between builds (this will result in consistent ninja file
-	// output). Note they are not sorted by their original IDs nor their Bazel ordering,
-	// as Bazel gives nondeterministic ordering / identifiers in aquery responses.
-	sort.Slice(buildStatements, func(i, j int) bool {
-		// For build statements, compare output lists. In Bazel, each output file
-		// may only have one action which generates it, so this will provide
-		// a deterministic ordering.
-		outputs_i := buildStatements[i].OutputPaths
-		outputs_j := buildStatements[j].OutputPaths
-		if len(outputs_i) != len(outputs_j) {
-			return len(outputs_i) < len(outputs_j)
-		}
-		if len(outputs_i) == 0 {
-			// No outputs for these actions, so compare commands.
-			return buildStatements[i].Command < buildStatements[j].Command
-		}
-		// There may be multiple outputs, but the output ordering is deterministic.
-		return outputs_i[0] < outputs_j[0]
+	eventHandler.Do("build_statement_sort", func() {
+		// Build Statements and depsets must be sorted by their content hash to
+		// preserve determinism between builds (this will result in consistent ninja file
+		// output). Note they are not sorted by their original IDs nor their Bazel ordering,
+		// as Bazel gives nondeterministic ordering / identifiers in aquery responses.
+		sort.Slice(buildStatements, func(i, j int) bool {
+			// For build statements, compare output lists. In Bazel, each output file
+			// may only have one action which generates it, so this will provide
+			// a deterministic ordering.
+			outputs_i := buildStatements[i].OutputPaths
+			outputs_j := buildStatements[j].OutputPaths
+			if len(outputs_i) != len(outputs_j) {
+				return len(outputs_i) < len(outputs_j)
+			}
+			if len(outputs_i) == 0 {
+				// No outputs for these actions, so compare commands.
+				return buildStatements[i].Command < buildStatements[j].Command
+			}
+			// There may be multiple outputs, but the output ordering is deterministic.
+			return outputs_i[0] < outputs_j[0]
+		})
 	})
-	sort.Slice(depsets, func(i, j int) bool {
-		return depsets[i].ContentHash < depsets[j].ContentHash
+	eventHandler.Do("depset_sort", func() {
+		sort.Slice(depsets, func(i, j int) bool {
+			return depsets[i].ContentHash < depsets[j].ContentHash
+		})
 	})
 	return buildStatements, depsets, nil
 }
@@ -651,17 +671,18 @@ func expandTemplateContent(actionEntry action) string {
 	return replacer.Replace(actionEntry.TemplateContent)
 }
 
+// \->\\, $->\$, `->\`, "->\", \n->\\n, '->'"'"'
+var commandLineArgumentReplacer = strings.NewReplacer(
+	`\`, `\\`,
+	`$`, `\$`,
+	"`", "\\`",
+	`"`, `\"`,
+	"\n", "\\n",
+	`'`, `'"'"'`,
+)
+
 func escapeCommandlineArgument(str string) string {
-	// \->\\, $->\$, `->\`, "->\", \n->\\n, '->'"'"'
-	replacer := strings.NewReplacer(
-		`\`, `\\`,
-		`$`, `\$`,
-		"`", "\\`",
-		`"`, `\"`,
-		"\n", "\\n",
-		`'`, `'"'"'`,
-	)
-	return replacer.Replace(str)
+	return commandLineArgumentReplacer.Replace(str)
 }
 
 func (a action) isSymlinkAction() bool {
