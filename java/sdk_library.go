@@ -28,6 +28,7 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
+	"android/soong/bazel"
 	"android/soong/dexpreopt"
 )
 
@@ -546,14 +547,14 @@ type sdkLibraryProperties struct {
 
 	// The properties specific to the module-lib api scope
 	//
-	// Unless explicitly specified by using test.enabled the module-lib api scope is
-	// disabled by default.
+	// Unless explicitly specified by using module_lib.enabled the module_lib api
+	// scope is disabled by default.
 	Module_lib ApiScopeProperties
 
 	// The properties specific to the system-server api scope
 	//
-	// Unless explicitly specified by using test.enabled the module-lib api scope is
-	// disabled by default.
+	// Unless explicitly specified by using system_server.enabled the
+	// system_server api scope is disabled by default.
 	System_server ApiScopeProperties
 
 	// Determines if the stubs are preferred over the implementation library
@@ -1162,6 +1163,8 @@ type SdkLibraryDependency interface {
 
 type SdkLibrary struct {
 	Library
+
+	android.BazelModuleBase
 
 	sdkLibraryProperties sdkLibraryProperties
 
@@ -2081,7 +2084,46 @@ func SdkLibraryFactory() android.Module {
 			module.CreateInternalModules(ctx)
 		}
 	})
+	android.InitBazelModule(module)
 	return module
+}
+
+type bazelSdkLibraryAttributes struct {
+	Public        bazel.StringAttribute
+	System        bazel.StringAttribute
+	Test          bazel.StringAttribute
+	Module_lib    bazel.StringAttribute
+	System_server bazel.StringAttribute
+}
+
+// java_sdk_library bp2build converter
+func (module *SdkLibrary) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+	if ctx.ModuleType() != "java_sdk_library" {
+		return
+	}
+
+	nameToAttr := make(map[string]bazel.StringAttribute)
+
+	for _, scope := range module.getGeneratedApiScopes(ctx) {
+		apiSurfaceFile := path.Join(module.getApiDir(), scope.apiFilePrefix+"current.txt")
+		var scopeStringAttribute bazel.StringAttribute
+		scopeStringAttribute.SetValue(apiSurfaceFile)
+		nameToAttr[scope.name] = scopeStringAttribute
+	}
+
+	attrs := bazelSdkLibraryAttributes{
+		Public:        nameToAttr["public"],
+		System:        nameToAttr["system"],
+		Test:          nameToAttr["test"],
+		Module_lib:    nameToAttr["module-lib"],
+		System_server: nameToAttr["system-server"],
+	}
+	props := bazel.BazelTargetModuleProperties{
+		Rule_class:        "java_sdk_library",
+		Bzl_load_location: "//build/bazel/rules/java:sdk_library.bzl",
+	}
+
+	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: module.Name()}, &attrs)
 }
 
 //
