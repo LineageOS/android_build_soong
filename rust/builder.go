@@ -399,7 +399,7 @@ func Rustdoc(ctx ModuleContext, main android.Path, deps PathDeps,
 	// Silence warnings about renamed lints for third-party crates
 	modulePath := android.PathForModuleSrc(ctx).String()
 	if android.IsThirdPartyPath(modulePath) {
-		rustdocFlags = append(rustdocFlags, " -A renamed_and_removed_lints")
+		rustdocFlags = append(rustdocFlags, " -A warnings")
 	}
 
 	// Yes, the same out directory is used simultaneously by all rustdoc builds.
