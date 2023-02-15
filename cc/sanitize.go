@@ -1539,7 +1539,13 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 		runtimeSharedLibrary := ""
 		toolchain := c.toolchain(mctx)
 		if Bool(sanProps.Address) {
-			runtimeSharedLibrary = config.AddressSanitizerRuntimeLibrary(toolchain)
+			if toolchain.Musl() || (c.staticBinary() && toolchain.Bionic()) {
+				// Use a static runtime for musl to match what clang does for glibc.
+				addStaticDeps(config.AddressSanitizerStaticRuntimeLibrary(toolchain), false)
+				addStaticDeps(config.AddressSanitizerCXXStaticRuntimeLibrary(toolchain), false)
+			} else {
+				runtimeSharedLibrary = config.AddressSanitizerRuntimeLibrary(toolchain)
+			}
 		} else if Bool(sanProps.Hwaddress) {
 			if c.staticBinary() {
 				addStaticDeps(config.HWAddressSanitizerStaticLibrary(toolchain), true)
