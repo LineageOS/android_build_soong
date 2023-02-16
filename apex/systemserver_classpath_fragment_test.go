@@ -15,10 +15,11 @@
 package apex
 
 import (
-	"android/soong/dexpreopt"
+	"strings"
 	"testing"
 
 	"android/soong/android"
+	"android/soong/dexpreopt"
 	"android/soong/java"
 )
 
@@ -31,7 +32,7 @@ func TestSystemserverclasspathFragmentContents(t *testing.T) {
 	result := android.GroupFixturePreparers(
 		prepareForTestWithSystemserverclasspathFragment,
 		prepareForTestWithMyapex,
-		dexpreopt.FixtureSetApexSystemServerJars("myapex:foo", "myapex:bar"),
+		dexpreopt.FixtureSetApexSystemServerJars("myapex:foo", "myapex:bar", "myapex:baz"),
 	).RunTestWithBp(t, `
 		apex {
 			name: "myapex",
@@ -69,11 +70,24 @@ func TestSystemserverclasspathFragmentContents(t *testing.T) {
 			],
 		}
 
+		java_library {
+			name: "baz",
+			srcs: ["d.java"],
+			installable: true,
+			dex_preopt: {
+				profile_guided: true, // ignored
+			},
+			apex_available: [
+				"myapex",
+			],
+		}
+
 		systemserverclasspath_fragment {
 			name: "mysystemserverclasspathfragment",
 			contents: [
 				"foo",
 				"bar",
+				"baz",
 			],
 			apex_available: [
 				"myapex",
@@ -81,17 +95,24 @@ func TestSystemserverclasspathFragmentContents(t *testing.T) {
 		}
 	`)
 
-	ensureExactContents(t, result.TestContext, "myapex", "android_common_myapex_image", []string{
+	ctx := result.TestContext
+
+	ensureExactContents(t, ctx, "myapex", "android_common_myapex_image", []string{
 		"etc/classpaths/systemserverclasspath.pb",
 		"javalib/foo.jar",
 		"javalib/bar.jar",
 		"javalib/bar.jar.prof",
+		"javalib/baz.jar",
 	})
 
-	java.CheckModuleDependencies(t, result.TestContext, "myapex", "android_common_myapex_image", []string{
+	java.CheckModuleDependencies(t, ctx, "myapex", "android_common_myapex_image", []string{
 		`myapex.key`,
 		`mysystemserverclasspathfragment`,
 	})
+
+	assertProfileGuided(t, ctx, "foo", "android_common_apex10000", false)
+	assertProfileGuided(t, ctx, "bar", "android_common_apex10000", true)
+	assertProfileGuided(t, ctx, "baz", "android_common_apex10000", false)
 }
 
 func TestSystemserverclasspathFragmentNoGeneratedProto(t *testing.T) {
@@ -201,7 +222,7 @@ func TestPrebuiltSystemserverclasspathFragmentContents(t *testing.T) {
 	result := android.GroupFixturePreparers(
 		prepareForTestWithSystemserverclasspathFragment,
 		prepareForTestWithMyapex,
-		dexpreopt.FixtureSetApexSystemServerJars("myapex:foo"),
+		dexpreopt.FixtureSetApexSystemServerJars("myapex:foo", "myapex:bar"),
 	).RunTestWithBp(t, `
 		prebuilt_apex {
 			name: "myapex",
@@ -224,11 +245,23 @@ func TestPrebuiltSystemserverclasspathFragmentContents(t *testing.T) {
 			],
 		}
 
+		java_import {
+			name: "bar",
+			jars: ["bar.jar"],
+			dex_preopt: {
+				profile_guided: true,
+			},
+			apex_available: [
+				"myapex",
+			],
+		}
+
 		prebuilt_systemserverclasspath_fragment {
 			name: "mysystemserverclasspathfragment",
 			prefer: true,
 			contents: [
 				"foo",
+				"bar",
 			],
 			apex_available: [
 				"myapex",
@@ -236,22 +269,34 @@ func TestPrebuiltSystemserverclasspathFragmentContents(t *testing.T) {
 		}
 	`)
 
-	java.CheckModuleDependencies(t, result.TestContext, "myapex", "android_common_myapex", []string{
+	ctx := result.TestContext
+
+	java.CheckModuleDependencies(t, ctx, "myapex", "android_common_myapex", []string{
 		`myapex.apex.selector`,
 		`prebuilt_mysystemserverclasspathfragment`,
 	})
 
-	java.CheckModuleDependencies(t, result.TestContext, "mysystemserverclasspathfragment", "android_common_myapex", []string{
+	java.CheckModuleDependencies(t, ctx, "mysystemserverclasspathfragment", "android_common_myapex", []string{
 		`myapex.deapexer`,
+		`prebuilt_bar`,
 		`prebuilt_foo`,
 	})
+
+	ensureExactDeapexedContents(t, ctx, "myapex", "android_common", []string{
+		"javalib/foo.jar",
+		"javalib/bar.jar",
+		"javalib/bar.jar.prof",
+	})
+
+	assertProfileGuided(t, ctx, "foo", "android_common_myapex", false)
+	assertProfileGuided(t, ctx, "bar", "android_common_myapex", true)
 }
 
 func TestSystemserverclasspathFragmentStandaloneContents(t *testing.T) {
 	result := android.GroupFixturePreparers(
 		prepareForTestWithSystemserverclasspathFragment,
 		prepareForTestWithMyapex,
-		dexpreopt.FixtureSetApexStandaloneSystemServerJars("myapex:foo", "myapex:bar"),
+		dexpreopt.FixtureSetApexStandaloneSystemServerJars("myapex:foo", "myapex:bar", "myapex:baz"),
 	).RunTestWithBp(t, `
 		apex {
 			name: "myapex",
@@ -289,11 +334,24 @@ func TestSystemserverclasspathFragmentStandaloneContents(t *testing.T) {
 			],
 		}
 
+		java_library {
+			name: "baz",
+			srcs: ["d.java"],
+			dex_preopt: {
+				profile_guided: true, // ignored
+			},
+			installable: true,
+			apex_available: [
+				"myapex",
+			],
+		}
+
 		systemserverclasspath_fragment {
 			name: "mysystemserverclasspathfragment",
 			standalone_contents: [
 				"foo",
 				"bar",
+				"baz",
 			],
 			apex_available: [
 				"myapex",
@@ -301,19 +359,26 @@ func TestSystemserverclasspathFragmentStandaloneContents(t *testing.T) {
 		}
 	`)
 
-	ensureExactContents(t, result.TestContext, "myapex", "android_common_myapex_image", []string{
+	ctx := result.TestContext
+
+	ensureExactContents(t, ctx, "myapex", "android_common_myapex_image", []string{
 		"etc/classpaths/systemserverclasspath.pb",
 		"javalib/foo.jar",
 		"javalib/bar.jar",
 		"javalib/bar.jar.prof",
+		"javalib/baz.jar",
 	})
+
+	assertProfileGuided(t, ctx, "foo", "android_common_apex10000", false)
+	assertProfileGuided(t, ctx, "bar", "android_common_apex10000", true)
+	assertProfileGuided(t, ctx, "baz", "android_common_apex10000", false)
 }
 
 func TestPrebuiltStandaloneSystemserverclasspathFragmentContents(t *testing.T) {
 	result := android.GroupFixturePreparers(
 		prepareForTestWithSystemserverclasspathFragment,
 		prepareForTestWithMyapex,
-		dexpreopt.FixtureSetApexStandaloneSystemServerJars("myapex:foo"),
+		dexpreopt.FixtureSetApexStandaloneSystemServerJars("myapex:foo", "myapex:bar"),
 	).RunTestWithBp(t, `
 		prebuilt_apex {
 			name: "myapex",
@@ -336,11 +401,23 @@ func TestPrebuiltStandaloneSystemserverclasspathFragmentContents(t *testing.T) {
 			],
 		}
 
+		java_import {
+			name: "bar",
+			jars: ["bar.jar"],
+			dex_preopt: {
+				profile_guided: true,
+			},
+			apex_available: [
+				"myapex",
+			],
+		}
+
 		prebuilt_systemserverclasspath_fragment {
 			name: "mysystemserverclasspathfragment",
 			prefer: true,
 			standalone_contents: [
 				"foo",
+				"bar",
 			],
 			apex_available: [
 				"myapex",
@@ -348,8 +425,28 @@ func TestPrebuiltStandaloneSystemserverclasspathFragmentContents(t *testing.T) {
 		}
 	`)
 
-	java.CheckModuleDependencies(t, result.TestContext, "mysystemserverclasspathfragment", "android_common_myapex", []string{
+	ctx := result.TestContext
+
+	java.CheckModuleDependencies(t, ctx, "mysystemserverclasspathfragment", "android_common_myapex", []string{
 		`myapex.deapexer`,
+		`prebuilt_bar`,
 		`prebuilt_foo`,
 	})
+
+	ensureExactDeapexedContents(t, ctx, "myapex", "android_common", []string{
+		"javalib/foo.jar",
+		"javalib/bar.jar",
+		"javalib/bar.jar.prof",
+	})
+
+	assertProfileGuided(t, ctx, "foo", "android_common_myapex", false)
+	assertProfileGuided(t, ctx, "bar", "android_common_myapex", true)
+}
+
+func assertProfileGuided(t *testing.T, ctx *android.TestContext, moduleName string, variant string, expected bool) {
+	dexpreopt := ctx.ModuleForTests(moduleName, variant).Rule("dexpreopt")
+	actual := strings.Contains(dexpreopt.RuleParams.Command, "--profile-file=")
+	if expected != actual {
+		t.Fatalf("Expected profile-guided to be %v, got %v", expected, actual)
+	}
 }
