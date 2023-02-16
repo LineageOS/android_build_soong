@@ -517,8 +517,14 @@ func getJavaVersion(ctx android.ModuleContext, javaVersion string, sdkContext an
 		return normalizeJavaVersion(ctx, javaVersion)
 	} else if ctx.Device() {
 		return defaultJavaLanguageVersion(ctx, sdkContext.SdkVersion(ctx))
-	} else {
+	} else if ctx.Config().TargetsJava17() {
+		// Temporary experimental flag to be able to try and build with
+		// java version 17 options.  The flag, if used, just sets Java
+		// 17 as the default version, leaving any components that
+		// target an older version intact.
 		return JAVA_VERSION_17
+	} else {
+		return JAVA_VERSION_11
 	}
 }
 
@@ -1626,6 +1632,10 @@ type JavaApiLibraryProperties struct {
 	// List of shared java libs that this module has dependencies to and
 	// should be passed as classpath in javac invocation
 	Libs []string
+
+	// List of java libs that this module has static dependencies to and will be
+	// passed in metalava invocation
+	Static_libs []string
 }
 
 func ApiLibraryFactory() android.Module {
@@ -1698,6 +1708,7 @@ func (al *ApiLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 		ctx.AddDependency(ctx.Module(), javaApiContributionTag, apiContributionName)
 	}
 	ctx.AddVariationDependencies(nil, libTag, al.properties.Libs...)
+	ctx.AddVariationDependencies(nil, staticLibTag, al.properties.Static_libs...)
 }
 
 func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -1717,6 +1728,7 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	var srcFiles android.Paths
 	var classPaths android.Paths
+	var staticLibs android.Paths
 	ctx.VisitDirectDeps(func(dep android.Module) {
 		tag := ctx.OtherModuleDependencyTag(dep)
 		switch tag {
@@ -1730,6 +1742,9 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		case libTag:
 			provider := ctx.OtherModuleProvider(dep, JavaInfoProvider).(JavaInfo)
 			classPaths = append(classPaths, provider.HeaderJars...)
+		case staticLibTag:
+			provider := ctx.OtherModuleProvider(dep, JavaInfoProvider).(JavaInfo)
+			staticLibs = append(staticLibs, provider.HeaderJars...)
 		}
 	})
 
@@ -1754,7 +1769,7 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		FlagWithArg("-D ", stubsDir.String())
 
 	rule.Build("metalava", "metalava merged")
-
+	compiledStubs := android.PathForModuleOut(ctx, ctx.ModuleName(), "stubs.jar")
 	al.stubsJar = android.PathForModuleOut(ctx, ctx.ModuleName(), "android.jar")
 
 	var flags javaBuilderFlags
@@ -1762,8 +1777,16 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	flags.javacFlags = strings.Join(al.properties.Javacflags, " ")
 	flags.classpath = classpath(classPaths)
 
-	TransformJavaToClasses(ctx, al.stubsJar, 0, android.Paths{},
+	TransformJavaToClasses(ctx, compiledStubs, 0, android.Paths{},
 		android.Paths{al.stubsSrcJar}, flags, android.Paths{})
+
+	builder := android.NewRuleBuilder(pctx, ctx)
+	builder.Command().
+		BuiltTool("merge_zips").
+		Output(al.stubsJar).
+		Inputs(android.Paths{compiledStubs}).
+		Inputs(staticLibs)
+	builder.Build("merge_zips", "merge jar files")
 
 	ctx.Phony(ctx.ModuleName(), al.stubsJar)
 

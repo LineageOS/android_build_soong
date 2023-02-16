@@ -195,6 +195,7 @@ func init() {
 	pctx.HostBinToolVariable("ManifestMergerCmd", "manifest-merger")
 
 	pctx.HostBinToolVariable("Class2NonSdkList", "class2nonsdklist")
+	pctx.HostBinToolVariable("MergeCsvCommand", "merge_csv")
 	pctx.HostBinToolVariable("HiddenAPI", "hiddenapi")
 
 	hostBinToolVariableWithSdkToolsPrebuilt("Aapt2Cmd", "aapt2")
