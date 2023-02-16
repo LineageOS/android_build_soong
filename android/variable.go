@@ -64,6 +64,12 @@ type variableProperties struct {
 			Enabled *bool `android:"arch_variant"`
 		} `android:"arch_variant"`
 
+		// similar to `Unbundled_build`, but `Always_use_prebuilt_sdks` means that it uses prebuilt
+		// sdk specifically.
+		Always_use_prebuilt_sdks struct {
+			Enabled *bool `android:"arch_variant"`
+		} `android:"arch_variant"`
+
 		Malloc_not_svelte struct {
 			Cflags              []string `android:"arch_variant"`
 			Shared_libs         []string `android:"arch_variant"`
