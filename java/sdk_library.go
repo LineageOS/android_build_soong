@@ -2243,7 +2243,7 @@ func sdkLibraryImportFactory() android.Module {
 
 	allScopeProperties, scopeToProperties := createPropertiesInstance()
 	module.scopeProperties = scopeToProperties
-	module.AddProperties(&module.properties, allScopeProperties)
+	module.AddProperties(&module.properties, allScopeProperties, &module.importDexpreoptProperties)
 
 	// Initialize information common between source and prebuilt.
 	module.initCommon(module)
@@ -2487,18 +2487,24 @@ func (module *SdkLibraryImport) GenerateAndroidBuildActions(ctx android.ModuleCo
 			if di == nil {
 				return // An error has been reported by FindDeapexerProviderForModule.
 			}
-			if dexOutputPath := di.PrebuiltExportPath(apexRootRelativePathToJavaLib(module.BaseModuleName())); dexOutputPath != nil {
+			dexJarFileApexRootRelative := apexRootRelativePathToJavaLib(module.BaseModuleName())
+			if dexOutputPath := di.PrebuiltExportPath(dexJarFileApexRootRelative); dexOutputPath != nil {
 				dexJarFile := makeDexJarPathFromPath(dexOutputPath)
 				module.dexJarFile = dexJarFile
 				installPath := android.PathForModuleInPartitionInstall(
-					ctx, "apex", ai.ApexVariationName, apexRootRelativePathToJavaLib(module.BaseModuleName()))
+					ctx, "apex", ai.ApexVariationName, dexJarFileApexRootRelative)
 				module.installFile = installPath
 				module.initHiddenAPI(ctx, dexJarFile, module.findScopePaths(apiScopePublic).stubsImplPath[0], nil)
 
-				// Dexpreopting.
 				module.dexpreopter.installPath = module.dexpreopter.getInstallPath(ctx, installPath)
 				module.dexpreopter.isSDKLibrary = true
 				module.dexpreopter.uncompressedDex = shouldUncompressDex(ctx, &module.dexpreopter)
+
+				if profilePath := di.PrebuiltExportPath(dexJarFileApexRootRelative + ".prof"); profilePath != nil {
+					module.dexpreopter.inputProfilePathOnHost = profilePath
+				}
+
+				// Dexpreopting.
 				module.dexpreopt(ctx, dexOutputPath)
 			} else {
 				// This should never happen as a variant for a prebuilt_apex is only created if the
@@ -2627,7 +2633,7 @@ var _ android.RequiredFilesFromPrebuiltApex = (*SdkLibraryImport)(nil)
 
 func (module *SdkLibraryImport) RequiredFilesFromPrebuiltApex(ctx android.BaseModuleContext) []string {
 	name := module.BaseModuleName()
-	return requiredFilesFromPrebuiltApexForImport(name)
+	return requiredFilesFromPrebuiltApexForImport(name, &module.dexpreopter)
 }
 
 // java_sdk_library_xml
@@ -3036,6 +3042,8 @@ type sdkLibrarySdkMemberProperties struct {
 	//
 	// This means that the device won't recognise this library as installed.
 	Max_device_sdk *string
+
+	DexPreoptProfileGuided *bool `supported_build_releases:"UpsideDownCake+"`
 }
 
 type scopeProperties struct {
@@ -3089,6 +3097,10 @@ func (s *sdkLibrarySdkMemberProperties) PopulateFromVariant(ctx android.SdkMembe
 	s.On_bootclasspath_before = sdk.commonSdkLibraryProperties.On_bootclasspath_before
 	s.Min_device_sdk = sdk.commonSdkLibraryProperties.Min_device_sdk
 	s.Max_device_sdk = sdk.commonSdkLibraryProperties.Max_device_sdk
+
+	if sdk.dexpreopter.dexpreoptProperties.Dex_preopt_result.Profile_guided {
+		s.DexPreoptProfileGuided = proptools.BoolPtr(true)
+	}
 }
 
 func (s *sdkLibrarySdkMemberProperties) AddToPropertySet(ctx android.SdkMemberContext, propertySet android.BpPropertySet) {
@@ -3103,6 +3115,10 @@ func (s *sdkLibrarySdkMemberProperties) AddToPropertySet(ctx android.SdkMemberCo
 	}
 	if len(s.Permitted_packages) > 0 {
 		propertySet.AddProperty("permitted_packages", s.Permitted_packages)
+	}
+	dexPreoptSet := propertySet.AddPropertySet("dex_preopt")
+	if s.DexPreoptProfileGuided != nil {
+		dexPreoptSet.AddProperty("profile_guided", proptools.Bool(s.DexPreoptProfileGuided))
 	}
 
 	stem := s.Stem
