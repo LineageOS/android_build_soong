@@ -1769,7 +1769,7 @@ func apexFileForJavaModuleWithFile(ctx android.BaseModuleContext, module javaMod
 
 func apexFileForJavaModuleProfile(ctx android.BaseModuleContext, module javaModule) *apexFile {
 	if dexpreopter, ok := module.(java.DexpreopterInterface); ok {
-		if profilePathOnHost := dexpreopter.ProfilePathOnHost(); profilePathOnHost != nil {
+		if profilePathOnHost := dexpreopter.OutputProfilePathOnHost(); profilePathOnHost != nil {
 			dirInApex := "javalib"
 			af := newApexFile(ctx, profilePathOnHost, module.BaseModuleName()+"-profile", dirInApex, etc, nil)
 			af.customStem = module.Stem() + ".jar.prof"
