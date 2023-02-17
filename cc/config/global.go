@@ -247,16 +247,11 @@ var (
 	noOverride64GlobalCflags = []string{}
 
 	noOverrideExternalGlobalCflags = []string{
-		// http://b/148815709
 		"-Wno-sizeof-array-div",
-		// http://b/197240255
 		"-Wno-unused-but-set-variable",
 		"-Wno-unused-but-set-parameter",
-		// http://b/215753485
 		"-Wno-bitwise-instead-of-logical",
-		// http://b/232926688
 		"-Wno-misleading-indentation",
-		// http://b/241941550
 		"-Wno-array-parameter",
 	}
 
