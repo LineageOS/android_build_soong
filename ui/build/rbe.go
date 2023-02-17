@@ -100,6 +100,8 @@ func startRBE(ctx Context, config Config) {
 	ctx.BeginTrace(metrics.RunSetupTool, "rbe_bootstrap")
 	defer ctx.EndTrace()
 
+	ctx.Status.Status("Starting rbe...")
+
 	if u := ulimitOrFatal(ctx, config, "-u"); u < rbeLeastNProcs {
 		ctx.Fatalf("max user processes is insufficient: %d; want >= %d.\n", u, rbeLeastNProcs)
 	}
@@ -179,6 +181,8 @@ func DumpRBEMetrics(ctx Context, config Config, filename string) {
 	if !config.StartRBE() {
 		return
 	}
+
+	ctx.Status.Status("Dumping rbe metrics...")
 
 	outputDir := config.rbeProxyLogsDir()
 	if outputDir == "" {
