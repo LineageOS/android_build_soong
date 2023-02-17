@@ -8254,6 +8254,30 @@ func TestApexSet(t *testing.T) {
 	}
 }
 
+func TestApexSet_NativeBridge(t *testing.T) {
+	ctx := testApex(t, `
+		apex_set {
+			name: "myapex",
+			set: "myapex.apks",
+			filename: "foo_v2.apex",
+			overrides: ["foo"],
+		}
+	`,
+		android.FixtureModifyConfig(func(config android.Config) {
+			config.Targets[android.Android] = []android.Target{
+				{Os: android.Android, Arch: android.Arch{ArchType: android.X86_64, ArchVariant: "", Abi: []string{"x86_64"}}},
+				{Os: android.Android, Arch: android.Arch{ArchType: android.Arm64, ArchVariant: "armv8-a", Abi: []string{"arm64-v8a"}}, NativeBridge: android.NativeBridgeEnabled},
+			}
+		}),
+	)
+
+	m := ctx.ModuleForTests("myapex.apex.extractor", "android_common")
+
+	// Check extract_apks tool parameters. No native bridge arch expected
+	extractedApex := m.Output("extracted/myapex.apks")
+	android.AssertStringEquals(t, "abis", "X86_64", extractedApex.Args["abis"])
+}
+
 func TestNoStaticLinkingToStubsLib(t *testing.T) {
 	testApexError(t, `.*required by "mylib" is a native library providing stub.*`, `
 		apex {
