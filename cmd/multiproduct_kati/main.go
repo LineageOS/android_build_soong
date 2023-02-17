@@ -515,7 +515,8 @@ func runSoongUiForProduct(mpctx *mpContext, product string) {
 		"TARGET_BUILD_VARIANT="+*buildVariant,
 		"TARGET_BUILD_TYPE=release",
 		"TARGET_BUILD_APPS=",
-		"TARGET_BUILD_UNBUNDLED=")
+		"TARGET_BUILD_UNBUNDLED=",
+		"USE_RBE=false") // Disabling RBE saves ~10 secs per product
 
 	if *alternateResultDir {
 		cmd.Env = append(cmd.Env,
