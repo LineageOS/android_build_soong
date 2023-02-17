@@ -33,7 +33,8 @@ var prepareForSdkTestWithJava = android.GroupFixturePreparers(
 
 	// Files needs by most of the tests.
 	android.MockFS{
-		"Test.java": nil,
+		"Test.java":   nil,
+		"art-profile": nil,
 	}.AddToFixture(),
 )
 

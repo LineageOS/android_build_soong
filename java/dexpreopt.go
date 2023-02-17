@@ -23,11 +23,24 @@ import (
 )
 
 type DexpreopterInterface interface {
-	IsInstallable() bool // Structs that embed dexpreopter must implement this.
+	// True if the java module is to be dexed and installed on devices.
+	// Structs that embed dexpreopter must implement this.
+	IsInstallable() bool
+
+	// True if dexpreopt is disabled for the java module.
 	dexpreoptDisabled(ctx android.BaseModuleContext) bool
+
+	// If the java module is to be installed into an APEX, this list contains information about the
+	// dexpreopt outputs to be installed on devices. Note that these dexpreopt outputs are installed
+	// outside of the APEX.
 	DexpreoptBuiltInstalledForApex() []dexpreopterInstall
+
+	// The Make entries to install the dexpreopt outputs. Derived from
+	// `DexpreoptBuiltInstalledForApex`.
 	AndroidMkEntriesForApex() []android.AndroidMkEntries
-	ProfilePathOnHost() android.Path
+
+	// See `dexpreopter.outputProfilePathOnHost`.
+	OutputProfilePathOnHost() android.Path
 }
 
 type dexpreopterInstall struct {
@@ -78,7 +91,8 @@ func (install dexpreopterInstall) ToMakeEntries() android.AndroidMkEntries {
 }
 
 type dexpreopter struct {
-	dexpreoptProperties DexpreoptProperties
+	dexpreoptProperties       DexpreoptProperties
+	importDexpreoptProperties ImportDexpreoptProperties
 
 	installPath         android.InstallPath
 	uncompressedDex     bool
@@ -105,8 +119,13 @@ type dexpreopter struct {
 	//   dexpreopt another partition).
 	configPath android.WritablePath
 
-	// The path to the profile on host.
-	profilePathOnHost android.Path
+	// The path to the profile on host that dexpreopter generates. This is used as the input for
+	// dex2oat.
+	outputProfilePathOnHost android.Path
+
+	// The path to the profile that dexpreopter accepts. It must be in the binary format. If this is
+	// set, it overrides the profile settings in `dexpreoptProperties`.
+	inputProfilePathOnHost android.Path
 }
 
 type DexpreoptProperties struct {
@@ -126,6 +145,18 @@ type DexpreoptProperties struct {
 		// defaults to searching for a file that matches the name of this module in the default
 		// profile location set by PRODUCT_DEX_PREOPT_PROFILE_DIR, or empty if not found.
 		Profile *string `android:"path"`
+	}
+
+	Dex_preopt_result struct {
+		// True if profile-guided optimization is actually enabled.
+		Profile_guided bool
+	} `blueprint:"mutated"`
+}
+
+type ImportDexpreoptProperties struct {
+	Dex_preopt struct {
+		// If true, use the profile in the prebuilt APEX to guide optimization. Defaults to false.
+		Profile_guided *bool
 	}
 }
 
@@ -295,7 +326,9 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Wr
 	var profileClassListing android.OptionalPath
 	var profileBootListing android.OptionalPath
 	profileIsTextListing := false
-	if BoolDefault(d.dexpreoptProperties.Dex_preopt.Profile_guided, true) {
+	if d.inputProfilePathOnHost != nil {
+		profileClassListing = android.OptionalPathForPath(d.inputProfilePathOnHost)
+	} else if BoolDefault(d.dexpreoptProperties.Dex_preopt.Profile_guided, true) && !forPrebuiltApex(ctx) {
 		// If dex_preopt.profile_guided is not set, default it based on the existence of the
 		// dexprepot.profile option or the profile class listing.
 		if String(d.dexpreoptProperties.Dex_preopt.Profile) != "" {
@@ -309,6 +342,8 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Wr
 				global.ProfileDir, moduleName(ctx)+".prof")
 		}
 	}
+
+	d.dexpreoptProperties.Dex_preopt_result.Profile_guided = profileClassListing.Valid()
 
 	// Full dexpreopt config, used to create dexpreopt build rules.
 	dexpreoptConfig := &dexpreopt.ModuleConfig{
@@ -374,7 +409,7 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Wr
 		isProfile := strings.HasSuffix(installBase, ".prof")
 
 		if isProfile {
-			d.profilePathOnHost = install.From
+			d.outputProfilePathOnHost = install.From
 		}
 
 		if isApexSystemServerJar {
@@ -416,6 +451,6 @@ func (d *dexpreopter) AndroidMkEntriesForApex() []android.AndroidMkEntries {
 	return entries
 }
 
-func (d *dexpreopter) ProfilePathOnHost() android.Path {
-	return d.profilePathOnHost
+func (d *dexpreopter) OutputProfilePathOnHost() android.Path {
+	return d.outputProfilePathOnHost
 }
