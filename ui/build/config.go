@@ -369,6 +369,7 @@ func NewConfig(ctx Context, args ...string) Config {
 		"CDPATH",
 		"DISPLAY",
 		"GREP_OPTIONS",
+		"JAVAC",
 		"NDK_ROOT",
 		"POSIXLY_CORRECT",
 
