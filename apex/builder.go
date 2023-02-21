@@ -476,8 +476,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 		// Copy the built file to the directory. But if the symlink optimization is turned
 		// on, place a symlink to the corresponding file in /system partition instead.
 		if a.linkToSystemLib && fi.transitiveDep && fi.availableToPlatform() {
-			// TODO(jiyong): pathOnDevice should come from fi.module, not being calculated here
-			pathOnDevice := filepath.Join("/system", fi.path())
+			pathOnDevice := filepath.Join("/", fi.partition, fi.path())
 			copyCommands = append(copyCommands, "ln -sfn "+pathOnDevice+" "+destPath)
 		} else {
 			// Copy the file into APEX
@@ -941,8 +940,7 @@ func (a *apexBundle) buildFlattenedApex(ctx android.ModuleContext) {
 			dir := filepath.Join("apex", bundleName, fi.installDir)
 			installDir := android.PathForModuleInstall(ctx, dir)
 			if a.linkToSystemLib && fi.transitiveDep && fi.availableToPlatform() {
-				// TODO(jiyong): pathOnDevice should come from fi.module, not being calculated here
-				pathOnDevice := filepath.Join("/system", fi.path())
+				pathOnDevice := filepath.Join("/", fi.partition, fi.path())
 				installedSymlinks = append(installedSymlinks,
 					ctx.InstallAbsoluteSymlink(installDir, fi.stem(), pathOnDevice))
 			} else {
