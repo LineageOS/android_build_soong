@@ -1308,7 +1308,7 @@ cc_library {
 
 func TestCCLibraryNoCrtTrue(t *testing.T) {
 	runCcLibraryTestCase(t, Bp2buildTestCase{
-		Description:                "cc_library - nocrt: true emits attribute",
+		Description:                "cc_library - nocrt: true disables feature",
 		ModuleTypeUnderTest:        "cc_library",
 		ModuleTypeUnderTestFactory: cc.LibraryFactory,
 		Filesystem: map[string]string{
@@ -1323,7 +1323,7 @@ cc_library {
 }
 `,
 		ExpectedBazelTargets: makeCcLibraryTargets("foo-lib", AttrNameToString{
-			"link_crt": `False`,
+			"features": `["-link_crt"]`,
 			"srcs":     `["impl.cpp"]`,
 		}),
 	},
@@ -1375,7 +1375,13 @@ cc_library {
     include_build_directory: false,
 }
 `,
-		ExpectedErr: fmt.Errorf("module \"foo-lib\": nocrt is not supported for arch variants"),
+		ExpectedBazelTargets: makeCcLibraryTargets("foo-lib", AttrNameToString{
+			"features": `select({
+        "//build/bazel/platforms/arch:arm": ["-link_crt"],
+        "//conditions:default": [],
+    })`,
+			"srcs": `["impl.cpp"]`,
+		}),
 	})
 }
 
@@ -1395,8 +1401,8 @@ cc_library {
 }
 `,
 		ExpectedBazelTargets: makeCcLibraryTargets("foo-lib", AttrNameToString{
-			"srcs":       `["impl.cpp"]`,
-			"use_libcrt": `False`,
+			"features": `["-use_libcrt"]`,
+			"srcs":     `["impl.cpp"]`,
 		}),
 	})
 }
@@ -1445,8 +1451,7 @@ cc_library {
 }
 `,
 		ExpectedBazelTargets: makeCcLibraryTargets("foo-lib", AttrNameToString{
-			"srcs":       `["impl.cpp"]`,
-			"use_libcrt": `True`,
+			"srcs": `["impl.cpp"]`,
 		}),
 	})
 }
@@ -1475,10 +1480,10 @@ cc_library {
 `,
 		ExpectedBazelTargets: makeCcLibraryTargets("foo-lib", AttrNameToString{
 			"srcs": `["impl.cpp"]`,
-			"use_libcrt": `select({
-        "//build/bazel/platforms/arch:arm": False,
-        "//build/bazel/platforms/arch:x86": False,
-        "//conditions:default": None,
+			"features": `select({
+        "//build/bazel/platforms/arch:arm": ["-use_libcrt"],
+        "//build/bazel/platforms/arch:x86": ["-use_libcrt"],
+        "//conditions:default": [],
     })`,
 		}),
 	})
@@ -1512,17 +1517,15 @@ cc_library {
 }
 `,
 		ExpectedBazelTargets: makeCcLibraryTargets("foo-lib", AttrNameToString{
-			"srcs": `["impl.cpp"]`,
-			"use_libcrt": `select({
-        "//build/bazel/platforms/os_arch:android_arm": False,
-        "//build/bazel/platforms/os_arch:android_x86": False,
-        "//build/bazel/platforms/os_arch:darwin_arm64": False,
-        "//build/bazel/platforms/os_arch:darwin_x86_64": False,
-        "//build/bazel/platforms/os_arch:linux_glibc_x86": False,
-        "//build/bazel/platforms/os_arch:linux_musl_x86": False,
-        "//build/bazel/platforms/os_arch:windows_x86": False,
-        "//conditions:default": None,
+			"features": `select({
+        "//build/bazel/platforms/arch:arm": ["-use_libcrt"],
+        "//build/bazel/platforms/arch:x86": ["-use_libcrt"],
+        "//conditions:default": [],
+    }) + select({
+        "//build/bazel/platforms/os:darwin": ["-use_libcrt"],
+        "//conditions:default": [],
     })`,
+			"srcs": `["impl.cpp"]`,
 		}),
 	})
 }
@@ -1557,16 +1560,10 @@ cc_library {
 `,
 		ExpectedBazelTargets: makeCcLibraryTargets("foo-lib", AttrNameToString{
 			"srcs": `["impl.cpp"]`,
-			"use_libcrt": `select({
-        "//build/bazel/platforms/os_arch:android_arm": False,
-        "//build/bazel/platforms/os_arch:android_x86_64": False,
-        "//build/bazel/platforms/os_arch:darwin_arm64": True,
-        "//build/bazel/platforms/os_arch:darwin_x86_64": False,
-        "//build/bazel/platforms/os_arch:linux_bionic_x86_64": False,
-        "//build/bazel/platforms/os_arch:linux_glibc_x86_64": False,
-        "//build/bazel/platforms/os_arch:linux_musl_x86_64": False,
-        "//build/bazel/platforms/os_arch:windows_x86_64": False,
-        "//conditions:default": None,
+			"features": `select({
+        "//build/bazel/platforms/arch:arm": ["-use_libcrt"],
+        "//build/bazel/platforms/arch:x86_64": ["-use_libcrt"],
+        "//conditions:default": [],
     })`,
 		}),
 	})

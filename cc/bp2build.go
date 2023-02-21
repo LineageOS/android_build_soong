@@ -965,8 +965,6 @@ type linkerAttributes struct {
 	systemDynamicDeps                bazel.LabelListAttribute
 	usedSystemDynamicDepAsDynamicDep map[string]bool
 
-	linkCrt                       bazel.BoolAttribute
-	useLibcrt                     bazel.BoolAttribute
 	useVersionLib                 bazel.BoolAttribute
 	linkopts                      bazel.StringListAttribute
 	additionalLinkerInputs        bazel.LabelListAttribute
@@ -1138,6 +1136,13 @@ func (la *linkerAttributes) bp2buildForAxisAndConfig(ctx android.BazelConversion
 		}
 	}
 
+	if !props.libCrt() {
+		axisFeatures = append(axisFeatures, "-use_libcrt")
+	}
+	if !props.crt() {
+		axisFeatures = append(axisFeatures, "-link_crt")
+	}
+
 	// This must happen before the addition of flags for Version Script and
 	// Dynamic List, as these flags must be split on spaces and those must not
 	linkerFlags = parseCommandLineFlags(linkerFlags, filterOutClangUnknownCflags)
@@ -1157,16 +1162,6 @@ func (la *linkerAttributes) bp2buildForAxisAndConfig(ctx android.BazelConversion
 
 	la.additionalLinkerInputs.SetSelectValue(axis, config, additionalLinkerInputs)
 	la.linkopts.SetSelectValue(axis, config, linkerFlags)
-	la.useLibcrt.SetSelectValue(axis, config, props.libCrt())
-
-	// it's very unlikely for nocrt to be arch variant, so bp2build doesn't support it.
-	if props.crt() != nil {
-		if axis == bazel.NoConfigAxis {
-			la.linkCrt.SetSelectValue(axis, config, props.crt())
-		} else if axis == bazel.ArchConfigurationAxis {
-			ctx.ModuleErrorf("nocrt is not supported for arch variants")
-		}
-	}
 
 	if axisFeatures != nil {
 		la.features.SetSelectValue(axis, config, axisFeatures)
