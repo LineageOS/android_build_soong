@@ -502,6 +502,7 @@ type Module interface {
 	InstallInRoot() bool
 	InstallInVendor() bool
 	InstallForceOS() (*OsType, *ArchType)
+	PartitionTag(DeviceConfig) string
 	HideFromMake()
 	IsHideFromMake() bool
 	IsSkipInstall() bool
