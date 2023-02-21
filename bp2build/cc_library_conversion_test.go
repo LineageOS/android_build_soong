@@ -4084,3 +4084,56 @@ cc_library {
 		},
 	})
 }
+
+func TestCcLibraryInApexWithStubSharedLibs(t *testing.T) {
+	runCcLibrarySharedTestCase(t, Bp2buildTestCase{
+		Description:                "cc_library with in apex with stub shared_libs and export_shared_lib_headers",
+		ModuleTypeUnderTest:        "cc_library",
+		ModuleTypeUnderTestFactory: cc.LibraryFactory,
+		Blueprint: `
+cc_library {
+	name: "barlib",
+	stubs: { symbol_file: "bar.map.txt", versions: ["28", "29", "current"] },
+	bazel_module: { bp2build_available: false },
+}
+cc_library {
+	name: "bazlib",
+	stubs: { symbol_file: "bar.map.txt", versions: ["28", "29", "current"] },
+	bazel_module: { bp2build_available: false },
+}
+cc_library {
+    name: "foo",
+	  shared_libs: ["barlib", "bazlib"],
+    export_shared_lib_headers: ["bazlib"],
+    apex_available: [
+        "apex_available:platform",
+    ],
+}`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
+				"implementation_dynamic_deps": `select({
+        "//build/bazel/rules/apex:android-in_apex": [":barlib_stub_libs_current"],
+        "//conditions:default": [":barlib"],
+    })`,
+				"dynamic_deps": `select({
+        "//build/bazel/rules/apex:android-in_apex": [":bazlib_stub_libs_current"],
+        "//conditions:default": [":bazlib"],
+    })`,
+				"local_includes": `["."]`,
+				"tags":           `["apex_available=apex_available:platform"]`,
+			}),
+			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+				"implementation_dynamic_deps": `select({
+        "//build/bazel/rules/apex:android-in_apex": [":barlib_stub_libs_current"],
+        "//conditions:default": [":barlib"],
+    })`,
+				"dynamic_deps": `select({
+        "//build/bazel/rules/apex:android-in_apex": [":bazlib_stub_libs_current"],
+        "//conditions:default": [":bazlib"],
+    })`,
+				"local_includes": `["."]`,
+				"tags":           `["apex_available=apex_available:platform"]`,
+			}),
+		},
+	})
+}
