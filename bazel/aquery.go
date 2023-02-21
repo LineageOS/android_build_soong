@@ -22,6 +22,7 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+	"sync"
 
 	analysis_v2_proto "prebuilts/bazel/common/proto/analysis_v2"
 
@@ -105,7 +106,7 @@ type BuildStatement struct {
 	Depfile      *string
 	OutputPaths  []string
 	SymlinkPaths []string
-	Env          []KeyValuePair
+	Env          []*analysis_v2_proto.KeyValuePair
 	Mnemonic     string
 
 	// Inputs of this build statement, either as unexpanded depsets or expanded
@@ -130,7 +131,7 @@ type aqueryArtifactHandler struct {
 
 	// depsetIdToArtifactIdsCache is a memoization of depset flattening, because flattening
 	// may be an expensive operation.
-	depsetHashToArtifactPathsCache map[string][]string
+	depsetHashToArtifactPathsCache sync.Map
 	// Maps artifact ids to fully expanded paths.
 	artifactIdToPath map[artifactId]string
 }
@@ -143,8 +144,11 @@ var templateActionOverriddenTokens = map[string]string{
 	"%python_binary%": "python3",
 }
 
-// The file name of py3wrapper.sh, which is used by py_binary targets.
-const py3wrapperFileName = "/py3wrapper.sh"
+const (
+	middlemanMnemonic = "Middleman"
+	// The file name of py3wrapper.sh, which is used by py_binary targets.
+	py3wrapperFileName = "/py3wrapper.sh"
+)
 
 func indexBy[K comparable, V any](values []V, keyFn func(v V) K) map[K]V {
 	m := map[K]V{}
@@ -154,18 +158,18 @@ func indexBy[K comparable, V any](values []V, keyFn func(v V) K) map[K]V {
 	return m
 }
 
-func newAqueryHandler(aqueryResult actionGraphContainer) (*aqueryArtifactHandler, error) {
-	pathFragments := indexBy(aqueryResult.PathFragments, func(pf pathFragment) pathFragmentId {
-		return pf.Id
+func newAqueryHandler(aqueryResult *analysis_v2_proto.ActionGraphContainer) (*aqueryArtifactHandler, error) {
+	pathFragments := indexBy(aqueryResult.PathFragments, func(pf *analysis_v2_proto.PathFragment) pathFragmentId {
+		return pathFragmentId(pf.Id)
 	})
 
-	artifactIdToPath := map[artifactId]string{}
+	artifactIdToPath := make(map[artifactId]string, len(aqueryResult.Artifacts))
 	for _, artifact := range aqueryResult.Artifacts {
-		artifactPath, err := expandPathFragment(artifact.PathFragmentId, pathFragments)
+		artifactPath, err := expandPathFragment(pathFragmentId(artifact.PathFragmentId), pathFragments)
 		if err != nil {
 			return nil, err
 		}
-		artifactIdToPath[artifact.Id] = artifactPath
+		artifactIdToPath[artifactId(artifact.Id)] = artifactPath
 	}
 
 	// Map middleman artifact ContentHash to input artifact depset ID.
@@ -173,23 +177,23 @@ func newAqueryHandler(aqueryResult actionGraphContainer) (*aqueryArtifactHandler
 	// if we find a middleman action which has inputs [foo, bar], and output [baz_middleman], then,
 	// for each other action which has input [baz_middleman], we add [foo, bar] to the inputs for
 	// that action instead.
-	middlemanIdToDepsetIds := map[artifactId][]depsetId{}
+	middlemanIdToDepsetIds := map[artifactId][]uint32{}
 	for _, actionEntry := range aqueryResult.Actions {
-		if actionEntry.Mnemonic == "Middleman" {
+		if actionEntry.Mnemonic == middlemanMnemonic {
 			for _, outputId := range actionEntry.OutputIds {
-				middlemanIdToDepsetIds[outputId] = actionEntry.InputDepSetIds
+				middlemanIdToDepsetIds[artifactId(outputId)] = actionEntry.InputDepSetIds
 			}
 		}
 	}
 
-	depsetIdToDepset := indexBy(aqueryResult.DepSetOfFiles, func(d depSetOfFiles) depsetId {
-		return d.Id
+	depsetIdToDepset := indexBy(aqueryResult.DepSetOfFiles, func(d *analysis_v2_proto.DepSetOfFiles) depsetId {
+		return depsetId(d.Id)
 	})
 
 	aqueryHandler := aqueryArtifactHandler{
 		depsetIdToAqueryDepset:         map[depsetId]AqueryDepset{},
 		depsetHashToAqueryDepset:       map[string]AqueryDepset{},
-		depsetHashToArtifactPathsCache: map[string][]string{},
+		depsetHashToArtifactPathsCache: sync.Map{},
 		emptyDepsetIds:                 make(map[depsetId]struct{}, 0),
 		artifactIdToPath:               artifactIdToPath,
 	}
@@ -207,20 +211,21 @@ func newAqueryHandler(aqueryResult actionGraphContainer) (*aqueryArtifactHandler
 
 // Ensures that the handler's depsetIdToAqueryDepset map contains an entry for the given
 // depset.
-func (a *aqueryArtifactHandler) populateDepsetMaps(depset depSetOfFiles, middlemanIdToDepsetIds map[artifactId][]depsetId, depsetIdToDepset map[depsetId]depSetOfFiles) (*AqueryDepset, error) {
-	if aqueryDepset, containsDepset := a.depsetIdToAqueryDepset[depset.Id]; containsDepset {
+func (a *aqueryArtifactHandler) populateDepsetMaps(depset *analysis_v2_proto.DepSetOfFiles, middlemanIdToDepsetIds map[artifactId][]uint32, depsetIdToDepset map[depsetId]*analysis_v2_proto.DepSetOfFiles) (*AqueryDepset, error) {
+	if aqueryDepset, containsDepset := a.depsetIdToAqueryDepset[depsetId(depset.Id)]; containsDepset {
 		return &aqueryDepset, nil
 	}
 	transitiveDepsetIds := depset.TransitiveDepSetIds
-	var directArtifactPaths []string
-	for _, artifactId := range depset.DirectArtifactIds {
-		path, pathExists := a.artifactIdToPath[artifactId]
+	directArtifactPaths := make([]string, 0, len(depset.DirectArtifactIds))
+	for _, id := range depset.DirectArtifactIds {
+		aId := artifactId(id)
+		path, pathExists := a.artifactIdToPath[aId]
 		if !pathExists {
-			return nil, fmt.Errorf("undefined input artifactId %d", artifactId)
+			return nil, fmt.Errorf("undefined input artifactId %d", aId)
 		}
 		// Filter out any inputs which are universally dropped, and swap middleman
 		// artifacts with their corresponding depsets.
-		if depsetsToUse, isMiddleman := middlemanIdToDepsetIds[artifactId]; isMiddleman {
+		if depsetsToUse, isMiddleman := middlemanIdToDepsetIds[aId]; isMiddleman {
 			// Swap middleman artifacts with their corresponding depsets and drop the middleman artifacts.
 			transitiveDepsetIds = append(transitiveDepsetIds, depsetsToUse...)
 		} else if strings.HasSuffix(path, py3wrapperFileName) ||
@@ -237,8 +242,9 @@ func (a *aqueryArtifactHandler) populateDepsetMaps(depset depSetOfFiles, middlem
 		}
 	}
 
-	var childDepsetHashes []string
-	for _, childDepsetId := range transitiveDepsetIds {
+	childDepsetHashes := make([]string, 0, len(transitiveDepsetIds))
+	for _, id := range transitiveDepsetIds {
+		childDepsetId := depsetId(id)
 		childDepset, exists := depsetIdToDepset[childDepsetId]
 		if !exists {
 			if _, empty := a.emptyDepsetIds[childDepsetId]; empty {
@@ -256,7 +262,7 @@ func (a *aqueryArtifactHandler) populateDepsetMaps(depset depSetOfFiles, middlem
 		}
 	}
 	if len(directArtifactPaths) == 0 && len(childDepsetHashes) == 0 {
-		a.emptyDepsetIds[depset.Id] = struct{}{}
+		a.emptyDepsetIds[depsetId(depset.Id)] = struct{}{}
 		return nil, nil
 	}
 	aqueryDepset := AqueryDepset{
@@ -264,7 +270,7 @@ func (a *aqueryArtifactHandler) populateDepsetMaps(depset depSetOfFiles, middlem
 		DirectArtifacts:        directArtifactPaths,
 		TransitiveDepSetHashes: childDepsetHashes,
 	}
-	a.depsetIdToAqueryDepset[depset.Id] = aqueryDepset
+	a.depsetIdToAqueryDepset[depsetId(depset.Id)] = aqueryDepset
 	a.depsetHashToAqueryDepset[aqueryDepset.ContentHash] = aqueryDepset
 	return &aqueryDepset, nil
 }
@@ -273,10 +279,11 @@ func (a *aqueryArtifactHandler) populateDepsetMaps(depset depSetOfFiles, middlem
 // input paths contained in these depsets.
 // This is a potentially expensive operation, and should not be invoked except
 // for actions which need specialized input handling.
-func (a *aqueryArtifactHandler) getInputPaths(depsetIds []depsetId) ([]string, error) {
+func (a *aqueryArtifactHandler) getInputPaths(depsetIds []uint32) ([]string, error) {
 	var inputPaths []string
 
-	for _, inputDepSetId := range depsetIds {
+	for _, id := range depsetIds {
+		inputDepSetId := depsetId(id)
 		depset := a.depsetIdToAqueryDepset[inputDepSetId]
 		inputArtifacts, err := a.artifactPathsFromDepsetHash(depset.ContentHash)
 		if err != nil {
@@ -291,8 +298,8 @@ func (a *aqueryArtifactHandler) getInputPaths(depsetIds []depsetId) ([]string, e
 }
 
 func (a *aqueryArtifactHandler) artifactPathsFromDepsetHash(depsetHash string) ([]string, error) {
-	if result, exists := a.depsetHashToArtifactPathsCache[depsetHash]; exists {
-		return result, nil
+	if result, exists := a.depsetHashToArtifactPathsCache.Load(depsetHash); exists {
+		return result.([]string), nil
 	}
 	if depset, exists := a.depsetHashToAqueryDepset[depsetHash]; exists {
 		result := depset.DirectArtifacts
@@ -303,7 +310,7 @@ func (a *aqueryArtifactHandler) artifactPathsFromDepsetHash(depsetHash string) (
 			}
 			result = append(result, childArtifactIds...)
 		}
-		a.depsetHashToArtifactPathsCache[depsetHash] = result
+		a.depsetHashToArtifactPathsCache.Store(depsetHash, result)
 		return result, nil
 	} else {
 		return nil, fmt.Errorf("undefined input depset hash %s", depsetHash)
@@ -315,124 +322,56 @@ func (a *aqueryArtifactHandler) artifactPathsFromDepsetHash(depsetHash string) (
 // action graph, as described by the given action graph json proto.
 // BuildStatements are one-to-one with actions in the given action graph, and AqueryDepsets
 // are one-to-one with Bazel's depSetOfFiles objects.
-func AqueryBuildStatements(aqueryJsonProto []byte, eventHandler *metrics.EventHandler) ([]BuildStatement, []AqueryDepset, error) {
+func AqueryBuildStatements(aqueryJsonProto []byte, eventHandler *metrics.EventHandler) ([]*BuildStatement, []AqueryDepset, error) {
 	aqueryProto := &analysis_v2_proto.ActionGraphContainer{}
 	err := proto.Unmarshal(aqueryJsonProto, aqueryProto)
 	if err != nil {
 		return nil, nil, err
-	}
-	aqueryResult := actionGraphContainer{}
-
-	for _, protoArtifact := range aqueryProto.Artifacts {
-		aqueryResult.Artifacts = append(aqueryResult.Artifacts, artifact{artifactId(protoArtifact.Id),
-			pathFragmentId(protoArtifact.PathFragmentId)})
-	}
-
-	for _, protoAction := range aqueryProto.Actions {
-		var environmentVariable []KeyValuePair
-		var inputDepSetIds []depsetId
-		var outputIds []artifactId
-		var substitutions []KeyValuePair
-
-		for _, protoEnvironmentVariable := range protoAction.EnvironmentVariables {
-			environmentVariable = append(environmentVariable, KeyValuePair{
-				protoEnvironmentVariable.Key, protoEnvironmentVariable.Value,
-			})
-		}
-		for _, protoInputDepSetIds := range protoAction.InputDepSetIds {
-			inputDepSetIds = append(inputDepSetIds, depsetId(protoInputDepSetIds))
-		}
-		for _, protoOutputIds := range protoAction.OutputIds {
-			outputIds = append(outputIds, artifactId(protoOutputIds))
-		}
-		for _, protoSubstitutions := range protoAction.Substitutions {
-			substitutions = append(substitutions, KeyValuePair{
-				protoSubstitutions.Key, protoSubstitutions.Value,
-			})
-		}
-
-		aqueryResult.Actions = append(aqueryResult.Actions,
-			action{
-				Arguments:            protoAction.Arguments,
-				EnvironmentVariables: environmentVariable,
-				InputDepSetIds:       inputDepSetIds,
-				Mnemonic:             protoAction.Mnemonic,
-				OutputIds:            outputIds,
-				TemplateContent:      protoAction.TemplateContent,
-				Substitutions:        substitutions,
-				FileContents:         protoAction.FileContents})
-	}
-
-	for _, protoDepSetOfFiles := range aqueryProto.DepSetOfFiles {
-		var directArtifactIds []artifactId
-		var transitiveDepSetIds []depsetId
-
-		for _, protoDirectArtifactIds := range protoDepSetOfFiles.DirectArtifactIds {
-			directArtifactIds = append(directArtifactIds, artifactId(protoDirectArtifactIds))
-		}
-		for _, protoTransitiveDepSetIds := range protoDepSetOfFiles.TransitiveDepSetIds {
-			transitiveDepSetIds = append(transitiveDepSetIds, depsetId(protoTransitiveDepSetIds))
-		}
-		aqueryResult.DepSetOfFiles = append(aqueryResult.DepSetOfFiles,
-			depSetOfFiles{
-				Id:                  depsetId(protoDepSetOfFiles.Id),
-				DirectArtifactIds:   directArtifactIds,
-				TransitiveDepSetIds: transitiveDepSetIds})
-
-	}
-
-	for _, protoPathFragments := range aqueryProto.PathFragments {
-		aqueryResult.PathFragments = append(aqueryResult.PathFragments,
-			pathFragment{
-				Id:       pathFragmentId(protoPathFragments.Id),
-				Label:    protoPathFragments.Label,
-				ParentId: pathFragmentId(protoPathFragments.ParentId)})
-
 	}
 
 	var aqueryHandler *aqueryArtifactHandler
 	{
 		eventHandler.Begin("init_handler")
 		defer eventHandler.End("init_handler")
-		aqueryHandler, err = newAqueryHandler(aqueryResult)
+		aqueryHandler, err = newAqueryHandler(aqueryProto)
 		if err != nil {
 			return nil, nil, err
 		}
 	}
 
-	var buildStatements []BuildStatement
+	// allocate both length and capacity so each goroutine can write to an index independently without
+	// any need for synchronization for slice access.
+	buildStatements := make([]*BuildStatement, len(aqueryProto.Actions))
 	{
 		eventHandler.Begin("build_statements")
 		defer eventHandler.End("build_statements")
-		for _, actionEntry := range aqueryResult.Actions {
-			if shouldSkipAction(actionEntry) {
-				continue
-			}
+		wg := sync.WaitGroup{}
+		var errOnce sync.Once
 
-			var buildStatement BuildStatement
-			if actionEntry.isSymlinkAction() {
-				buildStatement, err = aqueryHandler.symlinkActionBuildStatement(actionEntry)
-			} else if actionEntry.isTemplateExpandAction() && len(actionEntry.Arguments) < 1 {
-				buildStatement, err = aqueryHandler.templateExpandActionBuildStatement(actionEntry)
-			} else if actionEntry.isFileWriteAction() {
-				buildStatement, err = aqueryHandler.fileWriteActionBuildStatement(actionEntry)
-			} else if actionEntry.isSymlinkTreeAction() {
-				buildStatement, err = aqueryHandler.symlinkTreeActionBuildStatement(actionEntry)
-			} else if len(actionEntry.Arguments) < 1 {
-				err = fmt.Errorf("received action with no command: [%s]", actionEntry.Mnemonic)
-			} else {
-				buildStatement, err = aqueryHandler.normalActionBuildStatement(actionEntry)
-			}
-
-			if err != nil {
-				return nil, nil, err
-			}
-			buildStatements = append(buildStatements, buildStatement)
+		for i, actionEntry := range aqueryProto.Actions {
+			wg.Add(1)
+			go func(i int, actionEntry *analysis_v2_proto.Action) {
+				buildStatement, aErr := aqueryHandler.actionToBuildStatement(actionEntry)
+				if aErr != nil {
+					errOnce.Do(func() {
+						err = aErr
+					})
+				} else {
+					// set build statement at an index rather than appending such that each goroutine does not
+					// impact other goroutines
+					buildStatements[i] = buildStatement
+				}
+				wg.Done()
+			}(i, actionEntry)
 		}
+		wg.Wait()
+	}
+	if err != nil {
+		return nil, nil, err
 	}
 
 	depsetsByHash := map[string]AqueryDepset{}
-	var depsets []AqueryDepset
+	depsets := make([]AqueryDepset, 0, len(aqueryHandler.depsetIdToAqueryDepset))
 	{
 		eventHandler.Begin("depsets")
 		defer eventHandler.End("depsets")
@@ -455,7 +394,13 @@ func AqueryBuildStatements(aqueryJsonProto []byte, eventHandler *metrics.EventHa
 		// output). Note they are not sorted by their original IDs nor their Bazel ordering,
 		// as Bazel gives nondeterministic ordering / identifiers in aquery responses.
 		sort.Slice(buildStatements, func(i, j int) bool {
-			// For build statements, compare output lists. In Bazel, each output file
+			// Sort all nil statements to the end of the slice
+			if buildStatements[i] == nil {
+				return false
+			} else if buildStatements[j] == nil {
+				return true
+			}
+			//For build statements, compare output lists. In Bazel, each output file
 			// may only have one action which generates it, so this will provide
 			// a deterministic ordering.
 			outputs_i := buildStatements[i].OutputPaths
@@ -493,12 +438,13 @@ func depsetContentHash(directPaths []string, transitiveDepsetHashes []string) st
 	return fullHash
 }
 
-func (a *aqueryArtifactHandler) depsetContentHashes(inputDepsetIds []depsetId) ([]string, error) {
+func (a *aqueryArtifactHandler) depsetContentHashes(inputDepsetIds []uint32) ([]string, error) {
 	var hashes []string
-	for _, depsetId := range inputDepsetIds {
-		if aqueryDepset, exists := a.depsetIdToAqueryDepset[depsetId]; !exists {
-			if _, empty := a.emptyDepsetIds[depsetId]; !empty {
-				return nil, fmt.Errorf("undefined (not even empty) input depsetId %d", depsetId)
+	for _, id := range inputDepsetIds {
+		dId := depsetId(id)
+		if aqueryDepset, exists := a.depsetIdToAqueryDepset[dId]; !exists {
+			if _, empty := a.emptyDepsetIds[dId]; !empty {
+				return nil, fmt.Errorf("undefined (not even empty) input depsetId %d", dId)
 			}
 		} else {
 			hashes = append(hashes, aqueryDepset.ContentHash)
@@ -507,18 +453,18 @@ func (a *aqueryArtifactHandler) depsetContentHashes(inputDepsetIds []depsetId) (
 	return hashes, nil
 }
 
-func (a *aqueryArtifactHandler) normalActionBuildStatement(actionEntry action) (BuildStatement, error) {
+func (a *aqueryArtifactHandler) normalActionBuildStatement(actionEntry *analysis_v2_proto.Action) (*BuildStatement, error) {
 	command := strings.Join(proptools.ShellEscapeListIncludingSpaces(actionEntry.Arguments), " ")
 	inputDepsetHashes, err := a.depsetContentHashes(actionEntry.InputDepSetIds)
 	if err != nil {
-		return BuildStatement{}, err
+		return nil, err
 	}
 	outputPaths, depfile, err := a.getOutputPaths(actionEntry)
 	if err != nil {
-		return BuildStatement{}, err
+		return nil, err
 	}
 
-	buildStatement := BuildStatement{
+	buildStatement := &BuildStatement{
 		Command:           command,
 		Depfile:           depfile,
 		OutputPaths:       outputPaths,
@@ -529,13 +475,13 @@ func (a *aqueryArtifactHandler) normalActionBuildStatement(actionEntry action) (
 	return buildStatement, nil
 }
 
-func (a *aqueryArtifactHandler) templateExpandActionBuildStatement(actionEntry action) (BuildStatement, error) {
+func (a *aqueryArtifactHandler) templateExpandActionBuildStatement(actionEntry *analysis_v2_proto.Action) (*BuildStatement, error) {
 	outputPaths, depfile, err := a.getOutputPaths(actionEntry)
 	if err != nil {
-		return BuildStatement{}, err
+		return nil, err
 	}
 	if len(outputPaths) != 1 {
-		return BuildStatement{}, fmt.Errorf("Expect 1 output to template expand action, got: output %q", outputPaths)
+		return nil, fmt.Errorf("Expect 1 output to template expand action, got: output %q", outputPaths)
 	}
 	expandedTemplateContent := expandTemplateContent(actionEntry)
 	// The expandedTemplateContent is escaped for being used in double quotes and shell unescape,
@@ -547,10 +493,10 @@ func (a *aqueryArtifactHandler) templateExpandActionBuildStatement(actionEntry a
 		escapeCommandlineArgument(expandedTemplateContent), outputPaths[0])
 	inputDepsetHashes, err := a.depsetContentHashes(actionEntry.InputDepSetIds)
 	if err != nil {
-		return BuildStatement{}, err
+		return nil, err
 	}
 
-	buildStatement := BuildStatement{
+	buildStatement := &BuildStatement{
 		Command:           command,
 		Depfile:           depfile,
 		OutputPaths:       outputPaths,
@@ -561,16 +507,16 @@ func (a *aqueryArtifactHandler) templateExpandActionBuildStatement(actionEntry a
 	return buildStatement, nil
 }
 
-func (a *aqueryArtifactHandler) fileWriteActionBuildStatement(actionEntry action) (BuildStatement, error) {
+func (a *aqueryArtifactHandler) fileWriteActionBuildStatement(actionEntry *analysis_v2_proto.Action) (*BuildStatement, error) {
 	outputPaths, _, err := a.getOutputPaths(actionEntry)
 	var depsetHashes []string
 	if err == nil {
 		depsetHashes, err = a.depsetContentHashes(actionEntry.InputDepSetIds)
 	}
 	if err != nil {
-		return BuildStatement{}, err
+		return nil, err
 	}
-	return BuildStatement{
+	return &BuildStatement{
 		Depfile:           nil,
 		OutputPaths:       outputPaths,
 		Env:               actionEntry.EnvironmentVariables,
@@ -580,20 +526,20 @@ func (a *aqueryArtifactHandler) fileWriteActionBuildStatement(actionEntry action
 	}, nil
 }
 
-func (a *aqueryArtifactHandler) symlinkTreeActionBuildStatement(actionEntry action) (BuildStatement, error) {
+func (a *aqueryArtifactHandler) symlinkTreeActionBuildStatement(actionEntry *analysis_v2_proto.Action) (*BuildStatement, error) {
 	outputPaths, _, err := a.getOutputPaths(actionEntry)
 	if err != nil {
-		return BuildStatement{}, err
+		return nil, err
 	}
 	inputPaths, err := a.getInputPaths(actionEntry.InputDepSetIds)
 	if err != nil {
-		return BuildStatement{}, err
+		return nil, err
 	}
 	if len(inputPaths) != 1 || len(outputPaths) != 1 {
-		return BuildStatement{}, fmt.Errorf("Expect 1 input and 1 output to symlink action, got: input %q, output %q", inputPaths, outputPaths)
+		return nil, fmt.Errorf("Expect 1 input and 1 output to symlink action, got: input %q, output %q", inputPaths, outputPaths)
 	}
 	// The actual command is generated in bazelSingleton.GenerateBuildActions
-	return BuildStatement{
+	return &BuildStatement{
 		Depfile:     nil,
 		OutputPaths: outputPaths,
 		Env:         actionEntry.EnvironmentVariables,
@@ -602,18 +548,18 @@ func (a *aqueryArtifactHandler) symlinkTreeActionBuildStatement(actionEntry acti
 	}, nil
 }
 
-func (a *aqueryArtifactHandler) symlinkActionBuildStatement(actionEntry action) (BuildStatement, error) {
+func (a *aqueryArtifactHandler) symlinkActionBuildStatement(actionEntry *analysis_v2_proto.Action) (*BuildStatement, error) {
 	outputPaths, depfile, err := a.getOutputPaths(actionEntry)
 	if err != nil {
-		return BuildStatement{}, err
+		return nil, err
 	}
 
 	inputPaths, err := a.getInputPaths(actionEntry.InputDepSetIds)
 	if err != nil {
-		return BuildStatement{}, err
+		return nil, err
 	}
 	if len(inputPaths) != 1 || len(outputPaths) != 1 {
-		return BuildStatement{}, fmt.Errorf("Expect 1 input and 1 output to symlink action, got: input %q, output %q", inputPaths, outputPaths)
+		return nil, fmt.Errorf("Expect 1 input and 1 output to symlink action, got: input %q, output %q", inputPaths, outputPaths)
 	}
 	out := outputPaths[0]
 	outDir := proptools.ShellEscapeIncludingSpaces(filepath.Dir(out))
@@ -623,7 +569,7 @@ func (a *aqueryArtifactHandler) symlinkActionBuildStatement(actionEntry action) 
 	command := fmt.Sprintf("mkdir -p %[1]s && rm -f %[2]s && ln -sf %[3]s %[2]s", outDir, out, in)
 	symlinkPaths := outputPaths[:]
 
-	buildStatement := BuildStatement{
+	buildStatement := &BuildStatement{
 		Command:      command,
 		Depfile:      depfile,
 		OutputPaths:  outputPaths,
@@ -635,9 +581,9 @@ func (a *aqueryArtifactHandler) symlinkActionBuildStatement(actionEntry action) 
 	return buildStatement, nil
 }
 
-func (a *aqueryArtifactHandler) getOutputPaths(actionEntry action) (outputPaths []string, depfile *string, err error) {
+func (a *aqueryArtifactHandler) getOutputPaths(actionEntry *analysis_v2_proto.Action) (outputPaths []string, depfile *string, err error) {
 	for _, outputId := range actionEntry.OutputIds {
-		outputPath, exists := a.artifactIdToPath[outputId]
+		outputPath, exists := a.artifactIdToPath[artifactId(outputId)]
 		if !exists {
 			err = fmt.Errorf("undefined outputId %d", outputId)
 			return
@@ -658,14 +604,15 @@ func (a *aqueryArtifactHandler) getOutputPaths(actionEntry action) (outputPaths 
 }
 
 // expandTemplateContent substitutes the tokens in a template.
-func expandTemplateContent(actionEntry action) string {
-	var replacerString []string
-	for _, pair := range actionEntry.Substitutions {
+func expandTemplateContent(actionEntry *analysis_v2_proto.Action) string {
+	replacerString := make([]string, len(actionEntry.Substitutions)*2)
+	for i, pair := range actionEntry.Substitutions {
 		value := pair.Value
 		if val, ok := templateActionOverriddenTokens[pair.Key]; ok {
 			value = val
 		}
-		replacerString = append(replacerString, pair.Key, value)
+		replacerString[i*2] = pair.Key
+		replacerString[i*2+1] = value
 	}
 	replacer := strings.NewReplacer(replacerString...)
 	return replacer.Replace(actionEntry.TemplateContent)
@@ -685,44 +632,41 @@ func escapeCommandlineArgument(str string) string {
 	return commandLineArgumentReplacer.Replace(str)
 }
 
-func (a action) isSymlinkAction() bool {
-	return a.Mnemonic == "Symlink" || a.Mnemonic == "SolibSymlink" || a.Mnemonic == "ExecutableSymlink"
-}
-
-func (a action) isTemplateExpandAction() bool {
-	return a.Mnemonic == "TemplateExpand"
-}
-
-func (a action) isFileWriteAction() bool {
-	return a.Mnemonic == "FileWrite" || a.Mnemonic == "SourceSymlinkManifest"
-}
-
-func (a action) isSymlinkTreeAction() bool {
-	return a.Mnemonic == "SymlinkTree"
-}
-
-func shouldSkipAction(a action) bool {
+func (a *aqueryArtifactHandler) actionToBuildStatement(actionEntry *analysis_v2_proto.Action) (*BuildStatement, error) {
+	switch actionEntry.Mnemonic {
 	// Middleman actions are not handled like other actions; they are handled separately as a
 	// preparatory step so that their inputs may be relayed to actions depending on middleman
 	// artifacts.
-	if a.Mnemonic == "Middleman" {
-		return true
-	}
+	case middlemanMnemonic:
+		return nil, nil
 	// PythonZipper is bogus action returned by aquery, ignore it (b/236198693)
-	if a.Mnemonic == "PythonZipper" {
-		return true
-	}
+	case "PythonZipper":
+		return nil, nil
 	// Skip "Fail" actions, which are placeholder actions designed to always fail.
-	if a.Mnemonic == "Fail" {
-		return true
+	case "Fail":
+		return nil, nil
+	case "BaselineCoverage":
+		return nil, nil
+	case "Symlink", "SolibSymlink", "ExecutableSymlink":
+		return a.symlinkActionBuildStatement(actionEntry)
+	case "TemplateExpand":
+		if len(actionEntry.Arguments) < 1 {
+			return a.templateExpandActionBuildStatement(actionEntry)
+		}
+	case "FileWrite", "SourceSymlinkManifest":
+		return a.fileWriteActionBuildStatement(actionEntry)
+	case "SymlinkTree":
+		return a.symlinkTreeActionBuildStatement(actionEntry)
 	}
-	if a.Mnemonic == "BaselineCoverage" {
-		return true
+
+	if len(actionEntry.Arguments) < 1 {
+		return nil, fmt.Errorf("received action with no command: [%s]", actionEntry.Mnemonic)
 	}
-	return false
+	return a.normalActionBuildStatement(actionEntry)
+
 }
 
-func expandPathFragment(id pathFragmentId, pathFragmentsMap map[pathFragmentId]pathFragment) (string, error) {
+func expandPathFragment(id pathFragmentId, pathFragmentsMap map[pathFragmentId]*analysis_v2_proto.PathFragment) (string, error) {
 	var labels []string
 	currId := id
 	// Only positive IDs are valid for path fragments. An ID of zero indicates a terminal node.
@@ -732,10 +676,11 @@ func expandPathFragment(id pathFragmentId, pathFragmentsMap map[pathFragmentId]p
 			return "", fmt.Errorf("undefined path fragment id %d", currId)
 		}
 		labels = append([]string{currFragment.Label}, labels...)
-		if currId == currFragment.ParentId {
+		parentId := pathFragmentId(currFragment.ParentId)
+		if currId == parentId {
 			return "", fmt.Errorf("fragment cannot refer to itself as parent %#v", currFragment)
 		}
-		currId = currFragment.ParentId
+		currId = parentId
 	}
 	return filepath.Join(labels...), nil
 }
