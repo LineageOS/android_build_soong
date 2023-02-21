@@ -514,6 +514,7 @@ type apexFile struct {
 	// buildFile is put in the installDir inside the APEX.
 	builtFile  android.Path
 	installDir string
+	partition  string
 	customStem string
 	symlinks   []string // additional symlinks
 
@@ -553,6 +554,7 @@ func newApexFile(ctx android.BaseModuleContext, builtFile android.Path, androidM
 	}
 	if module != nil {
 		ret.moduleDir = ctx.OtherModuleDir(module)
+		ret.partition = module.PartitionTag(ctx.DeviceConfig())
 		ret.requiredModuleNames = module.RequiredModuleNames()
 		ret.targetRequiredModuleNames = module.TargetRequiredModuleNames()
 		ret.hostRequiredModuleNames = module.HostRequiredModuleNames()
