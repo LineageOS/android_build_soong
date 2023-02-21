@@ -365,7 +365,7 @@ func TestCcBinaryNocrtTests(t *testing.T) {
 		{
 			description:   "nocrt: true",
 			soongProperty: `nocrt: true,`,
-			bazelAttr:     AttrNameToString{"link_crt": `False`},
+			bazelAttr:     AttrNameToString{"features": `["-link_crt"]`},
 		},
 		{
 			description:   "nocrt: false",
@@ -408,12 +408,12 @@ func TestCcBinaryNo_libcrtTests(t *testing.T) {
 		{
 			description:   "no_libcrt: true",
 			soongProperty: `no_libcrt: true,`,
-			bazelAttr:     AttrNameToString{"use_libcrt": `False`},
+			bazelAttr:     AttrNameToString{"features": `["-use_libcrt"]`},
 		},
 		{
 			description:   "no_libcrt: false",
 			soongProperty: `no_libcrt: false,`,
-			bazelAttr:     AttrNameToString{"use_libcrt": `True`},
+			bazelAttr:     AttrNameToString{},
 		},
 		{
 			description: "no_libcrt: not set",
