@@ -139,17 +139,17 @@ func TestAqueryMultiArchGenrule(t *testing.T) {
 		return
 	}
 	actualbuildStatements, actualDepsets, _ := AqueryBuildStatements(data, &metrics.EventHandler{})
-	var expectedBuildStatements []BuildStatement
+	var expectedBuildStatements []*BuildStatement
 	for _, arch := range []string{"arm", "arm64", "x86", "x86_64"} {
 		expectedBuildStatements = append(expectedBuildStatements,
-			BuildStatement{
+			&BuildStatement{
 				Command: fmt.Sprintf(
 					"/bin/bash -c 'source ../bazel_tools/tools/genrule/genrule-setup.sh; ../sourceroot/bionic/libc/tools/gensyscalls.py %s ../sourceroot/bionic/libc/SYSCALLS.TXT > bazel-out/sourceroot/k8-fastbuild/bin/bionic/libc/syscalls-%s.S'",
 					arch, arch),
 				OutputPaths: []string{
 					fmt.Sprintf("bazel-out/sourceroot/k8-fastbuild/bin/bionic/libc/syscalls-%s.S", arch),
 				},
-				Env: []KeyValuePair{
+				Env: []*analysis_v2_proto.KeyValuePair{
 					{Key: "PATH", Value: "/bin:/usr/bin:/usr/local/bin"},
 				},
 				Mnemonic: "Genrule",
@@ -487,11 +487,12 @@ func TestTransitiveInputDepsets(t *testing.T) {
 	}
 	actualbuildStatements, actualDepsets, _ := AqueryBuildStatements(data, &metrics.EventHandler{})
 
-	expectedBuildStatements := []BuildStatement{
-		{
-			Command:     "/bin/bash -c 'touch bazel-out/sourceroot/k8-fastbuild/bin/testpkg/test_out'",
-			OutputPaths: []string{"bazel-out/sourceroot/k8-fastbuild/bin/testpkg/test_out"},
-			Mnemonic:    "Action",
+	expectedBuildStatements := []*BuildStatement{
+		&BuildStatement{
+			Command:      "/bin/bash -c 'touch bazel-out/sourceroot/k8-fastbuild/bin/testpkg/test_out'",
+			OutputPaths:  []string{"bazel-out/sourceroot/k8-fastbuild/bin/testpkg/test_out"},
+			Mnemonic:     "Action",
+			SymlinkPaths: []string{},
 		},
 	}
 	assertBuildStatements(t, expectedBuildStatements, actualbuildStatements)
@@ -544,12 +545,13 @@ func TestSymlinkTree(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpected error %q", err)
 	}
-	assertBuildStatements(t, []BuildStatement{
-		{
-			Command:     "",
-			OutputPaths: []string{"foo.runfiles/MANIFEST"},
-			Mnemonic:    "SymlinkTree",
-			InputPaths:  []string{"foo.manifest"},
+	assertBuildStatements(t, []*BuildStatement{
+		&BuildStatement{
+			Command:      "",
+			OutputPaths:  []string{"foo.runfiles/MANIFEST"},
+			Mnemonic:     "SymlinkTree",
+			InputPaths:   []string{"foo.manifest"},
+			SymlinkPaths: []string{},
 		},
 	}, actual)
 }
@@ -613,10 +615,11 @@ func TestBazelOutRemovalFromInputDepsets(t *testing.T) {
 		t.Errorf("dependency ../dep2 expected but not found")
 	}
 
-	expectedBuildStatement := BuildStatement{
-		Command:     "bogus command",
-		OutputPaths: []string{"output"},
-		Mnemonic:    "x",
+	expectedBuildStatement := &BuildStatement{
+		Command:      "bogus command",
+		OutputPaths:  []string{"output"},
+		Mnemonic:     "x",
+		SymlinkPaths: []string{},
 	}
 	buildStatementFound := false
 	for _, actualBuildStatement := range actualBuildStatements {
@@ -689,7 +692,7 @@ func TestBazelOutRemovalFromTransitiveInputDepsets(t *testing.T) {
 		return
 	}
 
-	expectedBuildStatement := BuildStatement{
+	expectedBuildStatement := &BuildStatement{
 		Command:     "bogus command",
 		OutputPaths: []string{"output"},
 		Mnemonic:    "x",
@@ -754,8 +757,8 @@ func TestMiddlemenAction(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpected error %q", err)
 	}
-	if expected := 1; len(actualBuildStatements) != expected {
-		t.Fatalf("Expected %d build statements, got %d", expected, len(actualBuildStatements))
+	if expected := 2; len(actualBuildStatements) != expected {
+		t.Fatalf("Expected %d build statements, got %d %#v", expected, len(actualBuildStatements), actualBuildStatements)
 	}
 
 	expectedDepsetFiles := [][]string{
@@ -779,6 +782,11 @@ func TestMiddlemenAction(t *testing.T) {
 
 	if !reflect.DeepEqual(actualFlattenedInputs, expectedFlattenedInputs) {
 		t.Errorf("Expected flattened inputs %v, but got %v", expectedFlattenedInputs, actualFlattenedInputs)
+	}
+
+	bs = actualBuildStatements[1]
+	if bs != nil {
+		t.Errorf("Expected nil action for skipped")
 	}
 }
 
@@ -853,8 +861,8 @@ func TestSimpleSymlink(t *testing.T) {
 		t.Errorf("Unexpected error %q", err)
 	}
 
-	expectedBuildStatements := []BuildStatement{
-		{
+	expectedBuildStatements := []*BuildStatement{
+		&BuildStatement{
 			Command: "mkdir -p one/symlink_subdir && " +
 				"rm -f one/symlink_subdir/symlink && " +
 				"ln -sf $PWD/one/file_subdir/file one/symlink_subdir/symlink",
@@ -901,8 +909,8 @@ func TestSymlinkQuotesPaths(t *testing.T) {
 		t.Errorf("Unexpected error %q", err)
 	}
 
-	expectedBuildStatements := []BuildStatement{
-		{
+	expectedBuildStatements := []*BuildStatement{
+		&BuildStatement{
 			Command: "mkdir -p 'one/symlink subdir' && " +
 				"rm -f 'one/symlink subdir/symlink' && " +
 				"ln -sf $PWD/'one/file subdir/file' 'one/symlink subdir/symlink'",
@@ -1011,12 +1019,13 @@ func TestTemplateExpandActionSubstitutions(t *testing.T) {
 		t.Errorf("Unexpected error %q", err)
 	}
 
-	expectedBuildStatements := []BuildStatement{
-		{
+	expectedBuildStatements := []*BuildStatement{
+		&BuildStatement{
 			Command: "/bin/bash -c 'echo \"Test template substitutions: abcd, python3\" | sed \"s/\\\\\\\\n/\\\\n/g\" > template_file && " +
 				"chmod a+x template_file'",
-			OutputPaths: []string{"template_file"},
-			Mnemonic:    "TemplateExpand",
+			OutputPaths:  []string{"template_file"},
+			Mnemonic:     "TemplateExpand",
+			SymlinkPaths: []string{},
 		},
 	}
 	assertBuildStatements(t, expectedBuildStatements, actual)
@@ -1080,11 +1089,12 @@ func TestFileWrite(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpected error %q", err)
 	}
-	assertBuildStatements(t, []BuildStatement{
-		{
+	assertBuildStatements(t, []*BuildStatement{
+		&BuildStatement{
 			OutputPaths:  []string{"foo.manifest"},
 			Mnemonic:     "FileWrite",
 			FileContents: "file data\n",
+			SymlinkPaths: []string{},
 		},
 	}, actual)
 }
@@ -1117,10 +1127,11 @@ func TestSourceSymlinkManifest(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpected error %q", err)
 	}
-	assertBuildStatements(t, []BuildStatement{
-		{
-			OutputPaths: []string{"foo.manifest"},
-			Mnemonic:    "SourceSymlinkManifest",
+	assertBuildStatements(t, []*BuildStatement{
+		&BuildStatement{
+			OutputPaths:  []string{"foo.manifest"},
+			Mnemonic:     "SourceSymlinkManifest",
+			SymlinkPaths: []string{},
 		},
 	}, actual)
 }
@@ -1136,7 +1147,7 @@ func assertError(t *testing.T, err error, expected string) {
 
 // Asserts that the given actual build statements match the given expected build statements.
 // Build statement equivalence is determined using buildStatementEquals.
-func assertBuildStatements(t *testing.T, expected []BuildStatement, actual []BuildStatement) {
+func assertBuildStatements(t *testing.T, expected []*BuildStatement, actual []*BuildStatement) {
 	t.Helper()
 	if len(expected) != len(actual) {
 		t.Errorf("expected %d build statements, but got %d,\n expected: %#v,\n actual: %#v",
@@ -1144,8 +1155,13 @@ func assertBuildStatements(t *testing.T, expected []BuildStatement, actual []Bui
 		return
 	}
 	type compareFn = func(i int, j int) bool
-	byCommand := func(slice []BuildStatement) compareFn {
+	byCommand := func(slice []*BuildStatement) compareFn {
 		return func(i int, j int) bool {
+			if slice[i] == nil {
+				return false
+			} else if slice[j] == nil {
+				return false
+			}
 			return slice[i].Command < slice[j].Command
 		}
 	}
@@ -1161,7 +1177,10 @@ func assertBuildStatements(t *testing.T, expected []BuildStatement, actual []Bui
 	}
 }
 
-func buildStatementEquals(first BuildStatement, second BuildStatement) string {
+func buildStatementEquals(first *BuildStatement, second *BuildStatement) string {
+	if (first == nil) != (second == nil) {
+		return "Nil"
+	}
 	if first.Mnemonic != second.Mnemonic {
 		return "Mnemonic"
 	}
