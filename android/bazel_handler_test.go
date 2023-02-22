@@ -24,20 +24,37 @@ func (t *testInvokeBazelContext) GetEventHandler() *metrics.EventHandler {
 }
 
 func TestRequestResultsAfterInvokeBazel(t *testing.T) {
-	label := "@//foo:bar"
-	cfg := configKey{"arm64_armv8-a", Android}
+	label_foo := "@//foo:foo"
+	label_bar := "@//foo:bar"
+	apexKey := ApexConfigKey{
+		WithinApex:     true,
+		ApexSdkVersion: "29",
+	}
+	cfg_foo := configKey{"arm64_armv8-a", Android, apexKey}
+	cfg_bar := configKey{arch: "arm64_armv8-a", osType: Android}
+	cmd_results := []string{
+		`@//foo:foo|arm64_armv8-a|android|within_apex|29>>out/foo/foo.txt`,
+		`@//foo:bar|arm64_armv8-a|android>>out/foo/bar.txt`,
+	}
 	bazelContext, _ := testBazelContext(t, map[bazelCommand]string{
-		bazelCommand{command: "cquery", expression: "deps(@soong_injection//mixed_builds:buildroot, 2)"}: `@//foo:bar|arm64_armv8-a|android>>out/foo/bar.txt`,
+		bazelCommand{command: "cquery", expression: "deps(@soong_injection//mixed_builds:buildroot, 2)"}: strings.Join(cmd_results, "\n"),
 	})
-	bazelContext.QueueBazelRequest(label, cquery.GetOutputFiles, cfg)
+
+	bazelContext.QueueBazelRequest(label_foo, cquery.GetOutputFiles, cfg_foo)
+	bazelContext.QueueBazelRequest(label_bar, cquery.GetOutputFiles, cfg_bar)
 	err := bazelContext.InvokeBazel(testConfig, &testInvokeBazelContext{})
 	if err != nil {
 		t.Fatalf("Did not expect error invoking Bazel, but got %s", err)
 	}
-	g, err := bazelContext.GetOutputFiles(label, cfg)
+	verifyCqueryResult(t, bazelContext, label_foo, cfg_foo, "out/foo/foo.txt")
+	verifyCqueryResult(t, bazelContext, label_bar, cfg_bar, "out/foo/bar.txt")
+}
+
+func verifyCqueryResult(t *testing.T, ctx *mixedBuildBazelContext, label string, cfg configKey, result string) {
+	g, err := ctx.GetOutputFiles(label, cfg)
 	if err != nil {
 		t.Errorf("Expected cquery results after running InvokeBazel(), but got err %v", err)
-	} else if w := []string{"out/foo/bar.txt"}; !reflect.DeepEqual(w, g) {
+	} else if w := []string{result}; !reflect.DeepEqual(w, g) {
 		t.Errorf("Expected output %s, got %s", w, g)
 	}
 }
@@ -178,14 +195,18 @@ func TestCoverageFlagsAfterInvokeBazel(t *testing.T) {
 func TestBazelRequestsSorted(t *testing.T) {
 	bazelContext, _ := testBazelContext(t, map[bazelCommand]string{})
 
-	bazelContext.QueueBazelRequest("zzz", cquery.GetOutputFiles, configKey{"arm64_armv8-a", Android})
-	bazelContext.QueueBazelRequest("ccc", cquery.GetApexInfo, configKey{"arm64_armv8-a", Android})
-	bazelContext.QueueBazelRequest("duplicate", cquery.GetOutputFiles, configKey{"arm64_armv8-a", Android})
-	bazelContext.QueueBazelRequest("duplicate", cquery.GetOutputFiles, configKey{"arm64_armv8-a", Android})
-	bazelContext.QueueBazelRequest("xxx", cquery.GetOutputFiles, configKey{"arm64_armv8-a", Linux})
-	bazelContext.QueueBazelRequest("aaa", cquery.GetOutputFiles, configKey{"arm64_armv8-a", Android})
-	bazelContext.QueueBazelRequest("aaa", cquery.GetOutputFiles, configKey{"otherarch", Android})
-	bazelContext.QueueBazelRequest("bbb", cquery.GetOutputFiles, configKey{"otherarch", Android})
+	cfgKeyArm64Android := configKey{arch: "arm64_armv8-a", osType: Android}
+	cfgKeyArm64Linux := configKey{arch: "arm64_armv8-a", osType: Linux}
+	cfgKeyOtherAndroid := configKey{arch: "otherarch", osType: Android}
+
+	bazelContext.QueueBazelRequest("zzz", cquery.GetOutputFiles, cfgKeyArm64Android)
+	bazelContext.QueueBazelRequest("ccc", cquery.GetApexInfo, cfgKeyArm64Android)
+	bazelContext.QueueBazelRequest("duplicate", cquery.GetOutputFiles, cfgKeyArm64Android)
+	bazelContext.QueueBazelRequest("duplicate", cquery.GetOutputFiles, cfgKeyArm64Android)
+	bazelContext.QueueBazelRequest("xxx", cquery.GetOutputFiles, cfgKeyArm64Linux)
+	bazelContext.QueueBazelRequest("aaa", cquery.GetOutputFiles, cfgKeyArm64Android)
+	bazelContext.QueueBazelRequest("aaa", cquery.GetOutputFiles, cfgKeyOtherAndroid)
+	bazelContext.QueueBazelRequest("bbb", cquery.GetOutputFiles, cfgKeyOtherAndroid)
 
 	if len(bazelContext.requests) != 7 {
 		t.Error("Expected 7 request elements, but got", len(bazelContext.requests))
@@ -198,6 +219,52 @@ func TestBazelRequestsSorted(t *testing.T) {
 			t.Errorf("Requests are not ordered correctly. '%s' came before '%s'", lastString, thisString)
 		}
 		lastString = thisString
+	}
+}
+
+func TestIsModuleNameAllowed(t *testing.T) {
+	libDisabled := "lib_disabled"
+	libEnabled := "lib_enabled"
+	libDclaWithinApex := "lib_dcla_within_apex"
+	libDclaNonApex := "lib_dcla_non_apex"
+	libNotConverted := "lib_not_converted"
+
+	disabledModules := map[string]bool{
+		libDisabled: true,
+	}
+	enabledModules := map[string]bool{
+		libEnabled: true,
+	}
+	dclaEnabledModules := map[string]bool{
+		libDclaWithinApex: true,
+		libDclaNonApex:    true,
+	}
+
+	bazelContext := &mixedBuildBazelContext{
+		modulesDefaultToBazel:   false,
+		bazelEnabledModules:     enabledModules,
+		bazelDisabledModules:    disabledModules,
+		bazelDclaEnabledModules: dclaEnabledModules,
+	}
+
+	if bazelContext.IsModuleNameAllowed(libDisabled, true) {
+		t.Fatalf("%s shouldn't be allowed for mixed build", libDisabled)
+	}
+
+	if !bazelContext.IsModuleNameAllowed(libEnabled, true) {
+		t.Fatalf("%s should be allowed for mixed build", libEnabled)
+	}
+
+	if !bazelContext.IsModuleNameAllowed(libDclaWithinApex, true) {
+		t.Fatalf("%s should be allowed for mixed build", libDclaWithinApex)
+	}
+
+	if bazelContext.IsModuleNameAllowed(libDclaNonApex, false) {
+		t.Fatalf("%s shouldn't be allowed for mixed build", libDclaNonApex)
+	}
+
+	if bazelContext.IsModuleNameAllowed(libNotConverted, true) {
+		t.Fatalf("%s shouldn't be allowed for mixed build", libNotConverted)
 	}
 }
 
