@@ -352,11 +352,13 @@ func GetBp2BuildAllowList() Bp2BuildConversionAllowlist {
 // metrics reporting.
 func MixedBuildsEnabled(ctx BaseModuleContext) bool {
 	module := ctx.Module()
+	apexInfo := ctx.Provider(ApexInfoProvider).(ApexInfo)
+	withinApex := !apexInfo.IsForPlatform()
 	mixedBuildEnabled := ctx.Config().IsMixedBuildsEnabled() &&
 		ctx.Os() != Windows && // Windows toolchains are not currently supported.
 		module.Enabled() &&
 		convertedToBazel(ctx, module) &&
-		ctx.Config().BazelContext.IsModuleNameAllowed(module.Name())
+		ctx.Config().BazelContext.IsModuleNameAllowed(module.Name(), withinApex)
 	ctx.Config().LogMixedBuild(ctx, mixedBuildEnabled)
 	return mixedBuildEnabled
 }
