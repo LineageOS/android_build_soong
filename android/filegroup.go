@@ -232,7 +232,7 @@ func (fg *fileGroup) QueueBazelCall(ctx BaseModuleContext) {
 	bazelCtx.QueueBazelRequest(
 		fg.GetBazelLabel(ctx, fg),
 		cquery.GetOutputFiles,
-		configKey{Common.String(), CommonOS})
+		configKey{arch: Common.String(), osType: CommonOS})
 }
 
 func (fg *fileGroup) IsMixedBuildSupported(ctx BaseModuleContext) bool {
@@ -252,7 +252,7 @@ func (fg *fileGroup) ProcessBazelQueryResponse(ctx ModuleContext) {
 		relativeRoot = filepath.Join(relativeRoot, *fg.properties.Path)
 	}
 
-	filePaths, err := bazelCtx.GetOutputFiles(fg.GetBazelLabel(ctx, fg), configKey{Common.String(), CommonOS})
+	filePaths, err := bazelCtx.GetOutputFiles(fg.GetBazelLabel(ctx, fg), configKey{arch: Common.String(), osType: CommonOS})
 	if err != nil {
 		ctx.ModuleErrorf(err.Error())
 		return
