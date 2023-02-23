@@ -1920,6 +1920,9 @@ func isUbsanEnabled(c *Module) bool {
 func GetApexConfigKey(ctx android.BaseModuleContext) *android.ApexConfigKey {
 	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
 	if !apexInfo.IsForPlatform() {
+		if !ctx.Config().BazelContext.IsModuleDclaAllowed(ctx.Module().Name()) {
+			return nil
+		}
 		apexKey := android.ApexConfigKey{
 			WithinApex:     true,
 			ApexSdkVersion: findApexSdkVersion(ctx, apexInfo).String(),
