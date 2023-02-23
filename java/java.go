@@ -2838,7 +2838,7 @@ func javaLibraryBp2Build(ctx android.TopDownMutatorContext, m *Library) {
 
 		props = bazel.BazelTargetModuleProperties{
 			Rule_class:        "kt_jvm_library",
-			Bzl_load_location: "@rules_kotlin//kotlin:jvm_library.bzl",
+			Bzl_load_location: "//build/bazel/rules/kotlin:kt_jvm_library.bzl",
 		}
 	}
 
@@ -2933,7 +2933,7 @@ func javaBinaryHostBp2Build(ctx android.TopDownMutatorContext, m *Binary) {
 		ktName := m.Name() + "_kt"
 		ktProps := bazel.BazelTargetModuleProperties{
 			Rule_class:        "kt_jvm_library",
-			Bzl_load_location: "@rules_kotlin//kotlin:jvm_library.bzl",
+			Bzl_load_location: "//build/bazel/rules/kotlin:kt_jvm_library.bzl",
 		}
 		ktAttrs := &javaLibraryAttributes{
 			Deps: deps,
