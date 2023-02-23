@@ -15,7 +15,6 @@
 package bp2build
 
 import (
-	"fmt"
 	"testing"
 
 	"android/soong/android"
@@ -405,7 +404,7 @@ cc_library_shared {
 
 func TestCcLibrarySharedNoCrtTrue(t *testing.T) {
 	runCcLibrarySharedTestCase(t, Bp2buildTestCase{
-		Description: "cc_library_shared - nocrt: true emits attribute",
+		Description: "cc_library_shared - nocrt: true disables feature",
 		Filesystem: map[string]string{
 			"impl.cpp": "",
 		},
@@ -419,7 +418,7 @@ cc_library_shared {
 `,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_shared", "foo_shared", AttrNameToString{
-				"link_crt": `False`,
+				"features": `["-link_crt"]`,
 				"srcs":     `["impl.cpp"]`,
 			}),
 		},
@@ -428,7 +427,7 @@ cc_library_shared {
 
 func TestCcLibrarySharedNoCrtFalse(t *testing.T) {
 	runCcLibrarySharedTestCase(t, Bp2buildTestCase{
-		Description: "cc_library_shared - nocrt: false doesn't emit attribute",
+		Description: "cc_library_shared - nocrt: false doesn't disable feature",
 		Filesystem: map[string]string{
 			"impl.cpp": "",
 		},
@@ -469,7 +468,15 @@ cc_library_shared {
     include_build_directory: false,
 }
 `,
-		ExpectedErr: fmt.Errorf("module \"foo_shared\": nocrt is not supported for arch variants"),
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_library_shared", "foo_shared", AttrNameToString{
+				"features": `select({
+        "//build/bazel/platforms/arch:arm": ["-link_crt"],
+        "//conditions:default": [],
+    })`,
+				"srcs": `["impl.cpp"]`,
+			}),
+		},
 	})
 }
 

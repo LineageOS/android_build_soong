@@ -199,6 +199,7 @@ var (
 		"frameworks/base/tests/appwidgets/AppWidgetHostTest": Bp2BuildDefaultTrueRecursively,
 		"frameworks/base/tools/aapt2":                        Bp2BuildDefaultTrue,
 		"frameworks/base/tools/streaming_proto":              Bp2BuildDefaultTrueRecursively,
+		"frameworks/hardware/interfaces/stats/aidl":          Bp2BuildDefaultTrue,
 		"frameworks/native/libs/adbd_auth":                   Bp2BuildDefaultTrueRecursively,
 		"frameworks/native/libs/arect":                       Bp2BuildDefaultTrueRecursively,
 		"frameworks/native/libs/gui":                         Bp2BuildDefaultTrue,
@@ -1427,4 +1428,20 @@ var (
 	// It is implicit that all modules in ProdMixedBuildsEnabledList will
 	// also be built - do not add them to this list.
 	StagingMixedBuildsEnabledList = []string{}
+
+	// These should be the libs that are included by the apexes in the ProdMixedBuildsEnabledList
+	ProdDclaMixedBuildsEnabledList = []string{}
+
+	// These should be the libs that are included by the apexes in the StagingMixedBuildsEnabledList
+	StagingDclaMixedBuildsEnabledList = []string{
+		"libbase",
+		"libc++",
+		"libcrypto",
+		"libcutils",
+	}
+
+	// TODO(b/269342245): Enable the rest of the DCLA libs
+	// "libssl",
+	// "libstagefright_flacdec",
+	// "libutils",
 )
