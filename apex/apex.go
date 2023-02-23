@@ -141,9 +141,6 @@ type apexBundleProperties struct {
 	// Default: true.
 	Installable *bool
 
-	// Whether this APEX ignores the apex_available list defined in its dependencies.
-	Override_apex_available *bool
-
 	// If set true, VNDK libs are considered as stable libs and are not included in this APEX.
 	// Should be only used in non-system apexes (e.g. vendor: true). Default is false.
 	Use_vndk_as_stable *bool
@@ -1514,10 +1511,6 @@ func (a *apexBundle) FutureUpdatable() bool {
 
 func (a *apexBundle) UsePlatformApis() bool {
 	return proptools.BoolDefault(a.properties.Platform_apis, false)
-}
-
-func (a *apexBundle) OverrideApexAvailable() bool {
-	return proptools.BoolDefault(a.properties.Override_apex_available, false)
 }
 
 // getCertString returns the name of the cert that should be used to sign this APEX. This is
@@ -3044,11 +3037,6 @@ func (a *apexBundle) checkApexAvailability(ctx android.ModuleContext) {
 	// Requiring them and their transitive depencies with apex_available is not right
 	// because they just add noise.
 	if ctx.Config().IsEnvTrue("EMMA_INSTRUMENT") || a.IsNativeCoverageNeeded(ctx) {
-		return
-	}
-
-	// Ignore availability when `override_apex_available` is true.
-	if a.OverrideApexAvailable() {
 		return
 	}
 
