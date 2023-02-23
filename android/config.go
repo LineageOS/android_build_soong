@@ -87,6 +87,8 @@ type CmdArgs struct {
 	BazelModeDev             bool
 	BazelModeStaging         bool
 	BazelForceEnabledModules string
+
+	UseBazelProxy bool
 }
 
 // Build modes that soong_build can run as.
@@ -251,6 +253,10 @@ type config struct {
 	// specified modules. They are passed via the command-line flag
 	// "--bazel-force-enabled-modules"
 	bazelForceEnabledModules map[string]struct{}
+
+	// If true, for any requests to Bazel, communicate with a Bazel proxy using
+	// unix sockets, instead of spawning Bazel as a subprocess.
+	UseBazelProxy bool
 }
 
 type deviceConfig struct {
@@ -442,6 +448,8 @@ func NewConfig(cmdArgs CmdArgs, availableEnv map[string]string) (Config, error) 
 		mixedBuildDisabledModules: make(map[string]struct{}),
 		mixedBuildEnabledModules:  make(map[string]struct{}),
 		bazelForceEnabledModules:  make(map[string]struct{}),
+
+		UseBazelProxy: cmdArgs.UseBazelProxy,
 	}
 
 	config.deviceConfig = &deviceConfig{
