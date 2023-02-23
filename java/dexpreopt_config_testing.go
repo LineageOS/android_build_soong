@@ -100,8 +100,8 @@ type expectedVariant struct {
 	imagePathOnHost   string
 	imagePathOnDevice string
 	imagesDeps        []string
-	primaryImages     string
-	primaryImagesDeps []string
+	baseImages        []string
+	baseImagesDeps    []string
 
 	// Mutated fields
 	installs            []normalizedInstall
@@ -413,8 +413,8 @@ func checkFrameworkBootImageConfig(t *testing.T, result *android.TestResult, mut
 					"out/soong/test_device/dex_bootjars/android/system/framework/arm64/boot-framework.oat",
 					"out/soong/test_device/dex_bootjars/android/system/framework/arm64/boot-framework.vdex",
 				},
-				primaryImages: "out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.art",
-				primaryImagesDeps: []string{
+				baseImages: []string{"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.art"},
+				baseImagesDeps: []string{
 					"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.art",
 					"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.oat",
 					"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.vdex",
@@ -461,8 +461,8 @@ func checkFrameworkBootImageConfig(t *testing.T, result *android.TestResult, mut
 					"out/soong/test_device/dex_bootjars/android/system/framework/arm/boot-framework.oat",
 					"out/soong/test_device/dex_bootjars/android/system/framework/arm/boot-framework.vdex",
 				},
-				primaryImages: "out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.art",
-				primaryImagesDeps: []string{
+				baseImages: []string{"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.art"},
+				baseImagesDeps: []string{
 					"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.art",
 					"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.oat",
 					"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.vdex",
@@ -509,8 +509,8 @@ func checkFrameworkBootImageConfig(t *testing.T, result *android.TestResult, mut
 					"out/soong/test_device/dex_bootjars/linux_glibc/system/framework/x86_64/boot-framework.oat",
 					"out/soong/test_device/dex_bootjars/linux_glibc/system/framework/x86_64/boot-framework.vdex",
 				},
-				primaryImages: "out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.art",
-				primaryImagesDeps: []string{
+				baseImages: []string{"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.art"},
+				baseImagesDeps: []string{
 					"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.art",
 					"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.oat",
 					"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.vdex",
@@ -557,8 +557,8 @@ func checkFrameworkBootImageConfig(t *testing.T, result *android.TestResult, mut
 					"out/soong/test_device/dex_bootjars/linux_glibc/system/framework/x86/boot-framework.oat",
 					"out/soong/test_device/dex_bootjars/linux_glibc/system/framework/x86/boot-framework.vdex",
 				},
-				primaryImages: "out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.art",
-				primaryImagesDeps: []string{
+				baseImages: []string{"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.art"},
+				baseImagesDeps: []string{
 					"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.art",
 					"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.oat",
 					"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.vdex",
@@ -664,8 +664,8 @@ func nestedCheckBootImageConfig(t *testing.T, imageConfig *bootImageConfig, expe
 			android.AssertPathRelativeToTopEquals(t, "imagePathOnHost", expectedVariant.imagePathOnHost, variant.imagePathOnHost)
 			android.AssertStringEquals(t, "imagePathOnDevice", expectedVariant.imagePathOnDevice, variant.imagePathOnDevice)
 			android.AssertPathsRelativeToTopEquals(t, "imagesDeps", expectedVariant.imagesDeps, variant.imagesDeps.Paths())
-			android.AssertPathRelativeToTopEquals(t, "primaryImages", expectedVariant.primaryImages, variant.primaryImages)
-			android.AssertPathsRelativeToTopEquals(t, "primaryImagesDeps", expectedVariant.primaryImagesDeps, variant.primaryImagesDeps)
+			android.AssertPathsRelativeToTopEquals(t, "baseImages", expectedVariant.baseImages, variant.baseImages.Paths())
+			android.AssertPathsRelativeToTopEquals(t, "baseImagesDeps", expectedVariant.baseImagesDeps, variant.baseImagesDeps)
 			assertInstallsEqual(t, "installs", expectedVariant.installs, variant.installs)
 			assertInstallsEqual(t, "vdexInstalls", expectedVariant.vdexInstalls, variant.vdexInstalls)
 			assertInstallsEqual(t, "unstrippedInstalls", expectedVariant.unstrippedInstalls, variant.unstrippedInstalls)

@@ -94,10 +94,7 @@ func genBootImageConfigs(ctx android.PathContext) map[string]*bootImageConfig {
 		deviceDir := android.PathForOutput(ctx, ctx.Config().DeviceName())
 
 		configs := genBootImageConfigRaw(ctx)
-		artCfg := configs[artBootImageName]
-		frameworkCfg := configs[frameworkBootImageName]
 
-		// common to all configs
 		for _, c := range configs {
 			c.dir = deviceDir.Join(ctx, "dex_"+c.name+"jars")
 			c.symbolsDir = deviceDir.Join(ctx, "dex_"+c.name+"jars_unstripped")
@@ -133,16 +130,40 @@ func genBootImageConfigs(ctx android.PathContext) map[string]*bootImageConfig {
 			c.zip = c.dir.Join(ctx, c.name+".zip")
 		}
 
-		// specific to the framework config
-		frameworkCfg.dexPathsDeps = append(artCfg.dexPathsDeps, frameworkCfg.dexPathsDeps...)
-		for i := range targets {
-			frameworkCfg.variants[i].primaryImages = artCfg.variants[i].imagePathOnHost
-			frameworkCfg.variants[i].primaryImagesDeps = artCfg.variants[i].imagesDeps.Paths()
-			frameworkCfg.variants[i].dexLocationsDeps = append(artCfg.variants[i].dexLocations, frameworkCfg.variants[i].dexLocationsDeps...)
+		visited := make(map[string]bool)
+		for _, c := range configs {
+			calculateDepsRecursive(c, targets, visited)
 		}
 
 		return configs
 	}).(map[string]*bootImageConfig)
+}
+
+// calculateDepsRecursive calculates the dependencies of the given boot image config and all its
+// ancestors, if they are not visited.
+// The boot images are supposed to form a tree, where the root is the primary boot image. We do not
+// expect loops (e.g., A extends B, B extends C, C extends A), and we let them crash soong with a
+// stack overflow.
+// Note that a boot image config only has a pointer to the parent, not to children. Therefore, we
+// first go up through the parent chain, and then go back down to visit every code along the path.
+// `visited` is a map where a key is a boot image name and the value indicates whether the boot
+// image config is visited. The boot image names are guaranteed to be unique because they come from
+// `genBootImageConfigRaw` above, which also returns a map and would fail in the first place if the
+// names were not unique.
+func calculateDepsRecursive(c *bootImageConfig, targets []android.Target, visited map[string]bool) {
+	if c.extends == nil || visited[c.name] {
+		return
+	}
+	if c.extends.extends != nil {
+		calculateDepsRecursive(c.extends, targets, visited)
+	}
+	visited[c.name] = true
+	c.dexPathsDeps = android.Concat(c.extends.dexPathsDeps, c.dexPathsDeps)
+	for i := range targets {
+		c.variants[i].baseImages = android.Concat(c.extends.variants[i].baseImages, android.OutputPaths{c.extends.variants[i].imagePathOnHost})
+		c.variants[i].baseImagesDeps = android.Concat(c.extends.variants[i].baseImagesDeps, c.extends.variants[i].imagesDeps.Paths())
+		c.variants[i].dexLocationsDeps = android.Concat(c.extends.variants[i].dexLocationsDeps, c.variants[i].dexLocationsDeps)
+	}
 }
 
 func artBootImageConfig(ctx android.PathContext) *bootImageConfig {
