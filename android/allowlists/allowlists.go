@@ -406,8 +406,6 @@ var (
 		// this BUILD file is globbed by //external/icu/icu4c/source:icu4c_test_data's "data/**/*".
 		"external/icu/icu4c/source/data/unidata/norm2":/* recursive = */ false,
 
-		"frameworks/ex/common":/* recursive = */ true,
-
 		// Building manually due to b/179889880: resource files cross package boundary
 		"packages/apps/Music":/* recursive = */ true,
 
@@ -687,7 +685,6 @@ var (
 		"libcodec2_soft_common",
 
 		// kotlin srcs in java libs
-		"CtsPkgInstallerConstants",
 		"kotlinx_atomicfu",
 
 		// kotlin srcs in java binary
@@ -699,6 +696,9 @@ var (
 
 		//kotlin srcs in android_binary
 		"MusicKotlin",
+
+		// java_library with prebuilt sdk_version
+		"android-common",
 
 		// checked in current.txt for merged_txts
 		"non-updatable-current.txt",
@@ -722,7 +722,6 @@ var (
 
 		// min_sdk_version in android_app
 		"CtsShimUpgrade",
-		"fake-framework",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
@@ -776,7 +775,8 @@ var (
 		"tjbench", // TODO(b/240563612): Stem property
 
 		// java bugs
-		"libbase_ndk", // TODO(b/186826477): fails to link libctscamera2_jni for device (required for CtsCameraTestCases)
+		"libbase_ndk",  // TODO(b/186826477): fails to link libctscamera2_jni for device (required for CtsCameraTestCases)
+		"bouncycastle", // TODO(b/274474005): Need support for custom system_modules.
 
 		// python protos
 		"libprotobuf-python", // Has a handcrafted alternative
@@ -843,7 +843,6 @@ var (
 		"libgmock_ndk",                                            // depends on unconverted modules: libgtest_ndk_c++
 		"libnativehelper_lazy_mts_jni", "libnativehelper_mts_jni", // depends on unconverted modules: libnativetesthelper_jni, libgmock_ndk
 		"libnativetesthelper_jni",   // depends on unconverted modules: libgtest_ndk_c++
-		"libprotobuf-java-nano",     // b/220869005, depends on non-public_current SDK
 		"libstatslog",               // depends on unconverted modules: libstatspull, statsd-aidl-ndk
 		"libstatslog_art",           // depends on unconverted modules: statslog_art.cpp, statslog_art.h
 		"linker_reloc_bench_main",   // depends on unconverted modules: liblinker_reloc_bench_*
@@ -1393,6 +1392,16 @@ var (
 
 		// TODO(b/266459895): depends on libunwindstack
 		"libutils_test",
+
+		// TODO(b/274805756): Support core_platform and current java APIs
+		"fake-framework",
+
+		// TODO(b/277616982): These modules depend on private java APIs, but maybe they don't need to.
+		"StreamingProtoTest",
+		"textclassifierprotoslite",
+		"styleprotoslite",
+		"CtsPkgInstallerConstants",
+		"guava-android-testlib",
 	}
 
 	MixedBuildsDisabledList = []string{

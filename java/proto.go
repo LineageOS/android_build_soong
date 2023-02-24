@@ -143,7 +143,9 @@ func protoFlags(ctx android.ModuleContext, j *CommonProperties, p *android.Proto
 }
 
 type protoAttributes struct {
-	Deps bazel.LabelListAttribute
+	Deps         bazel.LabelListAttribute
+	Sdk_version  bazel.StringAttribute
+	Java_version bazel.StringAttribute
 }
 
 func bp2buildProto(ctx android.Bp2buildMutatorContext, m *Module, protoSrcs bazel.LabelListAttribute) *bazel.Label {
@@ -175,8 +177,11 @@ func bp2buildProto(ctx android.Bp2buildMutatorContext, m *Module, protoSrcs baze
 	}
 
 	protoLabel := bazel.Label{Label: ":" + m.Name() + "_proto"}
-	var protoAttrs protoAttributes
-	protoAttrs.Deps.SetValue(bazel.LabelList{Includes: []bazel.Label{protoLabel}})
+	protoAttrs := &protoAttributes{
+		Deps:         bazel.MakeSingleLabelListAttribute(protoLabel),
+		Java_version: bazel.StringAttribute{Value: m.properties.Java_version},
+		Sdk_version:  bazel.StringAttribute{Value: m.deviceProperties.Sdk_version},
+	}
 
 	name := m.Name() + suffix
 
@@ -186,7 +191,7 @@ func bp2buildProto(ctx android.Bp2buildMutatorContext, m *Module, protoSrcs baze
 			Bzl_load_location: "//build/bazel/rules/java:proto.bzl",
 		},
 		android.CommonAttributes{Name: name},
-		&protoAttrs)
+		protoAttrs)
 
 	return &bazel.Label{Label: ":" + name}
 }
