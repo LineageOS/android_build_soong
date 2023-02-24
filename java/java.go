@@ -2806,6 +2806,9 @@ func javaLibraryBp2Build(ctx android.TopDownMutatorContext, m *Library) {
 		if sdkVersion.Kind == android.SdkPublic && sdkVersion.ApiLevel == android.FutureApiLevel {
 			// TODO(b/220869005) remove forced dependency on current public android.jar
 			deps.Add(bazel.MakeLabelAttribute("//prebuilts/sdk:public_current_android_sdk_java_import"))
+		} else if sdkVersion.Kind == android.SdkSystem && sdkVersion.ApiLevel == android.FutureApiLevel {
+			// TODO(b/215230098) remove forced dependency on current public android.jar
+			deps.Add(bazel.MakeLabelAttribute("//prebuilts/sdk:system_current_android_sdk_java_import"))
 		}
 	} else if !deps.IsEmpty() {
 		ctx.ModuleErrorf("Module has direct dependencies but no sources. Bazel will not allow this.")
