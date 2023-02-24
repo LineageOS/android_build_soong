@@ -1291,7 +1291,7 @@ func (module *PrebuiltBootclasspathFragmentModule) produceBootImageFiles(ctx and
 		}
 		return bootImageFiles
 	} else {
-		if profile == nil {
+		if profile == nil && imageConfig.isProfileGuided() {
 			ctx.ModuleErrorf("Unable to produce boot image files: neither boot image files nor profiles exists in the prebuilt apex")
 			return bootImageOutputs{}
 		}
