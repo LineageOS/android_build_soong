@@ -111,6 +111,9 @@ type apexBundleProperties struct {
 
 	Multilib apexMultilibProperties
 
+	// List of runtime resource overlays (RROs) that are embedded inside this APEX.
+	Rros []string
+
 	// List of bootclasspath fragments that are embedded inside this APEX bundle.
 	Bootclasspath_fragments []string
 
@@ -334,9 +337,6 @@ type overridableProperties struct {
 
 	// List of prebuilt files that are embedded inside this APEX bundle.
 	Prebuilts []string
-
-	// List of runtime resource overlays (RROs) that are embedded inside this APEX.
-	Rros []string
 
 	// List of BPF programs inside this APEX bundle.
 	Bpfs []string
@@ -847,6 +847,7 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 
 	// Common-arch dependencies come next
 	commonVariation := ctx.Config().AndroidCommonTarget.Variations()
+	ctx.AddFarVariationDependencies(commonVariation, rroTag, a.properties.Rros...)
 	ctx.AddFarVariationDependencies(commonVariation, bcpfTag, a.properties.Bootclasspath_fragments...)
 	ctx.AddFarVariationDependencies(commonVariation, sscpfTag, a.properties.Systemserverclasspath_fragments...)
 	ctx.AddFarVariationDependencies(commonVariation, javaLibTag, a.properties.Java_libs...)
@@ -863,7 +864,6 @@ func (a *apexBundle) OverridablePropertiesDepsMutator(ctx android.BottomUpMutato
 	commonVariation := ctx.Config().AndroidCommonTarget.Variations()
 	ctx.AddFarVariationDependencies(commonVariation, androidAppTag, a.overridableProperties.Apps...)
 	ctx.AddFarVariationDependencies(commonVariation, bpfTag, a.overridableProperties.Bpfs...)
-	ctx.AddFarVariationDependencies(commonVariation, rroTag, a.overridableProperties.Rros...)
 	if prebuilts := a.overridableProperties.Prebuilts; len(prebuilts) > 0 {
 		// For prebuilt_etc, use the first variant (64 on 64/32bit device, 32 on 32bit device)
 		// regardless of the TARGET_PREFER_* setting. See b/144532908
