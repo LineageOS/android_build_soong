@@ -184,7 +184,7 @@ var r8, r8RE = pctx.MultiCommandRemoteStaticRules("r8",
 		"r8Flags", "zipFlags", "tmpJar", "mergeZipsFlags"}, []string{"implicits"})
 
 func (d *dexer) dexCommonFlags(ctx android.ModuleContext,
-	minSdkVersion android.SdkSpec) (flags []string, deps android.Paths) {
+	dexParams *compileDexParams) (flags []string, deps android.Paths) {
 
 	flags = d.dexProperties.Dxflags
 	// Translate all the DX flags to D8 ones until all the build files have been migrated
@@ -213,11 +213,11 @@ func (d *dexer) dexCommonFlags(ctx android.ModuleContext,
 	// Note: Targets with a min SDK kind of core_platform (e.g., framework.jar) or unspecified (e.g.,
 	// services.jar), are not classified as stable, which is WAI.
 	// TODO(b/232073181): Expand to additional min SDK cases after validation.
-	if !minSdkVersion.Stable() {
+	if !dexParams.sdkVersion.Stable() {
 		flags = append(flags, "--android-platform-build")
 	}
 
-	effectiveVersion, err := minSdkVersion.EffectiveVersion(ctx)
+	effectiveVersion, err := dexParams.minSdkVersion.EffectiveVersion(ctx)
 	if err != nil {
 		ctx.PropertyErrorf("min_sdk_version", "%s", err)
 	}
@@ -340,20 +340,27 @@ func (d *dexer) r8Flags(ctx android.ModuleContext, flags javaBuilderFlags) (r8Fl
 	return r8Flags, r8Deps
 }
 
-func (d *dexer) compileDex(ctx android.ModuleContext, flags javaBuilderFlags, minSdkVersion android.SdkSpec,
-	classesJar android.Path, jarName string) android.OutputPath {
+type compileDexParams struct {
+	flags         javaBuilderFlags
+	sdkVersion    android.SdkSpec
+	minSdkVersion android.SdkSpec
+	classesJar    android.Path
+	jarName       string
+}
+
+func (d *dexer) compileDex(ctx android.ModuleContext, dexParams *compileDexParams) android.OutputPath {
 
 	// Compile classes.jar into classes.dex and then javalib.jar
-	javalibJar := android.PathForModuleOut(ctx, "dex", jarName).OutputPath
+	javalibJar := android.PathForModuleOut(ctx, "dex", dexParams.jarName).OutputPath
 	outDir := android.PathForModuleOut(ctx, "dex")
-	tmpJar := android.PathForModuleOut(ctx, "withres-withoutdex", jarName)
+	tmpJar := android.PathForModuleOut(ctx, "withres-withoutdex", dexParams.jarName)
 
 	zipFlags := "--ignore_missing_files"
 	if proptools.Bool(d.dexProperties.Uncompress_dex) {
 		zipFlags += " -L 0"
 	}
 
-	commonFlags, commonDeps := d.dexCommonFlags(ctx, minSdkVersion)
+	commonFlags, commonDeps := d.dexCommonFlags(ctx, dexParams)
 
 	// Exclude kotlinc generated files when "exclude_kotlinc_generated_files" is set to true.
 	mergeZipsFlags := ""
@@ -372,7 +379,7 @@ func (d *dexer) compileDex(ctx android.ModuleContext, flags javaBuilderFlags, mi
 			android.ModuleNameWithPossibleOverride(ctx), "unused.txt")
 		proguardUsageZip := android.PathForModuleOut(ctx, "proguard_usage.zip")
 		d.proguardUsageZip = android.OptionalPathForPath(proguardUsageZip)
-		r8Flags, r8Deps := d.r8Flags(ctx, flags)
+		r8Flags, r8Deps := d.r8Flags(ctx, dexParams.flags)
 		r8Deps = append(r8Deps, commonDeps...)
 		rule := r8
 		args := map[string]string{
@@ -396,12 +403,12 @@ func (d *dexer) compileDex(ctx android.ModuleContext, flags javaBuilderFlags, mi
 			Description:     "r8",
 			Output:          javalibJar,
 			ImplicitOutputs: android.WritablePaths{proguardDictionary, proguardUsageZip},
-			Input:           classesJar,
+			Input:           dexParams.classesJar,
 			Implicits:       r8Deps,
 			Args:            args,
 		})
 	} else {
-		d8Flags, d8Deps := d8Flags(flags)
+		d8Flags, d8Deps := d8Flags(dexParams.flags)
 		d8Deps = append(d8Deps, commonDeps...)
 		rule := d8
 		if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_D8") {
@@ -411,7 +418,7 @@ func (d *dexer) compileDex(ctx android.ModuleContext, flags javaBuilderFlags, mi
 			Rule:        rule,
 			Description: "d8",
 			Output:      javalibJar,
-			Input:       classesJar,
+			Input:       dexParams.classesJar,
 			Implicits:   d8Deps,
 			Args: map[string]string{
 				"d8Flags":        strings.Join(append(commonFlags, d8Flags...), " "),
@@ -423,7 +430,7 @@ func (d *dexer) compileDex(ctx android.ModuleContext, flags javaBuilderFlags, mi
 		})
 	}
 	if proptools.Bool(d.dexProperties.Uncompress_dex) {
-		alignedJavalibJar := android.PathForModuleOut(ctx, "aligned", jarName).OutputPath
+		alignedJavalibJar := android.PathForModuleOut(ctx, "aligned", dexParams.jarName).OutputPath
 		TransformZipAlign(ctx, alignedJavalibJar, javalibJar)
 		javalibJar = alignedJavalibJar
 	}
