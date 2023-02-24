@@ -2066,7 +2066,15 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			j.dexpreopter.uncompressedDex = *j.dexProperties.Uncompress_dex
 
 			var dexOutputFile android.OutputPath
-			dexOutputFile = j.dexer.compileDex(ctx, flags, j.MinSdkVersion(ctx), outputFile, jarName)
+			dexParams := &compileDexParams{
+				flags:         flags,
+				sdkVersion:    j.SdkVersion(ctx),
+				minSdkVersion: j.MinSdkVersion(ctx),
+				classesJar:    outputFile,
+				jarName:       jarName,
+			}
+
+			dexOutputFile = j.dexer.compileDex(ctx, dexParams)
 			if ctx.Failed() {
 				return
 			}
@@ -2806,6 +2814,9 @@ func javaLibraryBp2Build(ctx android.TopDownMutatorContext, m *Library) {
 		if sdkVersion.Kind == android.SdkPublic && sdkVersion.ApiLevel == android.FutureApiLevel {
 			// TODO(b/220869005) remove forced dependency on current public android.jar
 			deps.Add(bazel.MakeLabelAttribute("//prebuilts/sdk:public_current_android_sdk_java_import"))
+		} else if sdkVersion.Kind == android.SdkSystem && sdkVersion.ApiLevel == android.FutureApiLevel {
+			// TODO(b/215230098) remove forced dependency on current public android.jar
+			deps.Add(bazel.MakeLabelAttribute("//prebuilts/sdk:system_current_android_sdk_java_import"))
 		}
 	} else if !deps.IsEmpty() {
 		ctx.ModuleErrorf("Module has direct dependencies but no sources. Bazel will not allow this.")
