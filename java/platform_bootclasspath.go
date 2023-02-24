@@ -129,7 +129,7 @@ func (b *platformBootclasspathModule) BootclasspathDepsMutator(ctx android.Botto
 
 	// Add dependencies on all the non-updatable module configured in the "boot" boot image. That does
 	// not include modules configured in the "art" boot image.
-	bootImageConfig := b.getImageConfig(ctx)
+	bootImageConfig := defaultBootImageConfig(ctx)
 	addDependenciesOntoBootImageModules(ctx, bootImageConfig.modules, platformBootclasspathBootJarDepTag)
 
 	// Add dependencies on all the apex jars.
@@ -205,7 +205,7 @@ func (b *platformBootclasspathModule) generateClasspathProtoBuildActions(ctx and
 
 func (b *platformBootclasspathModule) configuredJars(ctx android.ModuleContext) android.ConfiguredJarList {
 	// Include all non APEX jars
-	jars := b.getImageConfig(ctx).modules
+	jars := defaultBootImageConfig(ctx).modules
 
 	// Include jars from APEXes that don't populate their classpath proto config.
 	remainingJars := dexpreopt.GetGlobalConfig(ctx).ApexBootJars
@@ -264,10 +264,6 @@ func (b *platformBootclasspathModule) checkApexModules(ctx android.ModuleContext
 			}
 		}
 	}
-}
-
-func (b *platformBootclasspathModule) getImageConfig(ctx android.EarlyModuleContext) *bootImageConfig {
-	return defaultBootImageConfig(ctx)
 }
 
 // generateHiddenAPIBuildActions generates all the hidden API related build rules.
@@ -410,27 +406,24 @@ func (b *platformBootclasspathModule) generateBootImageBuildActions(ctx android.
 	// GenerateSingletonBuildActions method as it cannot create it for itself.
 	dexpreopt.GetGlobalSoongConfig(ctx)
 
-	imageConfig := b.getImageConfig(ctx)
-	if imageConfig == nil {
-		return
-	}
-
 	global := dexpreopt.GetGlobalConfig(ctx)
 	if !shouldBuildBootImages(ctx.Config(), global) {
 		return
 	}
 
-	// Generate the framework profile rule
-	bootFrameworkProfileRule(ctx, imageConfig)
+	frameworkBootImageConfig := defaultBootImageConfig(ctx)
+	bootFrameworkProfileRule(ctx, frameworkBootImageConfig)
+	b.generateBootImage(ctx, frameworkBootImageName, platformModules)
+	b.copyApexBootJarsForAppsDexpreopt(ctx, apexModules)
+	dumpOatRules(ctx, frameworkBootImageConfig)
+}
 
-	// Copy platform module dex jars to their predefined locations.
-	platformBootDexJarsByModule := extractEncodedDexJarsFromModules(ctx, platformModules)
-	copyBootJarsToPredefinedLocations(ctx, platformBootDexJarsByModule, imageConfig.dexPathsByModule)
+func (b *platformBootclasspathModule) generateBootImage(ctx android.ModuleContext, imageName string, modules []android.Module) {
+	imageConfig := genBootImageConfigs(ctx)[imageName]
 
-	// Copy apex module dex jars to their predefined locations.
-	config := GetApexBootConfig(ctx)
-	apexBootDexJarsByModule := extractEncodedDexJarsFromModules(ctx, apexModules)
-	copyBootJarsToPredefinedLocations(ctx, apexBootDexJarsByModule, config.dexPathsByModule)
+	// Copy module dex jars to their predefined locations.
+	bootDexJarsByModule := extractEncodedDexJarsFromModules(ctx, modules)
+	copyBootJarsToPredefinedLocations(ctx, bootDexJarsByModule, imageConfig.dexPathsByModule)
 
 	// Build a profile for the image config and then use that to build the boot image.
 	profile := bootImageProfileRule(ctx, imageConfig)
@@ -443,6 +436,11 @@ func (b *platformBootclasspathModule) generateBootImageBuildActions(ctx android.
 
 	// Build boot image files for the host variants. There are use directly by ART host side tests.
 	buildBootImageVariantsForBuildOs(ctx, imageConfig, profile)
+}
 
-	dumpOatRules(ctx, imageConfig)
+// Copy apex module dex jars to their predefined locations. They will be used for dexpreopt for apps.
+func (b *platformBootclasspathModule) copyApexBootJarsForAppsDexpreopt(ctx android.ModuleContext, apexModules []android.Module) {
+	config := GetApexBootConfig(ctx)
+	apexBootDexJarsByModule := extractEncodedDexJarsFromModules(ctx, apexModules)
+	copyBootJarsToPredefinedLocations(ctx, apexBootDexJarsByModule, config.dexPathsByModule)
 }
