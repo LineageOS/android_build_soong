@@ -501,6 +501,7 @@ func (a *AndroidMkEntries) WriteLicenseVariables(w io.Writer) {
 // generate and fill in AndroidMkEntries's in-struct data, ready to be flushed to a file.
 type fillInEntriesContext interface {
 	ModuleDir(module blueprint.Module) string
+	ModuleSubDir(module blueprint.Module) string
 	Config() Config
 	ModuleProvider(module blueprint.Module, provider blueprint.ProviderKey) interface{}
 	ModuleHasProvider(module blueprint.Module, provider blueprint.ProviderKey) bool
@@ -528,7 +529,7 @@ func (a *AndroidMkEntries) fillInEntries(ctx fillInEntriesContext, mod blueprint
 		fmt.Fprintf(&a.header, distString)
 	}
 
-	fmt.Fprintln(&a.header, "\ninclude $(CLEAR_VARS)  # "+ctx.ModuleType(mod))
+	fmt.Fprintf(&a.header, "\ninclude $(CLEAR_VARS)  # type: %s, name: %s, variant: %s\n", ctx.ModuleType(mod), base.BaseModuleName(), ctx.ModuleSubDir(mod))
 
 	// Collect make variable assignment entries.
 	a.SetString("LOCAL_PATH", ctx.ModuleDir(mod))
