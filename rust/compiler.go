@@ -269,6 +269,11 @@ func (compiler *baseCompiler) featureFlags(ctx ModuleContext, flags Flags) Flags
 func (compiler *baseCompiler) cfgFlags(ctx ModuleContext, flags Flags) Flags {
 	if ctx.RustModule().UseVndk() {
 		compiler.Properties.Cfgs = append(compiler.Properties.Cfgs, "android_vndk")
+		if ctx.RustModule().InVendor() {
+			compiler.Properties.Cfgs = append(compiler.Properties.Cfgs, "android_vendor")
+		} else if ctx.RustModule().InProduct() {
+			compiler.Properties.Cfgs = append(compiler.Properties.Cfgs, "android_product")
+		}
 	}
 
 	flags.RustFlags = append(flags.RustFlags, compiler.cfgsToFlags()...)
