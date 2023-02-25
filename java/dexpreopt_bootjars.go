@@ -287,6 +287,9 @@ type bootImageConfig struct {
 
 	// Path of the preloaded classes file.
 	preloadedClassesFile string
+
+	// The "--compiler-filter" argument.
+	compilerFilter string
 }
 
 // Target-dependent description of a boot image.
@@ -441,6 +444,10 @@ func (image *bootImageVariant) imageLocations() (imageLocationsOnHost []string, 
 	}
 	return append(imageLocationsOnHost, dexpreopt.PathToLocation(image.imagePathOnHost, image.target.Arch.ArchType)),
 		append(imageLocationsOnDevice, dexpreopt.PathStringToLocation(image.imagePathOnDevice, image.target.Arch.ArchType))
+}
+
+func (image *bootImageConfig) isProfileGuided() bool {
+	return image.compilerFilter == "speed-profile"
 }
 
 func dexpreoptBootJarsFactory() android.SingletonModule {
@@ -721,11 +728,13 @@ func buildBootImageVariant(ctx android.ModuleContext, image *bootImageVariant, p
 		cmd.FlagWithArg("--base=", ctx.Config().LibartImgDeviceBaseAddress())
 	}
 
-	// We always expect a preloaded classes file to be available. However, if we cannot find it, it's
-	// OK to not pass the flag to dex2oat.
-	preloadedClassesPath := android.ExistentPathForSource(ctx, image.preloadedClassesFile)
-	if preloadedClassesPath.Valid() {
-		cmd.FlagWithInput("--preloaded-classes=", preloadedClassesPath.Path())
+	if len(image.preloadedClassesFile) > 0 {
+		// We always expect a preloaded classes file to be available. However, if we cannot find it, it's
+		// OK to not pass the flag to dex2oat.
+		preloadedClassesPath := android.ExistentPathForSource(ctx, image.preloadedClassesFile)
+		if preloadedClassesPath.Valid() {
+			cmd.FlagWithInput("--preloaded-classes=", preloadedClassesPath.Path())
+		}
 	}
 
 	cmd.
@@ -743,7 +752,8 @@ func buildBootImageVariant(ctx android.ModuleContext, image *bootImageVariant, p
 		FlagWithArg("--android-root=", global.EmptyDirectory).
 		FlagWithArg("--no-inline-from=", "core-oj.jar").
 		Flag("--force-determinism").
-		Flag("--abort-on-hard-verifier-error")
+		Flag("--abort-on-hard-verifier-error").
+		FlagWithArg("--compiler-filter=", image.compilerFilter)
 
 	// Use the default variant/features for host builds.
 	// The map below contains only device CPU info (which might be x86 on some devices).
@@ -828,6 +838,10 @@ It is likely that the boot classpath is inconsistent.
 Rebuild with ART_BOOT_IMAGE_EXTRA_ARGS="--runtime-arg -verbose:verifier" to see verification errors.`
 
 func bootImageProfileRule(ctx android.ModuleContext, image *bootImageConfig) android.WritablePath {
+	if !image.isProfileGuided() {
+		return nil
+	}
+
 	globalSoong := dexpreopt.GetGlobalSoongConfig(ctx)
 	global := dexpreopt.GetGlobalConfig(ctx)
 
