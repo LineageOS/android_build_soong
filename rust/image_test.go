@@ -53,6 +53,7 @@ func TestImageVndkCfgFlag(t *testing.T) {
 				crate_name: "foo",
 				srcs: ["foo.rs"],
 				vendor_available: true,
+				product_available: true,
 			}
 		`)
 
@@ -61,6 +62,35 @@ func TestImageVndkCfgFlag(t *testing.T) {
 	if !strings.Contains(vendor.Args["rustcFlags"], "--cfg 'android_vndk'") {
 		t.Errorf("missing \"--cfg 'android_vndk'\" for libfoo vendor variant, rustcFlags: %#v", vendor.Args["rustcFlags"])
 	}
+	if !strings.Contains(vendor.Args["rustcFlags"], "--cfg 'android_vendor'") {
+		t.Errorf("missing \"--cfg 'android_vendor'\" for libfoo vendor variant, rustcFlags: %#v", vendor.Args["rustcFlags"])
+	}
+	if strings.Contains(vendor.Args["rustcFlags"], "--cfg 'android_product'") {
+		t.Errorf("unexpected \"--cfg 'android_product'\" for libfoo vendor variant, rustcFlags: %#v", vendor.Args["rustcFlags"])
+	}
+
+	product := ctx.ModuleForTests("libfoo", "android_product.29_arm64_armv8-a_static").Rule("rustc")
+	if !strings.Contains(product.Args["rustcFlags"], "--cfg 'android_vndk'") {
+		t.Errorf("missing \"--cfg 'android_vndk'\" for libfoo product variant, rustcFlags: %#v", product.Args["rustcFlags"])
+	}
+	if strings.Contains(product.Args["rustcFlags"], "--cfg 'android_vendor'") {
+		t.Errorf("unexpected \"--cfg 'android_vendor'\" for libfoo product variant, rustcFlags: %#v", product.Args["rustcFlags"])
+	}
+	if !strings.Contains(product.Args["rustcFlags"], "--cfg 'android_product'") {
+		t.Errorf("missing \"--cfg 'android_product'\" for libfoo product variant, rustcFlags: %#v", product.Args["rustcFlags"])
+	}
+
+	system := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_static").Rule("rustc")
+	if strings.Contains(system.Args["rustcFlags"], "--cfg 'android_vndk'") {
+		t.Errorf("unexpected \"--cfg 'android_vndk'\" for libfoo system variant, rustcFlags: %#v", system.Args["rustcFlags"])
+	}
+	if strings.Contains(system.Args["rustcFlags"], "--cfg 'android_vendor'") {
+		t.Errorf("unexpected \"--cfg 'android_vendor'\" for libfoo system variant, rustcFlags: %#v", system.Args["rustcFlags"])
+	}
+	if strings.Contains(system.Args["rustcFlags"], "--cfg 'android_product'") {
+		t.Errorf("unexpected \"--cfg 'android_product'\" for libfoo system variant, rustcFlags: %#v", product.Args["rustcFlags"])
+	}
+
 }
 
 // Test that cc modules can link against vendor_ramdisk_available rust_ffi_static libraries.
