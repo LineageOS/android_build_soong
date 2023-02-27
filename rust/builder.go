@@ -247,7 +247,13 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 	if ctx.Config().IsEnvTrue("SOONG_RUSTC_INCREMENTAL") {
 		incrementalPath := android.PathForOutput(ctx, "rustc").String()
 
-		rustcFlags = append(rustcFlags, "-C incremental="+incrementalPath)
+		rustcFlags = append(rustcFlags, "-Cincremental="+incrementalPath)
+	}
+
+	// Disallow experimental features
+	modulePath := android.PathForModuleSrc(ctx).String()
+	if !(android.IsThirdPartyPath(modulePath) || strings.HasPrefix(modulePath, "prebuilts")) {
+		rustcFlags = append(rustcFlags, "-Zallow-features=\"default_alloc_error_handler,custom_inner_attributes,mixed_integer_ops,slice_internals\"")
 	}
 
 	// Collect linker flags
