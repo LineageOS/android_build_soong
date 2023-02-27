@@ -603,10 +603,12 @@ func (d *Droiddoc) doclavaDocsFlags(ctx android.ModuleContext, cmd *android.Rule
 		Flag("-J-XX:-OmitStackTraceInFastThrow").
 		Flag("-XDignore.symbol.file").
 		Flag("--ignore-source-errors").
-		FlagWithArg("-doclet ", "com.google.doclava.Doclava").
+		// b/240421555: use a stub doclet until Doclava works with JDK 17
+		//FlagWithArg("-doclet ", "com.google.doclava.Doclava").
+		FlagWithArg("-doclet ", "com.google.stubdoclet.StubDoclet").
 		FlagWithInputList("-docletpath ", docletPath.Paths(), ":").
-		FlagWithArg("-Xmaxerrs ", "10").
-		FlagWithArg("-Xmaxwarns ", "10").
+		FlagWithArg("-Xmaxerrs ", "1").
+		FlagWithArg("-Xmaxwarns ", "1").
 		Flag("-J--add-exports=jdk.javadoc/jdk.javadoc.internal.doclets.formats.html=ALL-UNNAMED").
 		Flag("-J--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED").
 		FlagWithArg("-hdf page.build ", ctx.Config().BuildId()+"-$(cat "+buildNumberFile.String()+")").OrderOnly(buildNumberFile).
@@ -778,6 +780,8 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	jsilver := ctx.Config().HostJavaToolPath(ctx, "jsilver.jar")
 	doclava := ctx.Config().HostJavaToolPath(ctx, "doclava.jar")
+	// b/240421555: use a stub doclet until Doclava works with JDK 17
+	stubdoclet := ctx.Config().HostJavaToolPath(ctx, "stubdoclet.jar")
 
 	outDir := android.PathForModuleOut(ctx, "out")
 	srcJarDir := android.PathForModuleOut(ctx, "srcjars")
@@ -805,7 +809,8 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	if Bool(d.properties.Dokka_enabled) {
 		desc = "dokka"
 	} else {
-		d.doclavaDocsFlags(ctx, cmd, classpath{jsilver, doclava})
+		// b/240421555: use a stub doclet until Doclava works with JDK 17
+		d.doclavaDocsFlags(ctx, cmd, classpath{jsilver, doclava, stubdoclet})
 
 		for _, o := range d.Javadoc.properties.Out {
 			cmd.ImplicitOutput(android.PathForModuleGen(ctx, o))
@@ -823,9 +828,9 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		FlagWithArg("-C ", outDir.String()).
 		FlagWithArg("-D ", outDir.String())
 
-	rule.Restat()
+	// rule.Restat()
 
-	zipSyncCleanupCmd(rule, srcJarDir)
+	// zipSyncCleanupCmd(rule, srcJarDir)
 
 	rule.Build("javadoc", desc)
 }
