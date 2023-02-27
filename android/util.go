@@ -29,6 +29,15 @@ func CopyOf(s []string) []string {
 	return append([]string(nil), s...)
 }
 
+// Concat returns a new slice concatenated from the two input slices. It does not change the input
+// slices.
+func Concat[T any](s1, s2 []T) []T {
+	res := make([]T, 0, len(s1)+len(s2))
+	res = append(res, s1...)
+	res = append(res, s2...)
+	return res
+}
+
 // JoinWithPrefix prepends the prefix to each string in the list and
 // returns them joined together with " " as separator.
 func JoinWithPrefix(strs []string, prefix string) string {
