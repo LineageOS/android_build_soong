@@ -28,8 +28,10 @@ func TestBootImageConfig(t *testing.T) {
 
 	result := android.GroupFixturePreparers(
 		PrepareForBootImageConfigTest,
+		PrepareApexBootJarConfigs,
 	).RunTest(t)
 
 	CheckArtBootImageConfig(t, result)
 	CheckFrameworkBootImageConfig(t, result)
+	CheckMainlineBootImageConfig(t, result)
 }
