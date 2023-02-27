@@ -226,6 +226,8 @@ func (a *aapt) aapt2Flags(ctx android.ModuleContext, sdkContext android.SdkConte
 	}
 
 	linkFlags = append(linkFlags, "--min-sdk-version "+minSdkVersion)
+	// Use minSdkVersion for target-sdk-version, even if `target_sdk_version` is set
+	// This behavior has been copied from Make.
 	linkFlags = append(linkFlags, "--target-sdk-version "+minSdkVersion)
 
 	// Version code
