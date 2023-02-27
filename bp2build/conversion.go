@@ -59,6 +59,7 @@ func soongInjectionFiles(cfg android.Config, metrics CodegenMetrics) ([]BazelFil
 		return nil, err
 	}
 	files = append(files, newFile("api_levels", GeneratedBuildFileName, `exports_files(["api_levels.json"])`))
+	// TODO(b/269691302)  value of apiLevelsContent is product variable dependent and should be avoided for soong injection
 	files = append(files, newFile("api_levels", "api_levels.json", string(apiLevelsContent)))
 	files = append(files, newFile("api_levels", "api_levels.bzl", android.StarlarkApiLevelConfigs(cfg)))
 
