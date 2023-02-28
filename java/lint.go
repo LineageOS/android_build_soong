@@ -275,13 +275,14 @@ func (l *linter) writeLintProjectXML(ctx android.ModuleContext, rule *android.Ru
 	cmd.FlagForEachArg("--error_check ", l.properties.Lint.Error_checks)
 	cmd.FlagForEachArg("--fatal_check ", l.properties.Lint.Fatal_checks)
 
-	if l.GetStrictUpdatabilityLinting() {
-		// Verify the module does not baseline issues that endanger safe updatability.
-		if baselinePath := l.getBaselineFilepath(ctx); baselinePath.Valid() {
-			cmd.FlagWithInput("--baseline ", baselinePath.Path())
-			cmd.FlagForEachArg("--disallowed_issues ", updatabilityChecks)
-		}
-	}
+	// TODO(b/193460475): Re-enable strict updatability linting
+	//if l.GetStrictUpdatabilityLinting() {
+	//	// Verify the module does not baseline issues that endanger safe updatability.
+	//	if baselinePath := l.getBaselineFilepath(ctx); baselinePath.Valid() {
+	//		cmd.FlagWithInput("--baseline ", baselinePath.Path())
+	//		cmd.FlagForEachArg("--disallowed_issues ", updatabilityChecks)
+	//	}
+	//}
 
 	return lintPaths{
 		projectXML: projectXMLPath,
