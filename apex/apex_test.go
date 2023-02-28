@@ -2128,6 +2128,34 @@ func TestApexMinSdkVersion_ErrorIfIncompatibleVersion(t *testing.T) {
 			min_sdk_version: "30",
 		}
 	`)
+
+	// Skip check for modules compiling against core API surface
+	testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			java_libs: ["libfoo"],
+			min_sdk_version: "29",
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		java_library {
+			name: "libfoo",
+			srcs: ["Foo.java"],
+			apex_available: [
+				"myapex",
+			],
+			// Compile against core API surface
+			sdk_version: "core_current",
+			min_sdk_version: "30",
+		}
+	`)
+
 }
 
 func TestApexMinSdkVersion_Okay(t *testing.T) {
