@@ -219,13 +219,32 @@ func (a *aapt) aapt2Flags(ctx android.ModuleContext, sdkContext android.SdkConte
 	linkFlags = append(linkFlags, android.JoinWithPrefix(assetDirStrings, "-A "))
 	linkDeps = append(linkDeps, assetDeps...)
 
-	// SDK version flags
-	minSdkVersion, err := sdkContext.MinSdkVersion(ctx).EffectiveVersionString(ctx)
-	if err != nil {
-		ctx.ModuleErrorf("invalid minSdkVersion: %s", err)
+	// Returns the effective version for {min|target}_sdk_version
+	effectiveVersionString := func(sdkVersion android.SdkSpec, minSdkVersion android.SdkSpec) string {
+		// If {min|target}_sdk_version is current, use sdk_version to determine the effective level
+		// This is necessary for vendor modules.
+		// The effective version does not _only_ depend on {min|target}_sdk_version(level),
+		// but also on the sdk_version (kind+level)
+		if minSdkVersion.ApiLevel.IsCurrent() {
+			ret, err := sdkVersion.EffectiveVersionString(ctx)
+			if err != nil {
+				ctx.ModuleErrorf("invalid sdk_version: %s", err)
+			}
+			return ret
+		}
+		ret, err := minSdkVersion.EffectiveVersionString(ctx)
+		if err != nil {
+			ctx.ModuleErrorf("invalid min_sdk_version: %s", err)
+		}
+		return ret
 	}
+	// SDK version flags
+	sdkVersion := sdkContext.SdkVersion(ctx)
+	minSdkVersion := effectiveVersionString(sdkVersion, sdkContext.MinSdkVersion(ctx))
 
 	linkFlags = append(linkFlags, "--min-sdk-version "+minSdkVersion)
+	// Use minSdkVersion for target-sdk-version, even if `target_sdk_version` is set
+	// This behavior has been copied from Make.
 	linkFlags = append(linkFlags, "--target-sdk-version "+minSdkVersion)
 
 	// Version code

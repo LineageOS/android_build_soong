@@ -16,6 +16,7 @@ package java
 
 import (
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"android/soong/android"
@@ -312,17 +313,17 @@ type bootImageVariant struct {
 	// All the files that constitute this image variant, i.e. .art, .oat and .vdex files.
 	imagesDeps android.OutputPaths
 
-	// The path to the primary image variant's imagePathOnHost field, where primary image variant
+	// The path to the base image variant's imagePathOnHost field, where base image variant
 	// means the image variant that this extends.
 	//
 	// This is only set for a variant of an image that extends another image.
-	primaryImages android.OutputPath
+	baseImages android.OutputPaths
 
-	// The paths to the primary image variant's imagesDeps field, where primary image variant
+	// The paths to the base image variant's imagesDeps field, where base image variant
 	// means the image variant that this extends.
 	//
 	// This is only set for a variant of an image that extends another image.
-	primaryImagesDeps android.Paths
+	baseImagesDeps android.Paths
 
 	// Rules which should be used in make to install the outputs on host.
 	//
@@ -511,8 +512,13 @@ func (d *dexpreoptBootJars) GenerateSingletonBuildActions(ctx android.SingletonC
 
 	defaultImageConfig := defaultBootImageConfig(ctx)
 	d.defaultBootImage = defaultImageConfig
-	artBootImageConfig := artBootImageConfig(ctx)
-	d.otherImages = []*bootImageConfig{artBootImageConfig}
+	imageConfigs := genBootImageConfigs(ctx)
+	d.otherImages = make([]*bootImageConfig, 0, len(imageConfigs)-1)
+	for _, config := range imageConfigs {
+		if config != defaultImageConfig {
+			d.otherImages = append(d.otherImages, config)
+		}
+	}
 }
 
 // shouldBuildBootImages determines whether boot images should be built.
@@ -708,9 +714,11 @@ func buildBootImageVariant(ctx android.ModuleContext, image *bootImageVariant, p
 	}
 
 	if image.extends != nil {
-		// It is a boot image extension, so it needs the boot image it depends on (in this case the
-		// primary ART APEX image).
-		artImage := image.primaryImages
+		// It is a boot image extension, so it needs the boot images that it depends on.
+		baseImageLocations := make([]string, 0, len(image.baseImages))
+		for _, image := range image.baseImages {
+			baseImageLocations = append(baseImageLocations, dexpreopt.PathToLocation(image, arch))
+		}
 		cmd.
 			Flag("--runtime-arg").FlagWithInputList("-Xbootclasspath:", image.dexPathsDeps.Paths(), ":").
 			Flag("--runtime-arg").FlagWithList("-Xbootclasspath-locations:", image.dexLocationsDeps, ":").
@@ -718,11 +726,11 @@ func buildBootImageVariant(ctx android.ModuleContext, image *bootImageVariant, p
 			// dex2oat will reconstruct the path to the actual file when it needs it. As the actual path
 			// to the file cannot be passed to the command make sure to add the actual path as an Implicit
 			// dependency to ensure that it is built before the command runs.
-			FlagWithArg("--boot-image=", dexpreopt.PathToLocation(artImage, arch)).Implicit(artImage).
+			FlagWithList("--boot-image=", baseImageLocations, ":").Implicits(image.baseImages.Paths()).
 			// Similarly, the dex2oat tool will automatically find the paths to other files in the base
 			// boot image so make sure to add them as implicit dependencies to ensure that they are built
 			// before this command is run.
-			Implicits(image.primaryImagesDeps)
+			Implicits(image.baseImagesDeps)
 	} else {
 		// It is a primary image, so it needs a base address.
 		cmd.FlagWithArg("--base=", ctx.Config().LibartImgDeviceBaseAddress())
@@ -1021,6 +1029,8 @@ func (d *dexpreoptBootJars) MakeVars(ctx android.MakeVarsContext) {
 			ctx.Strict("DEXPREOPT_IMAGE_LOCATIONS_ON_DEVICE"+current.name, strings.Join(imageLocationsOnDevice, ":"))
 			ctx.Strict("DEXPREOPT_IMAGE_ZIP_"+current.name, current.zip.String())
 		}
+		// Ensure determinism.
+		sort.Strings(imageNames)
 		ctx.Strict("DEXPREOPT_IMAGE_NAMES", strings.Join(imageNames, " "))
 	}
 }
