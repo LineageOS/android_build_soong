@@ -760,8 +760,13 @@ func buildBootImageVariant(ctx android.ModuleContext, image *bootImageVariant, p
 		FlagWithArg("--android-root=", global.EmptyDirectory).
 		FlagWithArg("--no-inline-from=", "core-oj.jar").
 		Flag("--force-determinism").
-		Flag("--abort-on-hard-verifier-error").
-		FlagWithArg("--compiler-filter=", image.compilerFilter)
+		Flag("--abort-on-hard-verifier-error")
+
+	// If the image is profile-guided but the profile is disabled, we omit "--compiler-filter" to
+	// leave the decision to dex2oat to pick the compiler filter.
+	if !(image.isProfileGuided() && global.DisableGenerateProfile) {
+		cmd.FlagWithArg("--compiler-filter=", image.compilerFilter)
+	}
 
 	// Use the default variant/features for host builds.
 	// The map below contains only device CPU info (which might be x86 on some devices).
