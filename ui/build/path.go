@@ -109,6 +109,15 @@ func SetupLitePath(ctx Context, config Config, tmpDir string) {
 	prebuiltsPath, _ := filepath.Abs("prebuilts/build-tools/path/" + runtime.GOOS + "-x86")
 	myPath = prebuiltsPath + string(os.PathListSeparator) + myPath
 
+	if value, _ := config.Environment().Get("BUILD_BROKEN_PYTHON_IS_PYTHON2"); value == "true" {
+		py2Path, _ := filepath.Abs("prebuilts/build-tools/path/" + runtime.GOOS + "-x86/py2")
+		if info, err := os.Stat(py2Path); err == nil && info.IsDir() {
+			myPath = py2Path + string(os.PathListSeparator) + myPath
+		}
+	} else if value != "" {
+		ctx.Fatalf("BUILD_BROKEN_PYTHON_IS_PYTHON2 can only be set to 'true' or an empty string, but got %s\n", value)
+	}
+
 	// Set $PATH to be the directories containing the host tool symlinks, and
 	// the prebuilts directory for the current host OS.
 	config.Environment().Set("PATH", myPath)
@@ -243,6 +252,15 @@ func SetupPath(ctx Context, config Config) {
 	// for all of them.
 	prebuiltsPath, _ := filepath.Abs("prebuilts/build-tools/path/" + runtime.GOOS + "-x86")
 	myPath = prebuiltsPath + string(os.PathListSeparator) + myPath
+
+	if value, _ := config.Environment().Get("BUILD_BROKEN_PYTHON_IS_PYTHON2"); value == "true" {
+		py2Path, _ := filepath.Abs("prebuilts/build-tools/path/" + runtime.GOOS + "-x86/py2")
+		if info, err := os.Stat(py2Path); err == nil && info.IsDir() {
+			myPath = py2Path + string(os.PathListSeparator) + myPath
+		}
+	} else if value != "" {
+		ctx.Fatalf("BUILD_BROKEN_PYTHON_IS_PYTHON2 can only be set to 'true' or an empty string, but got %s\n", value)
+	}
 
 	// Replace the $PATH variable with the path_interposer symlinks, and
 	// checked-in prebuilts.
