@@ -784,6 +784,43 @@ func TestApexManifestMinSdkVersion(t *testing.T) {
 	}
 }
 
+func TestFileContexts(t *testing.T) {
+	for _, useFileContextsAsIs := range []bool{true, false} {
+		prop := ""
+		if useFileContextsAsIs {
+			prop = "use_file_contexts_as_is: true,\n"
+		}
+		ctx := testApex(t, `
+			apex {
+				name: "myapex",
+				key: "myapex.key",
+				file_contexts: "file_contexts",
+				updatable: false,
+				vendor: true,
+				`+prop+`
+			}
+
+			apex_key {
+				name: "myapex.key",
+				public_key: "testkey.avbpubkey",
+				private_key: "testkey.pem",
+			}
+		`, withFiles(map[string][]byte{
+			"file_contexts": nil,
+		}))
+
+		rule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Output("file_contexts")
+		forceLabellingCommand := "apex_manifest\\\\.pb u:object_r:system_file:s0"
+		if useFileContextsAsIs {
+			android.AssertStringDoesNotContain(t, "should force-label",
+				rule.RuleParams.Command, forceLabellingCommand)
+		} else {
+			android.AssertStringDoesContain(t, "shouldn't force-label",
+				rule.RuleParams.Command, forceLabellingCommand)
+		}
+	}
+}
+
 func TestBasicZipApex(t *testing.T) {
 	ctx := testApex(t, `
 		apex {
