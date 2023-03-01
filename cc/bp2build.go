@@ -1263,7 +1263,7 @@ func (la *linkerAttributes) finalize(ctx android.BazelConversionPathContext) {
 	// result in duplicate library errors for bionic OSes. Here, we explicitly exclude those libraries
 	// from bionic OSes and the no config case as these libraries only build for bionic OSes.
 	if la.systemDynamicDeps.IsNil() && len(la.usedSystemDynamicDepAsDynamicDep) > 0 {
-		toRemove := bazelLabelForSharedDeps(ctx, android.SortedStringKeys(la.usedSystemDynamicDepAsDynamicDep))
+		toRemove := bazelLabelForSharedDeps(ctx, android.SortedKeys(la.usedSystemDynamicDepAsDynamicDep))
 		la.dynamicDeps.Exclude(bazel.NoConfigAxis, "", toRemove)
 		la.dynamicDeps.Exclude(bazel.OsConfigurationAxis, "android", toRemove)
 		la.dynamicDeps.Exclude(bazel.OsConfigurationAxis, "linux_bionic", toRemove)

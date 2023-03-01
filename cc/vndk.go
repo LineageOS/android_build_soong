@@ -876,7 +876,7 @@ func (c *vndkSnapshotSingleton) MakeVars(ctx android.MakeVarsContext) {
 	})
 
 	ctx.Strict("LLNDK_MOVED_TO_APEX_LIBRARIES",
-		strings.Join(android.SortedStringKeys(movedToApexLlndkLibraries), " "))
+		strings.Join(android.SortedKeys(movedToApexLlndkLibraries), " "))
 
 	ctx.Strict("VNDK_LIBRARIES_FILE", c.vndkLibrariesFile.String())
 	ctx.Strict("SOONG_VNDK_SNAPSHOT_ZIP", c.vndkSnapshotZipFile.String())
