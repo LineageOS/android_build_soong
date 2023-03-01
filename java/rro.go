@@ -186,8 +186,8 @@ func (r *RuntimeResourceOverlay) ReplaceMaxSdkVersionPlaceholder(ctx android.Ear
 	return android.SdkSpecFrom(ctx, "")
 }
 
-func (r *RuntimeResourceOverlay) TargetSdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
-	return r.SdkVersion(ctx)
+func (r *RuntimeResourceOverlay) TargetSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel {
+	return r.SdkVersion(ctx).ApiLevel
 }
 
 func (r *RuntimeResourceOverlay) Certificate() Certificate {

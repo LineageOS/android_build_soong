@@ -31,9 +31,9 @@ type SdkContext interface {
 	// ReplaceMaxSdkVersionPlaceholder returns SdkSpec to replace the maxSdkVersion property of permission and
 	// uses-permission tags if it is set.
 	ReplaceMaxSdkVersionPlaceholder(ctx EarlyModuleContext) SdkSpec
-	// TargetSdkVersion returns the SdkSpec that corresponds to the target_sdk_version property of the current module,
+	// TargetSdkVersion returns the ApiLevel that corresponds to the target_sdk_version property of the current module,
 	// or from sdk_version if it is not set.
-	TargetSdkVersion(ctx EarlyModuleContext) SdkSpec
+	TargetSdkVersion(ctx EarlyModuleContext) ApiLevel
 }
 
 // SdkKind represents a particular category of an SDK spec like public, system, test, etc.
