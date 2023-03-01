@@ -543,7 +543,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 
 	if len(installMapSet) > 0 {
 		var installs []string
-		installs = append(installs, android.SortedStringKeys(installMapSet)...)
+		installs = append(installs, android.SortedKeys(installMapSet)...)
 		a.SetLicenseInstallMap(installs)
 	}
 
