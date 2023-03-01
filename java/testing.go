@@ -198,7 +198,7 @@ func FixtureWithPrebuiltApisAndExtensions(apiLevel2Modules map[string][]string, 
 				imports_sdk_version: "none",
 				imports_compile_dex: true,
 			}
-		`, strings.Join(android.SortedStringKeys(apiLevel2Modules), `", "`))
+		`, strings.Join(android.SortedKeys(apiLevel2Modules), `", "`))
 
 	for release, modules := range apiLevel2Modules {
 		mockFS.Merge(prebuiltApisFilesForModules([]string{release}, modules))

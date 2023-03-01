@@ -48,7 +48,7 @@ var _ SingletonMakeVarsProvider = (*phonySingleton)(nil)
 
 func (p *phonySingleton) GenerateBuildActions(ctx SingletonContext) {
 	p.phonyMap = getPhonyMap(ctx.Config())
-	p.phonyList = SortedStringKeys(p.phonyMap)
+	p.phonyList = SortedKeys(p.phonyMap)
 	for _, phony := range p.phonyList {
 		p.phonyMap[phony] = SortedUniquePaths(p.phonyMap[phony])
 	}
