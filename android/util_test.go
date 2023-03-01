@@ -641,6 +641,36 @@ func BenchmarkFirstUniqueStrings(b *testing.B) {
 	}
 }
 
+func testSortedKeysHelper[K Ordered, V any](t *testing.T, name string, input map[K]V, expected []K) {
+	t.Helper()
+	t.Run(name, func(t *testing.T) {
+		actual := SortedKeys(input)
+		if !reflect.DeepEqual(actual, expected) {
+			t.Errorf("expected %q, got %q", expected, actual)
+		}
+	})
+}
+
+func TestSortedKeys(t *testing.T) {
+	testSortedKeysHelper(t, "simple", map[string]string{
+		"b": "bar",
+		"a": "foo",
+	}, []string{
+		"a",
+		"b",
+	})
+	testSortedKeysHelper(t, "ints", map[int]interface{}{
+		10: nil,
+		5:  nil,
+	}, []int{
+		5,
+		10,
+	})
+
+	testSortedKeysHelper(t, "nil", map[string]string(nil), nil)
+	testSortedKeysHelper(t, "empty", map[string]string{}, nil)
+}
+
 func TestSortedStringKeys(t *testing.T) {
 	testCases := []struct {
 		name     string

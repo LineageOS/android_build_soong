@@ -240,7 +240,7 @@ func (p *PackagingBase) GatherPackagingSpecs(ctx ModuleContext) map[string]Packa
 // entries into the specified directory.
 func (p *PackagingBase) CopySpecsToDir(ctx ModuleContext, builder *RuleBuilder, specs map[string]PackagingSpec, dir ModuleOutPath) (entries []string) {
 	seenDir := make(map[string]bool)
-	for _, k := range SortedStringKeys(specs) {
+	for _, k := range SortedKeys(specs) {
 		ps := specs[k]
 		destPath := dir.Join(ctx, ps.relPathInPackage).String()
 		destDir := filepath.Dir(destPath)

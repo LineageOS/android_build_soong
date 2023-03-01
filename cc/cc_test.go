@@ -3930,7 +3930,7 @@ func assertArrayString(t *testing.T, got, expected []string) {
 
 func assertMapKeys(t *testing.T, m map[string]string, expected []string) {
 	t.Helper()
-	assertArrayString(t, android.SortedStringKeys(m), expected)
+	assertArrayString(t, android.SortedKeys(m), expected)
 }
 
 func TestDefaults(t *testing.T) {

@@ -230,11 +230,11 @@ func (b BazelTestResult) CompareAllBazelTargets(t *testing.T, description string
 	actualTargets := b.buildFileToTargets
 
 	// Generate the sorted set of directories to check.
-	dirsToCheck := android.SortedStringKeys(expectedTargets)
+	dirsToCheck := android.SortedKeys(expectedTargets)
 	if !ignoreUnexpected {
 		// This needs to perform an exact match so add the directories in which targets were
 		// produced to the list of directories to check.
-		dirsToCheck = append(dirsToCheck, android.SortedStringKeys(actualTargets)...)
+		dirsToCheck = append(dirsToCheck, android.SortedKeys(actualTargets)...)
 		dirsToCheck = android.SortedUniqueStrings(dirsToCheck)
 	}
 
@@ -579,7 +579,7 @@ func makeBazelTargetHostOrDevice(typ, name string, attrs AttrNameToString, hod a
 	if name != "" {
 		attrStrings = append(attrStrings, fmt.Sprintf(`    name = "%s",`, name))
 	}
-	for _, k := range android.SortedStringKeys(attrs) {
+	for _, k := range android.SortedKeys(attrs) {
 		attrStrings = append(attrStrings, fmt.Sprintf("    %s = %s,", k, attrs[k]))
 	}
 	return fmt.Sprintf(`%s(

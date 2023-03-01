@@ -538,8 +538,8 @@ func shouldBuildBootImages(config android.Config, global *dexpreopt.GlobalConfig
 func copyBootJarsToPredefinedLocations(ctx android.ModuleContext, srcBootDexJarsByModule bootDexJarByModule, dstBootJarsByModule map[string]android.WritablePath) {
 	// Create the super set of module names.
 	names := []string{}
-	names = append(names, android.SortedStringKeys(srcBootDexJarsByModule)...)
-	names = append(names, android.SortedStringKeys(dstBootJarsByModule)...)
+	names = append(names, android.SortedKeys(srcBootDexJarsByModule)...)
+	names = append(names, android.SortedKeys(dstBootJarsByModule)...)
 	names = android.SortedUniqueStrings(names)
 	for _, name := range names {
 		src := srcBootDexJarsByModule[name]
