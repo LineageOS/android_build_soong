@@ -565,7 +565,7 @@ func (m *moduleInfo) MarshalJSON() ([]byte, error) {
 	if m.deps != nil {
 		writeObjectPair("@deps", m.deps)
 	}
-	for _, k := range android.SortedStringKeys(m.memberSpecific) {
+	for _, k := range android.SortedKeys(m.memberSpecific) {
 		v := m.memberSpecific[k]
 		writeObjectPair(k, v)
 	}
@@ -626,7 +626,7 @@ func (s *sdk) generateInfoData(ctx android.ModuleContext, memberVariantDeps []sd
 		getModuleInfo(memberVariantDep.variant)
 	}
 
-	for _, memberName := range android.SortedStringKeys(name2Info) {
+	for _, memberName := range android.SortedKeys(name2Info) {
 		info := name2Info[memberName]
 		modules = append(modules, info)
 	}
@@ -1708,7 +1708,7 @@ func newArchSpecificInfo(ctx android.SdkMemberContext, archId archId, osType and
 		}
 
 		// Create the image variant info in a fixed order.
-		for _, imageVariantName := range android.SortedStringKeys(variantsByImage) {
+		for _, imageVariantName := range android.SortedKeys(variantsByImage) {
 			variants := variantsByImage[imageVariantName]
 			archInfo.imageVariantInfos = append(archInfo.imageVariantInfos, newImageVariantSpecificInfo(ctx, imageVariantName, variantPropertiesFactory, variants))
 		}

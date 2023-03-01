@@ -302,7 +302,7 @@ func InitDefaultsModule(module DefaultsModule) {
 			delete(propertiesSet, "visibility")
 
 			// Replace the "*" with the names of all the properties that have been set.
-			protectedProperties = SortedStringKeys(propertiesSet)
+			protectedProperties = SortedKeys(propertiesSet)
 			module.setProtectedProperties(protectedProperties)
 		} else {
 			for _, property := range protectedProperties {
