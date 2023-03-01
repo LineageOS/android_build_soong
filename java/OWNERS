@@ -1,4 +1,0 @@
-per-file dexpreopt*.go = ngeoffray@google.com,calin@google.com,skvadrik@google.com
-
-# For metalava team to disable lint checks in platform
-per-file droidstubs.go = aurimas@google.com,emberrose@google.com,sjgilbert@google.com
