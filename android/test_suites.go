@@ -57,7 +57,7 @@ func (t *testSuiteFiles) MakeVars(ctx MakeVarsContext) {
 
 func robolectricTestSuite(ctx SingletonContext, files map[string]InstallPaths) WritablePath {
 	var installedPaths InstallPaths
-	for _, module := range SortedStringKeys(files) {
+	for _, module := range SortedKeys(files) {
 		installedPaths = append(installedPaths, files[module]...)
 	}
 	testCasesDir := pathForInstall(ctx, ctx.Config().BuildOS, X86, "testcases", false)
