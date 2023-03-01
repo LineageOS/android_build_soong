@@ -62,11 +62,11 @@ type Flags struct {
 }
 
 type BaseProperties struct {
-	AndroidMkRlibs         []string
-	AndroidMkDylibs        []string
-	AndroidMkProcMacroLibs []string
-	AndroidMkSharedLibs    []string
-	AndroidMkStaticLibs    []string
+	AndroidMkRlibs         []string `blueprint:"mutated"`
+	AndroidMkDylibs        []string `blueprint:"mutated"`
+	AndroidMkProcMacroLibs []string `blueprint:"mutated"`
+	AndroidMkSharedLibs    []string `blueprint:"mutated"`
+	AndroidMkStaticLibs    []string `blueprint:"mutated"`
 
 	ImageVariationPrefix string `blueprint:"mutated"`
 	VndkVersion          string `blueprint:"mutated"`
