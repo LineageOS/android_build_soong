@@ -817,7 +817,7 @@ func (d *ApexBundleDepsInfo) BuildDepsInfoLists(ctx ModuleContext, minSdkVersion
 	var flatContent strings.Builder
 
 	fmt.Fprintf(&fullContent, "%s(minSdkVersion:%s):\n", ctx.ModuleName(), minSdkVersion)
-	for _, key := range FirstUniqueStrings(SortedStringKeys(depInfos)) {
+	for _, key := range FirstUniqueStrings(SortedKeys(depInfos)) {
 		info := depInfos[key]
 		toName := fmt.Sprintf("%s(minSdkVersion:%s)", info.To, info.MinSdkVersion)
 		if info.IsExternal {

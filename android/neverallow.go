@@ -543,7 +543,7 @@ func (r *rule) String() string {
 		s = append(s, fmt.Sprintf("properties matching: %s", r.props))
 	}
 	if len(r.directDeps) > 0 {
-		s = append(s, fmt.Sprintf("dep(s): %q", SortedStringKeys(r.directDeps)))
+		s = append(s, fmt.Sprintf("dep(s): %q", SortedKeys(r.directDeps)))
 	}
 	if len(r.osClasses) > 0 {
 		s = append(s, fmt.Sprintf("os class(es): %q", r.osClasses))
