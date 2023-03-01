@@ -256,7 +256,7 @@ func prettyPrintSelectMap(selectMap map[string]reflect.Value, defaultValue *stri
 	}
 
 	var selects string
-	for _, selectKey := range android.SortedStringKeys(selectMap) {
+	for _, selectKey := range android.SortedKeys(selectMap) {
 		if selectKey == bazel.ConditionsDefaultSelectKey {
 			// Handle default condition later.
 			continue

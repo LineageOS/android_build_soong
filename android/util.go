@@ -62,25 +62,9 @@ func JoinWithPrefixAndSeparator(strs []string, prefix string, sep string) string
 	return buf.String()
 }
 
-// JoinWithSuffix appends the suffix to each string in the list and
-// returns them joined together with given separator.
-func JoinWithSuffix(strs []string, suffix string, separator string) string {
-	if len(strs) == 0 {
-		return ""
-	}
-
-	var buf strings.Builder
-	buf.WriteString(strs[0])
-	buf.WriteString(suffix)
-	for i := 1; i < len(strs); i++ {
-		buf.WriteString(separator)
-		buf.WriteString(strs[i])
-		buf.WriteString(suffix)
-	}
-	return buf.String()
-}
-
-// SorterStringKeys returns the keys of the given string-keyed map in the ascending order.
+// SortedStringKeys returns the keys of the given map in the ascending order.
+//
+// Deprecated: Use SortedKeys instead.
 func SortedStringKeys(m interface{}) []string {
 	v := reflect.ValueOf(m)
 	if v.Kind() != reflect.Map {
@@ -96,6 +80,28 @@ func SortedStringKeys(m interface{}) []string {
 	}
 	sort.Strings(s)
 	return s
+}
+
+type Ordered interface {
+	~string |
+		~float32 | ~float64 |
+		~int | ~int8 | ~int16 | ~int32 | ~int64 |
+		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
+}
+
+// SortedKeys returns the keys of the given map in the ascending order.
+func SortedKeys[T Ordered, V any](m map[T]V) []T {
+	if len(m) == 0 {
+		return nil
+	}
+	ret := make([]T, 0, len(m))
+	for k := range m {
+		ret = append(ret, k)
+	}
+	sort.Slice(ret, func(i, j int) bool {
+		return ret[i] < ret[j]
+	})
+	return ret
 }
 
 // stringValues returns the values of the given string-valued map in randomized map order.

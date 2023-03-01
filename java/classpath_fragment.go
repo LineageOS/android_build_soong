@@ -111,7 +111,7 @@ func gatherPossibleApexModuleNamesAndStems(ctx android.ModuleContext, contents [
 			ctx.PropertyErrorf("contents", "%v is not a ModuleWithStem", name)
 		}
 	}
-	return android.SortedStringKeys(set)
+	return android.SortedKeys(set)
 }
 
 // Converts android.ConfiguredJarList into a list of classpathJars for each given classpathType.

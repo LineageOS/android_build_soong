@@ -227,7 +227,7 @@ func NewCodegenContext(config android.Config, context *android.Context, mode Cod
 // the generated attributes are sorted to ensure determinism.
 func propsToAttributes(props map[string]string) string {
 	var attributes string
-	for _, propName := range android.SortedStringKeys(props) {
+	for _, propName := range android.SortedKeys(props) {
 		attributes += fmt.Sprintf("    %s = %s,\n", propName, props[propName])
 	}
 	return attributes
