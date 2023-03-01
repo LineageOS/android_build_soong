@@ -23,8 +23,14 @@ import (
 	"strings"
 	"time"
 
+	"android/soong/shared"
 	"android/soong/ui/metrics"
 	"android/soong/ui/status"
+)
+
+const (
+	// File containing the environment state when ninja is executed
+	ninjaEnvFileName = "ninja.environment"
 )
 
 // Constructs and runs the Ninja command line with a restricted set of
@@ -184,6 +190,21 @@ func runNinjaForBuild(ctx Context, config Config) {
 	sort.Strings(envVars)
 	for _, envVar := range envVars {
 		ctx.Verbosef("  %s", envVar)
+	}
+
+	// Write the env vars available during ninja execution to a file
+	ninjaEnvVars := cmd.Environment.AsMap()
+	data, err := shared.EnvFileContents(ninjaEnvVars)
+	if err != nil {
+		ctx.Panicf("Could not parse environment variables for ninja run %s", err)
+	}
+	// Write the file in every single run. This is fine because
+	// 1. It is not a dep of Soong analysis, so will not retrigger Soong analysis.
+	// 2. Is is fairly lightweight (~1Kb)
+	ninjaEnvVarsFile := shared.JoinPath(config.SoongOutDir(), ninjaEnvFileName)
+	err = os.WriteFile(ninjaEnvVarsFile, data, 0666)
+	if err != nil {
+		ctx.Panicf("Could not write ninja environment file %s", err)
 	}
 
 	// Poll the Ninja log for updates regularly based on the heartbeat
