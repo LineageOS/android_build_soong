@@ -2424,17 +2424,6 @@ func (library *libraryDecorator) installable() *bool {
 	return nil
 }
 
-func (library *libraryDecorator) makeUninstallable(mod *Module) {
-	if library.static() && library.buildStatic() && !library.buildStubs() {
-		// If we're asked to make a static library uninstallable we don't do
-		// anything since AndroidMkEntries always sets LOCAL_UNINSTALLABLE_MODULE
-		// for these entries. This is done to still get the make targets for NOTICE
-		// files from notice_files.mk, which other libraries might depend on.
-		return
-	}
-	mod.ModuleBase.MakeUninstallable()
-}
-
 func (library *libraryDecorator) getPartition() string {
 	return library.path.Partition()
 }
