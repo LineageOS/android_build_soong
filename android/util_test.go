@@ -671,44 +671,6 @@ func TestSortedKeys(t *testing.T) {
 	testSortedKeysHelper(t, "empty", map[string]string{}, nil)
 }
 
-func TestSortedStringKeys(t *testing.T) {
-	testCases := []struct {
-		name     string
-		in       interface{}
-		expected []string
-	}{
-		{
-			name:     "nil",
-			in:       map[string]string(nil),
-			expected: nil,
-		},
-		{
-			name:     "empty",
-			in:       map[string]string{},
-			expected: nil,
-		},
-		{
-			name:     "simple",
-			in:       map[string]string{"a": "foo", "b": "bar"},
-			expected: []string{"a", "b"},
-		},
-		{
-			name:     "interface values",
-			in:       map[string]interface{}{"a": nil, "b": nil},
-			expected: []string{"a", "b"},
-		},
-	}
-
-	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			got := SortedStringKeys(tt.in)
-			if g, w := got, tt.expected; !reflect.DeepEqual(g, w) {
-				t.Errorf("wanted %q, got %q", w, g)
-			}
-		})
-	}
-}
-
 func TestSortedStringValues(t *testing.T) {
 	testCases := []struct {
 		name     string
