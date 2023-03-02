@@ -3675,7 +3675,7 @@ func AddAncestors(ctx SingletonContext, dirMap map[string]Paths, mmName func(str
 	// Ensure ancestor directories are in dirMap
 	// Make directories build their direct subdirectories
 	// Returns a slice of all directories and a slice of top-level directories.
-	dirs := SortedStringKeys(dirMap)
+	dirs := SortedKeys(dirMap)
 	for _, dir := range dirs {
 		dir := parentDir(dir)
 		for dir != "." && dir != "/" {
@@ -3686,7 +3686,7 @@ func AddAncestors(ctx SingletonContext, dirMap map[string]Paths, mmName func(str
 			dir = parentDir(dir)
 		}
 	}
-	dirs = SortedStringKeys(dirMap)
+	dirs = SortedKeys(dirMap)
 	var topDirs []string
 	for _, dir := range dirs {
 		p := parentDir(dir)
@@ -3696,7 +3696,7 @@ func AddAncestors(ctx SingletonContext, dirMap map[string]Paths, mmName func(str
 			topDirs = append(topDirs, dir)
 		}
 	}
-	return SortedStringKeys(dirMap), topDirs
+	return SortedKeys(dirMap), topDirs
 }
 
 func (c *buildTargetSingleton) GenerateBuildActions(ctx SingletonContext) {
@@ -3782,7 +3782,7 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx SingletonContext) {
 	}
 
 	// Wrap those into host|host-cross|target phony rules
-	for _, class := range SortedStringKeys(osClass) {
+	for _, class := range SortedKeys(osClass) {
 		ctx.Phony(class, osClass[class]...)
 	}
 }

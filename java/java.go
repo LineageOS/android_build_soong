@@ -517,14 +517,8 @@ func getJavaVersion(ctx android.ModuleContext, javaVersion string, sdkContext an
 		return normalizeJavaVersion(ctx, javaVersion)
 	} else if ctx.Device() {
 		return defaultJavaLanguageVersion(ctx, sdkContext.SdkVersion(ctx))
-	} else if ctx.Config().TargetsJava17() {
-		// Temporary experimental flag to be able to try and build with
-		// java version 17 options.  The flag, if used, just sets Java
-		// 17 as the default version, leaving any components that
-		// target an older version intact.
-		return JAVA_VERSION_17
 	} else {
-		return JAVA_VERSION_11
+		return JAVA_VERSION_17
 	}
 }
 
@@ -1781,7 +1775,7 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	rule.Build("metalava", "metalava merged")
 	compiledStubs := android.PathForModuleOut(ctx, ctx.ModuleName(), "stubs.jar")
-	al.stubsJar = android.PathForModuleOut(ctx, ctx.ModuleName(), "android.jar")
+	al.stubsJar = android.PathForModuleOut(ctx, ctx.ModuleName(), fmt.Sprintf("%s.jar", ctx.ModuleName()))
 
 	var flags javaBuilderFlags
 	flags.javaVersion = getStubsJavaVersion()
