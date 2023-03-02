@@ -65,21 +65,8 @@ func JoinWithPrefixAndSeparator(strs []string, prefix string, sep string) string
 // SortedStringKeys returns the keys of the given map in the ascending order.
 //
 // Deprecated: Use SortedKeys instead.
-func SortedStringKeys(m interface{}) []string {
-	v := reflect.ValueOf(m)
-	if v.Kind() != reflect.Map {
-		panic(fmt.Sprintf("%#v is not a map", m))
-	}
-	if v.Len() == 0 {
-		return nil
-	}
-	iter := v.MapRange()
-	s := make([]string, 0, v.Len())
-	for iter.Next() {
-		s = append(s, iter.Key().String())
-	}
-	sort.Strings(s)
-	return s
+func SortedStringKeys[V any](m map[string]V) []string {
+	return SortedKeys(m)
 }
 
 type Ordered interface {
