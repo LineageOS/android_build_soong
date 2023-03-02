@@ -72,12 +72,14 @@ func apexVndkMutator(mctx android.TopDownMutatorContext) {
 		}
 
 		targets := mctx.MultiTargets()
-		if len(targets) > 0 && apiLevel.LessThan(cc.MinApiForArch(mctx, targets[0].Arch.ArchType)) {
-			// Disable VNDK apexes for VNDK versions less than the minimum supported API level for the primary
-			// architecture.
+		if len(targets) > 0 && apiLevel.LessThan(cc.MinApiForArch(mctx, targets[0].Arch.ArchType)) &&
+			vndkVersion != mctx.DeviceConfig().PlatformVndkVersion() {
+			// Disable VNDK APEXes for VNDK versions less than the minimum supported API
+			// level for the primary architecture. This validation is skipped if the VNDK
+			// version matches the platform VNDK version, which can occur when the device
+			// config targets the 'current' VNDK (see `vndkVersion`).
 			ab.Disable()
 		}
-
 	}
 }
 
