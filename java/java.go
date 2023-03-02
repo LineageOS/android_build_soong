@@ -1898,11 +1898,12 @@ func (j *Import) MinSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel 
 	return j.SdkVersion(ctx).ApiLevel
 }
 
-func (j *Import) ReplaceMaxSdkVersionPlaceholder(ctx android.EarlyModuleContext) android.SdkSpec {
+func (j *Import) ReplaceMaxSdkVersionPlaceholder(ctx android.EarlyModuleContext) android.ApiLevel {
 	if j.properties.Replace_max_sdk_version_placeholder != nil {
-		return android.SdkSpecFrom(ctx, *j.properties.Replace_max_sdk_version_placeholder)
+		return android.ApiLevelFrom(ctx, *j.properties.Replace_max_sdk_version_placeholder)
 	}
-	return android.SdkSpecFrom(ctx, "")
+	// Default is PrivateApiLevel
+	return android.SdkSpecPrivate.ApiLevel
 }
 
 func (j *Import) TargetSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel {
