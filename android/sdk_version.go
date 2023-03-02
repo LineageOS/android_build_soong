@@ -272,7 +272,7 @@ func (s SdkSpec) EffectiveVersionString(ctx EarlyModuleContext) (string, error) 
 
 var (
 	SdkSpecNone         = SdkSpec{SdkNone, NoneApiLevel, "(no version)"}
-	SdkSpecPrivate      = SdkSpec{SdkPrivate, FutureApiLevel, ""}
+	SdkSpecPrivate      = SdkSpec{SdkPrivate, PrivateApiLevel, ""}
 	SdkSpecCorePlatform = SdkSpec{SdkCorePlatform, FutureApiLevel, "core_platform"}
 )
 
@@ -295,7 +295,7 @@ func SdkSpecFromWithConfig(config Config, str string) SdkSpec {
 
 		var kindString string
 		if sep == 0 {
-			return SdkSpec{SdkInvalid, NoneApiLevel, str}
+			return SdkSpec{SdkInvalid, NewInvalidApiLevel(str), str}
 		} else if sep == -1 {
 			kindString = ""
 		} else {
@@ -323,7 +323,7 @@ func SdkSpecFromWithConfig(config Config, str string) SdkSpec {
 
 		apiLevel, err := ApiLevelFromUserWithConfig(config, versionString)
 		if err != nil {
-			return SdkSpec{SdkInvalid, apiLevel, str}
+			return SdkSpec{SdkInvalid, NewInvalidApiLevel(versionString), str}
 		}
 		return SdkSpec{kind, apiLevel, str}
 	}
