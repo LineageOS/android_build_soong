@@ -1568,6 +1568,10 @@ func (c *configImpl) IsBazelMixedBuildForceDisabled() bool {
 	return c.Environment().IsEnvTrue("BUILD_BROKEN_DISABLE_BAZEL")
 }
 
+func (c *configImpl) IsPersistentBazelEnabled() bool {
+	return c.Environment().IsEnvTrue("USE_PERSISTENT_BAZEL")
+}
+
 func (c *configImpl) BazelModulesForceEnabledByFlag() string {
 	return c.bazelForceEnabledModules
 }
