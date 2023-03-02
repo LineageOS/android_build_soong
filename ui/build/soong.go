@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"strings"
 
+	"android/soong/bazel"
 	"android/soong/ui/metrics"
 	"android/soong/ui/status"
 
@@ -268,6 +269,9 @@ func bootstrapBlueprint(ctx Context, config Config) {
 	if config.bazelStagingMode {
 		mainSoongBuildExtraArgs = append(mainSoongBuildExtraArgs, "--bazel-mode-staging")
 	}
+	if config.IsPersistentBazelEnabled() {
+		mainSoongBuildExtraArgs = append(mainSoongBuildExtraArgs, "--use-bazel-proxy")
+	}
 	if len(config.bazelForceEnabledModules) > 0 {
 		mainSoongBuildExtraArgs = append(mainSoongBuildExtraArgs, "--bazel-force-enabled-modules="+config.bazelForceEnabledModules)
 	}
@@ -496,6 +500,12 @@ func runSoong(ctx Context, config Config) {
 	ninja := func(name, ninjaFile string, targets ...string) {
 		ctx.BeginTrace(metrics.RunSoong, name)
 		defer ctx.EndTrace()
+
+		if config.IsPersistentBazelEnabled() {
+			bazelProxy := bazel.NewProxyServer(ctx.Logger, config.OutDir(), filepath.Join(config.SoongOutDir(), "workspace"))
+			bazelProxy.Start()
+			defer bazelProxy.Close()
+		}
 
 		fifo := filepath.Join(config.OutDir(), ".ninja_fifo")
 		nr := status.NewNinjaReader(ctx, ctx.Status.StartTool(), fifo)
