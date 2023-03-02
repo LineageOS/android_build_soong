@@ -333,6 +333,8 @@ func (a *apexBundle) buildFileContexts(ctx android.ModuleContext) android.Output
 		ctx.PropertyErrorf("file_contexts", "cannot find file_contexts file: %q", fileContexts.String())
 	}
 
+	useFileContextsAsIs := proptools.Bool(a.properties.Use_file_contexts_as_is)
+
 	output := android.PathForModuleOut(ctx, "file_contexts")
 	rule := android.NewRuleBuilder(pctx, ctx)
 
@@ -344,9 +346,11 @@ func (a *apexBundle) buildFileContexts(ctx android.ModuleContext) android.Output
 		rule.Command().Text("cat").Input(fileContexts).Text(">>").Output(output)
 		// new line
 		rule.Command().Text("echo").Text(">>").Output(output)
-		// force-label /apex_manifest.pb and / as system_file so that apexd can read them
-		rule.Command().Text("echo").Flag("/apex_manifest\\\\.pb u:object_r:system_file:s0").Text(">>").Output(output)
-		rule.Command().Text("echo").Flag("/ u:object_r:system_file:s0").Text(">>").Output(output)
+		if !useFileContextsAsIs {
+			// force-label /apex_manifest.pb and / as system_file so that apexd can read them
+			rule.Command().Text("echo").Flag("/apex_manifest\\\\.pb u:object_r:system_file:s0").Text(">>").Output(output)
+			rule.Command().Text("echo").Flag("/ u:object_r:system_file:s0").Text(">>").Output(output)
+		}
 	case flattenedApex:
 		// For flattened apexes, install path should be prepended.
 		// File_contexts file should be emiited to make via LOCAL_FILE_CONTEXTS
@@ -359,9 +363,11 @@ func (a *apexBundle) buildFileContexts(ctx android.ModuleContext) android.Output
 		rule.Command().Text("awk").Text(`'/object_r/{printf("` + apexPath + `%s\n", $0)}'`).Input(fileContexts).Text(">").Output(output)
 		// new line
 		rule.Command().Text("echo").Text(">>").Output(output)
-		// force-label /apex_manifest.pb and / as system_file so that apexd can read them
-		rule.Command().Text("echo").Flag(apexPath + `/apex_manifest\\.pb u:object_r:system_file:s0`).Text(">>").Output(output)
-		rule.Command().Text("echo").Flag(apexPath + "/ u:object_r:system_file:s0").Text(">>").Output(output)
+		if !useFileContextsAsIs {
+			// force-label /apex_manifest.pb and / as system_file so that apexd can read them
+			rule.Command().Text("echo").Flag(apexPath + `/apex_manifest\\.pb u:object_r:system_file:s0`).Text(">>").Output(output)
+			rule.Command().Text("echo").Flag(apexPath + "/ u:object_r:system_file:s0").Text(">>").Output(output)
+		}
 	default:
 		panic(fmt.Errorf("unsupported type %v", a.properties.ApexType))
 	}
