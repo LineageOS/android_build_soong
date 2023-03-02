@@ -1005,6 +1005,7 @@ func TestAppSdkVersion(t *testing.T) {
 		platformSdkInt        int
 		platformSdkCodename   string
 		platformSdkFinal      bool
+		minSdkVersionBp       string
 		expectedMinSdkVersion string
 		platformApis          bool
 		activeCodenames       []string
@@ -1052,6 +1053,14 @@ func TestAppSdkVersion(t *testing.T) {
 			platformSdkCodename:   "S",
 			activeCodenames:       []string{"S"},
 		},
+		{
+			name:                  "two active SDKs",
+			sdkVersion:            "module_current",
+			minSdkVersionBp:       "UpsideDownCake",
+			expectedMinSdkVersion: "UpsideDownCake", // And not VanillaIceCream
+			platformSdkCodename:   "VanillaIceCream",
+			activeCodenames:       []string{"UpsideDownCake", "VanillaIceCream"},
+		},
 	}
 
 	for _, moduleType := range []string{"android_app", "android_library"} {
@@ -1061,12 +1070,17 @@ func TestAppSdkVersion(t *testing.T) {
 				if test.platformApis {
 					platformApiProp = "platform_apis: true,"
 				}
+				minSdkVersionProp := ""
+				if test.minSdkVersionBp != "" {
+					minSdkVersionProp = fmt.Sprintf(` min_sdk_version: "%s",`, test.minSdkVersionBp)
+				}
 				bp := fmt.Sprintf(`%s {
 					name: "foo",
 					srcs: ["a.java"],
 					sdk_version: "%s",
 					%s
-				}`, moduleType, test.sdkVersion, platformApiProp)
+					%s
+				}`, moduleType, test.sdkVersion, platformApiProp, minSdkVersionProp)
 
 				result := android.GroupFixturePreparers(
 					prepareForJavaTest,
