@@ -646,7 +646,7 @@ func testSortedKeysHelper[K Ordered, V any](t *testing.T, name string, input map
 	t.Run(name, func(t *testing.T) {
 		actual := SortedKeys(input)
 		if !reflect.DeepEqual(actual, expected) {
-			t.Errorf("expected %q, got %q", expected, actual)
+			t.Errorf("expected %v, got %v", expected, actual)
 		}
 	})
 }
