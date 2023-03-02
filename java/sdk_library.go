@@ -1379,7 +1379,7 @@ func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext)
 	})
 
 	// Make the set of components exported by this module available for use elsewhere.
-	exportedComponentInfo := android.ExportedComponentsInfo{Components: android.SortedStringKeys(exportedComponents)}
+	exportedComponentInfo := android.ExportedComponentsInfo{Components: android.SortedKeys(exportedComponents)}
 	ctx.SetProvider(android.ExportedComponentsInfoProvider, exportedComponentInfo)
 
 	// Provide additional information for inclusion in an sdk's generated .info file.

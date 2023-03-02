@@ -517,14 +517,8 @@ func getJavaVersion(ctx android.ModuleContext, javaVersion string, sdkContext an
 		return normalizeJavaVersion(ctx, javaVersion)
 	} else if ctx.Device() {
 		return defaultJavaLanguageVersion(ctx, sdkContext.SdkVersion(ctx))
-	} else if ctx.Config().TargetsJava17() {
-		// Temporary experimental flag to be able to try and build with
-		// java version 17 options.  The flag, if used, just sets Java
-		// 17 as the default version, leaving any components that
-		// target an older version intact.
-		return JAVA_VERSION_17
 	} else {
-		return JAVA_VERSION_11
+		return JAVA_VERSION_17
 	}
 }
 
@@ -1781,7 +1775,7 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	rule.Build("metalava", "metalava merged")
 	compiledStubs := android.PathForModuleOut(ctx, ctx.ModuleName(), "stubs.jar")
-	al.stubsJar = android.PathForModuleOut(ctx, ctx.ModuleName(), "android.jar")
+	al.stubsJar = android.PathForModuleOut(ctx, ctx.ModuleName(), fmt.Sprintf("%s.jar", ctx.ModuleName()))
 
 	var flags javaBuilderFlags
 	flags.javaVersion = getStubsJavaVersion()
@@ -2165,15 +2159,18 @@ func (j *Import) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Modu
 // Implements android.ApexModule
 func (j *Import) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
 	sdkVersion android.ApiLevel) error {
-	sdkSpec := j.MinSdkVersion(ctx)
-	if !sdkSpec.Specified() {
+	sdkVersionSpec := j.SdkVersion(ctx)
+	minSdkVersionSpec := j.MinSdkVersion(ctx)
+	if !minSdkVersionSpec.Specified() {
 		return fmt.Errorf("min_sdk_version is not specified")
 	}
-	if sdkSpec.Kind == android.SdkCore {
+	// If the module is compiling against core (via sdk_version), skip comparison check.
+	if sdkVersionSpec.Kind == android.SdkCore {
 		return nil
 	}
-	if sdkSpec.ApiLevel.GreaterThan(sdkVersion) {
-		return fmt.Errorf("newer SDK(%v)", sdkSpec.ApiLevel)
+	minSdkVersion := minSdkVersionSpec.ApiLevel
+	if minSdkVersion.GreaterThan(sdkVersion) {
+		return fmt.Errorf("newer SDK(%v)", minSdkVersion)
 	}
 	return nil
 }

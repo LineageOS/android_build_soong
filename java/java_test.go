@@ -2037,11 +2037,11 @@ func TestJavaApiLibraryJarGeneration(t *testing.T) {
 	}{
 		{
 			moduleName:    "bar1",
-			outputJarName: "bar1/android.jar",
+			outputJarName: "bar1/bar1.jar",
 		},
 		{
 			moduleName:    "bar2",
-			outputJarName: "bar2/android.jar",
+			outputJarName: "bar2/bar2.jar",
 		},
 	}
 	for _, c := range testcases {
@@ -2113,7 +2113,7 @@ func TestJavaApiLibraryLibsLink(t *testing.T) {
 		},
 		{
 			moduleName:        "bar2",
-			classPathJarNames: []string{"lib1.jar", "lib2.jar", "bar1/android.jar"},
+			classPathJarNames: []string{"lib1.jar", "lib2.jar", "bar1/bar1.jar"},
 		},
 	}
 	for _, c := range testcases {
@@ -2188,7 +2188,7 @@ func TestJavaApiLibraryStaticLibsLink(t *testing.T) {
 		},
 		{
 			moduleName:        "bar2",
-			staticLibJarNames: []string{"lib1.jar", "lib2.jar", "bar1/android.jar"},
+			staticLibJarNames: []string{"lib1.jar", "lib2.jar", "bar1/bar1.jar"},
 		},
 	}
 	for _, c := range testcases {

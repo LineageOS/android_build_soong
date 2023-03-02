@@ -105,7 +105,7 @@ func CreateBazelFiles(
 
 func createBuildFiles(buildToTargets map[string]BazelTargets, mode CodegenMode) []BazelFile {
 	files := make([]BazelFile, 0, len(buildToTargets))
-	for _, dir := range android.SortedStringKeys(buildToTargets) {
+	for _, dir := range android.SortedKeys(buildToTargets) {
 		targets := buildToTargets[dir]
 		targets.sort()
 

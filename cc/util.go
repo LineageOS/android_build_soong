@@ -118,7 +118,7 @@ func combineNoticesRule(ctx android.SingletonContext, paths android.Paths, out s
 // ...
 func installMapListFileRule(ctx android.SingletonContext, m map[string]string, path string) android.OutputPath {
 	var txtBuilder strings.Builder
-	for idx, k := range android.SortedStringKeys(m) {
+	for idx, k := range android.SortedKeys(m) {
 		if idx > 0 {
 			txtBuilder.WriteString("\n")
 		}

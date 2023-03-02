@@ -532,7 +532,7 @@ func (p *PythonLibraryModule) createSrcsZip(ctx android.ModuleContext, pkgPath s
 
 	if len(relativeRootMap) > 0 {
 		// in order to keep stable order of soong_zip params, we sort the keys here.
-		roots := android.SortedStringKeys(relativeRootMap)
+		roots := android.SortedKeys(relativeRootMap)
 
 		// Use -symlinks=false so that the symlinks in the bazel output directory are followed
 		parArgs := []string{"-symlinks=false"}

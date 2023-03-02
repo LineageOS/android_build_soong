@@ -538,8 +538,8 @@ func shouldBuildBootImages(config android.Config, global *dexpreopt.GlobalConfig
 func copyBootJarsToPredefinedLocations(ctx android.ModuleContext, srcBootDexJarsByModule bootDexJarByModule, dstBootJarsByModule map[string]android.WritablePath) {
 	// Create the super set of module names.
 	names := []string{}
-	names = append(names, android.SortedStringKeys(srcBootDexJarsByModule)...)
-	names = append(names, android.SortedStringKeys(dstBootJarsByModule)...)
+	names = append(names, android.SortedKeys(srcBootDexJarsByModule)...)
+	names = append(names, android.SortedKeys(dstBootJarsByModule)...)
 	names = android.SortedUniqueStrings(names)
 	for _, name := range names {
 		src := srcBootDexJarsByModule[name]
@@ -760,8 +760,13 @@ func buildBootImageVariant(ctx android.ModuleContext, image *bootImageVariant, p
 		FlagWithArg("--android-root=", global.EmptyDirectory).
 		FlagWithArg("--no-inline-from=", "core-oj.jar").
 		Flag("--force-determinism").
-		Flag("--abort-on-hard-verifier-error").
-		FlagWithArg("--compiler-filter=", image.compilerFilter)
+		Flag("--abort-on-hard-verifier-error")
+
+	// If the image is profile-guided but the profile is disabled, we omit "--compiler-filter" to
+	// leave the decision to dex2oat to pick the compiler filter.
+	if !(image.isProfileGuided() && global.DisableGenerateProfile) {
+		cmd.FlagWithArg("--compiler-filter=", image.compilerFilter)
+	}
 
 	// Use the default variant/features for host builds.
 	// The map below contains only device CPU info (which might be x86 on some devices).
