@@ -57,7 +57,7 @@ func defaultJavaLanguageVersion(ctx android.EarlyModuleContext, s android.SdkSpe
 		return JAVA_VERSION_8
 	} else if sdk.FinalOrFutureInt() <= 31 {
 		return JAVA_VERSION_9
-	} else if sdk.FinalOrFutureInt() <= 32 {
+	} else if sdk.FinalOrFutureInt() <= 33 {
 		return JAVA_VERSION_11
 	} else {
 		return JAVA_VERSION_17
