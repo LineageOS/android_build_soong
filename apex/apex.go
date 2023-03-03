@@ -2946,12 +2946,8 @@ func (a *apexBundle) minSdkVersionValue(ctx android.EarlyModuleContext) string {
 }
 
 // Returns apex's min_sdk_version SdkSpec, honoring overrides
-func (a *apexBundle) MinSdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
-	return android.SdkSpec{
-		Kind:     android.SdkNone,
-		ApiLevel: a.minSdkVersion(ctx),
-		Raw:      a.minSdkVersionValue(ctx),
-	}
+func (a *apexBundle) MinSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel {
+	return a.minSdkVersion(ctx)
 }
 
 // Returns apex's min_sdk_version ApiLevel, honoring overrides
