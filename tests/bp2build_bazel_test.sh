@@ -21,6 +21,68 @@ function test_bp2build_null_build {
   fi
 }
 
+# Tests that, if bp2build reruns due to a blueprint file changing, that
+# BUILD files whose contents are unchanged are not regenerated.
+function test_bp2build_unchanged {
+  setup
+
+  mkdir -p pkg
+  touch pkg/x.txt
+  cat > pkg/Android.bp <<'EOF'
+filegroup {
+    name: "x",
+    srcs: ["x.txt"],
+    bazel_module: {bp2build_available: true},
+  }
+EOF
+
+  run_soong bp2build
+  local -r buildfile_mtime1=$(stat -c "%y" out/soong/bp2build/pkg/BUILD.bazel)
+  local -r marker_mtime1=$(stat -c "%y" out/soong/bp2build_workspace_marker)
+
+  # Force bp2build to rerun by updating the timestamp of a blueprint file.
+  touch pkg/Android.bp
+
+  run_soong bp2build
+  local -r buildfile_mtime2=$(stat -c "%y" out/soong/bp2build/pkg/BUILD.bazel)
+  local -r marker_mtime2=$(stat -c "%y" out/soong/bp2build_workspace_marker)
+
+  if [[ "$marker_mtime1" == "$marker_mtime2" ]]; then
+    fail "Expected bp2build marker file to change"
+  fi
+  if [[ "$buildfile_mtime1" != "$buildfile_mtime2" ]]; then
+    fail "BUILD.bazel was updated even though contents are same"
+  fi
+}
+
+# Tests that blueprint files that are deleted are not present when the
+# bp2build tree is regenerated.
+function test_bp2build_deleted_blueprint {
+  setup
+
+  mkdir -p pkg
+  touch pkg/x.txt
+  cat > pkg/Android.bp <<'EOF'
+filegroup {
+    name: "x",
+    srcs: ["x.txt"],
+    bazel_module: {bp2build_available: true},
+  }
+EOF
+
+  run_soong bp2build
+  if [[ ! -e "./out/soong/bp2build/pkg/BUILD.bazel" ]]; then
+    fail "Expected pkg/BUILD.bazel to be generated"
+  fi
+
+  rm pkg/Android.bp
+
+  run_soong bp2build
+  if [[ -e "./out/soong/bp2build/pkg/BUILD.bazel" ]]; then
+    fail "Expected pkg/BUILD.bazel to be deleted"
+  fi
+}
+
 function test_bp2build_null_build_with_globs {
   setup
 

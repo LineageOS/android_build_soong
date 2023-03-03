@@ -81,6 +81,7 @@ func init() {
 	flag.BoolVar(&cmdlineArgs.BazelMode, "bazel-mode", false, "use bazel for analysis of certain modules")
 	flag.BoolVar(&cmdlineArgs.BazelModeStaging, "bazel-mode-staging", false, "use bazel for analysis of certain near-ready modules")
 	flag.BoolVar(&cmdlineArgs.BazelModeDev, "bazel-mode-dev", false, "use bazel for analysis of a large number of modules (less stable)")
+	flag.BoolVar(&cmdlineArgs.UseBazelProxy, "use-bazel-proxy", false, "communicate with bazel using unix socket proxy instead of spawning subprocesses")
 
 	// Flags that probably shouldn't be flags of soong_build, but we haven't found
 	// the time to remove them yet
