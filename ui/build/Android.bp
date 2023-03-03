@@ -50,6 +50,7 @@ bootstrap_go_package {
         "cleanbuild.go",
         "config.go",
         "context.go",
+        "staging_snapshot.go",
         "dumpvars.go",
         "environment.go",
         "exec.go",
@@ -70,10 +71,11 @@ bootstrap_go_package {
         "cleanbuild_test.go",
         "config_test.go",
         "environment_test.go",
+        "proc_sync_test.go",
         "rbe_test.go",
+        "staging_snapshot_test.go",
         "upload_test.go",
         "util_test.go",
-        "proc_sync_test.go",
     ],
     darwin: {
         srcs: [
