@@ -817,6 +817,7 @@ func bp2BuildParseBaseProps(ctx android.Bp2buildMutatorContext, module *Module) 
 	compilerAttrs.hdrs.Prepend = true
 
 	features := compilerAttrs.features.Clone().Append(linkerAttrs.features).Append(bp2buildSanitizerFeatures(ctx, module))
+	features = features.Append(bp2buildLtoFeatures(ctx, module))
 	features.DeduplicateAxesFromBase()
 
 	addMuslSystemDynamicDeps(ctx, linkerAttrs)
@@ -1458,4 +1459,50 @@ func bp2buildSanitizerFeatures(ctx android.BazelConversionPathContext, m *Module
 		}
 	})
 	return sanitizerFeatures
+}
+
+func bp2buildLtoFeatures(ctx android.BazelConversionPathContext, m *Module) bazel.StringListAttribute {
+	lto_feature_name := "android_thin_lto"
+	ltoBoolFeatures := bazel.BoolAttribute{}
+	bp2BuildPropParseHelper(ctx, m, &LTOProperties{}, func(axis bazel.ConfigurationAxis, config string, props interface{}) {
+		if ltoProps, ok := props.(*LTOProperties); ok {
+			thinProp := ltoProps.Lto.Thin != nil && *ltoProps.Lto.Thin
+			thinPropSetToFalse := ltoProps.Lto.Thin != nil && !*ltoProps.Lto.Thin
+			neverProp := ltoProps.Lto.Never != nil && *ltoProps.Lto.Never
+			if thinProp {
+				ltoBoolFeatures.SetSelectValue(axis, config, BoolPtr(true))
+				return
+			}
+			if neverProp || thinPropSetToFalse {
+				if thinProp {
+					ctx.ModuleErrorf("lto.thin and lto.never are mutually exclusive but were specified together")
+				} else {
+					ltoBoolFeatures.SetSelectValue(axis, config, BoolPtr(false))
+				}
+				return
+			}
+		}
+		ltoBoolFeatures.SetSelectValue(axis, config, nil)
+	})
+
+	props := m.GetArchVariantProperties(ctx, &LTOProperties{})
+	ltoStringFeatures, err := ltoBoolFeatures.ToStringListAttribute(func(boolPtr *bool, axis bazel.ConfigurationAxis, config string) []string {
+		if boolPtr == nil {
+			return []string{}
+		}
+		if !*boolPtr {
+			return []string{"-" + lto_feature_name}
+		}
+		features := []string{lto_feature_name}
+		if ltoProps, ok := props[axis][config].(*LTOProperties); ok {
+			if ltoProps.Whole_program_vtables != nil && *ltoProps.Whole_program_vtables {
+				features = append(features, "android_thin_lto_whole_program_vtables")
+			}
+		}
+		return features
+	})
+	if err != nil {
+		ctx.ModuleErrorf("Error processing LTO attributes: %s", err)
+	}
+	return ltoStringFeatures
 }
