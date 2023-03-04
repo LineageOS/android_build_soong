@@ -1889,3 +1889,133 @@ cc_library_static {
 		},
 	})
 }
+
+func TestCcLibraryStaticWithThinLto(t *testing.T) {
+	runCcLibraryStaticTestCase(t, Bp2buildTestCase{
+		Description: "cc_library_static has correct features when thin lto is enabled",
+		Blueprint: `
+cc_library_static {
+	name: "foo",
+	lto: {
+		thin: true,
+	},
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_library_static", "foo", AttrNameToString{
+				"features":       `["android_thin_lto"]`,
+				"local_includes": `["."]`,
+			}),
+		},
+	})
+}
+
+func TestCcLibraryStaticWithLtoNever(t *testing.T) {
+	runCcLibraryStaticTestCase(t, Bp2buildTestCase{
+		Description: "cc_library_static has correct features when thin lto is enabled",
+		Blueprint: `
+cc_library_static {
+	name: "foo",
+	lto: {
+		never: true,
+	},
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_library_static", "foo", AttrNameToString{
+				"features":       `["-android_thin_lto"]`,
+				"local_includes": `["."]`,
+			}),
+		},
+	})
+}
+
+func TestCcLibraryStaticWithThinLtoArchSpecific(t *testing.T) {
+	runCcLibraryStaticTestCase(t, Bp2buildTestCase{
+		Description: "cc_library_static has correct features when LTO differs across arch and os variants",
+		Blueprint: `
+cc_library_static {
+	name: "foo",
+	target: {
+		android: {
+			lto: {
+				thin: true,
+			},
+		},
+	},
+	arch: {
+		riscv64: {
+			lto: {
+				thin: false,
+			},
+		},
+	},
+}`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_library_static", "foo", AttrNameToString{
+				"local_includes": `["."]`,
+				"features": `select({
+        "//build/bazel/platforms/os_arch:android_arm": ["android_thin_lto"],
+        "//build/bazel/platforms/os_arch:android_arm64": ["android_thin_lto"],
+        "//build/bazel/platforms/os_arch:android_riscv64": ["-android_thin_lto"],
+        "//build/bazel/platforms/os_arch:android_x86": ["android_thin_lto"],
+        "//build/bazel/platforms/os_arch:android_x86_64": ["android_thin_lto"],
+        "//conditions:default": [],
+    })`}),
+		},
+	})
+}
+
+func TestCcLibraryStaticWithThinLtoDisabledDefaultEnabledVariant(t *testing.T) {
+	runCcLibraryStaticTestCase(t, Bp2buildTestCase{
+		Description: "cc_library_static has correct features when LTO disabled by default but enabled on a particular variant",
+		Blueprint: `
+cc_library_static {
+	name: "foo",
+	lto: {
+		never: true,
+	},
+	target: {
+		android: {
+			lto: {
+				thin: true,
+				never: false,
+			},
+		},
+	},
+}`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_library_static", "foo", AttrNameToString{
+				"local_includes": `["."]`,
+				"features": `select({
+        "//build/bazel/platforms/os:android": ["android_thin_lto"],
+        "//conditions:default": ["-android_thin_lto"],
+    })`,
+			}),
+		},
+	})
+}
+
+func TestCcLibraryStaticWithThinLtoAndWholeProgramVtables(t *testing.T) {
+	runCcLibraryStaticTestCase(t, Bp2buildTestCase{
+		Description: "cc_library_static has correct features when thin lto is enabled with whole_program_vtables",
+		Blueprint: `
+cc_library_static {
+	name: "foo",
+	lto: {
+		thin: true,
+	},
+	whole_program_vtables: true,
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_library_static", "foo", AttrNameToString{
+				"features": `[
+        "android_thin_lto",
+        "android_thin_lto_whole_program_vtables",
+    ]`,
+				"local_includes": `["."]`,
+			}),
+		},
+	})
+}

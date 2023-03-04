@@ -225,6 +225,8 @@ func ApiLevelFromUser(ctx PathContext, raw string) (ApiLevel, error) {
 // ApiLevelFromUserWithConfig implements ApiLevelFromUser, see comments for
 // ApiLevelFromUser for more details.
 func ApiLevelFromUserWithConfig(config Config, raw string) (ApiLevel, error) {
+	// This logic is replicated in starlark, if changing logic here update starlark code too
+	// https://cs.android.com/android/platform/superproject/+/master:build/bazel/rules/common/api.bzl;l=42;drc=231c7e8c8038fd478a79eb68aa5b9f5c64e0e061
 	if raw == "" {
 		panic("API level string must be non-empty")
 	}
@@ -329,6 +331,8 @@ func getApiLevelsMapReleasedVersions() map[string]int {
 var finalCodenamesMapKey = NewOnceKey("FinalCodenamesMap")
 
 func getFinalCodenamesMap(config Config) map[string]int {
+	// This logic is replicated in starlark, if changing logic here update starlark code too
+	// https://cs.android.com/android/platform/superproject/+/master:build/bazel/rules/common/api.bzl;l=30;drc=231c7e8c8038fd478a79eb68aa5b9f5c64e0e061
 	return config.Once(finalCodenamesMapKey, func() interface{} {
 		apiLevelsMap := getApiLevelsMapReleasedVersions()
 
@@ -355,6 +359,8 @@ var apiLevelsMapKey = NewOnceKey("ApiLevelsMap")
 
 // ApiLevelsMap has entries for preview API levels
 func GetApiLevelsMap(config Config) map[string]int {
+	// This logic is replicated in starlark, if changing logic here update starlark code too
+	// https://cs.android.com/android/platform/superproject/+/master:build/bazel/rules/common/api.bzl;l=23;drc=231c7e8c8038fd478a79eb68aa5b9f5c64e0e061
 	return config.Once(apiLevelsMapKey, func() interface{} {
 		apiLevelsMap := getApiLevelsMapReleasedVersions()
 		for i, codename := range config.PlatformVersionActiveCodenames() {
