@@ -883,6 +883,8 @@ func (c *config) AllSupportedApiLevels() []ApiLevel {
 // DefaultAppTargetSdk returns the API level that platform apps are targeting.
 // This converts a codename to the exact ApiLevel it represents.
 func (c *config) DefaultAppTargetSdk(ctx EarlyModuleContext) ApiLevel {
+	// This logic is replicated in starlark, if changing logic here update starlark code too
+	// https://cs.android.com/android/platform/superproject/+/master:build/bazel/rules/common/api.bzl;l=72;drc=231c7e8c8038fd478a79eb68aa5b9f5c64e0e061
 	if Bool(c.productVariables.Platform_sdk_final) {
 		return c.PlatformSdkVersion()
 	}
