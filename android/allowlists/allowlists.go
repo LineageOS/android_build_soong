@@ -689,11 +689,18 @@ var (
 
 		//kotlin srcs in android_binary
 		"MusicKotlin",
+
+		// checked in current.txt for merged_txts
+		"non-updatable-current.txt",
+		"non-updatable-system-current.txt",
+		"non-updatable-module-lib-current.txt",
+		"non-updatable-system-server-current.txt",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
 		"aidl_interface_headers",
 		"bpf",
+		"combined_apis",
 		"license",
 		"linker_config",
 		"java_import",
