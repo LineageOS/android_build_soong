@@ -221,6 +221,11 @@ func TestJavaBinaryHostKotlinWithResourceDir(t *testing.T) {
         "a.java",
         "b.kt",
     ]`,
+				"resources": `[
+        "res/a.res",
+        "res/dir1/b.res",
+    ]`,
+				"resource_strip_prefix": `"res"`,
 				"target_compatible_with": `select({
         "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
@@ -229,11 +234,6 @@ func TestJavaBinaryHostKotlinWithResourceDir(t *testing.T) {
 			MakeBazelTarget("java_binary", "java-binary-host", AttrNameToString{
 				"main_class":   `"com.android.test.MainClass"`,
 				"runtime_deps": `[":java-binary-host_kt"]`,
-				"resources": `[
-        "res/a.res",
-        "res/dir1/b.res",
-    ]`,
-				"resource_strip_prefix": `"res"`,
 				"target_compatible_with": `select({
         "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
