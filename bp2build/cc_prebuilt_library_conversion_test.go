@@ -39,6 +39,10 @@ cc_prebuilt_library {
 				MakeBazelTarget("cc_prebuilt_library_static", "libtest_bp2build_cc_library_static", AttrNameToString{
 					"static_library": `"libf.so"`,
 				}),
+				MakeBazelTarget("cc_prebuilt_library_static", "libtest_bp2build_cc_library_static_alwayslink", AttrNameToString{
+					"static_library": `"libf.so"`,
+					"alwayslink":     "True",
+				}),
 				MakeBazelTarget("cc_prebuilt_library_shared", "libtest", AttrNameToString{
 					"shared_library": `"libf.so"`,
 				}),
@@ -71,8 +75,14 @@ cc_prebuilt_library {
         "//build/bazel/platforms/arch:arm": "libg.so",
         "//build/bazel/platforms/arch:arm64": "libf.so",
         "//conditions:default": None,
-    })`,
-				}),
+    })`}),
+				MakeBazelTarget("cc_prebuilt_library_static", "libtest_bp2build_cc_library_static_alwayslink", AttrNameToString{
+					"alwayslink": "True",
+					"static_library": `select({
+        "//build/bazel/platforms/arch:arm": "libg.so",
+        "//build/bazel/platforms/arch:arm64": "libf.so",
+        "//conditions:default": None,
+    })`}),
 				MakeBazelTarget("cc_prebuilt_library_shared", "libtest", AttrNameToString{
 					"shared_library": `select({
         "//build/bazel/platforms/arch:arm": "libg.so",
@@ -108,6 +118,12 @@ cc_prebuilt_library {
 					"static_library":         `"libf.so"`,
 					"export_includes":        `["testdir/1/"]`,
 					"export_system_includes": `["testdir/2/"]`,
+				}),
+				MakeBazelTarget("cc_prebuilt_library_static", "libtest_bp2build_cc_library_static_alwayslink", AttrNameToString{
+					"static_library":         `"libf.so"`,
+					"export_includes":        `["testdir/1/"]`,
+					"export_system_includes": `["testdir/2/"]`,
+					"alwayslink":             "True",
 				}),
 				// TODO(b/229374533): When fixed, update this test
 				MakeBazelTarget("cc_prebuilt_library_shared", "libtest", AttrNameToString{
@@ -188,6 +204,10 @@ cc_prebuilt_library {
 				MakeBazelTarget("cc_prebuilt_library_static", "libtest_bp2build_cc_library_static", AttrNameToString{
 					"static_library": `"libf.so"`,
 				}),
+				MakeBazelTarget("cc_prebuilt_library_static", "libtest_bp2build_cc_library_static_alwayslink", AttrNameToString{
+					"static_library": `"libf.so"`,
+					"alwayslink":     "True",
+				}),
 				MakeBazelTarget("cc_prebuilt_library_shared", "libtest", AttrNameToString{
 					"shared_library": `"libg.so"`,
 				}),
@@ -244,6 +264,10 @@ cc_prebuilt_library {
 //			expectedBazelTargets: []string{
 //				makeBazelTarget("cc_prebuilt_library_static", "libtest_bp2build_cc_library_static", attrNameToString{
 //					"static_library": `"libf.so"`,
+//				}),
+//				makeBazelTarget("cc_prebuilt_library_static", "libtest_bp2build_cc_library_static_always", attrNameToString{
+//					"static_library": `"libf.so"`,
+//					"alwayslink": "True",
 //				}),
 //			},
 //		})
