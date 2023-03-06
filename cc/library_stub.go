@@ -23,7 +23,8 @@ import (
 )
 
 var (
-	ndkVariantRegex = regexp.MustCompile("ndk\\.([a-zA-Z0-9]+)")
+	ndkVariantRegex  = regexp.MustCompile("ndk\\.([a-zA-Z0-9]+)")
+	stubVariantRegex = regexp.MustCompile("apex\\.([a-zA-Z0-9]+)")
 )
 
 func init() {
@@ -56,6 +57,12 @@ func updateImportedLibraryDependency(ctx android.BottomUpMutatorContext) {
 	} else if m.IsSdkVariant() {
 		// Add NDK variant dependencies
 		targetVariant := "ndk." + m.StubsVersion()
+		if inList(targetVariant, apiLibrary.properties.Variants) {
+			variantName := BuildApiVariantName(m.BaseModuleName(), targetVariant, "")
+			ctx.AddDependency(m, nil, variantName)
+		}
+	} else if m.IsStubs() {
+		targetVariant := "apex." + m.StubsVersion()
 		if inList(targetVariant, apiLibrary.properties.Variants) {
 			variantName := BuildApiVariantName(m.BaseModuleName(), targetVariant, "")
 			ctx.AddDependency(m, nil, variantName)
@@ -153,15 +160,15 @@ func (d *apiLibraryDecorator) link(ctx ModuleContext, flags Flags, deps PathDeps
 		in = android.MaybeExistentPathForSource(ctx, ctx.ModuleDir(), src)
 	}
 
-	// LLNDK variant
-	if m.UseVndk() && d.hasLLNDKStubs() {
-		apiVariantModule := BuildApiVariantName(m.BaseModuleName(), "llndk", "")
+	libName := m.BaseModuleName() + multitree.GetApiImportSuffix()
 
+	load_cc_variant := func(apiVariantModule string) {
 		var mod android.Module
 
 		ctx.VisitDirectDeps(func(depMod android.Module) {
 			if depMod.Name() == apiVariantModule {
 				mod = depMod
+				libName = apiVariantModule
 			}
 		})
 
@@ -184,37 +191,17 @@ func (d *apiLibraryDecorator) link(ctx ModuleContext, flags Flags, deps PathDeps
 				}
 			}
 		}
+	}
+
+	if m.UseVndk() && d.hasLLNDKStubs() {
+		// LLNDK variant
+		load_cc_variant(BuildApiVariantName(m.BaseModuleName(), "llndk", ""))
 	} else if m.IsSdkVariant() {
 		// NDK Variant
-		apiVariantModule := BuildApiVariantName(m.BaseModuleName(), "ndk", m.StubsVersion())
-
-		var mod android.Module
-
-		ctx.VisitDirectDeps(func(depMod android.Module) {
-			if depMod.Name() == apiVariantModule {
-				mod = depMod
-			}
-		})
-
-		if mod != nil {
-			variantMod, ok := mod.(*CcApiVariant)
-			if ok {
-				in = variantMod.Src()
-
-				// Copy NDK properties to cc_api_library module
-				d.libraryDecorator.flagExporter.Properties.Export_include_dirs = append(
-					d.libraryDecorator.flagExporter.Properties.Export_include_dirs,
-					variantMod.exportProperties.Export_include_dirs...)
-
-				// Export headers as system include dirs if specified. Mostly for libc
-				if Bool(variantMod.exportProperties.Export_headers_as_system) {
-					d.libraryDecorator.flagExporter.Properties.Export_system_include_dirs = append(
-						d.libraryDecorator.flagExporter.Properties.Export_system_include_dirs,
-						d.libraryDecorator.flagExporter.Properties.Export_include_dirs...)
-					d.libraryDecorator.flagExporter.Properties.Export_include_dirs = nil
-				}
-			}
-		}
+		load_cc_variant(BuildApiVariantName(m.BaseModuleName(), "ndk", m.StubsVersion()))
+	} else if m.IsStubs() {
+		// APEX Variant
+		load_cc_variant(BuildApiVariantName(m.BaseModuleName(), "apex", m.StubsVersion()))
 	}
 
 	// Flags reexported from dependencies. (e.g. vndk_prebuilt_shared)
@@ -237,25 +224,76 @@ func (d *apiLibraryDecorator) link(ctx ModuleContext, flags Flags, deps PathDeps
 	d.libraryDecorator.flagExporter.setProvider(ctx)
 
 	d.unstrippedOutputFile = in
-	libName := d.libraryDecorator.getLibName(ctx) + flags.Toolchain.ShlibSuffix()
+	libName += flags.Toolchain.ShlibSuffix()
 
 	tocFile := android.PathForModuleOut(ctx, libName+".toc")
 	d.tocFile = android.OptionalPathForPath(tocFile)
 	TransformSharedObjectToToc(ctx, in, tocFile)
 
+	outputFile := android.PathForModuleOut(ctx, libName)
+
+	// TODO(b/270485584) This copies with a new name, just to avoid conflict with prebuilts.
+	// We can just use original input if there is any way to avoid name conflict without copy.
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        android.Cp,
+		Description: "API surface imported library",
+		Input:       in,
+		Output:      outputFile,
+		Args: map[string]string{
+			"cpFlags": "-L",
+		},
+	})
+
 	ctx.SetProvider(SharedLibraryInfoProvider, SharedLibraryInfo{
-		SharedLibrary: in,
+		SharedLibrary: outputFile,
 		Target:        ctx.Target(),
 
 		TableOfContents: d.tocFile,
 	})
 
-	return in
+	d.shareStubs(ctx)
+
+	return outputFile
+}
+
+// Share additional information about stub libraries with provider
+func (d *apiLibraryDecorator) shareStubs(ctx ModuleContext) {
+	stubs := ctx.GetDirectDepsWithTag(stubImplDepTag)
+	if len(stubs) > 0 {
+		var stubsInfo []SharedStubLibrary
+		for _, stub := range stubs {
+			stubInfo := ctx.OtherModuleProvider(stub, SharedLibraryInfoProvider).(SharedLibraryInfo)
+			flagInfo := ctx.OtherModuleProvider(stub, FlagExporterInfoProvider).(FlagExporterInfo)
+			stubsInfo = append(stubsInfo, SharedStubLibrary{
+				Version:           moduleLibraryInterface(stub).stubsVersion(),
+				SharedLibraryInfo: stubInfo,
+				FlagExporterInfo:  flagInfo,
+			})
+		}
+		ctx.SetProvider(SharedLibraryStubsProvider, SharedLibraryStubsInfo{
+			SharedStubLibraries: stubsInfo,
+
+			IsLLNDK: ctx.IsLlndk(),
+		})
+	}
 }
 
 func (d *apiLibraryDecorator) availableFor(what string) bool {
 	// Stub from API surface should be available for any APEX.
 	return true
+}
+
+func (d *apiLibraryDecorator) hasApexStubs() bool {
+	for _, variant := range d.properties.Variants {
+		if strings.HasPrefix(variant, "apex") {
+			return true
+		}
+	}
+	return false
+}
+
+func (d *apiLibraryDecorator) hasStubsVariants() bool {
+	return d.hasApexStubs()
 }
 
 func (d *apiLibraryDecorator) stubsVersions(ctx android.BaseMutatorContext) []string {
@@ -265,19 +303,24 @@ func (d *apiLibraryDecorator) stubsVersions(ctx android.BaseMutatorContext) []st
 		return nil
 	}
 
-	if d.hasLLNDKStubs() && m.UseVndk() {
-		// LLNDK libraries only need a single stubs variant.
-		return []string{android.FutureApiLevel.String()}
-	}
-
 	// TODO(b/244244438) Create more version information for NDK and APEX variations
 	// NDK variants
-
 	if m.IsSdkVariant() {
 		// TODO(b/249193999) Do not check if module has NDK stubs once all NDK cc_api_library contains ndk variant of cc_api_variant.
 		if d.hasNDKStubs() {
 			return d.getNdkVersions()
 		}
+	}
+
+	if d.hasLLNDKStubs() && m.UseVndk() {
+		// LLNDK libraries only need a single stubs variant.
+		return []string{android.FutureApiLevel.String()}
+	}
+
+	stubsVersions := d.getStubVersions()
+
+	if len(stubsVersions) != 0 {
+		return stubsVersions
 	}
 
 	if m.MinSdkVersion() == "" {
@@ -317,6 +360,18 @@ func (d *apiLibraryDecorator) getNdkVersions() []string {
 	}
 
 	return ndkVersions
+}
+
+func (d *apiLibraryDecorator) getStubVersions() []string {
+	stubVersions := []string{}
+
+	for _, variant := range d.properties.Variants {
+		if match := stubVariantRegex.FindStringSubmatch(variant); len(match) == 2 {
+			stubVersions = append(stubVersions, match[1])
+		}
+	}
+
+	return stubVersions
 }
 
 // 'cc_api_headers' is similar with 'cc_api_library', but which replaces
@@ -433,7 +488,7 @@ func BuildApiVariantName(baseName string, variant string, version string) string
 // Implement ImageInterface to generate image variants
 func (v *CcApiVariant) ImageMutatorBegin(ctx android.BaseModuleContext) {}
 func (v *CcApiVariant) CoreVariantNeeded(ctx android.BaseModuleContext) bool {
-	return String(v.properties.Variant) == "ndk"
+	return inList(String(v.properties.Variant), []string{"ndk", "apex"})
 }
 func (v *CcApiVariant) RamdiskVariantNeeded(ctx android.BaseModuleContext) bool       { return false }
 func (v *CcApiVariant) VendorRamdiskVariantNeeded(ctx android.BaseModuleContext) bool { return false }
