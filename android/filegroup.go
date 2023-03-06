@@ -23,12 +23,17 @@ import (
 )
 
 func init() {
-	RegisterModuleType("filegroup", FileGroupFactory)
+	RegisterFilegroupBuildComponents(InitRegistrationContext)
 }
 
 var PrepareForTestWithFilegroup = FixtureRegisterWithContext(func(ctx RegistrationContext) {
-	ctx.RegisterModuleType("filegroup", FileGroupFactory)
+	RegisterFilegroupBuildComponents(ctx)
 })
+
+func RegisterFilegroupBuildComponents(ctx RegistrationContext) {
+	ctx.RegisterModuleType("filegroup", FileGroupFactory)
+	ctx.RegisterModuleType("filegroup_defaults", FileGroupDefaultsFactory)
+}
 
 // IsFilegroup checks that a module is a filegroup type
 func IsFilegroup(ctx bazel.OtherModuleContext, m blueprint.Module) bool {
@@ -97,6 +102,7 @@ type fileGroupProperties struct {
 type fileGroup struct {
 	ModuleBase
 	BazelModuleBase
+	DefaultableModuleBase
 	properties fileGroupProperties
 	srcs       Paths
 }
@@ -111,6 +117,7 @@ func FileGroupFactory() Module {
 	module.AddProperties(&module.properties)
 	InitAndroidModule(module)
 	InitBazelModule(module)
+	InitDefaultableModule(module)
 	return module
 }
 
@@ -160,4 +167,18 @@ func (fg *fileGroup) MakeVars(ctx MakeVarsModuleContext) {
 	if makeVar := String(fg.properties.Export_to_make_var); makeVar != "" {
 		ctx.StrictRaw(makeVar, strings.Join(fg.srcs.Strings(), " "))
 	}
+}
+
+// Defaults
+type FileGroupDefaults struct {
+	ModuleBase
+	DefaultsModuleBase
+}
+
+func FileGroupDefaultsFactory() Module {
+	module := &FileGroupDefaults{}
+	module.AddProperties(&fileGroupProperties{})
+	InitDefaultsModule(module)
+
+	return module
 }
