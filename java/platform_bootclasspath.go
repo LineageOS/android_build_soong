@@ -414,7 +414,6 @@ func (b *platformBootclasspathModule) generateBootImageBuildActions(ctx android.
 	frameworkBootImageConfig := defaultBootImageConfig(ctx)
 	bootFrameworkProfileRule(ctx, frameworkBootImageConfig)
 	b.generateBootImage(ctx, frameworkBootImageName, platformModules)
-	b.generateBootImage(ctx, mainlineBootImageName, apexModules)
 	b.copyApexBootJarsForAppsDexpreopt(ctx, apexModules)
 	dumpOatRules(ctx, frameworkBootImageConfig)
 }

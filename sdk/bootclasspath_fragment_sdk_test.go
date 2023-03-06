@@ -27,11 +27,6 @@ import (
 // fixtureAddPlatformBootclasspathForBootclasspathFragment adds a platform_bootclasspath module that
 // references the bootclasspath fragment.
 func fixtureAddPlatformBootclasspathForBootclasspathFragment(apex, fragment string) android.FixturePreparer {
-	return fixtureAddPlatformBootclasspathForBootclasspathFragmentWithExtra(apex, fragment, "")
-}
-
-// fixtureAddPlatformBootclasspathForBootclasspathFragmentWithExtra is the same as above, but also adds extra fragments.
-func fixtureAddPlatformBootclasspathForBootclasspathFragmentWithExtra(apex, fragment, extraFragments string) android.FixturePreparer {
 	return android.GroupFixturePreparers(
 		// Add a platform_bootclasspath module.
 		android.FixtureAddTextFile("frameworks/base/boot/Android.bp", fmt.Sprintf(`
@@ -42,10 +37,9 @@ func fixtureAddPlatformBootclasspathForBootclasspathFragmentWithExtra(apex, frag
 						apex: "%s",
 						module: "%s",
 					},
-					%s
 				],
 			}
-		`, apex, fragment, extraFragments)),
+		`, apex, fragment)),
 		android.FixtureAddFile("frameworks/base/config/boot-profile.txt", nil),
 		android.FixtureAddFile("frameworks/base/config/boot-image-profile.txt", nil),
 		android.FixtureAddFile("build/soong/scripts/check_boot_jars/package_allowed_list.txt", nil),
@@ -85,11 +79,9 @@ func TestSnapshotWithBootclasspathFragment_ImageName(t *testing.T) {
 		}),
 
 		// Add a platform_bootclasspath that depends on the fragment.
-		fixtureAddPlatformBootclasspathForBootclasspathFragmentWithExtra(
-			"com.android.art", "mybootclasspathfragment", java.ApexBootJarFragmentsForPlatformBootclasspath),
+		fixtureAddPlatformBootclasspathForBootclasspathFragment("com.android.art", "mybootclasspathfragment"),
 
 		java.PrepareForBootImageConfigTest,
-		java.PrepareApexBootJarConfigsAndModules,
 		android.FixtureWithRootAndroidBp(`
 			sdk {
 				name: "mysdk",
@@ -204,15 +196,9 @@ java_import {
 		snapshotTestChecker(checkSnapshotWithoutSource, func(t *testing.T, result *android.TestResult) {
 			// Make sure that the boot jars package check rule includes the dex jars retrieved from the prebuilt apex.
 			checkBootJarsPackageCheckRule(t, result,
-				append(
-					[]string{
-						"out/soong/.intermediates/prebuilts/apex/com.android.art.deapexer/android_common/deapexer/javalib/core1.jar",
-						"out/soong/.intermediates/prebuilts/apex/com.android.art.deapexer/android_common/deapexer/javalib/core2.jar",
-						"out/soong/.intermediates/default/java/framework/android_common/aligned/framework.jar",
-					},
-					java.ApexBootJarDexJarPaths...,
-				)...,
-			)
+				"out/soong/.intermediates/prebuilts/apex/com.android.art.deapexer/android_common/deapexer/javalib/core1.jar",
+				"out/soong/.intermediates/prebuilts/apex/com.android.art.deapexer/android_common/deapexer/javalib/core2.jar",
+				"out/soong/.intermediates/default/java/framework/android_common/aligned/framework.jar")
 			java.CheckMutatedArtBootImageConfig(t, result, "out/soong/.intermediates/snapshot/mybootclasspathfragment/android_common_com.android.art/meta_lic")
 			java.CheckMutatedFrameworkBootImageConfig(t, result, "out/soong/.intermediates/frameworks/base/boot/platform-bootclasspath/android_common/meta_lic")
 		}),
@@ -236,15 +222,9 @@ java_import {
 
 	// Make sure that the boot jars package check rule includes the dex jars created from the source.
 	checkBootJarsPackageCheckRule(t, result,
-		append(
-			[]string{
-				"out/soong/.intermediates/core1/android_common_apex10000/aligned/core1.jar",
-				"out/soong/.intermediates/core2/android_common_apex10000/aligned/core2.jar",
-				"out/soong/.intermediates/default/java/framework/android_common/aligned/framework.jar",
-			},
-			java.ApexBootJarDexJarPaths...,
-		)...,
-	)
+		"out/soong/.intermediates/core1/android_common_apex10000/aligned/core1.jar",
+		"out/soong/.intermediates/core2/android_common_apex10000/aligned/core2.jar",
+		"out/soong/.intermediates/default/java/framework/android_common/aligned/framework.jar")
 }
 
 // checkBootJarsPackageCheckRule checks that the supplied module is an input to the boot jars
