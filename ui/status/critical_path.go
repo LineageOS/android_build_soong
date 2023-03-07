@@ -15,23 +15,23 @@
 package status
 
 import (
+	"android/soong/ui/metrics"
+
+	soong_metrics_proto "android/soong/ui/metrics/metrics_proto"
 	"time"
 
-	"android/soong/ui/logger"
+	"google.golang.org/protobuf/proto"
 )
 
-func NewCriticalPath(log logger.Logger) StatusOutput {
-	return &criticalPath{
-		log:     log,
+func NewCriticalPath() *CriticalPath {
+	return &CriticalPath{
 		running: make(map[*Action]time.Time),
 		nodes:   make(map[string]*node),
 		clock:   osClock{},
 	}
 }
 
-type criticalPath struct {
-	log logger.Logger
-
+type CriticalPath struct {
 	nodes   map[string]*node
 	running map[*Action]time.Time
 
@@ -57,7 +57,7 @@ type node struct {
 	input              *node
 }
 
-func (cp *criticalPath) StartAction(action *Action, counts Counts) {
+func (cp *CriticalPath) StartAction(action *Action) {
 	start := cp.clock.Now()
 	if cp.start.IsZero() {
 		cp.start = start
@@ -65,13 +65,13 @@ func (cp *criticalPath) StartAction(action *Action, counts Counts) {
 	cp.running[action] = start
 }
 
-func (cp *criticalPath) FinishAction(result ActionResult, counts Counts) {
-	if start, ok := cp.running[result.Action]; ok {
-		delete(cp.running, result.Action)
+func (cp *CriticalPath) FinishAction(action *Action) {
+	if start, ok := cp.running[action]; ok {
+		delete(cp.running, action)
 
 		// Determine the input to this edge with the longest cumulative duration
 		var criticalPathInput *node
-		for _, input := range result.Action.Inputs {
+		for _, input := range action.Inputs {
 			if x := cp.nodes[input]; x != nil {
 				if criticalPathInput == nil || x.cumulativeDuration > criticalPathInput.cumulativeDuration {
 					criticalPathInput = x
@@ -88,13 +88,13 @@ func (cp *criticalPath) FinishAction(result ActionResult, counts Counts) {
 		}
 
 		node := &node{
-			action:             result.Action,
+			action:             action,
 			cumulativeDuration: cumulativeDuration,
 			duration:           duration,
 			input:              criticalPathInput,
 		}
 
-		for _, output := range result.Action.Outputs {
+		for _, output := range action.Outputs {
 			cp.nodes[output] = node
 		}
 
@@ -102,37 +102,7 @@ func (cp *criticalPath) FinishAction(result ActionResult, counts Counts) {
 	}
 }
 
-func (cp *criticalPath) Flush() {
-	criticalPath := cp.criticalPath()
-
-	if len(criticalPath) > 0 {
-		// Log the critical path to the verbose log
-		criticalTime := criticalPath[0].cumulativeDuration.Round(time.Second)
-		cp.log.Verbosef("critical path took %s", criticalTime.String())
-		if !cp.start.IsZero() {
-			elapsedTime := cp.end.Sub(cp.start).Round(time.Second)
-			cp.log.Verbosef("elapsed time %s", elapsedTime.String())
-			if elapsedTime > 0 {
-				cp.log.Verbosef("perfect parallelism ratio %d%%",
-					int(float64(criticalTime)/float64(elapsedTime)*100))
-			}
-		}
-		cp.log.Verbose("critical path:")
-		for i := len(criticalPath) - 1; i >= 0; i-- {
-			duration := criticalPath[i].duration
-			duration = duration.Round(time.Second)
-			seconds := int(duration.Seconds())
-			cp.log.Verbosef("   %2d:%02d %s",
-				seconds/60, seconds%60, criticalPath[i].action.Description)
-		}
-	}
-}
-
-func (cp *criticalPath) Message(level MsgLevel, msg string) {}
-
-func (cp *criticalPath) Write(p []byte) (n int, err error) { return len(p), nil }
-
-func (cp *criticalPath) criticalPath() []*node {
+func (cp *CriticalPath) criticalPath() (path []*node, elapsedTime time.Duration, criticalTime time.Duration) {
 	var max *node
 
 	// Find the node with the longest critical path
@@ -142,13 +112,31 @@ func (cp *criticalPath) criticalPath() []*node {
 		}
 	}
 
-	// Follow the critical path back to the leaf node
-	var criticalPath []*node
 	node := max
 	for node != nil {
-		criticalPath = append(criticalPath, node)
+		path = append(path, node)
 		node = node.input
 	}
+	if len(path) > 0 {
+		// Log the critical path to the verbose log
+		criticalTime = path[0].cumulativeDuration
+		if !cp.start.IsZero() {
+			elapsedTime = cp.end.Sub(cp.start)
+		}
+	}
+	return
+}
 
-	return criticalPath
+func (cp *CriticalPath) WriteToMetrics(met *metrics.Metrics) {
+	criticalPathInfo := soong_metrics_proto.CriticalPathInfo{}
+	path, elapsedTime, criticalTime := cp.criticalPath()
+	criticalPathInfo.ElapsedTime = proto.Uint64(uint64(elapsedTime.Microseconds()))
+	criticalPathInfo.CriticalPathTime = proto.Uint64(uint64(criticalTime.Microseconds()))
+	for _, job := range path {
+		jobInfo := soong_metrics_proto.JobInfo{}
+		jobInfo.ElapsedTime = proto.Uint64(uint64(job.duration.Microseconds()))
+		jobInfo.JobDescription = &job.action.Description
+		criticalPathInfo.CriticalPath = append(criticalPathInfo.CriticalPath, &jobInfo)
+	}
+	met.SetCriticalPathInfo(criticalPathInfo)
 }
