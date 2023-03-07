@@ -9788,30 +9788,85 @@ func TestApexBuildsAgainstApiSurfaceStubLibraries(t *testing.T) {
 		apex {
 			name: "myapex",
 			key: "myapex.key",
-			native_shared_libs: ["libfoo"],
+			native_shared_libs: ["libbaz"],
+			binaries: ["binfoo"],
 			min_sdk_version: "29",
 		}
 		apex_key {
 			name: "myapex.key",
 		}
-		cc_library {
-			name: "libfoo",
-			shared_libs: ["libc"],
+		cc_binary {
+			name: "binfoo",
+			shared_libs: ["libbar", "libbaz", "libqux",],
 			apex_available: ["myapex"],
 			min_sdk_version: "29",
+			recovery_available: false,
+		}
+		cc_library {
+			name: "libbar",
+			srcs: ["libbar.cc"],
+			stubs: {
+				symbol_file: "libbar.map.txt",
+				versions: [
+					"29",
+				],
+			},
+		}
+		cc_library {
+			name: "libbaz",
+			srcs: ["libbaz.cc"],
+			apex_available: ["myapex"],
+			min_sdk_version: "29",
+			stubs: {
+				symbol_file: "libbaz.map.txt",
+				versions: [
+					"29",
+				],
+			},
 		}
 		cc_api_library {
-			name: "libc",
-			src: "libc.so",
+			name: "libbar",
+			src: "libbar_stub.so",
 			min_sdk_version: "29",
-			recovery_available: true,
+			variants: ["apex.29"],
+		}
+		cc_api_variant {
+			name: "libbar",
+			variant: "apex",
+			version: "29",
+			src: "libbar_apex_29.so",
+		}
+		cc_api_library {
+			name: "libbaz",
+			src: "libbaz_stub.so",
+			min_sdk_version: "29",
+			variants: ["apex.29"],
+		}
+		cc_api_variant {
+			name: "libbaz",
+			variant: "apex",
+			version: "29",
+			src: "libbaz_apex_29.so",
+		}
+		cc_api_library {
+			name: "libqux",
+			src: "libqux_stub.so",
+			min_sdk_version: "29",
+			variants: ["apex.29"],
+		}
+		cc_api_variant {
+			name: "libqux",
+			variant: "apex",
+			version: "29",
+			src: "libqux_apex_29.so",
 		}
 		api_imports {
 			name: "api_imports",
-			shared_libs: [
-				"libc",
+			apex_shared_libs: [
+				"libbar",
+				"libbaz",
+				"libqux",
 			],
-			header_libs: [],
 		}
 		`
 	result := testApex(t, bp)
@@ -9827,17 +9882,107 @@ func TestApexBuildsAgainstApiSurfaceStubLibraries(t *testing.T) {
 		return found
 	}
 
-	libfooApexVariant := result.ModuleForTests("libfoo", "android_arm64_armv8-a_shared_apex29").Module()
-	libcApexVariant := result.ModuleForTests("libc.apiimport", "android_arm64_armv8-a_shared_apex29").Module()
+	// Library defines stubs and cc_api_library should be used with cc_api_library
+	binfooApexVariant := result.ModuleForTests("binfoo", "android_arm64_armv8-a_apex29").Module()
+	libbarCoreVariant := result.ModuleForTests("libbar", "android_arm64_armv8-a_shared").Module()
+	libbarApiImportCoreVariant := result.ModuleForTests("libbar.apiimport", "android_arm64_armv8-a_shared").Module()
 
-	android.AssertBoolEquals(t, "apex variant should link against API surface stub libraries", true, hasDep(libfooApexVariant, libcApexVariant))
+	android.AssertBoolEquals(t, "apex variant should link against API surface stub libraries", true, hasDep(binfooApexVariant, libbarApiImportCoreVariant))
+	android.AssertBoolEquals(t, "apex variant should link against original library if exists", true, hasDep(binfooApexVariant, libbarCoreVariant))
 
-	// libfoo core variant should be buildable in the same inner tree since
-	// certain mcombo files might build system and apexes in the same inner tree
-	// libfoo core variant should link against source libc
-	libfooCoreVariant := result.ModuleForTests("libfoo", "android_arm64_armv8-a_shared").Module()
-	libcCoreVariant := result.ModuleForTests("libc.apiimport", "android_arm64_armv8-a_shared").Module()
-	android.AssertBoolEquals(t, "core variant should link against source libc", true, hasDep(libfooCoreVariant, libcCoreVariant))
+	binFooCFlags := result.ModuleForTests("binfoo", "android_arm64_armv8-a_apex29").Rule("ld").Args["libFlags"]
+	android.AssertStringDoesContain(t, "binfoo should link against APEX variant", binFooCFlags, "libbar.apex.29.apiimport.so")
+	android.AssertStringDoesNotContain(t, "binfoo should not link against cc_api_library itself", binFooCFlags, "libbar.apiimport.so")
+	android.AssertStringDoesNotContain(t, "binfoo should not link against original definition", binFooCFlags, "libbar.so")
+
+	// Library defined in the same APEX should be linked with original definition instead of cc_api_library
+	libbazApexVariant := result.ModuleForTests("libbaz", "android_arm64_armv8-a_shared_apex29").Module()
+	libbazApiImportCoreVariant := result.ModuleForTests("libbaz.apiimport", "android_arm64_armv8-a_shared").Module()
+	android.AssertBoolEquals(t, "apex variant should link against API surface stub libraries even from same APEX", true, hasDep(binfooApexVariant, libbazApiImportCoreVariant))
+	android.AssertBoolEquals(t, "apex variant should link against original library if exists", true, hasDep(binfooApexVariant, libbazApexVariant))
+
+	android.AssertStringDoesContain(t, "binfoo should link against APEX variant", binFooCFlags, "libbaz.so")
+	android.AssertStringDoesNotContain(t, "binfoo should not link against cc_api_library itself", binFooCFlags, "libbaz.apiimport.so")
+	android.AssertStringDoesNotContain(t, "binfoo should not link against original definition", binFooCFlags, "libbaz.apex.29.apiimport.so")
+
+	// cc_api_library defined without original library should be linked with cc_api_library
+	libquxApiImportApexVariant := result.ModuleForTests("libqux.apiimport", "android_arm64_armv8-a_shared").Module()
+	android.AssertBoolEquals(t, "apex variant should link against API surface stub libraries even original library definition does not exist", true, hasDep(binfooApexVariant, libquxApiImportApexVariant))
+	android.AssertStringDoesContain(t, "binfoo should link against APEX variant", binFooCFlags, "libqux.apex.29.apiimport.so")
+}
+
+func TestPlatformBinaryBuildsAgainstApiSurfaceStubLibraries(t *testing.T) {
+	bp := `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			native_shared_libs: ["libbar"],
+			min_sdk_version: "29",
+		}
+		apex_key {
+			name: "myapex.key",
+		}
+		cc_binary {
+			name: "binfoo",
+			shared_libs: ["libbar"],
+			recovery_available: false,
+		}
+		cc_library {
+			name: "libbar",
+			srcs: ["libbar.cc"],
+			apex_available: ["myapex"],
+			min_sdk_version: "29",
+			stubs: {
+				symbol_file: "libbar.map.txt",
+				versions: [
+					"29",
+				],
+			},
+		}
+		cc_api_library {
+			name: "libbar",
+			src: "libbar_stub.so",
+			variants: ["apex.29"],
+		}
+		cc_api_variant {
+			name: "libbar",
+			variant: "apex",
+			version: "29",
+			src: "libbar_apex_29.so",
+		}
+		api_imports {
+			name: "api_imports",
+			apex_shared_libs: [
+				"libbar",
+			],
+		}
+		`
+
+	result := testApex(t, bp)
+
+	hasDep := func(m android.Module, wantDep android.Module) bool {
+		t.Helper()
+		var found bool
+		result.VisitDirectDeps(m, func(dep blueprint.Module) {
+			if dep == wantDep {
+				found = true
+			}
+		})
+		return found
+	}
+
+	// Library defines stubs and cc_api_library should be used with cc_api_library
+	binfooApexVariant := result.ModuleForTests("binfoo", "android_arm64_armv8-a").Module()
+	libbarCoreVariant := result.ModuleForTests("libbar", "android_arm64_armv8-a_shared").Module()
+	libbarApiImportCoreVariant := result.ModuleForTests("libbar.apiimport", "android_arm64_armv8-a_shared").Module()
+
+	android.AssertBoolEquals(t, "apex variant should link against API surface stub libraries", true, hasDep(binfooApexVariant, libbarApiImportCoreVariant))
+	android.AssertBoolEquals(t, "apex variant should link against original library if exists", true, hasDep(binfooApexVariant, libbarCoreVariant))
+
+	binFooCFlags := result.ModuleForTests("binfoo", "android_arm64_armv8-a").Rule("ld").Args["libFlags"]
+	android.AssertStringDoesContain(t, "binfoo should link against APEX variant", binFooCFlags, "libbar.apex.29.apiimport.so")
+	android.AssertStringDoesNotContain(t, "binfoo should not link against cc_api_library itself", binFooCFlags, "libbar.apiimport.so")
+	android.AssertStringDoesNotContain(t, "binfoo should not link against original definition", binFooCFlags, "libbar.so")
 }
 
 func TestTrimmedApex(t *testing.T) {
