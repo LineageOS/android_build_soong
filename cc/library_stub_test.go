@@ -41,6 +41,7 @@ func TestApiLibraryReplacesExistingModule(t *testing.T) {
 		cc_library {
 			name: "libfoo",
 			shared_libs: ["libbar"],
+			vendor_available: true,
 		}
 
 		cc_library {
@@ -49,6 +50,7 @@ func TestApiLibraryReplacesExistingModule(t *testing.T) {
 
 		cc_api_library {
 			name: "libbar",
+			vendor_available: true,
 			src: "libbar.so",
 		}
 
@@ -57,7 +59,6 @@ func TestApiLibraryReplacesExistingModule(t *testing.T) {
 			shared_libs: [
 				"libbar",
 			],
-			header_libs: [],
 		}
 	`
 
@@ -67,8 +68,14 @@ func TestApiLibraryReplacesExistingModule(t *testing.T) {
 	libbar := ctx.ModuleForTests("libbar", "android_arm64_armv8-a_shared").Module()
 	libbarApiImport := ctx.ModuleForTests("libbar.apiimport", "android_arm64_armv8-a_shared").Module()
 
-	android.AssertBoolEquals(t, "original library should not be linked", false, hasDirectDependency(t, ctx, libfoo, libbar))
-	android.AssertBoolEquals(t, "Stub library from API surface should be linked", true, hasDirectDependency(t, ctx, libfoo, libbarApiImport))
+	android.AssertBoolEquals(t, "original library should be linked with non-stub variant", true, hasDirectDependency(t, ctx, libfoo, libbar))
+	android.AssertBoolEquals(t, "Stub library from API surface should be not linked with non-stub variant", false, hasDirectDependency(t, ctx, libfoo, libbarApiImport))
+
+	libfooVendor := ctx.ModuleForTests("libfoo", "android_vendor.29_arm64_armv8-a_shared").Module()
+	libbarApiImportVendor := ctx.ModuleForTests("libbar.apiimport", "android_vendor.29_arm64_armv8-a_shared").Module()
+
+	android.AssertBoolEquals(t, "original library should not be linked", false, hasDirectDependency(t, ctx, libfooVendor, libbar))
+	android.AssertBoolEquals(t, "Stub library from API surface should be linked", true, hasDirectDependency(t, ctx, libfooVendor, libbarApiImportVendor))
 }
 
 func TestApiLibraryDoNotRequireOriginalModule(t *testing.T) {
@@ -76,11 +83,13 @@ func TestApiLibraryDoNotRequireOriginalModule(t *testing.T) {
 		cc_library {
 			name: "libfoo",
 			shared_libs: ["libbar"],
+			vendor: true,
 		}
 
 		cc_api_library {
 			name: "libbar",
 			src: "libbar.so",
+			vendor_available: true,
 		}
 
 		api_imports {
@@ -88,14 +97,13 @@ func TestApiLibraryDoNotRequireOriginalModule(t *testing.T) {
 			shared_libs: [
 				"libbar",
 			],
-			header_libs: [],
 		}
 	`
 
 	ctx := prepareForCcTest.RunTestWithBp(t, bp)
 
-	libfoo := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_shared").Module()
-	libbarApiImport := ctx.ModuleForTests("libbar.apiimport", "android_arm64_armv8-a_shared").Module()
+	libfoo := ctx.ModuleForTests("libfoo", "android_vendor.29_arm64_armv8-a_shared").Module()
+	libbarApiImport := ctx.ModuleForTests("libbar.apiimport", "android_vendor.29_arm64_armv8-a_shared").Module()
 
 	android.AssertBoolEquals(t, "Stub library from API surface should be linked", true, hasDirectDependency(t, ctx, libfoo, libbarApiImport))
 }
@@ -105,141 +113,34 @@ func TestApiLibraryShouldNotReplaceWithoutApiImport(t *testing.T) {
 		cc_library {
 			name: "libfoo",
 			shared_libs: ["libbar"],
+			vendor_available: true,
 		}
 
 		cc_library {
 			name: "libbar",
+			vendor_available: true,
 		}
 
 		cc_api_library {
 			name: "libbar",
 			src: "libbar.so",
+			vendor_available: true,
 		}
 
 		api_imports {
 			name: "api_imports",
 			shared_libs: [],
-			header_libs: [],
 		}
 	`
 
 	ctx := prepareForCcTest.RunTestWithBp(t, bp)
 
-	libfoo := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_shared").Module()
-	libbar := ctx.ModuleForTests("libbar", "android_arm64_armv8-a_shared").Module()
-	libbarApiImport := ctx.ModuleForTests("libbar.apiimport", "android_arm64_armv8-a_shared").Module()
+	libfoo := ctx.ModuleForTests("libfoo", "android_vendor.29_arm64_armv8-a_shared").Module()
+	libbar := ctx.ModuleForTests("libbar", "android_vendor.29_arm64_armv8-a_shared").Module()
+	libbarApiImport := ctx.ModuleForTests("libbar.apiimport", "android_vendor.29_arm64_armv8-a_shared").Module()
 
 	android.AssertBoolEquals(t, "original library should be linked", true, hasDirectDependency(t, ctx, libfoo, libbar))
 	android.AssertBoolEquals(t, "Stub library from API surface should not be linked", false, hasDirectDependency(t, ctx, libfoo, libbarApiImport))
-}
-
-func TestApiHeaderReplacesExistingModule(t *testing.T) {
-	bp := `
-		cc_library {
-			name: "libfoo",
-			header_libs: ["libfoo_headers"],
-		}
-
-		cc_api_library {
-			name: "libfoo",
-			header_libs: ["libfoo_headers"],
-			src: "libfoo.so",
-		}
-
-		cc_library_headers {
-			name: "libfoo_headers",
-		}
-
-		cc_api_headers {
-			name: "libfoo_headers",
-		}
-
-		api_imports {
-			name: "api_imports",
-			shared_libs: [
-				"libfoo",
-			],
-			header_libs: [
-				"libfoo_headers",
-			],
-		}
-	`
-
-	ctx := prepareForCcTest.RunTestWithBp(t, bp)
-
-	libfoo := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_shared").Module()
-	libfooApiImport := ctx.ModuleForTests("libfoo.apiimport", "android_arm64_armv8-a_shared").Module()
-	libfooHeader := ctx.ModuleForTests("libfoo_headers", "android_arm64_armv8-a").Module()
-	libfooHeaderApiImport := ctx.ModuleForTests("libfoo_headers.apiimport", "android_arm64_armv8-a").Module()
-
-	android.AssertBoolEquals(t, "original header should not be used for original library", false, hasDirectDependency(t, ctx, libfoo, libfooHeader))
-	android.AssertBoolEquals(t, "Header from API surface should be used for original library", true, hasDirectDependency(t, ctx, libfoo, libfooHeaderApiImport))
-	android.AssertBoolEquals(t, "original header should not be used for library imported from API surface", false, hasDirectDependency(t, ctx, libfooApiImport, libfooHeader))
-	android.AssertBoolEquals(t, "Header from API surface should be used for library imported from API surface", true, hasDirectDependency(t, ctx, libfooApiImport, libfooHeaderApiImport))
-}
-
-func TestApiHeadersDoNotRequireOriginalModule(t *testing.T) {
-	bp := `
-	cc_library {
-		name: "libfoo",
-		header_libs: ["libfoo_headers"],
-	}
-
-	cc_api_headers {
-		name: "libfoo_headers",
-	}
-
-	api_imports {
-		name: "api_imports",
-		shared_libs: [
-			"libfoo",
-		],
-		header_libs: [
-			"libfoo_headers",
-		],
-	}
-	`
-
-	ctx := prepareForCcTest.RunTestWithBp(t, bp)
-
-	libfoo := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_shared").Module()
-	libfooHeaderApiImport := ctx.ModuleForTests("libfoo_headers.apiimport", "android_arm64_armv8-a").Module()
-
-	android.AssertBoolEquals(t, "Header from API surface should be used for original library", true, hasDirectDependency(t, ctx, libfoo, libfooHeaderApiImport))
-}
-
-func TestApiHeadersShouldNotReplaceWithoutApiImport(t *testing.T) {
-	bp := `
-		cc_library {
-			name: "libfoo",
-			header_libs: ["libfoo_headers"],
-		}
-
-		cc_library_headers {
-			name: "libfoo_headers",
-		}
-
-		cc_api_headers {
-			name: "libfoo_headers",
-		}
-
-		api_imports {
-			name: "api_imports",
-			shared_libs: [
-				"libfoo",
-			],
-			header_libs: [],
-		}
-	`
-
-	ctx := prepareForCcTest.RunTestWithBp(t, bp)
-
-	libfoo := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_shared").Module()
-	libfooHeader := ctx.ModuleForTests("libfoo_headers", "android_arm64_armv8-a").Module()
-	libfooHeaderApiImport := ctx.ModuleForTests("libfoo_headers.apiimport", "android_arm64_armv8-a").Module()
-
-	android.AssertBoolEquals(t, "original header should be used for original library", true, hasDirectDependency(t, ctx, libfoo, libfooHeader))
-	android.AssertBoolEquals(t, "Header from API surface should not be used for original library", false, hasDirectDependency(t, ctx, libfoo, libfooHeaderApiImport))
 }
 
 func TestExportDirFromStubLibrary(t *testing.T) {
@@ -330,7 +231,7 @@ func TestApiLibraryWithLlndkVariant(t *testing.T) {
 	android.AssertBoolEquals(t, "Stub library variant from API surface should be linked", true, hasDirectDependency(t, ctx, libbarApiImport, libbarApiVariant))
 
 	binFooLibFlags := ctx.ModuleForTests("binfoo", "android_vendor.29_arm64_armv8-a").Rule("ld").Args["libFlags"]
-	android.AssertStringDoesContain(t, "Vendor binary should be linked with LLNDK variant source", binFooLibFlags, "libbar_llndk.so")
+	android.AssertStringDoesContain(t, "Vendor binary should be linked with LLNDK variant source", binFooLibFlags, "libbar.llndk.apiimport.so")
 
 	binFooCFlags := ctx.ModuleForTests("binfoo", "android_vendor.29_arm64_armv8-a").Rule("cc").Args["cFlags"]
 	android.AssertStringDoesContain(t, "Vendor binary should include headers from the LLNDK variant source", binFooCFlags, "-Ilibbar_llndk_include")
@@ -352,6 +253,17 @@ func TestApiLibraryWithNdkVariant(t *testing.T) {
 			srcs: ["binbaz.cc"],
 			shared_libs: ["libbar"],
 			stl: "c++_shared",
+		}
+
+		cc_binary {
+			name: "binqux",
+			srcs: ["binfoo.cc"],
+			shared_libs: ["libbar"],
+		}
+
+		cc_library {
+			name: "libbar",
+			srcs: ["libbar.cc"],
 		}
 
 		cc_api_library {
@@ -417,10 +329,14 @@ func TestApiLibraryWithNdkVariant(t *testing.T) {
 	android.AssertBoolEquals(t, "Stub library from API surface should not be linked with different version", false, hasDirectDependency(t, ctx, binbaz, libbarApiImportv29))
 
 	binFooLibFlags := ctx.ModuleForTests("binfoo", "android_arm64_armv8-a_sdk").Rule("ld").Args["libFlags"]
-	android.AssertStringDoesContain(t, "Binary using sdk should be linked with NDK variant source", binFooLibFlags, "libbar_ndk_29.so")
+	android.AssertStringDoesContain(t, "Binary using sdk should be linked with NDK variant source", binFooLibFlags, "libbar.ndk.29.apiimport.so")
 
 	binFooCFlags := ctx.ModuleForTests("binfoo", "android_arm64_armv8-a_sdk").Rule("cc").Args["cFlags"]
 	android.AssertStringDoesContain(t, "Binary using sdk should include headers from the NDK variant source", binFooCFlags, "-Ilibbar_ndk_29_include")
+
+	binQux := ctx.ModuleForTests("binqux", "android_arm64_armv8-a").Module()
+	android.AssertBoolEquals(t, "NDK Stub library from API surface should not be linked with nonSdk binary", false,
+		(hasDirectDependency(t, ctx, binQux, libbarApiImportv30) || hasDirectDependency(t, ctx, binQux, libbarApiImportv29)))
 }
 
 func TestApiLibraryWithMultipleVariants(t *testing.T) {
@@ -440,6 +356,11 @@ func TestApiLibraryWithMultipleVariants(t *testing.T) {
 			shared_libs: ["libbar"],
 		}
 
+		cc_library {
+			name: "libbar",
+			srcs: ["libbar.cc"],
+		}
+
 		cc_api_library {
 			name: "libbar",
 			// TODO(b/244244438) Remove src property once all variants are implemented.
@@ -450,6 +371,9 @@ func TestApiLibraryWithMultipleVariants(t *testing.T) {
 				"ndk.29",
 				"ndk.30",
 				"ndk.current",
+				"apex.29",
+				"apex.30",
+				"apex.current",
 			],
 		}
 
@@ -479,6 +403,30 @@ func TestApiLibraryWithMultipleVariants(t *testing.T) {
 
 		cc_api_variant {
 			name: "libbar",
+			variant: "apex",
+			version: "29",
+			src: "libbar_apex_29.so",
+			export_include_dirs: ["libbar_apex_29_include"]
+		}
+
+		cc_api_variant {
+			name: "libbar",
+			variant: "apex",
+			version: "30",
+			src: "libbar_apex_30.so",
+			export_include_dirs: ["libbar_apex_30_include"]
+		}
+
+		cc_api_variant {
+			name: "libbar",
+			variant: "apex",
+			version: "current",
+			src: "libbar_apex_current.so",
+			export_include_dirs: ["libbar_apex_current_include"]
+		}
+
+		cc_api_variant {
+			name: "libbar",
 			variant: "llndk",
 			src: "libbar_llndk.so",
 			export_include_dirs: ["libbar_llndk_include"]
@@ -489,7 +437,9 @@ func TestApiLibraryWithMultipleVariants(t *testing.T) {
 			shared_libs: [
 				"libbar",
 			],
-			header_libs: [],
+			apex_shared_libs: [
+				"libbar",
+			],
 		}
 	`
 	ctx := prepareForCcTest.RunTestWithBp(t, bp)
