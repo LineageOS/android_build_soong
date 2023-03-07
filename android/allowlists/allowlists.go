@@ -695,6 +695,9 @@ var (
 		"non-updatable-system-current.txt",
 		"non-updatable-module-lib-current.txt",
 		"non-updatable-system-server-current.txt",
+
+		// for api_fingerprint.txt generation
+		"api_fingerprint",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
@@ -1436,7 +1439,9 @@ var (
 	// which will soon be added to the prod allowlist.
 	// It is implicit that all modules in ProdMixedBuildsEnabledList will
 	// also be built - do not add them to this list.
-	StagingMixedBuildsEnabledList = []string{}
+	StagingMixedBuildsEnabledList = []string{
+		"api_fingerprint",
+	}
 
 	// These should be the libs that are included by the apexes in the ProdMixedBuildsEnabledList
 	ProdDclaMixedBuildsEnabledList = []string{}
