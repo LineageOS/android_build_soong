@@ -363,11 +363,14 @@ func TestAndroidAppImport_Filename(t *testing.T) {
 
 		a := variant.Module().(*AndroidAppImport)
 		expectedValues := []string{test.expected}
-		actualValues := android.AndroidMkEntriesForTest(t, ctx, a)[0].EntryMap["LOCAL_INSTALLED_MODULE_STEM"]
+		entries := android.AndroidMkEntriesForTest(t, ctx, a)[0]
+		actualValues := entries.EntryMap["LOCAL_INSTALLED_MODULE_STEM"]
 		if !reflect.DeepEqual(actualValues, expectedValues) {
 			t.Errorf("Incorrect LOCAL_INSTALLED_MODULE_STEM value '%s', expected '%s'",
 				actualValues, expectedValues)
 		}
+		android.AssertStringEquals(t, "unexpected LOCAL_SOONG_MODULE_TYPE", "android_app_import", entries.EntryMap["LOCAL_SOONG_MODULE_TYPE"][0])
+
 		rule := variant.Rule("genProvenanceMetaData")
 		android.AssertStringEquals(t, "Invalid input", test.expectedArtifactPath, rule.Inputs[0].String())
 		android.AssertStringEquals(t, "Invalid output", test.expectedMetaDataPath, rule.Output.String())
@@ -560,6 +563,7 @@ func TestAndroidAppImport_frameworkRes(t *testing.T) {
 	} else if actualSoongResourceExportPackage[0] != expectedSoongResourceExportPackage {
 		t.Errorf("LOCAL_SOONG_RESOURCE_EXPORT_PACKAGE mismatch, actual: %s, expected: %s", actualSoongResourceExportPackage[0], expectedSoongResourceExportPackage)
 	}
+	android.AssertStringEquals(t, "unexpected LOCAL_SOONG_MODULE_TYPE", "android_app_import", entries.EntryMap["LOCAL_SOONG_MODULE_TYPE"][0])
 }
 
 func TestAndroidAppImport_relativeInstallPath(t *testing.T) {
