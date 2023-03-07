@@ -39,6 +39,10 @@ cc_prebuilt_library_static {
 				MakeBazelTarget("cc_prebuilt_library_static", "libtest", AttrNameToString{
 					"static_library": `"libf.so"`,
 				}),
+				MakeBazelTarget("cc_prebuilt_library_static", "libtest_alwayslink", AttrNameToString{
+					"static_library": `"libf.so"`,
+					"alwayslink":     "True",
+				}),
 			},
 		})
 }
@@ -68,8 +72,14 @@ cc_prebuilt_library_static {
         "//build/bazel/platforms/arch:arm": "libg.so",
         "//build/bazel/platforms/arch:arm64": "libf.so",
         "//conditions:default": None,
-    })`,
-				}),
+    })`}),
+				MakeBazelTarget("cc_prebuilt_library_static", "libtest_alwayslink", AttrNameToString{
+					"alwayslink": "True",
+					"static_library": `select({
+        "//build/bazel/platforms/arch:arm": "libg.so",
+        "//build/bazel/platforms/arch:arm64": "libf.so",
+        "//conditions:default": None,
+    })`}),
 			},
 		})
 }
