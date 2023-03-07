@@ -134,6 +134,8 @@ func TransformSrctoRlib(ctx ModuleContext, mainSrc android.Path, deps PathDeps, 
 
 func TransformSrctoDylib(ctx ModuleContext, mainSrc android.Path, deps PathDeps, flags Flags,
 	outputFile android.WritablePath) buildOutput {
+	flags.GlobalRustFlags = append(flags.GlobalRustFlags, "-C lto=thin")
+
 	return transformSrctoCrate(ctx, mainSrc, deps, flags, outputFile, "dylib")
 }
 
