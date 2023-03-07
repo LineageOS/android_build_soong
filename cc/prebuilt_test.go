@@ -169,6 +169,11 @@ func TestPrebuilt(t *testing.T) {
 	if !hasDep(crtx, prebuiltCrtx) {
 		t.Errorf("crtx missing dependency on prebuilt_crtx")
 	}
+
+	entries := android.AndroidMkEntriesForTest(t, ctx, prebuiltLiba)[0]
+	android.AssertStringEquals(t, "unexpected LOCAL_SOONG_MODULE_TYPE", "cc_prebuilt_library_shared", entries.EntryMap["LOCAL_SOONG_MODULE_TYPE"][0])
+	entries = android.AndroidMkEntriesForTest(t, ctx, prebuiltLibb)[0]
+	android.AssertStringEquals(t, "unexpected LOCAL_SOONG_MODULE_TYPE", "cc_prebuilt_library_static", entries.EntryMap["LOCAL_SOONG_MODULE_TYPE"][0])
 }
 
 func TestPrebuiltLibraryShared(t *testing.T) {

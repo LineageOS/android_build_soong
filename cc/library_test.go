@@ -464,6 +464,7 @@ cc_library_shared {
 	expectedFlags := []string{"-Ioutputbase/execroot/__main__/include", "-isystem outputbase/execroot/__main__/system_include"}
 	gotFlags := entries.EntryMap["LOCAL_EXPORT_CFLAGS"]
 	android.AssertDeepEquals(t, "androidmk exported cflags", expectedFlags, gotFlags)
+	android.AssertStringEquals(t, "unexpected LOCAL_SOONG_MODULE_TYPE", "cc_library_shared", entries.EntryMap["LOCAL_SOONG_MODULE_TYPE"][0])
 }
 
 func TestCcLibrarySharedWithBazel(t *testing.T) {
@@ -510,6 +511,7 @@ cc_library_shared {
 	expectedFlags := []string{"-Ioutputbase/execroot/__main__/include", "-isystem outputbase/execroot/__main__/system_include"}
 	gotFlags := entries.EntryMap["LOCAL_EXPORT_CFLAGS"]
 	android.AssertDeepEquals(t, "androidmk exported cflags", expectedFlags, gotFlags)
+	android.AssertStringEquals(t, "unexpected LOCAL_SOONG_MODULE_TYPE", "cc_library_shared", entries.EntryMap["LOCAL_SOONG_MODULE_TYPE"][0])
 }
 
 func TestWholeStaticLibPrebuilts(t *testing.T) {
