@@ -4809,6 +4809,9 @@ func TestPrebuilt(t *testing.T) {
 	android.AssertStringEquals(t, "Invalid output", "out/soong/.intermediates/provenance_metadata/myapex/provenance_metadata.textproto", rule.Output.String())
 	android.AssertStringEquals(t, "Invalid args", "myapex", rule.Args["module_name"])
 	android.AssertStringEquals(t, "Invalid args", "/system/apex/myapex.apex", rule.Args["install_path"])
+
+	entries := android.AndroidMkEntriesForTest(t, ctx, testingModule.Module())[0]
+	android.AssertStringEquals(t, "unexpected LOCAL_SOONG_MODULE_TYPE", "prebuilt_apex", entries.EntryMap["LOCAL_SOONG_MODULE_TYPE"][0])
 }
 
 func TestPrebuiltMissingSrc(t *testing.T) {
