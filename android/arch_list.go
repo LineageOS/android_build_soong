@@ -71,6 +71,7 @@ var cpuVariants = map[ArchType][]string{
 		"cortex-a8",
 		"cortex-a9",
 		"cortex-a15",
+		"cortex-a32",
 		"cortex-a53",
 		"cortex-a53.a57",
 		"cortex-a55",
