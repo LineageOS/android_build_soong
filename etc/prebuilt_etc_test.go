@@ -140,6 +140,7 @@ func TestPrebuiltEtcAndroidMk(t *testing.T) {
 		"LOCAL_REQUIRED_MODULES":        {"modA", "moduleB"},
 		"LOCAL_HOST_REQUIRED_MODULES":   {"hostModA", "hostModB"},
 		"LOCAL_TARGET_REQUIRED_MODULES": {"targetModA"},
+		"LOCAL_SOONG_MODULE_TYPE":       {"prebuilt_etc"},
 	}
 
 	mod := result.Module("foo", "android_arm64_armv8-a").(*PrebuiltEtc)
