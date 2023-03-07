@@ -384,10 +384,7 @@ func createAPIFingerprint(ctx android.SingletonContext) {
 	} else if ctx.Config().FrameworksBaseDirExists(ctx) && !ctx.Config().AlwaysUsePrebuiltSdks() {
 		cmd.Text("cat")
 		apiTxtFileModules := []string{
-			"frameworks-base-api-current.txt",
-			"frameworks-base-api-system-current.txt",
-			"frameworks-base-api-module-lib-current.txt",
-			"frameworks-base-api-system-server-current.txt",
+			"api_fingerprint",
 		}
 		count := 0
 		ctx.VisitAllModules(func(module android.Module) {
@@ -398,10 +395,10 @@ func createAPIFingerprint(ctx android.SingletonContext) {
 			}
 		})
 		if count != len(apiTxtFileModules) {
-			ctx.Errorf("Could not find all the expected API modules %v, found %d\n", apiTxtFileModules, count)
+			ctx.Errorf("Could not find expected API module %v, found %d\n", apiTxtFileModules, count)
 			return
 		}
-		cmd.Text("| md5sum | cut -d' ' -f1 >").
+		cmd.Text(">").
 			Output(out)
 	} else {
 		// Unbundled build
