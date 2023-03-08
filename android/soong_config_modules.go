@@ -396,7 +396,7 @@ func loadSoongConfigModuleTypeDefinition(ctx LoadHookContext, from string) map[s
 		}
 
 		if ctx.Config().BuildMode == Bp2build {
-			ctx.Config().Bp2buildSoongConfigDefinitions.AddVars(*mtDef)
+			ctx.Config().Bp2buildSoongConfigDefinitions.AddVars(mtDef)
 		}
 
 		globalModuleTypes := ctx.moduleFactories()

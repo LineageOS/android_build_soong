@@ -2837,7 +2837,7 @@ func javaLibraryBp2Build(ctx android.TopDownMutatorContext, m *Library) {
 
 		props = bazel.BazelTargetModuleProperties{
 			Rule_class:        "kt_jvm_library",
-			Bzl_load_location: "@rules_kotlin//kotlin:jvm_library.bzl",
+			Bzl_load_location: "//build/bazel/rules/kotlin:kt_jvm_library.bzl",
 		}
 	}
 
@@ -2932,32 +2932,20 @@ func javaBinaryHostBp2Build(ctx android.TopDownMutatorContext, m *Binary) {
 		ktName := m.Name() + "_kt"
 		ktProps := bazel.BazelTargetModuleProperties{
 			Rule_class:        "kt_jvm_library",
-			Bzl_load_location: "@rules_kotlin//kotlin:jvm_library.bzl",
+			Bzl_load_location: "//build/bazel/rules/kotlin:kt_jvm_library.bzl",
 		}
 		ktAttrs := &javaLibraryAttributes{
 			Deps: deps,
 			javaCommonAttributes: &javaCommonAttributes{
-				Srcs:      commonAttrs.Srcs,
-				Plugins:   commonAttrs.Plugins,
-				Javacopts: commonAttrs.Javacopts,
+				Srcs:                    commonAttrs.Srcs,
+				Plugins:                 commonAttrs.Plugins,
+				Javacopts:               commonAttrs.Javacopts,
+				javaResourcesAttributes: commonAttrs.javaResourcesAttributes,
 			},
 		}
 
 		if len(m.properties.Common_srcs) != 0 {
 			ktAttrs.javaCommonAttributes.Common_srcs = bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrc(ctx, m.properties.Common_srcs))
-		}
-
-		// kt_jvm_library does not support resource_strip_prefix, if this attribute
-		// is set, than javaResourcesAttributes needs to be set in the
-		// javaCommonAttributes of the java_binary target
-		if commonAttrs.javaResourcesAttributes != nil {
-			if commonAttrs.javaResourcesAttributes.Resource_strip_prefix != nil {
-				attrs.javaCommonAttributes = &javaCommonAttributes{
-					javaResourcesAttributes: commonAttrs.javaResourcesAttributes,
-				}
-			} else {
-				ktAttrs.javaCommonAttributes.javaResourcesAttributes = commonAttrs.javaResourcesAttributes
-			}
 		}
 
 		ctx.CreateBazelTargetModule(ktProps, android.CommonAttributes{Name: ktName}, ktAttrs)
