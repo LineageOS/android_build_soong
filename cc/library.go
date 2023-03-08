@@ -2951,12 +2951,6 @@ func sharedOrStaticLibraryBp2Build(ctx android.TopDownMutatorContext, module *Mo
 
 	tags := android.ApexAvailableTags(module)
 
-	// This lib needs some special handling in bazel, so add this tag to the build
-	// file.
-	if module.Name() == "libprofile-clang-extras" {
-		tags.Append(bazel.MakeStringListAttribute([]string{"NO_EXPORTING"}))
-	}
-
 	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: module.Name(), Tags: tags}, attrs)
 }
 
