@@ -867,11 +867,12 @@ func TestJavaSdkLibraryImport_WithSource(t *testing.T) {
 	})
 }
 
-func TestJavaSdkLibraryImport_Preferred(t *testing.T) {
+func testJavaSdkLibraryImport_Preferred(t *testing.T, prefer string, preparer android.FixturePreparer) {
 	result := android.GroupFixturePreparers(
 		prepareForJavaTest,
 		PrepareForTestWithJavaSdkLibraryFiles,
 		FixtureWithLastReleaseApis("sdklib"),
+		preparer,
 	).RunTestWithBp(t, `
 		java_sdk_library {
 			name: "sdklib",
@@ -885,10 +886,36 @@ func TestJavaSdkLibraryImport_Preferred(t *testing.T) {
 
 		java_sdk_library_import {
 			name: "sdklib",
-			prefer: true,
+			`+prefer+`
 			public: {
 				jars: ["a.jar"],
+				stub_srcs: ["a.java"],
+				current_api: "current.txt",
+				removed_api: "removed.txt",
+				annotations: "annotations.zip",
 			},
+		}
+
+		java_library {
+			name: "combined",
+			static_libs: [
+				"sdklib.stubs",
+			],
+			java_resources: [
+				":sdklib.stubs.source",
+				":sdklib{.public.api.txt}",
+				":sdklib{.public.removed-api.txt}",
+				":sdklib{.public.annotations.zip}",
+			],
+			sdk_version: "none",
+			system_modules: "none",
+		}
+
+		java_library {
+			name: "public",
+			srcs: ["a.java"],
+			libs: ["sdklib"],
+			sdk_version: "current",
 		}
 		`)
 
@@ -903,8 +930,47 @@ func TestJavaSdkLibraryImport_Preferred(t *testing.T) {
 	CheckModuleDependencies(t, result.TestContext, "prebuilt_sdklib", "android_common", []string{
 		`dex2oatd`,
 		`prebuilt_sdklib.stubs`,
+		`prebuilt_sdklib.stubs.source`,
 		`sdklib.impl`,
 		`sdklib.xml`,
+	})
+
+	// Make sure that dependencies on child modules use the prebuilt when preferred.
+	CheckModuleDependencies(t, result.TestContext, "combined", "android_common", []string{
+		// Each use of :sdklib{...} adds a dependency onto prebuilt_sdklib.
+		`prebuilt_sdklib`,
+		`prebuilt_sdklib`,
+		`prebuilt_sdklib`,
+		`prebuilt_sdklib.stubs`,
+		`prebuilt_sdklib.stubs.source`,
+	})
+
+	// Make sure that dependencies on sdklib that resolve to one of the child libraries use the
+	// prebuilt library.
+	public := result.ModuleForTests("public", "android_common")
+	rule := public.Output("javac/public.jar")
+	inputs := rule.Implicits.Strings()
+	expected := "out/soong/.intermediates/prebuilt_sdklib.stubs/android_common/combined/sdklib.stubs.jar"
+	if !android.InList(expected, inputs) {
+		t.Errorf("expected %q to contain %q", inputs, expected)
+	}
+}
+
+func TestJavaSdkLibraryImport_Preferred(t *testing.T) {
+	t.Run("prefer", func(t *testing.T) {
+		testJavaSdkLibraryImport_Preferred(t, "prefer: true,", android.NullFixturePreparer)
+	})
+
+	t.Run("use_source_config_var", func(t *testing.T) {
+		testJavaSdkLibraryImport_Preferred(t,
+			"use_source_config_var: {config_namespace: \"acme\", var_name: \"use_source\"},",
+			android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+				variables.VendorVars = map[string]map[string]string{
+					"acme": {
+						"use_source": "false",
+					},
+				}
+			}))
 	})
 }
 
