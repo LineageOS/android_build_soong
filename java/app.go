@@ -1528,13 +1528,12 @@ func (a *AndroidApp) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 		Bzl_load_location: "//build/bazel/rules/android:rules.bzl",
 	}
 
-	if !bp2BuildInfo.hasKotlinSrcs && len(a.properties.Common_srcs) == 0 {
+	if !bp2BuildInfo.hasKotlin {
 		appAttrs.javaCommonAttributes = commonAttrs
 		appAttrs.bazelAapt = aapt
 		appAttrs.Deps = deps
 	} else {
 		ktName := a.Name() + "_kt"
-		commonAttrs.Common_srcs = bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrc(ctx, a.properties.Common_srcs))
 		ctx.CreateBazelTargetModule(
 			bazel.BazelTargetModuleProperties{
 				Rule_class:        "android_library",
