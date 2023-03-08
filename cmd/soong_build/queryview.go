@@ -29,7 +29,7 @@ func createBazelWorkspace(ctx *bp2build.CodegenContext, outDir string) error {
 	os.RemoveAll(outDir)
 	ruleShims := bp2build.CreateRuleShims(android.ModuleTypeFactories())
 
-	res, err := bp2build.GenerateBazelTargets(ctx, true)
+	res, err := bp2build.GenerateBazelTargets(ctx, false)
 	if err != nil {
 		panic(err)
 	}
