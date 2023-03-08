@@ -2660,6 +2660,7 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext)
 			}
 		}
 	}
+	srcs.ResolveExcludes()
 
 	javaSrcPartition := "java"
 	protoSrcPartition := "proto"
