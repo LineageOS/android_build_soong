@@ -15,8 +15,9 @@
 package cc
 
 import (
-	"android/soong/bazel/cquery"
 	"testing"
+
+	"android/soong/bazel/cquery"
 
 	"android/soong/android"
 )
@@ -53,6 +54,9 @@ cc_binary {
 	unStrippedFilePath := binMod.(*Module).UnstrippedOutputFile()
 	expectedUnStrippedFile := "outputbase/execroot/__main__/foo.unstripped"
 	android.AssertStringEquals(t, "Unstripped output file", expectedUnStrippedFile, unStrippedFilePath.String())
+
+	entries := android.AndroidMkEntriesForTest(t, ctx, binMod)[0]
+	android.AssertStringEquals(t, "unexpected LOCAL_SOONG_MODULE_TYPE", "cc_binary", entries.EntryMap["LOCAL_SOONG_MODULE_TYPE"][0])
 }
 
 func TestCcBinaryWithBazelValidations(t *testing.T) {
