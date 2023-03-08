@@ -14,9 +14,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# To track how long we took to startup. %N isn't supported on Darwin, but
-# that's detected in the Go code, which skips calculating the startup time.
-export TRACE_BEGIN_SOONG=$(date +%s%N)
+# To track how long we took to startup.
+case $(uname -s) in
+  Darwin)
+    export TRACE_BEGIN_SOONG=`$T/prebuilts/build-tools/path/darwin-x86/date +%s%3N`
+    ;;
+  *)
+    export TRACE_BEGIN_SOONG=$(date +%s%N)
+    ;;
+esac
 
 source $(cd $(dirname $BASH_SOURCE) &> /dev/null && pwd)/../make/shell_utils.sh
 require_top
