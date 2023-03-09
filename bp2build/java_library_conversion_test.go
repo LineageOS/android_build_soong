@@ -755,3 +755,29 @@ func TestJavaLibraryArchVariantLibs(t *testing.T) {
 		},
 	})
 }
+
+func TestJavaLibraryArchVariantSrcsWithExcludes(t *testing.T) {
+	runJavaLibraryTestCase(t, Bp2buildTestCase{
+		Description: "java_library with arch variant libs",
+		Blueprint: `java_library {
+    name: "java-lib-1",
+    srcs: ["a.java", "b.java"],
+    target: {
+        android: {
+            exclude_srcs: ["a.java"],
+        },
+    },
+    bazel_module: { bp2build_available: true },
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("java_library", "java-lib-1", AttrNameToString{
+				"srcs": `["b.java"] + select({
+        "//build/bazel/platforms/os:android": [],
+        "//conditions:default": ["a.java"],
+    })`,
+			}),
+			MakeNeverlinkDuplicateTarget("java_library", "java-lib-1"),
+		},
+	})
+}
