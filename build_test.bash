@@ -34,9 +34,15 @@ SKIPPED_PRODUCTS=(
     aosp_riscv64
 )
 
-# To track how long we took to startup. %N isn't supported on Darwin, but
-# that's detected in the Go code, which skips calculating the startup time.
-export TRACE_BEGIN_SOONG=$(date +%s%N)
+# To track how long we took to startup.
+case $(uname -s) in
+  Darwin)
+    export TRACE_BEGIN_SOONG=`$T/prebuilts/build-tools/path/darwin-x86/date +%s%3N`
+    ;;
+  *)
+    export TRACE_BEGIN_SOONG=$(date +%s%N)
+    ;;
+esac
 
 # Remove BUILD_NUMBER so that incremental builds on build servers don't
 # re-read makefiles every time.
