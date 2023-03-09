@@ -464,6 +464,21 @@ func createStubsBazelTargetIfNeeded(ctx android.TopDownMutatorContext, m *Module
 		ctx.CreateBazelTargetModule(stubSuitesProps,
 			android.CommonAttributes{Name: m.Name() + "_stub_libs"},
 			stubSuitesAttrs)
+
+		// Add alias for the stub shared_library in @api_surfaces repository
+		currentModuleLibApiDir := ctx.Config().ApiSurfacesDir(android.ModuleLibApi, "current")
+		actualLabelInMainWorkspace := bazel.Label{
+			Label: fmt.Sprintf("@//%s:%s_stub_libs_current", ctx.ModuleDir(), m.Name()),
+		}
+		ctx.CreateBazelTargetAliasInDir(currentModuleLibApiDir, m.Name(), actualLabelInMainWorkspace)
+
+		// Add alias for headers exported by the stub library
+		headerLabelInMainWorkspace := bazel.Label{
+			// This label is generated from cc_stub_suite macro
+			Label: fmt.Sprintf("@//%s:%s_stub_libs_%s_headers", ctx.ModuleDir(), m.Name(), android.ModuleLibApi.String()),
+		}
+		headerAlias := m.Name() + "_headers"
+		ctx.CreateBazelTargetAliasInDir(currentModuleLibApiDir, headerAlias, headerLabelInMainWorkspace)
 	}
 }
 
