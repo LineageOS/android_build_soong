@@ -1334,7 +1334,7 @@ func (attrs *CommonAttributes) fillCommonBp2BuildModuleAttrs(ctx *topDownMutator
 // Check product variables for `enabled: true` flag override.
 // Returns a list of the constraint_value targets who enable this override.
 func productVariableConfigEnableLabels(ctx *topDownMutatorContext) []bazel.Label {
-	productVariableProps := ProductVariableProperties(ctx)
+	productVariableProps := ProductVariableProperties(ctx, ctx.Module())
 	productConfigEnablingTargets := []bazel.Label{}
 	const propName = "Enabled"
 	if productConfigProps, exists := productVariableProps[propName]; exists {
