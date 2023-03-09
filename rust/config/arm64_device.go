@@ -30,6 +30,7 @@ var (
 		"armv8-a-branchprot": []string{},
 		"armv8-2a":           []string{},
 		"armv8-2a-dotprod":   []string{},
+		"armv9-a":            []string{},
 	}
 )
 

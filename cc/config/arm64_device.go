@@ -41,6 +41,11 @@ var (
 		"armv8-2a-dotprod": []string{
 			"-march=armv8.2-a+dotprod",
 		},
+		"armv9-a": []string{
+			"-march=armv8.2-a+dotprod",
+			"-mbranch-protection=standard",
+			"-fno-stack-protector",
+		},
 	}
 
 	arm64Ldflags = []string{
@@ -101,6 +106,7 @@ func init() {
 	exportedVars.ExportStringListStaticVariable("Arm64Armv8ABranchProtCflags", arm64ArchVariantCflags["armv8-a-branchprot"])
 	exportedVars.ExportStringListStaticVariable("Arm64Armv82ACflags", arm64ArchVariantCflags["armv8-2a"])
 	exportedVars.ExportStringListStaticVariable("Arm64Armv82ADotprodCflags", arm64ArchVariantCflags["armv8-2a-dotprod"])
+	exportedVars.ExportStringListStaticVariable("Arm64Armv9ACflags", arm64ArchVariantCflags["armv9-a"])
 
 	exportedVars.ExportStringListStaticVariable("Arm64CortexA53Cflags", arm64CpuVariantCflags["cortex-a53"])
 	exportedVars.ExportStringListStaticVariable("Arm64CortexA55Cflags", arm64CpuVariantCflags["cortex-a55"])
@@ -117,6 +123,7 @@ var (
 		"armv8-a-branchprot": "${config.Arm64Armv8ABranchProtCflags}",
 		"armv8-2a":           "${config.Arm64Armv82ACflags}",
 		"armv8-2a-dotprod":   "${config.Arm64Armv82ADotprodCflags}",
+		"armv9-a":            "${config.Arm64Armv9ACflags}",
 	}
 
 	arm64CpuVariantCflagsVar = map[string]string{
@@ -193,6 +200,7 @@ func arm64ToolchainFactory(arch android.Arch) Toolchain {
 	case "armv8-a-branchprot":
 	case "armv8-2a":
 	case "armv8-2a-dotprod":
+	case "armv9-a":
 		// Nothing extra for armv8-a/armv8-2a
 	default:
 		panic(fmt.Sprintf("Unknown ARM architecture version: %q", arch.ArchVariant))
