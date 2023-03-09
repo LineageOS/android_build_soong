@@ -454,7 +454,7 @@ func (m *customModule) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 			}
 		}
 	}
-	productVariableProps := android.ProductVariableProperties(ctx)
+	productVariableProps := android.ProductVariableProperties(ctx, ctx.Module())
 	if props, ok := productVariableProps["String_literal_prop"]; ok {
 		for c, p := range props {
 			if val, ok := p.(*string); ok {
