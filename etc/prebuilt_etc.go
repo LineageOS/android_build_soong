@@ -717,7 +717,7 @@ func (module *PrebuiltEtc) Bp2buildHelper(ctx android.TopDownMutatorContext) *ba
 			}
 		}
 
-		for propName, productConfigProps := range android.ProductVariableProperties(ctx) {
+		for propName, productConfigProps := range android.ProductVariableProperties(ctx, ctx.Module()) {
 			for configProp, propVal := range productConfigProps {
 				if propName == "Src" {
 					props, ok := propVal.(*string)
