@@ -77,6 +77,7 @@ type configImpl struct {
 	queryview         bool
 	reportMkMetrics   bool // Collect and report mk2bp migration progress metrics.
 	soongDocs         bool
+	multitreeBuild    bool // This is a multitree build.
 	skipConfig        bool
 	skipKati          bool
 	skipKatiNinja     bool
@@ -474,6 +475,10 @@ func NewConfig(ctx Context, args ...string) Config {
 	ret.environ.Set("ANDROID_JAVA11_HOME", java11Home)
 	ret.environ.Set("PATH", strings.Join(newPath, string(filepath.ListSeparator)))
 
+	if ret.MultitreeBuild() {
+		ret.environ.Set("MULTITREE_BUILD", "true")
+	}
+
 	outDir := ret.OutDir()
 	buildDateTimeFile := filepath.Join(outDir, "build_date.txt")
 	if buildDateTime, ok := ret.environ.Get("BUILD_DATETIME"); ok && buildDateTime != "" {
@@ -781,6 +786,8 @@ func (c *configImpl) parseArgs(ctx Context, args []string) {
 			c.skipMetricsUpload = true
 		} else if arg == "--mk-metrics" {
 			c.reportMkMetrics = true
+		} else if arg == "--multitree-build" {
+			c.multitreeBuild = true
 		} else if arg == "--bazel-mode" {
 			c.bazelProdMode = true
 		} else if arg == "--bazel-mode-dev" {
@@ -1077,6 +1084,10 @@ func (c *configImpl) SoongDocs() bool {
 
 func (c *configImpl) IsVerbose() bool {
 	return c.verbose
+}
+
+func (c *configImpl) MultitreeBuild() bool {
+	return c.multitreeBuild
 }
 
 func (c *configImpl) SkipKati() bool {
