@@ -21,6 +21,7 @@ specific-but-shared functionality among tests in package
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"testing"
 
@@ -263,6 +264,12 @@ func (b BazelTestResult) CompareBazelTargets(t *testing.T, description string, e
 		t.Errorf("%s: Expected %d bazel target (%s), got %d (%s)",
 			description, expectedCount, expectedContents, actualCount, actualTargets)
 	} else {
+		sort.SliceStable(actualTargets, func(i, j int) bool {
+			return actualTargets[i].name < actualTargets[j].name
+		})
+		sort.SliceStable(expectedContents, func(i, j int) bool {
+			return getTargetName(expectedContents[i]) < getTargetName(expectedContents[j])
+		})
 		for i, actualTarget := range actualTargets {
 			if w, g := expectedContents[i], actualTarget.content; w != g {
 				t.Errorf(
@@ -636,4 +643,14 @@ func MakeNeverlinkDuplicateTarget(moduleType string, name string) string {
 		"neverlink": `True`,
 		"exports":   `[":` + name + `"]`,
 	})
+}
+
+func getTargetName(targetContent string) string {
+	data := strings.Split(targetContent, "name = \"")
+	if len(data) < 2 {
+		return ""
+	} else {
+		endIndex := strings.Index(data[1], "\"")
+		return data[1][:endIndex]
+	}
 }
