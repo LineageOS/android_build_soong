@@ -1837,3 +1837,14 @@ func (c *config) LogMixedBuild(ctx BaseModuleContext, useBazel bool) {
 		c.mixedBuildDisabledModules[moduleName] = struct{}{}
 	}
 }
+
+// ApiSurfaces directory returns the source path inside the api_surfaces repo
+// (relative to workspace root).
+func (c *config) ApiSurfacesDir(s ApiSurface, version string) string {
+	return filepath.Join(
+		"build",
+		"bazel",
+		"api_surfaces",
+		s.String(),
+		version)
+}
