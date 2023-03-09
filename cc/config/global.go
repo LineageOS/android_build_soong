@@ -417,15 +417,12 @@ func init() {
 	exportedVars.ExportStringList("CommonGlobalIncludes", commonGlobalIncludes)
 	pctx.PrefixedExistentPathsForSourcesVariable("CommonGlobalIncludes", "-I", commonGlobalIncludes)
 
-	exportedVars.ExportStringStaticVariable("CLANG_DEFAULT_VERSION", ClangDefaultVersion)
-	exportedVars.ExportStringStaticVariable("CLANG_DEFAULT_SHORT_VERSION", ClangDefaultShortVersion)
-
 	pctx.StaticVariableWithEnvOverride("ClangBase", "LLVM_PREBUILTS_BASE", ClangDefaultBase)
-	pctx.StaticVariableWithEnvOverride("ClangVersion", "LLVM_PREBUILTS_VERSION", ClangDefaultVersion)
+	exportedVars.ExportStringStaticVariableWithEnvOverride("ClangVersion", "LLVM_PREBUILTS_VERSION", ClangDefaultVersion)
 	pctx.StaticVariable("ClangPath", "${ClangBase}/${HostPrebuiltTag}/${ClangVersion}")
 	pctx.StaticVariable("ClangBin", "${ClangPath}/bin")
 
-	pctx.StaticVariableWithEnvOverride("ClangShortVersion", "LLVM_RELEASE_VERSION", ClangDefaultShortVersion)
+	exportedVars.ExportStringStaticVariableWithEnvOverride("ClangShortVersion", "LLVM_RELEASE_VERSION", ClangDefaultShortVersion)
 	pctx.StaticVariable("ClangAsanLibDir", "${ClangBase}/linux-x86/${ClangVersion}/lib/clang/${ClangShortVersion}/lib/linux")
 
 	// These are tied to the version of LLVM directly in external/llvm, so they might trail the host prebuilts
