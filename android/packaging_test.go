@@ -15,6 +15,7 @@
 package android
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/google/blueprint"
@@ -28,6 +29,8 @@ type componentTestModule struct {
 		Deps         []string
 		Skip_install *bool
 	}
+
+	builtFile Path
 }
 
 // dep tag used in this test. All dependencies are considered as installable.
@@ -48,13 +51,21 @@ func (m *componentTestModule) DepsMutator(ctx BottomUpMutatorContext) {
 }
 
 func (m *componentTestModule) GenerateAndroidBuildActions(ctx ModuleContext) {
-	builtFile := PathForModuleOut(ctx, m.Name())
+	m.builtFile = PathForModuleOut(ctx, m.Name())
 	dir := ctx.Target().Arch.ArchType.Multilib
 	installDir := PathForModuleInstall(ctx, dir)
 	if proptools.Bool(m.props.Skip_install) {
 		m.SkipInstall()
 	}
-	ctx.InstallFile(installDir, m.Name(), builtFile)
+	ctx.InstallFile(installDir, m.Name(), m.builtFile)
+}
+
+func (m *componentTestModule) AndroidMkEntries() []AndroidMkEntries {
+	return []AndroidMkEntries{
+		{
+			OutputFile: OptionalPathForPath(m.builtFile),
+		},
+	}
 }
 
 // Module that itself is a package
@@ -249,6 +260,35 @@ func TestPackagingBaseMultiTarget(t *testing.T) {
 			compile_multilib: "both",
 		}
 		`, []string{"lib32/foo", "lib64/foo", "lib64/bar"})
+}
+
+func TestSkipInstallProducesLocalUninstallableModule(t *testing.T) {
+	result := GroupFixturePreparers(
+		PrepareForTestWithArchMutator,
+		FixtureRegisterWithContext(func(ctx RegistrationContext) {
+			ctx.RegisterModuleType("component", componentTestModuleFactory)
+			ctx.RegisterModuleType("package_module", packageTestModuleFactory)
+		}),
+		FixtureWithRootAndroidBp(`
+component {
+	name: "foo",
+	skip_install: true,
+}
+
+package_module {
+	name: "package",
+	deps: ["foo"],
+}
+`),
+	).RunTest(t)
+	module := result.ModuleForTests("foo", "android_arm64_armv8-a").Module().(*componentTestModule)
+	entries := AndroidMkEntriesForTest(t, result.TestContext, module)
+	builder := &strings.Builder{}
+	entries[0].write(builder)
+	androidMkString := builder.String()
+	if !strings.Contains(androidMkString, "LOCAL_UNINSTALLABLE_MODULE := true") {
+		t.Errorf("Expected android mk entries to contain \"LOCAL_UNINSTALLABLE_MODULE := true\", got: \n%s", androidMkString)
+	}
 }
 
 func TestPackagingBaseSingleTarget(t *testing.T) {
