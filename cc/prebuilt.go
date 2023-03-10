@@ -214,7 +214,7 @@ func (p *prebuiltLibraryLinker) link(ctx ModuleContext,
 			// without the prefix hack below.
 			if p.hasStubsVariants() && !p.buildStubs() && !ctx.Host() &&
 				!strings.HasPrefix(ctx.baseModuleName(), "libclang_rt.") {
-				ctx.Module().SkipInstall()
+				ctx.Module().MakeUninstallable()
 			}
 
 			return outputFile
