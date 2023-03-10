@@ -27,6 +27,19 @@ from google.protobuf.json_format import ParseDict
 from google.protobuf.text_format import MessageToString
 
 
+def LoadJsonMessage(path):
+    """
+    Loads a message from a .json file with `//` comments strippedfor convenience.
+    """
+    json_content = ''
+    with open(path) as f:
+        for line in f:
+            if not line.lstrip().startswith('//'):
+                json_content += line
+    obj = json.loads(json_content, object_pairs_hook=collections.OrderedDict)
+    return ParseDict(obj, linker_config_pb2.LinkerConfig())
+
+
 def Proto(args):
     """
     Merges input json files (--source) into a protobuf message (--output).
@@ -48,13 +61,7 @@ def Proto(args):
 
     if args.source:
         for input in args.source.split(':'):
-            json_content = ''
-            with open(input) as f:
-                for line in f:
-                    if not line.lstrip().startswith('//'):
-                        json_content += line
-            obj = json.loads(json_content, object_pairs_hook=collections.OrderedDict)
-            ParseDict(obj, pb)
+            pb.MergeFrom(LoadJsonMessage(input))
     with open(args.output, 'wb') as f:
         f.write(pb.SerializeToString())
 
