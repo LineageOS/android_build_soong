@@ -343,4 +343,29 @@ function test_api_bp2build_empty_build() {
   run_bazel build --config=android --config=api_bp2build //:empty
 }
 
+# Verify that an *_api_contribution target can refer to an api file from
+# another Bazel package.
+function test_api_export_from_another_bazel_package() {
+  setup
+  # Parent dir Android.bp
+  mkdir -p foo
+  cat > foo/Android.bp << 'EOF'
+cc_library {
+  name: "libfoo",
+  stubs: {
+    symbol_file: "api/libfoo.map.txt",
+  },
+}
+EOF
+  # Child dir Android.bp
+  mkdir -p foo/api
+  cat > foo/api/Android.bp << 'EOF'
+package{}
+EOF
+  touch foo/api/libfoo.map.txt
+  # Run test
+  run_soong api_bp2build
+  run_bazel build --config=android --config=api_bp2build //foo:libfoo.contribution
+}
+
 scan_and_run_tests
