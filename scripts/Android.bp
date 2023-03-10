@@ -191,6 +191,17 @@ python_binary_host {
     ],
 }
 
+python_test_host {
+    name: "conv_linker_config_test",
+    main: "conv_linker_config_test.py",
+    srcs: [
+        "conv_linker_config_test.py",
+        "conv_linker_config.py",
+    ],
+    libs: ["linker_config_proto"],
+    test_suites: ["general-tests"],
+}
+
 python_binary_host {
     name: "get_clang_version",
     main: "get_clang_version.py",
