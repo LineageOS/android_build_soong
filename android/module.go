@@ -505,8 +505,8 @@ type Module interface {
 	PartitionTag(DeviceConfig) string
 	HideFromMake()
 	IsHideFromMake() bool
-	SkipInstall()
 	IsSkipInstall() bool
+	MakeUninstallable()
 	ReplacedByPrebuilt()
 	IsReplacedByPrebuilt() bool
 	ExportedToMake() bool
@@ -1962,6 +1962,15 @@ func (m *ModuleBase) SkipInstall() {
 // rules when ctx.Install* are called.
 func (m *ModuleBase) IsSkipInstall() bool {
 	return m.commonProperties.SkipInstall
+}
+
+// Similar to HideFromMake, but if the AndroidMk entry would set
+// LOCAL_UNINSTALLABLE_MODULE then this variant may still output that entry
+// rather than leaving it out altogether. That happens in cases where it would
+// have other side effects, in particular when it adds a NOTICE file target,
+// which other install targets might depend on.
+func (m *ModuleBase) MakeUninstallable() {
+	m.HideFromMake()
 }
 
 func (m *ModuleBase) ReplacedByPrebuilt() {
