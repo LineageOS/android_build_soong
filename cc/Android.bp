@@ -21,6 +21,8 @@ bootstrap_go_package {
     ],
     srcs: [
         "afdo.go",
+        "fdo_profile.go",
+
         "androidmk.go",
         "api_level.go",
         "bp2build.go",
