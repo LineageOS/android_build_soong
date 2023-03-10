@@ -560,6 +560,8 @@ func (a *AndroidMkEntries) fillInEntries(ctx fillInEntriesContext, mod blueprint
 		a.SetPaths("LOCAL_SOONG_INSTALL_SYMLINKS", base.katiSymlinks.InstallPaths().Paths())
 	}
 
+	a.SetBoolIfTrue("LOCAL_UNINSTALLABLE_MODULE", base.commonProperties.SkipInstall)
+
 	if am, ok := mod.(ApexModule); ok {
 		a.SetBoolIfTrue("LOCAL_NOT_AVAILABLE_FOR_PLATFORM", am.NotAvailableForPlatform())
 	}
