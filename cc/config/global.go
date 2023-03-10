@@ -234,8 +234,6 @@ var (
 		// New warnings to be fixed after clang-r433403
 		"-Wno-error=unused-but-set-variable",  // http://b/197240255
 		"-Wno-error=unused-but-set-parameter", // http://b/197240255
-		// New warnings to be fixed after clang-r458507
-		"-Wno-error=unqualified-std-cast-call", // http://b/239662094
 		// New warnings to be fixed after clang-r468909
 		"-Wno-error=deprecated-builtins", // http://b/241601211
 		"-Wno-error=deprecated",          // in external/googletest/googletest
@@ -253,6 +251,7 @@ var (
 		"-Wno-sizeof-array-div",
 		"-Wno-unused-but-set-variable",
 		"-Wno-unused-but-set-parameter",
+		"-Wno-unqualified-std-cast-call",
 		"-Wno-bitwise-instead-of-logical",
 		"-Wno-misleading-indentation",
 		"-Wno-array-parameter",
