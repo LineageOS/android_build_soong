@@ -2606,10 +2606,10 @@ func (m *Library) convertJavaResourcesAttributes(ctx android.TopDownMutatorConte
 
 type javaCommonAttributes struct {
 	*javaResourcesAttributes
-	Srcs        bazel.LabelListAttribute
-	Plugins     bazel.LabelListAttribute
-	Javacopts   bazel.StringListAttribute
-	Common_srcs bazel.LabelListAttribute
+	*kotlinAttributes
+	Srcs      bazel.LabelListAttribute
+	Plugins   bazel.LabelListAttribute
+	Javacopts bazel.StringListAttribute
 }
 
 type javaDependencyLabels struct {
@@ -2636,8 +2636,8 @@ type javaAidlLibraryAttributes struct {
 // depending on the module type.
 type bp2BuildJavaInfo struct {
 	// separates dependencies into dynamic dependencies and static dependencies.
-	DepLabels     *javaDependencyLabels
-	hasKotlinSrcs bool
+	DepLabels *javaDependencyLabels
+	hasKotlin bool
 }
 
 // convertLibraryAttrsBp2Build returns a javaCommonAttributes struct with
@@ -2659,6 +2659,7 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext)
 			}
 		}
 	}
+	srcs.ResolveExcludes()
 
 	javaSrcPartition := "java"
 	protoSrcPartition := "proto"
@@ -2784,9 +2785,17 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext)
 	depLabels.Deps = deps
 	depLabels.StaticDeps = bazel.MakeLabelListAttribute(staticDeps)
 
+	hasKotlin := !kotlinSrcs.IsEmpty()
+	if len(m.properties.Common_srcs) != 0 {
+		hasKotlin = true
+		commonAttrs.kotlinAttributes = &kotlinAttributes{
+			bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrc(ctx, m.properties.Common_srcs)),
+		}
+	}
+
 	bp2BuildInfo := &bp2BuildJavaInfo{
-		DepLabels:     depLabels,
-		hasKotlinSrcs: !kotlinSrcs.IsEmpty(),
+		DepLabels: depLabels,
+		hasKotlin: hasKotlin,
 	}
 
 	return commonAttrs, bp2BuildInfo
@@ -2797,6 +2806,10 @@ type javaLibraryAttributes struct {
 	Deps      bazel.LabelListAttribute
 	Exports   bazel.LabelListAttribute
 	Neverlink bazel.BoolAttribute
+}
+
+type kotlinAttributes struct {
+	Common_srcs bazel.LabelListAttribute
 }
 
 func javaLibraryBp2Build(ctx android.TopDownMutatorContext, m *Library) {
@@ -2827,14 +2840,12 @@ func javaLibraryBp2Build(ctx android.TopDownMutatorContext, m *Library) {
 	}
 	name := m.Name()
 
-	if !bp2BuildInfo.hasKotlinSrcs && len(m.properties.Common_srcs) == 0 {
+	if !bp2BuildInfo.hasKotlin {
 		props = bazel.BazelTargetModuleProperties{
 			Rule_class:        "java_library",
 			Bzl_load_location: "//build/bazel/rules/java:library.bzl",
 		}
 	} else {
-		attrs.javaCommonAttributes.Common_srcs = bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrc(ctx, m.properties.Common_srcs))
-
 		props = bazel.BazelTargetModuleProperties{
 			Rule_class:        "kt_jvm_library",
 			Bzl_load_location: "//build/bazel/rules/kotlin:kt_jvm_library.bzl",
@@ -2925,7 +2936,7 @@ func javaBinaryHostBp2Build(ctx android.TopDownMutatorContext, m *Binary) {
 		Jvm_flags:    jvmFlags,
 	}
 
-	if !bp2BuildInfo.hasKotlinSrcs && len(m.properties.Common_srcs) == 0 {
+	if !bp2BuildInfo.hasKotlin {
 		attrs.javaCommonAttributes = commonAttrs
 		attrs.Deps = deps
 	} else {
@@ -2934,18 +2945,10 @@ func javaBinaryHostBp2Build(ctx android.TopDownMutatorContext, m *Binary) {
 			Rule_class:        "kt_jvm_library",
 			Bzl_load_location: "//build/bazel/rules/kotlin:kt_jvm_library.bzl",
 		}
-		ktAttrs := &javaLibraryAttributes{
-			Deps: deps,
-			javaCommonAttributes: &javaCommonAttributes{
-				Srcs:                    commonAttrs.Srcs,
-				Plugins:                 commonAttrs.Plugins,
-				Javacopts:               commonAttrs.Javacopts,
-				javaResourcesAttributes: commonAttrs.javaResourcesAttributes,
-			},
-		}
 
-		if len(m.properties.Common_srcs) != 0 {
-			ktAttrs.javaCommonAttributes.Common_srcs = bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrc(ctx, m.properties.Common_srcs))
+		ktAttrs := &javaLibraryAttributes{
+			Deps:                 deps,
+			javaCommonAttributes: commonAttrs,
 		}
 
 		ctx.CreateBazelTargetModule(ktProps, android.CommonAttributes{Name: ktName}, ktAttrs)

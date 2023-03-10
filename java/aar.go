@@ -1092,11 +1092,6 @@ func (a *AndroidLibrary) ConvertWithBp2build(ctx android.TopDownMutatorContext) 
 	} else if !depLabels.Deps.IsEmpty() {
 		ctx.ModuleErrorf("Module has direct dependencies but no sources. Bazel will not allow this.")
 	}
-
-	if len(a.properties.Common_srcs) != 0 {
-		commonAttrs.Common_srcs = bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrc(ctx, a.properties.Common_srcs))
-	}
-
 	name := a.Name()
 	props := bazel.BazelTargetModuleProperties{
 		Rule_class:        "android_library",
