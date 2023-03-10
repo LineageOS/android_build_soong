@@ -25,11 +25,11 @@ import (
 )
 
 // A helper function to generate a Read-only Bazel workspace in outDir
-func createBazelWorkspace(ctx *bp2build.CodegenContext, outDir string) error {
+func createBazelWorkspace(ctx *bp2build.CodegenContext, outDir string, generateFilegroups bool) error {
 	os.RemoveAll(outDir)
 	ruleShims := bp2build.CreateRuleShims(android.ModuleTypeFactories())
 
-	res, err := bp2build.GenerateBazelTargets(ctx, false)
+	res, err := bp2build.GenerateBazelTargets(ctx, generateFilegroups)
 	if err != nil {
 		panic(err)
 	}
