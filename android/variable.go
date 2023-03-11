@@ -442,6 +442,7 @@ type productVariables struct {
 	BuildBrokenDepfile                 *bool    `json:",omitempty"`
 	BuildBrokenEnforceSyspropOwner     bool     `json:",omitempty"`
 	BuildBrokenTrebleSyspropNeverallow bool     `json:",omitempty"`
+	BuildBrokenUsesSoongPython2Modules bool     `json:",omitempty"`
 	BuildBrokenVendorPropertyNamespace bool     `json:",omitempty"`
 	BuildBrokenInputDirModules         []string `json:",omitempty"`
 
