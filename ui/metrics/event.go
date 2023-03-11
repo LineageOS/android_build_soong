@@ -135,8 +135,8 @@ func (t *EventTracer) AddProcResInfo(name string, state *os.ProcessState) {
 	e := t.peek()
 	e.procResInfo = append(e.procResInfo, &soong_metrics_proto.ProcessResourceInfo{
 		Name:             proto.String(name),
-		UserTimeMicros:   proto.Uint64(uint64(rusage.Utime.Usec)),
-		SystemTimeMicros: proto.Uint64(uint64(rusage.Stime.Usec)),
+		UserTimeMicros:   proto.Uint64(uint64(state.UserTime().Microseconds())),
+		SystemTimeMicros: proto.Uint64(uint64(state.SystemTime().Microseconds())),
 		MinorPageFaults:  proto.Uint64(uint64(rusage.Minflt)),
 		MajorPageFaults:  proto.Uint64(uint64(rusage.Majflt)),
 		// ru_inblock and ru_oublock are measured in blocks of 512 bytes.
