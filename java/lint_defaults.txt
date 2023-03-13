@@ -40,6 +40,13 @@
 # NewApi checks will continue to be enforced for apex deps since
 # lint.strict_updatability_linting will be true for those Soong modules
 --disable_check NewApi
+# Disable ChromeOS specific checks
+--disable_check PermissionImpliesUnsupportedChromeOsHardware
+# Disable UnsafeImplicitIntentLaunch until it can avoid false positives/crash
+# TODO(265425607)
+--disable_check UnsafeImplicitIntentLaunch
+# InvalidId will give errors on ids defined like android:id="@androidprv:id/contentPanel"
+--disable_check InvalidId
 
 # Downgrade existing errors to warnings
 --warning_check AppCompatResource                  # 55 occurences in 10 modules
