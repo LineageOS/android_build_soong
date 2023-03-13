@@ -20,3 +20,5 @@ BUILD_BROKEN_DISABLE_BAZEL=true "$TOP/build/soong/tests/dcla_apex_comparison_tes
 "$TOP/build/soong/tests/apex_cc_module_arch_variant_tests.sh"
 "$TOP/build/soong/tests/apex_cc_module_arch_variant_tests.sh" "aosp_arm" "armv7-a"
 "$TOP/build/soong/tests/apex_cc_module_arch_variant_tests.sh" "aosp_cf_arm64_phone" "armv8-a" "cortex-a53"
+
+"$TOP/build/soong/tests/sbom_test.sh"
