@@ -699,6 +699,11 @@ var (
 
 		// for api_fingerprint.txt generation
 		"api_fingerprint",
+
+		// allowlisting for kotlinx_coroutines
+		"kotlinx_coroutines",
+		"annotations",
+		"kotlinx-coroutines-android-annotation-stubs",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
