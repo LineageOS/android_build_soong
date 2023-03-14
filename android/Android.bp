@@ -111,6 +111,7 @@ bootstrap_go_package {
         "depset_test.go",
         "deptag_test.go",
         "expand_test.go",
+        "filegroup_test.go",
         "fixture_test.go",
         "gen_notice_test.go",
         "license_kind_test.go",
