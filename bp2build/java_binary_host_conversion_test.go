@@ -284,3 +284,38 @@ func TestJavaBinaryHostKotlinWithResources(t *testing.T) {
 		},
 	})
 }
+
+func TestJavaBinaryHostKotlinCflags(t *testing.T) {
+	runJavaBinaryHostTestCase(t, Bp2buildTestCase{
+		Description: "java_binary_host with kotlincflags",
+		Filesystem:  testFs,
+		Blueprint: `java_binary_host {
+    name: "java-binary-host",
+    manifest: "test.mf",
+    srcs: ["a.kt"],
+    kotlincflags: ["-flag1", "-flag2"],
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("kt_jvm_library", "java-binary-host_kt", AttrNameToString{
+				"srcs": `["a.kt"]`,
+				"kotlincflags": `[
+        "-flag1",
+        "-flag2",
+    ]`,
+				"target_compatible_with": `select({
+        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    })`,
+			}),
+			MakeBazelTarget("java_binary", "java-binary-host", AttrNameToString{
+				"main_class":   `"com.android.test.MainClass"`,
+				"runtime_deps": `[":java-binary-host_kt"]`,
+				"target_compatible_with": `select({
+        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    })`,
+			}),
+		},
+	})
+}
