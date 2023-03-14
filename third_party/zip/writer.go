@@ -162,9 +162,17 @@ func (w *Writer) Close() error {
 		if records > uint16max {
 			records = uint16max
 		}
+		// Only store uint32max for the size and the offset if they don't fit.
+		// Robolectric currently doesn't support zip64 and fails to find the
+		// offset to the central directory when the number of files in the zip
+		// is larger than 2^16.
+		if size > uint32max {
+			size = uint32max
+		}
+		if offset > uint32max {
+			offset = uint32max
+		}
 		// END ANDROID CHANGE
-		size = uint32max
-		offset = uint32max
 	}
 
 	// write end record
