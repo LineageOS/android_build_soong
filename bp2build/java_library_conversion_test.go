@@ -673,7 +673,7 @@ android_library {
 
 func TestJavaLibraryKotlinSrcs(t *testing.T) {
 	runJavaLibraryTestCase(t, Bp2buildTestCase{
-		Description: "java_library with kotlin  srcs",
+		Description: "java_library with kotlin srcs",
 		Blueprint: `java_library {
     name: "java-lib-1",
     srcs: ["a.java", "b.java", "c.kt"],
@@ -693,9 +693,32 @@ func TestJavaLibraryKotlinSrcs(t *testing.T) {
 	})
 }
 
+func TestJavaLibraryKotlincflags(t *testing.T) {
+	runJavaLibraryTestCase(t, Bp2buildTestCase{
+		Description: "java_library with kotlincfalgs",
+		Blueprint: `java_library {
+    name: "java-lib-1",
+    srcs: [ "a.kt"],
+    kotlincflags: ["-flag1", "-flag2"],
+    bazel_module: { bp2build_available: true },
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("kt_jvm_library", "java-lib-1", AttrNameToString{
+				"srcs": `["a.kt"]`,
+				"kotlincflags": `[
+        "-flag1",
+        "-flag2",
+    ]`,
+			}),
+			MakeNeverlinkDuplicateTarget("kt_jvm_library", "java-lib-1"),
+		},
+	})
+}
+
 func TestJavaLibraryKotlinCommonSrcs(t *testing.T) {
 	runJavaLibraryTestCase(t, Bp2buildTestCase{
-		Description: "java_library with kotlin  common_srcs",
+		Description: "java_library with kotlin common_srcs",
 		Blueprint: `java_library {
     name: "java-lib-1",
     srcs: ["a.java", "b.java"],
