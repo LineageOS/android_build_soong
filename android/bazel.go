@@ -356,6 +356,7 @@ func MixedBuildsEnabled(ctx BaseModuleContext) bool {
 	withinApex := !apexInfo.IsForPlatform()
 	mixedBuildEnabled := ctx.Config().IsMixedBuildsEnabled() &&
 		ctx.Os() != Windows && // Windows toolchains are not currently supported.
+		ctx.Os() != LinuxBionic && // Linux Bionic toolchains are not currently supported.
 		module.Enabled() &&
 		convertedToBazel(ctx, module) &&
 		ctx.Config().BazelContext.IsModuleNameAllowed(module.Name(), withinApex)
