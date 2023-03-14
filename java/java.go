@@ -2786,11 +2786,12 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext)
 	depLabels.StaticDeps = bazel.MakeLabelListAttribute(staticDeps)
 
 	hasKotlin := !kotlinSrcs.IsEmpty()
+	commonAttrs.kotlinAttributes = &kotlinAttributes{
+		Kotlincflags: &m.properties.Kotlincflags,
+	}
 	if len(m.properties.Common_srcs) != 0 {
 		hasKotlin = true
-		commonAttrs.kotlinAttributes = &kotlinAttributes{
-			bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrc(ctx, m.properties.Common_srcs)),
-		}
+		commonAttrs.kotlinAttributes.Common_srcs = bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrc(ctx, m.properties.Common_srcs))
 	}
 
 	bp2BuildInfo := &bp2BuildJavaInfo{
@@ -2809,7 +2810,8 @@ type javaLibraryAttributes struct {
 }
 
 type kotlinAttributes struct {
-	Common_srcs bazel.LabelListAttribute
+	Common_srcs  bazel.LabelListAttribute
+	Kotlincflags *[]string
 }
 
 func javaLibraryBp2Build(ctx android.TopDownMutatorContext, m *Library) {
