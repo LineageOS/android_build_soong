@@ -207,6 +207,10 @@ func (p Pom) IsJar() bool {
 	return p.Packaging == "jar"
 }
 
+func (p Pom) IsApk() bool {
+	return p.Packaging == "apk"
+}
+
 func (p Pom) IsHostModule() bool {
 	return hostModuleNames.IsHostModule(p.GroupId, p.ArtifactId)
 }
@@ -244,6 +248,8 @@ func (p Pom) BazelTargetType() string {
 func (p Pom) ImportModuleType() string {
 	if p.IsAar() {
 		return "android_library_import"
+	} else if p.IsApk() {
+		return "android_app_import"
 	} else if p.IsHostOnly() {
 		return "java_import_host"
 	} else {
@@ -254,6 +260,8 @@ func (p Pom) ImportModuleType() string {
 func (p Pom) BazelImportTargetType() string {
 	if p.IsAar() {
 		return "aar_import"
+	} else if p.IsApk() {
+		return "apk_import"
 	} else {
 		return "java_import"
 	}
@@ -262,6 +270,8 @@ func (p Pom) BazelImportTargetType() string {
 func (p Pom) ImportProperty() string {
 	if p.IsAar() {
 		return "aars"
+	} else if p.IsApk() {
+		return "apk"
 	} else {
 		return "jars"
 	}
@@ -270,6 +280,8 @@ func (p Pom) ImportProperty() string {
 func (p Pom) BazelImportProperty() string {
 	if p.IsAar() {
 		return "aar"
+	} else if p.IsApk() {
+		return "apk"
 	} else {
 		return "jars"
 	}
@@ -493,8 +505,12 @@ func (p *Pom) ExtractMinSdkVersion() error {
 var bpTemplate = template.Must(template.New("bp").Parse(`
 {{.ImportModuleType}} {
     name: "{{.BpName}}",
+    {{- if .IsApk}}
+    {{.ImportProperty}}: "{{.ArtifactFile}}",
+    {{- else}}
     {{.ImportProperty}}: ["{{.ArtifactFile}}"],
     sdk_version: "{{.SdkVersion}}",
+    {{- end}}
     {{- if .Jetifier}}
     jetifier: true,
     {{- end}}
@@ -535,8 +551,14 @@ var bpTemplate = template.Must(template.New("bp").Parse(`
     ],
     {{- end}}
     {{- else if not .IsHostOnly}}
+    {{- if not .IsApk}}
     min_sdk_version: "{{.DefaultMinSdkVersion}}",
     {{- end}}
+    {{- end}}
+    {{- if .IsApk}}
+    presigned: true
+    {{- end}}
+
 }
 `))
 
@@ -828,6 +850,7 @@ Usage: %s [--rewrite <regex>=<replace>] [--exclude <module>] [--extra-static-lib
 
 	var regen string
 	var pom2build bool
+	var prepend string
 
 	flag.Var(&excludes, "exclude", "Exclude module")
 	flag.Var(&extraStaticLibs, "extra-static-libs", "Extra static dependencies needed when depending on a module")
@@ -844,6 +867,7 @@ Usage: %s [--rewrite <regex>=<replace>] [--exclude <module>] [--extra-static-lib
 	flag.BoolVar(&jetifier, "jetifier", false, "Sets jetifier: true on all modules")
 	flag.StringVar(&regen, "regen", "", "Rewrite specified file")
 	flag.BoolVar(&pom2build, "pom2build", false, "If true, will generate a Bazel BUILD file *instead* of a .bp file")
+	flag.StringVar(&prepend, "prepend", "", "Path to a file containing text to insert at the beginning of the generated build file")
 	flag.Parse()
 
 	if regen != "" {
@@ -975,6 +999,15 @@ Usage: %s [--rewrite <regex>=<replace>] [--exclude <module>] [--extra-static-lib
 		fmt.Fprintln(buf, commentString, "pom2bp", strings.Join(proptools.ShellEscapeList(os.Args[1:]), " "))
 	}
 
+	if prepend != "" {
+		contents, err := ioutil.ReadFile(prepend)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Error reading", prepend, err)
+			os.Exit(1)
+		}
+		fmt.Fprintln(buf, string(contents))
+	}
+
 	depsTemplate := bpDepsTemplate
 	template := bpTemplate
 	if pom2build {
@@ -984,7 +1017,7 @@ Usage: %s [--rewrite <regex>=<replace>] [--exclude <module>] [--extra-static-lib
 
 	for _, pom := range poms {
 		var err error
-		if staticDeps {
+		if staticDeps && !pom.IsApk() {
 			err = depsTemplate.Execute(buf, pom)
 		} else {
 			err = template.Execute(buf, pom)

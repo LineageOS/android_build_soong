@@ -749,9 +749,7 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 		// Kotlin files
 		ctx.AddVariationDependencies(nil, kotlinStdlibTag,
 			"kotlin-stdlib", "kotlin-stdlib-jdk7", "kotlin-stdlib-jdk8")
-		if len(j.properties.Plugins) > 0 {
-			ctx.AddVariationDependencies(nil, kotlinAnnotationsTag, "kotlin-annotations")
-		}
+		ctx.AddVariationDependencies(nil, kotlinAnnotationsTag, "kotlin-annotations")
 	}
 
 	// Framework libraries need special handling in static coverage builds: they should not have
@@ -1107,8 +1105,6 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 		flags.classpath = append(flags.classpath, deps.kotlinStdlib...)
 		flags.classpath = append(flags.classpath, deps.kotlinAnnotations...)
 
-		flags.dexClasspath = append(flags.dexClasspath, deps.kotlinAnnotations...)
-
 		flags.kotlincClasspath = append(flags.kotlincClasspath, flags.bootClasspath...)
 		flags.kotlincClasspath = append(flags.kotlincClasspath, flags.classpath...)
 
@@ -1140,9 +1136,12 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 		// Jar kotlin classes into the final jar after javac
 		if BoolDefault(j.properties.Static_kotlin_stdlib, true) {
 			kotlinJars = append(kotlinJars, deps.kotlinStdlib...)
+			kotlinJars = append(kotlinJars, deps.kotlinAnnotations...)
 			kotlinHeaderJars = append(kotlinHeaderJars, deps.kotlinStdlib...)
+			kotlinHeaderJars = append(kotlinHeaderJars, deps.kotlinAnnotations...)
 		} else {
 			flags.dexClasspath = append(flags.dexClasspath, deps.kotlinStdlib...)
+			flags.dexClasspath = append(flags.dexClasspath, deps.kotlinAnnotations...)
 		}
 	}
 
