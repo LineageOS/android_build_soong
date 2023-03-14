@@ -171,3 +171,39 @@ android_library {
 			MakeNeverlinkDuplicateTarget("android_library", "TestLib"),
 		}})
 }
+
+func TestConvertAndroidLibraryKotlinCflags(t *testing.T) {
+	t.Helper()
+	RunBp2BuildTestCase(t, func(ctx android.RegistrationContext) {}, Bp2buildTestCase{
+		Description:                "Android Library with .kt srcs and kotlincflags ",
+		ModuleTypeUnderTest:        "android_library",
+		ModuleTypeUnderTestFactory: java.AndroidLibraryFactory,
+		Filesystem: map[string]string{
+			"AndroidManifest.xml": "",
+		},
+		Blueprint: `
+android_library {
+        name: "TestLib",
+        srcs: ["a.java", "b.kt"],
+        kotlincflags: ["-flag1", "-flag2"],
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget(
+				"android_library",
+				"TestLib",
+				AttrNameToString{
+					"srcs": `[
+        "a.java",
+        "b.kt",
+    ]`,
+					"kotlincflags": `[
+        "-flag1",
+        "-flag2",
+    ]`,
+					"manifest":       `"AndroidManifest.xml"`,
+					"resource_files": `[]`,
+				}),
+			MakeNeverlinkDuplicateTarget("android_library", "TestLib"),
+		}})
+}
