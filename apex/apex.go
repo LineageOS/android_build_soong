@@ -509,6 +509,21 @@ const (
 	shBinary
 )
 
+var (
+	classes = map[string]apexFileClass{
+		"app":              app,
+		"appSet":           appSet,
+		"etc":              etc,
+		"goBinary":         goBinary,
+		"javaSharedLib":    javaSharedLib,
+		"nativeExecutable": nativeExecutable,
+		"nativeSharedLib":  nativeSharedLib,
+		"nativeTest":       nativeTest,
+		"pyBinary":         pyBinary,
+		"shBinary":         shBinary,
+	}
+)
+
 // apexFile represents a file in an APEX bundle. This is created during the first half of
 // GenerateAndroidBuildActions by traversing the dependencies of the APEX. Then in the second half
 // of the function, this is used to create commands that copies the files into a staging directory,
@@ -542,6 +557,10 @@ type apexFile struct {
 	isJniLib      bool
 
 	multilib string
+
+	isBazelPrebuilt     bool
+	unstrippedBuiltFile android.Path
+	arch                string
 
 	// TODO(jiyong): remove this
 	module android.Module
@@ -1710,6 +1729,7 @@ func apexFileForGoBinary(ctx android.BaseModuleContext, depName string, gb boots
 	// NB: Since go binaries are static we don't need the module for anything here, which is
 	// good since the go tool is a blueprint.Module not an android.Module like we would
 	// normally use.
+	//
 	return newApexFile(ctx, fileToCopy, depName, dirInApex, goBinary, nil)
 }
 
@@ -2003,13 +2023,41 @@ func (a *apexBundle) ProcessBazelQueryResponse(ctx android.ModuleContext) {
 		panic(fmt.Errorf("internal error: unexpected apex_type for the ProcessBazelQueryResponse: %v", a.properties.ApexType))
 	}
 
-	// filesInfo is not set in mixed mode, because all information about the
-	// apex's contents should completely come from the Starlark providers.
+	// filesInfo in mixed mode must retrieve all information about the apex's
+	// contents completely from the Starlark providers. It should never rely on
+	// Android.bp information, as they might not exist for fully migrated
+	// dependencies.
 	//
 	// Prevent accidental writes to filesInfo in the earlier parts Soong by
 	// asserting it to be nil.
 	if a.filesInfo != nil {
-		panic(fmt.Errorf("internal error: filesInfo must be nil for an apex handled by Bazel."))
+		panic(
+			fmt.Errorf("internal error: filesInfo must be nil for an apex handled by Bazel. " +
+				"Did something else set filesInfo before this line of code?"))
+	}
+	for _, f := range outputs.PayloadFilesInfo {
+		fileInfo := apexFile{
+			isBazelPrebuilt: true,
+
+			builtFile:           android.PathForBazelOut(ctx, f["built_file"]),
+			unstrippedBuiltFile: android.PathForBazelOut(ctx, f["unstripped_built_file"]),
+			androidMkModuleName: f["make_module_name"],
+			installDir:          f["install_dir"],
+			class:               classes[f["class"]],
+			customStem:          f["basename"],
+			moduleDir:           f["package"],
+		}
+
+		arch := f["arch"]
+		fileInfo.arch = arch
+		if len(arch) > 0 {
+			fileInfo.multilib = "lib32"
+			if strings.HasSuffix(arch, "64") {
+				fileInfo.multilib = "lib64"
+			}
+		}
+
+		a.filesInfo = append(a.filesInfo, fileInfo)
 	}
 }
 
