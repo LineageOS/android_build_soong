@@ -2506,20 +2506,11 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	if c.isNDKStubLibrary() {
 		// NDK stubs depend on their implementation because the ABI dumps are
 		// generated from the implementation library.
-		apiImportName := c.BaseModuleName() + multitree.GetApiImportSuffix()
 
-		// If original library exists as imported API, set dependency on the imported library
-		if actx.OtherModuleExists(apiImportName) {
-			actx.AddFarVariationDependencies(append(ctx.Target().Variations(),
-				c.ImageVariation(),
-				blueprint.Variation{Mutator: "link", Variation: "shared"},
-			), stubImplementation, apiImportName)
-		} else {
-			actx.AddFarVariationDependencies(append(ctx.Target().Variations(),
-				c.ImageVariation(),
-				blueprint.Variation{Mutator: "link", Variation: "shared"},
-			), stubImplementation, c.BaseModuleName())
-		}
+		actx.AddFarVariationDependencies(append(ctx.Target().Variations(),
+			c.ImageVariation(),
+			blueprint.Variation{Mutator: "link", Variation: "shared"},
+		), stubImplementation, c.BaseModuleName())
 	}
 
 	for _, lib := range deps.WholeStaticLibs {
