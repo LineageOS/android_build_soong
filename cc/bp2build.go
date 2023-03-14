@@ -71,7 +71,7 @@ type staticOrSharedAttributes struct {
 }
 
 type tidyAttributes struct {
-	Tidy                  *bool
+	Tidy                  *string
 	Tidy_flags            []string
 	Tidy_checks           []string
 	Tidy_checks_as_errors []string
@@ -82,7 +82,15 @@ type tidyAttributes struct {
 func (m *Module) convertTidyAttributes(ctx android.BaseMutatorContext, moduleAttrs *tidyAttributes) {
 	for _, f := range m.features {
 		if tidy, ok := f.(*tidyFeature); ok {
-			moduleAttrs.Tidy = tidy.Properties.Tidy
+			var tidyAttr *string
+			if tidy.Properties.Tidy != nil {
+				if *tidy.Properties.Tidy {
+					tidyAttr = proptools.StringPtr("local")
+				} else {
+					tidyAttr = proptools.StringPtr("never")
+				}
+			}
+			moduleAttrs.Tidy = tidyAttr
 			moduleAttrs.Tidy_flags = tidy.Properties.Tidy_flags
 			moduleAttrs.Tidy_checks = tidy.Properties.Tidy_checks
 			moduleAttrs.Tidy_checks_as_errors = tidy.Properties.Tidy_checks_as_errors
