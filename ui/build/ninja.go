@@ -33,6 +33,46 @@ const (
 	ninjaEnvFileName = "ninja.environment"
 )
 
+func useNinjaBuildLog(ctx Context, config Config, cmd *Cmd) {
+	ninjaLogFile := filepath.Join(config.OutDir(), ".ninja_log")
+	data, err := os.ReadFile(ninjaLogFile)
+	var outputBuilder strings.Builder
+	if err == nil {
+		lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+		// ninja log: <start>	<end>	<restat>	<name>	<cmdhash>
+		// ninja weight list: <name>,<end-start+1>
+		for _, line := range lines {
+			if strings.HasPrefix(line, "#") {
+				continue
+			}
+			fields := strings.Split(line, "\t")
+			path := fields[3]
+			start, err := strconv.Atoi(fields[0])
+			if err != nil {
+				continue
+			}
+			end, err := strconv.Atoi(fields[1])
+			if err != nil {
+				continue
+			}
+			outputBuilder.WriteString(path)
+			outputBuilder.WriteString(",")
+			outputBuilder.WriteString(strconv.Itoa(end-start+1) + "\n")
+		}
+	}
+	// If there is no ninja log file, just pass empty ninja weight list.
+	// Because it is still efficient with critical path calculation logic even without weight.
+
+	weightListFile := filepath.Join(config.OutDir(), ".ninja_weight_list")
+
+	err = os.WriteFile(weightListFile, []byte(outputBuilder.String()), 0644)
+	if err == nil {
+		cmd.Args = append(cmd.Args, "-o", "usesweightlist="+weightListFile)
+	} else {
+		ctx.Panicf("Could not write ninja weight list file %s", err)
+	}
+}
+
 // Constructs and runs the Ninja command line with a restricted set of
 // environment variables. It's important to restrict the environment Ninja runs
 // for hermeticity reasons, and to avoid spurious rebuilds.
@@ -83,6 +123,14 @@ func runNinjaForBuild(ctx Context, config Config) {
 		// Reads and executes a shell script from Kati that sets/unsets the
 		// environment Ninja runs in.
 		cmd.Environment.AppendFromKati(config.KatiEnvFile())
+	}
+
+	switch config.NinjaWeightListSource() {
+	case NINJA_LOG:
+		useNinjaBuildLog(ctx, config, cmd)
+	case EVENLY_DISTRIBUTED:
+		// pass empty weight list means ninja considers every tasks's weight as 1(default value).
+		cmd.Args = append(cmd.Args, "-o", "usesweightlist=/dev/null")
 	}
 
 	// Allow both NINJA_ARGS and NINJA_EXTRA_ARGS, since both have been
