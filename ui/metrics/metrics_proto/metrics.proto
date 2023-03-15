@@ -318,6 +318,8 @@ message MixedBuildsInfo{
   repeated string mixed_build_disabled_modules = 2;
 }
 
+// CriticalPathInfo contains critical path nodes's information.
+// A critical path is a path determining the minimum time needed for the whole build given perfect parallelism.
 message CriticalPathInfo {
   // Real time which the build system spent
   optional uint64 elapsed_time = 1;

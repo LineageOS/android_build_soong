@@ -1437,6 +1437,8 @@ func (x *MixedBuildsInfo) GetMixedBuildDisabledModules() []string {
 	return nil
 }
 
+// CriticalPathInfo contains critical path nodes's information.
+// A critical path is a path determining the minimum time needed for the whole build given perfect parallelism.
 type CriticalPathInfo struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
