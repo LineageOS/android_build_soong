@@ -454,12 +454,12 @@ func createStubsBazelTargetIfNeeded(ctx android.TopDownMutatorContext, m *Module
 		}
 		soname := m.Name() + ".so"
 		stubSuitesAttrs := &bazelCcStubSuiteAttributes{
-			Symbol_file:     compilerAttrs.stubsSymbolFile,
-			Versions:        compilerAttrs.stubsVersions,
-			Export_includes: exportedIncludes.Includes,
-			Soname:          &soname,
-			Source_library:  *bazel.MakeLabelAttribute(":" + m.Name()),
-			Deps:            baseAttributes.deps,
+			Symbol_file:          compilerAttrs.stubsSymbolFile,
+			Versions:             compilerAttrs.stubsVersions,
+			Export_includes:      exportedIncludes.Includes,
+			Soname:               &soname,
+			Source_library_label: proptools.StringPtr(m.GetBazelLabel(ctx, m)),
+			Deps:                 baseAttributes.deps,
 		}
 		ctx.CreateBazelTargetModule(stubSuitesProps,
 			android.CommonAttributes{Name: m.Name() + "_stub_libs"},
@@ -3033,12 +3033,12 @@ type bazelCcLibrarySharedAttributes struct {
 }
 
 type bazelCcStubSuiteAttributes struct {
-	Symbol_file     *string
-	Versions        bazel.StringListAttribute
-	Export_includes bazel.StringListAttribute
-	Source_library  bazel.LabelAttribute
-	Soname          *string
-	Deps            bazel.LabelListAttribute
+	Symbol_file          *string
+	Versions             bazel.StringListAttribute
+	Export_includes      bazel.StringListAttribute
+	Source_library_label *string
+	Soname               *string
+	Deps                 bazel.LabelListAttribute
 }
 
 type bazelCcHeaderAbiCheckerAttributes struct {
