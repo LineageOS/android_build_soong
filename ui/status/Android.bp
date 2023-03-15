@@ -28,6 +28,7 @@ bootstrap_go_package {
     ],
     srcs: [
         "critical_path.go",
+        "critical_path_logger.go",
         "kati.go",
         "log.go",
         "ninja.go",
