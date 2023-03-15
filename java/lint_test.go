@@ -113,7 +113,8 @@ func TestJavaLintUsesCorrectBpConfig(t *testing.T) {
 		t.Error("did not use the correct file for baseline")
 	}
 
-	if !strings.Contains(*sboxProto.Commands[0].Command, "--error_check NewApi") {
+	if !strings.Contains(*sboxProto.Commands[0].Command, "--warning_check NewApi") {
+		// TODO(b/268261262): Change this to check for --error_check
 		t.Error("should check NewApi warnings")
 	}
 
