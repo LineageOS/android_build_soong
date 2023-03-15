@@ -127,16 +127,31 @@ func (cp *CriticalPath) criticalPath() (path []*node, elapsedTime time.Duration,
 	return
 }
 
+func (cp *CriticalPath) longRunningJobs() (nodes []*node) {
+	threshold := time.Second * 30
+	for _, node := range cp.nodes {
+		if node != nil && node.duration > threshold {
+			nodes = append(nodes, node)
+		}
+	}
+	return
+}
+
+func addJobInfos(jobInfos *[]*soong_metrics_proto.JobInfo, sources []*node) {
+	for _, job := range sources {
+		jobInfo := soong_metrics_proto.JobInfo{}
+		jobInfo.ElapsedTime = proto.Uint64(uint64(job.duration.Microseconds()))
+		jobInfo.JobDescription = &job.action.Description
+		*jobInfos = append(*jobInfos, &jobInfo)
+	}
+}
+
 func (cp *CriticalPath) WriteToMetrics(met *metrics.Metrics) {
 	criticalPathInfo := soong_metrics_proto.CriticalPathInfo{}
 	path, elapsedTime, criticalTime := cp.criticalPath()
 	criticalPathInfo.ElapsedTime = proto.Uint64(uint64(elapsedTime.Microseconds()))
 	criticalPathInfo.CriticalPathTime = proto.Uint64(uint64(criticalTime.Microseconds()))
-	for _, job := range path {
-		jobInfo := soong_metrics_proto.JobInfo{}
-		jobInfo.ElapsedTime = proto.Uint64(uint64(job.duration.Microseconds()))
-		jobInfo.JobDescription = &job.action.Description
-		criticalPathInfo.CriticalPath = append(criticalPathInfo.CriticalPath, &jobInfo)
-	}
+	addJobInfos(&criticalPathInfo.LongRunningJobs, cp.longRunningJobs())
+	addJobInfos(&criticalPathInfo.CriticalPath, path)
 	met.SetCriticalPathInfo(criticalPathInfo)
 }
