@@ -40,6 +40,8 @@ type ContextImpl struct {
 
 	Thread tracer.Thread
 	Tracer tracer.Tracer
+
+	CriticalPath *status.CriticalPath
 }
 
 // BeginTrace starts a new Duration Event.

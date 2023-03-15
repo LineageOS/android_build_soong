@@ -94,7 +94,7 @@ func (t *Test) Run(logsDir string) {
 	stat.AddOutput(status.NewVerboseLog(log, filepath.Join(logsDir, "verbose.log")))
 	stat.AddOutput(status.NewErrorLog(log, filepath.Join(logsDir, "error.log")))
 	stat.AddOutput(status.NewProtoErrorLog(log, filepath.Join(logsDir, "build_error")))
-	stat.AddOutput(status.NewCriticalPath(log))
+	stat.AddOutput(status.NewCriticalPathLogger(log, nil))
 
 	defer met.Dump(filepath.Join(logsDir, "soong_metrics"))
 
