@@ -39,6 +39,7 @@ import (
 	"time"
 
 	"android/soong/shared"
+
 	"google.golang.org/protobuf/proto"
 
 	soong_metrics_proto "android/soong/ui/metrics/metrics_proto"
@@ -123,6 +124,10 @@ func (m *Metrics) SetTimeMetrics(perf soong_metrics_proto.PerfInfo) {
 	case Total:
 		m.metrics.Total = &perf
 	}
+}
+
+func (m *Metrics) SetCriticalPathInfo(criticalPathInfo soong_metrics_proto.CriticalPathInfo) {
+	m.metrics.CriticalPathInfo = &criticalPathInfo
 }
 
 // SetFatalOrPanicMessage stores a non-zero exit and the relevant message in the latest event if
