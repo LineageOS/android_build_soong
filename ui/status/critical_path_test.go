@@ -21,7 +21,7 @@ import (
 )
 
 type testCriticalPath struct {
-	*criticalPath
+	*CriticalPath
 	Counts
 
 	actions map[int]*Action
@@ -40,14 +40,12 @@ func (t *testCriticalPath) start(id int, startTime time.Duration, outputs, input
 	}
 
 	t.actions[id] = action
-	t.StartAction(action, t.Counts)
+	t.StartAction(action)
 }
 
 func (t *testCriticalPath) finish(id int, endTime time.Duration) {
 	t.clock = testClock(time.Unix(0, 0).Add(endTime))
-	t.FinishAction(ActionResult{
-		Action: t.actions[id],
-	}, t.Counts)
+	t.FinishAction(t.actions[id])
 }
 
 func TestCriticalPath(t *testing.T) {
@@ -137,13 +135,13 @@ func TestCriticalPath(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cp := &testCriticalPath{
-				criticalPath: NewCriticalPath(nil).(*criticalPath),
+				CriticalPath: NewCriticalPath(),
 				actions:      make(map[int]*Action),
 			}
 
 			tt.msgs(cp)
 
-			criticalPath := cp.criticalPath.criticalPath()
+			criticalPath, _, _ := cp.CriticalPath.criticalPath()
 
 			var descs []string
 			for _, x := range criticalPath {
