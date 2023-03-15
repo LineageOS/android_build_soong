@@ -57,6 +57,10 @@ func CheckBadCompilerFlags(ctx BaseModuleContext, prop string, flags []string) {
 				} else if strings.HasPrefix("../", path) {
 					ctx.PropertyErrorf(prop, "Path must not start with `../`: `%s`. Use include_dirs to -include from a different directory", flag)
 				}
+			} else if args[0] == "-mllvm" {
+				if len(args) > 2 {
+					ctx.PropertyErrorf(prop, "`-mllvm` only takes one argument: `%s`", flag)
+				}
 			} else if strings.HasPrefix(flag, "-D") && strings.Contains(flag, "=") {
 				// Do nothing in this case.
 				// For now, we allow space characters in -DNAME=def form to allow use cases
