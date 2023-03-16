@@ -291,6 +291,9 @@ type bootImageConfig struct {
 
 	// The "--compiler-filter" argument.
 	compilerFilter string
+
+	// The "--single-image" argument.
+	singleImage bool
 }
 
 // Target-dependent description of a boot image.
@@ -397,6 +400,9 @@ func (image bootImageConfig) moduleFiles(ctx android.PathContext, dir android.Ou
 		name := image.moduleName(ctx, i)
 		for _, ext := range exts {
 			ret = append(ret, dir.Join(ctx, name+ext))
+		}
+		if image.singleImage {
+			break
 		}
 	}
 	return ret
@@ -766,6 +772,10 @@ func buildBootImageVariant(ctx android.ModuleContext, image *bootImageVariant, p
 	// leave the decision to dex2oat to pick the compiler filter.
 	if !(image.isProfileGuided() && global.DisableGenerateProfile) {
 		cmd.FlagWithArg("--compiler-filter=", image.compilerFilter)
+	}
+
+	if image.singleImage {
+		cmd.Flag("--single-image")
 	}
 
 	// Use the default variant/features for host builds.
