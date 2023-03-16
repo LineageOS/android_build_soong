@@ -118,8 +118,21 @@ type configImpl struct {
 	bazelForceEnabledModules string
 
 	includeTags []string
+
+	// Data source to write ninja weight list
+	ninjaWeightListSource NinjaWeightListSource
 }
 
+type NinjaWeightListSource uint
+
+const (
+	// ninja doesn't use weight list.
+	NOT_USED NinjaWeightListSource = iota
+	// ninja uses weight list based on previous builds by ninja log
+	NINJA_LOG
+	// ninja thinks every task has the same weight.
+	EVENLY_DISTRIBUTED
+)
 const srcDirFileCheck = "build/soong/root.bp"
 
 var buildFiles = []string{"Android.mk", "Android.bp"}
@@ -528,6 +541,17 @@ func storeConfigMetrics(ctx Context, config Config) {
 	ctx.Metrics.SystemResourceInfo(s)
 }
 
+func getNinjaWeightListSourceInMetric(s NinjaWeightListSource) *smpb.NinjaWeightListSource {
+	switch s {
+	case NINJA_LOG:
+		return smpb.NinjaWeightListSource_NINJA_LOG.Enum()
+	case EVENLY_DISTRIBUTED:
+		return smpb.NinjaWeightListSource_EVENLY_DISTRIBUTED.Enum()
+	default:
+		return smpb.NinjaWeightListSource_NOT_USED.Enum()
+	}
+}
+
 func buildConfig(config Config) *smpb.BuildConfig {
 	c := &smpb.BuildConfig{
 		ForceUseGoma:                proto.Bool(config.ForceUseGoma()),
@@ -535,6 +559,7 @@ func buildConfig(config Config) *smpb.BuildConfig {
 		UseRbe:                      proto.Bool(config.UseRBE()),
 		BazelMixedBuild:             proto.Bool(config.BazelBuildEnabled()),
 		ForceDisableBazelMixedBuild: proto.Bool(config.IsBazelMixedBuildForceDisabled()),
+		NinjaWeightListSource:       getNinjaWeightListSourceInMetric(config.NinjaWeightListSource()),
 	}
 	c.Targets = append(c.Targets, config.arguments...)
 
@@ -797,6 +822,17 @@ func (c *configImpl) parseArgs(ctx Context, args []string) {
 			c.bazelStagingMode = true
 		} else if arg == "--search-api-dir" {
 			c.searchApiDir = true
+		} else if strings.HasPrefix(arg, "--ninja_weight_source=") {
+			source := strings.TrimPrefix(arg, "--ninja_weight_source=")
+			if source == "ninja_log" {
+				c.ninjaWeightListSource = NINJA_LOG
+			} else if source == "evenly_distributed" {
+				c.ninjaWeightListSource = EVENLY_DISTRIBUTED
+			} else if source == "not_used" {
+				c.ninjaWeightListSource = NOT_USED
+			} else {
+				ctx.Fatalf("unknown option for ninja_weight_source: %s", source)
+			}
 		} else if strings.HasPrefix(arg, "--build-command=") {
 			buildCmd := strings.TrimPrefix(arg, "--build-command=")
 			// remove quotations
@@ -1089,6 +1125,10 @@ func (c *configImpl) IsVerbose() bool {
 
 func (c *configImpl) MultitreeBuild() bool {
 	return c.multitreeBuild
+}
+
+func (c *configImpl) NinjaWeightListSource() NinjaWeightListSource {
+	return c.ninjaWeightListSource
 }
 
 func (c *configImpl) SkipKati() bool {
