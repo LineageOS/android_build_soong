@@ -1191,9 +1191,9 @@ apex {
 				"tags":              `["apex_available=myapex"]`,
 			}),
 			MakeBazelTarget("cc_stub_suite", "foo_stub_libs", AttrNameToString{
-				"soname":         `"foo.so"`,
-				"source_library": `":foo"`,
-				"symbol_file":    `"foo.map.txt"`,
+				"soname":               `"foo.so"`,
+				"source_library_label": `"//:foo"`,
+				"symbol_file":          `"foo.map.txt"`,
 				"versions": `[
         "28",
         "29",

@@ -623,16 +623,18 @@ func makeCcStubSuiteTargets(name string, attrs AttrNameToString) string {
 		return ""
 	}
 	STUB_SUITE_ATTRS := map[string]string{
-		"stubs_symbol_file": "symbol_file",
-		"stubs_versions":    "versions",
-		"soname":            "soname",
-		"source_library":    "source_library",
+		"stubs_symbol_file":    "symbol_file",
+		"stubs_versions":       "versions",
+		"soname":               "soname",
+		"source_library_label": "source_library_label",
 	}
 
 	stubSuiteAttrs := AttrNameToString{}
 	for key, _ := range attrs {
 		if _, stubSuiteAttr := STUB_SUITE_ATTRS[key]; stubSuiteAttr {
 			stubSuiteAttrs[STUB_SUITE_ATTRS[key]] = attrs[key]
+		} else {
+			panic(fmt.Sprintf("unused cc_stub_suite attr %q\n", key))
 		}
 	}
 	return MakeBazelTarget("cc_stub_suite", name+"_stub_libs", stubSuiteAttrs)
