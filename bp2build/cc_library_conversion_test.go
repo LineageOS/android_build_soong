@@ -3640,8 +3640,17 @@ func TestCcLibraryWithTidy(t *testing.T) {
 		ModuleTypeUnderTestFactory: cc.LibraryFactory,
 		Blueprint: `
 cc_library_static {
-    name: "foo",
-    srcs: ["foo.cpp"],
+	name: "foo",
+	srcs: ["foo.cpp"],
+}
+cc_library_static {
+	name: "foo-no-tidy",
+	srcs: ["foo.cpp"],
+	tidy: false,
+}
+cc_library_static {
+	name: "foo-tidy",
+	srcs: ["foo.cpp"],
 	tidy: true,
 	tidy_checks: ["check1", "check2"],
 	tidy_checks_as_errors: ["check1error", "check2error"],
@@ -3652,7 +3661,16 @@ cc_library_static {
 			MakeBazelTarget("cc_library_static", "foo", AttrNameToString{
 				"local_includes": `["."]`,
 				"srcs":           `["foo.cpp"]`,
-				"tidy":           `True`,
+			}),
+			MakeBazelTarget("cc_library_static", "foo-no-tidy", AttrNameToString{
+				"local_includes": `["."]`,
+				"srcs":           `["foo.cpp"]`,
+				"tidy":           `"never"`,
+			}),
+			MakeBazelTarget("cc_library_static", "foo-tidy", AttrNameToString{
+				"local_includes": `["."]`,
+				"srcs":           `["foo.cpp"]`,
+				"tidy":           `"local"`,
 				"tidy_checks": `[
         "check1",
         "check2",
