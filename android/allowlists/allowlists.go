@@ -125,6 +125,7 @@ var (
 		"external/eigen":                         Bp2BuildDefaultTrueRecursively,
 		"external/erofs-utils":                   Bp2BuildDefaultTrueRecursively,
 		"external/error_prone":                   Bp2BuildDefaultTrueRecursively,
+		"external/escapevelocity":                Bp2BuildDefaultTrueRecursively,
 		"external/expat":                         Bp2BuildDefaultTrueRecursively,
 		"external/f2fs-tools":                    Bp2BuildDefaultTrue,
 		"external/flac":                          Bp2BuildDefaultTrueRecursively,
