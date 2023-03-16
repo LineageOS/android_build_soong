@@ -352,6 +352,7 @@ type bazelPrebuiltLibraryStaticAttributes struct {
 	Static_library         bazel.LabelAttribute
 	Export_includes        bazel.StringListAttribute
 	Export_system_includes bazel.StringListAttribute
+	Alwayslink             bazel.BoolAttribute
 }
 
 // TODO(b/228623543): The below is not entirely true until the bug is fixed. For now, both targets are always generated
@@ -389,6 +390,11 @@ func prebuiltLibraryStaticBp2Build(ctx android.TopDownMutatorContext, module *Mo
 
 	tags := android.ApexAvailableTags(module)
 	ctx.CreateBazelTargetModuleWithRestrictions(props, android.CommonAttributes{Name: name, Tags: tags}, attrs, prebuiltAttrs.Enabled)
+
+	_true := true
+	alwayslinkAttrs := *attrs
+	alwayslinkAttrs.Alwayslink.SetValue(&_true)
+	ctx.CreateBazelTargetModuleWithRestrictions(props, android.CommonAttributes{Name: name + "_alwayslink", Tags: tags}, &alwayslinkAttrs, prebuiltAttrs.Enabled)
 }
 
 type bazelPrebuiltLibrarySharedAttributes struct {

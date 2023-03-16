@@ -128,6 +128,9 @@ message MetricsBase {
   // The branch on which the build occurred.
   // Example: refs/heads/master
   optional string branch = 32;
+
+  // The metric of critical path in build
+  optional CriticalPathInfo critical_path_info = 33;
 }
 
 message BuildConfig {
@@ -313,4 +316,24 @@ message MixedBuildsInfo{
 
   // Modules that are not enabled for MixedBuilds
   repeated string mixed_build_disabled_modules = 2;
+}
+
+// CriticalPathInfo contains critical path nodes's information.
+// A critical path is a path determining the minimum time needed for the whole build given perfect parallelism.
+message CriticalPathInfo {
+  // Real time which the build system spent
+  optional uint64 elapsed_time = 1;
+  // The sum of execution time of the longest path from leave to the root
+  optional uint64 critical_path_time = 2;
+  // Detailed job information in a critical path.
+  repeated JobInfo critical_path = 4;
+  // Detailed job information for long running jobs (>30 seconds). These may or may not also be on a critical path.
+  repeated JobInfo long_running_jobs = 5;
+}
+
+message JobInfo {
+  // Real time which a job spent
+  optional uint64 elapsed_time = 1;
+  // Description of a job
+  optional string job_description = 2;
 }
