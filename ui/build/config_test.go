@@ -903,6 +903,15 @@ func TestGetConfigArgsBuildModulesInDirectory(t *testing.T) {
 			tidyOnly:     "",
 			expectedArgs: []string{},
 		}, {
+			description:  "multitree build action executed at root directory",
+			dirsInTrees:  []string{},
+			buildFiles:   []string{},
+			rootSymlink:  false,
+			args:         []string{"--multitree-build"},
+			curDir:       ".",
+			tidyOnly:     "",
+			expectedArgs: []string{"--multitree-build"},
+		}, {
 			description:  "build action executed at root directory in symlink",
 			dirsInTrees:  []string{},
 			buildFiles:   []string{},
