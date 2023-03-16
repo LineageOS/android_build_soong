@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"android/soong/android"
+	"android/soong/cc"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
@@ -497,4 +498,12 @@ func sha1sum(values []string) string {
 		io.WriteString(h, value)
 	}
 	return fmt.Sprintf("%x", h.Sum(nil))
+}
+
+// Base cc.UseCoverage
+
+var _ cc.UseCoverage = (*filesystem)(nil)
+
+func (*filesystem) IsNativeCoverageNeeded(ctx android.BaseModuleContext) bool {
+	return ctx.Device() && ctx.DeviceConfig().NativeCoverageEnabled()
 }
