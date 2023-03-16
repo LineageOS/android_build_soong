@@ -83,6 +83,8 @@ type CmdArgs struct {
 	ModuleActionsFile   string
 	DocFile             string
 
+	MultitreeBuild bool
+
 	BazelMode                bool
 	BazelModeDev             bool
 	BazelModeStaging         bool
@@ -228,6 +230,10 @@ type config struct {
 	BuildMode                      SoongBuildMode
 	Bp2buildPackageConfig          Bp2BuildConversionAllowlist
 	Bp2buildSoongConfigDefinitions soongconfig.Bp2BuildSoongConfigDefinitions
+
+	// If MultitreeBuild is true then this is one inner tree of a multitree
+	// build directed by the multitree orchestrator.
+	MultitreeBuild bool
 
 	// If testAllowNonExistentPaths is true then PathForSource and PathForModuleSrc won't error
 	// in tests when a path doesn't exist.
@@ -449,7 +455,8 @@ func NewConfig(cmdArgs CmdArgs, availableEnv map[string]string) (Config, error) 
 		mixedBuildEnabledModules:  make(map[string]struct{}),
 		bazelForceEnabledModules:  make(map[string]struct{}),
 
-		UseBazelProxy: cmdArgs.UseBazelProxy,
+		MultitreeBuild: cmdArgs.MultitreeBuild,
+		UseBazelProxy:  cmdArgs.UseBazelProxy,
 	}
 
 	config.deviceConfig = &deviceConfig{
