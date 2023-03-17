@@ -424,6 +424,14 @@ func TestVendorSnapshotUse(t *testing.T) {
 		compile_multilib: "32",
 		srcs: ["bin.rs"],
 	}
+
+	rust_library {
+		name: "librust_vendor_available",
+		crate_name: "rust_vendor",
+		vendor_available: true,
+		srcs: ["client.rs"],
+	}
+
 `
 
 	vndkBp := `
@@ -497,13 +505,6 @@ func TestVendorSnapshotUse(t *testing.T) {
 		no_libcrt: true,
 		stl: "none",
 		system_shared_libs: [],
-	}
-
-	rust_library {
-		name: "librust_vendor_available",
-		crate_name: "rust_vendor",
-		vendor_available: true,
-		srcs: ["client.rs"],
 	}
 
 	rust_ffi_shared {
@@ -963,7 +964,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 	}
 
 	libclientAndroidMkRlibs := ctx.ModuleForTests("libclient", sharedVariant).Module().(*Module).Properties.AndroidMkRlibs
-	if g, w := libclientAndroidMkRlibs, []string{"librust_vendor_available.vendor_rlib.30.arm64.rlib-std", "libstd.vendor_rlib.30.arm64"}; !reflect.DeepEqual(g, w) {
+	if g, w := libclientAndroidMkRlibs, []string{"librust_vendor_available.vendor.rlib-std", "libstd.vendor"}; !reflect.DeepEqual(g, w) {
 		t.Errorf("wanted libclient libclientAndroidMkRlibs %q, got %q", w, g)
 	}
 
@@ -978,8 +979,22 @@ func TestVendorSnapshotUse(t *testing.T) {
 	}
 
 	libclientRustAndroidMkRlibs := ctx.ModuleForTests("libclient_rust", rlibVariant).Module().(*Module).Properties.AndroidMkRlibs
-	if g, w := libclientRustAndroidMkRlibs, []string{"librust_vendor_available.vendor_rlib.30.arm64.rlib-std", "libstd.vendor_rlib.30.arm64"}; !reflect.DeepEqual(g, w) {
+	if g, w := libclientRustAndroidMkRlibs, []string{"librust_vendor_available.vendor.rlib-std", "libstd.vendor"}; !reflect.DeepEqual(g, w) {
 		t.Errorf("wanted libclient libclientAndroidMkRlibs %q, got %q", w, g)
+	}
+
+	// rust vendor snapshot must have ".vendor" suffix in AndroidMk
+	librustVendorAvailableSnapshotModule := ctx.ModuleForTests("librust_vendor_available.vendor_rlib.30.arm64", rlibVariant).Module()
+	librustVendorSnapshotMkName := android.AndroidMkEntriesForTest(t, ctx, librustVendorAvailableSnapshotModule)[0].EntryMap["LOCAL_MODULE"][0]
+	expectedRustVendorSnapshotName := "librust_vendor_available.vendor.rlib-std"
+	if librustVendorSnapshotMkName != expectedRustVendorSnapshotName {
+		t.Errorf("Unexpected rust vendor snapshot name in AndroidMk: %q, expected: %q\n", librustVendorSnapshotMkName, expectedRustVendorSnapshotName)
+	}
+
+	rustVendorBinModule := ctx.ModuleForTests("bin_without_snapshot", binaryVariant).Module()
+	rustVendorBinMkRlibName := android.AndroidMkEntriesForTest(t, ctx, rustVendorBinModule)[0].EntryMap["LOCAL_RLIB_LIBRARIES"][0]
+	if rustVendorBinMkRlibName != expectedRustVendorSnapshotName {
+		t.Errorf("Unexpected rust rlib name in AndroidMk: %q, expected: %q\n", rustVendorBinMkRlibName, expectedRustVendorSnapshotName)
 	}
 
 	binWithoutSnapshotLdFlags := ctx.ModuleForTests("bin_without_snapshot", binaryVariant).Rule("rustc").Args["linkFlags"]
