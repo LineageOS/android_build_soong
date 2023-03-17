@@ -468,7 +468,7 @@ func createStubsBazelTargetIfNeeded(ctx android.TopDownMutatorContext, m *Module
 		// Add alias for the stub shared_library in @api_surfaces repository
 		currentModuleLibApiDir := ctx.Config().ApiSurfacesDir(android.ModuleLibApi, "current")
 		actualLabelInMainWorkspace := bazel.Label{
-			Label: fmt.Sprintf("@//%s:%s_stub_libs_current", ctx.ModuleDir(), m.Name()),
+			Label: fmt.Sprintf("@//%s:%s%s", ctx.ModuleDir(), m.Name(), stubsSuffix),
 		}
 		ctx.CreateBazelTargetAliasInDir(currentModuleLibApiDir, m.Name(), actualLabelInMainWorkspace)
 
