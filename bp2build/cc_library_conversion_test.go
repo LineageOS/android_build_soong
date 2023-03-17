@@ -3591,42 +3591,57 @@ cc_library {
 	})
 }
 
-func TestCcLibraryWithAidlAndSharedLibs(t *testing.T) {
+func TestCcLibraryWithAidlAndLibs(t *testing.T) {
 	runCcLibraryTestCase(t, Bp2buildTestCase{
-		Description:                "cc_aidl_library depends on shared libs from parent cc_library_static",
+		Description:                "cc_aidl_library depends on libs from parent cc_library_static",
 		ModuleTypeUnderTest:        "cc_library",
 		ModuleTypeUnderTestFactory: cc.LibraryFactory,
 		Blueprint: `
 cc_library_static {
-    name: "foo",
-    srcs: [
-        "Foo.aidl",
-    ],
+	name: "foo",
+	srcs: [
+		"Foo.aidl",
+	],
+	static_libs: [
+		"bar-static",
+		"baz-static",
+	],
 	shared_libs: [
-		"bar",
-		"baz",
+		"bar-shared",
+		"baz-shared",
+	],
+	export_static_lib_headers: [
+		"baz-static",
 	],
 	export_shared_lib_headers: [
-		"baz",
+		"baz-shared",
 	],
 }` +
-			simpleModuleDoNotConvertBp2build("cc_library", "bar") +
-			simpleModuleDoNotConvertBp2build("cc_library", "baz"),
+			simpleModuleDoNotConvertBp2build("cc_library_static", "bar-static") +
+			simpleModuleDoNotConvertBp2build("cc_library_static", "baz-static") +
+			simpleModuleDoNotConvertBp2build("cc_library", "bar-shared") +
+			simpleModuleDoNotConvertBp2build("cc_library", "baz-shared"),
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("aidl_library", "foo_aidl_library", AttrNameToString{
 				"srcs": `["Foo.aidl"]`,
 			}),
 			MakeBazelTarget("cc_aidl_library", "foo_cc_aidl_library", AttrNameToString{
 				"deps": `[":foo_aidl_library"]`,
+				"implementation_deps": `[
+        ":baz-static",
+        ":bar-static",
+    ]`,
 				"implementation_dynamic_deps": `[
-        ":baz",
-        ":bar",
+        ":baz-shared",
+        ":bar-shared",
     ]`,
 			}),
 			MakeBazelTarget("cc_library_static", "foo", AttrNameToString{
 				"implementation_whole_archive_deps": `[":foo_cc_aidl_library"]`,
-				"dynamic_deps":                      `[":baz"]`,
-				"implementation_dynamic_deps":       `[":bar"]`,
+				"deps":                              `[":baz-static"]`,
+				"implementation_deps":               `[":bar-static"]`,
+				"dynamic_deps":                      `[":baz-shared"]`,
+				"implementation_dynamic_deps":       `[":bar-shared"]`,
 				"local_includes":                    `["."]`,
 			}),
 		},
