@@ -903,6 +903,15 @@ func TestGetConfigArgsBuildModulesInDirectory(t *testing.T) {
 			tidyOnly:     "",
 			expectedArgs: []string{},
 		}, {
+			description:  "multitree build action executed at root directory",
+			dirsInTrees:  []string{},
+			buildFiles:   []string{},
+			rootSymlink:  false,
+			args:         []string{"--multitree-build"},
+			curDir:       ".",
+			tidyOnly:     "",
+			expectedArgs: []string{"--multitree-build"},
+		}, {
 			description:  "build action executed at root directory in symlink",
 			dirsInTrees:  []string{},
 			buildFiles:   []string{},
@@ -1023,6 +1032,7 @@ func TestBuildConfig(t *testing.T) {
 				UseRbe:                      proto.Bool(false),
 				BazelMixedBuild:             proto.Bool(false),
 				ForceDisableBazelMixedBuild: proto.Bool(false),
+				NinjaWeightListSource:       smpb.NinjaWeightListSource_NOT_USED.Enum(),
 			},
 		},
 		{
@@ -1034,6 +1044,7 @@ func TestBuildConfig(t *testing.T) {
 				UseRbe:                      proto.Bool(false),
 				BazelMixedBuild:             proto.Bool(false),
 				ForceDisableBazelMixedBuild: proto.Bool(false),
+				NinjaWeightListSource:       smpb.NinjaWeightListSource_NOT_USED.Enum(),
 			},
 		},
 		{
@@ -1045,6 +1056,7 @@ func TestBuildConfig(t *testing.T) {
 				UseRbe:                      proto.Bool(false),
 				BazelMixedBuild:             proto.Bool(false),
 				ForceDisableBazelMixedBuild: proto.Bool(false),
+				NinjaWeightListSource:       smpb.NinjaWeightListSource_NOT_USED.Enum(),
 			},
 		},
 		{
@@ -1056,6 +1068,7 @@ func TestBuildConfig(t *testing.T) {
 				UseRbe:                      proto.Bool(true),
 				BazelMixedBuild:             proto.Bool(false),
 				ForceDisableBazelMixedBuild: proto.Bool(false),
+				NinjaWeightListSource:       smpb.NinjaWeightListSource_NOT_USED.Enum(),
 			},
 		},
 		{
@@ -1067,6 +1080,7 @@ func TestBuildConfig(t *testing.T) {
 				UseRbe:                      proto.Bool(false),
 				BazelMixedBuild:             proto.Bool(false),
 				ForceDisableBazelMixedBuild: proto.Bool(true),
+				NinjaWeightListSource:       smpb.NinjaWeightListSource_NOT_USED.Enum(),
 			},
 		},
 		{
@@ -1079,6 +1093,7 @@ func TestBuildConfig(t *testing.T) {
 				UseRbe:                      proto.Bool(false),
 				BazelMixedBuild:             proto.Bool(false),
 				ForceDisableBazelMixedBuild: proto.Bool(false),
+				NinjaWeightListSource:       smpb.NinjaWeightListSource_NOT_USED.Enum(),
 			},
 		},
 		{
@@ -1091,6 +1106,7 @@ func TestBuildConfig(t *testing.T) {
 				UseRbe:                      proto.Bool(false),
 				BazelMixedBuild:             proto.Bool(true),
 				ForceDisableBazelMixedBuild: proto.Bool(false),
+				NinjaWeightListSource:       smpb.NinjaWeightListSource_NOT_USED.Enum(),
 			},
 		},
 		{
@@ -1103,6 +1119,7 @@ func TestBuildConfig(t *testing.T) {
 				UseRbe:                      proto.Bool(false),
 				BazelMixedBuild:             proto.Bool(true),
 				ForceDisableBazelMixedBuild: proto.Bool(false),
+				NinjaWeightListSource:       smpb.NinjaWeightListSource_NOT_USED.Enum(),
 			},
 		},
 		{
@@ -1115,6 +1132,7 @@ func TestBuildConfig(t *testing.T) {
 				UseRbe:                      proto.Bool(false),
 				BazelMixedBuild:             proto.Bool(true),
 				ForceDisableBazelMixedBuild: proto.Bool(false),
+				NinjaWeightListSource:       smpb.NinjaWeightListSource_NOT_USED.Enum(),
 			},
 		},
 		{
@@ -1129,6 +1147,7 @@ func TestBuildConfig(t *testing.T) {
 				BazelMixedBuild:             proto.Bool(false),
 				Targets:                     []string{"droid", "dist"},
 				ForceDisableBazelMixedBuild: proto.Bool(false),
+				NinjaWeightListSource:       smpb.NinjaWeightListSource_NOT_USED.Enum(),
 			},
 		},
 		{
@@ -1147,6 +1166,7 @@ func TestBuildConfig(t *testing.T) {
 				UseRbe:                      proto.Bool(true),
 				BazelMixedBuild:             proto.Bool(true),
 				ForceDisableBazelMixedBuild: proto.Bool(true),
+				NinjaWeightListSource:       smpb.NinjaWeightListSource_NOT_USED.Enum(),
 			},
 		},
 	}
