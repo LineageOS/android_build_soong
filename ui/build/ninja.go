@@ -31,10 +31,11 @@ import (
 const (
 	// File containing the environment state when ninja is executed
 	ninjaEnvFileName = "ninja.environment"
+	ninjaLogFileName = ".ninja_log"
 )
 
 func useNinjaBuildLog(ctx Context, config Config, cmd *Cmd) {
-	ninjaLogFile := filepath.Join(config.OutDir(), ".ninja_log")
+	ninjaLogFile := filepath.Join(config.OutDir(), ninjaLogFileName)
 	data, err := os.ReadFile(ninjaLogFile)
 	var outputBuilder strings.Builder
 	if err == nil {
@@ -59,9 +60,11 @@ func useNinjaBuildLog(ctx Context, config Config, cmd *Cmd) {
 			outputBuilder.WriteString(",")
 			outputBuilder.WriteString(strconv.Itoa(end-start+1) + "\n")
 		}
+	} else {
+		// If there is no ninja log file, just pass empty ninja weight list.
+		// Because it is still efficient with critical path calculation logic even without weight.
+		ctx.Verbosef("There is an error during reading ninja log, so ninja will use empty weight list: %s", err)
 	}
-	// If there is no ninja log file, just pass empty ninja weight list.
-	// Because it is still efficient with critical path calculation logic even without weight.
 
 	weightListFile := filepath.Join(config.OutDir(), ".ninja_weight_list")
 
@@ -263,7 +266,7 @@ func runNinjaForBuild(ctx Context, config Config) {
 	ticker := time.NewTicker(ninjaHeartbeatDuration)
 	defer ticker.Stop()
 	ninjaChecker := &ninjaStucknessChecker{
-		logPath: filepath.Join(config.OutDir(), ".ninja_log"),
+		logPath: filepath.Join(config.OutDir(), ninjaLogFileName),
 	}
 	go func() {
 		for {
