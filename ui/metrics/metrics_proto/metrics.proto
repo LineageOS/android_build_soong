@@ -153,6 +153,11 @@ message BuildConfig {
 
   // Whether the user explicitly disabled bazel mixed builds for this build.
   optional bool force_disable_bazel_mixed_build = 7;
+
+  // NOT_USED - ninja doesn't use weight list.
+  // NINJA_LOG - ninja uses weight list based on previous builds by ninja log
+  // EVENLY_DISTRIBUTED - ninja thinks every task has the same weight.
+  optional NinjaWeightListSource ninja_weight_list_source = 8 [default = NOT_USED];
 }
 
 message SystemResourceInfo {
@@ -321,10 +326,10 @@ message MixedBuildsInfo{
 // CriticalPathInfo contains critical path nodes's information.
 // A critical path is a path determining the minimum time needed for the whole build given perfect parallelism.
 message CriticalPathInfo {
-  // Real time which the build system spent
-  optional uint64 elapsed_time = 1;
-  // The sum of execution time of the longest path from leave to the root
-  optional uint64 critical_path_time = 2;
+  // Real time which the build system spent in microseconds
+  optional uint64 elapsed_time_micros = 1;
+  // The sum of execution time of the longest path from leave to the root in microseconds
+  optional uint64 critical_path_time_micros = 2;
   // Detailed job information in a critical path.
   repeated JobInfo critical_path = 4;
   // Detailed job information for long running jobs (>30 seconds). These may or may not also be on a critical path.
@@ -332,8 +337,14 @@ message CriticalPathInfo {
 }
 
 message JobInfo {
-  // Real time which a job spent
-  optional uint64 elapsed_time = 1;
+  // Real time which a job spent in microseconds
+  optional uint64 elapsed_time_micros = 1;
   // Description of a job
   optional string job_description = 2;
+}
+
+enum NinjaWeightListSource {
+  NOT_USED = 0;
+  NINJA_LOG = 1;
+  EVENLY_DISTRIBUTED = 2;
 }

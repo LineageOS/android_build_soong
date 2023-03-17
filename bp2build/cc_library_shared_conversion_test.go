@@ -540,9 +540,9 @@ cc_library_shared {
 		},
 		Blueprint: soongCcLibraryPreamble,
 		ExpectedBazelTargets: []string{makeCcStubSuiteTargets("a", AttrNameToString{
-			"soname":            `"a.so"`,
-			"source_library":    `":a"`,
-			"stubs_symbol_file": `"a.map.txt"`,
+			"soname":               `"a.so"`,
+			"source_library_label": `"//foo/bar:a"`,
+			"stubs_symbol_file":    `"a.map.txt"`,
 			"stubs_versions": `[
         "28",
         "29",

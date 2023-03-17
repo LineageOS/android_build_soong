@@ -19,7 +19,7 @@ package {
 
 blueprint_go_binary {
     name: "mk2rbc",
-    srcs: ["cmd/mk2rbc.go"],
+    srcs: ["mk2rbc/mk2rbc.go"],
     deps: [
         "mk2rbc-lib",
         "androidmk-parser",
