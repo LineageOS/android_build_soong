@@ -3035,7 +3035,7 @@ cc_library {
 }`,
 		ExpectedBazelTargets: makeCcLibraryTargets("foolib", AttrNameToString{
 			"implementation_dynamic_deps": `select({
-        "//build/bazel/rules/apex:android-in_apex": [":barlib_stub_libs_current"],
+        "//build/bazel/rules/apex:android-in_apex": ["@api_surfaces//module-libapi/current:barlib"],
         "//conditions:default": [":barlib"],
     })`,
 			"local_includes": `["."]`,
@@ -3088,8 +3088,8 @@ cc_library {
         "//build/bazel/platforms/os:linux_musl": [":quxlib"],
         "//build/bazel/platforms/os:windows": [":quxlib"],
         "//build/bazel/rules/apex:android-in_apex": [
-            ":barlib_stub_libs_current",
-            ":quxlib_stub_libs_current",
+            "@api_surfaces//module-libapi/current:barlib",
+            "@api_surfaces//module-libapi/current:quxlib",
         ],
         "//conditions:default": [
             ":barlib",
@@ -4130,11 +4130,11 @@ cc_library {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
 				"implementation_dynamic_deps": `select({
-        "//build/bazel/rules/apex:android-in_apex": [":barlib_stub_libs_current"],
+        "//build/bazel/rules/apex:android-in_apex": ["@api_surfaces//module-libapi/current:barlib"],
         "//conditions:default": [":barlib"],
     })`,
 				"dynamic_deps": `select({
-        "//build/bazel/rules/apex:android-in_apex": [":bazlib_stub_libs_current"],
+        "//build/bazel/rules/apex:android-in_apex": ["@api_surfaces//module-libapi/current:bazlib"],
         "//conditions:default": [":bazlib"],
     })`,
 				"local_includes": `["."]`,
@@ -4142,11 +4142,11 @@ cc_library {
 			}),
 			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
 				"implementation_dynamic_deps": `select({
-        "//build/bazel/rules/apex:android-in_apex": [":barlib_stub_libs_current"],
+        "//build/bazel/rules/apex:android-in_apex": ["@api_surfaces//module-libapi/current:barlib"],
         "//conditions:default": [":barlib"],
     })`,
 				"dynamic_deps": `select({
-        "//build/bazel/rules/apex:android-in_apex": [":bazlib_stub_libs_current"],
+        "//build/bazel/rules/apex:android-in_apex": ["@api_surfaces//module-libapi/current:bazlib"],
         "//conditions:default": [":bazlib"],
     })`,
 				"local_includes": `["."]`,
