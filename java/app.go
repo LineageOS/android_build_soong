@@ -1535,10 +1535,7 @@ func (a *AndroidApp) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 	} else {
 		ktName := a.Name() + "_kt"
 		ctx.CreateBazelTargetModule(
-			bazel.BazelTargetModuleProperties{
-				Rule_class:        "android_library",
-				Bzl_load_location: "//build/bazel/rules/android:rules.bzl",
-			},
+			AndroidLibraryBazelTargetModuleProperties(),
 			android.CommonAttributes{Name: ktName},
 			&bazelAndroidLibrary{
 				javaLibraryAttributes: &javaLibraryAttributes{

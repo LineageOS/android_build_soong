@@ -1067,10 +1067,7 @@ func (a *AARImport) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 
 	neverlink := true
 	ctx.CreateBazelTargetModule(
-		bazel.BazelTargetModuleProperties{
-			Rule_class:        "android_library",
-			Bzl_load_location: "//build/bazel/rules/android:rules.bzl",
-		},
+		AndroidLibraryBazelTargetModuleProperties(),
 		android.CommonAttributes{Name: name + "-neverlink"},
 		&bazelAndroidLibrary{
 			javaLibraryAttributes: &javaLibraryAttributes{
@@ -1080,6 +1077,12 @@ func (a *AARImport) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 		},
 	)
 
+}
+func AndroidLibraryBazelTargetModuleProperties() bazel.BazelTargetModuleProperties {
+	return bazel.BazelTargetModuleProperties{
+		Rule_class:        "android_library",
+		Bzl_load_location: "//build/bazel/rules/android:rules.bzl",
+	}
 }
 
 func (a *AndroidLibrary) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
@@ -1093,10 +1096,7 @@ func (a *AndroidLibrary) ConvertWithBp2build(ctx android.TopDownMutatorContext) 
 		ctx.ModuleErrorf("Module has direct dependencies but no sources. Bazel will not allow this.")
 	}
 	name := a.Name()
-	props := bazel.BazelTargetModuleProperties{
-		Rule_class:        "android_library",
-		Bzl_load_location: "//build/bazel/rules/android:rules.bzl",
-	}
+	props := AndroidLibraryBazelTargetModuleProperties()
 
 	ctx.CreateBazelTargetModule(
 		props,
