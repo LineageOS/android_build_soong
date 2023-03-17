@@ -63,15 +63,17 @@ func (class apexFileClass) nameInMake() string {
 }
 
 // Return the full module name for a dependency module, which appends the apex module name unless re-using a system lib.
-func (a *apexBundle) fullModuleName(apexBundleName string, fi *apexFile) string {
-	linkToSystemLib := a.linkToSystemLib && fi.transitiveDep && fi.availableToPlatform()
-
+func (a *apexBundle) fullModuleName(apexBundleName string, linkToSystemLib bool, fi *apexFile) string {
 	if linkToSystemLib {
 		return fi.androidMkModuleName
 	}
 	return fi.androidMkModuleName + "." + apexBundleName + a.suffix
 }
 
+// androidMkForFiles generates Make definitions for the contents of an
+// apexBundle (apexBundle#filesInfo).  The filesInfo structure can either be
+// populated by Soong for unconverted APEXes, or Bazel in mixed mode. Use
+// apexFile#isBazelPrebuilt to differentiate.
 func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, moduleDir string,
 	apexAndroidMkData android.AndroidMkData) []string {
 
@@ -95,8 +97,7 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, moduleDir st
 
 	for _, fi := range a.filesInfo {
 		linkToSystemLib := a.linkToSystemLib && fi.transitiveDep && fi.availableToPlatform()
-
-		moduleName := a.fullModuleName(apexBundleName, &fi)
+		moduleName := a.fullModuleName(apexBundleName, linkToSystemLib, &fi)
 
 		// This name will be added to LOCAL_REQUIRED_MODULES of the APEX. We need to be
 		// arch-specific otherwise we will end up installing both ABIs even when only
@@ -124,6 +125,7 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, moduleDir st
 			fmt.Fprintln(w, "LOCAL_PATH :=", moduleDir)
 		}
 		fmt.Fprintln(w, "LOCAL_MODULE :=", moduleName)
+
 		if fi.module != nil && fi.module.Owner() != "" {
 			fmt.Fprintln(w, "LOCAL_MODULE_OWNER :=", fi.module.Owner())
 		}
@@ -161,6 +163,7 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, moduleDir st
 		fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE :=", fi.builtFile.String())
 		fmt.Fprintln(w, "LOCAL_MODULE_CLASS :=", fi.class.nameInMake())
 		if fi.module != nil {
+			// This apexFile's module comes from Soong
 			archStr := fi.module.Target().Arch.ArchType.String()
 			host := false
 			switch fi.module.Target().Os.Class {
@@ -188,6 +191,9 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, moduleDir st
 				fmt.Fprintln(w, "LOCAL_MODULE_HOST_OS :=", makeOs)
 				fmt.Fprintln(w, "LOCAL_IS_HOST_MODULE := true")
 			}
+		} else if fi.isBazelPrebuilt && fi.arch != "" {
+			// This apexFile comes from Bazel
+			fmt.Fprintln(w, "LOCAL_MODULE_TARGET_ARCH :=", fi.arch)
 		}
 		if fi.jacocoReportClassesFile != nil {
 			fmt.Fprintln(w, "LOCAL_SOONG_JACOCO_REPORT_CLASSES_JAR :=", fi.jacocoReportClassesFile.String())
@@ -231,17 +237,21 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, moduleDir st
 			fmt.Fprintln(w, "include $(BUILD_SYSTEM)/soong_android_app_set.mk")
 		case nativeSharedLib, nativeExecutable, nativeTest:
 			fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", fi.stem())
-			if ccMod, ok := fi.module.(*cc.Module); ok {
-				if ccMod.UnstrippedOutputFile() != nil {
-					fmt.Fprintln(w, "LOCAL_SOONG_UNSTRIPPED_BINARY :=", ccMod.UnstrippedOutputFile().String())
-				}
-				ccMod.AndroidMkWriteAdditionalDependenciesForSourceAbiDiff(w)
-				if ccMod.CoverageOutputFile().Valid() {
-					fmt.Fprintln(w, "LOCAL_PREBUILT_COVERAGE_ARCHIVE :=", ccMod.CoverageOutputFile().String())
-				}
-			} else if rustMod, ok := fi.module.(*rust.Module); ok {
-				if rustMod.UnstrippedOutputFile() != nil {
-					fmt.Fprintln(w, "LOCAL_SOONG_UNSTRIPPED_BINARY :=", rustMod.UnstrippedOutputFile().String())
+			if fi.isBazelPrebuilt {
+				fmt.Fprintln(w, "LOCAL_SOONG_UNSTRIPPED_BINARY :=", fi.unstrippedBuiltFile)
+			} else {
+				if ccMod, ok := fi.module.(*cc.Module); ok {
+					if ccMod.UnstrippedOutputFile() != nil {
+						fmt.Fprintln(w, "LOCAL_SOONG_UNSTRIPPED_BINARY :=", ccMod.UnstrippedOutputFile().String())
+					}
+					ccMod.AndroidMkWriteAdditionalDependenciesForSourceAbiDiff(w)
+					if ccMod.CoverageOutputFile().Valid() {
+						fmt.Fprintln(w, "LOCAL_PREBUILT_COVERAGE_ARCHIVE :=", ccMod.CoverageOutputFile().String())
+					}
+				} else if rustMod, ok := fi.module.(*rust.Module); ok {
+					if rustMod.UnstrippedOutputFile() != nil {
+						fmt.Fprintln(w, "LOCAL_SOONG_UNSTRIPPED_BINARY :=", rustMod.UnstrippedOutputFile().String())
+					}
 				}
 			}
 			fmt.Fprintln(w, "include $(BUILD_SYSTEM)/soong_cc_rust_prebuilt.mk")
