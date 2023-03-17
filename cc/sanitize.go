@@ -77,7 +77,7 @@ var (
 		"-fno-sanitize-recover=integer,undefined"}
 	hwasanGlobalOptions = []string{"heap_history_size=1023", "stack_history_size=512",
 		"export_memory_stats=0", "max_malloc_fill_size=131072", "malloc_fill_byte=0"}
-	memtagStackCommonFlags = []string{"-march=armv8-a+memtag"}
+	memtagStackCommonFlags = []string{"-march=armv8-a+memtag", "-mllvm", "-dom-tree-reachability-max-bbs-to-explore=128"}
 
 	hostOnlySanitizeFlags   = []string{"-fno-sanitize-recover=all"}
 	deviceOnlySanitizeFlags = []string{"-fsanitize-trap=all", "-ftrap-function=abort"}
@@ -827,13 +827,8 @@ func (s *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 
 	if Bool(sanProps.Memtag_stack) {
 		flags.Local.CFlags = append(flags.Local.CFlags, memtagStackCommonFlags...)
-		// TODO(fmayer): remove -Wno-error once https://reviews.llvm.org/D127917 is in Android toolchain.
-		flags.Local.CFlags = append(flags.Local.CFlags, "-Wno-error=frame-larger-than")
 		flags.Local.AsFlags = append(flags.Local.AsFlags, memtagStackCommonFlags...)
 		flags.Local.LdFlags = append(flags.Local.LdFlags, memtagStackCommonFlags...)
-		// This works around LLD complaining about the stack frame size.
-		// TODO(fmayer): remove once https://reviews.llvm.org/D127917 is in Android toolchain.
-		flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,--no-fatal-warnings")
 	}
 
 	if (Bool(sanProps.Memtag_heap) || Bool(sanProps.Memtag_stack)) && ctx.binary() {
