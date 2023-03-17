@@ -43,6 +43,10 @@ func (mod *Module) SubAndroidMk(data *android.AndroidMkEntries, obj interface{})
 	}
 }
 
+func (mod *Module) AndroidMkSuffix() string {
+	return mod.Properties.RustSubName + mod.Properties.SubName
+}
+
 func (mod *Module) AndroidMkEntries() []android.AndroidMkEntries {
 	if mod.Properties.HideFromMake || mod.hideApexVariantFromMake {
 
@@ -79,8 +83,7 @@ func (mod *Module) AndroidMkEntries() []android.AndroidMkEntries {
 		mod.SubAndroidMk(&ret, mod.sanitize)
 	}
 
-	ret.SubName += mod.Properties.RustSubName
-	ret.SubName += mod.Properties.SubName
+	ret.SubName += mod.AndroidMkSuffix()
 
 	return []android.AndroidMkEntries{ret}
 }
@@ -150,6 +153,11 @@ func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.An
 				entries.SetString("LOCAL_SOONG_TOC", library.tocFile.String())
 			}
 		})
+}
+
+func (library *snapshotLibraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkEntries) {
+	ctx.SubAndroidMk(ret, library.libraryDecorator)
+	ret.SubName = library.SnapshotAndroidMkSuffix()
 }
 
 func (procMacro *procMacroDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkEntries) {
