@@ -25,6 +25,7 @@ func TestApexImageInMixedBuilds(t *testing.T) {
 apex_key{
 	name: "foo_key",
 }
+
 apex {
 	name: "foo",
 	key: "foo_key",
@@ -59,6 +60,16 @@ apex {
 						ProvidesLibs: []string{"a", "b"},
 
 						// ApexMkInfo Starlark provider
+						PayloadFilesInfo: []map[string]string{
+							{
+								"built_file":       "bazel-out/adbd",
+								"install_dir":      "bin",
+								"class":            "nativeExecutable",
+								"make_module_name": "adbd",
+								"basename":         "adbd",
+								"package":          "foo",
+							},
+						},
 						MakeModulesToInstall: []string{"c"}, // d deliberately omitted
 					},
 				},
@@ -68,10 +79,12 @@ apex {
 
 	m := result.ModuleForTests("foo", "android_common_foo_image").Module()
 	ab, ok := m.(*apexBundle)
+
 	if !ok {
 		t.Fatalf("Expected module to be an apexBundle, was not")
 	}
 
+	// TODO: refactor to android.AssertStringEquals
 	if w, g := "out/bazel/execroot/__main__/public_key", ab.publicKeyFile.String(); w != g {
 		t.Errorf("Expected public key %q, got %q", w, g)
 	}
@@ -120,8 +133,133 @@ apex {
 	if len(ab.makeModulesToInstall) != 1 && ab.makeModulesToInstall[0] != "c" {
 		t.Errorf("Expected makeModulesToInstall slice to only contain 'c', got %q", ab.makeModulesToInstall)
 	}
-	if w := "LOCAL_REQUIRED_MODULES := c"; !strings.Contains(data, w) {
+	if w := "LOCAL_REQUIRED_MODULES := adbd.foo c"; !strings.Contains(data, w) {
 		t.Errorf("Expected %q in androidmk data, but did not find it in %q", w, data)
+	}
+}
+
+func TestApexImageCreatesFilesInfoForMake(t *testing.T) {
+	bp := `
+apex_key{
+	name: "foo_key",
+}
+
+apex {
+	name: "foo",
+	key: "foo_key",
+	updatable: true,
+	min_sdk_version: "31",
+	file_contexts: ":myapex-file_contexts",
+	bazel_module: { label: "//:foo" },
+}`
+
+	outputBaseDir := "out/bazel"
+	result := android.GroupFixturePreparers(
+		prepareForApexTest,
+		android.FixtureModifyConfig(func(config android.Config) {
+			config.BazelContext = android.MockBazelContext{
+				OutputBaseDir: outputBaseDir,
+				LabelToApexInfo: map[string]cquery.ApexInfo{
+					"//:foo": {
+						// ApexInfo Starlark provider. Necessary for the test.
+						SignedOutput:     "signed_out.apex",
+						BundleKeyInfo:    []string{"public_key", "private_key"},
+						ContainerKeyInfo: []string{"container_cert", "container_private"},
+
+						// ApexMkInfo Starlark provider
+						PayloadFilesInfo: []map[string]string{
+							{
+								"arch":                  "arm64",
+								"basename":              "libcrypto.so",
+								"built_file":            "bazel-out/64/libcrypto.so",
+								"class":                 "nativeSharedLib",
+								"install_dir":           "lib64",
+								"make_module_name":      "libcrypto",
+								"package":               "foo/bar",
+								"unstripped_built_file": "bazel-out/64/unstripped_libcrypto.so",
+							},
+							{
+								"arch":             "arm",
+								"basename":         "libcrypto.so",
+								"built_file":       "bazel-out/32/libcrypto.so",
+								"class":            "nativeSharedLib",
+								"install_dir":      "lib",
+								"make_module_name": "libcrypto",
+								"package":          "foo/bar",
+							},
+							{
+								"arch":             "arm64",
+								"basename":         "adbd",
+								"built_file":       "bazel-out/adbd",
+								"class":            "nativeExecutable",
+								"install_dir":      "bin",
+								"make_module_name": "adbd",
+								"package":          "foo",
+							},
+						},
+					},
+				},
+			}
+		}),
+	).RunTestWithBp(t, bp)
+
+	m := result.ModuleForTests("foo", "android_common_foo_image").Module()
+	ab, ok := m.(*apexBundle)
+
+	if !ok {
+		t.Fatalf("Expected module to be an apexBundle, was not")
+	}
+
+	expectedFilesInfo := []apexFile{
+		{
+			androidMkModuleName: "libcrypto",
+			builtFile:           android.PathForTesting("out/bazel/execroot/__main__/bazel-out/64/libcrypto.so"),
+			class:               nativeSharedLib,
+			customStem:          "libcrypto.so",
+			installDir:          "lib64",
+			moduleDir:           "foo/bar",
+			arch:                "arm64",
+			unstrippedBuiltFile: android.PathForTesting("out/bazel/execroot/__main__/bazel-out/64/unstripped_libcrypto.so"),
+		},
+		{
+			androidMkModuleName: "libcrypto",
+			builtFile:           android.PathForTesting("out/bazel/execroot/__main__/bazel-out/32/libcrypto.so"),
+			class:               nativeSharedLib,
+			customStem:          "libcrypto.so",
+			installDir:          "lib",
+			moduleDir:           "foo/bar",
+			arch:                "arm",
+		},
+		{
+			androidMkModuleName: "adbd",
+			builtFile:           android.PathForTesting("out/bazel/execroot/__main__/bazel-out/adbd"),
+			class:               nativeExecutable,
+			customStem:          "adbd",
+			installDir:          "bin",
+			moduleDir:           "foo",
+			arch:                "arm64",
+		},
+	}
+
+	if len(ab.filesInfo) != len(expectedFilesInfo) {
+		t.Errorf("Expected %d entries in ab.filesInfo, but got %d", len(ab.filesInfo), len(expectedFilesInfo))
+	}
+
+	for idx, f := range ab.filesInfo {
+		expected := expectedFilesInfo[idx]
+		android.AssertSame(t, "different class", expected.class, f.class)
+		android.AssertStringEquals(t, "different built file", expected.builtFile.String(), f.builtFile.String())
+		android.AssertStringEquals(t, "different custom stem", expected.customStem, f.customStem)
+		android.AssertStringEquals(t, "different install dir", expected.installDir, f.installDir)
+		android.AssertStringEquals(t, "different make module name", expected.androidMkModuleName, f.androidMkModuleName)
+		android.AssertStringEquals(t, "different moduleDir", expected.moduleDir, f.moduleDir)
+		android.AssertStringEquals(t, "different arch", expected.arch, f.arch)
+		if expected.unstrippedBuiltFile != nil {
+			if f.unstrippedBuiltFile == nil {
+				t.Errorf("expected an unstripped built file path.")
+			}
+			android.AssertStringEquals(t, "different unstripped built file", expected.unstrippedBuiltFile.String(), f.unstrippedBuiltFile.String())
+		}
 	}
 }
 

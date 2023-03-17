@@ -281,6 +281,7 @@ return json_encode({
     "bundle_file": info.base_with_config_zip.path,
     "installed_files": info.installed_files.path,
     "make_modules_to_install": mk_info.make_modules_to_install,
+    "files_info": mk_info.files_info,
     "tidy_files": [t for t in tidy_files],
 })`
 }
@@ -303,7 +304,8 @@ type ApexInfo struct {
 	TidyFiles              []string `json:"tidy_files"`
 
 	// From the ApexMkInfo provider
-	MakeModulesToInstall []string `json:"make_modules_to_install"`
+	MakeModulesToInstall []string            `json:"make_modules_to_install"`
+	PayloadFilesInfo     []map[string]string `json:"files_info"`
 }
 
 // ParseResult returns a value obtained by parsing the result of the request's Starlark function.
