@@ -1152,6 +1152,10 @@ func (la *linkerAttributes) bp2buildForAxisAndConfig(ctx android.BazelConversion
 	}
 }
 
+var (
+	apiSurfaceModuleLibCurrentPackage = "@api_surfaces//" + android.ModuleLibApi.String() + "/current:"
+)
+
 func setStubsForDynamicDeps(ctx android.BazelConversionPathContext, axis bazel.ConfigurationAxis,
 	config string, dynamicLibs bazel.LabelList, dynamicDeps *bazel.LabelListAttribute, ind int) {
 	depsWithStubs := []bazel.Label{}
@@ -1167,8 +1171,10 @@ func setStubsForDynamicDeps(ctx android.BazelConversionPathContext, axis bazel.C
 
 		stubLibLabels := []bazel.Label{}
 		for _, l := range depsWithStubs {
-			l.Label = l.Label + stubsSuffix
-			stubLibLabels = append(stubLibLabels, l)
+			stubLabelInApiSurfaces := bazel.Label{
+				Label: apiSurfaceModuleLibCurrentPackage + l.OriginalModuleName,
+			}
+			stubLibLabels = append(stubLibLabels, stubLabelInApiSurfaces)
 		}
 		inApexSelectValue := dynamicDeps.SelectValue(bazel.OsAndInApexAxis, bazel.AndroidAndInApex)
 		nonApexSelectValue := dynamicDeps.SelectValue(bazel.OsAndInApexAxis, bazel.AndroidAndNonApex)
@@ -1284,8 +1290,10 @@ func (la *linkerAttributes) finalize(ctx android.BazelConversionPathContext) {
 		la.implementationDynamicDeps.Exclude(bazel.OsAndInApexAxis, bazel.AndroidAndNonApex, toRemove)
 		stubsToRemove := make([]bazel.Label, 0, len(la.usedSystemDynamicDepAsDynamicDep))
 		for _, lib := range toRemove.Includes {
-			lib.Label += stubsSuffix
-			stubsToRemove = append(stubsToRemove, lib)
+			stubLabelInApiSurfaces := bazel.Label{
+				Label: apiSurfaceModuleLibCurrentPackage + lib.OriginalModuleName,
+			}
+			stubsToRemove = append(stubsToRemove, stubLabelInApiSurfaces)
 		}
 		la.implementationDynamicDeps.Exclude(bazel.OsAndInApexAxis, bazel.AndroidAndInApex, bazel.MakeLabelList(stubsToRemove))
 	}
