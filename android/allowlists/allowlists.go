@@ -220,6 +220,7 @@ var (
 		"hardware/interfaces":                          Bp2BuildDefaultTrue,
 		"hardware/interfaces/audio/aidl":               Bp2BuildDefaultTrue,
 		"hardware/interfaces/audio/aidl/common":        Bp2BuildDefaultTrue,
+		"hardware/interfaces/bufferpool/aidl":          Bp2BuildDefaultTrue,
 		"hardware/interfaces/common/aidl":              Bp2BuildDefaultTrue,
 		"hardware/interfaces/common/fmq/aidl":          Bp2BuildDefaultTrue,
 		"hardware/interfaces/configstore/1.0":          Bp2BuildDefaultTrue,
@@ -399,7 +400,7 @@ var (
 		"prebuilts/clang-tools":/* recursive = */ true,
 		"prebuilts/gcc":/* recursive = */ true,
 		"prebuilts/build-tools":/* recursive = */ true,
-		"prebuilts/jdk/jdk11":/* recursive = */ false,
+		"prebuilts/jdk/jdk17":/* recursive = */ true,
 		"prebuilts/misc":/* recursive = */ false, // not recursive because we need bp2build converted build files in prebuilts/misc/common/asm
 		"prebuilts/sdk":/* recursive = */ false,
 		"prebuilts/sdk/tools":/* recursive = */ false,
@@ -705,6 +706,10 @@ var (
 		"kotlinx_coroutines",
 		"annotations",
 		"kotlinx-coroutines-android-annotation-stubs",
+
+		// for building com.android.neuralnetworks
+		"libimapper_stablec",
+		"libimapper_providerutils",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{

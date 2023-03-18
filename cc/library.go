@@ -468,7 +468,7 @@ func createStubsBazelTargetIfNeeded(ctx android.TopDownMutatorContext, m *Module
 		// Add alias for the stub shared_library in @api_surfaces repository
 		currentModuleLibApiDir := ctx.Config().ApiSurfacesDir(android.ModuleLibApi, "current")
 		actualLabelInMainWorkspace := bazel.Label{
-			Label: fmt.Sprintf("@//%s:%s_stub_libs_current", ctx.ModuleDir(), m.Name()),
+			Label: fmt.Sprintf("@//%s:%s%s", ctx.ModuleDir(), m.Name(), stubsSuffix),
 		}
 		ctx.CreateBazelTargetAliasInDir(currentModuleLibApiDir, m.Name(), actualLabelInMainWorkspace)
 
@@ -2437,17 +2437,6 @@ func (library *libraryDecorator) installable() *bool {
 		return library.SharedProperties.Shared.Installable
 	}
 	return nil
-}
-
-func (library *libraryDecorator) makeUninstallable(mod *Module) {
-	if library.static() && library.buildStatic() && !library.buildStubs() {
-		// If we're asked to make a static library uninstallable we don't do
-		// anything since AndroidMkEntries always sets LOCAL_UNINSTALLABLE_MODULE
-		// for these entries. This is done to still get the make targets for NOTICE
-		// files from notice_files.mk, which other libraries might depend on.
-		return
-	}
-	mod.ModuleBase.MakeUninstallable()
 }
 
 func (library *libraryDecorator) getPartition() string {

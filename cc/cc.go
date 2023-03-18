@@ -609,7 +609,6 @@ type installer interface {
 	inSanitizerDir() bool
 	hostToolPath() android.OptionalPath
 	relativeInstallPath() string
-	makeUninstallable(mod *Module)
 	installInRoot() bool
 }
 
@@ -3466,7 +3465,6 @@ func MakeLibName(ctx android.ModuleContext, c LinkableInterface, ccDep LinkableI
 	nonSystemVariantsExist := ccDep.HasNonSystemVariants() || isLLndk
 
 	if ccDepModule != nil {
-		// TODO(ivanlozano) Support snapshots for Rust-produced C library variants.
 		// Use base module name for snapshots when exporting to Makefile.
 		if snapshotPrebuilt, ok := ccDepModule.linker.(SnapshotInterface); ok {
 			baseName := ccDepModule.BaseModuleName()
@@ -3524,14 +3522,6 @@ func (c *Module) InstallInVendorRamdisk() bool {
 
 func (c *Module) InstallInRecovery() bool {
 	return c.InRecovery()
-}
-
-func (c *Module) MakeUninstallable() {
-	if c.installer == nil {
-		c.ModuleBase.MakeUninstallable()
-		return
-	}
-	c.installer.makeUninstallable(c)
 }
 
 func (c *Module) HostToolPath() android.OptionalPath {
