@@ -134,6 +134,12 @@ message MetricsBase {
 }
 
 message BuildConfig {
+  enum NinjaWeightListSource {
+    NOT_USED = 0;
+    NINJA_LOG = 1;
+    EVENLY_DISTRIBUTED = 2;
+  }
+
   optional bool use_goma = 1;
 
   optional bool use_rbe = 2;
@@ -341,10 +347,4 @@ message JobInfo {
   optional uint64 elapsed_time_micros = 1;
   // Description of a job
   optional string job_description = 2;
-}
-
-enum NinjaWeightListSource {
-  NOT_USED = 0;
-  NINJA_LOG = 1;
-  EVENLY_DISTRIBUTED = 2;
 }
