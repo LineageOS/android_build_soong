@@ -541,14 +541,14 @@ func storeConfigMetrics(ctx Context, config Config) {
 	ctx.Metrics.SystemResourceInfo(s)
 }
 
-func getNinjaWeightListSourceInMetric(s NinjaWeightListSource) *smpb.NinjaWeightListSource {
+func getNinjaWeightListSourceInMetric(s NinjaWeightListSource) *smpb.BuildConfig_NinjaWeightListSource {
 	switch s {
 	case NINJA_LOG:
-		return smpb.NinjaWeightListSource_NINJA_LOG.Enum()
+		return smpb.BuildConfig_NINJA_LOG.Enum()
 	case EVENLY_DISTRIBUTED:
-		return smpb.NinjaWeightListSource_EVENLY_DISTRIBUTED.Enum()
+		return smpb.BuildConfig_EVENLY_DISTRIBUTED.Enum()
 	default:
-		return smpb.NinjaWeightListSource_NOT_USED.Enum()
+		return smpb.BuildConfig_NOT_USED.Enum()
 	}
 }
 
