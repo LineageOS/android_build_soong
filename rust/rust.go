@@ -1111,6 +1111,17 @@ func (mod *Module) Prebuilt() *android.Prebuilt {
 	return nil
 }
 
+func rustMakeLibName(ctx android.ModuleContext, c cc.LinkableInterface, dep cc.LinkableInterface, depName string) string {
+	if rustDep, ok := dep.(*Module); ok {
+		// Use base module name for snapshots when exporting to Makefile.
+		if snapshotPrebuilt, ok := rustDep.compiler.(cc.SnapshotInterface); ok {
+			baseName := rustDep.BaseModuleName()
+			return baseName + snapshotPrebuilt.SnapshotAndroidMkSuffix() + rustDep.AndroidMkSuffix()
+		}
+	}
+	return cc.MakeLibName(ctx, c, dep, depName)
+}
+
 func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 	var depPaths PathDeps
 
@@ -1142,7 +1153,7 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 
 		if rustDep, ok := dep.(*Module); ok && !rustDep.CcLibraryInterface() {
 			//Handle Rust Modules
-			makeLibName := cc.MakeLibName(ctx, mod, rustDep, depName+rustDep.Properties.RustSubName)
+			makeLibName := rustMakeLibName(ctx, mod, rustDep, depName+rustDep.Properties.RustSubName)
 
 			switch depTag {
 			case dylibDepTag:

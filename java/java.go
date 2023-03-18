@@ -2814,6 +2814,20 @@ type kotlinAttributes struct {
 	Kotlincflags *[]string
 }
 
+func ktJvmLibraryBazelTargetModuleProperties() bazel.BazelTargetModuleProperties {
+	return bazel.BazelTargetModuleProperties{
+		Rule_class:        "kt_jvm_library",
+		Bzl_load_location: "//build/bazel/rules/kotlin:rules.bzl",
+	}
+}
+
+func javaLibraryBazelTargetModuleProperties() bazel.BazelTargetModuleProperties {
+	return bazel.BazelTargetModuleProperties{
+		Rule_class:        "java_library",
+		Bzl_load_location: "//build/bazel/rules/java:rules.bzl",
+	}
+}
+
 func javaLibraryBp2Build(ctx android.TopDownMutatorContext, m *Library) {
 	commonAttrs, bp2BuildInfo := m.convertLibraryAttrsBp2Build(ctx)
 	depLabels := bp2BuildInfo.DepLabels
@@ -2843,15 +2857,9 @@ func javaLibraryBp2Build(ctx android.TopDownMutatorContext, m *Library) {
 	name := m.Name()
 
 	if !bp2BuildInfo.hasKotlin {
-		props = bazel.BazelTargetModuleProperties{
-			Rule_class:        "java_library",
-			Bzl_load_location: "//build/bazel/rules/java:rules.bzl",
-		}
+		props = javaLibraryBazelTargetModuleProperties()
 	} else {
-		props = bazel.BazelTargetModuleProperties{
-			Rule_class:        "kt_jvm_library",
-			Bzl_load_location: "//build/bazel/rules/kotlin:rules.bzl",
-		}
+		props = ktJvmLibraryBazelTargetModuleProperties()
 	}
 
 	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: name}, attrs)
@@ -2933,33 +2941,35 @@ func javaBinaryHostBp2Build(ctx android.TopDownMutatorContext, m *Binary) {
 		Rule_class:        "java_binary",
 		Bzl_load_location: "//build/bazel/rules/java:rules.bzl",
 	}
-	attrs := &javaBinaryHostAttributes{
+	binAttrs := &javaBinaryHostAttributes{
 		Runtime_deps: runtimeDeps,
 		Main_class:   mainClass,
 		Jvm_flags:    jvmFlags,
 	}
 
-	if !bp2BuildInfo.hasKotlin {
-		attrs.javaCommonAttributes = commonAttrs
-		attrs.Deps = deps
-	} else {
-		ktName := m.Name() + "_kt"
-		ktProps := bazel.BazelTargetModuleProperties{
-			Rule_class:        "kt_jvm_library",
-			Bzl_load_location: "//build/bazel/rules/kotlin:rules.bzl",
-		}
-
-		ktAttrs := &javaLibraryAttributes{
-			Deps:                 deps,
-			javaCommonAttributes: commonAttrs,
-		}
-
-		ctx.CreateBazelTargetModule(ktProps, android.CommonAttributes{Name: ktName}, ktAttrs)
-		attrs.Runtime_deps.Add(&bazel.LabelAttribute{Value: &bazel.Label{Label: ":" + ktName}})
+	if commonAttrs.Srcs.IsEmpty() {
+		binAttrs.javaCommonAttributes = commonAttrs
+		ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: m.Name()}, binAttrs)
+		return
 	}
 
+	libName := m.Name() + "_lib"
+	var libProps bazel.BazelTargetModuleProperties
+	if bp2BuildInfo.hasKotlin {
+		libProps = ktJvmLibraryBazelTargetModuleProperties()
+	} else {
+		libProps = javaLibraryBazelTargetModuleProperties()
+	}
+	libAttrs := &javaLibraryAttributes{
+		Deps:                 deps,
+		javaCommonAttributes: commonAttrs,
+	}
+
+	ctx.CreateBazelTargetModule(libProps, android.CommonAttributes{Name: libName}, libAttrs)
+	binAttrs.Runtime_deps.Add(&bazel.LabelAttribute{Value: &bazel.Label{Label: ":" + libName}})
+
 	// Create the BazelTargetModule.
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: m.Name()}, attrs)
+	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: m.Name()}, binAttrs)
 }
 
 type bazelJavaImportAttributes struct {
@@ -2998,10 +3008,7 @@ func (i *Import) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 		Exports:   bazel.MakeSingleLabelListAttribute(bazel.Label{Label: ":" + name}),
 	}
 	ctx.CreateBazelTargetModule(
-		bazel.BazelTargetModuleProperties{
-			Rule_class:        "java_library",
-			Bzl_load_location: "//build/bazel/rules/java:rules.bzl",
-		},
+		javaLibraryBazelTargetModuleProperties(),
 		android.CommonAttributes{Name: name + "-neverlink"},
 		neverlinkAttrs)
 

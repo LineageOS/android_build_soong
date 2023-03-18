@@ -37,13 +37,21 @@ if [ $debug = "true" ]; then
   out_dir=out
   droid_target=
 fi
-# m droid
+# m droid, build sbom later in case additional dependencies might be built and included in partition images.
 TARGET_PRODUCT="aosp_cf_x86_64_phone" TARGET_BUILD_VARIANT=userdebug OUT_DIR=$out_dir \
-  build/soong/soong_ui.bash --make-mode $droid_target dump.erofs sbom
+  build/soong/soong_ui.bash --make-mode $droid_target dump.erofs
+
+product_out=$out_dir/target/product/vsoc_x86_64
+sbom_test=$product_out/sbom_test
+mkdir $sbom_test
+cp $product_out/*.img $sbom_test
+
+# m sbom
+TARGET_PRODUCT="aosp_cf_x86_64_phone" TARGET_BUILD_VARIANT=userdebug OUT_DIR=$out_dir \
+  build/soong/soong_ui.bash --make-mode sbom
 
 # Generate installed file list from .img files in PRODUCT_OUT
 dump_erofs=$out_dir/host/linux-x86/bin/dump.erofs
-product_out=$out_dir/target/product/vsoc_x86_64
 
 declare -A diff_excludes
 diff_excludes[odm]="-I /odm/lib/modules"
@@ -142,19 +150,19 @@ diff_excludes[system]=\
 #        5388910    2  overlay
 #        5479537    2  priv-app
 EROFS_IMAGES="\
-  $product_out/product.img \
-  $product_out/system.img \
-  $product_out/system_ext.img \
-  $product_out/system_dlkm.img \
-  $product_out/system_other.img \
-  $product_out/odm.img \
-  $product_out/odm_dlkm.img \
-  $product_out/vendor.img \
-  $product_out/vendor_dlkm.img"
+  $sbom_test/product.img \
+  $sbom_test/system.img \
+  $sbom_test/system_ext.img \
+  $sbom_test/system_dlkm.img \
+  $sbom_test/system_other.img \
+  $sbom_test/odm.img \
+  $sbom_test/odm_dlkm.img \
+  $sbom_test/vendor.img \
+  $sbom_test/vendor_dlkm.img"
 for f in $EROFS_IMAGES; do
   partition_name=$(basename $f | cut -d. -f1)
-  file_list_file="${product_out}/sbom-${partition_name}-files.txt"
-  files_in_spdx_file="${product_out}/sbom-${partition_name}-files-in-spdx.txt"
+  file_list_file="${sbom_test}/sbom-${partition_name}-files.txt"
+  files_in_spdx_file="${sbom_test}/sbom-${partition_name}-files-in-spdx.txt"
   rm "$file_list_file" > /dev/null 2>&1
   all_dirs="/"
   while [ ! -z "$all_dirs" ]; do
