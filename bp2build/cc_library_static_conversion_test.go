@@ -1553,7 +1553,7 @@ cc_library_static {
 			}),
 			MakeBazelTarget("cc_library_static", "keep_with_stubs", AttrNameToString{
 				"implementation_dynamic_deps": `select({
-        "//build/bazel/rules/apex:android-in_apex": [":libm_stub_libs_current"],
+        "//build/bazel/rules/apex:android-in_apex": ["@api_surfaces//module-libapi/current:libm"],
         "//conditions:default": [":libm"],
     })`,
 				"system_dynamic_deps": `[]`,
