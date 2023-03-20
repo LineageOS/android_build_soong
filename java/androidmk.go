@@ -76,6 +76,9 @@ func (library *Library) AndroidMkEntries() []android.AndroidMkEntries {
 			entriesList = append(entriesList, dexpreoptEntries...)
 		}
 		entriesList = append(entriesList, android.AndroidMkEntries{Disabled: true})
+	} else if !library.ApexModuleBase.AvailableFor(android.AvailableToPlatform) {
+		// Platform variant.  If not available for the platform, we don't need Make module.
+		entriesList = append(entriesList, android.AndroidMkEntries{Disabled: true})
 	} else {
 		entriesList = append(entriesList, android.AndroidMkEntries{
 			Class:      "JAVA_LIBRARIES",
@@ -91,8 +94,7 @@ func (library *Library) AndroidMkEntries() []android.AndroidMkEntries {
 						entries.AddStrings("LOCAL_LOGTAGS_FILES", logtags...)
 					}
 
-					if library.installFile == nil || !library.ApexModuleBase.AvailableFor(android.AvailableToPlatform) {
-						// If the ApexModule is not available for the platform, it shouldn't be installed.
+					if library.installFile == nil {
 						entries.SetBoolIfTrue("LOCAL_UNINSTALLABLE_MODULE", true)
 					}
 					if library.dexJarFile.IsSet() {
