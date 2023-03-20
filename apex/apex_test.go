@@ -1927,13 +1927,13 @@ func TestApexMinSdkVersion_DefaultsToLatest(t *testing.T) {
 	expectNoLink("libx", "shared_apex10000", "libz", "shared")
 }
 
-func TestApexMinSdkVersion_crtobjectInVendorApex(t *testing.T) {
+func TestApexMinSdkVersion_InVendorApex(t *testing.T) {
 	ctx := testApex(t, `
 		apex {
 			name: "myapex",
 			key: "myapex.key",
 			native_shared_libs: ["mylib"],
-			updatable: false,
+			updatable: true,
 			vendor: true,
 			min_sdk_version: "29",
 		}
@@ -1946,20 +1946,34 @@ func TestApexMinSdkVersion_crtobjectInVendorApex(t *testing.T) {
 
 		cc_library {
 			name: "mylib",
+			srcs: ["mylib.cpp"],
 			vendor_available: true,
-			system_shared_libs: [],
-			stl: "none",
-			apex_available: [ "myapex" ],
 			min_sdk_version: "29",
+			shared_libs: ["libbar"],
+		}
+
+		cc_library {
+			name: "libbar",
+			stubs: { versions: ["29", "30"] },
+			llndk: { symbol_file: "libbar.map.txt" },
 		}
 	`)
 
 	vendorVariant := "android_vendor.29_arm64_armv8-a"
 
-	// First check that the correct variant of crtbegin_so is used.
-	ldRule := ctx.ModuleForTests("mylib", vendorVariant+"_shared_apex29").Rule("ld")
-	crtBegin := names(ldRule.Args["crtBegin"])
-	ensureListContains(t, crtBegin, "out/soong/.intermediates/"+cc.DefaultCcCommonTestModulesDir+"crtbegin_so/"+vendorVariant+"_apex29/crtbegin_so.o")
+	mylib := ctx.ModuleForTests("mylib", vendorVariant+"_shared_myapex")
+
+	// Ensure that mylib links with "current" LLNDK
+	libFlags := names(mylib.Rule("ld").Args["libFlags"])
+	ensureListContains(t, libFlags, "out/soong/.intermediates/libbar/"+vendorVariant+"_shared_current/libbar.so")
+
+	// Ensure that mylib is targeting 29
+	ccRule := ctx.ModuleForTests("mylib", vendorVariant+"_static_apex29").Output("obj/mylib.o")
+	ensureContains(t, ccRule.Args["cFlags"], "-target aarch64-linux-android29")
+
+	// Ensure that the correct variant of crtbegin_so is used.
+	crtBegin := mylib.Rule("ld").Args["crtBegin"]
+	ensureContains(t, crtBegin, "out/soong/.intermediates/"+cc.DefaultCcCommonTestModulesDir+"crtbegin_so/"+vendorVariant+"_apex29/crtbegin_so.o")
 
 	// Ensure that the crtbegin_so used by the APEX is targeting 29
 	cflags := ctx.ModuleForTests("crtbegin_so", vendorVariant+"_apex29").Rule("cc").Args["cFlags"]
@@ -7860,13 +7874,32 @@ func TestUpdatableDefault_should_set_min_sdk_version(t *testing.T) {
 	`)
 }
 
-func TestUpdatable_cannot_be_vendor_apex(t *testing.T) {
-	testApexError(t, `"myapex" .*: updatable: vendor APEXes are not updatable`, `
+func Test_use_vndk_as_stable_shouldnt_be_used_for_updatable_vendor_apexes(t *testing.T) {
+	testApexError(t, `"myapex" .*: use_vndk_as_stable: updatable APEXes can't use external VNDK libs`, `
 		apex {
 			name: "myapex",
 			key: "myapex.key",
 			updatable: true,
+			min_sdk_version: "current",
+			use_vndk_as_stable: true,
 			soc_specific: true,
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+	`)
+}
+
+func Test_use_vndk_as_stable_shouldnt_be_used_for_non_vendor_apexes(t *testing.T) {
+	testApexError(t, `"myapex" .*: use_vndk_as_stable: not supported for system/system_ext APEXes`, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			updatable: false,
+			use_vndk_as_stable: true,
 		}
 
 		apex_key {
