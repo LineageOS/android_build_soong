@@ -350,3 +350,18 @@ func (s SdkSpec) ValidateSystemSdk(ctx EarlyModuleContext) bool {
 	}
 	return true
 }
+
+func init() {
+	RegisterMakeVarsProvider(pctx, javaSdkMakeVars)
+}
+
+// Export the name of the soong modules representing the various Java API surfaces.
+func javaSdkMakeVars(ctx MakeVarsContext) {
+	ctx.Strict("ANDROID_PUBLIC_STUBS", SdkPublic.JavaLibraryName(ctx.Config()))
+	ctx.Strict("ANDROID_SYSTEM_STUBS", SdkSystem.JavaLibraryName(ctx.Config()))
+	ctx.Strict("ANDROID_TEST_STUBS", SdkTest.JavaLibraryName(ctx.Config()))
+	ctx.Strict("ANDROID_MODULE_LIB_STUBS", SdkModule.JavaLibraryName(ctx.Config()))
+	ctx.Strict("ANDROID_SYSTEM_SERVER_STUBS", SdkSystemServer.JavaLibraryName(ctx.Config()))
+	// TODO (jihoonkang): Create a .txt equivalent for core.current.stubs
+	ctx.Strict("ANDROID_CORE_STUBS", SdkCore.JavaLibraryName(ctx.Config()))
+}
