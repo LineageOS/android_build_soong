@@ -19,7 +19,10 @@ if [ -z "${OUT_DIR}" ]; then
     exit 1
 fi
 
-TARGET_PRODUCT=ndk build/soong/soong_ui.bash --make-mode --soong-only ${OUT_DIR}/soong/ndk.timestamp
+# TODO: remove this when all the riscv64 dependencies exist (currently blocked by
+# http://b/273792258).
+ALLOW_MISSING_DEPENDENCIES=true \
+    TARGET_PRODUCT=ndk build/soong/soong_ui.bash --make-mode --soong-only ${OUT_DIR}/soong/ndk.timestamp
 
 if [ -n "${DIST_DIR}" ]; then
     mkdir -p ${DIST_DIR} || true
