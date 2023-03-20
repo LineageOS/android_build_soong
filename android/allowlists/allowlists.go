@@ -873,6 +873,9 @@ var (
 		"android.hardware.health-translate-java",
 
 		// cc_test related.
+		// b/274164834 "Could not open Configuration file test.cfg"
+		"svcenc", "svcdec",
+
 		// Failing host cc_tests
 		"memunreachable_unit_test",
 		"libprocinfo_test",
