@@ -489,7 +489,7 @@ type Module struct {
 	hideApexVariantFromMake bool
 
 	sdkVersion    android.SdkSpec
-	minSdkVersion android.ApiLevel
+	minSdkVersion android.SdkSpec
 	maxSdkVersion android.SdkSpec
 
 	sourceExtensions []string
@@ -665,11 +665,11 @@ func (j *Module) SystemModules() string {
 	return proptools.String(j.deviceProperties.System_modules)
 }
 
-func (j *Module) MinSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel {
+func (j *Module) MinSdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
 	if j.deviceProperties.Min_sdk_version != nil {
-		return android.ApiLevelFrom(ctx, *j.deviceProperties.Min_sdk_version)
+		return android.SdkSpecFrom(ctx, *j.deviceProperties.Min_sdk_version)
 	}
-	return j.SdkVersion(ctx).ApiLevel
+	return j.SdkVersion(ctx)
 }
 
 func (j *Module) MaxSdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
@@ -685,7 +685,7 @@ func (j *Module) ReplaceMaxSdkVersionPlaceholder(ctx android.EarlyModuleContext)
 }
 
 func (j *Module) MinSdkVersionString() string {
-	return j.minSdkVersion.String()
+	return j.minSdkVersion.Raw
 }
 
 func (j *Module) TargetSdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
@@ -881,7 +881,7 @@ func (j *Module) aidlFlags(ctx android.ModuleContext, aidlPreprocess android.Opt
 		j.ignoredAidlPermissionList = android.PathsForModuleSrcExcludes(ctx, exceptions, nil)
 	}
 
-	aidlMinSdkVersion := j.MinSdkVersion(ctx).String()
+	aidlMinSdkVersion := j.MinSdkVersion(ctx).ApiLevel.String()
 	flags = append(flags, "--min_sdk_version="+aidlMinSdkVersion)
 
 	return strings.Join(flags, " "), deps
@@ -1542,9 +1542,9 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 	}
 
 	if ctx.Device() {
-		lintSDKVersion := func(apiLevel android.ApiLevel) int {
-			if !apiLevel.IsPreview() {
-				return apiLevel.FinalInt()
+		lintSDKVersion := func(sdkSpec android.SdkSpec) int {
+			if v := sdkSpec.ApiLevel; !v.IsPreview() {
+				return v.FinalInt()
 			} else {
 				// When running metalava, we pass --version-codename. When that value
 				// is not REL, metalava will add 1 to the --current-version argument.
@@ -1575,8 +1575,8 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 		j.linter.classpath = append(append(android.Paths(nil), flags.bootClasspath...), flags.classpath...)
 		j.linter.classes = j.implementationJarFile
 		j.linter.minSdkVersion = lintSDKVersion(j.MinSdkVersion(ctx))
-		j.linter.targetSdkVersion = lintSDKVersion(j.TargetSdkVersion(ctx).ApiLevel)
-		j.linter.compileSdkVersion = lintSDKVersion(j.SdkVersion(ctx).ApiLevel)
+		j.linter.targetSdkVersion = lintSDKVersion(j.TargetSdkVersion(ctx))
+		j.linter.compileSdkVersion = lintSDKVersion(j.SdkVersion(ctx))
 		j.linter.compileSdkKind = j.SdkVersion(ctx).Kind
 		j.linter.javaLanguageLevel = flags.javaVersion.String()
 		j.linter.kotlinLanguageLevel = "1.3"
@@ -1846,14 +1846,15 @@ func (j *Module) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Modu
 // Implements android.ApexModule
 func (j *Module) ShouldSupportSdkVersion(ctx android.BaseModuleContext, sdkVersion android.ApiLevel) error {
 	sdkVersionSpec := j.SdkVersion(ctx)
-	minSdkVersion := j.MinSdkVersion(ctx)
-	if !minSdkVersion.Specified() {
+	minSdkVersionSpec := j.MinSdkVersion(ctx)
+	if !minSdkVersionSpec.Specified() {
 		return fmt.Errorf("min_sdk_version is not specified")
 	}
 	// If the module is compiling against core (via sdk_version), skip comparison check.
 	if sdkVersionSpec.Kind == android.SdkCore {
 		return nil
 	}
+	minSdkVersion := minSdkVersionSpec.ApiLevel
 	if minSdkVersion.GreaterThan(sdkVersion) {
 		return fmt.Errorf("newer SDK(%v)", minSdkVersion)
 	}

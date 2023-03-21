@@ -175,11 +175,11 @@ func (r *RuntimeResourceOverlay) SystemModules() string {
 	return ""
 }
 
-func (r *RuntimeResourceOverlay) MinSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel {
+func (r *RuntimeResourceOverlay) MinSdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
 	if r.properties.Min_sdk_version != nil {
-		return android.ApiLevelFrom(ctx, *r.properties.Min_sdk_version)
+		return android.SdkSpecFrom(ctx, *r.properties.Min_sdk_version)
 	}
-	return r.SdkVersion(ctx).ApiLevel
+	return r.SdkVersion(ctx)
 }
 
 func (r *RuntimeResourceOverlay) ReplaceMaxSdkVersionPlaceholder(ctx android.EarlyModuleContext) android.SdkSpec {
