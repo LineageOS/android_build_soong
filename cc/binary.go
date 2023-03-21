@@ -512,7 +512,7 @@ func (binary *binaryDecorator) install(ctx ModuleContext, file android.Path) {
 		}
 		binary.baseInstaller.subDir = "bootstrap"
 	}
-	binary.baseInstaller.install(ctx, file)
+	binary.baseInstaller.installExecutable(ctx, file)
 
 	var preferredArchSymlinkPath android.OptionalPath
 	for _, symlink := range binary.symlinks {
