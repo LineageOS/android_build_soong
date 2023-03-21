@@ -20,6 +20,9 @@ import (
 
 	"android/soong/android"
 	"android/soong/cc"
+	"android/soong/etc"
+
+	"github.com/google/blueprint/proptools"
 )
 
 func TestMain(m *testing.M) {
@@ -28,6 +31,7 @@ func TestMain(m *testing.M) {
 
 var fixture = android.GroupFixturePreparers(
 	android.PrepareForIntegrationTestWithAndroid,
+	etc.PrepareForTestWithPrebuiltEtc,
 	cc.PrepareForIntegrationTestWithCc,
 	PrepareForTestWithFilesystemBuildComponents,
 )
@@ -224,4 +228,57 @@ func TestFileSystemShouldInstallCoreVariantIfTargetBuildAppsIsSet(t *testing.T) 
 	android.AssertStringListContains(t, "filesystem should have libbar even for unbundled build",
 		inputs.Strings(),
 		"out/soong/.intermediates/libbar/android_arm64_armv8-a_shared/libbar.so")
+}
+
+func TestFileSystemWithCoverageVariants(t *testing.T) {
+	context := android.GroupFixturePreparers(
+		fixture,
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			variables.GcovCoverage = proptools.BoolPtr(true)
+			variables.Native_coverage = proptools.BoolPtr(true)
+		}),
+	)
+
+	result := context.RunTestWithBp(t, `
+		prebuilt_etc {
+			name: "prebuilt",
+			src: ":myfilesystem",
+		}
+
+		android_system_image {
+			name: "myfilesystem",
+			deps: [
+				"libfoo",
+			],
+			linker_config_src: "linker.config.json",
+		}
+
+		cc_library {
+			name: "libfoo",
+			shared_libs: [
+				"libbar",
+			],
+			stl: "none",
+		}
+
+		cc_library {
+			name: "libbar",
+			stl: "none",
+		}
+	`)
+
+	filesystem := result.ModuleForTests("myfilesystem", "android_common_cov")
+	inputs := filesystem.Output("deps.zip").Implicits
+	android.AssertStringListContains(t, "filesystem should have libfoo(cov)",
+		inputs.Strings(),
+		"out/soong/.intermediates/libfoo/android_arm64_armv8-a_shared_cov/libfoo.so")
+	android.AssertStringListContains(t, "filesystem should have libbar(cov)",
+		inputs.Strings(),
+		"out/soong/.intermediates/libbar/android_arm64_armv8-a_shared_cov/libbar.so")
+
+	filesystemOutput := filesystem.Output("myfilesystem.img").Output
+	prebuiltInput := result.ModuleForTests("prebuilt", "android_arm64_armv8-a").Rule("Cp").Input
+	if filesystemOutput != prebuiltInput {
+		t.Error("prebuilt should use cov variant of filesystem")
+	}
 }
