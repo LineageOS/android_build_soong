@@ -839,7 +839,6 @@ func TestSnapshotWithBootclasspathFragment_HiddenAPI(t *testing.T) {
 				compile_dex: true,
 				public: {enabled: true},
 				permitted_packages: ["mysdklibrary"],
-				min_sdk_version: "current",
 			}
 
 			java_sdk_library {

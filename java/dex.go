@@ -343,7 +343,7 @@ func (d *dexer) r8Flags(ctx android.ModuleContext, flags javaBuilderFlags) (r8Fl
 type compileDexParams struct {
 	flags         javaBuilderFlags
 	sdkVersion    android.SdkSpec
-	minSdkVersion android.ApiLevel
+	minSdkVersion android.SdkSpec
 	classesJar    android.Path
 	jarName       string
 }

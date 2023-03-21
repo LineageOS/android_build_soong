@@ -73,7 +73,7 @@ type hiddenAPIModule interface {
 	android.Module
 	hiddenAPIIntf
 
-	MinSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel
+	MinSdkVersion(ctx android.EarlyModuleContext) android.SdkSpec
 }
 
 type hiddenAPIIntf interface {
@@ -157,7 +157,7 @@ func (h *hiddenAPI) hiddenAPIEncodeDex(ctx android.ModuleContext, dexJar android
 	// Create a copy of the dex jar which has been encoded with hiddenapi flags.
 	flagsCSV := hiddenAPISingletonPaths(ctx).flags
 	outputDir := android.PathForModuleOut(ctx, "hiddenapi").OutputPath
-	encodedDex := hiddenAPIEncodeDex(ctx, dexJar, flagsCSV, uncompressDex, android.NoneApiLevel, outputDir)
+	encodedDex := hiddenAPIEncodeDex(ctx, dexJar, flagsCSV, uncompressDex, android.SdkSpecNone, outputDir)
 
 	// Use the encoded dex jar from here onwards.
 	return encodedDex
@@ -253,7 +253,7 @@ var hiddenAPIEncodeDexRule = pctx.AndroidStaticRule("hiddenAPIEncodeDex", bluepr
 // The encode dex rule requires unzipping, encoding and rezipping the classes.dex files along with
 // all the resources from the input jar. It also ensures that if it was uncompressed in the input
 // it stays uncompressed in the output.
-func hiddenAPIEncodeDex(ctx android.ModuleContext, dexInput, flagsCSV android.Path, uncompressDex bool, minSdkVersion android.ApiLevel, outputDir android.OutputPath) android.OutputPath {
+func hiddenAPIEncodeDex(ctx android.ModuleContext, dexInput, flagsCSV android.Path, uncompressDex bool, minSdkVersion android.SdkSpec, outputDir android.OutputPath) android.OutputPath {
 
 	// The output file has the same name as the input file and is in the output directory.
 	output := outputDir.Join(ctx, dexInput.Base())
@@ -283,7 +283,7 @@ func hiddenAPIEncodeDex(ctx android.ModuleContext, dexInput, flagsCSV android.Pa
 
 	// If the library is targeted for Q and/or R then make sure that they do not
 	// have any S+ flags encoded as that will break the runtime.
-	minApiLevel := minSdkVersion
+	minApiLevel := minSdkVersion.ApiLevel
 	if !minApiLevel.IsNone() {
 		if minApiLevel.LessThanOrEqualTo(android.ApiLevelOrPanic(ctx, "R")) {
 			hiddenapiFlags = hiddenapiFlags + " --max-hiddenapi-level=max-target-r"
