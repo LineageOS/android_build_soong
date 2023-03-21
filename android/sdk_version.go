@@ -25,9 +25,9 @@ type SdkContext interface {
 	SdkVersion(ctx EarlyModuleContext) SdkSpec
 	// SystemModules returns the system_modules property of the current module, or an empty string if it is not set.
 	SystemModules() string
-	// MinSdkVersion returns ApiLevel that corresponds to the min_sdk_version property of the current module,
+	// MinSdkVersion returns SdkSpec that corresponds to the min_sdk_version property of the current module,
 	// or from sdk_version if it is not set.
-	MinSdkVersion(ctx EarlyModuleContext) ApiLevel
+	MinSdkVersion(ctx EarlyModuleContext) SdkSpec
 	// ReplaceMaxSdkVersionPlaceholder returns SdkSpec to replace the maxSdkVersion property of permission and
 	// uses-permission tags if it is set.
 	ReplaceMaxSdkVersionPlaceholder(ctx EarlyModuleContext) SdkSpec

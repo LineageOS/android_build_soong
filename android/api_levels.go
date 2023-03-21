@@ -185,14 +185,6 @@ func (l ApiLevel) EffectiveVersionString(ctx EarlyModuleContext) (string, error)
 	return ret.String(), nil
 }
 
-// Specified returns true if the module is targeting a recognzized api_level.
-// It returns false if either
-// 1. min_sdk_version is not an int or a recognized codename
-// 2. both min_sdk_version and sdk_version are empty. In this case, MinSdkVersion() defaults to SdkSpecPrivate.ApiLevel
-func (this ApiLevel) Specified() bool {
-	return !this.IsInvalid() && !this.IsPrivate()
-}
-
 // Returns -1 if the current API level is less than the argument, 0 if they
 // are equal, and 1 if it is greater than the argument.
 func (this ApiLevel) CompareTo(other ApiLevel) int {
@@ -295,16 +287,6 @@ func ReplaceFinalizedCodenames(config Config, raw string) string {
 	}
 
 	return strconv.Itoa(num)
-}
-
-// ApiLevelFrom converts the given string `raw` to an ApiLevel.
-// If `raw` is invalid (empty string, unrecognized codename etc.) it returns an invalid ApiLevel
-func ApiLevelFrom(ctx PathContext, raw string) ApiLevel {
-	ret, err := ApiLevelFromUser(ctx, raw)
-	if err != nil {
-		return NewInvalidApiLevel(raw)
-	}
-	return ret
 }
 
 // ApiLevelFromUser converts the given string `raw` to an ApiLevel, possibly returning an error.
