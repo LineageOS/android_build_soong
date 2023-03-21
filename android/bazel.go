@@ -357,6 +357,7 @@ func MixedBuildsEnabled(ctx BaseModuleContext) bool {
 	mixedBuildEnabled := ctx.Config().IsMixedBuildsEnabled() &&
 		ctx.Os() != Windows && // Windows toolchains are not currently supported.
 		ctx.Os() != LinuxBionic && // Linux Bionic toolchains are not currently supported.
+		ctx.Os() != LinuxMusl && // Linux musl toolchains are not currently supported (b/259266326).
 		ctx.Arch().ArchType != Riscv64 && // TODO(b/262192655) Riscv64 toolchains are not currently supported.
 		module.Enabled() &&
 		convertedToBazel(ctx, module) &&
