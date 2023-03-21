@@ -26,6 +26,7 @@ import (
 	"android/soong/cc"
 	cc_config "android/soong/cc/config"
 	"android/soong/fuzz"
+	"android/soong/multitree"
 	"android/soong/rust/config"
 	"android/soong/snapshot"
 )
@@ -1147,10 +1148,56 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 		mod.apexSdkVersion = android.FutureApiLevel
 	}
 
+	skipModuleList := map[string]bool{}
+
+	var apiImportInfo multitree.ApiImportInfo
+	hasApiImportInfo := false
+
+	ctx.VisitDirectDeps(func(dep android.Module) {
+		if dep.Name() == "api_imports" {
+			apiImportInfo = ctx.OtherModuleProvider(dep, multitree.ApiImportsProvider).(multitree.ApiImportInfo)
+			hasApiImportInfo = true
+		}
+	})
+
+	if hasApiImportInfo {
+		targetStubModuleList := map[string]string{}
+		targetOrigModuleList := map[string]string{}
+
+		// Search for dependency which both original module and API imported library with APEX stub exists
+		ctx.VisitDirectDeps(func(dep android.Module) {
+			depName := ctx.OtherModuleName(dep)
+			if apiLibrary, ok := apiImportInfo.ApexSharedLibs[depName]; ok {
+				targetStubModuleList[apiLibrary] = depName
+			}
+		})
+		ctx.VisitDirectDeps(func(dep android.Module) {
+			depName := ctx.OtherModuleName(dep)
+			if origLibrary, ok := targetStubModuleList[depName]; ok {
+				targetOrigModuleList[origLibrary] = depName
+			}
+		})
+
+		// Decide which library should be used between original and API imported library
+		ctx.VisitDirectDeps(func(dep android.Module) {
+			depName := ctx.OtherModuleName(dep)
+			if apiLibrary, ok := targetOrigModuleList[depName]; ok {
+				if cc.ShouldUseStubForApex(ctx, dep) {
+					skipModuleList[depName] = true
+				} else {
+					skipModuleList[apiLibrary] = true
+				}
+			}
+		})
+	}
+
 	ctx.VisitDirectDeps(func(dep android.Module) {
 		depName := ctx.OtherModuleName(dep)
 		depTag := ctx.OtherModuleDependencyTag(dep)
 
+		if _, exists := skipModuleList[depName]; exists {
+			return
+		}
 		if rustDep, ok := dep.(*Module); ok && !rustDep.CcLibraryInterface() {
 			//Handle Rust Modules
 			makeLibName := rustMakeLibName(ctx, mod, rustDep, depName+rustDep.Properties.RustSubName)
@@ -1406,6 +1453,16 @@ func linkPathFromFilePath(filepath android.Path) string {
 	return strings.Split(filepath.String(), filepath.Base())[0]
 }
 
+// usePublicApi returns true if the rust variant should link against NDK (publicapi)
+func (r *Module) usePublicApi() bool {
+	return r.Device() && r.UseSdk()
+}
+
+// useVendorApi returns true if the rust variant should link against LLNDK (vendorapi)
+func (r *Module) useVendorApi() bool {
+	return r.Device() && (r.InVendor() || r.InProduct())
+}
+
 func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	ctx := &depsContext{
 		BottomUpMutatorContext: actx,
@@ -1416,8 +1473,10 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	var snapshotInfo *cc.SnapshotInfo
 
 	apiImportInfo := cc.GetApiImports(mod, actx)
-	for idx, lib := range deps.SharedLibs {
-		deps.SharedLibs[idx] = cc.GetReplaceModuleName(lib, apiImportInfo.SharedLibs)
+	if mod.usePublicApi() || mod.useVendorApi() {
+		for idx, lib := range deps.SharedLibs {
+			deps.SharedLibs[idx] = cc.GetReplaceModuleName(lib, apiImportInfo.SharedLibs)
+		}
 	}
 
 	if ctx.Os() == android.Android {
@@ -1497,7 +1556,15 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		variations := []blueprint.Variation{
 			{Mutator: "link", Variation: "shared"},
 		}
-		cc.AddSharedLibDependenciesWithVersions(ctx, mod, variations, depTag, name, version, false)
+		// For core variant, add a dep on the implementation (if it exists) and its .apiimport (if it exists)
+		// GenerateAndroidBuildActions will pick the correct impl/stub based on the api_domain boundary
+		if _, ok := apiImportInfo.ApexSharedLibs[name]; !ok || ctx.OtherModuleExists(name) {
+			cc.AddSharedLibDependenciesWithVersions(ctx, mod, variations, depTag, name, version, false)
+		}
+
+		if apiLibraryName, ok := apiImportInfo.ApexSharedLibs[name]; ok {
+			cc.AddSharedLibDependenciesWithVersions(ctx, mod, variations, depTag, apiLibraryName, version, false)
+		}
 	}
 
 	for _, lib := range deps.WholeStaticLibs {
