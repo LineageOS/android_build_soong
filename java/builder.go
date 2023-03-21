@@ -131,13 +131,13 @@ var (
 		blueprint.RuleParams{
 			Command: `rm -rf "$out" && ` +
 				`${config.ExtractApksCmd} -o "${out}" -zip "${zip}" -allow-prereleased=${allow-prereleased} ` +
-				`-sdk-version=${sdk-version} -abis=${abis} ` +
+				`-sdk-version=${sdk-version} -skip-sdk-check=${skip-sdk-check} -abis=${abis} ` +
 				`--screen-densities=${screen-densities} --stem=${stem} ` +
 				`-apkcerts=${apkcerts} -partition=${partition} ` +
 				`${in}`,
 			CommandDeps: []string{"${config.ExtractApksCmd}"},
 		},
-		"abis", "allow-prereleased", "screen-densities", "sdk-version", "stem", "apkcerts", "partition", "zip")
+		"abis", "allow-prereleased", "screen-densities", "sdk-version", "skip-sdk-check", "stem", "apkcerts", "partition", "zip")
 
 	turbine, turbineRE = pctx.RemoteStaticRules("turbine",
 		blueprint.RuleParams{
