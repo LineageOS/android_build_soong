@@ -710,6 +710,10 @@ var (
 		// for building com.android.neuralnetworks
 		"libimapper_stablec",
 		"libimapper_providerutils",
+
+		// min_sdk_version in android_app
+		"CtsShimUpgrade",
+		"fake-framework",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
@@ -869,6 +873,9 @@ var (
 		"android.hardware.health-translate-java",
 
 		// cc_test related.
+		// b/274164834 "Could not open Configuration file test.cfg"
+		"svcenc", "svcdec",
+
 		// Failing host cc_tests
 		"memunreachable_unit_test",
 		"libprocinfo_test",
