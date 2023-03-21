@@ -845,7 +845,7 @@ type WalkPayloadDepsFunc func(ctx ModuleContext, do PayloadDepsCallback)
 // ModuleWithMinSdkVersionCheck represents a module that implements min_sdk_version checks
 type ModuleWithMinSdkVersionCheck interface {
 	Module
-	MinSdkVersion(ctx EarlyModuleContext) ApiLevel
+	MinSdkVersion(ctx EarlyModuleContext) SdkSpec
 	CheckMinSdkVersion(ctx ModuleContext)
 }
 

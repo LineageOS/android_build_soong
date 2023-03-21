@@ -1063,10 +1063,10 @@ func (a *apexBundle) buildApexDependencyInfo(ctx android.ModuleContext) {
 		} else {
 			toMinSdkVersion := "(no version)"
 			if m, ok := to.(interface {
-				MinSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel
+				MinSdkVersion(ctx android.EarlyModuleContext) android.SdkSpec
 			}); ok {
-				if v := m.MinSdkVersion(ctx); !v.IsNone() {
-					toMinSdkVersion = v.String()
+				if v := m.MinSdkVersion(ctx); !v.ApiLevel.IsNone() {
+					toMinSdkVersion = v.ApiLevel.String()
 				}
 			} else if m, ok := to.(interface{ MinSdkVersion() string }); ok {
 				// TODO(b/175678607) eliminate the use of MinSdkVersion returning
@@ -1087,7 +1087,7 @@ func (a *apexBundle) buildApexDependencyInfo(ctx android.ModuleContext) {
 		return !externalDep
 	})
 
-	a.ApexBundleDepsInfo.BuildDepsInfoLists(ctx, a.MinSdkVersion(ctx).String(), depInfos)
+	a.ApexBundleDepsInfo.BuildDepsInfoLists(ctx, a.MinSdkVersion(ctx).Raw, depInfos)
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:   android.Phony,

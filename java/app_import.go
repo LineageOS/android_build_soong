@@ -426,8 +426,8 @@ func (a *AndroidAppImport) SdkVersion(ctx android.EarlyModuleContext) android.Sd
 	return android.SdkSpecPrivate
 }
 
-func (a *AndroidAppImport) MinSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel {
-	return android.SdkSpecPrivate.ApiLevel
+func (a *AndroidAppImport) MinSdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
+	return android.SdkSpecPrivate
 }
 
 func (a *AndroidAppImport) LintDepSets() LintDepSets {

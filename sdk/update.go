@@ -319,7 +319,7 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) {
 	targetBuildRelease := s.targetBuildRelease(ctx)
 	targetApiLevel, err := android.ApiLevelFromUser(ctx, targetBuildRelease.name)
 	if err != nil {
-		targetApiLevel = android.InvalidApiLevel
+		targetApiLevel = android.FutureApiLevel
 	}
 
 	// Aggregate all the sdkMemberVariantDep instances from all the sdk variants.
@@ -357,12 +357,6 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) {
 		// If the minApiLevel of the member is greater than the target API level then exclude it from
 		// this snapshot.
 		exclude := memberVariantDep.minApiLevel.GreaterThan(targetApiLevel)
-		// Always include host variants (e.g. host tools) in the snapshot.
-		// Host variants should not be guarded by a min_sdk_version check. In fact, host variants
-		// do not have a `min_sdk_version`.
-		if memberVariantDep.Host() {
-			exclude = false
-		}
 
 		addMember(name, export, exclude)
 
@@ -1267,11 +1261,6 @@ type sdkMemberVariantDep struct {
 
 	// The minimum API level on which this module is supported.
 	minApiLevel android.ApiLevel
-}
-
-// Host returns true if the sdk member is a host variant (e.g. host tool)
-func (s *sdkMemberVariantDep) Host() bool {
-	return s.variant.Target().Os.Class == android.Host
 }
 
 var _ android.SdkMember = (*sdkMember)(nil)
