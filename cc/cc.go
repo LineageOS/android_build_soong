@@ -3870,6 +3870,7 @@ func (c *Module) UniqueApexVariations() bool {
 	// When a vendor APEX needs a VNDK lib in it (use_vndk_as_stable: false), it should be a unique
 	// APEX variation. Otherwise, another vendor APEX with use_vndk_as_stable:true may use a wrong
 	// variation of the VNDK lib because APEX variations are merged/grouped.
+	// TODO(b/274401041) Find a way to merge APEX variations for vendor apexes.
 	return c.UseVndk() && c.IsVndk()
 }
 
