@@ -248,8 +248,8 @@ func (j *Javadoc) SystemModules() string {
 	return proptools.String(j.properties.System_modules)
 }
 
-func (j *Javadoc) MinSdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
-	return j.SdkVersion(ctx)
+func (j *Javadoc) MinSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel {
+	return j.SdkVersion(ctx).ApiLevel
 }
 
 func (j *Javadoc) ReplaceMaxSdkVersionPlaceholder(ctx android.EarlyModuleContext) android.SdkSpec {
@@ -304,7 +304,7 @@ func (j *Javadoc) aidlFlags(ctx android.ModuleContext, aidlPreprocess android.Op
 		flags = append(flags, "-I"+src.String())
 	}
 
-	minSdkVersion := j.MinSdkVersion(ctx).ApiLevel.FinalOrFutureInt()
+	minSdkVersion := j.MinSdkVersion(ctx).FinalOrFutureInt()
 	flags = append(flags, fmt.Sprintf("--min_sdk_version=%v", minSdkVersion))
 
 	return strings.Join(flags, " "), deps
