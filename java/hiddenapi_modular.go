@@ -1278,7 +1278,7 @@ type bootDexInfo struct {
 	uncompressDex bool
 
 	// The minimum sdk version that the dex jar will be used on.
-	minSdkVersion android.SdkSpec
+	minSdkVersion android.ApiLevel
 }
 
 // bootDexInfoByModule is a map from module name (as returned by module.Name()) to the boot dex

@@ -811,7 +811,7 @@ func (p *librarySdkMemberProperties) PopulateFromVariant(ctx android.SdkMemberCo
 	// If the min_sdk_version was set then add the canonical representation of the API level to the
 	// snapshot.
 	if j.deviceProperties.Min_sdk_version != nil {
-		canonical := android.ReplaceFinalizedCodenames(ctx.SdkModuleContext().Config(), j.minSdkVersion.ApiLevel.String())
+		canonical := android.ReplaceFinalizedCodenames(ctx.SdkModuleContext().Config(), j.minSdkVersion.String())
 		p.MinSdkVersion = proptools.StringPtr(canonical)
 	}
 
@@ -1873,7 +1873,7 @@ type Import struct {
 	hideApexVariantFromMake bool
 
 	sdkVersion    android.SdkSpec
-	minSdkVersion android.SdkSpec
+	minSdkVersion android.ApiLevel
 }
 
 var _ PermittedPackagesForUpdatableBootJars = (*Import)(nil)
@@ -1890,11 +1890,11 @@ func (j *Import) SystemModules() string {
 	return "none"
 }
 
-func (j *Import) MinSdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
+func (j *Import) MinSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel {
 	if j.properties.Min_sdk_version != nil {
-		return android.SdkSpecFrom(ctx, *j.properties.Min_sdk_version)
+		return android.ApiLevelFrom(ctx, *j.properties.Min_sdk_version)
 	}
-	return j.SdkVersion(ctx)
+	return j.SdkVersion(ctx).ApiLevel
 }
 
 func (j *Import) ReplaceMaxSdkVersionPlaceholder(ctx android.EarlyModuleContext) android.SdkSpec {
@@ -2160,15 +2160,14 @@ func (j *Import) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Modu
 func (j *Import) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
 	sdkVersion android.ApiLevel) error {
 	sdkVersionSpec := j.SdkVersion(ctx)
-	minSdkVersionSpec := j.MinSdkVersion(ctx)
-	if !minSdkVersionSpec.Specified() {
+	minSdkVersion := j.MinSdkVersion(ctx)
+	if !minSdkVersion.Specified() {
 		return fmt.Errorf("min_sdk_version is not specified")
 	}
 	// If the module is compiling against core (via sdk_version), skip comparison check.
 	if sdkVersionSpec.Kind == android.SdkCore {
 		return nil
 	}
-	minSdkVersion := minSdkVersionSpec.ApiLevel
 	if minSdkVersion.GreaterThan(sdkVersion) {
 		return fmt.Errorf("newer SDK(%v)", minSdkVersion)
 	}
