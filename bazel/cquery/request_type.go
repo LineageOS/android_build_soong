@@ -197,7 +197,7 @@ if androidmk_tag in p:
     local_whole_static_libs = androidmk_info.local_whole_static_libs
     local_shared_libs = androidmk_info.local_shared_libs
 
-return json_encode({
+return json.encode({
     "OutputFiles": outputFiles,
     "CcObjectFiles": ccObjectFiles,
     "CcSharedLibraryFiles": sharedLibraries,
@@ -266,7 +266,7 @@ clang_tidy_info = providers(target).get("//build/bazel/rules/cc:clang_tidy.bzl%C
 if clang_tidy_info:
     tidy_files = [v.path for v in clang_tidy_info.transitive_tidy_files.to_list()]
 
-return json_encode({
+return json.encode({
     "signed_output": info.signed_output.path,
     "signed_compressed_output": signed_compressed_output,
     "unsigned_output": info.unsigned_output.path,
@@ -352,7 +352,7 @@ clang_tidy_info = p.get("//build/bazel/rules/cc:clang_tidy.bzl%ClangTidyInfo")
 if clang_tidy_info:
     tidy_files = [v.path for v in clang_tidy_info.transitive_tidy_files.to_list()]
 
-return json_encode({
+return json.encode({
     "OutputFile":  output_path,
     "UnstrippedOutput": unstripped,
     "LocalStaticLibs": [l for l in local_static_libs],
