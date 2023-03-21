@@ -35,11 +35,12 @@ var (
 		blueprint.RuleParams{
 			Command: `rm -rf "$out" && ` +
 				`${extract_apks} -o "${out}" -allow-prereleased=${allow-prereleased} ` +
-				`-sdk-version=${sdk-version} -abis=${abis} -screen-densities=all -extract-single ` +
+				`-sdk-version=${sdk-version} -skip-sdk-check=${skip-sdk-check} -abis=${abis} ` +
+				`-screen-densities=all -extract-single ` +
 				`${in}`,
 			CommandDeps: []string{"${extract_apks}"},
 		},
-		"abis", "allow-prereleased", "sdk-version")
+		"abis", "allow-prereleased", "sdk-version", "skip-sdk-check")
 )
 
 type prebuilt interface {
@@ -845,6 +846,7 @@ func (p *prebuiltApexExtractorModule) GenerateAndroidBuildActions(ctx android.Mo
 				"abis":              strings.Join(abis, ","),
 				"allow-prereleased": strconv.FormatBool(proptools.BoolDefault(p.properties.Prerelease, defaultAllowPrerelease)),
 				"sdk-version":       ctx.Config().PlatformSdkVersion().String(),
+				"skip-sdk-check":    strconv.FormatBool(ctx.Config().IsEnvTrue("SOONG_SKIP_APPSET_SDK_CHECK")),
 			},
 		})
 }
