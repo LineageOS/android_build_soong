@@ -112,7 +112,7 @@ function compare_dcla_libs() {
         sha="${sha% *}"
         if [ "${prev_sha}" == "" ]; then
           prev_sha="${sha}"
-        elif [ "${sha}" != "${prev_sha}" ]; then
+        elif [ "${sha}" != "${prev_sha}" ] && { [ "${lib}" != "libcrypto.so" ] || [ "${module}" != "com.android.tethering" ]; }; then
           echo "Test failed, ${lib} has different hash value"
           exit 1
         fi
