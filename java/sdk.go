@@ -191,12 +191,8 @@ func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext android.SdkContext)
 			bootclasspath:    corePlatformBootclasspathLibraries(ctx),
 			noFrameworksLibs: true,
 		}
-	case android.SdkPublic:
-		return toModule("android_stubs_current", sdkFrameworkAidlPath(ctx))
-	case android.SdkSystem:
-		return toModule("android_system_stubs_current", sdkFrameworkAidlPath(ctx))
-	case android.SdkTest:
-		return toModule("android_test_stubs_current", sdkFrameworkAidlPath(ctx))
+	case android.SdkPublic, android.SdkSystem, android.SdkTest:
+		return toModule(sdkVersion.Kind.JavaLibraryName(ctx.Config()), sdkFrameworkAidlPath(ctx))
 	case android.SdkCore:
 		return sdkDep{
 			useModule:        true,
@@ -206,10 +202,10 @@ func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext android.SdkContext)
 		}
 	case android.SdkModule:
 		// TODO(146757305): provide .apk and .aidl that have more APIs for modules
-		return toModule("android_module_lib_stubs_current", nonUpdatableFrameworkAidlPath(ctx))
+		return toModule(sdkVersion.Kind.JavaLibraryName(ctx.Config()), nonUpdatableFrameworkAidlPath(ctx))
 	case android.SdkSystemServer:
 		// TODO(146757305): provide .apk and .aidl that have more APIs for modules
-		return toModule("android_system_server_stubs_current", sdkFrameworkAidlPath(ctx))
+		return toModule(sdkVersion.Kind.JavaLibraryName(ctx.Config()), sdkFrameworkAidlPath(ctx))
 	default:
 		panic(fmt.Errorf("invalid sdk %q", sdkVersion.Raw))
 	}
@@ -272,9 +268,9 @@ func (sdkSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 // Create framework.aidl by extracting anything that implements android.os.Parcelable from the SDK stubs modules.
 func createSdkFrameworkAidl(ctx android.SingletonContext) {
 	stubsModules := []string{
-		"android_stubs_current",
-		"android_test_stubs_current",
-		"android_system_stubs_current",
+		android.SdkPublic.JavaLibraryName(ctx.Config()),
+		android.SdkTest.JavaLibraryName(ctx.Config()),
+		android.SdkSystem.JavaLibraryName(ctx.Config()),
 	}
 
 	combinedAidl := sdkFrameworkAidlPath(ctx)
@@ -289,7 +285,7 @@ func createSdkFrameworkAidl(ctx android.SingletonContext) {
 
 // Creates a version of framework.aidl for the non-updatable part of the platform.
 func createNonUpdatableFrameworkAidl(ctx android.SingletonContext) {
-	stubsModules := []string{"android_module_lib_stubs_current"}
+	stubsModules := []string{android.SdkModule.JavaLibraryName(ctx.Config())}
 
 	combinedAidl := nonUpdatableFrameworkAidlPath(ctx)
 	tempPath := tempPathForRestat(ctx, combinedAidl)
