@@ -319,7 +319,7 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) {
 	targetBuildRelease := s.targetBuildRelease(ctx)
 	targetApiLevel, err := android.ApiLevelFromUser(ctx, targetBuildRelease.name)
 	if err != nil {
-		targetApiLevel = android.InvalidApiLevel
+		targetApiLevel = android.FutureApiLevel
 	}
 
 	// Aggregate all the sdkMemberVariantDep instances from all the sdk variants.
