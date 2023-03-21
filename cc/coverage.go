@@ -219,10 +219,14 @@ func SetCoverageProperties(ctx android.BaseModuleContext, properties CoveragePro
 	return properties
 }
 
-// Coverage is an interface for non-CC modules to implement to be mutated for coverage
-type Coverage interface {
+type UseCoverage interface {
 	android.Module
 	IsNativeCoverageNeeded(ctx android.BaseModuleContext) bool
+}
+
+// Coverage is an interface for non-CC modules to implement to be mutated for coverage
+type Coverage interface {
+	UseCoverage
 	SetPreventInstall()
 	HideFromMake()
 	MarkAsCoverageVariant(bool)
@@ -261,6 +265,11 @@ func coverageMutator(mctx android.BottomUpMutatorContext) {
 
 		m[1].(Coverage).MarkAsCoverageVariant(true)
 		m[1].(Coverage).EnableCoverageIfNeeded()
+	} else if cov, ok := mctx.Module().(UseCoverage); ok && cov.IsNativeCoverageNeeded(mctx) {
+		// Module itself doesn't have to have "cov" variant, but it should use "cov" variants of
+		// deps.
+		mctx.CreateVariations("cov")
+		mctx.AliasVariation("cov")
 	}
 }
 
