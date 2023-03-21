@@ -37,11 +37,11 @@ func TestSdkSpecFrom(t *testing.T) {
 		},
 		{
 			input:    "_",
-			expected: "invalid__",
+			expected: "invalid_(no version)",
 		},
 		{
 			input:    "_31",
-			expected: "invalid__31",
+			expected: "invalid_(no version)",
 		},
 		{
 			input:    "system_R",
