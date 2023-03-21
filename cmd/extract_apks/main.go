@@ -41,6 +41,7 @@ type TargetConfig struct {
 	abis             map[android_bundle_proto.Abi_AbiAlias]int
 	allowPrereleased bool
 	stem             string
+	skipSdkCheck     bool
 }
 
 // An APK set is a zip archive. An entry 'toc.pb' describes its contents.
@@ -322,6 +323,12 @@ type sdkVersionTargetingMatcher struct {
 
 func (m sdkVersionTargetingMatcher) matches(config TargetConfig) bool {
 	const preReleaseVersion = 10000
+	// TODO (b274518686) This check should only be used while SHA based targeting is active
+	// Once we have switched to an SDK version, this can be changed to throw an error if
+	// it was accidentally set
+	if config.skipSdkCheck == true {
+		return true
+	}
 	if m.SdkVersionTargeting == nil {
 		return true
 	}
@@ -572,7 +579,7 @@ func (s screenDensityFlagValue) Set(densityList string) error {
 func processArgs() {
 	flag.Usage = func() {
 		fmt.Fprintln(os.Stderr, `usage: extract_apks -o <output-file> [-zip <output-zip-file>] `+
-			`-sdk-version value -abis value `+
+			`-sdk-version value -abis value [-skip-sdk-check]`+
 			`-screen-densities value {-stem value | -extract-single} [-allow-prereleased] `+
 			`[-apkcerts <apkcerts output file> -partition <partition>] <APK set>`)
 		flag.PrintDefaults()
@@ -585,6 +592,7 @@ func processArgs() {
 		"'all' or comma-separated list of screen density names (NODPI LDPI MDPI TVDPI HDPI XHDPI XXHDPI XXXHDPI)")
 	flag.BoolVar(&targetConfig.allowPrereleased, "allow-prereleased", false,
 		"allow prereleased")
+	flag.BoolVar(&targetConfig.skipSdkCheck, "skip-sdk-check", false, "Skip the SDK version check")
 	flag.StringVar(&targetConfig.stem, "stem", "", "output entries base name in the output zip file")
 	flag.Parse()
 	if (*outputFile == "") || len(flag.Args()) != 1 || *version == 0 ||

@@ -142,6 +142,7 @@ func (as *AndroidAppSet) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 				"allow-prereleased": strconv.FormatBool(proptools.Bool(as.properties.Prerelease)),
 				"screen-densities":  screenDensities,
 				"sdk-version":       ctx.Config().PlatformSdkVersion().String(),
+				"skip-sdk-check":    strconv.FormatBool(ctx.Config().IsEnvTrue("SOONG_SKIP_APPSET_SDK_CHECK")),
 				"stem":              as.BaseModuleName(),
 				"apkcerts":          as.apkcertsFile.String(),
 				"partition":         as.PartitionTag(ctx.DeviceConfig()),
