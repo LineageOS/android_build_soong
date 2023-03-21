@@ -168,7 +168,7 @@ func (pb PrimaryBuilderFactory) primaryBuilderInvocation() bootstrap.PrimaryBuil
 		commonArgs = append(commonArgs, "-t")
 	}
 
-	if !pb.config.multitreeBuild {
+	if pb.config.multitreeBuild {
 		commonArgs = append(commonArgs, "--multitree-build")
 	}
 
