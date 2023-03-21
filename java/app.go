@@ -752,7 +752,7 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 
 type appDepsInterface interface {
 	SdkVersion(ctx android.EarlyModuleContext) android.SdkSpec
-	MinSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel
+	MinSdkVersion(ctx android.EarlyModuleContext) android.SdkSpec
 	RequiresStableAPIs(ctx android.BaseModuleContext) bool
 }
 
@@ -865,10 +865,10 @@ func (a *AndroidApp) buildAppDependencyInfo(ctx android.ModuleContext) {
 		} else {
 			toMinSdkVersion := "(no version)"
 			if m, ok := to.(interface {
-				MinSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel
+				MinSdkVersion(ctx android.EarlyModuleContext) android.SdkSpec
 			}); ok {
-				if v := m.MinSdkVersion(ctx); !v.IsNone() {
-					toMinSdkVersion = v.String()
+				if v := m.MinSdkVersion(ctx); !v.ApiLevel.IsNone() {
+					toMinSdkVersion = v.ApiLevel.String()
 				}
 			} else if m, ok := to.(interface{ MinSdkVersion() string }); ok {
 				// TODO(b/175678607) eliminate the use of MinSdkVersion returning
@@ -1524,9 +1524,9 @@ func (a *AndroidApp) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 	manifestValues := &manifestValueAttribute{}
 	// TODO(b/274474008 ): Directly convert deviceProperties.Min_sdk_version in bp2build
 	// MinSdkVersion(ctx) calls SdkVersion(ctx) if no value for min_sdk_version is set
-	minSdkVersion := a.MinSdkVersion(ctx)
-	if !minSdkVersion.IsPreview() && !minSdkVersion.IsInvalid() {
-		minSdkStr, err := minSdkVersion.EffectiveVersionString(ctx)
+	minSdkSpec := a.MinSdkVersion(ctx)
+	if !minSdkSpec.ApiLevel.IsPreview() && minSdkSpec.Valid() {
+		minSdkStr, err := minSdkSpec.EffectiveVersionString(ctx)
 		if err == nil {
 			manifestValues.MinSdkVersion = &minSdkStr
 		}

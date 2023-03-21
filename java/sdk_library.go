@@ -1231,7 +1231,7 @@ func (module *SdkLibrary) getGeneratedApiScopes(ctx android.EarlyModuleContext) 
 var _ android.ModuleWithMinSdkVersionCheck = (*SdkLibrary)(nil)
 
 func (module *SdkLibrary) CheckMinSdkVersion(ctx android.ModuleContext) {
-	android.CheckMinSdkVersion(ctx, module.MinSdkVersion(ctx), func(c android.ModuleContext, do android.PayloadDepsCallback) {
+	android.CheckMinSdkVersion(ctx, module.MinSdkVersion(ctx).ApiLevel, func(c android.ModuleContext, do android.PayloadDepsCallback) {
 		ctx.WalkDeps(func(child android.Module, parent android.Module) bool {
 			isExternal := !module.depIsInSameApex(ctx, child)
 			if am, ok := child.(android.ApexModule); ok {
@@ -1775,7 +1775,7 @@ func (module *SdkLibrary) UniqueApexVariations() bool {
 
 // Creates the xml file that publicizes the runtime library
 func (module *SdkLibrary) createXmlFile(mctx android.DefaultableHookContext) {
-	moduleMinApiLevel := module.Library.MinSdkVersion(mctx)
+	moduleMinApiLevel := module.Library.MinSdkVersion(mctx).ApiLevel
 	var moduleMinApiLevelStr = moduleMinApiLevel.String()
 	if moduleMinApiLevel == android.NoneApiLevel {
 		moduleMinApiLevelStr = "current"
@@ -2414,8 +2414,8 @@ func (module *SdkLibraryImport) UniqueApexVariations() bool {
 }
 
 // MinSdkVersion - Implements hiddenAPIModule
-func (module *SdkLibraryImport) MinSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel {
-	return android.NoneApiLevel
+func (module *SdkLibraryImport) MinSdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
+	return android.SdkSpecNone
 }
 
 var _ hiddenAPIModule = (*SdkLibraryImport)(nil)

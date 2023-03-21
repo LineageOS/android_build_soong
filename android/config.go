@@ -52,15 +52,6 @@ var StringDefault = proptools.StringDefault
 // FutureApiLevelInt is a placeholder constant for unreleased API levels.
 const FutureApiLevelInt = 10000
 
-// PrivateApiLevel represents the api level of SdkSpecPrivate (sdk_version: "")
-// This api_level exists to differentiate user-provided "" from "current" sdk_version
-// The differentiation is necessary to enable different validation rules for these two possible values.
-var PrivateApiLevel = ApiLevel{
-	value:     "current",             // The value is current since aidl expects `current` as the default (TestAidlFlagsWithMinSdkVersion)
-	number:    FutureApiLevelInt + 1, // This is used to differentiate it from FutureApiLevel
-	isPreview: true,
-}
-
 // FutureApiLevel represents unreleased API levels.
 var FutureApiLevel = ApiLevel{
 	value:     "current",

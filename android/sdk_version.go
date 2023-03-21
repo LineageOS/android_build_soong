@@ -25,9 +25,9 @@ type SdkContext interface {
 	SdkVersion(ctx EarlyModuleContext) SdkSpec
 	// SystemModules returns the system_modules property of the current module, or an empty string if it is not set.
 	SystemModules() string
-	// MinSdkVersion returns ApiLevel that corresponds to the min_sdk_version property of the current module,
+	// MinSdkVersion returns SdkSpec that corresponds to the min_sdk_version property of the current module,
 	// or from sdk_version if it is not set.
-	MinSdkVersion(ctx EarlyModuleContext) ApiLevel
+	MinSdkVersion(ctx EarlyModuleContext) SdkSpec
 	// ReplaceMaxSdkVersionPlaceholder returns SdkSpec to replace the maxSdkVersion property of permission and
 	// uses-permission tags if it is set.
 	ReplaceMaxSdkVersionPlaceholder(ctx EarlyModuleContext) SdkSpec
@@ -187,7 +187,14 @@ func (s SdkSpec) EffectiveVersion(ctx EarlyModuleContext) (ApiLevel, error) {
 	if ctx.DeviceSpecific() || ctx.SocSpecific() {
 		s = s.ForVendorPartition(ctx)
 	}
-	return s.ApiLevel.EffectiveVersion(ctx)
+	if !s.ApiLevel.IsPreview() {
+		return s.ApiLevel, nil
+	}
+	ret := ctx.Config().DefaultAppTargetSdk(ctx)
+	if ret.IsPreview() {
+		return FutureApiLevel, nil
+	}
+	return ret, nil
 }
 
 // EffectiveVersionString converts an SdkSpec into the concrete version string that the module
@@ -201,12 +208,37 @@ func (s SdkSpec) EffectiveVersionString(ctx EarlyModuleContext) (string, error) 
 	if ctx.DeviceSpecific() || ctx.SocSpecific() {
 		s = s.ForVendorPartition(ctx)
 	}
-	return s.ApiLevel.EffectiveVersionString(ctx)
+	if !s.ApiLevel.IsPreview() {
+		return s.ApiLevel.String(), nil
+	}
+	// Determine the default sdk
+	ret := ctx.Config().DefaultAppTargetSdk(ctx)
+	if !ret.IsPreview() {
+		// If the default sdk has been finalized, return that
+		return ret.String(), nil
+	}
+	// There can be more than one active in-development sdks
+	// If an app is targeting an active sdk, but not the default one, return the requested active sdk.
+	// e.g.
+	// SETUP
+	// In-development: UpsideDownCake, VanillaIceCream
+	// Default: VanillaIceCream
+	// Android.bp
+	// min_sdk_version: `UpsideDownCake`
+	// RETURN
+	// UpsideDownCake and not VanillaIceCream
+	for _, preview := range ctx.Config().PreviewApiLevels() {
+		if s.ApiLevel.String() == preview.String() {
+			return preview.String(), nil
+		}
+	}
+	// Otherwise return the default one
+	return ret.String(), nil
 }
 
 var (
 	SdkSpecNone         = SdkSpec{SdkNone, NoneApiLevel, "(no version)"}
-	SdkSpecPrivate      = SdkSpec{SdkPrivate, PrivateApiLevel, ""}
+	SdkSpecPrivate      = SdkSpec{SdkPrivate, FutureApiLevel, ""}
 	SdkSpecCorePlatform = SdkSpec{SdkCorePlatform, FutureApiLevel, "core_platform"}
 )
 
@@ -229,7 +261,7 @@ func SdkSpecFromWithConfig(config Config, str string) SdkSpec {
 
 		var kindString string
 		if sep == 0 {
-			return SdkSpec{SdkInvalid, NewInvalidApiLevel(str), str}
+			return SdkSpec{SdkInvalid, NoneApiLevel, str}
 		} else if sep == -1 {
 			kindString = ""
 		} else {
@@ -257,7 +289,7 @@ func SdkSpecFromWithConfig(config Config, str string) SdkSpec {
 
 		apiLevel, err := ApiLevelFromUserWithConfig(config, versionString)
 		if err != nil {
-			return SdkSpec{SdkInvalid, NewInvalidApiLevel(versionString), str}
+			return SdkSpec{SdkInvalid, apiLevel, str}
 		}
 		return SdkSpec{kind, apiLevel, str}
 	}
