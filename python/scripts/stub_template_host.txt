@@ -3,6 +3,7 @@
 import os
 import tempfile
 import shutil
+import signal
 import sys
 import subprocess
 import zipfile
@@ -43,7 +44,18 @@ def Main():
     sys.stdout.flush()
     # close_fds=False so that you can run binaries with files provided on the command line:
     # my_python_app --file <(echo foo)
-    sys.exit(subprocess.call(args, close_fds=False))
+    p = subprocess.Popen(args, close_fds=False)
+
+    def handler(sig, frame):
+      p.send_signal(sig)
+
+    # Redirect SIGINT and SIGTERM to subprocess
+    signal.signal(signal.SIGINT, handler)
+    signal.signal(signal.SIGTERM, handler)
+
+    p.wait()
+
+    sys.exit(p.returncode)
   finally:
     shutil.rmtree(runfiles_path, ignore_errors=True)
 
