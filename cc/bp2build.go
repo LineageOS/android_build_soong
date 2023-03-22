@@ -917,15 +917,12 @@ func bp2buildCcAidlLibrary(
 
 		if !aidlLibs.IsEmpty() {
 			ccAidlLibrarylabel := m.Name() + "_cc_aidl_library"
-			// Since cc_aidl_library only needs the dynamic deps (aka shared libs) from the parent cc library for compiling,
-			// we err on the side of not re-exporting the headers of the dynamic deps from cc_aidl_lirary
-			// because the parent cc library already has all the dynamic deps
-			implementationDynamicDeps := bazel.MakeLabelListAttribute(
-				bazel.AppendBazelLabelLists(
-					linkerAttrs.dynamicDeps.Value,
-					linkerAttrs.implementationDynamicDeps.Value,
-				),
-			)
+			// Since parent cc_library already has these dependencies, we can add them as implementation
+			// deps so that they don't re-export
+			implementationDeps := linkerAttrs.deps.Clone()
+			implementationDeps.Append(linkerAttrs.implementationDeps)
+			implementationDynamicDeps := linkerAttrs.dynamicDeps.Clone()
+			implementationDynamicDeps.Append(linkerAttrs.implementationDynamicDeps)
 
 			ctx.CreateBazelTargetModule(
 				bazel.BazelTargetModuleProperties{
@@ -935,7 +932,8 @@ func bp2buildCcAidlLibrary(
 				android.CommonAttributes{Name: ccAidlLibrarylabel},
 				&ccAidlLibraryAttributes{
 					Deps:                        aidlLibs,
-					Implementation_dynamic_deps: implementationDynamicDeps,
+					Implementation_deps:         *implementationDeps,
+					Implementation_dynamic_deps: *implementationDynamicDeps,
 				},
 			)
 			label := &bazel.LabelAttribute{
