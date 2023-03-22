@@ -2954,7 +2954,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 		ctx.VisitDirectDeps(func(dep android.Module) {
 			depName := ctx.OtherModuleName(dep)
 			if apiLibrary, ok := targetOrigModuleList[depName]; ok {
-				if shouldUseStubForApex(ctx, dep) {
+				if ShouldUseStubForApex(ctx, dep) {
 					skipModuleList[depName] = true
 				} else {
 					skipModuleList[apiLibrary] = true
@@ -3307,7 +3307,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 	return depPaths
 }
 
-func shouldUseStubForApex(ctx android.ModuleContext, dep android.Module) bool {
+func ShouldUseStubForApex(ctx android.ModuleContext, dep android.Module) bool {
 	depName := ctx.OtherModuleName(dep)
 	thisModule, ok := ctx.Module().(android.ApexModule)
 	if !ok {
@@ -3409,7 +3409,7 @@ func ChooseStubOrImpl(ctx android.ModuleContext, dep android.Module) (SharedLibr
 
 	if !libDepTag.explicitlyVersioned && len(sharedLibraryStubsInfo.SharedStubLibraries) > 0 {
 		// when to use (unspecified) stubs, use the latest one.
-		if shouldUseStubForApex(ctx, dep) {
+		if ShouldUseStubForApex(ctx, dep) {
 			stubs := sharedLibraryStubsInfo.SharedStubLibraries
 			toUse := stubs[len(stubs)-1]
 			sharedLibraryInfo = toUse.SharedLibraryInfo
@@ -3870,6 +3870,7 @@ func (c *Module) UniqueApexVariations() bool {
 	// When a vendor APEX needs a VNDK lib in it (use_vndk_as_stable: false), it should be a unique
 	// APEX variation. Otherwise, another vendor APEX with use_vndk_as_stable:true may use a wrong
 	// variation of the VNDK lib because APEX variations are merged/grouped.
+	// TODO(b/274401041) Find a way to merge APEX variations for vendor apexes.
 	return c.UseVndk() && c.IsVndk()
 }
 
