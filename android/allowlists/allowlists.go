@@ -736,15 +736,6 @@ var (
 	// the "prebuilt_" prefix to the name, so that it's differentiable from
 	// the source versions within Soong's module graph.
 	Bp2buildModuleDoNotConvertList = []string{
-		// TODO(b/250876486): Created cc_aidl_library doesn't have static libs from parent cc module
-		"libgui_window_info_static",
-		"libgui",     // Depends on unconverted libgui_window_info_static
-		"libdisplay", // Depends on uncovnerted libgui
-		// Depends on unconverted libdisplay
-		"libdvr_static.google",
-		"libdvr.google",
-		"libvrsensor",
-		"dvr_api-test",
 		// Depends on unconverted libandroid, libgui
 		"dvr_buffer_queue-test",
 		"dvr_display-test",
