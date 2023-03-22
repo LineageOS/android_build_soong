@@ -55,6 +55,9 @@ type ApiLevel struct {
 }
 
 func (this ApiLevel) FinalInt() int {
+	if this.IsInvalid() {
+		panic(fmt.Errorf("%v is not a recognized api_level\n", this))
+	}
 	if this.IsPreview() {
 		panic("Requested a final int from a non-final ApiLevel")
 	} else {
@@ -63,6 +66,9 @@ func (this ApiLevel) FinalInt() int {
 }
 
 func (this ApiLevel) FinalOrFutureInt() int {
+	if this.IsInvalid() {
+		panic(fmt.Errorf("%v is not a recognized api_level\n", this))
+	}
 	if this.IsPreview() {
 		return FutureApiLevelInt
 	} else {
@@ -76,6 +82,9 @@ func (this ApiLevel) FinalOrFutureInt() int {
 // - preview codenames -> preview base (9000) + index
 // - otherwise -> cast to int
 func (this ApiLevel) FinalOrPreviewInt() int {
+	if this.IsInvalid() {
+		panic(fmt.Errorf("%v is not a recognized api_level\n", this))
+	}
 	if this.IsCurrent() {
 		return this.number
 	}
@@ -97,6 +106,11 @@ func (this ApiLevel) IsPreview() bool {
 	return this.isPreview
 }
 
+// Returns true if the raw api level string is invalid
+func (this ApiLevel) IsInvalid() bool {
+	return this.EqualTo(InvalidApiLevel)
+}
+
 // Returns true if this is the unfinalized "current" API level. This means
 // different things across Java and native. Java APIs do not use explicit
 // codenames, so all non-final codenames are grouped into "current". For native
@@ -111,6 +125,64 @@ func (this ApiLevel) IsCurrent() bool {
 
 func (this ApiLevel) IsNone() bool {
 	return this.number == -1
+}
+
+// Returns true if an app is compiling against private apis.
+// e.g. if sdk_version = "" in Android.bp, then the ApiLevel of that "sdk" is at PrivateApiLevel.
+func (this ApiLevel) IsPrivate() bool {
+	return this.number == PrivateApiLevel.number
+}
+
+// EffectiveVersion converts an ApiLevel into the concrete ApiLevel that the module should use. For
+// modules targeting an unreleased SDK (meaning it does not yet have a number) it returns
+// FutureApiLevel(10000).
+func (l ApiLevel) EffectiveVersion(ctx EarlyModuleContext) (ApiLevel, error) {
+	if l.EqualTo(InvalidApiLevel) {
+		return l, fmt.Errorf("invalid version in sdk_version %q", l.value)
+	}
+	if !l.IsPreview() {
+		return l, nil
+	}
+	ret := ctx.Config().DefaultAppTargetSdk(ctx)
+	if ret.IsPreview() {
+		return FutureApiLevel, nil
+	}
+	return ret, nil
+}
+
+// EffectiveVersionString converts an SdkSpec into the concrete version string that the module
+// should use. For modules targeting an unreleased SDK (meaning it does not yet have a number)
+// it returns the codename (P, Q, R, etc.)
+func (l ApiLevel) EffectiveVersionString(ctx EarlyModuleContext) (string, error) {
+	if l.EqualTo(InvalidApiLevel) {
+		return l.value, fmt.Errorf("invalid version in sdk_version %q", l.value)
+	}
+	if !l.IsPreview() {
+		return l.String(), nil
+	}
+	// Determine the default sdk
+	ret := ctx.Config().DefaultAppTargetSdk(ctx)
+	if !ret.IsPreview() {
+		// If the default sdk has been finalized, return that
+		return ret.String(), nil
+	}
+	// There can be more than one active in-development sdks
+	// If an app is targeting an active sdk, but not the default one, return the requested active sdk.
+	// e.g.
+	// SETUP
+	// In-development: UpsideDownCake, VanillaIceCream
+	// Default: VanillaIceCream
+	// Android.bp
+	// min_sdk_version: `UpsideDownCake`
+	// RETURN
+	// UpsideDownCake and not VanillaIceCream
+	for _, preview := range ctx.Config().PreviewApiLevels() {
+		if l.String() == preview.String() {
+			return preview.String(), nil
+		}
+	}
+	// Otherwise return the default one
+	return ret.String(), nil
 }
 
 // Returns -1 if the current API level is less than the argument, 0 if they
@@ -164,6 +236,19 @@ var NoneApiLevel = ApiLevel{
 	// Not 0 because we don't want this to compare equal with the first preview.
 	number:    -1,
 	isPreview: true,
+}
+
+// Sentinel ApiLevel to validate that an apiLevel is either an int or a recognized codename.
+var InvalidApiLevel = NewInvalidApiLevel("invalid")
+
+// Returns an apiLevel object at the same level as InvalidApiLevel.
+// The object contains the raw string provied in bp file, and can be used for error handling.
+func NewInvalidApiLevel(raw string) ApiLevel {
+	return ApiLevel{
+		value:     raw,
+		number:    -2, // One less than NoneApiLevel
+		isPreview: true,
+	}
 }
 
 // The first version that introduced 64-bit ABIs.
