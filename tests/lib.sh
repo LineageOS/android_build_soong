@@ -164,5 +164,6 @@ function scan_and_run_tests {
   fi
   for f in ${test_fns[*]}; do
     $f
+    info "Completed test case \e[96;1m$f\e[0m"
   done
 }
