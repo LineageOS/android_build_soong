@@ -25,7 +25,7 @@ import (
 
 // minApiLevelForSdkSnapshot provides access to the min_sdk_version for MinApiLevelForSdkSnapshot
 type minApiLevelForSdkSnapshot interface {
-	MinSdkVersion(ctx EarlyModuleContext) SdkSpec
+	MinSdkVersion(ctx EarlyModuleContext) ApiLevel
 }
 
 // MinApiLevelForSdkSnapshot returns the ApiLevel of the min_sdk_version of the supplied module.
@@ -34,7 +34,7 @@ type minApiLevelForSdkSnapshot interface {
 func MinApiLevelForSdkSnapshot(ctx EarlyModuleContext, module Module) ApiLevel {
 	minApiLevel := NoneApiLevel
 	if m, ok := module.(minApiLevelForSdkSnapshot); ok {
-		minApiLevel = m.MinSdkVersion(ctx).ApiLevel
+		minApiLevel = m.MinSdkVersion(ctx)
 	}
 	if minApiLevel == NoneApiLevel {
 		// The default min API level is 1.
