@@ -335,7 +335,7 @@ unstripped = output_path
 unstripped_tag = "//build/bazel/rules/cc:stripped_cc_common.bzl%CcUnstrippedInfo"
 if unstripped_tag in p:
     unstripped_info = p[unstripped_tag]
-    unstripped = unstripped_info.unstripped.files.to_list()[0].path
+    unstripped = unstripped_info.unstripped[0].files.to_list()[0].path
 
 local_static_libs = []
 local_whole_static_libs = []
