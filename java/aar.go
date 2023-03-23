@@ -220,12 +220,12 @@ func (a *aapt) aapt2Flags(ctx android.ModuleContext, sdkContext android.SdkConte
 	linkDeps = append(linkDeps, assetDeps...)
 
 	// Returns the effective version for {min|target}_sdk_version
-	effectiveVersionString := func(sdkVersion android.SdkSpec, minSdkVersion android.SdkSpec) string {
+	effectiveVersionString := func(sdkVersion android.SdkSpec, minSdkVersion android.ApiLevel) string {
 		// If {min|target}_sdk_version is current, use sdk_version to determine the effective level
 		// This is necessary for vendor modules.
 		// The effective version does not _only_ depend on {min|target}_sdk_version(level),
 		// but also on the sdk_version (kind+level)
-		if minSdkVersion.ApiLevel.IsCurrent() {
+		if minSdkVersion.IsCurrent() {
 			ret, err := sdkVersion.EffectiveVersionString(ctx)
 			if err != nil {
 				ctx.ModuleErrorf("invalid sdk_version: %s", err)
@@ -689,7 +689,7 @@ type AARImport struct {
 	jniPackages android.Paths
 
 	sdkVersion    android.SdkSpec
-	minSdkVersion android.SdkSpec
+	minSdkVersion android.ApiLevel
 }
 
 var _ android.OutputFileProducer = (*AARImport)(nil)
@@ -714,11 +714,11 @@ func (a *AARImport) SystemModules() string {
 	return ""
 }
 
-func (a *AARImport) MinSdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
+func (a *AARImport) MinSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel {
 	if a.properties.Min_sdk_version != nil {
-		return android.SdkSpecFrom(ctx, *a.properties.Min_sdk_version)
+		return android.ApiLevelFrom(ctx, *a.properties.Min_sdk_version)
 	}
-	return a.SdkVersion(ctx)
+	return a.SdkVersion(ctx).ApiLevel
 }
 
 func (a *AARImport) ReplaceMaxSdkVersionPlaceholder(ctx android.EarlyModuleContext) android.SdkSpec {
