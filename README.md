@@ -184,7 +184,7 @@ the same `.bp` file as the `package` module) to be visible to all the subpackage
 
 ```
 package {
-    default_visibility: [":__subpackages"]
+    default_visibility: [":__subpackages__"]
 }
 ```
 
