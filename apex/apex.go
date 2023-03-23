@@ -1942,7 +1942,7 @@ func (f fsType) string() string {
 var _ android.MixedBuildBuildable = (*apexBundle)(nil)
 
 func (a *apexBundle) IsMixedBuildSupported(ctx android.BaseModuleContext) bool {
-	return ctx.ModuleType() == "apex" && a.properties.ApexType == imageApex
+	return a.properties.ApexType == imageApex
 }
 
 func (a *apexBundle) QueueBazelCall(ctx android.BaseModuleContext) {
