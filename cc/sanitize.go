@@ -254,7 +254,7 @@ type SanitizeUserProps struct {
 	// This should not be used in Android 11+ : https://source.android.com/devices/tech/debug/scudo
 	// deprecated
 	Scudo *bool `android:"arch_variant"`
-	// shadow-call-stack sanitizer, only available on arm64
+	// shadow-call-stack sanitizer, only available on arm64/riscv64.
 	Scs *bool `android:"arch_variant"`
 	// Memory-tagging, only available on arm64
 	// if diag.memtag unset or false, enables async memory tagging
@@ -593,8 +593,8 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 		s.Hwaddress = nil
 	}
 
-	// SCS is only implemented on AArch64.
-	if ctx.Arch().ArchType != android.Arm64 || !ctx.toolchain().Bionic() {
+	// SCS is only implemented on AArch64/riscv64.
+	if (ctx.Arch().ArchType != android.Arm64 && ctx.Arch().ArchType != android.Riscv64) || !ctx.toolchain().Bionic() {
 		s.Scs = nil
 	}
 
@@ -827,8 +827,13 @@ func (s *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 
 	if Bool(sanProps.Memtag_stack) {
 		flags.Local.CFlags = append(flags.Local.CFlags, memtagStackCommonFlags...)
+		// TODO(fmayer): remove -Wno-error once https://reviews.llvm.org/D127917 is in Android toolchain.
+		flags.Local.CFlags = append(flags.Local.CFlags, "-Wno-error=frame-larger-than")
 		flags.Local.AsFlags = append(flags.Local.AsFlags, memtagStackCommonFlags...)
 		flags.Local.LdFlags = append(flags.Local.LdFlags, memtagStackCommonFlags...)
+		// This works around LLD complaining about the stack frame size.
+		// TODO(fmayer): remove once https://reviews.llvm.org/D127917 is in Android toolchain.
+		flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,--no-fatal-warnings")
 	}
 
 	if (Bool(sanProps.Memtag_heap) || Bool(sanProps.Memtag_stack)) && ctx.binary() {

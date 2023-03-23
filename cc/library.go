@@ -268,6 +268,7 @@ type aidlLibraryAttributes struct {
 
 type ccAidlLibraryAttributes struct {
 	Deps                        bazel.LabelListAttribute
+	Implementation_deps         bazel.LabelListAttribute
 	Implementation_dynamic_deps bazel.LabelListAttribute
 }
 
