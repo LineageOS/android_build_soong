@@ -496,7 +496,6 @@ func (l *linter) lint(ctx android.ModuleContext) {
 		FlagWithArg("--java-language-level ", l.javaLanguageLevel).
 		FlagWithArg("--kotlin-language-level ", l.kotlinLanguageLevel).
 		FlagWithArg("--url ", fmt.Sprintf(".=.,%s=out", android.PathForOutput(ctx).String())).
-		Flag("--exitcode").
 		Flag("--apply-suggestions"). // applies suggested fixes to files in the sandbox
 		Flags(l.properties.Lint.Flags).
 		Implicit(annotationsZipPath).
@@ -504,6 +503,10 @@ func (l *linter) lint(ctx android.ModuleContext) {
 
 	rule.Temporary(lintPaths.projectXML)
 	rule.Temporary(lintPaths.configXML)
+
+	if exitCode := ctx.Config().Getenv("ANDROID_LINT_SUPPRESS_EXIT_CODE"); exitCode == "" {
+		cmd.Flag("--exitcode")
+	}
 
 	if checkOnly := ctx.Config().Getenv("ANDROID_LINT_CHECK"); checkOnly != "" {
 		cmd.FlagWithArg("--check ", checkOnly)
