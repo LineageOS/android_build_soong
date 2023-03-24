@@ -1385,6 +1385,11 @@ func (c *deviceConfig) NativeCoverageEnabledForPath(path string) bool {
 		}
 	}
 	if coverage && len(c.config.productVariables.NativeCoverageExcludePaths) > 0 {
+		// Workaround coverage boot failure.
+		// http://b/269981180
+		if strings.HasPrefix(path, "external/protobuf") {
+			coverage = false
+		}
 		if HasAnyPrefix(path, c.config.productVariables.NativeCoverageExcludePaths) {
 			coverage = false
 		}
