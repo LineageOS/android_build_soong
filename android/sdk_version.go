@@ -25,9 +25,9 @@ type SdkContext interface {
 	SdkVersion(ctx EarlyModuleContext) SdkSpec
 	// SystemModules returns the system_modules property of the current module, or an empty string if it is not set.
 	SystemModules() string
-	// MinSdkVersion returns SdkSpec that corresponds to the min_sdk_version property of the current module,
+	// MinSdkVersion returns ApiLevel that corresponds to the min_sdk_version property of the current module,
 	// or from sdk_version if it is not set.
-	MinSdkVersion(ctx EarlyModuleContext) SdkSpec
+	MinSdkVersion(ctx EarlyModuleContext) ApiLevel
 	// ReplaceMaxSdkVersionPlaceholder returns SdkSpec to replace the maxSdkVersion property of permission and
 	// uses-permission tags if it is set.
 	ReplaceMaxSdkVersionPlaceholder(ctx EarlyModuleContext) SdkSpec
@@ -317,4 +317,19 @@ func (s SdkSpec) ValidateSystemSdk(ctx EarlyModuleContext) bool {
 		return false
 	}
 	return true
+}
+
+func init() {
+	RegisterMakeVarsProvider(pctx, javaSdkMakeVars)
+}
+
+// Export the name of the soong modules representing the various Java API surfaces.
+func javaSdkMakeVars(ctx MakeVarsContext) {
+	ctx.Strict("ANDROID_PUBLIC_STUBS", SdkPublic.JavaLibraryName(ctx.Config()))
+	ctx.Strict("ANDROID_SYSTEM_STUBS", SdkSystem.JavaLibraryName(ctx.Config()))
+	ctx.Strict("ANDROID_TEST_STUBS", SdkTest.JavaLibraryName(ctx.Config()))
+	ctx.Strict("ANDROID_MODULE_LIB_STUBS", SdkModule.JavaLibraryName(ctx.Config()))
+	ctx.Strict("ANDROID_SYSTEM_SERVER_STUBS", SdkSystemServer.JavaLibraryName(ctx.Config()))
+	// TODO (jihoonkang): Create a .txt equivalent for core.current.stubs
+	ctx.Strict("ANDROID_CORE_STUBS", SdkCore.JavaLibraryName(ctx.Config()))
 }

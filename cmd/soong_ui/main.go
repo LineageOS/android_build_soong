@@ -169,7 +169,7 @@ func main() {
 
 	// Create a new Status instance, which manages action counts and event output channels.
 	stat := &status.Status{}
-	defer stat.Finish()
+
 	// Hook up the terminal output and tracer to Status.
 	stat.AddOutput(output)
 	stat.AddOutput(trace.StatusTracer())
@@ -221,13 +221,14 @@ func main() {
 
 	trace.SetOutput(filepath.Join(logsDir, c.logsPrefix+"build.trace"))
 
-	if !config.SkipMetricsUpload() {
-		defer build.UploadMetrics(buildCtx, config, c.simpleOutput, buildStarted, bazelProfileFile, bazelMetricsFile, metricsFiles...)
-	}
-	defer met.Dump(soongMetricsFile)
-	// Should run before Metric.Dump
-	defer criticalPath.WriteToMetrics(met)
-
+	defer func() {
+		stat.Finish()
+		criticalPath.WriteToMetrics(met)
+		met.Dump(soongMetricsFile)
+		if !config.SkipMetricsUpload() {
+			build.UploadMetrics(buildCtx, config, c.simpleOutput, buildStarted, bazelProfileFile, bazelMetricsFile, metricsFiles...)
+		}
+	}()
 	c.run(buildCtx, config, args)
 
 }
