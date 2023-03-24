@@ -7880,9 +7880,27 @@ func Test_use_vndk_as_stable_shouldnt_be_used_for_updatable_vendor_apexes(t *tes
 			name: "myapex",
 			key: "myapex.key",
 			updatable: true,
-			min_sdk_version: "current",
 			use_vndk_as_stable: true,
 			soc_specific: true,
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+	`)
+}
+
+func Test_use_vndk_as_stable_shouldnt_be_used_with_min_sdk_version(t *testing.T) {
+	testApexError(t, `"myapex" .*: use_vndk_as_stable: not supported when min_sdk_version is set`, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			updatable: false,
+			min_sdk_version: "29",
+			use_vndk_as_stable: true,
+			vendor: true,
 		}
 
 		apex_key {
