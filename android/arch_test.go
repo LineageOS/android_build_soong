@@ -401,7 +401,7 @@ func TestArchMutator(t *testing.T) {
 		{
 			name: "same arch host and host cross",
 			preparer: FixtureModifyConfig(func(config Config) {
-				modifyTestConfigForMusl(config)
+				ModifyTestConfigForMusl(config)
 				modifyTestConfigForMuslArm64HostCross(config)
 			}),
 			fooVariants:         []string{"android_arm64_armv8-a", "android_arm_armv7-a-neon"},
@@ -705,7 +705,7 @@ func TestArchProperties(t *testing.T) {
 		{
 			name:     "linux_musl",
 			goOS:     "linux",
-			preparer: FixtureModifyConfig(modifyTestConfigForMusl),
+			preparer: FixtureModifyConfig(ModifyTestConfigForMusl),
 			results: []result{
 				{
 					module:   "foo",

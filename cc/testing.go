@@ -70,6 +70,7 @@ func commonDefaultModules() string {
 	return `
 		cc_defaults {
 			name: "toolchain_libs_defaults",
+			host_supported: true,
 			vendor_available: true,
 			product_available: true,
 			recovery_available: true,
@@ -135,6 +136,12 @@ func commonDefaultModules() string {
 		}
 
 		cc_prebuilt_library_static {
+			name: "libclang_rt.ubsan_standalone.static",
+			defaults: ["toolchain_libs_defaults"],
+			srcs: [""],
+		}
+
+		cc_prebuilt_library_static {
 			name: "libclang_rt.ubsan_minimal",
 			defaults: ["toolchain_libs_defaults"],
 			host_supported: true,
@@ -149,6 +156,12 @@ func commonDefaultModules() string {
 					srcs: ["libclang_rt.ubsan_minimal.x86_64.a"],
 				},
 				linux_glibc_x86: {
+					srcs: ["libclang_rt.ubsan_minimal.x86.a"],
+				},
+				linux_musl_x86_64: {
+					srcs: ["libclang_rt.ubsan_minimal.x86_64.a"],
+				},
+				linux_musl_x86: {
 					srcs: ["libclang_rt.ubsan_minimal.x86.a"],
 				},
 			},
@@ -617,6 +630,45 @@ var PrepareForTestWithCcIncludeVndk = android.GroupFixturePreparers(
 		RegisterRecoverySnapshotModules(ctx)
 		ctx.RegisterSingletonType("vndk-snapshot", VndkSnapshotSingleton)
 	}),
+)
+
+// PrepareForTestWithHostMusl sets the host configuration to musl libc instead of glibc.  It also disables the test
+// on mac, which doesn't support musl libc, and adds musl modules.
+var PrepareForTestWithHostMusl = android.GroupFixturePreparers(
+	android.FixtureModifyConfig(android.ModifyTestConfigForMusl),
+	android.PrepareForSkipTestOnMac,
+	android.FixtureAddTextFile("external/musl/Android.bp", `
+		cc_defaults {
+			name: "libc_musl_crt_defaults",
+			host_supported: true,
+			device_supported: false,
+		}
+
+		cc_object {
+			name: "libc_musl_crtbegin_so",
+			defaults: ["libc_musl_crt_defaults"],
+		}
+
+		cc_object {
+			name: "libc_musl_crtend_so",
+			defaults: ["libc_musl_crt_defaults"],
+		}
+
+		cc_object {
+			name: "libc_musl_crtbegin_dynamic",
+			defaults: ["libc_musl_crt_defaults"],
+		}
+
+		cc_object {
+			name: "libc_musl_crtbegin_static",
+			defaults: ["libc_musl_crt_defaults"],
+		}
+
+		cc_object {
+			name: "libc_musl_crtend",
+			defaults: ["libc_musl_crt_defaults"],
+		}
+	`),
 )
 
 // TestConfig is the legacy way of creating a test Config for testing cc modules.
