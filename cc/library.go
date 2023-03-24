@@ -428,8 +428,10 @@ func libraryBp2Build(ctx android.TopDownMutatorContext, m *Module) {
 	if compilerAttrs.stubsSymbolFile == nil && len(compilerAttrs.stubsVersions.Value) == 0 {
 		tagsForStaticVariant = android.ApexAvailableTags(m)
 	}
+	tagsForStaticVariant.Append(bazel.StringListAttribute{Value: staticAttrs.Apex_available})
 
 	tagsForSharedVariant := android.ApexAvailableTags(m)
+	tagsForSharedVariant.Append(bazel.StringListAttribute{Value: sharedAttrs.Apex_available})
 
 	ctx.CreateBazelTargetModuleWithRestrictions(staticProps,
 		android.CommonAttributes{
