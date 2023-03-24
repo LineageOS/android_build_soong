@@ -1905,8 +1905,8 @@ func (j *Import) ReplaceMaxSdkVersionPlaceholder(ctx android.EarlyModuleContext)
 	return android.SdkSpecFrom(ctx, "")
 }
 
-func (j *Import) TargetSdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
-	return j.SdkVersion(ctx)
+func (j *Import) TargetSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel {
+	return j.SdkVersion(ctx).ApiLevel
 }
 
 func (j *Import) Prebuilt() *android.Prebuilt {
