@@ -22,11 +22,13 @@ import (
 // TODO(b/240463568): Additional properties will be added for API validation
 type bazelSyspropLibraryAttributes struct {
 	Srcs bazel.LabelListAttribute
+	Tags bazel.StringListAttribute
 }
 
 type bazelCcSyspropLibraryAttributes struct {
 	Dep             bazel.LabelAttribute
 	Min_sdk_version *string
+	Tags            bazel.StringListAttribute
 }
 
 type SyspropLibraryLabels struct {
@@ -36,6 +38,7 @@ type SyspropLibraryLabels struct {
 }
 
 func Bp2buildSysprop(ctx android.Bp2buildMutatorContext, labels SyspropLibraryLabels, srcs bazel.LabelListAttribute, minSdkVersion *string) {
+	apexAvailableTags := android.ApexAvailableTags(ctx.Module())
 	ctx.CreateBazelTargetModule(
 		bazel.BazelTargetModuleProperties{
 			Rule_class:        "sysprop_library",
@@ -44,11 +47,14 @@ func Bp2buildSysprop(ctx android.Bp2buildMutatorContext, labels SyspropLibraryLa
 		android.CommonAttributes{Name: labels.SyspropLibraryLabel},
 		&bazelSyspropLibraryAttributes{
 			Srcs: srcs,
-		})
+			Tags: apexAvailableTags,
+		},
+	)
 
 	attrs := &bazelCcSyspropLibraryAttributes{
 		Dep:             *bazel.MakeLabelAttribute(":" + labels.SyspropLibraryLabel),
 		Min_sdk_version: minSdkVersion,
+		Tags:            apexAvailableTags,
 	}
 
 	if labels.SharedLibraryLabel != "" {
