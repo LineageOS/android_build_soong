@@ -160,6 +160,7 @@ func AssertStringListDoesNotContain(t *testing.T, message string, list []string,
 // the value of the expected bool. If the expectation does not hold it reports an error prefixed with
 // the supplied message and including a reason for why it failed.
 func AssertStringListContainsEquals(t *testing.T, message string, list []string, s string, expected bool) {
+	t.Helper()
 	if expected {
 		AssertStringListContains(t, message, list, s)
 	} else {
