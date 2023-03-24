@@ -255,6 +255,7 @@ var (
 		"-Wno-bitwise-instead-of-logical",
 		"-Wno-misleading-indentation",
 		"-Wno-array-parameter",
+		"-Wno-gnu-offsetof-extensions",
 	}
 
 	// Extra cflags for external third-party projects to disable warnings that
@@ -304,8 +305,8 @@ var (
 
 	// prebuilts/clang default settings.
 	ClangDefaultBase         = "prebuilts/clang/host"
-	ClangDefaultVersion      = "clang-r475365b"
-	ClangDefaultShortVersion = "16.0.2"
+	ClangDefaultVersion      = "clang-r487747"
+	ClangDefaultShortVersion = "17"
 
 	// Directories with warnings from Android.bp files.
 	WarningAllowedProjects = []string{
