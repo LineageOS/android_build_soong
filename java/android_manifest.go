@@ -44,14 +44,14 @@ var manifestMergerRule = pctx.AndroidStaticRule("manifestMerger",
 // When TARGET_BUILD_APPS is not empty, this method returns 10000 for modules targeting an unreleased SDK
 // This enables release builds (that run with TARGET_BUILD_APPS=[val...]) to target APIs that have not yet been finalized as part of an SDK
 func targetSdkVersionForManifestFixer(ctx android.ModuleContext, params ManifestFixerParams) string {
-	targetSdkVersionSpec := params.SdkContext.TargetSdkVersion(ctx)
+	targetSdkVersionLevel := params.SdkContext.TargetSdkVersion(ctx)
 
 	// Check if we want to return 10000
 	// TODO(b/240294501): Determine the rules for handling test apexes
-	if shouldReturnFinalOrFutureInt(ctx, targetSdkVersionSpec, params.EnforceDefaultTargetSdkVersion) {
+	if shouldReturnFinalOrFutureInt(ctx, targetSdkVersionLevel, params.EnforceDefaultTargetSdkVersion) {
 		return strconv.Itoa(android.FutureApiLevel.FinalOrFutureInt())
 	}
-	targetSdkVersion, err := targetSdkVersionSpec.EffectiveVersionString(ctx)
+	targetSdkVersion, err := targetSdkVersionLevel.EffectiveVersionString(ctx)
 	if err != nil {
 		ctx.ModuleErrorf("invalid targetSdkVersion: %s", err)
 	}
@@ -62,11 +62,11 @@ func targetSdkVersionForManifestFixer(ctx android.ModuleContext, params Manifest
 // 1. The module is built in unbundled mode (TARGET_BUILD_APPS not empty)
 // 2. The module is run as part of MTS, and should be testable on stable branches
 // Do not return 10000 if we are enforcing default targetSdkVersion and sdk has been finalised
-func shouldReturnFinalOrFutureInt(ctx android.ModuleContext, targetSdkVersionSpec android.SdkSpec, enforceDefaultTargetSdkVersion bool) bool {
+func shouldReturnFinalOrFutureInt(ctx android.ModuleContext, targetSdkVersionLevel android.ApiLevel, enforceDefaultTargetSdkVersion bool) bool {
 	if enforceDefaultTargetSdkVersion && ctx.Config().PlatformSdkFinal() {
 		return false
 	}
-	return targetSdkVersionSpec.ApiLevel.IsPreview() && (ctx.Config().UnbundledBuildApps() || includedInMts(ctx.Module()))
+	return targetSdkVersionLevel.IsPreview() && (ctx.Config().UnbundledBuildApps() || includedInMts(ctx.Module()))
 }
 
 // Helper function that casts android.Module to java.androidTestApp
