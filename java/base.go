@@ -688,11 +688,11 @@ func (j *Module) MinSdkVersionString() string {
 	return j.minSdkVersion.String()
 }
 
-func (j *Module) TargetSdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
+func (j *Module) TargetSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel {
 	if j.deviceProperties.Target_sdk_version != nil {
-		return android.SdkSpecFrom(ctx, *j.deviceProperties.Target_sdk_version)
+		return android.ApiLevelFrom(ctx, *j.deviceProperties.Target_sdk_version)
 	}
-	return j.SdkVersion(ctx)
+	return j.SdkVersion(ctx).ApiLevel
 }
 
 func (j *Module) AvailableFor(what string) bool {
@@ -1575,7 +1575,7 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 		j.linter.classpath = append(append(android.Paths(nil), flags.bootClasspath...), flags.classpath...)
 		j.linter.classes = j.implementationJarFile
 		j.linter.minSdkVersion = lintSDKVersion(j.MinSdkVersion(ctx))
-		j.linter.targetSdkVersion = lintSDKVersion(j.TargetSdkVersion(ctx).ApiLevel)
+		j.linter.targetSdkVersion = lintSDKVersion(j.TargetSdkVersion(ctx))
 		j.linter.compileSdkVersion = lintSDKVersion(j.SdkVersion(ctx).ApiLevel)
 		j.linter.compileSdkKind = j.SdkVersion(ctx).Kind
 		j.linter.javaLanguageLevel = flags.javaVersion.String()
