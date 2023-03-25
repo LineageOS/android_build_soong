@@ -264,12 +264,15 @@ type bazelCcLibraryAttributes struct {
 type aidlLibraryAttributes struct {
 	Srcs        bazel.LabelListAttribute
 	Include_dir *string
+	Tags        bazel.StringListAttribute
 }
 
 type ccAidlLibraryAttributes struct {
 	Deps                        bazel.LabelListAttribute
 	Implementation_deps         bazel.LabelListAttribute
 	Implementation_dynamic_deps bazel.LabelListAttribute
+	Tags                        bazel.StringListAttribute
+	sdkAttributes
 }
 
 type stripAttributes struct {
@@ -428,8 +431,10 @@ func libraryBp2Build(ctx android.TopDownMutatorContext, m *Module) {
 	if compilerAttrs.stubsSymbolFile == nil && len(compilerAttrs.stubsVersions.Value) == 0 {
 		tagsForStaticVariant = android.ApexAvailableTags(m)
 	}
+	tagsForStaticVariant.Append(bazel.StringListAttribute{Value: staticAttrs.Apex_available})
 
 	tagsForSharedVariant := android.ApexAvailableTags(m)
+	tagsForSharedVariant.Append(bazel.StringListAttribute{Value: sharedAttrs.Apex_available})
 
 	ctx.CreateBazelTargetModuleWithRestrictions(staticProps,
 		android.CommonAttributes{

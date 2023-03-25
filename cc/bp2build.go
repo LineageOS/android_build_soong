@@ -65,6 +65,8 @@ type staticOrSharedAttributes struct {
 
 	Native_coverage *bool
 
+	Apex_available []string
+
 	sdkAttributes
 
 	tidyAttributes
@@ -220,7 +222,7 @@ func bp2BuildPropParseHelper(ctx android.ArchVariantContext, module *Module, pro
 }
 
 // Parses properties common to static and shared libraries. Also used for prebuilt libraries.
-func bp2buildParseStaticOrSharedProps(ctx android.BazelConversionPathContext, module *Module, _ *libraryDecorator, isStatic bool) staticOrSharedAttributes {
+func bp2buildParseStaticOrSharedProps(ctx android.BazelConversionPathContext, module *Module, lib *libraryDecorator, isStatic bool) staticOrSharedAttributes {
 	attrs := staticOrSharedAttributes{}
 
 	setAttrs := func(axis bazel.ConfigurationAxis, config string, props StaticOrSharedProperties) {
@@ -244,13 +246,16 @@ func bp2buildParseStaticOrSharedProps(ctx android.BazelConversionPathContext, mo
 	//    empty list -> no values specified
 	attrs.System_dynamic_deps.ForceSpecifyEmptyList = true
 
+	var apexAvailable []string
 	if isStatic {
+		apexAvailable = lib.StaticProperties.Static.Apex_available
 		bp2BuildPropParseHelper(ctx, module, &StaticProperties{}, func(axis bazel.ConfigurationAxis, config string, props interface{}) {
 			if staticOrSharedProps, ok := props.(*StaticProperties); ok {
 				setAttrs(axis, config, staticOrSharedProps.Static)
 			}
 		})
 	} else {
+		apexAvailable = lib.SharedProperties.Shared.Apex_available
 		bp2BuildPropParseHelper(ctx, module, &SharedProperties{}, func(axis bazel.ConfigurationAxis, config string, props interface{}) {
 			if staticOrSharedProps, ok := props.(*SharedProperties); ok {
 				setAttrs(axis, config, staticOrSharedProps.Shared)
@@ -262,6 +267,8 @@ func bp2buildParseStaticOrSharedProps(ctx android.BazelConversionPathContext, mo
 	attrs.Srcs = partitionedSrcs[cppSrcPartition]
 	attrs.Srcs_c = partitionedSrcs[cSrcPartition]
 	attrs.Srcs_as = partitionedSrcs[asSrcPartition]
+
+	attrs.Apex_available = android.ConvertApexAvailableToTags(apexAvailable)
 
 	if !partitionedSrcs[protoSrcPartition].IsEmpty() {
 		// TODO(b/208815215): determine whether this is used and add support if necessary
@@ -900,6 +907,9 @@ func bp2buildCcAidlLibrary(
 			return false
 		})
 
+		apexAvailableTags := android.ApexAvailableTags(ctx.Module())
+		sdkAttrs := bp2BuildParseSdkAttributes(m)
+
 		if !aidlSrcs.IsEmpty() {
 			aidlLibName := m.Name() + "_aidl_library"
 			ctx.CreateBazelTargetModule(
@@ -910,6 +920,7 @@ func bp2buildCcAidlLibrary(
 				android.CommonAttributes{Name: aidlLibName},
 				&aidlLibraryAttributes{
 					Srcs: aidlSrcs,
+					Tags: apexAvailableTags,
 				},
 			)
 			aidlLibs.Add(&bazel.LabelAttribute{Value: &bazel.Label{Label: ":" + aidlLibName}})
@@ -934,6 +945,8 @@ func bp2buildCcAidlLibrary(
 					Deps:                        aidlLibs,
 					Implementation_deps:         *implementationDeps,
 					Implementation_dynamic_deps: *implementationDynamicDeps,
+					Tags:                        apexAvailableTags,
+					sdkAttributes:               sdkAttrs,
 				},
 			)
 			label := &bazel.LabelAttribute{
