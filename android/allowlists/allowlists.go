@@ -281,6 +281,7 @@ var (
 		"packages/modules/adb/proto":                         Bp2BuildDefaultTrueRecursively,
 		"packages/modules/adb/tls":                           Bp2BuildDefaultTrueRecursively,
 		"packages/modules/NetworkStack/common/captiveportal": Bp2BuildDefaultTrue,
+		"packages/modules/NeuralNetworks/apex":               Bp2BuildDefaultTrue,
 		"packages/providers/MediaProvider/tools/dialogs":     Bp2BuildDefaultFalse, // TODO(b/242834374)
 		"packages/screensavers/Basic":                        Bp2BuildDefaultTrue,
 		"packages/services/Car/tests/SampleRearViewCamera":   Bp2BuildDefaultFalse, // TODO(b/242834321)
@@ -433,10 +434,6 @@ var (
 		"com.android.media.swcodec-mediaswcodec.rc",
 		"com.android.media.swcodec.certificate",
 		"com.android.media.swcodec.key",
-		"com.android.neuralnetworks",
-		"com.android.neuralnetworks-androidManifest",
-		"com.android.neuralnetworks.certificate",
-		"com.android.neuralnetworks.key",
 		"flatbuffer_headers",
 		"framework-connectivity-protos",
 		"gemmlowp_headers",
