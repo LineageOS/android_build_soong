@@ -907,6 +907,9 @@ func bp2buildCcAidlLibrary(
 			return false
 		})
 
+		apexAvailableTags := android.ApexAvailableTags(ctx.Module())
+		sdkAttrs := bp2BuildParseSdkAttributes(m)
+
 		if !aidlSrcs.IsEmpty() {
 			aidlLibName := m.Name() + "_aidl_library"
 			ctx.CreateBazelTargetModule(
@@ -917,6 +920,7 @@ func bp2buildCcAidlLibrary(
 				android.CommonAttributes{Name: aidlLibName},
 				&aidlLibraryAttributes{
 					Srcs: aidlSrcs,
+					Tags: apexAvailableTags,
 				},
 			)
 			aidlLibs.Add(&bazel.LabelAttribute{Value: &bazel.Label{Label: ":" + aidlLibName}})
@@ -941,6 +945,8 @@ func bp2buildCcAidlLibrary(
 					Deps:                        aidlLibs,
 					Implementation_deps:         *implementationDeps,
 					Implementation_dynamic_deps: *implementationDynamicDeps,
+					Tags:                        apexAvailableTags,
+					sdkAttributes:               sdkAttrs,
 				},
 			)
 			label := &bazel.LabelAttribute{
