@@ -118,6 +118,7 @@ func (fg *fileGroup) ConvertWithBp2build(ctx TopDownMutatorContext) {
 	// If the module has a mixed bag of AIDL and non-AIDL files, split the filegroup manually
 	// and then convert
 	if fg.ShouldConvertToAidlLibrary(ctx) {
+		tags := []string{"apex_available=//apex_available:anyapex"}
 		attrs := &bazelAidlLibraryAttributes{
 			Srcs:                srcs,
 			Strip_import_prefix: fg.properties.Path,
@@ -128,17 +129,25 @@ func (fg *fileGroup) ConvertWithBp2build(ctx TopDownMutatorContext) {
 			Bzl_load_location: "//build/bazel/rules/aidl:library.bzl",
 		}
 
-		ctx.CreateBazelTargetModule(props, CommonAttributes{Name: fg.Name()}, attrs)
+		ctx.CreateBazelTargetModule(
+			props,
+			CommonAttributes{
+				Name: fg.Name(),
+				Tags: bazel.MakeStringListAttribute(tags),
+			},
+			attrs)
 	} else {
 		if fg.ShouldConvertToProtoLibrary(ctx) {
-			// TODO(b/246997908): we can remove this tag if we could figure out a
-			// solution for this bug.
 			attrs := &ProtoAttrs{
 				Srcs:                srcs,
 				Strip_import_prefix: fg.properties.Path,
 			}
 
-			tags := []string{"manual"}
+			tags := []string{
+				"apex_available=//apex_available:anyapex",
+				// TODO(b/246997908): we can remove this tag if we could figure out a solution for this bug.
+				"manual",
+			}
 			ctx.CreateBazelTargetModule(
 				bazel.BazelTargetModuleProperties{Rule_class: "proto_library"},
 				CommonAttributes{
