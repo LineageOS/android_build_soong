@@ -493,6 +493,7 @@ java_library {
         "a.aidl",
         "b.aidl",
     ]`,
+				"tags": `["apex_available=//apex_available:anyapex"]`,
 			}),
 			MakeBazelTarget("java_aidl_library", "example_lib_java_aidl_library", AttrNameToString{
 				"deps": `[":aidl_files"]`,
