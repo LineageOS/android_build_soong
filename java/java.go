@@ -2624,10 +2624,12 @@ type eventLogTagsAttributes struct {
 
 type aidlLibraryAttributes struct {
 	Srcs bazel.LabelListAttribute
+	Tags bazel.StringListAttribute
 }
 
 type javaAidlLibraryAttributes struct {
 	Deps bazel.LabelListAttribute
+	Tags bazel.StringListAttribute
 }
 
 // bp2BuildJavaInfo has information needed for the conversion of  java*_modules
@@ -2699,6 +2701,8 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext)
 			return android.IsConvertedToAidlLibrary(ctx, src.OriginalModuleName)
 		})
 
+		apexAvailableTags := android.ApexAvailableTags(ctx.Module())
+
 		if !aidlSrcs.IsEmpty() {
 			aidlLibName := m.Name() + "_aidl_library"
 			ctx.CreateBazelTargetModule(
@@ -2709,6 +2713,7 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext)
 				android.CommonAttributes{Name: aidlLibName},
 				&aidlLibraryAttributes{
 					Srcs: aidlSrcs,
+					Tags: apexAvailableTags,
 				},
 			)
 			aidlLibs.Add(&bazel.LabelAttribute{Value: &bazel.Label{Label: ":" + aidlLibName}})
@@ -2723,6 +2728,7 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext)
 			android.CommonAttributes{Name: javaAidlLibName},
 			&javaAidlLibraryAttributes{
 				Deps: aidlLibs,
+				Tags: apexAvailableTags,
 			},
 		)
 
