@@ -1167,7 +1167,7 @@ func (a *apexBundle) buildCannedFsConfig(ctx android.ModuleContext) android.Outp
 	if a.properties.Canned_fs_config != nil {
 		cmd.Text("cat").Input(android.PathForModuleSrc(ctx, *a.properties.Canned_fs_config))
 	}
-	cmd.Text(") | LC_ALL=C sort ").FlagWithOutput("> ", cannedFsConfig)
+	cmd.Text(")").FlagWithOutput("> ", cannedFsConfig)
 	builder.Build("generateFsConfig", fmt.Sprintf("Generating canned fs config for %s", a.BaseModuleName()))
 
 	return cannedFsConfig.OutputPath
