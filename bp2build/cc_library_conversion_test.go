@@ -3038,6 +3038,7 @@ cc_library {
 		},
 	},
 	bazel_module: { bp2build_available: true },
+	apex_available: ["foo"],
 }`,
 		ExpectedBazelTargets: makeCcLibraryTargets("foolib", AttrNameToString{
 			"implementation_dynamic_deps": `select({
@@ -3045,6 +3046,7 @@ cc_library {
         "//conditions:default": [":barlib"],
     })`,
 			"local_includes": `["."]`,
+			"tags":           `["apex_available=foo"]`,
 		}),
 	})
 }
@@ -3078,6 +3080,7 @@ cc_library {
 	},
 	include_build_directory: false,
 	bazel_module: { bp2build_available: true },
+	apex_available: ["foo"],
 }`,
 		ExpectedBazelTargets: makeCcLibraryTargets("foolib", AttrNameToString{
 			"implementation_dynamic_deps": `select({
@@ -3102,6 +3105,7 @@ cc_library {
             ":quxlib",
         ],
     })`,
+			"tags": `["apex_available=foo"]`,
 		}),
 	})
 }
