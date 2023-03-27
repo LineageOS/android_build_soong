@@ -1517,12 +1517,14 @@ cc_library_static {
         },
     },
     include_build_directory: false,
+    apex_available: ["foo"],
 }
 
 cc_library_static {
     name: "all",
     shared_libs: ["libc"],
     include_build_directory: false,
+    apex_available: ["foo"],
 }
 
 cc_library_static {
@@ -1530,12 +1532,14 @@ cc_library_static {
     shared_libs: ["libc"],
     system_shared_libs: [],
     include_build_directory: false,
+    apex_available: ["foo"],
 }
 
 cc_library_static {
     name: "used_with_stubs",
     shared_libs: ["libm"],
     include_build_directory: false,
+    apex_available: ["foo"],
 }
 
 cc_library_static {
@@ -1543,13 +1547,17 @@ cc_library_static {
     shared_libs: ["libm"],
     system_shared_libs: [],
     include_build_directory: false,
+    apex_available: ["foo"],
 }
 `,
 		ExpectedBazelTargets: []string{
-			MakeBazelTarget("cc_library_static", "all", AttrNameToString{}),
+			MakeBazelTarget("cc_library_static", "all", AttrNameToString{
+				"tags": `["apex_available=foo"]`,
+			}),
 			MakeBazelTarget("cc_library_static", "keep_for_empty_system_shared_libs", AttrNameToString{
 				"implementation_dynamic_deps": `[":libc"]`,
 				"system_dynamic_deps":         `[]`,
+				"tags":                        `["apex_available=foo"]`,
 			}),
 			MakeBazelTarget("cc_library_static", "keep_with_stubs", AttrNameToString{
 				"implementation_dynamic_deps": `select({
@@ -1557,9 +1565,14 @@ cc_library_static {
         "//conditions:default": [":libm"],
     })`,
 				"system_dynamic_deps": `[]`,
+				"tags":                `["apex_available=foo"]`,
 			}),
-			MakeBazelTarget("cc_library_static", "used_in_bionic_oses", AttrNameToString{}),
-			MakeBazelTarget("cc_library_static", "used_with_stubs", AttrNameToString{}),
+			MakeBazelTarget("cc_library_static", "used_in_bionic_oses", AttrNameToString{
+				"tags": `["apex_available=foo"]`,
+			}),
+			MakeBazelTarget("cc_library_static", "used_with_stubs", AttrNameToString{
+				"tags": `["apex_available=foo"]`,
+			}),
 		},
 	})
 }
