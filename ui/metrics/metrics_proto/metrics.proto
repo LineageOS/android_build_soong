@@ -138,6 +138,7 @@ message BuildConfig {
     NOT_USED = 0;
     NINJA_LOG = 1;
     EVENLY_DISTRIBUTED = 2;
+    EXTERNAL_FILE = 3;
   }
 
   optional bool use_goma = 1;
@@ -163,6 +164,7 @@ message BuildConfig {
   // NOT_USED - ninja doesn't use weight list.
   // NINJA_LOG - ninja uses weight list based on previous builds by ninja log
   // EVENLY_DISTRIBUTED - ninja thinks every task has the same weight.
+  // EXTERNAL_FILE - ninja uses an external custom weight list
   optional NinjaWeightListSource ninja_weight_list_source = 8 [default = NOT_USED];
 }
 
