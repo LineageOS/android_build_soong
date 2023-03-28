@@ -42,6 +42,7 @@ bootstrap_go_package {
         "toolchain_library.go",
     ],
     testSrcs: [
+        "afdo_test.go",
         "benchmark_test.go",
         "binary_test.go",
         "bindgen_test.go",
