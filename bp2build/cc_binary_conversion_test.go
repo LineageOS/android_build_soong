@@ -1036,3 +1036,73 @@ func TestCcBinaryHiddenVisibilityConvertedToFeatureOsSpecific(t *testing.T) {
 		},
 	})
 }
+
+func TestCcBinaryWithCfi(t *testing.T) {
+	runCcBinaryTestCase(t, ccBinaryBp2buildTestCase{
+		description: "cc_binary has correct features when cfi is enabled",
+		blueprint: `
+{rule_name} {
+	name: "foo",
+	sanitize: {
+		cfi: true,
+	},
+}`,
+		targets: []testBazelTarget{
+			{"cc_binary", "foo", AttrNameToString{
+				"features":       `["android_cfi"]`,
+				"local_includes": `["."]`,
+			}},
+		},
+	})
+}
+
+func TestCcBinaryWithCfiOsSpecific(t *testing.T) {
+	runCcBinaryTestCase(t, ccBinaryBp2buildTestCase{
+		description: "cc_binary has correct features when cfi is enabled for specific variants",
+		blueprint: `
+{rule_name} {
+	name: "foo",
+	target: {
+		android: {
+			sanitize: {
+				cfi: true,
+			},
+		},
+	},
+}`,
+		targets: []testBazelTarget{
+			{"cc_binary", "foo", AttrNameToString{
+				"features": `select({
+        "//build/bazel/platforms/os:android": ["android_cfi"],
+        "//conditions:default": [],
+    })`,
+				"local_includes": `["."]`,
+			}},
+		},
+	})
+}
+
+func TestCcBinaryWithCfiAndCfiAssemblySupport(t *testing.T) {
+	runCcBinaryTestCase(t, ccBinaryBp2buildTestCase{
+		description: "cc_binary has correct features when cfi is enabled with cfi assembly support",
+		blueprint: `
+{rule_name} {
+	name: "foo",
+	sanitize: {
+		cfi: true,
+		config: {
+			cfi_assembly_support: true,
+		},
+	},
+}`,
+		targets: []testBazelTarget{
+			{"cc_binary", "foo", AttrNameToString{
+				"features": `[
+        "android_cfi",
+        "android_cfi_assembly_support",
+    ]`,
+				"local_includes": `["."]`,
+			}},
+		},
+	})
+}
