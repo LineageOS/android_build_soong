@@ -390,6 +390,8 @@ var (
 		"external/protobuf":/* recursive = */ false,
 		"external/python/absl-py":/* recursive = */ true,
 
+		"external/compiler-rt/lib/cfi":/* recursive = */ false,
+
 		// this BUILD file is globbed by //external/icu/icu4c/source:icu4c_test_data's "data/**/*".
 		"external/icu/icu4c/source/data/unidata/norm2":/* recursive = */ false,
 
