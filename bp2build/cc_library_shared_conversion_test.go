@@ -556,6 +556,151 @@ cc_library_shared {
 	})
 }
 
+func TestCcLibrarySharedStubs_UseImplementationInSameApex(t *testing.T) {
+	runCcLibrarySharedTestCase(t, Bp2buildTestCase{
+		Description:                "cc_library_shared stubs",
+		ModuleTypeUnderTest:        "cc_library_shared",
+		ModuleTypeUnderTestFactory: cc.LibrarySharedFactory,
+		Blueprint: soongCcLibrarySharedPreamble + `
+cc_library_shared {
+	name: "a",
+	stubs: { symbol_file: "a.map.txt", versions: ["28", "29", "current"] },
+	bazel_module: { bp2build_available: false },
+	include_build_directory: false,
+	apex_available: ["made_up_apex"],
+}
+cc_library_shared {
+	name: "b",
+	shared_libs: [":a"],
+	include_build_directory: false,
+	apex_available: ["made_up_apex"],
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_library_shared", "b", AttrNameToString{
+				"implementation_dynamic_deps": `[":a"]`,
+				"tags":                        `["apex_available=made_up_apex"]`,
+			}),
+		},
+	})
+}
+
+func TestCcLibrarySharedStubs_UseStubsInDifferentApex(t *testing.T) {
+	runCcLibrarySharedTestCase(t, Bp2buildTestCase{
+		Description:                "cc_library_shared stubs",
+		ModuleTypeUnderTest:        "cc_library_shared",
+		ModuleTypeUnderTestFactory: cc.LibrarySharedFactory,
+		Blueprint: soongCcLibrarySharedPreamble + `
+cc_library_shared {
+	name: "a",
+	stubs: { symbol_file: "a.map.txt", versions: ["28", "29", "current"] },
+	bazel_module: { bp2build_available: false },
+	include_build_directory: false,
+	apex_available: ["apex_a"],
+}
+cc_library_shared {
+	name: "b",
+	shared_libs: [":a"],
+	include_build_directory: false,
+	apex_available: ["apex_b"],
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_library_shared", "b", AttrNameToString{
+				"implementation_dynamic_deps": `select({
+        "//build/bazel/rules/apex:android-in_apex": ["@api_surfaces//module-libapi/current:a"],
+        "//conditions:default": [":a"],
+    })`,
+				"tags": `["apex_available=apex_b"]`,
+			}),
+		},
+	})
+}
+
+func TestCcLibrarySharedStubs_IgnorePlatformAvailable(t *testing.T) {
+	runCcLibrarySharedTestCase(t, Bp2buildTestCase{
+		Description:                "cc_library_shared stubs",
+		ModuleTypeUnderTest:        "cc_library_shared",
+		ModuleTypeUnderTestFactory: cc.LibrarySharedFactory,
+		Blueprint: soongCcLibrarySharedPreamble + `
+cc_library_shared {
+	name: "a",
+	stubs: { symbol_file: "a.map.txt", versions: ["28", "29", "current"] },
+	bazel_module: { bp2build_available: false },
+	include_build_directory: false,
+	apex_available: ["//apex_available:platform", "apex_a"],
+}
+cc_library_shared {
+	name: "b",
+	shared_libs: [":a"],
+	include_build_directory: false,
+	apex_available: ["//apex_available:platform", "apex_b"],
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_library_shared", "b", AttrNameToString{
+				"implementation_dynamic_deps": `select({
+        "//build/bazel/rules/apex:android-in_apex": ["@api_surfaces//module-libapi/current:a"],
+        "//conditions:default": [":a"],
+    })`,
+				"tags": `[
+        "apex_available=//apex_available:platform",
+        "apex_available=apex_b",
+    ]`,
+			}),
+		},
+	})
+}
+
+func TestCcLibrarySharedStubs_MultipleApexAvailable(t *testing.T) {
+	runCcLibrarySharedTestCase(t, Bp2buildTestCase{
+		ModuleTypeUnderTest:        "cc_library_shared",
+		ModuleTypeUnderTestFactory: cc.LibrarySharedFactory,
+		Blueprint: soongCcLibrarySharedPreamble + `
+cc_library_shared {
+	name: "a",
+	stubs: { symbol_file: "a.map.txt", versions: ["28", "29", "current"] },
+	bazel_module: { bp2build_available: false },
+	include_build_directory: false,
+	apex_available: ["//apex_available:platform", "apex_a", "apex_b"],
+}
+cc_library_shared {
+	name: "b",
+	shared_libs: [":a"],
+	include_build_directory: false,
+	apex_available: ["//apex_available:platform", "apex_b"],
+}
+
+cc_library_shared {
+	name: "c",
+	shared_libs: [":a"],
+	include_build_directory: false,
+	apex_available: ["//apex_available:platform", "apex_a", "apex_b"],
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_library_shared", "b", AttrNameToString{
+				"implementation_dynamic_deps": `select({
+        "//build/bazel/rules/apex:android-in_apex": ["@api_surfaces//module-libapi/current:a"],
+        "//conditions:default": [":a"],
+    })`,
+				"tags": `[
+        "apex_available=//apex_available:platform",
+        "apex_available=apex_b",
+    ]`,
+			}),
+			MakeBazelTarget("cc_library_shared", "c", AttrNameToString{
+				"implementation_dynamic_deps": `[":a"]`,
+				"tags": `[
+        "apex_available=//apex_available:platform",
+        "apex_available=apex_a",
+        "apex_available=apex_b",
+    ]`,
+			}),
+		},
+	})
+}
+
 func TestCcLibrarySharedSystemSharedLibsSharedEmpty(t *testing.T) {
 	runCcLibrarySharedTestCase(t, Bp2buildTestCase{
 		Description:                "cc_library_shared system_shared_libs empty shared default",
