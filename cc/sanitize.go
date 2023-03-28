@@ -62,14 +62,18 @@ var (
 		"-fast-isel=false",
 	}
 
-	cfiCflags = []string{"-flto", "-fsanitize-cfi-cross-dso",
-		"-fsanitize-ignorelist=external/compiler-rt/lib/cfi/cfi_blocklist.txt"}
+	cfiBlocklistPath     = "external/compiler-rt/lib/cfi"
+	cfiBlocklistFilename = "cfi_blocklist.txt"
+	cfiCflags            = []string{"-flto", "-fsanitize-cfi-cross-dso",
+		"-fsanitize-ignorelist=" + cfiBlocklistPath + "/" + cfiBlocklistFilename}
 	// -flto and -fvisibility are required by clang when -fsanitize=cfi is
 	// used, but have no effect on assembly files
 	cfiAsflags = []string{"-flto", "-fvisibility=default"}
 	cfiLdflags = []string{"-flto", "-fsanitize-cfi-cross-dso", "-fsanitize=cfi",
 		"-Wl,-plugin-opt,O1"}
-	cfiExportsMapPath = "build/soong/cc/config/cfi_exports.map"
+	cfiExportsMapPath      = "build/soong/cc/config"
+	cfiExportsMapFilename  = "cfi_exports.map"
+	cfiAssemblySupportFlag = "-fno-sanitize-cfi-canonical-jump-tables"
 
 	intOverflowCflags = []string{"-fsanitize-ignorelist=build/soong/cc/config/integer_overflow_blocklist.txt"}
 
@@ -387,6 +391,18 @@ var exportedVars = android.NewExportedVariables(pctx)
 func init() {
 	exportedVars.ExportStringListStaticVariable("HostOnlySanitizeFlags", hostOnlySanitizeFlags)
 	exportedVars.ExportStringList("DeviceOnlySanitizeFlags", deviceOnlySanitizeFlags)
+
+	// Leave out "-flto" from the slices exported to bazel, as we will use the
+	// dedicated LTO feature for this
+	exportedVars.ExportStringList("CfiCFlags", cfiCflags[1:])
+	exportedVars.ExportStringList("CfiAsFlags", cfiAsflags[1:])
+	exportedVars.ExportStringList("CfiLdFlags", cfiLdflags[1:])
+
+	exportedVars.ExportString("CfiBlocklistPath", cfiBlocklistPath)
+	exportedVars.ExportString("CfiBlocklistFilename", cfiBlocklistFilename)
+	exportedVars.ExportString("CfiExportsMapPath", cfiExportsMapPath)
+	exportedVars.ExportString("CfiExportsMapFilename", cfiExportsMapFilename)
+	exportedVars.ExportString("CfiAssemblySupportFlag", cfiAssemblySupportFlag)
 
 	android.RegisterMakeVarsProvider(pctx, cfiMakeVarsProvider)
 	android.RegisterMakeVarsProvider(pctx, hwasanMakeVarsProvider)
@@ -810,7 +826,7 @@ func (s *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 		flags.Local.CFlags = append(flags.Local.CFlags, cfiCflags...)
 		flags.Local.AsFlags = append(flags.Local.AsFlags, cfiAsflags...)
 		if Bool(s.Properties.Sanitize.Config.Cfi_assembly_support) {
-			flags.Local.CFlags = append(flags.Local.CFlags, "-fno-sanitize-cfi-canonical-jump-tables")
+			flags.Local.CFlags = append(flags.Local.CFlags, cfiAssemblySupportFlag)
 		}
 		// Only append the default visibility flag if -fvisibility has not already been set
 		// to hidden.
