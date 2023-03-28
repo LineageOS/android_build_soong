@@ -136,11 +136,11 @@ func configuredJarListToClasspathJars(ctx android.ModuleContext, configuredJars 
 							jar.minSdkVersion = s.minSdkVersion.String()
 						}
 					}
-					if s.maxSdkVersion.ApiLevel.Specified() {
-						if s.maxSdkVersion.ApiLevel.IsCurrent() {
+					if s.maxSdkVersion.Specified() {
+						if s.maxSdkVersion.IsCurrent() {
 							jar.maxSdkVersion = ctx.Config().DefaultAppTargetSdk(ctx).String()
 						} else {
-							jar.maxSdkVersion = s.maxSdkVersion.ApiLevel.String()
+							jar.maxSdkVersion = s.maxSdkVersion.String()
 						}
 					}
 				}

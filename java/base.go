@@ -490,7 +490,7 @@ type Module struct {
 
 	sdkVersion    android.SdkSpec
 	minSdkVersion android.ApiLevel
-	maxSdkVersion android.SdkSpec
+	maxSdkVersion android.ApiLevel
 
 	sourceExtensions []string
 }
@@ -672,16 +672,20 @@ func (j *Module) MinSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel 
 	return j.SdkVersion(ctx).ApiLevel
 }
 
-func (j *Module) MaxSdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
-	maxSdkVersion := proptools.StringDefault(j.deviceProperties.Max_sdk_version, "")
-	// SdkSpecFrom returns SdkSpecPrivate for this, which may be confusing.
-	// TODO(b/208456999): ideally MaxSdkVersion should be an ApiLevel and not SdkSpec.
-	return android.SdkSpecFrom(ctx, maxSdkVersion)
+func (j *Module) MaxSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel {
+	if j.deviceProperties.Max_sdk_version != nil {
+		return android.ApiLevelFrom(ctx, *j.deviceProperties.Max_sdk_version)
+	}
+	// Default is PrivateApiLevel
+	return android.SdkSpecPrivate.ApiLevel
 }
 
-func (j *Module) ReplaceMaxSdkVersionPlaceholder(ctx android.EarlyModuleContext) android.SdkSpec {
-	replaceMaxSdkVersionPlaceholder := proptools.StringDefault(j.deviceProperties.Replace_max_sdk_version_placeholder, "")
-	return android.SdkSpecFrom(ctx, replaceMaxSdkVersionPlaceholder)
+func (j *Module) ReplaceMaxSdkVersionPlaceholder(ctx android.EarlyModuleContext) android.ApiLevel {
+	if j.deviceProperties.Replace_max_sdk_version_placeholder != nil {
+		return android.ApiLevelFrom(ctx, *j.deviceProperties.Replace_max_sdk_version_placeholder)
+	}
+	// Default is PrivateApiLevel
+	return android.SdkSpecPrivate.ApiLevel
 }
 
 func (j *Module) MinSdkVersionString() string {
