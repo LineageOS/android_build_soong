@@ -721,8 +721,8 @@ func (a *AARImport) MinSdkVersion(ctx android.EarlyModuleContext) android.ApiLev
 	return a.SdkVersion(ctx).ApiLevel
 }
 
-func (a *AARImport) ReplaceMaxSdkVersionPlaceholder(ctx android.EarlyModuleContext) android.SdkSpec {
-	return android.SdkSpecFrom(ctx, "")
+func (a *AARImport) ReplaceMaxSdkVersionPlaceholder(ctx android.EarlyModuleContext) android.ApiLevel {
+	return android.SdkSpecFrom(ctx, "").ApiLevel
 }
 
 func (a *AARImport) TargetSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel {
