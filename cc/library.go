@@ -26,7 +26,6 @@ import (
 	"android/soong/android"
 	"android/soong/bazel"
 	"android/soong/bazel/cquery"
-	"android/soong/cc/config"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/pathtools"
@@ -2256,8 +2255,7 @@ func (library *libraryDecorator) install(ctx ModuleContext, file android.Path) {
 		!ctx.useVndk() && !ctx.inRamdisk() && !ctx.inVendorRamdisk() && !ctx.inRecovery() && ctx.Device() &&
 		library.baseLinker.sanitize.isUnsanitizedVariant() &&
 		ctx.isForPlatform() && !ctx.isPreventInstall() {
-		installPath := getNdkSysrootBase(ctx).Join(
-			ctx, "usr/lib", config.NDKTriple(ctx.toolchain()), file.Base())
+		installPath := getUnversionedLibraryInstallPath(ctx).Join(ctx, file.Base())
 
 		ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 			Rule:        android.Cp,
