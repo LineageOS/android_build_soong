@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"android/soong/android"
+	"android/soong/android/allowlists"
 	"android/soong/bazel"
 	"android/soong/bp2build"
 	"android/soong/shared"
@@ -252,6 +253,29 @@ func apiBuildFileExcludes(ctx *android.Context) []string {
 	return ret
 }
 
+func writeNinjaHint(ctx *android.Context) error {
+	wantModules := make([]string, len(allowlists.HugeModulesMap))
+	i := 0
+	for k := range allowlists.HugeModulesMap {
+		wantModules[i] = k
+		i += 1
+	}
+	outputsMap := ctx.Context.GetOutputsFromModuleNames(wantModules)
+	var outputBuilder strings.Builder
+	for k, v := range allowlists.HugeModulesMap {
+		for _, output := range outputsMap[k] {
+			outputBuilder.WriteString(fmt.Sprintf("%s,%d\n", output, v))
+		}
+	}
+	weightListFile := filepath.Join(topDir, ctx.Config().OutDir(), ".ninja_weight_list")
+
+	err := os.WriteFile(weightListFile, []byte(outputBuilder.String()), 0644)
+	if err != nil {
+		return fmt.Errorf("could not write ninja weight list file %s", err)
+	}
+	return nil
+}
+
 func writeMetrics(configuration android.Config, eventHandler *metrics.EventHandler, metricsDir string) {
 	if len(metricsDir) < 1 {
 		fmt.Fprintf(os.Stderr, "\nMissing required env var for generating soong metrics: LOG_DIR\n")
@@ -411,6 +435,9 @@ func main() {
 			finalOutputFile = runMixedModeBuild(ctx, extraNinjaDeps)
 		} else {
 			finalOutputFile = runSoongOnlyBuild(ctx, extraNinjaDeps)
+		}
+		if ctx.Config().IsEnvTrue("SOONG_GENERATES_NINJA_HINT") {
+			writeNinjaHint(ctx)
 		}
 		writeMetrics(configuration, ctx.EventHandler, metricsDir)
 	}
