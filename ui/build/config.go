@@ -134,6 +134,8 @@ const (
 	EVENLY_DISTRIBUTED
 	// ninja uses an external custom weight list
 	EXTERNAL_FILE
+	// ninja uses a prioritized module list from Soong
+	HINT_FROM_SOONG
 )
 const srcDirFileCheck = "build/soong/root.bp"
 
@@ -319,6 +321,10 @@ func NewConfig(ctx Context, args ...string) Config {
 
 	ret.totalRAM = detectTotalRAM(ctx)
 	ret.parseArgs(ctx, args)
+
+	if ret.ninjaWeightListSource == HINT_FROM_SOONG {
+		ret.environ.Set("SOONG_GENERATES_NINJA_HINT", "true")
+	}
 	// Make sure OUT_DIR is set appropriately
 	if outDir, ok := ret.environ.Get("OUT_DIR"); ok {
 		ret.environ.Set("OUT_DIR", filepath.Clean(outDir))
@@ -551,6 +557,8 @@ func getNinjaWeightListSourceInMetric(s NinjaWeightListSource) *smpb.BuildConfig
 		return smpb.BuildConfig_EVENLY_DISTRIBUTED.Enum()
 	case EXTERNAL_FILE:
 		return smpb.BuildConfig_EXTERNAL_FILE.Enum()
+	case HINT_FROM_SOONG:
+		return smpb.BuildConfig_HINT_FROM_SOONG.Enum()
 	default:
 		return smpb.BuildConfig_NOT_USED.Enum()
 	}
@@ -834,6 +842,8 @@ func (c *configImpl) parseArgs(ctx Context, args []string) {
 				c.ninjaWeightListSource = EVENLY_DISTRIBUTED
 			} else if source == "not_used" {
 				c.ninjaWeightListSource = NOT_USED
+			} else if source == "soong" {
+				c.ninjaWeightListSource = HINT_FROM_SOONG
 			} else if strings.HasPrefix(source, "file,") {
 				c.ninjaWeightListSource = EXTERNAL_FILE
 				filePath := strings.TrimPrefix(source, "file,")
