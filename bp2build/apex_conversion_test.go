@@ -1566,3 +1566,25 @@ override_apex {
 			}),
 		}})
 }
+
+func TestApexBundleSimple_customCannedFsConfig(t *testing.T) {
+	runApexTestCase(t, Bp2buildTestCase{
+		Description:                "apex - custom canned_fs_config",
+		ModuleTypeUnderTest:        "apex",
+		ModuleTypeUnderTestFactory: apex.BundleFactory,
+		Filesystem:                 map[string]string{},
+		Blueprint: `
+apex {
+	name: "com.android.apogee",
+	canned_fs_config: "custom.canned_fs_config",
+	file_contexts: "file_contexts_file",
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("apex", "com.android.apogee", AttrNameToString{
+				"canned_fs_config": `"custom.canned_fs_config"`,
+				"file_contexts":    `"file_contexts_file"`,
+				"manifest":         `"apex_manifest.json"`,
+			}),
+		}})
+}
