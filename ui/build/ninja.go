@@ -136,7 +136,9 @@ func runNinjaForBuild(ctx Context, config Config) {
 		// pass empty weight list means ninja considers every tasks's weight as 1(default value).
 		cmd.Args = append(cmd.Args, "-o", "usesweightlist=/dev/null")
 	case EXTERNAL_FILE:
-		// The weight list is already copied.
+		fallthrough
+	case HINT_FROM_SOONG:
+		// The weight list is already copied/generated.
 		ninjaWeightListPath := filepath.Join(config.OutDir(), ninjaWeightListFileName)
 		cmd.Args = append(cmd.Args, "-o", "usesweightlist="+ninjaWeightListPath)
 	}
