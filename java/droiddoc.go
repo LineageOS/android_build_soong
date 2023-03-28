@@ -252,8 +252,8 @@ func (j *Javadoc) MinSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel
 	return j.SdkVersion(ctx).ApiLevel
 }
 
-func (j *Javadoc) ReplaceMaxSdkVersionPlaceholder(ctx android.EarlyModuleContext) android.SdkSpec {
-	return j.SdkVersion(ctx)
+func (j *Javadoc) ReplaceMaxSdkVersionPlaceholder(ctx android.EarlyModuleContext) android.ApiLevel {
+	return j.SdkVersion(ctx).ApiLevel
 }
 
 func (j *Javadoc) TargetSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel {
