@@ -218,6 +218,7 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 
 	var inputs android.Paths
 	var implicits android.Paths
+	var orderOnly android.Paths
 	var output buildOutput
 	var rustcFlags, linkFlags []string
 	var implicitOutputs android.WritablePaths
@@ -285,6 +286,8 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 	implicits = append(implicits, deps.CrtBegin...)
 	implicits = append(implicits, deps.CrtEnd...)
 
+	orderOnly = append(orderOnly, deps.SharedLibs...)
+
 	if len(deps.SrcDeps) > 0 {
 		moduleGenDir := ctx.RustModule().compiler.CargoOutDir()
 		var outputs android.WritablePaths
@@ -331,6 +334,7 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 			ImplicitOutputs: nil,
 			Inputs:          inputs,
 			Implicits:       implicits,
+			OrderOnly:       orderOnly,
 			Args: map[string]string{
 				"rustcFlags":  strings.Join(rustcFlags, " "),
 				"libFlags":    strings.Join(libFlags, " "),
@@ -349,6 +353,7 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 		ImplicitOutputs: implicitOutputs,
 		Inputs:          inputs,
 		Implicits:       implicits,
+		OrderOnly:       orderOnly,
 		Args: map[string]string{
 			"rustcFlags": strings.Join(rustcFlags, " "),
 			"linkFlags":  strings.Join(linkFlags, " "),
@@ -367,6 +372,7 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 			Output:      kytheFile,
 			Inputs:      inputs,
 			Implicits:   implicits,
+			OrderOnly:   orderOnly,
 			Args: map[string]string{
 				"rustcFlags": strings.Join(rustcFlags, " "),
 				"linkFlags":  strings.Join(linkFlags, " "),
