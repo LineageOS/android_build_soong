@@ -66,10 +66,10 @@ BAZEL_OUT="$(call_bazel info --config=bp2build output_path)"
 call_bazel build --config=bp2build --config=ci --config=android \
   //packages/modules/adb/apex:com.android.adbd \
   //system/timezone/apex:com.android.tzdata \
-  //build/bazel/examples/apex/minimal:build.bazel.examples.apex.minimal.apex
+  //build/bazel/examples/apex/minimal:build.bazel.examples.apex.minimal
 BAZEL_ADBD="$(realpath $(call_bazel cquery --config=bp2build --config=android --config=ci --output=files //packages/modules/adb/apex:com.android.adbd))"
 BAZEL_TZDATA="$(realpath $(call_bazel cquery --config=bp2build --config=android --config=ci --output=files //system/timezone/apex:com.android.tzdata))"
-BAZEL_MINIMAL="$(realpath $(call_bazel cquery --config=bp2build --config=android --config=ci --output=files //build/bazel/examples/apex/minimal:build.bazel.examples.apex.minimal.apex))"
+BAZEL_MINIMAL="$(realpath $(call_bazel cquery --config=bp2build --config=android --config=ci --output=files //build/bazel/examples/apex/minimal:build.bazel.examples.apex.minimal))"
 
 # # Build debugfs separately, as it's not a dep of apexer, but needs to be an explicit arg.
 call_bazel build --config=bp2build --config=linux_x86_64 //external/e2fsprogs/debugfs //system/apex/tools:deapexer
