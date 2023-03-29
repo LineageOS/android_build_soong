@@ -30,8 +30,9 @@ import (
 
 const (
 	// File containing the environment state when ninja is executed
-	ninjaEnvFileName = "ninja.environment"
-	ninjaLogFileName = ".ninja_log"
+	ninjaEnvFileName        = "ninja.environment"
+	ninjaLogFileName        = ".ninja_log"
+	ninjaWeightListFileName = ".ninja_weight_list"
 )
 
 func useNinjaBuildLog(ctx Context, config Config, cmd *Cmd) {
@@ -66,7 +67,7 @@ func useNinjaBuildLog(ctx Context, config Config, cmd *Cmd) {
 		ctx.Verbosef("There is an error during reading ninja log, so ninja will use empty weight list: %s", err)
 	}
 
-	weightListFile := filepath.Join(config.OutDir(), ".ninja_weight_list")
+	weightListFile := filepath.Join(config.OutDir(), ninjaWeightListFileName)
 
 	err = os.WriteFile(weightListFile, []byte(outputBuilder.String()), 0644)
 	if err == nil {
@@ -134,6 +135,12 @@ func runNinjaForBuild(ctx Context, config Config) {
 	case EVENLY_DISTRIBUTED:
 		// pass empty weight list means ninja considers every tasks's weight as 1(default value).
 		cmd.Args = append(cmd.Args, "-o", "usesweightlist=/dev/null")
+	case EXTERNAL_FILE:
+		fallthrough
+	case HINT_FROM_SOONG:
+		// The weight list is already copied/generated.
+		ninjaWeightListPath := filepath.Join(config.OutDir(), ninjaWeightListFileName)
+		cmd.Args = append(cmd.Args, "-o", "usesweightlist="+ninjaWeightListPath)
 	}
 
 	// Allow both NINJA_ARGS and NINJA_EXTRA_ARGS, since both have been

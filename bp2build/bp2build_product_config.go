@@ -53,7 +53,7 @@ package(default_visibility=[
     "@//build/bazel/product_config:__subpackages__",
 ])
 load(":soong.variables.bzl", _soong_variables = "variables")
-load("@//build/bazel/product_config:utils.bzl", "android_product")
+load("@//build/bazel/product_config:android_product.bzl", "android_product")
 
 android_product(
     name = "{PRODUCT}-{VARIANT}",

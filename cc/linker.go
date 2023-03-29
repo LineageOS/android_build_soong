@@ -15,10 +15,11 @@
 package cc
 
 import (
-	"android/soong/android"
-	"android/soong/cc/config"
 	"fmt"
 	"path/filepath"
+
+	"android/soong/android"
+	"android/soong/cc/config"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
@@ -542,13 +543,13 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 				ctx.PropertyErrorf("version_script", "Not supported on Darwin")
 			} else {
 				flags.Local.LdFlags = append(flags.Local.LdFlags,
-					"-Wl,--version-script,"+versionScript.String())
+					config.VersionScriptFlagPrefix+versionScript.String())
 				flags.LdFlagsDeps = append(flags.LdFlagsDeps, versionScript.Path())
 
 				if linker.sanitize.isSanitizerEnabled(cfi) {
-					cfiExportsMap := android.PathForSource(ctx, cfiExportsMapPath)
+					cfiExportsMap := android.PathForSource(ctx, cfiExportsMapPath+"/"+cfiExportsMapFilename)
 					flags.Local.LdFlags = append(flags.Local.LdFlags,
-						"-Wl,--version-script,"+cfiExportsMap.String())
+						config.VersionScriptFlagPrefix+cfiExportsMap.String())
 					flags.LdFlagsDeps = append(flags.LdFlagsDeps, cfiExportsMap)
 				}
 			}

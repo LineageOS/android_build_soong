@@ -180,3 +180,100 @@ func TestAfdoEnabledWithRuntimeDepNoAfdo(t *testing.T) {
 		}
 	}
 }
+
+func TestAfdoEnabledWithMultiArchs(t *testing.T) {
+	t.Parallel()
+	bp := `
+	cc_library_shared {
+		name: "foo",
+		srcs: ["test.c"],
+		afdo: true,
+		compile_multilib: "both",
+	}
+`
+	result := android.GroupFixturePreparers(
+		prepareForCcTest,
+		android.FixtureAddTextFile("toolchain/pgo-profiles/sampling/foo_arm.afdo", "TEST"),
+		android.FixtureAddTextFile("toolchain/pgo-profiles/sampling/foo_arm64.afdo", "TEST"),
+	).RunTestWithBp(t, bp)
+
+	fooArm := result.ModuleForTests("foo", "android_arm_armv7-a-neon_shared")
+	fooArmCFlags := fooArm.Rule("cc").Args["cFlags"]
+	if w := "-fprofile-sample-use=toolchain/pgo-profiles/sampling/foo_arm.afdo"; !strings.Contains(fooArmCFlags, w) {
+		t.Errorf("Expected 'foo' to enable afdo, but did not find %q in cflags %q", w, fooArmCFlags)
+	}
+
+	fooArm64 := result.ModuleForTests("foo", "android_arm64_armv8-a_shared")
+	fooArm64CFlags := fooArm64.Rule("cc").Args["cFlags"]
+	if w := "-fprofile-sample-use=toolchain/pgo-profiles/sampling/foo_arm64.afdo"; !strings.Contains(fooArm64CFlags, w) {
+		t.Errorf("Expected 'foo' to enable afdo, but did not find %q in cflags %q", w, fooArm64CFlags)
+	}
+}
+
+func TestMultipleAfdoRDeps(t *testing.T) {
+	t.Parallel()
+	bp := `
+	cc_library_shared {
+		name: "libTest",
+		srcs: ["test.c"],
+		static_libs: ["libFoo"],
+		afdo: true,
+	}
+
+	cc_library_shared {
+		name: "libBar",
+		srcs: ["bar.c"],
+		static_libs: ["libFoo"],
+		afdo: true,
+	}
+
+	cc_library_static {
+		name: "libFoo",
+		srcs: ["foo.c"],
+	}
+	`
+
+	result := android.GroupFixturePreparers(
+		prepareForCcTest,
+		android.FixtureAddTextFile("toolchain/pgo-profiles/sampling/libTest.afdo", "TEST"),
+		android.FixtureAddTextFile("toolchain/pgo-profiles/sampling/libBar.afdo", "TEST"),
+	).RunTestWithBp(t, bp)
+
+	expectedCFlagLibTest := "-fprofile-sample-use=toolchain/pgo-profiles/sampling/libTest.afdo"
+	expectedCFlagLibBar := "-fprofile-sample-use=toolchain/pgo-profiles/sampling/libBar.afdo"
+
+	libTest := result.ModuleForTests("libTest", "android_arm64_armv8-a_shared")
+	libTestAfdoVariantOfLibFoo := result.ModuleForTests("libFoo", "android_arm64_armv8-a_static_afdo-libTest")
+
+	libBar := result.ModuleForTests("libBar", "android_arm64_armv8-a_shared")
+	libBarAfdoVariantOfLibFoo := result.ModuleForTests("libFoo", "android_arm64_armv8-a_static_afdo-libBar")
+
+	// Check cFlags of afdo-enabled modules and the afdo-variant of their static deps
+	cFlags := libTest.Rule("cc").Args["cFlags"]
+	if !strings.Contains(cFlags, expectedCFlagLibTest) {
+		t.Errorf("Expected 'libTest' to enable afdo, but did not find %q in cflags %q", expectedCFlagLibTest, cFlags)
+	}
+	cFlags = libBar.Rule("cc").Args["cFlags"]
+	if !strings.Contains(cFlags, expectedCFlagLibBar) {
+		t.Errorf("Expected 'libBar' to enable afdo, but did not find %q in cflags %q", expectedCFlagLibBar, cFlags)
+	}
+
+	cFlags = libTestAfdoVariantOfLibFoo.Rule("cc").Args["cFlags"]
+	if !strings.Contains(cFlags, expectedCFlagLibTest) {
+		t.Errorf("Expected 'libTestAfdoVariantOfLibFoo' to enable afdo, but did not find %q in cflags %q", expectedCFlagLibTest, cFlags)
+	}
+
+	cFlags = libBarAfdoVariantOfLibFoo.Rule("cc").Args["cFlags"]
+	if !strings.Contains(cFlags, expectedCFlagLibBar) {
+		t.Errorf("Expected 'libBarAfdoVariantOfLibFoo' to enable afdo, but did not find %q in cflags %q", expectedCFlagLibBar, cFlags)
+	}
+
+	// Check dependency edges of static deps
+	if !hasDirectDep(result, libTest.Module(), libTestAfdoVariantOfLibFoo.Module()) {
+		t.Errorf("libTest missing dependency on afdo variant of libFoo")
+	}
+
+	if !hasDirectDep(result, libBar.Module(), libBarAfdoVariantOfLibFoo.Module()) {
+		t.Errorf("libBar missing dependency on afdo variant of libFoo")
+	}
+}

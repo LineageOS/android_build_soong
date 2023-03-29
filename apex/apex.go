@@ -2831,7 +2831,7 @@ func (o *OverrideApex) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 	if !baseModuleIsApex {
 		panic(fmt.Errorf("Base module is not apex module: %s", baseApexModuleName))
 	}
-	attrs, props := convertWithBp2build(a, ctx)
+	attrs, props, commonAttrs := convertWithBp2build(a, ctx)
 
 	// We just want the name, not module reference.
 	baseApexName := strings.TrimPrefix(baseApexModuleName, ":")
@@ -2905,7 +2905,9 @@ func (o *OverrideApex) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 		}
 	}
 
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: o.Name()}, &attrs)
+	commonAttrs.Name = o.Name()
+
+	ctx.CreateBazelTargetModule(props, commonAttrs, &attrs)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3549,17 +3551,12 @@ func (a *apexBundle) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 		return
 	}
 
-	attrs, props := convertWithBp2build(a, ctx)
-	commonAttrs := android.CommonAttributes{
-		Name: a.Name(),
-	}
-	if a.testApex {
-		commonAttrs.Testonly = proptools.BoolPtr(a.testApex)
-	}
+	attrs, props, commonAttrs := convertWithBp2build(a, ctx)
+	commonAttrs.Name = a.Name()
 	ctx.CreateBazelTargetModule(props, commonAttrs, &attrs)
 }
 
-func convertWithBp2build(a *apexBundle, ctx android.TopDownMutatorContext) (bazelApexBundleAttributes, bazel.BazelTargetModuleProperties) {
+func convertWithBp2build(a *apexBundle, ctx android.TopDownMutatorContext) (bazelApexBundleAttributes, bazel.BazelTargetModuleProperties, android.CommonAttributes) {
 	var manifestLabelAttribute bazel.LabelAttribute
 	manifestLabelAttribute.SetValue(android.BazelLabelForModuleSrcSingle(ctx, proptools.StringDefault(a.properties.Manifest, "apex_manifest.json")))
 
@@ -3687,7 +3684,12 @@ func convertWithBp2build(a *apexBundle, ctx android.TopDownMutatorContext) (baze
 		Bzl_load_location: "//build/bazel/rules/apex:apex.bzl",
 	}
 
-	return attrs, props
+	commonAttrs := android.CommonAttributes{}
+	if a.testApex {
+		commonAttrs.Testonly = proptools.BoolPtr(true)
+	}
+
+	return attrs, props, commonAttrs
 }
 
 // The following conversions are based on this table where the rows are the compile_multilib
