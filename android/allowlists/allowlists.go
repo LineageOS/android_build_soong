@@ -37,6 +37,8 @@ const (
 	// all modules in this package and subpackages default to bp2build_available: false.
 	// allows modules to opt-in.
 	Bp2BuildDefaultFalseRecursively
+
+	DEFAULT_NINJA_WEIGHT = 1000
 )
 
 var (
@@ -387,6 +389,8 @@ var (
 		"external/guava":/* recursive = */ true,
 		"external/protobuf":/* recursive = */ false,
 		"external/python/absl-py":/* recursive = */ true,
+
+		"external/compiler-rt/lib/cfi":/* recursive = */ false,
 
 		// this BUILD file is globbed by //external/icu/icu4c/source:icu4c_test_data's "data/**/*".
 		"external/icu/icu4c/source/data/unidata/norm2":/* recursive = */ false,
@@ -1466,4 +1470,31 @@ var (
 	// "libssl",
 	// "libstagefright_flacdec",
 	// "libutils",
+
+	// TODO(b/273282046): Make this list customizable to support various targets.
+	// The list of modules which are expected to spend lots of build time.
+	// With `--ninja_weight_source=soong`, ninja builds these modules and deps first.
+	HugeModulesMap = map[string]int{
+		"libbt_packets":                           DEFAULT_NINJA_WEIGHT,
+		"libbt_packets_nonapex":                   DEFAULT_NINJA_WEIGHT,
+		"crosvm":                                  DEFAULT_NINJA_WEIGHT,
+		"system-api-stubs-docs-non-updatable":     DEFAULT_NINJA_WEIGHT,
+		"test-api-stubs-docs-non-updatable":       DEFAULT_NINJA_WEIGHT,
+		"module-lib-api-stubs-docs-non-updatable": DEFAULT_NINJA_WEIGHT,
+		"libdevices":                              DEFAULT_NINJA_WEIGHT,
+		"libaom":                                  DEFAULT_NINJA_WEIGHT,
+		"libart-disassembler":                     DEFAULT_NINJA_WEIGHT,
+		"libart":                                  DEFAULT_NINJA_WEIGHT,
+		"libprotobuf":                             DEFAULT_NINJA_WEIGHT,
+		"libsyn":                                  DEFAULT_NINJA_WEIGHT,
+		"api-stubs-docs-non-updatable":            DEFAULT_NINJA_WEIGHT,
+		"framework-res":                           DEFAULT_NINJA_WEIGHT,
+		"SystemUI-core":                           DEFAULT_NINJA_WEIGHT,
+		"services-non-updatable-stubs":            DEFAULT_NINJA_WEIGHT,
+		"art.module.public.api.stubs.source":      DEFAULT_NINJA_WEIGHT,
+		"art.module.intra.core.api.stubs.source":  DEFAULT_NINJA_WEIGHT,
+		"virtmgr":                                 DEFAULT_NINJA_WEIGHT,
+		"metalava":                                DEFAULT_NINJA_WEIGHT,
+		"libkeystore2":                            DEFAULT_NINJA_WEIGHT,
+	}
 )
