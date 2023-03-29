@@ -1612,10 +1612,15 @@ type ApiLibrary struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
 
+	hiddenAPI
+	dexer
+
 	properties JavaApiLibraryProperties
 
 	stubsSrcJar android.WritablePath
 	stubsJar    android.WritablePath
+	// .dex of stubs, used for hiddenapi processing
+	dexJarFile OptionalDexJarPath
 }
 
 type JavaApiLibraryProperties struct {
@@ -1793,12 +1798,52 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		Inputs(staticLibs)
 	builder.Build("merge_zips", "merge jar files")
 
+	// compile stubs to .dex for hiddenapi processing
+	dexParams := &compileDexParams{
+		flags:         javaBuilderFlags{},
+		sdkVersion:    al.SdkVersion(ctx),
+		minSdkVersion: al.MinSdkVersion(ctx),
+		classesJar:    al.stubsJar,
+		jarName:       ctx.ModuleName() + ".jar",
+	}
+	dexOutputFile := al.dexer.compileDex(ctx, dexParams)
+	uncompressed := true
+	al.initHiddenAPI(ctx, makeDexJarPathFromPath(dexOutputFile), al.stubsJar, &uncompressed)
+	dexOutputFile = al.hiddenAPIEncodeDex(ctx, dexOutputFile)
+	al.dexJarFile = makeDexJarPathFromPath(dexOutputFile)
+
 	ctx.Phony(ctx.ModuleName(), al.stubsJar)
 
 	ctx.SetProvider(JavaInfoProvider, JavaInfo{
 		HeaderJars: android.PathsIfNonNil(al.stubsJar),
 	})
 }
+
+func (al *ApiLibrary) DexJarBuildPath() OptionalDexJarPath {
+	return al.dexJarFile
+}
+
+func (al *ApiLibrary) DexJarInstallPath() android.Path {
+	return al.dexJarFile.Path()
+}
+
+func (al *ApiLibrary) ClassLoaderContexts() dexpreopt.ClassLoaderContextMap {
+	return nil
+}
+
+// java_api_library constitutes the sdk, and does not build against one
+func (al *ApiLibrary) SdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
+	return android.SdkSpecNone
+}
+
+// java_api_library is always at "current". Return FutureApiLevel
+func (al *ApiLibrary) MinSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel {
+	return android.FutureApiLevel
+}
+
+// implement the following interfaces for hiddenapi processing
+var _ hiddenAPIModule = (*ApiLibrary)(nil)
+var _ UsesLibraryDependency = (*ApiLibrary)(nil)
 
 //
 // Java prebuilts
