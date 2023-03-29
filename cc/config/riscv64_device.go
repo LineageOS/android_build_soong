@@ -28,6 +28,9 @@ var (
 		"-fno-emulated-tls",
 		// For -fsanitize=shadow-call-stack.
 		"-ffixed-x18",
+		// A temporary fix for SExtWRemoval miscompilation bug.
+		"-mllvm",
+		"-riscv-disable-sextw-removal=true",
 	}
 
 	riscv64ArchVariantCflags = map[string][]string{}
