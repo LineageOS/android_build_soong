@@ -82,3 +82,61 @@ java_library {
     // TODO: Enable after stub generation from .txt file is available
     enabled: false,
 }
+
+// Same as legacy-core-platform-api-stubs-system-modules, but the stubs are generated from .txt files
+java_system_modules {
+    name: "legacy-core-platform-api-stubs-system-modules.from-text",
+    visibility: core_platform_visibility,
+    libs: [
+        "legacy.core.platform.api.no.annotations.stubs.from-text",
+        "core-lambda-stubs-for-system-modules",
+    ],
+    // TODO: Enable after stub generation from .txt file is available
+    enabled: false,
+}
+
+java_library {
+    name: "legacy.core.platform.api.no.annotations.stubs.from-text",
+    visibility: core_platform_visibility,
+    defaults: [
+        "system-modules-no-annotations",
+    ],
+    hostdex: true,
+    compile_dex: true,
+
+    static_libs: [
+        "legacy.core.platform.api.stubs.from-text",
+    ],
+    patch_module: "java.base",
+    // TODO: Enable after stub generation from .txt file is available
+    enabled: false,
+}
+
+// Same as stable-core-platform-api-stubs-system-modules, but the stubs are generated from .txt files
+java_system_modules {
+    name: "stable-core-platform-api-stubs-system-modules.from-text",
+    visibility: core_platform_visibility,
+    libs: [
+        "stable.core.platform.api.no.annotations.stubs.from-text",
+        "core-lambda-stubs-for-system-modules",
+    ],
+    // TODO: Enable after stub generation from .txt file is available
+    enabled: false,
+}
+
+java_library {
+    name: "stable.core.platform.api.no.annotations.stubs.from-text",
+    visibility: core_platform_visibility,
+    defaults: [
+        "system-modules-no-annotations",
+    ],
+    hostdex: true,
+    compile_dex: true,
+
+    static_libs: [
+        "stable.core.platform.api.stubs.from-text",
+    ],
+    patch_module: "java.base",
+    // TODO: Enable after stub generation from .txt file is available
+    enabled: false,
+}
