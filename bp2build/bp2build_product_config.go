@@ -85,6 +85,11 @@ alias(
 		# TODO: When we start generating the platforms for more than just the
 		# currently lunched, product, this select should have an arm for each product.
 		"@soong_injection//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}_constraint_value": "@soong_injection//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}_product_vars",
+		"@soong_injection//product_config_platforms/products/aosp_arm_for_testing:aosp_arm_for_testing_constraint_value": "@soong_injection//product_config_platforms/products/aosp_arm_for_testing:aosp_arm_for_testing_product_vars",
+		"@soong_injection//product_config_platforms/products/aosp_arm64_for_testing:aosp_arm64_for_testing_constraint_value": "@soong_injection//product_config_platforms/products/aosp_arm64_for_testing:aosp_arm64_for_testing_product_vars",
+		"@soong_injection//product_config_platforms/products/aosp_x86_for_testing:aosp_x86_for_testing_constraint_value": "@soong_injection//product_config_platforms/products/aosp_x86_for_testing:aosp_x86_for_testing_product_vars",
+		"@soong_injection//product_config_platforms/products/aosp_x86_64_for_testing:aosp_x86_64_for_testing_constraint_value": "@soong_injection//product_config_platforms/products/aosp_x86_64_for_testing:aosp_x86_64_for_testing_product_vars",
+		"@soong_injection//product_config_platforms/products/aosp_arm64_for_testing_no_compression:aosp_arm64_for_testing_no_compression_constraint_value": "@soong_injection//product_config_platforms/products/aosp_arm64_for_testing_no_compression:aosp_arm64_for_testing_no_compression_product_vars",
 	}),
 )
 `)),
@@ -121,6 +126,43 @@ flags:
     @soong_injection//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}
 `)),
 	}
+
+	// Add some products for testing
+	for _, arch := range []string{"arm", "arm64", "x86", "x86_64"} {
+		result = append(result, newFile(
+			fmt.Sprintf("product_config_platforms/products/aosp_%s_for_testing", arch),
+			"BUILD",
+			fmt.Sprintf(`
+package(default_visibility=[
+    "@soong_injection//product_config_platforms:__subpackages__",
+    "@//build/bazel/product_config:__subpackages__",
+])
+load("@//build/bazel/tests/products:aosp_%s.variables.bzl", _soong_variables = "variables")
+load("@//build/bazel/product_config:android_product.bzl", "android_product")
+
+android_product(
+    name = "aosp_%s_for_testing",
+    soong_variables = _soong_variables,
+)
+`, arch, arch)))
+	}
+	result = append(result, newFile(
+		"product_config_platforms/products/aosp_arm64_for_testing_no_compression",
+		"BUILD",
+		`
+package(default_visibility=[
+    "@soong_injection//product_config_platforms:__subpackages__",
+    "@//build/bazel/product_config:__subpackages__",
+])
+load("@bazel_skylib//lib:dicts.bzl", "dicts")
+load("@//build/bazel/tests/products:aosp_arm64.variables.bzl", _soong_variables = "variables")
+load("@//build/bazel/product_config:android_product.bzl", "android_product")
+
+android_product(
+    name = "aosp_arm64_for_testing_no_compression",
+    soong_variables = dicts.add(_soong_variables, {"CompressedApex": False}),
+)
+`))
 
 	return result, nil
 }
