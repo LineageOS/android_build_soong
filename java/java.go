@@ -1697,12 +1697,26 @@ func metalavaStubCmd(ctx android.ModuleContext, rule *android.RuleBuilder,
 		Flag("--color").
 		Flag("--quiet").
 		Flag("--format=v2").
+		Flag("--include-annotations").
+		// The flag makes nullability issues as warnings rather than errors by replacing
+		// @Nullable/@NonNull in the listed packages APIs with @RecentlyNullable/@RecentlyNonNull,
+		// and these packages are meant to have everything annotated
+		// @RecentlyNullable/@RecentlyNonNull.
+		FlagWithArg("--force-convert-to-warning-nullability-annotations ", "+*:-android.*:+android.icu.*:-dalvik.*").
 		FlagWithArg("--repeat-errors-max ", "10").
 		FlagWithArg("--hide ", "UnresolvedImport").
 		FlagWithArg("--hide ", "InvalidNullabilityOverride").
 		FlagWithArg("--hide ", "ChangedDefault")
 
 	return cmd
+}
+
+func (al *ApiLibrary) HeaderJars() android.Paths {
+	return android.Paths{al.stubsJar}
+}
+
+func (al *ApiLibrary) OutputDirAndDeps() (android.Path, android.Paths) {
+	return nil, nil
 }
 
 func (al *ApiLibrary) stubsFlags(ctx android.ModuleContext, cmd *android.RuleBuilderCommand, stubsDir android.OptionalPath) {
@@ -1816,7 +1830,10 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	ctx.Phony(ctx.ModuleName(), al.stubsJar)
 
 	ctx.SetProvider(JavaInfoProvider, JavaInfo{
-		HeaderJars: android.PathsIfNonNil(al.stubsJar),
+		HeaderJars:                     android.PathsIfNonNil(al.stubsJar),
+		ImplementationAndResourcesJars: android.PathsIfNonNil(al.stubsJar),
+		ImplementationJars:             android.PathsIfNonNil(al.stubsJar),
+		AidlIncludeDirs:                android.Paths{},
 	})
 }
 
