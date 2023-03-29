@@ -357,3 +357,7 @@ java_system_modules {
         "art-module-intra-core-api-stubs-system-modules-lib",
     ],
 }
+
+build = [
+    "TxtStubLibraries.bp",
+]
