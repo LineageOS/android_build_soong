@@ -3519,6 +3519,7 @@ type bazelApexBundleAttributes struct {
 	Manifest              bazel.LabelAttribute
 	Android_manifest      bazel.LabelAttribute
 	File_contexts         bazel.LabelAttribute
+	Canned_fs_config      bazel.LabelAttribute
 	Key                   bazel.LabelAttribute
 	Certificate           bazel.LabelAttribute  // used when the certificate prop is a module
 	Certificate_name      bazel.StringAttribute // used when the certificate prop is a string
@@ -3576,6 +3577,11 @@ func convertWithBp2build(a *apexBundle, ctx android.TopDownMutatorContext) (baze
 	} else {
 		// File_contexts is a file
 		fileContextsLabelAttribute.SetValue(android.BazelLabelForModuleSrcSingle(ctx, *a.properties.File_contexts))
+	}
+
+	var cannedFsConfigAttribute bazel.LabelAttribute
+	if a.properties.Canned_fs_config != nil {
+		cannedFsConfigAttribute.SetValue(android.BazelLabelForModuleSrcSingle(ctx, *a.properties.Canned_fs_config))
 	}
 
 	productVariableProps := android.ProductVariableProperties(ctx, a)
@@ -3664,6 +3670,7 @@ func convertWithBp2build(a *apexBundle, ctx android.TopDownMutatorContext) (baze
 		Manifest:              manifestLabelAttribute,
 		Android_manifest:      androidManifestLabelAttribute,
 		File_contexts:         fileContextsLabelAttribute,
+		Canned_fs_config:      cannedFsConfigAttribute,
 		Min_sdk_version:       minSdkVersion,
 		Key:                   keyLabelAttribute,
 		Certificate:           certificate,
