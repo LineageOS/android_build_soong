@@ -100,6 +100,15 @@ func JavaApiLibraryName(c Config, name string) string {
 	return name
 }
 
+// JavaApiLibraryNames applies JavaApiLibraryName to the list of java_library names.
+func JavaApiLibraryNames(c Config, names []string) []string {
+	apiLibs := make([]string, len(names))
+	for i, name := range names {
+		apiLibs[i] = JavaApiLibraryName(c, name)
+	}
+	return apiLibs
+}
+
 func (k SdkKind) DefaultJavaLibraryName() string {
 	switch k {
 	case SdkPublic:
