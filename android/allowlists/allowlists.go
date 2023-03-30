@@ -182,6 +182,8 @@ var (
 		"external/selinux/libselinux":            Bp2BuildDefaultTrueRecursively,
 		"external/selinux/libsepol":              Bp2BuildDefaultTrueRecursively,
 		"external/speex":                         Bp2BuildDefaultTrueRecursively,
+		"external/tinyalsa":                      Bp2BuildDefaultTrueRecursively,
+		"external/tinyalsa_new":                  Bp2BuildDefaultTrueRecursively,
 		"external/toybox":                        Bp2BuildDefaultTrueRecursively,
 		"external/zlib":                          Bp2BuildDefaultTrueRecursively,
 		"external/zopfli":                        Bp2BuildDefaultTrueRecursively,
@@ -222,6 +224,8 @@ var (
 		"hardware/interfaces":                                     Bp2BuildDefaultTrue,
 		"hardware/interfaces/audio/aidl":                          Bp2BuildDefaultTrue,
 		"hardware/interfaces/audio/aidl/common":                   Bp2BuildDefaultTrue,
+		"hardware/interfaces/audio/aidl/default":                  Bp2BuildDefaultTrue,
+		"hardware/interfaces/audio/aidl/sounddose":                Bp2BuildDefaultTrue,
 		"hardware/interfaces/common/aidl":                         Bp2BuildDefaultTrue,
 		"hardware/interfaces/common/fmq/aidl":                     Bp2BuildDefaultTrue,
 		"hardware/interfaces/common/support":                      Bp2BuildDefaultTrue,
@@ -282,6 +286,7 @@ var (
 		"packages/modules/adb/pairing_connection":            Bp2BuildDefaultTrueRecursively,
 		"packages/modules/adb/proto":                         Bp2BuildDefaultTrueRecursively,
 		"packages/modules/adb/tls":                           Bp2BuildDefaultTrueRecursively,
+		"packages/modules/Gki/libkver":                       Bp2BuildDefaultTrue,
 		"packages/modules/NetworkStack/common/captiveportal": Bp2BuildDefaultTrue,
 		"packages/modules/NeuralNetworks/apex":               Bp2BuildDefaultTrue,
 		"packages/providers/MediaProvider/tools/dialogs":     Bp2BuildDefaultFalse, // TODO(b/242834374)
@@ -346,10 +351,12 @@ var (
 		"system/libhidl/transport/token/1.0/utils":               Bp2BuildDefaultTrue,
 		"system/libhwbinder":                                     Bp2BuildDefaultTrueRecursively,
 		"system/libprocinfo":                                     Bp2BuildDefaultTrue,
+		"system/libvintf":                                        Bp2BuildDefaultTrue,
 		"system/libziparchive":                                   Bp2BuildDefaultTrueRecursively,
 		"system/logging":                                         Bp2BuildDefaultTrueRecursively,
 		"system/media":                                           Bp2BuildDefaultTrue,
 		"system/media/audio":                                     Bp2BuildDefaultTrueRecursively,
+		"system/media/alsa_utils":                                Bp2BuildDefaultTrueRecursively,
 		"system/media/audio_utils":                               Bp2BuildDefaultTrueRecursively,
 		"system/memory/libion":                                   Bp2BuildDefaultTrueRecursively,
 		"system/memory/libmemunreachable":                        Bp2BuildDefaultTrueRecursively,
@@ -357,9 +364,13 @@ var (
 		"system/testing/gtest_extras":                            Bp2BuildDefaultTrueRecursively,
 		"system/timezone/apex":                                   Bp2BuildDefaultTrueRecursively,
 		"system/timezone/output_data":                            Bp2BuildDefaultTrueRecursively,
+		"system/timezone/testing":                                Bp2BuildDefaultTrueRecursively,
 		"system/tools/aidl/build/tests_bp2build":                 Bp2BuildDefaultTrue,
+		"system/tools/aidl/metadata":                             Bp2BuildDefaultTrue,
+		"system/tools/hidl/metadata":                             Bp2BuildDefaultTrue,
 		"system/tools/mkbootimg":                                 Bp2BuildDefaultTrueRecursively,
 		"system/tools/sysprop":                                   Bp2BuildDefaultTrue,
+		"system/tools/xsdc/utils":                                Bp2BuildDefaultTrueRecursively,
 		"system/unwinding/libunwindstack":                        Bp2BuildDefaultTrueRecursively,
 
 		"tools/apksig":   Bp2BuildDefaultTrue,
@@ -566,8 +577,8 @@ var (
 		"car-ui-androidx-constraintlayout-solver-nodeps",
 
 		//system/libhidl
-		// needed by cc_hidl_library
-		"libhidlbase",
+		"libhidlbase", // needed by cc_hidl_library
+		"libhidl_gtest_helper",
 
 		//frameworks/native
 		"framework_native_aidl_binder",
@@ -858,6 +869,28 @@ var (
 
 		// depends on android.hardware.health-V2.0-java
 		"android.hardware.health-translate-java",
+
+		//system/libvintf
+		// depends on apex-info-list-tinyxml, unconverted xsd_config Soong module type.
+		"libvintf",
+		"vintf",
+		"libassemblevintf",
+		"assemble_vintf",
+		"libvintffm",
+		"vintffm",
+		"checkvintf",
+
+		// depends on audio_policy_configuration_aidl_default, xsd_config module.
+		"libaudioserviceexampleimpl",
+		"android.hardware.audio.service-aidl.example",
+
+		// depends on //system/tools/aidl/build:aidl_metadata_json, which is an aidl_interfaces_metadata custom Soong type.
+		"aidl_metadata_in_cpp",
+		"libaidlmetadata",
+
+		// depends on //system/tools/hidl/build:hidl_metadata_json, which is an hidl_interfaces_metadata custom Soong type.
+		"hidl_metadata_in_cpp",
+		"libhidlmetadata",
 
 		// cc_test related.
 		// b/274164834 "Could not open Configuration file test.cfg"
@@ -1434,6 +1467,7 @@ var (
 		// M5: tzdata launch
 		"com.android.tzdata",
 		"test1_com.android.tzdata",
+		"test3_com.android.tzdata",
 		// M7: adbd launch
 		"com.android.adbd",
 		"test_com.android.adbd",
