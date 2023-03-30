@@ -98,19 +98,15 @@ diff_excludes[system]=\
  -I /system/lib64/libkm_compat.so \
  -I /system/lib64/vndk-29 \
  -I /system/lib64/vndk-sp-29 \
- -I /system/lib/modules \
  -I /system/lib/vndk-29 \
  -I /system/lib/vndk-sp-29 \
- -I /system/product \
- -I /system/system_ext \
  -I /system/usr/icu \
- -I /system/vendor \
  -I /vendor_dlkm/etc"
 
- function diff_files {
-   file_list_file="$1";
-   files_in_spdx_file="$2"
-   partition_name="$3"
+function diff_files {
+   file_list_file="$1"; shift
+   files_in_spdx_file="$1"; shift
+   partition_name="$1"; shift
    exclude=
    if [ -v 'diff_excludes[$partition_name]' ]; then
      exclude=${diff_excludes[$partition_name]}
@@ -168,9 +164,9 @@ for f in $EROFS_IMAGES; do
     all_dirs=$(echo "$all_dirs" | cut -d ' ' -f1 --complement -s)
     entries=$($dump_erofs --ls --path "$dir" $f | tail -n +11)
     while read -r entry; do
-      type=$(echo $entry | awk -F ' ' '{print $2}')
+      inode_type=$(echo $entry | awk -F ' ' '{print $2}')
       name=$(echo $entry | awk -F ' ' '{print $3}')
-      case $type in
+      case $inode_type in
         "2")  # directory
           all_dirs=$(echo "$all_dirs $dir/$name" | sed 's/^\s*//')
           ;;
@@ -204,6 +200,11 @@ for f in $RAMDISK_IMAGES; do
   partition_name=$(basename $f | cut -d. -f1)
   file_list_file="${sbom_test}/sbom-${partition_name}-files.txt"
   files_in_spdx_file="${sbom_test}/sbom-${partition_name}-files-in-spdx.txt"
+  # lz4 decompress $f to stdout
+  # cpio list all entries like ls -l
+  # grep filter normal files and symlinks
+  # awk get entry names
+  # sed remove partition name from entry names
   $lz4 -c -d $f | cpio -tv 2>/dev/null | grep '^[-l]' | awk -F ' ' '{print $9}' | sed "s:^:/$partition_name/:" | sort -n > "$file_list_file"
 
   grep "FileName: /${partition_name}/" $product_out/sbom.spdx | sed 's/^FileName: //' | sort -n > "$files_in_spdx_file"
