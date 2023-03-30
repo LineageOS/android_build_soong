@@ -364,6 +364,8 @@ var (
 		"system/testing/gtest_extras":                            Bp2BuildDefaultTrueRecursively,
 		"system/timezone/apex":                                   Bp2BuildDefaultTrueRecursively,
 		"system/timezone/output_data":                            Bp2BuildDefaultTrueRecursively,
+		"system/timezone/testdata":                               Bp2BuildDefaultTrueRecursively,
+		"system/timezone/testing":                                Bp2BuildDefaultTrueRecursively,
 		"system/tools/aidl/build/tests_bp2build":                 Bp2BuildDefaultTrue,
 		"system/tools/aidl/metadata":                             Bp2BuildDefaultTrue,
 		"system/tools/hidl/metadata":                             Bp2BuildDefaultTrue,
@@ -1469,6 +1471,7 @@ var (
 		// M5: tzdata launch
 		"com.android.tzdata",
 		"test1_com.android.tzdata",
+		"test3_com.android.tzdata",
 		// M7: adbd launch
 		"com.android.adbd",
 		"test_com.android.adbd",
