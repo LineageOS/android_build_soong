@@ -739,3 +739,22 @@ func (apkSet *AndroidAppSet) AndroidMkEntries() []android.AndroidMkEntries {
 		},
 	}
 }
+
+func (al *ApiLibrary) AndroidMkEntries() []android.AndroidMkEntries {
+	var entriesList []android.AndroidMkEntries
+
+	entriesList = append(entriesList, android.AndroidMkEntries{
+		Class:      "JAVA_LIBRARIES",
+		OutputFile: android.OptionalPathForPath(al.stubsJar),
+		Include:    "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
+		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
+			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
+				entries.SetBoolIfTrue("LOCAL_UNINSTALLABLE_MODULE", true)
+				entries.SetPath("LOCAL_SOONG_CLASSES_JAR", al.stubsJar)
+				entries.SetPath("LOCAL_SOONG_HEADER_JAR", al.stubsJar)
+			},
+		},
+	})
+
+	return entriesList
+}
