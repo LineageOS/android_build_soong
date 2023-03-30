@@ -212,6 +212,14 @@ func AddressSanitizerRuntimeLibrary(t Toolchain) string {
 	return LibclangRuntimeLibrary(t, "asan")
 }
 
+func AddressSanitizerStaticRuntimeLibrary(t Toolchain) string {
+	return LibclangRuntimeLibrary(t, "asan.static")
+}
+
+func AddressSanitizerCXXStaticRuntimeLibrary(t Toolchain) string {
+	return LibclangRuntimeLibrary(t, "asan_cxx.static")
+}
+
 func HWAddressSanitizerRuntimeLibrary(t Toolchain) string {
 	return LibclangRuntimeLibrary(t, "hwasan")
 }
