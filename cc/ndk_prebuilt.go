@@ -15,15 +15,12 @@
 package cc
 
 import (
-	"fmt"
 	"strings"
 
 	"android/soong/android"
-	"android/soong/cc/config"
 )
 
 func init() {
-	android.RegisterModuleType("ndk_prebuilt_object", NdkPrebuiltObjectFactory)
 	android.RegisterModuleType("ndk_prebuilt_static_stl", NdkPrebuiltStaticStlFactory)
 	android.RegisterModuleType("ndk_prebuilt_shared_stl", NdkPrebuiltSharedStlFactory)
 }
@@ -33,68 +30,6 @@ func init() {
 // These differ from regular prebuilts in that they aren't stripped and usually aren't installed
 // either (with the exception of the shared STLs, which are installed to the app's directory rather
 // than to the system image).
-
-func getNdkLibDir(ctx android.ModuleContext, toolchain config.Toolchain, version string) android.SourcePath {
-	suffix := ""
-	// Most 64-bit NDK prebuilts store libraries in "lib64", except for arm64 which is not a
-	// multilib toolchain and stores the libraries in "lib".
-	if toolchain.Is64Bit() && ctx.Arch().ArchType != android.Arm64 {
-		suffix = "64"
-	}
-	return android.PathForSource(ctx, fmt.Sprintf("prebuilts/ndk/current/platforms/android-%s/arch-%s/usr/lib%s",
-		version, toolchain.Name(), suffix))
-}
-
-func ndkPrebuiltModuleToPath(ctx android.ModuleContext, toolchain config.Toolchain,
-	ext string, version string) android.Path {
-
-	// NDK prebuilts are named like: ndk_NAME.EXT.SDK_VERSION.
-	// We want to translate to just NAME.EXT
-	name := strings.Split(strings.TrimPrefix(ctx.ModuleName(), "ndk_"), ".")[0]
-	dir := getNdkLibDir(ctx, toolchain, version)
-	return dir.Join(ctx, name+ext)
-}
-
-type ndkPrebuiltObjectLinker struct {
-	objectLinker
-}
-
-func (*ndkPrebuiltObjectLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
-	// NDK objects can't have any dependencies
-	return deps
-}
-
-// ndk_prebuilt_object exports a precompiled ndk object file for linking
-// operations. Soong's module name format is ndk_<NAME>.o.<sdk_version> where
-// the object is located under
-// ./prebuilts/ndk/current/platforms/android-<sdk_version>/arch-$(HOST_ARCH)/usr/lib/<NAME>.o.
-func NdkPrebuiltObjectFactory() android.Module {
-	module := newBaseModule(android.DeviceSupported, android.MultilibBoth)
-	module.linker = &ndkPrebuiltObjectLinker{
-		objectLinker: objectLinker{
-			baseLinker: NewBaseLinker(nil),
-		},
-	}
-	module.Properties.AlwaysSdk = true
-	module.Properties.Sdk_version = StringPtr("current")
-	module.Properties.HideFromMake = true
-	return module.Init()
-}
-
-func (c *ndkPrebuiltObjectLinker) link(ctx ModuleContext, flags Flags,
-	deps PathDeps, objs Objects) android.Path {
-	// A null build step, but it sets up the output path.
-	if !strings.HasPrefix(ctx.ModuleName(), "ndk_crt") {
-		ctx.ModuleErrorf("NDK prebuilt objects must have an ndk_crt prefixed name")
-	}
-
-	return ndkPrebuiltModuleToPath(ctx, flags.Toolchain, objectExtension, ctx.sdkVersion())
-}
-
-func (*ndkPrebuiltObjectLinker) availableFor(what string) bool {
-	// ndk prebuilt objects are available to everywhere
-	return true
-}
 
 type ndkPrebuiltStlLinker struct {
 	*libraryDecorator
