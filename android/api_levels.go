@@ -466,7 +466,7 @@ func GetApiLevelsMap(config Config) map[string]int {
 	// https://cs.android.com/android/platform/superproject/+/master:build/bazel/rules/common/api.bzl;l=23;drc=231c7e8c8038fd478a79eb68aa5b9f5c64e0e061
 	return config.Once(apiLevelsMapKey, func() interface{} {
 		apiLevelsMap := getApiLevelsMapReleasedVersions()
-		for i, codename := range config.PlatformVersionActiveCodenames() {
+		for i, codename := range config.PlatformVersionAllPreviewCodenames() {
 			apiLevelsMap[codename] = previewAPILevelBase + i
 		}
 
