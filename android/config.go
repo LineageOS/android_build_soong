@@ -923,6 +923,11 @@ func (c *config) PlatformVersionActiveCodenames() []string {
 	return c.productVariables.Platform_version_active_codenames
 }
 
+// All unreleased codenames.
+func (c *config) PlatformVersionAllPreviewCodenames() []string {
+	return c.productVariables.Platform_version_all_preview_codenames
+}
+
 func (c *config) ProductAAPTConfig() []string {
 	return c.productVariables.AAPTConfig
 }
