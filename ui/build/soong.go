@@ -171,6 +171,9 @@ func (pb PrimaryBuilderFactory) primaryBuilderInvocation() bootstrap.PrimaryBuil
 	if pb.config.multitreeBuild {
 		commonArgs = append(commonArgs, "--multitree-build")
 	}
+	if pb.config.buildFromTextStub {
+		commonArgs = append(commonArgs, "--build-from-text-stub")
+	}
 
 	commonArgs = append(commonArgs, "-l", filepath.Join(pb.config.FileListDir(), "Android.bp.list"))
 	invocationEnv := make(map[string]string)
@@ -281,6 +284,9 @@ func bootstrapBlueprint(ctx Context, config Config) {
 	}
 	if config.MultitreeBuild() {
 		mainSoongBuildExtraArgs = append(mainSoongBuildExtraArgs, "--multitree-build")
+	}
+	if config.buildFromTextStub {
+		mainSoongBuildExtraArgs = append(mainSoongBuildExtraArgs, "--build-from-text-stub")
 	}
 
 	queryviewDir := filepath.Join(config.SoongOutDir(), "queryview")
