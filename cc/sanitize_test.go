@@ -127,6 +127,7 @@ type expectedRuntimeLinkage int
 const (
 	RUNTIME_LINKAGE_NONE   = expectedRuntimeLinkage(0)
 	RUNTIME_LINKAGE_SHARED = iota
+	RUNTIME_LINKAGE_STATIC
 )
 
 func TestAsan(t *testing.T) {
@@ -245,6 +246,8 @@ func TestAsan(t *testing.T) {
 		libStaticAsanNoAsanVariant := result.ModuleForTests("libstatic_asan", staticVariant)
 
 		libAsanSharedRuntime := result.ModuleForTests("libclang_rt.asan", sharedVariant)
+		libAsanStaticRuntime := result.ModuleForTests("libclang_rt.asan.static", staticVariant)
+		libAsanStaticCxxRuntime := result.ModuleForTests("libclang_rt.asan_cxx.static", staticVariant)
 
 		expectSharedLinkDep(t, ctx, binWithAsan, libShared)
 		expectSharedLinkDep(t, ctx, binWithAsan, libAsan)
@@ -289,12 +292,38 @@ func TestAsan(t *testing.T) {
 			expectNoSharedLinkDep(t, ctx, libShared, libAsanSharedRuntime)
 			expectNoSharedLinkDep(t, ctx, libTransitive, libAsanSharedRuntime)
 		}
+
+		if runtimeLinkage == RUNTIME_LINKAGE_STATIC {
+			expectStaticLinkDep(t, ctx, binWithAsan, libAsanStaticRuntime)
+			expectNoStaticLinkDep(t, ctx, binNoAsan, libAsanStaticRuntime)
+			expectStaticLinkDep(t, ctx, libAsan, libAsanStaticRuntime)
+			expectNoStaticLinkDep(t, ctx, libShared, libAsanStaticRuntime)
+			expectNoStaticLinkDep(t, ctx, libTransitive, libAsanStaticRuntime)
+
+			expectStaticLinkDep(t, ctx, binWithAsan, libAsanStaticCxxRuntime)
+			expectNoStaticLinkDep(t, ctx, binNoAsan, libAsanStaticCxxRuntime)
+			expectStaticLinkDep(t, ctx, libAsan, libAsanStaticCxxRuntime)
+			expectNoStaticLinkDep(t, ctx, libShared, libAsanStaticCxxRuntime)
+			expectNoStaticLinkDep(t, ctx, libTransitive, libAsanStaticCxxRuntime)
+		} else {
+			expectNoStaticLinkDep(t, ctx, binWithAsan, libAsanStaticRuntime)
+			expectNoStaticLinkDep(t, ctx, binNoAsan, libAsanStaticRuntime)
+			expectNoStaticLinkDep(t, ctx, libAsan, libAsanStaticRuntime)
+			expectNoStaticLinkDep(t, ctx, libShared, libAsanStaticRuntime)
+			expectNoStaticLinkDep(t, ctx, libTransitive, libAsanStaticRuntime)
+
+			expectNoStaticLinkDep(t, ctx, binWithAsan, libAsanStaticCxxRuntime)
+			expectNoStaticLinkDep(t, ctx, binNoAsan, libAsanStaticCxxRuntime)
+			expectNoStaticLinkDep(t, ctx, libAsan, libAsanStaticCxxRuntime)
+			expectNoStaticLinkDep(t, ctx, libShared, libAsanStaticCxxRuntime)
+			expectNoStaticLinkDep(t, ctx, libTransitive, libAsanStaticCxxRuntime)
+		}
 	}
 
 	t.Run("host", func(t *testing.T) { check(t, buildOS, RUNTIME_LINKAGE_NONE, preparer) })
 	t.Run("device", func(t *testing.T) { check(t, "android_arm64_armv8-a", RUNTIME_LINKAGE_SHARED, preparer) })
 	t.Run("host musl", func(t *testing.T) {
-		check(t, "linux_musl_x86_64", RUNTIME_LINKAGE_SHARED,
+		check(t, "linux_musl_x86_64", RUNTIME_LINKAGE_STATIC,
 			android.GroupFixturePreparers(preparer, PrepareForTestWithHostMusl))
 	})
 }
