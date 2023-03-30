@@ -209,6 +209,10 @@ func TestLinkPathFromFilePath(t *testing.T) {
 // Test to make sure dependencies are being picked up correctly.
 func TestDepsTracking(t *testing.T) {
 	ctx := testRust(t, `
+		cc_library {
+			host_supported: true,
+			name: "cc_stubs_dep",
+		}
 		rust_ffi_host_static {
 			name: "libstatic",
 			srcs: ["foo.rs"],
@@ -235,6 +239,7 @@ func TestDepsTracking(t *testing.T) {
 			crate_name: "rlib",
 			static_libs: ["libstatic"],
 			whole_static_libs: ["libwholestatic"],
+			shared_libs: ["cc_stubs_dep"],
 		}
 		rust_proc_macro {
 			name: "libpm",
@@ -279,6 +284,17 @@ func TestDepsTracking(t *testing.T) {
 		t.Errorf("-lstatic flag not being passed to rustc for static library %#v", rustc.Args["rustcFlags"])
 	}
 
+	if !strings.Contains(rustc.Args["linkFlags"], "cc_stubs_dep.so") {
+		t.Errorf("shared cc_library not being passed to rustc linkFlags %#v", rustc.Args["linkFlags"])
+	}
+
+	if !android.SuffixInList(rustc.OrderOnly.Strings(), "cc_stubs_dep.so") {
+		t.Errorf("shared cc dep not being passed as order-only to rustc %#v", rustc.OrderOnly.Strings())
+	}
+
+	if !android.SuffixInList(rustc.Implicits.Strings(), "cc_stubs_dep.so.toc") {
+		t.Errorf("shared cc dep TOC not being passed as implicit to rustc %#v", rustc.Implicits.Strings())
+	}
 }
 
 func TestSourceProviderDeps(t *testing.T) {
@@ -331,7 +347,7 @@ func TestSourceProviderDeps(t *testing.T) {
 			source_stem: "bindings",
 			host_supported: true,
 			wrapper_src: "src/any.h",
-        }
+		}
 	`)
 
 	libfoo := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_rlib_dylib-std").Rule("rustc")
@@ -371,7 +387,6 @@ func TestSourceProviderDeps(t *testing.T) {
 	if !android.InList("libbindings.rlib-std", libprocmacroMod.Properties.AndroidMkRlibs) {
 		t.Errorf("bindgen dependency not detected as a rlib dependency (dependency missing from AndroidMkRlibs)")
 	}
-
 }
 
 func TestSourceProviderTargetMismatch(t *testing.T) {
