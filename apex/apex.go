@@ -103,12 +103,13 @@ type apexBundleProperties struct {
 	// to avoid mistakes. When set as true, no force-labelling.
 	Use_file_contexts_as_is *bool
 
-	// Path to the canned fs config file for customizing file's uid/gid/mod/capabilities. The
-	// format is /<path_or_glob> <uid> <gid> <mode> [capabilities=0x<cap>], where path_or_glob is a
-	// path or glob pattern for a file or set of files, uid/gid are numerial values of user ID
-	// and group ID, mode is octal value for the file mode, and cap is hexadecimal value for the
-	// capability. If this property is not set, or a file is missing in the file, default config
-	// is used.
+	// Path to the canned fs config file for customizing file's
+	// uid/gid/mod/capabilities. The content of this file is appended to the
+	// default config, so that the custom entries are preferred. The format is
+	// /<path_or_glob> <uid> <gid> <mode> [capabilities=0x<cap>], where
+	// path_or_glob is a path or glob pattern for a file or set of files,
+	// uid/gid are numerial values of user ID and group ID, mode is octal value
+	// for the file mode, and cap is hexadecimal value for the capability.
 	Canned_fs_config *string `android:"path"`
 
 	ApexNativeDependencies
@@ -3518,6 +3519,7 @@ type bazelApexBundleAttributes struct {
 	Manifest              bazel.LabelAttribute
 	Android_manifest      bazel.LabelAttribute
 	File_contexts         bazel.LabelAttribute
+	Canned_fs_config      bazel.LabelAttribute
 	Key                   bazel.LabelAttribute
 	Certificate           bazel.LabelAttribute  // used when the certificate prop is a module
 	Certificate_name      bazel.StringAttribute // used when the certificate prop is a string
@@ -3575,6 +3577,11 @@ func convertWithBp2build(a *apexBundle, ctx android.TopDownMutatorContext) (baze
 	} else {
 		// File_contexts is a file
 		fileContextsLabelAttribute.SetValue(android.BazelLabelForModuleSrcSingle(ctx, *a.properties.File_contexts))
+	}
+
+	var cannedFsConfigAttribute bazel.LabelAttribute
+	if a.properties.Canned_fs_config != nil {
+		cannedFsConfigAttribute.SetValue(android.BazelLabelForModuleSrcSingle(ctx, *a.properties.Canned_fs_config))
 	}
 
 	productVariableProps := android.ProductVariableProperties(ctx, a)
@@ -3663,6 +3670,7 @@ func convertWithBp2build(a *apexBundle, ctx android.TopDownMutatorContext) (baze
 		Manifest:              manifestLabelAttribute,
 		Android_manifest:      androidManifestLabelAttribute,
 		File_contexts:         fileContextsLabelAttribute,
+		Canned_fs_config:      cannedFsConfigAttribute,
 		Min_sdk_version:       minSdkVersion,
 		Key:                   keyLabelAttribute,
 		Certificate:           certificate,

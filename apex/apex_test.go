@@ -10105,3 +10105,45 @@ func TestTrimmedApex(t *testing.T) {
 	android.AssertStringDoesContain(t, "missing lib to trim", libs_to_trim, "libbar")
 	android.AssertStringDoesNotContain(t, "unexpected libs in the libs to trim", libs_to_trim, "libbaz")
 }
+
+func TestCannedFsConfig(t *testing.T) {
+	ctx := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			updatable: false,
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}`)
+	mod := ctx.ModuleForTests("myapex", "android_common_myapex_image")
+	generateFsRule := mod.Rule("generateFsConfig")
+	cmd := generateFsRule.RuleParams.Command
+
+	ensureContains(t, cmd, `( echo '/ 1000 1000 0755'; echo '/apex_manifest.json 1000 1000 0644'; echo '/apex_manifest.pb 1000 1000 0644'; ) >`)
+}
+
+func TestCannedFsConfig_HasCustomConfig(t *testing.T) {
+	ctx := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			canned_fs_config: "my_config",
+			updatable: false,
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}`)
+	mod := ctx.ModuleForTests("myapex", "android_common_myapex_image")
+	generateFsRule := mod.Rule("generateFsConfig")
+	cmd := generateFsRule.RuleParams.Command
+
+	// Ensure that canned_fs_config has "cat my_config" at the end
+	ensureContains(t, cmd, `( echo '/ 1000 1000 0755'; echo '/apex_manifest.json 1000 1000 0644'; echo '/apex_manifest.pb 1000 1000 0644'; cat my_config ) >`)
+}
