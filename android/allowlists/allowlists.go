@@ -886,10 +886,12 @@ var (
 		// depends on //system/tools/aidl/build:aidl_metadata_json, which is an aidl_interfaces_metadata custom Soong type.
 		"aidl_metadata_in_cpp",
 		"libaidlmetadata",
+		"libaidlmetadata_test",
 
 		// depends on //system/tools/hidl/build:hidl_metadata_json, which is an hidl_interfaces_metadata custom Soong type.
 		"hidl_metadata_in_cpp",
 		"libhidlmetadata",
+		"hidl_metadata_test",
 
 		// cc_test related.
 		// b/274164834 "Could not open Configuration file test.cfg"
