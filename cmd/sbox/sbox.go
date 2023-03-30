@@ -390,7 +390,7 @@ func validateOutputFiles(copies []*sbox_proto.Copy, sandboxDir, outputDir, rawCo
 		}
 	}
 
-	const maxErrors = 10
+	const maxErrors = 25
 
 	if len(incorrectOutputDirectoryErrors) > 0 {
 		errorMessage := ""
