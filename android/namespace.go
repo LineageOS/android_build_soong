@@ -225,6 +225,10 @@ func (r *NameResolver) NewModule(ctx blueprint.NamespaceContext, moduleGroup blu
 	return ns, nil
 }
 
+func (r *NameResolver) NewSkippedModule(ctx blueprint.NamespaceContext, name string, skipInfo blueprint.SkippedModuleInfo) {
+	r.rootNamespace.moduleContainer.NewSkippedModule(ctx, name, skipInfo)
+}
+
 func (r *NameResolver) AllModules() []blueprint.ModuleGroup {
 	childLists := [][]blueprint.ModuleGroup{}
 	totalCount := 0
@@ -300,7 +304,7 @@ func (r *NameResolver) FindNamespaceImports(namespace *Namespace) (err error) {
 	for _, name := range namespace.importedNamespaceNames {
 		imp, ok := r.namespaceAt(name)
 		if !ok {
-			return fmt.Errorf("namespace %v does not exist", name)
+			return fmt.Errorf("namespace %v does not exist; Some necessary modules may have been skipped by Soong. Check if PRODUCT_SOURCE_ROOT_DIRS is pruning necessary Android.bp files.", name)
 		}
 		namespace.visibleNamespaces = append(namespace.visibleNamespaces, imp)
 	}

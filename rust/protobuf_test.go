@@ -42,14 +42,14 @@ func TestRustProtobuf(t *testing.T) {
 	`)
 	// Check that libprotobuf is added as a dependency.
 	librust_proto := ctx.ModuleForTests("librust_proto", "android_arm64_armv8-a_dylib").Module().(*Module)
-	if !android.InList("libprotobuf", librust_proto.Properties.AndroidMkDylibs) {
-		t.Errorf("libprotobuf dependency missing for rust_protobuf (dependency missing from AndroidMkDylibs)")
+	if !android.InList("libprotobuf_deprecated", librust_proto.Properties.AndroidMkDylibs) {
+		t.Errorf("libprotobuf_deprecated dependency missing for rust_protobuf (dependency missing from AndroidMkDylibs)")
 	}
 
 	// Make sure the correct plugin is being used.
 	librust_proto_out := ctx.ModuleForTests("librust_proto", "android_arm64_armv8-a_source").Output("buf.rs")
 	cmd := librust_proto_out.RuleParams.Command
-	if w := "protoc-gen-rust"; !strings.Contains(cmd, w) {
+	if w := "protoc-gen-rust-deprecated"; !strings.Contains(cmd, w) {
 		t.Errorf("expected %q in %q", w, cmd)
 	}
 

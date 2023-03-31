@@ -100,6 +100,8 @@ type CmdArgs struct {
 	BazelForceEnabledModules string
 
 	UseBazelProxy bool
+
+	BuildFromTextStub bool
 }
 
 // Build modes that soong_build can run as.
@@ -272,6 +274,10 @@ type config struct {
 	// If true, for any requests to Bazel, communicate with a Bazel proxy using
 	// unix sockets, instead of spawning Bazel as a subprocess.
 	UseBazelProxy bool
+
+	// If buildFromTextStub is true then the Java API stubs are
+	// built from the signature text files, not the source Java files.
+	buildFromTextStub bool
 }
 
 type deviceConfig struct {
@@ -466,6 +472,8 @@ func NewConfig(cmdArgs CmdArgs, availableEnv map[string]string) (Config, error) 
 
 		MultitreeBuild: cmdArgs.MultitreeBuild,
 		UseBazelProxy:  cmdArgs.UseBazelProxy,
+
+		buildFromTextStub: cmdArgs.BuildFromTextStub,
 	}
 
 	config.deviceConfig = &deviceConfig{
@@ -923,6 +931,11 @@ func (c *config) PlatformVersionActiveCodenames() []string {
 	return c.productVariables.Platform_version_active_codenames
 }
 
+// All unreleased codenames.
+func (c *config) PlatformVersionAllPreviewCodenames() []string {
+	return c.productVariables.Platform_version_all_preview_codenames
+}
+
 func (c *config) ProductAAPTConfig() []string {
 	return c.productVariables.AAPTConfig
 }
@@ -1177,6 +1190,10 @@ func (c *config) EnforceRROExcludedOverlay(path string) bool {
 
 func (c *config) ExportedNamespaces() []string {
 	return append([]string(nil), c.productVariables.NamespacesToExport...)
+}
+
+func (c *config) SourceRootDirs() []string {
+	return c.productVariables.SourceRootDirs
 }
 
 func (c *config) IncludeTags() []string {
@@ -1872,4 +1889,8 @@ func (c *config) ApiSurfacesDir(s ApiSurface, version string) string {
 		"api_surfaces",
 		s.String(),
 		version)
+}
+
+func (c *config) BuildFromTextStub() bool {
+	return c.buildFromTextStub
 }
