@@ -2771,7 +2771,7 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext)
 			ctx.CreateBazelTargetModule(
 				bazel.BazelTargetModuleProperties{
 					Rule_class:        "aidl_library",
-					Bzl_load_location: "//build/bazel/rules/aidl:library.bzl",
+					Bzl_load_location: "//build/bazel/rules/aidl:aidl_library.bzl",
 				},
 				android.CommonAttributes{Name: aidlLibName},
 				&aidlLibraryAttributes{
@@ -2786,7 +2786,7 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext)
 		ctx.CreateBazelTargetModule(
 			bazel.BazelTargetModuleProperties{
 				Rule_class:        "java_aidl_library",
-				Bzl_load_location: "//build/bazel/rules/java:aidl_library.bzl",
+				Bzl_load_location: "//build/bazel/rules/java:java_aidl_library.bzl",
 			},
 			android.CommonAttributes{Name: javaAidlLibName},
 			&javaAidlLibraryAttributes{
