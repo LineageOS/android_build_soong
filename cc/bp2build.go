@@ -915,7 +915,7 @@ func bp2buildCcAidlLibrary(
 			ctx.CreateBazelTargetModule(
 				bazel.BazelTargetModuleProperties{
 					Rule_class:        "aidl_library",
-					Bzl_load_location: "//build/bazel/rules/aidl:library.bzl",
+					Bzl_load_location: "//build/bazel/rules/aidl:aidl_library.bzl",
 				},
 				android.CommonAttributes{Name: aidlLibName},
 				&aidlLibraryAttributes{

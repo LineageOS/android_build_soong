@@ -126,7 +126,7 @@ func (fg *fileGroup) ConvertWithBp2build(ctx TopDownMutatorContext) {
 
 		props := bazel.BazelTargetModuleProperties{
 			Rule_class:        "aidl_library",
-			Bzl_load_location: "//build/bazel/rules/aidl:library.bzl",
+			Bzl_load_location: "//build/bazel/rules/aidl:aidl_library.bzl",
 		}
 
 		ctx.CreateBazelTargetModule(
