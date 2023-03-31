@@ -1267,7 +1267,10 @@ var implLibraryTag = sdkLibraryComponentTag{name: "impl-library"}
 func (module *SdkLibrary) ComponentDepsMutator(ctx android.BottomUpMutatorContext) {
 	for _, apiScope := range module.getGeneratedApiScopes(ctx) {
 		// Add dependencies to the stubs library
-		ctx.AddVariationDependencies(nil, apiScope.stubsTag, module.stubsLibraryModuleName(apiScope))
+		stubModuleName := module.stubsLibraryModuleName(apiScope)
+		// Use JavaApiLibraryName function to be redirected to stubs generated from .txt if applicable
+		stubModuleName = android.JavaApiLibraryName(ctx.Config(), stubModuleName)
+		ctx.AddVariationDependencies(nil, apiScope.stubsTag, stubModuleName)
 
 		// Add a dependency on the stubs source in order to access both stubs source and api information.
 		ctx.AddVariationDependencies(nil, apiScope.stubsSourceAndApiTag, module.stubsSourceModuleName(apiScope))
