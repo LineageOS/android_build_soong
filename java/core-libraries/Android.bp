@@ -307,12 +307,6 @@ java_system_modules {
         // the UnsupportedAppUsage, CorePlatformApi and IntraCoreApi
         // annotations.
         "art.module.api.annotations.for.system.modules",
-
-        // Make nullability annotations available when compiling public stubs.
-        // They are provided as a separate library because while the
-        // annotations are not themselves part of the public API provided by
-        // this module they are used in the stubs.
-        "stub-annotations",
     ],
 }
 
