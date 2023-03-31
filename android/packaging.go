@@ -238,11 +238,11 @@ func (p *PackagingBase) GatherPackagingSpecs(ctx ModuleContext) map[string]Packa
 
 // CopySpecsToDir is a helper that will add commands to the rule builder to copy the PackagingSpec
 // entries into the specified directory.
-func (p *PackagingBase) CopySpecsToDir(ctx ModuleContext, builder *RuleBuilder, specs map[string]PackagingSpec, dir ModuleOutPath) (entries []string) {
+func (p *PackagingBase) CopySpecsToDir(ctx ModuleContext, builder *RuleBuilder, specs map[string]PackagingSpec, dir WritablePath) (entries []string) {
 	seenDir := make(map[string]bool)
 	for _, k := range SortedKeys(specs) {
 		ps := specs[k]
-		destPath := dir.Join(ctx, ps.relPathInPackage).String()
+		destPath := filepath.Join(dir.String(), ps.relPathInPackage)
 		destDir := filepath.Dir(destPath)
 		entries = append(entries, ps.relPathInPackage)
 		if _, ok := seenDir[destDir]; !ok {
