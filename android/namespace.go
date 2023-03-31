@@ -245,6 +245,10 @@ func (r *NameResolver) AllModules() []blueprint.ModuleGroup {
 	return allModules
 }
 
+func (r *NameResolver) SkippedModuleFromName(moduleName string, namespace blueprint.Namespace) (skipInfos []blueprint.SkippedModuleInfo, skipped bool) {
+	return r.rootNamespace.moduleContainer.SkippedModuleFromName(moduleName, namespace)
+}
+
 // parses a fully-qualified path (like "//namespace_path:module_name") into a namespace name and a
 // module name
 func (r *NameResolver) parseFullyQualifiedName(name string) (namespaceName string, moduleName string, ok bool) {
@@ -333,10 +337,15 @@ func (r *NameResolver) MissingDependencyError(depender string, dependerNamespace
 
 	// determine which namespaces the module can be found in
 	foundInNamespaces := []string{}
+	skippedDepErrors := []error{}
 	for _, namespace := range r.sortedNamespaces.sortedItems() {
 		_, found := namespace.moduleContainer.ModuleFromName(depName, nil)
 		if found {
 			foundInNamespaces = append(foundInNamespaces, namespace.Path)
+		}
+		_, skipped := namespace.moduleContainer.SkippedModuleFromName(depName, nil)
+		if skipped {
+			skippedDepErrors = append(skippedDepErrors, namespace.moduleContainer.MissingDependencyError(depender, dependerNamespace, depName))
 		}
 	}
 	if len(foundInNamespaces) > 0 {
@@ -349,6 +358,9 @@ func (r *NameResolver) MissingDependencyError(depender string, dependerNamespace
 		}
 		text += fmt.Sprintf("\nModule %q is defined in namespace %q which can read these %v namespaces: %q", depender, dependerNs.Path, len(importedNames), importedNames)
 		text += fmt.Sprintf("\nModule %q can be found in these namespaces: %q", depName, foundInNamespaces)
+	}
+	for _, err := range skippedDepErrors {
+		text += fmt.Sprintf("\n%s", err.Error())
 	}
 
 	return fmt.Errorf(text)
