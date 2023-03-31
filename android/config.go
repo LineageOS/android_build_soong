@@ -923,6 +923,11 @@ func (c *config) PlatformVersionActiveCodenames() []string {
 	return c.productVariables.Platform_version_active_codenames
 }
 
+// All unreleased codenames.
+func (c *config) PlatformVersionAllPreviewCodenames() []string {
+	return c.productVariables.Platform_version_all_preview_codenames
+}
+
 func (c *config) ProductAAPTConfig() []string {
 	return c.productVariables.AAPTConfig
 }
@@ -1177,6 +1182,10 @@ func (c *config) EnforceRROExcludedOverlay(path string) bool {
 
 func (c *config) ExportedNamespaces() []string {
 	return append([]string(nil), c.productVariables.NamespacesToExport...)
+}
+
+func (c *config) SourceRootDirs() []string {
+	return c.productVariables.SourceRootDirs
 }
 
 func (c *config) IncludeTags() []string {

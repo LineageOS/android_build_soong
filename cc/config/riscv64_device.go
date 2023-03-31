@@ -28,7 +28,6 @@ var (
 		"-fno-emulated-tls",
 		// For -fsanitize=shadow-call-stack.
 		"-ffixed-x18",
-		"-march=rv64gc_zbb",
 	}
 
 	riscv64ArchVariantCflags = map[string][]string{}
@@ -37,7 +36,6 @@ var (
 		"-Wl,--hash-style=gnu",
 		// For -fsanitize=shadow-call-stack.
 		"-ffixed-x18",
-		"-march=rv64gc_zbb",
 	}
 
 	riscv64Lldflags = append(riscv64Ldflags,
