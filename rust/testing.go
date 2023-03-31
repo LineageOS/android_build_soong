@@ -127,7 +127,7 @@ func GatherRequiredDepsForTest() string {
 			min_sdk_version: "29",
 		}
 		rust_library {
-			name: "libprotobuf",
+			name: "libprotobuf_deprecated",
 			crate_name: "protobuf",
 			srcs: ["foo.rs"],
 			host_supported: true,
