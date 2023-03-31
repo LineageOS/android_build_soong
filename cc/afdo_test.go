@@ -23,11 +23,6 @@ import (
 	"github.com/google/blueprint"
 )
 
-var prepareForTestWithFdoProfile = android.FixtureRegisterWithContext(func(ctx android.RegistrationContext) {
-	ctx.RegisterModuleType("soong_namespace", android.NamespaceFactory)
-	ctx.RegisterModuleType("fdo_profile", fdoProfileFactory)
-})
-
 type visitDirectDepsInterface interface {
 	VisitDirectDeps(blueprint.Module, func(dep blueprint.Module))
 }
@@ -65,7 +60,7 @@ func TestAfdoDeps(t *testing.T) {
 	`
 
 	result := android.GroupFixturePreparers(
-		prepareForTestWithFdoProfile,
+		PrepareForTestWithFdoProfile,
 		prepareForCcTest,
 		android.FixtureAddTextFile("afdo_profiles_package/libTest.afdo", ""),
 		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
@@ -160,7 +155,7 @@ func TestAfdoEnabledOnStaticDepNoAfdo(t *testing.T) {
 
 	result := android.GroupFixturePreparers(
 		prepareForCcTest,
-		prepareForTestWithFdoProfile,
+		PrepareForTestWithFdoProfile,
 		android.FixtureAddTextFile("toolchain/pgo-profiles/sampling/libFoo.afdo", ""),
 		android.MockFS{
 			"afdo_profiles_package/Android.bp": []byte(`
@@ -222,7 +217,7 @@ func TestAfdoEnabledWithRuntimeDepNoAfdo(t *testing.T) {
 
 	result := android.GroupFixturePreparers(
 		prepareForCcTest,
-		prepareForTestWithFdoProfile,
+		PrepareForTestWithFdoProfile,
 		android.FixtureAddTextFile("afdo_profiles_package/libTest.afdo", ""),
 		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
 			variables.AfdoProfiles = []string{
@@ -257,7 +252,7 @@ func TestAfdoEnabledWithMultiArchs(t *testing.T) {
 	}
 `
 	result := android.GroupFixturePreparers(
-		prepareForTestWithFdoProfile,
+		PrepareForTestWithFdoProfile,
 		prepareForCcTest,
 		android.FixtureAddTextFile("afdo_profiles_package/foo_arm.afdo", ""),
 		android.FixtureAddTextFile("afdo_profiles_package/foo_arm64.afdo", ""),
@@ -322,7 +317,7 @@ func TestMultipleAfdoRDeps(t *testing.T) {
 	`
 
 	result := android.GroupFixturePreparers(
-		prepareForTestWithFdoProfile,
+		PrepareForTestWithFdoProfile,
 		prepareForCcTest,
 		android.FixtureAddTextFile("afdo_profiles_package/libTest.afdo", ""),
 		android.FixtureAddTextFile("afdo_profiles_package/libBar.afdo", ""),

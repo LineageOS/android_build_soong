@@ -17,7 +17,10 @@ package rust
 import (
 	"fmt"
 
+	"android/soong/android"
 	"android/soong/cc"
+
+	"github.com/google/blueprint"
 )
 
 const afdoFlagFormat = "-Zprofile-sample-use=%s"
@@ -30,19 +33,49 @@ func (afdo *afdo) props() []interface{} {
 	return []interface{}{&afdo.Properties}
 }
 
-func (afdo *afdo) flags(ctx ModuleContext, flags Flags, deps PathDeps) (Flags, PathDeps) {
+func (afdo *afdo) addDep(ctx BaseModuleContext, actx android.BottomUpMutatorContext) {
+	// afdo is not supported outside of Android
+	if ctx.Host() {
+		return
+	}
+
+	if mod, ok := ctx.Module().(*Module); ok && mod.Enabled() {
+		fdoProfileName, err := actx.DeviceConfig().AfdoProfile(actx.ModuleName())
+		if err != nil {
+			ctx.ModuleErrorf("%s", err.Error())
+		}
+		if fdoProfileName != nil {
+			actx.AddFarVariationDependencies(
+				[]blueprint.Variation{
+					{Mutator: "arch", Variation: actx.Target().ArchVariation()},
+					{Mutator: "os", Variation: "android"},
+				},
+				cc.FdoProfileTag,
+				[]string{*fdoProfileName}...,
+			)
+		}
+	}
+}
+
+func (afdo *afdo) flags(ctx android.ModuleContext, flags Flags, deps PathDeps) (Flags, PathDeps) {
 	if ctx.Host() {
 		return flags, deps
 	}
 
-	if afdo != nil && afdo.Properties.Afdo {
-		if profileFile := afdo.Properties.GetAfdoProfileFile(ctx, ctx.ModuleName()); profileFile.Valid() {
-			profileUseFlag := fmt.Sprintf(afdoFlagFormat, profileFile)
+	if !afdo.Properties.Afdo {
+		return flags, deps
+	}
+
+	ctx.VisitDirectDepsWithTag(cc.FdoProfileTag, func(m android.Module) {
+		if ctx.OtherModuleHasProvider(m, cc.FdoProfileProvider) {
+			info := ctx.OtherModuleProvider(m, cc.FdoProfileProvider).(cc.FdoProfileInfo)
+			path := info.Path
+			profileUseFlag := fmt.Sprintf(afdoFlagFormat, path.String())
 			flags.RustFlags = append(flags.RustFlags, profileUseFlag)
 
-			profileFilePath := profileFile.Path()
-			deps.AfdoProfiles = append(deps.AfdoProfiles, profileFilePath)
+			deps.AfdoProfiles = append(deps.AfdoProfiles, path)
 		}
-	}
+	})
+
 	return flags, deps
 }
