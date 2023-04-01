@@ -208,6 +208,9 @@ func rustEnvVars(ctx ModuleContext, deps PathDeps) []string {
 			outDirPrefix = ""
 		}
 		envVars = append(envVars, "OUT_DIR="+filepath.Join(outDirPrefix, moduleGenDir.String()))
+	} else {
+		// TODO(pcc): Change this to "OUT_DIR=" after fixing crates to not rely on this value.
+		envVars = append(envVars, "OUT_DIR=out")
 	}
 
 	return envVars
