@@ -100,6 +100,8 @@ type CmdArgs struct {
 	BazelForceEnabledModules string
 
 	UseBazelProxy bool
+
+	BuildFromTextStub bool
 }
 
 // Build modes that soong_build can run as.
@@ -272,6 +274,10 @@ type config struct {
 	// If true, for any requests to Bazel, communicate with a Bazel proxy using
 	// unix sockets, instead of spawning Bazel as a subprocess.
 	UseBazelProxy bool
+
+	// If buildFromTextStub is true then the Java API stubs are
+	// built from the signature text files, not the source Java files.
+	buildFromTextStub bool
 }
 
 type deviceConfig struct {
@@ -466,6 +472,8 @@ func NewConfig(cmdArgs CmdArgs, availableEnv map[string]string) (Config, error) 
 
 		MultitreeBuild: cmdArgs.MultitreeBuild,
 		UseBazelProxy:  cmdArgs.UseBazelProxy,
+
+		buildFromTextStub: cmdArgs.BuildFromTextStub,
 	}
 
 	config.deviceConfig = &deviceConfig{
@@ -1410,6 +1418,21 @@ func (c *deviceConfig) PgoAdditionalProfileDirs() []string {
 	return c.config.productVariables.PgoAdditionalProfileDirs
 }
 
+// AfdoProfile returns fully qualified path associated to the given module name
+func (c *deviceConfig) AfdoProfile(name string) (*string, error) {
+	for _, afdoProfile := range c.config.productVariables.AfdoProfiles {
+		split := strings.Split(afdoProfile, ":")
+		if len(split) != 3 {
+			return nil, fmt.Errorf("AFDO_PROFILES has invalid value: %s. "+
+				"The expected format is <module>:<fully-qualified-path-to-fdo_profile>", afdoProfile)
+		}
+		if split[0] == name {
+			return proptools.StringPtr(strings.Join([]string{split[1], split[2]}, ":")), nil
+		}
+	}
+	return nil, nil
+}
+
 func (c *deviceConfig) VendorSepolicyDirs() []string {
 	return c.config.productVariables.BoardVendorSepolicyDirs
 }
@@ -1881,4 +1904,8 @@ func (c *config) ApiSurfacesDir(s ApiSurface, version string) string {
 		"api_surfaces",
 		s.String(),
 		version)
+}
+
+func (c *config) BuildFromTextStub() bool {
+	return c.buildFromTextStub
 }

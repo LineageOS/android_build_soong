@@ -40,7 +40,6 @@ func RegisterRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("cc_genrule", GenRuleFactory)
 	ctx.RegisterModuleType("ndk_prebuilt_shared_stl", NdkPrebuiltSharedStlFactory)
 	ctx.RegisterModuleType("ndk_prebuilt_static_stl", NdkPrebuiltStaticStlFactory)
-	ctx.RegisterModuleType("ndk_prebuilt_object", NdkPrebuiltObjectFactory)
 	ctx.RegisterModuleType("ndk_library", NdkLibraryFactory)
 	ctx.RegisterModuleType("ndk_headers", ndkHeadersFactory)
 }
@@ -670,6 +669,12 @@ var PrepareForTestWithHostMusl = android.GroupFixturePreparers(
 		}
 	`),
 )
+
+// PrepareForTestWithFdoProfile registers module types to test with fdo_profile
+var PrepareForTestWithFdoProfile = android.FixtureRegisterWithContext(func(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("soong_namespace", android.NamespaceFactory)
+	ctx.RegisterModuleType("fdo_profile", fdoProfileFactory)
+})
 
 // TestConfig is the legacy way of creating a test Config for testing cc modules.
 //

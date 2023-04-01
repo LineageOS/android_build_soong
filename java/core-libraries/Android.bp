@@ -79,16 +79,25 @@ java_library {
     ],
 }
 
+// Defaults module to strip out android annotations
+java_defaults {
+    name: "system-modules-no-annotations",
+    sdk_version: "none",
+    system_modules: "none",
+    jarjar_rules: "jarjar-strip-annotations-rules.txt",
+}
+
 // Same as core-current-stubs-for-system-modules, but android annotations are
 // stripped.
 java_library {
     name: "core-current-stubs-for-system-modules-no-annotations",
     visibility: ["//development/sdk"],
+    defaults: [
+        "system-modules-no-annotations",
+    ],
     static_libs: [
         "core-current-stubs-for-system-modules",
     ],
-    sdk_version: "none",
-    system_modules: "none",
     dists: [
         {
             // Legacy dist location for the public file.
@@ -100,7 +109,6 @@ java_library {
             targets: dist_targets,
         },
     ],
-    jarjar_rules: "jarjar-strip-annotations-rules.txt",
 }
 
 // Used when compiling higher-level code against core.current.stubs.
@@ -158,16 +166,16 @@ java_library {
 java_library {
     name: "core-module-lib-stubs-for-system-modules-no-annotations",
     visibility: ["//visibility:private"],
+    defaults: [
+        "system-modules-no-annotations",
+    ],
     static_libs: [
         "core-module-lib-stubs-for-system-modules",
     ],
-    sdk_version: "none",
-    system_modules: "none",
     dist: {
         dest: "system-modules/module-lib/core-for-system-modules-no-annotations.jar",
         targets: dist_targets,
     },
-    jarjar_rules: "jarjar-strip-annotations-rules.txt",
 }
 
 // Used when compiling higher-level code with sdk_version "module_current"
@@ -212,16 +220,16 @@ java_library {
 java_library {
     name: "legacy.core.platform.api.no.annotations.stubs",
     visibility: core_platform_visibility,
+    defaults: [
+        "system-modules-no-annotations",
+    ],
     hostdex: true,
     compile_dex: true,
 
-    sdk_version: "none",
-    system_modules: "none",
     static_libs: [
         "legacy.core.platform.api.stubs",
     ],
     patch_module: "java.base",
-    jarjar_rules: "jarjar-strip-annotations-rules.txt",
 }
 
 java_library {
@@ -247,16 +255,16 @@ java_library {
 java_library {
     name: "stable.core.platform.api.no.annotations.stubs",
     visibility: core_platform_visibility,
+    defaults: [
+        "system-modules-no-annotations",
+    ],
     hostdex: true,
     compile_dex: true,
 
-    sdk_version: "none",
-    system_modules: "none",
     static_libs: [
         "stable.core.platform.api.stubs",
     ],
     patch_module: "java.base",
-    jarjar_rules: "jarjar-strip-annotations-rules.txt",
 }
 
 // Used when compiling higher-level code against *.core.platform.api.stubs.
@@ -349,3 +357,7 @@ java_system_modules {
         "art-module-intra-core-api-stubs-system-modules-lib",
     ],
 }
+
+build = [
+    "TxtStubLibraries.bp",
+]
