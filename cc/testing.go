@@ -670,6 +670,12 @@ var PrepareForTestWithHostMusl = android.GroupFixturePreparers(
 	`),
 )
 
+// PrepareForTestWithFdoProfile registers module types to test with fdo_profile
+var PrepareForTestWithFdoProfile = android.FixtureRegisterWithContext(func(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("soong_namespace", android.NamespaceFactory)
+	ctx.RegisterModuleType("fdo_profile", fdoProfileFactory)
+})
+
 // TestConfig is the legacy way of creating a test Config for testing cc modules.
 //
 // See testCc for an explanation as to how to stop using this deprecated method.
