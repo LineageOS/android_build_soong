@@ -1515,7 +1515,7 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		for _, lib := range deps.Rustlibs {
 			if autoDep.depTag == rlibDepTag {
 				// Handle the rlib deptag case
-				addRlibDependency(actx, lib, mod, snapshotInfo, rlibDepVariations)
+				addRlibDependency(actx, lib, mod, &snapshotInfo, rlibDepVariations)
 			} else {
 				// autoDep.depTag is a dylib depTag. Not all rustlibs may be available as a dylib however.
 				// Check for the existence of the dylib deptag variant. Select it if available,
@@ -1526,7 +1526,7 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 					actx.AddVariationDependencies(autoDepVariations, autoDep.depTag, lib)
 				} else {
 					// If there's no dylib dependency available, try to add the rlib dependency instead.
-					addRlibDependency(actx, lib, mod, snapshotInfo, rlibDepVariations)
+					addRlibDependency(actx, lib, mod, &snapshotInfo, rlibDepVariations)
 				}
 			}
 		}
@@ -1617,8 +1617,8 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 }
 
 // addRlibDependency will add an rlib dependency, rewriting to the snapshot library if available.
-func addRlibDependency(actx android.BottomUpMutatorContext, lib string, mod *Module, snapshotInfo *cc.SnapshotInfo, variations []blueprint.Variation) {
-	lib = cc.GetReplaceModuleName(lib, cc.GetSnapshot(mod, &snapshotInfo, actx).Rlibs)
+func addRlibDependency(actx android.BottomUpMutatorContext, lib string, mod *Module, snapshotInfo **cc.SnapshotInfo, variations []blueprint.Variation) {
+	lib = cc.GetReplaceModuleName(lib, cc.GetSnapshot(mod, snapshotInfo, actx).Rlibs)
 	actx.AddVariationDependencies(variations, rlibDepTag, lib)
 }
 
