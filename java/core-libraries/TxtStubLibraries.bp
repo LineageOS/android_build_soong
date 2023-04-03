@@ -34,7 +34,7 @@ java_library {
     ],
     static_libs: [
         "core.current.stubs.from-text",
-        "core-lambda-stubs-for-system-modules",
+        "core-lambda-stubs.from-text",
     ],
     // TODO: Enable after stub generation from .txt file is available
     enabled: false,
@@ -59,7 +59,7 @@ java_library {
     ],
     static_libs: [
         "core.module_lib.stubs.from-text",
-        "core-lambda-stubs-for-system-modules",
+        "core-lambda-stubs.from-text",
     ],
     // TODO: Enable after stub generation from .txt file is available
     enabled: false,
@@ -89,7 +89,7 @@ java_system_modules {
     visibility: core_platform_visibility,
     libs: [
         "legacy.core.platform.api.no.annotations.stubs.from-text",
-        "core-lambda-stubs-for-system-modules",
+        "core-lambda-stubs.from-text",
     ],
     // TODO: Enable after stub generation from .txt file is available
     enabled: false,
@@ -118,7 +118,7 @@ java_system_modules {
     visibility: core_platform_visibility,
     libs: [
         "stable.core.platform.api.no.annotations.stubs.from-text",
-        "core-lambda-stubs-for-system-modules",
+        "core-lambda-stubs.from-text",
     ],
     // TODO: Enable after stub generation from .txt file is available
     enabled: false,
@@ -137,6 +137,20 @@ java_library {
         "stable.core.platform.api.stubs.from-text",
     ],
     patch_module: "java.base",
+    // TODO: Enable after stub generation from .txt file is available
+    enabled: false,
+}
+
+java_api_library {
+    name: "core-lambda-stubs.from-text",
+    api_surface: "toolchain",
+    api_contributions: [
+        "art.module.toolchain.api.api.contribution",
+    ],
+    libs: [
+        // LambdaMetaFactory depends on CallSite etc. which is part of the Core API surface
+        "core.current.stubs.from-text",
+    ],
     // TODO: Enable after stub generation from .txt file is available
     enabled: false,
 }
