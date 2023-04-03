@@ -1909,3 +1909,7 @@ func (c *config) ApiSurfacesDir(s ApiSurface, version string) string {
 func (c *config) BuildFromTextStub() bool {
 	return c.buildFromTextStub
 }
+
+func (c *config) SetBuildFromTextStub(b bool) {
+	c.buildFromTextStub = b
+}
