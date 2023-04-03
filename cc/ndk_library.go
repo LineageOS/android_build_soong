@@ -528,20 +528,17 @@ func (stub *stubDecorator) nativeCoverage() bool {
 	return false
 }
 
-// Returns the install path for unversioned NDK libraries (currently only static
-// libraries).
-func getUnversionedLibraryInstallPath(ctx ModuleContext) android.InstallPath {
-	return getNdkSysrootBase(ctx).Join(ctx, "usr/lib", config.NDKTriple(ctx.toolchain()))
-}
-
-// Returns the install path for versioned NDK libraries. These are most often
-// stubs, but the same paths are used for CRT objects.
-func getVersionedLibraryInstallPath(ctx ModuleContext, apiLevel android.ApiLevel) android.InstallPath {
-	return getUnversionedLibraryInstallPath(ctx).Join(ctx, apiLevel.String())
-}
-
 func (stub *stubDecorator) install(ctx ModuleContext, path android.Path) {
-	installDir := getVersionedLibraryInstallPath(ctx, stub.apiLevel)
+	arch := ctx.Target().Arch.ArchType.Name
+	// arm64 isn't actually a multilib toolchain, so unlike the other LP64
+	// architectures it's just installed to lib.
+	libDir := "lib"
+	if ctx.toolchain().Is64Bit() && arch != "arm64" {
+		libDir = "lib64"
+	}
+
+	installDir := getNdkInstallBase(ctx).Join(ctx, fmt.Sprintf(
+		"platforms/android-%s/arch-%s/usr/%s", stub.apiLevel, arch, libDir))
 	stub.installPath = ctx.InstallFile(installDir, path.Base(), path)
 }
 
