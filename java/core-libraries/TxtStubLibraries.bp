@@ -33,7 +33,7 @@ java_library {
         "system-modules-no-annotations",
     ],
     static_libs: [
-        "core.current.stubs.from-txt",
+        "core.current.stubs.from-text",
         "core-lambda-stubs-for-system-modules",
     ],
     // TODO: Enable after stub generation from .txt file is available
@@ -58,7 +58,7 @@ java_library {
         "system-modules-no-annotations",
     ],
     static_libs: [
-        "core.module_lib.stubs.txt",
+        "core.module_lib.stubs.from-text",
         "core-lambda-stubs-for-system-modules",
     ],
     // TODO: Enable after stub generation from .txt file is available
