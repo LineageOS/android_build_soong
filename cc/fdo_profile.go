@@ -50,7 +50,7 @@ var FdoProfileProvider = blueprint.NewMutatorProvider(FdoProfileInfo{}, "fdo_pro
 // module types that can depend on an fdo_profile module
 type FdoProfileMutatorInterface interface {
 	// FdoProfileMutator eithers set or get FdoProfileProvider
-	FdoProfileMutator(ctx android.BottomUpMutatorContext)
+	fdoProfileMutator(ctx android.BottomUpMutatorContext)
 }
 
 var _ FdoProfileMutatorInterface = (*fdoProfile)(nil)
@@ -60,7 +60,7 @@ func (fp *fdoProfile) GenerateAndroidBuildActions(ctx android.ModuleContext) {}
 
 // FdoProfileMutator sets FdoProfileProvider to fdo_profile module
 // or sets afdo.Properties.FdoProfilePath to path in FdoProfileProvider of the depended fdo_profile
-func (fp *fdoProfile) FdoProfileMutator(ctx android.BottomUpMutatorContext) {
+func (fp *fdoProfile) fdoProfileMutator(ctx android.BottomUpMutatorContext) {
 	if fp.properties.Profile != nil {
 		path := android.PathForModuleSrc(ctx, *fp.properties.Profile)
 		ctx.SetProvider(FdoProfileProvider, FdoProfileInfo{
@@ -69,11 +69,11 @@ func (fp *fdoProfile) FdoProfileMutator(ctx android.BottomUpMutatorContext) {
 	}
 }
 
-// fdoProfileMutator calls the generic FdoProfileMutator function of FdoProfileMutator
+// fdoProfileMutator calls the generic fdoProfileMutator function of fdoProfileMutator
 // which is implemented by cc and cc.FdoProfile
 func fdoProfileMutator(ctx android.BottomUpMutatorContext) {
 	if f, ok := ctx.Module().(FdoProfileMutatorInterface); ok {
-		f.FdoProfileMutator(ctx)
+		f.fdoProfileMutator(ctx)
 	}
 }
 

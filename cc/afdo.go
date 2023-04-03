@@ -24,6 +24,7 @@ import (
 	"github.com/google/blueprint/proptools"
 )
 
+// TODO(b/267229066): Remove globalAfdoProfileProjects after implementing bp2build converter for fdo_profile
 var (
 	globalAfdoProfileProjects = []string{
 		"vendor/google_data/pgo_profile/sampling/",
@@ -34,13 +35,6 @@ var (
 var afdoProfileProjectsConfigKey = android.NewOnceKey("AfdoProfileProjects")
 
 const afdoCFlagsFormat = "-funique-internal-linkage-names -fprofile-sample-accurate -fprofile-sample-use=%s"
-
-// TODO(b/267229065): Remove getAfdoProfileProjects after reimplementing afdo support for rust
-func getAfdoProfileProjects(config android.DeviceConfig) []string {
-	return config.OnceStringSlice(afdoProfileProjectsConfigKey, func() []string {
-		return globalAfdoProfileProjects
-	})
-}
 
 func recordMissingAfdoProfileFile(ctx android.BaseModuleContext, missing string) {
 	getNamedMapForConfig(ctx.Config(), modulesMissingProfileFileKey).Store(missing, true)
@@ -73,38 +67,6 @@ func (afdo *afdo) props() []interface{} {
 // that set afdo prop to True and there is a profile available
 func (afdo *afdo) afdoEnabled() bool {
 	return afdo != nil && afdo.Properties.Afdo && afdo.Properties.FdoProfilePath != nil
-}
-
-// Get list of profile file names, ordered by level of specialisation. For example:
-//  1. libfoo_arm64.afdo
-//  2. libfoo.afdo
-//
-// Add more specialisation as needed.
-// TODO(b/267229065): Remove getProfileFiles after reimplementing afdo support for rust
-func getProfileFiles(ctx android.BaseModuleContext, moduleName string) []string {
-	var files []string
-	files = append(files, moduleName+"_"+ctx.Arch().ArchType.String()+".afdo")
-	files = append(files, moduleName+".afdo")
-	return files
-}
-
-// TODO(b/267229065): Remove GetAfdoProfileFile after reimplementing afdo support for rust
-func (props *AfdoProperties) GetAfdoProfileFile(ctx android.BaseModuleContext, module string) android.OptionalPath {
-	// Test if the profile_file is present in any of the Afdo profile projects
-	for _, profileFile := range getProfileFiles(ctx, module) {
-		for _, profileProject := range getAfdoProfileProjects(ctx.DeviceConfig()) {
-			path := android.ExistentPathForSource(ctx, profileProject, profileFile)
-			if path.Valid() {
-				return path
-			}
-		}
-	}
-
-	// Record that this module's profile file is absent
-	missing := ctx.ModuleDir() + ":" + module
-	recordMissingAfdoProfileFile(ctx, missing)
-
-	return android.OptionalPathForPath(nil)
 }
 
 func (afdo *afdo) flags(ctx ModuleContext, flags Flags) Flags {
@@ -149,7 +111,7 @@ func (afdo *afdo) addDep(ctx BaseModuleContext, actx android.BottomUpMutatorCont
 
 // FdoProfileMutator reads the FdoProfileProvider from a direct dep with FdoProfileTag
 // assigns FdoProfileInfo.Path to the FdoProfilePath mutated property
-func (c *Module) FdoProfileMutator(ctx android.BottomUpMutatorContext) {
+func (c *Module) fdoProfileMutator(ctx android.BottomUpMutatorContext) {
 	if !c.Enabled() {
 		return
 	}
