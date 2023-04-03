@@ -1986,9 +1986,9 @@ func (a *apexBundle) ProcessBazelQueryResponse(ctx android.ModuleContext) {
 	// Set the output file to .apex or .capex depending on the compression configuration.
 	a.setCompression(ctx)
 	if a.isCompressed {
-		a.outputApexFile = android.PathForBazelOut(ctx, outputs.SignedCompressedOutput)
+		a.outputApexFile = android.PathForBazelOutRelative(ctx, ctx.ModuleDir(), outputs.SignedCompressedOutput)
 	} else {
-		a.outputApexFile = android.PathForBazelOut(ctx, outputs.SignedOutput)
+		a.outputApexFile = android.PathForBazelOutRelative(ctx, ctx.ModuleDir(), outputs.SignedOutput)
 	}
 	a.outputFile = a.outputApexFile
 
