@@ -368,6 +368,15 @@ func gatherRequiredDepsForTest() string {
 		"core.current.stubs",
 		"legacy.core.platform.api.stubs",
 		"stable.core.platform.api.stubs",
+		"android_stubs_current.from-text",
+		"android_system_stubs_current.from-text",
+		"android_test_stubs_current.from-text",
+		"android_module_lib_stubs_current.from-text",
+		"android_system_server_stubs_current.from-text",
+		"core.current.stubs.from-text",
+		"legacy.core.platform.api.stubs.from-text",
+		"stable.core.platform.api.stubs.from-text",
+
 		"kotlin-stdlib",
 		"kotlin-stdlib-jdk7",
 		"kotlin-stdlib-jdk8",
@@ -409,6 +418,10 @@ func gatherRequiredDepsForTest() string {
 		"core-module-lib-stubs-system-modules",
 		"legacy-core-platform-api-stubs-system-modules",
 		"stable-core-platform-api-stubs-system-modules",
+		"core-public-stubs-system-modules.from-text",
+		"core-module-lib-stubs-system-modules.from-text",
+		"legacy-core-platform-api-stubs-system-modules.from-text",
+		"stable-core-platform-api-stubs-system-modules.from-text",
 	}
 
 	for _, extra := range systemModules {
