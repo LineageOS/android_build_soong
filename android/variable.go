@@ -464,6 +464,8 @@ type productVariables struct {
 
 	IncludeTags    []string `json:",omitempty"`
 	SourceRootDirs []string `json:",omitempty"`
+
+	AfdoProfiles []string `json:",omitempty"`
 }
 
 func boolPtr(v bool) *bool {
