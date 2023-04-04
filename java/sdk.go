@@ -151,7 +151,7 @@ func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext android.SdkContext)
 		systemModules := android.JavaApiLibraryName(ctx.Config(), fmt.Sprintf("core-%s-stubs-system-modules", systemModulesKind))
 		return sdkDep{
 			useModule:          true,
-			bootclasspath:      []string{module, config.DefaultLambdaStubsLibrary},
+			bootclasspath:      []string{module, android.JavaApiLibraryName(ctx.Config(), config.DefaultLambdaStubsLibrary)},
 			systemModules:      systemModules,
 			java9Classpath:     []string{module},
 			frameworkResModule: "framework-res",
@@ -197,7 +197,7 @@ func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext android.SdkContext)
 	case android.SdkCore:
 		return sdkDep{
 			useModule:        true,
-			bootclasspath:    []string{android.SdkCore.JavaLibraryName(ctx.Config()), config.DefaultLambdaStubsLibrary},
+			bootclasspath:    []string{android.SdkCore.JavaLibraryName(ctx.Config()), android.JavaApiLibraryName(ctx.Config(), config.DefaultLambdaStubsLibrary)},
 			systemModules:    android.JavaApiLibraryName(ctx.Config(), "core-public-stubs-system-modules"),
 			noFrameworksLibs: true,
 		}
