@@ -344,14 +344,17 @@ func ApiLevelFromUserWithConfig(config Config, raw string) (ApiLevel, error) {
 		}
 	}
 
-	canonical := ReplaceFinalizedCodenames(config, raw)
-	asInt, err := strconv.Atoi(canonical)
-	if err != nil {
-		return NoneApiLevel, fmt.Errorf("%q could not be parsed as an integer and is not a recognized codename", canonical)
+	canonical, ok := getApiLevelsMapReleasedVersions()[raw]
+	if !ok {
+		asInt, err := strconv.Atoi(raw)
+		if err != nil {
+			return NoneApiLevel, fmt.Errorf("%q could not be parsed as an integer and is not a recognized codename", raw)
+		}
+		return uncheckedFinalApiLevel(asInt), nil
 	}
 
-	apiLevel := uncheckedFinalApiLevel(asInt)
-	return apiLevel, nil
+	return uncheckedFinalApiLevel(canonical), nil
+
 }
 
 // ApiLevelForTest returns an ApiLevel constructed from the supplied raw string.
