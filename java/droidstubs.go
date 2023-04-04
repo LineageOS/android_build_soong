@@ -394,7 +394,8 @@ func (d *Droidstubs) apiLevelsAnnotationsFlags(ctx android.ModuleContext, cmd *a
 	}
 	if apiVersions != nil {
 		cmd.FlagWithArg("--current-version ", ctx.Config().PlatformSdkVersion().String())
-		cmd.FlagWithArg("--current-codename ", ctx.Config().PlatformSdkCodename())
+		// STOPSHIP: RESTORE THIS LOGIC WHEN DECLARING "REL" BUILD
+		// cmd.FlagWithArg("--current-codename ", ctx.Config().PlatformSdkCodename())
 		cmd.FlagWithInput("--apply-api-levels ", apiVersions)
 	}
 }
