@@ -37,9 +37,14 @@ if [ $debug = "true" ]; then
   out_dir=out
   droid_target=
 fi
+
+function run_soong {
+  TARGET_PRODUCT="aosp_cf_x86_64_phone" TARGET_BUILD_VARIANT=userdebug OUT_DIR=$out_dir \
+    build/soong/soong_ui.bash --make-mode "$@"
+}
+
 # m droid, build sbom later in case additional dependencies might be built and included in partition images.
-TARGET_PRODUCT="aosp_cf_x86_64_phone" TARGET_BUILD_VARIANT=userdebug OUT_DIR=$out_dir \
-  build/soong/soong_ui.bash --make-mode $droid_target dump.erofs
+run_soong $droid_target dump.erofs lz4
 
 product_out=$out_dir/target/product/vsoc_x86_64
 sbom_test=$product_out/sbom_test
@@ -47,11 +52,11 @@ mkdir $sbom_test
 cp $product_out/*.img $sbom_test
 
 # m sbom
-TARGET_PRODUCT="aosp_cf_x86_64_phone" TARGET_BUILD_VARIANT=userdebug OUT_DIR=$out_dir \
-  build/soong/soong_ui.bash --make-mode sbom
+run_soong sbom
 
 # Generate installed file list from .img files in PRODUCT_OUT
 dump_erofs=$out_dir/host/linux-x86/bin/dump.erofs
+lz4=$out_dir/host/linux-x86/bin/lz4
 
 declare -A diff_excludes
 diff_excludes[odm]="-I /odm/lib/modules"
@@ -60,24 +65,12 @@ diff_excludes[vendor]=\
  -I /vendor/lib/modules \
  -I /vendor/odm"
 diff_excludes[system]=\
-"-I /acct/ \
- -I /adb_keys \
- -I /apex/ \
- -I /bin \
+"-I /bin \
  -I /bugreports \
  -I /cache \
- -I /config/ \
  -I /d \
- -I /data/ \
- -I /data_mirror/ \
- -I /debug_ramdisk/ \
- -I /dev/ \
  -I /etc \
  -I /init \
- -I /init.environ.rc \
- -I /linkerconfig/ \
- -I /metadata/ \
- -I /mnt/ \
  -I /odm/app \
  -I /odm/bin \
  -I /odm_dlkm/etc \
@@ -89,16 +82,7 @@ diff_excludes[system]=\
  -I /odm/overlay \
  -I /odm/priv-app \
  -I /odm/usr \
- -I /oem/ \
- -I /postinstall/ \
- -I /proc/ \
- -I /product/ \
  -I /sdcard \
- -I /second_stage_resources/ \
- -I /storage/ \
- -I /sys/ \
- -I /system_dlkm/ \
- -I /system_ext/ \
  -I /system/lib64/android.hardware.confirmationui@1.0.so \
  -I /system/lib64/android.hardware.confirmationui-V1-ndk.so \
  -I /system/lib64/android.hardware.keymaster@4.1.so \
@@ -121,15 +105,29 @@ diff_excludes[system]=\
  -I /system/system_ext \
  -I /system/usr/icu \
  -I /system/vendor \
- -I /vendor/ \
  -I /vendor_dlkm/etc"
+
+ function diff_files {
+   file_list_file="$1";
+   files_in_spdx_file="$2"
+   partition_name="$3"
+   exclude=
+   if [ -v 'diff_excludes[$partition_name]' ]; then
+     exclude=${diff_excludes[$partition_name]}
+   fi
+
+   diff "$file_list_file" "$files_in_spdx_file" $exclude
+   if [ $? != "0" ]; then
+     echo Found diffs in $f and SBOM.
+     exit 1
+   else
+     echo No diffs.
+   fi
+ }
 
 # Example output of dump.erofs is as below, and the data used in the test start
 # at line 11. Column 1 is inode id, column 2 is inode type and column 3 is name.
-# Each line is captured in variable "entry", sed is used to trim the leading
-# spaces and cut is used to get field 1 every time. Once a field is extracted,
-# "cut --complement" is used to remove the extracted field so next field can be
-# processed in the same way and to be processed field is always field 1.
+# Each line is captured in variable "entry", awk is used to get type and name.
 # Output of dump.erofs:
 #     File : /
 #     Size: 160  On-disk size: 160  directory
@@ -170,16 +168,13 @@ for f in $EROFS_IMAGES; do
     all_dirs=$(echo "$all_dirs" | cut -d ' ' -f1 --complement -s)
     entries=$($dump_erofs --ls --path "$dir" $f | tail -n +11)
     while read -r entry; do
-      nid=$(echo $entry | sed 's/^\s*//' | cut -d ' ' -f1)
-      entry=$(echo $entry | sed 's/^\s*//' | cut -d ' ' -f1 --complement)
-      type=$(echo $entry | sed 's/^\s*//' | cut -d ' ' -f1)
-      entry=$(echo $entry | sed 's/^\s*//' | cut -d ' ' -f1 --complement)
-      name=$(echo $entry | sed 's/^\s*//' | cut -d ' ' -f1)
+      type=$(echo $entry | awk -F ' ' '{print $2}')
+      name=$(echo $entry | awk -F ' ' '{print $3}')
       case $type in
         "2")  # directory
           all_dirs=$(echo "$all_dirs $dir/$name" | sed 's/^\s*//')
           ;;
-        *)
+        "1"|"7")  # 1: file, 7: symlink
           (
           if [ "$partition_name" != "system" ]; then
             # system partition is mounted to /, not to prepend partition name.
@@ -193,18 +188,26 @@ for f in $EROFS_IMAGES; do
   done
   sort -n -o "$file_list_file" "$file_list_file"
 
-  # Diff
+  grep "FileName: /${partition_name}/" $product_out/sbom.spdx | sed 's/^FileName: //' > "$files_in_spdx_file"
+  if [ "$partition_name" = "system" ]; then
+    # system partition is mounted to /, so include FileName starts with /root/ too.
+    grep "FileName: /root/" $product_out/sbom.spdx | sed 's/^FileName: \/root//' >> "$files_in_spdx_file"
+  fi
+  sort -n -o "$files_in_spdx_file" "$files_in_spdx_file"
+
   echo ============ Diffing files in $f and SBOM
+  diff_files "$file_list_file" "$files_in_spdx_file" "$partition_name"
+done
+
+RAMDISK_IMAGES="$product_out/ramdisk.img"
+for f in $RAMDISK_IMAGES; do
+  partition_name=$(basename $f | cut -d. -f1)
+  file_list_file="${sbom_test}/sbom-${partition_name}-files.txt"
+  files_in_spdx_file="${sbom_test}/sbom-${partition_name}-files-in-spdx.txt"
+  $lz4 -c -d $f | cpio -tv 2>/dev/null | grep '^[-l]' | awk -F ' ' '{print $9}' | sed "s:^:/$partition_name/:" | sort -n > "$file_list_file"
+
   grep "FileName: /${partition_name}/" $product_out/sbom.spdx | sed 's/^FileName: //' | sort -n > "$files_in_spdx_file"
-  exclude=
-  if [ -v 'diff_excludes[$partition_name]' ]; then
-    exclude=${diff_excludes[$partition_name]}
-  fi
-  diff "$file_list_file" "$files_in_spdx_file" $exclude
-  if [ $? != "0" ]; then
-    echo Found diffs in $f and SBOM.
-    exit 1
-  else
-    echo No diffs.
-  fi
+
+  echo ============ Diffing files in $f and SBOM
+  diff_files "$file_list_file" "$files_in_spdx_file" "$partition_name"
 done
