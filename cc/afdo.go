@@ -71,10 +71,10 @@ func (afdo *afdo) afdoEnabled() bool {
 
 func (afdo *afdo) flags(ctx ModuleContext, flags Flags) Flags {
 	if path := afdo.Properties.FdoProfilePath; path != nil {
+		// The flags are prepended to allow overriding.
 		profileUseFlag := fmt.Sprintf(afdoCFlagsFormat, *path)
-		flags.Local.CFlags = append(flags.Local.CFlags, profileUseFlag)
-		flags.Local.LdFlags = append(flags.Local.LdFlags, profileUseFlag)
-		flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,-mllvm,-no-warn-sample-unused=true")
+		flags.Local.CFlags = append([]string{profileUseFlag}, flags.Local.CFlags...)
+		flags.Local.LdFlags = append([]string{profileUseFlag, "-Wl,-mllvm,-no-warn-sample-unused=true"}, flags.Local.LdFlags...)
 
 		// Update CFlagsDeps and LdFlagsDeps so the module is rebuilt
 		// if profileFile gets updated
