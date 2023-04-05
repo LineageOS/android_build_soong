@@ -913,8 +913,16 @@ func (c *config) DefaultAppTargetSdk(ctx EarlyModuleContext) ApiLevel {
 		return c.PlatformSdkVersion()
 	}
 	codename := c.PlatformSdkCodename()
+	hostOnlyBuild := c.productVariables.DeviceArch == nil
 	if codename == "" {
-		return NoneApiLevel
+		// There are some host-only builds (those are invoked by build-prebuilts.sh) which
+		// don't set platform sdk codename. Platform sdk codename makes sense only when we
+		// are building the platform. So we don't enforce the below panic for the host-only
+		// builds.
+		if hostOnlyBuild {
+			return NoneApiLevel
+		}
+		panic("Platform_sdk_codename must be set")
 	}
 	if codename == "REL" {
 		panic("Platform_sdk_codename should not be REL when Platform_sdk_final is true")

@@ -385,6 +385,7 @@ var (
 		"build/bazel":/* recursive = */ true,
 		"build/make/core":/* recursive = */ false,
 		"build/bazel_common_rules":/* recursive = */ true,
+		"build/make/target/product/security":/* recursive = */ false,
 		// build/make/tools/signapk BUILD file is generated, so build/make/tools is not recursive.
 		"build/make/tools":/* recursive = */ false,
 		"build/pesto":/* recursive = */ true,

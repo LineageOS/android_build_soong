@@ -2209,6 +2209,50 @@ func TestJavaApiLibraryStaticLibsLink(t *testing.T) {
 	}
 }
 
+func TestJavaApiLibraryDepApiSrcs(t *testing.T) {
+	provider_bp_a := `
+	java_api_contribution {
+		name: "foo1",
+		api_file: "foo1.txt",
+	}
+	`
+	provider_bp_b := `
+	java_api_contribution {
+		name: "foo2",
+		api_file: "foo2.txt",
+	}
+	`
+	lib_bp_a := `
+	java_api_library {
+		name: "lib1",
+		api_surface: "public",
+		api_contributions: ["foo1", "foo2"],
+	}
+	`
+
+	ctx, _ := testJavaWithFS(t, `
+		java_api_library {
+			name: "bar1",
+			api_surface: "public",
+			api_contributions: ["foo1"],
+			dep_api_srcs: "lib1",
+		}
+		`,
+		map[string][]byte{
+			"a/Android.bp": []byte(provider_bp_a),
+			"b/Android.bp": []byte(provider_bp_b),
+			"c/Android.bp": []byte(lib_bp_a),
+		})
+
+	m := ctx.ModuleForTests("bar1", "android_common")
+	manifest := m.Output("metalava.sbox.textproto")
+	sboxProto := android.RuleBuilderSboxProtoForTests(t, manifest)
+	manifestCommand := sboxProto.Commands[0].GetCommand()
+
+	android.AssertStringDoesContain(t, "Command expected to contain module srcjar file", manifestCommand, "bar1-stubs.srcjar")
+	android.AssertStringDoesContain(t, "Command expected to contain output files list text file flag", manifestCommand, "--out __SBOX_SANDBOX_DIR__/out/sources.txt")
+}
+
 func TestTradefedOptions(t *testing.T) {
 	result := PrepareForTestWithJavaBuildComponents.RunTestWithBp(t, `
 java_test_host {
