@@ -86,7 +86,7 @@ func (k SdkKind) String() string {
 
 // JavaLibraryName returns the soong module containing the Java APIs of that API surface.
 func (k SdkKind) JavaLibraryName(c Config) string {
-	name := k.defaultJavaLibraryName()
+	name := k.DefaultJavaLibraryName()
 	return JavaApiLibraryName(c, name)
 }
 
@@ -100,7 +100,7 @@ func JavaApiLibraryName(c Config, name string) string {
 	return name
 }
 
-func (k SdkKind) defaultJavaLibraryName() string {
+func (k SdkKind) DefaultJavaLibraryName() string {
 	switch k {
 	case SdkPublic:
 		return "android_stubs_current"
