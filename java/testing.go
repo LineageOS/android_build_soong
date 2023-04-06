@@ -368,14 +368,6 @@ func gatherRequiredDepsForTest() string {
 		"core.current.stubs",
 		"legacy.core.platform.api.stubs",
 		"stable.core.platform.api.stubs",
-		"android_stubs_current.from-text",
-		"android_system_stubs_current.from-text",
-		"android_test_stubs_current.from-text",
-		"android_module_lib_stubs_current.from-text",
-		"android_system_server_stubs_current.from-text",
-		"core.current.stubs.from-text",
-		"legacy.core.platform.api.stubs.from-text",
-		"stable.core.platform.api.stubs.from-text",
 
 		"kotlin-stdlib",
 		"kotlin-stdlib-jdk7",
@@ -394,6 +386,27 @@ func gatherRequiredDepsForTest() string {
 				compile_dex: true,
 			}
 		`, extra)
+	}
+
+	extraApiLibraryModules := map[string]string{
+		"android_stubs_current.from-text":               "api/current.txt",
+		"android_system_stubs_current.from-text":        "api/system-current.txt",
+		"android_test_stubs_current.from-text":          "api/test-current.txt",
+		"android_module_lib_stubs_current.from-text":    "api/module-lib-current.txt",
+		"android_system_server_stubs_current.from-text": "api/system-server-current.txt",
+		"core.current.stubs.from-text":                  "api/current.txt",
+		"legacy.core.platform.api.stubs.from-text":      "api/current.txt",
+		"stable.core.platform.api.stubs.from-text":      "api/current.txt",
+		"core-lambda-stubs.from-text":                   "api/current.txt",
+	}
+
+	for libName, apiFile := range extraApiLibraryModules {
+		bp += fmt.Sprintf(`
+            java_api_library {
+                name: "%s",
+                api_files: ["%s"],
+            }
+        `, libName, apiFile)
 	}
 
 	bp += `
