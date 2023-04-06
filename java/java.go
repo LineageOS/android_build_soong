@@ -1611,7 +1611,7 @@ func (ap *JavaApiContribution) GenerateAndroidBuildActions(ctx android.ModuleCon
 }
 
 type JavaApiLibraryDepsInfo struct {
-	StubsJar    android.Path
+	JavaInfo
 	StubsSrcJar android.Path
 }
 
@@ -1820,7 +1820,7 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			staticLibs = append(staticLibs, provider.HeaderJars...)
 		case depApiSrcsTag:
 			provider := ctx.OtherModuleProvider(dep, JavaApiLibraryDepsProvider).(JavaApiLibraryDepsInfo)
-			classPaths = append(classPaths, provider.StubsJar)
+			classPaths = append(classPaths, provider.HeaderJars...)
 			depApiSrcsStubsSrcJar = provider.StubsSrcJar
 		}
 	})
@@ -1899,7 +1899,9 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	})
 
 	ctx.SetProvider(JavaApiLibraryDepsProvider, JavaApiLibraryDepsInfo{
-		StubsJar:    al.stubsJar,
+		JavaInfo: JavaInfo{
+			HeaderJars: android.PathsIfNonNil(al.stubsJar),
+		},
 		StubsSrcJar: al.stubsSrcJar,
 	})
 }
