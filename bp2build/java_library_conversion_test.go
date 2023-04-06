@@ -740,7 +740,7 @@ func TestJavaLibraryKotlinCommonSrcs(t *testing.T) {
 	})
 }
 
-func TestJavaLibraryArchVariantLibs(t *testing.T) {
+func TestJavaLibraryArchVariantDeps(t *testing.T) {
 	runJavaLibraryTestCase(t, Bp2buildTestCase{
 		Description: "java_library with arch variant libs",
 		Blueprint: `java_library {
@@ -750,6 +750,7 @@ func TestJavaLibraryArchVariantLibs(t *testing.T) {
     target: {
         android: {
             libs: ["java-lib-3"],
+            static_libs: ["java-lib-4"],
         },
     },
     bazel_module: { bp2build_available: true },
@@ -762,12 +763,23 @@ func TestJavaLibraryArchVariantLibs(t *testing.T) {
 	java_library{
 		name: "java-lib-3",
 }
+
+	java_library{
+		name: "java-lib-4",
+}
 `,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("java_library", "java-lib-1", AttrNameToString{
 				"srcs": `["a.java"]`,
+				"exports": `select({
+        "//build/bazel/platforms/os:android": [":java-lib-4"],
+        "//conditions:default": [],
+    })`,
 				"deps": `[":java-lib-2-neverlink"] + select({
-        "//build/bazel/platforms/os:android": [":java-lib-3-neverlink"],
+        "//build/bazel/platforms/os:android": [
+            ":java-lib-3-neverlink",
+            ":java-lib-4",
+        ],
         "//conditions:default": [],
     })`,
 			}),
@@ -776,6 +788,8 @@ func TestJavaLibraryArchVariantLibs(t *testing.T) {
 			MakeNeverlinkDuplicateTarget("java_library", "java-lib-2"),
 			MakeBazelTarget("java_library", "java-lib-3", AttrNameToString{}),
 			MakeNeverlinkDuplicateTarget("java_library", "java-lib-3"),
+			MakeBazelTarget("java_library", "java-lib-4", AttrNameToString{}),
+			MakeNeverlinkDuplicateTarget("java_library", "java-lib-4"),
 		},
 	})
 }
