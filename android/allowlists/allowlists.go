@@ -474,6 +474,7 @@ var (
 		"libgralloctypes",
 		"libnativewindow",
 		"libneuralnetworks",
+		"libneuralnetworks_static",
 		"libgraphicsenv",
 		"libhardware",
 		"libhardware_headers",
@@ -1489,6 +1490,8 @@ var (
 	// also be built - do not add them to this list.
 	StagingMixedBuildsEnabledList = []string{
 		"com.android.neuralnetworks",
+		"libneuralnetworks",
+		"libneuralnetworks_static",
 	}
 
 	// These should be the libs that are included by the apexes in the ProdMixedBuildsEnabledList
