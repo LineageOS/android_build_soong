@@ -38,13 +38,6 @@ var testCases = []struct {
 	storedFiles []string
 	err         error
 }{
-	{
-		name: "unsupported \\",
-
-		args: []string{"a\\b:b"},
-
-		err: fmt.Errorf("\\ characters are not currently supported"),
-	},
 	{ // This is modelled after the update package build rules in build/make/core/Makefile
 		name: "filter globs",
 
@@ -405,6 +398,13 @@ var testCases = []struct {
 			"b/a/a",
 			"b/a/b",
 		},
+	},
+	{
+		name: "escaping",
+
+		inputFiles:  []string{"a"},
+		args:        []string{"\\a"},
+		outputFiles: []string{"a"},
 	},
 }
 
