@@ -176,6 +176,13 @@ func (c Config) RunningInsideUnitTest() bool {
 	return c.config.TestProductVariables != nil
 }
 
+// MaxPageSizeSupported returns the max page size supported by the device. This
+// value will define the ELF segment alignment for binaries (executables and
+// shared libraries).
+func (c Config) MaxPageSizeSupported() string {
+	return String(c.config.productVariables.DeviceMaxPageSizeSupported)
+}
+
 // A DeviceConfig object represents the configuration for a particular device
 // being built. For now there will only be one of these, but in the future there
 // may be multiple devices being built.
