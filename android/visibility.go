@@ -47,7 +47,6 @@ import (
 //   the dependency. If it cannot then an error is reported.
 //
 // TODO(b/130631145) - Make visibility work properly with prebuilts.
-// TODO(b/130796911) - Make visibility work properly with defaults.
 
 // Patterns for the values that can be specified in visibility property.
 const (
