@@ -21,10 +21,13 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 
 	"android/soong/shared"
+
 	"github.com/google/blueprint/pathtools"
 )
 
@@ -34,6 +37,13 @@ import (
 // or a directory. If excluded is true, then that file/directory should be
 // excluded from symlinking. Otherwise, the node is not excluded, but one of its
 // descendants is (otherwise the node in question would not exist)
+
+// This is a version int written to a file called symlink_forest_version at the root of the
+// symlink forest. If the version here does not match the version in the file, then we'll
+// clean the whole symlink forest and recreate it. This number can be bumped whenever there's
+// an incompatible change to the forest layout or a bug in incrementality that needs to be fixed
+// on machines that may still have the bug present in their forest.
+const symlinkForestVersion = 1
 
 type instructionsNode struct {
 	name     string
@@ -123,6 +133,34 @@ func mergeBuildFiles(output string, srcBuildFile string, generatedBuildFile stri
 	}
 	newContents = append(newContents, srcBuildFileContent...)
 
+	// Say you run bp2build 4 times:
+	// - The first time there's only an Android.bp file. bp2build will convert it to a build file
+	//   under out/soong/bp2build, then symlink from the forest to that generated file
+	// - Then you add a handcrafted BUILD file in the same directory. bp2build will merge this with
+	//   the generated one, and write the result to the output file in the forest. But the output
+	//   file was a symlink to out/soong/bp2build from the previous step! So we erroneously update
+	//   the file in out/soong/bp2build instead. So far this doesn't cause any problems...
+	// - You run a 3rd bp2build with no relevant changes. Everything continues to work.
+	// - You then add a comment to the handcrafted BUILD file. This causes a merge with the
+	//   generated file again. But since we wrote to the generated file in step 2, the generated
+	//   file has an old copy of the handcrafted file in it! This probably causes duplicate bazel
+	//   targets.
+	// To solve this, if we see that the output file is a symlink from a previous build, remove it.
+	stat, err := os.Lstat(output)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	} else if err == nil {
+		if stat.Mode()&os.ModeSymlink == os.ModeSymlink {
+			if verbose {
+				fmt.Fprintf(os.Stderr, "Removing symlink so that we can replace it with a merged file: %s\n", output)
+			}
+			err = os.Remove(output)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	return pathtools.WriteFileIfChanged(output, newContents, 0666)
 }
 
@@ -200,6 +238,46 @@ func isDir(path string, fi os.FileInfo) bool {
 	}
 
 	return false
+}
+
+// maybeCleanSymlinkForest will remove the whole symlink forest directory if the version recorded
+// in the symlink_forest_version file is not equal to symlinkForestVersion.
+func maybeCleanSymlinkForest(topdir, forest string, verbose bool) error {
+	versionFilePath := shared.JoinPath(topdir, forest, "symlink_forest_version")
+	versionFileContents, err := os.ReadFile(versionFilePath)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	versionFileString := strings.TrimSpace(string(versionFileContents))
+	symlinkForestVersionString := strconv.Itoa(symlinkForestVersion)
+	if err != nil || versionFileString != symlinkForestVersionString {
+		if verbose {
+			fmt.Fprintf(os.Stderr, "Old symlink_forest_version was %q, current is %q. Cleaning symlink forest before recreating...\n", versionFileString, symlinkForestVersionString)
+		}
+		err = os.RemoveAll(shared.JoinPath(topdir, forest))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// maybeWriteVersionFile will write the symlink_forest_version file containing symlinkForestVersion
+// if it doesn't exist already. If it exists we know it must contain symlinkForestVersion because
+// we checked for that already in maybeCleanSymlinkForest
+func maybeWriteVersionFile(topdir, forest string) error {
+	versionFilePath := shared.JoinPath(topdir, forest, "symlink_forest_version")
+	_, err := os.Stat(versionFilePath)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return err
+		}
+		err = os.WriteFile(versionFilePath, []byte(strconv.Itoa(symlinkForestVersion)+"\n"), 0666)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Recursively plants a symlink forest at forestDir. The symlink tree will
@@ -395,6 +473,12 @@ func PlantSymlinkForest(verbose bool, topdir string, forest string, buildFiles s
 		symlinkCount: atomic.Uint64{},
 	}
 
+	err := maybeCleanSymlinkForest(topdir, forest, verbose)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
 	instructions := instructionsFromExcludePathList(exclude)
 	go func() {
 		context.wg.Add(1)
@@ -405,6 +489,12 @@ func PlantSymlinkForest(verbose bool, topdir string, forest string, buildFiles s
 
 	for dep := range context.depCh {
 		deps = append(deps, dep)
+	}
+
+	err = maybeWriteVersionFile(topdir, forest)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 
 	return deps, context.mkdirCount.Load(), context.symlinkCount.Load()
