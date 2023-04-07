@@ -7101,7 +7101,7 @@ func TestSymlinksFromApexToSystem(t *testing.T) {
 			native_shared_libs: ["mylib"],
 			java_libs: ["myjar"],
 			updatable: true,
-			min_sdk_version: "current",
+			min_sdk_version: "33",
 		}
 
 		apex_key {
@@ -7124,7 +7124,7 @@ func TestSymlinksFromApexToSystem(t *testing.T) {
 				"myapex.updatable",
 				"//apex_available:platform",
 			],
-			min_sdk_version: "current",
+			min_sdk_version: "33",
 		}
 
 		cc_library {
@@ -7137,7 +7137,7 @@ func TestSymlinksFromApexToSystem(t *testing.T) {
 				"myapex.updatable",
 				"//apex_available:platform",
 			],
-			min_sdk_version: "current",
+			min_sdk_version: "33",
 		}
 
 		cc_library {
@@ -7151,7 +7151,7 @@ func TestSymlinksFromApexToSystem(t *testing.T) {
 				"myapex.updatable",
 				"//apex_available:platform",
 			],
-			min_sdk_version: "current",
+			min_sdk_version: "33",
 		}
 
 		java_library {
@@ -7165,7 +7165,7 @@ func TestSymlinksFromApexToSystem(t *testing.T) {
 				"myapex.updatable",
 				"//apex_available:platform",
 			],
-			min_sdk_version: "current",
+			min_sdk_version: "33",
 		}
 
 		java_library {
@@ -7178,7 +7178,7 @@ func TestSymlinksFromApexToSystem(t *testing.T) {
 				"myapex.updatable",
 				"//apex_available:platform",
 			],
-			min_sdk_version: "current",
+			min_sdk_version: "33",
 		}
 	`
 
