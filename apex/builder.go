@@ -71,6 +71,9 @@ func init() {
 	pctx.HostBinToolVariable("make_erofs", "make_erofs")
 	pctx.HostBinToolVariable("apex_compression_tool", "apex_compression_tool")
 	pctx.HostBinToolVariable("dexdeps", "dexdeps")
+	pctx.HostBinToolVariable("apex_sepolicy_tests", "apex_sepolicy_tests")
+	pctx.HostBinToolVariable("deapexer", "deapexer")
+	pctx.HostBinToolVariable("debugfs_static", "debugfs_static")
 	pctx.SourcePathVariable("genNdkUsedbyApexPath", "build/soong/scripts/gen_ndk_usedby_apex.sh")
 }
 
@@ -226,7 +229,12 @@ var (
 		Description: "Generate symbol list used by Apex",
 	}, "image_dir", "readelf")
 
-	// Don't add more rules here. Consider using android.NewRuleBuilder instead.
+	apexSepolicyTestsRule = pctx.StaticRule("apexSepolicyTestsRule", blueprint.RuleParams{
+		Command: `${deapexer} --debugfs_path ${debugfs_static} list -Z ${in} > ${out}.fc` +
+			`&& ${apex_sepolicy_tests} -f ${out}.fc && touch ${out}`,
+		CommandDeps: []string{"${apex_sepolicy_tests}", "${deapexer}", "${debugfs_static}"},
+		Description: "run apex_sepolicy_tests",
+	})
 )
 
 // buildManifest creates buile rules to modify the input apex_manifest.json to add information
@@ -872,6 +880,10 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 		args["implicits"] = strings.Join(implicits.Strings(), ",")
 		args["outCommaList"] = signedOutputFile.String()
 	}
+	var validations android.Paths
+	if suffix == imageApexSuffix {
+		validations = append(validations, runApexSepolicyTests(ctx, unsignedOutputFile.OutputPath))
+	}
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        rule,
 		Description: "signapk",
@@ -879,6 +891,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 		Input:       unsignedOutputFile,
 		Implicits:   implicits,
 		Args:        args,
+		Validations: validations,
 	})
 	if suffix == imageApexSuffix {
 		a.outputApexFile = signedOutputFile
@@ -1171,4 +1184,18 @@ func (a *apexBundle) buildCannedFsConfig(ctx android.ModuleContext) android.Outp
 	builder.Build("generateFsConfig", fmt.Sprintf("Generating canned fs config for %s", a.BaseModuleName()))
 
 	return cannedFsConfig.OutputPath
+}
+
+// Runs apex_sepolicy_tests
+//
+// $ deapexer list -Z {apex_file} > {file_contexts}
+// $ apex_sepolicy_tests -f {file_contexts}
+func runApexSepolicyTests(ctx android.ModuleContext, apexFile android.OutputPath) android.Path {
+	timestamp := android.PathForModuleOut(ctx, "sepolicy_tests.timestamp")
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   apexSepolicyTestsRule,
+		Input:  apexFile,
+		Output: timestamp,
+	})
+	return timestamp
 }
