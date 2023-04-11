@@ -44,6 +44,10 @@ var ccObjectSdkMemberType = &librarySdkMemberType{
 type objectLinker struct {
 	*baseLinker
 	Properties ObjectLinkerProperties
+
+	// Location of the object in the sysroot. Empty if the object is not
+	// included in the NDK.
+	ndkSysrootPath android.Path
 }
 
 type objectBazelHandler struct {
@@ -99,6 +103,10 @@ type ObjectLinkerProperties struct {
 	// Indicates that this module is a CRT object. CRT objects will be split
 	// into a variant per-API level between min_sdk_version and current.
 	Crt *bool
+
+	// Indicates that this module should not be included in the NDK sysroot.
+	// Only applies to CRT objects. Defaults to false.
+	Exclude_from_ndk_sysroot *bool
 }
 
 func newObject(hod android.HostOrDeviceSupported) *Module {
@@ -268,17 +276,28 @@ func (object *objectLinker) link(ctx ModuleContext,
 
 	objs = objs.Append(deps.Objs)
 
-	var outputFile android.Path
+	var output android.WritablePath
 	builderFlags := flagsToBuilderFlags(flags)
 	outputName := ctx.ModuleName()
 	if !strings.HasSuffix(outputName, objectExtension) {
 		outputName += objectExtension
 	}
 
-	if len(objs.objFiles) == 1 && String(object.Properties.Linker_script) == "" {
-		output := android.PathForModuleOut(ctx, outputName)
-		outputFile = output
+	// isForPlatform is terribly named and actually means isNotApex.
+	if Bool(object.Properties.Crt) &&
+		!Bool(object.Properties.Exclude_from_ndk_sysroot) && ctx.useSdk() &&
+		ctx.isSdkVariant() && ctx.isForPlatform() {
 
+		output = getVersionedLibraryInstallPath(ctx,
+			nativeApiLevelOrPanic(ctx, ctx.sdkVersion())).Join(ctx, outputName)
+		object.ndkSysrootPath = output
+	} else {
+		output = android.PathForModuleOut(ctx, outputName)
+	}
+
+	outputFile := output
+
+	if len(objs.objFiles) == 1 && String(object.Properties.Linker_script) == "" {
 		if String(object.Properties.Prefix_symbols) != "" {
 			transformBinaryPrefixSymbols(ctx, String(object.Properties.Prefix_symbols), objs.objFiles[0],
 				builderFlags, output)
@@ -290,9 +309,6 @@ func (object *objectLinker) link(ctx ModuleContext,
 			})
 		}
 	} else {
-		output := android.PathForModuleOut(ctx, outputName)
-		outputFile = output
-
 		if String(object.Properties.Prefix_symbols) != "" {
 			input := android.PathForModuleOut(ctx, "unprefixed", outputName)
 			transformBinaryPrefixSymbols(ctx, String(object.Properties.Prefix_symbols), input,
