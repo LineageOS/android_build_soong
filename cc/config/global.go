@@ -111,6 +111,9 @@ var (
 
 		// Turn off FMA which got enabled by default in clang-r445002 (http://b/218805949)
 		"-ffp-contract=off",
+
+		// Turn off stack protector check for noreturn calls. (http://b/264965700)
+		"-mllvm -disable-check-noreturn-call",
 	}
 
 	commonGlobalConlyflags = []string{}
@@ -147,6 +150,9 @@ var (
 	commonGlobalLldflags = []string{
 		"-fuse-ld=lld",
 		"-Wl,--icf=safe",
+
+		// Turn off stack protector check for noreturn calls. (http://b/264965700)
+		"-Wl,-mllvm,-disable-check-noreturn-call",
 	}
 
 	deviceGlobalCppflags = []string{
