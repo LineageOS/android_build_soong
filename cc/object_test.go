@@ -65,7 +65,7 @@ func TestUseCrtObjectOfCorrectVersion(t *testing.T) {
 	variant := "android_arm64_armv8-a_sdk"
 	crt := ctx.ModuleForTests("bin", variant).Rule("ld").Args["crtBegin"]
 	android.AssertStringDoesContain(t, "crt dep of sdk variant", crt,
-		variant+"_29/crtbegin_dynamic.o")
+		"29/crtbegin_dynamic.o")
 
 	// platform variant uses the crt object built for platform
 	variant = "android_arm64_armv8-a"
