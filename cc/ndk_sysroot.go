@@ -142,6 +142,13 @@ func (n *ndkSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 						staticLibInstallPaths, library.ndkSysrootPath)
 				}
 			}
+
+			if object, ok := m.linker.(*objectLinker); ok {
+				if object.ndkSysrootPath != nil {
+					staticLibInstallPaths = append(
+						staticLibInstallPaths, object.ndkSysrootPath)
+				}
+			}
 		}
 	})
 
