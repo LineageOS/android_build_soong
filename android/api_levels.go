@@ -431,6 +431,7 @@ func getApiLevelsMapReleasedVersions() map[string]int {
 		"S":        31,
 		"S-V2":     32,
 		"Tiramisu": 33,
+			"UpsideDownCake":     34,
 	}
 }
 
