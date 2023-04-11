@@ -550,6 +550,7 @@ type Module interface {
 	ExportedToMake() bool
 	InitRc() Paths
 	VintfFragments() Paths
+	EffectiveLicenseKinds() []string
 	EffectiveLicenseFiles() Paths
 
 	AddProperties(props ...interface{})
@@ -2022,6 +2023,10 @@ func (m *ModuleBase) IsReplacedByPrebuilt() bool {
 
 func (m *ModuleBase) ExportedToMake() bool {
 	return m.commonProperties.NamespaceExportedToMake
+}
+
+func (m *ModuleBase) EffectiveLicenseKinds() []string {
+	return m.commonProperties.Effective_license_kinds
 }
 
 func (m *ModuleBase) EffectiveLicenseFiles() Paths {
