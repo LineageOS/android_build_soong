@@ -50,7 +50,9 @@ func soongInjectionFiles(cfg android.Config, metrics CodegenMetrics) ([]BazelFil
 	if err != nil {
 		panic(err)
 	}
+	files = append(files, newFile("metrics", GeneratedBuildFileName, "")) // Creates a //metrics package.
 	files = append(files, newFile("metrics", "converted_modules_path_map.json", string(convertedModulePathMap)))
+	files = append(files, newFile("metrics", "converted_modules_path_map.bzl", "modules = "+strings.ReplaceAll(string(convertedModulePathMap), "\\", "\\\\")))
 
 	files = append(files, newFile("product_config", "soong_config_variables.bzl", cfg.Bp2buildSoongConfigDefinitions.String()))
 
