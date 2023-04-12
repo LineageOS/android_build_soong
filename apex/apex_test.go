@@ -3131,10 +3131,7 @@ func TestStaticLinking(t *testing.T) {
 			stubs: {
 				versions: ["1", "2", "3"],
 			},
-			apex_available: [
-				"//apex_available:platform",
-				"myapex",
-			],
+			apex_available: ["myapex"],
 		}
 
 		cc_binary {
@@ -4134,7 +4131,7 @@ func TestDependenciesInApexManifest(t *testing.T) {
 		apex {
 			name: "myapex_selfcontained",
 			key: "myapex.key",
-			native_shared_libs: ["lib_dep", "libfoo"],
+			native_shared_libs: ["lib_dep_on_bar", "libbar"],
 			compile_multilib: "both",
 			file_contexts: ":myapex-file_contexts",
 			updatable: false,
@@ -4168,6 +4165,18 @@ func TestDependenciesInApexManifest(t *testing.T) {
 		}
 
 		cc_library {
+			name: "lib_dep_on_bar",
+			srcs: ["mylib.cpp"],
+			shared_libs: ["libbar"],
+			system_shared_libs: [],
+			stl: "none",
+			apex_available: [
+				"myapex_selfcontained",
+			],
+		}
+
+
+		cc_library {
 			name: "libfoo",
 			srcs: ["mytest.cpp"],
 			stubs: {
@@ -4177,9 +4186,22 @@ func TestDependenciesInApexManifest(t *testing.T) {
 			stl: "none",
 			apex_available: [
 				"myapex_provider",
+			],
+		}
+
+		cc_library {
+			name: "libbar",
+			srcs: ["mytest.cpp"],
+			stubs: {
+				versions: ["1"],
+			},
+			system_shared_libs: [],
+			stl: "none",
+			apex_available: [
 				"myapex_selfcontained",
 			],
 		}
+
 	`)
 
 	var apexManifestRule android.TestingBuildParams
@@ -4206,7 +4228,7 @@ func TestDependenciesInApexManifest(t *testing.T) {
 	apexManifestRule = ctx.ModuleForTests("myapex_selfcontained", "android_common_myapex_selfcontained_image").Rule("apexManifestRule")
 	provideNativeLibs = names(apexManifestRule.Args["provideNativeLibs"])
 	requireNativeLibs = names(apexManifestRule.Args["requireNativeLibs"])
-	ensureListContains(t, provideNativeLibs, "libfoo.so")
+	ensureListContains(t, provideNativeLibs, "libbar.so")
 	ensureListEmpty(t, requireNativeLibs)
 }
 
@@ -8488,14 +8510,14 @@ func TestTestForForLibInOtherApex(t *testing.T) {
 		apex {
 			name: "com.android.art",
 			key: "myapex.key",
-			native_shared_libs: ["mylib"],
+			native_shared_libs: ["libnativebridge"],
 			updatable: false,
 		}
 
 		apex {
 			name: "com.android.art.debug",
 			key: "myapex.key",
-			native_shared_libs: ["mylib", "mytestlib"],
+			native_shared_libs: ["libnativebridge", "libnativebrdige_test"],
 			updatable: false,
 		}
 
@@ -8506,8 +8528,8 @@ func TestTestForForLibInOtherApex(t *testing.T) {
 		}
 
 		cc_library {
-			name: "mylib",
-			srcs: ["mylib.cpp"],
+			name: "libnativebridge",
+			srcs: ["libnativebridge.cpp"],
 			system_shared_libs: [],
 			stl: "none",
 			stubs: {
@@ -8517,10 +8539,10 @@ func TestTestForForLibInOtherApex(t *testing.T) {
 		}
 
 		cc_library {
-			name: "mytestlib",
+			name: "libnativebrdige_test",
 			srcs: ["mylib.cpp"],
 			system_shared_libs: [],
-			shared_libs: ["mylib"],
+			shared_libs: ["libnativebridge"],
 			stl: "none",
 			apex_available: ["com.android.art.debug"],
 			test_for: ["com.android.art"],
@@ -10191,4 +10213,78 @@ func TestCannedFsConfig_HasCustomConfig(t *testing.T) {
 
 	// Ensure that canned_fs_config has "cat my_config" at the end
 	ensureContains(t, cmd, `( echo '/ 1000 1000 0755'; echo '/apex_manifest.json 1000 1000 0644'; echo '/apex_manifest.pb 1000 1000 0644'; cat my_config ) >`)
+}
+
+func TestStubLibrariesMultipleApexViolation(t *testing.T) {
+	testCases := []struct {
+		desc          string
+		hasStubs      bool
+		apexAvailable string
+		expectedError string
+	}{
+		{
+			desc:          "non-stub library can have multiple apex_available",
+			hasStubs:      false,
+			apexAvailable: `["myapex", "otherapex"]`,
+		},
+		{
+			desc:          "stub library should not be available to anyapex",
+			hasStubs:      true,
+			apexAvailable: `["//apex_available:anyapex"]`,
+			expectedError: "Stub libraries should have a single apex_available.*anyapex",
+		},
+		{
+			desc:          "stub library should not be available to multiple apexes",
+			hasStubs:      true,
+			apexAvailable: `["myapex", "otherapex"]`,
+			expectedError: "Stub libraries should have a single apex_available.*myapex.*otherapex",
+		},
+		{
+			desc:          "stub library can be available to a core apex and a test apex",
+			hasStubs:      true,
+			apexAvailable: `["myapex", "test_myapex"]`,
+		},
+	}
+	bpTemplate := `
+		cc_library {
+			name: "libfoo",
+			%v
+			apex_available: %v,
+		}
+		apex {
+			name: "myapex",
+			key: "apex.key",
+			updatable: false,
+			native_shared_libs: ["libfoo"],
+		}
+		apex {
+			name: "otherapex",
+			key: "apex.key",
+			updatable: false,
+		}
+		apex_test {
+			name: "test_myapex",
+			key: "apex.key",
+			updatable: false,
+			native_shared_libs: ["libfoo"],
+		}
+		apex_key {
+			name: "apex.key",
+		}
+	`
+	for _, tc := range testCases {
+		stubs := ""
+		if tc.hasStubs {
+			stubs = `stubs: {symbol_file: "libfoo.map.txt"},`
+		}
+		bp := fmt.Sprintf(bpTemplate, stubs, tc.apexAvailable)
+		mockFsFixturePreparer := android.FixtureModifyMockFS(func(fs android.MockFS) {
+			fs["system/sepolicy/apex/test_myapex-file_contexts"] = nil
+		})
+		if tc.expectedError == "" {
+			testApex(t, bp, mockFsFixturePreparer)
+		} else {
+			testApexError(t, tc.expectedError, bp, mockFsFixturePreparer)
+		}
+	}
 }
