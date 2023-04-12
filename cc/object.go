@@ -226,7 +226,7 @@ func objectBp2Build(ctx android.TopDownMutatorContext, m *Module) {
 		Bzl_load_location: "//build/bazel/rules/cc:cc_object.bzl",
 	}
 
-	tags := android.ApexAvailableTags(m)
+	tags := android.ApexAvailableTagsWithoutTestApexes(ctx, m)
 
 	ctx.CreateBazelTargetModule(props, android.CommonAttributes{
 		Name: m.Name(),

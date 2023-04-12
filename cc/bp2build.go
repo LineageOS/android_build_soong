@@ -268,7 +268,7 @@ func bp2buildParseStaticOrSharedProps(ctx android.BazelConversionPathContext, mo
 	attrs.Srcs_c = partitionedSrcs[cSrcPartition]
 	attrs.Srcs_as = partitionedSrcs[asSrcPartition]
 
-	attrs.Apex_available = android.ConvertApexAvailableToTags(apexAvailable)
+	attrs.Apex_available = android.ConvertApexAvailableToTagsWithoutTestApexes(ctx.(android.TopDownMutatorContext), apexAvailable)
 
 	if !partitionedSrcs[protoSrcPartition].IsEmpty() {
 		// TODO(b/208815215): determine whether this is used and add support if necessary
@@ -912,7 +912,7 @@ func bp2buildCcAidlLibrary(
 			return false
 		})
 
-		apexAvailableTags := android.ApexAvailableTags(ctx.Module())
+		apexAvailableTags := android.ApexAvailableTagsWithoutTestApexes(ctx.(android.TopDownMutatorContext), ctx.Module())
 		sdkAttrs := bp2BuildParseSdkAttributes(m)
 
 		if !aidlSrcs.IsEmpty() {

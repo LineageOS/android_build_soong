@@ -389,7 +389,7 @@ func prebuiltLibraryStaticBp2Build(ctx android.TopDownMutatorContext, module *Mo
 		name += "_bp2build_cc_library_static"
 	}
 
-	tags := android.ApexAvailableTags(module)
+	tags := android.ApexAvailableTagsWithoutTestApexes(ctx, module)
 	ctx.CreateBazelTargetModuleWithRestrictions(props, android.CommonAttributes{Name: name, Tags: tags}, attrs, prebuiltAttrs.Enabled)
 
 	_true := true
@@ -420,7 +420,7 @@ func prebuiltLibrarySharedBp2Build(ctx android.TopDownMutatorContext, module *Mo
 	}
 
 	name := android.RemoveOptionalPrebuiltPrefix(module.Name())
-	tags := android.ApexAvailableTags(module)
+	tags := android.ApexAvailableTagsWithoutTestApexes(ctx, module)
 	ctx.CreateBazelTargetModuleWithRestrictions(props, android.CommonAttributes{Name: name, Tags: tags}, attrs, prebuiltAttrs.Enabled)
 }
 
@@ -650,7 +650,7 @@ func prebuiltObjectBp2Build(ctx android.TopDownMutatorContext, module *Module) {
 	}
 
 	name := android.RemoveOptionalPrebuiltPrefix(module.Name())
-	tags := android.ApexAvailableTags(module)
+	tags := android.ApexAvailableTagsWithoutTestApexes(ctx, module)
 	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: name, Tags: tags}, attrs)
 }
 
@@ -813,7 +813,7 @@ func prebuiltBinaryBp2Build(ctx android.TopDownMutatorContext, module *Module) {
 	}
 
 	name := android.RemoveOptionalPrebuiltPrefix(module.Name())
-	tags := android.ApexAvailableTags(module)
+	tags := android.ApexAvailableTagsWithoutTestApexes(ctx, module)
 	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: name, Tags: tags}, attrs)
 }
 

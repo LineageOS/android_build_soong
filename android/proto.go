@@ -234,7 +234,7 @@ func Bp2buildProtoProperties(ctx Bp2buildMutatorContext, m *ModuleBase, srcs baz
 			}
 		}
 
-		tags := ApexAvailableTags(ctx.Module())
+		tags := ApexAvailableTagsWithoutTestApexes(ctx.(TopDownMutatorContext), ctx.Module())
 
 		ctx.CreateBazelTargetModule(
 			bazel.BazelTargetModuleProperties{Rule_class: "proto_library"},
