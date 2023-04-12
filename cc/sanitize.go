@@ -64,12 +64,13 @@ var (
 
 	cfiBlocklistPath     = "external/compiler-rt/lib/cfi"
 	cfiBlocklistFilename = "cfi_blocklist.txt"
-	cfiCflags            = []string{"-flto", "-fsanitize-cfi-cross-dso",
+	cfiCrossDsoFlag      = "-fsanitize-cfi-cross-dso"
+	cfiCflags            = []string{"-flto", cfiCrossDsoFlag,
 		"-fsanitize-ignorelist=" + cfiBlocklistPath + "/" + cfiBlocklistFilename}
 	// -flto and -fvisibility are required by clang when -fsanitize=cfi is
 	// used, but have no effect on assembly files
 	cfiAsflags = []string{"-flto", "-fvisibility=default"}
-	cfiLdflags = []string{"-flto", "-fsanitize-cfi-cross-dso", "-fsanitize=cfi",
+	cfiLdflags = []string{"-flto", cfiCrossDsoFlag, "-fsanitize=cfi",
 		"-Wl,-plugin-opt,O1"}
 	cfiExportsMapPath      = "build/soong/cc/config"
 	cfiExportsMapFilename  = "cfi_exports.map"
@@ -393,11 +394,13 @@ func init() {
 	exportedVars.ExportStringList("DeviceOnlySanitizeFlags", deviceOnlySanitizeFlags)
 
 	// Leave out "-flto" from the slices exported to bazel, as we will use the
-	// dedicated LTO feature for this
-	exportedVars.ExportStringList("CfiCFlags", cfiCflags[1:])
+	// dedicated LTO feature for this. For C Flags and Linker Flags, also leave
+	// out the cross DSO flag which will be added separately by transitions.
+	exportedVars.ExportStringList("CfiCFlags", cfiCflags[2:])
+	exportedVars.ExportStringList("CfiLdFlags", cfiLdflags[2:])
 	exportedVars.ExportStringList("CfiAsFlags", cfiAsflags[1:])
-	exportedVars.ExportStringList("CfiLdFlags", cfiLdflags[1:])
 
+	exportedVars.ExportString("CfiCrossDsoFlag", cfiCrossDsoFlag)
 	exportedVars.ExportString("CfiBlocklistPath", cfiBlocklistPath)
 	exportedVars.ExportString("CfiBlocklistFilename", cfiBlocklistFilename)
 	exportedVars.ExportString("CfiExportsMapPath", cfiExportsMapPath)
