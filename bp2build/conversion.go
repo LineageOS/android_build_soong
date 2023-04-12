@@ -1,7 +1,9 @@
 package bp2build
 
 import (
+	"android/soong/starlark_fmt"
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"strings"
 
@@ -62,6 +64,7 @@ func soongInjectionFiles(cfg android.Config, metrics CodegenMetrics) ([]BazelFil
 	// TODO(b/269691302)  value of apiLevelsContent is product variable dependent and should be avoided for soong injection
 	files = append(files, newFile("api_levels", "api_levels.json", string(apiLevelsContent)))
 	files = append(files, newFile("api_levels", "api_levels.bzl", android.StarlarkApiLevelConfigs(cfg)))
+	files = append(files, newFile("api_levels", "platform_versions.bzl", platformVersionContents(cfg)))
 
 	files = append(files, newFile("allowlists", GeneratedBuildFileName, ""))
 	files = append(files, newFile("allowlists", "env.bzl", android.EnvironmentVarsFile(cfg)))
@@ -70,6 +73,26 @@ func soongInjectionFiles(cfg android.Config, metrics CodegenMetrics) ([]BazelFil
 	files = append(files, newFile("allowlists", "mixed_build_staging_allowlist.txt", strings.Join(android.GetBazelEnabledModules(android.BazelStagingMode), "\n")+"\n"))
 
 	return files, nil
+}
+
+func platformVersionContents(cfg android.Config) string {
+	// Despite these coming from cfg.productVariables, they are actually hardcoded in global
+	// makefiles, not set in individual product config makesfiles, so they're safe to just export
+	// and load() directly.
+
+	platformVersionActiveCodenames := make([]string, 0, len(cfg.PlatformVersionActiveCodenames()))
+	for _, codename := range cfg.PlatformVersionActiveCodenames() {
+		platformVersionActiveCodenames = append(platformVersionActiveCodenames, fmt.Sprintf("%q", codename))
+	}
+
+	return fmt.Sprintf(`
+platform_versions = struct(
+    platform_sdk_final = %s,
+    platform_sdk_version = %d,
+    platform_sdk_codename = %q,
+    platform_version_active_codenames = [%s],
+)
+`, starlark_fmt.PrintBool(cfg.PlatformSdkFinal()), cfg.PlatformSdkVersion().FinalInt(), cfg.PlatformSdkCodename(), strings.Join(platformVersionActiveCodenames, ", "))
 }
 
 func CreateBazelFiles(
