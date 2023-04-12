@@ -462,6 +462,14 @@ const (
 	AvailableToGkiApex  = "com.android.gki.*"
 )
 
+var (
+	AvailableToRecognziedWildcards = []string{
+		AvailableToPlatform,
+		AvailableToAnyApex,
+		AvailableToGkiApex,
+	}
+)
+
 // CheckAvailableForApex provides the default algorithm for checking the apex availability. When the
 // availability is empty, it defaults to ["//apex_available:platform"] which means "available to the
 // platform but not available to any APEX". When the list is not empty, `what` is matched against
@@ -925,4 +933,10 @@ func CheckMinSdkVersion(ctx ModuleContext, minSdkVersion ApiLevel, walk WalkPayl
 		}
 		return true
 	})
+}
+
+// Implemented by apexBundle.
+type ApexTestInterface interface {
+	// Return true if the apex bundle is an apex_test
+	IsTestApex() bool
 }
