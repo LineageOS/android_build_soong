@@ -420,12 +420,21 @@ func saveToBazelConfigFile(config *productVariables, outDir string) error {
 		fmt.Sprintf(`_arch_variant_product_var_constraints = %s`, archVariantProductVariablesJson),
 		"\n", `
 product_vars = _product_vars
+
+# TODO(b/269577299) Remove these when everything switches over to loading them from product_variable_constants.bzl
 product_var_constraints = _product_var_constraints
 arch_variant_product_var_constraints = _arch_variant_product_var_constraints
 `,
 	}
 	err = pathtools.WriteFileIfChanged(filepath.Join(dir, "product_variables.bzl"),
 		[]byte(strings.Join(bzl, "\n")), 0644)
+	if err != nil {
+		return fmt.Errorf("Could not write .bzl config file %s", err)
+	}
+	err = pathtools.WriteFileIfChanged(filepath.Join(dir, "product_variable_constants.bzl"), []byte(fmt.Sprintf(`
+product_var_constraints = %s
+arch_variant_product_var_constraints = %s
+`, nonArchVariantProductVariablesJson, archVariantProductVariablesJson)), 0644)
 	if err != nil {
 		return fmt.Errorf("Could not write .bzl config file %s", err)
 	}
