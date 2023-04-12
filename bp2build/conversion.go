@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"android/soong/android"
@@ -87,14 +88,19 @@ func platformVersionContents(cfg android.Config) string {
 		platformVersionActiveCodenames = append(platformVersionActiveCodenames, fmt.Sprintf("%q", codename))
 	}
 
+	platformSdkVersion := "None"
+	if cfg.RawPlatformSdkVersion() != nil {
+		platformSdkVersion = strconv.Itoa(*cfg.RawPlatformSdkVersion())
+	}
+
 	return fmt.Sprintf(`
 platform_versions = struct(
     platform_sdk_final = %s,
-    platform_sdk_version = %d,
+    platform_sdk_version = %s,
     platform_sdk_codename = %q,
     platform_version_active_codenames = [%s],
 )
-`, starlark_fmt.PrintBool(cfg.PlatformSdkFinal()), cfg.PlatformSdkVersion().FinalInt(), cfg.PlatformSdkCodename(), strings.Join(platformVersionActiveCodenames, ", "))
+`, starlark_fmt.PrintBool(cfg.PlatformSdkFinal()), platformSdkVersion, cfg.PlatformSdkCodename(), strings.Join(platformVersionActiveCodenames, ", "))
 }
 
 func CreateBazelFiles(
