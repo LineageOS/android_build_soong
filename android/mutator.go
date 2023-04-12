@@ -800,6 +800,13 @@ func ConvertApexAvailableToTags(apexAvailable []string) []string {
 	return result
 }
 
+// ConvertApexAvailableToTagsWithoutTestApexes converts a list of apex names to a list of bazel tags
+// This function drops any test apexes from the input.
+func ConvertApexAvailableToTagsWithoutTestApexes(ctx BaseModuleContext, apexAvailable []string) []string {
+	noTestApexes := removeTestApexes(ctx, apexAvailable)
+	return ConvertApexAvailableToTags(noTestApexes)
+}
+
 func (t *topDownMutatorContext) createBazelTargetModule(
 	bazelProps bazel.BazelTargetModuleProperties,
 	commonAttrs CommonAttributes,
