@@ -1064,6 +1064,10 @@ func (a *apexBundle) ApexInfoMutator(mctx android.TopDownMutatorContext) {
 
 	apexVariationName := mctx.ModuleName() // could be com.android.foo
 	a.properties.ApexVariationName = apexVariationName
+	testApexes := []string{}
+	if a.testApex {
+		testApexes = []string{apexVariationName}
+	}
 	apexInfo := android.ApexInfo{
 		ApexVariationName: apexVariationName,
 		MinSdkVersion:     minSdkVersion,
@@ -1072,6 +1076,7 @@ func (a *apexBundle) ApexInfoMutator(mctx android.TopDownMutatorContext) {
 		InApexVariants:    []string{apexVariationName},
 		InApexModules:     []string{a.Name()}, // could be com.mycompany.android.foo
 		ApexContents:      []*android.ApexContents{apexContents},
+		TestApexes:        testApexes,
 	}
 	mctx.WalkDeps(func(child, parent android.Module) bool {
 		if !continueApexDepsWalk(child, parent) {
