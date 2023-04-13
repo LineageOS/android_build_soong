@@ -1565,6 +1565,9 @@ func (a *AndroidApp) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 
 		appAttrs.bazelAapt = &bazelAapt{Manifest: aapt.Manifest}
 		appAttrs.Deps = bazel.MakeSingleLabelListAttribute(bazel.Label{Label: ":" + ktName})
+		appAttrs.javaCommonAttributes = &javaCommonAttributes{
+			Sdk_version: commonAttrs.Sdk_version,
+		}
 	}
 
 	ctx.CreateBazelTargetModule(

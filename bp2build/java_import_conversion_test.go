@@ -49,8 +49,9 @@ java_import {
 				"jars": `["import.jar"]`,
 			}),
 			MakeBazelTarget("java_library", "example_import-neverlink", AttrNameToString{
-				"exports":   `[":example_import"]`,
-				"neverlink": `True`,
+				"exports":     `[":example_import"]`,
+				"neverlink":   `True`,
+				"sdk_version": `"none"`,
 			}),
 		}})
 }
@@ -86,8 +87,9 @@ java_import {
     })`,
 			}),
 			MakeBazelTarget("java_library", "example_import-neverlink", AttrNameToString{
-				"exports":   `[":example_import"]`,
-				"neverlink": `True`,
+				"exports":     `[":example_import"]`,
+				"neverlink":   `True`,
+				"sdk_version": `"none"`,
 			}),
 		}})
 }
@@ -112,8 +114,9 @@ java_import_host {
 				"jars": `["import.jar"]`,
 			}),
 			MakeBazelTarget("java_library", "example_import-neverlink", AttrNameToString{
-				"exports":   `[":example_import"]`,
-				"neverlink": `True`,
+				"exports":     `[":example_import"]`,
+				"neverlink":   `True`,
+				"sdk_version": `"none"`,
 			}),
 		}})
 }
