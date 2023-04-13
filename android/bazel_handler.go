@@ -960,9 +960,13 @@ func indent(original string) string {
 // request type.
 func (context *mixedBuildBazelContext) cqueryStarlarkFileContents() []byte {
 	requestTypeToCqueryIdEntries := map[cqueryRequest][]string{}
+	requestTypes := []cqueryRequest{}
 	for _, val := range context.requests {
 		cqueryId := getCqueryId(val)
 		mapEntryString := fmt.Sprintf("%q : True", cqueryId)
+		if _, seenKey := requestTypeToCqueryIdEntries[val.requestType]; !seenKey {
+			requestTypes = append(requestTypes, val.requestType)
+		}
 		requestTypeToCqueryIdEntries[val.requestType] =
 			append(requestTypeToCqueryIdEntries[val.requestType], mapEntryString)
 	}
@@ -984,7 +988,7 @@ def %s(target, id_string):
     return id_string + ">>" + %s(target, id_string)
 `
 
-	for requestType := range requestTypeToCqueryIdEntries {
+	for _, requestType := range requestTypes {
 		labelMapName := requestType.Name() + "_Labels"
 		functionName := requestType.Name() + "_Fn"
 		labelRegistrationMapSection += fmt.Sprintf(mapDeclarationFormatString,
