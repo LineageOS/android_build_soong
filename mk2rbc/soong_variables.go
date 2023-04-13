@@ -67,7 +67,11 @@ func (ctx context) NewSoongVariable(name, typeString string) {
 	var valueType starlarkType
 	switch typeString {
 	case "bool":
-		valueType = starlarkTypeBool
+		// TODO: We run into several issues later on if we type this as a bool:
+		//    - We still assign bool-typed variables to strings
+		//    - When emitting the final results as make code, some bool's false values have to
+		//      be an empty string, and some have to be false in order to match the make variables.
+		valueType = starlarkTypeString
 	case "csv":
 		// Only PLATFORM_VERSION_ALL_CODENAMES, and it's a list
 		valueType = starlarkTypeList
