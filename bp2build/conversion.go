@@ -1,8 +1,11 @@
 package bp2build
 
 import (
+	"android/soong/starlark_fmt"
 	"encoding/json"
+	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"android/soong/android"
@@ -48,7 +51,9 @@ func soongInjectionFiles(cfg android.Config, metrics CodegenMetrics) ([]BazelFil
 	if err != nil {
 		panic(err)
 	}
+	files = append(files, newFile("metrics", GeneratedBuildFileName, "")) // Creates a //metrics package.
 	files = append(files, newFile("metrics", "converted_modules_path_map.json", string(convertedModulePathMap)))
+	files = append(files, newFile("metrics", "converted_modules_path_map.bzl", "modules = "+strings.ReplaceAll(string(convertedModulePathMap), "\\", "\\\\")))
 
 	files = append(files, newFile("product_config", "soong_config_variables.bzl", cfg.Bp2buildSoongConfigDefinitions.String()))
 
@@ -62,6 +67,7 @@ func soongInjectionFiles(cfg android.Config, metrics CodegenMetrics) ([]BazelFil
 	// TODO(b/269691302)  value of apiLevelsContent is product variable dependent and should be avoided for soong injection
 	files = append(files, newFile("api_levels", "api_levels.json", string(apiLevelsContent)))
 	files = append(files, newFile("api_levels", "api_levels.bzl", android.StarlarkApiLevelConfigs(cfg)))
+	files = append(files, newFile("api_levels", "platform_versions.bzl", platformVersionContents(cfg)))
 
 	files = append(files, newFile("allowlists", GeneratedBuildFileName, ""))
 	files = append(files, newFile("allowlists", "env.bzl", android.EnvironmentVarsFile(cfg)))
@@ -70,6 +76,31 @@ func soongInjectionFiles(cfg android.Config, metrics CodegenMetrics) ([]BazelFil
 	files = append(files, newFile("allowlists", "mixed_build_staging_allowlist.txt", strings.Join(android.GetBazelEnabledModules(android.BazelStagingMode), "\n")+"\n"))
 
 	return files, nil
+}
+
+func platformVersionContents(cfg android.Config) string {
+	// Despite these coming from cfg.productVariables, they are actually hardcoded in global
+	// makefiles, not set in individual product config makesfiles, so they're safe to just export
+	// and load() directly.
+
+	platformVersionActiveCodenames := make([]string, 0, len(cfg.PlatformVersionActiveCodenames()))
+	for _, codename := range cfg.PlatformVersionActiveCodenames() {
+		platformVersionActiveCodenames = append(platformVersionActiveCodenames, fmt.Sprintf("%q", codename))
+	}
+
+	platformSdkVersion := "None"
+	if cfg.RawPlatformSdkVersion() != nil {
+		platformSdkVersion = strconv.Itoa(*cfg.RawPlatformSdkVersion())
+	}
+
+	return fmt.Sprintf(`
+platform_versions = struct(
+    platform_sdk_final = %s,
+    platform_sdk_version = %s,
+    platform_sdk_codename = %q,
+    platform_version_active_codenames = [%s],
+)
+`, starlark_fmt.PrintBool(cfg.PlatformSdkFinal()), platformSdkVersion, cfg.PlatformSdkCodename(), strings.Join(platformVersionActiveCodenames, ", "))
 }
 
 func CreateBazelFiles(
