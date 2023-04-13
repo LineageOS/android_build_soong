@@ -21,6 +21,8 @@ import (
 	"android/soong/android"
 	"android/soong/bazel"
 	"android/soong/dexpreopt"
+
+	"github.com/google/blueprint/proptools"
 )
 
 type DeviceHostConverter struct {
@@ -191,7 +193,7 @@ func (d *DeviceHostConverter) AndroidMk() android.AndroidMkData {
 }
 
 type bazelDeviceHostConverterAttributes struct {
-	Deps bazel.LabelListAttribute
+	Exports bazel.LabelListAttribute
 }
 
 func (d *DeviceHostConverter) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
@@ -202,13 +204,15 @@ func (d *DeviceHostConverter) ConvertWithBp2build(ctx android.TopDownMutatorCont
 		},
 		android.CommonAttributes{Name: d.Name()},
 		&bazelDeviceHostConverterAttributes{
-			Deps: bazel.MakeLabelListAttribute(android.BazelLabelForModuleDeps(ctx, d.properties.Libs)),
+			Exports: bazel.MakeLabelListAttribute(android.BazelLabelForModuleDeps(ctx, d.properties.Libs)),
 		},
 	)
-	neverlinkProp := true
 	neverLinkAttrs := &javaLibraryAttributes{
 		Exports:   bazel.MakeSingleLabelListAttribute(bazel.Label{Label: ":" + d.Name()}),
-		Neverlink: bazel.BoolAttribute{Value: &neverlinkProp},
+		Neverlink: bazel.BoolAttribute{Value: proptools.BoolPtr(true)},
+		javaCommonAttributes: &javaCommonAttributes{
+			Sdk_version: bazel.StringAttribute{Value: proptools.StringPtr("none")},
+		},
 	}
 	ctx.CreateBazelTargetModule(
 		javaLibraryBazelTargetModuleProperties(),
