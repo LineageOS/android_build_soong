@@ -373,8 +373,9 @@ var (
 		"system/tools/xsdc/utils":                                Bp2BuildDefaultTrueRecursively,
 		"system/unwinding/libunwindstack":                        Bp2BuildDefaultTrueRecursively,
 
-		"tools/apksig":   Bp2BuildDefaultTrue,
-		"tools/metalava": Bp2BuildDefaultTrue,
+		"tools/apksig":                               Bp2BuildDefaultTrue,
+		"tools/external_updater":                     Bp2BuildDefaultTrueRecursively,
+		"tools/metalava":                             Bp2BuildDefaultTrue,
 		"tools/platform-compat/java/android/compat":  Bp2BuildDefaultTrueRecursively,
 		"tools/tradefederation/prebuilts/filegroups": Bp2BuildDefaultTrueRecursively,
 	}
