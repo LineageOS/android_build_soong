@@ -172,10 +172,13 @@ func TestJavaLibraryJavaVersion(t *testing.T) {
 }`,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("java_library", "java-lib-1", AttrNameToString{
-				"srcs":      `["a.java"]`,
-				"javacopts": `["-source 11 -target 11"]`,
+				"srcs":         `["a.java"]`,
+				"java_version": `"11"`,
 			}),
-			MakeNeverlinkDuplicateTarget("java_library", "java-lib-1"),
+			MakeNeverlinkDuplicateTargetWithAttrs(
+				"java_library",
+				"java-lib-1",
+				AttrNameToString{"java_version": `"11"`}),
 		},
 	})
 }
