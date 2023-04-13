@@ -1015,9 +1015,10 @@ type bazelAndroidLibrary struct {
 }
 
 type bazelAndroidLibraryImport struct {
-	Aar     bazel.Label
-	Deps    bazel.LabelListAttribute
-	Exports bazel.LabelListAttribute
+	Aar         bazel.Label
+	Deps        bazel.LabelListAttribute
+	Exports     bazel.LabelListAttribute
+	Sdk_version bazel.StringAttribute
 }
 
 func (a *aapt) convertAaptAttrsWithBp2Build(ctx android.TopDownMutatorContext) *bazelAapt {
@@ -1059,9 +1060,10 @@ func (a *AARImport) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 		},
 		android.CommonAttributes{Name: name},
 		&bazelAndroidLibraryImport{
-			Aar:     aars.Includes[0],
-			Deps:    bazel.MakeLabelListAttribute(deps),
-			Exports: bazel.MakeLabelListAttribute(exports),
+			Aar:         aars.Includes[0],
+			Deps:        bazel.MakeLabelListAttribute(deps),
+			Exports:     bazel.MakeLabelListAttribute(exports),
+			Sdk_version: bazel.StringAttribute{Value: a.properties.Sdk_version},
 		},
 	)
 
@@ -1073,6 +1075,9 @@ func (a *AARImport) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 			javaLibraryAttributes: &javaLibraryAttributes{
 				Neverlink: bazel.BoolAttribute{Value: &neverlink},
 				Exports:   bazel.MakeSingleLabelListAttribute(bazel.Label{Label: ":" + name}),
+				javaCommonAttributes: &javaCommonAttributes{
+					Sdk_version: bazel.StringAttribute{Value: a.properties.Sdk_version},
+				},
 			},
 		},
 	)
@@ -1119,6 +1124,10 @@ func (a *AndroidLibrary) ConvertWithBp2build(ctx android.TopDownMutatorContext) 
 			javaLibraryAttributes: &javaLibraryAttributes{
 				Neverlink: bazel.BoolAttribute{Value: &neverlink},
 				Exports:   bazel.MakeSingleLabelListAttribute(bazel.Label{Label: ":" + name}),
+				javaCommonAttributes: &javaCommonAttributes{
+					Sdk_version:  bazel.StringAttribute{Value: a.deviceProperties.Sdk_version},
+					Java_version: bazel.StringAttribute{Value: a.properties.Java_version},
+				},
 			},
 		},
 	)
