@@ -67,7 +67,7 @@ java_library {
         "a.java",
         "b.java",
     ]`,
-				"javacopts": `["-source 1.7 -target 1.7"]`,
+				"java_version": `"7"`,
 			}),
 		},
 	})

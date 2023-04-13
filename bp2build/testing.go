@@ -642,10 +642,14 @@ func makeCcStubSuiteTargets(name string, attrs AttrNameToString) string {
 }
 
 func MakeNeverlinkDuplicateTarget(moduleType string, name string) string {
-	return MakeBazelTarget(moduleType, name+"-neverlink", AttrNameToString{
-		"neverlink": `True`,
-		"exports":   `[":` + name + `"]`,
-	})
+	return MakeNeverlinkDuplicateTargetWithAttrs(moduleType, name, AttrNameToString{})
+}
+
+func MakeNeverlinkDuplicateTargetWithAttrs(moduleType string, name string, extraAttrs AttrNameToString) string {
+	attrs := extraAttrs
+	attrs["neverlink"] = `True`
+	attrs["exports"] = `[":` + name + `"]`
+	return MakeBazelTarget(moduleType, name+"-neverlink", attrs)
 }
 
 func getTargetName(targetContent string) string {
