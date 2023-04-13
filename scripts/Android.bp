@@ -189,6 +189,7 @@ python_binary_host {
     libs: [
         "linker_config_proto",
     ],
+    visibility: ["//system/linkerconfig"],
 }
 
 python_test_host {
