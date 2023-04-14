@@ -616,6 +616,10 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 	if (ctx.Arch().ArchType != android.Arm64 && ctx.Arch().ArchType != android.Riscv64) || !ctx.toolchain().Bionic() {
 		s.Scs = nil
 	}
+	// ...but temporarily globally disabled on riscv64 (http://b/277909695).
+	if ctx.Arch().ArchType == android.Riscv64 {
+		s.Scs = nil
+	}
 
 	// Memtag_heap is only implemented on AArch64.
 	// Memtag ABI is Android specific for now, so disable for host.
