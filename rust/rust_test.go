@@ -258,6 +258,7 @@ func TestDepsTracking(t *testing.T) {
 	`)
 	module := ctx.ModuleForTests("fizz-buzz", "linux_glibc_x86_64").Module().(*Module)
 	rustc := ctx.ModuleForTests("librlib", "linux_glibc_x86_64_rlib_rlib-std").Rule("rustc")
+	rustLink := ctx.ModuleForTests("fizz-buzz", "linux_glibc_x86_64").Rule("rustLink")
 
 	// Since dependencies are added to AndroidMk* properties, we can check these to see if they've been picked up.
 	if !android.InList("libdylib", module.Properties.AndroidMkDylibs) {
@@ -284,16 +285,16 @@ func TestDepsTracking(t *testing.T) {
 		t.Errorf("-lstatic flag not being passed to rustc for static library %#v", rustc.Args["rustcFlags"])
 	}
 
-	if !strings.Contains(rustc.Args["linkFlags"], "cc_stubs_dep.so") {
-		t.Errorf("shared cc_library not being passed to rustc linkFlags %#v", rustc.Args["linkFlags"])
+	if !strings.Contains(rustLink.Args["linkFlags"], "cc_stubs_dep.so") {
+		t.Errorf("shared cc_library not being passed to rustc linkFlags %#v", rustLink.Args["linkFlags"])
 	}
 
-	if !android.SuffixInList(rustc.OrderOnly.Strings(), "cc_stubs_dep.so") {
-		t.Errorf("shared cc dep not being passed as order-only to rustc %#v", rustc.OrderOnly.Strings())
+	if !android.SuffixInList(rustLink.OrderOnly.Strings(), "cc_stubs_dep.so") {
+		t.Errorf("shared cc dep not being passed as order-only to rustc %#v", rustLink.OrderOnly.Strings())
 	}
 
-	if !android.SuffixInList(rustc.Implicits.Strings(), "cc_stubs_dep.so.toc") {
-		t.Errorf("shared cc dep TOC not being passed as implicit to rustc %#v", rustc.Implicits.Strings())
+	if !android.SuffixInList(rustLink.Implicits.Strings(), "cc_stubs_dep.so.toc") {
+		t.Errorf("shared cc dep TOC not being passed as implicit to rustc %#v", rustLink.Implicits.Strings())
 	}
 }
 
