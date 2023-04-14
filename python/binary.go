@@ -37,7 +37,7 @@ type BinaryProperties struct {
 	// this file must also be listed in srcs.
 	// If left unspecified, module name is used instead.
 	// If name doesn’t match any filename in srcs, main must be specified.
-	Main *string `android:"arch_variant"`
+	Main *string
 
 	// set the name of the output binary.
 	Stem *string `android:"arch_variant"`
