@@ -1175,6 +1175,8 @@ func TestAllowlistingBp2buildTargetsWithConfig(t *testing.T) {
 		bp2buildConfig             allowlists.Bp2BuildConfig
 		checkDir                   string
 		fs                         map[string]string
+		forceEnabledModules        []string
+		expectedErrorMessages      []string
 	}{
 		{
 			description:                "test bp2build config package and subpackages config",
@@ -1237,6 +1239,24 @@ filegroup { name: "opt-out-h", bazel_module: { bp2build_available: false } }
 `,
 			},
 		},
+		{
+			description:                "test force-enabled errors out",
+			moduleTypeUnderTest:        "filegroup",
+			moduleTypeUnderTestFactory: android.FileGroupFactory,
+			expectedCount: map[string]int{
+				"migrated":     0,
+				"not_migrated": 0,
+			},
+			bp2buildConfig: allowlists.Bp2BuildConfig{
+				"migrated/but_not_really": allowlists.Bp2BuildDefaultFalse,
+				"not_migrated":            allowlists.Bp2BuildDefaultFalse,
+			},
+			fs: map[string]string{
+				"migrated/Android.bp": `filegroup { name: "a" }`,
+			},
+			forceEnabledModules:   []string{"a"},
+			expectedErrorMessages: []string{"Force Enabled Module a not converted"},
+		},
 	}
 
 	dir := "."
@@ -1252,6 +1272,7 @@ filegroup { name: "opt-out-h", bazel_module: { bp2build_available: false } }
 			fs[f] = []byte(content)
 		}
 		config := android.TestConfig(buildDir, nil, "", fs)
+		config.AddForceEnabledModules(testCase.forceEnabledModules)
 		ctx := android.NewTestContext(config)
 		ctx.RegisterModuleType(testCase.moduleTypeUnderTest, testCase.moduleTypeUnderTestFactory)
 		allowlist := android.NewBp2BuildAllowlist().SetDefaultConfig(testCase.bp2buildConfig)
@@ -1268,7 +1289,7 @@ filegroup { name: "opt-out-h", bazel_module: { bp2build_available: false } }
 		// For each directory, test that the expected number of generated targets is correct.
 		for dir, expectedCount := range testCase.expectedCount {
 			bazelTargets, err := generateBazelTargetsForDir(codegenCtx, dir)
-			android.FailIfErrored(t, err)
+			android.CheckErrorsAgainstExpectations(t, err, testCase.expectedErrorMessages)
 			if actualCount := len(bazelTargets); actualCount != expectedCount {
 				t.Fatalf(
 					"%s: Expected %d bazel target for %s package, got %d",
