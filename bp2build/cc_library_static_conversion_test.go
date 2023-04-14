@@ -2032,3 +2032,44 @@ cc_library_static {
 		},
 	})
 }
+
+func TestCcLibraryStaticHiddenVisibilityConvertedToFeature(t *testing.T) {
+	runCcLibraryStaticTestCase(t, Bp2buildTestCase{
+		Description: "cc_library_static changes hidden visibility flag to feature",
+		Blueprint: `
+cc_library_static {
+	name: "foo",
+	cflags: ["-fvisibility=hidden"],
+}`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_library_static", "foo", AttrNameToString{
+				"features":       `["visibility_hidden"]`,
+				"local_includes": `["."]`,
+			}),
+		},
+	})
+}
+
+func TestCcLibraryStaticHiddenVisibilityConvertedToFeatureOsSpecific(t *testing.T) {
+	runCcLibraryStaticTestCase(t, Bp2buildTestCase{
+		Description: "cc_library_static changes hidden visibility flag to feature for specific os",
+		Blueprint: `
+cc_library_static {
+	name: "foo",
+	target: {
+		android: {
+			cflags: ["-fvisibility=hidden"],
+		},
+	},
+}`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_library_static", "foo", AttrNameToString{
+				"features": `select({
+        "//build/bazel/platforms/os:android": ["visibility_hidden"],
+        "//conditions:default": [],
+    })`,
+				"local_includes": `["."]`,
+			}),
+		},
+	})
+}
