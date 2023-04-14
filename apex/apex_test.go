@@ -7515,6 +7515,7 @@ func testNoUpdatableJarsInBootImage(t *testing.T, errmsg string, preparer androi
 				"some-updatable-apex",
 			],
 			permitted_packages: ["some.updatable.apex.lib"],
+			min_sdk_version: "33",
 		}
 
 		java_library {
@@ -7554,6 +7555,7 @@ func testNoUpdatableJarsInBootImage(t *testing.T, errmsg string, preparer androi
 			],
 			hostdex: true,
 			compile_dex: true,
+			min_sdk_version: "33",
 		}
 
 		apex {
@@ -7561,7 +7563,7 @@ func testNoUpdatableJarsInBootImage(t *testing.T, errmsg string, preparer androi
 			key: "some-updatable-apex.key",
 			java_libs: ["some-updatable-apex-lib"],
 			updatable: true,
-			min_sdk_version: "current",
+			min_sdk_version: "33",
 		}
 
 		apex {
@@ -7584,7 +7586,7 @@ func testNoUpdatableJarsInBootImage(t *testing.T, errmsg string, preparer androi
 			key: "com.android.art.debug.key",
 			bootclasspath_fragments: ["art-bootclasspath-fragment"],
 			updatable: true,
-			min_sdk_version: "current",
+			min_sdk_version: "33",
 		}
 
 		bootclasspath_fragment {
