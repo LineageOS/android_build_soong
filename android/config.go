@@ -592,12 +592,11 @@ func NewConfig(cmdArgs CmdArgs, availableEnv map[string]string) (Config, error) 
 	setBazelMode(cmdArgs.BazelMode, "--bazel-mode", BazelProdMode)
 	setBazelMode(cmdArgs.BazelModeStaging, "--bazel-mode-staging", BazelStagingMode)
 
-	config.BazelContext, err = NewBazelContext(config)
-	config.Bp2buildPackageConfig = GetBp2BuildAllowList()
-
 	for _, module := range strings.Split(cmdArgs.BazelForceEnabledModules, ",") {
 		config.bazelForceEnabledModules[module] = struct{}{}
 	}
+	config.BazelContext, err = NewBazelContext(config)
+	config.Bp2buildPackageConfig = GetBp2BuildAllowList()
 
 	return Config{config}, err
 }
@@ -1933,4 +1932,9 @@ func (c *config) BuildFromTextStub() bool {
 
 func (c *config) SetBuildFromTextStub(b bool) {
 	c.buildFromTextStub = b
+}
+func (c *config) AddForceEnabledModules(forceEnabled []string) {
+	for _, forceEnabledModule := range forceEnabled {
+		c.bazelForceEnabledModules[forceEnabledModule] = struct{}{}
+	}
 }
