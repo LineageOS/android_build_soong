@@ -1659,7 +1659,6 @@ func apexFileForNativeLibrary(ctx android.BaseModuleContext, ccMod *cc.Module, h
 	if ccMod.Target().NativeBridge == android.NativeBridgeEnabled {
 		dirInApex = filepath.Join(dirInApex, ccMod.Target().NativeBridgeRelativePath)
 	}
-	dirInApex = filepath.Join(dirInApex, ccMod.RelativeInstallPath())
 	if handleSpecialLibs && cc.InstallToBootstrap(ccMod.BaseModuleName(), ctx.Config()) {
 		// Special case for Bionic libs and other libs installed with them. This is to
 		// prevent those libs from being included in the search path
@@ -1672,6 +1671,10 @@ func apexFileForNativeLibrary(ctx android.BaseModuleContext, ccMod *cc.Module, h
 		// loading of them, which isn't supported.
 		dirInApex = filepath.Join(dirInApex, "bionic")
 	}
+	// This needs to go after the runtime APEX handling because otherwise we would get
+	// weird paths like lib64/rel_install_path/bionic rather than
+	// lib64/bionic/rel_install_path.
+	dirInApex = filepath.Join(dirInApex, ccMod.RelativeInstallPath())
 
 	fileToCopy := android.OutputFileForModule(ctx, ccMod, "")
 	androidMkModuleName := ccMod.BaseModuleName() + ccMod.Properties.SubName
