@@ -239,6 +239,7 @@ var (
 	protoExt                 = ".proto"
 	pyVersion2               = "PY2"
 	pyVersion3               = "PY3"
+	pyVersion2And3           = "PY2ANDPY3"
 	internalPath             = "internal"
 )
 
