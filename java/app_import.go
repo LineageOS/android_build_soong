@@ -17,8 +17,9 @@ package java
 // This file contains the module implementations for android_app_import and android_test_import.
 
 import (
-	"github.com/google/blueprint"
 	"reflect"
+
+	"github.com/google/blueprint"
 
 	"github.com/google/blueprint/proptools"
 
@@ -177,10 +178,6 @@ func MergePropertiesFromVariant(ctx android.EarlyModuleContext,
 	}
 }
 
-func (a *AndroidAppImport) isPrebuiltFrameworkRes() bool {
-	return a.Name() == "prebuilt_framework-res"
-}
-
 func (a *AndroidAppImport) DepsMutator(ctx android.BottomUpMutatorContext) {
 	cert := android.SrcIsModule(String(a.properties.Certificate))
 	if cert != "" {
@@ -197,7 +194,7 @@ func (a *AndroidAppImport) DepsMutator(ctx android.BottomUpMutatorContext) {
 		}
 	}
 
-	a.usesLibrary.deps(ctx, !a.isPrebuiltFrameworkRes())
+	a.usesLibrary.deps(ctx, true)
 }
 
 func (a *AndroidAppImport) uncompressEmbeddedJniLibs(
@@ -243,6 +240,10 @@ func (a *AndroidAppImport) InstallApkName() string {
 }
 
 func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext) {
+	if a.Name() == "prebuilt_framework-res" {
+		ctx.ModuleErrorf("prebuilt_framework-res found. This used to have special handling in soong, but was removed due to prebuilt_framework-res no longer existing. This check is to ensure it doesn't come back without readding the special handling.")
+	}
+
 	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
 	if !apexInfo.IsForPlatform() {
 		a.hideApexVariantFromMake = true
@@ -278,14 +279,7 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 	var pathFragments []string
 	relInstallPath := String(a.properties.Relative_install_path)
 
-	if a.isPrebuiltFrameworkRes() {
-		// framework-res.apk is installed as system/framework/framework-res.apk
-		if relInstallPath != "" {
-			ctx.PropertyErrorf("relative_install_path", "Relative_install_path cannot be set for framework-res")
-		}
-		pathFragments = []string{"framework"}
-		a.preprocessed = true
-	} else if Bool(a.properties.Privileged) {
+	if Bool(a.properties.Privileged) {
 		pathFragments = []string{"priv-app", relInstallPath, a.BaseModuleName()}
 	} else if ctx.InstallInTestcases() {
 		pathFragments = []string{relInstallPath, a.BaseModuleName(), ctx.DeviceConfig().DeviceArch()}
@@ -323,13 +317,7 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 
 	// Sign or align the package if package has not been preprocessed
 
-	if a.isPrebuiltFrameworkRes() {
-		a.outputFile = srcApk
-		a.certificate, certificates = processMainCert(a.ModuleBase, String(a.properties.Certificate), certificates, ctx)
-		if len(certificates) != 1 {
-			ctx.ModuleErrorf("Unexpected number of certificates were extracted: %q", certificates)
-		}
-	} else if a.preprocessed {
+	if a.preprocessed {
 		a.outputFile = srcApk
 		a.certificate = PresignedCertificate
 	} else if !Bool(a.properties.Presigned) {
