@@ -321,6 +321,9 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (convers
 					// target, each of a different rule class.
 					metrics.IncrementRuleClassCount(t.ruleClass)
 				}
+			} else if _, ok := ctx.Config().BazelModulesForceEnabledByFlag()[m.Name()]; ok && m.Name() != "" {
+				err := fmt.Errorf("Force Enabled Module %s not converted", m.Name())
+				errs = append(errs, err)
 			} else {
 				metrics.AddUnconvertedModule(moduleType)
 				return
