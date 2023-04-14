@@ -84,8 +84,12 @@ func RegisterMixedBuildsMutator(ctx RegistrationContext) {
 func mixedBuildsPrepareMutator(ctx BottomUpMutatorContext) {
 	if m := ctx.Module(); m.Enabled() {
 		if mixedBuildMod, ok := m.(MixedBuildBuildable); ok {
-			if mixedBuildMod.IsMixedBuildSupported(ctx) && MixedBuildsEnabled(ctx) {
+			queueMixedBuild := mixedBuildMod.IsMixedBuildSupported(ctx) && MixedBuildsEnabled(ctx)
+			if queueMixedBuild {
 				mixedBuildMod.QueueBazelCall(ctx)
+			} else if _, ok := ctx.Config().bazelForceEnabledModules[m.Name()]; ok {
+				// TODO(b/273910287) - remove this once --ensure_allowlist_integrity is added
+				ctx.ModuleErrorf("Attempted to force enable an unready module: %s. Did you forget to Bp2BuildDefaultTrue its directory?\n", m.Name())
 			}
 		}
 	}
