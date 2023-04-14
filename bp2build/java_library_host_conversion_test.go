@@ -63,8 +63,8 @@ java_library_host {
     })`,
 			}),
 			MakeBazelTarget("java_library", "java-lib-host-2", AttrNameToString{
-				"javacopts": `["-source 1.9 -target 1.9"]`,
-				"srcs":      `["c.java"]`,
+				"java_version": `"9"`,
+				"srcs":         `["c.java"]`,
 				"target_compatible_with": `select({
         "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
@@ -77,6 +77,7 @@ java_library_host {
         "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
     })`,
+				"java_version": `"9"`,
 			}),
 		},
 	})
