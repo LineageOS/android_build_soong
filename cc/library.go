@@ -2207,7 +2207,16 @@ func (library *libraryDecorator) toc() android.OptionalPath {
 func (library *libraryDecorator) installSymlinkToRuntimeApex(ctx ModuleContext, file android.Path) {
 	dir := library.baseInstaller.installDir(ctx)
 	dirOnDevice := android.InstallPathToOnDevicePath(ctx, dir)
-	target := "/" + filepath.Join("apex", "com.android.runtime", dir.Base(), "bionic", file.Base())
+	// libc_hwasan has relative_install_dir set, which would mess up the dir.Base() logic.
+	// hardcode here because it's the only target, if we have other targets that use this
+	// we can generalise this.
+	var target string
+	if ctx.baseModuleName() == "libc_hwasan" {
+		target = "/" + filepath.Join("apex", "com.android.runtime", "lib64", "bionic", "hwasan", file.Base())
+	} else {
+		base := dir.Base()
+		target = "/" + filepath.Join("apex", "com.android.runtime", base, "bionic", file.Base())
+	}
 	ctx.InstallAbsoluteSymlink(dir, file.Base(), target)
 	library.postInstallCmds = append(library.postInstallCmds, makeSymlinkCmd(dirOnDevice, file.Base(), target))
 }
