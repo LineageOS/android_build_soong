@@ -1166,3 +1166,83 @@ func TestSanitizeMemtagHeapWithSanitizeDeviceDiag(t *testing.T) {
 	checkHasMemtagNote(t, ctx.ModuleForTests("unset_test_override_default_disable", variant), Sync)
 	checkHasMemtagNote(t, ctx.ModuleForTests("unset_test_override_default_sync", variant), Sync)
 }
+
+func TestCfi(t *testing.T) {
+	t.Parallel()
+
+	bp := `
+	cc_library_shared {
+		name: "shared_with_cfi",
+		static_libs: [
+			"static_dep_with_cfi",
+			"static_dep_no_cfi",
+		],
+		sanitize: {
+			cfi: true,
+		},
+	}
+
+	cc_library_shared {
+		name: "shared_no_cfi",
+		static_libs: [
+			"static_dep_with_cfi",
+			"static_dep_no_cfi",
+		],
+	}
+
+	cc_library_static {
+		name: "static_dep_with_cfi",
+		sanitize: {
+			cfi: true,
+		},
+	}
+
+	cc_library_static {
+		name: "static_dep_no_cfi",
+	}
+
+	cc_library_shared {
+		name: "shared_rdep_no_cfi",
+		static_libs: ["static_dep_with_cfi_2"],
+	}
+
+	cc_library_static {
+		name: "static_dep_with_cfi_2",
+		sanitize: {
+			cfi: true,
+		},
+	}
+`
+	preparer := android.GroupFixturePreparers(
+		prepareForCcTest,
+	)
+	result := preparer.RunTestWithBp(t, bp)
+	ctx := result.TestContext
+
+	buildOs := "android_arm64_armv8-a"
+	shared_suffix := "_shared"
+	cfi_suffix := "_cfi"
+	static_suffix := "_static"
+
+	sharedWithCfiLib := result.ModuleForTests("shared_with_cfi", buildOs+shared_suffix+cfi_suffix)
+	sharedNoCfiLib := result.ModuleForTests("shared_no_cfi", buildOs+shared_suffix)
+	staticWithCfiLib := result.ModuleForTests("static_dep_with_cfi", buildOs+static_suffix)
+	staticWithCfiLibCfiVariant := result.ModuleForTests("static_dep_with_cfi", buildOs+static_suffix+cfi_suffix)
+	staticNoCfiLib := result.ModuleForTests("static_dep_no_cfi", buildOs+static_suffix)
+	staticNoCfiLibCfiVariant := result.ModuleForTests("static_dep_no_cfi", buildOs+static_suffix+cfi_suffix)
+	sharedRdepNoCfi := result.ModuleForTests("shared_rdep_no_cfi", buildOs+shared_suffix)
+	staticDepWithCfi2Lib := result.ModuleForTests("static_dep_with_cfi_2", buildOs+static_suffix)
+
+	// Confirm assumptions about propagation of CFI enablement
+	expectStaticLinkDep(t, ctx, sharedWithCfiLib, staticWithCfiLibCfiVariant)
+	expectStaticLinkDep(t, ctx, sharedNoCfiLib, staticWithCfiLib)
+	expectStaticLinkDep(t, ctx, sharedWithCfiLib, staticNoCfiLibCfiVariant)
+	expectStaticLinkDep(t, ctx, sharedNoCfiLib, staticNoCfiLib)
+	expectStaticLinkDep(t, ctx, sharedRdepNoCfi, staticDepWithCfi2Lib)
+
+	// Confirm that non-CFI variants do not add CFI flags
+	bazLibCflags := staticWithCfiLib.Rule("cc").Args["cFlags"]
+	if strings.Contains(bazLibCflags, "-fsanitize-cfi-cross-dso") {
+		t.Errorf("non-CFI variant of baz not expected to contain CFI flags ")
+	}
+}

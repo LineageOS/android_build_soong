@@ -375,8 +375,9 @@ var (
 		"system/tools/xsdc/utils":                                Bp2BuildDefaultTrueRecursively,
 		"system/unwinding/libunwindstack":                        Bp2BuildDefaultTrueRecursively,
 
-		"tools/apksig":   Bp2BuildDefaultTrue,
-		"tools/metalava": Bp2BuildDefaultTrue,
+		"tools/apksig":                               Bp2BuildDefaultTrue,
+		"tools/external_updater":                     Bp2BuildDefaultTrueRecursively,
+		"tools/metalava":                             Bp2BuildDefaultTrue,
 		"tools/platform-compat/java/android/compat":  Bp2BuildDefaultTrueRecursively,
 		"tools/tradefederation/prebuilts/filegroups": Bp2BuildDefaultTrueRecursively,
 	}
@@ -407,8 +408,6 @@ var (
 
 		// this BUILD file is globbed by //external/icu/icu4c/source:icu4c_test_data's "data/**/*".
 		"external/icu/icu4c/source/data/unidata/norm2":/* recursive = */ false,
-
-		"frameworks/ex/common":/* recursive = */ true,
 
 		// Building manually due to b/179889880: resource files cross package boundary
 		"packages/apps/Music":/* recursive = */ true,
@@ -690,7 +689,6 @@ var (
 		"libcodec2_soft_common",
 
 		// kotlin srcs in java libs
-		"CtsPkgInstallerConstants",
 		"kotlinx_atomicfu",
 
 		// kotlin srcs in java binary
@@ -702,6 +700,9 @@ var (
 
 		//kotlin srcs in android_binary
 		"MusicKotlin",
+
+		// java_library with prebuilt sdk_version
+		"android-common",
 
 		// checked in current.txt for merged_txts
 		"non-updatable-current.txt",
@@ -725,7 +726,6 @@ var (
 
 		// min_sdk_version in android_app
 		"CtsShimUpgrade",
-		"fake-framework",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
@@ -779,7 +779,8 @@ var (
 		"tjbench", // TODO(b/240563612): Stem property
 
 		// java bugs
-		"libbase_ndk", // TODO(b/186826477): fails to link libctscamera2_jni for device (required for CtsCameraTestCases)
+		"libbase_ndk",  // TODO(b/186826477): fails to link libctscamera2_jni for device (required for CtsCameraTestCases)
+		"bouncycastle", // TODO(b/274474005): Need support for custom system_modules.
 
 		// python protos
 		"libprotobuf-python", // Has a handcrafted alternative
@@ -805,6 +806,7 @@ var (
 
 		// go deps:
 		"analyze_bcpf",              // depends on bpmodify a blueprint_go_binary.
+		"analyze_bcpf_test",         // depends on bpmodify a blueprint_go_binary.
 		"host_bionic_linker_asm",    // depends on extract_linker, a go binary.
 		"host_bionic_linker_script", // depends on extract_linker, a go binary.
 
@@ -815,13 +817,15 @@ var (
 		"libtombstoned_client_rust_bridge_code", "libtombstoned_client_wrapper", // rust conversions are not supported
 
 		// unconverted deps
-		"CarHTMLViewer",                                              // depends on unconverted modules android.car-stubs, car-ui-lib
+		"apexer_with_DCLA_preprocessing_test",                        // depends on unconverted modules: apexer_test_host_tools, com.android.example.apex
 		"adb",                                                        // depends on unconverted modules: AdbWinApi, libandroidfw, libopenscreen-discovery, libopenscreen-platform-impl, libusb, bin2c_fastdeployagent, AdbWinUsbApi
 		"android_icu4j_srcgen",                                       // depends on unconverted modules: currysrc
 		"android_icu4j_srcgen_binary",                                // depends on unconverted modules: android_icu4j_srcgen, currysrc
+		"apex_compression_test",                                      // depends on unconverted modules: soong_zip, com.android.example.apex
 		"apex_manifest_proto_java",                                   // b/210751803, depends on libprotobuf-java-full
 		"art-script",                                                 // depends on unconverted modules: dalvikvm, dex2oat
 		"bin2c_fastdeployagent",                                      // depends on unconverted modules: deployagent
+		"CarHTMLViewer",                                              // depends on unconverted modules android.car-stubs, car-ui-lib
 		"com.android.runtime",                                        // depends on unconverted modules: bionic-linker-config, linkerconfig
 		"currysrc",                                                   // depends on unconverted modules: currysrc_org.eclipse, guavalib, jopt-simple-4.9
 		"dex2oat-script",                                             // depends on unconverted modules: dex2oat
@@ -846,12 +850,12 @@ var (
 		"libgmock_ndk",                                            // depends on unconverted modules: libgtest_ndk_c++
 		"libnativehelper_lazy_mts_jni", "libnativehelper_mts_jni", // depends on unconverted modules: libnativetesthelper_jni, libgmock_ndk
 		"libnativetesthelper_jni",   // depends on unconverted modules: libgtest_ndk_c++
-		"libprotobuf-java-nano",     // b/220869005, depends on non-public_current SDK
 		"libstatslog",               // depends on unconverted modules: libstatspull, statsd-aidl-ndk
 		"libstatslog_art",           // depends on unconverted modules: statslog_art.cpp, statslog_art.h
 		"linker_reloc_bench_main",   // depends on unconverted modules: liblinker_reloc_bench_*
 		"malloc-rss-benchmark",      // depends on unconverted modules: libmeminfo
 		"pbtombstone", "crash_dump", // depends on libdebuggerd, libunwindstack
+		"releasetools_test",             // depends on unconverted modules: com.android.apex.compressed.v1
 		"robolectric-sqlite4java-0.282", // depends on unconverted modules: robolectric-sqlite4java-import, robolectric-sqlite4java-native
 		"static_crasher",                // depends on unconverted modules: libdebuggerd_handler
 		"test_fips",                     // depends on unconverted modules: adb
@@ -1396,6 +1400,26 @@ var (
 
 		// TODO(b/266459895): depends on libunwindstack
 		"libutils_test",
+
+		// Has dependencies on other tools like ziptool, bp2build'd data properties don't work with these tests atm
+		"ziparchive_tests_large",
+		"mkbootimg_test",
+		"certify_bootimg_test",
+
+		// Despite being _host module types, these require devices to run
+		"logd_integration_test",
+		"mobly-hello-world-test",
+		"mobly-multidevice-test",
+
+		// TODO(b/274805756): Support core_platform and current java APIs
+		"fake-framework",
+
+		// TODO(b/277616982): These modules depend on private java APIs, but maybe they don't need to.
+		"StreamingProtoTest",
+		"textclassifierprotoslite",
+		"styleprotoslite",
+		"CtsPkgInstallerConstants",
+		"guava-android-testlib",
 	}
 
 	MixedBuildsDisabledList = []string{

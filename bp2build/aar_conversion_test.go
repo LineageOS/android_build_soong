@@ -66,9 +66,12 @@ android_library {
 					"resource_files": `["res/res.png"]`,
 					"deps":           `[":static_lib_dep"]`,
 					"exports":        `[":static_lib_dep"]`,
-					"javacopts":      `["-source 1.7 -target 1.7"]`,
+					"java_version":   `"7"`,
 				}),
-			MakeNeverlinkDuplicateTarget("android_library", "TestLib"),
+			MakeNeverlinkDuplicateTargetWithAttrs(
+				"android_library",
+				"TestLib",
+				AttrNameToString{"java_version": `"7"`}),
 		}})
 }
 
