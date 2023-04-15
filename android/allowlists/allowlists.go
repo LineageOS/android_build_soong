@@ -806,6 +806,7 @@ var (
 
 		// go deps:
 		"analyze_bcpf",              // depends on bpmodify a blueprint_go_binary.
+		"analyze_bcpf_test",         // depends on bpmodify a blueprint_go_binary.
 		"host_bionic_linker_asm",    // depends on extract_linker, a go binary.
 		"host_bionic_linker_script", // depends on extract_linker, a go binary.
 
@@ -816,13 +817,15 @@ var (
 		"libtombstoned_client_rust_bridge_code", "libtombstoned_client_wrapper", // rust conversions are not supported
 
 		// unconverted deps
-		"CarHTMLViewer",                                              // depends on unconverted modules android.car-stubs, car-ui-lib
+		"apexer_with_DCLA_preprocessing_test",                        // depends on unconverted modules: apexer_test_host_tools, com.android.example.apex
 		"adb",                                                        // depends on unconverted modules: AdbWinApi, libandroidfw, libopenscreen-discovery, libopenscreen-platform-impl, libusb, bin2c_fastdeployagent, AdbWinUsbApi
 		"android_icu4j_srcgen",                                       // depends on unconverted modules: currysrc
 		"android_icu4j_srcgen_binary",                                // depends on unconverted modules: android_icu4j_srcgen, currysrc
+		"apex_compression_test",                                      // depends on unconverted modules: soong_zip, com.android.example.apex
 		"apex_manifest_proto_java",                                   // b/210751803, depends on libprotobuf-java-full
 		"art-script",                                                 // depends on unconverted modules: dalvikvm, dex2oat
 		"bin2c_fastdeployagent",                                      // depends on unconverted modules: deployagent
+		"CarHTMLViewer",                                              // depends on unconverted modules android.car-stubs, car-ui-lib
 		"com.android.runtime",                                        // depends on unconverted modules: bionic-linker-config, linkerconfig
 		"currysrc",                                                   // depends on unconverted modules: currysrc_org.eclipse, guavalib, jopt-simple-4.9
 		"dex2oat-script",                                             // depends on unconverted modules: dex2oat
@@ -852,6 +855,7 @@ var (
 		"linker_reloc_bench_main",   // depends on unconverted modules: liblinker_reloc_bench_*
 		"malloc-rss-benchmark",      // depends on unconverted modules: libmeminfo
 		"pbtombstone", "crash_dump", // depends on libdebuggerd, libunwindstack
+		"releasetools_test",             // depends on unconverted modules: com.android.apex.compressed.v1
 		"robolectric-sqlite4java-0.282", // depends on unconverted modules: robolectric-sqlite4java-import, robolectric-sqlite4java-native
 		"static_crasher",                // depends on unconverted modules: libdebuggerd_handler
 		"test_fips",                     // depends on unconverted modules: adb
@@ -1396,6 +1400,16 @@ var (
 
 		// TODO(b/266459895): depends on libunwindstack
 		"libutils_test",
+
+		// Has dependencies on other tools like ziptool, bp2build'd data properties don't work with these tests atm
+		"ziparchive_tests_large",
+		"mkbootimg_test",
+		"certify_bootimg_test",
+
+		// Despite being _host module types, these require devices to run
+		"logd_integration_test",
+		"mobly-hello-world-test",
+		"mobly-multidevice-test",
 
 		// TODO(b/274805756): Support core_platform and current java APIs
 		"fake-framework",

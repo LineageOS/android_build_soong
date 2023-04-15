@@ -1475,7 +1475,7 @@ func isBionic(name string) bool {
 func InstallToBootstrap(name string, config android.Config) bool {
 	// NOTE: also update //build/bazel/rules/apex/cc.bzl#_installed_to_bootstrap
 	// if this list is updated.
-	if name == "libclang_rt.hwasan" {
+	if name == "libclang_rt.hwasan" || name == "libc_hwasan" {
 		return true
 	}
 	return isBionic(name)
@@ -1858,6 +1858,10 @@ func GetSubnameProperty(actx android.ModuleContext, c LinkableInterface) string 
 		if c.SplitPerApiLevel() {
 			subName += "." + c.SdkVersion()
 		}
+	} else if c.IsStubs() && c.IsSdkVariant() {
+		// Public API surface (NDK)
+		// Add a suffix to this stub variant to distinguish it from the module-lib stub variant.
+		subName = sdkSuffix
 	}
 
 	return subName
@@ -1960,6 +1964,17 @@ func (c *Module) ProcessBazelQueryResponse(ctx android.ModuleContext) {
 	c.maybeInstall(mctx, apexInfo)
 }
 
+func moduleContextFromAndroidModuleContext(actx android.ModuleContext, c *Module) ModuleContext {
+	ctx := &moduleContext{
+		ModuleContext: actx,
+		moduleContextImpl: moduleContextImpl{
+			mod: c,
+		},
+	}
+	ctx.ctx = ctx
+	return ctx
+}
+
 func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	// Handle the case of a test module split by `test_per_src` mutator.
 	//
@@ -1979,13 +1994,7 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 
 	c.makeLinkType = GetMakeLinkType(actx, c)
 
-	ctx := &moduleContext{
-		ModuleContext: actx,
-		moduleContextImpl: moduleContextImpl{
-			mod: c,
-		},
-	}
-	ctx.ctx = ctx
+	ctx := moduleContextFromAndroidModuleContext(actx, c)
 
 	deps := c.depsToPaths(ctx)
 	if ctx.Failed() {

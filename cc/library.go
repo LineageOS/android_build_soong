@@ -931,9 +931,17 @@ func (handler *ccLibraryBazelHandler) generateSharedBazelBuildActions(ctx androi
 func (handler *ccLibraryBazelHandler) QueueBazelCall(ctx android.BaseModuleContext, label string) {
 	bazelCtx := ctx.Config().BazelContext
 	bazelCtx.QueueBazelRequest(label, cquery.GetCcInfo, android.GetConfigKeyApexVariant(ctx, GetApexConfigKey(ctx)))
+	if v := handler.module.library.stubsVersion(); v != "" {
+		stubsLabel := label + "_stub_libs-" + v
+		bazelCtx.QueueBazelRequest(stubsLabel, cquery.GetCcInfo, android.GetConfigKeyApexVariant(ctx, GetApexConfigKey(ctx)))
+	}
 }
 
 func (handler *ccLibraryBazelHandler) ProcessBazelQueryResponse(ctx android.ModuleContext, label string) {
+	if v := handler.module.library.stubsVersion(); v != "" {
+		// if we are a stubs variant, just use the Bazel stubs target
+		label = label + "_stub_libs-" + v
+	}
 	bazelCtx := ctx.Config().BazelContext
 	ccInfo, err := bazelCtx.GetCcInfo(label, android.GetConfigKeyApexVariant(ctx, GetApexConfigKey(ctx)))
 	if err != nil {
@@ -962,6 +970,9 @@ func (handler *ccLibraryBazelHandler) ProcessBazelQueryResponse(ctx android.Modu
 	}
 
 	handler.module.setAndroidMkVariablesFromCquery(ccInfo.CcAndroidMkInfo)
+
+	cctx := moduleContextFromAndroidModuleContext(ctx, handler.module)
+	addStubDependencyProviders(cctx)
 }
 
 func (library *libraryDecorator) setFlagExporterInfoFromCcInfo(ctx android.ModuleContext, ccInfo cquery.CcInfo) {
@@ -1787,6 +1798,12 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 		Target:                               ctx.Target(),
 	})
 
+	addStubDependencyProviders(ctx)
+
+	return unstrippedOutputFile
+}
+
+func addStubDependencyProviders(ctx ModuleContext) {
 	stubs := ctx.GetDirectDepsWithTag(stubImplDepTag)
 	if len(stubs) > 0 {
 		var stubsInfo []SharedStubLibrary
@@ -1801,12 +1818,9 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 		}
 		ctx.SetProvider(SharedLibraryStubsProvider, SharedLibraryStubsInfo{
 			SharedStubLibraries: stubsInfo,
-
-			IsLLNDK: ctx.IsLlndk(),
+			IsLLNDK:             ctx.IsLlndk(),
 		})
 	}
-
-	return unstrippedOutputFile
 }
 
 func (library *libraryDecorator) unstrippedOutputFilePath() android.Path {
@@ -2193,7 +2207,16 @@ func (library *libraryDecorator) toc() android.OptionalPath {
 func (library *libraryDecorator) installSymlinkToRuntimeApex(ctx ModuleContext, file android.Path) {
 	dir := library.baseInstaller.installDir(ctx)
 	dirOnDevice := android.InstallPathToOnDevicePath(ctx, dir)
-	target := "/" + filepath.Join("apex", "com.android.runtime", dir.Base(), "bionic", file.Base())
+	// libc_hwasan has relative_install_dir set, which would mess up the dir.Base() logic.
+	// hardcode here because it's the only target, if we have other targets that use this
+	// we can generalise this.
+	var target string
+	if ctx.baseModuleName() == "libc_hwasan" {
+		target = "/" + filepath.Join("apex", "com.android.runtime", "lib64", "bionic", "hwasan", file.Base())
+	} else {
+		base := dir.Base()
+		target = "/" + filepath.Join("apex", "com.android.runtime", base, "bionic", file.Base())
+	}
 	ctx.InstallAbsoluteSymlink(dir, file.Base(), target)
 	library.postInstallCmds = append(library.postInstallCmds, makeSymlinkCmd(dirOnDevice, file.Base(), target))
 }
@@ -2648,7 +2671,7 @@ func LinkageMutator(mctx android.BottomUpMutatorContext) {
 // normalizeVersions modifies `versions` in place, so that each raw version
 // string becomes its normalized canonical form.
 // Validates that the versions in `versions` are specified in least to greatest order.
-func normalizeVersions(ctx android.BaseModuleContext, versions []string) {
+func normalizeVersions(ctx android.BazelConversionPathContext, versions []string) {
 	var previous android.ApiLevel
 	for i, v := range versions {
 		ver, err := android.ApiLevelFromUser(ctx, v)
