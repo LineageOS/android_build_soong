@@ -1374,6 +1374,15 @@ func (c *configImpl) rbeProxyLogsDir() string {
 	return filepath.Join(buildTmpDir, "rbe")
 }
 
+func (c *configImpl) rbeCacheDir() string {
+	for _, f := range []string{"RBE_cache_dir", "FLAG_cache_dir"} {
+		if v, ok := c.environ.Get(f); ok {
+			return v
+		}
+	}
+	return shared.JoinPath(c.SoongOutDir(), "rbe")
+}
+
 func (c *configImpl) shouldCleanupRBELogsDir() bool {
 	// Perform a log directory cleanup only when the log directory
 	// is auto created by the build rather than user-specified.
