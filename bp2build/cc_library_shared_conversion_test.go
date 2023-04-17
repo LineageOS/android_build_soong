@@ -36,6 +36,7 @@ func registerCcLibrarySharedModuleTypes(ctx android.RegistrationContext) {
 
 func runCcLibrarySharedTestCase(t *testing.T, tc Bp2buildTestCase) {
 	t.Helper()
+	t.Parallel()
 	(&tc).ModuleTypeUnderTest = "cc_library_shared"
 	(&tc).ModuleTypeUnderTestFactory = cc.LibrarySharedFactory
 	RunBp2BuildTestCase(t, registerCcLibrarySharedModuleTypes, tc)
