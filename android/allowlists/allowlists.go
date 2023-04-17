@@ -201,6 +201,7 @@ var (
 		"frameworks/base/libs/androidfw":                     Bp2BuildDefaultTrue,
 		"frameworks/base/media/tests/MediaDump":              Bp2BuildDefaultTrue,
 		"frameworks/base/services/tests/servicestests/aidl":  Bp2BuildDefaultTrue,
+		"frameworks/base/proto":                              Bp2BuildDefaultTrue,
 		"frameworks/base/startop/apps/test":                  Bp2BuildDefaultTrue,
 		"frameworks/base/tests/appwidgets/AppWidgetHostTest": Bp2BuildDefaultTrueRecursively,
 		"frameworks/base/tools/aapt2":                        Bp2BuildDefaultTrue,
@@ -296,14 +297,17 @@ var (
 
 		"platform_testing/tests/example": Bp2BuildDefaultTrueRecursively,
 
-		"prebuilts/clang/host/linux-x86":           Bp2BuildDefaultTrueRecursively,
-		"prebuilts/gradle-plugin":                  Bp2BuildDefaultTrueRecursively,
-		"prebuilts/runtime/mainline/platform/sdk":  Bp2BuildDefaultTrueRecursively,
-		"prebuilts/sdk/current/androidx":           Bp2BuildDefaultTrue,
-		"prebuilts/sdk/current/extras/app-toolkit": Bp2BuildDefaultTrue,
-		"prebuilts/sdk/current/support":            Bp2BuildDefaultTrue,
-		"prebuilts/tools":                          Bp2BuildDefaultTrue,
-		"prebuilts/tools/common/m2":                Bp2BuildDefaultTrue,
+		"prebuilts/clang/host/linux-x86":                   Bp2BuildDefaultTrueRecursively,
+		"prebuilts/gradle-plugin":                          Bp2BuildDefaultTrueRecursively,
+		"prebuilts/runtime/mainline/platform/sdk":          Bp2BuildDefaultTrueRecursively,
+		"prebuilts/sdk/current/androidx":                   Bp2BuildDefaultTrue,
+		"prebuilts/sdk/current/androidx-legacy":            Bp2BuildDefaultTrue,
+		"prebuilts/sdk/current/extras/constraint-layout-x": Bp2BuildDefaultTrue,
+		"prebuilts/sdk/current/extras/material-design-x":   Bp2BuildDefaultTrue,
+		"prebuilts/sdk/current/extras/app-toolkit":         Bp2BuildDefaultTrue,
+		"prebuilts/sdk/current/support":                    Bp2BuildDefaultTrue,
+		"prebuilts/tools":                                  Bp2BuildDefaultTrue,
+		"prebuilts/tools/common/m2":                        Bp2BuildDefaultTrue,
 
 		"sdk/dumpeventlog":  Bp2BuildDefaultTrue,
 		"sdk/eventanalyzer": Bp2BuildDefaultTrue,
@@ -375,6 +379,7 @@ var (
 		"system/tools/xsdc/utils":                                Bp2BuildDefaultTrueRecursively,
 		"system/unwinding/libunwindstack":                        Bp2BuildDefaultTrueRecursively,
 
+		"tools/apifinder":                            Bp2BuildDefaultTrue,
 		"tools/apksig":                               Bp2BuildDefaultTrue,
 		"tools/external_updater":                     Bp2BuildDefaultTrueRecursively,
 		"tools/metalava":                             Bp2BuildDefaultTrue,
@@ -454,7 +459,6 @@ var (
 		"framework-connectivity-protos",
 		"gemmlowp_headers",
 		"gl_headers",
-		"ipconnectivity-proto-src",
 		"libandroid_runtime_lazy",
 		"libandroid_runtime_vm_headers",
 		"libaudioclient_aidl_conversion_util",
@@ -726,6 +730,9 @@ var (
 
 		// min_sdk_version in android_app
 		"CtsShimUpgrade",
+
+		// Mainline Module Apps
+		"CaptivePortalLogin",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
