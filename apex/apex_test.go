@@ -5646,6 +5646,58 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 	})
 }
 
+func TestPrebuiltSkipsSymbols(t *testing.T) {
+	testCases := []struct {
+		name               string
+		usePrebuilt        bool
+		installSymbolFiles bool
+	}{
+		{
+			name:               "Source module build rule doesn't install symbol files",
+			usePrebuilt:        true,
+			installSymbolFiles: false,
+		},
+		{
+			name:               "Source module is installed with symbols",
+			usePrebuilt:        false,
+			installSymbolFiles: true,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			preferProperty := "prefer: false"
+			if tc.usePrebuilt {
+				preferProperty = "prefer: true"
+			}
+			ctx := testApex(t, `
+				// Source module
+				apex {
+					name: "myapex",
+					key: "myapex.key",
+					updatable: false,
+				}
+
+				apex_key {
+					name: "myapex.key",
+					public_key: "testkey.avbpubkey",
+					private_key: "testkey.pem",
+				}
+
+				apex_set {
+					name: "myapex",
+					set: "myapex.apks",
+					`+preferProperty+`
+				}
+			`)
+			// Symbol files are installed by installing entries under ${OUT}/apex/{apex name}
+			android.AssertStringListContainsEquals(t, "Implicits",
+				ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("apexRule").Implicits.Strings(),
+				"out/soong/target/product/test_device/apex/myapex/apex_manifest.pb",
+				tc.installSymbolFiles)
+		})
+	}
+}
+
 func TestApexWithTests(t *testing.T) {
 	ctx := testApex(t, `
 		apex_test {
