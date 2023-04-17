@@ -259,10 +259,16 @@ func Build(ctx Context, config Config) {
 		startGoma(ctx, config)
 	}
 
+	rbeCh := make(chan bool)
 	if config.StartRBE() {
 		cleanupRBELogsDir(ctx, config)
-		startRBE(ctx, config)
+		go func() {
+			startRBE(ctx, config)
+			close(rbeCh)
+		}()
 		defer DumpRBEMetrics(ctx, config, filepath.Join(config.LogsDir(), "rbe_metrics.pb"))
+	} else {
+		close(rbeCh)
 	}
 
 	if what&RunProductConfig != 0 {
@@ -315,11 +321,11 @@ func Build(ctx Context, config Config) {
 		testForDanglingRules(ctx, config)
 	}
 
+	<-rbeCh
 	if what&RunNinja != 0 {
 		if what&RunKati != 0 {
 			installCleanIfNecessary(ctx, config)
 		}
-
 		runNinjaForBuild(ctx, config)
 	}
 
