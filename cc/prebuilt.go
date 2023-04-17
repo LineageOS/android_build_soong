@@ -376,6 +376,7 @@ func prebuiltLibraryStaticBp2Build(ctx android.TopDownMutatorContext, module *Mo
 		Static_library:         prebuiltAttrs.Src,
 		Export_includes:        exportedIncludes.Includes,
 		Export_system_includes: exportedIncludes.SystemIncludes,
+		// TODO: ¿Alwayslink?
 	}
 
 	props := bazel.BazelTargetModuleProperties{
@@ -398,14 +399,19 @@ func prebuiltLibraryStaticBp2Build(ctx android.TopDownMutatorContext, module *Mo
 }
 
 type bazelPrebuiltLibrarySharedAttributes struct {
-	Shared_library bazel.LabelAttribute
+	Shared_library         bazel.LabelAttribute
+	Export_includes        bazel.StringListAttribute
+	Export_system_includes bazel.StringListAttribute
 }
 
 func prebuiltLibrarySharedBp2Build(ctx android.TopDownMutatorContext, module *Module) {
 	prebuiltAttrs := Bp2BuildParsePrebuiltLibraryProps(ctx, module, false)
+	exportedIncludes := bp2BuildParseExportedIncludes(ctx, module, nil)
 
 	attrs := &bazelPrebuiltLibrarySharedAttributes{
-		Shared_library: prebuiltAttrs.Src,
+		Shared_library:         prebuiltAttrs.Src,
+		Export_includes:        exportedIncludes.Includes,
+		Export_system_includes: exportedIncludes.SystemIncludes,
 	}
 
 	props := bazel.BazelTargetModuleProperties{
