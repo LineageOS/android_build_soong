@@ -60,6 +60,7 @@ func getRBEVars(ctx Context, config Config) map[string]string {
 		"RBE_exec_root":     config.rbeExecRoot(),
 		"RBE_output_dir":    config.rbeProxyLogsDir(),
 		"RBE_proxy_log_dir": config.rbeProxyLogsDir(),
+		"RBE_cache_dir":     config.rbeCacheDir(),
 		"RBE_platform":      "container-image=" + remoteexec.DefaultImage,
 	}
 	if config.StartRBE() {
