@@ -1941,7 +1941,7 @@ func TestPrettyPrintSelectMapEqualValues(t *testing.T) {
 	libFooImplLabel := bazel.Label{
 		Label: ":libfoo.impl",
 	}
-	lla.SetSelectValue(bazel.OsAndInApexAxis, bazel.AndroidAndNonApex, bazel.MakeLabelList([]bazel.Label{libFooImplLabel}))
+	lla.SetSelectValue(bazel.OsAndInApexAxis, bazel.AndroidPlatform, bazel.MakeLabelList([]bazel.Label{libFooImplLabel}))
 	lla.SetSelectValue(bazel.OsAndInApexAxis, bazel.ConditionsDefaultConfigKey, bazel.MakeLabelList([]bazel.Label{libFooImplLabel}))
 	actual, _ := prettyPrintAttribute(lla, 0)
 	android.AssertStringEquals(t, "Print the common value if all keys in an axis have the same value", `[":libfoo.impl"]`, actual)
