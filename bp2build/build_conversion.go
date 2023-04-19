@@ -600,6 +600,11 @@ func prettyPrint(propertyValue reflect.Value, indent int, emitZeroValues bool) (
 		// TODO(b/164227191): implement pretty print for interfaces.
 		// Interfaces are used for for arch, multilib and target properties.
 		return "", nil
+	case reflect.Map:
+		if v, ok := propertyValue.Interface().(bazel.StringMapAttribute); ok {
+			return starlark_fmt.PrintStringStringDict(v, indent), nil
+		}
+		return "", fmt.Errorf("bp2build expects map of type map[string]string for field: %s", propertyValue)
 	default:
 		return "", fmt.Errorf(
 			"unexpected kind for property struct field: %s", propertyValue.Kind())
