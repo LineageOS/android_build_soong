@@ -105,6 +105,42 @@ func TestFilegroupWithAidlSrcs(t *testing.T) {
 	}
 }
 
+func TestFilegroupWithAidlDeps(t *testing.T) {
+	bp := `
+	filegroup {
+		name: "bar",
+		srcs: ["bar.aidl"],
+	}
+	filegroup {
+		name: "foo",
+		srcs: ["aidl/foo.aidl"],
+		path: "aidl",
+		aidl: {
+			deps: [":bar"],
+		}
+	}`
+
+	t.Run("filegroup with aidl deps", func(t *testing.T) {
+		expectedBazelTargets := []string{
+			MakeBazelTargetNoRestrictions("aidl_library", "bar", AttrNameToString{
+				"srcs": `["bar.aidl"]`,
+				"tags": `["apex_available=//apex_available:anyapex"]`,
+			}),
+			MakeBazelTargetNoRestrictions("aidl_library", "foo", AttrNameToString{
+				"srcs":                `["aidl/foo.aidl"]`,
+				"strip_import_prefix": `"aidl"`,
+				"deps":                `[":bar"]`,
+				"tags":                `["apex_available=//apex_available:anyapex"]`,
+			}),
+		}
+		runFilegroupTestCase(t, Bp2buildTestCase{
+			Description:          "filegroup with aidl deps",
+			Blueprint:            bp,
+			ExpectedBazelTargets: expectedBazelTargets,
+		})
+	})
+}
+
 func TestFilegroupWithAidlAndNonAidlSrcs(t *testing.T) {
 	runFilegroupTestCase(t, Bp2buildTestCase{
 		Description: "filegroup with aidl and non-aidl srcs",
