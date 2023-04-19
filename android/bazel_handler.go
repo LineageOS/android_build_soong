@@ -63,6 +63,8 @@ var (
 		"LLVM_NEXT",
 		"ALLOW_UNKNOWN_WARNING_OPTION",
 
+		"UNBUNDLED_BUILD_TARGET_SDK_WITH_API_FINGERPRINT",
+
 		// Overrides the version in the apex_manifest.json. The version is unique for
 		// each branch (internal, aosp, mainline releases, dessert releases).  This
 		// enables modules built on an older branch to be installed against a newer
