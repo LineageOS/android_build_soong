@@ -61,6 +61,8 @@ var (
 		"AUTO_UNINITIALIZE",
 		"USE_CCACHE",
 		"LLVM_NEXT",
+		"LLVM_PREBUILTS_VERSION",
+		"LLVM_RELEASE_VERSION",
 		"ALLOW_UNKNOWN_WARNING_OPTION",
 
 		// Overrides the version in the apex_manifest.json. The version is unique for
