@@ -762,10 +762,8 @@ func bp2BuildParseBaseProps(ctx android.Bp2buildMutatorContext, module *Module) 
 
 			if libraryProps, ok := archVariantLibraryProperties[axis][cfg].(*LibraryProperties); ok {
 				if axis == bazel.NoConfigAxis {
-					versions := android.CopyOf(libraryProps.Stubs.Versions)
-					normalizeVersions(ctx, versions)
 					compilerAttrs.stubsSymbolFile = libraryProps.Stubs.Symbol_file
-					compilerAttrs.stubsVersions.SetSelectValue(axis, cfg, versions)
+					compilerAttrs.stubsVersions.SetSelectValue(axis, cfg, libraryProps.Stubs.Versions)
 				}
 				if suffix := libraryProps.Suffix; suffix != nil {
 					compilerAttrs.suffix.SetSelectValue(axis, cfg, suffix)
