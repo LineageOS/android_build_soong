@@ -80,9 +80,10 @@ type SoongBuildMode int
 
 type CmdArgs struct {
 	bootstrap.Args
-	RunGoTests  bool
-	OutDir      string
-	SoongOutDir string
+	RunGoTests     bool
+	OutDir         string
+	SoongOutDir    string
+	SoongVariables string
 
 	SymlinkForestMarker string
 	Bp2buildMarker      string
@@ -491,7 +492,7 @@ func NullConfig(outDir, soongOutDir string) Config {
 func NewConfig(cmdArgs CmdArgs, availableEnv map[string]string) (Config, error) {
 	// Make a config with default options.
 	config := &config{
-		ProductVariablesFileName: filepath.Join(cmdArgs.SoongOutDir, productVariablesFileName),
+		ProductVariablesFileName: cmdArgs.SoongVariables,
 
 		env: availableEnv,
 
