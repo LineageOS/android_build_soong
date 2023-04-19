@@ -58,11 +58,11 @@ func testDexpreoptBoot(t *testing.T, ruleFile string, expectedInputs, expectedOu
 	rule := platformBootclasspath.Output(ruleFile)
 
 	for i := range expectedInputs {
-		expectedInputs[i] = filepath.Join("out/soong/test_device", expectedInputs[i])
+		expectedInputs[i] = filepath.Join("out/soong/dexpreopt_arm64", expectedInputs[i])
 	}
 
 	for i := range expectedOutputs {
-		expectedOutputs[i] = filepath.Join("out/soong/test_device", expectedOutputs[i])
+		expectedOutputs[i] = filepath.Join("out/soong/dexpreopt_arm64", expectedOutputs[i])
 	}
 
 	inputs := rule.Implicits.Strings()
