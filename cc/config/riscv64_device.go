@@ -26,8 +26,6 @@ var (
 		// Help catch common 32/64-bit errors.
 		"-Werror=implicit-function-declaration",
 		"-fno-emulated-tls",
-		// For -fsanitize=shadow-call-stack.
-		"-ffixed-x18",
 		// A temporary fix for SExtWRemoval miscompilation bug.
 		"-mllvm",
 		"-riscv-disable-sextw-removal=true",
@@ -37,8 +35,6 @@ var (
 
 	riscv64Ldflags = []string{
 		"-Wl,--hash-style=gnu",
-		// For -fsanitize=shadow-call-stack.
-		"-ffixed-x18",
 	}
 
 	riscv64Lldflags = append(riscv64Ldflags,
