@@ -157,6 +157,7 @@ type snapshotJsonFlags struct {
 	// extra config files
 	InitRc         []string `json:",omitempty"`
 	VintfFragments []string `json:",omitempty"`
+	MinSdkVersion  string   `json:",omitempty"`
 }
 
 var ccSnapshotAction snapshot.GenerateSnapshotAction = func(s snapshot.SnapshotSingleton, ctx android.SingletonContext, snapshotArchDir string) android.Paths {
@@ -249,6 +250,7 @@ var ccSnapshotAction snapshot.GenerateSnapshotAction = func(s snapshot.SnapshotS
 		for _, path := range m.VintfFragments() {
 			prop.VintfFragments = append(prop.VintfFragments, filepath.Join("configs", path.Base()))
 		}
+		prop.MinSdkVersion = m.MinSdkVersion()
 
 		// install config files. ignores any duplicates.
 		for _, path := range append(m.InitRc(), m.VintfFragments()...) {
