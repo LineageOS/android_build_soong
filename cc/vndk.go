@@ -706,6 +706,7 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 
 		// json struct to export snapshot information
 		prop := struct {
+			MinSdkVersion       string   `json:",omitempty"`
 			LicenseKinds        []string `json:",omitempty"`
 			LicenseTexts        []string `json:",omitempty"`
 			ExportedDirs        []string `json:",omitempty"`
@@ -716,6 +717,7 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 
 		prop.LicenseKinds = m.EffectiveLicenseKinds()
 		prop.LicenseTexts = m.EffectiveLicenseFiles().Strings()
+		prop.MinSdkVersion = m.MinSdkVersion()
 
 		if ctx.Config().VndkSnapshotBuildArtifacts() {
 			exportedInfo := ctx.ModuleProvider(m, FlagExporterInfoProvider).(FlagExporterInfo)
