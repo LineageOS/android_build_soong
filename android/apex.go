@@ -356,9 +356,18 @@ func (m *ApexModuleBase) apexModuleBase() *ApexModuleBase {
 	return m
 }
 
+var (
+	availableToPlatformList = []string{AvailableToPlatform}
+)
+
 // Implements ApexModule
 func (m *ApexModuleBase) ApexAvailable() []string {
-	return m.ApexProperties.Apex_available
+	aa := m.ApexProperties.Apex_available
+	if len(aa) > 0 {
+		return aa
+	}
+	// Default is availability to platform
+	return CopyOf(availableToPlatformList)
 }
 
 // Implements ApexModule
