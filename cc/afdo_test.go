@@ -379,3 +379,85 @@ func TestMultipleAfdoRDeps(t *testing.T) {
 		t.Errorf("libFoo missing dependency on non-afdo variant of libBar")
 	}
 }
+
+func TestAfdoDepsWithoutProfile(t *testing.T) {
+	t.Parallel()
+	bp := `
+	cc_library_shared {
+		name: "libTest",
+		srcs: ["test.c"],
+		static_libs: ["libFoo"],
+		afdo: true,
+	}
+
+	cc_library_static {
+		name: "libFoo",
+		srcs: ["foo.c"],
+		static_libs: ["libBar"],
+	}
+
+	cc_library_static {
+		name: "libBar",
+		srcs: ["bar.c"],
+	}
+	`
+
+	result := android.GroupFixturePreparers(
+		PrepareForTestWithFdoProfile,
+		prepareForCcTest,
+	).RunTestWithBp(t, bp)
+
+	// Even without a profile path, the afdo enabled libraries should be built with
+	// -funique-internal-linkage-names.
+	expectedCFlag := "-funique-internal-linkage-names"
+
+	libTest := result.ModuleForTests("libTest", "android_arm64_armv8-a_shared")
+	libFooAfdoVariant := result.ModuleForTests("libFoo", "android_arm64_armv8-a_static_afdo-libTest")
+	libBarAfdoVariant := result.ModuleForTests("libBar", "android_arm64_armv8-a_static_afdo-libTest")
+
+	// Check cFlags of afdo-enabled module and the afdo-variant of its static deps
+	cFlags := libTest.Rule("cc").Args["cFlags"]
+	if !strings.Contains(cFlags, expectedCFlag) {
+		t.Errorf("Expected 'libTest' to enable afdo, but did not find %q in cflags %q", expectedCFlag, cFlags)
+	}
+
+	cFlags = libFooAfdoVariant.Rule("cc").Args["cFlags"]
+	if !strings.Contains(cFlags, expectedCFlag) {
+		t.Errorf("Expected 'libFooAfdoVariant' to enable afdo, but did not find %q in cflags %q", expectedCFlag, cFlags)
+	}
+
+	cFlags = libBarAfdoVariant.Rule("cc").Args["cFlags"]
+	if !strings.Contains(cFlags, expectedCFlag) {
+		t.Errorf("Expected 'libBarAfdoVariant' to enable afdo, but did not find %q in cflags %q", expectedCFlag, cFlags)
+	}
+	// Check dependency edge from afdo-enabled module to static deps
+	if !hasDirectDep(result, libTest.Module(), libFooAfdoVariant.Module()) {
+		t.Errorf("libTest missing dependency on afdo variant of libFoo")
+	}
+
+	if !hasDirectDep(result, libFooAfdoVariant.Module(), libBarAfdoVariant.Module()) {
+		t.Errorf("libTest missing dependency on afdo variant of libBar")
+	}
+
+	// Verify non-afdo variant exists and doesn't contain afdo
+	libFoo := result.ModuleForTests("libFoo", "android_arm64_armv8-a_static")
+	libBar := result.ModuleForTests("libBar", "android_arm64_armv8-a_static")
+
+	cFlags = libFoo.Rule("cc").Args["cFlags"]
+	if strings.Contains(cFlags, expectedCFlag) {
+		t.Errorf("Expected 'libFoo' to not enable afdo, but found %q in cflags %q", expectedCFlag, cFlags)
+	}
+	cFlags = libBar.Rule("cc").Args["cFlags"]
+	if strings.Contains(cFlags, expectedCFlag) {
+		t.Errorf("Expected 'libBar' to not enable afdo, but found %q in cflags %q", expectedCFlag, cFlags)
+	}
+
+	// Check dependency edges of static deps
+	if hasDirectDep(result, libTest.Module(), libFoo.Module()) {
+		t.Errorf("libTest should not depend on non-afdo variant of libFoo")
+	}
+
+	if !hasDirectDep(result, libFoo.Module(), libBar.Module()) {
+		t.Errorf("libFoo missing dependency on non-afdo variant of libBar")
+	}
+}
