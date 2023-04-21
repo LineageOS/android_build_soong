@@ -1890,26 +1890,9 @@ func (c *Module) QueueBazelCall(ctx android.BaseModuleContext) {
 	c.bazelHandler.QueueBazelCall(ctx, c.getBazelModuleLabel(ctx))
 }
 
-var (
-	mixedBuildSupportedCcTest = []string{
-		"adbd_test",
-		"adb_crypto_test",
-		"adb_pairing_auth_test",
-		"adb_pairing_connection_test",
-		"adb_tls_connection_test",
-	}
-)
-
 // IsMixedBuildSupported returns true if the module should be analyzed by Bazel
-// in any of the --bazel-mode(s). This filters at the module level and takes
-// precedence over the allowlists in allowlists/allowlists.go.
+// in any of the --bazel-mode(s).
 func (c *Module) IsMixedBuildSupported(ctx android.BaseModuleContext) bool {
-	_, isForTesting := ctx.Config().BazelContext.(android.MockBazelContext)
-	if c.testBinary() && !android.InList(c.Name(), mixedBuildSupportedCcTest) && !isForTesting {
-		// Per-module rollout of mixed-builds for cc_test modules.
-		return false
-	}
-
 	// TODO(b/261058727): Remove this (enable mixed builds for modules with UBSan)
 	// Currently we can only support ubsan when minimum runtime is used.
 	return c.bazelHandler != nil && (!isUbsanEnabled(c) || c.MinimalRuntimeNeeded())

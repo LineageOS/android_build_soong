@@ -939,6 +939,11 @@ var (
 
 		"libandroidfw_tests", "aapt2_tests", // failing due to data path issues
 
+		// error: overriding commands for target
+		// `out/host/linux-x86/nativetest64/gmock_tests/gmock_tests__cc_runner_test',
+		// previously defined at out/soong/installs-aosp_arm.mk:64919`
+		"gmock_tests",
+
 		// cc_test with unconverted deps, or are device-only (and not verified to pass yet)
 		"AMRWBEncTest",
 		"AmrnbDecoderTest",     // depends on unconverted modules: libaudioutils, libsndfile
