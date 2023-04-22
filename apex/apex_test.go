@@ -5716,6 +5716,7 @@ func TestPrebuiltSkipsSymbols(t *testing.T) {
 				// Source module
 				apex {
 					name: "myapex",
+					binaries: ["foo"],
 					key: "myapex.key",
 					updatable: false,
 				}
@@ -5731,11 +5732,19 @@ func TestPrebuiltSkipsSymbols(t *testing.T) {
 					set: "myapex.apks",
 					`+preferProperty+`
 				}
+
+				cc_binary {
+					name: "foo",
+					srcs: ["mylib.cpp"],
+					system_shared_libs: [],
+					stl: "none",
+					apex_available: [ "myapex" ],
+				}
 			`)
 			// Symbol files are installed by installing entries under ${OUT}/apex/{apex name}
-			android.AssertStringListContainsEquals(t, "Implicits",
-				ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("apexRule").Implicits.Strings(),
-				"out/soong/target/product/test_device/apex/myapex/apex_manifest.pb",
+			android.AssertStringListContainsEquals(t, "Installs",
+				ctx.ModuleForTests("myapex", "android_common_myapex_image").Module().FilesToInstall().Strings(),
+				filepath.Join(ctx.Config().SoongOutDir(), "target/product/test_device/apex/myapex/bin/foo"),
 				tc.installSymbolFiles)
 		})
 	}
