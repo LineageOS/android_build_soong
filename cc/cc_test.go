@@ -3573,9 +3573,6 @@ func TestVersionedStubs(t *testing.T) {
 }
 
 func TestStubsForLibraryInMultipleApexes(t *testing.T) {
-	// TODO(b/275313114): Test exposes non-determinism which should be corrected and the test
-	// reenabled.
-	t.Skip()
 	t.Parallel()
 	ctx := testCc(t, `
 		cc_library_shared {
