@@ -153,10 +153,10 @@ cc_library {
         "//build/bazel/platforms/os:linux_glibc": ["linux.cpp"],
         "//conditions:default": [],
     })`,
-			"sdk_version":                       `"current"`,
-			"min_sdk_version":                   `"29"`,
-			"use_version_lib":                   `True`,
-			"implementation_whole_archive_deps": `["//build/soong/cc/libbuildversion:libbuildversion"]`,
+			"sdk_version":        `"current"`,
+			"min_sdk_version":    `"29"`,
+			"use_version_lib":    `True`,
+			"whole_archive_deps": `["//build/soong/cc/libbuildversion:libbuildversion"]`,
 		}),
 	})
 }
