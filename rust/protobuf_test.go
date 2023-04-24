@@ -69,6 +69,55 @@ func TestRustProtobuf(t *testing.T) {
 	}
 }
 
+func TestRustProtobuf3(t *testing.T) {
+	ctx := testRust(t, `
+		rust_protobuf {
+			name: "librust_proto",
+			protos: ["buf.proto", "proto.proto"],
+			crate_name: "rust_proto",
+			source_stem: "buf",
+            use_protobuf3: true,
+			shared_libs: ["libfoo_shared"],
+			static_libs: ["libfoo_static"],
+		}
+		cc_library_shared {
+			name: "libfoo_shared",
+			export_include_dirs: ["shared_include"],
+		}
+		cc_library_static {
+			name: "libfoo_static",
+			export_include_dirs: ["static_include"],
+		}
+	`)
+	// Check that libprotobuf is added as a dependency.
+	librust_proto := ctx.ModuleForTests("librust_proto", "android_arm64_armv8-a_dylib").Module().(*Module)
+	if !android.InList("libprotobuf", librust_proto.Properties.AndroidMkDylibs) {
+		t.Errorf("libprotobuf dependency missing for rust_protobuf (dependency missing from AndroidMkDylibs)")
+	}
+
+	// Make sure the correct plugin is being used.
+	librust_proto_out := ctx.ModuleForTests("librust_proto", "android_arm64_armv8-a_source").Output("buf.rs")
+	cmd := librust_proto_out.RuleParams.Command
+	if w := "protoc-gen-rust"; !strings.Contains(cmd, w) {
+		t.Errorf("expected %q in %q", w, cmd)
+	}
+
+	// Check exported include directories
+	if w := "-Ishared_include"; !strings.Contains(cmd, w) {
+		t.Errorf("expected %q in %q", w, cmd)
+	}
+	if w := "-Istatic_include"; !strings.Contains(cmd, w) {
+		t.Errorf("expected %q in %q", w, cmd)
+	}
+
+	// Check proto.rs, the second protobuf, is listed as an output
+	librust_proto_outputs := ctx.ModuleForTests("librust_proto", "android_arm64_armv8-a_source").AllOutputs()
+	if android.InList("proto.rs", librust_proto_outputs) {
+		t.Errorf("rust_protobuf is not producing multiple outputs; expected 'proto.rs' in list, got: %#v ",
+			librust_proto_outputs)
+	}
+}
+
 func TestRustGrpc(t *testing.T) {
 	ctx := testRust(t, `
 		rust_protobuf {
