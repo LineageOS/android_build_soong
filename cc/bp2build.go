@@ -67,6 +67,8 @@ type staticOrSharedAttributes struct {
 
 	Apex_available []string
 
+	Features bazel.StringListAttribute
+
 	sdkAttributes
 
 	tidyAttributes
@@ -226,7 +228,7 @@ func bp2buildParseStaticOrSharedProps(ctx android.BazelConversionPathContext, mo
 	attrs := staticOrSharedAttributes{}
 
 	setAttrs := func(axis bazel.ConfigurationAxis, config string, props StaticOrSharedProperties) {
-		attrs.Copts.SetSelectValue(axis, config, parseCommandLineFlags(props.Cflags, filterOutStdFlag))
+		attrs.Copts.SetSelectValue(axis, config, parseCommandLineFlags(props.Cflags, filterOutStdFlag, filterOutHiddenVisibility))
 		attrs.Srcs.SetSelectValue(axis, config, android.BazelLabelForModuleSrc(ctx, props.Srcs))
 		attrs.System_dynamic_deps.SetSelectValue(axis, config, bazelLabelForSharedDeps(ctx, props.System_shared_libs))
 
@@ -269,6 +271,8 @@ func bp2buildParseStaticOrSharedProps(ctx android.BazelConversionPathContext, mo
 	attrs.Srcs_as = partitionedSrcs[asSrcPartition]
 
 	attrs.Apex_available = android.ConvertApexAvailableToTags(apexAvailable)
+
+	attrs.Features.Append(convertHiddenVisibilityToFeatureStaticOrShared(ctx, module, isStatic))
 
 	if !partitionedSrcs[protoSrcPartition].IsEmpty() {
 		// TODO(b/208815215): determine whether this is used and add support if necessary
@@ -428,6 +432,12 @@ type compilerAttributes struct {
 
 type filterOutFn func(string) bool
 
+// filterOutHiddenVisibility removes the flag specifying hidden visibility as
+// this flag is converted to a toolchain feature
+func filterOutHiddenVisibility(flag string) bool {
+	return flag == config.VisibilityHiddenFlag
+}
+
 func filterOutStdFlag(flag string) bool {
 	return strings.HasPrefix(flag, "-std=")
 }
@@ -490,7 +500,7 @@ func (ca *compilerAttributes) bp2buildForAxisAndConfig(ctx android.BazelConversi
 	// overridden. In Bazel we always allow overriding, via flags; however, this can cause
 	// incompatibilities, so we remove "-std=" flags from Cflag properties while leaving it in other
 	// cases.
-	ca.copts.SetSelectValue(axis, config, parseCommandLineFlags(props.Cflags, filterOutStdFlag, filterOutClangUnknownCflags))
+	ca.copts.SetSelectValue(axis, config, parseCommandLineFlags(props.Cflags, filterOutStdFlag, filterOutClangUnknownCflags, filterOutHiddenVisibility))
 	ca.asFlags.SetSelectValue(axis, config, parseCommandLineFlags(props.Asflags, nil))
 	ca.conlyFlags.SetSelectValue(axis, config, parseCommandLineFlags(props.Conlyflags, filterOutClangUnknownCflags))
 	ca.cppFlags.SetSelectValue(axis, config, parseCommandLineFlags(props.Cppflags, filterOutClangUnknownCflags))
@@ -833,6 +843,7 @@ func bp2BuildParseBaseProps(ctx android.Bp2buildMutatorContext, module *Module) 
 
 	features := compilerAttrs.features.Clone().Append(linkerAttrs.features).Append(bp2buildSanitizerFeatures(ctx, module))
 	features = features.Append(bp2buildLtoFeatures(ctx, module))
+	features = features.Append(convertHiddenVisibilityToFeatureBase(ctx, module))
 	features.DeduplicateAxesFromBase()
 
 	addMuslSystemDynamicDeps(ctx, linkerAttrs)
@@ -1546,4 +1557,39 @@ func bp2buildLtoFeatures(ctx android.BazelConversionPathContext, m *Module) baze
 		ctx.ModuleErrorf("Error processing LTO attributes: %s", err)
 	}
 	return ltoStringFeatures
+}
+
+func convertHiddenVisibilityToFeatureBase(ctx android.BazelConversionPathContext, m *Module) bazel.StringListAttribute {
+	visibilityHiddenFeature := bazel.StringListAttribute{}
+	bp2BuildPropParseHelper(ctx, m, &BaseCompilerProperties{}, func(axis bazel.ConfigurationAxis, configString string, props interface{}) {
+		if baseCompilerProps, ok := props.(*BaseCompilerProperties); ok {
+			convertHiddenVisibilityToFeatureHelper(&visibilityHiddenFeature, axis, configString, baseCompilerProps.Cflags)
+		}
+	})
+	return visibilityHiddenFeature
+}
+
+func convertHiddenVisibilityToFeatureStaticOrShared(ctx android.BazelConversionPathContext, m *Module, isStatic bool) bazel.StringListAttribute {
+	visibilityHiddenFeature := bazel.StringListAttribute{}
+	if isStatic {
+		bp2BuildPropParseHelper(ctx, m, &StaticProperties{}, func(axis bazel.ConfigurationAxis, configString string, props interface{}) {
+			if staticProps, ok := props.(*StaticProperties); ok {
+				convertHiddenVisibilityToFeatureHelper(&visibilityHiddenFeature, axis, configString, staticProps.Static.Cflags)
+			}
+		})
+	} else {
+		bp2BuildPropParseHelper(ctx, m, &SharedProperties{}, func(axis bazel.ConfigurationAxis, configString string, props interface{}) {
+			if sharedProps, ok := props.(*SharedProperties); ok {
+				convertHiddenVisibilityToFeatureHelper(&visibilityHiddenFeature, axis, configString, sharedProps.Shared.Cflags)
+			}
+		})
+	}
+
+	return visibilityHiddenFeature
+}
+
+func convertHiddenVisibilityToFeatureHelper(feature *bazel.StringListAttribute, axis bazel.ConfigurationAxis, configString string, cflags []string) {
+	if inList(config.VisibilityHiddenFlag, cflags) {
+		feature.SetSelectValue(axis, configString, []string{"visibility_hidden"})
+	}
 }
