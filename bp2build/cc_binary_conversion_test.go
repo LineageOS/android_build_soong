@@ -996,3 +996,44 @@ func TestCcBinaryWithThinLtoAndWholeProgramVtables(t *testing.T) {
 		},
 	})
 }
+
+func TestCcBinaryHiddenVisibilityConvertedToFeature(t *testing.T) {
+	runCcBinaryTestCase(t, ccBinaryBp2buildTestCase{
+		description: "cc_binary changes hidden visibility to feature",
+		blueprint: `
+{rule_name} {
+	name: "foo",
+	cflags: ["-fvisibility=hidden"],
+}`,
+		targets: []testBazelTarget{
+			{"cc_binary", "foo", AttrNameToString{
+				"local_includes": `["."]`,
+				"features":       `["visibility_hidden"]`,
+			}},
+		},
+	})
+}
+
+func TestCcBinaryHiddenVisibilityConvertedToFeatureOsSpecific(t *testing.T) {
+	runCcBinaryTestCase(t, ccBinaryBp2buildTestCase{
+		description: "cc_binary changes hidden visibility to feature for specific os",
+		blueprint: `
+{rule_name} {
+	name: "foo",
+	target: {
+		android: {
+			cflags: ["-fvisibility=hidden"],
+		},
+	},
+}`,
+		targets: []testBazelTarget{
+			{"cc_binary", "foo", AttrNameToString{
+				"local_includes": `["."]`,
+				"features": `select({
+        "//build/bazel/platforms/os:android": ["visibility_hidden"],
+        "//conditions:default": [],
+    })`,
+			}},
+		},
+	})
+}
