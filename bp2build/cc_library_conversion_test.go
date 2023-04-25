@@ -4350,3 +4350,107 @@ cc_library {
 		},
 	})
 }
+
+func TestCcLibraryHiddenVisibilityConvertedToFeature(t *testing.T) {
+	runCcLibraryTestCase(t, Bp2buildTestCase{
+		Description:                "cc_library changes hidden visibility flag to feature",
+		ModuleTypeUnderTest:        "cc_library",
+		ModuleTypeUnderTestFactory: cc.LibraryFactory,
+		Blueprint: `
+cc_library {
+	name: "foo",
+	cflags: ["-fvisibility=hidden"],
+}`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
+				"features":       `["visibility_hidden"]`,
+				"local_includes": `["."]`,
+			}),
+			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+				"features":       `["visibility_hidden"]`,
+				"local_includes": `["."]`,
+			}),
+		},
+	})
+}
+
+func TestCcLibraryHiddenVisibilityConvertedToFeatureSharedSpecific(t *testing.T) {
+	runCcLibraryTestCase(t, Bp2buildTestCase{
+		Description:                "cc_library changes hidden visibility flag to feature when specific to shared variant",
+		ModuleTypeUnderTest:        "cc_library",
+		ModuleTypeUnderTestFactory: cc.LibraryFactory,
+		Blueprint: `
+cc_library {
+	name: "foo",
+	shared: {
+		cflags: ["-fvisibility=hidden"],
+	},
+}`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
+				"local_includes": `["."]`,
+			}),
+			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+				"features":       `["visibility_hidden"]`,
+				"local_includes": `["."]`,
+			}),
+		},
+	})
+}
+
+func TestCcLibraryHiddenVisibilityConvertedToFeatureStaticSpecific(t *testing.T) {
+	runCcLibraryTestCase(t, Bp2buildTestCase{
+		Description:                "cc_library changes hidden visibility flag to feature when specific to static variant",
+		ModuleTypeUnderTest:        "cc_library",
+		ModuleTypeUnderTestFactory: cc.LibraryFactory,
+		Blueprint: `
+cc_library {
+	name: "foo",
+	static: {
+		cflags: ["-fvisibility=hidden"],
+	},
+}`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
+				"features":       `["visibility_hidden"]`,
+				"local_includes": `["."]`,
+			}),
+			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+				"local_includes": `["."]`,
+			}),
+		},
+	})
+}
+
+func TestCcLibraryHiddenVisibilityConvertedToFeatureOsSpecific(t *testing.T) {
+	runCcLibraryTestCase(t, Bp2buildTestCase{
+		Description:                "cc_library changes hidden visibility flag to feature when specific to an os",
+		ModuleTypeUnderTest:        "cc_library",
+		ModuleTypeUnderTestFactory: cc.LibraryFactory,
+		Blueprint: `
+cc_library {
+	name: "foo",
+	target: {
+		android: {
+			cflags: ["-fvisibility=hidden"],
+		},
+	},
+}`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
+				"features": `select({
+        "//build/bazel/platforms/os:android": ["visibility_hidden"],
+        "//conditions:default": [],
+    })`,
+				"local_includes": `["."]`,
+			}),
+			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+				"features": `select({
+        "//build/bazel/platforms/os:android": ["visibility_hidden"],
+        "//conditions:default": [],
+    })`,
+				"local_includes": `["."]`,
+			}),
+		},
+	})
+}
