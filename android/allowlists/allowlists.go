@@ -1521,6 +1521,11 @@ var (
 		"adb_tls_connection_test",
 		// M9: mixed builds for mainline trains launch
 		"api_fingerprint",
+		// M11: neuralnetworks launch
+		"com.android.neuralnetworks",
+		"test_com.android.neuralnetworks",
+		"libneuralnetworks",
+		"libneuralnetworks_static",
 	}
 
 	// Staging-mode allowlist. Modules in this list are only built
@@ -1528,11 +1533,7 @@ var (
 	// which will soon be added to the prod allowlist.
 	// It is implicit that all modules in ProdMixedBuildsEnabledList will
 	// also be built - do not add them to this list.
-	StagingMixedBuildsEnabledList = []string{
-		"com.android.neuralnetworks",
-		"libneuralnetworks",
-		"libneuralnetworks_static",
-	}
+	StagingMixedBuildsEnabledList = []string{}
 
 	// These should be the libs that are included by the apexes in the ProdMixedBuildsEnabledList
 	ProdDclaMixedBuildsEnabledList = []string{
