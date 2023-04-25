@@ -128,6 +128,24 @@ func NewProxyServer(logger ServerLogger, outDir string, workspaceDir string) *Pr
 	}
 }
 
+func ExecBazel(bazelPath string, workspaceDir string, request CmdRequest) (stdout []byte, stderr []byte, cmdErr error) {
+	bazelCmd := exec.Command(bazelPath, request.Argv...)
+	bazelCmd.Dir = workspaceDir
+	bazelCmd.Env = request.Env
+
+	stderrBuffer := &bytes.Buffer{}
+	bazelCmd.Stderr = stderrBuffer
+
+	if output, err := bazelCmd.Output(); err != nil {
+		cmdErr = fmt.Errorf("bazel command failed: %s\n---command---\n%s\n---env---\n%s\n---stderr---\n%s---",
+			err, bazelCmd, strings.Join(bazelCmd.Env, "\n"), stderrBuffer)
+	} else {
+		stdout = output
+	}
+	stderr = stderrBuffer.Bytes()
+	return
+}
+
 func (b *ProxyServer) handleRequest(conn net.Conn) error {
 	defer conn.Close()
 
@@ -137,23 +155,13 @@ func (b *ProxyServer) handleRequest(conn net.Conn) error {
 		return fmt.Errorf("Error decoding request: %s", err)
 	}
 
-	bazelCmd := exec.Command("./build/bazel/bin/bazel", req.Argv...)
-	bazelCmd.Dir = b.workspaceDir
-	bazelCmd.Env = req.Env
-
-	stderr := &bytes.Buffer{}
-	bazelCmd.Stderr = stderr
-	var stdout string
-	var bazelErrString string
-
-	if output, err := bazelCmd.Output(); err != nil {
-		bazelErrString = fmt.Sprintf("bazel command failed: %s\n---command---\n%s\n---env---\n%s\n---stderr---\n%s---",
-			err, bazelCmd, strings.Join(bazelCmd.Env, "\n"), stderr)
-	} else {
-		stdout = string(output)
+	stdout, stderr, cmdErr := ExecBazel("./build/bazel/bin/bazel", b.workspaceDir, req)
+	errorString := ""
+	if cmdErr != nil {
+		errorString = cmdErr.Error()
 	}
 
-	resp := CmdResponse{stdout, string(stderr.Bytes()), bazelErrString}
+	resp := CmdResponse{string(stdout), string(stderr), errorString}
 	enc := gob.NewEncoder(conn)
 	if err := enc.Encode(&resp); err != nil {
 		return fmt.Errorf("Error encoding response: %s", err)
