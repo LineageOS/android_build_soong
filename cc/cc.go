@@ -1893,17 +1893,46 @@ func (c *Module) QueueBazelCall(ctx android.BaseModuleContext) {
 // IsMixedBuildSupported returns true if the module should be analyzed by Bazel
 // in any of the --bazel-mode(s).
 func (c *Module) IsMixedBuildSupported(ctx android.BaseModuleContext) bool {
-	// TODO(b/261058727): Remove this (enable mixed builds for modules with UBSan)
-	// Currently we can only support ubsan when minimum runtime is used.
-	return c.bazelHandler != nil && (!isUbsanEnabled(c) || c.MinimalRuntimeNeeded())
-}
-
-func isUbsanEnabled(c *Module) bool {
-	if c.sanitize == nil {
+	if !allEnabledSanitizersSupportedByBazel(c) {
+		//TODO(b/278772861) support sanitizers in Bazel rules
 		return false
 	}
+	return c.bazelHandler != nil
+}
+
+func allEnabledSanitizersSupportedByBazel(c *Module) bool {
+	if c.sanitize == nil {
+		return true
+	}
 	sanitizeProps := &c.sanitize.Properties.SanitizeMutated
-	return Bool(sanitizeProps.Integer_overflow) || len(sanitizeProps.Misc_undefined) > 0
+
+	unsupportedSanitizers := []*bool{
+		sanitizeProps.Safestack,
+		sanitizeProps.Cfi,
+		sanitizeProps.Scudo,
+		BoolPtr(len(c.sanitize.Properties.Sanitize.Recover) > 0),
+		BoolPtr(c.sanitize.Properties.Sanitize.Blocklist != nil),
+	}
+	for _, san := range unsupportedSanitizers {
+		if Bool(san) {
+			return false
+		}
+	}
+
+	for _, san := range Sanitizers {
+		if san == intOverflow {
+			// TODO(b/261058727): enable mixed builds for all modules with UBSan
+			// Currently we can only support ubsan when minimum runtime is used.
+			ubsanEnabled := Bool(sanitizeProps.Integer_overflow) || len(sanitizeProps.Misc_undefined) > 0
+			if ubsanEnabled && !c.MinimalRuntimeNeeded() {
+				return false
+			}
+		} else if c.sanitize.isSanitizerEnabled(san) {
+			return false
+		}
+	}
+
+	return true
 }
 
 func GetApexConfigKey(ctx android.BaseModuleContext) *android.ApexConfigKey {

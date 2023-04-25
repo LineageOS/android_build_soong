@@ -3114,6 +3114,11 @@ func TestLibDepAndroidMkExportInMixedBuilds(t *testing.T) {
 			whole_static_libs: ["whole_static_dep"],
 			shared_libs: ["shared_dep"],
 			gtest: false,
+			sanitize: {
+				// cc_test modules default to memtag_heap: true,
+				// but this adds extra dependencies that we don't care about
+				never: true,
+			}
 		}
 		cc_binary {
 			name: "binary",
@@ -5100,4 +5105,257 @@ func TestDclaLibraryInApex(t *testing.T) {
 	}
 	expectedOutputFiles := []string{"outputbase/execroot/__main__/foo.so"}
 	android.AssertDeepEquals(t, "output files", expectedOutputFiles, outputFiles.Strings())
+}
+
+func TestDisableSanitizerVariantsInMixedBuilds(t *testing.T) {
+	t.Parallel()
+	bp := `
+		cc_library_static {
+			name: "foo_ubsan_minimal",
+			srcs: ["foo.cc"],
+			bazel_module: { label: "//foo_ubsan_minimal" },
+			sanitize: {
+				all_undefined: true,
+				integer_overflow: true,
+			},
+		}
+		cc_library_static {
+			name: "foo",
+			srcs: ["foo.cc"],
+			bazel_module: { label: "//foo" },
+			sanitize: {
+				address: true,
+				hwaddress: true,
+				fuzzer: true,
+				integer_overflow: true,
+				scs: true,
+			},
+		}
+		cc_library_static {
+			name: "foo_tsan",
+			srcs: ["foo.cc"],
+			bazel_module: { label: "//foo_tsan" },
+			sanitize: {
+				thread: true,
+			},
+		}
+		cc_library_static {
+			name: "foo_cfi",
+			srcs: ["foo.cc"],
+			bazel_module: { label: "//foo_cfi" },
+			sanitize: {
+				cfi: true,
+			},
+		}
+		cc_library_static {
+			name: "foo_memtag_stack",
+			srcs: ["foo.cc"],
+			bazel_module: { label: "//foo_memtag_stack" },
+			sanitize: {
+				memtag_stack: true,
+			},
+		}
+		cc_library_static {
+			name: "foo_memtag_heap",
+			srcs: ["foo.cc"],
+			bazel_module: { label: "//foo_memtag_heap" },
+			sanitize: {
+				memtag_heap: true,
+			},
+		}
+		cc_library_static {
+			name: "foo_safestack",
+			srcs: ["foo.cc"],
+			bazel_module: { label: "//foo_safestack" },
+			sanitize: {
+				safestack: true,
+			},
+		}
+		cc_library_static {
+			name: "foo_scudo",
+			srcs: ["foo.cc"],
+			bazel_module: { label: "//foo_scudo" },
+			sanitize: {
+				scudo: true,
+			},
+		}
+	`
+	testcases := []struct {
+		name                string
+		variant             string
+		expectedOutputPaths []string
+	}{
+		{
+			name:    "foo_ubsan_minimal",
+			variant: "android_arm64_armv8-a_static_apex28",
+			expectedOutputPaths: []string{
+				"outputbase/execroot/__main__/foo_ubsan_minimal.a",
+			},
+		},
+		{
+			name:    "foo",
+			variant: "android_arm64_armv8-a_static_apex28",
+			expectedOutputPaths: []string{
+				"outputbase/execroot/__main__/foo.a",
+			},
+		},
+		{
+			name:    "foo",
+			variant: "android_arm_armv7-a-neon_static_asan_apex28",
+			expectedOutputPaths: []string{
+				"out/soong/.intermediates/foo/android_arm_armv7-a-neon_static_asan_apex28/foo.a",
+			},
+		},
+		{
+			name:    "foo",
+			variant: "android_arm64_armv8-a_static_hwasan_apex28",
+			expectedOutputPaths: []string{
+				"out/soong/.intermediates/foo/android_arm64_armv8-a_static_hwasan_apex28/foo.a",
+			},
+		},
+		{
+			name:    "foo",
+			variant: "android_arm64_armv8-a_static_fuzzer_apex28",
+			expectedOutputPaths: []string{
+				"out/soong/.intermediates/foo/android_arm64_armv8-a_static_fuzzer_apex28/foo.a",
+			},
+		},
+		{
+			name:    "foo",
+			variant: "android_arm_armv7-a-neon_static_asan_fuzzer_apex28",
+			expectedOutputPaths: []string{
+				"out/soong/.intermediates/foo/android_arm_armv7-a-neon_static_asan_fuzzer_apex28/foo.a",
+			},
+		},
+		{
+			name:    "foo",
+			variant: "android_arm64_armv8-a_static_hwasan_fuzzer_apex28",
+			expectedOutputPaths: []string{
+				"out/soong/.intermediates/foo/android_arm64_armv8-a_static_hwasan_fuzzer_apex28/foo.a",
+			},
+		},
+		{
+			name:    "foo",
+			variant: "android_arm64_armv8-a_static_scs_apex28",
+			expectedOutputPaths: []string{
+				"out/soong/.intermediates/foo/android_arm64_armv8-a_static_scs_apex28/foo.a",
+			},
+		},
+		{
+			name:    "foo",
+			variant: "android_arm64_armv8-a_static_hwasan_scs_apex28",
+			expectedOutputPaths: []string{
+				"out/soong/.intermediates/foo/android_arm64_armv8-a_static_hwasan_scs_apex28/foo.a",
+			},
+		},
+		{
+			name:    "foo",
+			variant: "android_arm64_armv8-a_static_hwasan_scs_fuzzer_apex28",
+			expectedOutputPaths: []string{
+				"out/soong/.intermediates/foo/android_arm64_armv8-a_static_hwasan_scs_fuzzer_apex28/foo.a",
+			},
+		},
+		{
+			name:    "foo_tsan",
+			variant: "android_arm64_armv8-a_static_apex28",
+			expectedOutputPaths: []string{
+				"outputbase/execroot/__main__/foo_tsan.a",
+			},
+		},
+		{
+			name:    "foo_tsan",
+			variant: "android_arm64_armv8-a_static_tsan_apex28",
+			expectedOutputPaths: []string{
+				"out/soong/.intermediates/foo_tsan/android_arm64_armv8-a_static_tsan_apex28/foo_tsan.a",
+			},
+		},
+		{
+			name:    "foo_cfi",
+			variant: "android_arm64_armv8-a_static_apex28",
+			expectedOutputPaths: []string{
+				"outputbase/execroot/__main__/foo_cfi.a",
+			},
+		},
+		{
+			name:    "foo_cfi",
+			variant: "android_arm64_armv8-a_static_cfi_apex28",
+			expectedOutputPaths: []string{
+				"out/soong/.intermediates/foo_cfi/android_arm64_armv8-a_static_cfi_apex28/foo_cfi.a",
+			},
+		},
+		{
+			name:    "foo_memtag_stack",
+			variant: "android_arm64_armv8-a_static_apex28",
+			expectedOutputPaths: []string{
+				"out/soong/.intermediates/foo_memtag_stack/android_arm64_armv8-a_static_apex28/foo_memtag_stack.a",
+			},
+		},
+		{
+			name:    "foo_memtag_heap",
+			variant: "android_arm64_armv8-a_static_apex28",
+			expectedOutputPaths: []string{
+				"out/soong/.intermediates/foo_memtag_heap/android_arm64_armv8-a_static_apex28/foo_memtag_heap.a",
+			},
+		},
+		{
+			name:    "foo_safestack",
+			variant: "android_arm64_armv8-a_static_apex28",
+			expectedOutputPaths: []string{
+				"out/soong/.intermediates/foo_safestack/android_arm64_armv8-a_static_apex28/foo_safestack.a",
+			},
+		},
+		{
+			name:    "foo_scudo",
+			variant: "android_arm64_armv8-a_static_apex28",
+			expectedOutputPaths: []string{
+				"out/soong/.intermediates/foo_scudo/android_arm64_armv8-a_static_apex28/foo_scudo.a",
+			},
+		},
+	}
+
+	ctx := android.GroupFixturePreparers(
+		prepareForCcTest,
+		prepareForAsanTest,
+		android.FixtureRegisterWithContext(registerTestMutators),
+		android.FixtureModifyConfig(func(config android.Config) {
+			config.BazelContext = android.MockBazelContext{
+				OutputBaseDir: "outputbase",
+				LabelToCcInfo: map[string]cquery.CcInfo{
+					"//foo_ubsan_minimal": {
+						RootStaticArchives: []string{"foo_ubsan_minimal.a"},
+					},
+					"//foo": {
+						RootStaticArchives: []string{"foo.a"},
+					},
+					"//foo_tsan": {
+						RootStaticArchives: []string{"foo_tsan.a"},
+					},
+					"//foo_cfi": {
+						RootStaticArchives: []string{"foo_cfi.a"},
+					},
+					"//foo_memtag_stack": {
+						RootStaticArchives: []string{"INVALID_ARCHIVE.a"},
+					},
+					"//foo_memtag_heap": {
+						RootStaticArchives: []string{"INVALID_ARCHIVE.a"},
+					},
+					"//foo_safestack": {
+						RootStaticArchives: []string{"INVALID_ARCHIVE.a"},
+					},
+					"//foo_scudo": {
+						RootStaticArchives: []string{"INVALID_ARCHIVE.a"},
+					},
+				},
+			}
+		}),
+	).RunTestWithBp(t, bp).TestContext
+
+	for _, tc := range testcases {
+		fooMod := ctx.ModuleForTests(tc.name, tc.variant).Module()
+		outputFiles, err := fooMod.(android.OutputFileProducer).OutputFiles("")
+		if err != nil {
+			t.Errorf("Unexpected error getting cc_object outputfiles %s", err)
+		}
+		android.AssertPathsRelativeToTopEquals(t, "output files", tc.expectedOutputPaths, outputFiles)
+	}
 }
