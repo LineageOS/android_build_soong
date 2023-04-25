@@ -468,10 +468,6 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 	imageDir := android.PathForModuleOut(ctx, "image"+suffix)
 
 	installSymbolFiles := (!ctx.Config().KatiEnabled() || a.ExportedToMake()) && a.installable()
-	// We can't install symbol files when prebuilt is used.
-	if a.IsReplacedByPrebuilt() {
-		installSymbolFiles = false
-	}
 
 	// set of dependency module:location mappings
 	installMapSet := make(map[string]bool)
