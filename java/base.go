@@ -1923,9 +1923,12 @@ type moduleWithSdkDep interface {
 
 func (m *Module) getSdkLinkType(ctx android.BaseModuleContext, name string) (ret sdkLinkType, stubs bool) {
 	switch name {
-	case android.SdkCore.JavaLibraryName(ctx.Config()), "legacy.core.platform.api.stubs", "stable.core.platform.api.stubs",
+	case android.SdkCore.JavaLibraryName(ctx.Config()),
+		android.JavaApiLibraryName(ctx.Config(), "legacy.core.platform.api.stubs"),
+		android.JavaApiLibraryName(ctx.Config(), "stable.core.platform.api.stubs"),
 		"stub-annotations", "private-stub-annotations-jar",
-		"core-lambda-stubs", "core-generated-annotation-stubs":
+		android.JavaApiLibraryName(ctx.Config(), "core-lambda-stubs"),
+		"core-generated-annotation-stubs":
 		return javaCore, true
 	case android.SdkPublic.JavaLibraryName(ctx.Config()):
 		return javaSdk, true
