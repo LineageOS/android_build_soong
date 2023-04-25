@@ -513,8 +513,9 @@ func (m *ApexModuleBase) checkApexAvailableProperty(mctx BaseModuleContext) {
 // exactly the same set of APEXes (and platform), i.e. if their apex_available
 // properties have the same elements.
 func AvailableToSameApexes(mod1, mod2 ApexModule) bool {
-	mod1ApexAvail := SortedUniqueStrings(mod1.apexModuleBase().ApexProperties.Apex_available)
-	mod2ApexAvail := SortedUniqueStrings(mod2.apexModuleBase().ApexProperties.Apex_available)
+	// Use CopyOf to prevent non-determinism (b/275313114#comment1)
+	mod1ApexAvail := SortedUniqueStrings(CopyOf(mod1.apexModuleBase().ApexProperties.Apex_available))
+	mod2ApexAvail := SortedUniqueStrings(CopyOf(mod2.apexModuleBase().ApexProperties.Apex_available))
 	if len(mod1ApexAvail) != len(mod2ApexAvail) {
 		return false
 	}
