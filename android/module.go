@@ -925,6 +925,12 @@ type commonProperties struct {
 	// and don't create a rule to install the file.
 	SkipInstall bool `blueprint:"mutated"`
 
+	// UninstallableApexPlatformVariant is set by MakeUninstallable called by the apex
+	// mutator.  MakeUninstallable also sets HideFromMake.  UninstallableApexPlatformVariant
+	// is used to avoid adding install or packaging dependencies into libraries provided
+	// by apexes.
+	UninstallableApexPlatformVariant bool `blueprint:"mutated"`
+
 	// Whether the module has been replaced by a prebuilt
 	ReplacedByPrebuilt bool `blueprint:"mutated"`
 
@@ -2009,6 +2015,7 @@ func (m *ModuleBase) IsSkipInstall() bool {
 // have other side effects, in particular when it adds a NOTICE file target,
 // which other install targets might depend on.
 func (m *ModuleBase) MakeUninstallable() {
+	m.commonProperties.UninstallableApexPlatformVariant = true
 	m.HideFromMake()
 }
 
@@ -2038,18 +2045,35 @@ func (m *ModuleBase) EffectiveLicenseFiles() Paths {
 }
 
 // computeInstallDeps finds the installed paths of all dependencies that have a dependency
-// tag that is annotated as needing installation via the IsInstallDepNeeded method.
+// tag that is annotated as needing installation via the isInstallDepNeeded method.
 func (m *ModuleBase) computeInstallDeps(ctx ModuleContext) ([]*installPathsDepSet, []*packagingSpecsDepSet) {
 	var installDeps []*installPathsDepSet
 	var packagingSpecs []*packagingSpecsDepSet
 	ctx.VisitDirectDeps(func(dep Module) {
-		if IsInstallDepNeeded(ctx.OtherModuleDependencyTag(dep)) && !dep.IsHideFromMake() && !dep.IsSkipInstall() {
-			installDeps = append(installDeps, dep.base().installFilesDepSet)
+		if isInstallDepNeeded(dep, ctx.OtherModuleDependencyTag(dep)) {
+			// Installation is still handled by Make, so anything hidden from Make is not
+			// installable.
+			if !dep.IsHideFromMake() && !dep.IsSkipInstall() {
+				installDeps = append(installDeps, dep.base().installFilesDepSet)
+			}
+			// Add packaging deps even when the dependency is not installed so that uninstallable
+			// modules can still be packaged.  Often the package will be installed instead.
 			packagingSpecs = append(packagingSpecs, dep.base().packagingSpecsDepSet)
 		}
 	})
 
 	return installDeps, packagingSpecs
+}
+
+// isInstallDepNeeded returns true if installing the output files of the current module
+// should also install the output files of the given dependency and dependency tag.
+func isInstallDepNeeded(dep Module, tag blueprint.DependencyTag) bool {
+	// Don't add a dependency from the platform to a library provided by an apex.
+	if dep.base().commonProperties.UninstallableApexPlatformVariant {
+		return false
+	}
+	// Only install modules if the dependency tag is an InstallDepNeeded tag.
+	return IsInstallDepNeededTag(tag)
 }
 
 func (m *ModuleBase) FilesToInstall() InstallPaths {
