@@ -1291,3 +1291,66 @@ cc_library_shared{
 		},
 	})
 }
+
+func TestCcLibrarySharedStubsDessertVersionConversion(t *testing.T) {
+	runCcLibrarySharedTestCase(t, Bp2buildTestCase{
+		Description: "cc_library_shared converts dessert codename versions to numerical versions",
+		Blueprint: `
+cc_library_shared {
+	name: "a",
+	include_build_directory: false,
+	stubs: {
+		symbol_file: "a.map.txt",
+		versions: [
+			"Q",
+			"R",
+			"31",
+		],
+	},
+}
+cc_library_shared {
+	name: "b",
+	include_build_directory: false,
+	stubs: {
+		symbol_file: "b.map.txt",
+		versions: [
+			"Q",
+			"R",
+			"31",
+			"current",
+		],
+	},
+}
+`,
+		ExpectedBazelTargets: []string{
+			makeCcStubSuiteTargets("a", AttrNameToString{
+				"soname":               `"a.so"`,
+				"source_library_label": `"//:a"`,
+				"stubs_symbol_file":    `"a.map.txt"`,
+				"stubs_versions": `[
+        "29",
+        "30",
+        "31",
+        "current",
+    ]`,
+			}),
+			MakeBazelTarget("cc_library_shared", "a", AttrNameToString{
+				"stubs_symbol_file": `"a.map.txt"`,
+			}),
+			makeCcStubSuiteTargets("b", AttrNameToString{
+				"soname":               `"b.so"`,
+				"source_library_label": `"//:b"`,
+				"stubs_symbol_file":    `"b.map.txt"`,
+				"stubs_versions": `[
+        "29",
+        "30",
+        "31",
+        "current",
+    ]`,
+			}),
+			MakeBazelTarget("cc_library_shared", "b", AttrNameToString{
+				"stubs_symbol_file": `"b.map.txt"`,
+			}),
+		},
+	})
+}
