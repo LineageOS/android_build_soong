@@ -3683,9 +3683,6 @@ func TestStubsForLibraryInMultipleApexes(t *testing.T) {
 }
 
 func TestMixedBuildUsesStubs(t *testing.T) {
-	// TODO(b/275313114): Test exposes non-determinism which should be corrected and the test
-	// reenabled.
-	t.Skip()
 	t.Parallel()
 	bp := `
 		cc_library_shared {
