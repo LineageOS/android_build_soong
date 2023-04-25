@@ -241,7 +241,7 @@ func hiddenAPIComputeMonolithicStubLibModules(config android.Config) map[*Hidden
 		testStubModules = append(testStubModules, android.SdkTest.JavaLibraryName(config))
 	}
 	// We do not have prebuilts of the core platform api yet
-	corePlatformStubModules = append(corePlatformStubModules, "legacy.core.platform.api.stubs")
+	corePlatformStubModules = append(corePlatformStubModules, android.JavaApiLibraryName(config, "legacy.core.platform.api.stubs"))
 
 	// Allow products to define their own stubs for custom product jars that apps can use.
 	publicStubModules = append(publicStubModules, config.ProductHiddenAPIStubs()...)
