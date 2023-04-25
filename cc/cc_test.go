@@ -3685,6 +3685,133 @@ func TestStubsForLibraryInMultipleApexes(t *testing.T) {
 	}
 }
 
+func TestMixedBuildUsesStubs(t *testing.T) {
+	// TODO(b/275313114): Test exposes non-determinism which should be corrected and the test
+	// reenabled.
+	t.Skip()
+	t.Parallel()
+	bp := `
+		cc_library_shared {
+			name: "libFoo",
+			bazel_module: { label: "//:libFoo" },
+			srcs: ["foo.c"],
+			stubs: {
+				symbol_file: "foo.map.txt",
+				versions: ["current"],
+			},
+			apex_available: ["bar", "a1"],
+		}
+
+		cc_library_shared {
+			name: "libBar",
+			srcs: ["bar.c"],
+			shared_libs: ["libFoo"],
+			apex_available: ["a1"],
+		}
+
+		cc_library_shared {
+			name: "libA1",
+			srcs: ["a1.c"],
+			shared_libs: ["libFoo"],
+			apex_available: ["a1"],
+		}
+
+		cc_library_shared {
+			name: "libBarA1",
+			srcs: ["bara1.c"],
+			shared_libs: ["libFoo"],
+			apex_available: ["bar", "a1"],
+		}
+
+		cc_library_shared {
+			name: "libAnyApex",
+			srcs: ["anyApex.c"],
+			shared_libs: ["libFoo"],
+			apex_available: ["//apex_available:anyapex"],
+		}
+
+		cc_library_shared {
+			name: "libBaz",
+			srcs: ["baz.c"],
+			shared_libs: ["libFoo"],
+			apex_available: ["baz"],
+		}
+
+		cc_library_shared {
+			name: "libQux",
+			srcs: ["qux.c"],
+			shared_libs: ["libFoo"],
+			apex_available: ["qux", "bar"],
+		}`
+
+	result := android.GroupFixturePreparers(
+		prepareForCcTest,
+		android.FixtureModifyConfig(func(config android.Config) {
+			config.BazelContext = android.MockBazelContext{
+				OutputBaseDir: "out/bazel",
+				LabelToCcInfo: map[string]cquery.CcInfo{
+					"//:libFoo": {
+						RootDynamicLibraries: []string{"libFoo.so"},
+					},
+					"//:libFoo_stub_libs-current": {
+						RootDynamicLibraries: []string{"libFoo_stub_libs-current.so"},
+					},
+				},
+			}
+		}),
+	).RunTestWithBp(t, bp)
+	ctx := result.TestContext
+
+	variants := ctx.ModuleVariantsForTests("libFoo")
+	expectedVariants := []string{
+		"android_arm64_armv8-a_shared",
+		"android_arm64_armv8-a_shared_current",
+		"android_arm_armv7-a-neon_shared",
+		"android_arm_armv7-a-neon_shared_current",
+	}
+	variantsMismatch := false
+	if len(variants) != len(expectedVariants) {
+		variantsMismatch = true
+	} else {
+		for _, v := range expectedVariants {
+			if !inList(v, variants) {
+				variantsMismatch = false
+			}
+		}
+	}
+	if variantsMismatch {
+		t.Errorf("variants of libFoo expected:\n")
+		for _, v := range expectedVariants {
+			t.Errorf("%q\n", v)
+		}
+		t.Errorf(", but got:\n")
+		for _, v := range variants {
+			t.Errorf("%q\n", v)
+		}
+	}
+
+	linkAgainstFoo := []string{"libBarA1"}
+	linkAgainstFooStubs := []string{"libBar", "libA1", "libBaz", "libQux", "libAnyApex"}
+
+	libFooPath := "out/bazel/execroot/__main__/libFoo.so"
+	for _, lib := range linkAgainstFoo {
+		libLinkRule := ctx.ModuleForTests(lib, "android_arm64_armv8-a_shared").Rule("ld")
+		libFlags := libLinkRule.Args["libFlags"]
+		if !strings.Contains(libFlags, libFooPath) {
+			t.Errorf("%q: %q is not found in %q", lib, libFooPath, libFlags)
+		}
+	}
+
+	libFooStubPath := "out/bazel/execroot/__main__/libFoo_stub_libs-current.so"
+	for _, lib := range linkAgainstFooStubs {
+		libLinkRule := ctx.ModuleForTests(lib, "android_arm64_armv8-a_shared").Rule("ld")
+		libFlags := libLinkRule.Args["libFlags"]
+		if !strings.Contains(libFlags, libFooStubPath) {
+			t.Errorf("%q: %q is not found in %q", lib, libFooStubPath, libFlags)
+		}
+	}
+}
+
 func TestVersioningMacro(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct{ moduleName, expected string }{
