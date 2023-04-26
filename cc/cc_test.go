@@ -59,7 +59,7 @@ func registerTestMutators(ctx android.RegistrationContext) {
 func mixedBuildsPrepareMutator(ctx android.BottomUpMutatorContext) {
 	if m := ctx.Module(); m.Enabled() {
 		if mixedBuildMod, ok := m.(android.MixedBuildBuildable); ok {
-			if mixedBuildMod.IsMixedBuildSupported(ctx) && android.MixedBuildsEnabled(ctx) {
+			if mixedBuildMod.IsMixedBuildSupported(ctx) && android.MixedBuildsEnabled(ctx) == android.MixedBuildEnabled {
 				mixedBuildMod.QueueBazelCall(ctx)
 			}
 		}

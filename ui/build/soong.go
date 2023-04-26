@@ -288,6 +288,9 @@ func bootstrapBlueprint(ctx Context, config Config) {
 	if config.buildFromTextStub {
 		mainSoongBuildExtraArgs = append(mainSoongBuildExtraArgs, "--build-from-text-stub")
 	}
+	if config.ensureAllowlistIntegrity {
+		mainSoongBuildExtraArgs = append(mainSoongBuildExtraArgs, "--ensure-allowlist-integrity")
+	}
 
 	queryviewDir := filepath.Join(config.SoongOutDir(), "queryview")
 	// The BUILD files will be generated in out/soong/.api_bp2build (no symlinks to src files)
