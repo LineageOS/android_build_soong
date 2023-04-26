@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"android/soong/bazel"
 	"android/soong/bazel/cquery"
 	analysis_v2_proto "prebuilts/bazel/common/proto/analysis_v2"
 
@@ -18,6 +19,34 @@ import (
 var testConfig = TestConfig("out", nil, "", nil)
 
 type testInvokeBazelContext struct{}
+
+type mockBazelRunner struct {
+	testHelper *testing.T
+	// Stores mock behavior. If an issueBazelCommand request is made for command
+	// k, and {k:v} is present in this map, then the mock will return v.
+	bazelCommandResults map[bazelCommand]string
+	// Requests actually made of the mockBazelRunner with issueBazelCommand,
+	// keyed by the command they represent.
+	bazelCommandRequests map[bazelCommand]bazel.CmdRequest
+}
+
+func (r *mockBazelRunner) bazelCommandForRequest(cmdRequest bazel.CmdRequest) bazelCommand {
+	for _, arg := range cmdRequest.Argv {
+		for _, cmdType := range allBazelCommands {
+			if arg == cmdType.command {
+				return cmdType
+			}
+		}
+	}
+	r.testHelper.Fatalf("Unrecognized bazel request: %s", cmdRequest)
+	return cqueryCmd
+}
+
+func (r *mockBazelRunner) issueBazelCommand(cmdRequest bazel.CmdRequest, paths *bazelPaths, eventHandler *metrics.EventHandler) (string, string, error) {
+	command := r.bazelCommandForRequest(cmdRequest)
+	r.bazelCommandRequests[command] = cmdRequest
+	return r.bazelCommandResults[command], "", nil
+}
 
 func (t *testInvokeBazelContext) GetEventHandler() *metrics.EventHandler {
 	return &metrics.EventHandler{}
@@ -36,9 +65,7 @@ func TestRequestResultsAfterInvokeBazel(t *testing.T) {
 		`@//foo:foo|arm64_armv8-a|android|within_apex|29>>out/foo/foo.txt`,
 		`@//foo:bar|arm64_armv8-a|android>>out/foo/bar.txt`,
 	}
-	bazelContext, _ := testBazelContext(t, map[bazelCommand]string{
-		bazelCommand{command: "cquery", expression: "deps(@soong_injection//mixed_builds:buildroot, 2)"}: strings.Join(cmd_results, "\n"),
-	})
+	bazelContext, _ := testBazelContext(t, map[bazelCommand]string{cqueryCmd: strings.Join(cmd_results, "\n")})
 
 	bazelContext.QueueBazelRequest(label_foo, cquery.GetOutputFiles, cfg_foo)
 	bazelContext.QueueBazelRequest(label_bar, cquery.GetOutputFiles, cfg_bar)
@@ -139,8 +166,7 @@ func TestInvokeBazelPopulatesBuildStatements(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		bazelContext, _ := testBazelContext(t, map[bazelCommand]string{
-			bazelCommand{command: "aquery", expression: "deps(@soong_injection//mixed_builds:buildroot)"}: string(data)})
+		bazelContext, _ := testBazelContext(t, map[bazelCommand]string{aqueryCmd: string(data)})
 
 		err = bazelContext.InvokeBazel(testConfig, &testInvokeBazelContext{})
 		if err != nil {
@@ -166,30 +192,26 @@ func TestCoverageFlagsAfterInvokeBazel(t *testing.T) {
 
 	testConfig.productVariables.NativeCoveragePaths = []string{"foo1", "foo2"}
 	testConfig.productVariables.NativeCoverageExcludePaths = []string{"bar1", "bar2"}
-	verifyExtraFlags(t, testConfig, `--collect_code_coverage --instrumentation_filter=+foo1,+foo2,-bar1,-bar2`)
+	verifyAqueryContainsFlags(t, testConfig, "--collect_code_coverage", "--instrumentation_filter=+foo1,+foo2,-bar1,-bar2")
 
 	testConfig.productVariables.NativeCoveragePaths = []string{"foo1"}
 	testConfig.productVariables.NativeCoverageExcludePaths = []string{"bar1"}
-	verifyExtraFlags(t, testConfig, `--collect_code_coverage --instrumentation_filter=+foo1,-bar1`)
+	verifyAqueryContainsFlags(t, testConfig, "--collect_code_coverage", "--instrumentation_filter=+foo1,-bar1")
 
 	testConfig.productVariables.NativeCoveragePaths = []string{"foo1"}
 	testConfig.productVariables.NativeCoverageExcludePaths = nil
-	verifyExtraFlags(t, testConfig, `--collect_code_coverage --instrumentation_filter=+foo1`)
+	verifyAqueryContainsFlags(t, testConfig, "--collect_code_coverage", "--instrumentation_filter=+foo1")
 
 	testConfig.productVariables.NativeCoveragePaths = nil
 	testConfig.productVariables.NativeCoverageExcludePaths = []string{"bar1"}
-	verifyExtraFlags(t, testConfig, `--collect_code_coverage --instrumentation_filter=-bar1`)
+	verifyAqueryContainsFlags(t, testConfig, "--collect_code_coverage", "--instrumentation_filter=-bar1")
 
 	testConfig.productVariables.NativeCoveragePaths = []string{"*"}
 	testConfig.productVariables.NativeCoverageExcludePaths = nil
-	verifyExtraFlags(t, testConfig, `--collect_code_coverage --instrumentation_filter=+.*`)
+	verifyAqueryContainsFlags(t, testConfig, "--collect_code_coverage", "--instrumentation_filter=+.*")
 
 	testConfig.productVariables.ClangCoverage = boolPtr(false)
-	actual := verifyExtraFlags(t, testConfig, ``)
-	if strings.Contains(actual, "--collect_code_coverage") ||
-		strings.Contains(actual, "--instrumentation_filter=") {
-		t.Errorf("Expected code coverage disabled, but got %#v", actual)
-	}
+	verifyAqueryDoesNotContainSubstrings(t, testConfig, "collect_code_coverage", "instrumentation_filter")
 }
 
 func TestBazelRequestsSorted(t *testing.T) {
@@ -268,7 +290,8 @@ func TestIsModuleNameAllowed(t *testing.T) {
 	}
 }
 
-func verifyExtraFlags(t *testing.T, config Config, expected string) string {
+func verifyAqueryContainsFlags(t *testing.T, config Config, expected ...string) {
+	t.Helper()
 	bazelContext, _ := testBazelContext(t, map[bazelCommand]string{})
 
 	err := bazelContext.InvokeBazel(config, &testInvokeBazelContext{})
@@ -276,17 +299,49 @@ func verifyExtraFlags(t *testing.T, config Config, expected string) string {
 		t.Fatalf("Did not expect error invoking Bazel, but got %s", err)
 	}
 
-	flags := bazelContext.bazelRunner.(*mockBazelRunner).extraFlags
-	if expected := 3; len(flags) != expected {
-		t.Errorf("Expected %d extra flags got %#v", expected, flags)
+	sliceContains := func(slice []string, x string) bool {
+		for _, s := range slice {
+			if s == x {
+				return true
+			}
+		}
+		return false
 	}
 
-	actual := flags[1]
-	if !strings.Contains(actual, expected) {
-		t.Errorf("Expected %#v got %#v", expected, actual)
+	aqueryArgv := bazelContext.bazelRunner.(*mockBazelRunner).bazelCommandRequests[aqueryCmd].Argv
+
+	for _, expectedFlag := range expected {
+		if !sliceContains(aqueryArgv, expectedFlag) {
+			t.Errorf("aquery does not contain expected flag %#v. Argv was: %#v", expectedFlag, aqueryArgv)
+		}
+	}
+}
+
+func verifyAqueryDoesNotContainSubstrings(t *testing.T, config Config, substrings ...string) {
+	t.Helper()
+	bazelContext, _ := testBazelContext(t, map[bazelCommand]string{})
+
+	err := bazelContext.InvokeBazel(config, &testInvokeBazelContext{})
+	if err != nil {
+		t.Fatalf("Did not expect error invoking Bazel, but got %s", err)
 	}
 
-	return actual
+	sliceContainsSubstring := func(slice []string, substring string) bool {
+		for _, s := range slice {
+			if strings.Contains(s, substring) {
+				return true
+			}
+		}
+		return false
+	}
+
+	aqueryArgv := bazelContext.bazelRunner.(*mockBazelRunner).bazelCommandRequests[aqueryCmd].Argv
+
+	for _, substring := range substrings {
+		if sliceContainsSubstring(aqueryArgv, substring) {
+			t.Errorf("aquery contains unexpected substring %#v. Argv was: %#v", substring, aqueryArgv)
+		}
+	}
 }
 
 func testBazelContext(t *testing.T, bazelCommandResults map[bazelCommand]string) (*mixedBuildBazelContext, string) {
@@ -296,11 +351,14 @@ func testBazelContext(t *testing.T, bazelCommandResults map[bazelCommand]string)
 		outputBase:   "outputbase",
 		workspaceDir: "workspace_dir",
 	}
-	aqueryCommand := bazelCommand{command: "aquery", expression: "deps(@soong_injection//mixed_builds:buildroot)"}
-	if _, exists := bazelCommandResults[aqueryCommand]; !exists {
-		bazelCommandResults[aqueryCommand] = ""
+	if _, exists := bazelCommandResults[aqueryCmd]; !exists {
+		bazelCommandResults[aqueryCmd] = ""
 	}
-	runner := &mockBazelRunner{bazelCommandResults: bazelCommandResults}
+	runner := &mockBazelRunner{
+		testHelper:           t,
+		bazelCommandResults:  bazelCommandResults,
+		bazelCommandRequests: map[bazelCommand]bazel.CmdRequest{},
+	}
 	return &mixedBuildBazelContext{
 		bazelRunner: runner,
 		paths:       &p,
