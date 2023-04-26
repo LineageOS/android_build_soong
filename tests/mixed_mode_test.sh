@@ -88,7 +88,7 @@ EOF
     fail "Bazel actions not found for force-enabled module"
   fi
 
-  unused=`run_soong --bazel-force-enabled-modules=unenabled-touch-file nothing >/dev/null`
+  unused=`run_soong --bazel-force-enabled-modules=unenabled-touch-file --ensure-allowlist-integrity nothing >/dev/null`
 
   if [[ $? -ne 1 ]]; then
     fail "Expected failure due to force-enabling an unenabled module "
