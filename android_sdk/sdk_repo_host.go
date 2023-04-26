@@ -242,7 +242,7 @@ func (s *sdkRepoHost) AndroidMk() android.AndroidMkData {
 			fmt.Fprintln(w, ".PHONY:", name, "sdk_repo", "sdk-repo-"+name)
 			fmt.Fprintln(w, "sdk_repo", "sdk-repo-"+name+":", strings.Join(s.FilesToInstall().Strings(), " "))
 
-			fmt.Fprintf(w, "$(call dist-for-goals,sdk_repo sdk-repo-%s,%s:%s-$(FILE_NAME_TAG).zip)\n\n", s.BaseModuleName(), s.outputFile.String(), s.outputBaseName)
+			fmt.Fprintf(w, "$(call dist-for-goals,sdk_repo sdk-repo-%s,%s:%s-FILE_NAME_TAG_PLACEHOLDER.zip)\n\n", s.BaseModuleName(), s.outputFile.String(), s.outputBaseName)
 		},
 	}
 }
