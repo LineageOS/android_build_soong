@@ -617,7 +617,7 @@ func isSnapshotAware(ctx android.SingletonContext, m *PrebuiltEtc, image snapsho
 	return true
 }
 
-func generatePrebuiltSnapshot(s snapshot.SnapshotSingleton, ctx android.SingletonContext, snapshotArchDir string) android.Paths {
+func generatePrebuiltSnapshot(s snapshot.SnapshotSingleton, ctx android.SingletonContext, snapshotArchDir string) snapshot.SnapshotPaths {
 	/*
 		Snapshot zipped artifacts directory structure for etc modules:
 		{SNAPSHOT_ARCH}/
@@ -631,7 +631,7 @@ func generatePrebuiltSnapshot(s snapshot.SnapshotSingleton, ctx android.Singleto
 				(notice files)
 	*/
 	var snapshotOutputs android.Paths
-	noticeDir := filepath.Join(snapshotArchDir, "NOTICE_FILES")
+	var snapshotNotices android.Paths
 	installedNotices := make(map[string]bool)
 
 	ctx.VisitAllModules(func(module android.Module) {
@@ -651,7 +651,7 @@ func generatePrebuiltSnapshot(s snapshot.SnapshotSingleton, ctx android.Singleto
 
 		prop := snapshot.SnapshotJsonFlags{}
 		propOut := snapshotLibOut + ".json"
-		prop.ModuleName = m.BaseModuleName()
+		prop.InitBaseSnapshotProps(m)
 		if m.subdirProperties.Relative_install_path != nil {
 			prop.RelativeInstallPath = *m.subdirProperties.Relative_install_path
 		}
@@ -667,27 +667,16 @@ func generatePrebuiltSnapshot(s snapshot.SnapshotSingleton, ctx android.Singleto
 		}
 		snapshotOutputs = append(snapshotOutputs, snapshot.WriteStringToFileRule(ctx, string(j), propOut))
 
-		if len(m.EffectiveLicenseFiles()) > 0 {
-			noticeName := ctx.ModuleName(m) + ".txt"
-			noticeOut := filepath.Join(noticeDir, noticeName)
-			// skip already copied notice file
-			if !installedNotices[noticeOut] {
-				installedNotices[noticeOut] = true
-
-				noticeOutPath := android.PathForOutput(ctx, noticeOut)
-				ctx.Build(pctx, android.BuildParams{
-					Rule:        android.Cat,
-					Inputs:      m.EffectiveLicenseFiles(),
-					Output:      noticeOutPath,
-					Description: "combine notices for " + noticeOut,
-				})
-				snapshotOutputs = append(snapshotOutputs, noticeOutPath)
+		for _, notice := range m.EffectiveLicenseFiles() {
+			if _, ok := installedNotices[notice.String()]; !ok {
+				installedNotices[notice.String()] = true
+				snapshotNotices = append(snapshotNotices, notice)
 			}
 		}
 
 	})
 
-	return snapshotOutputs
+	return snapshot.SnapshotPaths{OutputFiles: snapshotOutputs, NoticeFiles: snapshotNotices}
 }
 
 // For Bazel / bp2build
