@@ -537,7 +537,7 @@ func (ca *compilerAttributes) convertProductVariables(ctx android.BazelConversio
 				if !ok {
 					ctx.ModuleErrorf("Could not convert product variable %s property", proptools.PropertyNameForField(propName))
 				}
-				newFlags, _ := bazel.TryVariableSubstitutions(flags, productConfigProp.Name)
+				newFlags, _ := bazel.TryVariableSubstitutions(flags, productConfigProp.Name())
 				attr.SetSelectValue(productConfigProp.ConfigurationAxis(), productConfigProp.SelectKey(), newFlags)
 			}
 		}
@@ -1350,7 +1350,7 @@ func (la *linkerAttributes) convertProductVariables(ctx android.BazelConversionP
 		// Collect all the configurations that an include or exclude property exists for.
 		// We want to iterate all configurations rather than either the include or exclude because, for a
 		// particular configuration, we may have either only an include or an exclude to handle.
-		productConfigProps := make(map[android.ProductConfigProperty]bool, len(props)+len(excludeProps))
+		productConfigProps := make(map[android.ProductConfigOrSoongConfigProperty]bool, len(props)+len(excludeProps))
 		for p := range props {
 			productConfigProps[p] = true
 		}
