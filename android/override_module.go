@@ -304,8 +304,9 @@ func performOverrideMutator(ctx BottomUpMutatorContext) {
 		for i, o := range overrides {
 			mods[i+1].(OverridableModule).override(ctx, o)
 			if o.getOverriddenByPrebuilt() {
-				// The overriding module itself, too, is overridden by a prebuilt. Skip its installation.
-				mods[i+1].HideFromMake()
+				// The overriding module itself, too, is overridden by a prebuilt.
+				// Copy the flag and hide it in make
+				mods[i+1].ReplacedByPrebuilt()
 			}
 		}
 	} else if o, ok := ctx.Module().(OverrideModule); ok {
