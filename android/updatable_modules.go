@@ -29,8 +29,8 @@ package android
 // based on the branch such that the builds from testing and development
 // branches will have a version higher than the prebuilts.
 // Versions per branch:
-// * x-dev           - xx0090000 (where xx is the branch SDK level)
+// * x-dev           - xx5990000 (where xx is the branch SDK level)
 // * AOSP            - xx9990000
 // * x-mainline-prod - xx9990000
 // * master          - 990090000
-const DefaultUpdatableModuleVersion = "340090000"
+const DefaultUpdatableModuleVersion = "345990000"
