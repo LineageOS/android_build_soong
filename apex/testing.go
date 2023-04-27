@@ -19,6 +19,7 @@ import "android/soong/android"
 var PrepareForTestWithApexBuildComponents = android.GroupFixturePreparers(
 	android.FixtureRegisterWithContext(registerApexBuildComponents),
 	android.FixtureRegisterWithContext(registerApexKeyBuildComponents),
+	android.FixtureRegisterWithContext(registerApexDepsInfoComponents),
 	// Additional files needed in tests that disallow non-existent source files.
 	// This includes files that are needed by all, or at least most, instances of an apex module type.
 	android.MockFS{
