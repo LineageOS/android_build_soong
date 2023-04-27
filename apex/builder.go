@@ -517,9 +517,6 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 				}
 			}
 			implicitInputs = append(implicitInputs, fi.builtFile)
-			if installSymbolFiles {
-				implicitInputs = append(implicitInputs, installedPath)
-			}
 
 			// Create additional symlinks pointing the file inside the APEX (if any). Note that
 			// this is independent from the symlink optimization.
@@ -527,8 +524,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 				symlinkDest := imageDir.Join(ctx, symlinkPath).String()
 				copyCommands = append(copyCommands, "ln -sfn "+filepath.Base(destPath)+" "+symlinkDest)
 				if installSymbolFiles {
-					installedSymlink := ctx.InstallSymlink(apexDir.Join(ctx, filepath.Dir(symlinkPath)), filepath.Base(symlinkPath), installedPath)
-					implicitInputs = append(implicitInputs, installedSymlink)
+					ctx.InstallSymlink(apexDir.Join(ctx, filepath.Dir(symlinkPath)), filepath.Base(symlinkPath), installedPath)
 				}
 			}
 
@@ -553,11 +549,6 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 		installMapSet[installMapPath.String()+":"+fi.installDir+"/"+fi.builtFile.Base()] = true
 	}
 	implicitInputs = append(implicitInputs, a.manifestPbOut)
-	if installSymbolFiles {
-		installedManifest := ctx.InstallFile(apexDir, "apex_manifest.pb", a.manifestPbOut)
-		installedKey := ctx.InstallFile(apexDir, "apex_pubkey", a.publicKeyFile)
-		implicitInputs = append(implicitInputs, installedManifest, installedKey)
-	}
 
 	if len(installMapSet) > 0 {
 		var installs []string

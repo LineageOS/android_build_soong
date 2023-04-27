@@ -96,6 +96,7 @@ func (f *hostSnapshot) CreateMetaData(ctx android.ModuleContext, fileName string
 	var jsonData []SnapshotJsonFlags
 	var metaPaths android.Paths
 
+	installedNotices := make(map[string]bool)
 	metaZipFile := android.PathForModuleOut(ctx, fileName).OutputPath
 
 	// Create JSON file based on the direct dependencies
@@ -104,12 +105,14 @@ func (f *hostSnapshot) CreateMetaData(ctx android.ModuleContext, fileName string
 		if desc != nil {
 			jsonData = append(jsonData, *desc)
 		}
-		if len(dep.EffectiveLicenseFiles()) > 0 {
-			noticeFile := android.PathForModuleOut(ctx, "NOTICE_FILES", dep.Name()+".txt").OutputPath
-			android.CatFileRule(ctx, dep.EffectiveLicenseFiles(), noticeFile)
-			metaPaths = append(metaPaths, noticeFile)
+		for _, notice := range dep.EffectiveLicenseFiles() {
+			if _, ok := installedNotices[notice.String()]; !ok {
+				installedNotices[notice.String()] = true
+				noticeOut := android.PathForModuleOut(ctx, "NOTICE_FILES", notice.String()).OutputPath
+				CopyFileToOutputPathRule(pctx, ctx, notice, noticeOut)
+				metaPaths = append(metaPaths, noticeOut)
+			}
 		}
-
 	})
 	// Sort notice paths and json data for repeatble build
 	sort.Slice(jsonData, func(i, j int) bool {
@@ -220,8 +223,7 @@ func hostJsonDesc(m android.Module) *SnapshotJsonFlags {
 	}
 
 	if path.Valid() && path.String() != "" {
-		return &SnapshotJsonFlags{
-			ModuleName:          m.Name(),
+		props := &SnapshotJsonFlags{
 			ModuleStemName:      moduleStem,
 			Filename:            path.String(),
 			Required:            append(m.HostRequiredModuleNames(), m.RequiredModuleNames()...),
@@ -229,6 +231,8 @@ func hostJsonDesc(m android.Module) *SnapshotJsonFlags {
 			RustProcMacro:       procMacro,
 			CrateName:           crateName,
 		}
+		props.InitBaseSnapshotProps(m)
+		return props
 	}
 	return nil
 }
