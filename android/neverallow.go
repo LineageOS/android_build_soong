@@ -55,7 +55,6 @@ func init() {
 	AddNeverAllowRules(createJavaDeviceForHostRules()...)
 	AddNeverAllowRules(createCcSdkVariantRules()...)
 	AddNeverAllowRules(createUncompressDexRules()...)
-	AddNeverAllowRules(createMakefileGoalRules()...)
 	AddNeverAllowRules(createInitFirstStageRules()...)
 	AddNeverAllowRules(createProhibitFrameworkAccessRules()...)
 	AddNeverAllowRules(createBp2BuildRule())
@@ -233,20 +232,6 @@ func createUncompressDexRules() []Rule {
 			NotIn("art").
 			WithMatcher("uncompress_dex", isSetMatcherInstance).
 			Because("uncompress_dex is only allowed for certain jars for test in art."),
-	}
-}
-
-func createMakefileGoalRules() []Rule {
-	allowlist := []string{
-		// libwifi_hal uses makefile_goal for its dependencies
-		"frameworks/opt/net/wifi/libwifi_hal",
-	}
-	return []Rule{
-		NeverAllow().
-			ModuleType("makefile_goal").
-			WithoutMatcher("product_out_path", Regexp("^boot[0-9a-zA-Z.-]*[.]img$")).
-			NotIn(allowlist...).
-			Because("Only boot images may be imported as a makefile goal if not in allowed projects"),
 	}
 }
 
