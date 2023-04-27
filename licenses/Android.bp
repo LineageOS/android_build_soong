@@ -923,7 +923,10 @@ license_kind {
 license_kind {
     name: "SPDX-license-identifier-Linux-syscall-note",
     // expanding visibility requires approval from an OSPO lawyer or pcounsel
-    visibility: ["//external/libbpf:__subpackages__"],
+    visibility: [
+        "//external/libbpf:__subpackages__",
+        "//prebuilts/vsdk:__subpackages__",
+    ],
     conditions: ["permissive"],
     url: "https://spdx.org/licenses/Linux-syscall-note.html",
 }
