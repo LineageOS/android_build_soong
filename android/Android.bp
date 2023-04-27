@@ -60,7 +60,6 @@ bootstrap_go_package {
         "license_metadata.go",
         "license_sdk_member.go",
         "licenses.go",
-        "makefile_goal.go",
         "makevars.go",
         "metrics.go",
         "module.go",
