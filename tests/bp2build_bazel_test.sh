@@ -53,6 +53,20 @@ EOF
   if [[ "$buildfile_mtime1" != "$buildfile_mtime2" ]]; then
     fail "BUILD.bazel was updated even though contents are same"
   fi
+
+  # Force bp2build to rerun by updating the timestamp of the constants_exported_to_soong.bzl file.
+  touch build/bazel/constants_exported_to_soong.bzl
+
+  run_soong bp2build
+  local -r buildfile_mtime3=$(stat -c "%y" out/soong/bp2build/pkg/BUILD.bazel)
+  local -r marker_mtime3=$(stat -c "%y" out/soong/bp2build_workspace_marker)
+
+  if [[ "$marker_mtime2" == "$marker_mtime3" ]]; then
+    fail "Expected bp2build marker file to change"
+  fi
+  if [[ "$buildfile_mtime2" != "$buildfile_mtime3" ]]; then
+    fail "BUILD.bazel was updated even though contents are same"
+  fi
 }
 
 # Tests that blueprint files that are deleted are not present when the
