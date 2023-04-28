@@ -271,7 +271,9 @@ type ccAidlLibraryAttributes struct {
 	Implementation_deps         bazel.LabelListAttribute
 	Implementation_dynamic_deps bazel.LabelListAttribute
 	Tags                        bazel.StringListAttribute
+
 	sdkAttributes
+	includesAttributes
 }
 
 type stripAttributes struct {
@@ -330,6 +332,14 @@ func libraryBp2Build(ctx android.TopDownMutatorContext, m *Module) {
 		Native_coverage:                   baseAttributes.Native_coverage,
 	}
 
+	includeAttrs := includesAttributes{
+		Export_includes:          exportedIncludes.Includes,
+		Export_absolute_includes: exportedIncludes.AbsoluteIncludes,
+		Export_system_includes:   exportedIncludes.SystemIncludes,
+		Local_includes:           compilerAttrs.localIncludes,
+		Absolute_includes:        compilerAttrs.absoluteIncludes,
+	}
+
 	sharedCommonAttrs := staticOrSharedAttributes{
 		Srcs:    *srcs.Clone().Append(sharedAttrs.Srcs),
 		Srcs_c:  *compilerAttrs.cSrcs.Clone().Append(sharedAttrs.Srcs_c),
@@ -351,41 +361,34 @@ func libraryBp2Build(ctx android.TopDownMutatorContext, m *Module) {
 
 	staticTargetAttrs := &bazelCcLibraryStaticAttributes{
 		staticOrSharedAttributes: staticCommonAttrs,
+		includesAttributes:       includeAttrs,
 
 		Cppflags:   compilerAttrs.cppFlags,
 		Conlyflags: compilerAttrs.conlyFlags,
 		Asflags:    asFlags,
 
-		Export_includes:          exportedIncludes.Includes,
-		Export_absolute_includes: exportedIncludes.AbsoluteIncludes,
-		Export_system_includes:   exportedIncludes.SystemIncludes,
-		Local_includes:           compilerAttrs.localIncludes,
-		Absolute_includes:        compilerAttrs.absoluteIncludes,
-		Rtti:                     compilerAttrs.rtti,
-		Stl:                      compilerAttrs.stl,
-		Cpp_std:                  compilerAttrs.cppStd,
-		C_std:                    compilerAttrs.cStd,
+		Rtti:    compilerAttrs.rtti,
+		Stl:     compilerAttrs.stl,
+		Cpp_std: compilerAttrs.cppStd,
+		C_std:   compilerAttrs.cStd,
 
 		Features: baseAttributes.features,
 	}
 
 	sharedTargetAttrs := &bazelCcLibrarySharedAttributes{
 		staticOrSharedAttributes: sharedCommonAttrs,
-		Cppflags:                 compilerAttrs.cppFlags,
-		Conlyflags:               compilerAttrs.conlyFlags,
-		Asflags:                  asFlags,
+		includesAttributes:       includeAttrs,
 
-		Export_includes:          exportedIncludes.Includes,
-		Export_absolute_includes: exportedIncludes.AbsoluteIncludes,
-		Export_system_includes:   exportedIncludes.SystemIncludes,
-		Local_includes:           compilerAttrs.localIncludes,
-		Absolute_includes:        compilerAttrs.absoluteIncludes,
-		Linkopts:                 linkerAttrs.linkopts,
-		Rtti:                     compilerAttrs.rtti,
-		Stl:                      compilerAttrs.stl,
-		Cpp_std:                  compilerAttrs.cppStd,
-		C_std:                    compilerAttrs.cStd,
-		Use_version_lib:          linkerAttrs.useVersionLib,
+		Cppflags:   compilerAttrs.cppFlags,
+		Conlyflags: compilerAttrs.conlyFlags,
+		Asflags:    asFlags,
+
+		Linkopts:        linkerAttrs.linkopts,
+		Rtti:            compilerAttrs.rtti,
+		Stl:             compilerAttrs.stl,
+		Cpp_std:         compilerAttrs.cppStd,
+		C_std:           compilerAttrs.cStd,
+		Use_version_lib: linkerAttrs.useVersionLib,
 
 		Additional_linker_inputs: linkerAttrs.additionalLinkerInputs,
 
@@ -2875,6 +2878,13 @@ func sharedOrStaticLibraryBp2Build(ctx android.TopDownMutatorContext, module *Mo
 	linkerAttrs := baseAttributes.linkerAttributes
 
 	exportedIncludes := bp2BuildParseExportedIncludes(ctx, module, &compilerAttrs.includes)
+	includeAttrs := includesAttributes{
+		Export_includes:          exportedIncludes.Includes,
+		Export_absolute_includes: exportedIncludes.AbsoluteIncludes,
+		Export_system_includes:   exportedIncludes.SystemIncludes,
+		Local_includes:           compilerAttrs.localIncludes,
+		Absolute_includes:        compilerAttrs.absoluteIncludes,
+	}
 
 	// Append shared/static{} stanza properties. These won't be specified on
 	// cc_library_* itself, but may be specified in cc_defaults that this module
@@ -2929,11 +2939,7 @@ func sharedOrStaticLibraryBp2Build(ctx android.TopDownMutatorContext, module *Mo
 			Cpp_std:                  compilerAttrs.cppStd,
 			C_std:                    compilerAttrs.cStd,
 
-			Export_includes:          exportedIncludes.Includes,
-			Export_absolute_includes: exportedIncludes.AbsoluteIncludes,
-			Export_system_includes:   exportedIncludes.SystemIncludes,
-			Local_includes:           compilerAttrs.localIncludes,
-			Absolute_includes:        compilerAttrs.absoluteIncludes,
+			includesAttributes: includeAttrs,
 
 			Cppflags:   compilerAttrs.cppFlags,
 			Conlyflags: compilerAttrs.conlyFlags,
@@ -2959,11 +2965,8 @@ func sharedOrStaticLibraryBp2Build(ctx android.TopDownMutatorContext, module *Mo
 			Cpp_std: compilerAttrs.cppStd,
 			C_std:   compilerAttrs.cStd,
 
-			Export_includes:          exportedIncludes.Includes,
-			Export_absolute_includes: exportedIncludes.AbsoluteIncludes,
-			Export_system_includes:   exportedIncludes.SystemIncludes,
-			Local_includes:           compilerAttrs.localIncludes,
-			Absolute_includes:        compilerAttrs.absoluteIncludes,
+			includesAttributes: includeAttrs,
+
 			Additional_linker_inputs: linkerAttrs.additionalLinkerInputs,
 
 			Strip: stripAttrsFromLinkerAttrs(&linkerAttrs),
@@ -2999,9 +3002,18 @@ func sharedOrStaticLibraryBp2Build(ctx android.TopDownMutatorContext, module *Mo
 	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: module.Name(), Tags: tags}, attrs)
 }
 
+type includesAttributes struct {
+	Export_includes          bazel.StringListAttribute
+	Export_absolute_includes bazel.StringListAttribute
+	Export_system_includes   bazel.StringListAttribute
+	Local_includes           bazel.StringListAttribute
+	Absolute_includes        bazel.StringListAttribute
+}
+
 // TODO(b/199902614): Can this be factored to share with the other Attributes?
 type bazelCcLibraryStaticAttributes struct {
 	staticOrSharedAttributes
+	includesAttributes
 
 	Use_version_lib bazel.BoolAttribute
 	Rtti            bazel.BoolAttribute
@@ -3009,12 +3021,7 @@ type bazelCcLibraryStaticAttributes struct {
 	Cpp_std         *string
 	C_std           *string
 
-	Export_includes          bazel.StringListAttribute
-	Export_absolute_includes bazel.StringListAttribute
-	Export_system_includes   bazel.StringListAttribute
-	Local_includes           bazel.StringListAttribute
-	Absolute_includes        bazel.StringListAttribute
-	Hdrs                     bazel.LabelListAttribute
+	Hdrs bazel.LabelListAttribute
 
 	Cppflags   bazel.StringListAttribute
 	Conlyflags bazel.StringListAttribute
@@ -3026,6 +3033,7 @@ type bazelCcLibraryStaticAttributes struct {
 // TODO(b/199902614): Can this be factored to share with the other Attributes?
 type bazelCcLibrarySharedAttributes struct {
 	staticOrSharedAttributes
+	includesAttributes
 
 	Linkopts        bazel.StringListAttribute
 	Use_version_lib bazel.BoolAttribute
@@ -3035,12 +3043,7 @@ type bazelCcLibrarySharedAttributes struct {
 	Cpp_std *string
 	C_std   *string
 
-	Export_includes          bazel.StringListAttribute
-	Export_absolute_includes bazel.StringListAttribute
-	Export_system_includes   bazel.StringListAttribute
-	Local_includes           bazel.StringListAttribute
-	Absolute_includes        bazel.StringListAttribute
-	Hdrs                     bazel.LabelListAttribute
+	Hdrs bazel.LabelListAttribute
 
 	Strip                    stripAttributes
 	Additional_linker_inputs bazel.LabelListAttribute

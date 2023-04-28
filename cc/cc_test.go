@@ -39,6 +39,7 @@ func TestMain(m *testing.M) {
 
 var prepareForCcTest = android.GroupFixturePreparers(
 	PrepareForTestWithCcIncludeVndk,
+	aidl_library.PrepareForTestWithAidlLibrary,
 	android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
 		variables.DeviceVndkVersion = StringPtr("current")
 		variables.ProductVndkVersion = StringPtr("current")
