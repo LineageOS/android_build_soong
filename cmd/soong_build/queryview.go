@@ -15,6 +15,7 @@
 package main
 
 import (
+	"android/soong/starlark_import"
 	"io/fs"
 	"io/ioutil"
 	"os"
@@ -46,6 +47,14 @@ func createBazelWorkspace(ctx *bp2build.CodegenContext, outDir string, generateF
 			return err
 		}
 	}
+
+	// Add starlark deps here, so that they apply to both queryview and apibp2build which
+	// both run this function.
+	starlarkDeps, err2 := starlark_import.GetNinjaDeps()
+	if err2 != nil {
+		return err2
+	}
+	ctx.AddNinjaFileDeps(starlarkDeps...)
 
 	return nil
 }
