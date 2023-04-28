@@ -193,6 +193,8 @@ var (
 		"frameworks/av": Bp2BuildDefaultTrue,
 		"frameworks/av/media/codec2/components/aom":          Bp2BuildDefaultTrueRecursively,
 		"frameworks/av/media/codecs":                         Bp2BuildDefaultTrueRecursively,
+		"frameworks/av/media/module/codecs":                  Bp2BuildDefaultTrueRecursively,
+		"frameworks/av/media/module/foundation":              Bp2BuildDefaultTrueRecursively,
 		"frameworks/av/media/liberror":                       Bp2BuildDefaultTrueRecursively,
 		"frameworks/av/media/libshmem":                       Bp2BuildDefaultTrueRecursively,
 		"frameworks/av/media/audioaidlconversion":            Bp2BuildDefaultTrueRecursively,
@@ -448,7 +450,6 @@ var (
 		"code_coverage.policy",
 		"code_coverage.policy.other",
 		"codec2_soft_exports",
-		"codecs_g711dec",
 		"com.android.media.swcodec",
 		"com.android.media.swcodec-androidManifest",
 		"com.android.media.swcodec-ld.config.txt",
@@ -493,20 +494,6 @@ var (
 		"libandroidio",
 		"libandroidio_srcs",
 		"libserviceutils",
-		"libstagefright_amrnbenc",
-		"libstagefright_amrnbdec",
-		"libstagefright_amrwbdec",
-		"libstagefright_amrwbenc",
-		"libstagefright_amrnb_common",
-		"libstagefright_enc_common",
-		"libstagefright_flacdec",
-		"libstagefright_foundation",
-		"libstagefright_foundation_headers",
-		"libstagefright_headers",
-		"libstagefright_m4vh263dec",
-		"libstagefright_m4vh263enc",
-		"libstagefright_mp3dec",
-		"libstagefright_mp3dec_headers",
 		"libsurfaceflinger_headers",
 		"libsync",
 		"libtextclassifier_hash_headers",
@@ -734,6 +721,8 @@ var (
 
 		// Mainline Module Apps
 		"CaptivePortalLogin",
+
+		"libstagefright_headers",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
@@ -947,13 +936,11 @@ var (
 
 		// cc_test with unconverted deps, or are device-only (and not verified to pass yet)
 		"AMRWBEncTest",
-		"AmrnbDecoderTest",     // depends on unconverted modules: libaudioutils, libsndfile
-		"AmrnbEncoderTest",     // depends on unconverted modules: libaudioutils, libsndfile
-		"AmrwbDecoderTest",     // depends on unconverted modules: libsndfile, libaudioutils
-		"AmrwbEncoderTest",     // depends on unconverted modules: libaudioutils, libsndfile
-		"Mp3DecoderTest",       // depends on unconverted modules: libsndfile, libaudioutils
-		"Mpeg4H263DecoderTest", // depends on unconverted modules: libstagefright_foundation
-		"Mpeg4H263EncoderTest",
+		"AmrnbDecoderTest", // depends on unconverted modules: libaudioutils, libsndfile
+		"AmrnbEncoderTest", // depends on unconverted modules: libaudioutils, libsndfile
+		"AmrwbDecoderTest", // depends on unconverted modules: libsndfile, libaudioutils
+		"AmrwbEncoderTest", // depends on unconverted modules: libaudioutils, libsndfile
+		"Mp3DecoderTest",   // depends on unconverted modules: libsndfile, libaudioutils
 		"avcdec",
 		"avcenc",
 		"bionic-benchmarks-tests",
@@ -1433,6 +1420,10 @@ var (
 		"styleprotoslite",
 		"CtsPkgInstallerConstants",
 		"guava-android-testlib",
+
+		"MetaDataBaseUnitTest", // depends on libstagefright
+		"AVCUtilsUnitTest",     // depends on libstagefright
+		"ColorUtilsTest",       // depends on libmediandk
 	}
 
 	MixedBuildsDisabledList = []string{
@@ -1534,7 +1525,15 @@ var (
 	// which will soon be added to the prod allowlist.
 	// It is implicit that all modules in ProdMixedBuildsEnabledList will
 	// also be built - do not add them to this list.
-	StagingMixedBuildsEnabledList = []string{}
+	StagingMixedBuildsEnabledList = []string{
+		// M13: media.swcodec launch
+		"com.android.media.swcodec",
+		"test_com.android.media.swcodec",
+		"libstagefright_foundation",
+		"libcodec2_hidl@1.0",
+		"libcodec2_hidl@1.1",
+		"libcodec2_hidl@1.2",
+	}
 
 	// These should be the libs that are included by the apexes in the ProdMixedBuildsEnabledList
 	ProdDclaMixedBuildsEnabledList = []string{
