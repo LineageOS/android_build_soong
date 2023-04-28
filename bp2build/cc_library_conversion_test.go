@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"testing"
 
+	"android/soong/aidl_library"
 	"android/soong/android"
 	"android/soong/cc"
 )
@@ -63,6 +64,7 @@ func registerCcLibraryModuleTypes(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("cc_library_static", cc.LibraryStaticFactory)
 	ctx.RegisterModuleType("cc_prebuilt_library_static", cc.PrebuiltStaticLibraryFactory)
 	ctx.RegisterModuleType("cc_library_headers", cc.LibraryHeaderFactory)
+	ctx.RegisterModuleType("aidl_library", aidl_library.AidlLibraryFactory)
 }
 
 func TestCcLibrarySimple(t *testing.T) {
@@ -3315,6 +3317,46 @@ func TestCcLibraryArchVariantSuffix(t *testing.T) {
 	})
 }
 
+func TestCcLibraryWithAidlLibrary(t *testing.T) {
+	runCcLibraryTestCase(t, Bp2buildTestCase{
+		Description:                "cc_library with aidl_library",
+		ModuleTypeUnderTest:        "cc_library",
+		ModuleTypeUnderTestFactory: cc.LibraryFactory,
+		Blueprint: `
+aidl_library {
+    name: "A_aidl",
+    srcs: ["aidl/A.aidl"],
+	hdrs: ["aidl/Header.aidl"],
+	strip_import_prefix: "aidl",
+}
+cc_library {
+	name: "foo",
+	aidl: {
+		libs: ["A_aidl"],
+	}
+}`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTargetNoRestrictions("aidl_library", "A_aidl", AttrNameToString{
+				"srcs":                `["aidl/A.aidl"]`,
+				"hdrs":                `["aidl/Header.aidl"]`,
+				"strip_import_prefix": `"aidl"`,
+				"tags":                `["apex_available=//apex_available:anyapex"]`,
+			}),
+			MakeBazelTarget("cc_aidl_library", "foo_cc_aidl_library", AttrNameToString{
+				"deps": `[":A_aidl"]`,
+			}),
+			MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
+				"implementation_whole_archive_deps": `[":foo_cc_aidl_library"]`,
+				"local_includes":                    `["."]`,
+			}),
+			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+				"implementation_whole_archive_deps": `[":foo_cc_aidl_library"]`,
+				"local_includes":                    `["."]`,
+			}),
+		},
+	})
+}
+
 func TestCcLibraryWithAidlSrcs(t *testing.T) {
 	runCcLibraryTestCase(t, Bp2buildTestCase{
 		Description:                "cc_library with aidl srcs",
@@ -3397,37 +3439,77 @@ cc_library {
 }
 
 func TestCcLibraryWithExportAidlHeaders(t *testing.T) {
-	runCcLibraryTestCase(t, Bp2buildTestCase{
-		Description:                "cc_library with export aidl headers",
-		ModuleTypeUnderTest:        "cc_library",
-		ModuleTypeUnderTestFactory: cc.LibraryFactory,
-		Blueprint: `
-cc_library {
-    name: "foo",
-    srcs: [
-        "Foo.aidl",
-    ],
-    aidl: {
-        export_aidl_headers: true,
-    }
-}`,
-		ExpectedBazelTargets: []string{
-			MakeBazelTarget("aidl_library", "foo_aidl_library", AttrNameToString{
-				"srcs": `["Foo.aidl"]`,
-			}),
-			MakeBazelTarget("cc_aidl_library", "foo_cc_aidl_library", AttrNameToString{
-				"deps": `[":foo_aidl_library"]`,
-			}),
-			MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
-				"whole_archive_deps": `[":foo_cc_aidl_library"]`,
-				"local_includes":     `["."]`,
-			}),
-			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
-				"whole_archive_deps": `[":foo_cc_aidl_library"]`,
-				"local_includes":     `["."]`,
-			}),
+	t.Parallel()
+
+	expectedBazelTargets := []string{
+		MakeBazelTarget("cc_aidl_library", "foo_cc_aidl_library", AttrNameToString{
+			"deps": `[":foo_aidl_library"]`,
+		}),
+		MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
+			"whole_archive_deps": `[":foo_cc_aidl_library"]`,
+			"local_includes":     `["."]`,
+		}),
+		MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+			"whole_archive_deps": `[":foo_cc_aidl_library"]`,
+			"local_includes":     `["."]`,
+		}),
+	}
+	testCases := []struct {
+		description          string
+		bp                   string
+		expectedBazelTargets []string
+	}{
+		{
+			description: "cc_library with aidl srcs and aidl.export_aidl_headers set",
+			bp: `
+			cc_library {
+				name: "foo",
+				srcs: [
+					"Foo.aidl",
+				],
+				aidl: {
+					export_aidl_headers: true,
+				}
+			}`,
+			expectedBazelTargets: append(
+				expectedBazelTargets,
+				MakeBazelTarget("aidl_library", "foo_aidl_library", AttrNameToString{
+					"srcs": `["Foo.aidl"]`,
+				})),
 		},
-	})
+		{
+			description: "cc_library with aidl.libs and aidl.export_aidl_headers set",
+			bp: `
+			aidl_library {
+				name: "foo_aidl_library",
+				srcs: ["Foo.aidl"],
+			}
+			cc_library {
+				name: "foo",
+				aidl: {
+					libs: ["foo_aidl_library"],
+					export_aidl_headers: true,
+				}
+			}`,
+			expectedBazelTargets: append(
+				expectedBazelTargets,
+				MakeBazelTargetNoRestrictions("aidl_library", "foo_aidl_library", AttrNameToString{
+					"srcs": `["Foo.aidl"]`,
+					"tags": `["apex_available=//apex_available:anyapex"]`,
+				}),
+			),
+		},
+	}
+
+	for _, testCase := range testCases {
+		runCcLibraryTestCase(t, Bp2buildTestCase{
+			Description:                "cc_library with export aidl headers",
+			ModuleTypeUnderTest:        "cc_library",
+			ModuleTypeUnderTestFactory: cc.LibraryFactory,
+			Blueprint:                  testCase.bp,
+			ExpectedBazelTargets:       testCase.expectedBazelTargets,
+		})
+	}
 }
 
 func TestCcLibraryWithTargetApex(t *testing.T) {

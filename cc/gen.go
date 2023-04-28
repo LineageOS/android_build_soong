@@ -18,7 +18,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"android/soong/aidl_library"
 	"android/soong/bazel"
+
 	"github.com/google/blueprint"
 
 	"android/soong/android"
@@ -123,11 +125,6 @@ func genAidl(ctx android.ModuleContext, rule *android.RuleBuilder, aidlFile andr
 	headerI := outDir.Join(ctx, aidlPackage, baseName+".h")
 	headerBn := outDir.Join(ctx, aidlPackage, "Bn"+shortName+".h")
 	headerBp := outDir.Join(ctx, aidlPackage, "Bp"+shortName+".h")
-
-	baseDir := strings.TrimSuffix(aidlFile.String(), aidlFile.Rel())
-	if baseDir != "" {
-		aidlFlags += " -I" + baseDir
-	}
 
 	cmd := rule.Command()
 	cmd.BuiltTool("aidl-cpp").
@@ -282,7 +279,10 @@ type generatedSourceInfo struct {
 	syspropOrderOnlyDeps android.Paths
 }
 
-func genSources(ctx android.ModuleContext, srcFiles android.Paths,
+func genSources(
+	ctx android.ModuleContext,
+	aidlLibraryInfos []aidl_library.AidlLibraryInfo,
+	srcFiles android.Paths,
 	buildFlags builderFlags) (android.Paths, android.Paths, generatedSourceInfo) {
 
 	var info generatedSourceInfo
@@ -330,7 +330,8 @@ func genSources(ctx android.ModuleContext, srcFiles android.Paths,
 				aidlRule = android.NewRuleBuilder(pctx, ctx).Sbox(android.PathForModuleGen(ctx, "aidl"),
 					android.PathForModuleGen(ctx, "aidl.sbox.textproto"))
 			}
-			cppFile, aidlHeaders := genAidl(ctx, aidlRule, srcFile, buildFlags.aidlFlags)
+			baseDir := strings.TrimSuffix(srcFile.String(), srcFile.Rel())
+			cppFile, aidlHeaders := genAidl(ctx, aidlRule, srcFile, buildFlags.aidlFlags+" -I"+baseDir)
 			srcFiles[i] = cppFile
 
 			info.aidlHeaders = append(info.aidlHeaders, aidlHeaders...)
@@ -349,6 +350,24 @@ func genSources(ctx android.ModuleContext, srcFiles android.Paths,
 			// Use the generated headers as order only deps to ensure that they are up to date when
 			// needed.
 			info.syspropOrderOnlyDeps = append(info.syspropOrderOnlyDeps, headerFiles...)
+		}
+	}
+
+	for _, aidlLibraryInfo := range aidlLibraryInfos {
+		for _, aidlSrc := range aidlLibraryInfo.Srcs {
+			if aidlRule == nil {
+				// TODO(b/279960133): Sandbox inputs to ensure aidl headers are explicitly specified
+				aidlRule = android.NewRuleBuilder(pctx, ctx).Sbox(android.PathForModuleGen(ctx, "aidl"),
+					android.PathForModuleGen(ctx, "aidl.sbox.textproto"))
+			}
+			cppFile, aidlHeaders := genAidl(ctx, aidlRule, aidlSrc, buildFlags.aidlFlags)
+
+			srcFiles = append(srcFiles, cppFile)
+			info.aidlHeaders = append(info.aidlHeaders, aidlHeaders...)
+			// Use the generated headers as order only deps to ensure that they are up to date when
+			// needed.
+			// TODO: Reduce the size of the ninja file by using one order only dep for the whole rule
+			info.aidlOrderOnlyDeps = append(info.aidlOrderOnlyDeps, aidlHeaders...)
 		}
 	}
 
