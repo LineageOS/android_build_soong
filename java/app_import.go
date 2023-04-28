@@ -49,6 +49,17 @@ var (
 		CommandDeps: []string{"${config.Zip2ZipCmd}"},
 		Description: "Uncompress dex files",
 	})
+
+	checkJniAndDexLibsAreUncompressedRule = pctx.AndroidStaticRule("check-jni-and-dex-libs-are-uncompressed", blueprint.RuleParams{
+		// grep -v ' stor ' will search for lines that don't have ' stor '. stor means the file is stored uncompressed
+		Command: "if (zipinfo $in 'lib/*.so' '*.dex' 2>/dev/null | grep -v ' stor ' >/dev/null) ; then " +
+			"echo $in: Contains compressed JNI libraries and/or dex files >&2;" +
+			"exit 1; " +
+			"else " +
+			"touch $out; " +
+			"fi",
+		Description: "Check for compressed JNI libs or dex files",
+	})
 )
 
 func RegisterAppImportBuildComponents(ctx android.RegistrationContext) {
@@ -72,8 +83,6 @@ type AndroidAppImport struct {
 	dexpreopter
 
 	usesLibrary usesLibrary
-
-	preprocessed bool
 
 	installPath android.InstallPath
 
@@ -128,6 +137,13 @@ type AndroidAppImportProperties struct {
 
 	// Optional. Install to a subdirectory of the default install path for the module
 	Relative_install_path *string
+
+	// Whether the prebuilt apk can be installed without additional processing. Default is false.
+	Preprocessed *bool
+
+	// Whether or not to skip checking the preprocessed apk for proper alignment and uncompressed
+	// JNI libs and dex files. Default is false
+	Skip_preprocessed_apk_checks *bool
 }
 
 func (a *AndroidAppImport) IsInstallable() bool {
@@ -201,7 +217,7 @@ func (a *AndroidAppImport) uncompressEmbeddedJniLibs(
 	ctx android.ModuleContext, inputPath android.Path, outputPath android.OutputPath) {
 	// Test apps don't need their JNI libraries stored uncompressed. As a matter of fact, messing
 	// with them may invalidate pre-existing signature data.
-	if ctx.InstallInTestcases() && (Bool(a.properties.Presigned) || a.preprocessed) {
+	if ctx.InstallInTestcases() && (Bool(a.properties.Presigned) || Bool(a.properties.Preprocessed)) {
 		ctx.Build(pctx, android.BuildParams{
 			Rule:   android.Cp,
 			Output: outputPath,
@@ -219,7 +235,7 @@ func (a *AndroidAppImport) uncompressEmbeddedJniLibs(
 
 // Returns whether this module should have the dex file stored uncompressed in the APK.
 func (a *AndroidAppImport) shouldUncompressDex(ctx android.ModuleContext) bool {
-	if ctx.Config().UnbundledBuild() || a.preprocessed {
+	if ctx.Config().UnbundledBuild() || proptools.Bool(a.properties.Preprocessed) {
 		return false
 	}
 
@@ -297,7 +313,7 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 	a.dexpreopter.classLoaderContexts = a.usesLibrary.classLoaderContextForUsesLibDeps(ctx)
 
 	if a.usesLibrary.enforceUsesLibraries() {
-		srcApk = a.usesLibrary.verifyUsesLibrariesAPK(ctx, srcApk)
+		a.usesLibrary.verifyUsesLibrariesAPK(ctx, srcApk)
 	}
 
 	a.dexpreopter.dexpreopt(ctx, jnisUncompressed)
@@ -317,8 +333,15 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 
 	// Sign or align the package if package has not been preprocessed
 
-	if a.preprocessed {
-		a.outputFile = srcApk
+	if proptools.Bool(a.properties.Preprocessed) {
+		output := srcApk
+		// TODO(b/185811447) Uncomment this after all existing failing apks set skip_preprocessed_apk_checks: true
+		//if !proptools.Bool(a.properties.Skip_preprocessed_apk_checks) {
+		//	writableOutput := android.PathForModuleOut(ctx, "validated-prebuilt", apkFilename)
+		//	a.validatePreprocessedApk(ctx, srcApk, writableOutput)
+		//	output = writableOutput
+		//}
+		a.outputFile = output
 		a.certificate = PresignedCertificate
 	} else if !Bool(a.properties.Presigned) {
 		// If the certificate property is empty at this point, default_dev_cert must be set to true.
@@ -350,6 +373,30 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 	}
 
 	// TODO: androidmk converter jni libs
+}
+
+func (a *AndroidAppImport) validatePreprocessedApk(ctx android.ModuleContext, srcApk android.Path, dstApk android.WritablePath) {
+	alignmentStamp := android.PathForModuleOut(ctx, "validated-prebuilt", "alignment.stamp")
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   checkZipAlignment,
+		Input:  srcApk,
+		Output: alignmentStamp,
+	})
+	compressionStamp := android.PathForModuleOut(ctx, "validated-prebuilt", "compression.stamp")
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   checkJniAndDexLibsAreUncompressedRule,
+		Input:  srcApk,
+		Output: compressionStamp,
+	})
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   android.Cp,
+		Input:  srcApk,
+		Output: dstApk,
+		Validations: []android.Path{
+			alignmentStamp,
+			compressionStamp,
+		},
+	})
 }
 
 func (a *AndroidAppImport) Prebuilt() *android.Prebuilt {
@@ -487,11 +534,6 @@ func AndroidAppImportFactory() android.Module {
 	return module
 }
 
-type androidTestImportProperties struct {
-	// Whether the prebuilt apk can be installed without additional processing. Default is false.
-	Preprocessed *bool
-}
-
 type AndroidTestImport struct {
 	AndroidAppImport
 
@@ -508,14 +550,10 @@ type AndroidTestImport struct {
 		Per_testcase_directory *bool
 	}
 
-	testImportProperties androidTestImportProperties
-
 	data android.Paths
 }
 
 func (a *AndroidTestImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	a.preprocessed = Bool(a.testImportProperties.Preprocessed)
-
 	a.generateAndroidBuildActions(ctx)
 
 	a.data = android.PathsForModuleSrc(ctx, a.testProperties.Data)
@@ -532,7 +570,6 @@ func AndroidTestImportFactory() android.Module {
 	module.AddProperties(&module.properties)
 	module.AddProperties(&module.dexpreoptProperties)
 	module.AddProperties(&module.testProperties)
-	module.AddProperties(&module.testImportProperties)
 	module.populateAllVariantStructs()
 	android.AddLoadHook(module, func(ctx android.LoadHookContext) {
 		module.processVariants(ctx)
