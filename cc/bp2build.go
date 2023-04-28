@@ -844,6 +844,7 @@ func bp2BuildParseBaseProps(ctx android.Bp2buildMutatorContext, module *Module) 
 			Value: aidlLibs,
 		},
 		linkerAttrs,
+		compilerAttrs,
 	)
 	if aidlDep != nil {
 		if lib, ok := module.linker.(*libraryDecorator); ok {
@@ -992,6 +993,7 @@ func bp2buildCcAidlLibrary(
 	aidlSrcs bazel.LabelListAttribute,
 	aidlLibs bazel.LabelListAttribute,
 	linkerAttrs linkerAttributes,
+	compilerAttrs compilerAttributes,
 ) *bazel.LabelAttribute {
 	var aidlLibsFromSrcs, aidlFiles bazel.LabelListAttribute
 	apexAvailableTags := android.ApexAvailableTagsWithoutTestApexes(ctx.(android.TopDownMutatorContext), ctx.Module())
@@ -1038,6 +1040,15 @@ func bp2buildCcAidlLibrary(
 
 		sdkAttrs := bp2BuildParseSdkAttributes(m)
 
+		exportedIncludes := bp2BuildParseExportedIncludes(ctx, m, &compilerAttrs.includes)
+		includeAttrs := includesAttributes{
+			Export_includes:          exportedIncludes.Includes,
+			Export_absolute_includes: exportedIncludes.AbsoluteIncludes,
+			Export_system_includes:   exportedIncludes.SystemIncludes,
+			Local_includes:           compilerAttrs.localIncludes,
+			Absolute_includes:        compilerAttrs.absoluteIncludes,
+		}
+
 		ctx.CreateBazelTargetModule(
 			bazel.BazelTargetModuleProperties{
 				Rule_class:        "cc_aidl_library",
@@ -1050,6 +1061,7 @@ func bp2buildCcAidlLibrary(
 				Implementation_dynamic_deps: *implementationDynamicDeps,
 				Tags:                        apexAvailableTags,
 				sdkAttributes:               sdkAttrs,
+				includesAttributes:          includeAttrs,
 			},
 		)
 		label := &bazel.LabelAttribute{
