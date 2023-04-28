@@ -102,6 +102,8 @@ type CmdArgs struct {
 	UseBazelProxy bool
 
 	BuildFromTextStub bool
+
+	EnsureAllowlistIntegrity bool
 }
 
 // Build modes that soong_build can run as.
@@ -278,6 +280,11 @@ type config struct {
 	// If buildFromTextStub is true then the Java API stubs are
 	// built from the signature text files, not the source Java files.
 	buildFromTextStub bool
+
+	// If ensureAllowlistIntegrity is true, then the presence of any allowlisted
+	// modules that aren't mixed-built for at least one variant will cause a build
+	// failure
+	ensureAllowlistIntegrity bool
 }
 
 type deviceConfig struct {
@@ -1902,6 +1909,10 @@ func (c *config) RBEWrapper() string {
 // UseHostMusl returns true if the host target has been configured to build against musl libc.
 func (c *config) UseHostMusl() bool {
 	return Bool(c.productVariables.HostMusl)
+}
+
+func (c *config) GetMixedBuildsEnabledModules() map[string]struct{} {
+	return c.mixedBuildEnabledModules
 }
 
 func (c *config) LogMixedBuild(ctx BaseModuleContext, useBazel bool) {
