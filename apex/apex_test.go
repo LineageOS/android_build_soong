@@ -1001,7 +1001,7 @@ func TestApexWithStubs(t *testing.T) {
 	// Ensure that stub dependency from a rust module is not included
 	ensureNotContains(t, copyCmds, "image.apex/lib64/libfoo.shared_from_rust.so")
 	// The rust module is linked to the stub cc library
-	rustDeps := ctx.ModuleForTests("foo.rust", "android_arm64_armv8-a_apex10000").Rule("rustc").Args["linkFlags"]
+	rustDeps := ctx.ModuleForTests("foo.rust", "android_arm64_armv8-a_apex10000").Rule("rustLink").Args["linkFlags"]
 	ensureContains(t, rustDeps, "libfoo.shared_from_rust/android_arm64_armv8-a_shared_current/libfoo.shared_from_rust.so")
 	ensureNotContains(t, rustDeps, "libfoo.shared_from_rust/android_arm64_armv8-a_shared/libfoo.shared_from_rust.so")
 
@@ -1077,7 +1077,7 @@ func TestApexCanUsePrivateApis(t *testing.T) {
 	mylibLdFlags := ctx.ModuleForTests("mylib", "android_arm64_armv8-a_shared_apex10000").Rule("ld").Args["libFlags"]
 	ensureNotContains(t, mylibLdFlags, "mylib2/android_arm64_armv8-a_shared_current/mylib2.so")
 	ensureContains(t, mylibLdFlags, "mylib2/android_arm64_armv8-a_shared/mylib2.so")
-	rustDeps := ctx.ModuleForTests("foo.rust", "android_arm64_armv8-a_apex10000").Rule("rustc").Args["linkFlags"]
+	rustDeps := ctx.ModuleForTests("foo.rust", "android_arm64_armv8-a_apex10000").Rule("rustLink").Args["linkFlags"]
 	ensureNotContains(t, rustDeps, "libfoo.shared_from_rust/android_arm64_armv8-a_shared_current/libfoo.shared_from_rust.so")
 	ensureContains(t, rustDeps, "libfoo.shared_from_rust/android_arm64_armv8-a_shared/libfoo.shared_from_rust.so")
 }
@@ -5281,7 +5281,16 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 		apex_set {
 			name: "myapex",
 			set: "myapex.apks",
+			exported_java_libs: ["myjavalib"],
 			exported_bootclasspath_fragments: ["my-bootclasspath-fragment"],
+			exported_systemserverclasspath_fragments: ["my-systemserverclasspath-fragment"],
+		}
+
+		java_import {
+			name: "myjavalib",
+			jars: ["myjavalib.jar"],
+			apex_available: ["myapex"],
+			permitted_packages: ["javalib"],
 		}
 
 		prebuilt_bootclasspath_fragment {
@@ -5296,6 +5305,12 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 				filtered_stub_flags: "my-bootclasspath-fragment/filtered-stub-flags.csv",
 				filtered_flags: "my-bootclasspath-fragment/filtered-flags.csv",
 			},
+		}
+
+		prebuilt_systemserverclasspath_fragment {
+			name: "my-systemserverclasspath-fragment",
+			contents: ["libbaz"],
+			apex_available: ["myapex"],
 		}
 
 		java_import {
@@ -5314,6 +5329,16 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 			shared_library: false,
 			permitted_packages: ["bar"],
 		}
+
+		java_sdk_library_import {
+			name: "libbaz",
+			public: {
+				jars: ["libbaz.jar"],
+			},
+			apex_available: ["myapex"],
+			shared_library: false,
+			permitted_packages: ["baz"],
+		}
 	`
 
 		ctx := testDexpreoptWithApexes(t, bp, "", preparer, fragment)
@@ -5326,6 +5351,24 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 			my-bootclasspath-fragment/index.csv
 			out/soong/.intermediates/frameworks/base/boot/platform-bootclasspath/android_common/hiddenapi-monolithic/index-from-classes.csv
 		`)
+
+		myApex := ctx.ModuleForTests("myapex", "android_common_myapex").Module()
+
+		overrideNames := []string{
+			"",
+			"myjavalib.myapex",
+			"libfoo.myapex",
+			"libbar.myapex",
+			"libbaz.myapex",
+		}
+		mkEntries := android.AndroidMkEntriesForTest(t, ctx, myApex)
+		for i, e := range mkEntries {
+			g := e.OverrideName
+			if w := overrideNames[i]; w != g {
+				t.Errorf("Expected override name %q, got %q", w, g)
+			}
+		}
+
 	})
 
 	t.Run("prebuilt with source library preferred", func(t *testing.T) {
@@ -5644,6 +5687,58 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 			out/soong/.intermediates/frameworks/base/boot/platform-bootclasspath/android_common/hiddenapi-monolithic/index-from-classes.csv
 		`)
 	})
+}
+
+func TestPrebuiltSkipsSymbols(t *testing.T) {
+	testCases := []struct {
+		name               string
+		usePrebuilt        bool
+		installSymbolFiles bool
+	}{
+		{
+			name:               "Source module build rule doesn't install symbol files",
+			usePrebuilt:        true,
+			installSymbolFiles: false,
+		},
+		{
+			name:               "Source module is installed with symbols",
+			usePrebuilt:        false,
+			installSymbolFiles: true,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			preferProperty := "prefer: false"
+			if tc.usePrebuilt {
+				preferProperty = "prefer: true"
+			}
+			ctx := testApex(t, `
+				// Source module
+				apex {
+					name: "myapex",
+					key: "myapex.key",
+					updatable: false,
+				}
+
+				apex_key {
+					name: "myapex.key",
+					public_key: "testkey.avbpubkey",
+					private_key: "testkey.pem",
+				}
+
+				apex_set {
+					name: "myapex",
+					set: "myapex.apks",
+					`+preferProperty+`
+				}
+			`)
+			// Symbol files are installed by installing entries under ${OUT}/apex/{apex name}
+			android.AssertStringListContainsEquals(t, "Implicits",
+				ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("apexRule").Implicits.Strings(),
+				"out/soong/target/product/test_device/apex/myapex/apex_manifest.pb",
+				tc.installSymbolFiles)
+		})
+	}
 }
 
 func TestApexWithTests(t *testing.T) {
@@ -7515,6 +7610,7 @@ func testNoUpdatableJarsInBootImage(t *testing.T, errmsg string, preparer androi
 				"some-updatable-apex",
 			],
 			permitted_packages: ["some.updatable.apex.lib"],
+			min_sdk_version: "33",
 		}
 
 		java_library {
@@ -7554,6 +7650,7 @@ func testNoUpdatableJarsInBootImage(t *testing.T, errmsg string, preparer androi
 			],
 			hostdex: true,
 			compile_dex: true,
+			min_sdk_version: "33",
 		}
 
 		apex {
@@ -7561,7 +7658,7 @@ func testNoUpdatableJarsInBootImage(t *testing.T, errmsg string, preparer androi
 			key: "some-updatable-apex.key",
 			java_libs: ["some-updatable-apex-lib"],
 			updatable: true,
-			min_sdk_version: "current",
+			min_sdk_version: "33",
 		}
 
 		apex {
@@ -7584,7 +7681,7 @@ func testNoUpdatableJarsInBootImage(t *testing.T, errmsg string, preparer androi
 			key: "com.android.art.debug.key",
 			bootclasspath_fragments: ["art-bootclasspath-fragment"],
 			updatable: true,
-			min_sdk_version: "current",
+			min_sdk_version: "33",
 		}
 
 		bootclasspath_fragment {

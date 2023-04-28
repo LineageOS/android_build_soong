@@ -34,7 +34,7 @@ var (
 
 var afdoProfileProjectsConfigKey = android.NewOnceKey("AfdoProfileProjects")
 
-const afdoCFlagsFormat = "-funique-internal-linkage-names -fprofile-sample-accurate -fprofile-sample-use=%s"
+const afdoCFlagsFormat = "-fprofile-sample-accurate -fprofile-sample-use=%s"
 
 func recordMissingAfdoProfileFile(ctx android.BaseModuleContext, missing string) {
 	getNamedMapForConfig(ctx.Config(), modulesMissingProfileFileKey).Store(missing, true)
@@ -66,10 +66,24 @@ func (afdo *afdo) props() []interface{} {
 // afdoEnabled returns true for binaries and shared libraries
 // that set afdo prop to True and there is a profile available
 func (afdo *afdo) afdoEnabled() bool {
-	return afdo != nil && afdo.Properties.Afdo && afdo.Properties.FdoProfilePath != nil
+	return afdo != nil && afdo.Properties.Afdo
 }
 
 func (afdo *afdo) flags(ctx ModuleContext, flags Flags) Flags {
+	if afdo.Properties.Afdo {
+		// We use `-funique-internal-linkage-names` to associate profiles to the right internal
+		// functions. This option should be used before generating a profile. Because a profile
+		// generated for a binary without unique names doesn't work well building a binary with
+		// unique names (they have different internal function names).
+		// To avoid a chicken-and-egg problem, we enable `-funique-internal-linkage-names` when
+		// `afdo=true`, whether a profile exists or not.
+		// The profile can take effect in three steps:
+		// 1. Add `afdo: true` in Android.bp, and build the binary.
+		// 2. Collect an AutoFDO profile for the binary.
+		// 3. Make the profile searchable by the build system. So it's used the next time the binary
+		//	  is built.
+		flags.Local.CFlags = append([]string{"-funique-internal-linkage-names"}, flags.Local.CFlags...)
+	}
 	if path := afdo.Properties.FdoProfilePath; path != nil {
 		// The flags are prepended to allow overriding.
 		profileUseFlag := fmt.Sprintf(afdoCFlagsFormat, *path)
@@ -129,42 +143,41 @@ var _ FdoProfileMutatorInterface = (*Module)(nil)
 // Propagate afdo requirements down from binaries and shared libraries
 func afdoDepsMutator(mctx android.TopDownMutatorContext) {
 	if m, ok := mctx.Module().(*Module); ok && m.afdo.afdoEnabled() {
-		if path := m.afdo.Properties.FdoProfilePath; path != nil {
-			mctx.WalkDeps(func(dep android.Module, parent android.Module) bool {
-				tag := mctx.OtherModuleDependencyTag(dep)
-				libTag, isLibTag := tag.(libraryDependencyTag)
+		path := m.afdo.Properties.FdoProfilePath
+		mctx.WalkDeps(func(dep android.Module, parent android.Module) bool {
+			tag := mctx.OtherModuleDependencyTag(dep)
+			libTag, isLibTag := tag.(libraryDependencyTag)
 
-				// Do not recurse down non-static dependencies
-				if isLibTag {
-					if !libTag.static() {
-						return false
-					}
-				} else {
-					if tag != objDepTag && tag != reuseObjTag {
-						return false
-					}
+			// Do not recurse down non-static dependencies
+			if isLibTag {
+				if !libTag.static() {
+					return false
 				}
-
-				if dep, ok := dep.(*Module); ok {
-					dep.afdo.Properties.AfdoRDeps = append(
-						dep.afdo.Properties.AfdoRDeps,
-						afdoRdep{
-							VariationName: proptools.StringPtr(encodeTarget(m.Name())),
-							ProfilePath:   path,
-						},
-					)
+			} else {
+				if tag != objDepTag && tag != reuseObjTag {
+					return false
 				}
+			}
 
-				return true
-			})
-		}
+			if dep, ok := dep.(*Module); ok {
+				dep.afdo.Properties.AfdoRDeps = append(
+					dep.afdo.Properties.AfdoRDeps,
+					afdoRdep{
+						VariationName: proptools.StringPtr(encodeTarget(m.Name())),
+						ProfilePath:   path,
+					},
+				)
+			}
+
+			return true
+		})
 	}
 }
 
 // Create afdo variants for modules that need them
 func afdoMutator(mctx android.BottomUpMutatorContext) {
 	if m, ok := mctx.Module().(*Module); ok && m.afdo != nil {
-		if !m.static() && m.afdo.Properties.Afdo && m.afdo.Properties.FdoProfilePath != nil {
+		if !m.static() && m.afdo.Properties.Afdo {
 			mctx.SetDependencyVariation(encodeTarget(m.Name()))
 			return
 		}
@@ -182,7 +195,7 @@ func afdoMutator(mctx android.BottomUpMutatorContext) {
 			//                   \                      ^
 			//                    ----------------------|
 			// We only need to create one variant per unique rdep
-			if variantNameToProfilePath[variantName] == nil {
+			if _, exists := variantNameToProfilePath[variantName]; !exists {
 				variationNames = append(variationNames, variantName)
 				variantNameToProfilePath[variantName] = afdoRDep.ProfilePath
 			}
@@ -197,6 +210,7 @@ func afdoMutator(mctx android.BottomUpMutatorContext) {
 				variation := modules[i].(*Module)
 				variation.Properties.PreventInstall = true
 				variation.Properties.HideFromMake = true
+				variation.afdo.Properties.Afdo = true
 				variation.afdo.Properties.FdoProfilePath = variantNameToProfilePath[name]
 			}
 		}

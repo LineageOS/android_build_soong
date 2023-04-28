@@ -72,11 +72,14 @@ func NewRustBinary(hod android.HostOrDeviceSupported) (*Module, *binaryDecorator
 func (binary *binaryDecorator) compilerFlags(ctx ModuleContext, flags Flags) Flags {
 	flags = binary.baseCompiler.compilerFlags(ctx, flags)
 
+	if ctx.Os().Linux() {
+		flags.LinkFlags = append(flags.LinkFlags, "-Wl,--gc-sections")
+	}
+
 	if ctx.toolchain().Bionic() {
 		// no-undefined-version breaks dylib compilation since __rust_*alloc* functions aren't defined,
 		// but we can apply this to binaries.
 		flags.LinkFlags = append(flags.LinkFlags,
-			"-Wl,--gc-sections",
 			"-Wl,-z,nocopyreloc",
 			"-Wl,--no-undefined-version")
 
@@ -136,7 +139,7 @@ func (binary *binaryDecorator) compile(ctx ModuleContext, flags Flags, deps Path
 
 	flags.RustFlags = append(flags.RustFlags, deps.depFlags...)
 	flags.LinkFlags = append(flags.LinkFlags, deps.depLinkFlags...)
-	flags.LinkFlags = append(flags.LinkFlags, deps.linkObjects...)
+	flags.LinkFlags = append(flags.LinkFlags, deps.linkObjects.Strings()...)
 
 	if binary.stripper.NeedsStrip(ctx) {
 		strippedOutputFile := outputFile

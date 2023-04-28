@@ -51,9 +51,11 @@ java_library {
 }`,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("java_host_for_device", "java-lib-1", AttrNameToString{
-				"deps": `[":java-lib-2"]`,
+				"exports": `[":java-lib-2"]`,
 			}),
-			MakeNeverlinkDuplicateTarget("java_library", "java-lib-1"),
+			MakeNeverlinkDuplicateTargetWithAttrs("java_library", "java-lib-1", AttrNameToString{
+				"sdk_version": `"none"`,
+			}),
 			MakeBazelTarget("java_library", "java-lib-2", AttrNameToString{
 				"srcs": `["b.java"]`,
 			}),
