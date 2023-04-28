@@ -185,7 +185,12 @@ func init() {
 	exportedVars.ExportString("ArmClangTriple", clangTriple)
 
 	exportedVars.ExportStringListStaticVariable("ArmLdflags", armLdflags)
-	exportedVars.ExportStringListStaticVariable("ArmLldflags", armLldflags)
+	exportedVars.ExportStringList("ArmLldflags", armLldflags)
+	pctx.VariableFunc("ArmLldflags", func(ctx android.PackageVarContext) string {
+		maxPageSizeFlag := "-Wl,-z,max-page-size=" + ctx.Config().MaxPageSizeSupported()
+		flags := append(armLldflags, maxPageSizeFlag)
+		return strings.Join(flags, " ")
+	})
 
 	exportedVars.ExportStringListStaticVariable("ArmFixCortexA8LdFlags", armFixCortexA8LdFlags)
 	exportedVars.ExportStringListStaticVariable("ArmNoFixCortexA8LdFlags", armNoFixCortexA8LdFlags)
