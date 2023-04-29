@@ -3034,11 +3034,13 @@ func TestExportedProguardFlagFiles(t *testing.T) {
 
 func TestTargetSdkVersionManifestFixer(t *testing.T) {
 	platform_sdk_codename := "Tiramisu"
+	platform_sdk_version := 33
 	testCases := []struct {
 		name                     string
 		targetSdkVersionInBp     string
 		targetSdkVersionExpected string
 		unbundledBuild           bool
+		platformSdkFinal         bool
 	}{
 		{
 			name:                     "Non-Unbundled build: Android.bp has targetSdkVersion",
@@ -3075,6 +3077,12 @@ func TestTargetSdkVersionManifestFixer(t *testing.T) {
 			targetSdkVersionExpected: "10000",
 			unbundledBuild:           true,
 		},
+		{
+			name:                     "Bundled build in REL branches",
+			targetSdkVersionExpected: "33",
+			unbundledBuild:           false,
+			platformSdkFinal:         true,
+		},
 	}
 	for _, testCase := range testCases {
 		targetSdkVersionTemplate := ""
@@ -3091,8 +3099,12 @@ func TestTargetSdkVersionManifestFixer(t *testing.T) {
 		fixture := android.GroupFixturePreparers(
 			prepareForJavaTest,
 			android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+				if testCase.platformSdkFinal {
+					variables.Platform_sdk_final = proptools.BoolPtr(true)
+				}
 				// explicitly set platform_sdk_codename to make the test deterministic
 				variables.Platform_sdk_codename = &platform_sdk_codename
+				variables.Platform_sdk_version = &platform_sdk_version
 				variables.Platform_version_active_codenames = []string{platform_sdk_codename}
 				// create a non-empty list if unbundledBuild==true
 				if testCase.unbundledBuild {
