@@ -273,6 +273,12 @@ type TopDownMutatorContext interface {
 	// This function can be used to create alias definitions in a directory that is different
 	// from the directory of the visited Soong module.
 	CreateBazelTargetAliasInDir(dir string, name string, actual bazel.Label)
+
+	// CreateBazelConfigSetting creates a config_setting in <dir>/BUILD.bazel
+	// build/bazel has several static config_setting(s) that are used in Bazel builds.
+	// This function can be used to createa additional config_setting(s) based on the build graph
+	// (e.g. a config_setting specific to an apex variant)
+	CreateBazelConfigSetting(csa bazel.ConfigSettingAttributes, ca CommonAttributes, dir string)
 }
 
 type topDownMutatorContext struct {
@@ -734,6 +740,23 @@ func (t *topDownMutatorContext) CreateBazelTargetAliasInDir(
 		CommonAttrs:     CommonAttributes{Name: name},
 		ConstraintAttrs: constraintAttributes{},
 		Attrs:           attrs,
+	}
+	mod.base().addBp2buildInfo(info)
+}
+
+func (t *topDownMutatorContext) CreateBazelConfigSetting(
+	csa bazel.ConfigSettingAttributes,
+	ca CommonAttributes,
+	dir string) {
+	mod := t.Module()
+	info := bp2buildInfo{
+		Dir: dir,
+		BazelProps: bazel.BazelTargetModuleProperties{
+			Rule_class: "config_setting",
+		},
+		CommonAttrs:     ca,
+		ConstraintAttrs: constraintAttributes{},
+		Attrs:           &csa,
 	}
 	mod.base().addBp2buildInfo(info)
 }

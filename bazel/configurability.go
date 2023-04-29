@@ -268,9 +268,8 @@ func (ct configurationType) validateConfig(config string) {
 	case productVariables:
 		// do nothing
 	case osAndInApex:
-		if _, ok := osAndInApexMap[config]; !ok {
-			panic(fmt.Errorf("Unknown os+in_apex config: %s", config))
-		}
+		// do nothing
+		// this axis can contain additional per-apex keys
 	case inApex:
 		if _, ok := inApexMap[config]; !ok {
 			panic(fmt.Errorf("Unknown in_apex config: %s", config))
@@ -299,7 +298,10 @@ func (ca ConfigurationAxis) SelectKey(config string) string {
 		}
 		return fmt.Sprintf("%s:%s", productVariableBazelPackage, config)
 	case osAndInApex:
-		return osAndInApexMap[config]
+		if ret, exists := osAndInApexMap[config]; exists {
+			return ret
+		}
+		return config
 	case inApex:
 		return inApexMap[config]
 	default:

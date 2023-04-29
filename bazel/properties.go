@@ -1424,3 +1424,14 @@ func TryVariableSubstitution(s string, productVariable string) (string, bool) {
 	sub := productVariableSubstitutionPattern.ReplaceAllString(s, "$("+productVariable+")")
 	return sub, s != sub
 }
+
+// StringMapAttribute is a map of strings.
+// The use case for this is storing the flag_values in a config_setting object.
+// Bazel rules do not support map attributes, and this should NOT be used in Bazel rules.
+type StringMapAttribute map[string]string
+
+// ConfigSettingAttributes stores the keys of a config_setting object.
+type ConfigSettingAttributes struct {
+	// Each key in Flag_values is a label to a custom string_setting
+	Flag_values StringMapAttribute
+}
