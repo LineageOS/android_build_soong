@@ -108,6 +108,7 @@ custom = rule(
         "string_literal_prop": attr.string(),
         "string_prop": attr.string(),
         "string_ptr_prop": attr.string(),
+        "test_config_setting": attr.bool(),
     },
 )
 
@@ -139,6 +140,7 @@ custom_defaults = rule(
         "string_literal_prop": attr.string(),
         "string_prop": attr.string(),
         "string_ptr_prop": attr.string(),
+        "test_config_setting": attr.bool(),
     },
 )
 
@@ -170,6 +172,7 @@ custom_test_ = rule(
         "string_literal_prop": attr.string(),
         "string_prop": attr.string(),
         "string_ptr_prop": attr.string(),
+        "test_config_setting": attr.bool(),
         # test_prop start
 #         "test_string_prop": attr.string(),
         # test_prop end

@@ -4454,3 +4454,32 @@ cc_library {
 		},
 	})
 }
+
+// Test that a config_setting specific to an apex is created by cc_library.
+func TestCcLibraryCreatesInApexConfigSetting(t *testing.T) {
+	runCcLibraryTestCase(t, Bp2buildTestCase{
+		Description:                "cc_library creates a config_setting for each apex in apex_available",
+		ModuleTypeUnderTest:        "cc_library",
+		ModuleTypeUnderTestFactory: cc.LibraryFactory,
+		Dir:                        "build/bazel/rules/apex",
+		Blueprint: `
+cc_library {
+	name: "foo",
+	apex_available: [
+	"//apex_available:platform", // This will be skipped, since it is equivalent to //build/bazel/rules/apex:android-non_apex
+	"myapex"
+	],
+}`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTargetNoRestrictions(
+				"config_setting",
+				"android-in_myapex",
+				AttrNameToString{
+					"flag_values": `{
+        "//build/bazel/rules/apex:apex_name": "myapex",
+    }`,
+				},
+			),
+		},
+	})
+}
