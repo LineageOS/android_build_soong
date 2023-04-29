@@ -99,6 +99,16 @@ func PrintStringIntDict(dict map[string]int, indentLevel int) string {
 	return PrintDict(valDict, indentLevel)
 }
 
+// PrintStringStringDict returns a Starlark-compatible string formatted as dictionary with
+// string keys and string values.
+func PrintStringStringDict(dict map[string]string, indentLevel int) string {
+	valDict := make(map[string]string, len(dict))
+	for k, v := range dict {
+		valDict[k] = fmt.Sprintf(`"%s"`, v)
+	}
+	return PrintDict(valDict, indentLevel)
+}
+
 // PrintDict returns a starlark-compatible string containing a dictionary with string keys and
 // values printed with no additional formatting.
 func PrintDict(dict map[string]string, indentLevel int) string {
