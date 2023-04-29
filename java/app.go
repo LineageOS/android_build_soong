@@ -1461,10 +1461,8 @@ func (u *usesLibrary) verifyUsesLibrariesManifest(ctx android.ModuleContext, man
 
 // verifyUsesLibrariesAPK checks the <uses-library> tags in the manifest of an APK against the build
 // system and returns the path to a copy of the APK.
-func (u *usesLibrary) verifyUsesLibrariesAPK(ctx android.ModuleContext, apk android.Path) android.Path {
+func (u *usesLibrary) verifyUsesLibrariesAPK(ctx android.ModuleContext, apk android.Path) {
 	u.verifyUsesLibraries(ctx, apk, nil) // for APKs manifest_check does not write output file
-	outputFile := android.PathForModuleOut(ctx, "verify_uses_libraries", apk.Base())
-	return outputFile
 }
 
 // For Bazel / bp2build
