@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"android/soong/android"
 	"android/soong/bazel"
@@ -1196,6 +1197,63 @@ func availableToSameApexes(a, b []string) bool {
 	return !differ
 }
 
+var (
+	apexConfigSettingKey  = android.NewOnceKey("apexConfigSetting")
+	apexConfigSettingLock sync.Mutex
+)
+
+func getApexConfigSettingMap(config android.Config) *map[string]bool {
+	return config.Once(apexConfigSettingKey, func() interface{} {
+		return &map[string]bool{}
+	}).(*map[string]bool)
+}
+
+// Create a config setting for this apex in build/bazel/rules/apex
+// The use case for this is stub/impl selection in cc libraries
+// Long term, these config_setting(s) should be colocated with the respective apex definitions.
+// Note that this is an anti-pattern: The config_setting should be created from the apex definition
+// and not from a cc_library.
+// This anti-pattern is needed today since not all apexes have been allowlisted.
+func createInApexConfigSetting(ctx android.TopDownMutatorContext, apexName string) {
+	if apexName == android.AvailableToPlatform || apexName == android.AvailableToAnyApex {
+		// These correspond to android-non_apex and android-in_apex
+		return
+	}
+	apexConfigSettingLock.Lock()
+	defer apexConfigSettingLock.Unlock()
+
+	// Return if a config_setting has already been created
+	acsm := getApexConfigSettingMap(ctx.Config())
+	if _, exists := (*acsm)[apexName]; exists {
+		return
+	}
+	(*acsm)[apexName] = true
+
+	csa := bazel.ConfigSettingAttributes{
+		Flag_values: bazel.StringMapAttribute{
+			"//build/bazel/rules/apex:apex_name": apexName,
+		},
+	}
+	ca := android.CommonAttributes{
+		Name: "android-in_" + apexName,
+	}
+	ctx.CreateBazelConfigSetting(
+		csa,
+		ca,
+		"build/bazel/rules/apex",
+	)
+}
+
+func inApexConfigSetting(apexAvailable string) string {
+	if apexAvailable == android.AvailableToPlatform {
+		return bazel.AndroidAndNonApex
+	}
+	if apexAvailable == android.AvailableToAnyApex {
+		return bazel.AndroidAndInApex
+	}
+	return "//build/bazel/rules/apex:android-in_" + apexAvailable
+}
+
 func setStubsForDynamicDeps(ctx android.BazelConversionPathContext, axis bazel.ConfigurationAxis,
 	config string, apexAvailable []string, dynamicLibs bazel.LabelList, dynamicDeps *bazel.LabelListAttribute, ind int, buildNonApexWithStubs bool) {
 
@@ -1241,6 +1299,13 @@ func setStubsForDynamicDeps(ctx android.BazelConversionPathContext, axis bazel.C
 			dynamicDeps.SetSelectValue(bazel.OsAndInApexAxis, bazel.AndroidAndNonApex, bazel.FirstUniqueBazelLabelList(nonApexSelectValue))
 		}
 	}
+
+	// Create a config_setting for each apex_available.
+	// This will be used to select impl of a dep if dep is available to the same apex.
+	for _, aa := range apexAvailable {
+		createInApexConfigSetting(ctx.(android.TopDownMutatorContext), aa)
+	}
+
 }
 
 func (la *linkerAttributes) convertStripProps(ctx android.BazelConversionPathContext, module *Module) {
