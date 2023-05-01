@@ -159,10 +159,6 @@ func TestCreateBazelFiles_Bp2Build_CreatesDefaultFiles(t *testing.T) {
 		},
 		{
 			dir:      "api_levels",
-			basename: "api_levels.bzl",
-		},
-		{
-			dir:      "api_levels",
 			basename: "platform_versions.bzl",
 		},
 		{
