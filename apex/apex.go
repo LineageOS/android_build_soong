@@ -3811,3 +3811,7 @@ func makeSharedLibsAttributes(config string, libsLabelList bazel.LabelList,
 func invalidCompileMultilib(ctx android.TopDownMutatorContext, value string) {
 	ctx.PropertyErrorf("compile_multilib", "Invalid value: %s", value)
 }
+
+func (a *apexBundle) IsTestApex() bool {
+	return a.testApex
+}
