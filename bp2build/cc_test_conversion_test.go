@@ -76,17 +76,28 @@ cc_test {
             static_libs: ["hostlib"],
         },
     },
+    static_libs: ["cc_test_lib1"],
+    shared_libs: ["cc_test_lib2"],
     data: [":data_mod", "file.txt"],
     data_bins: [":cc_bin"],
     data_libs: [":cc_lib"],
     cflags: ["-Wall"],
 }
+
+cc_test_library {
+    name: "cc_test_lib1",
+    host_supported: true,
+    include_build_directory: false,
+}
 ` + simpleModuleDoNotConvertBp2build("cc_library", "foolib") +
 			simpleModuleDoNotConvertBp2build("cc_library_static", "hostlib") +
 			simpleModuleDoNotConvertBp2build("genrule", "data_mod") +
 			simpleModuleDoNotConvertBp2build("cc_binary", "cc_bin") +
-			simpleModuleDoNotConvertBp2build("cc_test_library", "cc_lib"),
+			simpleModuleDoNotConvertBp2build("cc_library", "cc_lib") +
+			simpleModuleDoNotConvertBp2build("cc_test_library", "cc_test_lib2"),
 		targets: []testBazelTarget{
+			{"cc_library_shared", "cc_test_lib1", AttrNameToString{}},
+			{"cc_library_static", "cc_test_lib1_bp2build_cc_library_static", AttrNameToString{}},
 			{"cc_test", "mytest", AttrNameToString{
 				"copts": `["-Wall"]`,
 				"data": `[
@@ -95,7 +106,7 @@ cc_test {
         ":cc_bin",
         ":cc_lib",
     ]`,
-				"deps": `select({
+				"deps": `[":cc_test_lib1_bp2build_cc_library_static"] + select({
         "//build/bazel/platforms/os:darwin": [":hostlib"],
         "//build/bazel/platforms/os:linux_bionic": [":hostlib"],
         "//build/bazel/platforms/os:linux_glibc": [":hostlib"],
@@ -106,7 +117,7 @@ cc_test {
 				"gtest":          "True",
 				"isolated":       "True",
 				"local_includes": `["."]`,
-				"dynamic_deps": `select({
+				"dynamic_deps": `[":cc_test_lib2"] + select({
         "//build/bazel/platforms/os:android": [":foolib"],
         "//conditions:default": [],
     })`,
