@@ -183,6 +183,7 @@ var (
 		"external/selinux/libselinux":            Bp2BuildDefaultTrueRecursively,
 		"external/selinux/libsepol":              Bp2BuildDefaultTrueRecursively,
 		"external/speex":                         Bp2BuildDefaultTrueRecursively,
+		"external/sqlite":                        Bp2BuildDefaultTrueRecursively,
 		"external/tinyalsa":                      Bp2BuildDefaultTrueRecursively,
 		"external/tinyalsa_new":                  Bp2BuildDefaultTrueRecursively,
 		"external/toybox":                        Bp2BuildDefaultTrueRecursively,
@@ -191,11 +192,12 @@ var (
 		"external/zstd":                          Bp2BuildDefaultTrueRecursively,
 
 		"frameworks/av": Bp2BuildDefaultTrue,
+		"frameworks/av/media/audioaidlconversion":            Bp2BuildDefaultTrueRecursively,
 		"frameworks/av/media/codec2/components/aom":          Bp2BuildDefaultTrueRecursively,
 		"frameworks/av/media/codecs":                         Bp2BuildDefaultTrueRecursively,
 		"frameworks/av/media/liberror":                       Bp2BuildDefaultTrueRecursively,
+		"frameworks/av/media/libmediahelper":                 Bp2BuildDefaultTrue,
 		"frameworks/av/media/libshmem":                       Bp2BuildDefaultTrueRecursively,
-		"frameworks/av/media/audioaidlconversion":            Bp2BuildDefaultTrueRecursively,
 		"frameworks/av/media/module/minijail":                Bp2BuildDefaultTrueRecursively,
 		"frameworks/av/services/minijail":                    Bp2BuildDefaultTrueRecursively,
 		"frameworks/base/libs/androidfw":                     Bp2BuildDefaultTrue,
@@ -213,13 +215,13 @@ var (
 		"frameworks/native/libs/gui":                         Bp2BuildDefaultTrue,
 		"frameworks/native/libs/math":                        Bp2BuildDefaultTrueRecursively,
 		"frameworks/native/libs/nativebase":                  Bp2BuildDefaultTrueRecursively,
+		"frameworks/native/libs/permission":                  Bp2BuildDefaultTrueRecursively,
 		"frameworks/native/libs/vr":                          Bp2BuildDefaultTrueRecursively,
 		"frameworks/native/opengl/tests/gl2_cameraeye":       Bp2BuildDefaultTrue,
 		"frameworks/native/opengl/tests/gl2_java":            Bp2BuildDefaultTrue,
 		"frameworks/native/opengl/tests/testLatency":         Bp2BuildDefaultTrue,
 		"frameworks/native/opengl/tests/testPauseResume":     Bp2BuildDefaultTrue,
 		"frameworks/native/opengl/tests/testViewport":        Bp2BuildDefaultTrue,
-		"frameworks/native/libs/permission":                  Bp2BuildDefaultTrue,
 		"frameworks/native/services/batteryservice":          Bp2BuildDefaultTrue,
 		"frameworks/proto_logging/stats":                     Bp2BuildDefaultTrueRecursively,
 
@@ -546,6 +548,14 @@ var (
 		"liblp",
 		"libstorage_literals_headers",
 
+		"PluginCoreLib",
+		"dagger2",
+		"dagger2-android-annotation-stubs",
+		"dagger2-bootstrap-compiler",
+		"dagger2-producers",
+		"okio-lib",
+		"setupdesign-strings",
+
 		//external/avb
 		"avbtool",
 		"libavb",
@@ -719,11 +729,12 @@ var (
 		"api_fingerprint",
 
 		// allowlisting for kotlinx_coroutines
+		"annotations",
+		"kotlinx-coroutines-android-annotation-stubs",
+		"kotlinx-coroutines-core",
 		"kotlinx_coroutines",
 		"kotlinx_coroutines-device",
 		"kotlinx_coroutines-host",
-		"annotations",
-		"kotlinx-coroutines-android-annotation-stubs",
 
 		// for building com.android.neuralnetworks
 		"libimapper_stablec",
@@ -731,6 +742,8 @@ var (
 
 		// min_sdk_version in android_app
 		"CtsShimUpgrade",
+
+		"art_cmdlineparser_headers",
 
 		// Mainline Module Apps
 		"CaptivePortalLogin",
@@ -765,7 +778,6 @@ var (
 		"buffer_hub_queue_producer-test",
 
 		// cc bugs
-		"libactivitymanager_aidl", // TODO(b/207426160): Unsupported use of aidl sources (via Dactivity_manager_procstate_aidl) in a cc_library
 
 		// TODO(b/198619163) module has same name as source
 		"logtagd.rc",
@@ -778,13 +790,12 @@ var (
 		"libcutils_test_static",
 		"KernelLibcutilsTest",
 
-		"linker",                 // TODO(b/228316882): cc_binary uses link_crt
-		"versioner",              // TODO(b/228313961):  depends on prebuilt shared library libclang-cpp_host as a shared library, which does not supply expected providers for a shared library
-		"art_libartbase_headers", // TODO(b/236268577): Header libraries do not support export_shared_libs_headers
-		"apexer_test",            // Requires aapt2
-		"apexer_test_host_tools",
-		"host_apex_verifier",
-		"tjbench", // TODO(b/240563612): Stem property
+		"linker",    // TODO(b/228316882): cc_binary uses link_crt
+		"versioner", // TODO(b/228313961):  depends on prebuilt shared library libclang-cpp_host as a shared library, which does not supply expected providers for a shared library
+		"tjbench",   // TODO(b/240563612): Stem property
+
+		// requires host tools for apexer
+		"apexer_test", "apexer_test_host_tools", "host_apex_verifier",
 
 		// java bugs
 		"libbase_ndk",  // TODO(b/186826477): fails to link libctscamera2_jni for device (required for CtsCameraTestCases)
