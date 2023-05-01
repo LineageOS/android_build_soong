@@ -3935,8 +3935,8 @@ func (c *Module) typ() moduleType {
 		// TODO(b/244431896) properly convert cc_test_library to its own macro. This
 		// will let them add implicit compile deps on gtest, for example.
 		//
-		// For now, treat them as regular shared libraries.
-		return sharedLibrary
+		// For now, treat them as regular libraries.
+		return fullLibrary
 	} else if c.CcLibrary() {
 		static := false
 		shared := false
