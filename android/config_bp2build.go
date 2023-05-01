@@ -95,15 +95,6 @@ func (ev ExportedVariables) ExportVariableConfigMethod(name string, method inter
 	return ev.pctx.VariableConfigMethod(name, method)
 }
 
-func (ev ExportedVariables) ExportStringStaticVariableWithEnvOverride(name, envVar, defaultVal string) {
-	ev.ExportVariableConfigMethod(name, func(config Config) string {
-		if override := config.Getenv(envVar); override != "" {
-			return override
-		}
-		return defaultVal
-	})
-}
-
 // ExportSourcePathVariable declares a static "source path" variable and exports
 // it to Bazel's toolchain.
 func (ev ExportedVariables) ExportSourcePathVariable(name string, value string) {
