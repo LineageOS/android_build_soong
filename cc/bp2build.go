@@ -528,7 +528,7 @@ func (ca *compilerAttributes) convertProductVariables(ctx android.BazelConversio
 	productVarPropNameToAttribute := map[string]*bazel.StringListAttribute{
 		"Cflags":   &ca.copts,
 		"Asflags":  &ca.asFlags,
-		"CppFlags": &ca.cppFlags,
+		"Cppflags": &ca.cppFlags,
 	}
 	for propName, attr := range productVarPropNameToAttribute {
 		if productConfigProps, exists := productVariableProps[propName]; exists {
