@@ -151,7 +151,7 @@ func libraryHeadersBp2Build(ctx android.TopDownMutatorContext, module *Module) {
 		Bzl_load_location: "//build/bazel/rules/cc:cc_library_headers.bzl",
 	}
 
-	tags := android.ApexAvailableTags(module)
+	tags := android.ApexAvailableTagsWithoutTestApexes(ctx, module)
 
 	ctx.CreateBazelTargetModule(props, android.CommonAttributes{
 		Name: module.Name(),
