@@ -781,6 +781,35 @@ func ApexAvailableTags(mod Module) bazel.StringListAttribute {
 	return attr
 }
 
+func ApexAvailableTagsWithoutTestApexes(ctx BaseModuleContext, mod Module) bazel.StringListAttribute {
+	attr := bazel.StringListAttribute{}
+	if am, ok := mod.(ApexModule); ok {
+		apexAvailableWithoutTestApexes := removeTestApexes(ctx, am.apexModuleBase().ApexAvailable())
+		// If a user does not specify apex_available in Android.bp, then soong provides a default.
+		// To avoid verbosity of BUILD files, remove this default from user-facing BUILD files.
+		if len(am.apexModuleBase().ApexProperties.Apex_available) == 0 {
+			apexAvailableWithoutTestApexes = []string{}
+		}
+		attr.Value = ConvertApexAvailableToTags(apexAvailableWithoutTestApexes)
+	}
+	return attr
+}
+
+func removeTestApexes(ctx BaseModuleContext, apex_available []string) []string {
+	testApexes := []string{}
+	for _, aa := range apex_available {
+		// ignore the wildcards
+		if InList(aa, AvailableToRecognziedWildcards) {
+			continue
+		}
+		mod, _ := ctx.ModuleFromName(aa)
+		if apex, ok := mod.(ApexTestInterface); ok && apex.IsTestApex() {
+			testApexes = append(testApexes, aa)
+		}
+	}
+	return RemoveListFromList(CopyOf(apex_available), testApexes)
+}
+
 func ConvertApexAvailableToTags(apexAvailable []string) []string {
 	if len(apexAvailable) == 0 {
 		// We need nil specifically to make bp2build not add the tags property at all,

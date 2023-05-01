@@ -433,11 +433,11 @@ func libraryBp2Build(ctx android.TopDownMutatorContext, m *Module) {
 
 	var tagsForStaticVariant bazel.StringListAttribute
 	if compilerAttrs.stubsSymbolFile == nil && len(compilerAttrs.stubsVersions.Value) == 0 {
-		tagsForStaticVariant = android.ApexAvailableTags(m)
+		tagsForStaticVariant = android.ApexAvailableTagsWithoutTestApexes(ctx, m)
 	}
 	tagsForStaticVariant.Append(bazel.StringListAttribute{Value: staticAttrs.Apex_available})
 
-	tagsForSharedVariant := android.ApexAvailableTags(m)
+	tagsForSharedVariant := android.ApexAvailableTagsWithoutTestApexes(ctx, m)
 	tagsForSharedVariant.Append(bazel.StringListAttribute{Value: sharedAttrs.Apex_available})
 
 	ctx.CreateBazelTargetModuleWithRestrictions(staticProps,
@@ -3002,7 +3002,7 @@ func sharedOrStaticLibraryBp2Build(ctx android.TopDownMutatorContext, module *Mo
 		Bzl_load_location: fmt.Sprintf("//build/bazel/rules/cc:%s.bzl", modType),
 	}
 
-	tags := android.ApexAvailableTags(module)
+	tags := android.ApexAvailableTagsWithoutTestApexes(ctx, module)
 
 	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: module.Name(), Tags: tags}, attrs)
 }
