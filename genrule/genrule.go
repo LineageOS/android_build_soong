@@ -940,7 +940,7 @@ func (m *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 		}
 	}
 
-	tags := android.ApexAvailableTags(m)
+	tags := android.ApexAvailableTagsWithoutTestApexes(ctx, m)
 
 	if ctx.ModuleType() == "gensrcs" {
 		// The Output_extension prop is not in an immediately accessible field

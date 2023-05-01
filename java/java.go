@@ -2839,7 +2839,7 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext)
 			return android.IsConvertedToAidlLibrary(ctx, src.OriginalModuleName)
 		})
 
-		apexAvailableTags := android.ApexAvailableTags(ctx.Module())
+		apexAvailableTags := android.ApexAvailableTagsWithoutTestApexes(ctx, ctx.Module())
 
 		if !aidlSrcs.IsEmpty() {
 			aidlLibName := m.Name() + "_aidl_library"
