@@ -218,6 +218,7 @@ type productVariables struct {
 	DeviceVndkVersion                     *string  `json:",omitempty"`
 	DeviceCurrentApiLevelForVendorModules *string  `json:",omitempty"`
 	DeviceSystemSdkVersions               []string `json:",omitempty"`
+	DeviceMaxPageSizeSupported            *string  `json:",omitempty"`
 
 	RecoverySnapshotVersion *string `json:",omitempty"`
 
@@ -505,6 +506,7 @@ func (v *productVariables) SetDefaultConfig() {
 		DeviceSecondaryArchVariant: stringPtr("armv8-a"),
 		DeviceSecondaryCpuVariant:  stringPtr("generic"),
 		DeviceSecondaryAbi:         []string{"armeabi-v7a", "armeabi"},
+		DeviceMaxPageSizeSupported: stringPtr("4096"),
 
 		AAPTConfig:          []string{"normal", "large", "xlarge", "hdpi", "xhdpi", "xxhdpi"},
 		AAPTPreferredConfig: stringPtr("xhdpi"),
