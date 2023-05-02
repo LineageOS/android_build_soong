@@ -815,7 +815,10 @@ func (p *librarySdkMemberProperties) PopulateFromVariant(ctx android.SdkMemberCo
 	// If the min_sdk_version was set then add the canonical representation of the API level to the
 	// snapshot.
 	if j.deviceProperties.Min_sdk_version != nil {
-		canonical := android.ReplaceFinalizedCodenames(ctx.SdkModuleContext().Config(), j.minSdkVersion.String())
+		canonical, err := android.ReplaceFinalizedCodenames(ctx.SdkModuleContext().Config(), j.minSdkVersion.String())
+		if err != nil {
+			ctx.ModuleErrorf("%s", err)
+		}
 		p.MinSdkVersion = proptools.StringPtr(canonical)
 	}
 
