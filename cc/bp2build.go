@@ -1053,11 +1053,7 @@ func (la *linkerAttributes) bp2buildForAxisAndConfig(ctx android.BazelConversion
 			_, staticLibs = android.RemoveFromList(versionLib, staticLibs)
 			// only add the dep if it is not in progress
 			if !versionLibAlreadyInDeps {
-				if isBinary {
-					wholeStaticLibs = append(wholeStaticLibs, versionLib)
-				} else {
-					la.implementationWholeArchiveDeps.SetSelectValue(axis, config, bazelLabelForWholeDepsExcludes(ctx, []string{versionLib}, props.Exclude_static_libs))
-				}
+				wholeStaticLibs = append(wholeStaticLibs, versionLib)
 			}
 		}
 	}
