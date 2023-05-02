@@ -63,9 +63,11 @@ func targetSdkVersionForManifestFixer(ctx android.ModuleContext, params Manifest
 // 2. The module is run as part of MTS, and should be testable on stable branches
 // Do not return 10000 if we are enforcing default targetSdkVersion and sdk has been finalised
 func shouldReturnFinalOrFutureInt(ctx android.ModuleContext, targetSdkVersionLevel android.ApiLevel, enforceDefaultTargetSdkVersion bool) bool {
-	if enforceDefaultTargetSdkVersion && ctx.Config().PlatformSdkFinal() {
+	// If this is a REL branch, do not return 10000
+	if ctx.Config().PlatformSdkFinal() {
 		return false
 	}
+	// If this a module targeting an unreleased SDK (MTS or unbundled builds), return 10000
 	return targetSdkVersionLevel.IsPreview() && (ctx.Config().UnbundledBuildApps() || includedInMts(ctx.Module()))
 }
 
