@@ -116,18 +116,18 @@ func TestBootclasspathFragments(t *testing.T) {
 	// Make sure that the art-bootclasspath-fragment is using the correct configuration.
 	checkBootclasspathFragment(t, result, "art-bootclasspath-fragment", "android_common_apex10000",
 		"com.android.art:baz,com.android.art:quuz", `
-test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.art
-test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.oat
-test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.vdex
-test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot-quuz.art
-test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot-quuz.oat
-test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot-quuz.vdex
-test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.art
-test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.oat
-test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.vdex
-test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-quuz.art
-test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-quuz.oat
-test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-quuz.vdex
+dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.art
+dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.oat
+dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.vdex
+dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot-quuz.art
+dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot-quuz.oat
+dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot-quuz.vdex
+dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.art
+dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.oat
+dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.vdex
+dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-quuz.art
+dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-quuz.oat
+dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-quuz.vdex
 `)
 }
 
@@ -764,7 +764,7 @@ func TestBootclasspathFragmentInPrebuiltArtApex(t *testing.T) {
 		checkCopiesToPredefinedLocationForArt(t, result.Config, module, "bar", "foo")
 
 		// Check that the right deapexer module was chosen for a boot image.
-		param := module.Output("out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.art")
+		param := module.Output("out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.art")
 		android.AssertStringDoesContain(t, "didn't find the expected deapexer in the input path", param.Input.String(), "/com.android.art.deapexer")
 	})
 
@@ -782,7 +782,7 @@ func checkCopiesToPredefinedLocationForArt(t *testing.T, config android.Config, 
 	bootJarLocations := []string{}
 	for _, output := range module.AllOutputs() {
 		output = android.StringRelativeToTop(config, output)
-		if strings.HasPrefix(output, "out/soong/test_device/dex_artjars_input/") {
+		if strings.HasPrefix(output, "out/soong/dexpreopt_arm64/dex_artjars_input/") {
 			bootJarLocations = append(bootJarLocations, output)
 		}
 	}
@@ -790,7 +790,7 @@ func checkCopiesToPredefinedLocationForArt(t *testing.T, config android.Config, 
 	sort.Strings(bootJarLocations)
 	expected := []string{}
 	for _, m := range modules {
-		expected = append(expected, fmt.Sprintf("out/soong/test_device/dex_artjars_input/%s.jar", m))
+		expected = append(expected, fmt.Sprintf("out/soong/dexpreopt_arm64/dex_artjars_input/%s.jar", m))
 	}
 	sort.Strings(expected)
 
