@@ -1987,6 +1987,56 @@ func moduleContextFromAndroidModuleContext(actx android.ModuleContext, c *Module
 	return ctx
 }
 
+// TODO (b/277651159): Remove this allowlist
+var (
+	skipStubLibraryMultipleApexViolation = map[string]bool{
+		"libclang_rt.asan":   true,
+		"libclang_rt.hwasan": true,
+		// runtime apex
+		"libc":          true,
+		"libc_hwasan":   true,
+		"libdl_android": true,
+		"libm":          true,
+		"libdl":         true,
+		// art apex
+		"libandroidio":    true,
+		"libdexfile":      true,
+		"libnativebridge": true,
+		"libnativehelper": true,
+		"libnativeloader": true,
+		"libsigchain":     true,
+	}
+)
+
+// Returns true if a stub library could be installed in multiple apexes
+func (c *Module) stubLibraryMultipleApexViolation(ctx android.ModuleContext) bool {
+	// If this is not an apex variant, no check necessary
+	if !c.InAnyApex() {
+		return false
+	}
+	// If this is not a stub library, no check necessary
+	if !c.HasStubsVariants() {
+		return false
+	}
+	// Skip the allowlist
+	// Use BaseModuleName so that this matches prebuilts.
+	if _, exists := skipStubLibraryMultipleApexViolation[c.BaseModuleName()]; exists {
+		return false
+	}
+
+	_, aaWithoutTestApexes, _ := android.ListSetDifference(c.ApexAvailable(), c.TestApexes())
+	// Stub libraries should not have more than one apex_available
+	if len(aaWithoutTestApexes) > 1 {
+		return true
+	}
+	// Stub libraries should not use the wildcard
+	if aaWithoutTestApexes[0] == android.AvailableToAnyApex {
+		return true
+	}
+	// Default: no violation
+	return false
+}
+
 func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	// Handle the case of a test module split by `test_per_src` mutator.
 	//
@@ -2013,6 +2063,10 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		return
 	}
 
+	if c.stubLibraryMultipleApexViolation(actx) {
+		actx.PropertyErrorf("apex_available",
+			"Stub libraries should have a single apex_available (test apexes excluded). Got %v", c.ApexAvailable())
+	}
 	if c.Properties.Clang != nil && *c.Properties.Clang == false {
 		ctx.PropertyErrorf("clang", "false (GCC) is no longer supported")
 	} else if c.Properties.Clang != nil && !ctx.DeviceConfig().BuildBrokenClangProperty() {
