@@ -606,13 +606,20 @@ func NewConfig(cmdArgs CmdArgs, availableEnv map[string]string) (Config, error) 
 	setBazelMode(cmdArgs.BazelMode, "--bazel-mode", BazelProdMode)
 	setBazelMode(cmdArgs.BazelModeStaging, "--bazel-mode-staging", BazelStagingMode)
 
-	for _, module := range strings.Split(cmdArgs.BazelForceEnabledModules, ",") {
+	for _, module := range getForceEnabledModulesFromFlag(cmdArgs.BazelForceEnabledModules) {
 		config.bazelForceEnabledModules[module] = struct{}{}
 	}
 	config.BazelContext, err = NewBazelContext(config)
 	config.Bp2buildPackageConfig = GetBp2BuildAllowList()
 
 	return Config{config}, err
+}
+
+func getForceEnabledModulesFromFlag(forceEnabledFlag string) []string {
+	if forceEnabledFlag == "" {
+		return []string{}
+	}
+	return strings.Split(forceEnabledFlag, ",")
 }
 
 // mockFileSystem replaces all reads with accesses to the provided map of

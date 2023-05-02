@@ -307,10 +307,6 @@ func checkForAllowlistIntegrityError(configuration android.Config, isStagingMode
 // This indicates the allowlisting of this variant had no effect.
 // TODO(b/280457637): Return true for nonexistent modules.
 func isAllowlistMisconfiguredForModule(module string, mixedBuildsEnabled map[string]struct{}, mixedBuildsDisabled map[string]struct{}) bool {
-	//TODO(dacek): Why does this occur in the allowlists?
-	if module == "" {
-		return false
-	}
 	_, enabled := mixedBuildsEnabled[module]
 
 	if enabled {
