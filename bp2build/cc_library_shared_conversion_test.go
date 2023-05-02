@@ -516,8 +516,8 @@ func TestCcLibrarySharedUseVersionLib(t *testing.T) {
 }`,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
-				"use_version_lib":                   "True",
-				"implementation_whole_archive_deps": `["//build/soong/cc/libbuildversion:libbuildversion"]`,
+				"use_version_lib":    "True",
+				"whole_archive_deps": `["//build/soong/cc/libbuildversion:libbuildversion"]`,
 			}),
 		},
 	})
