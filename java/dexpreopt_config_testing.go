@@ -207,65 +207,65 @@ func checkArtBootImageConfig(t *testing.T, result *android.TestResult, mutated b
 	expected := &expectedConfig{
 		name:                     "art",
 		stem:                     "boot",
-		dir:                      "out/soong/test_device/dex_artjars",
-		symbolsDir:               "out/soong/test_device/dex_artjars_unstripped",
+		dir:                      "out/soong/dexpreopt_arm64/dex_artjars",
+		symbolsDir:               "out/soong/dexpreopt_arm64/dex_artjars_unstripped",
 		installDirOnDevice:       "system/framework",
 		installDirOnHost:         "apex/art_boot_images/javalib",
 		profileInstallPathInApex: "etc/boot-image.prof",
 		modules:                  android.CreateTestConfiguredJarList([]string{"com.android.art:core1", "com.android.art:core2"}),
-		dexPaths:                 []string{"out/soong/test_device/dex_artjars_input/core1.jar", "out/soong/test_device/dex_artjars_input/core2.jar"},
-		dexPathsDeps:             []string{"out/soong/test_device/dex_artjars_input/core1.jar", "out/soong/test_device/dex_artjars_input/core2.jar"},
-		zip:                      "out/soong/test_device/dex_artjars/art.zip",
+		dexPaths:                 []string{"out/soong/dexpreopt_arm64/dex_artjars_input/core1.jar", "out/soong/dexpreopt_arm64/dex_artjars_input/core2.jar"},
+		dexPathsDeps:             []string{"out/soong/dexpreopt_arm64/dex_artjars_input/core1.jar", "out/soong/dexpreopt_arm64/dex_artjars_input/core2.jar"},
+		zip:                      "out/soong/dexpreopt_arm64/dex_artjars/art.zip",
 		variants: []*expectedVariant{
 			{
 				archType:          android.Arm64,
 				dexLocations:      []string{"/apex/com.android.art/javalib/core1.jar", "/apex/com.android.art/javalib/core2.jar"},
 				dexLocationsDeps:  []string{"/apex/com.android.art/javalib/core1.jar", "/apex/com.android.art/javalib/core2.jar"},
-				imagePathOnHost:   "out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.art",
+				imagePathOnHost:   "out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.art",
 				imagePathOnDevice: "/system/framework/arm64/boot.art",
 				imagesDeps: []string{
-					"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.art",
-					"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.oat",
-					"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.vdex",
-					"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-core2.art",
-					"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-core2.oat",
-					"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-core2.vdex",
+					"out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.art",
+					"out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.oat",
+					"out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.vdex",
+					"out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-core2.art",
+					"out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-core2.oat",
+					"out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-core2.vdex",
 				},
 				installs: []normalizedInstall{
 					{
-						from: "out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.art",
+						from: "out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.art",
 						to:   "/apex/art_boot_images/javalib/arm64/boot.art",
 					},
 					{
-						from: "out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.oat",
+						from: "out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.oat",
 						to:   "/apex/art_boot_images/javalib/arm64/boot.oat",
 					},
 					{
-						from: "out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-core2.art",
+						from: "out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-core2.art",
 						to:   "/apex/art_boot_images/javalib/arm64/boot-core2.art",
 					},
 					{
-						from: "out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-core2.oat",
+						from: "out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-core2.oat",
 						to:   "/apex/art_boot_images/javalib/arm64/boot-core2.oat",
 					},
 				},
 				vdexInstalls: []normalizedInstall{
 					{
-						from: "out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.vdex",
+						from: "out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.vdex",
 						to:   "/apex/art_boot_images/javalib/arm64/boot.vdex",
 					},
 					{
-						from: "out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-core2.vdex",
+						from: "out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-core2.vdex",
 						to:   "/apex/art_boot_images/javalib/arm64/boot-core2.vdex",
 					},
 				},
 				unstrippedInstalls: []normalizedInstall{
 					{
-						from: "out/soong/test_device/dex_artjars_unstripped/android/apex/art_boot_images/javalib/arm64/boot.oat",
+						from: "out/soong/dexpreopt_arm64/dex_artjars_unstripped/android/apex/art_boot_images/javalib/arm64/boot.oat",
 						to:   "/apex/art_boot_images/javalib/arm64/boot.oat",
 					},
 					{
-						from: "out/soong/test_device/dex_artjars_unstripped/android/apex/art_boot_images/javalib/arm64/boot-core2.oat",
+						from: "out/soong/dexpreopt_arm64/dex_artjars_unstripped/android/apex/art_boot_images/javalib/arm64/boot-core2.oat",
 						to:   "/apex/art_boot_images/javalib/arm64/boot-core2.oat",
 					},
 				},
@@ -275,51 +275,51 @@ func checkArtBootImageConfig(t *testing.T, result *android.TestResult, mutated b
 				archType:          android.Arm,
 				dexLocations:      []string{"/apex/com.android.art/javalib/core1.jar", "/apex/com.android.art/javalib/core2.jar"},
 				dexLocationsDeps:  []string{"/apex/com.android.art/javalib/core1.jar", "/apex/com.android.art/javalib/core2.jar"},
-				imagePathOnHost:   "out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.art",
+				imagePathOnHost:   "out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.art",
 				imagePathOnDevice: "/system/framework/arm/boot.art",
 				imagesDeps: []string{
-					"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.art",
-					"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.oat",
-					"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.vdex",
-					"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot-core2.art",
-					"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot-core2.oat",
-					"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot-core2.vdex",
+					"out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.art",
+					"out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.oat",
+					"out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.vdex",
+					"out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot-core2.art",
+					"out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot-core2.oat",
+					"out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot-core2.vdex",
 				},
 				installs: []normalizedInstall{
 					{
-						from: "out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.art",
+						from: "out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.art",
 						to:   "/apex/art_boot_images/javalib/arm/boot.art",
 					},
 					{
-						from: "out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.oat",
+						from: "out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.oat",
 						to:   "/apex/art_boot_images/javalib/arm/boot.oat",
 					},
 					{
-						from: "out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot-core2.art",
+						from: "out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot-core2.art",
 						to:   "/apex/art_boot_images/javalib/arm/boot-core2.art",
 					},
 					{
-						from: "out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot-core2.oat",
+						from: "out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot-core2.oat",
 						to:   "/apex/art_boot_images/javalib/arm/boot-core2.oat",
 					},
 				},
 				vdexInstalls: []normalizedInstall{
 					{
-						from: "out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.vdex",
+						from: "out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.vdex",
 						to:   "/apex/art_boot_images/javalib/arm/boot.vdex",
 					},
 					{
-						from: "out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot-core2.vdex",
+						from: "out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot-core2.vdex",
 						to:   "/apex/art_boot_images/javalib/arm/boot-core2.vdex",
 					},
 				},
 				unstrippedInstalls: []normalizedInstall{
 					{
-						from: "out/soong/test_device/dex_artjars_unstripped/android/apex/art_boot_images/javalib/arm/boot.oat",
+						from: "out/soong/dexpreopt_arm64/dex_artjars_unstripped/android/apex/art_boot_images/javalib/arm/boot.oat",
 						to:   "/apex/art_boot_images/javalib/arm/boot.oat",
 					},
 					{
-						from: "out/soong/test_device/dex_artjars_unstripped/android/apex/art_boot_images/javalib/arm/boot-core2.oat",
+						from: "out/soong/dexpreopt_arm64/dex_artjars_unstripped/android/apex/art_boot_images/javalib/arm/boot-core2.oat",
 						to:   "/apex/art_boot_images/javalib/arm/boot-core2.oat",
 					},
 				},
@@ -329,49 +329,49 @@ func checkArtBootImageConfig(t *testing.T, result *android.TestResult, mutated b
 				archType:          android.X86_64,
 				dexLocations:      []string{"host/linux-x86/apex/com.android.art/javalib/core1.jar", "host/linux-x86/apex/com.android.art/javalib/core2.jar"},
 				dexLocationsDeps:  []string{"host/linux-x86/apex/com.android.art/javalib/core1.jar", "host/linux-x86/apex/com.android.art/javalib/core2.jar"},
-				imagePathOnHost:   "out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.art",
+				imagePathOnHost:   "out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.art",
 				imagePathOnDevice: "/system/framework/x86_64/boot.art",
 				imagesDeps: []string{
-					"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.art",
-					"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.oat",
-					"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.vdex",
-					"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot-core2.art",
-					"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot-core2.oat",
-					"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot-core2.vdex",
+					"out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.art",
+					"out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.oat",
+					"out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.vdex",
+					"out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot-core2.art",
+					"out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot-core2.oat",
+					"out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot-core2.vdex",
 				},
 				installs: []normalizedInstall{
 					{
-						from: "out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.art",
+						from: "out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.art",
 						to:   "/apex/art_boot_images/javalib/x86_64/boot.art",
 					}, {
-						from: "out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.oat",
+						from: "out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.oat",
 						to:   "/apex/art_boot_images/javalib/x86_64/boot.oat",
 					},
 					{
-						from: "out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot-core2.art",
+						from: "out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot-core2.art",
 						to:   "/apex/art_boot_images/javalib/x86_64/boot-core2.art",
 					}, {
-						from: "out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot-core2.oat",
+						from: "out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot-core2.oat",
 						to:   "/apex/art_boot_images/javalib/x86_64/boot-core2.oat",
 					},
 				},
 				vdexInstalls: []normalizedInstall{
 					{
-						from: "out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.vdex",
+						from: "out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.vdex",
 						to:   "/apex/art_boot_images/javalib/x86_64/boot.vdex",
 					},
 					{
-						from: "out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot-core2.vdex",
+						from: "out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot-core2.vdex",
 						to:   "/apex/art_boot_images/javalib/x86_64/boot-core2.vdex",
 					},
 				},
 				unstrippedInstalls: []normalizedInstall{
 					{
-						from: "out/soong/test_device/dex_artjars_unstripped/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.oat",
+						from: "out/soong/dexpreopt_arm64/dex_artjars_unstripped/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.oat",
 						to:   "/apex/art_boot_images/javalib/x86_64/boot.oat",
 					},
 					{
-						from: "out/soong/test_device/dex_artjars_unstripped/linux_glibc/apex/art_boot_images/javalib/x86_64/boot-core2.oat",
+						from: "out/soong/dexpreopt_arm64/dex_artjars_unstripped/linux_glibc/apex/art_boot_images/javalib/x86_64/boot-core2.oat",
 						to:   "/apex/art_boot_images/javalib/x86_64/boot-core2.oat",
 					},
 				},
@@ -381,49 +381,49 @@ func checkArtBootImageConfig(t *testing.T, result *android.TestResult, mutated b
 				archType:          android.X86,
 				dexLocations:      []string{"host/linux-x86/apex/com.android.art/javalib/core1.jar", "host/linux-x86/apex/com.android.art/javalib/core2.jar"},
 				dexLocationsDeps:  []string{"host/linux-x86/apex/com.android.art/javalib/core1.jar", "host/linux-x86/apex/com.android.art/javalib/core2.jar"},
-				imagePathOnHost:   "out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.art",
+				imagePathOnHost:   "out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.art",
 				imagePathOnDevice: "/system/framework/x86/boot.art",
 				imagesDeps: []string{
-					"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.art",
-					"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.oat",
-					"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.vdex",
-					"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot-core2.art",
-					"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot-core2.oat",
-					"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot-core2.vdex",
+					"out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.art",
+					"out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.oat",
+					"out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.vdex",
+					"out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot-core2.art",
+					"out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot-core2.oat",
+					"out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot-core2.vdex",
 				},
 				installs: []normalizedInstall{
 					{
-						from: "out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.art",
+						from: "out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.art",
 						to:   "/apex/art_boot_images/javalib/x86/boot.art",
 					}, {
-						from: "out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.oat",
+						from: "out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.oat",
 						to:   "/apex/art_boot_images/javalib/x86/boot.oat",
 					},
 					{
-						from: "out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot-core2.art",
+						from: "out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot-core2.art",
 						to:   "/apex/art_boot_images/javalib/x86/boot-core2.art",
 					}, {
-						from: "out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot-core2.oat",
+						from: "out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot-core2.oat",
 						to:   "/apex/art_boot_images/javalib/x86/boot-core2.oat",
 					},
 				},
 				vdexInstalls: []normalizedInstall{
 					{
-						from: "out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.vdex",
+						from: "out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.vdex",
 						to:   "/apex/art_boot_images/javalib/x86/boot.vdex",
 					},
 					{
-						from: "out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot-core2.vdex",
+						from: "out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot-core2.vdex",
 						to:   "/apex/art_boot_images/javalib/x86/boot-core2.vdex",
 					},
 				},
 				unstrippedInstalls: []normalizedInstall{
 					{
-						from: "out/soong/test_device/dex_artjars_unstripped/linux_glibc/apex/art_boot_images/javalib/x86/boot.oat",
+						from: "out/soong/dexpreopt_arm64/dex_artjars_unstripped/linux_glibc/apex/art_boot_images/javalib/x86/boot.oat",
 						to:   "/apex/art_boot_images/javalib/x86/boot.oat",
 					},
 					{
-						from: "out/soong/test_device/dex_artjars_unstripped/linux_glibc/apex/art_boot_images/javalib/x86/boot-core2.oat",
+						from: "out/soong/dexpreopt_arm64/dex_artjars_unstripped/linux_glibc/apex/art_boot_images/javalib/x86/boot-core2.oat",
 						to:   "/apex/art_boot_images/javalib/x86/boot-core2.oat",
 					},
 				},
@@ -460,15 +460,15 @@ func checkFrameworkBootImageConfig(t *testing.T, result *android.TestResult, mut
 	expected := &expectedConfig{
 		name:                     "boot",
 		stem:                     "boot",
-		dir:                      "out/soong/test_device/dex_bootjars",
-		symbolsDir:               "out/soong/test_device/dex_bootjars_unstripped",
+		dir:                      "out/soong/dexpreopt_arm64/dex_bootjars",
+		symbolsDir:               "out/soong/dexpreopt_arm64/dex_bootjars_unstripped",
 		installDirOnDevice:       "system/framework",
 		installDirOnHost:         "system/framework",
 		profileInstallPathInApex: "",
 		modules:                  android.CreateTestConfiguredJarList([]string{"platform:framework"}),
-		dexPaths:                 []string{"out/soong/test_device/dex_bootjars_input/framework.jar"},
-		dexPathsDeps:             []string{"out/soong/test_device/dex_artjars_input/core1.jar", "out/soong/test_device/dex_artjars_input/core2.jar", "out/soong/test_device/dex_bootjars_input/framework.jar"},
-		zip:                      "out/soong/test_device/dex_bootjars/boot.zip",
+		dexPaths:                 []string{"out/soong/dexpreopt_arm64/dex_bootjars_input/framework.jar"},
+		dexPathsDeps:             []string{"out/soong/dexpreopt_arm64/dex_artjars_input/core1.jar", "out/soong/dexpreopt_arm64/dex_artjars_input/core2.jar", "out/soong/dexpreopt_arm64/dex_bootjars_input/framework.jar"},
+		zip:                      "out/soong/dexpreopt_arm64/dex_bootjars/boot.zip",
 		variants: []*expectedVariant{
 			{
 				archType:     android.Arm64,
@@ -478,41 +478,41 @@ func checkFrameworkBootImageConfig(t *testing.T, result *android.TestResult, mut
 					"/apex/com.android.art/javalib/core2.jar",
 					"/system/framework/framework.jar",
 				},
-				imagePathOnHost:   "out/soong/test_device/dex_bootjars/android/system/framework/arm64/boot-framework.art",
+				imagePathOnHost:   "out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/arm64/boot-framework.art",
 				imagePathOnDevice: "/system/framework/arm64/boot-framework.art",
 				imagesDeps: []string{
-					"out/soong/test_device/dex_bootjars/android/system/framework/arm64/boot-framework.art",
-					"out/soong/test_device/dex_bootjars/android/system/framework/arm64/boot-framework.oat",
-					"out/soong/test_device/dex_bootjars/android/system/framework/arm64/boot-framework.vdex",
+					"out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/arm64/boot-framework.art",
+					"out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/arm64/boot-framework.oat",
+					"out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/arm64/boot-framework.vdex",
 				},
-				baseImages: []string{"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.art"},
+				baseImages: []string{"out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.art"},
 				baseImagesDeps: []string{
-					"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.art",
-					"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.oat",
-					"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.vdex",
-					"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-core2.art",
-					"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-core2.oat",
-					"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-core2.vdex",
+					"out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.art",
+					"out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.oat",
+					"out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.vdex",
+					"out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-core2.art",
+					"out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-core2.oat",
+					"out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-core2.vdex",
 				},
 				installs: []normalizedInstall{
 					{
-						from: "out/soong/test_device/dex_bootjars/android/system/framework/arm64/boot-framework.art",
+						from: "out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/arm64/boot-framework.art",
 						to:   "/system/framework/arm64/boot-framework.art",
 					},
 					{
-						from: "out/soong/test_device/dex_bootjars/android/system/framework/arm64/boot-framework.oat",
+						from: "out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/arm64/boot-framework.oat",
 						to:   "/system/framework/arm64/boot-framework.oat",
 					},
 				},
 				vdexInstalls: []normalizedInstall{
 					{
-						from: "out/soong/test_device/dex_bootjars/android/system/framework/arm64/boot-framework.vdex",
+						from: "out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/arm64/boot-framework.vdex",
 						to:   "/system/framework/arm64/boot-framework.vdex",
 					},
 				},
 				unstrippedInstalls: []normalizedInstall{
 					{
-						from: "out/soong/test_device/dex_bootjars_unstripped/android/system/framework/arm64/boot-framework.oat",
+						from: "out/soong/dexpreopt_arm64/dex_bootjars_unstripped/android/system/framework/arm64/boot-framework.oat",
 						to:   "/system/framework/arm64/boot-framework.oat",
 					},
 				},
@@ -526,41 +526,41 @@ func checkFrameworkBootImageConfig(t *testing.T, result *android.TestResult, mut
 					"/apex/com.android.art/javalib/core2.jar",
 					"/system/framework/framework.jar",
 				},
-				imagePathOnHost:   "out/soong/test_device/dex_bootjars/android/system/framework/arm/boot-framework.art",
+				imagePathOnHost:   "out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/arm/boot-framework.art",
 				imagePathOnDevice: "/system/framework/arm/boot-framework.art",
 				imagesDeps: []string{
-					"out/soong/test_device/dex_bootjars/android/system/framework/arm/boot-framework.art",
-					"out/soong/test_device/dex_bootjars/android/system/framework/arm/boot-framework.oat",
-					"out/soong/test_device/dex_bootjars/android/system/framework/arm/boot-framework.vdex",
+					"out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/arm/boot-framework.art",
+					"out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/arm/boot-framework.oat",
+					"out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/arm/boot-framework.vdex",
 				},
-				baseImages: []string{"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.art"},
+				baseImages: []string{"out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.art"},
 				baseImagesDeps: []string{
-					"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.art",
-					"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.oat",
-					"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.vdex",
-					"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot-core2.art",
-					"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot-core2.oat",
-					"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot-core2.vdex",
+					"out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.art",
+					"out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.oat",
+					"out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.vdex",
+					"out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot-core2.art",
+					"out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot-core2.oat",
+					"out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot-core2.vdex",
 				},
 				installs: []normalizedInstall{
 					{
-						from: "out/soong/test_device/dex_bootjars/android/system/framework/arm/boot-framework.art",
+						from: "out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/arm/boot-framework.art",
 						to:   "/system/framework/arm/boot-framework.art",
 					},
 					{
-						from: "out/soong/test_device/dex_bootjars/android/system/framework/arm/boot-framework.oat",
+						from: "out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/arm/boot-framework.oat",
 						to:   "/system/framework/arm/boot-framework.oat",
 					},
 				},
 				vdexInstalls: []normalizedInstall{
 					{
-						from: "out/soong/test_device/dex_bootjars/android/system/framework/arm/boot-framework.vdex",
+						from: "out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/arm/boot-framework.vdex",
 						to:   "/system/framework/arm/boot-framework.vdex",
 					},
 				},
 				unstrippedInstalls: []normalizedInstall{
 					{
-						from: "out/soong/test_device/dex_bootjars_unstripped/android/system/framework/arm/boot-framework.oat",
+						from: "out/soong/dexpreopt_arm64/dex_bootjars_unstripped/android/system/framework/arm/boot-framework.oat",
 						to:   "/system/framework/arm/boot-framework.oat",
 					},
 				},
@@ -574,41 +574,41 @@ func checkFrameworkBootImageConfig(t *testing.T, result *android.TestResult, mut
 					"host/linux-x86/apex/com.android.art/javalib/core2.jar",
 					"host/linux-x86/system/framework/framework.jar",
 				},
-				imagePathOnHost:   "out/soong/test_device/dex_bootjars/linux_glibc/system/framework/x86_64/boot-framework.art",
+				imagePathOnHost:   "out/soong/dexpreopt_arm64/dex_bootjars/linux_glibc/system/framework/x86_64/boot-framework.art",
 				imagePathOnDevice: "/system/framework/x86_64/boot-framework.art",
 				imagesDeps: []string{
-					"out/soong/test_device/dex_bootjars/linux_glibc/system/framework/x86_64/boot-framework.art",
-					"out/soong/test_device/dex_bootjars/linux_glibc/system/framework/x86_64/boot-framework.oat",
-					"out/soong/test_device/dex_bootjars/linux_glibc/system/framework/x86_64/boot-framework.vdex",
+					"out/soong/dexpreopt_arm64/dex_bootjars/linux_glibc/system/framework/x86_64/boot-framework.art",
+					"out/soong/dexpreopt_arm64/dex_bootjars/linux_glibc/system/framework/x86_64/boot-framework.oat",
+					"out/soong/dexpreopt_arm64/dex_bootjars/linux_glibc/system/framework/x86_64/boot-framework.vdex",
 				},
-				baseImages: []string{"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.art"},
+				baseImages: []string{"out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.art"},
 				baseImagesDeps: []string{
-					"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.art",
-					"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.oat",
-					"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.vdex",
-					"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot-core2.art",
-					"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot-core2.oat",
-					"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot-core2.vdex",
+					"out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.art",
+					"out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.oat",
+					"out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.vdex",
+					"out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot-core2.art",
+					"out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot-core2.oat",
+					"out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot-core2.vdex",
 				},
 				installs: []normalizedInstall{
 					{
-						from: "out/soong/test_device/dex_bootjars/linux_glibc/system/framework/x86_64/boot-framework.art",
+						from: "out/soong/dexpreopt_arm64/dex_bootjars/linux_glibc/system/framework/x86_64/boot-framework.art",
 						to:   "/system/framework/x86_64/boot-framework.art",
 					},
 					{
-						from: "out/soong/test_device/dex_bootjars/linux_glibc/system/framework/x86_64/boot-framework.oat",
+						from: "out/soong/dexpreopt_arm64/dex_bootjars/linux_glibc/system/framework/x86_64/boot-framework.oat",
 						to:   "/system/framework/x86_64/boot-framework.oat",
 					},
 				},
 				vdexInstalls: []normalizedInstall{
 					{
-						from: "out/soong/test_device/dex_bootjars/linux_glibc/system/framework/x86_64/boot-framework.vdex",
+						from: "out/soong/dexpreopt_arm64/dex_bootjars/linux_glibc/system/framework/x86_64/boot-framework.vdex",
 						to:   "/system/framework/x86_64/boot-framework.vdex",
 					},
 				},
 				unstrippedInstalls: []normalizedInstall{
 					{
-						from: "out/soong/test_device/dex_bootjars_unstripped/linux_glibc/system/framework/x86_64/boot-framework.oat",
+						from: "out/soong/dexpreopt_arm64/dex_bootjars_unstripped/linux_glibc/system/framework/x86_64/boot-framework.oat",
 						to:   "/system/framework/x86_64/boot-framework.oat",
 					},
 				},
@@ -622,41 +622,41 @@ func checkFrameworkBootImageConfig(t *testing.T, result *android.TestResult, mut
 					"host/linux-x86/apex/com.android.art/javalib/core2.jar",
 					"host/linux-x86/system/framework/framework.jar",
 				},
-				imagePathOnHost:   "out/soong/test_device/dex_bootjars/linux_glibc/system/framework/x86/boot-framework.art",
+				imagePathOnHost:   "out/soong/dexpreopt_arm64/dex_bootjars/linux_glibc/system/framework/x86/boot-framework.art",
 				imagePathOnDevice: "/system/framework/x86/boot-framework.art",
 				imagesDeps: []string{
-					"out/soong/test_device/dex_bootjars/linux_glibc/system/framework/x86/boot-framework.art",
-					"out/soong/test_device/dex_bootjars/linux_glibc/system/framework/x86/boot-framework.oat",
-					"out/soong/test_device/dex_bootjars/linux_glibc/system/framework/x86/boot-framework.vdex",
+					"out/soong/dexpreopt_arm64/dex_bootjars/linux_glibc/system/framework/x86/boot-framework.art",
+					"out/soong/dexpreopt_arm64/dex_bootjars/linux_glibc/system/framework/x86/boot-framework.oat",
+					"out/soong/dexpreopt_arm64/dex_bootjars/linux_glibc/system/framework/x86/boot-framework.vdex",
 				},
-				baseImages: []string{"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.art"},
+				baseImages: []string{"out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.art"},
 				baseImagesDeps: []string{
-					"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.art",
-					"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.oat",
-					"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.vdex",
-					"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot-core2.art",
-					"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot-core2.oat",
-					"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot-core2.vdex",
+					"out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.art",
+					"out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.oat",
+					"out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.vdex",
+					"out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot-core2.art",
+					"out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot-core2.oat",
+					"out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot-core2.vdex",
 				},
 				installs: []normalizedInstall{
 					{
-						from: "out/soong/test_device/dex_bootjars/linux_glibc/system/framework/x86/boot-framework.art",
+						from: "out/soong/dexpreopt_arm64/dex_bootjars/linux_glibc/system/framework/x86/boot-framework.art",
 						to:   "/system/framework/x86/boot-framework.art",
 					},
 					{
-						from: "out/soong/test_device/dex_bootjars/linux_glibc/system/framework/x86/boot-framework.oat",
+						from: "out/soong/dexpreopt_arm64/dex_bootjars/linux_glibc/system/framework/x86/boot-framework.oat",
 						to:   "/system/framework/x86/boot-framework.oat",
 					},
 				},
 				vdexInstalls: []normalizedInstall{
 					{
-						from: "out/soong/test_device/dex_bootjars/linux_glibc/system/framework/x86/boot-framework.vdex",
+						from: "out/soong/dexpreopt_arm64/dex_bootjars/linux_glibc/system/framework/x86/boot-framework.vdex",
 						to:   "/system/framework/x86/boot-framework.vdex",
 					},
 				},
 				unstrippedInstalls: []normalizedInstall{
 					{
-						from: "out/soong/test_device/dex_bootjars_unstripped/linux_glibc/system/framework/x86/boot-framework.oat",
+						from: "out/soong/dexpreopt_arm64/dex_bootjars_unstripped/linux_glibc/system/framework/x86/boot-framework.oat",
 						to:   "/system/framework/x86/boot-framework.oat",
 					},
 				},
@@ -664,8 +664,8 @@ func checkFrameworkBootImageConfig(t *testing.T, result *android.TestResult, mut
 			},
 		},
 		profileInstalls: []normalizedInstall{
-			{from: "out/soong/test_device/dex_bootjars/boot.bprof", to: "/system/etc/boot-image.bprof"},
-			{from: "out/soong/test_device/dex_bootjars/boot.prof", to: "/system/etc/boot-image.prof"},
+			{from: "out/soong/dexpreopt_arm64/dex_bootjars/boot.bprof", to: "/system/etc/boot-image.bprof"},
+			{from: "out/soong/dexpreopt_arm64/dex_bootjars/boot.prof", to: "/system/etc/boot-image.prof"},
 		},
 		profileLicenseMetadataFile: expectedLicenseMetadataFile,
 	}
@@ -691,8 +691,8 @@ func CheckMainlineBootImageConfig(t *testing.T, result *android.TestResult) {
 	expected := &expectedConfig{
 		name:                     "mainline",
 		stem:                     "boot",
-		dir:                      "out/soong/test_device/dex_mainlinejars",
-		symbolsDir:               "out/soong/test_device/dex_mainlinejars_unstripped",
+		dir:                      "out/soong/dexpreopt_arm64/dex_mainlinejars",
+		symbolsDir:               "out/soong/dexpreopt_arm64/dex_mainlinejars_unstripped",
 		installDirOnDevice:       "system/framework",
 		installDirOnHost:         "system/framework",
 		profileInstallPathInApex: "",
@@ -701,17 +701,17 @@ func CheckMainlineBootImageConfig(t *testing.T, result *android.TestResult) {
 			"com.android.bar:framework-bar",
 		}),
 		dexPaths: []string{
-			"out/soong/test_device/dex_mainlinejars_input/framework-foo.jar",
-			"out/soong/test_device/dex_mainlinejars_input/framework-bar.jar",
+			"out/soong/dexpreopt_arm64/dex_mainlinejars_input/framework-foo.jar",
+			"out/soong/dexpreopt_arm64/dex_mainlinejars_input/framework-bar.jar",
 		},
 		dexPathsDeps: []string{
-			"out/soong/test_device/dex_artjars_input/core1.jar",
-			"out/soong/test_device/dex_artjars_input/core2.jar",
-			"out/soong/test_device/dex_bootjars_input/framework.jar",
-			"out/soong/test_device/dex_mainlinejars_input/framework-foo.jar",
-			"out/soong/test_device/dex_mainlinejars_input/framework-bar.jar",
+			"out/soong/dexpreopt_arm64/dex_artjars_input/core1.jar",
+			"out/soong/dexpreopt_arm64/dex_artjars_input/core2.jar",
+			"out/soong/dexpreopt_arm64/dex_bootjars_input/framework.jar",
+			"out/soong/dexpreopt_arm64/dex_mainlinejars_input/framework-foo.jar",
+			"out/soong/dexpreopt_arm64/dex_mainlinejars_input/framework-bar.jar",
 		},
-		zip: "out/soong/test_device/dex_mainlinejars/mainline.zip",
+		zip: "out/soong/dexpreopt_arm64/dex_mainlinejars/mainline.zip",
 		variants: []*expectedVariant{
 			{
 				archType: android.Arm64,
@@ -726,47 +726,47 @@ func CheckMainlineBootImageConfig(t *testing.T, result *android.TestResult) {
 					"/apex/com.android.foo/javalib/framework-foo.jar",
 					"/apex/com.android.bar/javalib/framework-bar.jar",
 				},
-				imagePathOnHost:   "out/soong/test_device/dex_mainlinejars/android/system/framework/arm64/boot-framework-foo.art",
+				imagePathOnHost:   "out/soong/dexpreopt_arm64/dex_mainlinejars/android/system/framework/arm64/boot-framework-foo.art",
 				imagePathOnDevice: "/system/framework/arm64/boot-framework-foo.art",
 				imagesDeps: []string{
-					"out/soong/test_device/dex_mainlinejars/android/system/framework/arm64/boot-framework-foo.art",
-					"out/soong/test_device/dex_mainlinejars/android/system/framework/arm64/boot-framework-foo.oat",
-					"out/soong/test_device/dex_mainlinejars/android/system/framework/arm64/boot-framework-foo.vdex",
+					"out/soong/dexpreopt_arm64/dex_mainlinejars/android/system/framework/arm64/boot-framework-foo.art",
+					"out/soong/dexpreopt_arm64/dex_mainlinejars/android/system/framework/arm64/boot-framework-foo.oat",
+					"out/soong/dexpreopt_arm64/dex_mainlinejars/android/system/framework/arm64/boot-framework-foo.vdex",
 				},
 				baseImages: []string{
-					"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.art",
-					"out/soong/test_device/dex_bootjars/android/system/framework/arm64/boot-framework.art",
+					"out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.art",
+					"out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/arm64/boot-framework.art",
 				},
 				baseImagesDeps: []string{
-					"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.art",
-					"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.oat",
-					"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.vdex",
-					"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-core2.art",
-					"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-core2.oat",
-					"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-core2.vdex",
-					"out/soong/test_device/dex_bootjars/android/system/framework/arm64/boot-framework.art",
-					"out/soong/test_device/dex_bootjars/android/system/framework/arm64/boot-framework.oat",
-					"out/soong/test_device/dex_bootjars/android/system/framework/arm64/boot-framework.vdex",
+					"out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.art",
+					"out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.oat",
+					"out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.vdex",
+					"out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-core2.art",
+					"out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-core2.oat",
+					"out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-core2.vdex",
+					"out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/arm64/boot-framework.art",
+					"out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/arm64/boot-framework.oat",
+					"out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/arm64/boot-framework.vdex",
 				},
 				installs: []normalizedInstall{
 					{
-						from: "out/soong/test_device/dex_mainlinejars/android/system/framework/arm64/boot-framework-foo.art",
+						from: "out/soong/dexpreopt_arm64/dex_mainlinejars/android/system/framework/arm64/boot-framework-foo.art",
 						to:   "/system/framework/arm64/boot-framework-foo.art",
 					},
 					{
-						from: "out/soong/test_device/dex_mainlinejars/android/system/framework/arm64/boot-framework-foo.oat",
+						from: "out/soong/dexpreopt_arm64/dex_mainlinejars/android/system/framework/arm64/boot-framework-foo.oat",
 						to:   "/system/framework/arm64/boot-framework-foo.oat",
 					},
 				},
 				vdexInstalls: []normalizedInstall{
 					{
-						from: "out/soong/test_device/dex_mainlinejars/android/system/framework/arm64/boot-framework-foo.vdex",
+						from: "out/soong/dexpreopt_arm64/dex_mainlinejars/android/system/framework/arm64/boot-framework-foo.vdex",
 						to:   "/system/framework/arm64/boot-framework-foo.vdex",
 					},
 				},
 				unstrippedInstalls: []normalizedInstall{
 					{
-						from: "out/soong/test_device/dex_mainlinejars_unstripped/android/system/framework/arm64/boot-framework-foo.oat",
+						from: "out/soong/dexpreopt_arm64/dex_mainlinejars_unstripped/android/system/framework/arm64/boot-framework-foo.oat",
 						to:   "/system/framework/arm64/boot-framework-foo.oat",
 					},
 				},
@@ -785,47 +785,47 @@ func CheckMainlineBootImageConfig(t *testing.T, result *android.TestResult) {
 					"/apex/com.android.foo/javalib/framework-foo.jar",
 					"/apex/com.android.bar/javalib/framework-bar.jar",
 				},
-				imagePathOnHost:   "out/soong/test_device/dex_mainlinejars/android/system/framework/arm/boot-framework-foo.art",
+				imagePathOnHost:   "out/soong/dexpreopt_arm64/dex_mainlinejars/android/system/framework/arm/boot-framework-foo.art",
 				imagePathOnDevice: "/system/framework/arm/boot-framework-foo.art",
 				imagesDeps: []string{
-					"out/soong/test_device/dex_mainlinejars/android/system/framework/arm/boot-framework-foo.art",
-					"out/soong/test_device/dex_mainlinejars/android/system/framework/arm/boot-framework-foo.oat",
-					"out/soong/test_device/dex_mainlinejars/android/system/framework/arm/boot-framework-foo.vdex",
+					"out/soong/dexpreopt_arm64/dex_mainlinejars/android/system/framework/arm/boot-framework-foo.art",
+					"out/soong/dexpreopt_arm64/dex_mainlinejars/android/system/framework/arm/boot-framework-foo.oat",
+					"out/soong/dexpreopt_arm64/dex_mainlinejars/android/system/framework/arm/boot-framework-foo.vdex",
 				},
 				baseImages: []string{
-					"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.art",
-					"out/soong/test_device/dex_bootjars/android/system/framework/arm/boot-framework.art",
+					"out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.art",
+					"out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/arm/boot-framework.art",
 				},
 				baseImagesDeps: []string{
-					"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.art",
-					"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.oat",
-					"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.vdex",
-					"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot-core2.art",
-					"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot-core2.oat",
-					"out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot-core2.vdex",
-					"out/soong/test_device/dex_bootjars/android/system/framework/arm/boot-framework.art",
-					"out/soong/test_device/dex_bootjars/android/system/framework/arm/boot-framework.oat",
-					"out/soong/test_device/dex_bootjars/android/system/framework/arm/boot-framework.vdex",
+					"out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.art",
+					"out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.oat",
+					"out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.vdex",
+					"out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot-core2.art",
+					"out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot-core2.oat",
+					"out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot-core2.vdex",
+					"out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/arm/boot-framework.art",
+					"out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/arm/boot-framework.oat",
+					"out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/arm/boot-framework.vdex",
 				},
 				installs: []normalizedInstall{
 					{
-						from: "out/soong/test_device/dex_mainlinejars/android/system/framework/arm/boot-framework-foo.art",
+						from: "out/soong/dexpreopt_arm64/dex_mainlinejars/android/system/framework/arm/boot-framework-foo.art",
 						to:   "/system/framework/arm/boot-framework-foo.art",
 					},
 					{
-						from: "out/soong/test_device/dex_mainlinejars/android/system/framework/arm/boot-framework-foo.oat",
+						from: "out/soong/dexpreopt_arm64/dex_mainlinejars/android/system/framework/arm/boot-framework-foo.oat",
 						to:   "/system/framework/arm/boot-framework-foo.oat",
 					},
 				},
 				vdexInstalls: []normalizedInstall{
 					{
-						from: "out/soong/test_device/dex_mainlinejars/android/system/framework/arm/boot-framework-foo.vdex",
+						from: "out/soong/dexpreopt_arm64/dex_mainlinejars/android/system/framework/arm/boot-framework-foo.vdex",
 						to:   "/system/framework/arm/boot-framework-foo.vdex",
 					},
 				},
 				unstrippedInstalls: []normalizedInstall{
 					{
-						from: "out/soong/test_device/dex_mainlinejars_unstripped/android/system/framework/arm/boot-framework-foo.oat",
+						from: "out/soong/dexpreopt_arm64/dex_mainlinejars_unstripped/android/system/framework/arm/boot-framework-foo.oat",
 						to:   "/system/framework/arm/boot-framework-foo.oat",
 					},
 				},
@@ -844,47 +844,47 @@ func CheckMainlineBootImageConfig(t *testing.T, result *android.TestResult) {
 					"host/linux-x86/apex/com.android.foo/javalib/framework-foo.jar",
 					"host/linux-x86/apex/com.android.bar/javalib/framework-bar.jar",
 				},
-				imagePathOnHost:   "out/soong/test_device/dex_mainlinejars/linux_glibc/system/framework/x86_64/boot-framework-foo.art",
+				imagePathOnHost:   "out/soong/dexpreopt_arm64/dex_mainlinejars/linux_glibc/system/framework/x86_64/boot-framework-foo.art",
 				imagePathOnDevice: "/system/framework/x86_64/boot-framework-foo.art",
 				imagesDeps: []string{
-					"out/soong/test_device/dex_mainlinejars/linux_glibc/system/framework/x86_64/boot-framework-foo.art",
-					"out/soong/test_device/dex_mainlinejars/linux_glibc/system/framework/x86_64/boot-framework-foo.oat",
-					"out/soong/test_device/dex_mainlinejars/linux_glibc/system/framework/x86_64/boot-framework-foo.vdex",
+					"out/soong/dexpreopt_arm64/dex_mainlinejars/linux_glibc/system/framework/x86_64/boot-framework-foo.art",
+					"out/soong/dexpreopt_arm64/dex_mainlinejars/linux_glibc/system/framework/x86_64/boot-framework-foo.oat",
+					"out/soong/dexpreopt_arm64/dex_mainlinejars/linux_glibc/system/framework/x86_64/boot-framework-foo.vdex",
 				},
 				baseImages: []string{
-					"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.art",
-					"out/soong/test_device/dex_bootjars/linux_glibc/system/framework/x86_64/boot-framework.art",
+					"out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.art",
+					"out/soong/dexpreopt_arm64/dex_bootjars/linux_glibc/system/framework/x86_64/boot-framework.art",
 				},
 				baseImagesDeps: []string{
-					"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.art",
-					"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.oat",
-					"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.vdex",
-					"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot-core2.art",
-					"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot-core2.oat",
-					"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot-core2.vdex",
-					"out/soong/test_device/dex_bootjars/linux_glibc/system/framework/x86_64/boot-framework.art",
-					"out/soong/test_device/dex_bootjars/linux_glibc/system/framework/x86_64/boot-framework.oat",
-					"out/soong/test_device/dex_bootjars/linux_glibc/system/framework/x86_64/boot-framework.vdex",
+					"out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.art",
+					"out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.oat",
+					"out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.vdex",
+					"out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot-core2.art",
+					"out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot-core2.oat",
+					"out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot-core2.vdex",
+					"out/soong/dexpreopt_arm64/dex_bootjars/linux_glibc/system/framework/x86_64/boot-framework.art",
+					"out/soong/dexpreopt_arm64/dex_bootjars/linux_glibc/system/framework/x86_64/boot-framework.oat",
+					"out/soong/dexpreopt_arm64/dex_bootjars/linux_glibc/system/framework/x86_64/boot-framework.vdex",
 				},
 				installs: []normalizedInstall{
 					{
-						from: "out/soong/test_device/dex_mainlinejars/linux_glibc/system/framework/x86_64/boot-framework-foo.art",
+						from: "out/soong/dexpreopt_arm64/dex_mainlinejars/linux_glibc/system/framework/x86_64/boot-framework-foo.art",
 						to:   "/system/framework/x86_64/boot-framework-foo.art",
 					},
 					{
-						from: "out/soong/test_device/dex_mainlinejars/linux_glibc/system/framework/x86_64/boot-framework-foo.oat",
+						from: "out/soong/dexpreopt_arm64/dex_mainlinejars/linux_glibc/system/framework/x86_64/boot-framework-foo.oat",
 						to:   "/system/framework/x86_64/boot-framework-foo.oat",
 					},
 				},
 				vdexInstalls: []normalizedInstall{
 					{
-						from: "out/soong/test_device/dex_mainlinejars/linux_glibc/system/framework/x86_64/boot-framework-foo.vdex",
+						from: "out/soong/dexpreopt_arm64/dex_mainlinejars/linux_glibc/system/framework/x86_64/boot-framework-foo.vdex",
 						to:   "/system/framework/x86_64/boot-framework-foo.vdex",
 					},
 				},
 				unstrippedInstalls: []normalizedInstall{
 					{
-						from: "out/soong/test_device/dex_mainlinejars_unstripped/linux_glibc/system/framework/x86_64/boot-framework-foo.oat",
+						from: "out/soong/dexpreopt_arm64/dex_mainlinejars_unstripped/linux_glibc/system/framework/x86_64/boot-framework-foo.oat",
 						to:   "/system/framework/x86_64/boot-framework-foo.oat",
 					},
 				},
@@ -903,47 +903,47 @@ func CheckMainlineBootImageConfig(t *testing.T, result *android.TestResult) {
 					"host/linux-x86/apex/com.android.foo/javalib/framework-foo.jar",
 					"host/linux-x86/apex/com.android.bar/javalib/framework-bar.jar",
 				},
-				imagePathOnHost:   "out/soong/test_device/dex_mainlinejars/linux_glibc/system/framework/x86/boot-framework-foo.art",
+				imagePathOnHost:   "out/soong/dexpreopt_arm64/dex_mainlinejars/linux_glibc/system/framework/x86/boot-framework-foo.art",
 				imagePathOnDevice: "/system/framework/x86/boot-framework-foo.art",
 				imagesDeps: []string{
-					"out/soong/test_device/dex_mainlinejars/linux_glibc/system/framework/x86/boot-framework-foo.art",
-					"out/soong/test_device/dex_mainlinejars/linux_glibc/system/framework/x86/boot-framework-foo.oat",
-					"out/soong/test_device/dex_mainlinejars/linux_glibc/system/framework/x86/boot-framework-foo.vdex",
+					"out/soong/dexpreopt_arm64/dex_mainlinejars/linux_glibc/system/framework/x86/boot-framework-foo.art",
+					"out/soong/dexpreopt_arm64/dex_mainlinejars/linux_glibc/system/framework/x86/boot-framework-foo.oat",
+					"out/soong/dexpreopt_arm64/dex_mainlinejars/linux_glibc/system/framework/x86/boot-framework-foo.vdex",
 				},
 				baseImages: []string{
-					"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.art",
-					"out/soong/test_device/dex_bootjars/linux_glibc/system/framework/x86/boot-framework.art",
+					"out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.art",
+					"out/soong/dexpreopt_arm64/dex_bootjars/linux_glibc/system/framework/x86/boot-framework.art",
 				},
 				baseImagesDeps: []string{
-					"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.art",
-					"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.oat",
-					"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.vdex",
-					"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot-core2.art",
-					"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot-core2.oat",
-					"out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot-core2.vdex",
-					"out/soong/test_device/dex_bootjars/linux_glibc/system/framework/x86/boot-framework.art",
-					"out/soong/test_device/dex_bootjars/linux_glibc/system/framework/x86/boot-framework.oat",
-					"out/soong/test_device/dex_bootjars/linux_glibc/system/framework/x86/boot-framework.vdex",
+					"out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.art",
+					"out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.oat",
+					"out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.vdex",
+					"out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot-core2.art",
+					"out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot-core2.oat",
+					"out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot-core2.vdex",
+					"out/soong/dexpreopt_arm64/dex_bootjars/linux_glibc/system/framework/x86/boot-framework.art",
+					"out/soong/dexpreopt_arm64/dex_bootjars/linux_glibc/system/framework/x86/boot-framework.oat",
+					"out/soong/dexpreopt_arm64/dex_bootjars/linux_glibc/system/framework/x86/boot-framework.vdex",
 				},
 				installs: []normalizedInstall{
 					{
-						from: "out/soong/test_device/dex_mainlinejars/linux_glibc/system/framework/x86/boot-framework-foo.art",
+						from: "out/soong/dexpreopt_arm64/dex_mainlinejars/linux_glibc/system/framework/x86/boot-framework-foo.art",
 						to:   "/system/framework/x86/boot-framework-foo.art",
 					},
 					{
-						from: "out/soong/test_device/dex_mainlinejars/linux_glibc/system/framework/x86/boot-framework-foo.oat",
+						from: "out/soong/dexpreopt_arm64/dex_mainlinejars/linux_glibc/system/framework/x86/boot-framework-foo.oat",
 						to:   "/system/framework/x86/boot-framework-foo.oat",
 					},
 				},
 				vdexInstalls: []normalizedInstall{
 					{
-						from: "out/soong/test_device/dex_mainlinejars/linux_glibc/system/framework/x86/boot-framework-foo.vdex",
+						from: "out/soong/dexpreopt_arm64/dex_mainlinejars/linux_glibc/system/framework/x86/boot-framework-foo.vdex",
 						to:   "/system/framework/x86/boot-framework-foo.vdex",
 					},
 				},
 				unstrippedInstalls: []normalizedInstall{
 					{
-						from: "out/soong/test_device/dex_mainlinejars_unstripped/linux_glibc/system/framework/x86/boot-framework-foo.oat",
+						from: "out/soong/dexpreopt_arm64/dex_mainlinejars_unstripped/linux_glibc/system/framework/x86/boot-framework-foo.oat",
 						to:   "/system/framework/x86/boot-framework-foo.oat",
 					},
 				},
@@ -1056,34 +1056,34 @@ func checkDexpreoptMakeVars(t *testing.T, result *android.TestResult, expectedLi
 		fmt.Fprintf(out, "%s=%s\n", v.Name(), android.StringRelativeToTop(result.Config, v.Value()))
 	}
 	format := `
-DEXPREOPT_BOOTCLASSPATH_DEX_FILES=out/soong/test_device/dex_artjars_input/core1.jar out/soong/test_device/dex_artjars_input/core2.jar out/soong/test_device/dex_bootjars_input/framework.jar
+DEXPREOPT_BOOTCLASSPATH_DEX_FILES=out/soong/dexpreopt_arm64/dex_artjars_input/core1.jar out/soong/dexpreopt_arm64/dex_artjars_input/core2.jar out/soong/dexpreopt_arm64/dex_bootjars_input/framework.jar
 DEXPREOPT_BOOTCLASSPATH_DEX_LOCATIONS=/apex/com.android.art/javalib/core1.jar /apex/com.android.art/javalib/core2.jar /system/framework/framework.jar
 DEXPREOPT_BOOT_JARS_MODULES=platform:framework
 DEXPREOPT_GEN=out/host/linux-x86/bin/dexpreopt_gen
-DEXPREOPT_IMAGE_BUILT_INSTALLED_art_arm=out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.art:/apex/art_boot_images/javalib/arm/boot.art out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.oat:/apex/art_boot_images/javalib/arm/boot.oat out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot-core2.art:/apex/art_boot_images/javalib/arm/boot-core2.art out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot-core2.oat:/apex/art_boot_images/javalib/arm/boot-core2.oat
-DEXPREOPT_IMAGE_BUILT_INSTALLED_art_arm64=out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.art:/apex/art_boot_images/javalib/arm64/boot.art out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.oat:/apex/art_boot_images/javalib/arm64/boot.oat out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-core2.art:/apex/art_boot_images/javalib/arm64/boot-core2.art out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-core2.oat:/apex/art_boot_images/javalib/arm64/boot-core2.oat
-DEXPREOPT_IMAGE_BUILT_INSTALLED_art_host_x86=out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.art:/apex/art_boot_images/javalib/x86/boot.art out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.oat:/apex/art_boot_images/javalib/x86/boot.oat out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot-core2.art:/apex/art_boot_images/javalib/x86/boot-core2.art out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot-core2.oat:/apex/art_boot_images/javalib/x86/boot-core2.oat
-DEXPREOPT_IMAGE_BUILT_INSTALLED_art_host_x86_64=out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.art:/apex/art_boot_images/javalib/x86_64/boot.art out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.oat:/apex/art_boot_images/javalib/x86_64/boot.oat out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot-core2.art:/apex/art_boot_images/javalib/x86_64/boot-core2.art out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot-core2.oat:/apex/art_boot_images/javalib/x86_64/boot-core2.oat
-DEXPREOPT_IMAGE_BUILT_INSTALLED_boot_arm=out/soong/test_device/dex_bootjars/android/system/framework/arm/boot-framework.art:/system/framework/arm/boot-framework.art out/soong/test_device/dex_bootjars/android/system/framework/arm/boot-framework.oat:/system/framework/arm/boot-framework.oat
-DEXPREOPT_IMAGE_BUILT_INSTALLED_boot_arm64=out/soong/test_device/dex_bootjars/android/system/framework/arm64/boot-framework.art:/system/framework/arm64/boot-framework.art out/soong/test_device/dex_bootjars/android/system/framework/arm64/boot-framework.oat:/system/framework/arm64/boot-framework.oat
-DEXPREOPT_IMAGE_BUILT_INSTALLED_boot_host_x86=out/soong/test_device/dex_bootjars/linux_glibc/system/framework/x86/boot-framework.art:/system/framework/x86/boot-framework.art out/soong/test_device/dex_bootjars/linux_glibc/system/framework/x86/boot-framework.oat:/system/framework/x86/boot-framework.oat
-DEXPREOPT_IMAGE_BUILT_INSTALLED_boot_host_x86_64=out/soong/test_device/dex_bootjars/linux_glibc/system/framework/x86_64/boot-framework.art:/system/framework/x86_64/boot-framework.art out/soong/test_device/dex_bootjars/linux_glibc/system/framework/x86_64/boot-framework.oat:/system/framework/x86_64/boot-framework.oat
-DEXPREOPT_IMAGE_BUILT_INSTALLED_mainline_arm=out/soong/test_device/dex_mainlinejars/android/system/framework/arm/boot-framework-foo.art:/system/framework/arm/boot-framework-foo.art out/soong/test_device/dex_mainlinejars/android/system/framework/arm/boot-framework-foo.oat:/system/framework/arm/boot-framework-foo.oat
-DEXPREOPT_IMAGE_BUILT_INSTALLED_mainline_arm64=out/soong/test_device/dex_mainlinejars/android/system/framework/arm64/boot-framework-foo.art:/system/framework/arm64/boot-framework-foo.art out/soong/test_device/dex_mainlinejars/android/system/framework/arm64/boot-framework-foo.oat:/system/framework/arm64/boot-framework-foo.oat
-DEXPREOPT_IMAGE_BUILT_INSTALLED_mainline_host_x86=out/soong/test_device/dex_mainlinejars/linux_glibc/system/framework/x86/boot-framework-foo.art:/system/framework/x86/boot-framework-foo.art out/soong/test_device/dex_mainlinejars/linux_glibc/system/framework/x86/boot-framework-foo.oat:/system/framework/x86/boot-framework-foo.oat
-DEXPREOPT_IMAGE_BUILT_INSTALLED_mainline_host_x86_64=out/soong/test_device/dex_mainlinejars/linux_glibc/system/framework/x86_64/boot-framework-foo.art:/system/framework/x86_64/boot-framework-foo.art out/soong/test_device/dex_mainlinejars/linux_glibc/system/framework/x86_64/boot-framework-foo.oat:/system/framework/x86_64/boot-framework-foo.oat
-DEXPREOPT_IMAGE_DEPS_art_arm=out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.art out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.oat out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.vdex out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot-core2.art out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot-core2.oat out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot-core2.vdex
-DEXPREOPT_IMAGE_DEPS_art_arm64=out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.art out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.oat out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.vdex out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-core2.art out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-core2.oat out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-core2.vdex
-DEXPREOPT_IMAGE_DEPS_art_host_x86=out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.art out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.oat out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.vdex out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot-core2.art out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot-core2.oat out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot-core2.vdex
-DEXPREOPT_IMAGE_DEPS_art_host_x86_64=out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.art out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.oat out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.vdex out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot-core2.art out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot-core2.oat out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot-core2.vdex
-DEXPREOPT_IMAGE_DEPS_boot_arm=out/soong/test_device/dex_bootjars/android/system/framework/arm/boot-framework.art out/soong/test_device/dex_bootjars/android/system/framework/arm/boot-framework.oat out/soong/test_device/dex_bootjars/android/system/framework/arm/boot-framework.vdex
-DEXPREOPT_IMAGE_DEPS_boot_arm64=out/soong/test_device/dex_bootjars/android/system/framework/arm64/boot-framework.art out/soong/test_device/dex_bootjars/android/system/framework/arm64/boot-framework.oat out/soong/test_device/dex_bootjars/android/system/framework/arm64/boot-framework.vdex
-DEXPREOPT_IMAGE_DEPS_boot_host_x86=out/soong/test_device/dex_bootjars/linux_glibc/system/framework/x86/boot-framework.art out/soong/test_device/dex_bootjars/linux_glibc/system/framework/x86/boot-framework.oat out/soong/test_device/dex_bootjars/linux_glibc/system/framework/x86/boot-framework.vdex
-DEXPREOPT_IMAGE_DEPS_boot_host_x86_64=out/soong/test_device/dex_bootjars/linux_glibc/system/framework/x86_64/boot-framework.art out/soong/test_device/dex_bootjars/linux_glibc/system/framework/x86_64/boot-framework.oat out/soong/test_device/dex_bootjars/linux_glibc/system/framework/x86_64/boot-framework.vdex
-DEXPREOPT_IMAGE_DEPS_mainline_arm=out/soong/test_device/dex_mainlinejars/android/system/framework/arm/boot-framework-foo.art out/soong/test_device/dex_mainlinejars/android/system/framework/arm/boot-framework-foo.oat out/soong/test_device/dex_mainlinejars/android/system/framework/arm/boot-framework-foo.vdex
-DEXPREOPT_IMAGE_DEPS_mainline_arm64=out/soong/test_device/dex_mainlinejars/android/system/framework/arm64/boot-framework-foo.art out/soong/test_device/dex_mainlinejars/android/system/framework/arm64/boot-framework-foo.oat out/soong/test_device/dex_mainlinejars/android/system/framework/arm64/boot-framework-foo.vdex
-DEXPREOPT_IMAGE_DEPS_mainline_host_x86=out/soong/test_device/dex_mainlinejars/linux_glibc/system/framework/x86/boot-framework-foo.art out/soong/test_device/dex_mainlinejars/linux_glibc/system/framework/x86/boot-framework-foo.oat out/soong/test_device/dex_mainlinejars/linux_glibc/system/framework/x86/boot-framework-foo.vdex
-DEXPREOPT_IMAGE_DEPS_mainline_host_x86_64=out/soong/test_device/dex_mainlinejars/linux_glibc/system/framework/x86_64/boot-framework-foo.art out/soong/test_device/dex_mainlinejars/linux_glibc/system/framework/x86_64/boot-framework-foo.oat out/soong/test_device/dex_mainlinejars/linux_glibc/system/framework/x86_64/boot-framework-foo.vdex
+DEXPREOPT_IMAGE_BUILT_INSTALLED_art_arm=out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.art:/apex/art_boot_images/javalib/arm/boot.art out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.oat:/apex/art_boot_images/javalib/arm/boot.oat out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot-core2.art:/apex/art_boot_images/javalib/arm/boot-core2.art out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot-core2.oat:/apex/art_boot_images/javalib/arm/boot-core2.oat
+DEXPREOPT_IMAGE_BUILT_INSTALLED_art_arm64=out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.art:/apex/art_boot_images/javalib/arm64/boot.art out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.oat:/apex/art_boot_images/javalib/arm64/boot.oat out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-core2.art:/apex/art_boot_images/javalib/arm64/boot-core2.art out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-core2.oat:/apex/art_boot_images/javalib/arm64/boot-core2.oat
+DEXPREOPT_IMAGE_BUILT_INSTALLED_art_host_x86=out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.art:/apex/art_boot_images/javalib/x86/boot.art out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.oat:/apex/art_boot_images/javalib/x86/boot.oat out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot-core2.art:/apex/art_boot_images/javalib/x86/boot-core2.art out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot-core2.oat:/apex/art_boot_images/javalib/x86/boot-core2.oat
+DEXPREOPT_IMAGE_BUILT_INSTALLED_art_host_x86_64=out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.art:/apex/art_boot_images/javalib/x86_64/boot.art out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.oat:/apex/art_boot_images/javalib/x86_64/boot.oat out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot-core2.art:/apex/art_boot_images/javalib/x86_64/boot-core2.art out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot-core2.oat:/apex/art_boot_images/javalib/x86_64/boot-core2.oat
+DEXPREOPT_IMAGE_BUILT_INSTALLED_boot_arm=out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/arm/boot-framework.art:/system/framework/arm/boot-framework.art out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/arm/boot-framework.oat:/system/framework/arm/boot-framework.oat
+DEXPREOPT_IMAGE_BUILT_INSTALLED_boot_arm64=out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/arm64/boot-framework.art:/system/framework/arm64/boot-framework.art out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/arm64/boot-framework.oat:/system/framework/arm64/boot-framework.oat
+DEXPREOPT_IMAGE_BUILT_INSTALLED_boot_host_x86=out/soong/dexpreopt_arm64/dex_bootjars/linux_glibc/system/framework/x86/boot-framework.art:/system/framework/x86/boot-framework.art out/soong/dexpreopt_arm64/dex_bootjars/linux_glibc/system/framework/x86/boot-framework.oat:/system/framework/x86/boot-framework.oat
+DEXPREOPT_IMAGE_BUILT_INSTALLED_boot_host_x86_64=out/soong/dexpreopt_arm64/dex_bootjars/linux_glibc/system/framework/x86_64/boot-framework.art:/system/framework/x86_64/boot-framework.art out/soong/dexpreopt_arm64/dex_bootjars/linux_glibc/system/framework/x86_64/boot-framework.oat:/system/framework/x86_64/boot-framework.oat
+DEXPREOPT_IMAGE_BUILT_INSTALLED_mainline_arm=out/soong/dexpreopt_arm64/dex_mainlinejars/android/system/framework/arm/boot-framework-foo.art:/system/framework/arm/boot-framework-foo.art out/soong/dexpreopt_arm64/dex_mainlinejars/android/system/framework/arm/boot-framework-foo.oat:/system/framework/arm/boot-framework-foo.oat
+DEXPREOPT_IMAGE_BUILT_INSTALLED_mainline_arm64=out/soong/dexpreopt_arm64/dex_mainlinejars/android/system/framework/arm64/boot-framework-foo.art:/system/framework/arm64/boot-framework-foo.art out/soong/dexpreopt_arm64/dex_mainlinejars/android/system/framework/arm64/boot-framework-foo.oat:/system/framework/arm64/boot-framework-foo.oat
+DEXPREOPT_IMAGE_BUILT_INSTALLED_mainline_host_x86=out/soong/dexpreopt_arm64/dex_mainlinejars/linux_glibc/system/framework/x86/boot-framework-foo.art:/system/framework/x86/boot-framework-foo.art out/soong/dexpreopt_arm64/dex_mainlinejars/linux_glibc/system/framework/x86/boot-framework-foo.oat:/system/framework/x86/boot-framework-foo.oat
+DEXPREOPT_IMAGE_BUILT_INSTALLED_mainline_host_x86_64=out/soong/dexpreopt_arm64/dex_mainlinejars/linux_glibc/system/framework/x86_64/boot-framework-foo.art:/system/framework/x86_64/boot-framework-foo.art out/soong/dexpreopt_arm64/dex_mainlinejars/linux_glibc/system/framework/x86_64/boot-framework-foo.oat:/system/framework/x86_64/boot-framework-foo.oat
+DEXPREOPT_IMAGE_DEPS_art_arm=out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.art out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.oat out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.vdex out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot-core2.art out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot-core2.oat out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot-core2.vdex
+DEXPREOPT_IMAGE_DEPS_art_arm64=out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.art out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.oat out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.vdex out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-core2.art out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-core2.oat out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-core2.vdex
+DEXPREOPT_IMAGE_DEPS_art_host_x86=out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.art out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.oat out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.vdex out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot-core2.art out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot-core2.oat out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot-core2.vdex
+DEXPREOPT_IMAGE_DEPS_art_host_x86_64=out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.art out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.oat out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.vdex out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot-core2.art out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot-core2.oat out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot-core2.vdex
+DEXPREOPT_IMAGE_DEPS_boot_arm=out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/arm/boot-framework.art out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/arm/boot-framework.oat out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/arm/boot-framework.vdex
+DEXPREOPT_IMAGE_DEPS_boot_arm64=out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/arm64/boot-framework.art out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/arm64/boot-framework.oat out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/arm64/boot-framework.vdex
+DEXPREOPT_IMAGE_DEPS_boot_host_x86=out/soong/dexpreopt_arm64/dex_bootjars/linux_glibc/system/framework/x86/boot-framework.art out/soong/dexpreopt_arm64/dex_bootjars/linux_glibc/system/framework/x86/boot-framework.oat out/soong/dexpreopt_arm64/dex_bootjars/linux_glibc/system/framework/x86/boot-framework.vdex
+DEXPREOPT_IMAGE_DEPS_boot_host_x86_64=out/soong/dexpreopt_arm64/dex_bootjars/linux_glibc/system/framework/x86_64/boot-framework.art out/soong/dexpreopt_arm64/dex_bootjars/linux_glibc/system/framework/x86_64/boot-framework.oat out/soong/dexpreopt_arm64/dex_bootjars/linux_glibc/system/framework/x86_64/boot-framework.vdex
+DEXPREOPT_IMAGE_DEPS_mainline_arm=out/soong/dexpreopt_arm64/dex_mainlinejars/android/system/framework/arm/boot-framework-foo.art out/soong/dexpreopt_arm64/dex_mainlinejars/android/system/framework/arm/boot-framework-foo.oat out/soong/dexpreopt_arm64/dex_mainlinejars/android/system/framework/arm/boot-framework-foo.vdex
+DEXPREOPT_IMAGE_DEPS_mainline_arm64=out/soong/dexpreopt_arm64/dex_mainlinejars/android/system/framework/arm64/boot-framework-foo.art out/soong/dexpreopt_arm64/dex_mainlinejars/android/system/framework/arm64/boot-framework-foo.oat out/soong/dexpreopt_arm64/dex_mainlinejars/android/system/framework/arm64/boot-framework-foo.vdex
+DEXPREOPT_IMAGE_DEPS_mainline_host_x86=out/soong/dexpreopt_arm64/dex_mainlinejars/linux_glibc/system/framework/x86/boot-framework-foo.art out/soong/dexpreopt_arm64/dex_mainlinejars/linux_glibc/system/framework/x86/boot-framework-foo.oat out/soong/dexpreopt_arm64/dex_mainlinejars/linux_glibc/system/framework/x86/boot-framework-foo.vdex
+DEXPREOPT_IMAGE_DEPS_mainline_host_x86_64=out/soong/dexpreopt_arm64/dex_mainlinejars/linux_glibc/system/framework/x86_64/boot-framework-foo.art out/soong/dexpreopt_arm64/dex_mainlinejars/linux_glibc/system/framework/x86_64/boot-framework-foo.oat out/soong/dexpreopt_arm64/dex_mainlinejars/linux_glibc/system/framework/x86_64/boot-framework-foo.vdex
 DEXPREOPT_IMAGE_LICENSE_METADATA_art_arm=%[1]s
 DEXPREOPT_IMAGE_LICENSE_METADATA_art_arm64=%[1]s
 DEXPREOPT_IMAGE_LICENSE_METADATA_art_host_x86=%[1]s
@@ -1099,51 +1099,51 @@ DEXPREOPT_IMAGE_LICENSE_METADATA_mainline_host_x86_64=out/soong/.intermediates/f
 DEXPREOPT_IMAGE_LOCATIONS_ON_DEVICEart=/system/framework/boot.art
 DEXPREOPT_IMAGE_LOCATIONS_ON_DEVICEboot=/system/framework/boot.art:/system/framework/boot-framework.art
 DEXPREOPT_IMAGE_LOCATIONS_ON_DEVICEmainline=/system/framework/boot.art:/system/framework/boot-framework.art:/system/framework/boot-framework-foo.art
-DEXPREOPT_IMAGE_LOCATIONS_ON_HOSTart=out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/boot.art
-DEXPREOPT_IMAGE_LOCATIONS_ON_HOSTboot=out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/boot.art:out/soong/test_device/dex_bootjars/android/system/framework/boot-framework.art
-DEXPREOPT_IMAGE_LOCATIONS_ON_HOSTmainline=out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/boot.art:out/soong/test_device/dex_bootjars/android/system/framework/boot-framework.art:out/soong/test_device/dex_mainlinejars/android/system/framework/boot-framework-foo.art
+DEXPREOPT_IMAGE_LOCATIONS_ON_HOSTart=out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/boot.art
+DEXPREOPT_IMAGE_LOCATIONS_ON_HOSTboot=out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/boot.art:out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/boot-framework.art
+DEXPREOPT_IMAGE_LOCATIONS_ON_HOSTmainline=out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/boot.art:out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/boot-framework.art:out/soong/dexpreopt_arm64/dex_mainlinejars/android/system/framework/boot-framework-foo.art
 DEXPREOPT_IMAGE_NAMES=art boot mainline
-DEXPREOPT_IMAGE_PROFILE_BUILT_INSTALLED=out/soong/test_device/dex_bootjars/boot.bprof:/system/etc/boot-image.bprof out/soong/test_device/dex_bootjars/boot.prof:/system/etc/boot-image.prof
+DEXPREOPT_IMAGE_PROFILE_BUILT_INSTALLED=out/soong/dexpreopt_arm64/dex_bootjars/boot.bprof:/system/etc/boot-image.bprof out/soong/dexpreopt_arm64/dex_bootjars/boot.prof:/system/etc/boot-image.prof
 DEXPREOPT_IMAGE_PROFILE_LICENSE_METADATA=out/soong/.intermediates/frameworks/base/boot/platform-bootclasspath/android_common/meta_lic
-DEXPREOPT_IMAGE_UNSTRIPPED_BUILT_INSTALLED_art_arm=out/soong/test_device/dex_artjars_unstripped/android/apex/art_boot_images/javalib/arm/boot.oat:/apex/art_boot_images/javalib/arm/boot.oat out/soong/test_device/dex_artjars_unstripped/android/apex/art_boot_images/javalib/arm/boot-core2.oat:/apex/art_boot_images/javalib/arm/boot-core2.oat
-DEXPREOPT_IMAGE_UNSTRIPPED_BUILT_INSTALLED_art_arm64=out/soong/test_device/dex_artjars_unstripped/android/apex/art_boot_images/javalib/arm64/boot.oat:/apex/art_boot_images/javalib/arm64/boot.oat out/soong/test_device/dex_artjars_unstripped/android/apex/art_boot_images/javalib/arm64/boot-core2.oat:/apex/art_boot_images/javalib/arm64/boot-core2.oat
-DEXPREOPT_IMAGE_UNSTRIPPED_BUILT_INSTALLED_art_host_x86=out/soong/test_device/dex_artjars_unstripped/linux_glibc/apex/art_boot_images/javalib/x86/boot.oat:/apex/art_boot_images/javalib/x86/boot.oat out/soong/test_device/dex_artjars_unstripped/linux_glibc/apex/art_boot_images/javalib/x86/boot-core2.oat:/apex/art_boot_images/javalib/x86/boot-core2.oat
-DEXPREOPT_IMAGE_UNSTRIPPED_BUILT_INSTALLED_art_host_x86_64=out/soong/test_device/dex_artjars_unstripped/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.oat:/apex/art_boot_images/javalib/x86_64/boot.oat out/soong/test_device/dex_artjars_unstripped/linux_glibc/apex/art_boot_images/javalib/x86_64/boot-core2.oat:/apex/art_boot_images/javalib/x86_64/boot-core2.oat
-DEXPREOPT_IMAGE_UNSTRIPPED_BUILT_INSTALLED_boot_arm=out/soong/test_device/dex_bootjars_unstripped/android/system/framework/arm/boot-framework.oat:/system/framework/arm/boot-framework.oat
-DEXPREOPT_IMAGE_UNSTRIPPED_BUILT_INSTALLED_boot_arm64=out/soong/test_device/dex_bootjars_unstripped/android/system/framework/arm64/boot-framework.oat:/system/framework/arm64/boot-framework.oat
-DEXPREOPT_IMAGE_UNSTRIPPED_BUILT_INSTALLED_boot_host_x86=out/soong/test_device/dex_bootjars_unstripped/linux_glibc/system/framework/x86/boot-framework.oat:/system/framework/x86/boot-framework.oat
-DEXPREOPT_IMAGE_UNSTRIPPED_BUILT_INSTALLED_boot_host_x86_64=out/soong/test_device/dex_bootjars_unstripped/linux_glibc/system/framework/x86_64/boot-framework.oat:/system/framework/x86_64/boot-framework.oat
-DEXPREOPT_IMAGE_UNSTRIPPED_BUILT_INSTALLED_mainline_arm=out/soong/test_device/dex_mainlinejars_unstripped/android/system/framework/arm/boot-framework-foo.oat:/system/framework/arm/boot-framework-foo.oat
-DEXPREOPT_IMAGE_UNSTRIPPED_BUILT_INSTALLED_mainline_arm64=out/soong/test_device/dex_mainlinejars_unstripped/android/system/framework/arm64/boot-framework-foo.oat:/system/framework/arm64/boot-framework-foo.oat
-DEXPREOPT_IMAGE_UNSTRIPPED_BUILT_INSTALLED_mainline_host_x86=out/soong/test_device/dex_mainlinejars_unstripped/linux_glibc/system/framework/x86/boot-framework-foo.oat:/system/framework/x86/boot-framework-foo.oat
-DEXPREOPT_IMAGE_UNSTRIPPED_BUILT_INSTALLED_mainline_host_x86_64=out/soong/test_device/dex_mainlinejars_unstripped/linux_glibc/system/framework/x86_64/boot-framework-foo.oat:/system/framework/x86_64/boot-framework-foo.oat
-DEXPREOPT_IMAGE_VDEX_BUILT_INSTALLED_art_arm=out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.vdex:/apex/art_boot_images/javalib/arm/boot.vdex out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot-core2.vdex:/apex/art_boot_images/javalib/arm/boot-core2.vdex
-DEXPREOPT_IMAGE_VDEX_BUILT_INSTALLED_art_arm64=out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.vdex:/apex/art_boot_images/javalib/arm64/boot.vdex out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-core2.vdex:/apex/art_boot_images/javalib/arm64/boot-core2.vdex
-DEXPREOPT_IMAGE_VDEX_BUILT_INSTALLED_art_host_x86=out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.vdex:/apex/art_boot_images/javalib/x86/boot.vdex out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot-core2.vdex:/apex/art_boot_images/javalib/x86/boot-core2.vdex
-DEXPREOPT_IMAGE_VDEX_BUILT_INSTALLED_art_host_x86_64=out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.vdex:/apex/art_boot_images/javalib/x86_64/boot.vdex out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot-core2.vdex:/apex/art_boot_images/javalib/x86_64/boot-core2.vdex
-DEXPREOPT_IMAGE_VDEX_BUILT_INSTALLED_boot_arm=out/soong/test_device/dex_bootjars/android/system/framework/arm/boot-framework.vdex:/system/framework/arm/boot-framework.vdex
-DEXPREOPT_IMAGE_VDEX_BUILT_INSTALLED_boot_arm64=out/soong/test_device/dex_bootjars/android/system/framework/arm64/boot-framework.vdex:/system/framework/arm64/boot-framework.vdex
-DEXPREOPT_IMAGE_VDEX_BUILT_INSTALLED_boot_host_x86=out/soong/test_device/dex_bootjars/linux_glibc/system/framework/x86/boot-framework.vdex:/system/framework/x86/boot-framework.vdex
-DEXPREOPT_IMAGE_VDEX_BUILT_INSTALLED_boot_host_x86_64=out/soong/test_device/dex_bootjars/linux_glibc/system/framework/x86_64/boot-framework.vdex:/system/framework/x86_64/boot-framework.vdex
-DEXPREOPT_IMAGE_VDEX_BUILT_INSTALLED_mainline_arm=out/soong/test_device/dex_mainlinejars/android/system/framework/arm/boot-framework-foo.vdex:/system/framework/arm/boot-framework-foo.vdex
-DEXPREOPT_IMAGE_VDEX_BUILT_INSTALLED_mainline_arm64=out/soong/test_device/dex_mainlinejars/android/system/framework/arm64/boot-framework-foo.vdex:/system/framework/arm64/boot-framework-foo.vdex
-DEXPREOPT_IMAGE_VDEX_BUILT_INSTALLED_mainline_host_x86=out/soong/test_device/dex_mainlinejars/linux_glibc/system/framework/x86/boot-framework-foo.vdex:/system/framework/x86/boot-framework-foo.vdex
-DEXPREOPT_IMAGE_VDEX_BUILT_INSTALLED_mainline_host_x86_64=out/soong/test_device/dex_mainlinejars/linux_glibc/system/framework/x86_64/boot-framework-foo.vdex:/system/framework/x86_64/boot-framework-foo.vdex
-DEXPREOPT_IMAGE_ZIP_art=out/soong/test_device/dex_artjars/art.zip
-DEXPREOPT_IMAGE_ZIP_boot=out/soong/test_device/dex_bootjars/boot.zip
-DEXPREOPT_IMAGE_ZIP_mainline=out/soong/test_device/dex_mainlinejars/mainline.zip
-DEXPREOPT_IMAGE_art_arm=out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.art
-DEXPREOPT_IMAGE_art_arm64=out/soong/test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.art
-DEXPREOPT_IMAGE_art_host_x86=out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.art
-DEXPREOPT_IMAGE_art_host_x86_64=out/soong/test_device/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.art
-DEXPREOPT_IMAGE_boot_arm=out/soong/test_device/dex_bootjars/android/system/framework/arm/boot-framework.art
-DEXPREOPT_IMAGE_boot_arm64=out/soong/test_device/dex_bootjars/android/system/framework/arm64/boot-framework.art
-DEXPREOPT_IMAGE_boot_host_x86=out/soong/test_device/dex_bootjars/linux_glibc/system/framework/x86/boot-framework.art
-DEXPREOPT_IMAGE_boot_host_x86_64=out/soong/test_device/dex_bootjars/linux_glibc/system/framework/x86_64/boot-framework.art
-DEXPREOPT_IMAGE_mainline_arm=out/soong/test_device/dex_mainlinejars/android/system/framework/arm/boot-framework-foo.art
-DEXPREOPT_IMAGE_mainline_arm64=out/soong/test_device/dex_mainlinejars/android/system/framework/arm64/boot-framework-foo.art
-DEXPREOPT_IMAGE_mainline_host_x86=out/soong/test_device/dex_mainlinejars/linux_glibc/system/framework/x86/boot-framework-foo.art
-DEXPREOPT_IMAGE_mainline_host_x86_64=out/soong/test_device/dex_mainlinejars/linux_glibc/system/framework/x86_64/boot-framework-foo.art
+DEXPREOPT_IMAGE_UNSTRIPPED_BUILT_INSTALLED_art_arm=out/soong/dexpreopt_arm64/dex_artjars_unstripped/android/apex/art_boot_images/javalib/arm/boot.oat:/apex/art_boot_images/javalib/arm/boot.oat out/soong/dexpreopt_arm64/dex_artjars_unstripped/android/apex/art_boot_images/javalib/arm/boot-core2.oat:/apex/art_boot_images/javalib/arm/boot-core2.oat
+DEXPREOPT_IMAGE_UNSTRIPPED_BUILT_INSTALLED_art_arm64=out/soong/dexpreopt_arm64/dex_artjars_unstripped/android/apex/art_boot_images/javalib/arm64/boot.oat:/apex/art_boot_images/javalib/arm64/boot.oat out/soong/dexpreopt_arm64/dex_artjars_unstripped/android/apex/art_boot_images/javalib/arm64/boot-core2.oat:/apex/art_boot_images/javalib/arm64/boot-core2.oat
+DEXPREOPT_IMAGE_UNSTRIPPED_BUILT_INSTALLED_art_host_x86=out/soong/dexpreopt_arm64/dex_artjars_unstripped/linux_glibc/apex/art_boot_images/javalib/x86/boot.oat:/apex/art_boot_images/javalib/x86/boot.oat out/soong/dexpreopt_arm64/dex_artjars_unstripped/linux_glibc/apex/art_boot_images/javalib/x86/boot-core2.oat:/apex/art_boot_images/javalib/x86/boot-core2.oat
+DEXPREOPT_IMAGE_UNSTRIPPED_BUILT_INSTALLED_art_host_x86_64=out/soong/dexpreopt_arm64/dex_artjars_unstripped/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.oat:/apex/art_boot_images/javalib/x86_64/boot.oat out/soong/dexpreopt_arm64/dex_artjars_unstripped/linux_glibc/apex/art_boot_images/javalib/x86_64/boot-core2.oat:/apex/art_boot_images/javalib/x86_64/boot-core2.oat
+DEXPREOPT_IMAGE_UNSTRIPPED_BUILT_INSTALLED_boot_arm=out/soong/dexpreopt_arm64/dex_bootjars_unstripped/android/system/framework/arm/boot-framework.oat:/system/framework/arm/boot-framework.oat
+DEXPREOPT_IMAGE_UNSTRIPPED_BUILT_INSTALLED_boot_arm64=out/soong/dexpreopt_arm64/dex_bootjars_unstripped/android/system/framework/arm64/boot-framework.oat:/system/framework/arm64/boot-framework.oat
+DEXPREOPT_IMAGE_UNSTRIPPED_BUILT_INSTALLED_boot_host_x86=out/soong/dexpreopt_arm64/dex_bootjars_unstripped/linux_glibc/system/framework/x86/boot-framework.oat:/system/framework/x86/boot-framework.oat
+DEXPREOPT_IMAGE_UNSTRIPPED_BUILT_INSTALLED_boot_host_x86_64=out/soong/dexpreopt_arm64/dex_bootjars_unstripped/linux_glibc/system/framework/x86_64/boot-framework.oat:/system/framework/x86_64/boot-framework.oat
+DEXPREOPT_IMAGE_UNSTRIPPED_BUILT_INSTALLED_mainline_arm=out/soong/dexpreopt_arm64/dex_mainlinejars_unstripped/android/system/framework/arm/boot-framework-foo.oat:/system/framework/arm/boot-framework-foo.oat
+DEXPREOPT_IMAGE_UNSTRIPPED_BUILT_INSTALLED_mainline_arm64=out/soong/dexpreopt_arm64/dex_mainlinejars_unstripped/android/system/framework/arm64/boot-framework-foo.oat:/system/framework/arm64/boot-framework-foo.oat
+DEXPREOPT_IMAGE_UNSTRIPPED_BUILT_INSTALLED_mainline_host_x86=out/soong/dexpreopt_arm64/dex_mainlinejars_unstripped/linux_glibc/system/framework/x86/boot-framework-foo.oat:/system/framework/x86/boot-framework-foo.oat
+DEXPREOPT_IMAGE_UNSTRIPPED_BUILT_INSTALLED_mainline_host_x86_64=out/soong/dexpreopt_arm64/dex_mainlinejars_unstripped/linux_glibc/system/framework/x86_64/boot-framework-foo.oat:/system/framework/x86_64/boot-framework-foo.oat
+DEXPREOPT_IMAGE_VDEX_BUILT_INSTALLED_art_arm=out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.vdex:/apex/art_boot_images/javalib/arm/boot.vdex out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot-core2.vdex:/apex/art_boot_images/javalib/arm/boot-core2.vdex
+DEXPREOPT_IMAGE_VDEX_BUILT_INSTALLED_art_arm64=out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.vdex:/apex/art_boot_images/javalib/arm64/boot.vdex out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-core2.vdex:/apex/art_boot_images/javalib/arm64/boot-core2.vdex
+DEXPREOPT_IMAGE_VDEX_BUILT_INSTALLED_art_host_x86=out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.vdex:/apex/art_boot_images/javalib/x86/boot.vdex out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot-core2.vdex:/apex/art_boot_images/javalib/x86/boot-core2.vdex
+DEXPREOPT_IMAGE_VDEX_BUILT_INSTALLED_art_host_x86_64=out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.vdex:/apex/art_boot_images/javalib/x86_64/boot.vdex out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot-core2.vdex:/apex/art_boot_images/javalib/x86_64/boot-core2.vdex
+DEXPREOPT_IMAGE_VDEX_BUILT_INSTALLED_boot_arm=out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/arm/boot-framework.vdex:/system/framework/arm/boot-framework.vdex
+DEXPREOPT_IMAGE_VDEX_BUILT_INSTALLED_boot_arm64=out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/arm64/boot-framework.vdex:/system/framework/arm64/boot-framework.vdex
+DEXPREOPT_IMAGE_VDEX_BUILT_INSTALLED_boot_host_x86=out/soong/dexpreopt_arm64/dex_bootjars/linux_glibc/system/framework/x86/boot-framework.vdex:/system/framework/x86/boot-framework.vdex
+DEXPREOPT_IMAGE_VDEX_BUILT_INSTALLED_boot_host_x86_64=out/soong/dexpreopt_arm64/dex_bootjars/linux_glibc/system/framework/x86_64/boot-framework.vdex:/system/framework/x86_64/boot-framework.vdex
+DEXPREOPT_IMAGE_VDEX_BUILT_INSTALLED_mainline_arm=out/soong/dexpreopt_arm64/dex_mainlinejars/android/system/framework/arm/boot-framework-foo.vdex:/system/framework/arm/boot-framework-foo.vdex
+DEXPREOPT_IMAGE_VDEX_BUILT_INSTALLED_mainline_arm64=out/soong/dexpreopt_arm64/dex_mainlinejars/android/system/framework/arm64/boot-framework-foo.vdex:/system/framework/arm64/boot-framework-foo.vdex
+DEXPREOPT_IMAGE_VDEX_BUILT_INSTALLED_mainline_host_x86=out/soong/dexpreopt_arm64/dex_mainlinejars/linux_glibc/system/framework/x86/boot-framework-foo.vdex:/system/framework/x86/boot-framework-foo.vdex
+DEXPREOPT_IMAGE_VDEX_BUILT_INSTALLED_mainline_host_x86_64=out/soong/dexpreopt_arm64/dex_mainlinejars/linux_glibc/system/framework/x86_64/boot-framework-foo.vdex:/system/framework/x86_64/boot-framework-foo.vdex
+DEXPREOPT_IMAGE_ZIP_art=out/soong/dexpreopt_arm64/dex_artjars/art.zip
+DEXPREOPT_IMAGE_ZIP_boot=out/soong/dexpreopt_arm64/dex_bootjars/boot.zip
+DEXPREOPT_IMAGE_ZIP_mainline=out/soong/dexpreopt_arm64/dex_mainlinejars/mainline.zip
+DEXPREOPT_IMAGE_art_arm=out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.art
+DEXPREOPT_IMAGE_art_arm64=out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.art
+DEXPREOPT_IMAGE_art_host_x86=out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.art
+DEXPREOPT_IMAGE_art_host_x86_64=out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.art
+DEXPREOPT_IMAGE_boot_arm=out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/arm/boot-framework.art
+DEXPREOPT_IMAGE_boot_arm64=out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/arm64/boot-framework.art
+DEXPREOPT_IMAGE_boot_host_x86=out/soong/dexpreopt_arm64/dex_bootjars/linux_glibc/system/framework/x86/boot-framework.art
+DEXPREOPT_IMAGE_boot_host_x86_64=out/soong/dexpreopt_arm64/dex_bootjars/linux_glibc/system/framework/x86_64/boot-framework.art
+DEXPREOPT_IMAGE_mainline_arm=out/soong/dexpreopt_arm64/dex_mainlinejars/android/system/framework/arm/boot-framework-foo.art
+DEXPREOPT_IMAGE_mainline_arm64=out/soong/dexpreopt_arm64/dex_mainlinejars/android/system/framework/arm64/boot-framework-foo.art
+DEXPREOPT_IMAGE_mainline_host_x86=out/soong/dexpreopt_arm64/dex_mainlinejars/linux_glibc/system/framework/x86/boot-framework-foo.art
+DEXPREOPT_IMAGE_mainline_host_x86_64=out/soong/dexpreopt_arm64/dex_mainlinejars/linux_glibc/system/framework/x86_64/boot-framework-foo.art
 `
 	expected := strings.TrimSpace(fmt.Sprintf(format, expectedLicenseMetadataFile))
 	actual := strings.TrimSpace(out.String())
