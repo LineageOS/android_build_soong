@@ -103,10 +103,6 @@ func (b *platformBootclasspathModule) OutputFiles(tag string) (android.Paths, er
 func (b *platformBootclasspathModule) DepsMutator(ctx android.BottomUpMutatorContext) {
 	b.hiddenAPIDepsMutator(ctx)
 
-	if SkipDexpreoptBootJars(ctx) {
-		return
-	}
-
 	// Add a dependency onto the dex2oat tool which is needed for creating the boot image. The
 	// path is retrieved from the dependency by GetGlobalSoongConfig(ctx).
 	dexpreopt.RegisterToolDeps(ctx)
@@ -186,11 +182,6 @@ func (b *platformBootclasspathModule) GenerateAndroidBuildActions(ctx android.Mo
 
 	bootDexJarByModule := b.generateHiddenAPIBuildActions(ctx, b.configuredModules, b.fragments)
 	buildRuleForBootJarsPackageCheck(ctx, bootDexJarByModule)
-
-	// Nothing to do if skipping the dexpreopt of boot image jars.
-	if SkipDexpreoptBootJars(ctx) {
-		return
-	}
 
 	b.generateBootImageBuildActions(ctx, platformModules, apexModules)
 }
@@ -428,6 +419,12 @@ func (b *platformBootclasspathModule) generateBootImage(ctx android.ModuleContex
 
 	// Build a profile for the image config and then use that to build the boot image.
 	profile := bootImageProfileRule(ctx, imageConfig)
+
+	// If dexpreopt of boot image jars should be skipped, generate only a profile.
+	global := dexpreopt.GetGlobalConfig(ctx)
+	if global.DisablePreoptBootImages {
+		return
+	}
 
 	// Build boot image files for the android variants.
 	androidBootImageFiles := buildBootImageVariantsForAndroidOs(ctx, imageConfig, profile)
