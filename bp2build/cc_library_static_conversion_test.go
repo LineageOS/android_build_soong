@@ -1613,7 +1613,7 @@ func TestCcLibraryStaticUseVersionLib(t *testing.T) {
 }`,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_static", "foo", AttrNameToString{
-				"implementation_whole_archive_deps": `["//build/soong/cc/libbuildversion:libbuildversion"]`,
+				"whole_archive_deps": `["//build/soong/cc/libbuildversion:libbuildversion"]`,
 			}),
 		},
 	})
