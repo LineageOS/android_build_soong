@@ -1964,9 +1964,6 @@ func (a *apexBundle) QueueBazelCall(ctx android.BaseModuleContext) {
 // overridden by different override_apex modules (e.g. Google or Go variants),
 // which is handled by the overrides mutators.
 func (a *apexBundle) GetBazelLabel(ctx android.BazelConversionPathContext, module blueprint.Module) string {
-	if _, ok := ctx.Module().(android.OverridableModule); ok {
-		return android.MaybeBp2buildLabelOfOverridingModule(ctx)
-	}
 	return a.BazelModuleBase.GetBazelLabel(ctx, a)
 }
 
