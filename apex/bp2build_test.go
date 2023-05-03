@@ -15,7 +15,10 @@ package apex
 
 import (
 	"android/soong/android"
+	"android/soong/android/allowlists"
 	"android/soong/bazel/cquery"
+	"fmt"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -326,7 +329,7 @@ apex {
 }
 
 func TestOverrideApexImageInMixedBuilds(t *testing.T) {
-	bp := `
+	originalBp := `
 apex_key{
 	name: "foo_key",
 }
@@ -340,122 +343,203 @@ apex {
 	min_sdk_version: "31",
 	package_name: "pkg_name",
 	file_contexts: ":myapex-file_contexts",
-	bazel_module: { label: "//:foo" },
-}
+	%s
+}`
+	overrideBp := `
 override_apex {
 	name: "override_foo",
 	key: "override_foo_key",
 	package_name: "override_pkg_name",
 	base: "foo",
-	bazel_module: { label: "//:override_foo" },
+	%s
 }
 `
 
-	outputBaseDir := "out/bazel"
-	result := android.GroupFixturePreparers(
-		prepareForApexTest,
-		android.FixtureModifyConfig(func(config android.Config) {
-			config.BazelContext = android.MockBazelContext{
-				OutputBaseDir: outputBaseDir,
-				LabelToApexInfo: map[string]cquery.ApexInfo{
-					"//:foo": cquery.ApexInfo{
-						// ApexInfo Starlark provider
-						SignedOutput:          "signed_out.apex",
-						UnsignedOutput:        "unsigned_out.apex",
-						BundleKeyInfo:         []string{"public_key", "private_key"},
-						ContainerKeyInfo:      []string{"container_cert", "container_private"},
-						SymbolsUsedByApex:     "foo_using.txt",
-						JavaSymbolsUsedByApex: "foo_using.xml",
-						BundleFile:            "apex_bundle.zip",
-						InstalledFiles:        "installed-files.txt",
-						RequiresLibs:          []string{"//path/c:c", "//path/d:d"},
+	originalApexBpDir := "original"
+	originalApexName := "foo"
+	overrideApexBpDir := "override"
+	overrideApexName := "override_foo"
 
-						// unused
-						PackageName:  "pkg_name",
-						ProvidesLibs: []string{"a", "b"},
+	defaultApexLabel := fmt.Sprintf("//%s:%s", originalApexBpDir, originalApexName)
+	defaultOverrideApexLabel := fmt.Sprintf("//%s:%s", overrideApexBpDir, overrideApexName)
 
-						// ApexMkInfo Starlark provider
-						MakeModulesToInstall: []string{"c"}, // d deliberately omitted
-					},
-					"//:override_foo": cquery.ApexInfo{
-						// ApexInfo Starlark provider
-						SignedOutput:          "override_signed_out.apex",
-						UnsignedOutput:        "override_unsigned_out.apex",
-						BundleKeyInfo:         []string{"override_public_key", "override_private_key"},
-						ContainerKeyInfo:      []string{"override_container_cert", "override_container_private"},
-						SymbolsUsedByApex:     "override_foo_using.txt",
-						JavaSymbolsUsedByApex: "override_foo_using.xml",
-						BundleFile:            "override_apex_bundle.zip",
-						InstalledFiles:        "override_installed-files.txt",
-						RequiresLibs:          []string{"//path/c:c", "//path/d:d"},
+	testCases := []struct {
+		desc                    string
+		bazelModuleProp         string
+		apexLabel               string
+		overrideBazelModuleProp string
+		overrideApexLabel       string
+		bp2buildConfiguration   android.Bp2BuildConversionAllowlist
+	}{
+		{
+			desc:                    "both explicit labels",
+			bazelModuleProp:         `bazel_module: { label: "//:foo" },`,
+			apexLabel:               "//:foo",
+			overrideBazelModuleProp: `bazel_module: { label: "//:override_foo" },`,
+			overrideApexLabel:       "//:override_foo",
+			bp2buildConfiguration:   android.NewBp2BuildAllowlist(),
+		},
+		{
+			desc:                    "both explicitly allowed",
+			bazelModuleProp:         `bazel_module: { bp2build_available: true },`,
+			apexLabel:               defaultApexLabel,
+			overrideBazelModuleProp: `bazel_module: { bp2build_available: true },`,
+			overrideApexLabel:       defaultOverrideApexLabel,
+			bp2buildConfiguration:   android.NewBp2BuildAllowlist(),
+		},
+		{
+			desc:              "original allowed by dir, override allowed by name",
+			apexLabel:         defaultApexLabel,
+			overrideApexLabel: defaultOverrideApexLabel,
+			bp2buildConfiguration: android.NewBp2BuildAllowlist().SetDefaultConfig(
+				map[string]allowlists.BazelConversionConfigEntry{
+					originalApexBpDir: allowlists.Bp2BuildDefaultTrue,
+				}).SetModuleAlwaysConvertList([]string{
+				overrideApexName,
+			}),
+		},
+		{
+			desc:              "both allowed by name",
+			apexLabel:         defaultApexLabel,
+			overrideApexLabel: defaultOverrideApexLabel,
+			bp2buildConfiguration: android.NewBp2BuildAllowlist().SetModuleAlwaysConvertList([]string{
+				originalApexName,
+				overrideApexName,
+			}),
+		},
+		{
+			desc:              "override allowed by name",
+			apexLabel:         defaultApexLabel,
+			overrideApexLabel: defaultOverrideApexLabel,
+			bp2buildConfiguration: android.NewBp2BuildAllowlist().SetModuleAlwaysConvertList([]string{
+				overrideApexName,
+			}),
+		},
+		{
+			desc:              "override allowed by dir",
+			apexLabel:         defaultApexLabel,
+			overrideApexLabel: defaultOverrideApexLabel,
+			bp2buildConfiguration: android.NewBp2BuildAllowlist().SetDefaultConfig(
+				map[string]allowlists.BazelConversionConfigEntry{
+					overrideApexBpDir: allowlists.Bp2BuildDefaultTrue,
+				}).SetModuleAlwaysConvertList([]string{}),
+		},
+	}
 
-						// unused
-						PackageName:  "override_pkg_name",
-						ProvidesLibs: []string{"a", "b"},
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			outputBaseDir := "out/bazel"
+			result := android.GroupFixturePreparers(
+				prepareForApexTest,
+				android.FixtureAddTextFile(filepath.Join(originalApexBpDir, "Android.bp"), fmt.Sprintf(originalBp, tc.bazelModuleProp)),
+				android.FixtureAddTextFile(filepath.Join(overrideApexBpDir, "Android.bp"), fmt.Sprintf(overrideBp, tc.overrideBazelModuleProp)),
+				android.FixtureModifyContext(func(ctx *android.TestContext) {
+					ctx.RegisterBp2BuildConfig(tc.bp2buildConfiguration)
+				}),
+				android.FixtureModifyConfig(func(config android.Config) {
+					config.BazelContext = android.MockBazelContext{
+						OutputBaseDir: outputBaseDir,
+						LabelToApexInfo: map[string]cquery.ApexInfo{
+							tc.apexLabel: cquery.ApexInfo{
+								// ApexInfo Starlark provider
+								SignedOutput:          "signed_out.apex",
+								UnsignedOutput:        "unsigned_out.apex",
+								BundleKeyInfo:         []string{"public_key", "private_key"},
+								ContainerKeyInfo:      []string{"container_cert", "container_private"},
+								SymbolsUsedByApex:     "foo_using.txt",
+								JavaSymbolsUsedByApex: "foo_using.xml",
+								BundleFile:            "apex_bundle.zip",
+								InstalledFiles:        "installed-files.txt",
+								RequiresLibs:          []string{"//path/c:c", "//path/d:d"},
 
-						// ApexMkInfo Starlark provider
-						MakeModulesToInstall: []string{"c"}, // d deliberately omitted
-					},
-				},
+								// unused
+								PackageName:  "pkg_name",
+								ProvidesLibs: []string{"a", "b"},
+
+								// ApexMkInfo Starlark provider
+								MakeModulesToInstall: []string{"c"}, // d deliberately omitted
+							},
+							tc.overrideApexLabel: cquery.ApexInfo{
+								// ApexInfo Starlark provider
+								SignedOutput:          "override_signed_out.apex",
+								UnsignedOutput:        "override_unsigned_out.apex",
+								BundleKeyInfo:         []string{"override_public_key", "override_private_key"},
+								ContainerKeyInfo:      []string{"override_container_cert", "override_container_private"},
+								SymbolsUsedByApex:     "override_foo_using.txt",
+								JavaSymbolsUsedByApex: "override_foo_using.xml",
+								BundleFile:            "override_apex_bundle.zip",
+								InstalledFiles:        "override_installed-files.txt",
+								RequiresLibs:          []string{"//path/c:c", "//path/d:d"},
+
+								// unused
+								PackageName:  "override_pkg_name",
+								ProvidesLibs: []string{"a", "b"},
+
+								// ApexMkInfo Starlark provider
+								MakeModulesToInstall: []string{"c"}, // d deliberately omitted
+							},
+						},
+					}
+				}),
+			).RunTest(t)
+
+			m := result.ModuleForTests("foo", "android_common_override_foo_foo_image").Module()
+			ab, ok := m.(*apexBundle)
+			if !ok {
+				t.Fatalf("Expected module to be an apexBundle, was not")
 			}
-		}),
-	).RunTestWithBp(t, bp)
 
-	m := result.ModuleForTests("foo", "android_common_override_foo_foo_image").Module()
-	ab, ok := m.(*apexBundle)
-	if !ok {
-		t.Fatalf("Expected module to be an apexBundle, was not")
-	}
+			if w, g := "out/bazel/execroot/__main__/override_public_key", ab.publicKeyFile.String(); w != g {
+				t.Errorf("Expected public key %q, got %q", w, g)
+			}
 
-	if w, g := "out/bazel/execroot/__main__/override_public_key", ab.publicKeyFile.String(); w != g {
-		t.Errorf("Expected public key %q, got %q", w, g)
-	}
+			if w, g := "out/bazel/execroot/__main__/override_private_key", ab.privateKeyFile.String(); w != g {
+				t.Errorf("Expected private key %q, got %q", w, g)
+			}
 
-	if w, g := "out/bazel/execroot/__main__/override_private_key", ab.privateKeyFile.String(); w != g {
-		t.Errorf("Expected private key %q, got %q", w, g)
-	}
+			if w, g := "out/bazel/execroot/__main__/override_container_cert", ab.containerCertificateFile; g != nil && w != g.String() {
+				t.Errorf("Expected public container key %q, got %q", w, g)
+			}
 
-	if w, g := "out/bazel/execroot/__main__/override_container_cert", ab.containerCertificateFile.String(); w != g {
-		t.Errorf("Expected public container key %q, got %q", w, g)
-	}
+			if w, g := "out/bazel/execroot/__main__/override_container_private", ab.containerPrivateKeyFile; g != nil && w != g.String() {
+				t.Errorf("Expected private container key %q, got %q", w, g)
+			}
 
-	if w, g := "out/bazel/execroot/__main__/override_container_private", ab.containerPrivateKeyFile.String(); w != g {
-		t.Errorf("Expected private container key %q, got %q", w, g)
-	}
+			if w, g := "out/bazel/execroot/__main__/override_signed_out.apex", ab.outputFile.String(); w != g {
+				t.Errorf("Expected output file %q, got %q", w, g)
+			}
 
-	if w, g := "out/bazel/execroot/__main__/override_signed_out.apex", ab.outputFile.String(); w != g {
-		t.Errorf("Expected output file %q, got %q", w, g)
-	}
+			if w, g := "out/bazel/execroot/__main__/override_foo_using.txt", ab.nativeApisUsedByModuleFile.String(); w != g {
+				t.Errorf("Expected output file %q, got %q", w, g)
+			}
 
-	if w, g := "out/bazel/execroot/__main__/override_foo_using.txt", ab.nativeApisUsedByModuleFile.String(); w != g {
-		t.Errorf("Expected output file %q, got %q", w, g)
-	}
+			if w, g := "out/bazel/execroot/__main__/override_foo_using.xml", ab.javaApisUsedByModuleFile.String(); w != g {
+				t.Errorf("Expected output file %q, got %q", w, g)
+			}
 
-	if w, g := "out/bazel/execroot/__main__/override_foo_using.xml", ab.javaApisUsedByModuleFile.String(); w != g {
-		t.Errorf("Expected output file %q, got %q", w, g)
-	}
+			if w, g := "out/bazel/execroot/__main__/override_installed-files.txt", ab.installedFilesFile.String(); w != g {
+				t.Errorf("Expected installed-files.txt %q, got %q", w, g)
+			}
 
-	if w, g := "out/bazel/execroot/__main__/override_installed-files.txt", ab.installedFilesFile.String(); w != g {
-		t.Errorf("Expected installed-files.txt %q, got %q", w, g)
-	}
+			mkData := android.AndroidMkDataForTest(t, result.TestContext, m)
+			var builder strings.Builder
+			mkData.Custom(&builder, "override_foo", "BAZEL_TARGET_", "", mkData)
 
-	mkData := android.AndroidMkDataForTest(t, result.TestContext, m)
-	var builder strings.Builder
-	mkData.Custom(&builder, "override_foo", "BAZEL_TARGET_", "", mkData)
+			data := builder.String()
+			if w := "ALL_MODULES.$(my_register_name).BUNDLE := out/bazel/execroot/__main__/override_apex_bundle.zip"; !strings.Contains(data, w) {
+				t.Errorf("Expected %q in androidmk data, but did not find %q", w, data)
+			}
+			if w := "$(call dist-for-goals,checkbuild,out/bazel/execroot/__main__/override_installed-files.txt:override_foo-installed-files.txt)"; !strings.Contains(data, w) {
+				t.Errorf("Expected %q in androidmk data, but did not find %q", w, data)
+			}
 
-	data := builder.String()
-	if w := "ALL_MODULES.$(my_register_name).BUNDLE := out/bazel/execroot/__main__/override_apex_bundle.zip"; !strings.Contains(data, w) {
-		t.Errorf("Expected %q in androidmk data, but did not find %q", w, data)
-	}
-	if w := "$(call dist-for-goals,checkbuild,out/bazel/execroot/__main__/override_installed-files.txt:override_foo-installed-files.txt)"; !strings.Contains(data, w) {
-		t.Errorf("Expected %q in androidmk data, but did not find %q", w, data)
-	}
-
-	// make modules to be installed to system
-	if len(ab.makeModulesToInstall) != 1 && ab.makeModulesToInstall[0] != "c" {
-		t.Errorf("Expected makeModulestoInstall slice to only contain 'c', got %q", ab.makeModulesToInstall)
-	}
-	if w := "LOCAL_REQUIRED_MODULES := c"; !strings.Contains(data, w) {
-		t.Errorf("Expected %q in androidmk data, but did not find it in %q", w, data)
+			// make modules to be installed to system
+			if len(ab.makeModulesToInstall) != 1 || ab.makeModulesToInstall[0] != "c" {
+				t.Errorf("Expected makeModulestoInstall slice to only contain 'c', got %q", ab.makeModulesToInstall)
+			}
+			if w := "LOCAL_REQUIRED_MODULES := c"; !strings.Contains(data, w) {
+				t.Errorf("Expected %q in androidmk data, but did not find it in %q", w, data)
+			}
+		})
 	}
 }
