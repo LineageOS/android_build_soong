@@ -453,8 +453,8 @@ func samePackage(label1, label2 string) bool {
 }
 
 func bp2buildModuleLabel(ctx BazelConversionContext, module blueprint.Module) string {
-	moduleName := ctx.OtherModuleName(module)
-	moduleDir := ctx.OtherModuleDir(module)
+	moduleName := moduleNameWithPossibleOverride(ctx, module)
+	moduleDir := moduleDirWithPossibleOverride(ctx, module)
 	if moduleDir == Bp2BuildTopLevel {
 		moduleDir = ""
 	}

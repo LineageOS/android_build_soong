@@ -431,7 +431,7 @@ func (b *BazelModuleBase) shouldConvertWithBp2build(ctx bazelOtherModuleContext,
 	}
 
 	propValue := b.bazelProperties.Bazel_module.Bp2build_available
-	packagePath := ctx.OtherModuleDir(module)
+	packagePath := moduleDirWithPossibleOverride(ctx, module)
 
 	// Modules in unit tests which are enabled in the allowlist by type or name
 	// trigger this conditional because unit tests run under the "." package path
@@ -440,7 +440,7 @@ func (b *BazelModuleBase) shouldConvertWithBp2build(ctx bazelOtherModuleContext,
 		return true
 	}
 
-	moduleName := module.Name()
+	moduleName := moduleNameWithPossibleOverride(ctx, module)
 	allowlist := ctx.Config().Bp2buildPackageConfig
 	moduleNameAllowed := allowlist.moduleAlwaysConvert[moduleName]
 	moduleTypeAllowed := allowlist.moduleTypeAlwaysConvert[ctx.OtherModuleType(module)]
