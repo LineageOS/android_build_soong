@@ -289,9 +289,9 @@ func writeMetrics(configuration android.Config, eventHandler *metrics.EventHandl
 }
 
 // Errors out if any modules expected to be mixed_built were not, unless
-// there is a platform incompatibility.
+// the modules did not exist.
 func checkForAllowlistIntegrityError(configuration android.Config, isStagingMode bool) error {
-	modules := findModulesNotMixedBuiltForAnyVariant(configuration, isStagingMode)
+	modules := findMisconfiguredModules(configuration, isStagingMode)
 	if len(modules) == 0 {
 		return nil
 	}
@@ -299,29 +299,54 @@ func checkForAllowlistIntegrityError(configuration android.Config, isStagingMode
 	return fmt.Errorf("Error: expected the following modules to be mixed_built: %s", modules)
 }
 
+// Returns true if the given module has all of the following true:
+//  1. Is allowlisted to be built with Bazel.
+//  2. Has a variant which is *not* built with Bazel.
+//  3. Has no variant which is built with Bazel.
+//
+// This indicates the allowlisting of this variant had no effect.
+// TODO(b/280457637): Return true for nonexistent modules.
+func isAllowlistMisconfiguredForModule(module string, mixedBuildsEnabled map[string]struct{}, mixedBuildsDisabled map[string]struct{}) bool {
+	//TODO(dacek): Why does this occur in the allowlists?
+	if module == "" {
+		return false
+	}
+	_, enabled := mixedBuildsEnabled[module]
+
+	if enabled {
+		return false
+	}
+
+	_, disabled := mixedBuildsDisabled[module]
+	return disabled
+
+}
+
 // Returns the list of modules that should have been mixed_built (per the
 // allowlists and cmdline flags) but were not.
-func findModulesNotMixedBuiltForAnyVariant(configuration android.Config, isStagingMode bool) []string {
+// Note: nonexistent modules are excluded from the list. See b/280457637
+func findMisconfiguredModules(configuration android.Config, isStagingMode bool) []string {
 	retval := []string{}
 	forceEnabledModules := configuration.BazelModulesForceEnabledByFlag()
 
 	mixedBuildsEnabled := configuration.GetMixedBuildsEnabledModules()
+	mixedBuildsDisabled := configuration.GetMixedBuildsDisabledModules()
 	for _, module := range allowlists.ProdMixedBuildsEnabledList {
-		if _, ok := mixedBuildsEnabled[module]; !ok && module != "" {
+		if isAllowlistMisconfiguredForModule(module, mixedBuildsEnabled, mixedBuildsDisabled) {
 			retval = append(retval, module)
 		}
 	}
 
 	if isStagingMode {
 		for _, module := range allowlists.StagingMixedBuildsEnabledList {
-			if _, ok := mixedBuildsEnabled[module]; !ok && module != "" {
+			if isAllowlistMisconfiguredForModule(module, mixedBuildsEnabled, mixedBuildsDisabled) {
 				retval = append(retval, module)
 			}
 		}
 	}
 
 	for module, _ := range forceEnabledModules {
-		if _, ok := mixedBuildsEnabled[module]; !ok && module != "" {
+		if isAllowlistMisconfiguredForModule(module, mixedBuildsEnabled, mixedBuildsDisabled) {
 			retval = append(retval, module)
 		}
 	}
