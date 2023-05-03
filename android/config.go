@@ -1929,6 +1929,10 @@ func (c *config) GetMixedBuildsEnabledModules() map[string]struct{} {
 	return c.mixedBuildEnabledModules
 }
 
+func (c *config) GetMixedBuildsDisabledModules() map[string]struct{} {
+	return c.mixedBuildDisabledModules
+}
+
 func (c *config) LogMixedBuild(ctx BaseModuleContext, useBazel bool) {
 	moduleName := ctx.Module().Name()
 	c.mixedBuildsLock.Lock()
