@@ -474,16 +474,18 @@ func (s *ShTest) AndroidMkEntries() []android.AndroidMkEntries {
 	}}
 }
 
-func InitShBinaryModule(s *ShBinary) {
+func initShBinaryModule(s *ShBinary, useBazel bool) {
 	s.AddProperties(&s.properties)
-	android.InitBazelModule(s)
+	if useBazel {
+		android.InitBazelModule(s)
+	}
 }
 
 // sh_binary is for a shell script or batch file to be installed as an
 // executable binary to <partition>/bin.
 func ShBinaryFactory() android.Module {
 	module := &ShBinary{}
-	InitShBinaryModule(module)
+	initShBinaryModule(module, true)
 	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibFirst)
 	return module
 }
@@ -492,7 +494,7 @@ func ShBinaryFactory() android.Module {
 // to $(HOST_OUT)/bin.
 func ShBinaryHostFactory() android.Module {
 	module := &ShBinary{}
-	InitShBinaryModule(module)
+	initShBinaryModule(module, true)
 	android.InitAndroidArchModule(module, android.HostSupported, android.MultilibFirst)
 	return module
 }
@@ -500,7 +502,7 @@ func ShBinaryHostFactory() android.Module {
 // sh_test defines a shell script based test module.
 func ShTestFactory() android.Module {
 	module := &ShTest{}
-	InitShBinaryModule(&module.ShBinary)
+	initShBinaryModule(&module.ShBinary, false)
 	module.AddProperties(&module.testProperties)
 
 	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibFirst)
@@ -510,7 +512,7 @@ func ShTestFactory() android.Module {
 // sh_test_host defines a shell script based test module that runs on a host.
 func ShTestHostFactory() android.Module {
 	module := &ShTest{}
-	InitShBinaryModule(&module.ShBinary)
+	initShBinaryModule(&module.ShBinary, false)
 	module.AddProperties(&module.testProperties)
 	// Default sh_test_host to unit_tests = true
 	if module.testProperties.Test_options.Unit_test == nil {
