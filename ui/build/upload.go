@@ -138,6 +138,9 @@ func parsePhaseTiming(line string) bazel_metrics_proto.PhaseTiming {
 	return phaseTiming
 }
 
+// This method takes a file created by bazel's --analyze-profile mode and
+// writes bazel metrics data to the provided filepath.
+// TODO(b/279987768) - move this outside of upload.go
 func processBazelMetrics(bazelProfileFile string, bazelMetricsFile string, ctx Context) {
 	if bazelProfileFile == "" {
 		return
@@ -189,12 +192,13 @@ func UploadMetrics(ctx Context, config Config, simpleOutput bool, buildStarted t
 	defer ctx.EndTrace()
 
 	uploader := config.MetricsUploaderApp()
+	processBazelMetrics(bazelProfileFile, bazelMetricsFile, ctx)
+
 	if uploader == "" {
 		// If the uploader path was not specified, no metrics shall be uploaded.
 		return
 	}
 
-	processBazelMetrics(bazelProfileFile, bazelMetricsFile, ctx)
 	// Several of the files might be directories.
 	metricsFiles := pruneMetricsFiles(paths)
 	if len(metricsFiles) == 0 {
