@@ -324,13 +324,13 @@ var ccSnapshotAction snapshot.GenerateSnapshotAction = func(s snapshot.SnapshotS
 						}
 					}
 				}
-				snapshotLibOut := filepath.Join(snapshotArchDir, targetArch, libType, stem)
+				snapshotLibOut := filepath.Join(snapshotArchDir, targetArch, libType, m.RelativeInstallPath(), stem)
 				ret = append(ret, copyFile(ctx, libPath, snapshotLibOut, fake))
 			} else {
 				stem = ctx.ModuleName(m)
 			}
 
-			propOut = filepath.Join(snapshotArchDir, targetArch, libType, stem+".json")
+			propOut = filepath.Join(snapshotArchDir, targetArch, libType, m.RelativeInstallPath(), stem+".json")
 		} else if m.Binary() {
 			// binary flags
 			prop.Symlinks = m.Symlinks()
