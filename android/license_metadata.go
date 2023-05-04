@@ -74,7 +74,7 @@ func buildLicenseMetadata(ctx ModuleContext, licenseMetadataFile WritablePath) {
 		if ctx.OtherModuleHasProvider(dep, LicenseMetadataProvider) {
 			info := ctx.OtherModuleProvider(dep, LicenseMetadataProvider).(*LicenseMetadataInfo)
 			allDepMetadataFiles = append(allDepMetadataFiles, info.LicenseMetadataPath)
-			if isContainer || IsInstallDepNeeded(ctx.OtherModuleDependencyTag(dep)) {
+			if isContainer || isInstallDepNeeded(dep, ctx.OtherModuleDependencyTag(dep)) {
 				allDepMetadataDepSets = append(allDepMetadataDepSets, info.LicenseMetadataDepSet)
 			}
 
