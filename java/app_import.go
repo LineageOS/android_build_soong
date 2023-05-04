@@ -423,6 +423,10 @@ func (a *AndroidAppImport) ProvenanceMetaDataFile() android.OutputPath {
 	return a.provenanceMetaDataFile
 }
 
+func (a *AndroidAppImport) PrivAppAllowlist() android.OptionalPath {
+	return android.OptionalPath{}
+}
+
 var dpiVariantGroupType reflect.Type
 var archVariantGroupType reflect.Type
 var supportedDpis = []string{"ldpi", "mdpi", "hdpi", "xhdpi", "xxhdpi", "xxxhdpi"}
