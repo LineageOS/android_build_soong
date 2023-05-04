@@ -593,6 +593,12 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 		}
 	}
 
+	// Enable HWASan for all components in the include paths (for Aarch64 only)
+	if s.Hwaddress == nil && ctx.Config().HWASanEnabledForPath(ctx.ModuleDir()) &&
+		ctx.Arch().ArchType == android.Arm64 && ctx.toolchain().Bionic() {
+		s.Hwaddress = proptools.BoolPtr(true)
+	}
+
 	// Enable CFI for non-host components in the include paths
 	if s.Cfi == nil && ctx.Config().CFIEnabledForPath(ctx.ModuleDir()) && !ctx.Host() {
 		s.Cfi = proptools.BoolPtr(true)
