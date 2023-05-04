@@ -259,17 +259,20 @@ func TestJavaBinaryHostKotlinWithResources(t *testing.T) {
 	runJavaBinaryHostTestCase(t, Bp2buildTestCase{
 		Description: "java_binary_host with srcs, libs, resources.",
 		Filesystem: map[string]string{
-			"test.mf":   "Main-Class: com.android.test.MainClass",
-			"res/a.res": "",
-			"res/b.res": "",
-		},
-		Blueprint: `java_binary_host {
+			"adir/test.mf":   "Main-Class: com.android.test.MainClass",
+			"adir/res/a.res": "",
+			"adir/res/b.res": "",
+			"adir/Android.bp": `java_binary_host {
     name: "java-binary-host",
     manifest: "test.mf",
     srcs: ["a.java", "b.kt"],
     java_resources: ["res/a.res", "res/b.res"],
+    bazel_module: { bp2build_available: true },
 }
 `,
+		},
+		Dir:       "adir",
+		Blueprint: "",
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("kt_jvm_library", "java-binary-host_lib", AttrNameToString{
 				"srcs": `[
@@ -280,6 +283,7 @@ func TestJavaBinaryHostKotlinWithResources(t *testing.T) {
         "res/a.res",
         "res/b.res",
     ]`,
+				"resource_strip_prefix": `"adir"`,
 				"target_compatible_with": `select({
         "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
