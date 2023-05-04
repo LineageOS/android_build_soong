@@ -180,6 +180,8 @@ func moduleName(ctx android.BaseModuleContext) string {
 	return android.RemoveOptionalPrebuiltPrefix(ctx.ModuleName())
 }
 
+// Returns whether dexpreopt is applicable to the module.
+// When it returns true, neither profile nor dexpreopt artifacts will be generated.
 func (d *dexpreopter) dexpreoptDisabled(ctx android.BaseModuleContext) bool {
 	if !ctx.Device() {
 		return true
@@ -204,14 +206,6 @@ func (d *dexpreopter) dexpreoptDisabled(ctx android.BaseModuleContext) bool {
 	}
 
 	global := dexpreopt.GetGlobalConfig(ctx)
-
-	if global.DisablePreopt {
-		return true
-	}
-
-	if inList(moduleName(ctx), global.DisablePreoptModules) {
-		return true
-	}
 
 	isApexSystemServerJar := global.AllApexSystemServerJars(ctx).ContainsJar(moduleName(ctx))
 	if isApexVariant(ctx) {
