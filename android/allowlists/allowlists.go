@@ -449,9 +449,8 @@ var (
 		"libidmap2_policies",
 		"libSurfaceFlingerProp",
 		// cc mainline modules
-		"code_coverage.policy",
-		"code_coverage.policy.other",
-		"codec2_soft_exports",
+
+		// com.android.media.swcodec
 		"com.android.media.swcodec",
 		"com.android.media.swcodec-androidManifest",
 		"com.android.media.swcodec-ld.config.txt",
@@ -459,6 +458,12 @@ var (
 		"com.android.media.swcodec-mediaswcodec.rc",
 		"com.android.media.swcodec.certificate",
 		"com.android.media.swcodec.key",
+		"test_com.android.media.swcodec",
+
+		// deps
+		"code_coverage.policy",
+		"code_coverage.policy.other",
+		"codec2_soft_exports",
 		"flatbuffer_headers",
 		"framework-connectivity-protos",
 		"gemmlowp_headers",
