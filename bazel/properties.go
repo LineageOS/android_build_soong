@@ -1434,4 +1434,6 @@ type StringMapAttribute map[string]string
 type ConfigSettingAttributes struct {
 	// Each key in Flag_values is a label to a custom string_setting
 	Flag_values StringMapAttribute
+	// Each element in Constraint_values is a label to a constraint_value
+	Constraint_values LabelListAttribute
 }

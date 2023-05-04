@@ -1194,14 +1194,28 @@ func availableToSameApexes(a, b []string) bool {
 }
 
 var (
-	apexConfigSettingKey  = android.NewOnceKey("apexConfigSetting")
-	apexConfigSettingLock sync.Mutex
+	apiDomainConfigSettingKey  = android.NewOnceKey("apiDomainConfigSettingKey")
+	apiDomainConfigSettingLock sync.Mutex
 )
 
-func getApexConfigSettingMap(config android.Config) *map[string]bool {
-	return config.Once(apexConfigSettingKey, func() interface{} {
+func getApiDomainConfigSettingMap(config android.Config) *map[string]bool {
+	return config.Once(apiDomainConfigSettingKey, func() interface{} {
 		return &map[string]bool{}
 	}).(*map[string]bool)
+}
+
+var (
+	testApexNameToApiDomain = map[string]string{
+		"test_broken_com.android.art": "com.android.art",
+	}
+)
+
+func getApiDomain(apexName string) string {
+	if apiDomain, exists := testApexNameToApiDomain[apexName]; exists {
+		return apiDomain
+	}
+	// Remove `test_` prefix
+	return strings.TrimPrefix(apexName, "test_")
 }
 
 // Create a config setting for this apex in build/bazel/rules/apex
@@ -1215,23 +1229,32 @@ func createInApexConfigSetting(ctx android.TopDownMutatorContext, apexName strin
 		// These correspond to android-non_apex and android-in_apex
 		return
 	}
-	apexConfigSettingLock.Lock()
-	defer apexConfigSettingLock.Unlock()
+	apiDomainConfigSettingLock.Lock()
+	defer apiDomainConfigSettingLock.Unlock()
 
 	// Return if a config_setting has already been created
-	acsm := getApexConfigSettingMap(ctx.Config())
-	if _, exists := (*acsm)[apexName]; exists {
+	apiDomain := getApiDomain(apexName)
+	acsm := getApiDomainConfigSettingMap(ctx.Config())
+	if _, exists := (*acsm)[apiDomain]; exists {
 		return
 	}
-	(*acsm)[apexName] = true
+	(*acsm)[apiDomain] = true
 
 	csa := bazel.ConfigSettingAttributes{
 		Flag_values: bazel.StringMapAttribute{
-			"//build/bazel/rules/apex:apex_name": apexName,
+			"//build/bazel/rules/apex:api_domain": apiDomain,
 		},
+		// Constraint this to android
+		Constraint_values: bazel.MakeLabelListAttribute(
+			bazel.MakeLabelList(
+				[]bazel.Label{
+					bazel.Label{Label: "//build/bazel/platforms/os:android"},
+				},
+			),
+		),
 	}
 	ca := android.CommonAttributes{
-		Name: "android-in_" + apexName,
+		Name: apiDomain,
 	}
 	ctx.CreateBazelConfigSetting(
 		csa,
@@ -1247,7 +1270,8 @@ func inApexConfigSetting(apexAvailable string) string {
 	if apexAvailable == android.AvailableToAnyApex {
 		return bazel.AndroidAndInApex
 	}
-	return "//build/bazel/rules/apex:android-in_" + apexAvailable
+	apiDomain := getApiDomain(apexAvailable)
+	return "//build/bazel/rules/apex:" + apiDomain
 }
 
 func setStubsForDynamicDeps(ctx android.BazelConversionPathContext, axis bazel.ConfigurationAxis,
