@@ -257,6 +257,8 @@ func apiBuildFileExcludes(ctx *android.Context) []string {
 }
 
 func writeNinjaHint(ctx *android.Context) error {
+	ctx.BeginEvent("ninja_hint")
+	defer ctx.EndEvent("ninja_hint")
 	// The current predictor focuses on reducing false negatives.
 	// If there are too many false positives (e.g., most modules are marked as positive),
 	// real long-running jobs cannot run early.
