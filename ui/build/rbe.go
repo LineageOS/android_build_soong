@@ -183,8 +183,6 @@ func DumpRBEMetrics(ctx Context, config Config, filename string) {
 		return
 	}
 
-	ctx.Status.Status("Dumping rbe metrics...")
-
 	outputDir := config.rbeProxyLogsDir()
 	if outputDir == "" {
 		ctx.Fatal("RBE output dir variable not defined. Aborting metrics dumping.")
