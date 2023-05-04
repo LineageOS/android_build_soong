@@ -65,7 +65,9 @@ var (
 
 		"build/bazel":                        Bp2BuildDefaultTrueRecursively,
 		"build/make/target/product/security": Bp2BuildDefaultTrue,
+		"build/make/tools/protos":            Bp2BuildDefaultTrue,
 		"build/make/tools/releasetools":      Bp2BuildDefaultTrue,
+		"build/make/tools/sbom":              Bp2BuildDefaultTrue,
 		"build/make/tools/signapk":           Bp2BuildDefaultTrue,
 		"build/make/tools/zipalign":          Bp2BuildDefaultTrueRecursively,
 		"build/soong":                        Bp2BuildDefaultTrue,
@@ -1441,6 +1443,9 @@ var (
 		"MetaDataBaseUnitTest", // depends on libstagefright
 		"AVCUtilsUnitTest",     // depends on libstagefright
 		"ColorUtilsTest",       // depends on libmediandk
+
+		// python_test_host with test data
+		"sbom_writers_test",
 	}
 
 	MixedBuildsDisabledList = []string{
