@@ -2709,8 +2709,13 @@ func (m *Library) convertJavaResourcesAttributes(ctx android.TopDownMutatorConte
 	var resources bazel.LabelList
 	var resourceStripPrefix *string
 
+	if m.properties.Java_resources != nil && len(m.properties.Java_resource_dirs) > 0 {
+		ctx.ModuleErrorf("bp2build doesn't support both java_resources and java_resource_dirs being set on the same module.")
+	}
+
 	if m.properties.Java_resources != nil {
 		resources.Append(android.BazelLabelForModuleSrc(ctx, m.properties.Java_resources))
+		resourceStripPrefix = proptools.StringPtr(ctx.ModuleDir())
 	}
 
 	//TODO(b/179889880) handle case where glob includes files outside package
