@@ -24,10 +24,9 @@ if [ -z $ANDROID_HOST_OUT ]; then
 fi
 
 if [[ ( ! -f $ANDROID_HOST_OUT/nativetest64/par_test/par_test ) ||
-      ( ! -f $ANDROID_HOST_OUT/nativetest64/par_test3/par_test3 ) ||
       ( ! -f $ANDROID_HOST_OUT/bin/py2-cmd ) ||
       ( ! -f $ANDROID_HOST_OUT/bin/py3-cmd )]]; then
-  echo "Run 'm par_test par_test3 py2-cmd py3-cmd' first"
+  echo "Run 'm par_test py2-cmd py3-cmd' first"
   exit 1
 fi
 
@@ -40,12 +39,6 @@ PYTHONHOME=/usr $ANDROID_HOST_OUT/nativetest64/par_test/par_test
 PYTHONPATH=/usr $ANDROID_HOST_OUT/nativetest64/par_test/par_test
 
 ARGTEST=true $ANDROID_HOST_OUT/nativetest64/par_test/par_test --arg1 arg2
-
-PYTHONHOME= PYTHONPATH= $ANDROID_HOST_OUT/nativetest64/par_test3/par_test3
-PYTHONHOME=/usr $ANDROID_HOST_OUT/nativetest64/par_test3/par_test3
-PYTHONPATH=/usr $ANDROID_HOST_OUT/nativetest64/par_test3/par_test3
-
-ARGTEST=true $ANDROID_HOST_OUT/nativetest64/par_test3/par_test3 --arg1 arg2
 
 cd $(dirname ${BASH_SOURCE[0]})
 
