@@ -57,7 +57,7 @@ assert_equal("site.ENABLE_USER_SITE", site.ENABLE_USER_SITE, None)
 
 if sys.version_info[0] == 2:
     assert_equal("len(sys.path)", len(sys.path), 4)
-    assert_equal("sys.path[0]", sys.path[0], os.path.dirname(__file__))
+    assert_equal("sys.path[0]", sys.path[0], os.path.abspath(os.path.dirname(__file__)))
     assert_equal("sys.path[1]", sys.path[1], "/extra")
     assert_equal("sys.path[2]", sys.path[2], os.path.join(sys.executable, "internal"))
     assert_equal("sys.path[3]", sys.path[3], os.path.join(sys.executable, "internal", "stdlib"))
