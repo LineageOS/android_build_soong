@@ -397,6 +397,8 @@ func bootstrapBlueprint(ctx Context, config Config) {
 			pbi.Inputs = append(pbi.Inputs,
 				config.Bp2BuildFilesMarkerFile(),
 				filepath.Join(config.FileListDir(), "bazel.list"))
+		case bp2buildFilesTag:
+			pbi.Inputs = append(pbi.Inputs, filepath.Join(config.FileListDir(), "METADATA.list"))
 		}
 		invocations = append(invocations, pbi)
 	}
