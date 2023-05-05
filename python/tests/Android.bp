@@ -28,29 +28,6 @@ python_test_host {
         unit_test: false,
     },
     version: {
-        py2: {
-            enabled: true,
-            embedded_launcher: true,
-        },
-        py3: {
-            enabled: false,
-            embedded_launcher: true,
-        },
-    },
-}
-
-python_test_host {
-    name: "par_test3",
-    main: "par_test.py",
-    srcs: [
-        "par_test.py",
-        "testpkg/par_test.py",
-    ],
-    // Is not implemented as a python unittest
-    test_options: {
-        unit_test: false,
-    },
-    version: {
         py3: {
             embedded_launcher: true,
         },
