@@ -1557,9 +1557,6 @@ var (
 		"com.android.media.swcodec",
 		"test_com.android.media.swcodec",
 		"libstagefright_foundation",
-		"libcodec2_hidl@1.0",
-		"libcodec2_hidl@1.1",
-		"libcodec2_hidl@1.2",
 	}
 
 	// These should be the libs that are included by the apexes in the ProdMixedBuildsEnabledList
