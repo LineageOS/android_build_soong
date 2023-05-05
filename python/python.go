@@ -265,7 +265,6 @@ func versionSplitMutator() func(android.BottomUpMutatorContext) {
 			}
 			if proptools.BoolDefault(props.Version.Py2.Enabled, false) {
 				if !mctx.DeviceConfig().BuildBrokenUsesSoongPython2Modules() &&
-					mctx.ModuleName() != "par_test" &&
 					mctx.ModuleName() != "py2-cmd" &&
 					mctx.ModuleName() != "py2-stdlib" {
 					mctx.PropertyErrorf("version.py2.enabled", "Python 2 is no longer supported, please convert to python 3. This error can be temporarily overridden by setting BUILD_BROKEN_USES_SOONG_PYTHON2_MODULES := true in the product configuration")
