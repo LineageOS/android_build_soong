@@ -19,14 +19,12 @@ import (
 	"testing"
 
 	"android/soong/android"
-	"android/soong/dexpreopt"
 	"android/soong/java"
 )
 
 var prepareForSdkTestWithJava = android.GroupFixturePreparers(
 	java.PrepareForTestWithJavaBuildComponents,
 	PrepareForTestWithSdkBuildComponents,
-	dexpreopt.PrepareForTestWithFakeDex2oatd,
 
 	// Ensure that all source paths are provided. This helps ensure that the snapshot generation is
 	// consistent and all files referenced from the snapshot's Android.bp file have actually been
