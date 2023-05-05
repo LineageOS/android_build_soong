@@ -2675,7 +2675,7 @@ func apexBootclasspathFragmentFiles(ctx android.ModuleContext, module blueprint.
 	}
 
 	pathInApex := bootclasspathFragmentInfo.ProfileInstallPathInApex()
-	if pathInApex != "" {
+	if pathInApex != "" && !java.SkipDexpreoptBootJars(ctx) {
 		pathOnHost := bootclasspathFragmentInfo.ProfilePathOnHost()
 		tempPath := android.PathForModuleOut(ctx, "boot_image_profile", pathInApex)
 

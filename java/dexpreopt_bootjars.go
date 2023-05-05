@@ -500,6 +500,9 @@ func (d *dexpreoptBootJars) GenerateAndroidBuildActions(ctx android.ModuleContex
 
 // Generate build rules for boot images.
 func (d *dexpreoptBootJars) GenerateSingletonBuildActions(ctx android.SingletonContext) {
+	if SkipDexpreoptBootJars(ctx) {
+		return
+	}
 	if dexpreopt.GetCachedGlobalSoongConfig(ctx) == nil {
 		// No module has enabled dexpreopting, so we assume there will be no boot image to make.
 		return
@@ -1009,10 +1012,6 @@ func (d *dexpreoptBootJars) MakeVars(ctx android.MakeVarsContext) {
 		ctx.Strict("DEXPREOPT_IMAGE_PROFILE_BUILT_INSTALLED", image.profileInstalls.String())
 		if image.profileLicenseMetadataFile.Valid() {
 			ctx.Strict("DEXPREOPT_IMAGE_PROFILE_LICENSE_METADATA", image.profileLicenseMetadataFile.String())
-		}
-
-		if SkipDexpreoptBootJars(ctx) {
-			return
 		}
 
 		global := dexpreopt.GetGlobalConfig(ctx)
