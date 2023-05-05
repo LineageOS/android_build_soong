@@ -283,21 +283,25 @@ func TestJavaLibraryLogTags(t *testing.T) {
 
 func TestJavaLibraryResources(t *testing.T) {
 	runJavaLibraryTestCase(t, Bp2buildTestCase{
+		Dir: "adir",
 		Filesystem: map[string]string{
-			"res/a.res":      "",
-			"res/b.res":      "",
-			"res/dir1/b.res": "",
-		},
-		Blueprint: `java_library {
+			"adir/res/a.res":      "",
+			"adir/res/b.res":      "",
+			"adir/res/dir1/b.res": "",
+			"adir/Android.bp": `java_library {
     name: "java-lib-1",
-	java_resources: ["res/a.res", "res/b.res"],
+    java_resources: ["res/a.res", "res/b.res"],
+    bazel_module: { bp2build_available: true },
 }`,
+		},
+		Blueprint: "",
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("java_library", "java-lib-1", AttrNameToString{
 				"resources": `[
         "res/a.res",
         "res/b.res",
     ]`,
+				"resource_strip_prefix": `"adir"`,
 			}),
 			MakeNeverlinkDuplicateTarget("java_library", "java-lib-1"),
 		},
