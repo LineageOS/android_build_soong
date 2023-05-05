@@ -335,12 +335,11 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 
 	if proptools.Bool(a.properties.Preprocessed) {
 		output := srcApk
-		// TODO(b/185811447) Uncomment this after all existing failing apks set skip_preprocessed_apk_checks: true
-		//if !proptools.Bool(a.properties.Skip_preprocessed_apk_checks) {
-		//	writableOutput := android.PathForModuleOut(ctx, "validated-prebuilt", apkFilename)
-		//	a.validatePreprocessedApk(ctx, srcApk, writableOutput)
-		//	output = writableOutput
-		//}
+		if !proptools.Bool(a.properties.Skip_preprocessed_apk_checks) {
+			writableOutput := android.PathForModuleOut(ctx, "validated-prebuilt", apkFilename)
+			a.validatePreprocessedApk(ctx, srcApk, writableOutput)
+			output = writableOutput
+		}
 		a.outputFile = output
 		a.certificate = PresignedCertificate
 	} else if !Bool(a.properties.Presigned) {
