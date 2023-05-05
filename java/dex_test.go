@@ -23,7 +23,7 @@ import (
 )
 
 func TestR8(t *testing.T) {
-	result := PrepareForTestWithJavaDefaultModules.RunTestWithBp(t, `
+	result := PrepareForTestWithJavaDefaultModulesWithoutFakeDex2oatd.RunTestWithBp(t, `
 		android_app {
 			name: "app",
 			srcs: ["foo.java"],
@@ -191,7 +191,7 @@ func TestR8TransitiveDeps(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			fixturePreparer := PrepareForTestWithJavaDefaultModules
+			fixturePreparer := PrepareForTestWithJavaDefaultModulesWithoutFakeDex2oatd
 			if tc.unbundled {
 				fixturePreparer = android.GroupFixturePreparers(
 					fixturePreparer,
@@ -258,7 +258,7 @@ func TestR8TransitiveDeps(t *testing.T) {
 }
 
 func TestR8Flags(t *testing.T) {
-	result := PrepareForTestWithJavaDefaultModules.RunTestWithBp(t, `
+	result := PrepareForTestWithJavaDefaultModulesWithoutFakeDex2oatd.RunTestWithBp(t, `
 		android_app {
 			name: "app",
 			srcs: ["foo.java"],
@@ -287,7 +287,7 @@ func TestR8Flags(t *testing.T) {
 }
 
 func TestD8(t *testing.T) {
-	result := PrepareForTestWithJavaDefaultModules.RunTestWithBp(t, `
+	result := PrepareForTestWithJavaDefaultModulesWithoutFakeDex2oatd.RunTestWithBp(t, `
 		java_library {
 			name: "foo",
 			srcs: ["foo.java"],
@@ -328,7 +328,7 @@ func TestD8(t *testing.T) {
 }
 
 func TestProguardFlagsInheritance(t *testing.T) {
-	result := PrepareForTestWithJavaDefaultModules.RunTestWithBp(t, `
+	result := PrepareForTestWithJavaDefaultModulesWithoutFakeDex2oatd.RunTestWithBp(t, `
 		android_app {
 			name: "app",
 			static_libs: [
