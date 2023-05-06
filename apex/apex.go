@@ -3432,15 +3432,6 @@ func makeApexAvailableBaseline() map[string][]string {
 	// Module separator
 	//
 	m[android.AvailableToAnyApex] = []string{
-		// TODO(b/156996905) Set apex_available/min_sdk_version for androidx/extras support libraries
-		"androidx",
-		"androidx-constraintlayout_constraintlayout",
-		"androidx-constraintlayout_constraintlayout-nodeps",
-		"androidx-constraintlayout_constraintlayout-solver",
-		"androidx-constraintlayout_constraintlayout-solver-nodeps",
-		"com.google.android.material_material",
-		"com.google.android.material_material-nodeps",
-
 		"libclang_rt",
 		"libprofile-clang-extras",
 		"libprofile-clang-extras_ndk",
