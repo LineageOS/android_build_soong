@@ -497,6 +497,52 @@ func TestPrebuilts(t *testing.T) {
 	}
 }
 
+func testPrebuiltError(t *testing.T, expectedError, bp string) {
+	t.Helper()
+	fs := MockFS{
+		"prebuilt_file": nil,
+	}
+	GroupFixturePreparers(
+		PrepareForTestWithArchMutator,
+		PrepareForTestWithPrebuilts,
+		PrepareForTestWithOverrides,
+		fs.AddToFixture(),
+		FixtureRegisterWithContext(registerTestPrebuiltModules),
+	).
+		ExtendWithErrorHandler(FixtureExpectsAtLeastOneErrorMatchingPattern(expectedError)).
+		RunTestWithBp(t, bp)
+}
+
+func TestPrebuiltShouldNotChangePartition(t *testing.T) {
+	testPrebuiltError(t, `partition is different`, `
+		source {
+			name: "foo",
+			vendor: true,
+		}
+		prebuilt {
+			name: "foo",
+			prefer: true,
+			srcs: ["prebuilt_file"],
+		}`)
+}
+
+func TestPrebuiltShouldNotChangePartition_WithOverride(t *testing.T) {
+	testPrebuiltError(t, `partition is different`, `
+		source {
+			name: "foo",
+			vendor: true,
+		}
+		override_source {
+			name: "bar",
+			base: "foo",
+		}
+		prebuilt {
+			name: "bar",
+			prefer: true,
+			srcs: ["prebuilt_file"],
+		}`)
+}
+
 func registerTestPrebuiltBuildComponents(ctx RegistrationContext) {
 	registerTestPrebuiltModules(ctx)
 
