@@ -419,6 +419,20 @@ func PrebuiltSourceDepsMutator(ctx BottomUpMutatorContext) {
 	}
 }
 
+// checkInvariantsForSourceAndPrebuilt checks if invariants are kept when replacing
+// source with prebuilt. Note that the current module for the context is the source module.
+func checkInvariantsForSourceAndPrebuilt(ctx BaseModuleContext, s, p Module) {
+	if _, ok := s.(OverrideModule); ok {
+		// skip the check when the source module is `override_X` because it's only a placeholder
+		// for the actual source module. The check will be invoked for the actual module.
+		return
+	}
+	if sourcePartition, prebuiltPartition := s.PartitionTag(ctx.DeviceConfig()), p.PartitionTag(ctx.DeviceConfig()); sourcePartition != prebuiltPartition {
+		ctx.OtherModuleErrorf(p, "partition is different: %s(%s) != %s(%s)",
+			sourcePartition, ctx.ModuleName(), prebuiltPartition, ctx.OtherModuleName(p))
+	}
+}
+
 // PrebuiltSelectModuleMutator marks prebuilts that are used, either overriding source modules or
 // because the source module doesn't exist.  It also disables installing overridden source modules.
 func PrebuiltSelectModuleMutator(ctx TopDownMutatorContext) {
@@ -434,6 +448,8 @@ func PrebuiltSelectModuleMutator(ctx TopDownMutatorContext) {
 		ctx.VisitDirectDepsWithTag(PrebuiltDepTag, func(prebuiltModule Module) {
 			p := GetEmbeddedPrebuilt(prebuiltModule)
 			if p.usePrebuilt(ctx, s, prebuiltModule) {
+				checkInvariantsForSourceAndPrebuilt(ctx, s, prebuiltModule)
+
 				p.properties.UsePrebuilt = true
 				s.ReplacedByPrebuilt()
 			}
