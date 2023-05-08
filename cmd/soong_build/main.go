@@ -133,6 +133,10 @@ func runMixedModeBuild(ctx *android.Context, extraNinjaDeps []string) string {
 	ninjaDeps = append(ninjaDeps, writeBuildGlobsNinjaFile(ctx)...)
 
 	writeDepFile(cmdlineArgs.OutFile, ctx.EventHandler, ninjaDeps)
+
+	if ctx.Config().IsEnvTrue("SOONG_GENERATES_NINJA_HINT") {
+		writeNinjaHint(ctx)
+	}
 	return cmdlineArgs.OutFile
 }
 
@@ -455,6 +459,9 @@ func runSoongOnlyBuild(ctx *android.Context, extraNinjaDeps []string) string {
 		// The actual output (build.ninja) was written in the RunBlueprint() call
 		// above
 		writeDepFile(cmdlineArgs.OutFile, ctx.EventHandler, ninjaDeps)
+		if ctx.Config().IsEnvTrue("SOONG_GENERATES_NINJA_HINT") {
+			writeNinjaHint(ctx)
+		}
 		return cmdlineArgs.OutFile
 	}
 }
@@ -534,9 +541,6 @@ func main() {
 			}
 		} else {
 			finalOutputFile = runSoongOnlyBuild(ctx, extraNinjaDeps)
-		}
-		if ctx.Config().IsEnvTrue("SOONG_GENERATES_NINJA_HINT") {
-			writeNinjaHint(ctx)
 		}
 		writeMetrics(configuration, ctx.EventHandler, metricsDir)
 	}
