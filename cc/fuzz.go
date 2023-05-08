@@ -423,7 +423,7 @@ func (s *ccRustFuzzPackager) GenerateBuildActions(ctx android.SingletonContext) 
 		files = append(files, GetSharedLibsToZip(ccModule.FuzzSharedLibraries(), ccModule, &s.FuzzPackager, archString, sharedLibsInstallDirPrefix, &sharedLibraryInstalled)...)
 
 		// The executable.
-		files = append(files, fuzz.FileToZip{android.OutputFileForModule(ctx, ccModule, "unstripped"), ""})
+		files = append(files, fuzz.FileToZip{SourceFilePath: android.OutputFileForModule(ctx, ccModule, "unstripped")})
 
 		archDirs[archOs], ok = s.BuildZipFile(ctx, module, fpm, files, builder, archDir, archString, hostOrTargetString, archOs, archDirs)
 		if !ok {
@@ -462,7 +462,11 @@ func GetSharedLibsToZip(sharedLibraries android.RuleBuilderInstalls, module Link
 	for _, ruleBuilderInstall := range sharedLibraries {
 		library := ruleBuilderInstall.From
 		install := ruleBuilderInstall.To
-		files = append(files, fuzz.FileToZip{library, destinationPathPrefix})
+		files = append(files, fuzz.FileToZip{
+			SourceFilePath:        library,
+			DestinationPathPrefix: destinationPathPrefix,
+			DestinationPath:       install,
+		})
 
 		// For each architecture-specific shared library dependency, we need to
 		// install it to the output directory. Setup the install destination here,
