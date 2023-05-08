@@ -475,7 +475,16 @@ func RegisterToolDeps(ctx android.BottomUpMutatorContext) {
 	ctx.AddFarVariationDependencies(v, Dex2oatDepTag, dex2oatBin)
 }
 
+func IsDex2oatNeeded(ctx android.PathContext) bool {
+	global := GetGlobalConfig(ctx)
+	return !global.DisablePreopt || !global.DisablePreoptBootImages
+}
+
 func dex2oatPathFromDep(ctx android.ModuleContext) android.Path {
+	if !IsDex2oatNeeded(ctx) {
+		return nil
+	}
+
 	dex2oatBin := dex2oatModuleName(ctx.Config())
 
 	// Find the right dex2oat module, trying to follow PrebuiltDepTag from source
