@@ -506,7 +506,7 @@ func (b *BootclasspathFragmentModule) DepsMutator(ctx android.BottomUpMutatorCon
 		}
 	}
 
-	if SkipDexpreoptBootJars(ctx) {
+	if !dexpreopt.IsDex2oatNeeded(ctx) {
 		return
 	}
 
@@ -901,10 +901,6 @@ func (b *BootclasspathFragmentModule) produceHiddenAPIOutput(ctx android.ModuleC
 
 // produceBootImageFiles builds the boot image files from the source if it is required.
 func (b *BootclasspathFragmentModule) produceBootImageFiles(ctx android.ModuleContext, imageConfig *bootImageConfig) bootImageOutputs {
-	if SkipDexpreoptBootJars(ctx) {
-		return bootImageOutputs{}
-	}
-
 	// Only generate the boot image if the configuration does not skip it.
 	return b.generateBootImageBuildActions(ctx, imageConfig)
 }
@@ -928,6 +924,13 @@ func (b *BootclasspathFragmentModule) generateBootImageBuildActions(ctx android.
 
 	// Build a profile for the image config and then use that to build the boot image.
 	profile := bootImageProfileRule(ctx, imageConfig)
+
+	// If dexpreopt of boot image jars should be skipped, generate only a profile.
+	if SkipDexpreoptBootJars(ctx) {
+		return bootImageOutputs{
+			profile: profile,
+		}
+	}
 
 	// Build boot image files for the host variants.
 	buildBootImageVariantsForBuildOs(ctx, imageConfig, profile)
