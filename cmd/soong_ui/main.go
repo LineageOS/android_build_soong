@@ -94,7 +94,7 @@ var commands = []command{
 	}, {
 		flag:        "--upload-metrics-only",
 		description: "upload metrics without building anything",
-		config:      uploadOnlyConfig,
+		config:      build.UploadOnlyConfig,
 		stdio:       stdio,
 		// Upload-only mode mostly skips to the metrics-uploading phase of soong_ui.
 		// However, this invocation marks the true "end of the build", and thus we
@@ -451,14 +451,6 @@ func dumpVarConfig(ctx build.Context, args ...string) build.Config {
 	return build.NewConfig(ctx)
 }
 
-// uploadOnlyConfig explicitly requires no arguments.
-func uploadOnlyConfig(ctx build.Context, args ...string) build.Config {
-	if len(args) > 0 {
-		fmt.Printf("--upload-only does not require arguments.")
-	}
-	return build.UploadOnlyConfig(ctx)
-}
-
 func buildActionConfig(ctx build.Context, args ...string) build.Config {
 	flags := flag.NewFlagSet("build-mode", flag.ContinueOnError)
 	flags.SetOutput(ctx.Writer)
@@ -710,7 +702,7 @@ func updateTotalRealTime(ctx build.Context, config build.Config, args []string) 
 	}
 	met := ctx.ContextImpl.Metrics
 
-	err = met.UpdateTotalRealTime(data)
+	err = met.UpdateTotalRealTimeAndNonZeroExit(data, config.BazelExitCode())
 	if err != nil {
 		ctx.Fatal(err)
 	}
