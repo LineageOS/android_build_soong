@@ -140,7 +140,7 @@ var r8, r8RE = pctx.MultiCommandRemoteStaticRules("r8",
 			`$r8Template${config.R8Cmd} ${config.R8Flags} -injars $tmpJar --output $outDir ` +
 			`--no-data-resources ` +
 			`-printmapping ${outDict} ` +
-			`--pg-conf-output ${outConfig} ` +
+			`-printconfiguration ${outConfig} ` +
 			`-printusage ${outUsage} ` +
 			`--deps-file ${out}.d ` +
 			`$r8Flags && ` +
