@@ -228,7 +228,7 @@ func (m *Metrics) SetBuildDateTime(buildTimestamp time.Time) {
 	m.metrics.BuildDateTimestamp = proto.Int64(buildTimestamp.UnixNano() / int64(time.Second))
 }
 
-func (m *Metrics) UpdateTotalRealTime(data []byte) error {
+func (m *Metrics) UpdateTotalRealTimeAndNonZeroExit(data []byte, bazelExitCode int32) error {
 	if err := proto.Unmarshal(data, &m.metrics); err != nil {
 		return fmt.Errorf("Failed to unmarshal proto", err)
 	}
@@ -236,6 +236,9 @@ func (m *Metrics) UpdateTotalRealTime(data []byte) error {
 	endTime := uint64(time.Now().UnixNano())
 
 	*m.metrics.Total.RealTime = *proto.Uint64(endTime - startTime)
+
+	bazelError := bazelExitCode != 0
+	m.metrics.NonZeroExit = proto.Bool(bazelError)
 	return nil
 }
 
