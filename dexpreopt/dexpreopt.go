@@ -100,8 +100,16 @@ func GenerateDexpreoptRule(ctx android.BuilderContext, globalSoong *GlobalSoongC
 	return rule, nil
 }
 
+// If dexpreopt is applicable to the module, returns whether dexpreopt is disabled. Otherwise, the
+// behavior is undefined.
+// When it returns true, dexpreopt artifacts will not be generated, but profile will still be
+// generated if profile-guided compilation is requested.
 func dexpreoptDisabled(ctx android.PathContext, global *GlobalConfig, module *ModuleConfig) bool {
 	if ctx.Config().UnbundledBuild() {
+		return true
+	}
+
+	if global.DisablePreopt {
 		return true
 	}
 
