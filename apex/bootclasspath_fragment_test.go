@@ -497,6 +497,26 @@ func TestBootclasspathFragmentInArtApex(t *testing.T) {
 		})
 	})
 
+	t.Run("generate boot image profile even if dexpreopt is disabled", func(t *testing.T) {
+		result := android.GroupFixturePreparers(
+			commonPreparer,
+
+			// Configure some libraries in the art bootclasspath_fragment that match the source
+			// bootclasspath_fragment's contents property.
+			java.FixtureConfigureBootJars("com.android.art:foo", "com.android.art:bar"),
+			addSource("foo", "bar"),
+			java.FixtureSetBootImageInstallDirOnDevice("art", "system/framework"),
+			dexpreopt.FixtureDisableDexpreoptBootImages(true),
+		).RunTest(t)
+
+		ensureExactContents(t, result.TestContext, "com.android.art", "android_common_com.android.art_image", []string{
+			"etc/boot-image.prof",
+			"etc/classpaths/bootclasspath.pb",
+			"javalib/bar.jar",
+			"javalib/foo.jar",
+		})
+	})
+
 	t.Run("boot image disable generate profile", func(t *testing.T) {
 		result := android.GroupFixturePreparers(
 			commonPreparer,
