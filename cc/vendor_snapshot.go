@@ -250,7 +250,11 @@ var ccSnapshotAction snapshot.GenerateSnapshotAction = func(s snapshot.SnapshotS
 		for _, path := range m.VintfFragments() {
 			prop.VintfFragments = append(prop.VintfFragments, filepath.Join("configs", path.Base()))
 		}
-		prop.MinSdkVersion = m.MinSdkVersion()
+		if m.IsPrebuilt() {
+			prop.MinSdkVersion = "apex_inherit"
+		} else {
+			prop.MinSdkVersion = m.MinSdkVersion()
+		}
 
 		// install config files. ignores any duplicates.
 		for _, path := range append(m.InitRc(), m.VintfFragments()...) {
