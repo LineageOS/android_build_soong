@@ -2979,7 +2979,7 @@ func ktJvmLibraryBazelTargetModuleProperties() bazel.BazelTargetModuleProperties
 func javaLibraryBazelTargetModuleProperties() bazel.BazelTargetModuleProperties {
 	return bazel.BazelTargetModuleProperties{
 		Rule_class:        "java_library",
-		Bzl_load_location: "//build/bazel/rules/java:rules.bzl",
+		Bzl_load_location: "//build/bazel/rules/java:library.bzl",
 	}
 }
 
@@ -3088,7 +3088,7 @@ func javaBinaryHostBp2Build(ctx android.TopDownMutatorContext, m *Binary) {
 
 	props := bazel.BazelTargetModuleProperties{
 		Rule_class:        "java_binary",
-		Bzl_load_location: "//build/bazel/rules/java:rules.bzl",
+		Bzl_load_location: "@rules_java//java:defs.bzl",
 	}
 	binAttrs := &javaBinaryHostAttributes{
 		Runtime_deps: runtimeDeps,
@@ -3144,7 +3144,7 @@ func (i *Import) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 	}
 	props := bazel.BazelTargetModuleProperties{
 		Rule_class:        "java_import",
-		Bzl_load_location: "//build/bazel/rules/java:rules.bzl",
+		Bzl_load_location: "//build/bazel/rules/java:import.bzl",
 	}
 
 	name := android.RemoveOptionalPrebuiltPrefix(i.Name())
