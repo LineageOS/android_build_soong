@@ -89,7 +89,8 @@ type configImpl struct {
 	skipMetricsUpload        bool
 	buildStartedTime         int64 // For metrics-upload-only - manually specify a build-started time
 	buildFromTextStub        bool
-	ensureAllowlistIntegrity bool // For CI builds - make sure modules are mixed-built
+	ensureAllowlistIntegrity bool  // For CI builds - make sure modules are mixed-built
+	bazelExitCode            int32 // For b-runs - necessary for updating NonZeroExit
 
 	// From the product config
 	katiArgs        []string
@@ -298,11 +299,12 @@ func defaultBazelProdMode(cfg *configImpl) bool {
 	return true
 }
 
-func UploadOnlyConfig(ctx Context, _ ...string) Config {
+func UploadOnlyConfig(ctx Context, args ...string) Config {
 	ret := &configImpl{
 		environ:       OsEnvironment(),
 		sandboxConfig: &SandboxConfig{},
 	}
+	ret.parseArgs(ctx, args)
 	srcDir := absPath(ctx, ".")
 	bc := os.Getenv("ANDROID_BUILD_ENVIRONMENT_CONFIG")
 	if err := loadEnvConfig(ctx, ret, bc); err != nil {
@@ -883,6 +885,14 @@ func (c *configImpl) parseArgs(ctx Context, args []string) {
 			}
 		} else if arg == "--ensure-allowlist-integrity" {
 			c.ensureAllowlistIntegrity = true
+		} else if strings.HasPrefix(arg, "--bazel-exit-code=") {
+			bazelExitCodeStr := strings.TrimPrefix(arg, "--bazel-exit-code=")
+			val, err := strconv.Atoi(bazelExitCodeStr)
+			if err == nil {
+				c.bazelExitCode = int32(val)
+			} else {
+				ctx.Fatalf("Error parsing bazel-exit-code", err)
+			}
 		} else if len(arg) > 0 && arg[0] == '-' {
 			parseArgNum := func(def int) int {
 				if len(arg) > 2 {
@@ -1721,6 +1731,10 @@ func (c *configImpl) BuildStartedTimeOrDefault(defaultTime time.Time) time.Time 
 		return defaultTime
 	}
 	return time.UnixMilli(c.buildStartedTime)
+}
+
+func (c *configImpl) BazelExitCode() int32 {
+	return c.bazelExitCode
 }
 
 func GetMetricsUploader(topDir string, env *Environment) string {
