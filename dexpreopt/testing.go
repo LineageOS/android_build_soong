@@ -174,3 +174,17 @@ func FixtureDisableGenerateProfile(disable bool) android.FixturePreparer {
 		dexpreoptConfig.DisableGenerateProfile = disable
 	})
 }
+
+// FixtureDisableDexpreoptBootImages sets the DisablePreoptBootImages property in the global config.
+func FixtureDisableDexpreoptBootImages(disable bool) android.FixturePreparer {
+	return FixtureModifyGlobalConfig(func(_ android.PathContext, dexpreoptConfig *GlobalConfig) {
+		dexpreoptConfig.DisablePreoptBootImages = disable
+	})
+}
+
+// FixtureDisableDexpreopt sets the DisablePreopt property in the global config.
+func FixtureDisableDexpreopt(disable bool) android.FixturePreparer {
+	return FixtureModifyGlobalConfig(func(_ android.PathContext, dexpreoptConfig *GlobalConfig) {
+		dexpreoptConfig.DisablePreopt = disable
+	})
+}
