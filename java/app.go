@@ -1570,7 +1570,7 @@ func (a *AndroidApp) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 
 	ctx.CreateBazelTargetModule(
 		props,
-		android.CommonAttributes{Name: a.Name()},
+		android.CommonAttributes{Name: a.Name(), SkipData: proptools.BoolPtr(true)},
 		appAttrs,
 	)
 
