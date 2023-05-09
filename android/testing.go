@@ -813,6 +813,20 @@ func normalizePathRelativeToTop(path Path) Path {
 	return path.RelativeToTop()
 }
 
+func allOutputs(p BuildParams) []string {
+	outputs := append(WritablePaths(nil), p.Outputs...)
+	outputs = append(outputs, p.ImplicitOutputs...)
+	if p.Output != nil {
+		outputs = append(outputs, p.Output)
+	}
+	return outputs.Strings()
+}
+
+// AllOutputs returns all 'BuildParams.Output's and 'BuildParams.Outputs's in their full path string forms.
+func (p TestingBuildParams) AllOutputs() []string {
+	return allOutputs(p.BuildParams)
+}
+
 // baseTestingComponent provides functionality common to both TestingModule and TestingSingleton.
 type baseTestingComponent struct {
 	config   Config
@@ -954,12 +968,7 @@ func (b baseTestingComponent) buildParamsFromOutput(file string) TestingBuildPar
 func (b baseTestingComponent) allOutputs() []string {
 	var outputFullPaths []string
 	for _, p := range b.provider.BuildParamsForTests() {
-		outputs := append(WritablePaths(nil), p.Outputs...)
-		outputs = append(outputs, p.ImplicitOutputs...)
-		if p.Output != nil {
-			outputs = append(outputs, p.Output)
-		}
-		outputFullPaths = append(outputFullPaths, outputs.Strings()...)
+		outputFullPaths = append(outputFullPaths, allOutputs(p)...)
 	}
 	return outputFullPaths
 }
