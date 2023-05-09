@@ -23,6 +23,17 @@ import (
 	"testing"
 )
 
+func checkJsonContents(t *testing.T, ctx android.TestingSingleton, jsonPath string, key string, value string) {
+	jsonOut := ctx.MaybeOutput(jsonPath)
+	if jsonOut.Rule == nil {
+		t.Errorf("%q expected but not found", jsonPath)
+		return
+	}
+	if !strings.Contains(jsonOut.Args["content"], fmt.Sprintf("%q:%q", key, value)) {
+		t.Errorf("%q must include %q:%q but it only has %v", jsonPath, key, value, jsonOut.Args["content"])
+	}
+}
+
 func TestVendorSnapshotCapture(t *testing.T) {
 	bp := `
 	cc_library {
@@ -52,6 +63,7 @@ func TestVendorSnapshotCapture(t *testing.T) {
 		name: "libvendor_available",
 		vendor_available: true,
 		nocrt: true,
+		min_sdk_version: "29",
 	}
 
 	cc_library_headers {
@@ -154,6 +166,9 @@ func TestVendorSnapshotCapture(t *testing.T) {
 			filepath.Join(staticDir, "libvendor.cfi.a.json"),
 			filepath.Join(staticDir, "libvendor_available.a.json"),
 			filepath.Join(staticDir, "libvendor_available.cfi.a.json"))
+
+		checkJsonContents(t, snapshotSingleton, filepath.Join(staticDir, "libb.a.json"), "MinSdkVersion", "apex_inherit")
+		checkJsonContents(t, snapshotSingleton, filepath.Join(staticDir, "libvendor_available.a.json"), "MinSdkVersion", "29")
 
 		// For binary executables, all vendor:true and vendor_available modules are captured.
 		if archType == "arm64" {
