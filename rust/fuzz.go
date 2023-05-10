@@ -31,7 +31,7 @@ type fuzzDecorator struct {
 	*binaryDecorator
 
 	fuzzPackagedModule  fuzz.FuzzPackagedModule
-	sharedLibraries     android.Paths
+	sharedLibraries     android.RuleBuilderInstalls
 	installedSharedDeps []string
 }
 
@@ -119,15 +119,17 @@ func (fuzz *fuzzDecorator) install(ctx ModuleContext) {
 	// Grab the list of required shared libraries.
 	fuzz.sharedLibraries, _ = cc.CollectAllSharedDependencies(ctx)
 
-	for _, lib := range fuzz.sharedLibraries {
+	for _, ruleBuilderInstall := range fuzz.sharedLibraries {
+		install := ruleBuilderInstall.To
+
 		fuzz.installedSharedDeps = append(fuzz.installedSharedDeps,
 			cc.SharedLibraryInstallLocation(
-				lib, ctx.Host(), installBase, ctx.Arch().ArchType.String()))
+				install, ctx.Host(), installBase, ctx.Arch().ArchType.String()))
 
 		// Also add the dependency on the shared library symbols dir.
 		if !ctx.Host() {
 			fuzz.installedSharedDeps = append(fuzz.installedSharedDeps,
-				cc.SharedLibrarySymbolsInstallLocation(lib, installBase, ctx.Arch().ArchType.String()))
+				cc.SharedLibrarySymbolsInstallLocation(install, installBase, ctx.Arch().ArchType.String()))
 		}
 	}
 }
