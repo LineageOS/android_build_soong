@@ -1539,7 +1539,7 @@ func androidAppCertificateBp2Build(ctx android.TopDownMutatorContext, module *An
 
 	props := bazel.BazelTargetModuleProperties{
 		Rule_class:        "android_app_certificate",
-		Bzl_load_location: "//build/bazel/rules/android:rules.bzl",
+		Bzl_load_location: "//build/bazel/rules/android:android_app_certificate.bzl",
 	}
 
 	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: module.Name()}, attrs)
@@ -1592,7 +1592,7 @@ func (a *AndroidApp) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 
 	props := bazel.BazelTargetModuleProperties{
 		Rule_class:        "android_binary",
-		Bzl_load_location: "//build/bazel/rules/android:rules.bzl",
+		Bzl_load_location: "//build/bazel/rules/android:android_binary.bzl",
 	}
 
 	if !bp2BuildInfo.hasKotlin {
