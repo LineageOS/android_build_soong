@@ -334,7 +334,7 @@ func (la *LabelAttribute) Collapse() error {
 			if containsArch {
 				allProductVariablesAreArchVariant := true
 				for k := range la.ConfigurableValues {
-					if k.configurationType == productVariables && k.outerAxisType != arch {
+					if k.configurationType == productVariables && !k.archVariant {
 						allProductVariablesAreArchVariant = false
 					}
 				}

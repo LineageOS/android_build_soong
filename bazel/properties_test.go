@@ -248,13 +248,13 @@ func TestResolveExcludes(t *testing.T) {
 			OsArchConfigurationAxis: labelListSelectValues{
 				"linux_x86": makeLabelList([]string{"linux_x86_include"}, []string{}),
 			},
-			ProductVariableConfigurationAxis("product_with_defaults", NoConfigAxis): labelListSelectValues{
+			ProductVariableConfigurationAxis(false, "product_with_defaults"): labelListSelectValues{
 				"a":                        makeLabelList([]string{}, []string{"not_in_value"}),
 				"b":                        makeLabelList([]string{"b_val"}, []string{}),
 				"c":                        makeLabelList([]string{"c_val"}, []string{}),
 				ConditionsDefaultConfigKey: makeLabelList([]string{"c_val", "default", "default2", "all_exclude"}, []string{}),
 			},
-			ProductVariableConfigurationAxis("product_only_with_excludes", NoConfigAxis): labelListSelectValues{
+			ProductVariableConfigurationAxis(false, "product_only_with_excludes"): labelListSelectValues{
 				"a": makeLabelList([]string{}, []string{"product_config_exclude"}),
 			},
 		},
@@ -282,13 +282,13 @@ func TestResolveExcludes(t *testing.T) {
 			"linux_x86":                makeLabels("linux_x86_include"),
 			ConditionsDefaultConfigKey: nilLabels,
 		},
-		ProductVariableConfigurationAxis("product_with_defaults", NoConfigAxis): {
+		ProductVariableConfigurationAxis(false, "product_with_defaults"): {
 			"a":                        nilLabels,
 			"b":                        makeLabels("b_val"),
 			"c":                        makeLabels("c_val"),
 			ConditionsDefaultConfigKey: makeLabels("c_val", "default", "default2"),
 		},
-		ProductVariableConfigurationAxis("product_only_with_excludes", NoConfigAxis): {
+		ProductVariableConfigurationAxis(false, "product_only_with_excludes"): {
 			"a":                        nilLabels,
 			ConditionsDefaultConfigKey: makeLabels("product_config_exclude"),
 		},
@@ -679,7 +679,7 @@ func TestDeduplicateAxesFromBase(t *testing.T) {
 			OsArchConfigurationAxis: stringListSelectValues{
 				"linux_x86": {"linux_x86_include"},
 			},
-			ProductVariableConfigurationAxis("a", NoConfigAxis): stringListSelectValues{
+			ProductVariableConfigurationAxis(false, "a"): stringListSelectValues{
 				"a": []string{"not_in_value"},
 			},
 		},
@@ -704,7 +704,7 @@ func TestDeduplicateAxesFromBase(t *testing.T) {
 			"linux": []string{"linux_include"},
 		},
 		OsArchConfigurationAxis: stringListSelectValues{},
-		ProductVariableConfigurationAxis("a", NoConfigAxis): stringListSelectValues{
+		ProductVariableConfigurationAxis(false, "a"): stringListSelectValues{
 			"a": []string{"not_in_value"},
 		},
 	}
