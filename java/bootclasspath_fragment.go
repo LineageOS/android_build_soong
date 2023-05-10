@@ -240,6 +240,9 @@ type BootclasspathFragmentModule struct {
 
 	// Collect the module directory for IDE info in java/jdeps.go.
 	modulePaths []string
+
+	// Path to the boot image profile.
+	profilePath android.Path
 }
 
 // commonBootclasspathFragment defines the methods that are implemented by both source and prebuilt
@@ -259,6 +262,12 @@ type commonBootclasspathFragment interface {
 	// If it could not create the files then it will return nil. Otherwise, it will return a map from
 	// android.ArchType to the predefined paths of the boot image files.
 	produceBootImageFiles(ctx android.ModuleContext, imageConfig *bootImageConfig) bootImageOutputs
+
+	// getImageName returns the `image_name` property of this fragment.
+	getImageName() *string
+
+	// getProfilePath returns the path to the boot image profile.
+	getProfilePath() android.Path
 }
 
 var _ commonBootclasspathFragment = (*BootclasspathFragmentModule)(nil)
@@ -528,6 +537,7 @@ func (b *BootclasspathFragmentModule) GenerateAndroidBuildActions(ctx android.Mo
 		// Delegate the production of the boot image files to a module type specific method.
 		common := ctx.Module().(commonBootclasspathFragment)
 		bootImageFiles = common.produceBootImageFiles(ctx, imageConfig)
+		b.profilePath = bootImageFiles.profile
 
 		if shouldCopyBootFilesToPredefinedLocations(ctx, imageConfig) {
 			// Zip the boot image files up, if available. This will generate the zip file in a
@@ -911,6 +921,14 @@ func (b *BootclasspathFragmentModule) AndroidMkEntries() []android.AndroidMkEntr
 	return entriesList
 }
 
+func (b *BootclasspathFragmentModule) getImageName() *string {
+	return b.properties.Image_name
+}
+
+func (b *BootclasspathFragmentModule) getProfilePath() android.Path {
+	return b.profilePath
+}
+
 // Collect information for opening IDE project files in java/jdeps.go.
 func (b *BootclasspathFragmentModule) IDEInfo(dpInfo *android.IdeInfo) {
 	dpInfo.Deps = append(dpInfo.Deps, b.properties.Contents...)
@@ -1205,6 +1223,14 @@ func (module *PrebuiltBootclasspathFragmentModule) produceBootImageFiles(ctx and
 	// Build boot image files for the android variants from the dex files provided by the contents
 	// of this module.
 	return buildBootImageVariantsForAndroidOs(ctx, imageConfig, profile)
+}
+
+func (b *PrebuiltBootclasspathFragmentModule) getImageName() *string {
+	return b.properties.Image_name
+}
+
+func (b *PrebuiltBootclasspathFragmentModule) getProfilePath() android.Path {
+	return b.profilePath
 }
 
 var _ commonBootclasspathFragment = (*PrebuiltBootclasspathFragmentModule)(nil)

@@ -129,8 +129,7 @@ func (b *platformBootclasspathModule) BootclasspathDepsMutator(ctx android.Botto
 
 	// Add dependencies on all the non-updatable module configured in the "boot" boot image. That does
 	// not include modules configured in the "art" boot image.
-	bootImageConfig := defaultBootImageConfig(ctx)
-	addDependenciesOntoBootImageModules(ctx, bootImageConfig.modules, platformBootclasspathBootJarDepTag)
+	addDependenciesOntoBootImageModules(ctx, b.platformJars(ctx), platformBootclasspathBootJarDepTag)
 
 	// Add dependencies on all the apex jars.
 	apexJars := dexpreopt.GetGlobalConfig(ctx).ApexBootJars
@@ -187,7 +186,8 @@ func (b *platformBootclasspathModule) GenerateAndroidBuildActions(ctx android.Mo
 	bootDexJarByModule := b.generateHiddenAPIBuildActions(ctx, b.configuredModules, b.fragments)
 	buildRuleForBootJarsPackageCheck(ctx, bootDexJarByModule)
 
-	b.generateBootImageBuildActions(ctx, platformModules, apexModules)
+	b.generateBootImageBuildActions(ctx)
+	b.copyApexBootJarsForAppsDexpreopt(ctx, apexModules)
 }
 
 // Generate classpaths.proto config
@@ -200,7 +200,7 @@ func (b *platformBootclasspathModule) generateClasspathProtoBuildActions(ctx and
 
 func (b *platformBootclasspathModule) configuredJars(ctx android.ModuleContext) android.ConfiguredJarList {
 	// Include all non APEX jars
-	jars := defaultBootImageConfig(ctx).modules
+	jars := b.platformJars(ctx)
 
 	// Include jars from APEXes that don't populate their classpath proto config.
 	remainingJars := dexpreopt.GetGlobalConfig(ctx).ApexBootJars
@@ -217,6 +217,10 @@ func (b *platformBootclasspathModule) configuredJars(ctx android.ModuleContext) 
 	return jars
 }
 
+func (b *platformBootclasspathModule) platformJars(ctx android.PathContext) android.ConfiguredJarList {
+	return defaultBootImageConfig(ctx).modules.RemoveList(artBootImageConfig(ctx).modules)
+}
+
 // checkPlatformModules ensures that the non-updatable modules supplied are not part of an
 // apex module.
 func (b *platformBootclasspathModule) checkPlatformModules(ctx android.ModuleContext, modules []android.Module) {
@@ -226,7 +230,7 @@ func (b *platformBootclasspathModule) checkPlatformModules(ctx android.ModuleCon
 		fromUpdatableApex := apexInfo.Updatable
 		if fromUpdatableApex {
 			// error: this jar is part of an updatable apex
-			ctx.ModuleErrorf("module %q from updatable apexes %q is not allowed in the framework boot image", ctx.OtherModuleName(m), apexInfo.InApexVariants)
+			ctx.ModuleErrorf("module %q from updatable apexes %q is not allowed in the platform bootclasspath", ctx.OtherModuleName(m), apexInfo.InApexVariants)
 		} else {
 			// ok: this jar is part of the platform or a non-updatable apex
 		}
@@ -396,7 +400,7 @@ func (b *platformBootclasspathModule) generateHiddenApiMakeVars(ctx android.Make
 }
 
 // generateBootImageBuildActions generates ninja rules related to the boot image creation.
-func (b *platformBootclasspathModule) generateBootImageBuildActions(ctx android.ModuleContext, platformModules, apexModules []android.Module) {
+func (b *platformBootclasspathModule) generateBootImageBuildActions(ctx android.ModuleContext) {
 	// Force the GlobalSoongConfig to be created and cached for use by the dex_bootjars
 	// GenerateSingletonBuildActions method as it cannot create it for itself.
 	dexpreopt.GetGlobalSoongConfig(ctx)
@@ -408,14 +412,15 @@ func (b *platformBootclasspathModule) generateBootImageBuildActions(ctx android.
 
 	frameworkBootImageConfig := defaultBootImageConfig(ctx)
 	bootFrameworkProfileRule(ctx, frameworkBootImageConfig)
-	b.generateBootImage(ctx, frameworkBootImageName, platformModules)
-	b.generateBootImage(ctx, mainlineBootImageName, apexModules)
-	b.copyApexBootJarsForAppsDexpreopt(ctx, apexModules)
+	b.generateBootImage(ctx, frameworkBootImageName)
+	b.generateBootImage(ctx, mainlineBootImageName)
 	dumpOatRules(ctx, frameworkBootImageConfig)
 }
 
-func (b *platformBootclasspathModule) generateBootImage(ctx android.ModuleContext, imageName string, modules []android.Module) {
+func (b *platformBootclasspathModule) generateBootImage(ctx android.ModuleContext, imageName string) {
 	imageConfig := genBootImageConfigs(ctx)[imageName]
+
+	modules := b.getModulesForImage(ctx, imageConfig)
 
 	// Copy module dex jars to their predefined locations.
 	bootDexJarsByModule := extractEncodedDexJarsFromModules(ctx, modules)
@@ -445,4 +450,27 @@ func (b *platformBootclasspathModule) copyApexBootJarsForAppsDexpreopt(ctx andro
 	config := GetApexBootConfig(ctx)
 	apexBootDexJarsByModule := extractEncodedDexJarsFromModules(ctx, apexModules)
 	copyBootJarsToPredefinedLocations(ctx, apexBootDexJarsByModule, config.dexPathsByModule)
+}
+
+func (b *platformBootclasspathModule) getModulesForImage(ctx android.ModuleContext, imageConfig *bootImageConfig) []android.Module {
+	modules := make([]android.Module, 0, imageConfig.modules.Len())
+	for i := 0; i < imageConfig.modules.Len(); i++ {
+		found := false
+		for _, module := range b.configuredModules {
+			name := android.RemoveOptionalPrebuiltPrefix(module.Name())
+			if name == imageConfig.modules.Jar(i) {
+				modules = append(modules, module)
+				found = true
+				break
+			}
+		}
+		if !found && !ctx.Config().AllowMissingDependencies() {
+			ctx.ModuleErrorf(
+				"Boot image '%s' module '%s' not added as a dependency of platform_bootclasspath",
+				imageConfig.name,
+				imageConfig.modules.Jar(i))
+			return []android.Module{}
+		}
+	}
+	return modules
 }
