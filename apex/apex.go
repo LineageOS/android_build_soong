@@ -2276,16 +2276,13 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 				ctx.PropertyErrorf("sh_binaries", "%q is not a sh_binary module", depName)
 			}
 		case bcpfTag:
-			bcpfModule, ok := child.(*java.BootclasspathFragmentModule)
+			_, ok := child.(*java.BootclasspathFragmentModule)
 			if !ok {
 				ctx.PropertyErrorf("bootclasspath_fragments", "%q is not a bootclasspath_fragment module", depName)
 				return false
 			}
 
 			vctx.filesInfo = append(vctx.filesInfo, apexBootclasspathFragmentFiles(ctx, child)...)
-			for _, makeModuleName := range bcpfModule.BootImageDeviceInstallMakeModules() {
-				a.makeModulesToInstall = append(a.makeModulesToInstall, makeModuleName)
-			}
 			return true
 		case sscpfTag:
 			if _, ok := child.(*java.SystemServerClasspathModule); !ok {
@@ -2650,19 +2647,6 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 func apexBootclasspathFragmentFiles(ctx android.ModuleContext, module blueprint.Module) []apexFile {
 	bootclasspathFragmentInfo := ctx.OtherModuleProvider(module, java.BootclasspathFragmentApexContentInfoProvider).(java.BootclasspathFragmentApexContentInfo)
 	var filesToAdd []apexFile
-
-	// Add the boot image files, e.g. .art, .oat and .vdex files.
-	if bootclasspathFragmentInfo.ShouldInstallBootImageInApex() {
-		for arch, files := range bootclasspathFragmentInfo.AndroidBootImageFilesByArchType() {
-			dirInApex := filepath.Join("javalib", arch.String())
-			for _, f := range files {
-				androidMkModuleName := "javalib_" + arch.String() + "_" + filepath.Base(f.String())
-				// TODO(b/177892522) - consider passing in the bootclasspath fragment module here instead of nil
-				af := newApexFile(ctx, f, androidMkModuleName, dirInApex, etc, nil)
-				filesToAdd = append(filesToAdd, af)
-			}
-		}
-	}
 
 	// Add classpaths.proto config.
 	if af := apexClasspathFragmentProtoFile(ctx, module); af != nil {
