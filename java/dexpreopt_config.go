@@ -53,7 +53,7 @@ func genBootImageConfigRaw(ctx android.PathContext) map[string]*bootImageConfig 
 		global := dexpreopt.GetGlobalConfig(ctx)
 
 		artModules := global.ArtApexJars
-		frameworkModules := global.BootJars.RemoveList(artModules)
+		frameworkModules := global.BootJars // This includes `artModules`.
 		mainlineBcpModules := global.ApexBootJars
 		frameworkSubdir := "system/framework"
 
@@ -73,7 +73,6 @@ func genBootImageConfigRaw(ctx android.PathContext) map[string]*bootImageConfig 
 		// Framework config for the boot image extension.
 		// It includes framework libraries and depends on the ART config.
 		frameworkCfg := bootImageConfig{
-			extends:              &artCfg,
 			name:                 frameworkBootImageName,
 			stem:                 bootImageStem,
 			installDir:           frameworkSubdir,
@@ -81,6 +80,7 @@ func genBootImageConfigRaw(ctx android.PathContext) map[string]*bootImageConfig 
 			preloadedClassesFile: "frameworks/base/config/preloaded-classes",
 			compilerFilter:       "speed-profile",
 			singleImage:          false,
+			profileImports:       []*bootImageConfig{&artCfg},
 		}
 
 		mainlineCfg := bootImageConfig{
