@@ -452,7 +452,7 @@ func (g *Module) generateCommonBuildActions(ctx android.ModuleContext) {
 		manifestPath := android.PathForModuleOut(ctx, manifestName)
 
 		// Use a RuleBuilder to create a rule that runs the command inside an sbox sandbox.
-		rule := android.NewRuleBuilder(pctx, ctx).Sbox(task.genDir, manifestPath).SandboxTools()
+		rule := getSandboxedRuleBuilder(ctx, android.NewRuleBuilder(pctx, ctx).Sbox(task.genDir, manifestPath))
 		cmd := rule.Command()
 
 		for _, out := range task.out {
@@ -594,14 +594,16 @@ func (g *Module) generateCommonBuildActions(ctx android.ModuleContext) {
 func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// Allowlist genrule to use depfile until we have a solution to remove it.
 	// TODO(b/235582219): Remove allowlist for genrule
-	if ctx.ModuleType() == "gensrcs" &&
-		!ctx.DeviceConfig().BuildBrokenDepfile() &&
-		Bool(g.properties.Depfile) {
-		ctx.PropertyErrorf(
-			"depfile",
-			"Deprecated to ensure the module type is convertible to Bazel. "+
-				"Try specifying the dependencies explicitly so that there is no need to use depfile. "+
-				"If not possible, the escape hatch is to use BUILD_BROKEN_DEPFILE to bypass the error.")
+	if Bool(g.properties.Depfile) {
+		// TODO(b/283852474): Checking the GenruleSandboxing flag is temporary in
+		// order to pass the presubmit before internal master is updated.
+		if ctx.DeviceConfig().GenruleSandboxing() && !DepfileAllowSet[g.Name()] {
+			ctx.PropertyErrorf(
+				"depfile",
+				"Deprecated to ensure the module type is convertible to Bazel. "+
+					"Try specifying the dependencies explicitly so that there is no need to use depfile. "+
+					"If not possible, the escape hatch is to add the module to allowlists.go to bypass the error.")
+		}
 	}
 
 	g.generateCommonBuildActions(ctx)
@@ -737,7 +739,7 @@ func NewGenSrcs() *Module {
 			// TODO(ccross): this RuleBuilder is a hack to be able to call
 			// rule.Command().PathForOutput.  Replace this with passing the rule into the
 			// generator.
-			rule := android.NewRuleBuilder(pctx, ctx).Sbox(genDir, nil).SandboxTools()
+			rule := getSandboxedRuleBuilder(ctx, android.NewRuleBuilder(pctx, ctx).Sbox(genDir, nil))
 
 			for _, in := range shard {
 				outFile := android.GenPathWithExt(ctx, finalSubDir, in, String(properties.Output_extension))
@@ -1019,4 +1021,12 @@ func DefaultsFactory(props ...interface{}) android.Module {
 	android.InitDefaultsModule(module)
 
 	return module
+}
+
+func getSandboxedRuleBuilder(ctx android.ModuleContext, r *android.RuleBuilder) *android.RuleBuilder {
+	if !ctx.DeviceConfig().GenruleSandboxing() || SandboxingDenyPathSet[ctx.ModuleDir()] ||
+		SandboxingDenyModuleSet[ctx.ModuleName()] {
+		return r.SandboxTools()
+	}
+	return r.SandboxInputs()
 }
