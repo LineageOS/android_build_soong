@@ -61,6 +61,7 @@ type FuzzPackager struct {
 type FileToZip struct {
 	SourceFilePath        android.Path
 	DestinationPathPrefix string
+	DestinationPath       string
 }
 
 type ArchOs struct {
@@ -443,7 +444,7 @@ func (s *FuzzPackager) PackageArtifacts(ctx android.SingletonContext, module and
 			FlagWithOutput("-o ", corpusZip)
 		rspFile := corpusZip.ReplaceExtension(ctx, "rsp")
 		command.FlagWithRspFileInputList("-r ", rspFile, fuzzModule.Corpus)
-		files = append(files, FileToZip{corpusZip, ""})
+		files = append(files, FileToZip{SourceFilePath: corpusZip})
 	}
 
 	// Package the data into a zipfile.
@@ -456,17 +457,17 @@ func (s *FuzzPackager) PackageArtifacts(ctx android.SingletonContext, module and
 			command.FlagWithArg("-C ", intermediateDir)
 			command.FlagWithInput("-f ", f)
 		}
-		files = append(files, FileToZip{dataZip, ""})
+		files = append(files, FileToZip{SourceFilePath: dataZip})
 	}
 
 	// The dictionary.
 	if fuzzModule.Dictionary != nil {
-		files = append(files, FileToZip{fuzzModule.Dictionary, ""})
+		files = append(files, FileToZip{SourceFilePath: fuzzModule.Dictionary})
 	}
 
 	// Additional fuzz config.
 	if fuzzModule.Config != nil && IsValidConfig(fuzzModule, module.Name()) {
-		files = append(files, FileToZip{fuzzModule.Config, ""})
+		files = append(files, FileToZip{SourceFilePath: fuzzModule.Config})
 	}
 
 	return files
@@ -485,6 +486,9 @@ func (s *FuzzPackager) BuildZipFile(ctx android.SingletonContext, module android
 		} else {
 			command.Flag("-P ''")
 		}
+		if file.DestinationPath != "" {
+			command.FlagWithArg("-e ", file.DestinationPath)
+		}
 		command.FlagWithInput("-f ", file.SourceFilePath)
 	}
 
@@ -502,7 +506,7 @@ func (s *FuzzPackager) BuildZipFile(ctx android.SingletonContext, module android
 	}
 
 	s.FuzzTargets[module.Name()] = true
-	archDirs[archOs] = append(archDirs[archOs], FileToZip{fuzzZip, ""})
+	archDirs[archOs] = append(archDirs[archOs], FileToZip{SourceFilePath: fuzzZip})
 
 	return archDirs[archOs], true
 }
