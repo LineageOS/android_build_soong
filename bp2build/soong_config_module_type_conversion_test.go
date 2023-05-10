@@ -1251,3 +1251,111 @@ cc_binary {
     srcs = ["main.cc"],
 )`}})
 }
+
+func TestSoongConfigModuleType_CombinedWithArchVariantProperties(t *testing.T) {
+	bp := `
+soong_config_bool_variable {
+    name: "my_bool_variable",
+}
+
+soong_config_string_variable {
+    name: "my_string_variable",
+    values: [
+        "value1",
+        "value2",
+    ],
+}
+
+soong_config_module_type {
+    name: "special_build_cc_defaults",
+    module_type: "cc_defaults",
+    config_namespace: "my_namespace",
+    bool_variables: ["my_bool_variable"],
+    variables: ["my_string_variable"],
+    properties: ["target.android.cflags", "cflags"],
+}
+
+special_build_cc_defaults {
+    name: "sample_cc_defaults",
+    target: {
+        android: {
+            cflags: ["-DFOO"],
+        },
+    },
+    soong_config_variables: {
+        my_bool_variable: {
+            target: {
+                android: {
+                    cflags: ["-DBAR"],
+                },
+            },
+            conditions_default: {
+                target: {
+                    android: {
+                        cflags: ["-DBAZ"],
+                    },
+                },
+            },
+        },
+        my_string_variable: {
+            value1: {
+                cflags: ["-DVALUE1_NOT_ANDROID"],
+                target: {
+                    android: {
+                        cflags: ["-DVALUE1"],
+                    },
+                },
+            },
+            value2: {
+                target: {
+                    android: {
+                        cflags: ["-DVALUE2"],
+                    },
+                },
+            },
+            conditions_default: {
+                target: {
+                    android: {
+                        cflags: ["-DSTRING_VAR_CONDITIONS_DEFAULT"],
+                    },
+                },
+            },
+        },
+    },
+}
+
+cc_binary {
+    name: "my_binary",
+    srcs: ["main.cc"],
+    defaults: ["sample_cc_defaults"],
+}`
+
+	runSoongConfigModuleTypeTest(t, Bp2buildTestCase{
+		Description:                "soong config variables - generates selects for library_linking_strategy",
+		ModuleTypeUnderTest:        "cc_binary",
+		ModuleTypeUnderTestFactory: cc.BinaryFactory,
+		Blueprint:                  bp,
+		Filesystem:                 map[string]string{},
+		ExpectedBazelTargets: []string{`cc_binary(
+    name = "my_binary",
+    copts = select({
+        "//build/bazel/platforms/os:android": ["-DFOO"],
+        "//conditions:default": [],
+    }) + select({
+        "//build/bazel/product_variables:my_namespace__my_bool_variable__android": ["-DBAR"],
+        "//build/bazel/product_variables:my_namespace__my_bool_variable__conditions_default__android": ["-DBAZ"],
+        "//conditions:default": [],
+    }) + select({
+        "//build/bazel/product_variables:my_namespace__my_string_variable__value1": ["-DVALUE1_NOT_ANDROID"],
+        "//conditions:default": [],
+    }) + select({
+        "//build/bazel/product_variables:my_namespace__my_string_variable__conditions_default__android": ["-DSTRING_VAR_CONDITIONS_DEFAULT"],
+        "//build/bazel/product_variables:my_namespace__my_string_variable__value1__android": ["-DVALUE1"],
+        "//build/bazel/product_variables:my_namespace__my_string_variable__value2__android": ["-DVALUE2"],
+        "//conditions:default": [],
+    }),
+    local_includes = ["."],
+    srcs = ["main.cc"],
+    target_compatible_with = ["//build/bazel/platforms/os:android"],
+)`}})
+}
