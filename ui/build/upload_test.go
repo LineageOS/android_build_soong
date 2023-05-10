@@ -166,7 +166,7 @@ func TestUploadMetrics(t *testing.T) {
 				metricsUploader: tt.uploader,
 			}}
 
-			UploadMetrics(ctx, config, false, time.Now(), "out/bazel_metrics.txt", "out/bazel_metrics.pb", metricsFiles...)
+			UploadMetrics(ctx, config, false, time.Now(), metricsFiles...)
 		})
 	}
 }
@@ -221,7 +221,7 @@ func TestUploadMetricsErrors(t *testing.T) {
 				metricsUploader: "echo",
 			}}
 
-			UploadMetrics(ctx, config, true, time.Now(), "", "", metricsFile)
+			UploadMetrics(ctx, config, true, time.Now(), metricsFile)
 			t.Errorf("got nil, expecting %q as a failure", tt.expectedErr)
 		})
 	}

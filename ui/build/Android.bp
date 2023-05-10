@@ -46,6 +46,7 @@ bootstrap_go_package {
         "soong-ui-tracer",
     ],
     srcs: [
+        "bazel_metrics.go",
         "build.go",
         "cleanbuild.go",
         "config.go",
