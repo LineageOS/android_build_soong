@@ -80,6 +80,7 @@ type pathMapping struct {
 
 type FileArg struct {
 	PathPrefixInZip, SourcePrefixToStrip string
+	ExplicitPathInZip                    string
 	SourceFiles                          []string
 	JunkPaths                            bool
 	GlobDir                              string
@@ -124,6 +125,10 @@ func (b *FileArgsBuilder) File(name string) *FileArgsBuilder {
 	arg := b.state
 	arg.SourceFiles = []string{name}
 	b.fileArgs = append(b.fileArgs, arg)
+
+	if b.state.ExplicitPathInZip != "" {
+		b.state.ExplicitPathInZip = ""
+	}
 	return b
 }
 
@@ -186,6 +191,12 @@ func (b *FileArgsBuilder) RspFile(name string) *FileArgsBuilder {
 		arg.SourceFiles[i] = pathtools.MatchEscape(arg.SourceFiles[i])
 	}
 	b.fileArgs = append(b.fileArgs, arg)
+	return b
+}
+
+// ExplicitPathInZip sets the path in the zip file for the next File call.
+func (b *FileArgsBuilder) ExplicitPathInZip(s string) *FileArgsBuilder {
+	b.state.ExplicitPathInZip = s
 	return b
 }
 
@@ -425,7 +436,9 @@ func fillPathPairs(fa FileArg, src string, pathMappings *[]pathMapping,
 
 	var dest string
 
-	if fa.JunkPaths {
+	if fa.ExplicitPathInZip != "" {
+		dest = fa.ExplicitPathInZip
+	} else if fa.JunkPaths {
 		dest = filepath.Base(src)
 	} else {
 		var err error

@@ -78,6 +78,15 @@ func (rspFiles) Set(s string) error {
 	return nil
 }
 
+type explicitFile struct{}
+
+func (explicitFile) String() string { return `""` }
+
+func (explicitFile) Set(s string) error {
+	fileArgsBuilder.ExplicitPathInZip(s)
+	return nil
+}
+
 type dir struct{}
 
 func (dir) String() string { return `""` }
@@ -173,6 +182,7 @@ func main() {
 	flags.Var(&nonDeflatedFiles, "s", "file path to be stored within the zip without compression")
 	flags.Var(&relativeRoot{}, "C", "path to use as relative root of files in following -f, -l, or -D arguments")
 	flags.Var(&junkPaths{}, "j", "junk paths, zip files without directory names")
+	flags.Var(&explicitFile{}, "e", "filename to use in the zip file for the next -f argument")
 
 	flags.Parse(expandedArgs[1:])
 
