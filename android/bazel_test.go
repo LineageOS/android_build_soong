@@ -218,7 +218,7 @@ func (bcc *TestBazelConversionContext) Config() Config {
 
 var bazelableBazelModuleBase = BazelModuleBase{
 	bazelProperties: properties{
-		Bazel_module: bazelModuleProperties{
+		Bazel_module: BazelModuleProperties{
 			CanConvertToBazel: true,
 		},
 	},
@@ -344,7 +344,7 @@ func TestBp2BuildAllowlist(t *testing.T) {
 				},
 				BazelModuleBase: BazelModuleBase{
 					bazelProperties: properties{
-						Bazel_module: bazelModuleProperties{
+						Bazel_module: BazelModuleProperties{
 							CanConvertToBazel:  true,
 							Bp2build_available: proptools.BoolPtr(true),
 						},
