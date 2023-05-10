@@ -80,6 +80,7 @@ android_app {
         static_libs: ["static_lib_dep"],
         java_version: "7",
         certificate: "foocert",
+        required: ["static_lib_dep"],
 }
 `,
 		ExpectedBazelTargets: []string{
