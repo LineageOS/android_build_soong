@@ -749,6 +749,10 @@ var (
 		"CaptivePortalLogin",
 
 		"libstagefright_headers",
+
+		// aidl
+		"aidl",
+		"libaidl-common",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
