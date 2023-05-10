@@ -181,3 +181,10 @@ func FixtureDisableDexpreoptBootImages(disable bool) android.FixturePreparer {
 		dexpreoptConfig.DisablePreoptBootImages = disable
 	})
 }
+
+// FixtureDisableDexpreopt sets the DisablePreopt property in the global config.
+func FixtureDisableDexpreopt(disable bool) android.FixturePreparer {
+	return FixtureModifyGlobalConfig(func(_ android.PathContext, dexpreoptConfig *GlobalConfig) {
+		dexpreoptConfig.DisablePreopt = disable
+	})
+}
