@@ -92,13 +92,12 @@ var commands = []command{
 		stdio:       stdio,
 		run:         runMake,
 	}, {
-		flag:        "--upload-metrics-only",
-		description: "upload metrics without building anything",
+		flag:        "--finalize-bazel-metrics",
+		description: "finalize b metrics and upload",
 		config:      build.UploadOnlyConfig,
 		stdio:       stdio,
-		// Upload-only mode mostly skips to the metrics-uploading phase of soong_ui.
-		// However, this invocation marks the true "end of the build", and thus we
-		// need to update the total runtime of the build to include this upload step.
+		// Finalize-bazel-metrics mode updates metrics files and calls the metrics
+		// uploader. This marks the end of a b invocation.
 		run: finalizeBazelMetrics,
 	},
 }
