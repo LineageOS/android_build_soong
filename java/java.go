@@ -2972,7 +2972,7 @@ type kotlinAttributes struct {
 func ktJvmLibraryBazelTargetModuleProperties() bazel.BazelTargetModuleProperties {
 	return bazel.BazelTargetModuleProperties{
 		Rule_class:        "kt_jvm_library",
-		Bzl_load_location: "//build/bazel/rules/kotlin:rules.bzl",
+		Bzl_load_location: "//build/bazel/rules/kotlin:kt_jvm_library.bzl",
 	}
 }
 
