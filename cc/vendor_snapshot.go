@@ -250,7 +250,11 @@ var ccSnapshotAction snapshot.GenerateSnapshotAction = func(s snapshot.SnapshotS
 		for _, path := range m.VintfFragments() {
 			prop.VintfFragments = append(prop.VintfFragments, filepath.Join("configs", path.Base()))
 		}
-		prop.MinSdkVersion = m.MinSdkVersion()
+		if m.IsPrebuilt() {
+			prop.MinSdkVersion = "apex_inherit"
+		} else {
+			prop.MinSdkVersion = m.MinSdkVersion()
+		}
 
 		// install config files. ignores any duplicates.
 		for _, path := range append(m.InitRc(), m.VintfFragments()...) {
@@ -324,13 +328,13 @@ var ccSnapshotAction snapshot.GenerateSnapshotAction = func(s snapshot.SnapshotS
 						}
 					}
 				}
-				snapshotLibOut := filepath.Join(snapshotArchDir, targetArch, libType, stem)
+				snapshotLibOut := filepath.Join(snapshotArchDir, targetArch, libType, m.RelativeInstallPath(), stem)
 				ret = append(ret, copyFile(ctx, libPath, snapshotLibOut, fake))
 			} else {
 				stem = ctx.ModuleName(m)
 			}
 
-			propOut = filepath.Join(snapshotArchDir, targetArch, libType, stem+".json")
+			propOut = filepath.Join(snapshotArchDir, targetArch, libType, m.RelativeInstallPath(), stem+".json")
 		} else if m.Binary() {
 			// binary flags
 			prop.Symlinks = m.Symlinks()

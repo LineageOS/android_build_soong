@@ -23,6 +23,17 @@ import (
 	"testing"
 )
 
+func checkJsonContents(t *testing.T, ctx android.TestingSingleton, jsonPath string, key string, value string) {
+	jsonOut := ctx.MaybeOutput(jsonPath)
+	if jsonOut.Rule == nil {
+		t.Errorf("%q expected but not found", jsonPath)
+		return
+	}
+	if !strings.Contains(jsonOut.Args["content"], fmt.Sprintf("%q:%q", key, value)) {
+		t.Errorf("%q must include %q:%q but it only has %v", jsonPath, key, value, jsonOut.Args["content"])
+	}
+}
+
 func TestVendorSnapshotCapture(t *testing.T) {
 	bp := `
 	cc_library {
@@ -52,6 +63,7 @@ func TestVendorSnapshotCapture(t *testing.T) {
 		name: "libvendor_available",
 		vendor_available: true,
 		nocrt: true,
+		min_sdk_version: "29",
 	}
 
 	cc_library_headers {
@@ -154,6 +166,9 @@ func TestVendorSnapshotCapture(t *testing.T) {
 			filepath.Join(staticDir, "libvendor.cfi.a.json"),
 			filepath.Join(staticDir, "libvendor_available.a.json"),
 			filepath.Join(staticDir, "libvendor_available.cfi.a.json"))
+
+		checkJsonContents(t, snapshotSingleton, filepath.Join(staticDir, "libb.a.json"), "MinSdkVersion", "apex_inherit")
+		checkJsonContents(t, snapshotSingleton, filepath.Join(staticDir, "libvendor_available.a.json"), "MinSdkVersion", "29")
 
 		// For binary executables, all vendor:true and vendor_available modules are captured.
 		if archType == "arm64" {
@@ -1654,6 +1669,72 @@ func TestRecoverySnapshotDirected(t *testing.T) {
 	for _, jsonFile := range includeJsonFiles {
 		if snapshotSingleton.MaybeOutput(jsonFile).Rule == nil {
 			t.Errorf("include json file %q not found", jsonFile)
+		}
+	}
+}
+
+func TestSnapshotInRelativeInstallPath(t *testing.T) {
+	bp := `
+	cc_library {
+		name: "libvendor_available",
+		vendor_available: true,
+		nocrt: true,
+	}
+
+	cc_library {
+		name: "libvendor_available_var",
+		vendor_available: true,
+		stem: "libvendor_available",
+		relative_install_path: "var",
+		nocrt: true,
+	}
+`
+
+	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
+	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
+	config.TestProductVariables.Platform_vndk_version = StringPtr("29")
+	ctx := testCcWithConfig(t, config)
+
+	// Check Vendor snapshot output.
+
+	snapshotDir := "vendor-snapshot"
+	snapshotVariantPath := filepath.Join("out/soong", snapshotDir, "arm64")
+	snapshotSingleton := ctx.SingletonForTests("vendor-snapshot")
+
+	var jsonFiles []string
+
+	for _, arch := range [][]string{
+		[]string{"arm64", "armv8-a"},
+		[]string{"arm", "armv7-a-neon"},
+	} {
+		archType := arch[0]
+		archVariant := arch[1]
+		archDir := fmt.Sprintf("arch-%s-%s", archType, archVariant)
+
+		// For shared libraries, only non-VNDK vendor_available modules are captured
+		sharedVariant := fmt.Sprintf("android_vendor.29_%s_%s_shared", archType, archVariant)
+		sharedDir := filepath.Join(snapshotVariantPath, archDir, "shared")
+		sharedDirVar := filepath.Join(sharedDir, "var")
+		CheckSnapshot(t, ctx, snapshotSingleton, "libvendor_available", "libvendor_available.so", sharedDir, sharedVariant)
+		CheckSnapshot(t, ctx, snapshotSingleton, "libvendor_available_var", "libvendor_available.so", sharedDirVar, sharedVariant)
+		jsonFiles = append(jsonFiles,
+			filepath.Join(sharedDir, "libvendor_available.so.json"),
+			filepath.Join(sharedDirVar, "libvendor_available.so.json"))
+	}
+
+	for _, jsonFile := range jsonFiles {
+		// verify all json files exist
+		if snapshotSingleton.MaybeOutput(jsonFile).Rule == nil {
+			t.Errorf("%q expected but not found", jsonFile)
+		}
+	}
+
+	// fake snapshot should have all outputs in the normal snapshot.
+	fakeSnapshotSingleton := ctx.SingletonForTests("vendor-fake-snapshot")
+	for _, output := range snapshotSingleton.AllOutputs() {
+		fakeOutput := strings.Replace(output, "/vendor-snapshot/", "/fake/vendor-snapshot/", 1)
+		if fakeSnapshotSingleton.MaybeOutput(fakeOutput).Rule == nil {
+			t.Errorf("%q expected but not found", fakeOutput)
 		}
 	}
 }
