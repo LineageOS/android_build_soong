@@ -4473,11 +4473,12 @@ cc_library {
 		ExpectedBazelTargets: []string{
 			MakeBazelTargetNoRestrictions(
 				"config_setting",
-				"android-in_myapex",
+				"myapex",
 				AttrNameToString{
 					"flag_values": `{
-        "//build/bazel/rules/apex:apex_name": "myapex",
+        "//build/bazel/rules/apex:api_domain": "myapex",
     }`,
+					"constraint_values": `["//build/bazel/platforms/os:android"]`,
 				},
 			),
 		},
