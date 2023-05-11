@@ -1475,10 +1475,11 @@ apex_test {
 `,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("apex", "test_com.android.apogee", AttrNameToString{
-				"file_contexts": `"file_contexts_file"`,
-				"manifest":      `"apex_manifest.json"`,
-				"testonly":      `True`,
-				"tests":         `[":cc_test_1"]`,
+				"file_contexts":  `"file_contexts_file"`,
+				"base_apex_name": `"com.android.apogee"`,
+				"manifest":       `"apex_manifest.json"`,
+				"testonly":       `True`,
+				"tests":          `[":cc_test_1"]`,
 			}),
 		}})
 }

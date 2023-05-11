@@ -3700,6 +3700,8 @@ func convertWithBp2build(a *apexBundle, ctx android.TopDownMutatorContext) (baze
 	commonAttrs := android.CommonAttributes{}
 	if a.testApex {
 		commonAttrs.Testonly = proptools.BoolPtr(true)
+		// Set the api_domain of the test apex
+		attrs.Base_apex_name = proptools.StringPtr(cc.GetApiDomain(a.Name()))
 	}
 
 	return attrs, props, commonAttrs
