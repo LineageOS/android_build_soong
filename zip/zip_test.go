@@ -454,6 +454,60 @@ func TestZip(t *testing.T) {
 				fhWithSHA256("c", fileC, zip.Deflate, sha256FileC),
 			},
 		},
+		{
+			name: "explicit path",
+			args: fileArgsBuilder().
+				ExplicitPathInZip("foo").
+				File("a/a/a").
+				File("a/a/b"),
+			compressionLevel: 9,
+
+			files: []zip.FileHeader{
+				fh("foo", fileA, zip.Deflate),
+				fh("a/a/b", fileB, zip.Deflate),
+			},
+		},
+		{
+			name: "explicit path with prefix",
+			args: fileArgsBuilder().
+				PathPrefixInZip("prefix").
+				ExplicitPathInZip("foo").
+				File("a/a/a").
+				File("a/a/b"),
+			compressionLevel: 9,
+
+			files: []zip.FileHeader{
+				fh("prefix/foo", fileA, zip.Deflate),
+				fh("prefix/a/a/b", fileB, zip.Deflate),
+			},
+		},
+		{
+			name: "explicit path with glob",
+			args: fileArgsBuilder().
+				ExplicitPathInZip("foo").
+				File("a/a/a*").
+				File("a/a/b"),
+			compressionLevel: 9,
+
+			files: []zip.FileHeader{
+				fh("foo", fileA, zip.Deflate),
+				fh("a/a/b", fileB, zip.Deflate),
+			},
+		},
+		{
+			name: "explicit path with junk paths",
+			args: fileArgsBuilder().
+				JunkPaths(true).
+				ExplicitPathInZip("foo/bar").
+				File("a/a/a*").
+				File("a/a/b"),
+			compressionLevel: 9,
+
+			files: []zip.FileHeader{
+				fh("foo/bar", fileA, zip.Deflate),
+				fh("b", fileB, zip.Deflate),
+			},
+		},
 
 		// errors
 		{
@@ -488,6 +542,22 @@ func TestZip(t *testing.T) {
 				File("a/a/a").
 				SourcePrefixToStrip("d").
 				File("d/a/a"),
+			err: ConflictingFileError{},
+		},
+		{
+			name: "error explicit path conflicting",
+			args: fileArgsBuilder().
+				ExplicitPathInZip("foo").
+				File("a/a/a").
+				ExplicitPathInZip("foo").
+				File("a/a/b"),
+			err: ConflictingFileError{},
+		},
+		{
+			name: "error explicit path conflicting glob",
+			args: fileArgsBuilder().
+				ExplicitPathInZip("foo").
+				File("a/a/*"),
 			err: ConflictingFileError{},
 		},
 	}
