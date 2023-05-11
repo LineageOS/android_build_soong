@@ -74,7 +74,7 @@ func fixtureAddPrebuiltApexForBootclasspathFragment(apex, fragment string) andro
 func TestSnapshotWithBootclasspathFragment_ImageName(t *testing.T) {
 	result := android.GroupFixturePreparers(
 		prepareForSdkTestWithJava,
-		java.PrepareForTestWithJavaDefaultModules,
+		java.PrepareForTestWithDexpreopt,
 		prepareForSdkTestWithApex,
 
 		// Some additional files needed for the art apex.

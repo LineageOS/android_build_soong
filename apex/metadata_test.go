@@ -27,7 +27,7 @@ import (
 func TestModulesSingleton(t *testing.T) {
 	result := android.GroupFixturePreparers(
 		PrepareForTestWithApexMultitreeSingleton,
-		java.PrepareForTestWithDexpreopt,
+		java.PrepareForTestWithJavaDefaultModules,
 		PrepareForTestWithApexBuildComponents,
 		java.FixtureConfigureApexBootJars("myapex:foo"),
 		java.PrepareForTestWithJavaSdkLibraryFiles,
