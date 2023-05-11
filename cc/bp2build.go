@@ -1210,7 +1210,11 @@ var (
 	}
 )
 
-func getApiDomain(apexName string) string {
+// GetApiDomain returns the canonical name of the apex. This is synonymous to the apex_name definition.
+// https://cs.android.com/android/_/android/platform/build/soong/+/e3f0281b8897da1fe23b2f4f3a05f1dc87bcc902:apex/prebuilt.go;l=81-83;drc=2dc7244af985a6ad701b22f1271e606cabba527f;bpv=1;bpt=0
+// For test apexes, it uses a naming convention heuristic to determine the api domain.
+// TODO (b/281548611): Move this build/soong/android
+func GetApiDomain(apexName string) string {
 	if apiDomain, exists := testApexNameToApiDomain[apexName]; exists {
 		return apiDomain
 	}
@@ -1233,7 +1237,7 @@ func createInApexConfigSetting(ctx android.TopDownMutatorContext, apexName strin
 	defer apiDomainConfigSettingLock.Unlock()
 
 	// Return if a config_setting has already been created
-	apiDomain := getApiDomain(apexName)
+	apiDomain := GetApiDomain(apexName)
 	acsm := getApiDomainConfigSettingMap(ctx.Config())
 	if _, exists := (*acsm)[apiDomain]; exists {
 		return
@@ -1270,7 +1274,7 @@ func inApexConfigSetting(apexAvailable string) string {
 	if apexAvailable == android.AvailableToAnyApex {
 		return bazel.AndroidAndInApex
 	}
-	apiDomain := getApiDomain(apexAvailable)
+	apiDomain := GetApiDomain(apexAvailable)
 	return "//build/bazel/rules/apex:" + apiDomain
 }
 
