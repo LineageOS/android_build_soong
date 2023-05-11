@@ -541,124 +541,102 @@ type ProductConfigContext interface {
 	Module() Module
 }
 
-// ProductConfigProperty contains the information for a single property (may be a struct) paired
-// with the appropriate ProductConfigVariable.
+// ProductConfigOrSoongConfigProperty represents either a soong config variable + its value
+// or a product config variable. You can get both a ConfigurationAxis and a SelectKey from it
+// for use in bazel attributes. ProductVariableProperties() will return a map from properties ->
+// this interface -> property structs for use in bp2build converters
+type ProductConfigOrSoongConfigProperty interface {
+	// Name of the product variable or soong config variable
+	Name() string
+	// AlwaysEmit returns true for soong config variables but false for product variables. This
+	// is intended to indicate if we need to always emit empty lists in the select statements.
+	AlwaysEmit() bool
+	// ConfigurationAxis returns the bazel.ConfigurationAxis that represents this variable. The
+	// configuration axis will change depending on the variable and whether it's arch/os variant
+	// as well.
+	ConfigurationAxis() bazel.ConfigurationAxis
+	// SelectKey returns a string that represents the key of a select branch, however, it is not
+	// actually the real label written out to the build file.
+	// this.ConfigurationAxis().SelectKey(this.SelectKey()) will give the actual label.
+	SelectKey() string
+}
+
+// ProductConfigProperty represents a product config variable, and if it is arch-variant or not.
 type ProductConfigProperty struct {
 	// The name of the product variable, e.g. "safestack", "malloc_not_svelte",
 	// "board"
-	Name string
+	name string
 
-	// Namespace of the variable, if this is a soong_config_module_type variable
-	// e.g. "acme", "ANDROID", "vendor_name"
-	Namespace string
-
-	// Unique configuration to identify this product config property (i.e. a
-	// primary key), as just using the product variable name is not sufficient.
-	//
-	// For product variables, this is the product variable name + optional
-	// archvariant information. e.g.
-	//
-	// product_variables: {
-	//     foo: {
-	//         cflags: ["-Dfoo"],
-	//     },
-	// },
-	//
-	// FullConfig would be "foo".
-	//
-	// target: {
-	//     android: {
-	//         product_variables: {
-	//             foo: {
-	//                 cflags: ["-Dfoo-android"],
-	//             },
-	//         },
-	//     },
-	// },
-	//
-	// FullConfig would be "foo-android".
-	//
-	// For soong config variables, this is the namespace + product variable name
-	// + value of the variable, if applicable. The value can also be
-	// conditions_default.
-	//
-	// e.g.
-	//
-	// soong_config_variables: {
-	//     feature1: {
-	//         conditions_default: {
-	//             cflags: ["-DDEFAULT1"],
-	//         },
-	//         cflags: ["-DFEATURE1"],
-	//     },
-	// }
-	//
-	// where feature1 is created in the "acme" namespace, so FullConfig would be
-	// "acme__feature1" and "acme__feature1__conditions_default".
-	//
-	// e.g.
-	//
-	// soong_config_variables: {
-	//     board: {
-	//         soc_a: {
-	//             cflags: ["-DSOC_A"],
-	//         },
-	//         soc_b: {
-	//             cflags: ["-DSOC_B"],
-	//         },
-	//         soc_c: {},
-	//         conditions_default: {
-	//             cflags: ["-DSOC_DEFAULT"]
-	//         },
-	//     },
-	// }
-	//
-	// where board is created in the "acme" namespace, so FullConfig would be
-	// "acme__board__soc_a", "acme__board__soc_b", and
-	// "acme__board__conditions_default"
-	FullConfig string
-
-	// keeps track of whether this product variable is nested under an arch variant
-	OuterAxis bazel.ConfigurationAxis
+	arch string
 }
 
-func (p *ProductConfigProperty) AlwaysEmit() bool {
-	return p.Namespace != ""
+func (p ProductConfigProperty) Name() string {
+	return p.name
 }
 
-func (p *ProductConfigProperty) ConfigurationAxis() bazel.ConfigurationAxis {
-	if p.Namespace == "" {
-		return bazel.ProductVariableConfigurationAxis(p.FullConfig, p.OuterAxis)
+func (p ProductConfigProperty) AlwaysEmit() bool {
+	return false
+}
+
+func (p ProductConfigProperty) ConfigurationAxis() bazel.ConfigurationAxis {
+	return bazel.ProductVariableConfigurationAxis(p.arch != "", p.name+"__"+p.arch)
+}
+
+func (p ProductConfigProperty) SelectKey() string {
+	if p.arch == "" {
+		return strings.ToLower(p.name)
 	} else {
-		// Soong config variables can be uniquely identified by the namespace
-		// (e.g. acme, android) and the product variable name (e.g. board, size)
-		return bazel.ProductVariableConfigurationAxis(p.Namespace+"__"+p.Name, bazel.NoConfigAxis)
+		return strings.ToLower(p.name + "-" + p.arch)
 	}
+}
+
+// SoongConfigProperty represents a soong config variable, its value if it's a string variable,
+// and if it's dependent on the OS or not
+type SoongConfigProperty struct {
+	name      string
+	namespace string
+	// Can be an empty string for bool/value soong config variables
+	value string
+	// If there is a target: field inside a soong config property struct, the os that it selects
+	// on will be represented here.
+	os string
+}
+
+func (p SoongConfigProperty) Name() string {
+	return p.name
+}
+
+func (p SoongConfigProperty) AlwaysEmit() bool {
+	return true
+}
+
+func (p SoongConfigProperty) ConfigurationAxis() bazel.ConfigurationAxis {
+	return bazel.ProductVariableConfigurationAxis(false, p.namespace+"__"+p.name+"__"+p.os)
 }
 
 // SelectKey returns the literal string that represents this variable in a BUILD
 // select statement.
-func (p *ProductConfigProperty) SelectKey() string {
-	if p.Namespace == "" {
-		return strings.ToLower(p.FullConfig)
-	}
-
-	if p.FullConfig == bazel.ConditionsDefaultConfigKey {
+func (p SoongConfigProperty) SelectKey() string {
+	// p.value being conditions_default can happen with or without a desired os. When not using
+	// an os, we want to emit literally just //conditions:default in the select statement, but
+	// when using an os, we want to emit namespace__name__conditions_default__os, so that
+	// the branch is only taken if the variable is not set, and we're on the desired os.
+	// ConfigurationAxis#SelectKey will map the conditions_default result of this function to
+	// //conditions:default.
+	if p.value == bazel.ConditionsDefaultConfigKey && p.os == "" {
 		return bazel.ConditionsDefaultConfigKey
 	}
 
-	value := p.FullConfig
-	if value == p.Name {
-		value = ""
+	parts := []string{p.namespace, p.name}
+	if p.value != "" && p.value != bazel.ConditionsDefaultSelectKey {
+		parts = append(parts, p.value)
+	}
+	if p.os != "" {
+		parts = append(parts, p.os)
 	}
 
-	// e.g. acme__feature1, android__board__soc_a
-	selectKey := strings.ToLower(strings.Join([]string{p.Namespace, p.Name}, "__"))
-	if value != "" {
-		selectKey = strings.ToLower(strings.Join([]string{selectKey, value}, "__"))
-	}
-
-	return selectKey
+	// e.g. acme__feature1, android__board__soc_a, my_namespace__my_variables__my_value__my_os
+	return strings.ToLower(strings.Join(parts, "__"))
 }
 
 // ProductConfigProperties is a map of maps to group property values according
@@ -674,7 +652,7 @@ func (p *ProductConfigProperty) SelectKey() string {
 //
 // The value of the map is the interface{} representing the value of the
 // property, like ["-DDEFINES"] for cflags.
-type ProductConfigProperties map[string]map[ProductConfigProperty]interface{}
+type ProductConfigProperties map[string]map[ProductConfigOrSoongConfigProperty]interface{}
 
 // ProductVariableProperties returns a ProductConfigProperties containing only the properties which
 // have been set for the given module.
@@ -685,26 +663,10 @@ func ProductVariableProperties(ctx ArchVariantContext, module Module) ProductCon
 
 	if moduleBase.variableProperties != nil {
 		productVariablesProperty := proptools.FieldNameForProperty("product_variables")
-		productVariableValues(
-			productVariablesProperty,
-			moduleBase.variableProperties,
-			"",
-			"",
-			&productConfigProperties,
-			bazel.ConfigurationAxis{},
-		)
-
-		for axis, configToProps := range moduleBase.GetArchVariantProperties(ctx, moduleBase.variableProperties) {
+		for /* axis */ _, configToProps := range moduleBase.GetArchVariantProperties(ctx, moduleBase.variableProperties) {
 			for config, props := range configToProps {
-				// GetArchVariantProperties is creating an instance of the requested type
-				// and productVariablesValues expects an interface, so no need to cast
-				productVariableValues(
-					productVariablesProperty,
-					props,
-					"",
-					config,
-					&productConfigProperties,
-					axis)
+				variableValues := reflect.ValueOf(props).Elem().FieldByName(productVariablesProperty)
+				productConfigProperties.AddProductConfigProperties(variableValues, config)
 			}
 		}
 	}
@@ -712,13 +674,8 @@ func ProductVariableProperties(ctx ArchVariantContext, module Module) ProductCon
 	if m, ok := module.(Bazelable); ok && m.namespacedVariableProps() != nil {
 		for namespace, namespacedVariableProps := range m.namespacedVariableProps() {
 			for _, namespacedVariableProp := range namespacedVariableProps {
-				productVariableValues(
-					soongconfig.SoongConfigProperty,
-					namespacedVariableProp,
-					namespace,
-					"",
-					&productConfigProperties,
-					bazel.NoConfigAxis)
+				variableValues := reflect.ValueOf(namespacedVariableProp).Elem().FieldByName(soongconfig.SoongConfigProperty)
+				productConfigProperties.AddSoongConfigProperties(namespace, variableValues)
 			}
 		}
 	}
@@ -727,30 +684,49 @@ func ProductVariableProperties(ctx ArchVariantContext, module Module) ProductCon
 }
 
 func (p *ProductConfigProperties) AddProductConfigProperty(
-	propertyName, namespace, productVariableName, config string, property interface{}, outerAxis bazel.ConfigurationAxis) {
-	if (*p)[propertyName] == nil {
-		(*p)[propertyName] = make(map[ProductConfigProperty]interface{})
-	}
+	propertyName, productVariableName, arch string, propertyValue interface{}) {
 
 	productConfigProp := ProductConfigProperty{
-		Namespace:  namespace,           // e.g. acme, android
-		Name:       productVariableName, // e.g. size, feature1, feature2, FEATURE3, board
-		FullConfig: config,              // e.g. size, feature1-x86, size__conditions_default
-		OuterAxis:  outerAxis,
+		name: productVariableName, // e.g. size, feature1, feature2, FEATURE3, board
+		arch: arch,                // e.g. "", x86, arm64
 	}
 
-	if existing, ok := (*p)[propertyName][productConfigProp]; ok && namespace != "" {
+	p.AddEitherProperty(propertyName, productConfigProp, propertyValue)
+}
+
+func (p *ProductConfigProperties) AddSoongConfigProperty(
+	propertyName, namespace, variableName, value, os string, propertyValue interface{}) {
+
+	soongConfigProp := SoongConfigProperty{
+		namespace: namespace,
+		name:      variableName, // e.g. size, feature1, feature2, FEATURE3, board
+		value:     value,
+		os:        os, // e.g. android, linux_x86
+	}
+
+	p.AddEitherProperty(propertyName, soongConfigProp, propertyValue)
+}
+
+func (p *ProductConfigProperties) AddEitherProperty(
+	propertyName string, key ProductConfigOrSoongConfigProperty, propertyValue interface{}) {
+	if (*p)[propertyName] == nil {
+		(*p)[propertyName] = make(map[ProductConfigOrSoongConfigProperty]interface{})
+	}
+
+	if existing, ok := (*p)[propertyName][key]; ok {
 		switch dst := existing.(type) {
 		case []string:
-			if src, ok := property.([]string); ok {
-				dst = append(dst, src...)
-				(*p)[propertyName][productConfigProp] = dst
+			src, ok := propertyValue.([]string)
+			if !ok {
+				panic("Conflicting types")
 			}
+			dst = append(dst, src...)
+			(*p)[propertyName][key] = dst
 		default:
-			panic(fmt.Errorf("TODO: handle merging value %s", existing))
+			panic(fmt.Errorf("TODO: handle merging value %#v", existing))
 		}
 	} else {
-		(*p)[propertyName][productConfigProp] = property
+		(*p)[propertyName][key] = propertyValue
 	}
 }
 
@@ -787,10 +763,7 @@ func maybeExtractConfigVarProp(v reflect.Value) (reflect.Value, bool) {
 	return v, true
 }
 
-func (productConfigProperties *ProductConfigProperties) AddProductConfigProperties(namespace, suffix string, variableValues reflect.Value, outerAxis bazel.ConfigurationAxis) {
-	// variableValues can either be a product_variables or
-	// soong_config_variables struct.
-	//
+func (productConfigProperties *ProductConfigProperties) AddProductConfigProperties(variableValues reflect.Value, arch string) {
 	// Example of product_variables:
 	//
 	// product_variables: {
@@ -803,35 +776,7 @@ func (productConfigProperties *ProductConfigProperties) AddProductConfigProperti
 	//         ],
 	//     },
 	// },
-	//
-	// Example of soong_config_variables:
-	//
-	// soong_config_variables: {
-	//      feature1: {
-	//        	conditions_default: {
-	//               ...
-	//          },
-	//          cflags: ...
-	//      },
-	//      feature2: {
-	//          cflags: ...
-	//        	conditions_default: {
-	//               ...
-	//          },
-	//      },
-	//      board: {
-	//         soc_a: {
-	//             ...
-	//         },
-	//         soc_a: {
-	//             ...
-	//         },
-	//         soc_c: {},
-	//         conditions_default: {
-	//              ...
-	//         },
-	//      },
-	// }
+
 	for i := 0; i < variableValues.NumField(); i++ {
 		// e.g. Platform_sdk_version, Unbundled_build, Malloc_not_svelte, etc.
 		productVariableName := variableValues.Type().Field(i).Name
@@ -843,25 +788,78 @@ func (productConfigProperties *ProductConfigProperties) AddProductConfigProperti
 			continue
 		}
 
-		// Unlike product variables, config variables require a few more
-		// indirections to extract the struct from the reflect.Value.
-		if v, ok := maybeExtractConfigVarProp(variableValue); ok {
-			variableValue = v
-		}
-
 		for j := 0; j < variableValue.NumField(); j++ {
 			property := variableValue.Field(j)
 			// e.g. Asflags, Cflags, Enabled, etc.
 			propertyName := variableValue.Type().Field(j).Name
-			// config can also be "conditions_default".
-			config := proptools.PropertyNameForField(propertyName)
+			if property.Kind() != reflect.Interface {
+				productConfigProperties.AddProductConfigProperty(propertyName, productVariableName, arch, property.Interface())
+			}
+		}
+	}
+
+}
+
+func (productConfigProperties *ProductConfigProperties) AddSoongConfigProperties(namespace string, soongConfigVariablesStruct reflect.Value) {
+	//
+	// Example of soong_config_variables:
+	//
+	// soong_config_variables: {
+	//      feature1: {
+	//          conditions_default: {
+	//               ...
+	//          },
+	//          cflags: ...
+	//      },
+	//      feature2: {
+	//          cflags: ...
+	//          conditions_default: {
+	//               ...
+	//          },
+	//      },
+	//      board: {
+	//         soc_a: {
+	//             ...
+	//         },
+	//         soc_b: {
+	//             ...
+	//         },
+	//         soc_c: {},
+	//         conditions_default: {
+	//              ...
+	//         },
+	//      },
+	// }
+	for i := 0; i < soongConfigVariablesStruct.NumField(); i++ {
+		// e.g. feature1, feature2, board
+		variableName := soongConfigVariablesStruct.Type().Field(i).Name
+		variableStruct := soongConfigVariablesStruct.Field(i)
+		// Check if any properties were set for the module
+		if variableStruct.IsZero() {
+			// e.g. feature1: {}
+			continue
+		}
+
+		// Unlike product variables, config variables require a few more
+		// indirections to extract the struct from the reflect.Value.
+		if v, ok := maybeExtractConfigVarProp(variableStruct); ok {
+			variableStruct = v
+		}
+
+		for j := 0; j < variableStruct.NumField(); j++ {
+			propertyOrStruct := variableStruct.Field(j)
+			// propertyOrValueName can either be:
+			//  - A property, like: Asflags, Cflags, Enabled, etc.
+			//  - A soong config string variable's value, like soc_a, soc_b, soc_c in the example above
+			//  - "conditions_default"
+			propertyOrValueName := variableStruct.Type().Field(j).Name
 
 			// If the property wasn't set, no need to pass it along
-			if property.IsZero() {
+			if propertyOrStruct.IsZero() {
 				continue
 			}
 
-			if v, ok := maybeExtractConfigVarProp(property); ok {
+			if v, ok := maybeExtractConfigVarProp(propertyOrStruct); ok {
 				// The field is a struct, which is used by:
 				// 1) soong_config_string_variables
 				//
@@ -879,6 +877,9 @@ func (productConfigProperties *ProductConfigProperties) AddProductConfigProperti
 				//     cflags: ...,
 				//     static_libs: ...
 				// }
+				//
+				// This means that propertyOrValueName is either conditions_default, or a soong
+				// config string variable's value.
 				field := v
 				// Iterate over fields of this struct prop.
 				for k := 0; k < field.NumField(); k++ {
@@ -888,47 +889,59 @@ func (productConfigProperties *ProductConfigProperties) AddProductConfigProperti
 					if field.Field(k).IsZero() && namespace == "" {
 						continue
 					}
-					actualPropertyName := field.Type().Field(k).Name
 
-					productConfigProperties.AddProductConfigProperty(
-						actualPropertyName,  // e.g. cflags, static_libs
-						namespace,           // e.g. acme, android
-						productVariableName, // e.g. size, feature1, FEATURE2, board
-						config,
-						field.Field(k).Interface(), // e.g. ["-DDEFAULT"], ["foo", "bar"],
-						outerAxis,
-					)
+					propertyName := field.Type().Field(k).Name
+					if propertyName == "Target" {
+						productConfigProperties.AddSoongConfigPropertiesFromTargetStruct(namespace, variableName, proptools.PropertyNameForField(propertyOrValueName), field.Field(k))
+					} else if propertyName == "Arch" || propertyName == "Multilib" {
+						panic("Arch/Multilib are not currently supported in soong config variable structs")
+					} else {
+						productConfigProperties.AddSoongConfigProperty(propertyName, namespace, variableName, proptools.PropertyNameForField(propertyOrValueName), "", field.Field(k).Interface())
+					}
 				}
-			} else if property.Kind() != reflect.Interface {
+			} else if propertyOrStruct.Kind() != reflect.Interface {
 				// If not an interface, then this is not a conditions_default or
-				// a struct prop. That is, this is a regular product variable,
-				// or a bool/value config variable.
-				config := productVariableName + suffix
-				productConfigProperties.AddProductConfigProperty(
-					propertyName,
-					namespace,
-					productVariableName,
-					config,
-					property.Interface(),
-					outerAxis,
-				)
+				// a struct prop. That is, this is a bool/value config variable.
+				if propertyOrValueName == "Target" {
+					productConfigProperties.AddSoongConfigPropertiesFromTargetStruct(namespace, variableName, "", propertyOrStruct)
+				} else if propertyOrValueName == "Arch" || propertyOrValueName == "Multilib" {
+					panic("Arch/Multilib are not currently supported in soong config variable structs")
+				} else {
+					productConfigProperties.AddSoongConfigProperty(propertyOrValueName, namespace, variableName, "", "", propertyOrStruct.Interface())
+				}
 			}
 		}
 	}
 }
 
-// productVariableValues uses reflection to convert a property struct for
-// product_variables and soong_config_variables to structs that can be generated
-// as select statements.
-func productVariableValues(
-	fieldName string, variableProps interface{}, namespace, suffix string, productConfigProperties *ProductConfigProperties, outerAxis bazel.ConfigurationAxis) {
-	if suffix != "" {
-		suffix = "-" + suffix
-	}
+func (productConfigProperties *ProductConfigProperties) AddSoongConfigPropertiesFromTargetStruct(namespace, soongConfigVariableName string, soongConfigVariableValue string, targetStruct reflect.Value) {
+	// targetStruct will be a struct with fields like "android", "host", "arm", "x86",
+	// "android_arm", etc. The values of each of those fields will be a regular property struct.
+	for i := 0; i < targetStruct.NumField(); i++ {
+		targetFieldName := targetStruct.Type().Field(i).Name
+		archOrOsSpecificStruct := targetStruct.Field(i)
+		for j := 0; j < archOrOsSpecificStruct.NumField(); j++ {
+			property := archOrOsSpecificStruct.Field(j)
+			// e.g. Asflags, Cflags, Enabled, etc.
+			propertyName := archOrOsSpecificStruct.Type().Field(j).Name
 
-	// variableValues represent the product_variables or soong_config_variables struct.
-	variableValues := reflect.ValueOf(variableProps).Elem().FieldByName(fieldName)
-	productConfigProperties.AddProductConfigProperties(namespace, suffix, variableValues, outerAxis)
+			if targetFieldName == "Android" {
+				productConfigProperties.AddSoongConfigProperty(propertyName, namespace, soongConfigVariableName, soongConfigVariableValue, "android", property.Interface())
+			} else if targetFieldName == "Host" {
+				for _, os := range osTypeList {
+					if os.Class == Host {
+						productConfigProperties.AddSoongConfigProperty(propertyName, namespace, soongConfigVariableName, soongConfigVariableValue, os.Name, property.Interface())
+					}
+				}
+			} else {
+				// One problem with supporting additional fields is that if multiple branches of
+				// "target" overlap, we don't want them to be in the same select statement (aka
+				// configuration axis). "android" and "host" are disjoint, so it's ok that we only
+				// have 2 axes right now. (soongConfigVariables and soongConfigVariablesPlusOs)
+				panic("TODO: support other target types in soong config variable structs: " + targetFieldName)
+			}
+		}
+	}
 }
 
 func VariableMutator(mctx BottomUpMutatorContext) {

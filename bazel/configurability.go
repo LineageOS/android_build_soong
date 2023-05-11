@@ -292,8 +292,7 @@ func (ca ConfigurationAxis) SelectKey(config string) string {
 	case osArch:
 		return platformOsArchMap[config]
 	case productVariables:
-		if strings.HasSuffix(config, ConditionsDefaultConfigKey) {
-			// e.g. "acme__feature1__conditions_default" or "android__board__conditions_default"
+		if config == ConditionsDefaultConfigKey {
 			return ConditionsDefaultSelectKey
 		}
 		return fmt.Sprintf("%s:%s", productVariableBazelPackage, config)
@@ -325,11 +324,11 @@ var (
 )
 
 // ProductVariableConfigurationAxis returns an axis for the given product variable
-func ProductVariableConfigurationAxis(variable string, outerAxis ConfigurationAxis) ConfigurationAxis {
+func ProductVariableConfigurationAxis(archVariant bool, variable string) ConfigurationAxis {
 	return ConfigurationAxis{
 		configurationType: productVariables,
 		subType:           variable,
-		outerAxisType:     outerAxis.configurationType,
+		archVariant:       archVariant,
 	}
 }
 
@@ -340,8 +339,8 @@ type ConfigurationAxis struct {
 	// some configuration types (e.g. productVariables) have multiple independent axes, subType helps
 	// distinguish between them without needing to list all 17 product variables.
 	subType string
-	// used to keep track of which product variables are arch variant
-	outerAxisType configurationType
+
+	archVariant bool
 }
 
 func (ca *ConfigurationAxis) less(other ConfigurationAxis) bool {
