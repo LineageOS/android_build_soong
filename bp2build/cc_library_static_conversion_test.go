@@ -1504,6 +1504,7 @@ cc_library {
         versions: ["current"],
     },
     bazel_module: { bp2build_available: false },
+    apex_available: ["com.android.runtime"],
 }
 
 cc_library_static {
@@ -1561,7 +1562,8 @@ cc_library_static {
 			}),
 			MakeBazelTarget("cc_library_static", "keep_with_stubs", AttrNameToString{
 				"implementation_dynamic_deps": `select({
-        "//build/bazel/rules/apex:android-in_apex": ["@api_surfaces//module-libapi/current:libm"],
+        "//build/bazel/rules/apex:foo": ["@api_surfaces//module-libapi/current:libm"],
+        "//build/bazel/rules/apex:system": ["@api_surfaces//module-libapi/current:libm"],
         "//conditions:default": [":libm"],
     })`,
 				"system_dynamic_deps": `[]`,

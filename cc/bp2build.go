@@ -1194,14 +1194,32 @@ func availableToSameApexes(a, b []string) bool {
 }
 
 var (
-	apexConfigSettingKey  = android.NewOnceKey("apexConfigSetting")
-	apexConfigSettingLock sync.Mutex
+	apiDomainConfigSettingKey  = android.NewOnceKey("apiDomainConfigSettingKey")
+	apiDomainConfigSettingLock sync.Mutex
 )
 
-func getApexConfigSettingMap(config android.Config) *map[string]bool {
-	return config.Once(apexConfigSettingKey, func() interface{} {
+func getApiDomainConfigSettingMap(config android.Config) *map[string]bool {
+	return config.Once(apiDomainConfigSettingKey, func() interface{} {
 		return &map[string]bool{}
 	}).(*map[string]bool)
+}
+
+var (
+	testApexNameToApiDomain = map[string]string{
+		"test_broken_com.android.art": "com.android.art",
+	}
+)
+
+// GetApiDomain returns the canonical name of the apex. This is synonymous to the apex_name definition.
+// https://cs.android.com/android/_/android/platform/build/soong/+/e3f0281b8897da1fe23b2f4f3a05f1dc87bcc902:apex/prebuilt.go;l=81-83;drc=2dc7244af985a6ad701b22f1271e606cabba527f;bpv=1;bpt=0
+// For test apexes, it uses a naming convention heuristic to determine the api domain.
+// TODO (b/281548611): Move this build/soong/android
+func GetApiDomain(apexName string) string {
+	if apiDomain, exists := testApexNameToApiDomain[apexName]; exists {
+		return apiDomain
+	}
+	// Remove `test_` prefix
+	return strings.TrimPrefix(apexName, "test_")
 }
 
 // Create a config setting for this apex in build/bazel/rules/apex
@@ -1215,23 +1233,32 @@ func createInApexConfigSetting(ctx android.TopDownMutatorContext, apexName strin
 		// These correspond to android-non_apex and android-in_apex
 		return
 	}
-	apexConfigSettingLock.Lock()
-	defer apexConfigSettingLock.Unlock()
+	apiDomainConfigSettingLock.Lock()
+	defer apiDomainConfigSettingLock.Unlock()
 
 	// Return if a config_setting has already been created
-	acsm := getApexConfigSettingMap(ctx.Config())
-	if _, exists := (*acsm)[apexName]; exists {
+	apiDomain := GetApiDomain(apexName)
+	acsm := getApiDomainConfigSettingMap(ctx.Config())
+	if _, exists := (*acsm)[apiDomain]; exists {
 		return
 	}
-	(*acsm)[apexName] = true
+	(*acsm)[apiDomain] = true
 
 	csa := bazel.ConfigSettingAttributes{
 		Flag_values: bazel.StringMapAttribute{
-			"//build/bazel/rules/apex:apex_name": apexName,
+			"//build/bazel/rules/apex:api_domain": apiDomain,
 		},
+		// Constraint this to android
+		Constraint_values: bazel.MakeLabelListAttribute(
+			bazel.MakeLabelList(
+				[]bazel.Label{
+					bazel.Label{Label: "//build/bazel/platforms/os:android"},
+				},
+			),
+		),
 	}
 	ca := android.CommonAttributes{
-		Name: "android-in_" + apexName,
+		Name: apiDomain,
 	}
 	ctx.CreateBazelConfigSetting(
 		csa,
@@ -1242,59 +1269,58 @@ func createInApexConfigSetting(ctx android.TopDownMutatorContext, apexName strin
 
 func inApexConfigSetting(apexAvailable string) string {
 	if apexAvailable == android.AvailableToPlatform {
-		return bazel.AndroidAndNonApex
+		return bazel.AndroidPlatform
 	}
 	if apexAvailable == android.AvailableToAnyApex {
 		return bazel.AndroidAndInApex
 	}
-	return "//build/bazel/rules/apex:android-in_" + apexAvailable
+	apiDomain := GetApiDomain(apexAvailable)
+	return "//build/bazel/rules/apex:" + apiDomain
+}
+
+// Inputs to stub vs impl selection.
+type stubSelectionInfo struct {
+	// Label of the implementation library (e.g. //bionic/libc:libc)
+	impl bazel.Label
+	// Axis containing the implementation library
+	axis bazel.ConfigurationAxis
+	// Axis key containing the implementation library
+	config string
+	// API domain of the apex
+	// For test apexes (test_com.android.foo), this will be the source apex (com.android.foo)
+	apiDomain string
+	// List of dep labels
+	dynamicDeps *bazel.LabelListAttribute
+	// Boolean value for determining if the dep is in the same api domain
+	// If false, the label will be rewritten to to the stub label
+	sameApiDomain bool
+}
+
+func useStubOrImplInApexWithName(ssi stubSelectionInfo) {
+	lib := ssi.impl
+	if !ssi.sameApiDomain {
+		lib = bazel.Label{
+			Label: apiSurfaceModuleLibCurrentPackage + strings.TrimPrefix(lib.OriginalModuleName, ":"),
+		}
+	}
+	// Create a select statement specific to this apex
+	inApexSelectValue := ssi.dynamicDeps.SelectValue(bazel.OsAndInApexAxis, inApexConfigSetting(ssi.apiDomain))
+	(&inApexSelectValue).Append(bazel.MakeLabelList([]bazel.Label{lib}))
+	ssi.dynamicDeps.SetSelectValue(bazel.OsAndInApexAxis, inApexConfigSetting(ssi.apiDomain), bazel.FirstUniqueBazelLabelList(inApexSelectValue))
+	// Delete the library from the common config for this apex
+	implDynamicDeps := ssi.dynamicDeps.SelectValue(ssi.axis, ssi.config)
+	implDynamicDeps = bazel.SubtractBazelLabelList(implDynamicDeps, bazel.MakeLabelList([]bazel.Label{ssi.impl}))
+	ssi.dynamicDeps.SetSelectValue(ssi.axis, ssi.config, implDynamicDeps)
+	if ssi.axis == bazel.NoConfigAxis {
+		// Set defaults. Defaults (i.e. host) should use impl and not stubs.
+		defaultSelectValue := ssi.dynamicDeps.SelectValue(bazel.OsAndInApexAxis, bazel.ConditionsDefaultConfigKey)
+		(&defaultSelectValue).Append(bazel.MakeLabelList([]bazel.Label{ssi.impl}))
+		ssi.dynamicDeps.SetSelectValue(bazel.OsAndInApexAxis, bazel.ConditionsDefaultConfigKey, bazel.FirstUniqueBazelLabelList(defaultSelectValue))
+	}
 }
 
 func setStubsForDynamicDeps(ctx android.BazelConversionPathContext, axis bazel.ConfigurationAxis,
 	config string, apexAvailable []string, dynamicLibs bazel.LabelList, dynamicDeps *bazel.LabelListAttribute, ind int, buildNonApexWithStubs bool) {
-
-	depsWithStubs := []bazel.Label{}
-	for _, l := range dynamicLibs.Includes {
-		dep, _ := ctx.ModuleFromName(l.OriginalModuleName)
-		if d, ok := dep.(*Module); ok && d.HasStubsVariants() {
-			depApexAvailable := d.ApexAvailable()
-			if !availableToSameApexes(apexAvailable, depApexAvailable) {
-				depsWithStubs = append(depsWithStubs, l)
-			}
-		}
-	}
-	if len(depsWithStubs) > 0 {
-		implDynamicDeps := bazel.SubtractBazelLabelList(dynamicLibs, bazel.MakeLabelList(depsWithStubs))
-		dynamicDeps.SetSelectValue(axis, config, implDynamicDeps)
-
-		stubLibLabels := []bazel.Label{}
-		for _, l := range depsWithStubs {
-			stubLabelInApiSurfaces := bazel.Label{
-				Label: apiSurfaceModuleLibCurrentPackage + strings.TrimPrefix(l.OriginalModuleName, ":"),
-			}
-			stubLibLabels = append(stubLibLabels, stubLabelInApiSurfaces)
-		}
-		inApexSelectValue := dynamicDeps.SelectValue(bazel.OsAndInApexAxis, bazel.AndroidAndInApex)
-		nonApexSelectValue := dynamicDeps.SelectValue(bazel.OsAndInApexAxis, bazel.AndroidAndNonApex)
-		defaultSelectValue := dynamicDeps.SelectValue(bazel.OsAndInApexAxis, bazel.ConditionsDefaultConfigKey)
-		nonApexDeps := depsWithStubs
-		if buildNonApexWithStubs {
-			nonApexDeps = stubLibLabels
-		}
-		if axis == bazel.NoConfigAxis {
-			(&inApexSelectValue).Append(bazel.MakeLabelList(stubLibLabels))
-			(&nonApexSelectValue).Append(bazel.MakeLabelList(nonApexDeps))
-			(&defaultSelectValue).Append(bazel.MakeLabelList(depsWithStubs))
-			dynamicDeps.SetSelectValue(bazel.OsAndInApexAxis, bazel.AndroidAndInApex, bazel.FirstUniqueBazelLabelList(inApexSelectValue))
-			dynamicDeps.SetSelectValue(bazel.OsAndInApexAxis, bazel.AndroidAndNonApex, bazel.FirstUniqueBazelLabelList(nonApexSelectValue))
-			dynamicDeps.SetSelectValue(bazel.OsAndInApexAxis, bazel.ConditionsDefaultConfigKey, bazel.FirstUniqueBazelLabelList(defaultSelectValue))
-		} else if config == bazel.OsAndroid {
-			(&inApexSelectValue).Append(bazel.MakeLabelList(stubLibLabels))
-			(&nonApexSelectValue).Append(bazel.MakeLabelList(nonApexDeps))
-			dynamicDeps.SetSelectValue(bazel.OsAndInApexAxis, bazel.AndroidAndInApex, bazel.FirstUniqueBazelLabelList(inApexSelectValue))
-			dynamicDeps.SetSelectValue(bazel.OsAndInApexAxis, bazel.AndroidAndNonApex, bazel.FirstUniqueBazelLabelList(nonApexSelectValue))
-		}
-	}
 
 	// Create a config_setting for each apex_available.
 	// This will be used to select impl of a dep if dep is available to the same apex.
@@ -1302,6 +1328,52 @@ func setStubsForDynamicDeps(ctx android.BazelConversionPathContext, axis bazel.C
 		createInApexConfigSetting(ctx.(android.TopDownMutatorContext), aa)
 	}
 
+	apiDomainForSelects := []string{}
+	for _, apex := range apexAvailable {
+		apiDomainForSelects = append(apiDomainForSelects, GetApiDomain(apex))
+	}
+	// Always emit a select statement for the platform variant.
+	// This ensures that b build //foo --config=android works
+	// Soong always creates a platform variant even when the library might not be available to platform.
+	if !android.InList(android.AvailableToPlatform, apiDomainForSelects) {
+		apiDomainForSelects = append(apiDomainForSelects, android.AvailableToPlatform)
+	}
+	apiDomainForSelects = android.SortedUniqueStrings(apiDomainForSelects)
+
+	// Create a select for each apex this library could be included in.
+	for _, l := range dynamicLibs.Includes {
+		dep, _ := ctx.ModuleFromName(l.OriginalModuleName)
+		if c, ok := dep.(*Module); !ok || !c.HasStubsVariants() {
+			continue
+		}
+		// TODO (b/280339069): Decrease the verbosity of the generated BUILD files
+		for _, apiDomain := range apiDomainForSelects {
+			var sameApiDomain bool
+			if apiDomain == android.AvailableToPlatform {
+				// Platform variants in Soong use equality of apex_available for stub/impl selection.
+				// https://cs.android.com/android/_/android/platform/build/soong/+/316b0158fe57ee7764235923e7c6f3d530da39c6:cc/cc.go;l=3393-3404;drc=176271a426496fa2688efe2b40d5c74340c63375;bpv=1;bpt=0
+				// One of the factors behind this design choice is cc_test
+				// Tests only have a platform variant, and using equality of apex_available ensures
+				// that tests of an apex library gets its implementation and not stubs.
+				// TODO (b/280343104): Discuss if we can drop this special handling for platform variants.
+				sameApiDomain = availableToSameApexes(apexAvailable, dep.(*Module).ApexAvailable())
+				if linkable, ok := ctx.Module().(LinkableInterface); ok && linkable.Bootstrap() {
+					sameApiDomain = true
+				}
+			} else {
+				sameApiDomain = android.InList(apiDomain, dep.(*Module).ApexAvailable())
+			}
+			ssi := stubSelectionInfo{
+				impl:          l,
+				axis:          axis,
+				config:        config,
+				apiDomain:     apiDomain,
+				dynamicDeps:   dynamicDeps,
+				sameApiDomain: sameApiDomain,
+			}
+			useStubOrImplInApexWithName(ssi)
+		}
+	}
 }
 
 func (la *linkerAttributes) convertStripProps(ctx android.BazelConversionPathContext, module *Module) {
@@ -1396,7 +1468,6 @@ func (la *linkerAttributes) finalize(ctx android.BazelConversionPathContext) {
 		la.implementationDynamicDeps.Exclude(bazel.OsConfigurationAxis, "linux_bionic", toRemove)
 
 		la.implementationDynamicDeps.Exclude(bazel.OsAndInApexAxis, bazel.ConditionsDefaultConfigKey, toRemove)
-		la.implementationDynamicDeps.Exclude(bazel.OsAndInApexAxis, bazel.AndroidAndNonApex, toRemove)
 		stubsToRemove := make([]bazel.Label, 0, len(la.usedSystemDynamicDepAsDynamicDep))
 		for _, lib := range toRemove.Includes {
 			stubLabelInApiSurfaces := bazel.Label{
@@ -1404,7 +1475,12 @@ func (la *linkerAttributes) finalize(ctx android.BazelConversionPathContext) {
 			}
 			stubsToRemove = append(stubsToRemove, stubLabelInApiSurfaces)
 		}
-		la.implementationDynamicDeps.Exclude(bazel.OsAndInApexAxis, bazel.AndroidAndInApex, bazel.MakeLabelList(stubsToRemove))
+		// system libraries (e.g. libc, libm, libdl) belong the com.android.runtime api domain
+		// dedupe the stubs of these libraries from the other api domains (platform, other_apexes...)
+		for _, aa := range ctx.Module().(*Module).ApexAvailable() {
+			la.implementationDynamicDeps.Exclude(bazel.OsAndInApexAxis, inApexConfigSetting(aa), bazel.MakeLabelList(stubsToRemove))
+		}
+		la.implementationDynamicDeps.Exclude(bazel.OsAndInApexAxis, bazel.AndroidPlatform, bazel.MakeLabelList(stubsToRemove))
 	}
 
 	la.deps.ResolveExcludes()
