@@ -87,6 +87,8 @@ func NewSourceFinder(ctx Context, config Config) (f *finder.Finder) {
 			"TEST_MAPPING",
 			// Bazel top-level file to mark a directory as a Bazel workspace.
 			"WORKSPACE",
+			// METADATA file of packages
+			"METADATA",
 		},
 		// Bazel Starlark configuration files and all .mk files for product/board configuration.
 		IncludeSuffixes: []string{".bzl", ".mk"},
@@ -187,6 +189,13 @@ func FindSources(ctx Context, config Config, f *finder.Finder) {
 	err = dumpListToFile(ctx, config, owners, filepath.Join(dumpDir, "OWNERS.list"))
 	if err != nil {
 		ctx.Fatalf("Could not find OWNERS: %v", err)
+	}
+
+	// Recursively look for all METADATA files.
+	metadataFiles := f.FindNamedAt(".", "METADATA")
+	err = dumpListToFile(ctx, config, metadataFiles, filepath.Join(dumpDir, "METADATA.list"))
+	if err != nil {
+		ctx.Fatalf("Could not find METADATA: %v", err)
 	}
 
 	// Recursively look for all TEST_MAPPING files.
