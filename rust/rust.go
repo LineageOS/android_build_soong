@@ -649,7 +649,7 @@ func (mod *Module) FuzzPackagedModule() fuzz.FuzzPackagedModule {
 	panic(fmt.Errorf("FuzzPackagedModule called on non-fuzz module: %q", mod.BaseModuleName()))
 }
 
-func (mod *Module) FuzzSharedLibraries() android.Paths {
+func (mod *Module) FuzzSharedLibraries() android.RuleBuilderInstalls {
 	if fuzzer, ok := mod.compiler.(*fuzzDecorator); ok {
 		return fuzzer.sharedLibraries
 	}
