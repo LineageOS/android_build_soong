@@ -42,8 +42,8 @@ func TestSoongVariables(t *testing.T) {
 		{"BUILD_ID", VarClassSoong, starlarkTypeString},
 		{"PLATFORM_SDK_VERSION", VarClassSoong, starlarkTypeInt},
 		{"DEVICE_PACKAGE_OVERLAYS", VarClassSoong, starlarkTypeList},
-		{"ENABLE_CFI", VarClassSoong, starlarkTypeBool},
-		{"ENABLE_PREOPT", VarClassSoong, starlarkTypeBool},
+		{"ENABLE_CFI", VarClassSoong, starlarkTypeString},
+		{"ENABLE_PREOPT", VarClassSoong, starlarkTypeString},
 	}}
 	if !reflect.DeepEqual(expected, actual) {
 		t.Errorf("\nExpected: %v\n  Actual: %v", expected, actual)
