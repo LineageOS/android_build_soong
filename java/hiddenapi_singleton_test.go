@@ -39,7 +39,9 @@ var prepareForTestWithDefaultPlatformBootclasspath = android.FixtureAddTextFile(
 `)
 
 var hiddenApiFixtureFactory = android.GroupFixturePreparers(
-	prepareForJavaTest, PrepareForTestWithHiddenApiBuildComponents)
+	PrepareForTestWithJavaDefaultModules,
+	PrepareForTestWithHiddenApiBuildComponents,
+)
 
 func TestHiddenAPISingleton(t *testing.T) {
 	result := android.GroupFixturePreparers(

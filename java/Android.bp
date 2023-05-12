@@ -87,7 +87,6 @@ bootstrap_go_package {
         "device_host_converter_test.go",
         "dex_test.go",
         "dexpreopt_test.go",
-        "dexpreopt_bootjars_test.go",
         "dexpreopt_config_test.go",
         "droiddoc_test.go",
         "droidstubs_test.go",
