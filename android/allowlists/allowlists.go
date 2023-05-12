@@ -1556,9 +1556,10 @@ var (
 	// also be built - do not add them to this list.
 	StagingMixedBuildsEnabledList = []string{
 		// M13: media.swcodec launch
-		"com.android.media.swcodec",
-		"test_com.android.media.swcodec",
-		"libstagefright_foundation",
+		// TODO(b/282042844): reenable
+		// "com.android.media.swcodec",
+		// "test_com.android.media.swcodec",
+		// "libstagefright_foundation",
 	}
 
 	// These should be the libs that are included by the apexes in the ProdMixedBuildsEnabledList
