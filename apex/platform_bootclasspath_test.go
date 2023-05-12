@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"android/soong/android"
+	"android/soong/dexpreopt"
 	"android/soong/java"
 
 	"github.com/google/blueprint"
@@ -30,7 +31,7 @@ import (
 // apexes.
 
 var prepareForTestWithPlatformBootclasspath = android.GroupFixturePreparers(
-	java.PrepareForTestWithDexpreopt,
+	java.PrepareForTestWithJavaDefaultModules,
 	PrepareForTestWithApexBuildComponents,
 )
 
@@ -249,6 +250,8 @@ func TestPlatformBootclasspathDependencies(t *testing.T) {
 		java.FixtureConfigureApexBootJars("myapex:bar"),
 		java.PrepareForTestWithJavaSdkLibraryFiles,
 		java.FixtureWithLastReleaseApis("foo"),
+		java.PrepareForTestWithDexpreopt,
+		dexpreopt.FixtureDisableDexpreoptBootImages(false),
 	).RunTestWithBp(t, `
 		apex {
 			name: "com.android.art",
@@ -538,9 +541,6 @@ func TestPlatformBootclasspath_AlwaysUsePrebuiltSdks(t *testing.T) {
 
 		// Not a prebuilt as no prebuilt existed when it was added.
 		"platform:legacy.core.platform.api.stubs",
-
-		// Needed for generating the boot image.
-		"platform:dex2oatd",
 
 		// The platform_bootclasspath intentionally adds dependencies on both source and prebuilt
 		// modules when available as it does not know which one will be preferred.
