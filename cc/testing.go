@@ -82,6 +82,10 @@ func commonDefaultModules() string {
 			sanitize: {
 				never: true,
 			},
+			apex_available: [
+				"//apex_available:anyapex",
+				"//apex_available:platform",
+			],
 		}
 
 		cc_prebuilt_library_static {

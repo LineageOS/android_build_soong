@@ -3242,7 +3242,6 @@ func makeApexAvailableBaseline() map[string][]string {
 	//
 	m["com.android.appsearch"] = []string{
 		"icing-java-proto-lite",
-		"libprotobuf-java-lite",
 	}
 	//
 	// Module separator
@@ -3258,11 +3257,8 @@ func makeApexAvailableBaseline() map[string][]string {
 	// Module separator
 	//
 	m["com.android.extservices"] = []string{
-		"error_prone_annotations",
 		"ExtServices-core",
-		"ExtServices",
 		"libtextclassifier-java",
-		"libz_current",
 		"textclassifier-statsd",
 		"TextClassifierNotificationLibNoManifest",
 		"TextClassifierServiceLibNoManifest",
@@ -3280,8 +3276,6 @@ func makeApexAvailableBaseline() map[string][]string {
 		"android.hidl.memory@1.0",
 		"android.hidl.safe_union@1.0",
 		"libarect",
-		"libbuildversion",
-		"libmath",
 		"libprocpartition",
 	}
 	//
@@ -3311,15 +3305,12 @@ func makeApexAvailableBaseline() map[string][]string {
 	// Module separator
 	//
 	m["com.android.runtime"] = []string{
-		"bionic_libc_platform_headers",
-		"libarm-optimized-routines-math",
 		"libc_aeabi",
 		"libc_bionic",
 		"libc_bionic_ndk",
 		"libc_bootstrap",
 		"libc_common",
 		"libc_common_shared",
-		"libc_common_static",
 		"libc_dns",
 		"libc_dynamic_dispatch",
 		"libc_fortify",
@@ -3336,19 +3327,16 @@ func makeApexAvailableBaseline() map[string][]string {
 		"libc_openbsd_large_stack",
 		"libc_openbsd_ndk",
 		"libc_pthread",
-		"libc_static_dispatch",
 		"libc_syscalls",
 		"libc_tzcode",
 		"libc_unwind_static",
 		"libdebuggerd",
 		"libdebuggerd_common_headers",
 		"libdebuggerd_handler_core",
-		"libdebuggerd_handler_fallback",
 		"libdl_static",
 		"libjemalloc5",
 		"liblinker_main",
 		"liblinker_malloc",
-		"liblz4",
 		"liblzma",
 		"libprocinfo",
 		"libpropertyinfoparser",
@@ -3366,17 +3354,7 @@ func makeApexAvailableBaseline() map[string][]string {
 	m["com.android.tethering"] = []string{
 		"android.hardware.tetheroffload.config-V1.0-java",
 		"android.hardware.tetheroffload.control-V1.0-java",
-		"android.hidl.base-V1.0-java",
-		"libcgrouprc",
-		"libcgrouprc_format",
-		"libtetherutilsjni",
-		"libvndksupport",
 		"net-utils-framework-common",
-		"netd_aidl_interface-V3-java",
-		"netlink-client",
-		"networkstack-aidl-interfaces-java",
-		"tethering-aidl-interfaces-java",
-		"TetheringApiCurrentLib",
 	}
 	//
 	// Module separator
@@ -3396,48 +3374,22 @@ func makeApexAvailableBaseline() map[string][]string {
 		"android.hardware.wifi.supplicant-V1.1-java",
 		"android.hardware.wifi.supplicant-V1.2-java",
 		"android.hardware.wifi.supplicant-V1.3-java",
-		"android.hidl.base-V1.0-java",
-		"android.hidl.manager-V1.0-java",
-		"android.hidl.manager-V1.1-java",
-		"android.hidl.manager-V1.2-java",
 		"bouncycastle-unbundled",
-		"dnsresolver_aidl_interface-V2-java",
-		"error_prone_annotations",
-		"framework-wifi-pre-jarjar",
 		"framework-wifi-util-lib",
-		"ipmemorystore-aidl-interfaces-V3-java",
-		"ipmemorystore-aidl-interfaces-java",
 		"ksoap2",
 		"libnanohttpd",
-		"libwifi-jni",
-		"net-utils-services-common",
-		"netd_aidl_interface-V2-java",
-		"netd_aidl_interface-unstable-java",
-		"netd_event_listener_interface-java",
-		"netlink-client",
-		"networkstack-client",
-		"services.net",
 		"wifi-lite-protos",
 		"wifi-nano-protos",
 		"wifi-service-pre-jarjar",
-		"wifi-service-resources",
-	}
-	//
-	// Module separator
-	//
-	m["com.android.os.statsd"] = []string{
-		"libstatssocket",
 	}
 	//
 	// Module separator
 	//
 	m[android.AvailableToAnyApex] = []string{
-		"libclang_rt",
 		"libprofile-clang-extras",
 		"libprofile-clang-extras_ndk",
 		"libprofile-extras",
 		"libprofile-extras_ndk",
-		"libunwind",
 	}
 	return m
 }
