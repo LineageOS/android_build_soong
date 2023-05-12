@@ -147,8 +147,7 @@ type expectedConfig struct {
 	stem                     string
 	dir                      string
 	symbolsDir               string
-	installDirOnDevice       string
-	installDirOnHost         string
+	installDir               string
 	profileInstallPathInApex string
 	modules                  android.ConfiguredJarList
 	dexPaths                 []string
@@ -209,8 +208,7 @@ func checkArtBootImageConfig(t *testing.T, result *android.TestResult, mutated b
 		stem:                     "boot",
 		dir:                      "out/soong/dexpreopt_arm64/dex_artjars",
 		symbolsDir:               "out/soong/dexpreopt_arm64/dex_artjars_unstripped",
-		installDirOnDevice:       "system/framework",
-		installDirOnHost:         "apex/art_boot_images/javalib",
+		installDir:               "apex/art_boot_images/javalib",
 		profileInstallPathInApex: "etc/boot-image.prof",
 		modules:                  android.CreateTestConfiguredJarList([]string{"com.android.art:core1", "com.android.art:core2"}),
 		dexPaths:                 []string{"out/soong/dexpreopt_arm64/dex_artjars_input/core1.jar", "out/soong/dexpreopt_arm64/dex_artjars_input/core2.jar"},
@@ -222,7 +220,7 @@ func checkArtBootImageConfig(t *testing.T, result *android.TestResult, mutated b
 				dexLocations:      []string{"/apex/com.android.art/javalib/core1.jar", "/apex/com.android.art/javalib/core2.jar"},
 				dexLocationsDeps:  []string{"/apex/com.android.art/javalib/core1.jar", "/apex/com.android.art/javalib/core2.jar"},
 				imagePathOnHost:   "out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.art",
-				imagePathOnDevice: "/system/framework/arm64/boot.art",
+				imagePathOnDevice: "/apex/art_boot_images/javalib/arm64/boot.art",
 				imagesDeps: []string{
 					"out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.art",
 					"out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.oat",
@@ -276,7 +274,7 @@ func checkArtBootImageConfig(t *testing.T, result *android.TestResult, mutated b
 				dexLocations:      []string{"/apex/com.android.art/javalib/core1.jar", "/apex/com.android.art/javalib/core2.jar"},
 				dexLocationsDeps:  []string{"/apex/com.android.art/javalib/core1.jar", "/apex/com.android.art/javalib/core2.jar"},
 				imagePathOnHost:   "out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.art",
-				imagePathOnDevice: "/system/framework/arm/boot.art",
+				imagePathOnDevice: "/apex/art_boot_images/javalib/arm/boot.art",
 				imagesDeps: []string{
 					"out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.art",
 					"out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.oat",
@@ -330,7 +328,7 @@ func checkArtBootImageConfig(t *testing.T, result *android.TestResult, mutated b
 				dexLocations:      []string{"host/linux-x86/apex/com.android.art/javalib/core1.jar", "host/linux-x86/apex/com.android.art/javalib/core2.jar"},
 				dexLocationsDeps:  []string{"host/linux-x86/apex/com.android.art/javalib/core1.jar", "host/linux-x86/apex/com.android.art/javalib/core2.jar"},
 				imagePathOnHost:   "out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.art",
-				imagePathOnDevice: "/system/framework/x86_64/boot.art",
+				imagePathOnDevice: "/apex/art_boot_images/javalib/x86_64/boot.art",
 				imagesDeps: []string{
 					"out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.art",
 					"out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86_64/boot.oat",
@@ -382,7 +380,7 @@ func checkArtBootImageConfig(t *testing.T, result *android.TestResult, mutated b
 				dexLocations:      []string{"host/linux-x86/apex/com.android.art/javalib/core1.jar", "host/linux-x86/apex/com.android.art/javalib/core2.jar"},
 				dexLocationsDeps:  []string{"host/linux-x86/apex/com.android.art/javalib/core1.jar", "host/linux-x86/apex/com.android.art/javalib/core2.jar"},
 				imagePathOnHost:   "out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.art",
-				imagePathOnDevice: "/system/framework/x86/boot.art",
+				imagePathOnDevice: "/apex/art_boot_images/javalib/x86/boot.art",
 				imagesDeps: []string{
 					"out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.art",
 					"out/soong/dexpreopt_arm64/dex_artjars/linux_glibc/apex/art_boot_images/javalib/x86/boot.oat",
@@ -462,8 +460,7 @@ func checkFrameworkBootImageConfig(t *testing.T, result *android.TestResult, mut
 		stem:                     "boot",
 		dir:                      "out/soong/dexpreopt_arm64/dex_bootjars",
 		symbolsDir:               "out/soong/dexpreopt_arm64/dex_bootjars_unstripped",
-		installDirOnDevice:       "system/framework",
-		installDirOnHost:         "system/framework",
+		installDir:               "system/framework",
 		profileInstallPathInApex: "",
 		modules:                  android.CreateTestConfiguredJarList([]string{"platform:framework"}),
 		dexPaths:                 []string{"out/soong/dexpreopt_arm64/dex_bootjars_input/framework.jar"},
@@ -693,8 +690,7 @@ func CheckMainlineBootImageConfig(t *testing.T, result *android.TestResult) {
 		stem:                     "boot",
 		dir:                      "out/soong/dexpreopt_arm64/dex_mainlinejars",
 		symbolsDir:               "out/soong/dexpreopt_arm64/dex_mainlinejars_unstripped",
-		installDirOnDevice:       "system/framework",
-		installDirOnHost:         "system/framework",
+		installDir:               "system/framework",
 		profileInstallPathInApex: "",
 		modules: android.CreateTestConfiguredJarList([]string{
 			"com.android.foo:framework-foo",
@@ -999,8 +995,7 @@ func nestedCheckBootImageConfig(t *testing.T, imageConfig *bootImageConfig, expe
 	android.AssertStringEquals(t, "stem", expected.stem, imageConfig.stem)
 	android.AssertPathRelativeToTopEquals(t, "dir", expected.dir, imageConfig.dir)
 	android.AssertPathRelativeToTopEquals(t, "symbolsDir", expected.symbolsDir, imageConfig.symbolsDir)
-	android.AssertStringEquals(t, "installDirOnDevice", expected.installDirOnDevice, imageConfig.installDirOnDevice)
-	android.AssertStringEquals(t, "installDirOnHost", expected.installDirOnHost, imageConfig.installDirOnHost)
+	android.AssertStringEquals(t, "installDir", expected.installDir, imageConfig.installDir)
 	android.AssertStringEquals(t, "profileInstallPathInApex", expected.profileInstallPathInApex, imageConfig.profileInstallPathInApex)
 	android.AssertDeepEquals(t, "modules", expected.modules, imageConfig.modules)
 	android.AssertPathsRelativeToTopEquals(t, "dexPaths", expected.dexPaths, imageConfig.dexPaths.Paths())
@@ -1096,9 +1091,9 @@ DEXPREOPT_IMAGE_LICENSE_METADATA_mainline_arm=out/soong/.intermediates/framework
 DEXPREOPT_IMAGE_LICENSE_METADATA_mainline_arm64=out/soong/.intermediates/frameworks/base/boot/platform-bootclasspath/android_common/meta_lic
 DEXPREOPT_IMAGE_LICENSE_METADATA_mainline_host_x86=out/soong/.intermediates/frameworks/base/boot/platform-bootclasspath/android_common/meta_lic
 DEXPREOPT_IMAGE_LICENSE_METADATA_mainline_host_x86_64=out/soong/.intermediates/frameworks/base/boot/platform-bootclasspath/android_common/meta_lic
-DEXPREOPT_IMAGE_LOCATIONS_ON_DEVICEart=/system/framework/boot.art
-DEXPREOPT_IMAGE_LOCATIONS_ON_DEVICEboot=/system/framework/boot.art:/system/framework/boot-framework.art
-DEXPREOPT_IMAGE_LOCATIONS_ON_DEVICEmainline=/system/framework/boot.art:/system/framework/boot-framework.art:/system/framework/boot-framework-foo.art
+DEXPREOPT_IMAGE_LOCATIONS_ON_DEVICEart=/apex/art_boot_images/javalib/boot.art
+DEXPREOPT_IMAGE_LOCATIONS_ON_DEVICEboot=/apex/art_boot_images/javalib/boot.art:/system/framework/boot-framework.art
+DEXPREOPT_IMAGE_LOCATIONS_ON_DEVICEmainline=/apex/art_boot_images/javalib/boot.art:/system/framework/boot-framework.art:/system/framework/boot-framework-foo.art
 DEXPREOPT_IMAGE_LOCATIONS_ON_HOSTart=out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/boot.art
 DEXPREOPT_IMAGE_LOCATIONS_ON_HOSTboot=out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/boot.art:out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/boot-framework.art
 DEXPREOPT_IMAGE_LOCATIONS_ON_HOSTmainline=out/soong/dexpreopt_arm64/dex_artjars/android/apex/art_boot_images/javalib/boot.art:out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/boot-framework.art:out/soong/dexpreopt_arm64/dex_mainlinejars/android/system/framework/boot-framework-foo.art
