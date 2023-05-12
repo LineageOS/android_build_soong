@@ -610,9 +610,9 @@ func FixtureModifyBootImageConfig(name string, configModifier func(*bootImageCon
 	})
 }
 
-// Sets the value of `installDirOnDevice` of the boot image config with the given name.
+// Sets the value of `installDir` of the boot image config with the given name.
 func FixtureSetBootImageInstallDirOnDevice(name string, installDir string) android.FixturePreparer {
 	return FixtureModifyBootImageConfig(name, func(config *bootImageConfig) {
-		config.installDirOnDevice = installDir
+		config.installDir = installDir
 	})
 }
