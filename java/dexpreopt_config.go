@@ -62,8 +62,7 @@ func genBootImageConfigRaw(ctx android.PathContext) map[string]*bootImageConfig 
 		artCfg := bootImageConfig{
 			name:                     artBootImageName,
 			stem:                     bootImageStem,
-			installDirOnHost:         "apex/art_boot_images/javalib",
-			installDirOnDevice:       frameworkSubdir,
+			installDir:               "apex/art_boot_images/javalib",
 			profileInstallPathInApex: "etc/boot-image.prof",
 			modules:                  artModules,
 			preloadedClassesFile:     "art/build/boot/preloaded-classes",
@@ -77,8 +76,7 @@ func genBootImageConfigRaw(ctx android.PathContext) map[string]*bootImageConfig 
 			extends:              &artCfg,
 			name:                 frameworkBootImageName,
 			stem:                 bootImageStem,
-			installDirOnHost:     frameworkSubdir,
-			installDirOnDevice:   frameworkSubdir,
+			installDir:           frameworkSubdir,
 			modules:              frameworkModules,
 			preloadedClassesFile: "frameworks/base/config/preloaded-classes",
 			compilerFilter:       "speed-profile",
@@ -86,14 +84,13 @@ func genBootImageConfigRaw(ctx android.PathContext) map[string]*bootImageConfig 
 		}
 
 		mainlineCfg := bootImageConfig{
-			extends:            &frameworkCfg,
-			name:               mainlineBootImageName,
-			stem:               bootImageStem,
-			installDirOnHost:   frameworkSubdir,
-			installDirOnDevice: frameworkSubdir,
-			modules:            mainlineBcpModules,
-			compilerFilter:     "verify",
-			singleImage:        true,
+			extends:        &frameworkCfg,
+			name:           mainlineBootImageName,
+			stem:           bootImageStem,
+			installDir:     frameworkSubdir,
+			modules:        mainlineBcpModules,
+			compilerFilter: "verify",
+			singleImage:    true,
 		}
 
 		return map[string]*bootImageConfig{
@@ -132,12 +129,12 @@ func genBootImageConfigs(ctx android.PathContext) map[string]*bootImageConfig {
 			// Create target-specific variants.
 			for _, target := range targets {
 				arch := target.Arch.ArchType
-				imageDir := c.dir.Join(ctx, target.Os.String(), c.installDirOnHost, arch.String())
+				imageDir := c.dir.Join(ctx, target.Os.String(), c.installDir, arch.String())
 				variant := &bootImageVariant{
 					bootImageConfig:   c,
 					target:            target,
 					imagePathOnHost:   imageDir.Join(ctx, imageName),
-					imagePathOnDevice: filepath.Join("/", c.installDirOnDevice, arch.String(), imageName),
+					imagePathOnDevice: filepath.Join("/", c.installDir, arch.String(), imageName),
 					imagesDeps:        c.moduleFiles(ctx, imageDir, ".art", ".oat", ".vdex"),
 					dexLocations:      c.modules.DevicePaths(ctx.Config(), target.Os),
 				}
