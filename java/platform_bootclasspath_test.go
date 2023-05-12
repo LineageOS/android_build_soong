@@ -18,14 +18,12 @@ import (
 	"testing"
 
 	"android/soong/android"
-	"android/soong/dexpreopt"
 )
 
 // Contains some simple tests for platform_bootclasspath.
 
 var prepareForTestWithPlatformBootclasspath = android.GroupFixturePreparers(
 	PrepareForTestWithJavaDefaultModules,
-	dexpreopt.PrepareForTestByEnablingDexpreopt,
 )
 
 func TestPlatformBootclasspath(t *testing.T) {

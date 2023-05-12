@@ -1250,7 +1250,7 @@ func TestBootclasspathFragment_AndroidNonUpdatable(t *testing.T) {
 func TestBootclasspathFragment_AndroidNonUpdatable_AlwaysUsePrebuiltSdks(t *testing.T) {
 	result := android.GroupFixturePreparers(
 		prepareForTestWithBootclasspathFragment,
-		java.PrepareForTestWithJavaDefaultModules,
+		java.PrepareForTestWithDexpreopt,
 		prepareForTestWithArtApex,
 		prepareForTestWithMyapex,
 		// Configure bootclasspath jars to ensure that hidden API encoding is performed on them.
