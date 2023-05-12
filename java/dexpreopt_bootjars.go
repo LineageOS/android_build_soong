@@ -295,6 +295,11 @@ type bootImageConfig struct {
 
 	// The "--single-image" argument.
 	singleImage bool
+
+	// Profiles imported from other boot image configs. Each element must represent a
+	// `bootclasspath_fragment` of an APEX (i.e., the `name` field of each element must refer to the
+	// `image_name` property of a `bootclasspath_fragment`).
+	profileImports []*bootImageConfig
 }
 
 // Target-dependent description of a boot image.
@@ -709,6 +714,34 @@ func buildBootImageVariant(ctx android.ModuleContext, image *bootImageVariant, p
 
 	if profile != nil {
 		cmd.FlagWithInput("--profile-file=", profile)
+	}
+
+	fragments := make(map[string]commonBootclasspathFragment)
+	ctx.VisitDirectDepsWithTag(bootclasspathFragmentDepTag, func(child android.Module) {
+		fragment := child.(commonBootclasspathFragment)
+		if fragment.getImageName() != nil && android.IsModulePreferred(child) {
+			fragments[*fragment.getImageName()] = fragment
+		}
+	})
+
+	for _, profileImport := range image.profileImports {
+		fragment := fragments[profileImport.name]
+		if fragment == nil {
+			ctx.ModuleErrorf("Boot image config '%[1]s' imports profile from '%[2]s', but a "+
+				"bootclasspath_fragment with image name '%[2]s' doesn't exist or is not added as a "+
+				"dependency of '%[1]s'",
+				image.name,
+				profileImport.name)
+			return bootImageVariantOutputs{}
+		}
+		if fragment.getProfilePath() == nil {
+			ctx.ModuleErrorf("Boot image config '%[1]s' imports profile from '%[2]s', but '%[2]s' "+
+				"doesn't provide a profile",
+				image.name,
+				profileImport.name)
+			return bootImageVariantOutputs{}
+		}
+		cmd.FlagWithInput("--profile-file=", fragment.getProfilePath())
 	}
 
 	dirtyImageFile := "frameworks/base/config/dirty-image-objects"
