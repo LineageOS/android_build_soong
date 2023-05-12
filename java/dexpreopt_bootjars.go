@@ -421,11 +421,6 @@ func (image *bootImageConfig) apexVariants() []*bootImageVariant {
 	return variants
 }
 
-// Returns true if the boot image should be installed in the APEX.
-func (image *bootImageConfig) shouldInstallInApex() bool {
-	return strings.HasPrefix(image.installDirOnDevice, "apex/")
-}
-
 // Return boot image locations (as a list of symbolic paths).
 //
 // The image "location" is a symbolic path that, with multiarchitecture support, doesn't really
@@ -596,6 +591,12 @@ func buildBootImageVariantsForBuildOs(ctx android.ModuleContext, image *bootImag
 	buildBootImageForOsType(ctx, image, profile, ctx.Config().BuildOS)
 }
 
+// bootImageFilesByArch is a map from android.ArchType to the paths to the boot image files.
+//
+// The paths include the .art, .oat and .vdex files, one for each of the modules from which the boot
+// image is created.
+type bootImageFilesByArch map[android.ArchType]android.Paths
+
 // bootImageOutputs encapsulates information about boot images that were created/obtained by
 // commonBootclasspathFragment.produceBootImageFiles.
 type bootImageOutputs struct {
@@ -656,8 +657,7 @@ func buildBootImageZipInPredefinedLocation(ctx android.ModuleContext, image *boo
 }
 
 type bootImageVariantOutputs struct {
-	config         *bootImageVariant
-	deviceInstalls android.RuleBuilderInstalls
+	config *bootImageVariant
 }
 
 // Generate boot image build rules for a specific target.
@@ -800,7 +800,6 @@ func buildBootImageVariant(ctx android.ModuleContext, image *bootImageVariant, p
 
 	var vdexInstalls android.RuleBuilderInstalls
 	var unstrippedInstalls android.RuleBuilderInstalls
-	var deviceInstalls android.RuleBuilderInstalls
 
 	for _, artOrOat := range image.moduleFiles(ctx, outputDir, ".art", ".oat") {
 		cmd.ImplicitOutput(artOrOat)
@@ -826,14 +825,6 @@ func buildBootImageVariant(ctx android.ModuleContext, image *bootImageVariant, p
 			android.RuleBuilderInstall{unstrippedOat, filepath.Join(installDir, unstrippedOat.Base())})
 	}
 
-	if image.installDirOnHost != image.installDirOnDevice && !image.shouldInstallInApex() && !ctx.Config().UnbundledBuild() {
-		installDirOnDevice := filepath.Join("/", image.installDirOnDevice, arch.String())
-		for _, file := range image.moduleFiles(ctx, outputDir, ".art", ".oat", ".vdex") {
-			deviceInstalls = append(deviceInstalls,
-				android.RuleBuilderInstall{file, filepath.Join(installDirOnDevice, file.Base())})
-		}
-	}
-
 	rule.Build(image.name+"JarsDexpreopt_"+image.target.String(), "dexpreopt "+image.name+" jars "+arch.String())
 
 	// save output and installed files for makevars
@@ -849,7 +840,6 @@ func buildBootImageVariant(ctx android.ModuleContext, image *bootImageVariant, p
 
 	return bootImageVariantOutputs{
 		image,
-		deviceInstalls,
 	}
 }
 
