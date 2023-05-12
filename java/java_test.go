@@ -46,12 +46,11 @@ var prepareForJavaTest = android.GroupFixturePreparers(
 	// Get the CC build components but not default modules.
 	cc.PrepareForTestWithCcBuildComponents,
 	// Include all the default java modules.
-	PrepareForTestWithJavaDefaultModules,
+	PrepareForTestWithDexpreopt,
 	PrepareForTestWithOverlayBuildComponents,
 	android.FixtureRegisterWithContext(func(ctx android.RegistrationContext) {
 		ctx.RegisterPreSingletonType("sdk_versions", sdkPreSingletonFactory)
 	}),
-	PrepareForTestWithDexpreopt,
 )
 
 func TestMain(m *testing.M) {
