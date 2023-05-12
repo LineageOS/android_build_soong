@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package java
+package apex
 
 import (
 	"path/filepath"
@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"android/soong/android"
+	"android/soong/java"
 )
 
 func testDexpreoptBoot(t *testing.T, ruleFile string, expectedInputs, expectedOutputs []string) {
@@ -48,10 +49,10 @@ func testDexpreoptBoot(t *testing.T, ruleFile string, expectedInputs, expectedOu
 	`
 
 	result := android.GroupFixturePreparers(
-		prepareForJavaTest,
-		PrepareForTestWithJavaSdkLibraryFiles,
-		FixtureWithLastReleaseApis("foo"),
-		FixtureConfigureBootJars("platform:foo", "system_ext:bar", "platform:baz"),
+		java.PrepareForTestWithDexpreopt,
+		java.PrepareForTestWithJavaSdkLibraryFiles,
+		java.FixtureWithLastReleaseApis("foo"),
+		java.FixtureConfigureBootJars("platform:foo", "system_ext:bar", "platform:baz"),
 	).RunTestWithBp(t, bp)
 
 	platformBootclasspath := result.ModuleForTests("platform-bootclasspath", "android_common")
