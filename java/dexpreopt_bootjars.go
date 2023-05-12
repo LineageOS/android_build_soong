@@ -250,11 +250,12 @@ type bootImageConfig struct {
 	// Output directory for the image files with debug symbols.
 	symbolsDir android.OutputPath
 
-	// Subdirectory where the image files are installed.
-	installDirOnHost string
-
-	// Subdirectory where the image files on device are installed.
-	installDirOnDevice string
+	// The relative location where the image files are installed. On host, the location is relative to
+	// $ANDROID_PRODUCT_OUT.
+	//
+	// Only the configs that are built by platform_bootclasspath are installable on device. On device,
+	// the location is relative to "/".
+	installDir string
 
 	// Install path of the boot image profile if it needs to be installed in the APEX, or empty if not
 	// needed.
@@ -668,9 +669,9 @@ func buildBootImageVariant(ctx android.ModuleContext, image *bootImageVariant, p
 
 	arch := image.target.Arch.ArchType
 	os := image.target.Os.String() // We need to distinguish host-x86 and device-x86.
-	symbolsDir := image.symbolsDir.Join(ctx, os, image.installDirOnHost, arch.String())
+	symbolsDir := image.symbolsDir.Join(ctx, os, image.installDir, arch.String())
 	symbolsFile := symbolsDir.Join(ctx, image.stem+".oat")
-	outputDir := image.dir.Join(ctx, os, image.installDirOnHost, arch.String())
+	outputDir := image.dir.Join(ctx, os, image.installDir, arch.String())
 	outputPath := outputDir.Join(ctx, image.stem+".oat")
 	oatLocation := dexpreopt.PathToLocation(outputPath, arch)
 	imagePath := outputPath.ReplaceExtension(ctx, "art")
@@ -796,7 +797,7 @@ func buildBootImageVariant(ctx android.ModuleContext, image *bootImageVariant, p
 
 	cmd.Textf(`|| ( echo %s ; false )`, proptools.ShellEscape(failureMessage))
 
-	installDir := filepath.Join("/", image.installDirOnHost, arch.String())
+	installDir := filepath.Dir(image.imagePathOnDevice)
 
 	var vdexInstalls android.RuleBuilderInstalls
 	var unstrippedInstalls android.RuleBuilderInstalls
