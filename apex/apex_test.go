@@ -146,7 +146,7 @@ var prepareForApexTest = android.GroupFixturePreparers(
 	android.PrepareForTestWithAndroidBuildComponents,
 	bpf.PrepareForTestWithBpf,
 	cc.PrepareForTestWithCcBuildComponents,
-	java.PrepareForTestWithJavaDefaultModules,
+	java.PrepareForTestWithDexpreopt,
 	prebuilt_etc.PrepareForTestWithPrebuiltEtc,
 	rust.PrepareForTestWithRustDefaultModules,
 	sh.PrepareForTestWithShBuildComponents,
@@ -8289,8 +8289,8 @@ func TestNoUpdatableJarsInBootImage(t *testing.T) {
 		testNoUpdatableJarsInBootImage(t, "", preparer, fragments...)
 	})
 
-	t.Run("updatable jar from ART apex in the framework boot image => error", func(t *testing.T) {
-		err := `module "some-art-lib" from updatable apexes \["com.android.art.debug"\] is not allowed in the framework boot image`
+	t.Run("updatable jar from ART apex in the platform bootclasspath => error", func(t *testing.T) {
+		err := `module "some-art-lib" from updatable apexes \["com.android.art.debug"\] is not allowed in the platform bootclasspath`
 		// Update the dexpreopt BootJars directly.
 		preparer := android.GroupFixturePreparers(
 			prepareSetBootJars("com.android.art.debug:some-art-lib"),
@@ -8313,8 +8313,8 @@ func TestNoUpdatableJarsInBootImage(t *testing.T) {
 		testNoUpdatableJarsInBootImage(t, err, preparer)
 	})
 
-	t.Run("updatable jar from some other apex in the framework boot image => error", func(t *testing.T) {
-		err := `module "some-updatable-apex-lib" from updatable apexes \["some-updatable-apex"\] is not allowed in the framework boot image`
+	t.Run("updatable jar from some other apex in the platform bootclasspath => error", func(t *testing.T) {
+		err := `module "some-updatable-apex-lib" from updatable apexes \["some-updatable-apex"\] is not allowed in the platform bootclasspath`
 		preparer := android.GroupFixturePreparers(
 			java.FixtureConfigureBootJars("some-updatable-apex:some-updatable-apex-lib"),
 			java.FixtureConfigureApexBootJars("some-non-updatable-apex:some-non-updatable-apex-lib"),
@@ -8322,7 +8322,7 @@ func TestNoUpdatableJarsInBootImage(t *testing.T) {
 		testNoUpdatableJarsInBootImage(t, err, preparer)
 	})
 
-	t.Run("non-updatable jar from some other apex in the framework boot image => ok", func(t *testing.T) {
+	t.Run("non-updatable jar from some other apex in the platform bootclasspath => ok", func(t *testing.T) {
 		preparer := java.FixtureConfigureApexBootJars("some-non-updatable-apex:some-non-updatable-apex-lib")
 		fragment := java.ApexVariantReference{
 			Apex:   proptools.StringPtr("some-non-updatable-apex"),
@@ -8337,7 +8337,7 @@ func TestNoUpdatableJarsInBootImage(t *testing.T) {
 		testNoUpdatableJarsInBootImage(t, err, preparer)
 	})
 
-	t.Run("nonexistent jar in the framework boot image => error", func(t *testing.T) {
+	t.Run("nonexistent jar in the platform bootclasspath => error", func(t *testing.T) {
 		err := `"platform-bootclasspath" depends on undefined module "nonexistent"`
 		preparer := java.FixtureConfigureBootJars("platform:nonexistent")
 		testNoUpdatableJarsInBootImage(t, err, preparer)
@@ -8350,7 +8350,7 @@ func TestNoUpdatableJarsInBootImage(t *testing.T) {
 		testNoUpdatableJarsInBootImage(t, err, preparer)
 	})
 
-	t.Run("platform jar in the framework boot image => ok", func(t *testing.T) {
+	t.Run("platform jar in the platform bootclasspath => ok", func(t *testing.T) {
 		preparer := android.GroupFixturePreparers(
 			java.FixtureConfigureBootJars("platform:some-platform-lib"),
 			java.FixtureConfigureApexBootJars("some-non-updatable-apex:some-non-updatable-apex-lib"),
