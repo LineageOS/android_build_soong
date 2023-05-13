@@ -199,13 +199,10 @@ func (p *prebuiltCommon) initApexFilesForAndroidMk(ctx android.ModuleContext) {
 				p.apexFilesForAndroidMk = append(p.apexFilesForAndroidMk, af)
 			}
 		} else if tag == exportedBootclasspathFragmentTag {
-			bcpfModule, ok := child.(*java.PrebuiltBootclasspathFragmentModule)
+			_, ok := child.(*java.PrebuiltBootclasspathFragmentModule)
 			if !ok {
 				ctx.PropertyErrorf("exported_bootclasspath_fragments", "%q is not a prebuilt_bootclasspath_fragment module", name)
 				return false
-			}
-			for _, makeModuleName := range bcpfModule.BootImageDeviceInstallMakeModules() {
-				p.requiredModuleNames = append(p.requiredModuleNames, makeModuleName)
 			}
 			// Visit the children of the bootclasspath_fragment.
 			return true
