@@ -80,9 +80,7 @@ var prepareForTestWithFrameworkDeps = android.GroupFixturePreparers(
 	}.AddToFixture(),
 )
 
-// Test fixture preparer that will define all default java modules except the
-// fake_tool_binary for dex2oatd.
-var PrepareForTestWithJavaDefaultModulesWithoutFakeDex2oatd = android.GroupFixturePreparers(
+var prepareForTestWithJavaDefaultModulesBase = android.GroupFixturePreparers(
 	// Make sure that all the module types used in the defaults are registered.
 	PrepareForTestWithJavaBuildComponents,
 	prepareForTestWithFrameworkDeps,
@@ -92,13 +90,21 @@ var PrepareForTestWithJavaDefaultModulesWithoutFakeDex2oatd = android.GroupFixtu
 
 // Test fixture preparer that will define default java modules, e.g. standard prebuilt modules.
 var PrepareForTestWithJavaDefaultModules = android.GroupFixturePreparers(
-	PrepareForTestWithJavaDefaultModulesWithoutFakeDex2oatd,
-	dexpreopt.PrepareForTestWithFakeDex2oatd,
+	prepareForTestWithJavaDefaultModulesBase,
+	dexpreopt.FixtureDisableDexpreoptBootImages(true),
+	dexpreopt.FixtureDisableDexpreopt(true),
 )
 
 // Provides everything needed by dexpreopt.
 var PrepareForTestWithDexpreopt = android.GroupFixturePreparers(
-	PrepareForTestWithJavaDefaultModules,
+	prepareForTestWithJavaDefaultModulesBase,
+	dexpreopt.PrepareForTestWithFakeDex2oatd,
+	dexpreopt.PrepareForTestByEnablingDexpreopt,
+)
+
+// Provides everything needed by dexpreopt except the fake_tool_binary for dex2oatd.
+var PrepareForTestWithDexpreoptWithoutFakeDex2oatd = android.GroupFixturePreparers(
+	prepareForTestWithJavaDefaultModulesBase,
 	dexpreopt.PrepareForTestByEnablingDexpreopt,
 )
 
@@ -604,9 +610,9 @@ func FixtureModifyBootImageConfig(name string, configModifier func(*bootImageCon
 	})
 }
 
-// Sets the value of `installDirOnDevice` of the boot image config with the given name.
+// Sets the value of `installDir` of the boot image config with the given name.
 func FixtureSetBootImageInstallDirOnDevice(name string, installDir string) android.FixturePreparer {
 	return FixtureModifyBootImageConfig(name, func(config *bootImageConfig) {
-		config.installDirOnDevice = installDir
+		config.installDir = installDir
 	})
 }
