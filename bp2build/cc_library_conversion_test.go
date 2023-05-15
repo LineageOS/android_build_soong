@@ -4657,3 +4657,49 @@ cc_library {
 		},
 	})
 }
+
+func TestCcLibraryHostLdLibs(t *testing.T) {
+	runCcLibraryTestCase(t, Bp2buildTestCase{
+		Description:                "cc_binary linker flags for host_ldlibs",
+		ModuleTypeUnderTest:        "cc_binary",
+		ModuleTypeUnderTestFactory: cc.BinaryFactory,
+		Blueprint: soongCcLibraryPreamble + `cc_binary {
+    name: "a",
+    host_supported: true,
+    ldflags: ["-lcommon"],
+    target: {
+	linux: {
+		host_ldlibs: [
+			"-llinux",
+		],
+	},
+	darwin: {
+		ldflags: ["-ldarwinadditional"],
+		host_ldlibs: [
+			"-ldarwin",
+		],
+	},
+	windows: {
+		host_ldlibs: [
+			"-lwindows",
+		],
+	},
+    },
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTargetNoRestrictions("cc_binary", "a", AttrNameToString{
+				"linkopts": `["-lcommon"] + select({
+        "//build/bazel/platforms/os:darwin": [
+            "-ldarwinadditional",
+            "-ldarwin",
+        ],
+        "//build/bazel/platforms/os:linux_glibc": ["-llinux"],
+        "//build/bazel/platforms/os:windows": ["-lwindows"],
+        "//conditions:default": [],
+    })`,
+				"local_includes": `["."]`,
+			}),
+		},
+	})
+}
