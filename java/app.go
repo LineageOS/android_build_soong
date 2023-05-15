@@ -621,13 +621,21 @@ func (a *AndroidApp) InstallApkName() string {
 	return a.installApkName
 }
 
-func (a *AndroidApp) createPrivappAllowlist(ctx android.ModuleContext) *android.OutputPath {
+func (a *AndroidApp) createPrivappAllowlist(ctx android.ModuleContext) android.Path {
 	if a.appProperties.Privapp_allowlist == nil {
 		return nil
 	}
+
+	isOverrideApp := a.GetOverriddenBy() != ""
+	if !isOverrideApp {
+		// if this is not an override, we don't need to rewrite the existing privapp allowlist
+		return android.PathForModuleSrc(ctx, *a.appProperties.Privapp_allowlist)
+	}
+
 	if a.overridableAppProperties.Package_name == nil {
 		ctx.PropertyErrorf("privapp_allowlist", "package_name must be set to use privapp_allowlist")
 	}
+
 	packageName := *a.overridableAppProperties.Package_name
 	fileName := "privapp_allowlist_" + packageName + ".xml"
 	outPath := android.PathForModuleOut(ctx, fileName).OutputPath
