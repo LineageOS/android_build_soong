@@ -492,7 +492,7 @@ func (ca *compilerAttributes) bp2buildForAxisAndConfig(ctx android.BazelConversi
 
 	instructionSet := proptools.StringDefault(props.Instruction_set, "")
 	if instructionSet == "arm" {
-		ca.features.SetSelectValue(axis, config, []string{"arm_isa_arm", "-arm_isa_thumb"})
+		ca.features.SetSelectValue(axis, config, []string{"arm_isa_arm"})
 	} else if instructionSet != "" && instructionSet != "thumb" {
 		ctx.ModuleErrorf("Unknown value for instruction_set: %s", instructionSet)
 	}
