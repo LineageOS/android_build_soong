@@ -125,6 +125,14 @@ var (
 		},
 		"objcopyCmd", "prefix")
 
+	// Rule to run objcopy --remove-section=.llvm_addrsig on a partially linked object
+	noAddrSig = pctx.AndroidStaticRule("noAddrSig",
+		blueprint.RuleParams{
+			Command:     "rm -f ${out} && $objcopyCmd --remove-section=.llvm_addrsig ${in} ${out}",
+			CommandDeps: []string{"$objcopyCmd"},
+		},
+		"objcopyCmd")
+
 	_ = pctx.SourcePathVariable("stripPath", "build/soong/scripts/strip.sh")
 	_ = pctx.SourcePathVariable("xzCmd", "prebuilts/build-tools/${config.HostPrebuiltTag}/bin/xz")
 	_ = pctx.SourcePathVariable("createMiniDebugInfo", "prebuilts/build-tools/${config.HostPrebuiltTag}/bin/create_minidebuginfo")
@@ -1004,6 +1012,21 @@ func transformBinaryPrefixSymbols(ctx android.ModuleContext, prefix string, inpu
 		Args: map[string]string{
 			"objcopyCmd": objcopyCmd,
 			"prefix":     prefix,
+		},
+	})
+}
+
+// Generate a rule for running objcopy --remove-section=.llvm_addrsig on a partially linked object
+func transformObjectNoAddrSig(ctx android.ModuleContext, inputFile android.Path, outputFile android.WritablePath) {
+	objcopyCmd := "${config.ClangBin}/llvm-objcopy"
+
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        noAddrSig,
+		Description: "remove addrsig " + outputFile.Base(),
+		Output:      outputFile,
+		Input:       inputFile,
+		Args: map[string]string{
+			"objcopyCmd": objcopyCmd,
 		},
 	})
 }
