@@ -443,9 +443,9 @@ func TestUpdatableApps_JniLibShouldBeBuiltAgainstMinSdkVersion(t *testing.T) {
 	inputs := ctx.ModuleForTests("libjni", "android_arm64_armv8-a_sdk_shared").Description("link").Implicits
 	var crtbeginFound, crtendFound bool
 	expectedCrtBegin := ctx.ModuleForTests("crtbegin_so",
-		"android_arm64_armv8-a_sdk_29").Rule("partialLd").Output
+		"android_arm64_armv8-a_sdk_29").Rule("noAddrSig").Output
 	expectedCrtEnd := ctx.ModuleForTests("crtend_so",
-		"android_arm64_armv8-a_sdk_29").Rule("partialLd").Output
+		"android_arm64_armv8-a_sdk_29").Rule("noAddrSig").Output
 	implicits := []string{}
 	for _, input := range inputs {
 		implicits = append(implicits, input.String())
