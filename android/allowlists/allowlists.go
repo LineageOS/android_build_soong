@@ -85,6 +85,7 @@ var (
 		"development/apps/DevelopmentSettings":        Bp2BuildDefaultTrue,
 		"development/apps/Fallback":                   Bp2BuildDefaultTrue,
 		"development/apps/WidgetPreview":              Bp2BuildDefaultTrue,
+		"development/python-packages/adb":             Bp2BuildDefaultTrueRecursively,
 		"development/samples/BasicGLSurfaceView":      Bp2BuildDefaultTrue,
 		"development/samples/BluetoothChat":           Bp2BuildDefaultTrue,
 		"development/samples/BrokenKeyDerivation":     Bp2BuildDefaultTrue,
