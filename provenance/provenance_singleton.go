@@ -51,7 +51,7 @@ func init() {
 }
 
 func RegisterProvenanceSingleton(ctx android.RegistrationContext) {
-	ctx.RegisterSingletonType("provenance_metadata_singleton", provenanceInfoSingletonFactory)
+	ctx.RegisterParallelSingletonType("provenance_metadata_singleton", provenanceInfoSingletonFactory)
 }
 
 var PrepareForTestWithProvenanceSingleton = android.FixtureRegisterWithContext(RegisterProvenanceSingleton)

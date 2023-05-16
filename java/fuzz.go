@@ -38,7 +38,7 @@ func init() {
 
 func RegisterJavaFuzzBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("java_fuzz", JavaFuzzFactory)
-	ctx.RegisterSingletonType("java_fuzz_packaging", javaFuzzPackagingFactory)
+	ctx.RegisterParallelSingletonType("java_fuzz_packaging", javaFuzzPackagingFactory)
 }
 
 type JavaFuzzTest struct {

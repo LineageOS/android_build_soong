@@ -42,7 +42,7 @@ func readSoongMetrics(config Config) (SoongMetrics, bool) {
 }
 
 func init() {
-	RegisterSingletonType("soong_metrics", soongMetricsSingletonFactory)
+	RegisterParallelSingletonType("soong_metrics", soongMetricsSingletonFactory)
 }
 
 func soongMetricsSingletonFactory() Singleton { return soongMetricsSingleton{} }
