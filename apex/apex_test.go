@@ -1368,6 +1368,8 @@ func TestApexWithRuntimeLibsDependency(t *testing.T) {
 		cc_library {
 			name: "mylib",
 			srcs: ["mylib.cpp"],
+			static_libs: ["libstatic"],
+			shared_libs: ["libshared"],
 			runtime_libs: ["libfoo", "libbar"],
 			system_shared_libs: [],
 			stl: "none",
@@ -1392,6 +1394,39 @@ func TestApexWithRuntimeLibsDependency(t *testing.T) {
 			apex_available: [ "myapex" ],
 		}
 
+		cc_library {
+			name: "libstatic",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+			apex_available: [ "myapex" ],
+			runtime_libs: ["libstatic_to_runtime"],
+		}
+
+		cc_library {
+			name: "libshared",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+			apex_available: [ "myapex" ],
+			runtime_libs: ["libshared_to_runtime"],
+		}
+
+		cc_library {
+			name: "libstatic_to_runtime",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+			apex_available: [ "myapex" ],
+		}
+
+		cc_library {
+			name: "libshared_to_runtime",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+			apex_available: [ "myapex" ],
+		}
 	`)
 
 	apexRule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("apexRule")
@@ -1405,11 +1440,14 @@ func TestApexWithRuntimeLibsDependency(t *testing.T) {
 
 	// Ensure that runtime_libs dep in included
 	ensureContains(t, copyCmds, "image.apex/lib64/libbar.so")
+	ensureContains(t, copyCmds, "image.apex/lib64/libshared.so")
+	ensureContains(t, copyCmds, "image.apex/lib64/libshared_to_runtime.so")
+
+	ensureNotContains(t, copyCmds, "image.apex/lib64/libstatic_to_runtime.so")
 
 	apexManifestRule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("apexManifestRule")
 	ensureListEmpty(t, names(apexManifestRule.Args["provideNativeLibs"]))
 	ensureListContains(t, names(apexManifestRule.Args["requireNativeLibs"]), "libfoo.so")
-
 }
 
 var prepareForTestOfRuntimeApexWithHwasan = android.GroupFixturePreparers(
@@ -6536,6 +6574,72 @@ func TestApexAvailable_IndirectDep(t *testing.T) {
 
 	cc_library {
 		name: "libbaz",
+		stl: "none",
+		system_shared_libs: [],
+	}`)
+}
+
+func TestApexAvailable_IndirectStaticDep(t *testing.T) {
+	testApex(t, `
+	apex {
+		name: "myapex",
+		key: "myapex.key",
+		native_shared_libs: ["libfoo"],
+		updatable: false,
+	}
+
+	apex_key {
+		name: "myapex.key",
+		public_key: "testkey.avbpubkey",
+		private_key: "testkey.pem",
+	}
+
+	cc_library {
+		name: "libfoo",
+		stl: "none",
+		static_libs: ["libbar"],
+		system_shared_libs: [],
+		apex_available: ["myapex"],
+	}
+
+	cc_library {
+		name: "libbar",
+		stl: "none",
+		shared_libs: ["libbaz"],
+		system_shared_libs: [],
+		apex_available: ["myapex"],
+	}
+
+	cc_library {
+		name: "libbaz",
+		stl: "none",
+		system_shared_libs: [],
+	}`)
+
+	testApexError(t, `requires "libbar" that doesn't list the APEX under 'apex_available'.`, `
+	apex {
+		name: "myapex",
+		key: "myapex.key",
+		native_shared_libs: ["libfoo"],
+		updatable: false,
+	}
+
+	apex_key {
+		name: "myapex.key",
+		public_key: "testkey.avbpubkey",
+		private_key: "testkey.pem",
+	}
+
+	cc_library {
+		name: "libfoo",
+		stl: "none",
+		static_libs: ["libbar"],
+		system_shared_libs: [],
+		apex_available: ["myapex"],
+	}
+
+	cc_library {
+		name: "libbar",
 		stl: "none",
 		system_shared_libs: [],
 	}`)
