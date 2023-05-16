@@ -183,6 +183,16 @@ func (c Config) MaxPageSizeSupported() string {
 	return String(c.config.productVariables.DeviceMaxPageSizeSupported)
 }
 
+// The release version passed to aconfig, derived from RELEASE_VERSION
+func (c Config) ReleaseVersion() string {
+	return c.config.productVariables.ReleaseVersion
+}
+
+// The flag values files passed to aconfig, derived from RELEASE_VERSION
+func (c Config) ReleaseDeviceConfigValueSets() []string {
+	return c.config.productVariables.ReleaseDeviceConfigValueSets
+}
+
 // A DeviceConfig object represents the configuration for a particular device
 // being built. For now there will only be one of these, but in the future there
 // may be multiple devices being built.
