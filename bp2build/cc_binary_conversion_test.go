@@ -644,10 +644,7 @@ func TestCcBinaryWithInstructionSet(t *testing.T) {
 		targets: []testBazelTarget{
 			{"cc_binary", "foo", AttrNameToString{
 				"features": `select({
-        "//build/bazel/platforms/arch:arm": [
-            "arm_isa_arm",
-            "-arm_isa_thumb",
-        ],
+        "//build/bazel/platforms/arch:arm": ["arm_isa_arm"],
         "//conditions:default": [],
     })`,
 				"local_includes": `["."]`,
