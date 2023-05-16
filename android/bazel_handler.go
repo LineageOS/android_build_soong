@@ -29,6 +29,7 @@ import (
 	"android/soong/bazel/cquery"
 	"android/soong/shared"
 	"android/soong/starlark_fmt"
+
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/metrics"
 
@@ -699,9 +700,6 @@ func (context *mixedBuildBazelContext) createBazelCommand(config Config, runName
 
 		// We don't need to set --host_platforms because it's set in bazelrc files
 		// that the bazel shell script wrapper passes
-
-		// Explicitly disable downloading rules (such as canonical C++ and Java rules) from the network.
-		"--experimental_repository_disable_download",
 
 		// Suppress noise
 		"--ui_event_filters=-INFO",
