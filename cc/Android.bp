@@ -9,6 +9,7 @@ bootstrap_go_package {
         "blueprint",
         "blueprint-pathtools",
         "soong",
+        "soong-aidl-library",
         "soong-android",
         "soong-bazel",
         "soong-cc-config",
@@ -22,7 +23,6 @@ bootstrap_go_package {
     srcs: [
         "afdo.go",
         "fdo_profile.go",
-
         "androidmk.go",
         "api_level.go",
         "bp2build.go",
