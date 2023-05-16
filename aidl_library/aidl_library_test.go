@@ -19,10 +19,6 @@ import (
 	"testing"
 )
 
-var PrepareForTestWithAidlLibrary = android.FixtureRegisterWithContext(func(ctx android.RegistrationContext) {
-	registerAidlLibraryBuildComponents(ctx)
-})
-
 func TestAidlLibrary(t *testing.T) {
 	t.Parallel()
 	ctx := android.GroupFixturePreparers(
