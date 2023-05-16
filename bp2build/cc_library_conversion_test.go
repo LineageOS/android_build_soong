@@ -4519,3 +4519,59 @@ func TestCcLibraryCppFlagsInProductVariables(t *testing.T) {
 	},
 	)
 }
+
+func TestCcLibraryYaccConversion(t *testing.T) {
+	runCcLibraryTestCase(t, Bp2buildTestCase{
+		Description:                "cc_library is built from .y/.yy files",
+		ModuleTypeUnderTest:        "cc_library",
+		ModuleTypeUnderTestFactory: cc.LibraryFactory,
+		Blueprint: soongCcLibraryPreamble + `cc_library {
+    name: "a",
+    srcs: [
+	"a.cpp",
+	"a.yy",
+    ],
+    shared_libs: ["sharedlib"],
+    static_libs: ["staticlib"],
+    yacc: {
+	    flags: ["someYaccFlag"],
+	    gen_location_hh: true,
+	    gen_position_hh: true,
+	},
+}
+cc_library_static {
+	name: "staticlib",
+	bazel_module: { bp2build_available: false },
+}
+cc_library {
+	name: "sharedlib",
+	bazel_module: { bp2build_available: false },
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_yacc_static_library", "a_yacc", AttrNameToString{
+				"src":                         `"a.yy"`,
+				"implementation_deps":         `[":staticlib"]`,
+				"implementation_dynamic_deps": `[":sharedlib"]`,
+				"flags":                       `["someYaccFlag"]`,
+				"gen_location_hh":             "True",
+				"gen_position_hh":             "True",
+				"local_includes":              `["."]`,
+			}),
+			MakeBazelTarget("cc_library_shared", "a", AttrNameToString{
+				"srcs":                              `["a.cpp"]`,
+				"implementation_deps":               `[":staticlib"]`,
+				"implementation_dynamic_deps":       `[":sharedlib"]`,
+				"implementation_whole_archive_deps": `[":a_yacc"]`,
+				"local_includes":                    `["."]`,
+			}),
+			MakeBazelTarget("cc_library_static", "a_bp2build_cc_library_static", AttrNameToString{
+				"srcs":                              `["a.cpp"]`,
+				"implementation_deps":               `[":staticlib"]`,
+				"implementation_dynamic_deps":       `[":sharedlib"]`,
+				"implementation_whole_archive_deps": `[":a_yacc"]`,
+				"local_includes":                    `["."]`,
+			}),
+		},
+	})
+}
