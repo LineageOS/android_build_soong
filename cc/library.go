@@ -2114,7 +2114,7 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 
 	// Optionally export aidl headers.
 	if Bool(library.Properties.Aidl.Export_aidl_headers) {
-		if library.baseCompiler.hasSrcExt(".aidl") {
+		if library.baseCompiler.hasAidl(deps) {
 			dir := android.PathForModuleGen(ctx, "aidl")
 			library.reexportDirs(dir)
 

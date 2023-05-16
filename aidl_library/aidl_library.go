@@ -22,6 +22,10 @@ import (
 	"github.com/google/blueprint/proptools"
 )
 
+var PrepareForTestWithAidlLibrary = android.FixtureRegisterWithContext(func(ctx android.RegistrationContext) {
+	registerAidlLibraryBuildComponents(ctx)
+})
+
 func init() {
 	registerAidlLibraryBuildComponents(android.InitRegistrationContext)
 }
