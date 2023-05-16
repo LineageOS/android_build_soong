@@ -404,7 +404,7 @@ type apexBundle struct {
 	///////////////////////////////////////////////////////////////////////////////////////////
 	// Inputs
 
-	// Keys for apex_paylaod.img
+	// Keys for apex_payload.img
 	publicKeyFile  android.Path
 	privateKeyFile android.Path
 
@@ -2606,8 +2606,45 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	ctx.WalkDepsBlueprint(func(child, parent blueprint.Module) bool { return a.depVisitor(&vctx, ctx, child, parent) })
 	vctx.normalizeFileInfo(ctx)
 	if a.privateKeyFile == nil {
-		ctx.PropertyErrorf("key", "private_key for %q could not be found", String(a.overridableProperties.Key))
-		return
+		if ctx.Config().AllowMissingDependencies() {
+			// TODO(b/266099037): a better approach for slim manifests.
+			ctx.AddMissingDependencies([]string{String(a.overridableProperties.Key)})
+			// Create placeholder paths for later stages that expect to see those paths,
+			// though they won't be used.
+			var unusedPath = android.PathForModuleOut(ctx, "nonexistentprivatekey")
+			ctx.Build(pctx, android.BuildParams{
+				Rule:   android.ErrorRule,
+				Output: unusedPath,
+				Args: map[string]string{
+					"error": "Private key not available",
+				},
+			})
+			a.privateKeyFile = unusedPath
+		} else {
+			ctx.PropertyErrorf("key", "private_key for %q could not be found", String(a.overridableProperties.Key))
+			return
+		}
+	}
+
+	if a.publicKeyFile == nil {
+		if ctx.Config().AllowMissingDependencies() {
+			// TODO(b/266099037): a better approach for slim manifests.
+			ctx.AddMissingDependencies([]string{String(a.overridableProperties.Key)})
+			// Create placeholder paths for later stages that expect to see those paths,
+			// though they won't be used.
+			var unusedPath = android.PathForModuleOut(ctx, "nonexistentpublickey")
+			ctx.Build(pctx, android.BuildParams{
+				Rule:   android.ErrorRule,
+				Output: unusedPath,
+				Args: map[string]string{
+					"error": "Public key not available",
+				},
+			})
+			a.publicKeyFile = unusedPath
+		} else {
+			ctx.PropertyErrorf("key", "public_key for %q could not be found", String(a.overridableProperties.Key))
+			return
+		}
 	}
 
 	////////////////////////////////////////////////////////////////////////////////////////////
