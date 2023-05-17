@@ -31,11 +31,11 @@ const (
 
 	// OsType names in arch.go
 	OsAndroid     = "android"
-	osDarwin      = "darwin"
-	osLinux       = "linux_glibc"
+	OsDarwin      = "darwin"
+	OsLinux       = "linux_glibc"
 	osLinuxMusl   = "linux_musl"
 	osLinuxBionic = "linux_bionic"
-	osWindows     = "windows"
+	OsWindows     = "windows"
 
 	// Targets in arch.go
 	osArchAndroidArm        = "android_arm"
@@ -156,11 +156,11 @@ var (
 	// constraint_value for the @platforms//os:os constraint_setting
 	platformOsMap = map[string]string{
 		OsAndroid:                  "//build/bazel/platforms/os:android",
-		osDarwin:                   "//build/bazel/platforms/os:darwin",
-		osLinux:                    "//build/bazel/platforms/os:linux_glibc",
+		OsDarwin:                   "//build/bazel/platforms/os:darwin",
+		OsLinux:                    "//build/bazel/platforms/os:linux_glibc",
 		osLinuxMusl:                "//build/bazel/platforms/os:linux_musl",
 		osLinuxBionic:              "//build/bazel/platforms/os:linux_bionic",
-		osWindows:                  "//build/bazel/platforms/os:windows",
+		OsWindows:                  "//build/bazel/platforms/os:windows",
 		ConditionsDefaultConfigKey: ConditionsDefaultSelectKey, // The default condition of an os select map.
 	}
 
@@ -192,22 +192,22 @@ var (
 	// in a cyclic dependency.
 	osToArchMap = map[string][]string{
 		OsAndroid:     {archArm, archArm64, archRiscv64, archX86, archX86_64},
-		osLinux:       {archX86, archX86_64},
+		OsLinux:       {archX86, archX86_64},
 		osLinuxMusl:   {archX86, archX86_64},
-		osDarwin:      {archArm64, archX86_64},
+		OsDarwin:      {archArm64, archX86_64},
 		osLinuxBionic: {archArm64, archX86_64},
 		// TODO(cparsons): According to arch.go, this should contain archArm, archArm64, as well.
-		osWindows: {archX86, archX86_64},
+		OsWindows: {archX86, archX86_64},
 	}
 
 	osAndInApexMap = map[string]string{
 		AndroidAndInApex:           "//build/bazel/rules/apex:android-in_apex",
 		AndroidPlatform:            "//build/bazel/rules/apex:system",
-		osDarwin:                   "//build/bazel/platforms/os:darwin",
-		osLinux:                    "//build/bazel/platforms/os:linux_glibc",
+		OsDarwin:                   "//build/bazel/platforms/os:darwin",
+		OsLinux:                    "//build/bazel/platforms/os:linux_glibc",
 		osLinuxMusl:                "//build/bazel/platforms/os:linux_musl",
 		osLinuxBionic:              "//build/bazel/platforms/os:linux_bionic",
-		osWindows:                  "//build/bazel/platforms/os:windows",
+		OsWindows:                  "//build/bazel/platforms/os:windows",
 		ConditionsDefaultConfigKey: ConditionsDefaultSelectKey,
 	}
 
