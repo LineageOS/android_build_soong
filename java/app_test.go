@@ -2693,52 +2693,11 @@ func TestUsesLibraries(t *testing.T) {
 		`--optional-uses-library baz `
 	android.AssertStringDoesContain(t, "verify apk cmd args", verifyApkCmd, verifyApkArgs)
 
-	// Test that all present libraries are preopted, including implicit SDK dependencies, possibly stubs
+	// Test that necessary args are passed for constructing CLC in Ninja phase.
 	cmd := app.Rule("dexpreopt").RuleParams.Command
-	w := `--target-context-for-sdk any ` +
-		`PCL[/system/framework/qux.jar]#` +
-		`PCL[/system/framework/quuz.jar]#` +
-		`PCL[/system/framework/foo.jar]#` +
-		`PCL[/system/framework/non-sdk-lib.jar]#` +
-		`PCL[/system/framework/bar.jar]#` +
-		`PCL[/system/framework/runtime-library.jar]#` +
-		`PCL[/system/framework/runtime-required-x.jar]#` +
-		`PCL[/system/framework/runtime-optional-x.jar]#` +
-		`PCL[/system/framework/runtime-required-y.jar]#` +
-		`PCL[/system/framework/runtime-optional-y.jar] `
-	android.AssertStringDoesContain(t, "dexpreopt app cmd args", cmd, w)
-
-	// Test conditional context for target SDK version 28.
-	android.AssertStringDoesContain(t, "dexpreopt app cmd 28", cmd,
-		`--target-context-for-sdk 28`+
-			` PCL[/system/framework/org.apache.http.legacy.jar] `)
-
-	// Test conditional context for target SDK version 29.
-	android.AssertStringDoesContain(t, "dexpreopt app cmd 29", cmd,
-		`--target-context-for-sdk 29`+
-			` PCL[/system/framework/android.hidl.manager-V1.0-java.jar]`+
-			`#PCL[/system/framework/android.hidl.base-V1.0-java.jar] `)
-
-	// Test conditional context for target SDK version 30.
-	// "android.test.mock" is absent because "android.test.runner" is not used.
-	android.AssertStringDoesContain(t, "dexpreopt app cmd 30", cmd,
-		`--target-context-for-sdk 30`+
-			` PCL[/system/framework/android.test.base.jar] `)
-
-	cmd = prebuilt.Rule("dexpreopt").RuleParams.Command
-	android.AssertStringDoesContain(t, "dexpreopt prebuilt cmd", cmd,
-		`--target-context-for-sdk any`+
-			` PCL[/system/framework/foo.jar]`+
-			`#PCL[/system/framework/non-sdk-lib.jar]`+
-			`#PCL[/system/framework/android.test.runner.jar]`+
-			`#PCL[/system/framework/bar.jar] `)
-
-	// Test conditional context for target SDK version 30.
-	// "android.test.mock" is present because "android.test.runner" is used.
-	android.AssertStringDoesContain(t, "dexpreopt prebuilt cmd 30", cmd,
-		`--target-context-for-sdk 30`+
-			` PCL[/system/framework/android.test.base.jar]`+
-			`#PCL[/system/framework/android.test.mock.jar] `)
+	android.AssertStringDoesContain(t, "dexpreopt app cmd context", cmd, "--context-json=")
+	android.AssertStringDoesContain(t, "dexpreopt app cmd product_packages", cmd,
+		"--product-packages=out/soong/target/product/test_device/product_packages.txt")
 }
 
 func TestDexpreoptBcp(t *testing.T) {
