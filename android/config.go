@@ -1850,6 +1850,10 @@ func (c *deviceConfig) ShippingApiLevel() ApiLevel {
 	return uncheckedFinalApiLevel(apiLevel)
 }
 
+func (c *deviceConfig) BuildBrokenPluginValidation() []string {
+	return c.config.productVariables.BuildBrokenPluginValidation
+}
+
 func (c *deviceConfig) BuildBrokenClangAsFlags() bool {
 	return c.config.productVariables.BuildBrokenClangAsFlags
 }
