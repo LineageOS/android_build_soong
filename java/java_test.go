@@ -2252,6 +2252,29 @@ func TestJavaApiLibraryDepApiSrcs(t *testing.T) {
 	android.AssertStringDoesContain(t, "Command expected to contain output files list text file flag", manifestCommand, "--out __SBOX_SANDBOX_DIR__/out/sources.txt")
 }
 
+func TestJavaApiLibraryFilegroupInput(t *testing.T) {
+	ctx, _ := testJavaWithFS(t, `
+	    filegroup {
+			name: "default_current.txt",
+			srcs: ["current.txt"],
+		}
+
+		java_api_library {
+			name: "foo",
+			api_files: [":default_current.txt"],
+		}
+		`,
+		map[string][]byte{
+			"current.txt": nil,
+		})
+
+	m := ctx.ModuleForTests("foo", "android_common")
+	outputs := fmt.Sprint(m.AllOutputs())
+	if !strings.Contains(outputs, "foo/foo.jar") {
+		t.Errorf("Module output does not contain expected jar %s", "foo/foo.jar")
+	}
+}
+
 func TestTradefedOptions(t *testing.T) {
 	result := PrepareForTestWithJavaBuildComponents.RunTestWithBp(t, `
 java_test_host {
