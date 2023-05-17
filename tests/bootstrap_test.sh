@@ -885,4 +885,37 @@ function test_queryview_null_build() {
   fi
 }
 
+# This test verifies that adding a new glob to a blueprint file only
+# causes build.ninja to be regenerated on the *next* build, and *not*
+# the build after. (This is a regression test for a bug where globs
+# resulted in two successive regenerations.)
+function test_new_glob_incrementality {
+  setup
+
+  run_soong nothing
+  local -r mtime1=$(stat -c "%y" out/soong/build.ninja)
+
+  mkdir -p globdefpkg/
+  cat > globdefpkg/Android.bp <<'EOF'
+filegroup {
+  name: "fg_with_glob",
+  srcs: ["*.txt"],
+}
+EOF
+
+  run_soong nothing
+  local -r mtime2=$(stat -c "%y" out/soong/build.ninja)
+
+  if [[ "$mtime1" == "$mtime2" ]]; then
+    fail "Ninja file was not regenerated, despite a new bp file"
+  fi
+
+  run_soong nothing
+  local -r mtime3=$(stat -c "%y" out/soong/build.ninja)
+
+  if [[ "$mtime2" != "$mtime3" ]]; then
+    fail "Ninja file was regenerated despite no previous bp changes"
+  fi
+}
+
 scan_and_run_tests
