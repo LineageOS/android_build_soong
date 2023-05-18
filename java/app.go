@@ -585,19 +585,6 @@ func processMainCert(m android.ModuleBase, certPropValue string, certificates []
 		certificates = append([]Certificate{mainCert}, certificates...)
 	}
 
-	if !m.Platform() {
-		certPath := certificates[0].Pem.String()
-		systemCertPath := ctx.Config().DefaultAppCertificateDir(ctx).String()
-		if strings.HasPrefix(certPath, systemCertPath) {
-			enforceSystemCert := ctx.Config().EnforceSystemCertificate()
-			allowed := ctx.Config().EnforceSystemCertificateAllowList()
-
-			if enforceSystemCert && !inList(m.Name(), allowed) {
-				ctx.PropertyErrorf("certificate", "The module in product partition cannot be signed with certificate in system.")
-			}
-		}
-	}
-
 	if len(certificates) > 0 {
 		mainCertificate = certificates[0]
 	} else {
@@ -612,6 +599,20 @@ func processMainCert(m android.ModuleBase, certPropValue string, certificates []
 			Pem: android.PathForModuleOut(ctx, "missing.x509.pem"),
 		}
 	}
+
+	if !m.Platform() {
+		certPath := mainCertificate.Pem.String()
+		systemCertPath := ctx.Config().DefaultAppCertificateDir(ctx).String()
+		if strings.HasPrefix(certPath, systemCertPath) {
+			enforceSystemCert := ctx.Config().EnforceSystemCertificate()
+			allowed := ctx.Config().EnforceSystemCertificateAllowList()
+
+			if enforceSystemCert && !inList(m.Name(), allowed) {
+				ctx.PropertyErrorf("certificate", "The module in product partition cannot be signed with certificate in system.")
+			}
+		}
+	}
+
 
 	return mainCertificate, certificates
 }
