@@ -3273,7 +3273,7 @@ func makeApexAvailableBaseline() map[string][]string {
 	//
 	// Module separator
 	//
-	m["com.android.cellbroadcast"] = []string{"CellBroadcastApp", "CellBroadcastServiceModule"}
+	m["com.android.cellbroadcast"] = []string{}
 	//
 	// Module separator
 	//
