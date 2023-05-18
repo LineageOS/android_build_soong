@@ -207,8 +207,8 @@ EOF
 function test_soong_build_rerun_iff_environment_changes() {
   setup
 
-  mkdir -p build/soong/cherry
-  cat > build/soong/cherry/Android.bp <<'EOF'
+  mkdir -p cherry
+  cat > cherry/Android.bp <<'EOF'
 bootstrap_go_package {
   name: "cherry",
   pkgPath: "android/soong/cherry",
@@ -224,7 +224,7 @@ bootstrap_go_package {
 }
 EOF
 
-  cat > build/soong/cherry/cherry.go <<'EOF'
+  cat > cherry/cherry.go <<'EOF'
 package cherry
 
 import (
@@ -317,8 +317,8 @@ function test_add_file_to_soong_build() {
   run_soong
   local -r mtime1=$(stat -c "%y" out/soong/build.ninja)
 
-  mkdir -p vendor/foo/picard
-  cat > vendor/foo/picard/Android.bp <<'EOF'
+  mkdir -p a
+  cat > a/Android.bp <<'EOF'
 bootstrap_go_package {
   name: "picard-soong-rules",
   pkgPath: "android/soong/picard",
@@ -334,7 +334,7 @@ bootstrap_go_package {
 }
 EOF
 
-  cat > vendor/foo/picard/picard.go <<'EOF'
+  cat > a/picard.go <<'EOF'
 package picard
 
 import (
@@ -390,11 +390,11 @@ EOF
 function test_glob_during_bootstrapping() {
   setup
 
-  mkdir -p build/soong/picard
-  cat > build/soong/picard/Android.bp <<'EOF'
+  mkdir -p a
+  cat > a/Android.bp <<'EOF'
 build=["foo*.bp"]
 EOF
-  cat > build/soong/picard/fooa.bp <<'EOF'
+  cat > a/fooa.bp <<'EOF'
 bootstrap_go_package {
   name: "picard-soong-rules",
   pkgPath: "android/soong/picard",
@@ -410,7 +410,7 @@ bootstrap_go_package {
 }
 EOF
 
-  cat > build/soong/picard/picard.go <<'EOF'
+  cat > a/picard.go <<'EOF'
 package picard
 
 import (
@@ -459,7 +459,7 @@ EOF
 
   grep -q "Make it so" out/soong/build.ninja || fail "Original action not present"
 
-  cat > build/soong/picard/foob.bp <<'EOF'
+  cat > a/foob.bp <<'EOF'
 bootstrap_go_package {
   name: "worf-soong-rules",
   pkgPath: "android/soong/worf",
@@ -476,7 +476,7 @@ bootstrap_go_package {
 }
 EOF
 
-  cat > build/soong/picard/worf.go <<'EOF'
+  cat > a/worf.go <<'EOF'
 package worf
 
 import "android/soong/picard"
