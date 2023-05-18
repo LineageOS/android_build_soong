@@ -77,7 +77,6 @@ bootstrap_go_package {
         "path_properties.go",
         "paths.go",
         "phony.go",
-        "plugin.go",
         "prebuilt.go",
         "prebuilt_build_tool.go",
         "proto.go",
