@@ -316,9 +316,8 @@ func UploadOnlyConfig(ctx Context, args ...string) Config {
 
 func NewConfig(ctx Context, args ...string) Config {
 	ret := &configImpl{
-		environ:               OsEnvironment(),
-		sandboxConfig:         &SandboxConfig{},
-		ninjaWeightListSource: HINT_FROM_SOONG,
+		environ:       OsEnvironment(),
+		sandboxConfig: &SandboxConfig{},
 	}
 
 	// Default matching ninja
