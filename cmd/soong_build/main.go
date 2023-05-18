@@ -443,10 +443,16 @@ func main() {
 		}
 		writeMetrics(configuration, ctx.EventHandler, metricsDir)
 	}
-	writeUsedEnvironmentFile(configuration, finalOutputFile)
+	writeUsedEnvironmentFile(configuration)
+
+	// Touch the output file so that it's the newest file created by soong_build.
+	// This is necessary because, if soong_build generated any files which
+	// are ninja inputs to the main output file, then ninja would superfluously
+	// rebuild this output file on the next build invocation.
+	touch(shared.JoinPath(topDir, finalOutputFile))
 }
 
-func writeUsedEnvironmentFile(configuration android.Config, finalOutputFile string) {
+func writeUsedEnvironmentFile(configuration android.Config) {
 	if usedEnvFile == "" {
 		return
 	}
@@ -465,11 +471,6 @@ func writeUsedEnvironmentFile(configuration android.Config, finalOutputFile stri
 	}
 	err = os.WriteFile(path, data, 0666)
 	maybeQuit(err, "error writing used environment file '%s'", usedEnvFile)
-
-	// Touch the output file so that it's not older than the file we just
-	// wrote. We can't write the environment file earlier because one an access
-	// new environment variables while writing it.
-	touch(shared.JoinPath(topDir, finalOutputFile))
 }
 
 func touch(path string) {
