@@ -133,13 +133,19 @@ func (library *Library) AndroidMkEntries() []android.AndroidMkEntries {
 	return entriesList
 }
 
-func (j *JavaFuzzLibrary) AndroidMkEntries() []android.AndroidMkEntries {
+func (j *JavaFuzzTest) AndroidMkEntries() []android.AndroidMkEntries {
 	entriesList := j.Library.AndroidMkEntries()
 	entries := &entriesList[0]
 	entries.ExtraEntries = append(entries.ExtraEntries, func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
 		entries.AddStrings("LOCAL_COMPATIBILITY_SUITE", "null-suite")
-		androidMkWriteTestData(j.jniFilePaths, entries)
 		androidMkWriteTestData(android.Paths{j.implementationJarFile}, entries)
+		androidMkWriteTestData(j.jniFilePaths, entries)
+		if j.fuzzPackagedModule.Corpus != nil {
+			androidMkWriteTestData(j.fuzzPackagedModule.Corpus, entries)
+		}
+		if j.fuzzPackagedModule.Dictionary != nil {
+			androidMkWriteTestData(android.Paths{j.fuzzPackagedModule.Dictionary}, entries)
+		}
 	})
 	return entriesList
 }
