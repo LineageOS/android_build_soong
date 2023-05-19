@@ -223,6 +223,7 @@ var (
 		"frameworks/base/tools/streaming_proto":              Bp2BuildDefaultTrueRecursively,
 		"frameworks/hardware/interfaces/stats/aidl":          Bp2BuildDefaultTrue,
 		"frameworks/libs/modules-utils/build":                Bp2BuildDefaultTrueRecursively,
+		"frameworks/libs/net/common/native":                  Bp2BuildDefaultTrueRecursively,
 		"frameworks/native/libs/adbd_auth":                   Bp2BuildDefaultTrueRecursively,
 		"frameworks/native/libs/arect":                       Bp2BuildDefaultTrueRecursively,
 		"frameworks/native/libs/gui":                         Bp2BuildDefaultTrue,
