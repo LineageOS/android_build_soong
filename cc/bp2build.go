@@ -1257,6 +1257,7 @@ func (la *linkerAttributes) bp2buildForAxisAndConfig(ctx android.BazelConversion
 		label := android.BazelLabelForModuleSrcSingle(ctx, *props.Version_script)
 		additionalLinkerInputs.Add(&label)
 		linkerFlags = append(linkerFlags, fmt.Sprintf("-Wl,--version-script,$(location %s)", label.Label))
+		axisFeatures = append(axisFeatures, "android_cfi_exports_map")
 	}
 
 	if props.Dynamic_list != nil {
