@@ -39,7 +39,7 @@ func NewTest(hod android.HostOrDeviceSupported) *PythonTestModule {
 }
 
 func PythonTestHostFactory() android.Module {
-	return NewTest(android.HostSupportedNoCross).init()
+	return NewTest(android.HostSupported).init()
 }
 
 func PythonTestFactory() android.Module {
@@ -98,7 +98,7 @@ func (p *PythonTestModule) init() android.Module {
 	android.InitAndroidArchModule(p, p.hod, p.multilib)
 	android.InitDefaultableModule(p)
 	android.InitBazelModule(p)
-	if p.hod == android.HostSupportedNoCross && p.testProperties.Test_options.Unit_test == nil {
+	if p.hod == android.HostSupported && p.testProperties.Test_options.Unit_test == nil {
 		p.testProperties.Test_options.Unit_test = proptools.BoolPtr(true)
 	}
 	return p
