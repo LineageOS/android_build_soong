@@ -15,9 +15,10 @@
 package bp2build
 
 import (
+	"testing"
+
 	"android/soong/android"
 	"android/soong/genrule"
-	"testing"
 )
 
 func registerDependentModules(ctx android.RegistrationContext) {
@@ -29,6 +30,7 @@ func TestPackage(t *testing.T) {
 	tests := []struct {
 		description string
 		modules     string
+		fs          map[string]string
 		expected    []ExpectedRuleTarget
 	}{
 		{
@@ -50,8 +52,8 @@ package {
 					"package",
 					"",
 					AttrNameToString{
-						"default_applicable_licenses": `[":my_license"]`,
-						"default_visibility":          `["//visibility:public"]`,
+						"default_package_metadata": `[":my_license"]`,
+						"default_visibility":       `["//visibility:public"]`,
 					},
 					android.HostAndDeviceDefault,
 				},
@@ -62,6 +64,57 @@ package {
 						"license_kinds": `["SPDX-license-identifier-Apache-2.0"]`,
 						"license_text":  `"NOTICE"`,
 						"visibility":    `[":__subpackages__"]`,
+					},
+					android.HostAndDeviceDefault,
+				},
+			},
+		},
+		{
+			description: "package has METADATA file",
+			fs: map[string]string{
+				"METADATA": ``,
+			},
+			modules: `
+license {
+  name: "my_license",
+  visibility: [":__subpackages__"],
+  license_kinds: ["SPDX-license-identifier-Apache-2.0"],
+  license_text: ["NOTICE"],
+}
+
+package {
+  default_applicable_licenses: ["my_license"],
+}
+`,
+			expected: []ExpectedRuleTarget{
+				{
+					"package",
+					"",
+					AttrNameToString{
+						"default_package_metadata": `[
+        ":my_license",
+        ":default_metadata_file",
+    ]`,
+						"default_visibility": `["//visibility:public"]`,
+					},
+					android.HostAndDeviceDefault,
+				},
+				{
+					"android_license",
+					"my_license",
+					AttrNameToString{
+						"license_kinds": `["SPDX-license-identifier-Apache-2.0"]`,
+						"license_text":  `"NOTICE"`,
+						"visibility":    `[":__subpackages__"]`,
+					},
+					android.HostAndDeviceDefault,
+				},
+				{
+					"filegroup",
+					"default_metadata_file",
+					AttrNameToString{
+						"applicable_licenses": `[]`,
+						"srcs":                `["METADATA"]`,
 					},
 					android.HostAndDeviceDefault,
 				},
@@ -80,6 +133,7 @@ package {
 				ModuleTypeUnderTestFactory: android.PackageFactory,
 				Blueprint:                  test.modules,
 				ExpectedBazelTargets:       expected,
+				Filesystem:                 test.fs,
 			})
 	}
 }
